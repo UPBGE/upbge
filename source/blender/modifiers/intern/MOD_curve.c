@@ -27,6 +27,7 @@
 
 #include "BLT_translation.h"
 
+#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -60,7 +61,9 @@ static void initData(ModifierData *md)
 {
   CurveModifierData *cmd = (CurveModifierData *)md;
 
-  cmd->defaxis = MOD_CURVE_POSX;
+  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(cmd, modifier));
+
+  MEMCPY_STRUCT_AFTER(cmd, DNA_struct_default_get(CurveModifierData), modifier);
 }
 
 static void requiredDataMask(Object *UNUSED(ob),
@@ -87,11 +90,11 @@ static bool isDisabled(const Scene *UNUSED(scene), ModifierData *md, bool UNUSED
   return !cmd->object || cmd->object->type != OB_CURVE;
 }
 
-static void foreachObjectLink(ModifierData *md, Object *ob, ObjectWalkFunc walk, void *userData)
+static void foreachIDLink(ModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
 {
   CurveModifierData *cmd = (CurveModifierData *)md;
 
-  walk(userData, ob, &cmd->object, IDWALK_CB_NOP);
+  walk(userData, ob, (ID **)&cmd->object, IDWALK_CB_NOP);
 }
 
 static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
@@ -242,8 +245,7 @@ ModifierTypeInfo modifierType_Curve = {
     /* updateDepsgraph */ updateDepsgraph,
     /* dependsOnTime */ NULL,
     /* dependsOnNormals */ NULL,
-    /* foreachObjectLink */ foreachObjectLink,
-    /* foreachIDLink */ NULL,
+    /* foreachIDLink */ foreachIDLink,
     /* foreachTexLink */ NULL,
     /* freeRuntimeData */ NULL,
     /* panelRegister */ panelRegister,

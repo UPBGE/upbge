@@ -22,6 +22,7 @@
 
 #include "BKE_lib_query.h"
 #include "BKE_mesh_runtime.h"
+#include "BKE_mesh_wrapper.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "BKE_volume.h"
@@ -128,18 +129,17 @@ static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphConte
   }
 }
 
-static void foreachObjectLink(ModifierData *md, Object *ob, ObjectWalkFunc walk, void *userData)
+static void foreachIDLink(ModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
 {
   MeshToVolumeModifierData *mvmd = reinterpret_cast<MeshToVolumeModifierData *>(md);
-  walk(userData, ob, &mvmd->object, IDWALK_CB_NOP);
+  walk(userData, ob, (ID **)&mvmd->object, IDWALK_CB_NOP);
 }
 
 static void panel_draw(const bContext *UNUSED(C), Panel *panel)
 {
   uiLayout *layout = panel->layout;
 
-  PointerRNA ob_ptr;
-  PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
+  PointerRNA *ptr = modifier_panel_get_property_pointers(panel, NULL);
   MeshToVolumeModifierData *mvmd = static_cast<MeshToVolumeModifierData *>(ptr->data);
 
   uiLayoutSetPropSep(layout, true);
@@ -154,7 +154,7 @@ static void panel_draw(const bContext *UNUSED(C), Panel *panel)
     uiItemR(col, ptr, "exterior_band_width", 0, NULL, ICON_NONE);
 
     uiLayout *subcol = uiLayoutColumn(col, false);
-    uiLayoutSetEnabled(subcol, !mvmd->fill_volume);
+    uiLayoutSetActive(subcol, !mvmd->fill_volume);
     uiItemR(subcol, ptr, "interior_band_width", 0, NULL, ICON_NONE);
   }
   {
@@ -213,6 +213,7 @@ static Volume *modifyVolume(ModifierData *md, const ModifierEvalContext *ctx, Vo
   if (mesh == NULL) {
     return input_volume;
   }
+  BKE_mesh_wrapper_ensure_mdata(mesh);
 
   const float4x4 mesh_to_own_object_space_transform = float4x4(ctx->object->imat) *
                                                       float4x4(object_to_convert->obmat);
@@ -296,8 +297,7 @@ ModifierTypeInfo modifierType_MeshToVolume = {
     /* updateDepsgraph */ updateDepsgraph,
     /* dependsOnTime */ NULL,
     /* dependsOnNormals */ NULL,
-    /* foreachObjectLink */ foreachObjectLink,
-    /* foreachIDLink */ NULL,
+    /* foreachIDLink */ foreachIDLink,
     /* foreachTexLink */ NULL,
     /* freeRuntimeData */ NULL,
     /* panelRegister */ panelRegister,

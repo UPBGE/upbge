@@ -31,6 +31,7 @@
 #include "BLT_translation.h"
 
 #include "DNA_armature_types.h"
+#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
@@ -68,6 +69,15 @@ using blender::MutableSpan;
 using blender::Span;
 using blender::Vector;
 
+static void initData(ModifierData *md)
+{
+  MaskModifierData *mmd = (MaskModifierData *)md;
+
+  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(mmd, modifier));
+
+  MEMCPY_STRUCT_AFTER(mmd, DNA_struct_default_get(MaskModifierData), modifier);
+}
+
 static void requiredDataMask(Object *UNUSED(ob),
                              ModifierData *UNUSED(md),
                              CustomData_MeshMasks *r_cddata_masks)
@@ -75,10 +85,10 @@ static void requiredDataMask(Object *UNUSED(ob),
   r_cddata_masks->vmask |= CD_MASK_MDEFORMVERT;
 }
 
-static void foreachObjectLink(ModifierData *md, Object *ob, ObjectWalkFunc walk, void *userData)
+static void foreachIDLink(ModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
 {
   MaskModifierData *mmd = reinterpret_cast<MaskModifierData *>(md);
-  walk(userData, ob, &mmd->ob_arm, IDWALK_CB_NOP);
+  walk(userData, ob, (ID **)&mmd->ob_arm, IDWALK_CB_NOP);
 }
 
 static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
@@ -455,15 +465,14 @@ ModifierTypeInfo modifierType_Mask = {
     /* modifyPointCloud */ NULL,
     /* modifyVolume */ NULL,
 
-    /* initData */ NULL,
+    /* initData */ initData,
     /* requiredDataMask */ requiredDataMask,
     /* freeData */ NULL,
     /* isDisabled */ isDisabled,
     /* updateDepsgraph */ updateDepsgraph,
     /* dependsOnTime */ NULL,
     /* dependsOnNormals */ NULL,
-    /* foreachObjectLink */ foreachObjectLink,
-    /* foreachIDLink */ NULL,
+    /* foreachIDLink */ foreachIDLink,
     /* foreachTexLink */ NULL,
     /* freeRuntimeData */ NULL,
     /* panelRegister */ panelRegister,

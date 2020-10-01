@@ -29,6 +29,7 @@
 
 #include "BLT_translation.h"
 
+#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -68,14 +69,9 @@ static void initData(ModifierData *md)
 {
   MultiresModifierData *mmd = (MultiresModifierData *)md;
 
-  mmd->lvl = 0;
-  mmd->sculptlvl = 0;
-  mmd->renderlvl = 0;
-  mmd->totlvl = 0;
-  mmd->uv_smooth = SUBSURF_UV_SMOOTH_PRESERVE_CORNERS;
-  mmd->boundary_smooth = SUBSURF_BOUNDARY_SMOOTH_ALL;
-  mmd->quality = 4;
-  mmd->flags |= (eMultiresModifierFlag_UseCrease | eMultiresModifierFlag_ControlEdges);
+  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(mmd, modifier));
+
+  MEMCPY_STRUCT_AFTER(mmd, DNA_struct_default_get(MultiresModifierData), modifier);
 
   /* Open subdivision panels by default. */
   md->ui_expand_flag = (1 << 0) | (1 << 1);
@@ -229,7 +225,6 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
   if (subdiv_settings.level == 0) {
     return result;
   }
-  BKE_subdiv_settings_validate_for_mesh(&subdiv_settings, mesh);
   MultiresRuntimeData *runtime_data = multires_ensure_runtime(mmd);
   Subdiv *subdiv = subdiv_descriptor_ensure(mmd, &subdiv_settings, mesh);
   if (subdiv == NULL) {
@@ -326,7 +321,6 @@ static void deformMatrices(ModifierData *md,
     return;
   }
 
-  BKE_subdiv_settings_validate_for_mesh(&subdiv_settings, mesh);
   MultiresRuntimeData *runtime_data = multires_ensure_runtime(mmd);
   Subdiv *subdiv = subdiv_descriptor_ensure(mmd, &subdiv_settings, mesh);
   if (subdiv == NULL) {
@@ -482,13 +476,13 @@ static void advanced_panel_draw(const bContext *UNUSED(C), Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiLayoutSetEnabled(layout, !has_displacement);
+  uiLayoutSetActive(layout, !has_displacement);
 
   uiItemR(layout, ptr, "subdivision_type", 0, NULL, ICON_NONE);
   uiItemR(layout, ptr, "quality", 0, NULL, ICON_NONE);
 
   col = uiLayoutColumn(layout, false);
-  uiLayoutSetEnabled(col, true);
+  uiLayoutSetActive(col, true);
   uiItemR(col, ptr, "uv_smooth", 0, NULL, ICON_NONE);
   uiItemR(col, ptr, "boundary_smooth", 0, NULL, ICON_NONE);
 
@@ -536,7 +530,6 @@ ModifierTypeInfo modifierType_Multires = {
     /* updateDepsgraph */ NULL,
     /* dependsOnTime */ NULL,
     /* dependsOnNormals */ dependsOnNormals,
-    /* foreachObjectLink */ NULL,
     /* foreachIDLink */ NULL,
     /* foreachTexLink */ NULL,
     /* freeRuntimeData */ freeRuntimeData,

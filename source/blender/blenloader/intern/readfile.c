@@ -294,7 +294,7 @@ typedef struct BHeadN {
   struct BHead bhead;
 } BHeadN;
 
-#define BHEADN_FROM_BHEAD(bh) ((BHeadN *)POINTER_OFFSET(bh, -offsetof(BHeadN, bhead)))
+#define BHEADN_FROM_BHEAD(bh) ((BHeadN *)POINTER_OFFSET(bh, -(int)offsetof(BHeadN, bhead)))
 
 /* We could change this in the future, for now it's simplest if only data is delayed
  * because ID names are used in lookup tables. */
@@ -1130,6 +1130,7 @@ static bool read_file_dna(FileData *fd, const char **r_error_message)
             fd->filesdna, fd->memsdna, fd->compflags);
         /* used to retrieve ID names from (bhead+1) */
         fd->id_name_offs = DNA_elem_offset(fd->filesdna, "ID", "char", "name[]");
+        BLI_assert(fd->id_name_offs != -1);
 
         return true;
       }

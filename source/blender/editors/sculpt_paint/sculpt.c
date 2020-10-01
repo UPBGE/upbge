@@ -206,9 +206,18 @@ const float *SCULPT_vertex_persistent_co_get(SculptSession *ss, int index)
 
 const float *SCULPT_vertex_co_for_grab_active_get(SculptSession *ss, int index)
 {
+  /* Always grab active shape key if the sculpt happens on shapekey. */
+  if (ss->shapekey_active) {
+    const MVert *mverts = BKE_pbvh_get_verts(ss->pbvh);
+    return mverts[index].co;
+  }
+
+  /* Sculpting on the base mesh. */
   if (ss->mvert) {
     return ss->mvert[index].co;
   }
+
+  /* Everything else, such as sculpting on multires. */
   return SCULPT_vertex_co_get(ss, index);
 }
 
@@ -5646,6 +5655,17 @@ static void do_brush_action(Sculpt *sd, Object *ob, Brush *brush, UnifiedPaintSe
       };
       BKE_pbvh_search_gather(ss->pbvh, SCULPT_search_sphere_cb, &data, &nodes, &totnode);
     }
+    if (brush->cloth_simulation_area_type == BRUSH_CLOTH_SIMULATION_AREA_DYNAMIC) {
+      SculptSearchSphereData data = {
+          .ss = ss,
+          .sd = sd,
+          .radius_squared = square_f(ss->cache->initial_radius * (1.0 + brush->cloth_sim_limit)),
+          .original = false,
+          .ignore_fully_ineffective = false,
+          .center = ss->cache->location,
+      };
+      BKE_pbvh_search_gather(ss->pbvh, SCULPT_search_sphere_cb, &data, &nodes, &totnode);
+    }
     else {
       /* Gobal simulation, get all nodes. */
       BKE_pbvh_search_gather(ss->pbvh, NULL, NULL, &nodes, &totnode);
@@ -5724,10 +5744,10 @@ static void do_brush_action(Sculpt *sd, Object *ob, Brush *brush, UnifiedPaintSe
       if (!ss->cache->cloth_sim) {
         ss->cache->cloth_sim = SCULPT_cloth_brush_simulation_create(ss, 1.0f, 0.0f, false, true);
         SCULPT_cloth_brush_simulation_init(ss, ss->cache->cloth_sim);
-        SCULPT_cloth_brush_build_nodes_constraints(
-            sd, ob, nodes, totnode, ss->cache->cloth_sim, ss->cache->location, FLT_MAX);
       }
       SCULPT_cloth_brush_store_simulation_state(ss, ss->cache->cloth_sim);
+      SCULPT_cloth_brush_ensure_nodes_constraints(
+          sd, ob, nodes, totnode, ss->cache->cloth_sim, ss->cache->location, FLT_MAX);
     }
 
     bool invert = ss->cache->pen_flip || ss->cache->invert || brush->flag & BRUSH_DIR_IN;
@@ -5870,6 +5890,7 @@ static void do_brush_action(Sculpt *sd, Object *ob, Brush *brush, UnifiedPaintSe
 
     if (brush->deform_target == BRUSH_DEFORM_TARGET_CLOTH_SIM) {
       if (SCULPT_stroke_is_main_symmetry_pass(ss->cache)) {
+        SCULPT_cloth_sim_activate_nodes(ss->cache->cloth_sim, nodes, totnode);
         SCULPT_cloth_brush_do_simulation_step(sd, ob, ss->cache->cloth_sim, nodes, totnode);
       }
     }

@@ -30,6 +30,7 @@
 
 #include "BLT_translation.h"
 
+#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -71,12 +72,9 @@ static void initData(ModifierData *md)
 {
   SubsurfModifierData *smd = (SubsurfModifierData *)md;
 
-  smd->levels = 1;
-  smd->renderLevels = 2;
-  smd->uv_smooth = SUBSURF_UV_SMOOTH_PRESERVE_CORNERS;
-  smd->boundary_smooth = SUBSURF_BOUNDARY_SMOOTH_ALL;
-  smd->quality = 3;
-  smd->flags |= (eSubsurfModifierFlag_UseCrease | eSubsurfModifierFlag_ControlEdges);
+  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(smd, modifier));
+
+  MEMCPY_STRUCT_AFTER(smd, DNA_struct_default_get(SubsurfModifierData), modifier);
 }
 
 static void requiredDataMask(Object *UNUSED(ob),
@@ -265,7 +263,6 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
   if (subdiv_settings.level == 0) {
     return result;
   }
-  BKE_subdiv_settings_validate_for_mesh(&subdiv_settings, mesh);
   SubsurfRuntimeData *runtime_data = subsurf_ensure_runtime(smd);
   Subdiv *subdiv = subdiv_descriptor_ensure(smd, &subdiv_settings, mesh);
   if (subdiv == NULL) {
@@ -325,7 +322,6 @@ static void deformMatrices(ModifierData *md,
   if (subdiv_settings.level == 0) {
     return;
   }
-  BKE_subdiv_settings_validate_for_mesh(&subdiv_settings, mesh);
   SubsurfRuntimeData *runtime_data = subsurf_ensure_runtime(smd);
   Subdiv *subdiv = subdiv_descriptor_ensure(smd, &subdiv_settings, mesh);
   if (subdiv == NULL) {
@@ -469,7 +465,7 @@ static void advanced_panel_draw(const bContext *C, Panel *panel)
   uiItemR(layout, ptr, "use_limit_surface", 0, NULL, ICON_NONE);
 
   uiLayout *col = uiLayoutColumn(layout, true);
-  uiLayoutSetEnabled(col, RNA_boolean_get(ptr, "use_limit_surface"));
+  uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_limit_surface"));
   uiItemR(col, ptr, "quality", 0, NULL, ICON_NONE);
 
   uiItemR(layout, ptr, "uv_smooth", 0, NULL, ICON_NONE);
@@ -521,7 +517,6 @@ ModifierTypeInfo modifierType_Subsurf = {
     /* updateDepsgraph */ NULL,
     /* dependsOnTime */ NULL,
     /* dependsOnNormals */ dependsOnNormals,
-    /* foreachObjectLink */ NULL,
     /* foreachIDLink */ NULL,
     /* foreachTexLink */ NULL,
     /* freeRuntimeData */ freeRuntimeData,

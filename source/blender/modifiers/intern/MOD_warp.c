@@ -28,6 +28,7 @@
 
 #include "BLT_translation.h"
 
+#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -65,12 +66,11 @@ static void initData(ModifierData *md)
 {
   WarpModifierData *wmd = (WarpModifierData *)md;
 
+  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(wmd, modifier));
+
+  MEMCPY_STRUCT_AFTER(wmd, DNA_struct_default_get(WarpModifierData), modifier);
+
   wmd->curfalloff = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
-  wmd->texture = NULL;
-  wmd->strength = 1.0f;
-  wmd->falloff_radius = 1.0f;
-  wmd->falloff_type = eWarp_Falloff_Smooth;
-  wmd->flag = 0;
 }
 
 static void copyData(const ModifierData *md, ModifierData *target, const int flag)
@@ -142,22 +142,14 @@ static bool isDisabled(const struct Scene *UNUSED(scene),
   return !(wmd->object_from && wmd->object_to);
 }
 
-static void foreachObjectLink(ModifierData *md, Object *ob, ObjectWalkFunc walk, void *userData)
-{
-  WarpModifierData *wmd = (WarpModifierData *)md;
-
-  walk(userData, ob, &wmd->object_from, IDWALK_CB_NOP);
-  walk(userData, ob, &wmd->object_to, IDWALK_CB_NOP);
-  walk(userData, ob, &wmd->map_object, IDWALK_CB_NOP);
-}
-
 static void foreachIDLink(ModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
 {
   WarpModifierData *wmd = (WarpModifierData *)md;
 
   walk(userData, ob, (ID **)&wmd->texture, IDWALK_CB_USER);
-
-  foreachObjectLink(md, ob, (ObjectWalkFunc)walk, userData);
+  walk(userData, ob, (ID **)&wmd->object_from, IDWALK_CB_NOP);
+  walk(userData, ob, (ID **)&wmd->object_to, IDWALK_CB_NOP);
+  walk(userData, ob, (ID **)&wmd->map_object, IDWALK_CB_NOP);
 }
 
 static void foreachTexLink(ModifierData *md, Object *ob, TexWalkFunc walk, void *userData)
@@ -556,7 +548,6 @@ ModifierTypeInfo modifierType_Warp = {
     /* updateDepsgraph */ updateDepsgraph,
     /* dependsOnTime */ dependsOnTime,
     /* dependsOnNormals */ NULL,
-    /* foreachObjectLink */ foreachObjectLink,
     /* foreachIDLink */ foreachIDLink,
     /* foreachTexLink */ foreachTexLink,
     /* freeRuntimeData */ NULL,

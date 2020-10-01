@@ -32,6 +32,7 @@
 #include "BLT_translation.h"
 
 #include "DNA_curve_types.h"
+#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -63,32 +64,22 @@ static void initData(ModifierData *md)
 {
   ArrayModifierData *amd = (ArrayModifierData *)md;
 
-  /* default to 2 duplicates distributed along the x-axis by an
-   * offset of 1 object-width
-   */
-  amd->start_cap = amd->end_cap = amd->curve_ob = amd->offset_ob = NULL;
-  amd->count = 2;
-  zero_v3(amd->offset);
-  amd->scale[0] = 1;
-  amd->scale[1] = amd->scale[2] = 0;
-  amd->length = 0;
-  amd->merge_dist = 0.01;
-  amd->fit_type = MOD_ARR_FIXEDCOUNT;
-  amd->offset_type = MOD_ARR_OFF_RELATIVE;
-  amd->flags = 0;
+  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(amd, modifier));
+
+  MEMCPY_STRUCT_AFTER(amd, DNA_struct_default_get(ArrayModifierData), modifier);
 
   /* Open the first subpanel by default, it corresspnds to Relative offset which is enabled too. */
   md->ui_expand_flag = (1 << 0) | (1 << 1);
 }
 
-static void foreachObjectLink(ModifierData *md, Object *ob, ObjectWalkFunc walk, void *userData)
+static void foreachIDLink(ModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
 {
   ArrayModifierData *amd = (ArrayModifierData *)md;
 
-  walk(userData, ob, &amd->start_cap, IDWALK_CB_NOP);
-  walk(userData, ob, &amd->end_cap, IDWALK_CB_NOP);
-  walk(userData, ob, &amd->curve_ob, IDWALK_CB_NOP);
-  walk(userData, ob, &amd->offset_ob, IDWALK_CB_NOP);
+  walk(userData, ob, (ID **)&amd->start_cap, IDWALK_CB_NOP);
+  walk(userData, ob, (ID **)&amd->end_cap, IDWALK_CB_NOP);
+  walk(userData, ob, (ID **)&amd->curve_ob, IDWALK_CB_NOP);
+  walk(userData, ob, (ID **)&amd->offset_ob, IDWALK_CB_NOP);
 }
 
 static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
@@ -1035,8 +1026,7 @@ ModifierTypeInfo modifierType_Array = {
     /* updateDepsgraph */ updateDepsgraph,
     /* dependsOnTime */ NULL,
     /* dependsOnNormals */ NULL,
-    /* foreachObjectLink */ foreachObjectLink,
-    /* foreachIDLink */ NULL,
+    /* foreachIDLink */ foreachIDLink,
     /* foreachTexLink */ NULL,
     /* freeRuntimeData */ NULL,
     /* panelRegister */ panelRegister,

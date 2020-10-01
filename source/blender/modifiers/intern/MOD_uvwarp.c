@@ -27,6 +27,7 @@
 
 #include "BLT_translation.h"
 
+#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -63,10 +64,10 @@ static void uv_warp_from_mat4_pair(float uv_dst[2],
 static void initData(ModifierData *md)
 {
   UVWarpModifierData *umd = (UVWarpModifierData *)md;
-  umd->axis_u = 0;
-  umd->axis_v = 1;
-  copy_v2_fl(umd->center, 0.5f);
-  copy_v2_fl(umd->scale, 1.0f);
+
+  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(umd, modifier));
+
+  MEMCPY_STRUCT_AFTER(umd, DNA_struct_default_get(UVWarpModifierData), modifier);
 }
 
 static void requiredDataMask(Object *UNUSED(ob),
@@ -240,12 +241,12 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
   return mesh;
 }
 
-static void foreachObjectLink(ModifierData *md, Object *ob, ObjectWalkFunc walk, void *userData)
+static void foreachIDLink(ModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
 {
   UVWarpModifierData *umd = (UVWarpModifierData *)md;
 
-  walk(userData, ob, &umd->object_dst, IDWALK_CB_NOP);
-  walk(userData, ob, &umd->object_src, IDWALK_CB_NOP);
+  walk(userData, ob, (ID **)&umd->object_dst, IDWALK_CB_NOP);
+  walk(userData, ob, (ID **)&umd->object_src, IDWALK_CB_NOP);
 }
 
 static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
@@ -350,8 +351,7 @@ ModifierTypeInfo modifierType_UVWarp = {
     /* updateDepsgraph */ updateDepsgraph,
     /* dependsOnTime */ NULL,
     /* dependsOnNormals */ NULL,
-    /* foreachObjectLink */ foreachObjectLink,
-    /* foreachIDLink */ NULL,
+    /* foreachIDLink */ foreachIDLink,
     /* foreachTexLink */ NULL,
     /* freeRuntimeData */ NULL,
     /* panelRegister */ panelRegister,

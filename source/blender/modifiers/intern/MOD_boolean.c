@@ -35,6 +35,7 @@
 #include "BLT_translation.h"
 
 #include "DNA_collection_types.h"
+#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -79,10 +80,9 @@ static void initData(ModifierData *md)
 {
   BooleanModifierData *bmd = (BooleanModifierData *)md;
 
-  bmd->double_threshold = 1e-6f;
-  bmd->operation = eBooleanModifierOp_Difference;
-  bmd->solver = eBooleanModifierSolver_Exact;
-  bmd->flag = eBooleanModifierFlag_Object;
+  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(bmd, modifier));
+
+  MEMCPY_STRUCT_AFTER(bmd, DNA_struct_default_get(BooleanModifierData), modifier);
 }
 
 static bool isDisabled(const struct Scene *UNUSED(scene),
@@ -101,21 +101,12 @@ static bool isDisabled(const struct Scene *UNUSED(scene),
   return false;
 }
 
-static void foreachObjectLink(ModifierData *md, Object *ob, ObjectWalkFunc walk, void *userData)
-{
-  BooleanModifierData *bmd = (BooleanModifierData *)md;
-
-  walk(userData, ob, &bmd->object, IDWALK_CB_NOP);
-}
-
 static void foreachIDLink(ModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
 {
   BooleanModifierData *bmd = (BooleanModifierData *)md;
 
   walk(userData, ob, (ID **)&bmd->collection, IDWALK_CB_NOP);
-
-  /* Needed for the object operand to work. */
-  foreachObjectLink(md, ob, (ObjectWalkFunc)walk, userData);
+  walk(userData, ob, (ID **)&bmd->object, IDWALK_CB_NOP);
 }
 
 static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
@@ -774,7 +765,6 @@ ModifierTypeInfo modifierType_Boolean = {
     /* updateDepsgraph */ updateDepsgraph,
     /* dependsOnTime */ NULL,
     /* dependsOnNormals */ NULL,
-    /* foreachObjectLink */ foreachObjectLink,
     /* foreachIDLink */ foreachIDLink,
     /* foreachTexLink */ NULL,
     /* freeRuntimeData */ NULL,

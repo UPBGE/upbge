@@ -31,6 +31,7 @@
 #include "BLT_translation.h"
 
 #include "DNA_camera_types.h"
+#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -61,9 +62,9 @@ static void initData(ModifierData *md)
 {
   UVProjectModifierData *umd = (UVProjectModifierData *)md;
 
-  umd->num_projectors = 1;
-  umd->aspectx = umd->aspecty = 1.0f;
-  umd->scalex = umd->scaley = 1.0f;
+  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(umd, modifier));
+
+  MEMCPY_STRUCT_AFTER(umd, DNA_struct_default_get(UVProjectModifierData), modifier);
 }
 
 static void requiredDataMask(Object *UNUSED(ob),
@@ -74,23 +75,12 @@ static void requiredDataMask(Object *UNUSED(ob),
   r_cddata_masks->lmask |= CD_MLOOPUV;
 }
 
-static void foreachObjectLink(ModifierData *md, Object *ob, ObjectWalkFunc walk, void *userData)
-{
-  UVProjectModifierData *umd = (UVProjectModifierData *)md;
-  int i;
-
-  for (i = 0; i < MOD_UVPROJECT_MAXPROJECTORS; i++) {
-    walk(userData, ob, &umd->projectors[i], IDWALK_CB_NOP);
-  }
-}
-
 static void foreachIDLink(ModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
 {
-#if 0
   UVProjectModifierData *umd = (UVProjectModifierData *)md;
-#endif
-
-  foreachObjectLink(md, ob, (ObjectWalkFunc)walk, userData);
+  for (int i = 0; i < MOD_UVPROJECT_MAXPROJECTORS; i++) {
+    walk(userData, ob, (ID **)&umd->projectors[i], IDWALK_CB_NOP);
+  }
 }
 
 static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
@@ -390,7 +380,6 @@ ModifierTypeInfo modifierType_UVProject = {
     /* updateDepsgraph */ updateDepsgraph,
     /* dependsOnTime */ NULL,
     /* dependsOnNormals */ NULL,
-    /* foreachObjectLink */ foreachObjectLink,
     /* foreachIDLink */ foreachIDLink,
     /* foreachTexLink */ NULL,
     /* freeRuntimeData */ NULL,

@@ -28,6 +28,7 @@
 
 #include "BLT_translation.h"
 
+#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -68,11 +69,9 @@ static void initData(ModifierData *md)
 {
   DisplaceModifierData *dmd = (DisplaceModifierData *)md;
 
-  dmd->texture = NULL;
-  dmd->strength = 1;
-  dmd->direction = MOD_DISP_DIR_NOR;
-  dmd->midlevel = 0.5;
-  dmd->space = MOD_DISP_SPACE_LOCAL;
+  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(dmd, modifier));
+
+  MEMCPY_STRUCT_AFTER(dmd, DNA_struct_default_get(DisplaceModifierData), modifier);
 }
 
 static void requiredDataMask(Object *UNUSED(ob),
@@ -113,20 +112,12 @@ static bool dependsOnNormals(ModifierData *md)
   return ELEM(dmd->direction, MOD_DISP_DIR_NOR, MOD_DISP_DIR_CLNOR);
 }
 
-static void foreachObjectLink(ModifierData *md, Object *ob, ObjectWalkFunc walk, void *userData)
-{
-  DisplaceModifierData *dmd = (DisplaceModifierData *)md;
-
-  walk(userData, ob, &dmd->map_object, IDWALK_CB_NOP);
-}
-
 static void foreachIDLink(ModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
 {
   DisplaceModifierData *dmd = (DisplaceModifierData *)md;
 
   walk(userData, ob, (ID **)&dmd->texture, IDWALK_CB_USER);
-
-  foreachObjectLink(md, ob, (ObjectWalkFunc)walk, userData);
+  walk(userData, ob, (ID **)&dmd->map_object, IDWALK_CB_NOP);
 }
 
 static void foreachTexLink(ModifierData *md, Object *ob, TexWalkFunc walk, void *userData)
@@ -525,7 +516,6 @@ ModifierTypeInfo modifierType_Displace = {
     /* updateDepsgraph */ updateDepsgraph,
     /* dependsOnTime */ dependsOnTime,
     /* dependsOnNormals */ dependsOnNormals,
-    /* foreachObjectLink */ foreachObjectLink,
     /* foreachIDLink */ foreachIDLink,
     /* foreachTexLink */ foreachTexLink,
     /* freeRuntimeData */ NULL,

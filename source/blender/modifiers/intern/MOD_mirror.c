@@ -25,6 +25,7 @@
 
 #include "BLT_translation.h"
 
+#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -59,16 +60,16 @@ static void initData(ModifierData *md)
 {
   MirrorModifierData *mmd = (MirrorModifierData *)md;
 
-  mmd->flag |= (MOD_MIR_AXIS_X | MOD_MIR_VGROUP);
-  mmd->tolerance = 0.001;
-  mmd->mirror_ob = NULL;
+  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(mmd, modifier));
+
+  MEMCPY_STRUCT_AFTER(mmd, DNA_struct_default_get(MirrorModifierData), modifier);
 }
 
-static void foreachObjectLink(ModifierData *md, Object *ob, ObjectWalkFunc walk, void *userData)
+static void foreachIDLink(ModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
 {
   MirrorModifierData *mmd = (MirrorModifierData *)md;
 
-  walk(userData, ob, &mmd->mirror_ob, IDWALK_CB_NOP);
+  walk(userData, ob, (ID **)&mmd->mirror_ob, IDWALK_CB_NOP);
 }
 
 static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
@@ -243,8 +244,7 @@ ModifierTypeInfo modifierType_Mirror = {
     /* updateDepsgraph */ updateDepsgraph,
     /* dependsOnTime */ NULL,
     /* dependsOnNormals */ NULL,
-    /* foreachObjectLink */ foreachObjectLink,
-    /* foreachIDLink */ NULL,
+    /* foreachIDLink */ foreachIDLink,
     /* foreachTexLink */ NULL,
     /* freeRuntimeData */ NULL,
     /* panelRegister */ panelRegister,

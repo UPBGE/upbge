@@ -27,6 +27,7 @@
 
 #include "BLT_translation.h"
 
+#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -378,14 +379,9 @@ static void initData(ModifierData *md)
 {
   SimpleDeformModifierData *smd = (SimpleDeformModifierData *)md;
 
-  smd->mode = MOD_SIMPLEDEFORM_MODE_TWIST;
-  smd->axis = 0;
-  smd->deform_axis = 0;
+  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(smd, modifier));
 
-  smd->origin = NULL;
-  smd->factor = DEG2RADF(45.0f);
-  smd->limit[0] = 0.0f;
-  smd->limit[1] = 1.0f;
+  MEMCPY_STRUCT_AFTER(smd, DNA_struct_default_get(SimpleDeformModifierData), modifier);
 }
 
 static void requiredDataMask(Object *UNUSED(ob),
@@ -400,10 +396,10 @@ static void requiredDataMask(Object *UNUSED(ob),
   }
 }
 
-static void foreachObjectLink(ModifierData *md, Object *ob, ObjectWalkFunc walk, void *userData)
+static void foreachIDLink(ModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
 {
   SimpleDeformModifierData *smd = (SimpleDeformModifierData *)md;
-  walk(userData, ob, &smd->origin, IDWALK_CB_NOP);
+  walk(userData, ob, (ID **)&smd->origin, IDWALK_CB_NOP);
 }
 
 static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
@@ -566,8 +562,7 @@ ModifierTypeInfo modifierType_SimpleDeform = {
     /* updateDepsgraph */ updateDepsgraph,
     /* dependsOnTime */ NULL,
     /* dependsOnNormals */ NULL,
-    /* foreachObjectLink */ foreachObjectLink,
-    /* foreachIDLink */ NULL,
+    /* foreachIDLink */ foreachIDLink,
     /* foreachTexLink */ NULL,
     /* freeRuntimeData */ NULL,
     /* panelRegister */ panelRegister,
