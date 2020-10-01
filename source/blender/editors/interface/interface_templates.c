@@ -1922,11 +1922,7 @@ void uiTemplateModifiers(uiLayout *UNUSED(layout), bContext *C)
       PointerRNA *md_ptr = MEM_mallocN(sizeof(PointerRNA), "panel customdata");
       RNA_pointer_create(&ob->id, &RNA_Modifier, md, md_ptr);
 
-      Panel *new_panel = UI_panel_add_instanced(region, &region->panels, panel_idname, md_ptr);
-
-      if (new_panel != NULL) {
-        UI_panel_set_expand_from_list_data(C, new_panel);
-      }
+      UI_panel_add_instanced(C, region, &region->panels, panel_idname, md_ptr);
     }
   }
   else {
@@ -2081,15 +2077,13 @@ void uiTemplateConstraints(uiLayout *UNUSED(layout), bContext *C, bool use_bone_
       PointerRNA *con_ptr = MEM_mallocN(sizeof(PointerRNA), "panel customdata");
       RNA_pointer_create(&ob->id, &RNA_Constraint, con, con_ptr);
 
-      Panel *new_panel = UI_panel_add_instanced(region, &region->panels, panel_idname, con_ptr);
+      Panel *new_panel = UI_panel_add_instanced(C, region, &region->panels, panel_idname, con_ptr);
 
       if (new_panel) {
         /* Set the list panel functionality function pointers since we don't do it with python. */
         new_panel->type->set_list_data_expand_flag = set_constraint_expand_flag;
         new_panel->type->get_list_data_expand_flag = get_constraint_expand_flag;
         new_panel->type->reorder = constraint_reorder;
-
-        UI_panel_set_expand_from_list_data(C, new_panel);
       }
     }
   }
@@ -2163,11 +2157,7 @@ void uiTemplateGpencilModifiers(uiLayout *UNUSED(layout), bContext *C)
       PointerRNA *md_ptr = MEM_mallocN(sizeof(PointerRNA), "panel customdata");
       RNA_pointer_create(&ob->id, &RNA_GpencilModifier, md, md_ptr);
 
-      Panel *new_panel = UI_panel_add_instanced(region, &region->panels, panel_idname, md_ptr);
-
-      if (new_panel != NULL) {
-        UI_panel_set_expand_from_list_data(C, new_panel);
-      }
+      UI_panel_add_instanced(C, region, &region->panels, panel_idname, md_ptr);
     }
   }
   else {
@@ -2238,11 +2228,7 @@ void uiTemplateShaderFx(uiLayout *UNUSED(layout), bContext *C)
       PointerRNA *fx_ptr = MEM_mallocN(sizeof(PointerRNA), "panel customdata");
       RNA_pointer_create(&ob->id, &RNA_ShaderFx, fx, fx_ptr);
 
-      Panel *new_panel = UI_panel_add_instanced(region, &region->panels, panel_idname, fx_ptr);
-
-      if (new_panel != NULL) {
-        UI_panel_set_expand_from_list_data(C, new_panel);
-      }
+      UI_panel_add_instanced(C, region, &region->panels, panel_idname, fx_ptr);
     }
   }
   else {
@@ -2427,7 +2413,7 @@ static eAutoPropButsReturn template_operator_property_buts_draw_single(
       /* no undo for buttons for operator redo panels */
       UI_but_flag_disable(but, UI_BUT_UNDO);
 
-      /* only for popups, see [#36109] */
+      /* only for popups, see T36109. */
 
       /* if button is operator's default property, and a text-field, enable focus for it
        * - this is used for allowing operators with popups to rename stuff with fewer clicks
@@ -7163,7 +7149,7 @@ void uiTemplateKeymapItemProperties(uiLayout *layout, PointerRNA *ptr)
     /* attach callbacks to compensate for missing properties update,
      * we don't know which keymap (item) is being modified there */
     for (; but; but = but->next) {
-      /* operator buttons may store props for use (file selector, [#36492]) */
+      /* operator buttons may store props for use (file selector, T36492) */
       if (but->rnaprop) {
         UI_but_func_set(but, keymap_item_modified, ptr->data, NULL);
 

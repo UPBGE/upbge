@@ -36,8 +36,8 @@ struct BMesh;
 struct Brush;
 struct CurveMapping;
 struct Depsgraph;
-struct EnumPropertyItem;
 struct EdgeSet;
+struct EnumPropertyItem;
 struct GHash;
 struct GridPaintMask;
 struct ImagePool;
@@ -582,6 +582,11 @@ void BKE_sculpt_bvh_update_from_ccg(struct PBVH *pbvh, struct SubdivCCG *subdiv_
 /* This ensure that all elements in the mesh (both vertices and grids) have their visibility
  * updated according to the face sets. */
 void BKE_sculpt_sync_face_set_visibility(struct Mesh *mesh, struct SubdivCCG *subdiv_ccg);
+
+/* Ensures that a Face Set data-layers exists. If it does not, it creates one respecting the
+ * visibility stored in the vertices of the mesh. If it does, it copies the visibility from the
+ * mesh to the Face Sets. */
+void BKE_sculpt_face_sets_ensure_from_base_mesh_visibility(struct Mesh *mesh);
 
 bool BKE_sculptsession_use_pbvh_draw(const struct Object *ob, const struct View3D *v3d);
 

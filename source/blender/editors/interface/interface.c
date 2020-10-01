@@ -987,7 +987,7 @@ static bool ui_but_update_from_old_block(const bContext *C,
     }
 
     /* copy hardmin for list rows to prevent 'sticking' highlight to mouse position
-     * when scrolling without moving mouse (see [#28432]) */
+     * when scrolling without moving mouse (see T28432) */
     if (ELEM(oldbut->type, UI_BTYPE_ROW, UI_BTYPE_LISTROW)) {
       oldbut->hardmax = but->hardmax;
     }
@@ -1442,14 +1442,11 @@ static bool ui_but_event_property_operator_string(const bContext *C,
       opnames_len = ARRAY_SIZE(ctx_enum_opnames);
     }
   }
-
-  bool found = false;
-
   /* Don't use the button again. */
   but = NULL;
 
   if (prop == NULL) {
-    return NULL;
+    return false;
   }
 
   /* this version is only for finding hotkeys for properties
@@ -1534,6 +1531,7 @@ static bool ui_but_event_property_operator_string(const bContext *C,
   }
 
   /* we have a datapath! */
+  bool found = false;
   if (data_path || (prop_enum_value_ok && prop_enum_value_id)) {
     /* create a property to host the "datapath" property we're sending to the operators */
     IDProperty *prop_path;
@@ -2141,7 +2139,7 @@ void UI_block_draw(const bContext *C, uiBlock *block)
       ui_but_to_pixelrect(&rect, region, block, but);
 
       /* XXX: figure out why invalid coordinates happen when closing render window */
-      /* and material preview is redrawn in main window (temp fix for bug #23848) */
+      /* and material preview is redrawn in main window (temp fix for bug T23848) */
       if (rect.xmin < rect.xmax && rect.ymin < rect.ymax) {
         ui_draw_but(C, region, &style, but, &rect);
       }

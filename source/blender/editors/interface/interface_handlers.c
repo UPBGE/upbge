@@ -514,7 +514,7 @@ void ui_pan_to_scroll(const wmEvent *event, int *type, int *val)
   int dy = event->prevy - event->y;
 
   /* This event should be originally from event->type,
-   * converting wrong event into wheel is bad, see [#33803] */
+   * converting wrong event into wheel is bad, see T33803. */
   BLI_assert(*type == MOUSEPAN);
 
   /* sign differs, reset */
@@ -718,7 +718,7 @@ static uiAfterFunc *ui_afterfunc_new(void)
 
 /**
  * For executing operators after the button is pressed.
- * (some non operator buttons need to trigger operators), see: [#37795]
+ * (some non operator buttons need to trigger operators), see: T37795.
  *
  * \note Can only call while handling buttons.
  */
@@ -1197,9 +1197,7 @@ static void ui_multibut_add(uiHandleButtonData *data, uiBut *but)
 static uiButMultiState *ui_multibut_lookup(uiHandleButtonData *data, const uiBut *but)
 {
   for (LinkNode *l = data->multi_data.mbuts; l; l = l->next) {
-    uiButMultiState *mbut_state;
-
-    mbut_state = l->link;
+    uiButMultiState *mbut_state = l->link;
 
     if (mbut_state->but == but) {
       return mbut_state;
@@ -1351,59 +1349,58 @@ static void ui_multibut_states_apply(bContext *C, uiHandleButtonData *data, uiBl
   BLI_assert(data->multi_data.skip == false);
 
   LISTBASE_FOREACH (uiBut *, but, &block->buttons) {
-    if (but->flag & UI_BUT_DRAG_MULTI) {
-      /* mbut_states for delta */
-      uiButMultiState *mbut_state = ui_multibut_lookup(data, but);
+    if (!(but->flag & UI_BUT_DRAG_MULTI)) {
+      continue;
+    }
 
-      if (mbut_state) {
-        void *active_back;
+    uiButMultiState *mbut_state = ui_multibut_lookup(data, but);
 
-        ui_but_execute_begin(C, region, but, &active_back);
+    if (mbut_state == NULL) {
+      /* Highly unlikely. */
+      printf("%s: Can't find button\n", __func__);
+    }
+
+    void *active_back;
+    ui_but_execute_begin(C, region, but, &active_back);
 
 #  ifdef USE_ALLSELECT
-        if (data->select_others.is_enabled) {
-          /* init once! */
-          if (mbut_state->select_others.elems_len == 0) {
-            ui_selectcontext_begin(C, but, &mbut_state->select_others);
-          }
-          if (mbut_state->select_others.elems_len == 0) {
-            mbut_state->select_others.elems_len = -1;
-          }
-        }
+    if (data->select_others.is_enabled) {
+      /* init once! */
+      if (mbut_state->select_others.elems_len == 0) {
+        ui_selectcontext_begin(C, but, &mbut_state->select_others);
+      }
+      if (mbut_state->select_others.elems_len == 0) {
+        mbut_state->select_others.elems_len = -1;
+      }
+    }
 
-        /* needed so we apply the right deltas */
-        but->active->origvalue = mbut_state->origvalue;
-        but->active->select_others = mbut_state->select_others;
-        but->active->select_others.do_free = false;
+    /* Needed so we apply the right deltas. */
+    but->active->origvalue = mbut_state->origvalue;
+    but->active->select_others = mbut_state->select_others;
+    but->active->select_others.do_free = false;
 #  endif
 
-        BLI_assert(active_back == NULL);
-        /* no need to check 'data->state' here */
-        if (data->str) {
-          /* entering text (set all) */
-          but->active->value = data->value;
-          ui_but_string_set(C, but, data->str);
-        }
-        else {
-          /* dragging (use delta) */
-          if (data->multi_data.is_proportional) {
-            but->active->value = mbut_state->origvalue * value_scale;
-          }
-          else {
-            but->active->value = mbut_state->origvalue + value_delta;
-          }
-
-          /* clamp based on soft limits, see: T40154 */
-          CLAMP(but->active->value, (double)but->softmin, (double)but->softmax);
-        }
-        ui_but_execute_end(C, region, but, active_back);
+    BLI_assert(active_back == NULL);
+    /* No need to check 'data->state' here. */
+    if (data->str) {
+      /* Entering text (set all). */
+      but->active->value = data->value;
+      ui_but_string_set(C, but, data->str);
+    }
+    else {
+      /* Dragging (use delta). */
+      if (data->multi_data.is_proportional) {
+        but->active->value = mbut_state->origvalue * value_scale;
       }
       else {
-        /* highly unlikely */
-        printf("%s: cant find button\n", __func__);
+        but->active->value = mbut_state->origvalue + value_delta;
       }
-      /* end */
+
+      /* Clamp based on soft limits, see T40154. */
+      CLAMP(but->active->value, (double)but->softmin, (double)but->softmax);
     }
+
+    ui_but_execute_end(C, region, but, active_back);
   }
 }
 
@@ -6396,7 +6393,7 @@ static bool ui_numedit_but_HSVCUBE(uiBut *but,
   ui_color_picker_to_rgb_HSVCUBE_v(hsv_but, hsv, rgb);
   ui_color_picker_to_scene_linear_space(but, rgb);
 
-  /* clamp because with color conversion we can exceed range [#34295] */
+  /* clamp because with color conversion we can exceed range T34295. */
   if (hsv_but->gradient_type == UI_GRAD_V_ALT) {
     clamp_axis_max_v3(rgb, but->softmax);
   }
@@ -9233,7 +9230,7 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
        *
        * This is needed to make sure if a button was active,
        * it stays active while the mouse is over it.
-       * This avoids adding mousemoves, see: [#33466] */
+       * This avoids adding mousemoves, see: T33466. */
       if (ELEM(state_orig, BUTTON_STATE_INIT, BUTTON_STATE_HIGHLIGHT, BUTTON_STATE_WAIT_DRAG)) {
         if (ui_but_find_mouse_over(region, event) == but) {
           button_activate_init(C, region, but, BUTTON_ACTIVATE_OVER);
@@ -9482,7 +9479,7 @@ static bool ui_mouse_motion_towards_check(uiBlock *block,
 {
   BLI_assert(block->flag & (UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_POPOVER));
 
-  /* annoying fix for [#36269], this is a bit odd but in fact works quite well
+  /* annoying fix for T36269, this is a bit odd but in fact works quite well
    * don't mouse-out of a menu if another menu has been created after it.
    * if this causes problems we could remove it and check on a different fix - campbell */
   if (menu->region->next) {
@@ -10861,7 +10858,7 @@ static int ui_handle_menus_recursive(bContext *C,
 
       if (block->flag & (UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_POPOVER)) {
         /* when there is a active search button and we close it,
-         * we need to reinit the mouse coords [#35346] */
+         * we need to reinit the mouse coords T35346. */
         if (ui_region_find_active_but(menu->region) != but) {
           do_towards_reinit = true;
         }

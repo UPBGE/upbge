@@ -75,13 +75,13 @@ struct Icon_Geom {
 
 typedef struct Icon Icon;
 
+struct BlendDataReader;
+struct BlendWriter;
 struct ID;
 struct ImBuf;
 struct PreviewImage;
 struct StudioLight;
 struct bGPDlayer;
-struct BlendWriter;
-struct BlendDataReader;
 
 void BKE_icons_init(int first_dyn_id);
 
