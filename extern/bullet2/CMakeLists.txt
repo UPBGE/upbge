@@ -176,6 +176,7 @@ set(SRC
   src/BulletSoftBody/btSoftRigidCollisionAlgorithm.cpp
   src/BulletSoftBody/btSoftRigidDynamicsWorld.cpp
   src/BulletSoftBody/btSoftSoftCollisionAlgorithm.cpp
+  src/BulletSoftBody/poly34.cpp
 
   src/LinearMath/btAlignedAllocator.cpp
   src/LinearMath/btConvexHull.cpp
@@ -383,6 +384,7 @@ set(SRC
   src/BulletSoftBody/btSoftRigidDynamicsWorld.h
   src/BulletSoftBody/btSoftSoftCollisionAlgorithm.h
   src/BulletSoftBody/btSparseSDF.h
+  src/BulletSoftBody/poly34.h
 
   src/LinearMath/btAabbUtil2.h
   src/LinearMath/btAlignedAllocator.h
