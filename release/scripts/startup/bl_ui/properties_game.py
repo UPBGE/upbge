@@ -159,7 +159,7 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
 
             sub = col.column()
             sub.active = soft.use_bending_constraints
-            #sub.prop(soft, "bending_distance")
+            sub.prop(soft, "bending_distance")
 
             col.prop(soft, "use_shape_match")
 
