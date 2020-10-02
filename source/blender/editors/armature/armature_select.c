@@ -34,6 +34,7 @@
 #include "BLI_string_utils.h"
 
 #include "BKE_action.h"
+#include "BKE_armature.h"
 #include "BKE_context.h"
 #include "BKE_layer.h"
 #include "BKE_object.h"
@@ -335,8 +336,16 @@ static void *ed_armature_pick_bone_impl(
 
   BLI_rcti_init_pt_radius(&rect, xy, 0);
 
-  hits = view3d_opengl_select(
-      &vc, buffer, MAXPICKBUF, &rect, VIEW3D_SELECT_PICK_NEAREST, VIEW3D_SELECT_FILTER_NOP);
+  /* Don't use hits with this ID, (armature drawing uses this). */
+  const int select_id_ignore = -1;
+
+  hits = view3d_opengl_select_with_id_filter(&vc,
+                                             buffer,
+                                             MAXPICKBUF,
+                                             &rect,
+                                             VIEW3D_SELECT_PICK_NEAREST,
+                                             VIEW3D_SELECT_FILTER_NOP,
+                                             select_id_ignore);
 
   *r_base = NULL;
 

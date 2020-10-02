@@ -47,6 +47,7 @@
 
 CCL_NAMESPACE_BEGIN
 
+DeviceTypeMask BlenderSession::device_override = DEVICE_MASK_ALL;
 bool BlenderSession::headless = false;
 int BlenderSession::num_resumable_chunks = 0;
 int BlenderSession::current_resumable_chunk = 0;
@@ -562,6 +563,10 @@ void BlenderSession::render(BL::Depsgraph &b_depsgraph_)
     session->reset(buffer_params, effective_layer_samples);
 
     /* render */
+    if (!b_engine.is_preview() && background && print_render_stats) {
+      scene->enable_update_stats();
+    }
+
     session->start();
     session->wait();
 

@@ -1826,7 +1826,7 @@ static void *newdataadr_no_us(FileData *fd, const void *adr)
 }
 
 /* direct datablocks with global linking */
-static void *newglobadr(FileData *fd, const void *adr)
+void *blo_read_get_new_globaldata_address(FileData *fd, const void *adr)
 {
   return oldnewmap_lookup_and_inc(fd->globmap, adr, true);
 }
@@ -2585,6 +2585,21 @@ static void lib_link_workspaces(BlendLibReader *reader, WorkSpace *workspace)
 {
   ID *id = (ID *)workspace;
 
+  /* Restore proper 'parent' pointers to relevant data, and clean up unused/invalid entries. */
+  LISTBASE_FOREACH_MUTABLE (WorkSpaceDataRelation *, relation, &workspace->hook_layout_relations) {
+    relation->parent = NULL;
+    LISTBASE_FOREACH (wmWindowManager *, wm, &reader->main->wm) {
+      LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
+        if (win->winid == relation->parentid) {
+          relation->parent = win->workspace_hook;
+        }
+      }
+    }
+    if (relation->parent == NULL) {
+      BLI_freelinkN(&workspace->hook_layout_relations, relation);
+    }
+  }
+
   LISTBASE_FOREACH_MUTABLE (WorkSpaceLayout *, layout, &workspace->layouts) {
     BLO_read_id_address(reader, id->lib, &layout->screen);
 
@@ -2613,12 +2628,8 @@ static void direct_link_workspace(BlendDataReader *reader, WorkSpace *workspace)
   BLO_read_list(reader, &workspace->tools);
 
   LISTBASE_FOREACH (WorkSpaceDataRelation *, relation, &workspace->hook_layout_relations) {
-    /* data from window - need to access through global oldnew-map */
-    /* XXX This is absolutely not acceptable. There is no acceptable reasons to mess with other
-     * ID's data in read code, and certainly never, ever in `direct_link_` functions.
-     * Kept for now because it seems to work, but it should be refactored. Probably store and use
-     * window's `winid`, just like it was already done for screens? */
-    relation->parent = newglobadr(reader->fd, relation->parent);
+    /* parent pointer does not belong to workspace data and is therefore restored in lib_link step
+     * of window manager.*/
     BLO_read_data_address(reader, &relation->value);
   }
 
@@ -3330,7 +3341,7 @@ static void lib_link_object(BlendLibReader *reader, Object *ob)
 
   for (bSensor *sens = ob->sensors.first; sens; sens = sens->next) {
     for (int a = 0; a < sens->totlinks; a++)
-      sens->links[a] = newglobadr(reader->fd, sens->links[a]);
+      sens->links[a] = blo_read_get_new_globaldata_address(reader->fd, sens->links[a]);
 
     if (sens->type == SENS_MESSAGE) {
       bMessageSensor *ms = sens->data;
@@ -3340,7 +3351,7 @@ static void lib_link_object(BlendLibReader *reader, Object *ob)
 
   for (bController *cont = ob->controllers.first; cont; cont = cont->next) {
     for (int a = 0; a < cont->totlinks; a++)
-      cont->links[a] = newglobadr(reader->fd, cont->links[a]);
+      cont->links[a] = blo_read_get_new_globaldata_address(reader->fd, cont->links[a]);
 
     if (cont->type == CONT_PYTHON) {
       bPythonCont *pc = cont->data;
@@ -5716,9 +5727,17 @@ static void direct_link_windowmanager(BlendDataReader *reader, wmWindowManager *
     WorkSpaceInstanceHook *hook = win->workspace_hook;
     BLO_read_data_address(reader, &win->workspace_hook);
 
-    /* we need to restore a pointer to this later when reading workspaces,
-     * so store in global oldnew-map. */
-    oldnewmap_insert(reader->fd->globmap, hook, win->workspace_hook, 0);
+    /* This will be NULL for any pre-2.80 blend file. */
+    if (win->workspace_hook != NULL) {
+      /* We need to restore a pointer to this later when reading workspaces,
+       * so store in global oldnew-map.
+       * Note that this is only needed for versioning of older .blend files now.. */
+      oldnewmap_insert(reader->fd->globmap, hook, win->workspace_hook, 0);
+      /* Cleanup pointers to data outside of this data-block scope. */
+      win->workspace_hook->act_layout = NULL;
+      win->workspace_hook->temp_workspace_store = NULL;
+      win->workspace_hook->temp_layout_store = NULL;
+    }
 
     direct_link_area_map(reader, &win->global_areas);
 
@@ -7098,7 +7117,7 @@ static BHead *read_global(BlendFileData *bfd, FileData *fd, BHead *bhead)
 /* note, this has to be kept for reading older files... */
 static void link_global(FileData *fd, BlendFileData *bfd)
 {
-  bfd->cur_view_layer = newglobadr(fd, bfd->cur_view_layer);
+  bfd->cur_view_layer = blo_read_get_new_globaldata_address(fd, bfd->cur_view_layer);
   bfd->curscreen = newlibadr(fd, NULL, bfd->curscreen);
   bfd->curscene = newlibadr(fd, NULL, bfd->curscene);
   // this happens in files older than 2.35
@@ -7119,20 +7138,10 @@ static void link_global(FileData *fd, BlendFileData *bfd)
 /* other initializers (such as theme color defaults) go to resources.c */
 static void do_versions_userdef(FileData *fd, BlendFileData *bfd)
 {
-  Main *bmain = bfd->main;
   UserDef *user = bfd->user;
 
   if (user == NULL) {
     return;
-  }
-
-  if (MAIN_VERSION_OLDER(bmain, 266, 4)) {
-    /* Themes for Node and Sequence editor were not using grid color,
-     * but back. we copy this over then. */
-    LISTBASE_FOREACH (bTheme *, btheme, &user->themes) {
-      copy_v4_v4_uchar(btheme->space_node.grid, btheme->space_node.back);
-      copy_v4_v4_uchar(btheme->space_sequencer.grid, btheme->space_sequencer.back);
-    }
   }
 
   if (!DNA_struct_elem_find(fd->filesdna, "UserDef", "WalkNavigation", "walk_navigation")) {

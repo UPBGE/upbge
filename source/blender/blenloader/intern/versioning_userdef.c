@@ -303,10 +303,10 @@ static bool keymap_item_has_invalid_wm_context_data_path(wmKeyMapItem *kmi,
 }
 
 /* patching UserDef struct and Themes */
-void BLO_version_defaults_userpref_blend(Main *bmain, UserDef *userdef)
+void BLO_version_defaults_userpref_blend(UserDef *userdef)
 {
-
-#define USER_VERSION_ATLEAST(ver, subver) MAIN_VERSION_ATLEAST(bmain, ver, subver)
+  /* #UserDef & #Main happen to have the same struct member. */
+#define USER_VERSION_ATLEAST(ver, subver) MAIN_VERSION_ATLEAST(userdef, ver, subver)
 
   /* the UserDef struct is not corrected with do_versions() .... ugh! */
   if (userdef->wheellinescroll == 0) {
@@ -824,9 +824,8 @@ void BLO_sanitize_experimental_features_userpref_blend(UserDef *userdef)
   if (BKE_blender_version_is_alpha()) {
     return;
   }
-  userdef->experimental.use_new_particle_system = false;
-  userdef->experimental.use_new_hair_type = false;
-  userdef->experimental.use_sculpt_vertex_colors = false;
+
+  MEMSET_STRUCT_AFTER(&userdef->experimental, 0, SANITIZE_AFTER_HERE);
 }
 
 #undef USER_LMOUSESELECT

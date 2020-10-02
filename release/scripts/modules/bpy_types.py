@@ -27,6 +27,7 @@ StructMetaPropGroup = bpy_types.bpy_struct_meta_idprop
 
 # Note that methods extended in C are defined in: 'bpy_rna_types_capi.c'
 
+
 class Context(StructRNA):
     __slots__ = ()
 
@@ -920,12 +921,12 @@ class Menu(StructRNA, _GenericUI, metaclass=RNAMeta):
         for directory in searchpaths:
             files.extend([
                 (f, os.path.join(directory, f))
-                 for f in os.listdir(directory)
-                 if (not f.startswith("."))
-                 if ((filter_ext is None) or
-                     (filter_ext(os.path.splitext(f)[1])))
-                 if ((filter_path is None) or
-                     (filter_path(f)))
+                for f in os.listdir(directory)
+                if (not f.startswith("."))
+                if ((filter_ext is None) or
+                    (filter_ext(os.path.splitext(f)[1])))
+                if ((filter_path is None) or
+                    (filter_path(f)))
             ])
 
         files.sort()

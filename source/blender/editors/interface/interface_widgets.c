@@ -1333,6 +1333,22 @@ static void widgetbase_draw(uiWidgetBase *wtb, const uiWidgetColors *wcol)
 
 #define PREVIEW_PAD 4
 
+static float widget_alpha_factor(const int state)
+{
+  if (state & (UI_BUT_INACTIVE | UI_BUT_DISABLED)) {
+    if (state & UI_SEARCH_FILTER_NO_MATCH) {
+      return 0.25f;
+    }
+    return 0.5f;
+  }
+
+  if (state & UI_SEARCH_FILTER_NO_MATCH) {
+    return 0.5f;
+  }
+
+  return 1.0f;
+}
+
 static void widget_draw_preview(BIFIconID icon, float alpha, const rcti *rect)
 {
   int w, h, size;
@@ -1401,9 +1417,7 @@ static void widget_draw_icon(
     }
   }
   else if (ELEM(but->type, UI_BTYPE_BUT, UI_BTYPE_DECORATOR)) {
-    if (but->flag & (UI_BUT_DISABLED | UI_BUT_INACTIVE)) {
-      alpha *= 0.5f;
-    }
+    alpha *= widget_alpha_factor(but->flag);
   }
 
   GPU_blend(GPU_BLEND_ALPHA);
@@ -2478,18 +2492,20 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
  * \{ */
 
 /* put all widget colors on half alpha, use local storage */
-static void ui_widget_color_disabled(uiWidgetType *wt)
+static void ui_widget_color_disabled(uiWidgetType *wt, const int state)
 {
   static uiWidgetColors wcol_theme_s;
 
   wcol_theme_s = *wt->wcol_theme;
 
-  wcol_theme_s.outline[3] *= 0.5;
-  wcol_theme_s.inner[3] *= 0.5;
-  wcol_theme_s.inner_sel[3] *= 0.5;
-  wcol_theme_s.item[3] *= 0.5;
-  wcol_theme_s.text[3] *= 0.5;
-  wcol_theme_s.text_sel[3] *= 0.5;
+  const float factor = widget_alpha_factor(state);
+
+  wcol_theme_s.outline[3] *= factor;
+  wcol_theme_s.inner[3] *= factor;
+  wcol_theme_s.inner_sel[3] *= factor;
+  wcol_theme_s.item[3] *= factor;
+  wcol_theme_s.text[3] *= factor;
+  wcol_theme_s.text_sel[3] *= factor;
 
   wt->wcol_theme = &wcol_theme_s;
 }
@@ -2534,8 +2550,8 @@ static void widget_state(uiWidgetType *wt, int state, int drawflag)
     bTheme *btheme = UI_GetTheme();
     wt->wcol_theme = &btheme->tui.wcol_list_item;
 
-    if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE)) {
-      ui_widget_color_disabled(wt);
+    if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE | UI_SEARCH_FILTER_NO_MATCH)) {
+      ui_widget_color_disabled(wt, state & UI_SEARCH_FILTER_NO_MATCH);
     }
   }
 
@@ -3908,14 +3924,11 @@ static void widget_swatch(
 
   wcol->shaded = 0;
 
-  if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE)) {
-    /* Now we reduce alpha of the inner color (i.e. the color shown)
-     * so that this setting can look grayed out, while retaining
-     * the checkerboard (for transparent values). This is needed
-     * here as the effects of ui_widget_color_disabled() are overwritten.
-     */
-    wcol->inner[3] /= 2;
-  }
+  /* Now we reduce alpha of the inner color (i.e. the color shown)
+   * so that this setting can look grayed out, while retaining
+   * the checkerboard (for transparent values). This is needed
+   * here as the effects of ui_widget_color_disabled() are overwritten. */
+  wcol->inner[3] *= widget_alpha_factor(state);
 
   widgetbase_draw_ex(&wtb, wcol, show_alpha_checkers);
   if (color_but->is_pallete_color &&
@@ -4856,7 +4869,6 @@ void ui_draw_but(const bContext *C, struct ARegion *region, uiStyle *style, uiBu
   if (wt) {
     // rcti disablerect = *rect; /* rect gets clipped smaller for text */
     int roundboxalign, state, drawflag;
-    bool disabled = false;
 
     roundboxalign = widget_roundbox_set(but, rect);
 
@@ -4886,18 +4898,16 @@ void ui_draw_but(const bContext *C, struct ARegion *region, uiStyle *style, uiBu
       }
     }
 
-    if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE)) {
-      if (but->emboss != UI_EMBOSS_PULLDOWN) {
-        disabled = true;
+    bool use_alpha_blend = false;
+    if (but->emboss != UI_EMBOSS_PULLDOWN) {
+      if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE | UI_SEARCH_FILTER_NO_MATCH)) {
+        use_alpha_blend = true;
+        ui_widget_color_disabled(wt, state);
       }
     }
 
     if (drawflag & UI_BUT_TEXT_RIGHT) {
       state |= UI_STATE_TEXT_BEFORE_WIDGET;
-    }
-
-    if (disabled) {
-      ui_widget_color_disabled(wt);
     }
 
 #ifdef USE_UI_POPOVER_ONCE
@@ -4916,12 +4926,12 @@ void ui_draw_but(const bContext *C, struct ARegion *region, uiStyle *style, uiBu
       wt->draw(&wt->wcol, rect, state, roundboxalign);
     }
 
-    if (disabled) {
+    if (use_alpha_blend) {
       GPU_blend(GPU_BLEND_ALPHA);
     }
 
     wt->text(fstyle, &wt->wcol, but, rect);
-    if (disabled) {
+    if (use_alpha_blend) {
       GPU_blend(GPU_BLEND_NONE);
     }
   }

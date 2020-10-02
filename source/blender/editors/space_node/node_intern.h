@@ -56,7 +56,7 @@ typedef struct bNodeLinkDrag {
 /* space_node.c */
 
 /* transform between View2Ds in the tree path */
-void snode_group_offset(struct SpaceNode *snode, float *x, float *y);
+void space_node_group_offset(struct SpaceNode *snode, float *x, float *y);
 
 /* node_draw.c */
 int node_get_colorid(struct bNode *node);
@@ -88,7 +88,7 @@ void node_draw_nodetree(const struct bContext *C,
                         struct SpaceNode *snode,
                         struct bNodeTree *ntree,
                         bNodeInstanceKey parent_key);
-void drawnodespace(const bContext *C, ARegion *region);
+void node_draw_space(const bContext *C, ARegion *region);
 
 void node_set_cursor(struct wmWindow *win, struct SpaceNode *snode, float cursor[2]);
 /* DPI scaled coords */
@@ -156,16 +156,6 @@ bool node_link_bezier_points(struct View2D *v2d,
                              struct bNodeLink *link,
                              float coord_array[][2],
                              int resol);
-#if 0
-void node_draw_link_straight(View2D *v2d,
-                             SpaceNode *snode,
-                             bNodeLink *link,
-                             int th_col1,
-                             int do_shaded,
-                             int th_col2,
-                             int do_triple,
-                             int th_col3);
-#endif
 void draw_nodespace_back_pix(const struct bContext *C,
                              struct ARegion *region,
                              struct SpaceNode *snode,

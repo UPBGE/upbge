@@ -99,6 +99,7 @@ SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 # See: D6261 for reference.
 USE_ONLY_BUILTIN_RNA_TYPES = True
 
+
 def handle_args():
     '''
     Parse the args passed to Blender after "--", ignored by Blender
@@ -1204,7 +1205,7 @@ def pyrna_enum2sphinx(prop, use_empty_descriptions=False):
                 identifier,
                 # Account for multi-line enum descriptions, allowing this to be a block of text.
                 indent(", ".join(escape_rst(val) for val in (name, description) if val) or "Undocumented", "  "),
-             )
+            )
             for identifier, name, description in prop.enum_items
         ])
     else:

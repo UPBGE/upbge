@@ -22,15 +22,15 @@
  * \ingroup bke
  */
 
+#include "BLI_compiler_attrs.h"
+
+#include "RNA_types.h"
+
+#include "BKE_context.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "BLI_compiler_attrs.h"
-
-#include "DNA_listBase.h"
-
-#include "RNA_types.h"
 
 struct ARegion;
 struct Header;
@@ -108,7 +108,7 @@ typedef struct SpaceType {
   void (*gizmos)(void);
 
   /* return context data */
-  int (*context)(const struct bContext *C, const char *member, struct bContextDataResult *result);
+  bContextDataCallback context;
 
   /* Used when we want to replace an ID by another (or NULL). */
   void (*id_remap)(struct ScrArea *area,
@@ -183,7 +183,7 @@ typedef struct ARegionType {
   void (*cursor)(struct wmWindow *win, struct ScrArea *area, struct ARegion *region);
 
   /* return context data */
-  int (*context)(const struct bContext *C, const char *member, struct bContextDataResult *result);
+  bContextDataCallback context;
 
   /* Is called whenever the current visible View2D's region changes.
    *

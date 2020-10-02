@@ -139,12 +139,11 @@ static void armature_free_data(struct ID *id)
   bArmature *armature = (bArmature *)id;
 
   BKE_armature_bone_hash_free(armature);
-  BKE_armature_bonelist_free(&armature->bonebase);
+  BKE_armature_bonelist_free(&armature->bonebase, false);
 
   /* free editmode data */
   if (armature->edbo) {
-    BLI_freelistN(armature->edbo);
-
+    BKE_armature_editbonelist_free(armature->edbo, false);
     MEM_freeN(armature->edbo);
     armature->edbo = NULL;
   }
@@ -160,11 +159,23 @@ static void armature_foreach_id_bone(Bone *bone, LibraryForeachIDData *data)
   }
 }
 
+static void armature_foreach_id_editbone(EditBone *edit_bone, LibraryForeachIDData *data)
+{
+  IDP_foreach_property(
+      edit_bone->prop, IDP_TYPE_FILTER_ID, BKE_lib_query_idpropertiesForeachIDLink_callback, data);
+}
+
 static void armature_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   bArmature *arm = (bArmature *)id;
   LISTBASE_FOREACH (Bone *, bone, &arm->bonebase) {
     armature_foreach_id_bone(bone, data);
+  }
+
+  if (arm->edbo != NULL) {
+    LISTBASE_FOREACH (EditBone *, edit_bone, arm->edbo) {
+      armature_foreach_id_editbone(edit_bone, data);
+    }
   }
 }
 
@@ -345,18 +356,29 @@ int BKE_armature_bonelist_count(ListBase *lb)
   return i;
 }
 
-void BKE_armature_bonelist_free(ListBase *lb)
+void BKE_armature_bonelist_free(ListBase *lb, const bool do_id_user)
 {
   Bone *bone;
 
   for (bone = lb->first; bone; bone = bone->next) {
     if (bone->prop) {
-      IDP_FreeProperty(bone->prop);
+      IDP_FreeProperty_ex(bone->prop, do_id_user);
     }
-    BKE_armature_bonelist_free(&bone->childbase);
+    BKE_armature_bonelist_free(&bone->childbase, do_id_user);
   }
 
   BLI_freelistN(lb);
+}
+
+void BKE_armature_editbonelist_free(ListBase *lb, const bool do_id_user)
+{
+  LISTBASE_FOREACH_MUTABLE (EditBone *, edit_bone, lb) {
+    if (edit_bone->prop) {
+      IDP_FreeProperty_ex(edit_bone->prop, do_id_user);
+    }
+    BLI_remlink_safe(lb, edit_bone);
+    MEM_freeN(edit_bone);
+  }
 }
 
 static void copy_bonechildren(Bone *bone_dst,

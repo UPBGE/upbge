@@ -29,17 +29,19 @@ from pathlib import Path
 
 import buildbot_utils
 
+
 def get_package_name(builder, platform=None):
     info = buildbot_utils.VersionInfo(builder)
 
     package_name = 'blender-' + info.full_version
     if platform:
-      package_name += '-' + platform
+        package_name += '-' + platform
     if not (builder.branch == 'master' or builder.is_release_branch):
         if info.is_development_build:
             package_name = builder.branch + "-" + package_name
 
     return package_name
+
 
 def sign_file_or_directory(path):
     from codesign.simple_code_signer import SimpleCodeSigner
@@ -63,6 +65,7 @@ def create_buildbot_upload_zip(builder, package_files):
     except Exception as ex:
         sys.stderr.write('Create buildbot_upload.zip failed: ' + str(ex) + '\n')
         sys.exit(1)
+
 
 def create_tar_xz(src, dest, package_name):
     # One extra to remove leading os.sep when cleaning root for package_root
@@ -90,6 +93,7 @@ def create_tar_xz(src, dest, package_name):
     for entry in flist:
         package.add(entry[0], entry[1], recursive=False, filter=_fakeroot)
     package.close()
+
 
 def cleanup_files(dirpath, extension):
     for f in os.listdir(dirpath):
@@ -171,7 +175,11 @@ def pack_linux(builder):
 
     print("Stripping python...")
     py_target = os.path.join(builder.install_dir, info.short_version)
-    buildbot_utils.call(builder.command_prefix + ['find', py_target, '-iname', '*.so', '-exec', 'strip', '-s', '{}', ';'])
+    buildbot_utils.call(
+        builder.command_prefix + [
+            'find', py_target, '-iname', '*.so', '-exec', 'strip', '-s', '{}', ';',
+        ],
+    )
 
     # Construct package name
     platform_name = 'linux64'

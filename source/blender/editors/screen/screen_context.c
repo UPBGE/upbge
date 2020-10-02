@@ -37,11 +37,13 @@
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 
+#include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_action.h"
 #include "BKE_armature.h"
+#include "BKE_blender.h"
 #include "BKE_context.h"
 #include "BKE_gpencil.h"
 #include "BKE_layer.h"
@@ -110,197 +112,167 @@ const char *screen_context_dir[] = {
     NULL,
 };
 
-int ed_screen_context(const bContext *C, const char *member, bContextDataResult *result)
+/* Each function `screen_ctx_XXX()` will be called when the screen context "XXX" is requested.
+ * ensure_ed_screen_context_functions() is responsible for creating the hash map from context
+ * member name to function. */
+
+static eContextResult screen_ctx_scene(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  Scene *scene = WM_window_get_active_scene(win);
+  CTX_data_id_pointer_set(result, &scene->id);
+  return CTX_RESULT_OK;
+}
+static eContextResult screen_ctx_visible_objects(const bContext *C, bContextDataResult *result)
 {
   wmWindow *win = CTX_wm_window(C);
   View3D *v3d = CTX_wm_view3d(C); /* This may be NULL in a lot of cases. */
-  bScreen *screen = CTX_wm_screen(C);
-  ScrArea *area = CTX_wm_area(C);
-  Scene *scene = WM_window_get_active_scene(win);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+
+  LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
+    if (BASE_VISIBLE(v3d, base)) {
+      CTX_data_id_list_add(result, &base->object->id);
+    }
+  }
+  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  return CTX_RESULT_OK;
+}
+static eContextResult screen_ctx_selectable_objects(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  View3D *v3d = CTX_wm_view3d(C); /* This may be NULL in a lot of cases. */
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+
+  LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
+    if (BASE_SELECTABLE(v3d, base)) {
+      CTX_data_id_list_add(result, &base->object->id);
+    }
+  }
+  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  return CTX_RESULT_OK;
+}
+static eContextResult screen_ctx_selected_objects(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  View3D *v3d = CTX_wm_view3d(C); /* This may be NULL in a lot of cases. */
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+
+  LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
+    if (BASE_SELECTED(v3d, base)) {
+      CTX_data_id_list_add(result, &base->object->id);
+    }
+  }
+  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  return CTX_RESULT_OK;
+}
+static eContextResult screen_ctx_selected_editable_objects(const bContext *C,
+                                                           bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  View3D *v3d = CTX_wm_view3d(C); /* This may be NULL in a lot of cases. */
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+
+  LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
+    if (BASE_SELECTED_EDITABLE(v3d, base)) {
+      CTX_data_id_list_add(result, &base->object->id);
+    }
+  }
+  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  return CTX_RESULT_OK;
+}
+static eContextResult screen_ctx_editable_objects(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  View3D *v3d = CTX_wm_view3d(C); /* This may be NULL in a lot of cases. */
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+
+  /* Visible + Editable, but not necessarily selected */
+  LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
+    if (BASE_EDITABLE(v3d, base)) {
+      CTX_data_id_list_add(result, &base->object->id);
+    }
+  }
+  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  return CTX_RESULT_OK;
+}
+static eContextResult screen_ctx_objects_in_mode(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  View3D *v3d = CTX_wm_view3d(C); /* This may be NULL in a lot of cases. */
   ViewLayer *view_layer = WM_window_get_active_view_layer(win);
   Object *obact = view_layer->basact ? view_layer->basact->object : NULL;
-  Object *obedit = OBEDIT_FROM_VIEW_LAYER(view_layer);
 
-  if (CTX_data_dir(member)) {
-    CTX_data_dir_set(result, screen_context_dir);
-    return 1;
-  }
-  if (CTX_data_equals(member, "scene")) {
-    CTX_data_id_pointer_set(result, &scene->id);
-    return 1;
-  }
-  if (CTX_data_equals(member, "visible_objects")) {
-    LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
-      if (BASE_VISIBLE(v3d, base)) {
-        CTX_data_id_list_add(result, &base->object->id);
-      }
+  if (obact && (obact->mode != OB_MODE_OBJECT)) {
+    FOREACH_OBJECT_IN_MODE_BEGIN (view_layer, v3d, obact->type, obact->mode, ob_iter) {
+      CTX_data_id_list_add(result, &ob_iter->id);
     }
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-    return 1;
+    FOREACH_OBJECT_IN_MODE_END;
   }
-  if (CTX_data_equals(member, "selectable_objects")) {
-    LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
-      if (BASE_SELECTABLE(v3d, base)) {
-        CTX_data_id_list_add(result, &base->object->id);
-      }
+  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  return CTX_RESULT_OK;
+}
+static eContextResult screen_ctx_objects_in_mode_unique_data(const bContext *C,
+                                                             bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  View3D *v3d = CTX_wm_view3d(C); /* This may be NULL in a lot of cases. */
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *obact = view_layer->basact ? view_layer->basact->object : NULL;
+
+  if (obact && (obact->mode != OB_MODE_OBJECT)) {
+    FOREACH_OBJECT_IN_MODE_BEGIN (view_layer, v3d, obact->type, obact->mode, ob_iter) {
+      ob_iter->id.tag |= LIB_TAG_DOIT;
     }
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-    return 1;
-  }
-  if (CTX_data_equals(member, "selected_objects")) {
-    LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
-      if (BASE_SELECTED(v3d, base)) {
-        CTX_data_id_list_add(result, &base->object->id);
-      }
-    }
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-    return 1;
-  }
-  if (CTX_data_equals(member, "selected_editable_objects")) {
-    LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
-      if (BASE_SELECTED_EDITABLE(v3d, base)) {
-        CTX_data_id_list_add(result, &base->object->id);
-      }
-    }
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-    return 1;
-  }
-  if (CTX_data_equals(member, "editable_objects")) {
-    /* Visible + Editable, but not necessarily selected */
-    LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
-      if (BASE_EDITABLE(v3d, base)) {
-        CTX_data_id_list_add(result, &base->object->id);
-      }
-    }
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-    return 1;
-  }
-  if (CTX_data_equals(member, "objects_in_mode")) {
-    if (obact && (obact->mode != OB_MODE_OBJECT)) {
-      FOREACH_OBJECT_IN_MODE_BEGIN (view_layer, v3d, obact->type, obact->mode, ob_iter) {
+    FOREACH_OBJECT_IN_MODE_END;
+    FOREACH_OBJECT_IN_MODE_BEGIN (view_layer, v3d, obact->type, obact->mode, ob_iter) {
+      if (ob_iter->id.tag & LIB_TAG_DOIT) {
+        ob_iter->id.tag &= ~LIB_TAG_DOIT;
         CTX_data_id_list_add(result, &ob_iter->id);
       }
-      FOREACH_OBJECT_IN_MODE_END;
     }
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-    return 1;
+    FOREACH_OBJECT_IN_MODE_END;
   }
-  if (CTX_data_equals(member, "objects_in_mode_unique_data")) {
-    if (obact && (obact->mode != OB_MODE_OBJECT)) {
-      FOREACH_OBJECT_IN_MODE_BEGIN (view_layer, v3d, obact->type, obact->mode, ob_iter) {
-        ob_iter->id.tag |= LIB_TAG_DOIT;
-      }
-      FOREACH_OBJECT_IN_MODE_END;
-      FOREACH_OBJECT_IN_MODE_BEGIN (view_layer, v3d, obact->type, obact->mode, ob_iter) {
-        if (ob_iter->id.tag & LIB_TAG_DOIT) {
-          ob_iter->id.tag &= ~LIB_TAG_DOIT;
-          CTX_data_id_list_add(result, &ob_iter->id);
-        }
-      }
-      FOREACH_OBJECT_IN_MODE_END;
-    }
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-    return 1;
-  }
-  if (CTX_data_equals(member, "visible_bones") || CTX_data_equals(member, "editable_bones")) {
-    bArmature *arm = (obedit && obedit->type == OB_ARMATURE) ? obedit->data : NULL;
-    EditBone *flipbone = NULL;
-    const bool editable_bones = CTX_data_equals(member, "editable_bones");
+  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  return CTX_RESULT_OK;
+}
+static eContextResult screen_ctx_visible_or_editable_bones_(const bContext *C,
+                                                            bContextDataResult *result,
+                                                            const bool editable_bones)
+{
+  wmWindow *win = CTX_wm_window(C);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *obedit = OBEDIT_FROM_VIEW_LAYER(view_layer);
 
-    if (arm && arm->edbo) {
-      uint objects_len;
-      Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-          view_layer, CTX_wm_view3d(C), &objects_len);
-      for (uint i = 0; i < objects_len; i++) {
-        Object *ob = objects[i];
-        arm = ob->data;
+  bArmature *arm = (obedit && obedit->type == OB_ARMATURE) ? obedit->data : NULL;
+  EditBone *flipbone = NULL;
 
-        /* Attention: X-Axis Mirroring is also handled here... */
-        LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-          /* first and foremost, bone must be visible and selected */
-          if (EBONE_VISIBLE(arm, ebone)) {
-            /* Get 'x-axis mirror equivalent' bone if the X-Axis Mirroring option is enabled
-             * so that most users of this data don't need to explicitly check for it themselves.
-             *
-             * We need to make sure that these mirrored copies are not selected, otherwise some
-             * bones will be operated on twice.
-             */
-            if (arm->flag & ARM_MIRROR_EDIT) {
-              flipbone = ED_armature_ebone_get_mirrored(arm->edbo, ebone);
-            }
+  if (arm && arm->edbo) {
+    uint objects_len;
+    Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+        view_layer, CTX_wm_view3d(C), &objects_len);
+    for (uint i = 0; i < objects_len; i++) {
+      Object *ob = objects[i];
+      arm = ob->data;
 
-            /* if we're filtering for editable too, use the check for that instead,
-             * as it has selection check too */
-            if (editable_bones) {
-              /* only selected + editable */
-              if (EBONE_EDITABLE(ebone)) {
-                CTX_data_list_add(result, &arm->id, &RNA_EditBone, ebone);
-
-                if ((flipbone) && !(flipbone->flag & BONE_SELECTED)) {
-                  CTX_data_list_add(result, &arm->id, &RNA_EditBone, flipbone);
-                }
-              }
-            }
-            else {
-              /* only include bones if visible */
-              CTX_data_list_add(result, &arm->id, &RNA_EditBone, ebone);
-
-              if ((flipbone) && EBONE_VISIBLE(arm, flipbone) == 0) {
-                CTX_data_list_add(result, &arm->id, &RNA_EditBone, flipbone);
-              }
-            }
+      /* Attention: X-Axis Mirroring is also handled here... */
+      LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
+        /* first and foremost, bone must be visible and selected */
+        if (EBONE_VISIBLE(arm, ebone)) {
+          /* Get 'x-axis mirror equivalent' bone if the X-Axis Mirroring option is enabled
+           * so that most users of this data don't need to explicitly check for it themselves.
+           *
+           * We need to make sure that these mirrored copies are not selected, otherwise some
+           * bones will be operated on twice.
+           */
+          if (arm->flag & ARM_MIRROR_EDIT) {
+            flipbone = ED_armature_ebone_get_mirrored(arm->edbo, ebone);
           }
-        }
-      }
-      MEM_freeN(objects);
 
-      CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-      return 1;
-    }
-    return -1; /* found but not available */
-  }
-  if (CTX_data_equals(member, "selected_bones") ||
-      CTX_data_equals(member, "selected_editable_bones")) {
-    bArmature *arm = (obedit && obedit->type == OB_ARMATURE) ? obedit->data : NULL;
-    EditBone *flipbone = NULL;
-    const bool selected_editable_bones = CTX_data_equals(member, "selected_editable_bones");
-
-    if (arm && arm->edbo) {
-      uint objects_len;
-      Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-          view_layer, CTX_wm_view3d(C), &objects_len);
-      for (uint i = 0; i < objects_len; i++) {
-        Object *ob = objects[i];
-        arm = ob->data;
-
-        /* Attention: X-Axis Mirroring is also handled here... */
-        LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-          /* first and foremost, bone must be visible and selected */
-          if (EBONE_VISIBLE(arm, ebone) && (ebone->flag & BONE_SELECTED)) {
-            /* Get 'x-axis mirror equivalent' bone if the X-Axis Mirroring option is enabled
-             * so that most users of this data don't need to explicitly check for it themselves.
-             *
-             * We need to make sure that these mirrored copies are not selected, otherwise some
-             * bones will be operated on twice.
-             */
-            if (arm->flag & ARM_MIRROR_EDIT) {
-              flipbone = ED_armature_ebone_get_mirrored(arm->edbo, ebone);
-            }
-
-            /* if we're filtering for editable too, use the check for that instead,
-             * as it has selection check too */
-            if (selected_editable_bones) {
-              /* only selected + editable */
-              if (EBONE_EDITABLE(ebone)) {
-                CTX_data_list_add(result, &arm->id, &RNA_EditBone, ebone);
-
-                if ((flipbone) && !(flipbone->flag & BONE_SELECTED)) {
-                  CTX_data_list_add(result, &arm->id, &RNA_EditBone, flipbone);
-                }
-              }
-            }
-            else {
-              /* only include bones if selected */
+          /* if we're filtering for editable too, use the check for that instead,
+           * as it has selection check too */
+          if (editable_bones) {
+            /* only selected + editable */
+            if (EBONE_EDITABLE(ebone)) {
               CTX_data_list_add(result, &arm->id, &RNA_EditBone, ebone);
 
               if ((flipbone) && !(flipbone->flag & BONE_SELECTED)) {
@@ -308,472 +280,799 @@ int ed_screen_context(const bContext *C, const char *member, bContextDataResult 
               }
             }
           }
-        }
-      }
-      MEM_freeN(objects);
+          else {
+            /* only include bones if visible */
+            CTX_data_list_add(result, &arm->id, &RNA_EditBone, ebone);
 
-      CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-      return 1;
-    }
-    return -1; /* found but not available */
-  }
-  if (CTX_data_equals(member, "visible_pose_bones")) {
-    Object *obpose = BKE_object_pose_armature_get(obact);
-    if (obpose && obpose->pose && obpose->data) {
-      if (obpose != obact) {
-        FOREACH_PCHAN_VISIBLE_IN_OBJECT_BEGIN (obpose, pchan) {
-          CTX_data_list_add(result, &obpose->id, &RNA_PoseBone, pchan);
-        }
-        FOREACH_PCHAN_SELECTED_IN_OBJECT_END;
-      }
-      else if (obact->mode & OB_MODE_POSE) {
-        FOREACH_OBJECT_IN_MODE_BEGIN (view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob_iter) {
-          FOREACH_PCHAN_VISIBLE_IN_OBJECT_BEGIN (ob_iter, pchan) {
-            CTX_data_list_add(result, &ob_iter->id, &RNA_PoseBone, pchan);
-          }
-          FOREACH_PCHAN_VISIBLE_IN_OBJECT_END;
-        }
-        FOREACH_OBJECT_IN_MODE_END;
-      }
-      CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-      return 1;
-    }
-    return -1; /* found but not available */
-  }
-  if (CTX_data_equals(member, "selected_pose_bones")) {
-    Object *obpose = BKE_object_pose_armature_get(obact);
-    if (obpose && obpose->pose && obpose->data) {
-      if (obpose != obact) {
-        FOREACH_PCHAN_SELECTED_IN_OBJECT_BEGIN (obpose, pchan) {
-          CTX_data_list_add(result, &obpose->id, &RNA_PoseBone, pchan);
-        }
-        FOREACH_PCHAN_SELECTED_IN_OBJECT_END;
-      }
-      else if (obact->mode & OB_MODE_POSE) {
-        FOREACH_OBJECT_IN_MODE_BEGIN (view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob_iter) {
-          FOREACH_PCHAN_SELECTED_IN_OBJECT_BEGIN (ob_iter, pchan) {
-            CTX_data_list_add(result, &ob_iter->id, &RNA_PoseBone, pchan);
-          }
-          FOREACH_PCHAN_SELECTED_IN_OBJECT_END;
-        }
-        FOREACH_OBJECT_IN_MODE_END;
-      }
-      CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-      return 1;
-    }
-    return -1; /* found but not available */
-  }
-  if (CTX_data_equals(member, "selected_pose_bones_from_active_object")) {
-    Object *obpose = BKE_object_pose_armature_get(obact);
-    if (obpose && obpose->pose && obpose->data) {
-      if (obpose != obact) {
-        FOREACH_PCHAN_SELECTED_IN_OBJECT_BEGIN (obpose, pchan) {
-          CTX_data_list_add(result, &obpose->id, &RNA_PoseBone, pchan);
-        }
-        FOREACH_PCHAN_SELECTED_IN_OBJECT_END;
-      }
-      else if (obact->mode & OB_MODE_POSE) {
-        FOREACH_PCHAN_SELECTED_IN_OBJECT_BEGIN (obact, pchan) {
-          CTX_data_list_add(result, &obact->id, &RNA_PoseBone, pchan);
-        }
-        FOREACH_PCHAN_SELECTED_IN_OBJECT_END;
-      }
-      CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-      return 1;
-    }
-    return -1; /* found but not available */
-  }
-  if (CTX_data_equals(member, "active_bone")) {
-    if (obact && obact->type == OB_ARMATURE) {
-      bArmature *arm = obact->data;
-      if (arm->edbo) {
-        if (arm->act_edbone) {
-          CTX_data_pointer_set(result, &arm->id, &RNA_EditBone, arm->act_edbone);
-          return 1;
-        }
-      }
-      else {
-        if (arm->act_bone) {
-          CTX_data_pointer_set(result, &arm->id, &RNA_Bone, arm->act_bone);
-          return 1;
-        }
-      }
-    }
-    return -1; /* found but not available */
-  }
-  if (CTX_data_equals(member, "active_pose_bone")) {
-    bPoseChannel *pchan;
-    Object *obpose = BKE_object_pose_armature_get(obact);
-
-    pchan = BKE_pose_channel_active(obpose);
-    if (pchan) {
-      CTX_data_pointer_set(result, &obpose->id, &RNA_PoseBone, pchan);
-      return 1;
-    }
-    return -1; /* found but not available */
-  }
-  if (CTX_data_equals(member, "active_object")) {
-    if (obact) {
-      CTX_data_id_pointer_set(result, &obact->id);
-    }
-
-    return 1;
-  }
-  if (CTX_data_equals(member, "object")) {
-    if (obact) {
-      CTX_data_id_pointer_set(result, &obact->id);
-    }
-
-    return 1;
-  }
-  if (CTX_data_equals(member, "edit_object")) {
-    /* convenience for now, 1 object per scene in editmode */
-    if (obedit) {
-      CTX_data_id_pointer_set(result, &obedit->id);
-    }
-
-    return 1;
-  }
-  if (CTX_data_equals(member, "sculpt_object")) {
-    if (obact && (obact->mode & OB_MODE_SCULPT)) {
-      CTX_data_id_pointer_set(result, &obact->id);
-    }
-
-    return 1;
-  }
-  if (CTX_data_equals(member, "vertex_paint_object")) {
-    if (obact && (obact->mode & OB_MODE_VERTEX_PAINT)) {
-      CTX_data_id_pointer_set(result, &obact->id);
-    }
-
-    return 1;
-  }
-  if (CTX_data_equals(member, "weight_paint_object")) {
-    if (obact && (obact->mode & OB_MODE_ALL_WEIGHT_PAINT)) {
-      CTX_data_id_pointer_set(result, &obact->id);
-    }
-
-    return 1;
-  }
-  if (CTX_data_equals(member, "image_paint_object")) {
-    if (obact && (obact->mode & OB_MODE_TEXTURE_PAINT)) {
-      CTX_data_id_pointer_set(result, &obact->id);
-    }
-
-    return 1;
-  }
-  if (CTX_data_equals(member, "particle_edit_object")) {
-    if (obact && (obact->mode & OB_MODE_PARTICLE_EDIT)) {
-      CTX_data_id_pointer_set(result, &obact->id);
-    }
-
-    return 1;
-  }
-  if (CTX_data_equals(member, "pose_object")) {
-    Object *obpose = BKE_object_pose_armature_get(obact);
-    if (obpose) {
-      CTX_data_id_pointer_set(result, &obpose->id);
-    }
-    return 1;
-  }
-  if (CTX_data_equals(member, "sequences")) {
-    Editing *ed = BKE_sequencer_editing_get(scene, false);
-    if (ed) {
-      LISTBASE_FOREACH (Sequence *, seq, ed->seqbasep) {
-        CTX_data_list_add(result, &scene->id, &RNA_Sequence, seq);
-      }
-      CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-      return 1;
-    }
-    return -1; /* found but not available */
-  }
-  if (CTX_data_equals(member, "selected_sequences")) {
-    Editing *ed = BKE_sequencer_editing_get(scene, false);
-    if (ed) {
-      LISTBASE_FOREACH (Sequence *, seq, ed->seqbasep) {
-        if (seq->flag & SELECT) {
-          CTX_data_list_add(result, &scene->id, &RNA_Sequence, seq);
-        }
-      }
-      CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-      return 1;
-    }
-    return -1; /* found but not available */
-  }
-  if (CTX_data_equals(member, "selected_editable_sequences")) {
-    Editing *ed = BKE_sequencer_editing_get(scene, false);
-    if (ed) {
-      LISTBASE_FOREACH (Sequence *, seq, ed->seqbasep) {
-        if (seq->flag & SELECT && !(seq->flag & SEQ_LOCK)) {
-          CTX_data_list_add(result, &scene->id, &RNA_Sequence, seq);
-        }
-      }
-      CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-      return 1;
-    }
-    return -1; /* found but not available */
-  }
-  if (CTX_data_equals(member, "selected_nla_strips")) {
-    bAnimContext ac;
-    if (ANIM_animdata_get_context(C, &ac) != 0) {
-      ListBase anim_data = {NULL, NULL};
-
-      ANIM_animdata_filter(&ac, &anim_data, ANIMFILTER_DATA_VISIBLE, ac.data, ac.datatype);
-      LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-        if (ale->datatype != ALE_NLASTRIP) {
-          continue;
-        }
-        NlaTrack *nlt = (NlaTrack *)ale->data;
-        LISTBASE_FOREACH (NlaStrip *, strip, &nlt->strips) {
-          if (strip->flag & NLASTRIP_FLAG_SELECT) {
-            CTX_data_list_add(result, &scene->id, &RNA_NlaStrip, strip);
+            if ((flipbone) && EBONE_VISIBLE(arm, flipbone) == 0) {
+              CTX_data_list_add(result, &arm->id, &RNA_EditBone, flipbone);
+            }
           }
         }
       }
-      ANIM_animdata_freelist(&anim_data);
-
-      CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-      return 1;
     }
-    return -1; /* found but not available */
+    MEM_freeN(objects);
+
+    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    return CTX_RESULT_OK;
   }
-  if (CTX_data_equals(member, "gpencil_data")) {
-    /* FIXME: for some reason, CTX_data_active_object(C) returns NULL when called from these
-     * situations (as outlined above - see Campbell's #ifdefs).
-     * That causes the get_active function to fail when called from context.
-     * For that reason, we end up using an alternative where we pass everything in!
-     */
-    bGPdata *gpd = ED_gpencil_data_get_active_direct(area, obact);
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_visible_bones(const bContext *C, bContextDataResult *result)
+{
+  return screen_ctx_visible_or_editable_bones_(C, result, false);
+}
+static eContextResult screen_ctx_editable_bones(const bContext *C, bContextDataResult *result)
+{
+  return screen_ctx_visible_or_editable_bones_(C, result, true);
+}
+static eContextResult screen_ctx_selected_bones_(const bContext *C,
+                                                 bContextDataResult *result,
+                                                 const bool selected_editable_bones)
+{
+  wmWindow *win = CTX_wm_window(C);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *obedit = OBEDIT_FROM_VIEW_LAYER(view_layer);
+  bArmature *arm = (obedit && obedit->type == OB_ARMATURE) ? obedit->data : NULL;
+  EditBone *flipbone = NULL;
 
-    if (gpd) {
-      CTX_data_id_pointer_set(result, &gpd->id);
-      return 1;
-    }
-    return -1; /* found but not available */
-  }
-  if (CTX_data_equals(member, "gpencil_data_owner")) {
-    /* Pointer to which data/datablock owns the reference to the Grease Pencil data being used
-     * (as gpencil_data). */
-    bGPdata **gpd_ptr = NULL;
-    PointerRNA ptr;
+  if (arm && arm->edbo) {
+    uint objects_len;
+    Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+        view_layer, CTX_wm_view3d(C), &objects_len);
+    for (uint i = 0; i < objects_len; i++) {
+      Object *ob = objects[i];
+      arm = ob->data;
 
-    /* get pointer to Grease Pencil Data */
-    gpd_ptr = ED_gpencil_data_get_pointers_direct(area, obact, &ptr);
-
-    if (gpd_ptr) {
-      CTX_data_pointer_set(result, ptr.owner_id, ptr.type, ptr.data);
-      return 1;
-    }
-    return -1; /* found but not available */
-  }
-  if (CTX_data_equals(member, "annotation_data")) {
-    bGPdata *gpd = ED_annotation_data_get_active_direct((ID *)screen, area, scene);
-
-    if (gpd) {
-      CTX_data_id_pointer_set(result, &gpd->id);
-      return 1;
-    }
-    return -1; /* found but not available */
-  }
-  if (CTX_data_equals(member, "annotation_data_owner")) {
-    /* Pointer to which data/datablock owns the reference to the Grease Pencil data being used. */
-    bGPdata **gpd_ptr = NULL;
-    PointerRNA ptr;
-
-    /* Get pointer to Grease Pencil Data. */
-    gpd_ptr = ED_annotation_data_get_pointers_direct((ID *)screen, area, scene, &ptr);
-
-    if (gpd_ptr) {
-      CTX_data_pointer_set(result, ptr.owner_id, ptr.type, ptr.data);
-      return 1;
-    }
-    return -1; /* found but not available */
-  }
-  if (CTX_data_equals(member, "active_gpencil_layer")) {
-    bGPdata *gpd = ED_gpencil_data_get_active_direct(area, obact);
-
-    if (gpd) {
-      bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
-
-      if (gpl) {
-        CTX_data_pointer_set(result, &gpd->id, &RNA_GPencilLayer, gpl);
-        return 1;
-      }
-    }
-    return -1; /* found but not available */
-  }
-  if (CTX_data_equals(member, "active_annotation_layer")) {
-    bGPdata *gpd = ED_annotation_data_get_active_direct((ID *)screen, area, scene);
-
-    if (gpd) {
-      bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
-
-      if (gpl) {
-        CTX_data_pointer_set(result, &gpd->id, &RNA_GPencilLayer, gpl);
-        return 1;
-      }
-    }
-    return -1; /* found but not available */
-  }
-  if (CTX_data_equals(member, "active_gpencil_frame")) {
-    bGPdata *gpd = ED_gpencil_data_get_active_direct(area, obact);
-
-    if (gpd) {
-      bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
-
-      if (gpl) {
-        CTX_data_pointer_set(result, &gpd->id, &RNA_GPencilLayer, gpl->actframe);
-        return 1;
-      }
-    }
-    return -1; /* found but not available */
-  }
-  if (CTX_data_equals(member, "visible_gpencil_layers")) {
-    bGPdata *gpd = ED_gpencil_data_get_active_direct(area, obact);
-
-    if (gpd) {
-      LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-        if ((gpl->flag & GP_LAYER_HIDE) == 0) {
-          CTX_data_list_add(result, &gpd->id, &RNA_GPencilLayer, gpl);
-        }
-      }
-      CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-      return 1;
-    }
-    return -1; /* found but not available */
-  }
-  if (CTX_data_equals(member, "editable_gpencil_layers")) {
-    bGPdata *gpd = ED_gpencil_data_get_active_direct(area, obact);
-
-    if (gpd) {
-      LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-        if (BKE_gpencil_layer_is_editable(gpl)) {
-          CTX_data_list_add(result, &gpd->id, &RNA_GPencilLayer, gpl);
-        }
-      }
-      CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-      return 1;
-    }
-    return -1; /* found but not available */
-  }
-  if (CTX_data_equals(member, "editable_gpencil_strokes")) {
-    bGPdata *gpd = ED_gpencil_data_get_active_direct(area, obact);
-    const bool is_multiedit = (bool)GPENCIL_MULTIEDIT_SESSIONS_ON(gpd);
-
-    if (gpd) {
-      LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-        if (BKE_gpencil_layer_is_editable(gpl) && (gpl->actframe)) {
-          bGPDframe *gpf;
-          bGPDframe *init_gpf = gpl->actframe;
-          if (is_multiedit) {
-            init_gpf = gpl->frames.first;
+      /* Attention: X-Axis Mirroring is also handled here... */
+      LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
+        /* first and foremost, bone must be visible and selected */
+        if (EBONE_VISIBLE(arm, ebone) && (ebone->flag & BONE_SELECTED)) {
+          /* Get 'x-axis mirror equivalent' bone if the X-Axis Mirroring option is enabled
+           * so that most users of this data don't need to explicitly check for it themselves.
+           *
+           * We need to make sure that these mirrored copies are not selected, otherwise some
+           * bones will be operated on twice.
+           */
+          if (arm->flag & ARM_MIRROR_EDIT) {
+            flipbone = ED_armature_ebone_get_mirrored(arm->edbo, ebone);
           }
 
-          for (gpf = init_gpf; gpf; gpf = gpf->next) {
-            if ((gpf == gpl->actframe) || ((gpf->flag & GP_FRAME_SELECT) && (is_multiedit))) {
-              LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
-                if (ED_gpencil_stroke_can_use_direct(area, gps)) {
-                  /* check if the color is editable */
-                  if (ED_gpencil_stroke_color_use(obact, gpl, gps) == false) {
-                    continue;
-                  }
+          /* if we're filtering for editable too, use the check for that instead,
+           * as it has selection check too */
+          if (selected_editable_bones) {
+            /* only selected + editable */
+            if (EBONE_EDITABLE(ebone)) {
+              CTX_data_list_add(result, &arm->id, &RNA_EditBone, ebone);
 
-                  CTX_data_list_add(result, &gpd->id, &RNA_GPencilStroke, gps);
-                }
+              if ((flipbone) && !(flipbone->flag & BONE_SELECTED)) {
+                CTX_data_list_add(result, &arm->id, &RNA_EditBone, flipbone);
               }
             }
-            /* if not multiedit out of loop */
-            if (!is_multiedit) {
-              break;
+          }
+          else {
+            /* only include bones if selected */
+            CTX_data_list_add(result, &arm->id, &RNA_EditBone, ebone);
+
+            if ((flipbone) && !(flipbone->flag & BONE_SELECTED)) {
+              CTX_data_list_add(result, &arm->id, &RNA_EditBone, flipbone);
             }
           }
         }
       }
-      CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-      return 1;
     }
-    return -1; /* found but not available */
-  }
-  if (CTX_data_equals(member, "active_operator")) {
-    wmOperator *op = NULL;
+    MEM_freeN(objects);
 
-    SpaceFile *sfile = CTX_wm_space_file(C);
-    if (sfile) {
-      op = sfile->op;
+    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_selected_bones(const bContext *C, bContextDataResult *result)
+{
+  return screen_ctx_selected_bones_(C, result, false);
+}
+static eContextResult screen_ctx_selected_editable_bones(const bContext *C,
+                                                         bContextDataResult *result)
+{
+  return screen_ctx_selected_bones_(C, result, true);
+}
+static eContextResult screen_ctx_visible_pose_bones(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  View3D *v3d = CTX_wm_view3d(C); /* This may be NULL in a lot of cases. */
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *obact = view_layer->basact ? view_layer->basact->object : NULL;
+  Object *obpose = BKE_object_pose_armature_get(obact);
+  if (obpose && obpose->pose && obpose->data) {
+    if (obpose != obact) {
+      FOREACH_PCHAN_VISIBLE_IN_OBJECT_BEGIN (obpose, pchan) {
+        CTX_data_list_add(result, &obpose->id, &RNA_PoseBone, pchan);
+      }
+      FOREACH_PCHAN_SELECTED_IN_OBJECT_END;
     }
-    else if ((op = UI_context_active_operator_get(C))) {
-      /* do nothing */
+    else if (obact->mode & OB_MODE_POSE) {
+      FOREACH_OBJECT_IN_MODE_BEGIN (view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob_iter) {
+        FOREACH_PCHAN_VISIBLE_IN_OBJECT_BEGIN (ob_iter, pchan) {
+          CTX_data_list_add(result, &ob_iter->id, &RNA_PoseBone, pchan);
+        }
+        FOREACH_PCHAN_VISIBLE_IN_OBJECT_END;
+      }
+      FOREACH_OBJECT_IN_MODE_END;
+    }
+    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_selected_pose_bones(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  View3D *v3d = CTX_wm_view3d(C); /* This may be NULL in a lot of cases. */
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *obact = view_layer->basact ? view_layer->basact->object : NULL;
+  Object *obpose = BKE_object_pose_armature_get(obact);
+  if (obpose && obpose->pose && obpose->data) {
+    if (obpose != obact) {
+      FOREACH_PCHAN_SELECTED_IN_OBJECT_BEGIN (obpose, pchan) {
+        CTX_data_list_add(result, &obpose->id, &RNA_PoseBone, pchan);
+      }
+      FOREACH_PCHAN_SELECTED_IN_OBJECT_END;
+    }
+    else if (obact->mode & OB_MODE_POSE) {
+      FOREACH_OBJECT_IN_MODE_BEGIN (view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob_iter) {
+        FOREACH_PCHAN_SELECTED_IN_OBJECT_BEGIN (ob_iter, pchan) {
+          CTX_data_list_add(result, &ob_iter->id, &RNA_PoseBone, pchan);
+        }
+        FOREACH_PCHAN_SELECTED_IN_OBJECT_END;
+      }
+      FOREACH_OBJECT_IN_MODE_END;
+    }
+    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_selected_pose_bones_from_active_object(const bContext *C,
+                                                                        bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *obact = view_layer->basact ? view_layer->basact->object : NULL;
+  Object *obpose = BKE_object_pose_armature_get(obact);
+  if (obpose && obpose->pose && obpose->data) {
+    if (obpose != obact) {
+      FOREACH_PCHAN_SELECTED_IN_OBJECT_BEGIN (obpose, pchan) {
+        CTX_data_list_add(result, &obpose->id, &RNA_PoseBone, pchan);
+      }
+      FOREACH_PCHAN_SELECTED_IN_OBJECT_END;
+    }
+    else if (obact->mode & OB_MODE_POSE) {
+      FOREACH_PCHAN_SELECTED_IN_OBJECT_BEGIN (obact, pchan) {
+        CTX_data_list_add(result, &obact->id, &RNA_PoseBone, pchan);
+      }
+      FOREACH_PCHAN_SELECTED_IN_OBJECT_END;
+    }
+    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_active_bone(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *obact = view_layer->basact ? view_layer->basact->object : NULL;
+  if (obact && obact->type == OB_ARMATURE) {
+    bArmature *arm = obact->data;
+    if (arm->edbo) {
+      if (arm->act_edbone) {
+        CTX_data_pointer_set(result, &arm->id, &RNA_EditBone, arm->act_edbone);
+        return CTX_RESULT_OK;
+      }
     }
     else {
-      /* note, this checks poll, could be a problem, but this also
-       * happens for the toolbar */
-      op = WM_operator_last_redo(C);
+      if (arm->act_bone) {
+        CTX_data_pointer_set(result, &arm->id, &RNA_Bone, arm->act_bone);
+        return CTX_RESULT_OK;
+      }
     }
-    /* TODO, get the operator from popup's */
-
-    if (op && op->ptr) {
-      CTX_data_pointer_set(result, NULL, &RNA_Operator, op);
-      return 1;
-    }
-    return -1; /* found but not available */
   }
-  if (CTX_data_equals(member, "editable_fcurves") || CTX_data_equals(member, "visible_fcurves") ||
-      CTX_data_equals(member, "selected_editable_fcurves") ||
-      CTX_data_equals(member, "selected_visible_fcurves")) {
-    bAnimContext ac;
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_active_pose_bone(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *obact = view_layer->basact ? view_layer->basact->object : NULL;
+  bPoseChannel *pchan;
+  Object *obpose = BKE_object_pose_armature_get(obact);
 
-    if (ANIM_animdata_get_context(C, &ac) && ELEM(ac.spacetype, SPACE_ACTION, SPACE_GRAPH)) {
-      ListBase anim_data = {NULL, NULL};
+  pchan = BKE_pose_channel_active(obpose);
+  if (pchan) {
+    CTX_data_pointer_set(result, &obpose->id, &RNA_PoseBone, pchan);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_active_object(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *obact = view_layer->basact ? view_layer->basact->object : NULL;
 
-      int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_NODUPLIS) |
-                   (ac.spacetype == SPACE_GRAPH ? ANIMFILTER_CURVE_VISIBLE :
-                                                  ANIMFILTER_LIST_VISIBLE);
+  if (obact) {
+    CTX_data_id_pointer_set(result, &obact->id);
+  }
 
-      if (strstr(member, "editable_")) {
-        filter |= ANIMFILTER_FOREDIT;
+  return CTX_RESULT_OK;
+}
+static eContextResult screen_ctx_object(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *obact = view_layer->basact ? view_layer->basact->object : NULL;
+
+  if (obact) {
+    CTX_data_id_pointer_set(result, &obact->id);
+  }
+
+  return CTX_RESULT_OK;
+}
+static eContextResult screen_ctx_edit_object(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *obedit = OBEDIT_FROM_VIEW_LAYER(view_layer);
+  /* convenience for now, 1 object per scene in editmode */
+  if (obedit) {
+    CTX_data_id_pointer_set(result, &obedit->id);
+  }
+
+  return CTX_RESULT_OK;
+}
+static eContextResult screen_ctx_sculpt_object(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *obact = view_layer->basact ? view_layer->basact->object : NULL;
+
+  if (obact && (obact->mode & OB_MODE_SCULPT)) {
+    CTX_data_id_pointer_set(result, &obact->id);
+  }
+
+  return CTX_RESULT_OK;
+}
+static eContextResult screen_ctx_vertex_paint_object(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *obact = view_layer->basact ? view_layer->basact->object : NULL;
+  if (obact && (obact->mode & OB_MODE_VERTEX_PAINT)) {
+    CTX_data_id_pointer_set(result, &obact->id);
+  }
+
+  return CTX_RESULT_OK;
+}
+static eContextResult screen_ctx_weight_paint_object(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *obact = view_layer->basact ? view_layer->basact->object : NULL;
+  if (obact && (obact->mode & OB_MODE_ALL_WEIGHT_PAINT)) {
+    CTX_data_id_pointer_set(result, &obact->id);
+  }
+
+  return CTX_RESULT_OK;
+}
+static eContextResult screen_ctx_image_paint_object(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *obact = view_layer->basact ? view_layer->basact->object : NULL;
+  if (obact && (obact->mode & OB_MODE_TEXTURE_PAINT)) {
+    CTX_data_id_pointer_set(result, &obact->id);
+  }
+
+  return CTX_RESULT_OK;
+}
+static eContextResult screen_ctx_particle_edit_object(const bContext *C,
+                                                      bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *obact = view_layer->basact ? view_layer->basact->object : NULL;
+  if (obact && (obact->mode & OB_MODE_PARTICLE_EDIT)) {
+    CTX_data_id_pointer_set(result, &obact->id);
+  }
+
+  return CTX_RESULT_OK;
+}
+static eContextResult screen_ctx_pose_object(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *obact = view_layer->basact ? view_layer->basact->object : NULL;
+  Object *obpose = BKE_object_pose_armature_get(obact);
+  if (obpose) {
+    CTX_data_id_pointer_set(result, &obpose->id);
+  }
+  return CTX_RESULT_OK;
+}
+static eContextResult screen_ctx_sequences(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  Scene *scene = WM_window_get_active_scene(win);
+  Editing *ed = BKE_sequencer_editing_get(scene, false);
+  if (ed) {
+    LISTBASE_FOREACH (Sequence *, seq, ed->seqbasep) {
+      CTX_data_list_add(result, &scene->id, &RNA_Sequence, seq);
+    }
+    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_selected_sequences(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  Scene *scene = WM_window_get_active_scene(win);
+  Editing *ed = BKE_sequencer_editing_get(scene, false);
+  if (ed) {
+    LISTBASE_FOREACH (Sequence *, seq, ed->seqbasep) {
+      if (seq->flag & SELECT) {
+        CTX_data_list_add(result, &scene->id, &RNA_Sequence, seq);
       }
-      if (STRPREFIX(member, "selected_")) {
-        filter |= ANIMFILTER_SEL;
+    }
+    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_selected_editable_sequences(const bContext *C,
+                                                             bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  Scene *scene = WM_window_get_active_scene(win);
+  Editing *ed = BKE_sequencer_editing_get(scene, false);
+  if (ed) {
+    LISTBASE_FOREACH (Sequence *, seq, ed->seqbasep) {
+      if (seq->flag & SELECT && !(seq->flag & SEQ_LOCK)) {
+        CTX_data_list_add(result, &scene->id, &RNA_Sequence, seq);
       }
+    }
+    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_selected_nla_strips(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  Scene *scene = WM_window_get_active_scene(win);
+  bAnimContext ac;
+  if (ANIM_animdata_get_context(C, &ac) != 0) {
+    ListBase anim_data = {NULL, NULL};
 
-      ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
-
-      LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-        if (ELEM(ale->type, ANIMTYPE_FCURVE, ANIMTYPE_NLACURVE)) {
-          CTX_data_list_add(result, ale->fcurve_owner_id, &RNA_FCurve, ale->data);
+    ANIM_animdata_filter(&ac, &anim_data, ANIMFILTER_DATA_VISIBLE, ac.data, ac.datatype);
+    LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
+      if (ale->datatype != ALE_NLASTRIP) {
+        continue;
+      }
+      NlaTrack *nlt = (NlaTrack *)ale->data;
+      LISTBASE_FOREACH (NlaStrip *, strip, &nlt->strips) {
+        if (strip->flag & NLASTRIP_FLAG_SELECT) {
+          CTX_data_list_add(result, &scene->id, &RNA_NlaStrip, strip);
         }
       }
-
-      ANIM_animdata_freelist(&anim_data);
-
-      CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-      return 1;
     }
-    return -1; /* found but not available */
+    ANIM_animdata_freelist(&anim_data);
+
+    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    return CTX_RESULT_OK;
   }
-  if (CTX_data_equals(member, "active_editable_fcurve")) {
-    bAnimContext ac;
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_gpencil_data(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  ScrArea *area = CTX_wm_area(C);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *obact = view_layer->basact ? view_layer->basact->object : NULL;
+  /* FIXME: for some reason, CTX_data_active_object(C) returns NULL when called from these
+   * situations (as outlined above - see Campbell's #ifdefs).
+   * That causes the get_active function to fail when called from context.
+   * For that reason, we end up using an alternative where we pass everything in!
+   */
+  bGPdata *gpd = ED_gpencil_data_get_active_direct(area, obact);
 
-    if (ANIM_animdata_get_context(C, &ac) && ELEM(ac.spacetype, SPACE_GRAPH)) {
-      ListBase anim_data = {NULL, NULL};
+  if (gpd) {
+    CTX_data_id_pointer_set(result, &gpd->id);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_gpencil_data_owner(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  ScrArea *area = CTX_wm_area(C);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *obact = view_layer->basact ? view_layer->basact->object : NULL;
+  /* Pointer to which data/datablock owns the reference to the Grease Pencil data being used
+   * (as gpencil_data). */
+  bGPdata **gpd_ptr = NULL;
+  PointerRNA ptr;
 
-      int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_ACTIVE | ANIMFILTER_FOREDIT |
-                    ANIMFILTER_CURVE_VISIBLE);
+  /* get pointer to Grease Pencil Data */
+  gpd_ptr = ED_gpencil_data_get_pointers_direct(area, obact, &ptr);
 
-      ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
+  if (gpd_ptr) {
+    CTX_data_pointer_set(result, ptr.owner_id, ptr.type, ptr.data);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_annotation_data(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  bScreen *screen = CTX_wm_screen(C);
+  ScrArea *area = CTX_wm_area(C);
+  Scene *scene = WM_window_get_active_scene(win);
+  bGPdata *gpd = ED_annotation_data_get_active_direct((ID *)screen, area, scene);
 
-      LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-        if (ELEM(ale->type, ANIMTYPE_FCURVE, ANIMTYPE_NLACURVE)) {
-          CTX_data_pointer_set(result, ale->fcurve_owner_id, &RNA_FCurve, ale->data);
-          break;
+  if (gpd) {
+    CTX_data_id_pointer_set(result, &gpd->id);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_annotation_data_owner(const bContext *C,
+                                                       bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  bScreen *screen = CTX_wm_screen(C);
+  ScrArea *area = CTX_wm_area(C);
+  Scene *scene = WM_window_get_active_scene(win);
+  /* Pointer to which data/datablock owns the reference to the Grease Pencil data being used. */
+  bGPdata **gpd_ptr = NULL;
+  PointerRNA ptr;
+
+  /* Get pointer to Grease Pencil Data. */
+  gpd_ptr = ED_annotation_data_get_pointers_direct((ID *)screen, area, scene, &ptr);
+
+  if (gpd_ptr) {
+    CTX_data_pointer_set(result, ptr.owner_id, ptr.type, ptr.data);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_active_gpencil_layer(const bContext *C,
+                                                      bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  ScrArea *area = CTX_wm_area(C);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *obact = view_layer->basact ? view_layer->basact->object : NULL;
+  bGPdata *gpd = ED_gpencil_data_get_active_direct(area, obact);
+
+  if (gpd) {
+    bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
+
+    if (gpl) {
+      CTX_data_pointer_set(result, &gpd->id, &RNA_GPencilLayer, gpl);
+      return CTX_RESULT_OK;
+    }
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_active_annotation_layer(const bContext *C,
+                                                         bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  bScreen *screen = CTX_wm_screen(C);
+  ScrArea *area = CTX_wm_area(C);
+  Scene *scene = WM_window_get_active_scene(win);
+  bGPdata *gpd = ED_annotation_data_get_active_direct((ID *)screen, area, scene);
+
+  if (gpd) {
+    bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
+
+    if (gpl) {
+      CTX_data_pointer_set(result, &gpd->id, &RNA_GPencilLayer, gpl);
+      return CTX_RESULT_OK;
+    }
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_active_gpencil_frame(const bContext *C,
+                                                      bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  ScrArea *area = CTX_wm_area(C);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *obact = view_layer->basact ? view_layer->basact->object : NULL;
+  bGPdata *gpd = ED_gpencil_data_get_active_direct(area, obact);
+
+  if (gpd) {
+    bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
+
+    if (gpl) {
+      CTX_data_pointer_set(result, &gpd->id, &RNA_GPencilLayer, gpl->actframe);
+      return CTX_RESULT_OK;
+    }
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_visible_gpencil_layers(const bContext *C,
+                                                        bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  ScrArea *area = CTX_wm_area(C);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *obact = view_layer->basact ? view_layer->basact->object : NULL;
+  bGPdata *gpd = ED_gpencil_data_get_active_direct(area, obact);
+
+  if (gpd) {
+    LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
+      if ((gpl->flag & GP_LAYER_HIDE) == 0) {
+        CTX_data_list_add(result, &gpd->id, &RNA_GPencilLayer, gpl);
+      }
+    }
+    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_editable_gpencil_layers(const bContext *C,
+                                                         bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  ScrArea *area = CTX_wm_area(C);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *obact = view_layer->basact ? view_layer->basact->object : NULL;
+  bGPdata *gpd = ED_gpencil_data_get_active_direct(area, obact);
+
+  if (gpd) {
+    LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
+      if (BKE_gpencil_layer_is_editable(gpl)) {
+        CTX_data_list_add(result, &gpd->id, &RNA_GPencilLayer, gpl);
+      }
+    }
+    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_editable_gpencil_strokes(const bContext *C,
+                                                          bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  ScrArea *area = CTX_wm_area(C);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *obact = view_layer->basact ? view_layer->basact->object : NULL;
+
+  bGPdata *gpd = ED_gpencil_data_get_active_direct(area, obact);
+  const bool is_multiedit = (bool)GPENCIL_MULTIEDIT_SESSIONS_ON(gpd);
+
+  if (gpd) {
+    LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
+      if (BKE_gpencil_layer_is_editable(gpl) && (gpl->actframe)) {
+        bGPDframe *gpf;
+        bGPDframe *init_gpf = gpl->actframe;
+        if (is_multiedit) {
+          init_gpf = gpl->frames.first;
+        }
+
+        for (gpf = init_gpf; gpf; gpf = gpf->next) {
+          if ((gpf == gpl->actframe) || ((gpf->flag & GP_FRAME_SELECT) && (is_multiedit))) {
+            LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
+              if (ED_gpencil_stroke_can_use_direct(area, gps)) {
+                /* check if the color is editable */
+                if (ED_gpencil_stroke_color_use(obact, gpl, gps) == false) {
+                  continue;
+                }
+
+                CTX_data_list_add(result, &gpd->id, &RNA_GPencilStroke, gps);
+              }
+            }
+          }
+          /* if not multiedit out of loop */
+          if (!is_multiedit) {
+            break;
+          }
         }
       }
-
-      ANIM_animdata_freelist(&anim_data);
-      return 1;
     }
-    return -1; /* found but not available */
+    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_active_operator(const bContext *C, bContextDataResult *result)
+{
+  wmOperator *op = NULL;
+
+  SpaceFile *sfile = CTX_wm_space_file(C);
+  if (sfile) {
+    op = sfile->op;
+  }
+  else if ((op = UI_context_active_operator_get(C))) {
+    /* do nothing */
+  }
+  else {
+    /* note, this checks poll, could be a problem, but this also
+     * happens for the toolbar */
+    op = WM_operator_last_redo(C);
+  }
+  /* TODO, get the operator from popup's */
+
+  if (op && op->ptr) {
+    CTX_data_pointer_set(result, NULL, &RNA_Operator, op);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_sel_edit_fcurves_(const bContext *C,
+                                                   bContextDataResult *result,
+                                                   const int extra_filter)
+{
+  bAnimContext ac;
+
+  if (ANIM_animdata_get_context(C, &ac) && ELEM(ac.spacetype, SPACE_ACTION, SPACE_GRAPH)) {
+    ListBase anim_data = {NULL, NULL};
+
+    int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_NODUPLIS) |
+                 (ac.spacetype == SPACE_GRAPH ? ANIMFILTER_CURVE_VISIBLE :
+                                                ANIMFILTER_LIST_VISIBLE) |
+                 extra_filter;
+
+    ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
+
+    LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
+      if (ELEM(ale->type, ANIMTYPE_FCURVE, ANIMTYPE_NLACURVE)) {
+        CTX_data_list_add(result, ale->fcurve_owner_id, &RNA_FCurve, ale->data);
+      }
+    }
+
+    ANIM_animdata_freelist(&anim_data);
+
+    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_editable_fcurves(const bContext *C, bContextDataResult *result)
+{
+  return screen_ctx_sel_edit_fcurves_(C, result, ANIMFILTER_FOREDIT);
+}
+static eContextResult screen_ctx_visible_fcurves(const bContext *C, bContextDataResult *result)
+{
+  return screen_ctx_sel_edit_fcurves_(C, result, 0);
+}
+static eContextResult screen_ctx_selected_editable_fcurves(const bContext *C,
+                                                           bContextDataResult *result)
+{
+  return screen_ctx_sel_edit_fcurves_(C, result, ANIMFILTER_SEL | ANIMFILTER_FOREDIT);
+}
+static eContextResult screen_ctx_selected_visible_fcurves(const bContext *C,
+                                                          bContextDataResult *result)
+{
+  return screen_ctx_sel_edit_fcurves_(C, result, ANIMFILTER_SEL);
+}
+static eContextResult screen_ctx_active_editable_fcurve(const bContext *C,
+                                                        bContextDataResult *result)
+{
+  bAnimContext ac;
+
+  if (ANIM_animdata_get_context(C, &ac) && ELEM(ac.spacetype, SPACE_GRAPH)) {
+    ListBase anim_data = {NULL, NULL};
+
+    int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_ACTIVE | ANIMFILTER_FOREDIT |
+                  ANIMFILTER_CURVE_VISIBLE);
+
+    ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
+
+    LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
+      if (ELEM(ale->type, ANIMTYPE_FCURVE, ANIMTYPE_NLACURVE)) {
+        CTX_data_pointer_set(result, ale->fcurve_owner_id, &RNA_FCurve, ale->data);
+        break;
+      }
+    }
+
+    ANIM_animdata_freelist(&anim_data);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+
+/* Registry of context callback functions. */
+
+typedef eContextResult (*context_callback)(const bContext *C, bContextDataResult *result);
+static GHash *ed_screen_context_functions = NULL;
+
+static void free_context_function_ghash(void *UNUSED(user_data))
+{
+  BLI_ghash_free(ed_screen_context_functions, NULL, NULL);
+}
+static inline void register_context_function(const char *member, context_callback function)
+{
+  BLI_ghash_insert(ed_screen_context_functions, (void *)member, function);
+}
+
+static void ensure_ed_screen_context_functions(void)
+{
+  if (ed_screen_context_functions != NULL) {
+    return;
   }
 
-  return 0; /* not found */
+  /* Murmur hash is faster for smaller strings (according to BLI_hash_mm2). */
+  ed_screen_context_functions = BLI_ghash_new(
+      BLI_ghashutil_strhash_p_murmur, BLI_ghashutil_strcmp, __func__);
+
+  BKE_blender_atexit_register(free_context_function_ghash, NULL);
+
+  register_context_function("scene", screen_ctx_scene);
+  register_context_function("visible_objects", screen_ctx_visible_objects);
+  register_context_function("selectable_objects", screen_ctx_selectable_objects);
+  register_context_function("selected_objects", screen_ctx_selected_objects);
+  register_context_function("selected_editable_objects", screen_ctx_selected_editable_objects);
+  register_context_function("editable_objects", screen_ctx_editable_objects);
+  register_context_function("objects_in_mode", screen_ctx_objects_in_mode);
+  register_context_function("objects_in_mode_unique_data", screen_ctx_objects_in_mode_unique_data);
+  register_context_function("visible_bones", screen_ctx_visible_bones);
+  register_context_function("editable_bones", screen_ctx_editable_bones);
+  register_context_function("selected_bones", screen_ctx_selected_bones);
+  register_context_function("selected_editable_bones", screen_ctx_selected_editable_bones);
+  register_context_function("visible_pose_bones", screen_ctx_visible_pose_bones);
+  register_context_function("selected_pose_bones", screen_ctx_selected_pose_bones);
+  register_context_function("selected_pose_bones_from_active_object",
+                            screen_ctx_selected_pose_bones_from_active_object);
+  register_context_function("active_bone", screen_ctx_active_bone);
+  register_context_function("active_pose_bone", screen_ctx_active_pose_bone);
+  register_context_function("active_object", screen_ctx_active_object);
+  register_context_function("object", screen_ctx_object);
+  register_context_function("edit_object", screen_ctx_edit_object);
+  register_context_function("sculpt_object", screen_ctx_sculpt_object);
+  register_context_function("vertex_paint_object", screen_ctx_vertex_paint_object);
+  register_context_function("weight_paint_object", screen_ctx_weight_paint_object);
+  register_context_function("image_paint_object", screen_ctx_image_paint_object);
+  register_context_function("particle_edit_object", screen_ctx_particle_edit_object);
+  register_context_function("pose_object", screen_ctx_pose_object);
+  register_context_function("sequences", screen_ctx_sequences);
+  register_context_function("selected_sequences", screen_ctx_selected_sequences);
+  register_context_function("selected_editable_sequences", screen_ctx_selected_editable_sequences);
+  register_context_function("selected_nla_strips", screen_ctx_selected_nla_strips);
+  register_context_function("gpencil_data", screen_ctx_gpencil_data);
+  register_context_function("gpencil_data_owner", screen_ctx_gpencil_data_owner);
+  register_context_function("annotation_data", screen_ctx_annotation_data);
+  register_context_function("annotation_data_owner", screen_ctx_annotation_data_owner);
+  register_context_function("active_gpencil_layer", screen_ctx_active_gpencil_layer);
+  register_context_function("active_annotation_layer", screen_ctx_active_annotation_layer);
+  register_context_function("active_gpencil_frame", screen_ctx_active_gpencil_frame);
+  register_context_function("visible_gpencil_layers", screen_ctx_visible_gpencil_layers);
+  register_context_function("editable_gpencil_layers", screen_ctx_editable_gpencil_layers);
+  register_context_function("editable_gpencil_strokes", screen_ctx_editable_gpencil_strokes);
+  register_context_function("active_operator", screen_ctx_active_operator);
+  register_context_function("editable_fcurves", screen_ctx_editable_fcurves);
+  register_context_function("visible_fcurves", screen_ctx_visible_fcurves);
+  register_context_function("selected_editable_fcurves", screen_ctx_selected_editable_fcurves);
+  register_context_function("selected_visible_fcurves", screen_ctx_selected_visible_fcurves);
+  register_context_function("active_editable_fcurve", screen_ctx_active_editable_fcurve);
+}
+
+/* Entry point for the screen context. */
+int ed_screen_context(const bContext *C, const char *member, bContextDataResult *result)
+{
+  if (CTX_data_dir(member)) {
+    CTX_data_dir_set(result, screen_context_dir);
+    return CTX_RESULT_OK;
+  }
+
+  ensure_ed_screen_context_functions();
+  context_callback callback = BLI_ghash_lookup(ed_screen_context_functions, member);
+  if (callback == NULL) {
+    return CTX_RESULT_MEMBER_NOT_FOUND;
+  }
+
+  return callback(C, result);
 }

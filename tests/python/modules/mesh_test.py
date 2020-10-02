@@ -95,6 +95,7 @@ class PhysicsSpec:
         return "Physics Modifier: " + self.modifier_name + " of type " + self.modifier_type + \
                " with parameters: " + str(self.modifier_parameters) + " with frame end: " + str(self.frame_end)
 
+
 class OperatorSpec:
     """
     Holds one operator and its parameters.
@@ -127,7 +128,14 @@ class MeshTest:
     the public method run_test().
     """
 
-    def __init__(self, test_object_name: str, expected_object_name: str, operations_stack=None, apply_modifiers=False, threshold=None):
+    def __init__(
+            self,
+            test_object_name: str,
+            expected_object_name: str,
+            operations_stack=None,
+            apply_modifiers=False,
+            threshold=None,
+    ):
         """
         Constructs a MeshTest object. Raises a KeyError if objects with names expected_object_name
         or test_object_name don't exist.
@@ -258,7 +266,6 @@ class MeshTest:
         if self.apply_modifier:
             bpy.ops.object.modifier_apply(modifier=modifier_spec.modifier_name)
 
-
     def _bake_current_simulation(self, obj, test_mod_type, test_mod_name, frame_end):
         for scene in bpy.data.scenes:
             for modifier in obj.modifiers:
@@ -281,7 +288,6 @@ class MeshTest:
             print("Created modifier '{}' of type '{}'.".
                   format(physics_spec.modifier_name, physics_spec.modifier_type))
 
-
         for param_name in physics_spec.modifier_parameters:
             try:
                 setattr(physics_setting, param_name, physics_spec.modifier_parameters[param_name])
@@ -296,10 +302,14 @@ class MeshTest:
 
         scene.frame_set(physics_spec.frame_end + 1)
 
-        self._bake_current_simulation(test_object, physics_spec.modifier_type, physics_spec.modifier_name, physics_spec.frame_end)
+        self._bake_current_simulation(
+            test_object,
+            physics_spec.modifier_type,
+            physics_spec.modifier_name,
+            physics_spec.frame_end,
+        )
         if self.apply_modifier:
             bpy.ops.object.modifier_apply(modifier=physics_spec.modifier_name)
-
 
     def _apply_operator(self, test_object, operator: OperatorSpec):
         """

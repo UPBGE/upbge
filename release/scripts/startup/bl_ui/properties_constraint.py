@@ -374,7 +374,6 @@ class ConstraintButtonsPanel(Panel):
         subsub.prop(con, "max_z", text="")
         row.prop_decorator(con, "max_z")
 
-
         layout.prop(con, "use_transform_limit")
         layout.prop(con, "owner_space")
 
@@ -871,7 +870,6 @@ class ConstraintButtonsPanel(Panel):
         row.active = not con.use_3d_position
         row.prop(con, "use_undistorted_position")
 
-
         if not con.use_active_clip:
             layout.prop(con, "clip")
 
@@ -1271,6 +1269,7 @@ class BONE_PT_bChildOfConstraint(BoneConstraintPanel, ConstraintButtonsPanel):
 
 # Track To Constraint
 
+
 class OBJECT_PT_bTrackToConstraint(ObjectConstraintPanel, ConstraintButtonsPanel):
     def draw(self, context):
         self.draw_trackto(context)
@@ -1281,6 +1280,7 @@ class BONE_PT_bTrackToConstraint(BoneConstraintPanel, ConstraintButtonsPanel):
         self.draw_trackto(context)
 
 # Follow Path Constraint
+
 
 class OBJECT_PT_bFollowPathConstraint(ObjectConstraintPanel, ConstraintButtonsPanel):
     def draw(self, context):
@@ -1655,10 +1655,10 @@ class OBJECT_PT_bPythonConstraint(ObjectConstraintPanel, ConstraintButtonsPanel)
     def draw(self, context):
         self.draw_python_constraint(context)
 
+
 class BONE_PT_bPythonConstraint(BoneConstraintPanel, ConstraintButtonsPanel):
     def draw(self, context):
         self.draw_python_constraint(context)
-
 
 
 # Armature Constraint
@@ -1699,7 +1699,6 @@ class OBJECT_PT_bKinematicConstraint(ObjectConstraintPanel, ConstraintButtonsPan
 class BONE_PT_bKinematicConstraint(BoneConstraintPanel, ConstraintButtonsPanel):
     def draw(self, context):
         self.draw_kinematic(context)
-
 
 
 classes = (

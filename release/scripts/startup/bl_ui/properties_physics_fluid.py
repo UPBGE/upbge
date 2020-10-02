@@ -1232,7 +1232,10 @@ class PHYSICS_PT_export(PhysicButtonsPanel, Panel):
     @classmethod
     def poll(cls, context):
         domain = context.fluid.domain_settings
-        if not PhysicButtonsPanel.poll_fluid_domain(context) or (domain.cache_data_format != 'OPENVDB' and bpy.app.debug_value != 3001):
+        if (
+                not PhysicButtonsPanel.poll_fluid_domain(context) or
+                (domain.cache_data_format != 'OPENVDB' and bpy.app.debug_value != 3001)
+        ):
             return False
 
         return (context.engine in cls.COMPAT_ENGINES)
@@ -1385,7 +1388,7 @@ class PHYSICS_PT_viewport_display_debug(PhysicButtonsPanel, Panel):
         if not domain.use_guide and domain.vector_field == 'GUIDE_VELOCITY':
             note = layout.split()
             note.label(icon='INFO', text="Enable Guides first! Defaulting to Fluid Velocity")
-        
+
         if domain.vector_display_type == 'MAC':
             sub = col.column(heading="MAC Grid")
             sub.prop(domain, "vector_show_mac_x")
@@ -1393,9 +1396,10 @@ class PHYSICS_PT_viewport_display_debug(PhysicButtonsPanel, Panel):
             sub.prop(domain, "vector_show_mac_z")
         else:
             col.prop(domain, "vector_scale_with_magnitude")
-        
+
         col.prop(domain, "vector_field")
         col.prop(domain, "vector_scale")
+
 
 class PHYSICS_PT_viewport_display_advanced(PhysicButtonsPanel, Panel):
     bl_label = "Advanced"
@@ -1427,6 +1431,7 @@ class PHYSICS_PT_viewport_display_advanced(PhysicButtonsPanel, Panel):
                     note.label(icon='INFO', text="Enable Grid Display to use range highlighting!")
                 else:
                     note.label(icon='INFO', text="Range highlighting for flags is not available!")
+
 
 classes = (
     FLUID_PT_presets,

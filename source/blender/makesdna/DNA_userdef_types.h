@@ -623,14 +623,19 @@ typedef struct UserDef_FileSpaceData {
 } UserDef_FileSpaceData;
 
 typedef struct UserDef_Experimental {
+  /* Debug options, always available. */
   char use_undo_legacy;
+  char use_cycles_debug;
+  char use_image_editor_legacy_drawing;
+  char SANITIZE_AFTER_HERE;
+  /* The following options are automatically sanitized (set to 0)
+   * when the release cycle is not alpha. */
   char use_new_particle_system;
   char use_new_hair_type;
-  char use_cycles_debug;
   char use_sculpt_vertex_colors;
-  char use_image_editor_legacy_drawing;
   char use_tools_missing_icons;
   char use_switch_object_operator;
+  char _pad[7];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) \
