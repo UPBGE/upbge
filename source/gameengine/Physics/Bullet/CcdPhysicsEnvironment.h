@@ -100,9 +100,7 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
 
  public:
   CcdPhysicsEnvironment(PHY_SolverType solverType,
-                        bool useDbvtCulling,
-                        btDispatcher *dispatcher = nullptr,
-                        btOverlappingPairCache *pairCache = nullptr);
+                        bool useDbvtCulling);
 
   virtual ~CcdPhysicsEnvironment();
 
