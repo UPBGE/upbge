@@ -318,10 +318,6 @@ PyObject *PyObjectPlus::py_get_attrdef(PyObject *self_py, const PyAttributeDef *
     return nullptr;
   }
 
-  if (attrdef->m_type == KX_PYATTRIBUTE_TYPE_DUMMY) {
-    // Fake attribute, ignore.
-    return nullptr;
-  }
   if (attrdef->m_type == KX_PYATTRIBUTE_TYPE_FUNCTION) {
     // The attribute has no field correspondence, handover processing to function.
     if (attrdef->m_getFunction == nullptr) {
