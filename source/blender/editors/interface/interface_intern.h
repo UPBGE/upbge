@@ -437,6 +437,26 @@ enum eBlockContentHints {
   UI_BLOCK_CONTAINS_SUBMENU_BUT = (1 << 0),
 };
 
+/**
+ * A group of button references, used by property search to keep track of sets of buttons that
+ * should be searched together. For example, in property split layouts number buttons and their
+ * labels (and even their decorators) are separate buttons, but they must be searched and
+ * highlighted together.
+ */
+typedef struct uiButtonGroup {
+  void *next, *prev;
+  ListBase buttons; /* #LinkData with #uiBut data field. */
+  short flag;
+} uiButtonGroup;
+
+/* #uiButtonGroup.flag. */
+typedef enum uiButtonGroupFlag {
+  /** While this flag is set, don't create new button groups for layout item calls. */
+  UI_BUTTON_GROUP_LOCK = (1 << 0),
+  /** The buttons in this group are inside a panel header. */
+  UI_BUTTON_GROUP_PANEL_HEADER = (1 << 1),
+} uiButtonGroupFlag;
+
 struct uiBlock {
   uiBlock *next, *prev;
 
@@ -445,6 +465,8 @@ struct uiBlock {
   uiBlock *oldblock;
 
   ListBase butstore; /* UI_butstore_* runtime function */
+
+  ListBase button_groups; /* #uiButtonGroup. */
 
   ListBase layouts;
   struct uiLayout *curlayout;
@@ -1019,14 +1041,12 @@ void icon_draw_rect_input(
     float x, float y, int w, int h, float alpha, short event_type, short event_value);
 
 /* resources.c */
-void init_userdef_do_versions(void);
 void ui_resources_init(void);
 void ui_resources_free(void);
 
 /* interface_layout.c */
 void ui_layout_add_but(uiLayout *layout, uiBut *but);
 bool ui_layout_replace_but_ptr(uiLayout *layout, const void *old_but_ptr, uiBut *new_but);
-void ui_button_group_replace_but_ptr(uiLayout *layout, const void *old_but_ptr, uiBut *new_but);
 uiBut *ui_but_add_search(uiBut *but,
                          PointerRNA *ptr,
                          PropertyRNA *prop,
@@ -1036,6 +1056,12 @@ void ui_layout_list_set_labels_active(uiLayout *layout);
 /* menu callback */
 void ui_item_menutype_func(struct bContext *C, struct uiLayout *layout, void *arg_mt);
 void ui_item_paneltype_func(struct bContext *C, struct uiLayout *layout, void *arg_pt);
+
+/* interface_button_group.c */
+void ui_block_new_button_group(uiBlock *block, short flag);
+void ui_button_group_add_but(uiBlock *block, uiBut *but);
+void ui_button_group_replace_but_ptr(uiBlock *block, const void *old_but_ptr, uiBut *new_but);
+void ui_block_free_button_groups(uiBlock *block);
 
 /* interface_align.c */
 bool ui_but_can_align(const uiBut *but) ATTR_WARN_UNUSED_RESULT;

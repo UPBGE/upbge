@@ -7134,9 +7134,7 @@ static void link_global(FileData *fd, BlendFileData *bfd)
 /** \name Versioning
  * \{ */
 
-/* initialize userdef with non-UI dependency stuff */
-/* other initializers (such as theme color defaults) go to resources.c */
-static void do_versions_userdef(FileData *fd, BlendFileData *bfd)
+static void do_versions_userdef(FileData *UNUSED(fd), BlendFileData *bfd)
 {
   UserDef *user = bfd->user;
 
@@ -7144,19 +7142,7 @@ static void do_versions_userdef(FileData *fd, BlendFileData *bfd)
     return;
   }
 
-  if (!DNA_struct_elem_find(fd->filesdna, "UserDef", "WalkNavigation", "walk_navigation")) {
-    user->walk_navigation.mouse_speed = 1.0f;
-    user->walk_navigation.walk_speed = 2.5f; /* m/s */
-    user->walk_navigation.walk_speed_factor = 5.0f;
-    user->walk_navigation.view_height = 1.6f;   /* m */
-    user->walk_navigation.jump_height = 0.4f;   /* m */
-    user->walk_navigation.teleport_time = 0.2f; /* s */
-  }
-
-  /* tablet pressure threshold */
-  if (!DNA_struct_elem_find(fd->filesdna, "UserDef", "float", "pressure_threshold_max")) {
-    user->pressure_threshold_max = 1.0f;
-  }
+  blo_do_versions_userdef(user);
 }
 
 static void do_versions(FileData *fd, Library *lib, Main *main)

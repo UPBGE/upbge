@@ -38,6 +38,7 @@ set(SRC
   interface.c
   interface_align.c
   interface_anim.c
+  interface_button_group.c
   interface_context_menu.c
   interface_draw.c
   interface_eyedropper.c
@@ -93,10 +94,6 @@ endif()
 
 if(WITH_HEADLESS)
   add_definitions(-DWITH_HEADLESS)
-endif()
-
-if(WITH_CYCLES)
-  add_definitions(-DWITH_CYCLES)
 endif()
 
 if(WITH_PYTHON)
