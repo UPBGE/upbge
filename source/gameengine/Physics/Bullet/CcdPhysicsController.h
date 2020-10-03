@@ -716,8 +716,6 @@ class CcdPhysicsController : public PHY_IPhysicsController {
   // dyna's that are rigidbody are free in orientation, dyna's with non-rigidbody are restricted
   virtual void SetRigidBody(bool rigid);
 
-  virtual void ResolveCombinedVelocities(
-      float linvelX, float linvelY, float linvelZ, float angVelX, float angVelY, float angVelZ);
   virtual void RefreshCollisions();
   virtual void SuspendPhysics(bool freeConstraints);
   virtual void RestorePhysics();

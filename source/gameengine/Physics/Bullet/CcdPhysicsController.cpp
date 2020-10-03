@@ -1135,11 +1135,6 @@ void CcdPhysicsController::ForceWorldTransform(const btMatrix3x3 &mat, const btV
   }
 }
 
-void CcdPhysicsController::ResolveCombinedVelocities(
-    float linvelX, float linvelY, float linvelZ, float angVelX, float angVelY, float angVelZ)
-{
-}
-
 void CcdPhysicsController::RefreshCollisions()
 {
   // the object is in an inactive layer so it's useless to update it and can cause problems

@@ -107,12 +107,7 @@ class SCA_ObjectActuator : public SCA_IActuator {
   MT_Vector3 m_error_accumulator;
   KX_LocalFlags m_bitLocalFlag;
   KX_GameObject *m_reference;
-  // A hack bool -- oh no sorry everyone
-  // This bool is used to check if we have informed
-  // the physics object that we are no longer
-  // setting linear velocity.
 
-  bool m_active_combined_velocity;
   bool m_linear_damping_active;
   bool m_angular_damping_active;
   bool m_jumping;

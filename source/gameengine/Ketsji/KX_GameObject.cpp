@@ -1326,20 +1326,6 @@ void KX_GameObject::setAngularVelocity(const MT_Vector3 &ang_vel, bool local)
     m_pPhysicsController->SetAngularVelocity(ang_vel, local);
 }
 
-void KX_GameObject::ResolveCombinedVelocities(const MT_Vector3 &lin_vel,
-                                              const MT_Vector3 &ang_vel,
-                                              bool lin_vel_local,
-                                              bool ang_vel_local)
-{
-  if (m_pPhysicsController) {
-
-    MT_Vector3 lv = lin_vel_local ? NodeGetWorldOrientation() * lin_vel : lin_vel;
-    MT_Vector3 av = ang_vel_local ? NodeGetWorldOrientation() * ang_vel : ang_vel;
-    m_pPhysicsController->ResolveCombinedVelocities(
-        lv.x(), lv.y(), lv.z(), av.x(), av.y(), av.z());
-  }
-}
-
 void KX_GameObject::SetObjectColor(const MT_Vector4 &rgbavec)
 {
   m_objectColor = rgbavec;
