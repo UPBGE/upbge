@@ -747,9 +747,6 @@ class CcdPhysicsController : public PHY_IPhysicsController {
     return m_cci.m_collisionFilterMask;
   }
 
-  virtual void CalcXform()
-  {
-  }
   virtual void SetMargin(float margin)
   {
     if (m_collisionShape) {
