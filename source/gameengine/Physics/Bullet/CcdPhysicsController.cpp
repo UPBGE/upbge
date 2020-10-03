@@ -177,7 +177,6 @@ CcdPhysicsController::CcdPhysicsController(const CcdConstructionInfo &ci) : m_cc
 {
   m_prototypeTransformInitialized = false;
   m_softbodyMappingDone = false;
-  m_collisionDelay = 0;
   m_newClientInfo = 0;
   m_registerCount = 0;
   m_softBodyTransformInitialized = false;

@@ -606,7 +606,6 @@ class CcdPhysicsController : public PHY_IPhysicsController {
   void ForceWorldTransform(const btMatrix3x3 &mat, const btVector3 &pos);
 
  public:
-  int m_collisionDelay;
 
   CcdPhysicsController(const CcdConstructionInfo &ci);
 
