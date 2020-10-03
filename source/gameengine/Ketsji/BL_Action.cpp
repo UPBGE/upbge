@@ -527,7 +527,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
 void BL_Action::UpdateIPOs()
 {
-  if (m_sg_contr_list.size() == 0) {
+  if (m_sg_contr_list.empty()) {
     // Nothing to update or remove.
     return;
   }

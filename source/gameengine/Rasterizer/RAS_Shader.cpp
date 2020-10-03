@@ -362,7 +362,7 @@ bool RAS_Shader::GetEnabled() const
 
 void RAS_Shader::Update(RAS_Rasterizer *rasty, const MT_Matrix4x4 model)
 {
-  if (!Ok() || !m_preDef.size()) {
+  if (!Ok() || m_preDef.empty()) {
     return;
   }
 

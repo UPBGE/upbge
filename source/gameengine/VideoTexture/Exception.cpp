@@ -142,7 +142,7 @@ void Exception::report(void)
 void Exception::setXptDesc(void)
 {
   // if description is not set
-  if (m_desc.size() == 0) {
+  if (m_desc.empty()) {
     // start of search                           -1
     // found description "NotFound"               0
     // found description without matching result  1

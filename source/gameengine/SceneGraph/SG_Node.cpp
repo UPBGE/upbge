@@ -109,7 +109,7 @@ void SG_Node::ProcessSGReplica(SG_Node **replica)
   // clear the replica node of it's parent.
   (*replica)->m_SGparent = nullptr;
 
-  if (m_children.size() > 0) {
+  if (!m_children.empty()) {
     // if this node has children, the replica has too, so clear and clone children
     (*replica)->ClearSGChildren();
 
@@ -124,7 +124,7 @@ void SG_Node::ProcessSGReplica(SG_Node **replica)
   // not worth to keep, they will just take up CPU
   // This can happen in partial replication of hierarchy
   // during group duplication.
-  if ((*replica)->m_children.size() == 0 && (*replica)->GetSGClientObject() == nullptr) {
+  if ((*replica)->m_children.empty() && (*replica)->GetSGClientObject() == nullptr) {
     delete (*replica);
     *replica = nullptr;
   }

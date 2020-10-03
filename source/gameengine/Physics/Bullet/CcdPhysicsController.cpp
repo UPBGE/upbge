@@ -1826,7 +1826,7 @@ void CcdPhysicsController::ReplacePhysicsShape(PHY_IPhysicsController *phyctrl)
 void CcdPhysicsController::ReplicateConstraints(KX_GameObject *replica,
                                                 std::vector<KX_GameObject *> constobj)
 {
-  if (replica->GetConstraints().size() == 0 || !replica->GetPhysicsController())
+  if (replica->GetConstraints().empty() || !replica->GetPhysicsController())
     return;
 
   PHY_IPhysicsEnvironment *physEnv = GetPhysicsEnvironment();
@@ -2955,19 +2955,21 @@ btCollisionShape *CcdShapeConstructionInfo::CreateBulletShape(btScalar margin,
       break;
 
     case PHY_SHAPE_COMPOUND:
-      if (m_shapeArray.size() > 0) {
-        compoundShape = new btCompoundShape();
-        for (std::vector<CcdShapeConstructionInfo *>::iterator sit = m_shapeArray.begin();
-             sit != m_shapeArray.end();
-             sit++) {
-          collisionShape = (*sit)->CreateBulletShape(margin, useGimpact, useBvh);
-          if (collisionShape) {
-            collisionShape->setLocalScaling((*sit)->m_childScale);
-            compoundShape->addChildShape((*sit)->m_childTrans, collisionShape);
-          }
-        }
-        collisionShape = compoundShape;
+      if (m_shapeArray.empty()) {
+        break;
       }
+
+      compoundShape = new btCompoundShape();
+      for (std::vector<CcdShapeConstructionInfo *>::iterator sit = m_shapeArray.begin();
+           sit != m_shapeArray.end();
+           sit++) {
+        collisionShape = (*sit)->CreateBulletShape(margin, useGimpact, useBvh);
+        if (collisionShape) {
+          collisionShape->setLocalScaling((*sit)->m_childScale);
+          compoundShape->addChildShape((*sit)->m_childTrans, collisionShape);
+        }
+      }
+      collisionShape = compoundShape;
       break;
     case PHY_SHAPE_EMPTY:
       collisionShape = new btEmptyShape();

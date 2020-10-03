@@ -66,7 +66,7 @@ void KX_TimeLogger::EndLog(double now)
   if (m_logging) {
     m_logging = false;
     double time = now - m_logStart;
-    if (m_measurements.size() > 0) {
+    if (!m_measurements.empty()) {
       m_measurements[0] += time;
     }
   }

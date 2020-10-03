@@ -41,7 +41,7 @@ SCA_EventManager::SCA_EventManager(SCA_LogicManager *logicmgr, EVENT_MANAGER_TYP
 SCA_EventManager::~SCA_EventManager()
 {
   // all sensors should be removed
-  BLI_assert(m_sensors.size() == 0);
+  BLI_assert(m_sensors.empty());
 }
 
 bool SCA_EventManager::RegisterSensor(class SCA_ISensor *sensor)

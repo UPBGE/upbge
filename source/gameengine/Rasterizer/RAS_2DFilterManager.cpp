@@ -85,7 +85,7 @@ RAS_FrameBuffer *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty,
                                                     RAS_FrameBuffer *targetfb,
                                                     KX_Scene *scene)
 {
-  if (m_filters.size() == 0) {
+  if (m_filters.empty()) {
     // No filters, discard.
     return inputfb;
   }

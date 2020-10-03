@@ -821,7 +821,7 @@ ImageRender::ImageRender(KX_Scene *scene,
       }
     }
   }
-  if (mirrorVerts.size() == 0 || mirrorArea < FLT_EPSILON) {
+  if (mirrorVerts.empty() || mirrorArea < FLT_EPSILON) {
     // no vertex or zero size mirror
     THRWEXCP(MirrorSizeInvalid, S_OK);
   }

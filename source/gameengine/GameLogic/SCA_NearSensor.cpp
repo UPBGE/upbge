@@ -171,7 +171,7 @@ bool SCA_NearSensor::BroadPhaseFilterCollision(void *obj1, void *obj2)
   if (gameobj && (gameobj != parent)) {
     // only take valid colliders
     if (client_info->m_type == KX_ClientObjectInfo::ACTOR) {
-      if ((m_touchedpropname.size() == 0) || (gameobj->GetProperty(m_touchedpropname))) {
+      if ((m_touchedpropname.empty()) || (gameobj->GetProperty(m_touchedpropname))) {
         return true;
       }
     }
@@ -203,7 +203,7 @@ bool SCA_NearSensor::NewHandleCollision(void *obj1, void *obj2, const PHY_CollDa
     // These checks are done already in BroadPhaseFilterCollision()
     // if (client_info->m_type == KX_ClientObjectInfo::ACTOR)
     //{
-    //	if ((m_touchedpropname.size() == 0) ||
+    //	if ((m_touchedpropname.empty()) ||
     //		(gameobj->GetProperty(m_touchedpropname)))
     //	{
     m_bTriggered = true;

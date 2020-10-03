@@ -137,7 +137,7 @@ bool SCA_KeyboardSensor::Evaluate()
 
     for (int i = SCA_IInputDevice::BEGINKEY; i <= SCA_IInputDevice::ENDKEY; ++i) {
       const SCA_InputEvent &input = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
-      if (input.m_queue.size() > 0) {
+      if (!input.m_queue.empty()) {
         events = true;
         break;
       }
@@ -159,19 +159,19 @@ bool SCA_KeyboardSensor::Evaluate()
       const SCA_InputEvent &qualevent = inputdev->GetInput(
           (SCA_IInputDevice::SCA_EnumInputs)m_qual);
       status[1] = qualevent.End(SCA_InputEvent::ACTIVE);
-      events[1] = (qualevent.m_queue.size() > 0);
+      events[1] = !qualevent.m_queue.empty();
     }
     if (m_qual2 > 0) {
       const SCA_InputEvent &qualevent = inputdev->GetInput(
           (SCA_IInputDevice::SCA_EnumInputs)m_qual2);
       /* copy of above */
       status[2] = qualevent.End(SCA_InputEvent::ACTIVE);
-      events[2] = (qualevent.m_queue.size() > 0);
+      events[2] = !qualevent.m_queue.empty();
     }
     /* done reading qualifiers */
 
     status[0] = input.End(SCA_InputEvent::ACTIVE);
-    events[0] = (input.m_queue.size() > 0);
+    events[0] = !input.m_queue.empty();
 
     /* Modify the key state based on qual(s)
      * Tested carefully. don't touch unless your really sure.
@@ -226,7 +226,7 @@ void SCA_KeyboardSensor::LogKeystrokes()
        ++it) {
     const wchar_t item = *it;
     if (item == '\b' || item == 127) {
-      if (proptext.size()) {
+      if (!proptext.empty()) {
         proptext.resize(proptext.size() - 1);
       }
     }
@@ -374,11 +374,11 @@ PyObject *SCA_KeyboardSensor::pyattr_get_events(PyObjectPlus *self_v,
   for (int i = SCA_IInputDevice::BEGINKEY; i <= SCA_IInputDevice::ENDKEY; i++) {
     SCA_InputEvent &input = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
     int event = 0;
-    if (input.m_queue.size() > 0) {
-      event = input.m_queue[input.m_queue.size() - 1];
+    if (input.m_queue.empty()) {
+      event = input.m_status[input.m_status.size() - 1];
     }
     else {
-      event = input.m_status[input.m_status.size() - 1];
+      event = input.m_queue[input.m_queue.size() - 1];
     }
 
     if (event != SCA_InputEvent::NONE) {

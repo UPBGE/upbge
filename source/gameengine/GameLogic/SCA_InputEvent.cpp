@@ -76,10 +76,10 @@ bool SCA_InputEvent::End(SCA_EnumInputs inputenum) const
     return m_status[m_status.size() - 1] == inputenum;
   }
   else {
-    if (m_queue.size() > 0) {
-      return m_queue[m_queue.size() - 1] == inputenum;
+    if (m_queue.empty()) {
+      return false;
     }
-    return false;
+    return m_queue[m_queue.size() - 1] == inputenum;
   }
 }
 

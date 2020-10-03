@@ -66,19 +66,21 @@ bool SCA_TimeEventManager::RemoveSensor(SCA_ISensor *sensor)
 
 void SCA_TimeEventManager::NextFrame(double curtime, double fixedtime)
 {
-  if (m_timevalues.size() > 0 && fixedtime > 0.0) {
-    CFloatValue *floatval = new CFloatValue(curtime);
-
-    // update sensors, but ... need deltatime !
-    for (std::vector<CValue *>::iterator it = m_timevalues.begin(); !(it == m_timevalues.end());
-         ++it) {
-      float newtime = (*it)->GetNumber() + fixedtime;
-      floatval->SetFloat(newtime);
-      (*it)->SetValue(floatval);
-    }
-
-    floatval->Release();
+  if (m_timevalues.empty() && fixedtime <= 0.0) {
+    return;
   }
+
+  CFloatValue *floatval = new CFloatValue(curtime);
+
+  // update sensors, but ... need deltatime !
+  for (std::vector<CValue *>::iterator it = m_timevalues.begin(); !(it == m_timevalues.end());
+       ++it) {
+    float newtime = (*it)->GetNumber() + fixedtime;
+    floatval->SetFloat(newtime);
+    (*it)->SetValue(floatval);
+  }
+
+  floatval->Release();
 }
 
 void SCA_TimeEventManager::AddTimeProperty(CValue *timeval)

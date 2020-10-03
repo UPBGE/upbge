@@ -92,7 +92,7 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
 
   bool IsUnused(void)
   {
-    return (m_meshObject == nullptr && m_shapeArray.size() == 0 && m_shapeProxy == nullptr);
+    return (m_meshObject == nullptr && m_shapeArray.empty() && m_shapeProxy == nullptr);
   }
 
   void AddShape(CcdShapeConstructionInfo *shapeInfo);

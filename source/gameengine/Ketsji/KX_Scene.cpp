@@ -1898,7 +1898,7 @@ void KX_Scene::LogicEndFrame()
    * euthanasy list to avoid double deletion in case the user ask to delete the child object
    * explicitly. NewRemoveObject is the place to do it.
    */
-  while (m_euthanasyobjects.size() > 0) {
+  while (!m_euthanasyobjects.empty()) {
     RemoveObject(m_euthanasyobjects.front());
   }
 
