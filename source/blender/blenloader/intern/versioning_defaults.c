@@ -40,6 +40,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
+#include "DNA_object_force_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -464,6 +465,9 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     ob->col_mask = 0xffff;
     ob->preview = NULL;
     ob->duplicator_visibility_flag = OB_DUPLI_FLAG_VIEWPORT | OB_DUPLI_FLAG_RENDER;
+    if (ob->bsoft) {
+      ob->bsoft->margin = 0.01f;
+    }
   }
   /***********************End of Game engine transition**********************/
 
