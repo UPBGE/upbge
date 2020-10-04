@@ -204,6 +204,14 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
       }
     }
 
+    if (!DNA_struct_elem_find(fd->filesdna, "BulletSoftBody", "btScalar", "margin")) {
+      for (Object *ob = main->objects.first; ob; ob = ob->id.next) {
+        if (ob->bsoft) {
+          ob->bsoft->margin = 0.01;
+        }
+      }
+    }
+
     LISTBASE_FOREACH (Collection *, collection, &main->collections) {
       collection->flag |= COLLECTION_IS_SPAWNED;
     }

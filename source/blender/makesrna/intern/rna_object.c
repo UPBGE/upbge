@@ -1450,8 +1450,10 @@ static int rna_GameObjectSettings_physics_type_get(PointerRNA *ptr)
   else {
     ob->body_type = OB_BODY_TYPE_SOFT;
     /* create the structure here because we display soft body buttons in the main panel */
-    if (!ob->bsoft)
+    if (!ob->bsoft) {
       ob->bsoft = bsbNew();
+      ob->bsoft->margin = 0.01; // not set in bsbNew
+    }
   }
 
   return ob->body_type;
@@ -1525,8 +1527,10 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
         ob->boundtype = ob->collision_boundtype = OB_BOUND_TRIANGLE_MESH;
       }
       /* create a BulletSoftBody structure if not already existing */
-      if (!ob->bsoft)
+      if (!ob->bsoft) {
         ob->bsoft = bsbNew();
+        ob->bsoft->margin = 0.01;  // not set in bsbNew
+      }
       break;
   }
 
