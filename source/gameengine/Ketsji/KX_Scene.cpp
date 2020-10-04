@@ -420,7 +420,7 @@ void KX_Scene::ReinitBlenderContextVariables()
 
     for (ScrArea *sa = (ScrArea *)screen->areabase.first; sa; sa = sa->next) {
       /* We choose the biggest ScrArea to match the behaviour in WM_init_game */
-      if (sa->spacetype == SPACE_VIEW3D && sa == BKE_screen_find_big_area(CTX_wm_screen(C), SPACE_VIEW3D, 0)) {
+      if (sa->spacetype == SPACE_VIEW3D && sa == BKE_screen_find_big_area(screen, SPACE_VIEW3D, 0)) {
         ListBase *regionbase = &sa->regionbase;
         for (ar = (ARegion *)regionbase->first; ar; ar = ar->next) {
           if (ar->regiontype == RGN_TYPE_WINDOW) {
