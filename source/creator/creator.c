@@ -385,7 +385,6 @@ int main(int argc,
   BKE_blender_globals_init(); /* blender.c */
 
   BKE_idtype_init();
-  IMB_init();
   BKE_cachefiles_init();
   BKE_images_init();
   BKE_modifier_init();
@@ -428,8 +427,15 @@ int main(int argc,
   (void)syshandle;
 #endif
 
+  /* After parsing the first level of arguments as `--env-*` impact BKE_appdir behavior. */
+  BKE_appdir_init();
+
   /* After parsing number of threads argument. */
   BLI_task_scheduler_init();
+
+  /* After parsing `--env-system-datafiles` which control where paths are searched
+   * (color-management) uses BKE_appdir to initialize. */
+  IMB_init();
 
 #ifdef WITH_FFMPEG
   IMB_ffmpeg_init();
@@ -467,11 +473,6 @@ int main(int argc,
     BLI_argsParse(ba, 3, NULL, NULL);
 #endif
     WM_init(C, argc, (const char **)argv);
-
-    /* This is properly initialized with user-preferences,
-     * but this is default.
-     * Call after loading the #BLENDER_STARTUP_FILE so we can read #U.tempdir */
-    BKE_tempdir_init(U.tempdir);
   }
   else {
 #ifndef WITH_PYTHON_MODULE
@@ -479,20 +480,8 @@ int main(int argc,
 #endif
 
     WM_init(C, argc, (const char **)argv);
-
-    /* Don't use user preferences #U.tempdir */
-    BKE_tempdir_init(NULL);
   }
-#ifdef WITH_PYTHON
-  /**
-   * \note the #U.pythondir string is NULL until #WM_init() is executed,
-   * so we provide the BPY_ function below to append the user defined
-   * python-dir to Python's `sys.path` at this point.  Simply putting
-   * #WM_init() before #BPY_python_start() crashes Blender at startup.
-   */
-
-  /* TODO: #U.pythondir */
-#else
+#ifndef WITH_PYTHON
   printf(
       "\n* WARNING * - Blender compiled without Python!\n"
       "this is not intended for typical usage\n\n");

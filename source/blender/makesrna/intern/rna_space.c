@@ -1780,11 +1780,9 @@ static const EnumPropertyItem *rna_SpaceProperties_context_itemf(bContext *UNUSE
   SpaceProperties *sbuts = (SpaceProperties *)(ptr->data);
   EnumPropertyItem *item = NULL;
 
-  /* We use 32 tabs maximum here so a flag for each can fit into a 32 bit integer flag.
-   * A theoretical maximum would be BCONTEXT_TOT * 2, with every tab displayed and a spacer
-   * in every other item. But this size is currently limited by the size of integer
-   * supported by RNA enums. */
-  int context_tabs_array[32];
+  /* Although it would never reach this amount, a theoretical maximum number of tabs
+   * is BCONTEXT_TOT * 2, with every tab displayed and a spacer in every other item. */
+  short context_tabs_array[BCONTEXT_TOT * 2];
   int totitem = ED_buttons_tabs_list(sbuts, context_tabs_array);
   BLI_assert(totitem <= ARRAY_SIZE(context_tabs_array));
 
@@ -4706,13 +4704,13 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem proxy_render_size_items[] = {
-      {SEQ_PROXY_RENDER_SIZE_NONE, "NONE", 0, "No display", ""},
-      {SEQ_PROXY_RENDER_SIZE_SCENE, "SCENE", 0, "Scene render size", ""},
-      {SEQ_PROXY_RENDER_SIZE_25, "PROXY_25", 0, "Proxy size 25%", ""},
-      {SEQ_PROXY_RENDER_SIZE_50, "PROXY_50", 0, "Proxy size 50%", ""},
-      {SEQ_PROXY_RENDER_SIZE_75, "PROXY_75", 0, "Proxy size 75%", ""},
-      {SEQ_PROXY_RENDER_SIZE_100, "PROXY_100", 0, "Proxy size 100%", ""},
-      {SEQ_PROXY_RENDER_SIZE_FULL, "FULL", 0, "No proxy, full render", ""},
+      {SEQ_RENDER_SIZE_NONE, "NONE", 0, "No display", ""},
+      {SEQ_RENDER_SIZE_SCENE, "SCENE", 0, "Scene render size", ""},
+      {SEQ_RENDER_SIZE_PROXY_25, "PROXY_25", 0, "Proxy size 25%", ""},
+      {SEQ_RENDER_SIZE_PROXY_50, "PROXY_50", 0, "Proxy size 50%", ""},
+      {SEQ_RENDER_SIZE_PROXY_75, "PROXY_75", 0, "Proxy size 75%", ""},
+      {SEQ_RENDER_SIZE_PROXY_100, "PROXY_100", 0, "Proxy size 100%", ""},
+      {SEQ_RENDER_SIZE_FULL, "FULL", 0, "No proxy, full render", ""},
       {0, NULL, 0, NULL, NULL},
   };
 

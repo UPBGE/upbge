@@ -1212,6 +1212,9 @@ static void project_line_gesture_apply_task_cb(void *__restrict userdata,
       continue;
     }
     add_v3_v3(vd.co, disp);
+    if (vd.mvert) {
+      vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+    }
     any_updated = true;
   }
   BKE_pbvh_vertex_iter_end;
@@ -1419,7 +1422,7 @@ void PAINT_OT_mask_line_gesture(wmOperatorType *ot)
   ot->idname = "PAINT_OT_mask_line_gesture";
   ot->description = "Add mask to the right of a line as you move the brush";
 
-  ot->invoke = WM_gesture_straightline_invoke;
+  ot->invoke = WM_gesture_straightline_active_side_invoke;
   ot->modal = WM_gesture_straightline_oneshot_modal;
   ot->exec = paint_mask_gesture_line_exec;
 
@@ -1516,7 +1519,7 @@ void SCULPT_OT_project_line_gesture(wmOperatorType *ot)
   ot->idname = "SCULPT_OT_project_line_gesture";
   ot->description = "Project the geometry onto a plane defined by a line";
 
-  ot->invoke = WM_gesture_straightline_invoke;
+  ot->invoke = WM_gesture_straightline_active_side_invoke;
   ot->modal = WM_gesture_straightline_oneshot_modal;
   ot->exec = project_gesture_line_exec;
 

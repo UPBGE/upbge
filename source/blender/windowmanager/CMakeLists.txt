@@ -37,6 +37,7 @@ set(INC
   ../makesrna
   ../nodes
   ../render/extern/include
+  ../sequencer
   ../../gameengine/Launcher
   ../../../intern/clog
   ../../../intern/ghost
@@ -117,6 +118,7 @@ set(SRC
 
 set(LIB
   bf_editor_screen
+  bf_sequencer
 )
 
 if(WITH_AUDASPACE)

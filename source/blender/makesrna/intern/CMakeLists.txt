@@ -387,6 +387,7 @@ blender_include_dirs(
   ../../imbuf
   ../../makesdna
   ../../nodes/
+  ../../sequencer
   ../../simulation
   ../../windowmanager
   ../../editors/include
