@@ -1484,31 +1484,40 @@ void DepsgraphRelationBuilder::build_driver_data(ID *id, FCurve *fcu)
     /* Drivers on armature-level bone settings (i.e. bbone stuff),
      * which will affect the evaluation of corresponding pose bones. */
     Bone *bone = (Bone *)property_entry_key.ptr.data;
-    if (bone != nullptr) {
-      /* Find objects which use this, and make their eval callbacks
-       * depend on this. */
-      for (IDNode *to_node : graph_->id_nodes) {
-        if (GS(to_node->id_orig->name) == ID_OB) {
-          Object *object = (Object *)to_node->id_orig;
-          /* We only care about objects with pose data which use this. */
-          if (object->data == id_ptr && object->pose != nullptr) {
-            bPoseChannel *pchan = BKE_pose_channel_find_name(object->pose, bone->name);
-            if (pchan != nullptr) {
-              OperationKey bone_key(
-                  &object->id, NodeType::BONE, pchan->name, OperationCode::BONE_LOCAL);
-              add_relation(driver_key, bone_key, "Arm Bone -> Driver -> Bone");
-            }
-          }
-        }
-      }
-      /* Make the driver depend on COW, similar to the generic case below. */
-      if (id_ptr != id) {
-        ComponentKey cow_key(id_ptr, NodeType::COPY_ON_WRITE);
-        add_relation(cow_key, driver_key, "Driven CoW -> Driver", RELATION_CHECK_BEFORE_ADD);
-      }
-    }
-    else {
+    if (bone == nullptr) {
       fprintf(stderr, "Couldn't find armature bone name for driver path - '%s'\n", rna_path);
+      return;
+    }
+
+    const char *prop_identifier = RNA_property_identifier(property_entry_key.prop);
+    const bool driver_targets_bbone = STRPREFIX(prop_identifier, "bbone_");
+
+    /* Find objects which use this, and make their eval callbacks depend on this. */
+    for (IDNode *to_node : graph_->id_nodes) {
+      if (GS(to_node->id_orig->name) != ID_OB) {
+        continue;
+      }
+
+      /* We only care about objects with pose data which use this. */
+      Object *object = (Object *)to_node->id_orig;
+      if (object->data != id_ptr || object->pose == nullptr) {
+        continue;
+      }
+
+      bPoseChannel *pchan = BKE_pose_channel_find_name(object->pose, bone->name);
+      if (pchan == nullptr) {
+        continue;
+      }
+
+      OperationCode target_op = driver_targets_bbone ? OperationCode::BONE_SEGMENTS :
+                                                       OperationCode::BONE_LOCAL;
+      OperationKey bone_key(&object->id, NodeType::BONE, pchan->name, target_op);
+      add_relation(driver_key, bone_key, "Arm Bone -> Driver -> Bone");
+    }
+    /* Make the driver depend on COW, similar to the generic case below. */
+    if (id_ptr != id) {
+      ComponentKey cow_key(id_ptr, NodeType::COPY_ON_WRITE);
+      add_relation(cow_key, driver_key, "Driven CoW -> Driver", RELATION_CHECK_BEFORE_ADD);
     }
   }
   else {
