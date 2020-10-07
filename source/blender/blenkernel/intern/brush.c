@@ -170,7 +170,7 @@ static void brush_make_local(Main *bmain, ID *id, const int flags)
       id_fake_user_set(&brush->id);
     }
     else {
-      Brush *brush_new = BKE_brush_copy(bmain, brush); /* Ensures FAKE_USER is set */
+      Brush *brush_new = (Brush *)BKE_id_copy(bmain, &brush->id); /* Ensures FAKE_USER is set */
 
       brush_new->id.us = 0;
 
@@ -363,7 +363,7 @@ IDTypeInfo IDType_ID_BR = {
     .name = "Brush",
     .name_plural = "brushes",
     .translation_context = BLT_I18NCONTEXT_ID_BRUSH,
-    .flags = 0,
+    .flags = IDTYPE_FLAGS_NO_ANIMDATA,
 
     .init_data = brush_init_data,
     .copy_data = brush_copy_data,
@@ -1529,13 +1529,6 @@ struct Brush *BKE_brush_first_search(struct Main *bmain, const eObjectMode ob_mo
     }
   }
   return NULL;
-}
-
-Brush *BKE_brush_copy(Main *bmain, const Brush *brush)
-{
-  Brush *brush_copy;
-  BKE_id_copy(bmain, &brush->id, (ID **)&brush_copy);
-  return brush_copy;
 }
 
 void BKE_brush_debug_print_state(Brush *br)

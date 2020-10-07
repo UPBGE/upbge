@@ -296,13 +296,6 @@ Key *BKE_key_add(Main *bmain, ID *id) /* common function */
   return key;
 }
 
-Key *BKE_key_copy(Main *bmain, const Key *key)
-{
-  Key *key_copy;
-  BKE_id_copy(bmain, &key->id, (ID **)&key_copy);
-  return key_copy;
-}
-
 /* XXX TODO get rid of this! */
 Key *BKE_key_copy_nolib(Key *key)
 {

@@ -47,6 +47,8 @@ enum {
   IDTYPE_FLAGS_NO_LIBLINKING = 1 << 1,
   /** Indicates that the given IDType does not support making a library-linked ID local. */
   IDTYPE_FLAGS_NO_MAKELOCAL = 1 << 2,
+  /** Indicates that the given IDType does not have animation data. */
+  IDTYPE_FLAGS_NO_ANIMDATA = 1 << 3,
 };
 
 typedef struct IDCacheKey {
@@ -112,14 +114,14 @@ typedef struct IDTypeInfo {
    * Bitflag matching id_code, used for filtering (e.g. in file browser), see DNA_ID.h's
    * FILTER_ID_XX enums.
    */
-  int64_t id_filter;
+  uint64_t id_filter;
 
   /**
    * Define the position of this data-block type in the virtual list of all data in a Main that is
    * returned by `set_listbasepointers()`.
    * Very important, this has to be unique and below INDEX_ID_MAX, see DNA_ID.h.
    */
-  short main_listbase_index;
+  int main_listbase_index;
 
   /** Memory size of a data-block of that type. */
   size_t struct_size;
@@ -132,7 +134,7 @@ typedef struct IDTypeInfo {
   const char *translation_context;
 
   /** Generic info flags about that data-block type. */
-  int flags;
+  uint32_t flags;
 
   /* ********** ID management callbacks ********** */
 
@@ -172,6 +174,8 @@ typedef struct IDTypeInfo {
    * Iterator over all cache pointers of given ID.
    */
   IDTypeForeachCacheFunction foreach_cache;
+
+  /* ********** Callbacks for reading and writing .blend files. ********** */
 
   /**
    * Write all structs that should be saved in a .blend file.

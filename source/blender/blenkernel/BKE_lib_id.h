@@ -99,6 +99,12 @@ enum {
   /** Do not tag new ID for update in depsgraph. */
   LIB_ID_CREATE_NO_DEG_TAG = 1 << 8,
 
+  /** Very similar to #LIB_ID_CREATE_NO_MAIN, and should never be used with it (typically combined
+   * with #LIB_ID_CREATE_LOCALIZE or #LIB_ID_COPY_LOCALIZE in fact).
+   * It ensures that IDs created with it will get the #LIB_TAG_LOCALIZED tag, and uses some
+   * specific code in some copy cases (mostly for node trees). */
+  LIB_ID_CREATE_LOCAL = 1 << 9,
+
   /* *** Specific options to some ID types or usages. *** */
   /* *** May be ignored by unrelated ID copying functions. *** */
   /** Object only, needed by make_local code. */
@@ -120,13 +126,18 @@ enum {
   LIB_ID_COPY_KEEP_LIB = 1 << 25,
   /** EXCEPTION! Deep-copy shapekeys used by copied obdata ID. */
   LIB_ID_COPY_SHAPEKEY = 1 << 26,
+  /** EXCEPTION! Specific deep-copy of node trees used e.g. for rendering purposes. */
+  LIB_ID_COPY_NODETREE_LOCALIZE = 1 << 27,
 
   /* *** Helper 'defines' gathering most common flag sets. *** */
   /** Shapekeys are not real ID's, more like local data to geometry IDs... */
   LIB_ID_COPY_DEFAULT = LIB_ID_COPY_SHAPEKEY,
+
+  /** Create a local, outside of bmain, data-block to work on. */
+  LIB_ID_CREATE_LOCALIZE = LIB_ID_CREATE_NO_MAIN | LIB_ID_CREATE_NO_USER_REFCOUNT |
+                           LIB_ID_CREATE_NO_DEG_TAG,
   /** Generate a local copy, outside of bmain, to work on (used by COW e.g.). */
-  LIB_ID_COPY_LOCALIZE = LIB_ID_CREATE_NO_MAIN | LIB_ID_CREATE_NO_USER_REFCOUNT |
-                         LIB_ID_CREATE_NO_DEG_TAG | LIB_ID_COPY_NO_PREVIEW | LIB_ID_COPY_CACHES,
+  LIB_ID_COPY_LOCALIZE = LIB_ID_CREATE_LOCALIZE | LIB_ID_COPY_NO_PREVIEW | LIB_ID_COPY_CACHES,
 };
 
 void BKE_libblock_copy_ex(struct Main *bmain,
@@ -226,8 +237,11 @@ bool id_single_user(struct bContext *C,
                     struct PointerRNA *ptr,
                     struct PropertyRNA *prop);
 bool BKE_id_copy_is_allowed(const struct ID *id);
-bool BKE_id_copy(struct Main *bmain, const struct ID *id, struct ID **newid);
-bool BKE_id_copy_ex(struct Main *bmain, const struct ID *id, struct ID **r_newid, const int flag);
+struct ID *BKE_id_copy(struct Main *bmain, const struct ID *id);
+struct ID *BKE_id_copy_ex(struct Main *bmain,
+                          const struct ID *id,
+                          struct ID **r_newid,
+                          const int flag);
 struct ID *BKE_id_copy_for_duplicate(struct Main *bmain,
                                      struct ID *id,
                                      const uint duplicate_flags);

@@ -22,6 +22,7 @@
 /** \file
  * \ingroup bke
  */
+#include "BKE_mesh_types.h"
 
 #include "BLI_compiler_attrs.h"
 
@@ -42,7 +43,6 @@ struct bGPDstroke;
 
 void BKE_lattice_resize(struct Lattice *lt, int u, int v, int w, struct Object *ltOb);
 struct Lattice *BKE_lattice_add(struct Main *bmain, const char *name);
-struct Lattice *BKE_lattice_copy(struct Main *bmain, const struct Lattice *lt);
 void calc_lat_fudu(int flag, int res, float *r_fu, float *r_du);
 
 bool object_deform_mball(struct Object *ob, struct ListBase *dispbase);
@@ -92,10 +92,10 @@ enum {
   BKE_LATTICE_BATCH_DIRTY_ALL = 0,
   BKE_LATTICE_BATCH_DIRTY_SELECT,
 };
-void BKE_lattice_batch_cache_dirty_tag(struct Lattice *lt, int mode);
+void BKE_lattice_batch_cache_dirty_tag(struct Lattice *lt, eMeshBatchDirtyMode mode);
 void BKE_lattice_batch_cache_free(struct Lattice *lt);
 
-extern void (*BKE_lattice_batch_cache_dirty_tag_cb)(struct Lattice *lt, int mode);
+extern void (*BKE_lattice_batch_cache_dirty_tag_cb)(struct Lattice *lt, eMeshBatchDirtyMode mode);
 extern void (*BKE_lattice_batch_cache_free_cb)(struct Lattice *lt);
 
 /* -------------------------------------------------------------------- */

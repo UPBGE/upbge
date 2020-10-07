@@ -311,7 +311,7 @@ IDTypeInfo IDType_ID_IM = {
     .name = "Image",
     .name_plural = "images",
     .translation_context = BLT_I18NCONTEXT_ID_IMAGE,
-    .flags = 0,
+    .flags = IDTYPE_FLAGS_NO_ANIMDATA,
 
     .init_data = image_init_data,
     .copy_data = image_copy_data,
@@ -598,14 +598,6 @@ static void copy_image_packedfiles(ListBase *lb_dst, const ListBase *lb_src)
 
     BLI_addtail(lb_dst, imapf_dst);
   }
-}
-
-/* empty image block, of similar type and filename */
-Image *BKE_image_copy(Main *bmain, const Image *ima)
-{
-  Image *ima_copy;
-  BKE_id_copy(bmain, &ima->id, (ID **)&ima_copy);
-  return ima_copy;
 }
 
 void BKE_image_merge(Main *bmain, Image *dest, Image *source)

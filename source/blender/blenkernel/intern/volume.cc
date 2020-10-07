@@ -44,6 +44,7 @@
 #include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "BKE_packedFile.h"
+#include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_volume.h"
 
@@ -401,7 +402,7 @@ struct VolumeGrid {
  * the actual grids are always saved in a VDB file. */
 
 struct VolumeGridVector : public std::list<VolumeGrid> {
-  VolumeGridVector()
+  VolumeGridVector() : metadata(new openvdb::MetaMap())
   {
     filepath[0] = '\0';
   }
@@ -609,13 +610,6 @@ void *BKE_volume_add(Main *bmain, const char *name)
   return volume;
 }
 
-Volume *BKE_volume_copy(Main *bmain, const Volume *volume)
-{
-  Volume *volume_copy;
-  BKE_id_copy(bmain, &volume->id, (ID **)&volume_copy);
-  return volume_copy;
-}
-
 /* Sequence */
 
 static int volume_sequence_frame(const Depsgraph *depsgraph, const Volume *volume)
@@ -800,6 +794,40 @@ void BKE_volume_unload(Volume *volume)
   }
 #else
   UNUSED_VARS(volume);
+#endif
+}
+
+/* File Save */
+
+bool BKE_volume_save(Volume *volume, Main *bmain, ReportList *reports, const char *filepath)
+{
+#ifdef WITH_OPENVDB
+  if (!BKE_volume_load(volume, bmain)) {
+    BKE_reportf(reports, RPT_ERROR, "Could not load volume for writing");
+    return false;
+  }
+
+  VolumeGridVector &grids = *volume->runtime.grids;
+  openvdb::GridCPtrVec vdb_grids;
+
+  for (VolumeGrid &grid : grids) {
+    vdb_grids.push_back(BKE_volume_grid_openvdb_for_read(volume, &grid));
+  }
+
+  try {
+    openvdb::io::File file(filepath);
+    file.write(vdb_grids, *grids.metadata);
+    file.close();
+  }
+  catch (const openvdb::IoError &e) {
+    BKE_reportf(reports, RPT_ERROR, "Could not write volume: %s", e.what());
+    return false;
+  }
+
+  return true;
+#else
+  UNUSED_VARS(volume, bmain, reports, filepath);
+  return false;
 #endif
 }
 
@@ -999,10 +1027,10 @@ void BKE_volume_grids_backup_restore(Volume *volume, VolumeGridVector *grids, co
 
 /* Draw Cache */
 
-void (*BKE_volume_batch_cache_dirty_tag_cb)(Volume *volume, int mode) = NULL;
+void (*BKE_volume_batch_cache_dirty_tag_cb)(Volume *volume, eMeshBatchDirtyMode mode) = NULL;
 void (*BKE_volume_batch_cache_free_cb)(Volume *volume) = NULL;
 
-void BKE_volume_batch_cache_dirty_tag(Volume *volume, int mode)
+void BKE_volume_batch_cache_dirty_tag(Volume *volume, eMeshBatchDirtyMode mode)
 {
   if (volume->batch_cache) {
     BKE_volume_batch_cache_dirty_tag_cb(volume, mode);
@@ -1284,8 +1312,7 @@ Volume *BKE_volume_copy_for_eval(Volume *volume_src, bool reference)
     flags |= LIB_ID_COPY_CD_REFERENCE;
   }
 
-  Volume *result;
-  BKE_id_copy_ex(NULL, &volume_src->id, (ID **)&result, flags);
+  Volume *result = (Volume *)BKE_id_copy_ex(NULL, &volume_src->id, NULL, flags);
   result->filepath[0] = '\0';
 
   return result;

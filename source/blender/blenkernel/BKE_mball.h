@@ -22,6 +22,8 @@
  * \ingroup bke
  */
 
+#include "BKE_mesh_types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -36,7 +38,6 @@ struct Object;
 struct Scene;
 
 struct MetaBall *BKE_mball_add(struct Main *bmain, const char *name);
-struct MetaBall *BKE_mball_copy(struct Main *bmain, const struct MetaBall *mb);
 
 bool BKE_mball_is_any_selected(const struct MetaBall *mb);
 bool BKE_mball_is_any_selected_multi(struct Base **bases, int bases_len);
@@ -82,10 +83,10 @@ struct Depsgraph;
 enum {
   BKE_MBALL_BATCH_DIRTY_ALL = 0,
 };
-void BKE_mball_batch_cache_dirty_tag(struct MetaBall *mb, int mode);
+void BKE_mball_batch_cache_dirty_tag(struct MetaBall *mb, eMeshBatchDirtyMode mode);
 void BKE_mball_batch_cache_free(struct MetaBall *mb);
 
-extern void (*BKE_mball_batch_cache_dirty_tag_cb)(struct MetaBall *mb, int mode);
+extern void (*BKE_mball_batch_cache_dirty_tag_cb)(struct MetaBall *mb, eMeshBatchDirtyMode mode);
 extern void (*BKE_mball_batch_cache_free_cb)(struct MetaBall *mb);
 
 #ifdef __cplusplus

@@ -41,7 +41,6 @@ struct View3D;
 /* Camera Datablock */
 
 void *BKE_camera_add(struct Main *bmain, const char *name);
-struct Camera *BKE_camera_copy(struct Main *bmain, const struct Camera *cam);
 
 /* Camera Usage */
 

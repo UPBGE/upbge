@@ -401,13 +401,6 @@ Lattice *BKE_lattice_add(Main *bmain, const char *name)
   return lt;
 }
 
-Lattice *BKE_lattice_copy(Main *bmain, const Lattice *lt)
-{
-  Lattice *lt_copy;
-  BKE_id_copy(bmain, &lt->id, (ID **)&lt_copy);
-  return lt_copy;
-}
-
 bool object_deform_mball(Object *ob, ListBase *dispbase)
 {
   if (ob->parent && ob->parent->type == OB_LATTICE && ob->partype == PARSKEL) {
@@ -808,10 +801,10 @@ void BKE_lattice_eval_geometry(struct Depsgraph *UNUSED(depsgraph), Lattice *UNU
 }
 
 /* Draw Engine */
-void (*BKE_lattice_batch_cache_dirty_tag_cb)(Lattice *lt, int mode) = NULL;
+void (*BKE_lattice_batch_cache_dirty_tag_cb)(Lattice *lt, eMeshBatchDirtyMode mode) = NULL;
 void (*BKE_lattice_batch_cache_free_cb)(Lattice *lt) = NULL;
 
-void BKE_lattice_batch_cache_dirty_tag(Lattice *lt, int mode)
+void BKE_lattice_batch_cache_dirty_tag(Lattice *lt, eMeshBatchDirtyMode mode)
 {
   if (lt->batch_cache) {
     BKE_lattice_batch_cache_dirty_tag_cb(lt, mode);

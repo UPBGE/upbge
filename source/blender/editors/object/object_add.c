@@ -2110,7 +2110,8 @@ static void make_object_duplilist_real(bContext *C,
 
   for (dob = lb_duplis->first; dob; dob = dob->next) {
     Object *ob_src = DEG_get_original_object(dob->ob);
-    Object *ob_dst = ID_NEW_SET(ob_src, BKE_object_copy(bmain, ob_src));
+    Object *ob_dst = ID_NEW_SET(ob_src, BKE_id_copy(bmain, &ob_src->id));
+    id_us_min(&ob_dst->id);
     Base *base_dst;
 
     /* font duplis can have a totcol without material, we get them from parent
@@ -2340,15 +2341,27 @@ void OBJECT_OT_duplicates_make_real(wmOperatorType *ot)
  * \{ */
 
 static const EnumPropertyItem convert_target_items[] = {
-    {OB_CURVE, "CURVE", ICON_OUTLINER_OB_CURVE, "Curve from Mesh/Text", ""},
+    {OB_CURVE, "CURVE", ICON_OUTLINER_OB_CURVE, "Curve", "Curve from Mesh or Text objects"},
+    {OB_MESH,
+     "MESH",
+     ICON_OUTLINER_OB_MESH,
+     "Mesh",
 #ifdef WITH_PARTICLE_NODES
-    {OB_MESH, "MESH", ICON_OUTLINER_OB_MESH, "Mesh from Curve/Meta/Surf/Text/Pointcloud", ""},
+     "Mesh from Curve, Surface, Metaball, Text, or Pointcloud objects"},
 #else
-    {OB_MESH, "MESH", ICON_OUTLINER_OB_MESH, "Mesh from Curve/Meta/Surf/Text", ""},
+     "Mesh from Curve, Surface, Metaball, or Text objects"},
 #endif
-    {OB_GPENCIL, "GPENCIL", ICON_OUTLINER_OB_GREASEPENCIL, "Grease Pencil from Curve/Mesh", ""},
+    {OB_GPENCIL,
+     "GPENCIL",
+     ICON_OUTLINER_OB_GREASEPENCIL,
+     "Grease Pencil",
+     "Grease Pencil from Curve or Mesh objects"},
 #ifdef WITH_PARTICLE_NODES
-    {OB_POINTCLOUD, "POINTCLOUD", ICON_OUTLINER_OB_POINTCLOUD, "Pointcloud from Mesh", ""},
+    {OB_POINTCLOUD,
+     "POINTCLOUD",
+     ICON_OUTLINER_OB_POINTCLOUD,
+     "Pointcloud",
+     "Pointcloud from Mesh objects"},
 #endif
     {0, NULL, 0, NULL, NULL},
 };
@@ -2438,7 +2451,8 @@ static Base *duplibase_for_convert(
     ob = base->object;
   }
 
-  obn = BKE_object_copy(bmain, ob);
+  obn = (Object *)BKE_id_copy(bmain, &ob->id);
+  id_us_min(&obn->id);
   DEG_id_tag_update(&obn->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
   BKE_collection_object_add_from(bmain, scene, ob, obn);
 
@@ -2602,7 +2616,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
         id_us_min(&me->id);
 
         /* make a new copy of the mesh */
-        newob->data = BKE_mesh_copy(bmain, me);
+        newob->data = BKE_id_copy(bmain, &me->id);
       }
       else {
         newob = ob;
@@ -2676,7 +2690,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
         id_us_min(&me->id);
 
         /* make a new copy of the mesh */
-        newob->data = BKE_mesh_copy(bmain, me);
+        newob->data = BKE_id_copy(bmain, &me->id);
       }
       else {
         newob = ob;
@@ -2701,7 +2715,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
         id_us_min(&me->id);
 
         /* make a new copy of the mesh */
-        newob->data = BKE_mesh_copy(bmain, me);
+        newob->data = BKE_id_copy(bmain, &me->id);
       }
       else {
         newob = ob;
@@ -2730,7 +2744,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
         id_us_min(&((Curve *)newob->data)->id);
 
         /* make a new copy of the curve */
-        newob->data = BKE_curve_copy(bmain, ob->data);
+        newob->data = BKE_id_copy(bmain, ob->data);
       }
       else {
         newob = ob;
@@ -2801,7 +2815,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
           id_us_min(&((Curve *)newob->data)->id);
 
           /* make a new copy of the curve */
-          newob->data = BKE_curve_copy(bmain, ob->data);
+          newob->data = BKE_id_copy(bmain, ob->data);
         }
         else {
           newob = ob;
@@ -2886,7 +2900,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
         id_us_min(&pointcloud->id);
 
         /* make a new copy of the pointcloud */
-        newob->data = BKE_pointcloud_copy(bmain, pointcloud);
+        newob->data = BKE_id_copy(bmain, &pointcloud->id);
       }
       else {
         newob = ob;
@@ -3017,7 +3031,7 @@ void OBJECT_OT_convert(wmOperatorType *ot)
   PropertyRNA *prop;
 
   /* identifiers */
-  ot->name = "Convert to";
+  ot->name = "Convert To";
   ot->description = "Convert selected objects to another type";
   ot->idname = "OBJECT_OT_convert";
 

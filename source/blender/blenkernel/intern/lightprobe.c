@@ -141,10 +141,3 @@ void *BKE_lightprobe_add(Main *bmain, const char *name)
 
   return probe;
 }
-
-LightProbe *BKE_lightprobe_copy(Main *bmain, const LightProbe *probe)
-{
-  LightProbe *probe_copy;
-  BKE_id_copy(bmain, &probe->id, (ID **)&probe_copy);
-  return probe_copy;
-}

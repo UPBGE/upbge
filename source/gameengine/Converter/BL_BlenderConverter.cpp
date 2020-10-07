@@ -813,7 +813,7 @@ RAS_MeshObject *BL_BlenderConverter::ConvertMeshSpecial(KX_Scene *kx_scene,
 #ifdef DEBUG
     CM_Debug("mesh has a user \"" << name << "\"");
 #endif  // DEBUG
-    me = (ID *)BKE_mesh_copy(from_maggie, (Mesh *)me);
+    me = (ID *)BKE_id_copy(from_maggie, me);
     id_us_min(me);
   }
   BLI_remlink(&from_maggie->meshes, me);  // even if we made the copy it needs to be removed
@@ -836,7 +836,7 @@ RAS_MeshObject *BL_BlenderConverter::ConvertMeshSpecial(KX_Scene *kx_scene,
       // if its tagged its a replaced material
       if (mat_old && (mat_old->id.tag & LIB_TAG_DOIT) == 0) {
         Material *mat_old = mesh->mat[i];
-        Material *mat_new = BKE_material_copy(from_maggie, mat_old);
+        Material *mat_new = (Material *)BKE_id_copy(from_maggie, &mat_old->id);
 
         mat_new->id.tag |= LIB_TAG_DOIT;
         id_us_min(&mat_old->id);

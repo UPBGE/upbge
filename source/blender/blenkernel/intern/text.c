@@ -245,7 +245,7 @@ IDTypeInfo IDType_ID_TXT = {
     .name = "Text",
     .name_plural = "texts",
     .translation_context = BLT_I18NCONTEXT_ID_TEXT,
-    .flags = 0,
+    .flags = IDTYPE_FLAGS_NO_ANIMDATA,
 
     .init_data = text_init_data,
     .copy_data = text_copy_data,
@@ -516,13 +516,6 @@ Text *BKE_text_load_ex(Main *bmain, const char *file, const char *relpath, const
 Text *BKE_text_load(Main *bmain, const char *file, const char *relpath)
 {
   return BKE_text_load_ex(bmain, file, relpath, false);
-}
-
-Text *BKE_text_copy(Main *bmain, const Text *ta)
-{
-  Text *ta_copy;
-  BKE_id_copy(bmain, &ta->id, (ID **)&ta_copy);
-  return ta_copy;
 }
 
 void BKE_text_clear(Text *text) /* called directly from rna */

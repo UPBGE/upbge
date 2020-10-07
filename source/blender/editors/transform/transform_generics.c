@@ -479,9 +479,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
       if (t_values_set_is_array) {
         /* For operators whose `t->values` is array, set constraint so that the
          * orientation is more intuitive in the Redo Panel. */
-        for (int i = 3; i--;) {
-          constraint_axis[i] |= t->values[i] != 0.0f;
-        }
+        constraint_axis[0] = constraint_axis[1] = constraint_axis[2] = true;
       }
       else if (use_orient_axis) {
         constraint_axis[t->orient_axis] = true;
@@ -531,10 +529,8 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
     if (op && ((prop = RNA_struct_find_property(op->ptr, "orient_type")) &&
                RNA_property_is_set(op->ptr, prop))) {
       orient_type_set = RNA_property_enum_get(op->ptr, prop);
-      if (orient_type_set >= V3D_ORIENT_CUSTOM) {
-        if (orient_type_set >= V3D_ORIENT_CUSTOM + BIF_countTransformOrientation(C)) {
-          orient_type_set = V3D_ORIENT_GLOBAL;
-        }
+      if (orient_type_set >= V3D_ORIENT_CUSTOM + BIF_countTransformOrientation(C)) {
+        orient_type_set = V3D_ORIENT_GLOBAL;
       }
 
       /* Change the default orientation to be used when redoing. */

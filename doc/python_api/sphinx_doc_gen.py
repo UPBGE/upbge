@@ -41,8 +41,7 @@ Sphinx: HTML generation
   After you have built doc/python_api/sphinx-in (see above),
   generate html docs by running:
 
-    cd doc/python_api
-    sphinx-build sphinx-in sphinx-out
+    sphinx-build doc/python_api/sphinx-in doc/python_api/sphinx-out
 
 
 Sphinx: PDF generation
@@ -745,10 +744,9 @@ def pyprop2sphinx(ident, fw, identifier, py_prop):
     else:
         fw(ident + ".. attribute:: %s\n\n" % identifier)
     write_indented_lines(ident + "   ", fw, py_prop.__doc__)
+    fw("\n")
     if py_prop.fset is None:
         fw(ident + "   (readonly)\n\n")
-    else:
-        fw("\n")
 
 
 def pymodule2sphinx(basepath, module_name, module, title):
@@ -1559,7 +1557,7 @@ def pyrna2sphinx(basepath):
             fw(".. class:: %s\n\n" % class_name)
             fw("   %s\n\n" % descr_str)
             fw("   .. note::\n\n")
-            fw("      Note that %s.%s is not actually available from within Blender,\n"
+            fw("      Note that :class:`%s.%s` is not actually available from within Blender,\n"
                "      it only exists for the purpose of documentation.\n\n" % (class_module_name, class_name))
 
             descr_items = [

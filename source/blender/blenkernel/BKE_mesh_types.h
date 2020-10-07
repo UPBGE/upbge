@@ -13,27 +13,20 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) Blender Foundation.
+ * The Original Code is Copyright (C) 2020 by Blender Foundation
  * All rights reserved.
  */
-
 #pragma once
 
 /** \file
  * \ingroup bke
- * \brief General operations for probes.
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-struct LightProbe;
-struct Main;
-
-void BKE_lightprobe_type_set(struct LightProbe *probe, const short lightprobe_type);
-void *BKE_lightprobe_add(struct Main *bmain, const char *name);
-
-#ifdef __cplusplus
-}
-#endif
+typedef enum eMeshBatchDirtyMode {
+  BKE_MESH_BATCH_DIRTY_ALL = 0,
+  BKE_MESH_BATCH_DIRTY_SELECT,
+  BKE_MESH_BATCH_DIRTY_SELECT_PAINT,
+  BKE_MESH_BATCH_DIRTY_SHADING,
+  BKE_MESH_BATCH_DIRTY_UVEDIT_ALL,
+  BKE_MESH_BATCH_DIRTY_UVEDIT_SELECT,
+} eMeshBatchDirtyMode;

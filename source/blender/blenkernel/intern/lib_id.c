@@ -281,15 +281,15 @@ void id_us_min(ID *id)
     const int limit = ID_FAKE_USERS(id);
 
     if (id->us <= limit) {
-      CLOG_ERROR(&LOG,
-                 "ID user decrement error: %s (from '%s'): %d <= %d",
-                 id->name,
-                 id->lib ? id->lib->filepath_abs : "[Main]",
-                 id->us,
-                 limit);
       if (GS(id->name) != ID_IP) {
         /* Do not assert on deprecated ID types, we cannot really ensure that their ID refcounting
          * is valid... */
+        CLOG_ERROR(&LOG,
+                   "ID user decrement error: %s (from '%s'): %d <= %d",
+                   id->name,
+                   id->lib ? id->lib->filepath_abs : "[Main]",
+                   id->us,
+                   limit);
         BLI_assert(0);
       }
       id->us = limit;
@@ -414,11 +414,11 @@ void BKE_lib_id_make_local_generic(Main *bmain, ID *id, const int flags)
       BKE_lib_id_expand_local(bmain, id);
     }
     else {
-      ID *id_new;
+      ID *id_new = BKE_id_copy(bmain, id);
 
       /* Should not fail in expected use cases,
        * but a few ID types cannot be copied (LIB, WM, SCR...). */
-      if (BKE_id_copy(bmain, id, &id_new)) {
+      if (id_new != NULL) {
         id_new->us = 0;
 
         /* setting newid is mandatory for complex make_lib_local logic... */
@@ -530,51 +530,55 @@ bool BKE_id_copy_is_allowed(const ID *id)
 /**
  * Generic entry point for copying a data-block (new API).
  *
- * \note Copy is only affecting given data-block
+ * \note Copy is generally only affecting the given data-block
  * (no ID used by copied one will be affected, besides usercount).
- * There is only one exception, if #LIB_ID_COPY_ACTIONS is defined,
- * actions used by animdata will be duplicated.
+ * There are exceptions though:
+ *  - Embedded IDs (root node trees and master collections) are always copied with their owner.
+ *  - If #LIB_ID_COPY_ACTIONS is defined, actions used by animdata will be duplicated.
+ *  - If #LIB_ID_COPY_SHAPEKEY is defined, shapekeys will be duplicated.
+ *  - If #LIB_ID_CREATE_LOCAL is defined, root node trees will be deep-duplicated recursively.
  *
  * \note Usercount of new copy is always set to 1.
  *
  * \param bmain: Main database, may be NULL only if LIB_ID_CREATE_NO_MAIN is specified.
  * \param id: Source data-block.
- * \param r_newid: Pointer to new (copied) ID pointer.
- * \param flag: Set of copy options, see DNA_ID.h enum for details
- * (leave to zero for default, full copy).
- * \return False when copying that ID type is not supported, true otherwise.
+ * \param r_newid: Pointer to new (copied) ID pointer, may be NULL. Used to allow copying into
+ *                 already allocated memory.
+ * \param flag: Set of copy options, see DNA_ID.h enum for details (leave to zero for default,
+ *              full copy).
+ * \return NULL when copying that ID type is not supported, the new copy otherwise.
  */
-bool BKE_id_copy_ex(Main *bmain, const ID *id, ID **r_newid, const int flag)
+ID *BKE_id_copy_ex(Main *bmain, const ID *id, ID **r_newid, const int flag)
 {
-  BLI_assert(r_newid != NULL);
+  ID *newid = (r_newid != NULL) ? *r_newid : NULL;
   /* Make sure destination pointer is all good. */
   if ((flag & LIB_ID_CREATE_NO_ALLOCATE) == 0) {
-    *r_newid = NULL;
+    newid = NULL;
   }
   else {
-    if (*r_newid != NULL) {
+    if (newid != NULL) {
       /* Allow some garbage non-initialized memory to go in, and clean it up here. */
       const size_t size = BKE_libblock_get_alloc_info(GS(id->name), NULL);
-      memset(*r_newid, 0, size);
+      memset(newid, 0, size);
     }
   }
 
   /* Early output is source is NULL. */
   if (id == NULL) {
-    return false;
+    return NULL;
   }
 
   const IDTypeInfo *idtype_info = BKE_idtype_get_info_from_id(id);
 
   if (idtype_info != NULL) {
     if ((idtype_info->flags & IDTYPE_FLAGS_NO_COPY) != 0) {
-      return false;
+      return NULL;
     }
 
-    BKE_libblock_copy_ex(bmain, id, r_newid, flag);
+    BKE_libblock_copy_ex(bmain, id, &newid, flag);
 
     if (idtype_info->copy_data != NULL) {
-      idtype_info->copy_data(bmain, *r_newid, id, flag);
+      idtype_info->copy_data(bmain, newid, id, flag);
     }
   }
   else {
@@ -584,31 +588,35 @@ bool BKE_id_copy_ex(Main *bmain, const ID *id, ID **r_newid, const int flag)
   /* Update ID refcount, remap pointers to self in new ID. */
   struct IDCopyLibManagementData data = {
       .id_src = id,
-      .id_dst = *r_newid,
+      .id_dst = newid,
       .flag = flag,
   };
-  BKE_library_foreach_ID_link(bmain, *r_newid, id_copy_libmanagement_cb, &data, IDWALK_NOP);
+  BKE_library_foreach_ID_link(bmain, newid, id_copy_libmanagement_cb, &data, IDWALK_NOP);
 
   /* Do not make new copy local in case we are copying outside of main...
    * XXX TODO: is this behavior OK, or should we need own flag to control that? */
   if ((flag & LIB_ID_CREATE_NO_MAIN) == 0) {
     BLI_assert((flag & LIB_ID_COPY_KEEP_LIB) == 0);
-    lib_id_copy_ensure_local(bmain, id, *r_newid);
+    lib_id_copy_ensure_local(bmain, id, newid);
   }
   else {
-    (*r_newid)->lib = id->lib;
+    newid->lib = id->lib;
   }
 
-  return true;
+  if (r_newid != NULL) {
+    *r_newid = newid;
+  }
+
+  return newid;
 }
 
 /**
  * Invokes the appropriate copy method for the block and returns the result in
  * newid, unless test. Returns true if the block can be copied.
  */
-bool BKE_id_copy(Main *bmain, const ID *id, ID **newid)
+ID *BKE_id_copy(Main *bmain, const ID *id)
 {
-  return BKE_id_copy_ex(bmain, id, newid, LIB_ID_COPY_DEFAULT);
+  return BKE_id_copy_ex(bmain, id, NULL, LIB_ID_COPY_DEFAULT);
 }
 
 /**
@@ -626,8 +634,7 @@ ID *BKE_id_copy_for_duplicate(Main *bmain, ID *id, const eDupli_ID_Flags duplica
       return id;
     }
 
-    ID *id_new;
-    BKE_id_copy(bmain, id, &id_new);
+    ID *id_new = BKE_id_copy(bmain, id);
     /* Copying add one user by default, need to get rid of that one. */
     id_us_min(id_new);
     ID_NEW_SET(id, id_new);
@@ -729,7 +736,8 @@ bool id_single_user(bContext *C, ID *id, PointerRNA *ptr, PropertyRNA *prop)
     if (RNA_property_editable(ptr, prop)) {
       Main *bmain = CTX_data_main(C);
       /* copy animation actions too */
-      if (BKE_id_copy_ex(bmain, id, &newid, LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ACTIONS) && newid) {
+      newid = BKE_id_copy_ex(bmain, id, NULL, LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ACTIONS);
+      if (newid != NULL) {
         /* us is 1 by convention with new IDs, but RNA_property_pointer_set
          * will also increment it, decrement it here. */
         id_us_min(newid);
@@ -1035,6 +1043,8 @@ void *BKE_libblock_alloc_notest(short type)
 void *BKE_libblock_alloc(Main *bmain, short type, const char *name, const int flag)
 {
   BLI_assert((flag & LIB_ID_CREATE_NO_ALLOCATE) == 0);
+  BLI_assert((flag & LIB_ID_CREATE_NO_MAIN) != 0 || bmain != NULL);
+  BLI_assert((flag & LIB_ID_CREATE_NO_MAIN) != 0 || (flag & LIB_ID_CREATE_LOCAL) == 0);
 
   ID *id = BKE_libblock_alloc_notest(type);
 
@@ -1044,6 +1054,9 @@ void *BKE_libblock_alloc(Main *bmain, short type, const char *name, const int fl
     }
     if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) != 0) {
       id->tag |= LIB_TAG_NO_USER_REFCOUNT;
+    }
+    if (flag & LIB_ID_CREATE_LOCAL) {
+      id->tag |= LIB_TAG_LOCALIZED;
     }
 
     id->icon_id = 0;
@@ -1180,6 +1193,7 @@ void BKE_libblock_copy_ex(Main *bmain, const ID *id, ID **r_newid, const int ori
 
   BLI_assert((flag & LIB_ID_CREATE_NO_MAIN) != 0 || bmain != NULL);
   BLI_assert((flag & LIB_ID_CREATE_NO_MAIN) != 0 || (flag & LIB_ID_CREATE_NO_ALLOCATE) == 0);
+  BLI_assert((flag & LIB_ID_CREATE_NO_MAIN) != 0 || (flag & LIB_ID_CREATE_LOCAL) == 0);
   if (!is_private_id_data) {
     /* When we are handling private ID data, we might still want to manage usercounts, even
      * though that ID data-block is actually outside of Main... */

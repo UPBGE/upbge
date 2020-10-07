@@ -217,13 +217,6 @@ MetaBall *BKE_mball_add(Main *bmain, const char *name)
   return mb;
 }
 
-MetaBall *BKE_mball_copy(Main *bmain, const MetaBall *mb)
-{
-  MetaBall *mb_copy;
-  BKE_id_copy(bmain, &mb->id, (ID **)&mb_copy);
-  return mb_copy;
-}
-
 /* most simple meta-element adding function
  * don't do context manipulation here (rna uses) */
 MetaElem *BKE_mball_element_add(MetaBall *mb, const int type)
@@ -746,10 +739,10 @@ bool BKE_mball_select_swap_multi_ex(Base **bases, int bases_len)
 
 /* Draw Engine */
 
-void (*BKE_mball_batch_cache_dirty_tag_cb)(MetaBall *mb, int mode) = NULL;
+void (*BKE_mball_batch_cache_dirty_tag_cb)(MetaBall *mb, eMeshBatchDirtyMode mode) = NULL;
 void (*BKE_mball_batch_cache_free_cb)(MetaBall *mb) = NULL;
 
-void BKE_mball_batch_cache_dirty_tag(MetaBall *mb, int mode)
+void BKE_mball_batch_cache_dirty_tag(MetaBall *mb, eMeshBatchDirtyMode mode)
 {
   if (mb->batch_cache) {
     BKE_mball_batch_cache_dirty_tag_cb(mb, mode);

@@ -2941,8 +2941,8 @@ class VIEW3D_MT_paint_weight(Menu):
 
         if not is_editmode:
 
-            layout.operator("paint.weight_from_bones", text="Assign Automatic From Bones").type = 'AUTOMATIC'
-            layout.operator("paint.weight_from_bones", text="Assign From Bone Envelopes").type = 'ENVELOPES'
+            layout.operator("paint.weight_from_bones", text="Assign Automatic from Bones").type = 'AUTOMATIC'
+            layout.operator("paint.weight_from_bones", text="Assign from Bone Envelopes").type = 'ENVELOPES'
 
             layout.separator()
 
@@ -3097,13 +3097,13 @@ class VIEW3D_MT_face_sets(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        op = layout.operator("sculpt.face_sets_create", text='Face Set From Masked')
+        op = layout.operator("sculpt.face_sets_create", text='Face Set from Masked')
         op.mode = 'MASKED'
 
-        op = layout.operator("sculpt.face_sets_create", text='Face Set From Visible')
+        op = layout.operator("sculpt.face_sets_create", text='Face Set from Visible')
         op.mode = 'VISIBLE'
 
-        op = layout.operator("sculpt.face_sets_create", text='Face Set From Edit Mode Selection')
+        op = layout.operator("sculpt.face_sets_create", text='Face Set from Edit Mode Selection')
         op.mode = 'SELECTION'
 
         layout.separator()
@@ -4175,7 +4175,7 @@ class VIEW3D_MT_edit_mesh_normals(Menu):
 
         layout.separator()
 
-        layout.operator("mesh.set_normals_from_faces", text="Set From Faces")
+        layout.operator("mesh.set_normals_from_faces", text="Set from Faces")
 
         layout.operator_context = 'INVOKE_REGION_WIN'
         layout.operator("transform.rotate_normal", text="Rotate...")
@@ -5318,10 +5318,10 @@ class VIEW3D_MT_sculpt_face_sets_edit_pie(Menu):
         layout = self.layout
         pie = layout.menu_pie()
 
-        op = pie.operator("sculpt.face_sets_create", text='Face Set From Masked')
+        op = pie.operator("sculpt.face_sets_create", text='Face Set from Masked')
         op.mode = 'MASKED'
 
-        op = pie.operator("sculpt.face_sets_create", text='Face Set From Visible')
+        op = pie.operator("sculpt.face_sets_create", text='Face Set from Visible')
         op.mode = 'VISIBLE'
 
         op = pie.operator("sculpt.face_set_change_visibility", text='Invert Visible')
@@ -6136,11 +6136,12 @@ class VIEW3D_PT_overlay_geometry(Panel):
 
         col.prop(overlay, "show_face_orientation")
         row = col.row(align=True)
-
-        row.prop(overlay, "show_fade_inactive", text="")
-        sub = row.row()
-        sub.active = overlay.show_fade_inactive
-        sub.prop(overlay, "fade_inactive_alpha", text="Fade Inactive Geometry")
+        if context.mode not in {'EDIT_ARMATURE', 'POSE', 'OBJECT', 'PAINT_GPENCIL',\
+                                'VERTEX_GPENCIL', 'WEIGHT_GPENCIL', 'SCULPT_GPENCIL', 'EDIT_GPENCIL'}:
+            row.prop(overlay, "show_fade_inactive", text="")
+            sub = row.row()
+            sub.active = overlay.show_fade_inactive
+            sub.prop(overlay, "fade_inactive_alpha", text="Fade Inactive Geometry")
 
         # sub.prop(overlay, "show_onion_skins")
 
@@ -6979,7 +6980,7 @@ class VIEW3D_MT_gpencil_edit_context_menu(Menu):
         row = layout.row()
 
         if is_point_mode or is_segment_mode:
-            col = row.column()
+            col = row.column(align=True)
 
             col.label(text="Point Context Menu", icon='GP_SELECT_POINTS')
             col.separator()
@@ -7030,7 +7031,7 @@ class VIEW3D_MT_gpencil_edit_context_menu(Menu):
 
         if is_stroke_mode:
 
-            col = row.column()
+            col = row.column(align=True)
             col.label(text="Stroke Context Menu", icon='GP_SELECT_STROKES')
             col.separator()
 

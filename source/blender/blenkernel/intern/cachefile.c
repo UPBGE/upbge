@@ -254,13 +254,6 @@ void *BKE_cachefile_add(Main *bmain, const char *name)
   return cache_file;
 }
 
-CacheFile *BKE_cachefile_copy(Main *bmain, const CacheFile *cache_file)
-{
-  CacheFile *cache_file_copy;
-  BKE_id_copy(bmain, &cache_file->id, (ID **)&cache_file_copy);
-  return cache_file_copy;
-}
-
 void BKE_cachefile_reload(Depsgraph *depsgraph, CacheFile *cache_file)
 {
   /* To force reload, free the handle and tag depsgraph to load it again. */

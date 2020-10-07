@@ -251,13 +251,6 @@ void *BKE_hair_add(Main *bmain, const char *name)
   return hair;
 }
 
-Hair *BKE_hair_copy(Main *bmain, const Hair *hair)
-{
-  Hair *hair_copy;
-  BKE_id_copy(bmain, &hair->id, (ID **)&hair_copy);
-  return hair_copy;
-}
-
 BoundBox *BKE_hair_boundbox_get(Object *ob)
 {
   BLI_assert(ob->type == OB_HAIR);
@@ -330,8 +323,7 @@ Hair *BKE_hair_copy_for_eval(Hair *hair_src, bool reference)
     flags |= LIB_ID_COPY_CD_REFERENCE;
   }
 
-  Hair *result;
-  BKE_id_copy_ex(NULL, &hair_src->id, (ID **)&result, flags);
+  Hair *result = (Hair *)BKE_id_copy_ex(NULL, &hair_src->id, NULL, flags);
   return result;
 }
 
@@ -412,10 +404,10 @@ void BKE_hair_data_update(struct Depsgraph *depsgraph, struct Scene *scene, Obje
 }
 
 /* Draw Cache */
-void (*BKE_hair_batch_cache_dirty_tag_cb)(Hair *hair, int mode) = NULL;
+void (*BKE_hair_batch_cache_dirty_tag_cb)(Hair *hair, eMeshBatchDirtyMode mode) = NULL;
 void (*BKE_hair_batch_cache_free_cb)(Hair *hair) = NULL;
 
-void BKE_hair_batch_cache_dirty_tag(Hair *hair, int mode)
+void BKE_hair_batch_cache_dirty_tag(Hair *hair, eMeshBatchDirtyMode mode)
 {
   if (hair->batch_cache) {
     BKE_hair_batch_cache_dirty_tag_cb(hair, mode);

@@ -3907,13 +3907,6 @@ void BKE_particlesettings_twist_curve_init(ParticleSettings *part)
   part->twistcurve = cumap;
 }
 
-ParticleSettings *BKE_particlesettings_copy(Main *bmain, const ParticleSettings *part)
-{
-  ParticleSettings *part_copy;
-  BKE_id_copy(bmain, &part->id, (ID **)&part_copy);
-  return part_copy;
-}
-
 /************************************************/
 /*          Textures                            */
 /************************************************/
@@ -5016,10 +5009,10 @@ void psys_apply_hair_lattice(Depsgraph *depsgraph, Scene *scene, Object *ob, Par
 }
 
 /* Draw Engine */
-void (*BKE_particle_batch_cache_dirty_tag_cb)(ParticleSystem *psys, int mode) = NULL;
+void (*BKE_particle_batch_cache_dirty_tag_cb)(ParticleSystem *psys, eMeshBatchDirtyMode mode) = NULL;
 void (*BKE_particle_batch_cache_free_cb)(ParticleSystem *psys) = NULL;
 
-void BKE_particle_batch_cache_dirty_tag(ParticleSystem *psys, int mode)
+void BKE_particle_batch_cache_dirty_tag(ParticleSystem *psys, eMeshBatchDirtyMode mode)
 {
   if (psys->batch_cache) {
     BKE_particle_batch_cache_dirty_tag_cb(psys, mode);

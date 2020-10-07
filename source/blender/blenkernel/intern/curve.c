@@ -425,13 +425,6 @@ Curve *BKE_curve_add(Main *bmain, const char *name, int type)
   return cu;
 }
 
-Curve *BKE_curve_copy(Main *bmain, const Curve *cu)
-{
-  Curve *cu_copy;
-  BKE_id_copy(bmain, &cu->id, (ID **)&cu_copy);
-  return cu_copy;
-}
-
 /* Get list of nurbs from editnurbs structure */
 ListBase *BKE_curve_editNurbs_get(Curve *cu)
 {
@@ -5589,10 +5582,10 @@ void BKE_curve_eval_geometry(Depsgraph *depsgraph, Curve *curve)
 }
 
 /* Draw Engine */
-void (*BKE_curve_batch_cache_dirty_tag_cb)(Curve *cu, int mode) = NULL;
+void (*BKE_curve_batch_cache_dirty_tag_cb)(Curve *cu, eMeshBatchDirtyMode mode) = NULL;
 void (*BKE_curve_batch_cache_free_cb)(Curve *cu) = NULL;
 
-void BKE_curve_batch_cache_dirty_tag(Curve *cu, int mode)
+void BKE_curve_batch_cache_dirty_tag(Curve *cu, eMeshBatchDirtyMode mode)
 {
   if (cu->batch_cache) {
     BKE_curve_batch_cache_dirty_tag_cb(cu, mode);

@@ -20,6 +20,9 @@
  * \ingroup bke
  * \brief General operations for point-clouds.
  */
+
+#include "BKE_mesh_types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -38,7 +41,6 @@ extern const char *POINTCLOUD_ATTR_RADIUS;
 
 void *BKE_pointcloud_add(struct Main *bmain, const char *name);
 void *BKE_pointcloud_add_default(struct Main *bmain, const char *name);
-struct PointCloud *BKE_pointcloud_copy(struct Main *bmain, const struct PointCloud *pointcloud);
 
 struct BoundBox *BKE_pointcloud_boundbox_get(struct Object *ob);
 
@@ -62,10 +64,11 @@ enum {
   BKE_POINTCLOUD_BATCH_DIRTY_ALL = 0,
 };
 
-void BKE_pointcloud_batch_cache_dirty_tag(struct PointCloud *pointcloud, int mode);
+void BKE_pointcloud_batch_cache_dirty_tag(struct PointCloud *pointcloud, eMeshBatchDirtyMode mode);
 void BKE_pointcloud_batch_cache_free(struct PointCloud *pointcloud);
 
-extern void (*BKE_pointcloud_batch_cache_dirty_tag_cb)(struct PointCloud *pointcloud, int mode);
+extern void (*BKE_pointcloud_batch_cache_dirty_tag_cb)(struct PointCloud *pointcloud,
+                                                       eMeshBatchDirtyMode mode);
 extern void (*BKE_pointcloud_batch_cache_free_cb)(struct PointCloud *pointcloud);
 
 #ifdef __cplusplus

@@ -202,10 +202,10 @@ Mesh *MOD_deform_mesh_eval_get(Object *ob,
       /* TODO(sybren): after modifier conversion of DM to Mesh is done, check whether
        * we really need a copy here. Maybe the CoW ob->data can be directly used. */
       Mesh *mesh_prior_modifiers = BKE_object_get_pre_modified_mesh(ob);
-      BKE_id_copy_ex(NULL,
-                     &mesh_prior_modifiers->id,
-                     (ID **)&mesh,
-                     (LIB_ID_COPY_LOCALIZE | LIB_ID_COPY_CD_REFERENCE));
+      mesh = (Mesh *)BKE_id_copy_ex(NULL,
+                                    &mesh_prior_modifiers->id,
+                                    NULL,
+                                    (LIB_ID_COPY_LOCALIZE | LIB_ID_COPY_CD_REFERENCE));
       mesh->runtime.deformed_only = 1;
     }
 
@@ -344,5 +344,6 @@ void modifier_type_init(ModifierTypeInfo *types[])
   INIT_TYPE(WeightedNormal);
   INIT_TYPE(Simulation);
   INIT_TYPE(MeshToVolume);
+  INIT_TYPE(VolumeDisplace);
 #undef INIT_TYPE
 }
