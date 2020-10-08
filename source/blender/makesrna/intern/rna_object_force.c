@@ -736,6 +736,11 @@ static char *rna_FieldSettings_path(PointerRNA *ptr)
   return NULL;
 }
 
+static char *rna_game_soft_body_settings_path(PointerRNA *ptr)
+{
+  return BLI_strdup("game.soft_body");
+}
+
 static void rna_EffectorWeight_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
   ID *id = ptr->owner_id;
@@ -1795,6 +1800,8 @@ static void rna_def_game_softbody(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna,
                          "Game Soft Body Settings",
                          "Soft body simulation settings for an object in the game engine");
+
+  RNA_def_struct_path_func(srna, "rna_game_soft_body_settings_path");
 
   /* Floats */
 
