@@ -33,6 +33,8 @@ typedef enum eGPUWriteMask {
   GPU_WRITE_COLOR = (GPU_WRITE_RED | GPU_WRITE_GREEN | GPU_WRITE_BLUE | GPU_WRITE_ALPHA),
 } eGPUWriteMask;
 
+//ENUM_OPERATORS(eGPUWriteMask, GPU_WRITE_COLOR)
+
 //ENUM_OPERATORS(eGPUWriteMask) // Game engine transition WARNING I commented to fix a compil error but idk what it can do (youle)
 
 typedef enum eGPUBarrier {
@@ -40,6 +42,8 @@ typedef enum eGPUBarrier {
   GPU_BARRIER_SHADER_IMAGE_ACCESS = (1 << 0),
   GPU_BARRIER_TEXTURE_FETCH = (1 << 1),
 } eGPUBarrier;
+
+//ENUM_OPERATORS(eGPUBarrier, GPU_BARRIER_TEXTURE_FETCH)
 
 // ENUM_OPERATORS(eGPUBarrier) // Game engine transition WARNING I commented to fix a compil error but idk what it can do (youle)
 

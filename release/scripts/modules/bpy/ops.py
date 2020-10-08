@@ -19,93 +19,23 @@
 # <pep8-80 compliant>
 
 # for slightly faster access
-from _bpy import ops as ops_module
+from _bpy import ops as _ops_module
 
-# op_add = ops_module.add
-op_dir = ops_module.dir
-op_poll = ops_module.poll
-op_call = ops_module.call
-op_as_string = ops_module.as_string
-op_get_rna_type = ops_module.get_rna_type
-op_get_bl_options = ops_module.get_bl_options
+# op_add = _ops_module.add
+_op_dir = _ops_module.dir
+_op_poll = _ops_module.poll
+_op_call = _ops_module.call
+_op_as_string = _ops_module.as_string
+_op_get_rna_type = _ops_module.get_rna_type
+_op_get_bl_options = _ops_module.get_bl_options
 
-
-class BPyOps:
-    """
-    Fake module like class.
-
-     bpy.ops
-    """
-    __slots__ = ()
-
-    def __getattr__(self, module):
-        """
-        gets a bpy.ops submodule
-        """
-        if module.startswith('__'):
-            raise AttributeError(module)
-        return BPyOpsSubMod(module)
-
-    def __dir__(self):
-
-        submodules = set()
-
-        # add this classes functions
-        for id_name in dir(self.__class__):
-            if not id_name.startswith('__'):
-                submodules.add(id_name)
-
-        for id_name in op_dir():
-            id_split = id_name.split('_OT_', 1)
-
-            if len(id_split) == 2:
-                submodules.add(id_split[0].lower())
-            else:
-                submodules.add(id_split[0])
-
-        return list(submodules)
-
-    def __repr__(self):
-        return "<module like class 'bpy.ops'>"
+_ModuleType = type(_ops_module)
 
 
-class BPyOpsSubMod:
-    """
-    Utility class to fake submodules.
+# -----------------------------------------------------------------------------
+# Callable Operator Wrapper
 
-    eg. bpy.ops.object
-    """
-    __slots__ = ("_module",)
-
-    def __init__(self, module):
-        self._module = module
-
-    def __getattr__(self, func):
-        """
-        gets a bpy.ops.submodule function
-        """
-        if func.startswith('__'):
-            raise AttributeError(func)
-        return BPyOpsSubModOp(self._module, func)
-
-    def __dir__(self):
-
-        functions = set()
-
-        module_upper = self._module.upper()
-
-        for id_name in op_dir():
-            id_split = id_name.split('_OT_', 1)
-            if len(id_split) == 2 and module_upper == id_split[0]:
-                functions.add(id_split[1])
-
-        return list(functions)
-
-    def __repr__(self):
-        return "<module like class 'bpy.ops.%s'>" % self._module
-
-
-class BPyOpsSubModOp:
+class _BPyOpsSubModOp:
     """
     Utility class to fake submodule operators.
 
@@ -116,13 +46,13 @@ class BPyOpsSubModOp:
 
     def _get_doc(self):
         idname = self.idname()
-        sig = op_as_string(self.idname())
+        sig = _op_as_string(self.idname())
         # XXX You never quite know what you get from bpy.types,
         # with operators... Operator and OperatorProperties
         # are shadowing each other, and not in the same way for
         # native ops and py ones! See T39158.
         # op_class = getattr(bpy.types, idname)
-        op_class = op_get_rna_type(idname)
+        op_class = _op_get_rna_type(idname)
         descr = op_class.description
         return "%s\n%s" % (sig, descr)
 
@@ -171,8 +101,8 @@ class BPyOpsSubModOp:
         self._func = func
 
     def poll(self, *args):
-        C_dict, C_exec, _C_undo = BPyOpsSubModOp._parse_args(args)
-        return op_poll(self.idname_py(), C_dict, C_exec)
+        C_dict, C_exec, _C_undo = _BPyOpsSubModOp._parse_args(args)
+        return _op_poll(self.idname_py(), C_dict, C_exec)
 
     def idname(self):
         # submod.foo -> SUBMOD_OT_foo
@@ -193,34 +123,82 @@ class BPyOpsSubModOp:
         # NOTE: We only update active view-layer, since that's what
         # operators are supposed to operate on. There might be some
         # corner cases when operator need a full scene update though.
-        BPyOpsSubModOp._view_layer_update(context)
+        _BPyOpsSubModOp._view_layer_update(context)
 
         if args:
-            C_dict, C_exec, C_undo = BPyOpsSubModOp._parse_args(args)
-            ret = op_call(self.idname_py(), C_dict, kw, C_exec, C_undo)
+            C_dict, C_exec, C_undo = _BPyOpsSubModOp._parse_args(args)
+            ret = _op_call(self.idname_py(), C_dict, kw, C_exec, C_undo)
         else:
-            ret = op_call(self.idname_py(), None, kw)
+            ret = _op_call(self.idname_py(), None, kw)
 
         if 'FINISHED' in ret and context.window_manager == wm:
-            BPyOpsSubModOp._view_layer_update(context)
+            _BPyOpsSubModOp._view_layer_update(context)
 
         return ret
 
     def get_rna_type(self):
         """Internal function for introspection"""
-        return op_get_rna_type(self.idname())
+        return _op_get_rna_type(self.idname())
 
     @property
     def bl_options(self):
-        return op_get_bl_options(self.idname())
+        return _op_get_bl_options(self.idname())
 
     def __repr__(self):  # useful display, repr(op)
-        # import bpy
-        return op_as_string(self.idname())
+        return _op_as_string(self.idname())
 
     def __str__(self):  # used for print(...)
         return ("<function bpy.ops.%s.%s at 0x%x'>" %
                 (self._module, self._func, id(self)))
 
 
-ops_fake_module = BPyOps()
+# -----------------------------------------------------------------------------
+# Sub-Module Access
+
+def _bpy_ops_submodule__getattr__(module, func):
+    # Return a value from `bpy.ops.{module}.{func}`
+    if func.startswith("__"):
+        raise AttributeError(func)
+    return _BPyOpsSubModOp(module, func)
+
+
+def _bpy_ops_submodule__dir__(module):
+    functions = set()
+    module_upper = module.upper()
+
+    for id_name in _op_dir():
+        id_split = id_name.split("_OT_", 1)
+        if len(id_split) == 2 and module_upper == id_split[0]:
+            functions.add(id_split[1])
+
+    return list(functions)
+
+
+def _bpy_ops_submodule(module):
+    result = _ModuleType("bpy.ops." + module)
+    result.__getattr__ = lambda func: _bpy_ops_submodule__getattr__(module, func)
+    result.__dir__ = lambda: _bpy_ops_submodule__dir__(module)
+    return result
+
+
+# -----------------------------------------------------------------------------
+# Module Access
+
+def __getattr__(module):
+    # Return a value from `bpy.ops.{module}`.
+    if module.startswith("__"):
+        raise AttributeError(module)
+    return _bpy_ops_submodule(module)
+
+
+def __dir__():
+    submodules = set()
+    for id_name in _op_dir():
+        id_split = id_name.split("_OT_", 1)
+
+        if len(id_split) == 2:
+            submodules.add(id_split[0].lower())
+        else:
+            submodules.add(id_split[0])
+
+    return list(submodules)

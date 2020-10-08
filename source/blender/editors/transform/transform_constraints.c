@@ -50,6 +50,7 @@
 #include "UI_resources.h"
 
 #include "transform.h"
+#include "transform_orientations.h"
 #include "transform_snap.h"
 
 /* Own include. */
@@ -424,7 +425,8 @@ static void applyAxisConstraintVec(
         else if (t->con.mode & CON_AXIS1) {
           copy_v3_v3(c, t->spacemtx[1]);
         }
-        else if (t->con.mode & CON_AXIS2) {
+        else {
+          BLI_assert(t->con.mode & CON_AXIS2);
           copy_v3_v3(c, t->spacemtx[2]);
         }
 
