@@ -1822,6 +1822,26 @@ def write_rst_contents(basepath):
 
     fw(".. toctree::\n")
     fw("   :maxdepth: 1\n")
+    fw("   :caption: Game Engine Modules\n\n")
+
+    game_engine_modules = (
+        # submodules are added in parent page
+        "bge.types",
+        "bge.logic",
+        "bge.render",
+        "bge.texture",
+        "bge.events",
+        "bge.constraints",
+        "bge.app",
+    )
+
+    for mod in game_engine_modules:
+        if mod not in EXCLUDE_MODULES:
+            fw("   %s\n" % mod)
+    fw("\n")
+
+    fw(".. toctree::\n")
+    fw("   :maxdepth: 1\n")
     fw("   :caption: Standalone Modules\n\n")
 
     standalone_modules = (
@@ -1848,19 +1868,6 @@ def write_rst_contents(basepath):
     # special case, this 'bmesh.ops.rst' is extracted from C source
     if "bmesh.ops" not in EXCLUDE_MODULES:
         execfile(os.path.join(SCRIPT_DIR, "rst_from_bmesh_opdefines.py"))
-
-    # game engine
-    if "bge" not in EXCLUDE_MODULES:
-        fw(title_string("Game Engine Modules", "=", double=True))
-        fw(".. toctree::\n")
-        fw("   :maxdepth: 1\n\n")
-        fw("   bge.types.rst\n\n")
-        fw("   bge.logic.rst\n\n")
-        fw("   bge.render.rst\n\n")
-        fw("   bge.texture.rst\n\n")
-        fw("   bge.events.rst\n\n")
-        fw("   bge.constraints.rst\n\n")
-        fw("   bge.app.rst\n\n")
 
     file.close()
 
