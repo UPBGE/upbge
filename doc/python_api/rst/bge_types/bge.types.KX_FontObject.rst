@@ -13,21 +13,15 @@ base class --- :class:`KX_GameObject`
 
    .. code-block:: python
 
-      # Display a message about the exit key using a Font object.
       import bge
 
+      # Use bge module to get/set game property + transform
       font_object = (bge.logic.getCurrentController()).owner
-
-      exit_key = bge.events.EventToString(bge.logic.getExitKey())
-
-      if exit_key.endswith("KEY"):
-          exit_key = exit_key[:-3]
-
-      font_object.worldPosition.y = -7
+      font_object["Text"] = "Text Example"
+      font_object.worldPosition = [-2.5, 1.0, 0.0]
       
-      # This way we can use bpy.types.TextCurve attributes
+      # Use bpy.types.TextCurve attributes to set other text settings
       font_object_text = font_object.blenderObject.data
-      font_object_text.body = "Press key '%s' to quit the game." % exit_key
       font_object_text.size = 1
-      font_object_text.resolution_u = 1
-      font_object_text.align_x = LEFT
+      font_object_text.resolution_u = 4
+      font_object_text.align_x = "LEFT"
