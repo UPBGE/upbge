@@ -177,37 +177,7 @@ PyMethodDef KX_FontObject::Methods[] = {
 };
 
 PyAttributeDef KX_FontObject::Attributes[] = {
-    KX_PYATTRIBUTE_RW_FUNCTION("text", KX_FontObject, pyattr_get_text, pyattr_set_text),
     KX_PYATTRIBUTE_NULL  // Sentinel
 };
-
-PyObject *KX_FontObject::pyattr_get_text(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-  KX_FontObject *self = static_cast<KX_FontObject *>(self_v);
-  return PyUnicode_FromStdString(self->m_text);
-}
-
-int KX_FontObject::pyattr_set_text(PyObjectPlus *self_v,
-                                   const KX_PYATTRIBUTE_DEF *attrdef,
-                                   PyObject *value)
-{
-  KX_FontObject *self = static_cast<KX_FontObject *>(self_v);
-  if (!PyUnicode_Check(value))
-    return PY_SET_ATTR_FAIL;
-  const char *chars = _PyUnicode_AsString(value);
-
-  /* Allow for some logic brick control */
-  CValue *tprop = self->GetProperty("Text");
-  if (tprop) {
-    CValue *newstringprop = new CStringValue(std::string(chars), "Text");
-    self->SetProperty("Text", newstringprop);
-    newstringprop->Release();
-  }
-  else {
-    self->SetText(std::string(chars));
-  }
-
-  return PY_SET_ATTR_SUCCESS;
-}
 
 #endif  // WITH_PYTHON

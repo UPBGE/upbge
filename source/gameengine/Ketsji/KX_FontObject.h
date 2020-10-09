@@ -70,13 +70,6 @@ class KX_FontObject : public KX_GameObject {
   std::string m_backupText;  // eevee
   /// needed for drawing routine
   class RAS_Rasterizer *m_rasterizer;
-
-#ifdef WITH_PYTHON
-  static PyObject *pyattr_get_text(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-  static int pyattr_set_text(PyObjectPlus *self_v,
-                             const KX_PYATTRIBUTE_DEF *attrdef,
-                             PyObject *value);
-#endif
 };
 
 #endif /* __KX_FONTOBJECT_H__ */
