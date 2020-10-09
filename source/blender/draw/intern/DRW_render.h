@@ -26,10 +26,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "../draw/DRW_engine_types.h"
 
 #include "BLI_listbase.h"
@@ -147,6 +143,10 @@ typedef enum {
   DRW_TEX_COMPARE = (1 << 2),
   DRW_TEX_MIPMAP = (1 << 3),
 } DRWTextureFlag;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* Textures from DRW_texture_pool_query_* have the options
  * DRW_TEX_FILTER for color float textures, and no options

@@ -38,18 +38,7 @@ typedef enum eGPUFrameBufferBits {
   GPU_STENCIL_BIT = (1 << 2),
 } eGPUFrameBufferBits;
 
-//ENUM_OPERATORS(eGPUFrameBufferBits, GPU_STENCIL_BIT)
-
-/* Game engine transition:
- * I have linkage error caused by this macro
- * and as I don't know how to solve it properly,
- * I had to do a cast where this macro was needed
- * (inline eGPUFrameBufferBits to_framebuffer_bits).
- * There was a similar linkage error in GPU_state.h
- * with ENUM_OPERATORS(eGPUWriteMask) which I commented too
- * (youle)
- */
-//ENUM_OPERATORS(eGPUFrameBufferBits)
+ENUM_OPERATORS(eGPUFrameBufferBits, GPU_STENCIL_BIT)
 
 #ifdef __cplusplus
 extern "C" {

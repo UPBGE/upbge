@@ -33,9 +33,7 @@ typedef enum eGPUWriteMask {
   GPU_WRITE_COLOR = (GPU_WRITE_RED | GPU_WRITE_GREEN | GPU_WRITE_BLUE | GPU_WRITE_ALPHA),
 } eGPUWriteMask;
 
-//ENUM_OPERATORS(eGPUWriteMask, GPU_WRITE_COLOR)
-
-//ENUM_OPERATORS(eGPUWriteMask) // Game engine transition WARNING I commented to fix a compil error but idk what it can do (youle)
+ENUM_OPERATORS(eGPUWriteMask, GPU_WRITE_COLOR)
 
 typedef enum eGPUBarrier {
   GPU_BARRIER_NONE = 0,
@@ -43,9 +41,7 @@ typedef enum eGPUBarrier {
   GPU_BARRIER_TEXTURE_FETCH = (1 << 1),
 } eGPUBarrier;
 
-//ENUM_OPERATORS(eGPUBarrier, GPU_BARRIER_TEXTURE_FETCH)
-
-// ENUM_OPERATORS(eGPUBarrier) // Game engine transition WARNING I commented to fix a compil error but idk what it can do (youle)
+ENUM_OPERATORS(eGPUBarrier, GPU_BARRIER_TEXTURE_FETCH)
 
 /**
  * Defines the fixed pipeline blending equation.

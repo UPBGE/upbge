@@ -478,12 +478,7 @@ inline eGPUFrameBufferBits to_framebuffer_bits(eGPUTextureFormat tex_format)
       return GPU_DEPTH_BIT;
     case GPU_DEPTH24_STENCIL8:
     case GPU_DEPTH32F_STENCIL8:
-      /* Game engine transition: Again I had linkage errors
-       * related to ENUM_OPERATORS macro (MSVC C2733 error)
-       * Idk how to solve it properly then I do the cast
-       * to eGPUFrameBufferBits here directly. (youle)
-       */
-      return eGPUFrameBufferBits(GPU_DEPTH_BIT | GPU_STENCIL_BIT);
+      return GPU_DEPTH_BIT | GPU_STENCIL_BIT;
     default:
       return GPU_COLOR_BIT;
   }
