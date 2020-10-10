@@ -365,7 +365,7 @@ endif()
 
 # CMake FindOpenMP doesn't know about AppleClang before 3.12, so provide custom flags.
 if(WITH_OPENMP)
-  if(CMAKE_C_COMPILER_ID MATCHES "AppleClang" AND CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "7.0")
+  if(CMAKE_C_COMPILER_ID MATCHES "Clang" AND CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "7.0")
     # Use OpenMP from our precompiled libraries.
     message(STATUS "Using ${LIBDIR}/openmp for OpenMP")
     set(OPENMP_CUSTOM ON)
@@ -375,13 +375,21 @@ if(WITH_OPENMP)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L'${LIBDIR}/openmp/lib' -lomp")
 
     # Copy libomp.dylib to allow executables like datatoc and tests to work.
+    # `@executable_path/../Resources/lib/` is a default dylib search path.
+    # For single config generator datatoc, tests etc.
     execute_process(
       COMMAND mkdir -p ${CMAKE_BINARY_DIR}/Resources/lib
       COMMAND cp -p ${LIBDIR}/openmp/lib/libomp.dylib ${CMAKE_BINARY_DIR}/Resources/lib/libomp.dylib
     )
+    # For multi-config generator datatoc, etc.
     execute_process(
       COMMAND mkdir -p ${CMAKE_BINARY_DIR}/bin/Resources/lib
       COMMAND cp -p ${LIBDIR}/openmp/lib/libomp.dylib ${CMAKE_BINARY_DIR}/bin/Resources/lib/libomp.dylib
+    )
+    # For multi-config generator tests.
+    execute_process(
+      COMMAND mkdir -p ${CMAKE_BINARY_DIR}/bin/tests/Resources/lib
+      COMMAND cp -p ${LIBDIR}/openmp/lib/libomp.dylib ${CMAKE_BINARY_DIR}/bin/tests/Resources/lib/libomp.dylib
     )
   endif()
 endif()

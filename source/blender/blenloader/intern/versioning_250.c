@@ -23,7 +23,7 @@
 #else
 #  include "BLI_winstuff.h"
 #  include "winsock2.h"
-#  include <io.h>   // for open close read
+#  include <io.h>   /* for open close read */
 #  include <zlib.h> /* odd include order-issue */
 #endif
 
@@ -66,7 +66,7 @@
 #include "BKE_anim_visualization.h"
 #include "BKE_armature.h"
 #include "BKE_colortools.h"
-#include "BKE_global.h"  // for G
+#include "BKE_global.h" /* for G */
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
 #include "BKE_modifier.h"
@@ -115,7 +115,7 @@ static void area_add_header_region(ScrArea *area, ListBase *lb)
 
 static void sequencer_init_preview_region(ARegion *region)
 {
-  // XXX a bit ugly still, copied from space_sequencer
+  /* XXX a bit ugly still, copied from space_sequencer */
   /* NOTE: if you change values here, also change them in space_sequencer.c, sequencer_new */
   region->regiontype = RGN_TYPE_PREVIEW;
   region->alignment = RGN_ALIGN_TOP;
@@ -817,7 +817,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 250 || (bmain->versionfile == 250 && bmain->subversionfile < 1)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 250, 1)) {
     Object *ob;
     Tex *tex;
     Scene *sce;
@@ -885,7 +885,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 250 || (bmain->versionfile == 250 && bmain->subversionfile < 2)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 250, 2)) {
     Object *ob;
 
     for (ob = bmain->objects.first; ob; ob = ob->id.next) {
@@ -919,7 +919,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 250 || (bmain->versionfile == 250 && bmain->subversionfile < 4)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 250, 4)) {
     Scene *sce;
     Object *ob;
     ParticleSettings *part;
@@ -1011,7 +1011,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 250 || (bmain->versionfile == 250 && bmain->subversionfile < 6)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 250, 6)) {
     Object *ob;
 
     /* New variables for axis-angle rotations and/or quaternion rotations were added,
@@ -1033,7 +1033,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 250 || (bmain->versionfile == 250 && bmain->subversionfile < 7)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 250, 7)) {
     Mesh *me;
     Nurb *nu;
     Lattice *lt;
@@ -1101,7 +1101,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 250 || (bmain->versionfile == 250 && bmain->subversionfile < 8)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 250, 8)) {
     {
       Scene *sce = bmain->scenes.first;
       while (sce) {
@@ -1199,7 +1199,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 250 || (bmain->versionfile == 250 && bmain->subversionfile < 9)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 250, 9)) {
     Scene *sce;
     Mesh *me;
     Object *ob;
@@ -1229,7 +1229,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 250 || (bmain->versionfile == 250 && bmain->subversionfile < 10)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 250, 10)) {
     Object *ob;
 
     /* properly initialize hair clothsim data on old files */
@@ -1285,7 +1285,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 250 || (bmain->versionfile == 250 && bmain->subversionfile < 11)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 250, 11)) {
     {
       /* fix for new view type in sequencer */
       bScreen *screen;
@@ -1331,7 +1331,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 250 || (bmain->versionfile == 250 && bmain->subversionfile < 12)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 250, 12)) {
     Object *ob;
     Brush *brush;
 
@@ -1393,7 +1393,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 250 || (bmain->versionfile == 250 && bmain->subversionfile < 13)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 250, 13)) {
     /* NOTE: if you do more conversion, be sure to do it outside of this and
      * increase subversion again, otherwise it will not be correct */
     Object *ob;
@@ -1419,7 +1419,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 250 || (bmain->versionfile == 250 && bmain->subversionfile < 14)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 250, 14)) {
     /* fix for bad View2D extents for Animation Editors */
     bScreen *screen;
     ScrArea *area;
@@ -1451,7 +1451,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 250 || (bmain->versionfile == 250 && bmain->subversionfile < 17)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 250, 17)) {
     Scene *sce;
     Sequence *seq;
 
@@ -1542,7 +1542,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 252 || (bmain->versionfile == 252 && bmain->subversionfile < 1)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 252, 1)) {
     Brush *brush;
     Object *ob;
     Scene *scene;
@@ -1600,7 +1600,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
   }
 
   /* old-track -> constraints (this time we're really doing it!) */
-  if (bmain->versionfile < 252 || (bmain->versionfile == 252 && bmain->subversionfile < 2)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 252, 2)) {
     Object *ob;
 
     for (ob = bmain->objects.first; ob; ob = ob->id.next) {
@@ -1608,7 +1608,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 252 || (bmain->versionfile == 252 && bmain->subversionfile < 5)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 252, 5)) {
     bScreen *screen;
 
     /* Image editor scopes */
@@ -1805,7 +1805,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
       }
 
       /* New Settings */
-      if (bmain->versionfile < 252 || (bmain->versionfile == 252 && bmain->subversionfile < 5)) {
+      if (!MAIN_VERSION_ATLEAST(bmain, 252, 5)) {
         brush->flag |= BRUSH_SPACE_ATTEN;  // explicitly enable adaptive space
 
         /* spacing was originally in pixels, convert it to percentage for new version
@@ -1846,7 +1846,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 253 || (bmain->versionfile == 253 && bmain->subversionfile < 1)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 253, 1)) {
     Object *ob;
 
     for (ob = bmain->objects.first; ob; ob = ob->id.next) {
@@ -1892,7 +1892,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 255 || (bmain->versionfile == 255 && bmain->subversionfile < 1)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 255, 1)) {
     Brush *br;
     ParticleSettings *part;
     bScreen *screen;
@@ -1941,7 +1941,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 255 || (bmain->versionfile == 255 && bmain->subversionfile < 3)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 255, 3)) {
     Object *ob;
 
     /* ocean res is now squared, reset old ones - will be massive */
@@ -1994,7 +1994,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 256 || (bmain->versionfile == 256 && bmain->subversionfile < 1)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 256, 1)) {
     /* fix for bones that didn't have arm_roll before */
     bArmature *arm;
     Bone *bone;
@@ -2018,7 +2018,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 256 || (bmain->versionfile == 256 && bmain->subversionfile < 2)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 256, 2)) {
     bNodeTree *ntree;
     bNode *node;
     bNodeSocket *sock, *gsock;
@@ -2101,7 +2101,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 256 || (bmain->versionfile == 256 && bmain->subversionfile < 3)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 256, 3)) {
     bScreen *screen;
     Brush *brush;
     Object *ob;
@@ -2146,7 +2146,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
   }
 
   if (0) {
-    if (bmain->versionfile < 256 || (bmain->versionfile == 256 && bmain->subversionfile < 6)) {
+    if (!MAIN_VERSION_ATLEAST(bmain, 256, 6)) {
       for (Mesh *me = bmain->meshes.first; me; me = me->id.next) {
         /* Vertex normal calculation from legacy 'MFace' has been removed.
          * update after calculating polygons in file reading code instead. */
@@ -2154,7 +2154,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 256 || (bmain->versionfile == 256 && bmain->subversionfile < 2)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 256, 2)) {
     /* update blur area sizes from 0..1 range to 0..100 percentage */
     Scene *scene;
     bNode *node;
@@ -2171,7 +2171,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 258 || (bmain->versionfile == 258 && bmain->subversionfile < 1)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 258, 1)) {
     /* screen view2d settings were not properly initialized T27164.
      * v2d->scroll caused the bug but best reset other values too
      * which are in old blend files only.
@@ -2218,7 +2218,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 259 || (bmain->versionfile == 259 && bmain->subversionfile < 1)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 259, 1)) {
     {
       Scene *scene;
       Sequence *seq;
@@ -2307,7 +2307,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 259 || (bmain->versionfile == 259 && bmain->subversionfile < 2)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 259, 2)) {
     {
       /* Convert default socket values from bNodeStack */
       FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
@@ -2348,7 +2348,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  if (bmain->versionfile < 259 || (bmain->versionfile == 259 && bmain->subversionfile < 4)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 259, 4)) {
     {
       /* Adaptive time step for particle systems */
       ParticleSettings *part;
@@ -2399,7 +2399,7 @@ static void lib_node_do_versions_group_indices(bNode *gnode)
 
 void do_versions_after_linking_250(Main *bmain)
 {
-  if (bmain->versionfile < 256 || (bmain->versionfile == 256 && bmain->subversionfile < 2)) {
+  if (!MAIN_VERSION_ATLEAST(bmain, 256, 2)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       /* updates external links for all group nodes in a tree */
       bNode *node;
