@@ -775,10 +775,10 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
       //btQuaternion worldquat;
       //btMatrix3x3 trs = sb->m_pose.m_rot * sb->m_pose.m_scl;
       //trs.getRotation(worldquat);
-      btVector3 aabbMin, aabbMax;
+      /*btVector3 aabbMin, aabbMax;
       sb->getAabb(aabbMin, aabbMax);
-      btVector3 worldPos = (aabbMax + aabbMin) * 0.5f;
-      m_MotionState->SetWorldPosition(ToMoto(worldPos));
+      btVector3 worldPos = (aabbMax + aabbMin) * 0.5f;*/
+      m_MotionState->SetWorldPosition(ToMoto(sb->m_pose.m_com));
       //m_MotionState->SetWorldOrientation(ToMoto(worldquat));
     }
     else {
