@@ -312,6 +312,8 @@ class PHYSICS_PT_game_obstacles(PhysicsButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
 
         game = context.active_object.game
 
@@ -319,7 +321,6 @@ class PHYSICS_PT_game_obstacles(PhysicsButtonsPanel, Panel):
 
         row = layout.row()
         row.prop(game, "obstacle_radius", text="Radius")
-        row.label()
 
 
 class RenderButtonsPanel:
@@ -431,49 +432,93 @@ class SCENE_PT_game_navmesh(SceneButtonsPanel, Panel):
 
         layout.operator("mesh.navmesh_make", text="Build Navigation Mesh")
 
-        col = layout.column()
-        col.label(text="Rasterization:")
-        row = col.row()
-        row.prop(rd, "cell_size")
-        row.prop(rd, "cell_height")
+class SCENE_PT_rasterization(SceneButtonsPanel, Panel):
+    bl_label = "Rasterization"
+    bl_parent_id = "SCENE_PT_game_navmesh"
+    COMPAT_ENGINES = {'BLENDER_GAME', 'BLENDER_EEVEE'}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        
+        rd = context.scene.game_settings.recast_data
 
         col = layout.column()
-        col.label(text="Agent:")
-        split = col.split()
+        col.prop(rd, "cell_size")
+        col.prop(rd, "cell_height")
 
-        col = split.column()
+class SCENE_PT_agent(SceneButtonsPanel, Panel):
+    bl_label = "Agent"
+    bl_parent_id = "SCENE_PT_game_navmesh"
+    COMPAT_ENGINES = {'BLENDER_GAME', 'BLENDER_EEVEE'}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        
+        rd = context.scene.game_settings.recast_data
+
+        col = layout.column()
         col.prop(rd, "agent_height", text="Height")
         col.prop(rd, "agent_radius", text="Radius")
-
-        col = split.column()
         col.prop(rd, "slope_max")
         col.prop(rd, "climb_max")
 
-        col = layout.column()
-        col.label(text="Region:")
-        row = col.row()
-        row.prop(rd, "region_min_size")
-        if rd.partitioning != 'LAYERS':
-            row.prop(rd, "region_merge_size")
+class SCENE_PT_region(SceneButtonsPanel, Panel):
+    bl_label = "Region"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_parent_id = "SCENE_PT_game_navmesh"
+    COMPAT_ENGINES = {'BLENDER_GAME', 'BLENDER_EEVEE'}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        
+        rd = context.scene.game_settings.recast_data
 
         col = layout.column()
+        col.prop(rd, "region_min_size")
+        if rd.partitioning != 'LAYERS':
+            col.prop(rd, "region_merge_size")
         col.prop(rd, "partitioning")
 
-        col = layout.column()
-        col.label(text="Polygonization:")
-        split = col.split()
+class SCENE_PT_polygonization(SceneButtonsPanel, Panel):
+    bl_label = "Polygonization"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_parent_id = "SCENE_PT_game_navmesh"
+    COMPAT_ENGINES = {'BLENDER_GAME', 'BLENDER_EEVEE'}
 
-        col = split.column()
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        
+        rd = context.scene.game_settings.recast_data
+
+        col = layout.column()
         col.prop(rd, "edge_max_len")
         col.prop(rd, "edge_max_error")
+        col.prop(rd, "verts_per_poly")
 
-        split.prop(rd, "verts_per_poly")
+class SCENE_PT_detail_mesh(SceneButtonsPanel, Panel):
+    bl_label = "Detail Mesh"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_parent_id = "SCENE_PT_game_navmesh"
+    COMPAT_ENGINES = {'BLENDER_GAME', 'BLENDER_EEVEE'}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        
+        rd = context.scene.game_settings.recast_data
 
         col = layout.column()
-        col.label(text="Detail Mesh:")
-        row = col.row()
-        row.prop(rd, "sample_dist")
-        row.prop(rd, "sample_max_error")
+        col.prop(rd, "sample_dist")
+        col.prop(rd, "sample_max_error")
 
 
 class SCENE_PT_game_hysteresis(SceneButtonsPanel, Panel):
@@ -594,6 +639,11 @@ classes = (
     SCENE_PT_game_physics,
     SCENE_PT_game_physics_obstacles,
     SCENE_PT_game_navmesh,
+    SCENE_PT_rasterization,
+    SCENE_PT_agent,
+    SCENE_PT_region,
+    SCENE_PT_polygonization,
+    SCENE_PT_detail_mesh,
     SCENE_PT_game_hysteresis,
     SCENE_PT_game_console,
     OBJECT_MT_lod_tools,
