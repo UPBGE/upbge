@@ -139,7 +139,7 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
         elif physics_type == 'SOFT_BODY':
             col = layout.column()
             col.prop(game, "use_actor")
-            col.prop(game, "use_ghost")
+            #col.prop(game, "use_ghost") Seems not supported in bullet for SoftBodies
 
             layout.separator()
 
