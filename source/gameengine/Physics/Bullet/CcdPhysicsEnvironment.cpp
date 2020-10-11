@@ -2884,7 +2884,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter *converter,
               ->numclusteriterations;  // number of iterations to refine collision clusters
     }
     else {
-      ci.m_margin = 0.0f;
+      ci.m_margin = 0.1f; // 0.0f generates unstabilities/crashes
       ci.m_gamesoftFlag = OB_BSB_BENDING_CONSTRAINTS | OB_BSB_SHAPE_MATCHING | OB_BSB_AERO_VPOINT;
 
       ci.m_softBendingDistance = 2;

@@ -466,7 +466,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     ob->preview = NULL;
     ob->duplicator_visibility_flag = OB_DUPLI_FLAG_VIEWPORT | OB_DUPLI_FLAG_RENDER;
     if (ob->bsoft) {
-      ob->bsoft->margin = 0.01f;
+      ob->bsoft->margin = 0.1f;
     }
   }
   /***********************End of Game engine transition**********************/
