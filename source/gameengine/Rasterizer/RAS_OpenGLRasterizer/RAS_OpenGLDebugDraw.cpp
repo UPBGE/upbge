@@ -135,7 +135,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
 
   /* Draw Debug lines */
 
-  if (debugDraw->m_lines.size()) {
+  if (!debugDraw->m_lines.empty()) {
     GPUVertFormat *format = immVertexFormat();
     uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
     uint col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
@@ -181,10 +181,11 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
 
   /* The Performances profiler */
 
-  if (debugDraw->m_boxes2D.size()) {
+  const unsigned int width = canvas->GetWidth();
+  const unsigned int height = canvas->GetHeight();
+
+  if (!debugDraw->m_boxes2D.empty()) {
     GPU_face_culling(GPU_CULL_BACK);
-    const unsigned int width = canvas->GetWidth();
-    const unsigned int height = canvas->GetHeight();
 
     GPUVertFormat *format = immVertexFormat();
     uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
@@ -203,6 +204,9 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
 
     DRW_state_reset();
     GPU_depth_test(GPU_DEPTH_ALWAYS);
+  }
+
+  if (!debugDraw->m_texts2D.empty()) {
 
     BLF_size(blf_mono_font, 11, 72);
 
