@@ -516,7 +516,7 @@ static void subdivide_nonauto_handles(const FCurve *fcu,
   }
 
   /* Decide when to force auto to manual. */
-  if (!BEZT_IS_AUTOH(bezt) || fabsf(delta) >= 0.001f) {
+  if (!BEZT_IS_AUTOH(bezt)) {
     return;
   }
   if ((prev_auto || next_auto) && fcu->auto_smoothing == FCURVE_SMOOTH_CONT_ACCEL) {
@@ -605,8 +605,7 @@ int insert_vert_fcurve(
 
   /* add temp beztriple to keyframes */
   a = insert_bezt_fcurve(fcu, &beztr, flag);
-
-  fcu->active_keyframe_index = a;
+  BKE_fcurve_active_keyframe_set(fcu, &fcu->bezt[a]);
 
   /* what if 'a' is a negative index?
    * for now, just exit to prevent any segfaults

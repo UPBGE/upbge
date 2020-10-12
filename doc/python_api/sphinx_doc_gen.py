@@ -92,7 +92,7 @@ SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 # For now, ignore add-ons and internal subclasses of 'bpy.types.PropertyGroup'.
 #
 # Besides disabling this line, the main change will be to add a
-# 'toctree' to 'write_rst_contents' which contains the generated rst files.
+# 'toctree' to 'write_rst_index' which contains the generated rst files.
 # This 'toctree' can be generated automatically.
 #
 # See: D6261 for reference.
@@ -252,6 +252,7 @@ else:
         "bpy.types",  # supports filtering
         "bpy.utils",
         "bpy.utils.previews",
+        "bpy.utils.units",
         "bpy_extras",
         "gpu",
         "gpu.types",
@@ -835,7 +836,8 @@ def pymodule2sphinx(basepath, module_name, module, title, module_all_extra):
 
         if submod_ls:
             fw(".. toctree::\n")
-            fw("   :maxdepth: 1\n\n")
+            fw("   :maxdepth: 1\n")
+            fw("   :caption: Submodules\n\n")
 
             for submod_name, submod in submod_ls:
                 submod_name_full = "%s.%s" % (module_name, submod_name)
@@ -1767,7 +1769,7 @@ def execfile(filepath):
     file_handle.close()
 
 
-def write_rst_contents(basepath):
+def write_rst_index(basepath):
     '''
     Write the rst file of the main page, needed for sphinx (index.html)
     '''
@@ -1807,7 +1809,6 @@ def write_rst_contents(basepath):
 
         # py modules
         "bpy.utils",
-        "bpy.utils.previews",
         "bpy.path",
         "bpy.app",
 
@@ -1865,6 +1866,10 @@ def write_rst_contents(basepath):
             fw("   %s\n" % mod)
     fw("\n")
 
+    fw(title_string("Indices", "="))
+    fw("* :ref:`genindex`\n")
+    fw("* :ref:`modindex`\n\n")
+
     # special case, this 'bmesh.ops.rst' is extracted from C source
     if "bmesh.ops" not in EXCLUDE_MODULES:
         execfile(os.path.join(SCRIPT_DIR, "rst_from_bmesh_opdefines.py"))
@@ -1919,6 +1924,7 @@ def write_rst_ops_index(basepath):
         fw(".. module:: bpy.ops\n\n")
         write_example_ref("", fw, "bpy.ops")
         fw(".. toctree::\n")
+        fw("   :caption: Submodules\n")
         fw("   :glob:\n\n")
         fw("   bpy.ops.*\n\n")
         file.close()
@@ -2128,7 +2134,7 @@ def rna2sphinx(basepath):
     write_sphinx_conf_py(basepath)
 
     # main page
-    write_rst_contents(basepath)
+    write_rst_index(basepath)
 
     # context
     if "bpy.context" not in EXCLUDE_MODULES:
