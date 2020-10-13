@@ -2,7 +2,7 @@ import bge
 from collections import OrderedDict
 
 class ThirdPerson(bge.types.KX_PythonComponent):
-    """Basic third person controls
+    """Basic third character controller
 
     W: move forward
     A: turn left
