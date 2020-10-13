@@ -1591,10 +1591,14 @@ void SCULPT_brush_test_init(SculptSession *ss, SculptBrushTest *test)
   if (ss->cache) {
     copy_v3_v3(test->location, ss->cache->location);
     test->mirror_symmetry_pass = ss->cache->mirror_symmetry_pass;
+    test->radial_symmetry_pass = ss->cache->radial_symmetry_pass;
+    copy_m4_m4(test->symm_rot_mat_inv, ss->cache->symm_rot_mat_inv);
   }
   else {
     copy_v3_v3(test->location, ss->cursor_location);
     test->mirror_symmetry_pass = 0;
+    test->radial_symmetry_pass = 0;
+    unit_m4(test->symm_rot_mat_inv);
   }
 
   /* Just for initialize. */
@@ -1603,8 +1607,6 @@ void SCULPT_brush_test_init(SculptSession *ss, SculptBrushTest *test)
   /* Only for 2D projection. */
   zero_v4(test->plane_view);
   zero_v4(test->plane_tool);
-
-  test->mirror_symmetry_pass = ss->cache ? ss->cache->mirror_symmetry_pass : 0;
 
   if (RV3D_CLIPPING_ENABLED(v3d, rv3d)) {
     test->clip_rv3d = rv3d;
@@ -1622,6 +1624,9 @@ BLI_INLINE bool sculpt_brush_test_clipping(const SculptBrushTest *test, const fl
   }
   float symm_co[3];
   flip_v3_v3(symm_co, co, test->mirror_symmetry_pass);
+  if (test->radial_symmetry_pass) {
+    mul_m4_v3(test->symm_rot_mat_inv, symm_co);
+  }
   return ED_view3d_clipping_test(rv3d, symm_co, true);
 }
 
@@ -5742,7 +5747,8 @@ static void do_brush_action(Sculpt *sd, Object *ob, Brush *brush, UnifiedPaintSe
 
     if (brush->deform_target == BRUSH_DEFORM_TARGET_CLOTH_SIM) {
       if (!ss->cache->cloth_sim) {
-        ss->cache->cloth_sim = SCULPT_cloth_brush_simulation_create(ss, 1.0f, 0.0f, false, true);
+        ss->cache->cloth_sim = SCULPT_cloth_brush_simulation_create(
+            ss, 1.0f, 0.0f, 0.0f, false, true);
         SCULPT_cloth_brush_simulation_init(ss, ss->cache->cloth_sim);
       }
       SCULPT_cloth_brush_store_simulation_state(ss, ss->cache->cloth_sim);

@@ -4952,24 +4952,8 @@ uiBut *uiDefButImage(
 uiBut *uiDefButAlert(uiBlock *block, int icon, int x, int y, short width, short height)
 {
   struct ImBuf *ibuf = UI_icon_alert_imbuf_get(icon);
-
-  if (icon == ALERT_ICON_BLENDER) {
-    return uiDefButImage(block, ibuf, x, y, width, height, NULL);
-  }
-
-  uchar icon_color[4];
-  ThemeColorID color_id = TH_INFO_WARNING;
-  if (icon == ALERT_ICON_ERROR) {
-    color_id = TH_INFO_ERROR;
-  }
-  else if (icon == ALERT_ICON_INFO) {
-    color_id = TH_INFO_INFO;
-  }
-  else if (icon == ALERT_ICON_QUESTION) {
-    color_id = TH_INFO_PROPERTY;
-  }
-  UI_GetThemeColorType4ubv(color_id, SPACE_INFO, icon_color);
-  return uiDefButImage(block, ibuf, x, y, width, height, icon_color);
+  bTheme *btheme = UI_GetTheme();
+  return uiDefButImage(block, ibuf, x, y, width, height, btheme->tui.wcol_menu_back.text);
 }
 
 /**

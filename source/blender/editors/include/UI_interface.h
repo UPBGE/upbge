@@ -1887,6 +1887,7 @@ uiLayout *UI_block_layout(uiBlock *block,
                           const struct uiStyle *style);
 void UI_block_layout_set_current(uiBlock *block, uiLayout *layout);
 void UI_block_layout_resolve(uiBlock *block, int *r_x, int *r_y);
+void UI_block_layout_free(uiBlock *block);
 
 bool UI_block_apply_search_filter(uiBlock *block, const char *search_filter);
 
@@ -2448,6 +2449,8 @@ void uiItemTabsEnumR_prop(uiLayout *layout,
                           struct bContext *C,
                           struct PointerRNA *ptr,
                           PropertyRNA *prop,
+                          struct PointerRNA *ptr_highlight,
+                          PropertyRNA *prop_highlight,
                           bool icon_only);
 
 /* Only for testing, inspecting layouts. */
