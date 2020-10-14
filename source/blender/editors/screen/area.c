@@ -552,7 +552,10 @@ void ED_region_do_draw(bContext *C, ARegion *region)
    * for drawing of borders/gestures etc */
   ED_region_pixelspace(region);
 
+  GPUFrameBuffer *fb = GPU_framebuffer_active_get();
+  GPU_framebuffer_bind(fb);
   ED_region_draw_cb_draw(C, region, REGION_DRAW_POST_PIXEL);
+  GPU_framebuffer_bind_no_srgb(fb);
 
   region_draw_azones(area, region);
 
@@ -3116,7 +3119,7 @@ static bool panel_property_search(const bContext *C,
 
   UI_block_layout_free(block);
 
-  /* We could check after each layout to increase the likelyhood of returning early,
+  /* We could check after each layout to increase the likelihood of returning early,
    * but that probably wouldn't make much of a difference anyway. */
   if (UI_block_apply_search_filter(block, search_filter)) {
     return true;
