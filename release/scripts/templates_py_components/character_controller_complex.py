@@ -106,18 +106,15 @@ class CharacterController(bge.types.KX_PythonComponent):
 				vec = self.__jumpDirection
 			if self.staticJumpRot:
 				self.object.worldOrientation = self.__jumpRotation.copy()
-		else:#elif self.character.onGround:
+		else:
 			self.__jumpDirection = vec
 			self.__jumpRotation  = self.object.worldOrientation.copy()
-
-
 
 		smooth = 1.0 - self.__smoothMov
 		vec = self.__smoothLast.lerp(vec, smooth)
 		self.__smoothLast = vec
 		test = self.object.worldPosition.copy()
 		self.character.walkDirection = self.object.worldOrientation @ vec
-
 
 		if vec.length != 0:
 			self.__lastDirection = self.object.worldPosition - self.__lastPosition
@@ -132,7 +129,6 @@ class CharacterController(bge.types.KX_PythonComponent):
 		if keyTAP in keyboard[bge.events.SPACEKEY].queue:
 			self.character.jump()
 
-	#
 	def avoidSlide(self):
 		"""Avoids the character to slide. This funtion is useful when you have
 		Collision Bounds activated."""
@@ -155,4 +151,3 @@ class CharacterController(bge.types.KX_PythonComponent):
 
 			if self.avoidSliding:
 				self.avoidSlide()
-

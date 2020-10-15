@@ -4,7 +4,7 @@
 #                      Created by: Guilherme Teres Nunes                      #
 #                       Access: youtube.com/UnidayStudio                      #
 #                               github.com/UnidayStudio                       #
-# 				github.com/UnidayStudio/UPBGE-CharacterController			  #
+# 				github.com/UnidayStudio/UPBGE-CharacterController	          #
 #                                                                             #
 #                           Copyright - July 2018                             #
 #                        This work is licensed under                          #
@@ -60,8 +60,8 @@ class FirstPersonCamera(bge.types.KX_PythonComponent):
 		obj = self.object.parent
 		if obj == None:
 			obj = self.object
-		obj.applyRotation([0, 0, mDisp[0]*self.invertX], False)
-		self.object.applyRotation([mDisp[1]*self.invertY, 0, 0], True)
+		obj.applyRotation([0, 0, mDisp[0] * self.invertX], False)
+		self.object.applyRotation([mDisp[1] * self.invertY, 0, 0], True)
 
 		bge.render.setMousePosition(int(wCenter[0]), int(wCenter[1]))
 

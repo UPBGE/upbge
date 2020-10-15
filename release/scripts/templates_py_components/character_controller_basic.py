@@ -11,8 +11,6 @@ class ThirdPerson(bge.types.KX_PythonComponent):
 
     """
 
-    #
-
     args = OrderedDict([
         ("Move Speed", 0.1),
         ("Turn Speed", 0.04)
