@@ -1212,23 +1212,17 @@ static void setVisible_recursive(SG_Node *node, bool v)
 
 void KX_GameObject::SetVisible(bool v, bool recursive)
 {
-  Object *ob = GetBlenderObject();
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  Object *ob = DEG_get_evaluated_object(depsgraph, GetBlenderObject());
   if (ob) {
-    Scene *scene = GetScene()->GetBlenderScene();
-    ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-    Base *base = BKE_view_layer_base_find(view_layer, ob);
-    if (base) {  // base can be nullptr for objects in instanced collections
-      if (v) {
-        base->flag &= ~BASE_HIDDEN;
-      }
-      else {
-        base->flag |= BASE_HIDDEN;
-      }
-
-      BKE_layer_collection_sync(scene, view_layer);
-      DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
-      GetScene()->ResetTaaSamples();
+    if (v) {
+      ob->restrictflag &= ~OB_RESTRICT_VIEWPORT;
     }
+    else {
+      ob->restrictflag |= OB_RESTRICT_VIEWPORT;
+    }
+    GetScene()->ResetTaaSamples();
   }
 
   if (recursive) {
