@@ -41,6 +41,7 @@
 #include "../../../intern/clog/CLG_log.h"
 #include "../../../intern/ghost/GHOST_Path-api.h"
 #include "../../blender/python/BPY_extern_python.h"
+#include "../../blender/python/BPY_extern_run.h"
 #include "../render/extern/include/RE_render_ext.h"
 #include "BKE_addon.h"
 #include "BKE_appdir.h"
@@ -1609,6 +1610,9 @@ int main(int argc,
       BKE_blendfile_userdef_write_all(NULL);
     }
   }
+
+  const char *imports[] = {"addon_utils", NULL};
+  BPY_run_string_eval(C, imports, "addon_utils.disable_all()");
 
   BLI_timer_free();
 
