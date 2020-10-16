@@ -233,59 +233,8 @@ static void animchan_sync_fcurve_scene(bAnimListElem *ale)
   }
 }
 
-static void animchan_sync_fcurve_nodetree(bAnimListElem *ale, FCurve **active_fcurve)
-{
-  ID *owner_id = ale->id;
-  BLI_assert(GS(owner_id->name) == ID_NT);
-  bNodeTree *ntree = (bNodeTree *)owner_id;
-  FCurve *fcu = (FCurve *)ale->data;
-
-  /* check for selected nodes */
-  if (!strstr(fcu->rna_path, "nodes")) {
-    return;
-  }
-
-  /* get strip name, and check if this strip is selected */
-  char *node_name = BLI_str_quoted_substrN(fcu->rna_path, "nodes[");
-  bNode *node = nodeFindNodebyName(ntree, node_name);
-  if (node_name) {
-    MEM_freeN(node_name);
-  }
-  if (node == NULL) {
-    return;
-  }
-
-  /* update selection status */
-  if (node->flag & NODE_SELECT) {
-    fcu->flag |= FCURVE_SELECTED;
-  }
-  else {
-    fcu->flag &= ~FCURVE_SELECTED;
-  }
-
-  /* update active status */
-  /* XXX: this may interfere with setting bones as active if both exist at once;
-   * then again, if that's the case, production setups aren't likely to be animating
-   * nodes while working with bones?
-   */
-  if (node->flag & NODE_ACTIVE) {
-    if (*active_fcurve == NULL) {
-      fcu->flag |= FCURVE_ACTIVE;
-      *active_fcurve = fcu;
-    }
-    else {
-      fcu->flag &= ~FCURVE_ACTIVE;
-    }
-  }
-  else {
-    fcu->flag &= ~FCURVE_ACTIVE;
-  }
-}
-
 /* perform syncing updates for F-Curves */
-static void animchan_sync_fcurve(bAnimContext *UNUSED(ac),
-                                 bAnimListElem *ale,
-                                 FCurve **active_fcurve)
+static void animchan_sync_fcurve(bAnimListElem *ale)
 {
   FCurve *fcu = (FCurve *)ale->data;
   ID *owner_id = ale->id;
@@ -301,16 +250,13 @@ static void animchan_sync_fcurve(bAnimContext *UNUSED(ac),
     case ID_SCE:
       animchan_sync_fcurve_scene(ale);
       break;
-    case ID_NT:
-      animchan_sync_fcurve_nodetree(ale, active_fcurve);
-      break;
     default:
       break;
   }
 }
 
 /* perform syncing updates for GPencil Layers */
-static void animchan_sync_gplayer(bAnimContext *UNUSED(ac), bAnimListElem *ale)
+static void animchan_sync_gplayer(bAnimListElem *ale)
 {
   bGPDlayer *gpl = (bGPDlayer *)ale->data;
 
@@ -342,7 +288,6 @@ void ANIM_sync_animchannels_to_data(const bContext *C)
   int filter;
 
   bActionGroup *active_agrp = NULL;
-  FCurve *active_fcurve = NULL;
 
   /* get animation context info for filtering the channels */
   if (ANIM_animdata_get_context(C, &ac) == 0) {
@@ -366,11 +311,11 @@ void ANIM_sync_animchannels_to_data(const bContext *C)
         break;
 
       case ANIMTYPE_FCURVE:
-        animchan_sync_fcurve(&ac, ale, &active_fcurve);
+        animchan_sync_fcurve(ale);
         break;
 
       case ANIMTYPE_GPLAYER:
-        animchan_sync_gplayer(&ac, ale);
+        animchan_sync_gplayer(ale);
         break;
     }
   }

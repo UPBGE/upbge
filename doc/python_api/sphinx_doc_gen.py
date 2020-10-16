@@ -1083,6 +1083,7 @@ context_type_map = {
     "selected_bones": ("EditBone", True),
     "selected_editable_bones": ("EditBone", True),
     "selected_editable_fcurves": ("FCurve", True),
+    "selected_editable_keyframes": ("Keyframe", True),
     "selected_editable_objects": ("Object", True),
     "selected_editable_sequences": ("Sequence", True),
     "selected_nla_strips": ("NlaStrip", True),
