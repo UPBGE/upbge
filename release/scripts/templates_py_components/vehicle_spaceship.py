@@ -5,11 +5,11 @@ from datetime import datetime, timedelta
 
 class ToyRocket(bge.types.KX_PythonComponent):
     """
-        Component for a simple arcade style spaceship controlls.
+        Component for a simple arcade style spaceship controls.
         
         To use it select your rocket object and in set it's physics as "Dynamic".
         Then in logic editor click "Register Component" button.
-        In the popup type in "spaceship.ToyRocket" and that's it.
+        In the popup type in "vehicle_spaceship.ToyRocket" and that's it.
         
         
         This component will read keys from your keyboard and state oy your mouse and handle movement of the rocket.
