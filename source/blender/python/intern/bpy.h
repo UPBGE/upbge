@@ -24,7 +24,9 @@
 extern "C" {
 #endif
 
-void BPy_init_modules(void);
+struct bContext;
+
+void BPy_init_modules(struct bContext *C);
 void BPy_end_modules(void);
 extern PyObject *bpy_package_py;
 extern PyObject *bpy_sys_module_backup;

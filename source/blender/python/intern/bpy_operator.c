@@ -84,7 +84,7 @@ static PyObject *pyop_poll(PyObject *UNUSED(self), PyObject *args)
 
   /* XXX Todo, work out a better solution for passing on context,
    * could make a tuple from self and pack the name and Context into it... */
-  bContext *C = (bContext *)BPy_GetContext();
+  bContext *C = BPY_context_get();
 
   if (C == NULL) {
     PyErr_SetString(PyExc_RuntimeError, "Context is None, cant poll any operators");
@@ -171,7 +171,7 @@ static PyObject *pyop_call(PyObject *UNUSED(self), PyObject *args)
 
   /* XXX Todo, work out a better solution for passing on context,
    * could make a tuple from self and pack the name and Context into it... */
-  bContext *C = (bContext *)BPy_GetContext();
+  bContext *C = BPY_context_get();
 
   if (C == NULL) {
     PyErr_SetString(PyExc_RuntimeError, "Context is None, cant poll any operators");
@@ -339,7 +339,7 @@ static PyObject *pyop_call(PyObject *UNUSED(self), PyObject *args)
    * is freed by clear_globals(), further access will crash blender.
    * Setting context is not needed in this case, only calling because this
    * function corrects bpy.data (internal Main pointer) */
-  BPY_modules_update(C);
+  BPY_modules_update();
 
   /* return operator_ret as a bpy enum */
   return pyrna_enum_bitfield_to_py(rna_enum_operator_return_items, operator_ret);
@@ -359,7 +359,7 @@ static PyObject *pyop_as_string(PyObject *UNUSED(self), PyObject *args)
   char *buf = NULL;
   PyObject *pybuf;
 
-  bContext *C = (bContext *)BPy_GetContext();
+  bContext *C = BPY_context_get();
 
   if (C == NULL) {
     PyErr_SetString(PyExc_RuntimeError,

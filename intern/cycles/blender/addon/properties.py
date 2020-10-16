@@ -31,7 +31,6 @@ from math import pi
 
 # enums
 
-import _cycles
 from . import engine
 
 enum_devices = (
@@ -39,8 +38,10 @@ enum_devices = (
     ('GPU', "GPU Compute", "Use GPU compute device for rendering, configured in the system tab in the user preferences"),
 )
 
-if _cycles.with_network:
+from _cycles import with_network
+if with_network:
     enum_devices += (('NETWORK', "Networked Device", "Use networked device for rendering"),)
+del with_network
 
 enum_feature_set = (
     ('SUPPORTED', "Supported", "Only use finished and supported features"),
@@ -184,6 +185,7 @@ enum_aov_types = (
 
 
 def enum_openimagedenoise_denoiser(self, context):
+    import _cycles
     if _cycles.with_openimagedenoise:
         return [('OPENIMAGEDENOISE', "OpenImageDenoise", "Use Intel OpenImageDenoise AI denoiser running on the CPU", 4)]
     return []
@@ -1599,15 +1601,20 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             elif entry.type == 'CPU':
                 cpu_devices.append(entry)
         # Extend all GPU devices with CPU.
-        if compute_device_type in ('CUDA', 'OPENCL'):
+        if compute_device_type in {'CUDA', 'OPENCL'}:
             devices.extend(cpu_devices)
         return devices
 
     # For backwards compatibility, only returns CUDA and OpenCL but still
     # refreshes all devices.
     def get_devices(self, compute_device_type=''):
+        import _cycles
+        # Ensure `self.devices` is not re-allocated when the second call to
+        # get_devices_for_type is made, freeing items from the first list.
+        for device_type in ('CUDA', 'OPTIX', 'OPENCL'):
+            self.update_device_entries(_cycles.available_devices(device_type))
+
         cuda_devices = self.get_devices_for_type('CUDA')
-        self.get_devices_for_type('OPTIX')
         opencl_devices = self.get_devices_for_type('OPENCL')
         return cuda_devices, opencl_devices
 

@@ -157,6 +157,7 @@ static float cloth_brush_simulation_falloff_get(const Brush *brush,
 #define CLOTH_SIMULATION_TIME_STEP 0.01f
 #define CLOTH_DEFORMATION_SNAKEHOOK_STRENGTH 0.35f
 #define CLOTH_DEFORMATION_TARGET_STRENGTH 0.01f
+#define CLOTH_DEFORMATION_GRAB_STRENGTH 0.1f
 
 static bool cloth_brush_sim_has_length_constraint(SculptClothSimulation *cloth_sim,
                                                   const int v1,
@@ -381,7 +382,8 @@ static void do_cloth_brush_build_constraints_task_cb_ex(
         /* When the grab brush brush is used as part of the cloth brush, deformation constraints
          * are created with different strengths and only inside the radius of the brush. */
         const float fade = BKE_brush_curve_strength(brush, sqrtf(len_squared), ss->cache->radius);
-        cloth_brush_add_deformation_constraint(data->cloth_sim, node_index, vd.index, fade);
+        cloth_brush_add_deformation_constraint(
+            data->cloth_sim, node_index, vd.index, fade * CLOTH_DEFORMATION_GRAB_STRENGTH);
       }
       else if (brush->cloth_deform_type == BRUSH_CLOTH_DEFORM_SNAKE_HOOK) {
         /* Cloth Snake Hook creates deformation constraint with fixed strength because the strength
@@ -723,6 +725,8 @@ static void do_cloth_brush_solve_simulation_task_cb_ex(
     return;
   }
 
+  AutomaskingCache *automasking = SCULPT_automasking_active_cache_get(ss);
+
   BKE_pbvh_vertex_iter_begin(ss->pbvh, data->nodes[n], vd, PBVH_ITER_UNIQUE)
   {
     float sim_location[3];
@@ -743,7 +747,7 @@ static void do_cloth_brush_solve_simulation_task_cb_ex(
       mul_v3_fl(pos_diff, (1.0f - cloth_sim->damping) * sim_factor);
 
       const float mask_v = (1.0f - (vd.mask ? *vd.mask : 0.0f)) *
-                           SCULPT_automasking_factor_get(ss, vd.index);
+                           SCULPT_automasking_factor_get(automasking, ss, vd.index);
 
       madd_v3_v3fl(cloth_sim->pos[i], pos_diff, mask_v);
       madd_v3_v3fl(cloth_sim->pos[i], cloth_sim->acceleration[i], mask_v);
@@ -775,6 +779,9 @@ static void cloth_brush_satisfy_constraints(SculptSession *ss,
                                             Brush *brush,
                                             SculptClothSimulation *cloth_sim)
 {
+
+  AutomaskingCache *automasking = SCULPT_automasking_active_cache_get(ss);
+
   for (int constraint_it = 0; constraint_it < CLOTH_SIMULATION_ITERATIONS; constraint_it++) {
     for (int i = 0; i < cloth_sim->tot_length_constraints; i++) {
       const SculptClothLengthConstraint *constraint = &cloth_sim->length_constraints[i];
@@ -807,9 +814,9 @@ static void cloth_brush_satisfy_constraints(SculptSession *ss,
       mul_v3_v3fl(correction_vector_half, correction_vector, 0.5f);
 
       const float mask_v1 = (1.0f - SCULPT_vertex_mask_get(ss, v1)) *
-                            SCULPT_automasking_factor_get(ss, v1);
+                            SCULPT_automasking_factor_get(automasking, ss, v1);
       const float mask_v2 = (1.0f - SCULPT_vertex_mask_get(ss, v2)) *
-                            SCULPT_automasking_factor_get(ss, v2);
+                            SCULPT_automasking_factor_get(automasking, ss, v2);
 
       float sim_location[3];
       cloth_brush_simulation_location_get(ss, brush, sim_location);
@@ -1354,6 +1361,7 @@ static void cloth_filter_apply_forces_task_cb(void *__restrict userdata,
   BKE_pbvh_vertex_iter_begin(ss->pbvh, node, vd, PBVH_ITER_UNIQUE)
   {
     float fade = vd.mask ? *vd.mask : 0.0f;
+    fade *= SCULPT_automasking_factor_get(ss->filter_cache->automasking, ss, vd.index);
     fade = 1.0f - fade;
     float force[3] = {0.0f, 0.0f, 0.0f};
     float disp[3], temp[3], transform[3][3];
@@ -1497,6 +1505,8 @@ static int sculpt_cloth_filter_invoke(bContext *C, wmOperator *op, const wmEvent
 
   SCULPT_undo_push_begin("Cloth filter");
   SCULPT_filter_cache_init(C, ob, sd, SCULPT_UNDO_COORDS);
+
+  ss->filter_cache->automasking = SCULPT_automasking_cache_init(sd, NULL, ob);
 
   const float cloth_mass = RNA_float_get(op->ptr, "cloth_mass");
   const float cloth_damping = RNA_float_get(op->ptr, "cloth_damping");

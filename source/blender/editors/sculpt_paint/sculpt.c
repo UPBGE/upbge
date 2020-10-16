@@ -544,22 +544,19 @@ bool SCULPT_vertex_has_face_set(SculptSession *ss, int index, int face_set)
   return true;
 }
 
-static void sculpt_visibility_sync_face_sets_to_vertex(SculptSession *ss, int index)
+void SCULPT_visibility_sync_all_face_sets_to_vertices(Object *ob)
 {
-  SCULPT_vertex_visible_set(ss, index, SCULPT_vertex_any_face_set_visible_get(ss, index));
-}
-
-void SCULPT_visibility_sync_all_face_sets_to_vertices(SculptSession *ss)
-{
+  SculptSession *ss = ob->sculpt;
+  Mesh *mesh = BKE_object_get_original_mesh(ob);
   switch (BKE_pbvh_type(ss->pbvh)) {
     case PBVH_FACES: {
-      for (int i = 0; i < ss->totvert; i++) {
-        sculpt_visibility_sync_face_sets_to_vertex(ss, i);
-      }
+      BKE_sculpt_sync_face_sets_visibility_to_base_mesh(mesh);
       break;
     }
     case PBVH_GRIDS: {
-      BKE_pbvh_sync_face_sets_to_grids(ss->pbvh);
+      BKE_sculpt_sync_face_sets_visibility_to_base_mesh(mesh);
+      BKE_sculpt_sync_face_sets_visibility_to_grids(mesh, ss->subdiv_ccg);
+      break;
     }
     case PBVH_BMESH:
       break;
@@ -2506,7 +2503,7 @@ float SCULPT_brush_strength_factor(SculptSession *ss,
   avg *= 1.0f - mask;
 
   /* Auto-masking. */
-  avg *= SCULPT_automasking_factor_get(ss, vertex_index);
+  avg *= SCULPT_automasking_factor_get(cache->automasking, ss, vertex_index);
 
   return avg;
 }
@@ -2782,6 +2779,20 @@ static void calc_brush_local_mat(const Brush *brush, Object *ob, float local_mat
 
   /* Return inverse (for converting from model-space coords to local area coords). */
   invert_m4_m4(local_mat, tmat);
+}
+
+#define SCULPT_TILT_SENSITIVITY 0.7f
+void SCULPT_tilt_apply_to_normal(float r_normal[3], StrokeCache *cache, const float tilt_strength)
+{
+  if (!U.experimental.use_sculpt_tools_tilt) {
+    return;
+  }
+  const float rot_max = M_PI_2 * tilt_strength * SCULPT_TILT_SENSITIVITY;
+  mul_v3_mat3_m4v3(r_normal, cache->vc->obact->obmat, r_normal);
+  rotate_v3_v3v3fl(r_normal, r_normal, cache->vc->rv3d->viewinv[0], cache->y_tilt * rot_max);
+  rotate_v3_v3v3fl(r_normal, r_normal, cache->vc->rv3d->viewinv[1], cache->x_tilt * rot_max);
+  mul_v3_mat3_m4v3(r_normal, cache->vc->obact->imat, r_normal);
+  normalize_v3(r_normal);
 }
 
 static void update_brush_local_mat(Sculpt *sd, Object *ob)
@@ -3094,6 +3105,7 @@ static void do_draw_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 
   /* Offset with as much as possible factored in already. */
   mul_v3_v3fl(offset, ss->cache->sculpt_normal_symm, ss->cache->radius);
+  SCULPT_tilt_apply_to_normal(offset, ss->cache, brush->tilt_strength_factor);
   mul_v3_v3(offset, ss->cache->scale);
   mul_v3_fl(offset, bstrength);
 
@@ -3171,6 +3183,7 @@ static void do_draw_sharp_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int to
 
   /* Offset with as much as possible factored in already. */
   mul_v3_v3fl(offset, ss->cache->sculpt_normal_symm, ss->cache->radius);
+  SCULPT_tilt_apply_to_normal(offset, ss->cache, brush->tilt_strength_factor);
   mul_v3_v3(offset, ss->cache->scale);
   mul_v3_fl(offset, bstrength);
 
@@ -3892,7 +3905,7 @@ static void do_elastic_deform_brush_task_cb_ex(void *__restrict userdata,
       mul_v3_fl(final_disp, 1.0f - *vd.mask);
     }
 
-    mul_v3_fl(final_disp, SCULPT_automasking_factor_get(ss, vd.index));
+    mul_v3_fl(final_disp, SCULPT_automasking_factor_get(ss->cache->automasking, ss, vd.index));
 
     copy_v3_v3(proxy[vd.i], final_disp);
 
@@ -4693,6 +4706,8 @@ static void do_flatten_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totno
 
   SCULPT_calc_brush_plane(sd, ob, nodes, totnode, area_no, area_co);
 
+  SCULPT_tilt_apply_to_normal(area_no, ss->cache, brush->tilt_strength_factor);
+
   displace = radius * offset;
 
   mul_v3_v3v3(temp, area_no, ss->cache->scale);
@@ -4977,6 +4992,7 @@ static void do_clay_strips_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int t
   float tmat[4][4];
 
   SCULPT_calc_brush_plane(sd, ob, nodes, totnode, area_no_sp, area_co);
+  SCULPT_tilt_apply_to_normal(area_no_sp, ss->cache, brush->tilt_strength_factor);
 
   if (brush->sculpt_plane != SCULPT_DISP_DIR_AREA || (brush->flag & BRUSH_ORIGINAL_NORMAL)) {
     SCULPT_calc_area_normal(sd, ob, nodes, totnode, area_no);
@@ -5120,6 +5136,8 @@ static void do_fill_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 
   SCULPT_calc_brush_plane(sd, ob, nodes, totnode, area_no, area_co);
 
+  SCULPT_tilt_apply_to_normal(area_no, ss->cache, brush->tilt_strength_factor);
+
   displace = radius * offset;
 
   mul_v3_v3v3(temp, area_no, ss->cache->scale);
@@ -5212,6 +5230,8 @@ static void do_scrape_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnod
   float temp[3];
 
   SCULPT_calc_brush_plane(sd, ob, nodes, totnode, area_no, area_co);
+
+  SCULPT_tilt_apply_to_normal(area_no, ss->cache, brush->tilt_strength_factor);
 
   displace = -radius * offset;
 
@@ -5664,7 +5684,7 @@ static void do_brush_action(Sculpt *sd, Object *ob, Brush *brush, UnifiedPaintSe
       SculptSearchSphereData data = {
           .ss = ss,
           .sd = sd,
-          .radius_squared = square_f(ss->cache->initial_radius * (1.0 + brush->cloth_sim_limit)),
+          .radius_squared = square_f(ss->cache->radius * (1.0 + brush->cloth_sim_limit)),
           .original = false,
           .ignore_fully_ineffective = false,
           .center = ss->cache->location,
@@ -5737,7 +5757,7 @@ static void do_brush_action(Sculpt *sd, Object *ob, Brush *brush, UnifiedPaintSe
 
     if (SCULPT_stroke_is_first_brush_step(ss->cache)) {
       if (SCULPT_is_automasking_enabled(sd, ss, brush)) {
-        SCULPT_automasking_init(sd, ob);
+        ss->cache->automasking = SCULPT_automasking_cache_init(sd, brush, ob);
       }
     }
 
@@ -6587,6 +6607,7 @@ static void sculpt_update_cache_invariants(
   }
 
   copy_v2_v2(cache->mouse, cache->initial_mouse);
+  copy_v2_v2(cache->mouse_event, cache->initial_mouse);
   copy_v2_v2(ups->tex_mouse, cache->initial_mouse);
 
   /* Truly temporary data that isn't stored in properties. */
@@ -6714,8 +6735,8 @@ static void sculpt_update_brush_delta(UnifiedPaintSettings *ups, Object *ob, Bru
   SculptSession *ss = ob->sculpt;
   StrokeCache *cache = ss->cache;
   const float mouse[2] = {
-      cache->mouse[0],
-      cache->mouse[1],
+      cache->mouse_event[0],
+      cache->mouse_event[1],
   };
   int tool = brush->sculpt_tool;
 
@@ -6926,6 +6947,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, Object *ob, Po
 
   cache->pen_flip = RNA_boolean_get(ptr, "pen_flip");
   RNA_float_get_array(ptr, "mouse", cache->mouse);
+  RNA_float_get_array(ptr, "mouse_event", cache->mouse_event);
 
   /* XXX: Use pressure value from first brush step for brushes which don't support strokes (grab,
    * thumb). They depends on initial state and brush coord/pressure/etc.
@@ -6934,6 +6956,9 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, Object *ob, Po
   if (paint_supports_dynamic_size(brush, PAINT_MODE_SCULPT) || cache->first_time) {
     cache->pressure = RNA_float_get(ptr, "pressure");
   }
+
+  cache->x_tilt = RNA_float_get(ptr, "x_tilt");
+  cache->y_tilt = RNA_float_get(ptr, "y_tilt");
 
   /* Truly temporary data that isn't stored in properties. */
   if (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(ss->cache)) {
@@ -7738,7 +7763,7 @@ static void sculpt_stroke_done(const bContext *C, struct PaintStroke *UNUSED(str
     }
 
     if (SCULPT_is_automasking_enabled(sd, ss, brush)) {
-      SCULPT_automasking_end(ob);
+      SCULPT_automasking_cache_free(ss->cache->automasking);
     }
 
     BKE_pbvh_node_color_buffer_free(ss->pbvh);
@@ -8150,6 +8175,9 @@ void ED_object_sculptmode_enter_ex(Main *bmain,
    * freed memory. */
   BKE_object_free_derived_caches(ob);
 
+  /* Copy the current mesh visibility to the Face Sets. */
+  BKE_sculpt_face_sets_ensure_from_base_mesh_visibility(me);
+
   sculpt_init_session(depsgraph, scene, ob);
 
   /* Mask layer is required. */
@@ -8171,7 +8199,7 @@ void ED_object_sculptmode_enter_ex(Main *bmain,
   Paint *paint = BKE_paint_get_active_from_paintmode(scene, PAINT_MODE_SCULPT);
   BKE_paint_init(bmain, scene, PAINT_MODE_SCULPT, PAINT_CURSOR_SCULPT);
 
-  paint_cursor_start(paint, SCULPT_poll_view3d);
+  paint_cursor_start(paint, SCULPT_mode_poll_view3d);
 
   /* Check dynamic-topology flag; re-enter dynamic-topology mode when changing modes,
    * As long as no data was added that is not supported. */

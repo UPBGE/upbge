@@ -2136,8 +2136,6 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char **argv, bContext
    * somehow it remembers the sys.path - Campbell
    */
 
-  BPY_context_set(C);
-
   static bool first_time = true;
   const char *const py_path_bundle = BKE_appdir_folder_id(BLENDER_SYSTEM_PYTHON, nullptr);
 
@@ -2210,7 +2208,7 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char **argv, bContext
   if (first_time) {
 
     bpy_intern_string_init();
-    BPy_init_modules();
+    BPy_init_modules(C);
 
     BPY_python_rna_alloc_types();
 
