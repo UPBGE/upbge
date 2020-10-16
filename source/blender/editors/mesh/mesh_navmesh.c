@@ -47,8 +47,11 @@
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_mesh.h"
+#include "BKE_mesh_runtime.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
+
+#include "DEG_depsgraph_query.h"
 
 #include "ED_mesh.h"
 #include "ED_object.h"
@@ -58,8 +61,6 @@
 #include "WM_types.h"
 
 #include "recast-capi.h"
-
-#include "DEG_depsgraph.h"
 
 #include "mesh_intern.h" /* own include */
 
@@ -91,7 +92,7 @@ static void createVertsTrisData(bContext *C,
   /* calculate number of verts and tris */
   for (oblink = obs; oblink; oblink = oblink->next) {
     ob = (Object *)oblink->link;
-    dm = mesh_create_derived_no_virtual(depsgraph, scene, ob, NULL, &CD_MASK_MESH);
+    dm = mesh_get_derived_final(depsgraph, scene, DEG_get_evaluated_object(depsgraph, ob), &CD_MASK_MESH);
     DM_ensure_tessface(dm);
     BLI_linklist_append(&dms_pair, dm);
 
