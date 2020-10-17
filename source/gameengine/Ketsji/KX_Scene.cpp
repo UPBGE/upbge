@@ -643,13 +643,26 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
   m_resetTaaSamples = false;
   m_staticObjects.clear();
 
-  const RAS_Rect *viewport = &canvas->GetViewportArea();
-  int v[4] = {viewport->GetLeft(),
-              viewport->GetBottom(),
-              viewport->GetWidth() + 1,
-              viewport->GetHeight() + 1};
+  rcti window;
+  int v[4];
+  if (cam) {
+    v[0] = canvas->GetViewportArea().GetLeft() + cam->GetViewportLeft();
+    v[1] = canvas->GetViewportArea().GetBottom() + cam->GetViewportBottom();
+    v[2] = cam->GetViewportRight() + 1;
+    v[3] = cam->GetViewportTop() + 1;
 
-  const rcti window = {0, viewport->GetWidth(), 0, viewport->GetHeight()};
+    window = {0, cam->GetViewportRight(),
+              0, cam->GetViewportTop()};
+  }
+  else {
+    v[0] = canvas->GetViewportArea().GetLeft();
+    v[1] = canvas->GetViewportArea().GetBottom();
+    v[2] = canvas->GetWidth() + 1;
+    v[3] = canvas->GetHeight() + 1;
+
+    window = {0, canvas->GetWidth(),
+              0, canvas->GetHeight()};
+  }
 
   /* Here we'll render directly the scene with viewport code. */
   if (scene->gm.flag & GAME_USE_VIEWPORT_RENDER && !canvas->IsBlenderPlayer()) {
