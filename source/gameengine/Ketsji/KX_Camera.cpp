@@ -284,9 +284,6 @@ void KX_Camera::SetViewport(int left, int bottom, int right, int top)
   m_camdata.m_viewportbottom = bottom;
   m_camdata.m_viewportright = right;
   m_camdata.m_viewporttop = top;
-  if (!m_gpuViewport) {
-    m_gpuViewport = GPU_viewport_create();
-  }
 }
 
 bool KX_Camera::GetViewport() const
