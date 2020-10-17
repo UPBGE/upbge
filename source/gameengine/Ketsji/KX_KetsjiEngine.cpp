@@ -502,10 +502,6 @@ KX_KetsjiEngine::CameraRenderData KX_KetsjiEngine::GetCameraRenderData(
   // viewport.
   GetSceneViewport(scene, rendercam, displayArea, area, viewport);
 
-  // Set Camera Viewport (can be used by python API)
-  rendercam->SetViewport(
-      viewport.GetLeft(), viewport.GetBottom(), viewport.GetRight(), viewport.GetTop());
-
   // Compute the camera matrices: modelview and projection.
   const MT_Matrix4x4 viewmat = m_rasterizer->GetViewMatrix(
       eye, rendercam->GetWorldToCamera(), rendercam->GetCameraData()->m_perspective);
@@ -914,17 +910,6 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
 
   KX_SetActiveScene(scene);
 
-  // set the viewport for this frame and scene
-  const int left = viewport.GetLeft();
-  const int bottom = viewport.GetBottom();
-  const int width = viewport.GetWidth();
-  const int height = viewport.GetHeight();
-
-  GPU_viewport(left, bottom, width, height);
-  GPU_scissor_test(true);
-  GPU_scissor(left, bottom, width, height);
-  GPU_apply_state();
-
   /* Clear the depth after setting the scene viewport/scissor
    * if it's not the first render pass. */
   if (pass > 0) {
@@ -956,7 +941,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
     m_rasterizer->Enable(RAS_Rasterizer::RAS_BLEND);
     m_rasterizer->SetBlendFunc(RAS_Rasterizer::RAS_ONE, RAS_Rasterizer::RAS_ONE_MINUS_SRC_ALPHA);
   }
-  scene->RenderAfterCameraSetup(rendercam, is_overlay_pass);
+  scene->RenderAfterCameraSetup(rendercam, viewport, is_overlay_pass);
 
   if (scene->GetPhysicsEnvironment()) {
     scene->GetPhysicsEnvironment()->DebugDrawWorld();
