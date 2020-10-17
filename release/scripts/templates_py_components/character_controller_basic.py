@@ -2,7 +2,7 @@ import bge
 from collections import OrderedDict
 
 class ThirdPerson(bge.types.KX_PythonComponent):
-    """Basic third person controls
+    """Basic third character controller
 
     W: move forward
     A: turn left
@@ -10,8 +10,6 @@ class ThirdPerson(bge.types.KX_PythonComponent):
     D: turn right
 
     """
-
-    #
 
     args = OrderedDict([
         ("Move Speed", 0.1),
