@@ -501,6 +501,7 @@ KX_KetsjiEngine::CameraRenderData KX_KetsjiEngine::GetCameraRenderData(
   // Compute the area and the viewport based on the current display area and the optional camera
   // viewport.
   GetSceneViewport(scene, rendercam, displayArea, area, viewport);
+
   // Compute the camera matrices: modelview and projection.
   const MT_Matrix4x4 viewmat = m_rasterizer->GetViewMatrix(
       eye, rendercam->GetWorldToCamera(), rendercam->GetCameraData()->m_perspective);
@@ -680,6 +681,16 @@ void KX_KetsjiEngine::Render()
   }
   Scene *first_scene = m_scenes->GetFront()->GetBlenderScene();
   if (!(first_scene->gm.flag & GAME_USE_VIEWPORT_RENDER && !m_canvas->IsBlenderPlayer())) {
+    int v[4];
+    v[0] = m_canvas->GetViewportArea().GetLeft();
+    v[1] = m_canvas->GetViewportArea().GetBottom();
+    v[2] = m_canvas->GetViewportArea().GetWidth() + 1;
+    v[3] = m_canvas->GetViewportArea().GetHeight() + 1;
+    GPU_viewport(v[0], v[1], v[2], v[3]);
+    GPU_scissor_test(true);
+    GPU_scissor(v[0], v[1], v[2], v[3]);
+
+    GPU_apply_state();
     EndFrame();
   }
 }
@@ -899,17 +910,6 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
 
   KX_SetActiveScene(scene);
 
-  // set the viewport for this frame and scene
-  const int left = viewport.GetLeft();
-  const int bottom = viewport.GetBottom();
-  const int width = viewport.GetWidth();
-  const int height = viewport.GetHeight();
-
-  GPU_viewport(left, bottom, width, height);
-  GPU_scissor_test(true);
-  GPU_scissor(left, bottom, width, height);
-  GPU_apply_state();
-
   /* Clear the depth after setting the scene viewport/scissor
    * if it's not the first render pass. */
   if (pass > 0) {
@@ -937,11 +937,11 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
   }
 
   bool is_overlay_pass = rendercam == scene->GetOverlayCamera();
-  if (is_overlay_pass) {
+  if (is_overlay_pass || (rendercam != scene->GetActiveCamera() && rendercam->GetViewport())) {
     m_rasterizer->Enable(RAS_Rasterizer::RAS_BLEND);
     m_rasterizer->SetBlendFunc(RAS_Rasterizer::RAS_ONE, RAS_Rasterizer::RAS_ONE_MINUS_SRC_ALPHA);
   }
-  scene->RenderAfterCameraSetup(rendercam, is_overlay_pass);
+  scene->RenderAfterCameraSetup(rendercam, viewport, is_overlay_pass);
 
   if (scene->GetPhysicsEnvironment()) {
     scene->GetPhysicsEnvironment()->DebugDrawWorld();

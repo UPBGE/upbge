@@ -250,7 +250,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
      * 2: We need to create an eevee's cache to initialize
      * KX_BlenderMaterials and BL_Textures.
      */
-    RenderAfterCameraSetup(nullptr, false);
+    const RAS_Rect &viewport = KX_GetActiveEngine()->GetCanvas()->GetViewportArea();
+    RenderAfterCameraSetup(nullptr, viewport, false);
   }
   else {
     /* This ensures a depsgraph is allocated and activates it.
@@ -613,7 +614,7 @@ bool KX_Scene::CameraIsInactive(KX_Camera *cam)
 static RAS_Rasterizer::FrameBufferType r = RAS_Rasterizer::RAS_FRAMEBUFFER_FILTER0;
 static RAS_Rasterizer::FrameBufferType s = RAS_Rasterizer::RAS_FRAMEBUFFER_EYE_LEFT0;
 
-void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
+void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, bool is_overlay_pass)
 {
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
   RAS_Rasterizer *rasty = engine->GetRasterizer();
@@ -643,13 +644,28 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
   m_resetTaaSamples = false;
   m_staticObjects.clear();
 
-  const RAS_Rect *viewport = &canvas->GetViewportArea();
-  int v[4] = {viewport->GetLeft(),
-              viewport->GetBottom(),
-              viewport->GetWidth() + 1,
-              viewport->GetHeight() + 1};
+  rcti window;
+  int v[4];
+  /* Custom BGE viewports*/
+  if (cam && cam->GetViewport() && cam != GetOverlayCamera()) {
+    v[0] = canvas->GetViewportArea().GetLeft() + viewport.GetLeft();
+    v[1] = canvas->GetViewportArea().GetBottom() + viewport.GetBottom();
+    v[2] = viewport.GetWidth() + 1;
+    v[3] = viewport.GetHeight() + 1;
 
-  const rcti window = {0, viewport->GetWidth(), 0, viewport->GetHeight()};
+    window = {0, viewport.GetWidth(),
+              0, viewport.GetHeight()};
+  }
+  /* Main cam (when it has no custom viewport), overlay cam */
+  else {
+    v[0] = canvas->GetViewportArea().GetLeft();
+    v[1] = canvas->GetViewportArea().GetBottom();
+    v[2] = canvas->GetWidth() + 1;
+    v[3] = canvas->GetHeight() + 1;
+
+    window = {0, canvas->GetWidth(),
+              0, canvas->GetHeight()};
+  }
 
   /* Here we'll render directly the scene with viewport code. */
   if (scene->gm.flag & GAME_USE_VIEWPORT_RENDER && !canvas->IsBlenderPlayer()) {
@@ -718,11 +734,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, bool is_overlay_pass)
   GPU_framebuffer_restore();
 
   GPU_viewport(v[0], v[1], v[2], v[3]);
-
-  if ((scene->gm.flag & GAME_USE_UI_ANTI_FLICKER) == 0) {
-    GPU_scissor_test(true);
-    GPU_scissor(v[0], v[1], v[2], v[3]);
-  }
+  GPU_scissor_test(true);
+  GPU_scissor(v[0], v[1], v[2], v[3]);
 
   GPU_apply_state();
 
