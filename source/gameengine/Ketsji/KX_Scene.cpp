@@ -647,7 +647,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, 
   rcti window;
   int v[4];
   /* Custom BGE viewports*/
-  if (cam && cam != GetActiveCamera() && cam->GetViewport() && cam != GetOverlayCamera()) {
+  if (cam && cam->GetViewport() && cam != GetOverlayCamera()) {
     v[0] = canvas->GetViewportArea().GetLeft() + viewport.GetLeft();
     v[1] = canvas->GetViewportArea().GetBottom() + viewport.GetBottom();
     v[2] = viewport.GetWidth() + 1;
@@ -656,7 +656,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, 
     window = {0, viewport.GetWidth(),
               0, viewport.GetHeight()};
   }
-  /* Main cam, overlay cam */
+  /* Main cam (when it has no custom viewport), overlay cam */
   else {
     v[0] = canvas->GetViewportArea().GetLeft();
     v[1] = canvas->GetViewportArea().GetBottom();
