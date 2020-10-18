@@ -950,7 +950,7 @@ enum {
 #define GAME_NO_MATERIAL_CACHING (1 << 17)
 #define GAME_GLSL_NO_ENV_LIGHTING (1 << 18)
 #define GAME_USE_UNDO (1 << 19)
-#define GAME_USE_UI_ANTI_FLICKER (1 << 20)
+// #define GAME_USE_UI_ANTI_FLICKER (1 << 20) /* deprecated */
 #define GAME_USE_VIEWPORT_RENDER (1 << 21)
 #define GAME_PYTHON_CONSOLE (1 << 22)
 /* Note: GameData.flag is now an int (max 32 flags). A short could only take 16 flags */
