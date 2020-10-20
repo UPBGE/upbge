@@ -3349,6 +3349,8 @@ static int edbm_remove_doubles_exec(bContext *C, wmOperator *op)
 {
   const float threshold = RNA_float_get(op->ptr, "threshold");
   const bool use_unselected = RNA_boolean_get(op->ptr, "use_unselected");
+  const bool use_sharp_edge_from_normals = RNA_boolean_get(op->ptr, "use_sharp_edge_from_normals");
+
   int count_multi = 0;
 
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -3409,7 +3411,7 @@ static int edbm_remove_doubles_exec(bContext *C, wmOperator *op)
     BM_mesh_elem_hflag_enable_test(em->bm, htype_select, BM_ELEM_SELECT, true, true, BM_ELEM_TAG);
     EDBM_selectmode_flush(em);
 
-    BM_custom_loop_normals_from_vector_layer(em->bm, true);
+    BM_custom_loop_normals_from_vector_layer(em->bm, use_sharp_edge_from_normals);
 
     if (count) {
       count_multi += count;
@@ -3451,6 +3453,12 @@ void MESH_OT_remove_doubles(wmOperatorType *ot)
                   false,
                   "Unselected",
                   "Merge selected to other unselected vertices");
+
+  RNA_def_boolean(ot->srna,
+                  "use_sharp_edge_from_normals",
+                  false,
+                  "Sharp Edges",
+                  "Calculate sharp edges using custom normal data (when available)");
 }
 
 /** \} */
@@ -4030,7 +4038,7 @@ static int edbm_knife_cut_exec(bContext *C, wmOperator *op)
   /* for ED_view3d_project_float_object */
   ED_view3d_init_mats_rv3d(obedit, region->regiondata);
 
-  /* TODO, investigate using index lookup for screen_vert_coords() rather then a hash table */
+  /* TODO, investigate using index lookup for screen_vert_coords() rather than a hash table */
 
   /* the floating point coordinates of verts in screen space will be
    * stored in a hash table according to the vertices pointer */
@@ -7245,7 +7253,7 @@ void MESH_OT_wireframe(wmOperatorType *ot)
   RNA_def_boolean(ot->srna, "use_replace", true, "Replace", "Remove original faces");
   prop = RNA_def_float_distance(
       ot->srna, "thickness", 0.01f, 0.0f, 1e4f, "Thickness", "", 0.0f, 10.0f);
-  /* use 1 rather then 10 for max else dragging the button moves too far */
+  /* use 1 rather than 10 for max else dragging the button moves too far */
   RNA_def_property_ui_range(prop, 0.0, 1.0, 0.01, 4);
   RNA_def_float_distance(ot->srna, "offset", 0.01f, 0.0f, 1e4f, "Offset", "", 0.0f, 10.0f);
   RNA_def_boolean(ot->srna,

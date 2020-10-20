@@ -551,7 +551,7 @@ struct uiBlock {
   void *evil_C;
 
   /** unit system, used a lot for numeric buttons so include here
-   * rather then fetching through the scene every time. */
+   * rather than fetching through the scene every time. */
   struct UnitSettings *unit;
   /** \note only accessed by color picker templates. */
   ColorPickerData color_pickers;
