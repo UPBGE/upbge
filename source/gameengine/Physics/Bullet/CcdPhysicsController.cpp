@@ -1796,7 +1796,6 @@ bool CcdPhysicsController::ReinstancePhysicsShape2(RAS_MeshObject *meshobj,
 
   /* updates the arrays used for making the new bullet mesh */
   m_shapeInfo->SetMesh2(meshobj, ob, recalcGeom);
-
   /* create the new bullet mesh */
   GetPhysicsEnvironment()->UpdateCcdPhysicsControllerShape(m_shapeInfo);
 
@@ -2259,6 +2258,9 @@ bool CcdShapeConstructionInfo::SetMesh2(RAS_MeshObject *meshobj, Object *ob, boo
 {
   int numpolys, numverts;
 
+  std::map<RAS_MeshObject *, CcdShapeConstructionInfo *>::iterator mit = m_meshShapeMap.find(
+      m_meshObject);
+
   // assume no shape information
   // no support for dynamic change of shape yet
   BLI_assert(IsUnused());
@@ -2469,7 +2471,6 @@ bool CcdShapeConstructionInfo::SetMesh2(RAS_MeshObject *meshobj, Object *ob, boo
 	}
 #endif
 
-  m_meshObject = meshobj;
   if (free_dm) {
     dm->release(dm);
     dm = nullptr;
@@ -2480,11 +2481,15 @@ bool CcdShapeConstructionInfo::SetMesh2(RAS_MeshObject *meshobj, Object *ob, boo
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   }
 
-  // sharing only on static mesh at present, if you change that, you must also change in FindMesh
-  if (!dm) {
-    // triangle shape can be shared, store the mesh object in the map
-    m_meshShapeMap.insert(std::pair<RAS_MeshObject *, CcdShapeConstructionInfo *>(meshobj, this));
+  // Make sure to also replace the mesh in the shape map! Otherwise we leave dangling references
+  // when we free. Note, this whole business could cause issues with shared meshes. If we update
+  // one mesh, do we replace them all?
+  if (mit != m_meshShapeMap.end()) {
+    m_meshShapeMap.erase(mit);
+    m_meshShapeMap[meshobj] = this;
   }
+
+  m_meshObject = meshobj;
   return true;
 
 cleanup_empty_mesh:
