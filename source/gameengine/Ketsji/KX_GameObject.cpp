@@ -1214,13 +1214,20 @@ void KX_GameObject::SetVisible(bool v, bool recursive)
 {
   bContext *C = KX_GetActiveEngine()->GetContext();
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-  Object *ob = DEG_get_evaluated_object(depsgraph, GetBlenderObject());
+  /* Needs to change both orig_ob and ob_eval flags
+   * if we change visibility in the same frame
+   * and for the next frames too.
+   */
+  Object *ob = GetBlenderObject();
+  Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
   if (ob) {
     if (v) {
       ob->restrictflag &= ~OB_RESTRICT_VIEWPORT;
+      ob_eval->restrictflag &= ~OB_RESTRICT_VIEWPORT;
     }
     else {
       ob->restrictflag |= OB_RESTRICT_VIEWPORT;
+      ob_eval->restrictflag |= OB_RESTRICT_VIEWPORT;
     }
     GetScene()->ResetTaaSamples();
   }
