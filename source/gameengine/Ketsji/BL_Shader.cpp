@@ -491,13 +491,11 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformEyef, "setUniformEyef(name)")
     int loc = GetUniformLocation(uniform);
     if (loc != -1) {
       bool defined = false;
-      RAS_UniformVecDef::iterator it = m_preDef.begin();
-      while (it != m_preDef.end()) {
-        if ((*it)->m_loc == loc) {
+      for (RAS_DefUniform *defuni : m_preDef) {
+        if (defuni->m_loc == loc) {
           defined = true;
           break;
         }
-        it++;
       }
 
       if (defined) {
@@ -924,13 +922,11 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformDef, "setUniformDef(name, enum)")
 
     if (loc != -1) {
       bool defined = false;
-      RAS_UniformVecDef::iterator it = m_preDef.begin();
-      while (it != m_preDef.end()) {
-        if ((*it)->m_loc == loc) {
+      for (RAS_DefUniform *defuni : m_preDef) {
+        if (defuni->m_loc == loc) {
           defined = true;
           break;
         }
-        it++;
       }
 
       if (defined) {

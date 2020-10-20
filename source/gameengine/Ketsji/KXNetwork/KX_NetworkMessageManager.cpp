@@ -60,18 +60,12 @@ const std::vector<KX_NetworkMessageManager::Message> KX_NetworkMessageManager::G
       m_messages[1 - m_currentList][to];
   if (subject.empty()) {
     // Add all message without receiver and subject.
-    for (std::map<std::string, std::vector<Message>>::iterator it = messagesNoReceiver.begin(),
-                                                               end = messagesNoReceiver.end();
-         it != end;
-         ++it) {
-      messages.insert(messages.end(), it->second.begin(), it->second.end());
+    for (const auto& pair : messagesNoReceiver) {
+      messages.insert(messages.end(), pair.second.begin(), pair.second.end());
     }
     // Add all message with the given receiver and no subject.
-    for (std::map<std::string, std::vector<Message>>::iterator it = messagesReceiver.begin(),
-                                                               end = messagesReceiver.end();
-         it != end;
-         ++it) {
-      messages.insert(messages.end(), it->second.begin(), it->second.end());
+    for (const auto& pair : messagesReceiver) {
+      messages.insert(messages.end(), pair.second.begin(), pair.second.end());
     }
   }
   else {

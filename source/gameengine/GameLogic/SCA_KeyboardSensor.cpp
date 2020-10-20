@@ -222,9 +222,7 @@ void SCA_KeyboardSensor::LogKeystrokes()
   /* Convert all typed key in the prop string, if the key are del or
    * backspace we remove the last string item.
    */
-  for (std::wstring::const_iterator it = typedtext.begin(), end = typedtext.end(); it != end;
-       ++it) {
-    const wchar_t item = *it;
+  for (const wchar_t item : typedtext) {
     if (item == '\b' || item == 127) {
       if (!proptext.empty()) {
         proptext.resize(proptext.size() - 1);

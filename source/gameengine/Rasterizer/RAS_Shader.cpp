@@ -157,17 +157,13 @@ RAS_Shader::~RAS_Shader()
 
 void RAS_Shader::ClearUniforms()
 {
-  RAS_UniformVec::iterator it = m_uniforms.begin();
-  while (it != m_uniforms.end()) {
-    delete *it;
-    it++;
+  for (RAS_Uniform *uni : m_uniforms) {
+    delete uni;
   }
   m_uniforms.clear();
 
-  RAS_UniformVecDef::iterator itp = m_preDef.begin();
-  while (itp != m_preDef.end()) {
-    delete *itp;
-    itp++;
+  for (RAS_DefUniform *uni : m_preDef) {
+    delete uni;
   }
   m_preDef.clear();
 }
@@ -175,12 +171,10 @@ void RAS_Shader::ClearUniforms()
 RAS_Shader::RAS_Uniform *RAS_Shader::FindUniform(const int location)
 {
 #ifdef SORT_UNIFORMS
-  RAS_UniformVec::iterator it = m_uniforms.begin();
-  while (it != m_uniforms.end()) {
-    if ((*it)->GetLocation() == location) {
-      return *it;
+  for (RAS_Uniform *uni : m_uniforms) {
+    if (uni->GetLocation() == location) {
+      return uni;
     }
-    it++;
   }
 #endif
   return nullptr;
@@ -368,10 +362,7 @@ void RAS_Shader::Update(RAS_Rasterizer *rasty, const MT_Matrix4x4 model)
 
   const MT_Matrix4x4 &view = rasty->GetViewMatrix();
 
-  RAS_UniformVecDef::iterator it;
-  for (it = m_preDef.begin(); it != m_preDef.end(); it++) {
-    RAS_DefUniform *uni = (*it);
-
+  for (RAS_DefUniform *uni : m_preDef) {
     if (uni->m_loc == -1) {
       continue;
     }

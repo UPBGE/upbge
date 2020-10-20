@@ -46,9 +46,8 @@ SCA_TimeEventManager::SCA_TimeEventManager(SCA_LogicManager *logicmgr)
 
 SCA_TimeEventManager::~SCA_TimeEventManager()
 {
-  for (std::vector<CValue *>::iterator it = m_timevalues.begin(); !(it == m_timevalues.end());
-       ++it) {
-    (*it)->Release();
+  for (CValue *prop : m_timevalues) {
+    prop->Release();
   }
 }
 
@@ -73,11 +72,10 @@ void SCA_TimeEventManager::NextFrame(double curtime, double fixedtime)
   CFloatValue *floatval = new CFloatValue(curtime);
 
   // update sensors, but ... need deltatime !
-  for (std::vector<CValue *>::iterator it = m_timevalues.begin(); !(it == m_timevalues.end());
-       ++it) {
-    float newtime = (*it)->GetNumber() + fixedtime;
+  for (CValue *prop : m_timevalues) {
+    float newtime = prop->GetNumber() + fixedtime;
     floatval->SetFloat(newtime);
-    (*it)->SetValue(floatval);
+    prop->SetValue(floatval);
   }
 
   floatval->Release();
@@ -91,13 +89,9 @@ void SCA_TimeEventManager::AddTimeProperty(CValue *timeval)
 
 void SCA_TimeEventManager::RemoveTimeProperty(CValue *timeval)
 {
-  for (std::vector<CValue *>::iterator it = m_timevalues.begin(); !(it == m_timevalues.end());
-       ++it) {
-    if ((*it) == timeval) {
-      this->m_timevalues.erase(it);
-      timeval->Release();
-      break;
-    }
+  std::vector<CValue *>::iterator it = std::find(m_timevalues.begin(), m_timevalues.end(), timeval);
+  if (it != m_timevalues.end()) {
+    m_timevalues.erase(it);
   }
 }
 

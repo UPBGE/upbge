@@ -54,10 +54,7 @@ void SCA_XORController::Trigger(SCA_LogicManager *logicmgr)
 
   bool sensorresult = false;
 
-  for (std::vector<SCA_ISensor *>::const_iterator is = m_linkedsensors.begin();
-       !(is == m_linkedsensors.end());
-       is++) {
-    SCA_ISensor *sensor = *is;
+  for (SCA_ISensor *sensor : m_linkedsensors) {
     if (sensor->GetState()) {
       if (sensorresult == true) {
         sensorresult = false;
@@ -67,11 +64,8 @@ void SCA_XORController::Trigger(SCA_LogicManager *logicmgr)
     }
   }
 
-  for (std::vector<SCA_IActuator *>::const_iterator i = m_linkedactuators.begin();
-       !(i == m_linkedactuators.end());
-       i++) {
-    SCA_IActuator *actua = *i;
-    logicmgr->AddActiveActuator(actua, sensorresult);
+  for (SCA_IActuator *actuator : m_linkedactuators) {
+    logicmgr->AddActiveActuator(actuator, sensorresult);
   }
 }
 

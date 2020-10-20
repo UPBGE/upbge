@@ -1089,14 +1089,12 @@ KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *game
   // replicate controllers of this node
   SGControllerList scenegraphcontrollers = gameobj->GetSGNode()->GetSGControllerList();
   replicanode->RemoveAllControllers();
-  SGControllerList::iterator cit;
-  // int numcont = scenegraphcontrollers.size();
 
-  for (cit = scenegraphcontrollers.begin(); !(cit == scenegraphcontrollers.end()); ++cit) {
+  for (SG_Controller *controller : scenegraphcontrollers) {
     // controller replication is quite complicated
     // only replicate ipo controller for now
 
-    SG_Controller *replicacontroller = (*cit)->GetReplica(replicanode);
+    SG_Controller *replicacontroller = controller->GetReplica(replicanode);
     if (replicacontroller) {
       replicacontroller->SetNode(replicanode);
       replicanode->AddSGController(replicacontroller);
@@ -1559,20 +1557,19 @@ bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
   // remove all sensors/controllers/actuators from logicsystem...
 
   SCA_SensorList &sensors = gameobj->GetSensors();
-  for (SCA_SensorList::iterator its = sensors.begin(); !(its == sensors.end()); its++) {
-    m_logicmgr->RemoveSensor(*its);
+  for (SCA_ISensor *sensor : sensors) {
+    m_logicmgr->RemoveSensor(sensor);
   }
 
   SCA_ControllerList &controllers = gameobj->GetControllers();
-  for (SCA_ControllerList::iterator itc = controllers.begin(); !(itc == controllers.end());
-       itc++) {
-    m_logicmgr->RemoveController(*itc);
-    (*itc)->ReParent(nullptr);
+  for (SCA_IController *controller : controllers) {
+    m_logicmgr->RemoveController(controller);
+    controller->ReParent(nullptr);
   }
 
   SCA_ActuatorList &actuators = gameobj->GetActuators();
-  for (SCA_ActuatorList::iterator ita = actuators.begin(); !(ita == actuators.end()); ita++) {
-    m_logicmgr->RemoveActuator(*ita);
+  for (SCA_IActuator *actuator : actuators) {
+    m_logicmgr->RemoveActuator(actuator);
   }
   // the sensors/controllers/actuators must also be released, this is done in ~SCA_IObject
 
@@ -2083,32 +2080,19 @@ static void MergeScene_LogicBrick(SCA_ILogicBrick *brick, KX_Scene *from, KX_Sce
 
 static void MergeScene_GameObject(KX_GameObject *gameobj, KX_Scene *to, KX_Scene *from)
 {
-  {
-    SCA_ActuatorList &actuators = gameobj->GetActuators();
-    SCA_ActuatorList::iterator ita;
-
-    for (ita = actuators.begin(); !(ita == actuators.end()); ++ita) {
-      MergeScene_LogicBrick(*ita, from, to);
-    }
+  SCA_ActuatorList& actuators = gameobj->GetActuators();
+  for (SCA_IActuator *actuator : actuators) {
+    MergeScene_LogicBrick(actuator, from, to);
   }
 
-  {
-    SCA_SensorList &sensors = gameobj->GetSensors();
-    SCA_SensorList::iterator its;
-
-    for (its = sensors.begin(); !(its == sensors.end()); ++its) {
-      MergeScene_LogicBrick(*its, from, to);
-    }
+  SCA_SensorList& sensors = gameobj->GetSensors();
+  for (SCA_ISensor *sensor : sensors) {
+    MergeScene_LogicBrick(sensor, from, to);
   }
 
-  {
-    SCA_ControllerList &controllers = gameobj->GetControllers();
-    SCA_ControllerList::iterator itc;
-
-    for (itc = controllers.begin(); !(itc == controllers.end()); ++itc) {
-      SCA_IController *cont = *itc;
-      MergeScene_LogicBrick(cont, from, to);
-    }
+  SCA_ControllerList& controllers = gameobj->GetControllers();
+  for (SCA_IController *controller : controllers) {
+    MergeScene_LogicBrick(controller, from, to);
   }
 
   /* graphics controller */
@@ -2124,9 +2108,10 @@ static void MergeScene_GameObject(KX_GameObject *gameobj, KX_Scene *to, KX_Scene
       sg->SetSGClientInfo(to);
 
       /* Make sure to grab the children too since they might not be tied to a game object */
-      NodeList children = sg->GetSGChildren();
-      for (int i = 0; i < children.size(); i++)
-        children[i]->SetSGClientInfo(to);
+      const NodeList& children = sg->GetSGChildren();
+      for (SG_Node *child : children) {
+        child->SetSGClientInfo(to);
+      }
     }
   }
 

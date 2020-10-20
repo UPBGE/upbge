@@ -223,10 +223,8 @@ void SCA_LogicManager::RegisterActionName(const std::string &actname, void *acti
 
 void SCA_LogicManager::EndFrame()
 {
-  for (std::vector<SCA_EventManager *>::const_iterator ie = m_eventmanagers.begin();
-       !(ie == m_eventmanagers.end());
-       ie++) {
-    (*ie)->EndFrame();
+  for (SCA_EventManager *emgr : m_eventmanagers) {
+    emgr->EndFrame();
   }
 }
 
@@ -251,10 +249,7 @@ SCA_EventManager *SCA_LogicManager::FindEventManager(int eventmgrtype)
   // find an eventmanager of a certain type
   SCA_EventManager *eventmgr = nullptr;
 
-  for (std::vector<SCA_EventManager *>::const_iterator i = m_eventmanagers.begin();
-       !(i == m_eventmanagers.end());
-       i++) {
-    SCA_EventManager *emgr = *i;
+  for (SCA_EventManager *emgr : m_eventmanagers) {
     if (emgr->GetType() == eventmgrtype) {
       eventmgr = emgr;
       break;
