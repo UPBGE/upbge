@@ -38,8 +38,8 @@
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_Polygon.h"
 
-RAS_MeshObject::RAS_MeshObject(Mesh *mesh, Object *originalOb, const LayersInfo &layersInfo)
-    : m_name(mesh->id.name + 2), m_layersInfo(layersInfo), m_mesh(mesh), m_originalOb(originalOb)
+RAS_MeshObject::RAS_MeshObject(Mesh *mesh, int conversionTotverts, Object *originalOb, const LayersInfo &layersInfo)
+    : m_name(mesh->id.name + 2), m_layersInfo(layersInfo), m_mesh(mesh), m_conversionTotverts(conversionTotverts), m_originalOb(originalOb)
 {
 }
 
@@ -306,4 +306,14 @@ bool RAS_MeshObject::HasColliderPolygon()
 Object *RAS_MeshObject::GetOriginalObject()
 {
   return m_originalOb;
+}
+
+Mesh *RAS_MeshObject::GetOrigMesh()
+{
+  return m_mesh;
+}
+
+int RAS_MeshObject::GetConversionTotVerts()
+{
+  return m_conversionTotverts;
 }

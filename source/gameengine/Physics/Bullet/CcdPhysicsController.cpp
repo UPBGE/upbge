@@ -1795,9 +1795,10 @@ bool CcdPhysicsController::ReinstancePhysicsShape2(RAS_MeshObject *meshobj,
     return false;
 
   /* updates the arrays used for making the new bullet mesh */
-  m_shapeInfo->SetMesh2(meshobj, ob, recalcGeom);
-  /* create the new bullet mesh */
-  GetPhysicsEnvironment()->UpdateCcdPhysicsControllerShape(m_shapeInfo);
+  if (m_shapeInfo->SetMesh2(meshobj, ob, recalcGeom)) {
+    /* create the new bullet mesh */
+    GetPhysicsEnvironment()->UpdateCcdPhysicsControllerShape(m_shapeInfo);
+  }
 
   return true;
 }
@@ -2260,10 +2261,7 @@ bool CcdShapeConstructionInfo::SetMesh2(RAS_MeshObject *meshobj, Object *ob, boo
 
   // assume no shape information
   // no support for dynamic change of shape yet
-  BLI_assert(IsUnused());
   m_shapeType = PHY_SHAPE_NONE;
-  m_meshObject = nullptr;
-  bool free_dm = false;
 
   // No mesh object or mesh has no polys
   if (!meshobj || !meshobj->HasColliderPolygon()) {
@@ -2273,7 +2271,7 @@ bool CcdShapeConstructionInfo::SetMesh2(RAS_MeshObject *meshobj, Object *ob, boo
     m_triFaceUVcoArray.clear();
     return false;
   }
-  free_dm = true;
+
   bContext *C = KX_GetActiveEngine()->GetContext();
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
@@ -2283,6 +2281,17 @@ bool CcdShapeConstructionInfo::SetMesh2(RAS_MeshObject *meshobj, Object *ob, boo
 
   // Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
   DM_ensure_tessface(dm);
+
+  /* The eval mesh at conversion time */
+  int conversionTotverts = meshobj->GetConversionTotVerts();
+  if (conversionTotverts != me->totvert) {
+    std::cout << "Warning: PolysCount/VertsCount on this mesh changed. updatePhysicsShape can only be called "
+                 "for deformed mesh. Not if vertices number/polys number has been modified."
+              << std::endl;
+    dm->release(dm);
+    dm = nullptr;
+    return false;
+  }
 
   MVert *mvert = dm->getVertArray(dm);
   MFace *mface = dm->getTessFaceArray(dm);
@@ -2468,11 +2477,9 @@ bool CcdShapeConstructionInfo::SetMesh2(RAS_MeshObject *meshobj, Object *ob, boo
 	}
 #endif
 
-  if (free_dm) {
-    dm->release(dm);
-    dm = nullptr;
-    BKE_object_free_derived_caches(ob);
-  }
+  dm->release(dm);
+  dm = nullptr;
+  BKE_object_free_derived_caches(ob);
 
   if (recalcGeom) {
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -2487,9 +2494,7 @@ cleanup_empty_mesh:
   m_polygonIndexArray.clear();
   m_triFaceArray.clear();
   m_triFaceUVcoArray.clear();
-  if (free_dm) {
-    dm->release(dm);
-  }
+  dm->release(dm);
   return false;
 }
 

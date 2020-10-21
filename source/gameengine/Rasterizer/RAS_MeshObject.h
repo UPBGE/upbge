@@ -94,12 +94,14 @@ class RAS_MeshObject {
   RAS_MeshMaterialList m_materials;
   Mesh *m_mesh;
 
+  int m_conversionTotverts;
+
   /* In 2.8 code, ReinstancePhysicsShape2 needs an Object to recalculate the physics shape */
   Object *m_originalOb;
 
  public:
   // for now, meshes need to be in a certain layer (to avoid sorting on lights in realtime)
-  RAS_MeshObject(Mesh *mesh, Object *originalOb, const LayersInfo &layersInfo);
+  RAS_MeshObject(Mesh *mesh, int conversionTotverts, Object *originalOb, const LayersInfo &layersInfo);
   virtual ~RAS_MeshObject();
 
   // materials
@@ -114,10 +116,9 @@ class RAS_MeshObject {
   std::string &GetName();
 
   // original blender mesh
-  Mesh *GetOrigMesh()
-  {
-    return m_mesh;
-  }
+  Mesh *GetOrigMesh();
+
+  int GetConversionTotVerts();
 
   // mesh construction
   RAS_MeshMaterial *AddMaterial(RAS_MaterialBucket *bucket,

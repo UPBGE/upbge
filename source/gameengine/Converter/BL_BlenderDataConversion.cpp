@@ -414,7 +414,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     tangent = (float(*)[4])dm->getLoopDataArray(dm, CD_TANGENT);
   }
 
-  meshobj = new RAS_MeshObject(mesh, blenderobj, layersInfo);
+  meshobj = new RAS_MeshObject(mesh, final_me->totvert, blenderobj, layersInfo);
   meshobj->m_sharedvertex_map.resize(totverts);
 
   // Initialize vertex format with used uv and color layers.
