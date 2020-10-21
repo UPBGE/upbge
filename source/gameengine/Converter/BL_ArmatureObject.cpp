@@ -193,13 +193,10 @@ static void game_blend_poses(bPose *dst, bPose *src, float srcweight, short mode
 BL_ArmatureObject::BL_ArmatureObject(void *sgReplicationInfo,
                                      SG_Callbacks callbacks,
                                      Object *armature,
-                                     Scene *scene,
-                                     int vert_deform_type)
+                                     Scene *scene)
     : KX_GameObject(sgReplicationInfo, callbacks),
       m_scene(scene),
       m_lastframe(0.0),
-      m_timestep(0.040),
-      m_vert_deform_type(vert_deform_type),
       m_drawDebug(false),
       m_lastapplyframe(0.0)
 {
@@ -416,9 +413,6 @@ bool BL_ArmatureObject::UnlinkObject(SCA_IObject *clientobj)
 
 void BL_ArmatureObject::ApplyPose()
 {
-  // in the GE, we use ctime to store the timestep
-  m_objArma->pose->ctime = (float)m_timestep;
-  // m_scene->r.cfra++;
   if (m_lastapplyframe != m_lastframe) {
     // update the constraint if any, first put them all off so that only the active ones will be
     // updated
@@ -452,8 +446,10 @@ void BL_ArmatureObject::BlendInPose(bPose *blend_pose, float weight, short mode)
 bool BL_ArmatureObject::UpdateTimestep(double curtime)
 {
   if (curtime != m_lastframe) {
-    // compute the timestep for the underlying IK algorithm
-    m_timestep = curtime - m_lastframe;
+    /* Compute the timestep for the underlying IK algorithm,
+     * in the GE, we use ctime to store the timestep.
+     */
+    m_objArma->pose->ctime = (float)(curtime - m_lastframe);
     m_lastframe = curtime;
   }
 
@@ -467,11 +463,6 @@ Object *BL_ArmatureObject::GetArmatureObject()
 Object *BL_ArmatureObject::GetOrigArmatureObject()
 {
   return m_origObjArma;
-}
-
-int BL_ArmatureObject::GetVertDeformType()
-{
-  return m_vert_deform_type;
 }
 
 void BL_ArmatureObject::GetPose(bPose **pose) const

@@ -59,9 +59,6 @@ class BL_ArmatureObject : public KX_GameObject {
   // Need for BKE_pose_where_is.
   Scene *m_scene;
   double m_lastframe;
-  /// Delta since last pose evaluation.
-  double m_timestep;
-  int m_vert_deform_type;
   size_t m_constraintNumber;
   size_t m_channelNumber;
   /// Store the original armature object matrix.
@@ -75,8 +72,7 @@ class BL_ArmatureObject : public KX_GameObject {
   BL_ArmatureObject(void *sgReplicationInfo,
                     SG_Callbacks callbacks,
                     Object *armature,
-                    Scene *scene,
-                    int vert_deform_type);
+                    Scene *scene);
   virtual ~BL_ArmatureObject();
 
   virtual CValue *GetReplica();
@@ -99,7 +95,6 @@ class BL_ArmatureObject : public KX_GameObject {
 
   Object *GetArmatureObject();
   Object *GetOrigArmatureObject();
-  int GetVertDeformType();
   bool GetDrawDebug() const;
   void DrawDebug(RAS_DebugDraw &debugDraw);
 
