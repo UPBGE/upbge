@@ -30,6 +30,7 @@
 #include "DNA_brush_types.h"
 #include "DNA_cachefile_types.h"
 #include "DNA_constraint_types.h"
+#include "DNA_fluid_types.h"
 #include "DNA_genfile.h"
 #include "DNA_gpencil_modifier_types.h"
 #include "DNA_gpencil_types.h"
@@ -768,6 +769,25 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
         }
       }
     }
+
+    /* Ensure that new viewport display fields are initialized correctly. */
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+      LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
+        if (md->type == eModifierType_Fluid) {
+          FluidModifierData *fmd = (FluidModifierData *)md;
+          if (fmd->domain != NULL) {
+            if (!fmd->domain->coba_field && fmd->domain->type == FLUID_DOMAIN_TYPE_LIQUID) {
+              fmd->domain->coba_field = FLUID_DOMAIN_FIELD_PHI;
+            }
+            fmd->domain->grid_scale = 1.0;
+            fmd->domain->gridlines_upper_bound = 1.0;
+            fmd->domain->vector_scale_with_magnitude = true;
+            const float grid_lines[4] = {1.0, 0.0, 0.0, 1.0};
+            copy_v4_v4(fmd->domain->gridlines_range_color, grid_lines);
+          }
+        }
+      }
+    }
   }
 
   if (!MAIN_VERSION_ATLEAST(bmain, 291, 6)) {
@@ -876,5 +896,33 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
    */
   {
     /* Keep this block, even when empty. */
+  }
+
+  /* Remove options of legacy UV/Image editor */
+  for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+        switch (sl->spacetype) {
+          case SPACE_IMAGE: {
+            SpaceImage *sima = (SpaceImage *)sl;
+            sima->flag &= ~(SI_FLAG_UNUSED_20);
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  if (!DNA_struct_elem_find(fd->filesdna, "FluidModifierData", "float", "fractions_distance")) {
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+      LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
+        if (md->type == eModifierType_Fluid) {
+          FluidModifierData *fmd = (FluidModifierData *)md;
+          if (fmd->domain) {
+            fmd->domain->fractions_distance = 0.5;
+          }
+        }
+      }
+    }
   }
 }

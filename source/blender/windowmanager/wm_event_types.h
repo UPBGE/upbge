@@ -491,6 +491,12 @@ enum {
 
   /** circle select: size brush (for trackpad event). */
   GESTURE_MODAL_CIRCLE_SIZE = 11,
+
+  /** Move selection area. */
+  GESTURE_MODAL_MOVE = 12,
+
+  /** Toggle to activate snapping (angle snapping for straight line). */
+  GESTURE_MODAL_SNAP = 13,
 };
 
 #ifdef __cplusplus
