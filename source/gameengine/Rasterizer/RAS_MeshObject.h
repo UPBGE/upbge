@@ -118,6 +118,7 @@ class RAS_MeshObject {
   // original blender mesh
   Mesh *GetOrigMesh();
 
+  // Number of vertices at conversion time on eval mesh
   int GetConversionTotVerts();
 
   // mesh construction
