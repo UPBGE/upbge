@@ -305,6 +305,9 @@ class KX_Scene : public CValue, public SCA_IScene {
   bool m_isActivedHysteresis;
   int m_lodHysteresisValue;
 
+  // Convert collection helper
+  void convert_blender_collection_synchronous(Collection *co);
+
  public:
   KX_Scene(SCA_IInputDevice *inputDevice,
            const std::string &scenename,
@@ -319,7 +322,7 @@ class KX_Scene : public CValue, public SCA_IScene {
   bool ObjectsAreStatic();
   void ResetTaaSamples();
   void ConvertBlenderObject(struct Object *ob);
-  void ConvertBlenderCollection(struct Collection *co);
+  void ConvertBlenderCollection(struct Collection *co, bool asynchronous);
 
   bool m_isRuntime;  // Too lazy to put that in protected
   std::vector<Object *> m_hiddenObjectsDuringRuntime;

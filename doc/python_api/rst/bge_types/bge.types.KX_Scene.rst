@@ -211,12 +211,18 @@ base class --- :class:`PyObjectPlus`
       Note: When you append an Object with a "module" python controller, you need to append
       the script (Text) corresponding to the module too.
 
-   .. method:: convertBlenderCollection(blenderCollection)
+   .. method:: convertBlenderCollection(blenderCollection, asynchronous)
 
       Converts all bpy.types.Object inside a Collection into its correspondent :class:`KX_GameObject` during runtime.
       For example, you can append a Collection from another .blend file during bge runtime
       using: bpy.ops.wm.append(...) then convert the Objects inside the Collection into several KX_GameObject to have
-      logic bricks, physics... converted. This is meant to replace libload.
+      logic bricks, physics... converted. This is meant to replace libload. The conversion can be asynchronous
+      or synchronous.
 
       Note: When you append an Object with a "module" python controller, you need to append
       the script (Text) corresponding to the module too.
+
+      :arg blenderCollection: The collection to be converted.
+      :type blenderCollection: bpy.types.Collection
+      :arg asynchronous: The collection conversion can be asynchronous or not.
+      :type asynchronous: boolean

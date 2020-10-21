@@ -40,6 +40,7 @@
 #include "BKE_object.h"
 #include "BKE_screen.h"
 #include "BLI_task.h"
+#include "BLI_threads.h"
 #include "DNA_property_types.h"
 #include "DRW_render.h"
 #include "ED_screen.h"
@@ -64,6 +65,7 @@
 #include "KX_MotionState.h"
 #include "KX_NetworkMessageScene.h"
 #include "KX_ObstacleSimulation.h"
+#include "KX_PhysicsEngineEnums.h"
 #include "KX_PyMath.h"
 #include "KX_SG_NodeRelationships.h"
 #include "PHY_IPhysicsController.h"
@@ -822,7 +824,7 @@ void KX_Scene::ConvertBlenderObject(Object *ob)
 
 }
 
-void KX_Scene::ConvertBlenderCollection(Collection *co)
+void KX_Scene::convert_blender_collection_synchronous(Collection *co)
 {
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
   e_PhysicsEngine physics_engine = UseBullet;
@@ -846,6 +848,73 @@ void KX_Scene::ConvertBlenderCollection(Collection *co)
                              false);
   }
   FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+}
+
+// Task data for convertBlenderCollection in a different thread.
+struct ConvertBlenderCollectionTaskData {
+  Collection *co;
+  KX_KetsjiEngine *engine;
+  e_PhysicsEngine physics_engine;
+  KX_Scene *scene;
+  BL_BlenderSceneConverter *converter;
+};
+
+void convert_blender_collection_thread_func(TaskPool *__restrict UNUSED(pool),
+                                            void *taskdata,
+                                            int UNUSED(threadid))
+{
+  ConvertBlenderCollectionTaskData *task = static_cast<ConvertBlenderCollectionTaskData *>(taskdata);
+
+  RAS_Rasterizer *rasty = task->engine->GetRasterizer();
+  RAS_ICanvas *canvas = task->engine->GetCanvas();
+  bContext *C = task->engine->GetContext();
+  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
+  Main *bmain = CTX_data_main(C);
+
+  FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (task->co, obj) {
+    BL_ConvertBlenderObjects(bmain,
+                             depsgraph,
+                             task->scene,
+                             task->engine,
+                             task->physics_engine,
+                             rasty,
+                             canvas,
+                             task->converter,
+                             obj,
+                             false,
+                             false);
+  }
+  FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+}
+
+void KX_Scene::ConvertBlenderCollection(Collection *co, bool asynchronous)
+{
+  if (asynchronous) {
+    TaskPool *taskpool = BLI_task_pool_create(nullptr, TASK_PRIORITY_LOW);
+
+    /* Convert the Blender collection in a different thread, so that the
+     * game engine can keep running at full speed. */
+    ConvertBlenderCollectionTaskData *task = (ConvertBlenderCollectionTaskData *)MEM_mallocN(sizeof(ConvertBlenderCollectionTaskData),
+                                                                                             "convertblendercollection-data");
+
+    task->engine = KX_GetActiveEngine();
+    task->physics_engine = UseBullet;
+    task->co = co;
+    task->scene = this;
+    task->converter = m_sceneConverter;
+
+    BLI_task_pool_push(taskpool,
+                       (TaskRunFunction)convert_blender_collection_thread_func,
+                       task,
+                       true,  // free task data
+                       NULL);
+    BLI_task_pool_work_and_wait(taskpool);
+    BLI_task_pool_free(taskpool);
+    taskpool = nullptr;
+  }
+  else {
+    convert_blender_collection_synchronous(co);
+  }
 }
 
 void KX_Scene::SetIsPythonMainLoop(bool isPythonMainLoop)
@@ -2766,8 +2835,9 @@ KX_PYMETHODDEF_DOC(KX_Scene,
                    "\n")
 {
   PyObject *bl_collection = Py_None;
+  int asynchronous;
 
-  if (!PyArg_ParseTuple(args, "O:", &bl_collection)) {
+  if (!PyArg_ParseTuple(args, "Oi:", &bl_collection, &asynchronous)) {
     std::cout << "Expected a bpy.types.Collection." << std::endl;
     return nullptr;
   }
@@ -2779,7 +2849,7 @@ KX_PYMETHODDEF_DOC(KX_Scene,
   }
 
   Collection *co = (Collection *)id;
-  ConvertBlenderCollection(co);
+  ConvertBlenderCollection(co, asynchronous);
   Py_RETURN_NONE;
 }
 
