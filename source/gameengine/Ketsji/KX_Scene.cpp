@@ -1687,11 +1687,13 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj,
           }
         }
       }
-      for (KX_GameObject *gob : GetInactiveList()) {
-        if (gob->GetMeshCount() > 0) { // only for object with meshes
-          if (gob->GetMesh(0) == mesh) {
-            reference = gob;
-            break;
+      if (!reference) { // Avoid to loop in InactiveList if we already have a reference
+        for (KX_GameObject *gob : GetInactiveList()) {
+          if (gob->GetMeshCount() > 0) {  // only for object with meshes
+            if (gob->GetMesh(0) == mesh) {
+              reference = gob;
+              break;
+            }
           }
         }
       }
