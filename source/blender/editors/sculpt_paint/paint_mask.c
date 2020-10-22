@@ -248,6 +248,7 @@ typedef struct LassoGestureData {
 typedef struct LineGestureData {
   float true_plane[4];
   float plane[4];
+  bool flip;
 } LineGestureData;
 
 struct SculptGestureOperation;
@@ -461,6 +462,8 @@ static SculptGestureContext *sculpt_gesture_init_from_line(bContext *C, wmOperat
   line_points[1][0] = RNA_int_get(op->ptr, "xend");
   line_points[1][1] = RNA_int_get(op->ptr, "yend");
 
+  sgcontext->line.flip = RNA_boolean_get(op->ptr, "flip");
+
   float depth_point[3];
   float plane_points[3][3];
 
@@ -481,6 +484,12 @@ static SculptGestureContext *sculpt_gesture_init_from_line(bContext *C, wmOperat
   if (!sgcontext->vc.rv3d->is_persp) {
     mul_v3_fl(normal, -1.0f);
   }
+
+  /* Apply flip. */
+  if (sgcontext->line.flip) {
+    mul_v3_fl(normal, -1.0f);
+  }
+
   mul_v3_mat3_m4v3(normal, sgcontext->vc.obact->imat, normal);
   float plane_point_object_space[3];
   mul_v3_m4v3(plane_point_object_space, sgcontext->vc.obact->imat, plane_points[0]);
@@ -648,8 +657,7 @@ static void sculpt_gesture_apply(bContext *C, SculptGestureContext *sgcontext)
 
   SCULPT_undo_push_end();
 
-  ED_region_tag_redraw(sgcontext->vc.region);
-  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, sgcontext->vc.obact);
+  SCULPT_tag_update_overlays(C);
 }
 
 /* Face Set Gesture Operation. */
@@ -850,7 +858,7 @@ static EnumPropertyItem prop_trim_operation_types[] = {
      "JOIN",
      0,
      "Join",
-     "Join the new mesh as separate geometry, without preforming any boolean operation"},
+     "Join the new mesh as separate geometry, without performing any boolean operation"},
     {0, NULL, 0, NULL, NULL},
 };
 

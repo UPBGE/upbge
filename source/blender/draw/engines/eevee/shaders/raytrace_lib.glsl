@@ -105,7 +105,9 @@ void prepare_raycast(vec3 ray_origin,
 
   /* If the line is degenerate, make it cover at least one pixel
    * to not have to handle zero-pixel extent as a special case later */
-  ss_step.xy += vec2((dot(ss_step.xy, ss_step.xy) < 0.00001) ? 0.001 : 0.0);
+  if (dot(ss_step.xy, ss_step.xy) < 0.00001) {
+    ss_step.xy = vec2(0.0, 0.0001);
+  }
 
   /* Make ss_step cover one pixel. */
   ss_step /= max(abs(ss_step.x), abs(ss_step.y));
@@ -173,7 +175,8 @@ vec3 raycast(int index,
   float iter;
   for (iter = 1.0; !hit && (ray_time < max_time) && (iter < MAX_STEP); iter++) {
     /* Minimum stride of 2 because we are using half res minmax zbuffer. */
-    float stride = max(1.0, iter * trace_quality) * 2.0;
+    /* WORKAROUND: Factor is a bit higher than 2 to avoid some banding. To investigate. */
+    float stride = max(1.0, iter * trace_quality) * (2.0 + 0.05);
     float lod = log2(stride * 0.5 * trace_quality) * lod_fac;
     ray_time += stride;
 
@@ -234,9 +237,10 @@ vec3 raycast(int index,
 #endif
   }
 
-  if (discard_backface) {
-    /* Discard backface hits */
-    hit = hit && (prev_delta > 0.0);
+  /* Discard backface hits. Only do this if the ray traveled enough to avoid loosing intricate
+   * contact reflections. This is only used for SSReflections. */
+  if (discard_backface && prev_delta < 0.0 && curr_time > 4.1) {
+    hit = false;
   }
 
   /* Reject hit if background. */
