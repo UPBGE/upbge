@@ -305,7 +305,8 @@ class KX_Scene : public CValue, public SCA_IScene {
   bool m_isActivedHysteresis;
   int m_lodHysteresisValue;
 
-  // Convert collection helper
+  // Convert objects list & collection helpers
+  void convert_blender_objects_list_synchronous(std::vector<Object *> objectslist);
   void convert_blender_collection_synchronous(Collection *co);
 
  public:
@@ -322,6 +323,7 @@ class KX_Scene : public CValue, public SCA_IScene {
   bool ObjectsAreStatic();
   void ResetTaaSamples();
   void ConvertBlenderObject(struct Object *ob);
+  void ConvertBlenderObjectsList(std::vector<Object *> objectslist, bool asynchronous);
   void ConvertBlenderCollection(struct Collection *co, bool asynchronous);
 
   bool m_isRuntime;  // Too lazy to put that in protected
@@ -571,6 +573,7 @@ class KX_Scene : public CValue, public SCA_IScene {
   KX_PYMETHOD_DOC(KX_Scene, get);
   KX_PYMETHOD_DOC(KX_Scene, drawObstacleSimulation);
   KX_PYMETHOD_DOC(KX_Scene, convertBlenderObject);
+  KX_PYMETHOD_DOC(KX_Scene, convertBlenderObjectsList);
   KX_PYMETHOD_DOC(KX_Scene, convertBlenderCollection);
 
   /* attributes */
