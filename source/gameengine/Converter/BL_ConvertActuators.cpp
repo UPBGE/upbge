@@ -424,8 +424,8 @@ void BL_ConvertActuators(const char *maggiename,
                 gameobj,
                 tmpmesh,
                 scene,
-                /*(editobact->flag & ACT_EDOB_REPLACE_MESH_NOGFX) == 0*/ true,
-                /*(editobact->flag & ACT_EDOB_REPLACE_MESH_PHYS) != 0)*/ false);
+                (editobact->flag & ACT_EDOB_REPLACE_MESH_NOGFX) == 0,
+                (editobact->flag & ACT_EDOB_REPLACE_MESH_PHYS) != 0);
 
             baseact = tmpreplaceact;
           } break;
