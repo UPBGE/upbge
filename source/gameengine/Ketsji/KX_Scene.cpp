@@ -1725,7 +1725,9 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj,
       }
       gameobj->AddDummyLodManager(mesh);
     }
+  }
 
+  if (use_gfx || use_phys) {
     DEG_id_tag_update(&gameobj->GetBlenderObject()->id, ID_RECALC_GEOMETRY);
   }
 
