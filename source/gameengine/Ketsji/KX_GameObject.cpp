@@ -1212,23 +1212,20 @@ static void setVisible_recursive(SG_Node *node, bool v)
 
 void KX_GameObject::SetVisible(bool v, bool recursive)
 {
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-  /* Needs to change both orig_ob and ob_eval flags
-   * if we change visibility in the same frame
-   * and for the next frames too.
-   */
   Object *ob = GetBlenderObject();
-  Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
   if (ob) {
+    Scene *scene = GetScene()->GetBlenderScene();
+    ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+    Base *base = BKE_view_layer_base_find(view_layer, ob);
     if (v) {
-      ob->restrictflag &= ~OB_RESTRICT_VIEWPORT;
-      ob_eval->restrictflag &= ~OB_RESTRICT_VIEWPORT;
+      base->flag &= ~BASE_HIDDEN;
     }
     else {
-      ob->restrictflag |= OB_RESTRICT_VIEWPORT;
-      ob_eval->restrictflag |= OB_RESTRICT_VIEWPORT;
+      base->flag |= BASE_HIDDEN;
     }
+
+    BKE_layer_collection_sync(scene, view_layer);
+    DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
     GetScene()->ResetTaaSamples();
   }
 
