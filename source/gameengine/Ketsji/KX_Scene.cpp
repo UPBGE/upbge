@@ -1742,44 +1742,6 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj,
     return;
   }
 
-  /* Update physics mesh. Do it before use_gfx, else it won't work.
-   * (It has to be done before we call gameobj->removeMeshes() + gameobj->AddMesh(mesh)).
-   */
-  if (use_phys) {
-    if (gameobj->GetPhysicsController()) {
-      KX_GameObject *reference = nullptr;
-      for (KX_GameObject *gob : GetObjectList()) {
-        if (gob->GetMeshCount() > 0) { // only for object with meshes
-          if (gob->GetMesh(0) == mesh) {
-            reference = gob;
-            break;
-          }
-        }
-      }
-      if (!reference) { // Avoid to loop in InactiveList if we already have a reference
-        for (KX_GameObject *gob : GetInactiveList()) {
-          if (gob->GetMeshCount() > 0) {  // only for object with meshes
-            if (gob->GetMesh(0) == mesh) {
-              reference = gob;
-              break;
-            }
-          }
-        }
-      }
-      if (reference) {
-        PHY_IPhysicsController *ref_ctrl = reference->GetPhysicsController();
-        if (ref_ctrl) {
-          gameobj->GetPhysicsController()->ReinstancePhysicsShape(reference, nullptr, true);
-        }
-        else {
-          std::cout << "ReplaceMesh: To replacePhysicsShape, the actuator mesh must have a "
-                       "physics shape."
-                    << std::endl;
-        }
-      }
-    }
-  }
-
   if (use_gfx) {
     gameobj->RemoveMeshes();
     gameobj->AddMesh(mesh);
@@ -1794,6 +1756,11 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj,
       }
       gameobj->AddDummyLodManager(mesh);
     }
+  }
+
+  if (use_phys) { /* update the new assigned mesh with the physics mesh */
+    if (gameobj->GetPhysicsController())
+      gameobj->GetPhysicsController()->ReinstancePhysicsShape(nullptr, use_gfx ? nullptr : mesh);
   }
 
   if (use_gfx || use_phys) {
