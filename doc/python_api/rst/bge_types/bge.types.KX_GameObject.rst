@@ -988,7 +988,7 @@ base class --- :class:`SCA_IObject`
       :arg to: The name of the object to send the message to (optional)
       :type to: string
 
-   .. method:: reinstancePhysicsMesh(gameObject, meshObject, dupli)
+   .. method:: reinstancePhysicsMesh(gameObject, meshObject, dupli, evaluated)
 
       Updates the physics system with the changed mesh.
 
@@ -999,6 +999,8 @@ base class --- :class:`SCA_IObject`
       :arg meshObject: optional argument, set the physics shape from this mesh.
       :type meshObject: string, :class:`MeshProxy` or None
       :arg dupli: optional argument, duplicate the physics shape.
+      :type dupli: boolean
+      :arg evaluated: optional argument, use evaluated mesh physics shape.
       :type dupli: boolean
 
       :return: True if reinstance succeeded, False if it failed.

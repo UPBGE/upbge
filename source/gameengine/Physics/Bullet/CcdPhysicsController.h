@@ -139,14 +139,13 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
                class RAS_MeshObject *mesh,
                struct DerivedMesh *dm,
                bool polytope);
-  bool SetMesh2(class RAS_MeshObject *mesh, struct Object *ob, bool recalcGeom);
 
   RAS_MeshObject *GetMesh(void)
   {
     return m_meshObject;
   }
 
-  bool UpdateMesh(class KX_GameObject *gameobj);
+  bool UpdateMesh(class KX_GameObject *gameobj, bool evaluatedMesh = false);
 
   CcdShapeConstructionInfo *GetReplica();
 
@@ -865,10 +864,9 @@ class CcdPhysicsController : public PHY_IPhysicsController {
 
   virtual bool ReinstancePhysicsShape(KX_GameObject *from_gameobj,
                                       RAS_MeshObject *from_meshobj,
-                                      bool dupli = false);
-  virtual bool ReinstancePhysicsShape2(class RAS_MeshObject *mesh,
-                                       struct Object *ob,
-                                       bool recalcGeom);
+                                      bool dupli = false,
+                                      bool evaluatedMesh = false);
+
   virtual void ReplacePhysicsShape(PHY_IPhysicsController *phyctrl);
 
   /* Method to replicate rigid body joint contraints for group instances. */

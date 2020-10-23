@@ -2132,7 +2132,6 @@ PyMethodDef KX_GameObject::Methods[] = {
     {"endObject", (PyCFunction)KX_GameObject::sPyEndObject, METH_NOARGS},
     {"reinstancePhysicsMesh", (PyCFunction)KX_GameObject::sPyReinstancePhysicsMesh, METH_VARARGS | METH_KEYWORDS},
     {"replacePhysicsShape", (PyCFunction)KX_GameObject::sPyReplacePhysicsShape, METH_O},
-    {"updatePhysicsShape", (PyCFunction)KX_GameObject::sPyUpdatePhysicsShape, METH_VARARGS},
 
     KX_PYMETHODTABLE_KEYWORDS(KX_GameObject, rayCastTo),
     KX_PYMETHODTABLE_KEYWORDS(KX_GameObject, rayCast),
@@ -2304,12 +2303,13 @@ PyObject *KX_GameObject::PyReinstancePhysicsMesh(PyObject *args, PyObject *kwds)
   RAS_MeshObject *mesh = nullptr;
   SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
   int dupli = 0;
+  int evaluated;
 
   PyObject *gameobj_py = nullptr;
   PyObject *mesh_py = nullptr;
 
-  static const char *kwlist[] = {"gameObject", "meshObject", "dupli", nullptr};
-  if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OOi:reinstancePhysicsMesh", const_cast<char**>(kwlist), &gameobj_py, &mesh_py, &dupli) ||
+  static const char *kwlist[] = {"gameObject", "meshObject", "dupli", "evaluated", nullptr};
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OOii:reinstancePhysicsMesh", const_cast<char**>(kwlist), &gameobj_py, &mesh_py, &dupli, &evaluated) ||
       (gameobj_py && !ConvertPythonToGameObject(
                          logicmgr,
                          gameobj_py,
@@ -2327,7 +2327,7 @@ PyObject *KX_GameObject::PyReinstancePhysicsMesh(PyObject *args, PyObject *kwds)
 
   /* gameobj and mesh can be nullptr */
   if (GetPhysicsController() &&
-      GetPhysicsController()->ReinstancePhysicsShape(gameobj, mesh, dupli))
+      GetPhysicsController()->ReinstancePhysicsShape(gameobj, mesh, dupli, evaluated))
     Py_RETURN_TRUE;
 
   Py_RETURN_FALSE;
@@ -2351,23 +2351,6 @@ PyObject *KX_GameObject::PyReplacePhysicsShape(PyObject *value)
   }
 
   GetPhysicsController()->ReplacePhysicsShape(gameobj->GetPhysicsController());
-  Py_RETURN_NONE;
-}
-
-PyObject *KX_GameObject::PyUpdatePhysicsShape(PyObject *args)
-{
-  int recalcGeom = 0;
-
-  if (!PyArg_ParseTuple(args, "|i:updatePhysicsShape", &recalcGeom)) {
-    PyErr_SetString(PyExc_TypeError, "gameOb.updatePhysicsShape(obj): expected a boolean");
-    return nullptr;
-  }
-
-  if (GetPhysicsController()) {
-
-    GetPhysicsController()->ReinstancePhysicsShape2(GetMesh(0), GetBlenderObject(), recalcGeom);
-    Py_RETURN_NONE;
-  }
   Py_RETURN_NONE;
 }
 

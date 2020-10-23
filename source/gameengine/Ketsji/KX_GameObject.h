@@ -801,7 +801,6 @@ class KX_GameObject : public SCA_IObject {
   KX_PYMETHOD_DOC(KX_GameObject, sendMessage);
   KX_PYMETHOD(KX_GameObject, ReinstancePhysicsMesh);
   KX_PYMETHOD_O(KX_GameObject, ReplacePhysicsShape);
-  KX_PYMETHOD_VARARGS(KX_GameObject, UpdatePhysicsShape);
   KX_PYMETHOD_DOC(KX_GameObject, addDebugProperty);
 
   KX_PYMETHOD_DOC(KX_GameObject, playAction);
