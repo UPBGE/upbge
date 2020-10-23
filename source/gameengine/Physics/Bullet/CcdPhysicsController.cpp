@@ -2528,6 +2528,8 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj)
 
   DerivedMesh *dm = CDDM_from_mesh(meshobj->GetOrigMesh());
 
+  DM_ensure_tessface(dm);
+
   // get the mesh from the object if not defined
   if (!meshobj) {
     // modifier mesh

@@ -1769,7 +1769,7 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj,
       if (reference) {
         PHY_IPhysicsController *ref_ctrl = reference->GetPhysicsController();
         if (ref_ctrl) {
-          gameobj->GetPhysicsController()->ReplacePhysicsShape(ref_ctrl);
+          gameobj->GetPhysicsController()->ReinstancePhysicsShape(reference, nullptr, true);
         }
         else {
           std::cout << "ReplaceMesh: To replacePhysicsShape, the actuator mesh must have a "
