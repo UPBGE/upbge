@@ -2960,7 +2960,6 @@ KX_PYMETHODDEF_DOC(KX_Scene,
                    "convertBlenderObjectsList()\n"
                    "\n")
 {
-  std::vector<Object *> objectlist;
   PyObject *list;
   int asynchronous = 0;
 
@@ -2985,7 +2984,7 @@ KX_PYMETHODDEF_DOC(KX_Scene,
     objectslist.push_back(ob);
   }
 
-  ConvertBlenderObjectsList(objectlist, asynchronous);
+  ConvertBlenderObjectsList(objectslist, asynchronous);
   Py_RETURN_NONE;
 }
 
