@@ -680,7 +680,7 @@ void KX_KetsjiEngine::Render()
     }
   }
   Scene *first_scene = m_scenes->GetFront()->GetBlenderScene();
-  if (!(first_scene->gm.flag & GAME_USE_VIEWPORT_RENDER && !m_canvas->IsBlenderPlayer())) {
+  if (!(first_scene->gm.flag & GAME_USE_VIEWPORT_RENDER)) {
     int v[4];
     v[0] = m_canvas->GetViewportArea().GetLeft();
     v[1] = m_canvas->GetViewportArea().GetBottom();
@@ -1242,6 +1242,11 @@ KX_Scene *KX_KetsjiEngine::CreateScene(const std::string &scenename)
 
 bool KX_KetsjiEngine::ReplaceScene(const std::string &oldscene, const std::string &newscene)
 {
+  bool useViewportRender = (m_scenes->GetFront()->GetBlenderScene()->gm.flag & GAME_USE_VIEWPORT_RENDER) != 0;
+  if (useViewportRender) {
+    std::cout << "Replace Scene is not available in viewport render mode." << std::endl;
+    return false;
+  }
   // Don't allow replacement if the new scene doesn't exist.
   // Allows smarter game design (used to have no check here).
   // Note that it creates a small backward compatbility issue

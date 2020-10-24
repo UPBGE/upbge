@@ -34,7 +34,11 @@
 
 #include "SCA_GameActuator.h"
 
+#include "DNA_scene_types.h"
+
 #include "CM_Message.h"
+#include "EXP_ListValue.h"
+#include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_PythonInit.h" /* for config load/saving */
 #include "RAS_ICanvas.h"
@@ -73,6 +77,13 @@ CValue *SCA_GameActuator::GetReplica()
 
 bool SCA_GameActuator::Update()
 {
+  bool useViewportRender =
+      (KX_GetActiveEngine()->CurrentScenes()->GetFront()->GetBlenderScene()->gm.flag &
+       GAME_USE_VIEWPORT_RENDER) != 0;
+  if (useViewportRender) {
+    std::cout << "Game actuator is not available in viewport render mode." << std::endl;
+    return false;
+  }
   // bool result = false;	 /*unused*/
   bool bNegativeEvent = IsNegativeEvent();
   RemoveAllEvents();

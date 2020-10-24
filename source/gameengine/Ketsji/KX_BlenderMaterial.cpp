@@ -59,9 +59,7 @@ KX_BlenderMaterial::KX_BlenderMaterial(RAS_Rasterizer *rasty,
    * (m_textures list won't be available for these object)
    */
   if (m_material->use_nodes && m_material->nodetree && !converting_during_runtime) {
-    RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
-    if ((m_scene->GetBlenderScene()->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 ||
-        canvas->IsBlenderPlayer()) {
+    if ((m_scene->GetBlenderScene()->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0) {
       EEVEE_Data *vedata = EEVEE_engine_data_get();
       EEVEE_EffectsInfo *effects = vedata->stl->effects;
       const bool use_ssrefract = ((m_material->blend_flag & MA_BL_SS_REFRACTION) != 0) &&

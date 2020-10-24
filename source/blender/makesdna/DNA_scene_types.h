@@ -2292,6 +2292,7 @@ typedef enum eVGroupSelect {
 #define SCE_READFILE_LIBLINK_NEED_SETSCENE_CHECK (1 << 5)
 #define SCE_INTERACTIVE (1 << 6)
 #define SCE_INTERACTIVE_IMAGE_RENDER (1 << 7)
+#define SCE_IS_BLENDERPLAYER (1 << 8)
 
 /* return flag BKE_scene_base_iter_next functions */
 /* #define F_ERROR          -1 */ /* UNUSED */
