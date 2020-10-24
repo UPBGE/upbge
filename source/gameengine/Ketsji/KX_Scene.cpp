@@ -676,8 +676,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, 
               0, canvas->GetHeight()};
   }
 
-  bool useViewportInBlenderplayer = canvas->IsBlenderPlayer() &&
-                                    (scene->gm.flag & GAME_USE_VIEWPORT_RENDER) != 0;
   bool useViewportRender = (scene->gm.flag & GAME_USE_VIEWPORT_RENDER) != 0;
 
   if (useViewportRender) {
@@ -685,21 +683,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, 
      * then we need to set it again correctly to render the next frame.
      */
     ReinitBlenderContextVariables();
-  }
-
-  if (cam && (useViewportInBlenderplayer || scene->flag & SCE_INTERACTIVE)) {
-    float winmat[4][4];
-    cam->GetProjectionMatrix().getValue(&winmat[0][0]);
-    CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
-    ED_view3d_draw_setup_view(CTX_wm_manager(C),
-                              CTX_wm_window(C),
-                              CTX_data_expect_evaluated_depsgraph(C),
-                              CTX_data_scene(C),
-                              CTX_wm_region(C),
-                              CTX_wm_view3d(C),
-                              NULL,
-                              winmat,
-                              NULL);
   }
 
   /* Here we'll render directly the scene with viewport code. */
@@ -713,6 +696,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, 
         region->do_draw |= RGN_DRAWING;
         scene->flag |= SCE_IS_BLENDERPLAYER;
         region->winrct = window;
+        region->winx = canvas->GetWidth();
+        region->winy = canvas->GetHeight();
         wmWindow *win = CTX_wm_window(C);
         bScreen *screen = WM_window_get_active_screen(win);
         screen->state = SCREENFULL;
@@ -729,6 +714,21 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, 
 
       return;
     }
+  }
+
+  if (cam) {
+    float winmat[4][4];
+    cam->GetProjectionMatrix().getValue(&winmat[0][0]);
+    CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
+    ED_view3d_draw_setup_view(CTX_wm_manager(C),
+                              CTX_wm_window(C),
+                              CTX_data_expect_evaluated_depsgraph(C),
+                              CTX_data_scene(C),
+                              CTX_wm_region(C),
+                              CTX_wm_view3d(C),
+                              NULL,
+                              winmat,
+                              NULL);
   }
 
   if (cam) {
