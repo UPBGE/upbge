@@ -732,7 +732,6 @@ static KX_GameObject *gameobject_from_blenderobject(Object *ob,
                                                     bool converting_during_runtime)
 {
   KX_GameObject *gameobj = nullptr;
-  Scene *blenderscene = kxscene->GetBlenderScene();
 
   switch (ob->type) {
     case OB_LAMP: {
