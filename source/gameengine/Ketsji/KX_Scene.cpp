@@ -459,7 +459,9 @@ void KX_Scene::BackupShadingType()
   Scene *scene = GetBlenderScene();
 
   /* Only if we are not in viewport render, modify + backup shading types */
-  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0) {
+  RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
+  bool useViewportInBlenderplayer = (scene->gm.flag & GAME_USE_VIEWPORT_RENDER) != 0 && canvas->IsBlenderPlayer();
+  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || useViewportInBlenderplayer) {
 
     View3D *v3d = CTX_wm_view3d(C);
 
@@ -469,7 +471,8 @@ void KX_Scene::BackupShadingType()
       m_shadingTypeBackup = v3d->shading.type;
       m_shadingFlagBackup = v3d->shading.flag;
       v3d->shading.type = OB_RENDER;
-      v3d->shading.flag |= (V3D_SHADING_SCENE_LIGHTS_RENDER | V3D_SHADING_SCENE_WORLD_RENDER);
+      v3d->shading.flag |= (V3D_SHADING_SCENE_WORLD_RENDER | V3D_SHADING_SCENE_LIGHTS_RENDER);
+      v3d->flag2 |= V3D_HIDE_OVERLAYS;
     }
   }
 }
