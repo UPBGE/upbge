@@ -142,7 +142,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
   Scene *mainScene = KX_GetActiveEngine()->CurrentScenes()->GetFront()->GetBlenderScene();
   if (mainScene->gm.flag & GAME_USE_VIEWPORT_RENDER) {
     /* Draw Debug lines */
-    if (debugDraw->m_lines.size()) {
+    if (!debugDraw->m_lines.empty()) {
       for (int i = 0; i < debugDraw->m_lines.size(); i++) {
         RAS_DebugDraw::Line l = debugDraw->m_lines[i];
         DRW_debug_line_bge(l.m_from.getValue(), l.m_to.getValue(), l.m_color.getValue());
@@ -151,10 +151,12 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
     /* The Performances profiler */
     const unsigned int left = canvas->GetViewportArea().GetLeft();
     const unsigned int top = canvas->GetViewportArea().GetTop();
-    if (debugDraw->m_boxes2D.size()) {
+    if (!debugDraw->m_boxes2D.empty()) {
       for (const RAS_DebugDraw::Box2D &b : debugDraw->m_boxes2D) {
         DRW_debug_box_2D_bge(left + b.m_pos[0], top - b.m_pos[1], b.m_size[0], b.m_size[1]);
       }
+    }
+    if (!debugDraw->m_texts2D.empty()) {
       for (const RAS_DebugDraw::Text2D &t : debugDraw->m_texts2D) {
         DRW_debug_text_2D_bge(left + t.m_pos[0], top - t.m_pos[1], t.m_text.c_str());
       }
