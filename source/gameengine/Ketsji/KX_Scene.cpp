@@ -272,7 +272,6 @@ KX_Scene::~KX_Scene()
   m_isRuntime = false;  // eevee
 
   Scene *scene = GetBlenderScene();
-  RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   bContext *C = KX_GetActiveEngine()->GetContext();
   Main *bmain = CTX_data_main(C);
@@ -288,9 +287,6 @@ KX_Scene::~KX_Scene()
       /* This will free m_gpuViewport and m_gpuOffScreen */
       DRW_game_render_loop_end();
     }
-    else if (canvas->IsBlenderPlayer() && (scene->gm.flag & GAME_USE_VIEWPORT_RENDER) != 0) {
-      DRW_game_render_loop_end();
-    }
     else {
       /* It has not been freed before because the main Render loop
        * is not executed then we free it now.
@@ -298,6 +294,10 @@ KX_Scene::~KX_Scene()
       GPU_viewport_free(m_initMaterialsGPUViewport);
       DRW_game_python_loop_end(DEG_get_evaluated_view_layer(depsgraph));
     }
+  }
+  else {
+    // Free the allocated profile a last time
+    DRW_game_viewport_render_loop_end();
   }
 
   for (Object *hiddenOb : m_hiddenObjectsDuringRuntime) {

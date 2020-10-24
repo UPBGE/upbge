@@ -789,6 +789,7 @@ void DRW_game_render_loop(struct bContext *C,
 
 void DRW_game_render_loop_end(void);
 void DRW_game_python_loop_end(struct ViewLayer *view_layer);
+void DRW_game_viewport_render_loop_end(void);
 void DRW_transform_to_display(struct GPUTexture *tex, struct View3D *v3d, bool do_dithering);
 void DRW_transform_to_display_image_render(struct GPUTexture *tex);
 /**************************END OF GAME ENGINE*******************************/

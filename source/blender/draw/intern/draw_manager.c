@@ -3388,6 +3388,11 @@ void DRW_game_render_loop_end()
   memset(&DST, 0xFF, offsetof(DRWManager, gl_context));
 }
 
+void DRW_game_viewport_render_loop_end()
+{
+  drw_debug_draw_bge();
+}
+
 void DRW_game_python_loop_end(ViewLayer *view_layer)
 {
   /* When we run blenderplayer -p script.py
