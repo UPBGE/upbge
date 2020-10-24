@@ -677,9 +677,10 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, 
 
   bool useViewportInBlenderplayer = canvas->IsBlenderPlayer() &&
                                      scene->gm.flag & GAME_USE_VIEWPORT_RENDER;
+  bool useViewportRender = scene->gm.flag & GAME_USE_VIEWPORT_RENDER;
 
   if (cam && (useViewportInBlenderplayer || scene->flag & SCE_INTERACTIVE)) {
-    if (useViewportInBlenderplayer) {
+    if (useViewportRender) {
       /* When we call wm_draw_update, bContext variables are unset,
        * then we need to set it again correctly to render the next frame.
        */
