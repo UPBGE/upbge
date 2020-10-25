@@ -807,6 +807,9 @@ int main(int argc,
   MEM_CacheLimiter_set_disabled(true);
   BKE_cachefiles_init();
   BKE_idtype_init();
+
+  BKE_appdir_init();
+  BLI_task_scheduler_init();
   IMB_init();
 
   BKE_images_init();
@@ -820,9 +823,6 @@ int main(int argc,
   RE_texture_rng_init();
 
   BKE_callback_global_init();
-
-  /* After parsing number of threads argument. */
-  BLI_task_scheduler_init();
 
   RNA_init();
 

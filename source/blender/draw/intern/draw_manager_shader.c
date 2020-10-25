@@ -213,7 +213,7 @@ static void drw_deferred_shader_add(GPUMaterial *mat, bool deferred)
   /* Do not defer the compilation if we are rendering for image.
    * deferred rendering is only possible when `evil_C` is available */
   if (DST.draw_ctx.evil_C == NULL || DRW_state_is_image_render() || !USE_DEFERRED_COMPILATION ||
-      !deferred || (scene->flag & SCE_INTERACTIVE)) {
+      !deferred || (scene->flag & SCE_INTERACTIVE || (scene->flag & SCE_IS_BLENDERPLAYER))) {
     /* Double checking that this GPUMaterial is not going to be
      * compiled by another thread. */
     DRW_deferred_shader_remove(mat);

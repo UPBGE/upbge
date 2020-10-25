@@ -41,8 +41,8 @@
 
 #include "KX_Globals.h"
 
-GPG_Canvas::GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window, Scene *startscene)
-    : RAS_ICanvas(rasty), m_window(window), m_startScene(startscene), m_width(0), m_height(0)
+GPG_Canvas::GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window)
+    : RAS_ICanvas(rasty), m_window(window), m_width(0), m_height(0)
 {
   if (m_window) {
     GHOST_Rect bnds;
@@ -219,7 +219,3 @@ bool GPG_Canvas::IsBlenderPlayer()
   return true;
 }
 
-Scene *GPG_Canvas::GetStartScene()
-{
-  return m_startScene;
-}

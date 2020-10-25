@@ -51,7 +51,7 @@ class LA_PlayerLauncher : public LA_Launcher {
   virtual void RunPythonMainLoop(const std::string &pythonCode);
 #endif  // WITH_PYTHON
 
-  virtual RAS_ICanvas *CreateCanvas(Scene *startscene);
+  virtual RAS_ICanvas *CreateCanvas();
   virtual bool GetUseAlwaysExpandFraming();
   virtual void InitCamera();
   virtual void InitPython();

@@ -242,7 +242,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
   BackupShadingType();
 
-  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || canvas->IsBlenderPlayer()) {
+  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0) {
     /* We want to indicate that we are in bge runtime. The flag can be used in draw code but in
      * depsgraph code too later */
     scene->flag |= SCE_INTERACTIVE;
@@ -271,19 +271,16 @@ KX_Scene::~KX_Scene()
 
   m_isRuntime = false;  // eevee
 
+  ReinitBlenderContextVariables();
+
   Scene *scene = GetBlenderScene();
-  RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   bContext *C = KX_GetActiveEngine()->GetContext();
   Main *bmain = CTX_data_main(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
   View3D *v3d = CTX_wm_view3d(C);
 
-  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || canvas->IsBlenderPlayer()) {
-    if (m_shadingTypeBackup != 0) {
-      v3d->shading.type = m_shadingTypeBackup;
-      v3d->shading.flag = m_shadingFlagBackup;
-    }
+  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0) {
     if (!m_isPythonMainLoop) {
       /* This will free m_gpuViewport and m_gpuOffScreen */
       DRW_game_render_loop_end();
@@ -295,6 +292,15 @@ KX_Scene::~KX_Scene()
       GPU_viewport_free(m_initMaterialsGPUViewport);
       DRW_game_python_loop_end(DEG_get_evaluated_view_layer(depsgraph));
     }
+  }
+  else {
+    // Free the allocated profile a last time
+    DRW_game_viewport_render_loop_end();
+  }
+
+  if (m_shadingTypeBackup != 0) {
+    v3d->shading.type = m_shadingTypeBackup;
+    v3d->shading.flag = m_shadingFlagBackup;
   }
 
   for (Object *hiddenOb : m_hiddenObjectsDuringRuntime) {
@@ -456,8 +462,9 @@ void KX_Scene::BackupShadingType()
   Scene *scene = GetBlenderScene();
 
   /* Only if we are not in viewport render, modify + backup shading types */
-  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 ||
-      KX_GetActiveEngine()->GetCanvas()->IsBlenderPlayer()) {
+  RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
+  bool useViewportInBlenderplayer = (scene->gm.flag & GAME_USE_VIEWPORT_RENDER) != 0 && canvas->IsBlenderPlayer();
+  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || useViewportInBlenderplayer) {
 
     View3D *v3d = CTX_wm_view3d(C);
 
@@ -467,7 +474,10 @@ void KX_Scene::BackupShadingType()
       m_shadingTypeBackup = v3d->shading.type;
       m_shadingFlagBackup = v3d->shading.flag;
       v3d->shading.type = OB_RENDER;
-      v3d->shading.flag |= (V3D_SHADING_SCENE_LIGHTS_RENDER | V3D_SHADING_SCENE_WORLD_RENDER);
+      v3d->shading.flag = (V3D_SHADING_SCENE_WORLD_RENDER | V3D_SHADING_SCENE_LIGHTS_RENDER);
+      if (useViewportInBlenderplayer) {
+        v3d->flag2 |= V3D_HIDE_OVERLAYS;
+      }
     }
   }
 }
@@ -669,28 +679,47 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, 
               0, canvas->GetHeight()};
   }
 
+  bool useViewportRender = (scene->gm.flag & GAME_USE_VIEWPORT_RENDER) != 0;
+
+  if (useViewportRender) {
+    /* When we call wm_draw_update, bContext variables are unset,
+     * then we need to set it again correctly to render the next frame.
+     */
+    ReinitBlenderContextVariables();
+  }
+
   /* Here we'll render directly the scene with viewport code. */
-  if (scene->gm.flag & GAME_USE_VIEWPORT_RENDER && !canvas->IsBlenderPlayer()) {
+  if (useViewportRender) {
     if (cam) {
       DRW_view_set_active(NULL);
 
-      /* When we call wm_draw_update, bContext variables are unset,
-       * then we need to set it again correctly to render the next frame.
-       */
-      ReinitBlenderContextVariables();
+      if (canvas->IsBlenderPlayer()) {
+        ARegion *region = CTX_wm_region(C);
+        region->visible = true;
+        region->do_draw |= RGN_DRAWING;
+        scene->flag |= SCE_IS_BLENDERPLAYER;
+        region->winrct = window;
+        region->winx = canvas->GetWidth();
+        region->winy = canvas->GetHeight();
+        wmWindow *win = CTX_wm_window(C);
+        bScreen *screen = WM_window_get_active_screen(win);
+        screen->state = SCREENFULL;
+      }
 
       CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
 
       ED_region_tag_redraw(CTX_wm_region(C));
       wm_draw_update(C);
+
+      if (canvas->IsBlenderPlayer()) {
+        scene->flag &= ~SCE_IS_BLENDERPLAYER;
+      }
+
       return;
     }
   }
 
   if (cam) {
-    UpdateObjectLods(cam);
-    SetCurrentGPUViewport(cam->GetGPUViewport());
-
     float winmat[4][4];
     cam->GetProjectionMatrix().getValue(&winmat[0][0]);
     CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
@@ -703,6 +732,11 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, 
                               NULL,
                               winmat,
                               NULL);
+  }
+
+  if (cam) {
+    UpdateObjectLods(cam);
+    SetCurrentGPUViewport(cam->GetGPUViewport());
   }
 
   bool calledFromConstructor = cam == nullptr;

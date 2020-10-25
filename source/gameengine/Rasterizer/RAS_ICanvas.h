@@ -73,8 +73,6 @@ class RAS_ICanvas {
 
   virtual bool IsBlenderPlayer() = 0;
 
-  virtual Scene *GetStartScene() = 0;
-
   /// probably needs some arguments for PS2 in future
   virtual void SwapBuffers() = 0;
   virtual void SetSwapInterval(int interval) = 0;

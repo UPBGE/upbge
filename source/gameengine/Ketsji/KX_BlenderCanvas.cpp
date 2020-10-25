@@ -46,10 +46,9 @@
 KX_BlenderCanvas::KX_BlenderCanvas(RAS_Rasterizer *rasty,
                                    wmWindowManager *wm,
                                    wmWindow *win,
-                                   Scene *startscene,
                                    rcti *viewport,
                                    struct ARegion *ar)
-    : RAS_ICanvas(rasty), m_wm(wm), m_win(win), m_startScene(startscene), m_ar(ar)
+    : RAS_ICanvas(rasty), m_wm(wm), m_win(win), m_ar(ar)
 {
   m_frame = 1;
 
@@ -203,9 +202,4 @@ void KX_BlenderCanvas::MakeScreenShot(const std::string &filename)
 bool KX_BlenderCanvas::IsBlenderPlayer()
 {
   return false;
-}
-
-Scene *KX_BlenderCanvas::GetStartScene()
-{
-  return m_startScene;
 }

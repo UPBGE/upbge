@@ -296,6 +296,51 @@ void KX_KetsjiEngine::EndFrame()
   m_canvas->EndDraw();
 }
 
+void KX_KetsjiEngine::EndFrameViewportRender()
+{
+  // Show profiling info
+  m_logger.StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds());
+  if (m_flags & (SHOW_PROFILE | SHOW_FRAMERATE | SHOW_DEBUG_PROPERTIES)) {
+    RenderDebugProperties();
+  }
+
+  m_rasterizer->FlushDebugDraw(m_canvas);
+
+  double tottime = m_logger.GetAverage();
+  if (tottime < 1e-6)
+    tottime = 1e-6;
+
+#ifdef WITH_PYTHON
+  for (int i = tc_first; i < tc_numCategories; ++i) {
+    double time = m_logger.GetAverage((KX_TimeCategory)i);
+    PyObject *val = PyTuple_New(2);
+    PyTuple_SetItem(val, 0, PyFloat_FromDouble(time * 1000.0));
+    PyTuple_SetItem(val, 1, PyFloat_FromDouble(time / tottime * 100.0));
+
+    PyDict_SetItemString(m_pyprofiledict, m_profileLabels[i].c_str(), val);
+    Py_DECREF(val);
+  }
+#endif
+
+  m_average_framerate = 1.0 / tottime;
+
+  // Go to next profiling measurement, time spent after this call is shown in the next frame.
+  m_logger.NextMeasurement(m_kxsystem->GetTimeInSeconds());
+
+  m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds());
+  m_rasterizer->EndFrame();
+
+  m_logger.StartLog(tc_logic, m_kxsystem->GetTimeInSeconds());
+  m_canvas->FlushScreenshots();
+
+  // swap backbuffer (drawing into this buffer) <-> front/visible buffer
+  m_logger.StartLog(tc_latency, m_kxsystem->GetTimeInSeconds());
+  //m_canvas->SwapBuffers();
+  m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds());
+
+  m_canvas->EndDraw();
+}
+
 bool KX_KetsjiEngine::NextFrame()
 {
   m_logger.StartLog(tc_services, m_kxsystem->GetTimeInSeconds());
@@ -680,7 +725,7 @@ void KX_KetsjiEngine::Render()
     }
   }
   Scene *first_scene = m_scenes->GetFront()->GetBlenderScene();
-  if (!(first_scene->gm.flag & GAME_USE_VIEWPORT_RENDER && !m_canvas->IsBlenderPlayer())) {
+  if (!(first_scene->gm.flag & GAME_USE_VIEWPORT_RENDER)) {
     int v[4];
     v[0] = m_canvas->GetViewportArea().GetLeft();
     v[1] = m_canvas->GetViewportArea().GetBottom();
@@ -692,6 +737,9 @@ void KX_KetsjiEngine::Render()
 
     GPU_apply_state();
     EndFrame();
+  }
+  else {
+    EndFrameViewportRender();
   }
 }
 
@@ -941,6 +989,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
     m_rasterizer->Enable(RAS_Rasterizer::RAS_BLEND);
     m_rasterizer->SetBlendFunc(RAS_Rasterizer::RAS_ONE, RAS_Rasterizer::RAS_ONE_MINUS_SRC_ALPHA);
   }
+
   scene->RenderAfterCameraSetup(rendercam, viewport, is_overlay_pass);
 
   if (scene->GetPhysicsEnvironment()) {
@@ -1242,6 +1291,11 @@ KX_Scene *KX_KetsjiEngine::CreateScene(const std::string &scenename)
 
 bool KX_KetsjiEngine::ReplaceScene(const std::string &oldscene, const std::string &newscene)
 {
+  bool useViewportRender = (m_scenes->GetFront()->GetBlenderScene()->gm.flag & GAME_USE_VIEWPORT_RENDER) != 0;
+  if (useViewportRender && !m_canvas->IsBlenderPlayer()) {
+    std::cout << "Replace Scene is not available in viewport render mode in embedded." << std::endl;
+    return false;
+  }
   // Don't allow replacement if the new scene doesn't exist.
   // Allows smarter game design (used to have no check here).
   // Note that it creates a small backward compatbility issue

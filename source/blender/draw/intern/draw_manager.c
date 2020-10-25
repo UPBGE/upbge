@@ -1408,6 +1408,12 @@ void DRW_draw_callbacks_post_scene(void)
 
     drw_debug_draw();
 
+    /* Game engine transition */
+    drw_debug_draw_bge();
+    GPU_matrix_projection_set(rv3d->winmat);
+    GPU_matrix_set(rv3d->viewmat);
+    /**************************/
+
     GPU_depth_test(GPU_DEPTH_NONE);
     /* Apply state for callbacks. */
     GPU_apply_state();
@@ -1427,7 +1433,10 @@ void DRW_draw_callbacks_post_scene(void)
     GPU_depth_test(GPU_DEPTH_NONE);
     drw_engines_draw_text();
 
-    DRW_draw_region_info();
+    Scene *orig_scene = (Scene *)DEG_get_original_id(&DST.draw_ctx.scene->id);
+    if (!(orig_scene->flag & SCE_IS_BLENDERPLAYER)) {
+      DRW_draw_region_info();
+    }
 
     /* annotations - temporary drawing buffer (screenspace) */
     /* XXX: Or should we use a proper draw/overlay engine for this case? */
@@ -3377,6 +3386,11 @@ void DRW_game_render_loop_end()
   DRW_engines_free();
 
   memset(&DST, 0xFF, offsetof(DRWManager, gl_context));
+}
+
+void DRW_game_viewport_render_loop_end()
+{
+  drw_debug_draw_bge();
 }
 
 void DRW_game_python_loop_end(ViewLayer *view_layer)

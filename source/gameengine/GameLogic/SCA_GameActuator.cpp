@@ -34,7 +34,11 @@
 
 #include "SCA_GameActuator.h"
 
+#include "DNA_scene_types.h"
+
 #include "CM_Message.h"
+#include "EXP_ListValue.h"
+#include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_PythonInit.h" /* for config load/saving */
 #include "RAS_ICanvas.h"

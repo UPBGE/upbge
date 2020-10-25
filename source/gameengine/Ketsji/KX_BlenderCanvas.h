@@ -56,7 +56,6 @@ class KX_BlenderCanvas : public RAS_ICanvas {
 
   wmWindowManager *m_wm;
   wmWindow *m_win;
-  Scene *m_startScene;
   RAS_Rect m_area_rect;
   ARegion *m_ar;
 
@@ -68,7 +67,6 @@ class KX_BlenderCanvas : public RAS_ICanvas {
   KX_BlenderCanvas(RAS_Rasterizer *rasty,
                    wmWindowManager *wm,
                    wmWindow *win,
-                   Scene *startscene,
                    rcti *viewport,
                    ARegion *ar);
   virtual ~KX_BlenderCanvas();
@@ -100,8 +98,6 @@ class KX_BlenderCanvas : public RAS_ICanvas {
   virtual void EndDraw();
 
   virtual bool IsBlenderPlayer();
-
-  virtual Scene *GetStartScene();
 };
 
 #endif  // __KX_BLENDERCANVAS_H__

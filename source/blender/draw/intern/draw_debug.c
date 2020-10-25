@@ -228,3 +228,147 @@ void drw_debug_init(void)
 {
   DRW_debug_modelmat_reset();
 }
+
+
+#include "BLF_api.h"
+#include "GPU_matrix.h"
+
+void DRW_debug_line_bge(const float v1[3], const float v2[3], const float color[4])
+{
+  DRWDebugLine *line = MEM_mallocN(sizeof(DRWDebugLine), "DRWDebugLine");
+  mul_v3_m4v3(line->pos[0], g_modelmat, v1);
+  mul_v3_m4v3(line->pos[1], g_modelmat, v2);
+  copy_v4_v4(line->color, color);
+  BLI_LINKS_PREPEND(DST.debug_bge.lines, line);
+}
+
+void DRW_debug_box_2D_bge(const float xco, const float yco, const float xsize, const float ysize)
+{
+  DRWDebugBox2D *box = MEM_mallocN(sizeof(DRWDebugBox2D), "DRWDebugBox");
+  box->xco = xco;
+  box->yco = yco;
+  box->xsize = xsize;
+  box->ysize = ysize;
+  BLI_LINKS_PREPEND(DST.debug_bge.boxes, box);
+}
+
+void DRW_debug_text_2D_bge(const float xco, const float yco, const char *str)
+{
+  DRWDebugText2D *text = MEM_mallocN(sizeof(DRWDebugText2D), "DRWDebugText2D");
+  text->xco = xco;
+  text->yco = yco;
+  strncpy(text->text, str, 64);
+  BLI_LINKS_PREPEND(DST.debug_bge.texts, text);
+}
+
+static void drw_debug_draw_lines_bge(void)
+{
+  int count = BLI_linklist_count((LinkNode *)DST.debug_bge.lines);
+
+  if (count == 0) {
+    return;
+  }
+
+  GPUVertFormat *vert_format = immVertexFormat();
+  uint pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint col = GPU_vertformat_attr_add(vert_format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+
+  immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
+
+  GPU_line_smooth(true);
+  GPU_line_width(1.0f);
+
+  immBegin(GPU_PRIM_LINES, count * 2);
+
+  while (DST.debug_bge.lines) {
+    void *next = DST.debug_bge.lines->next;
+
+    immAttr4fv(col, DST.debug_bge.lines->color);
+    immVertex3fv(pos, DST.debug_bge.lines->pos[0]);
+
+    immAttr4fv(col, DST.debug_bge.lines->color);
+    immVertex3fv(pos, DST.debug_bge.lines->pos[1]);
+
+    MEM_freeN(DST.debug_bge.lines);
+    DST.debug_bge.lines = next;
+  }
+  immEnd();
+
+  GPU_line_smooth(false);
+
+  immUnbindProgram();
+}
+
+static void drw_debug_draw_boxes_bge(void)
+{
+  int count = BLI_linklist_count((LinkNode *)DST.debug_bge.boxes);
+
+  if (count == 0) {
+    return;
+  }
+
+  GPUVertFormat *format = immVertexFormat();
+  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  static float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+
+  const float *size = DRW_viewport_size_get();
+  const unsigned int width = size[0];
+  const unsigned int height = size[1];
+  GPU_matrix_reset();
+  GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
+
+  immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+
+  while (DST.debug_bge.boxes) {
+    void *next = DST.debug_bge.boxes->next;
+    DRWDebugBox2D *b = DST.debug_bge.boxes;
+    immUniformColor4fv(white);
+    immRectf(pos, b->xco + 1 + b->xsize, b->yco + b->ysize, b->xco, b->yco);
+    MEM_freeN(DST.debug_bge.boxes);
+    DST.debug_bge.boxes = next;
+  }
+  immUnbindProgram();
+}
+
+static void drw_debug_draw_text_bge(void)
+{
+  int count = BLI_linklist_count((LinkNode *)DST.debug_bge.texts);
+
+  if (count == 0) {
+    return;
+  }
+
+  static float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+
+  const float *size = DRW_viewport_size_get();
+  const unsigned int width = size[0];
+  const unsigned int height = size[1];
+  GPU_matrix_reset();
+  GPU_matrix_ortho_set(0, width, 0, height, -100, 100);
+
+  BLF_size(blf_mono_font, 11, 72);
+
+  BLF_enable(blf_mono_font, BLF_SHADOW);
+
+  static float black[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+  BLF_shadow(blf_mono_font, 1, black);
+  BLF_shadow_offset(blf_mono_font, 1, 1);
+
+  while (DST.debug_bge.texts) {
+    void *next = DST.debug_bge.texts->next;
+    DRWDebugText2D *t = DST.debug_bge.texts;
+    BLF_color4fv(blf_mono_font, white);
+    BLF_position(blf_mono_font, t->xco, t->yco, 0.0f);
+    BLF_draw(blf_mono_font, t->text, BLF_DRAW_STR_DUMMY_MAX);
+    MEM_freeN(DST.debug_bge.texts);
+    DST.debug_bge.texts = next;
+  }
+  BLF_disable(blf_mono_font, BLF_SHADOW);
+}
+
+void drw_debug_draw_bge(void)
+{
+  drw_debug_draw_lines_bge();
+  drw_debug_draw_boxes_bge();
+  drw_debug_draw_text_bge();
+}
