@@ -1710,7 +1710,7 @@ class WM_OT_owner_disable(Operator):
 class WM_OT_tool_set_by_id(Operator):
     """Set the tool by name (for keymaps)"""
     bl_idname = "wm.tool_set_by_id"
-    bl_label = "Set Tool By Name"
+    bl_label = "Set Tool by Name"
 
     name: StringProperty(
         name="Identifier",
@@ -1768,7 +1768,7 @@ class WM_OT_tool_set_by_id(Operator):
 class WM_OT_tool_set_by_index(Operator):
     """Set the tool by index (for keymaps)"""
     bl_idname = "wm.tool_set_by_index"
-    bl_label = "Set Tool By Index"
+    bl_label = "Set Tool by Index"
     index: IntProperty(
         name="Index in toolbar",
         default=0,

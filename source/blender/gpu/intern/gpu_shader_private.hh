@@ -77,7 +77,7 @@ class Shader {
   virtual int shader_get_uniform_location_old(const char *name) = 0;
 
  protected:
-  void print_errors(Span<const char *> sources, char *log, const char *stage);
+  void print_log(Span<const char *> sources, char *log, const char *stage, const bool error);
 };
 
 /* Syntacting suggar. */
