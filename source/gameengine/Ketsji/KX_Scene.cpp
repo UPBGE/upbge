@@ -279,10 +279,6 @@ KX_Scene::~KX_Scene()
   View3D *v3d = CTX_wm_view3d(C);
 
   if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0) {
-    if (m_shadingTypeBackup != 0) {
-      v3d->shading.type = m_shadingTypeBackup;
-      v3d->shading.flag = m_shadingFlagBackup;
-    }
     if (!m_isPythonMainLoop) {
       /* This will free m_gpuViewport and m_gpuOffScreen */
       DRW_game_render_loop_end();
@@ -298,6 +294,11 @@ KX_Scene::~KX_Scene()
   else {
     // Free the allocated profile a last time
     DRW_game_viewport_render_loop_end();
+  }
+
+  if (m_shadingTypeBackup != 0) {
+    v3d->shading.type = m_shadingTypeBackup;
+    v3d->shading.flag = m_shadingFlagBackup;
   }
 
   for (Object *hiddenOb : m_hiddenObjectsDuringRuntime) {
