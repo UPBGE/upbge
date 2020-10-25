@@ -1292,8 +1292,8 @@ KX_Scene *KX_KetsjiEngine::CreateScene(const std::string &scenename)
 bool KX_KetsjiEngine::ReplaceScene(const std::string &oldscene, const std::string &newscene)
 {
   bool useViewportRender = (m_scenes->GetFront()->GetBlenderScene()->gm.flag & GAME_USE_VIEWPORT_RENDER) != 0;
-  if (useViewportRender) {
-    std::cout << "Replace Scene is not available in viewport render mode." << std::endl;
+  if (useViewportRender && !m_canvas->IsBlenderPlayer()) {
+    std::cout << "Replace Scene is not available in viewport render mode in embedded." << std::endl;
     return false;
   }
   // Don't allow replacement if the new scene doesn't exist.

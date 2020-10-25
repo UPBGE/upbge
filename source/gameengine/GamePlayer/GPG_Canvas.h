@@ -49,7 +49,6 @@ class GPG_Canvas : public RAS_ICanvas {
  protected:
   /// GHOST window.
   GHOST_IWindow *m_window;
-  Scene *m_startScene;
   /// Width of the context.
   int m_width;
   /// Height of the context.
@@ -62,7 +61,7 @@ class GPG_Canvas : public RAS_ICanvas {
   int m_viewport[4];
 
  public:
-  GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window, Scene *startscene);
+  GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window);
   virtual ~GPG_Canvas();
 
   /**
@@ -96,8 +95,6 @@ class GPG_Canvas : public RAS_ICanvas {
   virtual void EndDraw();
 
   virtual bool IsBlenderPlayer();
-
-  virtual Scene *GetStartScene();
 };
 
 #endif  // __GPG_CANVAS_H__

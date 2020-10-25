@@ -164,7 +164,7 @@ void LA_Launcher::InitEngine()
   m_savedData.mipmap = m_rasterizer->GetMipmapping();
 
   // Create the canvas, rasterizer and rendertools.
-  m_canvas = CreateCanvas(m_startScene);
+  m_canvas = CreateCanvas();
 
   // Copy current vsync mode to restore at the game end.
   m_canvas->GetSwapInterval(m_savedData.vsync);

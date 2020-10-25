@@ -54,7 +54,7 @@ class LA_BlenderLauncher : public LA_Launcher {
 
   virtual void RenderEngine();
 
-  virtual RAS_ICanvas *CreateCanvas(Scene *startscene);
+  virtual RAS_ICanvas *CreateCanvas();
   virtual bool GetUseAlwaysExpandFraming();
   virtual void InitCamera();
   virtual void InitPython();

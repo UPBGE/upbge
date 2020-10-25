@@ -77,13 +77,6 @@ CValue *SCA_GameActuator::GetReplica()
 
 bool SCA_GameActuator::Update()
 {
-  bool useViewportRender =
-      (KX_GetActiveEngine()->CurrentScenes()->GetFront()->GetBlenderScene()->gm.flag &
-       GAME_USE_VIEWPORT_RENDER) != 0;
-  if (useViewportRender) {
-    std::cout << "Game actuator is not available in viewport render mode." << std::endl;
-    return false;
-  }
   // bool result = false;	 /*unused*/
   bool bNegativeEvent = IsNegativeEvent();
   RemoveAllEvents();
