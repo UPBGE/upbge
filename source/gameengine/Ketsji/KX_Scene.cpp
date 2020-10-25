@@ -271,6 +271,8 @@ KX_Scene::~KX_Scene()
 
   m_isRuntime = false;  // eevee
 
+  ReinitBlenderContextVariables();
+
   Scene *scene = GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   bContext *C = KX_GetActiveEngine()->GetContext();
