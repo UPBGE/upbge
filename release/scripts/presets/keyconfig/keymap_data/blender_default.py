@@ -2357,10 +2357,10 @@ def km_text(params):
         ("text.run_script", {"type": 'P', "value": 'PRESS', "alt": True}, None),
         ("text.cut", {"type": 'X', "value": 'PRESS', "ctrl": True}, None),
         ("text.copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
-        ("text.paste", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
+        ("text.paste", {"type": 'V', "value": 'PRESS', "ctrl": True, "repeat": True}, None),
         ("text.cut", {"type": 'DEL', "value": 'PRESS', "shift": True}, None),
         ("text.copy", {"type": 'INSERT', "value": 'PRESS', "ctrl": True}, None),
-        ("text.paste", {"type": 'INSERT', "value": 'PRESS', "shift": True}, None),
+        ("text.paste", {"type": 'INSERT', "value": 'PRESS', "shift": True, "repeat": True}, None),
         ("text.duplicate_line", {"type": 'D', "value": 'PRESS', "ctrl": True, "repeat": True}, None),
         ("text.select_all", {"type": 'A', "value": 'PRESS', "ctrl": True}, None),
         ("text.select_line", {"type": 'A', "value": 'PRESS', "shift": True, "ctrl": True}, None),
@@ -2690,7 +2690,7 @@ def km_console(_params):
          {"properties": [("interactive", True)]}),
         ("console.copy_as_script", {"type": 'C', "value": 'PRESS', "shift": True, "ctrl": True}, None),
         ("console.copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
-        ("console.paste", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
+        ("console.paste", {"type": 'V', "value": 'PRESS', "ctrl": True, "repeat": True}, None),
         ("console.select_set", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
         ("console.select_word", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK'}, None),
         ("console.insert", {"type": 'TAB', "value": 'PRESS', "ctrl": True, "repeat": True},
@@ -4882,7 +4882,7 @@ def km_font(params):
         ("font.select_all", {"type": 'A', "value": 'PRESS', "ctrl": True}, None),
         ("font.text_copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
         ("font.text_cut", {"type": 'X', "value": 'PRESS', "ctrl": True}, None),
-        ("font.text_paste", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
+        ("font.text_paste", {"type": 'V', "value": 'PRESS', "ctrl": True, "repeat": True}, None),
         ("font.line_break", {"type": 'RET', "value": 'PRESS', "repeat": True}, None),
         ("font.text_insert", {"type": 'TEXTINPUT', "value": 'ANY', "any": True, "repeat": True}, None),
         ("font.text_insert", {"type": 'BACK_SPACE', "value": 'PRESS', "alt": True, "repeat": True},
@@ -6511,10 +6511,8 @@ def km_3d_view_tool_sculpt_face_set_edit(params):
         "3D View Tool: Sculpt, Face Set Edit",
         {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
         {"items": [
-            ("sculpt.face_set_edit", {"type": params.tool_mouse, "value": 'ANY'},
+            ("sculpt.face_set_edit", {"type": params.tool_mouse, "value": 'PRESS'},
              None),
-            ("sculpt.face_set_edit", {"type": params.tool_tweak, "value": 'ANY'},
-             None)
         ]},
     )
 

@@ -96,6 +96,8 @@
 
 #include "RE_engine.h"
 
+#include "sequencer.h"
+
 #ifdef WITH_AUDASPACE
 #  include <AUD_Special.h>
 #endif
@@ -6043,6 +6045,12 @@ static Sequence *sequencer_check_scene_recursion(Scene *scene, ListBase *seqbase
   LISTBASE_FOREACH (Sequence *, seq, seqbase) {
     if (seq->type == SEQ_TYPE_SCENE && seq->scene == scene) {
       return seq;
+    }
+
+    if (seq->type == SEQ_TYPE_SCENE && (seq->flag & SEQ_SCENE_STRIPS)) {
+      if (sequencer_check_scene_recursion(scene, &seq->scene->ed->seqbase)) {
+        return seq;
+      }
     }
 
     if (seq->type == SEQ_TYPE_META && sequencer_check_scene_recursion(scene, &seq->seqbase)) {
