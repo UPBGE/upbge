@@ -110,11 +110,6 @@ int ImageRender::GetColorBindCode() const
 // capture image from viewport
 void ImageRender::calcViewport(unsigned int texId, double ts, unsigned int format)
 {
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-  Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
-  scene_eval->flag |= SCE_INTERACTIVE_IMAGE_RENDER;
-
   // render the scene from the camera
   if (!m_done) {
     if (!Render()) {
@@ -142,8 +137,6 @@ void ImageRender::calcViewport(unsigned int texId, double ts, unsigned int forma
   GPU_framebuffer_texture_detach(m_targetfb, DRW_viewport_texture_list_get()->depth);
 
   GPU_framebuffer_restore();
-
-  scene_eval->flag &= ~SCE_INTERACTIVE_IMAGE_RENDER;
 }
 
 bool ImageRender::Render()
