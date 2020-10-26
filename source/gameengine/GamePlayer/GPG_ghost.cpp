@@ -1580,6 +1580,21 @@ int main(int argc,
             }
             launcher.ExitEngine();
           }
+
+          /* refer to WM_exit_ext() and BKE_blender_free(),
+           * these are not called in the player but we need to match some of there behavior here,
+           * if the order of function calls or blenders state isn't matching that of blender
+           * proper, we may get troubles later on */
+          WM_jobs_kill_all(CTX_wm_manager(C));
+
+          for (wmWindow *win = (wmWindow *)CTX_wm_manager(C)->windows.first; win;
+               win = win->next) {
+
+            CTX_wm_window_set(C, win); /* needed by operator close callbacks */
+            WM_event_remove_handlers(C, &win->handlers);
+            WM_event_remove_handlers(C, &win->modalhandlers);
+            ED_screen_exit(C, win, WM_window_get_active_screen(win));
+          }
         } while (!quitGame(exitcode));
       }
     }
@@ -1591,20 +1606,6 @@ int main(int argc,
 
   DRW_engines_free();
 
-  /* refer to WM_exit_ext() and BKE_blender_free(),
-   * these are not called in the player but we need to match some of there behavior here,
-   * if the order of function calls or blenders state isn't matching that of blender proper,
-   * we may get troubles later on */
-
-  WM_jobs_kill_all(CTX_wm_manager(C));
-
-  for (wmWindow *win = (wmWindow *)CTX_wm_manager(C)->windows.first; win; win = win->next) {
-
-    CTX_wm_window_set(C, win); /* needed by operator close callbacks */
-    WM_event_remove_handlers(C, &win->handlers);
-    WM_event_remove_handlers(C, &win->modalhandlers);
-    ED_screen_exit(C, win, WM_window_get_active_screen(win));
-  }
   if ((U.pref_flag & USER_PREF_FLAG_SAVE) && ((G.f & G_FLAG_USERPREF_NO_SAVE_ON_EXIT) == 0)) {
     if (U.runtime.is_dirty) {
       BKE_blendfile_userdef_write_all(NULL);
