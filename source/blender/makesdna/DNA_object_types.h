@@ -468,6 +468,10 @@ typedef struct Object {
   float fhdist, xyfrict;
   short dynamode, _pad51[3];
 
+  /* rigid body ccd */
+  float ccd_motion_threshold;
+  float ccd_swept_sphere_radius;
+
   /********End of Game engine***********/
 
 } Object;
@@ -766,6 +770,7 @@ enum {
   OB_LOCK_RIGID_BODY_X_ROT_AXIS = 1 << 5,
   OB_LOCK_RIGID_BODY_Y_ROT_AXIS = 1 << 6,
   OB_LOCK_RIGID_BODY_Z_ROT_AXIS = 1 << 7,
+  OB_RIGID_BODY_HAS_CCD = 1 << 8,
 
   /*	OB_LIFE     = OB_PROP | OB_DYNAMIC | OB_ACTOR | OB_MAINACTOR | OB_CHILD, */
 };

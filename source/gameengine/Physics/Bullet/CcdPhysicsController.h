@@ -379,6 +379,10 @@ struct CcdConstructionInfo {
   /// number of iterations to refine collision clusters
   int m_soft_numclusteriterations;
 
+  /// Ccd
+  btScalar m_ccd_motion_threshold;
+  btScalar m_ccd_swept_sphere_radius;
+
   int m_collisionFlags;
   bool m_bDyna;
   bool m_bRigid;

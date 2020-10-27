@@ -2929,6 +2929,26 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, NULL, "scaflag", OB_SHOWSTATE);
   RNA_def_property_ui_text(prop, "States", "Show state panel");
   RNA_def_property_ui_icon(prop, ICON_DISCLOSURE_TRI_RIGHT, 1);
+
+  /* rigid body ccd settings */
+  prop = RNA_def_property(srna, "rigid_body_has_ccd", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "gameflag2", OB_RIGID_BODY_HAS_CCD);
+  RNA_def_property_ui_text(
+      prop, "Continuous Collision Detection", "Enable Continuous Collision Detection for the rigid body");
+
+  prop = RNA_def_property(srna, "ccd_motion_threshold", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "ccd_motion_threshold");
+  RNA_def_property_range(prop, 0, 10);
+  RNA_def_property_ui_text(prop, "Motion threshold",
+                           "Sets the delta of movement that has to happen in one"
+                           " physics tick to trigger the continuous motion detection");
+
+  prop = RNA_def_property(srna, "ccd_swept_sphere_radius", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "ccd_swept_sphere_radius");
+  RNA_def_property_range(prop, 0, 10);
+  RNA_def_property_ui_text(prop, "Swept Sphere Radius",
+                           "The radius of the sphere that is used to check for "
+                           "possible collisions when ccd is actived");
 }
 
 static void rna_def_object_constraints(BlenderRNA *brna, PropertyRNA *cprop)
