@@ -48,7 +48,6 @@
 #  include "BKE_blender_version.h"
 #  include "BKE_context.h"
 
-#  include "BKE_appdir.h"
 #  include "BKE_global.h"
 #  include "BKE_image.h"
 #  include "BKE_lib_id.h"
@@ -57,7 +56,9 @@
 #  include "BKE_scene.h"
 #  include "BKE_sound.h"
 
-#  include "IMB_imbuf.h"
+#  ifdef WITH_FFMPEG
+#    include "IMB_imbuf.h"
+#  endif
 
 #  ifdef WITH_PYTHON
 #    include "BPY_extern_python.h"
@@ -1215,8 +1216,6 @@ static int arg_handle_playback_mode(int argc, const char **argv, void *UNUSED(da
 {
   /* not if -b was given first */
   if (G.background == 0) {
-    BKE_appdir_init();
-    IMB_init();
 #  ifdef WITH_FFMPEG
     /* Setup FFmpeg with current debug flags. */
     IMB_ffmpeg_init();
@@ -2145,7 +2144,24 @@ void main_args_setup(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
   /* end argument processing after -- */
   BLI_argsAdd(ba, -1, "--", NULL, CB(arg_handle_arguments_end), NULL);
 
-  /* first pass: background mode, disable python and commands that exit after usage */
+  /* Pass 0: Environment Setup
+   *
+   * It's important these run before any initialization is done, since they set up
+   * the environment used to access data-files, which are be used when initializing
+   * sub-systems such as color management. */
+  BLI_argsAdd(
+      ba, 0, NULL, "--python-use-system-env", CB(arg_handle_python_use_system_env_set), NULL);
+
+  /* Note that we could add used environment variables too. */
+  BLI_argsAdd(
+      ba, 0, NULL, "--env-system-datafiles", CB_EX(arg_handle_env_system_set, datafiles), NULL);
+  BLI_argsAdd(
+      ba, 0, NULL, "--env-system-scripts", CB_EX(arg_handle_env_system_set, scripts), NULL);
+  BLI_argsAdd(ba, 0, NULL, "--env-system-python", CB_EX(arg_handle_env_system_set, python), NULL);
+
+  /* Pass 1: Background Mode & Settings
+   *
+   * Also and commands that exit after usage. */
   BLI_argsAdd(ba, 1, "-h", "--help", CB(arg_handle_print_help), ba);
   /* Windows only */
   BLI_argsAdd(ba, 1, "/?", NULL, CB_EX(arg_handle_print_help, win32), ba);
@@ -2328,17 +2344,7 @@ void main_args_setup(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
   BLI_argsAdd(ba, 1, NULL, "--factory-startup", CB(arg_handle_factory_startup_set), NULL);
   BLI_argsAdd(ba, 1, NULL, "--enable-event-simulate", CB(arg_handle_enable_event_simulate), NULL);
 
-  /* TODO, add user env vars? */
-  BLI_argsAdd(
-      ba, 1, NULL, "--env-system-datafiles", CB_EX(arg_handle_env_system_set, datafiles), NULL);
-  BLI_argsAdd(
-      ba, 1, NULL, "--env-system-scripts", CB_EX(arg_handle_env_system_set, scripts), NULL);
-  BLI_argsAdd(ba, 1, NULL, "--env-system-python", CB_EX(arg_handle_env_system_set, python), NULL);
-
-  BLI_argsAdd(
-      ba, 1, NULL, "--python-use-system-env", CB(arg_handle_python_use_system_env_set), NULL);
-
-  /* second pass: custom window stuff */
+  /* Pass 2: Custom Window Stuff. */
   BLI_argsAdd(ba, 2, "-p", "--window-geometry", CB(arg_handle_window_geometry), NULL);
   BLI_argsAdd(ba, 2, "-w", "--window-border", CB(arg_handle_with_borders), NULL);
   BLI_argsAdd(ba, 2, "-W", "--window-fullscreen", CB(arg_handle_without_borders), NULL);
@@ -2349,12 +2355,12 @@ void main_args_setup(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
   BLI_argsAdd(ba, 2, "-r", NULL, CB_EX(arg_handle_register_extension, silent), ba);
   BLI_argsAdd(ba, 2, NULL, "--no-native-pixels", CB(arg_handle_native_pixels_set), ba);
 
-  /* third pass: disabling things and forcing settings */
-  BLI_argsAddCase(ba, 3, "-nojoystick", 1, NULL, 0, CB(arg_handle_joystick_disable), syshandle);
+  /* Pass 3: Disabling Things & Forcing Settings. */
   BLI_argsAddCase(ba, 3, "-noaudio", 1, NULL, 0, CB(arg_handle_audio_disable), NULL);
   BLI_argsAddCase(ba, 3, "-setaudio", 1, NULL, 0, CB(arg_handle_audio_set), NULL);
+  BLI_argsAddCase(ba, 3, "-nojoystick", 1, NULL, 0, CB(arg_handle_joystick_disable), syshandle);
 
-  /* fourth pass: processing arguments */
+  /* Pass 4: Processing Arguments. */
   BLI_argsAdd(ba, 4, "-g", NULL, CB(arg_handle_ge_parameters_set), syshandle);
   BLI_argsAdd(ba, 4, "-f", "--render-frame", CB(arg_handle_render_frame), C);
   BLI_argsAdd(ba, 4, "-a", "--render-anim", CB(arg_handle_render_animation), C);
