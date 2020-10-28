@@ -91,7 +91,6 @@ class KX_GameObject : public SCA_IObject {
   /* EEVEE INTEGRATION */
   float m_origObmat[4][4];
   float m_prevObmat[4][4];
-  bool m_castShadows;
   bool m_isReplica;
   bool m_staticObject;
   bool m_useCopy;

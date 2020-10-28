@@ -84,7 +84,6 @@ static MT_Matrix3x3 dummy_orientation = MT_Matrix3x3(
 
 KX_GameObject::KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
     : SCA_IObject(),
-      m_castShadows(true),          // eevee
       m_isReplica(false),           // eevee
       m_staticObject(true),         // eevee
       m_visibleAtGameStart(false),  // eevee
@@ -360,13 +359,6 @@ void KX_GameObject::TagForUpdate(bool is_overlay_pass)
         else {
           DEG_id_tag_update(&ob_orig->id, ID_RECALC_TRANSFORM);
         }
-      }
-    }
-
-    if (!m_staticObject && ELEM(ob_orig->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
-      if (m_castShadows) {
-        EEVEE_ObjectEngineData *oedata = EEVEE_object_data_ensure(ob_eval);
-        oedata->need_update = true;
       }
     }
   }
@@ -2254,7 +2246,6 @@ PyAttributeDef KX_GameObject::Attributes[] = {
     KX_PYATTRIBUTE_RW_FUNCTION("debug", KX_GameObject, pyattr_get_debug, pyattr_set_debug),
     KX_PYATTRIBUTE_RW_FUNCTION(
         "debugRecursive", KX_GameObject, pyattr_get_debugRecursive, pyattr_set_debugRecursive),
-    KX_PYATTRIBUTE_BOOL_RW("castShadows", KX_GameObject, m_castShadows),
     KX_PYATTRIBUTE_RW_FUNCTION("gravity", KX_GameObject, pyattr_get_gravity, pyattr_set_gravity),
 
     KX_PYATTRIBUTE_RO_FUNCTION("blenderObject", KX_GameObject, pyattr_get_blender_object),
