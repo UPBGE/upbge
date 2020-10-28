@@ -400,6 +400,21 @@ base class --- :class:`SCA_IObject`
 
       :type: :class:`mathutils.Vector`
 
+   .. attribute:: castShadows
+
+      Can be used to avoid shadows update for this gameobject
+
+   .. code-block:: python
+
+      import bge
+
+      cont = bge.logic.getCurrentController()
+      owner = cont.owner
+      # Prevent owner shadows update
+      owner.castShadows = False
+
+      :type: boolean
+
    .. attribute:: timeOffset
 
       adjust the slowparent delay at runtime.
