@@ -295,38 +295,6 @@ static int bpy_app_global_flag_set__only_disable(PyObject *UNUSED(self),
   return bpy_app_global_flag_set(NULL, value, closure);
 }
 
-#define BROKEN_BINARY_PATH_PYTHON_HACK
-
-PyDoc_STRVAR(bpy_app_binary_path_python_doc,
-             "String, the path to the python executable (read-only)");
-static PyObject *bpy_app_binary_path_python_get(PyObject *self, void *UNUSED(closure))
-{
-  /* refcount is held in BlenderAppType.tp_dict */
-  static PyObject *ret = NULL;
-
-  if (ret == NULL) {
-    /* only run once */
-    char fullpath[1024];
-    BKE_appdir_program_python_search(
-        fullpath, sizeof(fullpath), PY_MAJOR_VERSION, PY_MINOR_VERSION);
-    ret = PyC_UnicodeFromByte(fullpath);
-#ifdef BROKEN_BINARY_PATH_PYTHON_HACK
-    Py_INCREF(ret);
-    UNUSED_VARS(self);
-#else
-    PyDict_SetItem(
-        BlenderAppType.tp_dict,
-        /* XXX BAAAADDDDDD! self is not a PyDescr at all! it's bpy.app!!! */ PyDescr_NAME(self),
-        ret);
-#endif
-  }
-  else {
-    Py_INCREF(ret);
-  }
-
-  return ret;
-}
-
 PyDoc_STRVAR(bpy_app_debug_value_doc,
              "Short, number which can be set to non-zero values for testing purposes");
 static PyObject *bpy_app_debug_value_get(PyObject *UNUSED(self), void *UNUSED(closure))
@@ -465,12 +433,6 @@ static PyGetSetDef bpy_app_getsets[] = {
      bpy_app_global_flag_set,
      bpy_app_global_flag_doc,
      (void *)G_FLAG_USERPREF_NO_SAVE_ON_EXIT},
-
-    {"binary_path_python",
-     bpy_app_binary_path_python_get,
-     NULL,
-     bpy_app_binary_path_python_doc,
-     NULL},
 
     {"debug_value",
      bpy_app_debug_value_get,
