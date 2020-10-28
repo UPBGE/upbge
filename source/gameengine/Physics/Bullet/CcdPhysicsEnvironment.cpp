@@ -3214,6 +3214,11 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter *converter,
       if (rbody && (blenderobject->gameflag & OB_COLLISION_RESPONSE) != 0) {
         rbody->setActivationState(DISABLE_DEACTIVATION);
       }
+
+      if (blenderobject->gameflag2 & OB_CCD_RIGID_BODY) {
+        rbody->setCcdMotionThreshold(ci.m_ccd_motion_threshold);
+        rbody->setCcdSweptSphereRadius(ci.m_ccd_swept_sphere_radius);
+      }
     }
   }
 

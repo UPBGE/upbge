@@ -287,7 +287,9 @@ struct CcdConstructionInfo {
         m_fh_spring(0.0f),
         m_fh_damping(0.0f),
         m_fh_distance(1.0f),
-        m_fh_normal(false)
+        m_fh_normal(false),
+        m_ccd_motion_threshold(1e-7),
+        m_ccd_swept_sphere_radius(0.5)
   // m_contactProcessingThreshold(1e10f)
   {
   }
