@@ -154,6 +154,28 @@ base class --- :class:`PyObjectPlus`
 
       :type: Vector((gx, gy, gz))
 
+   .. attribute:: resetTaaSamples
+
+      Used to avoid blur effect caused by temporal antialiasing when doing changes with bpy API.
+
+   .. code-block:: python
+
+      import bpy, bge
+
+      # Get the timeline current frame
+      currentFrame = bpy.data.scenes["Scene"].frame_current
+
+      # Max timeline frame
+      maxFrame = 250
+
+      # Increase timeline frame by 1 without going above maxFrame
+      bpy.data.scenes["Scene"].frame_set((currentFrame + 1) % maxFrame)
+
+      # Reset temporal antialiasing samples to avoid blur
+      bge.logic.getCurrentScene().resetTaaSamples = True
+
+      :type: boolean
+
    .. method:: addObject(object, reference, time=0.0)
 
       Adds an object to the scene like the Add Object Actuator would.
