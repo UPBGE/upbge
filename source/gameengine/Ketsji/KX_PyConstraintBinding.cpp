@@ -85,9 +85,6 @@ PyDoc_STRVAR(gPySetContactBreakingTreshold__doc__,
              "setContactBreakingTreshold(float breakingTreshold)\n"
              "Reasonable default is 0.02 (if units are meters)");
 
-PyDoc_STRVAR(gPySetCcdMode__doc__,
-             "setCcdMode(int ccdMode)\n"
-             "Very experimental, not recommended");
 PyDoc_STRVAR(gPySetSorConstant__doc__,
              "setSorConstant(float sor)\n"
              "Very experimental, not recommended");
@@ -231,20 +228,6 @@ static PyObject *gPySetContactBreakingTreshold(PyObject *self, PyObject *args, P
   if (PyArg_ParseTuple(args, "f", &contactBreakingTreshold)) {
     if (PHY_GetActiveEnvironment()) {
       PHY_GetActiveEnvironment()->SetContactBreakingTreshold(contactBreakingTreshold);
-    }
-  }
-  else {
-    return nullptr;
-  }
-  Py_RETURN_NONE;
-}
-
-static PyObject *gPySetCcdMode(PyObject *self, PyObject *args, PyObject *kwds)
-{
-  float ccdMode;
-  if (PyArg_ParseTuple(args, "f", &ccdMode)) {
-    if (PHY_GetActiveEnvironment()) {
-      PHY_GetActiveEnvironment()->SetCcdMode(ccdMode);
     }
   }
   else {

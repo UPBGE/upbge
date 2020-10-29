@@ -88,7 +88,6 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   /// timestep subdivisions
   int m_numTimeSubSteps;
 
-  int m_ccdMode;
   PHY_SolverType m_solverType;
 
   float m_deactivationTime;
@@ -121,7 +120,6 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   virtual void SetDeactivationLinearTreshold(float linTresh);
   virtual void SetDeactivationAngularTreshold(float angTresh);
   virtual void SetContactBreakingTreshold(float contactBreakingTreshold);
-  virtual void SetCcdMode(int ccdMode);
   virtual void SetSolverType(PHY_SolverType solverType);
   virtual void SetSolverSorConstant(float sor);
   virtual void SetSolverTau(float tau);

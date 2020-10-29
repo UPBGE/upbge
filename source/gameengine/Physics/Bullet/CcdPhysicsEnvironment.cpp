@@ -373,7 +373,6 @@ CcdPhysicsEnvironment::CcdPhysicsEnvironment(PHY_SolverType solverType,
       m_cullingTree(nullptr),
       m_numIterations(10),
       m_numTimeSubSteps(1),
-      m_ccdMode(0),
       m_solverType(PHY_SOLVER_NONE),
       m_deactivationTime(2.0f),
       m_linearDeactivationThreshold(0.8f),
@@ -980,11 +979,6 @@ void CcdPhysicsEnvironment::SetDeactivationAngularTreshold(float angTresh)
 void CcdPhysicsEnvironment::SetContactBreakingTreshold(float contactBreakingTreshold)
 {
   m_contactBreakingThreshold = contactBreakingTreshold;
-}
-
-void CcdPhysicsEnvironment::SetCcdMode(int ccdMode)
-{
-  m_ccdMode = ccdMode;
 }
 
 void CcdPhysicsEnvironment::SetSolverSorConstant(float sor)
