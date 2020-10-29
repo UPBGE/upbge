@@ -708,6 +708,9 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, 
 
       CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
 
+      /* Force camera projection matrix to be the same as viewport one (for mouse events) */
+      cam->SetProjectionMatrix(MT_Matrix4x4(&CTX_wm_region_view3d(C)->winmat[0][0]));
+
       ED_region_tag_redraw(CTX_wm_region(C));
       wm_draw_update(C);
 
