@@ -1683,8 +1683,7 @@ class VIEW3D_PT_tools_grease_pencil_interpolate(Panel):
             return False
 
         gpd = context.gpencil_data
-        valid_mode = bool(gpd.use_stroke_edit_mode or gpd.is_stroke_paint_mode)
-        return bool(context.editable_gpencil_strokes) and valid_mode
+        return bool(context.editable_gpencil_strokes) and bool(gpd.use_stroke_edit_mode)
 
     def draw(self, context):
         layout = self.layout
@@ -1699,10 +1698,7 @@ class VIEW3D_PT_tools_grease_pencil_interpolate(Panel):
         col = layout.column(align=True)
         col.label(text="Options:")
         col.prop(settings, "interpolate_all_layers")
-
-        gpd = context.gpencil_data
-        if gpd.use_stroke_edit_mode:
-            col.prop(settings, "interpolate_selected_only")
+        col.prop(settings, "interpolate_selected_only")
 
         col = layout.column(align=True)
         col.label(text="Sequence Options:")

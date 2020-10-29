@@ -47,7 +47,8 @@ DeviceInfo blender_device_info(BL::Preferences &b_preferences, BL::Scene &b_scen
     vector<DeviceInfo> devices = Device::available_devices(BlenderSession::device_override);
 
     if (devices.empty()) {
-      return Device::dummy_device("Found no Cycles device of the specified type");
+      printf("Found no Cycles device of the specified type, falling back to CPU...\n");
+      return Device::available_devices(DEVICE_MASK_CPU).front();
     }
 
     int threads = blender_device_threads(b_scene);

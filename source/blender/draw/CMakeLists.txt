@@ -149,6 +149,7 @@ set(SRC
   engines/overlay/overlay_shader.c
   engines/overlay/overlay_volume.c
   engines/overlay/overlay_wireframe.c
+  engines/overlay/overlay_xr.c
 
   DRW_engine.h
   DRW_engine_types.h

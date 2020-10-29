@@ -40,6 +40,10 @@
 
 #include "WM_types.h"
 
+#ifdef WITH_XR_OPENXR
+#  include "../ghost/GHOST_Types.h"
+#endif
+
 #ifdef RNA_RUNTIME
 
 static const EnumPropertyItem event_keymouse_value_items[] = {
@@ -163,6 +167,11 @@ static const EnumPropertyItem event_ndof_type_items[] = {
     {NDOF_BUTTON_A, "NDOF_BUTTON_A", 0, "Button A", ""},
     {NDOF_BUTTON_B, "NDOF_BUTTON_B", 0, "Button B", ""},
     {NDOF_BUTTON_C, "NDOF_BUTTON_C", 0, "Button C", ""},
+    {0, NULL, 0, NULL, NULL},
+};
+
+static const EnumPropertyItem event_xr_type_items[] = {
+    {EVT_XR_ACTION, "XR_ACTION", 0, "XR Action", ""},
     {0, NULL, 0, NULL, NULL},
 };
 #endif /* RNA_RUNTIME */
@@ -387,6 +396,8 @@ const EnumPropertyItem rna_enum_event_type_items[] = {
      0,
      "ActionZone Fullscreen",
      "AZone FullScr"},
+    /* xr */
+    {EVT_XR_ACTION, "XR_ACTION", 0, "XR Action", ""},
     {0, NULL, 0, NULL, NULL},
 };
 
@@ -672,6 +683,170 @@ static void rna_Event_tilt_get(PointerRNA *ptr, float *values)
   WM_event_tablet_data(event, NULL, values);
 }
 
+static bool rna_Event_is_xr_get(PointerRNA *ptr)
+{
+  const wmEvent *event = ptr->data;
+  return WM_event_is_xr(event);
+}
+
+static void rna_Event_xr_action_set_get(PointerRNA *ptr, char *value)
+{
+  const wmEvent *event = ptr->data;
+  if (WM_event_is_xr(event)) {
+    WM_event_xr_data(event, &value, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+  }
+  else {
+    value[0] = '\0';
+  }
+}
+
+static int rna_Event_xr_action_set_length(PointerRNA *ptr)
+{
+  const wmEvent *event = ptr->data;
+  if (WM_event_is_xr(event)) {
+    wmXrActionData *data = event->customdata;
+    return strlen(data->action_set) + 1;
+  }
+  else {
+    return 0;
+  }
+}
+
+static void rna_Event_xr_action_get(PointerRNA *ptr, char *value)
+{
+  const wmEvent *event = ptr->data;
+  if (WM_event_is_xr(event)) {
+    WM_event_xr_data(event, NULL, &value, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+  }
+  else {
+    value[0] = '\0';
+  }
+}
+
+static int rna_Event_xr_action_length(PointerRNA *ptr)
+{
+  const wmEvent *event = ptr->data;
+  if (WM_event_is_xr(event)) {
+    wmXrActionData *data = event->customdata;
+    return strlen(data->action) + 1;
+  }
+  else {
+    return 0;
+  }
+}
+
+static int rna_Event_xr_type_get(PointerRNA *ptr)
+{
+  const wmEvent *event = ptr->data;
+  if (WM_event_is_xr(event)) {
+    int type;
+    WM_event_xr_data(
+        event, NULL, NULL, (char *)&type, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    return type;
+  }
+  else {
+    return 0;
+  }
+}
+
+static void rna_Event_xr_state_get(PointerRNA *ptr, float *value)
+{
+  const wmEvent *event = ptr->data;
+  if (WM_event_is_xr(event)) {
+    WM_event_xr_data(event, NULL, NULL, NULL, value, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+  }
+  else {
+    memset(value, 0, sizeof(float[2]));
+  }
+}
+
+static void rna_Event_xr_controller_location_get(PointerRNA *ptr, float *value)
+{
+  const wmEvent *event = ptr->data;
+  if (WM_event_is_xr(event)) {
+    WM_event_xr_data(event, NULL, NULL, NULL, NULL, value, NULL, NULL, NULL, NULL, NULL, NULL);
+  }
+  else {
+    memset(value, 0, sizeof(float[3]));
+  }
+}
+
+static void rna_Event_xr_controller_rotation_get(PointerRNA *ptr, float *value)
+{
+  const wmEvent *event = ptr->data;
+  if (WM_event_is_xr(event)) {
+    WM_event_xr_data(event, NULL, NULL, NULL, NULL, NULL, value, NULL, NULL, NULL, NULL, NULL);
+  }
+  else {
+    value[0] = 1.0f;
+    value[1] = value[2] = value[3] = 0.0f;
+  }
+}
+
+static int rna_Event_xr_viewport_width_get(PointerRNA *ptr)
+{
+  const wmEvent *event = ptr->data;
+  if (WM_event_is_xr(event)) {
+    int width;
+    WM_event_xr_data(event, NULL, NULL, NULL, NULL, NULL, NULL, &width, NULL, NULL, NULL, NULL);
+    return width;
+  }
+  else {
+    return 0;
+  }
+}
+
+static int rna_Event_xr_viewport_height_get(PointerRNA *ptr)
+{
+  const wmEvent *event = ptr->data;
+  if (WM_event_is_xr(event)) {
+    int height;
+    WM_event_xr_data(event, NULL, NULL, NULL, NULL, NULL, NULL, NULL, &height, NULL, NULL, NULL);
+    return height;
+  }
+  else {
+    return 0;
+  }
+}
+
+static float rna_Event_xr_focal_length_get(PointerRNA *ptr)
+{
+  const wmEvent *event = ptr->data;
+  if (WM_event_is_xr(event)) {
+    float focal_len;
+    WM_event_xr_data(
+        event, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, &focal_len, NULL, NULL);
+    return focal_len;
+  }
+  else {
+    return 0.0f;
+  }
+}
+
+static void rna_Event_xr_view_matrix_get(PointerRNA *ptr, float values[16])
+{
+  const wmEvent *event = ptr->data;
+  if (WM_event_is_xr(event)) {
+    WM_event_xr_data(
+        event, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, (float(*)[4])values, NULL);
+  }
+  else {
+    memset(values, 0, sizeof(float[16]));
+  }
+}
+
+static void rna_Event_xr_projection_matrix_get(PointerRNA *ptr, float values[16])
+{
+  const wmEvent *event = ptr->data;
+  if (WM_event_is_xr(event)) {
+    WM_event_xr_data(
+        event, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, (float(*)[4])values);
+  }
+  else {
+    memset(values, 0, sizeof(float[16]));
+  }
+}
+
 static PointerRNA rna_PopupMenu_layout_get(PointerRNA *ptr)
 {
   struct uiPopupMenu *pup = ptr->data;
@@ -905,6 +1080,10 @@ static void rna_wmKeyMapItem_map_type_set(PointerRNA *ptr, int value)
         kmi->type = NDOF_MOTION;
         kmi->val = KM_NOTHING;
         break;
+      case KMI_TYPE_XR:
+        kmi->type = EVT_XR_ACTION;
+        kmi->val = KM_NOTHING;
+        break;
     }
   }
 }
@@ -929,6 +1108,48 @@ static void rna_wmKeyMapItem_keymodifier_set(PointerRNA *ptr, int value)
   }
 }
 
+static void rna_wmKeyMapItem_xr_action_set_get(PointerRNA *ptr, char *value)
+{
+  wmKeyMapItem *kmi = ptr->data;
+  strcpy(value, kmi->xr_action_set);
+}
+
+static int rna_wmKeyMapItem_xr_action_set_length(PointerRNA *ptr)
+{
+  wmKeyMapItem *kmi = ptr->data;
+  return strlen(kmi->xr_action_set);
+}
+
+static void rna_wmKeyMapItem_xr_action_set_set(PointerRNA *ptr, const char *value)
+{
+  wmKeyMapItem *kmi = ptr->data;
+
+  if (!STREQ(value, kmi->xr_action_set)) {
+    strcpy(kmi->xr_action_set, value);
+  }
+}
+
+static void rna_wmKeyMapItem_xr_action_get(PointerRNA *ptr, char *value)
+{
+  wmKeyMapItem *kmi = ptr->data;
+  strcpy(value, kmi->xr_action);
+}
+
+static int rna_wmKeyMapItem_xr_action_length(PointerRNA *ptr)
+{
+  wmKeyMapItem *kmi = ptr->data;
+  return strlen(kmi->xr_action);
+}
+
+static void rna_wmKeyMapItem_xr_action_set(PointerRNA *ptr, const char *value)
+{
+  wmKeyMapItem *kmi = ptr->data;
+
+  if (!STREQ(value, kmi->xr_action)) {
+    strcpy(kmi->xr_action, value);
+  }
+}
+
 static const EnumPropertyItem *rna_KeyMapItem_type_itemf(bContext *UNUSED(C),
                                                          PointerRNA *ptr,
                                                          PropertyRNA *UNUSED(prop),
@@ -950,6 +1171,9 @@ static const EnumPropertyItem *rna_KeyMapItem_type_itemf(bContext *UNUSED(C),
   }
   if (map_type == KMI_TYPE_TEXTINPUT) {
     return event_textinput_type_items;
+  }
+  if (map_type == KMI_TYPE_XR) {
+    return event_xr_type_items;
   }
   else {
     return rna_enum_event_type_items;
@@ -2092,6 +2316,21 @@ static void rna_def_event(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
+  static const EnumPropertyItem xr_types[] = {
+      {1, "BOOLEAN", 0, "Boolean", "Boolean value"},
+      {2, "FLOAT", 0, "Float", "Float value"},
+      {3, "VEC2F", 0, "Vector2f", "2D float vector value"},
+      {0, NULL, 0, NULL, NULL},
+  };
+#  ifdef WITH_XR_OPENXR
+  BLI_STATIC_ASSERT(GHOST_kXrActionTypeBooleanInput == 1,
+                    "Boolean action type does not match GHOST_XrActionType value");
+  BLI_STATIC_ASSERT(GHOST_kXrActionTypeFloatInput == 2,
+                    "Float action type does not match GHOST_XrActionType value");
+  BLI_STATIC_ASSERT(GHOST_kXrActionTypeVector2fInput == 3,
+                    "Vector2f action type does not match GHOST_XrActionType value");
+#  endif
+
   srna = RNA_def_struct(brna, "Event", NULL);
   RNA_def_struct_ui_text(srna, "Event", "Window Manager Event");
   RNA_def_struct_sdna(srna, "wmEvent");
@@ -2210,6 +2449,82 @@ static void rna_def_event(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, NULL, "oskey", 1);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "OS Key", "True when the Cmd key is held");
+
+  /* xr */
+  prop = RNA_def_property(srna, "is_xr", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_boolean_funcs(prop, "rna_Event_is_xr_get", NULL);
+  RNA_def_property_ui_text(prop, "Is XR", "The event has XR data");
+
+  prop = RNA_def_property(srna, "xr_action_set", PROP_STRING, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_string_funcs(
+      prop, "rna_Event_xr_action_set_get", "rna_Event_xr_action_set_length", NULL);
+  RNA_def_property_ui_text(prop, "XR Action Set", "XR action set name");
+
+  prop = RNA_def_property(srna, "xr_action", PROP_STRING, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_string_funcs(
+      prop, "rna_Event_xr_action_get", "rna_Event_xr_action_length", NULL);
+  RNA_def_property_ui_text(prop, "XR Action", "XR action name");
+
+  prop = RNA_def_property(srna, "xr_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_enum_items(prop, xr_types);
+  RNA_def_property_enum_funcs(prop, "rna_Event_xr_type_get", NULL, NULL);
+  RNA_def_property_ui_text(prop, "XR Type", "XR action type");
+
+  prop = RNA_def_property(srna, "xr_state", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_array(prop, 2);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_float_funcs(prop, "rna_Event_xr_state_get", NULL, NULL);
+  RNA_def_property_ui_text(prop, "XR State", "XR action values corresponding to type");
+
+  prop = RNA_def_property(srna, "xr_controller_location", PROP_FLOAT, PROP_TRANSLATION);
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_float_funcs(prop, "rna_Event_xr_controller_location_get", NULL, NULL);
+  RNA_def_property_ui_text(
+      prop,
+      "XR Controller Location",
+      "Location of the action's corresponding controller pose in world space");
+
+  prop = RNA_def_property(srna, "xr_controller_rotation", PROP_FLOAT, PROP_QUATERNION);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_float_funcs(prop, "rna_Event_xr_controller_rotation_get", NULL, NULL);
+  RNA_def_property_ui_text(
+      prop,
+      "XR Controller Rotation",
+      "Rotation of the action's corresponding controller pose in world space");
+
+  prop = RNA_def_property(srna, "xr_viewport_width", PROP_INT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_int_funcs(prop, "rna_Event_xr_viewport_width_get", NULL, NULL);
+  RNA_def_property_ui_text(prop, "XR Viewport Width", "Width of the XR selection eye viewport");
+
+  prop = RNA_def_property(srna, "xr_viewport_height", PROP_INT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_int_funcs(prop, "rna_Event_xr_viewport_height_get", NULL, NULL);
+  RNA_def_property_ui_text(prop, "XR Viewport Height", "Height of the XR selection eye viewport");
+
+  prop = RNA_def_property(srna, "xr_focal_length", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_float_funcs(prop, "rna_Event_xr_focal_length_get", NULL, NULL);
+  RNA_def_property_ui_text(prop, "XR Focal Length", "Focal length of the XR selection eye");
+
+  prop = RNA_def_property(srna, "xr_view_matrix", PROP_FLOAT, PROP_MATRIX);
+  RNA_def_property_array(prop, 16);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_float_funcs(prop, "rna_Event_xr_view_matrix_get", NULL, NULL);
+  RNA_def_property_ui_text(prop, "XR View Matrix", "View matrix of the XR selection eye");
+
+  prop = RNA_def_property(srna, "xr_projection_matrix", PROP_FLOAT, PROP_MATRIX);
+  RNA_def_property_array(prop, 16);
+  RNA_def_property_float_funcs(prop, "rna_Event_xr_projection_matrix_get", NULL, NULL);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(
+      prop, "XR Projection Matrix", "Projection matrix of the XR selection eye");
 
   RNA_define_verify_sdna(1); /* not in sdna */
 }
@@ -2540,6 +2855,7 @@ static void rna_def_keyconfig(BlenderRNA *brna)
       {KMI_TYPE_NDOF, "NDOF", 0, "NDOF", ""},
       {KMI_TYPE_TEXTINPUT, "TEXTINPUT", 0, "Text Input", ""},
       {KMI_TYPE_TIMER, "TIMER", 0, "Timer", ""},
+      {KMI_TYPE_XR, "XR", 0, "XR", ""},
       {0, NULL, 0, NULL, NULL},
   };
 
@@ -2731,6 +3047,26 @@ static void rna_def_keyconfig(BlenderRNA *brna)
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
   RNA_def_property_enum_funcs(prop, NULL, "rna_wmKeyMapItem_keymodifier_set", NULL);
   RNA_def_property_ui_text(prop, "Key Modifier", "Regular key pressed as a modifier");
+  RNA_def_property_update(prop, 0, "rna_KeyMapItem_update");
+
+  prop = RNA_def_property(srna, "xr_action_set", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, NULL, "xr_action_set");
+  RNA_def_property_ui_text(prop, "XR Action Set", "XR action set name");
+  RNA_def_property_string_funcs(prop,
+                                "rna_wmKeyMapItem_xr_action_set_get",
+                                "rna_wmKeyMapItem_xr_action_set_length",
+                                "rna_wmKeyMapItem_xr_action_set_set");
+  RNA_def_struct_name_property(srna, prop);
+  RNA_def_property_update(prop, 0, "rna_KeyMapItem_update");
+
+  prop = RNA_def_property(srna, "xr_action", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, NULL, "xr_action");
+  RNA_def_property_ui_text(prop, "XR Action", "XR action name");
+  RNA_def_property_string_funcs(prop,
+                                "rna_wmKeyMapItem_xr_action_get",
+                                "rna_wmKeyMapItem_xr_action_length",
+                                "rna_wmKeyMapItem_xr_action_set");
+  RNA_def_struct_name_property(srna, prop);
   RNA_def_property_update(prop, 0, "rna_KeyMapItem_update");
 
   prop = RNA_def_property(srna, "repeat", PROP_BOOLEAN, PROP_NONE);

@@ -36,6 +36,8 @@
 
 #include "BKE_context.h"
 
+#include "DEG_depsgraph.h"
+
 #include "WM_api.h"
 #include "WM_types.h"
 
@@ -45,6 +47,9 @@
 
 #include "ED_screen.h"
 #include "ED_select_utils.h"
+#include "ED_view3d.h"
+
+#include "../editors/space_view3d/view3d_intern.h"
 
 #include "UI_interface.h"
 
@@ -201,6 +206,78 @@ int WM_gesture_box_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   return OPERATOR_RUNNING_MODAL;
 }
 
+int WM_gesture_box_invoke_3d(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  BLI_assert(event->type == EVT_XR_ACTION);
+  BLI_assert(event->custom == EVT_DATA_XR);
+  BLI_assert(event->customdata);
+
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  View3D *v3d = CTX_wm_view3d(C);
+  ARegion *region = CTX_wm_region(C);
+  RegionView3D *rv3d = region->regiondata;
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmXrData *xr = &wm->xr;
+  wmXrActionData *customdata = event->customdata;
+  short winx_prev, winy_prev;
+  rcti winrct_prev;
+  float lens_prev;
+  float clip_start_prev, clip_end_prev;
+  int mval[2];
+  int retval;
+
+#if 1
+  /* TODO_XR: Currently fails in edit mode. */
+  if (CTX_data_edit_object(C)) {
+    return OPERATOR_RUNNING_MODAL;
+  }
+#endif
+
+  wmEvent event_mut;
+  memcpy(&event_mut, event, sizeof(wmEvent));
+
+  /* Replace window view parameters with XR surface counterparts. */
+  winx_prev = region->winx;
+  winy_prev = region->winy;
+  winrct_prev = region->winrct;
+  lens_prev = v3d->lens;
+  clip_start_prev = v3d->clip_start;
+  clip_end_prev = v3d->clip_end;
+
+  region->winrct.xmin = 0;
+  region->winrct.ymin = 0;
+  region->winrct.xmax = region->winx = customdata->eye_width;
+  region->winrct.ymax = region->winy = customdata->eye_height;
+  v3d->lens = customdata->eye_lens;
+  v3d->clip_start = xr->session_settings.clip_start;
+  v3d->clip_end = xr->session_settings.clip_end;
+  view3d_winmatrix_set(depsgraph, region, v3d, NULL);
+
+  map_to_pixel(mval,
+               customdata->controller_loc,
+               customdata->eye_viewmat,
+               rv3d->winmat,
+               customdata->eye_width,
+               customdata->eye_height);
+  event_mut.x = mval[0];
+  event_mut.y = mval[1];
+
+  RNA_boolean_set(op->ptr, "wait_for_input", false);
+
+  retval = WM_gesture_box_invoke(C, op, &event_mut);
+
+  /* Restore window view. */
+  region->winx = winx_prev;
+  region->winy = winy_prev;
+  region->winrct = winrct_prev;
+  v3d->lens = lens_prev;
+  v3d->clip_start = clip_start_prev;
+  v3d->clip_end = clip_end_prev;
+  view3d_winmatrix_set(depsgraph, region, v3d, NULL);
+
+  return retval;
+}
+
 int WM_gesture_box_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wmWindow *win = CTX_wm_window(C);
@@ -277,6 +354,109 @@ int WM_gesture_box_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
   gesture->is_active_prev = gesture->is_active;
   return OPERATOR_RUNNING_MODAL;
+}
+
+int WM_gesture_box_modal_3d(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  BLI_assert(event->type == EVT_XR_ACTION);
+  BLI_assert(event->custom == EVT_DATA_XR);
+  BLI_assert(event->customdata);
+
+  const bool release = (event->val == KM_RELEASE);
+
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Scene *scene = CTX_data_scene(C);
+  View3D *v3d = CTX_wm_view3d(C);
+  ARegion *region = CTX_wm_region(C);
+  RegionView3D *rv3d = region->regiondata;
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmXrData *xr = &wm->xr;
+  wmXrActionData *customdata = event->customdata;
+  short winx_prev, winy_prev;
+  rcti winrct_prev;
+  float lens_prev;
+  float clip_start_prev, clip_end_prev;
+  float viewmat_prev[4][4];
+  int mval[2];
+  int retval;
+
+#if 1
+  /* TODO_XR: Currently fails in edit mode. */
+  if (CTX_data_edit_object(C)) {
+    return release ? OPERATOR_FINISHED : OPERATOR_RUNNING_MODAL;
+  }
+#endif
+
+  wmEvent event_mut;
+  memcpy(&event_mut, event, sizeof(wmEvent));
+
+  /* Since this function is called in a window context, we need to replace the
+   * window view parameters with the XR surface counterparts to get a correct
+   * result for some operators (e.g. GPU select). */
+  winx_prev = region->winx;
+  winy_prev = region->winy;
+  winrct_prev = region->winrct;
+  lens_prev = v3d->lens;
+  clip_start_prev = v3d->clip_start;
+  clip_end_prev = v3d->clip_end;
+  if (release) {
+    copy_m4_m4(viewmat_prev, rv3d->viewmat);
+  }
+
+  region->winrct.xmin = 0;
+  region->winrct.ymin = 0;
+  region->winrct.xmax = region->winx = customdata->eye_width;
+  region->winrct.ymax = region->winy = customdata->eye_height;
+  v3d->lens = customdata->eye_lens;
+  v3d->clip_start = xr->session_settings.clip_start;
+  v3d->clip_end = xr->session_settings.clip_end;
+  if (release) {
+    copy_m4_m4(rv3d->viewmat, customdata->eye_viewmat);
+  }
+  view3d_winmatrix_set(depsgraph, region, v3d, NULL);
+
+  map_to_pixel(mval,
+               customdata->controller_loc,
+               customdata->eye_viewmat,
+               rv3d->winmat,
+               customdata->eye_width,
+               customdata->eye_height);
+
+  if (event->val == KM_PRESS) {
+    event_mut.type = MOUSEMOVE;
+    {
+      wmGesture *gesture = op->customdata;
+      gesture->is_active = true;
+    }
+    event_mut.x = mval[0];
+    event_mut.y = mval[1];
+  }
+  else if (event->val == KM_RELEASE) {
+    event_mut.type = EVT_MODAL_MAP;
+    event_mut.val = GESTURE_MODAL_SELECT;
+  }
+  else {
+    /* XR events currently only support press and release. */
+    BLI_assert(false);
+  }
+
+  retval = WM_gesture_box_modal(C, op, &event_mut);
+
+  /* Restore window view. */
+  region->winx = winx_prev;
+  region->winy = winy_prev;
+  region->winrct = winrct_prev;
+  v3d->lens = lens_prev;
+  v3d->clip_start = clip_start_prev;
+  v3d->clip_end = clip_end_prev;
+  if (release) {
+    ED_view3d_update_viewmat(depsgraph, scene, v3d, region, viewmat_prev, NULL, NULL, false);
+  }
+  else {
+    view3d_winmatrix_set(depsgraph, region, v3d, NULL);
+  }
+
+  return retval;
 }
 
 void WM_gesture_box_cancel(bContext *C, wmOperator *op)

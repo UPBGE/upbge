@@ -5195,6 +5195,23 @@ void map_to_plane_axis_angle_v2_v3v3fl(float r_co[2],
   copy_v2_v2(r_co, tmp);
 }
 
+void map_to_pixel(int r_co[2],
+                  const float co[3],
+                  const float viewmat[4][4],
+                  const float winmat[4][4],
+                  int winx,
+                  int winy)
+{
+  float persmat[4][4];
+  float vec[3];
+
+  mul_m4_m4m4(persmat, winmat, viewmat);
+  mul_v3_project_m4_v3(vec, persmat, co);
+
+  r_co[0] = (int)(((float)winx / 2.0f) * (1.0f + vec[0]));
+  r_co[1] = (int)(((float)winy / 2.0f) * (1.0f + vec[1]));
+}
+
 /********************************* Normals **********************************/
 
 void accumulate_vertex_normals_tri_v3(float n1[3],

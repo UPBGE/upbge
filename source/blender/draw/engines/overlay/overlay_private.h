@@ -122,6 +122,7 @@ typedef struct OVERLAY_PassList {
   DRWPass *volume_ps;
   DRWPass *wireframe_ps;
   DRWPass *wireframe_xray_ps;
+  DRWPass *xr_controllers_ps;
   DRWPass *xray_fade_ps;
 } OVERLAY_PassList;
 
@@ -291,6 +292,7 @@ typedef struct OVERLAY_PrivateData {
   DRWShadingGroup *wires_all_grp[2][2];  /* With and without coloring. */
   DRWShadingGroup *wires_hair_grp[2][2]; /* With and without coloring. */
   DRWShadingGroup *wires_sculpt_grp[2];
+  DRWShadingGroup *xr_controllers_grp;
 
   DRWView *view_default;
   DRWView *view_wires;
@@ -635,6 +637,10 @@ void OVERLAY_wireframe_cache_populate(OVERLAY_Data *vedata,
                                       bool init_dupli);
 void OVERLAY_wireframe_draw(OVERLAY_Data *vedata);
 void OVERLAY_wireframe_in_front_draw(OVERLAY_Data *vedata);
+
+void OVERLAY_xr_cache_init(OVERLAY_Data *vedata);
+void OVERLAY_xr_cache_populate(OVERLAY_Data *vedata, Object *ob);
+void OVERLAY_xr_draw(OVERLAY_Data *vedata);
 
 void OVERLAY_shader_library_ensure(void);
 GPUShader *OVERLAY_shader_antialiasing(void);

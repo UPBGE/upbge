@@ -355,6 +355,10 @@ typedef struct wmKeyMapItem {
   short shift, ctrl, alt, oskey;
   /** Rawkey modifier. */
   short keymodifier;
+  /** XR action set name. */
+  char xr_action_set[64];
+  /** XR action name. */
+  char xr_action[64];
 
   /* flag: inactive, expanded */
   short flag;
@@ -407,6 +411,7 @@ enum {
   KMI_TYPE_TEXTINPUT = 3,
   KMI_TYPE_TIMER = 4,
   KMI_TYPE_NDOF = 5,
+  KMI_TYPE_XR = 6,
 };
 
 /* stored in WM, the actively used keymaps */

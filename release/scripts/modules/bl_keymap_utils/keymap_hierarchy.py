@@ -63,6 +63,10 @@ _km_hierarchy = [
 
     ('User Interface', 'EMPTY', 'WINDOW', []),
 
+    ('XR', 'EMPTY', 'XR', [ # op properties for XR action sets saved in prefs 
+        ('XR Session', 'EMPTY', 'XR', []),  # op properties for scene XR action sets  
+    ]),
+
     ('3D View', 'VIEW_3D', 'WINDOW', [  # view 3d navigation and generic stuff (select, transform)
         ('Object Mode', 'EMPTY', 'WINDOW', [
             _km_expand_from_toolsystem('VIEW_3D', 'OBJECT'),

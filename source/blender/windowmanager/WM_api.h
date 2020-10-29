@@ -67,6 +67,13 @@ struct wmOperatorType;
 struct wmPaintCursor;
 struct wmTabletData;
 
+#ifdef WITH_XR_OPENXR
+struct GHOST_XrActionSetInfo;
+struct GHOST_XrActionInfo;
+struct GHOST_XrActionSpaceInfo;
+struct GHOST_XrActionBindingsInfo;
+#endif
+
 #ifdef WITH_INPUT_NDOF
 struct wmNDOFMotionData;
 #endif
@@ -611,7 +618,13 @@ void WM_paneltype_remove(struct PanelType *pt);
 
 /* wm_gesture_ops.c */
 int WM_gesture_box_invoke(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
+int WM_gesture_box_invoke_3d(struct bContext *C,
+                             struct wmOperator *op,
+                             const struct wmEvent *event);
 int WM_gesture_box_modal(struct bContext *C, struct wmOperator *op, const struct wmEvent *event);
+int WM_gesture_box_modal_3d(struct bContext *C,
+                            struct wmOperator *op,
+                            const struct wmEvent *event);
 void WM_gesture_box_cancel(struct bContext *C, struct wmOperator *op);
 int WM_gesture_circle_invoke(struct bContext *C,
                              struct wmOperator *op,
@@ -858,6 +871,20 @@ void WM_event_ndof_to_quat(const struct wmNDOFMotionData *ndof, float q[4]);
 float WM_event_tablet_data(const struct wmEvent *event, int *pen_flip, float tilt[2]);
 bool WM_event_is_tablet(const struct wmEvent *event);
 
+void WM_event_xr_data(const struct wmEvent *event,
+                      char **action_set,
+                      char **action,
+                      char *type,
+                      float state[2],
+                      float controller_loc[3],
+                      float controller_rot[4],
+                      int *eye_width,
+                      int *eye_height,
+                      float *eye_lens,
+                      float eye_viewmat[4][4],
+                      float eye_winmat[4][4]);
+bool WM_event_is_xr(const struct wmEvent *event);
+
 #ifdef WITH_INPUT_IME
 bool WM_event_is_ime_switch(const struct wmEvent *event);
 #endif
@@ -900,7 +927,7 @@ void WM_generic_user_data_free(struct wmGenericUserData *wm_userdata);
 bool WM_region_use_viewport(struct ScrArea *area, struct ARegion *region);
 
 #ifdef WITH_XR_OPENXR
-/* wm_xr.c */
+/* wm_xr_session.c */
 bool WM_xr_session_exists(const wmXrData *xr);
 bool WM_xr_session_is_ready(const wmXrData *xr);
 struct wmXrSessionState *WM_xr_session_state_handle_get(const wmXrData *xr);
@@ -908,8 +935,75 @@ void WM_xr_session_base_pose_reset(wmXrData *xr);
 bool WM_xr_session_state_viewer_pose_location_get(const wmXrData *xr, float r_location[3]);
 bool WM_xr_session_state_viewer_pose_rotation_get(const wmXrData *xr, float r_rotation[4]);
 bool WM_xr_session_state_viewer_pose_matrix_info_get(const wmXrData *xr,
+                                                     bool from_selection_eye,
                                                      float r_viewmat[4][4],
-                                                     float *r_focal_len);
+                                                     float *r_focal_len,
+                                                     float *r_clip_start,
+                                                     float *r_clip_end);
+bool WM_xr_session_state_controller_pose_location_get(const wmXrData *xr,
+                                                      unsigned int subaction_idx,
+                                                      float r_location[3]);
+bool WM_xr_session_state_controller_pose_rotation_get(const wmXrData *xr,
+                                                      unsigned int subaction_idx,
+                                                      float r_rotation[4]);
+
+struct ARegionType *WM_xr_surface_region_type_get(void);
+
+/* wm_xr_actions.c */
+/* XR action functions to be called pre-XR session start.
+ * Note: The "destroy" functions can also be called post-session start. */
+bool WM_xr_action_set_create(wmXrData *xr, const struct GHOST_XrActionSetInfo *info);
+void WM_xr_action_set_destroy(wmXrData *xr, const char *action_set_name, bool remove_reference);
+bool WM_xr_actions_create(wmXrData *xr,
+                          const char *action_set_name,
+                          unsigned int count,
+                          const struct GHOST_XrActionInfo *infos);
+void WM_xr_actions_destroy(wmXrData *xr,
+                           const char *action_set_name,
+                           unsigned int count,
+                           const char *const *action_names);
+bool WM_xr_action_spaces_create(wmXrData *xr,
+                                const char *action_set_name,
+                                unsigned int count,
+                                const struct GHOST_XrActionSpaceInfo *infos);
+void WM_xr_action_spaces_destroy(wmXrData *xr,
+                                 const char *action_set_name,
+                                 unsigned int count,
+                                 const struct GHOST_XrActionSpaceInfo *infos);
+bool WM_xr_action_bindings_create(wmXrData *xr,
+                                  const char *action_set_name,
+                                  unsigned int count,
+                                  const struct GHOST_XrActionBindingsInfo *infos);
+void WM_xr_action_bindings_destroy(wmXrData *xr,
+                                   const char *action_set_name,
+                                   unsigned int count,
+                                   const struct GHOST_XrActionBindingsInfo *infos);
+
+bool WM_xr_active_action_set_set(
+    wmXrData *xr, const char *action_set_name); /* If action_set_name is NULL, then
+                                                 * all action sets will be treated as active. */
+bool WM_xr_controller_pose_action_set(wmXrData *xr,
+                                      const char *action_set_name,
+                                      const char *action_name);
+
+/* XR action functions to be called post-XR session start. */
+bool WM_xr_action_states_get(const wmXrData *xr,
+                             const char *action_set_name,
+                             unsigned int count,
+                             struct GHOST_XrActionInfo *r_infos);
+bool WM_xr_haptic_action_apply(wmXrData *xr,
+                               const char *action_set_name,
+                               const char *action_name,
+                               unsigned int count,
+                               const char *const *subaction_paths,
+                               const long long *duration,
+                               const float *frequency,
+                               const float *amplitude);
+void WM_xr_haptic_action_stop(wmXrData *xr,
+                              const char *action_set_name,
+                              const char *action_name,
+                              unsigned int count,
+                              const char *const *subaction_paths);
 #endif
 
 /* Game engine transition */

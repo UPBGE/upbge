@@ -705,6 +705,12 @@ void map_to_plane_axis_angle_v2_v3v3fl(float r_co[2],
                                        const float co[3],
                                        const float axis[3],
                                        const float angle);
+void map_to_pixel(int r_co[2],
+                  const float co[3],
+                  const float viewmat[4][4],
+                  const float winmat[4][4],
+                  int winx,
+                  int winy);
 
 /********************************** Normals **********************************/
 

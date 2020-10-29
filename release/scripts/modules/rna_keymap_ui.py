@@ -182,7 +182,7 @@ def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
             # sub.prop_search(kmi, "idname", bpy.context.window_manager, "operators_all", text="")
             sub.prop(kmi, "idname", text="")
 
-        if map_type not in {'TEXTINPUT', 'TIMER'}:
+        if map_type not in {'TEXTINPUT', 'TIMER', 'XR'}:
             sub = split.column()
             subrow = sub.row(align=True)
 
@@ -204,6 +204,12 @@ def draw_kmi(display_keymaps, kc, km, kmi, layout, level):
             subrow.prop(kmi, "alt", toggle=True)
             subrow.prop(kmi, "oskey", text="Cmd", toggle=True)
             subrow.prop(kmi, "key_modifier", text="", event=True)
+        elif map_type == 'XR':
+            sub = split.column()
+            subrow = sub.row(align=True)
+            subrow.prop(kmi, "xr_action_set", text="Action Set")
+            subrow = sub.row()
+            subrow.prop(kmi, "xr_action", text="Action")
 
         # Operator properties
         box.template_keymap_item_properties(kmi)

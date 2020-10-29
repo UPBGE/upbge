@@ -488,6 +488,8 @@ GHOST_TXrGraphicsBinding GHOST_XrContext::determineGraphicsBindingTypeToUse(
 
 void GHOST_XrContext::startSession(const GHOST_XrSessionBeginInfo *begin_info)
 {
+  m_custom_funcs.session_create_fn = begin_info->create_fn;
+  m_custom_funcs.session_create_customdata = begin_info->create_customdata;
   m_custom_funcs.session_exit_fn = begin_info->exit_fn;
   m_custom_funcs.session_exit_customdata = begin_info->exit_customdata;
 
@@ -537,6 +539,16 @@ void GHOST_XrContext::handleSessionStateChange(const XrEventDataSessionStateChan
  *
  * Public as in, exposed in the Ghost API.
  * \{ */
+
+GHOST_XrSession *GHOST_XrContext::getSession()
+{
+  return m_session.get();
+}
+
+const GHOST_XrSession *GHOST_XrContext::getSession() const
+{
+  return m_session.get();
+}
 
 void GHOST_XrContext::setGraphicsContextBindFuncs(GHOST_XrGraphicsContextBindFn bind_fn,
                                                   GHOST_XrGraphicsContextUnbindFn unbind_fn)

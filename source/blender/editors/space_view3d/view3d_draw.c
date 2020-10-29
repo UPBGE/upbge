@@ -331,16 +331,27 @@ static void view3d_xr_mirror_setup(const wmWindowManager *wm,
   RegionView3D *rv3d = region->regiondata;
   float viewmat[4][4];
   const float lens_old = v3d->lens;
+  const float clip_start_old = v3d->clip_start;
+  const float clip_end_old = v3d->clip_end;
+  /* Here we need to use the viewmat from the selection eye instead of the eye centroid because
+   * this function may be called from a GPU select operation. In that case we need to match the
+   * selection eye's view, which was used to project 3D to 2D, for a correct result. */
+  const bool from_selection_eye = true;
 
-  if (!WM_xr_session_state_viewer_pose_matrix_info_get(&wm->xr, viewmat, &v3d->lens)) {
+  if (!WM_xr_session_state_viewer_pose_matrix_info_get(
+          &wm->xr, from_selection_eye, viewmat, &v3d->lens, &v3d->clip_start, &v3d->clip_end)) {
     /* Can't get info from XR session, use fallback values. */
     copy_m4_m4(viewmat, rv3d->viewmat);
     v3d->lens = lens_old;
+    v3d->clip_start = clip_start_old;
+    v3d->clip_end = clip_end_old;
   }
   view3d_main_region_setup_view(depsgraph, scene, v3d, region, viewmat, NULL, rect);
 
   /* Reset overridden View3D data */
   v3d->lens = lens_old;
+  v3d->clip_start = clip_start_old;
+  v3d->clip_end = clip_end_old;
 }
 #endif /* WITH_XR_OPENXR */
 
@@ -1749,7 +1760,7 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
 void ED_view3d_draw_offscreen_simple(Depsgraph *depsgraph,
                                      Scene *scene,
                                      View3DShading *shading_override,
-                                     int drawtype,
+                                     eDrawType drawtype,
                                      int winx,
                                      int winy,
                                      uint draw_flags,
@@ -1757,6 +1768,7 @@ void ED_view3d_draw_offscreen_simple(Depsgraph *depsgraph,
                                      const float winmat[4][4],
                                      float clip_start,
                                      float clip_end,
+                                     bool is_xr_surface,
                                      bool is_image_render,
                                      bool do_sky,
                                      bool is_persp,
@@ -1787,23 +1799,35 @@ void ED_view3d_draw_offscreen_simple(Depsgraph *depsgraph,
     v3d.shading.flag = V3D_SHADING_SCENE_WORLD | V3D_SHADING_SCENE_LIGHTS;
   }
 
-  if (draw_flags & V3D_OFSDRAW_SHOW_ANNOTATION) {
-    v3d.flag2 |= V3D_SHOW_ANNOTATION;
+  if ((draw_flags & (V3D_OFSDRAW_SHOW_ANNOTATION | V3D_OFSDRAW_SHOW_GRIDFLOOR |
+                     V3D_OFSDRAW_SHOW_SELECTION | V3D_OFSDRAW_XR_SHOW_CONTROLLERS)) == 0) {
+    v3d.flag2 = V3D_HIDE_OVERLAYS;
   }
-  if (draw_flags & V3D_OFSDRAW_SHOW_GRIDFLOOR) {
-    v3d.gridflag |= V3D_SHOW_FLOOR | V3D_SHOW_X | V3D_SHOW_Y;
-    v3d.grid = 1.0f;
-    v3d.gridlines = 16;
-    v3d.gridsubdiv = 10;
-
-    /* Show grid, disable other overlays (set all available _HIDE_ flags). */
+  else {
+    if (draw_flags & V3D_OFSDRAW_SHOW_ANNOTATION) {
+      v3d.flag2 |= V3D_SHOW_ANNOTATION;
+    }
+    if (draw_flags & V3D_OFSDRAW_SHOW_GRIDFLOOR) {
+      v3d.gridflag |= V3D_SHOW_FLOOR | V3D_SHOW_X | V3D_SHOW_Y;
+      v3d.grid = 1.0f;
+      v3d.gridlines = 16;
+      v3d.gridsubdiv = 10;
+    }
+    if (draw_flags & V3D_OFSDRAW_SHOW_SELECTION) {
+      v3d.flag |= V3D_SELECT_OUTLINE;
+    }
+    if (draw_flags & V3D_OFSDRAW_XR_SHOW_CONTROLLERS) {
+      v3d.flag2 |= V3D_XR_SHOW_CONTROLLERS;
+    }
+    /* Disable other overlays (set all available _HIDE_ flags). */
     v3d.overlay.flag |= V3D_OVERLAY_HIDE_CURSOR | V3D_OVERLAY_HIDE_TEXT |
                         V3D_OVERLAY_HIDE_MOTION_PATHS | V3D_OVERLAY_HIDE_BONES |
                         V3D_OVERLAY_HIDE_OBJECT_XTRAS | V3D_OVERLAY_HIDE_OBJECT_ORIGINS;
     v3d.flag |= V3D_HIDE_HELPLINES;
   }
-  else {
-    v3d.flag2 = V3D_HIDE_OVERLAYS;
+
+  if (is_xr_surface) {
+    v3d.flag |= V3D_XR_SESSION_SURFACE;
   }
 
   rv3d.persp = RV3D_PERSP;

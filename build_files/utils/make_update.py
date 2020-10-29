@@ -169,7 +169,7 @@ def submodules_update(args, release_version, branch):
         branch = "master"
 
     submodules = [
-        ("release/scripts/addons", branch),
+        ("release/scripts/addons", "xr-actions-D9124"),
         ("release/scripts/addons_contrib", branch),
         ("release/datafiles/locale", branch),
         ("source/tools", branch),

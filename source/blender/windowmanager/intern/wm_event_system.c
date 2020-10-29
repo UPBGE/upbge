@@ -82,7 +82,12 @@
 #include "wm.h"
 #include "wm_event_system.h"
 #include "wm_event_types.h"
+#include "wm_surface.h"
 #include "wm_window.h"
+
+#ifdef WITH_XR_OPENXR
+#  include "xr/intern/wm_xr_intern.h"
+#endif
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
@@ -1278,7 +1283,19 @@ static int wm_operator_invoke(bContext *C,
                 ot->idname);
     }
 
-    if (op->type->invoke && event) {
+    if (op->type->invoke_3d && event && (event->type == EVT_XR_ACTION)) {
+      if (op->type->flag & OPTYPE_UNDO) {
+        wm->op_undo_depth++;
+      }
+
+      retval = op->type->invoke_3d(C, op, event);
+      OPERATOR_RETVAL_CHECK(retval);
+
+      if (op->type->flag & OPTYPE_UNDO && CTX_wm_manager(C) == wm) {
+        wm->op_undo_depth--;
+      }
+    }
+    else if (op->type->invoke && event) {
       wm_region_mouse_co(C, event);
 
       if (op->type->flag & OPTYPE_UNDO) {
@@ -1876,6 +1893,14 @@ static bool wm_eventmatch(const wmEvent *winevent, const wmKeyMapItem *kmi)
     }
   }
 
+  if (ISXR(kmitype)) {
+    wmXrActionData *customdata = winevent->customdata;
+    if (!STREQ(kmi->xr_action_set, customdata->action_set) ||
+        !STREQ(kmi->xr_action, customdata->action)) {
+      return false;
+    }
+  }
+
   return true;
 }
 
@@ -2003,7 +2028,7 @@ static int wm_handler_operator_call(bContext *C,
        * nothing to do in this case.
        */
     }
-    else if (ot->modal) {
+    else if (ot->modal || ot->modal_3d) {
       /* We set context to where modal handler came from. */
       wmWindowManager *wm = CTX_wm_manager(C);
       ScrArea *area = CTX_wm_area(C);
@@ -2019,7 +2044,15 @@ static int wm_handler_operator_call(bContext *C,
       }
 
       /* Warning, after this call all context data and 'event' may be freed. see check below. */
-      retval = ot->modal(C, op, event);
+      if (ot->modal_3d && event->type == EVT_XR_ACTION) {
+        retval = ot->modal_3d(C, op, event);
+      }
+      else if (ot->modal) {
+        retval = ot->modal(C, op, event);
+      }
+      else {
+        /* Pass through. An "XR operator" (only modal_3d) received a non-XR event.*/
+      }
       OPERATOR_RETVAL_CHECK(retval);
 
       /* When this is _not_ the case the modal modifier may have loaded
@@ -3154,6 +3187,109 @@ static void wm_event_free_and_remove_from_queue_if_valid(wmEvent *event)
  * Handle events for all windows, run from the #WM_main event loop.
  * \{ */
 
+#ifdef WITH_XR_OPENXR
+static void wm_event_surface_free_all(wmXrSurfaceData *surface_data)
+{
+  ListBase *events = &surface_data->events;
+  if (!BLI_listbase_is_empty(events)) {
+    LISTBASE_FOREACH (wmEvent *, event, events) {
+      MEM_freeN(event->customdata);
+    }
+    BLI_freelistN(events);
+  }
+}
+
+static void wm_event_do_surface_handlers(bContext *C, wmSurface *surface)
+{
+  /* TODO_XR: Currently assumes that the XR surface is the
+   * same as the one for the XR runtime. In the future this
+   * might not always be the case. */
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmXrData *xr = &wm->xr;
+  if (!xr->runtime || !surface->is_xr) {
+    return;
+  }
+
+  wmXrSurfaceData *surface_data = surface->customdata;
+  if (!surface_data || BLI_listbase_is_empty(&surface_data->events)) {
+    return;
+  }
+
+  wmWindow *win = wm_xr_session_root_window_or_fallback_get(wm, xr->runtime);
+  bScreen *screen = WM_window_get_active_screen(win);
+
+  BLI_assert(WM_window_get_active_scene(win));
+  BLI_assert(WM_window_get_active_screen(win));
+  BLI_assert(WM_window_get_active_workspace(win));
+
+  if (!screen) {
+    if (surface_data) {
+      wm_event_surface_free_all(surface_data);
+    }
+    return;
+  }
+
+  ARegion *xr_region = NULL;
+
+  CTX_wm_window_set(C, win);
+  wm_window_make_drawable(wm, win);
+
+  /* Set up a valid context for executing XR operations. */
+  ED_screen_areas_iter (win, screen, area) {
+    CTX_wm_area_set(C, area);
+
+    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+      if (WM_region_use_viewport(area, region)) {
+        CTX_wm_region_set(C, region);
+
+        ListBase *events = &surface_data->events;
+
+        LISTBASE_FOREACH (wmEvent *, event, events) {
+          wmXrActionData *action_data = event->customdata;
+          PointerRNA properties = {.type = action_data->ot->srna,
+                                   .data = action_data->op_properties};
+
+          if (action_data->ot->invoke) {
+            /* Invoke operator, either executing operator or transferring responsibility to window
+             * modal handlers. */
+            wm_operator_invoke(C,
+                               action_data->ot,
+                               event,
+                               action_data->op_properties ? &properties : NULL,
+                               NULL,
+                               false,
+                               false);
+          }
+          else {
+            /* Execute operator. */
+            wmOperator *op = wm_operator_create(
+                wm, action_data->ot, action_data->op_properties ? &properties : NULL, NULL);
+            if ((WM_operator_call(C, op) & OPERATOR_HANDLED) == 0) {
+              WM_operator_free(op);
+            }
+          }
+
+          MEM_freeN(action_data);
+        }
+
+        BLI_freelistN(events);
+
+        CTX_wm_region_set(C, NULL);
+        xr_region = region;
+        break;
+      }
+    }
+
+    CTX_wm_area_set(C, area);
+    if (xr_region) {
+      break;
+    }
+  }
+
+  CTX_wm_window_set(C, NULL);
+}
+#endif /* WITH_XR_OPENXR */
+
 /* Called in main loop. */
 /* Goes over entire hierarchy:  events -> window -> screen -> area -> region. */
 void wm_event_do_handlers(bContext *C)
@@ -3418,6 +3554,11 @@ void wm_event_do_handlers(bContext *C)
 
     CTX_wm_window_set(C, NULL);
   }
+
+#ifdef WITH_XR_OPENXR
+  /* Handle surface events. */
+  wm_surfaces_iter(C, wm_event_do_surface_handlers);
+#endif
 
   /* Update key configuration after handling events. */
   WM_keyconfig_update(wm);
@@ -4727,6 +4868,88 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, void 
   WM_event_print(&event);
 #endif
 }
+
+#ifdef WITH_XR_OPENXR
+void wm_event_add_xrevent(const char *action_set_name,
+                          const wmXrAction *action,
+                          const GHOST_XrPose *controller_pose,
+                          const wmXrEyeData *eye_data,
+                          wmSurface *surface,
+                          wmWindow *win,
+                          unsigned int subaction_idx,
+                          short val,
+                          bool press_start)
+{
+  BLI_assert(surface->is_xr && surface->customdata);
+  BLI_assert(val == KM_PRESS || val == KM_RELEASE);
+
+  wmXrSurfaceData *surface_data = surface->customdata;
+  const bool add_win_event = (action->ot->modal &&
+                              ((val == KM_PRESS && !press_start) || val == KM_RELEASE));
+
+  wmEvent _event;
+  wmEvent *event = add_win_event ? &_event : MEM_callocN(sizeof(wmEvent), __func__);
+  event->type = EVT_XR_ACTION;
+  event->val = val;
+  event->is_repeat = false;
+
+  wmXrActionData *data = MEM_callocN(sizeof(wmXrActionData), __func__);
+  strcpy(data->action_set, action_set_name);
+  strcpy(data->action, action->name);
+  data->type = action->type;
+
+  switch (action->type) {
+    case GHOST_kXrActionTypeBooleanInput: {
+      data->state[0] = (float)((bool *)action->states)[subaction_idx]; /* Cast bool to float. */
+      break;
+    }
+    case GHOST_kXrActionTypeFloatInput: {
+      data->state[0] = ((float *)action->states)[subaction_idx];
+      break;
+    }
+    case GHOST_kXrActionTypeVector2fInput: {
+      memcpy(data->state, ((float(*)[2])action->states)[subaction_idx], sizeof(float[2]));
+      break;
+    }
+    default: {
+      return;
+    }
+  }
+
+  if (controller_pose) {
+    copy_v3_v3(data->controller_loc, controller_pose->position);
+    copy_qt_qt(data->controller_rot, controller_pose->orientation_quat);
+  }
+  else {
+    data->controller_rot[0] = 1.0f;
+  }
+
+  if (eye_data) {
+    data->eye_width = eye_data->width;
+    data->eye_height = eye_data->height;
+    data->eye_lens = eye_data->focal_len;
+    copy_m4_m4(data->eye_viewmat, eye_data->viewmat);
+    copy_m4_m4(data->eye_winmat, eye_data->winmat);
+  }
+
+  data->ot = action->ot;
+  data->op_properties = action->op_properties;
+
+  event->custom = EVT_DATA_XR;
+  event->customdata = data;
+  event->customdatafree = 1;
+
+  if (add_win_event) {
+    /* Events with active modal handlers will be handled by the window. */
+    wm_event_add(win, event);
+  }
+  else {
+    /* Operators will be called by the surface. For modal operators, this will
+     * create the modal handlers to later be handled by the window. */
+    BLI_addtail(&surface_data->events, event);
+  }
+}
+#endif /* WITH_XR_OPENXR */
 
 /** \} */
 

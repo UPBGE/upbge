@@ -48,7 +48,6 @@ enum DeviceType {
   DEVICE_NETWORK,
   DEVICE_MULTI,
   DEVICE_OPTIX,
-  DEVICE_DUMMY,
 };
 
 enum DeviceTypeMask {
@@ -88,7 +87,6 @@ class DeviceInfo {
   int cpu_threads;
   vector<DeviceInfo> multi_devices;
   vector<DeviceInfo> denoising_devices;
-  string error_msg;
 
   DeviceInfo()
   {
@@ -473,7 +471,6 @@ class Device {
   static string string_from_type(DeviceType type);
   static vector<DeviceType> available_types();
   static vector<DeviceInfo> available_devices(uint device_type_mask = DEVICE_MASK_ALL);
-  static DeviceInfo dummy_device(const string &error_msg = "");
   static string device_capabilities(uint device_type_mask = DEVICE_MASK_ALL);
   static DeviceInfo get_multi_device(const vector<DeviceInfo> &subdevices,
                                      int threads,

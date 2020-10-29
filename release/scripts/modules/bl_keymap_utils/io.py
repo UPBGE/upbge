@@ -78,6 +78,12 @@ def kmi_args_as_data(kmi):
             if kmi.value in {'PRESS', 'ANY'}:
                 s.append("\"repeat\": True")
 
+    if kmi.map_type == 'XR':
+        if kmi.xr_action_set:
+            s.append(f"\"xr_action_set\": '{kmi.xr_action_set}'")
+        if kmi.xr_action:
+            s.append(f"\"xr_action\": '{kmi.xr_action}'")
+
     return "{" + ", ".join(s) + "}"
 
 

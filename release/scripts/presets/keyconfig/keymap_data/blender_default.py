@@ -721,6 +721,28 @@ def km_user_interface(_params):
     return keymap
 
 
+def km_xr(_params):
+    items = []
+    keymap = (
+        "XR",
+        {"space_type": 'EMPTY', "region_type": 'XR'},
+        {"items": items},
+    )
+
+    return keymap
+
+
+def km_xr_session(_params):
+    items = []
+    keymap = (
+        "XR Session",
+        {"space_type": 'EMPTY', "region_type": 'XR'},
+        {"items": items},
+    )
+
+    return keymap
+
+
 # ------------------------------------------------------------------------------
 # Editors
 
@@ -6866,9 +6888,11 @@ def generate_keymaps(params=None):
         km_view2d(params),
         km_view2d_buttons_list(params),
         km_user_interface(params),
-        km_property_editor(params),
+        km_xr(params),
+        km_xr_session(params),
 
         # Editors.
+        km_property_editor(params),
         km_logic(params),
         km_outliner(params),
         km_uv_editor(params),

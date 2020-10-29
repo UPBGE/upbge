@@ -23,6 +23,7 @@
 #include <chrono>
 #include <cstdio>
 #include <list>
+#include <set>
 #include <sstream>
 
 #include "GHOST_C-api.h"
@@ -35,6 +36,8 @@
 
 #include "GHOST_XrSession.h"
 
+struct OpenXRActionSet;
+
 struct OpenXRSessionData {
   XrSystemId system_id = XR_NULL_SYSTEM_ID;
   XrSession session = XR_NULL_HANDLE;
@@ -46,6 +49,8 @@ struct OpenXRSessionData {
   XrSpace view_space;
   std::vector<XrView> views;
   std::vector<GHOST_XrSwapchain> swapchains;
+
+  std::map<std::string, OpenXRActionSet> action_sets;
 };
 
 struct GHOST_XrDrawInfo {
@@ -55,6 +60,25 @@ struct GHOST_XrDrawInfo {
   std::chrono::high_resolution_clock::time_point frame_begin_time;
   /* Time previous frames took for rendering (in ms). */
   std::list<double> last_frame_times;
+};
+
+struct OpenXRActionProfile {
+  XrPath profile;
+  /* Bindings identified by interaction (user (subaction) + component) path. */
+  std::map<std::string, XrPath> bindings;
+};
+
+struct OpenXRAction {
+  XrAction action;
+  /* Spaces identified by user (subaction) path. */
+  std::map<std::string, XrSpace> spaces;
+  /* Profiles identified by interaction profile path. */
+  std::map<std::string, OpenXRActionProfile> profiles;
+};
+
+struct OpenXRActionSet {
+  XrActionSet set;
+  std::map<std::string, OpenXRAction> actions;
 };
 
 /* -------------------------------------------------------------------- */
@@ -69,6 +93,11 @@ GHOST_XrSession::GHOST_XrSession(GHOST_XrContext &xr_context)
 
 GHOST_XrSession::~GHOST_XrSession()
 {
+  for (auto &action_set : m_oxr->action_sets) {
+    destroyActionSet(action_set.first.c_str(), false);
+  }
+  m_oxr->action_sets.clear();
+
   unbindGraphicsContext();
 
   m_oxr->swapchains.clear();
@@ -196,6 +225,10 @@ void GHOST_XrSession::start(const GHOST_XrSessionBeginInfo *begin_info)
 
   prepareDrawing();
   create_reference_spaces(*m_oxr, begin_info->base_pose);
+
+  /* Create and bind actions here. */
+  m_context->getCustomFuncs().session_create_fn(
+      m_context->getCustomFuncs().session_create_customdata);
 }
 
 void GHOST_XrSession::requestEnd()
@@ -364,6 +397,18 @@ static void copy_openxr_pose_to_ghost_pose(const XrPosef &oxr_pose, GHOST_XrPose
   r_ghost_pose.orientation_quat[3] = oxr_pose.orientation.z;
 }
 
+static void copy_ghost_pose_to_openxr_pose(const GHOST_XrPose &ghost_pose, XrPosef &r_oxr_pose)
+{
+  /* Set and convert to OpenXR coodinate space. */
+  r_oxr_pose.position.x = ghost_pose.position[0];
+  r_oxr_pose.position.y = ghost_pose.position[1];
+  r_oxr_pose.position.z = ghost_pose.position[2];
+  r_oxr_pose.orientation.w = ghost_pose.orientation_quat[0];
+  r_oxr_pose.orientation.x = ghost_pose.orientation_quat[1];
+  r_oxr_pose.orientation.y = ghost_pose.orientation_quat[2];
+  r_oxr_pose.orientation.z = ghost_pose.orientation_quat[3];
+}
+
 static void ghost_xr_draw_view_info_from_view(const XrView &view, GHOST_XrDrawViewInfo &r_info)
 {
   /* Set and convert to Blender coodinate space. */
@@ -379,6 +424,7 @@ void GHOST_XrSession::drawView(GHOST_XrSwapchain &swapchain,
                                XrCompositionLayerProjectionView &r_proj_layer_view,
                                XrSpaceLocation &view_location,
                                XrView &view,
+                               uint32_t view_idx,
                                void *draw_customdata)
 {
   XrSwapchainImageBaseHeader *swapchain_image = swapchain.acquireDrawableSwapchainImage();
@@ -389,6 +435,7 @@ void GHOST_XrSession::drawView(GHOST_XrSwapchain &swapchain,
   r_proj_layer_view.fov = view.fov;
   swapchain.updateCompositionLayerProjectViewSubImage(r_proj_layer_view.subImage);
 
+  draw_view_info.view = (char)view_idx;
   draw_view_info.expects_srgb_buffer = swapchain.isBufferSRGB();
   draw_view_info.ofsx = r_proj_layer_view.subImage.imageRect.offset.x;
   draw_view_info.ofsy = r_proj_layer_view.subImage.imageRect.offset.y;
@@ -438,6 +485,7 @@ XrCompositionLayerProjection GHOST_XrSession::drawLayer(
              r_proj_layer_views[view_idx],
              view_location,
              m_oxr->views[view_idx],
+             view_idx,
              draw_customdata);
   }
 
@@ -505,3 +553,751 @@ void GHOST_XrSession::unbindGraphicsContext()
 }
 
 /** \} */ /* Graphics Context Injection */
+
+/* -------------------------------------------------------------------- */
+/** \name Actions
+ *
+ * \{ */
+
+static OpenXRActionSet *find_action_set(OpenXRSessionData *oxr, const char *action_set_name)
+{
+  auto action_set = oxr->action_sets.find(action_set_name);
+  if (action_set == oxr->action_sets.end()) {
+    return nullptr;
+  }
+  return &action_set->second;
+}
+
+static OpenXRAction *find_action(OpenXRActionSet *action_set, const char *action_name)
+{
+  auto action = action_set->actions.find(action_name);
+  if (action == action_set->actions.end()) {
+    return nullptr;
+  }
+  return &action->second;
+}
+
+static XrSpace *find_action_space(OpenXRAction *action, const char *subaction_path)
+{
+  auto space = action->spaces.find(subaction_path);
+  if (space == action->spaces.end()) {
+    return nullptr;
+  }
+  return &space->second;
+}
+
+static OpenXRActionProfile *find_action_profile(OpenXRAction *action,
+                                                const char *interaction_profile_path)
+{
+  auto profile = action->profiles.find(interaction_profile_path);
+  if (profile == action->profiles.end()) {
+    return nullptr;
+  }
+  return &profile->second;
+}
+
+bool GHOST_XrSession::createActionSet(const GHOST_XrActionSetInfo *info)
+{
+  XrActionSetCreateInfo action_set_info{XR_TYPE_ACTION_SET_CREATE_INFO};
+  strcpy(action_set_info.actionSetName, info->name);
+  strcpy(action_set_info.localizedActionSetName,
+         info->name); /* Just use same name for localized. This can be changed in the future if
+                         necessary. */
+  action_set_info.priority = info->priority;
+
+  OpenXRActionSet action_set;
+  CHECK_XR(xrCreateActionSet(m_context->getInstance(), &action_set_info, &action_set.set),
+           (m_error_msg = std::string("Failed to create action set \"") + info->name +
+                          "\".\nName must not contain upper case letters or special characters "
+                          "other than '-', '_', or '.'.")
+               .c_str());
+
+  std::map<std::string, OpenXRActionSet> &action_sets = m_oxr->action_sets;
+  if (action_sets.find(info->name) == action_sets.end()) {
+    action_sets.insert({info->name, std::move(action_set)});
+  }
+  else {
+    action_sets[info->name] = std::move(action_set);
+  }
+
+  return true;
+}
+
+void GHOST_XrSession::destroyActionSet(const char *action_set_name, bool remove_reference)
+{
+  OpenXRActionSet *action_set = find_action_set(m_oxr.get(), action_set_name);
+  if (action_set == nullptr) {
+    return;
+  }
+
+  for (auto &action : action_set->actions) {
+    for (auto &space : action.second.spaces) {
+      CHECK_XR(xrDestroySpace(space.second),
+               (m_error_msg = std::string("Failed to destroy space \"") + space.first +
+                              "\" for action \"" + action.first + "\".")
+                   .c_str());
+    }
+  }
+  /* According to the spec, this will also destroy all actions in the set. */
+  CHECK_XR(xrDestroyActionSet(action_set->set),
+           (m_error_msg = std::string("Failed to destroy action set \"") + action_set_name + "\".")
+               .c_str());
+
+  if (remove_reference) {
+    m_oxr->action_sets.erase(action_set_name);
+  }
+}
+
+bool GHOST_XrSession::createActions(const char *action_set_name,
+                                    uint32_t count,
+                                    const GHOST_XrActionInfo *infos)
+{
+  OpenXRActionSet *action_set = find_action_set(m_oxr.get(), action_set_name);
+  if (action_set == nullptr) {
+    return false;
+  }
+
+  std::map<std::string, OpenXRAction> &actions = action_set->actions;
+  XrInstance instance = m_context->getInstance();
+
+  for (uint32_t i = 0; i < count; ++i) {
+    const GHOST_XrActionInfo &info = infos[i];
+
+    std::vector<XrPath> subaction_paths(info.count_subaction_paths);
+    for (uint32_t i = 0; i < info.count_subaction_paths; ++i) {
+      CHECK_XR(xrStringToPath(instance, info.subaction_paths[i], &subaction_paths[i]),
+               (m_error_msg = std::string("Failed to get user path \"") + info.subaction_paths[i] +
+                              "\".")
+                   .c_str());
+    }
+
+    XrActionCreateInfo action_info{XR_TYPE_ACTION_CREATE_INFO};
+    strcpy(action_info.actionName, info.name);
+    strcpy(action_info.localizedActionName,
+           info.name); /* Just use same name for localized. This can be changed in the future if
+                          necessary. */
+
+    switch (info.type) {
+      case GHOST_kXrActionTypeBooleanInput: {
+        action_info.actionType = XR_ACTION_TYPE_BOOLEAN_INPUT;
+        break;
+      }
+      case GHOST_kXrActionTypeFloatInput: {
+        action_info.actionType = XR_ACTION_TYPE_FLOAT_INPUT;
+        break;
+      }
+      case GHOST_kXrActionTypeVector2fInput: {
+        action_info.actionType = XR_ACTION_TYPE_VECTOR2F_INPUT;
+        break;
+      }
+      case GHOST_kXrActionTypePoseInput: {
+        action_info.actionType = XR_ACTION_TYPE_POSE_INPUT;
+        break;
+      }
+      case GHOST_kXrActionTypeVibrationOutput: {
+        action_info.actionType = XR_ACTION_TYPE_VIBRATION_OUTPUT;
+        break;
+      }
+      default: {
+        continue;
+      }
+    }
+    action_info.countSubactionPaths = info.count_subaction_paths;
+    action_info.subactionPaths = subaction_paths.data();
+
+    OpenXRAction action;
+    CHECK_XR(
+        xrCreateAction(action_set->set, &action_info, &action.action),
+        (m_error_msg = std::string("Failed to create action \"") + info.name +
+                       "\".\nAction name and/or paths are invalid.\nName must not contain upper "
+                       "case letters or special characters other than '-', '_', or '.'.")
+            .c_str());
+
+    if (actions.find(info.name) == actions.end()) {
+      actions.insert({info.name, std::move(action)});
+    }
+    else {
+      actions[info.name] = std::move(action);
+    }
+  }
+
+  return true;
+}
+
+void GHOST_XrSession::destroyActions(const char *action_set_name,
+                                     uint32_t count,
+                                     const char *const *action_names)
+{
+  OpenXRActionSet *action_set = find_action_set(m_oxr.get(), action_set_name);
+  if (action_set == nullptr) {
+    return;
+  }
+
+  std::map<std::string, OpenXRAction> &actions = action_set->actions;
+
+  for (uint32_t i = 0; i < count; ++i) {
+    const char *action_name = action_names[i];
+
+    OpenXRAction *action = find_action(action_set, action_name);
+    if (action == nullptr) {
+      continue;
+    }
+
+    for (auto &space : action->spaces) {
+      CHECK_XR(xrDestroySpace(space.second),
+               (m_error_msg = std::string("Failed to destroy space \"") + space.first +
+                              "\" for action \"" + action_name + "\".")
+                   .c_str());
+    }
+    CHECK_XR(
+        xrDestroyAction(action->action),
+        (m_error_msg = std::string("Failed to destroy action \"") + action_name + "\".").c_str());
+
+    actions.erase(action_name);
+  }
+}
+
+bool GHOST_XrSession::createActionSpaces(const char *action_set_name,
+                                         uint32_t count,
+                                         const GHOST_XrActionSpaceInfo *infos)
+{
+  OpenXRActionSet *action_set = find_action_set(m_oxr.get(), action_set_name);
+  if (action_set == nullptr) {
+    return false;
+  }
+
+  XrInstance instance = m_context->getInstance();
+  XrSession &session = m_oxr->session;
+
+  for (uint32_t action_idx = 0; action_idx < count; ++action_idx) {
+    const GHOST_XrActionSpaceInfo &info = infos[action_idx];
+
+    OpenXRAction *action = find_action(action_set, info.action_name);
+    if (action == nullptr) {
+      continue;
+    }
+
+    XrActionSpaceCreateInfo action_space_info{XR_TYPE_ACTION_SPACE_CREATE_INFO};
+    action_space_info.action = action->action;
+
+    for (uint32_t subaction_idx = 0; subaction_idx < info.count_subaction_paths; ++subaction_idx) {
+      const char *subaction_path = info.subaction_paths[subaction_idx];
+
+      CHECK_XR(xrStringToPath(instance, subaction_path, &action_space_info.subactionPath),
+               (m_error_msg = std::string("Failed to get user path \"") + subaction_path + "\".")
+                   .c_str());
+      copy_ghost_pose_to_openxr_pose(info.poses[subaction_idx],
+                                     action_space_info.poseInActionSpace);
+
+      XrSpace space;
+      CHECK_XR(xrCreateActionSpace(session, &action_space_info, &space),
+               (m_error_msg = std::string("Failed to create space \"") + subaction_path +
+                              "\" for action \"" + info.action_name + "\".")
+                   .c_str());
+
+      std::map<std::string, XrSpace> &spaces = action->spaces;
+      if (spaces.find(info.action_name) == spaces.end()) {
+        spaces.insert({subaction_path, std::move(space)});
+      }
+      else {
+        spaces[subaction_path] = std::move(space);
+      }
+    }
+  }
+
+  return true;
+}
+
+void GHOST_XrSession::destroyActionSpaces(const char *action_set_name,
+                                          uint32_t count,
+                                          const GHOST_XrActionSpaceInfo *infos)
+{
+  OpenXRActionSet *action_set = find_action_set(m_oxr.get(), action_set_name);
+  if (action_set == nullptr) {
+    return;
+  }
+
+  for (uint32_t action_idx = 0; action_idx < count; ++action_idx) {
+    const GHOST_XrActionSpaceInfo &info = infos[action_idx];
+
+    OpenXRAction *action = find_action(action_set, info.action_name);
+    if (action == nullptr) {
+      continue;
+    }
+
+    std::map<std::string, XrSpace> &spaces = action->spaces;
+
+    for (uint32_t subaction_idx = 0; subaction_idx < info.count_subaction_paths; ++subaction_idx) {
+      const char *subaction_path = info.subaction_paths[subaction_idx];
+
+      XrSpace *space = find_action_space(action, subaction_path);
+      if (space == nullptr) {
+        continue;
+      }
+
+      CHECK_XR(xrDestroySpace(*space),
+               (m_error_msg = std::string("Failed to destroy space \"") + subaction_path +
+                              "\" for action \"" + info.action_name + "\".")
+                   .c_str());
+
+      spaces.erase(subaction_path);
+    }
+  }
+}
+
+bool GHOST_XrSession::createActionBindings(const char *action_set_name,
+                                           uint32_t count,
+                                           const GHOST_XrActionBindingsInfo *infos)
+{
+  OpenXRActionSet *action_set = find_action_set(m_oxr.get(), action_set_name);
+  if (action_set == nullptr) {
+    return false;
+  }
+
+  XrInstance instance = m_context->getInstance();
+
+  for (uint32_t profile_idx = 0; profile_idx < count; ++profile_idx) {
+    const GHOST_XrActionBindingsInfo &info = infos[profile_idx];
+    const char *interaction_profile_path = info.interaction_profile_path;
+
+    XrInteractionProfileSuggestedBinding bindings_info{
+        XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
+    CHECK_XR(xrStringToPath(instance, interaction_profile_path, &bindings_info.interactionProfile),
+             (m_error_msg = std::string("Failed to get interaction profile path \"") +
+                            interaction_profile_path + "\".")
+                 .c_str());
+
+    std::vector<XrActionSuggestedBinding> sbindings(info.count_bindings); /* suggested bindings */
+    std::map<std::string, XrPath> nbindings;                              /* new bindings */
+
+    for (uint32_t binding_idx = 0; binding_idx < info.count_bindings; ++binding_idx) {
+      const GHOST_XrActionBinding &binding = info.bindings[binding_idx];
+
+      OpenXRAction *action = find_action(action_set, binding.action_name);
+      if (action == nullptr) {
+        sbindings.pop_back();
+        continue;
+      }
+
+      XrActionSuggestedBinding &sbinding = sbindings[binding_idx];
+      sbinding.action = action->action;
+      CHECK_XR(xrStringToPath(instance, binding.interaction_path, &sbinding.binding),
+               (m_error_msg = std::string("Failed to get interaction path \"") +
+                              binding.interaction_path + "\".")
+                   .c_str());
+
+      nbindings.insert({binding.interaction_path, sbinding.binding});
+    }
+
+    /* Since xrSuggestInteractionProfileBindings() overwrites all bindings, we
+     * need to re-add any existing bindings for the interaction profile. */
+    for (auto &action : action_set->actions) {
+      OpenXRActionProfile *profile = find_action_profile(&action.second, interaction_profile_path);
+      if (profile == nullptr) {
+        continue;
+      }
+      for (auto &binding : profile->bindings) {
+        if (nbindings.find(binding.first) != nbindings.end()) {
+          continue;
+        }
+        XrActionSuggestedBinding sbinding;
+        sbinding.action = action.second.action;
+        sbinding.binding = binding.second;
+
+        sbindings.push_back(std::move(sbinding));
+      }
+    }
+
+    bindings_info.countSuggestedBindings = (uint32_t)sbindings.size();
+    bindings_info.suggestedBindings = sbindings.data();
+
+    CHECK_XR(xrSuggestInteractionProfileBindings(instance, &bindings_info),
+             (m_error_msg = std::string("Failed to create bindings for profile \"") +
+                            interaction_profile_path + "\".\n" +
+                            "Are the profile and action paths correct?")
+                 .c_str());
+
+    for (uint32_t binding_idx = 0; binding_idx < info.count_bindings; ++binding_idx) {
+      const GHOST_XrActionBinding &binding = info.bindings[binding_idx];
+
+      auto nbinding = nbindings.find(binding.interaction_path);
+      if (nbinding == nbindings.end()) {
+        continue;
+      }
+
+      OpenXRAction *action = find_action(action_set, binding.action_name);
+      if (action == nullptr) {
+        continue;
+      }
+
+      OpenXRActionProfile *profile = find_action_profile(action, interaction_profile_path);
+      if (profile == nullptr) {
+        OpenXRActionProfile p;
+        p.profile = bindings_info.interactionProfile;
+        p.bindings.insert({nbinding->first, nbinding->second});
+
+        action->profiles.insert({interaction_profile_path, std::move(p)});
+      }
+      else {
+        std::map<std::string, XrPath> &bindings = profile->bindings;
+        if (bindings.find(nbinding->first) == bindings.end()) {
+          bindings.insert({nbinding->first, nbinding->second});
+        }
+        else {
+          bindings[interaction_profile_path] = nbinding->second;
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
+void GHOST_XrSession::destroyActionBindings(const char *action_set_name,
+                                            uint32_t count,
+                                            const GHOST_XrActionBindingsInfo *infos)
+{
+  OpenXRActionSet *action_set = find_action_set(m_oxr.get(), action_set_name);
+  if (action_set == nullptr) {
+    return;
+  }
+
+  XrInstance instance = m_context->getInstance();
+
+  for (uint32_t profile_idx = 0; profile_idx < count; ++profile_idx) {
+    const GHOST_XrActionBindingsInfo &info = infos[profile_idx];
+    const char *interaction_profile_path = info.interaction_profile_path;
+
+    XrInteractionProfileSuggestedBinding bindings_info{
+        XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
+    CHECK_XR(xrStringToPath(instance, interaction_profile_path, &bindings_info.interactionProfile),
+             (m_error_msg = std::string("Failed to get interaction profile path \"") +
+                            interaction_profile_path + "\".")
+                 .c_str());
+
+    std::vector<XrActionSuggestedBinding> sbindings; /* suggested bindings */
+    std::set<std::string> dbindings;                 /* deleted bindings */
+
+    for (uint32_t binding_idx = 0; binding_idx < info.count_bindings; ++binding_idx) {
+      const GHOST_XrActionBinding &binding = info.bindings[binding_idx];
+
+      OpenXRAction *action = find_action(action_set, binding.action_name);
+      if (action == nullptr) {
+        continue;
+      }
+
+      OpenXRActionProfile *profile = find_action_profile(action, interaction_profile_path);
+      if (profile == nullptr) {
+        continue;
+      }
+
+      if (profile->bindings.find(binding.interaction_path) == profile->bindings.end()) {
+        continue;
+      }
+
+      dbindings.insert({binding.interaction_path});
+    }
+
+    /* Create list of suggested bindings that excludes deleted bindings. */
+    for (auto &action : action_set->actions) {
+      OpenXRActionProfile *profile = find_action_profile(&action.second, interaction_profile_path);
+      if (profile == nullptr) {
+        continue;
+      }
+
+      for (auto &binding : profile->bindings) {
+        if (dbindings.find(binding.first) != dbindings.end()) {
+          continue;
+        }
+        XrActionSuggestedBinding sbinding;
+        sbinding.action = action.second.action;
+        sbinding.binding = binding.second;
+
+        sbindings.push_back(std::move(sbinding));
+      }
+    }
+
+    bindings_info.countSuggestedBindings = (uint32_t)sbindings.size();
+    bindings_info.suggestedBindings = sbindings.data();
+
+    CHECK_XR(xrSuggestInteractionProfileBindings(instance, &bindings_info),
+             (m_error_msg = std::string("Failed to destroy bindings for profile \"") +
+                            interaction_profile_path + "\".\n" +
+                            "Are the profile and action paths correct?")
+                 .c_str());
+
+    for (uint32_t binding_idx = 0; binding_idx < info.count_bindings; ++binding_idx) {
+      const GHOST_XrActionBinding &binding = info.bindings[binding_idx];
+
+      auto dbinding = dbindings.find(binding.interaction_path);
+      if (dbinding == dbindings.end()) {
+        continue;
+      }
+
+      OpenXRAction *action = find_action(action_set, binding.action_name);
+      if (action == nullptr) {
+        continue;
+      }
+
+      OpenXRActionProfile *profile = find_action_profile(action, interaction_profile_path);
+      if (profile == nullptr) {
+        continue;
+      }
+
+      std::map<std::string, XrPath> &bindings = profile->bindings;
+      if (bindings.find(*dbinding) == bindings.end()) {
+        continue;
+      }
+      bindings.erase(*dbinding);
+
+      if (bindings.size() < 1) {
+        action->profiles.erase(interaction_profile_path);
+      }
+    }
+  }
+}
+
+bool GHOST_XrSession::attachActionSets()
+{
+  XrSessionActionSetsAttachInfo attach_info{XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO};
+  attach_info.countActionSets = (uint32_t)m_oxr->action_sets.size();
+
+  /* Create an aligned copy of the action sets to pass to xrAttachSessionActionSets().
+   * Not that much of a performance concern since attachActionSets() should only be called once
+   * per session. */
+  std::vector<XrActionSet> action_sets(attach_info.countActionSets);
+  uint32_t i = 0;
+  for (auto &action_set : m_oxr->action_sets) {
+    action_sets[i] = action_set.second.set;
+    ++i;
+  }
+  attach_info.actionSets = action_sets.data();
+
+  CHECK_XR(xrAttachSessionActionSets(m_oxr->session, &attach_info),
+           "Failed to attach XR action sets.");
+
+  return true;
+}
+
+bool GHOST_XrSession::syncActions(const char *action_set_name)
+{
+  std::map<std::string, OpenXRActionSet> &action_sets = m_oxr->action_sets;
+
+  XrActionsSyncInfo sync_info{XR_TYPE_ACTIONS_SYNC_INFO};
+  sync_info.countActiveActionSets = (action_set_name != nullptr) ? 1 :
+                                                                   (uint32_t)action_sets.size();
+  if (sync_info.countActiveActionSets < 1) {
+    return false;
+  }
+
+  std::vector<XrActiveActionSet> active_action_sets(sync_info.countActiveActionSets);
+  if (action_set_name != nullptr) {
+    OpenXRActionSet *action_set = find_action_set(m_oxr.get(), action_set_name);
+    if (action_set == nullptr || action_set->actions.size() < 1) {
+      return false;
+    }
+
+    XrActiveActionSet &active_action_set = active_action_sets[0];
+    active_action_set.actionSet = action_set->set;
+    active_action_set.subactionPath = XR_NULL_PATH;
+  }
+  else {
+    uint32_t i = 0;
+    for (auto &action_set : action_sets) {
+      if (action_set.second.actions.size() < 1) {
+        active_action_sets.pop_back();
+        --sync_info.countActiveActionSets;
+        continue;
+      }
+
+      XrActiveActionSet &active_action_set = active_action_sets[i];
+      active_action_set.actionSet = action_set.second.set;
+      active_action_set.subactionPath = XR_NULL_PATH;
+      ++i;
+    }
+
+    if (sync_info.countActiveActionSets < 1) {
+      return false;
+    }
+  }
+  sync_info.activeActionSets = active_action_sets.data();
+
+  CHECK_XR(xrSyncActions(m_oxr->session, &sync_info), "Failed to synchronize XR actions.");
+
+  return true;
+}
+
+bool GHOST_XrSession::getActionStates(const char *action_set_name,
+                                      uint32_t count,
+                                      GHOST_XrActionInfo *const *infos)
+{
+  OpenXRActionSet *action_set = find_action_set(m_oxr.get(), action_set_name);
+  if (action_set == nullptr) {
+    return false;
+  }
+
+  XrInstance instance = m_context->getInstance();
+  XrSession &session = m_oxr->session;
+
+  for (uint32_t action_idx = 0; action_idx < count; ++action_idx) {
+    GHOST_XrActionInfo *info = infos[action_idx];
+
+    OpenXRAction *action = find_action(action_set, info->name);
+    if (action == nullptr) {
+      continue;
+    }
+
+    XrActionStateGetInfo state_info{XR_TYPE_ACTION_STATE_GET_INFO};
+    state_info.action = action->action;
+
+    for (uint32_t subaction_idx = 0; subaction_idx < info->count_subaction_paths;
+         ++subaction_idx) {
+      const char *subaction_path = info->subaction_paths[subaction_idx];
+      CHECK_XR(xrStringToPath(instance, subaction_path, &state_info.subactionPath),
+               (m_error_msg = std::string("Failed to get user path \"") + subaction_path + "\".")
+                   .c_str());
+
+      switch (info->type) {
+        case GHOST_kXrActionTypeBooleanInput: {
+          XrActionStateBoolean state{XR_TYPE_ACTION_STATE_BOOLEAN};
+          CHECK_XR(xrGetActionStateBoolean(session, &state_info, &state),
+                   (m_error_msg = std::string("Failed to get state for boolean action \"") +
+                                  info->name + "\".")
+                       .c_str());
+          if (state.isActive) {
+            ((bool *)info->states)[subaction_idx] = state.currentState;
+          }
+          break;
+        }
+        case GHOST_kXrActionTypeFloatInput: {
+          XrActionStateFloat state{XR_TYPE_ACTION_STATE_FLOAT};
+          CHECK_XR(xrGetActionStateFloat(session, &state_info, &state),
+                   (m_error_msg = std::string("Failed to get state for float action \"") +
+                                  info->name + "\".")
+                       .c_str());
+          if (state.isActive) {
+            ((float *)info->states)[subaction_idx] = state.currentState;
+          }
+          break;
+        }
+        case GHOST_kXrActionTypeVector2fInput: {
+          XrActionStateVector2f state{XR_TYPE_ACTION_STATE_VECTOR2F};
+          CHECK_XR(xrGetActionStateVector2f(session, &state_info, &state),
+                   (m_error_msg = std::string("Failed to get state for vector2f action \"") +
+                                  info->name + "\".")
+                       .c_str());
+          if (state.isActive) {
+            memcpy(
+                ((float(*)[2])info->states)[subaction_idx], &state.currentState, sizeof(float[2]));
+          }
+          break;
+        }
+        case GHOST_kXrActionTypePoseInput: {
+          XrActionStatePose state{XR_TYPE_ACTION_STATE_POSE};
+          CHECK_XR(
+              xrGetActionStatePose(session, &state_info, &state),
+              (m_error_msg = std::string("Failed to get state for action \"") + info->name + "\".")
+                  .c_str());
+          if (state.isActive) {
+            XrSpace *space = find_action_space(action, subaction_path);
+            if (space) {
+              XrSpaceLocation space_location{XR_TYPE_SPACE_LOCATION};
+              CHECK_XR(xrLocateSpace(*space,
+                                     m_oxr->reference_space,
+                                     m_draw_info->frame_state.predictedDisplayTime,
+                                     &space_location),
+                       (m_error_msg = std::string("Failed to query pose space \"") +
+                                      subaction_path + "\" for action \"" + info->name + "\".")
+                           .c_str());
+              copy_openxr_pose_to_ghost_pose(space_location.pose,
+                                             ((GHOST_XrPose *)info->states)[subaction_idx]);
+            }
+          }
+          break;
+        }
+        default: {
+          break;
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
+bool GHOST_XrSession::applyHapticAction(const char *action_set_name,
+                                        const char *action_name,
+                                        uint32_t count,
+                                        const char *const *subaction_paths,
+                                        const GHOST_TInt64 *duration,
+                                        const float *frequency,
+                                        const float *amplitude)
+{
+  OpenXRActionSet *action_set = find_action_set(m_oxr.get(), action_set_name);
+  if (action_set == nullptr) {
+    return false;
+  }
+
+  OpenXRAction *action = find_action(action_set, action_name);
+  if (action == nullptr) {
+    return false;
+  }
+
+  XrInstance instance = m_context->getInstance();
+  XrSession &session = m_oxr->session;
+
+  XrHapticVibration vibration{XR_TYPE_HAPTIC_VIBRATION};
+  vibration.duration = (*duration == 0) ? XR_MIN_HAPTIC_DURATION :
+                                          static_cast<XrDuration>(*duration);
+  vibration.frequency = *frequency;
+  vibration.amplitude = *amplitude;
+
+  XrHapticActionInfo haptic_info{XR_TYPE_HAPTIC_ACTION_INFO};
+  haptic_info.action = action->action;
+
+  for (uint32_t i = 0; i < count; ++i) {
+    CHECK_XR(xrStringToPath(instance, subaction_paths[i], &haptic_info.subactionPath),
+             (m_error_msg = std::string("Failed to get user path \"") + subaction_paths[i] + "\".")
+                 .c_str());
+
+    CHECK_XR(xrApplyHapticFeedback(session, &haptic_info, (const XrHapticBaseHeader *)&vibration),
+             (m_error_msg = std::string("Failed to apply haptic action \"") + action_name + "\".")
+                 .c_str());
+  }
+
+  return true;
+}
+
+void GHOST_XrSession::stopHapticAction(const char *action_set_name,
+                                       const char *action_name,
+                                       uint32_t count,
+                                       const char *const *subaction_paths)
+{
+  OpenXRActionSet *action_set = find_action_set(m_oxr.get(), action_set_name);
+  if (action_set == nullptr) {
+    return;
+  }
+
+  OpenXRAction *action = find_action(action_set, action_name);
+  if (action == nullptr) {
+    return;
+  }
+
+  XrInstance instance = m_context->getInstance();
+  XrSession &session = m_oxr->session;
+
+  XrHapticActionInfo haptic_info{XR_TYPE_HAPTIC_ACTION_INFO};
+  haptic_info.action = action->action;
+
+  for (uint32_t i = 0; i < count; ++i) {
+    CHECK_XR(xrStringToPath(instance, subaction_paths[i], &haptic_info.subactionPath),
+             (m_error_msg = std::string("Failed to get user path \"") + subaction_paths[i] + "\".")
+                 .c_str());
+
+    CHECK_XR(xrStopHapticFeedback(session, &haptic_info),
+             (m_error_msg = std::string("Failed to stop haptic action \"") + action_name + "\".")
+                 .c_str());
+  }
+}
+
+/** \} */ /* Actions */

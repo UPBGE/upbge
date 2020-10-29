@@ -423,6 +423,67 @@ bool WM_event_is_tablet(const struct wmEvent *event)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name XR Input Access
+ * \{ */
+
+void WM_event_xr_data(const wmEvent *event,
+                      char **action_set,
+                      char **action,
+                      char *type,
+                      float state[2],
+                      float controller_loc[3],
+                      float controller_rot[4],
+                      int *eye_width,
+                      int *eye_height,
+                      float *eye_lens,
+                      float eye_viewmat[4][4],
+                      float eye_winmat[4][4])
+{
+  const wmXrActionData *data = event->customdata;
+
+  if (action_set) {
+    strcpy(*action_set, data->action_set);
+  }
+  if (action) {
+    strcpy(*action, data->action);
+  }
+  if (type) {
+    *type = data->type;
+  }
+  if (state) {
+    copy_v2_v2(state, data->state);
+  }
+  if (controller_loc) {
+    copy_v3_v3(controller_loc, data->controller_loc);
+  }
+  if (controller_rot) {
+    copy_v4_v4(controller_rot, data->controller_rot);
+  }
+  if (eye_width) {
+    *eye_width = data->eye_width;
+  }
+  if (eye_height) {
+    *eye_height = data->eye_height;
+  }
+  if (eye_lens) {
+    *eye_lens = data->eye_lens;
+  }
+  if (eye_viewmat) {
+    copy_m4_m4(eye_viewmat, data->eye_viewmat);
+  }
+  if (eye_winmat) {
+    copy_m4_m4(eye_winmat, data->eye_winmat);
+  }
+}
+
+bool WM_event_is_xr(const struct wmEvent *event)
+{
+  return (event->custom == EVT_DATA_XR);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Event IME Input Access
  * \{ */
 

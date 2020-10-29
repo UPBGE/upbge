@@ -36,6 +36,9 @@ typedef struct wmSurface {
   GHOST_ContextHandle ghost_ctx;
   struct GPUContext *gpu_ctx;
 
+  /* Used for XR event handling. */
+  bool is_xr;
+
   void *customdata;
 
   void (*draw)(struct bContext *);

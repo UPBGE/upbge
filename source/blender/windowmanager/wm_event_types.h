@@ -34,6 +34,7 @@ enum {
   EVT_DATA_TIMER = 2,
   EVT_DATA_DRAGDROP = 3,
   EVT_DATA_NDOF_MOTION = 4,
+  EVT_DATA_XR = 5,
 };
 
 /* tablet active, matches GHOST_TTabletMode */
@@ -342,6 +343,10 @@ enum {
 
   /* could become gizmo callback */
   EVT_GIZMO_UPDATE = 0x5025, /* 20517 */
+
+  /* XR events: 0x503x */
+  EVT_XR_ACTION = 0x5030, /* 20528 */
+
   /* ********** End of Blender internal events. ********** */
 };
 
@@ -387,6 +392,9 @@ enum {
 
 /* test whether the event is a NDOF event */
 #define ISNDOF(event_type) ((event_type) >= NDOF_MOTION && (event_type) < NDOF_LAST)
+
+/* test whether the event is an XR event */
+#define ISXR(event_type) ((event_type) == EVT_XR_ACTION)
 
 #define IS_EVENT_ACTIONZONE(event_type) \
   ELEM(event_type, EVT_ACTIONZONE_AREA, EVT_ACTIONZONE_REGION, EVT_ACTIONZONE_FULLSCREEN)

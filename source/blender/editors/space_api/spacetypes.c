@@ -271,12 +271,12 @@ void ED_region_draw_cb_exit(ARegionType *art, void *handle)
   }
 }
 
-void ED_region_draw_cb_draw(const bContext *C, ARegion *region, int type)
+static void ed_region_draw_cb_draw(const bContext *C, ARegion *region, ARegionType *art, int type)
 {
   RegionDrawCB *rdc;
   bool has_drawn_something = false;
 
-  for (rdc = region->type->drawcalls.first; rdc; rdc = rdc->next) {
+  for (rdc = art->drawcalls.first; rdc; rdc = rdc->next) {
     if (rdc->type == type) {
       rdc->draw(C, region, rdc->customdata);
       has_drawn_something = true;
@@ -286,6 +286,16 @@ void ED_region_draw_cb_draw(const bContext *C, ARegion *region, int type)
     /* This is needed until we get rid of BGL which can change the states we are tracking. */
     GPU_bgl_end();
   }
+}
+
+void ED_region_draw_cb_draw(const bContext *C, ARegion *region, int type)
+{
+  ed_region_draw_cb_draw(C, region, region->type, type);
+}
+
+void ED_region_surface_draw_cb_draw(ARegionType *art, int type)
+{
+  ed_region_draw_cb_draw(NULL, NULL, art, type);
 }
 
 /* ********************* space template *********************** */

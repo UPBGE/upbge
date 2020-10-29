@@ -136,13 +136,19 @@ typedef struct Object_Runtime {
 
   /** Selection id of this object; only available in the original object */
   int select_id;
-  char _pad1[3];
+  char _pad1[2];
 
   /**
    * Denotes whether the evaluated data is owned by this object or is referenced and owned by
    * somebody else.
    */
   char is_data_eval_owned;
+
+  /**
+   * Denotes whether the object is tied to the lifetime of an XR session. This is used for
+   * drawing and also to prevent temporary XR objects from being saved in files.
+   */
+  char is_xr;
 
   /** Axis aligned boundbox (in localspace). */
   struct BoundBox *bb;

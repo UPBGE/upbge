@@ -24,12 +24,15 @@
 
 #include <string.h>
 
+#include "BKE_context.h"
+
 #include "BLI_math.h"
 
 #include "ED_view3d_offscreen.h"
 
 #include "GHOST_C-api.h"
 
+#include "GPU_immediate.h"
 #include "GPU_viewport.h"
 
 #include "WM_api.h"
@@ -43,6 +46,12 @@ void wm_xr_pose_to_viewmat(const GHOST_XrPose *pose, float r_viewmat[4][4])
   invert_qt_qt_normalized(iquat, pose->orientation_quat);
   quat_to_mat4(r_viewmat, iquat);
   translate_m4(r_viewmat, -pose->position[0], -pose->position[1], -pose->position[2]);
+}
+
+void wm_xr_controller_pose_to_mat(const GHOST_XrPose *pose, float r_mat[4][4])
+{
+  quat_to_mat4(r_mat, pose->orientation_quat);
+  copy_v3_v3(r_mat[3], pose->position);
 }
 
 static void wm_xr_draw_matrices_create(const wmXrDrawData *draw_data,
@@ -117,7 +126,7 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
 
   wm_xr_session_draw_data_update(session_state, settings, draw_view, draw_data);
   wm_xr_draw_matrices_create(draw_data, draw_view, settings, viewmat, winmat);
-  wm_xr_session_state_update(settings, draw_data, draw_view, session_state);
+  wm_xr_session_state_update(settings, draw_data, draw_view, viewmat, winmat, session_state);
 
   if (!wm_xr_session_surface_offscreen_ensure(surface_data, draw_view)) {
     return;
@@ -140,6 +149,7 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
                                   winmat,
                                   settings->clip_start,
                                   settings->clip_end,
+                                  true,
                                   false,
                                   true,
                                   true,
@@ -159,4 +169,67 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
   GPU_offscreen_bind(surface_data->offscreen, false);
 
   wm_xr_draw_viewport_buffers_to_active_framebuffer(xr_data->runtime, surface_data, draw_view);
+}
+
+void wm_xr_draw_controllers(const bContext *UNUSED(C), ARegion *UNUSED(region), void *customdata)
+{
+  const wmXrSessionState *state = customdata;
+
+  const eGPUDepthTest depth_test_prev = GPU_depth_test_get();
+  GPU_depth_test(GPU_DEPTH_ALWAYS);
+
+  /* For now, just draw controller axes. In the future this can be replaced
+   * with actual controller geometry. */
+  GPUVertFormat *format = immVertexFormat();
+  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  GPU_line_width(2.0f);
+
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+
+  const float r[4] = {1.0f, 0.2f, 0.322f, 1.0f};
+  const float g[4] = {0.545f, 0.863f, 0.0f, 1.0f};
+  const float b[4] = {0.157f, 0.565f, 1.0f, 1.0f};
+
+  const float scale = 0.1f;
+  float x_axis[3];
+  float y_axis[3];
+  float z_axis[3];
+
+  for (int i = 0; i < 2; ++i) {
+    const float(*mat)[4] = state->controllers[i].mat;
+
+    normalize_v3_v3(x_axis, mat[0]);
+    mul_v3_fl(x_axis, scale);
+    add_v3_v3(x_axis, mat[3]);
+
+    normalize_v3_v3(y_axis, mat[1]);
+    mul_v3_fl(y_axis, scale);
+    add_v3_v3(y_axis, mat[3]);
+
+    normalize_v3_v3(z_axis, mat[2]);
+    mul_v3_fl(z_axis, scale);
+    add_v3_v3(z_axis, mat[3]);
+
+    immBegin(GPU_PRIM_LINES, 2);
+    immUniformColor4fv(r);
+    immVertex3fv(pos, mat[3]);
+    immVertex3fv(pos, x_axis);
+    immEnd();
+
+    immBegin(GPU_PRIM_LINES, 2);
+    immUniformColor4fv(g);
+    immVertex3fv(pos, mat[3]);
+    immVertex3fv(pos, y_axis);
+    immEnd();
+
+    immBegin(GPU_PRIM_LINES, 2);
+    immUniformColor4fv(b);
+    immVertex3fv(pos, mat[3]);
+    immVertex3fv(pos, z_axis);
+    immEnd();
+  }
+
+  immUnbindProgram();
+
+  GPU_depth_test(depth_test_prev);
 }

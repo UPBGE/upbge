@@ -21,6 +21,7 @@
 #pragma once
 
 #include <memory>
+#include <string.h>
 #include <vector>
 
 #include "GHOST_Xr_openxr_includes.h"

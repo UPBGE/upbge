@@ -964,11 +964,7 @@ static uiBut *ui_item_with_label(uiLayout *layout,
   UI_block_layout_set_current(block, layout);
 
   /* Only add new row if more than 1 item will be added. */
-  if (name[0]
-#ifdef UI_PROP_DECORATE
-      || use_prop_decorate
-#endif
-  ) {
+  if (name[0] || use_prop_decorate) {
     /* Also avoid setting 'align' if possible. Set the space to zero instead as aligning a large
      * number of labels can end up aligning thousands of buttons when displaying key-map search (a
      * heavy operation), see: T78636. */
@@ -976,8 +972,8 @@ static uiBut *ui_item_with_label(uiLayout *layout,
     sub->space = 0;
   }
 
-  if (name[0]) {
 #ifdef UI_PROP_DECORATE
+  if (name[0]) {
     if (use_prop_sep) {
       layout_prop_decorate = uiItemL_respect_property_split(layout, name, 0);
     }

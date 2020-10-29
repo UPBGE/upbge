@@ -1526,6 +1526,13 @@ static void write_shaderfxs(BlendWriter *writer, ListBase *fxbase)
 
 static void write_object(BlendWriter *writer, Object *ob, const void *id_address)
 {
+#if 1
+  /* Don't write XR objects. */
+  if (ob->runtime.is_xr) {
+    return;
+  }
+#endif
+
   const bool is_undo = BLO_write_is_undo(writer);
   if (ob->id.us > 0 || is_undo) {
     /* Clean up, important in undo case to reduce false detection of changed data-blocks. */
@@ -1606,6 +1613,37 @@ static void write_object(BlendWriter *writer, Object *ob, const void *id_address
     BLO_write_struct_list(writer, LodLevel, &ob->lodlevels);
 
     BKE_previewimg_blend_write(writer, ob->preview);
+  }
+}
+
+static void write_collection_nolib(BlendWriter *writer, Collection *collection)
+{
+  /* Shared function for collection data-blocks and scene master collection. */
+  BKE_previewimg_blend_write(writer, collection->preview);
+
+  LISTBASE_FOREACH (CollectionObject *, cob, &collection->gobject) {
+    BLO_write_struct(writer, CollectionObject, cob);
+  }
+
+  LISTBASE_FOREACH (CollectionChild *, child, &collection->children) {
+    BLO_write_struct(writer, CollectionChild, child);
+  }
+}
+
+static void write_collection(BlendWriter *writer, Collection *collection, const void *id_address)
+{
+  if (collection->id.us > 0 || BLO_write_is_undo(writer)) {
+    /* Clean up, important in undo case to reduce false detection of changed data-blocks. */
+    collection->flag &= ~COLLECTION_HAS_OBJECT_CACHE;
+    collection->tag = 0;
+    BLI_listbase_clear(&collection->object_cache);
+    BLI_listbase_clear(&collection->parents);
+
+    /* write LibData */
+    BLO_write_id_struct(writer, Collection, id_address, &collection->id);
+    BKE_id_blend_write(writer, &collection->id);
+
+    write_collection_nolib(writer, collection);
   }
 }
 
@@ -1939,7 +1977,7 @@ static void write_scene(BlendWriter *writer, Scene *sce, const void *id_address)
 
   if (sce->master_collection) {
     BLO_write_struct(writer, Collection, sce->master_collection);
-    BKE_collection_blend_write_nolib(writer, sce->master_collection);
+    write_collection_nolib(writer, sce->master_collection);
   }
 
   /* Eevee Lightcache */
@@ -2535,13 +2573,15 @@ static bool write_file_handle(Main *mainvar,
           case ID_SCE:
             write_scene(&writer, (Scene *)id_buffer, id);
             break;
+          case ID_GR:
+            write_collection(&writer, (Collection *)id_buffer, id);
+            break;
           case ID_OB:
             write_object(&writer, (Object *)id_buffer, id);
             break;
           case ID_PA:
             write_particlesettings(&writer, (ParticleSettings *)id_buffer, id);
             break;
-          case ID_GR:
           case ID_ME:
           case ID_LT:
           case ID_AC:

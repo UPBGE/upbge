@@ -1067,6 +1067,114 @@ int GHOST_XrSessionNeedsUpsideDownDrawing(const GHOST_XrContextHandle xr_context
  * \returns GHOST_kSuccess if any event was handled, otherwise GHOST_kFailure.
  */
 GHOST_TSuccess GHOST_XrEventsHandle(GHOST_XrContextHandle xr_context);
+
+/* actions */
+/**
+ * Create an OpenXR action set for input / output.
+ */
+int GHOST_XrCreateActionSet(GHOST_XrContextHandle xr_context, const GHOST_XrActionSetInfo *info);
+
+/**
+ * Destroy a previously created OpenXR action set.
+ */
+void GHOST_XrDestroyActionSet(GHOST_XrContextHandle xr_context, const char *action_set_name);
+
+/**
+ * Create OpenXR input / output actions.
+ */
+int GHOST_XrCreateActions(GHOST_XrContextHandle xr_context,
+                          const char *action_set_name,
+                          GHOST_TUns32 count,
+                          const GHOST_XrActionInfo *infos);
+
+/**
+ * Destroy previously created OpenXR actions.
+ */
+void GHOST_XrDestroyActions(GHOST_XrContextHandle xr_context,
+                            const char *action_set_name,
+                            GHOST_TUns32 count,
+                            const char *const *action_names);
+
+/**
+ * Create spaces for pose-based OpenXR actions.
+ */
+int GHOST_XrCreateActionSpaces(GHOST_XrContextHandle xr_context,
+                               const char *action_set_name,
+                               GHOST_TUns32 count,
+                               const GHOST_XrActionSpaceInfo *infos);
+
+/**
+ * Destroy previously created spaces for OpenXR actions.
+ */
+void GHOST_XrDestroyActionSpaces(GHOST_XrContextHandle xr_context,
+                                 const char *action_set_name,
+                                 GHOST_TUns32 count,
+                                 const GHOST_XrActionSpaceInfo *infos);
+
+/**
+ * Create input / output path bindings for OpenXR actions.
+ *
+ * \param replace_existing: Whether to replace all existing bindings for the profiles
+ * specified in infos.
+ */
+int GHOST_XrCreateActionBindings(GHOST_XrContextHandle xr_context,
+                                 const char *action_set_name,
+                                 GHOST_TUns32 count,
+                                 const GHOST_XrActionBindingsInfo *infos);
+
+/**
+ * Destroy previously created bindings for OpenXR actions.
+ */
+void GHOST_XrDestroyActionBindings(GHOST_XrContextHandle xr_context,
+                                   const char *action_set_name,
+                                   GHOST_TUns32 count,
+                                   const GHOST_XrActionBindingsInfo *infos);
+
+/**
+ * Attach all created action sets to the current OpenXR session.
+ */
+int GHOST_XrAttachActionSets(GHOST_XrContextHandle xr_context);
+
+/**
+ * Update button / tracking states for OpenXR actions.
+ *
+ * \param action_set_name: The name of the action set to sync. If NULL, all action sets
+ * attached to the session will be synced.
+ */
+int GHOST_XrSyncActions(GHOST_XrContextHandle xr_context, const char *action_set_name);
+
+/**
+ * Get the states of OpenXR actions.
+ *
+ * \param r_infos: An array of action info pointers (NOT an array of action infos) that will
+ * receive state data. The reason r_infos is an array of pointers is to allow writing to
+ * previously created actions which may not be stored in contiguous memory.
+ */
+int GHOST_XrGetActionStates(GHOST_XrContextHandle xr_context,
+                            const char *action_set_name,
+                            GHOST_TUns32 count,
+                            GHOST_XrActionInfo *const *r_infos);
+
+/**
+ * Apply an OpenXR haptic output action.
+ */
+int GHOST_XrApplyHapticAction(GHOST_XrContextHandle xr_context,
+                              const char *action_set_name,
+                              const char *action_name,
+                              GHOST_TUns32 count,
+                              const char *const *subaction_paths,
+                              const GHOST_TInt64 *duration,
+                              const float *frequency,
+                              const float *amplitude);
+
+/**
+ * Stop a previously applied OpenXR haptic output action.
+ */
+void GHOST_XrStopHapticAction(GHOST_XrContextHandle xr_context,
+                              const char *action_set_name,
+                              const char *action_name,
+                              GHOST_TUns32 count,
+                              const char *const *subaction_paths);
 #endif
 
 #ifdef __cplusplus

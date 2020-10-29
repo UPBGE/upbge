@@ -472,6 +472,85 @@ static int transform_modal(bContext *C, wmOperator *op, const wmEvent *event)
   return exit_code;
 }
 
+/* Use viewmat from when transform was invoked to project controller coordinates.
+ * Otherwise, any headset movement will cause unwanted shifts in the transformation.
+ * TODO_XR: Store this in customdata. */
+static float viewmat_invoke[4][4];
+
+static int transform_modal_3d(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  BLI_assert(event->type == EVT_XR_ACTION);
+  BLI_assert(event->custom == EVT_DATA_XR);
+  BLI_assert(event->customdata);
+
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Scene *scene = CTX_data_scene(C);
+  View3D *v3d = CTX_wm_view3d(C);
+  ARegion *region = CTX_wm_region(C);
+  RegionView3D *rv3d = region->regiondata;
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmXrData *xr = &wm->xr;
+  wmXrActionData *customdata = event->customdata;
+  short winx_prev, winy_prev;
+  rcti winrct_prev;
+  float lens_prev;
+  float clip_start_prev, clip_end_prev;
+  float viewmat_prev[4][4];
+  int retval;
+
+  wmEvent event_mut;
+  memcpy(&event_mut, event, sizeof(wmEvent));
+
+  /* Replace window view parameters with XR surface counterparts. */
+  winx_prev = region->winx;
+  winy_prev = region->winy;
+  winrct_prev = region->winrct;
+  lens_prev = v3d->lens;
+  clip_start_prev = v3d->clip_start;
+  clip_end_prev = v3d->clip_end;
+  copy_m4_m4(viewmat_prev, rv3d->viewmat);
+
+  region->winrct.xmin = 0;
+  region->winrct.ymin = 0;
+  region->winrct.xmax = region->winx = customdata->eye_width;
+  region->winrct.ymax = region->winy = customdata->eye_height;
+  v3d->lens = customdata->eye_lens;
+  v3d->clip_start = xr->session_settings.clip_start;
+  v3d->clip_end = xr->session_settings.clip_end;
+  ED_view3d_update_viewmat(depsgraph, scene, v3d, region, viewmat_invoke, NULL, NULL, false);
+
+  map_to_pixel(event_mut.mval,
+               customdata->controller_loc,
+               viewmat_invoke,
+               rv3d->winmat,
+               customdata->eye_width,
+               customdata->eye_height);
+
+  if (event->val == KM_PRESS) {
+    event_mut.type = MOUSEMOVE;
+  }
+  else if (event->val == KM_RELEASE) {
+    event_mut.type = LEFTMOUSE;
+  }
+  else {
+    /* XR events currently only support press and release. */
+    BLI_assert(false);
+  }
+
+  retval = transform_modal(C, op, &event_mut);
+
+  /* Restore window view. */
+  region->winx = winx_prev;
+  region->winy = winy_prev;
+  region->winrct = winrct_prev;
+  v3d->lens = lens_prev;
+  v3d->clip_start = clip_start_prev;
+  v3d->clip_end = clip_end_prev;
+  ED_view3d_update_viewmat(depsgraph, scene, v3d, region, viewmat_prev, NULL, NULL, false);
+
+  return retval;
+}
+
 static void transform_cancel(bContext *C, wmOperator *op)
 {
   TransInfo *t = op->customdata;
@@ -529,6 +608,79 @@ static int transform_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   }
 
   return OPERATOR_RUNNING_MODAL;
+}
+
+static int transform_invoke_3d(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  BLI_assert(event->type == EVT_XR_ACTION);
+  BLI_assert(event->custom == EVT_DATA_XR);
+  BLI_assert(event->customdata);
+
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Scene *scene = CTX_data_scene(C);
+  View3D *v3d = CTX_wm_view3d(C);
+  ARegion *region = CTX_wm_region(C);
+  RegionView3D *rv3d = region->regiondata;
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmXrData *xr = &wm->xr;
+  wmXrActionData *customdata = event->customdata;
+  short winx_prev, winy_prev;
+  rcti winrct_prev;
+  float lens_prev;
+  float clip_start_prev, clip_end_prev;
+  float viewmat_prev[4][4];
+  int retval;
+
+  wmEvent event_mut;
+  memcpy(&event_mut, event, sizeof(wmEvent));
+  event_mut.type = LEFTMOUSE;
+
+  /* Replace window view parameters with XR surface counterparts. */
+  winx_prev = region->winx;
+  winy_prev = region->winy;
+  winrct_prev = region->winrct;
+  lens_prev = v3d->lens;
+  clip_start_prev = v3d->clip_start;
+  clip_end_prev = v3d->clip_end;
+  copy_m4_m4(viewmat_prev, rv3d->viewmat);
+
+  region->winrct.xmin = 0;
+  region->winrct.ymin = 0;
+  region->winrct.xmax = region->winx = customdata->eye_width;
+  region->winrct.ymax = region->winy = customdata->eye_height;
+  v3d->lens = customdata->eye_lens;
+  v3d->clip_start = xr->session_settings.clip_start;
+  v3d->clip_end = xr->session_settings.clip_end;
+  ED_view3d_update_viewmat(
+      depsgraph, scene, v3d, region, customdata->eye_viewmat, NULL, NULL, false);
+
+  map_to_pixel(event_mut.mval,
+               customdata->controller_loc,
+               customdata->eye_viewmat,
+               rv3d->winmat,
+               customdata->eye_width,
+               customdata->eye_height);
+
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "orient_type");
+  if (prop) {
+    RNA_property_enum_set(op->ptr, prop, V3D_ORIENT_VIEW);
+  }
+
+  retval = transform_invoke(C, op, &event_mut);
+
+  /* Restore window view. */
+  region->winx = winx_prev;
+  region->winy = winy_prev;
+  region->winrct = winrct_prev;
+  v3d->lens = lens_prev;
+  v3d->clip_start = clip_start_prev;
+  v3d->clip_end = clip_end_prev;
+  ED_view3d_update_viewmat(depsgraph, scene, v3d, region, viewmat_prev, NULL, NULL, false);
+
+  /* Save viewmat for modal_3d(). */
+  copy_m4_m4(viewmat_invoke, customdata->eye_viewmat);
+
+  return retval;
 }
 
 static bool transform_poll_property(const bContext *UNUSED(C),
@@ -732,8 +884,10 @@ static void TRANSFORM_OT_translate(struct wmOperatorType *ot)
 
   /* api callbacks */
   ot->invoke = transform_invoke;
+  ot->invoke_3d = transform_invoke_3d;
   ot->exec = transform_exec;
   ot->modal = transform_modal;
+  ot->modal_3d = transform_modal_3d;
   ot->cancel = transform_cancel;
   ot->poll = ED_operator_screenactive;
   ot->poll_property = transform_poll_property;
@@ -758,8 +912,10 @@ static void TRANSFORM_OT_resize(struct wmOperatorType *ot)
 
   /* api callbacks */
   ot->invoke = transform_invoke;
+  ot->invoke_3d = transform_invoke_3d;
   ot->exec = transform_exec;
   ot->modal = transform_modal;
+  ot->modal_3d = transform_modal_3d;
   ot->cancel = transform_cancel;
   ot->poll = ED_operator_screenactive;
   ot->poll_property = transform_poll_property;
@@ -835,8 +991,10 @@ static void TRANSFORM_OT_rotate(struct wmOperatorType *ot)
 
   /* api callbacks */
   ot->invoke = transform_invoke;
+  ot->invoke_3d = transform_invoke_3d;
   ot->exec = transform_exec;
   ot->modal = transform_modal;
+  ot->modal_3d = transform_modal_3d;
   ot->cancel = transform_cancel;
   ot->poll = ED_operator_screenactive;
   ot->poll_property = transform_poll_property;
@@ -1236,8 +1394,10 @@ static void TRANSFORM_OT_transform(struct wmOperatorType *ot)
 
   /* api callbacks */
   ot->invoke = transform_invoke;
+  ot->invoke_3d = transform_invoke_3d;
   ot->exec = transform_exec;
   ot->modal = transform_modal;
+  ot->modal_3d = transform_modal_3d;
   ot->cancel = transform_cancel;
   ot->poll = ED_operator_screenactive;
   ot->poll_property = transform_poll_property;

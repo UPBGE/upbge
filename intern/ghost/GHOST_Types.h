@@ -618,6 +618,7 @@ typedef enum GHOST_TXrGraphicsBinding {
 
 typedef void (*GHOST_XrErrorHandlerFn)(const struct GHOST_XrError *);
 
+typedef void (*GHOST_XrSessionCreateFn)(void *customdata);
 typedef void (*GHOST_XrSessionExitFn)(void *customdata);
 
 typedef void *(*GHOST_XrGraphicsContextBindFn)(void);
@@ -628,7 +629,7 @@ typedef void (*GHOST_XrDrawViewFn)(const struct GHOST_XrDrawViewInfo *draw_view,
  * available candidate will be chosen, so order defines priority. */
 typedef const GHOST_TXrGraphicsBinding *GHOST_XrGraphicsBindingCandidates;
 
-typedef struct {
+typedef struct GHOST_XrPose {
   float position[3];
   /* Blender convention (w, x, y, z) */
   float orientation_quat[4];
@@ -649,6 +650,8 @@ typedef struct {
 typedef struct {
   GHOST_XrPose base_pose;
 
+  GHOST_XrSessionCreateFn create_fn;
+  void *create_customdata;
   GHOST_XrSessionExitFn exit_fn;
   void *exit_customdata;
 } GHOST_XrSessionBeginInfo;
@@ -667,6 +670,9 @@ typedef struct GHOST_XrDrawViewInfo {
 
   /** Set if the buffer should be submitted with a srgb transfer applied. */
   char expects_srgb_buffer;
+
+  /** The eye (left or right) that this view represents. */
+  char view;
 } GHOST_XrDrawViewInfo;
 
 typedef struct GHOST_XrError {
@@ -674,5 +680,60 @@ typedef struct GHOST_XrError {
 
   void *customdata;
 } GHOST_XrError;
+
+typedef struct GHOST_XrActionSetInfo {
+  const char *name;
+  /** Larger values take precedence over smaller values. */
+  GHOST_TUns32 priority;
+} GHOST_XrActionSetInfo;
+
+/** XR action type. Enum values match those in OpenXR's
+ * XrActionType enum for consistency. */
+typedef enum GHOST_XrActionType {
+  GHOST_kXrActionTypeBooleanInput = 1,
+  GHOST_kXrActionTypeFloatInput = 2,
+  GHOST_kXrActionTypeVector2fInput = 3,
+  GHOST_kXrActionTypePoseInput = 4,
+  GHOST_kXrActionTypeVibrationOutput = 100,
+} GHOST_XrActionType;
+
+typedef struct GHOST_XrActionInfo {
+  const char *name;
+  GHOST_XrActionType type;
+  GHOST_TUns32 count_subaction_paths;
+  const char **subaction_paths;
+  /** States for each subaction path. */
+  void *states;
+  /** Previous states, stored to determine XR events. */
+  void *states_prev;
+
+  /** Input threshold for float actions (only used by wm). */
+  float threshold;
+
+  /** Operator to be called on XR events (only used by wm). */
+  void *ot;
+  void *op_properties;
+  char op_flag;
+} GHOST_XrActionInfo;
+
+typedef struct GHOST_XrActionSpaceInfo {
+  const char *action_name;
+  GHOST_TUns32 count_subaction_paths;
+  const char **subaction_paths;
+  /** Poses for each subaction path. */
+  GHOST_XrPose *poses;
+} GHOST_XrActionSpaceInfo;
+
+typedef struct GHOST_XrActionBinding {
+  const char *action_name;
+  /** Interaction path: User (subaction) path + component path. */
+  const char *interaction_path;
+} GHOST_XrActionBinding;
+
+typedef struct GHOST_XrActionBindingsInfo {
+  const char *interaction_profile_path;
+  GHOST_TUns32 count_bindings;
+  const GHOST_XrActionBinding *bindings;
+} GHOST_XrActionBindingsInfo;
 
 #endif
