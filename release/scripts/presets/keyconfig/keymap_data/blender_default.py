@@ -4421,7 +4421,7 @@ def km_sculpt(params):
          {"properties": [("use_normals", True), ("keep_previous_mask", True), ("invert", False), ("smooth_iterations", 0), ("create_face_set", False)]}),
         # Dynamic topology
         ("sculpt.dynamic_topology_toggle", {"type": 'D', "value": 'PRESS', "ctrl": True}, None),
-        ("sculpt.set_detail_size", {"type": 'D', "value": 'PRESS', "shift": True}, None),
+        ("sculpt.dyntopo_detail_size_edit", {"type": 'D', "value": 'PRESS', "shift": True}, None),
         # Remesh
         ("object.voxel_remesh", {"type": 'R', "value": 'PRESS', "ctrl": True}, None),
         ("object.voxel_size_edit", {"type": 'R', "value": 'PRESS', "shift": True}, None),
@@ -4477,6 +4477,7 @@ def km_sculpt(params):
          {"properties": [("data_path", 'tool_settings.sculpt.brush.use_smooth_stroke')]}),
         op_menu("VIEW3D_MT_angle_control", {"type": 'R', "value": 'PRESS'}),
         op_menu_pie("VIEW3D_MT_sculpt_mask_edit_pie", {"type": 'A', "value": 'PRESS'}),
+        op_menu_pie("VIEW3D_MT_sculpt_automasking_pie", {"type": 'A', "alt": True,"value": 'PRESS'}),
         op_menu_pie("VIEW3D_MT_sculpt_face_sets_edit_pie", {"type": 'W', "value": 'PRESS'}),
         *_template_items_context_panel("VIEW3D_PT_sculpt_context_menu", params.context_menu_event),
     ])

@@ -590,6 +590,7 @@ typedef struct WalkNavigation {
 } WalkNavigation;
 
 typedef struct UserDef_Runtime {
+  /** Mark as changed so the preferences are saved on exit. */
   char is_dirty;
   char _pad0[7];
 } UserDef_Runtime;
