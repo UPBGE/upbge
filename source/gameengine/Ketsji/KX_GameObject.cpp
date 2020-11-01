@@ -1020,6 +1020,18 @@ void KX_GameObject::setDamping(float linear, float angular)
     m_pPhysicsController->SetDamping(linear, angular);
 }
 
+void KX_GameObject::setCcdMotionThreshold(float motion_threshold)
+{
+  if (m_pPhysicsController)
+    m_pPhysicsController->SetCcdMotionThreshold(motion_threshold);
+}
+
+void KX_GameObject::setCcdSweptSphereRadius(float swept_sphere_radius)
+{
+  if (m_pPhysicsController)
+    m_pPhysicsController->SetCcdSweptSphereRadius(swept_sphere_radius);
+}
+
 void KX_GameObject::ApplyForce(const MT_Vector3 &force, bool local)
 {
   if (m_pPhysicsController)
@@ -2132,6 +2144,9 @@ PyMethodDef KX_GameObject::Methods[] = {
     {"endObject", (PyCFunction)KX_GameObject::sPyEndObject, METH_NOARGS},
     {"reinstancePhysicsMesh", (PyCFunction)KX_GameObject::sPyReinstancePhysicsMesh, METH_VARARGS | METH_KEYWORDS},
     {"replacePhysicsShape", (PyCFunction)KX_GameObject::sPyReplacePhysicsShape, METH_O},
+
+    {"setCcdMotionThreshold", (PyCFunction)KX_GameObject::sPySetCcdMotionThreshold, METH_VARARGS},
+    {"setCcdSweptSphereRadius", (PyCFunction)KX_GameObject::sPySetCcdSweptSphereRadius, METH_VARARGS},
 
     KX_PYMETHODTABLE_KEYWORDS(KX_GameObject, rayCastTo),
     KX_PYMETHODTABLE_KEYWORDS(KX_GameObject, rayCast),
@@ -3873,6 +3888,30 @@ PyObject *KX_GameObject::PySetDamping(PyObject *args)
   }
 
   setDamping(linear, angular);
+  Py_RETURN_NONE;
+}
+
+PyObject *KX_GameObject::PySetCcdMotionThreshold(PyObject *args)
+{
+  float motion_threshold;
+
+  if (!PyArg_ParseTuple(args, "f:setCcdMotionThreshold", &motion_threshold)) {
+    return nullptr;
+  }
+
+  setCcdMotionThreshold(motion_threshold);
+  Py_RETURN_NONE;
+}
+
+PyObject *KX_GameObject::PySetCcdSweptSphereRadius(PyObject *args)
+{
+  float swept_sphere_radius;
+
+  if (!PyArg_ParseTuple(args, "f:setCcdSweptSphereRadius", &swept_sphere_radius)) {
+    return nullptr;
+  }
+
+  setCcdSweptSphereRadius(swept_sphere_radius);
   Py_RETURN_NONE;
 }
 

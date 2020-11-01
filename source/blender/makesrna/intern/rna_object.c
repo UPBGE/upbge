@@ -2939,7 +2939,7 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "ccd_motion_threshold", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "ccd_motion_threshold");
   RNA_def_property_range(prop, 0, 100);
-  RNA_def_property_ui_range(prop, 0.0, 10.0, 10, 2);
+  RNA_def_property_ui_range(prop, 0.0, 100.0, 10, 2);
   RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_ui_text(prop, "Motion threshold",
                            "Sets the delta of movement that has to happen in one"

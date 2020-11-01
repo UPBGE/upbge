@@ -121,9 +121,11 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             split = layout.split()
 
             col = split.column()
-            col.active = game.use_ccd_rigid_body
-            col.prop(game, "ccd_motion_threshold")
-            col.prop(game, "ccd_swept_sphere_radius")
+            col.prop(game, "use_ccd_rigid_body")
+            sub = col.column()
+            sub.active = game.use_ccd_rigid_body
+            sub.prop(game, "ccd_motion_threshold")
+            sub.prop(game, "ccd_swept_sphere_radius")
 
             layout.separator()
             col = layout.column()

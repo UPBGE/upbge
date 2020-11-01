@@ -2821,6 +2821,9 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter *converter,
   ci.m_maxSlope = isbulletchar ? blenderobject->max_slope : 0.0f;
   ci.m_maxJumps = isbulletchar ? shapeprops->m_max_jumps : 0;
 
+  ci.m_ccd_motion_threshold = (isbulletdyna || isbulletrigidbody) ? shapeprops->m_ccd_motion_threshold : 0.0;
+  ci.m_ccd_swept_sphere_radius = (isbulletdyna || isbulletrigidbody) ? shapeprops->m_ccd_swept_sphere_radius : 0.0;
+
   // mmm, for now, take this for the size of the dynamicobject
   // Blender uses inertia for radius of dynamic object
   shapeInfo->m_radius = ci.m_radius = blenderobject->inertia;

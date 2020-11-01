@@ -577,6 +577,9 @@ class KX_GameObject : public SCA_IObject {
   virtual void setAngularDamping(float damping);
   virtual void setDamping(float linear, float angular);
 
+  virtual void setCcdMotionThreshold(float motion_threshold);
+  virtual void setCcdSweptSphereRadius(float swept_sphere_radius);
+
   /**
    * Update the physics object transform based upon the current SG_Node
    * position.
@@ -766,6 +769,9 @@ class KX_GameObject : public SCA_IObject {
   KX_PYMETHOD_VARARGS(KX_GameObject, SetAngularVelocity);
   KX_PYMETHOD_VARARGS(KX_GameObject, GetVelocity);
   KX_PYMETHOD_VARARGS(KX_GameObject, SetDamping);
+
+  KX_PYMETHOD_VARARGS(KX_GameObject, SetCcdMotionThreshold);
+  KX_PYMETHOD_VARARGS(KX_GameObject, SetCcdSweptSphereRadius);
 
   KX_PYMETHOD_NOARGS(KX_GameObject, GetReactionForce);
 

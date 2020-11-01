@@ -583,7 +583,6 @@ static struct PyMethodDef physicsconstraints_methods[] = {
      (PyCFunction)gPySetContactBreakingTreshold,
      METH_VARARGS,
      (const char *)gPySetContactBreakingTreshold__doc__},
-    {"setCcdMode", (PyCFunction)gPySetCcdMode, METH_VARARGS, (const char *)gPySetCcdMode__doc__},
     {"setSorConstant",
      (PyCFunction)gPySetSorConstant,
      METH_VARARGS,

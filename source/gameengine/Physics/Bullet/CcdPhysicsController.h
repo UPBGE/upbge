@@ -288,8 +288,8 @@ struct CcdConstructionInfo {
         m_fh_damping(0.0f),
         m_fh_distance(1.0f),
         m_fh_normal(false),
-        m_ccd_motion_threshold(1e-7),
-        m_ccd_swept_sphere_radius(0.5)
+        m_ccd_motion_threshold(1.0f),
+        m_ccd_swept_sphere_radius(0.9f)
   // m_contactProcessingThreshold(1e10f)
   {
   }
@@ -877,6 +877,10 @@ class CcdPhysicsController : public PHY_IPhysicsController {
 
   /* Method to replicate rigid body joint contraints for group instances. */
   virtual void ReplicateConstraints(KX_GameObject *gameobj, std::vector<KX_GameObject *> constobj);
+
+  // CCD methods
+  virtual void SetCcdMotionThreshold(float val);
+  virtual void SetCcdSweptSphereRadius(float val);
 };
 
 /// DefaultMotionState implements standard motionstate, using btTransform

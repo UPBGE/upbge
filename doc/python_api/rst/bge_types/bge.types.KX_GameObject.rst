@@ -821,6 +821,24 @@ base class --- :class:`SCA_IObject`
 
       Disables rigid body physics for this object.
 
+   .. method:: setCcdMotionThreshold(ccd_motion_threshold)
+
+      Sets :py:attr:`ccdMotionThreshold` that is the delta of movement that has to happen in one physics tick to trigger the continuous motion detection.
+
+      :arg ccd_motion_threshold: delta of movement.
+      :type ccd_motion_threshold: float ∈ [0, 100]
+
+      .. note::
+
+         Setting the motion threshold to 0.0 deactive the Collision Continuous Detection (CCD).
+
+   .. method:: setCcdSweptSphereRadius(ccd_swept_sphere_radius)
+
+      Sets :py:attr:`ccdSweptSphereRadius` that is the radius of the sphere that is used to check for possible collisions when ccd is actived.
+
+      :arg ccd_swept_sphere_radius: sphere radius.
+      :type ccd_swept_sphere_radius: float ∈ [0, 10]
+
    .. method:: setParent(parent, compound=True, ghost=True)
 
       Sets this object's parent.

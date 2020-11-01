@@ -61,6 +61,8 @@ struct PHY_ShapeProps {
   MT_Scalar m_jump_speed;       // Velocity of jumps (Character)
   MT_Scalar m_fall_speed;       // Max velocity of falling (Character)
   unsigned char m_max_jumps;    // Max ammount of jumps (Character)
+  MT_Scalar m_ccd_motion_threshold;  // Min delta of movement in one physics tick to trigger CCD
+  MT_Scalar m_ccd_swept_sphere_radius;  // The radius of the sphere used to check for collisions when CCD
 };
 
 #endif /* __PHY_PRO_H__ */
