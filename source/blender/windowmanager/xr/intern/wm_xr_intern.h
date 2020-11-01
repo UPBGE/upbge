@@ -22,6 +22,8 @@
 
 #include "CLG_log.h"
 
+#include "GHOST_Types.h"
+
 #include "wm_xr.h"
 
 struct wmXrActionSet;
@@ -155,6 +157,10 @@ typedef struct wmXrActionSet {
   wmXrAction *controller_pose_action;
 } wmXrActionSet;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 wmXrRuntimeData *wm_xr_runtime_data_create(void);
 void wm_xr_runtime_data_free(wmXrRuntimeData **runtime);
 
@@ -189,3 +195,7 @@ void wm_xr_pose_to_viewmat(const GHOST_XrPose *pose, float r_viewmat[4][4]);
 void wm_xr_controller_pose_to_mat(const GHOST_XrPose *pose, float r_mat[4][4]);
 void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata);
 void wm_xr_draw_controllers(const struct bContext *C, struct ARegion *region, void *customdata);
+
+#ifdef __cplusplus
+}
+#endif

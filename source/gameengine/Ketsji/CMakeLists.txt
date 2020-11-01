@@ -59,6 +59,9 @@ set(INC
   ../../blender/render/extern/include
   ../../blender/render/intern/include
   ../../blender/windowmanager
+  ../../blender/windowmanager/xr
+  ../../blender/windowmanager/xr/intern
+  ../../../intern/clog
   ../../../intern/ghost
   ../../../intern/glew-mx
   ../../../intern/guardedalloc
@@ -252,6 +255,10 @@ if(WITH_MOD_FLUID)
     bf_intern_mantaflow
   )
   add_definitions(-DWITH_FLUID)
+endif()
+
+if(WITH_XR_OPENXR)
+  add_definitions(-DWITH_XR_OPENXR)
 endif()
 
 blender_add_lib(ge_ketsji "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

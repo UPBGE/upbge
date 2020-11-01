@@ -48,7 +48,10 @@
 #include "GPU_viewport.h"
 #include "WM_api.h"
 #include "depsgraph/DEG_depsgraph_query.h"
-#include "windowmanager/wm_draw.h"
+#include "wm_draw.h"
+#include "wm_xr.h"
+#include "wm_xr_intern.h"
+#include "wm_window.h"
 
 #include "BL_BlenderConverter.h"
 #include "BL_BlenderDataConversion.h"
@@ -706,7 +709,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, 
         screen->state = SCREENFULL;
       }
 
-      CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
+      View3D *v3d = CTX_wm_view3d(C);
+      v3d->camera = cam->GetBlenderObject();
 
       /* Force camera projection matrix to be the same as viewport one (for mouse events) */
       cam->SetProjectionMatrix(MT_Matrix4x4(&CTX_wm_region_view3d(C)->winmat[0][0]));
