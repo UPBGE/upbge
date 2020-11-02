@@ -381,10 +381,6 @@ struct CcdConstructionInfo {
   /// number of iterations to refine collision clusters
   int m_soft_numclusteriterations;
 
-  /// Ccd
-  btScalar m_ccd_motion_threshold;
-  btScalar m_ccd_swept_sphere_radius;
-
   int m_collisionFlags;
   bool m_bDyna;
   bool m_bRigid;
@@ -431,6 +427,10 @@ struct CcdConstructionInfo {
   bool m_fh_normal;
   /// for fh backwards compatibility
   float m_radius;
+
+  /// Ccd
+  btScalar m_ccd_motion_threshold;
+  btScalar m_ccd_swept_sphere_radius;
 
   /** m_contactProcessingThreshold allows to process contact points with positive distance
    * normally only contacts with negative distance (penetration) are solved

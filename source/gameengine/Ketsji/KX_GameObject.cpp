@@ -3899,6 +3899,12 @@ PyObject *KX_GameObject::PySetCcdMotionThreshold(PyObject *args)
     return nullptr;
   }
 
+  if ((motion_threshold < 0.0f) || (motion_threshold > 100.0f)) {
+    PyErr_SetString(PyExc_TypeError, "gameOb.setCcdMotionThreshold: KX_GameObject, "
+                    "expected a float in range 0.0 - 100.0");
+    return nullptr;
+  }
+
   setCcdMotionThreshold(motion_threshold);
   Py_RETURN_NONE;
 }
@@ -3908,6 +3914,12 @@ PyObject *KX_GameObject::PySetCcdSweptSphereRadius(PyObject *args)
   float swept_sphere_radius;
 
   if (!PyArg_ParseTuple(args, "f:setCcdSweptSphereRadius", &swept_sphere_radius)) {
+    return nullptr;
+  }
+
+  if ((swept_sphere_radius < 0.0f) || (swept_sphere_radius > 10.0f)) {
+    PyErr_SetString(PyExc_TypeError, "gameOb.setCcdSweptSphereRadius: KX_GameObject, "
+                    "expected a float in range 0.0 - 10.0");
     return nullptr;
   }
 

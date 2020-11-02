@@ -1885,6 +1885,8 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
       ob->col_mask = 0xffff;
       ob->preview = NULL;
       ob->duplicator_visibility_flag = OB_DUPLI_FLAG_VIEWPORT | OB_DUPLI_FLAG_RENDER;
+      ob->ccd_motion_threshold = 1.0f;
+      ob->ccd_swept_sphere_radius = 0.9f;
     }
   }
   if (DNA_struct_elem_find(fd->filesdna, "Scene", "GameData", "gm") &&

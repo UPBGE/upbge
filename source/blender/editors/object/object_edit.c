@@ -2103,6 +2103,8 @@ static int game_physics_copy_exec(bContext *C, wmOperator *UNUSED(op))
 
       ob_iter->col_group = ob->col_group;
       ob_iter->col_mask = ob->col_mask;
+      ob_iter->ccd_motion_threshold = ob->ccd_motion_threshold;
+      ob_iter->ccd_swept_sphere_radius = ob->ccd_swept_sphere_radius;
     }
   }
   CTX_DATA_END;

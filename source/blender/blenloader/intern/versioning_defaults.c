@@ -468,6 +468,8 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     if (ob->bsoft) {
       ob->bsoft->margin = 0.1f;
     }
+    ob->ccd_motion_threshold = 1.0f;
+    ob->ccd_swept_sphere_radius = 0.9f;
   }
   /***********************End of Game engine transition**********************/
 
