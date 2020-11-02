@@ -131,7 +131,6 @@
 #include "BKE_rigidbody.h"
 #include "BKE_sca.h"
 #include "BKE_scene.h"
-#include "BKE_sequencer.h"
 #include "BKE_shader_fx.h"
 #include "BKE_softbody.h"
 #include "BKE_speaker.h"
@@ -143,6 +142,8 @@
 #include "DEG_depsgraph_query.h"
 
 #include "DRW_engine.h"
+
+#include "SEQ_sequencer.h"
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern.h"

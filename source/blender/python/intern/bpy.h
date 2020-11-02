@@ -37,6 +37,7 @@ void BPY_atexit_unregister(void);
 
 extern struct CLG_LogRef *BPY_LOG_CONTEXT;
 extern struct CLG_LogRef *BPY_LOG_RNA;
+extern struct CLG_LogRef *BPY_LOG_INTERFACE;
 
 #ifdef __cplusplus
 }

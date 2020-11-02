@@ -75,9 +75,10 @@
 #include "BKE_pointcache.h"
 #include "BKE_sca.h"
 #include "BKE_screen.h"
-#include "BKE_sequencer.h"
 #include "BKE_sound.h"
 #include "BKE_texture.h"
+
+#include "SEQ_sequencer.h"
 
 #include "NOD_socket.h"
 
