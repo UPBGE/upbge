@@ -162,6 +162,10 @@ class PHY_IPhysicsController : public PHY_IController {
   /* Method to replicate rigid body joint contraints for group instances. */
   virtual void ReplicateConstraints(KX_GameObject *gameobj,
                                     std::vector<KX_GameObject *> constobj) = 0;
+
+  // CCD methods
+  virtual void SetCcdMotionThreshold(float val) = 0;
+  virtual void SetCcdSweptSphereRadius(float val) = 0;
 };
 
 #endif /* __PHY_IPHYSICSCONTROLLER_H__ */

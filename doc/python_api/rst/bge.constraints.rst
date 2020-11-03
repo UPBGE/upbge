@@ -131,16 +131,6 @@ Functions
    :arg constraintId: The id of the constraint to be removed.
    :type constraintId: int
 
-.. function:: setCcdMode(ccdMode)
-
-   .. note::
-      Very experimental, not recommended
-
-   Sets the CCD (Continous Colision Detection) mode in the Physics Environment.
-
-   :arg ccdMode: The new CCD mode.
-   :type ccdMode: int
-
 .. function:: setContactBreakingTreshold(breakingTreshold)
 
    .. note::

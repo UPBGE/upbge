@@ -373,7 +373,6 @@ CcdPhysicsEnvironment::CcdPhysicsEnvironment(PHY_SolverType solverType,
       m_cullingTree(nullptr),
       m_numIterations(10),
       m_numTimeSubSteps(1),
-      m_ccdMode(0),
       m_solverType(PHY_SOLVER_NONE),
       m_deactivationTime(2.0f),
       m_linearDeactivationThreshold(0.8f),
@@ -980,11 +979,6 @@ void CcdPhysicsEnvironment::SetDeactivationAngularTreshold(float angTresh)
 void CcdPhysicsEnvironment::SetContactBreakingTreshold(float contactBreakingTreshold)
 {
   m_contactBreakingThreshold = contactBreakingTreshold;
-}
-
-void CcdPhysicsEnvironment::SetCcdMode(int ccdMode)
-{
-  m_ccdMode = ccdMode;
 }
 
 void CcdPhysicsEnvironment::SetSolverSorConstant(float sor)
@@ -2827,6 +2821,9 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter *converter,
   ci.m_maxSlope = isbulletchar ? blenderobject->max_slope : 0.0f;
   ci.m_maxJumps = isbulletchar ? shapeprops->m_max_jumps : 0;
 
+  ci.m_ccd_motion_threshold = (isbulletdyna || isbulletrigidbody) ? shapeprops->m_ccd_motion_threshold : 0.0;
+  ci.m_ccd_swept_sphere_radius = (isbulletdyna || isbulletrigidbody) ? shapeprops->m_ccd_swept_sphere_radius : 0.0;
+
   // mmm, for now, take this for the size of the dynamicobject
   // Blender uses inertia for radius of dynamic object
   shapeInfo->m_radius = ci.m_radius = blenderobject->inertia;
@@ -3213,6 +3210,11 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter *converter,
 
       if (rbody && (blenderobject->gameflag & OB_COLLISION_RESPONSE) != 0) {
         rbody->setActivationState(DISABLE_DEACTIVATION);
+      }
+
+      if (blenderobject->gameflag2 & OB_CCD_RIGID_BODY) {
+        rbody->setCcdMotionThreshold(ci.m_ccd_motion_threshold);
+        rbody->setCcdSweptSphereRadius(ci.m_ccd_swept_sphere_radius);
       }
     }
   }

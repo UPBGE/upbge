@@ -287,7 +287,9 @@ struct CcdConstructionInfo {
         m_fh_spring(0.0f),
         m_fh_damping(0.0f),
         m_fh_distance(1.0f),
-        m_fh_normal(false)
+        m_fh_normal(false),
+        m_ccd_motion_threshold(1.0f),
+        m_ccd_swept_sphere_radius(0.9f)
   // m_contactProcessingThreshold(1e10f)
   {
   }
@@ -425,6 +427,10 @@ struct CcdConstructionInfo {
   bool m_fh_normal;
   /// for fh backwards compatibility
   float m_radius;
+
+  /// Ccd
+  btScalar m_ccd_motion_threshold;
+  btScalar m_ccd_swept_sphere_radius;
 
   /** m_contactProcessingThreshold allows to process contact points with positive distance
    * normally only contacts with negative distance (penetration) are solved
@@ -871,6 +877,10 @@ class CcdPhysicsController : public PHY_IPhysicsController {
 
   /* Method to replicate rigid body joint contraints for group instances. */
   virtual void ReplicateConstraints(KX_GameObject *gameobj, std::vector<KX_GameObject *> constobj);
+
+  // CCD methods
+  virtual void SetCcdMotionThreshold(float val);
+  virtual void SetCcdSweptSphereRadius(float val);
 };
 
 /// DefaultMotionState implements standard motionstate, using btTransform

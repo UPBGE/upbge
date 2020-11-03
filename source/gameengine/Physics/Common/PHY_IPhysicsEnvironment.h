@@ -161,10 +161,6 @@ class PHY_IPhysicsEnvironment {
   virtual void SetContactBreakingTreshold(float contactBreakingTreshold)
   {
   }
-  /// continuous collision detection mode, very experimental for Bullet
-  virtual void SetCcdMode(int ccdMode)
-  {
-  }
   /// successive overrelaxation constant, in case PSOR is used, values in between 1 and 2 guarantee
   /// converging behavior
   virtual void SetSolverSorConstant(float sor)

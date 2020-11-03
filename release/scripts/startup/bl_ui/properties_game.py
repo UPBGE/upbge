@@ -84,7 +84,7 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col.label(text="Attributes:")
             col.prop(game, "mass")
             col.prop(game, "radius")
-            col.prop(game, "form_factor")
+            col.prop(game, "form_factor", slider=True)
             col.prop(game, "elasticity", slider=True)
 
             col.label(text="Linear Velocity:")
@@ -118,7 +118,16 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             sub.prop(game, "rotation_damping", text="Rotation", slider=True)
 
             layout.separator()
+            split = layout.split()
 
+            col = split.column()
+            col.prop(game, "use_ccd_rigid_body")
+            sub = col.column()
+            sub.active = game.use_ccd_rigid_body
+            sub.prop(game, "ccd_motion_threshold")
+            sub.prop(game, "ccd_swept_sphere_radius")
+
+            layout.separator()
             col = layout.column()
 
             col.label(text="Lock Translation:")

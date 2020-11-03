@@ -586,6 +586,10 @@ static PHY_ShapeProps *CreateShapePropsFromBlenderObject(struct Object *blendero
   shapeProps->m_fh_distance = blenderobject->fhdist;
   shapeProps->m_fh_normal = (blenderobject->dynamode & OB_FH_NOR) != 0;
 
+  // CCD properties
+  shapeProps->m_ccd_motion_threshold = blenderobject->ccd_motion_threshold;
+  shapeProps->m_ccd_swept_sphere_radius = blenderobject->ccd_swept_sphere_radius;
+
   return shapeProps;
 }
 

@@ -1482,6 +1482,24 @@ void CcdPhysicsController::SetDamping(float linear, float angular)
   body->setDamping(linear, angular);
 }
 
+void CcdPhysicsController::SetCcdMotionThreshold(float ccd_motion_threshold)
+{
+  btRigidBody *body = GetRigidBody();
+  if (!body)
+    return;
+
+  body->setCcdMotionThreshold(ccd_motion_threshold);
+}
+
+void CcdPhysicsController::SetCcdSweptSphereRadius(float ccd_swept_sphere_radius)
+{
+  btRigidBody *body = GetRigidBody();
+  if (!body)
+    return;
+
+  body->setCcdSweptSphereRadius(ccd_swept_sphere_radius);
+}
+
 // reading out information from physics
 MT_Vector3 CcdPhysicsController::GetLinearVelocity()
 {
