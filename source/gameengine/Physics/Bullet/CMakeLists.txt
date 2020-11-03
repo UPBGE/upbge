@@ -26,7 +26,11 @@
 # since this includes bullet we get errors from the headers too
 remove_strict_flags()
 
-add_definitions(-DBT_USE_DOUBLE_PRECISION)
+# UPBGE - to recover double precision uncomment this definition, intern/rigidbody/CMakeLists.txt one
+# and source/gameengine/Physics/Bullet/CMakeLists.txt one.
+# Double precision is slower than float one but it will increase the precision in
+# open worlds games bigger than 10Km.
+#add_definitions(-DBT_USE_DOUBLE_PRECISION)
 
 set(INC
   .
