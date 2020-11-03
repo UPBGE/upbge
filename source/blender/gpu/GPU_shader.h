@@ -421,6 +421,9 @@ void GPU_shader_free_builtin_shaders(void);
  * This makes sure the GPUVertexFormat name buffer does not overflow. */
 #define GPU_MAX_ATTR 15
 
+/* Determined by the maximum uniform buffer size divided by chunk size. */
+#define GPU_MAX_UNIFORM_ATTR 8
+
 /******************************************Game engine*****************************************/
 char *GPU_shader_validate(GPUShader *shader);
 void GPU_shader_bind_attributes(GPUShader *shader, int *locations, const char **names, int len);
