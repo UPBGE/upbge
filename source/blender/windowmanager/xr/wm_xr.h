@@ -26,6 +26,10 @@ struct bContext;
 
 typedef void (*wmXrSessionExitFn)(const wmXrData *xr_data);
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* wm_xr.c */
 bool wm_xr_init(wmWindowManager *wm);
 void wm_xr_exit(wmWindowManager *wm);
@@ -37,3 +41,7 @@ bool wm_xr_events_handle(wmWindowManager *wm);
 
 /* wm_xr_operators.c */
 void wm_xr_operatortypes_register(void);
+
+#ifdef __cplusplus
+}
+#endif
