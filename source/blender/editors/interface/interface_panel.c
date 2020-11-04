@@ -96,8 +96,6 @@ typedef enum uiPanelMouseState {
 
 typedef enum uiHandlePanelState {
   PANEL_STATE_DRAG,
-  PANEL_STATE_DRAG_SCALE,
-  PANEL_STATE_WAIT_UNTAB,
   PANEL_STATE_ANIMATION,
   PANEL_STATE_EXIT,
 } uiHandlePanelState;
@@ -113,7 +111,6 @@ typedef struct uiHandlePanelData {
   bool is_drag_drop;
   int startx, starty;
   int startofsx, startofsy;
-  int startsizex, startsizey;
   float start_cur_xmin, start_cur_ymin;
 } uiHandlePanelData;
 
@@ -259,7 +256,7 @@ static Panel *panel_add_instanced(ARegion *region,
                                   PanelType *panel_type,
                                   PointerRNA *custom_data)
 {
-  Panel *panel = MEM_callocN(sizeof(Panel), "instanced panel");
+  Panel *panel = MEM_callocN(sizeof(Panel), __func__);
   panel->type = panel_type;
   BLI_strncpy(panel->panelname, panel_type->idname, sizeof(panel->panelname));
 
@@ -466,7 +463,7 @@ static void reorder_instanced_panel_list(bContext *C, ARegion *region, Panel *dr
   }
 
   /* Sort the matching instanced panels by their display order. */
-  PanelSort *panel_sort = MEM_callocN(list_panels_len * sizeof(*panel_sort), "instancedpanelsort");
+  PanelSort *panel_sort = MEM_callocN(list_panels_len * sizeof(*panel_sort), __func__);
   PanelSort *sort_index = panel_sort;
   LISTBASE_FOREACH (Panel *, panel, &region->panels) {
     if (panel->type) {
@@ -571,8 +568,8 @@ static void get_panel_expand_flag(Panel *panel, short *flag, short *flag_index)
  * Call the callback to store the panel and sub-panel expansion settings in the list item that
  * corresponds to each instanced panel.
  *
- * \note This needs to iterate through all of the regions panels because the panel with changed
- * expansion could have been the sub-panel of a instanced panel, meaning it might not know
+ * \note This needs to iterate through all of the region's panels because the panel with changed
+ * expansion might have been the sub-panel of an instanced panel, meaning it might not know
  * which list item it corresponds to.
  */
 static void set_panels_list_data_expand_flag(const bContext *C, const ARegion *region)
@@ -681,7 +678,7 @@ Panel *UI_panel_begin(
   const bool newpanel = (panel == NULL);
 
   if (newpanel) {
-    panel = MEM_callocN(sizeof(Panel), "new panel");
+    panel = MEM_callocN(sizeof(Panel), __func__);
     panel->type = pt;
     BLI_strncpy(panel->panelname, idname, sizeof(panel->panelname));
 
@@ -753,8 +750,8 @@ Panel *UI_panel_begin(
 
 /**
  * Create the panel header button group, used to mark which buttons are part of
- * panel headers for later panel search handling. Should be called before adding
- * buttons for the panel's header layout.
+ * panel headers for the panel search process that happens later. This Should be
+ * called before adding buttons for the panel's header layout.
  */
 void UI_panel_header_buttons_begin(Panel *panel)
 {
@@ -764,20 +761,20 @@ void UI_panel_header_buttons_begin(Panel *panel)
 }
 
 /**
- * Allow new button groups to be created after the header group.
+ * Finish the button group for the panel header to avoid putting panel body buttons in it.
  */
 void UI_panel_header_buttons_end(Panel *panel)
 {
   uiBlock *block = panel->runtime.block;
 
-  /* There should always be the button group created in #UI_panel_header_buttons_begin. */
+  /* A button group should always be created in #UI_panel_header_buttons_begin. */
   BLI_assert(!BLI_listbase_is_empty(&block->button_groups));
 
   uiButtonGroup *button_group = block->button_groups.last;
 
   button_group->flag &= ~UI_BUTTON_GROUP_LOCK;
 
-  /* Repurpose the first "header" button group if it is empty, in case the first button added to
+  /* Repurpose the first header button group if it is empty, in case the first button added to
    * the panel doesn't add a new group (if the button is created directly rather than through an
    * interface layout call). */
   if (BLI_listbase_is_single(&block->button_groups) &&
@@ -785,9 +782,9 @@ void UI_panel_header_buttons_end(Panel *panel)
     button_group->flag &= ~UI_BUTTON_GROUP_PANEL_HEADER;
   }
   else {
-    /* We should still always add a new button group. Although this results in many empty groups,
-     * without it, new buttons not protected with a #ui_block_new_button_group call would end up
-     * in the panel header group. */
+    /* Always add a new button group. Although this may result in many empty groups, without it,
+     * new buttons in the panel body not protected with a #ui_block_new_button_group call would
+     * end up in the panel header group. */
     ui_block_new_button_group(block, 0);
   }
 }
@@ -934,18 +931,16 @@ static void region_panels_set_expansion_from_seach_filter(const bContext *C,
                                                           const bool use_search_closed)
 {
   LISTBASE_FOREACH (Panel *, panel, &region->panels) {
-    /* Checking if the panel is active is only an optimization, it would be fine to run this on
-     * inactive panels. */
-    if (panel->runtime_flag & PANEL_ACTIVE) {
-      panel_set_expansion_from_seach_filter_recursive(C, panel, use_search_closed);
-    }
+    /* Don't check if the panel is active, otherwise the expansion won't
+     * be correct when switching back to tab after exiting search. */
+    panel_set_expansion_from_seach_filter_recursive(C, panel, use_search_closed);
   }
   set_panels_list_data_expand_flag(C, region);
 }
 
 /**
- * Hide buttons in invisible layouts, which are created because in order to search,
- * buttons must be added for all panels, even panels that will end up closed.
+ * Hide buttons in invisible layouts, which are created because buttons must be
+ * added for all panels in order to search, even panels that will end up closed.
  */
 static void panel_remove_invisible_layouts_recursive(Panel *panel, const Panel *parent_panel)
 {
@@ -1040,24 +1035,6 @@ void UI_panels_draw(const bContext *C, ARegion *region)
         !UI_block_is_search_only(block)) {
       UI_block_draw(C, block);
     }
-  }
-}
-
-/* Triangle 'icon' for panel header. */
-void UI_draw_icon_tri(float x, float y, char dir, const float color[4])
-{
-  const float f3 = 0.05 * U.widget_unit;
-  const float f5 = 0.15 * U.widget_unit;
-  const float f7 = 0.25 * U.widget_unit;
-
-  if (dir == 'h') {
-    UI_draw_anti_tria(x - f3, y - f5, x - f3, y + f5, x + f7, y, color);
-  }
-  else if (dir == 't') {
-    UI_draw_anti_tria(x - f5, y - f7, x + f5, y - f7, x, y + f3, color);
-  }
-  else { /* 'v' = vertical, down. */
-    UI_draw_anti_tria(x - f5, y + f3, x + f5, y + f3, x, y - f7, color);
   }
 }
 
@@ -1965,28 +1942,16 @@ static void ui_do_drag(const bContext *C, const wmEvent *event, Panel *panel)
   dx *= BLI_rctf_size_x(&region->v2d.cur) / (float)BLI_rcti_size_x(&region->winrct);
   dy *= BLI_rctf_size_y(&region->v2d.cur) / (float)BLI_rcti_size_y(&region->winrct);
 
-  if (data->state == PANEL_STATE_DRAG_SCALE) {
-    panel->sizex = MAX2(data->startsizex + dx, UI_PANEL_MINX);
+  /* Reset the panel snapping, to allow dragging away from snapped edges. */
+  panel->snap = PNL_SNAP_NONE;
 
-    if (data->startsizey - dy < UI_PANEL_MINY) {
-      dy = -UI_PANEL_MINY + data->startsizey;
-    }
+  /* Add the movement of the view due to edge scrolling while dragging. */
+  dx += ((float)region->v2d.cur.xmin - data->start_cur_xmin);
+  dy += ((float)region->v2d.cur.ymin - data->start_cur_ymin);
+  panel->ofsx = data->startofsx + round_fl_to_int(dx);
+  panel->ofsy = data->startofsy + round_fl_to_int(dy);
 
-    panel->sizey = data->startsizey - dy;
-    panel->ofsy = data->startofsy + dy;
-  }
-  else {
-    /* Reset the panel snapping, to allow dragging away from snapped edges. */
-    panel->snap = PNL_SNAP_NONE;
-
-    /* Add the movement of the view due to edge scrolling while dragging. */
-    dx += ((float)region->v2d.cur.xmin - data->start_cur_xmin);
-    dy += ((float)region->v2d.cur.ymin - data->start_cur_ymin);
-    panel->ofsx = data->startofsx + round_fl_to_int(dx);
-    panel->ofsy = data->startofsy + round_fl_to_int(dy);
-
-    uiAlignPanelStep(region, 0.2f, true);
-  }
+  uiAlignPanelStep(region, 0.2f, true);
 
   ED_region_tag_redraw(region);
 }
@@ -2325,20 +2290,15 @@ const char *UI_panel_category_active_get(ARegion *region, bool set_fallback)
   return NULL;
 }
 
-PanelCategoryDyn *UI_panel_category_find_mouse_over_ex(ARegion *region, const int x, const int y)
+static PanelCategoryDyn *panel_categories_find_mouse_over(ARegion *region, const wmEvent *event)
 {
   LISTBASE_FOREACH (PanelCategoryDyn *, ptd, &region->panels_category) {
-    if (BLI_rcti_isect_pt(&ptd->rect, x, y)) {
+    if (BLI_rcti_isect_pt(&ptd->rect, event->mval[0], event->mval[1])) {
       return ptd;
     }
   }
 
   return NULL;
-}
-
-PanelCategoryDyn *UI_panel_category_find_mouse_over(ARegion *region, const wmEvent *event)
-{
-  return UI_panel_category_find_mouse_over_ex(region, event->mval[0], event->mval[1]);
 }
 
 void UI_panel_category_add(ARegion *region, const char *name)
@@ -2436,7 +2396,7 @@ int ui_handler_panel_region(bContext *C,
   /* Handle category tabs. */
   if (UI_panel_category_is_visible(region)) {
     if (event->type == LEFTMOUSE) {
-      PanelCategoryDyn *pc_dyn = UI_panel_category_find_mouse_over(region, event);
+      PanelCategoryDyn *pc_dyn = panel_categories_find_mouse_over(region, event);
       if (pc_dyn) {
         UI_panel_category_active_set(region, pc_dyn->idname);
         ED_region_tag_redraw(region);
@@ -2674,8 +2634,6 @@ static void panel_activate_state(const bContext *C, Panel *panel, uiHandlePanelS
     data->starty = win->eventstate->y;
     data->startofsx = panel->ofsx;
     data->startofsy = panel->ofsy;
-    data->startsizex = panel->sizex;
-    data->startsizey = panel->sizey;
     data->start_cur_xmin = region->v2d.cur.xmin;
     data->start_cur_ymin = region->v2d.cur.ymin;
     data->starttime = PIL_check_seconds_timer();
@@ -2688,18 +2646,6 @@ static void panel_activate_state(const bContext *C, Panel *panel, uiHandlePanelS
   }
 
   ED_region_tag_redraw(region);
-}
-
-PanelType *UI_paneltype_find(int space_id, int region_id, const char *idname)
-{
-  SpaceType *st = BKE_spacetype_from_id(space_id);
-  if (st) {
-    ARegionType *art = BKE_regiontype_from_id(st, region_id);
-    if (art) {
-      return BLI_findstring(&art->paneltypes, idname, offsetof(PanelType, idname));
-    }
-  }
-  return NULL;
 }
 
 /** \} */

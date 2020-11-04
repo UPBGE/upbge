@@ -533,9 +533,7 @@ static GPUUniformBuf *drw_sparse_uniform_buffer_get_ubo(DRWSparseUniformBuf *buf
   if (buffer && chunk < buffer->num_chunks && BLI_BITMAP_TEST(buffer->chunk_used, chunk)) {
     return buffer->chunk_ubos[chunk];
   }
-  else {
-    return NULL;
-  }
+  return NULL;
 }
 
 /** Bind the UBO for the given chunk, if present. A NULL buffer pointer is handled as empty. */
@@ -557,27 +555,28 @@ void DRW_sparse_uniform_buffer_unbind(DRWSparseUniformBuf *buffer, int chunk)
 }
 
 /** Returns a pointer to the given item of the given chunk, allocating memory if necessary. */
-void *DRW_sparse_uniform_buffer_ensure_item(DRWSparseUniformBuf *pool, int chunk, int item)
+void *DRW_sparse_uniform_buffer_ensure_item(DRWSparseUniformBuf *buffer, int chunk, int item)
 {
-  if (chunk >= pool->num_chunks) {
-    pool->num_chunks = (chunk + CHUNK_LIST_STEP) & ~(CHUNK_LIST_STEP - 1);
-    pool->chunk_buffers = MEM_recallocN(pool->chunk_buffers, pool->num_chunks * sizeof(void *));
-    pool->chunk_ubos = MEM_recallocN(pool->chunk_ubos, pool->num_chunks * sizeof(void *));
-    BLI_BITMAP_RESIZE(pool->chunk_used, pool->num_chunks);
+  if (chunk >= buffer->num_chunks) {
+    buffer->num_chunks = (chunk + CHUNK_LIST_STEP) & ~(CHUNK_LIST_STEP - 1);
+    buffer->chunk_buffers = MEM_recallocN(buffer->chunk_buffers,
+                                          buffer->num_chunks * sizeof(void *));
+    buffer->chunk_ubos = MEM_recallocN(buffer->chunk_ubos, buffer->num_chunks * sizeof(void *));
+    BLI_BITMAP_RESIZE(buffer->chunk_used, buffer->num_chunks);
   }
 
-  char *buffer = pool->chunk_buffers[chunk];
+  char *chunk_buffer = buffer->chunk_buffers[chunk];
 
-  if (buffer == NULL) {
-    pool->chunk_buffers[chunk] = buffer = MEM_callocN(pool->chunk_bytes, __func__);
+  if (chunk_buffer == NULL) {
+    buffer->chunk_buffers[chunk] = chunk_buffer = MEM_callocN(buffer->chunk_bytes, __func__);
   }
-  else if (!BLI_BITMAP_TEST(pool->chunk_used, chunk)) {
-    memset(buffer, 0, pool->chunk_bytes);
+  else if (!BLI_BITMAP_TEST(buffer->chunk_used, chunk)) {
+    memset(chunk_buffer, 0, buffer->chunk_bytes);
   }
 
-  BLI_BITMAP_ENABLE(pool->chunk_used, chunk);
+  BLI_BITMAP_ENABLE(buffer->chunk_used, chunk);
 
-  return buffer + pool->item_size * item;
+  return chunk_buffer + buffer->item_size * item;
 }
 
 /** \} */
@@ -640,17 +639,21 @@ static bool drw_uniform_property_lookup(ID *id, const char *name, float r_data[4
   if (arraylen == 0) {
     float value;
 
-    if (type == PROP_FLOAT)
+    if (type == PROP_FLOAT) {
       value = RNA_property_float_get(&ptr, prop);
-    else if (type == PROP_INT)
+    }
+    else if (type == PROP_INT) {
       value = RNA_property_int_get(&ptr, prop);
-    else
+    }
+    else {
       return false;
+    }
 
     copy_v4_fl4(r_data, value, value, value, 1);
     return true;
   }
-  else if (type == PROP_FLOAT && arraylen <= 4) {
+
+  if (type == PROP_FLOAT && arraylen <= 4) {
     copy_v4_fl4(r_data, 0, 0, 0, 1);
     RNA_property_float_get_array(&ptr, prop, r_data);
     return true;
