@@ -3001,7 +3001,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter *converter,
     }
     case OB_BOUND_CAPSULE: {
       shapeInfo->m_radius = MT_max(bounds_extends[0], bounds_extends[1]);
-      shapeInfo->m_height = 2.0f * bounds_extends[2];
+      shapeInfo->m_height = 2.0f * (bounds_extends[2] - shapeInfo->m_radius);
       if (shapeInfo->m_height < 0.0f)
         shapeInfo->m_height = 0.0f;
       shapeInfo->m_shapeType = PHY_SHAPE_CAPSULE;
