@@ -1453,6 +1453,7 @@ static int rna_GameObjectSettings_physics_type_get(PointerRNA *ptr)
     if (!ob->bsoft) {
       ob->bsoft = bsbNew();
       ob->bsoft->margin = 0.1f; // not set in bsbNew
+      ob->bsoft->collisionflags |= OB_BSB_COL_CL_RS;
     }
   }
 
@@ -1530,6 +1531,7 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
       if (!ob->bsoft) {
         ob->bsoft = bsbNew();
         ob->bsoft->margin = 0.1f;  // not set in bsbNew
+        ob->bsoft->collisionflags |= OB_BSB_COL_CL_RS;
       }
       break;
   }

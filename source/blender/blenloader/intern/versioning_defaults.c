@@ -438,10 +438,10 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     sce->gm.lodflag = SCE_LOD_USE_HYST;
     sce->gm.scehysteresis = 10;
 
-	sce->gm.pythonkeys[0] = EVT_LEFTCTRLKEY;
-	sce->gm.pythonkeys[1] = EVT_LEFTSHIFTKEY;
-	sce->gm.pythonkeys[2] = EVT_LEFTALTKEY;
-	sce->gm.pythonkeys[3] = EVT_TKEY;
+	  sce->gm.pythonkeys[0] = EVT_LEFTCTRLKEY;
+	  sce->gm.pythonkeys[1] = EVT_LEFTSHIFTKEY;
+	  sce->gm.pythonkeys[2] = EVT_LEFTALTKEY;
+	  sce->gm.pythonkeys[3] = EVT_TKEY;
   }
   for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
     /* Game engine defaults*/
@@ -468,11 +468,12 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     ob->col_mask = 0xffff;
     ob->preview = NULL;
     ob->duplicator_visibility_flag = OB_DUPLI_FLAG_VIEWPORT | OB_DUPLI_FLAG_RENDER;
-    if (ob->bsoft) {
-      ob->bsoft->margin = 0.1f;
-    }
     ob->ccd_motion_threshold = 1.0f;
     ob->ccd_swept_sphere_radius = 0.9f;
+    if (ob->bsoft) {
+      ob->bsoft->margin = 0.1f;
+      ob->bsoft->collisionflags |= OB_BSB_COL_CL_RS;
+    }
   }
   /***********************End of Game engine transition**********************/
 

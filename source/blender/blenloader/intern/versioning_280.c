@@ -1891,6 +1891,10 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
       ob->duplicator_visibility_flag = OB_DUPLI_FLAG_VIEWPORT | OB_DUPLI_FLAG_RENDER;
       ob->ccd_motion_threshold = 1.0f;
       ob->ccd_swept_sphere_radius = 0.9f;
+      if (ob->bsoft) {
+        ob->bsoft->margin = 0.1f;
+        ob->bsoft->collisionflags |= OB_BSB_COL_CL_RS;
+      }
     }
   }
   if (DNA_struct_elem_find(fd->filesdna, "Scene", "GameData", "gm") &&
