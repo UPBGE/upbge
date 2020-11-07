@@ -224,8 +224,8 @@ static void scene_init_data(ID *id)
   scene->gm.stereomode = STEREO_ANAGLYPH;
   scene->gm.eyeseparation = 0.10;
 
-  scene->gm.xplay = 640;
-  scene->gm.yplay = 480;
+  scene->gm.xplay = 1280;
+  scene->gm.yplay = 720;
   scene->gm.freqplay = 60;
   scene->gm.depth = 32;
 

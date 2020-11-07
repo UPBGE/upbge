@@ -1813,8 +1813,8 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
       sce->gm.stereomode = STEREO_ANAGLYPH;
       sce->gm.eyeseparation = 0.10;
 
-      sce->gm.xplay = 640;
-      sce->gm.yplay = 480;
+      sce->gm.xplay = 1280;
+      sce->gm.yplay = 720;
       sce->gm.freqplay = 60;
       sce->gm.depth = 32;
 
