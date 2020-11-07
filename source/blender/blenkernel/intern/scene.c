@@ -236,6 +236,9 @@ static void scene_init_data(ID *id)
   scene->gm.lineardeactthreshold = 0.8f;
   scene->gm.angulardeactthreshold = 1.0f;
   scene->gm.deactivationtime = 2.0f;
+  scene->gm.erp = 0.2f;
+  scene->gm.erp2 = 0.8f;
+  scene->gm.cfm = 0.0f;
 
   scene->gm.obstacleSimulation = OBSTSIMULATION_NONE;
   scene->gm.levelHeight = 2.f;

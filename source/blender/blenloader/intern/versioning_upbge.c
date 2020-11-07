@@ -224,4 +224,12 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
       }
     }
   }
+  if (!MAIN_VERSION_UPBGE_ATLEAST(main, 30, 2)) {
+    if (!DNA_struct_elem_find(fd->filesdna, "GameData", "float", "erp")) {
+      for (Scene *scene = main->scenes.first; scene; scene = scene->id.next) {
+        scene->gm.erp = 0.2f;
+        scene->gm.erp2 = 0.8f;
+      }
+    }
+  }
 }

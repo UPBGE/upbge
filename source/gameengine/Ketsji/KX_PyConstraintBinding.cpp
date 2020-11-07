@@ -85,6 +85,16 @@ PyDoc_STRVAR(gPySetContactBreakingTreshold__doc__,
              "setContactBreakingTreshold(float breakingTreshold)\n"
              "Reasonable default is 0.02 (if units are meters)");
 
+PyDoc_STRVAR(gPySetERPNonContact__doc__,
+             "setERPNonContact(float erp)\n"
+             "");
+PyDoc_STRVAR(gPySetERPContact__doc__,
+             "setERPContact(float erp2)\n"
+             "");
+PyDoc_STRVAR(gPySetCFM__doc__,
+             "setCFM(float cfm)\n"
+             "");
+
 PyDoc_STRVAR(gPySetSorConstant__doc__,
              "setSorConstant(float sor)\n"
              "Very experimental, not recommended");
@@ -233,6 +243,78 @@ static PyObject *gPySetContactBreakingTreshold(PyObject *self, PyObject *args, P
   else {
     return nullptr;
   }
+  Py_RETURN_NONE;
+}
+
+static PyObject *gPySetERPNonContact(PyObject *self, PyObject *args, PyObject *kwds)
+{
+  float erp;
+  if (!PyArg_ParseTuple(args, "f", &erp)) {
+    return nullptr;
+  }
+
+  if ((erp < 0.0) || (erp > 1.0)) {
+    PyErr_SetString(PyExc_TypeError, "setERPNonContact, "
+                    "expected a float in range 0.0 - 1.0");
+    return nullptr;
+  }
+
+  if (PHY_GetActiveEnvironment()) {
+    PHY_GetActiveEnvironment()->SetERPNonContact(erp);
+  }
+  else {
+    PyErr_SetString(PyExc_TypeError, "No physics environment available");
+    return nullptr;
+  }
+
+  Py_RETURN_NONE;
+}
+
+static PyObject *gPySetERPContact(PyObject *self, PyObject *args, PyObject *kwds)
+{
+  float erp2;
+  if (!PyArg_ParseTuple(args, "f", &erp2)) {
+    return nullptr;
+  }
+
+  if ((erp2 < 0.0) || (erp2 > 1.0)) {
+    PyErr_SetString(PyExc_TypeError, "setERPContact, "
+                    "expected a float in range 0.0 - 1.0");
+    return nullptr;
+  }
+
+  if (PHY_GetActiveEnvironment()) {
+    PHY_GetActiveEnvironment()->SetERPContact(erp2);
+  }
+  else {
+    PyErr_SetString(PyExc_TypeError, "No physics environment available");
+    return nullptr;
+  }
+
+  Py_RETURN_NONE;
+}
+
+static PyObject *gPySetCFM(PyObject *self, PyObject *args, PyObject *kwds)
+{
+  float cfm;
+  if (!PyArg_ParseTuple(args, "f", &cfm)) {
+    return nullptr;
+  }
+
+  if ((cfm < 0.0) || (cfm > 10000.0)) {
+    PyErr_SetString(PyExc_TypeError, "setCFM, "
+                    "expected a float in range 0.0 - 10000.0");
+    return nullptr;
+  }
+
+  if (PHY_GetActiveEnvironment()) {
+    PHY_GetActiveEnvironment()->SetCFM(cfm);
+  }
+  else {
+    PyErr_SetString(PyExc_TypeError, "No physics environment available");
+    return nullptr;
+  }
+
   Py_RETURN_NONE;
 }
 
@@ -583,6 +665,20 @@ static struct PyMethodDef physicsconstraints_methods[] = {
      (PyCFunction)gPySetContactBreakingTreshold,
      METH_VARARGS,
      (const char *)gPySetContactBreakingTreshold__doc__},
+
+    {"setERPNonContact",
+     (PyCFunction)gPySetERPNonContact,
+     METH_VARARGS,
+     (const char *)gPySetERPNonContact__doc__},
+    {"setERPContact",
+     (PyCFunction)gPySetERPContact,
+     METH_VARARGS,
+     (const char *)gPySetERPContact__doc__},
+    {"setCFM",
+     (PyCFunction)gPySetCFM,
+     METH_VARARGS,
+     (const char *)gPySetCFM__doc__},
+
     {"setSorConstant",
      (PyCFunction)gPySetSorConstant,
      METH_VARARGS,

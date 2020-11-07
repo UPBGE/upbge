@@ -1826,10 +1826,13 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
       sce->gm.maxlogicstep = 5;
       sce->gm.physubstep = 1;
       sce->gm.maxphystep = 5;
-	  sce->gm.timeScale = 1.0f;
+      sce->gm.timeScale = 1.0f;
       sce->gm.lineardeactthreshold = 0.8f;
       sce->gm.angulardeactthreshold = 1.0f;
       sce->gm.deactivationtime = 2.0f;
+      sce->gm.erp = 0.2f;
+      sce->gm.erp2 = 0.8f;
+      sce->gm.cfm = 0.0f;
 
       sce->gm.obstacleSimulation = OBSTSIMULATION_NONE;
       sce->gm.levelHeight = 2.f;

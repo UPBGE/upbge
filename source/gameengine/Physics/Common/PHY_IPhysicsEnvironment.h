@@ -157,6 +157,18 @@ class PHY_IPhysicsEnvironment {
   virtual void SetDeactivationAngularTreshold(float angTresh)
   {
   }
+  /// setERP sets the Error Reduction Parameter to reduce the joint error for non-contact constraints
+  virtual void SetERPNonContact(float erp)
+  {
+  }
+  /// setERP sets the Error Reduction Parameter to reduce the joint error for contact constraints
+  virtual void SetERPContact(float erp2)
+  {
+  }
+  /// setCFM sets the Constraint Force Mixing to allow soft constraints
+  virtual void SetCFM(float cfm)
+  {
+  }
   /// setContactBreakingTreshold sets tresholds to do with contact point management
   virtual void SetContactBreakingTreshold(float contactBreakingTreshold)
   {

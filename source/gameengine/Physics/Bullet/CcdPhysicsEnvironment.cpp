@@ -976,6 +976,20 @@ void CcdPhysicsEnvironment::SetDeactivationAngularTreshold(float angTresh)
   }
 }
 
+void CcdPhysicsEnvironment::SetERPNonContact(float erp)
+{
+  m_dynamicsWorld->getSolverInfo().m_erp = erp;
+}
+
+void CcdPhysicsEnvironment::SetERPContact(float erp2)
+{
+  m_dynamicsWorld->getSolverInfo().m_erp2 = erp2;
+}
+
+void CcdPhysicsEnvironment::SetCFM(float cfm)
+{
+  m_dynamicsWorld->getSolverInfo().m_globalCfm = cfm;
+}
 void CcdPhysicsEnvironment::SetContactBreakingTreshold(float contactBreakingTreshold)
 {
   m_contactBreakingThreshold = contactBreakingTreshold;
@@ -2743,6 +2757,9 @@ CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool v
   ccdPhysEnv->SetDeactivationLinearTreshold(blenderscene->gm.lineardeactthreshold);
   ccdPhysEnv->SetDeactivationAngularTreshold(blenderscene->gm.angulardeactthreshold);
   ccdPhysEnv->SetDeactivationTime(blenderscene->gm.deactivationtime);
+  ccdPhysEnv->SetERPNonContact(blenderscene->gm.erp);
+  ccdPhysEnv->SetERPContact(blenderscene->gm.erp2);
+  ccdPhysEnv->SetCFM(blenderscene->gm.cfm);
 
   if (visualizePhysics)
     ccdPhysEnv->SetDebugMode(btIDebugDraw::DBG_DrawWireframe | btIDebugDraw::DBG_DrawAabb |

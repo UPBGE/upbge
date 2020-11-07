@@ -390,6 +390,13 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
             sub = col.row()
             sub.prop(gs, "deactivation_time", text="Time")
 
+            col = layout.column()
+            col.label(text="Physics Joint Error Reduction:")
+            sub = col.column(align=True)
+            sub.prop(gs, "erp_parameter", text="ERP for Non Contact Constraints")
+            sub.prop(gs, "erp2_parameter", text="ERP for Contact Constraints")
+            sub.prop(gs, "cfm_parameter", text="CFM for Soft Constraints")
+
         else:
             split = layout.split()
 
