@@ -1009,16 +1009,6 @@ void CcdPhysicsEnvironment::SetSolverDamping(float damping)
   m_dynamicsWorld->getSolverInfo().m_damping = damping;
 }
 
-void CcdPhysicsEnvironment::SetLinearAirDamping(float damping)
-{
-  // gLinearAirDamping = damping;
-}
-
-void CcdPhysicsEnvironment::SetUseEpa(bool epa)
-{
-  // gUseEpa = epa;
-}
-
 void CcdPhysicsEnvironment::SetSolverType(PHY_SolverType solverType)
 {
 

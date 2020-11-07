@@ -191,14 +191,6 @@ class PHY_IPhysicsEnvironment {
   virtual void SetSolverDamping(float damping)
   {
   }
-  /// linear air damping for rigidbodies
-  virtual void SetLinearAirDamping(float damping)
-  {
-  }
-  /// penetrationdepth setting
-  virtual void SetUseEpa(bool epa)
-  {
-  }
 
   virtual void SetGravity(float x, float y, float z) = 0;
   virtual void GetGravity(MT_Vector3 &grav) = 0;

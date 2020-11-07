@@ -217,12 +217,6 @@ Functions
    :arg z: Gravity Z force.
    :type z: float
 
-.. function:: setLinearAirDamping(damping)
-
-   .. note::
-
-      Not implemented
-
    Sets the linear air damping for rigidbodies.
 
 .. function:: setNumIterations(numiter)
@@ -278,12 +272,6 @@ Functions
 
    :arg sor: New sor value.
    :type sor: float
-
-.. function:: setUseEpa(epa)
-
-   .. note::
-
-      Not implemented
 
 
 Constants

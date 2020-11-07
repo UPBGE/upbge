@@ -127,8 +127,6 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   virtual void SetSolverSorConstant(float sor);
   virtual void SetSolverTau(float tau);
   virtual void SetSolverDamping(float damping);
-  virtual void SetLinearAirDamping(float damping);
-  virtual void SetUseEpa(bool epa);
 
   virtual int GetNumTimeSubSteps()
   {

@@ -104,12 +104,6 @@ PyDoc_STRVAR(gPySetSolverTau__doc__,
 PyDoc_STRVAR(gPySetSolverDamping__doc__,
              "setDamping(float damping)\n"
              "Very experimental, not recommended");
-PyDoc_STRVAR(gPySetLinearAirDamping__doc__,
-             "setLinearAirDamping(float damping)\n"
-             "Very experimental, not recommended");
-PyDoc_STRVAR(gPySetUseEpa__doc__,
-             "setUseEpa(int epa)\n"
-             "Very experimental, not recommended");
 PyDoc_STRVAR(gPySetSolverType__doc__,
              "setSolverType(int solverType)\n"
              "Very experimental, not recommended");
@@ -360,33 +354,6 @@ static PyObject *gPySetSolverDamping(PyObject *self, PyObject *args, PyObject *k
   Py_RETURN_NONE;
 }
 
-static PyObject *gPySetLinearAirDamping(PyObject *self, PyObject *args, PyObject *kwds)
-{
-  float damping;
-  if (PyArg_ParseTuple(args, "f", &damping)) {
-    if (PHY_GetActiveEnvironment()) {
-      PHY_GetActiveEnvironment()->SetLinearAirDamping(damping);
-    }
-  }
-  else {
-    return nullptr;
-  }
-  Py_RETURN_NONE;
-}
-
-static PyObject *gPySetUseEpa(PyObject *self, PyObject *args, PyObject *kwds)
-{
-  int epa;
-  if (PyArg_ParseTuple(args, "i", &epa)) {
-    if (PHY_GetActiveEnvironment()) {
-      PHY_GetActiveEnvironment()->SetUseEpa(epa);
-    }
-  }
-  else {
-    return nullptr;
-  }
-  Py_RETURN_NONE;
-}
 static PyObject *gPySetSolverType(PyObject *self, PyObject *args, PyObject *kwds)
 {
   int solverType;
@@ -692,12 +659,6 @@ static struct PyMethodDef physicsconstraints_methods[] = {
      METH_VARARGS,
      (const char *)gPySetSolverDamping__doc__},
 
-    {"setLinearAirDamping",
-     (PyCFunction)gPySetLinearAirDamping,
-     METH_VARARGS,
-     (const char *)gPySetLinearAirDamping__doc__},
-
-    {"setUseEpa", (PyCFunction)gPySetUseEpa, METH_VARARGS, (const char *)gPySetUseEpa__doc__},
     {"setSolverType",
      (PyCFunction)gPySetSolverType,
      METH_VARARGS,
