@@ -119,13 +119,14 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   virtual void SetDeactivationTime(float dTime);
   virtual void SetDeactivationLinearTreshold(float linTresh);
   virtual void SetDeactivationAngularTreshold(float angTresh);
+  virtual void SetERPNonContact(float erp);
+  virtual void SetERPContact(float erp2);
+  virtual void SetCFM(float cfm);
   virtual void SetContactBreakingTreshold(float contactBreakingTreshold);
   virtual void SetSolverType(PHY_SolverType solverType);
   virtual void SetSolverSorConstant(float sor);
   virtual void SetSolverTau(float tau);
   virtual void SetSolverDamping(float damping);
-  virtual void SetLinearAirDamping(float damping);
-  virtual void SetUseEpa(bool epa);
 
   virtual int GetNumTimeSubSteps()
   {

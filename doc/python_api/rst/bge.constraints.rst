@@ -162,6 +162,40 @@ Functions
    :arg time: The deactivation time.
    :type time: float
 
+.. function:: setERPNonContact(erp)
+
+   Sets the Error Reduction Parameter (ERP) for non-contact constraints.
+   The Error Reduction Parameter (ERP) specifies what proportion of the joint error will be fixed during the next simulation step.
+   If ERP = 0.0 then no correcting force is applied and the bodies will eventually drift apart as the simulation proceeds.
+   If ERP = 1.0 then the simulation will attempt to fix all joint error during the next time step.
+   However, setting ERP = 1.0 is not recommended, as the joint error will not be completely fixed due to various internal approximations.
+   A value of ERP = 0.1 to 0.8 is recommended.
+
+   :arg erp: The ERP parameter for non-contact constraints.
+   :type erp: float [0.0, 1.0]
+
+.. function:: setERPContact(erp2)
+
+   Sets the Error Reduction Parameter (ERP) for contact constraints.
+   The Error Reduction Parameter (ERP) specifies what proportion of the joint error will be fixed during the next simulation step.
+   If ERP = 0.0 then no correcting force is applied and the bodies will eventually drift apart as the simulation proceeds.
+   If ERP = 1.0 then the simulation will attempt to fix all joint error during the next time step.
+   However, setting ERP = 1.0 is not recommended, as the joint error will not be completely fixed due to various internal approximations.
+   A value of ERP = 0.1 to 0.8 is recommended.
+
+   :arg erp2: The ERP parameter for contact constraints.
+   :type erp2: float [0.0, 1.0]
+
+.. function:: setCFM(cfm)
+
+   Sets the Constraint Force Mixing (CFM) for soft constraints.
+   If the Constraint Force Mixing (CFM) is set to zero, the constraint will be hard.
+   If CFM is set to a positive value, it will be possible to violate the constraint by pushing on it (for example, for contact constraints by forcing the two contacting objects together).
+   In other words the constraint will be soft, and the softness will increase as CFM increases.
+
+   :arg cfm: The CFM parameter for soft constraints.
+   :type cfm: float [0.0, 10000.0]
+
 .. function:: setDebugMode(mode)
 
    Sets the debug mode.
@@ -182,12 +216,6 @@ Functions
 
    :arg z: Gravity Z force.
    :type z: float
-
-.. function:: setLinearAirDamping(damping)
-
-   .. note::
-
-      Not implemented
 
    Sets the linear air damping for rigidbodies.
 
@@ -244,12 +272,6 @@ Functions
 
    :arg sor: New sor value.
    :type sor: float
-
-.. function:: setUseEpa(epa)
-
-   .. note::
-
-      Not implemented
 
 
 Constants

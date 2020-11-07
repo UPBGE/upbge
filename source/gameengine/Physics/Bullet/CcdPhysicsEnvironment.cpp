@@ -976,6 +976,20 @@ void CcdPhysicsEnvironment::SetDeactivationAngularTreshold(float angTresh)
   }
 }
 
+void CcdPhysicsEnvironment::SetERPNonContact(float erp)
+{
+  m_dynamicsWorld->getSolverInfo().m_erp = erp;
+}
+
+void CcdPhysicsEnvironment::SetERPContact(float erp2)
+{
+  m_dynamicsWorld->getSolverInfo().m_erp2 = erp2;
+}
+
+void CcdPhysicsEnvironment::SetCFM(float cfm)
+{
+  m_dynamicsWorld->getSolverInfo().m_globalCfm = cfm;
+}
 void CcdPhysicsEnvironment::SetContactBreakingTreshold(float contactBreakingTreshold)
 {
   m_contactBreakingThreshold = contactBreakingTreshold;
@@ -993,16 +1007,6 @@ void CcdPhysicsEnvironment::SetSolverTau(float tau)
 void CcdPhysicsEnvironment::SetSolverDamping(float damping)
 {
   m_dynamicsWorld->getSolverInfo().m_damping = damping;
-}
-
-void CcdPhysicsEnvironment::SetLinearAirDamping(float damping)
-{
-  // gLinearAirDamping = damping;
-}
-
-void CcdPhysicsEnvironment::SetUseEpa(bool epa)
-{
-  // gUseEpa = epa;
 }
 
 void CcdPhysicsEnvironment::SetSolverType(PHY_SolverType solverType)
@@ -2743,6 +2747,9 @@ CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool v
   ccdPhysEnv->SetDeactivationLinearTreshold(blenderscene->gm.lineardeactthreshold);
   ccdPhysEnv->SetDeactivationAngularTreshold(blenderscene->gm.angulardeactthreshold);
   ccdPhysEnv->SetDeactivationTime(blenderscene->gm.deactivationtime);
+  ccdPhysEnv->SetERPNonContact(blenderscene->gm.erp);
+  ccdPhysEnv->SetERPContact(blenderscene->gm.erp2);
+  ccdPhysEnv->SetCFM(blenderscene->gm.cfm);
 
   if (visualizePhysics)
     ccdPhysEnv->SetDebugMode(btIDebugDraw::DBG_DrawWireframe | btIDebugDraw::DBG_DrawAabb |
@@ -3001,7 +3008,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter *converter,
     }
     case OB_BOUND_CAPSULE: {
       shapeInfo->m_radius = MT_max(bounds_extends[0], bounds_extends[1]);
-      shapeInfo->m_height = 2.0f * bounds_extends[2];
+      shapeInfo->m_height = 2.0f * (bounds_extends[2] - shapeInfo->m_radius);
       if (shapeInfo->m_height < 0.0f)
         shapeInfo->m_height = 0.0f;
       shapeInfo->m_shapeType = PHY_SHAPE_CAPSULE;

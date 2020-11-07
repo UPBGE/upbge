@@ -85,6 +85,16 @@ PyDoc_STRVAR(gPySetContactBreakingTreshold__doc__,
              "setContactBreakingTreshold(float breakingTreshold)\n"
              "Reasonable default is 0.02 (if units are meters)");
 
+PyDoc_STRVAR(gPySetERPNonContact__doc__,
+             "setERPNonContact(float erp)\n"
+             "");
+PyDoc_STRVAR(gPySetERPContact__doc__,
+             "setERPContact(float erp2)\n"
+             "");
+PyDoc_STRVAR(gPySetCFM__doc__,
+             "setCFM(float cfm)\n"
+             "");
+
 PyDoc_STRVAR(gPySetSorConstant__doc__,
              "setSorConstant(float sor)\n"
              "Very experimental, not recommended");
@@ -93,12 +103,6 @@ PyDoc_STRVAR(gPySetSolverTau__doc__,
              "Very experimental, not recommended");
 PyDoc_STRVAR(gPySetSolverDamping__doc__,
              "setDamping(float damping)\n"
-             "Very experimental, not recommended");
-PyDoc_STRVAR(gPySetLinearAirDamping__doc__,
-             "setLinearAirDamping(float damping)\n"
-             "Very experimental, not recommended");
-PyDoc_STRVAR(gPySetUseEpa__doc__,
-             "setUseEpa(int epa)\n"
              "Very experimental, not recommended");
 PyDoc_STRVAR(gPySetSolverType__doc__,
              "setSolverType(int solverType)\n"
@@ -236,6 +240,78 @@ static PyObject *gPySetContactBreakingTreshold(PyObject *self, PyObject *args, P
   Py_RETURN_NONE;
 }
 
+static PyObject *gPySetERPNonContact(PyObject *self, PyObject *args, PyObject *kwds)
+{
+  float erp;
+  if (!PyArg_ParseTuple(args, "f", &erp)) {
+    return nullptr;
+  }
+
+  if ((erp < 0.0) || (erp > 1.0)) {
+    PyErr_SetString(PyExc_TypeError, "setERPNonContact, "
+                    "expected a float in range 0.0 - 1.0");
+    return nullptr;
+  }
+
+  if (PHY_GetActiveEnvironment()) {
+    PHY_GetActiveEnvironment()->SetERPNonContact(erp);
+  }
+  else {
+    PyErr_SetString(PyExc_TypeError, "No physics environment available");
+    return nullptr;
+  }
+
+  Py_RETURN_NONE;
+}
+
+static PyObject *gPySetERPContact(PyObject *self, PyObject *args, PyObject *kwds)
+{
+  float erp2;
+  if (!PyArg_ParseTuple(args, "f", &erp2)) {
+    return nullptr;
+  }
+
+  if ((erp2 < 0.0) || (erp2 > 1.0)) {
+    PyErr_SetString(PyExc_TypeError, "setERPContact, "
+                    "expected a float in range 0.0 - 1.0");
+    return nullptr;
+  }
+
+  if (PHY_GetActiveEnvironment()) {
+    PHY_GetActiveEnvironment()->SetERPContact(erp2);
+  }
+  else {
+    PyErr_SetString(PyExc_TypeError, "No physics environment available");
+    return nullptr;
+  }
+
+  Py_RETURN_NONE;
+}
+
+static PyObject *gPySetCFM(PyObject *self, PyObject *args, PyObject *kwds)
+{
+  float cfm;
+  if (!PyArg_ParseTuple(args, "f", &cfm)) {
+    return nullptr;
+  }
+
+  if ((cfm < 0.0) || (cfm > 10000.0)) {
+    PyErr_SetString(PyExc_TypeError, "setCFM, "
+                    "expected a float in range 0.0 - 10000.0");
+    return nullptr;
+  }
+
+  if (PHY_GetActiveEnvironment()) {
+    PHY_GetActiveEnvironment()->SetCFM(cfm);
+  }
+  else {
+    PyErr_SetString(PyExc_TypeError, "No physics environment available");
+    return nullptr;
+  }
+
+  Py_RETURN_NONE;
+}
+
 static PyObject *gPySetSorConstant(PyObject *self, PyObject *args, PyObject *kwds)
 {
   float sor;
@@ -278,33 +354,6 @@ static PyObject *gPySetSolverDamping(PyObject *self, PyObject *args, PyObject *k
   Py_RETURN_NONE;
 }
 
-static PyObject *gPySetLinearAirDamping(PyObject *self, PyObject *args, PyObject *kwds)
-{
-  float damping;
-  if (PyArg_ParseTuple(args, "f", &damping)) {
-    if (PHY_GetActiveEnvironment()) {
-      PHY_GetActiveEnvironment()->SetLinearAirDamping(damping);
-    }
-  }
-  else {
-    return nullptr;
-  }
-  Py_RETURN_NONE;
-}
-
-static PyObject *gPySetUseEpa(PyObject *self, PyObject *args, PyObject *kwds)
-{
-  int epa;
-  if (PyArg_ParseTuple(args, "i", &epa)) {
-    if (PHY_GetActiveEnvironment()) {
-      PHY_GetActiveEnvironment()->SetUseEpa(epa);
-    }
-  }
-  else {
-    return nullptr;
-  }
-  Py_RETURN_NONE;
-}
 static PyObject *gPySetSolverType(PyObject *self, PyObject *args, PyObject *kwds)
 {
   int solverType;
@@ -583,6 +632,20 @@ static struct PyMethodDef physicsconstraints_methods[] = {
      (PyCFunction)gPySetContactBreakingTreshold,
      METH_VARARGS,
      (const char *)gPySetContactBreakingTreshold__doc__},
+
+    {"setERPNonContact",
+     (PyCFunction)gPySetERPNonContact,
+     METH_VARARGS,
+     (const char *)gPySetERPNonContact__doc__},
+    {"setERPContact",
+     (PyCFunction)gPySetERPContact,
+     METH_VARARGS,
+     (const char *)gPySetERPContact__doc__},
+    {"setCFM",
+     (PyCFunction)gPySetCFM,
+     METH_VARARGS,
+     (const char *)gPySetCFM__doc__},
+
     {"setSorConstant",
      (PyCFunction)gPySetSorConstant,
      METH_VARARGS,
@@ -596,12 +659,6 @@ static struct PyMethodDef physicsconstraints_methods[] = {
      METH_VARARGS,
      (const char *)gPySetSolverDamping__doc__},
 
-    {"setLinearAirDamping",
-     (PyCFunction)gPySetLinearAirDamping,
-     METH_VARARGS,
-     (const char *)gPySetLinearAirDamping__doc__},
-
-    {"setUseEpa", (PyCFunction)gPySetUseEpa, METH_VARARGS, (const char *)gPySetUseEpa__doc__},
     {"setSolverType",
      (PyCFunction)gPySetSolverType,
      METH_VARARGS,

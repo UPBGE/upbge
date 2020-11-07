@@ -1,0 +1,11 @@
+--- extern/bullet2/src/BulletDynamics/ConstraintSolver/btContactSolverInfo.h
++++ extern/bullet2/src/BulletDynamics/ConstraintSolver/btContactSolverInfo.h
+@@ -84,7 +84,7 @@ struct btContactSolverInfo : public btContactSolverInfoData
+ 		m_maxErrorReduction = btScalar(20.);
+ 		m_numIterations = 10;
+ 		m_erp = btScalar(0.2);
+-		m_erp2 = btScalar(0.2);
++		m_erp2 = btScalar(0.8);
+ 		m_deformable_erp = btScalar(0.06);
+ 		m_deformable_cfm = btScalar(0.01);
+ 		m_deformable_maxErrorReduction = btScalar(0.1);

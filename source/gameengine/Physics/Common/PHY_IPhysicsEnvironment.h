@@ -157,6 +157,18 @@ class PHY_IPhysicsEnvironment {
   virtual void SetDeactivationAngularTreshold(float angTresh)
   {
   }
+  /// setERP sets the Error Reduction Parameter to reduce the joint error for non-contact constraints
+  virtual void SetERPNonContact(float erp)
+  {
+  }
+  /// setERP sets the Error Reduction Parameter to reduce the joint error for contact constraints
+  virtual void SetERPContact(float erp2)
+  {
+  }
+  /// setCFM sets the Constraint Force Mixing to allow soft constraints
+  virtual void SetCFM(float cfm)
+  {
+  }
   /// setContactBreakingTreshold sets tresholds to do with contact point management
   virtual void SetContactBreakingTreshold(float contactBreakingTreshold)
   {
@@ -177,14 +189,6 @@ class PHY_IPhysicsEnvironment {
   }
   /// setDamping sets the damper constant of a penalty based solver
   virtual void SetSolverDamping(float damping)
-  {
-  }
-  /// linear air damping for rigidbodies
-  virtual void SetLinearAirDamping(float damping)
-  {
-  }
-  /// penetrationdepth setting
-  virtual void SetUseEpa(bool epa)
   {
   }
 

@@ -882,7 +882,7 @@ typedef struct GameData {
   float timeScale;
   float levelHeight;
   float deactivationtime, lineardeactthreshold, angulardeactthreshold;
-  int _pad2[2];
+  float erp, erp2, cfm, _pad1;
 
   /* Scene LoD */
   short lodflag, _pad3;
