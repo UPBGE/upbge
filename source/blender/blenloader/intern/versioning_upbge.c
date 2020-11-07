@@ -229,6 +229,7 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
       for (Scene *scene = main->scenes.first; scene; scene = scene->id.next) {
         scene->gm.erp = 0.2f;
         scene->gm.erp2 = 0.8f;
+        scene->gm.cfm = 0.0f;
       }
     }
   }
