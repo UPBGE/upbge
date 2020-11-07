@@ -45,8 +45,8 @@ SteerableViewMap::SteerableViewMap(unsigned int nbOrientations)
   _nbOrientations = nbOrientations;
   _bound = cos(M_PI / (float)_nbOrientations);
   for (unsigned int i = 0; i < _nbOrientations; ++i) {
-    _directions.push_back(Vec2d(cos((float)i * M_PI / (float)_nbOrientations),
-                                sin((float)i * M_PI / (float)_nbOrientations)));
+    _directions.emplace_back(cos((float)i * M_PI / (float)_nbOrientations),
+                             sin((float)i * M_PI / (float)_nbOrientations));
   }
   Build();
 }
@@ -88,7 +88,7 @@ void SteerableViewMap::Clear()
       }
     }
     delete[] _imagesPyramids;
-    _imagesPyramids = 0;
+    _imagesPyramids = nullptr;
   }
   if (!_mapping.empty()) {
     for (map<unsigned int, double *>::iterator m = _mapping.begin(), mend = _mapping.end();
@@ -240,7 +240,7 @@ unsigned int SteerableViewMap::getNumberOfPyramidLevels() const
 void SteerableViewMap::saveSteerableViewMap() const
 {
   for (unsigned int i = 0; i <= _nbOrientations; ++i) {
-    if (_imagesPyramids[i] == 0) {
+    if (_imagesPyramids[i] == nullptr) {
       cerr << "SteerableViewMap warning: orientation " << i
            << " of steerable View Map whas not been computed yet" << endl;
       continue;

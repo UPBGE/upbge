@@ -43,8 +43,8 @@ set(INC
   ../../blender/imbuf
   ../../blender/makesdna
   ../../blender/makesrna
-  ../../blender/render/extern/include
-  ../../blender/render/intern/include
+  ../../blender/render
+  ../../blender/render/intern
   ../../../intern/glew-mx
   ../../../intern/guardedalloc
   ../../../intern/termcolor

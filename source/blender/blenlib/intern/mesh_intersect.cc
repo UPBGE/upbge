@@ -519,7 +519,7 @@ class IMeshArena::IMeshArenaImpl : NonCopyable, NonMovable {
 
 IMeshArena::IMeshArena()
 {
-  pimpl_ = std::unique_ptr<IMeshArenaImpl>(new IMeshArenaImpl());
+  pimpl_ = std::unique_ptr<IMeshArenaImpl>(std::make_unique<IMeshArenaImpl>());
 }
 
 IMeshArena::~IMeshArena()
@@ -1137,7 +1137,7 @@ static bool non_trivially_2d_hex_overlap(int orients[2][3][3])
   for (int ab = 0; ab < 2; ++ab) {
     for (int i = 0; i < 3; ++i) {
       bool ok = orients[ab][i][0] + orients[ab][i][1] + orients[ab][i][2] == 1 &&
-                orients[ab][i][0] != 0 && orients[ab][i][1] != 0 && orients[i][2] != 0;
+                orients[ab][i][0] != 0 && orients[ab][i][1] != 0 && orients[i][2] != nullptr;
       if (!ok) {
         return false;
       }
@@ -2460,12 +2460,12 @@ class TriOverlaps {
     if (two_trees_no_self) {
       BLI_bvhtree_balance(tree_b_);
       /* Don't expect a lot of trivial intersects in this case. */
-      overlap_ = BLI_bvhtree_overlap(tree_, tree_b_, &overlap_tot_, NULL, NULL);
+      overlap_ = BLI_bvhtree_overlap(tree_, tree_b_, &overlap_tot_, nullptr, nullptr);
     }
     else {
       CBData cbdata{tm, shape_fn, nshapes, use_self};
       if (nshapes == 1) {
-        overlap_ = BLI_bvhtree_overlap(tree_, tree_, &overlap_tot_, NULL, NULL);
+        overlap_ = BLI_bvhtree_overlap(tree_, tree_, &overlap_tot_, nullptr, nullptr);
       }
       else {
         overlap_ = BLI_bvhtree_overlap(
@@ -2637,8 +2637,7 @@ struct SubdivideTrisData {
         tm(tm),
         itt_map(itt_map),
         overlap(overlap),
-        arena(arena),
-        overlap_tri_range{}
+        arena(arena)
   {
   }
 };
@@ -2771,7 +2770,7 @@ static CDT_data calc_cluster_subdivided(const CoplanarClusterInfo &clinfo,
         std::pair<int, int> key = canon_int_pair(t, t_other);
         if (itt_map.contains(key)) {
           ITT_value itt = itt_map.lookup(key);
-          if (itt.kind != INONE && itt.kind != ICOPLANAR) {
+          if (!ELEM(itt.kind, INONE, ICOPLANAR)) {
             itts.append(itt);
             if (dbg_level > 0) {
               std::cout << "  itt = " << itt << "\n";

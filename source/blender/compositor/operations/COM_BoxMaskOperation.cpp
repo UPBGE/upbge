@@ -20,13 +20,13 @@
 #include "BLI_math.h"
 #include "DNA_node_types.h"
 
-BoxMaskOperation::BoxMaskOperation() : NodeOperation()
+BoxMaskOperation::BoxMaskOperation()
 {
   this->addInputSocket(COM_DT_VALUE);
   this->addInputSocket(COM_DT_VALUE);
   this->addOutputSocket(COM_DT_VALUE);
-  this->m_inputMask = NULL;
-  this->m_inputValue = NULL;
+  this->m_inputMask = nullptr;
+  this->m_inputValue = nullptr;
   this->m_cosine = 0.0f;
   this->m_sine = 0.0f;
 }
@@ -105,6 +105,6 @@ void BoxMaskOperation::executePixelSampled(float output[4], float x, float y, Pi
 
 void BoxMaskOperation::deinitExecution()
 {
-  this->m_inputMask = NULL;
-  this->m_inputValue = NULL;
+  this->m_inputMask = nullptr;
+  this->m_inputValue = nullptr;
 }

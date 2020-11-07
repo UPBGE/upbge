@@ -25,6 +25,7 @@ set(INC
   ../blenfont
   ../blenkernel
   ../blenlib
+  ../blenloader
   ../blentranslation
   ../bmesh
   ../depsgraph
@@ -35,13 +36,16 @@ set(INC
   ../makesdna
   ../makesrna
   ../nodes
-  ../render/extern/include
-  ../render/intern/include
+  ../render
+  ../render/intern
   ../windowmanager
 
   ../../../intern/atomic
   ../../../intern/glew-mx
   ../../../intern/guardedalloc
+
+  # dna_type_offsets.h
+  ${CMAKE_CURRENT_BINARY_DIR}/../makesdna/intern
 )
 
 set(SRC
@@ -449,6 +453,9 @@ endif()
 
 
 blender_add_lib(bf_draw "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+
+# Needed so we can use dna_type_offsets.h for defaults initialization.
+add_dependencies(bf_draw bf_dna)
 
 if(WITH_GTESTS)
   if(WITH_OPENGL_DRAW_TESTS)

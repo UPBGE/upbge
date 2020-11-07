@@ -54,7 +54,7 @@
 
 using namespace blender::gpu;
 
-static thread_local Context *active_ctx = NULL;
+static thread_local Context *active_ctx = nullptr;
 
 /* -------------------------------------------------------------------- */
 /** \name gpu::Context methods
@@ -80,12 +80,12 @@ Context::~Context()
   delete imm;
 }
 
-bool Context::is_active_on_thread(void)
+bool Context::is_active_on_thread()
 {
   return (this == active_ctx) && pthread_equal(pthread_self(), thread_);
 }
 
-Context *Context::get(void)
+Context *Context::get()
 {
   return active_ctx;
 }
@@ -98,7 +98,7 @@ Context *Context::get(void)
 
 GPUContext *GPU_context_create(void *ghost_window)
 {
-  if (GPUBackend::get() == NULL) {
+  if (GPUBackend::get() == nullptr) {
     /* TODO move where it make sense. */
     GPU_backend_init(GPU_BACKEND_OPENGL);
   }
@@ -114,7 +114,7 @@ void GPU_context_discard(GPUContext *ctx_)
 {
   Context *ctx = unwrap(ctx_);
   delete ctx;
-  active_ctx = NULL;
+  active_ctx = nullptr;
 }
 
 /* ctx can be NULL */
@@ -166,7 +166,7 @@ static GPUBackend *g_backend;
 
 void GPU_backend_init(eGPUBackendType backend_type)
 {
-  BLI_assert(g_backend == NULL);
+  BLI_assert(g_backend == nullptr);
 
   switch (backend_type) {
 #if WITH_OPENGL_BACKEND
@@ -185,10 +185,10 @@ void GPU_backend_exit(void)
   /* TODO assert no resource left. Currently UI textures are still not freed in their context
    * correctly. */
   delete g_backend;
-  g_backend = NULL;
+  g_backend = nullptr;
 }
 
-GPUBackend *GPUBackend::get(void)
+GPUBackend *GPUBackend::get()
 {
   return g_backend;
 }

@@ -45,7 +45,7 @@ set(INC
   ../../blender/gpu
   ../../blender/makesdna
   ../../blender/makesrna
-  ../../blender/render/extern/include
+  ../../blender/render
   ../../blender/windowmanager
   ../../../intern/guardedalloc
   ../../../intern/ghost

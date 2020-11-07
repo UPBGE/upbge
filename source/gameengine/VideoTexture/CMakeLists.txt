@@ -47,7 +47,7 @@ set(INC
   ../../blender/makesdna
   ../../blender/python
   ../../blender/python/generic
-  ../../blender/render/extern/include
+  ../../blender/render
   ../../../intern/ffmpeg
   ../../../intern/glew-mx
   ../../../intern/guardedalloc

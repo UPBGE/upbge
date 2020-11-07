@@ -21,6 +21,9 @@
  * \ingroup bke
  */
 
+/* Allow using deprecated functionality for .blend file I/O. */
+#define DNA_DEPRECATED_ALLOW
+
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -37,6 +40,7 @@
 #include "DNA_constraint_types.h"
 #include "DNA_controller_types.h"
 #include "DNA_defaults.h"
+#include "DNA_effect_types.h"
 #include "DNA_fluid_types.h"
 #include "DNA_gpencil_modifier_types.h"
 #include "DNA_gpencil_types.h"
@@ -49,9 +53,12 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_movieclip_types.h"
+#include "DNA_nla_types.h"
+#include "DNA_object_fluidsim_types.h"
 #include "DNA_object_types.h"
 #include "DNA_pointcloud_types.h"
 #include "DNA_property_types.h"
+#include "DNA_python_component_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
@@ -142,6 +149,8 @@
 #include "DEG_depsgraph_query.h"
 
 #include "DRW_engine.h"
+
+#include "BLO_read_write.h"
 
 #include "SEQ_sequencer.h"
 
@@ -612,6 +621,1127 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 }
 
+static void write_defgroups(BlendWriter *writer, ListBase *defbase)
+{
+  LISTBASE_FOREACH (bDeformGroup *, defgroup, defbase) {
+    BLO_write_struct(writer, bDeformGroup, defgroup);
+  }
+}
+
+static void write_fmaps(BlendWriter *writer, ListBase *fbase)
+{
+  LISTBASE_FOREACH (bFaceMap *, fmap, fbase) {
+    BLO_write_struct(writer, bFaceMap, fmap);
+  }
+}
+
+static void write_properties(BlendWriter *writer, ListBase *lb)
+{
+  bProperty *prop;
+
+  prop = lb->first;
+  while (prop) {
+    BLO_write_struct(writer, bProperty, prop);
+
+    if (prop->poin && prop->poin != &prop->data) {
+      BLO_write_raw(writer, MEM_allocN_len(prop->poin), prop->poin);
+    }
+
+    prop = prop->next;
+  }
+}
+
+static void write_sensors(BlendWriter *writer, ListBase *lb)
+{
+  bSensor *sens;
+
+  sens = lb->first;
+  while (sens) {
+    BLO_write_struct(writer, bSensor, sens);
+
+    BLO_write_pointer_array(writer, sens->totlinks, sens->links);
+
+    switch (sens->type) {
+      case SENS_NEAR:
+        BLO_write_struct(writer, bNearSensor, sens->data);
+        break;
+      case SENS_MOUSE:
+        BLO_write_struct(writer, bMouseSensor, sens->data);
+        break;
+      case SENS_KEYBOARD:
+        BLO_write_struct(writer, bKeyboardSensor, sens->data);
+        break;
+      case SENS_PROPERTY:
+        BLO_write_struct(writer, bPropertySensor, sens->data);
+        break;
+      case SENS_ARMATURE:
+        BLO_write_struct(writer, bArmatureSensor, sens->data);
+        break;
+      case SENS_ACTUATOR:
+        BLO_write_struct(writer, bActuatorSensor, sens->data);
+        break;
+      case SENS_DELAY:
+        BLO_write_struct(writer, bDelaySensor, sens->data);
+        break;
+      case SENS_COLLISION:
+        BLO_write_struct(writer, bCollisionSensor, sens->data);
+        break;
+      case SENS_RADAR:
+        BLO_write_struct(writer, bRadarSensor, sens->data);
+        break;
+      case SENS_RANDOM:
+        BLO_write_struct(writer, bRandomSensor, sens->data);
+        break;
+      case SENS_RAY:
+        BLO_write_struct(writer, bRaySensor, sens->data);
+        break;
+      case SENS_MOVEMENT:
+        BLO_write_struct(writer, bMovementSensor, sens->data);
+        break;
+      case SENS_MESSAGE:
+        BLO_write_struct(writer, bMessageSensor, sens->data);
+        break;
+      case SENS_JOYSTICK:
+        BLO_write_struct(writer, bJoystickSensor, sens->data);
+        break;
+      default:; /* error: don't know how to write this file */
+    }
+
+    sens = sens->next;
+  }
+}
+
+static void write_controllers(BlendWriter *writer, ListBase *lb)
+{
+  bController *cont;
+
+  cont = lb->first;
+  while (cont) {
+    BLO_write_struct(writer, bController, cont);
+
+    BLO_write_pointer_array(writer, cont->totlinks, cont->links);
+
+    switch (cont->type) {
+      case CONT_EXPRESSION:
+        BLO_write_struct(writer, bExpressionCont, cont->data);
+        break;
+      case CONT_PYTHON:
+        BLO_write_struct(writer, bPythonCont, cont->data);
+        break;
+      default:; /* error: don't know how to write this file */
+    }
+
+    cont = cont->next;
+  }
+}
+
+static void write_actuators(BlendWriter *writer, ListBase *lb)
+{
+  bActuator *act;
+
+  act = lb->first;
+  while (act) {
+    BLO_write_struct(writer, bActuator, act);
+
+    switch (act->type) {
+      case ACT_ACTION:
+        BLO_write_struct(writer, bActionActuator, act->data);
+        break;
+      case ACT_SOUND:
+        BLO_write_struct(writer, bSoundActuator, act->data);
+        break;
+      case ACT_OBJECT:
+        BLO_write_struct(writer, bObjectActuator, act->data);
+        break;
+      case ACT_PROPERTY:
+        BLO_write_struct(writer, bPropertyActuator, act->data);
+        break;
+      case ACT_CAMERA:
+        BLO_write_struct(writer, bCameraActuator, act->data);
+        break;
+      case ACT_CONSTRAINT:
+        BLO_write_struct(writer, bConstraintActuator, act->data);
+        break;
+      case ACT_EDIT_OBJECT:
+        BLO_write_struct(writer, bEditObjectActuator, act->data);
+        break;
+      case ACT_SCENE:
+        BLO_write_struct(writer, bSceneActuator, act->data);
+        break;
+      case ACT_COLLECTION:
+        BLO_write_struct(writer, bCollectionActuator, act->data);
+        break;
+      case ACT_GROUP:
+        BLO_write_struct(writer, bGroupActuator, act->data);
+        break;
+      case ACT_RANDOM:
+        BLO_write_struct(writer, bRandomActuator, act->data);
+        break;
+      case ACT_MESSAGE:
+        BLO_write_struct(writer, bMessageActuator, act->data);
+        break;
+      case ACT_GAME:
+        BLO_write_struct(writer, bGameActuator, act->data);
+        break;
+      case ACT_VIBRATION:
+        BLO_write_struct(writer, bVibrationActuator, act->data);
+        break;
+      case ACT_VISIBILITY:
+        BLO_write_struct(writer, bVisibilityActuator, act->data);
+        break;
+      case ACT_2DFILTER:
+        BLO_write_struct(writer, bTwoDFilterActuator, act->data);
+        break;
+      case ACT_PARENT:
+        BLO_write_struct(writer, bParentActuator, act->data);
+        break;
+      case ACT_STATE:
+        BLO_write_struct(writer, bStateActuator, act->data);
+        break;
+      case ACT_ARMATURE:
+        BLO_write_struct(writer, bArmatureActuator, act->data);
+        break;
+      case ACT_STEERING:
+        BLO_write_struct(writer, bSteeringActuator, act->data);
+        break;
+      case ACT_MOUSE:
+        BLO_write_struct(writer, bMouseActuator, act->data);
+        break;
+      default:; /* error: don't know how to write this file */
+    }
+
+    act = act->next;
+  }
+}
+
+static void write_component_properties(BlendWriter *writer, ListBase *lb)
+{
+  PythonComponentProperty *cprop;
+  cprop = lb->first;
+
+  while (cprop) {
+    LinkData *link;
+    BLO_write_struct(writer, PythonComponentProperty, cprop);
+    BLO_write_struct_list(writer, LinkData, &cprop->enumval);
+    for (link = cprop->enumval.first; link; link = link->next) {
+      BLO_write_string(writer, link->data);
+    }
+    cprop = cprop->next;
+  }
+}
+
+static void write_components(BlendWriter *writer, ListBase *lb)
+{
+  PythonComponent *pc;
+
+  pc = lb->first;
+
+  while (pc) {
+    BLO_write_struct(writer, PythonComponent, pc);
+    write_component_properties(writer, &pc->properties);
+
+    pc = pc->next;
+  }
+}
+
+static void object_blend_write(BlendWriter *writer, ID *id, const void *id_address)
+{
+  Object *ob = (Object *)id;
+
+  const bool is_undo = BLO_write_is_undo(writer);
+  if (ob->id.us > 0 || is_undo) {
+    /* Clean up, important in undo case to reduce false detection of changed data-blocks. */
+    BKE_object_runtime_reset(ob);
+
+    if (is_undo) {
+      /* For undo we stay in object mode during undo presses, so keep edit-mode disabled on save as
+       * well, can help reducing false detection of changed data-blocks. */
+      ob->mode &= ~OB_MODE_EDIT;
+    }
+
+    /* write LibData */
+    BLO_write_id_struct(writer, Object, id_address, &ob->id);
+    BKE_id_blend_write(writer, &ob->id);
+
+    if (ob->adt) {
+      BKE_animdata_blend_write(writer, ob->adt);
+    }
+
+    /* direct data */
+    BLO_write_pointer_array(writer, ob->totcol, ob->mat);
+    BLO_write_raw(writer, sizeof(char) * ob->totcol, ob->matbits);
+
+    write_properties(writer, &ob->prop);
+    write_sensors(writer, &ob->sensors);
+    write_controllers(writer, &ob->controllers);
+    write_actuators(writer, &ob->actuators);
+    write_components(writer, &ob->components);
+
+    bArmature *arm = NULL;
+    if (ob->type == OB_ARMATURE) {
+      arm = ob->data;
+      if (arm && ob->pose && arm->act_bone) {
+        BLI_strncpy(
+            ob->pose->proxy_act_bone, arm->act_bone->name, sizeof(ob->pose->proxy_act_bone));
+      }
+    }
+
+    BKE_pose_blend_write(writer, ob->pose, arm);
+    write_defgroups(writer, &ob->defbase);
+    write_fmaps(writer, &ob->fmaps);
+    BKE_constraint_blend_write(writer, &ob->constraints);
+    animviz_motionpath_blend_write(writer, ob->mpath);
+
+    BLO_write_struct(writer, PartDeflect, ob->pd);
+    if (ob->soft) {
+      /* Set deprecated pointers to prevent crashes of older Blenders */
+      ob->soft->pointcache = ob->soft->shared->pointcache;
+      ob->soft->ptcaches = ob->soft->shared->ptcaches;
+      BLO_write_struct(writer, SoftBody, ob->soft);
+      BLO_write_struct(writer, SoftBody_Shared, ob->soft->shared);
+      BKE_ptcache_blend_write(writer, &(ob->soft->shared->ptcaches));
+      BLO_write_struct(writer, EffectorWeights, ob->soft->effector_weights);
+    }
+
+    if (ob->bsoft) {
+      BLO_write_struct(writer, BulletSoftBody, ob->bsoft);
+    }
+
+    if (ob->rigidbody_object) {
+      /* TODO: if any extra data is added to handle duplis, will need separate function then */
+      BLO_write_struct(writer, RigidBodyOb, ob->rigidbody_object);
+    }
+    if (ob->rigidbody_constraint) {
+      BLO_write_struct(writer, RigidBodyCon, ob->rigidbody_constraint);
+    }
+
+    if (ob->type == OB_EMPTY && ob->empty_drawtype == OB_EMPTY_IMAGE) {
+      BLO_write_struct(writer, ImageUser, ob->iuser);
+    }
+
+    BKE_particle_system_blend_write(writer, &ob->particlesystem);
+    BKE_modifier_blend_write(writer, &ob->modifiers);
+    BKE_gpencil_modifier_blend_write(writer, &ob->greasepencil_modifiers);
+    BKE_shaderfx_blend_write(writer, &ob->shader_fx);
+
+    BLO_write_struct_list(writer, LinkData, &ob->pc_ids);
+    BLO_write_struct_list(writer, LodLevel, &ob->lodlevels);
+
+    BKE_previewimg_blend_write(writer, ob->preview);
+  }
+}
+
+/* XXX deprecated - old animation system */
+static void direct_link_nlastrips(BlendDataReader *reader, ListBase *strips)
+{
+  BLO_read_list(reader, strips);
+
+  LISTBASE_FOREACH (bActionStrip *, strip, strips) {
+    BLO_read_list(reader, &strip->modifiers);
+  }
+}
+
+static void object_blend_read_data(BlendDataReader *reader, ID *id)
+{
+  Object *ob = (Object *)id;
+
+  PartEff *paf;
+
+  /* XXX This should not be needed - but seems like it can happen in some cases,
+   * so for now play safe. */
+  ob->proxy_from = NULL;
+
+  const bool is_undo = BLO_read_data_is_undo(reader);
+  if (ob->id.tag & (LIB_TAG_EXTERN | LIB_TAG_INDIRECT)) {
+    /* Do not allow any non-object mode for linked data.
+     * See T34776, T42780, T81027 for more information. */
+    ob->mode &= ~OB_MODE_ALL_MODE_DATA;
+  }
+  else if (is_undo) {
+    /* For undo we want to stay in object mode during undo presses, so keep some edit modes
+     * disabled.
+     * TODO: Check if we should not disable more edit modes here? */
+    ob->mode &= ~(OB_MODE_EDIT | OB_MODE_PARTICLE_EDIT);
+  }
+
+  BLO_read_data_address(reader, &ob->adt);
+  BKE_animdata_blend_read_data(reader, ob->adt);
+
+  BLO_read_data_address(reader, &ob->pose);
+  BKE_pose_blend_read_data(reader, ob->pose);
+
+  BLO_read_data_address(reader, &ob->mpath);
+  if (ob->mpath) {
+    animviz_motionpath_blend_read_data(reader, ob->mpath);
+  }
+
+  BLO_read_list(reader, &ob->defbase);
+  BLO_read_list(reader, &ob->fmaps);
+  /* XXX deprecated - old animation system <<< */
+  direct_link_nlastrips(reader, &ob->nlastrips);
+  BLO_read_list(reader, &ob->constraintChannels);
+  /* >>> XXX deprecated - old animation system */
+
+  BLO_read_pointer_array(reader, (void **)&ob->mat);
+  BLO_read_data_address(reader, &ob->matbits);
+
+  /* do it here, below old data gets converted */
+  BKE_modifier_blend_read_data(reader, &ob->modifiers, ob);
+  BKE_gpencil_modifier_blend_read_data(reader, &ob->greasepencil_modifiers);
+  BKE_shaderfx_blend_read_data(reader, &ob->shader_fx);
+
+  BLO_read_list(reader, &ob->effect);
+  paf = ob->effect.first;
+  while (paf) {
+    if (paf->type == EFF_PARTICLE) {
+      paf->keys = NULL;
+    }
+    if (paf->type == EFF_WAVE) {
+      WaveEff *wav = (WaveEff *)paf;
+      PartEff *next = paf->next;
+      WaveModifierData *wmd = (WaveModifierData *)BKE_modifier_new(eModifierType_Wave);
+
+      wmd->damp = wav->damp;
+      wmd->flag = wav->flag;
+      wmd->height = wav->height;
+      wmd->lifetime = wav->lifetime;
+      wmd->narrow = wav->narrow;
+      wmd->speed = wav->speed;
+      wmd->startx = wav->startx;
+      wmd->starty = wav->startx;
+      wmd->timeoffs = wav->timeoffs;
+      wmd->width = wav->width;
+
+      BLI_addtail(&ob->modifiers, wmd);
+
+      BLI_remlink(&ob->effect, paf);
+      MEM_freeN(paf);
+
+      paf = next;
+      continue;
+    }
+    if (paf->type == EFF_BUILD) {
+      BuildEff *baf = (BuildEff *)paf;
+      PartEff *next = paf->next;
+      BuildModifierData *bmd = (BuildModifierData *)BKE_modifier_new(eModifierType_Build);
+
+      bmd->start = baf->sfra;
+      bmd->length = baf->len;
+      bmd->randomize = 0;
+      bmd->seed = 1;
+
+      BLI_addtail(&ob->modifiers, bmd);
+
+      BLI_remlink(&ob->effect, paf);
+      MEM_freeN(paf);
+
+      paf = next;
+      continue;
+    }
+    paf = paf->next;
+  }
+
+  BLO_read_data_address(reader, &ob->pd);
+  BKE_particle_partdeflect_blend_read_data(reader, ob->pd);
+  BLO_read_data_address(reader, &ob->soft);
+  if (ob->soft) {
+    SoftBody *sb = ob->soft;
+
+    sb->bpoint = NULL; /* init pointers so it gets rebuilt nicely */
+    sb->bspring = NULL;
+    sb->scratch = NULL;
+    /* although not used anymore */
+    /* still have to be loaded to be compatible with old files */
+    BLO_read_pointer_array(reader, (void **)&sb->keys);
+    if (sb->keys) {
+      for (int a = 0; a < sb->totkey; a++) {
+        BLO_read_data_address(reader, &sb->keys[a]);
+      }
+    }
+
+    BLO_read_data_address(reader, &sb->effector_weights);
+    if (!sb->effector_weights) {
+      sb->effector_weights = BKE_effector_add_weights(NULL);
+    }
+
+    BLO_read_data_address(reader, &sb->shared);
+    if (sb->shared == NULL) {
+      /* Link deprecated caches if they exist, so we can use them for versioning.
+       * We should only do this when sb->shared == NULL, because those pointers
+       * are always set (for compatibility with older Blenders). We mustn't link
+       * the same pointcache twice. */
+      BKE_ptcache_blend_read_data(reader, &sb->ptcaches, &sb->pointcache, false);
+    }
+    else {
+      /* link caches */
+      BKE_ptcache_blend_read_data(reader, &sb->shared->ptcaches, &sb->shared->pointcache, false);
+    }
+  }
+
+  BLO_read_data_address(reader, &ob->bsoft);
+
+  bProperty *prop;
+  bSensor *sens;
+  bController *cont;
+  bActuator *act;
+  PythonComponent *pc;
+  PythonComponentProperty *cprop;
+
+  BLO_read_list(reader, &ob->prop);
+  for (prop = ob->prop.first; prop; prop = prop->next) {
+    BLO_read_data_address(reader, &prop->poin);
+    if (prop->poin == NULL)
+      prop->poin = &prop->data;
+  }
+
+  BLO_read_list(reader, &ob->sensors);
+  for (sens = ob->sensors.first; sens; sens = sens->next) {
+    BLO_read_data_address(reader, &sens->data);
+    BLO_read_pointer_array(reader, (void **)&sens->links);
+  }
+
+  BLO_read_glob_list(reader, &ob->controllers);
+  if (ob->init_state) {
+    /* if a known first state is specified, set it so that the game will start ok */
+    ob->state = ob->init_state;
+  }
+  else if (!ob->state) {
+    ob->state = 1;
+  }
+  else if (!ob->init_state) {
+    ob->init_state = 1;
+  }
+  for (cont = ob->controllers.first; cont; cont = cont->next) {
+    BLO_read_data_address(reader, &cont->data);
+    BLO_read_pointer_array(reader, (void **)&cont->links);
+    if (cont->state_mask == 0)
+      cont->state_mask = 1;
+  }
+
+  BLO_read_glob_list(reader, &ob->actuators);
+  for (act = ob->actuators.first; act; act = act->next) {
+    BLO_read_data_address(reader, &act->data);
+  }
+
+  BLO_read_glob_list(reader, &ob->components);
+  pc = ob->components.first;
+  while (pc) {
+    BLO_read_glob_list(reader, &pc->properties);
+    cprop = pc->properties.first;
+    while (cprop) {
+      BLO_read_list(reader, &cprop->enumval);
+      for (LinkData *link = cprop->enumval.first; link; link = link->next) {
+        BLO_read_data_address(reader, &link->data);
+      }
+      cprop = cprop->next;
+    }
+    pc = pc->next;
+  }
+
+  BLO_read_data_address(reader, &ob->fluidsimSettings); /* NT */
+
+  BLO_read_data_address(reader, &ob->rigidbody_object);
+  if (ob->rigidbody_object) {
+    RigidBodyOb *rbo = ob->rigidbody_object;
+    /* Allocate runtime-only struct */
+    rbo->shared = MEM_callocN(sizeof(*rbo->shared), "RigidBodyObShared");
+  }
+  BLO_read_data_address(reader, &ob->rigidbody_constraint);
+  if (ob->rigidbody_constraint) {
+    ob->rigidbody_constraint->physics_constraint = NULL;
+  }
+
+  BLO_read_list(reader, &ob->particlesystem);
+  BKE_particle_system_blend_read_data(reader, &ob->particlesystem);
+
+  BKE_constraint_blend_read_data(reader, &ob->constraints);
+
+  BLO_read_list(reader, &ob->hooks);
+  while (ob->hooks.first) {
+    ObHook *hook = ob->hooks.first;
+    HookModifierData *hmd = (HookModifierData *)BKE_modifier_new(eModifierType_Hook);
+
+    BLO_read_int32_array(reader, hook->totindex, &hook->indexar);
+
+    /* Do conversion here because if we have loaded
+     * a hook we need to make sure it gets converted
+     * and freed, regardless of version.
+     */
+    copy_v3_v3(hmd->cent, hook->cent);
+    hmd->falloff = hook->falloff;
+    hmd->force = hook->force;
+    hmd->indexar = hook->indexar;
+    hmd->object = hook->parent;
+    memcpy(hmd->parentinv, hook->parentinv, sizeof(hmd->parentinv));
+    hmd->totindex = hook->totindex;
+
+    BLI_addhead(&ob->modifiers, hmd);
+    BLI_remlink(&ob->hooks, hook);
+
+    BKE_modifier_unique_name(&ob->modifiers, (ModifierData *)hmd);
+
+    MEM_freeN(hook);
+  }
+
+  BLO_read_data_address(reader, &ob->iuser);
+  if (ob->type == OB_EMPTY && ob->empty_drawtype == OB_EMPTY_IMAGE && !ob->iuser) {
+    BKE_object_empty_draw_type_set(ob, ob->empty_drawtype);
+  }
+
+  BKE_object_runtime_reset(ob);
+  BLO_read_list(reader, &ob->pc_ids);
+
+  /* in case this value changes in future, clamp else we get undefined behavior */
+  CLAMP(ob->rotmode, ROT_MODE_MIN, ROT_MODE_MAX);
+
+  if (ob->sculpt) {
+    ob->sculpt = NULL;
+    /* Only create data on undo, otherwise rely on editor mode switching. */
+    if (BLO_read_data_is_undo(reader) && (ob->mode & OB_MODE_ALL_SCULPT)) {
+      BKE_object_sculpt_data_create(ob);
+    }
+  }
+
+  BLO_read_list(reader, &ob->lodlevels);
+  ob->currentlod = ob->lodlevels.first;
+
+  BLO_read_data_address(reader, &ob->preview);
+  BKE_previewimg_blend_read(reader, ob->preview);
+}
+
+/* XXX deprecated - old animation system */
+static void lib_link_nlastrips(BlendLibReader *reader, ID *id, ListBase *striplist)
+{
+  LISTBASE_FOREACH (bActionStrip *, strip, striplist) {
+    BLO_read_id_address(reader, id->lib, &strip->object);
+    BLO_read_id_address(reader, id->lib, &strip->act);
+    BLO_read_id_address(reader, id->lib, &strip->ipo);
+    LISTBASE_FOREACH (bActionModifier *, amod, &strip->modifiers) {
+      BLO_read_id_address(reader, id->lib, &amod->ob);
+    }
+  }
+}
+
+/* XXX deprecated - old animation system */
+static void lib_link_constraint_channels(BlendLibReader *reader, ID *id, ListBase *chanbase)
+{
+  LISTBASE_FOREACH (bConstraintChannel *, chan, chanbase) {
+    BLO_read_id_address(reader, id->lib, &chan->ipo);
+  }
+}
+
+static void object_blend_read_lib(BlendLibReader *reader, ID *id)
+{
+  Object *ob = (Object *)id;
+
+  bool warn = false;
+
+  /* XXX deprecated - old animation system <<< */
+  BLO_read_id_address(reader, ob->id.lib, &ob->ipo);
+  BLO_read_id_address(reader, ob->id.lib, &ob->action);
+  /* >>> XXX deprecated - old animation system */
+
+  BLO_read_id_address(reader, ob->id.lib, &ob->parent);
+  BLO_read_id_address(reader, ob->id.lib, &ob->track);
+  BLO_read_id_address(reader, ob->id.lib, &ob->poselib);
+
+  /* 2.8x drops support for non-empty dupli instances. */
+  if (ob->type == OB_EMPTY) {
+    BLO_read_id_address(reader, ob->id.lib, &ob->instance_collection);
+  }
+  else {
+    if (ob->instance_collection != NULL) {
+      ID *new_id = BLO_read_get_new_id_address(reader, ob->id.lib, &ob->instance_collection->id);
+      BLO_reportf_wrap(BLO_read_lib_reports(reader),
+                       RPT_WARNING,
+                       TIP_("Non-Empty object '%s' cannot duplicate collection '%s' "
+                            "anymore in Blender 2.80, removed instancing"),
+                       ob->id.name + 2,
+                       new_id->name + 2);
+    }
+    ob->instance_collection = NULL;
+    ob->transflag &= ~OB_DUPLICOLLECTION;
+  }
+
+  BLO_read_id_address(reader, ob->id.lib, &ob->proxy);
+  if (ob->proxy) {
+    /* paranoia check, actually a proxy_from pointer should never be written... */
+    if (ob->proxy->id.lib == NULL) {
+      ob->proxy->proxy_from = NULL;
+      ob->proxy = NULL;
+
+      if (ob->id.lib) {
+        printf("Proxy lost from  object %s lib %s\n", ob->id.name + 2, ob->id.lib->filepath);
+      }
+      else {
+        printf("Proxy lost from  object %s lib <NONE>\n", ob->id.name + 2);
+      }
+    }
+    else {
+      /* this triggers object_update to always use a copy */
+      ob->proxy->proxy_from = ob;
+    }
+  }
+  BLO_read_id_address(reader, ob->id.lib, &ob->proxy_group);
+
+  void *poin = ob->data;
+  BLO_read_id_address(reader, ob->id.lib, &ob->data);
+
+  if (ob->data == NULL && poin != NULL) {
+    if (ob->id.lib) {
+      printf("Can't find obdata of %s lib %s\n", ob->id.name + 2, ob->id.lib->filepath);
+    }
+    else {
+      printf("Object %s lost data.\n", ob->id.name + 2);
+    }
+
+    ob->type = OB_EMPTY;
+    warn = true;
+
+    if (ob->pose) {
+      /* we can't call #BKE_pose_free() here because of library linking
+       * freeing will recurse down into every pose constraints ID pointers
+       * which are not always valid, so for now free directly and suffer
+       * some leaked memory rather than crashing immediately
+       * while bad this _is_ an exceptional case - campbell */
+#if 0
+      BKE_pose_free(ob->pose);
+#else
+      MEM_freeN(ob->pose);
+#endif
+      ob->pose = NULL;
+      ob->mode &= ~OB_MODE_POSE;
+    }
+  }
+  for (int a = 0; a < ob->totcol; a++) {
+    BLO_read_id_address(reader, ob->id.lib, &ob->mat[a]);
+  }
+
+  /* When the object is local and the data is library its possible
+   * the material list size gets out of sync. T22663. */
+  if (ob->data && ob->id.lib != ((ID *)ob->data)->lib) {
+    const short *totcol_data = BKE_object_material_len_p(ob);
+    /* Only expand so as not to lose any object materials that might be set. */
+    if (totcol_data && (*totcol_data > ob->totcol)) {
+      /* printf("'%s' %d -> %d\n", ob->id.name, ob->totcol, *totcol_data); */
+      BKE_object_material_resize(BLO_read_lib_get_main(reader), ob, *totcol_data, false);
+    }
+  }
+
+  BLO_read_id_address(reader, ob->id.lib, &ob->gpd);
+
+  /* if id.us==0 a new base will be created later on */
+
+  /* WARNING! Also check expand_object(), should reflect the stuff below. */
+  BKE_pose_blend_read_lib(reader, ob, ob->pose);
+  BKE_constraint_blend_read_lib(reader, &ob->id, &ob->constraints);
+
+  /* XXX deprecated - old animation system <<< */
+  lib_link_constraint_channels(reader, &ob->id, &ob->constraintChannels);
+  lib_link_nlastrips(reader, &ob->id, &ob->nlastrips);
+  /* >>> XXX deprecated - old animation system */
+
+  LISTBASE_FOREACH (PartEff *, paf, &ob->effect) {
+    if (paf->type == EFF_PARTICLE) {
+      BLO_read_id_address(reader, ob->id.lib, &paf->group);
+    }
+  }
+
+  for (bSensor *sens = ob->sensors.first; sens; sens = sens->next) {
+    for (int a = 0; a < sens->totlinks; a++)
+      sens->links[a] = BLO_read_get_new_globaldata_address(reader, sens->links[a]);
+
+    if (sens->type == SENS_MESSAGE) {
+      bMessageSensor *ms = sens->data;
+      BLO_read_id_address(reader, ob->id.lib, &ms->fromObject);
+    }
+  }
+
+  for (bController *cont = ob->controllers.first; cont; cont = cont->next) {
+    for (int a = 0; a < cont->totlinks; a++)
+      cont->links[a] = BLO_read_get_new_globaldata_address(reader, cont->links[a]);
+
+    if (cont->type == CONT_PYTHON) {
+      bPythonCont *pc = cont->data;
+      BLO_read_id_address(reader, ob->id.lib, &pc->text);
+    }
+    cont->slinks = NULL;
+    cont->totslinks = 0;
+  }
+
+  for (bActuator *act = ob->actuators.first; act; act = act->next) {
+    switch (act->type) {
+      case ACT_SOUND: {
+        bSoundActuator *sa = act->data;
+        BLO_read_id_address(reader, ob->id.lib, &sa->sound);
+        break;
+      }
+      case ACT_GAME:
+        /* bGameActuator *ga= act->data; */
+        break;
+      case ACT_CAMERA: {
+        bCameraActuator *ca = act->data;
+        BLO_read_id_address(reader, ob->id.lib, &ca->ob);
+        break;
+      }
+      /* leave this one, it's obsolete but necessary to read for conversion */
+      case ACT_ADD_OBJECT: {
+        bAddObjectActuator *eoa = act->data;
+        if (eoa)
+          BLO_read_id_address(reader, ob->id.lib, &eoa->ob);
+        break;
+      }
+      case ACT_OBJECT: {
+        bObjectActuator *oa = act->data;
+        if (oa == NULL) {
+          init_actuator(act);
+        }
+        else {
+          BLO_read_id_address(reader, ob->id.lib, &oa->reference);
+        }
+        break;
+      }
+      case ACT_EDIT_OBJECT: {
+        bEditObjectActuator *eoa = act->data;
+        if (eoa == NULL) {
+          init_actuator(act);
+        }
+        else {
+          BLO_read_id_address(reader, ob->id.lib, &eoa->ob);
+          BLO_read_id_address(reader, ob->id.lib, &eoa->me);
+        }
+        break;
+      }
+      case ACT_SCENE: {
+        bSceneActuator *sa = act->data;
+        BLO_read_id_address(reader, ob->id.lib, &sa->camera);
+        BLO_read_id_address(reader, ob->id.lib, &sa->scene);
+        break;
+      }
+      case ACT_COLLECTION: {
+        bCollectionActuator *ca = act->data;
+        BLO_read_id_address(reader, ob->id.lib, &ca->collection);
+        BLO_read_id_address(reader, ob->id.lib, &ca->camera);
+        break;
+      }
+      case ACT_ACTION: {
+        bActionActuator *aa = act->data;
+        BLO_read_id_address(reader, ob->id.lib, &aa->act);
+        break;
+      }
+      case ACT_SHAPEACTION: {
+        bActionActuator *aa = act->data;
+        BLO_read_id_address(reader, ob->id.lib, &aa->act);
+        break;
+      }
+      case ACT_PROPERTY: {
+        bPropertyActuator *pa = act->data;
+        BLO_read_id_address(reader, ob->id.lib, &pa->ob);
+        break;
+      }
+      case ACT_MESSAGE: {
+        bMessageActuator *ma = act->data;
+        BLO_read_id_address(reader, ob->id.lib, &ma->toObject);
+        break;
+      }
+      case ACT_2DFILTER: {
+        bTwoDFilterActuator *_2dfa = act->data;
+        BLO_read_id_address(reader, ob->id.lib, &_2dfa->text);
+        break;
+      }
+      case ACT_PARENT: {
+        bParentActuator *parenta = act->data;
+        BLO_read_id_address(reader, ob->id.lib, &parenta->ob);
+        break;
+      }
+      case ACT_STATE:
+        /* bStateActuator *statea = act->data; */
+        break;
+      case ACT_ARMATURE: {
+        bArmatureActuator *arma = act->data;
+        BLO_read_id_address(reader, ob->id.lib, &arma->target);
+        BLO_read_id_address(reader, ob->id.lib, &arma->subtarget);
+        break;
+      }
+      case ACT_STEERING: {
+        bSteeringActuator *steeringa = act->data;
+        BLO_read_id_address(reader, ob->id.lib, &steeringa->target);
+        BLO_read_id_address(reader, ob->id.lib, &steeringa->navmesh);
+        break;
+      }
+      case ACT_MOUSE:
+        /* bMouseActuator *moa = act->data; */
+        break;
+    }
+  }
+
+  {
+    FluidsimModifierData *fluidmd = (FluidsimModifierData *)BKE_modifiers_findby_type(
+        ob, eModifierType_Fluidsim);
+
+    if (fluidmd && fluidmd->fss) {
+      BLO_read_id_address(
+          reader, ob->id.lib, &fluidmd->fss->ipo); /* XXX deprecated - old animation system */
+    }
+  }
+
+  {
+    FluidModifierData *fmd = (FluidModifierData *)BKE_modifiers_findby_type(ob,
+                                                                            eModifierType_Fluid);
+
+    if (fmd && (fmd->type == MOD_FLUID_TYPE_DOMAIN) && fmd->domain) {
+      /* Flag for refreshing the simulation after loading */
+      fmd->domain->flags |= FLUID_DOMAIN_FILE_LOAD;
+    }
+    else if (fmd && (fmd->type == MOD_FLUID_TYPE_FLOW) && fmd->flow) {
+      fmd->flow->flags &= ~FLUID_FLOW_NEEDS_UPDATE;
+    }
+    else if (fmd && (fmd->type == MOD_FLUID_TYPE_EFFEC) && fmd->effector) {
+      fmd->effector->flags &= ~FLUID_EFFECTOR_NEEDS_UPDATE;
+    }
+  }
+
+  /* texture field */
+  if (ob->pd) {
+    BKE_particle_partdeflect_blend_read_lib(reader, &ob->id, ob->pd);
+  }
+
+  if (ob->soft) {
+    BLO_read_id_address(reader, ob->id.lib, &ob->soft->collision_group);
+
+    BLO_read_id_address(reader, ob->id.lib, &ob->soft->effector_weights->group);
+  }
+
+  BKE_particle_system_blend_read_lib(reader, ob, &ob->id, &ob->particlesystem);
+  BKE_modifier_blend_read_lib(reader, ob);
+  BKE_gpencil_modifier_blend_read_lib(reader, ob);
+  BKE_shaderfx_blend_read_lib(reader, ob);
+
+  if (ob->rigidbody_constraint) {
+    BLO_read_id_address(reader, ob->id.lib, &ob->rigidbody_constraint->ob1);
+    BLO_read_id_address(reader, ob->id.lib, &ob->rigidbody_constraint->ob2);
+  }
+
+  {
+    LISTBASE_FOREACH (LodLevel *, level, &ob->lodlevels) {
+      BLO_read_id_address(reader, ob->id.lib, &level->source);
+      if (!level->source && level == ob->lodlevels.first) {
+        level->source = ob;
+      }
+    }
+  }
+
+  if (warn) {
+    BLO_reportf_wrap(BLO_read_lib_reports(reader), RPT_WARNING, "Warning in console");
+  }
+}
+
+/* XXX deprecated - old animation system */
+static void expand_constraint_channels(BlendExpander *expander, ListBase *chanbase)
+{
+  LISTBASE_FOREACH (bConstraintChannel *, chan, chanbase) {
+    BLO_expand(expander, chan->ipo);
+  }
+}
+
+static void expand_object_expandModifiers(void *userData,
+                                          Object *UNUSED(ob),
+                                          ID **idpoin,
+                                          int UNUSED(cb_flag))
+{
+  BlendExpander *expander = userData;
+  BLO_expand(expander, *idpoin);
+}
+
+PartEff *BKE_object_do_version_give_parteff_245(Object *ob)
+{
+  PartEff *paf;
+
+  paf = ob->effect.first;
+  while (paf) {
+    if (paf->type == EFF_PARTICLE) {
+      return paf;
+    }
+    paf = paf->next;
+  }
+  return NULL;
+}
+
+static void object_blend_read_expand(BlendExpander *expander, ID *id)
+{
+  Object *ob = (Object *)id;
+
+  BLO_expand(expander, ob->data);
+
+  /* expand_object_expandModifier() */
+  if (ob->modifiers.first) {
+    BKE_modifiers_foreach_ID_link(ob, expand_object_expandModifiers, expander);
+  }
+
+  /* expand_object_expandModifier() */
+  if (ob->greasepencil_modifiers.first) {
+    BKE_gpencil_modifiers_foreach_ID_link(ob, expand_object_expandModifiers, expander);
+  }
+
+  /* expand_object_expandShaderFx() */
+  if (ob->shader_fx.first) {
+    BKE_shaderfx_foreach_ID_link(ob, expand_object_expandModifiers, expander);
+  }
+
+  BKE_pose_blend_read_expand(expander, ob->pose);
+  BLO_expand(expander, ob->poselib);
+  BKE_constraint_blend_read_expand(expander, &ob->constraints);
+
+  BLO_expand(expander, ob->gpd);
+
+  /* XXX deprecated - old animation system (for version patching only) */
+  BLO_expand(expander, ob->ipo);
+  BLO_expand(expander, ob->action);
+
+  expand_constraint_channels(expander, &ob->constraintChannels);
+
+  LISTBASE_FOREACH (bActionStrip *, strip, &ob->nlastrips) {
+    BLO_expand(expander, strip->object);
+    BLO_expand(expander, strip->act);
+    BLO_expand(expander, strip->ipo);
+  }
+  /* XXX deprecated - old animation system (for version patching only) */
+
+  for (int a = 0; a < ob->totcol; a++) {
+    BLO_expand(expander, ob->mat[a]);
+  }
+
+  PartEff *paf = BKE_object_do_version_give_parteff_245(ob);
+  if (paf && paf->group) {
+    BLO_expand(expander, paf->group);
+  }
+
+  if (ob->instance_collection) {
+    BLO_expand(expander, ob->instance_collection);
+  }
+
+  if (ob->proxy) {
+    BLO_expand(expander, ob->proxy);
+  }
+  if (ob->proxy_group) {
+    BLO_expand(expander, ob->proxy_group);
+  }
+
+  LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
+    BLO_expand(expander, psys->part);
+  }
+
+  bSensor *sens;
+  bController *cont;
+  bActuator *act;
+  for (sens = ob->sensors.first; sens; sens = sens->next) {
+    if (sens->type == SENS_MESSAGE) {
+      bMessageSensor *ms = sens->data;
+      BLO_expand(expander, ms->fromObject);
+    }
+  }
+
+  for (cont = ob->controllers.first; cont; cont = cont->next) {
+    if (cont->type == CONT_PYTHON) {
+      bPythonCont *pc = cont->data;
+      BLO_expand(expander, pc->text);
+    }
+  }
+
+  for (act = ob->actuators.first; act; act = act->next) {
+    if (act->type == ACT_SOUND) {
+      bSoundActuator *sa = act->data;
+      BLO_expand(expander, sa->sound);
+    }
+    else if (act->type == ACT_CAMERA) {
+      bCameraActuator *ca = act->data;
+      BLO_expand(expander, ca->ob);
+    }
+    else if (act->type == ACT_EDIT_OBJECT) {
+      bEditObjectActuator *eoa = act->data;
+      if (eoa) {
+        BLO_expand(expander, eoa->ob);
+        BLO_expand(expander, eoa->me);
+      }
+    }
+    else if (act->type == ACT_OBJECT) {
+      bObjectActuator *oa = act->data;
+      BLO_expand(expander, oa->reference);
+    }
+    else if (act->type == ACT_ADD_OBJECT) {
+      bAddObjectActuator *aoa = act->data;
+      BLO_expand(expander, aoa->ob);
+    }
+    else if (act->type == ACT_SCENE) {
+      bSceneActuator *sa = act->data;
+      BLO_expand(expander, sa->camera);
+      BLO_expand(expander, sa->scene);
+    }
+    else if (act->type == ACT_COLLECTION) {
+      bCollectionActuator *ca = act->data;
+      BLO_expand(expander, ca->collection);
+      BLO_expand(expander, ca->camera);
+    }
+    else if (act->type == ACT_2DFILTER) {
+      bTwoDFilterActuator *tdfa = act->data;
+      BLO_expand(expander, tdfa->text);
+    }
+    else if (act->type == ACT_ACTION) {
+      bActionActuator *aa = act->data;
+      BLO_expand(expander, aa->act);
+    }
+    else if (act->type == ACT_SHAPEACTION) {
+      bActionActuator *aa = act->data;
+      BLO_expand(expander, aa->act);
+    }
+    else if (act->type == ACT_PROPERTY) {
+      bPropertyActuator *pa = act->data;
+      BLO_expand(expander, pa->ob);
+    }
+    else if (act->type == ACT_MESSAGE) {
+      bMessageActuator *ma = act->data;
+      BLO_expand(expander, ma->toObject);
+    }
+    else if (act->type == ACT_PARENT) {
+      bParentActuator *pa = act->data;
+      BLO_expand(expander, pa->ob);
+    }
+    else if (act->type == ACT_ARMATURE) {
+      bArmatureActuator *arma = act->data;
+      BLO_expand(expander, arma->target);
+    }
+    else if (act->type == ACT_STEERING) {
+      bSteeringActuator *sta = act->data;
+      BLO_expand(expander, sta->target);
+      BLO_expand(expander, sta->navmesh);
+    }
+  }
+
+  if (ob->pd) {
+    BLO_expand(expander, ob->pd->tex);
+    BLO_expand(expander, ob->pd->f_source);
+  }
+
+  if (ob->soft) {
+    BLO_expand(expander, ob->soft->collision_group);
+
+    if (ob->soft->effector_weights) {
+      BLO_expand(expander, ob->soft->effector_weights->group);
+    }
+  }
+
+  if (ob->rigidbody_constraint) {
+    BLO_expand(expander, ob->rigidbody_constraint->ob1);
+    BLO_expand(expander, ob->rigidbody_constraint->ob2);
+  }
+
+  if (ob->currentlod) {
+    LISTBASE_FOREACH (LodLevel *, level, &ob->lodlevels) {
+      BLO_expand(expander, level->source);
+    }
+  }
+}
+
 IDTypeInfo IDType_ID_OB = {
     .id_code = ID_OB,
     .id_filter = FILTER_ID_OB,
@@ -629,10 +1759,10 @@ IDTypeInfo IDType_ID_OB = {
     .foreach_id = object_foreach_id,
     .foreach_cache = NULL,
 
-    .blend_write = NULL,
-    .blend_read_data = NULL,
-    .blend_read_lib = NULL,
-    .blend_read_expand = NULL,
+    .blend_write = object_blend_write,
+    .blend_read_data = object_blend_read_data,
+    .blend_read_lib = object_blend_read_lib,
+    .blend_read_expand = object_blend_read_expand,
 
     .blend_read_undo_preserve = NULL,
 };
@@ -5107,4 +6237,17 @@ void BKE_object_check_uuids_unique_and_report(const Object *object)
 {
   BKE_pose_check_uuids_unique_and_report(object->pose);
   BKE_modifier_check_uuids_unique_and_report(object);
+}
+
+void BKE_object_modifiers_lib_link_common(void *userData,
+                                          struct Object *ob,
+                                          struct ID **idpoin,
+                                          int cb_flag)
+{
+  BlendLibReader *reader = userData;
+
+  BLO_read_id_address(reader, ob->id.lib, idpoin);
+  if (*idpoin != NULL && (cb_flag & IDWALK_CB_USER) != 0) {
+    id_us_plus_no_lib(*idpoin);
+  }
 }

@@ -33,18 +33,18 @@ BlenderFileLoader::BlenderFileLoader(Render *re, ViewLayer *view_layer, Depsgrap
 {
   _re = re;
   _depsgraph = depsgraph;
-  _Scene = NULL;
+  _Scene = nullptr;
   _numFacesRead = 0;
 #if 0
   _minEdgeSize = DBL_MAX;
 #endif
   _smooth = (view_layer->freestyle_config.flags & FREESTYLE_FACE_SMOOTHNESS_FLAG) != 0;
-  _pRenderMonitor = NULL;
+  _pRenderMonitor = nullptr;
 }
 
 BlenderFileLoader::~BlenderFileLoader()
 {
-  _Scene = NULL;
+  _Scene = nullptr;
 }
 
 NodeGroup *BlenderFileLoader::Load()
@@ -61,7 +61,7 @@ NodeGroup *BlenderFileLoader::Load()
   _viewplane_bottom = _re->viewplane.ymin;
   _viewplane_top = _re->viewplane.ymax;
 
-  if (_re->clip_start < 0.f) {
+  if (_re->clip_start < 0.0f) {
     // Adjust clipping start/end and set up a Z offset when the viewport preview
     // is used with the orthographic view.  In this case, _re->clip_start is negative,
     // while Freestyle assumes that imported mesh data are in the camera coordinate
@@ -73,7 +73,7 @@ NodeGroup *BlenderFileLoader::Load()
   else {
     _z_near = -_re->clip_start;
     _z_far = -_re->clip_end;
-    _z_offset = 0.f;
+    _z_offset = 0.0f;
   }
 
 #if 0
@@ -104,7 +104,7 @@ NodeGroup *BlenderFileLoader::Load()
       continue;
     }
 
-    Mesh *mesh = BKE_object_to_mesh(NULL, ob, false);
+    Mesh *mesh = BKE_object_to_mesh(nullptr, ob, false);
 
     if (mesh) {
       insertShapeNode(ob, mesh, ++id);
@@ -169,7 +169,7 @@ int BlenderFileLoader::countClippedFaces(float v1[3], float v2[3], float v3[3], 
       }
       break;
     case 3:
-      if (sum == 3 || sum == -3) {
+      if (ELEM(sum, 3, -3)) {
         numTris = 0;
       }
       else {
@@ -422,7 +422,7 @@ void BlenderFileLoader::insertShapeNode(Object *ob, Mesh *me, int id)
 
   // Compute loop normals
   BKE_mesh_calc_normals_split(me);
-  float(*lnors)[3] = NULL;
+  float(*lnors)[3] = nullptr;
 
   if (CustomData_has_layer(&me->ldata, CD_NORMAL)) {
     lnors = (float(*)[3])CustomData_get_layer(&me->ldata, CD_NORMAL);
@@ -577,7 +577,7 @@ void BlenderFileLoader::insertShapeNode(Object *ob, Mesh *me, int id)
       tmpMat.setLine(mat->line_col[0], mat->line_col[1], mat->line_col[2], mat->line_col[3]);
       tmpMat.setDiffuse(mat->r, mat->g, mat->b, 1.0f);
       tmpMat.setSpecular(mat->specr, mat->specg, mat->specb, 1.0f);
-      tmpMat.setShininess(128.f);
+      tmpMat.setShininess(128.0f);
       tmpMat.setPriority(mat->line_priority);
     }
 
@@ -633,16 +633,16 @@ void BlenderFileLoader::insertShapeNode(Object *ob, Mesh *me, int id)
 
   // We might have several times the same vertex. We want a clean
   // shape with no real-vertex. Here, we are making a cleaning pass.
-  float *cleanVertices = NULL;
+  float *cleanVertices = nullptr;
   unsigned int cvSize;
-  unsigned int *cleanVIndices = NULL;
+  unsigned int *cleanVIndices = nullptr;
 
   GeomCleaner::CleanIndexedVertexArray(
       vertices, vSize, VIndices, viSize, &cleanVertices, &cvSize, &cleanVIndices);
 
-  float *cleanNormals = NULL;
+  float *cleanNormals = nullptr;
   unsigned int cnSize;
-  unsigned int *cleanNIndices = NULL;
+  unsigned int *cleanNIndices = nullptr;
 
   GeomCleaner::CleanIndexedVertexArray(
       normals, nSize, NIndices, niSize, &cleanNormals, &cnSize, &cleanNIndices);
@@ -777,7 +777,7 @@ void BlenderFileLoader::insertShapeNode(Object *ob, Mesh *me, int id)
                            cnSize,
                            marray,
                            meshFrsMaterials.size(),
-                           0,
+                           nullptr,
                            0,
                            numFaces,
                            numVertexPerFaces,
@@ -789,7 +789,7 @@ void BlenderFileLoader::insertShapeNode(Object *ob, Mesh *me, int id)
                            niSize,
                            MIndices,
                            viSize,
-                           0,
+                           nullptr,
                            0,
                            0);
   // sets the id of the rep

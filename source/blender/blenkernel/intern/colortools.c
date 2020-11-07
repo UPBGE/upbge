@@ -1257,7 +1257,7 @@ void BKE_curvemapping_blend_read(BlendDataReader *reader, CurveMapping *cumap)
 
 /* ***************** Histogram **************** */
 
-#define INV_255 (1.f / 255.f)
+#define INV_255 (1.0f / 255.0f)
 
 BLI_INLINE int get_bin_float(float f)
 {
@@ -1570,8 +1570,8 @@ void BKE_scopes_update(Scopes *scopes,
     return;
   }
 
-  if (scopes->hist.ymax == 0.f) {
-    scopes->hist.ymax = 1.f;
+  if (scopes->hist.ymax == 0.0f) {
+    scopes->hist.ymax = 1.0f;
   }
 
   /* hmmmm */
@@ -1816,6 +1816,24 @@ void BKE_color_managed_view_settings_free(ColorManagedViewSettings *settings)
   if (settings->curve_mapping) {
     BKE_curvemapping_free(settings->curve_mapping);
     settings->curve_mapping = NULL;
+  }
+}
+
+void BKE_color_managed_view_settings_blend_write(BlendWriter *writer,
+                                                 ColorManagedViewSettings *settings)
+{
+  if (settings->curve_mapping) {
+    BKE_curvemapping_blend_write(writer, settings->curve_mapping);
+  }
+}
+
+void BKE_color_managed_view_settings_blend_read_data(BlendDataReader *reader,
+                                                     ColorManagedViewSettings *settings)
+{
+  BLO_read_data_address(reader, &settings->curve_mapping);
+
+  if (settings->curve_mapping) {
+    BKE_curvemapping_blend_read(reader, settings->curve_mapping);
   }
 }
 

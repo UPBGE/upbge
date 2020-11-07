@@ -2337,7 +2337,7 @@ int txt_setcurr_tab_spaces(Text *text, int space)
       if (ch == ':') {
         is_indent = 1;
       }
-      else if (ch != ' ' && ch != '\t') {
+      else if (!ELEM(ch, ' ', '\t')) {
         is_indent = 0;
       }
     }
@@ -2463,7 +2463,7 @@ int text_check_identifier_nodigit_unicode(const unsigned int ch)
 
 bool text_check_whitespace(const char ch)
 {
-  if (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n') {
+  if (ELEM(ch, ' ', '\t', '\r', '\n')) {
     return true;
   }
   return false;

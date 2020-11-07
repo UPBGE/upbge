@@ -23,14 +23,14 @@
 
 #include "RE_pipeline.h"
 
-DirectionalBlurOperation::DirectionalBlurOperation() : NodeOperation()
+DirectionalBlurOperation::DirectionalBlurOperation()
 {
   this->addInputSocket(COM_DT_COLOR);
   this->addOutputSocket(COM_DT_COLOR);
   this->setComplex(true);
 
   this->setOpenCL(true);
-  this->m_inputProgram = NULL;
+  this->m_inputProgram = nullptr;
 }
 
 void DirectionalBlurOperation::initExecution()
@@ -103,7 +103,7 @@ void DirectionalBlurOperation::executeOpenCL(OpenCLDevice *device,
                                              list<cl_mem> *clMemToCleanUp,
                                              list<cl_kernel> * /*clKernelsToCleanUp*/)
 {
-  cl_kernel directionalBlurKernel = device->COM_clCreateKernel("directionalBlurKernel", NULL);
+  cl_kernel directionalBlurKernel = device->COM_clCreateKernel("directionalBlurKernel", nullptr);
 
   cl_int iterations = pow(2.0f, this->m_data->iter);
   cl_float2 ltxy = {{this->m_tx, this->m_ty}};
@@ -128,7 +128,7 @@ void DirectionalBlurOperation::executeOpenCL(OpenCLDevice *device,
 
 void DirectionalBlurOperation::deinitExecution()
 {
-  this->m_inputProgram = NULL;
+  this->m_inputProgram = nullptr;
 }
 
 bool DirectionalBlurOperation::determineDependingAreaOfInterest(rcti * /*input*/,

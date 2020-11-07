@@ -1226,7 +1226,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
         if (md->type == eModifierType_Cloth) {
           ClothModifierData *clmd = (ClothModifierData *)md;
           if (clmd->sim_parms->velocity_smooth < 0.01f) {
-            clmd->sim_parms->velocity_smooth = 0.f;
+            clmd->sim_parms->velocity_smooth = 0.0f;
           }
         }
       }
@@ -1561,9 +1561,9 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
         while (node) {
           if (node->type == CMP_NODE_COLORBALANCE) {
             NodeColorBalance *n = (NodeColorBalance *)node->storage;
-            n->lift[0] += 1.f;
-            n->lift[1] += 1.f;
-            n->lift[2] += 1.f;
+            n->lift[0] += 1.0f;
+            n->lift[1] += 1.0f;
+            n->lift[2] += 1.0f;
           }
           node = node->next;
         }
@@ -1576,9 +1576,9 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
       while (node) {
         if (node->type == CMP_NODE_COLORBALANCE) {
           NodeColorBalance *n = (NodeColorBalance *)node->storage;
-          n->lift[0] += 1.f;
-          n->lift[1] += 1.f;
-          n->lift[2] += 1.f;
+          n->lift[0] += 1.0f;
+          n->lift[1] += 1.0f;
+          n->lift[2] += 1.0f;
         }
 
         node = node->next;
@@ -1896,7 +1896,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
       }
 
       part->flag &= ~PART_HAIR_REGROW; /* this was a deprecated flag before */
-      part->kink_amp_clump = 1.f;      /* keep old files looking similar */
+      part->kink_amp_clump = 1.0f;     /* keep old files looking similar */
     }
 
     for (screen = bmain->screens.first; screen; screen = screen->id.next) {

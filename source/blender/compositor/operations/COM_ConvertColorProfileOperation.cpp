@@ -20,11 +20,11 @@
 
 #include "IMB_imbuf.h"
 
-ConvertColorProfileOperation::ConvertColorProfileOperation() : NodeOperation()
+ConvertColorProfileOperation::ConvertColorProfileOperation()
 {
   this->addInputSocket(COM_DT_COLOR);
   this->addOutputSocket(COM_DT_COLOR);
-  this->m_inputOperation = NULL;
+  this->m_inputOperation = nullptr;
   this->m_predivided = false;
 }
 
@@ -46,5 +46,5 @@ void ConvertColorProfileOperation::executePixelSampled(float output[4],
 
 void ConvertColorProfileOperation::deinitExecution()
 {
-  this->m_inputOperation = NULL;
+  this->m_inputOperation = nullptr;
 }

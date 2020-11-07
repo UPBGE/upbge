@@ -26,6 +26,8 @@
 /* this include is for non-render pipeline exports (still old cruft here) */
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
+#include "BLI_compiler_attrs.h" // Game engine transition
+
 /* called by meshtools */
 struct Depsgraph;
 struct ImagePool;
@@ -35,9 +37,7 @@ struct MTex;
 extern "C" {
 #endif
 
-#include "BLI_compiler_attrs.h"
-
-/* render_texture.c */
+/* texture_procedural.c */
 bool RE_texture_evaluate(const struct MTex *mtex,
                          const float vec[3],
                          const int thread,
@@ -55,10 +55,10 @@ float texture_value_blend(float tex, float out, float fact, float facg, int blen
 void RE_texture_rng_init(void);
 void RE_texture_rng_exit(void);
 
-/* imagetexture.c */
+/* texture_image.c */
 void ibuf_sample(struct ImBuf *ibuf, float fx, float fy, float dx, float dy, float result[4]);
 
-/* pointdensity.c */
+/* texture_pointdensity.c */
 struct PointDensity;
 
 void RE_point_density_cache(struct Depsgraph *depsgraph, struct PointDensity *pd);

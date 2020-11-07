@@ -50,7 +50,7 @@ using namespace blender::gpu;
  * TODO(fclem): Could be revisited to avoid so much cross references.
  * \{ */
 
-GLVaoCache::GLVaoCache(void)
+GLVaoCache::GLVaoCache()
 {
   init();
 }
@@ -60,13 +60,13 @@ GLVaoCache::~GLVaoCache()
   this->clear();
 }
 
-void GLVaoCache::init(void)
+void GLVaoCache::init()
 {
-  context_ = NULL;
-  interface_ = NULL;
+  context_ = nullptr;
+  interface_ = nullptr;
   is_dynamic_vao_count = false;
   for (int i = 0; i < GPU_VAO_STATIC_LEN; i++) {
-    static_vaos.interfaces[i] = NULL;
+    static_vaos.interfaces[i] = nullptr;
     static_vaos.vao_ids[i] = 0;
   }
   vao_base_instance_ = 0;
@@ -93,7 +93,7 @@ void GLVaoCache::insert(const GLShaderInterface *interface, GLuint vao)
     else {
       /* Erase previous entries, they will be added back if drawn again. */
       for (int i = 0; i < GPU_VAO_STATIC_LEN; i++) {
-        if (static_vaos.interfaces[i] != NULL) {
+        if (static_vaos.interfaces[i] != nullptr) {
           const_cast<GLShaderInterface *>(static_vaos.interfaces[i])->ref_remove(this);
           context_->vao_free(static_vaos.vao_ids[i]);
         }
@@ -143,13 +143,13 @@ void GLVaoCache::remove(const GLShaderInterface *interface)
     if (interfaces[i] == interface) {
       context_->vao_free(vaos[i]);
       vaos[i] = 0;
-      interfaces[i] = NULL;
+      interfaces[i] = nullptr;
       break; /* cannot have duplicates */
     }
   }
 }
 
-void GLVaoCache::clear(void)
+void GLVaoCache::clear()
 {
   GLContext *ctx = GLContext::get();
   const int count = (is_dynamic_vao_count) ? dynamic_vaos.count : GPU_VAO_STATIC_LEN;
@@ -157,7 +157,7 @@ void GLVaoCache::clear(void)
   const GLShaderInterface **interfaces = (is_dynamic_vao_count) ? dynamic_vaos.interfaces :
                                                                   static_vaos.interfaces;
   /* Early out, nothing to free. */
-  if (context_ == NULL) {
+  if (context_ == nullptr) {
     return;
   }
 
@@ -174,7 +174,7 @@ void GLVaoCache::clear(void)
   }
 
   for (int i = 0; i < count; i++) {
-    if (interfaces[i] != NULL) {
+    if (interfaces[i] != nullptr) {
       const_cast<GLShaderInterface *>(interfaces[i])->ref_remove(this);
     }
   }
@@ -207,13 +207,13 @@ GLuint GLVaoCache::lookup(const GLShaderInterface *interface)
 
 /* The GLVaoCache object is only valid for one GLContext.
  * Reset the cache if trying to draw in another context; */
-void GLVaoCache::context_check(void)
+void GLVaoCache::context_check()
 {
   GLContext *ctx = GLContext::get();
   BLI_assert(ctx);
 
   if (context_ != ctx) {
-    if (context_ != NULL) {
+    if (context_ != nullptr) {
       /* IMPORTANT: Trying to draw a batch in multiple different context will trash the VAO cache.
        * This has major performance impact and should be avoided in most cases. */
       context_->vao_cache_unregister(this);
@@ -282,7 +282,7 @@ GLuint GLVaoCache::vao_get(GPUBatch *batch)
 /** \name Creation & Deletion
  * \{ */
 
-GLBatch::GLBatch(void)
+GLBatch::GLBatch()
 {
 }
 
@@ -307,7 +307,7 @@ void GLBatch::bind(int i_first)
 
 #if GPU_TRACK_INDEX_RANGE
   /* Can be removed if GL 4.3 is required. */
-  if (!GLContext::fixed_restart_index_support && (elem != NULL)) {
+  if (!GLContext::fixed_restart_index_support && (elem != nullptr)) {
     glPrimitiveRestartIndex(this->elem_()->restart_index());
   }
 #endif

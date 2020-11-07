@@ -1188,6 +1188,21 @@ class SEQUENCER_PT_effect_text_style(SequencerButtonsPanel, Panel):
         subsub.prop(strip, "shadow_color", text="")
         row.prop_decorator(strip, "shadow_color")
 
+        row = layout.row(align=True, heading="Box")
+        row.use_property_decorate = False
+        sub = row.row(align=True)
+        sub.prop(strip, "use_box", text="")
+        subsub = sub.row(align=True)
+        subsub.active = strip.use_box and (not strip.mute)
+        subsub.prop(strip, "box_color", text="")
+        row.prop_decorator(strip, "box_color")
+
+        row = layout.row(align=True, heading="Box Margin")
+        row.use_property_decorate = False
+        sub = row.row(align=True)
+        sub.prop(strip, "box_margin")
+        sub.active = strip.use_box and (not strip.mute)
+
 
 class SEQUENCER_PT_source(SequencerButtonsPanel, Panel):
     bl_label = "Source"

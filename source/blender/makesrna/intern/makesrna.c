@@ -29,6 +29,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_string.h"
 #include "BLI_system.h" /* for 'BLI_system_backtrace' stub. */
 #include "BLI_utildefines.h"
 
@@ -577,8 +578,7 @@ static int rna_enum_bitmask(PropertyRNA *prop)
 
 static int rna_color_quantize(PropertyRNA *prop, PropertyDefRNA *dp)
 {
-  return ((prop->type == PROP_FLOAT) &&
-          (prop->subtype == PROP_COLOR || prop->subtype == PROP_COLOR_GAMMA) &&
+  return ((prop->type == PROP_FLOAT) && (ELEM(prop->subtype, PROP_COLOR, PROP_COLOR_GAMMA)) &&
           (IS_DNATYPE_FLOAT_COMPAT(dp->dnatype) == 0));
 }
 
@@ -671,7 +671,7 @@ static char *rna_def_property_get_func(
           return NULL;
         }
       }
-      else if (prop->type == PROP_INT || prop->type == PROP_ENUM) {
+      else if (ELEM(prop->type, PROP_INT, PROP_ENUM)) {
         if (IS_DNATYPE_INT_COMPAT(dp->dnatype) == 0) {
           CLOG_ERROR(&LOG,
                      "%s.%s is a '%s' but wrapped as type '%s'.",
@@ -761,9 +761,10 @@ static char *rna_def_property_get_func(
       fprintf(f, "static PointerRNA %s(CollectionPropertyIterator *iter)\n", func);
       fprintf(f, "{\n");
       if (manualfunc) {
-        if (STREQ(manualfunc, "rna_iterator_listbase_get") ||
-            STREQ(manualfunc, "rna_iterator_array_get") ||
-            STREQ(manualfunc, "rna_iterator_array_dereference_get")) {
+        if (STR_ELEM(manualfunc,
+                     "rna_iterator_listbase_get",
+                     "rna_iterator_array_get",
+                     "rna_iterator_array_dereference_get")) {
           fprintf(f,
                   "    return rna_pointer_inherit_refine(&iter->parent, &RNA_%s, %s(iter));\n",
                   (cprop->item_type) ? (const char *)cprop->item_type : "UnknownType",

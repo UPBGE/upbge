@@ -1722,7 +1722,7 @@ static int text_get_cursor_rel(
         loop = 0;
         break;
       }
-      else if (ch == ' ' || ch == '-') {
+      else if (ELEM(ch, ' ', '-')) {
         if (found) {
           loop = 0;
           break;
@@ -1897,7 +1897,7 @@ static void txt_wrap_move_bol(SpaceText *st, ARegion *region, const bool sel)
         end += max;
         chop = 1;
       }
-      else if (ch == ' ' || ch == '-' || ch == '\0') {
+      else if (ELEM(ch, ' ', '-', '\0')) {
         if (j >= oldc) {
           *charp = BLI_str_utf8_offset_from_column((*linep)->line, start);
           loop = 0;
@@ -1987,7 +1987,7 @@ static void txt_wrap_move_eol(SpaceText *st, ARegion *region, const bool sel)
         loop = 0;
         break;
       }
-      else if (ch == ' ' || ch == '-') {
+      else if (ELEM(ch, ' ', '-')) {
         end = i + 1;
         endj = j;
         chop = 0;
@@ -3065,7 +3065,7 @@ static void text_cursor_set_to_pos_wrapped(
             break;
           }
         }
-        else if (ch == ' ' || ch == '-' || ch == '\0') {
+        else if (ELEM(ch, ' ', '-', '\0')) {
           if (found) {
             break;
           }

@@ -40,8 +40,8 @@
 #include "BKE_camera.h"
 
 /* this module */
+#include "pipeline.h"
 #include "render_types.h"
-#include "renderpipeline.h"
 
 /* Own includes */
 #include "initrender.h"

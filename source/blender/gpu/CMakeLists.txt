@@ -38,7 +38,7 @@ set(INC
   ../imbuf
   ../makesdna
   ../makesrna
-  ../render/extern/include # Game engine transition
+  ../render # Game engine transition
 
   ../editors/include
 

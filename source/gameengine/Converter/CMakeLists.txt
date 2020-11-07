@@ -53,7 +53,7 @@ set(INC
   ../../blender/imbuf
   ../../blender/makesdna
   ../../blender/makesrna
-  ../../blender/render/extern/include
+  ../../blender/render
   ../../blender/windowmanager
   ../../../intern/guardedalloc
   ../../../intern/termcolor

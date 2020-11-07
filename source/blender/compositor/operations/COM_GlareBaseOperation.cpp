@@ -19,11 +19,11 @@
 #include "COM_GlareBaseOperation.h"
 #include "BLI_math.h"
 
-GlareBaseOperation::GlareBaseOperation() : SingleThreadedOperation()
+GlareBaseOperation::GlareBaseOperation()
 {
   this->addInputSocket(COM_DT_COLOR);
   this->addOutputSocket(COM_DT_COLOR);
-  this->m_settings = NULL;
+  this->m_settings = nullptr;
 }
 void GlareBaseOperation::initExecution()
 {
@@ -33,7 +33,7 @@ void GlareBaseOperation::initExecution()
 
 void GlareBaseOperation::deinitExecution()
 {
-  this->m_inputProgram = NULL;
+  this->m_inputProgram = nullptr;
   SingleThreadedOperation::deinitExecution();
 }
 

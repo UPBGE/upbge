@@ -21,6 +21,9 @@
  * \ingroup bke
  */
 
+/* Allow using deprecated functionality for .blend file I/O. */
+#define DNA_DEPRECATED_ALLOW
+
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
@@ -70,6 +73,7 @@
 #include "BKE_curveprofile.h"
 #include "BKE_duplilist.h"
 #include "BKE_editmesh.h"
+#include "BKE_effect.h"
 #include "BKE_fcurve.h"
 #include "BKE_freestyle.h"
 #include "BKE_gpencil.h"
@@ -87,6 +91,7 @@
 #include "BKE_node.h"
 #include "BKE_object.h"
 #include "BKE_paint.h"
+#include "BKE_pointcache.h"
 #include "BKE_rigidbody.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
@@ -841,6 +846,873 @@ static void scene_foreach_cache(ID *id,
                     user_data);
 }
 
+static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_address)
+{
+  Scene *sce = (Scene *)id;
+
+  if (BLO_write_is_undo(writer)) {
+    /* Clean up, important in undo case to reduce false detection of changed data-blocks. */
+    /* XXX This UI data should not be stored in Scene at all... */
+    memset(&sce->cursor, 0, sizeof(sce->cursor));
+  }
+
+  /* write LibData */
+  BLO_write_id_struct(writer, Scene, id_address, &sce->id);
+  BKE_id_blend_write(writer, &sce->id);
+
+  if (sce->adt) {
+    BKE_animdata_blend_write(writer, sce->adt);
+  }
+  BKE_keyingsets_blend_write(writer, &sce->keyingsets);
+
+  /* direct data */
+  ToolSettings *tos = sce->toolsettings;
+  BLO_write_struct(writer, ToolSettings, tos);
+  if (tos->vpaint) {
+    BLO_write_struct(writer, VPaint, tos->vpaint);
+    BKE_paint_blend_write(writer, &tos->vpaint->paint);
+  }
+  if (tos->wpaint) {
+    BLO_write_struct(writer, VPaint, tos->wpaint);
+    BKE_paint_blend_write(writer, &tos->wpaint->paint);
+  }
+  if (tos->sculpt) {
+    BLO_write_struct(writer, Sculpt, tos->sculpt);
+    BKE_paint_blend_write(writer, &tos->sculpt->paint);
+  }
+  if (tos->uvsculpt) {
+    BLO_write_struct(writer, UvSculpt, tos->uvsculpt);
+    BKE_paint_blend_write(writer, &tos->uvsculpt->paint);
+  }
+  if (tos->gp_paint) {
+    BLO_write_struct(writer, GpPaint, tos->gp_paint);
+    BKE_paint_blend_write(writer, &tos->gp_paint->paint);
+  }
+  if (tos->gp_vertexpaint) {
+    BLO_write_struct(writer, GpVertexPaint, tos->gp_vertexpaint);
+    BKE_paint_blend_write(writer, &tos->gp_vertexpaint->paint);
+  }
+  if (tos->gp_sculptpaint) {
+    BLO_write_struct(writer, GpSculptPaint, tos->gp_sculptpaint);
+    BKE_paint_blend_write(writer, &tos->gp_sculptpaint->paint);
+  }
+  if (tos->gp_weightpaint) {
+    BLO_write_struct(writer, GpWeightPaint, tos->gp_weightpaint);
+    BKE_paint_blend_write(writer, &tos->gp_weightpaint->paint);
+  }
+  /* write grease-pencil custom ipo curve to file */
+  if (tos->gp_interpolate.custom_ipo) {
+    BKE_curvemapping_blend_write(writer, tos->gp_interpolate.custom_ipo);
+  }
+  /* write grease-pencil multiframe falloff curve to file */
+  if (tos->gp_sculpt.cur_falloff) {
+    BKE_curvemapping_blend_write(writer, tos->gp_sculpt.cur_falloff);
+  }
+  /* write grease-pencil primitive curve to file */
+  if (tos->gp_sculpt.cur_primitive) {
+    BKE_curvemapping_blend_write(writer, tos->gp_sculpt.cur_primitive);
+  }
+  /* Write the curve profile to the file. */
+  if (tos->custom_bevel_profile_preset) {
+    BKE_curveprofile_blend_write(writer, tos->custom_bevel_profile_preset);
+  }
+
+  BKE_paint_blend_write(writer, &tos->imapaint.paint);
+
+  Editing *ed = sce->ed;
+  if (ed) {
+    Sequence *seq;
+
+    BLO_write_struct(writer, Editing, ed);
+
+    /* reset write flags too */
+
+    SEQ_ALL_BEGIN (ed, seq) {
+      if (seq->strip) {
+        seq->strip->done = false;
+      }
+      BLO_write_struct(writer, Sequence, seq);
+    }
+    SEQ_ALL_END;
+
+    SEQ_ALL_BEGIN (ed, seq) {
+      if (seq->strip && seq->strip->done == 0) {
+        /* write strip with 'done' at 0 because readfile */
+
+        if (seq->effectdata) {
+          switch (seq->type) {
+            case SEQ_TYPE_COLOR:
+              BLO_write_struct(writer, SolidColorVars, seq->effectdata);
+              break;
+            case SEQ_TYPE_SPEED:
+              BLO_write_struct(writer, SpeedControlVars, seq->effectdata);
+              break;
+            case SEQ_TYPE_WIPE:
+              BLO_write_struct(writer, WipeVars, seq->effectdata);
+              break;
+            case SEQ_TYPE_GLOW:
+              BLO_write_struct(writer, GlowVars, seq->effectdata);
+              break;
+            case SEQ_TYPE_TRANSFORM:
+              BLO_write_struct(writer, TransformVars, seq->effectdata);
+              break;
+            case SEQ_TYPE_GAUSSIAN_BLUR:
+              BLO_write_struct(writer, GaussianBlurVars, seq->effectdata);
+              break;
+            case SEQ_TYPE_TEXT:
+              BLO_write_struct(writer, TextVars, seq->effectdata);
+              break;
+            case SEQ_TYPE_COLORMIX:
+              BLO_write_struct(writer, ColorMixVars, seq->effectdata);
+              break;
+          }
+        }
+
+        BLO_write_struct(writer, Stereo3dFormat, seq->stereo3d_format);
+
+        Strip *strip = seq->strip;
+        BLO_write_struct(writer, Strip, strip);
+        if (strip->crop) {
+          BLO_write_struct(writer, StripCrop, strip->crop);
+        }
+        if (strip->transform) {
+          BLO_write_struct(writer, StripTransform, strip->transform);
+        }
+        if (strip->proxy) {
+          BLO_write_struct(writer, StripProxy, strip->proxy);
+        }
+        if (seq->type == SEQ_TYPE_IMAGE) {
+          BLO_write_struct_array(writer,
+                                 StripElem,
+                                 MEM_allocN_len(strip->stripdata) / sizeof(struct StripElem),
+                                 strip->stripdata);
+        }
+        else if (ELEM(seq->type, SEQ_TYPE_MOVIE, SEQ_TYPE_SOUND_RAM, SEQ_TYPE_SOUND_HD)) {
+          BLO_write_struct(writer, StripElem, strip->stripdata);
+        }
+
+        strip->done = true;
+      }
+
+      if (seq->prop) {
+        IDP_BlendWrite(writer, seq->prop);
+      }
+
+      BKE_sequence_modifier_blend_write(writer, &seq->modifiers);
+    }
+    SEQ_ALL_END;
+
+    /* new; meta stack too, even when its nasty restore code */
+    LISTBASE_FOREACH (MetaStack *, ms, &ed->metastack) {
+      BLO_write_struct(writer, MetaStack, ms);
+    }
+  }
+
+  if (sce->r.avicodecdata) {
+    BLO_write_struct(writer, AviCodecData, sce->r.avicodecdata);
+    if (sce->r.avicodecdata->lpFormat) {
+      BLO_write_raw(writer, (size_t)sce->r.avicodecdata->cbFormat, sce->r.avicodecdata->lpFormat);
+    }
+    if (sce->r.avicodecdata->lpParms) {
+      BLO_write_raw(writer, (size_t)sce->r.avicodecdata->cbParms, sce->r.avicodecdata->lpParms);
+    }
+  }
+  if (sce->r.ffcodecdata.properties) {
+    IDP_BlendWrite(writer, sce->r.ffcodecdata.properties);
+  }
+
+  /* writing dynamic list of TimeMarkers to the blend file */
+  LISTBASE_FOREACH (TimeMarker *, marker, &sce->markers) {
+    BLO_write_struct(writer, TimeMarker, marker);
+
+    if (marker->prop != NULL) {
+      IDP_BlendWrite(writer, marker->prop);
+    }
+  }
+
+  /* writing dynamic list of TransformOrientations to the blend file */
+  LISTBASE_FOREACH (TransformOrientation *, ts, &sce->transform_spaces) {
+    BLO_write_struct(writer, TransformOrientation, ts);
+  }
+
+  /* writing MultiView to the blend file */
+  LISTBASE_FOREACH (SceneRenderView *, srv, &sce->r.views) {
+    BLO_write_struct(writer, SceneRenderView, srv);
+  }
+
+  if (sce->nodetree) {
+    BLO_write_struct(writer, bNodeTree, sce->nodetree);
+    ntreeBlendWrite(writer, sce->nodetree);
+  }
+
+  BKE_color_managed_view_settings_blend_write(writer, &sce->view_settings);
+
+  /* writing RigidBodyWorld data to the blend file */
+  if (sce->rigidbody_world) {
+    /* Set deprecated pointers to prevent crashes of older Blenders */
+    sce->rigidbody_world->pointcache = sce->rigidbody_world->shared->pointcache;
+    sce->rigidbody_world->ptcaches = sce->rigidbody_world->shared->ptcaches;
+    BLO_write_struct(writer, RigidBodyWorld, sce->rigidbody_world);
+
+    BLO_write_struct(writer, RigidBodyWorld_Shared, sce->rigidbody_world->shared);
+    BLO_write_struct(writer, EffectorWeights, sce->rigidbody_world->effector_weights);
+    BKE_ptcache_blend_write(writer, &(sce->rigidbody_world->shared->ptcaches));
+  }
+
+  BKE_previewimg_blend_write(writer, sce->preview);
+  BKE_curvemapping_curves_blend_write(writer, &sce->r.mblur_shutter_curve);
+
+  LISTBASE_FOREACH (ViewLayer *, view_layer, &sce->view_layers) {
+    BKE_view_layer_blend_write(writer, view_layer);
+  }
+
+  if (sce->master_collection) {
+    BLO_write_struct(writer, Collection, sce->master_collection);
+    BKE_collection_blend_write_nolib(writer, sce->master_collection);
+  }
+
+  /* Eevee Lightcache */
+  if (sce->eevee.light_cache_data && !BLO_write_is_undo(writer)) {
+    BLO_write_struct(writer, LightCache, sce->eevee.light_cache_data);
+    EEVEE_lightcache_blend_write(writer, sce->eevee.light_cache_data);
+  }
+
+  BKE_screen_view3d_shading_blend_write(writer, &sce->display.shading);
+
+  /* Freed on doversion. */
+  BLI_assert(sce->layer_properties == NULL);
+}
+
+static void direct_link_paint_helper(BlendDataReader *reader, const Scene *scene, Paint **paint)
+{
+  /* TODO. is this needed */
+  BLO_read_data_address(reader, paint);
+
+  if (*paint) {
+    BKE_paint_blend_read_data(reader, scene, *paint);
+  }
+}
+
+static void link_recurs_seq(BlendDataReader *reader, ListBase *lb)
+{
+  BLO_read_list(reader, lb);
+
+  LISTBASE_FOREACH (Sequence *, seq, lb) {
+    if (seq->seqbase.first) {
+      link_recurs_seq(reader, &seq->seqbase);
+    }
+  }
+}
+
+static void scene_blend_read_data(BlendDataReader *reader, ID *id)
+{
+  Scene *sce = (Scene *)id;
+
+  sce->depsgraph_hash = NULL;
+  sce->fps_info = NULL;
+
+  memset(&sce->customdata_mask, 0, sizeof(sce->customdata_mask));
+  memset(&sce->customdata_mask_modal, 0, sizeof(sce->customdata_mask_modal));
+
+  BKE_sound_reset_scene_runtime(sce);
+
+  /* set users to one by default, not in lib-link, this will increase it for compo nodes */
+  id_us_ensure_real(&sce->id);
+
+  BLO_read_list(reader, &(sce->base));
+
+  BLO_read_data_address(reader, &sce->adt);
+  BKE_animdata_blend_read_data(reader, sce->adt);
+
+  BLO_read_list(reader, &sce->keyingsets);
+  BKE_keyingsets_blend_read_data(reader, &sce->keyingsets);
+
+  BLO_read_data_address(reader, &sce->basact);
+
+  BLO_read_data_address(reader, &sce->toolsettings);
+  if (sce->toolsettings) {
+
+    /* Reset last_location and last_hit, so they are not remembered across sessions. In some files
+     * these are also NaN, which could lead to crashes in painting. */
+    struct UnifiedPaintSettings *ups = &sce->toolsettings->unified_paint_settings;
+    zero_v3(ups->last_location);
+    ups->last_hit = 0;
+
+    direct_link_paint_helper(reader, sce, (Paint **)&sce->toolsettings->sculpt);
+    direct_link_paint_helper(reader, sce, (Paint **)&sce->toolsettings->vpaint);
+    direct_link_paint_helper(reader, sce, (Paint **)&sce->toolsettings->wpaint);
+    direct_link_paint_helper(reader, sce, (Paint **)&sce->toolsettings->uvsculpt);
+    direct_link_paint_helper(reader, sce, (Paint **)&sce->toolsettings->gp_paint);
+    direct_link_paint_helper(reader, sce, (Paint **)&sce->toolsettings->gp_vertexpaint);
+    direct_link_paint_helper(reader, sce, (Paint **)&sce->toolsettings->gp_sculptpaint);
+    direct_link_paint_helper(reader, sce, (Paint **)&sce->toolsettings->gp_weightpaint);
+
+    BKE_paint_blend_read_data(reader, sce, &sce->toolsettings->imapaint.paint);
+
+    sce->toolsettings->particle.paintcursor = NULL;
+    sce->toolsettings->particle.scene = NULL;
+    sce->toolsettings->particle.object = NULL;
+    sce->toolsettings->gp_sculpt.paintcursor = NULL;
+
+    /* relink grease pencil interpolation curves */
+    BLO_read_data_address(reader, &sce->toolsettings->gp_interpolate.custom_ipo);
+    if (sce->toolsettings->gp_interpolate.custom_ipo) {
+      BKE_curvemapping_blend_read(reader, sce->toolsettings->gp_interpolate.custom_ipo);
+    }
+    /* relink grease pencil multiframe falloff curve */
+    BLO_read_data_address(reader, &sce->toolsettings->gp_sculpt.cur_falloff);
+    if (sce->toolsettings->gp_sculpt.cur_falloff) {
+      BKE_curvemapping_blend_read(reader, sce->toolsettings->gp_sculpt.cur_falloff);
+    }
+    /* relink grease pencil primitive curve */
+    BLO_read_data_address(reader, &sce->toolsettings->gp_sculpt.cur_primitive);
+    if (sce->toolsettings->gp_sculpt.cur_primitive) {
+      BKE_curvemapping_blend_read(reader, sce->toolsettings->gp_sculpt.cur_primitive);
+    }
+
+    /* Relink toolsettings curve profile */
+    BLO_read_data_address(reader, &sce->toolsettings->custom_bevel_profile_preset);
+    if (sce->toolsettings->custom_bevel_profile_preset) {
+      BKE_curveprofile_blend_read(reader, sce->toolsettings->custom_bevel_profile_preset);
+    }
+  }
+
+  if (sce->ed) {
+    ListBase *old_seqbasep = &sce->ed->seqbase;
+
+    BLO_read_data_address(reader, &sce->ed);
+    Editing *ed = sce->ed;
+
+    BLO_read_data_address(reader, &ed->act_seq);
+    ed->cache = NULL;
+    ed->prefetch_job = NULL;
+
+    /* recursive link sequences, lb will be correctly initialized */
+    link_recurs_seq(reader, &ed->seqbase);
+
+    Sequence *seq;
+    SEQ_ALL_BEGIN (ed, seq) {
+      /* Do as early as possible, so that other parts of reading can rely on valid session UUID. */
+      BKE_sequence_session_uuid_generate(seq);
+
+      BLO_read_data_address(reader, &seq->seq1);
+      BLO_read_data_address(reader, &seq->seq2);
+      BLO_read_data_address(reader, &seq->seq3);
+
+      /* a patch: after introduction of effects with 3 input strips */
+      if (seq->seq3 == NULL) {
+        seq->seq3 = seq->seq2;
+      }
+
+      BLO_read_data_address(reader, &seq->effectdata);
+      BLO_read_data_address(reader, &seq->stereo3d_format);
+
+      if (seq->type & SEQ_TYPE_EFFECT) {
+        seq->flag |= SEQ_EFFECT_NOT_LOADED;
+      }
+
+      if (seq->type == SEQ_TYPE_SPEED) {
+        SpeedControlVars *s = seq->effectdata;
+        s->frameMap = NULL;
+      }
+
+      if (seq->type == SEQ_TYPE_TEXT) {
+        TextVars *t = seq->effectdata;
+        t->text_blf_id = SEQ_FONT_NOT_LOADED;
+      }
+
+      BLO_read_data_address(reader, &seq->prop);
+      IDP_BlendDataRead(reader, &seq->prop);
+
+      BLO_read_data_address(reader, &seq->strip);
+      if (seq->strip && seq->strip->done == 0) {
+        seq->strip->done = true;
+
+        if (ELEM(seq->type,
+                 SEQ_TYPE_IMAGE,
+                 SEQ_TYPE_MOVIE,
+                 SEQ_TYPE_SOUND_RAM,
+                 SEQ_TYPE_SOUND_HD)) {
+          BLO_read_data_address(reader, &seq->strip->stripdata);
+        }
+        else {
+          seq->strip->stripdata = NULL;
+        }
+        BLO_read_data_address(reader, &seq->strip->crop);
+        BLO_read_data_address(reader, &seq->strip->transform);
+        BLO_read_data_address(reader, &seq->strip->proxy);
+        if (seq->strip->proxy) {
+          seq->strip->proxy->anim = NULL;
+        }
+        else if (seq->flag & SEQ_USE_PROXY) {
+          SEQ_proxy_set(seq, true);
+        }
+
+        /* need to load color balance to it could be converted to modifier */
+        BLO_read_data_address(reader, &seq->strip->color_balance);
+      }
+
+      BKE_sequence_modifier_blend_read_data(reader, &seq->modifiers);
+    }
+    SEQ_ALL_END;
+
+    /* link metastack, slight abuse of structs here,
+     * have to restore pointer to internal part in struct */
+    {
+      Sequence temp;
+      void *poin;
+      intptr_t offset;
+
+      offset = ((intptr_t) & (temp.seqbase)) - ((intptr_t)&temp);
+
+      /* root pointer */
+      if (ed->seqbasep == old_seqbasep) {
+        ed->seqbasep = &ed->seqbase;
+      }
+      else {
+        poin = POINTER_OFFSET(ed->seqbasep, -offset);
+
+        poin = BLO_read_get_new_data_address(reader, poin);
+
+        if (poin) {
+          ed->seqbasep = (ListBase *)POINTER_OFFSET(poin, offset);
+        }
+        else {
+          ed->seqbasep = &ed->seqbase;
+        }
+      }
+      /* stack */
+      BLO_read_list(reader, &(ed->metastack));
+
+      LISTBASE_FOREACH (MetaStack *, ms, &ed->metastack) {
+        BLO_read_data_address(reader, &ms->parseq);
+
+        if (ms->oldbasep == old_seqbasep) {
+          ms->oldbasep = &ed->seqbase;
+        }
+        else {
+          poin = POINTER_OFFSET(ms->oldbasep, -offset);
+          poin = BLO_read_get_new_data_address(reader, poin);
+          if (poin) {
+            ms->oldbasep = (ListBase *)POINTER_OFFSET(poin, offset);
+          }
+          else {
+            ms->oldbasep = &ed->seqbase;
+          }
+        }
+      }
+    }
+  }
+
+#ifdef DURIAN_CAMERA_SWITCH
+  /* Runtime */
+  sce->r.mode &= ~R_NO_CAMERA_SWITCH;
+#endif
+
+  BLO_read_data_address(reader, &sce->r.avicodecdata);
+  if (sce->r.avicodecdata) {
+    BLO_read_data_address(reader, &sce->r.avicodecdata->lpFormat);
+    BLO_read_data_address(reader, &sce->r.avicodecdata->lpParms);
+  }
+  if (sce->r.ffcodecdata.properties) {
+    BLO_read_data_address(reader, &sce->r.ffcodecdata.properties);
+    IDP_BlendDataRead(reader, &sce->r.ffcodecdata.properties);
+  }
+
+  BLO_read_list(reader, &(sce->markers));
+  LISTBASE_FOREACH (TimeMarker *, marker, &sce->markers) {
+    BLO_read_data_address(reader, &marker->prop);
+    IDP_BlendDataRead(reader, &marker->prop);
+  }
+
+  BLO_read_list(reader, &(sce->transform_spaces));
+  BLO_read_list(reader, &(sce->r.layers));
+  BLO_read_list(reader, &(sce->r.views));
+
+  LISTBASE_FOREACH (SceneRenderLayer *, srl, &sce->r.layers) {
+    BLO_read_data_address(reader, &srl->prop);
+    IDP_BlendDataRead(reader, &srl->prop);
+    BLO_read_list(reader, &(srl->freestyleConfig.modules));
+    BLO_read_list(reader, &(srl->freestyleConfig.linesets));
+  }
+
+  BKE_color_managed_view_settings_blend_read_data(reader, &sce->view_settings);
+
+  BLO_read_data_address(reader, &sce->rigidbody_world);
+  RigidBodyWorld *rbw = sce->rigidbody_world;
+  if (rbw) {
+    BLO_read_data_address(reader, &rbw->shared);
+
+    if (rbw->shared == NULL) {
+      /* Link deprecated caches if they exist, so we can use them for versioning.
+       * We should only do this when rbw->shared == NULL, because those pointers
+       * are always set (for compatibility with older Blenders). We mustn't link
+       * the same pointcache twice. */
+      BKE_ptcache_blend_read_data(reader, &rbw->ptcaches, &rbw->pointcache, false);
+
+      /* make sure simulation starts from the beginning after loading file */
+      if (rbw->pointcache) {
+        rbw->ltime = (float)rbw->pointcache->startframe;
+      }
+    }
+    else {
+      /* must nullify the reference to physics sim object, since it no-longer exist
+       * (and will need to be recalculated)
+       */
+      rbw->shared->physics_world = NULL;
+
+      /* link caches */
+      BKE_ptcache_blend_read_data(reader, &rbw->shared->ptcaches, &rbw->shared->pointcache, false);
+
+      /* make sure simulation starts from the beginning after loading file */
+      if (rbw->shared->pointcache) {
+        rbw->ltime = (float)rbw->shared->pointcache->startframe;
+      }
+    }
+    rbw->objects = NULL;
+    rbw->numbodies = 0;
+
+    /* set effector weights */
+    BLO_read_data_address(reader, &rbw->effector_weights);
+    if (!rbw->effector_weights) {
+      rbw->effector_weights = BKE_effector_add_weights(NULL);
+    }
+  }
+
+  BLO_read_data_address(reader, &sce->preview);
+  BKE_previewimg_blend_read(reader, sce->preview);
+
+  BKE_curvemapping_blend_read(reader, &sce->r.mblur_shutter_curve);
+
+#ifdef USE_COLLECTION_COMPAT_28
+  /* this runs before the very first doversion */
+  if (sce->collection) {
+    BLO_read_data_address(reader, &sce->collection);
+    BKE_collection_compat_blend_read_data(reader, sce->collection);
+  }
+#endif
+
+  /* insert into global old-new map for reading without UI (link_global accesses it again) */
+  BLO_read_glob_list(reader, &sce->view_layers);
+  LISTBASE_FOREACH (ViewLayer *, view_layer, &sce->view_layers) {
+    BKE_view_layer_blend_read_data(reader, view_layer);
+  }
+
+  if (BLO_read_data_is_undo(reader)) {
+    /* If it's undo do nothing here, caches are handled by higher-level generic calling code. */
+  }
+  else {
+    /* else try to read the cache from file. */
+    BLO_read_data_address(reader, &sce->eevee.light_cache_data);
+    if (sce->eevee.light_cache_data) {
+      EEVEE_lightcache_blend_read_data(reader, sce->eevee.light_cache_data);
+    }
+  }
+  EEVEE_lightcache_info_update(&sce->eevee);
+
+  BKE_screen_view3d_shading_blend_read_data(reader, &sce->display.shading);
+
+  BLO_read_data_address(reader, &sce->layer_properties);
+  IDP_BlendDataRead(reader, &sce->layer_properties);
+}
+
+/* patch for missing scene IDs, can't be in do-versions */
+static void composite_patch(bNodeTree *ntree, Scene *scene)
+{
+
+  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+    if (node->id == NULL && node->type == CMP_NODE_R_LAYERS) {
+      node->id = &scene->id;
+    }
+  }
+}
+
+static void scene_blend_read_lib(BlendLibReader *reader, ID *id)
+{
+  Scene *sce = (Scene *)id;
+
+  BKE_keyingsets_blend_read_lib(reader, &sce->id, &sce->keyingsets);
+
+  BLO_read_id_address(reader, sce->id.lib, &sce->camera);
+  BLO_read_id_address(reader, sce->id.lib, &sce->world);
+  BLO_read_id_address(reader, sce->id.lib, &sce->set);
+  BLO_read_id_address(reader, sce->id.lib, &sce->gpd);
+
+  BKE_paint_blend_read_lib(reader, sce, &sce->toolsettings->imapaint.paint);
+  if (sce->toolsettings->sculpt) {
+    BKE_paint_blend_read_lib(reader, sce, &sce->toolsettings->sculpt->paint);
+  }
+  if (sce->toolsettings->vpaint) {
+    BKE_paint_blend_read_lib(reader, sce, &sce->toolsettings->vpaint->paint);
+  }
+  if (sce->toolsettings->wpaint) {
+    BKE_paint_blend_read_lib(reader, sce, &sce->toolsettings->wpaint->paint);
+  }
+  if (sce->toolsettings->uvsculpt) {
+    BKE_paint_blend_read_lib(reader, sce, &sce->toolsettings->uvsculpt->paint);
+  }
+  if (sce->toolsettings->gp_paint) {
+    BKE_paint_blend_read_lib(reader, sce, &sce->toolsettings->gp_paint->paint);
+  }
+  if (sce->toolsettings->gp_vertexpaint) {
+    BKE_paint_blend_read_lib(reader, sce, &sce->toolsettings->gp_vertexpaint->paint);
+  }
+  if (sce->toolsettings->gp_sculptpaint) {
+    BKE_paint_blend_read_lib(reader, sce, &sce->toolsettings->gp_sculptpaint->paint);
+  }
+  if (sce->toolsettings->gp_weightpaint) {
+    BKE_paint_blend_read_lib(reader, sce, &sce->toolsettings->gp_weightpaint->paint);
+  }
+
+  if (sce->toolsettings->sculpt) {
+    BLO_read_id_address(reader, sce->id.lib, &sce->toolsettings->sculpt->gravity_object);
+  }
+
+  if (sce->toolsettings->imapaint.stencil) {
+    BLO_read_id_address(reader, sce->id.lib, &sce->toolsettings->imapaint.stencil);
+  }
+
+  if (sce->toolsettings->imapaint.clone) {
+    BLO_read_id_address(reader, sce->id.lib, &sce->toolsettings->imapaint.clone);
+  }
+
+  if (sce->toolsettings->imapaint.canvas) {
+    BLO_read_id_address(reader, sce->id.lib, &sce->toolsettings->imapaint.canvas);
+  }
+
+  BLO_read_id_address(reader, sce->id.lib, &sce->toolsettings->particle.shape_object);
+
+  BLO_read_id_address(reader, sce->id.lib, &sce->toolsettings->gp_sculpt.guide.reference_object);
+
+  LISTBASE_FOREACH_MUTABLE (Base *, base_legacy, &sce->base) {
+    BLO_read_id_address(reader, sce->id.lib, &base_legacy->object);
+
+    if (base_legacy->object == NULL) {
+      BLO_reportf_wrap(BLO_read_lib_reports(reader),
+                       RPT_WARNING,
+                       TIP_("LIB: object lost from scene: '%s'"),
+                       sce->id.name + 2);
+      BLI_remlink(&sce->base, base_legacy);
+      if (base_legacy == sce->basact) {
+        sce->basact = NULL;
+      }
+      MEM_freeN(base_legacy);
+    }
+  }
+
+  Sequence *seq;
+  SEQ_ALL_BEGIN (sce->ed, seq) {
+    IDP_BlendReadLib(reader, seq->prop);
+
+    if (seq->ipo) {
+      BLO_read_id_address(
+          reader, sce->id.lib, &seq->ipo); /* XXX deprecated - old animation system */
+    }
+    seq->scene_sound = NULL;
+    if (seq->scene) {
+      BLO_read_id_address(reader, sce->id.lib, &seq->scene);
+      seq->scene_sound = NULL;
+    }
+    if (seq->clip) {
+      BLO_read_id_address(reader, sce->id.lib, &seq->clip);
+    }
+    if (seq->mask) {
+      BLO_read_id_address(reader, sce->id.lib, &seq->mask);
+    }
+    if (seq->scene_camera) {
+      BLO_read_id_address(reader, sce->id.lib, &seq->scene_camera);
+    }
+    if (seq->sound) {
+      seq->scene_sound = NULL;
+      if (seq->type == SEQ_TYPE_SOUND_HD) {
+        seq->type = SEQ_TYPE_SOUND_RAM;
+      }
+      else {
+        BLO_read_id_address(reader, sce->id.lib, &seq->sound);
+      }
+      if (seq->sound) {
+        id_us_plus_no_lib((ID *)seq->sound);
+        seq->scene_sound = NULL;
+      }
+    }
+    if (seq->type == SEQ_TYPE_TEXT) {
+      TextVars *t = seq->effectdata;
+      BLO_read_id_address(reader, sce->id.lib, &t->text_font);
+    }
+    BLI_listbase_clear(&seq->anims);
+
+    BKE_sequence_modifier_blend_read_lib(reader, sce, &seq->modifiers);
+  }
+  SEQ_ALL_END;
+
+  LISTBASE_FOREACH (TimeMarker *, marker, &sce->markers) {
+    IDP_BlendReadLib(reader, marker->prop);
+
+    if (marker->camera) {
+      BLO_read_id_address(reader, sce->id.lib, &marker->camera);
+    }
+  }
+
+  /* rigidbody world relies on its linked collections */
+  if (sce->rigidbody_world) {
+    RigidBodyWorld *rbw = sce->rigidbody_world;
+    if (rbw->group) {
+      BLO_read_id_address(reader, sce->id.lib, &rbw->group);
+    }
+    if (rbw->constraints) {
+      BLO_read_id_address(reader, sce->id.lib, &rbw->constraints);
+    }
+    if (rbw->effector_weights) {
+      BLO_read_id_address(reader, sce->id.lib, &rbw->effector_weights->group);
+    }
+  }
+
+  if (sce->nodetree) {
+    composite_patch(sce->nodetree, sce);
+  }
+
+  LISTBASE_FOREACH (SceneRenderLayer *, srl, &sce->r.layers) {
+    BLO_read_id_address(reader, sce->id.lib, &srl->mat_override);
+    LISTBASE_FOREACH (FreestyleModuleConfig *, fmc, &srl->freestyleConfig.modules) {
+      BLO_read_id_address(reader, sce->id.lib, &fmc->script);
+    }
+    LISTBASE_FOREACH (FreestyleLineSet *, fls, &srl->freestyleConfig.linesets) {
+      BLO_read_id_address(reader, sce->id.lib, &fls->linestyle);
+      BLO_read_id_address(reader, sce->id.lib, &fls->group);
+    }
+  }
+  /* Motion Tracking */
+  BLO_read_id_address(reader, sce->id.lib, &sce->clip);
+
+#ifdef USE_COLLECTION_COMPAT_28
+  if (sce->collection) {
+    BKE_collection_compat_blend_read_lib(reader, sce->id.lib, sce->collection);
+  }
+#endif
+
+  LISTBASE_FOREACH (ViewLayer *, view_layer, &sce->view_layers) {
+    BKE_view_layer_blend_read_lib(reader, sce->id.lib, view_layer);
+  }
+
+  if (sce->r.bake.cage_object) {
+    BLO_read_id_address(reader, sce->id.lib, &sce->r.bake.cage_object);
+  }
+
+#ifdef USE_SETSCENE_CHECK
+  if (sce->set != NULL) {
+    sce->flag |= SCE_READFILE_LIBLINK_NEED_SETSCENE_CHECK;
+  }
+#endif
+}
+
+static void scene_blend_read_expand(BlendExpander *expander, ID *id)
+{
+  Scene *sce = (Scene *)id;
+
+  LISTBASE_FOREACH (Base *, base_legacy, &sce->base) {
+    BLO_expand(expander, base_legacy->object);
+  }
+  BLO_expand(expander, sce->camera);
+  BLO_expand(expander, sce->world);
+
+  BKE_keyingsets_blend_read_expand(expander, &sce->keyingsets);
+
+  if (sce->set) {
+    BLO_expand(expander, sce->set);
+  }
+
+  LISTBASE_FOREACH (SceneRenderLayer *, srl, &sce->r.layers) {
+    BLO_expand(expander, srl->mat_override);
+    LISTBASE_FOREACH (FreestyleModuleConfig *, module, &srl->freestyleConfig.modules) {
+      if (module->script) {
+        BLO_expand(expander, module->script);
+      }
+    }
+    LISTBASE_FOREACH (FreestyleLineSet *, lineset, &srl->freestyleConfig.linesets) {
+      if (lineset->group) {
+        BLO_expand(expander, lineset->group);
+      }
+      BLO_expand(expander, lineset->linestyle);
+    }
+  }
+
+  LISTBASE_FOREACH (ViewLayer *, view_layer, &sce->view_layers) {
+    IDP_BlendReadExpand(expander, view_layer->id_properties);
+
+    LISTBASE_FOREACH (FreestyleModuleConfig *, module, &view_layer->freestyle_config.modules) {
+      if (module->script) {
+        BLO_expand(expander, module->script);
+      }
+    }
+
+    LISTBASE_FOREACH (FreestyleLineSet *, lineset, &view_layer->freestyle_config.linesets) {
+      if (lineset->group) {
+        BLO_expand(expander, lineset->group);
+      }
+      BLO_expand(expander, lineset->linestyle);
+    }
+  }
+
+  if (sce->gpd) {
+    BLO_expand(expander, sce->gpd);
+  }
+
+  if (sce->ed) {
+    Sequence *seq;
+
+    SEQ_ALL_BEGIN (sce->ed, seq) {
+      IDP_BlendReadExpand(expander, seq->prop);
+
+      if (seq->scene) {
+        BLO_expand(expander, seq->scene);
+      }
+      if (seq->scene_camera) {
+        BLO_expand(expander, seq->scene_camera);
+      }
+      if (seq->clip) {
+        BLO_expand(expander, seq->clip);
+      }
+      if (seq->mask) {
+        BLO_expand(expander, seq->mask);
+      }
+      if (seq->sound) {
+        BLO_expand(expander, seq->sound);
+      }
+
+      if (seq->type == SEQ_TYPE_TEXT && seq->effectdata) {
+        TextVars *data = seq->effectdata;
+        BLO_expand(expander, data->text_font);
+      }
+    }
+    SEQ_ALL_END;
+  }
+
+  if (sce->rigidbody_world) {
+    BLO_expand(expander, sce->rigidbody_world->group);
+    BLO_expand(expander, sce->rigidbody_world->constraints);
+  }
+
+  LISTBASE_FOREACH (TimeMarker *, marker, &sce->markers) {
+    IDP_BlendReadExpand(expander, marker->prop);
+
+    if (marker->camera) {
+      BLO_expand(expander, marker->camera);
+    }
+  }
+
+  BLO_expand(expander, sce->clip);
+
+#ifdef USE_COLLECTION_COMPAT_28
+  if (sce->collection) {
+    BKE_collection_compat_blend_read_expand(expander, sce->collection);
+  }
+#endif
+
+  if (sce->r.bake.cage_object) {
+    BLO_expand(expander, sce->r.bake.cage_object);
+  }
+}
+
 static void scene_undo_preserve(BlendLibReader *reader, ID *id_new, ID *id_old)
 {
   Scene *scene_new = (Scene *)id_new;
@@ -876,10 +1748,10 @@ IDTypeInfo IDType_ID_SCE = {
     .foreach_id = scene_foreach_id,
     .foreach_cache = scene_foreach_cache,
 
-    .blend_write = NULL,
-    .blend_read_data = NULL,
-    .blend_read_lib = NULL,
-    .blend_read_expand = NULL,
+    .blend_write = scene_blend_write,
+    .blend_read_data = scene_blend_read_data,
+    .blend_read_lib = scene_blend_read_lib,
+    .blend_read_expand = scene_blend_read_expand,
 
     .blend_read_undo_preserve = scene_undo_preserve,
 };
@@ -2211,7 +3083,7 @@ bool BKE_scene_multiview_is_render_view_active(const RenderData *rd, const Scene
   }
 
   /* SCE_VIEWS_SETUP_BASIC */
-  if (STREQ(srv->name, STEREO_LEFT_NAME) || STREQ(srv->name, STEREO_RIGHT_NAME)) {
+  if (STR_ELEM(srv->name, STEREO_LEFT_NAME, STEREO_RIGHT_NAME)) {
     return true;
   }
 

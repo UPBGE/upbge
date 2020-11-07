@@ -105,7 +105,7 @@ static void fill_locales(void)
   while (line) {
     int t;
     str = (char *)line->link;
-    if (str[0] == '#' || str[0] == '\0') {
+    if (ELEM(str[0], '#', '\0')) {
       line = line->next;
       continue; /* Comment or void... */
     }
@@ -130,7 +130,7 @@ static void fill_locales(void)
       char *loc, *sep1, *sep2, *sep3;
 
       str = (char *)line->link;
-      if (str[0] == '#' || str[0] == '\0') {
+      if (ELEM(str[0], '#', '\0')) {
         line = line->next;
         continue;
       }
@@ -388,7 +388,7 @@ static void blt_lang_check_ime_supported(void)
 {
 #ifdef WITH_INPUT_IME
   const char *uilng = BLT_lang_get();
-  ime_is_lang_supported = STREQ(uilng, "zh_CN") || STREQ(uilng, "zh_TW") || STREQ(uilng, "ja_JP");
+  ime_is_lang_supported = STR_ELEM(uilng, "zh_CN", "zh_TW", "ja_JP");
 #else
   ime_is_lang_supported = false;
 #endif

@@ -20,16 +20,16 @@
 
 #include "BKE_colortools.h"
 
-CurveBaseOperation::CurveBaseOperation() : NodeOperation()
+CurveBaseOperation::CurveBaseOperation()
 {
-  this->m_curveMapping = NULL;
+  this->m_curveMapping = nullptr;
 }
 
 CurveBaseOperation::~CurveBaseOperation()
 {
   if (this->m_curveMapping) {
     BKE_curvemapping_free(this->m_curveMapping);
-    this->m_curveMapping = NULL;
+    this->m_curveMapping = nullptr;
   }
 }
 
@@ -41,7 +41,7 @@ void CurveBaseOperation::deinitExecution()
 {
   if (this->m_curveMapping) {
     BKE_curvemapping_free(this->m_curveMapping);
-    this->m_curveMapping = NULL;
+    this->m_curveMapping = nullptr;
   }
 }
 

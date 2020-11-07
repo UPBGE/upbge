@@ -31,13 +31,13 @@ inline float colorbalance_cdl(float in, float offset, float power, float slope)
   return powf(x, power);
 }
 
-ColorBalanceASCCDLOperation::ColorBalanceASCCDLOperation() : NodeOperation()
+ColorBalanceASCCDLOperation::ColorBalanceASCCDLOperation()
 {
   this->addInputSocket(COM_DT_VALUE);
   this->addInputSocket(COM_DT_COLOR);
   this->addOutputSocket(COM_DT_COLOR);
-  this->m_inputValueOperation = NULL;
-  this->m_inputColorOperation = NULL;
+  this->m_inputValueOperation = nullptr;
+  this->m_inputColorOperation = nullptr;
   this->setResolutionInputSocketIndex(1);
 }
 
@@ -76,6 +76,6 @@ void ColorBalanceASCCDLOperation::executePixelSampled(float output[4],
 
 void ColorBalanceASCCDLOperation::deinitExecution()
 {
-  this->m_inputValueOperation = NULL;
-  this->m_inputColorOperation = NULL;
+  this->m_inputValueOperation = nullptr;
+  this->m_inputColorOperation = nullptr;
 }

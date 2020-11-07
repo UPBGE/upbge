@@ -303,8 +303,8 @@ void ED_view3d_clipping_calc(
   /* four clipping planes and bounding volume */
   /* first do the bounding volume */
   for (int val = 0; val < 4; val++) {
-    float xs = (val == 0 || val == 3) ? rect->xmin : rect->xmax;
-    float ys = (val == 0 || val == 1) ? rect->ymin : rect->ymax;
+    float xs = (ELEM(val, 0, 3)) ? rect->xmin : rect->xmax;
+    float ys = (ELEM(val, 0, 1)) ? rect->ymin : rect->ymax;
 
     ED_view3d_unproject(region, xs, ys, 0.0, bb->vec[val]);
     ED_view3d_unproject(region, xs, ys, 1.0, bb->vec[4 + val]);
@@ -552,7 +552,8 @@ bool ED_view3d_camera_lock_sync(const Depsgraph *depsgraph, View3D *v3d, RegionV
     ObjectTfmProtectedChannels obtfm;
     Object *root_parent;
 
-    if ((U.uiflag & USER_CAM_LOCK_NO_PARENT) == 0 && (root_parent = v3d->camera->parent)) {
+    if (v3d->camera->transflag & OB_TRANSFORM_ADJUST_ROOT_PARENT_FOR_VIEW_LOCK &&
+        (root_parent = v3d->camera->parent)) {
       Object *ob_update;
       float tmat[4][4];
       float imat[4][4];
@@ -655,7 +656,8 @@ bool ED_view3d_camera_lock_autokey(View3D *v3d,
     Scene *scene = CTX_data_scene(C);
     ID *id_key;
     Object *root_parent;
-    if ((U.uiflag & USER_CAM_LOCK_NO_PARENT) == 0 && (root_parent = v3d->camera->parent)) {
+    if (v3d->camera->transflag & OB_TRANSFORM_ADJUST_ROOT_PARENT_FOR_VIEW_LOCK &&
+        (root_parent = v3d->camera->parent)) {
       while (root_parent->parent) {
         root_parent = root_parent->parent;
       }

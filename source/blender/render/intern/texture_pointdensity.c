@@ -54,7 +54,7 @@
 #include "DEG_depsgraph_query.h"
 
 #include "render_types.h"
-#include "texture.h"
+#include "texture_common.h"
 
 #include "RE_render_ext.h"
 #include "RE_shader_ext.h"
@@ -656,13 +656,13 @@ static int pointdensity(PointDensity *pd,
   }
 
   if (pd->flag & TEX_PD_TURBULENCE) {
-    turb = BLI_gTurbulence(pd->noise_size,
-                           texvec[0] + vec[0],
-                           texvec[1] + vec[1],
-                           texvec[2] + vec[2],
-                           pd->noise_depth,
-                           0,
-                           pd->noise_basis);
+    turb = BLI_noise_generic_turbulence(pd->noise_size,
+                                        texvec[0] + vec[0],
+                                        texvec[1] + vec[1],
+                                        texvec[2] + vec[2],
+                                        pd->noise_depth,
+                                        0,
+                                        pd->noise_basis);
 
     turb -= 0.5f; /* re-center 0.0-1.0 range around 0 to prevent offsetting result */
 

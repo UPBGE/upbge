@@ -19,14 +19,14 @@
 #include "COM_ColorMatteOperation.h"
 #include "BLI_math.h"
 
-ColorMatteOperation::ColorMatteOperation() : NodeOperation()
+ColorMatteOperation::ColorMatteOperation()
 {
   addInputSocket(COM_DT_COLOR);
   addInputSocket(COM_DT_COLOR);
   addOutputSocket(COM_DT_VALUE);
 
-  this->m_inputImageProgram = NULL;
-  this->m_inputKeyProgram = NULL;
+  this->m_inputImageProgram = nullptr;
+  this->m_inputKeyProgram = nullptr;
 }
 
 void ColorMatteOperation::initExecution()
@@ -37,8 +37,8 @@ void ColorMatteOperation::initExecution()
 
 void ColorMatteOperation::deinitExecution()
 {
-  this->m_inputImageProgram = NULL;
-  this->m_inputKeyProgram = NULL;
+  this->m_inputImageProgram = nullptr;
+  this->m_inputKeyProgram = nullptr;
 }
 
 void ColorMatteOperation::executePixelSampled(float output[4],

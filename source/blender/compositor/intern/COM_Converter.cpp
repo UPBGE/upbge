@@ -116,21 +116,28 @@
 
 bool Converter::is_fast_node(bNode *b_node)
 {
-  return !(b_node->type == CMP_NODE_BLUR || b_node->type == CMP_NODE_VECBLUR ||
-           b_node->type == CMP_NODE_BILATERALBLUR || b_node->type == CMP_NODE_DEFOCUS ||
-           b_node->type == CMP_NODE_BOKEHBLUR || b_node->type == CMP_NODE_GLARE ||
-           b_node->type == CMP_NODE_DBLUR || b_node->type == CMP_NODE_MOVIEDISTORTION ||
-           b_node->type == CMP_NODE_LENSDIST || b_node->type == CMP_NODE_DOUBLEEDGEMASK ||
-           b_node->type == CMP_NODE_DILATEERODE || b_node->type == CMP_NODE_DENOISE);
+  return !ELEM(b_node->type,
+               CMP_NODE_BLUR,
+               CMP_NODE_VECBLUR,
+               CMP_NODE_BILATERALBLUR,
+               CMP_NODE_DEFOCUS,
+               CMP_NODE_BOKEHBLUR,
+               CMP_NODE_GLARE,
+               CMP_NODE_DBLUR,
+               CMP_NODE_MOVIEDISTORTION,
+               CMP_NODE_LENSDIST,
+               CMP_NODE_DOUBLEEDGEMASK,
+               CMP_NODE_DILATEERODE,
+               CMP_NODE_DENOISE);
 }
 
 Node *Converter::convert(bNode *b_node)
 {
-  Node *node = NULL;
+  Node *node = nullptr;
 
   /* ignore undefined nodes with missing or invalid node data */
   if (!nodeIsRegistered(b_node)) {
-    return NULL;
+    return nullptr;
   }
 
   switch (b_node->type) {
@@ -432,7 +439,7 @@ NodeOperation *Converter::convertDataType(NodeOperationOutput *from, NodeOperati
     return new ConvertVectorToColorOperation();
   }
 
-  return NULL;
+  return nullptr;
 }
 
 void Converter::convertResolution(NodeOperationBuilder &builder,
@@ -491,8 +498,8 @@ void Converter::convertResolution(NodeOperationBuilder &builder,
   }
 
   if (doCenter) {
-    NodeOperation *first = NULL;
-    ScaleOperation *scaleOperation = NULL;
+    NodeOperation *first = nullptr;
+    ScaleOperation *scaleOperation = nullptr;
     if (doScale) {
       scaleOperation = new ScaleOperation();
       scaleOperation->getInputSocket(1)->setResizeMode(COM_SC_NO_RESIZE);

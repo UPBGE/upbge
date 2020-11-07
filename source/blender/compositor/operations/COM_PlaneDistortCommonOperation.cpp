@@ -44,11 +44,11 @@ BLI_INLINE void warpCoord(float x, float y, float matrix[3][3], float uv[2], flo
   deriv[1][1] = (matrix[1][1] - matrix[1][2] * uv[1]) / vec[2];
 }
 
-PlaneDistortWarpImageOperation::PlaneDistortWarpImageOperation() : NodeOperation()
+PlaneDistortWarpImageOperation::PlaneDistortWarpImageOperation()
 {
   this->addInputSocket(COM_DT_COLOR, COM_SC_NO_RESIZE);
   this->addOutputSocket(COM_DT_COLOR);
-  this->m_pixelReader = NULL;
+  this->m_pixelReader = nullptr;
   this->m_motion_blur_samples = 1;
   this->m_motion_blur_shutter = 0.5f;
   this->setComplex(true);
@@ -87,7 +87,7 @@ void PlaneDistortWarpImageOperation::initExecution()
 
 void PlaneDistortWarpImageOperation::deinitExecution()
 {
-  this->m_pixelReader = NULL;
+  this->m_pixelReader = nullptr;
 }
 
 void PlaneDistortWarpImageOperation::executePixelSampled(float output[4],
@@ -145,7 +145,7 @@ bool PlaneDistortWarpImageOperation::determineDependingAreaOfInterest(
 
 /* ******** PlaneDistort Mask ******** */
 
-PlaneDistortMaskOperation::PlaneDistortMaskOperation() : NodeOperation()
+PlaneDistortMaskOperation::PlaneDistortMaskOperation()
 {
   addOutputSocket(COM_DT_VALUE);
 

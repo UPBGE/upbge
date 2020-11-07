@@ -66,6 +66,9 @@ struct ViewLayer;
 struct bContext;
 struct bToolRef;
 struct tPaletteColorHSV;
+struct BlendWriter;
+struct BlendDataReader;
+struct BlendLibReader;
 
 enum eOverlayFlags;
 
@@ -216,6 +219,15 @@ void BKE_paint_toolslots_brush_update_ex(struct Paint *paint, struct Brush *brus
 void BKE_paint_toolslots_brush_update(struct Paint *paint);
 void BKE_paint_toolslots_brush_validate(struct Main *bmain, struct Paint *paint);
 struct Brush *BKE_paint_toolslots_brush_get(struct Paint *paint, int slot_index);
+
+/* .blend I/O */
+void BKE_paint_blend_write(struct BlendWriter *writer, struct Paint *paint);
+void BKE_paint_blend_read_data(struct BlendDataReader *reader,
+                               const struct Scene *scene,
+                               struct Paint *paint);
+void BKE_paint_blend_read_lib(struct BlendLibReader *reader,
+                              struct Scene *scene,
+                              struct Paint *paint);
 
 #define SCULPT_FACE_SET_NONE 0
 

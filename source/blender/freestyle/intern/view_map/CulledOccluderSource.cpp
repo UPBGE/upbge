@@ -146,7 +146,7 @@ void CulledOccluderSource::cullViewEdges(ViewMap &viewMap, bool extensiveFEdgeSe
 
     // For each feature edge, while bestOccluderTarget not found and view edge not visible
     bool bestOccluderTargetFound = false;
-    FEdge *bestOccluderTarget = NULL;
+    FEdge *bestOccluderTarget = nullptr;
     real bestOccluderDistance = 0.0;
     FEdge *festart = (*ve)->fedgeA();
     FEdge *fe = festart;
@@ -173,7 +173,7 @@ void CulledOccluderSource::cullViewEdges(ViewMap &viewMap, bool extensiveFEdgeSe
         else {
           real d = distance2D(fe->center2d(), prosceniumOrigin);
           // If center point is closer to viewport origin than current target
-          if (bestOccluderTarget == NULL || d < bestOccluderDistance) {
+          if (bestOccluderTarget == nullptr || d < bestOccluderDistance) {
             // Then store as bestOccluderTarget
             bestOccluderDistance = d;
             bestOccluderTarget = fe;
@@ -187,18 +187,18 @@ void CulledOccluderSource::cullViewEdges(ViewMap &viewMap, bool extensiveFEdgeSe
         (*ve)->setIsInImage(true);
       }
       fe = fe->nextEdge();
-    } while (fe != NULL && fe != festart && !(bestOccluderTargetFound && (*ve)->isInImage()));
+    } while (fe != nullptr && fe != festart && !(bestOccluderTargetFound && (*ve)->isInImage()));
 
     // Either we have run out of FEdges, or we already have the one edge we need to determine
     // visibility Cull all remaining edges.
-    while (fe != NULL && fe != festart) {
+    while (!ELEM(fe, NULL, festart)) {
       fe->setIsInImage(false);
       fe = fe->nextEdge();
     }
 
     // If bestOccluderTarget was not found inside the occluder proscenium,
     // we need to expand the occluder proscenium to include it.
-    if ((*ve)->isInImage() && bestOccluderTarget != NULL && !bestOccluderTargetFound) {
+    if ((*ve)->isInImage() && bestOccluderTarget != nullptr && !bestOccluderTargetFound) {
       // Expand occluder proscenium to enclose bestOccluderTarget
       Vec3r point = bestOccluderTarget->center2d();
       if (point[0] < occluderProscenium[0]) {
@@ -253,7 +253,7 @@ void CulledOccluderSource::cullViewEdges(ViewMap &viewMap, bool extensiveFEdgeSe
           expandGridSpaceOccluderProscenium(fe);
         }
         fe = fe->nextEdge();
-      } while (fe != NULL && fe != festart);
+      } while (!ELEM(fe, NULL, festart));
     }
   }
 

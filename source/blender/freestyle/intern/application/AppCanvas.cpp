@@ -31,13 +31,13 @@
 #include "../system/StringUtils.h"
 namespace Freestyle {
 
-AppCanvas::AppCanvas() : Canvas()
+AppCanvas::AppCanvas()
 {
-  _pViewer = 0;
+  _pViewer = nullptr;
   _MapsPath = Config::Path::getInstance()->getMapsDir().c_str();
 }
 
-AppCanvas::AppCanvas(AppView *iViewer) : Canvas()
+AppCanvas::AppCanvas(AppView *iViewer)
 {
   _pViewer = iViewer;
 }
@@ -49,7 +49,7 @@ AppCanvas::AppCanvas(const AppCanvas &iBrother) : Canvas(iBrother)
 
 AppCanvas::~AppCanvas()
 {
-  _pViewer = 0;
+  _pViewer = nullptr;
 }
 
 void AppCanvas::setViewer(AppView *iViewer)

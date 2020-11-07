@@ -21,13 +21,13 @@
 
 #include "IMB_colormanagement.h"
 
-ColorCorrectionOperation::ColorCorrectionOperation() : NodeOperation()
+ColorCorrectionOperation::ColorCorrectionOperation()
 {
   this->addInputSocket(COM_DT_COLOR);
   this->addInputSocket(COM_DT_VALUE);
   this->addOutputSocket(COM_DT_COLOR);
-  this->m_inputImage = NULL;
-  this->m_inputMask = NULL;
+  this->m_inputImage = nullptr;
+  this->m_inputMask = nullptr;
   this->m_redChannelEnabled = true;
   this->m_greenChannelEnabled = true;
   this->m_blueChannelEnabled = true;
@@ -157,6 +157,6 @@ void ColorCorrectionOperation::executePixelSampled(float output[4],
 
 void ColorCorrectionOperation::deinitExecution()
 {
-  this->m_inputImage = NULL;
-  this->m_inputMask = NULL;
+  this->m_inputImage = nullptr;
+  this->m_inputMask = nullptr;
 }

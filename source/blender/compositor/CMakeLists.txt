@@ -34,8 +34,8 @@ set(INC
   ../windowmanager
   ../nodes/composite
   ../nodes/intern
-  ../render/extern/include
-  ../render/intern/include
+  ../render
+  ../render/intern
   ../../../extern/clew/include
   ../../../intern/atomic
   ../../../intern/guardedalloc

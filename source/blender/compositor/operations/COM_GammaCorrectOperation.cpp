@@ -19,11 +19,11 @@
 #include "COM_GammaCorrectOperation.h"
 #include "BLI_math.h"
 
-GammaCorrectOperation::GammaCorrectOperation() : NodeOperation()
+GammaCorrectOperation::GammaCorrectOperation()
 {
   this->addInputSocket(COM_DT_COLOR);
   this->addOutputSocket(COM_DT_COLOR);
-  this->m_inputProgram = NULL;
+  this->m_inputProgram = nullptr;
 }
 void GammaCorrectOperation::initExecution()
 {
@@ -58,14 +58,14 @@ void GammaCorrectOperation::executePixelSampled(float output[4],
 
 void GammaCorrectOperation::deinitExecution()
 {
-  this->m_inputProgram = NULL;
+  this->m_inputProgram = nullptr;
 }
 
-GammaUncorrectOperation::GammaUncorrectOperation() : NodeOperation()
+GammaUncorrectOperation::GammaUncorrectOperation()
 {
   this->addInputSocket(COM_DT_COLOR);
   this->addOutputSocket(COM_DT_COLOR);
-  this->m_inputProgram = NULL;
+  this->m_inputProgram = nullptr;
 }
 void GammaUncorrectOperation::initExecution()
 {
@@ -100,5 +100,5 @@ void GammaUncorrectOperation::executePixelSampled(float output[4],
 
 void GammaUncorrectOperation::deinitExecution()
 {
-  this->m_inputProgram = NULL;
+  this->m_inputProgram = nullptr;
 }

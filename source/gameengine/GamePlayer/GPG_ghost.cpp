@@ -42,7 +42,7 @@
 #include "../../../intern/ghost/GHOST_Path-api.h"
 #include "../../blender/python/BPY_extern_python.h"
 #include "../../blender/python/BPY_extern_run.h"
-#include "../render/extern/include/RE_render_ext.h"
+#include "../render/RE_render_ext.h"
 #include "BKE_addon.h"
 #include "BKE_appdir.h"
 #include "BKE_blender.h"
@@ -106,8 +106,8 @@
 #include "editors/include/ED_util.h"
 #include "editors/include/UI_interface.h"
 #include "editors/include/UI_resources.h"
-#include "render/extern/include/RE_engine.h"
-#include "render/extern/include/RE_pipeline.h"
+#include "render/RE_engine.h"
+#include "render/RE_pipeline.h"
 #include "windowmanager/WM_api.h"
 #include "windowmanager/message_bus/wm_message_bus.h"
 #include "windowmanager/wm.h"
@@ -876,7 +876,7 @@ int main(int argc,
 
   ED_spacemacros_init();
 
-  init_nodesystem();
+  BKE_node_system_init();
 
   // We load our own G_MAIN, so free the one that BKE_blender_globals_init() gives us
   BKE_main_free(G_MAIN);

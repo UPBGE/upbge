@@ -565,8 +565,8 @@ set(INC
   ../makesrna
   ../python
   ../python/intern
-  ../render/extern/include
-  ../render/intern/include
+  ../render
+  ../render/intern
   ../../../extern/glew/include
   ../../../intern/guardedalloc
 )

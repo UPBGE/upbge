@@ -170,13 +170,13 @@ int LengthDependingThicknessShader::shade(Stroke &stroke) const
 
 static const unsigned NB_VALUE_NOISE = 512;
 
-ThicknessNoiseShader::ThicknessNoiseShader() : StrokeShader()
+ThicknessNoiseShader::ThicknessNoiseShader()
 {
   _amplitude = 1.0f;
   _scale = 1.0f / 2.0f / (float)NB_VALUE_NOISE;
 }
 
-ThicknessNoiseShader::ThicknessNoiseShader(float iAmplitude, float iPeriod) : StrokeShader()
+ThicknessNoiseShader::ThicknessNoiseShader(float iAmplitude, float iPeriod)
 {
   _amplitude = iAmplitude;
   _scale = 1.0f / iPeriod / (float)NB_VALUE_NOISE;
@@ -256,13 +256,13 @@ int MaterialColorShader::shade(Stroke &stroke) const
   return 0;
 }
 
-ColorNoiseShader::ColorNoiseShader() : StrokeShader()
+ColorNoiseShader::ColorNoiseShader()
 {
   _amplitude = 1.0f;
   _scale = 1.0f / 2.0f / (float)NB_VALUE_NOISE;
 }
 
-ColorNoiseShader::ColorNoiseShader(float iAmplitude, float iPeriod) : StrokeShader()
+ColorNoiseShader::ColorNoiseShader(float iAmplitude, float iPeriod)
 {
   _amplitude = iAmplitude;
   _scale = 1.0f / iPeriod / (float)NB_VALUE_NOISE;
@@ -384,13 +384,13 @@ int BezierCurveShader::shade(Stroke &stroke) const
   // Build the Bezier curve from this set of data points:
   vector<Vec2d> data;
   StrokeInternal::StrokeVertexIterator v = stroke.strokeVerticesBegin(), vend;
-  data.push_back(Vec2d(v->x(), v->y()));  // first one
+  data.emplace_back(v->x(), v->y());  // first one
   StrokeInternal::StrokeVertexIterator previous = v;
   ++v;
   for (vend = stroke.strokeVerticesEnd(); v != vend; ++v) {
     if (!((fabs(v->x() - (previous)->x()) < M_EPSILON) &&
           ((fabs(v->y() - (previous)->y()) < M_EPSILON)))) {
-      data.push_back(Vec2d(v->x(), v->y()));
+      data.emplace_back(v->x(), v->y());
     }
     previous = v;
   }
@@ -646,7 +646,7 @@ int GuidingLinesShader::shade(Stroke &stroke) const
 //
 /////////////////////////////////////////
 
-TipRemoverShader::TipRemoverShader(real tipLength) : StrokeShader()
+TipRemoverShader::TipRemoverShader(real tipLength)
 {
   _tipLength = tipLength;
 }

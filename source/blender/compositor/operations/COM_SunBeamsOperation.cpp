@@ -19,7 +19,7 @@
 
 #include "COM_SunBeamsOperation.h"
 
-SunBeamsOperation::SunBeamsOperation() : NodeOperation()
+SunBeamsOperation::SunBeamsOperation()
 {
   this->addInputSocket(COM_DT_COLOR);
   this->addOutputSocket(COM_DT_COLOR);
@@ -310,7 +310,7 @@ static void accumulate_line(MemoryBuffer *input,
 
 void *SunBeamsOperation::initializeTileData(rcti * /*rect*/)
 {
-  void *buffer = getInputOperation(0)->initializeTileData(NULL);
+  void *buffer = getInputOperation(0)->initializeTileData(nullptr);
   return buffer;
 }
 

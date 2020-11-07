@@ -43,6 +43,8 @@
 /* for SDNA_TYPE_FROM_STRUCT() macro */
 #include "dna_type_offsets.h"
 
+#include "DNA_windowmanager_types.h" /* for ReportType */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -53,6 +55,7 @@ typedef struct BlendLibReader BlendLibReader;
 typedef struct BlendWriter BlendWriter;
 
 struct Main;
+struct ReportList;
 
 /* Blend Write API
  * ===============
@@ -210,6 +213,9 @@ void BLO_read_pointer_array(BlendDataReader *reader, void **ptr_p);
 /* Misc. */
 bool BLO_read_requires_endian_switch(BlendDataReader *reader);
 bool BLO_read_data_is_undo(BlendDataReader *reader);
+void BLO_read_data_globmap_add(BlendDataReader *reader, void *oldaddr, void *newaddr);
+void BLO_read_glob_list(BlendDataReader *reader, struct ListBase *list);
+struct ReportList *BLO_read_data_reports(BlendDataReader *reader);
 
 /* Blend Read Lib API
  * ===================
@@ -226,6 +232,7 @@ ID *BLO_read_get_new_id_address(BlendLibReader *reader, struct Library *lib, str
 /* Misc. */
 bool BLO_read_lib_is_undo(BlendLibReader *reader);
 struct Main *BLO_read_lib_get_main(BlendLibReader *reader);
+struct ReportList *BLO_read_lib_reports(BlendLibReader *reader);
 
 /* Blend Expand API
  * ===================
@@ -237,6 +244,17 @@ struct Main *BLO_read_lib_get_main(BlendLibReader *reader);
 void BLO_expand_id(BlendExpander *expander, struct ID *id);
 
 #define BLO_expand(expander, id) BLO_expand_id(expander, (struct ID *)id)
+
+/* Report API
+ * ===================
+ */
+
+void BLO_reportf_wrap(struct ReportList *reports, ReportType type, const char *format, ...)
+    ATTR_PRINTF_FORMAT(3, 4);
+
+/* Game engine transition */
+void *BLO_read_get_new_globaldata_address(BlendLibReader *reader, const void *adr);
+/**************************/
 
 #ifdef __cplusplus
 }

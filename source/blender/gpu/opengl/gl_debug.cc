@@ -141,7 +141,7 @@ static void APIENTRY debug_callback(GLenum UNUSED(source),
 #undef APIENTRY
 
 /* This function needs to be called once per context. */
-void init_gl_callbacks(void)
+void init_gl_callbacks()
 {
   CLOG_ENSURE(&LOG);
 
@@ -152,8 +152,8 @@ void init_gl_callbacks(void)
     SNPRINTF(msg, format, GLEW_VERSION_4_3 ? "OpenGL 4.3" : "KHR_debug extension");
     glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-    glDebugMessageCallback((GLDEBUGPROC)debug_callback, NULL);
-    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
+    glDebugMessageCallback((GLDEBUGPROC)debug_callback, nullptr);
+    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
     glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION,
                          GL_DEBUG_TYPE_MARKER,
                          0,
@@ -164,8 +164,8 @@ void init_gl_callbacks(void)
   else if (GLEW_ARB_debug_output) {
     SNPRINTF(msg, format, "ARB_debug_output");
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-    glDebugMessageCallbackARB((GLDEBUGPROCARB)debug_callback, NULL);
-    glDebugMessageControlARB(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
+    glDebugMessageCallbackARB((GLDEBUGPROCARB)debug_callback, nullptr);
+    glDebugMessageControlARB(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
     glDebugMessageInsertARB(GL_DEBUG_SOURCE_APPLICATION_ARB,
                             GL_DEBUG_TYPE_OTHER_ARB,
                             0,
@@ -213,7 +213,7 @@ void check_gl_error(const char *info)
     default:
       char msg[256];
       SNPRINTF(msg, "Unknown GL error: %x : %s", error, info);
-      debug_callback(0, GL_DEBUG_TYPE_ERROR, 0, GL_DEBUG_SEVERITY_HIGH, 0, msg, NULL);
+      debug_callback(0, GL_DEBUG_TYPE_ERROR, 0, GL_DEBUG_SEVERITY_HIGH, 0, msg, nullptr);
       break;
   }
 }
@@ -250,7 +250,7 @@ void check_gl_resources(const char *info)
       const char *sh_name = ctx->shader->name_get();
       char msg[256];
       SNPRINTF(msg, "Missing UBO bind at slot %d : %s > %s : %s", i, sh_name, ubo_name, info);
-      debug_callback(0, GL_DEBUG_TYPE_ERROR, 0, GL_DEBUG_SEVERITY_HIGH, 0, msg, NULL);
+      debug_callback(0, GL_DEBUG_TYPE_ERROR, 0, GL_DEBUG_SEVERITY_HIGH, 0, msg, nullptr);
     }
   }
 
@@ -262,7 +262,7 @@ void check_gl_resources(const char *info)
       const char *sh_name = ctx->shader->name_get();
       char msg[256];
       SNPRINTF(msg, "Missing Texture bind at slot %d : %s > %s : %s", i, sh_name, tex_name, info);
-      debug_callback(0, GL_DEBUG_TYPE_ERROR, 0, GL_DEBUG_SEVERITY_HIGH, 0, msg, NULL);
+      debug_callback(0, GL_DEBUG_TYPE_ERROR, 0, GL_DEBUG_SEVERITY_HIGH, 0, msg, nullptr);
     }
   }
 
@@ -274,14 +274,14 @@ void check_gl_resources(const char *info)
       const char *sh_name = ctx->shader->name_get();
       char msg[256];
       SNPRINTF(msg, "Missing Image bind at slot %d : %s > %s : %s", i, sh_name, tex_name, info);
-      debug_callback(0, GL_DEBUG_TYPE_ERROR, 0, GL_DEBUG_SEVERITY_HIGH, 0, msg, NULL);
+      debug_callback(0, GL_DEBUG_TYPE_ERROR, 0, GL_DEBUG_SEVERITY_HIGH, 0, msg, nullptr);
     }
   }
 }
 
 void raise_gl_error(const char *info)
 {
-  debug_callback(0, GL_DEBUG_TYPE_ERROR, 0, GL_DEBUG_SEVERITY_HIGH, 0, info, NULL);
+  debug_callback(0, GL_DEBUG_TYPE_ERROR, 0, GL_DEBUG_SEVERITY_HIGH, 0, info, nullptr);
 }
 
 /** \} */
@@ -369,7 +369,7 @@ void GLContext::debug_group_begin(const char *name, int index)
   }
 }
 
-void GLContext::debug_group_end(void)
+void GLContext::debug_group_end()
 {
   if ((G.debug & G_DEBUG_GPU) && (GLEW_VERSION_4_3 || GLEW_KHR_debug)) {
     glPopDebugGroup();

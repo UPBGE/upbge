@@ -72,7 +72,7 @@ GLFrameBuffer::GLFrameBuffer(
 
 GLFrameBuffer::~GLFrameBuffer()
 {
-  if (context_ == NULL) {
+  if (context_ == nullptr) {
     return;
   }
 
@@ -92,7 +92,7 @@ GLFrameBuffer::~GLFrameBuffer()
   }
 }
 
-void GLFrameBuffer::init(void)
+void GLFrameBuffer::init()
 {
   context_ = GLContext::get();
   state_manager_ = static_cast<GLStateManager *>(context_->state_manager);
@@ -154,7 +154,7 @@ bool GLFrameBuffer::check(char err_out[256])
   return false;
 }
 
-void GLFrameBuffer::update_attachments(void)
+void GLFrameBuffer::update_attachments()
 {
   /* Default frame-buffers cannot have attachments. */
   BLI_assert(immutable_ == false);
@@ -176,7 +176,7 @@ void GLFrameBuffer::update_attachments(void)
       first_attachment = (attach.tex) ? type : first_attachment;
     }
 
-    if (attach.tex == NULL) {
+    if (attach.tex == nullptr) {
       glFramebufferTexture(GL_FRAMEBUFFER, gl_attachment, 0, 0);
       continue;
     }
@@ -208,7 +208,7 @@ void GLFrameBuffer::update_attachments(void)
     for (int i = ARRAY_SIZE(gl_attachments_) - 1; i >= 0; --i) {
       GPUAttachmentType type = GPU_FB_COLOR_ATTACHMENT0 + i;
       GPUAttachment &attach = attachments_[type];
-      if (attach.tex != NULL) {
+      if (attach.tex != nullptr) {
         gl_tex = static_cast<GLTexture *>(unwrap(attach.tex))->tex_id_;
       }
       else if (gl_tex != 0) {
@@ -232,11 +232,11 @@ void GLFrameBuffer::update_attachments(void)
   glDrawBuffers(ARRAY_SIZE(gl_attachments_), gl_attachments_);
 
   if (G.debug & G_DEBUG_GPU) {
-    BLI_assert(this->check(NULL));
+    BLI_assert(this->check(nullptr));
   }
 }
 
-void GLFrameBuffer::apply_state(void)
+void GLFrameBuffer::apply_state()
 {
   if (dirty_state_ == false) {
     return;
@@ -410,7 +410,7 @@ void GLFrameBuffer::clear_multi(const float (*clear_cols)[4])
    * TODO(fclem): fix this insecurity? */
   int type = GPU_FB_COLOR_ATTACHMENT0;
   for (int i = 0; type < GPU_FB_MAX_ATTACHMENT; i++, type++) {
-    if (attachments_[type].tex != NULL) {
+    if (attachments_[type].tex != nullptr) {
       this->clear_attachment(GPU_FB_COLOR_ATTACHMENT0 + i, GPU_DATA_FLOAT, clear_cols[i]);
     }
   }

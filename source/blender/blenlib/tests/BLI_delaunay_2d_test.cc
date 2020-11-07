@@ -667,7 +667,7 @@ template<typename T> void crosssegs_test()
   if (out.vert.size() == 5) {
     int v_intersect = -1;
     for (int i = 0; i < 5; i++) {
-      if (i != v0_out && i != v1_out && i != v2_out && i != v3_out) {
+      if (!ELEM(i, v0_out, v1_out, v2_out, v3_out)) {
         EXPECT_EQ(v_intersect, -1);
         v_intersect = i;
       }
@@ -1513,7 +1513,7 @@ TEST(delaunay_d, CintTwoFace)
   input.edges_len = 0;
   input.faces_len = 2;
   input.vert_coords = vert_coords;
-  input.edges = NULL;
+  input.edges = nullptr;
   input.faces = faces;
   input.faces_len_table = faces_len;
   input.faces_start_table = faces_start;

@@ -1029,10 +1029,10 @@ static void curve_rename_fcurves(Curve *cu, ListBase *orig_curves)
    * need this to make further step with copying non-cv related curves copying
    * not touching cv's f-curves */
   LISTBASE_FOREACH_MUTABLE (FCurve *, fcu, orig_curves) {
-    if (STREQLEN(fcu->rna_path, "splines", 7)) {
+    if (STRPREFIX(fcu->rna_path, "splines")) {
       const char *ch = strchr(fcu->rna_path, '.');
 
-      if (ch && (STREQLEN(ch, ".bezier_points", 14) || STREQLEN(ch, ".points", 7))) {
+      if (ch && (STRPREFIX(ch, ".bezier_points") || STRPREFIX(ch, ".points"))) {
         fcurve_remove(adt, orig_curves, fcu);
       }
     }
@@ -1060,7 +1060,7 @@ static void curve_rename_fcurves(Curve *cu, ListBase *orig_curves)
   /* the remainders in orig_curves can be copied back (like follow path) */
   /* (if it's not path to spline) */
   LISTBASE_FOREACH_MUTABLE (FCurve *, fcu, orig_curves) {
-    if (STREQLEN(fcu->rna_path, "splines", 7)) {
+    if (STRPREFIX(fcu->rna_path, "splines")) {
       fcurve_remove(adt, orig_curves, fcu);
     }
     else {
@@ -2055,7 +2055,7 @@ bool ed_editnurb_extrude_flag(EditNurb *editnurb, const uint8_t flag)
           bp++;
         }
 
-        if (u == 0 || u == nu->pntsv - 1) { /* row in u-direction selected */
+        if (ELEM(u, 0, nu->pntsv - 1)) { /* row in u-direction selected */
           ok = true;
           newbp = (BPoint *)MEM_mallocN(nu->pntsu * (nu->pntsv + 1) * sizeof(BPoint),
                                         "extrudeNurb1");
@@ -2083,7 +2083,7 @@ bool ed_editnurb_extrude_flag(EditNurb *editnurb, const uint8_t flag)
           nu->pntsv++;
           BKE_nurb_knot_calc_v(nu);
         }
-        else if (v == 0 || v == nu->pntsu - 1) { /* column in v-direction selected */
+        else if (ELEM(v, 0, nu->pntsu - 1)) { /* column in v-direction selected */
           ok = true;
           bpn = newbp = (BPoint *)MEM_mallocN((nu->pntsu + 1) * nu->pntsv * sizeof(BPoint),
                                               "extrudeNurb1");
@@ -2309,7 +2309,7 @@ static void adduplicateflagNurb(
         newv = 0;
         for (a = 0; a < nu->pntsu; a++) {
           if (usel[a]) {
-            if (newv == 0 || usel[a] == newv) {
+            if (ELEM(newv, 0, usel[a])) {
               newv = usel[a];
               newu++;
             }
@@ -3868,7 +3868,7 @@ static int set_spline_type_exec(bContext *C, wmOperator *op)
     const bool use_handles = RNA_boolean_get(op->ptr, "use_handles");
     const int type = RNA_enum_get(op->ptr, "type");
 
-    if (type == CU_CARDINAL || type == CU_BSPLINE) {
+    if (ELEM(type, CU_CARDINAL, CU_BSPLINE)) {
       BKE_report(op->reports, RPT_ERROR, "Not yet implemented");
       continue;
     }
@@ -4408,7 +4408,7 @@ static int merge_nurb(View3D *v3d, Object *obedit)
 
   /* resolution match, to avoid uv rotations */
   if (nus1->nu->pntsv == 1) {
-    if (nus1->nu->pntsu == nus2->nu->pntsu || nus1->nu->pntsu == nus2->nu->pntsv) {
+    if (ELEM(nus1->nu->pntsu, nus2->nu->pntsu, nus2->nu->pntsv)) {
       /* pass */
     }
     else {
@@ -4416,7 +4416,7 @@ static int merge_nurb(View3D *v3d, Object *obedit)
     }
   }
   else if (nus2->nu->pntsv == 1) {
-    if (nus2->nu->pntsu == nus1->nu->pntsu || nus2->nu->pntsu == nus1->nu->pntsv) {
+    if (ELEM(nus2->nu->pntsu, nus1->nu->pntsu, nus1->nu->pntsv)) {
       /* pass */
     }
     else {

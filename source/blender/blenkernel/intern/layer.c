@@ -1450,12 +1450,9 @@ static LayerCollection *find_layer_collection_by_scene_collection(LayerCollectio
 LayerCollection *BKE_layer_collection_first_from_scene_collection(ViewLayer *view_layer,
                                                                   const Collection *collection)
 {
-  for (LayerCollection *layer_collection = view_layer->layer_collections.first;
-       layer_collection != NULL;
-       layer_collection = layer_collection->next) {
+  LISTBASE_FOREACH (LayerCollection *, layer_collection, &view_layer->layer_collections) {
     LayerCollection *found = find_layer_collection_by_scene_collection(layer_collection,
                                                                        collection);
-
     if (found != NULL) {
       return found;
     }
@@ -1836,6 +1833,34 @@ void BKE_layer_eval_view_layer_indexed(struct Depsgraph *depsgraph,
   layer_eval_view_layer(depsgraph, scene, view_layer);
 }
 
+static void write_layer_collections(BlendWriter *writer, ListBase *lb)
+{
+  LISTBASE_FOREACH (LayerCollection *, lc, lb) {
+    BLO_write_struct(writer, LayerCollection, lc);
+
+    write_layer_collections(writer, &lc->layer_collections);
+  }
+}
+
+void BKE_view_layer_blend_write(BlendWriter *writer, ViewLayer *view_layer)
+{
+  BLO_write_struct(writer, ViewLayer, view_layer);
+  BLO_write_struct_list(writer, Base, &view_layer->object_bases);
+
+  if (view_layer->id_properties) {
+    IDP_BlendWrite(writer, view_layer->id_properties);
+  }
+
+  LISTBASE_FOREACH (FreestyleModuleConfig *, fmc, &view_layer->freestyle_config.modules) {
+    BLO_write_struct(writer, FreestyleModuleConfig, fmc);
+  }
+
+  LISTBASE_FOREACH (FreestyleLineSet *, fls, &view_layer->freestyle_config.linesets) {
+    BLO_write_struct(writer, FreestyleLineSet, fls);
+  }
+  write_layer_collections(writer, &view_layer->layer_collections);
+}
+
 static void direct_link_layer_collections(BlendDataReader *reader, ListBase *lb, bool master)
 {
   BLO_read_list(reader, lb);
@@ -1900,9 +1925,7 @@ void BKE_view_layer_blend_read_lib(BlendLibReader *reader, Library *lib, ViewLay
     BLO_read_id_address(reader, lib, &fls->group);
   }
 
-  for (Base *base = view_layer->object_bases.first, *base_next = NULL; base; base = base_next) {
-    base_next = base->next;
-
+  LISTBASE_FOREACH_MUTABLE (Base *, base, &view_layer->object_bases) {
     /* we only bump the use count for the collection objects */
     BLO_read_id_address(reader, lib, &base->object);
 

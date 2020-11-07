@@ -1622,7 +1622,7 @@ static int area_snap_calc_location(const bScreen *screen,
   switch (snap_type) {
     case SNAP_AREAGRID:
       m_cursor_final = m_cursor;
-      if (delta != bigger && delta != -smaller) {
+      if (!ELEM(delta, bigger, -smaller)) {
         m_cursor_final -= (m_cursor % AREAGRID);
         CLAMP(m_cursor_final, origval - smaller, origval + bigger);
       }
@@ -2482,7 +2482,7 @@ static int area_max_regionsize(ScrArea *area, ARegion *scalear, AZEdge edge)
     }
   }
   else {
-    if (edge == AE_RIGHT_TO_TOPLEFT || edge == AE_LEFT_TO_TOPRIGHT) {
+    if (ELEM(edge, AE_RIGHT_TO_TOPLEFT, AE_LEFT_TO_TOPRIGHT)) {
       dist = BLI_rcti_size_x(&area->totrct);
     }
     else { /* AE_BOTTOM_TO_TOPLEFT, AE_TOP_TO_BOTTOMRIGHT */
@@ -2579,7 +2579,7 @@ static int region_scale_invoke(bContext *C, wmOperator *op, const wmEvent *event
     }
 
     /* now copy to regionmovedata */
-    if (rmd->edge == AE_LEFT_TO_TOPRIGHT || rmd->edge == AE_RIGHT_TO_TOPLEFT) {
+    if (ELEM(rmd->edge, AE_LEFT_TO_TOPRIGHT, AE_RIGHT_TO_TOPLEFT)) {
       rmd->origval = rmd->region->sizex;
     }
     else {
@@ -2603,7 +2603,7 @@ static void region_scale_validate_size(RegionMoveData *rmd)
   if ((rmd->region->flag & RGN_FLAG_HIDDEN) == 0) {
     short *size, maxsize = -1;
 
-    if (rmd->edge == AE_LEFT_TO_TOPRIGHT || rmd->edge == AE_RIGHT_TO_TOPLEFT) {
+    if (ELEM(rmd->edge, AE_LEFT_TO_TOPRIGHT, AE_RIGHT_TO_TOPLEFT)) {
       size = &rmd->region->sizex;
     }
     else {
@@ -2653,7 +2653,7 @@ static int region_scale_modal(bContext *C, wmOperator *op, const wmEvent *event)
       const float aspect = BLI_rctf_size_x(&rmd->region->v2d.cur) /
                            (BLI_rcti_size_x(&rmd->region->v2d.mask) + 1);
       const int snap_size_threshold = (U.widget_unit * 2) / aspect;
-      if (rmd->edge == AE_LEFT_TO_TOPRIGHT || rmd->edge == AE_RIGHT_TO_TOPLEFT) {
+      if (ELEM(rmd->edge, AE_LEFT_TO_TOPRIGHT, AE_RIGHT_TO_TOPLEFT)) {
         delta = event->x - rmd->origx;
         if (rmd->edge == AE_LEFT_TO_TOPRIGHT) {
           delta = -delta;
@@ -2832,7 +2832,7 @@ static int frame_offset_exec(bContext *C, wmOperator *op)
 
   CFRA += delta;
   FRAMENUMBER_MIN_CLAMP(CFRA);
-  SUBFRA = 0.f;
+  SUBFRA = 0.0f;
 
   areas_do_frame_follow(C, false);
 

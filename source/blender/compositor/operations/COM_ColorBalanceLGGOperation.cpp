@@ -36,13 +36,13 @@ inline float colorbalance_lgg(float in, float lift_lgg, float gamma_inv, float g
   return powf(srgb_to_linearrgb(x), gamma_inv);
 }
 
-ColorBalanceLGGOperation::ColorBalanceLGGOperation() : NodeOperation()
+ColorBalanceLGGOperation::ColorBalanceLGGOperation()
 {
   this->addInputSocket(COM_DT_VALUE);
   this->addInputSocket(COM_DT_COLOR);
   this->addOutputSocket(COM_DT_COLOR);
-  this->m_inputValueOperation = NULL;
-  this->m_inputColorOperation = NULL;
+  this->m_inputValueOperation = nullptr;
+  this->m_inputColorOperation = nullptr;
   this->setResolutionInputSocketIndex(1);
 }
 
@@ -81,6 +81,6 @@ void ColorBalanceLGGOperation::executePixelSampled(float output[4],
 
 void ColorBalanceLGGOperation::deinitExecution()
 {
-  this->m_inputValueOperation = NULL;
-  this->m_inputColorOperation = NULL;
+  this->m_inputValueOperation = nullptr;
+  this->m_inputColorOperation = nullptr;
 }

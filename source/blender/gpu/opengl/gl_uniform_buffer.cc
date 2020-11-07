@@ -55,13 +55,13 @@ GLUniformBuf::~GLUniformBuf()
 /** \name Data upload / update
  * \{ */
 
-void GLUniformBuf::init(void)
+void GLUniformBuf::init()
 {
   BLI_assert(GLContext::get());
 
   glGenBuffers(1, &ubo_id_);
   glBindBuffer(GL_UNIFORM_BUFFER, ubo_id_);
-  glBufferData(GL_UNIFORM_BUFFER, size_in_bytes_, NULL, GL_DYNAMIC_DRAW);
+  glBufferData(GL_UNIFORM_BUFFER, size_in_bytes_, nullptr, GL_DYNAMIC_DRAW);
 
   debug::object_label(GL_UNIFORM_BUFFER, ubo_id_, name_);
 }
@@ -97,7 +97,7 @@ void GLUniformBuf::bind(int slot)
     this->init();
   }
 
-  if (data_ != NULL) {
+  if (data_ != nullptr) {
     this->update(data_);
     MEM_SAFE_FREE(data_);
   }
@@ -111,7 +111,7 @@ void GLUniformBuf::bind(int slot)
 #endif
 }
 
-void GLUniformBuf::unbind(void)
+void GLUniformBuf::unbind()
 {
 #ifdef DEBUG
   /* NOTE: This only unbinds the last bound slot. */

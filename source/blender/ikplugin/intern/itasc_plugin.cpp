@@ -101,13 +101,13 @@ struct IK_Target {
 
   IK_Target()
   {
-    bldepsgraph = NULL;
-    blscene = NULL;
-    target = NULL;
-    constraint = NULL;
-    blenderConstraint = NULL;
-    rootChannel = NULL;
-    owner = NULL;
+    bldepsgraph = nullptr;
+    blscene = nullptr;
+    target = nullptr;
+    constraint = nullptr;
+    blenderConstraint = nullptr;
+    rootChannel = nullptr;
+    owner = nullptr;
     controlType = 0;
     channel = 0;
     ee = 0;
@@ -138,12 +138,12 @@ struct IK_Channel {
 
   IK_Channel()
   {
-    pchan = NULL;
+    pchan = nullptr;
     parent = -1;
     jointType = 0;
     ndof = 0;
     jointValid = 0;
-    owner = NULL;
+    owner = nullptr;
     jointValue[0] = 0.0;
     jointValue[1] = 0.0;
     jointValue[2] = 0.0;
@@ -174,20 +174,20 @@ struct IK_Scene {
 
   IK_Scene()
   {
-    bldepsgraph = NULL;
-    blscene = NULL;
-    next = NULL;
-    channels = NULL;
-    armature = NULL;
-    cache = NULL;
-    scene = NULL;
-    base = NULL;
-    solver = NULL;
+    bldepsgraph = nullptr;
+    blscene = nullptr;
+    next = nullptr;
+    channels = nullptr;
+    armature = nullptr;
+    cache = nullptr;
+    scene = nullptr;
+    base = nullptr;
+    solver = nullptr;
     blScale = blInvScale = 1.0f;
-    blArmature = NULL;
+    blArmature = nullptr;
     numchan = 0;
     numjoint = 0;
-    polarConstraint = NULL;
+    polarConstraint = nullptr;
   }
 
   ~IK_Scene()
@@ -228,7 +228,7 @@ enum IK_SegmentAxis {
 
 static int initialize_chain(Object *ob, bPoseChannel *pchan_tip, bConstraint *con)
 {
-  bPoseChannel *curchan, *pchan_root = NULL, *chanlist[256], **oldchan;
+  bPoseChannel *curchan, *pchan_root = nullptr, *chanlist[256], **oldchan;
   PoseTree *tree;
   PoseTarget *target;
   bKinematicConstraint *data;
@@ -290,7 +290,7 @@ static int initialize_chain(Object *ob, bPoseChannel *pchan_tip, bConstraint *co
    * and each channel can be part of at most one tree. */
   tree = (PoseTree *)pchan_root->iktree.first;
 
-  if (tree == NULL) {
+  if (tree == nullptr) {
     /* make new tree */
     tree = (PoseTree *)MEM_callocN(sizeof(PoseTree), "posetree");
 
@@ -398,7 +398,7 @@ static bool constraint_valid(bConstraint *con)
   }
   if (is_cartesian_constraint(con)) {
     /* cartesian space constraint */
-    if (data->tar == NULL) {
+    if (data->tar == nullptr) {
       return false;
     }
     if (data->tar->type == OB_ARMATURE && data->subtarget[0] == 0) {
@@ -956,7 +956,7 @@ static int convert_channels(struct Depsgraph *depsgraph,
      * this is because some of the pose data (e.g. pose head) don't have corresponding
      * joint angles and can't be applied to the iTaSC armature dynamically */
     if (!(pchan->flag & POSE_DONE)) {
-      BKE_pose_where_is_bone(depsgraph, ikscene->blscene, ikscene->blArmature, pchan, ctime, 1);
+      BKE_pose_where_is_bone(depsgraph, ikscene->blscene, ikscene->blArmature, pchan, ctime, true);
     }
     /* tell blender that this channel was controlled by IK,
      * it's cleared on each BKE_pose_where_is() */
@@ -965,18 +965,18 @@ static int convert_channels(struct Depsgraph *depsgraph,
     /* set DoF flag */
     flag = 0;
     if (!(pchan->ikflag & BONE_IK_NO_XDOF) && !(pchan->ikflag & BONE_IK_NO_XDOF_TEMP) &&
-        (!(pchan->ikflag & BONE_IK_XLIMIT) || pchan->limitmin[0] < 0.f ||
-         pchan->limitmax[0] > 0.f)) {
+        (!(pchan->ikflag & BONE_IK_XLIMIT) || pchan->limitmin[0] < 0.0f ||
+         pchan->limitmax[0] > 0.0f)) {
       flag |= IK_XDOF;
     }
     if (!(pchan->ikflag & BONE_IK_NO_YDOF) && !(pchan->ikflag & BONE_IK_NO_YDOF_TEMP) &&
-        (!(pchan->ikflag & BONE_IK_YLIMIT) || pchan->limitmin[1] < 0.f ||
-         pchan->limitmax[1] > 0.f)) {
+        (!(pchan->ikflag & BONE_IK_YLIMIT) || pchan->limitmin[1] < 0.0f ||
+         pchan->limitmax[1] > 0.0f)) {
       flag |= IK_YDOF;
     }
     if (!(pchan->ikflag & BONE_IK_NO_ZDOF) && !(pchan->ikflag & BONE_IK_NO_ZDOF_TEMP) &&
-        (!(pchan->ikflag & BONE_IK_ZLIMIT) || pchan->limitmin[2] < 0.f ||
-         pchan->limitmax[2] > 0.f)) {
+        (!(pchan->ikflag & BONE_IK_ZLIMIT) || pchan->limitmin[2] < 0.0f ||
+         pchan->limitmax[2] > 0.0f)) {
       flag |= IK_ZDOF;
     }
 
@@ -1163,7 +1163,7 @@ static IK_Scene *convert_tree(
   float start[3];
 
   if (tree->totchannel == 0) {
-    return NULL;
+    return nullptr;
   }
 
   ikscene = new IK_Scene;
@@ -1196,7 +1196,7 @@ static IK_Scene *convert_tree(
       break;
     default:
       delete ikscene;
-      return NULL;
+      return nullptr;
   }
   ikscene->blArmature = ob;
   /* assume uniform scaling and take Y scale as general scale for the armature */
@@ -1438,10 +1438,10 @@ static IK_Scene *convert_tree(
   }
   if (!ret) {
     delete ikscene;
-    return NULL;
+    return nullptr;
   }
   /* for each target, we need to add an end effector in the armature */
-  for (numtarget = 0, polarcon = NULL, ret = true, target = (PoseTarget *)tree->targets.first;
+  for (numtarget = 0, polarcon = nullptr, ret = true, target = (PoseTarget *)tree->targets.first;
        target;
        target = (PoseTarget *)target->next) {
     condata = (bKinematicConstraint *)target->con->data;
@@ -1496,7 +1496,7 @@ static IK_Scene *convert_tree(
   }
   if (!ret) {
     delete ikscene;
-    return NULL;
+    return nullptr;
   }
   /* set the weight */
   e_matrix &Wq = arm->getWq();
@@ -1535,7 +1535,7 @@ static IK_Scene *convert_tree(
 
     /* add the end effector
      * estimate the average bone length, used to clamp feedback error */
-    for (bonecnt = 0, bonelen = 0.f, a = iktarget->channel; a >= 0;
+    for (bonecnt = 0, bonelen = 0.0f, a = iktarget->channel; a >= 0;
          a = tree->parent[a], bonecnt++) {
       bonelen += ikscene->blScale * tree->pchan[a]->bone->length;
     }
@@ -1638,7 +1638,7 @@ static IK_Scene *convert_tree(
   if (!ret || !scene->addCache(ikscene->cache) || !scene->addSolver(ikscene->solver) ||
       !scene->initialize()) {
     delete ikscene;
-    ikscene = NULL;
+    ikscene = nullptr;
   }
   return ikscene;
 }
@@ -1688,7 +1688,7 @@ static int init_scene(Object *ob)
   IK_Scene *scene;
 
   if (ob->pose->ikdata) {
-    for (scene = ((IK_Data *)ob->pose->ikdata)->first; scene != NULL; scene = scene->next) {
+    for (scene = ((IK_Data *)ob->pose->ikdata)->first; scene != nullptr; scene = scene->next) {
       if (fabs(scene->blScale - scale) > KDL::epsilon) {
         return 1;
       }
@@ -1720,7 +1720,8 @@ static void execute_scene(struct Depsgraph *depsgraph,
     /* in animation mode, we must get the bone position from action and constraints */
     for (i = 0, ikchan = ikscene->channels; i < ikscene->numchan; i++, ikchan++) {
       if (!(ikchan->pchan->flag & POSE_DONE)) {
-        BKE_pose_where_is_bone(depsgraph, blscene, ikscene->blArmature, ikchan->pchan, ctime, 1);
+        BKE_pose_where_is_bone(
+            depsgraph, blscene, ikscene->blArmature, ikchan->pchan, ctime, true);
       }
       /* tell blender that this channel was controlled by IK,
        * it's cleared on each BKE_pose_where_is() */
@@ -1767,7 +1768,7 @@ static void execute_scene(struct Depsgraph *depsgraph,
   if (ikscene->cache && !reiterate && simulation) {
     iTaSC::CacheTS sts, cts;
     sts = cts = (iTaSC::CacheTS)std::round(timestamp * 1000.0);
-    if (ikscene->cache->getPreviousCacheItem(ikscene->armature, 0, &cts) == NULL || cts == 0) {
+    if (ikscene->cache->getPreviousCacheItem(ikscene->armature, 0, &cts) == nullptr || cts == 0) {
       /* the cache is empty before this time, reiterate */
       if (ikparam->flag & ITASC_INITIAL_REITERATION) {
         reiterate = true;
@@ -1886,7 +1887,7 @@ void itasc_initialize_tree(struct Depsgraph *depsgraph,
   bPoseChannel *pchan;
   int count = 0;
 
-  if (ob->pose->ikdata != NULL && !(ob->pose->flag & POSE_WAS_REBUILT)) {
+  if (ob->pose->ikdata != nullptr && !(ob->pose->flag & POSE_WAS_REBUILT)) {
     if (!init_scene(ob)) {
       return;
     }
@@ -1949,7 +1950,7 @@ void itasc_clear_data(struct bPose *pose)
       delete scene;
     }
     MEM_freeN(ikdata);
-    pose->ikdata = NULL;
+    pose->ikdata = nullptr;
   }
 }
 
@@ -1960,7 +1961,7 @@ void itasc_clear_cache(struct bPose *pose)
     for (IK_Scene *scene = ikdata->first; scene; scene = scene->next) {
       if (scene->cache) {
         /* clear all cache but leaving the timestamp 0 (=rest pose) */
-        scene->cache->clearCacheFrom(NULL, 1);
+        scene->cache->clearCacheFrom(nullptr, 1);
       }
     }
   }
@@ -2000,7 +2001,7 @@ void itasc_test_constraint(struct Object *ob, struct bConstraint *cons)
   struct bKinematicConstraint *data = (struct bKinematicConstraint *)cons->data;
 
   /* only for IK constraint */
-  if (cons->type != CONSTRAINT_TYPE_KINEMATIC || data == NULL) {
+  if (cons->type != CONSTRAINT_TYPE_KINEMATIC || data == nullptr) {
     return;
   }
 

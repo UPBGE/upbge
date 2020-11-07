@@ -2212,7 +2212,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
   if (!MAIN_VERSION_ATLEAST(bmain, 280, 8)) {
     /* Blender Internal removal */
     for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
-      if (STREQ(scene->r.engine, "BLENDER_RENDER") || STREQ(scene->r.engine, "BLENDER_GAME")) {
+      if (STR_ELEM(scene->r.engine, "BLENDER_RENDER", "BLENDER_GAME")) {
         BLI_strncpy(scene->r.engine, RE_engine_id_BLENDER_EEVEE, sizeof(scene->r.engine));
       }
 
@@ -3606,7 +3606,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 
     for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
       ob->flag &= ~(OB_FLAG_UNUSED_11 | OB_FLAG_UNUSED_12);
-      ob->transflag &= ~(OB_TRANSFLAG_UNUSED_0 | OB_TRANSFLAG_UNUSED_1);
+      ob->transflag &= ~(OB_TRANSFORM_ADJUST_ROOT_PARENT_FOR_VIEW_LOCK | OB_TRANSFLAG_UNUSED_1);
       ob->shapeflag &= ~OB_SHAPE_FLAG_UNUSED_1;
     }
 
@@ -3775,8 +3775,8 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
         }
       }
 
-      ob->transflag &= ~(OB_TRANSFLAG_UNUSED_0 | OB_TRANSFLAG_UNUSED_1 | OB_TRANSFLAG_UNUSED_3 |
-                         OB_TRANSFLAG_UNUSED_6 | OB_TRANSFLAG_UNUSED_12);
+      ob->transflag &= ~(OB_TRANSFORM_ADJUST_ROOT_PARENT_FOR_VIEW_LOCK | OB_TRANSFLAG_UNUSED_1 |
+                         OB_TRANSFLAG_UNUSED_3 | OB_TRANSFLAG_UNUSED_6 | OB_TRANSFLAG_UNUSED_12);
 
       ob->nlaflag &= ~(OB_ADS_UNUSED_1 | OB_ADS_UNUSED_2);
     }
@@ -4191,8 +4191,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
       if (STREQ(view_settings->view_transform, "Default")) {
         STRNCPY(view_settings->view_transform, "Standard");
       }
-      else if (STREQ(view_settings->view_transform, "RRT") ||
-               STREQ(view_settings->view_transform, "Film")) {
+      else if (STR_ELEM(view_settings->view_transform, "RRT", "Film")) {
         STRNCPY(view_settings->view_transform, "Filmic");
       }
       else if (STREQ(view_settings->view_transform, "Log")) {

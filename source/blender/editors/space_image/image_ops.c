@@ -519,7 +519,7 @@ enum {
 
 static int image_view_zoom_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  if (event->type == MOUSEZOOM || event->type == MOUSEPAN) {
+  if (ELEM(event->type, MOUSEZOOM, MOUSEPAN)) {
     SpaceImage *sima = CTX_wm_space_image(C);
     ARegion *region = CTX_wm_region(C);
     float delta, factor, location[2];
@@ -1436,8 +1436,7 @@ static bool image_open_draw_check_prop(PointerRNA *UNUSED(ptr),
 {
   const char *prop_id = RNA_property_identifier(prop);
 
-  return !(STREQ(prop_id, "filepath") || STREQ(prop_id, "directory") ||
-           STREQ(prop_id, "filename"));
+  return !(STR_ELEM(prop_id, "filepath", "directory", "filename"));
 }
 
 static void image_open_draw(bContext *UNUSED(C), wmOperator *op)

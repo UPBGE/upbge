@@ -39,7 +39,7 @@ static float get_pixel_saturation(const float pixelColor[4],
   return (pixelColor[primary_channel] - val) * fabsf(1.0f - val);
 }
 
-KeyingOperation::KeyingOperation() : NodeOperation()
+KeyingOperation::KeyingOperation()
 {
   this->addInputSocket(COM_DT_COLOR);
   this->addInputSocket(COM_DT_COLOR);
@@ -47,8 +47,8 @@ KeyingOperation::KeyingOperation() : NodeOperation()
 
   this->m_screenBalance = 0.5f;
 
-  this->m_pixelReader = NULL;
-  this->m_screenReader = NULL;
+  this->m_pixelReader = nullptr;
+  this->m_screenReader = nullptr;
 }
 
 void KeyingOperation::initExecution()
@@ -59,8 +59,8 @@ void KeyingOperation::initExecution()
 
 void KeyingOperation::deinitExecution()
 {
-  this->m_pixelReader = NULL;
-  this->m_screenReader = NULL;
+  this->m_pixelReader = nullptr;
+  this->m_screenReader = nullptr;
 }
 
 void KeyingOperation::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)

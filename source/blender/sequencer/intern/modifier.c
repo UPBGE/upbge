@@ -46,6 +46,8 @@
 
 #include "SEQ_sequencer.h"
 
+#include "BLO_read_write.h"
+
 #include "render.h"
 #include "sequencer.h"
 
@@ -84,13 +86,13 @@ typedef struct ModifierThread {
 } ModifierThread;
 
 /**
- * \a cfra is offset by \a fra_offset only in case we are using a real mask.
+ * \a timeline_frame is offset by \a fra_offset only in case we are using a real mask.
  */
 static ImBuf *modifier_render_mask_input(const SeqRenderData *context,
                                          int mask_input_type,
                                          Sequence *mask_sequence,
                                          Mask *mask_id,
-                                         int cfra,
+                                         int timeline_frame,
                                          int fra_offset,
                                          bool make_float)
 {
@@ -101,7 +103,7 @@ static ImBuf *modifier_render_mask_input(const SeqRenderData *context,
       SeqRenderState state;
       seq_render_state_init(&state);
 
-      mask_input = seq_render_strip(context, &state, mask_sequence, cfra);
+      mask_input = seq_render_strip(context, &state, mask_sequence, timeline_frame);
 
       if (make_float) {
         if (!mask_input->rect_float) {
@@ -116,7 +118,7 @@ static ImBuf *modifier_render_mask_input(const SeqRenderData *context,
     }
   }
   else if (mask_input_type == SEQUENCE_MASK_INPUT_ID) {
-    mask_input = seq_render_mask(context, mask_id, cfra - fra_offset, make_float);
+    mask_input = seq_render_mask(context, mask_id, timeline_frame - fra_offset, make_float);
   }
 
   return mask_input;
@@ -124,7 +126,7 @@ static ImBuf *modifier_render_mask_input(const SeqRenderData *context,
 
 static ImBuf *modifier_mask_get(SequenceModifierData *smd,
                                 const SeqRenderData *context,
-                                int cfra,
+                                int timeline_frame,
                                 int fra_offset,
                                 bool make_float)
 {
@@ -132,7 +134,7 @@ static ImBuf *modifier_mask_get(SequenceModifierData *smd,
                                     smd->mask_input_type,
                                     smd->mask_sequence,
                                     smd->mask_id,
-                                    cfra,
+                                    timeline_frame,
                                     fra_offset,
                                     make_float);
 }
@@ -267,8 +269,8 @@ MINLINE float color_balance_fl(
   float x = (((in - 1.0f) * lift) + 1.0f) * gain;
 
   /* prevent NaN */
-  if (x < 0.f) {
-    x = 0.f;
+  if (x < 0.0f) {
+    x = 0.0f;
   }
 
   x = powf(x, gamma) * mul;
@@ -850,7 +852,7 @@ static void hue_correct_apply_threaded(int width,
 
       /* adjust value, scaling returned default 0.5 up to 1 */
       f = BKE_curvemapping_evaluateF(curve_mapping, 2, hsv[0]);
-      hsv[2] *= (f * 2.f);
+      hsv[2] *= (f * 2.0f);
 
       hsv[0] = hsv[0] - floorf(hsv[0]); /* mod 1.0 */
       CLAMP(hsv[1], 0.0f, 1.0f);
@@ -1242,7 +1244,7 @@ static void tonemapmodifier_apply(struct SequenceModifierData *smd, ImBuf *ibuf,
   unsigned char *cp = (unsigned char *)ibuf->rect;
   float avl, maxl = -FLT_MAX, minl = FLT_MAX;
   const float sc = 1.0f / p;
-  float Lav = 0.f;
+  float Lav = 0.0f;
   float cav[4] = {0.0f, 0.0f, 0.0f, 0.0f};
   while (p--) {
     float pixel[4];
@@ -1408,7 +1410,7 @@ SequenceModifierData *BKE_sequence_modifier_find_by_name(Sequence *seq, const ch
 ImBuf *BKE_sequence_modifier_apply_stack(const SeqRenderData *context,
                                          Sequence *seq,
                                          ImBuf *ibuf,
-                                         int cfra)
+                                         int timeline_frame)
 {
   SequenceModifierData *smd;
   ImBuf *processed_ibuf = ibuf;
@@ -1440,7 +1442,8 @@ ImBuf *BKE_sequence_modifier_apply_stack(const SeqRenderData *context,
         frame_offset = smd->mask_id ? ((Mask *)smd->mask_id)->sfra : 0;
       }
 
-      ImBuf *mask = modifier_mask_get(smd, context, cfra, frame_offset, ibuf->rect_float != NULL);
+      ImBuf *mask = modifier_mask_get(
+          smd, context, timeline_frame, frame_offset, ibuf->rect_float != NULL);
 
       if (processed_ibuf == ibuf) {
         processed_ibuf = IMB_dupImBuf(ibuf);
@@ -1483,6 +1486,68 @@ void BKE_sequence_modifier_list_copy(Sequence *seqn, Sequence *seq)
 int BKE_sequence_supports_modifiers(Sequence *seq)
 {
   return !ELEM(seq->type, SEQ_TYPE_SOUND_RAM, SEQ_TYPE_SOUND_HD);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name .blend File I/O
+ * \{ */
+
+void BKE_sequence_modifier_blend_write(BlendWriter *writer, ListBase *modbase)
+{
+  LISTBASE_FOREACH (SequenceModifierData *, smd, modbase) {
+    const SequenceModifierTypeInfo *smti = BKE_sequence_modifier_type_info_get(smd->type);
+
+    if (smti) {
+      BLO_write_struct_by_name(writer, smti->struct_name, smd);
+
+      if (smd->type == seqModifierType_Curves) {
+        CurvesModifierData *cmd = (CurvesModifierData *)smd;
+
+        BKE_curvemapping_blend_write(writer, &cmd->curve_mapping);
+      }
+      else if (smd->type == seqModifierType_HueCorrect) {
+        HueCorrectModifierData *hcmd = (HueCorrectModifierData *)smd;
+
+        BKE_curvemapping_blend_write(writer, &hcmd->curve_mapping);
+      }
+    }
+    else {
+      BLO_write_struct(writer, SequenceModifierData, smd);
+    }
+  }
+}
+
+void BKE_sequence_modifier_blend_read_data(BlendDataReader *reader, ListBase *lb)
+{
+  BLO_read_list(reader, lb);
+
+  LISTBASE_FOREACH (SequenceModifierData *, smd, lb) {
+    if (smd->mask_sequence) {
+      BLO_read_data_address(reader, &smd->mask_sequence);
+    }
+
+    if (smd->type == seqModifierType_Curves) {
+      CurvesModifierData *cmd = (CurvesModifierData *)smd;
+
+      BKE_curvemapping_blend_read(reader, &cmd->curve_mapping);
+    }
+    else if (smd->type == seqModifierType_HueCorrect) {
+      HueCorrectModifierData *hcmd = (HueCorrectModifierData *)smd;
+
+      BKE_curvemapping_blend_read(reader, &hcmd->curve_mapping);
+    }
+  }
+}
+
+void BKE_sequence_modifier_blend_read_lib(BlendLibReader *reader, Scene *scene, ListBase *lb)
+{
+  LISTBASE_FOREACH (SequenceModifierData *, smd, lb) {
+    if (smd->mask_id) {
+      BLO_read_id_address(reader, scene->id.lib, &smd->mask_id);
+    }
+  }
 }
 
 /** \} */

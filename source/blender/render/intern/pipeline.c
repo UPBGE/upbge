@@ -90,8 +90,8 @@
 
 #include "SEQ_sequencer.h"
 
-#include "../../../windowmanager/WM_api.h"    /* XXX */
-#include "../../../windowmanager/wm_window.h" /* XXX */
+#include "../../windowmanager/WM_api.h"    /* XXX */
+#include "../../windowmanager/wm_window.h" /* XXX */
 #include "GPU_context.h"
 
 #ifdef WITH_FREESTYLE
@@ -102,9 +102,9 @@
 
 /* internal */
 #include "initrender.h"
+#include "pipeline.h"
 #include "render_result.h"
 #include "render_types.h"
-#include "renderpipeline.h"
 
 /* render flow
  *

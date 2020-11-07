@@ -39,19 +39,19 @@
 
 using namespace blender::gpu;
 
-static thread_local Immediate *imm = NULL;
+static thread_local Immediate *imm = nullptr;
 
-void immActivate(void)
+void immActivate()
 {
   imm = Context::get()->imm;
 }
 
-void immDeactivate(void)
+void immDeactivate()
 {
-  imm = NULL;
+  imm = nullptr;
 }
 
-GPUVertFormat *immVertexFormat(void)
+GPUVertFormat *immVertexFormat()
 {
   GPU_vertformat_clear(&imm->vertex_format);
   return &imm->vertex_format;
@@ -59,7 +59,7 @@ GPUVertFormat *immVertexFormat(void)
 
 void immBindShader(GPUShader *shader)
 {
-  BLI_assert(imm->shader == NULL);
+  BLI_assert(imm->shader == nullptr);
 
   imm->shader = shader;
   imm->builtin_shader_bound = GPU_SHADER_TEXT; /* Default value. */
@@ -81,16 +81,16 @@ void immBindBuiltinProgram(eGPUBuiltinShader shader_id)
   imm->builtin_shader_bound = shader_id;
 }
 
-void immUnbindProgram(void)
+void immUnbindProgram()
 {
-  BLI_assert(imm->shader != NULL);
+  BLI_assert(imm->shader != nullptr);
 
   GPU_shader_unbind();
-  imm->shader = NULL;
+  imm->shader = nullptr;
 }
 
 /* XXX do not use it. Special hack to use OCIO with batch API. */
-GPUShader *immGetShader(void)
+GPUShader *immGetShader()
 {
   return imm->shader;
 }
@@ -187,13 +187,13 @@ static void wide_line_workaround_start(GPUPrimType prim_type)
   }
 }
 
-static void wide_line_workaround_end(void)
+static void wide_line_workaround_end()
 {
   if (imm->prev_shader) {
     immUnbindProgram();
 
     immBindShader(imm->prev_shader);
-    imm->prev_shader = NULL;
+    imm->prev_shader = nullptr;
   }
 }
 
@@ -236,7 +236,7 @@ GPUBatch *immBeginBatch(GPUPrimType prim_type, uint vertex_len)
 
   imm->vertex_data = (uchar *)GPU_vertbuf_get_data(verts);
 
-  imm->batch = GPU_batch_create_ex(prim_type, verts, NULL, GPU_BATCH_OWNS_VBO);
+  imm->batch = GPU_batch_create_ex(prim_type, verts, nullptr, GPU_BATCH_OWNS_VBO);
   imm->batch->flag |= GPU_BATCH_BUILDING;
 
   return imm->batch;
@@ -249,7 +249,7 @@ GPUBatch *immBeginBatchAtMost(GPUPrimType prim_type, uint vertex_len)
   return immBeginBatch(prim_type, vertex_len);
 }
 
-void immEnd(void)
+void immEnd()
 {
   BLI_assert(imm->prim_type != GPU_PRIM_NONE); /* Make sure we're between a Begin/End pair. */
   BLI_assert(imm->vertex_data || imm->batch);
@@ -270,7 +270,7 @@ void immEnd(void)
     }
     GPU_batch_set_shader(imm->batch, imm->shader);
     imm->batch->flag &= ~GPU_BATCH_BUILDING;
-    imm->batch = NULL; /* don't free, batch belongs to caller */
+    imm->batch = nullptr; /* don't free, batch belongs to caller */
   }
   else {
     imm->end();
@@ -279,7 +279,7 @@ void immEnd(void)
   /* Prepare for next immBegin. */
   imm->prim_type = GPU_PRIM_NONE;
   imm->strict_vertex_len = true;
-  imm->vertex_data = NULL;
+  imm->vertex_data = nullptr;
 
   wide_line_workaround_end();
 }
@@ -480,7 +480,7 @@ void immAttrSkip(uint attr_id)
   setAttrValueBit(attr_id);
 }
 
-static void immEndVertex(void) /* and move on to the next vertex */
+static void immEndVertex() /* and move on to the next vertex */
 {
   BLI_assert(imm->prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
   BLI_assert(imm->vertex_idx < imm->vertex_len);

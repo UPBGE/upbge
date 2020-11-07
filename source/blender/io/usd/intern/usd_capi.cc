@@ -59,7 +59,7 @@ struct ExportJobData {
   bool export_ok;
 };
 
-static void ensure_usd_plugin_path_registered(void)
+static void ensure_usd_plugin_path_registered()
 {
   static bool plugin_path_registered = false;
   if (plugin_path_registered) {
@@ -225,7 +225,7 @@ bool USD_export(bContext *C,
   else {
     /* Fake a job context, so that we don't need NULL pointer checks while exporting. */
     short stop = 0, do_update = 0;
-    float progress = 0.f;
+    float progress = 0.0f;
 
     blender::io::usd::export_startjob(job, &stop, &do_update, &progress);
     blender::io::usd::export_endjob(job);

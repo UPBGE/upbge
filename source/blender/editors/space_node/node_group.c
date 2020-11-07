@@ -31,6 +31,7 @@
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
 #include "BLI_math.h"
+#include "BLI_string.h"
 
 #include "BLT_translation.h"
 
@@ -59,7 +60,11 @@
 #include "NOD_socket.h"
 #include "node_intern.h" /* own include */
 
-static bool node_group_operator_active(bContext *C)
+/* -------------------------------------------------------------------- */
+/** \name Local Utilities
+ * \{ */
+
+static bool node_group_operator_active_poll(bContext *C)
 {
   if (ED_operator_node_active(C)) {
     SpaceNode *snode = CTX_wm_space_node(C);
@@ -68,10 +73,11 @@ static bool node_group_operator_active(bContext *C)
      * Disabled otherwise to allow pynodes define their own operators
      * with same keymap.
      */
-    if (STREQ(snode->tree_idname, "ShaderNodeTree") ||
-        STREQ(snode->tree_idname, "CompositorNodeTree") ||
-        STREQ(snode->tree_idname, "TextureNodeTree") ||
-        STREQ(snode->tree_idname, "SimulationNodeTree")) {
+    if (STR_ELEM(snode->tree_idname,
+                 "ShaderNodeTree",
+                 "CompositorNodeTree",
+                 "TextureNodeTree",
+                 "SimulationNodeTree")) {
       return true;
     }
   }
@@ -132,7 +138,11 @@ static bNode *node_group_get_active(bContext *C, const char *node_idname)
   return NULL;
 }
 
-/* ***************** Edit Group operator ************* */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Edit Group Operator
+ * \{ */
 
 static int node_group_edit_exec(bContext *C, wmOperator *op)
 {
@@ -169,7 +179,7 @@ void NODE_OT_group_edit(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = node_group_edit_exec;
-  ot->poll = node_group_operator_active;
+  ot->poll = node_group_operator_active_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -177,10 +187,16 @@ void NODE_OT_group_edit(wmOperatorType *ot)
   RNA_def_boolean(ot->srna, "exit", false, "Exit", "");
 }
 
-/* ******************** Ungroup operator ********************** */
+/** \} */
 
-/* The given paths will be owned by the returned instance. Both pointers are allowed to point to
- * the same string. */
+/* -------------------------------------------------------------------- */
+/** \name Ungroup Operator
+ * \{ */
+
+/**
+ * The given paths will be owned by the returned instance.
+ * Both pointers are allowed to point to the same string.
+ */
 static AnimationBasePathChange *animation_basepath_change_new(const char *src_basepath,
                                                               const char *dst_basepath)
 {
@@ -422,7 +438,11 @@ void NODE_OT_group_ungroup(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-/* ******************** Separate operator ********************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Separate Operator
+ * \{ */
 
 /* returns 1 if its OK */
 static int node_group_separate_selected(
@@ -634,7 +654,11 @@ void NODE_OT_group_separate(wmOperatorType *ot)
   RNA_def_enum(ot->srna, "type", node_group_separate_types, NODE_GS_COPY, "Type", "");
 }
 
-/* ****************** Make Group operator ******************* */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Make Group Operator
+ * \{ */
 
 static bool node_group_make_use_node(bNode *node, bNode *gnode)
 {
@@ -1036,7 +1060,11 @@ void NODE_OT_group_make(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-/* ****************** Group Insert operator ******************* */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Group Insert Operator
+ * \{ */
 
 static int node_group_insert_exec(bContext *C, wmOperator *op)
 {
@@ -1086,3 +1114,5 @@ void NODE_OT_group_insert(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
+
+/** \} */

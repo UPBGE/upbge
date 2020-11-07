@@ -170,7 +170,7 @@ static void callback_main_atexit(void *user_data)
   struct CreatorAtExitData *app_init_data = user_data;
 
   if (app_init_data->ba) {
-    BLI_argsFree(app_init_data->ba);
+    BLI_args_destroy(app_init_data->ba);
     app_init_data->ba = NULL;
   }
 
@@ -357,7 +357,7 @@ int main(int argc,
 
 #if defined(__APPLE__) && !defined(WITH_PYTHON_MODULE) && !defined(WITH_HEADLESS)
   /* Patch to ignore argument finder gives us (PID?) */
-  if (argc == 2 && STREQLEN(argv[1], "-psn_", 5)) {
+  if (argc == 2 && STRPREFIX(argv[1], "-psn_")) {
     extern int GHOST_HACK_getFirstFile(char buf[]);
     static char firstfilebuf[512];
 
@@ -406,7 +406,7 @@ int main(int argc,
 
   /* First test for background-mode (#Global.background) */
 #ifndef WITH_PYTHON_MODULE
-  ba = BLI_argsInit(argc, (const char **)argv); /* skip binary path */
+  ba = BLI_args_create(argc, (const char **)argv); /* skip binary path */
 
   /* Ensure we free on early exit. */
   app_init_data.ba = ba;
@@ -418,7 +418,7 @@ int main(int argc,
   MEM_use_memleak_detection(false);
 
   /* Parse environment handling arguments. */
-  BLI_argsParse(ba, ARG_PASS_ENVIRONMENT, NULL, NULL);
+  BLI_args_parse(ba, ARG_PASS_ENVIRONMENT, NULL, NULL);
 
 #else
   /* Using preferences or user startup makes no sense for #WITH_PYTHON_MODULE. */
@@ -438,7 +438,7 @@ int main(int argc,
 
 #ifndef WITH_PYTHON_MODULE
   /* First test for background-mode (#Global.background) */
-  BLI_argsParse(ba, ARG_PASS_SETTINGS, NULL, NULL);
+  BLI_args_parse(ba, ARG_PASS_SETTINGS, NULL, NULL);
 
   main_signal_setup();
 #endif
@@ -452,8 +452,8 @@ int main(int argc,
   RNA_init();
 
   RE_engines_init();
-  init_nodesystem();
-  psys_init_rng();
+  BKE_node_system_init();
+  BKE_particle_init_rng();
   /* End second initialization. */
 
 #if defined(WITH_PYTHON_MODULE) || defined(WITH_HEADLESS)
@@ -476,9 +476,9 @@ int main(int argc,
 
 #ifndef WITH_PYTHON_MODULE
   if (G.background == 0) {
-    BLI_argsParse(ba, ARG_PASS_SETTINGS_GUI, NULL, NULL);
+    BLI_args_parse(ba, ARG_PASS_SETTINGS_GUI, NULL, NULL);
   }
-  BLI_argsParse(ba, ARG_PASS_SETTINGS_FORCE, NULL, NULL);
+  BLI_args_parse(ba, ARG_PASS_SETTINGS_FORCE, NULL, NULL);
 #endif
 
   WM_init(C, argc, (const char **)argv);

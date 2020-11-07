@@ -111,30 +111,6 @@ static void seq_anim_add_suffix(Scene *scene, struct anim *anim, const int view_
 ListBase seqbase_clipboard;
 int seqbase_clipboard_frame;
 
-#if 0 /* unused function */
-static void printf_strip(Sequence *seq)
-{
-  fprintf(stderr,
-          "name: '%s', len:%d, start:%d, (startofs:%d, endofs:%d), "
-          "(startstill:%d, endstill:%d), machine:%d, (startdisp:%d, enddisp:%d)\n",
-          seq->name,
-          seq->len,
-          seq->start,
-          seq->startofs,
-          seq->endofs,
-          seq->startstill,
-          seq->endstill,
-          seq->machine,
-          seq->startdisp,
-          seq->enddisp);
-
-  fprintf(stderr,
-          "\tseq_tx_set_final_left: %d %d\n\n",
-          seq_tx_get_final_left(seq, 0),
-          seq_tx_get_final_right(seq, 0));
-}
-#endif
-
 int BKE_sequencer_base_recursive_apply(ListBase *seqbase,
                                        int (*apply_fn)(Sequence *seq, void *),
                                        void *arg)
@@ -1048,19 +1024,6 @@ static int clear_scene_in_allseqs_fn(Sequence *seq, void *arg_pt)
   return 1;
 }
 
-void BKE_sequencer_clear_scene_in_allseqs(Main *bmain, Scene *scene)
-{
-  Scene *scene_iter;
-
-  /* when a scene is deleted: test all seqs */
-  for (scene_iter = bmain->scenes.first; scene_iter; scene_iter = scene_iter->id.next) {
-    if (scene_iter != scene && scene_iter->ed) {
-      BKE_sequencer_base_recursive_apply(
-          &scene_iter->ed->seqbase, clear_scene_in_allseqs_fn, scene);
-    }
-  }
-}
-
 typedef struct SeqUniqueInfo {
   Sequence *seq;
   char name_src[SEQ_NAME_MAXSTR];
@@ -1376,7 +1339,7 @@ void seq_open_anim_file(Scene *scene, Sequence *seq, bool openfile)
 }
 
 /* check whether sequence cur depends on seq */
-bool BKE_sequence_check_depend(Sequence *seq, Sequence *cur)
+static bool BKE_sequence_check_depend(Sequence *seq, Sequence *cur)
 {
   if (cur->seq1 == seq || cur->seq2 == seq || cur->seq3 == seq) {
     return true;
@@ -2562,7 +2525,7 @@ static Strip *seq_strip_alloc(int type)
   return strip;
 }
 
-Sequence *BKE_sequence_alloc(ListBase *lb, int cfra, int machine, int type)
+Sequence *BKE_sequence_alloc(ListBase *lb, int timeline_frame, int machine, int type)
 {
   Sequence *seq;
 
@@ -2573,7 +2536,7 @@ Sequence *BKE_sequence_alloc(ListBase *lb, int cfra, int machine, int type)
   seq->name[2] = 0;
 
   seq->flag = SELECT;
-  seq->start = cfra;
+  seq->start = timeline_frame;
   seq->machine = machine;
   seq->sat = 1.0;
   seq->mul = 1.0;
@@ -3109,7 +3072,7 @@ bool BKE_sequence_is_valid_check(Sequence *seq)
 }
 
 int BKE_sequencer_find_next_prev_edit(Scene *scene,
-                                      int cfra,
+                                      int timeline_frame,
                                       const short side,
                                       const bool do_skip_mute,
                                       const bool do_center,
@@ -3118,7 +3081,7 @@ int BKE_sequencer_find_next_prev_edit(Scene *scene,
   Editing *ed = BKE_sequencer_editing_get(scene, false);
   Sequence *seq;
 
-  int dist, best_dist, best_frame = cfra;
+  int dist, best_dist, best_frame = timeline_frame;
   int seq_frames[2], seq_frames_tot;
 
   /* In case where both is passed,
@@ -3127,7 +3090,7 @@ int BKE_sequencer_find_next_prev_edit(Scene *scene,
   best_dist = MAXFRAME * 2;
 
   if (ed == NULL) {
-    return cfra;
+    return timeline_frame;
   }
 
   for (seq = ed->seqbasep->first; seq; seq = seq->next) {
@@ -3159,17 +3122,17 @@ int BKE_sequencer_find_next_prev_edit(Scene *scene,
 
       switch (side) {
         case SEQ_SIDE_LEFT:
-          if (seq_frame < cfra) {
-            dist = cfra - seq_frame;
+          if (seq_frame < timeline_frame) {
+            dist = timeline_frame - seq_frame;
           }
           break;
         case SEQ_SIDE_RIGHT:
-          if (seq_frame > cfra) {
-            dist = seq_frame - cfra;
+          if (seq_frame > timeline_frame) {
+            dist = seq_frame - timeline_frame;
           }
           break;
         case SEQ_SIDE_BOTH:
-          dist = abs(seq_frame - cfra);
+          dist = abs(seq_frame - timeline_frame);
           break;
       }
 
@@ -3183,25 +3146,25 @@ int BKE_sequencer_find_next_prev_edit(Scene *scene,
   return best_frame;
 }
 
-static void sequencer_all_free_anim_ibufs(ListBase *seqbase, int cfra)
+static void sequencer_all_free_anim_ibufs(ListBase *seqbase, int timeline_frame)
 {
   for (Sequence *seq = seqbase->first; seq != NULL; seq = seq->next) {
-    if (seq->enddisp < cfra || seq->startdisp > cfra) {
+    if (seq->enddisp < timeline_frame || seq->startdisp > timeline_frame) {
       BKE_sequence_free_anim(seq);
     }
     if (seq->type == SEQ_TYPE_META) {
-      sequencer_all_free_anim_ibufs(&seq->seqbase, cfra);
+      sequencer_all_free_anim_ibufs(&seq->seqbase, timeline_frame);
     }
   }
 }
 
-void BKE_sequencer_all_free_anim_ibufs(Scene *scene, int cfra)
+void BKE_sequencer_all_free_anim_ibufs(Scene *scene, int timeline_frame)
 {
   Editing *ed = BKE_sequencer_editing_get(scene, false);
   if (ed == NULL) {
     return;
   }
-  sequencer_all_free_anim_ibufs(&ed->seqbase, cfra);
+  sequencer_all_free_anim_ibufs(&ed->seqbase, timeline_frame);
   BKE_sequencer_cache_cleanup(scene);
 }
 

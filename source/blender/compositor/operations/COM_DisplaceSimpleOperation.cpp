@@ -20,7 +20,7 @@
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
-DisplaceSimpleOperation::DisplaceSimpleOperation() : NodeOperation()
+DisplaceSimpleOperation::DisplaceSimpleOperation()
 {
   this->addInputSocket(COM_DT_COLOR);
   this->addInputSocket(COM_DT_VECTOR);
@@ -28,10 +28,10 @@ DisplaceSimpleOperation::DisplaceSimpleOperation() : NodeOperation()
   this->addInputSocket(COM_DT_VALUE);
   this->addOutputSocket(COM_DT_COLOR);
 
-  this->m_inputColorProgram = NULL;
-  this->m_inputVectorProgram = NULL;
-  this->m_inputScaleXProgram = NULL;
-  this->m_inputScaleYProgram = NULL;
+  this->m_inputColorProgram = nullptr;
+  this->m_inputVectorProgram = nullptr;
+  this->m_inputScaleXProgram = nullptr;
+  this->m_inputScaleYProgram = nullptr;
 }
 
 void DisplaceSimpleOperation::initExecution()
@@ -86,10 +86,10 @@ void DisplaceSimpleOperation::executePixelSampled(float output[4],
 
 void DisplaceSimpleOperation::deinitExecution()
 {
-  this->m_inputColorProgram = NULL;
-  this->m_inputVectorProgram = NULL;
-  this->m_inputScaleXProgram = NULL;
-  this->m_inputScaleYProgram = NULL;
+  this->m_inputColorProgram = nullptr;
+  this->m_inputVectorProgram = nullptr;
+  this->m_inputScaleXProgram = nullptr;
+  this->m_inputScaleYProgram = nullptr;
 }
 
 bool DisplaceSimpleOperation::determineDependingAreaOfInterest(rcti *input,
@@ -97,7 +97,7 @@ bool DisplaceSimpleOperation::determineDependingAreaOfInterest(rcti *input,
                                                                rcti *output)
 {
   rcti colorInput;
-  NodeOperation *operation = NULL;
+  NodeOperation *operation = nullptr;
 
   /* the vector buffer only needs a 2x2 buffer. The image needs whole buffer */
   /* image */

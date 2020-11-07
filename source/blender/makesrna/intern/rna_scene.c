@@ -1158,7 +1158,7 @@ static int rna_RenderSettings_stereoViews_skip(CollectionPropertyIterator *iter,
   ListBaseIterator *internal = &iter->internal.listbase;
   SceneRenderView *srv = (SceneRenderView *)internal->link;
 
-  if ((STREQ(srv->name, STEREO_LEFT_NAME)) || (STREQ(srv->name, STEREO_RIGHT_NAME))) {
+  if (STR_ELEM(srv->name, STEREO_LEFT_NAME, STEREO_RIGHT_NAME)) {
     return 0;
   }
 
@@ -2863,7 +2863,8 @@ static void rna_def_view3d_cursor(BlenderRNA *brna)
   prop = RNA_def_property(srna, "matrix", PROP_FLOAT, PROP_MATRIX);
   RNA_def_property_multi_array(prop, 2, rna_matrix_dimsize_4x4);
   RNA_def_property_flag(prop, PROP_THICK_WRAP); /* no reference to original data */
-  RNA_def_property_ui_text(prop, "Transform Matrix", "Matrix combining location and rotation of the cursor");
+  RNA_def_property_ui_text(
+      prop, "Transform Matrix", "Matrix combining location and rotation of the cursor");
   RNA_def_property_float_funcs(
       prop, "rna_View3DCursor_matrix_get", "rna_View3DCursor_matrix_set", NULL);
 }
@@ -7321,7 +7322,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "line_thickness", PROP_FLOAT, PROP_PIXEL);
   RNA_def_property_float_sdna(prop, NULL, "unit_line_thickness");
-  RNA_def_property_range(prop, 0.f, 10000.f);
+  RNA_def_property_range(prop, 0.0f, 10000.0f);
   RNA_def_property_ui_text(prop, "Line Thickness", "Line thickness in pixels");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_freestyle_update");
 
