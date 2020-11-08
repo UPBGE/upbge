@@ -42,6 +42,7 @@
 #include "BKE_mball.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
+#include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DRW_render.h"
 #include "bpy_rna.h"
@@ -1143,10 +1144,9 @@ void KX_GameObject::UpdateLod(const MT_Vector3 &cam_pos, float lodfactor)
      * depsgraph */
     Object *ob_eval = DEG_get_evaluated_object(depsgraph, GetBlenderObject());
 
-    Object *eval_lod_ob = DEG_get_evaluated_object(depsgraph,
-                                                   currentMeshObject->GetOriginalObject());
+    Mesh *eval_lod_mesh = (Mesh *)DEG_get_evaluated_id(depsgraph, &currentMeshObject->GetOrigMesh()->id);
     /* Try to get the object with all modifiers applied */
-    ob_eval->data = eval_lod_ob->data;
+    ob_eval->data = eval_lod_mesh;
   }
 }
 
