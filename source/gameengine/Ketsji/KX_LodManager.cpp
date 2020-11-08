@@ -131,6 +131,7 @@ KX_LodManager::KX_LodManager(Object *ob,
           level++,
           BL_ConvertMesh(
               lodmesh, lodmatob, scene, rasty, converter, libloading, converting_during_runtime),
+          lod->source,
           flag);
 
       m_levels.push_back(lodLevel);
@@ -138,10 +139,10 @@ KX_LodManager::KX_LodManager(Object *ob,
   }
 }
 
-KX_LodManager::KX_LodManager(RAS_MeshObject *meshObj) : m_refcount(1), m_distanceFactor(1.0f)
+KX_LodManager::KX_LodManager(RAS_MeshObject *meshObj, Object *lodsource) : m_refcount(1), m_distanceFactor(1.0f)
 {
   KX_LodLevel *lodLevel = new KX_LodLevel(
-      0.0f, 0.0f, 0, meshObj, OB_LOD_USE_MESH | OB_LOD_USE_MAT);
+      0.0f, 0.0f, 0, meshObj, lodsource, OB_LOD_USE_MESH | OB_LOD_USE_MAT);
   m_levels.push_back(lodLevel);
 }
 

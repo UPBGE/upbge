@@ -576,9 +576,9 @@ void KX_GameObject::RestoreLogic(bool childrenRecursive)
   }
 }
 
-void KX_GameObject::AddDummyLodManager(RAS_MeshObject *meshObj)
+void KX_GameObject::AddDummyLodManager(RAS_MeshObject *meshObj, Object *ob)
 {
-  m_lodManager = new KX_LodManager(meshObj);
+  m_lodManager = new KX_LodManager(meshObj, ob);
   m_lodManager->AddRef();
   GetScene()->AddObjToLodObjList(this);
 }
@@ -1134,17 +1134,14 @@ void KX_GameObject::UpdateLod(const MT_Vector3 &cam_pos, float lodfactor)
 
   KX_LodLevel *currentLodLevel = m_lodManager->GetLevel(m_currentLodLevel);
   if (currentLodLevel) {
-    RAS_MeshObject *currentMeshObject = currentLodLevel->GetMesh();
-
     bContext *C = KX_GetActiveEngine()->GetContext();
-    Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+    Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
 
     /* Here we want to change the object which will be rendered, then the evaluated object by the
      * depsgraph */
     Object *ob_eval = DEG_get_evaluated_object(depsgraph, GetBlenderObject());
 
-    Object *eval_lod_ob = DEG_get_evaluated_object(depsgraph,
-                                                   currentMeshObject->GetOriginalObject());
+    Object *eval_lod_ob = DEG_get_evaluated_object(depsgraph, currentLodLevel->GetObject());
     /* Try to get the object with all modifiers applied */
     ob_eval->data = eval_lod_ob->data;
   }

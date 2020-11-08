@@ -149,7 +149,7 @@ class KX_GameObject : public SCA_IObject {
   void RestorePhysics(bool childrenRecursive);
   void SuspendLogic(bool childrenRecursive);
   void RestoreLogic(bool childrenRecursive);
-  void AddDummyLodManager(RAS_MeshObject *meshObj);
+  void AddDummyLodManager(RAS_MeshObject *meshObj, Object *ob);
   bool IsReplica();
   void BackupObmat(Object *ob);
   void RestoreObmat(Object *ob);

@@ -1791,7 +1791,7 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj,
       if (gameobj->GetLodManager()) {
         gameobj->GetLodManager()->Release();
       }
-      gameobj->AddDummyLodManager(mesh);
+      gameobj->AddDummyLodManager(mesh, mesh->GetOriginalObject()); //tmp
     }
   }
 

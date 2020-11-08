@@ -32,12 +32,14 @@ KX_LodLevel::KX_LodLevel(float distance,
                          float hysteresis,
                          unsigned short level,
                          RAS_MeshObject *meshobj,
+                         Object *ob,
                          unsigned short flag)
     : m_distance(distance),
       m_hysteresis(hysteresis),
       m_level(level),
       m_flags(flag),
-      m_meshobj(meshobj)
+      m_meshobj(meshobj),
+      m_object(ob)
 {
 }
 
@@ -68,6 +70,11 @@ unsigned short KX_LodLevel::GetFlag() const
 RAS_MeshObject *KX_LodLevel::GetMesh() const
 {
   return m_meshobj;
+}
+
+Object *KX_LodLevel::GetObject()
+{
+  return m_object;
 }
 
 #ifdef WITH_PYTHON
