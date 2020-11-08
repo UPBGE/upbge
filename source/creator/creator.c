@@ -301,7 +301,7 @@ int main(int argc,
         MEM_use_guarded_allocator();
         break;
       }
-      else if (STREQ(argv[i], "--")) {
+      if (STREQ(argv[i], "--")) {
         break;
       }
     }
