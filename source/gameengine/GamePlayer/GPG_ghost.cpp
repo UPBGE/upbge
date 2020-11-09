@@ -42,7 +42,7 @@
 #include "../../../intern/ghost/GHOST_Path-api.h"
 #include "../../blender/python/BPY_extern_python.h"
 #include "../../blender/python/BPY_extern_run.h"
-#include "../render/RE_render_ext.h"
+#include "../render/RE_texture.h"
 #include "BKE_addon.h"
 #include "BKE_appdir.h"
 #include "BKE_blender.h"

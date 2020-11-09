@@ -409,6 +409,15 @@ static void rna_userdef_autokeymode_set(PointerRNA *ptr, int value)
   }
 }
 
+static void rna_userdef_anim_update(Main *UNUSED(bmain),
+                                    Scene *UNUSED(scene),
+                                    PointerRNA *UNUSED(ptr))
+{
+  WM_main_add_notifier(NC_SPACE | ND_SPACE_GRAPH, NULL);
+  WM_main_add_notifier(NC_SPACE | ND_SPACE_DOPESHEET, NULL);
+  USERDEF_TAG_DIRTY;
+}
+
 static void rna_userdef_tablet_api_update(Main *UNUSED(bmain),
                                           Scene *UNUSED(scene),
                                           PointerRNA *UNUSED(ptr))
@@ -5017,6 +5026,15 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
       "Color for newly added transformation F-Curves (Location, Rotation, Scale) "
       "and also Color is based on the transform axis");
 
+  prop = RNA_def_property(srna, "use_anim_channel_group_colors", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "animation_flag", USER_ANIM_SHOW_CHANNEL_GROUP_COLORS);
+  RNA_def_property_ui_text(
+      prop,
+      "Channel Group Colors",
+      "Use animation channel group colors; generally this is used to show bone group colors");
+  RNA_def_property_boolean_default(prop, true);
+  RNA_def_property_update(prop, 0, "rna_userdef_anim_update");
+
   prop = RNA_def_property(srna, "fcurve_new_auto_smoothing", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_fcurve_auto_smoothing_items);
   RNA_def_property_enum_sdna(prop, NULL, "auto_smoothing_new");
@@ -5941,13 +5959,6 @@ static void rna_def_userdef_input(BlenderRNA *brna)
   RNA_def_property_range(prop, 0, 32);
   RNA_def_property_ui_text(
       prop, "Wheel Scroll Lines", "Number of lines scrolled at a time with the mouse wheel");
-
-  prop = RNA_def_property(srna, "use_trackpad_natural", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "uiflag2", USER_TRACKPAD_NATURAL);
-  RNA_def_property_ui_text(prop,
-                           "Trackpad Natural",
-                           "If your system uses 'natural' scrolling, this option keeps consistent "
-                           "trackpad usage throughout the UI");
 }
 
 static void rna_def_userdef_keymap(BlenderRNA *brna)

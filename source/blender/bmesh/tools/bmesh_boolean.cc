@@ -119,7 +119,8 @@ static bool bmvert_attached_to_wire(const BMVert *bmv)
 static bool bmvert_attached_to_hidden_face(BMVert *bmv)
 {
   BMIter iter;
-  for (BMFace *bmf = static_cast<BMFace *>(BM_iter_new(&iter, NULL, BM_FACES_OF_VERT, bmv)); bmf;
+  for (BMFace *bmf = static_cast<BMFace *>(BM_iter_new(&iter, nullptr, BM_FACES_OF_VERT, bmv));
+       bmf;
        bmf = static_cast<BMFace *>(BM_iter_step(&iter))) {
     if (BM_elem_flag_test(bmf, BM_ELEM_HIDDEN)) {
       return true;
@@ -491,7 +492,7 @@ bool BM_mesh_boolean_knife(BMesh *UNUSED(bm),
                            const int UNUSED(nshapes),
                            const bool UNUSED(use_self),
                            const bool UNUSED(use_separate_all),
-                           const bool UNUSED(keep_boolean))
+                           const bool UNUSED(keep_hidden))
 {
   UNUSED_VARS(looptris, test_fn);
   return false;
