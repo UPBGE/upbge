@@ -909,9 +909,9 @@ void KX_Scene::ConvertBlenderObjectsList(std::vector<Object *> objectslist, bool
 
     /* delete the objectslist ourself as it gives error if the work
      * has to do it the BLI_task_pool_work_and_wait function */
-    while (!task->objectslist.size() != 0) {
-      Object *temp = task->objectslist.back();
-      task->objectslist.pop_back();
+    while (!task.objectslist.size() != 0) {
+      Object *temp = task.objectslist.back();
+      task.objectslist.pop_back();
       delete temp;
     }
 
