@@ -36,11 +36,9 @@
 
 #include "KX_Scene.h"
 
-#include "BKE_collection.h"
 #include "BKE_lib_id.h"
 #include "BKE_object.h"
 #include "BKE_screen.h"
-#include "BLI_listbase.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
 #include "DNA_property_types.h"
@@ -888,23 +886,23 @@ void KX_Scene::ConvertBlenderObjectsList(std::vector<Object *> objectslist, bool
   if (asynchronous) {
     /* Convert the Blender Objects list in a different thread, so that the
      * game engine can keep running at full speed. */
-    ConvertBlenderObjectsListTaskData *task = new ConvertBlenderObjectsListTaskData();
-    task->engine = KX_GetActiveEngine();
-    task->physics_engine = UseBullet;
-    task->kxscene = this;
-    task->converter = m_sceneConverter;
-    task->rasty = task->engine->GetRasterizer();
-    task->canvas = task->engine->GetCanvas();
-    bContext *C = task->engine->GetContext();
-    task->depsgraph = CTX_data_expect_evaluated_depsgraph(C);
-    task->bmain = CTX_data_main(C);
-    task->objectslist = objectslist;
+    ConvertBlenderObjectsListTaskData task;
+    task.engine = KX_GetActiveEngine();
+    task.physics_engine = UseBullet;
+    task.kxscene = this;
+    task.converter = m_sceneConverter;
+    task.rasty = task.engine->GetRasterizer();
+    task.canvas = task.engine->GetCanvas();
+    bContext *C = task.engine->GetContext();
+    task.depsgraph = CTX_data_expect_evaluated_depsgraph(C);
+    task.bmain = CTX_data_main(C);
+    task.objectslist = objectslist;
 
-    TaskPool *taskpool = BLI_task_pool_create(task, TASK_PRIORITY_LOW);
+    TaskPool *taskpool = BLI_task_pool_create(&task, TASK_PRIORITY_LOW);
 
     BLI_task_pool_push(taskpool,
                        convert_blender_objects_list_thread_func,
-                       task,
+                       &task,
                        false,  // We will clean the objectslist std::vector of pointers ourself later
                        NULL);
     BLI_task_pool_work_and_wait(taskpool);
@@ -916,7 +914,6 @@ void KX_Scene::ConvertBlenderObjectsList(std::vector<Object *> objectslist, bool
       task->objectslist.pop_back();
       delete temp;
     }
-    delete task;
 
     BLI_task_pool_free(taskpool);
     taskpool = nullptr;
