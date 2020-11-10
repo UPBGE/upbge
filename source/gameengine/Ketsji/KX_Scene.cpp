@@ -861,6 +861,105 @@ void KX_Scene::ConvertBlenderObject(Object *ob)
 
 }
 
+void KX_Scene::convert_blender_objects_list_synchronous(std::vector<Object *> objectslist)
+{
+  KX_KetsjiEngine *engine = KX_GetActiveEngine();
+  e_PhysicsEngine physics_engine = UseBullet;
+  RAS_Rasterizer *rasty = engine->GetRasterizer();
+  RAS_ICanvas *canvas = engine->GetCanvas();
+  bContext *C = engine->GetContext();
+  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
+  Main *bmain = CTX_data_main(C);
+
+  for (Object *obj : objectslist) {
+    BL_ConvertBlenderObjects(bmain,
+                             depsgraph,
+                             this,
+                             engine,
+                             physics_engine,
+                             rasty,
+                             canvas,
+                             m_sceneConverter,
+                             obj,
+                             false,
+                             false);
+  }
+}
+
+// Task data for convertBlenderCollection in a different thread.
+struct ConvertBlenderObjectsListTaskData {
+  std::vector<Object *> objectslist;
+  KX_KetsjiEngine *engine;
+  e_PhysicsEngine physics_engine;
+  KX_Scene *kxscene;
+  BL_BlenderSceneConverter *converter;
+  RAS_Rasterizer *rasty;
+  RAS_ICanvas *canvas;
+  Depsgraph *depsgraph;
+  Main *bmain;
+};
+
+static void convert_blender_objects_list_thread_func(TaskPool *__restrict UNUSED(pool), void *taskdata)
+{
+  ConvertBlenderObjectsListTaskData *task = static_cast<ConvertBlenderObjectsListTaskData *>(taskdata);
+
+  for (Object *obj : task->objectslist) {
+    BL_ConvertBlenderObjects(task->bmain,
+                             task->depsgraph,
+                             task->kxscene,
+                             task->engine,
+                             task->physics_engine,
+                             task->rasty,
+                             task->canvas,
+                             task->converter,
+                             obj,
+                             false,
+                             false);
+  }
+}
+
+void KX_Scene::ConvertBlenderObjectsList(std::vector<Object *> objectslist, bool asynchronous)
+{
+  if (asynchronous) {
+    /* Convert the Blender Objects list in a different thread, so that the
+     * game engine can keep running at full speed. */
+    ConvertBlenderObjectsListTaskData task;
+    task.engine = KX_GetActiveEngine();
+    task.physics_engine = UseBullet;
+    task.kxscene = this;
+    task.converter = m_sceneConverter;
+    task.rasty = task.engine->GetRasterizer();
+    task.canvas = task.engine->GetCanvas();
+    bContext *C = task.engine->GetContext();
+    task.depsgraph = CTX_data_expect_evaluated_depsgraph(C);
+    task.bmain = CTX_data_main(C);
+    task.objectslist = objectslist;
+
+    TaskPool *taskpool = BLI_task_pool_create(&task, TASK_PRIORITY_LOW);
+
+    BLI_task_pool_push(taskpool,
+                       convert_blender_objects_list_thread_func,
+                       &task,
+                       false,  // We will clean the objectslist std::vector of pointers ourself later
+                       NULL);
+    BLI_task_pool_work_and_wait(taskpool);
+
+    /* delete the objectslist ourself as it gives error if the work
+     * has to do it the BLI_task_pool_work_and_wait function */
+    while (!task.objectslist.size() != 0) {
+      Object *temp = task.objectslist.back();
+      task.objectslist.pop_back();
+      delete temp;
+    }
+
+    BLI_task_pool_free(taskpool);
+    taskpool = nullptr;
+  }
+  else {
+    convert_blender_objects_list_synchronous(objectslist);
+  }
+}
+
 void KX_Scene::convert_blender_collection_synchronous(Collection *co)
 {
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
@@ -892,30 +991,26 @@ struct ConvertBlenderCollectionTaskData {
   Collection *co;
   KX_KetsjiEngine *engine;
   e_PhysicsEngine physics_engine;
-  KX_Scene *scene;
+  KX_Scene *kxscene;
   BL_BlenderSceneConverter *converter;
+  RAS_Rasterizer *rasty;
+  RAS_ICanvas *canvas;
+  Depsgraph *depsgraph;
+  Main *bmain;
 };
 
-void convert_blender_collection_thread_func(TaskPool *__restrict UNUSED(pool),
-                                            void *taskdata,
-                                            int UNUSED(threadid))
+static void convert_blender_collection_thread_func(TaskPool *__restrict UNUSED(pool), void *taskdata)
 {
   ConvertBlenderCollectionTaskData *task = static_cast<ConvertBlenderCollectionTaskData *>(taskdata);
 
-  RAS_Rasterizer *rasty = task->engine->GetRasterizer();
-  RAS_ICanvas *canvas = task->engine->GetCanvas();
-  bContext *C = task->engine->GetContext();
-  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
-  Main *bmain = CTX_data_main(C);
-
   FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (task->co, obj) {
-    BL_ConvertBlenderObjects(bmain,
-                             depsgraph,
-                             task->scene,
+    BL_ConvertBlenderObjects(task->bmain,
+                             task->depsgraph,
+                             task->kxscene,
                              task->engine,
                              task->physics_engine,
-                             rasty,
-                             canvas,
+                             task->rasty,
+                             task->canvas,
                              task->converter,
                              obj,
                              false,
@@ -927,7 +1022,6 @@ void convert_blender_collection_thread_func(TaskPool *__restrict UNUSED(pool),
 void KX_Scene::ConvertBlenderCollection(Collection *co, bool asynchronous)
 {
   if (asynchronous) {
-    TaskPool *taskpool = BLI_task_pool_create(nullptr, TASK_PRIORITY_LOW);
 
     /* Convert the Blender collection in a different thread, so that the
      * game engine can keep running at full speed. */
@@ -937,11 +1031,18 @@ void KX_Scene::ConvertBlenderCollection(Collection *co, bool asynchronous)
     task->engine = KX_GetActiveEngine();
     task->physics_engine = UseBullet;
     task->co = co;
-    task->scene = this;
+    task->kxscene = this;
     task->converter = m_sceneConverter;
+    task->rasty = task->engine->GetRasterizer();
+    task->canvas = task->engine->GetCanvas();
+    bContext *C = task->engine->GetContext();
+    task->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    task->bmain = CTX_data_main(C);
+
+    TaskPool *taskpool = BLI_task_pool_create(task, TASK_PRIORITY_LOW);
 
     BLI_task_pool_push(taskpool,
-                       (TaskRunFunction)convert_blender_collection_thread_func,
+                       convert_blender_collection_thread_func,
                        task,
                        true,  // free task data
                        NULL);
@@ -2422,6 +2523,7 @@ PyMethodDef KX_Scene::Methods[] = {
     KX_PYMETHODTABLE(KX_Scene, replace),
     KX_PYMETHODTABLE(KX_Scene, drawObstacleSimulation),
     KX_PYMETHODTABLE(KX_Scene, convertBlenderObject),
+    KX_PYMETHODTABLE(KX_Scene, convertBlenderObjectsList),
     KX_PYMETHODTABLE(KX_Scene, convertBlenderCollection),
 
     /* dict style access */
@@ -2864,6 +2966,39 @@ KX_PYMETHODDEF_DOC(KX_Scene,
   Object *ob = (Object *)id;
   ConvertBlenderObject(ob);
   return GetObjectList()->GetBack()->GetProxy();
+}
+
+KX_PYMETHODDEF_DOC(KX_Scene,
+                   convertBlenderObjectsList,
+                   "convertBlenderObjectsList()\n"
+                   "\n")
+{
+  PyObject *list;
+  int asynchronous = 0;
+
+  if (!PyArg_ParseTuple(args, "O!i:", &PyList_Type, &list, &asynchronous)) {
+    std::cout << "Expected a bpy.types.Object list." << std::endl;
+    return nullptr;
+  }
+
+  std::vector<Object *> objectslist;
+  Py_ssize_t list_size = PyList_Size(list);
+
+  for (Py_ssize_t i = 0; i < list_size; i++) {
+    PyObject* bl_object = PyList_GetItem(list, i);
+
+    ID *id;
+    if (!pyrna_id_FromPyObject(bl_object, &id)) {
+      std::cout << "Failed to convert object." << std::endl;
+      return nullptr;
+    }
+
+    Object *ob = (Object *)id;
+    objectslist.push_back(ob);
+  }
+
+  ConvertBlenderObjectsList(objectslist, asynchronous);
+  Py_RETURN_NONE;
 }
 
 KX_PYMETHODDEF_DOC(KX_Scene,

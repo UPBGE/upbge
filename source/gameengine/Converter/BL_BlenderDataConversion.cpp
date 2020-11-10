@@ -1251,6 +1251,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
       /* Force OB_RESTRICT_VIEWPORT to avoid not needed depsgraph operations in some cases */
       kxscene->BackupRestrictFlag(blenderobject, blenderobject->restrictflag);
       blenderobject->restrictflag |= OB_RESTRICT_VIEWPORT;
+      BKE_main_collection_sync_remap(maggie);
+      DEG_relations_tag_update(maggie);
     }
 
     bool converting_during_runtime = single_object != nullptr;
@@ -1278,10 +1280,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
       gameobj->Release();
     }
   }
-
-  /* Flush restrictflag updates for obj in inactive list */
-  BKE_main_collection_sync_remap(maggie);
-  DEG_relations_tag_update(maggie);
 
   if (!grouplist.empty()) {
     // now convert the group referenced by dupli group object
