@@ -1025,26 +1025,25 @@ void KX_Scene::ConvertBlenderCollection(Collection *co, bool asynchronous)
 
     /* Convert the Blender collection in a different thread, so that the
      * game engine can keep running at full speed. */
-    ConvertBlenderCollectionTaskData *task = (ConvertBlenderCollectionTaskData *)MEM_mallocN(sizeof(ConvertBlenderCollectionTaskData),
-                                                                                             "convertblendercollection-data");
+    ConvertBlenderCollectionTaskData task;
 
-    task->engine = KX_GetActiveEngine();
-    task->physics_engine = UseBullet;
-    task->co = co;
-    task->kxscene = this;
-    task->converter = m_sceneConverter;
-    task->rasty = task->engine->GetRasterizer();
-    task->canvas = task->engine->GetCanvas();
-    bContext *C = task->engine->GetContext();
-    task->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-    task->bmain = CTX_data_main(C);
+    task.engine = KX_GetActiveEngine();
+    task.physics_engine = UseBullet;
+    task.co = co;
+    task.kxscene = this;
+    task.converter = m_sceneConverter;
+    task.rasty = task.engine->GetRasterizer();
+    task.canvas = task.engine->GetCanvas();
+    bContext *C = task.engine->GetContext();
+    task.depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    task.bmain = CTX_data_main(C);
 
-    TaskPool *taskpool = BLI_task_pool_create(task, TASK_PRIORITY_LOW);
+    TaskPool *taskpool = BLI_task_pool_create(&task, TASK_PRIORITY_LOW);
 
     BLI_task_pool_push(taskpool,
                        convert_blender_collection_thread_func,
-                       task,
-                       true,  // free task data
+                       &task,
+                       false,
                        NULL);
     BLI_task_pool_work_and_wait(taskpool);
     BLI_task_pool_free(taskpool);
