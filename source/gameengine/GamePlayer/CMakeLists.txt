@@ -46,12 +46,19 @@ set(INC
   ../../blender/blenloader
   ../../blender/blentranslation
   ../../blender/depsgraph
+  ../../blender/draw
   ../../blender/draw/engines/eevee/
+  ../../blender/editors/include
   ../../blender/gpu
   ../../blender/imbuf
   ../../blender/makesdna
   ../../blender/makesrna
+  ../../blender/python
+  ../../blender/render
   ../../blender/sequencer
+  ../../blender/windowmanager
+  ../../blender/windowmanager/message_bus
+  ../../../intern/clog
   ../../../intern/ghost
   ../../../intern/guardedalloc
   ../../../intern/string
