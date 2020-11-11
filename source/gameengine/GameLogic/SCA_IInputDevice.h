@@ -36,11 +36,6 @@
 
 #include "SCA_InputEvent.h"
 
-// #include <pair>
-
-#define MOUSEX MOUSEMOVE
-#define MOUSEY ACTIONMOUSE
-
 class SCA_IInputDevice {
  public:
   SCA_IInputDevice();

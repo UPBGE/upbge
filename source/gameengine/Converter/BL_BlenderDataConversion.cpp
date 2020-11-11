@@ -104,154 +104,144 @@
 
 static bool default_light_mode = 0;
 
-static std::map<int, SCA_IInputDevice::SCA_EnumInputs> create_translate_table()
-{
-  std::map<int, SCA_IInputDevice::SCA_EnumInputs> m;
+/* The reverse table. In order to not confuse ourselves, we
+ * immediately convert all events that come in to KX codes. */
+static std::map<int, SCA_IInputDevice::SCA_EnumInputs> gReverseKeyTranslateTable = {
+  {LEFTMOUSE, SCA_IInputDevice::LEFTMOUSE},
+  {MIDDLEMOUSE, SCA_IInputDevice::MIDDLEMOUSE},
+  {RIGHTMOUSE, SCA_IInputDevice::RIGHTMOUSE},
+  {WHEELUPMOUSE, SCA_IInputDevice::WHEELUPMOUSE},
+  {WHEELDOWNMOUSE, SCA_IInputDevice::WHEELDOWNMOUSE},
+  {MOUSEMOVE, SCA_IInputDevice::MOUSEX},
+  {ACTIONMOUSE, SCA_IInputDevice::MOUSEY},
+  // Standard keyboard.
+  {EVT_AKEY, SCA_IInputDevice::AKEY},
+  {EVT_BKEY, SCA_IInputDevice::BKEY},
+  {EVT_CKEY, SCA_IInputDevice::CKEY},
+  {EVT_DKEY, SCA_IInputDevice::DKEY},
+  {EVT_EKEY, SCA_IInputDevice::EKEY},
+  {EVT_FKEY, SCA_IInputDevice::FKEY},
+  {EVT_GKEY, SCA_IInputDevice::GKEY},
+  {EVT_HKEY, SCA_IInputDevice::HKEY_},
+  {EVT_IKEY, SCA_IInputDevice::IKEY},
+  {EVT_JKEY, SCA_IInputDevice::JKEY},
+  {EVT_KKEY, SCA_IInputDevice::KKEY},
+  {EVT_LKEY, SCA_IInputDevice::LKEY},
+  {EVT_MKEY, SCA_IInputDevice::MKEY},
+  {EVT_NKEY, SCA_IInputDevice::NKEY},
+  {EVT_OKEY, SCA_IInputDevice::OKEY},
+  {EVT_PKEY, SCA_IInputDevice::PKEY},
+  {EVT_QKEY, SCA_IInputDevice::QKEY},
+  {EVT_RKEY, SCA_IInputDevice::RKEY},
+  {EVT_SKEY, SCA_IInputDevice::SKEY},
+  {EVT_TKEY, SCA_IInputDevice::TKEY},
+  {EVT_UKEY, SCA_IInputDevice::UKEY},
+  {EVT_VKEY, SCA_IInputDevice::VKEY},
+  {EVT_WKEY, SCA_IInputDevice::WKEY},
+  {EVT_XKEY, SCA_IInputDevice::XKEY},
+  {EVT_YKEY, SCA_IInputDevice::YKEY},
+  {EVT_ZKEY, SCA_IInputDevice::ZKEY},
 
-  /* The reverse table. In order to not confuse ourselves, we      */
-  /* immediately convert all events that come in to KX codes.      */
-  m[LEFTMOUSE] = SCA_IInputDevice::LEFTMOUSE;
-  m[MIDDLEMOUSE] = SCA_IInputDevice::MIDDLEMOUSE;
-  m[RIGHTMOUSE] = SCA_IInputDevice::RIGHTMOUSE;
-  m[WHEELUPMOUSE] = SCA_IInputDevice::WHEELUPMOUSE;
-  m[WHEELDOWNMOUSE] = SCA_IInputDevice::WHEELDOWNMOUSE;
-  m[MOUSEX] = SCA_IInputDevice::MOUSEX;
-  m[MOUSEY] = SCA_IInputDevice::MOUSEY;
+  {EVT_ZEROKEY, SCA_IInputDevice::ZEROKEY},
+  {EVT_ONEKEY, SCA_IInputDevice::ONEKEY},
+  {EVT_TWOKEY, SCA_IInputDevice::TWOKEY},
+  {EVT_THREEKEY, SCA_IInputDevice::THREEKEY},
+  {EVT_FOURKEY, SCA_IInputDevice::FOURKEY},
+  {EVT_FIVEKEY, SCA_IInputDevice::FIVEKEY},
+  {EVT_SIXKEY, SCA_IInputDevice::SIXKEY},
+  {EVT_SEVENKEY, SCA_IInputDevice::SEVENKEY},
+  {EVT_EIGHTKEY, SCA_IInputDevice::EIGHTKEY},
+  {EVT_NINEKEY, SCA_IInputDevice::NINEKEY},
 
-  // standard keyboard
+  {EVT_CAPSLOCKKEY, SCA_IInputDevice::CAPSLOCKKEY},
 
-  m[EVT_AKEY] = SCA_IInputDevice::AKEY;
-  m[EVT_BKEY] = SCA_IInputDevice::BKEY;
-  m[EVT_CKEY] = SCA_IInputDevice::CKEY;
-  m[EVT_DKEY] = SCA_IInputDevice::DKEY;
-  m[EVT_EKEY] = SCA_IInputDevice::EKEY;
-  m[EVT_FKEY] = SCA_IInputDevice::FKEY;
-  m[EVT_GKEY] = SCA_IInputDevice::GKEY;
-  m[EVT_HKEY] = SCA_IInputDevice::HKEY_;
-  m[EVT_IKEY] = SCA_IInputDevice::IKEY;
-  m[EVT_JKEY] = SCA_IInputDevice::JKEY;
-  m[EVT_KKEY] = SCA_IInputDevice::KKEY;
-  m[EVT_LKEY] = SCA_IInputDevice::LKEY;
-  m[EVT_MKEY] = SCA_IInputDevice::MKEY;
-  m[EVT_NKEY] = SCA_IInputDevice::NKEY;
-  m[EVT_OKEY] = SCA_IInputDevice::OKEY;
-  m[EVT_PKEY] = SCA_IInputDevice::PKEY;
-  m[EVT_QKEY] = SCA_IInputDevice::QKEY;
-  m[EVT_RKEY] = SCA_IInputDevice::RKEY;
-  m[EVT_SKEY] = SCA_IInputDevice::SKEY;
-  m[EVT_TKEY] = SCA_IInputDevice::TKEY;
-  m[EVT_UKEY] = SCA_IInputDevice::UKEY;
-  m[EVT_VKEY] = SCA_IInputDevice::VKEY;
-  m[EVT_WKEY] = SCA_IInputDevice::WKEY;
-  m[EVT_XKEY] = SCA_IInputDevice::XKEY;
-  m[EVT_YKEY] = SCA_IInputDevice::YKEY;
-  m[EVT_ZKEY] = SCA_IInputDevice::ZKEY;
+  {EVT_LEFTCTRLKEY, SCA_IInputDevice::LEFTCTRLKEY},
+  {EVT_LEFTALTKEY, SCA_IInputDevice::LEFTALTKEY},
+  {EVT_RIGHTALTKEY, SCA_IInputDevice::RIGHTALTKEY},
+  {EVT_RIGHTCTRLKEY, SCA_IInputDevice::RIGHTCTRLKEY},
+  {EVT_RIGHTSHIFTKEY, SCA_IInputDevice::RIGHTSHIFTKEY},
+  {EVT_LEFTSHIFTKEY, SCA_IInputDevice::LEFTSHIFTKEY},
 
-  m[EVT_ZEROKEY] = SCA_IInputDevice::ZEROKEY;
-  m[EVT_ONEKEY] = SCA_IInputDevice::ONEKEY;
-  m[EVT_TWOKEY] = SCA_IInputDevice::TWOKEY;
-  m[EVT_THREEKEY] = SCA_IInputDevice::THREEKEY;
-  m[EVT_FOURKEY] = SCA_IInputDevice::FOURKEY;
-  m[EVT_FIVEKEY] = SCA_IInputDevice::FIVEKEY;
-  m[EVT_SIXKEY] = SCA_IInputDevice::SIXKEY;
-  m[EVT_SEVENKEY] = SCA_IInputDevice::SEVENKEY;
-  m[EVT_EIGHTKEY] = SCA_IInputDevice::EIGHTKEY;
-  m[EVT_NINEKEY] = SCA_IInputDevice::NINEKEY;
+  {EVT_ESCKEY, SCA_IInputDevice::ESCKEY},
+  {EVT_TABKEY, SCA_IInputDevice::TABKEY},
+  {EVT_RETKEY, SCA_IInputDevice::RETKEY},
+  {EVT_SPACEKEY, SCA_IInputDevice::SPACEKEY},
+  {EVT_LINEFEEDKEY, SCA_IInputDevice::LINEFEEDKEY},
+  {EVT_BACKSPACEKEY, SCA_IInputDevice::BACKSPACEKEY},
+  {EVT_DELKEY, SCA_IInputDevice::DELKEY},
+  {EVT_SEMICOLONKEY, SCA_IInputDevice::SEMICOLONKEY},
+  {EVT_PERIODKEY, SCA_IInputDevice::PERIODKEY},
+  {EVT_COMMAKEY, SCA_IInputDevice::COMMAKEY},
+  {EVT_QUOTEKEY, SCA_IInputDevice::QUOTEKEY},
+  {EVT_ACCENTGRAVEKEY, SCA_IInputDevice::ACCENTGRAVEKEY},
+  {EVT_MINUSKEY, SCA_IInputDevice::MINUSKEY},
+  {EVT_SLASHKEY, SCA_IInputDevice::SLASHKEY},
+  {EVT_BACKSLASHKEY, SCA_IInputDevice::BACKSLASHKEY},
+  {EVT_EQUALKEY, SCA_IInputDevice::EQUALKEY},
+  {EVT_LEFTBRACKETKEY, SCA_IInputDevice::LEFTBRACKETKEY},
+  {EVT_RIGHTBRACKETKEY, SCA_IInputDevice::RIGHTBRACKETKEY},
 
-  m[EVT_CAPSLOCKKEY] = SCA_IInputDevice::CAPSLOCKKEY;
+  {EVT_LEFTARROWKEY, SCA_IInputDevice::LEFTARROWKEY},
+  {EVT_DOWNARROWKEY, SCA_IInputDevice::DOWNARROWKEY},
+  {EVT_RIGHTARROWKEY, SCA_IInputDevice::RIGHTARROWKEY},
+  {EVT_UPARROWKEY, SCA_IInputDevice::UPARROWKEY},
 
-  m[EVT_LEFTCTRLKEY] = SCA_IInputDevice::LEFTCTRLKEY;
-  m[EVT_LEFTALTKEY] = SCA_IInputDevice::LEFTALTKEY;
-  m[EVT_RIGHTALTKEY] = SCA_IInputDevice::RIGHTALTKEY;
-  m[EVT_RIGHTCTRLKEY] = SCA_IInputDevice::RIGHTCTRLKEY;
-  m[EVT_RIGHTSHIFTKEY] = SCA_IInputDevice::RIGHTSHIFTKEY;
-  m[EVT_LEFTSHIFTKEY] = SCA_IInputDevice::LEFTSHIFTKEY;
+  {EVT_PAD2, SCA_IInputDevice::PAD2},
+  {EVT_PAD4, SCA_IInputDevice::PAD4},
+  {EVT_PAD6, SCA_IInputDevice::PAD6},
+  {EVT_PAD8, SCA_IInputDevice::PAD8},
 
-  m[EVT_ESCKEY] = SCA_IInputDevice::ESCKEY;
-  m[EVT_TABKEY] = SCA_IInputDevice::TABKEY;
-  m[EVT_RETKEY] = SCA_IInputDevice::RETKEY;
-  m[EVT_SPACEKEY] = SCA_IInputDevice::SPACEKEY;
-  m[EVT_LINEFEEDKEY] = SCA_IInputDevice::LINEFEEDKEY;
-  m[EVT_BACKSPACEKEY] = SCA_IInputDevice::BACKSPACEKEY;
-  m[EVT_DELKEY] = SCA_IInputDevice::DELKEY;
-  m[EVT_SEMICOLONKEY] = SCA_IInputDevice::SEMICOLONKEY;
-  m[EVT_PERIODKEY] = SCA_IInputDevice::PERIODKEY;
-  m[EVT_COMMAKEY] = SCA_IInputDevice::COMMAKEY;
-  m[EVT_QUOTEKEY] = SCA_IInputDevice::QUOTEKEY;
-  m[EVT_ACCENTGRAVEKEY] = SCA_IInputDevice::ACCENTGRAVEKEY;
-  m[EVT_MINUSKEY] = SCA_IInputDevice::MINUSKEY;
-  m[EVT_SLASHKEY] = SCA_IInputDevice::SLASHKEY;
-  m[EVT_BACKSLASHKEY] = SCA_IInputDevice::BACKSLASHKEY;
-  m[EVT_EQUALKEY] = SCA_IInputDevice::EQUALKEY;
-  m[EVT_LEFTBRACKETKEY] = SCA_IInputDevice::LEFTBRACKETKEY;
-  m[EVT_RIGHTBRACKETKEY] = SCA_IInputDevice::RIGHTBRACKETKEY;
+  {EVT_PAD1, SCA_IInputDevice::PAD1},
+  {EVT_PAD3, SCA_IInputDevice::PAD3},
+  {EVT_PAD5, SCA_IInputDevice::PAD5},
+  {EVT_PAD7, SCA_IInputDevice::PAD7},
+  {EVT_PAD9, SCA_IInputDevice::PAD9},
 
-  m[EVT_LEFTARROWKEY] = SCA_IInputDevice::LEFTARROWKEY;
-  m[EVT_DOWNARROWKEY] = SCA_IInputDevice::DOWNARROWKEY;
-  m[EVT_RIGHTARROWKEY] = SCA_IInputDevice::RIGHTARROWKEY;
-  m[EVT_UPARROWKEY] = SCA_IInputDevice::UPARROWKEY;
+  {EVT_PADPERIOD, SCA_IInputDevice::PADPERIOD},
+  {EVT_PADSLASHKEY, SCA_IInputDevice::PADSLASHKEY},
+  {EVT_PADASTERKEY, SCA_IInputDevice::PADASTERKEY},
 
-  m[EVT_PAD2] = SCA_IInputDevice::PAD2;
-  m[EVT_PAD4] = SCA_IInputDevice::PAD4;
-  m[EVT_PAD6] = SCA_IInputDevice::PAD6;
-  m[EVT_PAD8] = SCA_IInputDevice::PAD8;
+  {EVT_PAD0, SCA_IInputDevice::PAD0},
+  {EVT_PADMINUS, SCA_IInputDevice::PADMINUS},
+  {EVT_PADENTER, SCA_IInputDevice::PADENTER},
+  {EVT_PADPLUSKEY, SCA_IInputDevice::PADPLUSKEY},
 
-  m[EVT_PAD1] = SCA_IInputDevice::PAD1;
-  m[EVT_PAD3] = SCA_IInputDevice::PAD3;
-  m[EVT_PAD5] = SCA_IInputDevice::PAD5;
-  m[EVT_PAD7] = SCA_IInputDevice::PAD7;
-  m[EVT_PAD9] = SCA_IInputDevice::PAD9;
+  {EVT_F1KEY, SCA_IInputDevice::F1KEY},
+  {EVT_F2KEY, SCA_IInputDevice::F2KEY},
+  {EVT_F3KEY, SCA_IInputDevice::F3KEY},
+  {EVT_F4KEY, SCA_IInputDevice::F4KEY},
+  {EVT_F5KEY, SCA_IInputDevice::F5KEY},
+  {EVT_F6KEY, SCA_IInputDevice::F6KEY},
+  {EVT_F7KEY, SCA_IInputDevice::F7KEY},
+  {EVT_F8KEY, SCA_IInputDevice::F8KEY},
+  {EVT_F9KEY, SCA_IInputDevice::F9KEY},
+  {EVT_F10KEY, SCA_IInputDevice::F10KEY},
+  {EVT_F11KEY, SCA_IInputDevice::F11KEY},
+  {EVT_F12KEY, SCA_IInputDevice::F12KEY},
+  {EVT_F13KEY, SCA_IInputDevice::F13KEY},
+  {EVT_F14KEY, SCA_IInputDevice::F14KEY},
+  {EVT_F15KEY, SCA_IInputDevice::F15KEY},
+  {EVT_F16KEY, SCA_IInputDevice::F16KEY},
+  {EVT_F17KEY, SCA_IInputDevice::F17KEY},
+  {EVT_F18KEY, SCA_IInputDevice::F18KEY},
+  {EVT_F19KEY, SCA_IInputDevice::F19KEY},
 
-  m[EVT_PADPERIOD] = SCA_IInputDevice::PADPERIOD;
-  m[EVT_PADSLASHKEY] = SCA_IInputDevice::PADSLASHKEY;
-  m[EVT_PADASTERKEY] = SCA_IInputDevice::PADASTERKEY;
+  {EVT_OSKEY, SCA_IInputDevice::OSKEY},
 
-  m[EVT_PAD0] = SCA_IInputDevice::PAD0;
-  m[EVT_PADMINUS] = SCA_IInputDevice::PADMINUS;
-  m[EVT_PADENTER] = SCA_IInputDevice::PADENTER;
-  m[EVT_PADPLUSKEY] = SCA_IInputDevice::PADPLUSKEY;
+  {EVT_PAUSEKEY, SCA_IInputDevice::PAUSEKEY},
+  {EVT_INSERTKEY, SCA_IInputDevice::INSERTKEY},
+  {EVT_HOMEKEY, SCA_IInputDevice::HOMEKEY},
+  {EVT_PAGEUPKEY, SCA_IInputDevice::PAGEUPKEY},
+  {EVT_PAGEDOWNKEY, SCA_IInputDevice::PAGEDOWNKEY},
+  {EVT_ENDKEY, SCA_IInputDevice::ENDKEY}
+};
 
-  m[EVT_F1KEY] = SCA_IInputDevice::F1KEY;
-  m[EVT_F2KEY] = SCA_IInputDevice::F2KEY;
-  m[EVT_F3KEY] = SCA_IInputDevice::F3KEY;
-  m[EVT_F4KEY] = SCA_IInputDevice::F4KEY;
-  m[EVT_F5KEY] = SCA_IInputDevice::F5KEY;
-  m[EVT_F6KEY] = SCA_IInputDevice::F6KEY;
-  m[EVT_F7KEY] = SCA_IInputDevice::F7KEY;
-  m[EVT_F8KEY] = SCA_IInputDevice::F8KEY;
-  m[EVT_F9KEY] = SCA_IInputDevice::F9KEY;
-  m[EVT_F10KEY] = SCA_IInputDevice::F10KEY;
-  m[EVT_F11KEY] = SCA_IInputDevice::F11KEY;
-  m[EVT_F12KEY] = SCA_IInputDevice::F12KEY;
-  m[EVT_F13KEY] = SCA_IInputDevice::F13KEY;
-  m[EVT_F14KEY] = SCA_IInputDevice::F14KEY;
-  m[EVT_F15KEY] = SCA_IInputDevice::F15KEY;
-  m[EVT_F16KEY] = SCA_IInputDevice::F16KEY;
-  m[EVT_F17KEY] = SCA_IInputDevice::F17KEY;
-  m[EVT_F18KEY] = SCA_IInputDevice::F18KEY;
-  m[EVT_F19KEY] = SCA_IInputDevice::F19KEY;
-
-  m[EVT_OSKEY] = SCA_IInputDevice::OSKEY;
-
-  m[EVT_PAUSEKEY] = SCA_IInputDevice::PAUSEKEY;
-  m[EVT_INSERTKEY] = SCA_IInputDevice::INSERTKEY;
-  m[EVT_HOMEKEY] = SCA_IInputDevice::HOMEKEY;
-  m[EVT_PAGEUPKEY] = SCA_IInputDevice::PAGEUPKEY;
-  m[EVT_PAGEDOWNKEY] = SCA_IInputDevice::PAGEDOWNKEY;
-  m[EVT_ENDKEY] = SCA_IInputDevice::ENDKEY;
-
-  return m;
-}
-
-static std::map<int, SCA_IInputDevice::SCA_EnumInputs> gReverseKeyTranslateTable =
-    create_translate_table();
-
-SCA_IInputDevice::SCA_EnumInputs ConvertKeyCode(int key_code)
+SCA_IInputDevice::SCA_EnumInputs BL_ConvertKeyCode(int key_code)
 {
   return gReverseKeyTranslateTable[key_code];
 }
 
-static void GetUvRgba(const RAS_MeshObject::LayerList &layers,
+static void BL_GetUvRgba(const RAS_MeshObject::LayerList &layers,
                       unsigned int loop,
                       MT_Vector2 uvs[RAS_Texture::MaxUnits],
                       unsigned int rgba[RAS_IVertex::MAX_UNIT],
@@ -293,7 +283,7 @@ static void GetUvRgba(const RAS_MeshObject::LayerList &layers,
   }
 }
 
-static KX_BlenderMaterial *ConvertMaterial(Material *mat,
+static KX_BlenderMaterial *BL_ConvertMaterial(Material *mat,
                                            int lightlayer,
                                            KX_Scene *scene,
                                            RAS_Rasterizer *rasty,
@@ -312,7 +302,7 @@ static KX_BlenderMaterial *ConvertMaterial(Material *mat,
   return kx_blmat;
 }
 
-static RAS_MaterialBucket *material_from_mesh(Material *ma,
+static RAS_MaterialBucket *BL_material_from_mesh(Material *ma,
                                               int lightlayer,
                                               KX_Scene *scene,
                                               RAS_Rasterizer *rasty,
@@ -322,7 +312,7 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma,
   KX_BlenderMaterial *mat = converter->FindMaterial(ma);
 
   if (!mat) {
-    mat = ConvertMaterial(ma, lightlayer, scene, rasty, converting_during_runtime);
+    mat = BL_ConvertMaterial(ma, lightlayer, scene, rasty, converting_during_runtime);
     // this is needed to free up memory afterwards.
     converter->RegisterMaterial(mat, ma);
   }
@@ -448,7 +438,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
       ma = BKE_material_default_empty();
     }
 
-    RAS_MaterialBucket *bucket = material_from_mesh(ma, lightlayer, scene, rasty, converter, converting_during_runtime);
+    RAS_MaterialBucket *bucket = BL_material_from_mesh(ma, lightlayer, scene, rasty, converter, converting_during_runtime);
     RAS_MeshMaterial *meshmat = meshobj->AddMaterial(bucket, i, vertformat);
 
     convertedMats[i] = {ma,
@@ -490,7 +480,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
       MT_Vector2 uvs[RAS_Texture::MaxUnits];
       unsigned int rgba[RAS_Texture::MaxUnits];
 
-      GetUvRgba(layersInfo.layers, j, uvs, rgba, uvLayers, colorLayers);
+      BL_GetUvRgba(layersInfo.layers, j, uvs, rgba, uvLayers, colorLayers);
 
       // Add tracked vertices by the mpoly.
       vertices[vertid] = meshobj->AddVertex(meshmat, pt, uvs, tan, rgba, no, flat, vertid);
@@ -542,53 +532,53 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   return meshobj;
 }
 
-static PHY_ShapeProps *CreateShapePropsFromBlenderObject(struct Object *blenderobject)
+static PHY_ShapeProps BL_CreateShapePropsFromBlenderObject(struct Object *blenderobject)
 {
-  PHY_ShapeProps *shapeProps = new PHY_ShapeProps;
+  PHY_ShapeProps shapeProps;
 
-  shapeProps->m_mass = blenderobject->mass;
+  shapeProps.m_mass = blenderobject->mass;
 
-  //  This needs to be fixed in blender. For now, we use:
-
-  // in Blender, inertia stands for the size value which is equivalent to
-  // the sphere radius
-  shapeProps->m_inertia = blenderobject->formfactor;
+  /* This needs to be fixed in blender. For now, we use:
+   * in Blender, inertia stands for the size value which is equivalent to
+   * the sphere radius
+   */
+  shapeProps.m_inertia = blenderobject->formfactor;
 
   BLI_assert(0.0f <= blenderobject->damping && blenderobject->damping <= 1.0f);
   BLI_assert(0.0f <= blenderobject->rdamping && blenderobject->rdamping <= 1.0f);
 
-  shapeProps->m_lin_drag = 1.0f - blenderobject->damping;
-  shapeProps->m_ang_drag = 1.0f - blenderobject->rdamping;
+  shapeProps.m_lin_drag = 1.0f - blenderobject->damping;
+  shapeProps.m_ang_drag = 1.0f - blenderobject->rdamping;
 
-  shapeProps->m_friction_scaling = MT_Vector3(blenderobject->anisotropicFriction);
-  shapeProps->m_do_anisotropic = ((blenderobject->gameflag & OB_ANISOTROPIC_FRICTION) != 0);
+  shapeProps.m_friction_scaling = MT_Vector3(blenderobject->anisotropicFriction);
+  shapeProps.m_do_anisotropic = ((blenderobject->gameflag & OB_ANISOTROPIC_FRICTION) != 0);
 
-  shapeProps->m_do_fh = (blenderobject->gameflag & OB_DO_FH) != 0;
-  shapeProps->m_do_rot_fh = (blenderobject->gameflag & OB_ROT_FH) != 0;
+  shapeProps.m_do_fh = (blenderobject->gameflag & OB_DO_FH) != 0;
+  shapeProps.m_do_rot_fh = (blenderobject->gameflag & OB_ROT_FH) != 0;
 
-  //	velocity clamping XXX
-  shapeProps->m_clamp_vel_min = blenderobject->min_vel;
-  shapeProps->m_clamp_vel_max = blenderobject->max_vel;
-  shapeProps->m_clamp_angvel_min = blenderobject->min_angvel;
-  shapeProps->m_clamp_angvel_max = blenderobject->max_angvel;
+  // Velocity clamping XXX
+  shapeProps.m_clamp_vel_min = blenderobject->min_vel;
+  shapeProps.m_clamp_vel_max = blenderobject->max_vel;
+  shapeProps.m_clamp_angvel_min = blenderobject->min_angvel;
+  shapeProps.m_clamp_angvel_max = blenderobject->max_angvel;
 
-  //  Character physics properties
-  shapeProps->m_step_height = blenderobject->step_height;
-  shapeProps->m_jump_speed = blenderobject->jump_speed;
-  shapeProps->m_fall_speed = blenderobject->fall_speed;
-  shapeProps->m_max_jumps = blenderobject->max_jumps;
+  // Character physics properties
+  shapeProps.m_step_height = blenderobject->step_height;
+  shapeProps.m_jump_speed = blenderobject->jump_speed;
+  shapeProps.m_fall_speed = blenderobject->fall_speed;
+  shapeProps.m_max_jumps = blenderobject->max_jumps;
 
-  shapeProps->m_restitution = blenderobject->reflect;
-  shapeProps->m_friction = blenderobject->friction;
-  shapeProps->m_rollingFriction = blenderobject->rolling_friction;
-  shapeProps->m_fh_spring = blenderobject->fh;
-  shapeProps->m_fh_damping = blenderobject->xyfrict;
-  shapeProps->m_fh_distance = blenderobject->fhdist;
-  shapeProps->m_fh_normal = (blenderobject->dynamode & OB_FH_NOR) != 0;
+  shapeProps.m_restitution = blenderobject->reflect;
+  shapeProps.m_friction = blenderobject->friction;
+  shapeProps.m_rollingFriction = blenderobject->rolling_friction;
+  shapeProps.m_fh_spring = blenderobject->fh;
+  shapeProps.m_fh_damping = blenderobject->xyfrict;
+  shapeProps.m_fh_distance = blenderobject->fhdist;
+  shapeProps.m_fh_normal = (blenderobject->dynamode & OB_FH_NOR) != 0;
 
   // CCD properties
-  shapeProps->m_ccd_motion_threshold = blenderobject->ccd_motion_threshold;
-  shapeProps->m_ccd_swept_sphere_radius = blenderobject->ccd_swept_sphere_radius;
+  shapeProps.m_ccd_motion_threshold = blenderobject->ccd_motion_threshold;
+  shapeProps.m_ccd_swept_sphere_radius = blenderobject->ccd_swept_sphere_radius;
 
   return shapeProps;
 }
@@ -603,14 +593,10 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
                                       bool processCompoundChildren)
 
 {
-  // SYS_SystemHandle syshandle = SYS_GetSystem(); /*unused*/
-  // int userigidbody = SYS_GetCommandLineInt(syshandle,"norigidbody",0);
-  // bool bRigidBody = (userigidbody == 0);
 
   // object has physics representation?
   if (!(blenderobject->gameflag & OB_COLLISION)) {
-    // Respond to all collisions so that Near sensors work on No Collision
-    // objects.
+    // Respond to all collisions so that Near sensors work on No Collision objects.
     gameobj->SetUserCollisionGroup(0xffff);
     gameobj->SetUserCollisionMask(0xffff);
     return;
@@ -645,22 +631,23 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
     return;
   }
 
-  PHY_ShapeProps *shapeprops = CreateShapePropsFromBlenderObject(blenderobject);
+  PHY_ShapeProps shapeprops = BL_CreateShapePropsFromBlenderObject(blenderobject);
 
   DerivedMesh *dm = nullptr;
 
-  class PHY_IMotionState *motionstate = new KX_MotionState(gameobj->GetSGNode());
+  PHY_IMotionState *motionstate = new KX_MotionState(gameobj->GetSGNode());
 
-  kxscene->GetPhysicsEnvironment()->ConvertObject(converter,
-                                                  gameobj,
-                                                  meshobj,
-                                                  dm,
-                                                  kxscene,
-                                                  shapeprops,
-                                                  motionstate,
-                                                  activeLayerBitInfo,
-                                                  isCompoundChild,
-                                                  hasCompoundChildren);
+  PHY_IPhysicsEnvironment *phyenv = kxscene->GetPhysicsEnvironment();
+  phyenv->ConvertObject(converter,
+                        gameobj,
+                        meshobj,
+                        dm,
+                        kxscene,
+                        shapeprops,
+                        motionstate,
+                        activeLayerBitInfo,
+                        isCompoundChild,
+                        hasCompoundChildren);
 
   bool isActor = (blenderobject->gameflag & OB_ACTOR) != 0;
   bool isSensor = (blenderobject->gameflag & OB_SENSOR) != 0;
@@ -669,14 +656,13 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
                                                   (isActor) ? KX_ClientObjectInfo::ACTOR :
                                                               KX_ClientObjectInfo::STATIC;
 
-  delete shapeprops;
   if (dm) {
     dm->needsFree = 1;
     dm->release(dm);
   }
 }
 
-static KX_LodManager *lodmanager_from_blenderobject(Object *ob,
+static KX_LodManager *BL_lodmanager_from_blenderobject(Object *ob,
                                                     KX_Scene *scene,
                                                     RAS_Rasterizer *rasty,
                                                     BL_BlenderSceneConverter *converter,
@@ -697,7 +683,7 @@ static KX_LodManager *lodmanager_from_blenderobject(Object *ob,
   return lodManager;
 }
 
-static KX_LightObject *gamelight_from_blamp(KX_Scene *kxscene, Object *ob)
+static KX_LightObject *BL_gamelight_from_blamp(KX_Scene *kxscene, Object *ob)
 {
 
   KX_LightObject *gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, ob);
@@ -705,7 +691,7 @@ static KX_LightObject *gamelight_from_blamp(KX_Scene *kxscene, Object *ob)
   return gamelight;
 }
 
-static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene)
+static KX_Camera *BL_gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene)
 {
   Camera *ca = static_cast<Camera *>(ob->data);
   RAS_CameraData camdata(ca->lens,
@@ -728,18 +714,18 @@ static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene)
   return gamecamera;
 }
 
-static KX_GameObject *gameobject_from_blenderobject(Object *ob,
-                                                    KX_Scene *kxscene,
-                                                    RAS_Rasterizer *rasty,
-                                                    BL_BlenderSceneConverter *converter,
-                                                    bool libloading,
-                                                    bool converting_during_runtime)
+static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
+                                                       KX_Scene *kxscene,
+                                                       RAS_Rasterizer *rasty,
+                                                       BL_BlenderSceneConverter *converter,
+                                                       bool libloading,
+                                                       bool converting_during_runtime)
 {
   KX_GameObject *gameobj = nullptr;
 
   switch (ob->type) {
     case OB_LAMP: {
-      KX_LightObject *gamelight = gamelight_from_blamp(kxscene, ob);
+      KX_LightObject *gamelight = BL_gamelight_from_blamp(kxscene, ob);
       gameobj = gamelight;
       gamelight->AddRef();
       kxscene->GetLightList()->Add(gamelight);
@@ -748,7 +734,7 @@ static KX_GameObject *gameobject_from_blenderobject(Object *ob,
     }
 
     case OB_CAMERA: {
-      KX_Camera *gamecamera = gamecamera_from_bcamera(ob, kxscene);
+      KX_Camera *gamecamera = BL_gamecamera_from_bcamera(ob, kxscene);
       gameobj = gamecamera;
 
       // don't add a reference: the camera list in kxscene->m_cameras is not released at the end
@@ -777,7 +763,7 @@ static KX_GameObject *gameobject_from_blenderobject(Object *ob,
       gameobj->AddMesh(meshobj);
 
       // gather levels of detail
-      KX_LodManager *lodManager = lodmanager_from_blenderobject(
+      KX_LodManager *lodManager = BL_lodmanager_from_blenderobject(
           ob, kxscene, rasty, converter, libloading, converting_during_runtime);
       gameobj->SetLodManager(lodManager);
       if (lodManager) {
@@ -878,40 +864,17 @@ static KX_GameObject *gameobject_from_blenderobject(Object *ob,
   return gameobj;
 }
 
-struct parentChildLink {
+struct BL_parentChildLink {
   struct Object *m_blenderchild;
   SG_Node *m_gamechildnode;
 };
 
-static ListBase *get_active_constraints2(Object *ob)
+static ListBase *BL_GetActiveConstraint(Object *ob)
 {
   if (!ob)
     return nullptr;
 
   return &ob->constraints;
-}
-
-static void UNUSED_FUNCTION(print_active_constraints2)(Object *ob)  // not used, use to debug
-{
-  bConstraint *curcon;
-  ListBase *conlist = get_active_constraints2(ob);
-
-  if (conlist) {
-    for (curcon = (bConstraint *)conlist->first; curcon; curcon = (bConstraint *)curcon->next) {
-      CM_Debug(curcon->type);
-    }
-  }
-}
-
-// Copy base layer to object layer like in BKE_scene_set_background
-static void blenderSceneSetBackground(Scene *blenderscene)
-{
-  /*Scene *it;
-  Base *base;
-
-  for (SETLOOPER(blenderscene, it, base)) {
-    BKE_scene_base_flag_sync_from_base(base);
-  }*/
 }
 
 static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderobj)
@@ -996,7 +959,7 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
  * note: all var names match args are passed from the caller */
 static void bl_ConvertBlenderObject_Single(BL_BlenderSceneConverter *converter,
                                            Object *blenderobject,
-                                           std::vector<parentChildLink> &vec_parent_child,
+                                           std::vector<BL_parentChildLink> &vec_parent_child,
                                            CListValue<KX_GameObject> *logicbrick_conversionlist,
                                            CListValue<KX_GameObject> *objectlist,
                                            CListValue<KX_GameObject> *inactivelist,
@@ -1029,9 +992,9 @@ static void bl_ConvertBlenderObject_Single(BL_BlenderSceneConverter *converter,
 
   gameobj->SetName(blenderobject->id.name + 2);
 
-  // update children/parent hierarchy
+  // Update children/parent hierarchy
   if (blenderobject->parent != 0) {
-    // blender has an additional 'parentinverse' offset in each object
+    // Blender has an additional 'parentinverse' offset in each object
     SG_Callbacks callback(nullptr,
                           nullptr,
                           nullptr,
@@ -1039,11 +1002,11 @@ static void bl_ConvertBlenderObject_Single(BL_BlenderSceneConverter *converter,
                           KX_Scene::KX_ScenegraphRescheduleFunc);
     SG_Node *parentinversenode = new SG_Node(nullptr, kxscene, callback);
 
-    // define a normal parent relationship for this node.
+    // Define a normal parent relationship for this node.
     KX_NormalParentRelation *parent_relation = KX_NormalParentRelation::New();
     parentinversenode->SetParentRelation(parent_relation);
 
-    parentChildLink pclink;
+    BL_parentChildLink pclink;
     pclink.m_blenderchild = blenderobject;
     pclink.m_gamechildnode = parentinversenode;
     vec_parent_child.push_back(pclink);
@@ -1078,10 +1041,10 @@ static void bl_ConvertBlenderObject_Single(BL_BlenderSceneConverter *converter,
     parentinversenode->AddChild(gameobj->GetSGNode());
   }
 
-  // needed for python scripting
+  // Needed for python scripting
   logicmgr->RegisterGameObjectName(gameobj->GetName(), gameobj);
 
-  // needed for group duplication
+  // Needed for group duplication
   logicmgr->RegisterGameObj(blenderobject, gameobj);
   for (int i = 0; i < gameobj->GetMeshCount(); i++)
     logicmgr->RegisterGameMeshName(gameobj->GetMesh(i)->GetName(), blenderobject);
@@ -1202,7 +1165,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   // list of all object converted, active and inactive
   CListValue<KX_GameObject> *sumolist = new CListValue<KX_GameObject>();
 
-  std::vector<parentChildLink> vec_parent_child;
+  std::vector<BL_parentChildLink> vec_parent_child;
 
   CListValue<KX_GameObject> *objectlist = kxscene->GetObjectList();
   CListValue<KX_GameObject> *inactivelist = kxscene->GetInactiveList();
@@ -1257,7 +1220,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
     bool converting_during_runtime = single_object != nullptr;
 
-    KX_GameObject *gameobj = gameobject_from_blenderobject(
+    KX_GameObject *gameobj = BL_gameobject_from_blenderobject(
         blenderobject, kxscene, rendertools, converter, libloading, converting_during_runtime);
 
     if (gameobj) {
@@ -1303,7 +1266,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
             }
             bool converting_during_runtime = single_object != nullptr;
             groupobj.insert(blenderobject);
-            KX_GameObject *gameobj = gameobject_from_blenderobject(
+            KX_GameObject *gameobj = BL_gameobject_from_blenderobject(
                 blenderobject, kxscene, rendertools, converter, libloading, converting_during_runtime);
 
             bool isInActiveLayer = false;
@@ -1341,7 +1304,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   }
 
   // create hierarchy information
-  std::vector<parentChildLink>::iterator pcit;
+  std::vector<BL_parentChildLink>::iterator pcit;
 
   for (pcit = vec_parent_child.begin(); !(pcit == vec_parent_child.end()); ++pcit) {
 
@@ -1474,7 +1437,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
         continue;
       }
     }
-    ListBase *conlist = get_active_constraints2(blenderobject);
+    ListBase *conlist = BL_GetActiveConstraint(blenderobject);
     bConstraint *curcon;
 
     if (!conlist)

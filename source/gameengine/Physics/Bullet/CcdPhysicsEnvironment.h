@@ -289,7 +289,7 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
                              RAS_MeshObject *meshobj,
                              DerivedMesh *dm,
                              KX_Scene *kxscene,
-                             PHY_ShapeProps *shapeprops,
+                             const PHY_ShapeProps& shapeprops,
                              PHY_IMotionState *motionstate,
                              int activeLayerBitInfo,
                              bool isCompoundChild,

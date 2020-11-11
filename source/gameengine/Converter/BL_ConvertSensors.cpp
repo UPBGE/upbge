@@ -222,9 +222,9 @@ void BL_ConvertSensors(struct Object *blenderobject,
           if (eventmgr) {
             gamesensor = new SCA_KeyboardSensor(
                 eventmgr,
-                ConvertKeyCode(blenderkeybdsensor->key),
-                ConvertKeyCode(blenderkeybdsensor->qual),
-                ConvertKeyCode(blenderkeybdsensor->qual2),
+                BL_ConvertKeyCode(blenderkeybdsensor->key),
+                BL_ConvertKeyCode(blenderkeybdsensor->qual),
+                BL_ConvertKeyCode(blenderkeybdsensor->qual2),
                 (blenderkeybdsensor->type == SENS_ALL_KEYS),
                 blenderkeybdsensor->targetName,
                 blenderkeybdsensor->toggleName,

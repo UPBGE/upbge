@@ -2765,7 +2765,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter *converter,
                                           RAS_MeshObject *meshobj,
                                           DerivedMesh *dm,
                                           KX_Scene *kxscene,
-                                          PHY_ShapeProps *shapeprops,
+                                          const PHY_ShapeProps& shapeprops,
                                           PHY_IMotionState *motionstate,
                                           int activeLayerBitInfo,
                                           bool isCompoundChild,
@@ -2817,19 +2817,19 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter *converter,
       ((blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Y_ROT_AXIS) != 0) ? 0.0f : 1.0f,
       ((blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Z_ROT_AXIS) != 0) ? 0.0f : 1.0f);
   ci.m_localInertiaTensor = btVector3(0.0f, 0.0f, 0.0f);
-  ci.m_mass = isbulletdyna ? shapeprops->m_mass : 0.0f;
-  ci.m_clamp_vel_min = shapeprops->m_clamp_vel_min;
-  ci.m_clamp_vel_max = shapeprops->m_clamp_vel_max;
-  ci.m_clamp_angvel_min = shapeprops->m_clamp_angvel_min;
-  ci.m_clamp_angvel_max = shapeprops->m_clamp_angvel_max;
-  ci.m_stepHeight = isbulletchar ? shapeprops->m_step_height : 0.0f;
-  ci.m_jumpSpeed = isbulletchar ? shapeprops->m_jump_speed : 0.0f;
-  ci.m_fallSpeed = isbulletchar ? shapeprops->m_fall_speed : 0.0f;
+  ci.m_mass = isbulletdyna ? shapeprops.m_mass : 0.0f;
+  ci.m_clamp_vel_min = shapeprops.m_clamp_vel_min;
+  ci.m_clamp_vel_max = shapeprops.m_clamp_vel_max;
+  ci.m_clamp_angvel_min = shapeprops.m_clamp_angvel_min;
+  ci.m_clamp_angvel_max = shapeprops.m_clamp_angvel_max;
+  ci.m_stepHeight = isbulletchar ? shapeprops.m_step_height : 0.0f;
+  ci.m_jumpSpeed = isbulletchar ? shapeprops.m_jump_speed : 0.0f;
+  ci.m_fallSpeed = isbulletchar ? shapeprops.m_fall_speed : 0.0f;
   ci.m_maxSlope = isbulletchar ? blenderobject->max_slope : 0.0f;
-  ci.m_maxJumps = isbulletchar ? shapeprops->m_max_jumps : 0;
+  ci.m_maxJumps = isbulletchar ? shapeprops.m_max_jumps : 0;
 
-  ci.m_ccd_motion_threshold = (isbulletdyna || isbulletrigidbody) ? shapeprops->m_ccd_motion_threshold : 0.0;
-  ci.m_ccd_swept_sphere_radius = (isbulletdyna || isbulletrigidbody) ? shapeprops->m_ccd_swept_sphere_radius : 0.0;
+  ci.m_ccd_motion_threshold = (isbulletdyna || isbulletrigidbody) ? shapeprops.m_ccd_motion_threshold : 0.0;
+  ci.m_ccd_swept_sphere_radius = (isbulletdyna || isbulletrigidbody) ? shapeprops.m_ccd_swept_sphere_radius : 0.0;
 
   // mmm, for now, take this for the size of the dynamicobject
   // Blender uses inertia for radius of dynamic object
@@ -3145,28 +3145,26 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter *converter,
 
   ci.m_collisionShape = bm;
   ci.m_shapeInfo = shapeInfo;
-  ci.m_friction =
-      shapeprops->m_friction;  // tweak the friction a bit, so the default 0.5 works nice
-  ci.m_rollingFriction = shapeprops->m_rollingFriction;
-  ci.m_restitution = shapeprops->m_restitution;
+  ci.m_friction = shapeprops.m_friction;  // tweak the friction a bit, so the default 0.5 works nice
+  ci.m_rollingFriction = shapeprops.m_rollingFriction;
+  ci.m_restitution = shapeprops.m_restitution;
   ci.m_physicsEnv = this;
   // drag / damping is inverted
-  ci.m_linearDamping = 1.0f - shapeprops->m_lin_drag;
-  ci.m_angularDamping = 1.0f - shapeprops->m_ang_drag;
+  ci.m_linearDamping = 1.0f - shapeprops.m_lin_drag;
+  ci.m_angularDamping = 1.0f - shapeprops.m_ang_drag;
   // need a bit of damping, else system doesn't behave well
-  ci.m_inertiaFactor = shapeprops->m_inertia /
-                       0.4f;  // defaults to 0.4, don't want to change behavior
+  ci.m_inertiaFactor = shapeprops.m_inertia / 0.4f;  // defaults to 0.4, don't want to change behavior
 
-  ci.m_do_anisotropic = shapeprops->m_do_anisotropic;
-  ci.m_anisotropicFriction = ToBullet(shapeprops->m_friction_scaling);
+  ci.m_do_anisotropic = shapeprops.m_do_anisotropic;
+  ci.m_anisotropicFriction = ToBullet(shapeprops.m_friction_scaling);
 
   // do Fh, do Rot Fh
-  ci.m_do_fh = shapeprops->m_do_fh;
-  ci.m_do_rot_fh = shapeprops->m_do_rot_fh;
-  ci.m_fh_damping = shapeprops->m_fh_damping;
-  ci.m_fh_distance = shapeprops->m_fh_distance;
-  ci.m_fh_normal = shapeprops->m_fh_normal;
-  ci.m_fh_spring = shapeprops->m_fh_spring;
+  ci.m_do_fh = shapeprops.m_do_fh;
+  ci.m_do_rot_fh = shapeprops.m_do_rot_fh;
+  ci.m_fh_damping = shapeprops.m_fh_damping;
+  ci.m_fh_distance = shapeprops.m_fh_distance;
+  ci.m_fh_normal = shapeprops.m_fh_normal;
+  ci.m_fh_spring = shapeprops.m_fh_spring;
 
   ci.m_collisionFilterGroup = (isbulletsensor) ?
                                   short(CcdConstructionInfo::SensorFilter) :

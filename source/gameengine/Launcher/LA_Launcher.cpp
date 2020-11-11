@@ -140,7 +140,7 @@ void LA_Launcher::InitEngine()
   // Setup python console keys used as shortcut.
   for (unsigned short i = 0; i < 4; ++i) {
 	  if (gm.pythonkeys[i] != EVENT_NONE) {
-		  m_pythonConsole.keys.push_back(ConvertKeyCode(gm.pythonkeys[i]));
+      m_pythonConsole.keys.push_back(BL_ConvertKeyCode(gm.pythonkeys[i]));
 	  }
   }
   m_pythonConsole.use = (gm.flag & GAME_PYTHON_CONSOLE);
@@ -209,7 +209,7 @@ void LA_Launcher::InitEngine()
 
   DEV_Joystick::Init();
 
-  m_ketsjiEngine->SetExitKey(ConvertKeyCode(gm.exitkey));
+  m_ketsjiEngine->SetExitKey(BL_ConvertKeyCode(gm.exitkey));
 #ifdef WITH_PYTHON
   CValue::SetDeprecationWarnings(nodepwarnings);
 #else
