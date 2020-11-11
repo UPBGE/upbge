@@ -197,8 +197,18 @@ void KX_FontObject::UpdateTextFromProperty()
 {
 	// Allow for some logic brick control
 	EXP_Value *prop = GetProperty("Text");
+	EXP_Value *propR = GetProperty("Text-Res");
+	
 	if (prop && prop->GetText() != m_text) {
 		SetText(prop->GetText());
+	}
+	if (propR && propR->GetText() != m_res) {
+		m_resolution = std::stof(propR->GetText());
+		m_res = m_resolution;
+		const float RES = BGE_FONT_RES * m_resolution;
+
+		const float size = fabs(m_fsize * NodeGetWorldScaling()[0] * RES);
+		const float aspect = m_fsize / size;
 	}
 }
 

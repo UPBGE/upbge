@@ -24,10 +24,12 @@ class LOGIC_PT_components(bpy.types.Panel):
     bl_space_type = 'LOGIC_EDITOR'
     bl_region_type = 'UI'
     bl_label = 'Components'
-
+    bpy.types.Scene.icons_Show = bpy.props.BoolProperty(default = False, name="Component Icons",description="Show/Hide Component Icons")
+    
     @classmethod
     def poll(cls, context):
         ob = context.active_object
+        
         return ob and ob.name
 
     def draw(self, context):
@@ -35,8 +37,9 @@ class LOGIC_PT_components(bpy.types.Panel):
 
         ob = context.active_object
         game = ob.game
-
+        
         st = context.space_data
+        scene = context.scene
 
         row = layout.row()
         row.operator("logic.python_component_register", text="Register Component", icon="ZOOMIN")
@@ -47,16 +50,35 @@ class LOGIC_PT_components(bpy.types.Panel):
             row = box.row()
             row.prop(c, "show_expanded", text="", emboss=False)
             row.label(c.name)
+            
+            for prop in c.properties:
+                    if prop.name == "C_Icons":
+                        if scene.icons_Show:
+                            row.prop(prop,"value", text="")
+                        row.prop(scene, "icons_Show", text="", icon="INFO", toggle=True)   
             row.operator("logic.python_component_reload", text="", icon='RECOVER_LAST').index = i
             row.operator("logic.python_component_remove", text="", icon='X').index = i
-
+            
             if c.show_expanded and len(c.properties) > 0:
                 box = box.box()
+                iconval = 0
                 for prop in c.properties:
                     row = box.row()
-                    row.label(text=prop.name)
-                    col = row.column()
-                    col.prop(prop, "value", text="")
+                    if prop.name == "C_Icons":
+                        try:
+                            icondict = prop.value.split("+")
+                        except:
+                            pass
+                        continue
+                    try:
+                        row.label(text=prop.name, icon=icondict[iconval])
+                        iconval += 1
+                        col = row.column()
+                        col.prop(prop, "value", text="")
+                    except:
+                        row.label(text=prop.name)
+                        col = row.column()
+                        col.prop(prop, "value", text="")
 
 
 class LOGIC_PT_properties(Panel):
@@ -77,30 +99,44 @@ class LOGIC_PT_properties(Panel):
         is_font = (ob.type == 'FONT')
 
         if is_font:
-            prop_index = game.properties.find("Text")
-            if prop_index != -1:
+            prop_index, prop_indexR = game.properties.find("Text"), game.properties.find("Text-Res")
+
+            if prop_index != -1: #and prop_indexR != -1:
                 layout.operator("object.game_property_remove", text="Remove Text Game Property", icon='X').index = prop_index
                 row = layout.row()
                 sub = row.row()
                 sub.enabled = 0
                 prop = game.properties[prop_index]
-                sub.prop(prop, "name", text="")
+                sub.prop(prop, "name", text="", icon="FONT_DATA")
                 row.prop(prop, "type", text="")
-                # get the property from the body, not the game property
-                # note, don't do this - it's too slow and body can potentially be a really long string.
-                #~ row.prop(ob.data, "body", text="")
                 row.label("See Text Object")
+                
+                if prop_indexR != -1:
+                    sub = row.row(align=True)
+                    sub.operator("object.game_property_remove", text="", icon='X').index = prop_indexR
+                    row = layout.row()
+                    sub = row.row()
+                    sub.enabled = 0
+                    prop = game.properties[prop_indexR]
+                    sub.prop(prop, "name", text="", icon="FONT_DATA")
+                    row.prop(prop, "value", text="Resolution")
+                    row.label("Text Resolution(0-50)")
+                else:
+                    sub = row.row(align=True)
+                    propsR = sub.operator("object.game_property_new", text="", icon='ZOOMIN',)
+                    propsR.name = "Text-Res"
+                    propsR.type = 'FLOAT'
             else:
                 props = layout.operator("object.game_property_new", text="Add Text Game Property", icon='ZOOMIN')
                 props.name = "Text"
                 props.type = 'STRING'
-
+                
         props = layout.operator("object.game_property_new", text="Add Game Property", icon='ZOOMIN')
         props.name = ""
 
         for i, prop in enumerate(game.properties):
 
-            if is_font and i == prop_index:
+            if is_font and i == prop_index or is_font and i == prop_indexR:
                 continue
 
             box = layout.box()

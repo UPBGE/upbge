@@ -73,6 +73,7 @@ public:
 
 protected:
 	std::string m_text;
+	std::string m_res;
 	std::vector<std::string> m_texts;
 	Object *m_object;
 	int m_fontid;
