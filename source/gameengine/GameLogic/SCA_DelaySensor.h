@@ -28,9 +28,9 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file SCA_DelaySensor.h
- *  \ingroup gamelogic
- */
+ /** \file SCA_DelaySensor.h
+  *  \ingroup gamelogic
+  */
 
 #ifndef __SCA_DELAYSENSOR_H__
 #define __SCA_DELAYSENSOR_H__
@@ -39,18 +39,23 @@
 class SCA_DelaySensor : public SCA_ISensor
 {
 	Py_Header
-	bool			m_lastResult;
+		bool			m_lastResult;
 	bool			m_repeat;
-	int				m_delay; 
+	bool			m_isseconds;
+	int				m_delay;
 	int				m_duration;
+	int				m_repeatfor;
 	int				m_frameCount;
+	int				m_tickSec;
 
 public:
 	SCA_DelaySensor(class SCA_EventManager* eventmgr,
-					SCA_IObject* gameobj,
-					int delay,
-					int duration,
-					bool repeat);
+		SCA_IObject* gameobj,
+		int delay,
+		int duration,
+		int repeatfor,
+		bool repeat,
+		bool flagsec);
 	virtual ~SCA_DelaySensor();
 	virtual EXP_Value* GetReplica();
 	virtual bool Evaluate();

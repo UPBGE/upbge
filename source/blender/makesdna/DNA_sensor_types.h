@@ -93,6 +93,8 @@ typedef struct bDelaySensor {
 	short delay;
 	short duration;
 	short flag;
+	short flagsec;
+	short repeat_times;
 	short pad;
 } bDelaySensor;
 
@@ -366,6 +368,7 @@ typedef struct bMovementSensor {
 #define SENS_JOY_RIGHT_SHOULDER_TRIGGER	2
 
 #define SENS_DELAY_REPEAT		1
+#define SENS_DELAY_SECONDS		1
 // should match JOYINDEX_MAX in SCA_JoystickDefines.h */
 #define SENS_JOY_MAXINDEX		8
 

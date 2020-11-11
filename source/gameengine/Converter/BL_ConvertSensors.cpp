@@ -152,7 +152,9 @@ void BL_ConvertSensors(struct Object *blenderobject,
 						                                 gameobj,
 						                                 delaysensor->delay,
 						                                 delaysensor->duration,
-						                                 (delaysensor->flag & SENS_DELAY_REPEAT) != 0);
+														 delaysensor->repeat_times,
+						                                 (delaysensor->flag & SENS_DELAY_REPEAT) != 0,
+						                                 (delaysensor->flagsec & SENS_DELAY_SECONDS) != 0);
 					}
 					break;
 				}

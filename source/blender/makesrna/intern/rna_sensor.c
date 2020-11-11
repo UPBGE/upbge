@@ -630,7 +630,23 @@ static void rna_def_delay_sensor(BlenderRNA *brna)
 	                         "Toggle repeat option (if selected, the sensor restarts after Delay+Duration "
 	                         "logic tics)");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop = RNA_def_property(srna, "repeat_times", PROP_INT, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Repeat For",
+		"number of times the sensor will act"
+		"");
+	RNA_def_property_range(prop, 0, 5000);
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop = RNA_def_property(srna, "use_seconds", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flagsec", SENS_DELAY_SECONDS);
+	RNA_def_property_ui_text(prop, "Seconds",
+		"Toggle delay for seconds"
+		"");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
 }
+
+
 
 static void rna_def_collision_sensor(BlenderRNA *brna)
 {

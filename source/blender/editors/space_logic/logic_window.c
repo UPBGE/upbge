@@ -969,13 +969,18 @@ static void draw_sensor_collision(uiLayout *layout, PointerRNA *ptr, bContext *C
 
 static void draw_sensor_delay(uiLayout *layout, PointerRNA *ptr)
 {
-	uiLayout *row;
+	uiLayout *row, *split;
 
 	row = uiLayoutRow(layout, false);
 
 	uiItemR(row, ptr, "delay", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "duration", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "use_repeat", 0, NULL, ICON_NONE);
+	split = uiLayoutSplit(layout, 1.0f, false);
+	row = uiLayoutRow(split, false);
+	uiItemR(row, ptr, "repeat_times", 0, NULL, ICON_NONE);
+	uiItemR(row, ptr, "use_seconds", 0, NULL, ICON_NONE);
+	
 }
 
 static void draw_sensor_joystick(uiLayout *layout, PointerRNA *ptr)
