@@ -158,21 +158,21 @@ base class --- :class:`PyObjectPlus`
 
       Used to avoid blur effect caused by temporal antialiasing when doing changes with bpy API.
 
-   .. code-block:: python
+      .. code-block:: python
 
-      import bpy, bge
+         import bpy, bge
 
-      # Get the timeline current frame
-      currentFrame = bpy.data.scenes["Scene"].frame_current
+         # Get the timeline current frame
+         currentFrame = bpy.data.scenes["Scene"].frame_current
 
-      # Max timeline frame
-      maxFrame = 250
+         # Max timeline frame
+         maxFrame = 250
 
-      # Increase timeline frame by 1 without going above maxFrame
-      bpy.data.scenes["Scene"].frame_set((currentFrame + 1) % maxFrame)
+         # Increase timeline frame by 1 without going above maxFrame
+         bpy.data.scenes["Scene"].frame_set((currentFrame + 1) % maxFrame)
 
-      # Reset temporal antialiasing samples to avoid blur
-      bge.logic.getCurrentScene().resetTaaSamples = True
+         # Reset temporal antialiasing samples to avoid blur
+         bge.logic.getCurrentScene().resetTaaSamples = True
 
       :type: boolean
 
@@ -240,7 +240,7 @@ base class --- :class:`PyObjectPlus`
       inside the List into several KX_GameObject to have logic bricks, physics... converted. This is meant to replace libload. 
       The conversion can be asynchronous or synchronous.
 
-      :arg blenderObjectsList: The collection to be converted.
+      :arg blenderObjectsList: The Object list to be converted.
       :type blenderObjectsList: bpy.types.Object list
       :arg asynchronous: The Object list conversion can be asynchronous or not.
       :type asynchronous: boolean
