@@ -69,7 +69,7 @@ void DrawRasterizerLine(const float *from, const float *to, int color);
 class VehicleClosestRayResultCallback : public btCollisionWorld::ClosestRayResultCallback {
  private:
   const btCollisionShape *m_hitTriangleShape;
-  short m_mask;
+  unsigned short m_mask;
 
  public:
   VehicleClosestRayResultCallback(const btVector3 &rayFrom, const btVector3 &rayTo, short mask)
@@ -103,7 +103,7 @@ class VehicleClosestRayResultCallback : public btCollisionWorld::ClosestRayResul
 class BlenderVehicleRaycaster : public btDefaultVehicleRaycaster {
  private:
   btDynamicsWorld *m_dynamicsWorld;
-  short m_mask;
+  unsigned short m_mask;
 
  public:
   BlenderVehicleRaycaster(btDynamicsWorld *world)
