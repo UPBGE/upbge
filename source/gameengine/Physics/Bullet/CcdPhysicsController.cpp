@@ -122,6 +122,16 @@ void BlenderBulletCharacterController::SetFallSpeed(float fallSpeed)
   setFallSpeed(fallSpeed);
 }
 
+float BlenderBulletCharacterController::GetMaxSlope() const
+{
+  return m_maxSlopeRadians;
+}
+
+void BlenderBulletCharacterController::SetMaxSlope(float maxSlope)
+{
+  setMaxSlope(maxSlope);
+}
+
 float BlenderBulletCharacterController::GetJumpSpeed() const
 {
   return m_jumpSpeed;

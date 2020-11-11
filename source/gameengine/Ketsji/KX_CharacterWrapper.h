@@ -38,6 +38,10 @@ class KX_CharacterWrapper : public CValue {
   static int pyattr_set_max_jumps(PyObjectPlus *self_v,
                                   const KX_PYATTRIBUTE_DEF *attrdef,
                                   PyObject *value);
+  static PyObject *pyattr_get_maxSlope(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_maxSlope(PyObjectPlus *self_v,
+                                 const KX_PYATTRIBUTE_DEF *attrdef,
+                                 PyObject *value);
   static PyObject *pyattr_get_jump_count(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_jumpSpeed(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_jumpSpeed(PyObjectPlus *self_v,

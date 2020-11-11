@@ -31,6 +31,9 @@ class PHY_ICharacter {
   virtual float GetFallSpeed() const = 0;
   virtual void SetFallSpeed(float fallSpeed) = 0;
 
+  virtual float GetMaxSlope() const = 0;
+  virtual void SetMaxSlope(float maxSlope) = 0;
+
   virtual float GetJumpSpeed() const = 0;
   virtual void SetJumpSpeed(float jumpSpeed) = 0;
 

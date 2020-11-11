@@ -41,7 +41,6 @@ set(SRC
 	PHY_IPhysicsController.h
 	PHY_IPhysicsEnvironment.h
 	PHY_IVehicle.h
-	PHY_Pro.h
 )
 
 set(LIB

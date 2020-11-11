@@ -45,6 +45,12 @@ base class --- :class:`PyObjectPlus`
 
       :type: float
 
+   .. attribute:: maxSlope
+
+      The maximum slope which the character can climb.
+
+      :type: float
+
    .. attribute:: walkDirection
 
       The speed and direction the character is traveling in using world coordinates. This should be used instead of applyMovement() to properly move the character.
