@@ -12,34 +12,30 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2013 Blender Foundation
- * All rights reserved.
  */
 
 /** \file
- * \ingroup openimageio
+ * \ingroup spoutliner
+ *
+ * Functions and helpers shared between tree-display types or other tree related code.
  */
 
-#pragma once
+#include "BKE_idtype.h"
 
-#include <stdio.h>
+#include "RNA_access.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "tree_display.hh"
 
-struct ImBuf;
+/* -------------------------------------------------------------------- */
+/** \name ID Helpers.
+ *
+ * \{ */
 
-bool imb_is_a_photoshop(const unsigned char *mem, const size_t size);
-
-int imb_save_photoshop(struct ImBuf *ibuf, const char *name, int flags);
-
-struct ImBuf *imb_load_photoshop(const char *name, int flags, char *colorspace);
-
-int OIIO_getVersionHex(void);
-
-#ifdef __cplusplus
+const char *outliner_idcode_to_plural(short idcode)
+{
+  const char *propname = BKE_idtype_idcode_to_name_plural(idcode);
+  PropertyRNA *prop = RNA_struct_type_find_property(&RNA_BlendData, propname);
+  return (prop) ? RNA_property_ui_name(prop) : "UNKNOWN";
 }
 
-#endif
+/** \} */

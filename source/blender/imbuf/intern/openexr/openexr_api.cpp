@@ -330,8 +330,12 @@ extern "C" {
  * Test presence of OpenEXR file.
  * \param mem: pointer to loaded OpenEXR bitstream
  */
-int imb_is_a_openexr(const unsigned char *mem)
+bool imb_is_a_openexr(const unsigned char *mem, const size_t size)
 {
+  /* No define is exposed for this size. */
+  if (size < 4) {
+    return false;
+  }
   return Imf::isImfMagic((const char *)mem);
 }
 
@@ -586,7 +590,7 @@ static bool imb_save_openexr_float(ImBuf *ibuf, const char *name, const int flag
   return true;
 }
 
-int imb_save_openexr(struct ImBuf *ibuf, const char *name, int flags)
+bool imb_save_openexr(struct ImBuf *ibuf, const char *name, int flags)
 {
   if (flags & IB_mem) {
     imb_addencodedbufferImBuf(ibuf);
@@ -594,15 +598,15 @@ int imb_save_openexr(struct ImBuf *ibuf, const char *name, int flags)
   }
 
   if (ibuf->foptions.flag & OPENEXR_HALF) {
-    return (int)imb_save_openexr_half(ibuf, name, flags);
+    return imb_save_openexr_half(ibuf, name, flags);
   }
 
   /* when no float rect, we save as half (16 bits is sufficient) */
   if (ibuf->rect_float == nullptr) {
-    return (int)imb_save_openexr_half(ibuf, name, flags);
+    return imb_save_openexr_half(ibuf, name, flags);
   }
 
-  return (int)imb_save_openexr_float(ibuf, name, flags);
+  return imb_save_openexr_float(ibuf, name, flags);
 }
 
 /* ******* Nicer API, MultiLayer and with Tile file support ************************************ */
@@ -1905,7 +1909,7 @@ struct ImBuf *imb_load_openexr(const unsigned char *mem,
   IMemStream *membuf = nullptr;
   MultiPartInputFile *file = nullptr;
 
-  if (imb_is_a_openexr(mem) == 0) {
+  if (imb_is_a_openexr(mem, size) == 0) {
     return nullptr;
   }
 

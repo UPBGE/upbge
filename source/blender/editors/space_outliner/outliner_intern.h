@@ -25,6 +25,10 @@
 
 #include "RNA_types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* internal exports only */
 
 struct ARegion;
@@ -41,6 +45,13 @@ struct bContext;
 struct bPoseChannel;
 struct wmKeyConfig;
 struct wmOperatorType;
+
+typedef struct SpaceOutliner_Runtime {
+  /**
+   * Internal C++ object to create and manage the tree for a specific display type (View Layers,
+   * Scenes, Blender File, etc.). */
+  struct TreeDisplay *tree_display;
+} SpaceOutliner_Runtime;
 
 typedef enum TreeElementInsertType {
   TE_INSERT_BEFORE,
@@ -250,6 +261,8 @@ TreeTraversalAction outliner_find_selected_objects(struct TreeElement *te, void 
 /* outliner_draw.c ---------------------------------------------- */
 
 void draw_outliner(const struct bContext *C);
+
+void outliner_tree_dimensions(struct SpaceOutliner *space_outliner, int *r_width, int *r_height);
 
 TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te);
 
@@ -525,10 +538,14 @@ bool outliner_tree_traverse(const SpaceOutliner *space_outliner,
 float outliner_restrict_columns_width(const struct SpaceOutliner *space_outliner);
 TreeElement *outliner_find_element_with_flag(const ListBase *lb, short flag);
 bool outliner_is_element_visible(const TreeElement *te);
-void outliner_scroll_view(struct ARegion *region, int delta_y);
+void outliner_scroll_view(struct SpaceOutliner *space_outliner, struct ARegion *region, int delta_y);
 void outliner_tag_redraw_avoid_rebuild_on_open_change(const struct SpaceOutliner *space_outliner,
                                                       struct ARegion *region);
 
 /* outliner_sync.c ---------------------------------------------- */
 
 void outliner_sync_selection(const struct bContext *C, struct SpaceOutliner *space_outliner);
+
+#ifdef __cplusplus
+}
+#endif
