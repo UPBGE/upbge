@@ -49,33 +49,41 @@ class LOGIC_PT_components(bpy.types.Panel):
             box = layout.box()
             row = box.row()
             row.prop(c, "show_expanded", text="", emboss=False)
-            row.label(c.name)
-            
+            if "C_Icons" in c.properties:
+                try:
+                    icondict = c.properties["C_Icons"].value.split("+")
+                    row.label(c.name, icon=icondict[0])
+                except:
+                    row.label(c.name)
+            else:
+                row.label(c.name)
             for prop in c.properties:
                     if prop.name == "C_Icons":
                         if scene.icons_Show:
                             row.prop(prop,"value", text="")
-                        row.prop(scene, "icons_Show", text="", icon="INFO", toggle=True)   
+                        row.prop(scene, "icons_Show", text="", icon="INFO", toggle=True)
             row.operator("logic.python_component_reload", text="", icon='RECOVER_LAST').index = i
             row.operator("logic.python_component_remove", text="", icon='X').index = i
-            
             if c.show_expanded and len(c.properties) > 0:
                 box = box.box()
-                iconval = 0
+                iconval = 1
                 for prop in c.properties:
                     row = box.row()
                     if prop.name == "C_Icons":
-                        try:
-                            icondict = prop.value.split("+")
-                        except:
-                            pass
                         continue
                     try:
-                        row.label(text=prop.name, icon=icondict[iconval])
-                        iconval += 1
-                        col = row.column()
-                        col.prop(prop, "value", text="")
+                        if "C_Icons" in c.properties:
+                            row.label(text=prop.name, icon=icondict[iconval])
+                            iconval += 1
+                            col = row.column()
+                            col.prop(prop, "value", text="")
+                        else:
+                            row.label(text=prop.name)
+                            col = row.column()
+                            col.prop(prop, "value", text="")
                     except:
+                        if c.properties["C_Icons"].value != str():
+                            print("warning: {} in 'C_Icons' Must be STRING! like that ('C_Icons','BLENDER+QUESTION')".format(c.name))
                         row.label(text=prop.name)
                         col = row.column()
                         col.prop(prop, "value", text="")
