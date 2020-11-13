@@ -70,6 +70,8 @@ class LOGIC_PT_components(bpy.types.Panel):
                 for prop in c.properties:
                     row = box.row()
                     if prop.name == "C_Icons":
+                        if type(prop.value) != type(str()):
+                            print("warning: {} in 'C_Icons' Must be STRING! like that ('C_Icons','BLENDER+QUESTION')".format(c.name))
                         continue
                     try:
                         if "C_Icons" in c.properties:
@@ -82,8 +84,6 @@ class LOGIC_PT_components(bpy.types.Panel):
                             col = row.column()
                             col.prop(prop, "value", text="")
                     except:
-                        if c.properties["C_Icons"].value != str():
-                            print("warning: {} in 'C_Icons' Must be STRING! like that ('C_Icons','BLENDER+QUESTION')".format(c.name))
                         row.label(text=prop.name)
                         col = row.column()
                         col.prop(prop, "value", text="")
