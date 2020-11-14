@@ -278,6 +278,19 @@ typedef struct PanelType {
   ExtensionRNA rna_ext;
 } PanelType;
 
+/* #PanelType.flag */
+enum {
+  PANEL_TYPE_DEFAULT_CLOSED = (1 << 0),
+  PANEL_TYPE_NO_HEADER = (1 << 1),
+  /** Makes buttons in the header shrink/stretch to fill full layout width. */
+  PANEL_TYPE_HEADER_EXPAND = (1 << 2),
+  PANEL_TYPE_LAYOUT_VERT_BAR = (1 << 3),
+  /** This panel type represents data external to the UI. */
+  PANEL_TYPE_INSTANCED = (1 << 4),
+  /** Draw panel like a box widget. */
+  PANEL_TYPE_DRAW_BOX = (1 << 6),
+};
+
 /* uilist types */
 
 /* Draw an item in the uiList */

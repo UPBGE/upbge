@@ -159,7 +159,7 @@ int IMB_ispic_type_from_memory(const unsigned char *buf, const size_t buf_size)
     }
   }
 
-  return 0;
+  return IMB_FTYPE_NONE;
 }
 
 int IMB_ispic_type(const char *filepath)
@@ -167,7 +167,7 @@ int IMB_ispic_type(const char *filepath)
   unsigned char buf[HEADER_SIZE];
   const ssize_t buf_size = imb_ispic_read_header_from_filepath(filepath, buf);
   if (buf_size <= 0) {
-    return 0;
+    return IMB_FTYPE_NONE;
   }
   return IMB_ispic_type_from_memory(buf, (size_t)buf_size);
 }
@@ -180,14 +180,13 @@ bool IMB_ispic_type_matches(const char *filepath, int filetype)
     return false;
   }
 
-  for (const ImFileType *type = IMB_FILE_TYPES; type < IMB_FILE_TYPES_LAST; type++) {
-    if (type->filetype == filetype) {
-      /* Requesting to load a type that can't check it's own header doesn't make sense.
-       * Keep the check for developers. */
-      BLI_assert(type->is_a != NULL);
-      if (type->is_a != NULL) {
-        return type->is_a(buf, (size_t)buf_size);
-      }
+  const ImFileType *type = IMB_file_type_from_ftype(filetype);
+  if (type != NULL) {
+    /* Requesting to load a type that can't check it's own header doesn't make sense.
+     * Keep the check for developers. */
+    BLI_assert(type->is_a != NULL);
+    if (type->is_a != NULL) {
+      return type->is_a(buf, (size_t)buf_size);
     }
   }
   return false;
@@ -197,7 +196,7 @@ bool IMB_ispic_type_matches(const char *filepath, int filetype)
 
 bool IMB_ispic(const char *filepath)
 {
-  return (IMB_ispic_type(filepath) != 0);
+  return (IMB_ispic_type(filepath) != IMB_FTYPE_NONE);
 }
 
 static bool isavi(const char *filepath)
@@ -416,11 +415,10 @@ bool IMB_isanim(const char *filepath)
 
 bool IMB_isfloat(const ImBuf *ibuf)
 {
-  const ImFileType *type;
-
-  for (type = IMB_FILE_TYPES; type < IMB_FILE_TYPES_LAST; type++) {
-    if (type->ftype(type, ibuf)) {
-      return (type->flag & IM_FTYPE_FLOAT) != 0;
+  const ImFileType *type = IMB_file_type_from_ibuf(ibuf);
+  if (type != NULL) {
+    if (type->flag & IM_FTYPE_FLOAT) {
+      return true;
     }
   }
   return false;
