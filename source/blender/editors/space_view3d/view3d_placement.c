@@ -763,7 +763,10 @@ static void view3d_interactive_add_begin(bContext *C, wmOperator *op, const wmEv
         ipd->snap_gizmo = gzgroup->gizmos.first;
       }
 
-      preview_plane_cursor_visible_set(gzgroup, false);
+      /* Can be NULL when gizmos are disabled. */
+      if (gzgroup->customdata != NULL) {
+        preview_plane_cursor_visible_set(gzgroup, false);
+      }
     }
   }
 
@@ -881,7 +884,9 @@ static void view3d_interactive_add_exit(bContext *C, wmOperator *op)
   {
     wmGizmoGroup *gzgroup = idp_gizmogroup_from_region(ipd->region);
     if (gzgroup != NULL) {
-      preview_plane_cursor_visible_set(gzgroup, true);
+      if (gzgroup->customdata != NULL) {
+        preview_plane_cursor_visible_set(gzgroup, true);
+      }
     }
   }
 

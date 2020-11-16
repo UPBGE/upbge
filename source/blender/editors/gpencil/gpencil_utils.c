@@ -2250,7 +2250,7 @@ static void gpencil_insert_point(bGPdata *gpd,
                                  bGPDspoint *a_pt,
                                  bGPDspoint *b_pt,
                                  const float co_a[3],
-                                 float co_b[3])
+                                 const float co_b[3])
 {
   bGPDspoint *temp_points;
   int totnewpoints, oldtotpoints;
@@ -2647,7 +2647,7 @@ void ED_gpencil_select_curve_toggle_all(bContext *C, int action)
     GP_EDITABLE_CURVES_END(gps_iter);
   }
   else {
-    GP_EDITABLE_STROKES_BEGIN(gps_iter, C, gpl, gps){
+    GP_EDITABLE_STROKES_BEGIN (gps_iter, C, gpl, gps) {
       Object *ob = CTX_data_active_object(C);
       bGPdata *gpd = ob->data;
       bool selected = false;
