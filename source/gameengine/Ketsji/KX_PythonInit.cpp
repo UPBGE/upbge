@@ -2137,31 +2137,38 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char **argv, bContext
    */
 
   static bool first_time = true;
-  const char *const py_path_bundle = BKE_appdir_folder_id(BLENDER_SYSTEM_PYTHON, nullptr);
-
-  /* not essential but nice to set our name */
-  static wchar_t program_path_wchar[FILE_MAX]; /* python holds a reference */
-  BLI_strncpy_wchar_from_utf8(
-      program_path_wchar, BKE_appdir_program_path(), ARRAY_SIZE(program_path_wchar));
-  Py_SetProgramName(program_path_wchar);
-
-  /* Update, Py3.3 resolves attempting to parse non-existing header */
-#  if 0
-	/* Python 3.2 now looks for '2.xx/python/include/python3.2d/pyconfig.h' to
-	 * parse from the 'sysconfig' module which is used by 'site',
-	 * so for now disable site. alternatively we could copy the file. */
-	if (py_path_bundle != nullptr) {
-		Py_NoSiteFlag = 1; /* inhibits the automatic importing of 'site' */
-	}
-#  endif
+  /* Needed for Python's initialization for portable Python installations.
+   * We could use #Py_SetPath, but this overrides Python's internal logic
+   * for calculating it's own module search paths.
+   *
+   * `sys.executable` is overwritten after initialization to the Python binary. */
+  {
+    const char *program_path = BKE_appdir_program_path();
+    wchar_t program_path_wchar[FILE_MAX];
+    BLI_strncpy_wchar_from_utf8(program_path_wchar, program_path, ARRAY_SIZE(program_path_wchar));
+    Py_SetProgramName(program_path_wchar);
+  }
 
   /* must run before python initializes */
   PyImport_ExtendInittab(bge_internal_modules);
   /* must run before python initializes */
   PyImport_ExtendInittab(bpy_internal_modules);
 
-  /* find local python installation */
-  PyC_SetHomePath(py_path_bundle);
+  /* Allow to use our own included Python. `py_path_bundle` may be NULL. */
+  {
+    const char *py_path_bundle = BKE_appdir_folder_id(BLENDER_SYSTEM_PYTHON, NULL);
+    if (py_path_bundle != NULL) {
+      PyC_SetHomePath(py_path_bundle);
+    }
+    else {
+      /* Common enough to use the system Python on Linux/Unix, warn on other systems. */
+#  if defined(__APPLE__) || defined(_WIN32)
+      fprintf(stderr,
+              "Bundled Python not found and is expected on this platform "
+              "(the 'install' target may have not been built)\n");
+#  endif
+    }
+  }
 
   /* without this the sys.stdout may be set to 'ascii'
    * (it is on my system at least), where printing unicode values will raise
@@ -2284,29 +2291,36 @@ void initGamePythonScripting(Main *maggie, bool audioDeviceIsInitialized)
    */
 
   static bool first_time = true;
-  const char *const py_path_bundle = BKE_appdir_folder_id(BLENDER_SYSTEM_PYTHON, nullptr);
-
-  /* not essential but nice to set our name */
-  static wchar_t program_path_wchar[FILE_MAX]; /* python holds a reference */
-  BLI_strncpy_wchar_from_utf8(
-      program_path_wchar, BKE_appdir_program_path(), ARRAY_SIZE(program_path_wchar));
-  Py_SetProgramName(program_path_wchar);
-
-  /* Update, Py3.3 resolves attempting to parse non-existing header */
-#  if 0
-	/* Python 3.2 now looks for '2.xx/python/include/python3.2d/pyconfig.h' to
-	 * parse from the 'sysconfig' module which is used by 'site',
-	 * so for now disable site. alternatively we could copy the file. */
-	if (py_path_bundle != nullptr) {
-		Py_NoSiteFlag = 1; /* inhibits the automatic importing of 'site' */
-	}
-#  endif
+  /* Needed for Python's initialization for portable Python installations.
+   * We could use #Py_SetPath, but this overrides Python's internal logic
+   * for calculating it's own module search paths.
+   *
+   * `sys.executable` is overwritten after initialization to the Python binary. */
+  {
+    const char *program_path = BKE_appdir_program_path();
+    wchar_t program_path_wchar[FILE_MAX];
+    BLI_strncpy_wchar_from_utf8(program_path_wchar, program_path, ARRAY_SIZE(program_path_wchar));
+    Py_SetProgramName(program_path_wchar);
+  }
 
   /* must run before python initializes */
   PyImport_ExtendInittab(bge_internal_modules);
 
-  /* find local python installation */
-  PyC_SetHomePath(py_path_bundle);
+  /* Allow to use our own included Python. `py_path_bundle` may be NULL. */
+  {
+    const char *py_path_bundle = BKE_appdir_folder_id(BLENDER_SYSTEM_PYTHON, NULL);
+    if (py_path_bundle != NULL) {
+      PyC_SetHomePath(py_path_bundle);
+    }
+    else {
+      /* Common enough to use the system Python on Linux/Unix, warn on other systems. */
+#  if defined(__APPLE__) || defined(_WIN32)
+      fprintf(stderr,
+              "Bundled Python not found and is expected on this platform "
+              "(the 'install' target may have not been built)\n");
+#  endif
+    }
+  }
 
   /* without this the sys.stdout may be set to 'ascii'
    * (it is on my system at least), where printing unicode values will raise
