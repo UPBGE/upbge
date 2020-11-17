@@ -119,16 +119,6 @@ void KX_NavMeshObject::ProcessReplica()
 {
 	KX_GameObject::ProcessReplica();
 	m_navMesh = nullptr;
-
-	if (!BuildNavMesh()) {
-		CM_FunctionError("unable to build navigation mesh");
-		return;
-	}
-
-	KX_ObstacleSimulation *obssimulation = GetScene()->GetObstacleSimulation();
-	if (obssimulation) {
-		obssimulation->AddObstaclesForNavMesh(this);
-	}
 }
 
 int KX_NavMeshObject::GetGameObjectType() const
@@ -304,6 +294,12 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 
 bool KX_NavMeshObject::BuildNavMesh()
 {
+  KX_ObstacleSimulation *obssimulation = GetScene()->GetObstacleSimulation();
+
+  if (obssimulation) {
+    obssimulation->DestroyObstacleForObj(this);
+  }
+
 	if (m_navMesh) {
 		delete m_navMesh;
 		m_navMesh = nullptr;
@@ -492,6 +488,10 @@ bool KX_NavMeshObject::BuildNavMesh()
 	if (vertsi) {
 		delete[] vertsi;
 	}
+
+  if (obssimulation) {
+    obssimulation->AddObstaclesForNavMesh(this);
+  }
 
 	return true;
 }
