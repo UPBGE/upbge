@@ -278,6 +278,7 @@ static void object_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const in
     BLI_addtail(&ob_dst->shader_fx, nfx);
   }
 
+  /* Game engine */
   BLI_listbase_clear(&ob_dst->prop);
   BKE_bproperty_copy_list(&ob_dst->prop, &ob_src->prop);
 
@@ -286,6 +287,8 @@ static void object_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const in
   if (ob_src->bsoft) {
     ob_dst->bsoft = copy_bulletsoftbody(ob_src->bsoft, 0);
   }
+  copy_object_lod(ob_dst, ob_src, flag_subdata);
+  /**************/
 
   if (ob_src->pose) {
     copy_object_pose(ob_dst, ob_src, flag_subdata);
@@ -318,8 +321,6 @@ static void object_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const in
 
   ob_dst->avs = ob_src->avs;
   ob_dst->mpath = animviz_copy_motionpath(ob_src->mpath);
-
-  copy_object_lod(ob_dst, ob_src, flag_subdata);
 
   /* Do not copy object's preview
    * (mostly due to the fact renderers create temp copy of objects). */
@@ -357,6 +358,7 @@ static void object_free_data(ID *id)
     ob->mpath = NULL;
   }
 
+  /* Game engine */
   BKE_bproperty_free_list(&ob->prop);
 
   free_sensors(&ob->sensors);
@@ -364,6 +366,8 @@ static void object_free_data(ID *id)
   free_actuators(&ob->actuators);
   BKE_python_component_free_list(&ob->components);
   BKE_object_free_bulletsoftbody(ob);
+  BLI_freelistN(&ob->lodlevels);
+  /****************/
 
   BKE_constraints_free_ex(&ob->constraints, false);
 
@@ -376,8 +380,6 @@ static void object_free_data(ID *id)
   BKE_sculptsession_free(ob);
 
   BLI_freelistN(&ob->pc_ids);
-
-  BLI_freelistN(&ob->lodlevels);
 
   /* Free runtime curves data. */
   if (ob->runtime.curve_cache) {
@@ -589,24 +591,23 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
     BKE_LIB_FOREACHID_PROCESS(data, object->rigidbody_constraint->ob2, IDWALK_CB_NEVER_SELF);
   }
 
-  if (object->lodlevels.first) {
-    LISTBASE_FOREACH (LodLevel *, level, &object->lodlevels)
-    {
-      BKE_LIB_FOREACHID_PROCESS(data, level->source, IDWALK_CB_NEVER_SELF);
-    }
-  }
-
   BKE_modifiers_foreach_ID_link(object, library_foreach_modifiersForeachIDLink, data);
   BKE_gpencil_modifiers_foreach_ID_link(
       object, library_foreach_gpencil_modifiersForeachIDLink, data);
   BKE_constraints_id_loop(&object->constraints, library_foreach_constraintObjectLooper, data);
   BKE_shaderfx_foreach_ID_link(object, library_foreach_shaderfxForeachIDLink, data);
 
-  /* Game Logic */
+  /* Game engine */
   BKE_sca_sensors_id_loop(&object->sensors, library_foreach_sensorsObjectLooper, data);
   BKE_sca_controllers_id_loop(
       &object->controllers, library_foreach_controllersObjectLooper, data);
   BKE_sca_actuators_id_loop(&object->actuators, library_foreach_actuatorsObjectLooper, data);
+  if (object->lodlevels.first) {
+    LISTBASE_FOREACH (LodLevel *, level, &object->lodlevels) {
+      BKE_LIB_FOREACHID_PROCESS(data, level->source, IDWALK_CB_NEVER_SELF);
+    }
+  }
+  /****************/
 
   LISTBASE_FOREACH (ParticleSystem *, psys, &object->particlesystem) {
     BKE_particlesystem_id_loop(psys, library_foreach_particlesystemsObjectLooper, data);
@@ -871,11 +872,17 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
     BLO_write_pointer_array(writer, ob->totcol, ob->mat);
     BLO_write_raw(writer, sizeof(char) * ob->totcol, ob->matbits);
 
+    /* Game engine */
     write_properties(writer, &ob->prop);
     write_sensors(writer, &ob->sensors);
     write_controllers(writer, &ob->controllers);
     write_actuators(writer, &ob->actuators);
     write_components(writer, &ob->components);
+    if (ob->bsoft) {
+      BLO_write_struct(writer, BulletSoftBody, ob->bsoft);
+    }
+    BLO_write_struct_list(writer, LodLevel, &ob->lodlevels);
+    /***************/
 
     bArmature *arm = NULL;
     if (ob->type == OB_ARMATURE) {
@@ -903,10 +910,6 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
       BLO_write_struct(writer, EffectorWeights, ob->soft->effector_weights);
     }
 
-    if (ob->bsoft) {
-      BLO_write_struct(writer, BulletSoftBody, ob->bsoft);
-    }
-
     if (ob->rigidbody_object) {
       /* TODO: if any extra data is added to handle duplis, will need separate function then */
       BLO_write_struct(writer, RigidBodyOb, ob->rigidbody_object);
@@ -925,7 +928,6 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
     BKE_shaderfx_blend_write(writer, &ob->shader_fx);
 
     BLO_write_struct_list(writer, LinkData, &ob->pc_ids);
-    BLO_write_struct_list(writer, LodLevel, &ob->lodlevels);
 
     BKE_previewimg_blend_write(writer, ob->preview);
   }
@@ -1078,8 +1080,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
     }
   }
 
-  BLO_read_data_address(reader, &ob->bsoft);
-
+  /* Game engine */
   bProperty *prop;
   bSensor *sens;
   bController *cont;
@@ -1137,6 +1138,11 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
     }
     pc = pc->next;
   }
+  BLO_read_data_address(reader, &ob->bsoft);
+
+  BLO_read_list(reader, &ob->lodlevels);
+  ob->currentlod = ob->lodlevels.first;
+  /* End of Game engine */
 
   BLO_read_data_address(reader, &ob->fluidsimSettings); /* NT */
 
@@ -1201,9 +1207,6 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
       BKE_object_sculpt_data_create(ob);
     }
   }
-
-  BLO_read_list(reader, &ob->lodlevels);
-  ob->currentlod = ob->lodlevels.first;
 
   BLO_read_data_address(reader, &ob->preview);
   BKE_previewimg_blend_read(reader, ob->preview);
@@ -1347,6 +1350,7 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
     }
   }
 
+  /* Game engine */
   for (bSensor *sens = ob->sensors.first; sens; sens = sens->next) {
     for (int a = 0; a < sens->totlinks; a++)
       sens->links[a] = BLO_read_get_new_globaldata_address(reader, sens->links[a]);
@@ -1475,6 +1479,15 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
     }
   }
 
+  LISTBASE_FOREACH (LodLevel *, level, &ob->lodlevels){
+    BLO_read_id_address(reader, ob->id.lib, &level->source);
+    if (!level->source && level == ob->lodlevels.first) {
+      level->source = ob;
+    }
+  }
+  /* End of Game engine */
+
+
   {
     FluidsimModifierData *fluidmd = (FluidsimModifierData *)BKE_modifiers_findby_type(
         ob, eModifierType_Fluidsim);
@@ -1520,15 +1533,6 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
   if (ob->rigidbody_constraint) {
     BLO_read_id_address(reader, ob->id.lib, &ob->rigidbody_constraint->ob1);
     BLO_read_id_address(reader, ob->id.lib, &ob->rigidbody_constraint->ob2);
-  }
-
-  {
-    LISTBASE_FOREACH (LodLevel *, level, &ob->lodlevels) {
-      BLO_read_id_address(reader, ob->id.lib, &level->source);
-      if (!level->source && level == ob->lodlevels.first) {
-        level->source = ob;
-      }
-    }
   }
 
   if (warn) {
@@ -1631,6 +1635,7 @@ static void object_blend_read_expand(BlendExpander *expander, ID *id)
     BLO_expand(expander, psys->part);
   }
 
+  /* Game engine */
   bSensor *sens;
   bController *cont;
   bActuator *act;
@@ -1716,6 +1721,12 @@ static void object_blend_read_expand(BlendExpander *expander, ID *id)
       BLO_expand(expander, sta->navmesh);
     }
   }
+  if (ob->currentlod) {
+    LISTBASE_FOREACH (LodLevel *, level, &ob->lodlevels) {
+      BLO_expand(expander, level->source);
+    }
+  }
+  /* End of Game engine */
 
   if (ob->pd) {
     BLO_expand(expander, ob->pd->tex);
@@ -1733,12 +1744,6 @@ static void object_blend_read_expand(BlendExpander *expander, ID *id)
   if (ob->rigidbody_constraint) {
     BLO_expand(expander, ob->rigidbody_constraint->ob1);
     BLO_expand(expander, ob->rigidbody_constraint->ob2);
-  }
-
-  if (ob->currentlod) {
-    LISTBASE_FOREACH (LodLevel *, level, &ob->lodlevels) {
-      BLO_expand(expander, level->source);
-    }
   }
 }
 
