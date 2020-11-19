@@ -371,7 +371,7 @@ typedef struct uiHandleButtonData {
   /* Button text selection:
    * extension direction, selextend, inside ui_do_but_TEX */
   int sel_pos_init;
-  /* allow to realloc str/editstr and use 'maxlen' to track alloc size (maxlen + 1) */
+  /* Allow reallocating str/editstr and using 'maxlen' to track alloc size (maxlen + 1) */
   bool is_str_dynamic;
 
   /* number editing / dragging */
@@ -824,6 +824,7 @@ static void ui_apply_but_undo(uiBut *but)
 {
   if (but->flag & UI_BUT_UNDO) {
     const char *str = NULL;
+    size_t str_len_clip = SIZE_MAX - 1;
     bool skip_undo = false;
 
     /* define which string to use for undo */
@@ -832,16 +833,19 @@ static void ui_apply_but_undo(uiBut *but)
     }
     else if (but->type == UI_BTYPE_MENU) {
       str = but->drawstr;
+      str_len_clip = ui_but_drawstr_len_without_sep_char(but);
     }
     else if (but->drawstr[0]) {
       str = but->drawstr;
+      str_len_clip = ui_but_drawstr_len_without_sep_char(but);
     }
     else {
       str = but->tip;
+      str_len_clip = ui_but_tip_len_only_first_line(but);
     }
 
     /* fallback, else we don't get an undo! */
-    if (str == NULL || str[0] == '\0') {
+    if (str == NULL || str[0] == '\0' || str_len_clip == 0) {
       str = "Unknown Action";
     }
 
@@ -878,7 +882,7 @@ static void ui_apply_but_undo(uiBut *but)
 
     /* delayed, after all other funcs run, popups are closed, etc */
     uiAfterFunc *after = ui_afterfunc_new();
-    BLI_strncpy(after->undostr, str, sizeof(after->undostr));
+    BLI_strncpy(after->undostr, str, min_zz(str_len_clip + 1, sizeof(after->undostr)));
   }
 }
 
@@ -10505,8 +10509,7 @@ static int ui_but_pie_menu_apply(bContext *C,
       menu->menuretval = UI_RETURN_CANCEL;
     }
     else {
-      ui_apply_but(C, but->block, but, but->active, false);
-      button_activate_exit((bContext *)C, but, but->active, false, true);
+      button_activate_exit((bContext *)C, but, but->active, false, false);
 
       menu->menuretval = UI_RETURN_OK;
     }
