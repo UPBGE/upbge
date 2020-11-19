@@ -27,6 +27,10 @@
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef MAX_MTEX
 #  define MAX_MTEX 18
 #endif
@@ -398,3 +402,7 @@ enum {
   GP_MATERIAL_FOLLOW_OBJ = 1,
   GP_MATERIAL_FOLLOW_FIXED = 2,
 };
+
+#ifdef __cplusplus
+}
+#endif
