@@ -575,6 +575,8 @@ class KX_Scene : public CValue, public SCA_IScene {
   KX_PYMETHOD_DOC(KX_Scene, convertBlenderObject);
   KX_PYMETHOD_DOC(KX_Scene, convertBlenderObjectsList);
   KX_PYMETHOD_DOC(KX_Scene, convertBlenderCollection);
+  KX_PYMETHOD_DOC(KX_Scene, addOverlayCollection);
+  KX_PYMETHOD_DOC(KX_Scene, removeOverlayCollection);
 
   /* attributes */
   static PyObject *pyattr_get_name(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

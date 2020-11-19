@@ -499,6 +499,12 @@ void KX_Scene::ResetTaaSamples()
 
 void KX_Scene::AddOverlayCollection(KX_Camera *overlay_cam, Collection *collection)
 {
+  /* Check if camera is not already in use */
+  if (!CameraIsInactive(overlay_cam)) {
+    std::cout << "Camera is already used (active_cam or ImageRender cam, or custom Viewport cam)"
+              << std::endl;
+    return;
+  }
   /* Check for already added collections */
   if (std::find(m_overlay_collections.begin(), m_overlay_collections.end(), collection) !=
       m_overlay_collections.end()) {
@@ -2524,6 +2530,8 @@ PyMethodDef KX_Scene::Methods[] = {
     KX_PYMETHODTABLE(KX_Scene, convertBlenderObject),
     KX_PYMETHODTABLE(KX_Scene, convertBlenderObjectsList),
     KX_PYMETHODTABLE(KX_Scene, convertBlenderCollection),
+    KX_PYMETHODTABLE(KX_Scene, addOverlayCollection),
+    KX_PYMETHODTABLE(KX_Scene, removeOverlayCollection),
 
     /* dict style access */
     KX_PYMETHODTABLE(KX_Scene, get),
@@ -3021,6 +3029,58 @@ KX_PYMETHODDEF_DOC(KX_Scene,
 
   Collection *co = (Collection *)id;
   ConvertBlenderCollection(co, asynchronous);
+  Py_RETURN_NONE;
+}
+
+KX_PYMETHODDEF_DOC(KX_Scene,
+                   addOverlayCollection,
+                   "addOverlayCollection(KX_Camera *cam, Collection *col)\n"
+                   "\n")
+{
+  PyObject *pyCamera = Py_None;
+  PyObject *pyCollection = Py_None;
+
+  if (!PyArg_ParseTuple(args, "OO:", &pyCamera, &pyCollection)) {
+    std::cout << "Expected a KX_Camera and a bpy.types.Collection." << std::endl;
+    return nullptr;
+  }
+
+  KX_Camera *kxCam = nullptr;
+  if (!(ConvertPythonToCamera(this, pyCamera, &kxCam, false, nullptr))) {
+      std::cout << "Failed to convert KX_Camera" << std::endl;
+  }
+
+  ID *id = nullptr;
+  if (!pyrna_id_FromPyObject(pyCollection, &id)) {
+    std::cout << "Failed to convert collection." << std::endl;
+    return nullptr;
+  }
+
+  Collection *co = (Collection *)id;
+  AddOverlayCollection(kxCam, co);
+  Py_RETURN_NONE;
+}
+
+KX_PYMETHODDEF_DOC(KX_Scene,
+                   removeOverlayCollection,
+                   "removeOverlayCollection(Collection *col)\n"
+                   "\n")
+{
+  PyObject *pyCollection = Py_None;
+
+  if (!PyArg_ParseTuple(args, "O:", &pyCollection)) {
+    std::cout << "Expected a bpy.types.Collection." << std::endl;
+    return nullptr;
+  }
+
+  ID *id = nullptr;
+  if (!pyrna_id_FromPyObject(pyCollection, &id)) {
+    std::cout << "Failed to convert collection." << std::endl;
+    return nullptr;
+  }
+
+  Collection *co = (Collection *)id;
+  RemoveOverlayCollection(co);
   Py_RETURN_NONE;
 }
 

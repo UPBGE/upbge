@@ -147,13 +147,11 @@ bool SCA_CollectionActuator::Update()
       }
       break;
     case KX_COLLECTION_ADD_OVERLAY:
-      if (m_camera && m_kxscene->CameraIsInactive(m_camera)) {
+      if (m_camera) {
         m_kxscene->AddOverlayCollection(m_camera, m_collection);
       }
       else {
-        std::cout << "Collection Actuator: Inexistant Camera or Camera already used by main "
-                     "render or ImageRender"
-                  << std::endl;
+        std::cout << "Collection Actuator: Camera not found" << std::endl;
       }
       break;
     case KX_COLLECTION_REMOVE_OVERLAY:

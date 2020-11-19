@@ -260,3 +260,21 @@ base class --- :class:`PyObjectPlus`
       :type blenderCollection: bpy.types.Collection
       :arg asynchronous: The collection conversion can be asynchronous or not.
       :type asynchronous: boolean
+
+   .. method:: addOverlayCollection(kxCamera, blenderCollection)
+
+      Adds an overlay collection (as with collection actuator) to render this collection objects
+      during a second render pass in overlay using the KX_Camera passed as argument.
+
+      :arg kxCamera: The camera used to render the overlay collection.
+      :type blenderCollection: bge.types.KX_Camera
+
+      :arg blenderCollection: The overlay collection to add.
+      :type blenderCollection: bpy.types.Collection
+
+   .. method:: removeOverlayCollection(blenderCollection)
+
+      Removes an overlay collection (as with collection actuator).
+
+      :arg blenderCollection: The overlay collection to remove.
+      :type blenderCollection: bpy.types.Collection
