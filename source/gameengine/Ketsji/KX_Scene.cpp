@@ -3048,6 +3048,7 @@ KX_PYMETHODDEF_DOC(KX_Scene,
   KX_Camera *kxCam = nullptr;
   if (!(ConvertPythonToCamera(this, pyCamera, &kxCam, false, nullptr))) {
       std::cout << "Failed to convert KX_Camera" << std::endl;
+    return nullptr;
   }
 
   ID *id = nullptr;
