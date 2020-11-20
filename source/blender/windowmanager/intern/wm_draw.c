@@ -938,12 +938,12 @@ static void wm_draw_window(bContext *C, wmWindow *win)
 static void wm_draw_surface(bContext *C, wmSurface *surface)
 {
   wm_window_clear_drawable(CTX_wm_manager(C));
-  wm_surface_make_drawable(surface);
+  wm_surface_make_drawable(surface, C);
 
   surface->draw(C);
 
   /* Avoid interference with window drawable */
-  wm_surface_clear_drawable();
+  wm_surface_clear_drawable(C);
 }
 
 /** \} */

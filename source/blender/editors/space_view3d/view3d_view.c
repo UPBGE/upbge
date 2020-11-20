@@ -1925,6 +1925,13 @@ static int game_engine_exec(bContext *C, wmOperator *op)
   if (!ED_view3d_context_activate(C))
     return OPERATOR_CANCELLED;
 
+  wmWindowManager *wm = CTX_wm_manager(C);
+  if (WM_xr_session_exists(&wm->xr)) {
+    if (WM_xr_session_is_ready(&wm->xr)) {
+      startscene->flag |= SCE_IS_GAME_XR_SESSION;
+    }
+  }
+
   /* Calling this seems to avoid some UI flickering on windows
    * later during runtime. */
   ED_area_tag_redraw(CTX_wm_area(C));
@@ -1984,6 +1991,8 @@ static int game_engine_exec(bContext *C, wmOperator *op)
     CTX_wm_window_set(C, prevwin);
     CTX_wm_area_set(C, prevsa);
   }
+
+  startscene->flag &= ~SCE_IS_GAME_XR_SESSION;
 
   game_engine_restore_state(C, prevwin);
 
