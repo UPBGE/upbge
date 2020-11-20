@@ -35,8 +35,11 @@
  * #bProperty type is specifically for use by Objects game-logic.
  */
 
-#ifndef __DNA_PROPERTY_TYPES_H__
-#define __DNA_PROPERTY_TYPES_H__
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* ********************* PROPERTY ************************ */
 
@@ -62,4 +65,6 @@ typedef struct bProperty {
 
 #define MAX_PROPSTRING 128
 
-#endif /* __DNA_PROPERTY_TYPES_H__ */
+#ifdef __cplusplus
+}
+#endif

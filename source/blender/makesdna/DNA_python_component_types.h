@@ -20,10 +20,13 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __DNA_COMPONENT_TYPES_H__
-#define __DNA_COMPONENT_TYPES_H__
+#pragma once
 
 #include "DNA_listBase.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct PythonComponentProperty {
   struct PythonComponentProperty *next, *prev;
@@ -61,4 +64,6 @@ typedef struct PythonComponent {
 
 enum { COMPONENT_SHOW = (1 << 0) };
 
-#endif /* __DNA_COMPONENT_TYPES_H__ */
+#ifdef __cplusplus
+}
+#endif

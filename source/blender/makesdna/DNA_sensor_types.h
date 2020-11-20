@@ -33,8 +33,11 @@
  * #bSensor type is specifically for use by Object logic-bricks in the game-engine.
  */
 
-#ifndef __DNA_SENSOR_TYPES_H__
-#define __DNA_SENSOR_TYPES_H__
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct Object;
 struct Material;
@@ -380,4 +383,6 @@ typedef struct bMovementSensor {
 // should match JOYINDEX_MAX in SCA_JoystickDefines.h */
 #define SENS_JOY_MAXINDEX 8
 
-#endif /* __DNA_SENSOR_TYPES_H__ */
+#ifdef __cplusplus
+}
+#endif

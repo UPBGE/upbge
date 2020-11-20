@@ -31,8 +31,11 @@
  * #bActuator type is specifically for use by Object logic-bricks in the game-engine.
  */
 
-#ifndef __DNA_ACTUATOR_TYPES_H__
-#define __DNA_ACTUATOR_TYPES_H__
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct Object;
 struct Mesh;
@@ -621,4 +624,6 @@ typedef struct bActuator {
 #define ACT_VIBRATION_PLAY 0
 #define ACT_VIBRATION_STOP 1
 
-#endif /* __DNA_ACTUATOR_TYPES_H__ */
+#ifdef __cplusplus
+}
+#endif

@@ -31,8 +31,11 @@
  * #bController type is specifically for use by Object logic-bricks in the game-engine.
  */
 
-#ifndef __DNA_CONTROLLER_TYPES_H__
-#define __DNA_CONTROLLER_TYPES_H__
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct bActuator;
 struct Text;
@@ -92,4 +95,6 @@ typedef struct bController {
 #define CONT_PY_SCRIPT 0
 #define CONT_PY_MODULE 1
 
-#endif /* __DNA_CONTROLLER_TYPES_H__ */
+#ifdef __cplusplus
+}
+#endif
