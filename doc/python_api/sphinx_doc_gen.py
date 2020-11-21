@@ -2233,9 +2233,20 @@ def setup_blender():
 
     # Remove handlers since the functions get included
     # in the doc-string and don't have meaningful names.
-    for ls in bpy.app.handlers:
-        if isinstance(ls, list):
-            ls.clear()
+    lists_to_restore = []
+    for var in bpy.app.handlers:
+        if isinstance(var, list):
+            lists_to_restore.append((var[:], var))
+            var.clear()
+
+    return {
+        "lists_to_restore": lists_to_restore,
+    }
+
+
+def teardown_blender(setup_data):
+    for var_src, var_dst in setup_data["lists_to_restore"]:
+        var_dst[:] = var_src
 
 
 def main():
@@ -2244,7 +2255,7 @@ def main():
     setup_monkey_patch()
 
     # Perform changes to Blender it's self.
-    setup_blender()
+    setup_data = setup_blender()
 
     # eventually, create the dirs
     for dir_path in [ARGS.output_dir, SPHINX_IN]:
@@ -2349,6 +2360,8 @@ def main():
             # copy the pdf to REFERENCE_PATH
             shutil.copy(os.path.join(SPHINX_OUT_PDF, "contents.pdf"),
                         os.path.join(REFERENCE_PATH, BLENDER_PDF_FILENAME))
+
+    teardown_blender(setup_data)
 
     sys.exit()
 
