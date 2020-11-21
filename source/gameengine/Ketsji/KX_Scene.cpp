@@ -720,6 +720,12 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, 
       ED_region_tag_redraw(CTX_wm_region(C));
       wm_draw_update(C);
 
+      /* We need to do that before and after wm_draw_update
+       * because wm_draw_update unset context variables.
+       * We might need these variables at next logic step
+       */
+      ReinitBlenderContextVariables();
+
       if (canvas->IsBlenderPlayer()) {
         scene->flag &= ~SCE_IS_BLENDERPLAYER;
       }
