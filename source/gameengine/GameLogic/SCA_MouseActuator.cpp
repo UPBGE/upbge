@@ -33,6 +33,10 @@
 #  include <config.h>
 #endif
 
+/* Global variables to assure that the events are analyzed by all mouse actuators */
+unsigned int mouact_total = 0;
+unsigned int mouact_count = 0;
+
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
@@ -77,10 +81,13 @@ SCA_MouseActuator::SCA_MouseActuator(SCA_IObject *gameobj,
   m_sensitivity[1] = sensitivity[1];
   m_angle[0] = 0.f;
   m_angle[1] = 0.f;
+
+  mouact_total++;
 }
 
 SCA_MouseActuator::~SCA_MouseActuator()
 {
+  mouact_total--;
 }
 
 bool SCA_MouseActuator::Update()
@@ -88,7 +95,11 @@ bool SCA_MouseActuator::Update()
   bool result = false;
 
   bool bNegativeEvent = IsNegativeEvent();
-  RemoveAllEvents();
+  mouact_count++;
+  if (mouact_count == mouact_total) {
+    RemoveAllEvents();
+    mouact_count = 0;
+  }
 
   if (bNegativeEvent)
     return false;  // do nothing on negative events
