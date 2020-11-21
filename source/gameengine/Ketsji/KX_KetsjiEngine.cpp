@@ -328,7 +328,7 @@ void KX_KetsjiEngine::EndFrameViewportRender()
   m_logger.NextMeasurement(m_kxsystem->GetTimeInSeconds());
 
   m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds());
-  m_rasterizer->EndFrame();
+  //m_rasterizer->EndFrame();
 
   m_logger.StartLog(tc_logic, m_kxsystem->GetTimeInSeconds());
   m_canvas->FlushScreenshots();
