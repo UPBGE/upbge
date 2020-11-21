@@ -1992,7 +1992,7 @@ static int game_engine_exec(bContext *C, wmOperator *op)
     CTX_wm_area_set(C, prevsa);
   }
 
-  startscene->flag &= ~SCE_IS_GAME_XR_SESSION;
+  CTX_data_scene(C)->flag &= ~SCE_IS_GAME_XR_SESSION;
 
   game_engine_restore_state(C, prevwin);
 
