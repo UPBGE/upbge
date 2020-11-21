@@ -1530,6 +1530,10 @@ int main(int argc,
             CTX_wm_window_set(C, win);
             InitBlenderContextVariables(C, wm, bfd->curscene);
             wm_window_ghostwindow_blenderplayer_ensure(wm, win, window, first_time_window);
+
+            /* The following is needed to run some bpy operators in blenderplayer */
+            ED_screen_refresh_blenderplayer(wm, win);
+
             if (first_time_window) {
               /* We need to have first an ogl context bound and it's done
                * in wm_window_ghostwindow_blenderplayer_ensure.
