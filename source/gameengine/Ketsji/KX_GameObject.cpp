@@ -432,7 +432,7 @@ void KX_GameObject::RemoveReplicaObject()
     bContext *C = KX_GetActiveEngine()->GetContext();
     Main *bmain = CTX_data_main(C);
     Scene *scene = GetScene()->GetBlenderScene();
-    BKE_scene_collections_object_remove(bmain, scene, ob, true);
+    BKE_scene_collections_object_remove(bmain, scene, ob, false);
     BKE_id_free(bmain, &ob->id);
     SetBlenderObject(nullptr);
     DEG_relations_tag_update(bmain);
@@ -586,6 +586,11 @@ void KX_GameObject::AddDummyLodManager(RAS_MeshObject *meshObj, Object *ob)
 bool KX_GameObject::IsReplica()
 {
   return m_isReplica;
+}
+
+void KX_GameObject::SetIsReplicaObject(bool isReplica)
+{
+  m_isReplica = isReplica;
 }
 
 void KX_GameObject::BackupObmat(Object *ob)

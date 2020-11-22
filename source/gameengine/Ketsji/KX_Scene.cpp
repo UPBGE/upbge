@@ -871,6 +871,9 @@ void KX_Scene::ConvertBlenderObject(Object *ob)
                            false,
                            false);
 
+
+  KX_GameObject *newGameob = GetObjectList()->GetBack();
+  newGameob->SetIsReplicaObject(true);
 }
 
 void KX_Scene::convert_blender_objects_list_synchronous(std::vector<Object *> objectslist)
