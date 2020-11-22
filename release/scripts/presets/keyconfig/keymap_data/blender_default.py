@@ -1860,7 +1860,7 @@ def km_node_editor(params):
 def km_logic(params):
     items = []
     keymap = (
-        "Logic Editor",
+        "Logic Bricks Editor",
         {"space_type": 'LOGIC_EDITOR', "region_type": 'WINDOW'},
         {"items": items},
     )

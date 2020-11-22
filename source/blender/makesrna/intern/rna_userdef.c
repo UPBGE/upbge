@@ -3847,7 +3847,7 @@ static void rna_def_userdef_themes(BlenderRNA *brna)
       {7, "SEQUENCE_EDITOR", ICON_SEQUENCE, "Video Sequencer", ""},
       {8, "TEXT_EDITOR", ICON_TEXT, "Text Editor", ""},
       {9, "NODE_EDITOR", ICON_NODETREE, "Node Editor", ""},
-      {10, "LOGIC_EDITOR", ICON_LOGIC, "Logic Editor", ""},
+      {10, "LOGIC_EDITOR", ICON_LOGIC, "Logic Bricks Editor", ""},
       {11, "PROPERTIES", ICON_PROPERTIES, "Properties", ""},
       {12, "OUTLINER", ICON_OUTLINER, "Outliner", ""},
       {14, "PREFERENCES", ICON_PREFERENCES, "Preferences", ""},
@@ -3949,7 +3949,7 @@ static void rna_def_userdef_themes(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
   RNA_def_property_pointer_sdna(prop, NULL, "tlogic");
   RNA_def_property_struct_type(prop, "ThemeLogicEditor");
-  RNA_def_property_ui_text(prop, "Logic Editor", "");
+  RNA_def_property_ui_text(prop, "Logic Bricks Editor", "");
 
   prop = RNA_def_property(srna, "outliner", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);

@@ -457,7 +457,7 @@ void blo_do_versions_userdef(UserDef *userdef)
         strcpy(km->idname, "Node Editor");
       }
       else if (STREQ(km->idname, "Logic Generic")) {
-        strcpy(km->idname, "Logic Editor");
+        strcpy(km->idname, "Logic Bricks Editor");
       }
       else if (STREQ(km->idname, "File")) {
         strcpy(km->idname, "File Browser");
