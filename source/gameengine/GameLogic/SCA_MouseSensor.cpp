@@ -108,6 +108,7 @@ bool SCA_MouseSensor::Evaluate()
       const SCA_InputEvent &mevent = mousedev->GetInput(convertTable[m_mousemode]);
       if (mevent.Find(SCA_InputEvent::ACTIVE)) {
         m_val = 1;
+        result = true;
       }
       else {
         m_val = 0;
