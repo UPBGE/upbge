@@ -52,7 +52,7 @@ base class --- :class:`PyObjectPlus`
 
       :type: boolean
 
-    .. attribute:: active
+   .. attribute:: active
 
       True if the input was active from the last frame.
 
@@ -69,6 +69,24 @@ base class --- :class:`PyObjectPlus`
       True if the input was released from the last frame.
 
       :type: boolean
+      
+      Example to execute some action when I click or release mouse left button:
+
+      .. code-block:: python
+
+         import bge
+
+         mouse = bge.logic.mouse.inputs
+         mouse_left_button = mouse[bge.events.LEFTMOUSE]
+         
+         if mouse_left_button.activated:
+            # ...
+         elif mouse_left_button.active:
+            # ...
+         elif mouse_left_button.released:
+            # ... 
+         elif mouse_left_button.inactive:
+            # ...
 
    .. attribute:: type
 
