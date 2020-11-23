@@ -84,11 +84,11 @@ static MT_Matrix3x3 dummy_orientation = MT_Matrix3x3(
 
 KX_GameObject::KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
     : SCA_IObject(),
-      m_isReplica(false),           // eevee
+      m_isReplica(false),                // eevee
       m_isConvertedDuringRuntime(false), // eevee
-      m_staticObject(true),         // eevee
-      m_visibleAtGameStart(false),  // eevee
-      m_forceIgnoreParentTx(false), // eevee
+      m_staticObject(true),              // eevee
+      m_visibleAtGameStart(false),       // eevee
+      m_forceIgnoreParentTx(false),      // eevee
       m_layer(0),
       m_lodManager(nullptr),
       m_currentLodLevel(0),
@@ -433,7 +433,12 @@ void KX_GameObject::RemoveReplicaObject()
     bContext *C = KX_GetActiveEngine()->GetContext();
     Main *bmain = CTX_data_main(C);
     Scene *scene = GetScene()->GetBlenderScene();
-    BKE_scene_collections_object_remove(bmain, scene, ob, true);
+
+    /* For converted objects during runtime, idk why calling free user
+     * in BKE_object_collection_remove causes an issue during undo step
+     * then we don't set it to false (last argument).
+     */
+    BKE_scene_collections_object_remove(bmain, scene, ob, !m_isConvertedDuringRuntime);
     BKE_id_free(bmain, &ob->id);
     SetBlenderObject(nullptr);
     DEG_relations_tag_update(bmain);
