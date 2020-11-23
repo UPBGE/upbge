@@ -870,6 +870,7 @@ void KX_Scene::ConvertBlenderObject(Object *ob)
                            ob,
                            false,
                            false);
+
 }
 
 void KX_Scene::convert_blender_objects_list_synchronous(std::vector<Object *> objectslist)
