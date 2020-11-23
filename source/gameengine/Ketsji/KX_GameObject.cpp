@@ -436,7 +436,7 @@ void KX_GameObject::RemoveReplicaObject()
 
     /* For converted objects during runtime, idk why calling free user
      * in BKE_object_collection_remove causes an issue during undo step
-     * then we don't set it to false (last argument).
+     * then we set it to false (last argument).
      */
     BKE_scene_collections_object_remove(bmain, scene, ob, !m_isConvertedDuringRuntime);
     BKE_id_free(bmain, &ob->id);
