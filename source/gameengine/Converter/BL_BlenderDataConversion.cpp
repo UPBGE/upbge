@@ -1549,6 +1549,12 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   }
 
   for (KX_GameObject *gameobj : objectlist) {
+    Object *blenderobj = gameobj->GetBlenderObject();
+    if (single_object) {
+      if (blenderobj != single_object) {
+        continue;
+      }
+    }
     if (gameobj->GetComponents()) {
       // Register object for component update.
       kxscene->GetPythonComponentManager().RegisterObject(gameobj);
