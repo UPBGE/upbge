@@ -92,6 +92,7 @@ class KX_GameObject : public SCA_IObject {
   float m_origObmat[4][4];
   float m_prevObmat[4][4];
   bool m_isReplica;
+  bool m_isConvertedDuringRuntime;
   bool m_staticObject;
   bool m_useCopy;
   bool m_visibleAtGameStart;
@@ -157,7 +158,8 @@ class KX_GameObject : public SCA_IObject {
   void ForceIgnoreParentTx();
   bool OrigObCanBeTransformedInRealtime(Object *ob);
   void SyncTransformWithDepsgraph();
-  void SetIsReplicaObject(bool isReplica);
+  void SetIsReplicaObject();
+  void SetIsConvertedDuringRuntime();
   /* END OF EEVEE INTEGRATION */
 
   /**

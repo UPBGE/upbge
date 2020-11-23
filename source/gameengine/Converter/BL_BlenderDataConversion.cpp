@@ -1168,6 +1168,11 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
     KX_GameObject *gameobj = BL_gameobject_from_blenderobject(
         blenderobject, kxscene, rendertools, converter, libloading, converting_during_runtime);
 
+    if (gameobj && converting_during_runtime) {
+      gameobj->SetIsConvertedDuringRuntime();
+      gameobj->SetIsReplicaObject();
+    }
+
     if (gameobj) {
       /* macro calls object conversion funcs */
       BL_CONVERTBLENDEROBJECT_SINGLE;

@@ -85,6 +85,7 @@ static MT_Matrix3x3 dummy_orientation = MT_Matrix3x3(
 KX_GameObject::KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
     : SCA_IObject(),
       m_isReplica(false),           // eevee
+      m_isConvertedDuringRuntime(false), // eevee
       m_staticObject(true),         // eevee
       m_visibleAtGameStart(false),  // eevee
       m_forceIgnoreParentTx(false), // eevee
@@ -432,7 +433,7 @@ void KX_GameObject::RemoveReplicaObject()
     bContext *C = KX_GetActiveEngine()->GetContext();
     Main *bmain = CTX_data_main(C);
     Scene *scene = GetScene()->GetBlenderScene();
-    BKE_scene_collections_object_remove(bmain, scene, ob, false);
+    BKE_scene_collections_object_remove(bmain, scene, ob, true);
     BKE_id_free(bmain, &ob->id);
     SetBlenderObject(nullptr);
     DEG_relations_tag_update(bmain);
@@ -447,7 +448,7 @@ bool KX_GameObject::IsStatic()
 void KX_GameObject::HideOriginalObject()
 {
   Object *ob = GetBlenderObject();
-  if (ob && !m_isReplica &&
+  if (ob && !m_isReplica && !m_isConvertedDuringRuntime &&
       (ob->base_flag & (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH)) != 0) {
     Scene *scene = GetScene()->GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(scene);
@@ -588,9 +589,14 @@ bool KX_GameObject::IsReplica()
   return m_isReplica;
 }
 
-void KX_GameObject::SetIsReplicaObject(bool isReplica)
+void KX_GameObject::SetIsReplicaObject()
 {
-  m_isReplica = isReplica;
+  m_isReplica = true;
+}
+
+void KX_GameObject::SetIsConvertedDuringRuntime()
+{
+  m_isConvertedDuringRuntime = true;
 }
 
 void KX_GameObject::BackupObmat(Object *ob)
