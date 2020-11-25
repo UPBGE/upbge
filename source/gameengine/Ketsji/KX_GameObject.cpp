@@ -85,7 +85,6 @@ static MT_Matrix3x3 dummy_orientation = MT_Matrix3x3(
 KX_GameObject::KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
     : SCA_IObject(),
       m_isReplica(false),                // eevee
-      m_isConvertedDuringRuntime(false), // eevee
       m_staticObject(true),              // eevee
       m_visibleAtGameStart(false),       // eevee
       m_forceIgnoreParentTx(false),      // eevee
@@ -446,7 +445,7 @@ bool KX_GameObject::IsStatic()
 void KX_GameObject::HideOriginalObject()
 {
   Object *ob = GetBlenderObject();
-  if (ob && !m_isReplica && !m_isConvertedDuringRuntime &&
+  if (ob && !m_isReplica &&
       (ob->base_flag & (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH)) != 0) {
     Scene *scene = GetScene()->GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(scene);
@@ -590,11 +589,6 @@ bool KX_GameObject::IsReplica()
 void KX_GameObject::SetIsReplicaObject()
 {
   m_isReplica = true;
-}
-
-void KX_GameObject::SetIsConvertedDuringRuntime()
-{
-  m_isConvertedDuringRuntime = true;
 }
 
 void KX_GameObject::BackupObmat(Object *ob)

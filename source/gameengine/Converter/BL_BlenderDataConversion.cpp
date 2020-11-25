@@ -1169,7 +1169,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
         blenderobject, kxscene, rendertools, converter, libloading, converting_during_runtime);
 
     if (gameobj && converting_during_runtime) {
-      gameobj->SetIsConvertedDuringRuntime();
       gameobj->SetIsReplicaObject();
     }
 
