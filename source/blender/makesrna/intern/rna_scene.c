@@ -5647,7 +5647,7 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
       "If the Constraint Force Mixing (CFM) is set to zero, the constraint will be hard. "
       "If CFM is set to a positive value, it will be possible to violate the constraint by pushing on it "
       "(for example, for contact constraints by forcing the two contacting objects together). "
-      "In other words the constraint will be soft, and the softness will increase as CFM increases.");
+      "In other words the constraint will be soft, and the softness will increase as CFM increases");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   /* not used  */ /* deprecated !!!!!!!!!!!!! */
