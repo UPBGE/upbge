@@ -2869,8 +2869,10 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "elasticity", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "reflect");
-  RNA_def_property_range(prop, 0, 1);
-  RNA_def_property_ui_text(prop, "Elasticity", "Elasticity of collisions");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0f, 1.0f, 1, 3);
+  RNA_def_property_float_default(prop, 0.0f);
+  RNA_def_property_ui_text(prop, "Elasticity", "Elasticity of collisions/Bounciness/Restitution");
 
   /* FH/Force Field Settings */
   prop = RNA_def_property(srna, "use_fh_normal", PROP_BOOLEAN, PROP_NONE);
