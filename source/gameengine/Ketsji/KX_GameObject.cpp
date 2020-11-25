@@ -432,14 +432,7 @@ void KX_GameObject::RemoveReplicaObject()
   if (ob && m_isReplica) {
     bContext *C = KX_GetActiveEngine()->GetContext();
     Main *bmain = CTX_data_main(C);
-    Scene *scene = GetScene()->GetBlenderScene();
-
-    /* For converted objects during runtime, idk why calling free user
-     * in BKE_object_collection_remove causes an issue during undo step
-     * then we set it to false (last argument).
-     */
-    BKE_scene_collections_object_remove(bmain, scene, ob, !m_isConvertedDuringRuntime);
-    BKE_id_free(bmain, &ob->id);
+    BKE_id_delete(bmain, ob);
     SetBlenderObject(nullptr);
     DEG_relations_tag_update(bmain);
   }
