@@ -84,10 +84,10 @@ static MT_Matrix3x3 dummy_orientation = MT_Matrix3x3(
 
 KX_GameObject::KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
     : SCA_IObject(),
-      m_isReplica(false),           // eevee
-      m_staticObject(true),         // eevee
-      m_visibleAtGameStart(false),  // eevee
-      m_forceIgnoreParentTx(false), // eevee
+      m_isReplica(false),                // eevee
+      m_staticObject(true),              // eevee
+      m_visibleAtGameStart(false),       // eevee
+      m_forceIgnoreParentTx(false),      // eevee
       m_layer(0),
       m_lodManager(nullptr),
       m_currentLodLevel(0),
@@ -431,9 +431,7 @@ void KX_GameObject::RemoveReplicaObject()
   if (ob && m_isReplica) {
     bContext *C = KX_GetActiveEngine()->GetContext();
     Main *bmain = CTX_data_main(C);
-    Scene *scene = GetScene()->GetBlenderScene();
-    BKE_scene_collections_object_remove(bmain, scene, ob, true);
-    BKE_id_free(bmain, &ob->id);
+    BKE_id_delete(bmain, ob);
     SetBlenderObject(nullptr);
     DEG_relations_tag_update(bmain);
   }
@@ -586,6 +584,11 @@ void KX_GameObject::AddDummyLodManager(RAS_MeshObject *meshObj, Object *ob)
 bool KX_GameObject::IsReplica()
 {
   return m_isReplica;
+}
+
+void KX_GameObject::SetIsReplicaObject()
+{
+  m_isReplica = true;
 }
 
 void KX_GameObject::BackupObmat(Object *ob)

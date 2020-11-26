@@ -157,6 +157,7 @@ class KX_GameObject : public SCA_IObject {
   void ForceIgnoreParentTx();
   bool OrigObCanBeTransformedInRealtime(Object *ob);
   void SyncTransformWithDepsgraph();
+  void SetIsReplicaObject();
   /* END OF EEVEE INTEGRATION */
 
   /**
