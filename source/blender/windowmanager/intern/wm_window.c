@@ -2512,7 +2512,8 @@ void *WM_opengl_context_create_blenderplayer(void *syshandle)
 /* Reuse wm->message_bus when we restart game or load a new .blend */
 static void *runtime_msgbus;
 
-void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
+void wm_window_ghostwindow_blenderplayer_ensure(bContext *C,
+                                                wmWindowManager *wm,
                                                 wmWindow *win,
                                                 void *ghostwin,
                                                 bool first_time_window)
@@ -2566,9 +2567,10 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
     wm_window_swap_buffers(win);
   }
 
-  // GHOST_SetWindowState(ghostwin, GHOST_kWindowStateModified);
-  /* standard state vars for window */
-  //GPU_state_init();
+  if ((wm->initialized & WM_WINDOW_IS_INIT) == 0) {
+    WM_keyconfig_init(C);
+    WM_autosave_init(wm);
+  }
 }
 
 void wm_window_ghostwindow_embedded_ensure(wmWindowManager *wm, wmWindow *win)

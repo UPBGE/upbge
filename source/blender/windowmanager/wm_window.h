@@ -89,7 +89,8 @@ int wm_window_new_main_exec(bContext *C, struct wmOperator *op);
 void wm_test_autorun_warning(bContext *C);
 
 /* Game engine transition */
-void wm_window_ghostwindow_blenderplayer_ensure(struct wmWindowManager *wm,
+void wm_window_ghostwindow_blenderplayer_ensure(struct bContext *C,
+                                                struct wmWindowManager *wm,
                                                 struct wmWindow *win,
                                                 void *ghostwin,
                                                 bool first_time_window);

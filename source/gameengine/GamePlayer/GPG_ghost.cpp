@@ -111,6 +111,8 @@
 #include "wm.h"
 #include "WM_api.h"
 #include "wm_event_system.h"
+#include "WM_gizmo_types.h"
+#include "WM_gizmo_api.h"
 #include "wm_message_bus.h"
 #include "wm_surface.h"
 #include "wm_window.h"
@@ -843,9 +845,11 @@ int main(int argc,
   ED_undosys_type_init();
 
   BKE_library_callback_free_notifier_reference_set(
-      WM_main_remove_notifier_reference); /* library.c */
+      WM_main_remove_notifier_reference);                    /* lib_id.c */
+  BKE_region_callback_free_gizmomap_set(wm_gizmomap_remove); /* screen.c */
+  BKE_region_callback_refresh_tag_gizmomap_set(WM_gizmomap_tag_refresh);
   BKE_library_callback_remap_editor_id_reference_set(
-      WM_main_remap_editor_id_reference);                     /* library.c */
+      WM_main_remap_editor_id_reference);                     /* lib_id.c */
   BKE_spacedata_callback_id_remap_set(ED_spacedata_id_remap); /* screen.c */
   DEG_editors_set_update_cb(ED_render_id_flush_update, ED_render_scene_update);
 
@@ -1529,10 +1533,10 @@ int main(int argc,
             CTX_wm_manager_set(C, wm);
             CTX_wm_window_set(C, win);
             InitBlenderContextVariables(C, wm, bfd->curscene);
-            wm_window_ghostwindow_blenderplayer_ensure(wm, win, window, first_time_window);
+            wm_window_ghostwindow_blenderplayer_ensure(C, wm, win, window, first_time_window);
 
             /* The following is needed to run some bpy operators in blenderplayer */
-            ED_screen_refresh_blenderplayer(wm, win);
+            ED_screen_refresh(wm, win);
 
             if (first_time_window) {
               /* We need to have first an ogl context bound and it's done
