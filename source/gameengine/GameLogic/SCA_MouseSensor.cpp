@@ -87,15 +87,19 @@ bool SCA_MouseSensor::Evaluate()
   bool result = false;
   bool reset = m_reset && m_level;
   int previousval = m_val;
+  bool forceevent = false;
   SCA_IInputDevice *mousedev = ((SCA_MouseManager *)m_eventmgr)->GetInputDevice();
 
   m_reset = false;
   switch (m_mousemode) {
-    case KX_MOUSESENSORMODE_LEFTBUTTON:
-    case KX_MOUSESENSORMODE_MIDDLEBUTTON:
-    case KX_MOUSESENSORMODE_RIGHTBUTTON:
     case KX_MOUSESENSORMODE_WHEELUP:
     case KX_MOUSESENSORMODE_WHEELDOWN: {
+      forceevent = true;
+      /* pass-through */
+    }
+    case KX_MOUSESENSORMODE_LEFTBUTTON:
+    case KX_MOUSESENSORMODE_MIDDLEBUTTON:
+    case KX_MOUSESENSORMODE_RIGHTBUTTON: {
       static const SCA_IInputDevice::SCA_EnumInputs convertTable[KX_MOUSESENSORMODE_MAX] = {
           SCA_IInputDevice::NOKEY,          // KX_MOUSESENSORMODE_NODEF
           SCA_IInputDevice::LEFTMOUSE,      // KX_MOUSESENSORMODE_LEFTBUTTON
@@ -108,7 +112,9 @@ bool SCA_MouseSensor::Evaluate()
       const SCA_InputEvent &mevent = mousedev->GetInput(convertTable[m_mousemode]);
       if (mevent.Find(SCA_InputEvent::ACTIVE)) {
         m_val = 1;
-        result = true;
+        if (forceevent) {
+          result = true;
+        }
       }
       else {
         m_val = 0;
