@@ -928,7 +928,9 @@ int main(int argc,
   }
 #endif
   UI_theme_init_default();
-  U = *BKE_blendfile_userdef_from_defaults();
+
+  UserDef *user_def = BKE_blendfile_userdef_from_defaults();
+  BKE_blender_userdef_data_set_and_free(user_def);
 
   BKE_sound_init_once();
 
