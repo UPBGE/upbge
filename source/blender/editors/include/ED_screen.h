@@ -481,6 +481,10 @@ enum {
   SPACE_CONTEXT_CYCLE_NEXT,
 };
 
+/* Game engine transition */
+void ED_screen_refresh_blenderplayer(struct wmWindowManager *wm, struct wmWindow *win);
+/**************************/
+
 #ifdef __cplusplus
 }
 #endif
