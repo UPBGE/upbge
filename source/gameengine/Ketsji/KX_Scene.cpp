@@ -131,7 +131,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_lastReplicatedParentObject(nullptr),  // eevee
       m_gameDefaultCamera(nullptr),           // eevee
       m_shadingTypeBackup(0),                 // eevee
-      m_shadingFlagBackup(0),                 // eevee
       m_currentGPUViewport(nullptr),          // eevee
       m_initMaterialsGPUViewport(nullptr),    // eevee (See comment in .h)
       m_overlayCamera(nullptr),               // eevee (For overlay collections)
@@ -300,7 +299,6 @@ KX_Scene::~KX_Scene()
 
   if (m_shadingTypeBackup != 0) {
     v3d->shading.type = m_shadingTypeBackup;
-    v3d->shading.flag = m_shadingFlagBackup;
   }
 
   for (Object *hiddenOb : m_hiddenObjectsDuringRuntime) {
@@ -472,9 +470,7 @@ void KX_Scene::BackupShadingType()
 
     if (not_eevee) {
       m_shadingTypeBackup = v3d->shading.type;
-      m_shadingFlagBackup = v3d->shading.flag;
       v3d->shading.type = OB_RENDER;
-      v3d->shading.flag = (V3D_SHADING_SCENE_WORLD_RENDER | V3D_SHADING_SCENE_LIGHTS_RENDER);
       if (useViewportInBlenderplayer) {
         v3d->flag2 |= V3D_HIDE_OVERLAYS;
       }
