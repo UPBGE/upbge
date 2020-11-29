@@ -221,8 +221,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
   m_gameDefaultCamera = BKE_object_add_only_object(bmain, OB_CAMERA, "game_default_cam");
   m_gameDefaultCamera->data = BKE_object_obdata_add_from_type(bmain, OB_CAMERA, NULL);
-  LayerCollection *layer_collection = BKE_layer_collection_get_active(view_layer);
-  BKE_collection_object_add(bmain, layer_collection->collection, m_gameDefaultCamera);
+  BKE_collection_object_add(bmain, scene->master_collection, m_gameDefaultCamera);
   Base *defaultCamBase = BKE_view_layer_base_find(view_layer, m_gameDefaultCamera);
   defaultCamBase->flag |= BASE_HIDDEN;
   DEG_relations_tag_update(bmain);
@@ -333,8 +332,7 @@ KX_Scene::~KX_Scene()
   if (m_objectlist)
     m_objectlist->Release();
 
-  LayerCollection *layer_collection = BKE_layer_collection_get_active(view_layer);
-  BKE_collection_object_remove(bmain, layer_collection->collection, m_gameDefaultCamera, false);
+  BKE_collection_object_remove(bmain, scene->master_collection, m_gameDefaultCamera, false);
   BKE_id_free(bmain, m_gameDefaultCamera);
   m_gameDefaultCamera = nullptr;
   DEG_relations_tag_update(bmain);
