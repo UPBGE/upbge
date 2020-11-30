@@ -24,8 +24,9 @@
  *  \ingroup device
  */
 
-#include "DEV_InputDevice.h"
+#include <algorithm>
 
+#include "DEV_InputDevice.h"
 
 #include "GHOST_Types.h"
 
@@ -224,7 +225,14 @@ void DEV_InputDevice::ConvertWheelEvent(int z)
 {
   SCA_InputEvent &event = m_inputsTable[(z > 0) ? WHEELUPMOUSE : WHEELDOWNMOUSE];
   event.m_values.push_back(z);
-  if (event.m_status[event.m_status.size() - 1] != SCA_InputEvent::ACTIVE) {
+
+  // Limit the maximum event quantity per batch to 10
+  int size = std::min((int)event.m_status.size(), 10);
+
+  /* The first m_status use to be NONE but the subsequencial ones in the batch are
+     always ACTIVE. Due to that we can't check against SCA_InputEvent::ACTIVE
+     as in the others ConvertXXXXEvent() */
+  for (int i = 0; i < size; i++) {
     event.m_status.push_back(SCA_InputEvent::ACTIVE);
     event.m_queue.push_back(SCA_InputEvent::JUSTACTIVATED);
   }
