@@ -1009,8 +1009,7 @@ static void accessor_release_mask_callback(libmv_CacheKey cache_key)
 TrackingImageAccessor *tracking_image_accessor_new(MovieClip *clips[MAX_ACCESSOR_CLIP],
                                                    int num_clips,
                                                    MovieTrackingTrack **tracks,
-                                                   int num_tracks,
-                                                   int start_frame)
+                                                   int num_tracks)
 {
   TrackingImageAccessor *accessor = MEM_callocN(sizeof(TrackingImageAccessor),
                                                 "tracking image accessor");
@@ -1022,9 +1021,11 @@ TrackingImageAccessor *tracking_image_accessor_new(MovieClip *clips[MAX_ACCESSOR
 
   memcpy(accessor->clips, clips, num_clips * sizeof(MovieClip *));
   accessor->num_clips = num_clips;
-  accessor->tracks = tracks;
+
+  accessor->tracks = MEM_malloc_arrayN(
+      num_tracks, sizeof(MovieTrackingTrack *), "image accessor tracks");
+  memcpy(accessor->tracks, tracks, num_tracks * sizeof(MovieTrackingTrack *));
   accessor->num_tracks = num_tracks;
-  accessor->start_frame = start_frame;
 
   accessor->libmv_accessor = libmv_FrameAccessorNew((libmv_FrameAccessorUserData *)accessor,
                                                     accessor_get_image_callback,
@@ -1042,5 +1043,6 @@ void tracking_image_accessor_destroy(TrackingImageAccessor *accessor)
   IMB_moviecache_free(accessor->cache);
   libmv_FrameAccessorDestroy(accessor->libmv_accessor);
   BLI_spin_end(&accessor->cache_lock);
+  MEM_freeN(accessor->tracks);
   MEM_freeN(accessor);
 }

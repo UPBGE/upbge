@@ -71,6 +71,9 @@ class GLShader : public Shader {
 
   void vertformat_from_shader(GPUVertFormat *format) const override;
 
+  /* DEPRECATED: Kept only because of BGL API. */
+  int program_handle_get(void) const override;
+
   /******************************************Game engine*****************************************/
   char *shader_validate();
   void shader_bind_attributes(int *locations, const char **names, int len);
