@@ -37,17 +37,10 @@
 SCA_PythonJoystick::SCA_PythonJoystick(DEV_Joystick *joystick, int joyindex)
     : m_joystick(joystick), m_joyindex(joyindex)
 {
-#ifdef WITH_PYTHON
-  m_event_dict = PyDict_New();
-#endif
 }
 
 SCA_PythonJoystick::~SCA_PythonJoystick()
 {
-#ifdef WITH_PYTHON
-  PyDict_Clear(m_event_dict);
-  Py_DECREF(m_event_dict);
-#endif
 }
 
 std::string SCA_PythonJoystick::GetName()
