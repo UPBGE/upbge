@@ -32,9 +32,7 @@
 class SCA_PythonJoystick : public CValue {
   Py_Header private : class DEV_Joystick *m_joystick;
   int m_joyindex;
-#ifdef WITH_PYTHON
-  PyObject *m_event_dict;
-#endif
+
  public:
   SCA_PythonJoystick(class DEV_Joystick *joystick, int joyindex);
   virtual ~SCA_PythonJoystick();
