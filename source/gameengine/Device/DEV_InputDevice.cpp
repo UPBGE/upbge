@@ -156,6 +156,10 @@ DEV_InputDevice::DEV_InputDevice()
   m_reverseButtonTranslateTable[GHOST_kButtonMaskMiddle] = MIDDLEMOUSE;
   m_reverseButtonTranslateTable[GHOST_kButtonMaskRight] = RIGHTMOUSE;
   m_reverseButtonTranslateTable[GHOST_kButtonMaskLeft] = LEFTMOUSE;
+  m_reverseButtonTranslateTable[GHOST_kButtonMaskButton4] = BUTTON4MOUSE;
+  m_reverseButtonTranslateTable[GHOST_kButtonMaskButton5] = BUTTON5MOUSE;
+  m_reverseButtonTranslateTable[GHOST_kButtonMaskButton6] = BUTTON6MOUSE;
+  m_reverseButtonTranslateTable[GHOST_kButtonMaskButton7] = BUTTON7MOUSE;
 
   // Window events.
   m_reverseWindowTranslateTable[GHOST_kEventWindowSize] = WINRESIZE;
