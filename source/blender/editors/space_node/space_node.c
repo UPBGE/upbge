@@ -408,6 +408,14 @@ static void node_area_listener(wmWindow *UNUSED(win),
           ED_area_tag_refresh(area);
         }
       }
+      else if (ED_node_is_geometry(snode)) {
+        /* Rather strict check: only redraw when the reference matches the current editor's ID. */
+        if (wmn->data == ND_MODIFIER) {
+          if (wmn->reference == snode->id || snode->id == NULL) {
+            ED_area_tag_refresh(area);
+          }
+        }
+      }
       break;
     case NC_SPACE:
       if (wmn->data == ND_SPACE_NODE) {
@@ -930,13 +938,7 @@ static void node_space_subtype_item_extend(bContext *C, EnumPropertyItem **item,
 {
   bool free;
   const EnumPropertyItem *item_src = RNA_enum_node_tree_types_itemf_impl(C, &free);
-  for (const EnumPropertyItem *item_iter = item_src; item_iter->identifier; item_iter++) {
-    if (!U.experimental.use_new_geometry_nodes &&
-        STREQ(item_iter->identifier, "SimulationNodeTree")) {
-      continue;
-    }
-    RNA_enum_item_add(item, totitem, item_iter);
-  }
+  RNA_enum_items_add(item, totitem, item_src);
   if (free) {
     MEM_freeN((void *)item_src);
   }

@@ -4310,9 +4310,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
     {"rna_packedfile.c", NULL, RNA_def_packedfile},
     {"rna_palette.c", NULL, RNA_def_palette},
     {"rna_particle.c", NULL, RNA_def_particle},
-#ifdef WITH_POINT_CLOUD
     {"rna_pointcloud.c", NULL, RNA_def_pointcloud},
-#endif
     {"rna_pose.c", "rna_pose_api.c", RNA_def_pose},
     {"rna_property.c", NULL, RNA_def_gameproperty},
     {"rna_python_component.c", NULL, RNA_def_py_component},

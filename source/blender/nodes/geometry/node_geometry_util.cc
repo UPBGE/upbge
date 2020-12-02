@@ -14,16 +14,18 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include "node_simulation_util.h"
+#include "node_geometry_util.hh"
 #include "node_util.h"
 
-bool sim_node_poll_default(bNodeType *UNUSED(ntype), bNodeTree *ntree)
+bool geo_node_poll_default(bNodeType *UNUSED(ntype), bNodeTree *ntree)
 {
-  return STREQ(ntree->idname, "SimulationNodeTree");
+  return STREQ(ntree->idname, "GeometryNodeTree");
 }
 
-void sim_node_type_base(bNodeType *ntype, int type, const char *name, short nclass, short flag)
+void geo_node_type_base(bNodeType *ntype, int type, const char *name, short nclass, short flag)
 {
   node_type_base(ntype, type, name, nclass, flag);
-  ntype->poll = sim_node_poll_default;
+  ntype->poll = geo_node_poll_default;
+  ntype->update_internal_links = node_update_internal_links_default;
+  ntype->insert_link = node_insert_link_default;
 }

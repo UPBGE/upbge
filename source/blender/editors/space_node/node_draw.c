@@ -138,6 +138,9 @@ void ED_node_tag_update_id(ID *id)
     DEG_id_tag_update(id, 0);
     WM_main_add_notifier(NC_TEXTURE | ND_NODES, id);
   }
+  else if (ntree->type == NTREE_GEOMETRY) {
+    WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, id);
+  }
   else if (id == &ntree->id) {
     /* node groups */
     DEG_id_tag_update(id, 0);
@@ -676,6 +679,10 @@ int node_get_colorid(bNode *node)
       return TH_NODE_PATTERN;
     case NODE_CLASS_LAYOUT:
       return TH_NODE_LAYOUT;
+    case NODE_CLASS_GEOMETRY:
+      return TH_NODE_GEOMETRY;
+    case NODE_CLASS_ATTRIBUTE:
+      return TH_NODE_ATTRIBUTE;
     default:
       return TH_NODE;
   }

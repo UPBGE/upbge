@@ -334,6 +334,7 @@ typedef struct ThemeSpace {
   unsigned char nodeclass_vector[4], nodeclass_texture[4];
   unsigned char nodeclass_shader[4], nodeclass_script[4];
   unsigned char nodeclass_pattern[4], nodeclass_layout[4];
+  unsigned char nodeclass_geometry[4], nodeclass_attribute[4];
 
   /** For sequence editor. */
   unsigned char movie[4], movieclip[4], mask[4], image[4], scene[4], audio[4];
@@ -631,14 +632,11 @@ typedef struct UserDef_Experimental {
   char SANITIZE_AFTER_HERE;
   /* The following options are automatically sanitized (set to 0)
    * when the release cycle is not alpha. */
-  char use_new_geometry_nodes;
   char use_new_hair_type;
-  char use_new_point_cloud_type;
   char use_sculpt_vertex_colors;
   char use_switch_object_operator;
   char use_sculpt_tools_tilt;
   char use_object_add_tool;
-  char _pad[6];
   /** `makesdna` does not allow empty structs. */
 } UserDef_Experimental;
 

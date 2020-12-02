@@ -519,6 +519,20 @@ static void do_versions_point_attributes(CustomData *pdata)
   }
 }
 
+static void do_versions_point_attribute_names(CustomData *pdata)
+{
+  /* Change from capital initial letter to lower case (T82693). */
+  for (int i = 0; i < pdata->totlayer; i++) {
+    CustomDataLayer *layer = &pdata->layers[i];
+    if (layer->type == CD_PROP_FLOAT3 && STREQ(layer->name, "Position")) {
+      STRNCPY(layer->name, "position");
+    }
+    else if (layer->type == CD_PROP_FLOAT && STREQ(layer->name, "Radius")) {
+      STRNCPY(layer->name, "radius");
+    }
+  }
+}
+
 /* Move FCurve handles towards the control point in such a way that the curve itself doesn't
  * change. Since 2.91 FCurves are computed slightly differently, which requires this update to keep
  * the same animation result. Previous versions scaled down overlapping handles during evaluation.
@@ -1188,6 +1202,26 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
           }
         }
       }
+    }
+
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+      LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
+        if (md->type == eModifierType_WeightVGProximity) {
+          WeightVGProximityModifierData *wmd = (WeightVGProximityModifierData *)md;
+          if (wmd->cmap_curve == NULL) {
+            wmd->cmap_curve = BKE_curvemapping_add(1, 0.0, 0.0, 1.0, 1.0);
+            BKE_curvemapping_init(wmd->cmap_curve);
+          }
+        }
+      }
+    }
+
+    /* Hair and PointCloud attributes names. */
+    LISTBASE_FOREACH (Hair *, hair, &bmain->hairs) {
+      do_versions_point_attribute_names(&hair->pdata);
+    }
+    LISTBASE_FOREACH (PointCloud *, pointcloud, &bmain->pointclouds) {
+      do_versions_point_attribute_names(&pointcloud->pdata);
     }
   }
 }
