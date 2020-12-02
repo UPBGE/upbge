@@ -284,11 +284,17 @@ KX_Scene::~KX_Scene()
       DRW_game_render_loop_end();
     }
     else {
-      /* It has not been freed before because the main Render loop
-       * is not executed then we free it now.
-       */
-      GPU_viewport_free(m_initMaterialsGPUViewport);
-      DRW_game_python_loop_end(DEG_get_evaluated_view_layer(depsgraph));
+      /* If we are in python loop and we called render code */
+      if (!m_initMaterialsGPUViewport) {
+        DRW_game_render_loop_end();
+      }
+      else {
+        /* It has not been freed before because the main Render loop
+         * is not executed then we free it now.
+         */
+        GPU_viewport_free(m_initMaterialsGPUViewport);
+        DRW_game_python_loop_end(DEG_get_evaluated_view_layer(depsgraph));
+      }
     }
   }
   else {
