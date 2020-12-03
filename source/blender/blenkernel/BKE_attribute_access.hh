@@ -23,6 +23,7 @@
 
 #include "BKE_attribute.h"
 
+#include "BLI_color.hh"
 #include "BLI_float3.hh"
 
 struct Mesh;
@@ -30,6 +31,9 @@ struct Mesh;
 namespace blender::bke {
 
 using fn::CPPType;
+
+const CPPType *custom_data_type_to_cpp_type(const CustomDataType type);
+CustomDataType cpp_type_to_custom_data_type(const CPPType &type);
 
 /**
  * This class offers an indirection for reading an attribute.
@@ -47,6 +51,7 @@ class ReadAttribute {
  protected:
   const AttributeDomain domain_;
   const CPPType &cpp_type_;
+  const CustomDataType custom_data_type_;
   const int64_t size_;
 
   /* Protects the span below, so that no two threads initialize it at the same time. */
@@ -59,7 +64,10 @@ class ReadAttribute {
 
  public:
   ReadAttribute(AttributeDomain domain, const CPPType &cpp_type, const int64_t size)
-      : domain_(domain), cpp_type_(cpp_type), size_(size)
+      : domain_(domain),
+        cpp_type_(cpp_type),
+        custom_data_type_(cpp_type_to_custom_data_type(cpp_type)),
+        size_(size)
   {
   }
 
@@ -73,6 +81,11 @@ class ReadAttribute {
   const CPPType &cpp_type() const
   {
     return cpp_type_;
+  }
+
+  CustomDataType custom_data_type() const
+  {
+    return custom_data_type_;
   }
 
   int64_t size() const
@@ -104,6 +117,7 @@ class WriteAttribute {
  protected:
   const AttributeDomain domain_;
   const CPPType &cpp_type_;
+  const CustomDataType custom_data_type_;
   const int64_t size_;
 
   /* When not null, this points either to the attribute array or to a temporary array. */
@@ -115,7 +129,10 @@ class WriteAttribute {
 
  public:
   WriteAttribute(AttributeDomain domain, const CPPType &cpp_type, const int64_t size)
-      : domain_(domain), cpp_type_(cpp_type), size_(size)
+      : domain_(domain),
+        cpp_type_(cpp_type),
+        custom_data_type_(cpp_type_to_custom_data_type(cpp_type)),
+        size_(size)
   {
   }
 
@@ -129,6 +146,11 @@ class WriteAttribute {
   const CPPType &cpp_type() const
   {
     return cpp_type_;
+  }
+
+  CustomDataType custom_data_type() const
+  {
+    return custom_data_type_;
   }
 
   int64_t size() const
@@ -246,10 +268,9 @@ template<typename T> class TypedWriteAttribute {
 
 using FloatReadAttribute = TypedReadAttribute<float>;
 using Float3ReadAttribute = TypedReadAttribute<float3>;
+using Color4fReadAttribute = TypedReadAttribute<Color4f>;
 using FloatWriteAttribute = TypedWriteAttribute<float>;
 using Float3WriteAttribute = TypedWriteAttribute<float3>;
-
-const CPPType *custom_data_type_to_cpp_type(const CustomDataType type);
-CustomDataType cpp_type_to_custom_data_type(const CPPType &type);
+using Color4fWriteAttribute = TypedWriteAttribute<Color4f>;
 
 }  // namespace blender::bke
