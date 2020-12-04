@@ -599,7 +599,8 @@ static bool transform_modal_item_poll(const wmOperator *op, int value)
     case TFM_MODAL_AXIS_Z:
     case TFM_MODAL_PLANE_X:
     case TFM_MODAL_PLANE_Y:
-    case TFM_MODAL_PLANE_Z: {
+    case TFM_MODAL_PLANE_Z:
+    case TFM_MODAL_AUTOCONSTRAINTPLANE: {
       if (t->flag & T_NO_CONSTRAINT) {
         return false;
       }
@@ -713,55 +714,67 @@ wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf)
   return keymap;
 }
 
-static void transform_event_xyz_constraint(TransInfo *t, short key_type, bool is_plane)
+static bool transform_event_modal_constraint(TransInfo *t, short modal_type)
 {
   if (!(t->flag & T_NO_CONSTRAINT)) {
-    char cmode = constraintModeToChar(t);
-    int constraint_axis, constraint_plane;
-    const bool edit_2d = (t->flag & T_2D_EDIT) != 0;
-    const char *msg1 = "", *msg2 = "", *msg3 = "";
-    char axis;
+    if (t->flag & T_2D_EDIT && ELEM(modal_type, TFM_MODAL_AXIS_Z, TFM_MODAL_PLANE_Z)) {
+      return false;
+    }
+    int constraint_curr = (t->con.mode & CON_APPLY) ?
+                              t->con.mode & (CON_AXIS0 | CON_AXIS1 | CON_AXIS2) :
+                              -1;
+    int constraint_new;
+    const char *msg_2d = "", *msg_3d = "";
 
     /* Initialize */
-    switch (key_type) {
-      case EVT_XKEY:
-        msg1 = TIP_("along X");
-        msg2 = TIP_("along %s X");
-        msg3 = TIP_("locking %s X");
-        axis = 'X';
-        constraint_axis = CON_AXIS0;
+    switch (modal_type) {
+      case TFM_MODAL_AXIS_X:
+        msg_2d = TIP_("along X");
+        msg_3d = TIP_("along %s X");
+        constraint_new = CON_AXIS0;
         break;
-      case EVT_YKEY:
-        msg1 = TIP_("along Y");
-        msg2 = TIP_("along %s Y");
-        msg3 = TIP_("locking %s Y");
-        axis = 'Y';
-        constraint_axis = CON_AXIS1;
+      case TFM_MODAL_AXIS_Y:
+        msg_2d = TIP_("along Y");
+        msg_3d = TIP_("along %s Y");
+        constraint_new = CON_AXIS1;
         break;
-      case EVT_ZKEY:
-        msg1 = TIP_("along Z");
-        msg2 = TIP_("along %s Z");
-        msg3 = TIP_("locking %s Z");
-        axis = 'Z';
-        constraint_axis = CON_AXIS2;
+      case TFM_MODAL_AXIS_Z:
+        msg_2d = TIP_("along Z");
+        msg_3d = TIP_("along %s Z");
+        constraint_new = CON_AXIS2;
+        break;
+      case TFM_MODAL_PLANE_X:
+        msg_3d = TIP_("locking %s X");
+        constraint_new = CON_AXIS1 | CON_AXIS2;
+        break;
+      case TFM_MODAL_PLANE_Y:
+        msg_3d = TIP_("locking %s Y");
+        constraint_new = CON_AXIS0 | CON_AXIS2;
+        break;
+      case TFM_MODAL_PLANE_Z:
+        msg_3d = TIP_("locking %s Z");
+        constraint_new = CON_AXIS0 | CON_AXIS1;
         break;
       default:
         /* Invalid key */
-        return;
+        return false;
     }
-    constraint_plane = ((CON_AXIS0 | CON_AXIS1 | CON_AXIS2) & (~constraint_axis));
 
-    if (edit_2d && (key_type != EVT_ZKEY)) {
-      if (cmode == axis) {
+    if (t->flag & T_2D_EDIT) {
+      BLI_assert(modal_type < TFM_MODAL_PLANE_X);
+      if (constraint_new == CON_AXIS2) {
+        return false;
+      }
+      if (constraint_curr == constraint_new) {
         stopConstraint(t);
       }
       else {
-        setUserConstraint(t, constraint_axis, msg1);
+        setUserConstraint(t, constraint_new, msg_2d);
       }
     }
-    else if (!edit_2d) {
+    else {
       short orient_index = 1;
-      if (t->orient_curr == 0 || ELEM(cmode, '\0', axis)) {
+      if (t->orient_curr == 0 || ELEM(constraint_curr, -1, constraint_new)) {
         /* Successive presses on existing axis, cycle orientation modes. */
         orient_index = (short)((t->orient_curr + 1) % (int)ARRAY_SIZE(t->orient));
       }
@@ -771,16 +784,13 @@ static void transform_event_xyz_constraint(TransInfo *t, short key_type, bool is
         stopConstraint(t);
       }
       else {
-        if (is_plane == false) {
-          setUserConstraint(t, constraint_axis, msg2);
-        }
-        else {
-          setUserConstraint(t, constraint_plane, msg3);
-        }
+        setUserConstraint(t, constraint_new, msg_3d);
       }
     }
     t->redraw |= TREDRAW_HARD;
+    return true;
   }
+  return false;
 }
 
 int transformEvent(TransInfo *t, const wmEvent *event)
@@ -818,15 +828,9 @@ int transformEvent(TransInfo *t, const wmEvent *event)
     t->redraw |= handleSnapping(t, event);
     handled = true;
   }
-  else if (event->val == t->release_confirm_event_val &&
-           event->type == t->release_confirm_event_type) {
-    /* Confirm transform if launch key is released after mouse move. */
-    BLI_assert(t->flag & T_RELEASE_CONFIRM);
-    t->state = TRANS_CONFIRM;
-  }
+  /* handle modal keymap first */
+  /* enforce redraw of transform when modifiers are used */
   else if (event->type == EVT_MODAL_MAP) {
-    /* Handle modal keymap first. */
-    /* Enforce redraw of transform when modifiers are used */
     switch (event->val) {
       case TFM_MODAL_CANCEL:
         t->state = TRANS_CANCEL;
@@ -955,44 +959,12 @@ int transformEvent(TransInfo *t, const wmEvent *event)
         handled = true;
         break;
       case TFM_MODAL_AXIS_X:
-        if (!(t->flag & T_NO_CONSTRAINT)) {
-          transform_event_xyz_constraint(t, EVT_XKEY, false);
-          t->redraw |= TREDRAW_HARD;
-          handled = true;
-        }
-        break;
       case TFM_MODAL_AXIS_Y:
-        if ((t->flag & T_NO_CONSTRAINT) == 0) {
-          transform_event_xyz_constraint(t, EVT_YKEY, false);
-          t->redraw |= TREDRAW_HARD;
-          handled = true;
-        }
-        break;
       case TFM_MODAL_AXIS_Z:
-        if ((t->flag & (T_NO_CONSTRAINT)) == 0) {
-          transform_event_xyz_constraint(t, EVT_ZKEY, false);
-          t->redraw |= TREDRAW_HARD;
-          handled = true;
-        }
-        break;
       case TFM_MODAL_PLANE_X:
-        if ((t->flag & (T_NO_CONSTRAINT | T_2D_EDIT)) == 0) {
-          transform_event_xyz_constraint(t, EVT_XKEY, true);
-          t->redraw |= TREDRAW_HARD;
-          handled = true;
-        }
-        break;
       case TFM_MODAL_PLANE_Y:
-        if ((t->flag & (T_NO_CONSTRAINT | T_2D_EDIT)) == 0) {
-          transform_event_xyz_constraint(t, EVT_YKEY, true);
-          t->redraw |= TREDRAW_HARD;
-          handled = true;
-        }
-        break;
       case TFM_MODAL_PLANE_Z:
-        if ((t->flag & (T_NO_CONSTRAINT | T_2D_EDIT)) == 0) {
-          transform_event_xyz_constraint(t, EVT_ZKEY, true);
-          t->redraw |= TREDRAW_HARD;
+        if (transform_event_modal_constraint(t, event->val)) {
           handled = true;
         }
         break;
@@ -1088,7 +1060,12 @@ int transformEvent(TransInfo *t, const wmEvent *event)
         break;
       case TFM_MODAL_AUTOCONSTRAINT:
       case TFM_MODAL_AUTOCONSTRAINTPLANE:
-        if ((t->flag & T_NO_CONSTRAINT) == 0) {
+        if ((t->flag & T_RELEASE_CONFIRM) && (event->prevval == KM_RELEASE) &&
+            event->prevtype == t->launch_event) {
+          /* Confirm transform if launch key is released after mouse move. */
+          t->state = TRANS_CONFIRM;
+        }
+        else if ((t->flag & T_NO_CONSTRAINT) == 0) {
           if (t->modifiers & (MOD_CONSTRAINT_SELECT | MOD_CONSTRAINT_PLANE)) {
             /* Confirm. */
             postSelectConstraint(t);
@@ -1128,8 +1105,8 @@ int transformEvent(TransInfo *t, const wmEvent *event)
         break;
     }
   }
+  /* Else do non-mapped events. */
   else if (event->val == KM_PRESS) {
-    /* Do non-mapped events. */
     switch (event->type) {
       case EVT_CKEY:
         if (event->is_repeat) {
@@ -1216,6 +1193,11 @@ int transformEvent(TransInfo *t, const wmEvent *event)
           handled = true;
         }
         break;
+    }
+
+    /* confirm transform if launch key is released after mouse move */
+    if ((t->flag & T_RELEASE_CONFIRM) && event->type == t->launch_event) {
+      t->state = TRANS_CONFIRM;
     }
   }
 
@@ -1688,6 +1670,17 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
   t->mode = mode;
 
+  /* Needed to translate tweak events to mouse buttons. */
+  t->launch_event = event ? WM_userdef_event_type_from_keymap_type(event->type) : -1;
+  t->is_launch_event_tweak = event ? ISTWEAK(event->type) : false;
+
+  /* XXX Remove this when wm_operator_call_internal doesn't use window->eventstate
+   * (which can have type = 0) */
+  /* For gizmo only, so assume LEFTMOUSE. */
+  if (t->launch_event == 0) {
+    t->launch_event = LEFTMOUSE;
+  }
+
   unit_m3(t->spacemtx);
 
   initTransInfo(C, t, op, event);
@@ -1758,6 +1751,37 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
     if (!has_selected_any) {
       postTrans(C, t);
       return 0;
+    }
+  }
+
+  if (event) {
+    /* keymap for shortcut header prints */
+    t->keymap = WM_keymap_active(CTX_wm_manager(C), op->type->modalkeymap);
+
+    /* Stupid code to have Ctrl-Click on gizmo work ok.
+     *
+     * Do this only for translation/rotation/resize because only these
+     * modes are available from gizmo and doing such check could
+     * lead to keymap conflicts for other modes (see T31584)
+     */
+    if (ELEM(mode, TFM_TRANSLATION, TFM_ROTATION, TFM_RESIZE)) {
+      wmKeyMapItem *kmi;
+
+      for (kmi = t->keymap->items.first; kmi; kmi = kmi->next) {
+        if (kmi->flag & KMI_INACTIVE) {
+          continue;
+        }
+
+        if (kmi->propvalue == TFM_MODAL_SNAP_INV_ON && kmi->val == KM_PRESS) {
+          if ((ELEM(kmi->type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY) && event->ctrl) ||
+              (ELEM(kmi->type, EVT_LEFTSHIFTKEY, EVT_RIGHTSHIFTKEY) && event->shift) ||
+              (ELEM(kmi->type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY) && event->alt) ||
+              ((kmi->type == EVT_OSKEY) && event->oskey)) {
+            t->modifiers |= MOD_SNAP_INVERT;
+          }
+          break;
+        }
+      }
     }
   }
 

@@ -22,14 +22,14 @@
  */
 
 #include <algorithm>
-#include <errno.h>
+#include <cerrno>
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <set>
-#include <stddef.h>
 #include <stdexcept>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string>
 
 #include <Iex.h>
@@ -120,11 +120,11 @@ class IMemStream : public Imf::IStream {
     _exrbuf = exrbuf;
   }
 
-  virtual ~IMemStream()
+  ~IMemStream() override
   {
   }
 
-  virtual bool read(char c[], int n)
+  bool read(char c[], int n) override
   {
     if (n + _exrpos <= _exrsize) {
       memcpy(c, (void *)(&_exrbuf[_exrpos]), n);
@@ -135,17 +135,17 @@ class IMemStream : public Imf::IStream {
     return false;
   }
 
-  virtual Int64 tellg()
+  Int64 tellg() override
   {
     return _exrpos;
   }
 
-  virtual void seekg(Int64 pos)
+  void seekg(Int64 pos) override
   {
     _exrpos = pos;
   }
 
-  virtual void clear()
+  void clear() override
   {
   }
 
@@ -175,7 +175,7 @@ class IFileStream : public Imf::IStream {
     }
   }
 
-  virtual bool read(char c[], int n)
+  bool read(char c[], int n) override
   {
     if (!ifs) {
       throw Iex::InputExc("Unexpected end of file.");
@@ -186,18 +186,18 @@ class IFileStream : public Imf::IStream {
     return check_error();
   }
 
-  virtual Int64 tellg()
+  Int64 tellg() override
   {
     return std::streamoff(ifs.tellg());
   }
 
-  virtual void seekg(Int64 pos)
+  void seekg(Int64 pos) override
   {
     ifs.seekg(pos);
     check_error();
   }
 
-  virtual void clear()
+  void clear() override
   {
     ifs.clear();
   }
@@ -227,7 +227,7 @@ class OMemStream : public OStream {
   {
   }
 
-  virtual void write(const char c[], int n)
+  void write(const char c[], int n) override
   {
     ensure_size(offset + n);
     memcpy(ibuf->encodedbuffer + offset, c, n);
@@ -235,12 +235,12 @@ class OMemStream : public OStream {
     ibuf->encodedsize += n;
   }
 
-  virtual Int64 tellp()
+  Int64 tellp() override
   {
     return offset;
   }
 
-  virtual void seekp(Int64 pos)
+  void seekp(Int64 pos) override
   {
     offset = pos;
     ensure_size(offset);
@@ -281,19 +281,19 @@ class OFileStream : public OStream {
     }
   }
 
-  virtual void write(const char c[], int n)
+  void write(const char c[], int n) override
   {
     errno = 0;
     ofs.write(c, n);
     check_error();
   }
 
-  virtual Int64 tellp()
+  Int64 tellp() override
   {
     return std::streamoff(ofs.tellp());
   }
 
-  virtual void seekp(Int64 pos)
+  void seekp(Int64 pos) override
   {
     ofs.seekp(pos);
     check_error();
@@ -620,7 +620,7 @@ bool imb_save_openexr(struct ImBuf *ibuf, const char *name, int flags)
 
 static ListBase exrhandles = {nullptr, nullptr};
 
-typedef struct ExrHandle {
+struct ExrHandle {
   struct ExrHandle *next, *prev;
   char name[FILE_MAX];
 
@@ -645,10 +645,10 @@ typedef struct ExrHandle {
   ListBase layers;   /* hierarchical, pointing in end to ExrChannel */
 
   int num_half_channels; /* used during filr save, allows faster temporary buffers allocation */
-} ExrHandle;
+};
 
 /* flattened out channel */
-typedef struct ExrChannel {
+struct ExrChannel {
   struct ExrChannel *next, *prev;
 
   char name[EXR_TOT_MAXNAME + 1]; /* full name with everything */
@@ -658,10 +658,10 @@ typedef struct ExrChannel {
   char chan_id;                   /* quick lookup of channel char */
   int view_id;                    /* quick lookup of channel view */
   bool use_half_float;            /* when saving use half float for file storage */
-} ExrChannel;
+};
 
 /* hierarchical; layers -> passes -> channels[] */
-typedef struct ExrPass {
+struct ExrPass {
   struct ExrPass *next, *prev;
   char name[EXR_PASS_MAXNAME];
   int totchan;
@@ -672,13 +672,13 @@ typedef struct ExrPass {
   char internal_name[EXR_PASS_MAXNAME]; /* name with no view */
   char view[EXR_VIEW_MAXNAME];
   int view_id;
-} ExrPass;
+};
 
-typedef struct ExrLayer {
+struct ExrLayer {
   struct ExrLayer *next, *prev;
   char name[EXR_LAY_MAXNAME + 1];
   ListBase passes;
-} ExrLayer;
+};
 
 /* ********************** */
 
