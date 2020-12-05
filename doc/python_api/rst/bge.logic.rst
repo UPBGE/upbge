@@ -1286,6 +1286,10 @@ See :class:`bge.types.SCA_MouseSensor`
 .. data:: KX_MOUSE_BUT_LEFT
 .. data:: KX_MOUSE_BUT_MIDDLE
 .. data:: KX_MOUSE_BUT_RIGHT
+.. data:: KX_MOUSE_BUT_BUTTON4
+.. data:: KX_MOUSE_BUT_BUTTON5
+.. data:: KX_MOUSE_BUT_BUTTON6
+.. data:: KX_MOUSE_BUT_BUTTON7
 
 --------------------------
 Navigation Mesh Draw Modes

@@ -1766,6 +1766,10 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
   KX_MACRO_addTypesToDict(d, KX_MOUSE_BUT_LEFT, SCA_IInputDevice::LEFTMOUSE);
   KX_MACRO_addTypesToDict(d, KX_MOUSE_BUT_MIDDLE, SCA_IInputDevice::MIDDLEMOUSE);
   KX_MACRO_addTypesToDict(d, KX_MOUSE_BUT_RIGHT, SCA_IInputDevice::RIGHTMOUSE);
+  KX_MACRO_addTypesToDict(d, KX_MOUSE_BUT_BUTTON4, SCA_IInputDevice::BUTTON4MOUSE);
+  KX_MACRO_addTypesToDict(d, KX_MOUSE_BUT_BUTTON5, SCA_IInputDevice::BUTTON5MOUSE);
+  KX_MACRO_addTypesToDict(d, KX_MOUSE_BUT_BUTTON6, SCA_IInputDevice::BUTTON6MOUSE);
+  KX_MACRO_addTypesToDict(d, KX_MOUSE_BUT_BUTTON7, SCA_IInputDevice::BUTTON7MOUSE);
 
   /* 2D Filter Actuator */
   KX_MACRO_addTypesToDict(d, RAS_2DFILTER_ENABLED, RAS_2DFilterManager::FILTER_ENABLED);
@@ -2737,6 +2741,10 @@ PyMODINIT_FUNC initGameKeysPythonBinding()
   KX_MACRO_addTypesToDict(d, LEFTMOUSE, SCA_IInputDevice::LEFTMOUSE);
   KX_MACRO_addTypesToDict(d, MIDDLEMOUSE, SCA_IInputDevice::MIDDLEMOUSE);
   KX_MACRO_addTypesToDict(d, RIGHTMOUSE, SCA_IInputDevice::RIGHTMOUSE);
+  KX_MACRO_addTypesToDict(d, BUTTON4MOUSE, SCA_IInputDevice::BUTTON4MOUSE);
+  KX_MACRO_addTypesToDict(d, BUTTON5MOUSE, SCA_IInputDevice::BUTTON5MOUSE);
+  KX_MACRO_addTypesToDict(d, BUTTON6MOUSE, SCA_IInputDevice::BUTTON6MOUSE);
+  KX_MACRO_addTypesToDict(d, BUTTON7MOUSE, SCA_IInputDevice::BUTTON7MOUSE);
   KX_MACRO_addTypesToDict(d, WHEELUPMOUSE, SCA_IInputDevice::WHEELUPMOUSE);
   KX_MACRO_addTypesToDict(d, WHEELDOWNMOUSE, SCA_IInputDevice::WHEELDOWNMOUSE);
   KX_MACRO_addTypesToDict(d, MOUSEX, SCA_IInputDevice::MOUSEX);
