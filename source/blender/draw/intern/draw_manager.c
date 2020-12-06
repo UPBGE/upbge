@@ -3287,6 +3287,10 @@ void DRW_game_render_loop(bContext *C,
 
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
+  if (reset_taa_samples) {
+    rv3d->rflag |= RV3D_NAVIGATING;
+  }
+
   GPU_viewport_bind(viewport, 0, window);
 
   bool gpencil_engine_needed = drw_gpencil_engine_needed(depsgraph, v3d);
@@ -3405,6 +3409,8 @@ void DRW_game_render_loop(bContext *C,
   drw_viewport_cache_resize();
 
   GPU_viewport_unbind(DST.viewport);
+
+  rv3d->rflag &= ~RV3D_NAVIGATING;
 }
 
 void DRW_game_render_loop_end()
