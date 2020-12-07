@@ -31,6 +31,7 @@ from bpy.props import (
     IntProperty,
     StringProperty,
 )
+from bpy.app.translations import pgettext_iface as iface_
 
 # FIXME, we need a way to detect key repeat events.
 # unfortunately checking event previous values isn't reliable.
@@ -2692,26 +2693,28 @@ class WM_MT_splash_about(Menu):
         layout = self.layout
         layout.operator_context = 'EXEC_DEFAULT'
 
-        layout.label(text="UPBGE is free software")
-        layout.label(text="Licensed under the GNU General Public License")
-        layout.separator()
-        layout.separator()
+        split = layout.split(factor=0.65)
 
-        split = layout.split()
-        split.emboss = 'PULLDOWN_MENU'
-        split.scale_y = 1.3
+        col = split.column(align=True)
+        col.scale_y = 0.8
+        col.label(text=bpy.app.version_string, translate=False)
+        col.separator(factor=2.5)
+        col.label(text=iface_("Date: %s %s") % (bpy.app.build_commit_date.decode('utf-8', 'replace'),
+                                                bpy.app.build_commit_time.decode('utf-8', 'replace')), translate=False)
+        col.label(text=iface_("Hash: %s") % bpy.app.build_hash.decode('ascii'), translate=False)
+        col.label(text=iface_("Branch: %s") % bpy.app.build_branch.decode('utf-8', 'replace'), translate=False)
+        col.separator(factor=2.0)
+        col.label(text="UPBGE is free software")
+        col.label(text="Licensed under the GNU General Public License")
 
-        col1 = split.column()
-
-        col1.operator("wm.url_open", text="Release Notes", icon='URL').url = "https://github.com/UPBGE/upbge/wiki/Release-notes"
-        col1.operator("wm.url_open_preset", text="Credits", icon='URL').type = 'CREDITS'
-        col1.operator("wm.url_open", text="License", icon='URL').url = "https://www.blender.org/about/license/"
-
-        col2 = split.column()
-
-        col2.operator("wm.url_open", text="UPBGE Website", icon='URL').url = "https://upbge.org"
-        col2.operator("wm.url_open", text="Blender Store", icon='URL').url = "https://store.blender.org"
-        col2.operator("wm.url_open_preset", text="Development Fund", icon='FUND').type = 'FUND'
+        col = split.column(align=True)
+        col.emboss = 'PULLDOWN_MENU'
+        col.operator("wm.url_open_preset", text="Release Notes", icon='URL').url = "https://github.com/UPBGE/upbge/wiki/Release-notes"
+        col.operator("wm.url_open_preset", text="Credits", icon='URL').type = 'CREDITS'
+        col.operator("wm.url_open", text="License", icon='URL').url = "https://www.blender.org/about/license/"
+        col.operator("wm.url_open_preset", text="UPBGE Website", icon='URL').url = "https://upbge.org"
+        col.operator("wm.url_open", text="Blender Store", icon='URL').url = "https://store.blender.org"
+        col.operator("wm.url_open_preset", text="Development Fund", icon='FUND').type = 'FUND'
 
 
 class WM_OT_drop_blend_file(Operator):
