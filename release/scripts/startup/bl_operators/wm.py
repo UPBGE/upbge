@@ -2709,10 +2709,10 @@ class WM_MT_splash_about(Menu):
 
         col = split.column(align=True)
         col.emboss = 'PULLDOWN_MENU'
-        col.operator("wm.url_open_preset", text="Release Notes", icon='URL').url = "https://github.com/UPBGE/upbge/wiki/Release-notes"
+        col.operator("wm.url_open", text="Release Notes", icon='URL').url = "https://github.com/UPBGE/upbge/wiki/Release-notes"
         col.operator("wm.url_open_preset", text="Credits", icon='URL').type = 'CREDITS'
         col.operator("wm.url_open", text="License", icon='URL').url = "https://www.blender.org/about/license/"
-        col.operator("wm.url_open_preset", text="UPBGE Website", icon='URL').url = "https://upbge.org"
+        col.operator("wm.url_open", text="UPBGE Website", icon='URL').url = "https://upbge.org"
         col.operator("wm.url_open", text="Blender Store", icon='URL').url = "https://store.blender.org"
         col.operator("wm.url_open_preset", text="Development Fund", icon='FUND').type = 'FUND'
 

@@ -270,13 +270,13 @@ static uiBlock *wm_block_create_about(bContext *C, ARegion *region, void *UNUSED
 
   /* Blender logo. */
 #ifndef WITH_HEADLESS
-  extern char datatoc_blender_logo_png[];
-  extern int datatoc_blender_logo_png_size;
+  extern char datatoc_upbge_logo_png[];
+  extern int datatoc_upbge_logo_png_size;
 
-  const uchar *blender_logo_data = (const uchar *)datatoc_blender_logo_png;
-  size_t blender_logo_data_size = datatoc_blender_logo_png_size;
+  const uchar *blender_logo_data = (const uchar *)datatoc_upbge_logo_png;
+  size_t blender_logo_data_size = datatoc_upbge_logo_png_size;
   ImBuf *ibuf = IMB_ibImageFromMemory(
-      blender_logo_data, blender_logo_data_size, IB_rect, NULL, "blender_logo");
+      blender_logo_data, blender_logo_data_size, IB_rect, NULL, "upbge_logo");
 
   if (ibuf) {
     int width = 0.5 * dialog_width;

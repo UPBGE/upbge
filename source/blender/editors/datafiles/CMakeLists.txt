@@ -793,6 +793,7 @@ if(WITH_BLENDER)
     data_to_c_simple(../../../../release/datafiles/splash.png SRC)
     data_to_c_simple(../../../../release/datafiles/alert_icons.png SRC)
     data_to_c_simple(../../../../release/datafiles/blender_logo.png SRC)
+    data_to_c_simple(../../../../release/datafiles/upbge_logo.png SRC)
     # XXX These are handy, but give nasty "false changes" in svn :/
     # svg_to_png(../../../../release/datafiles/blender_icons.svg
     #            ../../../../release/datafiles/blender_icons16.png
