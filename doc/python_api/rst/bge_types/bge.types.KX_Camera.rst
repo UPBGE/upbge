@@ -246,6 +246,25 @@ base class --- :class:`KX_GameObject`
 
       Use :data:`bge.render.getWindowHeight` and :data:`bge.render.getWindowWidth` to calculate values relative to the entire display.
 
+      .. code-block:: python
+
+         import bge
+
+         scene = bge.logic.getCurrentScene()
+
+         cam1 = scene.objects["cam1"]
+         cam2 = scene.objects["cam2"]
+
+         cam1.useViewport = True
+         cam2.useViewport = True
+
+         width = bge.render.getWindowWidth()
+         height = bge.render.getWindowHeight()
+
+         # Try to do a vertical split of the view (setViewport(left, bottom, right, top))
+         cam1.setViewport(0, 0, int(width / 2), height)
+         cam2.setViewport(int(width / 2), 0, width, height)
+
       :arg left: left pixel coordinate of this viewport
       :type left: integer
       :arg bottom: bottom pixel coordinate of this viewport
