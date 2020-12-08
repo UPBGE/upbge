@@ -81,6 +81,15 @@ base class --- :class:`PyObjectPlus`
 
       The current active camera.
 
+      .. code-block:: python
+
+         import bge
+
+         own = bge.logic.getCurrentController().owner
+         scene = own.scene
+
+         scene.active_camera = scene.objects["Camera.001"]
+
       :type: :class:`KX_Camera`
       
       .. note::
