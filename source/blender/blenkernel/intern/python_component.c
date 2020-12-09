@@ -51,61 +51,144 @@
 
 #ifdef WITH_PYTHON
 
-PyDoc_STRVAR(class_documentation,
-             "This is the fake BGE class KX_PythonComponent from fake BGE module bge.types");
+#define FAKE_TYPES \
+    FT_DEF(BL_ArmatureBone) \
+    FT_DEF(BL_ArmatureChannel) \
+    FT_DEF(BL_ArmatureConstraint) \
+    FT_DEF(BL_ArmatureObject) \
+    FT_DEF(BL_Shader) \
+    FT_DEF(BL_Texture) \
+    FT_DEF(KX_2DFilter) \
+    FT_DEF(KX_2DFilterManager) \
+    FT_DEF(KX_2DFilterOffScreen) \
+    FT_DEF(KX_BlenderMaterial) \
+    FT_DEF(KX_Camera) \
+    FT_DEF(KX_CharacterWrapper) \
+    FT_DEF(KX_CollisionContactPoint) \
+    FT_DEF(KX_ConstraintWrapper) \
+    FT_DEF(KX_FontObject) \
+    FT_DEF(KX_GameObject) \
+    FT_DEF(KX_LibLoadStatus) \
+    FT_DEF(KX_LightObject) \
+    FT_DEF(KX_LodLevel) \
+    FT_DEF(KX_LodManager) \
+    FT_DEF(KX_MeshProxy) \
+    FT_DEF(KX_NavMeshObject) \
+    FT_DEF(KX_PolyProxy) \
+    FT_DEF(KX_PythonComponent) \
+    FT_DEF(KX_Scene) \
+    FT_DEF(KX_VehicleWrapper) \
+    FT_DEF(KX_VertexProxy) \
+    FT_DEF(SCA_2DFilterActuator) \
+    FT_DEF(SCA_ANDController) \
+    FT_DEF(SCA_ActionActuator) \
+    FT_DEF(SCA_ActuatorSensor) \
+    FT_DEF(SCA_AddObjectActuator) \
+    FT_DEF(SCA_AlwaysSensor) \
+    FT_DEF(SCA_ArmatureActuator) \
+    FT_DEF(SCA_ArmatureSensor) \
+    FT_DEF(SCA_CameraActuator) \
+    FT_DEF(SCA_CollisionSensor) \
+    FT_DEF(SCA_ConstraintActuator) \
+    FT_DEF(SCA_DelaySensor) \
+    FT_DEF(SCA_DynamicActuator) \
+    FT_DEF(SCA_EndObjectActuator) \
+    FT_DEF(SCA_GameActuator) \
+    FT_DEF(SCA_IActuator) \
+    FT_DEF(SCA_IController) \
+    FT_DEF(SCA_ILogicBrick) \
+    FT_DEF(SCA_IObject) \
+    FT_DEF(SCA_ISensor) \
+    FT_DEF(SCA_InputEvent) \
+    FT_DEF(SCA_JoystickSensor) \
+    FT_DEF(SCA_KeyboardSensor) \
+    FT_DEF(SCA_MouseActuator) \
+    FT_DEF(SCA_MouseFocusSensor) \
+    FT_DEF(SCA_MouseSensor) \
+    FT_DEF(SCA_NANDController) \
+    FT_DEF(SCA_NORController) \
+    FT_DEF(SCA_NearSensor) \
+    FT_DEF(SCA_NetworkMessageActuator) \
+    FT_DEF(SCA_NetworkMessageSensor) \
+    FT_DEF(SCA_ORController) \
+    FT_DEF(SCA_ObjectActuator) \
+    FT_DEF(SCA_ParentActuator) \
+    FT_DEF(SCA_PropertyActuator) \
+    FT_DEF(SCA_PropertySensor) \
+    FT_DEF(SCA_PythonController) \
+    FT_DEF(SCA_PythonJoystick) \
+    FT_DEF(SCA_PythonKeyboard) \
+    FT_DEF(SCA_PythonMouse) \
+    FT_DEF(SCA_RadarSensor) \
+    FT_DEF(SCA_RandomActuator) \
+    FT_DEF(SCA_RandomSensor) \
+    FT_DEF(SCA_RaySensor) \
+    FT_DEF(SCA_ReplaceMeshActuator) \
+    FT_DEF(SCA_SceneActuator) \
+    FT_DEF(SCA_SoundActuator) \
+    FT_DEF(SCA_StateActuator) \
+    FT_DEF(SCA_SteeringActuator) \
+    FT_DEF(SCA_TrackToActuator) \
+    FT_DEF(SCA_VibrationActuator) \
+    FT_DEF(SCA_VisibilityActuator) \
+    FT_DEF(SCA_XNORController) \
+    FT_DEF(SCA_XORController)
 
-static PyTypeObject PythonComponentType = {
-    PyVarObject_HEAD_INIT(NULL, 0) "KX_PythonComponent", /* tp_name */
-    sizeof(PyObject),                                    /* tp_basicsize */
-    0,                                                   /* tp_itemsize */
-    (destructor)NULL,                                    /* tp_dealloc */
-    NULL,                                                /* tp_print */
-    NULL,                                                /* tp_getattr */
-    NULL,                                                /* tp_setattr */
-    NULL,                                                /* tp_compare */
-    (reprfunc)NULL,                                      /* tp_repr */
-    NULL,                                                /* tp_as_number */
-    NULL,                                                /* tp_as_sequence */
-    NULL,                                                /* tp_as_mapping */
-    (hashfunc)NULL,                                      /* tp_hash */
-    NULL,                                                /* tp_call */
-    NULL,                                                /* tp_str */
-    NULL,                                                /* tp_getattro */
-    NULL,                                                /* tp_setattro */
-    NULL,                                                /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,            /* tp_flags */
-    class_documentation,                                 /* tp_doc */
-    (traverseproc)NULL,                                  /* tp_traverse */
-    (inquiry)NULL,                                       /* tp_clear */
-    (richcmpfunc)NULL,                                   /* tp_richcompare */
-    0,                                                   /* tp_weaklistoffset */
-    NULL,                                                /* tp_iter */
-    NULL,                                                /* tp_iternext */
-    NULL,                                                /* tp_methods */
-    NULL,                                                /* tp_members */
-    NULL,                                                /* tp_getset */
-    NULL,                                                /* tp_base */
-    NULL,                                                /* tp_dict */
-    NULL,                                                /* tp_descr_get */
-    NULL,                                                /* tp_descr_set */
-    0,                                                   /* tp_dictoffset */
-    NULL,                                                /* tp_init */
-    PyType_GenericAlloc,                                 /* tp_alloc */
-    PyType_GenericNew,                                   /* tp_new */
-    NULL,                                                /* tp_free */
-    NULL,                                                /* tp_is_gc */
-    NULL,                                                /* tp_bases */
-    NULL,                                                /* tp_mro */
-    NULL,                                                /* tp_cache */
-    NULL,                                                /* tp_subclasses */
-    NULL,                                                /* tp_weaklist */
-    NULL                                                 /* tp_del */
-
+#define FakeType(Type) \
+static PyTypeObject FT_ ## Type = { \
+    PyVarObject_HEAD_INIT(NULL, 0) STRINGIFY(Type),      /* tp_name */ \
+    sizeof(PyObject),                                    /* tp_basicsize */ \
+    0,                                                   /* tp_itemsize */ \
+    (destructor)NULL,                                    /* tp_dealloc */ \
+    NULL,                                                /* tp_print */ \
+    NULL,                                                /* tp_getattr */ \
+    NULL,                                                /* tp_setattr */ \
+    NULL,                                                /* tp_compare */ \
+    (reprfunc)NULL,                                      /* tp_repr */ \
+    NULL,                                                /* tp_as_number */ \
+    NULL,                                                /* tp_as_sequence */ \
+    NULL,                                                /* tp_as_mapping */ \
+    (hashfunc)NULL,                                      /* tp_hash */ \
+    NULL,                                                /* tp_call */ \
+    NULL,                                                /* tp_str */ \
+    NULL,                                                /* tp_getattro */ \
+    NULL,                                                /* tp_setattro */ \
+    NULL,                                                /* tp_as_buffer */ \
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,            /* tp_flags */ \
+    NULL,                                                /* tp_doc */ \
+    (traverseproc)NULL,                                  /* tp_traverse */ \
+    (inquiry)NULL,                                       /* tp_clear */ \
+    (richcmpfunc)NULL,                                   /* tp_richcompare */ \
+    0,                                                   /* tp_weaklistoffset */ \
+    NULL,                                                /* tp_iter */ \
+    NULL,                                                /* tp_iternext */ \
+    NULL,                                                /* tp_methods */ \
+    NULL,                                                /* tp_members */ \
+    NULL,                                                /* tp_getset */ \
+    NULL,                                                /* tp_base */ \
+    NULL,                                                /* tp_dict */ \
+    NULL,                                                /* tp_descr_get */ \
+    NULL,                                                /* tp_descr_set */ \
+    0,                                                   /* tp_dictoffset */ \
+    NULL,                                                /* tp_init */ \
+    PyType_GenericAlloc,                                 /* tp_alloc */ \
+    PyType_GenericNew,                                   /* tp_new */ \
+    NULL,                                                /* tp_free */ \
+    NULL,                                                /* tp_is_gc */ \
+    NULL,                                                /* tp_bases */ \
+    NULL,                                                /* tp_mro */ \
+    NULL,                                                /* tp_cache */ \
+    NULL,                                                /* tp_subclasses */ \
+    NULL,                                                /* tp_weaklist */ \
+    NULL                                                 /* tp_del */ \
 };
 
+#define FT_DEF(Type) FakeType(Type)
+FAKE_TYPES
+#undef FT_DEF
+
 PyDoc_STRVAR(module_documentation,
-             "This is the fake BGE API module used only to import the KX_PythonComponent class "
-             "from bge.types.KX_PythonComponent");
+             "This is the fake BGE API module used only to import core classes from bge.types");
 
 static struct PyModuleDef bge_module_def = {
     PyModuleDef_HEAD_INIT, /* m_base */
@@ -133,7 +216,7 @@ static struct PyModuleDef bge_types_module_def = {
 
 static int verify_class(PyObject *cls)
 {
-  return PyType_IsSubtype((PyTypeObject *)cls, &PythonComponentType);
+  return PyType_IsSubtype((PyTypeObject *)cls, &FT_KX_PythonComponent);
 }
 
 static PythonComponentProperty *create_property(char *name)
@@ -436,8 +519,14 @@ static bool load_component(PythonComponent *pc, ReportList *reports, Main *maggi
   bgesubmod = PyModule_Create(&bge_types_module_def);
 
   PyModule_AddObject(bgemod, "types", bgesubmod);
-  PyType_Ready(&PythonComponentType);
-  PyModule_AddObject(bgesubmod, "KX_PythonComponent", (PyObject *)&PythonComponentType);
+  PyType_Ready(&FT_KX_PythonComponent);
+
+#define FT_DEF(Type) \
+  PyType_Ready(&FT_ ## Type); \
+  PyModule_AddObject(bgesubmod, STRINGIFY(Type), (PyObject *)&FT_ ## Type);
+
+  FAKE_TYPES
+#undef FT_DEF
 
   PyDict_SetItemString(sys_modules, "bge", bgemod);
   PyDict_SetItemString(sys_modules, "bge.types", bgesubmod);
