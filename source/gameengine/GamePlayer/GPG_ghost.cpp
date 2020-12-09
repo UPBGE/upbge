@@ -117,6 +117,7 @@
 
 #include "CM_Message.h"
 #include "KX_Globals.h"
+#include "KX_PythonInit.h"
 #include "LA_PlayerLauncher.h"
 #include "LA_SystemCommandLine.h"
 
@@ -1262,6 +1263,10 @@ int main(int argc,
 #endif  // WITH_PYTHON
 
         DRW_engines_register();
+
+#ifdef WITH_PYTHON
+        initGamePlayerPythonScripting(argc, argv, C);
+#endif
 
         bool first_time_window = true;
 

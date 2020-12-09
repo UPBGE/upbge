@@ -2131,16 +2131,8 @@ static struct _inittab bpy_internal_modules[] = {
  * Python is not initialized.
  * see bpy_interface.c's BPY_python_start() which shares the same functionality in blender.
  */
-void initGamePlayerPythonScripting(Main *maggie, int argc, char **argv, bContext *C, bool audioDeviveIsInitialized)
+void initGamePlayerPythonScripting(int argc, char **argv, bContext *C)
 {
-  /* Yet another gotcha in the py api
-   * Cant run PySys_SetArgv more than once because this adds the
-   * binary dir to the sys.path each time.
-   * Id have thought python being totally restarted would make this ok but
-   * somehow it remembers the sys.path - Campbell
-   */
-
-  static bool first_time = true;
   /* Needed for Python's initialization for portable Python installations.
    * We could use #Py_SetPath, but this overrides Python's internal logic
    * for calculating it's own module search paths.
@@ -2192,6 +2184,17 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char **argv, bContext
 
   /* Initialize Python (also acquires lock). */
   Py_Initialize();
+}
+
+void postInitGamePlayerPythonScripting(Main *maggie, int argc, char **argv, bContext *C, bool audioDeviveIsInitialized)
+{
+  /* Yet another gotcha in the py api
+   * Cant run PySys_SetArgv more than once because this adds the
+   * binary dir to the sys.path each time.
+   * Id have thought python being totally restarted would make this ok but
+   * somehow it remembers the sys.path - Campbell
+   */
+  static bool first_time = true;
 
   if (argv && first_time) { /* browser plugins don't currently set this */
     // Until python support ascii again, we use our own.
@@ -2413,7 +2416,7 @@ void setupGamePython(KX_KetsjiEngine *ketsjiengine,
   PyObject *modules;
 
   if (argv) /* player only */
-    initGamePlayerPythonScripting(blenderdata, argc, argv, C, audioDeviceIsInitialized);
+    postInitGamePlayerPythonScripting(blenderdata, argc, argv, C, audioDeviceIsInitialized);
   else
     initGamePythonScripting(blenderdata, audioDeviceIsInitialized);
 
