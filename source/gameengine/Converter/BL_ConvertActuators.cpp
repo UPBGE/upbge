@@ -1117,7 +1117,7 @@ void BL_ConvertActuators(const char *maggiename,
                                                       layoutname,
                                                       prefix,
                                                       cursordefault,
-                                                      kxscene,
+                                                      scene,
                                                       ketsjiEngine);
         baseact = tempguiact;
         break;

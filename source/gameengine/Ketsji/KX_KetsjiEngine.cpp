@@ -399,6 +399,7 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
   const double dt = m_clockTime - m_previousRealTime;
 
 #ifdef WITH_GAMEENGINE_CEGUI
+  CEGUI::System::getSingleton().getDefaultGUIContext().injectTimePulse(deltatime);
   CEGUI::System::getSingleton().injectTimePulse(deltatime); // for CEGUI animations, time is in seconds
 #endif
 
@@ -799,7 +800,7 @@ void KX_KetsjiEngine::Render()
 
 #ifdef WITH_GAMEENGINE_CEGUI
   try {
-    CEGUI::System::getSingleton().renderGUI();
+    CEGUI::System::getSingleton().renderAllGUIContexts();
   }
   catch (CEGUI::Exception& rgui_error) {
     std::cout << "Render GUI Error: " << rgui_error.getMessage() << std::endl;

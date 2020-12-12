@@ -33,7 +33,10 @@
 #include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_sound.h"
+#include "BLI_path_util.h"
+#include "BLI_string.h"
 #include "DNA_scene_types.h"
+
 #include "wm_event_types.h"
 
 #include "BL_BlenderConverter.h"
@@ -58,7 +61,7 @@
 
 #ifdef WITH_GAMEENGINE_CEGUI
 #include <CEGUI/CEGUI.h>
-#include <CEGUI/RendererModules/OpenGL/CEGUIOpenGLRenderer.h>
+#include <CEGUI/RendererModules/OpenGL/GLRenderer.h>
 #endif
 
 LA_Launcher::LA_Launcher(GHOST_ISystem *system,
@@ -137,7 +140,7 @@ static void addCEGUIResourceGroup(CEGUI::DefaultResourceProvider *rp,
   char resource_path[FILE_MAXDIR + FILE_MAXFILE];
 
   BLI_strncpy(resource_path, relative_path, sizeof(resource_path));
-  BLI_convertstringcode(resource_path, pathname);
+  BLI_path_abs(resource_path, pathname);
   std::cout << "GUI: Added " << resource_path << " path for group '" << group << "'" << std::endl;
   rp->setResourceGroupDirectory(group, resource_path);
 };
