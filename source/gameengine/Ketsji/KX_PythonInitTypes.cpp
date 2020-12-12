@@ -76,6 +76,7 @@
 #  include "SCA_DynamicActuator.h"
 #  include "SCA_EndObjectActuator.h"
 #  include "SCA_GameActuator.h"
+#  include "SCA_GUIActuator"
 #  include "SCA_IController.h"
 #  include "SCA_InputEvent.h"
 #  include "SCA_JoystickSensor.h"
@@ -229,6 +230,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
     PyType_Ready_Attr(dict, KX_ConstraintWrapper, init_getset);
     PyType_Ready_Attr(dict, SCA_GameActuator, init_getset);
     PyType_Ready_Attr(dict, KX_GameObject, init_getset);
+    PyType_Ready_Attr(dict, SCA_GUIActuator, init_getset);
     PyType_Ready_Attr(dict, KX_LibLoadStatus, init_getset);
     PyType_Ready_Attr(dict, KX_LightObject, init_getset);
     PyType_Ready_Attr(dict, KX_LodLevel, init_getset);
@@ -236,7 +238,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
     PyType_Ready_Attr(dict, KX_FontObject, init_getset);
     PyType_Ready_Attr(dict, KX_MeshProxy, init_getset);
     PyType_Ready_Attr(dict, SCA_MouseFocusSensor, init_getset);
-	PyType_Ready_Attr(dict, SCA_MovementSensor, init_getset);
+    PyType_Ready_Attr(dict, SCA_MovementSensor, init_getset);
     PyType_Ready_Attr(dict, SCA_NearSensor, init_getset);
     PyType_Ready_Attr(dict, KX_NetworkMessageActuator, init_getset);
     PyType_Ready_Attr(dict, KX_NetworkMessageSensor, init_getset);

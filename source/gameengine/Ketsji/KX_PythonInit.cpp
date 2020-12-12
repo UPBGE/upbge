@@ -118,6 +118,7 @@
 #include "SCA_ConstraintActuator.h"
 #include "SCA_DynamicActuator.h"
 #include "SCA_GameActuator.h"
+#include "SCA_GUIActuator.h"
 #include "SCA_IInputDevice.h"
 #include "SCA_JoystickManager.h" /* JOYINDEX_MAX */
 #include "SCA_MouseActuator.h"
@@ -1813,6 +1814,14 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
   KX_MACRO_addTypesToDict(d, KX_GAME_SAVECFG, SCA_GameActuator::KX_GAME_SAVECFG);
   KX_MACRO_addTypesToDict(d, KX_GAME_LOADCFG, SCA_GameActuator::KX_GAME_LOADCFG);
   KX_MACRO_addTypesToDict(d, KX_GAME_SCREENSHOT, SCA_GameActuator::KX_GAME_SCREENSHOT);
+
+  /* Game Actuator Modes */
+  KX_MACRO_addTypesToDict(d, KX_GUI_LAYOUT_ADD, SCA_GuiActuator::KX_GUI_LAYOUT_ADD);
+  KX_MACRO_addTypesToDict(d, KX_GUI_LAYOUT_REMOVE, SCA_GuiActuator::KX_GUI_LAYOUT_REMOVE);
+  KX_MACRO_addTypesToDict(d, KX_GUI_MOUSE_CHANGE, SCA_GuiActuator::KX_GUI_MOUSE_CHANGE);
+  KX_MACRO_addTypesToDict(d, KX_GUI_MOUSE_HIDE, SCA_GuiActuator::KX_GUI_MOUSE_HIDE);
+  KX_MACRO_addTypesToDict(d, KX_GUI_MOUSE_SHOW, SCA_GuiActuator::KX_GUI_MOUSE_SHOW);
+  KX_MACRO_addTypesToDict(d, KX_GUI_SCHEME_LOAD, SCA_GuiActuator::KX_GUI_SCHEME_LOAD);
 
   /* Scene Actuator Modes */
   KX_MACRO_addTypesToDict(d, KX_SCENE_RESTART, SCA_SceneActuator::KX_SCENE_RESTART);

@@ -870,6 +870,21 @@ See :class:`bge.types.KX_GameActuator`
 .. data:: KX_GAME_SAVECFG
 .. data:: KX_GAME_LOADCFG
 
+.. _gui-actuator:
+
+-------------
+GUI Actuator
+-------------
+
+See :class:`bge.types.SCA_GUIActuator`
+
+.. data:: KX_GUI_LAYOUT_ADD
+.. data:: KX_GUI_LAYOUT_REMOVE
+.. data:: KX_GUI_MOUSE_CHANGE
+.. data:: KX_GUI_MOUSE_HIDE
+.. data:: KX_GUI_MOUSE_SHOW
+.. data:: KX_GUI_SCHEME_LOAD
+
 .. _mouse-actuator:
 
 ---------------
