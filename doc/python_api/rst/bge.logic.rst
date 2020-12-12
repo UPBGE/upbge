@@ -37,12 +37,12 @@ See the sensor's reference for available methods:
 .. hlist::
    :columns: 3
 
-   * :class:`~bge.types.KX_MouseFocusSensor`
-   * :class:`~bge.types.KX_NearSensor`
+   * :class:`~bge.types.SCA_MouseFocusSensor`
+   * :class:`~bge.types.SCA_NearSensor`
    * :class:`~bge.types.KX_NetworkMessageSensor`
-   * :class:`~bge.types.KX_RadarSensor`
-   * :class:`~bge.types.KX_RaySensor`
-   * :class:`~bge.types.KX_CollisionSensor`
+   * :class:`~bge.types.SCA_RadarSensor`
+   * :class:`~bge.types.SCA_RaySensor`
+   * :class:`~bge.types.SCA_CollisionSensor`
    * :class:`~bge.types.SCA_DelaySensor`
    * :class:`~bge.types.SCA_JoystickSensor`
    * :class:`~bge.types.SCA_KeyboardSensor`
@@ -69,22 +69,22 @@ See the actuator's reference for available methods
    :columns: 3
    
    * :class:`~bge.types.BL_ActionActuator`
-   * :class:`~bge.types.KX_CameraActuator`
-   * :class:`~bge.types.KX_ConstraintActuator`
-   * :class:`~bge.types.KX_GameActuator`
-   * :class:`~bge.types.KX_MouseActuator`
+   * :class:`~bge.types.SCA_CameraActuator`
+   * :class:`~bge.types.SCA_ConstraintActuator`
+   * :class:`~bge.types.SCA_GameActuator`
+   * :class:`~bge.types.SCA_MouseActuator`
    * :class:`~bge.types.KX_NetworkMessageActuator`
-   * :class:`~bge.types.KX_ObjectActuator`
-   * :class:`~bge.types.KX_ParentActuator`
-   * :class:`~bge.types.KX_SCA_AddObjectActuator`
-   * :class:`~bge.types.KX_SCA_DynamicActuator`
-   * :class:`~bge.types.KX_SCA_EndObjectActuator`
-   * :class:`~bge.types.KX_SCA_ReplaceMeshActuator`
-   * :class:`~bge.types.KX_SceneActuator`
-   * :class:`~bge.types.KX_SoundActuator`
-   * :class:`~bge.types.KX_StateActuator`
-   * :class:`~bge.types.KX_TrackToActuator`
-   * :class:`~bge.types.KX_VisibilityActuator`
+   * :class:`~bge.types.SCA_ObjectActuator`
+   * :class:`~bge.types.SCA_ParentActuator`
+   * :class:`~bge.types.SCA_AddObjectActuator`
+   * :class:`~bge.types.SCA_DynamicActuator`
+   * :class:`~bge.types.SCA_EndObjectActuator`
+   * :class:`~bge.types.SCA_ReplaceMeshActuator`
+   * :class:`~bge.types.SCA_SceneActuator`
+   * :class:`~bge.types.SCA_SoundActuator`
+   * :class:`~bge.types.SCA_StateActuator`
+   * :class:`~bge.types.SCA_TrackToActuator`
+   * :class:`~bge.types.SCA_VisibilityActuator`
    * :class:`~bge.types.SCA_2DFilterActuator`
    * :class:`~bge.types.SCA_PropertyActuator`
    * :class:`~bge.types.SCA_RandomActuator`
@@ -544,7 +544,7 @@ Armature Sensor
 
 .. _armaturesensor-type:
 
-See :class:`bge.types.KX_ArmatureSensor.type`
+See :class:`bge.types.SCA_ArmatureSensor.type`
 
 .. data:: KX_ARMSENSOR_STATE_CHANGED
 
@@ -629,7 +629,7 @@ Property Sensor
 Radar Sensor
 ------------
 
-See :class:`bge.types.KX_RadarSensor`
+See :class:`bge.types.SCA_RadarSensor`
 
 .. data:: KX_RADAR_AXIS_POS_X
 .. data:: KX_RADAR_AXIS_POS_Y
@@ -642,7 +642,7 @@ See :class:`bge.types.KX_RadarSensor`
 Ray Sensor
 ----------
 
-See :class:`bge.types.KX_RaySensor`
+See :class:`bge.types.SCA_RaySensor`
 
 .. data:: KX_RAY_AXIS_POS_X
 .. data:: KX_RAY_AXIS_POS_Y
@@ -723,7 +723,7 @@ Constraint Actuator
 
 .. _constraint-actuator-option:
 
-See :class:`bge.types.KX_ConstraintActuator.option`
+See :class:`bge.types.SCA_ConstraintActuator.option`
 
 * Applicable to Distance constraint:
 
@@ -757,7 +757,7 @@ See :class:`bge.types.KX_ConstraintActuator.option`
 
 .. _constraint-actuator-limit:
 
-See :class:`bge.types.KX_ConstraintActuator.limit`
+See :class:`bge.types.SCA_ConstraintActuator.limit`
 
 .. data:: KX_CONSTRAINTACT_LOCX
 
@@ -847,7 +847,7 @@ See :class:`bge.types.KX_ConstraintActuator.limit`
 Dynamic Actuator
 ----------------
 
-See :class:`bge.types.KX_SCA_DynamicActuator`
+See :class:`bge.types.SCA_DynamicActuator`
 
 .. data:: KX_DYN_RESTORE_DYNAMICS
 .. data:: KX_DYN_DISABLE_DYNAMICS
@@ -861,7 +861,7 @@ See :class:`bge.types.KX_SCA_DynamicActuator`
 Game Actuator
 -------------
 
-See :class:`bge.types.KX_GameActuator`
+See :class:`bge.types.SCA_GameActuator`
 
 .. data:: KX_GAME_LOAD
 .. data:: KX_GAME_START
@@ -910,7 +910,7 @@ See :class:`bge.types.SCA_RandomActuator`
 Scene Actuator
 --------------
 
-See :class:`bge.types.KX_SceneActuator`
+See :class:`bge.types.SCA_SceneActuator`
 
 .. data:: KX_SCENE_RESTART
 .. data:: KX_SCENE_SET_SCENE
@@ -927,7 +927,7 @@ See :class:`bge.types.KX_SceneActuator`
 Sound Actuator
 --------------
       
-See :class:`bge.types.KX_SoundActuator`
+See :class:`bge.types.SCA_SoundActuator`
 
 .. data:: KX_SOUNDACT_PLAYSTOP
 
@@ -959,7 +959,7 @@ Steering Actuator
 
 .. _logic-steering-actuator:
 
-See :class:`bge.types.KX_SteeringActuator.behavior`
+See :class:`bge.types.SCA_SteeringActuator.behavior`
 
 .. data:: KX_STEERING_SEEK
 
@@ -979,7 +979,7 @@ See :class:`bge.types.KX_SteeringActuator.behavior`
 TrackTo Actuator
 -----------------
 
-See :class:`bge.types.KX_TrackToActuator`
+See :class:`bge.types.SCA_TrackToActuator`
 
 .. data:: KX_TRACK_UPAXIS_POS_X
 .. data:: KX_TRACK_UPAXIS_POS_Y
@@ -1343,7 +1343,7 @@ Shader
 States
 ------
 
-See :class:`bge.types.KX_StateActuator`
+See :class:`bge.types.SCA_StateActuator`
 
 .. data:: KX_STATE1
 .. data:: KX_STATE2
@@ -1378,7 +1378,7 @@ See :class:`bge.types.KX_StateActuator`
 
 .. _state-actuator-operation:
 
-See :class:`bge.types.KX_StateActuator.operation`
+See :class:`bge.types.SCA_StateActuator.operation`
 
 .. data:: KX_STATE_OP_CLR
 
