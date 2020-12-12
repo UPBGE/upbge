@@ -3182,12 +3182,30 @@ static void node_geometry_buts_attribute_math(uiLayout *layout,
   uiItemR(layout, ptr, "input_type_b", DEFAULT_FLAGS, IFACE_("Type B"), ICON_NONE);
 }
 
+static void node_geometry_buts_point_instance(uiLayout *layout,
+                                              bContext *UNUSED(C),
+                                              PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "instance_type", DEFAULT_FLAGS | UI_ITEM_R_EXPAND, NULL, ICON_NONE);
+}
+
 static void node_geometry_buts_attribute_fill(uiLayout *layout,
                                               bContext *UNUSED(C),
                                               PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "data_type", DEFAULT_FLAGS, "", ICON_NONE);
   // uiItemR(layout, ptr, "domain", DEFAULT_FLAGS, "", ICON_NONE);
+}
+
+static void node_geometry_buts_attribute_mix(uiLayout *layout,
+                                             bContext *UNUSED(C),
+                                             PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "blend_type", DEFAULT_FLAGS, "", ICON_NONE);
+  uiLayout *col = uiLayoutColumn(layout, false);
+  uiItemR(col, ptr, "input_type_factor", DEFAULT_FLAGS, IFACE_("Factor"), ICON_NONE);
+  uiItemR(col, ptr, "input_type_a", DEFAULT_FLAGS, IFACE_("A"), ICON_NONE);
+  uiItemR(col, ptr, "input_type_b", DEFAULT_FLAGS, IFACE_("B"), ICON_NONE);
 }
 
 static void node_geometry_set_butfunc(bNodeType *ntype)
@@ -3208,8 +3226,14 @@ static void node_geometry_set_butfunc(bNodeType *ntype)
     case GEO_NODE_ATTRIBUTE_MATH:
       ntype->draw_buttons = node_geometry_buts_attribute_math;
       break;
+    case GEO_NODE_POINT_INSTANCE:
+      ntype->draw_buttons = node_geometry_buts_point_instance;
+      break;
     case GEO_NODE_ATTRIBUTE_FILL:
       ntype->draw_buttons = node_geometry_buts_attribute_fill;
+      break;
+    case GEO_NODE_ATTRIBUTE_MIX:
+      ntype->draw_buttons = node_geometry_buts_attribute_mix;
       break;
   }
 }
@@ -3400,6 +3424,7 @@ static const float std_node_socket_colors[][4] = {
     {0.93, 0.62, 0.36, 1.0}, /* SOCK_OBJECT */
     {0.89, 0.76, 0.43, 1.0}, /* SOCK_IMAGE */
     {0.00, 0.84, 0.64, 1.0}, /* SOCK_GEOMETRY */
+    {0.96, 0.96, 0.96, 1.0}, /* SOCK_COLLECTION */
 };
 
 /* common color callbacks for standard types */
@@ -3520,6 +3545,10 @@ static void std_node_socket_draw(
       break;
     }
     case SOCK_IMAGE: {
+      uiItemR(layout, ptr, "default_value", DEFAULT_FLAGS, text, 0);
+      break;
+    }
+    case SOCK_COLLECTION: {
       uiItemR(layout, ptr, "default_value", DEFAULT_FLAGS, text, 0);
       break;
     }

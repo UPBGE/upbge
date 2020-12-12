@@ -32,6 +32,7 @@
 #include "BLI_fnmatch.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #ifdef WIN32
@@ -1307,18 +1308,32 @@ void BLI_setenv_if_new(const char *env, const char *val)
  * On windows getenv gets its variables from a static copy of the environment variables taken at
  * process start-up, causing it to not pick up on environment variables created during runtime.
  * This function uses an alternative method to get environment variables that does pick up on
- * runtime environment variables.
+ * runtime environment variables. The result will be UTF-8 encoded.
  */
+
 const char *BLI_getenv(const char *env)
 {
 #ifdef _MSC_VER
-  static char buffer[32767]; /* 32767 is the total size of the environment block on windows*/
-  if (GetEnvironmentVariableA(env, buffer, sizeof(buffer))) {
-    return buffer;
+  const char *result = NULL;
+  static wchar_t buffer[32768]; /* 32767 is the maximum size of the environment variable on
+                                   windows, reserve one more character for the zero terminator. */
+  wchar_t *env_16 = alloc_utf16_from_8(env, 0);
+  if (env_16) {
+    if (GetEnvironmentVariableW(env_16, buffer, ARRAY_SIZE(buffer))) {
+      char *res_utf8 = alloc_utf_8_from_16(buffer, 0);
+      // make sure the result is valid, and will fit into our temporary storage buffer
+      if (res_utf8) {
+        if (strlen(res_utf8) + 1 < sizeof(buffer)) {
+          // We are re-using the utf16 buffer here, since allocating a second static buffer to
+          // contain the UTF-8 version to return would be wasteful.
+          memcpy(buffer, res_utf8, strlen(res_utf8) + 1);
+          result = (const char *)buffer;
+        }
+        free(res_utf8);
+      }
+    }
   }
-  else {
-    return NULL;
-  }
+  return result;
 #else
   return getenv(env);
 #endif
@@ -1516,7 +1531,8 @@ bool BLI_path_extension_check_glob(const char *str, const char *ext_fnmatch)
 }
 
 /**
- * Does basic validation of the given glob string, to prevent common issues from string truncation.
+ * Does basic validation of the given glob string, to prevent common issues from string
+ * truncation.
  *
  * For now, only forbids last group to be a wildcard-only one, if there are more than one group
  * (i.e. things like "*.txt;*.cpp;*" are changed to "*.txt;*.cpp;")

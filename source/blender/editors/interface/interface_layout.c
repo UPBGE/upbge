@@ -651,7 +651,7 @@ static void ui_item_array(uiLayout *layout,
       uiDefAutoButR(block, ptr, prop, -1, "", ICON_NONE, 0, 0, w, UI_UNIT_Y);
     }
     else {
-      /* even if 'expand' is fale, expanding anyway */
+      /* Even if 'expand' is false, we expand anyway. */
 
       /* layout for known array subtypes */
       char str[3] = {'\0'};
@@ -5661,6 +5661,11 @@ void uiLayoutSetContextPointer(uiLayout *layout, const char *name, PointerRNA *p
 {
   uiBlock *block = layout->root->block;
   layout->context = CTX_store_add(&block->contexts, name, ptr);
+}
+
+bContextStore *uiLayoutGetContextStore(uiLayout *layout)
+{
+  return layout->context;
 }
 
 void uiLayoutContextCopy(uiLayout *layout, bContextStore *context)
