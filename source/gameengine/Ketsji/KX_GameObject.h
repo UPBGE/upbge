@@ -92,7 +92,6 @@ class KX_GameObject : public SCA_IObject {
   float m_origObmat[4][4];
   float m_prevObmat[4][4];
   bool m_isReplica;
-  bool m_staticObject;
   bool m_useCopy;
   bool m_visibleAtGameStart;
   bool m_forceIgnoreParentTx;
@@ -143,7 +142,6 @@ class KX_GameObject : public SCA_IObject {
   void ReplicateBlenderObject();
   void HideOriginalObject();
   void RemoveReplicaObject();
-  bool IsStatic();
   void RecalcGeometry();
   void SuspendPhysics(bool freeConstraints, bool childrenRecursive);
   void RestorePhysics(bool childrenRecursive);
