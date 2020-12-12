@@ -20,7 +20,9 @@
 
 #include "SCA_GUIActuator.h"
 
+#ifdef WITH_GAMEENGINE_CEGUI
 #include <CEGUI/CEGUI.h>
+#endif
 #include <iostream>
 #include <string>
 
@@ -70,16 +72,20 @@ bool SCA_GUIActuator::Update()
   }
 
   try {
-    CEGUI::WindowManager& winMgr = CEGUI::WindowManager::getSingleton();
-    CEGUI::Window* background = winMgr.getWindow(KX_BGE_ROOT_WINDOW_NAME);
+    /*CEGUI::WindowManager& winMgr = CEGUI::WindowManager::getSingleton();
+    CEGUI::Window *background = winMgr.getWindow("BGE Root Window");*/
+
+    CEGUI::Window *background = CEGUI::WindowManager::getSingleton().createWindow(
+        "DefaultWindow", "root");
+    CEGUI::System::getSingleton().getDefaultGUIContext().setRootWindow(background);
 
     switch (m_mode) {
       case KX_GUI_LAYOUT_ADD: {
         if (m_prefix.length()) {
-          background->addChildWindow(winMgr.loadWindowLayout(m_layoutName.c_str(), m_prefix.c_str()));
+          background->addChild(winMgr.loadLayoutFromFile(m_layoutName.c_str(), m_prefix.c_str()));
         }
         else {
-          background->addChildWindow(winMgr.loadWindowLayout(m_layoutName.c_str()));
+          background->addChild(winMgr.loadLayoutFromFile(m_layoutName.c_str()));
         }
         break;
       }
@@ -89,25 +95,27 @@ bool SCA_GUIActuator::Update()
       case KX_GUI_SCHEME_LOAD: {
         try {
           // try to load with raw name
-          CEGUI::SchemeManager::getSingleton().create(m_layoutName.c_str());
+          CEGUI::SchemeManager::getSingleton().createFromFile(m_layoutName.c_str());
         }
         catch (CEGUI::Exception& gui_error) {
           // last chance... with .scheme suffix
-          CEGUI::SchemeManager::getSingleton().create((m_layoutName.append(".scheme")).c_str());
+          CEGUI::SchemeManager::getSingleton().createFromFile(
+              (m_layoutName.append(".scheme")).c_str());
         }
         break;
       }
       case KX_GUI_MOUSE_CHANGE: {
-        CEGUI::System::getSingleton().setDefaultMouseCursor(m_themeName.c_str(), m_cursorName.c_str());
-        CEGUI::MouseCursor::getSingleton().show();
+        CEGUI::System::getSingleton().getDefaultGUIContext().getMouseCursor().setDefaultImage(
+            /*m_themeName.c_str(),*/ m_cursorName.c_str());
+        CEGUI::System::getSingleton().getDefaultGUIContext().getMouseCursor().show();
         break;
       }
       case KX_GUI_MOUSE_HIDE: {
-        CEGUI::MouseCursor::getSingleton().hide();
+        CEGUI::System::getSingleton().getDefaultGUIContext().getMouseCursor().hide();
         break;
       }
       case KX_GUI_MOUSE_SHOW: {
-        CEGUI::MouseCursor::getSingleton().show();
+        CEGUI::System::getSingleton().getDefaultGUIContext().getMouseCursor().show();
         break;
       }
       default:; /* do nothing? this is an internal error !!! */
@@ -175,9 +183,9 @@ PyMethodDef SCA_GUIActuator::Methods[] =
 PyAttributeDef SCA_GUIActuator::Attributes[] = {
   KX_PYATTRIBUTE_STRING_RW("themeName", 0, 64, true, SCA_GUIActuator, m_themeName),
   KX_PYATTRIBUTE_STRING_RW("cursorName", 0, 64, true, SCA_GUIActuator, m_cursorName),
-  KX_PYATTRIBUTE_STRING_RW("layoutName", 0, 64, true, SCA_GUILayoutActuator, m_layoutName),
-  KX_PYATTRIBUTE_STRING_RW("prefix", 0, 64, true, SCA_GUILayoutActuator, m_prefix),
-  KX_PYATTRIBUTE_BOOL_RW("changeDefault", SCA_GUIActuator, m_defaultCursor),
+  KX_PYATTRIBUTE_STRING_RW("layoutName", 0, 64, true, SCA_GUIActuator, m_layoutName),
+  KX_PYATTRIBUTE_STRING_RW("prefix", 0, 64, true, SCA_GUIActuator, m_prefix),
+  KX_PYATTRIBUTE_BOOL_RW("changeDefault", SCA_GUIActuator, m_cursorDefault),
   KX_PYATTRIBUTE_INT_RW("mode", KX_GUI_NODEF + 1, KX_GUI_MAX - 1, true, SCA_GUIActuator, m_mode),
   KX_PYATTRIBUTE_NULL  // Sentinel
 };

@@ -1936,25 +1936,19 @@ static void rna_def_gui_actuator(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "GUI Mode", "GUI mode");
   RNA_def_property_update(prop, NC_LOGIC, NULL);
 
-  prop = RNA_def_property(srna, "layout_name", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, NULL, "layoutname");
-  RNA_def_property_struct_type(prop, "Text");
-  RNA_def_property_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop, "Layout Name", "");
+  prop = RNA_def_property(srna, "layout_name", PROP_STRING, PROP_FILEPATH);
+  RNA_def_property_string_sdna(prop, NULL, "layoutname");
+  RNA_def_property_ui_text(prop, "Layout Name", "CEGUI resource layout name");
   RNA_def_property_update(prop, NC_LOGIC, NULL);
 
-  prop = RNA_def_property(srna, "cursor_name", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, NULL, "cursorname");
-  RNA_def_property_struct_type(prop, "Text");
-  RNA_def_property_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop, "Cursor Name", "");
+  prop = RNA_def_property(srna, "cursor_name", PROP_STRING, PROP_FILEPATH);
+  RNA_def_property_string_sdna(prop, NULL, "cursorname");
+  RNA_def_property_ui_text(prop, "Cursor Name", "CEGUI resource cursor name");
   RNA_def_property_update(prop, NC_LOGIC, NULL);
 
-  prop = RNA_def_property(srna, "prefix", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, NULL, "prefix");
-  RNA_def_property_struct_type(prop, "Text");
-  RNA_def_property_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop, "Prefix", "");
+  prop = RNA_def_property(srna, "prefix", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, NULL, "prefix");
+  RNA_def_property_ui_text(prop, "Prefix", "CEGUI prefix");
   RNA_def_property_update(prop, NC_LOGIC, NULL);
 
   prop = RNA_def_property(srna, "cursor_default", PROP_BOOLEAN, PROP_NONE);

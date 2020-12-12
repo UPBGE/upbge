@@ -244,6 +244,12 @@ if(WITH_GAMEENGINE)
 endif()
 
 if(WITH_GAMEENGINE_CEGUI)
+  list(APPEND INC_SYS
+    ${CEGUI_INCLUDE_DIR}
+  )
+  list(APPEND LIB
+    ${CEGUI_LIBRARIES}
+  )
   add_definitions(-DWITH_GAMEENGINE_CEGUI)
 endif()
 
