@@ -232,7 +232,7 @@ void LA_Launcher::InitEngine()
 
 #ifdef WITH_PYTHON
   KX_SetMainPath(std::string(m_maggie->name));
-  setupGamePython(m_ketsjiEngine, m_maggie, m_globalDict, &m_gameLogic, m_argc, m_argv, m_context, m_audioDeviceIsInitialized);
+  setupGamePython(m_ketsjiEngine, m_maggie, m_globalDict, &m_gameLogic, m_argc, m_argv, m_context, &m_audioDeviceIsInitialized);
 #endif  // WITH_PYTHON
 
   // Create a scene converter, create and convert the stratingscene.
