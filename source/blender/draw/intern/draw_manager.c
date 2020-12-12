@@ -3331,6 +3331,13 @@ void DRW_game_render_loop(bContext *C,
 
   /* Init engines */
   drw_engines_init();
+
+  EEVEE_Data *vedata = EEVEE_engine_data_get();
+  EEVEE_EffectsInfo *effects = vedata->stl->effects;
+  if (reset_taa_samples) {
+    effects->taa_current_sample = 1;
+  }
+
   drw_engines_cache_init();
   drw_engines_world_update(DST.draw_ctx.scene);
 
@@ -3388,11 +3395,6 @@ void DRW_game_render_loop(bContext *C,
   GPU_framebuffer_bind(DST.default_framebuffer);
 
   DRW_state_reset();
-  EEVEE_Data *vedata = EEVEE_engine_data_get();
-  EEVEE_EffectsInfo *effects = vedata->stl->effects;
-  if (reset_taa_samples) {
-    effects->taa_current_sample = 1;
-  }
 
   GPU_framebuffer_clear_depth_stencil(DST.default_framebuffer, 1.0f, 0xFF);
 
