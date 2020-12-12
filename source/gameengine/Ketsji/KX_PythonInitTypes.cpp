@@ -78,6 +78,7 @@
 #  include "SCA_DynamicActuator.h"
 #  include "SCA_EndObjectActuator.h"
 #  include "SCA_GameActuator.h"
+#  include "SCA_GUIActuator"
 #  include "SCA_IController.h"
 #  include "SCA_InputEvent.h"
 #  include "SCA_JoystickSensor.h"
@@ -233,6 +234,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
     PyType_Ready_Attr(dict, SCA_GameActuator, init_getset);
     PyType_Ready_Attr(dict, KX_GameObject, init_getset);
     PyType_Ready_Attr(dict, KX_EmptyObject, init_getset);
+    PyType_Ready_Attr(dict, SCA_GUIActuator, init_getset);
     PyType_Ready_Attr(dict, KX_LibLoadStatus, init_getset);
     PyType_Ready_Attr(dict, KX_LightObject, init_getset);
     PyType_Ready_Attr(dict, KX_LodLevel, init_getset);
