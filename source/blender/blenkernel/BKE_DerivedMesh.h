@@ -71,10 +71,6 @@
 #include "BKE_bvhutils.h"
 #include "BKE_customdata.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct BMEditMesh;
 struct CCGElem;
 struct CCGKey;
@@ -126,6 +122,8 @@ typedef enum DMDirtyFlag {
   /* check this with modifier dependsOnNormals callback to see if normals need recalculation */
   DM_DIRTY_NORMALS = 1 << 1,
 } DMDirtyFlag;
+
+ENUM_OPERATORS(DMDirtyFlag, DM_DIRTY_NORMALS)
 
 typedef struct DerivedMesh DerivedMesh;
 struct DerivedMesh {
@@ -347,6 +345,10 @@ struct DerivedMesh {
    * if the DerivedMesh will be freed, or cached for later use. */
   void (*release)(DerivedMesh *dm);
 };
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void DM_init_funcs(DerivedMesh *dm);
 

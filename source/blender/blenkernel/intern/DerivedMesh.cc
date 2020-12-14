@@ -578,7 +578,7 @@ void DM_update_tessface_data(DerivedMesh *dm)
   const int totface = dm->getNumTessFaces(dm);
   int mf_idx;
 
-  int *polyindex = CustomData_get_layer(fdata, CD_ORIGINDEX);
+  int *polyindex = (int *)CustomData_get_layer(fdata, CD_ORIGINDEX);
   unsigned int(*loopindex)[4];
 
   /* Should never occur, but better abort than segfault! */
@@ -590,7 +590,7 @@ void DM_update_tessface_data(DerivedMesh *dm)
   if (CustomData_has_layer(fdata, CD_MTFACE) || CustomData_has_layer(fdata, CD_MCOL) ||
       CustomData_has_layer(fdata, CD_PREVIEW_MCOL) || CustomData_has_layer(fdata, CD_ORIGSPACE) ||
       CustomData_has_layer(fdata, CD_TESSLOOPNORMAL) || CustomData_has_layer(fdata, CD_TANGENT)) {
-    loopindex = MEM_malloc_arrayN(totface, sizeof(*loopindex), __func__);
+    loopindex = (unsigned int (*)[4])MEM_malloc_arrayN(totface, sizeof(*loopindex), __func__);
 
     for (mf_idx = 0, mf = mface; mf_idx < totface; mf_idx++, mf++) {
       const int mf_len = mf->v4 ? 4 : 3;
@@ -638,8 +638,8 @@ void DM_generate_tangent_tessface_data(DerivedMesh *dm, bool generate)
   const int totface = dm->getNumTessFaces(dm);
   int mf_idx;
 
-  int *polyindex = CustomData_get_layer(fdata, CD_ORIGINDEX);
-  unsigned int(*loopindex)[4] = NULL;
+  int *polyindex = (int *)CustomData_get_layer(fdata, CD_ORIGINDEX);
+  unsigned int(*loopindex)[4] = nullptr;
 
   /* Should never occur, but better abort than segfault! */
   if (!polyindex)
@@ -649,11 +649,11 @@ void DM_generate_tangent_tessface_data(DerivedMesh *dm, bool generate)
     for (int j = 0; j < ldata->totlayer; j++) {
       if (ldata->layers[j].type == CD_TANGENT) {
         CustomData_add_layer_named(
-            fdata, CD_TANGENT, CD_CALLOC, NULL, totface, ldata->layers[j].name);
+            fdata, CD_TANGENT, CD_CALLOC, nullptr, totface, ldata->layers[j].name);
         CustomData_bmesh_update_active_layers(fdata, ldata);
 
         if (!loopindex) {
-          loopindex = MEM_malloc_arrayN(totface, sizeof(*loopindex), __func__);
+          loopindex = (unsigned int(*)[4])MEM_malloc_arrayN(totface, sizeof(*loopindex), __func__);
           for (mf_idx = 0, mf = mface; mf_idx < totface; mf_idx++, mf++) {
             const int mf_len = mf->v4 ? 4 : 3;
             unsigned int *ml_idx = loopindex[mf_idx];
@@ -700,16 +700,16 @@ void DM_update_materials(DerivedMesh *dm, Object *ob)
     if (dm->mat)
       MEM_freeN(dm->mat);
 
-    dm->mat = MEM_malloc_arrayN(totmat, sizeof(*dm->mat), "DerivedMesh.mat");
+    dm->mat = (Material **)MEM_malloc_arrayN(totmat, sizeof(*dm->mat), "DerivedMesh.mat");
   }
 
   /* we leave last material as empty - rationale here is being able to index
    * the materials by using the mf->mat_nr directly and leaving the last
-   * material as NULL in case no materials exist on mesh, so indexing will not fail */
+   * material as nullptr in case no materials exist on mesh, so indexing will not fail */
   for (i = 0; i < totmat - 1; i++) {
     dm->mat[i] = BKE_object_material_get(ob, i + 1);
   }
-  dm->mat[i] = NULL;
+  dm->mat[i] = nullptr;
 }
 
 MLoopUV *DM_paint_uvlayer_active_get(DerivedMesh *dm, int mat_nr)
@@ -720,17 +720,17 @@ MLoopUV *DM_paint_uvlayer_active_get(DerivedMesh *dm, int mat_nr)
 
   if (dm->mat[mat_nr] && dm->mat[mat_nr]->texpaintslot &&
       dm->mat[mat_nr]->texpaintslot[dm->mat[mat_nr]->paint_active_slot].uvname) {
-    uv_base = CustomData_get_layer_named(
+    uv_base = (MLoopUV *)CustomData_get_layer_named(
         &dm->loopData,
         CD_MLOOPUV,
         dm->mat[mat_nr]->texpaintslot[dm->mat[mat_nr]->paint_active_slot].uvname);
     /* This can fail if we have changed the name in the UV layer list and have assigned the old
      * name in the material texture slot.*/
     if (!uv_base)
-      uv_base = CustomData_get_layer(&dm->loopData, CD_MLOOPUV);
+      uv_base = (MLoopUV *)CustomData_get_layer(&dm->loopData, CD_MLOOPUV);
   }
   else {
-    uv_base = CustomData_get_layer(&dm->loopData, CD_MLOOPUV);
+    uv_base = (MLoopUV *)CustomData_get_layer(&dm->loopData, CD_MLOOPUV);
   }
 
   return uv_base;
@@ -782,7 +782,7 @@ void DM_to_mesh(
     int uid;
 
     if (ob) {
-      kb = BLI_findlink(&me->key->block, ob->shapenr - 1);
+      kb = (KeyBlock *)BLI_findlink(&me->key->block, ob->shapenr - 1);
       if (kb) {
         uid = kb->uid;
       }
@@ -833,7 +833,7 @@ void DM_to_mesh(
   /* NOTE: maybe some other layers should be copied? nazgul */
   if (CustomData_has_layer(&me->ldata, CD_MDISPS)) {
     if (totloop == me->totloop) {
-      MDisps *mdisps = CustomData_get_layer(&me->ldata, CD_MDISPS);
+      MDisps *mdisps = (MDisps *)CustomData_get_layer(&me->ldata, CD_MDISPS);
       CustomData_add_layer(&tmp.ldata, CD_MDISPS, alloctype, mdisps, totloop);
     }
   }
@@ -858,16 +858,16 @@ void DM_to_mesh(
     if (tmp.key && !(tmp.id.tag & LIB_TAG_NO_MAIN)) {
       id_us_min(&tmp.key->id);
     }
-    tmp.key = NULL;
+    tmp.key = nullptr;
   }
 
   /* Clear selection history */
   MEM_SAFE_FREE(tmp.mselect);
   tmp.totselect = 0;
-  /*BLI_assert(ELEM(tmp.bb, NULL, me->bb));
+  /*BLI_assert(ELEM(tmp.bb, nullptr, me->bb));
   if (me->bb) {
     MEM_freeN(me->bb);
-    tmp.bb = NULL;
+    tmp.bb = nullptr;
   }*/
 
   /* skip the listbase */
@@ -1171,7 +1171,7 @@ static void shapekey_layers_to_keyblocks(DerivedMesh *dm, Mesh *me, int actshape
     CustomDataLayer *layer =
         &dm->vertData.layers[CustomData_get_layer_index_n(&dm->vertData, CD_SHAPEKEY, i)];
     float(*cos)[3], (*kbcos)[3];
-    for (kb = me->key->block.first; kb; kb = kb->next) {
+    for (kb = (KeyBlock *)me->key->block.first; kb; kb = kb->next) {
       if (kb->uid == layer->uid) {
         break;
       }
@@ -1183,9 +1183,9 @@ static void shapekey_layers_to_keyblocks(DerivedMesh *dm, Mesh *me, int actshape
     if (kb->data) {
       MEM_freeN(kb->data);
     }
-    cos = CustomData_get_layer_n(&dm->vertData, CD_SHAPEKEY, i);
-    kb->totelem = dm->numVertData;
-    kb->data = kbcos = MEM_malloc_arrayN(kb->totelem, 3 * sizeof(float), "kbcos DerivedMesh.c");
+    cos = (float(*)[3])CustomData_get_layer_n(&dm->vertData, CD_SHAPEKEY, i);
+    kb->totelem = (int)dm->numVertData;
+    kb->data = kbcos = (float (*)[3])MEM_malloc_arrayN(kb->totelem, 3 * sizeof(float), "kbcos DerivedMesh.c");
     if (kb->uid == actshape_uid) {
       MVert *mvert = dm->getVertArray(dm);
       for (j = 0; j < dm->numVertData; j++, kbcos++, mvert++) {
@@ -1198,7 +1198,7 @@ static void shapekey_layers_to_keyblocks(DerivedMesh *dm, Mesh *me, int actshape
       }
     }
   }
-  for (kb = me->key->block.first; kb; kb = kb->next) {
+  for (kb = (KeyBlock *)me->key->block.first; kb; kb = kb->next) {
     if (kb->totelem != dm->numVertData) {
       if (kb->data) {
         MEM_freeN(kb->data);
@@ -1811,7 +1811,7 @@ static void mesh_calc_modifiers_dm(struct Depsgraph *depsgraph,
                                    DerivedMesh **r_deformdm,
                                    DerivedMesh **r_finaldm)
 {
-  Mesh *deform_mesh = NULL, *final_mesh = NULL;
+  Mesh *deform_mesh = nullptr, *final_mesh = nullptr;
 
   mesh_calc_modifiers(depsgraph,
                       scene,
@@ -1822,16 +1822,16 @@ static void mesh_calc_modifiers_dm(struct Depsgraph *depsgraph,
                       index,
                       useCache,
                       true,
-                      (r_deformdm ? &deform_mesh : NULL),
+                      (r_deformdm ? &deform_mesh : nullptr),
                       &final_mesh);
 
   if (deform_mesh) {
     *r_deformdm = cdDM_from_mesh_ex(deform_mesh, CD_DUPLICATE, &CD_MASK_MESH);
-    BKE_id_free(NULL, deform_mesh);
+    BKE_id_free(nullptr, deform_mesh);
   }
 
   *r_finaldm = cdDM_from_mesh_ex(final_mesh, CD_DUPLICATE, &CD_MASK_MESH);
-  BKE_id_free(NULL, final_mesh);
+  BKE_id_free(nullptr, final_mesh);
 }
 //#endif
 
@@ -2530,7 +2530,7 @@ DerivedMesh *mesh_create_derived_no_virtual(struct Depsgraph *depsgraph,
   DerivedMesh *final;
 
   mesh_calc_modifiers_dm(
-      depsgraph, scene, ob, vertCos, -1, false, dataMask, -1, false, false, NULL, &final);
+      depsgraph, scene, ob, vertCos, -1, false, dataMask, -1, false, false, nullptr, &final);
 
   return final;
 }
@@ -2544,7 +2544,7 @@ DerivedMesh *mesh_create_derived_physics(struct Depsgraph *depsgraph,
   DerivedMesh *final;
 
   mesh_calc_modifiers_dm(
-      depsgraph, scene, ob, vertCos, -1, true, dataMask, -1, false, false, NULL, &final);
+      depsgraph, scene, ob, vertCos, -1, true, dataMask, -1, false, false, nullptr, &final);
 
   return final;
 }
@@ -2900,11 +2900,11 @@ bool DM_is_valid(DerivedMesh *dm)
 MVert *DM_get_vert_array(DerivedMesh *dm, bool *allocated)
 {
   CustomData *vert_data = dm->getVertDataLayout(dm);
-  MVert *mvert = CustomData_get_layer(vert_data, CD_MVERT);
+  MVert *mvert = (MVert *)CustomData_get_layer(vert_data, CD_MVERT);
   *allocated = false;
 
-  if (mvert == NULL) {
-    mvert = MEM_malloc_arrayN(dm->getNumVerts(dm), sizeof(MVert), "dmvh vert data array");
+  if (mvert == nullptr) {
+    mvert = (MVert *)MEM_malloc_arrayN(dm->getNumVerts(dm), sizeof(MVert), "dmvh vert data array");
     dm->copyVertArray(dm, mvert);
     *allocated = true;
   }
@@ -2915,11 +2915,11 @@ MVert *DM_get_vert_array(DerivedMesh *dm, bool *allocated)
 MEdge *DM_get_edge_array(DerivedMesh *dm, bool *allocated)
 {
   CustomData *edge_data = dm->getEdgeDataLayout(dm);
-  MEdge *medge = CustomData_get_layer(edge_data, CD_MEDGE);
+  MEdge *medge = (MEdge *)CustomData_get_layer(edge_data, CD_MEDGE);
   *allocated = false;
 
-  if (medge == NULL) {
-    medge = MEM_malloc_arrayN(dm->getNumEdges(dm), sizeof(MEdge), "dm medge data array");
+  if (medge == nullptr) {
+    medge = (MEdge *)MEM_malloc_arrayN(dm->getNumEdges(dm), sizeof(MEdge), "dm medge data array");
     dm->copyEdgeArray(dm, medge);
     *allocated = true;
   }
@@ -2930,11 +2930,11 @@ MEdge *DM_get_edge_array(DerivedMesh *dm, bool *allocated)
 MLoop *DM_get_loop_array(DerivedMesh *dm, bool *r_allocated)
 {
   CustomData *loop_data = dm->getLoopDataLayout(dm);
-  MLoop *mloop = CustomData_get_layer(loop_data, CD_MLOOP);
+  MLoop *mloop = (MLoop *)CustomData_get_layer(loop_data, CD_MLOOP);
   *r_allocated = false;
 
-  if (mloop == NULL) {
-    mloop = MEM_malloc_arrayN(dm->getNumLoops(dm), sizeof(MLoop), "dm loop data array");
+  if (mloop == nullptr) {
+    mloop = (MLoop *)MEM_malloc_arrayN(dm->getNumLoops(dm), sizeof(MLoop), "dm loop data array");
     dm->copyLoopArray(dm, mloop);
     *r_allocated = true;
   }
@@ -2945,11 +2945,11 @@ MLoop *DM_get_loop_array(DerivedMesh *dm, bool *r_allocated)
 MPoly *DM_get_poly_array(DerivedMesh *dm, bool *r_allocated)
 {
   CustomData *poly_data = dm->getPolyDataLayout(dm);
-  MPoly *mpoly = CustomData_get_layer(poly_data, CD_MPOLY);
+  MPoly *mpoly = (MPoly *)CustomData_get_layer(poly_data, CD_MPOLY);
   *r_allocated = false;
 
-  if (mpoly == NULL) {
-    mpoly = MEM_malloc_arrayN(dm->getNumPolys(dm), sizeof(MPoly), "dm poly data array");
+  if (mpoly == nullptr) {
+    mpoly = (MPoly *)MEM_malloc_arrayN(dm->getNumPolys(dm), sizeof(MPoly), "dm poly data array");
     dm->copyPolyArray(dm, mpoly);
     *r_allocated = true;
   }
@@ -2960,14 +2960,14 @@ MPoly *DM_get_poly_array(DerivedMesh *dm, bool *r_allocated)
 MFace *DM_get_tessface_array(DerivedMesh *dm, bool *r_allocated)
 {
   CustomData *tessface_data = dm->getTessFaceDataLayout(dm);
-  MFace *mface = CustomData_get_layer(tessface_data, CD_MFACE);
+  MFace *mface = (MFace *)CustomData_get_layer(tessface_data, CD_MFACE);
   *r_allocated = false;
 
-  if (mface == NULL) {
+  if (mface == nullptr) {
     int numTessFaces = dm->getNumTessFaces(dm);
 
     if (numTessFaces > 0) {
-      mface = MEM_malloc_arrayN(numTessFaces, sizeof(MFace), "bvh mface data array");
+      mface = (MFace *)MEM_malloc_arrayN(numTessFaces, sizeof(MFace), "bvh mface data array");
       dm->copyTessFaceArray(dm, mface);
       *r_allocated = true;
     }
@@ -3002,7 +3002,7 @@ static void mesh_build_derived_data(struct Depsgraph *depsgraph,
     dataMask->pmask |= CD_MASK_ORIGINDEX;
   }
 #endif
-  Mesh *mesh_eval = NULL, *mesh_deform_eval = NULL;
+  Mesh *mesh_eval = nullptr, *mesh_deform_eval = nullptr;
   mesh_calc_modifiers(depsgraph,
                       scene,
                       ob,
@@ -3015,7 +3015,7 @@ static void mesh_build_derived_data(struct Depsgraph *depsgraph,
                       &mesh_deform_eval,
                       &mesh_eval);
 
-  Mesh *mesh = ob->data;
+  Mesh *mesh = (Mesh *)ob->data;
   const bool is_mesh_eval_owned = (mesh_eval != mesh->runtime.mesh_eval);
   BKE_object_eval_assign_data(ob, &mesh_eval->id, is_mesh_eval_owned);
   ob->runtime.mesh_deform_eval = mesh_deform_eval;
@@ -3036,7 +3036,7 @@ static void mesh_build_derived_data(struct Depsgraph *depsgraph,
     }
   }
 
-  if (mesh_eval != NULL) {
+  if (mesh_eval != nullptr) {
     mesh_runtime_check_normals_valid(mesh_eval);
   }
   mesh_build_extra_data(depsgraph, ob, mesh_eval);
