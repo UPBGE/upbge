@@ -42,7 +42,7 @@ class DEV_InputDevice : public SCA_IInputDevice {
   std::map<int, SCA_EnumInputs> m_reverseButtonTranslateTable;
   std::map<int, SCA_EnumInputs> m_reverseWindowTranslateTable;
 #ifdef WITH_GAMEENGINE_CEGUI
-  std::map<int,unsigned int> m_ceguiReverseKeyTranslateTable;
+  std::map<int, SCA_EnumInputs> m_ceguiReverseKeyTranslateTable;
 #endif
 
  public:
