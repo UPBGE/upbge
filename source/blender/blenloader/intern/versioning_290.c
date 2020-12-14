@@ -52,6 +52,7 @@
 #include "BKE_armature.h"
 #include "BKE_collection.h"
 #include "BKE_colortools.h"
+#include "BKE_cryptomatte.h"
 #include "BKE_fcurve.h"
 #include "BKE_gpencil.h"
 #include "BKE_lib_id.h"
@@ -1254,6 +1255,47 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
           BLI_assert(nmd_properties->type == IDP_GROUP);
           LISTBASE_FOREACH (IDProperty *, nmd_socket_idprop, &nmd_properties->data.group) {
             nmd_socket_idprop->flag |= IDP_FLAG_OVERRIDABLE_LIBRARY;
+          }
+        }
+      }
+    }
+
+    /* EEVEE/Cycles Volumes consistency */
+    for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
+      /* Remove Volume Transmittance render pass from each view layer. */
+      LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
+        view_layer->eevee.render_passes &= ~EEVEE_RENDER_PASS_UNUSED_8;
+      }
+
+      /* Rename Renderlayer Socket `VolumeScatterCol` to `VolumeDir` */
+      if (scene->nodetree) {
+        LISTBASE_FOREACH (bNode *, node, &scene->nodetree->nodes) {
+          if (node->type == CMP_NODE_R_LAYERS) {
+            LISTBASE_FOREACH (bNodeSocket *, output_socket, &node->outputs) {
+              const char *volume_scatter = "VolumeScatterCol";
+              if (STREQLEN(output_socket->name, volume_scatter, MAX_NAME)) {
+                BLI_strncpy(output_socket->name, RE_PASSNAME_VOLUME_LIGHT, MAX_NAME);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    /* Convert `NodeCryptomatte->storage->matte_id` to `NodeCryptomatte->storage->entries` */
+    if (!DNA_struct_find(fd->filesdna, "CryptomatteEntry")) {
+      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+        if (scene->nodetree) {
+          LISTBASE_FOREACH (bNode *, node, &scene->nodetree->nodes) {
+            if (node->type == CMP_NODE_CRYPTOMATTE) {
+              NodeCryptomatte *storage = (NodeCryptomatte *)node->storage;
+              char *matte_id = storage->matte_id;
+              if (matte_id == NULL || strlen(storage->matte_id) == 0) {
+                continue;
+              }
+              BKE_cryptomatte_matte_id_to_entries(NULL, storage, storage->matte_id);
+              MEM_SAFE_FREE(storage->matte_id);
+            }
           }
         }
       }

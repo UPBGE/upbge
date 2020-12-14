@@ -68,7 +68,7 @@ set(SRC
   intern/CCGSubSurf.c
   intern/CCGSubSurf_legacy.c
   intern/CCGSubSurf_util.c
-  intern/DerivedMesh.c
+  intern/DerivedMesh.cc
   intern/action.c
   intern/addon.c
   intern/anim_data.c
@@ -104,7 +104,7 @@ set(SRC
   intern/constraint.c
   intern/context.c
   intern/crazyspace.c
-  intern/cryptomatte.c
+  intern/cryptomatte.cc
   intern/curve.c
   intern/curve_bevel.c
   intern/curve_decimate.c

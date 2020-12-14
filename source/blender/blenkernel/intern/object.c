@@ -3022,7 +3022,9 @@ ParticleSystem *BKE_object_copy_particlesystem(ParticleSystem *psys, const int f
   BLI_listbase_clear(&psysn->childcachebufs);
 
   if (flag & LIB_ID_CREATE_NO_MAIN) {
-    BLI_assert((psys->flag & PSYS_SHARED_CACHES) == 0);
+    /* XXX Disabled, fails when evaluating depsgraph after copying ID with no main for preview
+     * creation. */
+    // BLI_assert((psys->flag & PSYS_SHARED_CACHES) == 0);
     psysn->flag |= PSYS_SHARED_CACHES;
     BLI_assert(psysn->pointcache != NULL);
   }
@@ -6037,8 +6039,11 @@ bool BKE_object_modifier_use_time(Object *ob, ModifierData *md)
     AnimData *adt = ob->adt;
     FCurve *fcu;
 
-    char pattern[MAX_NAME + 16];
-    BLI_snprintf(pattern, sizeof(pattern), "modifiers[\"%s\"]", md->name);
+    char md_name_esc[sizeof(md->name) * 2];
+    BLI_str_escape(md_name_esc, md->name, sizeof(md_name_esc));
+
+    char pattern[sizeof(md_name_esc) + 16];
+    BLI_snprintf(pattern, sizeof(pattern), "modifiers[\"%s\"]", md_name_esc);
 
     /* action - check for F-Curves with paths containing 'modifiers[' */
     if (adt->action) {
@@ -6080,8 +6085,11 @@ bool BKE_object_modifier_gpencil_use_time(Object *ob, GpencilModifierData *md)
     AnimData *adt = ob->adt;
     FCurve *fcu;
 
-    char pattern[MAX_NAME + 32];
-    BLI_snprintf(pattern, sizeof(pattern), "grease_pencil_modifiers[\"%s\"]", md->name);
+    char md_name_esc[sizeof(md->name) * 2];
+    BLI_str_escape(md_name_esc, md->name, sizeof(md_name_esc));
+
+    char pattern[sizeof(md_name_esc) + 32];
+    BLI_snprintf(pattern, sizeof(pattern), "grease_pencil_modifiers[\"%s\"]", md_name_esc);
 
     /* action - check for F-Curves with paths containing 'grease_pencil_modifiers[' */
     if (adt->action) {
@@ -6115,8 +6123,11 @@ bool BKE_object_shaderfx_use_time(Object *ob, ShaderFxData *fx)
     AnimData *adt = ob->adt;
     FCurve *fcu;
 
-    char pattern[MAX_NAME + 32];
-    BLI_snprintf(pattern, sizeof(pattern), "shader_effects[\"%s\"]", fx->name);
+    char fx_name_esc[sizeof(fx->name) * 2];
+    BLI_str_escape(fx_name_esc, fx->name, sizeof(fx_name_esc));
+
+    char pattern[sizeof(fx_name_esc) + 32];
+    BLI_snprintf(pattern, sizeof(pattern), "shader_effects[\"%s\"]", fx_name_esc);
 
     /* action - check for F-Curves with paths containing string[' */
     if (adt->action) {

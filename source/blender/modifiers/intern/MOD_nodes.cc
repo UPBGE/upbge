@@ -976,8 +976,12 @@ static void draw_property_for_socket(uiLayout *layout,
   /* IDProperties can be removed with python, so there could be a situation where
    * there isn't a property for a socket or it doesn't have the correct type. */
   if (property != nullptr && property_type->is_correct_type(*property)) {
-    char rna_path[128];
-    BLI_snprintf(rna_path, ARRAY_SIZE(rna_path), "[\"%s\"]", socket.identifier);
+
+    char socket_id_esc[sizeof(socket.identifier) * 2];
+    BLI_str_escape(socket_id_esc, socket.identifier, sizeof(socket_id_esc));
+
+    char rna_path[sizeof(socket_id_esc) + 4];
+    BLI_snprintf(rna_path, ARRAY_SIZE(rna_path), "[\"%s\"]", socket_id_esc);
     uiItemR(layout, settings_ptr, rna_path, 0, socket.name, ICON_NONE);
   }
 }
@@ -1059,6 +1063,15 @@ static void freeData(ModifierData *md)
   }
 }
 
+static void requiredDataMask(Object *UNUSED(ob),
+                             ModifierData *UNUSED(md),
+                             CustomData_MeshMasks *r_cddata_masks)
+{
+  /* We don't know what the node tree will need. If there are vertex groups, it is likely that the
+   * node tree wants to access them. */
+  r_cddata_masks->vmask |= CD_MASK_MDEFORMVERT;
+}
+
 ModifierTypeInfo modifierType_Nodes = {
     /* name */ "GeometryNodes",
     /* structName */ "NodesModifierData",
@@ -1066,9 +1079,9 @@ ModifierTypeInfo modifierType_Nodes = {
     /* srna */ &RNA_NodesModifier,
     /* type */ eModifierTypeType_Constructive,
     /* flags */
-    static_cast<ModifierTypeFlag>(eModifierTypeFlag_AcceptsMesh |
-                                  eModifierTypeFlag_SupportsEditmode |
-                                  eModifierTypeFlag_EnableInEditmode),
+    static_cast<ModifierTypeFlag>(
+        eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode |
+        eModifierTypeFlag_EnableInEditmode | eModifierTypeFlag_SupportsMapping),
     /* icon */ ICON_NODETREE,
 
     /* copyData */ copyData,
@@ -1083,7 +1096,7 @@ ModifierTypeInfo modifierType_Nodes = {
     /* modifyVolume */ nullptr,
 
     /* initData */ initData,
-    /* requiredDataMask */ nullptr,
+    /* requiredDataMask */ requiredDataMask,
     /* freeData */ freeData,
     /* isDisabled */ isDisabled,
     /* updateDepsgraph */ updateDepsgraph,
