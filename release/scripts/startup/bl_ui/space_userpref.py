@@ -1339,6 +1339,39 @@ class USERPREF_PT_saveload_autorun(FilePathsPanel, Panel):
             row.operator("preferences.autoexec_path_remove", text="", icon='X', emboss=False).index = i
 
 
+class USERPREF_PT_file_paths_asset_libraries(FilePathsPanel, Panel):
+    bl_label = "Asset Libraries"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = False
+        layout.use_property_decorate = False
+
+        paths = context.preferences.filepaths
+
+        box = layout.box()
+        split = box.split(factor=0.35)
+        name_col = split.column()
+        path_col = split.column()
+
+        row = name_col.row(align=True)  # Padding
+        row.separator()
+        row.label(text="Name")
+
+        row = path_col.row(align=True)  # Padding
+        row.separator()
+        row.label(text="Path")
+
+        subrow = row.row()
+        subrow.operator("preferences.asset_library_add", text="", icon='ADD', emboss=False)
+
+        for i, library in enumerate(paths.asset_libraries):
+            name_col.prop(library, "name", text="")
+            row = path_col.row()
+            row.prop(library, "path", text="")
+            row.operator("preferences.asset_library_remove", text="", icon='X', emboss=False).index = i
+
+
 # -----------------------------------------------------------------------------
 # Save/Load Panels
 
@@ -2202,6 +2235,7 @@ class USERPREF_PT_experimental_prototypes(ExperimentalPanel, Panel):
         self._draw_items(
             context, (
                 ({"property": "use_new_hair_type"}, "T68981"),
+                ({"property": "use_new_point_cloud_type"}, "T75717"),
             ),
         )
 
@@ -2287,6 +2321,7 @@ classes = (
     USERPREF_PT_file_paths_render,
     USERPREF_PT_file_paths_applications,
     USERPREF_PT_file_paths_development,
+    USERPREF_PT_file_paths_asset_libraries,
 
     USERPREF_PT_saveload_blend,
     USERPREF_PT_saveload_blend_autosave,

@@ -289,9 +289,11 @@ short RNA_type_to_ID_code(const StructRNA *type)
   if (base_type == &RNA_PaintCurve) {
     return ID_PC;
   }
+#  ifdef WITH_POINT_CLOUD
   if (base_type == &RNA_PointCloud) {
     return ID_PT;
   }
+#  endif
   if (base_type == &RNA_LightProbe) {
     return ID_LP;
   }
@@ -397,7 +399,11 @@ StructRNA *ID_code_to_RNA_type(short idcode)
     case ID_PC:
       return &RNA_PaintCurve;
     case ID_PT:
+#  ifdef WITH_POINT_CLOUD
       return &RNA_PointCloud;
+#  else
+      return &RNA_ID;
+#  endif
     case ID_LP:
       return &RNA_LightProbe;
     case ID_SCE:
@@ -1521,6 +1527,11 @@ static void rna_def_ID(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
   RNA_def_property_ui_text(prop, "Library", "Library file the data-block is linked from");
+
+  prop = RNA_def_property(srna, "asset_data", PROP_POINTER, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
+  RNA_def_property_ui_text(prop, "Asset Data", "Additional data for an asset data-block");
 
   prop = RNA_def_pointer(
       srna, "override_library", "IDOverrideLibrary", "Library Override", "Library override data");

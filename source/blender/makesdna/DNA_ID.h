@@ -264,7 +264,12 @@ typedef struct IDOverrideLibrary {
 typedef struct ID {
   void *next, *prev;
   struct ID *newid;
+
   struct Library *lib;
+
+  /** If the ID is an asset, this pointer is set. Owning pointer. */
+  struct AssetMetaData *asset_data;
+
   /** MAX_ID_NAME. */
   char name[66];
   /**
@@ -310,6 +315,7 @@ typedef struct ID {
   struct ID *orig_id;
 
   void *py_instance;
+  void *_pad1;
 } ID;
 
 /**
@@ -354,6 +360,7 @@ enum eIconSizes {
 enum ePreviewImage_Flag {
   PRV_CHANGED = (1 << 0),
   PRV_USER_EDITED = (1 << 1), /* if user-edited, do not auto-update this anymore! */
+  PRV_UNFINISHED = (1 << 2),  /* The preview is not done rendering yet. */
 };
 
 /* for PreviewImage->tag */

@@ -570,6 +570,13 @@ enum {
   USER_MENU_TYPE_PROP = 4,
 };
 
+typedef struct bUserAssetLibrary {
+  struct bUserAssetLibrary *next, *prev;
+
+  char name[64];   /* MAX_NAME */
+  char path[1024]; /* FILE_MAX */
+} bUserAssetLibrary;
+
 typedef struct SolidLight {
   int flag;
   float smooth;
@@ -633,10 +640,12 @@ typedef struct UserDef_Experimental {
   /* The following options are automatically sanitized (set to 0)
    * when the release cycle is not alpha. */
   char use_new_hair_type;
+  char use_new_point_cloud_type;
   char use_sculpt_vertex_colors;
   char use_switch_object_operator;
   char use_sculpt_tools_tilt;
   char use_object_add_tool;
+  char _pad[7];
   /** `makesdna` does not allow empty structs. */
 } UserDef_Experimental;
 
@@ -739,6 +748,8 @@ typedef struct UserDef {
   struct ListBase autoexec_paths;
   /** #bUserMenu. */
   struct ListBase user_menus;
+  /** #bUserAssetLibrary */
+  struct ListBase asset_libraries;
 
   char keyconfigstr[64];
 

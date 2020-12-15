@@ -40,6 +40,7 @@
 #  include "BLI_winstuff.h"
 #endif
 
+#include "ED_asset.h"
 #include "ED_fileselect.h"
 #include "ED_screen.h"
 #include "ED_select_utils.h"
@@ -930,6 +931,7 @@ void FILE_OT_select_all(wmOperatorType *ot)
 
 /* Note we could get rid of this one, but it's used by some addon so...
  * Does not hurt keeping it around for now. */
+/* TODO disallow bookmark editing in assets mode? */
 static int bookmark_select_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
@@ -1836,10 +1838,6 @@ static int file_previous_exec(bContext *C, wmOperator *UNUSED(op))
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
 
   if (params) {
-    if (!sfile->folders_next) {
-      sfile->folders_next = folderlist_new();
-    }
-
     folderlist_pushdir(sfile->folders_next, params->dir);
     folderlist_popdir(sfile->folders_prev, params->dir);
     folderlist_pushdir(sfile->folders_next, params->dir);
@@ -1874,10 +1872,6 @@ static int file_next_exec(bContext *C, wmOperator *UNUSED(unused))
   SpaceFile *sfile = CTX_wm_space_file(C);
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
   if (params) {
-    if (!sfile->folders_next) {
-      sfile->folders_next = folderlist_new();
-    }
-
     folderlist_pushdir(sfile->folders_prev, params->dir);
     folderlist_popdir(sfile->folders_next, params->dir);
 
@@ -2702,6 +2696,29 @@ static bool file_delete_poll(bContext *C)
   return poll;
 }
 
+static bool file_delete_single(const FileSelectParams *params,
+                               FileDirEntry *file,
+                               const char **r_error_message)
+{
+  if (file->typeflag & FILE_TYPE_ASSET) {
+    ID *id = filelist_file_get_id(file);
+    if (!id) {
+      *r_error_message = "File is not a local data-block asset.";
+      return false;
+    }
+    ED_asset_clear_id(id);
+  }
+  else {
+    char str[FILE_MAX];
+    BLI_join_dirfile(str, sizeof(str), params->dir, file->relpath);
+    if (BLI_delete_soft(str, r_error_message) != 0 || BLI_exists(str)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 static int file_delete_exec(bContext *C, wmOperator *op)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
@@ -2715,9 +2732,7 @@ static int file_delete_exec(bContext *C, wmOperator *op)
   for (int i = 0; i < numfiles; i++) {
     if (filelist_entry_select_index_get(sfile->files, i, CHECK_ALL)) {
       FileDirEntry *file = filelist_file(sfile->files, i);
-      char str[FILE_MAX];
-      BLI_join_dirfile(str, sizeof(str), params->dir, file->relpath);
-      if (BLI_delete_soft(str, &error_message) != 0 || BLI_exists(str)) {
+      if (!file_delete_single(params, file, &error_message)) {
         report_error = true;
       }
     }

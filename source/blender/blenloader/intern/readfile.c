@@ -44,6 +44,7 @@
 #define DNA_DEPRECATED_ALLOW
 
 #include "DNA_anim_types.h"
+#include "DNA_asset_types.h"
 #include "DNA_cachefile_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_fileglobal_types.h"
@@ -73,6 +74,7 @@
 
 #include "BKE_anim_data.h"
 #include "BKE_animsys.h"
+#include "BKE_asset.h"
 #include "BKE_collection.h"
 #include "BKE_global.h" /* for G */
 #include "BKE_idprop.h"
@@ -964,10 +966,19 @@ static BHead *blo_bhead_read_full(FileData *fd, BHead *thisblock)
 }
 #endif /* USE_BHEAD_READ_ON_DEMAND */
 
-/* Warning! Caller's responsibility to ensure given bhead **is** and ID one! */
+/* Warning! Caller's responsibility to ensure given bhead **is** an ID one! */
 const char *blo_bhead_id_name(const FileData *fd, const BHead *bhead)
 {
   return (const char *)POINTER_OFFSET(bhead, sizeof(*bhead) + fd->id_name_offs);
+}
+
+/* Warning! Caller's responsibility to ensure given bhead **is** an ID one! */
+AssetMetaData *blo_bhead_id_asset_data_address(const FileData *fd, const BHead *bhead)
+{
+  BLI_assert(BKE_idtype_idcode_is_valid(bhead->code));
+  return (fd->id_asset_data_offs >= 0) ?
+             *(AssetMetaData **)POINTER_OFFSET(bhead, sizeof(*bhead) + fd->id_asset_data_offs) :
+             NULL;
 }
 
 static void decode_blender_header(FileData *fd)
@@ -1047,6 +1058,8 @@ static bool read_file_dna(FileData *fd, const char **r_error_message)
         /* used to retrieve ID names from (bhead+1) */
         fd->id_name_offs = DNA_elem_offset(fd->filesdna, "ID", "char", "name[]");
         BLI_assert(fd->id_name_offs != -1);
+        fd->id_asset_data_offs = DNA_elem_offset(
+            fd->filesdna, "ID", "AssetMetaData", "*asset_data");
 
         return true;
       }
@@ -2387,6 +2400,11 @@ static void direct_link_id_common(
     return;
   }
 
+  if (id->asset_data) {
+    BLO_read_data_address(reader, &id->asset_data);
+    BKE_asset_metadata_read(reader, id->asset_data);
+  }
+
   /*link direct data of ID properties*/
   if (id->properties) {
     BLO_read_data_address(reader, &id->properties);
@@ -2760,6 +2778,7 @@ static void lib_link_workspace_layout_restore(struct IDNameLib_Map *id_map,
           SpaceFile *sfile = (SpaceFile *)sl;
           sfile->op = NULL;
           sfile->previews_timer = NULL;
+          sfile->tags = FILE_TAG_REBUILD_MAIN_FILES;
         }
         else if (sl->spacetype == SPACE_ACTION) {
           SpaceAction *saction = (SpaceAction *)sl;
@@ -3640,6 +3659,27 @@ static BHead *read_libblock(FileData *fd,
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Read Asset Data
+ * \{ */
+
+BHead *blo_read_asset_data_block(FileData *fd, BHead *bhead, AssetMetaData **r_asset_data)
+{
+  BLI_assert(BKE_idtype_idcode_is_valid(bhead->code));
+
+  bhead = read_data_into_datamap(fd, bhead, "asset-data read");
+
+  BlendDataReader reader = {fd};
+  BLO_read_data_address(&reader, r_asset_data);
+  BKE_asset_metadata_read(&reader, *r_asset_data);
+
+  oldnewmap_clear(fd->datamap);
+
+  return bhead;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Read Global Data
  * \{ */
 
@@ -3900,6 +3940,7 @@ static BHead *read_userdef(BlendFileData *bfd, FileData *fd, BHead *bhead)
   BLO_read_list(reader, &user->user_menus);
   BLO_read_list(reader, &user->addons);
   BLO_read_list(reader, &user->autoexec_paths);
+  BLO_read_list(reader, &user->asset_libraries);
 
   LISTBASE_FOREACH (wmKeyMap *, keymap, &user->user_keymaps) {
     keymap->modal_items = NULL;

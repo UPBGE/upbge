@@ -635,6 +635,10 @@ typedef enum eSpaceSeq_Flag {
   SEQ_SHOW_METADATA = (1 << 10),
   SEQ_SHOW_MARKERS = (1 << 11), /* show markers region */
   SEQ_ZOOM_TO_FIT = (1 << 12),
+  SEQ_SHOW_STRIP_OVERLAY = (1 << 13),
+  SEQ_SHOW_STRIP_NAME = (1 << 14),
+  SEQ_SHOW_STRIP_SOURCE = (1 << 15),
+  SEQ_SHOW_STRIP_DURATION = (1 << 16),
 } eSpaceSeq_Flag;
 
 /* SpaceSeq.view */
@@ -677,6 +681,24 @@ typedef enum eSpaceSeq_OverlayType {
 /* -------------------------------------------------------------------- */
 /** \name File Selector
  * \{ */
+
+/**
+ * Information to identify a asset library. May be either one of the predefined types (current
+ * 'Main', builtin library, project library), or a custom type as defined in the Preferences.
+ *
+ * If the type is set to #FILE_ASSET_LIBRARY_CUSTOM, idname must have the name to identify the
+ * custom library. Otherwise idname is not used.
+ */
+typedef struct FileSelectAssetLibraryUID {
+  short type;
+  char _pad[2];
+  /**
+   * If showing a custom asset library (#FILE_ASSET_LIBRARY_CUSTOM), this is the index of the
+   * #bUserAssetLibrary within #UserDef.asset_libraries.
+   * Should be ignored otherwise (but better set to -1 then, for sanity and debugging).
+   */
+  int custom_library_index;
+} FileSelectAssetLibraryUID;
 
 /* Config and Input for File Selector */
 typedef struct FileSelectParams {
@@ -722,6 +744,7 @@ typedef struct FileSelectParams {
   /** Details toggles (file size, creation date, etc.) */
   char details_flags;
   char _pad2[3];
+
   /** Filter when (flags & FILE_FILTER) is true. */
   int filter;
 
@@ -737,6 +760,32 @@ typedef struct FileSelectParams {
   /* XXX --- end unused -- */
 } FileSelectParams;
 
+/**
+ * File selection parameters for asset browsing mode, with #FileSelectParams as base.
+ */
+typedef struct FileAssetSelectParams {
+  FileSelectParams base_params;
+
+  FileSelectAssetLibraryUID asset_library;
+} FileAssetSelectParams;
+
+/**
+ * A wrapper to store previous and next folder lists (#FolderList) for a specific browse mode
+ * (#eFileBrowse_Mode).
+ */
+typedef struct FileFolderHistory {
+  struct FileFolderLists *next, *prev;
+
+  /** The browse mode this prev/next folder-lists are created for. */
+  char browse_mode; /* eFileBrowse_Mode */
+  char _pad[7];
+
+  /** Holds the list of previous directories to show. */
+  ListBase folders_prev;
+  /** Holds the list of next directories (pushed from previous) to show. */
+  ListBase folders_next;
+} FileFolderHistory;
+
 /* File Browser */
 typedef struct SpaceFile {
   SpaceLink *next, *prev;
@@ -747,19 +796,41 @@ typedef struct SpaceFile {
   char _pad0[6];
   /* End 'SpaceLink' header. */
 
-  char _pad1[4];
+  /** Is this a File Browser or an Asset Browser? */
+  char browse_mode; /* eFileBrowse_Mode */
+  char _pad1[1];
+
+  short tags;
+
   int scroll_offset;
 
-  /** Config and input for file select. */
-  struct FileSelectParams *params;
+  /** Config and input for file select. One for each browse-mode, to keep them independent. */
+  FileSelectParams *params;
+  FileAssetSelectParams *asset_params;
 
-  /** Holds the list of files to show. */
+  void *_pad2;
+
+  /**
+   * Holds the list of files to show.
+   * Currently recreated when browse-mode changes. Could be per browse-mode to avoid refreshes.
+   */
   struct FileList *files;
 
-  /** Holds the list of previous directories to show. */
+  /**
+   * Holds the list of previous directories to show. Owned by `folder_histories` below.
+   */
   ListBase *folders_prev;
-  /** Holds the list of next directories (pushed from previous) to show. */
+  /**
+   * Holds the list of next directories (pushed from previous) to show. Owned by
+   * `folder_histories` below.
+   */
   ListBase *folders_next;
+
+  /**
+   * This actually owns the prev/next folder-lists above. On browse-mode change, the lists of the
+   * new mode get assigned to the above.
+   */
+  ListBase folder_histories; /* FileFolderHistory */
 
   /* operator that is invoking fileselect
    * op->exec() will be called on the 'Load' button.
@@ -776,6 +847,30 @@ typedef struct SpaceFile {
   short recentnr, bookmarknr;
   short systemnr, system_bookmarknr;
 } SpaceFile;
+
+/* SpaceFile.browse_mode (File Space Browsing Mode) */
+typedef enum eFileBrowse_Mode {
+  /* Regular Blender File Browser */
+  FILE_BROWSE_MODE_FILES = 0,
+  /* Asset Browser */
+  FILE_BROWSE_MODE_ASSETS = 1,
+} eFileBrowse_Mode;
+
+typedef enum eFileAssetLibrary_Type {
+  /* For the future. Display assets bundled with Blender by default. */
+  // FILE_ASSET_LIBRARY_BUNDLED = 0,
+  /** Display assets from the current session (current "Main"). */
+  FILE_ASSET_LIBRARY_LOCAL = 1,
+  /* For the future. Display assets for the current project. */
+  // FILE_ASSET_LIBRARY_PROJECT = 2,
+
+  /** Display assets from custom asset libraries, as defined in the preferences
+   * (#bUserAssetLibrary). The name will be taken from #FileSelectParams.asset_library.idname
+   * then.
+   * In RNA, we add the index of the custom library to this to identify it by index. So keep
+   * this last! */
+  FILE_ASSET_LIBRARY_CUSTOM = 100,
+} eFileAssetLibrary_Type;
 
 /* FileSelectParams.display */
 enum eFileDisplayType {
@@ -806,6 +901,13 @@ enum eFileSortType {
   FILE_SORT_SIZE = 4,
 };
 
+/* SpaceFile.tags */
+enum eFileTags {
+  /** Tag the space as having to update files representing or containing main data. Must be set
+   * after file read and undo/redo. */
+  FILE_TAG_REBUILD_MAIN_FILES = (1 << 0),
+};
+
 /* FileSelectParams.details_flags */
 enum eFileDetails {
   FILE_DETAILS_SIZE = (1 << 0),
@@ -824,6 +926,7 @@ enum eFileDetails {
 typedef enum eFileSelectType {
   FILE_LOADLIB = 1,
   FILE_MAIN = 2,
+  FILE_MAIN_ASSET = 3,
 
   FILE_UNIX = 8,
   FILE_BLENDER = 8, /* don't display relative paths */
@@ -856,6 +959,7 @@ typedef enum eFileSel_Params_Flag {
   FILE_SORT_INVERT = (1 << 11),
   FILE_HIDE_TOOL_PROPS = (1 << 12),
   FILE_CHECK_EXISTING = (1 << 13),
+  FILE_ASSETS_ONLY = (1 << 14),
 } eFileSel_Params_Flag;
 
 /* sfile->params->rename_flag */
@@ -899,6 +1003,7 @@ typedef enum eFileSel_File_Types {
   FILE_TYPE_USD = (1 << 18),
   FILE_TYPE_VOLUME = (1 << 19),
 
+  FILE_TYPE_ASSET = (1 << 28),
   /** An FS directory (i.e. S_ISDIR on its path is true). */
   FILE_TYPE_DIR = (1 << 30),
   FILE_TYPE_BLENDERLIB = (1u << 31),
@@ -999,9 +1104,16 @@ typedef struct FileDirEntry {
   /** Optional argument for shortcuts, aliases etc. */
   char *redirection_path;
 
-  /** TODO: make this a real ID pointer? */
-  void *poin;
-  struct ImBuf *image;
+  /** When showing local IDs (FILE_MAIN, FILE_MAIN_ASSET), ID this file represents. Note comment
+   * for FileListInternEntry.local_data, the same applies here! */
+  ID *id;
+  /** If this file represents an asset, its asset data is here. Note that we may show assets of
+   * external files in which case this is set but not the id above.
+   * Note comment for FileListInternEntry.local_data, the same applies here! */
+  struct AssetMetaData *asset_data;
+
+  /* The icon_id for the preview image. */
+  int preview_icon_id;
 
   /* Tags are for info only, most of filtering is done in asset engine. */
   char **tags;
