@@ -33,6 +33,7 @@
 #include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_sound.h"
+#include "DNA_scene_types.h"
 #include "wm_event_types.h"
 
 #include "BL_BlenderConverter.h"

@@ -41,6 +41,7 @@
 #include "BKE_screen.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
+#include "DNA_collection_types.h"
 #include "DNA_property_types.h"
 #include "DRW_render.h"
 #include "ED_screen.h"

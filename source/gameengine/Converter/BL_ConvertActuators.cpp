@@ -45,6 +45,7 @@
 #include "BKE_context.h"
 #include "BKE_layer.h"
 #include "BKE_text.h"
+#include "DNA_scene_types.h"
 #include "DNA_sound_types.h"
 #include "MEM_guardedalloc.h"
 #include "RNA_access.h"
