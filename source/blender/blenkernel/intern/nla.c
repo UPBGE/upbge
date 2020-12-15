@@ -334,11 +334,8 @@ NlaStrip *BKE_nlastrip_new(bAction *act)
   /* generic settings
    * - selected flag to highlight this to the user
    * - (XXX) disabled Auto-Blends, as this was often causing some unwanted effects
-   * - (XXX) synchronization of strip-length in accordance with changes to action-length
-   *   is not done though, since this should only really happens in editmode for strips now
-   *   though this decision is still subject to further review...
    */
-  strip->flag = NLASTRIP_FLAG_SELECT;
+  strip->flag = NLASTRIP_FLAG_SELECT | NLASTRIP_FLAG_SYNC_LENGTH;
 
   /* assign the action reference */
   strip->act = act;
@@ -1195,7 +1192,7 @@ bool BKE_nlatrack_get_bounds(NlaTrack *nlt, float bounds[2])
  * Check whether given NLA track is not local (i.e. from linked data) when the object is a library
  * override.
  *
- * \param nlt May be NULL, in which case we consider it as a non-local track case.
+ * \param nlt: May be NULL, in which case we consider it as a non-local track case.
  */
 bool BKE_nlatrack_is_nonlocal_in_liboverride(const ID *id, const NlaTrack *nlt)
 {

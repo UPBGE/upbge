@@ -42,6 +42,7 @@
 
 #include "DNA_gpencil_modifier_types.h"
 #include "DNA_gpencil_types.h"
+#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_scene_types.h"
@@ -3281,8 +3282,8 @@ static tSampleEdge *new_sample_edge_from_sample_points(tSamplePoint *from, tSamp
  * Does not change the shape of the stroke. The new points will be distributed as
  * uniformly as possible by repeatedly subdividing the current longest edge.
  *
- * \param gps: The stroke to be upsampled.
- * \param target_number: The number of points the upsampled stroke should have.
+ * \param gps: The stroke to be up-sampled.
+ * \param target_number: The number of points the up-sampled stroke should have.
  * \param select: Select/Deselect the stroke.
  */
 void BKE_gpencil_stroke_uniform_subdivide(bGPdata *gpd,

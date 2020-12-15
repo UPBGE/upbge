@@ -35,6 +35,7 @@
 
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
+#include "DNA_collection_types.h"
 #include "DNA_gpencil_types.h"
 #include "DNA_light_types.h"
 #include "DNA_linestyle_types.h"
@@ -493,6 +494,9 @@ void ntreeBlendWrite(BlendWriter *writer, bNodeTree *ntree)
         if (nc->matte_id) {
           BLO_write_string(writer, nc->matte_id);
         }
+        LISTBASE_FOREACH (CryptomatteEntry *, entry, &nc->entries) {
+          BLO_write_struct(writer, CryptomatteEntry, entry);
+        }
         BLO_write_struct_by_name(writer, node->typeinfo->storagename, node->storage);
       }
       else if (node->typeinfo != &NodeTypeUndefined) {
@@ -645,6 +649,7 @@ void ntreeBlendReadData(BlendDataReader *reader, bNodeTree *ntree)
         case CMP_NODE_CRYPTOMATTE: {
           NodeCryptomatte *nc = (NodeCryptomatte *)node->storage;
           BLO_read_data_address(reader, &nc->matte_id);
+          BLO_read_list(reader, &nc->entries);
           break;
         }
         case TEX_NODE_IMAGE: {

@@ -40,6 +40,7 @@
 #include "DNA_constraint_types.h"
 #include "DNA_controller_types.h"
 #include "DNA_defaults.h"
+#include "DNA_dynamicpaint_types.h"
 #include "DNA_effect_types.h"
 #include "DNA_fluid_types.h"
 #include "DNA_gpencil_modifier_types.h"
