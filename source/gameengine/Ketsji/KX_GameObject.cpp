@@ -419,6 +419,7 @@ void KX_GameObject::ReplicateBlenderObject()
     }
 
     DEG_relations_tag_update(bmain);
+    GetScene()->ResetTaaSamples();
 
     m_pBlenderObject = newob;
     m_isReplica = true;
@@ -432,6 +433,7 @@ void KX_GameObject::RemoveReplicaObject()
     Main *bmain = CTX_data_main(C);
     BKE_id_delete(bmain, ob);
     SetBlenderObject(nullptr);
+    GetScene()->ResetTaaSamples();
     DEG_relations_tag_update(bmain);
   }
 }
