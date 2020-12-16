@@ -399,8 +399,8 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
   const double dt = m_clockTime - m_previousRealTime;
 
 #ifdef WITH_GAMEENGINE_CEGUI
-  CEGUI::System::getSingleton().getDefaultGUIContext().injectTimePulse(deltatime);
-  CEGUI::System::getSingleton().injectTimePulse(deltatime); // for CEGUI animations, time is in seconds
+  /*CEGUI::System::getSingleton().getDefaultGUIContext().injectTimePulse(deltatime);*/
+  //CEGUI::System::getSingleton().injectTimePulse(deltatime); // for CEGUI animations, time is in seconds
 #endif
 
   // Time of a frame (without scale).

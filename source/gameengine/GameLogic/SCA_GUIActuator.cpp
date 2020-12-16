@@ -72,20 +72,21 @@ bool SCA_GUIActuator::Update()
   }
 
   try {
-    /*CEGUI::WindowManager& winMgr = CEGUI::WindowManager::getSingleton();
-    CEGUI::Window *background = winMgr.getWindow("BGE Root Window");*/
+    //CEGUI::WindowManager& winMgr = CEGUI::WindowManager::getSingleton();
+    /*CEGUI::Window *background = winMgr.getWindow("BGE Root Window");*/
+    CEGUI::WindowManager *winMgr = CEGUI::WindowManager::getSingletonPtr();
 
-    CEGUI::Window *background = CEGUI::WindowManager::getSingleton().createWindow(
-        "DefaultWindow", "root");
+    /*CEGUI::Window *background = CEGUI::WindowManager::getSingleton().createWindow("DefaultWindow", "root");*/
+    CEGUI::Window *background = winMgr->createWindow("DefaultWindow", "root");
     CEGUI::System::getSingleton().getDefaultGUIContext().setRootWindow(background);
 
     switch (m_mode) {
       case KX_GUI_LAYOUT_ADD: {
         if (m_prefix.length()) {
-          background->addChild(winMgr.loadLayoutFromFile(m_layoutName.c_str(), m_prefix.c_str()));
+          background->addChild(winMgr->loadLayoutFromFile(m_layoutName.c_str(), m_prefix.c_str()));
         }
         else {
-          background->addChild(winMgr.loadLayoutFromFile(m_layoutName.c_str()));
+          background->addChild(winMgr->loadLayoutFromFile(m_layoutName.c_str()));
         }
         break;
       }

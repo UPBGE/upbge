@@ -999,6 +999,23 @@ elseif(WIN32)
     )
   endif()
 
+  if(WITH_GAMEENGINE_CEGUI)
+    install(
+      FILES
+        ${LIBDIR}/cegui/lib/CEGUIBase-0.dll
+        ${LIBDIR}/cegui/lib/CEGUIOpenGLRenderer-0.dll
+      DESTINATION "."
+      CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
+    )
+    install(
+      FILES
+        ${LIBDIR}/cegui/lib/CEGUIBase-0_d.dll
+        ${LIBDIR}/cegui/lib/CEGUIOpenGLRenderer-0_d.dll
+      DESTINATION "."
+      CONFIGURATIONS Debug
+    )
+endif()
+
   # Compatibility with Windows 7
   if(WITH_WINDOWS_7)
     install(
