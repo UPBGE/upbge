@@ -288,16 +288,16 @@ void LA_Launcher::InitEngine()
       CEGUI::System::getSingleton().getResourceProvider());
 
   // for each resource type, set a resource group directory
-  rp->setResourceGroupDirectory("schemes", "//gui/schemes/");
-  rp->setResourceGroupDirectory("imagesets", "//gui/imagesets/");
-  rp->setResourceGroupDirectory("fonts", "//gui/fonts/");
-  rp->setResourceGroupDirectory("layouts", "//gui/layouts/");
-  rp->setResourceGroupDirectory("looknfeels", "//gui/looknfeel/");
-  rp->setResourceGroupDirectory("scripts", "//gui/scripts/");
-  rp->setResourceGroupDirectory("animations", "//gui/animations/");
+  rp->setResourceGroupDirectory("schemes", "E:\\Development\\CEGUI\\cegui-0.8.7\\datafiles\\schemes\\");
+  rp->setResourceGroupDirectory("imagesets", "E:\\Development\\CEGUI\\cegui-0.8.7\\datafiles\\imagesets\\");
+  rp->setResourceGroupDirectory("fonts", "E:\\Development\\CEGUI\\cegui-0.8.7\\datafiles\\fonts\\");
+  rp->setResourceGroupDirectory("layouts", "E:\\Development\\CEGUI\\cegui-0.8.7\\datafiles\\layouts\\");
+  rp->setResourceGroupDirectory("looknfeels", "E:\\Development\\CEGUI\\cegui-0.8.7\\datafiles\\looknfeel\\");
+  rp->setResourceGroupDirectory("scripts", "E:\\Development\\CEGUI\\cegui-0.8.7\\datafiles\\scripts\\");
+  rp->setResourceGroupDirectory("animations", "E:\\Development\\CEGUI\\cegui-0.8.7\\datafiles\\animations\\");
   // This is only really needed if you are using Xerces and need to
   // specify the schemas location
-  rp->setResourceGroupDirectory("schemas", "//gui/xml_schemas/");
+  rp->setResourceGroupDirectory("schemas", "E:\\Development\\CEGUI\\cegui-0.8.7\\datafiles\\xml_schemas\\");
 
   // set the default resource groups to be used
   CEGUI::ImageManager::setImagesetDefaultResourceGroup("imagesets");
@@ -344,6 +344,12 @@ void LA_Launcher::InitEngine()
 
 void LA_Launcher::ExitEngine()
 {
+
+#ifdef WITH_GAMEENGINE_CEGUI
+  // shutdown CEGUI
+  CEGUI::OpenGL3Renderer::destroySystem();
+#endif
+
 #ifdef WITH_PYTHON
   Texture::FreeAllTextures(nullptr);
 #endif  // WITH_PYTHON
@@ -423,12 +429,6 @@ void LA_Launcher::ExitEngine()
     AUD_Device_stopAll(BKE_sound_get_device());
   }
 #endif  // WITH_AUDASPACE
-
-
-#ifdef WITH_GAMEENGINE_CEGUI
-  // shutdown CEGUI
-  CEGUI::OpenGL3Renderer::destroySystem();
-#endif
 
   m_exitRequested = KX_ExitRequest::NO_REQUEST;
 }
