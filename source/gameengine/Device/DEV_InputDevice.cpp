@@ -336,6 +336,27 @@ void DEV_InputDevice::ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type,
   }
 }
 
+void DEV_InputDevice::ConvertEvent(unsigned int type,
+                                   int val,
+                                   unsigned int unicode)
+{
+  SCA_InputEvent &event = m_inputsTable[type];
+
+  if (event.m_values[event.m_values.size() - 1] != val) {
+    // The key event value changed, we considerate it as the real event.
+    event.m_status.push_back((val > 0) ? SCA_InputEvent::ACTIVE : SCA_InputEvent::NONE);
+    event.m_queue.push_back((val > 0) ? SCA_InputEvent::JUSTACTIVATED :
+                                        SCA_InputEvent::JUSTRELEASED);
+    event.m_values.push_back(val);
+    event.m_unicode = unicode;
+
+    // Avoid pushing nullptr string character.
+    if (val > 0 && unicode != 0) {
+      m_text += (wchar_t)unicode;
+    }
+  }
+}
+
 void DEV_InputDevice::ConvertMoveEvent(int x, int y)
 {
   SCA_InputEvent &xevent = m_inputsTable[MOUSEX];

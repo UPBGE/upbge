@@ -76,7 +76,7 @@
 #  include "SCA_DynamicActuator.h"
 #  include "SCA_EndObjectActuator.h"
 #  include "SCA_GameActuator.h"
-#  include "SCA_GUIActuator"
+#  include "SCA_GUIActuator.h"
 #  include "SCA_IController.h"
 #  include "SCA_InputEvent.h"
 #  include "SCA_JoystickSensor.h"

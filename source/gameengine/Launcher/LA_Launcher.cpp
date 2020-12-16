@@ -59,7 +59,7 @@
 
 #ifdef WITH_GAMEENGINE_CEGUI
 #include <CEGUI/CEGUI.h>
-#include <CEGUI/RendererModules/OpenGL/GLRenderer.h>
+#include <CEGUI/RendererModules/OpenGL/GL3Renderer.h>
 #endif
 
 LA_Launcher::LA_Launcher(GHOST_ISystem *system,
@@ -217,50 +217,6 @@ void LA_Launcher::InitEngine()
   // Create a ketsjisystem (only needed for timing and stuff).
   m_kxsystem = new LA_System();
 
-  // Create GUI subsystem
-#ifdef WITH_CEGUI
-  CEGUI::Renderer *renderer = &CEGUI::OpenGLRenderer::bootstrapSystem();
-  static_cast<CEGUI::OpenGLRenderer *>(renderer)->enableExtraStateSettings(true); // clear state before every frame rendering
-
-  // initialise the required dirs for the DefaultResourceProvider
-  CEGUI::DefaultResourceProvider* rp = static_cast<CEGUI::DefaultResourceProvider*> (CEGUI::System::getSingleton().getResourceProvider());
-
-  // for each resource type, set a resource group directory
-  addCEGUIResourceGroup(rp, pathname, "//gui/schemes/", "schemes");
-  addCEGUIResourceGroup(rp, pathname, "//gui/imagesets/", "imagesets");
-  addCEGUIResourceGroup(rp, pathname, "//gui/fonts/", "fonts");
-  addCEGUIResourceGroup(rp, pathname, "//gui/layouts/", "layouts");
-  addCEGUIResourceGroup(rp, pathname, "//gui/looknfeel/", "looknfeels");
-  addCEGUIResourceGroup(rp, pathname, "//gui/scripts/", "scripts");
-  addCEGUIResourceGroup(rp, pathname, "//gui/xml_schemas/", "schemas");
-  addCEGUIResourceGroup(rp, pathname, "//gui/animations/", "animations");
-
-  // set the default resource groups to be used
-  CEGUI::Imageset::setDefaultResourceGroup("imagesets");
-  CEGUI::Font::setDefaultResourceGroup("fonts");
-  CEGUI::Scheme::setDefaultResourceGroup("schemes");
-  CEGUI::WidgetLookManager::setDefaultResourceGroup("looknfeels");
-  CEGUI::WindowManager::setDefaultResourceGroup("layouts");
-  CEGUI::ScriptModule::setDefaultResourceGroup("scripts");
-  CEGUI::AnimationManager::setDefaultResourceGroup("animations");
-
-  // setup default group for validation schemas
-  CEGUI::XMLParser* parser = CEGUI::System::getSingleton().getXMLParser();
-  if (parser->isPropertyPresent("SchemaDefaultResourceGroup")) {
-    parser->setProperty("SchemaDefaultResourceGroup", "schemas");
-  }
-
-  // Get window manager which we wil use for a few jobs here.
-  CEGUI::WindowManager& winMgr = CEGUI::WindowManager::getSingleton();
-
-  // default background empty window
-  CEGUI::Window* background = winMgr.createWindow("DefaultWindow", "UPBGE Root Window");
-  // set area rectangle
-  background->setArea(CEGUI::URect(cegui_reldim(0), cegui_reldim(0), cegui_reldim(1), cegui_reldim(1)));
-  // install this as the root GUI sheet
-  CEGUI::System::getSingleton().setGUISheet(background);
-#endif
-
   m_networkMessageManager = new KX_NetworkMessageManager();
 
   // Create the ketsjiengine.
@@ -319,6 +275,56 @@ void LA_Launcher::InitEngine()
     AUD_Device_setDistanceModel(device, AUD_DistanceModel(m_startScene->audio.distance_model));
   }
 #endif  // WITH_AUDASPACE
+
+   // Create GUI subsystem
+#ifdef WITH_GAMEENGINE_CEGUI
+  CEGUI::OpenGL3Renderer &renderer = CEGUI::OpenGL3Renderer::create();
+  CEGUI::System::create(renderer);
+  // static_cast<CEGUI::OpenGL3Renderer *>(renderer)->enableExtraStateSettings(true); // clear
+  // state before every frame rendering
+
+  // initialise the required dirs for the DefaultResourceProvider
+  CEGUI::DefaultResourceProvider *rp = static_cast<CEGUI::DefaultResourceProvider *>(
+      CEGUI::System::getSingleton().getResourceProvider());
+
+  // for each resource type, set a resource group directory
+  rp->setResourceGroupDirectory("schemes", "//gui/schemes/");
+  rp->setResourceGroupDirectory("imagesets", "//gui/imagesets/");
+  rp->setResourceGroupDirectory("fonts", "//gui/fonts/");
+  rp->setResourceGroupDirectory("layouts", "//gui/layouts/");
+  rp->setResourceGroupDirectory("looknfeels", "//gui/looknfeel/");
+  rp->setResourceGroupDirectory("scripts", "//gui/scripts/");
+  rp->setResourceGroupDirectory("animations", "//gui/animations/");
+  // This is only really needed if you are using Xerces and need to
+  // specify the schemas location
+  rp->setResourceGroupDirectory("schemas", "//gui/xml_schemas/");
+
+  // set the default resource groups to be used
+  CEGUI::ImageManager::setImagesetDefaultResourceGroup("imagesets");
+  CEGUI::Font::setDefaultResourceGroup("fonts");
+  CEGUI::Scheme::setDefaultResourceGroup("schemes");
+  CEGUI::WidgetLookManager::setDefaultResourceGroup("looknfeels");
+  CEGUI::WindowManager::setDefaultResourceGroup("layouts");
+  CEGUI::ScriptModule::setDefaultResourceGroup("scripts");
+  CEGUI::AnimationManager::setDefaultResourceGroup("animations");
+
+  // setup default group for validation schemas
+  CEGUI::XMLParser *parser = CEGUI::System::getSingleton().getXMLParser();
+  if (parser->isPropertyPresent("SchemaDefaultResourceGroup")) {
+    parser->setProperty("SchemaDefaultResourceGroup", "schemas");
+  }
+
+  // Get window manager which we wil use for a few jobs here.
+  CEGUI::WindowManager &winMgr = CEGUI::WindowManager::getSingleton();
+
+  // default background empty window
+  CEGUI::Window *background = winMgr.createWindow("DefaultWindow", "UPBGE Root Window");
+  // set area rectangle
+  background->setArea(
+      CEGUI::URect(cegui_reldim(0), cegui_reldim(0), cegui_reldim(1), cegui_reldim(1)));
+  // install this as the root GUI sheet
+  CEGUI::System::getSingleton().getDefaultGUIContext().setRootWindow(background);
+#endif
 
   m_converter->SetAlwaysUseExpandFraming(GetUseAlwaysExpandFraming());
 
@@ -421,7 +427,7 @@ void LA_Launcher::ExitEngine()
 
 #ifdef WITH_GAMEENGINE_CEGUI
   // shutdown CEGUI
-  CEGUI::OpenGLRenderer::destroySystem();
+  CEGUI::OpenGL3Renderer::destroySystem();
 #endif
 
   m_exitRequested = KX_ExitRequest::NO_REQUEST;

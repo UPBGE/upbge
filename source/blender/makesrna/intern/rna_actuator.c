@@ -54,6 +54,7 @@ static const EnumPropertyItem actuator_type_items[] = {
     {ACT_EDIT_OBJECT, "EDIT_OBJECT", 0, "Edit Object", ""},
     {ACT_2DFILTER, "FILTER_2D", 0, "Filter 2D", ""},
     {ACT_GAME, "GAME", 0, "Game", ""},
+    {ACT_GUI, "GUI", 0, "GUI", ""},
     {ACT_MESSAGE, "MESSAGE", 0, "Message", ""},
     {ACT_OBJECT, "MOTION", 0, "Motion", ""},
     {ACT_MOUSE, "MOUSE", 0, "Mouse", ""},
@@ -102,6 +103,8 @@ static StructRNA *rna_Actuator_refine(struct PointerRNA *ptr)
       return &RNA_MessageActuator;
     case ACT_GAME:
       return &RNA_GameActuator;
+    case ACT_GUI:
+      return &RNA_GUIActuator;
     case ACT_VIBRATION:
       return &RNA_VibrationActuator;
     case ACT_VISIBILITY:

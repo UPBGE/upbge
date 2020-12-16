@@ -390,8 +390,8 @@ bool KX_KetsjiEngine::NextFrame()
   double deltatime = m_clockTime - m_frameTime;
 
 #ifdef WITH_GAMEENGINE_CEGUI
-  CEGUI::System::getSingleton().getDefaultGUIContext().injectTimePulse(deltatime);
-  CEGUI::System::getSingleton().injectTimePulse(deltatime); // for CEGUI animations, time is in seconds
+  /*CEGUI::System::getSingleton().getDefaultGUIContext().injectTimePulse(deltatime);*/
+  //CEGUI::System::getSingleton().injectTimePulse(deltatime); // for CEGUI animations, time is in seconds
 #endif
 
   if (deltatime < 0.0) {
