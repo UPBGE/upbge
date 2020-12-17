@@ -224,6 +224,7 @@ void RAS_2DFilter::BindTextures(RAS_FrameBuffer *depthfb, RAS_FrameBuffer *color
   for (const auto &pair : m_textures) {
     glActiveTexture(GL_TEXTURE0 + pair.first);
     glBindTexture(pair.second.first, pair.second.second);
+    GPU_apply_state();
   }
 }
 
