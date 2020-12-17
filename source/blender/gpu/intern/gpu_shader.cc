@@ -725,6 +725,15 @@ void GPU_shader_set_framebuffer_srgb_target(int use_srgb_to_linear)
 }
 
 /********************Game engine transition*****************************/
+void GPU_shader_force_unbind(void)
+{
+  Context *ctx = Context::get();
+  if (ctx->shader) {
+    ctx->shader->unbind();
+  }
+  ctx->shader = nullptr;
+}
+
 char *GPU_shader_validate(GPUShader *shader)
 {
   Shader *shad = reinterpret_cast<Shader *>(shader);

@@ -259,6 +259,9 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
      */
     CTX_data_depsgraph_pointer(C);
   }
+
+  /* Fix black shading issue with addObject https://github.com/UPBGE/upbge/issues/1354 */
+  GPU_shader_force_unbind();
   /****************************************************/
 }
 
