@@ -301,6 +301,46 @@ static void seq_new_fix_links_recursive(Sequence *seq)
     }
   }
 }
+
+SequencerToolSettings *SEQ_tool_settings_init(void)
+{
+  SequencerToolSettings *tool_settings = MEM_callocN(sizeof(SequencerToolSettings),
+                                                     "Sequencer tool settings");
+  tool_settings->fit_method = SEQ_SCALE_TO_FIT;
+  return tool_settings;
+}
+
+void SEQ_tool_settings_free(SequencerToolSettings *tool_settings)
+{
+  MEM_freeN(tool_settings);
+}
+
+eSeqImageFitMethod SEQ_tool_settings_fit_method_get(Scene *scene)
+{
+  const SequencerToolSettings *tool_settings = scene->toolsettings->sequencer_tool_settings;
+  return tool_settings->fit_method;
+}
+
+void SEQ_tool_settings_fit_method_set(Scene *scene, eSeqImageFitMethod fit_method)
+{
+  SequencerToolSettings *tool_settings = scene->toolsettings->sequencer_tool_settings;
+  tool_settings->fit_method = fit_method;
+}
+
+/**
+ * Get seqbase that is being viewed currently. This can be main seqbase or meta strip seqbase
+ *
+ * \param ed: sequence editor data
+ * \return pointer to active seqbase. returns NULL if ed is NULL
+ */
+ListBase *SEQ_active_seqbase_get(const Editing *ed)
+{
+  if (ed == NULL) {
+    return NULL;
+  }
+
+  return ed->seqbasep;
+}
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -609,4 +649,11 @@ static void seq_free_animdata(Scene *scene, Sequence *seq)
 }
 
 #undef SEQ_RNAPATH_MAXSTR
+
+SequencerToolSettings *SEQ_tool_settings_copy(SequencerToolSettings *tool_settings)
+{
+  SequencerToolSettings *tool_settings_copy = MEM_dupallocN(tool_settings);
+  return tool_settings_copy;
+}
+
 /** \} */

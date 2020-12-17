@@ -39,7 +39,6 @@
 struct AutomaskingCache;
 struct KeyBlock;
 struct Object;
-struct SculptPoseIKChainSegment;
 struct SculptUndoNode;
 struct bContext;
 
@@ -926,6 +925,10 @@ typedef struct StrokeCache {
   float mouse_event[2];
 
   float (*prev_colors)[4];
+
+  /* Multires Displacement Smear. */
+  float (*prev_displacement)[3];
+  float (*limit_surface_co)[3];
 
   /* The rest is temporary storage that isn't saved as a property */
 

@@ -26,8 +26,6 @@
 #include "BLI_color.hh"
 #include "BLI_float3.hh"
 
-struct Mesh;
-
 namespace blender::bke {
 
 using fn::CPPType;
@@ -266,9 +264,11 @@ template<typename T> class TypedWriteAttribute {
   }
 };
 
+using BooleanReadAttribute = TypedReadAttribute<bool>;
 using FloatReadAttribute = TypedReadAttribute<float>;
 using Float3ReadAttribute = TypedReadAttribute<float3>;
 using Color4fReadAttribute = TypedReadAttribute<Color4f>;
+using BooleanWriteAttribute = TypedWriteAttribute<bool>;
 using FloatWriteAttribute = TypedWriteAttribute<float>;
 using Float3WriteAttribute = TypedWriteAttribute<float3>;
 using Color4fWriteAttribute = TypedWriteAttribute<Color4f>;

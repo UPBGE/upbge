@@ -64,7 +64,6 @@
 #include "../depsgraph/DEG_depsgraph.h"
 
 struct GPUBatch;
-struct GPUFrameBuffer;
 struct GPUMaterial;
 struct GPUShader;
 struct GPUTexture;

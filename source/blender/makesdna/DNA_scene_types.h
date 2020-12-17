@@ -1504,6 +1504,18 @@ typedef struct MeshStatVis {
   float sharp_min, sharp_max;
 } MeshStatVis;
 
+typedef struct SequencerToolSettings {
+  /* eSeqImageFitMethod */
+  int fit_method;
+} SequencerToolSettings;
+
+typedef enum eSeqImageFitMethod {
+  SEQ_SCALE_TO_FIT,
+  SEQ_SCALE_TO_FILL,
+  SEQ_STRETCH_TO_FILL,
+  SEQ_USE_ORIGINAL_SIZE,
+} eSeqImageFitMethod;
+
 /* *************************************************************** */
 /* Tool Settings */
 
@@ -1678,6 +1690,9 @@ typedef struct ToolSettings {
    * Temporary until there is a proper preset system that stores the profiles or maybe stores
    * entire bevel configurations. */
   struct CurveProfile *custom_bevel_profile_preset;
+
+  struct SequencerToolSettings *sequencer_tool_settings;
+
 } ToolSettings;
 
 /* *************************************************************** */
