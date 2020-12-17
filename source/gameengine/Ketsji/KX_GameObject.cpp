@@ -387,6 +387,7 @@ void KX_GameObject::ReplicateBlenderObject()
     Main *bmain = CTX_data_main(C);
     Object *newob;
     BKE_id_copy_ex(bmain, &ob->id, (ID **)&newob, 0);
+    id_us_min(&newob->id);
     Scene *scene = GetScene()->GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(scene);
     BKE_collection_object_add_from(bmain,
