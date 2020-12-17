@@ -423,6 +423,7 @@ void GPU_shader_free_builtin_shaders(void);
 #define GPU_MAX_UNIFORM_ATTR 8
 
 /******************************************Game engine*****************************************/
+void GPU_shader_force_unbind(void);
 char *GPU_shader_validate(GPUShader *shader);
 void GPU_shader_bind_attributes(GPUShader *shader, int *locations, const char **names, int len);
 // GPU_shader_get_uniform doesn't handle array uniforms e.g: uniform vec2
