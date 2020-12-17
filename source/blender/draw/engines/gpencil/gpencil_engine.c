@@ -252,7 +252,7 @@ void GPENCIL_cache_init(void *ved)
     pd->do_fast_drawing = false;
 
     pd->obact = draw_ctx->obact;
-    if (pd->obact && pd->obact->type == OB_GPENCIL) {
+    if (pd->obact && pd->obact->type == OB_GPENCIL && !(pd->draw_depth_only)) {
       /* Check if active object has a temp stroke data. */
       bGPdata *gpd = (bGPdata *)pd->obact->data;
       if (gpd->runtime.sbuffer_used > 0) {
@@ -498,7 +498,7 @@ static void gpencil_stroke_cache_populate(bGPDlayer *gpl,
   bool hide_onion = gpl && gpf && gpf->runtime.onion_id != 0 &&
                     ((gp_style->flag & GP_MATERIAL_HIDE_ONIONSKIN) != 0);
 
-  if (hide_material || (!show_stroke && !show_fill) || only_lines || hide_onion) {
+  if (hide_material || (!show_stroke && !show_fill) || (only_lines && hide_onion) || hide_onion) {
     return;
   }
 

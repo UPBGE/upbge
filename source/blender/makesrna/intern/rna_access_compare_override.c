@@ -23,7 +23,9 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_ID.h"
+#include "DNA_anim_types.h"
 #include "DNA_constraint_types.h"
+#include "DNA_gpencil_modifier_types.h"
 #include "DNA_key_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
@@ -74,6 +76,18 @@ bool RNA_property_overridable_get(PointerRNA *ptr, PropertyRNA *prop)
     else if (RNA_struct_is_a(ptr->type, &RNA_Modifier)) {
       ModifierData *mod = ptr->data;
       if (mod->flag & eModifierFlag_OverrideLibrary_Local) {
+        return true;
+      }
+    }
+    else if (RNA_struct_is_a(ptr->type, &RNA_GpencilModifier)) {
+      GpencilModifierData *gp_mod = ptr->data;
+      if (gp_mod->flag & eGpencilModifierFlag_OverrideLibrary_Local) {
+        return true;
+      }
+    }
+    else if (RNA_struct_is_a(ptr->type, &RNA_NlaTrack)) {
+      NlaTrack *nla_track = ptr->data;
+      if (nla_track->flag & NLATRACK_OVERRIDELIBRARY_LOCAL) {
         return true;
       }
     }

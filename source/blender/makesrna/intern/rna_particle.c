@@ -1490,7 +1490,7 @@ static char *rna_ParticleSystem_path(PointerRNA *ptr)
   ParticleSystem *psys = (ParticleSystem *)ptr->data;
   char name_esc[sizeof(psys->name) * 2];
 
-  BLI_strescape(name_esc, psys->name, sizeof(name_esc));
+  BLI_str_escape(name_esc, psys->name, sizeof(name_esc));
   return BLI_sprintfN("particle_systems[\"%s\"]", name_esc);
 }
 
@@ -2484,7 +2484,7 @@ static void rna_def_particle_settings(BlenderRNA *brna)
                       NULL,
                       "ParticleSettingsTextureSlot",
                       "ParticleSettingsTextureSlots",
-                      "rna_Particle_reset",
+                      "rna_Particle_reset_dependency",
                       NULL);
 
   /* Fluid particle type can't be checked from the type value in RNA
@@ -2948,7 +2948,7 @@ static void rna_def_particle_settings(BlenderRNA *brna)
       prop,
       "Adaptive Subframe Threshold",
       "The relative distance a particle can move before requiring more subframes "
-      "(target Courant number); 0.01-0.3 is the recommended range");
+      "(target Courant number); 0.01 to 0.3 is the recommended range");
   RNA_def_property_update(prop, 0, "rna_Particle_reset");
 
   prop = RNA_def_property(srna, "jitter_factor", PROP_FLOAT, PROP_NONE);

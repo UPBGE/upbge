@@ -37,3 +37,15 @@
 void geo_node_type_base(
     struct bNodeType *ntype, int type, const char *name, short nclass, short flag);
 bool geo_node_poll_default(struct bNodeType *ntype, struct bNodeTree *ntree);
+
+namespace blender::nodes {
+void update_attribute_input_socket_availabilities(bNode &node,
+                                                  const StringRef name,
+                                                  const GeometryNodeAttributeInputMode mode);
+
+void poisson_disk_point_elimination(Vector<float3> const *input_points,
+                                    Vector<float3> *output_points,
+                                    float maximum_distance,
+                                    float3 boundbox);
+
+}  // namespace blender::nodes

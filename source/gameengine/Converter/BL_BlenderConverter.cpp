@@ -49,7 +49,9 @@
 #include "BLI_linklist.h"
 #include "BLI_task.h"
 #include "BLO_readfile.h"
+#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_scene_types.h"
 
 #include "BL_ActionActuator.h"
 #include "BL_BlenderDataConversion.h"

@@ -35,6 +35,7 @@
 #include "BKE_sound.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
+#include "DNA_scene_types.h"
 #include "wm_event_types.h"
 
 #include "BL_BlenderConverter.h"
@@ -254,7 +255,7 @@ void LA_Launcher::InitEngine()
 
 #ifdef WITH_PYTHON
   KX_SetMainPath(std::string(m_maggie->name));
-  setupGamePython(m_ketsjiEngine, m_maggie, m_globalDict, &m_gameLogic, m_argc, m_argv, m_context, m_audioDeviceIsInitialized);
+  setupGamePython(m_ketsjiEngine, m_maggie, m_globalDict, &m_gameLogic, m_argc, m_argv, m_context, &m_audioDeviceIsInitialized);
 #endif  // WITH_PYTHON
 
   // Create a scene converter, create and convert the stratingscene.

@@ -5814,6 +5814,7 @@ bConstraint *BKE_constraint_duplicate_ex(bConstraint *src, const int flag, const
   bConstraint *dst = MEM_dupallocN(src);
   constraint_copy_data_ex(dst, src, flag, do_extern);
   dst->next = dst->prev = NULL;
+  dst->flag |= CONSTRAINT_OVERRIDE_LIBRARY_LOCAL;
   return dst;
 }
 
@@ -5848,6 +5849,7 @@ void BKE_constraints_copy_ex(ListBase *dst, const ListBase *src, const int flag,
   for (con = dst->first, srccon = src->first; con && srccon;
        srccon = srccon->next, con = con->next) {
     constraint_copy_data_ex(con, srccon, flag, do_extern);
+    con->flag |= CONSTRAINT_OVERRIDE_LIBRARY_LOCAL;
   }
 }
 
@@ -6012,6 +6014,18 @@ static bConstraint *constraint_find_original_for_update(bConstraintOb *cob, bCon
   }
 
   return orig_con;
+}
+
+/**
+ * Check whether given constraint is not local (i.e. from linked data) when the object is a library
+ * override.
+ *
+ * \param con: May be NULL, in which case we consider it as a non-local constraint case.
+ */
+bool BKE_constraint_is_nonlocal_in_liboverride(const Object *ob, const bConstraint *con)
+{
+  return (ID_IS_OVERRIDE_LIBRARY(ob) &&
+          (con == NULL || (con->flag & CONSTRAINT_OVERRIDE_LIBRARY_LOCAL) == 0));
 }
 
 /* -------- Constraints and Proxies ------- */

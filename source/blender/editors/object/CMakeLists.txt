@@ -31,8 +31,8 @@ set(INC
   ../../makesrna
   ../../modifiers
   ../../python
-  ../../shader_fx
   ../../render
+  ../../shader_fx
   ../../windowmanager
   ../../../../intern/clog
   ../../../../intern/glew-mx
@@ -93,6 +93,7 @@ endif()
 
 if(WITH_EXPERIMENTAL_FEATURES)
   add_definitions(-DWITH_GEOMETRY_NODES)
+  add_definitions(-DWITH_POINT_CLOUD)
   add_definitions(-DWITH_HAIR_NODES)
 endif()
 

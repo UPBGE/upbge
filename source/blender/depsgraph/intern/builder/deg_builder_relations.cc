@@ -39,6 +39,7 @@
 #include "DNA_armature_types.h"
 #include "DNA_cachefile_types.h"
 #include "DNA_camera_types.h"
+#include "DNA_cloth_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_curve_types.h"
@@ -1907,8 +1908,7 @@ void DepsgraphRelationBuilder::build_particle_settings(ParticleSettings *part)
       particle_settings_init_key, particle_settings_eval_key, "Particle Settings Init Order");
   add_relation(particle_settings_reset_key, particle_settings_eval_key, "Particle Settings Reset");
   /* Texture slots. */
-  for (int mtex_index = 0; mtex_index < MAX_MTEX; mtex_index++) {
-    MTex *mtex = part->mtex[mtex_index];
+  for (MTex *mtex : part->mtex) {
     if (mtex == nullptr || mtex->tex == nullptr) {
       continue;
     }
@@ -2315,6 +2315,12 @@ void DepsgraphRelationBuilder::build_nodetree_socket(bNodeSocket *socket)
     Image *image = ((bNodeSocketValueImage *)socket->default_value)->value;
     if (image != nullptr) {
       build_image(image);
+    }
+  }
+  else if (socket->type == SOCK_COLLECTION) {
+    Collection *collection = ((bNodeSocketValueCollection *)socket->default_value)->value;
+    if (collection != nullptr) {
+      build_collection(nullptr, nullptr, collection);
     }
   }
 }

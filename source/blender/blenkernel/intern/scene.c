@@ -37,6 +37,7 @@
 #include "DNA_gpencil_types.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_mask_types.h"
+#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
@@ -47,6 +48,7 @@
 #include "DNA_sound_types.h"
 #include "DNA_space_types.h"
 #include "DNA_text_types.h"
+#include "DNA_vfont_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_workspace_types.h"
@@ -276,6 +278,7 @@ static void scene_init_data(ID *id)
 
   /* Curve Profile */
   scene->toolsettings->custom_bevel_profile_preset = BKE_curveprofile_add(PROF_PRESET_LINE);
+  scene->toolsettings->sequencer_tool_settings = SEQ_tool_settings_init();
 
   for (size_t i = 0; i < ARRAY_SIZE(scene->orientation_slots); i++) {
     scene->orientation_slots[i].index_custom = -1;
@@ -916,6 +919,9 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   if (tos->custom_bevel_profile_preset) {
     BKE_curveprofile_blend_write(writer, tos->custom_bevel_profile_preset);
   }
+  if (tos->sequencer_tool_settings) {
+    BLO_write_struct(writer, SequencerToolSettings, tos->sequencer_tool_settings);
+  }
 
   BKE_paint_blend_write(writer, &tos->imapaint.paint);
 
@@ -1175,6 +1181,8 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
     if (sce->toolsettings->custom_bevel_profile_preset) {
       BKE_curveprofile_blend_read(reader, sce->toolsettings->custom_bevel_profile_preset);
     }
+
+    BLO_read_data_address(reader, &sce->toolsettings->sequencer_tool_settings);
   }
 
   if (sce->ed) {
@@ -1846,6 +1854,8 @@ ToolSettings *BKE_toolsettings_copy(ToolSettings *toolsettings, const int flag)
   ts->gp_sculpt.cur_primitive = BKE_curvemapping_copy(ts->gp_sculpt.cur_primitive);
 
   ts->custom_bevel_profile_preset = BKE_curveprofile_copy(ts->custom_bevel_profile_preset);
+
+  ts->sequencer_tool_settings = SEQ_tool_settings_copy(ts->sequencer_tool_settings);
   return ts;
 }
 
@@ -1902,6 +1912,10 @@ void BKE_toolsettings_free(ToolSettings *toolsettings)
 
   if (toolsettings->custom_bevel_profile_preset) {
     BKE_curveprofile_free(toolsettings->custom_bevel_profile_preset);
+  }
+
+  if (toolsettings->sequencer_tool_settings) {
+    SEQ_tool_settings_free(toolsettings->sequencer_tool_settings);
   }
 
   MEM_freeN(toolsettings);

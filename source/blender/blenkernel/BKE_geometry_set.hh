@@ -32,9 +32,10 @@
 #include "BKE_attribute_access.hh"
 #include "BKE_geometry_set.h"
 
+struct Collection;
 struct Mesh;
-struct PointCloud;
 struct Object;
+struct PointCloud;
 
 /* Each geometry component has a specific type. The type determines what kind of data the component
  * stores. Functions modifying a geometry will usually just modify a subset of the component types.
@@ -87,6 +88,9 @@ class GeometryComponent {
   bool is_mutable() const;
 
   GeometryComponentType type() const;
+
+  /* Return true when any attribute with this name exists, including built in attributes. */
+  bool attribute_exists(const blender::StringRef attribute_name) const;
 
   /* Returns true when the geometry component supports this attribute domain. */
   virtual bool attribute_domain_supported(const AttributeDomain domain) const;
@@ -156,6 +160,14 @@ class GeometryComponent {
   blender::bke::ReadAttributePtr attribute_get_constant_for_read(const AttributeDomain domain,
                                                                  const CustomDataType data_type,
                                                                  const void *value) const;
+
+  /* Create a read-only dummy attribute that always returns the same value.
+   * The given value is converted to the correct type if necessary. */
+  blender::bke::ReadAttributePtr attribute_get_constant_for_read_converted(
+      const AttributeDomain domain,
+      const CustomDataType in_data_type,
+      const CustomDataType out_data_type,
+      const void *value) const;
 
   /* Get a read-only dummy attribute that always returns the same value. */
   template<typename T>
@@ -347,7 +359,7 @@ class InstancesComponent : public GeometryComponent {
   blender::Vector<blender::float3> positions_;
   blender::Vector<blender::float3> rotations_;
   blender::Vector<blender::float3> scales_;
-  blender::Vector<const Object *> objects_;
+  blender::Vector<InstancedData> instanced_data_;
 
  public:
   InstancesComponent();
@@ -355,12 +367,20 @@ class InstancesComponent : public GeometryComponent {
   GeometryComponent *copy() const override;
 
   void clear();
-  void add_instance(const Object *object,
+  void add_instance(Object *object,
                     blender::float3 position,
                     blender::float3 rotation = {0, 0, 0},
                     blender::float3 scale = {1, 1, 1});
+  void add_instance(Collection *collection,
+                    blender::float3 position,
+                    blender::float3 rotation = {0, 0, 0},
+                    blender::float3 scale = {1, 1, 1});
+  void add_instance(InstancedData data,
+                    blender::float3 position,
+                    blender::float3 rotation,
+                    blender::float3 scale);
 
-  blender::Span<const Object *> objects() const;
+  blender::Span<InstancedData> instanced_data() const;
   blender::Span<blender::float3> positions() const;
   blender::Span<blender::float3> rotations() const;
   blender::Span<blender::float3> scales() const;

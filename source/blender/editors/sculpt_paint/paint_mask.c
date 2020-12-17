@@ -335,7 +335,7 @@ static void sculpt_gesture_operator_properties(wmOperatorType *ot)
                   false,
                   "Limit to Segment",
                   "Apply the gesture action only to the area that is contained within the "
-                  "segement without extending its effect to the entire line");
+                  "segment without extending its effect to the entire line");
 }
 
 static void sculpt_gesture_context_init_common(bContext *C,
@@ -1552,6 +1552,11 @@ static int sculpt_trim_gesture_box_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  if (ss->totvert == 0) {
+    /* No geometry to trim or to detect a valid position for the trimming shape. */
+    return OPERATOR_CANCELLED;
+  }
+
   SculptGestureContext *sgcontext = sculpt_gesture_init_from_box(C, op);
   if (!sgcontext) {
     return OPERATOR_CANCELLED;
@@ -1586,6 +1591,11 @@ static int sculpt_trim_gesture_lasso_exec(bContext *C, wmOperator *op)
   SculptSession *ss = object->sculpt;
   if (BKE_pbvh_type(ss->pbvh) != PBVH_FACES) {
     /* Not supported in Multires and Dyntopo. */
+    return OPERATOR_CANCELLED;
+  }
+
+  if (ss->totvert == 0) {
+    /* No geometry to trim or to detect a valid position for the trimming shape. */
     return OPERATOR_CANCELLED;
   }
 

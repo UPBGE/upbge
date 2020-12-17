@@ -896,6 +896,9 @@ static void template_ID(const bContext *C,
   idfrom = template_ui->ptr.owner_id;
   // lb = template_ui->idlb;
 
+  /* Allow opertators to take the ID from context. */
+  uiLayoutSetContextPointer(layout, "id", &idptr);
+
   block = uiLayoutGetBlock(layout);
   UI_block_align_begin(block);
 
@@ -2012,7 +2015,7 @@ static void set_constraint_expand_flag(const bContext *UNUSED(C), Panel *panel, 
 /**
  * Function with void * argument for #uiListPanelIDFromDataFunc.
  *
- * \note: Constraint panel types are assumed to be named with the struct name field
+ * \note Constraint panel types are assumed to be named with the struct name field
  * concatenated to the defined prefix.
  */
 static void object_constraint_panel_id(void *md_link, char *r_name)
@@ -6260,6 +6263,10 @@ void uiTemplateList(uiLayout *layout,
                     active_propname,
                     org_i,
                     flt_flag);
+
+          /* Items should be able to set context pointers for the layout. But the list-row button
+           * swallows events, so it needs the context storage too for handlers to see it. */
+          but->context = uiLayoutGetContextStore(sub);
 
           /* If we are "drawing" active item, set all labels as active. */
           if (i == activei) {

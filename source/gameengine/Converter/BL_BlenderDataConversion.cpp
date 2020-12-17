@@ -69,7 +69,9 @@
 #include "BKE_scene.h"
 #include "DEG_depsgraph_query.h"
 #include "DNA_camera_types.h"
+#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_python_component_types.h"
 #include "wm_event_types.h"
 

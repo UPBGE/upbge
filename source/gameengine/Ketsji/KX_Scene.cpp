@@ -41,6 +41,7 @@
 #include "BKE_screen.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
+#include "DNA_collection_types.h"
 #include "DNA_property_types.h"
 #include "DRW_render.h"
 #include "ED_screen.h"
@@ -209,9 +210,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   }
 #endif
 
-  /*************************************************EEVEE
-   * INTEGRATION***********************************************************/
-  m_staticObjects = {};
+  /**************EEVEE INTEGRATION******************/
   m_kxobWithLod = {};
   m_obRestrictFlags = {};
 
@@ -260,7 +259,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
      */
     CTX_data_depsgraph_pointer(C);
   }
-  /******************************************************************************************************************************/
+  /****************************************************/
 }
 
 KX_Scene::~KX_Scene()
@@ -487,11 +486,6 @@ Object *KX_Scene::GetGameDefaultCamera()
   return m_gameDefaultCamera;
 }
 
-bool KX_Scene::ObjectsAreStatic()
-{
-  return GetObjectList()->GetCount() == m_staticObjects.size();
-}
-
 void KX_Scene::ResetTaaSamples()
 {
   m_resetTaaSamples = true;
@@ -658,9 +652,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, 
 
   engine->EndCountDepsgraphTime();
 
-  bool reset_taa_samples = !ObjectsAreStatic() || m_resetTaaSamples;
+  bool reset_taa_samples = m_resetTaaSamples;
   m_resetTaaSamples = false;
-  m_staticObjects.clear();
 
   rcti window;
   int v[4];
@@ -2163,16 +2156,6 @@ RAS_MaterialBucket *KX_Scene::FindBucket(class RAS_IPolyMaterial *polymat, bool 
 {
   return m_bucketmanager->FindBucket(polymat, bucketCreated);
 }
-
-/*****************************TAA UTILS**********************************/
-/* Utils for TAA to check if nothing is moving inside view frustum (or anywhere when using probes)
- */
-void KX_Scene::AppendToStaticObjects(KX_GameObject *gameobj)
-{
-  m_staticObjects.push_back(gameobj);
-}
-/************************End of TAA UTILS**************************/
-/*************************************End of EEVEE INTEGRATION*********************************/
 
 void KX_Scene::UpdateObjectLods(KX_Camera *cam /*, const KX_CullingNodeList& nodes*/)
 {

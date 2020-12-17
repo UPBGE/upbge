@@ -76,9 +76,9 @@ struct IK_Data {
 using Vector3 = float[3];
 using Vector4 = float[4];
 struct IK_Target;
-typedef void (*ErrorCallback)(const iTaSC::ConstraintValues *values,
-                              unsigned int nvalues,
-                              IK_Target *iktarget);
+using ErrorCallback = void (*)(const iTaSC::ConstraintValues *values,
+                               unsigned int nvalues,
+                               IK_Target *iktarget);
 
 /* one structure for each target in the scene */
 struct IK_Target {
@@ -194,8 +194,8 @@ struct IK_Scene {
   {
     /* delete scene first */
     delete scene;
-    for (std::vector<IK_Target *>::iterator it = targets.begin(); it != targets.end(); ++it) {
-      delete (*it);
+    for (IK_Target *target : targets) {
+      delete target;
     }
     targets.clear();
     delete[] channels;

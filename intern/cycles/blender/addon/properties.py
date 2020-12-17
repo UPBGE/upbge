@@ -1470,37 +1470,6 @@ class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
         default='RGB_ALBEDO_NORMAL',
     )
 
-    use_pass_crypto_object: BoolProperty(
-        name="Cryptomatte Object",
-        description="Render cryptomatte object pass, for isolating objects in compositing",
-        default=False,
-        update=update_render_passes,
-    )
-    use_pass_crypto_material: BoolProperty(
-        name="Cryptomatte Material",
-        description="Render cryptomatte material pass, for isolating materials in compositing",
-        default=False,
-        update=update_render_passes,
-    )
-    use_pass_crypto_asset: BoolProperty(
-        name="Cryptomatte Asset",
-        description="Render cryptomatte asset pass, for isolating groups of objects with the same parent",
-        default=False,
-        update=update_render_passes,
-    )
-    pass_crypto_depth: IntProperty(
-        name="Cryptomatte Levels",
-        description="Sets how many unique objects can be distinguished per pixel",
-        default=6, min=2, max=16, step=2,
-        update=update_render_passes,
-    )
-    pass_crypto_accurate: BoolProperty(
-        name="Cryptomatte Accurate",
-        description="Generate a more accurate Cryptomatte pass. CPU only, may render slower and use more memory",
-        default=True,
-        update=update_render_passes,
-    )
-
     aovs: CollectionProperty(
         type=CyclesAOVPass,
         description="Custom render passes that can be output by shader nodes",
@@ -1601,7 +1570,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             elif entry.type == 'CPU':
                 cpu_devices.append(entry)
         # Extend all GPU devices with CPU.
-        if compute_device_type in {'CUDA', 'OPENCL'}:
+        if compute_device_type in {'CUDA', 'OPTIX', 'OPENCL'}:
             devices.extend(cpu_devices)
         return devices
 
@@ -1650,11 +1619,6 @@ class CyclesPreferences(bpy.types.AddonPreferences):
 
         for device in devices:
             box.prop(device, "use", text=device.name)
-
-        if device_type == 'OPTIX':
-            col = box.column(align=True)
-            col.label(text="OptiX support is experimental", icon='INFO')
-            col.label(text="Not all Cycles features are supported yet", icon='BLANK1')
 
     def draw_impl(self, layout, context):
         row = layout.row()

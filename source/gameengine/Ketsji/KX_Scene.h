@@ -118,10 +118,6 @@ class KX_Scene : public CValue, public SCA_IScene {
 
  protected:
   /***************EEVEE INTEGRATION*****************/
-
-  std::vector<KX_GameObject *> m_staticObjects;
-
-  int m_taaSamplesBackup;
   bool m_resetTaaSamples;
   Object *m_lastReplicatedParentObject;
   Object *m_gameDefaultCamera;
@@ -318,8 +314,6 @@ class KX_Scene : public CValue, public SCA_IScene {
   virtual ~KX_Scene();
 
   /******************EEVEE INTEGRATION************************/
-  void AppendToStaticObjects(KX_GameObject *gameobj);
-  bool ObjectsAreStatic();
   void ResetTaaSamples();
   void ConvertBlenderObject(struct Object *ob);
   void ConvertBlenderObjectsList(std::vector<Object *> objectslist, bool asynchronous);

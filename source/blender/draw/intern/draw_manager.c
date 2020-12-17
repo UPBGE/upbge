@@ -2110,7 +2110,6 @@ void DRW_draw_render_loop_2d_ex(struct Depsgraph *depsgraph,
    * for the image editor this is when showing UV's.*/
   const bool do_populate_loop = (DST.draw_ctx.space_data->spacetype == SPACE_IMAGE);
   const bool do_annotations = drw_draw_show_annotation();
-  const bool do_region_callbacks = (DST.draw_ctx.space_data->spacetype != SPACE_IMAGE);
   const bool do_draw_gizmos = (DST.draw_ctx.space_data->spacetype != SPACE_IMAGE);
 
   /* Get list of enabled engines */
@@ -2162,7 +2161,7 @@ void DRW_draw_render_loop_2d_ex(struct Depsgraph *depsgraph,
   /* Start Drawing */
   DRW_state_reset();
 
-  if (do_region_callbacks && DST.draw_ctx.evil_C) {
+  if (DST.draw_ctx.evil_C) {
     ED_region_draw_cb_draw(DST.draw_ctx.evil_C, DST.draw_ctx.region, REGION_DRAW_PRE_VIEW);
   }
 
@@ -2184,10 +2183,8 @@ void DRW_draw_render_loop_2d_ex(struct Depsgraph *depsgraph,
     if (do_annotations) {
       ED_annotation_draw_view2d(DST.draw_ctx.evil_C, true);
     }
-    if (do_region_callbacks) {
-      GPU_depth_test(GPU_DEPTH_NONE);
-      ED_region_draw_cb_draw(DST.draw_ctx.evil_C, DST.draw_ctx.region, REGION_DRAW_POST_VIEW);
-    }
+    GPU_depth_test(GPU_DEPTH_NONE);
+    ED_region_draw_cb_draw(DST.draw_ctx.evil_C, DST.draw_ctx.region, REGION_DRAW_POST_VIEW);
     GPU_matrix_pop_projection();
     /* Callback can be nasty and do whatever they want with the state.
      * Don't trust them! */
@@ -3287,6 +3284,10 @@ void DRW_game_render_loop(bContext *C,
 
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
+  if (reset_taa_samples) {
+    rv3d->rflag |= RV3D_NAVIGATING;
+  }
+
   GPU_viewport_bind(viewport, 0, window);
 
   bool gpencil_engine_needed = drw_gpencil_engine_needed(depsgraph, v3d);
@@ -3327,6 +3328,13 @@ void DRW_game_render_loop(bContext *C,
 
   /* Init engines */
   drw_engines_init();
+
+  EEVEE_Data *vedata = EEVEE_engine_data_get();
+  EEVEE_EffectsInfo *effects = vedata->stl->effects;
+  if (reset_taa_samples) {
+    effects->taa_current_sample = 1;
+  }
+
   drw_engines_cache_init();
   drw_engines_world_update(DST.draw_ctx.scene);
 
@@ -3384,11 +3392,6 @@ void DRW_game_render_loop(bContext *C,
   GPU_framebuffer_bind(DST.default_framebuffer);
 
   DRW_state_reset();
-  EEVEE_Data *vedata = EEVEE_engine_data_get();
-  EEVEE_EffectsInfo *effects = vedata->stl->effects;
-  if (reset_taa_samples) {
-    effects->taa_current_sample = 1;
-  }
 
   GPU_framebuffer_clear_depth_stencil(DST.default_framebuffer, 1.0f, 0xFF);
 
@@ -3405,6 +3408,8 @@ void DRW_game_render_loop(bContext *C,
   drw_viewport_cache_resize();
 
   GPU_viewport_unbind(DST.viewport);
+
+  rv3d->rflag &= ~RV3D_NAVIGATING;
 }
 
 void DRW_game_render_loop_end()

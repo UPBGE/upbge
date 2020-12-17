@@ -110,4 +110,70 @@ class TreeDisplayLibraries final : public AbstractTreeDisplay {
   short id_filter_get() const;
 };
 
+/* -------------------------------------------------------------------- */
+/* Video Sequencer Tree-Display */
+
+enum SequenceAddOp {
+  SEQUENCE_DUPLICATE_NOOP = 0,
+  SEQUENCE_DUPLICATE_ADD,
+  SEQUENCE_DUPLICATE_NONE
+};
+
+/**
+ * \brief Tree-Display for the Video Sequencer display mode
+ */
+class TreeDisplaySequencer final : public AbstractTreeDisplay {
+ public:
+  TreeDisplaySequencer(SpaceOutliner &space_outliner);
+
+  ListBase buildTree(const TreeSourceData &source_data) override;
+
+ private:
+  TreeElement *add_sequencer_contents() const;
+  SequenceAddOp need_add_seq_dup(Sequence *seq) const;
+  void add_seq_dup(Sequence *seq, TreeElement *te, short index) const;
+};
+
+/* -------------------------------------------------------------------- */
+/* Orphaned Data Tree-Display */
+
+/**
+ * \brief Tree-Display for the Orphaned Data display mode
+ */
+class TreeDisplayIDOrphans final : public AbstractTreeDisplay {
+ public:
+  TreeDisplayIDOrphans(SpaceOutliner &space_outliner);
+
+  ListBase buildTree(const TreeSourceData &source_data) override;
+
+ private:
+  bool datablock_has_orphans(ListBase &) const;
+};
+
+/* -------------------------------------------------------------------- */
+/* Scenes Tree-Display */
+
+/**
+ * \brief Tree-Display for the Scenes display mode
+ */
+class TreeDisplayScenes final : public AbstractTreeDisplay {
+ public:
+  TreeDisplayScenes(SpaceOutliner &space_outliner);
+
+  ListBase buildTree(const TreeSourceData &source_data) override;
+};
+
+/* -------------------------------------------------------------------- */
+/* Data API Tree-Display */
+
+/**
+ * \brief Tree-Display for the Scenes display mode
+ */
+class TreeDisplayDataAPI final : public AbstractTreeDisplay {
+ public:
+  TreeDisplayDataAPI(SpaceOutliner &space_outliner);
+
+  ListBase buildTree(const TreeSourceData &source_data) override;
+};
+
 }  // namespace blender::ed::outliner

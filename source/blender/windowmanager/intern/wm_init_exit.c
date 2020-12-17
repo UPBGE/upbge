@@ -506,9 +506,7 @@ bool WM_init_game(bContext *C)
 /* free strings of open recent files */
 static void free_openrecent(void)
 {
-  struct RecentFile *recent;
-
-  for (recent = G.recent_files.first; recent; recent = recent->next) {
+  LISTBASE_FOREACH (RecentFile *, recent, &G.recent_files) {
     MEM_freeN(recent->filepath);
   }
 

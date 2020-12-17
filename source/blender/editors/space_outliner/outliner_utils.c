@@ -212,7 +212,8 @@ TreeElement *outliner_find_tse(SpaceOutliner *space_outliner, const TreeStoreEle
   }
 
   /* check if 'tse' is in treestore */
-  tselem = BKE_outliner_treehash_lookup_any(space_outliner->treehash, tse->type, tse->nr, tse->id);
+  tselem = BKE_outliner_treehash_lookup_any(
+      space_outliner->runtime->treehash, tse->type, tse->nr, tse->id);
   if (tselem) {
     return outliner_find_tree_element(&space_outliner->tree, tselem);
   }
@@ -509,7 +510,7 @@ Base *ED_outliner_give_base_under_cursor(bContext *C, const int mval[2])
   te = outliner_find_item_at_y(space_outliner, &space_outliner->tree, view_mval[1]);
   if (te) {
     TreeStoreElem *tselem = TREESTORE(te);
-    if (tselem->type == 0) {
+    if ((tselem->type == 0) && (te->idcode == ID_OB)) {
       Object *ob = (Object *)tselem->id;
       base = (te->directdata) ? (Base *)te->directdata : BKE_view_layer_base_find(view_layer, ob);
     }

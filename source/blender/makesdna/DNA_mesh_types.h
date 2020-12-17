@@ -35,7 +35,6 @@ struct AnimData;
 struct BVHCache;
 struct Ipo;
 struct Key;
-struct LinkNode;
 struct MCol;
 struct MEdge;
 struct MFace;
@@ -44,7 +43,6 @@ struct MLoopCol;
 struct MLoopTri;
 struct MLoopUV;
 struct MPoly;
-struct MPropCol;
 struct MVert;
 struct Material;
 struct Mesh;
@@ -220,6 +218,8 @@ typedef struct Mesh {
   float remesh_voxel_adaptivity;
   char remesh_mode;
 
+  /* Indicates the symmetry that a mesh has, according to the artist, so that tools can
+   * consistently ensure that this symmetry is maintained. */
   char symmetry;
 
   char _pad1[2];
