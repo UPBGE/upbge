@@ -3149,6 +3149,15 @@ static void node_geometry_buts_boolean_math(uiLayout *layout, bContext *UNUSED(C
   uiItemR(layout, ptr, "operation", DEFAULT_FLAGS, "", ICON_NONE);
 }
 
+static void node_geometry_buts_attribute_compare(uiLayout *layout,
+                                                 bContext *UNUSED(C),
+                                                 PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "operation", DEFAULT_FLAGS, "", ICON_NONE);
+  uiItemR(layout, ptr, "input_type_a", DEFAULT_FLAGS, IFACE_("Type A"), ICON_NONE);
+  uiItemR(layout, ptr, "input_type_b", DEFAULT_FLAGS, IFACE_("Type B"), ICON_NONE);
+}
+
 static void node_geometry_buts_subdivision_surface(uiLayout *layout,
                                                    bContext *UNUSED(C),
                                                    PointerRNA *UNUSED(ptr))
@@ -3215,6 +3224,13 @@ static void node_geometry_buts_attribute_point_distribute(uiLayout *layout,
   uiItemR(layout, ptr, "distribute_method", DEFAULT_FLAGS, "", ICON_NONE);
 }
 
+static void node_geometry_buts_attribute_color_ramp(uiLayout *layout,
+                                                    bContext *UNUSED(C),
+                                                    PointerRNA *ptr)
+{
+  uiTemplateColorRamp(layout, ptr, "color_ramp", 0);
+}
+
 static void node_geometry_set_butfunc(bNodeType *ntype)
 {
   switch (ntype->type) {
@@ -3233,6 +3249,9 @@ static void node_geometry_set_butfunc(bNodeType *ntype)
     case GEO_NODE_ATTRIBUTE_MATH:
       ntype->draw_buttons = node_geometry_buts_attribute_math;
       break;
+    case GEO_NODE_ATTRIBUTE_COMPARE:
+      ntype->draw_buttons = node_geometry_buts_attribute_compare;
+      break;
     case GEO_NODE_POINT_INSTANCE:
       ntype->draw_buttons = node_geometry_buts_point_instance;
       break;
@@ -3244,6 +3263,9 @@ static void node_geometry_set_butfunc(bNodeType *ntype)
       break;
     case GEO_NODE_POINT_DISTRIBUTE:
       ntype->draw_buttons = node_geometry_buts_attribute_point_distribute;
+      break;
+    case GEO_NODE_ATTRIBUTE_COLOR_RAMP:
+      ntype->draw_buttons = node_geometry_buts_attribute_color_ramp;
       break;
   }
 }

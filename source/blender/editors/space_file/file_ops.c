@@ -967,7 +967,7 @@ void FILE_OT_select_bookmark(wmOperatorType *ot)
   ot->poll = ED_operator_file_active;
 
   /* properties */
-  prop = RNA_def_string(ot->srna, "dir", NULL, FILE_MAXDIR, "Dir", "");
+  prop = RNA_def_string(ot->srna, "dir", NULL, FILE_MAXDIR, "Directory", "");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
@@ -2778,13 +2778,20 @@ void FILE_OT_delete(struct wmOperatorType *ot)
 static int file_start_filter_exec(bContext *C, wmOperator *UNUSED(op))
 {
   ScrArea *area = CTX_wm_area(C);
-  ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_UI);
   SpaceFile *sfile = CTX_wm_space_file(C);
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
 
   ARegion *region_ctx = CTX_wm_region(C);
-  CTX_wm_region_set(C, region);
-  UI_textbutton_activate_rna(C, region, params, "filter_search");
+
+  if (area) {
+    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+      CTX_wm_region_set(C, region);
+      if (UI_textbutton_activate_rna(C, region, params, "filter_search")) {
+        break;
+      }
+    }
+  }
+
   CTX_wm_region_set(C, region_ctx);
 
   return OPERATOR_FINISHED;
