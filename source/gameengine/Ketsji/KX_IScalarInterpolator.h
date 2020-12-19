@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_ISCALARINTERPOLATOR_H__
-#define __KX_ISCALARINTERPOLATOR_H__
+#pragma once
+
 
 class KX_IScalarInterpolator {
  public:
@@ -41,4 +41,3 @@ class KX_IScalarInterpolator {
   virtual float GetValue(float currentTime) const = 0;
 };
 
-#endif

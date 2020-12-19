@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_PYTHONINIT_H__
-#define __KX_PYTHONINIT_H__
+#pragma once
+
 
 #include <string>
 
@@ -88,4 +88,3 @@ struct PyNextFrameState {
 };
 extern struct PyNextFrameState pynextframestate;
 
-#endif /* __KX_PYTHONINIT_H__ */

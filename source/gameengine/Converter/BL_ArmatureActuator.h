@@ -29,8 +29,8 @@
  *  \ingroup bgeconv
  */
 
-#ifndef __BL_ARMATUREACTUATOR_H__
-#define __BL_ARMATUREACTUATOR_H__
+#pragma once
+
 
 #include "BL_ArmatureConstraint.h"
 #include "SCA_IActuator.h"
@@ -94,4 +94,3 @@ class BL_ArmatureActuator : public SCA_IActuator {
   int m_type;
 };
 
-#endif /* __BL_ARMATUREACTUATOR_H__ */

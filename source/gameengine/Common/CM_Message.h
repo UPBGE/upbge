@@ -24,8 +24,8 @@
  *  \ingroup common
  */
 
-#ifndef __CM_MESSAGE_H__
-#define __CM_MESSAGE_H__
+#pragma once
+
 
 #include <iostream>
 #include <string>
@@ -207,4 +207,3 @@ std::ostream &operator<<(std::ostream &stream, const _CM_FunctionPrefix &prefix)
  */
 #define CM_LogicBrickError(brick, msg) _CM_LogicBrickMsg(_CM_PrefixError, brick, msg)
 
-#endif  // __CM_MESSAGE_H__

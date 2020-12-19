@@ -25,8 +25,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __SCA_ACTUATORSENSOR_H__
-#define __SCA_ACTUATORSENSOR_H__
+#pragma once
+
 
 /** \file SCA_ActuatorSensor.h
  *  \ingroup gamelogic
@@ -67,4 +67,3 @@ class SCA_ActuatorSensor : public SCA_ISensor {
 #endif /* WITH_PYTHON */
 };
 
-#endif /* __SCA_ACTUATORSENSOR_H__ */

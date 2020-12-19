@@ -29,8 +29,8 @@
  *  \ingroup bgevideotex
  */
 
-#ifndef __DECKLINK_H__
-#define __DECKLINK_H__
+#pragma once
+
 
 #ifdef WITH_GAMEENGINE_DECKLINK
 
@@ -79,4 +79,3 @@ HRESULT decklink_ReadPixelFormat(const char *format, size_t len, BMDPixelFormat 
 
 #endif /* WITH_GAMEENGINE_DECKLINK */
 
-#endif /* __DECKLINK_H__ */

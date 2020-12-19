@@ -24,8 +24,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_2DFILTERMANAGER_H__
-#define __RAS_2DFILTERMANAGER_H__
+#pragma once
+
 
 #include <map>
 
@@ -100,4 +100,3 @@ class RAS_2DFilterManager {
   virtual RAS_2DFilter *NewFilter(RAS_2DFilterData &filterData) = 0;
 };
 
-#endif  // __RAS_2DFILTERMANAGER_H__

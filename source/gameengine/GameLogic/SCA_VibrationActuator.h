@@ -27,8 +27,8 @@
  *  \ingroup GameLogic
  */
 
-#ifndef __SCA_VIBRATIONACTUATOR_H__
-#define __SCA_VIBRATIONACTUATOR_H__
+#pragma once
+
 
 #include "SCA_IActuator.h"
 
@@ -72,4 +72,3 @@ class SCA_VibrationActuator : public SCA_IActuator {
 #endif  // WITH_PYTHON
 };
 
-#endif

@@ -24,8 +24,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_2DFILTER_H__
-#define __KX_2DFILTER_H__
+#pragma once
+
 
 #include "BL_Shader.h"
 #include "RAS_2DFilter.h"
@@ -62,4 +62,3 @@ class KX_2DFilter : public RAS_2DFilter, public BL_Shader {
 #endif
 };
 
-#endif  // __KX_2DFILTER_H__

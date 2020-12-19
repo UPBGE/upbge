@@ -30,8 +30,8 @@
  *  \brief Ketsji Logic Extension: Network Message Actuator class
  */
 
-#ifndef __KX_NETWORKMESSAGEACTUATOR_H__
-#define __KX_NETWORKMESSAGEACTUATOR_H__
+#pragma once
+
 
 #include "SCA_IActuator.h"
 
@@ -62,4 +62,3 @@ class KX_NetworkMessageActuator : public SCA_IActuator {
   };
 };
 
-#endif /* __KX_NETWORKMESSAGEACTUATOR_H__ */

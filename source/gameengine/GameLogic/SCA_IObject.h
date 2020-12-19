@@ -31,8 +31,8 @@
  *   SceneGraph
  */
 
-#ifndef __SCA_IOBJECT_H__
-#define __SCA_IOBJECT_H__
+#pragma once
+
 
 #include <vector>
 
@@ -227,4 +227,3 @@ class SCA_IObject : public CValue {
   } ObjectTypes;
 };
 
-#endif /* __SCA_IOBJECT_H__ */

@@ -22,8 +22,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __BL_TEXTURE_H__
-#define __BL_TEXTURE_H__
+#pragma once
+
 
 #include "DNA_image_types.h"
 
@@ -72,4 +72,3 @@ class BL_Texture : public CValue, public RAS_Texture {
 #endif  // WITH_PYTHON
 };
 
-#endif  // __BL_TEXTURE_H__

@@ -29,8 +29,8 @@
  *  \ingroup expressions
  */
 
-#ifndef __EXP_PYTHON_H__
-#define __EXP_PYTHON_H__
+#pragma once
+
 
 // Python redefines, quiet the compiler.
 #ifdef _XOPEN_SOURCE
@@ -79,4 +79,3 @@
 #  undef toupper
 #endif
 
-#endif  // __EXP_PYTHON_H__

@@ -30,8 +30,8 @@
  *  \brief Actuator to toggle visibility/invisibility of objects
  */
 
-#ifndef __SCA_StateActuator_H__
-#define __SCA_StateActuator_H__
+#pragma once
+
 
 #include "SCA_IActuator.h"
 
@@ -78,4 +78,3 @@ class SCA_StateActuator : public SCA_IActuator {
   /* --------------------------------------------------------------------- */
 };
 
-#endif

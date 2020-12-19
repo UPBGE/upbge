@@ -29,8 +29,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __SCA_IACTUATOR_H__
-#define __SCA_IACTUATOR_H__
+#pragma once
+
 
 #include "SCA_IController.h"
 
@@ -147,4 +147,3 @@ class SCA_IActuator : public SCA_ILogicBrick {
   bool IsType(KX_ACTUATOR_TYPE type);
 };
 
-#endif  // __SCA_IACTUATOR_H__

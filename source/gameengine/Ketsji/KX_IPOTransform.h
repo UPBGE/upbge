@@ -30,8 +30,8 @@
  *  \brief An abstract object you can move around in a 3d world, and has some logic
  */
 
-#ifndef __KX_IPOTRANSFORM_H__
-#define __KX_IPOTRANSFORM_H__
+#pragma once
+
 
 #include "MT_Transform.h"
 
@@ -122,4 +122,3 @@ class KX_IPOTransform {
   MT_Vector3 m_deltaScaling;
 };
 
-#endif

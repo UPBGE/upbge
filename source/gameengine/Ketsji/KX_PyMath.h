@@ -30,8 +30,8 @@
  *  \brief Initialize Python thingies.
  */
 
-#ifndef __KX_PYMATH_H__
-#define __KX_PYMATH_H__
+#pragma once
+
 
 #include "EXP_PyObjectPlus.h"
 #include "EXP_Python.h"
@@ -295,4 +295,3 @@ PyObject *PyColorFromVector(const MT_Vector3 &vec);
 
 #endif  // WITH_PYTHON
 
-#endif  // __KX_PYMATH_H__

@@ -29,8 +29,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __SCA_ILOGICBRICK_H__
-#define __SCA_ILOGICBRICK_H__
+#pragma once
+
 
 #include "EXP_BoolValue.h"
 #include "EXP_Value.h"
@@ -144,4 +144,3 @@ class SCA_ILogicBrick : public CValue, public SG_QList {
 #endif /* WITH_PYTHON */
 };
 
-#endif /* __SCA_ILOGICBRICK_H__ */

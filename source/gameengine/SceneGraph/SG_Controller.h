@@ -32,8 +32,8 @@
  *  \ingroup bgesg
  */
 
-#ifndef __SG_CONTROLLER_H__
-#define __SG_CONTROLLER_H__
+#pragma once
+
 
 #include <stddef.h>
 
@@ -94,4 +94,3 @@ class SG_Controller {
   SG_Node *m_node;
 };
 
-#endif /* __SG_CONTROLLER_H__ */

@@ -24,8 +24,8 @@
  *  \ingroup common
  */
 
-#ifndef __CM_THREAD_H__
-#define __CM_THREAD_H__
+#pragma once
+
 
 #include "BLI_threads.h"
 
@@ -62,4 +62,3 @@ class CM_ThreadMutex : public CM_ThreadLock {
   ThreadMutex m_mutex;
 };
 
-#endif  // __CM_THREAD_H__

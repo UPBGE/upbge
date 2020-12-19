@@ -29,8 +29,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __SCA_XNORCONTROLLER_H__
-#define __SCA_XNORCONTROLLER_H__
+#pragma once
+
 
 #include "SCA_IController.h"
 
@@ -47,4 +47,3 @@ class SCA_XNORController : public SCA_IController {
   /* --------------------------------------------------------------------- */
 };
 
-#endif /* __SCA_XNORCONTROLLER_H__ */

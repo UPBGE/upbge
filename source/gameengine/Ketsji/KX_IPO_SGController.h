@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_IPO_SGCONTROLLER_H__
-#define __KX_IPO_SGCONTROLLER_H__
+#pragma once
+
 
 #include "KX_IInterpolator.h"
 #include "KX_IPOTransform.h"
@@ -115,4 +115,3 @@ class KX_IpoSGController : public SG_Controller {
   }
 };
 
-#endif /* __KX_IPO_SGCONTROLLER_H__ */

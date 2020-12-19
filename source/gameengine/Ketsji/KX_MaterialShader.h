@@ -1,5 +1,5 @@
-#ifndef __KX_MATERIAL_SHADER__
-#define __KX_MATERIAL_SHADER__
+#pragma once
+
 
 #include <memory>
 
@@ -24,4 +24,3 @@ class KX_MaterialShader : public RAS_MaterialShader {
   virtual void Update(RAS_Rasterizer *rasty, KX_GameObject *gameobj);
 };
 
-#endif  // __KX_MATERIAL_SHADER__

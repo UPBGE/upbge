@@ -16,8 +16,8 @@
  *  \ingroup expressions
  */
 
-#ifndef __EXP_BASELISTVALUE_H__
-#define __EXP_BASELISTVALUE_H__
+#pragma once
+
 
 #include "EXP_Value.h"
 
@@ -79,4 +79,3 @@ class CBaseListValue : public CPropValue {
 #endif
 };
 
-#endif  // __EXP_LISTVALUE_H__

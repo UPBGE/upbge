@@ -31,8 +31,8 @@
  *
  */
 
-#ifndef __SCA_MOUSEMANAGER_H__
-#define __SCA_MOUSEMANAGER_H__
+#pragma once
+
 
 #include "SCA_EventManager.h"
 #include "SCA_IInputDevice.h"
@@ -48,4 +48,3 @@ class SCA_MouseManager : public SCA_EventManager {
   SCA_IInputDevice *GetInputDevice();
 };
 
-#endif /* __SCA_MOUSEMANAGER_H__ */

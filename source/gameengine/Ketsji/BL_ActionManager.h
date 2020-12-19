@@ -24,8 +24,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __BL_ACTIONMANAGER_H__
-#define __BL_ACTIONMANAGER_H__
+#pragma once
+
 
 #include <iostream>
 #include <map>
@@ -121,4 +121,3 @@ class BL_ActionManager {
   void UpdateIPOs();
 };
 
-#endif /* BL_ACTIONMANAGER */

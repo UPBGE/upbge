@@ -29,8 +29,8 @@
  *  \ingroup expressions
  */
 
-#ifndef __EXP_IDENTIFIEREXPR_H__
-#define __EXP_IDENTIFIEREXPR_H__
+#pragma once
+
 
 #include "EXP_Expression.h"
 
@@ -47,4 +47,3 @@ class CIdentifierExpr : public CExpression {
   virtual unsigned char GetExpressionID();
 };
 
-#endif  // __EXP_IDENTIFIEREXPR_H__

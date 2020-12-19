@@ -29,8 +29,8 @@
  *  \ingroup bgeconv
  */
 
-#ifndef __BL_CONVERTPROPERTIES_H__
-#define __BL_CONVERTPROPERTIES_H__
+#pragma once
+
 
 void BL_ConvertProperties(struct Object *object,
                           class KX_GameObject *gameobj,
@@ -38,4 +38,3 @@ void BL_ConvertProperties(struct Object *object,
                           class SCA_IScene *scene,
                           bool isInActiveLayer);
 
-#endif /* __BL_CONVERTPROPERTIES_H__ */

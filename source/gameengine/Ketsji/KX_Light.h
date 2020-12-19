@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_LIGHT_H__
-#define __KX_LIGHT_H__
+#pragma once
+
 
 #include "KX_GameObject.h"
 
@@ -63,4 +63,3 @@ class KX_LightObject : public KX_GameObject {
 #endif
 };
 
-#endif  // __KX_LIGHT_H__

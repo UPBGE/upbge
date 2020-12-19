@@ -29,8 +29,8 @@
  *  \ingroup bgeconv
  */
 
-#ifndef __BL_BLENDERSCALARINTERPOLATOR_H__
-#define __BL_BLENDERSCALARINTERPOLATOR_H__
+#pragma once
+
 
 #include <vector>
 
@@ -77,4 +77,3 @@ class BL_InterpolatorList {
   BL_ScalarInterpolator *GetScalarInterpolator(const char *rna_path, int array_index);
 };
 
-#endif /* __BL_BLENDERSCALARINTERPOLATOR_H__ */

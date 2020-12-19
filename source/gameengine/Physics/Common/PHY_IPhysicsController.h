@@ -29,8 +29,8 @@
  *  \ingroup phys
  */
 
-#ifndef __PHY_IPHYSICSCONTROLLER_H__
-#define __PHY_IPHYSICSCONTROLLER_H__
+#pragma once
+
 
 #include "PHY_IController.h"
 #include <vector>
@@ -168,4 +168,3 @@ class PHY_IPhysicsController : public PHY_IController {
   virtual void SetCcdSweptSphereRadius(float val) = 0;
 };
 
-#endif /* __PHY_IPHYSICSCONTROLLER_H__ */

@@ -29,8 +29,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __SCA_ACTUATOREVENTMANAGER_H__
-#define __SCA_ACTUATOREVENTMANAGER_H__
+#pragma once
+
 
 #include "SCA_EventManager.h"
 
@@ -42,4 +42,3 @@ class SCA_ActuatorEventManager : public SCA_EventManager {
   virtual void UpdateFrame();
 };
 
-#endif /* __SCA_ACTUATOREVENTMANAGER_H__ */

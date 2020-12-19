@@ -30,8 +30,8 @@
  *  \brief Sensor for keyboard input
  */
 
-#ifndef __SCA_KEYBOARDSENSOR_H__
-#define __SCA_KEYBOARDSENSOR_H__
+#pragma once
+
 
 #include <list>
 
@@ -109,4 +109,3 @@ class SCA_KeyboardSensor : public SCA_ISensor {
 #endif
 };
 
-#endif /* __SCA_KEYBOARDSENSOR_H__ */

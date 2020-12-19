@@ -32,8 +32,8 @@
  * on a per-generator basis.
  */
 
-#ifndef __SCA_RANDOMNUMBERGENERATOR_H__
-#define __SCA_RANDOMNUMBERGENERATOR_H__
+#pragma once
+
 
 class SCA_RandomNumberGenerator {
 
@@ -73,4 +73,3 @@ class SCA_RandomNumberGenerator {
   }
 };
 
-#endif /* __SCA_RANDOMNUMBERGENERATOR_H__ */

@@ -24,8 +24,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __BL_ACTION_H__
-#define __BL_ACTION_H__
+#pragma once
+
 
 #include <string>
 #include <vector>
@@ -150,4 +150,3 @@ class BL_Action {
   };
 };
 
-#endif /* BL_ACTION */

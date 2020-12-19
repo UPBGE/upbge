@@ -28,8 +28,8 @@
  *  \ingroup bgevideotex
  */
 
-#ifndef __IMAGEVIEWPORT_H__
-#define __IMAGEVIEWPORT_H__
+#pragma once
+
 
 #include "GPU_glew.h"
 
@@ -131,4 +131,3 @@ int ImageViewport_setWhole(PyImage *self, PyObject *value, void *closure);
 PyObject *ImageViewport_getAlpha(PyImage *self, void *closure);
 int ImageViewport_setAlpha(PyImage *self, PyObject *value, void *closure);
 
-#endif

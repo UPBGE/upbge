@@ -29,8 +29,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_RASTERIZER_H__
-#define __RAS_RASTERIZER_H__
+#pragma once
+
 
 #ifdef _MSC_VER
 #  pragma warning(disable : 4786)
@@ -571,4 +571,3 @@ class RAS_Rasterizer {
   const unsigned char* GetGraphicsCardVendor();
 };
 
-#endif /* __RAS_RASTERIZER_H__ */

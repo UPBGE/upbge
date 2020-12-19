@@ -3,8 +3,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_VEHICLEWRAPPER_H__
-#define __KX_VEHICLEWRAPPER_H__
+#pragma once
+
 
 #include "EXP_Value.h"
 
@@ -63,4 +63,3 @@ class KX_VehicleWrapper : public CValue {
   PHY_IVehicle *m_vehicle;
 };
 
-#endif /* __KX_VEHICLEWRAPPER_H__ */

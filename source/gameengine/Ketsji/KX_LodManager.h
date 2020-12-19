@@ -24,8 +24,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_LOD_MANAGER_H__
-#define __KX_LOD_MANAGER_H__
+#pragma once
+
 
 #include <vector>
 
@@ -124,4 +124,3 @@ bool ConvertPythonToLodManager(PyObject *value,
 
 #endif  // WITH_PYTHON
 
-#endif  // __KX_LOD_MANAGER_H__

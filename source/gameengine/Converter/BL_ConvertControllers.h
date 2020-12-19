@@ -29,8 +29,8 @@
  *  \ingroup bgeconv
  */
 
-#ifndef __BL_CONVERTCONTROLLERS_H__
-#define __BL_CONVERTCONTROLLERS_H__
+#pragma once
+
 
 #include "EXP_Python.h"
 
@@ -42,4 +42,3 @@ void BL_ConvertControllers(struct Object *blenderobject,
                            class BL_BlenderSceneConverter *converter,
                            bool libloading);
 
-#endif /* __BL_CONVERTCONTROLLERS_H__ */

@@ -20,8 +20,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __SCA_MouseActuator
-#define __SCA_MouseActuator
+#pragma once
+
 
 #include "SCA_IActuator.h"
 
@@ -127,4 +127,3 @@ class SCA_MouseActuator : public SCA_IActuator {
 #endif /* WITH_PYTHON */
 };
 
-#endif  //__SCA_MouseActuator_DOC

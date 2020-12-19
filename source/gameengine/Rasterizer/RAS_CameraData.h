@@ -29,8 +29,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_CAMERADATA_H__
-#define __RAS_CAMERADATA_H__
+#pragma once
+
 
 struct RAS_CameraData {
   float m_lens;
@@ -86,4 +86,3 @@ struct RAS_CameraData {
   }
 };
 
-#endif /* __RAS_CAMERADATA_H__ */

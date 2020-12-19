@@ -30,8 +30,8 @@
  *  \brief Property sensor
  */
 
-#ifndef __SCA_ArmatureSensor_H__
-#define __SCA_ArmatureSensor_H__
+#pragma once
+
 
 struct bConstraint;
 
@@ -86,4 +86,3 @@ class SCA_ArmatureSensor : public SCA_ISensor {
   bool m_lastresult;
 };
 
-#endif

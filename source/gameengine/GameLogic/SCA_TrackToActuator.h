@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __SCA_TrackToActuator_H__
-#define __SCA_TrackToActuator_H__
+#pragma once
+
 
 #include "KX_GameObject.h"
 #include "MT_Matrix3x3.h"
@@ -92,4 +92,3 @@ class SCA_TrackToActuator : public SCA_IActuator {
 
 }; /* end of class SCA_TrackToActuator : public KX_EditObjectActuator */
 
-#endif /* __SCA_TrackToActuator_H__ */

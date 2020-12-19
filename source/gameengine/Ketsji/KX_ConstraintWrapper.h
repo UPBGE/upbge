@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_CONSTRAINTWRAPPER_H__
-#define __KX_CONSTRAINTWRAPPER_H__
+#pragma once
+
 
 #include "EXP_Value.h"
 #include "PHY_DynamicTypes.h"
@@ -70,4 +70,3 @@ class KX_ConstraintWrapper : public CValue {
   int m_userId;
 };
 
-#endif /* __KX_CONSTRAINTWRAPPER_H__ */

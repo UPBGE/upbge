@@ -20,8 +20,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __RAS_2DFILTERDATA__
-#define __RAS_2DFILTERDATA__
+#pragma once
+
 
 #include <string>
 #include <vector>
@@ -53,4 +53,3 @@ class RAS_2DFilterData {
   std::string shaderText;
 };
 
-#endif  // __RAS_2DFILTERDATA__

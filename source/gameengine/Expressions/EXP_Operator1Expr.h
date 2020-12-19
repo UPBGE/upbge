@@ -16,8 +16,8 @@
  *  \ingroup expressions
  */
 
-#ifndef __EXP_OPERATOR1EXPR_H__
-#define __EXP_OPERATOR1EXPR_H__
+#pragma once
+
 
 #include "EXP_Expression.h"
 
@@ -35,4 +35,3 @@ class COperator1Expr : public CExpression {
   CExpression *m_lhs;
 };
 
-#endif  // __EXP_OPERATOR1EXPR_H__

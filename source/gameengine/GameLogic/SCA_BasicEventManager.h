@@ -32,8 +32,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __SCA_BASICEVENTMANAGER_H__
-#define __SCA_BASICEVENTMANAGER_H__
+#pragma once
+
 
 #include "SCA_EventManager.h"
 
@@ -45,4 +45,3 @@ class SCA_BasicEventManager : public SCA_EventManager {
   virtual void NextFrame();
 };
 
-#endif /* __SCA_BASICEVENTMANAGER_H__ */

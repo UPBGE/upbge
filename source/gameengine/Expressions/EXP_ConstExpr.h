@@ -16,8 +16,8 @@
  *  \ingroup expressions
  */
 
-#ifndef __EXP_CONSTEXPR_H__
-#define __EXP_CONSTEXPR_H__
+#pragma once
+
 
 #include "EXP_Expression.h"
 #include "EXP_Value.h"
@@ -36,4 +36,3 @@ class CConstExpr : public CExpression {
   CValue *m_value;
 };
 
-#endif  // __EXP_CONSTEXPR_H__

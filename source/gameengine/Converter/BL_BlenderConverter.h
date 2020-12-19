@@ -29,8 +29,8 @@
  *  \ingroup bgeconv
  */
 
-#ifndef __BL_BLENDERCONVERTER_H__
-#define __BL_BLENDERCONVERTER_H__
+#pragma once
+
 
 #include <map>
 #include <vector>
@@ -166,4 +166,3 @@ class BL_BlenderConverter {
   };
 };
 
-#endif  // __BL_BLENDERCONVERTER_H__

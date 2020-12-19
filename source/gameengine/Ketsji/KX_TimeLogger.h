@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_TIMELOGGER_H__
-#define __KX_TIMELOGGER_H__
+#pragma once
+
 
 #ifdef _MSC_VER
 #  pragma warning(disable : 4786) /* suppress stl-MSVC debug info warning */
@@ -102,4 +102,3 @@ class KX_TimeLogger {
   bool m_logging;
 };
 
-#endif  // __KX_TIMELOGGER_H__

@@ -29,8 +29,8 @@
  *  \ingroup physdummy
  */
 
-#ifndef __DUMMYPHYSICSENVIRONMENT_H__
-#define __DUMMYPHYSICSENVIRONMENT_H__
+#pragma once
+
 
 #include "PHY_IMotionState.h"
 #include "PHY_IPhysicsEnvironment.h"
@@ -156,4 +156,3 @@ class DummyPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   }
 };
 
-#endif /* __DUMMYPHYSICSENVIRONMENT_H__ */

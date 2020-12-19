@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_VERTEXPROXY_H__
-#define __KX_VERTEXPROXY_H__
+#pragma once
+
 
 #ifdef WITH_PYTHON
 
@@ -116,4 +116,3 @@ class KX_VertexProxy : public CValue {
 
 #endif  // WITH_PYTHON
 
-#endif  // __KX_VERTEXPROXY_H__

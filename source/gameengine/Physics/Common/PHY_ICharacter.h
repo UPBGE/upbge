@@ -3,8 +3,8 @@
  *  \ingroup phys
  */
 
-#ifndef __PHY_ICHARACTER_H__
-#define __PHY_ICHARACTER_H__
+#pragma once
+
 
 // PHY_ICharacter provides a generic interface for "character" controllers
 
@@ -42,4 +42,3 @@ class PHY_ICharacter {
   virtual void Reset() = 0;
 };
 
-#endif  //__PHY_ICHARACTER_H__

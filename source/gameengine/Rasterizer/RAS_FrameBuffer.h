@@ -24,8 +24,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_FRAMEBUFFER_H__
-#define __RAS_FRAMEBUFFER_H__
+#pragma once
+
 
 #include "RAS_Rasterizer.h"
 
@@ -61,4 +61,3 @@ class RAS_FrameBuffer {
   RAS_Rasterizer::FrameBufferType GetType() const;
 };
 
-#endif  // __RAS_FRAMEBUFFER_H__

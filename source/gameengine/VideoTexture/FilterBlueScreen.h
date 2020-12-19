@@ -28,8 +28,8 @@
  *  \ingroup bgevideotex
  */
 
-#ifndef __FILTERBLUESCREEN_H__
-#define __FILTERBLUESCREEN_H__
+#pragma once
+
 
 #include "Common.h"
 #include "FilterBase.h"
@@ -114,4 +114,3 @@ class FilterBlueScreen : public FilterBase {
   }
 };
 
-#endif

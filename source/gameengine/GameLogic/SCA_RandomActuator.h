@@ -30,8 +30,8 @@
  *  \brief Draw a random number, and put it in a property
  */
 
-#ifndef __SCA_RANDOMACTUATOR_H__
-#define __SCA_RANDOMACTUATOR_H__
+#pragma once
+
 
 #include "SCA_IActuator.h"
 #include "SCA_RandomNumberGenerator.h"
@@ -116,4 +116,3 @@ class SCA_RandomActuator : public SCA_IActuator {
 
 }; /* end of class KX_EditObjectActuator : public SCA_PropertyActuator */
 
-#endif

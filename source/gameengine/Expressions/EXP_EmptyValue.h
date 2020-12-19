@@ -16,8 +16,8 @@
  *  \ingroup expressions
  */
 
-#ifndef __EXP_EMPTYVALUE_H__
-#define __EXP_EMPTYVALUE_H__
+#pragma once
+
 
 #include "EXP_Value.h"
 
@@ -34,4 +34,3 @@ class CEmptyValue : public CPropValue {
   virtual CValue *GetReplica();
 };
 
-#endif  // __EXP_EMPTYVALUE_H__

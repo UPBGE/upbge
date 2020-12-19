@@ -16,8 +16,8 @@
  *  \ingroup expressions
  */
 
-#ifndef __EXP_FLOATVALUE_H__
-#define __EXP_FLOATVALUE_H__
+#pragma once
+
 
 #include "EXP_Value.h"
 
@@ -46,4 +46,3 @@ class CFloatValue : public CPropValue {
   float m_float;
 };
 
-#endif  // __EXP_FLOATVALUE_H__

@@ -28,8 +28,8 @@
  *  \ingroup bgevideotex
  */
 
-#ifndef __FILTERSOURCE_H__
-#define __FILTERSOURCE_H__
+#pragma once
+
 
 #include "Common.h"
 #include "FilterBase.h"
@@ -405,4 +405,3 @@ class FilterYV12 : public FilterBase {
   }
 };
 
-#endif /* __FILTERSOURCE_H__ */

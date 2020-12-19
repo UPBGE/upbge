@@ -29,8 +29,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __SCA_EVENTMANAGER_H__
-#define __SCA_EVENTMANAGER_H__
+#pragma once
+
 
 #include <algorithm>
 #include <set>
@@ -82,4 +82,3 @@ class SCA_EventManager {
   EVENT_MANAGER_TYPE m_mgrtype;
 };
 
-#endif

@@ -23,8 +23,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __KX_OBSTACLESIMULATION_H__
-#define __KX_OBSTACLESIMULATION_H__
+#pragma once
+
 
 #include <vector>
 
@@ -136,4 +136,3 @@ class KX_ObstacleSimulationTOI_cells : public KX_ObstacleSimulationTOI {
   KX_ObstacleSimulationTOI_cells(MT_Scalar levelHeight, bool enableVisualization);
 };
 
-#endif

@@ -29,8 +29,8 @@
  *  \ingroup bgeconv
  */
 
-#ifndef __BL_CONVERTACTUATORS_H__
-#define __BL_CONVERTACTUATORS_H__
+#pragma once
+
 
 void BL_ConvertActuators(const char *maggiename,
                          struct Object *blenderobject,
@@ -42,4 +42,3 @@ void BL_ConvertActuators(const char *maggiename,
                          bool isInActiveLayer,
                          class BL_BlenderSceneConverter *converter);
 
-#endif /* __BL_CONVERTACTUATORS_H__ */

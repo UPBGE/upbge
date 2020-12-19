@@ -32,8 +32,8 @@
  * Please look here for revision history.
  */
 
-#ifndef __SCA_EndObjectActuator_H__
-#define __SCA_EndObjectActuator_H__
+#pragma once
+
 
 #include "SCA_IActuator.h"
 
@@ -60,4 +60,3 @@ class SCA_EndObjectActuator : public SCA_IActuator {
 
 }; /* end of class KX_EditObjectActuator : public SCA_PropertyActuator */
 
-#endif

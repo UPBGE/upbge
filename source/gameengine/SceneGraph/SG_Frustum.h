@@ -1,5 +1,5 @@
-#ifndef __SG_FRUSTUM_H__
-#define __SG_FRUSTUM_H__
+#pragma once
+
 
 #include <array>
 
@@ -32,4 +32,3 @@ class SG_Frustum {
   TestType FrustumInsideFrustum(const SG_Frustum &frustum) const;
 };
 
-#endif  // __SG_FRUSTUM_H__

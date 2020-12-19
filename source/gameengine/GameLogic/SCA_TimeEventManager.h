@@ -29,8 +29,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __SCA_TIMEEVENTMANAGER_H__
-#define __SCA_TIMEEVENTMANAGER_H__
+#pragma once
+
 
 #include <vector>
 
@@ -53,4 +53,3 @@ class SCA_TimeEventManager : public SCA_EventManager {
   std::vector<CValue *> GetTimeValues();
 };
 
-#endif /* __SCA_TIMEEVENTMANAGER_H__ */

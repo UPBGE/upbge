@@ -20,8 +20,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __RAS_2DFILTER_H__
-#define __RAS_2DFILTER_H__
+#pragma once
+
 
 #include <memory>
 
@@ -108,4 +108,3 @@ class RAS_2DFilter : public virtual RAS_Shader {
   void End();
 };
 
-#endif  // __RAS_2DFILTER_H__

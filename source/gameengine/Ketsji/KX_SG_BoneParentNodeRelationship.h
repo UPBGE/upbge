@@ -30,8 +30,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_SG_BONEPARENTNODERELATIONSHIP_H__
-#define __KX_SG_BONEPARENTNODERELATIONSHIP_H__
+#pragma once
+
 
 #include "SG_Node.h"
 #include "SG_ParentRelation.h"
@@ -75,4 +75,3 @@ class KX_BoneParentRelation : public SG_ParentRelation {
   KX_BoneParentRelation(Bone *bone);
 };
 
-#endif

@@ -16,8 +16,8 @@
  *  \ingroup expressions
  */
 
-#ifndef __EXP_INTVALUE_H__
-#define __EXP_INTVALUE_H__
+#pragma once
+
 
 #include "EXP_Value.h"
 
@@ -51,4 +51,3 @@ class CIntValue : public CPropValue {
   cInt m_int;
 };
 
-#endif  // __EXP_INTVALUE_H__

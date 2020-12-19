@@ -26,8 +26,8 @@
  *  \ingroup ketsjinet
  *  \brief Ketsji Logic Extension: Network Message Manager class
  */
-#ifndef __KX_NETWORKMESSAGEMANAGER_H__
-#define __KX_NETWORKMESSAGEMANAGER_H__
+#pragma once
+
 
 /* undef SendMessage Macro (WinUser.h) to avoid
 conflicts with KX_NetworkMessageManager::SendMessage */
@@ -84,4 +84,3 @@ class KX_NetworkMessageManager {
   void ClearMessages();
 };
 
-#endif  // __KX_NETWORKMESSAGEMANAGER_H__

@@ -1,5 +1,5 @@
-#ifndef __RAS_MATERIAL_SHADER_H__
-#define __RAS_MATERIAL_SHADER_H__
+#pragma once
+
 
 #include "RAS_MeshObject.h"  // For RAS_MeshObject::LayersInfo.
 
@@ -21,4 +21,3 @@ class RAS_MaterialShader {
   virtual void Update(RAS_Rasterizer *rasty, KX_GameObject *gameobj) = 0;
 };
 
-#endif  // __RAS_MATERIAL_SHADER_H__

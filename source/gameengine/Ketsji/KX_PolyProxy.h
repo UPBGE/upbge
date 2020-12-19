@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_POLYPROXY_H__
-#define __KX_POLYPROXY_H__
+#pragma once
+
 
 #ifdef WITH_PYTHON
 
@@ -83,4 +83,3 @@ class KX_PolyProxy : public CValue {
 
 #endif /* WITH_PYTHON */
 
-#endif /* __KX_POLYPROXY_H__ */

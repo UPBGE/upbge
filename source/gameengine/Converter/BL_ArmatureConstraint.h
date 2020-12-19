@@ -29,8 +29,8 @@
  *  \ingroup bgeconv
  */
 
-#ifndef __BL_ARMATURECONSTRAINT_H__
-#define __BL_ARMATURECONSTRAINT_H__
+#pragma once
+
 
 #include <map>
 
@@ -115,4 +115,3 @@ class BL_ArmatureConstraint : public CValue {
 #endif /* WITH_PYTHON */
 };
 
-#endif /* __BL_ARMATURECONSTRAINT_H__ */

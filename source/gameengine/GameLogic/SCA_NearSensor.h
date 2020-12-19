@@ -30,8 +30,8 @@
  *  \brief Sense if other objects are near
  */
 
-#ifndef __SCA_NearSensor_H__
-#define __SCA_NearSensor_H__
+#pragma once
+
 
 #include "KX_ClientObjectInfo.h"
 #include "SCA_CollisionSensor.h"
@@ -106,4 +106,3 @@ public:
 #endif /* WITH_PYTHON */
 };
 
-#endif /* __SCA_NearSensor_H__ */

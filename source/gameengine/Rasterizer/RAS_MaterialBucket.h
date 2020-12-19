@@ -29,8 +29,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_MATERIAL_BUCKET_H__
-#define __RAS_MATERIAL_BUCKET_H__
+#pragma once
+
 
 #include "MT_Transform.h"
 #include "RAS_DisplayArrayBucket.h"
@@ -70,4 +70,3 @@ class RAS_MaterialBucket {
   RAS_DisplayArrayBucketList m_displayArrayBucketList;
 };
 
-#endif  // __RAS_MATERIAL_BUCKET_H__

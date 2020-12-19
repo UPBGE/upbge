@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_MESHPROXY_H__
-#define __KX_MESHPROXY_H__
+#pragma once
+
 
 #ifdef WITH_PYTHON
 
@@ -87,4 +87,3 @@ class KX_MeshProxy : public CValue {
 
 #endif  // WITH_PYTHON
 
-#endif  // __KX_MESHPROXY_H__

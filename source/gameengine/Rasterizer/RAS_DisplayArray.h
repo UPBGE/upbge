@@ -24,8 +24,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_DISPLAY_ARRAY_H__
-#define __RAS_DISPLAY_ARRAY_H__
+#pragma once
+
 
 #include "RAS_IDisplayArray.h"
 
@@ -140,4 +140,3 @@ template<class Vertex> class RAS_DisplayArray : public virtual RAS_IDisplayArray
   }
 };
 
-#endif  // __RAS_DISPLAY_ARRAY_H__

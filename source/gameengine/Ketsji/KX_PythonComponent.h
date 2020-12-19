@@ -20,8 +20,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __KX_PYCOMPONENT_H__
-#define __KX_PYCOMPONENT_H__
+#pragma once
+
 
 #ifdef WITH_PYTHON
 
@@ -65,4 +65,3 @@ class KX_PythonComponent : public CValue {
 
 #endif  // WITH_PYTHON
 
-#endif  // __KX_PYCOMPONENT_H__

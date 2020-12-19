@@ -24,8 +24,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_DEBUG_DRAW_H__
-#define __RAS_DEBUG_DRAW_H__
+#pragma once
+
 
 #include <array>
 #include <memory>
@@ -155,4 +155,3 @@ class RAS_DebugDraw {
   void Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas);
 };
 
-#endif  // __RAS_DEBUG_DRAW_H__

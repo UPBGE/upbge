@@ -28,8 +28,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __SCA_2DFILTERACTUATOR_H__
-#define __SCA_2DFILTERACTUATOR_H__
+#pragma once
+
 
 #include "RAS_Rasterizer.h"
 #include "SCA_IActuator.h"
@@ -71,4 +71,3 @@ class SCA_2DFilterActuator : public SCA_IActuator {
 
   virtual CValue *GetReplica();
 };
-#endif

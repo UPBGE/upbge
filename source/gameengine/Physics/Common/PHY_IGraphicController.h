@@ -29,8 +29,8 @@
  *  \ingroup phys
  */
 
-#ifndef __PHY_IGRAPHICCONTROLLER_H__
-#define __PHY_IGRAPHICCONTROLLER_H__
+#pragma once
+
 
 #include "PHY_IController.h"
 
@@ -54,4 +54,3 @@ class PHY_IGraphicController : public PHY_IController {
   }
 };
 
-#endif /* __PHY_IGRAPHICCONTROLLER_H__ */

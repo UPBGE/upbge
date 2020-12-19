@@ -30,8 +30,8 @@
  *  \brief Generate random pulses
  */
 
-#ifndef __SCA_RANDOMSENSOR_H__
-#define __SCA_RANDOMSENSOR_H__
+#pragma once
+
 
 #include "EXP_BoolValue.h"
 #include "SCA_ISensor.h"
@@ -68,4 +68,3 @@ class SCA_RandomSensor : public SCA_ISensor {
 #endif
 };
 
-#endif /* __SCA_RANDOMSENSOR_H__ */

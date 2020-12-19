@@ -29,8 +29,8 @@
  *  \ingroup bgeconv
  */
 
-#ifndef __BL_BLENDERDATACONVERSION_H__
-#define __BL_BLENDERDATACONVERSION_H__
+#pragma once
+
 
 #include <string>
 
@@ -60,4 +60,3 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
 SCA_IInputDevice::SCA_EnumInputs BL_ConvertKeyCode(int key_code);
 
-#endif /* __BL_BLENDERDATACONVERSION_H__ */

@@ -29,8 +29,8 @@
  *  \ingroup bgevideotex
  */
 
-#ifndef __VIDEODECKLINK_H__
-#define __VIDEODECKLINK_H__
+#pragma once
+
 
 #ifdef WITH_GAMEENGINE_DECKLINK
 
@@ -266,4 +266,3 @@ class CaptureDelegate : public IDeckLinkInputCallback {
 
 #endif /* WITH_GAMEENGINE_DECKLINK */
 
-#endif /* __VIDEODECKLINK_H__ */

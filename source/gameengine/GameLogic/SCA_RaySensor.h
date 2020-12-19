@@ -30,8 +30,8 @@
  *  \brief Cast a ray and feel for objects
  */
 
-#ifndef __SCA_RaySensor_H__
-#define __SCA_RaySensor_H__
+#pragma once
+
 
 #include "BLI_utildefines.h"
 
@@ -105,4 +105,3 @@ class SCA_RaySensor : public SCA_ISensor {
 #endif /* WITH_PYTHON */
 };
 
-#endif /* __SCA_RaySensor_H__ */

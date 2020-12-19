@@ -16,8 +16,8 @@
  *  \ingroup expressions
  */
 
-#ifndef __EXP_OPERATOR2EXPR_H__
-#define __EXP_OPERATOR2EXPR_H__
+#pragma once
+
 
 #include "EXP_Expression.h"
 #include "EXP_Value.h"
@@ -39,4 +39,3 @@ class COperator2Expr : public CExpression {
   VALUE_OPERATOR m_op;
 };
 
-#endif  // __EXP_OPERATOR2EXPR_H__

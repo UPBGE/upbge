@@ -32,8 +32,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __SCA_DELAYSENSOR_H__
-#define __SCA_DELAYSENSOR_H__
+#pragma once
+
 
 #include "SCA_ISensor.h"
 
@@ -61,4 +61,3 @@ class SCA_DelaySensor : public SCA_ISensor {
   /* --------------------------------------------------------------------- */
 };
 
-#endif /* __SCA_DELAYSENSOR_H__ */

@@ -29,8 +29,8 @@
  *  \ingroup ketsjinet
  *  \brief Ketsji Logic Extension: Network Message Scene class
  */
-#ifndef __KX_NETWORKMESSAGESCENE_H__
-#define __KX_NETWORKMESSAGESCENE_H__
+#pragma once
+
 
 /* undef SendMessage Macro (WinUser.h) to avoid
 conflicts with KX_NetworkMessageScene::SendMessage */
@@ -71,4 +71,3 @@ class KX_NetworkMessageScene {
                                                                     std::string subject);
 };
 
-#endif  // __KX_NETWORKMESSAGESCENE_H__

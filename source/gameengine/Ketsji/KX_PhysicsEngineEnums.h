@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_PHYSICSENGINEENUMS_H__
-#define __KX_PHYSICSENGINEENUMS_H__
+#pragma once
+
 
 enum e_PhysicsEngine {
   NoSelection = -1,
@@ -38,4 +38,3 @@ enum e_PhysicsEngine {
   UseBullet = 5,
 };
 
-#endif /* __KX_PHYSICSENGINEENUMS_H__ */

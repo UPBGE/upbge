@@ -24,8 +24,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __SCA_PYTHONMOUSE_H__
-#define __SCA_PYTHONMOUSE_H__
+#pragma once
+
 
 #include "EXP_PyObjectPlus.h"
 
@@ -61,4 +61,3 @@ class SCA_PythonMouse : public PyObjectPlus {
 #endif
 };
 
-#endif /* __SCA_PYTHONMOUSE_H__ */

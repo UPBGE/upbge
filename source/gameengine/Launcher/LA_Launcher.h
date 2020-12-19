@@ -24,8 +24,8 @@
  *  \ingroup launcher
  */
 
-#ifndef __LA_LAUNCHER_H__
-#define __LA_LAUNCHER_H__
+#pragma once
+
 
 #include <string>
 
@@ -172,4 +172,3 @@ class LA_Launcher {
 #endif  // WITH_PYTHON
 };
 
-#endif  // __LA_LAUNCHER_H__

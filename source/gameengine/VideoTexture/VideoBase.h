@@ -28,8 +28,8 @@
  *  \ingroup bgevideotex
  */
 
-#ifndef __VIDEOBASE_H__
-#define __VIDEOBASE_H__
+#pragma once
+
 
 #include "EXP_PyObjectPlus.h"
 #include "Exception.h"
@@ -212,4 +212,3 @@ extern PyTypeObject ImageRenderType;
 extern PyTypeObject ImageMirrorType;
 extern PyTypeObject ImageViewportType;
 
-#endif /* __VIDEOBASE_H__ */

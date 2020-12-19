@@ -24,8 +24,8 @@
  *  \ingroup expressions
  */
 
-#ifndef __EXP_PYTHON_CALLBACK_H__
-#define __EXP_PYTHON_CALLBACK_H__
+#pragma once
+
 
 #include "EXP_Python.h"
 
@@ -40,4 +40,3 @@ void RunPythonCallBackList(PyObject *functionlist,
                            unsigned int minargcount,
                            unsigned int maxargcount);
 
-#endif  // __EXP_PYTHON_CALLBACK_H__

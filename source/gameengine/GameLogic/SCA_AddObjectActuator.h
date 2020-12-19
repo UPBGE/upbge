@@ -31,8 +31,8 @@
  * Please look here for revision history.
  */
 
-#ifndef __SCA_AddObjectActuator_H__
-#define __SCA_AddObjectActuator_H__
+#pragma once
+
 
 /* Actuator tree */
 #include "MT_Vector3.h"
@@ -114,4 +114,3 @@ class SCA_AddObjectActuator : public SCA_IActuator {
 
 }; /* end of class SCA_AddObjectActuator : public KX_EditObjectActuator */
 
-#endif /* __SCA_AddObjectActuator_H__ */

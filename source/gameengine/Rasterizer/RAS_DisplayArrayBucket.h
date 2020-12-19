@@ -29,8 +29,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_DISPLAY_MATERIAL_BUCKET_H__
-#define __RAS_DISPLAY_MATERIAL_BUCKET_H__
+#pragma once
+
 
 #include <vector>
 
@@ -90,4 +90,3 @@ class RAS_DisplayArrayBucket {
 
 typedef std::vector<RAS_DisplayArrayBucket *> RAS_DisplayArrayBucketList;
 
-#endif  // __RAS_DISPLAY_MATERIAL_BUCKET_H__

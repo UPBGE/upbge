@@ -30,8 +30,8 @@
  *  \brief Property sensor
  */
 
-#ifndef __SCA_PROPERTYSENSOR_H__
-#define __SCA_PROPERTYSENSOR_H__
+#pragma once
+
 
 #include "SCA_ISensor.h"
 
@@ -92,4 +92,3 @@ class SCA_PropertySensor : public SCA_ISensor {
 #endif
 };
 
-#endif

@@ -16,8 +16,8 @@
  *  \ingroup expressions
  */
 
-#ifndef __EXP_VALUE_H__
-#define __EXP_VALUE_H__
+#pragma once
+
 
 #ifdef _MSC_VER
 #  pragma warning(disable : 4786)
@@ -208,4 +208,3 @@ class CPropValue : public CValue {
   std::string m_strNewName;
 };
 
-#endif  // __EXP_VALUE_H__

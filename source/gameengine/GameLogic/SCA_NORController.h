@@ -29,8 +29,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __SCA_NORCONTROLLER_H__
-#define __SCA_NORCONTROLLER_H__
+#pragma once
+
 
 #include "SCA_IController.h"
 
@@ -43,4 +43,3 @@ class SCA_NORController : public SCA_IController {
   virtual void Trigger(SCA_LogicManager *logicmgr);
 };
 
-#endif /* __SCA_NORCONTROLLER_H__ */

@@ -28,8 +28,8 @@
  *  \ingroup bgevideotex
  */
 
-#ifndef __PYTYPELIST_H__
-#define __PYTYPELIST_H__
+#pragma once
+
 
 #include <memory>
 #include <vector>
@@ -97,4 +97,3 @@ class PyTypeListItem {
   const char *m_name;
 };
 
-#endif

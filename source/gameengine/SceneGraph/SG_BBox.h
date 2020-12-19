@@ -30,8 +30,8 @@
  *  \brief Bounding Box
  */
 
-#ifndef __SG_BBOX_H__
-#define __SG_BBOX_H__
+#pragma once
+
 
 #include "MT_Vector3.h"
 
@@ -75,4 +75,3 @@ class SG_BBox {
   bool Inside(const MT_Vector3 &point) const;
 };
 
-#endif  // __SG_BBOX_H__

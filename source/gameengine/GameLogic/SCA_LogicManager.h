@@ -28,8 +28,8 @@
  *  \ingroup gamelogic
  *  \brief Regulates the top-level logic behavior for one scene.
  */
-#ifndef __SCA_LOGICMANAGER_H__
-#define __SCA_LOGICMANAGER_H__
+#pragma once
+
 
 #ifdef _MSC_VER
 #  pragma warning(disable : 4786)
@@ -144,4 +144,3 @@ class SCA_LogicManager {
   CValue *FindGameObjByBlendObj(void *blendobj);
 };
 
-#endif /* __SCA_LOGICMANAGER_H__ */

@@ -24,8 +24,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_IDISPLAY_ARRAY_H__
-#define __RAS_IDISPLAY_ARRAY_H__
+#pragma once
+
 
 #include <memory>
 #include <vector>
@@ -186,4 +186,3 @@ class RAS_IDisplayArray {
 
 typedef std::vector<RAS_IDisplayArray *> RAS_IDisplayArrayList;
 
-#endif  // __RAS_IDISPLAY_ARRAY_H__

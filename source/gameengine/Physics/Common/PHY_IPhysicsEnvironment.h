@@ -29,8 +29,8 @@
  *  \ingroup phys
  */
 
-#ifndef __PHY_IPHYSICSENVIRONMENT_H__
-#define __PHY_IPHYSICSENVIRONMENT_H__
+#pragma once
+
 
 #include "MT_Matrix4x4.h"
 #include "MT_Vector2.h"
@@ -277,4 +277,3 @@ class PHY_IPhysicsEnvironment {
   }
 };
 
-#endif /* __PHY_IPHYSICSENVIRONMENT_H__ */

@@ -1,5 +1,5 @@
-#ifndef __SG_CULLING_OBJECT_H__
-#define __SG_CULLING_OBJECT_H__
+#pragma once
+
 
 #include <vector>
 
@@ -26,4 +26,3 @@ class SG_CullingNode {
 
 using SG_CullingNodeList = std::vector<SG_CullingNode *>;
 
-#endif  // __SG_CULLING_OBJECT_H__

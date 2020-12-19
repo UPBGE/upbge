@@ -24,8 +24,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __SCA_INPUTEVENT_H__
-#define __SCA_INPUTEVENT_H__
+#pragma once
+
 
 #include <vector>
 
@@ -82,4 +82,3 @@ class SCA_InputEvent : public CValue {
 #endif
 };
 
-#endif  // __SCA_IINPUTDEVICE_H__

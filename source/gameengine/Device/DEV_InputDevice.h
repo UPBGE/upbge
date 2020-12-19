@@ -24,8 +24,8 @@
  *  \ingroup device
  */
 
-#ifndef __DEV_INPUTDEVICE_H__
-#define __DEV_INPUTDEVICE_H__
+#pragma once
+
 
 #include <map>
 
@@ -50,4 +50,3 @@ class DEV_InputDevice : public SCA_IInputDevice {
   void ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type, int val, unsigned int unicode);
 };
 
-#endif  // __DEV_INPUTDEVICE_H__

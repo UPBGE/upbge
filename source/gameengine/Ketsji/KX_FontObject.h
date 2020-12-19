@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_FONTOBJECT_H__
-#define __KX_FONTOBJECT_H__
+#pragma once
+
 
 #include "KX_GameObject.h"
 
@@ -72,4 +72,3 @@ class KX_FontObject : public KX_GameObject {
   class RAS_Rasterizer *m_rasterizer;
 };
 
-#endif /* __KX_FONTOBJECT_H__ */

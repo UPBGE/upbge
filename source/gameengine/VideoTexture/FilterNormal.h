@@ -28,8 +28,8 @@
  *  \ingroup bgevideotex
  */
 
-#ifndef __FILTERNORMAL_H__
-#define __FILTERNORMAL_H__
+#pragma once
+
 
 #include "Common.h"
 #include "FilterBase.h"
@@ -122,4 +122,3 @@ class FilterNormal : public FilterBase {
   }
 };
 
-#endif

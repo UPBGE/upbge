@@ -32,8 +32,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __SCA_EXPRESSIONCONTROLLER_H__
-#define __SCA_EXPRESSIONCONTROLLER_H__
+#pragma once
+
 
 #include "SCA_IController.h"
 
@@ -58,4 +58,3 @@ class SCA_ExpressionController : public SCA_IController {
   virtual void Delete();
 };
 
-#endif /* __SCA_EXPRESSIONCONTROLLER_H__ */

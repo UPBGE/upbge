@@ -28,8 +28,8 @@
  *  \ingroup bgevideotex
  */
 
-#ifndef __FILTERCOLOR_H__
-#define __FILTERCOLOR_H__
+#pragma once
+
 
 #include "Common.h"
 #include "FilterBase.h"
@@ -210,4 +210,3 @@ class FilterLevel : public FilterBase {
   }
 };
 
-#endif

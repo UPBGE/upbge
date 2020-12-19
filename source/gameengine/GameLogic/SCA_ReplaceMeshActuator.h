@@ -32,8 +32,8 @@
  *  Please look here for revision history.
  */
 
-#ifndef __SCA_REPLACEMESHACTUATOR_H__
-#define __SCA_REPLACEMESHACTUATOR_H__
+#pragma once
+
 
 #include "RAS_MeshObject.h"
 #include "SCA_IActuator.h"
@@ -82,4 +82,3 @@ class SCA_ReplaceMeshActuator : public SCA_IActuator {
 #endif /* WITH_PYTHON */
 };
 
-#endif /* __SCA_REPLACEMESHACTUATOR_H__ */

@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_TIMECATEGORYLOGGER_H__
-#define __KX_TIMECATEGORYLOGGER_H__
+#pragma once
+
 
 #ifdef _MSC_VER
 #  pragma warning(disable : 4786) /* suppress stl-MSVC debug info warning */
@@ -124,4 +124,3 @@ class KX_TimeCategoryLogger {
   TimeCategory m_lastCategory;
 };
 
-#endif /* __KX_TIMECATEGORYLOGGER_H__ */

@@ -29,8 +29,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_POLYGON_H__
-#define __RAS_POLYGON_H__
+#pragma once
+
 
 class RAS_IDisplayArray;
 class RAS_MaterialBucket;
@@ -73,4 +73,3 @@ class RAS_Polygon {
   RAS_IDisplayArray *GetDisplayArray() const;
 };
 
-#endif

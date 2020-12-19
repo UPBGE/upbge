@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_PYCONSTRAINTBINDING_H__
-#define __KX_PYCONSTRAINTBINDING_H__
+#pragma once
+
 
 #ifdef WITH_PYTHON
 
@@ -43,4 +43,3 @@ PyMODINIT_FUNC initConstraintPythonBinding();
 void PHY_SetActiveEnvironment(class PHY_IPhysicsEnvironment *env);
 PHY_IPhysicsEnvironment *PHY_GetActiveEnvironment();
 
-#endif /* __KX_PYCONSTRAINTBINDING_H__ */

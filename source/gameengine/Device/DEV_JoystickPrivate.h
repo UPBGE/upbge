@@ -29,8 +29,8 @@
  *  \ingroup device
  */
 
-#ifndef __DEV_JOYSTICKPRIVATE_H__
-#define __DEV_JOYSTICKPRIVATE_H__
+#pragma once
+
 
 #include "DEV_JoystickDefines.h"
 
@@ -58,4 +58,3 @@ class DEV_Joystick::PrivateData {
 };
 #endif  // WITH_SDL
 
-#endif  // __DEV_JOYSTICKPRIVATE_H__

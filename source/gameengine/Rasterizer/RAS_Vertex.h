@@ -24,8 +24,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_TEXVERT_H__
-#define __RAS_TEXVERT_H__
+#pragma once
+
 
 #include "RAS_IVertex.h"
 
@@ -116,4 +116,3 @@ template<unsigned int uvSize, unsigned int colorSize> class RAS_Vertex : public 
   }
 };
 
-#endif  // __RAS_TEXVERT_H__

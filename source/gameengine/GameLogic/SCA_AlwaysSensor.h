@@ -32,8 +32,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __SCA_ALWAYSSENSOR_H__
-#define __SCA_ALWAYSSENSOR_H__
+#pragma once
+
 
 #include "SCA_ISensor.h"
 
@@ -49,4 +49,3 @@ class SCA_AlwaysSensor : public SCA_ISensor {
   virtual void Init();
 };
 
-#endif /* __SCA_ALWAYSSENSOR_H__ */

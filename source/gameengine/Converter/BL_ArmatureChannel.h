@@ -29,8 +29,8 @@
  *  \ingroup bgeconv
  */
 
-#ifndef __BL_ARMATURECHANNEL_H__
-#define __BL_ARMATURECHANNEL_H__
+#pragma once
+
 
 #include "DNA_action_types.h"
 
@@ -102,4 +102,3 @@ class BL_ArmatureBone : public PyObjectPlus {
 #endif
 };
 
-#endif /* __BL_ARMATURECHANNEL_H__ */

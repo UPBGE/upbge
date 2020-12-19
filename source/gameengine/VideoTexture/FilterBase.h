@@ -28,8 +28,8 @@
  *  \ingroup bgevideotex
  */
 
-#ifndef __FILTERBASE_H__
-#define __FILTERBASE_H__
+#pragma once
+
 
 #include "Common.h"
 
@@ -167,4 +167,3 @@ PyObject *Filter_getPrevious(PyFilter *self, void *closure);
 // set previous pixel filter object
 int Filter_setPrevious(PyFilter *self, PyObject *value, void *closure);
 
-#endif

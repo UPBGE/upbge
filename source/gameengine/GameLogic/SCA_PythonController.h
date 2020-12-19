@@ -30,8 +30,8 @@
  *  \brief Execute Python scripts
  */
 
-#ifndef __SCA_PYTHONCONTROLLER_H__
-#define __SCA_PYTHONCONTROLLER_H__
+#pragma once
+
 
 #include <vector>
 
@@ -110,4 +110,3 @@ class SCA_PythonController : public SCA_IController {
 #endif
 };
 
-#endif /* __SCA_PYTHONCONTROLLER_H__ */

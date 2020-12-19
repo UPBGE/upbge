@@ -29,8 +29,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __SCA_NANDCONTROLLER_H__
-#define __SCA_NANDCONTROLLER_H__
+#pragma once
+
 
 #include "SCA_IController.h"
 
@@ -47,4 +47,3 @@ class SCA_NANDController : public SCA_IController {
   /* --------------------------------------------------------------------- */
 };
 
-#endif /* __SCA_NANDCONTROLLER_H__ */

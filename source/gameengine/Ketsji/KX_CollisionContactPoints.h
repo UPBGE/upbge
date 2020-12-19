@@ -24,8 +24,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_COLLISION_CONTACT_POINTS_H__
-#define __KX_COLLISION_CONTACT_POINTS_H__
+#pragma once
+
 
 #include "EXP_ListWrapper.h"
 #include "EXP_Value.h"
@@ -87,4 +87,3 @@ class KX_CollisionContactPointList {
   bool GetFirstObject();
 };
 
-#endif  // __KX_COLLISION_CONTACT_POINTS_H__

@@ -28,8 +28,8 @@
  *  \ingroup bgevideotex
  */
 
-#ifndef __IMAGERENDER_H__
-#define __IMAGERENDER_H__
+#pragma once
+
 
 #include "DNA_screen_types.h"
 
@@ -127,4 +127,3 @@ class ImageRender : public ImageViewport {
   virtual void calcViewport(unsigned int texId, double ts, unsigned int format);
 };
 
-#endif

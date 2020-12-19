@@ -29,8 +29,8 @@
  *  \ingroup device
  */
 
-#ifndef __DEV_JOYSTICKDEFINES_H__
-#define __DEV_JOYSTICKDEFINES_H__
+#pragma once
+
 
 #ifdef main
 #  undef main
@@ -51,4 +51,3 @@
 #define JOYHAPTIC_UPDATING_RUMBLE_EFFECT 3
 #define JOYHAPTIC_STOPPED 4
 
-#endif  // __DEV_JOYSTICKDEFINES_H__

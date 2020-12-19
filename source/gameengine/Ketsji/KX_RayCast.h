@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_RAYCAST_H__
-#define __KX_RAYCAST_H__
+#pragma once
+
 
 #include "BLI_utildefines.h"
 
@@ -140,4 +140,3 @@ template<class T, class dataT> class KX_RayCast::Callback : public KX_RayCast {
   }
 };
 
-#endif

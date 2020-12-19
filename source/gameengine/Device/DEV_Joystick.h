@@ -29,8 +29,8 @@
  *  \ingroup device
  */
 
-#ifndef __DEV_JOYSTICK_H__
-#define __DEV_JOYSTICK_H__
+#pragma once
+
 
 #include <string>
 
@@ -190,4 +190,3 @@ class DEV_Joystick
   const std::string GetName();
 };
 
-#endif  // __DEV_JOYSTICK_H__

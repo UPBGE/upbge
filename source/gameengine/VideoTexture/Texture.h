@@ -28,8 +28,8 @@
  *  \ingroup bgevideotex
  */
 
-#ifndef __TEXTURE_H__
-#define __TEXTURE_H__
+#pragma once
+
 
 #include "DNA_image_types.h"
 
@@ -124,4 +124,3 @@ short getMaterialID(PyObject *obj, const char *name);
 extern ExceptionID MaterialNotAvail;
 extern ExceptionID TextureNotAvail;
 
-#endif

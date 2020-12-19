@@ -24,8 +24,8 @@
  *  \ingroup common
  */
 
-#ifndef __CM_FORMAT_H__
-#define __CM_FORMAT_H__
+#pragma once
+
 
 #include <fstream>
 #include <sstream>
@@ -38,4 +38,3 @@ template<typename T> bool CM_StringTo(const std::string &string, T &out)
   return !stream.fail();
 }
 
-#endif  // __CM_FORMAT_H__

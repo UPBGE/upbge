@@ -29,8 +29,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __SCA_ICONTROLLER_H__
-#define __SCA_ICONTROLLER_H__
+#pragma once
+
 
 #include "SCA_ILogicBrick.h"
 
@@ -78,4 +78,3 @@ class SCA_IController : public SCA_ILogicBrick {
 #endif  // WITH_PYTHON
 };
 
-#endif  // __SCA_ICONTROLLER_H__

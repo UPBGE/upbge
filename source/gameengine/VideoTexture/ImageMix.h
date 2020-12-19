@@ -28,8 +28,8 @@
  *  \ingroup bgevideotex
  */
 
-#ifndef __IMAGEMIX_H__
-#define __IMAGEMIX_H__
+#pragma once
+
 
 #include "Common.h"
 #include "FilterBase.h"
@@ -143,4 +143,3 @@ class FilterImageMix : public FilterBase {
   }
 };
 
-#endif

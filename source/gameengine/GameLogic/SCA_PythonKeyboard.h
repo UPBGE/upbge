@@ -24,8 +24,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __SCA_PYTHONKEYBOARD_H__
-#define __SCA_PYTHONKEYBOARD_H__
+#pragma once
+
 
 #include "EXP_PyObjectPlus.h"
 
@@ -47,4 +47,3 @@ class SCA_PythonKeyboard : public PyObjectPlus {
 #endif
 };
 
-#endif /* __SCA_PYTHONKEYBOARD_H__ */

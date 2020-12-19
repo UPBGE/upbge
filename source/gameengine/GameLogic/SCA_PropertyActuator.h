@@ -29,8 +29,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __SCA_PROPERTYACTUATOR_H__
-#define __SCA_PROPERTYACTUATOR_H__
+#pragma once
+
 
 #include "SCA_IActuator.h"
 
@@ -74,4 +74,3 @@ class SCA_PropertyActuator : public SCA_IActuator {
   /* --------------------------------------------------------------------- */
 };
 
-#endif /* __KX_PROPERTYACTUATOR_DOC */

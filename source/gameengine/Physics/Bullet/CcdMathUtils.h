@@ -1,5 +1,5 @@
-#ifndef __CCD_MATH_UTILS__
-#define __CCD_MATH_UTILS__
+#pragma once
+
 
 #include "LinearMath/btMatrix3x3.h"
 #include "LinearMath/btQuaternion.h"
@@ -66,4 +66,3 @@ inline btQuaternion ToBullet(const MT_Quaternion &quat)
   return btQuaternion(quat.x(), quat.y(), quat.z(), quat.w());
 }
 
-#endif  // __CCD_MATH_UTILS__

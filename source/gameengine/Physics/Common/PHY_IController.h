@@ -29,8 +29,8 @@
  *  \ingroup phys
  */
 
-#ifndef __PHY_ICONTROLLER_H__
-#define __PHY_ICONTROLLER_H__
+#pragma once
+
 
 #include "PHY_DynamicTypes.h"
 
@@ -52,4 +52,3 @@ class PHY_IController {
   virtual void SetPhysicsEnvironment(class PHY_IPhysicsEnvironment *env) = 0;
 };
 
-#endif /* __PHY_ICONTROLLER_H__ */

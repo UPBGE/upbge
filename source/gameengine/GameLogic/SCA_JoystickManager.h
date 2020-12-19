@@ -29,8 +29,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __SCA_JOYSTICKMANAGER_H__
-#define __SCA_JOYSTICKMANAGER_H__
+#pragma once
+
 
 #include "DEV_Joystick.h"
 #include "SCA_EventManager.h"
@@ -44,4 +44,3 @@ class SCA_JoystickManager : public SCA_EventManager {
   DEV_Joystick *GetJoystickDevice(short int joyindex);
 };
 
-#endif

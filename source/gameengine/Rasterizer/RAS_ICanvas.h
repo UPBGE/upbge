@@ -29,8 +29,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_ICANVAS_H__
-#define __RAS_ICANVAS_H__
+#pragma once
+
 
 #include "RAS_Rasterizer.h"
 
@@ -164,4 +164,3 @@ class RAS_ICanvas {
   void SaveScreeshot(const Screenshot &screenshot);
 };
 
-#endif  // __RAS_ICANVAS_H__

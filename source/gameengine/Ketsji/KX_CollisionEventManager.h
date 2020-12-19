@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_TOUCHEVENTMANAGER_H__
-#define __KX_TOUCHEVENTMANAGER_H__
+#pragma once
+
 
 #include <set>
 #include <vector>
@@ -102,4 +102,3 @@ class KX_CollisionEventManager : public SCA_EventManager {
   }
 };
 
-#endif  // __KX_TOUCHEVENTMANAGER_H__

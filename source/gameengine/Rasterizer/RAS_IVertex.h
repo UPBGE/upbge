@@ -29,8 +29,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_ITEXVERT_H__
-#define __RAS_ITEXVERT_H__
+#pragma once
+
 
 #include "BLI_math.h"
 
@@ -201,4 +201,3 @@ class RAS_IVertex {
   }
 };
 
-#endif  // __RAS_ITEXVERT_H__

@@ -29,8 +29,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_MESHOBJECT_H__
-#define __RAS_MESHOBJECT_H__
+#pragma once
+
 
 #ifdef _MSC_VER
 /* disable the STL warnings ("debug information length > 255") */
@@ -167,4 +167,3 @@ class RAS_MeshObject {
   std::vector<std::vector<SharedVertex>> m_sharedvertex_map;
 };
 
-#endif  // __RAS_MESHOBJECT_H__

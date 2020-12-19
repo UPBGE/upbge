@@ -32,8 +32,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __SCA_CameraActuator_H__
-#define __SCA_CameraActuator_H__
+#pragma once
+
 
 #include "MT_Scalar.h"
 #include "SCA_IActuator.h"
@@ -119,4 +119,3 @@ class SCA_CameraActuator : public SCA_IActuator {
 #endif /* WITH_PYTHON */
 };
 
-#endif /* __SCA_CameraActuator_H__ */

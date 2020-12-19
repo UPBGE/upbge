@@ -3,8 +3,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_SHADER_H__
-#define __RAS_SHADER_H__
+#pragma once
+
 
 #include <string>
 #include <vector>
@@ -176,4 +176,3 @@ class RAS_Shader {
   void SetUniform(int uniform, const int val);
 };
 
-#endif /* __RAS_SHADER_H__ */

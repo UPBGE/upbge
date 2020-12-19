@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_SCENE_H__
-#define __KX_SCENE_H__
+#pragma once
+
 
 #include <list>
 #include <set>
@@ -635,4 +635,3 @@ bool ConvertPythonToScene(PyObject *value,
 
 typedef std::vector<KX_Scene *> KX_SceneList;
 
-#endif /* __KX_SCENE_H__ */

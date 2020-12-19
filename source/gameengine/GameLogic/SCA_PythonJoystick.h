@@ -24,8 +24,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __SCA_PYTHONJOYSTICK_H__
-#define __SCA_PYTHONJOYSTICK_H__
+#pragma once
+
 
 #include "EXP_Value.h"
 
@@ -49,4 +49,3 @@ class SCA_PythonJoystick : public CValue {
 #endif
 };
 
-#endif  //__SCA_PYTHONJOYSTICK_H__

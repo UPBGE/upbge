@@ -24,8 +24,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __SCA_SteeringActuator_H__
-#define __SCA_SteeringActuator_H__
+#pragma once
+
 
 #include "MT_Matrix3x3.h"
 #include "SCA_IActuator.h"
@@ -125,4 +125,3 @@ class SCA_SteeringActuator : public SCA_IActuator {
 
 }; /* end of class SCA_SteeringActuator : public SCA_PropertyActuator */
 
-#endif /* __SCA_SteeringActuator_H__ */

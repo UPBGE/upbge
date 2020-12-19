@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __SCALARINTERPOLATOR_H__
-#define __SCALARINTERPOLATOR_H__
+#pragma once
+
 
 #include "KX_IInterpolator.h"
 #include "MT_Scalar.h"
@@ -62,4 +62,3 @@ class KX_ScalarInterpolator : public KX_IInterpolator {
   KX_IScalarInterpolator *m_ipo;
 };
 
-#endif

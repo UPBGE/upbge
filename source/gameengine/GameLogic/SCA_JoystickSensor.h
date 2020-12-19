@@ -29,8 +29,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __JOYSENSOR_H__
-#define __JOYSENSOR_H__
+#pragma once
+
 
 #include "DEV_JoystickDefines.h"
 #include "SCA_ISensor.h"
@@ -196,4 +196,3 @@ class SCA_JoystickSensor : public SCA_ISensor {
 #endif /* WITH_PYTHON */
 };
 
-#endif /* __JOYSENSOR_H__ */

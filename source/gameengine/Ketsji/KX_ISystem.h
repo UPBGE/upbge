@@ -30,8 +30,8 @@
  *  \brief Abstract system
  */
 
-#ifndef __KX_ISYSTEM_H__
-#define __KX_ISYSTEM_H__
+#pragma once
+
 
 /**
  * System Abstraction, needed only for getting some timing stuff from the host.
@@ -44,4 +44,3 @@ class KX_ISystem {
   virtual double GetTimeInSeconds() = 0;
 };
 
-#endif

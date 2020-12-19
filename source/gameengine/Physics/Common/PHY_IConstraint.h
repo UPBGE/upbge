@@ -1,5 +1,5 @@
-#ifndef __PHY_ICONSTRAINT_H__
-#define __PHY_ICONSTRAINT_H__
+#pragma once
+
 
 #include "PHY_DynamicTypes.h"  // For PHY_ConstraintType.
 
@@ -21,4 +21,3 @@ class PHY_IConstraint {
   virtual PHY_ConstraintType GetType() const = 0;
 };
 
-#endif  // __PHY_ICONSTRAINT_H__

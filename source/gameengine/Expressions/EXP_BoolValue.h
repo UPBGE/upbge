@@ -16,8 +16,8 @@
  *  \ingroup expressions
  */
 
-#ifndef __EXP_BOOLVALUE_H__
-#define __EXP_BOOLVALUE_H__
+#pragma once
+
 
 #include "EXP_Value.h"
 
@@ -51,4 +51,3 @@ class CBoolValue : public CPropValue {
   bool m_bool;
 };
 
-#endif  // __EXP_BOOLVALUE_H__

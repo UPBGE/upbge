@@ -29,8 +29,8 @@
  *  \ingroup bgeconv
  */
 
-#ifndef __BL_ACTIONACTUATOR_H__
-#define __BL_ACTIONACTUATOR_H__
+#pragma once
+
 
 #include "DNA_actuator_types.h"
 
@@ -138,4 +138,3 @@ enum {
   ACT_FLAG_PLAY_END = 1 << 3,
 };
 
-#endif

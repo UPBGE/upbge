@@ -24,8 +24,8 @@
  *  \ingroup common
  */
 
-#ifndef __CM_REFCOUNT_H__
-#define __CM_REFCOUNT_H__
+#pragma once
+
 
 #include "BLI_utildefines.h"
 
@@ -94,4 +94,3 @@ template<class T> T *CM_Release(T *val)
   return static_cast<T *>(val->Release());
 }
 
-#endif  // __CM_REFCOUNT_H__

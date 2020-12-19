@@ -3,8 +3,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_BLENDERMATERIAL_H__
-#define __KX_BLENDERMATERIAL_H__
+#pragma once
+
 
 #include "BL_Texture.h"
 #include "EXP_Value.h"
@@ -103,4 +103,3 @@ bool ConvertPythonToMaterial(PyObject *value,
                              const char *error_prefix);
 #endif  // WITH_PYTHON
 
-#endif

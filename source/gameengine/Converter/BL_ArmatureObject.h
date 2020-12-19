@@ -29,8 +29,8 @@
  *  \ingroup bgeconv
  */
 
-#ifndef __BL_ARMATUREOBJECT_H__
-#define __BL_ARMATUREOBJECT_H__
+#pragma once
+
 
 #include "BL_ArmatureChannel.h"
 #include "BL_ArmatureConstraint.h"
@@ -131,4 +131,3 @@ class BL_ArmatureObject : public KX_GameObject {
 #endif /* WITH_PYTHON */
 };
 
-#endif /* __BL_ARMATUREOBJECT_H__ */

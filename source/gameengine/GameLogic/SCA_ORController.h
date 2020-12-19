@@ -29,8 +29,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __SCA_ORCONTROLLER_H__
-#define __SCA_ORCONTROLLER_H__
+#pragma once
+
 
 #include "SCA_IController.h"
 
@@ -44,4 +44,3 @@ class SCA_ORController : public SCA_IController {
   virtual void Trigger(SCA_LogicManager *logicmgr);
 };
 
-#endif /* __SCA_ORCONTROLLER_H__ */

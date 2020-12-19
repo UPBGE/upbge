@@ -20,8 +20,8 @@
  *  \ingroup physbullet
  */
 
-#ifndef __CCDPHYSICSCONTROLLER_H__
-#define __CCDPHYSICSCONTROLLER_H__
+#pragma once
+
 
 #include <map>
 #include <vector>
@@ -907,4 +907,3 @@ class DefaultMotionState : public PHY_IMotionState {
   btVector3 m_localScaling;
 };
 
-#endif /* __CCDPHYSICSCONTROLLER_H__ */

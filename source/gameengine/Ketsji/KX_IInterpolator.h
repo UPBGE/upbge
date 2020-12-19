@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_IINTERPOLATOR_H__
-#define __KX_IINTERPOLATOR_H__
+#pragma once
+
 
 #include <vector>
 
@@ -45,4 +45,3 @@ class KX_IInterpolator {
 
 typedef std::vector<KX_IInterpolator *> T_InterpolatorList;
 
-#endif

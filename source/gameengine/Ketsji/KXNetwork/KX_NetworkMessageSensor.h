@@ -29,8 +29,8 @@
  *  \ingroup ketsjinet
  *  \brief Ketsji Logic Extension: Network Message Sensor class
  */
-#ifndef __KX_NETWORKMESSAGESENSOR_H__
-#define __KX_NETWORKMESSAGESENSOR_H__
+#pragma once
+
 
 #include "SCA_ISensor.h"
 
@@ -84,4 +84,3 @@ class KX_NetworkMessageSensor : public SCA_ISensor {
 #endif /* WITH_PYTHON */
 };
 
-#endif /* __KX_NETWORKMESSAGESENSOR_H__ */

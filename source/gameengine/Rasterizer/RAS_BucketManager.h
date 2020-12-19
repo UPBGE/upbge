@@ -29,8 +29,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_BUCKETMANAGER_H__
-#define __RAS_BUCKETMANAGER_H__
+#pragma once
+
 
 #include <vector>
 
@@ -81,4 +81,3 @@ class RAS_BucketManager {
   }
 };
 
-#endif  // __RAS_BUCKETMANAGER_H__

@@ -28,8 +28,8 @@
  *  \ingroup bgevideotex
  */
 
-#ifndef __EXCEPTION_H__
-#define __EXCEPTION_H__
+#pragma once
+
 
 #include <algorithm>
 #include <exception>
@@ -245,4 +245,3 @@ extern ExpDesc VideoDeckLinkPinMemoryErrorDesc;
 extern ExceptionID InvalidImageMode;
 
 void registerAllExceptions(void);
-#endif

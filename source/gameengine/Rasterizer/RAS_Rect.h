@@ -29,8 +29,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_RECT_H__
-#define __RAS_RECT_H__
+#pragma once
+
 
 #include <iostream>
 
@@ -118,4 +118,3 @@ inline std::ostream &operator<<(std::ostream &os, const RAS_Rect &rect)
   return os;
 }
 
-#endif  // __RAS_RECT_H__

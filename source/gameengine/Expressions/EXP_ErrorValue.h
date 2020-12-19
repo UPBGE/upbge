@@ -16,8 +16,8 @@
  *  \ingroup expressions
  */
 
-#ifndef __EXP_ERRORVALUE_H__
-#define __EXP_ERRORVALUE_H__
+#pragma once
+
 
 #include "EXP_Value.h"
 
@@ -37,4 +37,3 @@ class CErrorValue : public CPropValue {
   std::string m_strErrorText;
 };
 
-#endif  // __EXP_ERRORVALUE_H__

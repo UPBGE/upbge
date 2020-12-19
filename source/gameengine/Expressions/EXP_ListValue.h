@@ -16,8 +16,8 @@
  *  \ingroup expressions
  */
 
-#ifndef __EXP_LISTVALUE_H__
-#define __EXP_LISTVALUE_H__
+#pragma once
+
 
 #include "EXP_BaseListValue.h"
 #include "EXP_BoolValue.h"
@@ -172,4 +172,3 @@ bool operator!=(const Iterator &it1, const Iterator &it2)
   return it1.m_it != it2.m_it;
 }
 
-#endif  // __EXP_LISTVALUE_H__

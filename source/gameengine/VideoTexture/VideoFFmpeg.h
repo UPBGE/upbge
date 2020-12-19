@@ -28,8 +28,8 @@
  *  \ingroup bgevideotex
  */
 
-#ifndef __VIDEOFFMPEG_H__
-#define __VIDEOFFMPEG_H__
+#pragma once
+
 
 #ifdef WITH_FFMPEG
 /* this needs to be parsed with __cplusplus defined before included through ffmpeg_compat.h */
@@ -235,4 +235,3 @@ inline VideoFFmpeg *getFFmpeg(PyImage *self)
 
 #endif /* WITH_FFMPEG */
 
-#endif /* __VIDEOFFMPEG_H__ */

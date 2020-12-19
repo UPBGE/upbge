@@ -29,8 +29,8 @@
  *  \ingroup bgesg
  */
 
-#ifndef __SG_NODE_H__
-#define __SG_NODE_H__
+#pragma once
+
 
 #include <memory>
 #include <vector>
@@ -399,4 +399,3 @@ class SG_Node : public SG_QList {
   unsigned short m_dirty;
 };
 
-#endif  // __SG_NODE_H__

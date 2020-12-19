@@ -29,8 +29,8 @@
  *  \ingroup blroutines
  */
 
-#ifndef __KX_BLENDERCANVAS_H__
-#define __KX_BLENDERCANVAS_H__
+#pragma once
+
 
 #ifdef WIN32
 #  include <windows.h>
@@ -100,4 +100,3 @@ class KX_BlenderCanvas : public RAS_ICanvas {
   virtual bool IsBlenderPlayer();
 };
 
-#endif  // __KX_BLENDERCANVAS_H__

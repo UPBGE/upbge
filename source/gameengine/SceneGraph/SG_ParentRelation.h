@@ -49,8 +49,8 @@
  *
  */
 
-#ifndef __SG_PARENTRELATION_H__
-#define __SG_PARENTRELATION_H__
+#pragma once
+
 
 class SG_Node;
 
@@ -113,4 +113,3 @@ class SG_ParentRelation {
   SG_ParentRelation(const SG_ParentRelation &);
 };
 
-#endif  // __SG_PARENTRELATION_H__

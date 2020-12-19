@@ -22,8 +22,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __RAS_TEXTURE_H__
-#define __RAS_TEXTURE_H__
+#pragma once
+
 
 #include <array>
 #include <string>
@@ -76,4 +76,3 @@ class RAS_Texture {
   void SetBindCode(int bindcode);
 };
 
-#endif  // __RAS_TEXTURE_H__

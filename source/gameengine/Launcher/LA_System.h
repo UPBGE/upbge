@@ -26,8 +26,8 @@
  *  \ingroup player
  */
 
-#ifndef __LA_SYSTEM_H__
-#define __LA_SYSTEM_H__
+#pragma once
+
 
 #include "KX_ISystem.h"
 
@@ -42,4 +42,3 @@ class LA_System : public KX_ISystem {
   virtual double GetTimeInSeconds();
 };
 
-#endif  // __LA_SYSTEM_H__

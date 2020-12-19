@@ -24,8 +24,8 @@
  *  \ingroup device
  */
 
-#ifndef __DEV_EVENTCONSUMER_H__
-#define __DEV_EVENTCONSUMER_H__
+#pragma once
+
 
 #include "GHOST_IEventConsumer.h"
 
@@ -53,4 +53,3 @@ class DEV_EventConsumer : public GHOST_IEventConsumer {
   virtual bool processEvent(GHOST_IEvent *event);
 };
 
-#endif  // __DEV_EVENTCONSUMER_H__

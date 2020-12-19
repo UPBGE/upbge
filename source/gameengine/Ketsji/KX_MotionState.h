@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_MOTIONSTATE_H__
-#define __KX_MOTIONSTATE_H__
+#pragma once
+
 
 #include "PHY_IMotionState.h"
 
@@ -54,4 +54,3 @@ class KX_MotionState : public PHY_IMotionState {
   virtual void CalculateWorldTransformations();
 };
 
-#endif  // __KX_MOTIONSTATE_H__

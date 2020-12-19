@@ -3,8 +3,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __BL_SHADER_H__
-#define __BL_SHADER_H__
+#pragma once
+
 
 #include "EXP_Value.h"
 #include "RAS_Shader.h"
@@ -84,4 +84,3 @@ class BL_Shader : public CValue, public virtual RAS_Shader {
 #endif
 };
 
-#endif /* __BL_SHADER_H__ */

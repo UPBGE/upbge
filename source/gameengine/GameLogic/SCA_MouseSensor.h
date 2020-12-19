@@ -30,8 +30,8 @@
  *  \brief Senses mouse events
  */
 
-#ifndef __SCA_MOUSESENSOR_H__
-#define __SCA_MOUSESENSOR_H__
+#pragma once
+
 
 #include "EXP_BoolValue.h"
 #include "SCA_IInputDevice.h"
@@ -109,4 +109,3 @@ class SCA_MouseSensor : public SCA_ISensor {
 #endif
 };
 
-#endif /* __SCA_MOUSESENSOR_H__ */

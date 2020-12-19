@@ -24,11 +24,10 @@
  *  \ingroup common
  */
 
-#ifndef __CM_UTILS_H__
-#define __CM_UTILS_H__
+#pragma once
+
 
 #include <string>
 
 std::string CM_RemovePrefix(const std::string &propname);
 
-#endif // __CM_UTILS_H__

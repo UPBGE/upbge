@@ -29,8 +29,8 @@
  *  \ingroup bgeconv
  */
 
-#ifndef __BL_BLENDERSCENECONVERTER_H__
-#define __BL_BLENDERSCENECONVERTER_H__
+#pragma once
+
 
 #include <map>
 #include <vector>
@@ -91,4 +91,3 @@ class BL_BlenderSceneConverter {
   SCA_IController *FindGameController(bController *for_controller);
 };
 
-#endif  // __BL_BLENDERSCENECONVERTER_H__

@@ -30,8 +30,8 @@
  *  \brief Do translation/rotation actions
  */
 
-#ifndef __SCA_ObjectActuator_H__
-#define __SCA_ObjectActuator_H__
+#pragma once
+
 
 #include "MT_Vector3.h"
 #include "SCA_IActuator.h"
@@ -235,4 +235,3 @@ class SCA_ObjectActuator : public SCA_IActuator {
 #endif /* WITH_PYTHON */
 };
 
-#endif /* __SCA_ObjectActuator_H__ */

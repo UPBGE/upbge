@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __SCA_RadarSensor_H__
-#define __SCA_RadarSensor_H__
+#pragma once
+
 
 #include "MT_Vector3.h"
 #include "SCA_NearSensor.h"
@@ -98,4 +98,3 @@ class SCA_RadarSensor : public SCA_NearSensor {
 #endif
 };
 
-#endif /* __SCA_RadarSensor_H__ */

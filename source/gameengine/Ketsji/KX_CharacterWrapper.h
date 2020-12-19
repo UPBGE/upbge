@@ -3,8 +3,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_CHARACTERWRAPPER_H__
-#define __KX_CHARACTERWRAPPER_H__
+#pragma once
+
 
 #include "EXP_Value.h"
 #include "PHY_DynamicTypes.h"
@@ -57,4 +57,3 @@ class KX_CharacterWrapper : public CValue {
   PHY_ICharacter *m_character;
 };
 
-#endif /* __KX_CHARACTERWRAPPER_H__ */

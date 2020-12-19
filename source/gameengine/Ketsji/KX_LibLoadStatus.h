@@ -24,8 +24,8 @@
  *  \ingroup bgeconv
  */
 
-#ifndef __KX_LIBLOADSTATUS_H__
-#define __KX_LIBLOADSTATUS_H__
+#pragma once
+
 
 #include "EXP_PyObjectPlus.h"
 
@@ -88,4 +88,3 @@ class KX_LibLoadStatus : public PyObjectPlus {
 #endif
 };
 
-#endif  // __KX_LIBLOADSTATUS_H__

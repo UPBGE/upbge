@@ -29,8 +29,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_MESH_MATERIAL_H__
-#define __RAS_MESH_MATERIAL_H__
+#pragma once
+
 
 #include <vector>
 
@@ -70,4 +70,3 @@ class RAS_MeshMaterial {
 
 using RAS_MeshMaterialList = std::vector<RAS_MeshMaterial *>;
 
-#endif  // __RAS_MESH_MATERIAL_H__

@@ -24,8 +24,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_2DFILTER_MANAGER_H__
-#define __KX_2DFILTER_MANAGER_H__
+#pragma once
+
 
 #include "EXP_PyObjectPlus.h"
 #include "RAS_2DFilterManager.h"
@@ -46,4 +46,3 @@ class KX_2DFilterManager : public RAS_2DFilterManager, public PyObjectPlus {
 #endif  // WITH_PYTHON
 };
 
-#endif  // __KX_2DFILTER_MANAGER_H__

@@ -1,5 +1,5 @@
-#ifndef __KX_PYTHON_COMPONENT_H__
-#define __KX_PYTHON_COMPONENT_H__
+#pragma once
+
 
 #include <vector>
 
@@ -20,4 +20,3 @@ public:
 	void UpdateComponents();
 };
 
-#endif  // __KX_PYTHON_COMPONENT_H__

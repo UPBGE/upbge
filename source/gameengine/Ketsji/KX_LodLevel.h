@@ -24,8 +24,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_LOD_LEVEL_H__
-#define __KX_LOD_LEVEL_H__
+#pragma once
+
 
 #include "EXP_PyObjectPlus.h"
 #include "RAS_MeshObject.h"
@@ -80,4 +80,3 @@ class KX_LodLevel : public PyObjectPlus {
 #endif  // WITH_PYTHON
 };
 
-#endif  // __KX_LOD_LEVEL_H__

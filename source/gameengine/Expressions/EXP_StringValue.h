@@ -16,8 +16,8 @@
  *  \ingroup expressions
  */
 
-#ifndef __EXP_STRINGVALUE_H__
-#define __EXP_STRINGVALUE_H__
+#pragma once
+
 
 #include "EXP_Value.h"
 
@@ -52,4 +52,3 @@ class CStringValue : public CPropValue {
   std::string m_strString;
 };
 
-#endif  // __EXP_STRINGVALUE_H__

@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_CLIENTOBJECTINFO_H__
-#define __KX_CLIENTOBJECTINFO_H__
+#pragma once
+
 
 /* Note, the way this works with/without sumo is a bit odd */
 
@@ -77,4 +77,3 @@ struct KX_ClientObjectInfo {
   }
 };
 
-#endif /* __KX_CLIENTOBJECTINFO_H__ */

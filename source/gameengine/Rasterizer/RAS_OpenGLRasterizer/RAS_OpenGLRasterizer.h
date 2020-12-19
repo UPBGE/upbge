@@ -29,8 +29,8 @@
  *  \ingroup bgerastogl
  */
 
-#ifndef __RAS_OPENGLRASTERIZER_H__
-#define __RAS_OPENGLRASTERIZER_H__
+#pragma once
+
 
 #ifdef _MSC_VER
 #  pragma warning(disable : 4786)
@@ -115,4 +115,3 @@ class RAS_OpenGLRasterizer {
   const unsigned char *GetGraphicsCardVendor();
 };
 
-#endif /* __RAS_OPENGLRASTERIZER_H__ */

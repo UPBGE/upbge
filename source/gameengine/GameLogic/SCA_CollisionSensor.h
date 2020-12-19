@@ -30,8 +30,8 @@
  *  \brief Senses touch and collision events
  */
 
-#ifndef __KX_TOUCHSENSOR_H__
-#define __KX_TOUCHSENSOR_H__
+#pragma once
+
 
 #include "EXP_ListValue.h"
 #include "KX_ClientObjectInfo.h"
@@ -137,4 +137,3 @@ class SCA_CollisionSensor : public SCA_ISensor {
 #endif
 };
 
-#endif /* __KX_TOUCHSENSOR_H__ */

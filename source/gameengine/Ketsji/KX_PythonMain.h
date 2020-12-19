@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_PYTHON_MAIN__
-#define __KX_PYTHON_MAIN__
+#pragma once
+
 
 #include <string>
 
@@ -40,4 +40,3 @@ struct Main;
 std::string KX_GetPythonMain(Scene *scene);
 std::string KX_GetPythonCode(Main *main, const std::string &python_main);
 
-#endif /* __KX_PYTHON_MAIN__ */

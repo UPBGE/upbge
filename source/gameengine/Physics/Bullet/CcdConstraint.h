@@ -1,5 +1,5 @@
-#ifndef __CCD_CONSTRAINT_H__
-#define __CCD_CONSTRAINT_H__
+#pragma once
+
 
 #include "PHY_IConstraint.h"
 
@@ -35,4 +35,3 @@ class CcdConstraint : public PHY_IConstraint {
   virtual PHY_ConstraintType GetType() const;
 };
 
-#endif  // __CCD_CONSTRAINT_H__

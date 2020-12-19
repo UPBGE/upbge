@@ -24,8 +24,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_GLOBALS_H__
-#define __KX_GLOBALS_H__
+#pragma once
+
 
 #include <string>
 
@@ -54,4 +54,3 @@ void KX_RasterizerDrawDebugCircle(const MT_Vector3 &center,
                                   const MT_Vector3 &normal,
                                   int nsector);
 
-#endif  // __KX_GLOBALS_H__

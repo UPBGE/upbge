@@ -29,8 +29,8 @@
  *  \ingroup bgesg
  */
 
-#ifndef __SG_DLIST_H__
-#define __SG_DLIST_H__
+#pragma once
+
 
 #include <stdlib.h>
 
@@ -252,4 +252,3 @@ template<typename T> class SG_DListHead : public SG_DList {
   }
 };
 
-#endif  // __SG_DLIST_H__

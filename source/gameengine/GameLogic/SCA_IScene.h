@@ -29,8 +29,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __SCA_ISCENE_H__
-#define __SCA_ISCENE_H__
+#pragma once
+
 
 #include <string>
 #include <vector>
@@ -62,4 +62,3 @@ class SCA_IScene {
   void RemoveObjectDebugProperties(SCA_IObject *gameobj);
 };
 
-#endif  // __SCA_ISCENE_H__

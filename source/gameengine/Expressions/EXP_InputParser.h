@@ -18,8 +18,8 @@
  *  \ingroup expressions
  */
 
-#ifndef __EXP_INPUTPARSER_H__
-#define __EXP_INPUTPARSER_H__
+#pragma once
+
 
 class CParser;
 
@@ -97,4 +97,3 @@ class CParser {
   CExpression *Expr();
 };
 
-#endif /* __EXP_INPUTPARSER_H__ */

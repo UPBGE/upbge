@@ -29,8 +29,8 @@
  *  \ingroup expressions
  */
 
-#ifndef __EXP_PYOBJECTPLUS_H__
-#define __EXP_PYOBJECTPLUS_H__
+#pragma once
+
 
 // For now keep weakrefs optional.
 #define USE_WEAKREFS
@@ -964,4 +964,3 @@ inline PyObject *_bge_proxy_from_ref_borrow(PyObjectPlus *self_v)
 
 #endif
 
-#endif  // __EXP_PYOBJECTPLUS_H__

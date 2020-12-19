@@ -29,12 +29,11 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_PYTHON_INIT_TYPES__
-#define __KX_PYTHON_INIT_TYPES__
+#pragma once
+
 
 #ifdef WITH_PYTHON
 #  include <Python.h>
 PyMODINIT_FUNC initGameTypesPythonBinding(void);
 #endif
 
-#endif /* __KX_PYTHON_INIT_TYPES__ */

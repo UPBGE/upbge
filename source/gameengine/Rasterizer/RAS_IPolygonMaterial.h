@@ -29,8 +29,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_IPOLYGONMATERIAL_H__
-#define __RAS_IPOLYGONMATERIAL_H__
+#pragma once
+
 
 #include <map>
 #include <string>
@@ -137,4 +137,3 @@ class RAS_IPolyMaterial {
   virtual void OnConstruction() = 0;
 };
 
-#endif /* __RAS_IPOLYGONMATERIAL_H__ */

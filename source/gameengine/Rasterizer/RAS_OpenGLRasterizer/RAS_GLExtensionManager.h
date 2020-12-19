@@ -29,8 +29,8 @@
  *  \ingroup bgerastogl
  */
 
-#ifndef __RAS_GLEXTENSIONMANAGER_H__
-#define __RAS_GLEXTENSIONMANAGER_H__
+#pragma once
+
 
 /** Note: this used to have a lot more code, but now extension handling
  * is done by GLEW, so it does mostly debug stuff */
@@ -39,4 +39,3 @@ namespace bgl {
 void InitExtensions(bool debug);
 }  // namespace bgl
 
-#endif /* __RAS_GLEXTENSIONMANAGER_H__ */

@@ -30,8 +30,8 @@
  *  \brief Set or remove an objects parent
  */
 
-#ifndef __SCA_ParentActuator_H__
-#define __SCA_ParentActuator_H__
+#pragma once
+
 
 #include "SCA_IActuator.h"
 #include "SCA_LogicManager.h"
@@ -83,4 +83,3 @@ class SCA_ParentActuator : public SCA_IActuator {
 
 }; /* end of class SCA_ParentActuator : public SCA_PropertyActuator */
 
-#endif /* __SCA_ParentActuator_H__ */

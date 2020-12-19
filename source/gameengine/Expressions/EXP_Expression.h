@@ -16,8 +16,8 @@
  *  \ingroup expressions
  */
 
-#ifndef __EXP_EXPRESSION_H__
-#define __EXP_EXPRESSION_H__
+#pragma once
+
 
 #include "EXP_Value.h"
 
@@ -42,4 +42,3 @@ class CExpression : public CM_RefCount<CExpression> {
   virtual unsigned char GetExpressionID() = 0;
 };
 
-#endif  // __EXP_EXPRESSION_H__

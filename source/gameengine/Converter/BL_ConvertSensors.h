@@ -29,8 +29,8 @@
  *  \ingroup bgeconv
  */
 
-#ifndef __BL_CONVERTSENSORS_H__
-#define __BL_CONVERTSENSORS_H__
+#pragma once
+
 
 void BL_ConvertSensors(struct Object *blenderobject,
                        class KX_GameObject *gameobj,
@@ -42,4 +42,3 @@ void BL_ConvertSensors(struct Object *blenderobject,
                        class RAS_ICanvas *canvas,
                        class BL_BlenderSceneConverter *converter);
 
-#endif /* __BL_CONVERTSENSORS_H__ */

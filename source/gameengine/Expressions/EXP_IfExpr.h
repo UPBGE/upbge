@@ -16,8 +16,8 @@
  *  \ingroup expressions
  */
 
-#ifndef __EXP_IFEXPR_H__
-#define __EXP_IFEXPR_H__
+#pragma once
+
 
 #include "EXP_Expression.h"
 
@@ -36,4 +36,3 @@ class CIfExpr : public CExpression {
   virtual CValue *Calculate();
 };
 
-#endif  // __EXP_IFEXPR_H__

@@ -30,8 +30,8 @@
  *  \brief Check if object has moved
  */
 
-#ifndef __SCA_MOVEMENT_H__
-#define __SCA_MOVEMENT_H__
+#pragma once
+
 
 #include "MT_Vector3.h"
 #include "SCA_ISensor.h"
@@ -87,4 +87,3 @@ public:
 
 };
 
-#endif  // __KX_MOVEMENT_H__

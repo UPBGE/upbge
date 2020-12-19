@@ -24,8 +24,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_2DFILTER_FRAMEBUFFER_H__
-#define __RAS_2DFILTER_FRAMEBUFFER_H__
+#pragma once
+
 
 #include <memory>
 
@@ -88,4 +88,3 @@ class RAS_2DFilterFrameBuffer {
   unsigned int GetHeight() const;
 };
 
-#endif  // __RAS_2DFILTER_FRAMEBUFFER_H__

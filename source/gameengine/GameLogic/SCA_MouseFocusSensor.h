@@ -30,8 +30,8 @@
  *  \brief SCA_MouseFocusSensor determines mouse in/out/over events.
  */
 
-#ifndef __SCA_MouseFocusSensor_H__
-#define __SCA_MouseFocusSensor_H__
+#pragma once
+
 
 #include "BLI_utildefines.h"
 
@@ -218,4 +218,3 @@ class SCA_MouseFocusSensor : public SCA_MouseSensor {
   KX_KetsjiEngine *m_kxengine;
 };
 
-#endif /* __KX_MOUSESENSOR */

@@ -24,8 +24,8 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef __KX_NAVMESHOBJECT_H__
-#define __KX_NAVMESHOBJECT_H__
+#pragma once
+
 
 #include <vector>
 
@@ -82,4 +82,3 @@ class KX_NavMeshObject : public KX_GameObject {
 #endif /* WITH_PYTHON */
 };
 
-#endif /* __KX_NAVMESHOBJECT_H__ */

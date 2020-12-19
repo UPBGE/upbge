@@ -29,8 +29,8 @@
  *  \ingroup bgesg
  */
 
-#ifndef __SG_QLIST_H__
-#define __SG_QLIST_H__
+#pragma once
+
 
 #include "SG_DList.h"
 
@@ -162,4 +162,3 @@ class SG_QList : public SG_DList {
   }
 };
 
-#endif  // __SG_QLIST_H__

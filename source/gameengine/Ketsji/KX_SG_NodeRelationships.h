@@ -39,8 +39,8 @@
  * inherited by the child.
  */
 
-#ifndef __KX_SG_NODERELATIONSHIPS_H__
-#define __KX_SG_NODERELATIONSHIPS_H__
+#pragma once
+
 
 #include "SG_Node.h"
 #include "SG_ParentRelation.h"
@@ -164,4 +164,3 @@ class KX_SlowParentRelation : public SG_ParentRelation {
   bool m_initialized;
 };
 
-#endif

@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __SCA_CollectionActuator_H__
-#define __SCA_CollectionActuator_H__
+#pragma once
+
 
 #include "SCA_IActuator.h"
 
@@ -93,4 +93,3 @@ class SCA_CollectionActuator : public SCA_IActuator {
 
 }; /* end of class SCA_CollectionActuator */
 
-#endif  //__SCA_CollectionActuator_H__

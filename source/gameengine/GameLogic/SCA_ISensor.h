@@ -31,8 +31,8 @@
  *   pulsemode and pulsefrequency, and event suppression.
  */
 
-#ifndef __SCA_ISENSOR_H__
-#define __SCA_ISENSOR_H__
+#pragma once
+
 
 #include "SCA_IController.h"
 
@@ -194,4 +194,3 @@ class SCA_ISensor : public SCA_ILogicBrick {
 #endif  // WITH_PYTHON
 };
 
-#endif  // __SCA_ISENSOR_H__

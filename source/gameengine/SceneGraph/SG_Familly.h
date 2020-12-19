@@ -32,8 +32,8 @@
  *  \ingroup bgesg
  */
 
-#ifndef __SG_FAMILLY_H__
-#define __SG_FAMILLY_H__
+#pragma once
+
 
 #include "CM_Thread.h"
 
@@ -48,4 +48,3 @@ class SG_Familly {
   CM_ThreadSpinLock &GetMutex();
 };
 
-#endif /* __SG_FAMILLY_H__ */

@@ -20,8 +20,8 @@
  *  \ingroup phys
  */
 
-#ifndef __PHY_DYNAMICTYPES_H__
-#define __PHY_DYNAMICTYPES_H__
+#pragma once
+
 
 #include "MT_Vector3.h"
 
@@ -110,4 +110,3 @@ typedef enum PHY_SolverType {
   PHY_SOLVER_NNCG,
 } PHY_SolverType;
 
-#endif /* __PHY_DYNAMICTYPES_H__ */

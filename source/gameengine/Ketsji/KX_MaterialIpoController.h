@@ -3,8 +3,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_MATERIALIPOCONTROLLER_H__
-#define __KX_MATERIALIPOCONTROLLER_H__
+#pragma once
+
 
 #include "KX_IInterpolator.h"
 #include "SG_Controller.h"
@@ -52,4 +52,3 @@ class KX_MaterialIpoController : public SG_Controller {
   void AddInterpolator(KX_IInterpolator *interp);
 };
 
-#endif /* __KX_MATERIALIPOCONTROLLER_H__ */

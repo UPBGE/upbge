@@ -30,8 +30,8 @@
  *  \brief actuator for global game stuff
  */
 
-#ifndef __SCA_GameActuator_H__
-#define __SCA_GameActuator_H__
+#pragma once
+
 
 #include "KX_Scene.h" /* Replace_IScene only */
 #include "SCA_IActuator.h"
@@ -82,4 +82,3 @@ class SCA_GameActuator : public SCA_IActuator {
 
 }; /* end of class SCA_GameActuator */
 
-#endif

@@ -20,8 +20,8 @@
  *  \ingroup physbullet
  */
 
-#ifndef __CCDGRAPHICCONTROLLER_H__
-#define __CCDGRAPHICCONTROLLER_H__
+#pragma once
+
 
 #include "LinearMath/btTransform.h"
 #include "btBulletDynamicsCommon.h"
@@ -95,4 +95,3 @@ class CcdGraphicController : public PHY_IGraphicController {
   void *m_newClientInfo;
 };
 
-#endif /* BULLET2_PHYSICSCONTROLLER_H */

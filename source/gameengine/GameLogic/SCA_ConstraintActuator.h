@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __SCA_ConstraintActuator_H__
-#define __SCA_ConstraintActuator_H__
+#pragma once
+
 
 #include "BLI_utildefines.h"
 
@@ -146,4 +146,3 @@ class SCA_ConstraintActuator : public SCA_IActuator {
   static int pyattr_check_min(PyObjectPlus *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef);
 };
 
-#endif /* __SCA_ConstraintActuator_H__ */

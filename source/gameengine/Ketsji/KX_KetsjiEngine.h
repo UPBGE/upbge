@@ -30,8 +30,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_KETSJIENGINE_H__
-#define __KX_KETSJIENGINE_H__
+#pragma once
+
 
 #include <string>
 #include <vector>
@@ -481,4 +481,3 @@ class KX_KetsjiEngine {
   void Resize();
 };
 
-#endif /* __KX_KETSJIENGINE_H__ */

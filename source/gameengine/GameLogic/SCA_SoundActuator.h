@@ -29,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __SCA_SoundActuator_H__
-#define __SCA_SoundActuator_H__
+#pragma once
+
 
 #include "BKE_sound.h"
 
@@ -137,4 +137,3 @@ class SCA_SoundActuator : public SCA_IActuator {
 #endif /* WITH_PYTHON */
 };
 
-#endif /* __SCA_SoundActuator_H__ */

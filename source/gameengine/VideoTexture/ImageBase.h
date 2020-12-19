@@ -28,8 +28,8 @@
  *  \ingroup bgevideotex
  */
 
-#ifndef __IMAGEBASE_H__
-#define __IMAGEBASE_H__
+#pragma once
+
 
 #include <vector>
 
@@ -431,4 +431,3 @@ PyObject *Image_valid(PyImage *self, void *closure);
 // for buffer access to PyImage objects
 extern PyBufferProcs imageBufferProcs;
 
-#endif

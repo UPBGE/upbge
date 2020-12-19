@@ -30,8 +30,8 @@
  *  \brief Camera in the gameengine. Cameras are also used for views.
  */
 
-#ifndef __KX_CAMERA_H__
-#define __KX_CAMERA_H__
+#pragma once
+
 
 #include "KX_GameObject.h"
 #include "RAS_CameraData.h"
@@ -325,4 +325,3 @@ class KX_Camera : public KX_GameObject {
 #endif
 };
 
-#endif /* __KX_CAMERA_H__ */

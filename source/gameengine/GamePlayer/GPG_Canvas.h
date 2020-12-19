@@ -29,8 +29,8 @@
  *  \ingroup player
  */
 
-#ifndef __GPG_CANVAS_H__
-#define __GPG_CANVAS_H__
+#pragma once
+
 
 #ifdef WIN32
 #  pragma warning(disable : 4786)
@@ -97,4 +97,3 @@ class GPG_Canvas : public RAS_ICanvas {
   virtual bool IsBlenderPlayer();
 };
 
-#endif  // __GPG_CANVAS_H__

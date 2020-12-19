@@ -24,8 +24,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_2DFILTER_FRAMEBUFFER_H__
-#define __KX_2DFILTER_FRAMEBUFFER_H__
+#pragma once
+
 
 #include "EXP_Value.h"
 #include "RAS_2DFilterFrameBuffer.h"
@@ -51,4 +51,3 @@ class KX_2DFilterFrameBuffer : public CValue, public RAS_2DFilterFrameBuffer {
 #endif
 };
 
-#endif  // __KX_2DFILTER_FRAMEBUFFER_H__

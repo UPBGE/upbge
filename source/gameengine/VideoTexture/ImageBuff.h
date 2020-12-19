@@ -28,8 +28,8 @@
  *  \ingroup bgevideotex
  */
 
-#ifndef __IMAGEBUFF_H__
-#define __IMAGEBUFF_H__
+#pragma once
+
 
 #include "Common.h"
 #include "ImageBase.h"
@@ -65,4 +65,3 @@ class ImageBuff : public ImageBase {
   }
 };
 
-#endif

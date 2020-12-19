@@ -29,8 +29,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_FRAMINGMANAGER_H__
-#define __RAS_FRAMINGMANAGER_H__
+#pragma once
+
 
 class RAS_Rect;
 
@@ -240,4 +240,3 @@ class RAS_FramingManager {
   RAS_FramingManager(const RAS_FramingManager &);
 };
 
-#endif

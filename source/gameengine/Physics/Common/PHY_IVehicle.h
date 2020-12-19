@@ -3,8 +3,8 @@
  *  \ingroup phys
  */
 
-#ifndef __PHY_IVEHICLE_H__
-#define __PHY_IVEHICLE_H__
+#pragma once
+
 
 // PHY_IVehicle provides a generic interface for (raycast based) vehicles. Mostly targetting 4
 // wheel cars and 2 wheel motorbikes.
@@ -60,4 +60,3 @@ class PHY_IVehicle {
   virtual short GetRayCastMask() const = 0;
 };
 
-#endif /* __PHY_IVEHICLE_H__ */

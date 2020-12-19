@@ -24,8 +24,8 @@
  *  \ingroup bgerastogl
  */
 
-#ifndef __RAS_OPEN_GL_DEBUG_DRAW_H__
-#define __RAS_OPEN_GL_DEBUG_DRAW_H__
+#pragma once
+
 
 #include "MT_Matrix4x4.h"
 
@@ -48,4 +48,3 @@ class RAS_OpenGLDebugDraw {
   void Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_DebugDraw *debugDraw);
 };
 
-#endif  // __RAS_OPEN_GL_DEBUG_DRAW_H__
