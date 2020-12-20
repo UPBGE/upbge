@@ -265,7 +265,7 @@ typedef struct uiWidgetType {
   /* converted colors for state */
   uiWidgetColors wcol;
 
-  void (*state)(struct uiWidgetType *, int state, int drawflag, char emboss);
+  void (*state)(struct uiWidgetType *, int state, int drawflag, eUIEmbossType emboss);
   void (*draw)(uiWidgetColors *, rcti *, int state, int roundboxalign);
   void (*custom)(uiBut *, uiWidgetColors *, rcti *, int state, int roundboxalign);
   void (*text)(const uiFontStyle *, const uiWidgetColors *, uiBut *, rcti *);
@@ -2521,8 +2521,14 @@ static void widget_active_color(uiWidgetColors *wcol)
 
 static const uchar *widget_color_blend_from_flags(const uiWidgetStateColors *wcol_state,
                                                   int state,
-                                                  int drawflag)
+                                                  int drawflag,
+                                                  const eUIEmbossType emboss)
 {
+  /* Explicitly require #UI_EMBOSS_NONE_OR_STATUS for color blending with no emboss. */
+  if (emboss == UI_EMBOSS_NONE) {
+    return NULL;
+  }
+
   if (drawflag & UI_BUT_ANIMATED_CHANGED) {
     return wcol_state->inner_changed_sel;
   }
@@ -2542,7 +2548,7 @@ static const uchar *widget_color_blend_from_flags(const uiWidgetStateColors *wco
 }
 
 /* copy colors from theme, and set changes in it based on state */
-static void widget_state(uiWidgetType *wt, int state, int drawflag, char emboss)
+static void widget_state(uiWidgetType *wt, int state, int drawflag, eUIEmbossType emboss)
 {
   uiWidgetStateColors *wcol_state = wt->wcol_state;
 
@@ -2558,7 +2564,7 @@ static void widget_state(uiWidgetType *wt, int state, int drawflag, char emboss)
 
   wt->wcol = *(wt->wcol_theme);
 
-  const uchar *color_blend = widget_color_blend_from_flags(wcol_state, state, drawflag);
+  const uchar *color_blend = widget_color_blend_from_flags(wcol_state, state, drawflag, emboss);
 
   if (state & UI_SELECT) {
     copy_v4_v4_uchar(wt->wcol.inner, wt->wcol.inner_sel);
@@ -2620,14 +2626,14 @@ static void widget_state(uiWidgetType *wt, int state, int drawflag, char emboss)
  * \{ */
 
 /* sliders use special hack which sets 'item' as inner when drawing filling */
-static void widget_state_numslider(uiWidgetType *wt, int state, int drawflag, char emboss)
+static void widget_state_numslider(uiWidgetType *wt, int state, int drawflag, eUIEmbossType emboss)
 {
   uiWidgetStateColors *wcol_state = wt->wcol_state;
 
   /* call this for option button */
   widget_state(wt, state, drawflag, emboss);
 
-  const uchar *color_blend = widget_color_blend_from_flags(wcol_state, state, drawflag);
+  const uchar *color_blend = widget_color_blend_from_flags(wcol_state, state, drawflag, emboss);
   if (color_blend != NULL) {
     /* Set the slider 'item' so that it reflects state settings too.
      * De-saturate so the color of the slider doesn't conflict with the blend color,
@@ -2643,7 +2649,10 @@ static void widget_state_numslider(uiWidgetType *wt, int state, int drawflag, ch
 }
 
 /* labels use theme colors for text */
-static void widget_state_option_menu(uiWidgetType *wt, int state, int drawflag, char emboss)
+static void widget_state_option_menu(uiWidgetType *wt,
+                                     int state,
+                                     int drawflag,
+                                     eUIEmbossType emboss)
 {
   const bTheme *btheme = UI_GetTheme();
 
@@ -2663,7 +2672,7 @@ static void widget_state_option_menu(uiWidgetType *wt, int state, int drawflag, 
 static void widget_state_nothing(uiWidgetType *wt,
                                  int UNUSED(state),
                                  int UNUSED(drawflag),
-                                 char UNUSED(emboss))
+                                 eUIEmbossType UNUSED(emboss))
 {
   wt->wcol = *(wt->wcol_theme);
 }
@@ -2672,7 +2681,7 @@ static void widget_state_nothing(uiWidgetType *wt,
 static void widget_state_pulldown(uiWidgetType *wt,
                                   int UNUSED(state),
                                   int UNUSED(drawflag),
-                                  char UNUSED(emboss))
+                                  eUIEmbossType UNUSED(emboss))
 {
   wt->wcol = *(wt->wcol_theme);
 }
@@ -2681,7 +2690,7 @@ static void widget_state_pulldown(uiWidgetType *wt,
 static void widget_state_pie_menu_item(uiWidgetType *wt,
                                        int state,
                                        int UNUSED(drawflag),
-                                       char UNUSED(emboss))
+                                       eUIEmbossType UNUSED(emboss))
 {
   wt->wcol = *(wt->wcol_theme);
 
@@ -2716,7 +2725,7 @@ static void widget_state_pie_menu_item(uiWidgetType *wt,
 static void widget_state_menu_item(uiWidgetType *wt,
                                    int state,
                                    int UNUSED(drawflag),
-                                   char UNUSED(emboss))
+                                   eUIEmbossType UNUSED(emboss))
 {
   wt->wcol = *(wt->wcol_theme);
 
@@ -4143,7 +4152,7 @@ static void widget_optionbut(uiWidgetColors *wcol,
 }
 
 /* labels use Editor theme colors for text */
-static void widget_state_label(uiWidgetType *wt, int state, int drawflag, char emboss)
+static void widget_state_label(uiWidgetType *wt, int state, int drawflag, eUIEmbossType emboss)
 {
   if (state & UI_BUT_LIST_ITEM) {
     /* Override default label theme's colors. */
@@ -4603,8 +4612,9 @@ void ui_draw_but(const bContext *C, struct ARegion *region, uiStyle *style, uiBu
         break;
     }
   }
-  else if (but->emboss == UI_EMBOSS_NONE) {
-    /* "nothing" */
+  else if (ELEM(but->emboss, UI_EMBOSS_NONE, UI_EMBOSS_NONE_OR_STATUS)) {
+    /* Use the same widget types for both no emboss types. Later on,
+     * #UI_EMBOSS_NONE_OR_STATUS will blend state colors if they apply. */
     switch (but->type) {
       case UI_BTYPE_LABEL:
         wt = widget_type(UI_WTYPE_ICON_LABEL);

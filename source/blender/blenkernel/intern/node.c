@@ -674,7 +674,6 @@ void ntreeBlendReadData(BlendDataReader *reader, bNodeTree *ntree)
   /* and we connect the rest */
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
     BLO_read_data_address(reader, &node->parent);
-    node->lasty = 0;
 
     LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
       direct_link_node_socket(reader, sock);
@@ -4497,6 +4496,7 @@ static void registerCompositNodes(void)
   register_node_type_cmp_hue_sat();
   register_node_type_cmp_brightcontrast();
   register_node_type_cmp_gamma();
+  register_node_type_cmp_exposure();
   register_node_type_cmp_invert();
   register_node_type_cmp_alphaover();
   register_node_type_cmp_zcombine();

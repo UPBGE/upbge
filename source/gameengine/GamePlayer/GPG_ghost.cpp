@@ -105,7 +105,7 @@
 #include "RE_pipeline.h"
 #include "RE_texture.h"
 #include "RNA_define.h"
-#include "SEQ_sequencer.h"
+#include "SEQ_clipboard.h"
 #include "UI_interface.h"
 #include "UI_resources.h"
 #include "wm.h"
@@ -1661,7 +1661,7 @@ int main(int argc,
     wm_free_reports(C);
   }
 
-  BKE_sequencer_free_clipboard(); /* sequencer.c */
+  SEQ_clipboard_free(); /* sequencer.c */
   BKE_tracking_clipboard_free();
   BKE_mask_clipboard_free();
   BKE_vfont_clipboard_free();

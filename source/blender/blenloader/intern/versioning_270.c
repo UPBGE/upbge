@@ -67,7 +67,8 @@
 #include "BKE_tracking.h"
 #include "DNA_material_types.h"
 
-#include "SEQ_sequencer.h"
+#include "SEQ_effects.h"
+#include "SEQ_iterator.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math.h"
@@ -1236,7 +1237,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
         }
 
         if (seq->effectdata == NULL) {
-          struct SeqEffectHandle effect_handle = BKE_sequence_get_effect(seq);
+          struct SeqEffectHandle effect_handle = SEQ_effect_handle_get(seq);
           effect_handle.init(seq);
         }
 
