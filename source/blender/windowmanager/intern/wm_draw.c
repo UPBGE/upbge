@@ -1073,7 +1073,9 @@ void wm_draw_update(bContext *C)
       wm_draw_window(C, win);
       wm_draw_update_clear_window(C, win);
 
-      wm_window_swap_buffers(win);
+      if (!(CTX_data_scene(C)->flag & SCE_IS_VIEWPORT_RENDER)) {
+        wm_window_swap_buffers(win);
+      }
     }
   }
 

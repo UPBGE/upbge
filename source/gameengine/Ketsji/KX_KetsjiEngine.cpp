@@ -739,7 +739,17 @@ void KX_KetsjiEngine::Render()
     EndFrame();
   }
   else {
-    EndFrameViewportRender();
+    int v[4];
+    v[0] = m_canvas->GetViewportArea().GetLeft();
+    v[1] = m_canvas->GetViewportArea().GetBottom();
+    v[2] = m_canvas->GetViewportArea().GetWidth() + 1;
+    v[3] = m_canvas->GetViewportArea().GetHeight() + 1;
+    GPU_viewport(v[0], v[1], v[2], v[3]);
+    GPU_scissor_test(true);
+    GPU_scissor(v[0], v[1], v[2], v[3]);
+
+    GPU_apply_state();
+    EndFrame();
   }
 }
 
