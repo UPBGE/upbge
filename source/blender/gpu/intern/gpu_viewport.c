@@ -1055,13 +1055,16 @@ GPUFrameBuffer *GPU_viewport_framebuffer_overlay_get(GPUViewport *viewport)
   return fbl->overlay_fb;
 }
 
-void GPU_game_viewport_draw_colormanaged(GPUViewport *viewport,
+/* Game engine transition */
+
+void GPU_viewport_draw_colormanaged_bge(GPUViewport *viewport,
                                          const rctf *rect_pos,
                                          const rctf *rect_uv,
-                                         bool display_colorspace)
+                                         bool display_colorspace,
+                                         GPUTexture *filteredColor)
 {
   DefaultTextureList *dtxl = viewport->txl;
-  GPUTexture *color = dtxl->color;
+  GPUTexture *color = filteredColor ? filteredColor : dtxl->color;
   GPUTexture *color_overlay = dtxl->color_overlay;
 
   GPUVertFormat *vert_format = immVertexFormat();
@@ -1089,17 +1092,18 @@ void GPU_game_viewport_draw_colormanaged(GPUViewport *viewport,
   GPU_texture_bind(color, 0);
   GPU_texture_bind(color_overlay, 1);
 
-  immBegin(GPU_PRIM_TRI_STRIP, 4);
+  float mat[4][4];
+  unit_m4(mat);
+  immUniformMatrix4fv("ModelViewProjectionMatrix", mat);
+  /* Full screen triangle */
+  immBegin(GPU_PRIM_TRIS, 3);
+  immAttr2f(texco, 0.0f, 0.0f);
+  immVertex2f(pos, -1.0f, -1.0f);
+  immAttr2f(texco, 2.0f, 0.0f);
+  immVertex2f(pos, 3.0f, -1.0f);
 
-  immAttr2f(texco, rect_uv->xmin, rect_uv->ymin);
-  immVertex2f(pos, rect_pos->xmin, rect_pos->ymin);
-  immAttr2f(texco, rect_uv->xmax, rect_uv->ymin);
-  immVertex2f(pos, rect_pos->xmax, rect_pos->ymin);
-  immAttr2f(texco, rect_uv->xmin, rect_uv->ymax);
-  immVertex2f(pos, rect_pos->xmin, rect_pos->ymax);
-  immAttr2f(texco, rect_uv->xmax, rect_uv->ymax);
-  immVertex2f(pos, rect_pos->xmax, rect_pos->ymax);
-
+  immAttr2f(texco, 0.0f, 2.0f);
+  immVertex2f(pos, -1.0f, 3.0f);
   immEnd();
 
   GPU_texture_unbind(color);
@@ -1111,4 +1115,59 @@ void GPU_game_viewport_draw_colormanaged(GPUViewport *viewport,
   else {
     immUnbindProgram();
   }
+}
+
+void GPU_viewport_draw_to_screen_ex_bge(GPUViewport *viewport,
+                                    int view,
+                                    const rcti *rect,
+                                    bool display_colorspace,
+                                    GPUTexture *filteredColor)
+{
+  gpu_viewport_framebuffer_view_set(viewport, view);
+  DefaultFramebufferList *dfbl = viewport->fbl;
+  DefaultTextureList *dtxl = viewport->txl;
+  //GPUTexture *color = filteredColor ? filteredColor : dtxl->color;
+
+  if (dfbl->default_fb == NULL) {
+    return;
+  }
+
+  const float w = (float)GPU_texture_width(dtxl->color);
+  const float h = (float)GPU_texture_height(dtxl->color);
+
+  /* We allow rects with min/max swapped, but we also need coorectly assigned coordinates. */
+  rcti sanitized_rect = *rect;
+  BLI_rcti_sanitize(&sanitized_rect);
+
+  BLI_assert(w == BLI_rcti_size_x(&sanitized_rect) + 1);
+  BLI_assert(h == BLI_rcti_size_y(&sanitized_rect) + 1);
+
+  /* wmOrtho for the screen has this same offset */
+  const float halfx = GLA_PIXEL_OFS / w;
+  const float halfy = GLA_PIXEL_OFS / h;
+
+  rctf pos_rect = {
+      .xmin = sanitized_rect.xmin,
+      .ymin = sanitized_rect.ymin,
+      .xmax = sanitized_rect.xmin + w,
+      .ymax = sanitized_rect.ymin + h,
+  };
+
+  rctf uv_rect = {
+      .xmin = halfx,
+      .ymin = halfy,
+      .xmax = halfx + 1.0f,
+      .ymax = halfy + 1.0f,
+  };
+  /* Mirror the UV rect in case axis-swapped drawing is requested (by passing a rect with min and
+   * max values swapped). */
+  if (BLI_rcti_size_x(rect) < 0) {
+    SWAP(float, uv_rect.xmin, uv_rect.xmax);
+  }
+  if (BLI_rcti_size_y(rect) < 0) {
+    SWAP(float, uv_rect.ymin, uv_rect.ymax);
+  }
+
+  GPU_viewport_draw_colormanaged_bge(
+      viewport, &pos_rect, &uv_rect, display_colorspace, filteredColor);
 }

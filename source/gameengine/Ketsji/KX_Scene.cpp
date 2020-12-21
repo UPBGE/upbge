@@ -745,9 +745,11 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, 
 
       GPU_apply_state();
 
-      DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()),
-                               CTX_wm_view3d(C),
-                               GetOverlayCamera() && !is_overlay_pass ? false : true);
+      GPU_viewport_draw_to_screen_ex_bge(region->draw_buffer->viewport,
+                                         0,
+                                         &region->winrct,
+                                         true,
+                                         GPU_framebuffer_color_texture(f->GetFrameBuffer()));
 
 
       /* Detach viewport textures from input framebuffer... */
