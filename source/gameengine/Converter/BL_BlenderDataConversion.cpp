@@ -775,6 +775,12 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
       break;
     }
 
+    case OB_SPEAKER: {
+      gameobj = new KX_EmptyObject(kxscene, KX_Scene::m_callbacks);
+      // set transformation
+      break;
+    }
+
     case OB_FONT: {
       /* font objects have no bounding box */
       KX_FontObject *fontobj = new KX_FontObject(kxscene, KX_Scene::m_callbacks, rasty, ob);
