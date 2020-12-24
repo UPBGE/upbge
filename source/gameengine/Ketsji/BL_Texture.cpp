@@ -71,6 +71,7 @@ BL_Texture::BL_Texture(MTex *mtex)
 	m_savedData.ior = m_mtex->ior;
 	m_savedData.ratio = m_mtex->refrratio;
 	m_savedData.uvrot = m_mtex->rot;
+	m_savedData.imalastupdate = ima ? ima->lastupdate : 0;
 	copy_v3_v3(m_savedData.uvoffset, m_mtex->ofs);
 	copy_v3_v3(m_savedData.uvsize, m_mtex->size);
 
@@ -107,6 +108,14 @@ BL_Texture::~BL_Texture()
 	if (m_gpuTex) {
 		GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);
 		GPU_texture_free(m_gpuTex);
+	}
+
+	/* Restore sprites images time */
+	Tex* tex = m_mtex->tex;
+	Image* ima = tex->ima;
+	if (ima) {
+		ima->lastframe = m_savedData.imalastupdate;
+		GPU_update_image_time(ima, 0.0);
 	}
 }
 
