@@ -112,8 +112,8 @@ bool KX_RaySensor::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void 
 {
 
 	KX_GameObject *hitKXObj = client->m_gameobject;
-	bool bFound = false;
-	bool hitMaterial = false;
+    bool bFound = false;
+    std::string hitMaterial = "";
 
 	if (m_propertyname.empty()) {
 		bFound = true;
@@ -123,7 +123,7 @@ bool KX_RaySensor::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void 
 			for (RAS_Mesh *meshObj : hitKXObj->GetMeshList()) {
 				bFound = (meshObj->FindMaterialName(m_propertyname) != nullptr);
 				if (bFound) {
-					hitMaterial = true;
+                    hitMaterial = m_propertyname;
 					break;
 				}
 			}
