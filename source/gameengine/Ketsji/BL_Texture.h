@@ -62,7 +62,6 @@ private:
 		float uvrot;
 		float uvoffset[3];
 		float uvsize[3];
-		float imalastupdate;
 	} m_savedData;
 
 public:
