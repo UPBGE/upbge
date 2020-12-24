@@ -248,7 +248,7 @@ bool SCA_CollisionSensor::NewHandleCollision(void *object1,
   if (m_links && !m_suspended && gameobj && (gameobj != parent) && client_info->isActor()) {
 
     bool found = m_touchedpropname.empty();
-    bool hitMaterial = false;
+    std::string hitMaterial = "";
     if (!found) {
       if (m_bFindMaterial) {
         for (unsigned int i = 0; i < gameobj->GetMeshCount(); ++i) {
@@ -256,7 +256,7 @@ bool SCA_CollisionSensor::NewHandleCollision(void *object1,
           for (unsigned int j = 0; j < meshObj->NumMaterials(); ++j) {
             found = (m_touchedpropname == std::string(meshObj->GetMaterialName(j), 2));
             if (found) {
-              hitMaterial = true;
+              hitMaterial = m_touchedpropname;
               break;
             }
           }
