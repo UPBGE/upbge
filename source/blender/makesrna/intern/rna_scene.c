@@ -433,6 +433,20 @@ const EnumPropertyItem rna_enum_normal_swizzle_items[] = {
     {0, NULL, 0, NULL, NULL},
 };
 
+const EnumPropertyItem rna_enum_bake_target_items[] = {
+    {R_BAKE_TARGET_IMAGE_TEXTURES,
+     "IMAGE_TEXTURES",
+     0,
+     "Image Textures",
+     "Bake to image data-blocks associated with active image texture nodes in materials"},
+    {R_BAKE_TARGET_VERTEX_COLORS,
+     "VERTEX_COLORS",
+     0,
+     "Vertex Colors",
+     "Bake to active vertex color layer on meshes"},
+    {0, NULL, 0, NULL, NULL},
+};
+
 const EnumPropertyItem rna_enum_bake_save_mode_items[] = {
     {R_BAKE_SAVE_INTERNAL,
      "INTERNAL",
@@ -4343,7 +4357,7 @@ void rna_def_view_layer_common(StructRNA *srna, const bool scene)
   prop = RNA_def_property(srna, "use_edge_enhance", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "layflag", SCE_LAY_EDGE);
   RNA_def_property_ui_text(
-      prop, "Edge", "Render Edge-enhance in this Layer (only works for Solid faces)");
+      prop, "Edge", "Render edge-enhance in this layer (only works for solid faces)");
   if (scene) {
     RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
   }
@@ -5366,10 +5380,15 @@ static void rna_def_bake_data(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "ImageFormatSettings");
   RNA_def_property_ui_text(prop, "Image Format", "");
 
+  prop = RNA_def_property(srna, "target", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_bake_target_items);
+  RNA_def_property_ui_text(prop, "Target", "Where to output the baked map");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
   prop = RNA_def_property(srna, "save_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_bitflag_sdna(prop, NULL, "save_mode");
   RNA_def_property_enum_items(prop, rna_enum_bake_save_mode_items);
-  RNA_def_property_ui_text(prop, "Save Mode", "Choose how to save the baking map");
+  RNA_def_property_ui_text(prop, "Save Mode", "Where to save baked image textures");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
   /* flags */
@@ -6399,7 +6418,7 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
   RNA_def_property_pointer_sdna(prop, NULL, "stereo3d_format");
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
   RNA_def_property_struct_type(prop, "Stereo3dFormat");
-  RNA_def_property_ui_text(prop, "Stereo 3D Format", "Settings for stereo 3d");
+  RNA_def_property_ui_text(prop, "Stereo 3D Format", "Settings for stereo 3D");
 
   /* color management */
   prop = RNA_def_property(srna, "view_settings", PROP_POINTER, PROP_NONE);
@@ -7726,7 +7745,7 @@ static void rna_def_scene_display(BlenderRNA *brna)
   PropertyRNA *prop;
 
   srna = RNA_def_struct(brna, "SceneDisplay", NULL);
-  RNA_def_struct_ui_text(srna, "Scene Display", "Scene display settings for 3d viewport");
+  RNA_def_struct_ui_text(srna, "Scene Display", "Scene display settings for 3D viewport");
   RNA_def_struct_sdna(srna, "SceneDisplay");
 
   prop = RNA_def_property(srna, "light_direction", PROP_FLOAT, PROP_DIRECTION);
@@ -7829,7 +7848,7 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
 
   srna = RNA_def_struct(brna, "SceneEEVEE", NULL);
   RNA_def_struct_path_func(srna, "rna_SceneEEVEE_path");
-  RNA_def_struct_ui_text(srna, "Scene Display", "Scene display settings for 3d viewport");
+  RNA_def_struct_ui_text(srna, "Scene Display", "Scene display settings for 3D viewport");
 
   /* Indirect Lighting */
   prop = RNA_def_property(srna, "gi_diffuse_bounces", PROP_INT, PROP_NONE);
@@ -8402,7 +8421,7 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Current Frame",
-      "Current Frame, to update animation data from python frame_set() instead");
+      "Current frame, to update animation data from python frame_set() instead");
   RNA_def_property_update(prop, NC_SCENE | ND_FRAME, "rna_Scene_frame_update");
 
   prop = RNA_def_property(srna, "frame_subframe", PROP_FLOAT, PROP_TIME);
@@ -8505,7 +8524,7 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", SCE_KEYS_NO_SELONLY);
   RNA_def_property_ui_text(prop,
                            "Only Keyframes from Selected Channels",
-                           "Consider keyframes for active Object and/or its selected bones only "
+                           "Consider keyframes for active object and/or its selected bones only "
                            "(in timeline and when jumping between keyframes)");
   RNA_def_property_update(prop, NC_SCENE | ND_FRAME, NULL);
 
@@ -8796,7 +8815,7 @@ void RNA_def_scene(BlenderRNA *brna)
   prop = RNA_def_property(srna, "display", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, NULL, "display");
   RNA_def_property_struct_type(prop, "SceneDisplay");
-  RNA_def_property_ui_text(prop, "Scene Display", "Scene display settings for 3d viewport");
+  RNA_def_property_ui_text(prop, "Scene Display", "Scene display settings for 3D viewport");
 
   /* EEVEE */
   prop = RNA_def_property(srna, "eevee", PROP_POINTER, PROP_NONE);
