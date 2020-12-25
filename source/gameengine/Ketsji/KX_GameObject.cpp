@@ -432,6 +432,7 @@ void KX_GameObject::RemoveReplicaObject()
   if (ob && m_isReplica) {
     bContext *C = KX_GetActiveEngine()->GetContext();
     Main *bmain = CTX_data_main(C);
+    BKE_scene_collections_object_remove(bmain, CTX_data_scene(C), ob, false);
     BKE_id_delete(bmain, ob);
     SetBlenderObject(nullptr);
     GetScene()->ResetTaaSamples();
