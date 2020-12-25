@@ -447,11 +447,13 @@ void KX_GameObject::HideOriginalObject()
     Scene *scene = GetScene()->GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(scene);
     Base *base = BKE_view_layer_base_find(view_layer, ob);
-    base->flag |= BASE_HIDDEN;
-    BKE_layer_collection_sync(scene, view_layer);
-    DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
-    GetScene()->m_hiddenObjectsDuringRuntime.push_back(ob);
-    GetScene()->ResetTaaSamples();
+    if (base) { // As for SetVisible, there are cases (when we use bpy...) where Objects have no base.
+      base->flag |= BASE_HIDDEN;
+      BKE_layer_collection_sync(scene, view_layer);
+      DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
+      GetScene()->m_hiddenObjectsDuringRuntime.push_back(ob);
+      GetScene()->ResetTaaSamples();
+    }
   }
 }
 
