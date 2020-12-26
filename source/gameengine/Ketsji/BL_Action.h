@@ -71,9 +71,6 @@ class BL_Action {
    */
   bool m_appliedToObject;
 
-  /// Set to true when the action was updated and applied. Back to false in the IPO update
-  /// (UpdateIPO).
-  bool m_requestIpo;
   bool m_calc_localtime;
 
   // The last update time to avoid double animation update.
@@ -114,10 +111,6 @@ class BL_Action {
    * else it only manages action's' time/end.
    */
   void Update(float curtime, bool applyToObject);
-  /**
-   * Update object IPOs (note: not thread-safe!)
-   */
-  void UpdateIPOs();
 
   // Accessors
   float GetFrame();

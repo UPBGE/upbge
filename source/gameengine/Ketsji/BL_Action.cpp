@@ -58,7 +58,6 @@ BL_Action::BL_Action(class KX_GameObject *gameobj)
       m_ipo_flags(0),
       m_done(true),
       m_appliedToObject(true),
-      m_requestIpo(false),
       m_calc_localtime(true),
       m_prevUpdate(-1.0f)
 {
@@ -211,7 +210,6 @@ bool BL_Action::Play(const std::string &name,
 
   m_done = false;
   m_appliedToObject = false;
-  m_requestIpo = false;
 
   m_prevUpdate = -1.0f;
 
@@ -366,7 +364,11 @@ void BL_Action::Update(float curtime, bool applyToObject)
     return;
   }
 
-  m_requestIpo = true;
+  // Update controllers time. The controllers list is cleared when action is done
+  for (SG_Controller *cont : m_sg_contr_list) {
+    cont->SetSimulatedTime(m_localframe);  // update spatial controllers
+    cont->Update(m_localframe);
+  }
 
   Object *ob = m_obj->GetBlenderObject();  // eevee
 
@@ -523,20 +525,6 @@ void BL_Action::Update(float curtime, bool applyToObject)
       }
     }
   }
-}
-
-void BL_Action::UpdateIPOs()
-{
-  if (m_sg_contr_list.empty()) {
-    // Nothing to update or remove.
-    return;
-  }
-
-  if (m_requestIpo) {
-    m_obj->UpdateIPO(m_localframe, m_ipo_flags & ACT_IPOFLAG_CHILD);
-    m_requestIpo = false;
-  }
-
   // If the action is done we can remove its scene graph IPO controller.
   if (m_done) {
     ClearControllerList();
