@@ -179,7 +179,7 @@ class DATA_PT_EEVEE_shadow(DataButtonsPanel, Panel):
         col.prop(light, "shadow_buffer_bias", text="Bias")
 
         col.separator()
-        col.prop(light, "use_soft_shadows", text="Soft Shadows")
+        col.prop(light, "use_soft_shadows", text="Soft Shadows Override")
 
 
 class DATA_PT_EEVEE_shadow_cascaded_shadow_map(DataButtonsPanel, Panel):
