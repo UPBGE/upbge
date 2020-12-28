@@ -474,6 +474,7 @@ typedef struct EEVEE_Light {
   float rightvec[3], sizex;
   float upvec[3], sizey;
   float forwardvec[3], light_type;
+  float _pad3[3], use_soft_shd; // Soft shadow per light -- UPBGE
 } EEVEE_Light;
 
 /* Special type for elliptic area lights, matches lamps_lib.glsl */
