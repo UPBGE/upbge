@@ -3445,6 +3445,13 @@ static void rna_def_space_outliner(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, rna_enum_id_type_items);
   RNA_def_property_ui_text(prop, "Filter by Type", "Data-block type to show");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
+
+  prop = RNA_def_property(srna, "use_filter_lib_override", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, NULL, "filter", SO_FILTER_NO_LIB_OVERRIDE);
+  RNA_def_property_ui_text(prop,
+                           "Show Library Overrides",
+                           "For libraries with overrides created, show the overriden values");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
 }
 
 static void rna_def_space_view3d_shading(BlenderRNA *brna)
@@ -4363,7 +4370,7 @@ static void rna_def_space_view3d(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Local View",
-      "Display an isolated sub-set of objects, apart from the scene visibility");
+      "Display an isolated subset of objects, apart from the scene visibility");
 
   prop = RNA_def_property(srna, "lens", PROP_FLOAT, PROP_UNIT_CAMERA);
   RNA_def_property_float_sdna(prop, NULL, "lens");
