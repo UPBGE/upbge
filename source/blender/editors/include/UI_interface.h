@@ -230,7 +230,7 @@ enum {
   UI_BUT_SCA_LINK_GREY = 1 << 31, /* used to flag if sca links shoud be gray out */
 
   /** RNA property of the button is overridden from linked reference data. */
-  UI_BUT_OVERRIDEN = 1u << 31u,
+  UI_BUT_OVERRIDDEN = 1u << 31u,
 };
 
 /* Default font size for normal text. */
