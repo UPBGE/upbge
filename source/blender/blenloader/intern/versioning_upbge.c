@@ -36,6 +36,7 @@
 #include "DNA_camera_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_genfile.h"
+#include "DNA_light_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_force_types.h"
@@ -233,4 +234,11 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
       }
     }
   }
+
+  if (!MAIN_VERSION_UPBGE_ATLEAST(main, 30, 3)) {
+    LISTBASE_FOREACH (Light *, light, &main->lights) {
+      light->mode |= LA_SOFT_SHADOWS;
+    }
+  }
+
 }

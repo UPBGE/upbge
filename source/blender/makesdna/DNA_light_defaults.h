@@ -38,7 +38,7 @@
     .spotsize = DEG2RADF(45.0f), \
     .spotblend = 0.15f, \
     .att2 = 1.0f, \
-    .mode = LA_SHADOW, \
+    .mode = LA_SHADOW | LA_SOFT_SHADOWS, \
     .bufsize = 512, \
     .clipsta = 0.05f, \
     .clipend = 40.0f, \
