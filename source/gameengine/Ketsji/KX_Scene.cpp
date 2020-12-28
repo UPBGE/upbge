@@ -240,7 +240,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
   BackupShadingType();
 
-  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0) {
+  if (!KX_GetActiveEngine()->UseViewportRender()) {
     /* We want to indicate that we are in bge runtime. The flag can be used in draw code but in
      * depsgraph code too later */
     scene->flag |= SCE_INTERACTIVE;
@@ -287,7 +287,7 @@ KX_Scene::~KX_Scene()
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
   View3D *v3d = CTX_wm_view3d(C);
 
-  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0) {
+  if (!KX_GetActiveEngine()->UseViewportRender()) {
     if (!m_isPythonMainLoop) {
       /* This will free m_gpuViewport and m_gpuOffScreen */
       DRW_game_render_loop_end();
@@ -472,12 +472,10 @@ void KX_Scene::BackupShadingType()
 {
   bContext *C = KX_GetActiveEngine()->GetContext();
 
-  Scene *scene = GetBlenderScene();
-
   /* Only if we are not in viewport render, modify + backup shading types */
   RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
-  bool useViewportInBlenderplayer = (scene->gm.flag & GAME_USE_VIEWPORT_RENDER) != 0 && canvas->IsBlenderPlayer();
-  if ((scene->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0 || useViewportInBlenderplayer) {
+  bool useViewportRenderInBlenderplayer = KX_GetActiveEngine()->UseViewportRender() && canvas->IsBlenderPlayer();
+  if (!KX_GetActiveEngine()->UseViewportRender() || useViewportRenderInBlenderplayer) {
 
     View3D *v3d = CTX_wm_view3d(C);
 
@@ -486,7 +484,7 @@ void KX_Scene::BackupShadingType()
     if (not_eevee) {
       m_shadingTypeBackup = v3d->shading.type;
       v3d->shading.type = OB_RENDER;
-      if (useViewportInBlenderplayer) {
+      if (useViewportRenderInBlenderplayer) {
         v3d->flag2 |= V3D_HIDE_OVERLAYS;
       }
     }
@@ -690,7 +688,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, 
               0, canvas->GetHeight()};
   }
 
-  bool useViewportRender = (scene->gm.flag & GAME_USE_VIEWPORT_RENDER) != 0;
+  bool useViewportRender = KX_GetActiveEngine()->UseViewportRender();
 
   if (useViewportRender) {
     /* When we call wm_draw_update, bContext variables are unset,

@@ -139,8 +139,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
   //  UnbindVBO();*/
   //}
 
-  Scene *mainScene = KX_GetActiveEngine()->CurrentScenes()->GetFront()->GetBlenderScene();
-  if (mainScene->gm.flag & GAME_USE_VIEWPORT_RENDER) {
+  if (KX_GetActiveEngine()->UseViewportRender()) {
     /* Draw Debug lines */
     if (!debugDraw->m_lines.empty()) {
       for (int i = 0; i < debugDraw->m_lines.size(); i++) {

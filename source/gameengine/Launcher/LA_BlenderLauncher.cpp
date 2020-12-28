@@ -52,8 +52,9 @@ LA_BlenderLauncher::LA_BlenderLauncher(GHOST_ISystem *system,
                                        bContext *context,
                                        rcti *camframe,
                                        ARegion *ar,
-                                       int alwaysUseExpandFraming)
-    : LA_Launcher(system, maggie, scene, gs, stereoMode, scene->gm.aasamples, argc, argv, context),
+                                       int alwaysUseExpandFraming,
+                                       bool useViewportRender)
+    : LA_Launcher(system, maggie, scene, gs, stereoMode, scene->gm.aasamples, argc, argv, context, useViewportRender),
       m_context(context),
       m_ar(ar),
       m_camFrame(camframe),

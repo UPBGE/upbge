@@ -64,12 +64,14 @@ LA_Launcher::LA_Launcher(GHOST_ISystem *system,
                          int samples,
                          int argc,
                          char **argv,
-                         bContext *C)
+                         bContext *C,
+                         bool useViewportRender)
     : m_startSceneName(scene->id.name + 2),
       m_startScene(scene),
       m_maggie(maggie),
       m_context(C),
       m_kxStartScene(nullptr),
+      m_useViewportRender(useViewportRender),
       m_exitRequested(KX_ExitRequest::NO_REQUEST),
       m_globalSettings(gs),
       m_system(system),
@@ -199,7 +201,7 @@ void LA_Launcher::InitEngine()
   m_networkMessageManager = new KX_NetworkMessageManager();
 
   // Create the ketsjiengine.
-  m_ketsjiEngine = new KX_KetsjiEngine(m_kxsystem, m_context);
+  m_ketsjiEngine = new KX_KetsjiEngine(m_kxsystem, m_context, m_useViewportRender);
   KX_SetActiveEngine(m_ketsjiEngine);
 
   // Set the devices.

@@ -1371,10 +1371,12 @@ int main(int argc,
             CTX_data_scene_set(C, scene);
             G.main = maggie;
             G_MAIN = G.main;
+            bool useViewportRender = false;
 
             if (firstTimeRunning) {
               G.fileflags = bfd->fileflags;
               gs.glslflag = scene->gm.flag;
+              useViewportRender = scene->gm.flag & GAME_USE_VIEWPORT_RENDER;
             }
 
             titlename = maggie->name;
@@ -1560,7 +1562,8 @@ int main(int argc,
                                        argc,
                                        argv,
                                        pythonControllerFile,
-                                       C);
+                                       C,
+                                       useViewportRender);
 #ifdef WITH_PYTHON
             if (!globalDict) {
               globalDict = PyDict_New();

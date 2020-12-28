@@ -68,7 +68,8 @@ class LA_PlayerLauncher : public LA_Launcher {
                     int argc,
                     char **argv,
                     const std::string &pythonMainLoop,
-                    struct bContext *C);
+                    struct bContext *C,
+                    bool useViewportRender);
   virtual ~LA_PlayerLauncher();
 
   virtual void InitEngine();

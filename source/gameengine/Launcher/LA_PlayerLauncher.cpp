@@ -55,8 +55,9 @@ LA_PlayerLauncher::LA_PlayerLauncher(GHOST_ISystem *system,
                                      int argc,
                                      char **argv,
                                      const std::string &pythonMainLoop,
-                                     bContext *C)
-    : LA_Launcher(system, maggie, scene, gs, stereoMode, samples, argc, argv, C),
+                                     bContext *C,
+                                     bool useViewportRender)
+    : LA_Launcher(system, maggie, scene, gs, stereoMode, samples, argc, argv, C, useViewportRender),
       m_mainWindow(window),
       m_pythonMainLoop(pythonMainLoop)
 {

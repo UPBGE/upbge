@@ -129,6 +129,7 @@ class KX_KetsjiEngine {
   };
 
   struct bContext *m_context;
+  bool m_useViewportRender;
 
   /// 2D Canvas (2D Rendering Device Context)
   RAS_ICanvas *m_canvas;
@@ -271,11 +272,12 @@ class KX_KetsjiEngine {
   void BeginFrame();
 
  public:
-  KX_KetsjiEngine(KX_ISystem *system, struct bContext *C);
+  KX_KetsjiEngine(KX_ISystem *system, struct bContext *C, bool useViewportRender);
   virtual ~KX_KetsjiEngine();
 
   /* EEVEE integration */
   struct bContext *GetContext();
+  bool UseViewportRender();
   // include depsgraph time in tc_depsgraph category
   void CountDepsgraphTime();
   void EndCountDepsgraphTime();
