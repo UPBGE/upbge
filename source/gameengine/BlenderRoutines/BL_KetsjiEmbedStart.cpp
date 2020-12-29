@@ -320,21 +320,6 @@ extern "C" void StartKetsjiShell(struct bContext *C,
 
     launcher.ExitEngine();
 
-    /* refer to WM_exit_ext() and BKE_blender_free(),
-     * these are not called in the player but we need to match some of there behavior here,
-     * if the order of function calls or blenders state isn't matching that of blender
-     * proper, we may get troubles later on */
-    WM_jobs_kill_all(CTX_wm_manager(C));
-
-    for (wmWindow *win = (wmWindow *)CTX_wm_manager(C)->windows.first; win; win = win->next) {
-
-      CTX_wm_window_set(C, win); /* needed by operator close callbacks */
-      WM_event_remove_handlers(C, &win->handlers);
-      WM_event_remove_handlers(C, &win->modalhandlers);
-      ED_screen_exit(C, win, WM_window_get_active_screen(win));
-    }
-    ED_screens_init(G_MAIN, CTX_wm_manager(C));
-
   } while (exitrequested == KX_ExitRequest::RESTART_GAME ||
            exitrequested == KX_ExitRequest::START_OTHER_GAME);
 
