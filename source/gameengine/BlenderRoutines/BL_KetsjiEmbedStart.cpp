@@ -233,8 +233,8 @@ extern "C" void StartKetsjiShell(struct bContext *C,
         WM_check(C);
 
         bScreen *screen = CTX_wm_screen(C);
-        for (ScrArea *area = (ScrArea *)screen->areabase.first; area; area = area->next) {
-          ED_area_tag_redraw(area);
+        ED_screen_areas_iter (win, screen, area_iter) {
+          ED_area_tag_redraw(area_iter);
         }
 
         if (blenderdata) {
@@ -358,8 +358,8 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     InitBlenderContextVariables(C, wm_backup, startscene);
     WM_check(C);
     bScreen *screen = CTX_wm_screen(C);
-    for (ScrArea *area = (ScrArea *)screen->areabase.first; area; area = area->next) {
-      ED_area_tag_redraw(area);
+    ED_screen_areas_iter(win_backup, screen, area_iter) {
+      ED_area_tag_redraw(area_iter);
     }
   }
 
