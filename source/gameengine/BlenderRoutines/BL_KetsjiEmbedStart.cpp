@@ -356,10 +356,11 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     wm_backup->message_bus = (wmMsgBus *)msgbus_backup;
     InitBlenderContextVariables(C, wm_backup, startscene);
     WM_check(C);
-    bScreen *screen = CTX_wm_screen(C);
-    ED_screen_areas_iter(win_backup, screen, area_iter) {
-      ED_area_tag_redraw(area_iter);
-    }
+  }
+
+  bScreen *screen = CTX_wm_screen(C);
+  ED_screen_areas_iter (win_backup, screen, area_iter) {
+    ED_area_tag_redraw(area_iter);
   }
 
   /* Undo System */
