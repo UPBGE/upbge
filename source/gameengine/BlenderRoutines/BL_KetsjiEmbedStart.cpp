@@ -43,6 +43,7 @@
 #include "BLI_blenlib.h"
 #include "BLO_readfile.h"
 #include "DNA_space_types.h"
+#include "draw/DRW_engine.h"
 #include "ED_screen.h"
 #include "WM_api.h"
 #include "wm_window.h"
@@ -231,6 +232,11 @@ extern "C" void StartKetsjiShell(struct bContext *C,
         wm_window_ghostwindow_embedded_ensure(wm, win);
         WM_check(C);
 
+        bScreen *screen = CTX_wm_screen(C);
+        for (ScrArea *area = (ScrArea *)screen->areabase.first; area; area = area->next) {
+          ED_area_tag_redraw(area);
+        }
+
         if (blenderdata) {
           BLI_strncpy(pathname, blenderdata->name, sizeof(pathname));
           // Change G_MAIN path to ensure loading of data using relative paths.
@@ -351,6 +357,10 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     wm_backup->message_bus = (wmMsgBus *)msgbus_backup;
     InitBlenderContextVariables(C, wm_backup, startscene);
     WM_check(C);
+    bScreen *screen = CTX_wm_screen(C);
+    for (ScrArea *area = (ScrArea *)screen->areabase.first; area; area = area->next) {
+      ED_area_tag_redraw(area);
+    }
   }
 
   /* Undo System */
