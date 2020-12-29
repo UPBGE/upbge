@@ -43,7 +43,6 @@
 #include "BLI_blenlib.h"
 #include "BLO_readfile.h"
 #include "DNA_space_types.h"
-#include "draw/DRW_engine.h"
 #include "ED_screen.h"
 #include "WM_api.h"
 #include "wm_window.h"
