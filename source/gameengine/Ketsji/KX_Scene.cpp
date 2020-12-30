@@ -313,6 +313,9 @@ KX_Scene::~KX_Scene()
     DRW_game_viewport_render_loop_end();
   }
 
+  /* Fixes issue when switching .blend erm...*/
+  GPU_shader_force_unbind();
+
   for (Object *hiddenOb : m_hiddenObjectsDuringRuntime) {
     Base *base = BKE_view_layer_base_find(view_layer, hiddenOb);
     base->flag &= ~BASE_HIDDEN;
