@@ -33,7 +33,9 @@
 #include "BKE_action.h"
 #include "BKE_context.h"
 #include "BKE_modifier.h"
+#include "BKE_node.h"
 #include "BKE_object.h"
+#include "BLI_listbase.h"
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_node_types.h"
@@ -455,24 +457,39 @@ void BL_Action::Update(float curtime, bool applyToObject)
          * if some actions require another notifier than ID_RECALC_TRANSFORM */
       }
     }
-    // TEST Material action
-    int totcol = ob->totcol;
-    for (int i = 0; i < totcol; i++) {
-      Material *ma = BKE_object_material_get(ob, i + 1);
-      if (ma) {
-        if (ma->use_nodes && ma->nodetree) {
-          bNodeTree *node_tree = ma->nodetree;
-          if (node_tree->adt && node_tree->adt->action->id.name == m_action->id.name) {
-            DEG_id_tag_update(&ma->id, ID_RECALC_SHADING);
+
+    // Node Trees actions (Geometry one and Shader ones (material, world))
+    Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+    FOREACH_NODETREE_BEGIN (bmain, nodetree, id) {
+      switch (nodetree->type) {
+        case NTREE_GEOMETRY:
+        {
+          if (nodetree->adt && nodetree->adt->action->id.name == m_action->id.name) {
+            DEG_id_tag_update(&nodetree->id, 0);
             PointerRNA ptrrna;
-            RNA_id_pointer_create(&node_tree->id, &ptrrna);
+            RNA_id_pointer_create(&nodetree->id, &ptrrna);
             animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
             scene->ResetTaaSamples();
-            break;
           }
+          break;
         }
+        case NTREE_SHADER:
+        {
+          if (nodetree->adt && nodetree->adt->action->id.name == m_action->id.name) {
+            DEG_id_tag_update(&nodetree->id, ID_RECALC_SHADING);
+            PointerRNA ptrrna;
+            RNA_id_pointer_create(&nodetree->id, &ptrrna);
+            animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
+            scene->ResetTaaSamples();
+          }
+          break;
+        }
+        default:
+          break;
       }
     }
+    FOREACH_NODETREE_END;
+
     // TEST Shapekeys action
     Mesh *me = (Mesh *)ob->data;
     if (ob->type == OB_MESH && me) {
@@ -509,18 +526,6 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
         // shape_deformer->SetLastFrame(curtime);
 
-        scene->ResetTaaSamples();
-      }
-    }
-    // TEST World Background actions
-    World *world = scene->GetBlenderScene()->world;
-    if (world && world->use_nodes && world->nodetree) {
-      bNodeTree *node_tree = world->nodetree;
-      if (node_tree->adt && node_tree->adt->action->id.name == m_action->id.name) {
-        DEG_id_tag_update(&world->id, ID_RECALC_SHADING);
-        PointerRNA ptrrna;
-        RNA_id_pointer_create(&node_tree->id, &ptrrna);
-        animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
         scene->ResetTaaSamples();
       }
     }
