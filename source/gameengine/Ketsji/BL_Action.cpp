@@ -32,7 +32,6 @@
 
 #include "BKE_action.h"
 #include "BKE_context.h"
-#include "BKE_main.h"
 #include "BKE_modifier.h"
 #include "BKE_node.h"
 #include "BKE_object.h"
