@@ -374,12 +374,13 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     win_backup->ghostwin = ghostwin_backup;
     win_backup->gpuctx = gpuctx_backup;
     wm_backup->message_bus = (wmMsgBus *)msgbus_backup;
-    InitBlenderContextVariables(C, wm_backup, startscene);
-
-    WM_check(C);
-    ED_screen_change(C, WM_window_get_active_screen(win_backup));
-    ED_screen_refresh(wm_backup, win_backup);
   }
+
+  InitBlenderContextVariables(C, wm_backup, startscene);
+
+  WM_check(C);
+  ED_screen_change(C, WM_window_get_active_screen(win_backup));
+  ED_screen_refresh(wm_backup, win_backup);
 
   /* Restore shading type we had before game start */
   CTX_wm_view3d(C)->shading.type = shadingTypeBackup;
