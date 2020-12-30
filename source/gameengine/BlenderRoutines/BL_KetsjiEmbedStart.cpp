@@ -126,6 +126,20 @@ static int GetShadingTypeRuntime(bContext *C, bool useViewportRender)
   return v3d->shading.type;
 }
 
+static void RefreshContextAndScreen(bContext *C, wmWindowManager *wm, wmWindow *win, Scene *scene)
+{
+  bScreen *screen = WM_window_get_active_screen(win);
+  InitBlenderContextVariables(C, wm, scene);
+
+  WM_check(C);
+  ED_screen_change(C, screen);
+  ED_screen_refresh(wm, win);
+
+  ED_screen_areas_iter (win, screen, area_iter) {
+    ED_area_tag_redraw(area_iter);
+  }
+}
+
 extern "C" void StartKetsjiShell(struct bContext *C,
                                  struct ARegion *ar,
                                  rcti *cam_frame,
@@ -240,21 +254,15 @@ extern "C" void StartKetsjiShell(struct bContext *C,
         win->ghostwin = ghostwin_backup;
         win->gpuctx = gpuctx_backup;
         wm->message_bus = (wmMsgBus *)msgbus_backup;
-        /* We need to init Blender bContext environment here
-         * to because in embedded, ar, v3d...
-         * are needed for launcher creation
-         */
-        InitBlenderContextVariables(C, wm, bfd->curscene);
+
         wm_window_ghostwindow_embedded_ensure(wm, win);
 
-        WM_check(C);
-        ED_screen_change(C, WM_window_get_active_screen(win));
-        ED_screen_refresh(wm, win);
-
-        bScreen *screen = CTX_wm_screen(C);
-        ED_screen_areas_iter (win, screen, area_iter) {
-          ED_area_tag_redraw(area_iter);
-        }
+        /* We need to init Blender bContext environment here
+         * to because in embedded, ar, v3d...
+         * are needed for launcher creation + Refresh Screen
+         * to be able to draw blender areas.
+         */
+        RefreshContextAndScreen(C, wm, win, bfd->curscene);
 
         if (blenderdata) {
           BLI_strncpy(pathname, blenderdata->name, sizeof(pathname));
@@ -376,19 +384,10 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     wm_backup->message_bus = (wmMsgBus *)msgbus_backup;
   }
 
-  InitBlenderContextVariables(C, wm_backup, startscene);
-
-  WM_check(C);
-  ED_screen_change(C, WM_window_get_active_screen(win_backup));
-  ED_screen_refresh(wm_backup, win_backup);
+  RefreshContextAndScreen(C, wm_backup, win_backup, startscene);
 
   /* Restore shading type we had before game start */
   CTX_wm_view3d(C)->shading.type = shadingTypeBackup;
-
-  bScreen *screen = CTX_wm_screen(C);
-  ED_screen_areas_iter (win_backup, screen, area_iter) {
-    ED_area_tag_redraw(area_iter);
-  }
 
   /* Undo System */
   if (startscene->gm.flag & GAME_USE_UNDO) {
