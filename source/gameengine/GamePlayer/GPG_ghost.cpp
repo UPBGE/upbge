@@ -1278,9 +1278,10 @@ int main(int argc,
 #ifdef WITH_PYTHON
         initGamePlayerPythonScripting(argc, argv, C);
 #endif
-
+        /* Set Viewport render mode and shading type for the whole runtime */
         bool first_time_window = true;
         int shadingTypeRuntime = 0;
+        bool useViewportRender = false;
 
         do {
           // Read the Blender file
@@ -1383,7 +1384,6 @@ int main(int argc,
             CTX_data_scene_set(C, scene);
             G.main = maggie;
             G_MAIN = G.main;
-            bool useViewportRender = false;
 
             if (firstTimeRunning) {
               G.fileflags = bfd->fileflags;
