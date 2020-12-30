@@ -54,6 +54,7 @@ class LA_Launcher {
   struct bContext *m_context;
   KX_Scene *m_kxStartScene;
   bool m_useViewportRender;
+  int m_shadingTypeRuntime;
 
   /// \section Exit state.
   KX_ExitRequest m_exitRequested;
@@ -142,7 +143,8 @@ class LA_Launcher {
               int argc,
               char **argv,
               struct bContext *C,
-              bool useViewportRender);
+              bool useViewportRender,
+              int shadingTypeRuntime);
   virtual ~LA_Launcher();
 
 #ifdef WITH_PYTHON

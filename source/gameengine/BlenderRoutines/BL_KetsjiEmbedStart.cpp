@@ -112,6 +112,20 @@ static void InitBlenderContextVariables(bContext *C, wmWindowManager *wm, Scene 
   }
 }
 
+static int GetShadingTypeRuntime(bContext *C, bool useViewportRender)
+{
+  View3D *v3d = CTX_wm_view3d(C);
+  if (useViewportRender) {
+    return v3d->shading.type;
+  }
+  bool not_eevee = (v3d->shading.type != OB_RENDER) && (v3d->shading.type != OB_MATERIAL);
+
+  if (not_eevee) {
+    return OB_RENDER;
+  }
+  return v3d->shading.type;
+}
+
 extern "C" void StartKetsjiShell(struct bContext *C,
                                  struct ARegion *ar,
                                  rcti *cam_frame,
@@ -167,7 +181,10 @@ extern "C" void StartKetsjiShell(struct bContext *C,
   void *gpuctx_backup = win_backup->gpuctx;
   void *ghostwin_backup = win_backup->ghostwin;
 
+  /* Set Viewport render mode and shading type for the whole runtime */
   bool useViewportRender = startscene->gm.flag & GAME_USE_VIEWPORT_RENDER;
+  int shadingTypeRuntime = GetShadingTypeRuntime(C, useViewportRender);
+  int shadingTypeBackup = CTX_wm_view3d(C)->shading.type;
 
   do {
     // if we got an exitcode 3 (KX_ExitRequest::START_OTHER_GAME) load a different file
@@ -303,7 +320,8 @@ extern "C" void StartKetsjiShell(struct bContext *C,
                                                      cam_frame,
                                                      CTX_wm_region(C),
                                                      always_use_expand_framing,
-                                                     useViewportRender);
+                                                     useViewportRender,
+                                                     shadingTypeRuntime);
 #ifdef WITH_PYTHON
     launcher.SetPythonGlobalDict(globalDict);
 #endif  // WITH_PYTHON
@@ -342,6 +360,9 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     InitBlenderContextVariables(C, wm_backup, startscene);
     WM_check(C);
   }
+
+  /* Restore shading type we had before game start */
+  CTX_wm_view3d(C)->shading.type = shadingTypeBackup;
 
   bScreen *screen = CTX_wm_screen(C);
   ED_screen_areas_iter (win_backup, screen, area_iter) {

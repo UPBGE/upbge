@@ -118,9 +118,10 @@ const std::string KX_KetsjiEngine::m_profileLabels[tc_numCategories] = {
 /**
  * Constructor of the Ketsji Engine
  */
-KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system, bContext *C, bool useViewportRender)
-    : m_context(C),
-      m_useViewportRender(useViewportRender),
+KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system, bContext *C, bool useViewportRender, int shadingTypeRuntime)
+    : m_context(C),                             // eevee
+      m_useViewportRender(useViewportRender),   // eevee
+      m_shadingTypeRuntime(shadingTypeRuntime), // eevee
       m_canvas(nullptr),
       m_rasterizer(nullptr),
       m_kxsystem(system),
@@ -182,6 +183,11 @@ bContext *KX_KetsjiEngine::GetContext()
 bool KX_KetsjiEngine::UseViewportRender()
 {
   return m_useViewportRender;
+}
+
+int KX_KetsjiEngine::ShadingTypeRuntime()
+{
+  return m_shadingTypeRuntime;
 }
 
 /* include Depsgraph update time in tc_depsgraph category

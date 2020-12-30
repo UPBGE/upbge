@@ -131,7 +131,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_resetTaaSamples(false),               // eevee
       m_lastReplicatedParentObject(nullptr),  // eevee
       m_gameDefaultCamera(nullptr),           // eevee
-      m_shadingTypeBackup(0),                 // eevee
       m_currentGPUViewport(nullptr),          // eevee
       m_initMaterialsGPUViewport(nullptr),    // eevee (See comment in .h)
       m_overlayCamera(nullptr),               // eevee (For overlay collections)
@@ -238,7 +237,11 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
    */
   ReinitBlenderContextVariables();
 
-  BackupShadingType();
+  /* Configure Shading types and overlays according to
+   * (viewport render or not) and (blenderplayer or not)
+   */
+  CTX_wm_view3d(C)->shading.type = KX_GetActiveEngine()->ShadingTypeRuntime();
+  ConfigureOverlays();
 
   if (!KX_GetActiveEngine()->UseViewportRender()) {
     /* We want to indicate that we are in bge runtime. The flag can be used in draw code but in
@@ -285,7 +288,6 @@ KX_Scene::~KX_Scene()
   bContext *C = KX_GetActiveEngine()->GetContext();
   Main *bmain = CTX_data_main(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-  View3D *v3d = CTX_wm_view3d(C);
 
   if (!KX_GetActiveEngine()->UseViewportRender()) {
     if (!m_isPythonMainLoop) {
@@ -309,10 +311,6 @@ KX_Scene::~KX_Scene()
   else {
     // Free the allocated profile a last time
     DRW_game_viewport_render_loop_end();
-  }
-
-  if (m_shadingTypeBackup != 0) {
-    v3d->shading.type = m_shadingTypeBackup;
   }
 
   for (Object *hiddenOb : m_hiddenObjectsDuringRuntime) {
@@ -468,26 +466,15 @@ void KX_Scene::ReinitBlenderContextVariables()
   }
 }
 
-void KX_Scene::BackupShadingType()
+void KX_Scene::ConfigureOverlays()
 {
   bContext *C = KX_GetActiveEngine()->GetContext();
-
-  /* Only if we are not in viewport render, modify + backup shading types */
+  View3D *v3d = CTX_wm_view3d(C);
   RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
-  bool useViewportRenderInBlenderplayer = KX_GetActiveEngine()->UseViewportRender() && canvas->IsBlenderPlayer();
-  if (!KX_GetActiveEngine()->UseViewportRender() || useViewportRenderInBlenderplayer) {
-
-    View3D *v3d = CTX_wm_view3d(C);
-
-    bool not_eevee = (v3d->shading.type != OB_RENDER) && (v3d->shading.type != OB_MATERIAL);
-
-    if (not_eevee) {
-      m_shadingTypeBackup = v3d->shading.type;
-      v3d->shading.type = OB_RENDER;
-      if (useViewportRenderInBlenderplayer) {
-        v3d->flag2 |= V3D_HIDE_OVERLAYS;
-      }
-    }
+  bool useViewportRenderInBlenderplayer = KX_GetActiveEngine()->UseViewportRender() &&
+                                          canvas->IsBlenderPlayer();
+  if (useViewportRenderInBlenderplayer) {
+    v3d->flag2 |= V3D_HIDE_OVERLAYS;
   }
 }
 
