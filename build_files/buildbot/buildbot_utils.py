@@ -42,7 +42,7 @@ class Builder:
         self.codesign = codesign
 
         # Buildbot runs from build/ directory
-        self.blender_dir = os.path.abspath(os.path.join('..', 'blender.git'))
+        self.blender_dir = os.path.abspath(os.path.join('..', 'upbge.git'))
         self.build_dir = os.path.abspath(os.path.join('..', 'build'))
         self.install_dir = os.path.abspath(os.path.join('..', 'install'))
         self.upload_dir = os.path.abspath(os.path.join('..', 'install'))
