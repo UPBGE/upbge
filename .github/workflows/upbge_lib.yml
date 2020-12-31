@@ -1,4 +1,4 @@
-name: Build master
+name: Download lib
 
 on:
   #push:
