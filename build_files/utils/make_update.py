@@ -28,7 +28,7 @@ def parse_arguments():
     parser.add_argument("--no-libraries", action="store_true")
     parser.add_argument("--no-blender", action="store_true")
     parser.add_argument("--no-submodules", action="store_true")
-    parser.add_argument("--use-tests", action="store_true")
+    #parser.add_argument("--use-tests", action="store_true")
     parser.add_argument("--svn-command", default="svn")
     parser.add_argument("--git-command", default="git")
     parser.add_argument("--use-centos-libraries", action="store_true")
