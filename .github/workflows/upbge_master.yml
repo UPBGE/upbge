@@ -66,10 +66,6 @@ jobs:
         working-directory: ${{ github.workspace }}/build
         run: python ../upbge.git/build_files/buildbot/worker_compile.py ${{ matrix.builder }} ${{ matrix.branch }}
 
-      - name: test
-        working-directory: ${{ github.workspace }}/build
-        run: python ../upbge.git/build_files/buildbot/worker_test.py ${{ matrix.builder }} ${{ matrix.branch }}
-
       - name: package
         working-directory: ${{ github.workspace }}/build
         run: python ../upbge.git/build_files/buildbot/worker_pack.py ${{ matrix.builder }} ${{ matrix.branch }}
