@@ -178,7 +178,7 @@ def submodules_update(args, release_version, branch):
     # Initialize submodules only if needed.
     for submodule_path, submodule_branch in submodules:
         if not os.path.exists(os.path.join(submodule_path, ".git")):
-            call([args.git_command, "submodule", "update", "--init", "--recursive"])
+            call([args.git_command, "submodule", "update", "--init", "--recursive", "--remote"])
             break
 
     # Checkout appropriate branch and pull changes.
