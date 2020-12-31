@@ -2586,6 +2586,21 @@ void wm_window_ghostwindow_embedded_ensure(wmWindowManager *wm, wmWindow *win)
 {
   wm_window_clear_drawable(wm);
   wm_window_set_drawable(wm, win, true);
+
+  GHOST_RectangleHandle bounds;
+  /* store actual window size in blender window */
+  bounds = GHOST_GetClientBounds(win->ghostwin);
+  /* win32: gives undefined window size when minimized */
+  if (GHOST_GetWindowState(win->ghostwin) != GHOST_kWindowStateMinimized) {
+    win->sizex = GHOST_GetWidthRectangle(bounds);
+    win->sizey = GHOST_GetHeightRectangle(bounds);
+  }
+  GHOST_DisposeRectangle(bounds);
+  /* until screens get drawn, make it black */
+  GPU_clear_color(0.0f, 0.0f, 0.0f, 0.0f);
+
+  /* needed here, because it's used before it reads userdef */
+  WM_window_set_dpi(win);
 }
 /* End of Game engine transition */
 /** \} */
