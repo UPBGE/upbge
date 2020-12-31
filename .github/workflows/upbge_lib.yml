@@ -1,0 +1,40 @@
+name: Build master
+
+on:
+  #push:
+    #branches:
+      #- master
+  # trigger on all PRs against master
+  #pull_request:
+    #branches:
+      #- master
+  # allow manual dispatches
+  workflow_dispatch:
+
+jobs:
+  builder:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        #builder: ["windows_master", "macos_master", "linux_master"]
+        builder: ["linux_master"]
+        include:
+          #- builder: "windows_master"
+            #os: "windows-2019"
+            #branch: "master"
+          #- builder: "macos_master"
+            #os: "macos-10.15"
+            #branch: "master"
+          - builder: "linux_master"
+            os: "ubuntu-20.04"
+            branch: "master"
+    steps:
+      - name: Cache lib folder
+        uses: actions/cache@v2
+        with:
+          path: ${{ github.workspace }}/lib
+          key: ${{ matrix.builder }}-lib-${{ github.ref }}-${{ runner.OS }}
+          restore-keys: |
+            ${{ matrix.builder }}-lib-${{ github.ref }}
+            ${{ matrix.builder }}-lib
