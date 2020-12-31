@@ -60,19 +60,19 @@ jobs:
 
       - name: submodules and libraries update
         working-directory: ${{ github.workspace }}/build
-        run: python ../blender.git/build_files/buildbot/worker_update.py ${{ matrix.builder }} ${{ matrix.branch }}
+        run: python ../upbge.git/build_files/buildbot/worker_update.py ${{ matrix.builder }} ${{ matrix.branch }}
 
       - name: compile
         working-directory: ${{ github.workspace }}/build
-        run: python ../blender.git/build_files/buildbot/worker_compile.py ${{ matrix.builder }} ${{ matrix.branch }}
+        run: python ../upbge.git/build_files/buildbot/worker_compile.py ${{ matrix.builder }} ${{ matrix.branch }}
 
       - name: test
         working-directory: ${{ github.workspace }}/build
-        run: python ../blender.git/build_files/buildbot/worker_test.py ${{ matrix.builder }} ${{ matrix.branch }}
+        run: python ../upbge.git/build_files/buildbot/worker_test.py ${{ matrix.builder }} ${{ matrix.branch }}
 
       - name: package
         working-directory: ${{ github.workspace }}/build
-        run: python ../blender.git/build_files/buildbot/worker_pack.py ${{ matrix.builder }} ${{ matrix.branch }}
+        run: python ../upbge.git/build_files/buildbot/worker_pack.py ${{ matrix.builder }} ${{ matrix.branch }}
 
       - name: Create artifact
         uses: actions/upload-artifact@v2
