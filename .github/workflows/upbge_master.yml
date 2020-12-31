@@ -27,7 +27,7 @@ jobs:
             #os: "macos-10.15"
             #branch: "master"
           - builder: "linux_master"
-            os: "ubuntu-18.04"
+            os: "ubuntu-20.04"
             branch: "master"
     steps:
       - name: Cache lib folder
