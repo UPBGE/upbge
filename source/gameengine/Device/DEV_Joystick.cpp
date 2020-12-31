@@ -73,8 +73,7 @@ void DEV_Joystick::Init()
 {
 #ifdef WITH_SDL
 
-  if (!(SDL_CHECK(SDL_InitSubSystem)) || !(SDL_CHECK(SDL_GameControllerAddMapping)) ||
-      !(SDL_CHECK(SDL_GameControllerAddMappingsFromRW))) {
+  if (!(SDL_CHECK(SDL_InitSubSystem)) || !(SDL_CHECK(SDL_GameControllerAddMapping))) {
     return;
   }
 
