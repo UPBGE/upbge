@@ -74,20 +74,6 @@ def svn_update(args, release_version):
             svn_url_platform = svn_url + lib_platform
             call(svn_non_interactive + ["checkout", svn_url_platform, lib_platform_dirpath])
 
-    if args.use_tests:
-        lib_tests = "tests"
-        lib_tests_dirpath = os.path.join(lib_dirpath, lib_tests)
-
-        if not os.path.exists(lib_tests_dirpath):
-            print_stage("Checking out Tests")
-
-            if make_utils.command_missing(args.svn_command):
-                sys.stderr.write("svn not found, can't checkout tests\n")
-                sys.exit(1)
-
-            svn_url_tests = svn_url + lib_tests
-            call(svn_non_interactive + ["checkout", svn_url_tests, lib_tests_dirpath])
-
     # Update precompiled libraries and tests
     print_stage("Updating Precompiled Libraries and Tests")
 
