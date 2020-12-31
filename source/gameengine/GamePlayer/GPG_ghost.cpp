@@ -1615,11 +1615,10 @@ int main(int argc,
            * these are not called in the player but we need to match some of there behavior here,
            * if the order of function calls or blenders state isn't matching that of blender
            * proper, we may get troubles later on */
-          WM_jobs_kill_all(CTX_wm_manager(C));
+          wmWindowManager *wm = CTX_wm_manager(C);
+          WM_jobs_kill_all(wm);
 
-          for (wmWindow *win = (wmWindow *)CTX_wm_manager(C)->windows.first; win;
-               win = win->next) {
-
+          LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
             CTX_wm_window_set(C, win); /* needed by operator close callbacks */
             WM_event_remove_handlers(C, &win->handlers);
             WM_event_remove_handlers(C, &win->modalhandlers);
