@@ -17,7 +17,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        builder: ["windows_master", "macos_master", "linux_master"]
+        #builder: ["windows_master", "macos_master", "linux_master"]
+        builder: ["linux_master"]
         include:
           #- builder: "windows_master"
             #os: "windows-2019"
