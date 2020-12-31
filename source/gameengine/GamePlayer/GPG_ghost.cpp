@@ -702,6 +702,17 @@ static void InitBlenderContextVariables(bContext *C, wmWindowManager *wm, Scene 
   }
 }
 
+static int GetShadingTypeRuntime(bContext *C)
+{
+  View3D *v3d = CTX_wm_view3d(C);
+  bool not_eevee = (v3d->shading.type != OB_RENDER) && (v3d->shading.type != OB_MATERIAL);
+
+  if (not_eevee) {
+    return OB_RENDER;
+  }
+  return v3d->shading.type;
+}
+
 int main(int argc,
 #ifdef WIN32
          char **UNUSED(argv_c)
@@ -1267,8 +1278,10 @@ int main(int argc,
 #ifdef WITH_PYTHON
         initGamePlayerPythonScripting(argc, argv, C);
 #endif
-
+        /* Set Viewport render mode and shading type for the whole runtime */
         bool first_time_window = true;
+        int shadingTypeRuntime = 0;
+        bool useViewportRender = false;
 
         do {
           // Read the Blender file
@@ -1546,6 +1559,10 @@ int main(int argc,
                * in wm_window_ghostwindow_blenderplayer_ensure.
                */
               WM_init_opengl_blenderplayer(G_MAIN, system, win);
+
+              /* Set Viewport render mode and shading type for the whole runtime */
+              useViewportRender = scene->gm.flag & GAME_USE_VIEWPORT_RENDER;
+              shadingTypeRuntime = GetShadingTypeRuntime(C);
             }
             first_time_window = false;
 
@@ -1560,7 +1577,9 @@ int main(int argc,
                                        argc,
                                        argv,
                                        pythonControllerFile,
-                                       C);
+                                       C,
+                                       useViewportRender,
+                                       shadingTypeRuntime);
 #ifdef WITH_PYTHON
             if (!globalDict) {
               globalDict = PyDict_New();
@@ -1596,11 +1615,10 @@ int main(int argc,
            * these are not called in the player but we need to match some of there behavior here,
            * if the order of function calls or blenders state isn't matching that of blender
            * proper, we may get troubles later on */
-          WM_jobs_kill_all(CTX_wm_manager(C));
+          wmWindowManager *wm = CTX_wm_manager(C);
+          WM_jobs_kill_all(wm);
 
-          for (wmWindow *win = (wmWindow *)CTX_wm_manager(C)->windows.first; win;
-               win = win->next) {
-
+          LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
             CTX_wm_window_set(C, win); /* needed by operator close callbacks */
             WM_event_remove_handlers(C, &win->handlers);
             WM_event_remove_handlers(C, &win->modalhandlers);

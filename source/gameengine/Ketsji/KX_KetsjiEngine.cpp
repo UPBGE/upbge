@@ -118,8 +118,10 @@ const std::string KX_KetsjiEngine::m_profileLabels[tc_numCategories] = {
 /**
  * Constructor of the Ketsji Engine
  */
-KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system, bContext *C)
-    : m_context(C),
+KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system, bContext *C, bool useViewportRender, int shadingTypeRuntime)
+    : m_context(C),                             // eevee
+      m_useViewportRender(useViewportRender),   // eevee
+      m_shadingTypeRuntime(shadingTypeRuntime), // eevee
       m_canvas(nullptr),
       m_rasterizer(nullptr),
       m_kxsystem(system),
@@ -176,6 +178,16 @@ KX_KetsjiEngine::~KX_KetsjiEngine()
 bContext *KX_KetsjiEngine::GetContext()
 {
   return m_context;
+}
+
+bool KX_KetsjiEngine::UseViewportRender()
+{
+  return m_useViewportRender;
+}
+
+int KX_KetsjiEngine::ShadingTypeRuntime()
+{
+  return m_shadingTypeRuntime;
 }
 
 /* include Depsgraph update time in tc_depsgraph category
@@ -724,8 +736,8 @@ void KX_KetsjiEngine::Render()
       }
     }
   }
-  Scene *first_scene = m_scenes->GetFront()->GetBlenderScene();
-  if (!(first_scene->gm.flag & GAME_USE_VIEWPORT_RENDER)) {
+
+  if (!UseViewportRender()) {
     int v[4];
     v[0] = m_canvas->GetViewportArea().GetLeft();
     v[1] = m_canvas->GetViewportArea().GetBottom();
@@ -1291,11 +1303,6 @@ KX_Scene *KX_KetsjiEngine::CreateScene(const std::string &scenename)
 
 bool KX_KetsjiEngine::ReplaceScene(const std::string &oldscene, const std::string &newscene)
 {
-  bool useViewportRender = (m_scenes->GetFront()->GetBlenderScene()->gm.flag & GAME_USE_VIEWPORT_RENDER) != 0;
-  if (useViewportRender && !m_canvas->IsBlenderPlayer()) {
-    std::cout << "Replace Scene is not available in viewport render mode in embedded." << std::endl;
-    return false;
-  }
   // Don't allow replacement if the new scene doesn't exist.
   // Allows smarter game design (used to have no check here).
   // Note that it creates a small backward compatbility issue

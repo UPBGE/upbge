@@ -71,7 +71,9 @@ class LA_BlenderLauncher : public LA_Launcher {
                      bContext *context,
                      rcti *camframe,
                      ARegion *ar,
-                     int alwaysUseExpandFraming);
+                     int alwaysUseExpandFraming,
+                     bool useViewportRender,
+                     int shadingTypeRuntime);
   virtual ~LA_BlenderLauncher();
 
   virtual void InitEngine();

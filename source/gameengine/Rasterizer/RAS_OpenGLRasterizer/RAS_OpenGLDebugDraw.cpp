@@ -139,8 +139,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
   //  UnbindVBO();*/
   //}
 
-  Scene *mainScene = KX_GetActiveEngine()->CurrentScenes()->GetFront()->GetBlenderScene();
-  if (mainScene->gm.flag & GAME_USE_VIEWPORT_RENDER) {
+  if (KX_GetActiveEngine()->UseViewportRender()) {
     /* Draw Debug lines */
     if (!debugDraw->m_lines.empty()) {
       for (int i = 0; i < debugDraw->m_lines.size(); i++) {
@@ -150,7 +149,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
     }
     /* The Performances profiler */
     const unsigned int left = canvas->GetViewportArea().GetLeft();
-    const unsigned int top = canvas->GetViewportArea().GetTop();
+    const unsigned int top = canvas->GetWindowArea().GetTop() - canvas->GetViewportArea().GetBottom();
     if (!debugDraw->m_boxes2D.empty()) {
       for (const RAS_DebugDraw::Box2D &b : debugDraw->m_boxes2D) {
         DRW_debug_box_2D_bge(left + b.m_pos[0], top - b.m_pos[1], b.m_size[0], b.m_size[1]);
