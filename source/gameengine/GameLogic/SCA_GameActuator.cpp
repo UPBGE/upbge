@@ -103,7 +103,7 @@ bool SCA_GameActuator::Update()
     }
     case KX_GAME_QUIT: {
       if (m_ketsjiengine) {
-        std::string exitstring = "quiting game";
+        std::string exitstring = "quitting game";
         m_ketsjiengine->RequestExit(KX_ExitRequest::QUIT_GAME);
         m_scene->AddDebugProperty((this)->GetParent(), exitstring);
       }
