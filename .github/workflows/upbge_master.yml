@@ -30,6 +30,15 @@ jobs:
             os: "ubuntu-20.04"
             branch: "master"
     steps:
+      - name: Cache lib folder
+        uses: actions/cache@v2
+        with:
+          path: ${{ github.workspace }}/lib
+          key: ${{ matrix.builder }}-lib-${{ github.ref }}-${{ runner.OS }}
+          restore-keys: |
+            ${{ matrix.builder }}-lib-${{ github.ref }}
+            ${{ matrix.builder }}-lib
+
       - name: Set up Python 3.7
         uses: actions/setup-python@v2
         with:
@@ -51,9 +60,9 @@ jobs:
           fetch-depth: 0
           submodules: false
 
-      - name: submodules and libraries update
-        working-directory: ${{ github.workspace }}/build
-        run: python ../upbge.git/build_files/buildbot/worker_update.py ${{ matrix.builder }} ${{ matrix.branch }}
+      #- name: submodules and libraries update
+        #working-directory: ${{ github.workspace }}/build
+        #run: python ../upbge.git/build_files/buildbot/worker_update.py ${{ matrix.builder }} ${{ matrix.branch }}
 
       - name: compile
         working-directory: ${{ github.workspace }}/build
