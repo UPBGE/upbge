@@ -60,19 +60,13 @@ Constants
 
    Deprecated.
 
-   Materials as defined by the texture face settings.
-
 .. data:: KX_BLENDER_MULTITEX_MATERIAL
 
    Deprecated.
 
-   Materials approximating blender materials with multitexturing.
-
 .. data:: KX_BLENDER_GLSL_MATERIAL
 
    Deprecated.
-
-   Materials approximating blender materials with GLSL.
 
 .. DATA:: VSYNC_OFF
 
@@ -239,40 +233,21 @@ Functions
 
    Deprecated and no longer functional.
 
-   Set the material mode to use for OpenGL rendering.
-
-   :arg mode: material mode
-   :type mode: KX_TEXFACE_MATERIAL, KX_BLENDER_MULTITEX_MATERIAL, KX_BLENDER_GLSL_MATERIAL
-
-   .. note:: Changes will only affect newly created scenes.
-
 
 .. function:: getMaterialMode(mode)
 
    Deprecated and no longer functional.
 
-   Get the material mode to use for OpenGL rendering.
-
-   :rtype: KX_TEXFACE_MATERIAL, KX_BLENDER_MULTITEX_MATERIAL, KX_BLENDER_GLSL_MATERIAL
-
 
 .. function:: setGLSLMaterialSetting(setting, enable)
 
-   Enables or disables a GLSL material setting.
-
-   :arg setting:
-   :type setting: string (lights, shaders, shadows, ramps, nodes, extra_textures)
-   :arg enable:
-   :type enable: boolean
+   Deprecated and no longer functional.
 
 
 .. function:: getGLSLMaterialSetting(setting)
 
-   Get the state of a GLSL material setting.
+   Deprecated and no longer functional.
 
-   :arg setting:
-   :type setting: string (lights, shaders, shadows, ramps, nodes, extra_textures)
-   :rtype: boolean
 
 .. function:: setAnisotropicFiltering(level)
 

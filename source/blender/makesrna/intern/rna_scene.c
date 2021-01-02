@@ -5532,11 +5532,6 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
       {WOPHY_BULLET, "BULLET", 0, "Bullet", "Use the Bullet physics engine"},
       {0, NULL, 0, NULL, NULL}};
 
-  static const EnumPropertyItem material_items[] = {
-      {GAME_MAT_MULTITEX, "MULTITEXTURE", 0, "Multitexture", "Multitexture materials"},
-      {GAME_MAT_GLSL, "GLSL", 0, "GLSL", "OpenGL shading language shaders"},
-      {0, NULL, 0, NULL, NULL}};
-
   static const EnumPropertyItem obstacle_simulation_items[] = {
       {OBSTSIMULATION_NONE, "NONE", 0, "None", ""},
       {OBSTSIMULATION_TOI_rays, "RVO_RAYS", 0, "RVO (rays)", ""},
@@ -5547,20 +5542,6 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
       {VSYNC_OFF, "OFF", 0, "Off", "Disable vsync"},
       {VSYNC_ON, "ON", 0, "On", "Enable vsync"},
       {VSYNC_ADAPTIVE, "ADAPTIVE", 0, "Adaptive", "Enable adaptive vsync (if supported)"},
-      {0, NULL, 0, NULL, NULL}};
-
-  static const EnumPropertyItem storage_items[] = {
-      {RAS_STORE_AUTO, "AUTO", 0, "Auto Select", "Choose the best supported mode"},
-      {RAS_STORE_VA,
-       "VERTEX_ARRAY",
-       0,
-       "Vertex Arrays",
-       "Usually the best choice (good performance with display lists)"},
-      {RAS_STORE_VBO,
-       "VERTEX_BUFFER_OBJECT",
-       0,
-       "Vertex Buffer Objects",
-       "Typically slower than vertex arrays with display lists, requires at least OpenGL 1.4"},
       {0, NULL, 0, NULL, NULL}};
 
   srna = RNA_def_struct(brna, "SceneGameData", NULL);
@@ -5606,12 +5587,6 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_enum_default(prop, EVT_ESCKEY);
   RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_exit_key_set", NULL);
   RNA_def_property_ui_text(prop, "Exit Key", "The key that exits the Game Engine");
-  RNA_def_property_update(prop, NC_SCENE, NULL);
-
-  prop = RNA_def_property(srna, "raster_storage", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, NULL, "raster_storage");
-  RNA_def_property_enum_items(prop, storage_items);
-  RNA_def_property_ui_text(prop, "Storage", "Set the storage mode used by the rasterizer");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   /* Do we need it here ? (since we already have it in World */
@@ -5944,65 +5919,6 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_enum_default(prop, EVT_TKEY);
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
   RNA_def_property_ui_text(prop, "Python Console Key", "Fourth python console shortcut key");
-
-  /* materials */
-  prop = RNA_def_property(srna, "material_mode", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, NULL, "matmode");
-  RNA_def_property_enum_items(prop, material_items);
-  RNA_def_property_ui_text(prop, "Material Mode", "Material mode to use for rendering");
-  RNA_def_property_update(prop, NC_SCENE | NA_EDITED, NULL);
-
-  prop = RNA_def_property(srna, "use_glsl_lights", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_GLSL_NO_LIGHTS);
-  RNA_def_property_ui_text(prop, "GLSL Lights", "Use lights for GLSL rendering");
-  RNA_def_property_update(prop, NC_SCENE | NA_EDITED, "rna_Scene_glsl_update");
-
-  prop = RNA_def_property(srna, "use_glsl_shaders", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_GLSL_NO_SHADERS);
-  RNA_def_property_ui_text(prop, "GLSL Shaders", "Use shaders for GLSL rendering");
-  RNA_def_property_update(prop, NC_SCENE | NA_EDITED, "rna_Scene_glsl_update");
-
-  prop = RNA_def_property(srna, "use_glsl_shadows", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_GLSL_NO_SHADOWS);
-  RNA_def_property_ui_text(prop, "GLSL Shadows", "Use shadows for GLSL rendering");
-  RNA_def_property_update(prop, NC_SCENE | NA_EDITED, "rna_Scene_glsl_update");
-
-  prop = RNA_def_property(srna, "use_glsl_ramps", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_GLSL_NO_RAMPS);
-  RNA_def_property_ui_text(prop, "GLSL Ramps", "Use ramps for GLSL rendering");
-  RNA_def_property_update(prop, NC_SCENE | NA_EDITED, "rna_Scene_glsl_update");
-
-  prop = RNA_def_property(srna, "use_glsl_nodes", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_GLSL_NO_NODES);
-  RNA_def_property_ui_text(prop, "GLSL Nodes", "Use nodes for GLSL rendering");
-  RNA_def_property_update(prop, NC_SCENE | NA_EDITED, "rna_Scene_glsl_update");
-
-  prop = RNA_def_property(srna, "use_glsl_color_management", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_GLSL_NO_COLOR_MANAGEMENT);
-  RNA_def_property_ui_text(
-      prop, "GLSL Color Management", "Use color management for GLSL rendering");
-  RNA_def_property_update(prop, NC_SCENE | NA_EDITED, "rna_Scene_glsl_update");
-
-  prop = RNA_def_property(srna, "use_glsl_extra_textures", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_GLSL_NO_EXTRA_TEX);
-  RNA_def_property_ui_text(prop,
-                           "GLSL Extra Textures",
-                           "Use extra textures like normal or specular maps for GLSL rendering");
-  RNA_def_property_update(prop, NC_SCENE | NA_EDITED, "rna_Scene_glsl_update");
-
-  prop = RNA_def_property(srna, "use_glsl_environment_lighting", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_GLSL_NO_ENV_LIGHTING);
-  RNA_def_property_ui_text(
-      prop, "GLSL Environment Lighting", "Use environment lighting for GLSL rendering");
-  RNA_def_property_update(prop, NC_SCENE | NA_EDITED, "rna_Scene_glsl_update");
-
-  prop = RNA_def_property(srna, "use_material_caching", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_NO_MATERIAL_CACHING);
-  RNA_def_property_ui_text(
-      prop,
-      "Use Material Caching",
-      "Cache materials in the converter (this is faster, but can cause problems with older "
-      "Singletexture and Multitexture games)");
 
   /* obstacle simulation */
   prop = RNA_def_property(srna, "obstacle_simulation", PROP_ENUM, PROP_NONE);
