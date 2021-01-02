@@ -1852,11 +1852,6 @@ static void game_set_commmandline_options(GameData *gm)
 
     test = (gm->flag & GAME_IGNORE_DEPRECATION_WARNINGS);
     SYS_WriteCommandLineInt(syshandle, "ignore_deprecation_warnings", test);
-
-    test = (gm->matmode == GAME_MAT_MULTITEX);
-    SYS_WriteCommandLineInt(syshandle, "blender_material", test);
-    test = (gm->matmode == GAME_MAT_GLSL);
-    SYS_WriteCommandLineInt(syshandle, "blender_glsl_material", test);
   }
 }
 
