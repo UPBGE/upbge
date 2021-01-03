@@ -1198,23 +1198,6 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
   }
 }
 
-void BKE_python_components_id_loop(ListBase *complist, BKEPyComponentIDFunc func, void *userdata)
-{
-  PythonComponent *comp;
-
-  for (comp = complist->first; comp; comp = comp->next) {
-      ListBase *properties = &comp->properties;
-      PythonComponentProperty *prop;
-
-      for (prop = properties->first; prop; prop = prop->next) {
-#define PT_DEF(name, lower, upper) \
-          func(comp, (ID **)&prop->lower, userdata, IDWALK_CB_USER);
-          POINTER_TYPES
-#undef PT_DEF
-      }
-  }
-}
-
 const char *sca_state_name_get(Object *ob, short bit)
 {
   bController *cont;
