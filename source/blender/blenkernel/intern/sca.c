@@ -52,6 +52,7 @@
 #include "BKE_lib_query.h"
 #include "BKE_main.h"
 #include "BKE_sca.h"
+#include "BKE_python_component.h"
 
 /* ******************* SENSORS ************************ */
 
@@ -1190,7 +1191,7 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
   }
 }
 
-void BKE_sca_components_id_loop(ListBase *complist, SCAComponentIDFunc func, void *userdata)
+void BKE_python_components_id_loop(ListBase *complist, BKEPyComponentIDFunc func, void *userdata)
 {
   PythonComponent *comp;
 

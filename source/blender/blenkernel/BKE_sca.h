@@ -89,17 +89,12 @@ typedef void (*SCAActuatorIDFunc)(struct bActuator *actuator,
                                   struct ID **idpoin,
                                   void *userdata,
                                   int cb_flag);
-typedef void (*SCAComponentIDFunc)(struct PythonComponent *comp,
-                                  struct ID **idpoin,
-                                  void *userdata,
-                                  int cb_flag);
 
 void BKE_sca_sensors_id_loop(struct ListBase *senslist, SCASensorIDFunc func, void *userdata);
 void BKE_sca_controllers_id_loop(struct ListBase *contlist,
                                  SCAControllerIDFunc func,
                                  void *userdata);
 void BKE_sca_actuators_id_loop(struct ListBase *atclist, SCAActuatorIDFunc func, void *userdata);
-void BKE_sca_components_id_loop(struct ListBase *complist, SCAComponentIDFunc func, void *userdata);
 
 const char *sca_state_name_get(Object *ob, short bit);
 

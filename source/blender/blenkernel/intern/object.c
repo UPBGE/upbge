@@ -613,7 +613,7 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
   BKE_sca_controllers_id_loop(
       &object->controllers, library_foreach_controllersObjectLooper, data);
   BKE_sca_actuators_id_loop(&object->actuators, library_foreach_actuatorsObjectLooper, data);
-  BKE_sca_components_id_loop(&object->components, library_foreach_componentsObjectLooper, data);
+  BKE_python_components_id_loop(&object->components, library_foreach_componentsObjectLooper, data);
 
   if (object->lodlevels.first) {
     LISTBASE_FOREACH (LodLevel *, level, &object->lodlevels) {
@@ -1492,8 +1492,8 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
     }
   }
 
-  for (PythonComponent *comp = ob->components.first; comp; comp = comp->next) {
-    for (PythonComponentProperty *prop = comp->properties.first; prop; prop = prop->next) {
+  LISTBASE_FOREACH (PythonComponent *, comp, &ob->components) {
+    LISTBASE_FOREACH (PythonComponentProperty *, prop, &comp->properties) {
 #define PT_DEF(name, lower, upper) \
       BLO_read_id_address(reader, ob->id.lib, &prop->lower);
       POINTER_TYPES
@@ -1747,8 +1747,8 @@ static void object_blend_read_expand(BlendExpander *expander, ID *id)
     }
   }
 
-  for (comp = ob->components.first; comp; comp = comp->next) {
-    for (prop = comp->properties.first; prop; prop = prop->next) {
+  LISTBASE_FOREACH (PythonComponent *, comp, &ob->components) {
+    LISTBASE_FOREACH (PythonComponentProperty *, prop, &comp->properties) {
 #define PT_DEF(name, lower, upper) \
       BLO_expand(expander, prop->lower);
       POINTER_TYPES
