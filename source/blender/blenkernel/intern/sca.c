@@ -1095,6 +1095,13 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
   for (actuator = actlist->first; actuator; actuator = actuator->next) {
     func(actuator, (ID **)&actuator->ob, userdata, IDWALK_CB_NOP);
 
+    /*
+     * Using IDWALK_CB_USER for pointer references to prevent a problem
+     * with recomputing refcount upon loading. Needs more testing to
+     * see if it has potential side-effects.
+     *
+     * (See https://github.com/UPBGE/upbge/pull/1371 for details.)
+     */
     switch (actuator->type) {
       case ACT_ADD_OBJECT: /* DEPRECATED */
       {
