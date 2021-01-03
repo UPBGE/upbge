@@ -57,6 +57,11 @@ static StructRNA *rna_PythonComponentProperty_refine(struct PointerRNA *ptr)
       return &RNA_ComponentColor3Property;
     case CPROP_TYPE_COL4:
       return &RNA_ComponentColor4Property;
+#define PT_DEF(name, lower, upper) \
+    case CPROP_TYPE_ ## upper: \
+      return &RNA_Component ## name ## Property;
+    POINTER_TYPES
+#undef PT_DEF
     default:
       return &RNA_PythonComponentProperty;
   }
@@ -279,6 +284,22 @@ static void rna_def_py_component_property(BlenderRNA *brna)
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(prop, "Value", "Property value");
   RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+#define PT_DEF(name, lower, upper) \
+  srna = RNA_def_struct(brna, STRINGIFY(Component ## name ## Property), "PythonComponentProperty"); \
+  RNA_def_struct_sdna(srna, "PythonComponentProperty"); \
+  RNA_def_struct_ui_text(srna, \
+                         STRINGIFY(Python Component ## name ## Property), \
+                         STRINGIFY(name ## property of a Python Component)); \
+  prop = RNA_def_property(srna, "value", PROP_POINTER, PROP_NONE); \
+  RNA_def_property_pointer_sdna(prop, NULL, STRINGIFY(lower)); \
+  RNA_def_property_struct_type(prop, STRINGIFY(name)); \
+  RNA_def_property_ui_text(prop, "Value", "Property value"); \
+  RNA_def_property_flag(prop, PROP_EDITABLE); \
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+  POINTER_TYPES
+#undef PT_DEF
 }
 
 void RNA_def_py_component(BlenderRNA *brna)

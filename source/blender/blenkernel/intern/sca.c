@@ -42,6 +42,7 @@
 #include "DNA_controller_types.h"
 #include "DNA_object_types.h"
 #include "DNA_sensor_types.h"
+#include "DNA_python_component_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
@@ -593,6 +594,7 @@ void set_sca_new_poins_ob(Object *ob)
   bSensor *sens;
   bController *cont;
   bActuator *act;
+
   int a;
 
   sens = ob->sensors.first;
@@ -1185,6 +1187,23 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
       default:
         break;
     }
+  }
+}
+
+void BKE_sca_components_id_loop(ListBase *complist, SCAComponentIDFunc func, void *userdata)
+{
+  PythonComponent *comp;
+
+  for (comp = complist->first; comp; comp = comp->next) {
+      ListBase *properties = &comp->properties;
+      PythonComponentProperty *prop;
+
+      for (prop = properties->first; prop; prop = prop->next) {
+#define PT_DEF(name, lower, upper) \
+          func(comp, (ID **)&prop->lower, userdata, IDWALK_CB_NOP);
+          POINTER_TYPES
+#undef PT_DEF
+      }
   }
 }
 

@@ -43,6 +43,7 @@
 
 #ifdef WITH_PYTHON
 #  include "Python.h"
+#  include "../../python/intern/bpy_rna.h"
 #  include "generic/bpy_internal_import.h"
 #  include "generic/py_capi_utils.h"
 #endif
@@ -377,6 +378,25 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
           Py_DECREF(item);
         }
       }
+    }
+    else if (PyType_Check(pyvalue)) {
+        const char *tp_name = ((PyTypeObject *) pyvalue)->tp_name;
+
+        free = true;
+
+#define PT_DEF(name, lower, upper) \
+        if (!strcmp(tp_name, STRINGIFY(name))) { \
+            cprop->type = CPROP_TYPE_ ## upper; \
+            free = false; \
+        }
+        POINTER_TYPES
+#undef PT_DEF
+
+        if (free) {
+            printf("Unsupported pointer type %s found for property \"%s\", skipping\n",
+                   Py_TYPE(pyvalue)->tp_name,
+                   name);
+        }
     }
     else {
       // Unsupported type
@@ -795,6 +815,22 @@ void *BKE_python_component_argument_dict_new(PythonComponent *pc)
         PyList_SetItem(value, i, PyFloat_FromDouble(cprop->vec[i]));
       }
     }
+#define PT_DEF(name, lower, upper) \
+    else if (cprop->type == CPROP_TYPE_ ## upper && cprop->lower) { \
+        ID *id = &cprop->lower->id; \
+        if (id) { \
+            if (!id->py_instance) { \
+                id -> py_instance = pyrna_id_CreatePyObject(id); \
+            } \
+            value = (PyObject *)id->py_instance; \
+        } \
+        else { \
+            cprop = cprop->next; \
+            continue; \
+        } \
+    }
+    POINTER_TYPES
+#undef PT_DEF
     else {
       cprop = cprop->next;
       continue;

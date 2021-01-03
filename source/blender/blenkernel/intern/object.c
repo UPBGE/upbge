@@ -471,6 +471,15 @@ static void library_foreach_actuatorsObjectLooper(bActuator *UNUSED(actuator),
   BKE_lib_query_foreachid_process(data, id_pointer, cb_flag);
 }
 
+static void library_foreach_componentsObjectLooper(PythonComponent *UNUSED(component),
+                                                  ID **id_pointer,
+                                                  void *user_data,
+                                                  int cb_flag)
+{
+  LibraryForeachIDData *data = (LibraryForeachIDData *)user_data;
+  BKE_lib_query_foreachid_process(data, id_pointer, cb_flag);
+}
+
 static void library_foreach_modifiersForeachIDLink(void *user_data,
                                                    Object *UNUSED(object),
                                                    ID **id_pointer,
@@ -604,6 +613,8 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
   BKE_sca_controllers_id_loop(
       &object->controllers, library_foreach_controllersObjectLooper, data);
   BKE_sca_actuators_id_loop(&object->actuators, library_foreach_actuatorsObjectLooper, data);
+  BKE_sca_components_id_loop(&object->components, library_foreach_componentsObjectLooper, data);
+
   if (object->lodlevels.first) {
     LISTBASE_FOREACH (LodLevel *, level, &object->lodlevels) {
       BKE_LIB_FOREACHID_PROCESS(data, level->source, IDWALK_CB_NEVER_SELF);
@@ -1481,6 +1492,15 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
     }
   }
 
+  for (PythonComponent *comp = ob->components.first; comp; comp = comp->next) {
+    for (PythonComponentProperty *prop = comp->properties.first; prop; prop = prop->next) {
+#define PT_DEF(name, lower, upper) \
+      BLO_read_id_address(reader, ob->id.lib, &prop->lower);
+      POINTER_TYPES
+#undef PT_DEF
+    }
+  }
+
   LISTBASE_FOREACH (LodLevel *, level, &ob->lodlevels){
     BLO_read_id_address(reader, ob->id.lib, &level->source);
     if (!level->source && level == ob->lodlevels.first) {
@@ -1641,6 +1661,9 @@ static void object_blend_read_expand(BlendExpander *expander, ID *id)
   bSensor *sens;
   bController *cont;
   bActuator *act;
+  PythonComponent *comp;
+  PythonComponentProperty *prop;
+
   for (sens = ob->sensors.first; sens; sens = sens->next) {
     if (sens->type == SENS_MESSAGE) {
       bMessageSensor *ms = sens->data;
@@ -1723,6 +1746,16 @@ static void object_blend_read_expand(BlendExpander *expander, ID *id)
       BLO_expand(expander, sta->navmesh);
     }
   }
+
+  for (comp = ob->components.first; comp; comp = comp->next) {
+    for (prop = comp->properties.first; prop; prop = prop->next) {
+#define PT_DEF(name, lower, upper) \
+      BLO_expand(expander, prop->lower);
+      POINTER_TYPES
+#undef PT_DEF
+    }
+  }
+
   if (ob->currentlod) {
     LISTBASE_FOREACH (LodLevel *, level, &ob->lodlevels) {
       BLO_expand(expander, level->source);
