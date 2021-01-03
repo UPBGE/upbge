@@ -1104,7 +1104,7 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
       }
       case ACT_ACTION: {
         bActionActuator *aa = actuator->data;
-        func(actuator, (ID **)&aa->act, userdata, IDWALK_CB_NOP);
+        func(actuator, (ID **)&aa->act, userdata, IDWALK_CB_USER);
         break;
       }
       case ACT_SOUND: {
@@ -1115,7 +1115,7 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
       case ACT_EDIT_OBJECT: {
         bEditObjectActuator *eoa = actuator->data;
         func(actuator, (ID **)&eoa->ob, userdata, IDWALK_CB_NOP);
-        func(actuator, (ID **)&eoa->me, userdata, IDWALK_CB_NOP);
+        func(actuator, (ID **)&eoa->me, userdata, IDWALK_CB_USER);
         break;
       }
       case ACT_SCENE: {
@@ -1126,7 +1126,7 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
       }
       case ACT_COLLECTION: {
         bCollectionActuator *ca = actuator->data;
-        func(actuator, (ID **)&ca->collection, userdata, IDWALK_CB_NOP);
+        func(actuator, (ID **)&ca->collection, userdata, IDWALK_CB_USER);
         func(actuator, (ID **)&ca->camera, userdata, IDWALK_CB_NOP);
         break;
       }
@@ -1152,7 +1152,7 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
       }
       case ACT_2DFILTER: {
         bTwoDFilterActuator *tdfa = actuator->data;
-        func(actuator, (ID **)&tdfa->text, userdata, IDWALK_CB_NOP);
+        func(actuator, (ID **)&tdfa->text, userdata, IDWALK_CB_USER);
         break;
       }
       case ACT_PARENT: {
@@ -1201,7 +1201,7 @@ void BKE_python_components_id_loop(ListBase *complist, BKEPyComponentIDFunc func
 
       for (prop = properties->first; prop; prop = prop->next) {
 #define PT_DEF(name, lower, upper) \
-          func(comp, (ID **)&prop->lower, userdata, IDWALK_CB_NOP);
+          func(comp, (ID **)&prop->lower, userdata, IDWALK_CB_USER);
           POINTER_TYPES
 #undef PT_DEF
       }
