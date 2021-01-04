@@ -138,7 +138,7 @@ static void rna_Actuator_type_set(struct PointerRNA *ptr, int value)
 
   if (value != act->type) {
     act->type = value;
-    init_actuator(act);
+    BKE_sca_init_actuator(act);
   }
 }
 

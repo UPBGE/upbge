@@ -2035,18 +2035,18 @@ static int logicbricks_copy_exec(bContext *C, wmOperator *UNUSED(op))
   CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
     if (ob != ob_iter) {
       /* first: free all logic */
-      free_sensors(&ob_iter->sensors);
-      unlink_controllers(&ob_iter->controllers);
-      free_controllers(&ob_iter->controllers);
-      unlink_actuators(&ob_iter->actuators);
-      free_actuators(&ob_iter->actuators);
+      BKE_sca_free_sensors(&ob_iter->sensors);
+      BKE_sca_unlink_controllers(&ob_iter->controllers);
+      BKE_sca_free_controllers(&ob_iter->controllers);
+      BKE_sca_unlink_actuators(&ob_iter->actuators);
+      BKE_sca_free_actuators(&ob_iter->actuators);
 
       /* now copy it, this also works without logicbricks! */
-      clear_sca_new_poins_ob(ob);
-      copy_sensors(&ob_iter->sensors, &ob->sensors, 0);
-      copy_controllers(&ob_iter->controllers, &ob->controllers, 0);
-      copy_actuators(&ob_iter->actuators, &ob->actuators, 0);
-      set_sca_new_poins_ob(ob_iter);
+      BKE_sca_clear_new_points_ob(ob);
+      BKE_sca_copy_sensors(&ob_iter->sensors, &ob->sensors, 0);
+      BKE_sca_copy_controllers(&ob_iter->controllers, &ob->controllers, 0);
+      BKE_sca_copy_actuators(&ob_iter->actuators, &ob->actuators, 0);
+      BKE_sca_set_new_points_ob(ob_iter);
 
       /* some menu settings */
       ob_iter->scavisflag = ob->scavisflag;

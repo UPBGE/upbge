@@ -102,7 +102,7 @@ static void rna_Controller_type_set(struct PointerRNA *ptr, int value)
 
   if (value != cont->type) {
     cont->type = value;
-    init_controller(cont);
+    BKE_sca_init_controller(cont);
   }
 }
 

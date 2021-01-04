@@ -284,7 +284,7 @@ static void object_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const in
   BLI_listbase_clear(&ob_dst->prop);
   BKE_bproperty_copy_list(&ob_dst->prop, &ob_src->prop);
 
-  BKE_sca_logic_copy(ob_dst, ob_src, flag_subdata);
+  BKE_sca_copy_logicbricks(ob_dst, ob_src, flag_subdata);
   BKE_python_component_copy_list(&ob_dst->components, &ob_src->components);
   if (ob_src->bsoft) {
     ob_dst->bsoft = copy_bulletsoftbody(ob_src->bsoft, 0);
@@ -363,9 +363,9 @@ static void object_free_data(ID *id)
   /* Game engine */
   BKE_bproperty_free_list(&ob->prop);
 
-  free_sensors(&ob->sensors);
-  free_controllers(&ob->controllers);
-  free_actuators(&ob->actuators);
+  BKE_sca_free_sensors(&ob->sensors);
+  BKE_sca_free_controllers(&ob->controllers);
+  BKE_sca_free_actuators(&ob->actuators);
   BKE_python_component_free_list(&ob->components);
   BKE_object_free_bulletsoftbody(ob);
   BLI_freelistN(&ob->lodlevels);
@@ -1411,7 +1411,7 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
       case ACT_OBJECT: {
         bObjectActuator *oa = act->data;
         if (oa == NULL) {
-          init_actuator(act);
+          BKE_sca_init_actuator(act);
         }
         else {
           BLO_read_id_address(reader, ob->id.lib, &oa->reference);
@@ -1421,7 +1421,7 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
       case ACT_EDIT_OBJECT: {
         bEditObjectActuator *eoa = act->data;
         if (eoa == NULL) {
-          init_actuator(act);
+          BKE_sca_init_actuator(act);
         }
         else {
           BLO_read_id_address(reader, ob->id.lib, &eoa->ob);

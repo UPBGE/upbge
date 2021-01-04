@@ -1950,7 +1950,7 @@ static void copy_object_set_idnew(bContext *C)
   FOREACH_MAIN_ID_END;
 #endif
 
-  set_sca_new_poins();
+  BKE_sca_set_new_points();
 
   BKE_main_id_tag_all(bmain, LIB_TAG_NEW, false);
   BKE_main_id_clear_newpoins(bmain);
@@ -2162,7 +2162,7 @@ static void make_object_duplilist_real(bContext *C,
 
     /* Remap new object to itself, and clear again newid pointer of orig object. */
     BKE_libblock_relink_to_newid(&ob_dst->id);
-    set_sca_new_poins_ob(ob_dst);
+    BKE_sca_set_new_points_ob(ob_dst);
 
     DEG_id_tag_update(&ob_dst->id, ID_RECALC_GEOMETRY);
 
@@ -3131,7 +3131,7 @@ Base *ED_object_add_duplicate(
   Base *basen;
   Object *ob;
 
-  clear_sca_new_poins(); /* BGE logic */
+  BKE_sca_clear_new_points(); /* BGE logic */
 
   basen = object_add_duplicate_internal(
       bmain, scene, view_layer, base->object, dupflag, LIB_ID_DUPLICATE_IS_SUBPROCESS);
@@ -3144,7 +3144,7 @@ Base *ED_object_add_duplicate(
   /* link own references to the newly duplicated data T26816. */
   BKE_libblock_relink_to_newid(&ob->id);
 
-  set_sca_new_poins_ob(ob);
+  BKE_sca_set_new_points_ob(ob);
 
   /* DAG_relations_tag_update(bmain); */ /* caller must do */
 
@@ -3171,7 +3171,7 @@ static int duplicate_exec(bContext *C, wmOperator *op)
   BKE_main_id_tag_all(bmain, LIB_TAG_NEW, false);
   BKE_main_id_clear_newpoins(bmain);
 
-  clear_sca_new_poins(); /* BGE logic */
+  BKE_sca_clear_new_points(); /* BGE logic */
 
   CTX_DATA_BEGIN (C, Base *, base, selected_bases) {
     Base *basen = object_add_duplicate_internal(
@@ -3272,7 +3272,7 @@ static int object_add_named_exec(bContext *C, wmOperator *op)
 
   /* prepare dupli */
 
-  clear_sca_new_poins(); /* BGE logic */
+  BKE_sca_clear_new_points(); /* BGE logic */
 
   basen = object_add_duplicate_internal(bmain, scene, view_layer, ob, dupflag, 0);
 

@@ -47,13 +47,13 @@
 
 static void rna_Sensor_link(bSensor *sens, bController *cont)
 {
-  link_logicbricks(
+  BKE_sca_link_logicbricks(
       (void **)&cont, (void ***)&(sens->links), &sens->totlinks, sizeof(bController *));
 }
 
 static void rna_Sensor_unlink(bSensor *sens, bController *cont)
 {
-  unlink_logicbricks((void **)&cont, (void ***)&(sens->links), &sens->totlinks);
+  BKE_sca_unlink_logicbricks((void **)&cont, (void ***)&(sens->links), &sens->totlinks);
 }
 
 #else

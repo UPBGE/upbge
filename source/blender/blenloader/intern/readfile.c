@@ -91,7 +91,6 @@
 #include "BKE_object.h"
 #include "BKE_packedFile.h"
 #include "BKE_report.h"
-#include "BKE_sca.h"  // for init_actuator
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 #include "BKE_workspace.h"

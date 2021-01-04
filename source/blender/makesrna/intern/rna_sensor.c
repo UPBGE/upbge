@@ -122,7 +122,7 @@ static void rna_Sensor_type_set(struct PointerRNA *ptr, int value)
   bSensor *sens = (bSensor *)ptr->data;
   if (value != sens->type) {
     sens->type = value;
-    init_sensor(sens);
+    BKE_sca_init_sensor(sens);
   }
 }
 

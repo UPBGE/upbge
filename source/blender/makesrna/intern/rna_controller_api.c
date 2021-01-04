@@ -46,19 +46,19 @@
 static void rna_Controller_link(bController *cont, bSensor *sens, bActuator *act)
 {
   if (sens)
-    link_logicbricks(
+    BKE_sca_link_logicbricks(
         (void **)&cont, (void ***)&(sens->links), &sens->totlinks, sizeof(bController *));
   if (act)
-    link_logicbricks(
+    BKE_sca_link_logicbricks(
         (void **)&act, (void ***)&(cont->links), &cont->totlinks, sizeof(bActuator *));
 }
 
 static void rna_Controller_unlink(bController *cont, bSensor *sens, bActuator *act)
 {
   if (sens)
-    unlink_logicbricks((void **)&cont, (void ***)&(sens->links), &sens->totlinks);
+    BKE_sca_unlink_logicbricks((void **)&cont, (void ***)&(sens->links), &sens->totlinks);
   if (act)
-    unlink_logicbricks((void **)&act, (void ***)&(cont->links), &cont->totlinks);
+    BKE_sca_unlink_logicbricks((void **)&act, (void ***)&(cont->links), &cont->totlinks);
 }
 
 #else

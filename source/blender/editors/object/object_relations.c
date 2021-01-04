@@ -1894,7 +1894,7 @@ static Collection *single_object_users_collection(Main *bmain,
 static void single_object_users(
     Main *bmain, Scene *scene, View3D *v3d, const int flag, const bool copy_collections)
 {
-  clear_sca_new_poins(); /* BGE logic */
+  BKE_sca_clear_new_points(); /* BGE logic */
 
   /* duplicate all the objects of the scene (and matching collections, if required). */
   Collection *master_collection = scene->master_collection;
@@ -1915,7 +1915,7 @@ static void single_object_users(
    * with current one some collections in their ViewLayer. */
   BKE_main_collection_sync_remap(bmain);
 
-  set_sca_new_poins();
+  BKE_sca_set_new_points();
 }
 
 /* not an especially efficient function, only added so the single user
