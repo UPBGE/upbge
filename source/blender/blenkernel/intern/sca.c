@@ -42,6 +42,7 @@
 #include "DNA_controller_types.h"
 #include "DNA_object_types.h"
 #include "DNA_sensor_types.h"
+#include "DNA_python_component_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
@@ -51,6 +52,7 @@
 #include "BKE_lib_query.h"
 #include "BKE_main.h"
 #include "BKE_sca.h"
+#include "BKE_python_component.h"
 
 /* ******************* SENSORS ************************ */
 
@@ -593,6 +595,7 @@ void set_sca_new_poins_ob(Object *ob)
   bSensor *sens;
   bController *cont;
   bActuator *act;
+
   int a;
 
   sens = ob->sensors.first;
@@ -1092,6 +1095,13 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
   for (actuator = actlist->first; actuator; actuator = actuator->next) {
     func(actuator, (ID **)&actuator->ob, userdata, IDWALK_CB_NOP);
 
+    /*
+     * Using IDWALK_CB_USER for pointer references to prevent a problem
+     * with recomputing refcount upon loading. Needs more testing to
+     * see if it has potential side-effects.
+     *
+     * (See https://github.com/UPBGE/upbge/pull/1371 for details.)
+     */
     switch (actuator->type) {
       case ACT_ADD_OBJECT: /* DEPRECATED */
       {
@@ -1101,7 +1111,7 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
       }
       case ACT_ACTION: {
         bActionActuator *aa = actuator->data;
-        func(actuator, (ID **)&aa->act, userdata, IDWALK_CB_NOP);
+        func(actuator, (ID **)&aa->act, userdata, IDWALK_CB_USER);
         break;
       }
       case ACT_SOUND: {
@@ -1112,7 +1122,7 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
       case ACT_EDIT_OBJECT: {
         bEditObjectActuator *eoa = actuator->data;
         func(actuator, (ID **)&eoa->ob, userdata, IDWALK_CB_NOP);
-        func(actuator, (ID **)&eoa->me, userdata, IDWALK_CB_NOP);
+        func(actuator, (ID **)&eoa->me, userdata, IDWALK_CB_USER);
         break;
       }
       case ACT_SCENE: {
@@ -1123,7 +1133,7 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
       }
       case ACT_COLLECTION: {
         bCollectionActuator *ca = actuator->data;
-        func(actuator, (ID **)&ca->collection, userdata, IDWALK_CB_NOP);
+        func(actuator, (ID **)&ca->collection, userdata, IDWALK_CB_USER);
         func(actuator, (ID **)&ca->camera, userdata, IDWALK_CB_NOP);
         break;
       }
@@ -1149,7 +1159,7 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
       }
       case ACT_2DFILTER: {
         bTwoDFilterActuator *tdfa = actuator->data;
-        func(actuator, (ID **)&tdfa->text, userdata, IDWALK_CB_NOP);
+        func(actuator, (ID **)&tdfa->text, userdata, IDWALK_CB_USER);
         break;
       }
       case ACT_PARENT: {
