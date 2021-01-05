@@ -340,17 +340,17 @@ void BKE_sca_free_actuator(bActuator *act)
   if (act->data) {
     switch (act->type) {
       case ACT_ACTION:
-      {
+      /*{
         bActionActuator *aa = (bActionActuator *)act->data;
         if (aa->act)
           id_us_min((ID *)aa->act);
         break;
-      }
+      }*/
       case ACT_SOUND: {
-        bSoundActuator *sa = (bSoundActuator *) act->data;
+        /*bSoundActuator *sa = (bSoundActuator *) act->data;
         if (sa->sound)
           id_us_min((ID *)sa->sound);
-        break;
+        break;*/
       }
     }
 
@@ -380,19 +380,19 @@ bActuator *BKE_sca_copy_actuator(bActuator *act, const int flag)
 
   switch (act->type) {
     case ACT_ACTION:
-    {
+    /*{
       bActionActuator *aa = (bActionActuator *)act->data;
       if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
         id_us_plus((ID *)aa->act);
       }
       break;
-    }
+    }*/
     case ACT_SOUND: {
-      bSoundActuator *sa = (bSoundActuator *)act->data;
+      /*bSoundActuator *sa = (bSoundActuator *)act->data;
       if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
         id_us_plus((ID *)sa->sound);
       }
-      break;
+      break;*/
     }
   }
   return actn;
