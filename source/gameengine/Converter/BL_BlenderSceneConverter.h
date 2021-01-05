@@ -68,8 +68,8 @@ class BL_BlenderSceneConverter {
   std::map<bController *, SCA_IController *> m_map_blender_to_gamecontroller;
 
  public:
-  BL_BlenderSceneConverter() = default;
-  ~BL_BlenderSceneConverter() = default;
+  BL_BlenderSceneConverter();
+  ~BL_BlenderSceneConverter();
 
   // Disable dangerous copy.
   BL_BlenderSceneConverter(const BL_BlenderSceneConverter &other) = delete;

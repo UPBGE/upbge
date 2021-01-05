@@ -45,6 +45,7 @@
 #include "GPU_state.h"
 
 #include "BL_BlenderConverter.h"
+#include "BL_BlenderSceneConverter.h"
 #include "CM_Message.h"
 #include "DEV_Joystick.h"  // for DEV_Joystick::HandleEvents
 #include "KX_Camera.h"
@@ -1083,6 +1084,7 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
     activecam->SetName("__default__cam__");
 
     activecam->SetBlenderObject(scene->GetGameDefaultCamera());
+    scene->GetBlenderSceneConverter()->RegisterGameObject(activecam, activecam->GetBlenderObject());
 
     // set transformation
     if (override_camera) {

@@ -350,6 +350,7 @@ class KX_Scene : public CValue, public SCA_IScene {
   void BackupRestrictFlag(Object *ob, char restrictFlag);
   void RestoreRestrictFlags();
   void TagForCollectionRemap();
+  KX_GameObject *GetGameObjectFromObject(Object *ob);
   /***************End of EEVEE INTEGRATION**********************/
 
   RAS_BucketManager *GetBucketManager() const;
@@ -521,6 +522,7 @@ class KX_Scene : public CValue, public SCA_IScene {
   }
 
   void SetBlenderSceneConverter(class BL_BlenderSceneConverter *sceneConverter);
+  class BL_BlenderSceneConverter *GetBlenderSceneConverter();
 
   class PHY_IPhysicsEnvironment *GetPhysicsEnvironment()
   {
@@ -570,6 +572,7 @@ class KX_Scene : public CValue, public SCA_IScene {
   KX_PYMETHOD_DOC(KX_Scene, convertBlenderCollection);
   KX_PYMETHOD_DOC(KX_Scene, addOverlayCollection);
   KX_PYMETHOD_DOC(KX_Scene, removeOverlayCollection);
+  KX_PYMETHOD_DOC(KX_Scene, getGameObjectFromObject);
 
   /* attributes */
   static PyObject *pyattr_get_name(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

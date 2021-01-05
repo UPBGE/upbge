@@ -52,6 +52,7 @@
 
 #include "BL_Action.h"
 #include "BL_ActionManager.h"
+#include "BL_BlenderSceneConverter.h"
 #include "CM_Message.h"
 #include "KX_Camera.h"        // only for their ::Type
 #include "KX_ClientObjectInfo.h"
@@ -174,6 +175,8 @@ KX_GameObject::~KX_GameObject()
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
     }
   }
+
+  GetScene()->GetBlenderSceneConverter()->UnregisterGameObject(this);
 
   /* END OF EEVEE INTEGRATION */
 
@@ -897,6 +900,7 @@ void KX_GameObject::ProcessReplica()
   SCA_IObject::ProcessReplica();
 
   ReplicateBlenderObject();
+  GetScene()->GetBlenderSceneConverter()->RegisterGameObject(this, m_pBlenderObject);
 
   m_pPhysicsController = nullptr;
   m_pSGNode = nullptr;
