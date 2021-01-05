@@ -3151,7 +3151,7 @@ KX_PYMETHODDEF_DOC(KX_Scene,
     if (gameobj) {
       return gameobj->GetProxy();
     }
-    std::cout << "No KX_GameObject found from this Object" << std::endl;
+    std::cout << "No KX_GameObject found for this Object" << std::endl;
     Py_RETURN_NONE;
   }
 
