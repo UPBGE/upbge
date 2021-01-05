@@ -421,7 +421,7 @@ static void id_search_cb(const bContext *C,
   }
 
   ID **filtered_ids;
-  int filtered_amount = BLI_string_search_query(search, str, (void ***)&filtered_ids);
+  const int filtered_amount = BLI_string_search_query(search, str, (void ***)&filtered_ids);
 
   for (int i = 0; i < filtered_amount; i++) {
     if (!id_search_add(C, template_ui, items, filtered_ids[i])) {
@@ -458,7 +458,7 @@ static void id_search_cb_tagged(const bContext *C,
   }
 
   ID **filtered_ids;
-  int filtered_amount = BLI_string_search_query(search, str, (void ***)&filtered_ids);
+  const int filtered_amount = BLI_string_search_query(search, str, (void ***)&filtered_ids);
 
   for (int i = 0; i < filtered_amount; i++) {
     if (!id_search_add(C, template_ui, items, filtered_ids[i])) {
@@ -782,7 +782,8 @@ static void template_id_linked_operation_button(
   const char *tip = (operation == UI_ID_MAKE_LOCAL) ?
                         N_("Make library linked data-block local to this file") :
                         N_("Create a local override of this library linked data-block");
-  BIFIconID icon = (operation == UI_ID_MAKE_LOCAL) ? ICON_BLANK1 : ICON_LIBRARY_DATA_OVERRIDE;
+  const BIFIconID icon = (operation == UI_ID_MAKE_LOCAL) ? ICON_BLANK1 :
+                                                           ICON_LIBRARY_DATA_OVERRIDE;
 
   uiBut *but = uiDefIconTextBut(block,
                                 UI_BTYPE_BUT,
@@ -1343,7 +1344,7 @@ static void template_id_name_button(
 {
   PointerRNA idptr = RNA_property_pointer_get(&template_ui->ptr, template_ui->prop);
   ID *id = idptr.data;
-  BIFIconID lib_icon = UI_icon_from_library(id);
+  const BIFIconID lib_icon = UI_icon_from_library(id);
 
   char name[UI_MAX_NAME_STR] = "";
   uiBut *but = uiDefIconTextButR(block,
@@ -2253,7 +2254,7 @@ static bool constraint_panel_is_bone(Panel *panel)
  */
 static void constraint_reorder(bContext *C, Panel *panel, int new_index)
 {
-  bool constraint_from_bone = constraint_panel_is_bone(panel);
+  const bool constraint_from_bone = constraint_panel_is_bone(panel);
 
   PointerRNA *con_ptr = UI_panel_custom_data_get(panel);
   bConstraint *con = (bConstraint *)con_ptr->data;
@@ -3320,7 +3321,7 @@ static uiBlock *colorband_tools_func(bContext *C, ARegion *region, void *coba_v)
   const uiStyle *style = UI_style_get_dpi();
   ColorBand *coba = coba_v;
   short yco = 0;
-  short menuwidth = 10 * UI_UNIT_X;
+  const short menuwidth = 10 * UI_UNIT_X;
 
   uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS_PULLDOWN);
   UI_block_func_butmenu_set(block, colorband_tools_dofunc, coba);
@@ -3635,7 +3636,7 @@ void uiTemplateColorRamp(uiLayout *layout, PointerRNA *ptr, const char *propname
     return;
   }
 
-  PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
+  const PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
   if (!cptr.data || !RNA_struct_is_a(cptr.type, &RNA_ColorRamp)) {
     return;
   }
@@ -3711,8 +3712,8 @@ static uiBlock *ui_icon_view_menu_cb(bContext *C, ARegion *region, void *arg_lit
 
   /* arg_litem is malloced, can be freed by parent button */
   args = *((IconViewMenuArgs *)arg_litem);
-  int w = UI_UNIT_X * (args.icon_scale);
-  int h = UI_UNIT_X * (args.icon_scale + args.show_labels);
+  const int w = UI_UNIT_X * (args.icon_scale);
+  const int h = UI_UNIT_X * (args.icon_scale + args.show_labels);
 
   uiBlock *block = UI_block_begin(C, region, "_popup", UI_EMBOSS_PULLDOWN);
   UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_NO_FLIP);
@@ -3723,11 +3724,11 @@ static uiBlock *ui_icon_view_menu_cb(bContext *C, ARegion *region, void *arg_lit
   RNA_property_enum_items(C, &args.ptr, args.prop, &item, NULL, &free);
 
   for (int a = 0; item[a].identifier; a++) {
-    int x = (a % 8) * w;
-    int y = -(a / 8) * h;
+    const int x = (a % 8) * w;
+    const int y = -(a / 8) * h;
 
-    int icon = item[a].icon;
-    int value = item[a].value;
+    const int icon = item[a].icon;
+    const int value = item[a].value;
     uiBut *but;
     if (args.show_labels) {
       but = uiDefIconTextButR_prop(block,
@@ -3803,7 +3804,7 @@ void uiTemplateIconView(uiLayout *layout,
   bool free_items;
   const EnumPropertyItem *items;
   RNA_property_enum_items(block->evil_C, ptr, prop, &items, &tot_items, &free_items);
-  int value = RNA_property_enum_get(ptr, prop);
+  const int value = RNA_property_enum_get(ptr, prop);
   int icon = ICON_NONE;
   RNA_enum_icon_from_value(items, value, &icon);
 
@@ -3863,7 +3864,7 @@ void uiTemplateHistogram(uiLayout *layout, PointerRNA *ptr, const char *propname
     return;
   }
 
-  PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
+  const PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
   if (!cptr.data || !RNA_struct_is_a(cptr.type, &RNA_Histogram)) {
     return;
   }
@@ -3913,7 +3914,7 @@ void uiTemplateWaveform(uiLayout *layout, PointerRNA *ptr, const char *propname)
     return;
   }
 
-  PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
+  const PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
   if (!cptr.data || !RNA_struct_is_a(cptr.type, &RNA_Scopes)) {
     return;
   }
@@ -3975,7 +3976,7 @@ void uiTemplateVectorscope(uiLayout *layout, PointerRNA *ptr, const char *propna
     return;
   }
 
-  PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
+  const PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
   if (!cptr.data || !RNA_struct_is_a(cptr.type, &RNA_Scopes)) {
     return;
   }
@@ -4635,7 +4636,7 @@ static void curvemap_buttons_layout(uiLayout *layout,
 
   UI_but_funcN_set(bt, rna_update_cb, MEM_dupallocN(cb), NULL);
 
-  int icon = (cumap->flag & CUMA_DO_CLIP) ? ICON_CLIPUV_HLT : ICON_CLIPUV_DEHLT;
+  const int icon = (cumap->flag & CUMA_DO_CLIP) ? ICON_CLIPUV_HLT : ICON_CLIPUV_DEHLT;
   bt = uiDefIconBlockBut(
       block, curvemap_clipping_func, cumap, 0, icon, 0, 0, dx, dx, TIP_("Clipping Options"));
   UI_but_funcN_set(bt, rna_update_cb, MEM_dupallocN(cb), NULL);
@@ -4661,7 +4662,7 @@ static void curvemap_buttons_layout(uiLayout *layout,
   UI_block_funcN_set(block, rna_update_cb, MEM_dupallocN(cb), NULL);
 
   /* curve itself */
-  int size = max_ii(uiLayoutGetWidth(layout), UI_UNIT_X);
+  const int size = max_ii(uiLayoutGetWidth(layout), UI_UNIT_X);
   row = uiLayoutRow(layout, false);
   uiButCurveMapping *curve_but = (uiButCurveMapping *)uiDefBut(
       block, UI_BTYPE_CURVE, 0, "", 0, 0, size, 8.0f * UI_UNIT_X, cumap, 0.0f, 1.0f, 0, 0, "");
@@ -5189,7 +5190,7 @@ static void CurveProfile_buttons_layout(uiLayout *layout, PointerRNA *ptr, RNAUp
   UI_but_funcN_set(bt, CurveProfile_buttons_reverse, MEM_dupallocN(cb), profile);
 
   /* Clipping toggle */
-  int icon = (profile->flag & PROF_USE_CLIP) ? ICON_CLIPUV_HLT : ICON_CLIPUV_DEHLT;
+  const int icon = (profile->flag & PROF_USE_CLIP) ? ICON_CLIPUV_HLT : ICON_CLIPUV_DEHLT;
   bt = uiDefIconBut(block,
                     UI_BTYPE_BUT,
                     0,
@@ -5211,7 +5212,7 @@ static void CurveProfile_buttons_layout(uiLayout *layout, PointerRNA *ptr, RNAUp
   /* The path itself */
   int path_width = max_ii(uiLayoutGetWidth(layout), UI_UNIT_X);
   path_width = min_ii(path_width, (int)(16.0f * UI_UNIT_X));
-  int path_height = path_width;
+  const int path_height = path_width;
   uiLayoutRow(layout, false);
   uiDefBut(block,
            UI_BTYPE_CURVEPROFILE,
@@ -5636,7 +5637,7 @@ void uiTemplatePalette(uiLayout *layout,
     return;
   }
 
-  PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
+  const PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
   if (!cptr.data || !RNA_struct_is_a(cptr.type, &RNA_Palette)) {
     return;
   }
@@ -5776,10 +5777,10 @@ static void handle_layer_buttons(bContext *C, void *arg1, void *arg2)
   uiBut *but = arg1;
   const int cur = POINTER_AS_INT(arg2);
   wmWindow *win = CTX_wm_window(C);
-  int shift = win->eventstate->shift;
+  const int shift = win->eventstate->shift;
 
   if (!shift) {
-    int tot = RNA_property_array_length(&but->rnapoin, but->rnaprop);
+    const int tot = RNA_property_array_length(&but->rnapoin, but->rnaprop);
 
     /* Normally clicking only selects one layer */
     RNA_property_boolean_set_index(&but->rnapoin, but->rnaprop, cur, true);
@@ -6211,7 +6212,7 @@ static void uilist_prepare(uiList *ui_list,
     ui_list->flag &= ~UILST_SCROLL_TO_ACTIVE_ITEM;
   }
 
-  int max_scroll = max_ii(0, dyn_data->height - rows);
+  const int max_scroll = max_ii(0, dyn_data->height - rows);
   CLAMP(ui_list->list_scroll, 0, max_scroll);
   ui_list->list_last_len = len;
   dyn_data->visual_height = rows;
@@ -6316,14 +6317,14 @@ void uiTemplateList(uiLayout *layout,
   }
 
   if (prop) {
-    PropertyType type = RNA_property_type(prop);
+    const PropertyType type = RNA_property_type(prop);
     if (type != PROP_COLLECTION) {
       RNA_warning("Expected a collection data property");
       return;
     }
   }
 
-  PropertyType activetype = RNA_property_type(activeprop);
+  const PropertyType activetype = RNA_property_type(activeprop);
   if (activetype != PROP_INT) {
     RNA_warning("Expected an integer active data property");
     return;
