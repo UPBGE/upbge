@@ -843,6 +843,11 @@ void KX_Scene::SetBlenderSceneConverter(BL_BlenderSceneConverter *sc_converter)
   m_sceneConverter = sc_converter;
 }
 
+BL_BlenderSceneConverter *KX_Scene::GetBlenderSceneConverter()
+{
+  return m_sceneConverter;
+}
+
 void KX_Scene::ConvertBlenderObject(Object *ob)
 {
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
@@ -1098,6 +1103,11 @@ void KX_Scene::RestoreRestrictFlags()
 void KX_Scene::TagForCollectionRemap()
 {
   m_collectionRemap = true;
+}
+
+KX_GameObject *KX_Scene::GetGameObjectFromObject(Object *ob)
+{
+  return m_sceneConverter->FindGameObject(ob);
 }
 
 /******************End of EEVEE INTEGRATION****************************/
@@ -2532,6 +2542,7 @@ PyMethodDef KX_Scene::Methods[] = {
     KX_PYMETHODTABLE(KX_Scene, convertBlenderCollection),
     KX_PYMETHODTABLE(KX_Scene, addOverlayCollection),
     KX_PYMETHODTABLE(KX_Scene, removeOverlayCollection),
+    KX_PYMETHODTABLE(KX_Scene, getGameObjectFromObject),
 
     /* dict style access */
     KX_PYMETHODTABLE(KX_Scene, get),
@@ -3113,6 +3124,37 @@ KX_PYMETHODDEF_DOC(KX_Scene,
 
   Collection *co = (Collection *)id;
   RemoveOverlayCollection(co);
+  Py_RETURN_NONE;
+}
+
+KX_PYMETHODDEF_DOC(KX_Scene,
+                   getGameObjectFromObject,
+                   "getGameObjectFromObject(Object *ob)\n"
+                   "\n")
+{
+  PyObject *pyBlenderObject = Py_None;
+
+  if (!PyArg_ParseTuple(args, "O:", &pyBlenderObject)) {
+    std::cout << "Expected a bpy.types.Object." << std::endl;
+    return nullptr;
+  }
+
+  ID *id = nullptr;
+  if (!pyrna_id_FromPyObject(pyBlenderObject, &id)) {
+    std::cout << "Failed to convert Object." << std::endl;
+    return nullptr;
+  }
+
+  Object *ob = (Object *)id;
+  if (ob) {
+    KX_GameObject *gameobj = GetGameObjectFromObject(ob);
+    if (gameobj) {
+      return gameobj->GetProxy();
+    }
+    std::cout << "No KX_GameObject found from this Object" << std::endl;
+    Py_RETURN_NONE;
+  }
+
   Py_RETURN_NONE;
 }
 

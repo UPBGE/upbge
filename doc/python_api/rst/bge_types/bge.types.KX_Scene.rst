@@ -299,3 +299,10 @@ base class --- :class:`PyObjectPlus`
 
       :arg blenderCollection: The overlay collection to remove.
       :type blenderCollection: bpy.types.Collection
+
+   .. method:: getGameObjectFromObject(blenderObject)
+
+      Get the KX_GameObject corresponding to the blenderObject.
+
+      :arg blenderObject: the Object from which we want to get the KX_GameObject.
+      :type blenderObject: bpy.types.Object
