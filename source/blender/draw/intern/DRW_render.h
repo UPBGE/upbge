@@ -133,6 +133,7 @@ typedef struct DrawEngineType {
                           struct RenderEngine *engine,
                           struct RenderLayer *layer,
                           const struct rcti *rect);
+  void (*store_metadata)(void *vedata, struct RenderResult *render_result);
 } DrawEngineType;
 
 /* Textures */
@@ -477,7 +478,7 @@ void DRW_buffer_add_entry_array(DRWCallBuffer *callbuf, const void *attr[], uint
   } while (0)
 
 /* Can only be called during iter phase. */
-uint32_t DRW_object_resource_id_get(Object *UNUSED(ob));
+uint32_t DRW_object_resource_id_get(Object *ob);
 
 void DRW_shgroup_state_enable(DRWShadingGroup *shgroup, DRWState state);
 void DRW_shgroup_state_disable(DRWShadingGroup *shgroup, DRWState state);

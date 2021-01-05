@@ -1005,7 +1005,7 @@ const struct uiWidgetColors *ui_tooltip_get_theme(void);
 
 void ui_draw_widget_menu_back_color(const rcti *rect, bool use_shadow, const float color[4]);
 void ui_draw_widget_menu_back(const rcti *rect, bool use_shadow);
-void ui_draw_tooltip_background(const struct uiStyle *UNUSED(style), uiBlock *block, rcti *rect);
+void ui_draw_tooltip_background(const struct uiStyle *style, uiBlock *block, rcti *rect);
 
 void ui_draw_search_back(struct uiStyle *style, uiBlock *block, rcti *rect);
 bool ui_link_bezier_points(const rcti *rect, float coord_array[][2], int resol);
