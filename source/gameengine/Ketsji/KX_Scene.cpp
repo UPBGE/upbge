@@ -218,12 +218,14 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   Main *bmain = CTX_data_main(C);
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
 
-  m_gameDefaultCamera = BKE_object_add_only_object(bmain, OB_CAMERA, "game_default_cam");
-  m_gameDefaultCamera->data = BKE_object_obdata_add_from_type(bmain, OB_CAMERA, NULL);
-  BKE_collection_object_add(bmain, scene->master_collection, m_gameDefaultCamera);
-  Base *defaultCamBase = BKE_view_layer_base_find(view_layer, m_gameDefaultCamera);
-  defaultCamBase->flag |= BASE_HIDDEN;
-  DEG_relations_tag_update(bmain);
+  if (CTX_wm_region_view3d(C)->persp != RV3D_CAMOB) {
+    m_gameDefaultCamera = BKE_object_add_only_object(bmain, OB_CAMERA, "game_default_cam");
+    m_gameDefaultCamera->data = BKE_object_obdata_add_from_type(bmain, OB_CAMERA, NULL);
+    BKE_collection_object_add(bmain, scene->master_collection, m_gameDefaultCamera);
+    Base *defaultCamBase = BKE_view_layer_base_find(view_layer, m_gameDefaultCamera);
+    defaultCamBase->flag |= BASE_HIDDEN;
+    DEG_relations_tag_update(bmain);
+  }
 
   m_overlay_collections = {};
   m_imageRenderCameraList = {};
@@ -348,10 +350,12 @@ KX_Scene::~KX_Scene()
   if (m_objectlist)
     m_objectlist->Release();
 
-  BKE_collection_object_remove(bmain, scene->master_collection, m_gameDefaultCamera, false);
-  BKE_id_free(bmain, m_gameDefaultCamera);
-  m_gameDefaultCamera = nullptr;
-  DEG_relations_tag_update(bmain);
+  if (m_gameDefaultCamera) {
+    BKE_collection_object_remove(bmain, scene->master_collection, m_gameDefaultCamera, false);
+    BKE_id_free(bmain, m_gameDefaultCamera);
+    m_gameDefaultCamera = nullptr;
+    DEG_relations_tag_update(bmain);
+  }
 
   if (m_parentlist)
     m_parentlist->Release();
