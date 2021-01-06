@@ -9,6 +9,7 @@ class KX_PythonComponentManager
 {
 private:
   std::vector<KX_GameObject *> m_objects;
+  bool m_objects_changed = false;
 
 public:
   KX_PythonComponentManager();
