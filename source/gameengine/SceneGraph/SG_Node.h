@@ -164,6 +164,11 @@ class SG_Node : public SG_QList {
   const SG_Node *GetRootSGParent() const;
 
   /**
+   * Return the depth of the current node in the Scene graph hierarchy.
+   */
+  short GetDepth();
+
+  /**
    * Disconnect this node from it's parent
    */
   void DisconnectFromParent();
