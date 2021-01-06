@@ -209,6 +209,8 @@ void BL_BlenderConverter::ConvertScene(KX_Scene *destinationscene,
   bContext *C = KX_GetActiveEngine()->GetContext();
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
+  destinationscene->SetBlenderSceneConverter(sceneConverter);
+
   BL_ConvertBlenderObjects(m_maggie,
                            depsgraph,
                            destinationscene,
@@ -222,7 +224,6 @@ void BL_BlenderConverter::ConvertScene(KX_Scene *destinationscene,
                            libloading);
 
   m_sceneSlots.emplace(destinationscene, sceneConverter);
-  destinationscene->SetBlenderSceneConverter(sceneConverter);
 }
 
 /** This function removes all entities stored in the converter for that scene

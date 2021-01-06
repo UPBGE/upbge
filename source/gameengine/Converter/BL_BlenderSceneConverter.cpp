@@ -70,7 +70,7 @@ void BL_BlenderSceneConverter::UnregisterGameObject(KX_GameObject *gameobject)
   Object *bobp = gameobject->GetBlenderObject();
   if (bobp) {
     std::map<Object *, KX_GameObject *>::iterator it = m_map_blender_to_gameobject.find(bobp);
-    if (it->second == gameobject) {
+    if (it != m_map_blender_to_gameobject.end() && it->second == gameobject) {
       // also maintain m_map_blender_to_gameobject if the gameobject
       // being removed is matching the blender object
       m_map_blender_to_gameobject.erase(it);
