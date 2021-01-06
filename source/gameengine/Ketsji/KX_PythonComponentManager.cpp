@@ -12,8 +12,8 @@ KX_PythonComponentManager::~KX_PythonComponentManager()
 
 void KX_PythonComponentManager::RegisterObject(KX_GameObject *gameobj)
 {
-	// Always register only once an object.
-	m_objects.push_back(gameobj);
+  // Always register only once an object.
+  m_objects.push_back(gameobj);
 }
 
 void KX_PythonComponentManager::UnregisterObject(KX_GameObject *gameobj)
@@ -26,12 +26,12 @@ void KX_PythonComponentManager::UnregisterObject(KX_GameObject *gameobj)
 
 void KX_PythonComponentManager::UpdateComponents()
 {
-	/* Update object components, we copy the object pointer in a second list to make
-	 * sure that we iterate on a list which will not be modified, indeed components
-	 * can add objects in theirs update.
-	 */
-	const std::vector<KX_GameObject *> objects = m_objects;
-	for (KX_GameObject *gameobj : objects) {
-		gameobj->UpdateComponents();
-	}
+  /* Update object components, we copy the object pointer in a second list to make
+   * sure that we iterate on a list which will not be modified, indeed components
+   * can add objects in theirs update.
+   */
+  const std::vector<KX_GameObject *> objects = m_objects;
+  for (KX_GameObject *gameobj : objects) {
+    gameobj->UpdateComponents();
+  }
 }
