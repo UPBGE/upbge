@@ -25,18 +25,18 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Ketsji/KX_SG_NodeRelationships.cpp
+/** \file gameengine/Ketsji/KX_NodeRelationships.cpp
  *  \ingroup ketsji
  */
 
-#include "KX_SG_NodeRelationships.h"
+#include "KX_NodeRelationships.h"
 
 #include "MT_Matrix4x4.h"
 #include "MT_Transform.h"
 
 
 /**
- * Implementation of classes defined in KX_SG_NodeRelationships.h
+ * Implementation of classes defined in KX_NodeRelationships.h
  */
 
 /**

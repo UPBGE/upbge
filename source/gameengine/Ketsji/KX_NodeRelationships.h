@@ -26,9 +26,9 @@
  *
  */
 
-/** \file KX_SG_NodeRelationships.h
+/** \file KX_NodeRelationships.h
  *  \ingroup ketsji
- *  \section KX_SG_NodeRelationships
+ *  \section KX_NodeRelationships
  * This file provides common concrete implementations of
  * SG_ParentRelation used by the game engine. These are
  * KX_SlowParentRelation a slow parent relationship.

@@ -26,7 +26,7 @@
  *
  */
 
-/** \file KX_SG_BoneParentNodeRelationship.h
+/** \file KX_BoneParentNodeRelationship.h
  *  \ingroup ketsji
  */
 
@@ -46,7 +46,7 @@ class KX_BoneParentRelation : public SG_ParentRelation {
 
  public:
   /**
-   * Allocate and construct a new KX_SG_BoneParentRelation
+   * Allocate and construct a new KX_BoneParentRelation
    * on the heap.
    *
    * bone is the bone id to use.  Currently it is a pointer

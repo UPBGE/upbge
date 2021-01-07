@@ -95,8 +95,8 @@
 #include "KX_ObstacleSimulation.h"
 #include "KX_PyConstraintBinding.h"
 #include "KX_PythonComponent.h"
-#include "KX_SG_BoneParentNodeRelationship.h"
-#include "KX_SG_NodeRelationships.h"
+#include "KX_BoneParentNodeRelationship.h"
+#include "KX_NodeRelationships.h"
 #include "RAS_ICanvas.h"
 #include "RAS_Vertex.h"
 #ifdef WITH_BULLET

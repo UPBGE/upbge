@@ -68,7 +68,7 @@
 #include "KX_ObstacleSimulation.h"
 #include "KX_PhysicsEngineEnums.h"
 #include "KX_PyMath.h"
-#include "KX_SG_NodeRelationships.h"
+#include "KX_NodeRelationships.h"
 #include "PHY_IPhysicsController.h"
 #include "PHY_IPhysicsEnvironment.h"
 #include "RAS_BucketManager.h"

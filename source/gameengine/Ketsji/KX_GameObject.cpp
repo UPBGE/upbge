@@ -69,7 +69,7 @@
 #include "KX_PyMath.h"
 #include "KX_PythonComponent.h"
 #include "KX_RayCast.h"
-#include "KX_SG_NodeRelationships.h"
+#include "KX_NodeRelationships.h"
 #include "SCA_ISensor.h"
 #include "SG_Controller.h"
 
