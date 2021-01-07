@@ -182,6 +182,15 @@ void SG_Node::SetSGParent(SG_Node *parent)
   }
 }
 
+short SG_Node::GetDepth()
+{
+  if (!m_SGparent) {
+    return 0;
+  }
+
+  return 1 + m_SGparent->GetDepth();
+}
+
 void SG_Node::DisconnectFromParent()
 {
   if (m_SGparent) {
