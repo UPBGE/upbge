@@ -140,13 +140,23 @@ typedef struct UndoType {
                               UndoTypeForEachIDRefFn foreach_ID_ref_fn,
                               void *user_data);
 
-  bool use_context;
+  /** Information for the generic undo system to refine handling of this specific undo type. */
+  uint flags;
 
   /**
    * The size of the undo struct 'inherited' from #UndoStep for that specific type. Used for
    * generic allocation in BKE's `undo_system.c`. */
   size_t step_size;
 } UndoType;
+
+/** #UndoType.flag bitflags. */
+typedef enum UndoTypeFlags {
+  /**
+   * This undo type `encode` callback needs a valid context, it will fail otherwise.
+   * \note Callback is still supposed to properly deal with a NULL context pointer.
+   */
+  UNDOTYPE_FLAG_NEED_CONTEXT_FOR_ENCODE = 1 << 0,
+} UndoTypeFlags;
 
 /* Expose since we need to perform operations on specific undo types (rarely). */
 extern const UndoType *BKE_UNDOSYS_TYPE_IMAGE;

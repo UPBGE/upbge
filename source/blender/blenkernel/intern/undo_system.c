@@ -501,6 +501,8 @@ UndoPushReturn BKE_undosys_step_push_with_type(UndoStack *ustack,
                                                const char *name,
                                                const UndoType *ut)
 {
+  BLI_assert((ut->flags & UNDOTYPE_FLAG_NEED_CONTEXT_FOR_ENCODE) == 0 || C != NULL);
+
   UNDO_NESTED_ASSERT(false);
   undosys_stack_validate(ustack, false);
   bool is_not_empty = ustack->step_active != NULL;
