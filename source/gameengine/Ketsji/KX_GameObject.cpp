@@ -152,6 +152,8 @@ KX_GameObject::~KX_GameObject()
   Object *ob = GetBlenderObject();
 
   if (ob) {
+    RestoreObmat(ob);
+
     if (ob->gameflag & OB_OVERLAY_COLLECTION) {
       ob->gameflag &= ~OB_OVERLAY_COLLECTION;
     }
@@ -304,15 +306,10 @@ void KX_GameObject::ForceIgnoreParentTx()
   m_forceIgnoreParentTx = true;
 }
 
-void KX_GameObject::TagForUpdate(bool is_overlay_pass, bool sceneExit)
+void KX_GameObject::TagForUpdate(bool is_overlay_pass)
 {
   float obmat[4][4];
-  if (!sceneExit) {
-    NodeGetWorldTransform().getValue(&obmat[0][0]);
-  }
-  else {
-    copy_m4_m4(obmat, GetBlenderObject()->obmat);
-  }
+  NodeGetWorldTransform().getValue(&obmat[0][0]);
   bool staticObject = compare_m4m4(m_prevObmat, obmat, FLT_MIN);
 
   bContext *C = KX_GetActiveEngine()->GetContext();
@@ -610,6 +607,8 @@ void KX_GameObject::RestoreObmat(Object *ob)
     if (sce->gm.flag & GAME_USE_UNDO && ob->type != OB_CAMERA &&
         OrigObCanBeTransformedInRealtime(ob)) {
       copy_m4_m4(ob->obmat, m_origObmat);
+      BKE_object_apply_mat4(ob, ob->obmat, false, true);
+      DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
     }
   }
 }

@@ -285,11 +285,6 @@ KX_Scene::~KX_Scene()
 
   ReinitBlenderContextVariables();
 
-  for (KX_GameObject *gameob : GetObjectList()) {
-    gameob->RestoreObmat(gameob->GetBlenderObject());
-    gameob->TagForUpdate(false, true);
-  }
-
   Scene *scene = GetBlenderScene();
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   bContext *C = KX_GetActiveEngine()->GetContext();
@@ -656,7 +651,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, 
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
   for (KX_GameObject *gameobj : GetObjectList()) {
-    gameobj->TagForUpdate(is_overlay_pass, false);
+    gameobj->TagForUpdate(is_overlay_pass);
   }
 
   engine->EndCountDepsgraphTime();
@@ -826,7 +821,7 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
   for (KX_GameObject *gameobj : GetObjectList()) {
-    gameobj->TagForUpdate(false, false);
+    gameobj->TagForUpdate(false);
   }
 
   SetCurrentGPUViewport(cam->GetGPUViewport());
