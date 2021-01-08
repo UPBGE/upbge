@@ -440,7 +440,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
          con = (bConstraint *)con->next) {
       if (con) {
         if (ob->adt && ob->adt->action->id.name == m_action->id.name) {
-          if (!m_obj->OrigObCanBeTransformedInRealtime(ob)) {
+          if (!scene->OrigObCanBeTransformedInRealtime(ob)) {
             break;
           }
           DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);

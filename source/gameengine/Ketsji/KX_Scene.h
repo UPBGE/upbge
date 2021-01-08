@@ -93,6 +93,11 @@ struct GPUTexture;
 struct Object;
 /**************************************/
 
+typedef struct BackupObj {
+  Object *ob;
+  float obmat[4][4];
+} BackupObj;
+
 /* for ID freeing */
 #define IS_TAGGED(_id) ((_id) && (((ID *)_id)->tag & LIB_TAG_DOIT))
 
@@ -136,6 +141,8 @@ class KX_Scene : public CValue, public SCA_IScene {
   std::vector<KX_GameObject *> m_kxobWithLod;
   std::map<Object *, char> m_obRestrictFlags;
   bool m_collectionRemap;
+  std::vector<BackupObj *> m_backupObList;
+  std::vector<Object *> m_potentialChildren;
   /*************************************************/
 
   RAS_BucketManager *m_bucketmanager;
@@ -351,6 +358,14 @@ class KX_Scene : public CValue, public SCA_IScene {
   void RestoreRestrictFlags();
   void TagForCollectionRemap();
   KX_GameObject *GetGameObjectFromObject(Object *ob);
+  void BackupObjectsObmat(BackupObj *back);
+  void RestoreObjectsObmat();
+  void TagForObmatRestore(std::vector<Object *> potentialChildren);
+  bool OrigObCanBeTransformedInRealtime(Object *ob);
+  void IgnoreParentTxBGE(struct Main *bmain,
+                         struct Depsgraph *depsgraph,
+                         Object *ob,
+                         std::vector<Object *> children);
   /***************End of EEVEE INTEGRATION**********************/
 
   RAS_BucketManager *GetBucketManager() const;
