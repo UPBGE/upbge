@@ -1136,7 +1136,9 @@ void KX_Scene::RestoreObjectsObmat()
   for (BackupObj *backup : m_backupObList) {
     Object *ob = backup->ob;
     copy_m4_m4(ob->obmat, backup->obmat);
-    m_potentialChildren.push_back(ob);
+    if (ob->parent) {
+      m_potentialChildren.push_back(ob);
+    }
   }
 }
 
