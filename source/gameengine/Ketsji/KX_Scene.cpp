@@ -299,8 +299,10 @@ KX_Scene::~KX_Scene()
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
   /* Restore Objects obmat */
-  RestoreObjectsObmat();
-  TagForObmatRestore(m_potentialChildren);
+  if (scene->gm.flag & GAME_USE_UNDO) {
+    RestoreObjectsObmat();
+    TagForObmatRestore(m_potentialChildren);
+  }
   /*************************/
 
   if (!KX_GetActiveEngine()->UseViewportRender()) {

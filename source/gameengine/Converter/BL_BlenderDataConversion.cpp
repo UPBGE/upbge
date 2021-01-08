@@ -810,10 +810,12 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
     gameobj->SetBlenderObject(ob);
 
     /* Bakup Objects obmat to restore at scene exit */
-    BackupObj *backup = new BackupObj(); // Can't allocate on stack
-    backup->ob = ob;
-    copy_m4_m4(backup->obmat, ob->obmat);
-    kxscene->BackupObjectsObmat(backup);
+    if (kxscene->GetBlenderScene()->gm.flag & GAME_USE_UNDO) {
+      BackupObj *backup = new BackupObj();  // Can't allocate on stack
+      backup->ob = ob;
+      copy_m4_m4(backup->obmat, ob->obmat);
+      kxscene->BackupObjectsObmat(backup);
+    }
 
 
     gameobj->SetObjectColor(MT_Vector4(ob->color));
