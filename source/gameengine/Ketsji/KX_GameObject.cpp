@@ -42,7 +42,6 @@
 #include "BKE_mball.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
-#include "DNA_modifier_types.h"
 #include "DRW_render.h"
 #include "bpy_rna.h"
 #include "depsgraph/DEG_depsgraph_query.h"
@@ -118,7 +117,6 @@ KX_GameObject::KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
   KX_NormalParentRelation *parent_relation = KX_NormalParentRelation::New();
   m_pSGNode->SetParentRelation(parent_relation);
 
-  unit_m4(m_origObmat); // eevee
   unit_m4(m_prevObmat); // eevee
 };
 
@@ -152,8 +150,6 @@ KX_GameObject::~KX_GameObject()
   Object *ob = GetBlenderObject();
 
   if (ob) {
-    RestoreObmat(ob);
-
     if (ob->gameflag & OB_OVERLAY_COLLECTION) {
       ob->gameflag &= ~OB_OVERLAY_COLLECTION;
     }
@@ -238,53 +234,6 @@ void KX_GameObject::SetBlenderObject(Object *obj)
   }
 }
 
-/* Look at object_transform for original function */
-void KX_GameObject::IgnoreParentTxBGE(Main *bmain,
-                                      Depsgraph *depsgraph,
-                                      KX_Scene *kxscene,
-                                      Object *ob)
-{
-  Object workob;
-  Object *ob_child;
-
-  Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
-
-  CListValue<KX_GameObject> *children = GetChildren();
-
-  /* a change was made, adjust the children to compensate */
-  for (KX_GameObject *gameobj : children) {
-    if (gameobj->GetBlenderObject()->parent == ob) {
-      ob_child = gameobj->GetBlenderObject();
-      Object *ob_child_eval = DEG_get_evaluated_object(depsgraph, ob_child);
-      BKE_object_apply_mat4(ob_child_eval, ob_child_eval->obmat, true, false);
-      BKE_object_workob_calc_parent(depsgraph, kxscene->GetBlenderScene(), ob_child_eval, &workob);
-      invert_m4_m4(ob_child->parentinv, workob.obmat);
-      /* Copy result of BKE_object_apply_mat4(). */
-      BKE_object_transform_copy(ob_child, ob_child_eval);
-      /* Make sure evaluated object is in a consistent state with the original one.
-       * It might be needed for applying transform on its children. */
-      copy_m4_m4(ob_child_eval->parentinv, ob_child->parentinv);
-      BKE_object_eval_transform_all(depsgraph, scene_eval, ob_child_eval);
-      /* Tag for update.
-       * This is because parent matrix did change, so in theory the child object might now be
-       * evaluated to a different location in another editing context. */
-      if (!OrigObCanBeTransformedInRealtime(ob_child)) {
-        break;
-      }
-      DEG_id_tag_update(&ob_child->id, ID_RECALC_TRANSFORM);
-    }
-  }
-}
-
-bool KX_GameObject::OrigObCanBeTransformedInRealtime(Object *ob)
-{
-  FluidModifierData *fluidModifierData = (FluidModifierData *)BKE_modifiers_findby_type(ob, eModifierType_Fluid);
-  if (fluidModifierData) {
-    return false;
-  }
-  return true;
-}
-
 void KX_GameObject::SyncTransformWithDepsgraph()
 {
   Object *ob = GetBlenderObject();
@@ -331,7 +280,7 @@ void KX_GameObject::TagForUpdate(bool is_overlay_pass)
 
     Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_orig);
 
-    bool applyTransformToOrig = OrigObCanBeTransformedInRealtime(ob_orig);
+    bool applyTransformToOrig = GetScene()->OrigObCanBeTransformedInRealtime(ob_orig);
 
     if (applyTransformToOrig) {
       copy_m4_m4(ob_orig->obmat, obmat);
@@ -341,9 +290,16 @@ void KX_GameObject::TagForUpdate(bool is_overlay_pass)
     BKE_object_apply_mat4(ob_eval, ob_eval->obmat, false, true);
 
     if (!staticObject || m_forceIgnoreParentTx) {
-      NodeList &children = m_pSGNode->GetSGChildren();
-      if (children.size()) {
-        IgnoreParentTxBGE(bmain, depsgraph, GetScene(), ob_orig);
+      CListValue<KX_GameObject> *children = GetChildren();
+      if (children->GetCount() > 0) {
+        std::vector<Object *> childrenObjects;
+        for (KX_GameObject *go : children) {
+          Object *child = go->GetBlenderObject();
+          if (child) {
+            childrenObjects.push_back(child);
+          }
+        }
+        GetScene()->IgnoreParentTxBGE(bmain, depsgraph, ob_orig, childrenObjects);
       }
     }
 
@@ -591,26 +547,6 @@ bool KX_GameObject::IsReplica()
 void KX_GameObject::SetIsReplicaObject()
 {
   m_isReplica = true;
-}
-
-void KX_GameObject::BackupObmat(Object *ob)
-{
-  if (ob) {
-    copy_m4_m4(m_origObmat, ob->obmat);
-  }
-}
-
-void KX_GameObject::RestoreObmat(Object *ob)
-{
-  if (ob) {
-    Scene *sce = GetScene()->GetBlenderScene();
-    if (sce->gm.flag & GAME_USE_UNDO && ob->type != OB_CAMERA &&
-        OrigObCanBeTransformedInRealtime(ob)) {
-      copy_m4_m4(ob->obmat, m_origObmat);
-      BKE_object_apply_mat4(ob, ob->obmat, false, true);
-      DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
-    }
-  }
 }
 
 /********************End of EEVEE INTEGRATION*********************/
@@ -1337,7 +1273,7 @@ void KX_GameObject::SetObjectColor(const MT_Vector4 &rgbavec)
 {
   m_objectColor = rgbavec;
   Object *ob_orig = GetBlenderObject();
-  if (ob_orig && OrigObCanBeTransformedInRealtime(ob_orig) &&
+  if (ob_orig && GetScene()->OrigObCanBeTransformedInRealtime(ob_orig) &&
       ELEM(ob_orig->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
     copy_v4_v4(ob_orig->color, m_objectColor.getValue());
     DEG_id_tag_update(&ob_orig->id, ID_RECALC_SHADING | ID_RECALC_TRANSFORM);
@@ -4771,7 +4707,7 @@ KX_PYMETHODDEF_DOC(KX_GameObject, recalcGeometry, "ID_RECALC_GEOMETRY depsgraph 
 KX_PYMETHODDEF_DOC(KX_GameObject, recalcTransform, "ID_RECALC_TRANSFORM depsgraph notifier\n")
 {
   Object *ob = GetBlenderObject();
-  if (ob && OrigObCanBeTransformedInRealtime(ob)) {
+  if (ob && GetScene()->OrigObCanBeTransformedInRealtime(ob)) {
     DEG_id_tag_update(&GetBlenderObject()->id, ID_RECALC_TRANSFORM);
   }
 

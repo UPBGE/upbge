@@ -37,11 +37,14 @@
 #include "KX_Scene.h"
 
 #include "BKE_lib_id.h"
+#include "BKE_mball.h"
+#include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "BKE_screen.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
 #include "DNA_collection_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_property_types.h"
 #include "DRW_render.h"
 #include "ED_screen.h"
@@ -230,6 +233,10 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   m_overlay_collections = {};
   m_imageRenderCameraList = {};
 
+  /* To backup and restore obmat */
+  m_backupObList = {};
+  m_potentialChildren = {};
+
   /* REMINDER TO SET bContext */
   /* 1.MAIN, 2.wmWindowManager, 3.wmWindow, 4.bScreen, 5.ScreenArea, 6.ARegion, 7.Scene */
 
@@ -290,6 +297,11 @@ KX_Scene::~KX_Scene()
   bContext *C = KX_GetActiveEngine()->GetContext();
   Main *bmain = CTX_data_main(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+
+  /* Restore Objects obmat */
+  RestoreObjectsObmat();
+  TagForObmatRestore(m_potentialChildren);
+  /*************************/
 
   if (!KX_GetActiveEngine()->UseViewportRender()) {
     if (!m_isPythonMainLoop) {
@@ -1112,6 +1124,112 @@ void KX_Scene::TagForCollectionRemap()
 KX_GameObject *KX_Scene::GetGameObjectFromObject(Object *ob)
 {
   return m_sceneConverter->FindGameObject(ob);
+}
+
+void KX_Scene::BackupObjectsObmat(BackupObj *backup)
+{
+  m_backupObList.push_back(backup);
+}
+
+void KX_Scene::RestoreObjectsObmat()
+{
+  for (BackupObj *backup : m_backupObList) {
+    Object *ob = backup->ob;
+    copy_m4_m4(ob->obmat, backup->obmat);
+    m_potentialChildren.push_back(ob);
+  }
+}
+
+bool KX_Scene::OrigObCanBeTransformedInRealtime(Object *ob)
+{
+  FluidModifierData *fluidModifierData = (FluidModifierData *)BKE_modifiers_findby_type(
+      ob, eModifierType_Fluid);
+  if (fluidModifierData) {
+    return false;
+  }
+  return true;
+}
+
+/* Look at object_transform for original function */
+void KX_Scene::IgnoreParentTxBGE(Main *bmain,
+                                 Depsgraph *depsgraph,
+                                 Object *ob,
+                                 std::vector<Object *>children)
+{
+  Object workob;
+  Object *ob_child;
+
+  Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
+
+  /* a change was made, adjust the children to compensate */
+  for (Object *child : children) {
+    if (child->parent == ob) {
+      ob_child = child;
+      Object *ob_child_eval = DEG_get_evaluated_object(depsgraph, ob_child);
+      BKE_object_apply_mat4(ob_child_eval, ob_child_eval->obmat, true, false);
+      BKE_object_workob_calc_parent(depsgraph, GetBlenderScene(), ob_child_eval, &workob);
+      invert_m4_m4(ob_child->parentinv, workob.obmat);
+      /* Copy result of BKE_object_apply_mat4(). */
+      BKE_object_transform_copy(ob_child, ob_child_eval);
+      /* Make sure evaluated object is in a consistent state with the original one.
+       * It might be needed for applying transform on its children. */
+      copy_m4_m4(ob_child_eval->parentinv, ob_child->parentinv);
+      BKE_object_eval_transform_all(depsgraph, scene_eval, ob_child_eval);
+      /* Tag for update.
+       * This is because parent matrix did change, so in theory the child object might now be
+       * evaluated to a different location in another editing context. */
+      if (!OrigObCanBeTransformedInRealtime(ob_child)) {
+        break;
+      }
+      DEG_id_tag_update(&ob_child->id, ID_RECALC_TRANSFORM);
+    }
+  }
+}
+
+void KX_Scene::TagForObmatRestore(std::vector<Object *>potentialChildren)
+{
+  for (BackupObj *backup : m_backupObList) {
+    bContext *C = KX_GetActiveEngine()->GetContext();
+    Main *bmain = CTX_data_main(C);
+    Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+
+    Object *ob_orig = backup->ob;
+
+    if (ob_orig) {
+
+      Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_orig);
+
+      bool applyTransformToOrig = OrigObCanBeTransformedInRealtime(ob_orig);
+
+      if (applyTransformToOrig) {
+        copy_m4_m4(ob_orig->obmat, backup->obmat);
+        BKE_object_apply_mat4(ob_orig, ob_orig->obmat, false, true);
+      }
+      copy_m4_m4(ob_eval->obmat, backup->obmat);
+      BKE_object_apply_mat4(ob_eval, ob_eval->obmat, false, true);
+
+      IgnoreParentTxBGE(bmain, depsgraph, ob_orig, potentialChildren);
+
+      if (applyTransformToOrig) {
+        /* NORMAL CASE */
+        if (ob_orig->type != OB_MBALL) {
+          DEG_id_tag_update(&ob_orig->id, ID_RECALC_TRANSFORM);
+        }
+        /* SPECIAL CASE: EXPERIMENTAL -> TEST METABALLS (incomplete) (TODO restore elems position
+         * at ge exit) */
+        else if (ob_orig->type == OB_MBALL) {
+          if (!BKE_mball_is_basis(ob_orig)) {
+            DEG_id_tag_update(&ob_orig->id, ID_RECALC_GEOMETRY);
+          }
+          else {
+            DEG_id_tag_update(&ob_orig->id, ID_RECALC_TRANSFORM);
+          }
+        }
+      }
+    }
+    /* Free what was allocated in BlenderDataConversion */
+    delete backup;
+  }
 }
 
 /******************End of EEVEE INTEGRATION****************************/

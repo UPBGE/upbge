@@ -808,7 +808,14 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
   if (gameobj) {
     gameobj->SetLayer(ob->lay);
     gameobj->SetBlenderObject(ob);
-    gameobj->BackupObmat(ob);
+
+    /* Bakup Objects obmat to restore at scene exit */
+    BackupObj *backup = new BackupObj(); // Can't allocate on stack
+    backup->ob = ob;
+    copy_m4_m4(backup->obmat, ob->obmat);
+    kxscene->BackupObjectsObmat(backup);
+
+
     gameobj->SetObjectColor(MT_Vector4(ob->color));
     /* set the visibility state based on the objects render option in the outliner */
     /* I think this flag was used as visibility option for physics shape in 2.7,

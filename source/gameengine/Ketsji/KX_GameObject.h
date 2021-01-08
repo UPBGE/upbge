@@ -89,7 +89,6 @@ class KX_GameObject : public SCA_IObject {
   Py_Header protected :
 
   /* EEVEE INTEGRATION */
-  float m_origObmat[4][4];
   float m_prevObmat[4][4];
   bool m_isReplica;
   bool m_useCopy;
@@ -149,11 +148,7 @@ class KX_GameObject : public SCA_IObject {
   void RestoreLogic(bool childrenRecursive);
   void AddDummyLodManager(RAS_MeshObject *meshObj, Object *ob);
   bool IsReplica();
-  void BackupObmat(Object *ob);
-  void RestoreObmat(Object *ob);
-  void IgnoreParentTxBGE(struct Main *bmain, struct Depsgraph *depsgraph, KX_Scene *kxscene, Object *ob);
   void ForceIgnoreParentTx();
-  bool OrigObCanBeTransformedInRealtime(Object *ob);
   void SyncTransformWithDepsgraph();
   void SetIsReplicaObject();
   /* END OF EEVEE INTEGRATION */
