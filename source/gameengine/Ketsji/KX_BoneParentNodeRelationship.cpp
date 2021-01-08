@@ -35,17 +35,14 @@
 
 #include "BL_ArmatureObject.h"
 
-/**
- * Implementation of classes defined in KX_BoneParentNodeRelationship.h
- */
 
-/**
- * first of all KX_BoneParentRelation
- */
-
-KX_BoneParentRelation *KX_BoneParentRelation::New(Bone *bone)
+KX_BoneParentRelation::KX_BoneParentRelation(Bone *bone)
+    :m_bone(bone)
 {
-  return new KX_BoneParentRelation(bone);
+}
+
+KX_BoneParentRelation::~KX_BoneParentRelation()
+{
 }
 
 bool KX_BoneParentRelation::UpdateChildCoordinates(SG_Node *child,
@@ -54,16 +51,16 @@ bool KX_BoneParentRelation::UpdateChildCoordinates(SG_Node *child,
 {
   BLI_assert(child != nullptr);
 
-  // This way of accessing child coordinates is a bit cumbersome
-  // be nice to have non constant reference access to these values.
+  /* This way of accessing child coordinates is a bit cumbersome
+     be nice to have non constant reference access to these values. */
 
   const MT_Vector3 &child_scale = child->GetLocalScale();
   const MT_Vector3 &child_pos = child->GetLocalPosition();
   const MT_Matrix3x3 &child_rotation = child->GetLocalOrientation();
-  // we don't know if the armature has been updated or not, assume yes
+  // We don't know if the armature has been updated or not, assume yes
   parentUpdated = true;
 
-  // the childs world locations which we will update.
+  // The childs world locations which we will update.
 
   MT_Vector3 child_w_scale;
   MT_Vector3 child_w_pos;
@@ -122,7 +119,7 @@ bool KX_BoneParentRelation::UpdateChildCoordinates(SG_Node *child,
     child->SetWorldFromLocalTransform();
   }
   child->ClearModified();
-  // this node must always be updated, so reschedule it for next time
+  // This node must always be updated, so reschedule it for next time
   child->ActivateRecheduleUpdateCallback();
   return valid_parent_transform;
 }
@@ -131,14 +128,4 @@ SG_ParentRelation *KX_BoneParentRelation::NewCopy()
 {
   KX_BoneParentRelation *bone_parent = new KX_BoneParentRelation(m_bone);
   return bone_parent;
-}
-
-KX_BoneParentRelation::~KX_BoneParentRelation()
-{
-  // nothing to do
-}
-
-KX_BoneParentRelation::KX_BoneParentRelation(Bone *bone) : m_bone(bone)
-{
-  // nothing to do
 }

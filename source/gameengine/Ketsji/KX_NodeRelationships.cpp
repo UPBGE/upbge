@@ -35,17 +35,13 @@
 #include "MT_Transform.h"
 
 
-/**
- * Implementation of classes defined in KX_NodeRelationships.h
- */
 
-/**
- * first of all KX_NormalParentRelation
- */
-
-KX_NormalParentRelation *KX_NormalParentRelation::New()
+KX_NormalParentRelation::KX_NormalParentRelation()
 {
-  return new KX_NormalParentRelation();
+}
+
+KX_NormalParentRelation::~KX_NormalParentRelation()
+{
 }
 
 bool KX_NormalParentRelation::UpdateChildCoordinates(SG_Node *child,
@@ -54,15 +50,16 @@ bool KX_NormalParentRelation::UpdateChildCoordinates(SG_Node *child,
 {
   BLI_assert(child != nullptr);
 
-  if (!parentUpdated && !child->IsModified())
+  if (!parentUpdated && !child->IsModified()) {
     return false;
+  }
 
   parentUpdated = true;
 
-  if (parent == nullptr) { /* Simple case */
+  // Simple case
+  if (!parent) {
     child->SetWorldFromLocalTransform();
     child->ClearModified();
-    return true;  // false;
   }
   else {
     const MT_Transform trans(parent->GetWorldTransform() * child->GetLocalTransform());
@@ -80,8 +77,8 @@ bool KX_NormalParentRelation::UpdateChildCoordinates(SG_Node *child,
     child->SetWorldOrientation(rot);
     
     child->ClearModified();
-    return true;
   }
+  return true;
 }
 
 SG_ParentRelation *KX_NormalParentRelation::NewCopy()
@@ -89,28 +86,15 @@ SG_ParentRelation *KX_NormalParentRelation::NewCopy()
   return new KX_NormalParentRelation();
 }
 
-KX_NormalParentRelation::~KX_NormalParentRelation()
+
+KX_VertexParentRelation::KX_VertexParentRelation()
 {
-  // nothing to do
 }
 
-KX_NormalParentRelation::KX_NormalParentRelation()
+KX_VertexParentRelation::~KX_VertexParentRelation()
 {
-  // nothing to do
 }
 
-/**
- * Next KX_VertexParentRelation
- */
-
-KX_VertexParentRelation *KX_VertexParentRelation::New()
-{
-  return new KX_VertexParentRelation();
-}
-
-/**
- * Method inherited from KX_ParentRelation
- */
 
 bool KX_VertexParentRelation::UpdateChildCoordinates(SG_Node *child,
                                                      const SG_Node *parent,
@@ -119,52 +103,46 @@ bool KX_VertexParentRelation::UpdateChildCoordinates(SG_Node *child,
 
   BLI_assert(child != nullptr);
 
-  if (!parentUpdated && !child->IsModified())
+  if (!parentUpdated && !child->IsModified()) {
     return false;
+  }
 
   child->SetWorldScale(child->GetLocalScale());
 
-  if (parent)
+  if (parent) {
     child->SetWorldPosition(child->GetLocalPosition() + parent->GetWorldPosition());
-  else
+  }
+  else {
     child->SetWorldPosition(child->GetLocalPosition());
+  }
 
   child->SetWorldOrientation(child->GetLocalOrientation());
   child->ClearModified();
-  return true;  // parent != nullptr;
+  return true;
 }
 
-/**
- * Method inherited from KX_ParentRelation
- */
 
 SG_ParentRelation *KX_VertexParentRelation::NewCopy()
 {
   return new KX_VertexParentRelation();
 };
 
-KX_VertexParentRelation::~KX_VertexParentRelation()
+bool KX_VertexParentRelation::IsVertexRelation()
 {
-  // nothing to do
+  return true;
 }
 
-KX_VertexParentRelation::KX_VertexParentRelation()
+
+KX_SlowParentRelation::KX_SlowParentRelation(float relaxation)
+    : m_relax(relaxation),
+      m_initialized(false)
 {
-  // nothing to do
 }
 
-/**
- * Slow parent relationship
- */
-
-KX_SlowParentRelation *KX_SlowParentRelation::New(MT_Scalar relaxation)
+KX_SlowParentRelation::~KX_SlowParentRelation()
 {
-  return new KX_SlowParentRelation(relaxation);
 }
 
-/**
- * Method inherited from KX_ParentRelation
- */
 
 bool KX_SlowParentRelation::UpdateChildCoordinates(SG_Node *child,
                                                    const SG_Node *parent,
@@ -172,7 +150,7 @@ bool KX_SlowParentRelation::UpdateChildCoordinates(SG_Node *child,
 {
   BLI_assert(child != nullptr);
 
-  // the child will move even if the parent is not
+  // The child will move even if the parent is not
   parentUpdated = true;
 
   const MT_Vector3 &child_scale = child->GetLocalScale();
@@ -180,48 +158,40 @@ bool KX_SlowParentRelation::UpdateChildCoordinates(SG_Node *child,
   const MT_Matrix3x3 &child_rotation = child->GetLocalOrientation();
 
   // the childs world locations which we will update.
-
   MT_Vector3 child_w_scale;
   MT_Vector3 child_w_pos;
   MT_Matrix3x3 child_w_rotation;
 
   if (parent) {
 
-    // This is a slow parent relation
-    // first compute the normal child world coordinates.
-
-    MT_Vector3 child_n_scale;
-    MT_Vector3 child_n_pos;
-    MT_Matrix3x3 child_n_rotation;
+    /* This is a slow parent relation
+     * first compute the normal child world coordinates. */
 
     const MT_Vector3 &p_world_scale = parent->GetWorldScaling();
     const MT_Vector3 &p_world_pos = parent->GetWorldPosition();
     const MT_Matrix3x3 &p_world_rotation = parent->GetWorldOrientation();
 
-    child_n_scale = p_world_scale * child_scale;
-    child_n_rotation = p_world_rotation * child_rotation;
-
-    child_n_pos = p_world_pos + p_world_scale * (p_world_rotation * child_pos);
+    MT_Vector3 child_n_scale = p_world_scale * child_scale;
+    MT_Matrix3x3 child_n_rotation = p_world_rotation * child_rotation;
+    MT_Vector3 child_n_pos = p_world_pos + p_world_scale * (p_world_rotation * child_pos);
 
     if (m_initialized) {
 
-      // get the current world positions
-
+      // Get the current world positions
       child_w_scale = child->GetWorldScaling();
       child_w_pos = child->GetWorldPosition();
       child_w_rotation = child->GetWorldOrientation();
 
-      // now 'interpolate' the normal coordinates with the last
-      // world coordinates to get the new world coordinates.
-
-      MT_Scalar weight = MT_Scalar(1) / (m_relax + 1);
+      /* Now 'interpolate' the normal coordinates with the last
+       * world coordinates to get the new world coordinates. */
+      float weight = 1.0f / (m_relax + 1.0f);
       child_w_scale = (m_relax * child_w_scale + child_n_scale) * weight;
       child_w_pos = (m_relax * child_w_pos + child_n_pos) * weight;
-      // for rotation we must go through quaternion
+
+      // For rotation we must go through quaternion
       MT_Quaternion child_w_quat = child_w_rotation.getRotation().slerp(
           child_n_rotation.getRotation(), weight);
       child_w_rotation.setRotation(child_w_quat);
-      // FIXME: update physics controller.
     }
     else {
       child_w_scale = child_n_scale;
@@ -241,28 +211,28 @@ bool KX_SlowParentRelation::UpdateChildCoordinates(SG_Node *child,
   child->SetWorldPosition(child_w_pos);
   child->SetWorldOrientation(child_w_rotation);
   child->ClearModified();
-  // this node must always be updated, so reschedule it for next time
+  // This node must always be updated, so reschedule it for next time
   child->ActivateRecheduleUpdateCallback();
 
-  return true;  // parent != nullptr;
+  return true;
 }
-
-/**
- * Method inherited from KX_ParentRelation
- */
 
 SG_ParentRelation *KX_SlowParentRelation::NewCopy()
 {
   return new KX_SlowParentRelation(m_relax);
 }
 
-KX_SlowParentRelation::KX_SlowParentRelation(MT_Scalar relaxation)
-    : m_relax(relaxation), m_initialized(false)
+float KX_SlowParentRelation::GetTimeOffset()
 {
-  // nothing to do
+  return m_relax;
 }
 
-KX_SlowParentRelation::~KX_SlowParentRelation()
+void KX_SlowParentRelation::SetTimeOffset(float relaxation)
 {
-  // nothing to do
+  m_relax = relaxation;
+}
+
+bool KX_SlowParentRelation::IsSlowRelation()
+{
+  return true;
 }

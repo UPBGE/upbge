@@ -41,116 +41,46 @@
 
 #pragma once
 
-
 #include "SG_Node.h"
 #include "SG_ParentRelation.h"
 
 class KX_NormalParentRelation : public SG_ParentRelation {
 
  public:
-  /**
-   * Allocate and construct a new KX_NormalParentRelation
-   * on the heap.
-   */
+  KX_NormalParentRelation();
+  virtual ~KX_NormalParentRelation();
 
-  static KX_NormalParentRelation *New();
-
-  /**
-   * Method inherited from KX_ParentRelation
-   */
-
+  /// Method inherited from KX_ParentRelation
   bool UpdateChildCoordinates(SG_Node *child, const SG_Node *parent, bool &parentUpdated);
 
-  /**
-   * Method inherited from KX_ParentRelation
-   */
-
+  /// Method inherited from KX_ParentRelation
   SG_ParentRelation *NewCopy();
-
-  ~KX_NormalParentRelation();
-
- private:
-  KX_NormalParentRelation();
 };
+
+
 
 class KX_VertexParentRelation : public SG_ParentRelation {
 
  public:
-  /**
-   * Allocate and construct a new KX_VertexParentRelation
-   * on the heap.
-   */
+  KX_VertexParentRelation();
+  virtual ~KX_VertexParentRelation();
 
-  static KX_VertexParentRelation *New();
-
-  /**
-   * Method inherited from KX_ParentRelation
-   */
-
+  /// Method inherited from KX_ParentRelation
   bool UpdateChildCoordinates(SG_Node *child, const SG_Node *parent, bool &parentUpdated);
 
-  /**
-   * Method inherited from KX_ParentRelation
-   */
-
+  /// Method inherited from KX_ParentRelation
   SG_ParentRelation *NewCopy();
 
-  ~KX_VertexParentRelation();
-
-  bool IsVertexRelation()
-  {
-    return true;
-  }
-
- private:
-  KX_VertexParentRelation();
+  virtual bool IsVertexRelation();
 };
+
+
 
 class KX_SlowParentRelation : public SG_ParentRelation {
 
- public:
-  /**
-   * Allocate and construct a new KX_VertexParentRelation
-   * on the heap.
-   */
-
-  static KX_SlowParentRelation *New(MT_Scalar relaxation);
-
-  /**
-   * Method inherited from KX_ParentRelation
-   */
-
-  bool UpdateChildCoordinates(SG_Node *child, const SG_Node *parent, bool &parentUpdated);
-
-  /**
-   * Method inherited from KX_ParentRelation
-   */
-
-  SG_ParentRelation *NewCopy();
-
-  MT_Scalar GetTimeOffset()
-  {
-    return m_relax;
-  }
-
-  void SetTimeOffset(MT_Scalar relaxation)
-  {
-    m_relax = relaxation;
-  }
-
-  ~KX_SlowParentRelation();
-
-  bool IsSlowRelation()
-  {
-    return true;
-  }
-
  private:
-  KX_SlowParentRelation(MT_Scalar relaxation);
-
-  // the relaxation coefficient.
-
-  MT_Scalar m_relax;
+  /// the relaxation coefficient.
+  float m_relax;
 
   /**
    * Looks like a hack flag to me.
@@ -162,5 +92,20 @@ class KX_SlowParentRelation : public SG_ParentRelation {
    */
 
   bool m_initialized;
+
+ public:
+  KX_SlowParentRelation(float relaxation);
+  virtual ~KX_SlowParentRelation();
+
+  /// Method inherited from KX_ParentRelation.
+  virtual bool UpdateChildCoordinates(SG_Node *child, const SG_Node *parent, bool& parentUpdated);
+
+  /// Method inherited from KX_ParentRelation.
+  virtual SG_ParentRelation *NewCopy();
+
+  float GetTimeOffset();
+  void SetTimeOffset(float relaxation);
+
+  virtual bool IsSlowRelation();
 };
 

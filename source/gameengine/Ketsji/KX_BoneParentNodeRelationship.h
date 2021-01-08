@@ -33,7 +33,6 @@
 #pragma once
 
 
-#include "SG_Node.h"
 #include "SG_ParentRelation.h"
 
 struct Bone;
@@ -44,16 +43,13 @@ struct Bone;
  */
 class KX_BoneParentRelation : public SG_ParentRelation {
 
- public:
-  /**
-   * Allocate and construct a new KX_BoneParentRelation
-   * on the heap.
-   *
-   * bone is the bone id to use.  Currently it is a pointer
-   * to a Blender struct Bone - this should be fixed if
-   */
+ private:
+  Bone *m_bone;
 
-  static KX_BoneParentRelation *New(Bone *bone);
+ public:
+
+  KX_BoneParentRelation(Bone *bone);
+  virtual ~KX_BoneParentRelation();
 
   /**
    *  Updates the childs world coordinates relative to the parent's
@@ -63,15 +59,7 @@ class KX_BoneParentRelation : public SG_ParentRelation {
    */
   bool UpdateChildCoordinates(SG_Node *child, const SG_Node *parent, bool &parentUpdated);
 
-  /**
-   *  Create a copy of this relationship
-   */
-  SG_ParentRelation *NewCopy();
-
-  ~KX_BoneParentRelation();
-
- private:
-  Bone *m_bone;
-  KX_BoneParentRelation(Bone *bone);
+  /// Create a copy of this relationship
+  virtual SG_ParentRelation *NewCopy();
 };
 
