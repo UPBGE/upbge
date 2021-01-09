@@ -2297,8 +2297,10 @@ PyObject *KX_GameObject::PyReplacePhysicsShape(PyObject *value)
     return nullptr;
   }
 
-  GetPhysicsController()->ReplacePhysicsShape(gameobj->GetPhysicsController());
-  Py_RETURN_NONE;
+  if (GetPhysicsController()->ReplacePhysicsShape(gameobj->GetPhysicsController())) {
+    Py_RETURN_TRUE;
+  }
+  Py_RETURN_FALSE;
 }
 
 static PyObject *Map_GetItem(PyObject *self_v, PyObject *item)

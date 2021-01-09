@@ -1054,6 +1054,12 @@ base class --- :class:`SCA_IObject`
 
       :arg gameObject: set the physics shape from this gameObjets.
       :type gameObject: string, :class:`KX_GameObject`
+      :return: True if replace succeeded, False if it failed.
+      :rtype: boolean
+
+      .. warning::
+
+         Triangle mesh shapes are not supported.
 
    .. method:: get(key[, default])
 
