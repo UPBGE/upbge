@@ -272,7 +272,7 @@ class SaveAsRuntime(bpy.types.Operator):
 
     def execute(self, context):
         import time
-        start_time = time.clock()
+        start_time = time.time()
         print("Saving runtime to %r" % self.filepath)
         WriteRuntime(self.player_path,
                      self.filepath,
@@ -284,7 +284,7 @@ class SaveAsRuntime(bpy.types.Operator):
                      self.copy_modules,
                      self.report,
                      )
-        print("Finished in %.4fs" % (time.clock()-start_time))
+        print("Finished in %.4fs" % (time.time()-start_time))
         return {'FINISHED'}
 
     def invoke(self, context, event):
