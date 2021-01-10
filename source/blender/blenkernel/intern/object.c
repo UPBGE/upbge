@@ -1661,8 +1661,6 @@ static void object_blend_read_expand(BlendExpander *expander, ID *id)
   bSensor *sens;
   bController *cont;
   bActuator *act;
-  PythonComponent *comp;
-  PythonComponentProperty *prop;
 
   for (sens = ob->sensors.first; sens; sens = sens->next) {
     if (sens->type == SENS_MESSAGE) {
