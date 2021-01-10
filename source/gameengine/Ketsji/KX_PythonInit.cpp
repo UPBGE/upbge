@@ -2119,6 +2119,13 @@ void postInitGamePlayerPythonScripting(Main *maggie, int argc, char **argv, bCon
   if (argv && first_time) { /* browser plugins don't currently set this */
     // Until python support ascii again, we use our own.
     // PySys_SetArgv(argc, argv);
+
+    /* We could convert to #wchar_t then pass to #PySys_SetArgv (or use #PyConfig in Python 3.8+).
+     * However this risks introducing subtle changes in encoding that are hard to track down.
+     *
+     * So rely on #PyC_UnicodeFromByte since it's a tried & true way of getting paths
+     * that include non `utf-8` compatible characters, see: T20021. */
+
     int i;
     PyObject *py_argv = PyList_New(argc);
 
@@ -2127,6 +2134,25 @@ void postInitGamePlayerPythonScripting(Main *maggie, int argc, char **argv, bCon
 
     PySys_SetObject("argv", py_argv);
     Py_DECREF(py_argv);
+  }
+
+  /* Setting the program name is important so the 'multiprocessing' module
+   * can launch new Python instances. */
+  {
+    const char *sys_variable = "executable";
+    char program_path[FILE_MAX];
+    if (BKE_appdir_program_python_search(
+            program_path, sizeof(program_path), PY_MAJOR_VERSION, PY_MINOR_VERSION)) {
+      PyObject *py_program_path = PyC_UnicodeFromByte(program_path);
+      PySys_SetObject(sys_variable, py_program_path);
+      Py_DECREF(py_program_path);
+    }
+    else {
+      fprintf(stderr,
+              "Unable to find the python binary, "
+              "the multiprocessing module may not be functional!\n");
+      PySys_SetObject(sys_variable, Py_None);
+    }
   }
 
   bpy_import_init(PyEval_GetBuiltins());
@@ -2267,6 +2293,25 @@ void initGamePythonScripting(Main *maggie, bool *audioDeviceIsInitialized)
 
   /* Initialize Python (also acquires lock). */
   Py_Initialize();
+
+  /* Setting the program name is important so the 'multiprocessing' module
+   * can launch new Python instances. */
+  {
+    const char *sys_variable = "executable";
+    char program_path[FILE_MAX];
+    if (BKE_appdir_program_python_search(
+            program_path, sizeof(program_path), PY_MAJOR_VERSION, PY_MINOR_VERSION)) {
+      PyObject *py_program_path = PyC_UnicodeFromByte(program_path);
+      PySys_SetObject(sys_variable, py_program_path);
+      Py_DECREF(py_program_path);
+    }
+    else {
+      fprintf(stderr,
+              "Unable to find the python binary, "
+              "the multiprocessing module may not be functional!\n");
+      PySys_SetObject(sys_variable, Py_None);
+    }
+  }
 
   bpy_import_init(PyEval_GetBuiltins());
 
