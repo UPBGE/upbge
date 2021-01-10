@@ -38,7 +38,7 @@
 #include "SCA_EventManager.h"
 
 class SCA_TimeEventManager : public SCA_EventManager {
-  std::vector<CValue *> m_timevalues;  // values that need their time updated regularly
+  std::vector<EXP_Value *> m_timevalues;  // values that need their time updated regularly
 
  public:
   SCA_TimeEventManager(class SCA_LogicManager *logicmgr);
@@ -47,9 +47,9 @@ class SCA_TimeEventManager : public SCA_EventManager {
   virtual void NextFrame(double curtime, double fixedtime);
   virtual bool RegisterSensor(class SCA_ISensor *sensor);
   virtual bool RemoveSensor(class SCA_ISensor *sensor);
-  void AddTimeProperty(CValue *timeval);
-  void RemoveTimeProperty(CValue *timeval);
+  void AddTimeProperty(EXP_Value *timeval);
+  void RemoveTimeProperty(EXP_Value *timeval);
 
-  std::vector<CValue *> GetTimeValues();
+  std::vector<EXP_Value *> GetTimeValues();
 };
 

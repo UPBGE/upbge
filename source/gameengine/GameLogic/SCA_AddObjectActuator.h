@@ -83,7 +83,7 @@ class SCA_AddObjectActuator : public SCA_IActuator {
 
   ~SCA_AddObjectActuator(void);
 
-  CValue *GetReplica();
+  EXP_Value *GetReplica();
 
   virtual void ProcessReplica();
 
@@ -101,14 +101,14 @@ class SCA_AddObjectActuator : public SCA_IActuator {
 
 #ifdef WITH_PYTHON
 
-  KX_PYMETHOD_DOC_NOARGS(SCA_AddObjectActuator, InstantAddObject);
+  EXP_PYMETHOD_DOC_NOARGS(SCA_AddObjectActuator, InstantAddObject);
 
-  static PyObject *pyattr_get_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-  static int pyattr_set_object(PyObjectPlus *self,
-                               const struct KX_PYATTRIBUTE_DEF *attrdef,
+  static PyObject *pyattr_get_object(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_object(EXP_PyObjectPlus *self,
+                               const struct EXP_PYATTRIBUTE_DEF *attrdef,
                                PyObject *value);
-  static PyObject *pyattr_get_objectLastCreated(PyObjectPlus *self,
-                                                const struct KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_objectLastCreated(EXP_PyObjectPlus *self,
+                                                const struct EXP_PYATTRIBUTE_DEF *attrdef);
 
 #endif /* WITH_PYTHON */
 

@@ -128,7 +128,7 @@ class SCA_ConstraintActuator : public SCA_IActuator {
                          int option,
                          char *property);
   virtual ~SCA_ConstraintActuator();
-  virtual CValue *GetReplica()
+  virtual EXP_Value *GetReplica()
   {
     SCA_ConstraintActuator *replica = new SCA_ConstraintActuator(*this);
     replica->ProcessReplica();
@@ -141,8 +141,8 @@ class SCA_ConstraintActuator : public SCA_IActuator {
   /* Python interface ---------------------------------------------------- */
   /* --------------------------------------------------------------------- */
 
-  static int pyattr_check_direction(PyObjectPlus *self_v,
-                                    const struct KX_PYATTRIBUTE_DEF *attrdef);
-  static int pyattr_check_min(PyObjectPlus *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_check_direction(EXP_PyObjectPlus *self_v,
+                                    const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_check_min(EXP_PyObjectPlus *self_v, const struct EXP_PYATTRIBUTE_DEF *attrdef);
 };
 

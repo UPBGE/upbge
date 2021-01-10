@@ -48,7 +48,7 @@ SCA_StateActuator::~SCA_StateActuator(void)
 // used to put state actuator to be executed before any other actuators
 SG_QList SCA_StateActuator::m_stateActuatorHead;
 
-CValue *SCA_StateActuator::GetReplica(void)
+EXP_Value *SCA_StateActuator::GetReplica(void)
 {
   SCA_StateActuator *replica = new SCA_StateActuator(*this);
   replica->ProcessReplica();
@@ -121,7 +121,7 @@ void SCA_StateActuator::Activate(SG_DList &head)
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_StateActuator::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_StateActuator",
-                                        sizeof(PyObjectPlus_Proxy),
+                                        sizeof(EXP_PyObjectPlus_Proxy),
                                         0,
                                         py_base_dealloc,
                                         0,
@@ -163,14 +163,14 @@ PyMethodDef SCA_StateActuator::Methods[] = {
 };
 
 PyAttributeDef SCA_StateActuator::Attributes[] = {
-    KX_PYATTRIBUTE_INT_RW("operation",
+    EXP_PYATTRIBUTE_INT_RW("operation",
                           SCA_StateActuator::OP_NOP + 1,
                           SCA_StateActuator::OP_COUNT - 1,
                           false,
                           SCA_StateActuator,
                           m_operation),
-    KX_PYATTRIBUTE_INT_RW("mask", 0, 0x3FFFFFFF, false, SCA_StateActuator, m_mask),
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_INT_RW("mask", 0, 0x3FFFFFFF, false, SCA_StateActuator, m_mask),
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
 #endif  // WITH_PYTHON

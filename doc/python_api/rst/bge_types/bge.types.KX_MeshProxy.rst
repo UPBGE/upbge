@@ -1,11 +1,11 @@
-KX_MeshProxy(CValue)
+KX_MeshProxy(EXP_Value)
 ====================
 
 .. module:: bge.types
 
-base class --- :class:`CValue`
+base class --- :class:`EXP_Value`
 
-.. class:: KX_MeshProxy(CValue)
+.. class:: KX_MeshProxy(EXP_Value)
 
    A mesh object.
 

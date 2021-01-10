@@ -59,7 +59,7 @@ class SCA_DynamicActuator : public SCA_IActuator {
 
   ~SCA_DynamicActuator();
 
-  CValue *GetReplica();
+  EXP_Value *GetReplica();
 
   virtual bool Update();
 

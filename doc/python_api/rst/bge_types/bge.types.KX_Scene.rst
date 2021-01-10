@@ -1,9 +1,9 @@
-KX_Scene(PyObjectPlus)
+KX_Scene(EXP_PyObjectPlus)
 ======================
 
-base class --- :class:`PyObjectPlus`
+base class --- :class:`EXP_PyObjectPlus`
 
-.. class:: KX_Scene(PyObjectPlus)
+.. class:: KX_Scene(EXP_PyObjectPlus)
 
    An active scene that gives access to objects, cameras, lights and scene attributes.
 
@@ -51,31 +51,31 @@ base class --- :class:`PyObjectPlus`
 
       A list of objects in the scene, (read-only).
 
-      :type: :class:`CListValue` of :class:`KX_GameObject`
+      :type: :class:`EXP_ListValue` of :class:`KX_GameObject`
 
    .. attribute:: objectsInactive
 
       A list of objects on background layers (used for the addObject actuator), (read-only).
 
-      :type: :class:`CListValue` of :class:`KX_GameObject`
+      :type: :class:`EXP_ListValue` of :class:`KX_GameObject`
 
    .. attribute:: lights
 
       A list of lights in the scene, (read-only).
 
-      :type: :class:`CListValue` of :class:`KX_LightObject`
+      :type: :class:`EXP_ListValue` of :class:`KX_LightObject`
 
    .. attribute:: cameras
 
       A list of cameras in the scene, (read-only).
 
-      :type: :class:`CListValue` of :class:`KX_Camera`
+      :type: :class:`EXP_ListValue` of :class:`KX_Camera`
 
    .. attribute:: texts
 
       A list of texts in the scene, (read-only).
 
-      :type: :class:`CListValue` of :class:`KX_FontObject`
+      :type: :class:`EXP_ListValue` of :class:`KX_FontObject`
 
    .. attribute:: active_camera
 

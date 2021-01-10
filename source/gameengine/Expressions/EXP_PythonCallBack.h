@@ -35,7 +35,7 @@
  * arguments). \param minargcount The minimum of quantity of arguments possible. \param maxargcount
  * The maximum of quantity of arguments possible.
  */
-void RunPythonCallBackList(PyObject *functionlist,
+void EXP_RunPythonCallBackList(PyObject *functionlist,
                            PyObject **arglist,
                            unsigned int minargcount,
                            unsigned int maxargcount);

@@ -66,9 +66,9 @@ void SCA_ANDController::Trigger(SCA_LogicManager *logicmgr)
   }
 }
 
-CValue *SCA_ANDController::GetReplica()
+EXP_Value *SCA_ANDController::GetReplica()
 {
-  CValue *replica = new SCA_ANDController(*this);
+  EXP_Value *replica = new SCA_ANDController(*this);
   // this will copy properties and so on...
   replica->ProcessReplica();
 
@@ -83,7 +83,7 @@ CValue *SCA_ANDController::GetReplica()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_ANDController::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_ANDController",
-                                        sizeof(PyObjectPlus_Proxy),
+                                        sizeof(EXP_PyObjectPlus_Proxy),
                                         0,
                                         py_base_dealloc,
                                         0,
@@ -125,7 +125,7 @@ PyMethodDef SCA_ANDController::Methods[] = {
 };
 
 PyAttributeDef SCA_ANDController::Attributes[] = {
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 #endif  // WITH_PYTHON
 /* eof */

@@ -89,7 +89,7 @@ void Texture::DestructFromPython()
     textures.erase(it);
   }
 
-  PyObjectPlus::DestructFromPython();
+  EXP_PyObjectPlus::DestructFromPython();
 }
 
 std::string Texture::GetName()
@@ -257,11 +257,11 @@ ExpDesc TextureNotAvailDesc(TextureNotAvail, "Texture is not available");
 // Texture object initialization
 static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
 {
-  if (!BGE_PROXY_PYREF(self)) {
+  if (!EXP_PROXY_PYREF(self)) {
     return -1;
   }
 
-  Texture *tex = (Texture *)BGE_PROXY_REF(self);
+  Texture *tex = (Texture *)EXP_PROXY_REF(self);
 
   // parameters - game object with video texture
   PyObject *obj = nullptr;
@@ -340,7 +340,7 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
 }
 
 // close added texture
-KX_PYMETHODDEF_DOC(Texture, close, "Close dynamic texture and restore original")
+EXP_PYMETHODDEF_DOC(Texture, close, "Close dynamic texture and restore original")
 {
   // restore texture
   Close();
@@ -348,7 +348,7 @@ KX_PYMETHODDEF_DOC(Texture, close, "Close dynamic texture and restore original")
 }
 
 // refresh texture
-KX_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
+EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 {
   // get parameter - refresh source
   PyObject *param;
@@ -437,7 +437,7 @@ KX_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 }
 
 // get OpenGL Bind Id
-PyObject *Texture::pyattr_get_bindId(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *Texture::pyattr_get_bindId(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   Texture *self = (Texture *)self_v;
 
@@ -446,7 +446,7 @@ PyObject *Texture::pyattr_get_bindId(PyObjectPlus *self_v, const KX_PYATTRIBUTE_
 }
 
 // get mipmap value
-PyObject *Texture::pyattr_get_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *Texture::pyattr_get_mipmap(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   Texture *self = (Texture *)self_v;
 
@@ -458,8 +458,8 @@ PyObject *Texture::pyattr_get_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_
 }
 
 // set mipmap value
-int Texture::pyattr_set_mipmap(PyObjectPlus *self_v,
-                               const KX_PYATTRIBUTE_DEF *attrdef,
+int Texture::pyattr_set_mipmap(EXP_PyObjectPlus *self_v,
+                               const EXP_PYATTRIBUTE_DEF *attrdef,
                                PyObject *value)
 {
   Texture *self = (Texture *)self_v;
@@ -476,7 +476,7 @@ int Texture::pyattr_set_mipmap(PyObjectPlus *self_v,
 }
 
 // get source object
-PyObject *Texture::pyattr_get_source(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *Texture::pyattr_get_source(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   Texture *self = (Texture *)self_v;
 
@@ -490,8 +490,8 @@ PyObject *Texture::pyattr_get_source(PyObjectPlus *self_v, const KX_PYATTRIBUTE_
 }
 
 // set source object
-int Texture::pyattr_set_source(PyObjectPlus *self_v,
-                               const KX_PYATTRIBUTE_DEF *attrdef,
+int Texture::pyattr_set_source(EXP_PyObjectPlus *self_v,
+                               const EXP_PYATTRIBUTE_DEF *attrdef,
                                PyObject *value)
 {
   Texture *self = (Texture *)self_v;
@@ -508,21 +508,21 @@ int Texture::pyattr_set_source(PyObjectPlus *self_v,
 
 // class Texture methods
 PyMethodDef Texture::Methods[] = {
-    KX_PYMETHODTABLE(Texture, close),
-    KX_PYMETHODTABLE(Texture, refresh),
+    EXP_PYMETHODTABLE(Texture, close),
+    EXP_PYMETHODTABLE(Texture, refresh),
     {nullptr, nullptr}  // Sentinel
 };
 
 // class Texture attributes
 PyAttributeDef Texture::Attributes[] = {
-    KX_PYATTRIBUTE_RW_FUNCTION("mipmap", Texture, pyattr_get_mipmap, pyattr_set_mipmap),
-    KX_PYATTRIBUTE_RW_FUNCTION("source", Texture, pyattr_get_source, pyattr_set_source),
-    KX_PYATTRIBUTE_RO_FUNCTION("bindId", Texture, pyattr_get_bindId),
-    KX_PYATTRIBUTE_NULL};
+    EXP_PYATTRIBUTE_RW_FUNCTION("mipmap", Texture, pyattr_get_mipmap, pyattr_set_mipmap),
+    EXP_PYATTRIBUTE_RW_FUNCTION("source", Texture, pyattr_get_source, pyattr_set_source),
+    EXP_PYATTRIBUTE_RO_FUNCTION("bindId", Texture, pyattr_get_bindId),
+    EXP_PYATTRIBUTE_NULL};
 
 // class Texture declaration
 PyTypeObject Texture::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "VideoTexture.Texture",
-                              sizeof(PyObjectPlus_Proxy),
+                              sizeof(EXP_PyObjectPlus_Proxy),
                               0,
                               py_base_dealloc,
                               0,
@@ -550,7 +550,7 @@ PyTypeObject Texture::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "VideoTexture.Te
                               Methods,
                               0,
                               0,
-                              &PyObjectPlus::Type,
+                              &EXP_PyObjectPlus::Type,
                               0,
                               0,
                               0,

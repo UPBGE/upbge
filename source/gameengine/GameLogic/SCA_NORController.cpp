@@ -66,9 +66,9 @@ void SCA_NORController::Trigger(SCA_LogicManager *logicmgr)
   }
 }
 
-CValue *SCA_NORController::GetReplica()
+EXP_Value *SCA_NORController::GetReplica()
 {
-  CValue *replica = new SCA_NORController(*this);
+  EXP_Value *replica = new SCA_NORController(*this);
   // this will copy properties and so on...
   replica->ProcessReplica();
 
@@ -83,7 +83,7 @@ CValue *SCA_NORController::GetReplica()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_NORController::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_NORController",
-                                        sizeof(PyObjectPlus_Proxy),
+                                        sizeof(EXP_PyObjectPlus_Proxy),
                                         0,
                                         py_base_dealloc,
                                         0,
@@ -125,7 +125,7 @@ PyMethodDef SCA_NORController::Methods[] = {
 };
 
 PyAttributeDef SCA_NORController::Attributes[] = {
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
 #endif  // WITH_PYTHON

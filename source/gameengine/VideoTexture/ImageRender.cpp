@@ -385,7 +385,7 @@ static int ImageRender_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
       THRWEXCP(SceneInvalid, S_OK);
     }
     else {
-      scenePtr = static_cast<KX_Scene *> BGE_PROXY_REF(scene);
+      scenePtr = static_cast<KX_Scene *> EXP_PROXY_REF(scene);
     }
 
     // get camera pointer
@@ -610,7 +610,7 @@ static int ImageMirror_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
     // get scene pointer
     KX_Scene *scenePtr(nullptr);
     if (scene != nullptr && PyObject_TypeCheck(scene, &KX_Scene::Type))
-      scenePtr = static_cast<KX_Scene *> BGE_PROXY_REF(scene);
+      scenePtr = static_cast<KX_Scene *> EXP_PROXY_REF(scene);
     else
       THRWEXCP(SceneInvalid, S_OK);
 

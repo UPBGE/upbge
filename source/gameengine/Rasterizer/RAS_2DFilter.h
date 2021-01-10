@@ -33,7 +33,7 @@ class RAS_Rasterizer;
 class RAS_ICanvas;
 class RAS_FrameBuffer;
 class RAS_2DFilterFrameBuffer;
-class CValue;
+class EXP_Value;
 
 class RAS_2DFilter : public virtual RAS_Shader {
  public:
@@ -51,7 +51,7 @@ class RAS_2DFilter : public virtual RAS_Shader {
 
   std::vector<std::string> m_properties;
   std::vector<unsigned int> m_propertiesLoc;
-  CValue *m_gameObject;
+  EXP_Value *m_gameObject;
 
   /// True if the uniform locations are updated with the current shader program/script.
   bool m_uniformInitialized;

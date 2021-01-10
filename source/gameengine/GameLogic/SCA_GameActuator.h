@@ -67,7 +67,7 @@ class SCA_GameActuator : public SCA_IActuator {
                    KX_KetsjiEngine *ketsjiEngine);
   virtual ~SCA_GameActuator();
 
-  virtual CValue *GetReplica();
+  virtual EXP_Value *GetReplica();
 
   virtual bool Update();
 

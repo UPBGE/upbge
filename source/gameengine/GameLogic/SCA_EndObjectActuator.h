@@ -48,7 +48,7 @@ class SCA_EndObjectActuator : public SCA_IActuator {
 
   ~SCA_EndObjectActuator();
 
-  CValue *GetReplica();
+  EXP_Value *GetReplica();
 
   virtual bool Update();
 

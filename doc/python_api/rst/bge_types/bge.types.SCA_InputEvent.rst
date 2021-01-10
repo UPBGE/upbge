@@ -1,11 +1,11 @@
-SCA_InputEvent(PyObjectPlus)
+SCA_InputEvent(EXP_PyObjectPlus)
 ============================
 
 .. module:: bge.types
 
-base class --- :class:`PyObjectPlus`
+base class --- :class:`EXP_PyObjectPlus`
 
-.. class:: SCA_InputEvent(PyObjectPlus)
+.. class:: SCA_InputEvent(EXP_PyObjectPlus)
 
    Events for a keyboard or mouse input.
 

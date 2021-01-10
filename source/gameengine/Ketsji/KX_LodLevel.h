@@ -30,7 +30,7 @@
 #include "EXP_PyObjectPlus.h"
 #include "RAS_MeshObject.h"
 
-class KX_LodLevel : public PyObjectPlus {
+class KX_LodLevel : public EXP_PyObjectPlus {
   Py_Header private : float m_distance;
   float m_hysteresis;
   short m_level;
@@ -70,12 +70,12 @@ class KX_LodLevel : public PyObjectPlus {
     return PyUnicode_FromStdString(m_meshobj->GetName());
   }
 
-  static PyObject *pyattr_get_mesh(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_use_hysteresis(PyObjectPlus *self_v,
-                                             const KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_use_mesh(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_use_material(PyObjectPlus *self_v,
-                                           const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_mesh(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_use_hysteresis(EXP_PyObjectPlus *self_v,
+                                             const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_use_mesh(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_use_material(EXP_PyObjectPlus *self_v,
+                                           const EXP_PYATTRIBUTE_DEF *attrdef);
 
 #endif  // WITH_PYTHON
 };

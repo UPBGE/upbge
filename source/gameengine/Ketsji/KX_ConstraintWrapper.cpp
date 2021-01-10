@@ -82,7 +82,7 @@ PyObject *KX_ConstraintWrapper::PySetParam(PyObject *args, PyObject *kwds)
 // python specific stuff
 PyTypeObject KX_ConstraintWrapper::Type = {
     PyVarObject_HEAD_INIT(nullptr, 0) "KX_ConstraintWrapper",
-    sizeof(PyObjectPlus_Proxy),
+    sizeof(EXP_PyObjectPlus_Proxy),
     0,
     py_base_dealloc,
     0,
@@ -110,7 +110,7 @@ PyTypeObject KX_ConstraintWrapper::Type = {
     Methods,
     0,
     0,
-    &PyObjectPlus::Type,
+    &EXP_PyObjectPlus::Type,
     0,
     0,
     0,
@@ -127,40 +127,40 @@ PyMethodDef KX_ConstraintWrapper::Methods[] = {
 };
 
 PyAttributeDef KX_ConstraintWrapper::Attributes[] = {
-    KX_PYATTRIBUTE_RO_FUNCTION("constraint_id", KX_ConstraintWrapper, pyattr_get_constraintId),
-    KX_PYATTRIBUTE_RO_FUNCTION("constraint_type", KX_ConstraintWrapper, pyattr_get_constraintType),
-    KX_PYATTRIBUTE_RW_FUNCTION("breakingThreshold",
+    EXP_PYATTRIBUTE_RO_FUNCTION("constraint_id", KX_ConstraintWrapper, pyattr_get_constraintId),
+    EXP_PYATTRIBUTE_RO_FUNCTION("constraint_type", KX_ConstraintWrapper, pyattr_get_constraintType),
+    EXP_PYATTRIBUTE_RW_FUNCTION("breakingThreshold",
                                KX_ConstraintWrapper,
                                pyattr_get_breakingThreshold,
                                pyattr_set_breakingThreshold),
-    KX_PYATTRIBUTE_RW_FUNCTION(
+    EXP_PYATTRIBUTE_RW_FUNCTION(
         "enabled", KX_ConstraintWrapper, pyattr_get_enabled, pyattr_set_enabled),
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
-PyObject *KX_ConstraintWrapper::pyattr_get_constraintId(PyObjectPlus *self_v,
-                                                        const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_ConstraintWrapper::pyattr_get_constraintId(EXP_PyObjectPlus *self_v,
+                                                        const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_ConstraintWrapper *self = static_cast<KX_ConstraintWrapper *>(self_v);
   return PyLong_FromLong(self->m_userId);
 }
 
-PyObject *KX_ConstraintWrapper::pyattr_get_constraintType(PyObjectPlus *self_v,
-                                                          const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_ConstraintWrapper::pyattr_get_constraintType(EXP_PyObjectPlus *self_v,
+                                                          const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_ConstraintWrapper *self = static_cast<KX_ConstraintWrapper *>(self_v);
   return PyLong_FromLong(self->m_ctype);
 }
 
-PyObject *KX_ConstraintWrapper::pyattr_get_breakingThreshold(PyObjectPlus *self_v,
-                                                             const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_ConstraintWrapper::pyattr_get_breakingThreshold(EXP_PyObjectPlus *self_v,
+                                                             const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_ConstraintWrapper *self = static_cast<KX_ConstraintWrapper *>(self_v);
   return PyFloat_FromDouble(self->m_constraint->GetBreakingThreshold());
 }
 
-int KX_ConstraintWrapper::pyattr_set_breakingThreshold(PyObjectPlus *self_v,
-                                                       const KX_PYATTRIBUTE_DEF *attrdef,
+int KX_ConstraintWrapper::pyattr_set_breakingThreshold(EXP_PyObjectPlus *self_v,
+                                                       const EXP_PYATTRIBUTE_DEF *attrdef,
                                                        PyObject *value)
 {
   KX_ConstraintWrapper *self = static_cast<KX_ConstraintWrapper *>(self_v);
@@ -177,15 +177,15 @@ int KX_ConstraintWrapper::pyattr_set_breakingThreshold(PyObjectPlus *self_v,
   return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_ConstraintWrapper::pyattr_get_enabled(PyObjectPlus *self_v,
-                                                   const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_ConstraintWrapper::pyattr_get_enabled(EXP_PyObjectPlus *self_v,
+                                                   const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_ConstraintWrapper *self = static_cast<KX_ConstraintWrapper *>(self_v);
   return PyBool_FromLong(self->m_constraint->GetEnabled());
 }
 
-int KX_ConstraintWrapper::pyattr_set_enabled(PyObjectPlus *self_v,
-                                             const KX_PYATTRIBUTE_DEF *attrdef,
+int KX_ConstraintWrapper::pyattr_set_enabled(EXP_PyObjectPlus *self_v,
+                                             const EXP_PYATTRIBUTE_DEF *attrdef,
                                              PyObject *value)
 {
   KX_ConstraintWrapper *self = static_cast<KX_ConstraintWrapper *>(self_v);

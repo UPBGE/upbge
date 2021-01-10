@@ -30,7 +30,7 @@
 #include "EXP_Value.h"
 #include "RAS_2DFilterFrameBuffer.h"
 
-class KX_2DFilterFrameBuffer : public CValue, public RAS_2DFilterFrameBuffer {
+class KX_2DFilterFrameBuffer : public EXP_Value, public RAS_2DFilterFrameBuffer {
   Py_Header public : KX_2DFilterFrameBuffer(unsigned short colorSlots,
                                             Flag flag,
                                             unsigned int width,
@@ -41,12 +41,12 @@ class KX_2DFilterFrameBuffer : public CValue, public RAS_2DFilterFrameBuffer {
 
 #ifdef WITH_PYTHON
 
-  static PyObject *pyattr_get_width(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_height(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_colorBindCodes(PyObjectPlus *self_v,
-                                             const KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_depthBindCode(PyObjectPlus *self_v,
-                                            const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_width(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_height(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_colorBindCodes(EXP_PyObjectPlus *self_v,
+                                             const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_depthBindCode(EXP_PyObjectPlus *self_v,
+                                            const EXP_PYATTRIBUTE_DEF *attrdef);
 
 #endif
 };

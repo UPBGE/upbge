@@ -68,7 +68,7 @@ SCA_CameraActuator::~SCA_CameraActuator()
     m_ob->UnregisterActuator(this);
 }
 
-CValue *SCA_CameraActuator::GetReplica()
+EXP_Value *SCA_CameraActuator::GetReplica()
 {
   SCA_CameraActuator *replica = new SCA_CameraActuator(*this);
   replica->ProcessReplica();
@@ -359,7 +359,7 @@ bool SCA_CameraActuator::Update(double curtime)
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_CameraActuator::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_CameraActuator",
-                                         sizeof(PyObjectPlus_Proxy),
+                                         sizeof(EXP_PyObjectPlus_Proxy),
                                          0,
                                          py_base_dealloc,
                                          0,
@@ -401,16 +401,16 @@ PyMethodDef SCA_CameraActuator::Methods[] = {
 };
 
 PyAttributeDef SCA_CameraActuator::Attributes[] = {
-    KX_PYATTRIBUTE_FLOAT_RW("min", -FLT_MAX, FLT_MAX, SCA_CameraActuator, m_minHeight),
-    KX_PYATTRIBUTE_FLOAT_RW("max", -FLT_MAX, FLT_MAX, SCA_CameraActuator, m_maxHeight),
-    KX_PYATTRIBUTE_FLOAT_RW("height", -FLT_MAX, FLT_MAX, SCA_CameraActuator, m_height),
-    KX_PYATTRIBUTE_SHORT_RW("axis", 0, 5, true, SCA_CameraActuator, m_axis),
-    KX_PYATTRIBUTE_RW_FUNCTION("object", SCA_CameraActuator, pyattr_get_object, pyattr_set_object),
-    KX_PYATTRIBUTE_FLOAT_RW("damping", 0.f, 10.f, SCA_CameraActuator, m_damping),
-    KX_PYATTRIBUTE_NULL};
+    EXP_PYATTRIBUTE_FLOAT_RW("min", -FLT_MAX, FLT_MAX, SCA_CameraActuator, m_minHeight),
+    EXP_PYATTRIBUTE_FLOAT_RW("max", -FLT_MAX, FLT_MAX, SCA_CameraActuator, m_maxHeight),
+    EXP_PYATTRIBUTE_FLOAT_RW("height", -FLT_MAX, FLT_MAX, SCA_CameraActuator, m_height),
+    EXP_PYATTRIBUTE_SHORT_RW("axis", 0, 5, true, SCA_CameraActuator, m_axis),
+    EXP_PYATTRIBUTE_RW_FUNCTION("object", SCA_CameraActuator, pyattr_get_object, pyattr_set_object),
+    EXP_PYATTRIBUTE_FLOAT_RW("damping", 0.f, 10.f, SCA_CameraActuator, m_damping),
+    EXP_PYATTRIBUTE_NULL};
 
-PyObject *SCA_CameraActuator::pyattr_get_object(PyObjectPlus *self_v,
-                                                const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_CameraActuator::pyattr_get_object(EXP_PyObjectPlus *self_v,
+                                                const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_CameraActuator *self = static_cast<SCA_CameraActuator *>(self_v);
   if (self->m_ob == nullptr)
@@ -419,8 +419,8 @@ PyObject *SCA_CameraActuator::pyattr_get_object(PyObjectPlus *self_v,
     return self->m_ob->GetProxy();
 }
 
-int SCA_CameraActuator::pyattr_set_object(PyObjectPlus *self_v,
-                                          const KX_PYATTRIBUTE_DEF *attrdef,
+int SCA_CameraActuator::pyattr_set_object(EXP_PyObjectPlus *self_v,
+                                          const EXP_PYATTRIBUTE_DEF *attrdef,
                                           PyObject *value)
 {
   SCA_CameraActuator *self = static_cast<SCA_CameraActuator *>(self_v);

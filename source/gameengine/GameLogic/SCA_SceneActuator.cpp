@@ -65,7 +65,7 @@ SCA_SceneActuator::~SCA_SceneActuator()
     m_camera->UnregisterActuator(this);
 } /* end of destructor */
 
-CValue *SCA_SceneActuator::GetReplica()
+EXP_Value *SCA_SceneActuator::GetReplica()
 {
   SCA_SceneActuator *replica = new SCA_SceneActuator(*this);
   replica->ProcessReplica();
@@ -156,7 +156,7 @@ bool SCA_SceneActuator::Update()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_SceneActuator::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_SceneActuator",
-                                        sizeof(PyObjectPlus_Proxy),
+                                        sizeof(EXP_PyObjectPlus_Proxy),
                                         0,
                                         py_base_dealloc,
                                         0,
@@ -198,17 +198,17 @@ PyMethodDef SCA_SceneActuator::Methods[] = {
 };
 
 PyAttributeDef SCA_SceneActuator::Attributes[] = {
-    KX_PYATTRIBUTE_STRING_RW(
+    EXP_PYATTRIBUTE_STRING_RW(
         "scene", 0, MAX_ID_NAME - 2, true, SCA_SceneActuator, m_nextSceneName),
-    KX_PYATTRIBUTE_RW_FUNCTION("camera", SCA_SceneActuator, pyattr_get_camera, pyattr_set_camera),
-    KX_PYATTRIBUTE_BOOL_RW("useRestart", SCA_SceneActuator, m_restart),
-    KX_PYATTRIBUTE_INT_RW(
+    EXP_PYATTRIBUTE_RW_FUNCTION("camera", SCA_SceneActuator, pyattr_get_camera, pyattr_set_camera),
+    EXP_PYATTRIBUTE_BOOL_RW("useRestart", SCA_SceneActuator, m_restart),
+    EXP_PYATTRIBUTE_INT_RW(
         "mode", KX_SCENE_NODEF + 1, KX_SCENE_MAX - 1, true, SCA_SceneActuator, m_mode),
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
-PyObject *SCA_SceneActuator::pyattr_get_camera(PyObjectPlus *self,
-                                               const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_SceneActuator::pyattr_get_camera(EXP_PyObjectPlus *self,
+                                               const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_SceneActuator *actuator = static_cast<SCA_SceneActuator *>(self);
   if (!actuator->m_camera)
@@ -217,8 +217,8 @@ PyObject *SCA_SceneActuator::pyattr_get_camera(PyObjectPlus *self,
   return actuator->m_camera->GetProxy();
 }
 
-int SCA_SceneActuator::pyattr_set_camera(PyObjectPlus *self,
-                                         const struct KX_PYATTRIBUTE_DEF *attrdef,
+int SCA_SceneActuator::pyattr_set_camera(EXP_PyObjectPlus *self,
+                                         const struct EXP_PYATTRIBUTE_DEF *attrdef,
                                          PyObject *value)
 {
   SCA_SceneActuator *actuator = static_cast<SCA_SceneActuator *>(self);

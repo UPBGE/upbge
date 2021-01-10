@@ -39,7 +39,7 @@ class SCA_XNORController : public SCA_IController {
       // virtual void Trigger(class SCA_LogicManager* logicmgr);
       public : SCA_XNORController(SCA_IObject *gameobj);
   virtual ~SCA_XNORController();
-  virtual CValue *GetReplica();
+  virtual EXP_Value *GetReplica();
   virtual void Trigger(SCA_LogicManager *logicmgr);
 
   /* --------------------------------------------------------------------- */

@@ -75,7 +75,7 @@ MT_Vector3 SCA_MovementSensor::GetOwnerPosition(bool local)
     return owner->NodeGetLocalOrientation().inverse() * owner->NodeGetLocalPosition();
 }
 
-CValue *SCA_MovementSensor::GetReplica()
+EXP_Value *SCA_MovementSensor::GetReplica()
 {
 	SCA_MovementSensor *replica = new SCA_MovementSensor(*this);
 	replica->ProcessReplica();
@@ -192,7 +192,7 @@ bool SCA_MovementSensor::Evaluate()
 PyTypeObject SCA_MovementSensor::Type = {
 	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_MovementSensor",
-	sizeof(PyObjectPlus_Proxy),
+	sizeof(EXP_PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
 	0,
@@ -216,9 +216,9 @@ PyMethodDef SCA_MovementSensor::Methods[] = {
 };
 
 PyAttributeDef SCA_MovementSensor::Attributes[] = {
-	KX_PYATTRIBUTE_FLOAT_RW("threshold", 0.001f, 10000.0f, SCA_MovementSensor, m_threshold),
-	KX_PYATTRIBUTE_INT_RW("axis", 0, 6, true, SCA_MovementSensor, m_axis),
-	KX_PYATTRIBUTE_NULL // Sentinel
+	EXP_PYATTRIBUTE_FLOAT_RW("threshold", 0.001f, 10000.0f, SCA_MovementSensor, m_threshold),
+	EXP_PYATTRIBUTE_INT_RW("axis", 0, 6, true, SCA_MovementSensor, m_axis),
+	EXP_PYATTRIBUTE_NULL // Sentinel
 };
 
 #endif

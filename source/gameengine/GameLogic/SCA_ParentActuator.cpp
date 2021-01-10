@@ -58,7 +58,7 @@ SCA_ParentActuator::~SCA_ParentActuator()
     m_ob->UnregisterActuator(this);
 }
 
-CValue *SCA_ParentActuator::GetReplica()
+EXP_Value *SCA_ParentActuator::GetReplica()
 {
   SCA_ParentActuator *replica = new SCA_ParentActuator(*this);
   // replication just copy the m_base pointer => common random generator
@@ -124,7 +124,7 @@ bool SCA_ParentActuator::Update()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_ParentActuator::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_ParentActuator",
-                                         sizeof(PyObjectPlus_Proxy),
+                                         sizeof(EXP_PyObjectPlus_Proxy),
                                          0,
                                          py_base_dealloc,
                                          0,
@@ -166,16 +166,16 @@ PyMethodDef SCA_ParentActuator::Methods[] = {
 };
 
 PyAttributeDef SCA_ParentActuator::Attributes[] = {
-    KX_PYATTRIBUTE_RW_FUNCTION("object", SCA_ParentActuator, pyattr_get_object, pyattr_set_object),
-    KX_PYATTRIBUTE_INT_RW(
+    EXP_PYATTRIBUTE_RW_FUNCTION("object", SCA_ParentActuator, pyattr_get_object, pyattr_set_object),
+    EXP_PYATTRIBUTE_INT_RW(
         "mode", KX_PARENT_NODEF + 1, KX_PARENT_MAX - 1, true, SCA_ParentActuator, m_mode),
-    KX_PYATTRIBUTE_BOOL_RW("compound", SCA_ParentActuator, m_addToCompound),
-    KX_PYATTRIBUTE_BOOL_RW("ghost", SCA_ParentActuator, m_ghost),
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_BOOL_RW("compound", SCA_ParentActuator, m_addToCompound),
+    EXP_PYATTRIBUTE_BOOL_RW("ghost", SCA_ParentActuator, m_ghost),
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
-PyObject *SCA_ParentActuator::pyattr_get_object(PyObjectPlus *self,
-                                                const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_ParentActuator::pyattr_get_object(EXP_PyObjectPlus *self,
+                                                const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_ParentActuator *actuator = static_cast<SCA_ParentActuator *>(self);
   if (!actuator->m_ob)
@@ -184,8 +184,8 @@ PyObject *SCA_ParentActuator::pyattr_get_object(PyObjectPlus *self,
     return actuator->m_ob->GetProxy();
 }
 
-int SCA_ParentActuator::pyattr_set_object(PyObjectPlus *self,
-                                          const struct KX_PYATTRIBUTE_DEF *attrdef,
+int SCA_ParentActuator::pyattr_set_object(EXP_PyObjectPlus *self,
+                                          const struct EXP_PYATTRIBUTE_DEF *attrdef,
                                           PyObject *value)
 {
   SCA_ParentActuator *actuator = static_cast<SCA_ParentActuator *>(self);

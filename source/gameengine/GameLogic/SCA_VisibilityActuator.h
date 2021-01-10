@@ -48,7 +48,7 @@ class SCA_VisibilityActuator : public SCA_IActuator {
 
   virtual ~SCA_VisibilityActuator(void);
 
-  virtual CValue *GetReplica(void);
+  virtual EXP_Value *GetReplica(void);
 
   virtual bool Update();
 

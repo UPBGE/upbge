@@ -52,7 +52,7 @@ Light *KX_LightObject::GetLight()
   return m_light;
 }
 
-CValue *KX_LightObject::GetReplica()
+EXP_Value *KX_LightObject::GetReplica()
 {
   KX_LightObject *replica = new KX_LightObject(*this);
 
@@ -75,7 +75,7 @@ void KX_LightObject::ProcessReplica()
 /* ------------------------------------------------------------------------- */
 
 PyTypeObject KX_LightObject::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_LightObject",
-                                     sizeof(PyObjectPlus_Proxy),
+                                     sizeof(EXP_PyObjectPlus_Proxy),
                                      0,
                                      py_base_dealloc,
                                      0,
@@ -113,13 +113,13 @@ PyTypeObject KX_LightObject::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_Light
                                      py_base_new};
 
 PyMethodDef KX_LightObject::Methods[] = {
-    // KX_PYMETHODTABLE_NOARGS(KX_LightObject, updateShadow),
+    // EXP_PYMETHODTABLE_NOARGS(KX_LightObject, updateShadow),
     {nullptr, nullptr}  // Sentinel
 };
 
 PyAttributeDef KX_LightObject::Attributes[] = {
-    // KX_PYATTRIBUTE_RW_FUNCTION("energy", KX_LightObject, pyattr_get_energy, pyattr_set_energy),
+    // EXP_PYATTRIBUTE_RW_FUNCTION("energy", KX_LightObject, pyattr_get_energy, pyattr_set_energy),
 
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 #endif  // WITH_PYTHON

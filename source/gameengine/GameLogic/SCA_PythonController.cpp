@@ -78,7 +78,7 @@ SCA_PythonController::~SCA_PythonController()
 #endif
 }
 
-CValue *SCA_PythonController::GetReplica()
+EXP_Value *SCA_PythonController::GetReplica()
 {
   SCA_PythonController *replica = new SCA_PythonController(*this);
 
@@ -133,7 +133,7 @@ bool SCA_PythonController::IsTriggered(class SCA_ISensor *sensor)
 
 #ifdef WITH_PYTHON
 
-/* warning, self is not the SCA_PythonController, its a PyObjectPlus_Proxy */
+/* warning, self is not the SCA_PythonController, its a EXP_PyObjectPlus_Proxy */
 PyObject *SCA_PythonController::sPyGetCurrentController(PyObject *self)
 {
   if (m_sCurrentController == nullptr) {
@@ -162,7 +162,7 @@ SCA_IActuator *SCA_PythonController::LinkedActuatorFromPy(PyObject *value)
     }
   }
   else if (PyObject_TypeCheck(value, &SCA_IActuator::Type)) {
-    PyObjectPlus *value_plus = BGE_PROXY_REF(value);
+    EXP_PyObjectPlus *value_plus = EXP_PROXY_REF(value);
     for (it = lacts.begin(); it != lacts.end(); ++it) {
       if (static_cast<SCA_IActuator *>(value_plus) == (*it)) {
         return *it;
@@ -180,7 +180,7 @@ const char *SCA_PythonController::sPyGetCurrentController__doc__ = "getCurrentCo
 
 PyTypeObject SCA_PythonController::Type = {
     PyVarObject_HEAD_INIT(nullptr, 0) "SCA_PythonController",
-    sizeof(PyObjectPlus_Proxy),
+    sizeof(EXP_PyObjectPlus_Proxy),
     0,
     py_base_dealloc,
     0,
@@ -224,10 +224,10 @@ PyMethodDef SCA_PythonController::Methods[] = {
 };
 
 PyAttributeDef SCA_PythonController::Attributes[] = {
-    KX_PYATTRIBUTE_RW_FUNCTION(
+    EXP_PYATTRIBUTE_RW_FUNCTION(
         "script", SCA_PythonController, pyattr_get_script, pyattr_set_script),
-    KX_PYATTRIBUTE_INT_RO("mode", SCA_PythonController, m_mode),
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_INT_RO("mode", SCA_PythonController, m_mode),
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
 void SCA_PythonController::ErrorPrint(const char *error_msg)
@@ -471,19 +471,19 @@ PyObject *SCA_PythonController::PyDeActivate(PyObject *value)
   Py_RETURN_NONE;
 }
 
-PyObject *SCA_PythonController::pyattr_get_script(PyObjectPlus *self_v,
-                                                  const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_PythonController::pyattr_get_script(EXP_PyObjectPlus *self_v,
+                                                  const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   // SCA_PythonController* self =
-  // static_cast<SCA_PythonController*>(static_cast<SCA_IController*>(static_cast<SCA_ILogicBrick*>(static_cast<CValue*>(static_cast<PyObjectPlus*>(self_v)))));
+  // static_cast<SCA_PythonController*>(static_cast<SCA_IController*>(static_cast<SCA_ILogicBrick*>(static_cast<EXP_Value*>(static_cast<EXP_PyObjectPlus*>(self_v)))));
   // static_cast<void *>(dynamic_cast<Derived *>(obj)) - static_cast<void *>(obj)
 
   SCA_PythonController *self = static_cast<SCA_PythonController *>(self_v);
   return PyUnicode_FromStdString(self->m_scriptText);
 }
 
-int SCA_PythonController::pyattr_set_script(PyObjectPlus *self_v,
-                                            const KX_PYATTRIBUTE_DEF *attrdef,
+int SCA_PythonController::pyattr_set_script(EXP_PyObjectPlus *self_v,
+                                            const EXP_PYATTRIBUTE_DEF *attrdef,
                                             PyObject *value)
 {
   SCA_PythonController *self = static_cast<SCA_PythonController *>(self_v);

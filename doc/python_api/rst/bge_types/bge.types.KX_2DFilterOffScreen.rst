@@ -1,11 +1,11 @@
-KX_2DFilterOffScreen(CValue)
+KX_2DFilterOffScreen(EXP_Value)
 ============================
 
 .. module:: bge.types
 
-base class --- :class:`CValue`
+base class --- :class:`EXP_Value`
 
-.. class:: KX_2DFilterOffScreen(CValue)
+.. class:: KX_2DFilterOffScreen(EXP_Value)
 
    2D filter custom off screen.
 

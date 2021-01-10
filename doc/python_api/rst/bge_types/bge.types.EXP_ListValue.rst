@@ -1,13 +1,13 @@
-CListValue(CPropValue)
+EXP_ListValue(EXP_PropValue)
 ======================
 
-base class --- :class:`CPropValue`
+base class --- :class:`EXP_PropValue`
 
-.. class:: CListValue(CPropValue)
+.. class:: EXP_ListValue(EXP_PropValue)
 
    This is a list like object used in the game engine internally that behaves similar to a python list in most ways.
 
-   As well as the normal index lookup (``val= clist[i]``), CListValue supports string lookups (``val= scene.objects["Cube"]``)
+   As well as the normal index lookup (``val= clist[i]``), EXP_ListValue supports string lookups (``val= scene.objects["Cube"]``)
 
    Other operations such as ``len(clist)``, ``list(clist)``, ``clist[0:10]`` are also supported.
 

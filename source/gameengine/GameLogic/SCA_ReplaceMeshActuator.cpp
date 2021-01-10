@@ -53,7 +53,7 @@
 
 PyTypeObject SCA_ReplaceMeshActuator::Type = {
     PyVarObject_HEAD_INIT(nullptr, 0) "SCA_ReplaceMeshActuator",
-    sizeof(PyObjectPlus_Proxy),
+    sizeof(EXP_PyObjectPlus_Proxy),
     0,
     py_base_dealloc,
     0,
@@ -91,18 +91,18 @@ PyTypeObject SCA_ReplaceMeshActuator::Type = {
     py_base_new};
 
 PyMethodDef SCA_ReplaceMeshActuator::Methods[] = {
-    KX_PYMETHODTABLE(SCA_ReplaceMeshActuator, instantReplaceMesh), {nullptr, nullptr}  // Sentinel
+    EXP_PYMETHODTABLE(SCA_ReplaceMeshActuator, instantReplaceMesh), {nullptr, nullptr}  // Sentinel
 };
 
 PyAttributeDef SCA_ReplaceMeshActuator::Attributes[] = {
-    KX_PYATTRIBUTE_RW_FUNCTION("mesh", SCA_ReplaceMeshActuator, pyattr_get_mesh, pyattr_set_mesh),
-    KX_PYATTRIBUTE_BOOL_RW("useDisplayMesh", SCA_ReplaceMeshActuator, m_use_gfx),
-    KX_PYATTRIBUTE_BOOL_RW("usePhysicsMesh", SCA_ReplaceMeshActuator, m_use_phys),
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_RW_FUNCTION("mesh", SCA_ReplaceMeshActuator, pyattr_get_mesh, pyattr_set_mesh),
+    EXP_PYATTRIBUTE_BOOL_RW("useDisplayMesh", SCA_ReplaceMeshActuator, m_use_gfx),
+    EXP_PYATTRIBUTE_BOOL_RW("usePhysicsMesh", SCA_ReplaceMeshActuator, m_use_phys),
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
-PyObject *SCA_ReplaceMeshActuator::pyattr_get_mesh(PyObjectPlus *self,
-                                                   const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_ReplaceMeshActuator::pyattr_get_mesh(EXP_PyObjectPlus *self,
+                                                   const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_ReplaceMeshActuator *actuator = static_cast<SCA_ReplaceMeshActuator *>(self);
   if (!actuator->m_mesh)
@@ -111,8 +111,8 @@ PyObject *SCA_ReplaceMeshActuator::pyattr_get_mesh(PyObjectPlus *self,
   return meshproxy->NewProxy(true);
 }
 
-int SCA_ReplaceMeshActuator::pyattr_set_mesh(PyObjectPlus *self,
-                                             const struct KX_PYATTRIBUTE_DEF *attrdef,
+int SCA_ReplaceMeshActuator::pyattr_set_mesh(EXP_PyObjectPlus *self,
+                                             const struct EXP_PYATTRIBUTE_DEF *attrdef,
                                              PyObject *value)
 {
   SCA_ReplaceMeshActuator *actuator = static_cast<SCA_ReplaceMeshActuator *>(self);
@@ -129,7 +129,7 @@ int SCA_ReplaceMeshActuator::pyattr_set_mesh(PyObjectPlus *self,
   return PY_SET_ATTR_SUCCESS;
 }
 
-KX_PYMETHODDEF_DOC(SCA_ReplaceMeshActuator,
+EXP_PYMETHODDEF_DOC(SCA_ReplaceMeshActuator,
                    instantReplaceMesh,
                    "instantReplaceMesh() : immediately replace mesh without delay\n")
 {
@@ -175,7 +175,7 @@ bool SCA_ReplaceMeshActuator::Update()
   return false;
 }
 
-CValue *SCA_ReplaceMeshActuator::GetReplica()
+EXP_Value *SCA_ReplaceMeshActuator::GetReplica()
 {
   SCA_ReplaceMeshActuator *replica = new SCA_ReplaceMeshActuator(*this);
 

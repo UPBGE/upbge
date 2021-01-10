@@ -66,7 +66,7 @@ class SCA_StateActuator : public SCA_IActuator {
 
   virtual ~SCA_StateActuator(void);
 
-  virtual CValue *GetReplica(void);
+  virtual EXP_Value *GetReplica(void);
 
   virtual bool Update();
 

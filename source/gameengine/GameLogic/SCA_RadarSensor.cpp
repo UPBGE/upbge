@@ -74,7 +74,7 @@ SCA_RadarSensor::~SCA_RadarSensor()
 {
 }
 
-CValue *SCA_RadarSensor::GetReplica()
+EXP_Value *SCA_RadarSensor::GetReplica()
 {
   SCA_RadarSensor *replica = new SCA_RadarSensor(*this);
   replica->ProcessReplica();
@@ -173,7 +173,7 @@ void SCA_RadarSensor::SynchronizeTransform()
 /* Python Integration Hooks                                                  */
 /* ------------------------------------------------------------------------- */
 PyTypeObject SCA_RadarSensor::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_RadarSensor",
-                                      sizeof(PyObjectPlus_Proxy),
+                                      sizeof(EXP_PyObjectPlus_Proxy),
                                       0,
                                       py_base_dealloc,
                                       0,
@@ -215,16 +215,16 @@ PyMethodDef SCA_RadarSensor::Methods[] = {
 };
 
 PyAttributeDef SCA_RadarSensor::Attributes[] = {
-    KX_PYATTRIBUTE_FLOAT_ARRAY_RO("coneOrigin", SCA_RadarSensor, m_cone_origin, 3),
-    KX_PYATTRIBUTE_FLOAT_ARRAY_RO("coneTarget", SCA_RadarSensor, m_cone_target, 3),
-    KX_PYATTRIBUTE_FLOAT_RO("distance", SCA_RadarSensor, m_coneheight),
-    KX_PYATTRIBUTE_RO_FUNCTION("angle", SCA_RadarSensor, pyattr_get_angle),
-    KX_PYATTRIBUTE_INT_RW("axis", 0, 5, true, SCA_RadarSensor, m_axis),
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_FLOAT_ARRAY_RO("coneOrigin", SCA_RadarSensor, m_cone_origin, 3),
+    EXP_PYATTRIBUTE_FLOAT_ARRAY_RO("coneTarget", SCA_RadarSensor, m_cone_target, 3),
+    EXP_PYATTRIBUTE_FLOAT_RO("distance", SCA_RadarSensor, m_coneheight),
+    EXP_PYATTRIBUTE_RO_FUNCTION("angle", SCA_RadarSensor, pyattr_get_angle),
+    EXP_PYATTRIBUTE_INT_RW("axis", 0, 5, true, SCA_RadarSensor, m_axis),
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
-PyObject *SCA_RadarSensor::pyattr_get_angle(PyObjectPlus *self_v,
-                                            const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_RadarSensor::pyattr_get_angle(EXP_PyObjectPlus *self_v,
+                                            const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_RadarSensor *self = static_cast<SCA_RadarSensor *>(self_v);
 

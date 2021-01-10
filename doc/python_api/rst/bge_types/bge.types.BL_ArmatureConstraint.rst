@@ -1,9 +1,9 @@
-BL_ArmatureConstraint(PyObjectPlus)
+BL_ArmatureConstraint(EXP_PyObjectPlus)
 ===================================
 
-base class --- :class:`PyObjectPlus`
+base class --- :class:`EXP_PyObjectPlus`
 
-.. class:: BL_ArmatureConstraint(PyObjectPlus)
+.. class:: BL_ArmatureConstraint(EXP_PyObjectPlus)
 
    Proxy to Armature Constraint. Allows to change constraint on the fly.
    Obtained through :class:`BL_ArmatureObject`.constraints.

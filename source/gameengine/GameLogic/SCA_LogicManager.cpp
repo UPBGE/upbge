@@ -55,7 +55,7 @@ void SCA_LogicManager::RegisterEventManager(SCA_EventManager *eventmgr)
   m_eventmanagers.push_back(eventmgr);
 }
 
-void SCA_LogicManager::RegisterGameObjectName(const std::string &gameobjname, CValue *gameobj)
+void SCA_LogicManager::RegisterGameObjectName(const std::string &gameobjname, EXP_Value *gameobj)
 {
   std::string mn = gameobjname;
   m_mapStringToGameObjects[mn] = gameobj;
@@ -72,26 +72,26 @@ void SCA_LogicManager::RegisterGameMeshName(const std::string &gamemeshname, voi
   m_map_gamemeshname_to_blendobj[mn] = blendobj;
 }
 
-void SCA_LogicManager::RegisterGameObj(void *blendobj, CValue *gameobj)
+void SCA_LogicManager::RegisterGameObj(void *blendobj, EXP_Value *gameobj)
 {
   m_map_blendobj_to_gameobj[blendobj] = gameobj;
 }
 
-void SCA_LogicManager::UnregisterGameObj(void *blendobj, CValue *gameobj)
+void SCA_LogicManager::UnregisterGameObj(void *blendobj, EXP_Value *gameobj)
 {
-  std::map<void *, CValue *>::iterator it = m_map_blendobj_to_gameobj.find(blendobj);
+  std::map<void *, EXP_Value *>::iterator it = m_map_blendobj_to_gameobj.find(blendobj);
   if (it != m_map_blendobj_to_gameobj.end() && it->second == gameobj) {
     m_map_blendobj_to_gameobj.erase(it);
   }
 }
 
-CValue *SCA_LogicManager::GetGameObjectByName(const std::string &gameobjname)
+EXP_Value *SCA_LogicManager::GetGameObjectByName(const std::string &gameobjname)
 {
   std::string mn = gameobjname;
   return m_mapStringToGameObjects[mn];
 }
 
-CValue *SCA_LogicManager::FindGameObjByBlendObj(void *blendobj)
+EXP_Value *SCA_LogicManager::FindGameObjByBlendObj(void *blendobj)
 {
   return m_map_blendobj_to_gameobj[blendobj];
 }

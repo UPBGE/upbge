@@ -1,11 +1,11 @@
-KX_VehicleWrapper(PyObjectPlus)
+KX_VehicleWrapper(EXP_PyObjectPlus)
 ===============================
 
 .. module:: bge.types
 
-base class --- :class:`PyObjectPlus`
+base class --- :class:`EXP_PyObjectPlus`
 
-.. class:: KX_VehicleWrapper(PyObjectPlus)
+.. class:: KX_VehicleWrapper(EXP_PyObjectPlus)
 
    KX_VehicleWrapper
 

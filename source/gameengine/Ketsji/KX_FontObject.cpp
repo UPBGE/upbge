@@ -79,7 +79,7 @@ KX_FontObject::~KX_FontObject()
   UpdateCurveText(m_backupText);  // eevee
 }
 
-CValue *KX_FontObject::GetReplica()
+EXP_Value *KX_FontObject::GetReplica()
 {
   KX_FontObject *replica = new KX_FontObject(*this);
   replica->ProcessReplica();
@@ -121,7 +121,7 @@ void KX_FontObject::UpdateCurveText(std::string newText)  // eevee
 void KX_FontObject::UpdateTextFromProperty()
 {
   // Allow for some logic brick control
-  CValue *prop = GetProperty("Text");
+  EXP_Value *prop = GetProperty("Text");
   if (prop && prop->GetText() != m_text) {
     SetText(prop->GetText());
     UpdateCurveText(m_text);  // eevee
@@ -135,7 +135,7 @@ void KX_FontObject::UpdateTextFromProperty()
 /* ------------------------------------------------------------------------- */
 
 PyTypeObject KX_FontObject::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_FontObject",
-                                    sizeof(PyObjectPlus_Proxy),
+                                    sizeof(EXP_PyObjectPlus_Proxy),
                                     0,
                                     py_base_dealloc,
                                     0,
@@ -177,7 +177,7 @@ PyMethodDef KX_FontObject::Methods[] = {
 };
 
 PyAttributeDef KX_FontObject::Attributes[] = {
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
 #endif  // WITH_PYTHON

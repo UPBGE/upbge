@@ -31,7 +31,7 @@
 
 
 BL_Texture::BL_Texture(GPUMaterialTexture *gpumattex, eGPUTextureTarget textarget)
-    : CValue(), m_isCubeMap(false), m_gpuMatTex(gpumattex), m_textarget(textarget)
+    : EXP_Value(), m_isCubeMap(false), m_gpuMatTex(gpumattex), m_textarget(textarget)
 {
   /* Normally input->textype is Kept in sync with GPU_DATATYPE_STR */
   m_isCubeMap = false; /*(m_gpuTex->type == GPU_TEXCUBE)*/
@@ -142,7 +142,7 @@ std::string BL_Texture::GetName()
 #ifdef WITH_PYTHON
 
 PyTypeObject BL_Texture::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "BL_Texture",
-                                 sizeof(PyObjectPlus_Proxy),
+                                 sizeof(EXP_PyObjectPlus_Proxy),
                                  0,
                                  py_base_dealloc,
                                  0,
@@ -170,7 +170,7 @@ PyTypeObject BL_Texture::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "BL_Texture",
                                  Methods,
                                  0,
                                  0,
-                                 &CValue::Type,
+                                 &EXP_Value::Type,
                                  0,
                                  0,
                                  0,
@@ -184,19 +184,19 @@ PyMethodDef BL_Texture::Methods[] = {
 };
 
 PyAttributeDef BL_Texture::Attributes[] = {
-    KX_PYATTRIBUTE_RW_FUNCTION("bindCode", BL_Texture, pyattr_get_bind_code, pyattr_set_bind_code),
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_RW_FUNCTION("bindCode", BL_Texture, pyattr_get_bind_code, pyattr_set_bind_code),
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
-PyObject *BL_Texture::pyattr_get_bind_code(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Texture::pyattr_get_bind_code(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   BL_Texture *self = static_cast<BL_Texture *>(self_v);
   self->CheckValidTexture();
   return PyLong_FromLong(self->m_bindCode);
 }
 
-int BL_Texture::pyattr_set_bind_code(PyObjectPlus *self_v,
-                                     const KX_PYATTRIBUTE_DEF *attrdef,
+int BL_Texture::pyattr_set_bind_code(EXP_PyObjectPlus *self_v,
+                                     const EXP_PYATTRIBUTE_DEF *attrdef,
                                      PyObject *value)
 {
   BL_Texture *self = static_cast<BL_Texture *>(self_v);

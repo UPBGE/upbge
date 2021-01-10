@@ -160,7 +160,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system, bContext *C, bool useViewpo
   m_pyprofiledict = PyDict_New();
 #endif
 
-  m_scenes = new CListValue<KX_Scene>();
+  m_scenes = new EXP_ListValue<KX_Scene>();
 }
 
 /**
@@ -579,8 +579,8 @@ KX_KetsjiEngine::CameraRenderData KX_KetsjiEngine::GetCameraRenderData(
 static void overlay_cam_at_the_end_of_camera_list_ensure(KX_Scene *scene)
 {
   if (scene->GetOverlayCamera()) {
-    CListValue<KX_Camera> *camList = scene->GetCameraList();
-    CListValue<KX_Camera> *sortedList = new CListValue<KX_Camera>();
+    EXP_ListValue<KX_Camera> *camList = scene->GetCameraList();
+    EXP_ListValue<KX_Camera> *sortedList = new EXP_ListValue<KX_Camera>();
     for (KX_Camera *cam : camList) {
       if (cam != scene->GetOverlayCamera()) {
         sortedList->Add(CM_AddRef(cam));
@@ -1239,7 +1239,7 @@ void KX_KetsjiEngine::DrawDebugShadowFrustum(KX_Scene *scene, RAS_DebugDraw &deb
   }*/
 }
 
-CListValue<KX_Scene> *KX_KetsjiEngine::CurrentScenes()
+EXP_ListValue<KX_Scene> *KX_KetsjiEngine::CurrentScenes()
 {
   return m_scenes;
 }

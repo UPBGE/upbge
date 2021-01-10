@@ -69,5 +69,5 @@ class SCA_2DFilterActuator : public SCA_IActuator {
 
   void SetScene(SCA_IScene *scene, RAS_2DFilterManager *filterManager);
 
-  virtual CValue *GetReplica();
+  virtual EXP_Value *GetReplica();
 };

@@ -52,11 +52,11 @@ SCA_PropertySensor::SCA_PropertySensor(SCA_EventManager *eventmgr,
       m_checkpropmaxval(propmaxval),
       m_checkpropname(propname)
 {
-  // CParser pars;
+  // EXP_Parser pars;
   // pars.SetContext(this->AddRef());
-  // CValue* resultval = m_rightexpr->Calculate();
+  // EXP_Value* resultval = m_rightexpr->Calculate();
 
-  CValue *orgprop = GetParent()->FindIdentifier(m_checkpropname);
+  EXP_Value *orgprop = GetParent()->FindIdentifier(m_checkpropname);
   if (!orgprop->IsError()) {
     m_previoustext = orgprop->GetText();
   }
@@ -72,7 +72,7 @@ void SCA_PropertySensor::Init()
   m_reset = true;
 }
 
-CValue *SCA_PropertySensor::GetReplica()
+EXP_Value *SCA_PropertySensor::GetReplica()
 {
   SCA_PropertySensor *replica = new SCA_PropertySensor(*this);
   // m_range_expr must be recalculated on replica!
@@ -118,13 +118,13 @@ bool SCA_PropertySensor::CheckPropertyCondition()
       reverse = true;
       ATTR_FALLTHROUGH;
     case KX_PROPSENSOR_EQUAL: {
-      CValue *orgprop = GetParent()->FindIdentifier(m_checkpropname);
+      EXP_Value *orgprop = GetParent()->FindIdentifier(m_checkpropname);
       if (!orgprop->IsError()) {
         const std::string &testprop = orgprop->GetText();
         // Force strings to upper case, to avoid confusion in
         // bool tests. It's stupid the prop's identity is lost
         // on the way here...
-        if ((testprop == CBoolValue::sTrueString) || (testprop == CBoolValue::sFalseString)) {
+        if ((testprop == EXP_BoolValue::sTrueString) || (testprop == EXP_BoolValue::sFalseString)) {
           boost::to_upper(m_checkpropval);
         }
         result = (testprop == m_checkpropval);
@@ -136,7 +136,7 @@ bool SCA_PropertySensor::CheckPropertyCondition()
         if (result == false && (orgprop->GetValueType() == VALUE_FLOAT_TYPE)) {
           float f;
           if (CM_StringTo(m_checkpropval, f)) {
-            result = (f == ((CFloatValue *)orgprop)->GetFloat());
+            result = (f == ((EXP_FloatValue *)orgprop)->GetFloat());
           }
         }
         /* end patch */
@@ -152,7 +152,7 @@ bool SCA_PropertySensor::CheckPropertyCondition()
       break;
     }
     case KX_PROPSENSOR_INTERVAL: {
-      CValue *orgprop = GetParent()->FindIdentifier(m_checkpropname);
+      EXP_Value *orgprop = GetParent()->FindIdentifier(m_checkpropname);
       if (!orgprop->IsError()) {
         float min;
         float max;
@@ -174,7 +174,7 @@ bool SCA_PropertySensor::CheckPropertyCondition()
       break;
     }
     case KX_PROPSENSOR_CHANGED: {
-      CValue *orgprop = GetParent()->FindIdentifier(m_checkpropname);
+      EXP_Value *orgprop = GetParent()->FindIdentifier(m_checkpropname);
 
       if (!orgprop->IsError()) {
         if (m_previoustext != orgprop->GetText()) {
@@ -190,7 +190,7 @@ bool SCA_PropertySensor::CheckPropertyCondition()
       reverse = true;
       ATTR_FALLTHROUGH;
     case KX_PROPSENSOR_GREATERTHAN: {
-      CValue *orgprop = GetParent()->FindIdentifier(m_checkpropname);
+      EXP_Value *orgprop = GetParent()->FindIdentifier(m_checkpropname);
       if (!orgprop->IsError()) {
         float ref;
         CM_StringTo(m_checkpropval, ref);
@@ -224,7 +224,7 @@ bool SCA_PropertySensor::CheckPropertyCondition()
   return result;
 }
 
-CValue *SCA_PropertySensor::FindIdentifier(const std::string &identifiername)
+EXP_Value *SCA_PropertySensor::FindIdentifier(const std::string &identifiername)
 {
   return GetParent()->FindIdentifier(identifiername);
 }
@@ -235,7 +235,7 @@ CValue *SCA_PropertySensor::FindIdentifier(const std::string &identifiername)
 /* Python functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-int SCA_PropertySensor::validValueForProperty(PyObjectPlus *self, const PyAttributeDef *)
+int SCA_PropertySensor::validValueForProperty(EXP_PyObjectPlus *self, const PyAttributeDef *)
 {
   /* If someone actually do type checking please make sure the 'max' and 'min'
    * are checked as well (currently they are calling the PrecalculateRangeExpression
@@ -247,7 +247,7 @@ int SCA_PropertySensor::validValueForProperty(PyObjectPlus *self, const PyAttrib
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_PropertySensor::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_PropertySensor",
-                                         sizeof(PyObjectPlus_Proxy),
+                                         sizeof(EXP_PyObjectPlus_Proxy),
                                          0,
                                          py_base_dealloc,
                                          0,
@@ -289,21 +289,21 @@ PyMethodDef SCA_PropertySensor::Methods[] = {
 };
 
 PyAttributeDef SCA_PropertySensor::Attributes[] = {
-    KX_PYATTRIBUTE_INT_RW("mode",
+    EXP_PYATTRIBUTE_INT_RW("mode",
                           KX_PROPSENSOR_NODEF,
                           KX_PROPSENSOR_MAX - 1,
                           false,
                           SCA_PropertySensor,
                           m_checktype),
-    KX_PYATTRIBUTE_STRING_RW_CHECK(
+    EXP_PYATTRIBUTE_STRING_RW_CHECK(
         "propName", 0, MAX_PROP_NAME, false, SCA_PropertySensor, m_checkpropname, CheckProperty),
-    KX_PYATTRIBUTE_STRING_RW_CHECK(
+    EXP_PYATTRIBUTE_STRING_RW_CHECK(
         "value", 0, 100, false, SCA_PropertySensor, m_checkpropval, validValueForProperty),
-    KX_PYATTRIBUTE_STRING_RW_CHECK(
+    EXP_PYATTRIBUTE_STRING_RW_CHECK(
         "min", 0, 100, false, SCA_PropertySensor, m_checkpropval, validValueForProperty),
-    KX_PYATTRIBUTE_STRING_RW_CHECK(
+    EXP_PYATTRIBUTE_STRING_RW_CHECK(
         "max", 0, 100, false, SCA_PropertySensor, m_checkpropmaxval, validValueForProperty),
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
 #endif  // WITH_PYTHON

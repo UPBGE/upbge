@@ -152,7 +152,7 @@ class KX_KetsjiEngine {
   std::vector<std::pair<std::string, std::string>> m_replace_scenes;
 
   /// The current list of scenes.
-  CListValue<KX_Scene> *m_scenes;
+  EXP_ListValue<KX_Scene> *m_scenes;
 
   bool m_bInitialized;
 
@@ -337,7 +337,7 @@ class KX_KetsjiEngine {
   KX_ExitRequest GetExitCode();
   const std::string &GetExitString();
 
-  CListValue<KX_Scene> *CurrentScenes();
+  EXP_ListValue<KX_Scene> *CurrentScenes();
   KX_Scene *FindScene(const std::string &scenename);
   void AddScene(KX_Scene *scene);
 

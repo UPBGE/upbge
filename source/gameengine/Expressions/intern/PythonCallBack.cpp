@@ -92,7 +92,7 @@ static PyObject *CreatePythonTuple(unsigned int argcount, PyObject **arglist)
   return tuple;
 }
 
-void RunPythonCallBackList(PyObject *functionlist,
+void EXP_RunPythonCallBackList(PyObject *functionlist,
                            PyObject **arglist,
                            unsigned int minargcount,
                            unsigned int maxargcount)
