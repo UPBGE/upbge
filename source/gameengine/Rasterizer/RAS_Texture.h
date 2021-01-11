@@ -28,7 +28,6 @@
 #include <array>
 #include <string>
 
-struct bNodeTree;
 struct Image;
 struct GPUTexture;
 
@@ -46,7 +45,6 @@ class RAS_Texture {
 
   virtual Image *GetImage() const = 0;
   virtual GPUTexture *GetGPUTexture() const = 0;
-  virtual bNodeTree *GetNodeTree() = 0;
   std::string &GetName();
 
   virtual unsigned int GetTextureType() = 0;

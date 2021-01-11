@@ -26,13 +26,12 @@
 
 #include "BL_Texture.h"
 
-#include "DNA_node_types.h"
 #include "DNA_texture_types.h"
 #include "GPU_material.h"
 
 
-BL_Texture::BL_Texture(bNodeTree *ntree, GPUMaterialTexture *gpumattex, eGPUTextureTarget textarget)
-    : EXP_Value(), m_isCubeMap(false), m_nodeTree(ntree), m_gpuMatTex(gpumattex), m_textarget(textarget)
+BL_Texture::BL_Texture(GPUMaterialTexture *gpumattex, eGPUTextureTarget textarget)
+    : EXP_Value(), m_isCubeMap(false), m_gpuMatTex(gpumattex), m_textarget(textarget)
 {
   /* Normally input->textype is Kept in sync with GPU_DATATYPE_STR */
   m_isCubeMap = false; /*(m_gpuTex->type == GPU_TEXCUBE)*/
@@ -111,11 +110,6 @@ Image *BL_Texture::GetImage() const
 GPUTexture *BL_Texture::GetGPUTexture() const
 {
   return m_gpuTex;
-}
-
-bNodeTree *BL_Texture::GetNodeTree()
-{
-  return m_nodeTree;
 }
 
 unsigned int BL_Texture::GetTextureType()

@@ -164,7 +164,7 @@ void KX_BlenderMaterial::InitTextures()
        * with old scripts from upbge which were using BL_Texture::bindCode.
        * Here we are only interested in GL_TEXTURE_2D textures
        */
-      BL_Texture *texture = new BL_Texture(m_material->nodetree, tex, TEXTARGET_2D);
+      BL_Texture *texture = new BL_Texture(tex, TEXTARGET_2D);
       m_textures[i] = texture;
       i++;
     }

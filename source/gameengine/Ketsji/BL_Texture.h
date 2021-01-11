@@ -30,14 +30,10 @@
 #include "EXP_Value.h"
 #include "RAS_Texture.h"
 
-struct bNodeTree;
 struct GPUMaterialTexture;
 
 class BL_Texture : public EXP_Value, public RAS_Texture {
-  Py_Header private :
-
-  bool m_isCubeMap;
-  bNodeTree *m_nodeTree;
+  Py_Header private : bool m_isCubeMap;
   GPUMaterialTexture *m_gpuMatTex;
   GPUTexture *m_gpuTex;
   eGPUTextureTarget m_textarget;
@@ -47,7 +43,7 @@ class BL_Texture : public EXP_Value, public RAS_Texture {
   } m_savedData;
 
  public:
-  BL_Texture(bNodeTree *ntree, GPUMaterialTexture *gpumattex, eGPUTextureTarget textarget);
+  BL_Texture(GPUMaterialTexture *gpumattex, eGPUTextureTarget textarget);
   virtual ~BL_Texture();
 
   // stuff for cvalue related things
@@ -58,7 +54,6 @@ class BL_Texture : public EXP_Value, public RAS_Texture {
 
   virtual Image *GetImage() const;
   virtual GPUTexture *GetGPUTexture() const;
-  virtual bNodeTree *GetNodeTree();
 
   virtual unsigned int GetTextureType();
 
