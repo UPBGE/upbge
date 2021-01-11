@@ -46,7 +46,6 @@ class SCA_DelaySensor : public SCA_ISensor
 	int				m_duration;
 	int				m_repeatfor;
 	int				m_frameCount;
-	int				m_tickSec;
 
 public:
 	SCA_DelaySensor(class SCA_EventManager* eventmgr,
@@ -54,8 +53,7 @@ public:
 		int delay,
 		int duration,
 		int repeatfor,
-		bool repeat,
-		bool flagsec);
+		bool repeat);
 	virtual ~SCA_DelaySensor();
 	virtual EXP_Value* GetReplica();
 	virtual bool Evaluate();

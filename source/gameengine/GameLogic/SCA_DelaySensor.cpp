@@ -53,11 +53,9 @@ SCA_DelaySensor::SCA_DelaySensor(class SCA_EventManager* eventmgr,
 	int delay,
 	int duration,
 	int repeatfor,
-	bool repeat,
-	bool flagsec)
+	bool repeat)
 	:SCA_ISensor(gameobj, eventmgr),
 	m_repeat(repeat),
-	m_isseconds(flagsec),
 	m_delay(delay),
 	m_duration(duration),
 	m_repeatfor(repeatfor)
@@ -71,14 +69,6 @@ void SCA_DelaySensor::Init()
 	m_lastResult = false;
 	m_frameCount = -1;
 	m_reset = true;
-	m_tickSec = 0;
-
-	if (m_isseconds == true) {
-		m_tickSec = 60;
-	}
-	else {
-		m_tickSec = 1;
-	}
 }
 
 SCA_DelaySensor::~SCA_DelaySensor()
@@ -107,7 +97,6 @@ bool SCA_DelaySensor::Evaluate()
 	bool trigger = false;
 	bool result;
 
-	// is not sec(ticks)
 	if (m_frameCount == -1) {
 		// this is needed to ensure ON trigger in case delay==0
 		// and avoid spurious OFF trigger when duration==0
@@ -115,12 +104,12 @@ bool SCA_DelaySensor::Evaluate()
 		m_frameCount = 0;
 	}
 
-	if (m_frameCount < m_delay* m_tickSec) {
+	if (m_frameCount < m_delay) {
 		m_frameCount++;
 		result = false;
 	}
 	else if (m_duration > 0) {
-		if (m_frameCount < m_delay* m_tickSec + m_duration) {
+		if (m_frameCount < m_delay + m_duration) {
 			m_frameCount++;
 			result = true;
 		}
@@ -191,11 +180,10 @@ PyMethodDef SCA_DelaySensor::Methods[] = {
 };
 
 PyAttributeDef SCA_DelaySensor::Attributes[] = {
-	EXP_PYATTRIBUTE_INT_RW("delay", 0, 5000, true, SCA_DelaySensor, m_delay),
-	EXP_PYATTRIBUTE_INT_RW("duration", 0, 5000, true, SCA_DelaySensor, m_duration),
-	EXP_PYATTRIBUTE_INT_RW("repeatTimes", 0, 5000, true, SCA_DelaySensor, m_repeatfor),
+	EXP_PYATTRIBUTE_INT_RW("delay", 0, 10000, true, SCA_DelaySensor, m_delay),
+	EXP_PYATTRIBUTE_INT_RW("duration", 0, 10000, true, SCA_DelaySensor, m_duration),
+	EXP_PYATTRIBUTE_INT_RW("repeatTimes", 0, 10000, true, SCA_DelaySensor, m_repeatfor),
 	EXP_PYATTRIBUTE_BOOL_RW("repeat", SCA_DelaySensor, m_repeat),
-	EXP_PYATTRIBUTE_BOOL_RW("isSeconds", SCA_DelaySensor, m_isseconds),
 	EXP_PYATTRIBUTE_NULL    //Sentinel
 };
 

@@ -979,7 +979,6 @@ static void draw_sensor_delay(uiLayout *layout, PointerRNA *ptr)
 	split = uiLayoutSplit(layout, 1.0f, false);
 	row = uiLayoutRow(split, false);
 	uiItemR(row, ptr, "repeat_times", 0, NULL, ICON_NONE);
-	uiItemR(row, ptr, "use_seconds", 0, NULL, ICON_NONE);
 	
 }
 
