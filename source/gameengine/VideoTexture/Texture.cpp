@@ -33,7 +33,12 @@
 #include "Texture.h"
 
 
+#include "BKE_global.h"
 #include "BKE_image.h"
+#include "BKE_node.h"
+#include "BLI_listbase.h"
+#include "DNA_node_types.h"
+#include "ED_node.h"
 #include "GPU_glew.h"
 #include "GPU_texture.h"
 #include "IMB_imbuf.h"
@@ -60,6 +65,7 @@ Texture::Texture()
       m_orgTex(0),
       m_orgImg(0),
       m_orgSaved(false),
+      m_interpolationBackup(-1),
       m_imgBuf(nullptr),
       m_imgTexture(nullptr),
       m_matTexture(nullptr),
@@ -122,6 +128,23 @@ void Texture::Close()
         // This is requierd for texture used in blender material.
         GPUTexture *tex = m_imgTexture->gputexture[TEXTARGET_2D][0];
         GPU_texture_set_opengl_bindcode(tex, m_orgImg);
+        if (m_interpolationBackup != -1) {
+          bNodeTree *ntree = m_matTexture->GetNodeTree();
+
+          LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+            if (node->id) {
+              if (node->type == SH_NODE_TEX_IMAGE) {
+                Image *ima = (Image *)node->id;
+                if (ima == m_imgTexture) {
+                  NodeTexImage *ntex = (NodeTexImage *)node->storage;
+                  ntex->interpolation = m_interpolationBackup;
+                  ED_node_tag_update_nodetree(G_MAIN, ntree, node);
+                  break;
+                }
+              }
+            }
+          }
+        }
       }
     }
     else {
@@ -307,6 +330,22 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
         }
         tex->m_imgTexture = tex->m_matTexture->GetImage();
         tex->m_useMatTexture = true;
+
+        bNodeTree *ntree = tex->m_matTexture->GetNodeTree();
+
+        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+          if (node->id) {
+            if (node->type == SH_NODE_TEX_IMAGE) {
+              Image *ima = (Image *)node->id;
+              if (ima == tex->m_imgTexture) {
+                NodeTexImage *ntex = (NodeTexImage *)node->storage;
+                ntex->interpolation = SHD_INTERP_CLOSEST;
+                ED_node_tag_update_nodetree(G_MAIN, ntree, node);
+                break;
+              }
+            }
+          }
+        }
       }
       else if (lamp != nullptr) {
         // tex->m_imgTexture = lamp->GetLightData()->GetTextureImage(texID);

@@ -60,6 +60,9 @@ class Texture : public EXP_Value {
   // original texture saved
   bool m_orgSaved;
 
+  // Texture node interpolation mode backup
+  int m_interpolationBackup;
+
   // kernel image buffer, to make sure the image is loaded before we swap the bindcode
   struct ImBuf *m_imgBuf;
   // texture image for game materials
