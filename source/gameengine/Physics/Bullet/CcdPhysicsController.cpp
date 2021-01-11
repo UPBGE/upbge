@@ -486,12 +486,11 @@ bool CcdPhysicsController::CreateSoftbody()
   }*/
 
   psb->randomizeConstraints();
+  psb->setTotalMass(m_cci.m_mass);
 
   if (m_cci.m_soft_collisionflags & (CCD_BSB_COL_CL_RS + CCD_BSB_COL_CL_SS)) {
     psb->generateClusters(m_cci.m_soft_numclusteriterations);
   }
-
-  psb->setTotalMass(m_cci.m_mass);
 
   psb->setCollisionFlags(0);
 
