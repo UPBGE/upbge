@@ -1876,6 +1876,10 @@ elseif(WITH_CYCLES_STANDALONE)
 endif()
 
 #-----------------------------------------------------------------------------
+# Testing
+add_subdirectory(tests)
+
+#-----------------------------------------------------------------------------
 # Blender Application
 if(WITH_BLENDER)
   add_subdirectory(source/creator)
@@ -1887,11 +1891,6 @@ endif()
 if(WITH_PLAYER)
   add_subdirectory(source/blenderplayer)
 endif()
-
-
-#-----------------------------------------------------------------------------
-# Testing
-add_subdirectory(tests)
 
 
 #-----------------------------------------------------------------------------
