@@ -37,12 +37,14 @@ static void execute_on_component(const GeoNodeExecParams &params, GeometryCompon
   const bNode &bnode = params.node();
   NodeAttributeColorRamp *node_storage = (NodeAttributeColorRamp *)bnode.storage;
 
+  /* Use the type of the input attribute, but create a color attribute if it doesn't exist yet. */
+  const CustomDataType result_type = params.get_input_attribute_data_type(
+      "Attribute", component, CD_PROP_COLOR);
+
   const std::string result_name = params.get_input<std::string>("Result");
   /* Once we support more domains at the user level, we have to decide how the result domain is
    * chosen. */
   const AttributeDomain result_domain = ATTR_DOMAIN_POINT;
-  const CustomDataType result_type = CD_PROP_COLOR;
-
   WriteAttributePtr attribute_result = component.attribute_try_ensure_for_write(
       result_name, result_domain, result_type);
   if (!attribute_result) {
@@ -56,7 +58,7 @@ static void execute_on_component(const GeoNodeExecParams &params, GeometryCompon
       input_name, result_domain, 0.0f);
 
   Span<float> data_in = attribute_in.get_span();
-  MutableSpan<Color4f> data_out = attribute_out.get_span();
+  MutableSpan<Color4f> data_out = attribute_out.get_span_for_write_only();
 
   ColorBand *color_ramp = &node_storage->color_ramp;
   for (const int i : data_in.index_range()) {
