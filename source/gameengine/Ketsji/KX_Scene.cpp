@@ -728,20 +728,14 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, 
       /* Force camera projection matrix to be the same as viewport one (for mouse events) */
       cam->SetProjectionMatrix(MT_Matrix4x4(&CTX_wm_region_view3d(C)->winmat[0][0]));
 
+      ARegion *region = CTX_wm_region(C);
+
       scene->flag |= SCE_IS_VIEWPORT_RENDER;
 
       ED_region_tag_redraw(CTX_wm_region(C));
       wm_draw_update(C);
 
       scene->flag &= ~SCE_IS_VIEWPORT_RENDER;
-
-      GPU_framebuffer_restore();
-
-      GPU_viewport(v[0], v[1], v[2], v[3]);
-      GPU_scissor_test(true);
-      GPU_scissor(v[0], v[1], v[2], v[3]);
-
-      GPU_apply_state();
 
       RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
       RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextRenderFrameBuffer(s));
@@ -750,13 +744,11 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, 
       GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetColorAttachment());
       GPU_framebuffer_texture_detach(input->GetFrameBuffer(), input->GetDepthAttachment());
       /* And replace it with color and depth textures from viewport */
-      GPU_framebuffer_texture_attach(input->GetFrameBuffer(), DRW_viewport_texture_list_get()->color,
-                                     0,
-                                     0);
       GPU_framebuffer_texture_attach(
-          input->GetFrameBuffer(), DRW_viewport_texture_list_get()->color_overlay, 1, 0);
+          input->GetFrameBuffer(), GPU_viewport_color_texture(region->draw_buffer->viewport, 0), 0, 0);
       GPU_framebuffer_texture_attach(
           input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth, 0, 0);
+
 
       RAS_FrameBuffer *f = is_overlay_pass ? input : Render2DFilters(rasty, canvas, input, output);
 
@@ -768,17 +760,16 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, 
 
       GPU_apply_state();
 
-      DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()),
-                               DRW_viewport_texture_list_get()->color_overlay,
-                               CTX_wm_view3d(C),
-                               GetOverlayCamera() && !is_overlay_pass ? false : true);
+      GPU_viewport_draw_to_screen_ex_bge(region->draw_buffer->viewport,
+                                         0,
+                                         &region->winrct,
+                                         true,
+                                         GPU_framebuffer_color_texture(f->GetFrameBuffer()));
 
 
       /* Detach viewport textures from input framebuffer... */
       GPU_framebuffer_texture_detach(input->GetFrameBuffer(),
-                                     DRW_viewport_texture_list_get()->color);
-      GPU_framebuffer_texture_detach(input->GetFrameBuffer(),
-                                     DRW_viewport_texture_list_get()->color_overlay);
+                                     GPU_viewport_color_texture(region->draw_buffer->viewport, 0));
       GPU_framebuffer_texture_detach(input->GetFrameBuffer(),
                                      DRW_viewport_texture_list_get()->depth);
       /* And restore defaults attachments */
@@ -856,7 +847,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, 
   GPU_apply_state();
 
   DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()),
-                           nullptr,
                            CTX_wm_view3d(C),
                            GetOverlayCamera() && !is_overlay_pass ? false : true);
 

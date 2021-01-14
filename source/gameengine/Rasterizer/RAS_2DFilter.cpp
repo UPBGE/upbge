@@ -37,7 +37,6 @@ extern char datatoc_RAS_VertexShader2DFilter_glsl[];
 
 static std::string predefinedUniformsName[RAS_2DFilter::MAX_PREDEFINED_UNIFORM_TYPE] = {
     "bgl_RenderedTexture",         // RENDERED_TEXTURE_UNIFORM
-    "bgl_OverlayTexture",          // OVERLAY_TEXTURE_UNIFORM
     "bgl_DepthTexture",            // DEPTH_TEXTURE_UNIFORM
     "bgl_RenderedTextureWidth",    // RENDERED_TEXTURE_WIDTH_UNIFORM
     "bgl_RenderedTextureHeight",   // RENDERED_TEXTURE_HEIGHT_UNIFORM
@@ -211,17 +210,15 @@ void RAS_2DFilter::BindTextures(RAS_FrameBuffer *depthfb, RAS_FrameBuffer *color
 {
   if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
     GPU_texture_bind(GPU_framebuffer_color_texture(colorfb->GetFrameBuffer()), 8);
-  }
-  if (m_predefinedUniforms[RENDERED_OVERLAY_UNIFORM] != -1) {
-    GPU_texture_bind(DRW_viewport_texture_list_get()->color_overlay, 9);
-  }
-  if (m_mipmap) {
-    GPU_framebuffer_mipmap_texture(colorfb->GetFrameBuffer());
+    GPU_apply_state();
+    if (m_mipmap) {
+      GPU_framebuffer_mipmap_texture(colorfb->GetFrameBuffer());
+    }
   }
   if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
-    GPU_texture_bind(GPU_framebuffer_depth_texture(depthfb->GetFrameBuffer()), 10);
+    GPU_texture_bind(GPU_framebuffer_depth_texture(depthfb->GetFrameBuffer()), 9);
+    GPU_apply_state();
   }
-  GPU_apply_state();
 
   // Bind custom textures.
   for (const auto &pair : m_textures) {
@@ -235,12 +232,9 @@ void RAS_2DFilter::UnbindTextures(RAS_FrameBuffer *depthfb, RAS_FrameBuffer *col
 {
   if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
     GPU_texture_unbind(GPU_framebuffer_color_texture(colorfb->GetFrameBuffer()));
-  }
-  if (m_predefinedUniforms[RENDERED_OVERLAY_UNIFORM] != -1) {
-    GPU_texture_unbind(DRW_viewport_texture_list_get()->color_overlay);
-  }
-  if (m_mipmap) {
-    GPU_framebuffer_unmipmap_texture(colorfb->GetFrameBuffer());
+    if (m_mipmap) {
+      GPU_framebuffer_unmipmap_texture(colorfb->GetFrameBuffer());
+    }
   }
   if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
     GPU_texture_unbind(GPU_framebuffer_color_texture(depthfb->GetFrameBuffer()));
@@ -260,11 +254,8 @@ void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas)
   if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
     SetUniform(m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM], 8);
   }
-  if (m_predefinedUniforms[RENDERED_OVERLAY_UNIFORM] != -1) {
-    SetUniform(m_predefinedUniforms[RENDERED_OVERLAY_UNIFORM], 9);
-  }
   if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
-    SetUniform(m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM], 10);
+    SetUniform(m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM], 9);
   }
   if (m_predefinedUniforms[RENDERED_TEXTURE_WIDTH_UNIFORM] != -1) {
     // Bind rendered texture width.
