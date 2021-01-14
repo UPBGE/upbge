@@ -1183,7 +1183,7 @@ void KX_Scene::IgnoreParentTxBGE(Main *bmain,
        * This is because parent matrix did change, so in theory the child object might now be
        * evaluated to a different location in another editing context. */
       if (!OrigObCanBeTransformedInRealtime(ob_child)) {
-        break;
+        continue;
       }
       DEG_id_tag_update(&ob_child->id, ID_RECALC_TRANSFORM);
     }
