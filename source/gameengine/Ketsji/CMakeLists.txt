@@ -118,8 +118,8 @@ set(SRC
   KX_PythonInitTypes.cpp
   KX_PythonMain.cpp
   KX_RayCast.cpp
-  KX_SG_BoneParentNodeRelationship.cpp
-  KX_SG_NodeRelationships.cpp
+  KX_BoneParentNodeRelationship.cpp
+  KX_NodeRelationships.cpp
   KX_ScalarInterpolator.cpp
   KX_ScalingInterpolator.cpp
   KX_Scene.cpp
@@ -177,8 +177,8 @@ set(SRC
   KX_PythonInitTypes.h
   KX_PythonMain.h
   KX_RayCast.h
-  KX_SG_BoneParentNodeRelationship.h
-  KX_SG_NodeRelationships.h
+  KX_BoneParentNodeRelationship.h
+  KX_NodeRelationships.h
   KX_ScalarInterpolator.h
   KX_ScalingInterpolator.h
   KX_Scene.h

@@ -152,8 +152,11 @@ typedef struct SpaceProperties {
   short mainb, mainbo, mainbuser;
   /** Preview is signal to refresh. */
   short preview;
-  char _pad[5];
+  char _pad[4];
   char flag;
+
+  /* eSpaceButtons_OutlinerSync */
+  char outliner_sync;
 
   /** Runtime. */
   void *path;
@@ -232,6 +235,13 @@ typedef enum eSpaceButtons_Flag {
   SB_SHADING_CONTEXT = (1 << 4),
 } eSpaceButtons_Flag;
 
+/* SpaceProperties.outliner_sync */
+typedef enum eSpaceButtons_OutlinerSync {
+  PROPERTIES_SYNC_AUTO = 0,
+  PROPERTIES_SYNC_OFF = 1,
+  PROPERTIES_SYNC_ON = 2,
+} eSpaceButtons_OutlinerSync;
+
 /** \} */
 
 /* sbuts->scaflag */
@@ -309,8 +319,9 @@ typedef enum eSpaceOutliner_Flag {
 
 /* SpaceOutliner.filter */
 typedef enum eSpaceOutliner_Filter {
-  SO_FILTER_SEARCH = (1 << 0),   /* Run-time flag. */
-  SO_FILTER_UNUSED_1 = (1 << 1), /* cleared */
+  SO_FILTER_SEARCH = (1 << 0), /* Run-time flag. */
+  SO_FILTER_CLEARED_1 = (1 << 1),
+  SO_FILTER_NO_LIB_OVERRIDE = SO_FILTER_CLEARED_1, /* re-use */
   SO_FILTER_NO_OBJECT = (1 << 2),
   SO_FILTER_NO_OB_CONTENT = (1 << 3), /* Not only mesh, but modifiers, constraints, ... */
   SO_FILTER_NO_CHILDREN = (1 << 4),
@@ -343,7 +354,7 @@ typedef enum eSpaceOutliner_Filter {
 
 #define SO_FILTER_ANY \
   (SO_FILTER_NO_OB_CONTENT | SO_FILTER_NO_CHILDREN | SO_FILTER_OB_TYPE | SO_FILTER_OB_STATE | \
-   SO_FILTER_NO_COLLECTION)
+   SO_FILTER_NO_COLLECTION | SO_FILTER_NO_LIB_OVERRIDE)
 
 /* SpaceOutliner.filter_state */
 typedef enum eSpaceOutliner_StateFilter {

@@ -463,18 +463,18 @@ const EnumPropertyItem rna_enum_dt_method_loop_items[] = {
     {MREMAP_MODE_LOOP_NEAREST_LOOPNOR,
      "NEAREST_NORMAL",
      0,
-     "Nearest Corner And Best Matching Normal",
+     "Nearest Corner and Best Matching Normal",
      "Copy from nearest corner which has the best matching normal"},
     {MREMAP_MODE_LOOP_NEAREST_POLYNOR,
      "NEAREST_POLYNOR",
      0,
-     "Nearest Corner And Best Matching Face Normal",
+     "Nearest Corner and Best Matching Face Normal",
      "Copy from nearest corner which has the face with the best matching normal to destination "
      "corner's face one"},
     {MREMAP_MODE_LOOP_POLY_NEAREST,
      "NEAREST_POLY",
      0,
-     "Nearest Corner Of Nearest Face",
+     "Nearest Corner of Nearest Face",
      "Copy from nearest corner of nearest polygon"},
     {MREMAP_MODE_LOOP_POLYINTERP_NEAREST,
      "POLYINTERP_NEAREST",
@@ -5900,8 +5900,7 @@ static void rna_def_modifier_triangulate(BlenderRNA *brna)
   prop = RNA_def_property(srna, "ngon_method", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, NULL, "ngon_method");
   RNA_def_property_enum_items(prop, rna_enum_modifier_triangulate_ngon_method_items);
-  RNA_def_property_ui_text(
-      prop, "Polygon Method", "Method for splitting the polygons into triangles");
+  RNA_def_property_ui_text(prop, "N-gon Method", "Method for splitting the n-gons into triangles");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   prop = RNA_def_property(srna, "min_vertices", PROP_INT, PROP_UNSIGNED);

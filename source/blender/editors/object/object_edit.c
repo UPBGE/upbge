@@ -524,7 +524,7 @@ static bool mesh_needs_keyindex(Main *bmain, const Mesh *me)
     return false; /* will be added */
   }
 
-  for (const Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
+  LISTBASE_FOREACH (const Object *, ob, &bmain->objects) {
     if ((ob->parent) && (ob->parent->data == me) && ELEM(ob->partype, PARVERT1, PARVERT3)) {
       return true;
     }
@@ -670,12 +670,10 @@ bool ED_object_editmode_exit_ex(Main *bmain, Scene *scene, Object *obedit, int f
 
   /* freedata only 0 now on file saves and render */
   if (freedata) {
-    ListBase pidlist;
-    PTCacheID *pid;
-
     /* flag object caches as outdated */
+    ListBase pidlist;
     BKE_ptcache_ids_from_object(&pidlist, obedit, scene, 0);
-    for (pid = pidlist.first; pid; pid = pid->next) {
+    LISTBASE_FOREACH (PTCacheID *, pid, &pidlist) {
       /* particles don't need reset on geometry change */
       if (pid->type != PTCACHE_TYPE_PARTICLES) {
         pid->cache->flag |= PTCACHE_OUTDATED;
@@ -730,14 +728,13 @@ bool ED_object_editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag
   ob->mode = OB_MODE_EDIT;
 
   if (ob->type == OB_MESH) {
-    BMEditMesh *em;
-    ok = 1;
+    ok = true;
 
     const bool use_key_index = mesh_needs_keyindex(bmain, ob->data);
 
     EDBM_mesh_make(ob, scene->toolsettings->selectmode, use_key_index);
 
-    em = BKE_editmesh_from_object(ob);
+    BMEditMesh *em = BKE_editmesh_from_object(ob);
     if (LIKELY(em)) {
       /* order doesn't matter */
       EDBM_mesh_normals_update(em);
@@ -748,7 +745,7 @@ bool ED_object_editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag
   }
   else if (ob->type == OB_ARMATURE) {
     bArmature *arm = ob->data;
-    ok = 1;
+    ok = true;
     ED_armature_to_edit(arm);
     /* To ensure all goes in rest-position and without striding. */
 
@@ -760,7 +757,7 @@ bool ED_object_editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag
     WM_main_add_notifier(NC_SCENE | ND_MODE | NS_EDITMODE_ARMATURE, scene);
   }
   else if (ob->type == OB_FONT) {
-    ok = 1;
+    ok = true;
     ED_curve_editfont_make(ob);
 
     WM_main_add_notifier(NC_SCENE | ND_MODE | NS_EDITMODE_TEXT, scene);
@@ -768,7 +765,7 @@ bool ED_object_editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag
   else if (ob->type == OB_MBALL) {
     MetaBall *mb = ob->data;
 
-    ok = 1;
+    ok = true;
     ED_mball_editmball_make(ob);
 
     mb->needs_flush_to_id = 0;
@@ -776,13 +773,13 @@ bool ED_object_editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag
     WM_main_add_notifier(NC_SCENE | ND_MODE | NS_EDITMODE_MBALL, scene);
   }
   else if (ob->type == OB_LATTICE) {
-    ok = 1;
+    ok = true;
     BKE_editlattice_make(ob);
 
     WM_main_add_notifier(NC_SCENE | ND_MODE | NS_EDITMODE_LATTICE, scene);
   }
   else if (ELEM(ob->type, OB_SURF, OB_CURVE)) {
-    ok = 1;
+    ok = true;
     ED_curve_editnurb_make(ob);
 
     WM_main_add_notifier(NC_SCENE | ND_MODE | NS_EDITMODE_CURVE, scene);
@@ -869,12 +866,12 @@ static bool editmode_toggle_poll(bContext *C)
   /* covers proxies too */
   if (ELEM(NULL, ob, ob->data) || ID_IS_LINKED(ob->data) || ID_IS_OVERRIDE_LIBRARY(ob) ||
       ID_IS_OVERRIDE_LIBRARY(ob->data)) {
-    return 0;
+    return false;
   }
 
   /* if hidden but in edit mode, we still display */
   if ((ob->restrictflag & OB_RESTRICT_VIEWPORT) && !(ob->mode & OB_MODE_EDIT)) {
-    return 0;
+    return false;
   }
 
   return OB_TYPE_SUPPORT_EDITMODE(ob->type);
@@ -884,8 +881,8 @@ void OBJECT_OT_editmode_toggle(wmOperatorType *ot)
 {
 
   /* identifiers */
-  ot->name = "Toggle Editmode";
-  ot->description = "Toggle object's editmode";
+  ot->name = "Toggle Edit Mode";
+  ot->description = "Toggle object's edit mode";
   ot->idname = "OBJECT_OT_editmode_toggle";
 
   /* api callbacks */
@@ -1419,7 +1416,7 @@ static int shade_smooth_exec(bContext *C, wmOperator *op)
     CTX_data_selected_editable_objects(C, &ctx_objects);
   }
 
-  for (CollectionPointerLink *ctx_ob = ctx_objects.first; ctx_ob; ctx_ob = ctx_ob->next) {
+  LISTBASE_FOREACH (CollectionPointerLink *, ctx_ob, &ctx_objects) {
     Object *ob = ctx_ob->ptr.data;
     ID *data = ob->data;
     if (data != NULL) {
@@ -1427,7 +1424,7 @@ static int shade_smooth_exec(bContext *C, wmOperator *op)
     }
   }
 
-  for (CollectionPointerLink *ctx_ob = ctx_objects.first; ctx_ob; ctx_ob = ctx_ob->next) {
+  LISTBASE_FOREACH (CollectionPointerLink *, ctx_ob, &ctx_objects) {
     /* Always un-tag all object data-blocks irrespective of our ability to operate on them. */
     Object *ob = ctx_ob->ptr.data;
     ID *data = ob->data;
@@ -1529,14 +1526,13 @@ static const EnumPropertyItem *object_mode_set_itemsf(bContext *C,
 {
   const EnumPropertyItem *input = rna_enum_object_mode_items;
   EnumPropertyItem *item = NULL;
-  Object *ob;
   int totitem = 0;
 
   if (!C) { /* needed for docs */
     return rna_enum_object_mode_items;
   }
 
-  ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(C);
   if (ob) {
     const bool use_mode_particle_edit = (BLI_listbase_is_empty(&ob->particlesystem) == false) ||
                                         (ob->soft != NULL) ||
@@ -2037,18 +2033,18 @@ static int logicbricks_copy_exec(bContext *C, wmOperator *UNUSED(op))
   CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
     if (ob != ob_iter) {
       /* first: free all logic */
-      free_sensors(&ob_iter->sensors);
-      unlink_controllers(&ob_iter->controllers);
-      free_controllers(&ob_iter->controllers);
-      unlink_actuators(&ob_iter->actuators);
-      free_actuators(&ob_iter->actuators);
+      BKE_sca_free_sensors(&ob_iter->sensors);
+      BKE_sca_unlink_controllers(&ob_iter->controllers);
+      BKE_sca_free_controllers(&ob_iter->controllers);
+      BKE_sca_unlink_actuators(&ob_iter->actuators);
+      BKE_sca_free_actuators(&ob_iter->actuators);
 
       /* now copy it, this also works without logicbricks! */
-      clear_sca_new_poins_ob(ob);
-      copy_sensors(&ob_iter->sensors, &ob->sensors, 0);
-      copy_controllers(&ob_iter->controllers, &ob->controllers, 0);
-      copy_actuators(&ob_iter->actuators, &ob->actuators, 0);
-      set_sca_new_poins_ob(ob_iter);
+      BKE_sca_clear_new_points_ob(ob);
+      BKE_sca_copy_sensors(&ob_iter->sensors, &ob->sensors, 0);
+      BKE_sca_copy_controllers(&ob_iter->controllers, &ob->controllers, 0);
+      BKE_sca_copy_actuators(&ob_iter->actuators, &ob->actuators, 0);
+      BKE_sca_set_new_points_ob(ob_iter);
 
       /* some menu settings */
       ob_iter->scavisflag = ob->scavisflag;
@@ -2168,8 +2164,6 @@ static int move_to_collection_exec(bContext *C, wmOperator *op)
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "collection_index");
   const bool is_link = STREQ(op->idname, "OBJECT_OT_link_to_collection");
   const bool is_new = RNA_boolean_get(op->ptr, "is_new");
-  Collection *collection;
-  ListBase objects = {NULL};
 
   if (!RNA_property_is_set(op->ptr, prop)) {
     BKE_report(op->reports, RPT_ERROR, "No collection selected");
@@ -2177,13 +2171,13 @@ static int move_to_collection_exec(bContext *C, wmOperator *op)
   }
 
   int collection_index = RNA_property_int_get(op->ptr, prop);
-  collection = BKE_collection_from_index(scene, collection_index);
+  Collection *collection = BKE_collection_from_index(scene, collection_index);
   if (collection == NULL) {
     BKE_report(op->reports, RPT_ERROR, "Unexpected error, collection not found");
     return OPERATOR_CANCELLED;
   }
 
-  objects = selected_objects_get(C);
+  ListBase objects = selected_objects_get(C);
 
   if (is_new) {
     char new_collection_name[MAX_NAME];
@@ -2246,11 +2240,9 @@ struct MoveToCollectionData {
 static int move_to_collection_menus_create(wmOperator *op, MoveToCollectionData *menu)
 {
   int index = menu->index;
-  for (CollectionChild *child = menu->collection->children.first; child != NULL;
-       child = child->next) {
+  LISTBASE_FOREACH (CollectionChild *, child, &menu->collection->children) {
     Collection *collection = child->collection;
-    MoveToCollectionData *submenu = MEM_callocN(sizeof(MoveToCollectionData),
-                                                "MoveToCollectionData submenu - expected memleak");
+    MoveToCollectionData *submenu = MEM_callocN(sizeof(MoveToCollectionData), __func__);
     BLI_addtail(&menu->submenus, submenu);
     submenu->collection = collection;
     submenu->index = ++index;
@@ -2262,8 +2254,7 @@ static int move_to_collection_menus_create(wmOperator *op, MoveToCollectionData 
 
 static void move_to_collection_menus_free_recursive(MoveToCollectionData *menu)
 {
-  for (MoveToCollectionData *submenu = menu->submenus.first; submenu != NULL;
-       submenu = submenu->next) {
+  LISTBASE_FOREACH (MoveToCollectionData *, submenu, &menu->submenus) {
     move_to_collection_menus_free_recursive(submenu);
   }
   BLI_freelistN(&menu->submenus);
@@ -2302,8 +2293,7 @@ static void move_to_collection_menu_create(bContext *C, uiLayout *layout, void *
                        UI_icon_color_from_collection(menu->collection);
   uiItemIntO(layout, name, icon, menu->ot->idname, "collection_index", menu->index);
 
-  for (MoveToCollectionData *submenu = menu->submenus.first; submenu != NULL;
-       submenu = submenu->next) {
+  LISTBASE_FOREACH (MoveToCollectionData *, submenu, &menu->submenus) {
     move_to_collection_menus_items(layout, submenu);
   }
 }
@@ -2366,7 +2356,7 @@ static int move_to_collection_invoke(bContext *C, wmOperator *op, const wmEvent 
   Collection *master_collection = scene->master_collection;
 
   /* We need the data to be allocated so it's available during menu drawing.
-   * Technically we could use wmOperator->customdata. However there is no free callback
+   * Technically we could use #wmOperator.customdata. However there is no free callback
    * called to an operator that exit with OPERATOR_INTERFACE to launch a menu.
    *
    * So we are left with a memory that will necessarily leak. It's a small leak though.*/

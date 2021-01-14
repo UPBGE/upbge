@@ -172,6 +172,14 @@ add_blender_test(
   --python-text run_tests
 )
 
+add_blender_test(
+  curve_to_mesh
+  ${TEST_SRC_DIR}/modeling/curve_to_mesh.blend
+  --python ${TEST_PYTHON_DIR}/curve_to_mesh.py
+  --
+  --run-all-tests
+)
+
 # ------------------------------------------------------------------------------
 # MODIFIERS TESTS
 add_blender_test(
@@ -220,13 +228,15 @@ add_blender_test(
   --run-all-tests
 )
 
-add_blender_test(
-  physics_ocean
-  ${TEST_SRC_DIR}/physics/ocean_test.blend
-  --python ${TEST_PYTHON_DIR}/physics_ocean.py
-  --
-  --run-all-tests
-)
+if(WITH_MOD_OCEANSIM)
+  add_blender_test(
+    physics_ocean
+    ${TEST_SRC_DIR}/physics/ocean_test.blend
+    --python ${TEST_PYTHON_DIR}/physics_ocean.py
+    --
+    --run-all-tests
+  )
+endif()
 
 
 add_blender_test(
@@ -237,14 +247,13 @@ add_blender_test(
   --run-all-tests
 )
 
-# Particle Instance disabling currently broken in master
-# add_blender_test(
-#   physics_particle_instance
-#   ${TEST_SRC_DIR}/physics/physics_particle_instance.blend
-#   --python ${TEST_PYTHON_DIR}/physics_particle_instance.py
-#   --
-#   --run-all-tests
-# )
+add_blender_test(
+  physics_particle_instance
+  ${TEST_SRC_DIR}/physics/physics_particle_instance.blend
+  --python ${TEST_PYTHON_DIR}/physics_particle_instance.py
+  --
+  --run-all-tests
+)
 
 add_blender_test(
   constraints

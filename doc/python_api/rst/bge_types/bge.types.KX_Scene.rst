@@ -1,9 +1,9 @@
-KX_Scene(PyObjectPlus)
+KX_Scene(EXP_PyObjectPlus)
 ======================
 
-base class --- :class:`PyObjectPlus`
+base class --- :class:`EXP_PyObjectPlus`
 
-.. class:: KX_Scene(PyObjectPlus)
+.. class:: KX_Scene(EXP_PyObjectPlus)
 
    An active scene that gives access to objects, cameras, lights and scene attributes.
 
@@ -51,31 +51,31 @@ base class --- :class:`PyObjectPlus`
 
       A list of objects in the scene, (read-only).
 
-      :type: :class:`CListValue` of :class:`KX_GameObject`
+      :type: :class:`EXP_ListValue` of :class:`KX_GameObject`
 
    .. attribute:: objectsInactive
 
       A list of objects on background layers (used for the addObject actuator), (read-only).
 
-      :type: :class:`CListValue` of :class:`KX_GameObject`
+      :type: :class:`EXP_ListValue` of :class:`KX_GameObject`
 
    .. attribute:: lights
 
       A list of lights in the scene, (read-only).
 
-      :type: :class:`CListValue` of :class:`KX_LightObject`
+      :type: :class:`EXP_ListValue` of :class:`KX_LightObject`
 
    .. attribute:: cameras
 
       A list of cameras in the scene, (read-only).
 
-      :type: :class:`CListValue` of :class:`KX_Camera`
+      :type: :class:`EXP_ListValue` of :class:`KX_Camera`
 
    .. attribute:: texts
 
       A list of texts in the scene, (read-only).
 
-      :type: :class:`CListValue` of :class:`KX_FontObject`
+      :type: :class:`EXP_ListValue` of :class:`KX_FontObject`
 
    .. attribute:: active_camera
 
@@ -91,9 +91,9 @@ base class --- :class:`PyObjectPlus`
          scene.active_camera = scene.objects["Camera.001"]
 
       :type: :class:`KX_Camera`
-      
+
       .. note::
-         
+
          This can be set directly from python to avoid using the :class:`KX_SceneActuator`.
 
    .. attribute:: overrideCullingCamera
@@ -152,8 +152,20 @@ base class --- :class:`PyObjectPlus`
 
    .. attribute:: pre_draw_setup
 
-      A list of callables to be run before the drawing setup (i.e., before the model view and projection matrices are computed). 
+      A list of callables to be run before the drawing setup (i.e., before the model view and projection matrices are computed).
       The callbacks can take as argument the rendered camera, the camera could be temporary in case of stereo rendering.
+
+      :type: list
+
+   .. attribute:: onRemove
+
+      A list of callables to run when the scene is destroyed.
+
+         .. code-block:: python
+
+            @scene.onRemove.append
+            def callback(scene):
+                  print('exiting %s...' % scene.name)
 
       :type: list
 
@@ -287,3 +299,10 @@ base class --- :class:`PyObjectPlus`
 
       :arg blenderCollection: The overlay collection to remove.
       :type blenderCollection: bpy.types.Collection
+
+   .. method:: getGameObjectFromObject(blenderObject)
+
+      Get the KX_GameObject corresponding to the blenderObject.
+
+      :arg blenderObject: the Object from which we want to get the KX_GameObject.
+      :type blenderObject: bpy.types.Object

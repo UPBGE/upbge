@@ -79,6 +79,11 @@ const std::string fluid_solver_guiding =
 mantaMsg('Solver guiding')\n\
 sg$ID$ = Solver(name='solver_guiding$ID$', gridSize=gs_sg$ID$)\n";
 
+const std::string fluid_solver_viscosity =
+    "\n\
+mantaMsg('Solver viscosity')\n\
+sv$ID$ = Solver(name='solver_viscosity$ID$', gridSize=gs_sv$ID$, dim=dim_s$ID$)\n";
+
 //////////////////////////////////////////////////////////////////////
 // VARIABLES
 //////////////////////////////////////////////////////////////////////
@@ -133,7 +138,7 @@ end_frame_s$ID$     = $END_FRAME$\n\
 \n\
 # Fluid diffusion / viscosity\n\
 domainSize_s$ID$ = $FLUID_DOMAIN_SIZE$ # longest domain side in meters\n\
-viscosity_s$ID$ = $FLUID_VISCOSITY$ / (domainSize_s$ID$*domainSize_s$ID$) # kinematic viscosity in m^2/s\n\
+kinViscosity_s$ID$ = $FLUID_VISCOSITY$ / (domainSize_s$ID$*domainSize_s$ID$) # kinematic viscosity in m^2/s\n\
 \n\
 # Factors to convert Blender units to Manta units\n\
 ratioMetersToRes_s$ID$ = float(domainSize_s$ID$) / float(res_s$ID$) # [meters / cells]\n\
@@ -198,6 +203,10 @@ gamma_sg$ID$ = $GUIDING_FACTOR$\n\
 tau_sg$ID$   = 1.0\n\
 sigma_sg$ID$ = 0.99/tau_sg$ID$\n\
 theta_sg$ID$ = 1.0\n";
+
+const std::string fluid_variables_viscosity =
+    "\n\
+gs_sv$ID$    = vec3($RESX$*2, $RESY$*2, $RESZ$*2)\n";
 
 const std::string fluid_with_obstacle =
     "\n\
@@ -403,7 +412,9 @@ def fluid_post_step_$ID$():\n\
     mantaMsg('Fluid post step')\n\
     \n\
     # Copy vel grid to reals grids (which Blender internal will in turn use for vel access)\n\
-    copyVec3ToReal(source=vel_s$ID$, targetX=x_vel_s$ID$, targetY=y_vel_s$ID$, targetZ=z_vel_s$ID$)\n";
+    copyVec3ToReal(source=vel_s$ID$, targetX=x_vel_s$ID$, targetY=y_vel_s$ID$, targetZ=z_vel_s$ID$)\n\
+    if using_guiding_s$ID$:\n\
+        copyVec3ToReal(source=guidevel_sg$ID$, targetX=x_guidevel_s$ID$, targetY=y_guidevel_s$ID$, targetZ=z_guidevel_s$ID$)\n";
 
 //////////////////////////////////////////////////////////////////////
 // DESTRUCTION
@@ -667,7 +678,9 @@ const std::string fluid_load_guiding =
 def fluid_load_guiding_$ID$(path, framenr, file_format):\n\
     mantaMsg('Fluid load guiding, frame ' + str(framenr))\n\
     guidevel_sg$ID$.setName('$NAME_VELOCITY_GUIDE$')\n\
-    fluid_file_import_s$ID$(dict=fluid_guiding_dict_s$ID$, path=path, framenr=framenr, file_format=file_format, file_name=file_guiding_s$ID$)\n";
+    fluid_file_import_s$ID$(dict=fluid_guiding_dict_s$ID$, path=path, framenr=framenr, file_format=file_format, file_name=file_guiding_s$ID$)\n\
+    \n\
+    copyVec3ToReal(source=guidevel_sg$ID$, targetX=x_guidevel_s$ID$, targetY=y_guidevel_s$ID$, targetZ=z_guidevel_s$ID$)\n";
 
 const std::string fluid_load_vel =
     "\n\

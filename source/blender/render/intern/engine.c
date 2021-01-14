@@ -663,8 +663,7 @@ bool RE_bake_engine(Render *re,
                     Object *object,
                     const int object_id,
                     const BakePixel pixel_array[],
-                    const BakeImages *bake_images,
-                    const int depth,
+                    const BakeTargets *targets,
                     const eScenePassType pass_type,
                     const int pass_filter,
                     float result[])
@@ -707,14 +706,14 @@ bool RE_bake_engine(Render *re,
       type->update(engine, re->main, engine->depsgraph);
     }
 
-    for (int i = 0; i < bake_images->size; i++) {
-      const BakeImage *image = bake_images->data + i;
+    for (int i = 0; i < targets->num_images; i++) {
+      const BakeImage *image = targets->images + i;
 
       engine->bake.pixels = pixel_array + image->offset;
-      engine->bake.result = result + image->offset * depth;
+      engine->bake.result = result + image->offset * targets->num_channels;
       engine->bake.width = image->width;
       engine->bake.height = image->height;
-      engine->bake.depth = depth;
+      engine->bake.depth = targets->num_channels;
       engine->bake.object_id = object_id;
 
       type->bake(
@@ -804,23 +803,23 @@ static void engine_render_view_layer(Render *re,
   engine_depsgraph_free(engine);
 }
 
-int RE_engine_render(Render *re, int do_all)
+bool RE_engine_render(Render *re, bool do_all)
 {
   RenderEngineType *type = RE_engines_find(re->r.engine);
   bool persistent_data = (re->r.mode & R_PERSISTENT_DATA) != 0;
 
   /* verify if we can render */
   if (!type->render) {
-    return 0;
+    return false;
   }
   if ((re->r.scemode & R_BUTS_PREVIEW) && !(type->flag & RE_USE_PREVIEW)) {
-    return 0;
+    return false;
   }
   if (do_all && !(type->flag & RE_USE_POSTPROCESS)) {
-    return 0;
+    return false;
   }
   if (!do_all && (type->flag & RE_USE_POSTPROCESS)) {
-    return 0;
+    return false;
   }
 
   /* Lock drawing in UI during data phase. */
@@ -860,7 +859,7 @@ int RE_engine_render(Render *re, int do_all)
      */
     BKE_report(re->reports, RPT_ERROR, "Failed allocate render result, out of memory");
     G.is_break = true;
-    return 1;
+    return true;
   }
 
   /* set render info */
@@ -978,7 +977,7 @@ int RE_engine_render(Render *re, int do_all)
   }
 #endif
 
-  return 1;
+  return true;
 }
 
 void RE_engine_update_render_passes(struct RenderEngine *engine,

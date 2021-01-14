@@ -330,7 +330,7 @@ compositor_node_categories = [
         NodeItem("CompositorNodeHueCorrect"),
         NodeItem("CompositorNodeBrightContrast"),
         NodeItem("CompositorNodeGamma"),
-        NodeItem("CompositorNodeExposure"),        
+        NodeItem("CompositorNodeExposure"),
         NodeItem("CompositorNodeColorCorrection"),
         NodeItem("CompositorNodeTonemap"),
         NodeItem("CompositorNodeZcombine"),
@@ -488,6 +488,7 @@ geometry_node_categories = [
         NodeItem("GeometryNodeAttributeFill"),
         NodeItem("GeometryNodeAttributeMix"),
         NodeItem("GeometryNodeAttributeColorRamp"),
+        NodeItem("GeometryNodeAttributeVectorMath"),
     ]),
     GeometryNodeCategory("GEO_COLOR", "Color", items=[
         NodeItem("ShaderNodeValToRGB"),
@@ -514,6 +515,10 @@ geometry_node_categories = [
         NodeItem("GeometryNodePointDistribute"),
         NodeItem("GeometryNodePointInstance"),
         NodeItem("GeometryNodePointSeparate"),
+        NodeItem("GeometryNodePointScale"),
+        NodeItem("GeometryNodePointTranslate"),
+        NodeItem("GeometryNodeRotatePoints"),
+        NodeItem("GeometryNodeAlignRotationToVector"),
     ]),
     GeometryNodeCategory("GEO_UTILITIES", "Utilities", items=[
         NodeItem("ShaderNodeMapRange"),

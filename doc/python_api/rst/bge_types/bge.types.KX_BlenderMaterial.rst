@@ -1,11 +1,11 @@
-KX_BlenderMaterial(PyObjectPlus)
+KX_BlenderMaterial(EXP_PyObjectPlus)
 ================================
 
 .. module:: bge.types
 
-base class --- :class:`PyObjectPlus`
+base class --- :class:`EXP_PyObjectPlus`
 
-.. class:: KX_BlenderMaterial(PyObjectPlus)
+.. class:: KX_BlenderMaterial(EXP_PyObjectPlus)
 
    This is kept for backward compatibility with some scripts.
 

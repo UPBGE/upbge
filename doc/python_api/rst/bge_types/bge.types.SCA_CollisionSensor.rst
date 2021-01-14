@@ -35,7 +35,7 @@ base class --- :class:`SCA_ISensor`
 
       A list of colliding objects. (read-only).
 
-      :type: :class:`CListValue` of :class:`KX_GameObject`
+      :type: :class:`EXP_ListValue` of :class:`KX_GameObject`
 
    .. attribute:: hitMaterial
 

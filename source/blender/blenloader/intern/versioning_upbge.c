@@ -36,6 +36,7 @@
 #include "DNA_camera_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_genfile.h"
+#include "DNA_light_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_force_types.h"
@@ -79,19 +80,6 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
         }
       }
     }
-#if 0 /* XXX UPBGE | Pending clean-up of gm.flag */
-        for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
-            /* Previous value of GAME_GLSL_NO_ENV_LIGHTING was 1 << 18, it was conflicting
-             * with GAME_SHOW_BOUNDING_BOX. To fix this issue, we replace 1 << 18 by
-             * 1 << 21 (the new value) when the file come from blender not UPBGE.
-             */
-            if (scene->gm.flag & (1 << 18)) {
-                scene->gm.flag |= GAME_GLSL_NO_ENV_LIGHTING;
-                /* Disable bit 18 */
-                scene->gm.flag &= ~(1 << 18);
-            }
-        }
-#endif
   }
 
 #if 0 /* XXX UPBGE | we need to increase upbge version and translate from do_versions_280 */
@@ -233,4 +221,11 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
       }
     }
   }
+
+  if (!MAIN_VERSION_UPBGE_ATLEAST(main, 30, 3)) {
+    LISTBASE_FOREACH (Light *, light, &main->lights) {
+      light->mode |= LA_SOFT_SHADOWS;
+    }
+  }
+
 }

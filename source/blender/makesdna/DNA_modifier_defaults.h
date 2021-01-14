@@ -56,7 +56,7 @@
     .flags = 0, \
     .val_flags = MOD_BEVEL_AMT_OFFSET, \
     .profile_type = MOD_BEVEL_PROFILE_SUPERELLIPSE, \
-    .lim_flags = 0, \
+    .lim_flags = MOD_BEVEL_ANGLE, \
     .e_flags = 0, \
     .mat = -1, \
     .edge_flags = 0, \
@@ -179,6 +179,7 @@
     .loop_count = 2, \
     .group = NULL, \
     .vgroup_selfcol = 0, \
+    .vgroup_objcol = 0, \
     .clamp = 0.0f, \
     .self_clamp = 0.0f, \
   }

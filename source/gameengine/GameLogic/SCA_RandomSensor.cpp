@@ -60,9 +60,9 @@ void SCA_RandomSensor::Init()
   m_currentDraw = m_basegenerator->Draw();
 }
 
-CValue *SCA_RandomSensor::GetReplica()
+EXP_Value *SCA_RandomSensor::GetReplica()
 {
-  CValue *replica = new SCA_RandomSensor(*this);
+  EXP_Value *replica = new SCA_RandomSensor(*this);
   // this will copy properties and so on...
   replica->ProcessReplica();
 
@@ -122,7 +122,7 @@ bool SCA_RandomSensor::Evaluate()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_RandomSensor::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_RandomSensor",
-                                       sizeof(PyObjectPlus_Proxy),
+                                       sizeof(EXP_PyObjectPlus_Proxy),
                                        0,
                                        py_base_dealloc,
                                        0,
@@ -164,20 +164,20 @@ PyMethodDef SCA_RandomSensor::Methods[] = {
 };
 
 PyAttributeDef SCA_RandomSensor::Attributes[] = {
-    KX_PYATTRIBUTE_BOOL_RO("lastDraw", SCA_RandomSensor, m_lastdraw),
-    KX_PYATTRIBUTE_RW_FUNCTION("seed", SCA_RandomSensor, pyattr_get_seed, pyattr_set_seed),
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_BOOL_RO("lastDraw", SCA_RandomSensor, m_lastdraw),
+    EXP_PYATTRIBUTE_RW_FUNCTION("seed", SCA_RandomSensor, pyattr_get_seed, pyattr_set_seed),
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
-PyObject *SCA_RandomSensor::pyattr_get_seed(PyObjectPlus *self_v,
-                                            const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_RandomSensor::pyattr_get_seed(EXP_PyObjectPlus *self_v,
+                                            const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_RandomSensor *self = static_cast<SCA_RandomSensor *>(self_v);
   return PyLong_FromLong(self->m_basegenerator->GetSeed());
 }
 
-int SCA_RandomSensor::pyattr_set_seed(PyObjectPlus *self_v,
-                                      const KX_PYATTRIBUTE_DEF *attrdef,
+int SCA_RandomSensor::pyattr_set_seed(EXP_PyObjectPlus *self_v,
+                                      const EXP_PYATTRIBUTE_DEF *attrdef,
                                       PyObject *value)
 {
   SCA_RandomSensor *self = static_cast<SCA_RandomSensor *>(self_v);

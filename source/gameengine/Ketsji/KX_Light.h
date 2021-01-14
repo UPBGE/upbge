@@ -50,7 +50,7 @@ class KX_LightObject : public KX_GameObject {
   virtual ~KX_LightObject();
 
   virtual void ProcessReplica();
-  virtual CValue *GetReplica();
+  virtual EXP_Value *GetReplica();
 
   virtual int GetGameObjectType() const
   {

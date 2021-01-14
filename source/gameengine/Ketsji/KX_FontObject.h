@@ -44,11 +44,11 @@ class KX_FontObject : public KX_GameObject {
   virtual ~KX_FontObject();
 
   /**
-   * Inherited from CValue -- return a new copy of this
+   * Inherited from EXP_Value -- return a new copy of this
    * instance allocated on the heap. Ownership of the new
    * object belongs with the caller.
    */
-  virtual CValue *GetReplica();
+  virtual EXP_Value *GetReplica();
   virtual void ProcessReplica();
   virtual int GetGameObjectType() const
   {

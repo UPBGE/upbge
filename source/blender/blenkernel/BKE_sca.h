@@ -24,12 +24,16 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef __BKE_SCA_H__
-#define __BKE_SCA_H__
 
-/** \file BKE_sca.h
+#pragma once
+
+/** \file
  *  \ingroup bke
  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct Main;
 struct Object;
@@ -37,44 +41,52 @@ struct bSensor;
 struct bController;
 struct bActuator;
 
-void link_logicbricks(void **poin, void ***ppoin, short *tot, short size);
-void unlink_logicbricks(void **poin, void ***ppoin, short *tot);
+/* Logicbricks */
+void BKE_sca_link_logicbricks(void **poin, void ***ppoin, short *tot, short size);
+void BKE_sca_unlink_logicbricks(void **poin, void ***ppoin, short *tot);
+void BKE_sca_remap_links_logicbricks(struct Main *bmain, struct Object *ob_old, struct Object *ob_new);
+void BKE_sca_copy_logicbricks(struct Object *ob_new, const struct Object *ob, const int flag);
 
-void unlink_controller(struct bController *cont);
-void unlink_controllers(struct ListBase *lb);
-void free_controller(struct bController *cont);
-void free_controllers(struct ListBase *lb);
+/* Controllers */
+void BKE_sca_unlink_controller(struct bController *cont);
+void BKE_sca_unlink_controllers(struct ListBase *lb);
+void BKE_sca_free_controller(struct bController *cont);
+void BKE_sca_free_controllers(struct ListBase *lb);
+struct bController *BKE_sca_copy_controller(struct bController *cont, const int flag);
+void BKE_sca_copy_controllers(struct ListBase *lbn, const struct ListBase *lbo, const int flag);
+void BKE_sca_init_controller(struct bController *cont);
+struct bController *BKE_sca_new_controller(int type);
+void BKE_sca_move_controller(struct bController *cont_to_move, struct Object *ob, int move_up);
 
-void unlink_actuator(struct bActuator *act);
-void unlink_actuators(struct ListBase *lb);
-void free_actuator(struct bActuator *act);
-void free_actuators(struct ListBase *lb);
+/* Actuators */
+void BKE_sca_unlink_actuator(struct bActuator *act);
+void BKE_sca_unlink_actuators(struct ListBase *lb);
+void BKE_sca_free_actuator(struct bActuator *act);
+void BKE_sca_free_actuators(struct ListBase *lb);
+struct bActuator *BKE_sca_copy_actuator(struct bActuator *act, const int flag);
+void BKE_sca_copy_actuators(struct ListBase *lbn, const struct ListBase *lbo, const int flag);
+void BKE_sca_init_actuator(struct bActuator *act);
+struct bActuator *BKE_sca_new_actuator(int type);
+void BKE_sca_move_actuator(struct bActuator *act_to_move, struct Object *ob, int move_up);
 
-void free_sensor(struct bSensor *sens);
-void free_sensors(struct ListBase *lb);
-struct bSensor *copy_sensor(struct bSensor *sens, const int flag);
-void copy_sensors(struct ListBase *lbn, const struct ListBase *lbo, const int flag);
-void init_sensor(struct bSensor *sens);
-struct bSensor *new_sensor(int type);
-struct bController *copy_controller(struct bController *cont, const int flag);
-void copy_controllers(struct ListBase *lbn, const struct ListBase *lbo, const int flag);
-void init_controller(struct bController *cont);
-struct bController *new_controller(int type);
-struct bActuator *copy_actuator(struct bActuator *act, const int flag);
-void copy_actuators(struct ListBase *lbn, const struct ListBase *lbo, const int flag);
-void init_actuator(struct bActuator *act);
-struct bActuator *new_actuator(int type);
-void clear_sca_new_poins_ob(struct Object *ob);
-void clear_sca_new_poins(void);
-void set_sca_new_poins_ob(struct Object *ob);
-void set_sca_new_poins(void);
+/* Sensors */
+void BKE_sca_free_sensor(struct bSensor *sens);
+void BKE_sca_free_sensors(struct ListBase *lb);
+struct bSensor *BKE_sca_copy_sensor(struct bSensor *sens, const int flag);
+void BKE_sca_copy_sensors(struct ListBase *lbn, const struct ListBase *lbo, const int flag);
+void BKE_sca_init_sensor(struct bSensor *sens);
+struct bSensor *BKE_sca_new_sensor(int type);
+void BKE_sca_move_sensor(struct bSensor *sens_to_move, struct Object *ob, int move_up);
 
-void BKE_sca_logic_links_remap(struct Main *bmain, struct Object *ob_old, struct Object *ob_new);
-void BKE_sca_logic_copy(struct Object *ob_new, const struct Object *ob, const int flag);
+/* Points */
+void BKE_sca_clear_new_points_ob(struct Object *ob);
+void BKE_sca_clear_new_points(void);
+void BKE_sca_set_new_points_ob(struct Object *ob);
+void BKE_sca_set_new_points(void);
 
-void sca_move_sensor(struct bSensor *sens_to_move, struct Object *ob, int move_up);
-void sca_move_controller(struct bController *cont_to_move, struct Object *ob, int move_up);
-void sca_move_actuator(struct bActuator *act_to_move, struct Object *ob, int move_up);
+/* States */
+const char *BKE_sca_get_name_state(Object *ob, short bit);
+
 
 /* Callback format for performing operations on ID-pointers for sensors/controllers/actuators. */
 typedef void (*SCASensorIDFunc)(struct bSensor *sensor,
@@ -96,6 +108,6 @@ void BKE_sca_controllers_id_loop(struct ListBase *contlist,
                                  void *userdata);
 void BKE_sca_actuators_id_loop(struct ListBase *atclist, SCAActuatorIDFunc func, void *userdata);
 
-const char *sca_state_name_get(Object *ob, short bit);
-
+#ifdef __cplusplus
+}
 #endif

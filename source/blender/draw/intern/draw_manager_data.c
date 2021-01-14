@@ -1773,7 +1773,7 @@ DRWView *DRW_view_create_sub(const DRWView *parent_view,
  * DRWView Update:
  * This is meant to be done on existing views when rendering in a loop and there is no
  * need to allocate more DRWViews.
- **/
+ */
 
 /* Update matrices of a view created with DRW_view_create_sub. */
 void DRW_view_update_sub(DRWView *view, const float viewmat[4][4], const float winmat[4][4])

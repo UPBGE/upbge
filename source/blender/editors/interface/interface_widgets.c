@@ -747,7 +747,7 @@ static void round_box__edges(
                        1 :
                        2;
 
-  int minsize = min_ii(BLI_rcti_size_x(rect) * hnum, BLI_rcti_size_y(rect) * vnum);
+  const int minsize = min_ii(BLI_rcti_size_x(rect) * hnum, BLI_rcti_size_y(rect) * vnum);
 
   if (2.0f * rad > minsize) {
     rad = 0.5f * minsize;
@@ -912,7 +912,7 @@ static void shape_preset_init_trias_ex(uiWidgetTrias *tria,
   float sizex, sizey;
   int i1 = 0, i2 = 1;
 
-  float minsize = ELEM(where, 'r', 'l') ? BLI_rcti_size_y(rect) : BLI_rcti_size_x(rect);
+  const float minsize = ELEM(where, 'r', 'l') ? BLI_rcti_size_y(rect) : BLI_rcti_size_x(rect);
 
   /* center position and size */
   float centx = (float)rect->xmin + 0.4f * minsize;
@@ -1397,8 +1397,8 @@ static void widget_draw_icon(
     return;
   }
 
-  float aspect = but->block->aspect * U.inv_dpi_fac;
-  float height = ICON_DEFAULT_HEIGHT / aspect;
+  const float aspect = but->block->aspect * U.inv_dpi_fac;
+  const float height = ICON_DEFAULT_HEIGHT / aspect;
 
   /* calculate blend color */
   if (ELEM(but->type, UI_BTYPE_TOGGLE, UI_BTYPE_ROW, UI_BTYPE_TOGGLE_N, UI_BTYPE_LISTROW)) {
@@ -1623,7 +1623,7 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
       }
     }
 
-    float parts_strwidth = (okwidth - sep_strwidth) / 2.0f;
+    const float parts_strwidth = (okwidth - sep_strwidth) / 2.0f;
 
     if (rpart) {
       strcpy(rpart_buf, rpart);
@@ -1631,7 +1631,8 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
       rpart = rpart_buf;
     }
 
-    size_t l_end = BLF_width_to_strlen(fstyle->uifont_id, str, max_len, parts_strwidth, NULL);
+    const size_t l_end = BLF_width_to_strlen(
+        fstyle->uifont_id, str, max_len, parts_strwidth, NULL);
     if (l_end < 10 || min_ff(parts_strwidth, strwidth - okwidth) < minwidth) {
       /* If we really have no place, or we would clip a very small piece of string in the middle,
        * only show start of string.
@@ -2414,7 +2415,7 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
   }
 
   if (!no_text_padding) {
-    int text_padding = (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
+    const int text_padding = (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
     if (but->editstr) {
       rect->xmin += text_padding;
     }
@@ -2541,7 +2542,7 @@ static const uchar *widget_color_blend_from_flags(const uiWidgetStateColors *wco
   if (state & UI_BUT_DRIVEN) {
     return wcol_state->inner_driven_sel;
   }
-  if (state & UI_BUT_OVERRIDEN) {
+  if (state & UI_BUT_OVERRIDDEN) {
     return wcol_state->inner_overridden_sel;
   }
   return NULL;
@@ -2558,7 +2559,7 @@ static void widget_state(uiWidgetType *wt, int state, int drawflag, eUIEmbossTyp
     wt->wcol_theme = &btheme->tui.wcol_list_item;
 
     if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE | UI_SEARCH_FILTER_NO_MATCH)) {
-      ui_widget_color_disabled(wt, state & UI_SEARCH_FILTER_NO_MATCH);
+      ui_widget_color_disabled(wt, state);
     }
   }
 
@@ -2884,7 +2885,7 @@ void ui_hsvcircle_pos_from_vals(
   /* duplication of code... well, simple is better now */
   const float centx = BLI_rcti_cent_x_fl(rect);
   const float centy = BLI_rcti_cent_y_fl(rect);
-  float radius = (float)min_ii(BLI_rcti_size_x(rect), BLI_rcti_size_y(rect)) / 2.0f;
+  const float radius = (float)min_ii(BLI_rcti_size_x(rect), BLI_rcti_size_y(rect)) / 2.0f;
 
   const float ang = 2.0f * (float)M_PI * hsv[0] + (float)M_PI_2;
 
@@ -2896,7 +2897,7 @@ void ui_hsvcircle_pos_from_vals(
     radius_t = hsv[1];
   }
 
-  float rad = clamp_f(radius_t, 0.0f, 1.0f) * radius;
+  const float rad = clamp_f(radius_t, 0.0f, 1.0f) * radius;
   *r_xpos = centx + cosf(-ang) * rad;
   *r_ypos = centy + sinf(-ang) * rad;
 }
@@ -3563,7 +3564,7 @@ void UI_draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *s
   widget_init(&wtb);
 
   /* determine horizontal/vertical */
-  bool horizontal = (BLI_rcti_size_x(rect) > BLI_rcti_size_y(rect));
+  const bool horizontal = (BLI_rcti_size_x(rect) > BLI_rcti_size_y(rect));
 
   const float rad = (horizontal) ? wcol->roundness * BLI_rcti_size_y(rect) :
                                    wcol->roundness * BLI_rcti_size_x(rect);
@@ -3679,7 +3680,7 @@ static void widget_scroll(
     rect1.ymin = rect1.ymax - ceilf(fac * (but->a1 - but->softmin));
 
     /* ensure minimium size */
-    float min = BLI_rcti_size_x(rect);
+    const float min = BLI_rcti_size_x(rect);
 
     if (BLI_rcti_size_y(&rect1) < min) {
       rect1.ymax = rect1.ymin + min;
@@ -3903,7 +3904,7 @@ static void widget_swatch(
 
   ui_but_v3_get(but, col);
 
-  if ((state & (UI_BUT_ANIMATED | UI_BUT_ANIMATED_KEY | UI_BUT_DRIVEN | UI_BUT_OVERRIDEN |
+  if ((state & (UI_BUT_ANIMATED | UI_BUT_ANIMATED_KEY | UI_BUT_DRIVEN | UI_BUT_OVERRIDDEN |
                 UI_BUT_REDALERT)) ||
       (but->drawflag & UI_BUT_ANIMATED_CHANGED)) {
     /* draw based on state - color for keyed etc */
@@ -4856,73 +4857,75 @@ void ui_draw_but(const bContext *C, struct ARegion *region, uiStyle *style, uiBu
     }
   }
 
-  if (wt) {
-    // rcti disablerect = *rect; /* rect gets clipped smaller for text */
+  if (wt == NULL) {
+    return;
+  }
 
-    const int roundboxalign = widget_roundbox_set(but, rect);
+  // rcti disablerect = *rect; /* rect gets clipped smaller for text */
 
-    /* Mask out flags re-used for local state. */
-    int state = but->flag & ~UI_STATE_FLAGS_ALL;
-    const int drawflag = but->drawflag;
+  const int roundboxalign = widget_roundbox_set(but, rect);
 
-    if (state & UI_SELECT_DRAW) {
-      state |= UI_SELECT;
+  /* Mask out flags re-used for local state. */
+  int state = but->flag & ~UI_STATE_FLAGS_ALL;
+  const int drawflag = but->drawflag;
+
+  if (state & UI_SELECT_DRAW) {
+    state |= UI_SELECT;
+  }
+
+  if ((but->editstr) ||
+      (UNLIKELY(but->flag & UI_BUT_DRAG_MULTI) && ui_but_drag_multi_edit_get(but))) {
+    state |= UI_STATE_TEXT_INPUT;
+  }
+
+  if (but->hold_func) {
+    state |= UI_STATE_HOLD_ACTION;
+  }
+
+  if (state & UI_ACTIVE) {
+    if (but->drawflag & UI_BUT_ACTIVE_LEFT) {
+      state |= UI_STATE_ACTIVE_LEFT;
     }
-
-    if ((but->editstr) ||
-        (UNLIKELY(but->flag & UI_BUT_DRAG_MULTI) && ui_but_drag_multi_edit_get(but))) {
-      state |= UI_STATE_TEXT_INPUT;
+    else if (but->drawflag & UI_BUT_ACTIVE_RIGHT) {
+      state |= UI_STATE_ACTIVE_RIGHT;
     }
+  }
 
-    if (but->hold_func) {
-      state |= UI_STATE_HOLD_ACTION;
+  bool use_alpha_blend = false;
+  if (but->emboss != UI_EMBOSS_PULLDOWN) {
+    if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE | UI_SEARCH_FILTER_NO_MATCH)) {
+      use_alpha_blend = true;
+      ui_widget_color_disabled(wt, state);
     }
+  }
 
-    if (state & UI_ACTIVE) {
-      if (but->drawflag & UI_BUT_ACTIVE_LEFT) {
-        state |= UI_STATE_ACTIVE_LEFT;
-      }
-      else if (but->drawflag & UI_BUT_ACTIVE_RIGHT) {
-        state |= UI_STATE_ACTIVE_RIGHT;
-      }
-    }
-
-    bool use_alpha_blend = false;
-    if (but->emboss != UI_EMBOSS_PULLDOWN) {
-      if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE | UI_SEARCH_FILTER_NO_MATCH)) {
-        use_alpha_blend = true;
-        ui_widget_color_disabled(wt, state);
-      }
-    }
-
-    if (drawflag & UI_BUT_TEXT_RIGHT) {
-      state |= UI_STATE_TEXT_BEFORE_WIDGET;
-    }
+  if (drawflag & UI_BUT_TEXT_RIGHT) {
+    state |= UI_STATE_TEXT_BEFORE_WIDGET;
+  }
 
 #ifdef USE_UI_POPOVER_ONCE
-    if (but->block->flag & UI_BLOCK_POPOVER_ONCE) {
-      if ((state & UI_ACTIVE) && ui_but_is_popover_once_compat(but)) {
-        state |= UI_BUT_ACTIVE_DEFAULT;
-      }
+  if (but->block->flag & UI_BLOCK_POPOVER_ONCE) {
+    if ((state & UI_ACTIVE) && ui_but_is_popover_once_compat(but)) {
+      state |= UI_BUT_ACTIVE_DEFAULT;
     }
+  }
 #endif
 
-    wt->state(wt, state, drawflag, but->emboss);
-    if (wt->custom) {
-      wt->custom(but, &wt->wcol, rect, state, roundboxalign);
-    }
-    else if (wt->draw) {
-      wt->draw(&wt->wcol, rect, state, roundboxalign);
-    }
+  wt->state(wt, state, drawflag, but->emboss);
+  if (wt->custom) {
+    wt->custom(but, &wt->wcol, rect, state, roundboxalign);
+  }
+  else if (wt->draw) {
+    wt->draw(&wt->wcol, rect, state, roundboxalign);
+  }
 
-    if (use_alpha_blend) {
-      GPU_blend(GPU_BLEND_ALPHA);
-    }
+  if (use_alpha_blend) {
+    GPU_blend(GPU_BLEND_ALPHA);
+  }
 
-    wt->text(fstyle, &wt->wcol, but, rect);
-    if (use_alpha_blend) {
-      GPU_blend(GPU_BLEND_NONE);
-    }
+  wt->text(fstyle, &wt->wcol, but, rect);
+  if (use_alpha_blend) {
+    GPU_blend(GPU_BLEND_NONE);
   }
 }
 
@@ -5095,7 +5098,7 @@ static void draw_disk_shaded(float start,
 
   uint col;
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   if (shaded) {
     col = GPU_vertformat_attr_add(format, "color", GPU_COMP_U8, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
     immBindBuiltinProgram(GPU_SHADER_2D_SMOOTH_COLOR);
@@ -5107,15 +5110,15 @@ static void draw_disk_shaded(float start,
 
   immBegin(GPU_PRIM_TRI_STRIP, subd * 2);
   for (int i = 0; i < subd; i++) {
-    float a = start + ((i) / (float)(subd - 1)) * angle;
-    float s = sinf(a);
-    float c = cosf(a);
-    float y1 = s * radius_int;
-    float y2 = s * radius_ext;
+    const float a = start + ((i) / (float)(subd - 1)) * angle;
+    const float s = sinf(a);
+    const float c = cosf(a);
+    const float y1 = s * radius_int;
+    const float y2 = s * radius_ext;
 
     if (shaded) {
       uchar r_col[4];
-      float fac = (y1 + radius_ext) * radius_ext_scale;
+      const float fac = (y1 + radius_ext) * radius_ext_scale;
       color_blend_v4_v4v4(r_col, col1, col2, fac);
       immAttr4ubv(col, r_col);
     }
@@ -5123,7 +5126,7 @@ static void draw_disk_shaded(float start,
 
     if (shaded) {
       uchar r_col[4];
-      float fac = (y2 + radius_ext) * radius_ext_scale;
+      const float fac = (y2 + radius_ext) * radius_ext_scale;
       color_blend_v4_v4v4(r_col, col1, col2, fac);
       immAttr4ubv(col, r_col);
     }

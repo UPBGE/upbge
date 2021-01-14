@@ -1,1 +1,0 @@
-blender.exe -P launcher.py

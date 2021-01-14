@@ -44,7 +44,7 @@ class KX_Scene;
 class KX_GameObject;
 
 // type Texture declaration
-class Texture : public CValue {
+class Texture : public EXP_Value {
   Py_Header protected : virtual void DestructFromPython();
 
  public:
@@ -90,20 +90,20 @@ class Texture : public CValue {
 
   static void FreeAllTextures(KX_Scene *scene);
 
-  KX_PYMETHOD_DOC(Texture, close);
-  KX_PYMETHOD_DOC(Texture, refresh);
+  EXP_PYMETHOD_DOC(Texture, close);
+  EXP_PYMETHOD_DOC(Texture, refresh);
 
-  static PyObject *pyattr_get_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-  static int pyattr_set_mipmap(PyObjectPlus *self_v,
-                               const KX_PYATTRIBUTE_DEF *attrdef,
+  static PyObject *pyattr_get_mipmap(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_mipmap(EXP_PyObjectPlus *self_v,
+                               const EXP_PYATTRIBUTE_DEF *attrdef,
                                PyObject *value);
-  static PyObject *pyattr_get_source(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-  static int pyattr_set_source(PyObjectPlus *self_v,
-                               const KX_PYATTRIBUTE_DEF *attrdef,
+  static PyObject *pyattr_get_source(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_source(EXP_PyObjectPlus *self_v,
+                               const EXP_PYATTRIBUTE_DEF *attrdef,
                                PyObject *value);
-  static PyObject *pyattr_get_bindId(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-  static int pyattr_set_bindId(PyObjectPlus *self_v,
-                               const KX_PYATTRIBUTE_DEF *attrdef,
+  static PyObject *pyattr_get_bindId(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_bindId(EXP_PyObjectPlus *self_v,
+                               const EXP_PYATTRIBUTE_DEF *attrdef,
                                PyObject *value);
 };
 

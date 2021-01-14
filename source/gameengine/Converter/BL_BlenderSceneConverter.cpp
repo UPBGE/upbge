@@ -33,22 +33,44 @@
 
 #include "KX_GameObject.h"
 
+BL_BlenderSceneConverter::BL_BlenderSceneConverter()
+{
+  m_materials = {};
+  m_meshobjects = {};
+  m_map_blender_to_gameobject = {};
+  m_map_mesh_to_gamemesh = {};
+  m_map_mesh_to_polyaterial = {};
+  m_map_blender_to_gameactuator = {};
+  m_map_blender_to_gamecontroller = {};
+}
+
+BL_BlenderSceneConverter::~BL_BlenderSceneConverter()
+{
+  m_materials.clear();
+  m_meshobjects.clear();
+  m_map_blender_to_gameobject.clear();
+  m_map_mesh_to_gamemesh.clear();
+  m_map_mesh_to_polyaterial.clear();
+  m_map_blender_to_gameactuator.clear();
+  m_map_blender_to_gamecontroller.clear();
+}
+
 void BL_BlenderSceneConverter::RegisterGameObject(KX_GameObject *gameobject,
                                                   Object *for_blenderobject)
 {
   // 	CM_FunctionDebug("object name: " << gameobject->GetName());
-  // only maintained while converting, freed during game runtime
+  // only maintained while converting, freed during game runtime (not anymore in 0.3)
   m_map_blender_to_gameobject[for_blenderobject] = gameobject;
 }
 
 /** only need to run this during conversion since
- * m_map_blender_to_gameobject is freed after conversion */
+ * m_map_blender_to_gameobject is freed after conversion (not anymore in 0.3) */
 void BL_BlenderSceneConverter::UnregisterGameObject(KX_GameObject *gameobject)
 {
   Object *bobp = gameobject->GetBlenderObject();
   if (bobp) {
     std::map<Object *, KX_GameObject *>::iterator it = m_map_blender_to_gameobject.find(bobp);
-    if (it->second == gameobject) {
+    if (it != m_map_blender_to_gameobject.end() && it->second == gameobject) {
       // also maintain m_map_blender_to_gameobject if the gameobject
       // being removed is matching the blender object
       m_map_blender_to_gameobject.erase(it);

@@ -85,7 +85,7 @@ bool KX_2DFilter::SetTextureUniform(int index, const char *samplerName)
 }
 
 PyTypeObject KX_2DFilter::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_2DFilter",
-                                  sizeof(PyObjectPlus_Proxy),
+                                  sizeof(EXP_PyObjectPlus_Proxy),
                                   0,
                                   py_base_dealloc,
                                   0,
@@ -123,31 +123,31 @@ PyTypeObject KX_2DFilter::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_2DFilter
                                   py_base_new};
 
 PyMethodDef KX_2DFilter::Methods[] = {
-    KX_PYMETHODTABLE(KX_2DFilter, setTexture),
-    KX_PYMETHODTABLE(KX_2DFilter, setCubeMap),
-    KX_PYMETHODTABLE_KEYWORDS(KX_2DFilter, addOffScreen),
-    KX_PYMETHODTABLE_NOARGS(KX_2DFilter, removeOffScreen),
+    EXP_PYMETHODTABLE(KX_2DFilter, setTexture),
+    EXP_PYMETHODTABLE(KX_2DFilter, setCubeMap),
+    EXP_PYMETHODTABLE_KEYWORDS(KX_2DFilter, addOffScreen),
+    EXP_PYMETHODTABLE_NOARGS(KX_2DFilter, removeOffScreen),
     {nullptr, nullptr}  // Sentinel
 };
 
 PyAttributeDef KX_2DFilter::Attributes[] = {
-    KX_PYATTRIBUTE_RW_FUNCTION("mipmap", KX_2DFilter, pyattr_get_mipmap, pyattr_set_mipmap),
-    KX_PYATTRIBUTE_RO_FUNCTION("frameBuffer", KX_2DFilter, pyattr_get_frameBuffer),
-    KX_PYATTRIBUTE_RO_FUNCTION(
+    EXP_PYATTRIBUTE_RW_FUNCTION("mipmap", KX_2DFilter, pyattr_get_mipmap, pyattr_set_mipmap),
+    EXP_PYATTRIBUTE_RO_FUNCTION("frameBuffer", KX_2DFilter, pyattr_get_frameBuffer),
+    EXP_PYATTRIBUTE_RO_FUNCTION(
         "offScreen",
         KX_2DFilter,
         pyattr_get_frameBuffer),  // Keep offScreen name for background compatibility
-    KX_PYATTRIBUTE_NULL           // Sentinel
+    EXP_PYATTRIBUTE_NULL           // Sentinel
 };
 
-PyObject *KX_2DFilter::pyattr_get_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_2DFilter::pyattr_get_mipmap(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_2DFilter *self = static_cast<KX_2DFilter *>(self_v);
   return PyBool_FromLong(self->GetMipmap());
 }
 
-int KX_2DFilter::pyattr_set_mipmap(PyObjectPlus *self_v,
-                                   const KX_PYATTRIBUTE_DEF *attrdef,
+int KX_2DFilter::pyattr_set_mipmap(EXP_PyObjectPlus *self_v,
+                                   const EXP_PYATTRIBUTE_DEF *attrdef,
                                    PyObject *value)
 {
   KX_2DFilter *self = static_cast<KX_2DFilter *>(self_v);
@@ -162,15 +162,15 @@ int KX_2DFilter::pyattr_set_mipmap(PyObjectPlus *self_v,
   return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_2DFilter::pyattr_get_frameBuffer(PyObjectPlus *self_v,
-                                              const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_2DFilter::pyattr_get_frameBuffer(EXP_PyObjectPlus *self_v,
+                                              const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_2DFilter *self = static_cast<KX_2DFilter *>(self_v);
   RAS_2DFilterFrameBuffer *frameBuffer = self->GetFrameBuffer();
   return frameBuffer ? static_cast<KX_2DFilterFrameBuffer *>(frameBuffer)->GetProxy() : Py_None;
 }
 
-KX_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(index, bindCode, samplerName)")
+EXP_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(index, bindCode, samplerName)")
 {
   int index = 0;
   int bindCode = 0;
@@ -192,7 +192,7 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(index, bindCode, sampler
   Py_RETURN_NONE;
 }
 
-KX_PYMETHODDEF_DOC(KX_2DFilter, setCubeMap, "setCubeMap(index, bindCode, samplerName)")
+EXP_PYMETHODDEF_DOC(KX_2DFilter, setCubeMap, "setCubeMap(index, bindCode, samplerName)")
 {
   int index = 0;
   int bindCode = 0;
@@ -214,7 +214,7 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, setCubeMap, "setCubeMap(index, bindCode, sampler
   Py_RETURN_NONE;
 }
 
-KX_PYMETHODDEF_DOC(KX_2DFilter, addOffScreen, " addOffScreen(slots, width, height, mipmap)")
+EXP_PYMETHODDEF_DOC(KX_2DFilter, addOffScreen, " addOffScreen(slots, width, height, mipmap)")
 {
   unsigned short slots;
   unsigned int width = -1;
@@ -270,7 +270,7 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, addOffScreen, " addOffScreen(slots, width, heigh
   return kxFrameBuffer->GetProxy();
 }
 
-KX_PYMETHODDEF_DOC_NOARGS(KX_2DFilter, removeOffScreen, " removeOffScreen()")
+EXP_PYMETHODDEF_DOC_NOARGS(KX_2DFilter, removeOffScreen, " removeOffScreen()")
 {
   SetOffScreen(nullptr);
   Py_RETURN_NONE;

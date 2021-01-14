@@ -61,7 +61,7 @@ class SCA_PropertyActuator : public SCA_IActuator {
 
   ~SCA_PropertyActuator();
 
-  CValue *GetReplica();
+  EXP_Value *GetReplica();
 
   virtual void ProcessReplica();
   virtual bool UnlinkObject(SCA_IObject *clientobj);

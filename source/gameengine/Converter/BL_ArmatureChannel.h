@@ -44,7 +44,7 @@ struct bPoseChannel;
 struct Object;
 struct bPose;
 
-class BL_ArmatureChannel : public CValue {
+class BL_ArmatureChannel : public EXP_Value {
   // use Py_HeaderPtr since we use generic pointer in proxy
   Py_HeaderPtr;
 
@@ -64,14 +64,14 @@ class BL_ArmatureChannel : public CValue {
 
 #ifdef WITH_PYTHON
   // Python access
-  static PyObject *py_attr_getattr(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-  static int py_attr_setattr(PyObjectPlus *self,
-                             const struct KX_PYATTRIBUTE_DEF *attrdef,
+  static PyObject *py_attr_getattr(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static int py_attr_setattr(EXP_PyObjectPlus *self,
+                             const struct EXP_PYATTRIBUTE_DEF *attrdef,
                              PyObject *value);
-  static PyObject *py_attr_get_joint_rotation(PyObjectPlus *self,
-                                              const struct KX_PYATTRIBUTE_DEF *attrdef);
-  static int py_attr_set_joint_rotation(PyObjectPlus *self,
-                                        const struct KX_PYATTRIBUTE_DEF *attrdef,
+  static PyObject *py_attr_get_joint_rotation(EXP_PyObjectPlus *self,
+                                              const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static int py_attr_set_joint_rotation(EXP_PyObjectPlus *self,
+                                        const struct EXP_PYATTRIBUTE_DEF *attrdef,
                                         PyObject *value);
 #endif /* WITH_PYTHON */
 };
@@ -79,7 +79,7 @@ class BL_ArmatureChannel : public CValue {
 /* this is a factory class to access bBone data field in the GE.
  * It's not supposed to be instantiated, we only need it for the Attributes and Method array.
  * The actual proxy object will be manually created using NewProxyPtr */
-class BL_ArmatureBone : public PyObjectPlus {
+class BL_ArmatureBone : public EXP_PyObjectPlus {
   // use Py_HeaderPtr since we use generic pointer in proxy
   Py_HeaderPtr;
 
@@ -95,10 +95,10 @@ class BL_ArmatureBone : public PyObjectPlus {
  public:
 #ifdef WITH_PYTHON
   static PyObject *py_bone_repr(PyObject *self);
-  static PyObject *py_bone_get_parent(PyObjectPlus *self,
-                                      const struct KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *py_bone_get_children(PyObjectPlus *self,
-                                        const struct KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *py_bone_get_parent(EXP_PyObjectPlus *self,
+                                      const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *py_bone_get_children(EXP_PyObjectPlus *self,
+                                        const struct EXP_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
 

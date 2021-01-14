@@ -63,7 +63,7 @@ SCA_GameActuator::~SCA_GameActuator()
   // there's nothing to be done here, really....
 } /* end of destructor */
 
-CValue *SCA_GameActuator::GetReplica()
+EXP_Value *SCA_GameActuator::GetReplica()
 {
   SCA_GameActuator *replica = new SCA_GameActuator(*this);
   replica->ProcessReplica();
@@ -103,7 +103,7 @@ bool SCA_GameActuator::Update()
     }
     case KX_GAME_QUIT: {
       if (m_ketsjiengine) {
-        std::string exitstring = "quiting game";
+        std::string exitstring = "quitting game";
         m_ketsjiengine->RequestExit(KX_ExitRequest::QUIT_GAME);
         m_scene->AddDebugProperty((this)->GetParent(), exitstring);
       }
@@ -149,7 +149,7 @@ bool SCA_GameActuator::Update()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_GameActuator::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_GameActuator",
-                                       sizeof(PyObjectPlus_Proxy),
+                                       sizeof(EXP_PyObjectPlus_Proxy),
                                        0,
                                        py_base_dealloc,
                                        0,
@@ -191,10 +191,10 @@ PyMethodDef SCA_GameActuator::Methods[] = {
 };
 
 PyAttributeDef SCA_GameActuator::Attributes[] = {
-    KX_PYATTRIBUTE_STRING_RW("fileName", 0, 100, false, SCA_GameActuator, m_filename),
-    KX_PYATTRIBUTE_INT_RW(
+    EXP_PYATTRIBUTE_STRING_RW("fileName", 0, 100, false, SCA_GameActuator, m_filename),
+    EXP_PYATTRIBUTE_INT_RW(
         "mode", KX_GAME_NODEF + 1, KX_GAME_MAX - 1, true, SCA_GameActuator, m_mode),
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
 #endif  // WITH_PYTHON

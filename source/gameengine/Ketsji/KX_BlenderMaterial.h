@@ -19,7 +19,7 @@ class KX_MaterialShader;
 struct Material;
 struct GPUMaterial;
 
-class KX_BlenderMaterial : public CValue, public RAS_IPolyMaterial {
+class KX_BlenderMaterial : public EXP_Value, public RAS_IPolyMaterial {
   Py_Header
 
       public : KX_BlenderMaterial(RAS_Rasterizer *rasty,
@@ -63,12 +63,12 @@ class KX_BlenderMaterial : public CValue, public RAS_IPolyMaterial {
 
 #ifdef WITH_PYTHON
 
-  static PyObject *pyattr_get_materialIndex(PyObjectPlus *self_v,
-                                            const KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_textures(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_materialIndex(EXP_PyObjectPlus *self_v,
+                                            const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_textures(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 
-  KX_PYMETHOD_DOC(KX_BlenderMaterial, getShader);
-  KX_PYMETHOD_DOC(KX_BlenderMaterial, setBlending);
+  EXP_PYMETHOD_DOC(KX_BlenderMaterial, getShader);
+  EXP_PYMETHOD_DOC(KX_BlenderMaterial, setBlending);
 
 #endif  // WITH_PYTHON
 

@@ -43,6 +43,7 @@
 #include "BLI_blenlib.h"
 #include "BLO_readfile.h"
 #include "DNA_space_types.h"
+#include "ED_screen.h"
 #include "WM_api.h"
 #include "wm_window.h"
 
@@ -111,6 +112,34 @@ static void InitBlenderContextVariables(bContext *C, wmWindowManager *wm, Scene 
   }
 }
 
+static int GetShadingTypeRuntime(bContext *C, bool useViewportRender)
+{
+  View3D *v3d = CTX_wm_view3d(C);
+  if (useViewportRender) {
+    return v3d->shading.type;
+  }
+  bool not_eevee = (v3d->shading.type != OB_RENDER) && (v3d->shading.type != OB_MATERIAL);
+
+  if (not_eevee) {
+    return OB_RENDER;
+  }
+  return v3d->shading.type;
+}
+
+static void RefreshContextAndScreen(bContext *C, wmWindowManager *wm, wmWindow *win, Scene *scene)
+{
+  bScreen *screen = WM_window_get_active_screen(win);
+  InitBlenderContextVariables(C, wm, scene);
+
+  WM_check(C);
+  ED_screen_change(C, screen);
+  ED_screen_refresh(wm, win);
+
+  ED_screen_areas_iter (win, screen, area_iter) {
+    ED_area_tag_redraw(area_iter);
+  }
+}
+
 extern "C" void StartKetsjiShell(struct bContext *C,
                                  struct ARegion *ar,
                                  rcti *cam_frame,
@@ -166,6 +195,11 @@ extern "C" void StartKetsjiShell(struct bContext *C,
   void *gpuctx_backup = win_backup->gpuctx;
   void *ghostwin_backup = win_backup->ghostwin;
 
+  /* Set Viewport render mode and shading type for the whole runtime */
+  bool useViewportRender = startscene->gm.flag & GAME_USE_VIEWPORT_RENDER;
+  int shadingTypeRuntime = GetShadingTypeRuntime(C, useViewportRender);
+  int shadingTypeBackup = CTX_wm_view3d(C)->shading.type;
+
   do {
     // if we got an exitcode 3 (KX_ExitRequest::START_OTHER_GAME) load a different file
     if (exitrequested == KX_ExitRequest::START_OTHER_GAME ||
@@ -220,13 +254,15 @@ extern "C" void StartKetsjiShell(struct bContext *C,
         win->ghostwin = ghostwin_backup;
         win->gpuctx = gpuctx_backup;
         wm->message_bus = (wmMsgBus *)msgbus_backup;
+
+        wm_window_ghostwindow_embedded_ensure(wm, win);
+
         /* We need to init Blender bContext environment here
          * to because in embedded, ar, v3d...
-         * are needed for launcher creation
+         * are needed for launcher creation + Refresh Screen
+         * to be able to draw blender areas.
          */
-        InitBlenderContextVariables(C, wm, bfd->curscene);
-        wm_window_ghostwindow_embedded_ensure(wm, win);
-        WM_check(C);
+        RefreshContextAndScreen(C, wm, win, bfd->curscene);
 
         if (blenderdata) {
           BLI_strncpy(pathname, blenderdata->name, sizeof(pathname));
@@ -294,7 +330,9 @@ extern "C" void StartKetsjiShell(struct bContext *C,
                                                      C,
                                                      cam_frame,
                                                      CTX_wm_region(C),
-                                                     always_use_expand_framing);
+                                                     always_use_expand_framing,
+                                                     useViewportRender,
+                                                     shadingTypeRuntime);
 #ifdef WITH_PYTHON
     launcher.SetPythonGlobalDict(globalDict);
 #endif  // WITH_PYTHON
@@ -311,6 +349,19 @@ extern "C" void StartKetsjiShell(struct bContext *C,
 
     launcher.ExitEngine();
 
+    /* refer to WM_exit_ext() and BKE_blender_free(),
+     * these are not called in the player but we need to match some of there behavior here,
+     * if the order of function calls or blenders state isn't matching that of blender
+     * proper, we may get troubles later on */
+    wmWindowManager *wm = CTX_wm_manager(C);
+    WM_jobs_kill_all(wm);
+
+    LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
+      CTX_wm_window_set(C, win); /* needed by operator close callbacks */
+      WM_event_remove_handlers(C, &win->handlers);
+      WM_event_remove_handlers(C, &win->modalhandlers);
+      ED_screen_exit(C, win, WM_window_get_active_screen(win));
+    }
   } while (exitrequested == KX_ExitRequest::RESTART_GAME ||
            exitrequested == KX_ExitRequest::START_OTHER_GAME);
 
@@ -330,9 +381,12 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     win_backup->ghostwin = ghostwin_backup;
     win_backup->gpuctx = gpuctx_backup;
     wm_backup->message_bus = (wmMsgBus *)msgbus_backup;
-    InitBlenderContextVariables(C, wm_backup, startscene);
-    WM_check(C);
   }
+
+  RefreshContextAndScreen(C, wm_backup, win_backup, startscene);
+
+  /* Restore shading type we had before game start */
+  CTX_wm_view3d(C)->shading.type = shadingTypeBackup;
 
   /* Undo System */
   if (startscene->gm.flag & GAME_USE_UNDO) {

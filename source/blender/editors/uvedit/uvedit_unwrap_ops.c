@@ -2129,7 +2129,7 @@ static int smart_project_exec(bContext *C, wmOperator *op)
       }
 
       float axis_mat[3][3];
-      axis_dominant_v3_to_m3_negate(axis_mat, project_normal_array[p_index]);
+      axis_dominant_v3_to_m3(axis_mat, project_normal_array[p_index]);
 
       for (LinkNode *list = thickface_project_groups[p_index]; list; list = list->next) {
         ThickFace *tf = list->link;
@@ -2229,7 +2229,7 @@ void UV_OT_smart_project(wmOperatorType *ot)
                 0.0f,
                 1.0f,
                 "Area Weight",
-                "Weight projections vector by faces with larger areas",
+                "Weight projection's vector by faces with larger areas",
                 0.0f,
                 1.0f);
 

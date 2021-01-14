@@ -103,15 +103,8 @@
 // #define USE_OP_RESET_BUT
 
 /* defines for templateID/TemplateSearch */
-#define TEMPLATE_SEARCH_TEXTBUT_WIDTH (UI_UNIT_X * 8)
+#define TEMPLATE_SEARCH_TEXTBUT_WIDTH (UI_UNIT_X * 6)
 #define TEMPLATE_SEARCH_TEXTBUT_HEIGHT UI_UNIT_Y
-
-/* Add "Make Single User" button to templateID. Users can just manually duplicate an ID, it's
- * unclear what the use-case of this specific button is. So for now disabling it, we can bring it
- * back or remove it later.
- * - Julian
- */
-//#define USE_TEMPLATE_ID_MAKE_SINGLE_USER
 
 void UI_template_fix_linking(void)
 {
@@ -316,12 +309,6 @@ typedef struct TemplateID {
 
   ListBase *idlb;
   short idcode;
-
-  const char *new_op;
-  const char *duplicate_op;
-  const char *unlink_op;
-  const char *open_op;
-
   short filter;
   int prv_rows, prv_cols;
   bool preview;
@@ -421,7 +408,7 @@ static void id_search_cb(const bContext *C,
   }
 
   ID **filtered_ids;
-  int filtered_amount = BLI_string_search_query(search, str, (void ***)&filtered_ids);
+  const int filtered_amount = BLI_string_search_query(search, str, (void ***)&filtered_ids);
 
   for (int i = 0; i < filtered_amount; i++) {
     if (!id_search_add(C, template_ui, items, filtered_ids[i])) {
@@ -458,7 +445,7 @@ static void id_search_cb_tagged(const bContext *C,
   }
 
   ID **filtered_ids;
-  int filtered_amount = BLI_string_search_query(search, str, (void ***)&filtered_ids);
+  const int filtered_amount = BLI_string_search_query(search, str, (void ***)&filtered_ids);
 
   for (int i = 0; i < filtered_amount; i++) {
     if (!id_search_add(C, template_ui, items, filtered_ids[i])) {
@@ -578,64 +565,80 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
       memset(&idptr, 0, sizeof(idptr));
       RNA_property_pointer_set(&template_ui->ptr, template_ui->prop, idptr, NULL);
       RNA_property_update(C, &template_ui->ptr, template_ui->prop);
+
+      if (id && CTX_wm_window(C)->eventstate->shift) {
+        /* only way to force-remove data (on save) */
+        id_us_clear_real(id);
+        id_fake_user_clear(id);
+        id->us = 0;
+        undo_push_label = "Delete Data-Block";
+      }
+
       break;
-    case UI_ID_MAKE_LOCAL:
+    case UI_ID_FAKE_USER:
+      if (id) {
+        if (id->flag & LIB_FAKEUSER) {
+          id_us_plus(id);
+        }
+        else {
+          id_us_min(id);
+        }
+        undo_push_label = "Fake User";
+      }
+      else {
+        return;
+      }
+      break;
+    case UI_ID_LOCAL:
       if (id) {
         Main *bmain = CTX_data_main(C);
-        if (BKE_lib_id_make_local(bmain, id, false, 0)) {
-          BKE_main_id_clear_newpoins(bmain);
+        if (CTX_wm_window(C)->eventstate->shift) {
+          if (ID_IS_OVERRIDABLE_LIBRARY(id)) {
+            /* Only remap that specific ID usage to overriding local data-block. */
+            ID *override_id = BKE_lib_override_library_create_from_id(bmain, id, false);
+            if (override_id != NULL) {
+              BKE_main_id_clear_newpoins(bmain);
 
-          /* reassign to get get proper updates/notifiers */
-          idptr = RNA_property_pointer_get(&template_ui->ptr, template_ui->prop);
+              if (GS(override_id->name) == ID_OB) {
+                Scene *scene = CTX_data_scene(C);
+                if (!BKE_collection_has_object_recursive(scene->master_collection,
+                                                         (Object *)override_id)) {
+                  BKE_collection_object_add_from(
+                      bmain, scene, (Object *)id, (Object *)override_id);
+                }
+              }
+
+              /* Assign new pointer, takes care of updates/notifiers */
+              RNA_id_pointer_create(override_id, &idptr);
+            }
+            undo_push_label = "Make Library Override";
+          }
+        }
+        else {
+          if (BKE_lib_id_make_local(bmain, id, false, 0)) {
+            BKE_main_id_clear_newpoins(bmain);
+
+            /* reassign to get get proper updates/notifiers */
+            idptr = RNA_property_pointer_get(&template_ui->ptr, template_ui->prop);
+            undo_push_label = "Make Local";
+          }
+        }
+        if (undo_push_label != NULL) {
           RNA_property_pointer_set(&template_ui->ptr, template_ui->prop, idptr, NULL);
           RNA_property_update(C, &template_ui->ptr, template_ui->prop);
-          undo_push_label = "Make Local";
         }
       }
       break;
-    case UI_ID_LIB_OVERRIDE_ADD:
-      if (id && ID_IS_OVERRIDABLE_LIBRARY(id)) {
-        Main *bmain = CTX_data_main(C);
-        /* Only remap that specific ID usage to overriding local data-block. */
-        ID *override_id = BKE_lib_override_library_create_from_id(bmain, id, false);
-        if (override_id != NULL) {
-          BKE_main_id_clear_newpoins(bmain);
-
-          if (GS(override_id->name) == ID_OB) {
-            Scene *scene = CTX_data_scene(C);
-            if (!BKE_collection_has_object_recursive(scene->master_collection,
-                                                     (Object *)override_id)) {
-              BKE_collection_object_add_from(bmain, scene, (Object *)id, (Object *)override_id);
-            }
-          }
-
-          /* Assign new pointer, takes care of updates/notifiers */
-          RNA_id_pointer_create(override_id, &idptr);
-        }
-        /* reassign to get get proper updates/notifiers */
-        RNA_property_pointer_set(&template_ui->ptr, template_ui->prop, idptr, NULL);
-        RNA_property_update(C, &template_ui->ptr, template_ui->prop);
-        undo_push_label = "Make Library Override";
-      }
-      break;
-    case UI_ID_LIB_OVERRIDE_RESET:
-      if (id && ID_IS_OVERRIDE_LIBRARY_REAL(id)) {
-        Main *bmain = CTX_data_main(C);
-        BKE_lib_override_library_id_reset(bmain, id);
-        undo_push_label = "Reset Library Override";
-      }
-      break;
-    case UI_ID_LIB_OVERRIDE_REMOVE:
+    case UI_ID_OVERRIDE:
       if (id && ID_IS_OVERRIDE_LIBRARY(id)) {
         BKE_lib_override_library_free(&id->override_library, true);
         /* reassign to get get proper updates/notifiers */
         idptr = RNA_property_pointer_get(&template_ui->ptr, template_ui->prop);
         RNA_property_pointer_set(&template_ui->ptr, template_ui->prop, idptr, NULL);
         RNA_property_update(C, &template_ui->ptr, template_ui->prop);
-        undo_push_label = "Remove Library Override";
+        undo_push_label = "Override Data-Block";
       }
       break;
-#ifdef USE_TEMPLATE_ID_MAKE_SINGLE_USER
     case UI_ID_ALONE:
       if (id) {
         const bool do_scene_obj = ((GS(id->name) == ID_OB) &&
@@ -657,7 +660,6 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
         undo_push_label = "Make Single User";
       }
       break;
-#endif
 #if 0
     case UI_ID_AUTO_NAME:
       break;
@@ -771,221 +773,17 @@ static const char *template_id_context(StructRNA *type)
 #  define template_id_context(type) 0
 #endif
 
-static void template_id_linked_operation_button(
-    uiBlock *block, Main *bmain, ID *id, TemplateID *template_ui, int operation)
+static uiBut *template_id_def_new_but(uiBlock *block,
+                                      const ID *id,
+                                      const TemplateID *template_ui,
+                                      StructRNA *type,
+                                      const char *const newop,
+                                      const bool editable,
+                                      const bool id_open,
+                                      const bool use_tab_but,
+                                      int but_height)
 {
-  BLI_assert(ELEM(operation, UI_ID_MAKE_LOCAL, UI_ID_LIB_OVERRIDE_ADD));
-
-  const char *label = (operation == UI_ID_MAKE_LOCAL) ?
-                          CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Local") :
-                          CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Add Library Override");
-  const char *tip = (operation == UI_ID_MAKE_LOCAL) ?
-                        N_("Make library linked data-block local to this file") :
-                        N_("Create a local override of this library linked data-block");
-  BIFIconID icon = (operation == UI_ID_MAKE_LOCAL) ? ICON_BLANK1 : ICON_LIBRARY_DATA_OVERRIDE;
-
-  uiBut *but = uiDefIconTextBut(block,
-                                UI_BTYPE_BUT,
-                                0,
-                                icon,
-                                CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, label),
-                                0,
-                                0,
-                                UI_UNIT_X,
-                                UI_UNIT_Y,
-                                NULL,
-                                0,
-                                0,
-                                0,
-                                0,
-                                TIP_(tip));
-
-  bool disabled = false;
-
-  if (!ID_IS_LINKED(id)) {
-    disabled = true;
-    but->disabled_info = TIP_("Data-block is not linked");
-  }
-  else if (id->tag & LIB_TAG_INDIRECT) {
-    disabled = true;
-    but->disabled_info = TIP_("Indirect library data-block, cannot change");
-  }
-  else if (!BKE_lib_id_make_local(bmain, id, true /* test */, 0)) {
-    disabled = true;
-    but->disabled_info = TIP_("Data-blocks of this type cannot be made local");
-  }
-  else if (!RNA_property_editable_info(
-               &template_ui->ptr, template_ui->prop, &but->disabled_info)) {
-    disabled = true;
-  }
-
-  if (disabled) {
-    UI_but_flag_enable(but, UI_BUT_DISABLED);
-  }
-  else {
-    UI_but_funcN_set(but, template_id_cb, MEM_dupallocN(template_ui), POINTER_FROM_INT(operation));
-  }
-}
-
-static void template_id_library_overridden_button(uiBlock *block,
-                                                  ID *id,
-                                                  TemplateID *template_ui,
-                                                  int operation)
-{
-  BLI_assert(ELEM(operation, UI_ID_LIB_OVERRIDE_RESET, UI_ID_LIB_OVERRIDE_REMOVE) &&
-             ID_IS_OVERRIDE_LIBRARY(id));
-
-  if (operation == UI_ID_LIB_OVERRIDE_RESET && ID_IS_OVERRIDE_LIBRARY_REAL(id)) {
-    uiBut *but = uiDefIconTextBut(
-        block,
-        UI_BTYPE_BUT,
-        0,
-        ICON_BLANK1,
-        CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Reset Library Override"),
-        0,
-        0,
-        UI_UNIT_X,
-        UI_UNIT_Y,
-        NULL,
-        0,
-        0,
-        0,
-        0,
-        TIP_("Reset the local override to the state of "
-             "the overridden data-block"));
-    if (!ID_IS_OVERRIDE_LIBRARY_REAL(id)) {
-      but->disabled_info = TIP_("Data-block is a virtual, not a real override");
-      UI_but_flag_enable(but, UI_BUT_DISABLED);
-    }
-    else {
-      UI_but_funcN_set(but,
-                       template_id_cb,
-                       MEM_dupallocN(template_ui),
-                       POINTER_FROM_INT(UI_ID_LIB_OVERRIDE_RESET));
-    }
-  }
-  else if (operation == UI_ID_LIB_OVERRIDE_REMOVE) {
-    uiBut *but = uiDefIconTextBut(
-        block,
-        UI_BTYPE_BUT,
-        0,
-        ICON_BLANK1,
-        CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Local"),
-        0,
-        0,
-        UI_UNIT_X,
-        UI_UNIT_Y,
-        NULL,
-        0,
-        0,
-        0,
-        0,
-        TIP_("Remove library override and make the library linked data-block "
-             "fully local to this file"));
-    UI_but_funcN_set(but,
-                     template_id_cb,
-                     MEM_dupallocN(template_ui),
-                     POINTER_FROM_INT(UI_ID_LIB_OVERRIDE_REMOVE));
-  }
-}
-
-#ifdef USE_TEMPLATE_ID_MAKE_SINGLE_USER
-static uiBut *template_id_make_single_user_button(uiBlock *block, ID *id, TemplateID *template_ui)
-{
-  uiBut *but = uiDefIconTextBut(
-      block,
-      UI_BTYPE_BUT,
-      0,
-      ICON_BLANK1,
-      CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Single-User Copy"),
-      0,
-      0,
-      UI_UNIT_X,
-      UI_UNIT_Y,
-      NULL,
-      0,
-      0,
-      0,
-      0,
-      TIP_("Duplicate the data-block and assign the newly created copy"));
-
-  if (ID_REAL_USERS(id) <= 1) {
-    UI_but_flag_enable(but, UI_BUT_DISABLED);
-    but->disabled_info = TIP_("Data-block already is a single-user");
-    /* No need for further setup. */
-    return but;
-  }
-
-  UI_but_funcN_set(but, template_id_cb, MEM_dupallocN(template_ui), POINTER_FROM_INT(UI_ID_ALONE));
-
   ID *idfrom = template_ui->ptr.owner_id;
-  bool disabled = false;
-
-  if (!RNA_property_editable_info(&template_ui->ptr, template_ui->prop, &but->disabled_info)) {
-    disabled = true;
-  }
-  if (!BKE_id_copy_is_allowed(id)) {
-    but->disabled_info = TIP_("Data-blocks of this type cannot be copied");
-    disabled = true;
-  }
-  /* object in editmode - don't change data */
-  if (idfrom && GS(idfrom->name) == ID_OB && (((Object *)idfrom)->mode & OB_MODE_EDIT)) {
-    but->disabled_info = TIP_("Cannot change object data in Edit Mode");
-    disabled = true;
-  }
-
-  if (disabled) {
-    UI_but_flag_enable(but, UI_BUT_DISABLED);
-  }
-
-  return but;
-}
-#endif
-
-static void template_id_use_fake_user_button(uiBlock *block, PointerRNA *idptr)
-{
-  const bool use_fake_user = ID_FAKE_USERS(idptr->data) > 0;
-  uiBut *but = uiDefIconTextButR(
-      block,
-      UI_BTYPE_ICON_TOGGLE,
-      0,
-      ICON_FAKE_USER_OFF,
-      use_fake_user ? CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove Fake User") :
-                      CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Add Fake User"),
-      0,
-      0,
-      UI_UNIT_X,
-      UI_UNIT_Y,
-      idptr,
-      "use_fake_user",
-      -1,
-      0,
-      0,
-      -1,
-      -1,
-      TIP_("When set, ensures the data-block is kept when reloading the file, even if not used at "
-           "all"));
-
-  if ((ELEM(GS(((ID *)idptr->data)->name), ID_GR, ID_SCE, ID_SCR, ID_TXT, ID_OB, ID_WS))) {
-    but->disabled_info = TIP_("Data-block type does not support fake user");
-    UI_but_flag_enable(but, UI_BUT_DISABLED);
-  }
-}
-
-enum TemplateIDCreateType {
-  TEMPLATE_ID_CREATE_NEW,
-  TEMPLATE_ID_CREATE_DUPLICATE,
-};
-
-static uiBut *template_id_new_button(uiBlock *block,
-                                     const ID *id,
-                                     TemplateID *template_ui,
-                                     enum TemplateIDCreateType create_type,
-                                     StructRNA *type,
-                                     const bool id_open,
-                                     const bool use_tab_but,
-                                     int but_height)
-{
   uiBut *but;
   const int w = id ? UI_UNIT_X : id_open ? UI_UNIT_X * 3 : UI_UNIT_X * 6;
   const int but_type = use_tab_but ? UI_BTYPE_TAB : UI_BTYPE_BUT;
@@ -1023,80 +821,31 @@ static uiBut *template_id_new_button(uiBlock *block,
                             BLT_I18NCONTEXT_ID_POINTCLOUD,
                             BLT_I18NCONTEXT_ID_VOLUME,
                             BLT_I18NCONTEXT_ID_SIMULATION, );
-  BLT_I18N_MSGID_MULTI_CTXT("Duplicate",
-                            BLT_I18NCONTEXT_DEFAULT,
-                            BLT_I18NCONTEXT_ID_SCENE,
-                            BLT_I18NCONTEXT_ID_OBJECT,
-                            BLT_I18NCONTEXT_ID_MESH,
-                            BLT_I18NCONTEXT_ID_CURVE,
-                            BLT_I18NCONTEXT_ID_METABALL,
-                            BLT_I18NCONTEXT_ID_MATERIAL,
-                            BLT_I18NCONTEXT_ID_TEXTURE,
-                            BLT_I18NCONTEXT_ID_IMAGE,
-                            BLT_I18NCONTEXT_ID_LATTICE,
-                            BLT_I18NCONTEXT_ID_LIGHT,
-                            BLT_I18NCONTEXT_ID_CAMERA,
-                            BLT_I18NCONTEXT_ID_WORLD,
-                            BLT_I18NCONTEXT_ID_SCREEN,
-                            BLT_I18NCONTEXT_ID_TEXT, );
-  BLT_I18N_MSGID_MULTI_CTXT("Duplicate",
-                            BLT_I18NCONTEXT_ID_SPEAKER,
-                            BLT_I18NCONTEXT_ID_SOUND,
-                            BLT_I18NCONTEXT_ID_ARMATURE,
-                            BLT_I18NCONTEXT_ID_ACTION,
-                            BLT_I18NCONTEXT_ID_NODETREE,
-                            BLT_I18NCONTEXT_ID_BRUSH,
-                            BLT_I18NCONTEXT_ID_PARTICLESETTINGS,
-                            BLT_I18NCONTEXT_ID_GPENCIL,
-                            BLT_I18NCONTEXT_ID_FREESTYLELINESTYLE,
-                            BLT_I18NCONTEXT_ID_WORKSPACE,
-                            BLT_I18NCONTEXT_ID_LIGHTPROBE,
-                            BLT_I18NCONTEXT_ID_HAIR,
-                            BLT_I18NCONTEXT_ID_POINTCLOUD,
-                            BLT_I18NCONTEXT_ID_VOLUME,
-                            BLT_I18NCONTEXT_ID_SIMULATION, );
   /* Note: BLT_I18N_MSGID_MULTI_CTXT takes a maximum number of parameters,
    * check the definition to see if a new call must be added when the limit
    * is exceeded. */
 
-  const char *text;
-  const char *op;
-  BIFIconID icon;
-
-  switch (create_type) {
-    case TEMPLATE_ID_CREATE_NEW:
-      icon = ICON_ADD;
-      text = CTX_IFACE_(template_id_context(type), "New");
-      op = template_ui->new_op;
-      break;
-    case TEMPLATE_ID_CREATE_DUPLICATE:
-      icon = ICON_DUPLICATE;
-      text = CTX_IFACE_(template_id_context(type), "Duplicate");
-      op = template_ui->duplicate_op;
-      break;
-  }
-
-  const bool icon_only = use_tab_but;
-  if (icon_only) {
-    text = "";
-  }
-
-  if (op) {
-    but = uiDefIconTextButO(
-        block, but_type, op, WM_OP_INVOKE_DEFAULT, icon, text, 0, 0, w, but_height, NULL);
+  if (newop) {
+    but = uiDefIconTextButO(block,
+                            but_type,
+                            newop,
+                            WM_OP_INVOKE_DEFAULT,
+                            (id && !use_tab_but) ? ICON_DUPLICATE : ICON_ADD,
+                            (id) ? "" : CTX_IFACE_(template_id_context(type), "New"),
+                            0,
+                            0,
+                            w,
+                            but_height,
+                            NULL);
     UI_but_funcN_set(
         but, template_id_cb, MEM_dupallocN(template_ui), POINTER_FROM_INT(UI_ID_ADD_NEW));
-
-    if (!RNA_property_editable_info(&template_ui->ptr, template_ui->prop, &but->disabled_info)) {
-      UI_but_flag_enable(but, UI_BUT_DISABLED);
-    }
   }
   else {
     but = uiDefIconTextBut(block,
                            but_type,
                            0,
-                           icon,
-                           text,
+                           (id && !use_tab_but) ? ICON_DUPLICATE : ICON_ADD,
+                           (id) ? "" : CTX_IFACE_(template_id_context(type), "New"),
                            0,
                            0,
                            w,
@@ -1106,12 +855,13 @@ static uiBut *template_id_new_button(uiBlock *block,
                            0,
                            0,
                            0,
-                           TIP_("Create a new data-block"));
-    but->disabled_info = TIP_("Creating a new data-block is not supported here");
-    UI_but_flag_enable(but, UI_BUT_DISABLED);
+                           NULL);
+    UI_but_funcN_set(
+        but, template_id_cb, MEM_dupallocN(template_ui), POINTER_FROM_INT(UI_ID_ADD_NEW));
   }
-  if (icon_only) {
-    UI_but_drawflag_disable(but, UI_BUT_ICON_LEFT);
+
+  if ((idfrom && idfrom->lib) || !editable) {
+    UI_but_flag_enable(but, UI_BUT_DISABLED);
   }
 
 #ifndef WITH_INTERNATIONAL
@@ -1121,293 +871,14 @@ static uiBut *template_id_new_button(uiBlock *block,
   return but;
 }
 
-static void template_id_unlink_button(uiBlock *block,
-                                      TemplateID *template_ui,
-                                      bool hide_if_disabled)
-{
-  const char *disable_info;
-  const bool is_menu = ui_block_is_menu(block);
-  const bool editable = RNA_property_editable_info(
-      &template_ui->ptr, template_ui->prop, &disable_info);
-  /* allow unlink if 'unlinkop' is passed, even when 'PROP_NEVER_UNLINK' is set */
-  uiBut *but = NULL;
-
-  if (hide_if_disabled && !editable) {
-    /* Add no button. */
-  }
-  else if (template_ui->unlink_op) {
-    but = uiDefIconTextButO(block,
-                            UI_BTYPE_BUT,
-                            template_ui->unlink_op,
-                            WM_OP_INVOKE_DEFAULT,
-                            ICON_X,
-                            is_menu ? NULL : "",
-                            0,
-                            0,
-                            UI_UNIT_X,
-                            UI_UNIT_Y,
-                            NULL);
-    /* so we can access the template from operators, font unlinking needs this */
-    UI_but_funcN_set(but, NULL, MEM_dupallocN(template_ui), NULL);
-  }
-  else {
-    const bool never_unlink = RNA_property_flag(template_ui->prop) &
-                              (PROP_NEVER_UNLINK | PROP_NEVER_NULL);
-
-    if (!never_unlink || !hide_if_disabled) {
-      but = uiDefIconTextBut(block,
-                             UI_BTYPE_BUT,
-                             0,
-                             ICON_X,
-                             is_menu ? CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Unlink") : "",
-                             0,
-                             0,
-                             UI_UNIT_X,
-                             UI_UNIT_Y,
-                             NULL,
-                             0,
-                             0,
-                             0,
-                             0,
-                             TIP_("Remove this usage of the data-block"));
-      if (!never_unlink) {
-        UI_but_funcN_set(
-            but, template_id_cb, MEM_dupallocN(template_ui), POINTER_FROM_INT(UI_ID_DELETE));
-      }
-      if (!is_menu) {
-        UI_but_drawflag_disable(but, UI_BUT_ICON_LEFT);
-      }
-    }
-
-    if (but && never_unlink) {
-      but->disabled_info = TIP_("Property must never be in an unlinked state");
-      UI_but_flag_enable(but, UI_BUT_DISABLED);
-    }
-  }
-
-  if (but) {
-    if (!editable) {
-      but->disabled_info = disable_info;
-      UI_but_flag_enable(but, UI_BUT_DISABLED);
-    }
-  }
-}
-
-static void template_id_open_button(uiBlock *block,
-                                    ID *id,
-                                    TemplateID *template_ui,
-                                    const bool compact)
-{
-  const bool is_menu = ui_block_is_menu(block);
-  const int w = compact ? UI_UNIT_X * 3 : UI_UNIT_X * 6;
-  char text[UI_MAX_NAME_STR] = "";
-  const bool icon_only = !is_menu && id;
-  uiBut *but;
-
-  if (!icon_only) {
-    BLI_snprintf(text,
-                 sizeof(text),
-                 "%s%s",
-                 CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Open"),
-                 is_menu ? "..." : "");
-  }
-
-  if (template_ui->open_op) {
-    but = uiDefIconTextButO(block,
-                            UI_BTYPE_BUT,
-                            template_ui->open_op,
-                            WM_OP_INVOKE_DEFAULT,
-                            ICON_FILEBROWSER,
-                            text,
-                            0,
-                            0,
-                            w,
-                            UI_UNIT_Y,
-                            NULL);
-    UI_but_funcN_set(
-        but, template_id_cb, MEM_dupallocN(template_ui), POINTER_FROM_INT(UI_ID_OPEN));
-  }
-  else {
-    but = uiDefIconTextBut(block,
-                           UI_BTYPE_BUT,
-                           0,
-                           ICON_FILEBROWSER,
-                           text,
-                           0,
-                           0,
-                           w,
-                           UI_UNIT_Y,
-                           NULL,
-                           0,
-                           0,
-                           0,
-                           0,
-                           NULL);
-    but->disabled_info = TIP_("Browsing for a new data-block is not supported here");
-    UI_but_flag_enable(but, UI_BUT_DISABLED);
-  }
-
-  if (!RNA_property_editable_info(&template_ui->ptr, template_ui->prop, &but->disabled_info)) {
-    UI_but_flag_enable(but, UI_BUT_DISABLED);
-  }
-}
-
-static void template_id_unpack_button(uiBlock *block, ID *id)
-{
-  wmOperatorType *optype = WM_operatortype_find("FILE_OT_unpack_item", false);
-  uiBut *but;
-
-  but = uiDefIconTextButO_ptr(block,
-                              UI_BTYPE_BUT,
-                              optype,
-                              WM_OP_INVOKE_REGION_WIN,
-                              ICON_PACKAGE,
-                              NULL,
-                              0,
-                              0,
-                              UI_UNIT_X,
-                              UI_UNIT_Y,
-                              NULL);
-
-  if (!BKE_packedfile_id_check(id)) {
-    but->disabled_info = TIP_("File is not packed");
-    UI_but_flag_enable(but, UI_BUT_DISABLED);
-  }
-  UI_but_operator_ptr_get(but);
-
-  RNA_string_set(but->opptr, "id_name", id->name + 2);
-  RNA_int_set(but->opptr, "id_type", GS(id->name));
-}
-
-static void template_id_user_count_label(uiLayout *layout, const ID *id)
-{
-  char numstr[UI_MAX_NAME_STR];
-  BLI_snprintf(numstr,
-               sizeof(numstr),
-               "%d %s",
-               ID_REAL_USERS(id),
-               ID_REAL_USERS(id) > 1 ? IFACE_("Users") : IFACE_("User"));
-  uiItemL(layout, numstr, ICON_NONE);
-}
-
-static void template_id_menu(bContext *C, uiLayout *layout, void *arg)
-{
-  /* Button that spawned the menu. */
-  const uiBut *menu_parent_but = arg;
-  TemplateID *template_ui = menu_parent_but->func_argN;
-  PointerRNA idptr = RNA_property_pointer_get(&template_ui->ptr, template_ui->prop);
-  ID *id = idptr.data;
-  uiBlock *block = uiLayoutGetBlock(layout);
-
-  BLI_assert(id);
-
-  template_id_new_button(
-      block, id, template_ui, TEMPLATE_ID_CREATE_NEW, idptr.type, false, false, UI_UNIT_X);
-  template_id_new_button(
-      block, id, template_ui, TEMPLATE_ID_CREATE_DUPLICATE, idptr.type, false, false, UI_UNIT_X);
-  template_id_unlink_button(block, template_ui, false);
-
-#ifdef USE_TEMPLATE_ID_MAKE_SINGLE_USER
-  template_id_make_single_user_button(block, id, template_ui);
-#endif
-  template_id_use_fake_user_button(block, &idptr);
-
-  if (template_ui->open_op || BKE_packedfile_id_check(id)) {
-    uiItemS(layout);
-
-    template_id_open_button(block, id, template_ui, false);
-    template_id_unpack_button(block, id);
-  }
-
-  /* Library operators. */
-  if (ID_IS_OVERRIDE_LIBRARY(id)) {
-    uiItemS(layout);
-
-    template_id_library_overridden_button(block, id, template_ui, UI_ID_LIB_OVERRIDE_RESET);
-    template_id_library_overridden_button(block, id, template_ui, UI_ID_LIB_OVERRIDE_REMOVE);
-  }
-  else if (ID_IS_LINKED(id)) {
-    uiItemS(layout);
-
-    Main *bmain = CTX_data_main(C);
-    template_id_linked_operation_button(block, bmain, id, template_ui, UI_ID_MAKE_LOCAL);
-    template_id_linked_operation_button(block, bmain, id, template_ui, UI_ID_LIB_OVERRIDE_ADD);
-  }
-
-  uiItemS(layout);
-  template_id_user_count_label(layout, id);
-}
-
-static void template_id_name_button(
-    uiBlock *block, StructRNA *type, TemplateID *template_ui, int flag, const bool hide_extras)
-{
-  PointerRNA idptr = RNA_property_pointer_get(&template_ui->ptr, template_ui->prop);
-  ID *id = idptr.data;
-  BIFIconID lib_icon = UI_icon_from_library(id);
-
-  char name[UI_MAX_NAME_STR] = "";
-  uiBut *but = uiDefIconTextButR(block,
-                                 UI_BTYPE_TEXT,
-                                 0,
-                                 lib_icon,
-                                 name,
-                                 0,
-                                 0,
-                                 TEMPLATE_SEARCH_TEXTBUT_WIDTH,
-                                 TEMPLATE_SEARCH_TEXTBUT_HEIGHT,
-                                 &idptr,
-                                 "name",
-                                 -1,
-                                 0,
-                                 0,
-                                 0,
-                                 0,
-                                 RNA_struct_ui_description(type));
-  /* Note: Also needed for the extra icons below (their operators access the TemplateID). */
-  UI_but_funcN_set(
-      but, template_id_cb, MEM_dupallocN(template_ui), POINTER_FROM_INT(UI_ID_RENAME));
-
-  const bool user_alert = (id->us <= 0);
-  if (user_alert) {
-    UI_but_flag_enable(but, UI_BUT_REDALERT);
-  }
-
-  if (hide_extras) {
-    return;
-  }
-
-  if (template_ui->duplicate_op && (flag & UI_ID_ADD_NEW)) {
-    UI_but_extra_operator_icon_add(
-        but, template_ui->duplicate_op, WM_OP_INVOKE_DEFAULT, ICON_DUPLICATE);
-  }
-
-  if (id && (flag & UI_ID_DELETE)) {
-    const bool never_unlink = RNA_property_flag(template_ui->prop) &
-                              (PROP_NEVER_UNLINK | PROP_NEVER_NULL);
-    if (template_ui->unlink_op) {
-      UI_but_extra_operator_icon_add(but, template_ui->unlink_op, WM_OP_INVOKE_DEFAULT, ICON_X);
-    }
-    else if (!never_unlink) {
-      UI_but_extra_operator_icon_add(but, "ED_OT_lib_unlink", WM_OP_INVOKE_DEFAULT, ICON_X);
-    }
-  }
-
-  /* Disable fake user icon for now, only have it in the menu. */
-  const bool add_extra_fake_user_icon = false;
-  if (add_extra_fake_user_icon && id->lib == NULL &&
-      !(ELEM(GS(id->name), ID_GR, ID_SCE, ID_SCR, ID_TXT, ID_OB, ID_WS))) {
-    UI_but_extra_operator_icon_add(but,
-                                   "ED_OT_lib_fake_user_toggle",
-                                   WM_OP_INVOKE_DEFAULT,
-                                   ID_FAKE_USERS(id) ? ICON_FAKE_USER_ON : ICON_FAKE_USER_OFF);
-  }
-}
-
 static void template_ID(const bContext *C,
                         uiLayout *layout,
                         TemplateID *template_ui,
                         StructRNA *type,
                         int flag,
+                        const char *newop,
+                        const char *openop,
+                        const char *unlinkop,
                         const char *text,
                         const bool live_icon,
                         const bool hide_buttons)
@@ -1415,12 +886,15 @@ static void template_ID(const bContext *C,
   uiBut *but;
   uiBlock *block;
   PointerRNA idptr;
-  ID *id;
+  // ListBase *lb; // UNUSED
+  ID *id, *idfrom;
   const bool editable = RNA_property_editable(&template_ui->ptr, template_ui->prop);
   const bool use_previews = template_ui->preview = (flag & UI_ID_PREVIEWS) != 0;
 
   idptr = RNA_property_pointer_get(&template_ui->ptr, template_ui->prop);
   id = idptr.data;
+  idfrom = template_ui->ptr.owner_id;
+  // lb = template_ui->idlb;
 
   /* Allow opertators to take the ID from context. */
   uiLayoutSetContextPointer(layout, "id", &idptr);
@@ -1453,39 +927,277 @@ static void template_ID(const bContext *C,
 
   /* text button with name */
   if (id) {
-    template_id_name_button(block, type, template_ui, flag, hide_buttons);
-  }
-  /* If no ID is set, show a "new" button instead of a text button. */
-  else if ((flag & UI_ID_ADD_NEW) && (hide_buttons == false)) {
-    template_id_new_button(
-        block, id, template_ui, TEMPLATE_ID_CREATE_NEW, type, flag & UI_ID_OPEN, false, UI_UNIT_X);
+    char name[UI_MAX_NAME_STR];
+    const bool user_alert = (id->us <= 0);
+
+    // text_idbutton(id, name);
+    name[0] = '\0';
+    but = uiDefButR(block,
+                    UI_BTYPE_TEXT,
+                    0,
+                    name,
+                    0,
+                    0,
+                    TEMPLATE_SEARCH_TEXTBUT_WIDTH,
+                    TEMPLATE_SEARCH_TEXTBUT_HEIGHT,
+                    &idptr,
+                    "name",
+                    -1,
+                    0,
+                    0,
+                    -1,
+                    -1,
+                    RNA_struct_ui_description(type));
+    UI_but_funcN_set(
+        but, template_id_cb, MEM_dupallocN(template_ui), POINTER_FROM_INT(UI_ID_RENAME));
+    if (user_alert) {
+      UI_but_flag_enable(but, UI_BUT_REDALERT);
+    }
+
+    if (id->lib) {
+      if (id->tag & LIB_TAG_INDIRECT) {
+        but = uiDefIconBut(block,
+                           UI_BTYPE_BUT,
+                           0,
+                           ICON_LIBRARY_DATA_INDIRECT,
+                           0,
+                           0,
+                           UI_UNIT_X,
+                           UI_UNIT_Y,
+                           NULL,
+                           0,
+                           0,
+                           0,
+                           0,
+                           TIP_("Indirect library data-block, cannot change"));
+        UI_but_flag_enable(but, UI_BUT_DISABLED);
+      }
+      else {
+        const bool disabled = (!BKE_lib_id_make_local(CTX_data_main(C), id, true /* test */, 0) ||
+                               (idfrom && idfrom->lib));
+        but = uiDefIconBut(block,
+                           UI_BTYPE_BUT,
+                           0,
+                           ICON_LIBRARY_DATA_DIRECT,
+                           0,
+                           0,
+                           UI_UNIT_X,
+                           UI_UNIT_Y,
+                           NULL,
+                           0,
+                           0,
+                           0,
+                           0,
+                           TIP_("Direct linked library data-block, click to make local, "
+                                "Shift + Click to create a library override"));
+        if (disabled) {
+          UI_but_flag_enable(but, UI_BUT_DISABLED);
+        }
+        else {
+          UI_but_funcN_set(
+              but, template_id_cb, MEM_dupallocN(template_ui), POINTER_FROM_INT(UI_ID_LOCAL));
+        }
+      }
+    }
+    else if (ID_IS_OVERRIDE_LIBRARY(id)) {
+      but = uiDefIconBut(block,
+                         UI_BTYPE_BUT,
+                         0,
+                         ICON_LIBRARY_DATA_OVERRIDE,
+                         0,
+                         0,
+                         UI_UNIT_X,
+                         UI_UNIT_Y,
+                         NULL,
+                         0,
+                         0,
+                         0,
+                         0,
+                         TIP_("Library override of linked data-block, click to make fully local"));
+      UI_but_funcN_set(
+          but, template_id_cb, MEM_dupallocN(template_ui), POINTER_FROM_INT(UI_ID_OVERRIDE));
+    }
+
+    if ((ID_REAL_USERS(id) > 1) && (hide_buttons == false)) {
+      char numstr[32];
+      short numstr_len;
+
+      numstr_len = BLI_snprintf(numstr, sizeof(numstr), "%d", ID_REAL_USERS(id));
+
+      but = uiDefBut(
+          block,
+          UI_BTYPE_BUT,
+          0,
+          numstr,
+          0,
+          0,
+          numstr_len * 0.2f * UI_UNIT_X + UI_UNIT_X,
+          UI_UNIT_Y,
+          NULL,
+          0,
+          0,
+          0,
+          0,
+          TIP_("Display number of users of this data (click to make a single-user copy)"));
+      but->flag |= UI_BUT_UNDO;
+
+      UI_but_funcN_set(
+          but, template_id_cb, MEM_dupallocN(template_ui), POINTER_FROM_INT(UI_ID_ALONE));
+      if ((!BKE_id_copy_is_allowed(id)) || (idfrom && idfrom->lib) || (!editable) ||
+          /* object in editmode - don't change data */
+          (idfrom && GS(idfrom->name) == ID_OB && (((Object *)idfrom)->mode & OB_MODE_EDIT))) {
+        UI_but_flag_enable(but, UI_BUT_DISABLED);
+      }
+    }
+
+    if (user_alert) {
+      UI_but_flag_enable(but, UI_BUT_REDALERT);
+    }
+
+    if (id->lib == NULL && !(ELEM(GS(id->name), ID_GR, ID_SCE, ID_SCR, ID_TXT, ID_OB, ID_WS)) &&
+        (hide_buttons == false)) {
+      uiDefIconButR(block,
+                    UI_BTYPE_ICON_TOGGLE,
+                    0,
+                    ICON_FAKE_USER_OFF,
+                    0,
+                    0,
+                    UI_UNIT_X,
+                    UI_UNIT_Y,
+                    &idptr,
+                    "use_fake_user",
+                    -1,
+                    0,
+                    0,
+                    -1,
+                    -1,
+                    NULL);
+    }
   }
 
-  if ((flag & UI_ID_OPEN) && !id) {
-    template_id_open_button(block, id, template_ui, flag & UI_ID_ADD_NEW);
+  if ((flag & UI_ID_ADD_NEW) && (hide_buttons == false)) {
+    template_id_def_new_but(
+        block, id, template_ui, type, newop, editable, flag & UI_ID_OPEN, false, UI_UNIT_X);
+  }
+
+  /* Due to space limit in UI - skip the "open" icon for packed data, and allow to unpack.
+   * Only for images, sound and fonts */
+  if (id && BKE_packedfile_id_check(id)) {
+    but = uiDefIconButO(block,
+                        UI_BTYPE_BUT,
+                        "FILE_OT_unpack_item",
+                        WM_OP_INVOKE_REGION_WIN,
+                        ICON_PACKAGE,
+                        0,
+                        0,
+                        UI_UNIT_X,
+                        UI_UNIT_Y,
+                        TIP_("Packed File, click to unpack"));
+    UI_but_operator_ptr_get(but);
+
+    RNA_string_set(but->opptr, "id_name", id->name + 2);
+    RNA_int_set(but->opptr, "id_type", GS(id->name));
+  }
+  else if (flag & UI_ID_OPEN) {
+    const int w = id ? UI_UNIT_X : (flag & UI_ID_ADD_NEW) ? UI_UNIT_X * 3 : UI_UNIT_X * 6;
+
+    if (openop) {
+      but = uiDefIconTextButO(block,
+                              UI_BTYPE_BUT,
+                              openop,
+                              WM_OP_INVOKE_DEFAULT,
+                              ICON_FILEBROWSER,
+                              (id) ? "" : IFACE_("Open"),
+                              0,
+                              0,
+                              w,
+                              UI_UNIT_Y,
+                              NULL);
+      UI_but_funcN_set(
+          but, template_id_cb, MEM_dupallocN(template_ui), POINTER_FROM_INT(UI_ID_OPEN));
+    }
+    else {
+      but = uiDefIconTextBut(block,
+                             UI_BTYPE_BUT,
+                             0,
+                             ICON_FILEBROWSER,
+                             (id) ? "" : IFACE_("Open"),
+                             0,
+                             0,
+                             w,
+                             UI_UNIT_Y,
+                             NULL,
+                             0,
+                             0,
+                             0,
+                             0,
+                             NULL);
+      UI_but_funcN_set(
+          but, template_id_cb, MEM_dupallocN(template_ui), POINTER_FROM_INT(UI_ID_OPEN));
+    }
+
+    if ((idfrom && idfrom->lib) || !editable) {
+      UI_but_flag_enable(but, UI_BUT_DISABLED);
+    }
+  }
+
+  /* delete button */
+  /* don't use RNA_property_is_unlink here */
+  if (id && (flag & UI_ID_DELETE) && (hide_buttons == false)) {
+    /* allow unlink if 'unlinkop' is passed, even when 'PROP_NEVER_UNLINK' is set */
+    but = NULL;
+
+    if (unlinkop) {
+      but = uiDefIconButO(block,
+                          UI_BTYPE_BUT,
+                          unlinkop,
+                          WM_OP_INVOKE_DEFAULT,
+                          ICON_X,
+                          0,
+                          0,
+                          UI_UNIT_X,
+                          UI_UNIT_Y,
+                          NULL);
+      /* so we can access the template from operators, font unlinking needs this */
+      UI_but_funcN_set(but, NULL, MEM_dupallocN(template_ui), NULL);
+    }
+    else {
+      if ((RNA_property_flag(template_ui->prop) & PROP_NEVER_UNLINK) == 0) {
+        but = uiDefIconBut(
+            block,
+            UI_BTYPE_BUT,
+            0,
+            ICON_X,
+            0,
+            0,
+            UI_UNIT_X,
+            UI_UNIT_Y,
+            NULL,
+            0,
+            0,
+            0,
+            0,
+            TIP_("Unlink data-block "
+                 "(Shift + Click to set users to zero, data will then not be saved)"));
+        UI_but_funcN_set(
+            but, template_id_cb, MEM_dupallocN(template_ui), POINTER_FROM_INT(UI_ID_DELETE));
+
+        if (RNA_property_flag(template_ui->prop) & PROP_NEVER_NULL) {
+          UI_but_flag_enable(but, UI_BUT_DISABLED);
+        }
+      }
+    }
+
+    if (but) {
+      if ((idfrom && idfrom->lib) || !editable) {
+        UI_but_flag_enable(but, UI_BUT_DISABLED);
+      }
+    }
   }
 
   if (template_ui->idcode == ID_TE) {
     uiTemplateTextureShow(layout, C, &template_ui->ptr, template_ui->prop);
   }
-
-  if (id && !hide_buttons) {
-    /* Additional operations menu ("Make Local", overrides, etc). */
-    but = uiDefIconMenuBut(block,
-                           template_id_menu,
-                           NULL,
-                           ICON_DOWNARROW_HLT,
-                           0,
-                           0,
-                           UI_UNIT_X,
-                           UI_UNIT_Y,
-                           TIP_("Show more operations for the selected data-block"));
-    UI_but_type_set_menu_from_pulldown(but);
-    /* Same hack as ui_item_menu() to allow allocated arg. */
-    but->poin = (char *)but;
-    but->func_argN = MEM_dupallocN(template_ui);
-  }
-
   UI_block_align_end(block);
 }
 
@@ -1504,6 +1216,7 @@ static void template_ID_tabs(const bContext *C,
                              TemplateID *template,
                              StructRNA *type,
                              int flag,
+                             const char *newop,
                              const char *menu)
 {
   const ARegion *region = CTX_wm_region(C);
@@ -1551,20 +1264,22 @@ static void template_ID_tabs(const bContext *C,
   BLI_freelistN(&ordered);
 
   if (flag & UI_ID_ADD_NEW) {
+    const bool editable = RNA_property_editable(&template->ptr, template->prop);
     uiBut *but;
 
     if (active_ptr.type) {
       type = active_ptr.type;
     }
 
-    but = template_id_new_button(block,
-                                 active_ptr.data,
-                                 template,
-                                 TEMPLATE_ID_CREATE_NEW,
-                                 type,
-                                 flag & UI_ID_OPEN,
-                                 true,
-                                 but_height);
+    but = template_id_def_new_but(block,
+                                  active_ptr.data,
+                                  template,
+                                  type,
+                                  newop,
+                                  editable,
+                                  flag & UI_ID_OPEN,
+                                  true,
+                                  but_height);
     UI_but_drawflag_enable(but, but_align);
   }
 }
@@ -1574,7 +1289,6 @@ static void ui_template_id(uiLayout *layout,
                            PointerRNA *ptr,
                            const char *propname,
                            const char *newop,
-                           const char *duplicateop,
                            const char *openop,
                            const char *unlinkop,
                            /* Only respected by tabs (use_tabs). */
@@ -1604,10 +1318,6 @@ static void ui_template_id(uiLayout *layout,
   template_ui = MEM_callocN(sizeof(TemplateID), "TemplateID");
   template_ui->ptr = *ptr;
   template_ui->prop = prop;
-  template_ui->new_op = newop;
-  template_ui->duplicate_op = duplicateop;
-  template_ui->unlink_op = unlinkop;
-  template_ui->open_op = openop;
   template_ui->prv_rows = prv_rows;
   template_ui->prv_cols = prv_cols;
   template_ui->scale = scale;
@@ -1619,7 +1329,7 @@ static void ui_template_id(uiLayout *layout,
     template_ui->filter = 0;
   }
 
-  if (newop || duplicateop) {
+  if (newop) {
     flag |= UI_ID_ADD_NEW;
   }
   if (openop) {
@@ -1637,11 +1347,21 @@ static void ui_template_id(uiLayout *layout,
   if (template_ui->idlb) {
     if (use_tabs) {
       layout = uiLayoutRow(layout, true);
-      template_ID_tabs(C, layout, template_ui, type, flag, menu);
+      template_ID_tabs(C, layout, template_ui, type, flag, newop, menu);
     }
     else {
       layout = uiLayoutRow(layout, true);
-      template_ID(C, layout, template_ui, type, flag, text, live_icon, hide_buttons);
+      template_ID(C,
+                  layout,
+                  template_ui,
+                  type,
+                  flag,
+                  newop,
+                  openop,
+                  unlinkop,
+                  text,
+                  live_icon,
+                  hide_buttons);
     }
   }
 
@@ -1653,7 +1373,6 @@ void uiTemplateID(uiLayout *layout,
                   PointerRNA *ptr,
                   const char *propname,
                   const char *newop,
-                  const char *duplicateop,
                   const char *openop,
                   const char *unlinkop,
                   int filter,
@@ -1665,7 +1384,6 @@ void uiTemplateID(uiLayout *layout,
                  ptr,
                  propname,
                  newop,
-                 duplicateop,
                  openop,
                  unlinkop,
                  NULL,
@@ -1695,7 +1413,6 @@ void uiTemplateIDBrowse(uiLayout *layout,
                  ptr,
                  propname,
                  newop,
-                 NULL,
                  openop,
                  unlinkop,
                  NULL,
@@ -1727,7 +1444,6 @@ void uiTemplateIDPreview(uiLayout *layout,
                  ptr,
                  propname,
                  newop,
-                 NULL,
                  openop,
                  unlinkop,
                  NULL,
@@ -1760,7 +1476,6 @@ void uiTemplateGpencilColorPreview(uiLayout *layout,
                  NULL,
                  NULL,
                  NULL,
-                 NULL,
                  UI_ID_BROWSE | UI_ID_PREVIEWS | UI_ID_DELETE,
                  rows,
                  cols,
@@ -1787,7 +1502,6 @@ void uiTemplateIDTabs(uiLayout *layout,
                  ptr,
                  propname,
                  newop,
-                 NULL,
                  NULL,
                  NULL,
                  menu,
@@ -1949,25 +1663,35 @@ static void template_search_add_button_searchmenu(const bContext *C,
 
 static void template_search_add_button_name(uiBlock *block,
                                             PointerRNA *active_ptr,
-                                            const StructRNA *type,
-                                            const char *newop,
-                                            const char *unlinkop)
+                                            const StructRNA *type)
 {
-  uiBut *but = uiDefAutoButR(block,
-                             active_ptr,
-                             RNA_struct_name_property(type),
-                             0,
-                             "",
-                             ICON_NONE,
-                             0,
-                             0,
-                             TEMPLATE_SEARCH_TEXTBUT_WIDTH,
-                             TEMPLATE_SEARCH_TEXTBUT_HEIGHT);
-  if (newop) {
-    UI_but_extra_operator_icon_add(but, newop, WM_OP_INVOKE_DEFAULT, ICON_DUPLICATE);
+  uiDefAutoButR(block,
+                active_ptr,
+                RNA_struct_name_property(type),
+                0,
+                "",
+                ICON_NONE,
+                0,
+                0,
+                TEMPLATE_SEARCH_TEXTBUT_WIDTH,
+                TEMPLATE_SEARCH_TEXTBUT_HEIGHT);
+}
+
+static void template_search_add_button_operator(uiBlock *block,
+                                                const char *const operator_name,
+                                                const int opcontext,
+                                                const int icon,
+                                                const bool editable)
+{
+  if (!operator_name) {
+    return;
   }
-  if (unlinkop) {
-    UI_but_extra_operator_icon_add(but, unlinkop, WM_OP_INVOKE_REGION_WIN, ICON_X);
+
+  uiBut *but = uiDefIconButO(
+      block, UI_BTYPE_BUT, operator_name, opcontext, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL);
+
+  if (!editable) {
+    UI_but_drawflag_enable(but, UI_BUT_DISABLED);
   }
 }
 
@@ -1993,7 +1717,10 @@ static void template_search_buttons(const bContext *C,
   UI_block_align_begin(block);
 
   template_search_add_button_searchmenu(C, layout, block, template_search, editable, false);
-  template_search_add_button_name(block, &active_ptr, type, newop, unlinkop);
+  template_search_add_button_name(block, &active_ptr, type);
+  template_search_add_button_operator(
+      block, newop, WM_OP_INVOKE_DEFAULT, ICON_DUPLICATE, editable);
+  template_search_add_button_operator(block, unlinkop, WM_OP_INVOKE_REGION_WIN, ICON_X, editable);
 
   UI_block_align_end(block);
 }
@@ -2248,7 +1975,7 @@ static bool constraint_panel_is_bone(Panel *panel)
  */
 static void constraint_reorder(bContext *C, Panel *panel, int new_index)
 {
-  bool constraint_from_bone = constraint_panel_is_bone(panel);
+  const bool constraint_from_bone = constraint_panel_is_bone(panel);
 
   PointerRNA *con_ptr = UI_panel_custom_data_get(panel);
   bConstraint *con = (bConstraint *)con_ptr->data;
@@ -2296,6 +2023,11 @@ static void object_constraint_panel_id(void *md_link, char *r_name)
   bConstraint *con = (bConstraint *)md_link;
   const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_from_type(con->type);
 
+  /* Cannot get TypeInfo for invalid/legacy constraints. */
+  if (cti == NULL) {
+    return;
+  }
+
   strcpy(r_name, CONSTRAINT_TYPE_PANEL_PREFIX);
   strcat(r_name, cti->structName);
 }
@@ -2304,6 +2036,11 @@ static void bone_constraint_panel_id(void *md_link, char *r_name)
 {
   bConstraint *con = (bConstraint *)md_link;
   const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_from_type(con->type);
+
+  /* Cannot get TypeInfo for invalid/legacy constraints. */
+  if (cti == NULL) {
+    return;
+  }
 
   strcpy(r_name, CONSTRAINT_BONE_TYPE_PANEL_PREFIX);
   strcat(r_name, cti->structName);
@@ -2335,6 +2072,10 @@ void uiTemplateConstraints(uiLayout *UNUSED(layout), bContext *C, bool use_bone_
     UI_panels_free_instanced(C, region);
     bConstraint *con = (constraints == NULL) ? NULL : constraints->first;
     for (int i = 0; con; i++, con = con->next) {
+      /* Dont show invalid/legacy constraints. */
+      if (con->type == CONSTRAINT_TYPE_NULL) {
+        continue;
+      }
       /* Dont show temporary constraints (AutoIK and targetless IK constraints). */
       if (con->type == CONSTRAINT_TYPE_KINEMATIC) {
         bKinematicConstraint *data = con->data;
@@ -2364,6 +2105,10 @@ void uiTemplateConstraints(uiLayout *UNUSED(layout), bContext *C, bool use_bone_
     /* Assuming there's only one group of instanced panels, update the custom data pointers. */
     Panel *panel = region->panels.first;
     LISTBASE_FOREACH (bConstraint *, con, constraints) {
+      /* Dont show invalid/legacy constraints. */
+      if (con->type == CONSTRAINT_TYPE_NULL) {
+        continue;
+      }
       /* Dont show temporary constraints (AutoIK and targetless IK constraints). */
       if (con->type == CONSTRAINT_TYPE_KINEMATIC) {
         bKinematicConstraint *data = con->data;
@@ -3315,7 +3060,7 @@ static uiBlock *colorband_tools_func(bContext *C, ARegion *region, void *coba_v)
   const uiStyle *style = UI_style_get_dpi();
   ColorBand *coba = coba_v;
   short yco = 0;
-  short menuwidth = 10 * UI_UNIT_X;
+  const short menuwidth = 10 * UI_UNIT_X;
 
   uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS_PULLDOWN);
   UI_block_func_butmenu_set(block, colorband_tools_dofunc, coba);
@@ -3630,7 +3375,7 @@ void uiTemplateColorRamp(uiLayout *layout, PointerRNA *ptr, const char *propname
     return;
   }
 
-  PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
+  const PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
   if (!cptr.data || !RNA_struct_is_a(cptr.type, &RNA_ColorRamp)) {
     return;
   }
@@ -3706,8 +3451,8 @@ static uiBlock *ui_icon_view_menu_cb(bContext *C, ARegion *region, void *arg_lit
 
   /* arg_litem is malloced, can be freed by parent button */
   args = *((IconViewMenuArgs *)arg_litem);
-  int w = UI_UNIT_X * (args.icon_scale);
-  int h = UI_UNIT_X * (args.icon_scale + args.show_labels);
+  const int w = UI_UNIT_X * (args.icon_scale);
+  const int h = UI_UNIT_X * (args.icon_scale + args.show_labels);
 
   uiBlock *block = UI_block_begin(C, region, "_popup", UI_EMBOSS_PULLDOWN);
   UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_NO_FLIP);
@@ -3718,11 +3463,11 @@ static uiBlock *ui_icon_view_menu_cb(bContext *C, ARegion *region, void *arg_lit
   RNA_property_enum_items(C, &args.ptr, args.prop, &item, NULL, &free);
 
   for (int a = 0; item[a].identifier; a++) {
-    int x = (a % 8) * w;
-    int y = -(a / 8) * h;
+    const int x = (a % 8) * w;
+    const int y = -(a / 8) * h;
 
-    int icon = item[a].icon;
-    int value = item[a].value;
+    const int icon = item[a].icon;
+    const int value = item[a].value;
     uiBut *but;
     if (args.show_labels) {
       but = uiDefIconTextButR_prop(block,
@@ -3798,7 +3543,7 @@ void uiTemplateIconView(uiLayout *layout,
   bool free_items;
   const EnumPropertyItem *items;
   RNA_property_enum_items(block->evil_C, ptr, prop, &items, &tot_items, &free_items);
-  int value = RNA_property_enum_get(ptr, prop);
+  const int value = RNA_property_enum_get(ptr, prop);
   int icon = ICON_NONE;
   RNA_enum_icon_from_value(items, value, &icon);
 
@@ -3858,7 +3603,7 @@ void uiTemplateHistogram(uiLayout *layout, PointerRNA *ptr, const char *propname
     return;
   }
 
-  PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
+  const PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
   if (!cptr.data || !RNA_struct_is_a(cptr.type, &RNA_Histogram)) {
     return;
   }
@@ -3908,7 +3653,7 @@ void uiTemplateWaveform(uiLayout *layout, PointerRNA *ptr, const char *propname)
     return;
   }
 
-  PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
+  const PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
   if (!cptr.data || !RNA_struct_is_a(cptr.type, &RNA_Scopes)) {
     return;
   }
@@ -3970,7 +3715,7 @@ void uiTemplateVectorscope(uiLayout *layout, PointerRNA *ptr, const char *propna
     return;
   }
 
-  PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
+  const PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
   if (!cptr.data || !RNA_struct_is_a(cptr.type, &RNA_Scopes)) {
     return;
   }
@@ -4630,7 +4375,7 @@ static void curvemap_buttons_layout(uiLayout *layout,
 
   UI_but_funcN_set(bt, rna_update_cb, MEM_dupallocN(cb), NULL);
 
-  int icon = (cumap->flag & CUMA_DO_CLIP) ? ICON_CLIPUV_HLT : ICON_CLIPUV_DEHLT;
+  const int icon = (cumap->flag & CUMA_DO_CLIP) ? ICON_CLIPUV_HLT : ICON_CLIPUV_DEHLT;
   bt = uiDefIconBlockBut(
       block, curvemap_clipping_func, cumap, 0, icon, 0, 0, dx, dx, TIP_("Clipping Options"));
   UI_but_funcN_set(bt, rna_update_cb, MEM_dupallocN(cb), NULL);
@@ -4656,7 +4401,7 @@ static void curvemap_buttons_layout(uiLayout *layout,
   UI_block_funcN_set(block, rna_update_cb, MEM_dupallocN(cb), NULL);
 
   /* curve itself */
-  int size = max_ii(uiLayoutGetWidth(layout), UI_UNIT_X);
+  const int size = max_ii(uiLayoutGetWidth(layout), UI_UNIT_X);
   row = uiLayoutRow(layout, false);
   uiButCurveMapping *curve_but = (uiButCurveMapping *)uiDefBut(
       block, UI_BTYPE_CURVE, 0, "", 0, 0, size, 8.0f * UI_UNIT_X, cumap, 0.0f, 1.0f, 0, 0, "");
@@ -5184,7 +4929,7 @@ static void CurveProfile_buttons_layout(uiLayout *layout, PointerRNA *ptr, RNAUp
   UI_but_funcN_set(bt, CurveProfile_buttons_reverse, MEM_dupallocN(cb), profile);
 
   /* Clipping toggle */
-  int icon = (profile->flag & PROF_USE_CLIP) ? ICON_CLIPUV_HLT : ICON_CLIPUV_DEHLT;
+  const int icon = (profile->flag & PROF_USE_CLIP) ? ICON_CLIPUV_HLT : ICON_CLIPUV_DEHLT;
   bt = uiDefIconBut(block,
                     UI_BTYPE_BUT,
                     0,
@@ -5206,7 +4951,7 @@ static void CurveProfile_buttons_layout(uiLayout *layout, PointerRNA *ptr, RNAUp
   /* The path itself */
   int path_width = max_ii(uiLayoutGetWidth(layout), UI_UNIT_X);
   path_width = min_ii(path_width, (int)(16.0f * UI_UNIT_X));
-  int path_height = path_width;
+  const int path_height = path_width;
   uiLayoutRow(layout, false);
   uiDefBut(block,
            UI_BTYPE_CURVEPROFILE,
@@ -5631,7 +5376,7 @@ void uiTemplatePalette(uiLayout *layout,
     return;
   }
 
-  PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
+  const PointerRNA cptr = RNA_property_pointer_get(ptr, prop);
   if (!cptr.data || !RNA_struct_is_a(cptr.type, &RNA_Palette)) {
     return;
   }
@@ -5771,10 +5516,10 @@ static void handle_layer_buttons(bContext *C, void *arg1, void *arg2)
   uiBut *but = arg1;
   const int cur = POINTER_AS_INT(arg2);
   wmWindow *win = CTX_wm_window(C);
-  int shift = win->eventstate->shift;
+  const int shift = win->eventstate->shift;
 
   if (!shift) {
-    int tot = RNA_property_array_length(&but->rnapoin, but->rnaprop);
+    const int tot = RNA_property_array_length(&but->rnapoin, but->rnaprop);
 
     /* Normally clicking only selects one layer */
     RNA_property_boolean_set_index(&but->rnapoin, but->rnaprop, cur, true);
@@ -5946,7 +5691,7 @@ void uiTemplateGameStates(uiLayout *layout,
                                  0,
                                  -1,
                                  -1,
-                                 sca_state_name_get(ob, state));
+                                 BKE_sca_get_name_state(ob, state));
         UI_but_func_set(but, handle_layer_buttons, but, POINTER_FROM_INT(state));
         but->type = UI_BTYPE_TOGGLE;
       }
@@ -6206,7 +5951,7 @@ static void uilist_prepare(uiList *ui_list,
     ui_list->flag &= ~UILST_SCROLL_TO_ACTIVE_ITEM;
   }
 
-  int max_scroll = max_ii(0, dyn_data->height - rows);
+  const int max_scroll = max_ii(0, dyn_data->height - rows);
   CLAMP(ui_list->list_scroll, 0, max_scroll);
   ui_list->list_last_len = len;
   dyn_data->visual_height = rows;
@@ -6311,14 +6056,14 @@ void uiTemplateList(uiLayout *layout,
   }
 
   if (prop) {
-    PropertyType type = RNA_property_type(prop);
+    const PropertyType type = RNA_property_type(prop);
     if (type != PROP_COLLECTION) {
       RNA_warning("Expected a collection data property");
       return;
     }
   }
 
-  PropertyType activetype = RNA_property_type(activeprop);
+  const PropertyType activetype = RNA_property_type(activeprop);
   if (activetype != PROP_INT) {
     RNA_warning("Expected an integer active data property");
     return;
@@ -7554,7 +7299,6 @@ void uiTemplateCacheFile(uiLayout *layout,
                C,
                ptr,
                propname,
-               NULL,
                NULL,
                "CACHEFILE_OT_open",
                NULL,

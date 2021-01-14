@@ -348,7 +348,7 @@ bool SCA_TrackToActuator::Update(double curtime)
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_TrackToActuator::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_TrackToActuator",
-                                          sizeof(PyObjectPlus_Proxy),
+                                          sizeof(EXP_PyObjectPlus_Proxy),
                                           0,
                                           py_base_dealloc,
                                           0,
@@ -390,18 +390,18 @@ PyMethodDef SCA_TrackToActuator::Methods[] = {
 };
 
 PyAttributeDef SCA_TrackToActuator::Attributes[] = {
-    KX_PYATTRIBUTE_INT_RW("time", 0, 1000, true, SCA_TrackToActuator, m_time),
-    KX_PYATTRIBUTE_BOOL_RW("use3D", SCA_TrackToActuator, m_allow3D),
-    KX_PYATTRIBUTE_INT_RW("upAxis", 0, 2, true, SCA_TrackToActuator, m_upflag),
-    KX_PYATTRIBUTE_INT_RW("trackAxis", 0, 5, true, SCA_TrackToActuator, m_trackflag),
-    KX_PYATTRIBUTE_RW_FUNCTION(
+    EXP_PYATTRIBUTE_INT_RW("time", 0, 1000, true, SCA_TrackToActuator, m_time),
+    EXP_PYATTRIBUTE_BOOL_RW("use3D", SCA_TrackToActuator, m_allow3D),
+    EXP_PYATTRIBUTE_INT_RW("upAxis", 0, 2, true, SCA_TrackToActuator, m_upflag),
+    EXP_PYATTRIBUTE_INT_RW("trackAxis", 0, 5, true, SCA_TrackToActuator, m_trackflag),
+    EXP_PYATTRIBUTE_RW_FUNCTION(
         "object", SCA_TrackToActuator, pyattr_get_object, pyattr_set_object),
 
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
-PyObject *SCA_TrackToActuator::pyattr_get_object(PyObjectPlus *self,
-                                                 const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_TrackToActuator::pyattr_get_object(EXP_PyObjectPlus *self,
+                                                 const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_TrackToActuator *actuator = static_cast<SCA_TrackToActuator *>(self);
   if (!actuator->m_object)
@@ -410,8 +410,8 @@ PyObject *SCA_TrackToActuator::pyattr_get_object(PyObjectPlus *self,
     return actuator->m_object->GetProxy();
 }
 
-int SCA_TrackToActuator::pyattr_set_object(PyObjectPlus *self,
-                                           const struct KX_PYATTRIBUTE_DEF *attrdef,
+int SCA_TrackToActuator::pyattr_set_object(EXP_PyObjectPlus *self,
+                                           const struct EXP_PYATTRIBUTE_DEF *attrdef,
                                            PyObject *value)
 {
   SCA_TrackToActuator *actuator = static_cast<SCA_TrackToActuator *>(self);

@@ -157,7 +157,7 @@ class PHY_IPhysicsController : public PHY_IController {
                                       bool dupli = false,
                                       bool evaluatedMesh = false) = 0;
 
-  virtual void ReplacePhysicsShape(PHY_IPhysicsController *phyctrl) = 0;
+  virtual bool ReplacePhysicsShape(PHY_IPhysicsController *phyctrl) = 0;
 
   /* Method to replicate rigid body joint contraints for group instances. */
   virtual void ReplicateConstraints(KX_GameObject *gameobj,

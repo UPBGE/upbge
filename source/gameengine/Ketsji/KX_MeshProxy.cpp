@@ -47,7 +47,7 @@
 #  include "SCA_LogicManager.h"
 
 PyTypeObject KX_MeshProxy::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_MeshProxy",
-                                   sizeof(PyObjectPlus_Proxy),
+                                   sizeof(EXP_PyObjectPlus_Proxy),
                                    0,
                                    py_base_dealloc,
                                    0,
@@ -75,7 +75,7 @@ PyTypeObject KX_MeshProxy::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_MeshPro
                                    Methods,
                                    0,
                                    0,
-                                   &CValue::Type,
+                                   &EXP_Value::Type,
                                    0,
                                    0,
                                    0,
@@ -97,15 +97,15 @@ PyMethodDef KX_MeshProxy::Methods[] = {
 };
 
 PyAttributeDef KX_MeshProxy::Attributes[] = {
-    KX_PYATTRIBUTE_RO_FUNCTION("materials", KX_MeshProxy, pyattr_get_materials),
-    KX_PYATTRIBUTE_RO_FUNCTION("numPolygons", KX_MeshProxy, pyattr_get_numPolygons),
-    KX_PYATTRIBUTE_RO_FUNCTION("numMaterials", KX_MeshProxy, pyattr_get_numMaterials),
-    KX_PYATTRIBUTE_RO_FUNCTION("polygons", KX_MeshProxy, pyattr_get_polygons),
+    EXP_PYATTRIBUTE_RO_FUNCTION("materials", KX_MeshProxy, pyattr_get_materials),
+    EXP_PYATTRIBUTE_RO_FUNCTION("numPolygons", KX_MeshProxy, pyattr_get_numPolygons),
+    EXP_PYATTRIBUTE_RO_FUNCTION("numMaterials", KX_MeshProxy, pyattr_get_numMaterials),
+    EXP_PYATTRIBUTE_RO_FUNCTION("polygons", KX_MeshProxy, pyattr_get_polygons),
 
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
-KX_MeshProxy::KX_MeshProxy(RAS_MeshObject *mesh) : CValue(), m_meshobj(mesh)
+KX_MeshProxy::KX_MeshProxy(RAS_MeshObject *mesh) : EXP_Value(), m_meshobj(mesh)
 {
 }
 
@@ -380,8 +380,8 @@ PyObject *KX_MeshProxy::PyReplaceMaterial(PyObject *args, PyObject *kwds)
   Py_RETURN_NONE;
 }
 
-PyObject *KX_MeshProxy::pyattr_get_materials(PyObjectPlus *self_v,
-                                             const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_MeshProxy::pyattr_get_materials(EXP_PyObjectPlus *self_v,
+                                             const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_MeshProxy *self = static_cast<KX_MeshProxy *>(self_v);
 
@@ -398,15 +398,15 @@ PyObject *KX_MeshProxy::pyattr_get_materials(PyObjectPlus *self_v,
   return materials;
 }
 
-PyObject *KX_MeshProxy::pyattr_get_numMaterials(PyObjectPlus *self_v,
-                                                const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_MeshProxy::pyattr_get_numMaterials(EXP_PyObjectPlus *self_v,
+                                                const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_MeshProxy *self = static_cast<KX_MeshProxy *>(self_v);
   return PyLong_FromLong(self->m_meshobj->NumMaterials());
 }
 
-PyObject *KX_MeshProxy::pyattr_get_numPolygons(PyObjectPlus *self_v,
-                                               const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_MeshProxy::pyattr_get_numPolygons(EXP_PyObjectPlus *self_v,
+                                               const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_MeshProxy *self = static_cast<KX_MeshProxy *>(self_v);
   return PyLong_FromLong(self->m_meshobj->NumPolygons());
@@ -426,10 +426,10 @@ static PyObject *kx_mesh_proxy_get_polygons_item_cb(void *self_v, int index)
   return polyob;
 }
 
-PyObject *KX_MeshProxy::pyattr_get_polygons(PyObjectPlus *self_v,
-                                            const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_MeshProxy::pyattr_get_polygons(EXP_PyObjectPlus *self_v,
+                                            const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-  return (new CListWrapper(self_v,
+  return (new EXP_ListWrapper(self_v,
                            ((KX_MeshProxy *)self_v)->GetProxy(),
                            nullptr,
                            kx_mesh_proxy_get_polygons_size_cb,
@@ -482,11 +482,11 @@ bool ConvertPythonToMesh(SCA_LogicManager *logicmgr,
   }
 
   if (PyObject_TypeCheck(value, &KX_MeshProxy::Type)) {
-    KX_MeshProxy *kx_mesh = static_cast<KX_MeshProxy *> BGE_PROXY_REF(value);
+    KX_MeshProxy *kx_mesh = static_cast<KX_MeshProxy *> EXP_PROXY_REF(value);
 
     /* sets the error */
     if (kx_mesh == nullptr) {
-      PyErr_Format(PyExc_SystemError, "%s, " BGE_PROXY_ERROR_MSG, error_prefix);
+      PyErr_Format(PyExc_SystemError, "%s, " EXP_PROXY_ERROR_MSG, error_prefix);
       return false;
     }
 

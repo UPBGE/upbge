@@ -66,9 +66,9 @@ void SCA_NANDController::Trigger(SCA_LogicManager *logicmgr)
   }
 }
 
-CValue *SCA_NANDController::GetReplica()
+EXP_Value *SCA_NANDController::GetReplica()
 {
-  CValue *replica = new SCA_NANDController(*this);
+  EXP_Value *replica = new SCA_NANDController(*this);
   // this will copy properties and so on...
   replica->ProcessReplica();
 
@@ -83,7 +83,7 @@ CValue *SCA_NANDController::GetReplica()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_NANDController::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_NANDController",
-                                         sizeof(PyObjectPlus_Proxy),
+                                         sizeof(EXP_PyObjectPlus_Proxy),
                                          0,
                                          py_base_dealloc,
                                          0,
@@ -125,7 +125,7 @@ PyMethodDef SCA_NANDController::Methods[] = {
 };
 
 PyAttributeDef SCA_NANDController::Attributes[] = {
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
 #endif

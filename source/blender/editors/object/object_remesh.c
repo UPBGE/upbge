@@ -190,6 +190,7 @@ static int voxel_remesh_exec(bContext *C, wmOperator *op)
   }
 
   if (ob->mode == OB_MODE_SCULPT) {
+    BKE_sculpt_ensure_orig_mesh_data(CTX_data_scene(C), ob);
     ED_sculpt_undo_geometry_end(ob);
   }
 
@@ -645,6 +646,7 @@ typedef struct QuadriFlowJob {
   short *stop, *do_update;
   float *progress;
 
+  Scene *scene;
   int target_faces;
   int seed;
   bool use_mesh_symmetry;
@@ -773,7 +775,7 @@ static Mesh *remesh_symmetry_bisect(Mesh *mesh, eSymmetryAxes symmetry_axes)
       zero_v3(plane_no);
       plane_no[axis] = -1.0f;
       mesh_bisect_temp = mesh_bisect;
-      mesh_bisect = BKE_mesh_mirror_bisect_on_mirror_plane(
+      mesh_bisect = BKE_mesh_mirror_bisect_on_mirror_plane_for_modifier(
           &mmd, mesh_bisect, axis, plane_co, plane_no);
       if (mesh_bisect_temp != mesh_bisect) {
         BKE_id_free(NULL, mesh_bisect_temp);
@@ -803,7 +805,7 @@ static Mesh *remesh_symmetry_mirror(Object *ob, Mesh *mesh, eSymmetryAxes symmet
       mmd.flag = 0;
       mmd.flag &= MOD_MIR_AXIS_X << i;
       mesh_mirror_temp = mesh_mirror;
-      mesh_mirror = BKE_mesh_mirror_apply_mirror_on_axis(&mmd, NULL, ob, mesh_mirror, axis);
+      mesh_mirror = BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(&mmd, ob, mesh_mirror, axis);
       if (mesh_mirror_temp != mesh_mirror) {
         BKE_id_free(NULL, mesh_mirror_temp);
       }
@@ -892,6 +894,7 @@ static void quadriflow_start_job(void *customdata, short *stop, short *do_update
   }
 
   if (ob->mode == OB_MODE_SCULPT) {
+    BKE_sculpt_ensure_orig_mesh_data(qj->scene, ob);
     ED_sculpt_undo_geometry_end(ob);
   }
 
@@ -935,6 +938,7 @@ static int quadriflow_remesh_exec(bContext *C, wmOperator *op)
   QuadriFlowJob *job = MEM_mallocN(sizeof(QuadriFlowJob), "QuadriFlowJob");
 
   job->owner = CTX_data_active_object(C);
+  job->scene = CTX_data_scene(C);
 
   job->target_faces = RNA_int_get(op->ptr, "target_faces");
   job->seed = RNA_int_get(op->ptr, "seed");

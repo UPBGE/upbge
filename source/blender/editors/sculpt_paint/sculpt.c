@@ -1188,25 +1188,6 @@ void SCULPT_floodfill_free(SculptFloodFill *flood)
  *
  * \{ */
 
-/* Check if there are any active modifiers in stack.
- * Used for flushing updates at enter/exit sculpt mode. */
-static bool sculpt_has_active_modifiers(Scene *scene, Object *ob)
-{
-  ModifierData *md;
-  VirtualModifierData virtualModifierData;
-
-  md = BKE_modifiers_get_virtual_modifierlist(ob, &virtualModifierData);
-
-  /* Exception for shape keys because we can edit those. */
-  for (; md; md = md->next) {
-    if (BKE_modifier_is_enabled(scene, md, eModifierMode_Realtime)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 static bool sculpt_tool_needs_original(const char sculpt_tool)
 {
   return ELEM(sculpt_tool,
@@ -2485,12 +2466,10 @@ float SCULPT_brush_strength_factor(SculptSession *ss,
      * across the symmetry axis and rotate it back to the original
      * position in order to project it. This insures that the
      * brush texture will be oriented correctly. */
-
-    flip_v3_v3(symm_point, point, cache->mirror_symmetry_pass);
-
     if (cache->radial_symmetry_pass) {
-      mul_m4_v3(cache->symm_rot_mat_inv, symm_point);
+      mul_m4_v3(cache->symm_rot_mat_inv, point);
     }
+    flip_v3_v3(symm_point, point, cache->mirror_symmetry_pass);
 
     ED_view3d_project_float_v2_m4(cache->vc->region, symm_point, point_2d, cache->projection_mat);
 
@@ -8187,10 +8166,12 @@ static bool sculpt_no_multires_poll(bContext *C)
 
 static int sculpt_symmetrize_exec(bContext *C, wmOperator *op)
 {
+  Main *bmain = CTX_data_main(C);
   Object *ob = CTX_data_active_object(C);
   const Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
   SculptSession *ss = ob->sculpt;
   PBVH *pbvh = ss->pbvh;
+  const float dist = RNA_float_get(op->ptr, "merge_tolerance");
 
   if (!pbvh) {
     return OPERATOR_CANCELLED;
@@ -8213,9 +8194,10 @@ static int sculpt_symmetrize_exec(bContext *C, wmOperator *op)
       /* Symmetrize and re-triangulate. */
       BMO_op_callf(ss->bm,
                    (BMO_FLAG_DEFAULTS & ~BMO_FLAG_RESPECT_HIDE),
-                   "symmetrize input=%avef direction=%i  dist=%f",
+                   "symmetrize input=%avef direction=%i dist=%f use_shapekey=%b",
                    sd->symmetrize_direction,
-                   0.00001f);
+                   dist,
+                   true);
       SCULPT_dynamic_topology_triangulate(ss->bm);
 
       /* Bisect operator flags edges (keep tags clean for edge queue). */
@@ -8232,41 +8214,9 @@ static int sculpt_symmetrize_exec(bContext *C, wmOperator *op)
       /* Mesh Symmetrize. */
       ED_sculpt_undo_geometry_begin(ob, "mesh symmetrize");
       Mesh *mesh = ob->data;
-      Mesh *mesh_mirror;
-      MirrorModifierData mmd = {{0}};
-      int axis = 0;
-      mmd.flag = 0;
-      mmd.tolerance = RNA_float_get(op->ptr, "merge_tolerance");
-      switch (sd->symmetrize_direction) {
-        case BMO_SYMMETRIZE_NEGATIVE_X:
-          axis = 0;
-          mmd.flag |= MOD_MIR_AXIS_X | MOD_MIR_BISECT_AXIS_X | MOD_MIR_BISECT_FLIP_AXIS_X;
-          break;
-        case BMO_SYMMETRIZE_NEGATIVE_Y:
-          axis = 1;
-          mmd.flag |= MOD_MIR_AXIS_Y | MOD_MIR_BISECT_AXIS_Y | MOD_MIR_BISECT_FLIP_AXIS_Y;
-          break;
-        case BMO_SYMMETRIZE_NEGATIVE_Z:
-          axis = 2;
-          mmd.flag |= MOD_MIR_AXIS_Z | MOD_MIR_BISECT_AXIS_Z | MOD_MIR_BISECT_FLIP_AXIS_Z;
-          break;
-        case BMO_SYMMETRIZE_POSITIVE_X:
-          axis = 0;
-          mmd.flag |= MOD_MIR_AXIS_X | MOD_MIR_BISECT_AXIS_X;
-          break;
-        case BMO_SYMMETRIZE_POSITIVE_Y:
-          axis = 1;
-          mmd.flag |= MOD_MIR_AXIS_Y | MOD_MIR_BISECT_AXIS_Y;
-          break;
-        case BMO_SYMMETRIZE_POSITIVE_Z:
-          axis = 2;
-          mmd.flag |= MOD_MIR_AXIS_Z | MOD_MIR_BISECT_AXIS_Z;
-          break;
-      }
-      mesh_mirror = BKE_mesh_mirror_apply_mirror_on_axis(&mmd, NULL, ob, mesh, axis);
-      if (mesh_mirror) {
-        BKE_mesh_nomain_to_mesh(mesh_mirror, mesh, ob, &CD_MASK_MESH, true);
-      }
+
+      BKE_mesh_mirror_apply_mirror_on_axis(bmain, mesh, sd->symmetrize_direction, dist);
+
       ED_sculpt_undo_geometry_end(ob);
       BKE_mesh_calc_normals(ob->data);
       BKE_mesh_batch_cache_dirty_tag(ob->data, BKE_MESH_BATCH_DIRTY_ALL);
@@ -8307,20 +8257,29 @@ static void SCULPT_OT_symmetrize(wmOperatorType *ot)
 
 /**** Toggle operator for turning sculpt mode on or off ****/
 
-/** \warning Expects a fully evaluated depsgraph. */
-static void sculpt_init_session(Depsgraph *depsgraph, Scene *scene, Object *ob)
+static void sculpt_init_session(Main *bmain, Depsgraph *depsgraph, Scene *scene, Object *ob)
 {
   /* Create persistent sculpt mode data. */
   BKE_sculpt_toolsettings_data_ensure(scene);
 
+  /* Create sculpt mode session data. */
+  if (ob->sculpt != NULL) {
+    BKE_sculptsession_free(ob);
+  }
   ob->sculpt = MEM_callocN(sizeof(SculptSession), "sculpt session");
   ob->sculpt->mode_type = OB_MODE_SCULPT;
+
+  BKE_sculpt_ensure_orig_mesh_data(scene, ob);
+
+  BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
+
+  /* This function expects a fully evaluated depsgraph. */
   BKE_sculpt_update_object_for_edit(depsgraph, ob, false, false, false);
 
   /* Here we can detect geometry that was just added to Sculpt Mode as it has the
    * SCULPT_FACE_SET_NONE assigned, so we can create a new Face Set for it. */
   /* In sculpt mode all geometry that is assigned to SCULPT_FACE_SET_NONE is considered as not
-   * initialized, which is used is some operators that modify the mesh topology to preform certain
+   * initialized, which is used is some operators that modify the mesh topology to perform certain
    * actions in the new polys. After these operations are finished, all polys should have a valid
    * face set ID assigned (different from SCULPT_FACE_SET_NONE) to manage their visibility
    * correctly. */
@@ -8334,23 +8293,6 @@ static void sculpt_init_session(Depsgraph *depsgraph, Scene *scene, Object *ob)
       ss->face_sets[i] = new_face_set;
     }
   }
-
-  /* Update the Face Sets visibility with the vertex visibility changes that may have been done
-   * outside Sculpt Mode */
-  Mesh *mesh = ob->data;
-  BKE_sculpt_face_sets_ensure_from_base_mesh_visibility(mesh);
-}
-
-static int ed_object_sculptmode_flush_recalc_flag(Scene *scene,
-                                                  Object *ob,
-                                                  MultiresModifierData *mmd)
-{
-  int flush_recalc = 0;
-  /* Multires in sculpt mode could have different from object mode subdivision level. */
-  flush_recalc |= mmd && mmd->sculptlvl != mmd->lvl;
-  /* If object has got active modifiers, its dm could be different in sculpt mode.  */
-  flush_recalc |= sculpt_has_active_modifiers(scene, ob);
-  return flush_recalc;
 }
 
 void ED_object_sculptmode_enter_ex(Main *bmain,
@@ -8366,31 +8308,7 @@ void ED_object_sculptmode_enter_ex(Main *bmain,
   /* Enter sculpt mode. */
   ob->mode |= mode_flag;
 
-  MultiresModifierData *mmd = BKE_sculpt_multires_active(scene, ob);
-
-  const int flush_recalc = ed_object_sculptmode_flush_recalc_flag(scene, ob, mmd);
-
-  if (flush_recalc) {
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-    BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
-  }
-
-  /* Create sculpt mode session data. */
-  if (ob->sculpt) {
-    BKE_sculptsession_free(ob);
-  }
-
-  /* Copy the current mesh visibility to the Face Sets. */
-  BKE_sculpt_face_sets_ensure_from_base_mesh_visibility(me);
-
-  sculpt_init_session(depsgraph, scene, ob);
-
-  /* Mask layer is required. */
-  if (mmd) {
-    /* XXX, we could attempt to support adding mask data mid-sculpt mode (with multi-res)
-     * but this ends up being quite tricky (and slow). */
-    BKE_sculpt_mask_layers_ensure(ob, mmd);
-  }
+  sculpt_init_session(bmain, depsgraph, scene, ob);
 
   if (!(fabsf(ob->scale[0] - ob->scale[1]) < 1e-4f &&
         fabsf(ob->scale[1] - ob->scale[2]) < 1e-4f)) {
@@ -8409,6 +8327,8 @@ void ED_object_sculptmode_enter_ex(Main *bmain,
   /* Check dynamic-topology flag; re-enter dynamic-topology mode when changing modes,
    * As long as no data was added that is not supported. */
   if (me->flag & ME_SCULPT_DYNAMIC_TOPOLOGY) {
+    MultiresModifierData *mmd = BKE_sculpt_multires_active(scene, ob);
+
     const char *message_unsupported = NULL;
     if (me->totloop != me->totpoly * 3) {
       message_unsupported = TIP_("non-triangle face");
@@ -9378,7 +9298,7 @@ static int sculpt_mask_by_color_invoke(bContext *C, wmOperator *op, const wmEven
 static void SCULPT_OT_mask_by_color(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Mask By Color";
+  ot->name = "Mask by Color";
   ot->idname = "SCULPT_OT_mask_by_color";
   ot->description = "Creates a mask based on the sculpt vertex colors";
 

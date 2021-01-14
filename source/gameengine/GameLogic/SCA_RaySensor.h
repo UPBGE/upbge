@@ -70,7 +70,7 @@ class SCA_RaySensor : public SCA_ISensor {
                 int mask,
                 class KX_Scene *ketsjiScene);
   virtual ~SCA_RaySensor();
-  virtual CValue *GetReplica();
+  virtual EXP_Value *GetReplica();
 
   virtual bool Evaluate();
   virtual bool IsPositiveTrigger();
@@ -100,7 +100,7 @@ class SCA_RaySensor : public SCA_ISensor {
 #ifdef WITH_PYTHON
 
   /* Attributes */
-  static PyObject *pyattr_get_hitobject(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_hitobject(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 
 #endif /* WITH_PYTHON */
 };

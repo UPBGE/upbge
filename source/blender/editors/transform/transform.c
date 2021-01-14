@@ -85,7 +85,8 @@ bool transdata_check_local_islands(TransInfo *t, short around)
 
 void setTransformViewMatrices(TransInfo *t)
 {
-  if (t->spacetype == SPACE_VIEW3D && t->region && t->region->regiontype == RGN_TYPE_WINDOW) {
+  if (!(t->options & CTX_PAINT_CURVE) && (t->spacetype == SPACE_VIEW3D) && t->region &&
+      (t->region->regiontype == RGN_TYPE_WINDOW)) {
     RegionView3D *rv3d = t->region->regiondata;
 
     copy_m4_m4(t->viewmat, rv3d->viewmat);
@@ -697,9 +698,7 @@ wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf)
       {0, NULL, 0, NULL, NULL},
   };
 
-  wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "Transform Modal Map");
-
-  keymap = WM_modalkeymap_ensure(keyconf, "Transform Modal Map", modal_items);
+  wmKeyMap *keymap = WM_modalkeymap_ensure(keyconf, "Transform Modal Map", modal_items);
   keymap->poll_modal_item = transform_modal_item_poll;
 
   /* Default modal map values:

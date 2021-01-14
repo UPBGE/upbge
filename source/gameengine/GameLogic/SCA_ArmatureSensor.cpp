@@ -91,7 +91,7 @@ void SCA_ArmatureSensor::FindConstraint()
   }
 }
 
-CValue *SCA_ArmatureSensor::GetReplica()
+EXP_Value *SCA_ArmatureSensor::GetReplica()
 {
   SCA_ArmatureSensor *replica = new SCA_ArmatureSensor(*this);
   // m_range_expr must be recalculated on replica!
@@ -154,7 +154,7 @@ bool SCA_ArmatureSensor::Evaluate()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_ArmatureSensor::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_ArmatureSensor",
-                                         sizeof(PyObjectPlus_Proxy),
+                                         sizeof(EXP_PyObjectPlus_Proxy),
                                          0,
                                          py_base_dealloc,
                                          0,
@@ -196,14 +196,14 @@ PyMethodDef SCA_ArmatureSensor::Methods[] = {
 };
 
 PyAttributeDef SCA_ArmatureSensor::Attributes[] = {
-    KX_PYATTRIBUTE_RO_FUNCTION("constraint", SCA_ArmatureSensor, pyattr_get_constraint),
-    KX_PYATTRIBUTE_FLOAT_RW("value", -FLT_MAX, FLT_MAX, SCA_ArmatureSensor, m_value),
-    KX_PYATTRIBUTE_INT_RW("type", 0, SENS_ARM_MAXTYPE, false, SCA_ArmatureSensor, m_type),
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_RO_FUNCTION("constraint", SCA_ArmatureSensor, pyattr_get_constraint),
+    EXP_PYATTRIBUTE_FLOAT_RW("value", -FLT_MAX, FLT_MAX, SCA_ArmatureSensor, m_value),
+    EXP_PYATTRIBUTE_INT_RW("type", 0, SENS_ARM_MAXTYPE, false, SCA_ArmatureSensor, m_type),
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
-PyObject *SCA_ArmatureSensor::pyattr_get_constraint(PyObjectPlus *self,
-                                                    const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_ArmatureSensor::pyattr_get_constraint(EXP_PyObjectPlus *self,
+                                                    const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_ArmatureSensor *sensor = static_cast<SCA_ArmatureSensor *>(self);
   if (sensor->m_gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {

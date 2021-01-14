@@ -429,7 +429,7 @@ struct DRWView {
  * We lose a bit of memory by allocating more than what we need
  * but it's counterbalanced by not needing the linked-list pointers
  * for each item.
- **/
+ */
 
 typedef struct DRWUniformChunk {
   struct DRWUniformChunk *next; /* single-linked list */

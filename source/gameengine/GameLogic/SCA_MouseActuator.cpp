@@ -290,7 +290,7 @@ bool SCA_MouseActuator::Update()
   return result;
 }
 
-CValue *SCA_MouseActuator::GetReplica()
+EXP_Value *SCA_MouseActuator::GetReplica()
 {
   SCA_MouseActuator *replica = new SCA_MouseActuator(*this);
 
@@ -341,7 +341,7 @@ void SCA_MouseActuator::setMousePosition(float fx, float fy)
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_MouseActuator::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_MouseActuator",
-                                        sizeof(PyObjectPlus_Proxy),
+                                        sizeof(EXP_PyObjectPlus_Proxy),
                                         0,
                                         py_base_dealloc,
                                         0,
@@ -387,35 +387,35 @@ PyMethodDef SCA_MouseActuator::Methods[] = {
 };
 
 PyAttributeDef SCA_MouseActuator::Attributes[] = {
-    KX_PYATTRIBUTE_BOOL_RW("visible", SCA_MouseActuator, m_visible),
-    KX_PYATTRIBUTE_BOOL_RW("use_axis_x", SCA_MouseActuator, m_use_axis_x),
-    KX_PYATTRIBUTE_BOOL_RW("use_axis_y", SCA_MouseActuator, m_use_axis_y),
-    KX_PYATTRIBUTE_FLOAT_ARRAY_RW("threshold", 0.0f, 0.5f, SCA_MouseActuator, m_threshold, 2),
-    KX_PYATTRIBUTE_BOOL_RW("reset_x", SCA_MouseActuator, m_reset_x),
-    KX_PYATTRIBUTE_BOOL_RW("reset_y", SCA_MouseActuator, m_reset_y),
-    KX_PYATTRIBUTE_INT_ARRAY_RW("object_axis", 0, 2, 1, SCA_MouseActuator, m_object_axis, 2),
-    KX_PYATTRIBUTE_BOOL_RW("local_x", SCA_MouseActuator, m_local_x),
-    KX_PYATTRIBUTE_BOOL_RW("local_y", SCA_MouseActuator, m_local_y),
-    KX_PYATTRIBUTE_FLOAT_ARRAY_RW(
+    EXP_PYATTRIBUTE_BOOL_RW("visible", SCA_MouseActuator, m_visible),
+    EXP_PYATTRIBUTE_BOOL_RW("use_axis_x", SCA_MouseActuator, m_use_axis_x),
+    EXP_PYATTRIBUTE_BOOL_RW("use_axis_y", SCA_MouseActuator, m_use_axis_y),
+    EXP_PYATTRIBUTE_FLOAT_ARRAY_RW("threshold", 0.0f, 0.5f, SCA_MouseActuator, m_threshold, 2),
+    EXP_PYATTRIBUTE_BOOL_RW("reset_x", SCA_MouseActuator, m_reset_x),
+    EXP_PYATTRIBUTE_BOOL_RW("reset_y", SCA_MouseActuator, m_reset_y),
+    EXP_PYATTRIBUTE_INT_ARRAY_RW("object_axis", 0, 2, 1, SCA_MouseActuator, m_object_axis, 2),
+    EXP_PYATTRIBUTE_BOOL_RW("local_x", SCA_MouseActuator, m_local_x),
+    EXP_PYATTRIBUTE_BOOL_RW("local_y", SCA_MouseActuator, m_local_y),
+    EXP_PYATTRIBUTE_FLOAT_ARRAY_RW(
         "sensitivity", -FLT_MAX, FLT_MAX, SCA_MouseActuator, m_sensitivity, 2),
-    KX_PYATTRIBUTE_RW_FUNCTION(
+    EXP_PYATTRIBUTE_RW_FUNCTION(
         "limit_x", SCA_MouseActuator, pyattr_get_limit_x, pyattr_set_limit_x),
-    KX_PYATTRIBUTE_RW_FUNCTION(
+    EXP_PYATTRIBUTE_RW_FUNCTION(
         "limit_y", SCA_MouseActuator, pyattr_get_limit_y, pyattr_set_limit_y),
-    KX_PYATTRIBUTE_RW_FUNCTION("angle", SCA_MouseActuator, pyattr_get_angle, pyattr_set_angle),
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_RW_FUNCTION("angle", SCA_MouseActuator, pyattr_get_angle, pyattr_set_angle),
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
-PyObject *SCA_MouseActuator::pyattr_get_limit_x(PyObjectPlus *self_v,
-                                                const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_MouseActuator::pyattr_get_limit_x(EXP_PyObjectPlus *self_v,
+                                                const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_MouseActuator *self = static_cast<SCA_MouseActuator *>(self_v);
   return PyObjectFrom(MT_Vector2(self->m_limit_x[0] / (float)M_PI * 180.0f,
                                  self->m_limit_x[1] / (float)M_PI * 180.0f));
 }
 
-int SCA_MouseActuator::pyattr_set_limit_x(PyObjectPlus *self_v,
-                                          const KX_PYATTRIBUTE_DEF *attrdef,
+int SCA_MouseActuator::pyattr_set_limit_x(EXP_PyObjectPlus *self_v,
+                                          const EXP_PYATTRIBUTE_DEF *attrdef,
                                           PyObject *value)
 {
   PyObject *item1, *item2;
@@ -441,16 +441,16 @@ int SCA_MouseActuator::pyattr_set_limit_x(PyObjectPlus *self_v,
   return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *SCA_MouseActuator::pyattr_get_limit_y(PyObjectPlus *self_v,
-                                                const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_MouseActuator::pyattr_get_limit_y(EXP_PyObjectPlus *self_v,
+                                                const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_MouseActuator *self = static_cast<SCA_MouseActuator *>(self_v);
   return PyObjectFrom(MT_Vector2(self->m_limit_y[0] / (float)M_PI * 180.0f,
                                  self->m_limit_y[1] / (float)M_PI * 180.0f));
 }
 
-int SCA_MouseActuator::pyattr_set_limit_y(PyObjectPlus *self_v,
-                                          const KX_PYATTRIBUTE_DEF *attrdef,
+int SCA_MouseActuator::pyattr_set_limit_y(EXP_PyObjectPlus *self_v,
+                                          const EXP_PYATTRIBUTE_DEF *attrdef,
                                           PyObject *value)
 {
   PyObject *item1, *item2;
@@ -476,16 +476,16 @@ int SCA_MouseActuator::pyattr_set_limit_y(PyObjectPlus *self_v,
   return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *SCA_MouseActuator::pyattr_get_angle(PyObjectPlus *self_v,
-                                              const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_MouseActuator::pyattr_get_angle(EXP_PyObjectPlus *self_v,
+                                              const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_MouseActuator *self = static_cast<SCA_MouseActuator *>(self_v);
   return PyObjectFrom(MT_Vector2(self->m_angle[0] / (float)M_PI * 180.0f,
                                  self->m_angle[1] / (float)M_PI * 180.0f));
 }
 
-int SCA_MouseActuator::pyattr_set_angle(PyObjectPlus *self_v,
-                                        const KX_PYATTRIBUTE_DEF *attrdef,
+int SCA_MouseActuator::pyattr_set_angle(EXP_PyObjectPlus *self_v,
+                                        const EXP_PYATTRIBUTE_DEF *attrdef,
                                         PyObject *value)
 {
   PyObject *item1, *item2;

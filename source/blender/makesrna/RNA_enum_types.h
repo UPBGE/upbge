@@ -83,6 +83,7 @@ extern const EnumPropertyItem rna_enum_image_generated_type_items[];
 extern const EnumPropertyItem rna_enum_normal_space_items[];
 extern const EnumPropertyItem rna_enum_normal_swizzle_items[];
 extern const EnumPropertyItem rna_enum_bake_save_mode_items[];
+extern const EnumPropertyItem rna_enum_bake_target_items[];
 
 extern const EnumPropertyItem rna_enum_views_format_items[];
 extern const EnumPropertyItem rna_enum_views_format_multilayer_items[];
@@ -117,7 +118,10 @@ extern const EnumPropertyItem rna_enum_nla_mode_blend_items[];
 
 extern const EnumPropertyItem rna_enum_motionpath_bake_location_items[];
 
-extern const EnumPropertyItem rna_enum_event_value_items[];
+extern const EnumPropertyItem rna_enum_event_value_all_items[];
+extern const EnumPropertyItem rna_enum_event_value_keymouse_items[];
+extern const EnumPropertyItem rna_enum_event_value_tweak_items[];
+
 extern const EnumPropertyItem rna_enum_event_type_items[];
 extern const EnumPropertyItem rna_enum_event_type_mask_items[];
 

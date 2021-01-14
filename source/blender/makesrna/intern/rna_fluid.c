@@ -81,6 +81,11 @@ static void rna_Fluid_datacache_reset(Main *UNUSED(bmain), Scene *UNUSED(scene),
     Object *ob = (Object *)ptr->owner_id;
     int cache_map = (FLUID_DOMAIN_OUTDATED_DATA | FLUID_DOMAIN_OUTDATED_NOISE |
                      FLUID_DOMAIN_OUTDATED_MESH | FLUID_DOMAIN_OUTDATED_PARTICLES);
+
+    /* In replay mode, always invalidate guiding cache too. */
+    if (settings->cache_type == FLUID_DOMAIN_CACHE_REPLAY) {
+      cache_map |= FLUID_DOMAIN_OUTDATED_GUIDE;
+    }
     BKE_fluid_cache_free(settings, ob, cache_map);
   }
 #  endif
@@ -1929,6 +1934,22 @@ static void rna_def_fluid_domain_settings(BlenderRNA *brna)
       "Maximum number of fluid particles that are allowed in this simulation");
   RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Fluid_datacache_reset");
 
+  /* viscosity options */
+
+  prop = RNA_def_property(srna, "use_viscosity", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flags", FLUID_DOMAIN_USE_VISCOSITY);
+  RNA_def_property_ui_text(prop, "Use Viscosity", "Enable fluid viscosity settings");
+  RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Fluid_datacache_reset");
+
+  prop = RNA_def_property(srna, "viscosity_value", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_range(prop, 0.0, 10.0);
+  RNA_def_property_ui_range(prop, 0.0, 5.0, 1.0, 3);
+  RNA_def_property_ui_text(prop,
+                           "Strength",
+                           "Viscosity of liquid (higher values result in more viscous fluids, a "
+                           "value of 0 will still apply some viscosity)");
+  RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Fluid_datacache_reset");
+
   /*  diffusion options */
 
   prop = RNA_def_property(srna, "use_diffusion", PROP_BOOLEAN, PROP_NONE);
@@ -2235,13 +2256,13 @@ static void rna_def_fluid_domain_settings(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, NULL, "guide_alpha");
   RNA_def_property_range(prop, 1.0, 100.0);
   RNA_def_property_ui_text(prop, "Weight", "Guiding weight (higher value results in greater lag)");
-  RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Fluid_guidingcache_reset");
+  RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Fluid_datacache_reset");
 
   prop = RNA_def_property(srna, "guide_beta", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, NULL, "guide_beta");
   RNA_def_property_range(prop, 1, 50);
   RNA_def_property_ui_text(prop, "Size", "Guiding size (higher value results in larger vortices)");
-  RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Fluid_guidingcache_reset");
+  RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Fluid_datacache_reset");
 
   prop = RNA_def_property(srna, "guide_vel_factor", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "guide_vel_factor");
@@ -2250,7 +2271,7 @@ static void rna_def_fluid_domain_settings(BlenderRNA *brna)
       prop,
       "Velocity Factor",
       "Guiding velocity factor (higher value results in greater guiding velocities)");
-  RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Fluid_guidingcache_reset");
+  RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Fluid_datacache_reset");
 
   prop = RNA_def_property(srna, "guide_source", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, NULL, "guide_source");
@@ -2273,7 +2294,7 @@ static void rna_def_fluid_domain_settings(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, NULL, "flags", FLUID_DOMAIN_USE_GUIDE);
   RNA_def_property_ui_text(prop, "Use Guiding", "Enable fluid guiding");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Fluid_guidingcache_reset");
+  RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Fluid_update");
 
   /* cache options */
 

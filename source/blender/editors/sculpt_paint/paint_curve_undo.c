@@ -102,9 +102,12 @@ static bool paintcurve_undosys_step_encode(struct bContext *C,
                                            struct Main *UNUSED(bmain),
                                            UndoStep *us_p)
 {
-  if (C == NULL || !paint_curve_poll(C)) {
+  /* FIXME Double check this, it should not be needed here at all? undo system is supposed to
+   * ensure that. */
+  if (!paint_curve_poll(C)) {
     return false;
   }
+
   Paint *p = BKE_paint_get_active_from_context(C);
   PaintCurve *pc = p ? (p->brush ? p->brush->paint_curve : NULL) : NULL;
   if (pc == NULL) {
@@ -148,7 +151,6 @@ static void paintcurve_undosys_foreach_ID_ref(UndoStep *us_p,
 void ED_paintcurve_undosys_type(UndoType *ut)
 {
   ut->name = "Paint Curve";
-  /* don't poll for now */
   ut->poll = paintcurve_undosys_poll;
   ut->step_encode_init = paintcurve_undosys_step_encode_init;
   ut->step_encode = paintcurve_undosys_step_encode;
@@ -157,7 +159,7 @@ void ED_paintcurve_undosys_type(UndoType *ut)
 
   ut->step_foreach_ID_ref = paintcurve_undosys_foreach_ID_ref;
 
-  ut->use_context = false;
+  ut->flags = 0;
 
   ut->step_size = sizeof(PaintCurveUndoStep);
 }

@@ -51,7 +51,7 @@ SCA_VisibilityActuator::~SCA_VisibilityActuator(void)
   // intentionally empty
 }
 
-CValue *SCA_VisibilityActuator::GetReplica(void)
+EXP_Value *SCA_VisibilityActuator::GetReplica(void)
 {
   SCA_VisibilityActuator *replica = new SCA_VisibilityActuator(*this);
   replica->ProcessReplica();
@@ -83,7 +83,7 @@ bool SCA_VisibilityActuator::Update()
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_VisibilityActuator::Type = {
     PyVarObject_HEAD_INIT(nullptr, 0) "SCA_VisibilityActuator",
-    sizeof(PyObjectPlus_Proxy),
+    sizeof(EXP_PyObjectPlus_Proxy),
     0,
     py_base_dealloc,
     0,
@@ -125,10 +125,10 @@ PyMethodDef SCA_VisibilityActuator::Methods[] = {
 };
 
 PyAttributeDef SCA_VisibilityActuator::Attributes[] = {
-    KX_PYATTRIBUTE_BOOL_RW("visibility", SCA_VisibilityActuator, m_visible),
-    KX_PYATTRIBUTE_BOOL_RW("useOcclusion", SCA_VisibilityActuator, m_occlusion),
-    KX_PYATTRIBUTE_BOOL_RW("useRecursion", SCA_VisibilityActuator, m_recursive),
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_BOOL_RW("visibility", SCA_VisibilityActuator, m_visible),
+    EXP_PYATTRIBUTE_BOOL_RW("useOcclusion", SCA_VisibilityActuator, m_occlusion),
+    EXP_PYATTRIBUTE_BOOL_RW("useRecursion", SCA_VisibilityActuator, m_recursive),
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
 #endif  // WITH_PYTHON

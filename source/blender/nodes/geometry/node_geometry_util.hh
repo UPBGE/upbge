@@ -41,14 +41,10 @@ bool geo_node_poll_default(struct bNodeType *ntype, struct bNodeTree *ntree);
 namespace blender::nodes {
 void update_attribute_input_socket_availabilities(bNode &node,
                                                   const StringRef name,
-                                                  const GeometryNodeAttributeInputMode mode);
+                                                  const GeometryNodeAttributeInputMode mode,
+                                                  const bool name_is_available = true);
 
-CustomDataType attribute_domain_highest_complexity(Span<CustomDataType>);
-
-void poisson_disk_point_elimination(Vector<float3> const *input_points,
-                                    Vector<float3> *output_points,
-                                    float maximum_distance,
-                                    float3 boundbox);
+CustomDataType attribute_data_type_highest_complexity(Span<CustomDataType>);
 
 Array<uint32_t> get_geometry_element_ids_as_uints(const GeometryComponent &component,
                                                   const AttributeDomain domain);

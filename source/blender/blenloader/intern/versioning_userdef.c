@@ -257,7 +257,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_node.nodeclass_attribute);
   }
 
-  if (!USER_VERSION_ATLEAST(292, 6)) {
+  if (!USER_VERSION_ATLEAST(292, 12)) {
     FROM_DEFAULT_V4_UCHAR(space_node.nodeclass_shader);
   }
 
@@ -820,6 +820,12 @@ void blo_do_versions_userdef(UserDef *userdef)
     userdef->uiflag &= ~USER_UIFLAG_UNUSED_3;
   }
 
+  if (!USER_VERSION_ATLEAST(292, 9)) {
+    if (BLI_listbase_is_empty(&userdef->asset_libraries)) {
+      BKE_preferences_asset_library_default_add(userdef);
+    }
+  }
+
   /**
    * Versioning code until next subversion bump goes here.
    *
@@ -831,9 +837,6 @@ void blo_do_versions_userdef(UserDef *userdef)
    */
   {
     /* Keep this block, even when empty. */
-    if (BLI_listbase_is_empty(&userdef->asset_libraries)) {
-      BKE_preferences_asset_library_default_add(userdef);
-    }
   }
 
   LISTBASE_FOREACH (bTheme *, btheme, &userdef->themes) {

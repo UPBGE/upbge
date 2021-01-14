@@ -38,6 +38,7 @@ class SpellChecker:
         "boolean", "booleans",
         "chamfer",
         "couldn",  # couldn't
+        "customizable",
         "decrement",
         "derivate",
         "deterministically",
@@ -173,7 +174,7 @@ class SpellChecker:
         "premultiply", "premultiplied",
         "prepass",
         "prepend",
-        "preprocess", "preprocessing",
+        "preprocess", "preprocessing", "preprocessor",
         "preseek",
         "promillage",
         "pushdown",
@@ -548,7 +549,7 @@ class SpellChecker:
         "freestyle",
         "enum", "enums",
         "gizmogroup",
-        "gons",  # N-Gons
+        "gon", "gons",  # N-Gon(s)
         "gpencil",
         "idcol",
         "keyframe", "keyframes", "keyframing", "keyframed",

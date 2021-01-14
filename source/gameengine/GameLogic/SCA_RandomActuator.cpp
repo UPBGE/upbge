@@ -65,7 +65,7 @@ SCA_RandomActuator::~SCA_RandomActuator()
   m_base->Release();
 }
 
-CValue *SCA_RandomActuator::GetReplica()
+EXP_Value *SCA_RandomActuator::GetReplica()
 {
   SCA_RandomActuator *replica = new SCA_RandomActuator(*this);
   // replication just copy the m_base pointer => common random generator
@@ -87,7 +87,7 @@ bool SCA_RandomActuator::Update()
 
   RemoveAllEvents();
 
-  CValue *tmpval = nullptr;
+  EXP_Value *tmpval = nullptr;
 
   if (bNegativeEvent)
     return false;  // do nothing on negative events
@@ -96,7 +96,7 @@ bool SCA_RandomActuator::Update()
     case KX_RANDOMACT_BOOL_CONST: {
       /* un petit peu filthy */
       bool res = !(m_parameter1 < 0.5);
-      tmpval = new CBoolValue(res);
+      tmpval = new EXP_BoolValue(res);
     } break;
     case KX_RANDOMACT_BOOL_UNIFORM: {
       /* flip a coin */
@@ -110,17 +110,17 @@ bool SCA_RandomActuator::Update()
         res = (((m_previous >> m_counter) & 0x1) == 0);
         m_counter++;
       }
-      tmpval = new CBoolValue(res);
+      tmpval = new EXP_BoolValue(res);
     } break;
     case KX_RANDOMACT_BOOL_BERNOUILLI: {
       /* 'percentage' */
       bool res;
       res = (m_base->DrawFloat() < m_parameter1);
-      tmpval = new CBoolValue(res);
+      tmpval = new EXP_BoolValue(res);
     } break;
     case KX_RANDOMACT_INT_CONST: {
       /* constant */
-      tmpval = new CIntValue((int)floor(m_parameter1));
+      tmpval = new EXP_IntValue((int)floor(m_parameter1));
     } break;
     case KX_RANDOMACT_INT_UNIFORM: {
       /* uniform (toss a die) */
@@ -128,7 +128,7 @@ bool SCA_RandomActuator::Update()
       /* The [0, 1] interval is projected onto the [min, max+1] domain,    */
       /* and then rounded.                                                 */
       res = (int)floor(((m_parameter2 - m_parameter1 + 1) * m_base->DrawFloat()) + m_parameter1);
-      tmpval = new CIntValue(res);
+      tmpval = new EXP_IntValue(res);
     } break;
     case KX_RANDOMACT_INT_POISSON: {
       /* poisson (queues) */
@@ -148,15 +148,15 @@ bool SCA_RandomActuator::Update()
         b = b * m_base->DrawFloat();
         res++;
       };
-      tmpval = new CIntValue(res);
+      tmpval = new EXP_IntValue(res);
     } break;
     case KX_RANDOMACT_FLOAT_CONST: {
       /* constant */
-      tmpval = new CFloatValue(m_parameter1);
+      tmpval = new EXP_FloatValue(m_parameter1);
     } break;
     case KX_RANDOMACT_FLOAT_UNIFORM: {
       float res = ((m_parameter2 - m_parameter1) * m_base->DrawFloat()) + m_parameter1;
-      tmpval = new CFloatValue(res);
+      tmpval = new EXP_FloatValue(res);
     } break;
     case KX_RANDOMACT_FLOAT_NORMAL: {
       /* normal (big numbers): para1 = mean, para2 = std dev               */
@@ -170,7 +170,7 @@ bool SCA_RandomActuator::Update()
       float x = 0.0, y = 0.0, s = 0.0, t = 0.0;
       if (m_base->GetSeed() == 0) {
         /* 070301 - nzc: Just taking the mean here seems reasonable. */
-        tmpval = new CFloatValue(m_parameter1);
+        tmpval = new EXP_FloatValue(m_parameter1);
       }
       else {
         /* 070301 - nzc
@@ -200,15 +200,15 @@ bool SCA_RandomActuator::Update()
           s = x * x + y * y;
         } while ((s >= 1.0f) || (s == 0.0f));
         t = x * sqrtf((-2.0 * log(s)) / s);
-        tmpval = new CFloatValue(m_parameter1 + m_parameter2 * t);
+        tmpval = new EXP_FloatValue(m_parameter1 + m_parameter2 * t);
       }
     } break;
     case KX_RANDOMACT_FLOAT_NEGATIVE_EXPONENTIAL: {
       /* 1st order fall-off. I am very partial to using the half-life as    */
       /* controlling parameter. Using the 'normal' exponent is not very     */
       /* intuitive...                                                       */
-      /* tmpval = new CFloatValue( (1.0 / m_parameter1)                     */
-      tmpval = new CFloatValue((m_parameter1) * (-log(1.0 - m_base->DrawFloat())));
+      /* tmpval = new EXP_FloatValue( (1.0 / m_parameter1)                     */
+      tmpval = new EXP_FloatValue((m_parameter1) * (-log(1.0 - m_base->DrawFloat())));
 
     } break;
     default: {
@@ -223,7 +223,7 @@ bool SCA_RandomActuator::Update()
   }
 
   /* Round up: assign it */
-  CValue *prop = GetParent()->GetProperty(m_propname);
+  EXP_Value *prop = GetParent()->GetProperty(m_propname);
   if (prop) {
     prop->SetValue(tmpval);
   }
@@ -286,7 +286,7 @@ void SCA_RandomActuator::enforceConstraints()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_RandomActuator::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_RandomActuator",
-                                         sizeof(PyObjectPlus_Proxy),
+                                         sizeof(EXP_PyObjectPlus_Proxy),
                                          0,
                                          py_base_dealloc,
                                          0,
@@ -324,40 +324,40 @@ PyTypeObject SCA_RandomActuator::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_
                                          py_base_new};
 
 PyMethodDef SCA_RandomActuator::Methods[] = {
-    KX_PYMETHODTABLE(SCA_RandomActuator, setBoolConst),
-    KX_PYMETHODTABLE_NOARGS(SCA_RandomActuator, setBoolUniform),
-    KX_PYMETHODTABLE(SCA_RandomActuator, setBoolBernouilli),
+    EXP_PYMETHODTABLE(SCA_RandomActuator, setBoolConst),
+    EXP_PYMETHODTABLE_NOARGS(SCA_RandomActuator, setBoolUniform),
+    EXP_PYMETHODTABLE(SCA_RandomActuator, setBoolBernouilli),
 
-    KX_PYMETHODTABLE(SCA_RandomActuator, setIntConst),
-    KX_PYMETHODTABLE(SCA_RandomActuator, setIntUniform),
-    KX_PYMETHODTABLE(SCA_RandomActuator, setIntPoisson),
+    EXP_PYMETHODTABLE(SCA_RandomActuator, setIntConst),
+    EXP_PYMETHODTABLE(SCA_RandomActuator, setIntUniform),
+    EXP_PYMETHODTABLE(SCA_RandomActuator, setIntPoisson),
 
-    KX_PYMETHODTABLE(SCA_RandomActuator, setFloatConst),
-    KX_PYMETHODTABLE(SCA_RandomActuator, setFloatUniform),
-    KX_PYMETHODTABLE(SCA_RandomActuator, setFloatNormal),
-    KX_PYMETHODTABLE(SCA_RandomActuator, setFloatNegativeExponential),
+    EXP_PYMETHODTABLE(SCA_RandomActuator, setFloatConst),
+    EXP_PYMETHODTABLE(SCA_RandomActuator, setFloatUniform),
+    EXP_PYMETHODTABLE(SCA_RandomActuator, setFloatNormal),
+    EXP_PYMETHODTABLE(SCA_RandomActuator, setFloatNegativeExponential),
     {nullptr, nullptr}  // Sentinel
 };
 
 PyAttributeDef SCA_RandomActuator::Attributes[] = {
-    KX_PYATTRIBUTE_FLOAT_RO("para1", SCA_RandomActuator, m_parameter1),
-    KX_PYATTRIBUTE_FLOAT_RO("para2", SCA_RandomActuator, m_parameter2),
-    KX_PYATTRIBUTE_ENUM_RO("distribution", SCA_RandomActuator, m_distribution),
-    KX_PYATTRIBUTE_STRING_RW_CHECK(
+    EXP_PYATTRIBUTE_FLOAT_RO("para1", SCA_RandomActuator, m_parameter1),
+    EXP_PYATTRIBUTE_FLOAT_RO("para2", SCA_RandomActuator, m_parameter2),
+    EXP_PYATTRIBUTE_ENUM_RO("distribution", SCA_RandomActuator, m_distribution),
+    EXP_PYATTRIBUTE_STRING_RW_CHECK(
         "propName", 0, MAX_PROP_NAME, false, SCA_RandomActuator, m_propname, CheckProperty),
-    KX_PYATTRIBUTE_RW_FUNCTION("seed", SCA_RandomActuator, pyattr_get_seed, pyattr_set_seed),
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_RW_FUNCTION("seed", SCA_RandomActuator, pyattr_get_seed, pyattr_set_seed),
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
-PyObject *SCA_RandomActuator::pyattr_get_seed(PyObjectPlus *self,
-                                              const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_RandomActuator::pyattr_get_seed(EXP_PyObjectPlus *self,
+                                              const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_RandomActuator *act = static_cast<SCA_RandomActuator *>(self);
   return PyLong_FromLong(act->m_base->GetSeed());
 }
 
-int SCA_RandomActuator::pyattr_set_seed(PyObjectPlus *self,
-                                        const struct KX_PYATTRIBUTE_DEF *attrdef,
+int SCA_RandomActuator::pyattr_set_seed(EXP_PyObjectPlus *self,
+                                        const struct EXP_PYATTRIBUTE_DEF *attrdef,
                                         PyObject *value)
 {
   SCA_RandomActuator *act = static_cast<SCA_RandomActuator *>(self);
@@ -372,7 +372,7 @@ int SCA_RandomActuator::pyattr_set_seed(PyObjectPlus *self,
 }
 
 /* 11. setBoolConst */
-KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
+EXP_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
                            setBoolConst,
                            "setBoolConst(value)\n"
                            "\t- value: 0 or 1\n"
@@ -389,7 +389,7 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
   Py_RETURN_NONE;
 }
 /* 12. setBoolUniform, */
-KX_PYMETHODDEF_DOC_NOARGS(
+EXP_PYMETHODDEF_DOC_NOARGS(
     SCA_RandomActuator,
     setBoolUniform,
     "setBoolUniform()\n"
@@ -401,7 +401,7 @@ KX_PYMETHODDEF_DOC_NOARGS(
   Py_RETURN_NONE;
 }
 /* 13. setBoolBernouilli,  */
-KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
+EXP_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
                            setBoolBernouilli,
                            "setBoolBernouilli(value)\n"
                            "\t- value: a float between 0 and 1\n"
@@ -418,7 +418,7 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
   Py_RETURN_NONE;
 }
 /* 14. setIntConst,*/
-KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
+EXP_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
                            setIntConst,
                            "setIntConst(value)\n"
                            "\t- value: integer\n"
@@ -435,7 +435,7 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
   Py_RETURN_NONE;
 }
 /* 15. setIntUniform,*/
-KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
+EXP_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
                            setIntUniform,
                            "setIntUniform(lower_bound, upper_bound)\n"
                            "\t- lower_bound: integer\n"
@@ -455,7 +455,7 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
   Py_RETURN_NONE;
 }
 /* 16. setIntPoisson,		*/
-KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
+EXP_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
                            setIntPoisson,
                            "setIntPoisson(value)\n"
                            "\t- value: float\n"
@@ -474,7 +474,7 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
   Py_RETURN_NONE;
 }
 /* 17. setFloatConst */
-KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
+EXP_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
                            setFloatConst,
                            "setFloatConst(value)\n"
                            "\t- value: float\n"
@@ -491,7 +491,7 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
   Py_RETURN_NONE;
 }
 /* 18. setFloatUniform, */
-KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
+EXP_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
                            setFloatUniform,
                            "setFloatUniform(lower_bound, upper_bound)\n"
                            "\t- lower_bound: float\n"
@@ -511,7 +511,7 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
   Py_RETURN_NONE;
 }
 /* 19. setFloatNormal, */
-KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
+EXP_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
                            setFloatNormal,
                            "setFloatNormal(mean, standard_deviation)\n"
                            "\t- mean: float\n"
@@ -531,7 +531,7 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
   Py_RETURN_NONE;
 }
 /* 20. setFloatNegativeExponential, */
-KX_PYMETHODDEF_DOC_VARARGS(
+EXP_PYMETHODDEF_DOC_VARARGS(
     SCA_RandomActuator,
     setFloatNegativeExponential,
     "setFloatNegativeExponential(half_life)\n"

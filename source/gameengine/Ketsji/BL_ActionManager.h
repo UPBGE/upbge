@@ -114,10 +114,5 @@ class BL_ActionManager {
    * manages actions' frames.
    */
   void Update(float curtime, bool applyToObject);
-
-  /**
-   * Update object IPOs (note: not thread-safe!)
-   */
-  void UpdateIPOs();
 };
 

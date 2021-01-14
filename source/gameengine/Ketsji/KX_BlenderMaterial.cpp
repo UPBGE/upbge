@@ -59,7 +59,7 @@ KX_BlenderMaterial::KX_BlenderMaterial(RAS_Rasterizer *rasty,
    * (m_textures list won't be available for these object)
    */
   if (m_material->use_nodes && m_material->nodetree && !converting_during_runtime) {
-    if ((m_scene->GetBlenderScene()->gm.flag & GAME_USE_VIEWPORT_RENDER) == 0) {
+    if (!KX_GetActiveEngine()->UseViewportRender()) {
       EEVEE_Data *vedata = EEVEE_engine_data_get();
       EEVEE_EffectsInfo *effects = vedata->stl->effects;
       const bool use_ssrefract = ((m_material->blend_flag & MA_BL_SS_REFRACTION) != 0) &&
@@ -296,18 +296,18 @@ std::string KX_BlenderMaterial::GetName()
 #ifdef WITH_PYTHON
 
 PyMethodDef KX_BlenderMaterial::Methods[] = {
-    KX_PYMETHODTABLE(KX_BlenderMaterial, getShader),
-    KX_PYMETHODTABLE(KX_BlenderMaterial, setBlending),
+    EXP_PYMETHODTABLE(KX_BlenderMaterial, getShader),
+    EXP_PYMETHODTABLE(KX_BlenderMaterial, setBlending),
     {nullptr, nullptr}  // Sentinel
 };
 
 PyAttributeDef KX_BlenderMaterial::Attributes[] = {
-    KX_PYATTRIBUTE_RO_FUNCTION("textures", KX_BlenderMaterial, pyattr_get_textures),
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_RO_FUNCTION("textures", KX_BlenderMaterial, pyattr_get_textures),
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
 PyTypeObject KX_BlenderMaterial::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_BlenderMaterial",
-                                         sizeof(PyObjectPlus_Proxy),
+                                         sizeof(EXP_PyObjectPlus_Proxy),
                                          0,
                                          py_base_dealloc,
                                          0,
@@ -335,7 +335,7 @@ PyTypeObject KX_BlenderMaterial::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_B
                                          Methods,
                                          0,
                                          0,
-                                         &CValue::Type,
+                                         &EXP_Value::Type,
                                          0,
                                          0,
                                          0,
@@ -369,10 +369,10 @@ static const std::string kx_blender_material_get_textures_item_name_cb(void *sel
   return (tex ? tex->GetName() : "");
 }
 
-PyObject *KX_BlenderMaterial::pyattr_get_textures(PyObjectPlus *self_v,
-                                                  const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_BlenderMaterial::pyattr_get_textures(EXP_PyObjectPlus *self_v,
+                                                  const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-  return (new CListWrapper(self_v,
+  return (new EXP_ListWrapper(self_v,
                            ((KX_BlenderMaterial *)self_v)->GetProxy(),
                            nullptr,
                            kx_blender_material_get_textures_size_cb,
@@ -382,7 +382,7 @@ PyObject *KX_BlenderMaterial::pyattr_get_textures(PyObjectPlus *self_v,
       ->NewProxy(true);
 }
 
-KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getShader, "getShader()")
+EXP_PYMETHODDEF_DOC(KX_BlenderMaterial, getShader, "getShader()")
 {
   /* EEVEE: Any way to restore Custom shaders without bge rendering pipeline */
   if (!m_shader) {
@@ -407,7 +407,7 @@ static const unsigned int GL_array[11] = {RAS_Rasterizer::RAS_ZERO,
                                           RAS_Rasterizer::RAS_ONE_MINUS_DST_ALPHA,
                                           RAS_Rasterizer::RAS_SRC_ALPHA_SATURATE};
 
-KX_PYMETHODDEF_DOC(KX_BlenderMaterial, setBlending, "setBlending(bge.logic.src, bge.logic.dest)")
+EXP_PYMETHODDEF_DOC(KX_BlenderMaterial, setBlending, "setBlending(bge.logic.src, bge.logic.dest)")
 {
   unsigned int b[2];
   if (PyArg_ParseTuple(args, "ii:setBlending", &b[0], &b[1])) {
@@ -462,11 +462,11 @@ bool ConvertPythonToMaterial(PyObject *value,
   }
 
   if (PyObject_TypeCheck(value, &KX_BlenderMaterial::Type)) {
-    KX_BlenderMaterial *mat = static_cast<KX_BlenderMaterial *> BGE_PROXY_REF(value);
+    KX_BlenderMaterial *mat = static_cast<KX_BlenderMaterial *> EXP_PROXY_REF(value);
 
     /* sets the error */
     if (mat == nullptr) {
-      PyErr_Format(PyExc_SystemError, "%s, " BGE_PROXY_ERROR_MSG, error_prefix);
+      PyErr_Format(PyExc_SystemError, "%s, " EXP_PROXY_ERROR_MSG, error_prefix);
       return false;
     }
 

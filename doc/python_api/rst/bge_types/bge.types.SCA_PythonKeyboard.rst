@@ -1,9 +1,9 @@
-SCA_PythonKeyboard(PyObjectPlus)
+SCA_PythonKeyboard(EXP_PyObjectPlus)
 ================================
 
-base class --- :class:`PyObjectPlus`
+base class --- :class:`EXP_PyObjectPlus`
 
-.. class:: SCA_PythonKeyboard(PyObjectPlus)
+.. class:: SCA_PythonKeyboard(EXP_PyObjectPlus)
 
    The current keyboard.
 

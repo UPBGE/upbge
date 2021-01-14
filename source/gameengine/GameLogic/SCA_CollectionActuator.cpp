@@ -69,7 +69,7 @@ SCA_CollectionActuator::~SCA_CollectionActuator()
     m_camera->UnregisterActuator(this);
 } /* end of destructor */
 
-CValue *SCA_CollectionActuator::GetReplica()
+EXP_Value *SCA_CollectionActuator::GetReplica()
 {
   SCA_CollectionActuator *replica = new SCA_CollectionActuator(*this);
   replica->ProcessReplica();
@@ -173,7 +173,7 @@ bool SCA_CollectionActuator::Update()
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_CollectionActuator::Type = {
     PyVarObject_HEAD_INIT(nullptr, 0) "SCA_CollectionActuator",
-    sizeof(PyObjectPlus_Proxy),
+    sizeof(EXP_PyObjectPlus_Proxy),
     0,
     py_base_dealloc,
     0,
@@ -215,12 +215,12 @@ PyMethodDef SCA_CollectionActuator::Methods[] = {
 };
 
 PyAttributeDef SCA_CollectionActuator::Attributes[] = {
-    // KX_PYATTRIBUTE_STRING_RW("scene",0,MAX_ID_NAME-2,true,SCA_SceneActuator,m_nextSceneName),
-    // KX_PYATTRIBUTE_RW_FUNCTION("camera",SCA_SceneActuator,pyattr_get_camera,pyattr_set_camera),
-    // KX_PYATTRIBUTE_BOOL_RW("useRestart", SCA_SceneActuator, m_restart),
-    // KX_PYATTRIBUTE_INT_RW("mode", KX_SCENE_NODEF+1, KX_SCENE_MAX-1, true, SCA_SceneActuator,
+    // EXP_PYATTRIBUTE_STRING_RW("scene",0,MAX_ID_NAME-2,true,SCA_SceneActuator,m_nextSceneName),
+    // EXP_PYATTRIBUTE_RW_FUNCTION("camera",SCA_SceneActuator,pyattr_get_camera,pyattr_set_camera),
+    // EXP_PYATTRIBUTE_BOOL_RW("useRestart", SCA_SceneActuator, m_restart),
+    // EXP_PYATTRIBUTE_INT_RW("mode", KX_SCENE_NODEF+1, KX_SCENE_MAX-1, true, SCA_SceneActuator,
     // m_mode),
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
 #endif  // WITH_PYTHON

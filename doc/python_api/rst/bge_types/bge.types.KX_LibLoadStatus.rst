@@ -1,9 +1,9 @@
-KX_LibLoadStatus(PyObjectPlus)
+KX_LibLoadStatus(EXP_PyObjectPlus)
 ==============================
 
-base class --- :class:`PyObjectPlus`
+base class --- :class:`EXP_PyObjectPlus`
 
-.. class:: KX_LibLoadStatus(PyObjectPlus)
+.. class:: KX_LibLoadStatus(EXP_PyObjectPlus)
 
    An object providing information about a LibLoad() operation.
 

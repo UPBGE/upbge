@@ -586,7 +586,7 @@ static int nla_action_unlink_exec(bContext *C, wmOperator *op)
   }
 
   /* do unlinking */
-  if (adt && adt->action) {
+  if (adt->action) {
     bool force_delete = RNA_boolean_get(op->ptr, "force_delete");
     ED_animedit_unlink_action(C, adt_ptr.owner_id, adt, adt->action, op->reports, force_delete);
   }
@@ -621,7 +621,7 @@ void NLA_OT_action_unlink(wmOperatorType *ot)
                          "force_delete",
                          false,
                          "Force Delete",
-                         "Clear Fake User and remove copy stashed in this datablock's NLA stack");
+                         "Clear Fake User and remove copy stashed in this data-block's NLA stack");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 

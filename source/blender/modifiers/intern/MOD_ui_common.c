@@ -256,6 +256,11 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
             "OBJECT_OT_modifier_copy");
   }
 
+  uiItemO(layout,
+          CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Copy to Selected"),
+          0,
+          "OBJECT_OT_modifier_copy_to_selected");
+
   uiItemS(layout);
 
   /* Move to first. */
@@ -346,8 +351,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
     }
   }
   /* Collision and Surface are always enabled, hide buttons. */
-  if (((md->type != eModifierType_Collision) || !(ob->pd && ob->pd->deflect)) &&
-      (md->type != eModifierType_Surface)) {
+  if ((md->type != eModifierType_Collision) && (md->type != eModifierType_Surface)) {
     if (mti->flags & eModifierTypeFlag_SupportsEditmode) {
       sub = uiLayoutRow(row, true);
       uiLayoutSetActive(sub, (md->mode & eModifierMode_Realtime));

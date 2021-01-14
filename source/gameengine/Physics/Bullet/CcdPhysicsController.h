@@ -479,6 +479,9 @@ class BlenderBulletCharacterController : public btKinematicCharacterController,
 
   void SetVelocity(const btVector3 &vel, float time, bool local);
 
+  /// Replace current convex shape.
+  void ReplaceShape(btConvexShape *shape);
+
   // PHY_ICharacter interface
   virtual void Jump()
   {
@@ -876,7 +879,7 @@ class CcdPhysicsController : public PHY_IPhysicsController {
                                       bool dupli = false,
                                       bool evaluatedMesh = false);
 
-  virtual void ReplacePhysicsShape(PHY_IPhysicsController *phyctrl);
+  virtual bool ReplacePhysicsShape(PHY_IPhysicsController *phyctrl);
 
   /* Method to replicate rigid body joint contraints for group instances. */
   virtual void ReplicateConstraints(KX_GameObject *gameobj, std::vector<KX_GameObject *> constobj);

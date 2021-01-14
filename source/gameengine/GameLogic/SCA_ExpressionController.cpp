@@ -55,7 +55,7 @@ SCA_ExpressionController::~SCA_ExpressionController()
     m_exprCache->Release();
 }
 
-CValue *SCA_ExpressionController::GetReplica()
+EXP_Value *SCA_ExpressionController::GetReplica()
 {
   SCA_ExpressionController *replica = new SCA_ExpressionController(*this);
   replica->m_exprText = m_exprText;
@@ -82,12 +82,12 @@ void SCA_ExpressionController::Trigger(SCA_LogicManager *logicmgr)
 
   bool expressionresult = false;
   if (!m_exprCache) {
-    CParser parser;
+    EXP_Parser parser;
     parser.SetContext(this->AddRef());
     m_exprCache = parser.ProcessText(m_exprText);
   }
   if (m_exprCache) {
-    CValue *value = m_exprCache->Calculate();
+    EXP_Value *value = m_exprCache->Calculate();
     if (value) {
       if (value->IsError()) {
         CM_LogicBrickError(this, value->GetText());
@@ -108,17 +108,17 @@ void SCA_ExpressionController::Trigger(SCA_LogicManager *logicmgr)
   }
 }
 
-CValue *SCA_ExpressionController::FindIdentifier(const std::string &identifiername)
+EXP_Value *SCA_ExpressionController::FindIdentifier(const std::string &identifiername)
 {
 
-  CValue *identifierval = nullptr;
+  EXP_Value *identifierval = nullptr;
 
   for (std::vector<SCA_ISensor *>::const_iterator is = m_linkedsensors.begin();
        !(is == m_linkedsensors.end());
        is++) {
     SCA_ISensor *sensor = *is;
     if (sensor->GetName() == identifiername) {
-      identifierval = new CBoolValue(sensor->GetState());
+      identifierval = new EXP_BoolValue(sensor->GetState());
       // identifierval = sensor->AddRef();
       break;
     }

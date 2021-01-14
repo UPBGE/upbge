@@ -128,7 +128,11 @@ class KX_KetsjiEngine {
     std::vector<SceneRenderData> m_sceneDataList;
   };
 
+  /***************EEVEE INTEGRATION*****************/
   struct bContext *m_context;
+  bool m_useViewportRender;
+  int m_shadingTypeRuntime;
+  /*************************************************/
 
   /// 2D Canvas (2D Rendering Device Context)
   RAS_ICanvas *m_canvas;
@@ -148,7 +152,7 @@ class KX_KetsjiEngine {
   std::vector<std::pair<std::string, std::string>> m_replace_scenes;
 
   /// The current list of scenes.
-  CListValue<KX_Scene> *m_scenes;
+  EXP_ListValue<KX_Scene> *m_scenes;
 
   bool m_bInitialized;
 
@@ -271,16 +275,18 @@ class KX_KetsjiEngine {
   void BeginFrame();
 
  public:
-  KX_KetsjiEngine(KX_ISystem *system, struct bContext *C);
+  KX_KetsjiEngine(KX_ISystem *system, struct bContext *C, bool useViewportRender, int shadingTypeRuntime);
   virtual ~KX_KetsjiEngine();
 
-  /* EEVEE integration */
+  /******** EEVEE integration *********/
   struct bContext *GetContext();
+  bool UseViewportRender();
+  int ShadingTypeRuntime();
   // include depsgraph time in tc_depsgraph category
   void CountDepsgraphTime();
   void EndCountDepsgraphTime();
   void EndFrameViewportRender();
-  /* End of EEVEE integration */
+  /***** End of EEVEE integration *****/
 
   void EndFrame();
 
@@ -331,7 +337,7 @@ class KX_KetsjiEngine {
   KX_ExitRequest GetExitCode();
   const std::string &GetExitString();
 
-  CListValue<KX_Scene> *CurrentScenes();
+  EXP_ListValue<KX_Scene> *CurrentScenes();
   KX_Scene *FindScene(const std::string &scenename);
   void AddScene(KX_Scene *scene);
 

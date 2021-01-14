@@ -432,7 +432,7 @@ static void libblock_remap_data(
   }
 
   if (old_id && GS(old_id->name) == ID_OB) {
-    BKE_sca_logic_links_remap(bmain, (Object *)old_id, (Object *)new_id);
+    BKE_sca_remap_links_logicbricks(bmain, (Object *)old_id, (Object *)new_id);
   }
 
   id_us_clear_real(old_id);

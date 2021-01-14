@@ -75,7 +75,7 @@ static void do_math_operation(const FloatReadAttribute &input_a,
 
   Span<float> span_a = input_a.get_span();
   Span<float> span_b = input_b.get_span();
-  MutableSpan<float> span_result = result.get_span();
+  MutableSpan<float> span_result = result.get_span_for_write_only();
 
   bool success = try_dispatch_float_math_fl_fl_to_fl(
       operation, [&](auto math_function, const FloatMathOperationInfo &UNUSED(info)) {
@@ -97,7 +97,8 @@ static void do_math_operation(const FloatReadAttribute &input_a,
 static void attribute_math_calc(GeometryComponent &component, const GeoNodeExecParams &params)
 {
   const bNode &node = params.node();
-  const int operation = node.custom1;
+  const NodeAttributeMath *node_storage = (const NodeAttributeMath *)node.storage;
+  const int operation = node_storage->operation;
 
   /* The result type of this node is always float. */
   const CustomDataType result_type = CD_PROP_FLOAT;
@@ -121,8 +122,7 @@ static void attribute_math_calc(GeometryComponent &component, const GeoNodeExecP
     return;
   }
 
-  do_math_operation(
-      std::move(attribute_a), std::move(attribute_b), std::move(attribute_result), operation);
+  do_math_operation(*attribute_a, *attribute_b, *attribute_result, operation);
 }
 
 static void geo_node_attribute_math_exec(GeoNodeExecParams params)

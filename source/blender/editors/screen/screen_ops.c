@@ -1359,8 +1359,8 @@ static int area_dupli_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   /* adds window to WM */
   rcti rect = area->totrct;
   BLI_rcti_translate(&rect, win->posx, win->posy);
-  rect.xmax = rect.xmin + BLI_rcti_size_x(&rect) / U.pixelsize;
-  rect.ymax = rect.ymin + BLI_rcti_size_y(&rect) / U.pixelsize;
+  rect.xmax = rect.xmin + BLI_rcti_size_x(&rect);
+  rect.ymax = rect.ymin + BLI_rcti_size_y(&rect);
 
   wmWindow *newwin = WM_window_open(C, &rect);
   if (newwin == NULL) {
@@ -3143,6 +3143,8 @@ static int screen_maximize_area_exec(bContext *C, wmOperator *op)
   ScrArea *area = NULL;
   const bool hide_panels = RNA_boolean_get(op->ptr, "use_hide_panels");
 
+  BLI_assert(!screen->temp);
+
   /* search current screen for 'fullscreen' areas */
   /* prevents restoring info header, when mouse is over it */
   LISTBASE_FOREACH (ScrArea *, area_iter, &screen->areabase) {
@@ -3174,11 +3176,14 @@ static int screen_maximize_area_exec(bContext *C, wmOperator *op)
 
 static bool screen_maximize_area_poll(bContext *C)
 {
+  const wmWindow *win = CTX_wm_window(C);
   const bScreen *screen = CTX_wm_screen(C);
   const ScrArea *area = CTX_wm_area(C);
   return ED_operator_areaactive(C) &&
          /* Don't allow maximizing global areas but allow minimizing from them. */
-         ((screen->state != SCREENNORMAL) || !ED_area_is_global(area));
+         ((screen->state != SCREENNORMAL) || !ED_area_is_global(area)) &&
+         /* Don't change temporary screens. */
+         !WM_window_is_temp_screen(win);
 }
 
 static void SCREEN_OT_screen_full_area(wmOperatorType *ot)
@@ -3611,7 +3616,7 @@ static int spacedata_cleanup_exec(bContext *C, wmOperator *op)
 static void SCREEN_OT_spacedata_cleanup(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Clean-up Space-data";
+  ot->name = "Clean Up Space Data";
   ot->description = "Remove unused settings for invisible editors";
   ot->idname = "SCREEN_OT_spacedata_cleanup";
 
@@ -5285,7 +5290,7 @@ static void SCREEN_OT_space_type_set_or_cycle(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Cycle Space Type Set";
-  ot->description = "Set the space type or cycle sub-type";
+  ot->description = "Set the space type or cycle subtype";
   ot->idname = "SCREEN_OT_space_type_set_or_cycle";
 
   /* api callbacks */
@@ -5506,16 +5511,6 @@ void ED_operatortypes_screen(void)
   /* new/delete */
   WM_operatortype_append(SCREEN_OT_new);
   WM_operatortype_append(SCREEN_OT_delete);
-
-  /* tools shared by more space types */
-  WM_operatortype_append(ED_OT_undo);
-  WM_operatortype_append(ED_OT_undo_push);
-  WM_operatortype_append(ED_OT_redo);
-  WM_operatortype_append(ED_OT_undo_redo);
-  WM_operatortype_append(ED_OT_undo_history);
-
-  WM_operatortype_append(ED_OT_lib_id_load_custom_preview);
-  WM_operatortype_append(ED_OT_lib_id_generate_preview);
 }
 
 /** \} */

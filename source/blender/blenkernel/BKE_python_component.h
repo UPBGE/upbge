@@ -26,6 +26,10 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+typedef void (*BKEPyComponentIDFunc)(struct PythonComponent *comp,
+                                  struct ID **idpoin,
+                                  void *userdata,
+                                  int cb_flag);
 
 struct PythonComponent *BKE_python_component_new(char *import,
                                                  struct ReportList *reports,
@@ -39,6 +43,8 @@ void BKE_python_component_reload(struct PythonComponent *pc,
 void BKE_python_component_copy_list(struct ListBase *lbn, const struct ListBase *lbo);
 void BKE_python_component_free(struct PythonComponent *pc);
 void BKE_python_component_free_list(struct ListBase *base);
+
+void BKE_python_components_id_loop(struct ListBase *complist, BKEPyComponentIDFunc func, void *userdata);
 
 void *BKE_python_component_argument_dict_new(struct PythonComponent *pc);
 

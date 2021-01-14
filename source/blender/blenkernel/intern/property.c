@@ -30,7 +30,7 @@
  *
  * This module deals with bProperty only,
  * they are used on blender objects in the game engine
- * (where they get converted into C++ classes - CValue and subclasses)
+ * (where they get converted into C++ classes - EXP_Value and subclasses)
  */
 
 #include <ctype.h>

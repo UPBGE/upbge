@@ -1424,10 +1424,21 @@ static void snap_grid_apply(
   const float *center_global = t->center_global;
   const float *asp = t->aspect;
 
-  /* use a fallback for cursor selection,
-   * this isn't useful as a global center for absolute grid snapping
-   * since its not based on the position of the selection. */
-  if (t->around == V3D_AROUND_CURSOR) {
+  if (t->options & CTX_CURSOR) {
+    /* Note that we must already have called #transformCenter_from_type, otherwise
+     * we would be lazy-initializing data which is being transformed,
+     * causing the transformed cursor location to be used instead of it's initial location. */
+    BLI_assert(t->center_cache[V3D_AROUND_CURSOR].is_set);
+
+    /* Use a fallback when transforming the cursor.
+     * In this case the center is _not_ derived from the cursor which is being transformed. */
+    const TransCenterData *cd = transformCenter_from_type(t, V3D_AROUND_CURSOR);
+    center_global = cd->global;
+  }
+  else if (t->around == V3D_AROUND_CURSOR) {
+    /* Use a fallback for cursor selection,
+     * this isn't useful as a global center for absolute grid snapping
+     * since its not based on the position of the selection. */
     const TransCenterData *cd = transformCenter_from_type(t, V3D_AROUND_CENTER_MEDIAN);
     center_global = cd->global;
   }
@@ -1525,7 +1536,7 @@ static void snap_increment_apply(TransInfo *t,
   snap_increment_apply_ex(t, max_index, increment_dist, asp, r_val, r_val);
 }
 
-bool transform_snap_increment(TransInfo *t, float *val)
+bool transform_snap_increment_ex(TransInfo *t, bool use_local_space, float *r_val)
 {
   if (!activeSnap(t)) {
     return false;
@@ -1541,10 +1552,24 @@ bool transform_snap_increment(TransInfo *t, float *val)
     return false;
   }
 
-  float increment_dist = (t->modifiers & MOD_PRECISION) ? t->snap[1] : t->snap[0];
+  if (use_local_space) {
+    BLI_assert(t->idx_max == 2);
+    mul_m3_v3(t->spacemtx_inv, r_val);
+  }
 
-  snap_increment_apply(t, t->idx_max, increment_dist, val);
+  float increment_dist = (t->modifiers & MOD_PRECISION) ? t->snap[1] : t->snap[0];
+  snap_increment_apply(t, t->idx_max, increment_dist, r_val);
+
+  if (use_local_space) {
+    mul_m3_v3(t->spacemtx, r_val);
+  }
+
   return true;
+}
+
+bool transform_snap_increment(TransInfo *t, float *r_val)
+{
+  return transform_snap_increment_ex(t, false, r_val);
 }
 
 /** \} */

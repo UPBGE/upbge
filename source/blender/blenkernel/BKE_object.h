@@ -84,6 +84,7 @@ bool BKE_object_modifier_gpencil_use_time(struct Object *ob, struct GpencilModif
 
 bool BKE_object_shaderfx_use_time(struct Object *ob, struct ShaderFxData *md);
 
+bool BKE_object_supports_modifiers(const struct Object *ob);
 bool BKE_object_support_modifier_type_check(const struct Object *ob, int modifier_type);
 
 /* Active modifier. */
@@ -304,7 +305,6 @@ void BKE_object_eval_uber_data(struct Depsgraph *depsgraph,
                                struct Object *ob);
 void BKE_object_eval_assign_data(struct Object *object, struct ID *data, bool is_owned);
 
-void BKE_object_eval_boundbox(struct Depsgraph *depsgraph, struct Object *object);
 void BKE_object_sync_to_original(struct Depsgraph *depsgraph, struct Object *object);
 
 void BKE_object_eval_ptcache_reset(struct Depsgraph *depsgraph,

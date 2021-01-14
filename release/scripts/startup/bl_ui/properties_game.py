@@ -25,10 +25,11 @@ class PhysicsButtonsPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "physics"
+    bl_order = 1000
 
 
 class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
-    bl_label = "Physics"
+    bl_label = "Game Physics"
     COMPAT_ENGINES = {'BLENDER_GAME', 'BLENDER_EEVEE'}
 
     @classmethod

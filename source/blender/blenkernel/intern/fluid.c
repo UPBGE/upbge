@@ -3652,7 +3652,7 @@ static int manta_step(
   }
 
   /* Total time must not exceed framecount times framelength. Correct tiny errors here. */
-  CLAMP(fds->time_total, fds->time_total, time_total_old + fds->frame_length);
+  CLAMP_MAX(fds->time_total, time_total_old + fds->frame_length);
 
   /* Compute shadow grid for gas simulations. Make sure to skip if bake job was canceled early. */
   if (fds->type == FLUID_DOMAIN_TYPE_GAS && result) {
@@ -3921,7 +3921,7 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *fmd,
   prev_guide = manta_has_guiding(fds->fluid, fmd, prev_frame, guide_parent);
 
   /* Unused for now. */
-  UNUSED_VARS(has_guide, prev_guide, next_mesh, next_guide);
+  UNUSED_VARS(next_mesh, next_guide);
 
   bool with_gdomain;
   with_gdomain = (fds->guide_source == FLUID_DOMAIN_GUIDE_SRC_DOMAIN);
@@ -4072,6 +4072,9 @@ static void BKE_fluid_modifier_processDomain(FluidModifierData *fmd,
       break;
     case FLUID_DOMAIN_CACHE_REPLAY:
     default:
+      if (with_guide) {
+        baking_guide = !has_guide && (is_startframe || prev_guide);
+      }
       baking_data = !has_data && (is_startframe || prev_data);
       if (with_smoke && with_noise) {
         baking_noise = !has_noise && (is_startframe || prev_noise);
@@ -5010,6 +5013,9 @@ void BKE_fluid_modifier_copy(const struct FluidModifierData *fmd,
     tfds->fractions_distance = fds->fractions_distance;
     tfds->sys_particle_maximum = fds->sys_particle_maximum;
     tfds->simulation_method = fds->simulation_method;
+
+    /* viscosity options */
+    tfds->viscosity_value = fds->viscosity_value;
 
     /* diffusion options*/
     tfds->surface_tension = fds->surface_tension;

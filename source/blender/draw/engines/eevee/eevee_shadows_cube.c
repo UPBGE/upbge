@@ -108,7 +108,7 @@ bool EEVEE_shadows_cube_setup(EEVEE_LightsInfo *linfo, const EEVEE_Light *evli, 
 
   bool update = false;
 
-  if (linfo->soft_shadows) {
+  if (linfo->soft_shadows && evli->use_soft_shd) { // UPBGE
     shadow_cube_random_position_set(evli, sample_ofs, cube_data->shadowmat[3]);
     /* Update if position changes (avoid infinite update if soft shadows does not move).
      * Other changes are caught by depsgraph tagging. This one is for update between samples. */
@@ -123,7 +123,7 @@ bool EEVEE_shadows_cube_setup(EEVEE_LightsInfo *linfo, const EEVEE_Light *evli, 
      * Note that this may be a rough approximation an may not converge to a perfectly
      * smooth shadow (because sample distribution is quite non-uniform) but is enough
      * in practice.
-     **/
+     */
     /* NOTE: this has implication for spotlight rendering optimization
      * (see EEVEE_shadows_draw_cubemap). */
     float angular_texel_size = 2.0f * DEG2RADF(90) / (float)linfo->shadow_cube_size;

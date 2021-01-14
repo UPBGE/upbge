@@ -95,8 +95,8 @@
 #include "KX_ObstacleSimulation.h"
 #include "KX_PyConstraintBinding.h"
 #include "KX_PythonComponent.h"
-#include "KX_SG_BoneParentNodeRelationship.h"
-#include "KX_SG_NodeRelationships.h"
+#include "KX_BoneParentNodeRelationship.h"
+#include "KX_NodeRelationships.h"
 #include "RAS_ICanvas.h"
 #include "RAS_Vertex.h"
 #ifdef WITH_BULLET
@@ -775,6 +775,12 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
       break;
     }
 
+    case OB_SPEAKER: {
+      gameobj = new KX_EmptyObject(kxscene, KX_Scene::m_callbacks);
+      // set transformation
+      break;
+    }
+
     case OB_FONT: {
       /* font objects have no bounding box */
       KX_FontObject *fontobj = new KX_FontObject(kxscene, KX_Scene::m_callbacks, rasty, ob);
@@ -802,7 +808,16 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
   if (gameobj) {
     gameobj->SetLayer(ob->lay);
     gameobj->SetBlenderObject(ob);
-    gameobj->BackupObmat(ob);
+
+    /* Bakup Objects obmat to restore at scene exit */
+    if (kxscene->GetBlenderScene()->gm.flag & GAME_USE_UNDO) {
+      BackupObj *backup = new BackupObj();  // Can't allocate on stack
+      backup->ob = ob;
+      copy_m4_m4(backup->obmat, ob->obmat);
+      kxscene->BackupObjectsObmat(backup);
+    }
+
+
     gameobj->SetObjectColor(MT_Vector4(ob->color));
     /* set the visibility state based on the objects render option in the outliner */
     /* I think this flag was used as visibility option for physics shape in 2.7,
@@ -837,7 +852,7 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
     return;
   }
 
-  CListValue<KX_PythonComponent> *components = new CListValue<KX_PythonComponent>();
+  EXP_ListValue<KX_PythonComponent> *components = new EXP_ListValue<KX_PythonComponent>();
 
   while (pc) {
     // Make sure to clean out anything from previous loops
@@ -889,7 +904,7 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
       PyErr_Print();
     }
     else {
-      KX_PythonComponent *comp = static_cast<KX_PythonComponent *>(BGE_PROXY_REF(pycomp));
+      KX_PythonComponent *comp = static_cast<KX_PythonComponent *>(EXP_PROXY_REF(pycomp));
       comp->SetBlenderPythonComponent(pc);
       comp->SetGameObject(gameobj);
       components->Add(comp);
@@ -911,10 +926,10 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 static void bl_ConvertBlenderObject_Single(BL_BlenderSceneConverter *converter,
                                            Object *blenderobject,
                                            std::vector<BL_parentChildLink> &vec_parent_child,
-                                           CListValue<KX_GameObject> *logicbrick_conversionlist,
-                                           CListValue<KX_GameObject> *objectlist,
-                                           CListValue<KX_GameObject> *inactivelist,
-                                           CListValue<KX_GameObject> *sumolist,
+                                           EXP_ListValue<KX_GameObject> *logicbrick_conversionlist,
+                                           EXP_ListValue<KX_GameObject> *objectlist,
+                                           EXP_ListValue<KX_GameObject> *inactivelist,
+                                           EXP_ListValue<KX_GameObject> *sumolist,
                                            KX_Scene *kxscene,
                                            KX_GameObject *gameobj,
                                            SCA_LogicManager *logicmgr,
@@ -954,7 +969,7 @@ static void bl_ConvertBlenderObject_Single(BL_BlenderSceneConverter *converter,
     SG_Node *parentinversenode = new SG_Node(nullptr, kxscene, callback);
 
     // Define a normal parent relationship for this node.
-    KX_NormalParentRelation *parent_relation = KX_NormalParentRelation::New();
+    KX_NormalParentRelation *parent_relation = new KX_NormalParentRelation();
     parentinversenode->SetParentRelation(parent_relation);
 
     BL_parentChildLink pclink;
@@ -1065,7 +1080,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
    * push all converted group members to this set.
    * This will happen when a group instance is made from a linked group instance
    * and both are on the active layer. */
-  CListValue<KX_GameObject> *convertedlist = new CListValue<KX_GameObject>();
+  EXP_ListValue<KX_GameObject> *convertedlist = new EXP_ListValue<KX_GameObject>();
 
   if (!single_object) {
 
@@ -1114,18 +1129,18 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   int activeLayerBitInfo = blenderscene->lay;
 
   // list of all object converted, active and inactive
-  CListValue<KX_GameObject> *sumolist = new CListValue<KX_GameObject>();
+  EXP_ListValue<KX_GameObject> *sumolist = new EXP_ListValue<KX_GameObject>();
 
   std::vector<BL_parentChildLink> vec_parent_child;
 
-  CListValue<KX_GameObject> *objectlist = kxscene->GetObjectList();
-  CListValue<KX_GameObject> *inactivelist = kxscene->GetInactiveList();
-  CListValue<KX_GameObject> *parentlist = kxscene->GetRootParentList();
+  EXP_ListValue<KX_GameObject> *objectlist = kxscene->GetObjectList();
+  EXP_ListValue<KX_GameObject> *inactivelist = kxscene->GetInactiveList();
+  EXP_ListValue<KX_GameObject> *parentlist = kxscene->GetRootParentList();
 
   SCA_LogicManager *logicmgr = kxscene->GetLogicManager();
   SCA_TimeEventManager *timemgr = kxscene->GetTimeEventManager();
 
-  CListValue<KX_GameObject> *logicbrick_conversionlist = new CListValue<KX_GameObject>();
+  EXP_ListValue<KX_GameObject> *logicbrick_conversionlist = new EXP_ListValue<KX_GameObject>();
 
   if (!single_object) {
 
@@ -1188,12 +1203,12 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
       }
 
       /* Note about memory leak issues:
-       * When a CValue derived class is created, m_refcount is initialized to 1
+       * When a EXP_Value derived class is created, m_refcount is initialized to 1
        * so the class must be released after being used to make sure that it won't
        * hang in memory. If the object needs to be stored for a long time,
        * use AddRef() so that this Release() does not free the object.
        * Make sure that for any AddRef() there is a Release()!!!!
-       * Do the same for any object derived from CValue, CExpression and NG_NetworkMessage
+       * Do the same for any object derived from EXP_Value, EXP_Expression and NG_NetworkMessage
        */
       gameobj->Release();
     }
@@ -1251,7 +1266,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   }
 
   // non-camera objects not supported as camera currently
-  if (blenderscene->camera && blenderscene->camera->type == OB_CAMERA) {
+  if (blenderscene->camera && blenderscene->camera->type == OB_CAMERA && CTX_wm_region_view3d(KX_GetActiveEngine()->GetContext())->persp == RV3D_CAMOB) {
     KX_Camera *gamecamera = (KX_Camera *)converter->FindGameObject(blenderscene->camera);
 
     if (gamecamera && !single_object)
@@ -1285,7 +1300,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
       // Remove the child reference in the local list!
       // Note: there may be descendents already if the children of the child were processed
       //       by this loop before the child. In that case, we must remove the children also
-      CListValue<KX_GameObject> *childrenlist = childobj->GetChildrenRecursive();
+      EXP_ListValue<KX_GameObject> *childrenlist = childobj->GetChildrenRecursive();
       // The returned list by GetChildrenRecursive is not owned by anyone and must not own items,
       // so no AddRef().
       childrenlist->Add(childobj);
@@ -1311,13 +1326,13 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
     switch (blenderchild->partype) {
       case PARVERT1: {
         // creat a new vertex parent relationship for this node.
-        KX_VertexParentRelation *vertex_parent_relation = KX_VertexParentRelation::New();
+        KX_VertexParentRelation *vertex_parent_relation = new KX_VertexParentRelation();
         pcit->m_gamechildnode->SetParentRelation(vertex_parent_relation);
         break;
       }
       case PARSLOW: {
         // creat a new slow parent relationship for this node.
-        KX_SlowParentRelation *slow_parent_relation = KX_SlowParentRelation::New(blenderchild->sf);
+        KX_SlowParentRelation *slow_parent_relation = new KX_SlowParentRelation(blenderchild->sf);
         pcit->m_gamechildnode->SetParentRelation(slow_parent_relation);
         break;
       }
@@ -1327,7 +1342,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
             BKE_armature_from_object(blenderchild->parent), blenderchild->parsubstr);
 
         if (parent_bone) {
-          KX_BoneParentRelation *bone_parent_relation = KX_BoneParentRelation::New(parent_bone);
+          KX_BoneParentRelation *bone_parent_relation = new KX_BoneParentRelation(parent_bone);
           pcit->m_gamechildnode->SetParentRelation(bone_parent_relation);
         }
 

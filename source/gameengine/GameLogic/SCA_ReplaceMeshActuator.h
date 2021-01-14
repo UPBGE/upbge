@@ -58,7 +58,7 @@ class SCA_ReplaceMeshActuator : public SCA_IActuator {
 
   ~SCA_ReplaceMeshActuator();
 
-  CValue *GetReplica();
+  EXP_Value *GetReplica();
 
   virtual bool Update();
 
@@ -72,12 +72,12 @@ class SCA_ReplaceMeshActuator : public SCA_IActuator {
 
   virtual void Replace_IScene(SCA_IScene *val);
 
-  static PyObject *pyattr_get_mesh(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-  static int pyattr_set_mesh(PyObjectPlus *self,
-                             const struct KX_PYATTRIBUTE_DEF *attrdef,
+  static PyObject *pyattr_get_mesh(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_mesh(EXP_PyObjectPlus *self,
+                             const struct EXP_PYATTRIBUTE_DEF *attrdef,
                              PyObject *value);
 
-  KX_PYMETHOD_DOC(SCA_ReplaceMeshActuator, instantReplaceMesh);
+  EXP_PYMETHOD_DOC(SCA_ReplaceMeshActuator, instantReplaceMesh);
 
 #endif /* WITH_PYTHON */
 };

@@ -57,18 +57,18 @@ class SCA_VibrationActuator : public SCA_IActuator {
                         int duration);
   virtual ~SCA_VibrationActuator();
 
-  virtual CValue *GetReplica();
+  virtual EXP_Value *GetReplica();
 
   virtual bool Update();
 
 #ifdef WITH_PYTHON
-  KX_PYMETHOD_DOC_NOARGS(SCA_VibrationActuator, startVibration);
-  KX_PYMETHOD_DOC_NOARGS(SCA_VibrationActuator, stopVibration);
+  EXP_PYMETHOD_DOC_NOARGS(SCA_VibrationActuator, startVibration);
+  EXP_PYMETHOD_DOC_NOARGS(SCA_VibrationActuator, stopVibration);
 
-  static PyObject *pyattr_get_isVibrating(PyObjectPlus *self_v,
-                                          const struct KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_hasVibration(PyObjectPlus *self_v,
-                                           const struct KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_isVibrating(EXP_PyObjectPlus *self_v,
+                                          const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_hasVibration(EXP_PyObjectPlus *self_v,
+                                           const struct EXP_PYATTRIBUTE_DEF *attrdef);
 #endif  // WITH_PYTHON
 };
 

@@ -261,7 +261,7 @@ static int sensor_remove_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
 
   BLI_remlink(&(ob->sensors), sens);
-  free_sensor(sens);
+  BKE_sca_free_sensor(sens);
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -305,7 +305,7 @@ static int sensor_add_exec(bContext *C, wmOperator *op)
   if (!ob)
     return OPERATOR_CANCELLED;
 
-  sens = new_sensor(type);
+  sens = BKE_sca_new_sensor(type);
   BLI_addtail(&(ob->sensors), sens);
 
   /* set the sensor name based on rna type enum */
@@ -369,8 +369,8 @@ static int controller_remove_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
 
   BLI_remlink(&(ob->controllers), cont);
-  unlink_controller(cont);
-  free_controller(cont);
+  BKE_sca_unlink_controller(cont);
+  BKE_sca_free_controller(cont);
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -415,7 +415,7 @@ static int controller_add_exec(bContext *C, wmOperator *op)
   if (!ob)
     return OPERATOR_CANCELLED;
 
-  cont = new_controller(type);
+  cont = BKE_sca_new_controller(type);
   BLI_addtail(&(ob->controllers), cont);
 
   /* set the controller name based on rna type enum */
@@ -500,8 +500,8 @@ static int actuator_remove_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
 
   BLI_remlink(&(ob->actuators), act);
-  unlink_actuator(act);
-  free_actuator(act);
+  BKE_sca_unlink_actuator(act);
+  BKE_sca_free_actuator(act);
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -545,7 +545,7 @@ static int actuator_add_exec(bContext *C, wmOperator *op)
   if (!ob)
     return OPERATOR_CANCELLED;
 
-  act = new_actuator(type);
+  act = BKE_sca_new_actuator(type);
   BLI_addtail(&(ob->actuators), act);
 
   /* set the actuator name based on rna type enum */
@@ -611,7 +611,7 @@ static int sensor_move_exec(bContext *C, wmOperator *op)
   if (!sens)
     return OPERATOR_CANCELLED;
 
-  sca_move_sensor(sens, ob, move_up);
+  BKE_sca_move_sensor(sens, ob, move_up);
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -656,7 +656,7 @@ static int controller_move_exec(bContext *C, wmOperator *op)
   if (!cont)
     return OPERATOR_CANCELLED;
 
-  sca_move_controller(cont, ob, move_up);
+  BKE_sca_move_controller(cont, ob, move_up);
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -701,7 +701,7 @@ static int actuator_move_exec(bContext *C, wmOperator *op)
   if (!act)
     return OPERATOR_CANCELLED;
 
-  sca_move_actuator(act, ob, move_up);
+  BKE_sca_move_actuator(act, ob, move_up);
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 

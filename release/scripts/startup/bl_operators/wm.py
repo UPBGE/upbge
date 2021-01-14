@@ -834,7 +834,7 @@ class WM_OT_context_modal_mouse(Operator):
 
 
 class WM_OT_url_open(Operator):
-    """Open a website in the web-browser"""
+    """Open a website in the web browser"""
     bl_idname = "wm.url_open"
     bl_label = ""
     bl_options = {'INTERNAL'}
@@ -851,7 +851,7 @@ class WM_OT_url_open(Operator):
 
 
 class WM_OT_url_open_preset(Operator):
-    """Open a preset website in the web-browser"""
+    """Open a preset website in the web browser"""
     bl_idname = "wm.url_open_preset"
     bl_label = "Open Preset Website"
     bl_options = {'INTERNAL'}
@@ -893,7 +893,7 @@ class WM_OT_url_open_preset(Operator):
         (('BUG', "Bug",
           "Report a bug with pre-filled version information"),
          _url_from_bug),
-        (('BUG_ADDON', "Add-On Bug",
+        (('BUG_ADDON', "Add-on Bug",
           "Report a bug in an add-on"),
          _url_from_bug_addon),
         (('RELEASE_NOTES', "Release Notes",
@@ -974,7 +974,7 @@ class WM_OT_path_open(Operator):
         return {'FINISHED'}
 
 
-def _wm_doc_get_id(doc_id, do_url=True, url_prefix=""):
+def _wm_doc_get_id(doc_id, do_url=True, url_prefix="", report=None):
 
     def operator_exists_pair(a, b):
         # Not fast, this is only for docs.
@@ -1024,6 +1024,11 @@ def _wm_doc_get_id(doc_id, do_url=True, url_prefix=""):
             if rna_class is None:
                 # Check class for dynamically registered types.
                 rna_class = bpy.types.PropertyGroup.bl_rna_get_subclass_py(class_name)
+
+            if rna_class is None:
+                if report is not None:
+                    report({'ERROR'}, iface_("Type \"%s\" can not be found") % class_name)
+                return None
 
             # Detect if this is a inherited member and use that name instead.
             rna_parent = rna_class.bl_rna
@@ -1084,9 +1089,9 @@ class WM_OT_doc_view_manual(Operator):
                 return url
 
     def execute(self, _context):
-        rna_id = _wm_doc_get_id(self.doc_id, do_url=False)
+        rna_id = _wm_doc_get_id(self.doc_id, do_url=False, report=self.report)
         if rna_id is None:
-            return {'PASS_THROUGH'}
+            return {'CANCELLED'}
 
         url = self._lookup_rna_url(rna_id)
 
@@ -1118,9 +1123,9 @@ class WM_OT_doc_view(Operator):
         _prefix = ("https://docs.blender.org/api/master")
 
     def execute(self, _context):
-        url = _wm_doc_get_id(self.doc_id, do_url=True, url_prefix=self._prefix)
+        url = _wm_doc_get_id(self.doc_id, do_url=True, url_prefix=self._prefix, report=self.report)
         if url is None:
-            return {'PASS_THROUGH'}
+            return {'CANCELLED'}
 
         import webbrowser
         webbrowser.open(url)
@@ -1175,7 +1180,7 @@ rna_use_soft_limits = BoolProperty(
 
 rna_is_overridable_library = BoolProperty(
     name="Is Library Overridable",
-    description="Allow the property to be overridden when the Data-Block is linked",
+    description="Allow the property to be overridden when the data-block is linked",
     default=False,
 )
 
@@ -1654,7 +1659,7 @@ class WM_OT_blenderplayer_start(Operator):
         return {'FINISHED'}
 
 class WM_OT_operator_cheat_sheet(Operator):
-    """List all the Operators in a text-block, useful for scripting"""
+    """List all the operators in a text-block, useful for scripting"""
     bl_idname = "wm.operator_cheat_sheet"
     bl_label = "Operator Cheat Sheet"
 
@@ -1675,7 +1680,7 @@ class WM_OT_operator_cheat_sheet(Operator):
         textblock = bpy.data.texts.new("OperatorList.txt")
         textblock.write('# %d Operators\n\n' % tot)
         textblock.write('\n'.join(op_strings))
-        self.report({'INFO'}, "See OperatorList.txt textblock")
+        self.report({'INFO'}, "See OperatorList.txt text block")
         return {'FINISHED'}
 
 
@@ -1767,7 +1772,7 @@ class WM_OT_tool_set_by_id(Operator):
                 tool_settings.workspace_tool_type = 'FALLBACK'
             return {'FINISHED'}
         else:
-            self.report({'WARNING'}, "Tool %r not found for space %r." % (self.name, space_type))
+            self.report({'WARNING'}, "Tool %r not found for space %r" % (self.name, space_type))
             return {'CANCELLED'}
 
 
@@ -1776,7 +1781,7 @@ class WM_OT_tool_set_by_index(Operator):
     bl_idname = "wm.tool_set_by_index"
     bl_label = "Set Tool by Index"
     index: IntProperty(
-        name="Index in toolbar",
+        name="Index in Toolbar",
         default=0,
     )
     cycle: BoolProperty(
@@ -1787,7 +1792,7 @@ class WM_OT_tool_set_by_index(Operator):
     )
 
     expand: BoolProperty(
-        description="Include tool sub-groups",
+        description="Include tool subgroups",
         default=True,
     )
 
@@ -2213,13 +2218,13 @@ class WM_OT_batch_rename(Operator):
         object_data_type_attrs_map = {
             'MESH': ("meshes", "Mesh(es)"),
             'CURVE': ("curves", "Curve(s)"),
-            'META': ("metaballs", "MetaBall(s)"),
+            'META': ("metaballs", "Metaball(s)"),
             'ARMATURE': ("armatures", "Armature(s)"),
             'LATTICE': ("lattices", "Lattice(s)"),
             'GPENCIL': ("grease_pencils", "Grease Pencil(s)"),
             'CAMERA': ("cameras", "Camera(s)"),
             'SPEAKER': ("speakers", "Speaker(s)"),
-            'LIGHT_PROBE': ("light_probes", "LightProbe(s)"),
+            'LIGHT_PROBE': ("light_probes", "Light Probe(s)"),
         }
 
         # Finish with space types.

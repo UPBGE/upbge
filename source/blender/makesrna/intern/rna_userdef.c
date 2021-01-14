@@ -2241,7 +2241,7 @@ static void rna_def_userdef_theme_space_view3d(BlenderRNA *brna)
   prop = RNA_def_property(srna, "text_keyframe", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, NULL, "time_keyframe");
   RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Object Keyframe", "Color for indicating Object keyframes");
+  RNA_def_property_ui_text(prop, "Object Keyframe", "Color for indicating object keyframes");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   /* Object type options */
@@ -2390,7 +2390,7 @@ static void rna_def_userdef_theme_space_view3d(BlenderRNA *brna)
   RNA_def_property_int_sdna(prop, NULL, "obcenter_dia");
   RNA_def_property_range(prop, 4, 10);
   RNA_def_property_ui_text(
-      prop, "Object Origin Size", "Diameter in Pixels for Object/Light origin display");
+      prop, "Object Origin Size", "Diameter in pixels for object/light origin display");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 }
 
@@ -2455,7 +2455,7 @@ static void rna_def_userdef_theme_space_graph(BlenderRNA *brna)
   prop = RNA_def_property(srna, "dopesheet_subchannel", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, NULL, "ds_subchannel");
   RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Dope Sheet Sub-Channel", "");
+  RNA_def_property_ui_text(prop, "Dope Sheet Sub-channel", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "channel_group", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -2756,7 +2756,7 @@ static void rna_def_userdef_theme_space_text(BlenderRNA *brna)
   prop = RNA_def_property(srna, "syntax_builtin", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, NULL, "syntaxb");
   RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Syntax Built-in", "");
+  RNA_def_property_ui_text(prop, "Syntax Built-In", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "syntax_symbols", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -2774,7 +2774,7 @@ static void rna_def_userdef_theme_space_text(BlenderRNA *brna)
   prop = RNA_def_property(srna, "syntax_preprocessor", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, NULL, "syntaxd");
   RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Syntax PreProcessor", "");
+  RNA_def_property_ui_text(prop, "Syntax Preprocessor", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "syntax_reserved", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -3105,7 +3105,7 @@ static void rna_def_userdef_theme_space_image(BlenderRNA *brna)
   prop = RNA_def_property(srna, "uv_shadow", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, NULL, "uv_shadow");
   RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Texture paint/Modifier UVs", "");
+  RNA_def_property_ui_text(prop, "Texture Paint/Modifier UVs", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "frame_current", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -3349,7 +3349,7 @@ static void rna_def_userdef_theme_space_action(BlenderRNA *brna)
   prop = RNA_def_property(srna, "dopesheet_subchannel", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, NULL, "ds_subchannel");
   RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Dope Sheet Sub-Channel", "");
+  RNA_def_property_ui_text(prop, "Dope Sheet Sub-channel", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "channels", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -5089,10 +5089,10 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
   prop = RNA_def_property(srna, "fcurve_unselected_alpha", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, NULL, "fcu_inactive_alpha");
   RNA_def_property_range(prop, 0.001f, 1.0f);
-  RNA_def_property_ui_text(
-      prop,
-      "Unselected F-Curve Visibility",
-      "Amount that unselected F-Curves stand out from the background (Graph Editor)");
+  RNA_def_property_ui_text(prop,
+                           "Unselected F-Curve Opacity",
+                           "The opacity of unselected F-Curves against the "
+                           "background of the Graph Editor");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_GRAPH, NULL);
 
   /* grease pencil */
@@ -5786,7 +5786,7 @@ static void rna_def_userdef_input(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, DEG2RADF(0.001f), DEG2RADF(15.0f), 1.0f, 2);
   RNA_def_property_ui_text(prop,
                            "Orbit Sensitivity",
-                           "Rotation amount per-pixel to control how fast the viewport orbits");
+                           "Rotation amount per pixel to control how fast the viewport orbits");
 
   prop = RNA_def_property(srna, "view_rotate_sensitivity_trackball", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_range(prop, 0.1f, 10.0f);
@@ -5799,7 +5799,7 @@ static void rna_def_userdef_input(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Mouse Drag Threshold",
                            "Number of pixels to drag before a tweak/drag event is triggered "
-                           "for mouse/track-pad input "
+                           "for mouse/trackpad input "
                            "(otherwise click events are detected)");
 
   prop = RNA_def_property(srna, "drag_threshold_tablet", PROP_INT, PROP_PIXEL);
@@ -6046,7 +6046,7 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
   prop = RNA_def_property(srna, "show_hidden_files_datablocks", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_HIDE_DOT);
   RNA_def_property_ui_text(prop,
-                           "Hide Dot Files/Data-blocks",
+                           "Hide Dot Files/Data-Blocks",
                            "Hide files and data-blocks if their name start with a dot (.*)");
 
   prop = RNA_def_property(srna, "use_filter_files", PROP_BOOLEAN, PROP_NONE);
@@ -6252,6 +6252,13 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, NULL, "use_object_add_tool", 1);
   RNA_def_property_ui_text(
       prop, "Add Object Tool", "Show add object tool in the toolbar in Object Mode and Edit Mode");
+
+  prop = RNA_def_property(srna, "use_asset_browser", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "use_asset_browser", 1);
+  RNA_def_property_ui_text(
+      prop,
+      "Asset Browser",
+      "Enable Asset Browser editor and operators to manage data-blocks as asset");
 }
 
 static void rna_def_userdef_addon_collection(BlenderRNA *brna, PropertyRNA *cprop)

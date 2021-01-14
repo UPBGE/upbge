@@ -637,6 +637,11 @@ if(WIN32)
 
 endif()
 
+if(UNIX)
+  # See WITH_WINDOWS_SCCACHE for Windows.
+  option(WITH_COMPILER_CCACHE "Use ccache to improve rebuild times (Works with Ninja, Makefiles and Xcode)" OFF)
+endif()
+
 # The following only works with the Ninja generator in CMake >= 3.0.
 if("${CMAKE_GENERATOR}" MATCHES "Ninja")
   option(WITH_NINJA_POOL_JOBS
@@ -1871,6 +1876,10 @@ elseif(WITH_CYCLES_STANDALONE)
 endif()
 
 #-----------------------------------------------------------------------------
+# Testing
+add_subdirectory(tests)
+
+#-----------------------------------------------------------------------------
 # Blender Application
 if(WITH_BLENDER)
   add_subdirectory(source/creator)
@@ -1882,11 +1891,6 @@ endif()
 if(WITH_PLAYER)
   add_subdirectory(source/blenderplayer)
 endif()
-
-
-#-----------------------------------------------------------------------------
-# Testing
-add_subdirectory(tests)
 
 
 #-----------------------------------------------------------------------------

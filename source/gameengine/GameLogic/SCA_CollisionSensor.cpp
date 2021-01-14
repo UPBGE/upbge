@@ -106,7 +106,7 @@ SCA_CollisionSensor::SCA_CollisionSensor(SCA_EventManager *eventmgr,
       m_bCollisionPulse(bCollisionPulse),
       m_hitMaterial("")
 {
-  m_colliders = new CListValue<KX_GameObject>();
+  m_colliders = new EXP_ListValue<KX_GameObject>();
 
   KX_ClientObjectInfo *client_info = gameobj->getClientInfo();
   client_info->m_sensors.push_back(this);
@@ -132,7 +132,7 @@ SCA_CollisionSensor::~SCA_CollisionSensor()
   m_colliders->Release();
 }
 
-CValue *SCA_CollisionSensor::GetReplica()
+EXP_Value *SCA_CollisionSensor::GetReplica()
 {
   SCA_CollisionSensor *replica = new SCA_CollisionSensor(*this);
   replica->ProcessReplica();
@@ -142,7 +142,7 @@ CValue *SCA_CollisionSensor::GetReplica()
 void SCA_CollisionSensor::ProcessReplica()
 {
   SCA_ISensor::ProcessReplica();
-  m_colliders = new CListValue<KX_GameObject>();
+  m_colliders = new EXP_ListValue<KX_GameObject>();
   Init();
 }
 
@@ -248,7 +248,7 @@ bool SCA_CollisionSensor::NewHandleCollision(void *object1,
   if (m_links && !m_suspended && gameobj && (gameobj != parent) && client_info->isActor()) {
 
     bool found = m_touchedpropname.empty();
-    bool hitMaterial = false;
+    std::string hitMaterial = "";
     if (!found) {
       if (m_bFindMaterial) {
         for (unsigned int i = 0; i < gameobj->GetMeshCount(); ++i) {
@@ -256,7 +256,7 @@ bool SCA_CollisionSensor::NewHandleCollision(void *object1,
           for (unsigned int j = 0; j < meshObj->NumMaterials(); ++j) {
             found = (m_touchedpropname == std::string(meshObj->GetMaterialName(j), 2));
             if (found) {
-              hitMaterial = true;
+              hitMaterial = m_touchedpropname;
               break;
             }
           }
@@ -289,7 +289,7 @@ bool SCA_CollisionSensor::NewHandleCollision(void *object1,
 /* ------------------------------------------------------------------------- */
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_CollisionSensor::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_CollisionSensor",
-                                          sizeof(PyObjectPlus_Proxy),
+                                          sizeof(EXP_PyObjectPlus_Proxy),
                                           0,
                                           py_base_dealloc,
                                           0,
@@ -331,20 +331,20 @@ PyMethodDef SCA_CollisionSensor::Methods[] = {
 };
 
 PyAttributeDef SCA_CollisionSensor::Attributes[] = {
-    KX_PYATTRIBUTE_STRING_RW(
+    EXP_PYATTRIBUTE_STRING_RW(
         "propName", 0, MAX_PROP_NAME, false, SCA_CollisionSensor, m_touchedpropname),
-    KX_PYATTRIBUTE_BOOL_RW("useMaterial", SCA_CollisionSensor, m_bFindMaterial),
-    KX_PYATTRIBUTE_BOOL_RW("usePulseCollision", SCA_CollisionSensor, m_bCollisionPulse),
-    KX_PYATTRIBUTE_STRING_RO("hitMaterial", SCA_CollisionSensor, m_hitMaterial),
-    KX_PYATTRIBUTE_RO_FUNCTION("hitObject", SCA_CollisionSensor, pyattr_get_object_hit),
-    KX_PYATTRIBUTE_RO_FUNCTION("hitObjectList", SCA_CollisionSensor, pyattr_get_object_hit_list),
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_BOOL_RW("useMaterial", SCA_CollisionSensor, m_bFindMaterial),
+    EXP_PYATTRIBUTE_BOOL_RW("usePulseCollision", SCA_CollisionSensor, m_bCollisionPulse),
+    EXP_PYATTRIBUTE_STRING_RO("hitMaterial", SCA_CollisionSensor, m_hitMaterial),
+    EXP_PYATTRIBUTE_RO_FUNCTION("hitObject", SCA_CollisionSensor, pyattr_get_object_hit),
+    EXP_PYATTRIBUTE_RO_FUNCTION("hitObjectList", SCA_CollisionSensor, pyattr_get_object_hit_list),
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
 /* Python API */
 
-PyObject *SCA_CollisionSensor::pyattr_get_object_hit(PyObjectPlus *self_v,
-                                                     const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_CollisionSensor::pyattr_get_object_hit(EXP_PyObjectPlus *self_v,
+                                                     const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_CollisionSensor *self = static_cast<SCA_CollisionSensor *>(self_v);
 
@@ -356,8 +356,8 @@ PyObject *SCA_CollisionSensor::pyattr_get_object_hit(PyObjectPlus *self_v,
   }
 }
 
-PyObject *SCA_CollisionSensor::pyattr_get_object_hit_list(PyObjectPlus *self_v,
-                                                          const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_CollisionSensor::pyattr_get_object_hit_list(EXP_PyObjectPlus *self_v,
+                                                          const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_CollisionSensor *self = static_cast<SCA_CollisionSensor *>(self_v);
   return self->m_colliders->GetProxy();

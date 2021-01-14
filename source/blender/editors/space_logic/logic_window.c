@@ -126,7 +126,7 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
       for (ob = bmain->objects.first; ob; ob = ob->id.next) {
         if (ob->scaflag & OB_ADDSENS) {
           ob->scaflag &= ~OB_ADDSENS;
-          sens = new_sensor(SENS_ALWAYS);
+          sens = BKE_sca_new_sensor(SENS_ALWAYS);
           BLI_addtail(&(ob->sensors), sens);
           BLI_uniquename(&ob->sensors,
                          sens,
@@ -146,7 +146,7 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
         sens = ob->sensors.first;
         while (sens) {
           if (sens->type != sens->otype) {
-            init_sensor(sens);
+            BKE_sca_init_sensor(sens);
             sens->otype = sens->type;
             break;
           }
@@ -161,7 +161,7 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
         while (sens) {
           if (sens->flag & SENS_DEL) {
             BLI_remlink(&(ob->sensors), sens);
-            free_sensor(sens);
+            BKE_sca_free_sensor(sens);
             break;
           }
           sens = sens->next;
@@ -174,7 +174,7 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
       for (ob = bmain->objects.first; ob; ob = ob->id.next) {
         if (ob->scaflag & OB_ADDCONT) {
           ob->scaflag &= ~OB_ADDCONT;
-          cont = new_controller(CONT_LOGIC_AND);
+          cont = BKE_sca_new_controller(CONT_LOGIC_AND);
           BLI_uniquename(&ob->controllers,
                          cont,
                          DATA_("Controller"),
@@ -225,7 +225,7 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
         cont = ob->controllers.first;
         while (cont) {
           if (cont->type != cont->otype) {
-            init_controller(cont);
+            BKE_sca_init_controller(cont);
             cont->otype = cont->type;
             break;
           }
@@ -240,8 +240,8 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
         while (cont) {
           if (cont->flag & CONT_DEL) {
             BLI_remlink(&(ob->controllers), cont);
-            unlink_controller(cont);
-            free_controller(cont);
+            BKE_sca_unlink_controller(cont);
+            BKE_sca_free_controller(cont);
             break;
           }
           cont = cont->next;
@@ -254,7 +254,7 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
       for (ob = bmain->objects.first; ob; ob = ob->id.next) {
         if (ob->scaflag & OB_ADDACT) {
           ob->scaflag &= ~OB_ADDACT;
-          act = new_actuator(ACT_OBJECT);
+          act = BKE_sca_new_actuator(ACT_OBJECT);
           BLI_uniquename(&ob->actuators,
                          act,
                          DATA_("Actuator"),
@@ -273,7 +273,7 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
         act = ob->actuators.first;
         while (act) {
           if (act->type != act->otype) {
-            init_actuator(act);
+            BKE_sca_init_actuator(act);
             act->otype = act->type;
             break;
           }
@@ -288,8 +288,8 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
         while (act) {
           if (act->flag & ACT_DEL) {
             BLI_remlink(&(ob->actuators), act);
-            unlink_actuator(act);
-            free_actuator(act);
+            BKE_sca_unlink_actuator(act);
+            BKE_sca_free_actuator(act);
             break;
           }
           act = act->next;
@@ -649,7 +649,7 @@ static ID **get_selected_and_linked_obs(bContext *C, short *count, short scavisf
   }
 
   /* just to be sure... these were set in set_sca_done_ob() */
-  clear_sca_new_poins();
+  BKE_sca_clear_new_points();
 
   return idar;
 }

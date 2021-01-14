@@ -56,7 +56,7 @@ class KX_NavMeshObject : public KX_GameObject {
   KX_NavMeshObject(void *sgReplicationInfo, SG_Callbacks callbacks);
   ~KX_NavMeshObject();
 
-  virtual CValue *GetReplica();
+  virtual EXP_Value *GetReplica();
   virtual void ProcessReplica();
 
   bool BuildNavMesh();
@@ -75,10 +75,10 @@ class KX_NavMeshObject : public KX_GameObject {
   /* Python interface ---------------------------------------------------- */
   /* --------------------------------------------------------------------- */
 
-  KX_PYMETHOD_DOC(KX_NavMeshObject, findPath);
-  KX_PYMETHOD_DOC(KX_NavMeshObject, raycast);
-  KX_PYMETHOD_DOC(KX_NavMeshObject, draw);
-  KX_PYMETHOD_DOC_NOARGS(KX_NavMeshObject, rebuild);
+  EXP_PYMETHOD_DOC(KX_NavMeshObject, findPath);
+  EXP_PYMETHOD_DOC(KX_NavMeshObject, raycast);
+  EXP_PYMETHOD_DOC(KX_NavMeshObject, draw);
+  EXP_PYMETHOD_DOC_NOARGS(KX_NavMeshObject, rebuild);
 #endif /* WITH_PYTHON */
 };
 

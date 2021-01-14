@@ -74,9 +74,9 @@ class SCA_MouseFocusSensor : public SCA_MouseSensor {
   virtual ~SCA_MouseFocusSensor()
   {
   }
-  virtual CValue *GetReplica()
+  virtual EXP_Value *GetReplica()
   {
-    CValue *replica = new SCA_MouseFocusSensor(*this);
+    EXP_Value *replica = new SCA_MouseFocusSensor(*this);
     // this will copy properties and so on...
     replica->ProcessReplica();
     return replica;
@@ -119,15 +119,15 @@ class SCA_MouseFocusSensor : public SCA_MouseSensor {
   /* --------------------------------------------------------------------- */
 
   /* attributes */
-  static PyObject *pyattr_get_ray_source(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_ray_target(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_ray_direction(PyObjectPlus *self_v,
-                                            const KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_hit_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_hit_position(PyObjectPlus *self_v,
-                                           const KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_hit_normal(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_hit_uv(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_ray_source(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_ray_target(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_ray_direction(EXP_PyObjectPlus *self_v,
+                                            const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_hit_object(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_hit_position(EXP_PyObjectPlus *self_v,
+                                           const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_hit_normal(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_hit_uv(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 
 #endif /* WITH_PYTHON */
 

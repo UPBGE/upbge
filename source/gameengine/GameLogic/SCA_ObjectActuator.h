@@ -43,7 +43,7 @@ void SCA_ObjectActuator_Mathutils_Callback_Init(void);
 class KX_GameObject;
 
 //
-// Stores the flags for each CValue derived class
+// Stores the flags for each EXP_Value derived class
 //
 struct KX_LocalFlags {
   KX_LocalFlags()
@@ -135,7 +135,7 @@ class SCA_ObjectActuator : public SCA_IActuator {
                      const short damping,
                      const KX_LocalFlags &flag);
   ~SCA_ObjectActuator();
-  CValue *GetReplica();
+  EXP_Value *GetReplica();
   void ProcessReplica();
   bool UnlinkObject(SCA_IObject *clientobj);
   void Relink(std::map<SCA_IObject *, SCA_IObject *> &obj_map);
@@ -163,37 +163,37 @@ class SCA_ObjectActuator : public SCA_IActuator {
   /* --------------------------------------------------------------------- */
 
   /* Attributes */
-  static PyObject *pyattr_get_forceLimitX(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-  static int pyattr_set_forceLimitX(PyObjectPlus *self_v,
-                                    const KX_PYATTRIBUTE_DEF *attrdef,
+  static PyObject *pyattr_get_forceLimitX(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_forceLimitX(EXP_PyObjectPlus *self_v,
+                                    const EXP_PYATTRIBUTE_DEF *attrdef,
                                     PyObject *value);
-  static PyObject *pyattr_get_forceLimitY(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-  static int pyattr_set_forceLimitY(PyObjectPlus *self_v,
-                                    const KX_PYATTRIBUTE_DEF *attrdef,
+  static PyObject *pyattr_get_forceLimitY(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_forceLimitY(EXP_PyObjectPlus *self_v,
+                                    const EXP_PYATTRIBUTE_DEF *attrdef,
                                     PyObject *value);
-  static PyObject *pyattr_get_forceLimitZ(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-  static int pyattr_set_forceLimitZ(PyObjectPlus *self_v,
-                                    const KX_PYATTRIBUTE_DEF *attrdef,
+  static PyObject *pyattr_get_forceLimitZ(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_forceLimitZ(EXP_PyObjectPlus *self_v,
+                                    const EXP_PYATTRIBUTE_DEF *attrdef,
                                     PyObject *value);
-  static PyObject *pyattr_get_reference(PyObjectPlus *self,
-                                        const struct KX_PYATTRIBUTE_DEF *attrdef);
-  static int pyattr_set_reference(PyObjectPlus *self,
-                                  const struct KX_PYATTRIBUTE_DEF *attrdef,
+  static PyObject *pyattr_get_reference(EXP_PyObjectPlus *self,
+                                        const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_reference(EXP_PyObjectPlus *self,
+                                  const struct EXP_PYATTRIBUTE_DEF *attrdef,
                                   PyObject *value);
 
 #  ifdef USE_MATHUTILS
-  static PyObject *pyattr_get_linV(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-  static int pyattr_set_linV(PyObjectPlus *self,
-                             const struct KX_PYATTRIBUTE_DEF *attrdef,
+  static PyObject *pyattr_get_linV(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_linV(EXP_PyObjectPlus *self,
+                             const struct EXP_PYATTRIBUTE_DEF *attrdef,
                              PyObject *value);
-  static PyObject *pyattr_get_angV(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-  static int pyattr_set_angV(PyObjectPlus *self,
-                             const struct KX_PYATTRIBUTE_DEF *attrdef,
+  static PyObject *pyattr_get_angV(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_angV(EXP_PyObjectPlus *self,
+                             const struct EXP_PYATTRIBUTE_DEF *attrdef,
                              PyObject *value);
 #  endif
 
   // This lets the attribute macros use UpdateFuzzyFlags()
-  static int PyUpdateFuzzyFlags(PyObjectPlus *self, const PyAttributeDef *attrdef)
+  static int PyUpdateFuzzyFlags(EXP_PyObjectPlus *self, const PyAttributeDef *attrdef)
   {
     SCA_ObjectActuator *act = reinterpret_cast<SCA_ObjectActuator *>(self);
     act->UpdateFuzzyFlags();
@@ -201,7 +201,7 @@ class SCA_ObjectActuator : public SCA_IActuator {
   }
 
   // This is the keep the PID values in check after they are assigned with Python
-  static int PyCheckPid(PyObjectPlus *self, const PyAttributeDef *attrdef)
+  static int PyCheckPid(EXP_PyObjectPlus *self, const PyAttributeDef *attrdef)
   {
     SCA_ObjectActuator *act = reinterpret_cast<SCA_ObjectActuator *>(self);
 

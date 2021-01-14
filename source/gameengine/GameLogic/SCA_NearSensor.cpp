@@ -77,7 +77,7 @@ void SCA_NearSensor::SynchronizeTransform()
   }
 }
 
-CValue *SCA_NearSensor::GetReplica()
+EXP_Value *SCA_NearSensor::GetReplica()
 {
   SCA_NearSensor *replica = new SCA_NearSensor(*this);
   replica->ProcessReplica();
@@ -226,7 +226,7 @@ bool SCA_NearSensor::NewHandleCollision(void *obj1, void *obj2, const PHY_CollDa
 /* ------------------------------------------------------------------------- */
 
 PyTypeObject SCA_NearSensor::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_NearSensor",
-                                     sizeof(PyObjectPlus_Proxy),
+                                     sizeof(EXP_PyObjectPlus_Proxy),
                                      0,
                                      py_base_dealloc,
                                      0,
@@ -269,11 +269,11 @@ PyMethodDef SCA_NearSensor::Methods[] = {
 };
 
 PyAttributeDef SCA_NearSensor::Attributes[] = {
-    KX_PYATTRIBUTE_FLOAT_RW_CHECK(
+    EXP_PYATTRIBUTE_FLOAT_RW_CHECK(
         "distance", 0, 10000, SCA_NearSensor, m_Margin, CheckResetDistance),
-    KX_PYATTRIBUTE_FLOAT_RW_CHECK(
+    EXP_PYATTRIBUTE_FLOAT_RW_CHECK(
         "resetDistance", 0, 10000, SCA_NearSensor, m_ResetMargin, CheckResetDistance),
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
 #endif  // WITH_PYTHON

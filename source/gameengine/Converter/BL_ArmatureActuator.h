@@ -56,7 +56,7 @@ class BL_ArmatureActuator : public SCA_IActuator {
 
   virtual ~BL_ArmatureActuator();
 
-  virtual CValue *GetReplica()
+  virtual EXP_Value *GetReplica()
   {
     BL_ArmatureActuator *replica = new BL_ArmatureActuator(*this);
     replica->ProcessReplica();
@@ -71,11 +71,11 @@ class BL_ArmatureActuator : public SCA_IActuator {
 #ifdef WITH_PYTHON
 
   /* These are used to get and set m_target */
-  static PyObject *pyattr_get_constraint(PyObjectPlus *self,
-                                         const struct KX_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-  static int pyattr_set_object(PyObjectPlus *self,
-                               const struct KX_PYATTRIBUTE_DEF *attrdef,
+  static PyObject *pyattr_get_constraint(EXP_PyObjectPlus *self,
+                                         const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_object(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_object(EXP_PyObjectPlus *self,
+                               const struct EXP_PYATTRIBUTE_DEF *attrdef,
                                PyObject *value);
 
 #endif /* WITH_PYTHON */

@@ -31,7 +31,7 @@
 
 #    include "EXP_Value.h"
 
-class CListWrapper : public CValue {
+class EXP_ListWrapper : public EXP_Value {
   Py_Header private :
       /** The client instance passed as first argument of each callback.
        * We use a void * instead of a template to avoid to declare this class
@@ -67,7 +67,7 @@ class CListWrapper : public CValue {
     FLAG_FIND_VALUE = (1 << 0)
   };
 
-  CListWrapper(void *client,
+  EXP_ListWrapper(void *client,
                PyObject *base,
                bool (*checkValid)(void *),
                int (*getSize)(void *),
@@ -75,7 +75,7 @@ class CListWrapper : public CValue {
                const std::string (*getItemName)(void *, int),
                bool (*setItem)(void *, int, PyObject *),
                int flag = FLAG_NONE);
-  ~CListWrapper();
+  ~EXP_ListWrapper();
 
   /// \section Python Interface
   bool CheckValid();
@@ -87,7 +87,7 @@ class CListWrapper : public CValue {
   bool AllowGetItemByName();
   bool AllowFindValue();
 
-  /// \section CValue Inherited Functions.
+  /// \section EXP_Value Inherited Functions.
   virtual std::string GetName();
   virtual std::string GetText();
   virtual int GetValueType();
@@ -104,7 +104,7 @@ class CListWrapper : public CValue {
   static int py_mapping_ass_subscript(PyObject *self, PyObject *key, PyObject *value);
   static int py_contains(PyObject *self, PyObject *key);
 
-  KX_PYMETHOD_VARARGS(CListWrapper, Get);
+  EXP_PYMETHOD_VARARGS(EXP_ListWrapper, Get);
 };
 
 #  endif  // __EXP_LISTWRAPPER_H__

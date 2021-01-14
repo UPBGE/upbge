@@ -47,7 +47,7 @@
 /* Integration hooks ------------------------------------------------------- */
 
 PyTypeObject SCA_DynamicActuator::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_DynamicActuator",
-                                          sizeof(PyObjectPlus_Proxy),
+                                          sizeof(EXP_PyObjectPlus_Proxy),
                                           0,
                                           py_base_dealloc,
                                           0,
@@ -89,9 +89,9 @@ PyMethodDef SCA_DynamicActuator::Methods[] = {
 };
 
 PyAttributeDef SCA_DynamicActuator::Attributes[] = {
-    KX_PYATTRIBUTE_SHORT_RW("mode", 0, 4, false, SCA_DynamicActuator, m_dyn_operation),
-    KX_PYATTRIBUTE_FLOAT_RW("mass", 0.0f, FLT_MAX, SCA_DynamicActuator, m_setmass),
-    KX_PYATTRIBUTE_NULL  // Sentinel
+    EXP_PYATTRIBUTE_SHORT_RW("mode", 0, 4, false, SCA_DynamicActuator, m_dyn_operation),
+    EXP_PYATTRIBUTE_FLOAT_RW("mass", 0.0f, FLT_MAX, SCA_DynamicActuator, m_setmass),
+    EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
 #endif  // WITH_PYTHON
@@ -170,7 +170,7 @@ bool SCA_DynamicActuator::Update()
   return false;
 }
 
-CValue *SCA_DynamicActuator::GetReplica()
+EXP_Value *SCA_DynamicActuator::GetReplica()
 {
   SCA_DynamicActuator *replica = new SCA_DynamicActuator(*this);
 

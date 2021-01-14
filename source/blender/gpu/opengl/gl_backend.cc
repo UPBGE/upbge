@@ -34,6 +34,28 @@
 
 namespace blender::gpu {
 
+/* See T82856: AMD drivers since 20.11 running on a polaris architecture doesn't support the
+ * `GL_INT_2_10_10_10_REV` data type correctly. This data type is used to pack normals and flags.
+ * The work around uses `GPU_RGBA16I` but that is only possible for loop normals.
+ *
+ * Vertex and Face normals would still render resulting in undefined behavior during selection and
+ * rendering. */
+static bool is_faulty_T82856_platform(const char *version, const char *renderer)
+{
+  /* On Linux the driver does not report its version. Test the OpenGL version in stead. */
+  if (strstr(version, "4.5.14756") || strstr(version, "4.5.14757")) {
+    if (strstr(renderer, " RX 460 ") || strstr(renderer, " RX 470 ") ||
+        strstr(renderer, " RX 480 ") || strstr(renderer, " RX 490 ") ||
+        strstr(renderer, " RX 560 ") || strstr(renderer, " RX 560X ") ||
+        strstr(renderer, " RX 570 ") || strstr(renderer, " RX 580 ") ||
+        strstr(renderer, " RX 590 ") || strstr(renderer, " RX550/550 ") ||
+        strstr(renderer, " (TM) 520  ") || strstr(renderer, " (TM) 530  ") ||
+        strstr(renderer, " R5 ") || strstr(renderer, " R7 ") || strstr(renderer, " R9 ")) {
+      return true;
+    }
+  }
+  return false;
+}
 /* -------------------------------------------------------------------- */
 /** \name Platform
  * \{ */
@@ -127,19 +149,6 @@ void GLBackend::platform_init()
           strstr(version, "Build 9.18") || strstr(version, "Build 10.18.10.3") ||
           strstr(version, "Build 10.18.10.4") || strstr(version, "Build 10.18.10.5") ||
           strstr(version, "Build 10.18.14.4")) {
-        GPG.support_level = GPU_SUPPORT_LEVEL_LIMITED;
-      }
-    }
-
-    /* Driver 20.11.2/3 fixes a lot of issues for the Navi cards, but introduces new ones
-     * for Polaris based cards cards. The viewport has glitches but doesn't crash.
-     * See T82856,T83574.  */
-    if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_WIN, GPU_DRIVER_OFFICIAL) &&
-        (strstr(version, " 20.11.2 ") || strstr(version, " 20.11.3 "))) {
-      if (strstr(renderer, "Radeon RX 460 ") || strstr(renderer, "Radeon RX 470 ") ||
-          strstr(renderer, "Radeon RX 480 ") || strstr(renderer, "Radeon RX 490 ") ||
-          strstr(renderer, "Radeon RX 560 ") || strstr(renderer, "Radeon RX 570 ") ||
-          strstr(renderer, "Radeon RX 580 ") || strstr(renderer, "Radeon RX 590 ")) {
         GPG.support_level = GPU_SUPPORT_LEVEL_LIMITED;
       }
     }
@@ -284,6 +293,13 @@ static void detect_workarounds()
     GCaps.shader_image_load_store_support = false;
     GCaps.broken_amd_driver = true;
   }
+  /* See T82856: AMD drivers since 20.11 running on a polaris architecture doesn't support the
+   * `GL_INT_2_10_10_10_REV` data type. */
+  if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
+    if (is_faulty_T82856_platform(version, renderer)) {
+      GCaps.use_hq_normals_workaround = true;
+    }
+  }
   /* There is an issue with the #glBlitFramebuffer on MacOS with radeon pro graphics.
    * Blitting depth with#GL_DEPTH24_STENCIL8 is buggy so the workaround is to use
    * #GPU_DEPTH32F_STENCIL8. Then Blitting depth will work but blitting stencil will
@@ -374,7 +390,7 @@ static void detect_workarounds()
   if (GLContext::debug_layer_support == false) {
     GLContext::debug_layer_workaround = true;
   }
-}
+}  // namespace blender::gpu
 
 /** Internal capabilities. */
 GLint GLContext::max_cubemap_size = 0;
