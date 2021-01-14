@@ -39,6 +39,7 @@ class RAS_2DFilter : public virtual RAS_Shader {
  public:
   enum PredefinedUniformType {
     RENDERED_TEXTURE_UNIFORM = 0,
+    RENDERED_OVERLAY_UNIFORM,
     DEPTH_TEXTURE_UNIFORM,
     RENDERED_TEXTURE_WIDTH_UNIFORM,
     RENDERED_TEXTURE_HEIGHT_UNIFORM,

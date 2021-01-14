@@ -3514,7 +3514,7 @@ void DRW_transform_to_display_image_render(GPUTexture *tex)
 }
 
 /* Use color management profile to draw texture to framebuffer */
-void DRW_transform_to_display(GPUTexture *tex, View3D *v3d, bool do_dithering)
+void DRW_transform_to_display(GPUTexture *tex, GPUTexture *color_overlay, View3D *v3d, bool do_dithering)
 {
   drw_state_set(DRW_STATE_WRITE_COLOR);
 
@@ -3562,39 +3562,77 @@ void DRW_transform_to_display(GPUTexture *tex, View3D *v3d, bool do_dithering)
     use_ocio = IMB_colormanagement_setup_glsl_draw_from_space(
         &view_settings, display_settings, NULL, dither, false, false);
   }
-  if (!use_ocio) {
-    /* View transform is already applied for offscreen, don't apply again, see: T52046 */
-    if (DST.options.is_image_render && !DST.options.is_scene_render) {
-      immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_COLOR);
-      immUniformColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+  if (!color_overlay) {
+    if (!use_ocio) {
+      /* View transform is already applied for offscreen, don't apply again, see: T52046 */
+      if (DST.options.is_image_render && !DST.options.is_scene_render) {
+        immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_COLOR);
+        immUniformColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+      }
+      else {
+        immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_LINEAR_TO_SRGB);
+      }
+      immUniform1i("image", 0);
+    }
+    GPU_texture_bind(tex, 0); /* OCIO texture bind point is 0 */
+    float mat[4][4];
+    unit_m4(mat);
+    immUniformMatrix4fv("ModelViewProjectionMatrix", mat);
+    /* Full screen triangle */
+    immBegin(GPU_PRIM_TRIS, 3);
+    immAttr2f(texco, 0.0f, 0.0f);
+    immVertex2f(pos, -1.0f, -1.0f);
+    immAttr2f(texco, 2.0f, 0.0f);
+    immVertex2f(pos, 3.0f, -1.0f);
+
+    immAttr2f(texco, 0.0f, 2.0f);
+    immVertex2f(pos, -1.0f, 3.0f);
+    immEnd();
+
+    GPU_texture_unbind(tex);
+
+    if (use_ocio) {
+      IMB_colormanagement_finish_glsl_draw();
     }
     else {
-      immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_LINEAR_TO_SRGB);
+      immUnbindProgram();
     }
-    immUniform1i("image", 0);
-  }
-  GPU_texture_bind(tex, 0); /* OCIO texture bind point is 0 */
-  float mat[4][4];
-  unit_m4(mat);
-  immUniformMatrix4fv("ModelViewProjectionMatrix", mat);
-  /* Full screen triangle */
-  immBegin(GPU_PRIM_TRIS, 3);
-  immAttr2f(texco, 0.0f, 0.0f);
-  immVertex2f(pos, -1.0f, -1.0f);
-  immAttr2f(texco, 2.0f, 0.0f);
-  immVertex2f(pos, 3.0f, -1.0f);
-
-  immAttr2f(texco, 0.0f, 2.0f);
-  immVertex2f(pos, -1.0f, 3.0f);
-  immEnd();
-
-  GPU_texture_unbind(tex);
-
-  if (use_ocio) {
-    IMB_colormanagement_finish_glsl_draw();
   }
   else {
-    immUnbindProgram();
+    if (!use_ocio) {
+      bool display_colorspace = true;
+      immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_OVERLAYS_MERGE);
+      immUniform1i("display_transform", display_colorspace);
+      immUniform1i("image_texture", 0);
+      immUniform1i("overlays_texture", 1);
+    }
+
+    GPU_texture_bind(tex, 0);
+    GPU_texture_bind(color_overlay, 1);
+
+    float mat[4][4];
+    unit_m4(mat);
+    immUniformMatrix4fv("ModelViewProjectionMatrix", mat);
+    /* Full screen triangle */
+    immBegin(GPU_PRIM_TRIS, 3);
+    immAttr2f(texco, 0.0f, 0.0f);
+    immVertex2f(pos, -1.0f, -1.0f);
+    immAttr2f(texco, 2.0f, 0.0f);
+    immVertex2f(pos, 3.0f, -1.0f);
+
+    immAttr2f(texco, 0.0f, 2.0f);
+    immVertex2f(pos, -1.0f, 3.0f);
+    immEnd();
+
+    GPU_texture_unbind(tex);
+    GPU_texture_unbind(color_overlay);
+
+    if (use_ocio) {
+      IMB_colormanagement_finish_glsl_draw();
+    }
+    else {
+      immUnbindProgram();
+    }
   }
 }
 /***************************Enf of Game engine transition***************************/

@@ -157,13 +157,6 @@ void GPU_viewport_cache_release(GPUViewport *viewport);
 struct GPUFrameBuffer *GPU_viewport_framebuffer_default_get(GPUViewport *viewport);
 struct GPUFrameBuffer *GPU_viewport_framebuffer_overlay_get(GPUViewport *viewport);
 
-/* Game engine transition */
-void GPU_viewport_draw_to_screen_ex_bge(GPUViewport *viewport,
-                                        int view,
-                                        const rcti *rect,
-                                        bool display_colorspace,
-                                        struct GPUTexture *filteredColor);
-
 #ifdef __cplusplus
 }
 #endif
