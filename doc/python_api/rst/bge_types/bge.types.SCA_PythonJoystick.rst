@@ -37,24 +37,6 @@ base class --- :class:`EXP_PyObjectPlus`
 
    .. attribute:: hatValues (Deprecated. Use :data:`activeButtons` instead)
 
-      The state of the joysticks hats as a list of values :data:`numHats` long. (read-only).
-
-      :type: list of ints
-
-      Each specifying the direction of the hat from 1 to 12, 0 when inactive.
-
-      Hat directions are as follows...
-
-      * 0:None
-      * 1:Up
-      * 2:Right
-      * 4:Down
-      * 8:Left
-      * 3:Up - Right
-      * 6:Down - Right
-      * 12:Down - Left
-      * 9:Up - Left
-
    .. attribute:: numAxis
 
       The number of axes for the joystick at this index. (read-only).
@@ -69,6 +51,45 @@ base class --- :class:`EXP_PyObjectPlus`
 
    .. attribute:: numHats (Deprecated. Use :data:`numButtons` instead)
 
-      The number of hats for the joystick at this index. (read-only).
 
-      :type: integer
+   .. method:: startVibration()
+
+      Starts the vibration.
+
+      :return: None
+
+   .. method:: stopVibration()
+
+      Stops the vibration.
+
+      :return: None
+
+   .. attribute:: strengthLeft
+
+      Strength of the Low frequency joystick's motor (placed at left position usually).
+
+      :type: float (0.0 to 1.0)
+
+   .. attribute:: strengthRight
+
+      Strength of the High frequency joystick's motor (placed at right position usually).
+
+      :type: float (0.0 to 1.0)
+
+   .. attribute:: duration
+
+      Duration of the vibration in milliseconds.
+
+      :type: integer (0 to infinite)
+
+   .. attribute:: isVibrating
+
+      Check status of joystick vibration
+
+      :type: bool (true vibrating and false stopped)
+
+   .. attribute:: hasVibration
+
+      Check if the joystick supports vibration
+
+      :type: bool (true supported and false not supported)

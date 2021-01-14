@@ -84,9 +84,7 @@ bool SCA_VibrationActuator::Update()
     }
   }
 
-  instance->ProcessRumbleStatus();
-
-  return instance->GetRumbleStatus();
+  return false;
 }
 
 #ifdef WITH_PYTHON
@@ -195,8 +193,6 @@ PyObject *SCA_VibrationActuator::pyattr_get_isVibrating(EXP_PyObjectPlus *self_v
   if (!instance) {
     return Py_False;
   }
-
-  instance->ProcessRumbleStatus();
 
   return PyBool_FromLong(instance->GetRumbleStatus());
 }

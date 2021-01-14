@@ -94,6 +94,8 @@ PyTypeObject SCA_PythonJoystick::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_
                                          py_base_new};
 
 PyMethodDef SCA_PythonJoystick::Methods[] = {
+    EXP_PYMETHODTABLE_NOARGS(SCA_PythonJoystick, startVibration),
+    EXP_PYMETHODTABLE_NOARGS(SCA_PythonJoystick, stopVibration),
     {nullptr, nullptr}  // Sentinel
 };
 
@@ -105,6 +107,11 @@ PyAttributeDef SCA_PythonJoystick::Attributes[] = {
     EXP_PYATTRIBUTE_RO_FUNCTION("hatValues", SCA_PythonJoystick, pyattr_get_hat_values),
     EXP_PYATTRIBUTE_RO_FUNCTION("axisValues", SCA_PythonJoystick, pyattr_get_axis_values),
     EXP_PYATTRIBUTE_RO_FUNCTION("name", SCA_PythonJoystick, pyattr_get_name),
+    EXP_PYATTRIBUTE_INT_RW("duration", 0, INT_MAX, true, SCA_PythonJoystick, m_duration),
+    EXP_PYATTRIBUTE_FLOAT_RW("strengthLeft", 0.0, 1.0, SCA_PythonJoystick, m_strengthLeft),
+    EXP_PYATTRIBUTE_FLOAT_RW("strengthRight", 0.0, 1.0, SCA_PythonJoystick, m_strengthRight),
+    EXP_PYATTRIBUTE_RO_FUNCTION("isVibrating", SCA_PythonJoystick, pyattr_get_isVibrating),
+    EXP_PYATTRIBUTE_RO_FUNCTION("hasVibration", SCA_PythonJoystick, pyattr_get_hasVibration),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
@@ -190,4 +197,54 @@ PyObject *SCA_PythonJoystick::pyattr_get_name(EXP_PyObjectPlus *self_v,
 
   return PyUnicode_FromStdString(self->m_joystick->GetName());
 }
-#endif
+
+
+EXP_PYMETHODDEF_DOC_NOARGS(SCA_PythonJoystick,
+                           startVibration,
+                           "startVibration()\n"
+                           "\tStarts the joystick vibration.\n")
+{
+  if (m_joystick && m_joystick->GetRumbleSupport()) {
+    m_joystick->RumblePlay(m_strengthLeft, m_strengthRight, m_duration);
+  }
+
+  Py_RETURN_NONE;
+}
+
+EXP_PYMETHODDEF_DOC_NOARGS(SCA_PythonJoystick,
+                           stopVibration,
+                           "StopVibration()\n"
+                           "\tStops the joystick vibration.\n")
+{
+  if (m_joystick && m_joystick->GetRumbleSupport()) {
+    m_joystick->RumbleStop();
+  }
+
+  Py_RETURN_NONE;
+}
+
+PyObject *SCA_PythonJoystick::pyattr_get_isVibrating(EXP_PyObjectPlus *self_v,
+                                                        const struct EXP_PYATTRIBUTE_DEF *attrdef)
+{
+  SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+
+  if (!(self->m_joystick) && !(self->m_joystick->GetRumbleSupport())) {
+    return Py_False;
+  }
+
+  return PyBool_FromLong(self->m_joystick->GetRumbleStatus());
+}
+
+PyObject *SCA_PythonJoystick::pyattr_get_hasVibration(EXP_PyObjectPlus *self_v,
+                                                         const struct EXP_PYATTRIBUTE_DEF *attrdef)
+{
+  SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+
+  if (!(self->m_joystick)) {
+    return Py_False;
+  }
+
+  return PyBool_FromLong(self->m_joystick->GetRumbleSupport());
+}
+
+#endif  // WITH_PYTHON

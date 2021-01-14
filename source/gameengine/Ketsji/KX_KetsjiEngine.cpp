@@ -443,6 +443,14 @@ bool KX_KetsjiEngine::NextFrame()
       updatePythonJoysticks(addrem);
 #  endif  // WITH_PYTHON
     }
+
+    // Process Joystick force feedback duration
+    for (unsigned short i = 0; i < JOYINDEX_MAX; ++i) {
+      DEV_Joystick *joy = DEV_Joystick::GetInstance(i);
+      if (joy && joy->Connected() && joy->GetRumbleSupport() && joy->GetRumbleStatus()) {
+        joy->ProcessRumbleStatus();
+      }
+    }
 #endif  // WITH_SDL
 
     // for each scene, call the proceed functions
