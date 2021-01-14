@@ -151,6 +151,12 @@ static void mem_error_cb(const char *errorStr)
 // loads wmWindows, so we need to free those.
 static void wm_free(bContext *C, wmWindowManager *wm)
 {
+	for (wmWindow* win = (wmWindow*)wm->windows.first; win; win = win->next) {
+		if (win->stereo3d_format) {
+			MEM_freeN(win->stereo3d_format);
+			win->stereo3d_format = nullptr;
+		}
+	}
 	BLI_freelistN(&wm->windows);
 }
 
