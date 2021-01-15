@@ -88,6 +88,7 @@
 #include "ED_gpencil.h"
 #include "ED_keyframes_edit.h"
 #include "ED_keyframing.h"
+#include "ED_node.h"
 #include "ED_render.h"
 #include "ED_screen.h"
 #include "ED_space_api.h"
@@ -99,6 +100,7 @@
 #include "GPU_init_exit.h"
 #include "GPU_material.h"
 #include "IMB_imbuf.h"
+#include "IMB_thumbs.h"
 #include "MEM_CacheLimiterC-Api.h"
 #include "MEM_guardedalloc.h"
 #include "RE_engine.h"
@@ -111,6 +113,7 @@
 #include "wm.h"
 #include "WM_api.h"
 #include "wm_event_system.h"
+#include "windowmanager/gizmo/WM_gizmo_api.h"
 #include "wm_message_bus.h"
 #include "wm_surface.h"
 #include "wm_window.h"
@@ -855,9 +858,11 @@ int main(int argc,
   ED_undosys_type_init();
 
   BKE_library_callback_free_notifier_reference_set(
-      WM_main_remove_notifier_reference); /* library.c */
+      WM_main_remove_notifier_reference);                    /* lib_id.c */
+  BKE_region_callback_free_gizmomap_set(wm_gizmomap_remove); /* screen.c */
+  BKE_region_callback_refresh_tag_gizmomap_set(WM_gizmomap_tag_refresh);
   BKE_library_callback_remap_editor_id_reference_set(
-      WM_main_remap_editor_id_reference);                     /* library.c */
+      WM_main_remap_editor_id_reference);                     /* lib_id.c */
   BKE_spacedata_callback_id_remap_set(ED_spacedata_id_remap); /* screen.c */
   DEG_editors_set_update_cb(ED_render_id_flush_update, ED_render_scene_update);
 
@@ -870,6 +875,9 @@ int main(int argc,
   BLF_init();
   BLT_lang_init();
   BLT_lang_set("");
+
+  /* That one is generated on demand, we need to be sure it's clear on init. */
+  IMB_thumb_clear_translations();
 
   /* Init icons before reading .blend files for preview icons, which can
    * get triggered by the depsgraph. This is also done in background mode
@@ -888,7 +896,12 @@ int main(int argc,
 
   ED_spacemacros_init();
 
+  BKE_material_copybuf_clear();
+  ED_render_clear_mtex_copybuf();
+
   BKE_node_system_init();
+
+  ED_node_init_butfuncs();
 
   // We load our own G_MAIN, so free the one that BKE_blender_globals_init() gives us
   BKE_main_free(G_MAIN);
@@ -935,7 +948,6 @@ int main(int argc,
     }
   }
 #endif
-  UI_theme_init_default();
 
   UserDef *user_def = BKE_blendfile_userdef_from_defaults();
   BKE_blender_userdef_data_set_and_free(user_def);
@@ -1549,10 +1561,10 @@ int main(int argc,
             CTX_wm_manager_set(C, wm);
             CTX_wm_window_set(C, win);
             InitBlenderContextVariables(C, wm, bfd->curscene);
-            wm_window_ghostwindow_blenderplayer_ensure(wm, win, window, first_time_window);
 
-            /* The following is needed to run some bpy operators in blenderplayer */
-            ED_screen_refresh_blenderplayer(wm, win);
+            WM_keyconfig_init(C);
+
+            wm_window_ghostwindow_blenderplayer_ensure(wm, win, window, first_time_window);
 
             if (first_time_window) {
               /* We need to have first an ogl context bound and it's done
@@ -1560,11 +1572,20 @@ int main(int argc,
                */
               WM_init_opengl_blenderplayer(G_MAIN, system, win);
 
+              /* must be called before UI_init() */
+              UI_theme_init_default();
+
+              /* must be called after WM_init_opengl_blenderplayer */
+              UI_init();
+
               /* Set Viewport render mode and shading type for the whole runtime */
               useViewportRender = scene->gm.flag & GAME_USE_VIEWPORT_RENDER;
               shadingTypeRuntime = GetShadingTypeRuntime(C);
             }
             first_time_window = false;
+
+            /* The following is needed to run some bpy operators in blenderplayer */
+            ED_screen_refresh(wm, win);
 
             // This argc cant be argc_py_clamped, since python uses it.
             LA_PlayerLauncher launcher(system,
@@ -1745,7 +1766,7 @@ int main(int argc,
 
   ED_file_exit(); /* for fsmenu */
 
-  BKE_icons_free();  // In UI_exit
+  UI_exit();
 
   BKE_blender_userdef_data_free(&U, false);
 

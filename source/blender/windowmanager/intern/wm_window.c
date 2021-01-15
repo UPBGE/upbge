@@ -2579,9 +2579,15 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
     wm_window_swap_buffers(win);
   }
 
-  // GHOST_SetWindowState(ghostwin, GHOST_kWindowStateModified);
-  /* standard state vars for window */
-  //GPU_state_init();
+  /* add keymap handlers (1 handler for all keys in map!) */
+  wmKeyMap *keymap = WM_keymap_ensure(wm->defaultconf, "Window", 0, 0);
+  WM_event_add_keymap_handler(&win->handlers, keymap);
+
+  keymap = WM_keymap_ensure(wm->defaultconf, "Screen", 0, 0);
+  WM_event_add_keymap_handler(&win->handlers, keymap);
+
+  keymap = WM_keymap_ensure(wm->defaultconf, "Screen Editing", 0, 0);
+  WM_event_add_keymap_handler(&win->modalhandlers, keymap);
 }
 
 void wm_window_ghostwindow_embedded_ensure(wmWindowManager *wm, wmWindow *win)
