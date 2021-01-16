@@ -162,22 +162,14 @@ class EXP_Value : public EXP_PyObjectPlus, public CM_RefCount<EXP_Value> {
 
   std::string op2str(VALUE_OPERATOR op);
 
-  inline void SetError(bool err)
-  {
-    m_error = err;
-  }
-  inline bool IsError()
-  {
-    return m_error;
-  }
+  virtual bool IsError() const;
 
  protected:
   virtual void DestructFromPython();
 
  private:
   /// Properties for user/game etc.
-  std::map<std::string, EXP_Value *> *m_pNamedPropertyArray;
-  bool m_error;
+  std::map<std::string, EXP_Value *> m_properties;
 };
 
 /** EXP_PropValue is a EXP_Value derived class, that implements the identification (String name)
