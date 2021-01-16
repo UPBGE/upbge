@@ -289,8 +289,8 @@ void KX_GameObject::TagForUpdate(bool is_overlay_pass)
     BKE_object_apply_mat4(ob_eval, ob_eval->obmat, false, true);
 
     if (!staticObject || m_forceIgnoreParentTx) {
-      EXP_ListValue<KX_GameObject> *children = GetChildren();
-      if (children->GetCount() > 0) {
+      std::vector<KX_GameObject *> children = GetChildren();
+      if (children.size() > 0) {
         std::vector<Object *> childrenObjects;
         for (KX_GameObject *go : children) {
           Object *child = go->GetBlenderObject();
@@ -372,7 +372,7 @@ void KX_GameObject::ReplicateBlenderObject()
     }
 
     // To check again
-    NodeList &children = GetSGNode()->GetSGChildren();
+    const NodeList &children = GetSGNode()->GetSGChildren();
     if (children.size() > 0) {
       GetScene()->SetLastReplicatedParentObject(newob);
     }
@@ -425,11 +425,10 @@ void KX_GameObject::RecalcGeometry()
 
 static void suspend_physics_recursive(SG_Node *node, bool freeConstraints)
 {
-  NodeList &children = node->GetSGChildren();
+  const NodeList &children = node->GetSGChildren();
 
-  for (NodeList::iterator childit = children.begin(); !(childit == children.end()); ++childit) {
-    SG_Node *childnode = (*childit);
-    KX_GameObject *clientgameobj = static_cast<KX_GameObject *>((*childit)->GetSGClientObject());
+  for (SG_Node *childnode : children) {
+    KX_GameObject *clientgameobj = static_cast<KX_GameObject *>(childnode->GetSGClientObject());
     if (clientgameobj != nullptr) {  // This is a GameObject
       clientgameobj->SuspendPhysics(freeConstraints, false);
     }
@@ -453,11 +452,10 @@ void KX_GameObject::SuspendPhysics(bool freeConstraints, bool childrenRecursive)
 
 static void restore_physics_recursive(SG_Node *node)
 {
-  NodeList &children = node->GetSGChildren();
+  const NodeList &children = node->GetSGChildren();
 
-  for (NodeList::iterator childit = children.begin(); !(childit == children.end()); ++childit) {
-    SG_Node *childnode = (*childit);
-    KX_GameObject *clientgameobj = static_cast<KX_GameObject *>((*childit)->GetSGClientObject());
+  for (SG_Node *childnode : children) {
+    KX_GameObject *clientgameobj = static_cast<KX_GameObject *>(childnode->GetSGClientObject());
     if (clientgameobj != nullptr) {  // This is a GameObject
       clientgameobj->RestorePhysics(false);
     }
@@ -480,11 +478,10 @@ void KX_GameObject::RestorePhysics(bool childrenRecursive)
 
 static void suspend_logic_recursive(SG_Node *node)
 {
-  NodeList &children = node->GetSGChildren();
+  const NodeList &children = node->GetSGChildren();
 
-  for (NodeList::iterator childit = children.begin(); !(childit == children.end()); ++childit) {
-    SG_Node *childnode = (*childit);
-    KX_GameObject *clientgameobj = static_cast<KX_GameObject *>((*childit)->GetSGClientObject());
+  for (SG_Node *childnode : children) {
+    KX_GameObject *clientgameobj = static_cast<KX_GameObject *>(childnode->GetSGClientObject());
     if (clientgameobj != nullptr) {  // This is a GameObject
       clientgameobj->SuspendSensors();
     }
@@ -507,11 +504,10 @@ void KX_GameObject::SuspendLogic(bool childrenRecursive)
 
 static void restore_logic_recursive(SG_Node *node)
 {
-  NodeList &children = node->GetSGChildren();
+  const NodeList &children = node->GetSGChildren();
 
-  for (NodeList::iterator childit = children.begin(); !(childit == children.end()); ++childit) {
-    SG_Node *childnode = (*childit);
-    KX_GameObject *clientgameobj = static_cast<KX_GameObject *>((*childit)->GetSGClientObject());
+  for (SG_Node *childnode : children) {
+    KX_GameObject *clientgameobj = static_cast<KX_GameObject *>(childnode->GetSGClientObject());
     if (clientgameobj != nullptr) {  // This is a GameObject
       clientgameobj->ResumeSensors();
     }
@@ -1719,18 +1715,18 @@ void KX_GameObject::SuspendDynamics()
   }
 }
 
-static void walk_children(SG_Node *node, EXP_ListValue<KX_GameObject> *list, bool recursive)
+static void walk_children(const SG_Node *node, std::vector<KX_GameObject *>& list, bool recursive)
 {
   if (!node)
     return;
-  NodeList &children = node->GetSGChildren();
+  const NodeList &children = node->GetSGChildren();
 
   for (SG_Node *childnode : children) {
     KX_GameObject *childobj = static_cast<KX_GameObject *>(childnode->GetSGClientObject());
     if (childobj != nullptr)  // This is a GameObject
     {
       // add to the list, no AddRef because the list doesn't own its items.
-      list->Add(childobj);
+      list.push_back(childobj);
     }
 
     // if the childobj is nullptr then this may be an inverse parent link
@@ -1741,25 +1737,17 @@ static void walk_children(SG_Node *node, EXP_ListValue<KX_GameObject> *list, boo
   }
 }
 
-EXP_ListValue<KX_GameObject> *KX_GameObject::GetChildren()
+std::vector<KX_GameObject *> KX_GameObject::GetChildren() const
 {
-  EXP_ListValue<KX_GameObject> *list = new EXP_ListValue<KX_GameObject>();
-  /* The list must not own any data because is temporary and we can't
-   * ensure that it will freed before item's in it (e.g python owner). */
-  list->SetReleaseOnDestruct(false);
-  walk_children(
-      GetSGNode(),
-      list,
-      0); /* GetSGNode() is always valid or it would have raised an exception before this */
+  std::vector<KX_GameObject *> list;
+  // GetSGNode() is always valid or it would have raised an exception before this.
+  walk_children(GetSGNode(), list, 0);
   return list;
 }
 
-EXP_ListValue<KX_GameObject> *KX_GameObject::GetChildrenRecursive()
+std::vector<KX_GameObject *> KX_GameObject::GetChildrenRecursive() const
 {
-  EXP_ListValue<KX_GameObject> *list = new EXP_ListValue<KX_GameObject>();
-  /* The list must not own any data because is temporary and we can't
-   * ensure that it will freed before item's in it (e.g python owner). */
-  list->SetReleaseOnDestruct(false);
+  std::vector<KX_GameObject *> list;
   walk_children(GetSGNode(), list, 1);
   return list;
 }
@@ -3599,14 +3587,22 @@ PyObject *KX_GameObject::pyattr_get_children(EXP_PyObjectPlus *self_v,
                                              const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-  return self->GetChildren()->NewProxy(true);
+  EXP_ListValue<KX_GameObject> *list = new EXP_ListValue<KX_GameObject>(self->GetChildren());
+  /* The list must not own any data because is temporary and we can't
+   * ensure that it will freed before item's in it (e.g python owner). */
+  list->SetReleaseOnDestruct(false);
+  return list->NewProxy(true);
 }
 
 PyObject *KX_GameObject::pyattr_get_children_recursive(EXP_PyObjectPlus *self_v,
                                                        const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-  return self->GetChildrenRecursive()->NewProxy(true);
+  EXP_ListValue<KX_GameObject> *list = new EXP_ListValue<KX_GameObject>(self->GetChildrenRecursive());
+  /* The list must not own any data because is temporary and we can't
+   * ensure that it will freed before item's in it (e.g python owner). */
+  list->SetReleaseOnDestruct(false);
+  return list->NewProxy(true);
 }
 
 PyObject *KX_GameObject::pyattr_get_attrDict(EXP_PyObjectPlus *self_v,

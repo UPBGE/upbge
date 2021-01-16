@@ -50,6 +50,16 @@ template<class ItemType> class EXP_ListValue : public EXP_BaseListValue {
   EXP_ListValue()
   {
   }
+
+  EXP_ListValue(const std::vector<ItemType *>& rawList)
+  {
+    const unsigned int size = rawList.size();
+    m_pValueArray.resize(size);
+    for (unsigned int i = 0; i < size; ++i) {
+      m_pValueArray[i] = rawList[i];
+    }
+  }
+
   virtual ~EXP_ListValue()
   {
   }

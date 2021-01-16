@@ -1296,10 +1296,10 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
       // Remove the child reference in the local list!
       // Note: there may be descendents already if the children of the child were processed
       //       by this loop before the child. In that case, we must remove the children also
-      EXP_ListValue<KX_GameObject> *childrenlist = childobj->GetChildrenRecursive();
+      std::vector<KX_GameObject *> childrenlist = childobj->GetChildrenRecursive();
       // The returned list by GetChildrenRecursive is not owned by anyone and must not own items,
       // so no AddRef().
-      childrenlist->Add(childobj);
+      childrenlist.push_back(childobj);
       for (KX_GameObject *obj : childrenlist) {
         if (sumolist->RemoveValue(obj))
           obj->Release();
@@ -1309,11 +1309,10 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
           obj->Release();
         }
       }
-      childrenlist->Release();
 
       // now destroy recursively
-      converter->UnregisterGameObject(
-          childobj);  // removing objects during conversion make sure this runs too
+      converter->UnregisterGameObject(childobj);
+      // removing objects during conversion make sure this runs too
       kxscene->RemoveObject(childobj);
 
       continue;

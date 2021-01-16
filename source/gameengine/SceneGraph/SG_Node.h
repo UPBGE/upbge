@@ -141,7 +141,7 @@ class SG_Node : public SG_QList {
    * that.
    * \return a reference to the list of children of this node.
    */
-  NodeList &GetSGChildren();
+  const NodeList& GetSGChildren() const;
 
   /**
    * Clear the list of children associated with this node

@@ -2174,7 +2174,6 @@ void KX_Scene::AddAnimatedObject(KX_GameObject *gameobj)
 static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(threadid))
 {
   KX_GameObject *gameobj, *parent;
-  EXP_ListValue<KX_GameObject> *children;
   bool needs_update;
   KX_Scene::AnimationPoolData *data = (KX_Scene::AnimationPoolData *)BLI_task_pool_user_data(pool);
   double curtime = data->curtime;
@@ -2187,7 +2186,7 @@ static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(t
   if (!needs_update) {
     // If we got here, we're looking to update an armature, so check its children meshes
     // to see if we need to bother with a more expensive pose update
-    children = gameobj->GetChildren();
+    const std::vector<KX_GameObject *> children = gameobj->GetChildren();
 
     bool has_mesh = false, has_non_mesh = false;
 
@@ -2210,7 +2209,6 @@ static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(t
     if (!needs_update && !has_mesh && has_non_mesh)
       needs_update = true;
 
-    children->Release();
   }
 
   // If the object is a culled armature, then we manage only the animation time and end of its
@@ -2218,10 +2216,8 @@ static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(t
   gameobj->UpdateActionManager(curtime, needs_update);
 
   if (needs_update) {
-    children = gameobj->GetChildren();
+    const std::vector<KX_GameObject *> children = gameobj->GetChildren();
     parent = gameobj->GetParent();
-
-    children->Release();
   }
 }
 

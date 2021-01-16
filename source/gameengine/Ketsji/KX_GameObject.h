@@ -734,8 +734,8 @@ class KX_GameObject : public SCA_IObject {
     return m_pClient_info;
   }
 
-  EXP_ListValue<KX_GameObject> *GetChildren();
-  EXP_ListValue<KX_GameObject> *GetChildrenRecursive();
+  std::vector<KX_GameObject *> GetChildren() const;
+  std::vector<KX_GameObject *> GetChildrenRecursive() const;
 
   /// Returns the component list.
   EXP_ListValue<KX_PythonComponent> *GetComponents() const;
