@@ -44,10 +44,6 @@ class SCA_ISensor;
 class SCA_IController;
 class SCA_IActuator;
 
-#ifdef WITH_PYTHON
-template<class T> T PyVecTo(PyObject *);
-#endif
-
 typedef std::vector<SCA_ISensor *> SCA_SensorList;
 typedef std::vector<SCA_IController *> SCA_ControllerList;
 typedef std::vector<SCA_IActuator *> SCA_ActuatorList;
@@ -57,77 +53,66 @@ class SCA_IObject : public EXP_Value {
 
   Py_Header
 
-      protected : friend class SCA_StateActuator;
-  friend class SCA_IActuator;
-  friend class SCA_IController;
+ protected :
+
   SCA_SensorList m_sensors;
   SCA_ControllerList m_controllers;
   SCA_ActuatorList m_actuators;
-  SCA_ActuatorList m_registeredActuators;  // actuators that use a pointer to this object
-  SCA_ObjectList m_registeredObjects;      // objects that hold reference to this object
+  /// Actuators that use a pointer to this object.
+  SCA_ActuatorList m_registeredActuators;
+  /// Objects that hold reference to this object.
+  SCA_ObjectList m_registeredObjects;
 
-  // SG_Dlist: element of objects with active actuators
-  //           Head: SCA_LogicManager::m_activeActuators
-  // SG_QList: Head of active actuators list on this object
-  //           Elements: SCA_IActuator
+  /** SG_Dlist: element of objects with active actuators
+   *            Head: SCA_LogicManager::m_activeActuators
+   *  SG_QList: Head of active actuators list on this object
+   *            Elements: SCA_IActuator
+   */
   SG_QList m_activeActuators;
-  // SG_Dlist: element of list os lists with active controllers
-  //           Head: SCA_LogicManager::m_activeControllers
-  // SG_QList: Head of active controller list on this object
-  //           Elements: SCA_IController
+
+  /** SG_Dlist: element of list os lists with active controllers
+   *            Head: SCA_LogicManager::m_activeControllers
+   *  SG_QList: Head of active controller list on this object
+   *            Elements: SCA_IController
+   */
   SG_QList m_activeControllers;
-  // SG_Dlist: element of list of lists of active controllers
-  //           Head: SCA_LogicManager::m_activeControllers
-  // SG_QList: Head of active bookmarked controller list globally
-  //           Elements: SCA_IController with bookmark option
+
+  /** SG_Dlist: element of list of lists of active controllers
+   *            Head: SCA_LogicManager::m_activeControllers
+   *  SG_QList: Head of active bookmarked controller list globally
+   *            Elements: SCA_IController with bookmark option
+   */
   static SG_QList m_activeBookmarkedControllers;
 
-  static class MT_Vector3 m_sDummy;
-
-  /**
-   * Ignore updates?
-   */
+  /// Ignore updates?
   bool m_suspended;
 
-  /**
-   * init state of object (used when object is created)
-   */
+  /// Init state of object (used when object is created).
   unsigned int m_initState;
 
-  /**
-   * current state = bit mask of state that are active
-   */
+  /// Current state = bit mask of state that are active.
   unsigned int m_state;
 
-  /**
-   * pointer inside state actuator list for sorting
-   */
+  /// Pointer inside state actuator list for sorting.
   SG_QList *m_firstState;
 
  public:
   SCA_IObject();
   virtual ~SCA_IObject();
 
-  SCA_ControllerList &GetControllers()
-  {
-    return m_controllers;
-  }
-  SCA_SensorList &GetSensors()
-  {
-    return m_sensors;
-  }
-  SCA_ActuatorList &GetActuators()
-  {
-    return m_actuators;
-  }
-  SG_QList &GetActiveActuators()
-  {
-    return m_activeActuators;
-  }
+  SCA_ControllerList& GetControllers();
+  SCA_SensorList& GetSensors();
+  SCA_ActuatorList& GetActuators();
+  SG_QList& GetActiveActuators();
+  SG_QList& GetActiveControllers();
+  static SG_QList& GetActiveBookmarkedControllers();
 
   void AddSensor(SCA_ISensor *act);
+  void ReserveSensor(int num);
   void AddController(SCA_IController *act);
+  void ReserveController(int num);
   void AddActuator(SCA_IActuator *act);
+  void ReserveActuator(int num);
   void RegisterActuator(SCA_IActuator *act);
   void UnregisterActuator(SCA_IActuator *act);
 
@@ -138,64 +123,36 @@ class SCA_IObject : public EXP_Value {
    * this object is informed that one of the object to which it holds a reference is deleted
    * returns true if there was indeed a reference.
    */
-  virtual bool UnlinkObject(SCA_IObject *clientobj)
-  {
-    return false;
-  }
+  virtual bool UnlinkObject(SCA_IObject *clientobj);
 
-  SCA_ISensor *FindSensor(const std::string &sensorname);
-  SCA_IActuator *FindActuator(const std::string &actuatorname);
-  SCA_IController *FindController(const std::string &controllername);
-
-  void SetCurrentTime(float currentTime)
-  {
-  }
+  SCA_ISensor *FindSensor(const std::string& sensorname);
+  SCA_IActuator *FindActuator(const std::string& actuatorname);
+  SCA_IController *FindController(const std::string& controllername);
 
   virtual void ReParentLogic();
 
-  /**
-   * Suspend all progress.
-   */
+  /// Suspend all progress.
   void SuspendSensors(void);
 
-  /**
-   * Resume progress
-   */
+  /// Resume progress.
   void ResumeSensors(void);
 
-  /**
-   * Set init state
-   */
-  void SetInitState(unsigned int initState)
-  {
-    m_initState = initState;
-  }
+  /// Set init state.
+  void SetInitState(unsigned int initState);
 
-  /**
-   * initialize the state when object is created
-   */
-  void ResetState(void)
-  {
-    SetState(m_initState);
-  }
+  /// Initialize the state when object is created.
+  void ResetState();
 
-  /**
-   * Set the object state
-   */
+  /// Set the object state.
   void SetState(unsigned int state);
 
-  /**
-   * Get the object state
-   */
-  unsigned int GetState(void)
-  {
-    return m_state;
-  }
+  /// Get the object state.
+  unsigned int GetState();
 
-  virtual int GetGameObjectType() const
-  {
-    return -1;
-  }
+  SG_QList **GetFirstState();
+  void SetFirstState(SG_QList *firstState);
+
+  virtual int GetGameObjectType() const;
 
   typedef enum ObjectTypes {
     OBJ_ARMATURE = 0,
