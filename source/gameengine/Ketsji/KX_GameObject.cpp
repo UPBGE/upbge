@@ -108,7 +108,6 @@ KX_GameObject::KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
       m_removeCallbacks(nullptr)
 #endif
 {
-  m_ignore_activity_culling = false;
   m_pClient_info = new KX_ClientObjectInfo(this, KX_ClientObjectInfo::ACTOR);
   m_pSGNode = new SG_Node(this, sgReplicationInfo, callbacks);
 
@@ -1712,7 +1711,7 @@ void KX_GameObject::ResumeDynamics(void)
 
 void KX_GameObject::SuspendDynamics()
 {
-  if ((!m_ignore_activity_culling) && (!m_suspended)) {
+  if (!m_suspended) {
     SCA_IObject::SuspendSensors();
     if (GetPhysicsController())
       GetPhysicsController()->SuspendDynamics();

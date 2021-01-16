@@ -85,11 +85,6 @@ class SCA_IObject : public EXP_Value {
   static class MT_Vector3 m_sDummy;
 
   /**
-   * Ignore activity culling requests?
-   */
-  bool m_ignore_activity_culling;
-
-  /**
    * Ignore updates?
    */
   bool m_suspended;
@@ -157,23 +152,6 @@ class SCA_IObject : public EXP_Value {
   }
 
   virtual void ReParentLogic();
-
-  /**
-   * Set whether or not to ignore activity culling requests
-   */
-  void SetIgnoreActivityCulling(bool b)
-  {
-    m_ignore_activity_culling = b;
-  }
-
-  /**
-   * Set whether or not this object wants to ignore activity culling
-   * requests
-   */
-  bool GetIgnoreActivityCulling()
-  {
-    return m_ignore_activity_culling;
-  }
 
   /**
    * Suspend all progress.
