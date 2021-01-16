@@ -132,7 +132,8 @@ typedef struct bObjectActuator {
   short flag, type, otype;
   short damping;
   float forceloc[3], forcerot[3];
-  float _pad[3], _pad1[3];
+  short servotype, _pad2[1];
+  float _pad[2], _pad1[3];
   float dloc[3], drot[3]; /* angle in radians */
   float linearvelocity[3], angularvelocity[3];
   struct Object *reference;
@@ -322,6 +323,10 @@ typedef struct bActuator {
 #define ACT_OBJECT_NORMAL 0
 #define ACT_OBJECT_SERVO 1
 #define ACT_OBJECT_CHARACTER 2
+
+/* objectactuator->servotype */
+#define ACT_SERVO_LINEAR 0
+#define ACT_SERVO_ANGULAR 1
 
 /* actuator->type */
 #define ACT_OBJECT 0
