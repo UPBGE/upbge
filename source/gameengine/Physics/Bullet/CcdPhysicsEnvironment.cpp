@@ -36,6 +36,7 @@
 #include "BL_BlenderSceneConverter.h"
 #include "CcdConstraint.h"
 #include "CcdGraphicController.h"
+#include "CM_List.h"
 #include "KX_GameObject.h"
 #include "MT_MinMax.h"
 #include "PHY_IVehicle.h"
@@ -510,8 +511,7 @@ void CcdPhysicsEnvironment::RemoveVehicle(WrapperVehicle *vehicle, bool free)
 {
   m_dynamicsWorld->removeVehicle(vehicle->GetVehicle());
   if (free) {
-    m_wrapperVehicles.erase(
-        std::find(m_wrapperVehicles.begin(), m_wrapperVehicles.end(), vehicle));
+    CM_ListRemoveIfFound(m_wrapperVehicles, vehicle);
     delete vehicle;
   }
 }

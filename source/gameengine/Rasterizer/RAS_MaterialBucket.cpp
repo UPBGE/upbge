@@ -31,8 +31,7 @@
 
 #include "RAS_MaterialBucket.h"
 
-#include <algorithm>
-
+#include "CM_List.h"
 #include "RAS_IPolygonMaterial.h"
 
 #ifdef _MSC_VER
@@ -96,11 +95,7 @@ void RAS_MaterialBucket::RemoveDisplayArrayBucket(RAS_DisplayArrayBucket *bucket
   if (m_displayArrayBucketList.size() == 0) {
     return;
   }
-  RAS_DisplayArrayBucketList::iterator it = std::find(
-      m_displayArrayBucketList.begin(), m_displayArrayBucketList.end(), bucket);
-  if (it != m_displayArrayBucketList.end()) {
-    m_displayArrayBucketList.erase(it);
-  }
+  CM_ListRemoveIfFound(m_displayArrayBucketList, bucket);
 }
 
 void RAS_MaterialBucket::MoveDisplayArrayBucket(RAS_MeshMaterial *meshmat,

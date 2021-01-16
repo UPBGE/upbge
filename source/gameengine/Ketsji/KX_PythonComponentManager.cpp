@@ -1,4 +1,28 @@
+/**
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * Contributor(s): none yet.
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
+
 #include "KX_PythonComponentManager.h"
+
+#include "CM_List.h"
 #include "KX_PythonComponent.h"
 #include "KX_GameObject.h"
 
@@ -24,10 +48,7 @@ void KX_PythonComponentManager::RegisterObject(KX_GameObject *gameobj)
 
 void KX_PythonComponentManager::UnregisterObject(KX_GameObject *gameobj)
 {
-  std::vector<KX_GameObject *>::iterator it = std::find(m_objects.begin(), m_objects.end(), gameobj);
-  if (it != m_objects.end()) {
-    m_objects.erase(it);
-  }
+  CM_ListRemoveIfFound(m_objects, gameobj);
   m_objects_changed = true;
 }
 

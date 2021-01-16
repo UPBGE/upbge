@@ -57,6 +57,7 @@
 #include "BL_BlenderConverter.h"
 #include "BL_BlenderDataConversion.h"
 #include "BL_BlenderSceneConverter.h"
+#include "CM_List.h"
 #include "EXP_FloatValue.h"
 #include "KX_2DFilterManager.h"
 #include "KX_BlenderCanvas.h"
@@ -1874,10 +1875,7 @@ void KX_Scene::DelayedRemoveObject(KX_GameObject *gameobj)
 {
   RemoveDupliGroup(gameobj);
 
-  if (std::find(m_euthanasyobjects.begin(), m_euthanasyobjects.end(), gameobj) ==
-      m_euthanasyobjects.end()) {
-    m_euthanasyobjects.push_back(gameobj);
-  }
+  CM_ListAddIfNotFound(m_euthanasyobjects, gameobj);
 }
 
 bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
@@ -1971,25 +1969,10 @@ bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
     ret = (gameobj->Release() != nullptr);
   }
 
-  /* Warning 'gameobj' maye be freed now, only compare, don't access */
-
-  const std::vector<KX_GameObject *>::const_iterator animit = std::find(
-      m_animatedlist.begin(), m_animatedlist.end(), gameobj);
-  if (animit != m_animatedlist.end()) {
-    m_animatedlist.erase(animit);
-  }
-
-  const std::vector<KX_GameObject *>::const_iterator euthit = std::find(
-      m_euthanasyobjects.begin(), m_euthanasyobjects.end(), gameobj);
-  if (euthit != m_euthanasyobjects.end()) {
-    m_euthanasyobjects.erase(euthit);
-  }
-
-  const std::vector<KX_GameObject *>::const_iterator tempit = std::find(
-      m_tempObjectList.begin(), m_tempObjectList.end(), gameobj);
-  if (tempit != m_tempObjectList.end()) {
-    m_tempObjectList.erase(tempit);
-  }
+  // WARNING: 'gameobj' maybe be freed now, only compare, don't access.
+  CM_ListRemoveIfFound(m_animatedlist, gameobj);
+  CM_ListRemoveIfFound(m_euthanasyobjects, gameobj);
+  CM_ListRemoveIfFound(m_tempObjectList, gameobj);
 
   if (gameobj == m_active_camera) {
     // no AddRef done on m_active_camera so no Release
@@ -2164,11 +2147,7 @@ void KX_Scene::LogicBeginFrame(double curtime, double framestep)
 
 void KX_Scene::AddAnimatedObject(KX_GameObject *gameobj)
 {
-  const std::vector<KX_GameObject *>::const_iterator it = std::find(
-      m_animatedlist.begin(), m_animatedlist.end(), gameobj);
-  if (it == m_animatedlist.end()) {
-    m_animatedlist.push_back(gameobj);
-  }
+  CM_ListAddIfNotFound(m_animatedlist, gameobj);
 }
 
 static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(threadid))

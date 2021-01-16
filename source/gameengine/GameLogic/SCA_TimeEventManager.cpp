@@ -37,6 +37,7 @@
 
 #include "SCA_TimeEventManager.h"
 
+#include "CM_List.h"
 #include "EXP_FloatValue.h"
 
 SCA_TimeEventManager::SCA_TimeEventManager(SCA_LogicManager *logicmgr)
@@ -89,10 +90,7 @@ void SCA_TimeEventManager::AddTimeProperty(EXP_Value *timeval)
 
 void SCA_TimeEventManager::RemoveTimeProperty(EXP_Value *timeval)
 {
-  std::vector<EXP_Value *>::iterator it = std::find(m_timevalues.begin(), m_timevalues.end(), timeval);
-  if (it != m_timevalues.end()) {
-    m_timevalues.erase(it);
-  }
+  CM_ListRemoveIfFound(m_timevalues, timeval);
 }
 
 std::vector<EXP_Value *> SCA_TimeEventManager::GetTimeValues()
