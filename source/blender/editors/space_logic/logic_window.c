@@ -2326,7 +2326,6 @@ static void draw_actuator_sound(uiLayout *layout, PointerRNA *ptr, bContext *C)
                ptr,
                "sound",
                NULL,
-               NULL,
                "SOUND_OT_open",
                NULL,
                UI_TEMPLATE_ID_FILTER_ALL,
