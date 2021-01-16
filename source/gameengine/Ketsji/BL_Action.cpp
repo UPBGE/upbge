@@ -39,6 +39,7 @@
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_node_types.h"
+#include "ED_node.h"
 #include "RNA_access.h"
 #include "depsgraph/DEG_depsgraph_query.h"
 
@@ -461,31 +462,12 @@ void BL_Action::Update(float curtime, bool applyToObject)
     // Node Trees actions (Geometry one and Shader ones (material, world))
     Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
     FOREACH_NODETREE_BEGIN (bmain, nodetree, id) {
-      switch (nodetree->type) {
-        case NTREE_GEOMETRY:
-        {
-          if (nodetree->adt && nodetree->adt->action->id.name == m_action->id.name) {
-            DEG_id_tag_update(&nodetree->id, 0);
-            PointerRNA ptrrna;
-            RNA_id_pointer_create(&nodetree->id, &ptrrna);
-            animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
-            scene->ResetTaaSamples();
-          }
-          break;
-        }
-        case NTREE_SHADER:
-        {
-          if (nodetree->adt && nodetree->adt->action->id.name == m_action->id.name) {
-            DEG_id_tag_update(&nodetree->id, ID_RECALC_SHADING);
-            PointerRNA ptrrna;
-            RNA_id_pointer_create(&nodetree->id, &ptrrna);
-            animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
-            scene->ResetTaaSamples();
-          }
-          break;
-        }
-        default:
-          break;
+      if (nodetree->adt && nodetree->adt->action->id.name == m_action->id.name) {
+        PointerRNA ptrrna;
+        RNA_id_pointer_create(&nodetree->id, &ptrrna);
+        animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
+        ED_node_tag_update_nodetree(bmain, nodetree, nullptr);
+        scene->ResetTaaSamples();
       }
     }
     FOREACH_NODETREE_END;
