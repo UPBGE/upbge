@@ -242,7 +242,6 @@ void EXP_Value::ClearProperties()
 EXP_Value *EXP_Value::GetProperty(int inIndex)
 {
   int count = 0;
-  EXP_Value *result = nullptr;
 
   for (const auto& pair : m_properties) {
     if (count++ == inIndex) {
