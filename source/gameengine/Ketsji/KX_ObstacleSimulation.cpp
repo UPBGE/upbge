@@ -629,8 +629,8 @@ static void processSamples(KX_Obstacle *activeObst,
 
     for (int i = 0; i < obstacles.size(); ++i) {
       KX_Obstacle *ob = obstacles[i];
-      bool res = filterObstacle(activeObst, activeNavMeshObj, ob, levelHeight);
-      if (!res)
+      bool found = filterObstacle(activeObst, activeNavMeshObj, ob, levelHeight);
+      if (!found)
         continue;
       float htmin, htmax;
 
@@ -771,7 +771,6 @@ void KX_ObstacleSimulationTOI_cells::sampleRVO(KX_Obstacle *activeObst,
   if (!m_adaptive) {
     const float cvx = activeObst->dvel[0] * m_bias;
     const float cvy = activeObst->dvel[1] * m_bias;
-    float vmax = len_v2(activeObst->dvel);
     const float vrange = vmax * (1 - m_bias);
     const float cs = 1.0f / (float)m_sampleRadius * vrange;
 
