@@ -388,7 +388,6 @@ EXP_PYMETHODDEF_DOC(KX_BlenderMaterial, getShader, "getShader()")
   if (!m_shader) {
     m_shader.reset(new KX_MaterialShader());
     // Set the material to use custom shader.
-    m_flag &= ~RAS_BLENDERGLSL;
     m_scene->GetBucketManager()->UpdateShaders(this);
   }
 
