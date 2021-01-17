@@ -468,6 +468,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
         animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
         ED_node_tag_update_nodetree(bmain, nodetree, nullptr);
         scene->ResetTaaSamples();
+        break;
       }
     }
     FOREACH_NODETREE_END;
