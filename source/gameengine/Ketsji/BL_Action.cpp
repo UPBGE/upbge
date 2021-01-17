@@ -489,7 +489,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
         if (m_blendin && m_blendframe < m_blendin) {
           IncrementBlending(curtime);
 
-          float weight = 1.f - (m_blendframe / m_blendin);
+          // float weight = 1.f - (m_blendframe / m_blendin);
 
           // We go through and clear out the keyblocks so there isn't any interference
           // from other shape actions
@@ -499,7 +499,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
           }
 
           // Now blend the shape
-          BlendShape(key, weight, m_blendinshape);
+          // BlendShape(key, weight, m_blendinshape);
         }
         //// Handle layer blending
         // if (m_layer_weight >= 0) {
