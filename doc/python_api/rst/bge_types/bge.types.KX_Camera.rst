@@ -75,12 +75,6 @@ base class --- :class:`KX_GameObject`
 
       :type: boolean
 
-   .. attribute:: frustum_culling
-
-      True if this camera is frustum culling.
-
-      :type: boolean
-
    .. attribute:: projection_matrix
 
       This camera's 4x4 projection matrix.

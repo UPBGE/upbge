@@ -543,7 +543,7 @@ KX_KetsjiEngine::CameraRenderData KX_KetsjiEngine::GetCameraRenderData(
    * and its name is based on with the eye number in addition.
    */
   if (usestereo) {
-    rendercam = new KX_Camera(scene, scene->m_callbacks, *camera->GetCameraData(), true, true);
+    rendercam = new KX_Camera(scene, scene->m_callbacks, *camera->GetCameraData(), true);
     rendercam->SetName("__stereo_" + camera->GetName() + "_" + std::to_string(eye) + "__");
     rendercam->NodeSetGlobalOrientation(camera->NodeGetWorldOrientation());
     rendercam->NodeSetWorldPosition(camera->NodeGetWorldPosition());

@@ -97,12 +97,6 @@ class KX_Camera : public KX_GameObject {
   MT_Vector4 m_planes[6];
 
   /**
-   * This camera is frustum culling.
-   * Some cameras (ie if the game was started from a non camera view should not cull.)
-   */
-  bool m_frustum_culling;
-
-  /**
    * true if this camera has a valid projection matrix.
    */
   bool m_set_projection_matrix;
@@ -130,7 +124,6 @@ class KX_Camera : public KX_GameObject {
   KX_Camera(void *sgReplicationInfo,
             SG_Callbacks callbacks,
             const RAS_CameraData &camdata,
-            bool frustum_culling = true,
             bool delete_node = false);
   virtual ~KX_Camera();
 
@@ -205,11 +198,6 @@ class KX_Camera : public KX_GameObject {
   void SetLodDistanceFactor(float lodfactor);
 
   const SG_Frustum &GetFrustum();
-
-  /**
-   * Gets this camera's culling status.
-   */
-  bool GetFrustumCulling() const;
 
   /**
    * Sets this camera's viewport status.

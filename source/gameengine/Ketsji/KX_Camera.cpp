@@ -43,14 +43,12 @@
 KX_Camera::KX_Camera(void *sgReplicationInfo,
                      SG_Callbacks callbacks,
                      const RAS_CameraData &camdata,
-                     bool frustum_culling,
                      bool delete_node)
     : KX_GameObject(sgReplicationInfo, callbacks),
       m_camdata(camdata),
       m_gpuViewport(nullptr),  // eevee
       m_dirty(true),
       m_normalized(false),
-      m_frustum_culling(frustum_culling),
       m_set_projection_matrix(false),
       m_delete_node(delete_node),
       m_lodDistanceFactor(1.0f),
@@ -267,11 +265,6 @@ const SG_Frustum &KX_Camera::GetFrustum()
   return m_frustum;
 }
 
-bool KX_Camera::GetFrustumCulling() const
-{
-  return m_frustum_culling;
-}
-
 void KX_Camera::EnableViewport(bool viewport)
 {
   InvalidateProjectionMatrix(false);  // We need to reset projection matrix
@@ -331,7 +324,6 @@ PyMethodDef KX_Camera::Methods[] = {
 
 PyAttributeDef KX_Camera::Attributes[] = {
 
-    EXP_PYATTRIBUTE_BOOL_RW("frustum_culling", KX_Camera, m_frustum_culling),
     EXP_PYATTRIBUTE_RW_FUNCTION(
         "perspective", KX_Camera, pyattr_get_perspective, pyattr_set_perspective),
 
