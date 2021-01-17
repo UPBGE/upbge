@@ -838,7 +838,6 @@ RAS_MeshObject *BL_BlenderConverter::ConvertMeshSpecial(KX_Scene *kx_scene,
 
       // if its tagged its a replaced material
       if (mat_old && (mat_old->id.tag & LIB_TAG_DOIT) == 0) {
-        Material *mat_old = mesh->mat[i];
         Material *mat_new = (Material *)BKE_id_copy(from_maggie, &mat_old->id);
 
         mat_new->id.tag |= LIB_TAG_DOIT;
