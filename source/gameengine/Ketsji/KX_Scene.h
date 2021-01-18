@@ -480,7 +480,7 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
   static SG_Callbacks m_callbacks;
 
   /// Update the mesh for objects based on level of detail settings
-  void UpdateObjectLods(KX_Camera *cam /*, const KX_CullingNodeList& nodes*/);
+  void UpdateObjectLods(KX_Camera *cam);
 
   // LoD Hysteresis functions
   void SetLodHysteresis(bool active);

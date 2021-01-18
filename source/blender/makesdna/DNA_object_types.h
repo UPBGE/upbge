@@ -414,6 +414,7 @@ typedef struct Object {
   /** Contains data for levels of detail. */
   ListBase lodlevels;
   LodLevel *currentlod;
+  float lodfactor, _pad4[1];
 
   /* settings for game engine bullet soft body */
   struct BulletSoftBody *bsoft;

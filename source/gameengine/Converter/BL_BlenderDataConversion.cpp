@@ -660,6 +660,8 @@ static KX_Camera *BL_gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene)
   gamecamera = new KX_Camera(kxscene, KX_Scene::m_callbacks, camdata);
   gamecamera->SetName(ca->id.name + 2);
 
+  gamecamera->SetLodDistanceFactor(ca->lodfactor);
+
   // kxscene->SetOverrideCullingCamera(gamecamera);
 
   return gamecamera;

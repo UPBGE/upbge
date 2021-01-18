@@ -142,6 +142,22 @@ class DATA_PT_lens(CameraButtonsPanel, Panel):
         sub.prop(cam, "clip_end", text="End")
 
 
+class DATA_PT_levels_of_detail(CameraButtonsPanel, Panel):
+    bl_label = "Levels of Detail"
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.camera and context.engine in cls.COMPAT_ENGINES
+
+    def draw(self, context):
+        layout = self.layout
+        cam = context.camera
+
+        col = layout.column()
+        col.prop(cam, "lod_factor", text="Distance Factor")
+
+
 class DATA_PT_camera_stereoscopy(CameraButtonsPanel, Panel):
     bl_label = "Stereoscopy"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
@@ -530,6 +546,7 @@ classes = (
     DATA_PT_camera_dof,
     DATA_PT_camera_dof_aperture,
     DATA_PT_camera,
+    DATA_PT_levels_of_detail,
     DATA_PT_camera_stereoscopy,
     DATA_PT_camera_safe_areas,
     DATA_PT_camera_safe_areas_center_cut,

@@ -103,6 +103,7 @@ typedef struct Camera {
   float lens, ortho_scale, drawsize;
   float sensor_x, sensor_y;
   float shiftx, shifty;
+  float lodfactor, _pad1[1]; /* UPBGE Transition */
   float dof_distance DNA_DEPRECATED;
 
   /** Old animation system, deprecated for 2.5. */

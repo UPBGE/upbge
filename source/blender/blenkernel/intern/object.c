@@ -217,6 +217,7 @@ static void object_init_data(ID *id)
   ob->col_mask = 0xffff;
   ob->ccd_motion_threshold = 1.0f;
   ob->ccd_swept_sphere_radius = 0.9f;
+  ob->lodfactor = 1.0f;
 
   /* Animation Visualization defaults */
   animviz_settings_init(&ob->avs);

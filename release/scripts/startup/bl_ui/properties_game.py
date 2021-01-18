@@ -564,11 +564,12 @@ class OBJECT_MT_lod_tools(Menu):
 
 class OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
     bl_label = "Levels of Detail"
-    COMPAT_ENGINES = {'BLENDER_GAME', 'BLENDER_EEVEE'}
+    COMPAT_ENGINES = {'BLENDER_GAME', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
 
     @classmethod
     def poll(cls, context):
-        return context.engine in cls.COMPAT_ENGINES
+        ob = context.object
+        return context.engine in cls.COMPAT_ENGINES and ob.type not in {'CAMERA', 'EMPTY', 'LIGHT'}
 
     def draw(self, context):
         layout = self.layout
@@ -576,6 +577,7 @@ class OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
         gs = context.scene.game_settings
 
         col = layout.column()
+        col.prop(ob, "lod_factor", text="Distance Factor")
 
         for i, level in enumerate(ob.lod_levels):
             if i == 0:

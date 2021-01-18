@@ -100,7 +100,7 @@ KX_LodManager::KX_LodManager(Object *ob,
                              BL_BlenderSceneConverter *converter,
                              bool libloading,
                              bool converting_during_runtime)
-    : m_refcount(1), m_distanceFactor(1.0f)
+    : m_refcount(1), m_distanceFactor(ob->lodfactor)
 {
   if (BLI_listbase_count_at_most(&ob->lodlevels, 2) > 1) {
     Mesh *lodmesh = (Mesh *)ob->data;

@@ -2265,13 +2265,13 @@ RAS_MaterialBucket *KX_Scene::FindBucket(class RAS_IPolyMaterial *polymat, bool 
   return m_bucketmanager->FindBucket(polymat, bucketCreated);
 }
 
-void KX_Scene::UpdateObjectLods(KX_Camera *cam /*, const KX_CullingNodeList& nodes*/)
+void KX_Scene::UpdateObjectLods(KX_Camera *cam)
 {
   const MT_Vector3 &cam_pos = cam->NodeGetWorldPosition();
   const float lodfactor = cam->GetLodDistanceFactor();
 
   for (KX_GameObject *gameobj : m_kxobWithLod) {
-    gameobj->UpdateLod(cam_pos, 1.0f /*lodfactor*/);
+    gameobj->UpdateLod(cam_pos, lodfactor);
   }
 }
 

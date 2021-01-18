@@ -228,4 +228,17 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
     }
   }
 
+  if (!MAIN_VERSION_UPBGE_ATLEAST(main, 30, 4)) {
+    if (!DNA_struct_elem_find(fd->filesdna, "Object", "float", "lodfactor")) {
+      LISTBASE_FOREACH (Object *, object, &main->objects) {
+        object->lodfactor = 1.0f;
+      }
+    }
+    if (!DNA_struct_elem_find(fd->filesdna, "Camera", "float", "lodfactor")) {
+      LISTBASE_FOREACH (Camera *, camera, &main->cameras) {
+        camera->lodfactor = 1.0f;
+      }
+    }
+  }
+
 }
