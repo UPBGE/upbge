@@ -181,12 +181,10 @@ static void logic_refresh(const bContext *UNUSED(C), ScrArea *UNUSED(sa))
   //	Object *obedit= CTX_data_edit_object(C);
 }
 
-static void logic_listener(wmWindow *UNUSED(win),
-                           ScrArea *UNUSED(sa),
-                           ARegion *ar,
-                           wmNotifier *wmn,
-                           const Scene *UNUSED(scene))
+static void logic_listener(const wmRegionListenerParams *params)
 {
+  ARegion *ar = params->region;
+  wmNotifier *wmn = params->notifier;
   /* context changes */
   switch (wmn->category) {
     case NC_LOGIC:
