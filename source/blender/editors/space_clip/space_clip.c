@@ -229,7 +229,7 @@ static void clip_scopes_check_gpencil_change(ScrArea *area)
   }
 }
 
-static void clip_area_sync_frame_from_scene(ScrArea *area, Scene *scene)
+static void clip_area_sync_frame_from_scene(ScrArea *area, const Scene *scene)
 {
   SpaceClip *space_clip = (SpaceClip *)area->spacedata.first;
   BKE_movieclip_user_set_frame(&space_clip->user, scene->r.cfra);
@@ -334,8 +334,12 @@ static SpaceLink *clip_duplicate(SpaceLink *sl)
   return (SpaceLink *)scn;
 }
 
-static void clip_listener(wmWindow *UNUSED(win), ScrArea *area, wmNotifier *wmn, Scene *scene)
+static void clip_listener(const wmSpaceTypeListenerParams *params)
 {
+  ScrArea *area = params->area;
+  wmNotifier *wmn = params->notifier;
+  const Scene *scene = params->scene;
+
   /* context changes */
   switch (wmn->category) {
     case NC_SCENE:
@@ -514,6 +518,7 @@ static void clip_operatortypes(void)
   /* clean-up */
   WM_operatortype_append(CLIP_OT_clear_track_path);
   WM_operatortype_append(CLIP_OT_join_tracks);
+  WM_operatortype_append(CLIP_OT_average_tracks);
   WM_operatortype_append(CLIP_OT_track_copy_color);
 
   WM_operatortype_append(CLIP_OT_clean_tracks);
@@ -880,7 +885,8 @@ static void clip_main_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_STANDARD, region->winx, region->winy);
+  /* NOTE: don't use `UI_view2d_region_reinit(&region->v2d, ...)`
+   * since the space clip manages own v2d in #movieclip_main_area_set_view2d */
 
   /* mask polls mode */
   keymap = WM_keymap_ensure(wm->defaultconf, "Mask Editing", 0, 0);
@@ -1003,12 +1009,11 @@ static void clip_main_region_draw(const bContext *C, ARegion *region)
   WM_gizmomap_draw(region->gizmo_map, C, WM_GIZMOMAP_DRAWSTEP_2D);
 }
 
-static void clip_main_region_listener(wmWindow *UNUSED(win),
-                                      ScrArea *UNUSED(area),
-                                      ARegion *region,
-                                      wmNotifier *wmn,
-                                      const Scene *UNUSED(scene))
+static void clip_main_region_listener(const wmRegionListenerParams *params)
 {
+  ARegion *region = params->region;
+  wmNotifier *wmn = params->notifier;
+
   /* context changes */
   switch (wmn->category) {
     case NC_GPENCIL:
@@ -1139,11 +1144,7 @@ static void clip_preview_region_draw(const bContext *C, ARegion *region)
   }
 }
 
-static void clip_preview_region_listener(wmWindow *UNUSED(win),
-                                         ScrArea *UNUSED(area),
-                                         ARegion *UNUSED(region),
-                                         wmNotifier *UNUSED(wmn),
-                                         const Scene *UNUSED(scene))
+static void clip_preview_region_listener(const wmRegionListenerParams *UNUSED(params))
 {
 }
 
@@ -1184,11 +1185,7 @@ static void clip_channels_region_draw(const bContext *C, ARegion *region)
   UI_view2d_view_restore(C);
 }
 
-static void clip_channels_region_listener(wmWindow *UNUSED(win),
-                                          ScrArea *UNUSED(area),
-                                          ARegion *UNUSED(region),
-                                          wmNotifier *UNUSED(wmn),
-                                          const Scene *UNUSED(scene))
+static void clip_channels_region_listener(const wmRegionListenerParams *UNUSED(params))
 {
 }
 
@@ -1205,12 +1202,11 @@ static void clip_header_region_draw(const bContext *C, ARegion *region)
   ED_region_header(C, region);
 }
 
-static void clip_header_region_listener(wmWindow *UNUSED(win),
-                                        ScrArea *UNUSED(area),
-                                        ARegion *region,
-                                        wmNotifier *wmn,
-                                        const Scene *UNUSED(scene))
+static void clip_header_region_listener(const wmRegionListenerParams *params)
 {
+  ARegion *region = params->region;
+  wmNotifier *wmn = params->notifier;
+
   /* context changes */
   switch (wmn->category) {
     case NC_SCENE:
@@ -1248,12 +1244,11 @@ static void clip_tools_region_draw(const bContext *C, ARegion *region)
 
 /****************** tool properties region ******************/
 
-static void clip_props_region_listener(wmWindow *UNUSED(win),
-                                       ScrArea *UNUSED(area),
-                                       ARegion *region,
-                                       wmNotifier *wmn,
-                                       const Scene *UNUSED(scene))
+static void clip_props_region_listener(const wmRegionListenerParams *params)
 {
+  ARegion *region = params->region;
+  wmNotifier *wmn = params->notifier;
+
   /* context changes */
   switch (wmn->category) {
     case NC_WM:
@@ -1301,12 +1296,11 @@ static void clip_properties_region_draw(const bContext *C, ARegion *region)
   ED_region_panels(C, region);
 }
 
-static void clip_properties_region_listener(wmWindow *UNUSED(win),
-                                            ScrArea *UNUSED(area),
-                                            ARegion *region,
-                                            wmNotifier *wmn,
-                                            const Scene *UNUSED(scene))
+static void clip_properties_region_listener(const wmRegionListenerParams *params)
 {
+  ARegion *region = params->region;
+  wmNotifier *wmn = params->notifier;
+
   /* context changes */
   switch (wmn->category) {
     case NC_GPENCIL:
