@@ -630,7 +630,6 @@ void RNA_def_camera(BlenderRNA *brna)
   prop = RNA_def_property(srna, "lod_factor", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "lodfactor");
   RNA_def_property_range(prop, 0.0f, FLT_MAX);
-  RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_ui_text(prop, "Level of Detail Distance Factor", "The factor applied to distance computed in Lod");
   RNA_def_property_update(prop, NC_OBJECT | ND_LOD, NULL);
 
