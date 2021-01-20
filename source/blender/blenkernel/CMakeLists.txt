@@ -307,6 +307,8 @@ set(SRC
   BKE_constraint.h
   BKE_context.h
   BKE_crazyspace.h
+  BKE_cryptomatte.h
+  BKE_cryptomatte.hh
   BKE_curve.h
   BKE_curveprofile.h
   BKE_customdata.h
@@ -370,6 +372,7 @@ set(SRC
   BKE_mesh_remesh_voxel.h
   BKE_mesh_runtime.h
   BKE_mesh_tangent.h
+  BKE_mesh_types.h
   BKE_mesh_wrapper.h
   BKE_modifier.h
   BKE_movieclip.h
