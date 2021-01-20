@@ -1602,8 +1602,7 @@ static void direct_link_area(BlendDataReader *reader, ScrArea *area)
 
       BLO_read_list(reader, &snode->treepath);
       snode->edittree = NULL;
-      snode->iofsd = NULL;
-      BLI_listbase_clear(&snode->linkdrag);
+      snode->runtime = NULL;
     }
     else if (sl->spacetype == SPACE_LOGIC) {
       SpaceLogic *slogic = (SpaceLogic *)sl;
