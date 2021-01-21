@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include "PHY_IConstraint.h"
 
 class btTypedConstraint;
@@ -34,4 +33,3 @@ class CcdConstraint : public PHY_IConstraint {
   virtual int GetIdentifier() const;
   virtual PHY_ConstraintType GetType() const;
 };
-

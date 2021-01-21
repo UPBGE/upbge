@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include "EXP_PyObjectPlus.h"
 
 class SCA_PythonKeyboard : public EXP_PyObjectPlus {
@@ -46,4 +45,3 @@ class SCA_PythonKeyboard : public EXP_PyObjectPlus {
   static PyObject *pyattr_get_text(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
-

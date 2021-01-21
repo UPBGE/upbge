@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include <vector>
 
 #include "MT_Transform.h"
@@ -80,4 +79,3 @@ class RAS_BucketManager {
     return m_buckets[ALL_BUCKET];
   }
 };
-

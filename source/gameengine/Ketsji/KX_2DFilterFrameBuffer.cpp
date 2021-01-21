@@ -130,12 +130,12 @@ PyObject *KX_2DFilterFrameBuffer::pyattr_get_colorBindCodes(EXP_PyObjectPlus *se
   KX_2DFilterFrameBuffer *self = static_cast<KX_2DFilterFrameBuffer *>(self_v);
 
   return (new EXP_ListWrapper(self_v,
-                           self->GetProxy(),
-                           nullptr,
-                           kx_2dfilter_framebuffer_get_textures_size_cb,
-                           kx_2dfilter_framebuffer_get_textures_item_cb,
-                           nullptr,
-                           nullptr))
+                              self->GetProxy(),
+                              nullptr,
+                              kx_2dfilter_framebuffer_get_textures_size_cb,
+                              kx_2dfilter_framebuffer_get_textures_item_cb,
+                              nullptr,
+                              nullptr))
       ->NewProxy(true);
 }
 

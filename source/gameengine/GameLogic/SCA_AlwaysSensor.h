@@ -34,7 +34,6 @@
 
 #pragma once
 
-
 #include "SCA_ISensor.h"
 
 class SCA_AlwaysSensor : public SCA_ISensor {
@@ -48,4 +47,3 @@ class SCA_AlwaysSensor : public SCA_ISensor {
   virtual bool IsPositiveTrigger();
   virtual void Init();
 };
-

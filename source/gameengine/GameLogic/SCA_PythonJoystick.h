@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include "EXP_Value.h"
 
 class SCA_PythonJoystick : public EXP_Value {
@@ -46,8 +45,10 @@ class SCA_PythonJoystick : public EXP_Value {
   static PyObject *pyattr_get_num_x(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_active_buttons(EXP_PyObjectPlus *self_v,
                                              const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_hat_values(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_axis_values(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_hat_values(EXP_PyObjectPlus *self_v,
+                                         const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_axis_values(EXP_PyObjectPlus *self_v,
+                                          const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 
   EXP_PYMETHOD_DOC_NOARGS(SCA_PythonJoystick, startVibration);
@@ -59,4 +60,3 @@ class SCA_PythonJoystick : public EXP_Value {
                                            const struct EXP_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
-

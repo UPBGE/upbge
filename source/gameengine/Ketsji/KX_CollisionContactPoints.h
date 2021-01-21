@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include "EXP_ListWrapper.h"
 #include "EXP_Value.h"
 
@@ -52,7 +51,8 @@ class KX_CollisionContactPoint : public EXP_Value {
                                             const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_local_point_b(EXP_PyObjectPlus *self_v,
                                             const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_world_point(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_world_point(EXP_PyObjectPlus *self_v,
+                                          const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_normal(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_combined_friction(EXP_PyObjectPlus *self_v,
                                                 const EXP_PYATTRIBUTE_DEF *attrdef);
@@ -86,4 +86,3 @@ class KX_CollisionContactPointList {
   const PHY_CollData *GetCollData();
   bool GetFirstObject();
 };
-

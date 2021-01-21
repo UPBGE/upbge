@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include "EXP_PyObjectPlus.h"
 #include "RAS_2DFilterManager.h"
 
@@ -45,4 +44,3 @@ class KX_2DFilterManager : public RAS_2DFilterManager, public EXP_PyObjectPlus {
 
 #endif  // WITH_PYTHON
 };
-

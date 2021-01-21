@@ -51,7 +51,6 @@
 
 #pragma once
 
-
 class SG_Node;
 
 class SG_ParentRelation {
@@ -112,4 +111,3 @@ class SG_ParentRelation {
    */
   SG_ParentRelation(const SG_ParentRelation &);
 };
-

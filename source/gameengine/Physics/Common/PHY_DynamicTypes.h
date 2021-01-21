@@ -22,7 +22,6 @@
 
 #pragma once
 
-
 #include "MT_Vector3.h"
 
 struct KX_ClientObjectInfo;
@@ -109,4 +108,3 @@ typedef enum PHY_SolverType {
   PHY_SOLVER_SEQUENTIAL,
   PHY_SOLVER_NNCG,
 } PHY_SolverType;
-

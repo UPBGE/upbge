@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include <array>
 #include <memory>
 #include <string>
@@ -154,4 +153,3 @@ class RAS_DebugDraw {
 
   void Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas);
 };
-

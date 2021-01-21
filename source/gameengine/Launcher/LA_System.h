@@ -28,7 +28,6 @@
 
 #pragma once
 
-
 #include "KX_ISystem.h"
 
 class LA_System : public KX_ISystem {
@@ -41,4 +40,3 @@ class LA_System : public KX_ISystem {
 
   virtual double GetTimeInSeconds();
 };
-

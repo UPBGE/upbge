@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 void BL_ConvertSensors(struct Object *blenderobject,
                        class KX_GameObject *gameobj,
                        class SCA_LogicManager *logicmgr,
@@ -41,4 +40,3 @@ void BL_ConvertSensors(struct Object *blenderobject,
                        bool isInActiveLayer,
                        class RAS_ICanvas *canvas,
                        class BL_BlenderSceneConverter *converter);
-

@@ -31,7 +31,6 @@
  */
 #pragma once
 
-
 #include "SCA_ISensor.h"
 
 class KX_NetworkMessageScene;
@@ -79,8 +78,8 @@ class KX_NetworkMessageSensor : public SCA_ISensor {
 
   /* attributes */
   static PyObject *pyattr_get_bodies(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_subjects(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_subjects(EXP_PyObjectPlus *self_v,
+                                       const EXP_PYATTRIBUTE_DEF *attrdef);
 
 #endif /* WITH_PYTHON */
 };
-

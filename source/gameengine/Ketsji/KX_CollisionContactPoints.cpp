@@ -134,8 +134,8 @@ PyObject *KX_CollisionContactPoint::pyattr_get_normal(EXP_PyObjectPlus *self_v,
   return PyObjectFrom(self->m_collData->GetNormal(self->m_index, self->m_firstObject));
 }
 
-PyObject *KX_CollisionContactPoint::pyattr_get_combined_friction(EXP_PyObjectPlus *self_v,
-                                                                 const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_CollisionContactPoint::pyattr_get_combined_friction(
+    EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_CollisionContactPoint *self = static_cast<KX_CollisionContactPoint *>(self_v);
   return PyFloat_FromDouble(
@@ -193,12 +193,12 @@ static PyObject *kx_collision_contact_point_list_get_sensors_item_cb(void *self_
 EXP_ListWrapper *KX_CollisionContactPointList::GetListWrapper()
 {
   return (new EXP_ListWrapper(this,
-                           nullptr,  // No base python proxy.
-                           nullptr,
-                           kx_collision_contact_point_list_get_sensors_size_cb,
-                           kx_collision_contact_point_list_get_sensors_item_cb,
-                           nullptr,
-                           nullptr));
+                              nullptr,  // No base python proxy.
+                              nullptr,
+                              kx_collision_contact_point_list_get_sensors_size_cb,
+                              kx_collision_contact_point_list_get_sensors_item_cb,
+                              nullptr,
+                              nullptr));
 }
 
 #endif  // WITH_PYTHON

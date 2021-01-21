@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "KX_IInterpolator.h"
 #include "KX_IPOTransform.h"
 #include "SG_Controller.h"
@@ -114,4 +113,3 @@ class KX_IpoSGController : public SG_Controller {
     m_modified = true;
   }
 };
-

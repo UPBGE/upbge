@@ -32,7 +32,6 @@
 
 #pragma once
 
-
 #include "EXP_PyObjectPlus.h"
 #include "EXP_Python.h"
 #include "MT_Matrix3x3.h"
@@ -294,4 +293,3 @@ PyObject *PyObjectFrom(const MT_Vector4 &pos);
 PyObject *PyColorFromVector(const MT_Vector3 &vec);
 
 #endif  // WITH_PYTHON
-

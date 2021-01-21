@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #ifdef WITH_GAMEENGINE_DECKLINK
 
 #  include "EXP_PyObjectPlus.h"
@@ -78,4 +77,3 @@ HRESULT decklink_ReadDisplayMode(const char *format, size_t len, BMDDisplayMode 
 HRESULT decklink_ReadPixelFormat(const char *format, size_t len, BMDPixelFormat *displayMode);
 
 #endif /* WITH_GAMEENGINE_DECKLINK */
-

@@ -32,7 +32,6 @@
 
 #include "ImageRender.h"
 
-
 #include "KX_Globals.h"
 #include "RAS_IVertex.h"
 #include "RAS_MeshObject.h"
@@ -119,9 +118,11 @@ void ImageRender::calcViewport(unsigned int texId, double ts, unsigned int forma
   m_done = false;
 
   const RAS_Rect *viewport = &m_canvas->GetViewportArea();
-  GPU_viewport(viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth(), viewport->GetHeight());
+  GPU_viewport(
+      viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth(), viewport->GetHeight());
   GPU_scissor_test(true);
-  GPU_scissor(viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth(), viewport->GetHeight());
+  GPU_scissor(
+      viewport->GetLeft(), viewport->GetBottom(), viewport->GetWidth(), viewport->GetHeight());
   GPU_apply_state();
 
   GPU_framebuffer_texture_attach(

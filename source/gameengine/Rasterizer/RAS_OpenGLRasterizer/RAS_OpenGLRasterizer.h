@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #ifdef _MSC_VER
 #  pragma warning(disable : 4786)
 #endif
@@ -114,4 +113,3 @@ class RAS_OpenGLRasterizer {
 
   const unsigned char *GetGraphicsCardVendor();
 };
-

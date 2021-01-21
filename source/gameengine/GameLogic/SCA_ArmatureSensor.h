@@ -32,7 +32,6 @@
 
 #pragma once
 
-
 struct bConstraint;
 
 #include "DNA_sensor_types.h"
@@ -85,4 +84,3 @@ class SCA_ArmatureSensor : public SCA_ISensor {
   bool m_result;
   bool m_lastresult;
 };
-

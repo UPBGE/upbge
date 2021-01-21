@@ -188,7 +188,6 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     BKE_undosys_step_push(CTX_wm_manager(C)->undo_stack, C, "bge_start");
   }
 
-
   wmWindowManager *wm_backup = CTX_wm_manager(C);
   wmWindow *win_backup = CTX_wm_window(C);
   void *msgbus_backup = wm_backup->message_bus;

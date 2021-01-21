@@ -32,7 +32,6 @@
 
 #pragma once
 
-
 #include <string>
 #include <vector>
 
@@ -275,7 +274,10 @@ class KX_KetsjiEngine {
   void BeginFrame();
 
  public:
-  KX_KetsjiEngine(KX_ISystem *system, struct bContext *C, bool useViewportRender, int shadingTypeRuntime);
+  KX_KetsjiEngine(KX_ISystem *system,
+                  struct bContext *C,
+                  bool useViewportRender,
+                  int shadingTypeRuntime);
   virtual ~KX_KetsjiEngine();
 
   /******** EEVEE integration *********/
@@ -486,4 +488,3 @@ class KX_KetsjiEngine {
    */
   void Resize();
 };
-

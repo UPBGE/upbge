@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include <stdlib.h>
 
 /**
@@ -251,4 +250,3 @@ template<typename T> class SG_DListHead : public SG_DList {
     return static_cast<T *>(SG_DList::Remove());
   }
 };
-

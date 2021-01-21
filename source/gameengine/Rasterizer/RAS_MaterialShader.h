@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include "RAS_MeshObject.h"  // For RAS_MeshObject::LayersInfo.
 
 class KX_GameObject;
@@ -20,4 +19,3 @@ class RAS_MaterialShader {
   /// Update the shader with mesh user data as model matrix.
   virtual void Update(RAS_Rasterizer *rasty, KX_GameObject *gameobj) = 0;
 };
-

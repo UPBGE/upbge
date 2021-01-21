@@ -32,7 +32,6 @@
 
 #pragma once
 
-
 #include "EXP_ListValue.h"
 #include "KX_ClientObjectInfo.h"
 #include "SCA_ISensor.h"
@@ -130,10 +129,10 @@ class SCA_CollisionSensor : public SCA_ISensor {
   /* Python interface ---------------------------------------------------- */
   /* --------------------------------------------------------------------- */
 
-  static PyObject *pyattr_get_object_hit(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_object_hit(EXP_PyObjectPlus *self_v,
+                                         const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_object_hit_list(EXP_PyObjectPlus *self_v,
                                               const EXP_PYATTRIBUTE_DEF *attrdef);
 
 #endif
 };
-

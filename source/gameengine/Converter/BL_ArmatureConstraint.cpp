@@ -315,7 +315,8 @@ PyAttributeDef BL_ArmatureConstraint::Attributes[] = {
     // py_attr_setattr
     EXP_PYATTRIBUTE_RO_FUNCTION("type", BL_ArmatureConstraint, py_attr_getattr),
     EXP_PYATTRIBUTE_RO_FUNCTION("name", BL_ArmatureConstraint, py_attr_getattr),
-    EXP_PYATTRIBUTE_RW_FUNCTION("enforce", BL_ArmatureConstraint, py_attr_getattr, py_attr_setattr),
+    EXP_PYATTRIBUTE_RW_FUNCTION(
+        "enforce", BL_ArmatureConstraint, py_attr_getattr, py_attr_setattr),
     EXP_PYATTRIBUTE_RW_FUNCTION(
         "headtail", BL_ArmatureConstraint, py_attr_getattr, py_attr_setattr),
     EXP_PYATTRIBUTE_RO_FUNCTION("lin_error", BL_ArmatureConstraint, py_attr_getattr),
@@ -328,8 +329,10 @@ PyAttributeDef BL_ArmatureConstraint::Attributes[] = {
         "ik_weight", BL_ArmatureConstraint, py_attr_getattr, py_attr_setattr),
     EXP_PYATTRIBUTE_RO_FUNCTION("ik_type", BL_ArmatureConstraint, py_attr_getattr),
     EXP_PYATTRIBUTE_RO_FUNCTION("ik_flag", BL_ArmatureConstraint, py_attr_getattr),
-    EXP_PYATTRIBUTE_RW_FUNCTION("ik_dist", BL_ArmatureConstraint, py_attr_getattr, py_attr_setattr),
-    EXP_PYATTRIBUTE_RW_FUNCTION("ik_mode", BL_ArmatureConstraint, py_attr_getattr, py_attr_setattr),
+    EXP_PYATTRIBUTE_RW_FUNCTION(
+        "ik_dist", BL_ArmatureConstraint, py_attr_getattr, py_attr_setattr),
+    EXP_PYATTRIBUTE_RW_FUNCTION(
+        "ik_mode", BL_ArmatureConstraint, py_attr_getattr, py_attr_setattr),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 

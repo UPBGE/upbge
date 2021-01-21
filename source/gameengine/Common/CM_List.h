@@ -28,8 +28,7 @@
 
 #include <algorithm>
 
-template <class Item, class List>
-inline bool CM_ListRemoveIfFound(List& list, const Item& item)
+template<class Item, class List> inline bool CM_ListRemoveIfFound(List &list, const Item &item)
 {
   const typename List::iterator it = std::find(list.begin(), list.end(), item);
   if (it != list.end()) {
@@ -39,8 +38,7 @@ inline bool CM_ListRemoveIfFound(List& list, const Item& item)
   return false;
 }
 
-template <class Item, class List>
-inline bool CM_ListAddIfNotFound(List& list, const Item& item)
+template<class Item, class List> inline bool CM_ListAddIfNotFound(List &list, const Item &item)
 {
   if (std::find(list.begin(), list.end(), item) == list.end()) {
     list.push_back(item);

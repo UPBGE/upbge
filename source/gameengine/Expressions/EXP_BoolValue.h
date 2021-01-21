@@ -18,7 +18,6 @@
 
 #pragma once
 
-
 #include "EXP_Value.h"
 
 /** Smart Boolean Value class.
@@ -50,4 +49,3 @@ class EXP_BoolValue : public EXP_PropValue {
  private:
   bool m_bool;
 };
-

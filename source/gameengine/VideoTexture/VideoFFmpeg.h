@@ -30,7 +30,6 @@
 
 #pragma once
 
-
 #ifdef WITH_FFMPEG
 /* this needs to be parsed with __cplusplus defined before included through ffmpeg_compat.h */
 #  if defined(__FreeBSD__)
@@ -234,4 +233,3 @@ inline VideoFFmpeg *getFFmpeg(PyImage *self)
 }
 
 #endif /* WITH_FFMPEG */
-

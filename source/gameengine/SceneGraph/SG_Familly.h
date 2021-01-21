@@ -34,7 +34,6 @@
 
 #pragma once
 
-
 #include "CM_Thread.h"
 
 class SG_Familly {
@@ -47,4 +46,3 @@ class SG_Familly {
 
   CM_ThreadSpinLock &GetMutex();
 };
-

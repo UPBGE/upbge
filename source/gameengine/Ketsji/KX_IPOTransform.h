@@ -32,7 +32,6 @@
 
 #pragma once
 
-
 #include "MT_Transform.h"
 
 class KX_IPOTransform {
@@ -121,4 +120,3 @@ class KX_IPOTransform {
   MT_Vector3 m_deltaEulerAngles;
   MT_Vector3 m_deltaScaling;
 };
-

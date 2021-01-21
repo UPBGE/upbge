@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "SG_DList.h"
 
 /**
@@ -161,4 +160,3 @@ class SG_QList : public SG_DList {
     return m_bqlink;
   }
 };
-

@@ -34,7 +34,6 @@
 
 #include "SCA_SceneActuator.h"
 
-
 #include "KX_Camera.h"
 #include "KX_Globals.h"
 

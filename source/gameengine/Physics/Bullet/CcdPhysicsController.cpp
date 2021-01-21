@@ -26,13 +26,13 @@
 #include "CcdPhysicsController.h"
 
 #include "../depsgraph/DEG_depsgraph_query.h"
-#include "DNA_mesh_types.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_context.h"
 #include "BKE_layer.h"
 #include "BKE_mesh_runtime.h"
 #include "BKE_object.h"
 #include "BKE_scene.h"
+#include "DNA_mesh_types.h"
 
 #include "BulletCollision/CollisionDispatch/btGhostObject.h"
 #include "BulletCollision/Gimpact/btGImpactShape.h"
@@ -156,7 +156,7 @@ void BlenderBulletCharacterController::SetVelocity(const btVector3 &vel, float t
   setVelocityForTimeInterval(v, time);
 }
 
-void BlenderBulletCharacterController::ReplaceShape(btConvexShape* shape)
+void BlenderBulletCharacterController::ReplaceShape(btConvexShape *shape)
 {
   m_convexShape = shape;
   m_ghostObject->setCollisionShape(m_convexShape);
@@ -299,7 +299,6 @@ btKinematicCharacterController *CcdPhysicsController::GetCharacterController()
   return m_characterController;
 }
 
-
 bool CcdPhysicsController::CreateSoftbody()
 {
   int shapeType = m_cci.m_collisionShape ? m_cci.m_collisionShape->getShapeType() : 0;
@@ -315,7 +314,8 @@ bool CcdPhysicsController::CreateSoftbody()
   btSoftBody *psb = nullptr;
   btSoftBodyWorldInfo &worldInfo = m_cci.m_physicsEnv->GetDynamicsWorld()->getWorldInfo();
 
-  if (m_cci.m_collisionShape->getShapeType() == CONVEX_HULL_SHAPE_PROXYTYPE) { // Disabled in upbge 0.3
+  if (m_cci.m_collisionShape->getShapeType() ==
+      CONVEX_HULL_SHAPE_PROXYTYPE) {  // Disabled in upbge 0.3
     btConvexHullShape *convexHull = (btConvexHullShape *)m_cci.m_collisionShape;
     {
       int nvertices = convexHull->getNumPoints();
@@ -355,8 +355,8 @@ bool CcdPhysicsController::CreateSoftbody()
       /// only deal with meshes that have 1 sub part/component, for now
       if (trimeshshape->getMeshInterface()->getNumSubParts() == 1) {
         unsigned char *vertexBase;
-        //btScalar *scaledVertexBase;
-        //btVector3 localScaling;
+        // btScalar *scaledVertexBase;
+        // btVector3 localScaling;
         PHY_ScalarType vertexType;
         int numverts;
         int vertexstride;
@@ -378,9 +378,12 @@ bool CcdPhysicsController::CreateSoftbody()
           scaledVertexBase[i + 1] = ((const btScalar *)vertexBase)[i + 1] * localScaling.getY();
           scaledVertexBase[i + 2] = ((const btScalar *)vertexBase)[i + 2] * localScaling.getZ();
         }*/
-        psb = btSoftBodyHelpers::CreateFromTriMesh(
-            worldInfo, (btScalar *)vertexBase/*scaledVertexBase*/, (const int *)indexbase, numtris, false);
-        //delete[] scaledVertexBase;
+        psb = btSoftBodyHelpers::CreateFromTriMesh(worldInfo,
+                                                   (btScalar *)vertexBase /*scaledVertexBase*/,
+                                                   (const int *)indexbase,
+                                                   numtris,
+                                                   false);
+        // delete[] scaledVertexBase;
       }
     }
     else {
@@ -438,7 +441,8 @@ bool CcdPhysicsController::CreateSoftbody()
     psb->m_cfg.collisions += btSoftBody::fCollision::CL_SS;
   }
   else {
-    // Flag VF_SS is causing freezes for objects like Suzanne with several "separate parts (head, eyes...)". We use VF_DD to avoid it
+    // Flag VF_SS is causing freezes for objects like Suzanne with several "separate parts (head,
+    // eyes...)". We use VF_DD to avoid it
     psb->m_cfg.collisions += btSoftBody::fCollision::VF_DD;
   }
 
@@ -789,17 +793,17 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
   // sync non-static to motionstate, and static from motionstate (todo: add kinematic etc.)
 
   btSoftBody *sb = GetSoftBody();
-  if (sb) { // EXPERIMENTAL
+  if (sb) {  // EXPERIMENTAL
     if (sb->m_pose.m_bframe) {
-      //btVector3 worldPos = sb->m_pose.m_com;
-      //btQuaternion worldquat;
-      //btMatrix3x3 trs = sb->m_pose.m_rot * sb->m_pose.m_scl;
-      //trs.getRotation(worldquat);
+      // btVector3 worldPos = sb->m_pose.m_com;
+      // btQuaternion worldquat;
+      // btMatrix3x3 trs = sb->m_pose.m_rot * sb->m_pose.m_scl;
+      // trs.getRotation(worldquat);
       /*btVector3 aabbMin, aabbMax;
       sb->getAabb(aabbMin, aabbMax);
       btVector3 worldPos = (aabbMax + aabbMin) * 0.5f;*/
       m_MotionState->SetWorldPosition(ToMoto(sb->m_pose.m_com));
-      //m_MotionState->SetWorldOrientation(ToMoto(worldquat));
+      // m_MotionState->SetWorldOrientation(ToMoto(worldquat));
     }
     else {
       /*btVector3 aabbMin, aabbMax;
@@ -1802,7 +1806,8 @@ bool CcdPhysicsController::IsPhysicsSuspended()
  */
 bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj,
                                                   RAS_MeshObject *from_meshobj,
-                                                  bool dupli, bool evaluatedMesh)
+                                                  bool dupli,
+                                                  bool evaluatedMesh)
 {
   if (m_shapeInfo->m_shapeType != PHY_SHAPE_MESH)
     return false;
@@ -1833,8 +1838,7 @@ bool CcdPhysicsController::ReplacePhysicsShape(PHY_IPhysicsController *phyctrl)
                                     PHY_SHAPE_COMPOUND,
                                     PHY_SHAPE_PROXY,
                                     PHY_SHAPE_EMPTY,
-                                    PHY_SHAPE_MESH))
-  {
+                                    PHY_SHAPE_MESH)) {
     return false;
   }
 

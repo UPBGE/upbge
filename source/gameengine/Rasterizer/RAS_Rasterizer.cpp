@@ -252,14 +252,14 @@ void RAS_Rasterizer::SetAmbientColor(const MT_Vector3 &color)
 
 void RAS_Rasterizer::Init(RAS_ICanvas *canvas)
 {
-  //GPU_state_init();
+  // GPU_state_init();
 
   /*Disable(RAS_BLEND);
   Disable(RAS_ALPHA_TEST);*/
 
-  //SetFrontFace(true);
+  // SetFrontFace(true);
 
-  //SetColorMask(true, true, true, true);
+  // SetColorMask(true, true, true, true);
   GPU_color_mask(true, true, true, true);
 
   /* Here we set RAS_FrameBuffers width and height very early in ge launching process
@@ -272,13 +272,13 @@ void RAS_Rasterizer::Init(RAS_ICanvas *canvas)
 
 void RAS_Rasterizer::Exit()
 {
-  //SetClearDepth(1.0f);
-  //SetColorMask(true, true, true, true);
+  // SetClearDepth(1.0f);
+  // SetColorMask(true, true, true, true);
   GPU_color_mask(true, true, true, true);
 
-  //SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+  // SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
-  //Clear(RAS_COLOR_BUFFER_BIT | RAS_DEPTH_BUFFER_BIT);
+  // Clear(RAS_COLOR_BUFFER_BIT | RAS_DEPTH_BUFFER_BIT);
 
   GPU_clear_color(0.0f, 0.0f, 0.0f, 0.0f);
   GPU_clear_depth(1.0f);
@@ -292,7 +292,7 @@ void RAS_Rasterizer::BeginFrame(double time)
 
   GPU_matrix_reset();
 
-  //SetFrontFace(true);
+  // SetFrontFace(true);
 
   m_impl->BeginFrame();
 
@@ -307,7 +307,7 @@ void RAS_Rasterizer::EndFrame()
 {
   SetColorMask(true, true, true, true);
 
-  //Disable(RAS_MULTISAMPLE);
+  // Disable(RAS_MULTISAMPLE);
 }
 
 void RAS_Rasterizer::SetShadowMode(RAS_Rasterizer::ShadowType shadowmode)
@@ -397,8 +397,10 @@ void RAS_Rasterizer::DrawFrameBuffer(RAS_ICanvas *canvas, RAS_FrameBuffer *frame
   Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
   GPU_scissor_test(true);
   const RAS_Rect &viewport = canvas->GetViewportArea();
-  GPU_viewport(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
-  GPU_scissor(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
+  GPU_viewport(
+      viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
+  GPU_scissor(
+      viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
   GPU_apply_state();
 
   GPU_framebuffer_restore();
@@ -847,12 +849,12 @@ void RAS_Rasterizer::SetInvertFrontFace(bool invert)
 
 void RAS_Rasterizer::SetAnisotropicFiltering(short level)
 {
-  //GPU_set_anisotropic_((float)level);
+  // GPU_set_anisotropic_((float)level);
 }
 
 short RAS_Rasterizer::GetAnisotropicFiltering()
 {
-  return false; //(short)GPU_get_anisotropic();
+  return false;  //(short)GPU_get_anisotropic();
 }
 
 void RAS_Rasterizer::SetMipmapping(MipmapOption val)
@@ -860,22 +862,19 @@ void RAS_Rasterizer::SetMipmapping(MipmapOption val)
   /*bContext *C = KX_GetActiveEngine()->GetContext();
   Main *bmain = CTX_data_main(C);*/
   switch (val) {
-    case RAS_Rasterizer::RAS_MIPMAP_LINEAR:
-    {
-      //GPU_set_linear_mipmap(1);
-      //GPU_set_mipmap(bmain, 1);
+    case RAS_Rasterizer::RAS_MIPMAP_LINEAR: {
+      // GPU_set_linear_mipmap(1);
+      // GPU_set_mipmap(bmain, 1);
       break;
     }
-    case RAS_Rasterizer::RAS_MIPMAP_NEAREST:
-    {
-      //GPU_set_linear_mipmap(0);
-      //GPU_set_mipmap(bmain, 1);
+    case RAS_Rasterizer::RAS_MIPMAP_NEAREST: {
+      // GPU_set_linear_mipmap(0);
+      // GPU_set_mipmap(bmain, 1);
       break;
     }
-    default:
-    {
-      //GPU_set_linear_mipmap(0);
-      //GPU_set_mipmap(bmain, 0);
+    default: {
+      // GPU_set_linear_mipmap(0);
+      // GPU_set_mipmap(bmain, 0);
     }
   }
 }
@@ -891,7 +890,7 @@ RAS_Rasterizer::MipmapOption RAS_Rasterizer::GetMipmapping()
     }
   }
   else {*/
-  return RAS_Rasterizer::RAS_MIPMAP_LINEAR; //RAS_MIPMAP_NONE;
+  return RAS_Rasterizer::RAS_MIPMAP_LINEAR;  // RAS_MIPMAP_NONE;
   //}
 }
 
@@ -1080,7 +1079,7 @@ void RAS_Rasterizer::PrintHardwareInfo()
   m_impl->PrintHardwareInfo();
 }
 
-const unsigned char* RAS_Rasterizer::GetGraphicsCardVendor()
+const unsigned char *RAS_Rasterizer::GetGraphicsCardVendor()
 {
   return m_impl->GetGraphicsCardVendor();
 }

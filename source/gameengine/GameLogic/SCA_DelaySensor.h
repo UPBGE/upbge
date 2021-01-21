@@ -34,7 +34,6 @@
 
 #pragma once
 
-
 #include "SCA_ISensor.h"
 
 class SCA_DelaySensor : public SCA_ISensor {
@@ -60,4 +59,3 @@ class SCA_DelaySensor : public SCA_ISensor {
   /* Python interface ---------------------------------------------------- */
   /* --------------------------------------------------------------------- */
 };
-

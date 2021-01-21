@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #ifdef main
 #  undef main
 #endif
@@ -50,4 +49,3 @@
 #define JOYHAPTIC_UPDATING_EFFECT 2
 #define JOYHAPTIC_UPDATING_RUMBLE_EFFECT 3
 #define JOYHAPTIC_STOPPED 4
-

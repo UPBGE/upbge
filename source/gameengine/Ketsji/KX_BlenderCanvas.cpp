@@ -43,11 +43,8 @@
 
 #include "KX_Globals.h"
 
-KX_BlenderCanvas::KX_BlenderCanvas(RAS_Rasterizer *rasty,
-                                   wmWindowManager *wm,
-                                   wmWindow *win,
-                                   rcti *viewport,
-                                   struct ARegion *ar)
+KX_BlenderCanvas::KX_BlenderCanvas(
+    RAS_Rasterizer *rasty, wmWindowManager *wm, wmWindow *win, rcti *viewport, struct ARegion *ar)
     : RAS_ICanvas(rasty), m_wm(wm), m_win(win), m_ar(ar)
 {
   m_frame = 1;

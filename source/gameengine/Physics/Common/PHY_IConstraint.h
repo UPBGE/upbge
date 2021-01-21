@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include "PHY_DynamicTypes.h"  // For PHY_ConstraintType.
 
 class PHY_IConstraint {
@@ -20,4 +19,3 @@ class PHY_IConstraint {
   virtual int GetIdentifier() const = 0;
   virtual PHY_ConstraintType GetType() const = 0;
 };
-

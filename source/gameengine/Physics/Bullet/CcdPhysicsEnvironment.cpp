@@ -21,22 +21,21 @@
 
 #include "CcdPhysicsEnvironment.h"
 
-
 #include "BKE_object.h"
 #include "DNA_object_force_types.h"
 #include "DNA_scene_types.h"
 
 #include "BulletCollision/CollisionDispatch/btGhostObject.h"
-#include "BulletDynamics/ConstraintSolver/btNNCGConstraintSolver.h"
 #include "BulletCollision/Gimpact/btGImpactCollisionAlgorithm.h"
 #include "BulletCollision/NarrowPhaseCollision/btRaycastCallback.h"
+#include "BulletDynamics/ConstraintSolver/btNNCGConstraintSolver.h"
 #include "BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h"
 #include "BulletSoftBody/btSoftRigidDynamicsWorld.h"
 
 #include "BL_BlenderSceneConverter.h"
+#include "CM_List.h"
 #include "CcdConstraint.h"
 #include "CcdGraphicController.h"
-#include "CM_List.h"
 #include "KX_GameObject.h"
 #include "MT_MinMax.h"
 #include "PHY_IVehicle.h"
@@ -367,8 +366,7 @@ void CcdPhysicsEnvironment::SetDebugDrawer(btIDebugDraw *debugDrawer)
   m_debugDrawer = debugDrawer;
 }
 
-CcdPhysicsEnvironment::CcdPhysicsEnvironment(PHY_SolverType solverType,
-                                             bool useDbvtCulling)
+CcdPhysicsEnvironment::CcdPhysicsEnvironment(PHY_SolverType solverType, bool useDbvtCulling)
     : m_cullingCache(nullptr),
       m_cullingTree(nullptr),
       m_numIterations(10),
@@ -518,17 +516,18 @@ void CcdPhysicsEnvironment::RemoveVehicle(WrapperVehicle *vehicle, bool free)
 
 void CcdPhysicsEnvironment::RemoveVehicle(CcdPhysicsController *ctrl, bool free)
 {
-  for (std::vector<WrapperVehicle *>::iterator it = m_wrapperVehicles.begin(); it != m_wrapperVehicles.end();) {
+  for (std::vector<WrapperVehicle *>::iterator it = m_wrapperVehicles.begin();
+       it != m_wrapperVehicles.end();) {
     WrapperVehicle *vehicle = *it;
-      if (vehicle->GetChassis() == ctrl) {
-        m_dynamicsWorld->removeVehicle(vehicle->GetVehicle());
-        if (free) {
-          it = m_wrapperVehicles.erase(it);
-          delete vehicle;
-          continue;
-        }
+    if (vehicle->GetChassis() == ctrl) {
+      m_dynamicsWorld->removeVehicle(vehicle->GetVehicle());
+      if (free) {
+        it = m_wrapperVehicles.erase(it);
+        delete vehicle;
+        continue;
       }
-      ++it;
+    }
+    ++it;
   }
 }
 
@@ -2737,8 +2736,8 @@ CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool v
 {
 
   static const PHY_SolverType solverTypeTable[] = {
-      PHY_SOLVER_SEQUENTIAL,    // GAME_SOLVER_SEQUENTIAL
-      PHY_SOLVER_NNCG,          // GAME_SOLVER_NNGC
+      PHY_SOLVER_SEQUENTIAL,  // GAME_SOLVER_SEQUENTIAL
+      PHY_SOLVER_NNCG,        // GAME_SOLVER_NNGC
   };
   CcdPhysicsEnvironment *ccdPhysEnv = new CcdPhysicsEnvironment(
       solverTypeTable[blenderscene->gm.solverType], false);
@@ -2784,7 +2783,8 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter *converter,
   Object *rootparent = nullptr;
   // Find the upper parent object using compound shape.
   while (blenderparent) {
-    if ((blenderparent->gameflag & OB_CHILD) && (blenderobject->gameflag & (OB_COLLISION | OB_DYNAMIC | OB_RIGID_BODY)) &&
+    if ((blenderparent->gameflag & OB_CHILD) &&
+        (blenderobject->gameflag & (OB_COLLISION | OB_DYNAMIC | OB_RIGID_BODY)) &&
         !(blenderobject->gameflag & OB_SOFT_BODY)) {
       rootparent = blenderparent;
     }
@@ -2826,8 +2826,12 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter *converter,
   ci.m_maxSlope = isbulletchar ? blenderobject->max_slope : 0.0f;
   ci.m_maxJumps = isbulletchar ? blenderobject->max_jumps : 0;
 
-  ci.m_ccd_motion_threshold = (isbulletdyna || isbulletrigidbody) ? blenderobject->ccd_motion_threshold : 0.0;
-  ci.m_ccd_swept_sphere_radius = (isbulletdyna || isbulletrigidbody) ? blenderobject->ccd_swept_sphere_radius : 0.0;
+  ci.m_ccd_motion_threshold = (isbulletdyna || isbulletrigidbody) ?
+                                  blenderobject->ccd_motion_threshold :
+                                  0.0;
+  ci.m_ccd_swept_sphere_radius = (isbulletdyna || isbulletrigidbody) ?
+                                     blenderobject->ccd_swept_sphere_radius :
+                                     0.0;
 
   // mmm, for now, take this for the size of the dynamicobject
   // Blender uses inertia for radius of dynamic object
@@ -2886,7 +2890,7 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter *converter,
               ->numclusteriterations;  // number of iterations to refine collision clusters
     }
     else {
-      ci.m_margin = 0.1f; // 0.0f generates unstabilities/crashes
+      ci.m_margin = 0.1f;  // 0.0f generates unstabilities/crashes
       ci.m_gamesoftFlag = OB_BSB_BENDING_CONSTRAINTS | OB_BSB_SHAPE_MATCHING | OB_BSB_AERO_VPOINT;
 
       ci.m_softBendingDistance = 2;
@@ -3143,7 +3147,8 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter *converter,
 
   ci.m_collisionShape = bm;
   ci.m_shapeInfo = shapeInfo;
-  ci.m_friction = blenderobject->friction;  // tweak the friction a bit, so the default 0.5 works nice
+  ci.m_friction =
+      blenderobject->friction;  // tweak the friction a bit, so the default 0.5 works nice
   ci.m_rollingFriction = blenderobject->rolling_friction;
   ci.m_restitution = blenderobject->reflect;
   ci.m_physicsEnv = this;
@@ -3151,7 +3156,8 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter *converter,
   ci.m_linearDamping = blenderobject->damping;
   ci.m_angularDamping = blenderobject->rdamping;
   // need a bit of damping, else system doesn't behave well
-  ci.m_inertiaFactor = blenderobject->formfactor / 0.4f;  // defaults to 0.4, don't want to change behavior
+  ci.m_inertiaFactor = blenderobject->formfactor /
+                       0.4f;  // defaults to 0.4, don't want to change behavior
 
   ci.m_do_anisotropic = (blenderobject->gameflag & OB_ANISOTROPIC_FRICTION);
   ci.m_anisotropicFriction = btVector3(blenderobject->anisotropicFriction[0],

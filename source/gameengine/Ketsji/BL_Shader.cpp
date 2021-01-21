@@ -26,7 +26,6 @@
 
 #include <boost/format.hpp>
 
-
 #include "CM_Message.h"
 #include "KX_GameObject.h"
 #include "KX_PyMath.h"
@@ -181,7 +180,8 @@ PyTypeObject BL_Shader::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "BL_Shader",
                                 0,
                                 py_base_new};
 
-PyObject *BL_Shader::pyattr_get_enabled(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Shader::pyattr_get_enabled(EXP_PyObjectPlus *self_v,
+                                        const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   BL_Shader *self = static_cast<BL_Shader *>(self_v);
   return PyBool_FromLong(self->GetEnabled());
@@ -207,7 +207,8 @@ static std::map<const std::string, BL_Shader::CallbacksType> callbacksTable = {
     {"bindCallbacks", BL_Shader::CALLBACKS_BIND},
     {"objectCallbacks", BL_Shader::CALLBACKS_OBJECT}};
 
-PyObject *BL_Shader::pyattr_get_callbacks(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Shader::pyattr_get_callbacks(EXP_PyObjectPlus *self_v,
+                                          const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   BL_Shader *self = static_cast<BL_Shader *>(self_v);
   PyObject *callbacks = self->GetCallbacks(callbacksTable[attrdef->m_name]);
@@ -678,8 +679,8 @@ EXP_PYMETHODDEF_DOC(BL_Shader, setUniformfv, "setUniformfv(float (list2 or list3
 }
 
 EXP_PYMETHODDEF_DOC(BL_Shader,
-                   setUniformiv,
-                   "setUniformiv(uniform_name, (list2 or list3 or list4))")
+                    setUniformiv,
+                    "setUniformiv(uniform_name, (list2 or list3 or list4))")
 {
   if (!m_shader) {
     Py_RETURN_NONE;

@@ -68,13 +68,13 @@ class EXP_ListWrapper : public EXP_Value {
   };
 
   EXP_ListWrapper(void *client,
-               PyObject *base,
-               bool (*checkValid)(void *),
-               int (*getSize)(void *),
-               PyObject *(*getItem)(void *, int),
-               const std::string (*getItemName)(void *, int),
-               bool (*setItem)(void *, int, PyObject *),
-               int flag = FLAG_NONE);
+                  PyObject *base,
+                  bool (*checkValid)(void *),
+                  int (*getSize)(void *),
+                  PyObject *(*getItem)(void *, int),
+                  const std::string (*getItemName)(void *, int),
+                  bool (*setItem)(void *, int, PyObject *),
+                  int flag = FLAG_NONE);
   ~EXP_ListWrapper();
 
   /// \section Python Interface

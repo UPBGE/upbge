@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include <map>
 #include <vector>
 
@@ -165,4 +164,3 @@ class BL_BlenderConverter {
     LIB_LOAD_ASYNC = 8,
   };
 };
-

@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #ifdef WIN32
 #  pragma warning(disable : 4786)
 #endif  // WIN32
@@ -96,4 +95,3 @@ class GPG_Canvas : public RAS_ICanvas {
 
   virtual bool IsBlenderPlayer();
 };
-

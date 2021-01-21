@@ -22,7 +22,6 @@
 
 #pragma once
 
-
 #ifdef WITH_PYTHON
 
 #  include "EXP_Value.h"
@@ -64,4 +63,3 @@ class KX_PythonComponent : public EXP_Value {
 };
 
 #endif  // WITH_PYTHON
-

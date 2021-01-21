@@ -32,7 +32,6 @@
 
 #pragma once
 
-
 #include "MT_Vector3.h"
 #include "SCA_IActuator.h"
 
@@ -164,15 +163,18 @@ class SCA_ObjectActuator : public SCA_IActuator {
   /* --------------------------------------------------------------------- */
 
   /* Attributes */
-  static PyObject *pyattr_get_forceLimitX(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_forceLimitX(EXP_PyObjectPlus *self_v,
+                                          const EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_forceLimitX(EXP_PyObjectPlus *self_v,
                                     const EXP_PYATTRIBUTE_DEF *attrdef,
                                     PyObject *value);
-  static PyObject *pyattr_get_forceLimitY(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_forceLimitY(EXP_PyObjectPlus *self_v,
+                                          const EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_forceLimitY(EXP_PyObjectPlus *self_v,
                                     const EXP_PYATTRIBUTE_DEF *attrdef,
                                     PyObject *value);
-  static PyObject *pyattr_get_forceLimitZ(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_forceLimitZ(EXP_PyObjectPlus *self_v,
+                                          const EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_forceLimitZ(EXP_PyObjectPlus *self_v,
                                     const EXP_PYATTRIBUTE_DEF *attrdef,
                                     PyObject *value);
@@ -183,11 +185,13 @@ class SCA_ObjectActuator : public SCA_IActuator {
                                   PyObject *value);
 
 #  ifdef USE_MATHUTILS
-  static PyObject *pyattr_get_linV(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_linV(EXP_PyObjectPlus *self,
+                                   const struct EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_linV(EXP_PyObjectPlus *self,
                              const struct EXP_PYATTRIBUTE_DEF *attrdef,
                              PyObject *value);
-  static PyObject *pyattr_get_angV(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_angV(EXP_PyObjectPlus *self,
+                                   const struct EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_angV(EXP_PyObjectPlus *self,
                              const struct EXP_PYATTRIBUTE_DEF *attrdef,
                              PyObject *value);
@@ -235,4 +239,3 @@ class SCA_ObjectActuator : public SCA_IActuator {
 
 #endif /* WITH_PYTHON */
 };
-

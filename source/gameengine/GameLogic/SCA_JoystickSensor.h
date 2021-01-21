@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "DEV_JoystickDefines.h"
 #include "SCA_ISensor.h"
 
@@ -172,15 +171,23 @@ class SCA_JoystickSensor : public SCA_ISensor {
   EXP_PYMETHOD_DOC_NOARGS(SCA_JoystickSensor, GetButtonActiveList)
   EXP_PYMETHOD_DOC_VARARGS(SCA_JoystickSensor, GetButtonStatus)
 
-  static PyObject *pyattr_get_axis_values(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_axis_single(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_axis_values(EXP_PyObjectPlus *self_v,
+                                          const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_axis_single(EXP_PyObjectPlus *self_v,
+                                          const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_check_hat(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_hat_values(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_hat_single(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_num_axis(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_num_buttons(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_num_hats(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_connected(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_hat_values(EXP_PyObjectPlus *self_v,
+                                         const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_hat_single(EXP_PyObjectPlus *self_v,
+                                         const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_num_axis(EXP_PyObjectPlus *self_v,
+                                       const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_num_buttons(EXP_PyObjectPlus *self_v,
+                                          const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_num_hats(EXP_PyObjectPlus *self_v,
+                                       const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_connected(EXP_PyObjectPlus *self_v,
+                                        const EXP_PYATTRIBUTE_DEF *attrdef);
 
   /* attribute check */
   static int CheckAxis(EXP_PyObjectPlus *self, const PyAttributeDef *)
@@ -195,4 +202,3 @@ class SCA_JoystickSensor : public SCA_ISensor {
 
 #endif /* WITH_PYTHON */
 };
-

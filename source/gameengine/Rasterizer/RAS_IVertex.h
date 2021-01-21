@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "BLI_math.h"
 
 #include "MT_Matrix4x4.h"
@@ -200,4 +199,3 @@ class RAS_IVertex {
     SetUV(index, (mat * MT_Vector4(getUV(index)[0], getUV(index)[1], 0.0f, 1.0f)).to2d());
   }
 };
-

@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include <map>
 
 #include "SCA_InputEvent.h"
@@ -242,4 +241,3 @@ class SCA_IInputDevice {
 
   static const char ConvertKeyToChar(SCA_EnumInputs input, bool shifted);
 };
-

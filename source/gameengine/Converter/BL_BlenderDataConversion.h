@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include <string>
 
 #include "EXP_Python.h"
@@ -59,4 +58,3 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
                               bool libloading = false);
 
 SCA_IInputDevice::SCA_EnumInputs BL_ConvertKeyCode(int key_code);
-

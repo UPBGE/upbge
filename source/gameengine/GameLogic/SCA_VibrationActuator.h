@@ -29,7 +29,6 @@
 
 #pragma once
 
-
 #include "SCA_IActuator.h"
 
 class SCA_VibrationActuator : public SCA_IActuator {
@@ -71,4 +70,3 @@ class SCA_VibrationActuator : public SCA_IActuator {
                                            const struct EXP_PYATTRIBUTE_DEF *attrdef);
 #endif  // WITH_PYTHON
 };
-

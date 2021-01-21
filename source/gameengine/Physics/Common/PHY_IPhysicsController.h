@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "PHY_IController.h"
 #include <vector>
 
@@ -167,4 +166,3 @@ class PHY_IPhysicsController : public PHY_IController {
   virtual void SetCcdMotionThreshold(float val) = 0;
   virtual void SetCcdSweptSphereRadius(float val) = 0;
 };
-

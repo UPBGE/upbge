@@ -69,10 +69,10 @@
 #include "KX_LodManager.h"
 #include "KX_MotionState.h"
 #include "KX_NetworkMessageScene.h"
+#include "KX_NodeRelationships.h"
 #include "KX_ObstacleSimulation.h"
 #include "KX_PhysicsEngineEnums.h"
 #include "KX_PyMath.h"
-#include "KX_NodeRelationships.h"
 #include "PHY_IPhysicsController.h"
 #include "PHY_IPhysicsEnvironment.h"
 #include "RAS_BucketManager.h"
@@ -284,8 +284,7 @@ KX_Scene::~KX_Scene()
 
 #ifdef WITH_PYTHON
   RunOnRemoveCallbacks();
-#endif // WITH_PYTHON
-
+#endif  // WITH_PYTHON
 
   /* EEVEE INTEGRATION */
 
@@ -462,7 +461,8 @@ void KX_Scene::ReinitBlenderContextVariables()
 
     for (ScrArea *sa = (ScrArea *)screen->areabase.first; sa; sa = sa->next) {
       /* We choose the biggest ScrArea to match the behaviour in WM_init_game */
-      if (sa->spacetype == SPACE_VIEW3D && sa == BKE_screen_find_big_area(screen, SPACE_VIEW3D, 0)) {
+      if (sa->spacetype == SPACE_VIEW3D &&
+          sa == BKE_screen_find_big_area(screen, SPACE_VIEW3D, 0)) {
         ListBase *regionbase = &sa->regionbase;
         for (ar = (ARegion *)regionbase->first; ar; ar = ar->next) {
           if (ar->regiontype == RGN_TYPE_WINDOW) {
@@ -645,7 +645,9 @@ bool KX_Scene::CameraIsInactive(KX_Camera *cam)
 static RAS_Rasterizer::FrameBufferType r = RAS_Rasterizer::RAS_FRAMEBUFFER_FILTER0;
 static RAS_Rasterizer::FrameBufferType s = RAS_Rasterizer::RAS_FRAMEBUFFER_EYE_LEFT0;
 
-void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, bool is_overlay_pass)
+void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
+                                      const RAS_Rect &viewport,
+                                      bool is_overlay_pass)
 {
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
   RAS_Rasterizer *rasty = engine->GetRasterizer();
@@ -683,8 +685,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, 
     v[2] = viewport.GetWidth() + 1;
     v[3] = viewport.GetHeight() + 1;
 
-    window = {0, viewport.GetWidth(),
-              0, viewport.GetHeight()};
+    window = {0, viewport.GetWidth(), 0, viewport.GetHeight()};
   }
   /* Main cam (when it has no custom viewport), overlay cam */
   else {
@@ -693,8 +694,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, 
     v[2] = canvas->GetWidth() + 1;
     v[3] = canvas->GetHeight() + 1;
 
-    window = {0, canvas->GetWidth(),
-              0, canvas->GetHeight()};
+    window = {0, canvas->GetWidth(), 0, canvas->GetHeight()};
   }
 
   bool useViewportRender = KX_GetActiveEngine()->UseViewportRender();
@@ -771,13 +771,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, 
     SetInitMaterialsGPUViewport(m_currentGPUViewport);
   }
 
-  DRW_game_render_loop(C,
-                       m_currentGPUViewport,
-                       bmain,
-                       depsgraph,
-                       &window,
-                       reset_taa_samples,
-                       is_overlay_pass);
+  DRW_game_render_loop(
+      C, m_currentGPUViewport, bmain, depsgraph, &window, reset_taa_samples, is_overlay_pass);
 
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
   RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextRenderFrameBuffer(s));
@@ -886,7 +881,6 @@ void KX_Scene::ConvertBlenderObject(Object *ob)
                            ob,
                            false,
                            false);
-
 }
 
 void KX_Scene::convert_blender_objects_list_synchronous(std::vector<Object *> objectslist)
@@ -927,9 +921,11 @@ struct ConvertBlenderObjectsListTaskData {
   Main *bmain;
 };
 
-static void convert_blender_objects_list_thread_func(TaskPool *__restrict UNUSED(pool), void *taskdata)
+static void convert_blender_objects_list_thread_func(TaskPool *__restrict UNUSED(pool),
+                                                     void *taskdata)
 {
-  ConvertBlenderObjectsListTaskData *task = static_cast<ConvertBlenderObjectsListTaskData *>(taskdata);
+  ConvertBlenderObjectsListTaskData *task = static_cast<ConvertBlenderObjectsListTaskData *>(
+      taskdata);
 
   for (Object *obj : task->objectslist) {
     BL_ConvertBlenderObjects(task->bmain,
@@ -965,11 +961,12 @@ void KX_Scene::ConvertBlenderObjectsList(std::vector<Object *> objectslist, bool
 
     TaskPool *taskpool = BLI_task_pool_create(&task, TASK_PRIORITY_LOW);
 
-    BLI_task_pool_push(taskpool,
-                       convert_blender_objects_list_thread_func,
-                       &task,
-                       false,  // We will clean the objectslist std::vector of pointers ourself later
-                       NULL);
+    BLI_task_pool_push(
+        taskpool,
+        convert_blender_objects_list_thread_func,
+        &task,
+        false,  // We will clean the objectslist std::vector of pointers ourself later
+        NULL);
     BLI_task_pool_work_and_wait(taskpool);
 
     /* delete the objectslist ourself as it gives error if the work
@@ -1027,9 +1024,11 @@ struct ConvertBlenderCollectionTaskData {
   Main *bmain;
 };
 
-static void convert_blender_collection_thread_func(TaskPool *__restrict UNUSED(pool), void *taskdata)
+static void convert_blender_collection_thread_func(TaskPool *__restrict UNUSED(pool),
+                                                   void *taskdata)
 {
-  ConvertBlenderCollectionTaskData *task = static_cast<ConvertBlenderCollectionTaskData *>(taskdata);
+  ConvertBlenderCollectionTaskData *task = static_cast<ConvertBlenderCollectionTaskData *>(
+      taskdata);
 
   FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (task->co, obj) {
     BL_ConvertBlenderObjects(task->bmain,
@@ -1068,11 +1067,7 @@ void KX_Scene::ConvertBlenderCollection(Collection *co, bool asynchronous)
 
     TaskPool *taskpool = BLI_task_pool_create(&task, TASK_PRIORITY_LOW);
 
-    BLI_task_pool_push(taskpool,
-                       convert_blender_collection_thread_func,
-                       &task,
-                       false,
-                       NULL);
+    BLI_task_pool_push(taskpool, convert_blender_collection_thread_func, &task, false, NULL);
     BLI_task_pool_work_and_wait(taskpool);
     BLI_task_pool_free(taskpool);
     taskpool = nullptr;
@@ -1112,7 +1107,9 @@ void KX_Scene::BackupRestrictFlag(Object *ob, char restrictFlag)
 
 void KX_Scene::RestoreRestrictFlags()
 {
-  for (std::map<Object *, char>::iterator it = m_obRestrictFlags.begin(); it != m_obRestrictFlags.end(); it++) {
+  for (std::map<Object *, char>::iterator it = m_obRestrictFlags.begin();
+       it != m_obRestrictFlags.end();
+       it++) {
     Object *ob = it->first;
     ob->restrictflag = it->second;
   }
@@ -1158,7 +1155,7 @@ bool KX_Scene::OrigObCanBeTransformedInRealtime(Object *ob)
 void KX_Scene::IgnoreParentTxBGE(Main *bmain,
                                  Depsgraph *depsgraph,
                                  Object *ob,
-                                 std::vector<Object *>children)
+                                 std::vector<Object *> children)
 {
   Object workob;
   Object *ob_child;
@@ -1190,7 +1187,7 @@ void KX_Scene::IgnoreParentTxBGE(Main *bmain,
   }
 }
 
-void KX_Scene::TagForObmatRestore(std::vector<Object *>potentialChildren)
+void KX_Scene::TagForObmatRestore(std::vector<Object *> potentialChildren)
 {
   for (BackupObj *backup : m_backupObList) {
     bContext *C = KX_GetActiveEngine()->GetContext();
@@ -1284,7 +1281,7 @@ SCA_TimeEventManager *KX_Scene::GetTimeEventManager() const
   return m_timemgr;
 }
 
-KX_PythonComponentManager& KX_Scene::GetPythonComponentManager()
+KX_PythonComponentManager &KX_Scene::GetPythonComponentManager()
 {
   return m_componentManager;
 }
@@ -2011,7 +2008,7 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj,
       if (gameobj->GetLodManager()) {
         gameobj->GetLodManager()->Release();
       }
-      gameobj->AddDummyLodManager(mesh, mesh->GetOriginalObject()); //tmp
+      gameobj->AddDummyLodManager(mesh, mesh->GetOriginalObject());  // tmp
     }
   }
 
@@ -2183,7 +2180,6 @@ static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(t
     // armature has only non-mesh children.
     if (!needs_update && !has_mesh && has_non_mesh)
       needs_update = true;
-
   }
 
   // If the object is a culled armature, then we manage only the animation time and end of its
@@ -2296,7 +2292,6 @@ int KX_Scene::GetLodHysteresisValue(void)
 
 void KX_Scene::UpdateObjectActivity(void)
 {
-
 }
 
 void KX_Scene::SetActivityCullingRadius(float f)
@@ -2368,17 +2363,17 @@ static void MergeScene_LogicBrick(SCA_ILogicBrick *brick, KX_Scene *from, KX_Sce
 
 static void MergeScene_GameObject(KX_GameObject *gameobj, KX_Scene *to, KX_Scene *from)
 {
-  SCA_ActuatorList& actuators = gameobj->GetActuators();
+  SCA_ActuatorList &actuators = gameobj->GetActuators();
   for (SCA_IActuator *actuator : actuators) {
     MergeScene_LogicBrick(actuator, from, to);
   }
 
-  SCA_SensorList& sensors = gameobj->GetSensors();
+  SCA_SensorList &sensors = gameobj->GetSensors();
   for (SCA_ISensor *sensor : sensors) {
     MergeScene_LogicBrick(sensor, from, to);
   }
 
-  SCA_ControllerList& controllers = gameobj->GetControllers();
+  SCA_ControllerList &controllers = gameobj->GetControllers();
   for (SCA_IController *controller : controllers) {
     MergeScene_LogicBrick(controller, from, to);
   }
@@ -2396,7 +2391,7 @@ static void MergeScene_GameObject(KX_GameObject *gameobj, KX_Scene *to, KX_Scene
       sg->SetSGClientInfo(to);
 
       /* Make sure to grab the children too since they might not be tied to a game object */
-      const NodeList& children = sg->GetSGChildren();
+      const NodeList &children = sg->GetSGChildren();
       for (SG_Node *child : children) {
         child->SetSGClientInfo(to);
       }
@@ -2563,7 +2558,7 @@ void KX_Scene::RunOnRemoveCallbacks()
     return;
   }
 
-  PyObject *args[1] = { GetProxy() };
+  PyObject *args[1] = {GetProxy()};
   EXP_RunPythonCallBackList(list, args, 0, 1);
 }
 
@@ -2752,7 +2747,8 @@ PyObject *KX_Scene::pyattr_get_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIB
   return PyUnicode_FromStdString(self->GetName());
 }
 
-PyObject *KX_Scene::pyattr_get_objects(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Scene::pyattr_get_objects(EXP_PyObjectPlus *self_v,
+                                       const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_Scene *self = static_cast<KX_Scene *>(self_v);
   return self->GetObjectList()->GetProxy();
@@ -2786,7 +2782,8 @@ PyObject *KX_Scene::pyattr_get_texts(EXP_PyObjectPlus *self_v, const EXP_PYATTRI
   return self->GetFontList()->GetProxy();
 }
 
-PyObject *KX_Scene::pyattr_get_cameras(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Scene::pyattr_get_cameras(EXP_PyObjectPlus *self_v,
+                                       const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_Scene *self = static_cast<KX_Scene *>(self_v);
   return self->GetCameraList()->GetProxy();
@@ -2881,7 +2878,8 @@ int KX_Scene::pyattr_set_drawing_callback(EXP_PyObjectPlus *self_v,
   return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_Scene::pyattr_get_remove_callback(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Scene::pyattr_get_remove_callback(EXP_PyObjectPlus *self_v,
+                                               const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_Scene *self = static_cast<KX_Scene *>(self_v);
 
@@ -2894,7 +2892,9 @@ PyObject *KX_Scene::pyattr_get_remove_callback(EXP_PyObjectPlus *self_v, const E
   return self->m_removeCallbacks;
 }
 
-int KX_Scene::pyattr_set_remove_callback(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_Scene::pyattr_set_remove_callback(EXP_PyObjectPlus *self_v,
+                                         const EXP_PYATTRIBUTE_DEF *attrdef,
+                                         PyObject *value)
 {
   KX_Scene *self = static_cast<KX_Scene *>(self_v);
 
@@ -2911,7 +2911,8 @@ int KX_Scene::pyattr_set_remove_callback(EXP_PyObjectPlus *self_v, const EXP_PYA
   return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_Scene::pyattr_get_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Scene::pyattr_get_gravity(EXP_PyObjectPlus *self_v,
+                                       const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_Scene *self = static_cast<KX_Scene *>(self_v);
 
@@ -2943,12 +2944,13 @@ PyAttributeDef KX_Scene::Attributes[] = {
     EXP_PYATTRIBUTE_RW_FUNCTION(
         "active_camera", KX_Scene, pyattr_get_active_camera, pyattr_set_active_camera),
     EXP_PYATTRIBUTE_RW_FUNCTION("overrideCullingCamera",
-                               KX_Scene,
-                               pyattr_get_overrideCullingCamera,
-                               pyattr_set_overrideCullingCamera),
+                                KX_Scene,
+                                pyattr_get_overrideCullingCamera,
+                                pyattr_set_overrideCullingCamera),
     EXP_PYATTRIBUTE_RW_FUNCTION(
         "pre_draw", KX_Scene, pyattr_get_drawing_callback, pyattr_set_drawing_callback),
-    EXP_PYATTRIBUTE_RW_FUNCTION("onRemove", KX_Scene, pyattr_get_remove_callback, pyattr_set_remove_callback),
+    EXP_PYATTRIBUTE_RW_FUNCTION(
+        "onRemove", KX_Scene, pyattr_get_remove_callback, pyattr_set_remove_callback),
     EXP_PYATTRIBUTE_RW_FUNCTION(
         "post_draw", KX_Scene, pyattr_get_drawing_callback, pyattr_set_drawing_callback),
     EXP_PYATTRIBUTE_RW_FUNCTION(
@@ -2963,9 +2965,9 @@ PyAttributeDef KX_Scene::Attributes[] = {
 };
 
 EXP_PYMETHODDEF_DOC(KX_Scene,
-                   addObject,
-                   "addObject(object, other, time=0)\n"
-                   "Returns the added object.\n")
+                    addObject,
+                    "addObject(object, other, time=0)\n"
+                    "Returns the added object.\n")
 {
   PyObject *pyob, *pyreference = Py_None;
   KX_GameObject *ob, *reference;
@@ -3004,9 +3006,9 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
 }
 
 EXP_PYMETHODDEF_DOC(KX_Scene,
-                   end,
-                   "end()\n"
-                   "Removes this scene from the game.\n")
+                    end,
+                    "end()\n"
+                    "Removes this scene from the game.\n")
 {
 
   KX_GetActiveEngine()->RemoveScene(m_sceneName);
@@ -3015,9 +3017,9 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
 }
 
 EXP_PYMETHODDEF_DOC(KX_Scene,
-                   restart,
-                   "restart()\n"
-                   "Restarts this scene.\n")
+                    restart,
+                    "restart()\n"
+                    "Restarts this scene.\n")
 {
   KX_GetActiveEngine()->ReplaceScene(m_sceneName, m_sceneName);
 
@@ -3043,9 +3045,9 @@ EXP_PYMETHODDEF_DOC(
 }
 
 EXP_PYMETHODDEF_DOC(KX_Scene,
-                   drawObstacleSimulation,
-                   "drawObstacleSimulation()\n"
-                   "Draw debug visualization of obstacle simulation.\n")
+                    drawObstacleSimulation,
+                    "drawObstacleSimulation()\n"
+                    "Draw debug visualization of obstacle simulation.\n")
 {
   if (GetObstacleSimulation())
     GetObstacleSimulation()->DrawObstacles();
@@ -3073,9 +3075,9 @@ EXP_PYMETHODDEF_DOC(KX_Scene, get, "")
 }
 
 EXP_PYMETHODDEF_DOC(KX_Scene,
-                   convertBlenderObject,
-                   "convertBlenderObject()\n"
-                   "\n")
+                    convertBlenderObject,
+                    "convertBlenderObject()\n"
+                    "\n")
 {
   PyObject *bl_object = Py_None;
 
@@ -3095,9 +3097,9 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
 }
 
 EXP_PYMETHODDEF_DOC(KX_Scene,
-                   convertBlenderObjectsList,
-                   "convertBlenderObjectsList()\n"
-                   "\n")
+                    convertBlenderObjectsList,
+                    "convertBlenderObjectsList()\n"
+                    "\n")
 {
   PyObject *list;
   int asynchronous = 0;
@@ -3111,7 +3113,7 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
   Py_ssize_t list_size = PyList_Size(list);
 
   for (Py_ssize_t i = 0; i < list_size; i++) {
-    PyObject* bl_object = PyList_GetItem(list, i);
+    PyObject *bl_object = PyList_GetItem(list, i);
 
     ID *id;
     if (!pyrna_id_FromPyObject(bl_object, &id)) {
@@ -3128,9 +3130,9 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
 }
 
 EXP_PYMETHODDEF_DOC(KX_Scene,
-                   convertBlenderCollection,
-                   "convertBlenderCollection()\n"
-                   "\n")
+                    convertBlenderCollection,
+                    "convertBlenderCollection()\n"
+                    "\n")
 {
   PyObject *bl_collection = Py_None;
   int asynchronous;
@@ -3152,9 +3154,9 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
 }
 
 EXP_PYMETHODDEF_DOC(KX_Scene,
-                   addOverlayCollection,
-                   "addOverlayCollection(KX_Camera *cam, Collection *col)\n"
-                   "\n")
+                    addOverlayCollection,
+                    "addOverlayCollection(KX_Camera *cam, Collection *col)\n"
+                    "\n")
 {
   PyObject *pyCamera = Py_None;
   PyObject *pyCollection = Py_None;
@@ -3166,7 +3168,7 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
 
   KX_Camera *kxCam = nullptr;
   if (!(ConvertPythonToCamera(this, pyCamera, &kxCam, false, nullptr))) {
-      std::cout << "Failed to convert KX_Camera" << std::endl;
+    std::cout << "Failed to convert KX_Camera" << std::endl;
     return nullptr;
   }
 
@@ -3182,9 +3184,9 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
 }
 
 EXP_PYMETHODDEF_DOC(KX_Scene,
-                   removeOverlayCollection,
-                   "removeOverlayCollection(Collection *col)\n"
-                   "\n")
+                    removeOverlayCollection,
+                    "removeOverlayCollection(Collection *col)\n"
+                    "\n")
 {
   PyObject *pyCollection = Py_None;
 
@@ -3205,9 +3207,9 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
 }
 
 EXP_PYMETHODDEF_DOC(KX_Scene,
-                   getGameObjectFromObject,
-                   "getGameObjectFromObject(Object *ob)\n"
-                   "\n")
+                    getGameObjectFromObject,
+                    "getGameObjectFromObject(Object *ob)\n"
+                    "\n")
 {
   PyObject *pyBlenderObject = Py_None;
 

@@ -36,7 +36,6 @@
 
 #include "RAS_BucketManager.h"
 
-
 #include "RAS_IPolygonMaterial.h"
 
 RAS_BucketManager::RAS_BucketManager()
@@ -46,7 +45,7 @@ RAS_BucketManager::RAS_BucketManager()
 RAS_BucketManager::~RAS_BucketManager()
 {
   for (RAS_MaterialBucket *bucket : m_buckets[ALL_BUCKET]) {
-      delete bucket;
+    delete bucket;
   }
 }
 

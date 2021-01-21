@@ -29,13 +29,13 @@
 #  include "EXP_ListWrapper.h"
 
 EXP_ListWrapper::EXP_ListWrapper(void *client,
-                           PyObject *base,
-                           bool (*checkValid)(void *),
-                           int (*getSize)(void *),
-                           PyObject *(*getItem)(void *, int),
-                           const std::string (*getItemName)(void *, int),
-                           bool (*setItem)(void *, int, PyObject *),
-                           int flag)
+                                 PyObject *base,
+                                 bool (*checkValid)(void *),
+                                 int (*getSize)(void *),
+                                 PyObject *(*getItem)(void *, int),
+                                 const std::string (*getItemName)(void *, int),
+                                 bool (*setItem)(void *, int, PyObject *),
+                                 int flag)
     : m_client(client),
       m_base(base),
       m_checkValid(checkValid),
@@ -159,7 +159,8 @@ PyObject *EXP_ListWrapper::py_get_item(PyObject *self, Py_ssize_t index)
     index = size + index;
   }
   if (index < 0 || index >= size) {
-    PyErr_SetString(PyExc_IndexError, "EXP_ListWrapper[i]: List index out of range in EXP_ListWrapper");
+    PyErr_SetString(PyExc_IndexError,
+                    "EXP_ListWrapper[i]: List index out of range in EXP_ListWrapper");
     return nullptr;
   }
 
@@ -193,7 +194,8 @@ int EXP_ListWrapper::py_set_item(PyObject *self, Py_ssize_t index, PyObject *val
     index = size + index;
   }
   if (index < 0 || index >= size) {
-    PyErr_SetString(PyExc_IndexError, "EXP_ListWrapper[i]: List index out of range in EXP_ListWrapper");
+    PyErr_SetString(PyExc_IndexError,
+                    "EXP_ListWrapper[i]: List index out of range in EXP_ListWrapper");
     return -1;
   }
 
@@ -218,7 +220,8 @@ PyObject *EXP_ListWrapper::py_mapping_subscript(PyObject *self, PyObject *key)
   }
   else if (PyUnicode_Check(key)) {
     if (!list->AllowGetItemByName()) {
-      PyErr_SetString(PyExc_SystemError, "EXP_ListWrapper's item type doesn't support access by key");
+      PyErr_SetString(PyExc_SystemError,
+                      "EXP_ListWrapper's item type doesn't support access by key");
       return nullptr;
     }
 
@@ -259,7 +262,8 @@ int EXP_ListWrapper::py_mapping_ass_subscript(PyObject *self, PyObject *key, PyO
   }
   else if (PyUnicode_Check(key)) {
     if (!list->AllowGetItemByName()) {
-      PyErr_SetString(PyExc_SystemError, "EXP_ListWrapper's item type doesn't support access by key");
+      PyErr_SetString(PyExc_SystemError,
+                      "EXP_ListWrapper's item type doesn't support access by key");
       return -1;
     }
 
@@ -294,7 +298,8 @@ int EXP_ListWrapper::py_contains(PyObject *self, PyObject *key)
 
   if (PyUnicode_Check(key)) {
     if (!list->AllowGetItemByName()) {
-      PyErr_SetString(PyExc_SystemError, "EXP_ListWrapper's item type doesn't support access by key");
+      PyErr_SetString(PyExc_SystemError,
+                      "EXP_ListWrapper's item type doesn't support access by key");
       return -1;
     }
 
@@ -337,43 +342,44 @@ PyMappingMethods EXP_ListWrapper::py_as_mapping = {
     py_mapping_ass_subscript  // mp_ass_subscript
 };
 
-PyTypeObject EXP_ListWrapper::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "EXP_ListWrapper",  // tp_name
-                                   sizeof(EXP_PyObjectPlus_Proxy),  // tp_basicsize
-                                   0,                           // tp_itemsize
-                                   py_base_dealloc,             // tp_dealloc
-                                   0,                           // tp_print
-                                   0,                           // tp_getattr
-                                   0,                           // tp_setattr
-                                   0,                           // tp_compare
-                                   py_base_repr,                // tp_repr
-                                   0,                           // tp_as_number
-                                   &py_as_sequence,             // tp_as_sequence
-                                   &py_as_mapping,              // tp_as_mapping
-                                   0,                           // tp_hash
-                                   0,                           // tp_call
-                                   0,
-                                   nullptr,
-                                   nullptr,
-                                   0,
-                                   Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-                                   0,
-                                   0,
-                                   0,
-                                   0,
-                                   0,
-                                   0,
-                                   0,
-                                   Methods,
-                                   0,
-                                   0,
-                                   &EXP_Value::Type,
-                                   0,
-                                   0,
-                                   0,
-                                   0,
-                                   0,
-                                   0,
-                                   py_base_new};
+PyTypeObject EXP_ListWrapper::Type = {
+    PyVarObject_HEAD_INIT(nullptr, 0) "EXP_ListWrapper",  // tp_name
+    sizeof(EXP_PyObjectPlus_Proxy),                       // tp_basicsize
+    0,                                                    // tp_itemsize
+    py_base_dealloc,                                      // tp_dealloc
+    0,                                                    // tp_print
+    0,                                                    // tp_getattr
+    0,                                                    // tp_setattr
+    0,                                                    // tp_compare
+    py_base_repr,                                         // tp_repr
+    0,                                                    // tp_as_number
+    &py_as_sequence,                                      // tp_as_sequence
+    &py_as_mapping,                                       // tp_as_mapping
+    0,                                                    // tp_hash
+    0,                                                    // tp_call
+    0,
+    nullptr,
+    nullptr,
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    Methods,
+    0,
+    0,
+    &EXP_Value::Type,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    py_base_new};
 
 PyMethodDef EXP_ListWrapper::Methods[] = {
     {"get", (PyCFunction)EXP_ListWrapper::sPyGet, METH_VARARGS}, {nullptr, nullptr}  // Sentinel
@@ -396,7 +402,8 @@ PyObject *EXP_ListWrapper::PyGet(PyObject *args)
   }
 
   if (!AllowGetItemByName()) {
-    PyErr_SetString(PyExc_SystemError, "EXP_ListWrapper's item type doesn't support access by key");
+    PyErr_SetString(PyExc_SystemError,
+                    "EXP_ListWrapper's item type doesn't support access by key");
     return nullptr;
   }
 

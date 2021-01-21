@@ -22,7 +22,6 @@
 
 #pragma once
 
-
 #include "SCA_IActuator.h"
 
 class KX_KetsjiEngine;
@@ -110,12 +109,14 @@ class SCA_MouseActuator : public SCA_IActuator {
 
   /* Attributes */
 
-  static PyObject *pyattr_get_limit_x(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_limit_x(EXP_PyObjectPlus *self_v,
+                                      const EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_limit_x(EXP_PyObjectPlus *self_v,
                                 const EXP_PYATTRIBUTE_DEF *attrdef,
                                 PyObject *value);
 
-  static PyObject *pyattr_get_limit_y(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_limit_y(EXP_PyObjectPlus *self_v,
+                                      const EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_limit_y(EXP_PyObjectPlus *self_v,
                                 const EXP_PYATTRIBUTE_DEF *attrdef,
                                 PyObject *value);
@@ -126,4 +127,3 @@ class SCA_MouseActuator : public SCA_IActuator {
                               PyObject *value);
 #endif /* WITH_PYTHON */
 };
-

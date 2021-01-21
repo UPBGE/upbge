@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "KX_IInterpolator.h"
 #include "MT_Scalar.h"
 
@@ -61,4 +60,3 @@ class KX_ScalarInterpolator : public KX_IInterpolator {
   MT_Scalar *m_target;
   KX_IScalarInterpolator *m_ipo;
 };
-

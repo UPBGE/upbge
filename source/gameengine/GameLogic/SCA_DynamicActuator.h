@@ -32,7 +32,6 @@
 
 #pragma once
 
-
 #include "KX_GameObject.h"
 #include "SCA_IActuator.h"
 #include "SCA_LogicManager.h"
@@ -74,4 +73,3 @@ class SCA_DynamicActuator : public SCA_IActuator {
     KX_DYN_DISABLE_PHYSICS
   };
 };
-

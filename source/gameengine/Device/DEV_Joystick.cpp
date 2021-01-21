@@ -35,7 +35,6 @@
 #  include <SDL.h>
 #endif
 
-
 #include "BKE_appdir.h"
 #include "BLI_path_util.h"
 
@@ -89,7 +88,9 @@ void DEV_Joystick::Init()
       BLI_join_dirfile(fullpath, sizeof(fullpath), path, "gamecontrollerdb.txt");
 
       if ((SDL_GameControllerAddMappingsFromFile(fullpath)) == -1) {
-        CM_Warning("gamecontrollerdb.txt file not loaded, we will load SDL gamecontroller internal database (more restricted)");
+        CM_Warning(
+            "gamecontrollerdb.txt file not loaded, we will load SDL gamecontroller internal "
+            "database (more restricted)");
       }
     }
   }

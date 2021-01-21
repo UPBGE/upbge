@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 struct RAS_CameraData {
   float m_lens;
   float m_scale;
@@ -85,4 +84,3 @@ struct RAS_CameraData {
   {
   }
 };
-

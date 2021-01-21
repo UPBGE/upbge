@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "EXP_Expression.h"
 
 class EXP_IdentifierExpr : public EXP_Expression {
@@ -46,4 +45,3 @@ class EXP_IdentifierExpr : public EXP_Expression {
   virtual EXP_Value *Calculate();
   virtual unsigned char GetExpressionID();
 };
-

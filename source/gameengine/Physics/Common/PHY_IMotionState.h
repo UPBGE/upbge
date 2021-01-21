@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "MT_Matrix3x3.h"
 #include "MT_Quaternion.h"
 #include "MT_Vector3.h"
@@ -56,4 +55,3 @@ class PHY_IMotionState {
 
   virtual void CalculateWorldTransformations() = 0;
 };
-

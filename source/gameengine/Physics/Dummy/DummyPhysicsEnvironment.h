@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "PHY_IMotionState.h"
 #include "PHY_IPhysicsEnvironment.h"
 
@@ -155,4 +154,3 @@ class DummyPhysicsEnvironment : public PHY_IPhysicsEnvironment {
     delete motionstate;
   }
 };
-

@@ -32,7 +32,6 @@
 
 #pragma once
 
-
 #include "SCA_ISensor.h"
 
 class SCA_PropertySensor : public SCA_ISensor {
@@ -91,4 +90,3 @@ class SCA_PropertySensor : public SCA_ISensor {
 
 #endif
 };
-

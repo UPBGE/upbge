@@ -58,8 +58,8 @@
 #  include "GPU_material.h"
 #  include "MEM_guardedalloc.h"
 #  include "bgl.h"
-#  include "blf_py_api.h"
 #  include "bl_math_py_api.h"
+#  include "blf_py_api.h"
 #  include "bmesh/bmesh_py_api.h"
 #  include "bpy.h"  // for bpy_sys_module_backup
 #  include "bpy_intern_string.h"
@@ -550,7 +550,8 @@ PyDoc_STRVAR(gPyGetInactiveSceneNames_doc,
              "Get all inactive scenes names");
 static PyObject *gPyGetInactiveSceneNames(PyObject *self)
 {
-  EXP_ListValue<EXP_StringValue> *list = KX_GetActiveEngine()->GetConverter()->GetInactiveSceneNames();
+  EXP_ListValue<EXP_StringValue> *list =
+      KX_GetActiveEngine()->GetConverter()->GetInactiveSceneNames();
 
   return list->NewProxy(true);
 }
@@ -1408,8 +1409,8 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
   PyObject *d;
   PyObject *item; /* temp PyObject *storage */
 
-  EXP_PyObjectPlus::ClearDeprecationWarning(); /* Not that nice to call here but makes sure warnings
-                                              are reset between loading scenes */
+  EXP_PyObjectPlus::ClearDeprecationWarning(); /* Not that nice to call here but makes sure
+                                              warnings are reset between loading scenes */
 
   m = PyModule_Create(&GameLogic_module_def);
   PyDict_SetItemString(PySys_GetObject("modules"), GameLogic_module_def.m_name, m);
@@ -2106,7 +2107,8 @@ void initGamePlayerPythonScripting(int argc, char **argv, bContext *C)
   Py_Initialize();
 }
 
-void postInitGamePlayerPythonScripting(Main *maggie, int argc, char **argv, bContext *C, bool *audioDeviceIsInitialized)
+void postInitGamePlayerPythonScripting(
+    Main *maggie, int argc, char **argv, bContext *C, bool *audioDeviceIsInitialized)
 {
   /* Yet another gotcha in the py api
    * Cant run PySys_SetArgv more than once because this adds the
@@ -2754,12 +2756,13 @@ PyMODINIT_FUNC initApplicationPythonBinding()
   PyDict_SetItemString(
       d,
       "version",
-	  Py_BuildValue("(iii)", BLENDER_VERSION / 100, BLENDER_VERSION % 100, BLENDER_VERSION_PATCH));
-  PyDict_SetItemString(
-      d,
-	  "version_string",
-	  PyUnicode_FromFormat(
-		  "%d.%02d (sub %d)", BLENDER_VERSION / 100, BLENDER_VERSION % 100, BLENDER_VERSION_PATCH));
+      Py_BuildValue("(iii)", BLENDER_VERSION / 100, BLENDER_VERSION % 100, BLENDER_VERSION_PATCH));
+  PyDict_SetItemString(d,
+                       "version_string",
+                       PyUnicode_FromFormat("%d.%02d (sub %d)",
+                                            BLENDER_VERSION / 100,
+                                            BLENDER_VERSION % 100,
+                                            BLENDER_VERSION_PATCH));
 
   PyDict_SetItemString(d,
                        "has_texture_ffmpeg",

@@ -5,7 +5,6 @@
 
 #pragma once
 
-
 #include "KX_IInterpolator.h"
 #include "SG_Controller.h"
 #include "SG_Node.h"
@@ -51,4 +50,3 @@ class KX_MaterialIpoController : public SG_Controller {
 
   void AddInterpolator(KX_IInterpolator *interp);
 };
-

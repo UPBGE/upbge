@@ -51,7 +51,7 @@ RAS_2DFilterManager::RAS_2DFilterManager()
 
 RAS_2DFilterManager::~RAS_2DFilterManager()
 {
-  for (const RAS_PassTo2DFilter::value_type& pair : m_filters) {
+  for (const RAS_PassTo2DFilter::value_type &pair : m_filters) {
     RAS_2DFilter *filter = pair.second;
     delete filter;
   }

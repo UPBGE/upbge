@@ -18,7 +18,6 @@
 
 #pragma once
 
-
 #include "EXP_Value.h"
 
 class EXP_BaseListValue : public EXP_PropValue {
@@ -78,4 +77,3 @@ class EXP_BaseListValue : public EXP_PropValue {
   static PyMappingMethods instance_as_mapping;
 #endif
 };
-

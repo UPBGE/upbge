@@ -30,8 +30,6 @@
 
 #include "PyTypeList.h"
 
-
-
 /// destructor
 PyTypeList::~PyTypeList()
 {

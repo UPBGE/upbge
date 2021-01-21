@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "BLI_utildefines.h"
 
 #include "KX_ClientObjectInfo.h"
@@ -145,4 +144,3 @@ class SCA_ConstraintActuator : public SCA_IActuator {
                                     const struct EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_check_min(EXP_PyObjectPlus *self_v, const struct EXP_PYATTRIBUTE_DEF *attrdef);
 };
-

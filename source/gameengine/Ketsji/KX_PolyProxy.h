@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #ifdef WITH_PYTHON
 
 #  include "SCA_IObject.h"
@@ -60,15 +59,20 @@ class KX_PolyProxy : public EXP_Value {
                                             const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_texture_name(EXP_PyObjectPlus *self_v,
                                            const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_material(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_material_id(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_material(EXP_PyObjectPlus *self_v,
+                                       const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_material_id(EXP_PyObjectPlus *self_v,
+                                          const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_v1(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_v2(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_v3(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_v4(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_visible(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_collide(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_vertices(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_visible(EXP_PyObjectPlus *self_v,
+                                      const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_collide(EXP_PyObjectPlus *self_v,
+                                      const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_vertices(EXP_PyObjectPlus *self_v,
+                                       const EXP_PYATTRIBUTE_DEF *attrdef);
 
   EXP_PYMETHOD_DOC_NOARGS(KX_PolyProxy, getMaterialIndex)
   EXP_PYMETHOD_DOC_NOARGS(KX_PolyProxy, getNumVertex)
@@ -82,4 +86,3 @@ class KX_PolyProxy : public EXP_Value {
 };
 
 #endif /* WITH_PYTHON */
-

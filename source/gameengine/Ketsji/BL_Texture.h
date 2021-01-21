@@ -24,7 +24,6 @@
 
 #pragma once
 
-
 #include "DNA_image_types.h"
 
 #include "EXP_Value.h"
@@ -64,11 +63,11 @@ class BL_Texture : public EXP_Value, public RAS_Texture {
   virtual void DisableTexture();
 
 #ifdef WITH_PYTHON
-  static PyObject *pyattr_get_bind_code(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_bind_code(EXP_PyObjectPlus *self_v,
+                                        const EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_bind_code(EXP_PyObjectPlus *self_v,
                                   const EXP_PYATTRIBUTE_DEF *attrdef,
                                   PyObject *value);
 
 #endif  // WITH_PYTHON
 };
-

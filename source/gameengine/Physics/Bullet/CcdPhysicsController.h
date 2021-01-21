@@ -22,7 +22,6 @@
 
 #pragma once
 
-
 #include <map>
 #include <vector>
 
@@ -617,7 +616,6 @@ class CcdPhysicsController : public PHY_IPhysicsController {
   void ForceWorldTransform(const btMatrix3x3 &mat, const btVector3 &pos);
 
  public:
-
   CcdPhysicsController(const CcdConstructionInfo &ci);
 
   /**
@@ -909,4 +907,3 @@ class DefaultMotionState : public PHY_IMotionState {
   btTransform m_worldTransform;
   btVector3 m_localScaling;
 };
-

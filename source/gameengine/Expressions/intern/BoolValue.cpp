@@ -92,7 +92,7 @@ EXP_Value *EXP_BoolValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EX
         }
         default: {
           ret = new EXP_ErrorValue(val->GetText() + op2str(op) +
-                                "[operator not allowed on booleans]");
+                                   "[operator not allowed on booleans]");
           break;
         }
       }
@@ -106,7 +106,7 @@ EXP_Value *EXP_BoolValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EX
         }
         default: {
           ret = new EXP_ErrorValue(val->GetText() + op2str(op) +
-                                "[Only + allowed on boolean and string]");
+                                   "[Only + allowed on boolean and string]");
           break;
         }
       }

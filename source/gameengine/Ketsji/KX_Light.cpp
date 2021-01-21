@@ -35,8 +35,6 @@
 
 #include "KX_Light.h"
 
-
-
 KX_LightObject::KX_LightObject(void *sgReplicationInfo, SG_Callbacks callbacks, Object *obLight)
     : KX_GameObject(sgReplicationInfo, callbacks), m_obLight(obLight)
 {

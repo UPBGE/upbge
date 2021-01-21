@@ -33,7 +33,6 @@
 
 #pragma once
 
-
 #include <vector>
 
 #include "EXP_Value.h"
@@ -53,9 +52,9 @@ class SCA_IObject : public EXP_Value {
 
   Py_Header
 
- protected :
+      protected :
 
-  SCA_SensorList m_sensors;
+      SCA_SensorList m_sensors;
   SCA_ControllerList m_controllers;
   SCA_ActuatorList m_actuators;
   /// Actuators that use a pointer to this object.
@@ -100,12 +99,12 @@ class SCA_IObject : public EXP_Value {
   SCA_IObject();
   virtual ~SCA_IObject();
 
-  SCA_ControllerList& GetControllers();
-  SCA_SensorList& GetSensors();
-  SCA_ActuatorList& GetActuators();
-  SG_QList& GetActiveActuators();
-  SG_QList& GetActiveControllers();
-  static SG_QList& GetActiveBookmarkedControllers();
+  SCA_ControllerList &GetControllers();
+  SCA_SensorList &GetSensors();
+  SCA_ActuatorList &GetActuators();
+  SG_QList &GetActiveActuators();
+  SG_QList &GetActiveControllers();
+  static SG_QList &GetActiveBookmarkedControllers();
 
   void AddSensor(SCA_ISensor *act);
   void ReserveSensor(int num);
@@ -125,9 +124,9 @@ class SCA_IObject : public EXP_Value {
    */
   virtual bool UnlinkObject(SCA_IObject *clientobj);
 
-  SCA_ISensor *FindSensor(const std::string& sensorname);
-  SCA_IActuator *FindActuator(const std::string& actuatorname);
-  SCA_IController *FindController(const std::string& controllername);
+  SCA_ISensor *FindSensor(const std::string &sensorname);
+  SCA_IActuator *FindActuator(const std::string &actuatorname);
+  SCA_IController *FindController(const std::string &controllername);
 
   virtual void ReParentLogic();
 
@@ -161,4 +160,3 @@ class SCA_IObject : public EXP_Value {
     OBJ_TEXT = 3
   } ObjectTypes;
 };
-

@@ -30,7 +30,6 @@
 
 #pragma once
 
-
 #include "Common.h"
 #include "FilterBase.h"
 #include "ImageBase.h"
@@ -142,4 +141,3 @@ class FilterImageMix : public FilterBase {
            ((color[3] << 16) & 0xFF000000);
   }
 };
-

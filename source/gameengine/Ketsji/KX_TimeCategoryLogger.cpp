@@ -42,7 +42,7 @@ KX_TimeCategoryLogger::~KX_TimeCategoryLogger()
 
 void KX_TimeCategoryLogger::SetMaxNumMeasurements(unsigned int maxNumMeasurements)
 {
-  for (TimeLoggerMap::value_type& pair : m_loggers) {
+  for (TimeLoggerMap::value_type &pair : m_loggers) {
     pair.second.SetMaxNumMeasurements(maxNumMeasurements);
   }
   m_maxNumMeasurements = maxNumMeasurements;
@@ -83,7 +83,7 @@ void KX_TimeCategoryLogger::EndLog(double now)
 
 void KX_TimeCategoryLogger::NextMeasurement(double now)
 {
-  for (TimeLoggerMap::value_type& pair : m_loggers) {
+  for (TimeLoggerMap::value_type &pair : m_loggers) {
     pair.second.NextMeasurement(now);
   }
 }
@@ -97,7 +97,7 @@ double KX_TimeCategoryLogger::GetAverage()
 {
   double time = 0.0;
 
-  for (TimeLoggerMap::value_type& pair : m_loggers) {
+  for (TimeLoggerMap::value_type &pair : m_loggers) {
     time += pair.second.GetAverage();
   }
 

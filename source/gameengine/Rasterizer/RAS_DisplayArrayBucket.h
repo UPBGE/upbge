@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include <vector>
 
 #include "CM_RefCount.h"
@@ -89,4 +88,3 @@ class RAS_DisplayArrayBucket {
 };
 
 typedef std::vector<RAS_DisplayArrayBucket *> RAS_DisplayArrayBucketList;
-

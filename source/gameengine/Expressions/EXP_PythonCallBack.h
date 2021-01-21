@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include "EXP_Python.h"
 
 /** Execute each functions with at least one argument
@@ -36,7 +35,6 @@
  * The maximum of quantity of arguments possible.
  */
 void EXP_RunPythonCallBackList(PyObject *functionlist,
-                           PyObject **arglist,
-                           unsigned int minargcount,
-                           unsigned int maxargcount);
-
+                               PyObject **arglist,
+                               unsigned int minargcount,
+                               unsigned int maxargcount);

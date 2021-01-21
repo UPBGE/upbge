@@ -36,7 +36,6 @@
 
 #include "BL_ConvertActuators.h"
 
-
 #ifdef WITH_AUDASPACE
 #  include <AUD_Sound.h>
 #endif
@@ -202,8 +201,7 @@ void BL_ConvertActuators(const char *maggiename,
             actact->layer,
             actact->layer_weight,
             ipo_flags,
-            actact->end_reset
-        );
+            actact->end_reset);
         baseact = tmpbaseact;
         break;
       }
@@ -232,9 +230,9 @@ void BL_ConvertActuators(const char *maggiename,
         bMessageActuator *msgAct = (bMessageActuator *)bact->data;
 
         /* Get the name of the properties that objects must own that
-		 * we're sending to, if present.
-		 */
-		std::string toPropName = CM_RemovePrefix(msgAct->toPropName);
+         * we're sending to, if present.
+         */
+        std::string toPropName = CM_RemovePrefix(msgAct->toPropName);
 
         /* Get the Message Subject to send.
          */

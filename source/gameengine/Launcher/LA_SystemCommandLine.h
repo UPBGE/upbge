@@ -28,7 +28,6 @@
 
 #pragma once
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -68,4 +67,3 @@ extern void StartKetsjiShell(struct bContext *C,
 #ifdef __cplusplus
 }
 #endif
-

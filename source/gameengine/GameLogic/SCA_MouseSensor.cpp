@@ -35,7 +35,6 @@
 
 #include "SCA_MouseSensor.h"
 
-
 #include "SCA_MouseManager.h"
 
 /* ------------------------------------------------------------------------- */
@@ -172,10 +171,10 @@ void SCA_MouseSensor::setY(short y)
 /* ------------------------------------------------------------------------- */
 
 EXP_PYMETHODDEF_DOC_O(SCA_MouseSensor,
-                     getButtonStatus,
-                     "getButtonStatus(button)\n"
-                     "\tGet the given button's status (KX_INPUT_NONE, KX_INPUT_NONE, "
-                     "KX_INPUT_JUST_ACTIVATED, KX_INPUT_ACTIVE, KX_INPUT_JUST_RELEASED).\n")
+                      getButtonStatus,
+                      "getButtonStatus(button)\n"
+                      "\tGet the given button's status (KX_INPUT_NONE, KX_INPUT_NONE, "
+                      "KX_INPUT_JUST_ACTIVATED, KX_INPUT_ACTIVE, KX_INPUT_JUST_RELEASED).\n")
 {
   EXP_ShowDeprecationWarning("sensor.getButtonStatus(button)", "logic.mouse.events[button]");
 
@@ -245,11 +244,11 @@ PyMethodDef SCA_MouseSensor::Methods[] = {
 
 PyAttributeDef SCA_MouseSensor::Attributes[] = {
     EXP_PYATTRIBUTE_SHORT_RW("mode",
-                            KX_MOUSESENSORMODE_NODEF,
-                            KX_MOUSESENSORMODE_MAX - 1,
-                            true,
-                            SCA_MouseSensor,
-                            m_mousemode),
+                             KX_MOUSESENSORMODE_NODEF,
+                             KX_MOUSESENSORMODE_MAX - 1,
+                             true,
+                             SCA_MouseSensor,
+                             m_mousemode),
     EXP_PYATTRIBUTE_SHORT_LIST_RO("position", SCA_MouseSensor, m_x, 2),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };

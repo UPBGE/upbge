@@ -34,7 +34,6 @@
 
 #pragma once
 
-
 #include "SCA_IActuator.h"
 
 class KX_Scene;
@@ -59,4 +58,3 @@ class SCA_EndObjectActuator : public SCA_IActuator {
   /* --------------------------------------------------------------------- */
 
 }; /* end of class KX_EditObjectActuator : public SCA_PropertyActuator */
-

@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include <map>
 
 #include "DNA_constraint_types.h"
@@ -108,10 +107,10 @@ class BL_ArmatureConstraint : public EXP_Value {
 #ifdef WITH_PYTHON
 
   // Python access
-  static PyObject *py_attr_getattr(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *py_attr_getattr(EXP_PyObjectPlus *self,
+                                   const struct EXP_PYATTRIBUTE_DEF *attrdef);
   static int py_attr_setattr(EXP_PyObjectPlus *self,
                              const struct EXP_PYATTRIBUTE_DEF *attrdef,
                              PyObject *value);
 #endif /* WITH_PYTHON */
 };
-

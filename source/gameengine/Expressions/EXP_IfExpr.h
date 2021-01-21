@@ -18,7 +18,6 @@
 
 #pragma once
 
-
 #include "EXP_Expression.h"
 
 class EXP_IfExpr : public EXP_Expression {
@@ -35,4 +34,3 @@ class EXP_IfExpr : public EXP_Expression {
   virtual unsigned char GetExpressionID();
   virtual EXP_Value *Calculate();
 };
-

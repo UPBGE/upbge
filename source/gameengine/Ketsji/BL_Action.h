@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include <string>
 #include <vector>
 
@@ -142,4 +141,3 @@ class BL_Action {
     ACT_IPOFLAG_CHILD = 8,
   };
 };
-

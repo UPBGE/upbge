@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include <memory>
 
 #include "RAS_Rasterizer.h"
@@ -87,4 +86,3 @@ class RAS_2DFilterFrameBuffer {
   unsigned int GetWidth() const;
   unsigned int GetHeight() const;
 };
-

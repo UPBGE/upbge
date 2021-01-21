@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 class RAS_IDisplayArray;
 class RAS_MaterialBucket;
 class RAS_IVertex;
@@ -72,4 +71,3 @@ class RAS_Polygon {
   RAS_MaterialBucket *GetMaterial() const;
   RAS_IDisplayArray *GetDisplayArray() const;
 };
-

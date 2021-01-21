@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include <map>
 #include <string>
 
@@ -135,4 +134,3 @@ class RAS_IPolyMaterial {
    */
   virtual void OnConstruction() = 0;
 };
-

@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 // For now keep weakrefs optional.
 #define USE_WEAKREFS
 
@@ -323,12 +322,12 @@ enum EXP_PYATTRIBUTE_ACCESS { EXP_PYATTRIBUTE_RW, EXP_PYATTRIBUTE_RO };
 
 struct EXP_PYATTRIBUTE_DEF;
 typedef int (*EXP_PYATTRIBUTE_CHECK_FUNCTION)(EXP_PyObjectPlus *self,
-                                             const struct EXP_PYATTRIBUTE_DEF *attrdef);
+                                              const struct EXP_PYATTRIBUTE_DEF *attrdef);
 typedef int (*EXP_PYATTRIBUTE_SET_FUNCTION)(EXP_PyObjectPlus *self,
-                                           const struct EXP_PYATTRIBUTE_DEF *attrdef,
-                                           PyObject *value);
+                                            const struct EXP_PYATTRIBUTE_DEF *attrdef,
+                                            PyObject *value);
 typedef PyObject *(*EXP_PYATTRIBUTE_GET_FUNCTION)(EXP_PyObjectPlus *self,
-                                                 const struct EXP_PYATTRIBUTE_DEF *attrdef);
+                                                  const struct EXP_PYATTRIBUTE_DEF *attrdef);
 
 typedef struct EXP_PYATTRIBUTE_DEF {
   /// Name of the python attribute.
@@ -730,25 +729,27 @@ typedef struct EXP_PYATTRIBUTE_DEF {
 /// Field must be float[n][n], returns a matrix.
 #  define EXP_PYATTRIBUTE_FLOAT_MATRIX_RW(name, min, max, object, field, length) \
     { \
-      name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RW, length, length, min, max, true, false, \
-          offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr, \
+      name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RW, length, length, min, max, true, \
+          false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, \
+          nullptr, \
       { \
         nullptr, nullptr, nullptr, ((object *)0)->field[0], nullptr, nullptr, nullptr \
       } \
     }
 #  define EXP_PYATTRIBUTE_FLOAT_MATRIX_RW_CHECK(name, min, max, object, field, length, function) \
     { \
-      name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RW, length, length, min, max, true, false, \
-          offsetof(object, field), sizeof(((object *)0)->field), 1, &object::function, nullptr, \
-          nullptr, \
+      name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RW, length, length, min, max, true, \
+          false, offsetof(object, field), sizeof(((object *)0)->field), 1, &object::function, \
+          nullptr, nullptr, \
       { \
         nullptr, nullptr, nullptr, ((object *)0)->field[0], nullptr, nullptr, nullptr \
       } \
     }
 #  define EXP_PYATTRIBUTE_FLOAT_MATRIX_RO(name, object, field, length) \
     { \
-      name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RO, length, length, 0.f, 0.f, false, false, \
-          offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, nullptr, \
+      name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RO, length, length, 0.f, 0.f, false, \
+          false, offsetof(object, field), sizeof(((object *)0)->field), 1, nullptr, nullptr, \
+          nullptr, \
       { \
         nullptr, nullptr, nullptr, ((object *)0)->field[0], nullptr, nullptr, nullptr \
       } \
@@ -835,32 +836,32 @@ typedef struct EXP_PYATTRIBUTE_DEF {
 
 #  define EXP_PYATTRIBUTE_RW_FUNCTION(name, object, getfunction, setfunction) \
     { \
-      name, EXP_PYATTRIBUTE_TYPE_FUNCTION, EXP_PYATTRIBUTE_RW, 0, 0, 0.f, 0.f, false, false, 0, 0, \
-          1, nullptr, &object::setfunction, &object::getfunction, \
+      name, EXP_PYATTRIBUTE_TYPE_FUNCTION, EXP_PYATTRIBUTE_RW, 0, 0, 0.f, 0.f, false, false, 0, \
+          0, 1, nullptr, &object::setfunction, &object::getfunction, \
       { \
         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr \
       } \
     }
 #  define EXP_PYATTRIBUTE_RO_FUNCTION(name, object, getfunction) \
     { \
-      name, EXP_PYATTRIBUTE_TYPE_FUNCTION, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, 0, 0, \
-          1, nullptr, nullptr, &object::getfunction, \
+      name, EXP_PYATTRIBUTE_TYPE_FUNCTION, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, 0, \
+          0, 1, nullptr, nullptr, &object::getfunction, \
       { \
         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr \
       } \
     }
 #  define EXP_PYATTRIBUTE_ARRAY_RW_FUNCTION(name, object, length, getfunction, setfunction) \
     { \
-      name, EXP_PYATTRIBUTE_TYPE_FUNCTION, EXP_PYATTRIBUTE_RW, 0, 0, 0.f, 0, f, false, false, 0, 0, \
-          length, nullptr, &object::setfunction, &object::getfunction, \
+      name, EXP_PYATTRIBUTE_TYPE_FUNCTION, EXP_PYATTRIBUTE_RW, 0, 0, 0.f, 0, f, false, false, 0, \
+          0, length, nullptr, &object::setfunction, &object::getfunction, \
       { \
         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr \
       } \
     }
 #  define EXP_PYATTRIBUTE_ARRAY_RO_FUNCTION(name, object, length, getfunction) \
     { \
-      name, EXP_PYATTRIBUTE_TYPE_FUNCTION, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0, f, false, false, 0, 0, \
-          length, nullptr, nullptr, &object::getfunction, \
+      name, EXP_PYATTRIBUTE_TYPE_FUNCTION, EXP_PYATTRIBUTE_RO, 0, 0, 0.f, 0, f, false, false, 0, \
+          0, length, nullptr, nullptr, &object::getfunction, \
       { \
         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr \
       } \
@@ -881,14 +882,15 @@ typedef struct EXP_PYATTRIBUTE_DEF {
 class EXP_PyObjectPlus {
   Py_Header  // Always start with Py_Header
 
-  protected :
-    /** Called when the object is freed from a python owner proxy.
-     * It has effect to use reference count for deletion and to not
-     * be every time deleted in EXP_Value.
-     */
-    virtual void DestructFromPython();
+      protected :
+      /** Called when the object is freed from a python owner proxy.
+       * It has effect to use reference count for deletion and to not
+       * be every time deleted in EXP_Value.
+       */
+      virtual void
+      DestructFromPython();
 
-    static bool m_ignore_deprecation_warnings;
+  static bool m_ignore_deprecation_warnings;
 
  public:
   EXP_PyObjectPlus();
@@ -919,7 +921,8 @@ class EXP_PyObjectPlus {
 
   /// Kindof dumb, always returns True, the false case is checked for, before this function gets
   /// accessed.
-  static PyObject *pyattr_get_invalid(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_invalid(EXP_PyObjectPlus *self_v,
+                                      const EXP_PYATTRIBUTE_DEF *attrdef);
 
   static PyObject *GetProxyPlus_Ext(EXP_PyObjectPlus *self, PyTypeObject *tp, void *ptr);
   /** self=nullptr => proxy to generic pointer detached from GE object
@@ -927,7 +930,10 @@ class EXP_PyObjectPlus {
    * self!=nullptr=> proxy attached to GE object, ptr is optional and point to a struct from which
    * attributes can be defined if py_owns is true, the object will be deleted automatically, ptr
    * will NOT be deleted (assume object destructor takes care of it) */
-  static PyObject *NewProxyPlus_Ext(EXP_PyObjectPlus *self, PyTypeObject *tp, void *ptr, bool py_owns);
+  static PyObject *NewProxyPlus_Ext(EXP_PyObjectPlus *self,
+                                    PyTypeObject *tp,
+                                    void *ptr,
+                                    bool py_owns);
 
   static EXP_WarnLink *GetDeprecationWarningLinkFirst();
   static EXP_WarnLink *GetDeprecationWarningLinkLast();
@@ -962,4 +968,3 @@ inline PyObject *_bge_proxy_from_ref_borrow(EXP_PyObjectPlus *self_v)
   return self_proxy;
 }
 #endif
-

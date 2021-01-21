@@ -34,7 +34,6 @@
 
 #pragma once
 
-
 #include "SCA_EventManager.h"
 
 class SCA_BasicEventManager : public SCA_EventManager {
@@ -44,4 +43,3 @@ class SCA_BasicEventManager : public SCA_EventManager {
 
   virtual void NextFrame();
 };
-

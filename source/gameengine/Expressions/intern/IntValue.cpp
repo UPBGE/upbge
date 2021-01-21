@@ -225,7 +225,8 @@ EXP_Value *EXP_IntValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EXP
         case VALUE_LES_OPERATOR:
         case VALUE_GEQ_OPERATOR:
         case VALUE_LEQ_OPERATOR: {
-          ret = new EXP_ErrorValue("[Cannot compare string with integer]" + op2str(op) + GetText());
+          ret = new EXP_ErrorValue("[Cannot compare string with integer]" + op2str(op) +
+                                   GetText());
           break;
         }
         default: {
@@ -237,7 +238,7 @@ EXP_Value *EXP_IntValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EXP
     }
     case VALUE_BOOL_TYPE: {
       ret = new EXP_ErrorValue("[operator not valid on boolean and integer]" + op2str(op) +
-                            GetText());
+                               GetText());
       break;
     }
     case VALUE_ERROR_TYPE: {

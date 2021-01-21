@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "PHY_IMotionState.h"
 
 class SG_Node;
@@ -53,4 +52,3 @@ class KX_MotionState : public PHY_IMotionState {
 
   virtual void CalculateWorldTransformations();
 };
-

@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include <vector>
 
 #include "EXP_Value.h"
@@ -52,4 +51,3 @@ class SCA_TimeEventManager : public SCA_EventManager {
 
   std::vector<EXP_Value *> GetTimeValues();
 };
-

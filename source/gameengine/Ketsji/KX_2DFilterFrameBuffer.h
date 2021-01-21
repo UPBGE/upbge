@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include "EXP_Value.h"
 #include "RAS_2DFilterFrameBuffer.h"
 
@@ -50,4 +49,3 @@ class KX_2DFilterFrameBuffer : public EXP_Value, public RAS_2DFilterFrameBuffer 
 
 #endif
 };
-

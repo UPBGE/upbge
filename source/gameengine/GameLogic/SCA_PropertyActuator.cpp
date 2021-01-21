@@ -34,7 +34,6 @@
 
 #include "SCA_PropertyActuator.h"
 
-
 #include "EXP_ConstExpr.h"
 #include "EXP_InputParser.h"
 #include "EXP_Operator2Expr.h"
@@ -267,11 +266,11 @@ PyAttributeDef SCA_PropertyActuator::Attributes[] = {
         "propName", 0, MAX_PROP_NAME, false, SCA_PropertyActuator, m_propname, CheckProperty),
     EXP_PYATTRIBUTE_STRING_RW("value", 0, 100, false, SCA_PropertyActuator, m_exprtxt),
     EXP_PYATTRIBUTE_INT_RW("mode",
-                          KX_ACT_PROP_NODEF + 1,
-                          KX_ACT_PROP_MAX - 1,
-                          false,
-                          SCA_PropertyActuator,
-                          m_type), /* ATTR_TODO add constents to game logic dict */
+                           KX_ACT_PROP_NODEF + 1,
+                           KX_ACT_PROP_MAX - 1,
+                           false,
+                           SCA_PropertyActuator,
+                           m_type), /* ATTR_TODO add constents to game logic dict */
     EXP_PYATTRIBUTE_NULL            // Sentinel
 };
 

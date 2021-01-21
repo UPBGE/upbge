@@ -34,8 +34,6 @@
 
 #include "SCA_ActuatorSensor.h"
 
-
-
 SCA_ActuatorSensor::SCA_ActuatorSensor(SCA_EventManager *eventmgr,
                                        SCA_IObject *gameobj,
                                        const std::string &actname)

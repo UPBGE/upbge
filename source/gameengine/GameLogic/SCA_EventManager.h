@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include <algorithm>
 #include <set>
 #include <vector>
@@ -81,4 +80,3 @@ class SCA_EventManager {
  protected:
   EVENT_MANAGER_TYPE m_mgrtype;
 };
-

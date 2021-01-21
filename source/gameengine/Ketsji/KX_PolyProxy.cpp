@@ -196,13 +196,15 @@ PyObject *KX_PolyProxy::pyattr_get_v4(EXP_PyObjectPlus *self_v, const EXP_PYATTR
   return PyLong_FromLong(0);
 }
 
-PyObject *KX_PolyProxy::pyattr_get_visible(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_PolyProxy::pyattr_get_visible(EXP_PyObjectPlus *self_v,
+                                           const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_PolyProxy *self = static_cast<KX_PolyProxy *>(self_v);
   return self->PyisVisible();
 }
 
-PyObject *KX_PolyProxy::pyattr_get_collide(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_PolyProxy::pyattr_get_collide(EXP_PyObjectPlus *self_v,
+                                           const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_PolyProxy *self = static_cast<KX_PolyProxy *>(self_v);
   return self->PyisCollider();
@@ -228,12 +230,12 @@ PyObject *KX_PolyProxy::pyattr_get_vertices(EXP_PyObjectPlus *self_v,
                                             const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   return (new EXP_ListWrapper(self_v,
-                           ((KX_PolyProxy *)self_v)->GetProxy(),
-                           nullptr,
-                           kx_poly_proxy_get_vertices_size_cb,
-                           kx_poly_proxy_get_vertices_item_cb,
-                           nullptr,
-                           nullptr))
+                              ((KX_PolyProxy *)self_v)->GetProxy(),
+                              nullptr,
+                              kx_poly_proxy_get_vertices_size_cb,
+                              kx_poly_proxy_get_vertices_item_cb,
+                              nullptr,
+                              nullptr))
       ->NewProxy(true);
 }
 
@@ -253,16 +255,17 @@ EXP_PYMETHODDEF_DOC_NOARGS(
   return PyLong_FromLong(matid);
 }
 
-EXP_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy,
-                          getNumVertex,
-                          "getNumVertex() : returns the number of vertex of the polygon, 3 or 4\n")
+EXP_PYMETHODDEF_DOC_NOARGS(
+    KX_PolyProxy,
+    getNumVertex,
+    "getNumVertex() : returns the number of vertex of the polygon, 3 or 4\n")
 {
   return PyLong_FromLong(m_polygon->VertexCount());
 }
 
 EXP_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy,
-                          isVisible,
-                          "isVisible() : returns whether the polygon is visible or not\n")
+                           isVisible,
+                           "isVisible() : returns whether the polygon is visible or not\n")
 {
   return PyLong_FromLong(m_polygon->IsVisible());
 }
@@ -292,11 +295,11 @@ EXP_PYMETHODDEF_DOC_NOARGS(
 }
 
 EXP_PYMETHODDEF_DOC(KX_PolyProxy,
-                   getVertexIndex,
-                   "getVertexIndex(vertex) : returns the mesh vertex index of a polygon vertex\n"
-                   "vertex: index of the vertex in the polygon: 0->3\n"
-                   "return value can be used to retrieve the vertex details through mesh proxy\n"
-                   "Note: getVertexIndex(3) on a triangle polygon returns 0\n")
+                    getVertexIndex,
+                    "getVertexIndex(vertex) : returns the mesh vertex index of a polygon vertex\n"
+                    "vertex: index of the vertex in the polygon: 0->3\n"
+                    "return value can be used to retrieve the vertex details through mesh proxy\n"
+                    "Note: getVertexIndex(3) on a triangle polygon returns 0\n")
 {
   int index;
   if (!PyArg_ParseTuple(args, "i:getVertexIndex", &index)) {

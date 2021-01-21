@@ -30,7 +30,6 @@
 
 #pragma once
 
-
 #include "Common.h"
 
 #include "EXP_PyObjectPlus.h"
@@ -166,4 +165,3 @@ void Filter_dealloc(PyFilter *self);
 PyObject *Filter_getPrevious(PyFilter *self, void *closure);
 // set previous pixel filter object
 int Filter_setPrevious(PyFilter *self, PyObject *value, void *closure);
-

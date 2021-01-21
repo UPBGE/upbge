@@ -31,7 +31,6 @@
 
 #include "SCA_JoystickSensor.h"
 
-
 #include "CM_Message.h"
 #include "SCA_JoystickManager.h"
 
@@ -276,7 +275,8 @@ PyAttributeDef SCA_JoystickSensor::Attributes[] = {
     EXP_PYATTRIBUTE_INT_RW("threshold", 0, 32768, true, SCA_JoystickSensor, m_precision),
     EXP_PYATTRIBUTE_INT_RW(
         "button", 0, KX_JOYSENS_BUTTON_MAX - 1, false, SCA_JoystickSensor, m_button),
-    EXP_PYATTRIBUTE_INT_LIST_RW_CHECK("axis", 0, 3, true, SCA_JoystickSensor, m_axis, 2, CheckAxis),
+    EXP_PYATTRIBUTE_INT_LIST_RW_CHECK(
+        "axis", 0, 3, true, SCA_JoystickSensor, m_axis, 2, CheckAxis),
     EXP_PYATTRIBUTE_RO_FUNCTION("hat", SCA_JoystickSensor, pyattr_check_hat),
     EXP_PYATTRIBUTE_RO_FUNCTION("axisValues", SCA_JoystickSensor, pyattr_get_axis_values),
     EXP_PYATTRIBUTE_RO_FUNCTION("axisSingle", SCA_JoystickSensor, pyattr_get_axis_single),

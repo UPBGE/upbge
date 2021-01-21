@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include <array>
 
 #include "MT_Matrix4x4.h"
@@ -31,4 +30,3 @@ class SG_Frustum {
                              const MT_Matrix4x4 &mat) const;
   TestType FrustumInsideFrustum(const SG_Frustum &frustum) const;
 };
-

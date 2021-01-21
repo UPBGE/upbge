@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "MT_Vector3.h"
 #include "SCA_NearSensor.h"
 
@@ -97,4 +96,3 @@ class SCA_RadarSensor : public SCA_NearSensor {
   static PyObject *pyattr_get_angle(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
-

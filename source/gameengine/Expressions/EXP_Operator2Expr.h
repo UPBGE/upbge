@@ -18,7 +18,6 @@
 
 #pragma once
 
-
 #include "EXP_Expression.h"
 #include "EXP_Value.h"
 
@@ -38,4 +37,3 @@ class EXP_Operator2Expr : public EXP_Expression {
  private:
   VALUE_OPERATOR m_op;
 };
-

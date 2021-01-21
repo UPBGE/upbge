@@ -24,7 +24,6 @@
 
 #include "KX_VehicleWrapper.h"
 
-
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
 #include "KX_MotionState.h"

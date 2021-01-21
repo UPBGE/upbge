@@ -38,7 +38,6 @@
 
 #include "SCA_RandomNumberGenerator.h"
 
-
 /* Period parameters */
 #define N 624
 #define M 397

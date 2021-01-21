@@ -24,7 +24,6 @@
 
 #include "RAS_ICanvas.h"
 
-
 #include "BKE_image.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"

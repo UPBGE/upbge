@@ -18,7 +18,6 @@
 
 #pragma once
 
-
 #include "EXP_Value.h"
 
 class EXP_ErrorValue : public EXP_PropValue {
@@ -37,4 +36,3 @@ class EXP_ErrorValue : public EXP_PropValue {
  private:
   std::string m_strErrorText;
 };
-

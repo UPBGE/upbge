@@ -32,7 +32,6 @@
 
 #pragma once
 
-
 #include "SCA_IActuator.h"
 
 /*
@@ -77,4 +76,3 @@ class SCA_StateActuator : public SCA_IActuator {
   /* Python interface ---------------------------------------------------- */
   /* --------------------------------------------------------------------- */
 };
-

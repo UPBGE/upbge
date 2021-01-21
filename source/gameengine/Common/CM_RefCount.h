@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include "BLI_utildefines.h"
 
 /** \brief Reference counter base class. This class manages the destruction of an object
@@ -93,4 +92,3 @@ template<class T> T *CM_Release(T *val)
 {
   return static_cast<T *>(val->Release());
 }
-

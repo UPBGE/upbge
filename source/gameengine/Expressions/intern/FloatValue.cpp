@@ -22,7 +22,6 @@
 #include "EXP_IntValue.h"
 #include "EXP_StringValue.h"
 
-
 EXP_FloatValue::EXP_FloatValue()
 {
 }
@@ -228,7 +227,8 @@ EXP_Value *EXP_FloatValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, E
       break;
     }
     case VALUE_BOOL_TYPE: {
-      ret = new EXP_ErrorValue("[operator not valid on boolean and float]" + op2str(op) + GetText());
+      ret = new EXP_ErrorValue("[operator not valid on boolean and float]" + op2str(op) +
+                               GetText());
       break;
     }
     case VALUE_ERROR_TYPE: {

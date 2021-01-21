@@ -46,7 +46,6 @@
 
 #include "EXP_PyObjectPlus.h"
 
-
 #include "MEM_guardedalloc.h"
 
 #include "CM_Message.h"
@@ -112,7 +111,7 @@ void EXP_PyObjectPlus::DestructFromPython()
 PyTypeObject EXP_PyObjectPlus::Type = {
     PyVarObject_HEAD_INIT(nullptr, 0) "EXP_PyObjectPlus", /*tp_name*/
     sizeof(EXP_PyObjectPlus_Proxy),                       /*tp_basicsize*/
-    0,                                                /*tp_itemsize*/
+    0,                                                    /*tp_itemsize*/
     /* methods */
     py_base_dealloc, /* tp_dealloc */
     0,               /* printfunc tp_print; */
@@ -303,7 +302,8 @@ PyAttributeDef EXP_PyObjectPlus::Attributes[] = {
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
-PyObject *EXP_PyObjectPlus::pyattr_get_invalid(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *EXP_PyObjectPlus::pyattr_get_invalid(EXP_PyObjectPlus *self_v,
+                                               const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   return PyBool_FromLong(self_v ? 0 : 1);
 }
@@ -517,7 +517,9 @@ static bool py_check_attr_float(float *var, PyObject *value, const PyAttributeDe
 }
 
 // Note, this is called as a python getset.
-int EXP_PyObjectPlus::py_set_attrdef(PyObject *self_py, PyObject *value, const PyAttributeDef *attrdef)
+int EXP_PyObjectPlus::py_set_attrdef(PyObject *self_py,
+                                     PyObject *value,
+                                     const PyAttributeDef *attrdef)
 {
   EXP_PyObjectPlus *ref = (EXP_PROXY_REF(self_py));
   char *ptr = (attrdef->m_usePtr) ? (char *)EXP_PROXY_PTR(self_py) : (char *)ref;
@@ -1170,9 +1172,9 @@ PyObject *EXP_PyObjectPlus::GetProxyPlus_Ext(EXP_PyObjectPlus *self, PyTypeObjec
 }
 
 PyObject *EXP_PyObjectPlus::NewProxyPlus_Ext(EXP_PyObjectPlus *self,
-                                         PyTypeObject *tp,
-                                         void *ptr,
-                                         bool py_owns)
+                                             PyTypeObject *tp,
+                                             void *ptr,
+                                             bool py_owns)
 {
   if (!self) {
     // In case of proxy without reference to game object.
@@ -1225,7 +1227,7 @@ void EXP_PyObjectPlus::SetDeprecationWarnings(bool ignoreDeprecationWarnings)
 }
 
 void EXP_PyObjectPlus::ShowDeprecationWarning_func(const std::string &old_way,
-                                               const std::string &new_way)
+                                                   const std::string &new_way)
 {
   CM_PythonWarning("method " << old_way << " is deprecated, please use " << new_way
                              << " instead.");

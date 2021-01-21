@@ -94,6 +94,5 @@ void KX_RasterizerDrawDebugCircle(const MT_Vector3 &center,
                                   const MT_Vector3 &normal,
                                   int nsector)
 {
-  g_engine->GetRasterizer()->GetDebugDraw().DrawCircle(
-      center, radius, color, normal, nsector);
+  g_engine->GetRasterizer()->GetDebugDraw().DrawCircle(center, radius, color, normal, nsector);
 }

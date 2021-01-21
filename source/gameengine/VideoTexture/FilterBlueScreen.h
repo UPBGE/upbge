@@ -30,7 +30,6 @@
 
 #pragma once
 
-
 #include "Common.h"
 #include "FilterBase.h"
 
@@ -113,4 +112,3 @@ class FilterBlueScreen : public FilterBase {
     return tFilter(src, x, y, size, pixSize, val);
   }
 };
-

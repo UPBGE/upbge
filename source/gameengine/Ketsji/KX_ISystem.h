@@ -32,7 +32,6 @@
 
 #pragma once
 
-
 /**
  * System Abstraction, needed only for getting some timing stuff from the host.
  */
@@ -43,4 +42,3 @@ class KX_ISystem {
 
   virtual double GetTimeInSeconds() = 0;
 };
-

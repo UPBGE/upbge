@@ -236,7 +236,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
     PyType_Ready_Attr(dict, KX_FontObject, init_getset);
     PyType_Ready_Attr(dict, KX_MeshProxy, init_getset);
     PyType_Ready_Attr(dict, SCA_MouseFocusSensor, init_getset);
-	PyType_Ready_Attr(dict, SCA_MovementSensor, init_getset);
+    PyType_Ready_Attr(dict, SCA_MovementSensor, init_getset);
     PyType_Ready_Attr(dict, SCA_NearSensor, init_getset);
     PyType_Ready_Attr(dict, KX_NetworkMessageActuator, init_getset);
     PyType_Ready_Attr(dict, KX_NetworkMessageSensor, init_getset);

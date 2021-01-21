@@ -132,7 +132,8 @@ PyAttributeDef KX_LodLevel::Attributes[] = {
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
-PyObject *KX_LodLevel::pyattr_get_mesh(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_LodLevel::pyattr_get_mesh(EXP_PyObjectPlus *self_v,
+                                       const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_LodLevel *self = static_cast<KX_LodLevel *>(self_v);
   KX_MeshProxy *meshproxy = new KX_MeshProxy(self->GetMesh());
@@ -146,7 +147,8 @@ PyObject *KX_LodLevel::pyattr_get_use_hysteresis(EXP_PyObjectPlus *self_v,
   return PyBool_FromLong(self->GetFlag() & KX_LodLevel::USE_HYSTERESIS);
 }
 
-PyObject *KX_LodLevel::pyattr_get_use_mesh(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_LodLevel::pyattr_get_use_mesh(EXP_PyObjectPlus *self_v,
+                                           const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_LodLevel *self = static_cast<KX_LodLevel *>(self_v);
   return PyBool_FromLong(self->GetFlag() & KX_LodLevel::USE_MESH);

@@ -27,7 +27,6 @@
 
 #pragma once
 
-
 /** \file SCA_ActuatorSensor.h
  *  \ingroup gamelogic
  */
@@ -66,4 +65,3 @@ class SCA_ActuatorSensor : public SCA_ISensor {
 
 #endif /* WITH_PYTHON */
 };
-

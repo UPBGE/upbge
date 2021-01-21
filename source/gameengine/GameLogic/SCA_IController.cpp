@@ -185,12 +185,12 @@ void SCA_IController::Activate(SG_DList &head)
 {
   if (QEmpty()) {
     if (m_bookmark) {
-      SG_QList& list = SCA_IObject::GetActiveBookmarkedControllers();
+      SG_QList &list = SCA_IObject::GetActiveBookmarkedControllers();
       list.QAddBack(this);
       head.AddFront(&list);
     }
     else {
-      SG_QList& list = m_gameobj->GetActiveControllers();
+      SG_QList &list = m_gameobj->GetActiveControllers();
       InsertActiveQList(list);
       head.AddBack(&list);
     }
@@ -277,12 +277,12 @@ PyObject *SCA_IController::pyattr_get_sensors(EXP_PyObjectPlus *self_v,
                                               const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   return (new EXP_ListWrapper(self_v,
-                           ((SCA_IController *)self_v)->GetProxy(),
-                           nullptr,
-                           sca_icontroller_get_sensors_size_cb,
-                           sca_icontroller_get_sensors_item_cb,
-                           sca_icontroller_get_sensors_item_name_cb,
-                           nullptr))
+                              ((SCA_IController *)self_v)->GetProxy(),
+                              nullptr,
+                              sca_icontroller_get_sensors_size_cb,
+                              sca_icontroller_get_sensors_item_cb,
+                              sca_icontroller_get_sensors_item_name_cb,
+                              nullptr))
       ->NewProxy(true);
 }
 
@@ -305,12 +305,12 @@ PyObject *SCA_IController::pyattr_get_actuators(EXP_PyObjectPlus *self_v,
                                                 const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   return (new EXP_ListWrapper(self_v,
-                           ((SCA_IController *)self_v)->GetProxy(),
-                           nullptr,
-                           sca_icontroller_get_actuators_size_cb,
-                           sca_icontroller_get_actuators_item_cb,
-                           sca_icontroller_get_actuators_item_name_cb,
-                           nullptr))
+                              ((SCA_IController *)self_v)->GetProxy(),
+                              nullptr,
+                              sca_icontroller_get_actuators_size_cb,
+                              sca_icontroller_get_actuators_item_cb,
+                              sca_icontroller_get_actuators_item_name_cb,
+                              nullptr))
       ->NewProxy(true);
 }
 #endif  // WITH_PYTHON

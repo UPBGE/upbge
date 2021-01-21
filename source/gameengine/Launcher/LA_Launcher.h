@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include <string>
 
 #include "KX_ISystem.h"
@@ -175,4 +174,3 @@ class LA_Launcher {
   static int PythonEngineNextFrame(void *state);
 #endif  // WITH_PYTHON
 };
-

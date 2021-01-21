@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "BKE_sound.h"
 
 #include "SCA_IActuator.h"
@@ -129,11 +128,14 @@ class SCA_SoundActuator : public SCA_IActuator {
                                           const struct EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_audposition(EXP_PyObjectPlus *self,
                                           const struct EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_gain(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_pitch(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_type(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_sound(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_gain(EXP_PyObjectPlus *self,
+                                   const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_pitch(EXP_PyObjectPlus *self,
+                                    const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_type(EXP_PyObjectPlus *self,
+                                   const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_sound(EXP_PyObjectPlus *self,
+                                    const struct EXP_PYATTRIBUTE_DEF *attrdef);
 
 #endif /* WITH_PYTHON */
 };
-

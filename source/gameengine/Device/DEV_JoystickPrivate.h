@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "DEV_JoystickDefines.h"
 
 #ifdef WITH_SDL
@@ -57,4 +56,3 @@ class DEV_Joystick::PrivateData {
   }
 };
 #endif  // WITH_SDL
-

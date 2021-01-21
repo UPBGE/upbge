@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include <vector>
 
 #include "SG_BBox.h"
@@ -25,4 +24,3 @@ class SG_CullingNode {
 };
 
 using SG_CullingNodeList = std::vector<SG_CullingNode *>;
-

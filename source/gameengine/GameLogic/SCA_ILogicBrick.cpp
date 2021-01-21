@@ -31,8 +31,6 @@
 
 #include "SCA_ILogicBrick.h"
 
-
-
 SCA_ILogicBrick::SCA_ILogicBrick(SCA_IObject *gameobj)
     : EXP_Value(),
       m_gameobj(gameobj),

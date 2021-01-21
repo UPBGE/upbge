@@ -30,7 +30,6 @@
 
 #include "SCA_SteeringActuator.h"
 
-
 #include "EXP_ListWrapper.h"
 #include "KX_Globals.h"
 #include "KX_NavMeshObject.h"
@@ -532,11 +531,11 @@ PyMethodDef SCA_SteeringActuator::Methods[] = {
 
 PyAttributeDef SCA_SteeringActuator::Attributes[] = {
     EXP_PYATTRIBUTE_INT_RW("behavior",
-                          KX_STEERING_NODEF + 1,
-                          KX_STEERING_MAX - 1,
-                          true,
-                          SCA_SteeringActuator,
-                          m_mode),
+                           KX_STEERING_NODEF + 1,
+                           KX_STEERING_MAX - 1,
+                           true,
+                           SCA_SteeringActuator,
+                           m_mode),
     EXP_PYATTRIBUTE_RW_FUNCTION(
         "target", SCA_SteeringActuator, pyattr_get_target, pyattr_set_target),
     EXP_PYATTRIBUTE_RW_FUNCTION(
@@ -655,12 +654,12 @@ PyObject *SCA_SteeringActuator::pyattr_get_path(EXP_PyObjectPlus *self,
                                                 const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
   return (new EXP_ListWrapper(self,
-                           ((SCA_SteeringActuator *)self)->GetProxy(),
-                           nullptr,
-                           kx_steering_actuator_get_path_size_cb,
-                           kx_steering_actuator_get_path_item_cb,
-                           nullptr,
-                           nullptr))
+                              ((SCA_SteeringActuator *)self)->GetProxy(),
+                              nullptr,
+                              kx_steering_actuator_get_path_size_cb,
+                              kx_steering_actuator_get_path_item_cb,
+                              nullptr,
+                              nullptr))
       ->NewProxy(true);
 }
 

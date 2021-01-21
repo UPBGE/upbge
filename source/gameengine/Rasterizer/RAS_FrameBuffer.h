@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include "RAS_Rasterizer.h"
 
 struct GPUFrameBuffer;
@@ -60,4 +59,3 @@ class RAS_FrameBuffer {
 
   RAS_Rasterizer::FrameBufferType GetType() const;
 };
-

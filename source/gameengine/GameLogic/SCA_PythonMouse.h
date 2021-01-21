@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include "EXP_PyObjectPlus.h"
 
 class SCA_PythonMouse : public EXP_PyObjectPlus {
@@ -50,14 +49,15 @@ class SCA_PythonMouse : public EXP_PyObjectPlus {
                                             const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_active_inputs(EXP_PyObjectPlus *self_v,
                                             const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_position(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_position(EXP_PyObjectPlus *self_v,
+                                       const EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_position(EXP_PyObjectPlus *self_v,
                                  const EXP_PYATTRIBUTE_DEF *attrdef,
                                  PyObject *value);
-  static PyObject *pyattr_get_visible(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_visible(EXP_PyObjectPlus *self_v,
+                                      const EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_visible(EXP_PyObjectPlus *self_v,
                                 const EXP_PYATTRIBUTE_DEF *attrdef,
                                 PyObject *value);
 #endif
 };
-

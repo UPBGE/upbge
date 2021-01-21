@@ -18,7 +18,6 @@
 
 #pragma once
 
-
 #include "EXP_Value.h"
 
 class EXP_StringValue : public EXP_PropValue {
@@ -51,4 +50,3 @@ class EXP_StringValue : public EXP_PropValue {
   /// Data member.
   std::string m_strString;
 };
-

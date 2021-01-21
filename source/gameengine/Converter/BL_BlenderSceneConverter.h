@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include <map>
 #include <vector>
 
@@ -90,4 +89,3 @@ class BL_BlenderSceneConverter {
   void RegisterGameController(SCA_IController *cont, bController *for_controller);
   SCA_IController *FindGameController(bController *for_controller);
 };
-

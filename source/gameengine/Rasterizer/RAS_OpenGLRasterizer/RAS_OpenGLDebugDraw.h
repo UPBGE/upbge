@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include "MT_Matrix4x4.h"
 
 class RAS_Rasterizer;
@@ -47,4 +46,3 @@ class RAS_OpenGLDebugDraw {
 
   void Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_DebugDraw *debugDraw);
 };
-

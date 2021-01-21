@@ -24,7 +24,7 @@
 
 #include "DRW_render.h"
 
-#include "glew-mx.h" // We'll remove that later (or skip 2D filters when there will be vulkan)
+#include "glew-mx.h"  // We'll remove that later (or skip 2D filters when there will be vulkan)
 
 #include "EXP_Value.h"
 #include "RAS_2DFilterFrameBuffer.h"
@@ -178,7 +178,7 @@ void RAS_2DFilter::ParseShaderProgram()
 
   if (m_gameObject) {
     std::vector<std::string> foundProperties;
-    for (const std::string& prop : m_properties) {
+    for (const std::string &prop : m_properties) {
       const unsigned int loc = GetUniformLocation(prop, false);
       if (loc != -1) {
         m_propertiesLoc.push_back(loc);

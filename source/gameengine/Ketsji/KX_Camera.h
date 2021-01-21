@@ -32,7 +32,6 @@
 
 #pragma once
 
-
 #include "KX_GameObject.h"
 #include "RAS_CameraData.h"
 #include "SG_Frustum.h"
@@ -254,7 +253,8 @@ class KX_Camera : public KX_GameObject {
   EXP_PYMETHOD_DOC_VARARGS(KX_Camera, getScreenVect);
   EXP_PYMETHOD_DOC_VARARGS(KX_Camera, getScreenRay);
 
-  static PyObject *pyattr_get_perspective(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_perspective(EXP_PyObjectPlus *self_v,
+                                          const EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_perspective(EXP_PyObjectPlus *self_v,
                                     const EXP_PYATTRIBUTE_DEF *attrdef,
                                     PyObject *value);
@@ -267,7 +267,8 @@ class KX_Camera : public KX_GameObject {
   static int pyattr_set_fov(EXP_PyObjectPlus *self_v,
                             const EXP_PYATTRIBUTE_DEF *attrdef,
                             PyObject *value);
-  static PyObject *pyattr_get_ortho_scale(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_ortho_scale(EXP_PyObjectPlus *self_v,
+                                          const EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_ortho_scale(EXP_PyObjectPlus *self_v,
                                     const EXP_PYATTRIBUTE_DEF *attrdef,
                                     PyObject *value);
@@ -279,11 +280,13 @@ class KX_Camera : public KX_GameObject {
   static int pyattr_set_far(EXP_PyObjectPlus *self_v,
                             const EXP_PYATTRIBUTE_DEF *attrdef,
                             PyObject *value);
-  static PyObject *pyattr_get_shift_x(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_shift_x(EXP_PyObjectPlus *self_v,
+                                      const EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_shift_x(EXP_PyObjectPlus *self_v,
                                 const EXP_PYATTRIBUTE_DEF *attrdef,
                                 PyObject *value);
-  static PyObject *pyattr_get_shift_y(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_shift_y(EXP_PyObjectPlus *self_v,
+                                      const EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_shift_y(EXP_PyObjectPlus *self_v,
                                 const EXP_PYATTRIBUTE_DEF *attrdef,
                                 PyObject *value);
@@ -308,8 +311,9 @@ class KX_Camera : public KX_GameObject {
                                               const EXP_PYATTRIBUTE_DEF *attrdef);
 
   static PyObject *pyattr_get_INSIDE(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_OUTSIDE(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_INTERSECT(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_OUTSIDE(EXP_PyObjectPlus *self_v,
+                                      const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_INTERSECT(EXP_PyObjectPlus *self_v,
+                                        const EXP_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
-

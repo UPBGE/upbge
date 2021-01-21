@@ -44,7 +44,6 @@ typedef float sample_t;
 #  include <python/PyAPI.h>
 #endif
 
-
 #include "KX_Camera.h"
 #include "KX_Globals.h"
 
@@ -345,19 +344,19 @@ PyAttributeDef SCA_SoundActuator::Attributes[] = {
     EXP_PYATTRIBUTE_RW_FUNCTION("volume", SCA_SoundActuator, pyattr_get_gain, pyattr_set_gain),
     EXP_PYATTRIBUTE_RW_FUNCTION("pitch", SCA_SoundActuator, pyattr_get_pitch, pyattr_set_pitch),
     EXP_PYATTRIBUTE_ENUM_RW("mode",
-                           SCA_SoundActuator::KX_SOUNDACT_NODEF + 1,
-                           SCA_SoundActuator::KX_SOUNDACT_MAX - 1,
-                           false,
-                           SCA_SoundActuator,
-                           m_type),
+                            SCA_SoundActuator::KX_SOUNDACT_NODEF + 1,
+                            SCA_SoundActuator::KX_SOUNDACT_MAX - 1,
+                            false,
+                            SCA_SoundActuator,
+                            m_type),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
 /* Methods ----------------------------------------------------------------- */
 EXP_PYMETHODDEF_DOC_NOARGS(SCA_SoundActuator,
-                          startSound,
-                          "startSound()\n"
-                          "\tStarts the sound.\n")
+                           startSound,
+                           "startSound()\n"
+                           "\tStarts the sound.\n")
 {
 #  ifdef WITH_AUDASPACE
   switch (m_handle ? AUD_Handle_getStatus(m_handle) : AUD_STATUS_INVALID) {
@@ -375,9 +374,9 @@ EXP_PYMETHODDEF_DOC_NOARGS(SCA_SoundActuator,
 }
 
 EXP_PYMETHODDEF_DOC_NOARGS(SCA_SoundActuator,
-                          pauseSound,
-                          "pauseSound()\n"
-                          "\tPauses the sound.\n")
+                           pauseSound,
+                           "pauseSound()\n"
+                           "\tPauses the sound.\n")
 {
 #  ifdef WITH_AUDASPACE
   if (m_handle)
@@ -388,9 +387,9 @@ EXP_PYMETHODDEF_DOC_NOARGS(SCA_SoundActuator,
 }
 
 EXP_PYMETHODDEF_DOC_NOARGS(SCA_SoundActuator,
-                          stopSound,
-                          "stopSound()\n"
-                          "\tStops the sound.\n")
+                           stopSound,
+                           "stopSound()\n"
+                           "\tStops the sound.\n")
 {
 #  ifdef WITH_AUDASPACE
   if (m_handle) {

@@ -31,7 +31,6 @@
 
 #include "SCA_IObject.h"
 
-
 #include "SCA_IActuator.h"
 #include "SCA_ISensor.h"
 
@@ -65,29 +64,29 @@ SCA_IObject::~SCA_IObject()
   }
 }
 
-SCA_ControllerList& SCA_IObject::GetControllers()
+SCA_ControllerList &SCA_IObject::GetControllers()
 {
   return m_controllers;
 }
-SCA_SensorList& SCA_IObject::GetSensors()
+SCA_SensorList &SCA_IObject::GetSensors()
 {
   return m_sensors;
 }
-SCA_ActuatorList& SCA_IObject::GetActuators()
+SCA_ActuatorList &SCA_IObject::GetActuators()
 {
   return m_actuators;
 }
-SG_QList& SCA_IObject::GetActiveActuators()
+SG_QList &SCA_IObject::GetActiveActuators()
 {
   return m_activeActuators;
 }
 
-SG_QList& SCA_IObject::GetActiveControllers()
+SG_QList &SCA_IObject::GetActiveControllers()
 {
   return m_activeControllers;
 }
 
-SG_QList& SCA_IObject::GetActiveBookmarkedControllers()
+SG_QList &SCA_IObject::GetActiveBookmarkedControllers()
 {
   return m_activeBookmarkedControllers;
 }
@@ -133,7 +132,8 @@ void SCA_IObject::RegisterActuator(SCA_IActuator *act)
 
 void SCA_IObject::UnregisterActuator(SCA_IActuator *act)
 {
-  for (SCA_ActuatorList::iterator ita = m_registeredActuators.begin(); ita != m_registeredActuators.end();) {
+  for (SCA_ActuatorList::iterator ita = m_registeredActuators.begin();
+       ita != m_registeredActuators.end();) {
     if (*ita == act) {
       ita = m_registeredActuators.erase(ita);
     }
@@ -152,7 +152,8 @@ void SCA_IObject::RegisterObject(SCA_IObject *obj)
 
 void SCA_IObject::UnregisterObject(SCA_IObject *obj)
 {
-  for (SCA_ObjectList::iterator ito = m_registeredObjects.begin(); ito != m_registeredObjects.end();) {
+  for (SCA_ObjectList::iterator ito = m_registeredObjects.begin();
+       ito != m_registeredObjects.end();) {
     if (*ito == obj) {
       ito = m_registeredObjects.erase(ito);
     }
@@ -169,7 +170,7 @@ bool SCA_IObject::UnlinkObject(SCA_IObject *clientobj)
 
 void SCA_IObject::ReParentLogic()
 {
-  SCA_ActuatorList& oldactuators = GetActuators();
+  SCA_ActuatorList &oldactuators = GetActuators();
   for (unsigned short i = 0, size = oldactuators.size(); i < size; ++i) {
     SCA_IActuator *newactuator = static_cast<SCA_IActuator *>(oldactuators[i]->GetReplica());
     newactuator->ReParent(this);
@@ -181,7 +182,8 @@ void SCA_IObject::ReParentLogic()
 
   SCA_ControllerList &oldcontrollers = GetControllers();
   for (unsigned short i = 0, size = oldcontrollers.size(); i < size; ++i) {
-    SCA_IController *newcontroller = static_cast<SCA_IController *>(oldcontrollers[i]->GetReplica());
+    SCA_IController *newcontroller = static_cast<SCA_IController *>(
+        oldcontrollers[i]->GetReplica());
     newcontroller->ReParent(this);
     newcontroller->SetActive(false);
     oldcontrollers[i] = newcontroller;

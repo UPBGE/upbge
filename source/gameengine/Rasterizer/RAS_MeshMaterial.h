@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include <vector>
 
 class RAS_MeshObject;
@@ -69,4 +68,3 @@ class RAS_MeshMaterial {
 };
 
 using RAS_MeshMaterialList = std::vector<RAS_MeshMaterial *>;
-

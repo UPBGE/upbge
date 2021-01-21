@@ -22,7 +22,6 @@
 
 #pragma once
 
-
 #include <string>
 #include <vector>
 
@@ -52,4 +51,3 @@ class RAS_2DFilterData {
   /// This is the shader program source code IF the filter is not a predefined one.
   std::string shaderText;
 };
-

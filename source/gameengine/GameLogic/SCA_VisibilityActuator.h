@@ -32,7 +32,6 @@
 
 #pragma once
 
-
 #include "SCA_IActuator.h"
 
 class SCA_VisibilityActuator : public SCA_IActuator {
@@ -56,4 +55,3 @@ class SCA_VisibilityActuator : public SCA_IActuator {
   /* Python interface ---------------------------------------------------- */
   /* --------------------------------------------------------------------- */
 };
-

@@ -30,7 +30,6 @@
 
 #pragma once
 
-
 #include "EXP_PyObjectPlus.h"
 #include "Exception.h"
 #include "ImageBase.h"
@@ -211,4 +210,3 @@ int Video_setFrameRate(PyImage *self, PyObject *value, void *closure);
 extern PyTypeObject ImageRenderType;
 extern PyTypeObject ImageMirrorType;
 extern PyTypeObject ImageViewportType;
-

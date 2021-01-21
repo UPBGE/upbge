@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include "RAS_IVertex.h"
 
 template<class Vertex> class RAS_DisplayArray;
@@ -47,10 +46,10 @@ template<unsigned int uvSize, unsigned int colorSize> class RAS_Vertex : public 
   }
 
   RAS_Vertex(const MT_Vector3 &xyz,
-              const MT_Vector2 uvs[UvSize],
-              const MT_Vector4 &tangent,
-              const unsigned int rgba[ColorSize],
-              const MT_Vector3 &normal)
+             const MT_Vector2 uvs[UvSize],
+             const MT_Vector4 &tangent,
+             const unsigned int rgba[ColorSize],
+             const MT_Vector3 &normal)
       : RAS_IVertex(xyz, tangent, normal)
   {
     for (int i = 0; i < UvSize; ++i) {
@@ -115,4 +114,3 @@ template<unsigned int uvSize, unsigned int colorSize> class RAS_Vertex : public 
     colp[3] = (unsigned char)(rgba[3] * 255.0f);
   }
 };
-

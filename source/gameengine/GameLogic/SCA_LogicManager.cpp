@@ -32,7 +32,6 @@
 
 #include "SCA_LogicManager.h"
 
-
 #include "SCA_ISensor.h"
 #include "SCA_PythonController.h"
 

@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "EXP_Python.h"
 
 void BL_ConvertControllers(struct Object *blenderobject,
@@ -41,4 +40,3 @@ void BL_ConvertControllers(struct Object *blenderobject,
                            bool isInActiveLayer,
                            class BL_BlenderSceneConverter *converter,
                            bool libloading);
-

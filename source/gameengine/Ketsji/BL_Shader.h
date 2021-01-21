@@ -5,7 +5,6 @@
 
 #pragma once
 
-
 #include "EXP_Value.h"
 #include "RAS_Shader.h"
 #include "RAS_Texture.h"  // For RAS_Texture::MaxUnits.
@@ -45,11 +44,13 @@ class BL_Shader : public EXP_Value, public virtual RAS_Shader {
   // Python interface
 #ifdef WITH_PYTHON
 
-  static PyObject *pyattr_get_enabled(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_enabled(EXP_PyObjectPlus *self_v,
+                                      const EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_enabled(EXP_PyObjectPlus *self_v,
                                 const EXP_PYATTRIBUTE_DEF *attrdef,
                                 PyObject *value);
-  static PyObject *pyattr_get_callbacks(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_callbacks(EXP_PyObjectPlus *self_v,
+                                        const EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_callbacks(EXP_PyObjectPlus *self_v,
                                   const EXP_PYATTRIBUTE_DEF *attrdef,
                                   PyObject *value);
@@ -83,4 +84,3 @@ class BL_Shader : public EXP_Value, public virtual RAS_Shader {
   EXP_PYMETHOD_DOC(BL_Shader, setSampler);
 #endif
 };
-

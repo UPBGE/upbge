@@ -1190,9 +1190,9 @@ PyMethodDef KX_NavMeshObject::Methods[] = {
 };
 
 EXP_PYMETHODDEF_DOC(KX_NavMeshObject,
-                   findPath,
-                   "findPath(start, goal): find path from start to goal points\n"
-                   "Returns a path as list of points)\n")
+                    findPath,
+                    "findPath(start, goal): find path from start to goal points\n"
+                    "Returns a path as list of points)\n")
 {
   PyObject *ob_from, *ob_to;
   if (!PyArg_ParseTuple(args, "OO:getPath", &ob_from, &ob_to))
@@ -1213,9 +1213,9 @@ EXP_PYMETHODDEF_DOC(KX_NavMeshObject,
 }
 
 EXP_PYMETHODDEF_DOC(KX_NavMeshObject,
-                   raycast,
-                   "raycast(start, goal): raycast from start to goal points\n"
-                   "Returns hit factor)\n")
+                    raycast,
+                    "raycast(start, goal): raycast from start to goal points\n"
+                    "Returns hit factor)\n")
 {
   PyObject *ob_from, *ob_to;
   if (!PyArg_ParseTuple(args, "OO:getPath", &ob_from, &ob_to))
@@ -1228,9 +1228,9 @@ EXP_PYMETHODDEF_DOC(KX_NavMeshObject,
 }
 
 EXP_PYMETHODDEF_DOC(KX_NavMeshObject,
-                   draw,
-                   "draw(mode): navigation mesh debug drawing\n"
-                   "mode: WALLS, POLYS, TRIS\n")
+                    draw,
+                    "draw(mode): navigation mesh debug drawing\n"
+                    "mode: WALLS, POLYS, TRIS\n")
 {
   int arg;
   NavMeshRenderMode renderMode = RM_TRIS;

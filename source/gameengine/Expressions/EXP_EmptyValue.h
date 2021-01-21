@@ -18,7 +18,6 @@
 
 #pragma once
 
-
 #include "EXP_Value.h"
 
 class EXP_EmptyValue : public EXP_PropValue {
@@ -33,4 +32,3 @@ class EXP_EmptyValue : public EXP_PropValue {
   virtual EXP_Value *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, EXP_Value *val);
   virtual EXP_Value *GetReplica();
 };
-

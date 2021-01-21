@@ -166,7 +166,8 @@ PyMethodDef SCA_ParentActuator::Methods[] = {
 };
 
 PyAttributeDef SCA_ParentActuator::Attributes[] = {
-    EXP_PYATTRIBUTE_RW_FUNCTION("object", SCA_ParentActuator, pyattr_get_object, pyattr_set_object),
+    EXP_PYATTRIBUTE_RW_FUNCTION(
+        "object", SCA_ParentActuator, pyattr_get_object, pyattr_set_object),
     EXP_PYATTRIBUTE_INT_RW(
         "mode", KX_PARENT_NODEF + 1, KX_PARENT_MAX - 1, true, SCA_ParentActuator, m_mode),
     EXP_PYATTRIBUTE_BOOL_RW("compound", SCA_ParentActuator, m_addToCompound),

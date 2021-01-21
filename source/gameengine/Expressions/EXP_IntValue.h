@@ -18,7 +18,6 @@
 
 #pragma once
 
-
 #include "EXP_Value.h"
 
 typedef long long cInt;
@@ -50,4 +49,3 @@ class EXP_IntValue : public EXP_PropValue {
  private:
   cInt m_int;
 };
-

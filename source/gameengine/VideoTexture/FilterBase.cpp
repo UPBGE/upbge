@@ -30,8 +30,6 @@
 
 #include "FilterBase.h"
 
-
-
 // FilterBase class implementation
 
 // constructor

@@ -5,7 +5,6 @@
 
 #pragma once
 
-
 #include "EXP_Value.h"
 
 class PHY_IVehicle;
@@ -62,4 +61,3 @@ class KX_VehicleWrapper : public EXP_Value {
  private:
   PHY_IVehicle *m_vehicle;
 };
-

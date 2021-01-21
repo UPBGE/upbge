@@ -35,7 +35,6 @@
 
 #include "BL_BlenderConverter.h"
 
-
 #include "BKE_context.h"
 #include "BKE_idtype.h"
 #include "BKE_layer.h"
@@ -444,7 +443,7 @@ KX_LibLoadStatus *BL_BlenderConverter::LinkBlendFile(BlendHandle *bpy_openlib,
   main_newlib = BKE_main_new();
   BKE_reports_init(&reports, RPT_STORE);
 
-  //short flag = 0;  // don't need any special options
+  // short flag = 0;  // don't need any special options
   // created only for linking, then freed
   struct LibraryLink_Params liblink_params;
   Main *main_tmp = BLO_library_link_begin(&bpy_openlib, (char *)path, &liblink_params);
@@ -490,7 +489,7 @@ KX_LibLoadStatus *BL_BlenderConverter::LinkBlendFile(BlendHandle *bpy_openlib,
           sceneConverter,
           false,
           true);  // For now only use the libloading option for scenes, which need to handle
-                   // materials/shaders
+                  // materials/shaders
       scene_merge->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
     }
     m_sceneSlots[scene_merge].Merge(sceneConverter);

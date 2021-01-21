@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include <iostream>
 #include <map>
 
@@ -115,4 +114,3 @@ class BL_ActionManager {
    */
   void Update(float curtime, bool applyToObject);
 };
-

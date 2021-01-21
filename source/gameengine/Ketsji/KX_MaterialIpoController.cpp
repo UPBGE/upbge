@@ -24,7 +24,6 @@
 
 #include "KX_MaterialIpoController.h"
 
-
 #include "KX_ScalarInterpolator.h"
 #include "RAS_IPolygonMaterial.h"
 

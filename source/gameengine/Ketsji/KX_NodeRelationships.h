@@ -57,8 +57,6 @@ class KX_NormalParentRelation : public SG_ParentRelation {
   SG_ParentRelation *NewCopy();
 };
 
-
-
 class KX_VertexParentRelation : public SG_ParentRelation {
 
  public:
@@ -73,8 +71,6 @@ class KX_VertexParentRelation : public SG_ParentRelation {
 
   virtual bool IsVertexRelation();
 };
-
-
 
 class KX_SlowParentRelation : public SG_ParentRelation {
 
@@ -98,7 +94,7 @@ class KX_SlowParentRelation : public SG_ParentRelation {
   virtual ~KX_SlowParentRelation();
 
   /// Method inherited from KX_ParentRelation.
-  virtual bool UpdateChildCoordinates(SG_Node *child, const SG_Node *parent, bool& parentUpdated);
+  virtual bool UpdateChildCoordinates(SG_Node *child, const SG_Node *parent, bool &parentUpdated);
 
   /// Method inherited from KX_ParentRelation.
   virtual SG_ParentRelation *NewCopy();
@@ -108,4 +104,3 @@ class KX_SlowParentRelation : public SG_ParentRelation {
 
   virtual bool IsSlowRelation();
 };
-

@@ -150,9 +150,9 @@ PyAttributeDef SCA_VibrationActuator::Attributes[] = {
 };
 
 EXP_PYMETHODDEF_DOC_NOARGS(SCA_VibrationActuator,
-                          startVibration,
-                          "startVibration()\n"
-                          "\tStarts the joystick vibration.\n")
+                           startVibration,
+                           "startVibration()\n"
+                           "\tStarts the joystick vibration.\n")
 {
   SCA_JoystickManager *mgr = (SCA_JoystickManager *)GetLogicManager();
   DEV_Joystick *instance = mgr->GetJoystickDevice(m_joyindex);
@@ -167,9 +167,9 @@ EXP_PYMETHODDEF_DOC_NOARGS(SCA_VibrationActuator,
 }
 
 EXP_PYMETHODDEF_DOC_NOARGS(SCA_VibrationActuator,
-                          stopVibration,
-                          "StopVibration()\n"
-                          "\tStops the joystick vibration.\n")
+                           stopVibration,
+                           "StopVibration()\n"
+                           "\tStops the joystick vibration.\n")
 {
   SCA_JoystickManager *mgr = (SCA_JoystickManager *)GetLogicManager();
   DEV_Joystick *instance = mgr->GetJoystickDevice(m_joyindex);

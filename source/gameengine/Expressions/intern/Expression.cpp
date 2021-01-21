@@ -16,7 +16,6 @@
  */
 #include "EXP_Expression.h"
 
-
 EXP_Expression::EXP_Expression()
 {
 }

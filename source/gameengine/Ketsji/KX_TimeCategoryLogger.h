@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #ifdef _MSC_VER
 #  pragma warning(disable : 4786) /* suppress stl-MSVC debug info warning */
 #endif
@@ -123,4 +122,3 @@ class KX_TimeCategoryLogger {
 
   TimeCategory m_lastCategory;
 };
-

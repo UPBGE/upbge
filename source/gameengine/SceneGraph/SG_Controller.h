@@ -34,7 +34,6 @@
 
 #pragma once
 
-
 #include <stddef.h>
 
 class SG_Node;
@@ -93,4 +92,3 @@ class SG_Controller {
  protected:
   SG_Node *m_node;
 };
-

@@ -20,7 +20,6 @@
  */
 #include "CcdGraphicController.h"
 
-
 #include "CcdPhysicsEnvironment.h"
 
 CcdGraphicController::CcdGraphicController(CcdPhysicsEnvironment *phyEnv,

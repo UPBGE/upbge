@@ -32,7 +32,6 @@
 
 #pragma once
 
-
 #include "SG_ParentRelation.h"
 
 struct Bone;
@@ -47,7 +46,6 @@ class KX_BoneParentRelation : public SG_ParentRelation {
   Bone *m_bone;
 
  public:
-
   KX_BoneParentRelation(Bone *bone);
   virtual ~KX_BoneParentRelation();
 
@@ -62,4 +60,3 @@ class KX_BoneParentRelation : public SG_ParentRelation {
   /// Create a copy of this relationship
   virtual SG_ParentRelation *NewCopy();
 };
-

@@ -128,11 +128,12 @@ PyMethodDef KX_ConstraintWrapper::Methods[] = {
 
 PyAttributeDef KX_ConstraintWrapper::Attributes[] = {
     EXP_PYATTRIBUTE_RO_FUNCTION("constraint_id", KX_ConstraintWrapper, pyattr_get_constraintId),
-    EXP_PYATTRIBUTE_RO_FUNCTION("constraint_type", KX_ConstraintWrapper, pyattr_get_constraintType),
+    EXP_PYATTRIBUTE_RO_FUNCTION(
+        "constraint_type", KX_ConstraintWrapper, pyattr_get_constraintType),
     EXP_PYATTRIBUTE_RW_FUNCTION("breakingThreshold",
-                               KX_ConstraintWrapper,
-                               pyattr_get_breakingThreshold,
-                               pyattr_set_breakingThreshold),
+                                KX_ConstraintWrapper,
+                                pyattr_get_breakingThreshold,
+                                pyattr_set_breakingThreshold),
     EXP_PYATTRIBUTE_RW_FUNCTION(
         "enabled", KX_ConstraintWrapper, pyattr_get_enabled, pyattr_set_enabled),
     EXP_PYATTRIBUTE_NULL  // Sentinel

@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include <string>
 
 #include "MT_Vector3.h"
@@ -53,4 +52,3 @@ void KX_RasterizerDrawDebugCircle(const MT_Vector3 &center,
                                   const MT_Vector4 &color,
                                   const MT_Vector3 &normal,
                                   int nsector);
-

@@ -25,7 +25,6 @@
 
 #pragma once
 
-
 #include <vector>
 
 #include "MT_Vector2.h"
@@ -135,4 +134,3 @@ class KX_ObstacleSimulationTOI_cells : public KX_ObstacleSimulationTOI {
  public:
   KX_ObstacleSimulationTOI_cells(MT_Scalar levelHeight, bool enableVisualization);
 };
-

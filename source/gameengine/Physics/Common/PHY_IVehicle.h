@@ -5,7 +5,6 @@
 
 #pragma once
 
-
 // PHY_IVehicle provides a generic interface for (raycast based) vehicles. Mostly targetting 4
 // wheel cars and 2 wheel motorbikes.
 
@@ -59,4 +58,3 @@ class PHY_IVehicle {
   virtual void SetRayCastMask(short mask) = 0;
   virtual short GetRayCastMask() const = 0;
 };
-

@@ -31,10 +31,9 @@
 
 #pragma once
 
-
 #include "DNA_actuator_types.h"
 
-#include "BL_Action.h" // For BL_Action::PlayMode.
+#include "BL_Action.h"  // For BL_Action::PlayMode.
 #include "MT_Vector3.h"
 #include "SCA_IActuator.h"
 
@@ -137,4 +136,3 @@ enum {
   ACT_FLAG_CONTINUE = 1 << 2,
   ACT_FLAG_PLAY_END = 1 << 3,
 };
-

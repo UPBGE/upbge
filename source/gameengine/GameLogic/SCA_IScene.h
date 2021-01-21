@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include <string>
 #include <vector>
 
@@ -61,4 +60,3 @@ class SCA_IScene {
   void RemoveDebugProperty(SCA_IObject *gameobj, const std::string &name);
   void RemoveObjectDebugProperties(SCA_IObject *gameobj);
 };
-

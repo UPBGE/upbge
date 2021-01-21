@@ -30,7 +30,6 @@
 
 #include "ImageBase.h"
 
-
 #include "GPU_glew.h"
 #include "MEM_guardedalloc.h"
 #include "bgl.h"

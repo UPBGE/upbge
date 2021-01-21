@@ -30,7 +30,6 @@
 
 #pragma once
 
-
 #include "DNA_image_types.h"
 
 #include "EXP_Value.h"
@@ -123,4 +122,3 @@ short getMaterialID(PyObject *obj, const char *name);
 // Exceptions
 extern ExceptionID MaterialNotAvail;
 extern ExceptionID TextureNotAvail;
-

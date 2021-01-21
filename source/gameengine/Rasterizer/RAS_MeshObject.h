@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #ifdef _MSC_VER
 /* disable the STL warnings ("debug information length > 255") */
 #  pragma warning(disable : 4786)
@@ -101,7 +100,10 @@ class RAS_MeshObject {
 
  public:
   // for now, meshes need to be in a certain layer (to avoid sorting on lights in realtime)
-  RAS_MeshObject(Mesh *mesh, int conversionTotverts, Object *originalOb, const LayersInfo &layersInfo);
+  RAS_MeshObject(Mesh *mesh,
+                 int conversionTotverts,
+                 Object *originalOb,
+                 const LayersInfo &layersInfo);
   virtual ~RAS_MeshObject();
 
   // materials
@@ -166,4 +168,3 @@ class RAS_MeshObject {
 
   std::vector<std::vector<SharedVertex>> m_sharedvertex_map;
 };
-

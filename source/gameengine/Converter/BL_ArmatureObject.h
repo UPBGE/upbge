@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "BL_ArmatureChannel.h"
 #include "BL_ArmatureConstraint.h"
 #include "KX_GameObject.h"
@@ -123,11 +122,12 @@ class BL_ArmatureObject : public KX_GameObject {
 #ifdef WITH_PYTHON
 
   // PYTHON
-  static PyObject *pyattr_get_constraints(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_channels(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_constraints(EXP_PyObjectPlus *self_v,
+                                          const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_channels(EXP_PyObjectPlus *self_v,
+                                       const EXP_PYATTRIBUTE_DEF *attrdef);
   EXP_PYMETHOD_DOC_NOARGS(BL_ArmatureObject, update);
   EXP_PYMETHOD_DOC_NOARGS(BL_ArmatureObject, draw);
 
 #endif /* WITH_PYTHON */
 };
-

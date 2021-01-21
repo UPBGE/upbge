@@ -18,7 +18,6 @@
 
 #pragma once
 
-
 #include "EXP_Value.h"
 
 class EXP_FloatValue : public EXP_PropValue {
@@ -45,4 +44,3 @@ class EXP_FloatValue : public EXP_PropValue {
  protected:
   float m_float;
 };
-

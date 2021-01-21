@@ -5,7 +5,6 @@
 
 #pragma once
 
-
 // PHY_ICharacter provides a generic interface for "character" controllers
 
 class PHY_ICharacter {
@@ -41,4 +40,3 @@ class PHY_ICharacter {
 
   virtual void Reset() = 0;
 };
-

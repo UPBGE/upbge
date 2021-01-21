@@ -30,7 +30,6 @@
 
 #pragma once
 
-
 #include "RAS_Rasterizer.h"
 #include "SCA_IActuator.h"
 #include "SCA_IScene.h"

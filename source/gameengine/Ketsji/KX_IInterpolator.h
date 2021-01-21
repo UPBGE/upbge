@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include <vector>
 
 class KX_IInterpolator {
@@ -44,4 +43,3 @@ class KX_IInterpolator {
 };
 
 typedef std::vector<KX_IInterpolator *> T_InterpolatorList;
-

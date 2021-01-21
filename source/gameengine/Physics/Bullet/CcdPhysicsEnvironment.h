@@ -23,7 +23,6 @@
 
 #pragma once
 
-
 #include <map>
 #include <set>
 #include <vector>
@@ -98,8 +97,7 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   void ProcessFhSprings(double curTime, float timeStep);
 
  public:
-  CcdPhysicsEnvironment(PHY_SolverType solverType,
-                        bool useDbvtCulling);
+  CcdPhysicsEnvironment(PHY_SolverType solverType, bool useDbvtCulling);
 
   virtual ~CcdPhysicsEnvironment();
 
@@ -347,4 +345,3 @@ class CcdCollData : public PHY_CollData {
   virtual float GetCombinedRestitution(unsigned int index, bool first) const;
   virtual float GetAppliedImpulse(unsigned int index, bool first) const;
 };
-

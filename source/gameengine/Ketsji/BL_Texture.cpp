@@ -29,7 +29,6 @@
 #include "DNA_texture_types.h"
 #include "GPU_material.h"
 
-
 BL_Texture::BL_Texture(GPUMaterialTexture *gpumattex, eGPUTextureTarget textarget)
     : EXP_Value(), m_isCubeMap(false), m_gpuMatTex(gpumattex), m_textarget(textarget)
 {
@@ -75,8 +74,7 @@ void BL_Texture::CheckValidTexture()
     GPU_texture_free(m_gpuTex);
 
     m_gpuTex = (m_gpuMatTex->ima ?
-                    BKE_image_get_gpu_texture(
-                        m_gpuMatTex->ima, m_gpuMatTex->iuser, nullptr) :
+                    BKE_image_get_gpu_texture(m_gpuMatTex->ima, m_gpuMatTex->iuser, nullptr) :
                     nullptr);
 
     if (m_gpuTex) {
@@ -184,11 +182,13 @@ PyMethodDef BL_Texture::Methods[] = {
 };
 
 PyAttributeDef BL_Texture::Attributes[] = {
-    EXP_PYATTRIBUTE_RW_FUNCTION("bindCode", BL_Texture, pyattr_get_bind_code, pyattr_set_bind_code),
+    EXP_PYATTRIBUTE_RW_FUNCTION(
+        "bindCode", BL_Texture, pyattr_get_bind_code, pyattr_set_bind_code),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
-PyObject *BL_Texture::pyattr_get_bind_code(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Texture::pyattr_get_bind_code(EXP_PyObjectPlus *self_v,
+                                           const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   BL_Texture *self = static_cast<BL_Texture *>(self_v);
   self->CheckValidTexture();
