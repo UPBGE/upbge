@@ -685,7 +685,7 @@ void GPU_offscreen_viewport_data_get(GPUOffScreen *ofs,
 int GPU_framebuffer_color_bindcode(GPUFrameBuffer *fb)
 {
   FrameBuffer *f = reinterpret_cast<FrameBuffer *>(fb);
-  
+
   return f->get_bindcode();
 }
 

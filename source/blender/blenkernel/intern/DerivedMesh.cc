@@ -591,7 +591,7 @@ void DM_update_tessface_data(DerivedMesh *dm)
   if (CustomData_has_layer(fdata, CD_MTFACE) || CustomData_has_layer(fdata, CD_MCOL) ||
       CustomData_has_layer(fdata, CD_PREVIEW_MCOL) || CustomData_has_layer(fdata, CD_ORIGSPACE) ||
       CustomData_has_layer(fdata, CD_TESSLOOPNORMAL) || CustomData_has_layer(fdata, CD_TANGENT)) {
-    loopindex = (unsigned int (*)[4])MEM_malloc_arrayN(totface, sizeof(*loopindex), __func__);
+    loopindex = (unsigned int(*)[4])MEM_malloc_arrayN(totface, sizeof(*loopindex), __func__);
 
     for (mf_idx = 0, mf = mface; mf_idx < totface; mf_idx++, mf++) {
       const int mf_len = mf->v4 ? 4 : 3;
@@ -1186,7 +1186,8 @@ static void shapekey_layers_to_keyblocks(DerivedMesh *dm, Mesh *me, int actshape
     }
     cos = (float(*)[3])CustomData_get_layer_n(&dm->vertData, CD_SHAPEKEY, i);
     kb->totelem = (int)dm->numVertData;
-    kb->data = kbcos = (float (*)[3])MEM_malloc_arrayN(kb->totelem, 3 * sizeof(float), "kbcos DerivedMesh.c");
+    kb->data = kbcos = (float(*)[3])MEM_malloc_arrayN(
+        kb->totelem, 3 * sizeof(float), "kbcos DerivedMesh.c");
     if (kb->uid == actshape_uid) {
       MVert *mvert = dm->getVertArray(dm);
       for (j = 0; j < dm->numVertData; j++, kbcos++, mvert++) {

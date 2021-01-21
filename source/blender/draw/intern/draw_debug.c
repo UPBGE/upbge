@@ -229,7 +229,6 @@ void drw_debug_init(void)
   DRW_debug_modelmat_reset();
 }
 
-
 #include "BLF_api.h"
 #include "GPU_matrix.h"
 

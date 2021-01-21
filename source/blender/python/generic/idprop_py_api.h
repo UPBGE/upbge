@@ -72,7 +72,6 @@ PyObject *BPyInit_idprop(void);
 #define IDPROP_ITER_KEYS 0
 #define IDPROP_ITER_ITEMS 1
 
-
 #ifdef __cplusplus
 }
 #endif

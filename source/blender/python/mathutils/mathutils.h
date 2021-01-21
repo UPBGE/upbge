@@ -199,7 +199,6 @@ int column_vector_multiplication(float r_vec[4], VectorObject *vec, MatrixObject
 PyObject *mathutils_dynstr_to_py(struct DynStr *ds);
 #endif
 
-
 #ifdef __cplusplus
 }
 #endif

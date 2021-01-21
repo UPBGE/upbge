@@ -92,7 +92,8 @@ static void createVertsTrisData(bContext *C,
   /* calculate number of verts and tris */
   for (oblink = obs; oblink; oblink = oblink->next) {
     ob = (Object *)oblink->link;
-    dm = mesh_get_derived_final(depsgraph, scene, DEG_get_evaluated_object(depsgraph, ob), &CD_MASK_MESH);
+    dm = mesh_get_derived_final(
+        depsgraph, scene, DEG_get_evaluated_object(depsgraph, ob), &CD_MASK_MESH);
     DM_ensure_tessface(dm);
     BLI_linklist_append(&dms_pair, dm);
 

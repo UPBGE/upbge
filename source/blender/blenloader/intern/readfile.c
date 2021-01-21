@@ -1372,69 +1372,69 @@ static FileData *blo_filedata_from_file_descriptor(const char *filepath,
   if (typeencryption <= SPINDLE_NO_ENCRYPTION) {
 #endif
 
-  /* Regular file. */
-  errno = 0;
-  if (read(file, header, sizeof(header)) != sizeof(header)) {
-    BKE_reportf(reports,
-                RPT_WARNING,
-                "Unable to read '%s': %s",
-                filepath,
-                errno ? strerror(errno) : TIP_("insufficient content"));
-    return NULL;
-  }
-
-  /* Regular file. */
-  if (memcmp(header, "BLENDER", sizeof(header)) == 0) {
-    read_fn = fd_read_data_from_file;
-    seek_fn = fd_seek_data_from_file;
-
-    mmap_file = BLI_mmap_open(file);
-    if (mmap_file != NULL) {
-      read_fn = fd_read_from_mmap;
-      seek_fn = fd_seek_from_mmap;
-      buffersize = BLI_lseek(file, 0, SEEK_END);
-    }
-  }
-
-  BLI_lseek(file, 0, SEEK_SET);
-
-  /* Gzip file. */
-  errno = 0;
-  if ((read_fn == NULL) &&
-      /* Check header magic. */
-      (header[0] == 0x1f && header[1] == 0x8b)) {
-    gzfile = BLI_gzopen(filepath, "rb");
-    if (gzfile == (gzFile)Z_NULL) {
+    /* Regular file. */
+    errno = 0;
+    if (read(file, header, sizeof(header)) != sizeof(header)) {
       BKE_reportf(reports,
                   RPT_WARNING,
-                  "Unable to open '%s': %s",
+                  "Unable to read '%s': %s",
                   filepath,
-                  errno ? strerror(errno) : TIP_("unknown error reading file"));
+                  errno ? strerror(errno) : TIP_("insufficient content"));
       return NULL;
     }
 
-    /* 'seek_fn' is too slow for gzip, don't set it. */
-    read_fn = fd_read_gzip_from_file;
-    /* Caller must close. */
-    file = -1;
-  }
+    /* Regular file. */
+    if (memcmp(header, "BLENDER", sizeof(header)) == 0) {
+      read_fn = fd_read_data_from_file;
+      seek_fn = fd_seek_data_from_file;
 
-  if (read_fn == NULL) {
-    BKE_reportf(reports, RPT_WARNING, "Unrecognized file format '%s'", filepath);
-    return NULL;
-  }
+      mmap_file = BLI_mmap_open(file);
+      if (mmap_file != NULL) {
+        read_fn = fd_read_from_mmap;
+        seek_fn = fd_seek_from_mmap;
+        buffersize = BLI_lseek(file, 0, SEEK_END);
+      }
+    }
 
-  FileData *fd = filedata_new();
+    BLI_lseek(file, 0, SEEK_SET);
 
-  fd->filedes = file;
-  fd->gzfiledes = gzfile;
+    /* Gzip file. */
+    errno = 0;
+    if ((read_fn == NULL) &&
+        /* Check header magic. */
+        (header[0] == 0x1f && header[1] == 0x8b)) {
+      gzfile = BLI_gzopen(filepath, "rb");
+      if (gzfile == (gzFile)Z_NULL) {
+        BKE_reportf(reports,
+                    RPT_WARNING,
+                    "Unable to open '%s': %s",
+                    filepath,
+                    errno ? strerror(errno) : TIP_("unknown error reading file"));
+        return NULL;
+      }
 
-  fd->read = read_fn;
-  fd->seek = seek_fn;
-  fd->mmap_file = mmap_file;
-  fd->buffersize = buffersize;
+      /* 'seek_fn' is too slow for gzip, don't set it. */
+      read_fn = fd_read_gzip_from_file;
+      /* Caller must close. */
+      file = -1;
+    }
 
-  return fd;
+    if (read_fn == NULL) {
+      BKE_reportf(reports, RPT_WARNING, "Unrecognized file format '%s'", filepath);
+      return NULL;
+    }
+
+    FileData *fd = filedata_new();
+
+    fd->filedes = file;
+    fd->gzfiledes = gzfile;
+
+    fd->read = read_fn;
+    fd->seek = seek_fn;
+    fd->mmap_file = mmap_file;
+    fd->buffersize = buffersize;
+
+    return fd;
 
 #ifdef WITH_GAMEENGINE_BPPLAYER
   }
@@ -1568,8 +1568,8 @@ FileData *blo_filedata_from_memory(const void *mem, int memsize, ReportList *rep
   fd->flags |= FD_FLAGS_NOT_MY_BUFFER;
 
 #ifdef WITH_GAMEENGINE_BPPLAYER
-    // Set local path before calling blo_decode_and_check.
-    BLI_strncpy(fd->relabase, SPINDLE_GetFilePath(), sizeof(fd->relabase));
+  // Set local path before calling blo_decode_and_check.
+  BLI_strncpy(fd->relabase, SPINDLE_GetFilePath(), sizeof(fd->relabase));
 #endif
 
   return blo_decode_and_check(fd, reports);

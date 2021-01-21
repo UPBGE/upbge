@@ -106,7 +106,7 @@ class GLFrameBuffer : public FrameBuffer {
 
   void apply_state(void);
 
-  int get_bindcode(void); // Game engine transition
+  int get_bindcode(void);  // Game engine transition
 
  private:
   void init(void);

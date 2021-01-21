@@ -1463,7 +1463,7 @@ static int rna_GameObjectSettings_physics_type_get(PointerRNA *ptr)
     /* create the structure here because we display soft body buttons in the main panel */
     if (!ob->bsoft) {
       ob->bsoft = bsbNew();
-      ob->bsoft->margin = 0.1f; // not set in bsbNew
+      ob->bsoft->margin = 0.1f;  // not set in bsbNew
       ob->bsoft->collisionflags |= OB_BSB_COL_CL_RS;
     }
   }
@@ -2819,8 +2819,8 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
       prop, "Lock Z Rotation Axis", "Disable simulation of angular motion along the Z axis");
 
   prop = RNA_def_property(srna, "use_physics_fh", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "gameflag", OB_DO_FH);
-	RNA_def_property_ui_text(prop, "Use Force Field", "React to force field physics settings");
+  RNA_def_property_boolean_sdna(prop, NULL, "gameflag", OB_DO_FH);
+  RNA_def_property_ui_text(prop, "Use Force Field", "React to force field physics settings");
 
   prop = RNA_def_property(srna, "use_rotate_from_normal", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "gameflag", OB_ROT_FH);
@@ -2974,15 +2974,17 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   /* rigid body ccd settings */
   prop = RNA_def_property(srna, "use_ccd_rigid_body", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "gameflag2", OB_CCD_RIGID_BODY);
-  RNA_def_property_ui_text(
-      prop, "Continuous Collision Detection", "Enable Continuous Collision Detection for the rigid body");
+  RNA_def_property_ui_text(prop,
+                           "Continuous Collision Detection",
+                           "Enable Continuous Collision Detection for the rigid body");
 
   prop = RNA_def_property(srna, "ccd_motion_threshold", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "ccd_motion_threshold");
   RNA_def_property_range(prop, 0, 100);
   RNA_def_property_ui_range(prop, 0.0, 100.0, 10, 2);
   RNA_def_property_float_default(prop, 1.0f);
-  RNA_def_property_ui_text(prop, "Motion threshold",
+  RNA_def_property_ui_text(prop,
+                           "Motion threshold",
                            "Sets the delta of movement that has to happen in one"
                            " physics tick to trigger the continuous motion detection");
 
@@ -2991,7 +2993,8 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_range(prop, 0, 100);
   RNA_def_property_ui_range(prop, 0.0, 10.0, 10, 2);
   RNA_def_property_float_default(prop, 0.9f);
-  RNA_def_property_ui_text(prop, "Swept Sphere Radius",
+  RNA_def_property_ui_text(prop,
+                           "Swept Sphere Radius",
                            "The radius of the sphere that is used to check for "
                            "possible collisions when ccd is actived");
 }
@@ -3830,7 +3833,9 @@ static void rna_def_object(BlenderRNA *brna)
   /* Game engine transition - Transform priority */
   prop = RNA_def_property(srna, "override_game_transform_priority", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "transflag", OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY);
-  RNA_def_property_ui_text(prop, "Override game transform priority", "Override logic transform with depsgraph autotransform");
+  RNA_def_property_ui_text(prop,
+                           "Override game transform priority",
+                           "Override logic transform with depsgraph autotransform");
   /* End of Game engine transition */
 
   /*parent_inverse*/

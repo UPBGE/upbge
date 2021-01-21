@@ -52,7 +52,6 @@ PyObject *Vector_CreatePyObject_alloc(float *vec,
                                       PyTypeObject *base_type) ATTR_WARN_UNUSED_RESULT
     ATTR_NONNULL(1);
 
-
 #ifdef __cplusplus
 }
 #endif

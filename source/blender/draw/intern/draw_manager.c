@@ -3438,7 +3438,7 @@ void DRW_game_python_loop_end(ViewLayer *view_layer)
    * created then it causes a crash if we try to free
    * it. Are we in what people call HEADLESS mode?
    */
-  //GPU_viewport_free(DST.viewport);
+  // GPU_viewport_free(DST.viewport);
 
   drw_state_prepare_clean_for_draw(&DST);
 
@@ -3464,11 +3464,11 @@ void DRW_opengl_context_create_blenderplayer(void *syshandle, void *win)
   /* Be sure to create gpu_context too. */
   DST.gpu_context = GPU_context_create(0);
   /* Set default Blender OpenGL state */
-  //GPU_state_init();
+  // GPU_state_init();
   /* So we activate the window's one afterwards. */
 
   /* IDK if it is really needed to have a win->eventstate in blenderplayer ? */
-  //wm_window_ensure_eventstate(win);
+  // wm_window_ensure_eventstate(win);
 
   wm_window_reset_drawable();
 }
@@ -3528,8 +3528,7 @@ void DRW_transform_to_display(GPUTexture *tex, View3D *v3d, bool do_dithering)
        ((v3d->shading.type == OB_MATERIAL) && (v3d->shading.flag & V3D_SHADING_SCENE_WORLD)) ||
        ((v3d->shading.type == OB_RENDER) && (v3d->shading.flag & V3D_SHADING_SCENE_WORLD_RENDER)));
   bool use_view_transform = v3d && (v3d->shading.type >= OB_MATERIAL);
-  bool use_render_settings = v3d && (use_view_transform || use_scene_lights ||
-                                     use_scene_world);
+  bool use_render_settings = v3d && (use_view_transform || use_scene_lights || use_scene_world);
 
   GPUVertFormat *vert_format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);

@@ -48,7 +48,6 @@ PyObject *Quaternion_CreatePyObject_cb(PyObject *cb_user,
                                        unsigned char cb_type,
                                        unsigned char cb_subtype) ATTR_WARN_UNUSED_RESULT;
 
-
 #ifdef __cplusplus
 }
 #endif

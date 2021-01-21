@@ -40,7 +40,6 @@ bool bpygpu_is_init_or_error(void);
   } \
   ((void)0)
 
-
 #ifdef __cplusplus
 }
 #endif

@@ -29,7 +29,6 @@ extern "C" {
 
 PyObject *BPyInit_bmesh(void);
 
-
 #ifdef __cplusplus
 }
 #endif

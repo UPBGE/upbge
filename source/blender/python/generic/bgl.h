@@ -56,7 +56,6 @@ typedef struct _Buffer {
 /** The type object */
 extern PyTypeObject BGL_bufferType;
 
-
 #ifdef __cplusplus
 }
 #endif

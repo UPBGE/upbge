@@ -28,7 +28,6 @@ extern "C" {
 
 PyObject *BPyInit_blf(void);
 
-
 #ifdef __cplusplus
 }
 #endif

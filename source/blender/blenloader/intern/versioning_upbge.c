@@ -64,7 +64,8 @@
 
 void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 {
-  //printf("UPBGE: open file from versionfile: %i, subversionfile: %i\n", main->upbgeversionfile, main->upbgesubversionfile);
+  // printf("UPBGE: open file from versionfile: %i, subversionfile: %i\n", main->upbgeversionfile,
+  // main->upbgesubversionfile);
   if (!MAIN_VERSION_UPBGE_ATLEAST(main, 0, 1)) {
     if (!DNA_struct_elem_find(fd->filesdna, "bRaySensor", "int", "mask")) {
       bRaySensor *raySensor;
@@ -240,5 +241,4 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
       }
     }
   }
-
 }

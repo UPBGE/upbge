@@ -2135,50 +2135,50 @@ static void rna_GameSettings_exit_key_set(PointerRNA *ptr, int value)
 
 static void rna_GameSettings_python_key1_set(PointerRNA *ptr, int value)
 {
-	GameData *gm = (GameData *)ptr->data;
+  GameData *gm = (GameData *)ptr->data;
 
-	if (ISKEYBOARD(value)) {
-		gm->pythonkeys[0] = value;
-	}
-	else {
-		gm->pythonkeys[0] = EVENT_NONE;
-	}
+  if (ISKEYBOARD(value)) {
+    gm->pythonkeys[0] = value;
+  }
+  else {
+    gm->pythonkeys[0] = EVENT_NONE;
+  }
 }
 
 static void rna_GameSettings_python_key2_set(PointerRNA *ptr, int value)
 {
-	GameData *gm = (GameData *)ptr->data;
+  GameData *gm = (GameData *)ptr->data;
 
-	if (ISKEYBOARD(value)) {
-		gm->pythonkeys[1] = value;
-	}
-	else {
-		gm->pythonkeys[1] = EVENT_NONE;
-	}
+  if (ISKEYBOARD(value)) {
+    gm->pythonkeys[1] = value;
+  }
+  else {
+    gm->pythonkeys[1] = EVENT_NONE;
+  }
 }
 
 static void rna_GameSettings_python_key3_set(PointerRNA *ptr, int value)
 {
-	GameData *gm = (GameData *)ptr->data;
+  GameData *gm = (GameData *)ptr->data;
 
-	if (ISKEYBOARD(value)) {
-		gm->pythonkeys[2] = value;
-	}
-	else {
-		gm->pythonkeys[2] = EVENT_NONE;
-	}
+  if (ISKEYBOARD(value)) {
+    gm->pythonkeys[2] = value;
+  }
+  else {
+    gm->pythonkeys[2] = EVENT_NONE;
+  }
 }
 
 static void rna_GameSettings_python_key4_set(PointerRNA *ptr, int value)
 {
-	GameData *gm = (GameData *)ptr->data;
+  GameData *gm = (GameData *)ptr->data;
 
-	if (ISKEYBOARD(value)) {
-		gm->pythonkeys[3] = value;
-	}
-	else {
-		gm->pythonkeys[3] = EVENT_NONE;
-	}
+  if (ISKEYBOARD(value)) {
+    gm->pythonkeys[3] = value;
+  }
+  else {
+    gm->pythonkeys[3] = EVENT_NONE;
+  }
 }
 
 static TimeMarker *rna_TimeLine_add(Scene *scene, const char name[], int frame)
@@ -5492,8 +5492,6 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
       {GAME_SOLVER_NNCG, "SOLVER_NNGC", 0, "NNGC", "NNGC physics solver"},
       {0, NULL, 0, NULL, NULL}};
 
-
-
   static const EnumPropertyItem framing_types_items[] = {
       {SCE_GAMEFRAMING_BARS,
        "LETTERBOX",
@@ -5734,8 +5732,8 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, 0.001, 10000.0, 2, 3);
   RNA_def_property_range(prop, 0.001, 10000.0);
   RNA_def_property_float_default(prop, 1.0f);
-  RNA_def_property_ui_text(prop, "Time Scale",
-						   "Time scale to slow down or speed up animations and physics in game");
+  RNA_def_property_ui_text(
+      prop, "Time Scale", "Time scale to slow down or speed up animations and physics in game");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "deactivation_linear_threshold", PROP_FLOAT, PROP_NONE);
@@ -5781,8 +5779,10 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
       "The Error Reduction Parameter (ERP) specifies what proportion of the joint error "
       "will be fixed during the next simulation step. If ERP = 0 then no correcting force "
       "is applied and the bodies will eventually drift apart as the simulation proceeds. "
-      "If ERP = 1 then the simulation will attempt to fix all joint error during the next time step. "
-      "However, setting ERP = 1 is not recommended, as the joint error will not be completely fixed due "
+      "If ERP = 1 then the simulation will attempt to fix all joint error during the next time "
+      "step. "
+      "However, setting ERP = 1 is not recommended, as the joint error will not be completely "
+      "fixed due "
       "to various internal approximations. A value of ERP = 0.1 to 0.8 is recommended");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
@@ -5796,8 +5796,10 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
       "The Error Reduction Parameter (ERP) specifies what proportion of the joint error "
       "will be fixed during the next simulation step. If ERP = 0 then no correcting force "
       "is applied and the bodies will eventually drift apart as the simulation proceeds. "
-      "If ERP = 1 then the simulation will attempt to fix all joint error during the next time step. "
-      "However, setting ERP = 1 is not recommended, as the joint error will not be completely fixed due "
+      "If ERP = 1 then the simulation will attempt to fix all joint error during the next time "
+      "step. "
+      "However, setting ERP = 1 is not recommended, as the joint error will not be completely "
+      "fixed due "
       "to various internal approximations. A value of ERP = 0.1 to 0.8 is recommended");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
@@ -5810,9 +5812,11 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
       prop,
       "Constraint Force Mixing (CFM)",
       "If the Constraint Force Mixing (CFM) is set to zero, the constraint will be hard. "
-      "If CFM is set to a positive value, it will be possible to violate the constraint by pushing on it "
+      "If CFM is set to a positive value, it will be possible to violate the constraint by "
+      "pushing on it "
       "(for example, for contact constraints by forcing the two contacting objects together). "
-      "In other words the constraint will be soft, and the softness will increase as CFM increases");
+      "In other words the constraint will be soft, and the softness will increase as CFM "
+      "increases");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   /* not used  */ /* deprecated !!!!!!!!!!!!! */

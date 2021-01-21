@@ -93,8 +93,8 @@ static StructRNA *rna_Sensor_refine(struct PointerRNA *ptr)
       return &RNA_RandomSensor;
     case SENS_RAY:
       return &RNA_RaySensor;
-	case SENS_MOVEMENT:
-	  return &RNA_MovementSensor;
+    case SENS_MOVEMENT:
+      return &RNA_MovementSensor;
     case SENS_MESSAGE:
       return &RNA_MessageSensor;
     case SENS_JOYSTICK:
@@ -884,15 +884,14 @@ static void rna_def_movement_sensor(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
-  static EnumPropertyItem axis_items[] = {
-	  {SENS_MOVEMENT_X_AXIS, "XAXIS", 0, "+X axis", ""},
-	  {SENS_MOVEMENT_Y_AXIS, "YAXIS", 0, "+Y axis", ""},
-	  {SENS_MOVEMENT_Z_AXIS, "ZAXIS", 0, "+Z axis", ""},
-	  {SENS_MOVEMENT_NEG_X_AXIS, "NEGXAXIS", 0, "-X axis", ""},
-	  {SENS_MOVEMENT_NEG_Y_AXIS, "NEGYAXIS", 0, "-Y axis", ""},
-	  {SENS_MOVEMENT_NEG_Z_AXIS, "NEGZAXIS", 0, "-Z axis", ""},
-	  {SENS_MOVEMENT_ALL_AXIS, "ALLAXIS", 0, "All axis", ""},
-	  {0, NULL, 0, NULL, NULL}};
+  static EnumPropertyItem axis_items[] = {{SENS_MOVEMENT_X_AXIS, "XAXIS", 0, "+X axis", ""},
+                                          {SENS_MOVEMENT_Y_AXIS, "YAXIS", 0, "+Y axis", ""},
+                                          {SENS_MOVEMENT_Z_AXIS, "ZAXIS", 0, "+Z axis", ""},
+                                          {SENS_MOVEMENT_NEG_X_AXIS, "NEGXAXIS", 0, "-X axis", ""},
+                                          {SENS_MOVEMENT_NEG_Y_AXIS, "NEGYAXIS", 0, "-Y axis", ""},
+                                          {SENS_MOVEMENT_NEG_Z_AXIS, "NEGZAXIS", 0, "-Z axis", ""},
+                                          {SENS_MOVEMENT_ALL_AXIS, "ALLAXIS", 0, "All axis", ""},
+                                          {0, NULL, 0, NULL, NULL}};
 
   srna = RNA_def_struct(brna, "MovementSensor", "Sensor");
   RNA_def_struct_ui_text(srna, "Movement Sensor", "Sensor to detect if the owner has moved");

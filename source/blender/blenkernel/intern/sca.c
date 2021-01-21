@@ -151,11 +151,11 @@ void BKE_sca_init_sensor(bSensor *sens)
     case SENS_RANDOM:
       sens->data = MEM_callocN(sizeof(bRandomSensor), "randomsens");
       break;
-	case SENS_MOVEMENT:
-	  sens->data = MEM_callocN(sizeof(bMovementSensor), "movementsens");
-	  movs = sens->data;
-	  movs->threshold = 0.01f;
-	  break;
+    case SENS_MOVEMENT:
+      sens->data = MEM_callocN(sizeof(bMovementSensor), "movementsens");
+      movs = sens->data;
+      movs->threshold = 0.01f;
+      break;
     case SENS_RAY:
       sens->data = MEM_callocN(sizeof(bRaySensor), "raysens");
       rs = sens->data;
@@ -761,7 +761,8 @@ void BKE_sca_remap_links_logicbricks(Main *bmain, Object *ob_old, Object *ob_new
                * which means we ignore it totally here. */
             }
             else if (*new_link_p == NULL) {
-              BKE_sca_unlink_logicbricks((void **)&old_link, (void ***)&(sens->links), &sens->totlinks);
+              BKE_sca_unlink_logicbricks(
+                  (void **)&old_link, (void ***)&(sens->links), &sens->totlinks);
               a--;
             }
             else {
@@ -784,7 +785,8 @@ void BKE_sca_remap_links_logicbricks(Main *bmain, Object *ob_old, Object *ob_new
                * which means we ignore it totally here. */
             }
             else if (*new_link_p == NULL) {
-              BKE_sca_unlink_logicbricks((void **)&old_link, (void ***)&(cont->links), &cont->totlinks);
+              BKE_sca_unlink_logicbricks(
+                  (void **)&old_link, (void ***)&(cont->links), &cont->totlinks);
               a--;
             }
             else {

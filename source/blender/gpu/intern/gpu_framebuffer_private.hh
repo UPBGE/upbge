@@ -209,7 +209,7 @@ class FrameBuffer {
     return attachments_[GPU_FB_COLOR_ATTACHMENT0 + slot].tex;
   };
 
-  virtual int get_bindcode() = 0; // Game engine transition
+  virtual int get_bindcode() = 0;  // Game engine transition
 };
 
 /* Syntacting suggar. */

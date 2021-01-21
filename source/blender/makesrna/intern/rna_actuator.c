@@ -519,7 +519,7 @@ const EnumPropertyItem *rna_Actuator_type_itemf(bContext *C,
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_2DFILTER);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_GAME);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_MESSAGE);
-  RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_OBJECT); //MOTION
+  RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_OBJECT);  // MOTION
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_MOUSE);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_PARENT);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_PROPERTY);
@@ -797,8 +797,7 @@ static void rna_def_object_actuator(BlenderRNA *brna)
   static EnumPropertyItem prop_servo_type_items[] = {
       {ACT_SERVO_LINEAR, "SERVO_LINEAR", 0, "Linear", ""},
       {ACT_SERVO_ANGULAR, "SERVO_ANGULAR", 0, "Angular", ""},
-      {0, NULL, 0, NULL, NULL}
-  };
+      {0, NULL, 0, NULL, NULL}};
 
   srna = RNA_def_struct(brna, "ObjectActuator", "Actuator");
   RNA_def_struct_ui_text(srna, "Motion Actuator", "Actuator to control the object movement");
@@ -1603,8 +1602,10 @@ static void rna_def_edit_object_actuator(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "use_replace_physics_mesh", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", ACT_EDOB_REPLACE_MESH_PHYS);
-  RNA_def_property_ui_text(prop, "Phys",
-                           "Replace the physics mesh (triangle bounds only - compound shapes not supported)");
+  RNA_def_property_ui_text(
+      prop,
+      "Phys",
+      "Replace the physics mesh (triangle bounds only - compound shapes not supported)");
   RNA_def_property_update(prop, NC_LOGIC, NULL);
 
   prop = RNA_def_property(srna, "use_3d_tracking", PROP_BOOLEAN, PROP_NONE);

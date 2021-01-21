@@ -1829,7 +1829,7 @@ static void game_set_commmandline_options(GameData *gm)
   int test;
 
   if ((syshandle = SYS_GetSystem())) {
-    //GPU_set_mipmap(bmain, true);
+    // GPU_set_mipmap(bmain, true);
 
     /* File specific settings: */
     /* Only test the first one. These two are switched
@@ -1898,14 +1898,14 @@ static int game_engine_exec(bContext *C, wmOperator *op)
   if (!ED_view3d_context_activate(C))
     return OPERATOR_CANCELLED;
 
-#ifdef WITH_XR_OPENXR
+#  ifdef WITH_XR_OPENXR
   wmWindowManager *wm = CTX_wm_manager(C);
   if (WM_xr_session_exists(&wm->xr)) {
     if (WM_xr_session_is_ready(&wm->xr)) {
       startscene->flag |= SCE_IS_GAME_XR_SESSION;
     }
   }
-#endif
+#  endif
 
   /* Calling this seems to avoid some UI flickering on windows
    * later during runtime. */

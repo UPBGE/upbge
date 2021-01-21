@@ -125,28 +125,28 @@ typedef struct PythonComponent {
 #define CPROP_TYPE_WORLD 31
 
 #define POINTER_TYPES \
-    PT_DEF(Action, action, ACTION) \
-    PT_DEF(Armature, armature, ARMATURE) \
-    PT_DEF(Collection, collection, COLLECTION) \
-    PT_DEF(Camera, camera, CAMERA) \
-    PT_DEF(Curve, curve, CURVE) \
-    PT_DEF(Image, image, IMAGE) \
-    PT_DEF(Key, key, KEY) \
-    PT_DEF(Library, library, LIBRARY) \
-    PT_DEF(Light, light, LIGHT) \
-    PT_DEF(Material, material, MATERIAL) \
-    PT_DEF(Mesh, mesh, MESH) \
-    PT_DEF(MovieClip, movie_clip, MOVIE_CLIP) \
-    PT_DEF(NodeTree, node_tree, NODE_TREE) \
-    PT_DEF(Object, object, OBJECT) \
-    PT_DEF(ParticleSettings, particle_settings, PARTICLE_SETTINGS) \
-    PT_DEF(Sound, sound, SOUND) \
-    PT_DEF(Speaker, speaker, SPEAKER) \
-    PT_DEF(Text, text, TEXT) \
-    PT_DEF(Texture, texture, TEXTURE) \
-    PT_DEF(VectorFont, vector_font, VECTOR_FONT) \
-    PT_DEF(Volume, volume, VOLUME) \
-    PT_DEF(World, world, WORLD)
+  PT_DEF(Action, action, ACTION) \
+  PT_DEF(Armature, armature, ARMATURE) \
+  PT_DEF(Collection, collection, COLLECTION) \
+  PT_DEF(Camera, camera, CAMERA) \
+  PT_DEF(Curve, curve, CURVE) \
+  PT_DEF(Image, image, IMAGE) \
+  PT_DEF(Key, key, KEY) \
+  PT_DEF(Library, library, LIBRARY) \
+  PT_DEF(Light, light, LIGHT) \
+  PT_DEF(Material, material, MATERIAL) \
+  PT_DEF(Mesh, mesh, MESH) \
+  PT_DEF(MovieClip, movie_clip, MOVIE_CLIP) \
+  PT_DEF(NodeTree, node_tree, NODE_TREE) \
+  PT_DEF(Object, object, OBJECT) \
+  PT_DEF(ParticleSettings, particle_settings, PARTICLE_SETTINGS) \
+  PT_DEF(Sound, sound, SOUND) \
+  PT_DEF(Speaker, speaker, SPEAKER) \
+  PT_DEF(Text, text, TEXT) \
+  PT_DEF(Texture, texture, TEXTURE) \
+  PT_DEF(VectorFont, vector_font, VECTOR_FONT) \
+  PT_DEF(Volume, volume, VOLUME) \
+  PT_DEF(World, world, WORLD)
 
 enum { COMPONENT_SHOW = (1 << 0) };
 

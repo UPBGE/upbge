@@ -37,13 +37,13 @@
 #include "BKE_main.h"
 #include "BKE_python_component.h"
 #include "BKE_report.h"
-
 #include "BKE_text.h"
 
 #include "RNA_types.h"
 
 #ifdef WITH_PYTHON
 #  include "Python.h"
+
 #  include "../../python/intern/bpy_rna.h"
 #  include "generic/bpy_internal_import.h"
 #  include "generic/py_capi_utils.h"
@@ -53,7 +53,7 @@
 
 #ifdef WITH_PYTHON
 
-#define FAKE_TYPES \
+#  define FAKE_TYPES \
     FT_DEF(BL_ArmatureBone) \
     FT_DEF(BL_ArmatureChannel) \
     FT_DEF(BL_ArmatureConstraint) \
@@ -136,58 +136,58 @@
     FT_DEF(SCA_XNORController) \
     FT_DEF(SCA_XORController)
 
-#define FakeType(Type) \
-static PyTypeObject FT_ ## Type = { \
-    PyVarObject_HEAD_INIT(NULL, 0) STRINGIFY(Type),      /* tp_name */ \
-    sizeof(PyObject),                                    /* tp_basicsize */ \
-    0,                                                   /* tp_itemsize */ \
-    (destructor)NULL,                                    /* tp_dealloc */ \
-    NULL,                                                /* tp_print */ \
-    NULL,                                                /* tp_getattr */ \
-    NULL,                                                /* tp_setattr */ \
-    NULL,                                                /* tp_compare */ \
-    (reprfunc)NULL,                                      /* tp_repr */ \
-    NULL,                                                /* tp_as_number */ \
-    NULL,                                                /* tp_as_sequence */ \
-    NULL,                                                /* tp_as_mapping */ \
-    (hashfunc)NULL,                                      /* tp_hash */ \
-    NULL,                                                /* tp_call */ \
-    NULL,                                                /* tp_str */ \
-    NULL,                                                /* tp_getattro */ \
-    NULL,                                                /* tp_setattro */ \
-    NULL,                                                /* tp_as_buffer */ \
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,            /* tp_flags */ \
-    NULL,                                                /* tp_doc */ \
-    (traverseproc)NULL,                                  /* tp_traverse */ \
-    (inquiry)NULL,                                       /* tp_clear */ \
-    (richcmpfunc)NULL,                                   /* tp_richcompare */ \
-    0,                                                   /* tp_weaklistoffset */ \
-    NULL,                                                /* tp_iter */ \
-    NULL,                                                /* tp_iternext */ \
-    NULL,                                                /* tp_methods */ \
-    NULL,                                                /* tp_members */ \
-    NULL,                                                /* tp_getset */ \
-    NULL,                                                /* tp_base */ \
-    NULL,                                                /* tp_dict */ \
-    NULL,                                                /* tp_descr_get */ \
-    NULL,                                                /* tp_descr_set */ \
-    0,                                                   /* tp_dictoffset */ \
-    NULL,                                                /* tp_init */ \
-    PyType_GenericAlloc,                                 /* tp_alloc */ \
-    PyType_GenericNew,                                   /* tp_new */ \
-    NULL,                                                /* tp_free */ \
-    NULL,                                                /* tp_is_gc */ \
-    NULL,                                                /* tp_bases */ \
-    NULL,                                                /* tp_mro */ \
-    NULL,                                                /* tp_cache */ \
-    NULL,                                                /* tp_subclasses */ \
-    NULL,                                                /* tp_weaklist */ \
-    NULL                                                 /* tp_del */ \
-};
+#  define FakeType(Type) \
+    static PyTypeObject FT_##Type = { \
+        PyVarObject_HEAD_INIT(NULL, 0) STRINGIFY(Type), /* tp_name */ \
+        sizeof(PyObject),                               /* tp_basicsize */ \
+        0,                                              /* tp_itemsize */ \
+        (destructor)NULL,                               /* tp_dealloc */ \
+        NULL,                                           /* tp_print */ \
+        NULL,                                           /* tp_getattr */ \
+        NULL,                                           /* tp_setattr */ \
+        NULL,                                           /* tp_compare */ \
+        (reprfunc)NULL,                                 /* tp_repr */ \
+        NULL,                                           /* tp_as_number */ \
+        NULL,                                           /* tp_as_sequence */ \
+        NULL,                                           /* tp_as_mapping */ \
+        (hashfunc)NULL,                                 /* tp_hash */ \
+        NULL,                                           /* tp_call */ \
+        NULL,                                           /* tp_str */ \
+        NULL,                                           /* tp_getattro */ \
+        NULL,                                           /* tp_setattro */ \
+        NULL,                                           /* tp_as_buffer */ \
+        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,       /* tp_flags */ \
+        NULL,                                           /* tp_doc */ \
+        (traverseproc)NULL,                             /* tp_traverse */ \
+        (inquiry)NULL,                                  /* tp_clear */ \
+        (richcmpfunc)NULL,                              /* tp_richcompare */ \
+        0,                                              /* tp_weaklistoffset */ \
+        NULL,                                           /* tp_iter */ \
+        NULL,                                           /* tp_iternext */ \
+        NULL,                                           /* tp_methods */ \
+        NULL,                                           /* tp_members */ \
+        NULL,                                           /* tp_getset */ \
+        NULL,                                           /* tp_base */ \
+        NULL,                                           /* tp_dict */ \
+        NULL,                                           /* tp_descr_get */ \
+        NULL,                                           /* tp_descr_set */ \
+        0,                                              /* tp_dictoffset */ \
+        NULL,                                           /* tp_init */ \
+        PyType_GenericAlloc,                            /* tp_alloc */ \
+        PyType_GenericNew,                              /* tp_new */ \
+        NULL,                                           /* tp_free */ \
+        NULL,                                           /* tp_is_gc */ \
+        NULL,                                           /* tp_bases */ \
+        NULL,                                           /* tp_mro */ \
+        NULL,                                           /* tp_cache */ \
+        NULL,                                           /* tp_subclasses */ \
+        NULL,                                           /* tp_weaklist */ \
+        NULL                                            /* tp_del */ \
+    };
 
-#define FT_DEF(Type) FakeType(Type)
+#  define FT_DEF(Type) FakeType(Type)
 FAKE_TYPES
-#undef FT_DEF
+#  undef FT_DEF
 
 PyDoc_STRVAR(module_documentation,
              "This is the fake BGE API module used only to import core classes from bge.types");
@@ -381,23 +381,23 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
       }
     }
     else if (PyType_Check(pyvalue)) {
-        const char *tp_name = ((PyTypeObject *) pyvalue)->tp_name;
+      const char *tp_name = ((PyTypeObject *)pyvalue)->tp_name;
 
-        free = true;
+      free = true;
 
-#define PT_DEF(name, lower, upper) \
-        if (!strcmp(tp_name, STRINGIFY(name))) { \
-            cprop->type = CPROP_TYPE_ ## upper; \
-            free = false; \
-        }
-        POINTER_TYPES
-#undef PT_DEF
+#  define PT_DEF(name, lower, upper) \
+    if (!strcmp(tp_name, STRINGIFY(name))) { \
+      cprop->type = CPROP_TYPE_##upper; \
+      free = false; \
+    }
+      POINTER_TYPES
+#  undef PT_DEF
 
-        if (free) {
-            printf("Unsupported pointer type %s found for property \"%s\", skipping\n",
-                   Py_TYPE(pyvalue)->tp_name,
-                   name);
-        }
+      if (free) {
+        printf("Unsupported pointer type %s found for property \"%s\", skipping\n",
+               Py_TYPE(pyvalue)->tp_name,
+               name);
+      }
     }
     else {
       // Unsupported type
@@ -542,12 +542,12 @@ static bool load_component(PythonComponent *pc, ReportList *reports, Main *maggi
   PyModule_AddObject(bgemod, "types", bgesubmod);
   PyType_Ready(&FT_KX_PythonComponent);
 
-#define FT_DEF(Type) \
-  PyType_Ready(&FT_ ## Type); \
-  PyModule_AddObject(bgesubmod, STRINGIFY(Type), (PyObject *)&FT_ ## Type);
+#  define FT_DEF(Type) \
+    PyType_Ready(&FT_##Type); \
+    PyModule_AddObject(bgesubmod, STRINGIFY(Type), (PyObject *)&FT_##Type);
 
   FAKE_TYPES
-#undef FT_DEF
+#  undef FT_DEF
 
   PyDict_SetItemString(sys_modules, "bge", bgemod);
   PyDict_SetItemString(sys_modules, "bge.types", bgesubmod);
@@ -625,7 +625,8 @@ PythonComponent *BKE_python_component_new(char *import, ReportList *reports, bCo
   if (pos) {
     *pos = '\0';
     classname = pos + 1;
-  } else {
+  }
+  else {
     BKE_report(reports, RPT_ERROR_INVALID_INPUT, "Invalid module name.");
     return NULL;
   }
@@ -687,8 +688,9 @@ PythonComponent *BKE_python_component_create_file(char *import,
 
   text = BKE_text_add(maggie, filename);
 
-  BLI_strncpy(
-      respath, BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS, "templates_py_components"), sizeof(respath));
+  BLI_strncpy(respath,
+              BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS, "templates_py_components"),
+              sizeof(respath));
   BLI_path_append(respath, sizeof(respath), "python_component.py");
 
   orgfilecontent = BLI_file_read_text_as_mem(respath, 0, &filesize);
@@ -816,23 +818,25 @@ void *BKE_python_component_argument_dict_new(PythonComponent *pc)
         PyList_SetItem(value, i, PyFloat_FromDouble(cprop->vec[i]));
       }
     }
-#define PT_DEF(name, lower, upper) \
-    else if (cprop->type == CPROP_TYPE_ ## upper && cprop->lower) { \
-        ID *id = &cprop->lower->id; \
-        if (id) { \
-            if (!id->py_instance) { \
-                id -> py_instance = pyrna_id_CreatePyObject(id); \
-            } \
-            value = (PyObject *)id->py_instance; \
+#  define PT_DEF(name, lower, upper) \
+    else if (cprop->type == CPROP_TYPE_##upper && cprop->lower) \
+    { \
+      ID *id = &cprop->lower->id; \
+      if (id) { \
+        if (!id->py_instance) { \
+          id->py_instance = pyrna_id_CreatePyObject(id); \
         } \
-        else { \
-            cprop = cprop->next; \
-            continue; \
-        } \
+        value = (PyObject *)id->py_instance; \
+      } \
+      else { \
+        cprop = cprop->next; \
+        continue; \
+      } \
     }
     POINTER_TYPES
-#undef PT_DEF
-    else {
+#  undef PT_DEF
+    else
+    {
       cprop = cprop->next;
       continue;
     }
@@ -858,14 +862,13 @@ void BKE_python_components_id_loop(ListBase *complist, BKEPyComponentIDFunc func
   PythonComponent *comp;
 
   for (comp = complist->first; comp; comp = comp->next) {
-      ListBase *properties = &comp->properties;
-      PythonComponentProperty *prop;
+    ListBase *properties = &comp->properties;
+    PythonComponentProperty *prop;
 
-      for (prop = properties->first; prop; prop = prop->next) {
-#define PT_DEF(name, lower, upper) \
-          func(comp, (ID **)&prop->lower, userdata, IDWALK_CB_USER);
-          POINTER_TYPES
+    for (prop = properties->first; prop; prop = prop->next) {
+#define PT_DEF(name, lower, upper) func(comp, (ID **)&prop->lower, userdata, IDWALK_CB_USER);
+      POINTER_TYPES
 #undef PT_DEF
-      }
+    }
   }
 }

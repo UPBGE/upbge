@@ -40,8 +40,8 @@
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_object_types.h"
 #include "DNA_object_force_types.h"
+#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -440,10 +440,10 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     sce->gm.lodflag = SCE_LOD_USE_HYST;
     sce->gm.scehysteresis = 10;
 
-	  sce->gm.pythonkeys[0] = EVT_LEFTCTRLKEY;
-	  sce->gm.pythonkeys[1] = EVT_LEFTSHIFTKEY;
-	  sce->gm.pythonkeys[2] = EVT_LEFTALTKEY;
-	  sce->gm.pythonkeys[3] = EVT_TKEY;
+    sce->gm.pythonkeys[0] = EVT_LEFTCTRLKEY;
+    sce->gm.pythonkeys[1] = EVT_LEFTSHIFTKEY;
+    sce->gm.pythonkeys[2] = EVT_LEFTALTKEY;
+    sce->gm.pythonkeys[3] = EVT_TKEY;
   }
   for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
     /* Game engine defaults*/

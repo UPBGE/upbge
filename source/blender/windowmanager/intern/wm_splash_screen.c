@@ -90,7 +90,6 @@ static void wm_block_splash_add_label(uiBlock *block, const char *label, int x, 
   UI_block_emboss_set(block, UI_EMBOSS);
 }
 
-
 #ifndef WITH_HEADLESS
 static void wm_block_splash_image_roundcorners_add(ImBuf *ibuf)
 {
@@ -214,7 +213,7 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *region, void *UNUSE
   UI_but_func_set(but, wm_block_close, block, NULL);
 
   wm_block_splash_add_label(
-	  block, BKE_upbge_version_string(), splash_width, splash_height - 13.0 * U.dpi_fac);
+      block, BKE_upbge_version_string(), splash_width, splash_height - 13.0 * U.dpi_fac);
 
   const int layout_margin_x = U.dpi_fac * 26;
   uiLayout *layout = UI_block_layout(block,
