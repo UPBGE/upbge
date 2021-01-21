@@ -50,6 +50,7 @@ static const EnumPropertyItem actuator_type_items[] = {
     {ACT_ACTION, "ACTION", 0, "Action", ""},
     {ACT_ARMATURE, "ARMATURE", 0, "Armature", ""},
     {ACT_CAMERA, "CAMERA", 0, "Camera", ""},
+    {ACT_COLLECTION, "COLLECTION", 0, "Collection", ""},
     {ACT_CONSTRAINT, "CONSTRAINT", 0, "Constraint", ""},
     {ACT_EDIT_OBJECT, "EDIT_OBJECT", 0, "Edit Object", ""},
     {ACT_2DFILTER, "FILTER_2D", 0, "Filter 2D", ""},
@@ -61,7 +62,6 @@ static const EnumPropertyItem actuator_type_items[] = {
     {ACT_PROPERTY, "PROPERTY", 0, "Property", ""},
     {ACT_RANDOM, "RANDOM", 0, "Random", ""},
     {ACT_SCENE, "SCENE", 0, "Scene", ""},
-    {ACT_COLLECTION, "COLLECTION", 0, "Collection", ""},
     {ACT_SOUND, "SOUND", 0, "Sound", ""},
     {ACT_STATE, "STATE", 0, "State", ""},
     {ACT_STEERING, "STEERING", 0, "Steering", ""},
@@ -504,6 +504,7 @@ const EnumPropertyItem *rna_Actuator_type_itemf(bContext *C,
     ob = CTX_data_active_object(C);
   }
 
+  /* Keep the RNA items in alphabetic order */
   if (ob != NULL) {
     if (ob->type == OB_ARMATURE) {
       RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_ARMATURE);
@@ -512,22 +513,21 @@ const EnumPropertyItem *rna_Actuator_type_itemf(bContext *C,
 
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_ACTION);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_CAMERA);
+  RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_COLLECTION);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_CONSTRAINT);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_EDIT_OBJECT);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_2DFILTER);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_GAME);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_MESSAGE);
+  RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_OBJECT); //MOTION
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_MOUSE);
-  RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_OBJECT);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_PARENT);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_PROPERTY);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_RANDOM);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_SCENE);
-  RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_COLLECTION);
-  RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_STEERING);
-
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_SOUND);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_STATE);
+  RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_STEERING);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_VIBRATION);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_VISIBILITY);
 
