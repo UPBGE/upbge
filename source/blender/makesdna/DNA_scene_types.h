@@ -1775,6 +1775,8 @@ typedef struct SceneEEVEE {
   int sss_samples;
   float sss_jitter_threshold;
 
+  float smaa_threshold, _pad[1];
+
   float ssr_quality;
   float ssr_max_roughness;
   float ssr_thickness;
@@ -2579,6 +2581,7 @@ enum {
   SCE_EEVEE_OVERSCAN = (1 << 21),
   SCE_EEVEE_SMAA = (1 << 22), // Game engine transition
   SCE_EEVEE_VOLUMETRIC_BLENDING = (1 << 23), // Game engine transition
+  SCE_EEVEE_TAA = (1 << 24), // Game engine transition
 };
 
 /* SceneEEVEE->shadow_method */

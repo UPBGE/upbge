@@ -165,6 +165,12 @@ void EEVEE_temporal_sampling_update_matrices(EEVEE_Data *vedata)
   EEVEE_StorageList *stl = ((EEVEE_Data *)vedata)->stl;
   EEVEE_EffectsInfo *effects = stl->effects;
 
+  /* Game engine transition */
+  if (!(effects->enabled_effects & EFFECT_TAA)) {
+    return;
+  }
+  /* End of Game engine transition */
+
   double ht_point[2];
   double ht_offset[2] = {0.0, 0.0};
   const uint ht_primes[2] = {2, 3};
@@ -178,6 +184,12 @@ void EEVEE_temporal_sampling_update_matrices(EEVEE_Data *vedata)
 
 void EEVEE_temporal_sampling_reset(EEVEE_Data *vedata)
 {
+  /* Game engine transition */
+  if (!(vedata->stl->effects->enabled_effects & EFFECT_TAA)) {
+    return;
+  }
+  /* End of Game engine transition */
+
   vedata->stl->effects->taa_render_sample = 1;
   vedata->stl->effects->taa_current_sample = 1;
 }
@@ -196,6 +208,13 @@ void EEVEE_temporal_sampling_create_view(EEVEE_Data *vedata)
 
 int EEVEE_temporal_sampling_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *vedata)
 {
+  /* Game engine transition */
+  const DRWContextState *draw_ctx = DRW_context_state_get();
+  if (!(draw_ctx->scene->eevee.flag & SCE_EEVEE_TAA)) {
+    return 0;
+  }
+  /* End of Game engine transition */
+
   EEVEE_StorageList *stl = vedata->stl;
   EEVEE_EffectsInfo *effects = stl->effects;
   int repro_flag = 0;
@@ -215,7 +234,6 @@ int EEVEE_temporal_sampling_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data
 
   EEVEE_temporal_sampling_create_view(vedata);
 
-  const DRWContextState *draw_ctx = DRW_context_state_get();
   const Scene *scene_eval = DEG_get_evaluated_scene(draw_ctx->depsgraph);
 
   if ((scene_eval->eevee.taa_samples != 1) || DRW_state_is_image_render()) {
@@ -296,6 +314,12 @@ void EEVEE_temporal_sampling_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data 
   EEVEE_TextureList *txl = vedata->txl;
   EEVEE_EffectsInfo *effects = stl->effects;
 
+  /* Game engine transition */
+  if (!(effects->enabled_effects & EFFECT_TAA)) {
+    return;
+  }
+  /* End of Game engine transition */
+
   if (effects->enabled_effects & EFFECT_TAA) {
     struct GPUShader *sh = EEVEE_shaders_taa_resolve_sh_get(effects->enabled_effects);
 
@@ -326,6 +350,12 @@ void EEVEE_temporal_sampling_draw(EEVEE_Data *vedata)
   EEVEE_FramebufferList *fbl = vedata->fbl;
   EEVEE_StorageList *stl = vedata->stl;
   EEVEE_EffectsInfo *effects = stl->effects;
+
+    /* Game engine transition */
+  if (!(effects->enabled_effects & EFFECT_TAA)) {
+    return;
+  }
+  /* End of Game engine transition */
 
   if ((effects->enabled_effects & (EFFECT_TAA | EFFECT_TAA_REPROJECT)) != 0) {
     if ((effects->enabled_effects & EFFECT_TAA) != 0 && effects->taa_current_sample != 1) {

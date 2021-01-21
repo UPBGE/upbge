@@ -173,6 +173,8 @@ void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata)
   EEVEE_PassList *psl = vedata->psl;
   DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
   DRWShadingGroup *grp = NULL;
+  const DRWContextState *draw_ctx = DRW_context_state_get();
+  Scene *scene_eval = draw_ctx->scene;
 
   EEVEE_EffectsInfo *effects = vedata->stl->effects;
   if (!(effects->enabled_effects & EFFECT_SMAA)) {
@@ -200,6 +202,7 @@ void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata)
     grp = DRW_shgroup_create(sh, psl->aa_edge_ps);
     DRW_shgroup_uniform_texture(grp, "colorTex", txl->history_buffer_tx);
     DRW_shgroup_uniform_vec4_copy(grp, "viewportMetrics", metrics);
+    DRW_shgroup_uniform_float_copy(grp, "lumaWeight", scene_eval->eevee.smaa_threshold);
 
     DRW_shgroup_clear_framebuffer(grp, GPU_COLOR_BIT, 0, 0, 0, 0, 0.0f, 0x0);
     DRW_shgroup_call_procedural_triangles(grp, NULL, 1);

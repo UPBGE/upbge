@@ -467,6 +467,19 @@ class RENDER_PT_eevee_sampling(RenderButtonsPanel, Panel):
         return (context.engine in cls.COMPAT_ENGINES)
 
     def draw(self, context):
+        pass
+
+class RENDER_PT_eevee_sampling_taa(RenderButtonsPanel, Panel):
+    bl_label = "TAA"
+    bl_parent_id = "RENDER_PT_eevee_sampling"
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+
+    def draw_header(self, context):
+        scene = context.scene
+        props = scene.eevee
+        self.layout.prop(props, "use_eevee_taa", text="")
+
+    def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False  # No animation.
@@ -474,6 +487,7 @@ class RENDER_PT_eevee_sampling(RenderButtonsPanel, Panel):
         scene = context.scene
         props = scene.eevee
 
+        layout.active = props.use_eevee_taa
         col = layout.column(align=True)
         col.prop(props, "taa_render_samples", text="Render")
         col.prop(props, "taa_samples", text="Viewport")
@@ -481,8 +495,26 @@ class RENDER_PT_eevee_sampling(RenderButtonsPanel, Panel):
         col = layout.column()
         col.prop(props, "use_taa_reprojection")
 
-        row = layout.row()                #Game engine transition
-        row.prop(props, "use_eevee_smaa") #Game engine transition
+class RENDER_PT_eevee_sampling_smaa(RenderButtonsPanel, Panel):
+    bl_label = "SMAA"
+    bl_parent_id = "RENDER_PT_eevee_sampling"
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+
+    def draw_header(self, context):
+        scene = context.scene
+        props = scene.eevee
+        self.layout.prop(props, "use_eevee_smaa", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False  # No animation.
+        scene = context.scene
+        props = scene.eevee
+
+        layout.active = props.use_eevee_smaa
+        col = layout.column(align=True)
+        col.prop(props, "smaa_threshold", text="SMAA Threshold")
 
 
 class RENDER_PT_eevee_indirect_lighting(RenderButtonsPanel, Panel):
@@ -777,6 +809,8 @@ classes = (
     RENDER_PT_game_resolution,
     RENDER_PT_game_debug,
     RENDER_PT_eevee_sampling,
+    RENDER_PT_eevee_sampling_taa,
+    RENDER_PT_eevee_sampling_smaa,
     RENDER_PT_eevee_ambient_occlusion,
     RENDER_PT_eevee_bloom,
     RENDER_PT_eevee_depth_of_field,
