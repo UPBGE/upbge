@@ -1760,6 +1760,20 @@ static void object_blend_read_expand(BlendExpander *expander, ID *id)
   }
 }
 
+static void object_lib_override_apply_post(ID *id_dst, ID *UNUSED(id_src))
+{
+  Object *object = (Object *)id_dst;
+
+  ListBase pidlist;
+  BKE_ptcache_ids_from_object(&pidlist, object, NULL, 0);
+  LISTBASE_FOREACH (PTCacheID *, pid, &pidlist) {
+    LISTBASE_FOREACH (PointCache *, point_cache, pid->ptcaches) {
+      point_cache->flag |= PTCACHE_FLAG_INFO_DIRTY;
+    }
+  }
+  BLI_freelistN(&pidlist);
+}
+
 IDTypeInfo IDType_ID_OB = {
     .id_code = ID_OB,
     .id_filter = FILTER_ID_OB,
@@ -1783,6 +1797,8 @@ IDTypeInfo IDType_ID_OB = {
     .blend_read_expand = object_blend_read_expand,
 
     .blend_read_undo_preserve = NULL,
+
+    .lib_override_apply_post = object_lib_override_apply_post,
 };
 
 void BKE_object_workob_clear(Object *workob)
@@ -4375,9 +4391,6 @@ static void solve_parenting(
   }
 }
 
-/**
- * \note scene is the active scene while actual_scene is the scene the object resides in.
- */
 static void object_where_is_calc_ex(Depsgraph *depsgraph,
                                     Scene *scene,
                                     Object *ob,
