@@ -21,13 +21,13 @@ base class --- :class:`SCA_NearSensor`
 
    .. attribute:: distance
 
-      The height of the cone with which to test.
+      The height of the cone with which to test (read-only).
 
       :type: float
 
    .. attribute:: angle
 
-      The angle of the cone (in degrees) with which to test.
+      The angle of the cone (in degrees) with which to test (read-only).
 
       :type: float
 
