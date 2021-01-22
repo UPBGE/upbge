@@ -1775,7 +1775,8 @@ typedef struct SceneEEVEE {
   int sss_samples;
   float sss_jitter_threshold;
 
-  float smaa_threshold, _pad[1];
+  float smaa_threshold[3]; // UPBGE
+  int smaa_quality; // UPBGE
 
   float ssr_quality;
   float ssr_max_roughness;
@@ -2596,6 +2597,14 @@ enum {
   SCE_EEVEE_MB_CENTER = 0,
   SCE_EEVEE_MB_START = 1,
   SCE_EEVEE_MB_END = 2,
+};
+
+/* SceneEEVEE->smaa_quality */ /* UPBGE */
+enum {
+  SCE_EEVEE_SMAA_PRESET_LOW = 0,
+  SCE_EEVEE_SMAA_PRESET_MEDIUM = 1,
+  SCE_EEVEE_SMAA_PRESET_HIGH = 2,
+  SCE_EEVEE_SMAA_PRESET_ULTRA = 3,
 };
 
 /* SceneDisplay->render_aa, SceneDisplay->viewport_aa */

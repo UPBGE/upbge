@@ -7763,6 +7763,14 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
       {0, NULL, 0, NULL, NULL},
   };
 
+  static const EnumPropertyItem eevee_smaa_quality_items[] = {
+      {SCE_EEVEE_SMAA_PRESET_LOW, "LOW", 0, "Low", "%60 of the quality"},
+      {SCE_EEVEE_SMAA_PRESET_MEDIUM, "MEDIUM", 0, "Medium", "%80 of the quality"},
+      {SCE_EEVEE_SMAA_PRESET_HIGH, "HIGH", 0, "High", "%95 of the quality"},
+      {SCE_EEVEE_SMAA_PRESET_ULTRA, "ULTRA", 0, "Ultra", "%99 of the quality"},
+      {0, NULL, 0, NULL, NULL},
+  };
+
   srna = RNA_def_struct(brna, "SceneEEVEE", NULL);
   RNA_def_struct_path_func(srna, "rna_SceneEEVEE_path");
   RNA_def_struct_ui_text(srna, "Scene Display", "Scene display settings for 3D viewport");
@@ -7876,25 +7884,51 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   /* Game engine transition */
   prop = RNA_def_property(srna, "use_eevee_taa", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", SCE_EEVEE_TAA);
-  RNA_def_property_ui_text(prop, "TAA", "TAA");
+  RNA_def_property_ui_text(prop, "TAA", "Temporal Antialiasing");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
   prop = RNA_def_property(srna, "use_eevee_smaa", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", SCE_EEVEE_SMAA);
-  RNA_def_property_ui_text(prop, "SMAA", "SMAA filter");
+  RNA_def_property_ui_text(prop, "SMAA", "Enhanced Subpixel Morphological Antialiasing");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
-  prop = RNA_def_property(srna, "smaa_threshold", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, NULL, "smaa_threshold");
-  RNA_def_property_float_default(prop, 1.0f);
+  prop = RNA_def_property(srna, "smaa_threshold_r", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "smaa_threshold[0]");
   RNA_def_property_range(prop, 0.0f, FLT_MAX);
-  RNA_def_property_ui_range(prop, 0.0f, 10.0f, 1, 3);
+  RNA_def_property_ui_range(prop, 0.0f, 2.0f, 1, 3);
   RNA_def_property_ui_text(prop,
                            "Anti-Aliasing Threshold",
-                           "Threshold for edge detection algorithm (higher values might overblur "
-                           "some part of the image)");
+                           "Threshold for edge detection algorithm (Red component)");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+  prop = RNA_def_property(srna, "smaa_threshold_g", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "smaa_threshold[1]");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0f, 2.0f, 1, 3);
+  RNA_def_property_ui_text(prop,
+                           "Anti-Aliasing Threshold",
+                           "Threshold for edge detection algorithm (Green component)");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+  prop = RNA_def_property(srna, "smaa_threshold_b", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "smaa_threshold[2]");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0f, 2.0f, 1, 3);
+  RNA_def_property_ui_text(prop,
+                           "Anti-Aliasing Threshold",
+                           "Threshold for edge detection algorithm (Blue component)");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+  prop = RNA_def_property(srna, "smaa_quality", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, eevee_smaa_quality_items);
+  RNA_def_property_ui_text(prop,
+                           "SMAA Quality",
+                           "Different SMAA quality presets");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
   /* Game engine transition */

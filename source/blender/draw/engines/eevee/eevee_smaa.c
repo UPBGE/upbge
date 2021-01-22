@@ -163,7 +163,7 @@ int EEVEE_antialiasing_engine_init(EEVEE_Data *vedata)
     GPU_texture_filter_mode(txl->smaa_search_tx, true);
     GPU_texture_filter_mode(txl->smaa_area_tx, true);
   }
-  return EFFECT_SMAA;
+  return EFFECT_SMAA | EFFECT_VELOCITY_BUFFER;
 }
 
 void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata)
@@ -198,11 +198,11 @@ void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata)
     /* Stage 1: Edge detection. */
     DRW_PASS_CREATE(psl->aa_edge_ps, DRW_STATE_WRITE_COLOR);
 
-    GPUShader *sh = eevee_shader_antialiasing_get(0);
+    GPUShader *sh = eevee_shader_antialiasing_get(0, scene_eval->eevee.smaa_quality);
     grp = DRW_shgroup_create(sh, psl->aa_edge_ps);
     DRW_shgroup_uniform_texture(grp, "colorTex", txl->history_buffer_tx);
     DRW_shgroup_uniform_vec4_copy(grp, "viewportMetrics", metrics);
-    DRW_shgroup_uniform_float_copy(grp, "lumaWeight", scene_eval->eevee.smaa_threshold);
+    DRW_shgroup_uniform_vec3_copy(grp, "lumaWeight", scene_eval->eevee.smaa_threshold);
 
     DRW_shgroup_clear_framebuffer(grp, GPU_COLOR_BIT, 0, 0, 0, 0, 0.0f, 0x0);
     DRW_shgroup_call_procedural_triangles(grp, NULL, 1);
@@ -211,7 +211,7 @@ void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata)
     /* Stage 2: Blend Weight/Coord. */
     DRW_PASS_CREATE(psl->aa_weight_ps, DRW_STATE_WRITE_COLOR);
 
-    GPUShader *sh = eevee_shader_antialiasing_get(1);
+    GPUShader *sh = eevee_shader_antialiasing_get(1, scene_eval->eevee.smaa_quality);
     grp = DRW_shgroup_create(sh, psl->aa_weight_ps);
     DRW_shgroup_uniform_texture(grp, "edgesTex", g_data->smaa_edge_tx);
     DRW_shgroup_uniform_texture(grp, "areaTex", txl->smaa_area_tx);
@@ -225,13 +225,14 @@ void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata)
     /* Stage 3: Resolve. */
     DRW_PASS_CREATE(psl->aa_resolve_ps, DRW_STATE_WRITE_COLOR);
 
-    GPUShader *sh = eevee_shader_antialiasing_get(2);
+    GPUShader *sh = eevee_shader_antialiasing_get(2, scene_eval->eevee.smaa_quality);
     grp = DRW_shgroup_create(sh, psl->aa_resolve_ps);
     DRW_shgroup_uniform_texture(grp, "blendTex", g_data->smaa_weight_tx);
     DRW_shgroup_uniform_texture(grp, "colorTex", txl->history_buffer_tx);
     DRW_shgroup_uniform_vec4_copy(grp, "viewportMetrics", metrics);
     DRW_shgroup_uniform_float(grp, "mixFactor", &g_data->smaa_mix_factor, 1);
     DRW_shgroup_uniform_float(grp, "taaSampleCountInv", &g_data->taa_sample_inv, 1);
+    DRW_shgroup_uniform_texture(grp, "velocityBuffer", effects->velocity_tx);
 
     DRW_shgroup_call_procedural_triangles(grp, NULL, 1);
   }

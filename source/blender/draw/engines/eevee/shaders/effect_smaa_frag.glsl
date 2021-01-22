@@ -4,6 +4,7 @@ uniform sampler2D areaTex;
 uniform sampler2D searchTex;
 uniform sampler2D blendTex;
 uniform sampler2D colorTex;
+uniform sampler2D velocityBuffer;
 uniform float mixFactor;
 uniform float taaSampleCountInv;
 
@@ -34,7 +35,7 @@ void main()
 #elif SMAA_STAGE == 2
   fragColor = vec4(0.0);
   if (mixFactor > 0.0) {
-    fragColor += SMAANeighborhoodBlendingPS(uvs, offset[0], colorTex, blendTex) * mixFactor;
+    fragColor += SMAANeighborhoodBlendingPS(uvs, offset[0], colorTex, blendTex, velocityBuffer) * mixFactor;
   }
   if (mixFactor < 1.0) {
     fragColor += texture(colorTex, uvs) * (1.0 - mixFactor);

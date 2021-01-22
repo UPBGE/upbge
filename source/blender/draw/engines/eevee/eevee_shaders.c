@@ -273,12 +273,37 @@ GPUShader *eevee_shader_antialiasing_accumulation_get(void)
   return e_data.aa_accum_sh;
 }
 
-GPUShader *eevee_shader_antialiasing_get(int stage)
+GPUShader *eevee_shader_antialiasing_get(int stage, int smaa_quality)
 {
   BLI_assert(stage < 3);
   if (!e_data.smaa_sh[stage]) {
     char stage_define[32];
+    char smaa_quality_define[32];
     BLI_snprintf(stage_define, sizeof(stage_define), "#define SMAA_STAGE %d\n", stage);
+    switch (smaa_quality) {
+      case 0:
+      {
+        BLI_snprintf(smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_LOW\n");
+        break;
+      }
+      case 1:
+      {
+        BLI_snprintf(smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_MEDIUM\n");
+        break;
+      }
+      case 2:
+      {
+        BLI_snprintf(smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_HIGH\n");
+        break;
+      }
+      case 3:
+      {
+        BLI_snprintf(smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_ULTRA\n");
+        break;
+      }
+      default:
+        break;
+    }
 
     e_data.smaa_sh[stage] = GPU_shader_create_from_arrays({
         .vert =
@@ -301,12 +326,13 @@ GPUShader *eevee_shader_antialiasing_get(int stage)
             },
         .defs =
             (const char *[]){
-                "uniform float lumaWeight;\n",
+                "uniform vec3 lumaWeight;\n",
                 "#define SMAA_GLSL_3\n",
                 "#define SMAA_RT_METRICS viewportMetrics\n",
-                "#define SMAA_PRESET_HIGH\n",
-                "#define SMAA_LUMA_WEIGHT float4(lumaWeight, lumaWeight, lumaWeight, 0.0)\n",
+                smaa_quality_define,
+                "#define SMAA_LUMA_WEIGHT float4(lumaWeight[0], lumaWeight[1], lumaWeight[2], 0.0)\n",
                 "#define SMAA_NO_DISCARD\n",
+                "#define SMAA_REPROJECTION 1\n",
                 stage_define,
                 NULL,
             },

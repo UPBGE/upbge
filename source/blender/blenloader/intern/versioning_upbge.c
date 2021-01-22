@@ -241,4 +241,14 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
     }
   }
 
+  if (!MAIN_VERSION_UPBGE_ATLEAST(main, 30, 5)) {
+    LISTBASE_FOREACH (Scene *, scene, &main->scenes) {
+      scene->eevee.flag |= SCE_EEVEE_TAA;
+      scene->eevee.smaa_quality = SCE_EEVEE_SMAA_PRESET_HIGH;
+      scene->eevee.smaa_threshold[0] = 0.2126f;
+      scene->eevee.smaa_threshold[1] = 0.7152f;
+      scene->eevee.smaa_threshold[2] = 0.0722f;
+    }
+  }
+
 }

@@ -514,7 +514,12 @@ class RENDER_PT_eevee_sampling_smaa(RenderButtonsPanel, Panel):
 
         layout.active = props.use_eevee_smaa
         col = layout.column(align=True)
-        col.prop(props, "smaa_threshold", text="SMAA Threshold")
+        col.prop(props, "smaa_quality", text="Quality")
+
+        col = layout.column(align=True)
+        col.prop(props, "smaa_threshold_r", text="LUMA Threshold R")
+        col.prop(props, "smaa_threshold_g", text="G")
+        col.prop(props, "smaa_threshold_b", text="B")
 
 
 class RENDER_PT_eevee_indirect_lighting(RenderButtonsPanel, Panel):

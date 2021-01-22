@@ -179,7 +179,12 @@ static void scene_init_data(ID *id)
 
   /* Anti-Aliasing threshold. */
   scene->grease_pencil_settings.smaa_threshold = 1.0f;
-  scene->eevee.smaa_threshold = 1.0f; /* Game engine transition */
+
+  scene->eevee.flag |= SCE_EEVEE_TAA; /* Game engine transition */
+  scene->eevee.smaa_quality = SCE_EEVEE_SMAA_PRESET_HIGH; /* Game engine transition */
+  scene->eevee.smaa_threshold[0] = 0.2126f; /* Game engine transition */
+  scene->eevee.smaa_threshold[1] = 0.7152f; /* Game engine transition */
+  scene->eevee.smaa_threshold[2] = 0.0722f; /* Game engine transition */
 
   {
     ParticleEditSettings *pset;
