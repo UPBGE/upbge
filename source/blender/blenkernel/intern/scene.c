@@ -180,8 +180,6 @@ static void scene_init_data(ID *id)
   /* Anti-Aliasing threshold. */
   scene->grease_pencil_settings.smaa_threshold = 1.0f;
 
-  scene->eevee.smaa_quality = SCE_EEVEE_SMAA_PRESET_HIGH; /* Game engine transition */
-
   {
     ParticleEditSettings *pset;
     pset = &scene->toolsettings->particle;
@@ -283,6 +281,8 @@ static void scene_init_data(ID *id)
   scene->gm.pythonkeys[1] = EVT_LEFTSHIFTKEY;
   scene->gm.pythonkeys[2] = EVT_LEFTALTKEY;
   scene->gm.pythonkeys[3] = EVT_TKEY;
+
+  scene->eevee.smaa_quality = SCE_EEVEE_SMAA_PRESET_HIGH;
 
   /* Curve Profile */
   scene->toolsettings->custom_bevel_profile_preset = BKE_curveprofile_add(PROF_PRESET_LINE);

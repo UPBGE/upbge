@@ -190,6 +190,8 @@
     .sss_samples = 7, \
     .sss_jitter_threshold = 0.3f, \
  \
+    .smaa_quality = SCE_EEVEE_SMAA_PRESET_HIGH, \
+ \
     .ssr_quality = 0.25f, \
     .ssr_max_roughness = 0.5f, \
     .ssr_thickness = 0.2f, \
