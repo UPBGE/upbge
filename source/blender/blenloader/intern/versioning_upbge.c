@@ -246,5 +246,4 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
       scene->eevee.smaa_quality = SCE_EEVEE_SMAA_PRESET_HIGH;
     }
   }
-
 }
