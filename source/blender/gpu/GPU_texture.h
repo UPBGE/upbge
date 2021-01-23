@@ -23,7 +23,7 @@
 
 #pragma once
 
-#include "BLI_sys_types.h" // Game engine transition
+#include "BLI_sys_types.h"  // Game engine transition
 #include "BLI_utildefines.h"
 
 #include "GPU_state.h"

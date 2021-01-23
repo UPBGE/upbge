@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "EXP_BoolValue.h"
 #include "EXP_Value.h"
 #include "SCA_IObject.h"
@@ -143,4 +142,3 @@ class SCA_ILogicBrick : public EXP_Value, public SG_QList {
   enum KX_BOOL_TYPE { KX_BOOL_NODEF = 0, KX_TRUE, KX_FALSE, KX_BOOL_MAX };
 #endif /* WITH_PYTHON */
 };
-

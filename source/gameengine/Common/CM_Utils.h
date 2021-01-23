@@ -26,8 +26,6 @@
 
 #pragma once
 
-
 #include <string>
 
 std::string CM_RemovePrefix(const std::string &propname);
-

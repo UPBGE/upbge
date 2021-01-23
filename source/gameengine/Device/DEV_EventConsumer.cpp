@@ -26,7 +26,6 @@
 
 #include "DEV_EventConsumer.h"
 
-
 #include "BLI_string_utf8.h"
 #include "GHOST_ISystem.h"
 

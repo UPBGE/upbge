@@ -149,7 +149,8 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
     }
     /* The Performances profiler */
     const unsigned int left = canvas->GetViewportArea().GetLeft();
-    const unsigned int top = canvas->GetWindowArea().GetTop() - canvas->GetViewportArea().GetBottom();
+    const unsigned int top = canvas->GetWindowArea().GetTop() -
+                             canvas->GetViewportArea().GetBottom();
     if (!debugDraw->m_boxes2D.empty()) {
       for (const RAS_DebugDraw::Box2D &b : debugDraw->m_boxes2D) {
         DRW_debug_box_2D_bge(left + b.m_pos[0], top - b.m_pos[1], b.m_size[0], b.m_size[1]);
@@ -161,7 +162,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
       }
     }
   }
-  else { // Non viewport render pipeline
+  else {  // Non viewport render pipeline
     if (!debugDraw->m_lines.empty()) {
       GPUVertFormat *format = immVertexFormat();
       uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);

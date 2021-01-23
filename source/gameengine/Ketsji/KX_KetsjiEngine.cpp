@@ -119,10 +119,13 @@ const std::string KX_KetsjiEngine::m_profileLabels[tc_numCategories] = {
 /**
  * Constructor of the Ketsji Engine
  */
-KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system, bContext *C, bool useViewportRender, int shadingTypeRuntime)
-    : m_context(C),                             // eevee
-      m_useViewportRender(useViewportRender),   // eevee
-      m_shadingTypeRuntime(shadingTypeRuntime), // eevee
+KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system,
+                                 bContext *C,
+                                 bool useViewportRender,
+                                 int shadingTypeRuntime)
+    : m_context(C),                              // eevee
+      m_useViewportRender(useViewportRender),    // eevee
+      m_shadingTypeRuntime(shadingTypeRuntime),  // eevee
       m_canvas(nullptr),
       m_rasterizer(nullptr),
       m_kxsystem(system),
@@ -341,14 +344,14 @@ void KX_KetsjiEngine::EndFrameViewportRender()
   m_logger.NextMeasurement(m_kxsystem->GetTimeInSeconds());
 
   m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds());
-  //m_rasterizer->EndFrame();
+  // m_rasterizer->EndFrame();
 
   m_logger.StartLog(tc_logic, m_kxsystem->GetTimeInSeconds());
   m_canvas->FlushScreenshots();
 
   // swap backbuffer (drawing into this buffer) <-> front/visible buffer
   m_logger.StartLog(tc_latency, m_kxsystem->GetTimeInSeconds());
-  //m_canvas->SwapBuffers();
+  // m_canvas->SwapBuffers();
   m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds());
 
   m_canvas->EndDraw();
@@ -520,7 +523,6 @@ bool KX_KetsjiEngine::NextFrame()
 
     // scene management
     ProcessScheduledScenes();
-
   }
 
   // Start logging time spent outside main loop
@@ -1092,7 +1094,8 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
     activecam->SetName("__default__cam__");
 
     activecam->SetBlenderObject(scene->GetGameDefaultCamera());
-    scene->GetBlenderSceneConverter()->RegisterGameObject(activecam, activecam->GetBlenderObject());
+    scene->GetBlenderSceneConverter()->RegisterGameObject(activecam,
+                                                          activecam->GetBlenderObject());
 
     // set transformation
     if (override_camera) {

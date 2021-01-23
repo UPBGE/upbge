@@ -26,7 +26,7 @@
 /* this include is for non-render pipeline exports (still old cruft here) */
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
-#include "BLI_compiler_attrs.h" // Game engine transition
+#include "BLI_compiler_attrs.h"  // Game engine transition
 
 /* called by meshtools */
 struct Depsgraph;

@@ -18,7 +18,6 @@
 
 #pragma once
 
-
 #include "EXP_Expression.h"
 #include "EXP_Value.h"
 
@@ -35,4 +34,3 @@ class EXP_ConstExpr : public EXP_Expression {
  private:
   EXP_Value *m_value;
 };
-

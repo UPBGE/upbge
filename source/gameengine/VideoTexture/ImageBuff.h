@@ -30,7 +30,6 @@
 
 #pragma once
 
-
 #include "Common.h"
 #include "ImageBase.h"
 
@@ -64,4 +63,3 @@ class ImageBuff : public ImageBase {
   {
   }
 };
-

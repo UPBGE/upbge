@@ -151,28 +151,28 @@ static void upbge_version_init()
   const char *version_cycle = NULL;
 
   if (STREQ(STRINGIFY(UPBGE_VERSION_CYCLE), "alpha")) {
-	version_cycle = " Alpha";
+    version_cycle = " Alpha";
   }
   else if (STREQ(STRINGIFY(UPBGE_VERSION_CYCLE), "beta")) {
-	version_cycle = " Beta";
+    version_cycle = " Beta";
   }
   else if (STREQ(STRINGIFY(UPBGE_VERSION_CYCLE), "rc")) {
-	version_cycle = " Release Candidate";
+    version_cycle = " Release Candidate";
   }
   else if (STREQ(STRINGIFY(UPBGE_VERSION_CYCLE), "release")) {
-	version_cycle = "";
+    version_cycle = "";
   }
   else {
-	BLI_assert(!"Invalid UPBGE version cycle");
+    BLI_assert(!"Invalid UPBGE version cycle");
   }
 
   BLI_snprintf(upbge_version_string,
-			   ARRAY_SIZE(upbge_version_string),
-			   "UPBGE %d.%d.%d%s",
-			   UPBGE_VERSION / 100,
-			   UPBGE_VERSION % 100,
-			   UPBGE_VERSION_PATCH,
-			   version_cycle);
+               ARRAY_SIZE(upbge_version_string),
+               "UPBGE %d.%d.%d%s",
+               UPBGE_VERSION / 100,
+               UPBGE_VERSION % 100,
+               UPBGE_VERSION_PATCH,
+               version_cycle);
 }
 
 const char *BKE_upbge_version_string()

@@ -30,7 +30,6 @@
 
 #pragma once
 
-
 #include "Common.h"
 #include "FilterBase.h"
 
@@ -404,4 +403,3 @@ class FilterYV12 : public FilterBase {
     return val;
   }
 };
-

@@ -5,7 +5,6 @@
 
 #pragma once
 
-
 #include "BL_Texture.h"
 #include "EXP_Value.h"
 #include "MT_Vector3.h"
@@ -65,7 +64,8 @@ class KX_BlenderMaterial : public EXP_Value, public RAS_IPolyMaterial {
 
   static PyObject *pyattr_get_materialIndex(EXP_PyObjectPlus *self_v,
                                             const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_textures(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_textures(EXP_PyObjectPlus *self_v,
+                                       const EXP_PYATTRIBUTE_DEF *attrdef);
 
   EXP_PYMETHOD_DOC(KX_BlenderMaterial, getShader);
   EXP_PYMETHOD_DOC(KX_BlenderMaterial, setBlending);
@@ -102,4 +102,3 @@ bool ConvertPythonToMaterial(PyObject *value,
                              bool py_none_ok,
                              const char *error_prefix);
 #endif  // WITH_PYTHON
-

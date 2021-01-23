@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #ifdef _MSC_VER
 #  pragma warning(disable : 4786)
 #endif
@@ -568,6 +567,5 @@ class RAS_Rasterizer {
    */
   void PrintHardwareInfo();
 
-  const unsigned char* GetGraphicsCardVendor();
+  const unsigned char *GetGraphicsCardVendor();
 };
-

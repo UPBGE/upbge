@@ -24,7 +24,8 @@ EXP_StringValue::EXP_StringValue() : m_strString("[Illegal String constructor ca
 {
 }
 
-EXP_StringValue::EXP_StringValue(const std::string &txt, const std::string &name) : m_strString(txt)
+EXP_StringValue::EXP_StringValue(const std::string &txt, const std::string &name)
+    : m_strString(txt)
 {
   SetName(name);
 }
@@ -74,7 +75,8 @@ EXP_Value *EXP_StringValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, 
           break;
         }
         default: {
-          ret = new EXP_ErrorValue(val->GetText() + op2str(op) + "[operator not allowed on strings]");
+          ret = new EXP_ErrorValue(val->GetText() + op2str(op) +
+                                   "[operator not allowed on strings]");
           break;
         }
       }

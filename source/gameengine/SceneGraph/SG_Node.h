@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include <memory>
 #include <vector>
 
@@ -141,7 +140,7 @@ class SG_Node : public SG_QList {
    * that.
    * \return a reference to the list of children of this node.
    */
-  const NodeList& GetSGChildren() const;
+  const NodeList &GetSGChildren() const;
 
   /**
    * Clear the list of children associated with this node
@@ -403,4 +402,3 @@ class SG_Node : public SG_QList {
   bool m_modified;
   unsigned short m_dirty;
 };
-

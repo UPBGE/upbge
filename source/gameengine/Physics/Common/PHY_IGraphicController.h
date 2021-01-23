@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "PHY_IController.h"
 
 /**
@@ -53,4 +52,3 @@ class PHY_IGraphicController : public PHY_IController {
     return nullptr;
   }
 };
-

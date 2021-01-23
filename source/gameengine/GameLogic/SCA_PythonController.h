@@ -32,7 +32,6 @@
 
 #pragma once
 
-
 #include <vector>
 
 #include "EXP_BoolValue.h"
@@ -109,4 +108,3 @@ class SCA_PythonController : public SCA_IController {
                                PyObject *value);
 #endif
 };
-

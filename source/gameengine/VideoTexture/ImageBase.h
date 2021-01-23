@@ -30,7 +30,6 @@
 
 #pragma once
 
-
 #include <vector>
 
 #include "Common.h"
@@ -430,4 +429,3 @@ int Image_setFilter(PyImage *self, PyObject *value, void *closure);
 PyObject *Image_valid(PyImage *self, void *closure);
 // for buffer access to PyImage objects
 extern PyBufferProcs imageBufferProcs;
-

@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #ifdef WITH_GAMEENGINE_DECKLINK
 
 /* this needs to be parsed with __cplusplus defined before included through DeckLink_compat.h */
@@ -265,4 +264,3 @@ class CaptureDelegate : public IDeckLinkInputCallback {
 };
 
 #endif /* WITH_GAMEENGINE_DECKLINK */
-

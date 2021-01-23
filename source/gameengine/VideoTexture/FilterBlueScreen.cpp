@@ -30,8 +30,6 @@
 
 #include "FilterBlueScreen.h"
 
-
-
 // implementation FilterBlueScreen
 
 // constructor

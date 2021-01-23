@@ -32,8 +32,6 @@
 
 #include "FilterSource.h"
 
-
-
 // FilterRGB24
 
 // define python type

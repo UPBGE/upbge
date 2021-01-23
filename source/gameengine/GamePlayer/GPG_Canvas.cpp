@@ -218,4 +218,3 @@ bool GPG_Canvas::IsBlenderPlayer()
 {
   return true;
 }
-

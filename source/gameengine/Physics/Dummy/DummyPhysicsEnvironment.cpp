@@ -31,8 +31,6 @@
 
 #include "DummyPhysicsEnvironment.h"
 
-
-
 DummyPhysicsEnvironment::DummyPhysicsEnvironment()
 {
   // create physicsengine data

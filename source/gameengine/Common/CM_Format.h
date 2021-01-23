@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include <fstream>
 #include <sstream>
 
@@ -37,4 +36,3 @@ template<typename T> bool CM_StringTo(const std::string &string, T &out)
 
   return !stream.fail();
 }
-

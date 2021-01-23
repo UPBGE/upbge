@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "BLI_utildefines.h"
 
 #include "MT_Vector2.h"
@@ -139,4 +138,3 @@ template<class T, class dataT> class KX_RayCast::Callback : public KX_RayCast {
     return self->NeedRayCast(info, data);
   }
 };
-

@@ -32,7 +32,6 @@
 
 #pragma once
 
-
 #include "BLI_utildefines.h"
 
 #include "KX_Scene.h"
@@ -119,14 +118,18 @@ class SCA_MouseFocusSensor : public SCA_MouseSensor {
   /* --------------------------------------------------------------------- */
 
   /* attributes */
-  static PyObject *pyattr_get_ray_source(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_ray_target(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_ray_source(EXP_PyObjectPlus *self_v,
+                                         const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_ray_target(EXP_PyObjectPlus *self_v,
+                                         const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_ray_direction(EXP_PyObjectPlus *self_v,
                                             const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_hit_object(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_hit_object(EXP_PyObjectPlus *self_v,
+                                         const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_hit_position(EXP_PyObjectPlus *self_v,
                                            const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_hit_normal(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_hit_normal(EXP_PyObjectPlus *self_v,
+                                         const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_hit_uv(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 
 #endif /* WITH_PYTHON */
@@ -217,4 +220,3 @@ class SCA_MouseFocusSensor : public SCA_MouseSensor {
    * The KX engine is needed for computing the viewport */
   KX_KetsjiEngine *m_kxengine;
 };
-

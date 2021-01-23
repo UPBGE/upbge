@@ -164,11 +164,11 @@ PyMethodDef SCA_StateActuator::Methods[] = {
 
 PyAttributeDef SCA_StateActuator::Attributes[] = {
     EXP_PYATTRIBUTE_INT_RW("operation",
-                          SCA_StateActuator::OP_NOP + 1,
-                          SCA_StateActuator::OP_COUNT - 1,
-                          false,
-                          SCA_StateActuator,
-                          m_operation),
+                           SCA_StateActuator::OP_NOP + 1,
+                           SCA_StateActuator::OP_COUNT - 1,
+                           false,
+                           SCA_StateActuator,
+                           m_operation),
     EXP_PYATTRIBUTE_INT_RW("mask", 0, 0x3FFFFFFF, false, SCA_StateActuator, m_mask),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };

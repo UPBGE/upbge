@@ -231,13 +231,13 @@ typedef struct bMovementSensor {
 
 /* movementSensor->axisflag */
 /* flip x and y to make y default!!! */
-#define SENS_MOVEMENT_X_AXIS     0
-#define SENS_MOVEMENT_Y_AXIS     1
-#define SENS_MOVEMENT_Z_AXIS     2
-#define SENS_MOVEMENT_NEG_X_AXIS     3
-#define SENS_MOVEMENT_NEG_Y_AXIS     4
-#define SENS_MOVEMENT_NEG_Z_AXIS     5
-#define SENS_MOVEMENT_ALL_AXIS       6
+#define SENS_MOVEMENT_X_AXIS 0
+#define SENS_MOVEMENT_Y_AXIS 1
+#define SENS_MOVEMENT_Z_AXIS 2
+#define SENS_MOVEMENT_NEG_X_AXIS 3
+#define SENS_MOVEMENT_NEG_Y_AXIS 4
+#define SENS_MOVEMENT_NEG_Z_AXIS 5
+#define SENS_MOVEMENT_ALL_AXIS 6
 
 /* movementSensor->localflag */
 /* Flag to toggle local/global coordinates*/

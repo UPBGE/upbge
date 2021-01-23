@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include "EXP_PyObjectPlus.h"
 
 class KX_LibLoadStatus : public EXP_PyObjectPlus {
@@ -75,16 +74,18 @@ class KX_LibLoadStatus : public EXP_PyObjectPlus {
   void AddProgress(float progress);
 
 #ifdef WITH_PYTHON
-  static PyObject *pyattr_get_onfinish(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_onfinish(EXP_PyObjectPlus *self_v,
+                                       const EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_onfinish(EXP_PyObjectPlus *self_v,
                                  const EXP_PYATTRIBUTE_DEF *attrdef,
                                  PyObject *value);
-  static PyObject *pyattr_get_onprogress(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_onprogress(EXP_PyObjectPlus *self_v,
+                                         const EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_onprogress(EXP_PyObjectPlus *self_v,
                                    const EXP_PYATTRIBUTE_DEF *attrdef,
                                    PyObject *value);
 
-  static PyObject *pyattr_get_timetaken(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_timetaken(EXP_PyObjectPlus *self_v,
+                                        const EXP_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
-

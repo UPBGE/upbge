@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "SCA_IController.h"
 
 /**
@@ -146,4 +145,3 @@ class SCA_IActuator : public SCA_ILogicBrick {
   bool IsNoLink() const;
   bool IsType(KX_ACTUATOR_TYPE type);
 };
-

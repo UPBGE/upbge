@@ -36,7 +36,6 @@
 
 #include <boost/algorithm/string.hpp>
 
-
 #include "CM_Format.h"
 #include "EXP_FloatValue.h"
 
@@ -124,7 +123,8 @@ bool SCA_PropertySensor::CheckPropertyCondition()
         // Force strings to upper case, to avoid confusion in
         // bool tests. It's stupid the prop's identity is lost
         // on the way here...
-        if ((testprop == EXP_BoolValue::sTrueString) || (testprop == EXP_BoolValue::sFalseString)) {
+        if ((testprop == EXP_BoolValue::sTrueString) ||
+            (testprop == EXP_BoolValue::sFalseString)) {
           boost::to_upper(m_checkpropval);
         }
         result = (testprop == m_checkpropval);
@@ -290,11 +290,11 @@ PyMethodDef SCA_PropertySensor::Methods[] = {
 
 PyAttributeDef SCA_PropertySensor::Attributes[] = {
     EXP_PYATTRIBUTE_INT_RW("mode",
-                          KX_PROPSENSOR_NODEF,
-                          KX_PROPSENSOR_MAX - 1,
-                          false,
-                          SCA_PropertySensor,
-                          m_checktype),
+                           KX_PROPSENSOR_NODEF,
+                           KX_PROPSENSOR_MAX - 1,
+                           false,
+                           SCA_PropertySensor,
+                           m_checktype),
     EXP_PYATTRIBUTE_STRING_RW_CHECK(
         "propName", 0, MAX_PROP_NAME, false, SCA_PropertySensor, m_checkpropname, CheckProperty),
     EXP_PYATTRIBUTE_STRING_RW_CHECK(

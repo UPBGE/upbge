@@ -20,7 +20,6 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/format.hpp>
 
-
 #include "CM_Message.h"
 #include "EXP_BoolValue.h"
 #include "EXP_ConstExpr.h"
@@ -658,8 +657,9 @@ EXP_Expression *EXP_Parser::ProcessText(const std::string &intext)
     expr = new EXP_Operator2Expr(
         VALUE_ADD_OPERATOR,
         oldexpr,
-        Error("Extra characters after expression"));  // new EXP_ConstExpr(new EXP_ErrorValue("Extra
-                                                      // characters after expression")));
+        Error(
+            "Extra characters after expression"));  // new EXP_ConstExpr(new EXP_ErrorValue("Extra
+                                                    // characters after expression")));
   }
   if (errmsg) {
     errmsg->Release();

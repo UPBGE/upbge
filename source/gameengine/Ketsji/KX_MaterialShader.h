@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include <memory>
 
 #include "RAS_MaterialShader.h"
@@ -23,4 +22,3 @@ class KX_MaterialShader : public RAS_MaterialShader {
   virtual void Desactivate();
   virtual void Update(RAS_Rasterizer *rasty, KX_GameObject *gameobj);
 };
-

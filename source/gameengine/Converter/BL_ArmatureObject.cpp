@@ -237,7 +237,8 @@ void BL_ArmatureObject::LoadConstraints(BL_BlenderSceneConverter *converter)
   // get the persistent pose structure
 
   // and locate the constraint
-  for (bPoseChannel *pchan = (bPoseChannel *)m_objArma->pose->chanbase.first; pchan; pchan = pchan->next) {
+  for (bPoseChannel *pchan = (bPoseChannel *)m_objArma->pose->chanbase.first; pchan;
+       pchan = pchan->next) {
     for (bConstraint *pcon = (bConstraint *)pchan->constraints.first; pcon; pcon = pcon->next) {
       if (pcon->flag & CONSTRAINT_DISABLE) {
         continue;
@@ -520,7 +521,8 @@ void BL_ArmatureObject::DrawDebug(RAS_DebugDraw &debugDraw)
   const MT_Matrix3x3 &rot = NodeGetWorldOrientation();
   const MT_Vector3 &pos = NodeGetWorldPosition();
 
-  for (bPoseChannel *pchan = (bPoseChannel *)m_objArma->pose->chanbase.first; pchan; pchan = pchan->next) {
+  for (bPoseChannel *pchan = (bPoseChannel *)m_objArma->pose->chanbase.first; pchan;
+       pchan = pchan->next) {
     MT_Vector3 head = rot * (MT_Vector3(pchan->pose_head) * scale) + pos;
     MT_Vector3 tail = rot * (MT_Vector3(pchan->pose_tail) * scale) + pos;
     debugDraw.DrawLine(tail, head, MT_Vector4(1.0f, 0.0f, 0.0f, 1.0f));

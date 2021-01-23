@@ -89,7 +89,8 @@ enum {
   COLLECTION_RESTRICT_RENDER = (1 << 3),           /* Disable in renders. */
   COLLECTION_HAS_OBJECT_CACHE = (1 << 4),          /* Runtime: object_cache is populated. */
   COLLECTION_IS_MASTER = (1 << 5), /* Is master collection embedded in the scene. */
-  COLLECTION_IS_SPAWNED = (1 << 6), /* Game Engine transition to alternate between old spawn method */
+  COLLECTION_IS_SPAWNED =
+      (1 << 6), /* Game Engine transition to alternate between old spawn method */
 };
 
 /* Collection->tag */

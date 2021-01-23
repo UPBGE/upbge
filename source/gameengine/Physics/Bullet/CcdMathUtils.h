@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include "LinearMath/btMatrix3x3.h"
 #include "LinearMath/btQuaternion.h"
 #include "LinearMath/btVector3.h"
@@ -65,4 +64,3 @@ inline btQuaternion ToBullet(const MT_Quaternion &quat)
 {
   return btQuaternion(quat.x(), quat.y(), quat.z(), quat.w());
 }
-

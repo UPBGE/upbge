@@ -198,7 +198,6 @@ PyObject *SCA_PythonJoystick::pyattr_get_name(EXP_PyObjectPlus *self_v,
   return PyUnicode_FromStdString(self->m_joystick->GetName());
 }
 
-
 EXP_PYMETHODDEF_DOC_NOARGS(SCA_PythonJoystick,
                            startVibration,
                            "startVibration()\n"
@@ -224,7 +223,7 @@ EXP_PYMETHODDEF_DOC_NOARGS(SCA_PythonJoystick,
 }
 
 PyObject *SCA_PythonJoystick::pyattr_get_isVibrating(EXP_PyObjectPlus *self_v,
-                                                        const struct EXP_PYATTRIBUTE_DEF *attrdef)
+                                                     const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
 
@@ -236,7 +235,7 @@ PyObject *SCA_PythonJoystick::pyattr_get_isVibrating(EXP_PyObjectPlus *self_v,
 }
 
 PyObject *SCA_PythonJoystick::pyattr_get_hasVibration(EXP_PyObjectPlus *self_v,
-                                                         const struct EXP_PYATTRIBUTE_DEF *attrdef)
+                                                      const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
 

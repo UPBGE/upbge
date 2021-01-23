@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include <map>
 
 #include "SCA_IInputDevice.h"
@@ -49,4 +48,3 @@ class DEV_InputDevice : public SCA_IInputDevice {
   void ConvertWheelEvent(int z);
   void ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type, int val, unsigned int unicode);
 };
-

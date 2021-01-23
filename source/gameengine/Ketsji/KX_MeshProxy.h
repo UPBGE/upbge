@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #ifdef WITH_PYTHON
 
 #  include "EXP_Value.h"
@@ -78,12 +77,14 @@ class KX_MeshProxy : public EXP_Value {
   EXP_PYMETHOD(KX_MeshProxy, TransformUV);
   EXP_PYMETHOD(KX_MeshProxy, ReplaceMaterial);
 
-  static PyObject *pyattr_get_materials(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_materials(EXP_PyObjectPlus *self_v,
+                                        const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_numMaterials(EXP_PyObjectPlus *self_v,
                                            const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_numPolygons(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_polygons(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_numPolygons(EXP_PyObjectPlus *self_v,
+                                          const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_polygons(EXP_PyObjectPlus *self_v,
+                                       const EXP_PYATTRIBUTE_DEF *attrdef);
 };
 
 #endif  // WITH_PYTHON
-

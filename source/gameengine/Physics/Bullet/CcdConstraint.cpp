@@ -1,6 +1,5 @@
 #include "CcdConstraint.h"
 
-
 #include "btBulletDynamicsCommon.h"
 
 CcdConstraint::CcdConstraint(btTypedConstraint *constraint, bool disableCollision)

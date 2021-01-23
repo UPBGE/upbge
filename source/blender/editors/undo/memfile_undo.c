@@ -167,7 +167,7 @@ static void memfile_undosys_step_decode(struct bContext *C,
   }
   /* Game Engine transition (we force undo legacy while we try to fix new fast undo for UPBGE */
   else if (true) {
-	use_old_bmain_data = false;
+    use_old_bmain_data = false;
   }
   /* End game engine transition */
   else {

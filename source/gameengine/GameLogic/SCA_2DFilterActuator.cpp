@@ -187,11 +187,11 @@ PyAttributeDef SCA_2DFilterActuator::Attributes[] = {
     EXP_PYATTRIBUTE_SHORT_RW(
         "disableMotionBlur", 0, 1, true, SCA_2DFilterActuator, m_disableMotionBlur),
     EXP_PYATTRIBUTE_ENUM_RW("mode",
-                           RAS_2DFilterManager::FILTER_ENABLED,
-                           RAS_2DFilterManager::FILTER_NUMBER_OF_FILTERS,
-                           false,
-                           SCA_2DFilterActuator,
-                           m_type),
+                            RAS_2DFilterManager::FILTER_ENABLED,
+                            RAS_2DFilterManager::FILTER_NUMBER_OF_FILTERS,
+                            false,
+                            SCA_2DFilterActuator,
+                            m_type),
     EXP_PYATTRIBUTE_INT_RW("passNumber", 0, 100, true, SCA_2DFilterActuator, m_int_arg),
     EXP_PYATTRIBUTE_FLOAT_RW("value", 0.0, 100.0, SCA_2DFilterActuator, m_float_arg),
     EXP_PYATTRIBUTE_NULL  // Sentinel

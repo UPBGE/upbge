@@ -31,7 +31,6 @@
 
 #include "RAS_OpenGLRasterizer.h"
 
-
 #include "GPU_glew.h"
 #include "GPU_state.h"
 

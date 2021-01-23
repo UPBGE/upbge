@@ -86,7 +86,7 @@ bool SCA_IActuator::IsPositiveEvent() const
 void SCA_IActuator::Activate(SG_DList &head)
 {
   if (QEmpty()) {
-    SG_QList& list = m_gameobj->GetActiveActuators();
+    SG_QList &list = m_gameobj->GetActiveActuators();
     InsertActiveQList(list);
     head.AddBack(&list);
   }
@@ -95,7 +95,7 @@ void SCA_IActuator::Activate(SG_DList &head)
 void SCA_IActuator::Deactivate()
 {
   if (QDelink()) {
-    SG_QList& list = m_gameobj->GetActiveActuators();
+    SG_QList &list = m_gameobj->GetActiveActuators();
     // the actuator was in the active list
     if (list.QEmpty()) {
       // the owner object has no more active actuators, remove it from the global list

@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "MT_Transform.h"
 #include "RAS_DisplayArrayBucket.h"
 
@@ -69,4 +68,3 @@ class RAS_MaterialBucket {
   RAS_MaterialShader *m_shader;
   RAS_DisplayArrayBucketList m_displayArrayBucketList;
 };
-

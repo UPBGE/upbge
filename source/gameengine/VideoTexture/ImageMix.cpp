@@ -32,7 +32,6 @@
 
 #include "ImageMix.h"
 
-
 #include "Exception.h"
 
 // cast ImageSource pointer to ImageSourceMix

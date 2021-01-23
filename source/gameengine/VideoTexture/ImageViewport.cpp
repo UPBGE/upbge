@@ -32,8 +32,6 @@
 
 #include "ImageViewport.h"
 
-
-
 #include "FilterSource.h"
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"

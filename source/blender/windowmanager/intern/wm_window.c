@@ -2557,7 +2557,7 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
   /* We can't call the following function here in blenderplayer pipeline.
    * We could do it after if we realize that there are issues without this.
    */
-  //wm_window_ensure_eventstate(win);
+  // wm_window_ensure_eventstate(win);
 
   /* store actual window size in blender window */
   bounds = GHOST_GetClientBounds(win->ghostwin);
@@ -2581,7 +2581,7 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
 
   // GHOST_SetWindowState(ghostwin, GHOST_kWindowStateModified);
   /* standard state vars for window */
-  //GPU_state_init();
+  // GPU_state_init();
 }
 
 void wm_window_ghostwindow_embedded_ensure(wmWindowManager *wm, wmWindow *win)

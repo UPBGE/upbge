@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include <map>
 
 #include "RAS_2DFilterData.h"
@@ -99,4 +98,3 @@ class RAS_2DFilterManager {
   /// Only return a new instanced filter.
   virtual RAS_2DFilter *NewFilter(RAS_2DFilterData &filterData) = 0;
 };
-

@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 /** \file gameengine/Converter/BL_IpoConvert.h
  *  \ingroup bgeconv
  */
@@ -389,4 +388,3 @@ SG_Controller *BL_CreateMaterialIpo(struct bAction *action,
 
   return ipocontr;
 }
-

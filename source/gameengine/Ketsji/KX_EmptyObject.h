@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "KX_GameObject.h"
 
 class KX_EmptyObject : public KX_GameObject {
@@ -40,4 +39,3 @@ class KX_EmptyObject : public KX_GameObject {
       : KX_GameObject(sgReplicationInfo, callbacks){};
   virtual ~KX_EmptyObject();
 };
-

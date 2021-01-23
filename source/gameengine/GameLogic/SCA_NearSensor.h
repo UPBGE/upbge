@@ -32,7 +32,6 @@
 
 #pragma once
 
-
 #include "KX_ClientObjectInfo.h"
 #include "SCA_CollisionSensor.h"
 
@@ -105,4 +104,3 @@ public:
 
 #endif /* WITH_PYTHON */
 };
-

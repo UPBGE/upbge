@@ -34,7 +34,6 @@
 
 #pragma once
 
-
 class SCA_RandomNumberGenerator {
 
   /* reference counted for memleak */
@@ -72,4 +71,3 @@ class SCA_RandomNumberGenerator {
       delete this;
   }
 };
-

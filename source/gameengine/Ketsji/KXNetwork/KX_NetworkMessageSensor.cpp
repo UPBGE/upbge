@@ -32,7 +32,6 @@
 
 #include "KX_NetworkMessageSensor.h"
 
-
 #include "EXP_ListValue.h"
 #include "EXP_StringValue.h"
 #include "KX_NetworkMessageScene.h"

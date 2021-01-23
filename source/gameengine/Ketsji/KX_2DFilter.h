@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include "BL_Shader.h"
 #include "RAS_2DFilter.h"
 
@@ -52,7 +51,8 @@ class KX_2DFilter : public RAS_2DFilter, public BL_Shader {
   static int pyattr_set_mipmap(EXP_PyObjectPlus *self_v,
                                const EXP_PYATTRIBUTE_DEF *attrdef,
                                PyObject *value);
-  static PyObject *pyattr_get_frameBuffer(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_frameBuffer(EXP_PyObjectPlus *self_v,
+                                          const EXP_PYATTRIBUTE_DEF *attrdef);
 
   EXP_PYMETHOD_DOC(KX_2DFilter, setTexture);
   EXP_PYMETHOD_DOC(KX_2DFilter, setCubeMap);
@@ -61,4 +61,3 @@ class KX_2DFilter : public RAS_2DFilter, public BL_Shader {
 
 #endif
 };
-

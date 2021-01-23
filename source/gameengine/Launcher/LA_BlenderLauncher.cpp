@@ -55,7 +55,17 @@ LA_BlenderLauncher::LA_BlenderLauncher(GHOST_ISystem *system,
                                        int alwaysUseExpandFraming,
                                        bool useViewportRender,
                                        int shadingTypeRuntime)
-    : LA_Launcher(system, maggie, scene, gs, stereoMode, scene->gm.aasamples, argc, argv, context, useViewportRender, shadingTypeRuntime),
+    : LA_Launcher(system,
+                  maggie,
+                  scene,
+                  gs,
+                  stereoMode,
+                  scene->gm.aasamples,
+                  argc,
+                  argv,
+                  context,
+                  useViewportRender,
+                  shadingTypeRuntime),
       m_context(context),
       m_ar(ar),
       m_camFrame(camframe),
@@ -161,7 +171,7 @@ void LA_BlenderLauncher::ExitEngine()
 
 void LA_BlenderLauncher::RenderEngine()
 {
-  if (m_drawLetterBox) { // not used
+  if (m_drawLetterBox) {  // not used
     // Clear screen to border color
     // We do this here since we set the canvas to be within the frames. This means the engine
     // itself is unaware of the extra space, so we clear the whole region for it.

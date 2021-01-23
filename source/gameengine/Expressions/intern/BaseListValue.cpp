@@ -21,8 +21,6 @@
 
 #include "EXP_ListValue.h"
 
-
-
 EXP_BaseListValue::EXP_BaseListValue() : m_bReleaseContents(true)
 {
 }
@@ -200,7 +198,9 @@ PyObject *EXP_BaseListValue::buffer_item(PyObject *self, Py_ssize_t index)
 }
 
 // Just slice it into a python list...
-PyObject *EXP_BaseListValue::buffer_slice(EXP_BaseListValue *list, Py_ssize_t start, Py_ssize_t stop)
+PyObject *EXP_BaseListValue::buffer_slice(EXP_BaseListValue *list,
+                                          Py_ssize_t start,
+                                          Py_ssize_t stop)
 {
   PyObject *newlist = PyList_New(stop - start);
   if (!newlist) {
@@ -382,44 +382,45 @@ PyMappingMethods EXP_BaseListValue::instance_as_mapping = {
     nullptr            /*mp_ass_subscript*/
 };
 
-PyTypeObject EXP_BaseListValue::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "EXP_ListValue", /*tp_name*/
-                                     sizeof(EXP_PyObjectPlus_Proxy), /*tp_basicsize*/
-                                     0,                          /*tp_itemsize*/
-                                     /* methods */
-                                     py_base_dealloc,      /*tp_dealloc*/
-                                     0,                    /*tp_print*/
-                                     0,                    /*tp_getattr*/
-                                     0,                    /*tp_setattr*/
-                                     0,                    /*tp_compare*/
-                                     py_base_repr,         /*tp_repr*/
-                                     0,                    /*tp_as_number*/
-                                     &as_sequence,         /*tp_as_sequence*/
-                                     &instance_as_mapping, /*tp_as_mapping*/
-                                     0,                    /*tp_hash*/
-                                     0,                    /*tp_call */
-                                     0,
-                                     nullptr,
-                                     nullptr,
-                                     0,
-                                     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-                                     0,
-                                     0,
-                                     0,
-                                     0,
-                                     0,
-                                     0,
-                                     0,
-                                     Methods,
-                                     0,
-                                     0,
-                                     &EXP_Value::Type,
-                                     0,
-                                     0,
-                                     0,
-                                     0,
-                                     0,
-                                     0,
-                                     py_base_new};
+PyTypeObject EXP_BaseListValue::Type = {
+    PyVarObject_HEAD_INIT(nullptr, 0) "EXP_ListValue", /*tp_name*/
+    sizeof(EXP_PyObjectPlus_Proxy),                    /*tp_basicsize*/
+    0,                                                 /*tp_itemsize*/
+    /* methods */
+    py_base_dealloc,      /*tp_dealloc*/
+    0,                    /*tp_print*/
+    0,                    /*tp_getattr*/
+    0,                    /*tp_setattr*/
+    0,                    /*tp_compare*/
+    py_base_repr,         /*tp_repr*/
+    0,                    /*tp_as_number*/
+    &as_sequence,         /*tp_as_sequence*/
+    &instance_as_mapping, /*tp_as_mapping*/
+    0,                    /*tp_hash*/
+    0,                    /*tp_call */
+    0,
+    nullptr,
+    nullptr,
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    Methods,
+    0,
+    0,
+    &EXP_Value::Type,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    py_base_new};
 
 PyMethodDef EXP_BaseListValue::Methods[] = {
     // List style access.

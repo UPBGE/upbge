@@ -144,9 +144,9 @@ void LA_Launcher::InitEngine()
 
   // Setup python console keys used as shortcut.
   for (unsigned short i = 0; i < 4; ++i) {
-	  if (gm.pythonkeys[i] != EVENT_NONE) {
+    if (gm.pythonkeys[i] != EVENT_NONE) {
       m_pythonConsole.keys.push_back(BL_ConvertKeyCode(gm.pythonkeys[i]));
-	  }
+    }
   }
   m_pythonConsole.use = (gm.flag & GAME_PYTHON_CONSOLE);
 
@@ -203,7 +203,8 @@ void LA_Launcher::InitEngine()
   m_networkMessageManager = new KX_NetworkMessageManager();
 
   // Create the ketsjiengine.
-  m_ketsjiEngine = new KX_KetsjiEngine(m_kxsystem, m_context, m_useViewportRender, m_shadingTypeRuntime);
+  m_ketsjiEngine = new KX_KetsjiEngine(
+      m_kxsystem, m_context, m_useViewportRender, m_shadingTypeRuntime);
   KX_SetActiveEngine(m_ketsjiEngine);
 
   // Set the devices.
@@ -237,7 +238,14 @@ void LA_Launcher::InitEngine()
 
 #ifdef WITH_PYTHON
   KX_SetMainPath(std::string(m_maggie->name));
-  setupGamePython(m_ketsjiEngine, m_maggie, m_globalDict, &m_gameLogic, m_argc, m_argv, m_context, &m_audioDeviceIsInitialized);
+  setupGamePython(m_ketsjiEngine,
+                  m_maggie,
+                  m_globalDict,
+                  &m_gameLogic,
+                  m_argc,
+                  m_argv,
+                  m_context,
+                  &m_audioDeviceIsInitialized);
 #endif  // WITH_PYTHON
 
   // Create a scene converter, create and convert the stratingscene.

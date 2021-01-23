@@ -248,7 +248,8 @@ static PyObject *gPySetERPNonContact(PyObject *self, PyObject *args, PyObject *k
   }
 
   if ((erp < 0.0) || (erp > 1.0)) {
-    PyErr_SetString(PyExc_TypeError, "setERPNonContact, "
+    PyErr_SetString(PyExc_TypeError,
+                    "setERPNonContact, "
                     "expected a float in range 0.0 - 1.0");
     return nullptr;
   }
@@ -272,7 +273,8 @@ static PyObject *gPySetERPContact(PyObject *self, PyObject *args, PyObject *kwds
   }
 
   if ((erp2 < 0.0) || (erp2 > 1.0)) {
-    PyErr_SetString(PyExc_TypeError, "setERPContact, "
+    PyErr_SetString(PyExc_TypeError,
+                    "setERPContact, "
                     "expected a float in range 0.0 - 1.0");
     return nullptr;
   }
@@ -296,7 +298,8 @@ static PyObject *gPySetCFM(PyObject *self, PyObject *args, PyObject *kwds)
   }
 
   if ((cfm < 0.0) || (cfm > 10000.0)) {
-    PyErr_SetString(PyExc_TypeError, "setCFM, "
+    PyErr_SetString(PyExc_TypeError,
+                    "setCFM, "
                     "expected a float in range 0.0 - 10000.0");
     return nullptr;
   }
@@ -464,7 +467,7 @@ static PyObject *gPyCreateConstraint(PyObject *self, PyObject *args, PyObject *k
     if (physctrl) {  // TODO:check for existence of this pointer!
       if (constrainttype == PHY_VEHICLE_CONSTRAINT) {
         EXP_ShowDeprecationWarning("bge.constraints.createConstraint(...)",
-                               "bge.constraints.createVehicle(chassis)");
+                                   "bge.constraints.createVehicle(chassis)");
         PHY_IVehicle *vehicle = PHY_GetActiveEnvironment()->CreateVehicle(physctrl);
 
         KX_VehicleWrapper *wrap = new KX_VehicleWrapper(vehicle);
@@ -641,10 +644,7 @@ static struct PyMethodDef physicsconstraints_methods[] = {
      (PyCFunction)gPySetERPContact,
      METH_VARARGS,
      (const char *)gPySetERPContact__doc__},
-    {"setCFM",
-     (PyCFunction)gPySetCFM,
-     METH_VARARGS,
-     (const char *)gPySetCFM__doc__},
+    {"setCFM", (PyCFunction)gPySetCFM, METH_VARARGS, (const char *)gPySetCFM__doc__},
 
     {"setSorConstant",
      (PyCFunction)gPySetSorConstant,

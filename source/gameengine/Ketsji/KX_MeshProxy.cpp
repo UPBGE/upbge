@@ -430,12 +430,12 @@ PyObject *KX_MeshProxy::pyattr_get_polygons(EXP_PyObjectPlus *self_v,
                                             const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   return (new EXP_ListWrapper(self_v,
-                           ((KX_MeshProxy *)self_v)->GetProxy(),
-                           nullptr,
-                           kx_mesh_proxy_get_polygons_size_cb,
-                           kx_mesh_proxy_get_polygons_item_cb,
-                           nullptr,
-                           nullptr))
+                              ((KX_MeshProxy *)self_v)->GetProxy(),
+                              nullptr,
+                              kx_mesh_proxy_get_polygons_size_cb,
+                              kx_mesh_proxy_get_polygons_item_cb,
+                              nullptr,
+                              nullptr))
       ->NewProxy(true);
 }
 

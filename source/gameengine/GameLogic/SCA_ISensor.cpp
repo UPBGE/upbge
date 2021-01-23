@@ -414,13 +414,15 @@ PyObject *SCA_ISensor::pyattr_get_triggered(EXP_PyObjectPlus *self_v,
   return PyBool_FromLong(retval);
 }
 
-PyObject *SCA_ISensor::pyattr_get_positive(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_ISensor::pyattr_get_positive(EXP_PyObjectPlus *self_v,
+                                           const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_ISensor *self = static_cast<SCA_ISensor *>(self_v);
   return PyBool_FromLong(self->GetState());
 }
 
-PyObject *SCA_ISensor::pyattr_get_status(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_ISensor::pyattr_get_status(EXP_PyObjectPlus *self_v,
+                                         const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_ISensor *self = static_cast<SCA_ISensor *>(self_v);
   int status = KX_SENSOR_INACTIVE;
@@ -438,13 +440,15 @@ PyObject *SCA_ISensor::pyattr_get_status(EXP_PyObjectPlus *self_v, const EXP_PYA
   return PyLong_FromLong(status);
 }
 
-PyObject *SCA_ISensor::pyattr_get_posTicks(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_ISensor::pyattr_get_posTicks(EXP_PyObjectPlus *self_v,
+                                           const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_ISensor *self = static_cast<SCA_ISensor *>(self_v);
   return PyLong_FromLong(self->GetPosTicks());
 }
 
-PyObject *SCA_ISensor::pyattr_get_negTicks(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_ISensor::pyattr_get_negTicks(EXP_PyObjectPlus *self_v,
+                                           const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_ISensor *self = static_cast<SCA_ISensor *>(self_v);
   return PyLong_FromLong(self->GetNegTicks());

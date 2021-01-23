@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include <vector>
 
 #include "EXP_Value.h"
@@ -123,4 +122,3 @@ bool ConvertPythonToLodManager(PyObject *value,
                                const char *error_prefix);
 
 #endif  // WITH_PYTHON
-

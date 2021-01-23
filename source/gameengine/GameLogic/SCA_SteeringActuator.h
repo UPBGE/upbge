@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include "MT_Matrix3x3.h"
 #include "SCA_IActuator.h"
 #include "SCA_LogicManager.h"
@@ -108,7 +107,8 @@ class SCA_SteeringActuator : public SCA_IActuator {
   /* --------------------------------------------------------------------- */
 
   /* These are used to get and set m_target */
-  static PyObject *pyattr_get_target(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_target(EXP_PyObjectPlus *self,
+                                     const struct EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_target(EXP_PyObjectPlus *self,
                                const struct EXP_PYATTRIBUTE_DEF *attrdef,
                                PyObject *value);
@@ -119,9 +119,9 @@ class SCA_SteeringActuator : public SCA_IActuator {
                                 PyObject *value);
   static PyObject *pyattr_get_steeringVec(EXP_PyObjectPlus *self,
                                           const struct EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_path(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_path(EXP_PyObjectPlus *self,
+                                   const struct EXP_PYATTRIBUTE_DEF *attrdef);
 
 #endif /* WITH_PYTHON */
 
 }; /* end of class SCA_SteeringActuator : public SCA_PropertyActuator */
-

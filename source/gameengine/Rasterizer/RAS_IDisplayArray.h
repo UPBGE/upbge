@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include <memory>
 #include <vector>
 
@@ -136,10 +135,10 @@ class RAS_IDisplayArray {
   }
 
   virtual RAS_IVertex *CreateVertex(const MT_Vector3 &xyz,
-                                     const MT_Vector2 *const uvs,
-                                     const MT_Vector4 &tangent,
-                                     const unsigned int *rgba,
-                                     const MT_Vector3 &normal) = 0;
+                                    const MT_Vector2 *const uvs,
+                                    const MT_Vector4 &tangent,
+                                    const unsigned int *rgba,
+                                    const MT_Vector3 &normal) = 0;
 
   /** Copy vertex data from an other display array. Different vertex type is allowed.
    * \param other The other display array to copy from.
@@ -185,4 +184,3 @@ class RAS_IDisplayArray {
 };
 
 typedef std::vector<RAS_IDisplayArray *> RAS_IDisplayArrayList;
-

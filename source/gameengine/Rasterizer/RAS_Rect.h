@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include <iostream>
 
 /**
@@ -117,4 +116,3 @@ inline std::ostream &operator<<(std::ostream &os, const RAS_Rect &rect)
      << rect.GetTop() << ")";
   return os;
 }
-

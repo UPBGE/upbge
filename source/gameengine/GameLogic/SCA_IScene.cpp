@@ -31,7 +31,6 @@
 
 #include "SCA_IScene.h"
 
-
 #define DEBUG_MAX_DISPLAY 100
 
 SCA_DebugProp::SCA_DebugProp(SCA_IObject *gameobj, const std::string &name)

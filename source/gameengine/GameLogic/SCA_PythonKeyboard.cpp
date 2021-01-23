@@ -37,12 +37,10 @@
 SCA_PythonKeyboard::SCA_PythonKeyboard(SCA_IInputDevice *keyboard)
     : EXP_PyObjectPlus(), m_keyboard(keyboard)
 {
-
 }
 
 SCA_PythonKeyboard::~SCA_PythonKeyboard()
 {
-
 }
 
 #ifdef WITH_PYTHON

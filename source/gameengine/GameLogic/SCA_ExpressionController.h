@@ -34,7 +34,6 @@
 
 #pragma once
 
-
 #include "SCA_IController.h"
 
 class EXP_Expression;
@@ -57,4 +56,3 @@ class SCA_ExpressionController : public SCA_IController {
    */
   virtual void Delete();
 };
-

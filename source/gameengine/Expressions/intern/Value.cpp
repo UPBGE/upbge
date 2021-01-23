@@ -29,42 +29,42 @@
 #ifdef WITH_PYTHON
 
 PyTypeObject EXP_Value::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "EXP_Value",
-                             sizeof(EXP_PyObjectPlus_Proxy),
-                             0,
-                             py_base_dealloc,
-                             0,
-                             0,
-                             0,
-                             0,
-                             py_base_repr,
-                             0,
-                             0,
-                             0,
-                             0,
-                             0,
-                             0,
-                             nullptr,
-                             nullptr,
-                             0,
-                             Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-                             0,
-                             0,
-                             0,
-                             0,
-                             0,
-                             0,
-                             0,
-                             Methods,
-                             0,
-                             0,
-                             &EXP_PyObjectPlus::Type,
-                             0,
-                             0,
-                             0,
-                             0,
-                             0,
-                             0,
-                             py_base_new};
+                                sizeof(EXP_PyObjectPlus_Proxy),
+                                0,
+                                py_base_dealloc,
+                                0,
+                                0,
+                                0,
+                                0,
+                                py_base_repr,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                nullptr,
+                                nullptr,
+                                0,
+                                Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                Methods,
+                                0,
+                                0,
+                                &EXP_PyObjectPlus::Type,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                py_base_new};
 
 PyMethodDef EXP_Value::Methods[] = {
     {nullptr, nullptr}  // Sentinel
@@ -220,7 +220,7 @@ std::vector<std::string> EXP_Value::GetPropertyNames()
   std::vector<std::string> result(size);
 
   unsigned short i = 0;
-  for (const auto& pair : m_properties) {
+  for (const auto &pair : m_properties) {
     result[i++] = pair.first;
   }
   return result;
@@ -230,7 +230,7 @@ std::vector<std::string> EXP_Value::GetPropertyNames()
 void EXP_Value::ClearProperties()
 {
   // Remove all properties.
-  for (const auto& pair : m_properties) {
+  for (const auto &pair : m_properties) {
     pair.second->Release();
   }
 
@@ -243,7 +243,7 @@ EXP_Value *EXP_Value::GetProperty(int inIndex)
 {
   int count = 0;
 
-  for (const auto& pair : m_properties) {
+  for (const auto &pair : m_properties) {
     if (count++ == inIndex) {
       return pair.second;
     }
@@ -271,7 +271,7 @@ void EXP_Value::ProcessReplica()
   EXP_PyObjectPlus::ProcessReplica();
 
   // Copy all props.
-  for (auto& pair : m_properties) {
+  for (auto &pair : m_properties) {
     pair.second = pair.second->GetReplica();
   }
 }
@@ -328,8 +328,8 @@ PyObject *EXP_Value::pyattr_get_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRI
  * \param do_type_exception Use to skip raising an exception for unknown types.
  */
 EXP_Value *EXP_Value::ConvertPythonToValue(PyObject *pyobj,
-                                     const bool do_type_exception,
-                                     const char *error_prefix)
+                                           const bool do_type_exception,
+                                           const char *error_prefix)
 {
 
   EXP_Value *vallie;
@@ -375,7 +375,7 @@ PyObject *EXP_Value::ConvertKeysToPython(void)
   PyObject *pylist = PyList_New(m_properties.size());
 
   Py_ssize_t i = 0;
-  for (const auto& pair : m_properties) {
+  for (const auto &pair : m_properties) {
     PyList_SET_ITEM(pylist, i++, PyUnicode_FromStdString(pair.first));
   }
 

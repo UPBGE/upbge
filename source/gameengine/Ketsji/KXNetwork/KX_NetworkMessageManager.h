@@ -28,7 +28,6 @@
  */
 #pragma once
 
-
 /* undef SendMessage Macro (WinUser.h) to avoid
 conflicts with KX_NetworkMessageManager::SendMessage */
 #ifdef WIN32
@@ -83,4 +82,3 @@ class KX_NetworkMessageManager {
   /// Clear all messages
   void ClearMessages();
 };
-

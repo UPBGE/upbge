@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "DNA_action_types.h"
 
 #include "EXP_Value.h"
@@ -64,7 +63,8 @@ class BL_ArmatureChannel : public EXP_Value {
 
 #ifdef WITH_PYTHON
   // Python access
-  static PyObject *py_attr_getattr(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *py_attr_getattr(EXP_PyObjectPlus *self,
+                                   const struct EXP_PYATTRIBUTE_DEF *attrdef);
   static int py_attr_setattr(EXP_PyObjectPlus *self,
                              const struct EXP_PYATTRIBUTE_DEF *attrdef,
                              PyObject *value);
@@ -101,4 +101,3 @@ class BL_ArmatureBone : public EXP_PyObjectPlus {
                                         const struct EXP_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
-

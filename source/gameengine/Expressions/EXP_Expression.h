@@ -18,7 +18,6 @@
 
 #pragma once
 
-
 #include "EXP_Value.h"
 
 class EXP_Expression : public CM_RefCount<EXP_Expression> {
@@ -41,4 +40,3 @@ class EXP_Expression : public CM_RefCount<EXP_Expression> {
   virtual EXP_Value *Calculate() = 0;
   virtual unsigned char GetExpressionID() = 0;
 };
-

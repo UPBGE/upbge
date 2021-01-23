@@ -22,7 +22,6 @@
 
 #pragma once
 
-
 #include "LinearMath/btTransform.h"
 #include "btBulletDynamicsCommon.h"
 
@@ -94,4 +93,3 @@ class CcdGraphicController : public PHY_IGraphicController {
   btBroadphaseProxy *m_handle;
   void *m_newClientInfo;
 };
-

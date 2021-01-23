@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include <set>
 #include <vector>
 
@@ -101,4 +100,3 @@ class KX_CollisionEventManager : public SCA_EventManager {
     return m_physEnv;
   }
 };
-

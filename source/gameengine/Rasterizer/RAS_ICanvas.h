@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "RAS_Rasterizer.h"
 
 class RAS_Rect;
@@ -163,4 +162,3 @@ class RAS_ICanvas {
    */
   void SaveScreeshot(const Screenshot &screenshot);
 };
-

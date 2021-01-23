@@ -22,8 +22,6 @@
 
 #include "SCA_MouseActuator.h"
 
-
-
 #include "KX_GameObject.h"
 #include "KX_PyMath.h"
 #include "RAS_ICanvas.h"

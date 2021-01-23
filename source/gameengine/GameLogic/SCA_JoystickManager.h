@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "DEV_Joystick.h"
 #include "SCA_EventManager.h"
 
@@ -43,4 +42,3 @@ class SCA_JoystickManager : public SCA_EventManager {
   virtual void NextFrame(double curtime, double deltatime);
   DEV_Joystick *GetJoystickDevice(short int joyindex);
 };
-

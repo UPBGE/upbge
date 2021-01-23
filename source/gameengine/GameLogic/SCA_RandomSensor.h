@@ -32,7 +32,6 @@
 
 #pragma once
 
-
 #include "EXP_BoolValue.h"
 #include "SCA_ISensor.h"
 #include "SCA_RandomNumberGenerator.h"
@@ -67,4 +66,3 @@ class SCA_RandomSensor : public SCA_ISensor {
                              PyObject *value);
 #endif
 };
-

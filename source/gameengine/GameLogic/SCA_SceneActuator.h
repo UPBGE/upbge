@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "KX_Scene.h" /* Replace_IScene only */
 #include "SCA_IActuator.h"
 #include "SCA_IScene.h" /* Replace_IScene only */
@@ -88,7 +87,8 @@ class SCA_SceneActuator : public SCA_IActuator {
   /* Python interface ---------------------------------------------------- */
   /* --------------------------------------------------------------------- */
 
-  static PyObject *pyattr_get_camera(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_camera(EXP_PyObjectPlus *self,
+                                     const struct EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_camera(EXP_PyObjectPlus *self,
                                const struct EXP_PYATTRIBUTE_DEF *attrdef,
                                PyObject *value);
@@ -96,4 +96,3 @@ class SCA_SceneActuator : public SCA_IActuator {
 #endif /* WITH_PYTHON */
 
 }; /* end of class KXSceneActuator */
-

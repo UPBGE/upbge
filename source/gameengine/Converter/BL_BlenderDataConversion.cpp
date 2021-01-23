@@ -51,7 +51,6 @@
 
 #include "BL_BlenderDataConversion.h"
 
-
 /* This little block needed for linking to Blender... */
 #ifdef WIN32
 #  include "BLI_winstuff.h"
@@ -71,8 +70,8 @@
 #include "DNA_camera_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_python_component_types.h"
+#include "DNA_scene_types.h"
 #include "wm_event_types.h"
 
 /* end of blender include block */
@@ -84,6 +83,7 @@
 #include "BL_ConvertProperties.h"
 #include "BL_ConvertSensors.h"
 #include "KX_BlenderMaterial.h"
+#include "KX_BoneParentNodeRelationship.h"
 #include "KX_Camera.h"
 #include "KX_ClientObjectInfo.h"
 #include "KX_EmptyObject.h"
@@ -92,11 +92,10 @@
 #include "KX_LodManager.h"
 #include "KX_MotionState.h"
 #include "KX_NavMeshObject.h"
+#include "KX_NodeRelationships.h"
 #include "KX_ObstacleSimulation.h"
 #include "KX_PyConstraintBinding.h"
 #include "KX_PythonComponent.h"
-#include "KX_BoneParentNodeRelationship.h"
-#include "KX_NodeRelationships.h"
 #include "RAS_ICanvas.h"
 #include "RAS_Vertex.h"
 #ifdef WITH_BULLET
@@ -108,138 +107,137 @@ static bool default_light_mode = 0;
 /* The reverse table. In order to not confuse ourselves, we
  * immediately convert all events that come in to KX codes. */
 static std::map<int, SCA_IInputDevice::SCA_EnumInputs> gReverseKeyTranslateTable = {
-  {LEFTMOUSE, SCA_IInputDevice::LEFTMOUSE},
-  {MIDDLEMOUSE, SCA_IInputDevice::MIDDLEMOUSE},
-  {RIGHTMOUSE, SCA_IInputDevice::RIGHTMOUSE},
-  {BUTTON4MOUSE, SCA_IInputDevice::BUTTON4MOUSE},
-  {BUTTON5MOUSE, SCA_IInputDevice::BUTTON5MOUSE},
-  {BUTTON6MOUSE, SCA_IInputDevice::BUTTON6MOUSE},
-  {BUTTON7MOUSE, SCA_IInputDevice::BUTTON7MOUSE},
-  {WHEELUPMOUSE, SCA_IInputDevice::WHEELUPMOUSE},
-  {WHEELDOWNMOUSE, SCA_IInputDevice::WHEELDOWNMOUSE},
-  {MOUSEMOVE, SCA_IInputDevice::MOUSEX},
-  {ACTIONMOUSE, SCA_IInputDevice::MOUSEY},
-  // Standard keyboard.
-  {EVT_AKEY, SCA_IInputDevice::AKEY},
-  {EVT_BKEY, SCA_IInputDevice::BKEY},
-  {EVT_CKEY, SCA_IInputDevice::CKEY},
-  {EVT_DKEY, SCA_IInputDevice::DKEY},
-  {EVT_EKEY, SCA_IInputDevice::EKEY},
-  {EVT_FKEY, SCA_IInputDevice::FKEY},
-  {EVT_GKEY, SCA_IInputDevice::GKEY},
-  {EVT_HKEY, SCA_IInputDevice::HKEY_},
-  {EVT_IKEY, SCA_IInputDevice::IKEY},
-  {EVT_JKEY, SCA_IInputDevice::JKEY},
-  {EVT_KKEY, SCA_IInputDevice::KKEY},
-  {EVT_LKEY, SCA_IInputDevice::LKEY},
-  {EVT_MKEY, SCA_IInputDevice::MKEY},
-  {EVT_NKEY, SCA_IInputDevice::NKEY},
-  {EVT_OKEY, SCA_IInputDevice::OKEY},
-  {EVT_PKEY, SCA_IInputDevice::PKEY},
-  {EVT_QKEY, SCA_IInputDevice::QKEY},
-  {EVT_RKEY, SCA_IInputDevice::RKEY},
-  {EVT_SKEY, SCA_IInputDevice::SKEY},
-  {EVT_TKEY, SCA_IInputDevice::TKEY},
-  {EVT_UKEY, SCA_IInputDevice::UKEY},
-  {EVT_VKEY, SCA_IInputDevice::VKEY},
-  {EVT_WKEY, SCA_IInputDevice::WKEY},
-  {EVT_XKEY, SCA_IInputDevice::XKEY},
-  {EVT_YKEY, SCA_IInputDevice::YKEY},
-  {EVT_ZKEY, SCA_IInputDevice::ZKEY},
+    {LEFTMOUSE, SCA_IInputDevice::LEFTMOUSE},
+    {MIDDLEMOUSE, SCA_IInputDevice::MIDDLEMOUSE},
+    {RIGHTMOUSE, SCA_IInputDevice::RIGHTMOUSE},
+    {BUTTON4MOUSE, SCA_IInputDevice::BUTTON4MOUSE},
+    {BUTTON5MOUSE, SCA_IInputDevice::BUTTON5MOUSE},
+    {BUTTON6MOUSE, SCA_IInputDevice::BUTTON6MOUSE},
+    {BUTTON7MOUSE, SCA_IInputDevice::BUTTON7MOUSE},
+    {WHEELUPMOUSE, SCA_IInputDevice::WHEELUPMOUSE},
+    {WHEELDOWNMOUSE, SCA_IInputDevice::WHEELDOWNMOUSE},
+    {MOUSEMOVE, SCA_IInputDevice::MOUSEX},
+    {ACTIONMOUSE, SCA_IInputDevice::MOUSEY},
+    // Standard keyboard.
+    {EVT_AKEY, SCA_IInputDevice::AKEY},
+    {EVT_BKEY, SCA_IInputDevice::BKEY},
+    {EVT_CKEY, SCA_IInputDevice::CKEY},
+    {EVT_DKEY, SCA_IInputDevice::DKEY},
+    {EVT_EKEY, SCA_IInputDevice::EKEY},
+    {EVT_FKEY, SCA_IInputDevice::FKEY},
+    {EVT_GKEY, SCA_IInputDevice::GKEY},
+    {EVT_HKEY, SCA_IInputDevice::HKEY_},
+    {EVT_IKEY, SCA_IInputDevice::IKEY},
+    {EVT_JKEY, SCA_IInputDevice::JKEY},
+    {EVT_KKEY, SCA_IInputDevice::KKEY},
+    {EVT_LKEY, SCA_IInputDevice::LKEY},
+    {EVT_MKEY, SCA_IInputDevice::MKEY},
+    {EVT_NKEY, SCA_IInputDevice::NKEY},
+    {EVT_OKEY, SCA_IInputDevice::OKEY},
+    {EVT_PKEY, SCA_IInputDevice::PKEY},
+    {EVT_QKEY, SCA_IInputDevice::QKEY},
+    {EVT_RKEY, SCA_IInputDevice::RKEY},
+    {EVT_SKEY, SCA_IInputDevice::SKEY},
+    {EVT_TKEY, SCA_IInputDevice::TKEY},
+    {EVT_UKEY, SCA_IInputDevice::UKEY},
+    {EVT_VKEY, SCA_IInputDevice::VKEY},
+    {EVT_WKEY, SCA_IInputDevice::WKEY},
+    {EVT_XKEY, SCA_IInputDevice::XKEY},
+    {EVT_YKEY, SCA_IInputDevice::YKEY},
+    {EVT_ZKEY, SCA_IInputDevice::ZKEY},
 
-  {EVT_ZEROKEY, SCA_IInputDevice::ZEROKEY},
-  {EVT_ONEKEY, SCA_IInputDevice::ONEKEY},
-  {EVT_TWOKEY, SCA_IInputDevice::TWOKEY},
-  {EVT_THREEKEY, SCA_IInputDevice::THREEKEY},
-  {EVT_FOURKEY, SCA_IInputDevice::FOURKEY},
-  {EVT_FIVEKEY, SCA_IInputDevice::FIVEKEY},
-  {EVT_SIXKEY, SCA_IInputDevice::SIXKEY},
-  {EVT_SEVENKEY, SCA_IInputDevice::SEVENKEY},
-  {EVT_EIGHTKEY, SCA_IInputDevice::EIGHTKEY},
-  {EVT_NINEKEY, SCA_IInputDevice::NINEKEY},
+    {EVT_ZEROKEY, SCA_IInputDevice::ZEROKEY},
+    {EVT_ONEKEY, SCA_IInputDevice::ONEKEY},
+    {EVT_TWOKEY, SCA_IInputDevice::TWOKEY},
+    {EVT_THREEKEY, SCA_IInputDevice::THREEKEY},
+    {EVT_FOURKEY, SCA_IInputDevice::FOURKEY},
+    {EVT_FIVEKEY, SCA_IInputDevice::FIVEKEY},
+    {EVT_SIXKEY, SCA_IInputDevice::SIXKEY},
+    {EVT_SEVENKEY, SCA_IInputDevice::SEVENKEY},
+    {EVT_EIGHTKEY, SCA_IInputDevice::EIGHTKEY},
+    {EVT_NINEKEY, SCA_IInputDevice::NINEKEY},
 
-  {EVT_CAPSLOCKKEY, SCA_IInputDevice::CAPSLOCKKEY},
+    {EVT_CAPSLOCKKEY, SCA_IInputDevice::CAPSLOCKKEY},
 
-  {EVT_LEFTCTRLKEY, SCA_IInputDevice::LEFTCTRLKEY},
-  {EVT_LEFTALTKEY, SCA_IInputDevice::LEFTALTKEY},
-  {EVT_RIGHTALTKEY, SCA_IInputDevice::RIGHTALTKEY},
-  {EVT_RIGHTCTRLKEY, SCA_IInputDevice::RIGHTCTRLKEY},
-  {EVT_RIGHTSHIFTKEY, SCA_IInputDevice::RIGHTSHIFTKEY},
-  {EVT_LEFTSHIFTKEY, SCA_IInputDevice::LEFTSHIFTKEY},
+    {EVT_LEFTCTRLKEY, SCA_IInputDevice::LEFTCTRLKEY},
+    {EVT_LEFTALTKEY, SCA_IInputDevice::LEFTALTKEY},
+    {EVT_RIGHTALTKEY, SCA_IInputDevice::RIGHTALTKEY},
+    {EVT_RIGHTCTRLKEY, SCA_IInputDevice::RIGHTCTRLKEY},
+    {EVT_RIGHTSHIFTKEY, SCA_IInputDevice::RIGHTSHIFTKEY},
+    {EVT_LEFTSHIFTKEY, SCA_IInputDevice::LEFTSHIFTKEY},
 
-  {EVT_ESCKEY, SCA_IInputDevice::ESCKEY},
-  {EVT_TABKEY, SCA_IInputDevice::TABKEY},
-  {EVT_RETKEY, SCA_IInputDevice::RETKEY},
-  {EVT_SPACEKEY, SCA_IInputDevice::SPACEKEY},
-  {EVT_LINEFEEDKEY, SCA_IInputDevice::LINEFEEDKEY},
-  {EVT_BACKSPACEKEY, SCA_IInputDevice::BACKSPACEKEY},
-  {EVT_DELKEY, SCA_IInputDevice::DELKEY},
-  {EVT_SEMICOLONKEY, SCA_IInputDevice::SEMICOLONKEY},
-  {EVT_PERIODKEY, SCA_IInputDevice::PERIODKEY},
-  {EVT_COMMAKEY, SCA_IInputDevice::COMMAKEY},
-  {EVT_QUOTEKEY, SCA_IInputDevice::QUOTEKEY},
-  {EVT_ACCENTGRAVEKEY, SCA_IInputDevice::ACCENTGRAVEKEY},
-  {EVT_MINUSKEY, SCA_IInputDevice::MINUSKEY},
-  {EVT_SLASHKEY, SCA_IInputDevice::SLASHKEY},
-  {EVT_BACKSLASHKEY, SCA_IInputDevice::BACKSLASHKEY},
-  {EVT_EQUALKEY, SCA_IInputDevice::EQUALKEY},
-  {EVT_LEFTBRACKETKEY, SCA_IInputDevice::LEFTBRACKETKEY},
-  {EVT_RIGHTBRACKETKEY, SCA_IInputDevice::RIGHTBRACKETKEY},
+    {EVT_ESCKEY, SCA_IInputDevice::ESCKEY},
+    {EVT_TABKEY, SCA_IInputDevice::TABKEY},
+    {EVT_RETKEY, SCA_IInputDevice::RETKEY},
+    {EVT_SPACEKEY, SCA_IInputDevice::SPACEKEY},
+    {EVT_LINEFEEDKEY, SCA_IInputDevice::LINEFEEDKEY},
+    {EVT_BACKSPACEKEY, SCA_IInputDevice::BACKSPACEKEY},
+    {EVT_DELKEY, SCA_IInputDevice::DELKEY},
+    {EVT_SEMICOLONKEY, SCA_IInputDevice::SEMICOLONKEY},
+    {EVT_PERIODKEY, SCA_IInputDevice::PERIODKEY},
+    {EVT_COMMAKEY, SCA_IInputDevice::COMMAKEY},
+    {EVT_QUOTEKEY, SCA_IInputDevice::QUOTEKEY},
+    {EVT_ACCENTGRAVEKEY, SCA_IInputDevice::ACCENTGRAVEKEY},
+    {EVT_MINUSKEY, SCA_IInputDevice::MINUSKEY},
+    {EVT_SLASHKEY, SCA_IInputDevice::SLASHKEY},
+    {EVT_BACKSLASHKEY, SCA_IInputDevice::BACKSLASHKEY},
+    {EVT_EQUALKEY, SCA_IInputDevice::EQUALKEY},
+    {EVT_LEFTBRACKETKEY, SCA_IInputDevice::LEFTBRACKETKEY},
+    {EVT_RIGHTBRACKETKEY, SCA_IInputDevice::RIGHTBRACKETKEY},
 
-  {EVT_LEFTARROWKEY, SCA_IInputDevice::LEFTARROWKEY},
-  {EVT_DOWNARROWKEY, SCA_IInputDevice::DOWNARROWKEY},
-  {EVT_RIGHTARROWKEY, SCA_IInputDevice::RIGHTARROWKEY},
-  {EVT_UPARROWKEY, SCA_IInputDevice::UPARROWKEY},
+    {EVT_LEFTARROWKEY, SCA_IInputDevice::LEFTARROWKEY},
+    {EVT_DOWNARROWKEY, SCA_IInputDevice::DOWNARROWKEY},
+    {EVT_RIGHTARROWKEY, SCA_IInputDevice::RIGHTARROWKEY},
+    {EVT_UPARROWKEY, SCA_IInputDevice::UPARROWKEY},
 
-  {EVT_PAD2, SCA_IInputDevice::PAD2},
-  {EVT_PAD4, SCA_IInputDevice::PAD4},
-  {EVT_PAD6, SCA_IInputDevice::PAD6},
-  {EVT_PAD8, SCA_IInputDevice::PAD8},
+    {EVT_PAD2, SCA_IInputDevice::PAD2},
+    {EVT_PAD4, SCA_IInputDevice::PAD4},
+    {EVT_PAD6, SCA_IInputDevice::PAD6},
+    {EVT_PAD8, SCA_IInputDevice::PAD8},
 
-  {EVT_PAD1, SCA_IInputDevice::PAD1},
-  {EVT_PAD3, SCA_IInputDevice::PAD3},
-  {EVT_PAD5, SCA_IInputDevice::PAD5},
-  {EVT_PAD7, SCA_IInputDevice::PAD7},
-  {EVT_PAD9, SCA_IInputDevice::PAD9},
+    {EVT_PAD1, SCA_IInputDevice::PAD1},
+    {EVT_PAD3, SCA_IInputDevice::PAD3},
+    {EVT_PAD5, SCA_IInputDevice::PAD5},
+    {EVT_PAD7, SCA_IInputDevice::PAD7},
+    {EVT_PAD9, SCA_IInputDevice::PAD9},
 
-  {EVT_PADPERIOD, SCA_IInputDevice::PADPERIOD},
-  {EVT_PADSLASHKEY, SCA_IInputDevice::PADSLASHKEY},
-  {EVT_PADASTERKEY, SCA_IInputDevice::PADASTERKEY},
+    {EVT_PADPERIOD, SCA_IInputDevice::PADPERIOD},
+    {EVT_PADSLASHKEY, SCA_IInputDevice::PADSLASHKEY},
+    {EVT_PADASTERKEY, SCA_IInputDevice::PADASTERKEY},
 
-  {EVT_PAD0, SCA_IInputDevice::PAD0},
-  {EVT_PADMINUS, SCA_IInputDevice::PADMINUS},
-  {EVT_PADENTER, SCA_IInputDevice::PADENTER},
-  {EVT_PADPLUSKEY, SCA_IInputDevice::PADPLUSKEY},
+    {EVT_PAD0, SCA_IInputDevice::PAD0},
+    {EVT_PADMINUS, SCA_IInputDevice::PADMINUS},
+    {EVT_PADENTER, SCA_IInputDevice::PADENTER},
+    {EVT_PADPLUSKEY, SCA_IInputDevice::PADPLUSKEY},
 
-  {EVT_F1KEY, SCA_IInputDevice::F1KEY},
-  {EVT_F2KEY, SCA_IInputDevice::F2KEY},
-  {EVT_F3KEY, SCA_IInputDevice::F3KEY},
-  {EVT_F4KEY, SCA_IInputDevice::F4KEY},
-  {EVT_F5KEY, SCA_IInputDevice::F5KEY},
-  {EVT_F6KEY, SCA_IInputDevice::F6KEY},
-  {EVT_F7KEY, SCA_IInputDevice::F7KEY},
-  {EVT_F8KEY, SCA_IInputDevice::F8KEY},
-  {EVT_F9KEY, SCA_IInputDevice::F9KEY},
-  {EVT_F10KEY, SCA_IInputDevice::F10KEY},
-  {EVT_F11KEY, SCA_IInputDevice::F11KEY},
-  {EVT_F12KEY, SCA_IInputDevice::F12KEY},
-  {EVT_F13KEY, SCA_IInputDevice::F13KEY},
-  {EVT_F14KEY, SCA_IInputDevice::F14KEY},
-  {EVT_F15KEY, SCA_IInputDevice::F15KEY},
-  {EVT_F16KEY, SCA_IInputDevice::F16KEY},
-  {EVT_F17KEY, SCA_IInputDevice::F17KEY},
-  {EVT_F18KEY, SCA_IInputDevice::F18KEY},
-  {EVT_F19KEY, SCA_IInputDevice::F19KEY},
+    {EVT_F1KEY, SCA_IInputDevice::F1KEY},
+    {EVT_F2KEY, SCA_IInputDevice::F2KEY},
+    {EVT_F3KEY, SCA_IInputDevice::F3KEY},
+    {EVT_F4KEY, SCA_IInputDevice::F4KEY},
+    {EVT_F5KEY, SCA_IInputDevice::F5KEY},
+    {EVT_F6KEY, SCA_IInputDevice::F6KEY},
+    {EVT_F7KEY, SCA_IInputDevice::F7KEY},
+    {EVT_F8KEY, SCA_IInputDevice::F8KEY},
+    {EVT_F9KEY, SCA_IInputDevice::F9KEY},
+    {EVT_F10KEY, SCA_IInputDevice::F10KEY},
+    {EVT_F11KEY, SCA_IInputDevice::F11KEY},
+    {EVT_F12KEY, SCA_IInputDevice::F12KEY},
+    {EVT_F13KEY, SCA_IInputDevice::F13KEY},
+    {EVT_F14KEY, SCA_IInputDevice::F14KEY},
+    {EVT_F15KEY, SCA_IInputDevice::F15KEY},
+    {EVT_F16KEY, SCA_IInputDevice::F16KEY},
+    {EVT_F17KEY, SCA_IInputDevice::F17KEY},
+    {EVT_F18KEY, SCA_IInputDevice::F18KEY},
+    {EVT_F19KEY, SCA_IInputDevice::F19KEY},
 
-  {EVT_OSKEY, SCA_IInputDevice::OSKEY},
+    {EVT_OSKEY, SCA_IInputDevice::OSKEY},
 
-  {EVT_PAUSEKEY, SCA_IInputDevice::PAUSEKEY},
-  {EVT_INSERTKEY, SCA_IInputDevice::INSERTKEY},
-  {EVT_HOMEKEY, SCA_IInputDevice::HOMEKEY},
-  {EVT_PAGEUPKEY, SCA_IInputDevice::PAGEUPKEY},
-  {EVT_PAGEDOWNKEY, SCA_IInputDevice::PAGEDOWNKEY},
-  {EVT_ENDKEY, SCA_IInputDevice::ENDKEY}
-};
+    {EVT_PAUSEKEY, SCA_IInputDevice::PAUSEKEY},
+    {EVT_INSERTKEY, SCA_IInputDevice::INSERTKEY},
+    {EVT_HOMEKEY, SCA_IInputDevice::HOMEKEY},
+    {EVT_PAGEUPKEY, SCA_IInputDevice::PAGEUPKEY},
+    {EVT_PAGEDOWNKEY, SCA_IInputDevice::PAGEDOWNKEY},
+    {EVT_ENDKEY, SCA_IInputDevice::ENDKEY}};
 
 SCA_IInputDevice::SCA_EnumInputs BL_ConvertKeyCode(int key_code)
 {
@@ -247,11 +245,11 @@ SCA_IInputDevice::SCA_EnumInputs BL_ConvertKeyCode(int key_code)
 }
 
 static void BL_GetUvRgba(const RAS_MeshObject::LayerList &layers,
-                      unsigned int loop,
-                      MT_Vector2 uvs[RAS_Texture::MaxUnits],
-                      unsigned int rgba[RAS_IVertex::MAX_UNIT],
-                      unsigned short uvLayers,
-                      unsigned short colorLayers)
+                         unsigned int loop,
+                         MT_Vector2 uvs[RAS_Texture::MaxUnits],
+                         unsigned int rgba[RAS_IVertex::MAX_UNIT],
+                         unsigned short uvLayers,
+                         unsigned short colorLayers)
 {
   // No need to initialize layers to zero as all the converted layer are all the layers needed.
 
@@ -289,10 +287,10 @@ static void BL_GetUvRgba(const RAS_MeshObject::LayerList &layers,
 }
 
 static KX_BlenderMaterial *BL_ConvertMaterial(Material *mat,
-                                           int lightlayer,
-                                           KX_Scene *scene,
-                                           RAS_Rasterizer *rasty,
-                                           bool converting_during_runtime)
+                                              int lightlayer,
+                                              KX_Scene *scene,
+                                              RAS_Rasterizer *rasty,
+                                              bool converting_during_runtime)
 {
   std::string name = mat->id.name;
   // Always ensure that the name of a material start with "MA" prefix due to video texture name
@@ -301,18 +299,23 @@ static KX_BlenderMaterial *BL_ConvertMaterial(Material *mat,
     name = "MA";
   }
 
-  KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(
-      rasty, scene, mat, name, (mat ? &mat->game : nullptr), lightlayer, converting_during_runtime);
+  KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(rasty,
+                                                        scene,
+                                                        mat,
+                                                        name,
+                                                        (mat ? &mat->game : nullptr),
+                                                        lightlayer,
+                                                        converting_during_runtime);
 
   return kx_blmat;
 }
 
 static RAS_MaterialBucket *BL_material_from_mesh(Material *ma,
-                                              int lightlayer,
-                                              KX_Scene *scene,
-                                              RAS_Rasterizer *rasty,
-                                              BL_BlenderSceneConverter *converter,
-                                              bool converting_during_runtime)
+                                                 int lightlayer,
+                                                 KX_Scene *scene,
+                                                 RAS_Rasterizer *rasty,
+                                                 BL_BlenderSceneConverter *converter,
+                                                 bool converting_during_runtime)
 {
   KX_BlenderMaterial *mat = converter->FindMaterial(ma);
 
@@ -443,7 +446,8 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
       ma = BKE_material_default_empty();
     }
 
-    RAS_MaterialBucket *bucket = BL_material_from_mesh(ma, lightlayer, scene, rasty, converter, converting_during_runtime);
+    RAS_MaterialBucket *bucket = BL_material_from_mesh(
+        ma, lightlayer, scene, rasty, converter, converting_during_runtime);
     RAS_MeshMaterial *meshmat = meshobj->AddMaterial(bucket, i, vertformat);
 
     convertedMats[i] = {ma,
@@ -564,12 +568,15 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
   bool isCompoundChild = false;
   bool hasCompoundChildren = false;
 
-  // Pretend for compound parent or child if the object has compound option and use a physics type with solid shape.
-  if ((blenderobject->gameflag & (OB_CHILD)) && (blenderobject->gameflag & (OB_DYNAMIC | OB_COLLISION | OB_RIGID_BODY)) &&
+  // Pretend for compound parent or child if the object has compound option and use a physics type
+  // with solid shape.
+  if ((blenderobject->gameflag & (OB_CHILD)) &&
+      (blenderobject->gameflag & (OB_DYNAMIC | OB_COLLISION | OB_RIGID_BODY)) &&
       !(blenderobject->gameflag & OB_SOFT_BODY)) {
     hasCompoundChildren = true;
     while (parent) {
-      if ((parent->gameflag & OB_CHILD) && (parent->gameflag & (OB_COLLISION | OB_DYNAMIC | OB_RIGID_BODY)) &&
+      if ((parent->gameflag & OB_CHILD) &&
+          (parent->gameflag & (OB_COLLISION | OB_DYNAMIC | OB_RIGID_BODY)) &&
           !(parent->gameflag & OB_SOFT_BODY)) {
         // Found a parent in the tree with compound shape.
         isCompoundChild = true;
@@ -614,17 +621,18 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
 }
 
 static KX_LodManager *BL_lodmanager_from_blenderobject(Object *ob,
-                                                    KX_Scene *scene,
-                                                    RAS_Rasterizer *rasty,
-                                                    BL_BlenderSceneConverter *converter,
-                                                    bool libloading,
-                                                    bool converting_during_runtime)
+                                                       KX_Scene *scene,
+                                                       RAS_Rasterizer *rasty,
+                                                       BL_BlenderSceneConverter *converter,
+                                                       bool libloading,
+                                                       bool converting_during_runtime)
 {
   if (BLI_listbase_count_at_most(&ob->lodlevels, 2) <= 1) {
     return nullptr;
   }
 
-  KX_LodManager *lodManager = new KX_LodManager(ob, scene, rasty, converter, libloading, converting_during_runtime);
+  KX_LodManager *lodManager = new KX_LodManager(
+      ob, scene, rasty, converter, libloading, converting_during_runtime);
   // The lod manager is useless ?
   if (lodManager->GetLevelCount() <= 1) {
     lodManager->Release();
@@ -699,7 +707,8 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
 
     case OB_MESH: {
       Mesh *mesh = static_cast<Mesh *>(ob->data);
-      RAS_MeshObject *meshobj = BL_ConvertMesh(mesh, ob, kxscene, rasty, converter, libloading, converting_during_runtime);
+      RAS_MeshObject *meshobj = BL_ConvertMesh(
+          mesh, ob, kxscene, rasty, converter, libloading, converting_during_runtime);
 
       // needed for python scripting
       kxscene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
@@ -814,7 +823,6 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
       copy_m4_m4(backup->obmat, ob->obmat);
       kxscene->BackupObjectsObmat(backup);
     }
-
 
     gameobj->SetObjectColor(MT_Vector4(ob->color));
     /* set the visibility state based on the objects render option in the outliner */
@@ -1197,7 +1205,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
       if (gameobj->IsDupliGroup()) {
         grouplist.insert(blenderobject->instance_collection);
-        spawnlist.push_back(gameobj); /* to collect gameobj to be removed if Instance Spawn is checked */
+        spawnlist.push_back(
+            gameobj); /* to collect gameobj to be removed if Instance Spawn is checked */
       }
 
       /* Note about memory leak issues:
@@ -1234,8 +1243,12 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
             }
             bool converting_during_runtime = single_object != nullptr;
             groupobj.insert(blenderobject);
-            KX_GameObject *gameobj = BL_gameobject_from_blenderobject(
-                blenderobject, kxscene, rendertools, converter, libloading, converting_during_runtime);
+            KX_GameObject *gameobj = BL_gameobject_from_blenderobject(blenderobject,
+                                                                      kxscene,
+                                                                      rendertools,
+                                                                      converter,
+                                                                      libloading,
+                                                                      converting_during_runtime);
 
             bool isInActiveLayer = false;
             if (gameobj) {
@@ -1264,7 +1277,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   }
 
   // non-camera objects not supported as camera currently
-  if (blenderscene->camera && blenderscene->camera->type == OB_CAMERA && CTX_wm_region_view3d(KX_GetActiveEngine()->GetContext())->persp == RV3D_CAMOB) {
+  if (blenderscene->camera && blenderscene->camera->type == OB_CAMERA &&
+      CTX_wm_region_view3d(KX_GetActiveEngine()->GetContext())->persp == RV3D_CAMOB) {
     KX_Camera *gamecamera = (KX_Camera *)converter->FindGameObject(blenderscene->camera);
 
     if (gamecamera && !single_object)

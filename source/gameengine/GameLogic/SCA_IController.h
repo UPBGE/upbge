@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "SCA_ILogicBrick.h"
 
 /**
@@ -73,8 +72,9 @@ class SCA_IController : public SCA_ILogicBrick {
 
 #ifdef WITH_PYTHON
   static PyObject *pyattr_get_state(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_sensors(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_actuators(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_sensors(EXP_PyObjectPlus *self_v,
+                                      const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_actuators(EXP_PyObjectPlus *self_v,
+                                        const EXP_PYATTRIBUTE_DEF *attrdef);
 #endif  // WITH_PYTHON
 };
-

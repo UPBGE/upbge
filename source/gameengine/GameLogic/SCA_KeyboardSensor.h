@@ -32,7 +32,6 @@
 
 #pragma once
 
-
 #include <list>
 
 #include "EXP_BoolValue.h"
@@ -108,4 +107,3 @@ class SCA_KeyboardSensor : public SCA_ISensor {
   static PyObject *pyattr_get_inputs(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
-

@@ -21,8 +21,7 @@ EXP_ErrorValue::EXP_ErrorValue() : m_strErrorText("Error")
 {
 }
 
-EXP_ErrorValue::EXP_ErrorValue(const std::string &errmsg)
-    :m_strErrorText("[" + errmsg + "]")
+EXP_ErrorValue::EXP_ErrorValue(const std::string &errmsg) : m_strErrorText("[" + errmsg + "]")
 {
 }
 

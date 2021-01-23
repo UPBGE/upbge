@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include <vector>
 
 #include "KX_IScalarInterpolator.h"
@@ -76,4 +75,3 @@ class BL_InterpolatorList {
 
   BL_ScalarInterpolator *GetScalarInterpolator(const char *rna_path, int array_index);
 };
-

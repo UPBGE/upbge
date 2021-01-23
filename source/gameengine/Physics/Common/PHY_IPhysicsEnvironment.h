@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "MT_Matrix4x4.h"
 #include "MT_Vector2.h"
 #include "MT_Vector3.h"
@@ -155,7 +154,8 @@ class PHY_IPhysicsEnvironment {
   virtual void SetDeactivationAngularTreshold(float angTresh)
   {
   }
-  /// setERP sets the Error Reduction Parameter to reduce the joint error for non-contact constraints
+  /// setERP sets the Error Reduction Parameter to reduce the joint error for non-contact
+  /// constraints
   virtual void SetERPNonContact(float erp)
   {
   }
@@ -276,4 +276,3 @@ class PHY_IPhysicsEnvironment {
   {
   }
 };
-

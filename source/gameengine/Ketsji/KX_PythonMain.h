@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include <string>
 
 struct Scene;
@@ -39,4 +38,3 @@ struct Main;
 
 std::string KX_GetPythonMain(Scene *scene);
 std::string KX_GetPythonCode(Main *main, const std::string &python_main);
-

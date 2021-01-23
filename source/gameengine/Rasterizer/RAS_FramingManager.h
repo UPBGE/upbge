@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 class RAS_Rect;
 
 /**
@@ -239,4 +238,3 @@ class RAS_FramingManager {
 
   RAS_FramingManager(const RAS_FramingManager &);
 };
-

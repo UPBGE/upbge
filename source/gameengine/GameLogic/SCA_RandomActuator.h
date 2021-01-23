@@ -32,7 +32,6 @@
 
 #pragma once
 
-
 #include "SCA_IActuator.h"
 #include "SCA_RandomNumberGenerator.h"
 
@@ -96,7 +95,8 @@ class SCA_RandomActuator : public SCA_IActuator {
   /* Python interface ---------------------------------------------------- */
   /* --------------------------------------------------------------------- */
 
-  static PyObject *pyattr_get_seed(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_seed(EXP_PyObjectPlus *self,
+                                   const struct EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_seed(EXP_PyObjectPlus *self,
                              const struct EXP_PYATTRIBUTE_DEF *attrdef,
                              PyObject *value);
@@ -115,4 +115,3 @@ class SCA_RandomActuator : public SCA_IActuator {
 #endif /* WITH_PYTHON */
 
 }; /* end of class KX_EditObjectActuator : public SCA_PropertyActuator */
-

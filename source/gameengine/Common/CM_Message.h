@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include <iostream>
 #include <string>
 
@@ -206,4 +205,3 @@ std::ostream &operator<<(std::ostream &stream, const _CM_FunctionPrefix &prefix)
  * Error: brick(object), msg
  */
 #define CM_LogicBrickError(brick, msg) _CM_LogicBrickMsg(_CM_PrefixError, brick, msg)
-

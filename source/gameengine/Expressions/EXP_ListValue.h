@@ -18,7 +18,6 @@
 
 #pragma once
 
-
 #include "EXP_BaseListValue.h"
 #include "EXP_BoolValue.h"
 
@@ -51,7 +50,7 @@ template<class ItemType> class EXP_ListValue : public EXP_BaseListValue {
   {
   }
 
-  EXP_ListValue(const std::vector<ItemType *>& rawList)
+  EXP_ListValue(const std::vector<ItemType *> &rawList)
   {
     const unsigned int size = rawList.size();
     m_pValueArray.resize(size);
@@ -181,4 +180,3 @@ bool operator!=(const Iterator &it1, const Iterator &it2)
 {
   return it1.m_it != it2.m_it;
 }
-

@@ -34,8 +34,6 @@
 #include "MT_Matrix4x4.h"
 #include "MT_Transform.h"
 
-
-
 KX_NormalParentRelation::KX_NormalParentRelation()
 {
 }
@@ -64,9 +62,12 @@ bool KX_NormalParentRelation::UpdateChildCoordinates(SG_Node *child,
   else {
     const MT_Transform trans(parent->GetWorldTransform() * child->GetLocalTransform());
     MT_Matrix4x4 tmat(trans.toMatrix());
-    float sx = MT_Vector3(tmat.getElement(0, 0), tmat.getElement(1, 0), tmat.getElement(2, 0)).length();
-    float sy = MT_Vector3(tmat.getElement(0, 1), tmat.getElement(1, 1), tmat.getElement(2, 1)).length();
-    float sz = MT_Vector3(tmat.getElement(0, 2), tmat.getElement(1, 2), tmat.getElement(2, 2)).length();
+    float sx =
+        MT_Vector3(tmat.getElement(0, 0), tmat.getElement(1, 0), tmat.getElement(2, 0)).length();
+    float sy =
+        MT_Vector3(tmat.getElement(0, 1), tmat.getElement(1, 1), tmat.getElement(2, 1)).length();
+    float sz =
+        MT_Vector3(tmat.getElement(0, 2), tmat.getElement(1, 2), tmat.getElement(2, 2)).length();
     const MT_Vector3 scale(sx, sy, sz);
     const MT_Vector3 invscale(1.0f / sx, 1.0f / sy, 1.0f / sz);
     const MT_Vector3 pos = trans.getOrigin();
@@ -75,7 +76,7 @@ bool KX_NormalParentRelation::UpdateChildCoordinates(SG_Node *child,
     child->SetWorldScale(scale);
     child->SetWorldPosition(pos);
     child->SetWorldOrientation(rot);
-    
+
     child->ClearModified();
   }
   return true;
@@ -86,7 +87,6 @@ SG_ParentRelation *KX_NormalParentRelation::NewCopy()
   return new KX_NormalParentRelation();
 }
 
-
 KX_VertexParentRelation::KX_VertexParentRelation()
 {
 }
@@ -94,7 +94,6 @@ KX_VertexParentRelation::KX_VertexParentRelation()
 KX_VertexParentRelation::~KX_VertexParentRelation()
 {
 }
-
 
 bool KX_VertexParentRelation::UpdateChildCoordinates(SG_Node *child,
                                                      const SG_Node *parent,
@@ -121,7 +120,6 @@ bool KX_VertexParentRelation::UpdateChildCoordinates(SG_Node *child,
   return true;
 }
 
-
 SG_ParentRelation *KX_VertexParentRelation::NewCopy()
 {
   return new KX_VertexParentRelation();
@@ -132,17 +130,14 @@ bool KX_VertexParentRelation::IsVertexRelation()
   return true;
 }
 
-
 KX_SlowParentRelation::KX_SlowParentRelation(float relaxation)
-    : m_relax(relaxation),
-      m_initialized(false)
+    : m_relax(relaxation), m_initialized(false)
 {
 }
 
 KX_SlowParentRelation::~KX_SlowParentRelation()
 {
 }
-
 
 bool KX_SlowParentRelation::UpdateChildCoordinates(SG_Node *child,
                                                    const SG_Node *parent,

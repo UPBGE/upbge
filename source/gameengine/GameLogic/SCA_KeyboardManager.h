@@ -33,7 +33,6 @@
 
 #pragma once
 
-
 #include "SCA_EventManager.h"
 #include "SCA_IInputDevice.h"
 
@@ -47,4 +46,3 @@ class SCA_KeyboardManager : public SCA_EventManager {
   virtual void NextFrame();
   SCA_IInputDevice *GetInputDevice();
 };
-

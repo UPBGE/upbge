@@ -33,7 +33,6 @@
 
 #include "SCA_CollectionActuator.h"
 
-
 #include "KX_Camera.h"
 
 #include "BKE_collection.h"

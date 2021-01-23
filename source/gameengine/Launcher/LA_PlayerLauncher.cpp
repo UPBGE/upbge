@@ -58,7 +58,17 @@ LA_PlayerLauncher::LA_PlayerLauncher(GHOST_ISystem *system,
                                      bContext *C,
                                      bool useViewportRender,
                                      int shadingTypeRuntime)
-    : LA_Launcher(system, maggie, scene, gs, stereoMode, samples, argc, argv, C, useViewportRender, shadingTypeRuntime),
+    : LA_Launcher(system,
+                  maggie,
+                  scene,
+                  gs,
+                  stereoMode,
+                  samples,
+                  argc,
+                  argv,
+                  C,
+                  useViewportRender,
+                  shadingTypeRuntime),
       m_mainWindow(window),
       m_pythonMainLoop(pythonMainLoop)
 {

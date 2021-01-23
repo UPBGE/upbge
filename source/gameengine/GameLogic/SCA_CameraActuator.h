@@ -34,7 +34,6 @@
 
 #pragma once
 
-
 #include "MT_Scalar.h"
 #include "SCA_IActuator.h"
 #include "SCA_LogicManager.h"
@@ -118,4 +117,3 @@ class SCA_CameraActuator : public SCA_IActuator {
 
 #endif /* WITH_PYTHON */
 };
-

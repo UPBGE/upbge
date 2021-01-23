@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "SCA_IActuator.h"
 
 struct Collection;
@@ -86,10 +85,9 @@ class SCA_CollectionActuator : public SCA_IActuator {
   /* --------------------------------------------------------------------- */
 
   // static PyObject *pyattr_get_camera(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF
-  // *attrdef); static int pyattr_set_camera(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF
-  // *attrdef, PyObject *value);
+  // *attrdef); static int pyattr_set_camera(EXP_PyObjectPlus *self, const struct
+  // EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 #endif /* WITH_PYTHON */
 
 }; /* end of class SCA_CollectionActuator */
-

@@ -31,8 +31,6 @@
 
 #include "RAS_DisplayArrayBucket.h"
 
-
-
 #ifdef _MSC_VER
 #  pragma warning(disable : 4786)
 #endif
@@ -47,12 +45,10 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket,
                                                RAS_MeshMaterial *meshmat)
     : m_bucket(bucket), m_displayArray(array), m_mesh(mesh), m_meshMaterial(meshmat)
 {
-
 }
 
 RAS_DisplayArrayBucket::~RAS_DisplayArrayBucket()
 {
-
 }
 
 RAS_MaterialBucket *RAS_DisplayArrayBucket::GetBucket() const

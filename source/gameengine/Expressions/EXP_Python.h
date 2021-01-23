@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 // Python redefines, quiet the compiler.
 #ifdef _XOPEN_SOURCE
 #  undef _XOPEN_SOURCE
@@ -78,4 +77,3 @@
 #  undef tolower
 #  undef toupper
 #endif
-

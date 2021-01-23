@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "SCA_IController.h"
 
 class SCA_XNORController : public SCA_IController {
@@ -46,4 +45,3 @@ class SCA_XNORController : public SCA_IController {
   /* Python interface ---------------------------------------------------- */
   /* --------------------------------------------------------------------- */
 };
-

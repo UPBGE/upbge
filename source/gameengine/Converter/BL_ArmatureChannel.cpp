@@ -31,7 +31,6 @@
 
 #include "BL_ArmatureChannel.h"
 
-
 #include "DNA_armature_types.h"
 
 #include "BL_ArmatureObject.h"
@@ -152,9 +151,9 @@ PyAttributeDef BL_ArmatureChannel::AttributesPtr[] = {
     EXP_PYATTRIBUTE_FLOAT_RW("ik_rot_weight", 0, 1.0f, bPoseChannel, ikrotweight),
     EXP_PYATTRIBUTE_FLOAT_RW("ik_lin_weight", 0, 1.0f, bPoseChannel, iklinweight),
     EXP_PYATTRIBUTE_RW_FUNCTION("joint_rotation",
-                               BL_ArmatureChannel,
-                               py_attr_get_joint_rotation,
-                               py_attr_set_joint_rotation),
+                                BL_ArmatureChannel,
+                                py_attr_get_joint_rotation,
+                                py_attr_set_joint_rotation),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 

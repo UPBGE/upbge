@@ -33,7 +33,6 @@
 
 #pragma once
 
-
 #include "SCA_IController.h"
 
 class SCA_EventManager;
@@ -171,12 +170,17 @@ class SCA_ISensor : public SCA_ILogicBrick {
 #ifdef WITH_PYTHON
   EXP_PYMETHOD_DOC_NOARGS(SCA_ISensor, reset);
 
-  static PyObject *pyattr_get_triggered(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_positive(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_triggered(EXP_PyObjectPlus *self_v,
+                                        const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_positive(EXP_PyObjectPlus *self_v,
+                                       const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_status(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_posTicks(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_negTicks(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_frequency(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_posTicks(EXP_PyObjectPlus *self_v,
+                                       const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_negTicks(EXP_PyObjectPlus *self_v,
+                                       const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_frequency(EXP_PyObjectPlus *self_v,
+                                        const EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_frequency(EXP_PyObjectPlus *self_v,
                                   const struct EXP_PYATTRIBUTE_DEF *attrdef,
                                   PyObject *value);
@@ -193,4 +197,3 @@ class SCA_ISensor : public SCA_ILogicBrick {
   };
 #endif  // WITH_PYTHON
 };
-

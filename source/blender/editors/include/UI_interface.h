@@ -25,7 +25,7 @@
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_sys_types.h" /* size_t */
-#include "RNA_types.h" /* UPBGE */
+#include "RNA_types.h"     /* UPBGE */
 #include "UI_interface_icons.h"
 
 #ifdef __cplusplus

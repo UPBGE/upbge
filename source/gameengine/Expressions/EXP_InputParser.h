@@ -20,7 +20,6 @@
 
 #pragma once
 
-
 class EXP_Parser;
 
 #include "EXP_Expression.h"
@@ -72,13 +71,13 @@ class EXP_Parser {
       opkind,     // kind of operator, if symbol is an operator
       constkind;  // kind of operator, if symbol is a constant
 
-  char ch;              // current character
-  int chcount;          // index to character in input string
+  char ch;                 // current character
+  int chcount;             // index to character in input string
   EXP_Expression *errmsg;  // contains a errormessage, if scanner error
 
-  std::string text,             // contains a copy of the original text
-      const_as_string;          // string representation of the symbol, if symbol is a constant
-  bool boolvalue;               // value of the boolean, if symbol is a constant of type boolean
+  std::string text,                // contains a copy of the original text
+      const_as_string;             // string representation of the symbol, if symbol is a constant
+  bool boolvalue;                  // value of the boolean, if symbol is a constant of type boolean
   EXP_Value *m_identifierContext;  // context in which identifiers are looked up
 
   void ScanError(const std::string &str);
@@ -96,4 +95,3 @@ class EXP_Parser {
   EXP_Expression *Ex(int i);
   EXP_Expression *Expr();
 };
-

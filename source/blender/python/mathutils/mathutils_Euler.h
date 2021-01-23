@@ -54,7 +54,6 @@ PyObject *Euler_CreatePyObject_cb(PyObject *cb_user,
 
 short euler_order_from_string(const char *str, const char *error_prefix);
 
-
 #ifdef __cplusplus
 }
 #endif

@@ -32,58 +32,49 @@
 
 #pragma once
 
-
 #include "MT_Vector3.h"
 #include "SCA_ISensor.h"
 
+class SCA_MovementSensor : public SCA_ISensor {
+  Py_Header
 
+      public : enum MovementAxis {
+        KX_MOVEMENT_AXIS_POS_X = 1,
+        KX_MOVEMENT_AXIS_POS_Y = 0,
+        KX_MOVEMENT_AXIS_POS_Z = 2,
+        KX_MOVEMENT_AXIS_NEG_X = 3,
+        KX_MOVEMENT_AXIS_NEG_Y = 4,
+        KX_MOVEMENT_AXIS_NEG_Z = 5,
+        KX_MOVEMENT_ALL_AXIS = 6,
+      };
 
-class SCA_MovementSensor : public SCA_ISensor
-{
-	Py_Header
+ private:
+  /// True if the position is taken in world space or object space(local).
+  bool m_localflag;
+  /// The axis to detect mouvement, can be all axis.
+  int m_axis;
+  /// The previous object position.
+  MT_Vector3 m_previousPosition;
+  /** True if the position is not the same (depends of a treshold value)
+   * between two logic frame.
+   */
+  bool m_positionHasChanged;
+  /// Threshold below which the movement is not detected
+  float m_threshold;
+  bool m_triggered;
 
-public:
-	enum MovementAxis {
-		KX_MOVEMENT_AXIS_POS_X = 1,
-		KX_MOVEMENT_AXIS_POS_Y = 0,
-		KX_MOVEMENT_AXIS_POS_Z = 2,
-		KX_MOVEMENT_AXIS_NEG_X = 3,
-		KX_MOVEMENT_AXIS_NEG_Y = 4,
-		KX_MOVEMENT_AXIS_NEG_Z = 5,
-		KX_MOVEMENT_ALL_AXIS = 6,
-	};
+ public:
+  SCA_MovementSensor(
+      SCA_EventManager *eventmgr, SCA_IObject *gameobj, int axis, bool localflag, float threshold);
+  virtual ~SCA_MovementSensor();
+  virtual EXP_Value *GetReplica();
+  MT_Vector3 GetOwnerPosition(bool local);
 
-private:
-	/// True if the position is taken in world space or object space(local).
-	bool m_localflag;
-	/// The axis to detect mouvement, can be all axis.
-	int m_axis;
-	/// The previous object position.
-	MT_Vector3 m_previousPosition;
-	/** True if the position is not the same (depends of a treshold value)
-	 * between two logic frame.
-	 */
-	bool m_positionHasChanged;
-	/// Threshold below which the movement is not detected
-	float m_threshold;
-	bool m_triggered;
-
-public:
-	SCA_MovementSensor(SCA_EventManager *eventmgr,
-					  SCA_IObject *gameobj,
-					  int axis, bool localflag,
-					  float threshold);
-	virtual ~SCA_MovementSensor();
-	virtual EXP_Value *GetReplica();
-	MT_Vector3 GetOwnerPosition(bool local);
-
-	virtual bool Evaluate();
-	virtual bool IsPositiveTrigger();
-	virtual void Init();
+  virtual bool Evaluate();
+  virtual bool IsPositiveTrigger();
+  virtual void Init();
 
 #ifdef WITH_PYTHON
 
 #endif  // WITH_PYTHON
-
 };
-

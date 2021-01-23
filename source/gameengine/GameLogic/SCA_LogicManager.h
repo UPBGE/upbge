@@ -30,7 +30,6 @@
  */
 #pragma once
 
-
 #ifdef _MSC_VER
 #  pragma warning(disable : 4786)
 #endif
@@ -143,4 +142,3 @@ class SCA_LogicManager {
   void UnregisterGameObj(void *blendobj, EXP_Value *gameobj);
   EXP_Value *FindGameObjByBlendObj(void *blendobj);
 };
-

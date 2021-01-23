@@ -35,8 +35,6 @@
 
 #include "SCA_CameraActuator.h"
 
-
-
 #include "KX_GameObject.h"
 
 /* ------------------------------------------------------------------------- */
@@ -405,7 +403,8 @@ PyAttributeDef SCA_CameraActuator::Attributes[] = {
     EXP_PYATTRIBUTE_FLOAT_RW("max", -FLT_MAX, FLT_MAX, SCA_CameraActuator, m_maxHeight),
     EXP_PYATTRIBUTE_FLOAT_RW("height", -FLT_MAX, FLT_MAX, SCA_CameraActuator, m_height),
     EXP_PYATTRIBUTE_SHORT_RW("axis", 0, 5, true, SCA_CameraActuator, m_axis),
-    EXP_PYATTRIBUTE_RW_FUNCTION("object", SCA_CameraActuator, pyattr_get_object, pyattr_set_object),
+    EXP_PYATTRIBUTE_RW_FUNCTION(
+        "object", SCA_CameraActuator, pyattr_get_object, pyattr_set_object),
     EXP_PYATTRIBUTE_FLOAT_RW("damping", 0.f, 10.f, SCA_CameraActuator, m_damping),
     EXP_PYATTRIBUTE_NULL};
 

@@ -456,9 +456,9 @@ static void library_foreach_actuatorsObjectLooper(bActuator *UNUSED(actuator),
 }
 
 static void library_foreach_componentsObjectLooper(PythonComponent *UNUSED(component),
-                                                  ID **id_pointer,
-                                                  void *user_data,
-                                                  int cb_flag)
+                                                   ID **id_pointer,
+                                                   void *user_data,
+                                                   int cb_flag)
 {
   LibraryForeachIDData *data = (LibraryForeachIDData *)user_data;
   BKE_lib_query_foreachid_process(data, id_pointer, cb_flag);
@@ -594,8 +594,7 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
 
   /* Game engine */
   BKE_sca_sensors_id_loop(&object->sensors, library_foreach_sensorsObjectLooper, data);
-  BKE_sca_controllers_id_loop(
-      &object->controllers, library_foreach_controllersObjectLooper, data);
+  BKE_sca_controllers_id_loop(&object->controllers, library_foreach_controllersObjectLooper, data);
   BKE_sca_actuators_id_loop(&object->actuators, library_foreach_actuatorsObjectLooper, data);
   BKE_python_components_id_loop(&object->components, library_foreach_componentsObjectLooper, data);
 
@@ -1478,21 +1477,19 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
 
   LISTBASE_FOREACH (PythonComponent *, comp, &ob->components) {
     LISTBASE_FOREACH (PythonComponentProperty *, prop, &comp->properties) {
-#define PT_DEF(name, lower, upper) \
-      BLO_read_id_address(reader, ob->id.lib, &prop->lower);
+#define PT_DEF(name, lower, upper) BLO_read_id_address(reader, ob->id.lib, &prop->lower);
       POINTER_TYPES
 #undef PT_DEF
     }
   }
 
-  LISTBASE_FOREACH (LodLevel *, level, &ob->lodlevels){
+  LISTBASE_FOREACH (LodLevel *, level, &ob->lodlevels) {
     BLO_read_id_address(reader, ob->id.lib, &level->source);
     if (!level->source && level == ob->lodlevels.first) {
       level->source = ob;
     }
   }
   /* End of Game engine */
-
 
   {
     FluidsimModifierData *fluidmd = (FluidsimModifierData *)BKE_modifiers_findby_type(
@@ -1731,8 +1728,7 @@ static void object_blend_read_expand(BlendExpander *expander, ID *id)
 
   LISTBASE_FOREACH (PythonComponent *, comp, &ob->components) {
     LISTBASE_FOREACH (PythonComponentProperty *, prop, &comp->properties) {
-#define PT_DEF(name, lower, upper) \
-      BLO_expand(expander, prop->lower);
+#define PT_DEF(name, lower, upper) BLO_expand(expander, prop->lower);
       POINTER_TYPES
 #undef PT_DEF
     }
@@ -1764,6 +1760,20 @@ static void object_blend_read_expand(BlendExpander *expander, ID *id)
   }
 }
 
+static void object_lib_override_apply_post(ID *id_dst, ID *UNUSED(id_src))
+{
+  Object *object = (Object *)id_dst;
+
+  ListBase pidlist;
+  BKE_ptcache_ids_from_object(&pidlist, object, NULL, 0);
+  LISTBASE_FOREACH (PTCacheID *, pid, &pidlist) {
+    LISTBASE_FOREACH (PointCache *, point_cache, pid->ptcaches) {
+      point_cache->flag |= PTCACHE_FLAG_INFO_DIRTY;
+    }
+  }
+  BLI_freelistN(&pidlist);
+}
+
 IDTypeInfo IDType_ID_OB = {
     .id_code = ID_OB,
     .id_filter = FILTER_ID_OB,
@@ -1787,6 +1797,8 @@ IDTypeInfo IDType_ID_OB = {
     .blend_read_expand = object_blend_read_expand,
 
     .blend_read_undo_preserve = NULL,
+
+    .lib_override_apply_post = object_lib_override_apply_post,
 };
 
 void BKE_object_workob_clear(Object *workob)
@@ -2160,11 +2172,11 @@ bool BKE_object_copy_gpencil_modifier(struct Object *ob_dst, GpencilModifierData
 /**
  * Copy the whole stack of modifiers from one object into another.
  *
- * \warning  **Does not** clear modifier stack and related data (particle systems, softbody,
+ * \warning **Does not** clear modifier stack and related data (particle systems, soft-body,
  * etc.) in `ob_dst`, if needed calling code must do it.
  *
- * @param do_copy_all If true, even modifiers that should not suport copying (like Hook one) will
- * be duplicated.
+ * \param do_copy_all: If true, even modifiers that should not support copying (like Hook one)
+ * will be duplicated.
  */
 bool BKE_object_modifier_stack_copy(Object *ob_dst,
                                     const Object *ob_src,
@@ -4379,9 +4391,6 @@ static void solve_parenting(
   }
 }
 
-/**
- * \note scene is the active scene while actual_scene is the scene the object resides in.
- */
 static void object_where_is_calc_ex(Depsgraph *depsgraph,
                                     Scene *scene,
                                     Object *ob,

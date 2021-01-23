@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "KX_IInterpolator.h"
 
 class MT_Vector3;
@@ -52,4 +51,3 @@ class KX_PositionInterpolator : public KX_IInterpolator {
   MT_Vector3 &m_target;
   KX_IScalarInterpolator *m_ipos[3];
 };
-

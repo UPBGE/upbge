@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include "RAS_IDisplayArray.h"
 
 template<class Vertex> class RAS_BatchDisplayArray;
@@ -122,10 +121,10 @@ template<class Vertex> class RAS_DisplayArray : public virtual RAS_IDisplayArray
   }
 
   virtual RAS_IVertex *CreateVertex(const MT_Vector3 &xyz,
-                                     const MT_Vector2 *const uvs,
-                                     const MT_Vector4 &tangent,
-                                     const unsigned int *rgba,
-                                     const MT_Vector3 &normal)
+                                    const MT_Vector2 *const uvs,
+                                    const MT_Vector4 &tangent,
+                                    const unsigned int *rgba,
+                                    const MT_Vector3 &normal)
   {
     return new Vertex(xyz, uvs, tangent, rgba, normal);
   }
@@ -139,4 +138,3 @@ template<class Vertex> class RAS_DisplayArray : public virtual RAS_IDisplayArray
     }
   }
 };
-

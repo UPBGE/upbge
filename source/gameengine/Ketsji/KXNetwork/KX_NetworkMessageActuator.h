@@ -32,7 +32,6 @@
 
 #pragma once
 
-
 #include "SCA_IActuator.h"
 
 #include <string>
@@ -61,4 +60,3 @@ class KX_NetworkMessageActuator : public SCA_IActuator {
     m_networkscene = val;
   };
 };
-

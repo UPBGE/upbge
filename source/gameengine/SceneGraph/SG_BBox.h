@@ -32,7 +32,6 @@
 
 #pragma once
 
-
 #include "MT_Vector3.h"
 
 /**
@@ -74,4 +73,3 @@ class SG_BBox {
   /// Test if the given point is inside this bounding box.
   bool Inside(const MT_Vector3 &point) const;
 };
-

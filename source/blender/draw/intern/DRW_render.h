@@ -778,7 +778,6 @@ typedef struct DRWContextState {
 
 const DRWContextState *DRW_context_state_get(void);
 
-
 /*****************************GAME ENGINE***********************************/
 void DRW_game_render_loop(struct bContext *C,
                           GPUViewport *viewport,

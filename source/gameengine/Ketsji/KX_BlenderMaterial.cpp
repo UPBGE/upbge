@@ -373,12 +373,12 @@ PyObject *KX_BlenderMaterial::pyattr_get_textures(EXP_PyObjectPlus *self_v,
                                                   const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   return (new EXP_ListWrapper(self_v,
-                           ((KX_BlenderMaterial *)self_v)->GetProxy(),
-                           nullptr,
-                           kx_blender_material_get_textures_size_cb,
-                           kx_blender_material_get_textures_item_cb,
-                           kx_blender_material_get_textures_item_name_cb,
-                           nullptr))
+                              ((KX_BlenderMaterial *)self_v)->GetProxy(),
+                              nullptr,
+                              kx_blender_material_get_textures_size_cb,
+                              kx_blender_material_get_textures_item_cb,
+                              kx_blender_material_get_textures_item_name_cb,
+                              nullptr))
       ->NewProxy(true);
 }
 

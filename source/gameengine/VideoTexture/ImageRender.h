@@ -30,7 +30,6 @@
 
 #pragma once
 
-
 #include "DNA_screen_types.h"
 
 #include "Common.h"
@@ -126,4 +125,3 @@ class ImageRender : public ImageViewport {
   /// render 3d scene to image
   virtual void calcViewport(unsigned int texId, double ts, unsigned int format);
 };
-

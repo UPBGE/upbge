@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "EXP_Value.h"
 #include "PHY_DynamicTypes.h"
 
@@ -58,7 +57,8 @@ class KX_ConstraintWrapper : public EXP_Value {
   static int pyattr_set_breakingThreshold(EXP_PyObjectPlus *self_v,
                                           const EXP_PYATTRIBUTE_DEF *attrdef,
                                           PyObject *value);
-  static PyObject *pyattr_get_enabled(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_enabled(EXP_PyObjectPlus *self_v,
+                                      const EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_enabled(EXP_PyObjectPlus *self_v,
                                 const EXP_PYATTRIBUTE_DEF *attrdef,
                                 PyObject *value);
@@ -69,4 +69,3 @@ class KX_ConstraintWrapper : public EXP_Value {
   PHY_ConstraintType m_ctype;
   int m_userId;
 };
-

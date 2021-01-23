@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 class KX_IScalarInterpolator {
  public:
   virtual ~KX_IScalarInterpolator()
@@ -40,4 +39,3 @@ class KX_IScalarInterpolator {
 
   virtual float GetValue(float currentTime) const = 0;
 };
-

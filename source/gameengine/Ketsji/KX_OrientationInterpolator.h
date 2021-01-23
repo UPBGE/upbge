@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "KX_IInterpolator.h"
 
 class MT_Matrix3x3;
@@ -53,4 +52,3 @@ class KX_OrientationInterpolator : public KX_IInterpolator {
   MT_Matrix3x3 &m_target;
   KX_IScalarInterpolator *m_ipos[3];
 };
-

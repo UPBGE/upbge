@@ -54,7 +54,7 @@ KX_CollisionEventManager::~KX_CollisionEventManager()
 
 void KX_CollisionEventManager::RemoveNewCollisions()
 {
-  for (const NewCollision& collision : m_newCollisions) {
+  for (const NewCollision &collision : m_newCollisions) {
     delete collision.colldata;
   }
   m_newCollisions.clear();
@@ -189,7 +189,7 @@ void KX_CollisionEventManager::NextFrame()
     static_cast<SCA_CollisionSensor *>(sensor)->SynchronizeTransform();
   }
 
-  for (const NewCollision& collision : m_newCollisions) {
+  for (const NewCollision &collision : m_newCollisions) {
     // Controllers
     PHY_IPhysicsController *ctrl1 = collision.first;
     PHY_IPhysicsController *ctrl2 = collision.second;

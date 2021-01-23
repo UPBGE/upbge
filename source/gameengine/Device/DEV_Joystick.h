@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include <string>
 
 #include "DEV_JoystickDefines.h"
@@ -189,4 +188,3 @@ class DEV_Joystick
    */
   const std::string GetName();
 };
-

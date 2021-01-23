@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include "EXP_PyObjectPlus.h"
 #include "RAS_MeshObject.h"
 
@@ -73,10 +72,10 @@ class KX_LodLevel : public EXP_PyObjectPlus {
   static PyObject *pyattr_get_mesh(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_use_hysteresis(EXP_PyObjectPlus *self_v,
                                              const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_use_mesh(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_use_mesh(EXP_PyObjectPlus *self_v,
+                                       const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_use_material(EXP_PyObjectPlus *self_v,
                                            const EXP_PYATTRIBUTE_DEF *attrdef);
 
 #endif  // WITH_PYTHON
 };
-

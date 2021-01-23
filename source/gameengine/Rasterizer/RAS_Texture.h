@@ -24,7 +24,6 @@
 
 #pragma once
 
-
 #include <array>
 #include <string>
 
@@ -75,4 +74,3 @@ class RAS_Texture {
   int GetBindCode() const;
   void SetBindCode(int bindcode);
 };
-

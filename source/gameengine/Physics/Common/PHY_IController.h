@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "PHY_DynamicTypes.h"
 
 class PHY_IPhysicsEnvironment;
@@ -51,4 +50,3 @@ class PHY_IController {
   virtual void SetNewClientInfo(void *clientinfo) = 0;
   virtual void SetPhysicsEnvironment(class PHY_IPhysicsEnvironment *env) = 0;
 };
-

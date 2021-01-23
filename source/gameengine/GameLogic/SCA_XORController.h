@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "SCA_IController.h"
 
 class SCA_XORController : public SCA_IController {
@@ -42,4 +41,3 @@ class SCA_XORController : public SCA_IController {
   virtual EXP_Value *GetReplica();
   virtual void Trigger(SCA_LogicManager *logicmgr);
 };
-

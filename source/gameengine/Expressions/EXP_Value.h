@@ -18,7 +18,6 @@
 
 #pragma once
 
-
 #ifdef _MSC_VER
 #  pragma warning(disable : 4786)
 #endif
@@ -109,8 +108,8 @@ class EXP_Value : public EXP_PyObjectPlus, public CM_RefCount<EXP_Value> {
   }
 
   virtual EXP_Value *ConvertPythonToValue(PyObject *pyobj,
-                                       const bool do_type_exception,
-                                       const char *error_prefix);
+                                          const bool do_type_exception,
+                                          const char *error_prefix);
 
   static PyObject *pyattr_get_name(EXP_PyObjectPlus *self, const EXP_PYATTRIBUTE_DEF *attrdef);
 
@@ -174,7 +173,8 @@ class EXP_Value : public EXP_PyObjectPlus, public CM_RefCount<EXP_Value> {
 
 /** EXP_PropValue is a EXP_Value derived class, that implements the identification (String name)
  * SetName() / GetName(),
- * normal classes should derive from EXP_PropValue, real lightweight classes straight from EXP_Value
+ * normal classes should derive from EXP_PropValue, real lightweight classes straight from
+ * EXP_Value
  */
 class EXP_PropValue : public EXP_Value {
  public:
@@ -199,4 +199,3 @@ class EXP_PropValue : public EXP_Value {
  protected:
   std::string m_strNewName;
 };
-

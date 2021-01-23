@@ -32,7 +32,6 @@
 
 #pragma once
 
-
 #include "EXP_BoolValue.h"
 #include "SCA_IInputDevice.h"
 #include "SCA_ISensor.h"
@@ -108,4 +107,3 @@ class SCA_MouseSensor : public SCA_ISensor {
   EXP_PYMETHOD_DOC_O(SCA_MouseSensor, getButtonStatus);
 #endif
 };
-

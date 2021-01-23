@@ -32,7 +32,6 @@
 
 #pragma once
 
-
 #include "KX_Scene.h" /* Replace_IScene only */
 #include "SCA_IActuator.h"
 #include "SCA_IScene.h" /* Replace_IScene only */
@@ -81,4 +80,3 @@ class SCA_GameActuator : public SCA_IActuator {
   /* --------------------------------------------------------------------- */
 
 }; /* end of class SCA_GameActuator */
-

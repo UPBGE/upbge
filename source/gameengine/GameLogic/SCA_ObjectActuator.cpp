@@ -156,8 +156,8 @@ bool SCA_ObjectActuator::Update()
           v -= vel;
         }
         else {
-          const MT_Vector3& mypos = parent->NodeGetWorldPosition();
-          const MT_Vector3& refpos = m_reference->NodeGetWorldPosition();
+          const MT_Vector3 &mypos = parent->NodeGetWorldPosition();
+          const MT_Vector3 &refpos = m_reference->NodeGetWorldPosition();
           const MT_Vector3 relpos = (mypos - refpos);
           MT_Vector3 vel = m_reference->GetVelocity(relpos);
           if (m_bitLocalFlag.LinearVelocity) {
@@ -179,7 +179,7 @@ bool SCA_ObjectActuator::Update()
       MT_Vector3 dv = e - m_previous_error;
       MT_Vector3 I = m_error_accumulator + e;
 
-      MT_Vector3& f = (m_bitLocalFlag.ServoControlAngular) ? m_torque : m_force;
+      MT_Vector3 &f = (m_bitLocalFlag.ServoControlAngular) ? m_torque : m_force;
       f = m_pid.x() * e + m_pid.y() * I + m_pid.z() * dv;
 
       /* Make sure velocity is correct depending on how body react to force/torque.
@@ -193,7 +193,7 @@ bool SCA_ObjectActuator::Update()
 
       const bool limits[3] = {m_bitLocalFlag.Torque, m_bitLocalFlag.DLoc, m_bitLocalFlag.DRot};
 
-      for (unsigned short i = 0; i <  3; ++i) {
+      for (unsigned short i = 0; i < 3; ++i) {
         if (!limits[i]) {
           continue;
         }

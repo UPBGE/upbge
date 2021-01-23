@@ -31,7 +31,6 @@
 
 #include "BL_ActionActuator.h"
 
-
 #include "DNA_scene_types.h"
 
 #include "BL_ActionManager.h"
@@ -194,7 +193,7 @@ bool BL_ActionActuator::Update(double curtime)
         break;
       }
       case ACT_ACTION_FROM_PROP: {
-        EXP_Value* prop = GetParent()->GetProperty(m_propname);
+        EXP_Value *prop = GetParent()->GetProperty(m_propname);
         // If we don't have a property, we can't do anything, so just bail
         if (!prop) {
           return false;
@@ -206,7 +205,8 @@ bool BL_ActionActuator::Update(double curtime)
         break;
       }
       case ACT_ACTION_FLIPPER: {
-        if ((!(m_flag & ACT_FLAG_ACTIVE) || m_flag & ACT_FLAG_PLAY_END) && Play(obj, start, end, playtype)) {
+        if ((!(m_flag & ACT_FLAG_ACTIVE) || m_flag & ACT_FLAG_PLAY_END) &&
+            Play(obj, start, end, playtype)) {
           m_flag |= ACT_FLAG_ACTIVE;
           m_flag &= ~ACT_FLAG_PLAY_END;
           if (useContinue) {
@@ -270,8 +270,19 @@ void BL_ActionActuator::DecLink()
 
 bool BL_ActionActuator::Play(KX_GameObject *obj, float start, float end, short mode)
 {
-  const short blendmode = (m_blendmode == ACT_ACTION_ADD) ? BL_Action::ACT_BLEND_ADD : BL_Action::ACT_BLEND_BLEND;
-  return obj->PlayAction(m_action->id.name + 2, start, end, m_layer, m_priority, m_blendin, mode, m_layer_weight, m_ipo_flags, 1.0f, blendmode);
+  const short blendmode = (m_blendmode == ACT_ACTION_ADD) ? BL_Action::ACT_BLEND_ADD :
+                                                            BL_Action::ACT_BLEND_BLEND;
+  return obj->PlayAction(m_action->id.name + 2,
+                         start,
+                         end,
+                         m_layer,
+                         m_priority,
+                         m_blendin,
+                         mode,
+                         m_layer_weight,
+                         m_ipo_flags,
+                         1.0f,
+                         blendmode);
 }
 
 #ifdef WITH_PYTHON
@@ -336,7 +347,8 @@ PyAttributeDef BL_ActionActuator::Attributes[] = {
         "framePropName", 0, MAX_PROP_NAME, false, BL_ActionActuator, m_framepropname),
     EXP_PYATTRIBUTE_RW_FUNCTION(
         "useContinue", BL_ActionActuator, pyattr_get_use_continue, pyattr_set_use_continue),
-    EXP_PYATTRIBUTE_SHORT_RW_CHECK("mode", 0, 100, false, BL_ActionActuator, m_playtype, CheckType),
+    EXP_PYATTRIBUTE_SHORT_RW_CHECK(
+        "mode", 0, 100, false, BL_ActionActuator, m_playtype, CheckType),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 

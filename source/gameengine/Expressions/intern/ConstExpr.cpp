@@ -18,7 +18,6 @@
 
 #include "EXP_ConstExpr.h"
 
-
 EXP_ConstExpr::EXP_ConstExpr()
 {
 }

@@ -33,7 +33,6 @@
 
 #pragma once
 
-
 /* Actuator tree */
 #include "MT_Vector3.h"
 #include "SCA_IActuator.h"
@@ -103,7 +102,8 @@ class SCA_AddObjectActuator : public SCA_IActuator {
 
   EXP_PYMETHOD_DOC_NOARGS(SCA_AddObjectActuator, InstantAddObject);
 
-  static PyObject *pyattr_get_object(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_object(EXP_PyObjectPlus *self,
+                                     const struct EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_object(EXP_PyObjectPlus *self,
                                const struct EXP_PYATTRIBUTE_DEF *attrdef,
                                PyObject *value);
@@ -113,4 +113,3 @@ class SCA_AddObjectActuator : public SCA_IActuator {
 #endif /* WITH_PYTHON */
 
 }; /* end of class SCA_AddObjectActuator : public KX_EditObjectActuator */
-

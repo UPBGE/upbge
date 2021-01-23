@@ -52,8 +52,8 @@ RAS_VertexInfo::~RAS_VertexInfo()
 }
 
 RAS_IVertex::RAS_IVertex(const MT_Vector3 &xyz,
-                           const MT_Vector4 &tangent,
-                           const MT_Vector3 &normal)
+                         const MT_Vector4 &tangent,
+                         const MT_Vector3 &normal)
 {
   xyz.getValue(m_localxyz);
   SetNormal(normal);

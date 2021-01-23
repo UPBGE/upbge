@@ -34,7 +34,6 @@
 
 #include "SCA_KeyboardManager.h"
 
-
 #include "SCA_KeyboardSensor.h"
 
 SCA_KeyboardManager::SCA_KeyboardManager(SCA_LogicManager *logicmgr, SCA_IInputDevice *inputdev)

@@ -31,13 +31,9 @@
 
 #include "KX_BoneParentNodeRelationship.h"
 
-
-
 #include "BL_ArmatureObject.h"
 
-
-KX_BoneParentRelation::KX_BoneParentRelation(Bone *bone)
-    :m_bone(bone)
+KX_BoneParentRelation::KX_BoneParentRelation(Bone *bone) : m_bone(bone)
 {
 }
 

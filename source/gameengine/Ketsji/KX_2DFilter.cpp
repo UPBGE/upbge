@@ -137,10 +137,11 @@ PyAttributeDef KX_2DFilter::Attributes[] = {
         "offScreen",
         KX_2DFilter,
         pyattr_get_frameBuffer),  // Keep offScreen name for background compatibility
-    EXP_PYATTRIBUTE_NULL           // Sentinel
+    EXP_PYATTRIBUTE_NULL          // Sentinel
 };
 
-PyObject *KX_2DFilter::pyattr_get_mipmap(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_2DFilter::pyattr_get_mipmap(EXP_PyObjectPlus *self_v,
+                                         const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_2DFilter *self = static_cast<KX_2DFilter *>(self_v);
   return PyBool_FromLong(self->GetMipmap());

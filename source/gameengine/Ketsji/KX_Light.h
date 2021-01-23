@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "KX_GameObject.h"
 
 struct Light;
@@ -62,4 +61,3 @@ class KX_LightObject : public KX_GameObject {
 #ifdef WITH_PYTHON
 #endif
 };
-

@@ -32,7 +32,6 @@
 
 #include "Texture.h"
 
-
 #include "BKE_image.h"
 #include "GPU_glew.h"
 #include "GPU_texture.h"
@@ -155,7 +154,7 @@ void loadTexture(unsigned int texId,
 {
   // load texture for rendering
   glBindTexture(GL_TEXTURE_2D, texId);
-  if (1/*mipmap*/) {
+  if (1 /*mipmap*/) {
     int i;
     ImBuf *ibuf;
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);

@@ -108,8 +108,8 @@
 #include "SEQ_clipboard.h"
 #include "UI_interface.h"
 #include "UI_resources.h"
-#include "wm.h"
 #include "WM_api.h"
+#include "wm.h"
 #include "wm_event_system.h"
 #include "wm_message_bus.h"
 #include "wm_surface.h"
@@ -1310,8 +1310,8 @@ int main(int argc,
                * when we use Game Restart actuator).
                * Then instead of using exitstring we can recycle filename
                * However this is not a proper fix but a temp fix and it would need to
-               * understand why when we start blenderplayer from blender (not when we start blenderplayer
-               * from Visual Studio), the exitstring can be corrupted.
+               * understand why when we start blenderplayer from blender (not when we start
+               * blenderplayer from Visual Studio), the exitstring can be corrupted.
                */
               BLI_strncpy(basedpath, filename[0] ? filename : NULL, sizeof(basedpath));
             }

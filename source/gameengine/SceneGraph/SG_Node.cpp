@@ -158,7 +158,7 @@ bool SG_Node::IsAncessor(const SG_Node *child) const
                                 (child->m_SGparent == this) ? true : IsAncessor(child->m_SGparent);
 }
 
-const NodeList& SG_Node::GetSGChildren() const
+const NodeList &SG_Node::GetSGChildren() const
 {
   return m_children;
 }

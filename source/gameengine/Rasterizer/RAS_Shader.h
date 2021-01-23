@@ -5,7 +5,6 @@
 
 #pragma once
 
-
 #include <string>
 #include <vector>
 
@@ -175,4 +174,3 @@ class RAS_Shader {
   void SetUniform(int uniform, const unsigned int &val);
   void SetUniform(int uniform, const int val);
 };
-

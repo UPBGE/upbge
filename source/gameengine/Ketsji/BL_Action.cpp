@@ -375,9 +375,10 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
   Object *ob = m_obj->GetBlenderObject();  // eevee
 
-  /* Create an AnimationEvalContext based on the current local frame time (See comment in constructor) */
+  /* Create an AnimationEvalContext based on the current local frame time (See comment in
+   * constructor) */
   AnimationEvalContext animEvalContext = BKE_animsys_eval_context_construct_at(&m_animEvalCtx,
-                                                                                 m_localframe);
+                                                                               m_localframe);
 
   if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
     DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);

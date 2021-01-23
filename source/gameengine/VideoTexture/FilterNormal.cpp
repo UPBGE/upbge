@@ -30,8 +30,6 @@
 
 #include "FilterNormal.h"
 
-
-
 // implementation FilterNormal
 
 // constructor

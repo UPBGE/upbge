@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include <list>
 #include <set>
 #include <vector>
@@ -117,7 +116,7 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
   Py_Header
 
 #ifdef WITH_PYTHON
-  PyObject *m_attr_dict;
+      PyObject *m_attr_dict;
   PyObject *m_drawCallbacks[MAX_DRAW_CALLBACK];
   PyObject *m_removeCallbacks;
 #endif
@@ -418,7 +417,7 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
 
   SCA_TimeEventManager *GetTimeEventManager() const;
 
-  KX_PythonComponentManager& GetPythonComponentManager();
+  KX_PythonComponentManager &GetPythonComponentManager();
 
   EXP_ListValue<KX_Camera> *GetCameraList() const;
   void SetCameraList(EXP_ListValue<KX_Camera> *camList);
@@ -569,12 +568,14 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
 
   /* attributes */
   static PyObject *pyattr_get_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_objects(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_objects(EXP_PyObjectPlus *self_v,
+                                      const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_objects_inactive(EXP_PyObjectPlus *self_v,
                                                const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_lights(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_texts(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_cameras(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_cameras(EXP_PyObjectPlus *self_v,
+                                      const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_filter_manager(EXP_PyObjectPlus *self_v,
                                              const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_active_camera(EXP_PyObjectPlus *self_v,
@@ -592,9 +593,13 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
   static int pyattr_set_drawing_callback(EXP_PyObjectPlus *self_v,
                                          const EXP_PYATTRIBUTE_DEF *attrdef,
                                          PyObject *value);
-  static PyObject *pyattr_get_remove_callback(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-  static int pyattr_set_remove_callback(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-  static PyObject *pyattr_get_gravity(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_remove_callback(EXP_PyObjectPlus *self_v,
+                                              const EXP_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_remove_callback(EXP_PyObjectPlus *self_v,
+                                        const EXP_PYATTRIBUTE_DEF *attrdef,
+                                        PyObject *value);
+  static PyObject *pyattr_get_gravity(EXP_PyObjectPlus *self_v,
+                                      const EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_gravity(EXP_PyObjectPlus *self_v,
                                 const EXP_PYATTRIBUTE_DEF *attrdef,
                                 PyObject *value);
@@ -633,4 +638,3 @@ bool ConvertPythonToScene(PyObject *value,
 #endif
 
 typedef std::vector<KX_Scene *> KX_SceneList;
-

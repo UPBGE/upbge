@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "KX_GameObject.h"
 
 class KX_FontObject : public KX_GameObject {
@@ -71,4 +70,3 @@ class KX_FontObject : public KX_GameObject {
   /// needed for drawing routine
   class RAS_Rasterizer *m_rasterizer;
 };
-

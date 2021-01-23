@@ -24,7 +24,6 @@
 
 #include "KX_CharacterWrapper.h"
 
-
 #include "KX_PyMath.h"
 #include "PHY_ICharacter.h"
 
@@ -182,19 +181,23 @@ int KX_CharacterWrapper::pyattr_set_max_jumps(EXP_PyObjectPlus *self_v,
   return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_CharacterWrapper::pyattr_get_maxSlope(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_CharacterWrapper::pyattr_get_maxSlope(EXP_PyObjectPlus *self_v,
+                                                   const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_CharacterWrapper *self = static_cast<KX_CharacterWrapper *>(self_v);
   return PyFloat_FromDouble(self->m_character->GetMaxSlope());
 }
 
-int KX_CharacterWrapper::pyattr_set_maxSlope(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_CharacterWrapper::pyattr_set_maxSlope(EXP_PyObjectPlus *self_v,
+                                             const EXP_PYATTRIBUTE_DEF *attrdef,
+                                             PyObject *value)
 {
   KX_CharacterWrapper *self = static_cast<KX_CharacterWrapper *>(self_v);
   const float param = PyFloat_AsDouble(value);
 
   if (param == -1 || param < 0.0f || param > M_PI_2) {
-    PyErr_SetString(PyExc_ValueError, "KX_CharacterWrapper.maxSlope: expected a float between 0 and half pi");
+    PyErr_SetString(PyExc_ValueError,
+                    "KX_CharacterWrapper.maxSlope: expected a float between 0 and half pi");
     return PY_SET_ATTR_FAIL;
   }
 
@@ -264,9 +267,9 @@ PyMethodDef KX_CharacterWrapper::Methods[] = {
 };
 
 EXP_PYMETHODDEF_DOC_NOARGS(KX_CharacterWrapper,
-                          jump,
-                          "jump()\n"
-                          "makes the character jump.\n")
+                           jump,
+                           "jump()\n"
+                           "makes the character jump.\n")
 {
   m_character->Jump();
 
@@ -274,9 +277,9 @@ EXP_PYMETHODDEF_DOC_NOARGS(KX_CharacterWrapper,
 }
 
 EXP_PYMETHODDEF_DOC(KX_CharacterWrapper,
-                   setVelocity,
-                   "setVelocity(velocity, time, local=False)\n"
-                   "set the character velocity for time period.\n")
+                    setVelocity,
+                    "setVelocity(velocity, time, local=False)\n"
+                    "set the character velocity for time period.\n")
 {
   PyObject *pyvect;
   float time;
@@ -297,9 +300,9 @@ EXP_PYMETHODDEF_DOC(KX_CharacterWrapper,
 }
 
 EXP_PYMETHODDEF_DOC_NOARGS(KX_CharacterWrapper,
-                          reset,
-                          "reset()\n"
-                          "reset the character velocity and walk direction.\n")
+                           reset,
+                           "reset()\n"
+                           "reset the character velocity and walk direction.\n")
 {
   m_character->Reset();
 

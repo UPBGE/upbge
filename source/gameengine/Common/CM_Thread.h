@@ -26,7 +26,6 @@
 
 #pragma once
 
-
 #include "BLI_threads.h"
 
 class CM_ThreadLock {
@@ -61,4 +60,3 @@ class CM_ThreadMutex : public CM_ThreadLock {
  private:
   ThreadMutex m_mutex;
 };
-

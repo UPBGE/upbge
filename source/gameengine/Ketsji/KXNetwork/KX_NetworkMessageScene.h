@@ -31,7 +31,6 @@
  */
 #pragma once
 
-
 /* undef SendMessage Macro (WinUser.h) to avoid
 conflicts with KX_NetworkMessageScene::SendMessage */
 #ifdef WIN32
@@ -70,4 +69,3 @@ class KX_NetworkMessageScene {
   const std::vector<KX_NetworkMessageManager::Message> FindMessages(std::string to,
                                                                     std::string subject);
 };
-

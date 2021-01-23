@@ -257,7 +257,6 @@ extern char datatoc_volumetric_resolve_frag_glsl[];
 extern char datatoc_volumetric_scatter_frag_glsl[];
 extern char datatoc_volumetric_vert_glsl[];
 
-
 /* Game engine transition */
 extern char datatoc_common_smaa_lib_glsl[];
 extern char datatoc_effect_smaa_frag_glsl[];
@@ -267,8 +266,7 @@ extern char datatoc_effect_smaa_accum_glsl[];
 GPUShader *eevee_shader_antialiasing_accumulation_get(void)
 {
   if (e_data.aa_accum_sh == NULL) {
-    e_data.aa_accum_sh = DRW_shader_create_fullscreen(datatoc_effect_smaa_accum_glsl,
-                                                      NULL);
+    e_data.aa_accum_sh = DRW_shader_create_fullscreen(datatoc_effect_smaa_accum_glsl, NULL);
   }
   return e_data.aa_accum_sh;
 }

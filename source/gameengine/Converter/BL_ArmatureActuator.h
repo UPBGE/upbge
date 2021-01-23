@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "BL_ArmatureConstraint.h"
 #include "SCA_IActuator.h"
 
@@ -73,7 +72,8 @@ class BL_ArmatureActuator : public SCA_IActuator {
   /* These are used to get and set m_target */
   static PyObject *pyattr_get_constraint(EXP_PyObjectPlus *self,
                                          const struct EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_get_object(EXP_PyObjectPlus *self, const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_object(EXP_PyObjectPlus *self,
+                                     const struct EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_object(EXP_PyObjectPlus *self,
                                const struct EXP_PYATTRIBUTE_DEF *attrdef,
                                PyObject *value);
@@ -93,4 +93,3 @@ class BL_ArmatureActuator : public SCA_IActuator {
   float m_influence;
   int m_type;
 };
-

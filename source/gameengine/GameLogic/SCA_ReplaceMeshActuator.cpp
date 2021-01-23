@@ -130,8 +130,8 @@ int SCA_ReplaceMeshActuator::pyattr_set_mesh(EXP_PyObjectPlus *self,
 }
 
 EXP_PYMETHODDEF_DOC(SCA_ReplaceMeshActuator,
-                   instantReplaceMesh,
-                   "instantReplaceMesh() : immediately replace mesh without delay\n")
+                    instantReplaceMesh,
+                    "instantReplaceMesh() : immediately replace mesh without delay\n")
 {
   InstantReplaceMesh();
   Py_RETURN_NONE;

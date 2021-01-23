@@ -38,8 +38,15 @@
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_Polygon.h"
 
-RAS_MeshObject::RAS_MeshObject(Mesh *mesh, int conversionTotverts, Object *originalOb, const LayersInfo &layersInfo)
-    : m_name(mesh->id.name + 2), m_layersInfo(layersInfo), m_mesh(mesh), m_conversionTotverts(conversionTotverts), m_originalOb(originalOb)
+RAS_MeshObject::RAS_MeshObject(Mesh *mesh,
+                               int conversionTotverts,
+                               Object *originalOb,
+                               const LayersInfo &layersInfo)
+    : m_name(mesh->id.name + 2),
+      m_layersInfo(layersInfo),
+      m_mesh(mesh),
+      m_conversionTotverts(conversionTotverts),
+      m_originalOb(originalOb)
 {
 }
 

@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #ifdef WIN32
 #  include <windows.h>
 #endif
@@ -64,11 +63,8 @@ class KX_BlenderCanvas : public RAS_ICanvas {
    *
    * \param area The Blender ARegion to run the game within.
    */
-  KX_BlenderCanvas(RAS_Rasterizer *rasty,
-                   wmWindowManager *wm,
-                   wmWindow *win,
-                   rcti *viewport,
-                   ARegion *ar);
+  KX_BlenderCanvas(
+      RAS_Rasterizer *rasty, wmWindowManager *wm, wmWindow *win, rcti *viewport, ARegion *ar);
   virtual ~KX_BlenderCanvas();
 
   virtual void Init();
@@ -99,4 +95,3 @@ class KX_BlenderCanvas : public RAS_ICanvas {
 
   virtual bool IsBlenderPlayer();
 };
-

@@ -31,10 +31,8 @@
 
 #pragma once
 
-
 void BL_ConvertProperties(struct Object *object,
                           class KX_GameObject *gameobj,
                           class SCA_TimeEventManager *timemgr,
                           class SCA_IScene *scene,
                           bool isInActiveLayer);
-

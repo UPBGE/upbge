@@ -34,7 +34,6 @@
 
 #include "SCA_RandomActuator.h"
 
-
 #include "CM_Message.h"
 #include "EXP_FloatValue.h"
 #include "EXP_IntValue.h"
@@ -373,10 +372,10 @@ int SCA_RandomActuator::pyattr_set_seed(EXP_PyObjectPlus *self,
 
 /* 11. setBoolConst */
 EXP_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
-                           setBoolConst,
-                           "setBoolConst(value)\n"
-                           "\t- value: 0 or 1\n"
-                           "\tSet this generator to produce a constant boolean value.\n")
+                            setBoolConst,
+                            "setBoolConst(value)\n"
+                            "\t- value: 0 or 1\n"
+                            "\tSet this generator to produce a constant boolean value.\n")
 {
   int paraArg;
   if (!PyArg_ParseTuple(args, "i:setBoolConst", &paraArg)) {
@@ -402,10 +401,10 @@ EXP_PYMETHODDEF_DOC_NOARGS(
 }
 /* 13. setBoolBernouilli,  */
 EXP_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
-                           setBoolBernouilli,
-                           "setBoolBernouilli(value)\n"
-                           "\t- value: a float between 0 and 1\n"
-                           "\tReturn false value * 100%% of the time.\n")
+                            setBoolBernouilli,
+                            "setBoolBernouilli(value)\n"
+                            "\t- value: a float between 0 and 1\n"
+                            "\tReturn false value * 100%% of the time.\n")
 {
   float paraArg;
   if (!PyArg_ParseTuple(args, "f:setBoolBernouilli", &paraArg)) {
@@ -419,10 +418,10 @@ EXP_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
 }
 /* 14. setIntConst,*/
 EXP_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
-                           setIntConst,
-                           "setIntConst(value)\n"
-                           "\t- value: integer\n"
-                           "\tAlways return value\n")
+                            setIntConst,
+                            "setIntConst(value)\n"
+                            "\t- value: integer\n"
+                            "\tAlways return value\n")
 {
   int paraArg;
   if (!PyArg_ParseTuple(args, "i:setIntConst", &paraArg)) {
@@ -436,12 +435,12 @@ EXP_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
 }
 /* 15. setIntUniform,*/
 EXP_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
-                           setIntUniform,
-                           "setIntUniform(lower_bound, upper_bound)\n"
-                           "\t- lower_bound: integer\n"
-                           "\t- upper_bound: integer\n"
-                           "\tReturn a random integer between lower_bound and\n"
-                           "\tupper_bound. The boundaries are included.\n")
+                            setIntUniform,
+                            "setIntUniform(lower_bound, upper_bound)\n"
+                            "\t- lower_bound: integer\n"
+                            "\t- upper_bound: integer\n"
+                            "\tReturn a random integer between lower_bound and\n"
+                            "\tupper_bound. The boundaries are included.\n")
 {
   int paraArg1, paraArg2;
   if (!PyArg_ParseTuple(args, "ii:setIntUniform", &paraArg1, &paraArg2)) {
@@ -456,12 +455,12 @@ EXP_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
 }
 /* 16. setIntPoisson,		*/
 EXP_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
-                           setIntPoisson,
-                           "setIntPoisson(value)\n"
-                           "\t- value: float\n"
-                           "\tReturn a Poisson-distributed number. This performs a series\n"
-                           "\tof Bernouilli tests with parameter value. It returns the\n"
-                           "\tnumber of tries needed to achieve succes.\n")
+                            setIntPoisson,
+                            "setIntPoisson(value)\n"
+                            "\t- value: float\n"
+                            "\tReturn a Poisson-distributed number. This performs a series\n"
+                            "\tof Bernouilli tests with parameter value. It returns the\n"
+                            "\tnumber of tries needed to achieve succes.\n")
 {
   float paraArg;
   if (!PyArg_ParseTuple(args, "f:setIntPoisson", &paraArg)) {
@@ -475,10 +474,10 @@ EXP_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
 }
 /* 17. setFloatConst */
 EXP_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
-                           setFloatConst,
-                           "setFloatConst(value)\n"
-                           "\t- value: float\n"
-                           "\tAlways return value\n")
+                            setFloatConst,
+                            "setFloatConst(value)\n"
+                            "\t- value: float\n"
+                            "\tAlways return value\n")
 {
   float paraArg;
   if (!PyArg_ParseTuple(args, "f:setFloatConst", &paraArg)) {
@@ -492,12 +491,12 @@ EXP_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
 }
 /* 18. setFloatUniform, */
 EXP_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
-                           setFloatUniform,
-                           "setFloatUniform(lower_bound, upper_bound)\n"
-                           "\t- lower_bound: float\n"
-                           "\t- upper_bound: float\n"
-                           "\tReturn a random integer between lower_bound and\n"
-                           "\tupper_bound.\n")
+                            setFloatUniform,
+                            "setFloatUniform(lower_bound, upper_bound)\n"
+                            "\t- lower_bound: float\n"
+                            "\t- upper_bound: float\n"
+                            "\tReturn a random integer between lower_bound and\n"
+                            "\tupper_bound.\n")
 {
   float paraArg1, paraArg2;
   if (!PyArg_ParseTuple(args, "ff:setFloatUniform", &paraArg1, &paraArg2)) {
@@ -512,12 +511,12 @@ EXP_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
 }
 /* 19. setFloatNormal, */
 EXP_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator,
-                           setFloatNormal,
-                           "setFloatNormal(mean, standard_deviation)\n"
-                           "\t- mean: float\n"
-                           "\t- standard_deviation: float\n"
-                           "\tReturn normal-distributed numbers. The average is mean, and the\n"
-                           "\tdeviation from the mean is characterized by standard_deviation.\n")
+                            setFloatNormal,
+                            "setFloatNormal(mean, standard_deviation)\n"
+                            "\t- mean: float\n"
+                            "\t- standard_deviation: float\n"
+                            "\tReturn normal-distributed numbers. The average is mean, and the\n"
+                            "\tdeviation from the mean is characterized by standard_deviation.\n")
 {
   float paraArg1, paraArg2;
   if (!PyArg_ParseTuple(args, "ff:setFloatNormal", &paraArg1, &paraArg2)) {

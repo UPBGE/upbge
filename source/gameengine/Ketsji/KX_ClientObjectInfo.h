@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 /* Note, the way this works with/without sumo is a bit odd */
 
 #include <list>
@@ -76,4 +75,3 @@ struct KX_ClientObjectInfo {
     return m_type >= SENSOR && m_type <= OBACTORSENSOR;
   }
 };
-

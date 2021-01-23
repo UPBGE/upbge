@@ -34,8 +34,6 @@
 
 #include "SCA_CollisionSensor.h"
 
-
-
 #include "KX_CollisionEventManager.h"
 #include "PHY_IPhysicsController.h"
 #include "PHY_IPhysicsEnvironment.h"

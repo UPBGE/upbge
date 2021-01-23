@@ -26,7 +26,6 @@
  */
 #pragma once
 
-
 #include <vector>
 
 #include "DetourStatNavMesh.h"
@@ -81,4 +80,3 @@ class KX_NavMeshObject : public KX_GameObject {
   EXP_PYMETHOD_DOC_NOARGS(KX_NavMeshObject, rebuild);
 #endif /* WITH_PYTHON */
 };
-

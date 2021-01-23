@@ -44,7 +44,8 @@
 
 static void rna_Actuator_link(bActuator *act, bController *cont)
 {
-  BKE_sca_link_logicbricks((void **)&act, (void ***)&(cont->links), &cont->totlinks, sizeof(bActuator *));
+  BKE_sca_link_logicbricks(
+      (void **)&act, (void ***)&(cont->links), &cont->totlinks, sizeof(bActuator *));
 }
 
 static void rna_Actuator_unlink(bActuator *act, bController *cont)

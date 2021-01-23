@@ -28,7 +28,6 @@
 
 #include "KX_ObstacleSimulation.h"
 
-
 #include "KX_Globals.h"
 #include "KX_NavMeshObject.h"
 

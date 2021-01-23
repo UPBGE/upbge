@@ -105,7 +105,8 @@ PyAttributeDef SCA_PythonMouse::Attributes[] = {
     EXP_PYATTRIBUTE_RO_FUNCTION("activeInputs", SCA_PythonMouse, pyattr_get_active_inputs),
     EXP_PYATTRIBUTE_RW_FUNCTION(
         "position", SCA_PythonMouse, pyattr_get_position, pyattr_set_position),
-    EXP_PYATTRIBUTE_RW_FUNCTION("visible", SCA_PythonMouse, pyattr_get_visible, pyattr_set_visible),
+    EXP_PYATTRIBUTE_RW_FUNCTION(
+        "visible", SCA_PythonMouse, pyattr_get_visible, pyattr_set_visible),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 

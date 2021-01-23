@@ -30,8 +30,6 @@
 
 #include "FilterColor.h"
 
-
-
 // implementation FilterGray
 
 // attributes structure

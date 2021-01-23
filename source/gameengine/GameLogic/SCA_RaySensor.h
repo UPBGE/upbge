@@ -32,7 +32,6 @@
 
 #pragma once
 
-
 #include "BLI_utildefines.h"
 
 #include "KX_Scene.h" /* only for scene replace */
@@ -100,8 +99,8 @@ class SCA_RaySensor : public SCA_ISensor {
 #ifdef WITH_PYTHON
 
   /* Attributes */
-  static PyObject *pyattr_get_hitobject(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_hitobject(EXP_PyObjectPlus *self_v,
+                                        const EXP_PYATTRIBUTE_DEF *attrdef);
 
 #endif /* WITH_PYTHON */
 };
-

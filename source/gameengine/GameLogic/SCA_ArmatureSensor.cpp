@@ -34,7 +34,6 @@
 
 #include "SCA_ArmatureSensor.h"
 
-
 #include "BL_ArmatureObject.h"
 
 SCA_ArmatureSensor::SCA_ArmatureSensor(class SCA_EventManager *eventmgr,
