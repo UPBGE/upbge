@@ -326,13 +326,11 @@ GPUShader *eevee_shader_antialiasing_get(int stage, int smaa_quality)
             },
         .defs =
             (const char *[]){
-                "uniform vec3 lumaWeight;\n",
                 "#define SMAA_GLSL_3\n",
                 "#define SMAA_RT_METRICS viewportMetrics\n",
-                smaa_quality_define,
-                "#define SMAA_LUMA_WEIGHT float4(lumaWeight[0], lumaWeight[1], lumaWeight[2], 0.0)\n",
                 "#define SMAA_NO_DISCARD\n",
-                "#define SMAA_REPROJECTION 1\n",
+                smaa_quality_define,
+                "#define SMAA_PREDICATION 1\n",
                 stage_define,
                 NULL,
             },

@@ -163,7 +163,7 @@ int EEVEE_antialiasing_engine_init(EEVEE_Data *vedata)
     GPU_texture_filter_mode(txl->smaa_search_tx, true);
     GPU_texture_filter_mode(txl->smaa_area_tx, true);
   }
-  return EFFECT_SMAA | EFFECT_VELOCITY_BUFFER;
+  return EFFECT_SMAA;
 }
 
 void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata)
@@ -173,8 +173,6 @@ void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata)
   EEVEE_PassList *psl = vedata->psl;
   DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
   DRWShadingGroup *grp = NULL;
-  const DRWContextState *draw_ctx = DRW_context_state_get();
-  Scene *scene_eval = draw_ctx->scene;
 
   EEVEE_EffectsInfo *effects = vedata->stl->effects;
   if (!(effects->enabled_effects & EFFECT_SMAA)) {
@@ -193,6 +191,8 @@ void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata)
   const float *size = DRW_viewport_size_get();
   const float *sizeinv = DRW_viewport_invert_size_get();
   float metrics[4] = {sizeinv[0], sizeinv[1], size[0], size[1]};
+  const DRWContextState *draw_ctx = DRW_context_state_get();
+  Scene *scene_eval = draw_ctx->scene;
 
   {
     /* Stage 1: Edge detection. */
@@ -201,8 +201,8 @@ void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata)
     GPUShader *sh = eevee_shader_antialiasing_get(0, scene_eval->eevee.smaa_quality);
     grp = DRW_shgroup_create(sh, psl->aa_edge_ps);
     DRW_shgroup_uniform_texture(grp, "colorTex", txl->history_buffer_tx);
+    DRW_shgroup_uniform_texture(grp, "depthTex", txl->depth_buffer_tx);
     DRW_shgroup_uniform_vec4_copy(grp, "viewportMetrics", metrics);
-    DRW_shgroup_uniform_vec3_copy(grp, "lumaWeight", scene_eval->eevee.smaa_threshold);
 
     DRW_shgroup_clear_framebuffer(grp, GPU_COLOR_BIT, 0, 0, 0, 0, 0.0f, 0x0);
     DRW_shgroup_call_procedural_triangles(grp, NULL, 1);
@@ -232,7 +232,6 @@ void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata)
     DRW_shgroup_uniform_vec4_copy(grp, "viewportMetrics", metrics);
     DRW_shgroup_uniform_float(grp, "mixFactor", &g_data->smaa_mix_factor, 1);
     DRW_shgroup_uniform_float(grp, "taaSampleCountInv", &g_data->taa_sample_inv, 1);
-    DRW_shgroup_uniform_texture(grp, "velocityBuffer", effects->velocity_tx);
 
     DRW_shgroup_call_procedural_triangles(grp, NULL, 1);
   }
