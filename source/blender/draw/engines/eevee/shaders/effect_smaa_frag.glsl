@@ -4,6 +4,7 @@ uniform sampler2D areaTex;
 uniform sampler2D searchTex;
 uniform sampler2D blendTex;
 uniform sampler2D colorTex;
+uniform sampler2D depthTex;
 uniform float mixFactor;
 uniform float taaSampleCountInv;
 
@@ -20,8 +21,9 @@ out vec4 fragColor;
 void main()
 {
 #if SMAA_STAGE == 0
-  /* Detect edges in color and revealage buffer. */
-  fragColor = SMAALumaEdgeDetectionPS(uvs, offset, colorTex);
+  /* Detect edges in buffer. */
+  fragColor = SMAALumaEdgeDetectionPS(uvs, offset, colorTex, depthTex);
+
   /* Discard if there is no edge. */
   if (dot(fragColor, float2(1.0, 1.0)) == 0.0) {
     discard;

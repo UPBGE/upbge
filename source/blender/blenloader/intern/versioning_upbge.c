@@ -241,4 +241,10 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
       }
     }
   }
+
+  if (!MAIN_VERSION_UPBGE_ATLEAST(main, 30, 5)) {
+    LISTBASE_FOREACH (Scene *, scene, &main->scenes) {
+      scene->eevee.smaa_quality = SCE_EEVEE_SMAA_PRESET_HIGH;
+    }
+  }
 }

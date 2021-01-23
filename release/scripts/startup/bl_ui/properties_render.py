@@ -481,8 +481,24 @@ class RENDER_PT_eevee_sampling(RenderButtonsPanel, Panel):
         col = layout.column()
         col.prop(props, "use_taa_reprojection")
 
-        row = layout.row()                #Game engine transition
-        row.prop(props, "use_eevee_smaa") #Game engine transition
+class RENDER_PT_eevee_sampling_smaa(RenderButtonsPanel, Panel):
+    bl_label = "SMAA"
+    bl_parent_id = "RENDER_PT_eevee_sampling"
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+
+    def draw_header(self, context):
+        scene = context.scene
+        props = scene.eevee
+        self.layout.prop(props, "use_eevee_smaa", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        props = scene.eevee
+
+        layout.active = props.use_eevee_smaa
+        col = layout.column(align=True)
+        col.prop(props, "smaa_quality", text="Quality")
 
 
 class RENDER_PT_eevee_indirect_lighting(RenderButtonsPanel, Panel):
@@ -777,6 +793,7 @@ classes = (
     RENDER_PT_game_resolution,
     RENDER_PT_game_debug,
     RENDER_PT_eevee_sampling,
+    RENDER_PT_eevee_sampling_smaa,
     RENDER_PT_eevee_ambient_occlusion,
     RENDER_PT_eevee_bloom,
     RENDER_PT_eevee_depth_of_field,

@@ -282,6 +282,8 @@ static void scene_init_data(ID *id)
   scene->gm.pythonkeys[2] = EVT_LEFTALTKEY;
   scene->gm.pythonkeys[3] = EVT_TKEY;
 
+  scene->eevee.smaa_quality = SCE_EEVEE_SMAA_PRESET_HIGH;
+
   /* Curve Profile */
   scene->toolsettings->custom_bevel_profile_preset = BKE_curveprofile_add(PROF_PRESET_LINE);
   scene->toolsettings->sequencer_tool_settings = SEQ_tool_settings_init();

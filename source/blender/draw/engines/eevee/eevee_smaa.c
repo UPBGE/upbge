@@ -191,14 +191,17 @@ void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata)
   const float *size = DRW_viewport_size_get();
   const float *sizeinv = DRW_viewport_invert_size_get();
   float metrics[4] = {sizeinv[0], sizeinv[1], size[0], size[1]};
+  const DRWContextState *draw_ctx = DRW_context_state_get();
+  Scene *scene_eval = draw_ctx->scene;
 
   {
     /* Stage 1: Edge detection. */
     DRW_PASS_CREATE(psl->aa_edge_ps, DRW_STATE_WRITE_COLOR);
 
-    GPUShader *sh = eevee_shader_antialiasing_get(0);
+    GPUShader *sh = eevee_shader_antialiasing_get(0, scene_eval->eevee.smaa_quality);
     grp = DRW_shgroup_create(sh, psl->aa_edge_ps);
     DRW_shgroup_uniform_texture(grp, "colorTex", txl->history_buffer_tx);
+    DRW_shgroup_uniform_texture(grp, "depthTex", txl->depth_buffer_tx);
     DRW_shgroup_uniform_vec4_copy(grp, "viewportMetrics", metrics);
 
     DRW_shgroup_clear_framebuffer(grp, GPU_COLOR_BIT, 0, 0, 0, 0, 0.0f, 0x0);
@@ -208,7 +211,7 @@ void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata)
     /* Stage 2: Blend Weight/Coord. */
     DRW_PASS_CREATE(psl->aa_weight_ps, DRW_STATE_WRITE_COLOR);
 
-    GPUShader *sh = eevee_shader_antialiasing_get(1);
+    GPUShader *sh = eevee_shader_antialiasing_get(1, scene_eval->eevee.smaa_quality);
     grp = DRW_shgroup_create(sh, psl->aa_weight_ps);
     DRW_shgroup_uniform_texture(grp, "edgesTex", g_data->smaa_edge_tx);
     DRW_shgroup_uniform_texture(grp, "areaTex", txl->smaa_area_tx);
@@ -222,7 +225,7 @@ void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata)
     /* Stage 3: Resolve. */
     DRW_PASS_CREATE(psl->aa_resolve_ps, DRW_STATE_WRITE_COLOR);
 
-    GPUShader *sh = eevee_shader_antialiasing_get(2);
+    GPUShader *sh = eevee_shader_antialiasing_get(2, scene_eval->eevee.smaa_quality);
     grp = DRW_shgroup_create(sh, psl->aa_resolve_ps);
     DRW_shgroup_uniform_texture(grp, "blendTex", g_data->smaa_weight_tx);
     DRW_shgroup_uniform_texture(grp, "colorTex", txl->history_buffer_tx);
