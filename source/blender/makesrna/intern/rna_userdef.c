@@ -4779,6 +4779,11 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Gizmo Size", "Diameter of the gizmo");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
+  prop = RNA_def_property(srna, "gizmo_size_navigate_v3d", PROP_INT, PROP_PIXEL);
+  RNA_def_property_range(prop, 30, 200);
+  RNA_def_property_ui_text(prop, "Navigate Gizmo Size", "The Navigate Gizmo size");
+  RNA_def_property_update(prop, 0, "rna_userdef_gizmo_update");
+
   /* Lookdev */
   prop = RNA_def_property(srna, "lookdev_sphere_size", PROP_INT, PROP_PIXEL);
   RNA_def_property_int_sdna(prop, NULL, "lookdev_sphere_size");

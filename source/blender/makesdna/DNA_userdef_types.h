@@ -763,8 +763,12 @@ typedef struct UserDef {
   char _pad13[4];
   struct SolidLight light_param[4];
   float light_ambient[3];
-  char _pad3[4];
-  short gizmo_flag, gizmo_size;
+  char gizmo_flag;
+  /** Generic gizmo size. */
+  char gizmo_size;
+  /** Navigate gizmo size. */
+  char gizmo_size_navigate_v3d;
+  char _pad3[5];
   short edit_studio_light;
   short lookdev_sphere_size;
   short vbotimeout, vbocollectrate;
