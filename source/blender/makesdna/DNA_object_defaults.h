@@ -66,6 +66,30 @@
     .preview = NULL, \
     .duplicator_visibility_flag = OB_DUPLI_FLAG_VIEWPORT | OB_DUPLI_FLAG_RENDER, \
     .pc_ids = {NULL, NULL}, \
+ \
+    .mass = 1.0f, \
+    .inertia = 1.0f, \
+    .formfactor = 0.4f, \
+    .damping = 0.04f, \
+    .rdamping = 0.1f, \
+    .anisotropicFriction = {1.0f, 1.0f, 1.0f}, \
+    .gameflag = OB_PROP | OB_COLLISION, \
+    .gameflag2 = 0, \
+    .margin = 0.04f, \
+    .friction = 0.5f, \
+    .init_state = 1, \
+    .state = 1, \
+    .obstacleRad = 1.0f, \
+    .step_height = 0.15f, \
+    .jump_speed = 10.0f, \
+    .fall_speed = 55.0f, \
+    .max_jumps = 1, \
+    .max_slope = M_PI_2, \
+    .col_group = 0x01, \
+    .col_mask = 0xffff, \
+    .ccd_motion_threshold = 1.0f, \
+    .ccd_swept_sphere_radius = 0.9f, \
+    .lodfactor = 1.0f, \
   }
 
 /** \} */

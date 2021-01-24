@@ -2665,14 +2665,12 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "mass", PROP_FLOAT, PROP_NONE);
   RNA_def_property_range(prop, 0.01, 1000000.0);
-  RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_ui_text(prop, "Mass", "Mass of the object");
 
   prop = RNA_def_property(srna, "radius", PROP_FLOAT, PROP_NONE | PROP_UNIT_LENGTH);
   RNA_def_property_float_sdna(prop, NULL, "inertia");
   RNA_def_property_range(prop, 0.01f, FLT_MAX);
   RNA_def_property_ui_range(prop, 0.01f, 10.0f, 1, 3);
-  RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_ui_text(prop, "Radius", "Radius of bounding sphere and material physics");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
 
@@ -2684,13 +2682,11 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "damping", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "damping");
   RNA_def_property_range(prop, 0.0, 1.0);
-  RNA_def_property_float_default(prop, 0.04f);
   RNA_def_property_ui_text(prop, "Damping", "General movement damping");
 
   prop = RNA_def_property(srna, "rotation_damping", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "rdamping");
   RNA_def_property_range(prop, 0.0, 1.0);
-  RNA_def_property_float_default(prop, 0.1f);
   RNA_def_property_ui_text(prop, "Rotation Damping", "General rotation damping");
 
   prop = RNA_def_property(srna, "velocity_min", PROP_FLOAT, PROP_DISTANCE);
@@ -2730,28 +2726,24 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "step_height", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "step_height");
   RNA_def_property_range(prop, 0.01, 1.0);
-  RNA_def_property_float_default(prop, 0.15f);
   RNA_def_property_ui_text(
       prop, "Step Height", "Maximum height of steps the character can run over");
 
   prop = RNA_def_property(srna, "jump_speed", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "jump_speed");
   RNA_def_property_range(prop, 0.0, 1000.0);
-  RNA_def_property_float_default(prop, 10.0f);
   RNA_def_property_ui_text(
       prop, "Jump Force", "Upward velocity applied to the character when jumping");
 
   prop = RNA_def_property(srna, "fall_speed", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "fall_speed");
   RNA_def_property_range(prop, 0.0, 1000.0);
-  RNA_def_property_float_default(prop, 55.0f);
   RNA_def_property_ui_text(
       prop, "Fall Speed Max", "Maximum speed at which the character will fall");
 
   prop = RNA_def_property(srna, "max_slope", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_float_sdna(prop, NULL, "max_slope");
   RNA_def_property_range(prop, 0.0, M_PI_2);
-  RNA_def_property_float_default(prop, M_PI_2);
   RNA_def_property_ui_text(
       prop, "Max Slope", "Maximum slope angle which the character will climb");
 
@@ -2759,7 +2751,6 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_int_sdna(prop, NULL, "max_jumps");
   RNA_def_property_range(prop, 1, CHAR_MAX);
   RNA_def_property_ui_range(prop, 1, 10, 1, 1);
-  RNA_def_property_int_default(prop, 1);
   RNA_def_property_ui_text(
       prop,
       "Max Jumps",
@@ -2832,7 +2823,6 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "form_factor", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "formfactor");
   RNA_def_property_range(prop, 0.0, 1.0);
-  RNA_def_property_float_default(prop, 0.4f);
   RNA_def_property_ui_text(prop, "Form Factor", "Form factor scales the inertia tensor");
 
   prop = RNA_def_property(srna, "use_anisotropic_friction", PROP_BOOLEAN, PROP_NONE);
@@ -2869,7 +2859,6 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "collision_margin", PROP_FLOAT, PROP_NONE | PROP_UNIT_LENGTH);
   RNA_def_property_float_sdna(prop, NULL, "margin");
   RNA_def_property_range(prop, 0.0, 1.0);
-  RNA_def_property_float_default(prop, 0.04f);
   RNA_def_property_ui_text(
       prop,
       "Collision Margin",
@@ -2888,7 +2877,6 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "obstacle_radius", PROP_FLOAT, PROP_NONE | PROP_UNIT_LENGTH);
   RNA_def_property_float_sdna(prop, NULL, "obstacleRad");
   RNA_def_property_range(prop, 0.0, 1000.0);
-  RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_ui_text(
       prop, "Obstacle Radius", "Radius of object representation in obstacle simulation");
 
@@ -2982,7 +2970,6 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, NULL, "ccd_motion_threshold");
   RNA_def_property_range(prop, 0, 100);
   RNA_def_property_ui_range(prop, 0.0, 100.0, 10, 2);
-  RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_ui_text(prop,
                            "Motion threshold",
                            "Sets the delta of movement that has to happen in one"
@@ -2992,7 +2979,6 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, NULL, "ccd_swept_sphere_radius");
   RNA_def_property_range(prop, 0, 100);
   RNA_def_property_ui_range(prop, 0.0, 10.0, 10, 2);
-  RNA_def_property_float_default(prop, 0.9f);
   RNA_def_property_ui_text(prop,
                            "Swept Sphere Radius",
                            "The radius of the sphere that is used to check for "
@@ -4232,7 +4218,6 @@ static void rna_def_object(BlenderRNA *brna)
   prop = RNA_def_property(srna, "lod_factor", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "lodfactor");
   RNA_def_property_range(prop, 0.0f, FLT_MAX);
-  RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_ui_text(
       prop, "Level of Detail Distance Factor", "The factor applied to distance computed in Lod");
   RNA_def_property_update(prop, NC_OBJECT | ND_LOD, NULL);

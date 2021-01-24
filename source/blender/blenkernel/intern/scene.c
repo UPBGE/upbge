@@ -227,63 +227,6 @@ static void scene_init_data(ID *id)
   BKE_color_managed_view_settings_init_render(
       &scene->r.bake.im_format.view_settings, &scene->r.bake.im_format.display_settings, "Filmic");
 
-  /* game data */
-  scene->gm.stereoflag = STEREO_NOSTEREO;
-  scene->gm.stereomode = STEREO_ANAGLYPH;
-  scene->gm.eyeseparation = 0.10;
-
-  scene->gm.xplay = 1280;
-  scene->gm.yplay = 720;
-  scene->gm.freqplay = 60;
-  scene->gm.depth = 32;
-
-  scene->gm.gravity = 9.8f;
-  scene->gm.physicsEngine = WOPHY_BULLET;
-  // scene->gm.mode = WO_ACTIVITY_CULLING | WO_DBVT_CULLING;
-  scene->gm.occlusionRes = 128;
-  scene->gm.ticrate = 60;
-  scene->gm.maxlogicstep = 5;
-  scene->gm.physubstep = 1;
-  scene->gm.maxphystep = 5;
-  scene->gm.timeScale = 1.0f;
-  scene->gm.lineardeactthreshold = 0.8f;
-  scene->gm.angulardeactthreshold = 1.0f;
-  scene->gm.deactivationtime = 2.0f;
-  scene->gm.erp = 0.2f;
-  scene->gm.erp2 = 0.8f;
-  scene->gm.cfm = 0.0f;
-
-  scene->gm.obstacleSimulation = OBSTSIMULATION_NONE;
-  scene->gm.levelHeight = 2.f;
-
-  scene->gm.recastData.cellsize = 0.3f;
-  scene->gm.recastData.cellheight = 0.2f;
-  scene->gm.recastData.agentmaxslope = M_PI_4;
-  scene->gm.recastData.agentmaxclimb = 0.9f;
-  scene->gm.recastData.agentheight = 2.0f;
-  scene->gm.recastData.agentradius = 0.6f;
-  scene->gm.recastData.edgemaxlen = 12.0f;
-  scene->gm.recastData.edgemaxerror = 1.3f;
-  scene->gm.recastData.regionminsize = 8.f;
-  scene->gm.recastData.regionmergesize = 20.f;
-  scene->gm.recastData.vertsperpoly = 6;
-  scene->gm.recastData.detailsampledist = 6.0f;
-  scene->gm.recastData.detailsamplemaxerror = 1.0f;
-
-  scene->gm.exitkey = 218;  // Blender key code for ESC
-
-  scene->gm.flag |= GAME_USE_UNDO;
-
-  scene->gm.lodflag = SCE_LOD_USE_HYST;
-  scene->gm.scehysteresis = 10;
-
-  scene->gm.pythonkeys[0] = EVT_LEFTCTRLKEY;
-  scene->gm.pythonkeys[1] = EVT_LEFTSHIFTKEY;
-  scene->gm.pythonkeys[2] = EVT_LEFTALTKEY;
-  scene->gm.pythonkeys[3] = EVT_TKEY;
-
-  scene->eevee.smaa_quality = SCE_EEVEE_SMAA_PRESET_HIGH;
-
   /* Curve Profile */
   scene->toolsettings->custom_bevel_profile_preset = BKE_curveprofile_add(PROF_PRESET_LINE);
   scene->toolsettings->sequencer_tool_settings = SEQ_tool_settings_init();

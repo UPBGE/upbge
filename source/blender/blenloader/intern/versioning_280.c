@@ -1822,7 +1822,6 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
 
       sce->gm.gravity = 9.8f;
       sce->gm.physicsEngine = WOPHY_BULLET;
-      // sce->gm.mode = WO_ACTIVITY_CULLING | WO_DBVT_CULLING;
       sce->gm.occlusionRes = 128;
       sce->gm.ticrate = 60;
       sce->gm.maxlogicstep = 5;
@@ -1852,6 +1851,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
       sce->gm.recastData.vertsperpoly = 6;
       sce->gm.recastData.detailsampledist = 6.0f;
       sce->gm.recastData.detailsamplemaxerror = 1.0f;
+      sce->gm.recastData.partitioning = RC_PARTITION_WATERSHED;
 
       sce->gm.exitkey = 218;  // Blender key code for ESC
 
@@ -1864,6 +1864,8 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
       sce->gm.pythonkeys[1] = EVT_LEFTSHIFTKEY;
       sce->gm.pythonkeys[2] = EVT_LEFTALTKEY;
       sce->gm.pythonkeys[3] = EVT_TKEY;
+
+      sce->eevee.smaa_quality = SCE_EEVEE_SMAA_PRESET_HIGH;
     }
 
     for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
@@ -1878,7 +1880,7 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
       ob->gameflag = OB_PROP | OB_COLLISION;
       ob->gameflag2 = 0;
       ob->margin = 0.04f;
-      ob->friction = 0.5;
+      ob->friction = 0.5f;
       ob->init_state = 1;
       ob->state = 1;
       ob->obstacleRad = 1.0f;
@@ -1889,11 +1891,11 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
       ob->max_slope = M_PI_2;
       ob->col_group = 0x01;
       ob->col_mask = 0xffff;
-      ob->preview = NULL;
-      ob->duplicator_visibility_flag = OB_DUPLI_FLAG_VIEWPORT | OB_DUPLI_FLAG_RENDER;
       ob->ccd_motion_threshold = 1.0f;
       ob->ccd_swept_sphere_radius = 0.9f;
+      ob->lodfactor = 1.0f;
       if (ob->bsoft) {
+        ob->bsoft->bending_dist = 2;
         ob->bsoft->margin = 0.1f;
         ob->bsoft->collisionflags |= OB_BSB_COL_CL_RS;
       }
