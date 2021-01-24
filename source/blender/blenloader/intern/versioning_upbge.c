@@ -62,15 +62,112 @@
 
 #include "MEM_guardedalloc.h"
 
-void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
+void blo_do_versions_upbge(FileData *fd, Library *lib, Main *bmain)
 {
+  /* Game engine hack to force defaults in files saved in normal blender2.8 */
+  if (!DNA_struct_elem_find(fd->filesdna, "Scene", "GameData", "gm")) {
+    for (Scene *sce = bmain->scenes.first; sce; sce = sce->id.next) {
+      /* game data */
+      sce->gm.stereoflag = STEREO_NOSTEREO;
+      sce->gm.stereomode = STEREO_ANAGLYPH;
+      sce->gm.eyeseparation = 0.10;
+
+      sce->gm.xplay = 1280;
+      sce->gm.yplay = 720;
+      sce->gm.freqplay = 60;
+      sce->gm.depth = 32;
+
+      sce->gm.gravity = 9.8f;
+      sce->gm.physicsEngine = WOPHY_BULLET;
+      sce->gm.occlusionRes = 128;
+      sce->gm.ticrate = 60;
+      sce->gm.maxlogicstep = 5;
+      sce->gm.physubstep = 1;
+      sce->gm.maxphystep = 5;
+      sce->gm.lineardeactthreshold = 0.8f;
+      sce->gm.angulardeactthreshold = 1.0f;
+      sce->gm.deactivationtime = 2.0f;
+
+      sce->gm.obstacleSimulation = OBSTSIMULATION_NONE;
+      sce->gm.levelHeight = 2.f;
+
+      sce->gm.recastData.cellsize = 0.3f;
+      sce->gm.recastData.cellheight = 0.2f;
+      sce->gm.recastData.agentmaxslope = M_PI_4;
+      sce->gm.recastData.agentmaxclimb = 0.9f;
+      sce->gm.recastData.agentheight = 2.0f;
+      sce->gm.recastData.agentradius = 0.6f;
+      sce->gm.recastData.edgemaxlen = 12.0f;
+      sce->gm.recastData.edgemaxerror = 1.3f;
+      sce->gm.recastData.regionminsize = 8.f;
+      sce->gm.recastData.regionmergesize = 20.f;
+      sce->gm.recastData.vertsperpoly = 6;
+      sce->gm.recastData.detailsampledist = 6.0f;
+      sce->gm.recastData.detailsamplemaxerror = 1.0f;
+      sce->gm.recastData.partitioning = RC_PARTITION_WATERSHED;
+
+      sce->gm.exitkey = 218;  // Blender key code for ESC
+
+      sce->gm.lodflag = SCE_LOD_USE_HYST;
+      sce->gm.scehysteresis = 10;
+
+      sce->gm.flag |= GAME_USE_UNDO;
+    }
+
+    for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
+      /* Game engine defaults*/
+      ob->mass = ob->inertia = 1.0f;
+      ob->formfactor = 0.4f;
+      ob->damping = 0.04f;
+      ob->rdamping = 0.1f;
+      ob->anisotropicFriction[0] = 1.0f;
+      ob->anisotropicFriction[1] = 1.0f;
+      ob->anisotropicFriction[2] = 1.0f;
+      ob->gameflag = OB_PROP | OB_COLLISION;
+      ob->gameflag2 = 0;
+      ob->margin = 0.04f;
+      ob->friction = 0.5f;
+      ob->init_state = 1;
+      ob->state = 1;
+      ob->obstacleRad = 1.0f;
+      ob->step_height = 0.15f;
+      ob->jump_speed = 10.0f;
+      ob->fall_speed = 55.0f;
+      ob->max_jumps = 1;
+      ob->max_slope = M_PI_2;
+      ob->col_group = 0x01;
+      ob->col_mask = 0xffff;
+    }
+  }
+  if (DNA_struct_elem_find(fd->filesdna, "Scene", "GameData", "gm") &&
+      !DNA_struct_elem_find(fd->filesdna, "Object", "float", "friction")) {
+    for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
+      if (ob->type == OB_MESH) {
+        Mesh *me = blo_do_versions_newlibadr(fd, lib, ob->data);
+        for (int i = 0; i < me->totcol; ++i) {
+          Material *ma = blo_do_versions_newlibadr(fd, lib, me->mat[i]);
+          if (ma) {
+            ob->friction = ma->friction;
+            ob->rolling_friction = 0.0f;
+            ob->fh = ma->fh;
+            ob->reflect = ma->reflect;
+            ob->fhdist = ma->fhdist;
+            ob->xyfrict = ma->xyfrict;
+            break;
+          }
+        }
+      }
+    }
+  }
+  /* Game engine hack to force defaults in files saved in normal blender2.8 END */
+
   // printf("UPBGE: open file from versionfile: %i, subversionfile: %i\n", main->upbgeversionfile,
   // main->upbgesubversionfile);
-  if (!MAIN_VERSION_UPBGE_ATLEAST(main, 0, 1)) {
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 0, 1)) {
     if (!DNA_struct_elem_find(fd->filesdna, "bRaySensor", "int", "mask")) {
       bRaySensor *raySensor;
 
-      for (Object *ob = main->objects.first; ob; ob = ob->id.next) {
+      for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
         for (bSensor *sensor = ob->sensors.first; sensor != NULL;
              sensor = (bSensor *)sensor->next) {
           if (sensor->type == SENS_RAY) {
@@ -134,7 +231,7 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
         }
     }
 #endif
-  if (!MAIN_VERSION_UPBGE_ATLEAST(main, 1, 7)) {
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 1, 7)) {
 #if 0 /* XXX UPBGE Pending recoveries */
         if (!DNA_struct_elem_find(fd->filesdna, "Camera", "short", "gameflag")) {
             for (Camera *camera = main->camera.first; camera; camera = camera->id.next) {
@@ -150,7 +247,7 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
         }
 #endif
     if (!DNA_struct_elem_find(fd->filesdna, "bMouseSensor", "int", "mask")) {
-      for (Object *ob = main->objects.first; ob; ob = ob->id.next) {
+      for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
         for (bSensor *sensor = ob->sensors.first; sensor; sensor = (bSensor *)sensor->next) {
           if (sensor->type == SENS_MOUSE) {
             bMouseSensor *mouseSensor = (bMouseSensor *)sensor->data;
@@ -162,23 +259,23 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
     }
   }
 
-  if (!MAIN_VERSION_UPBGE_ATLEAST(main, 3, 0)) {
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 3, 0)) {
     /* In this case we check against GameData to maintain previous behaviour */
     if (DNA_struct_elem_find(fd->filesdna, "Scene", "GameData", "gm")) {
-      for (Scene *sce = main->scenes.first; sce; sce = sce->id.next) {
+      for (Scene *sce = bmain->scenes.first; sce; sce = sce->id.next) {
         sce->gm.flag |= GAME_USE_UNDO;
       }
     }
   }
 
-  if (!MAIN_VERSION_UPBGE_ATLEAST(main, 30, 0)) {
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 0)) {
     if (!DNA_struct_elem_find(fd->filesdna, "GameData", "float", "timeScale")) {
-      for (Scene *scene = main->scenes.first; scene; scene = scene->id.next) {
+      for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
         scene->gm.timeScale = 1.0f;
       }
     }
     if (!DNA_struct_elem_find(fd->filesdna, "GameData", "short", "pythonkeys[4]")) {
-      for (Scene *scene = main->scenes.first; scene; scene = scene->id.next) {
+      for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
         scene->gm.pythonkeys[0] = EVT_LEFTCTRLKEY;
         scene->gm.pythonkeys[1] = EVT_LEFTSHIFTKEY;
         scene->gm.pythonkeys[2] = EVT_LEFTALTKEY;
@@ -186,17 +283,19 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
       }
     }
     if (!DNA_struct_elem_find(fd->filesdna, "BulletSoftBody", "int", "bending_dist")) {
-      for (Object *ob = main->objects.first; ob; ob = ob->id.next) {
+      for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
         if (ob->bsoft) {
+          ob->bsoft->margin = 0.1f;
+          ob->bsoft->collisionflags |= OB_BSB_COL_CL_RS;
           ob->bsoft->bending_dist = 2;
         }
       }
     }
 
-    LISTBASE_FOREACH (Collection *, collection, &main->collections) {
+    LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
       collection->flag |= COLLECTION_IS_SPAWNED;
     }
-    LISTBASE_FOREACH (Scene *, scene, &main->scenes) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       /* Old files do not have a master collection, but it will be created by
        * `BKE_collection_master_add()`. */
       if (scene->master_collection) {
@@ -205,17 +304,17 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
     }
   }
 
-  if (!MAIN_VERSION_UPBGE_ATLEAST(main, 30, 1)) {
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 1)) {
     if (!DNA_struct_elem_find(fd->filesdna, "Object", "float", "ccd_motion_threshold")) {
-      for (Object *ob = main->objects.first; ob; ob = ob->id.next) {
+      for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
         ob->ccd_motion_threshold = 1.0f;
         ob->ccd_swept_sphere_radius = 0.9f;
       }
     }
   }
-  if (!MAIN_VERSION_UPBGE_ATLEAST(main, 30, 2)) {
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 2)) {
     if (!DNA_struct_elem_find(fd->filesdna, "GameData", "float", "erp")) {
-      for (Scene *scene = main->scenes.first; scene; scene = scene->id.next) {
+      for (Scene *scene = bmain->scenes.first; scene; scene = scene->id.next) {
         scene->gm.erp = 0.2f;
         scene->gm.erp2 = 0.8f;
         scene->gm.cfm = 0.0f;
@@ -223,27 +322,27 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
     }
   }
 
-  if (!MAIN_VERSION_UPBGE_ATLEAST(main, 30, 3)) {
-    LISTBASE_FOREACH (Light *, light, &main->lights) {
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 3)) {
+    LISTBASE_FOREACH (Light *, light, &bmain->lights) {
       light->mode |= LA_SOFT_SHADOWS;
     }
   }
 
-  if (!MAIN_VERSION_UPBGE_ATLEAST(main, 30, 4)) {
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 4)) {
     if (!DNA_struct_elem_find(fd->filesdna, "Object", "float", "lodfactor")) {
-      LISTBASE_FOREACH (Object *, object, &main->objects) {
+      LISTBASE_FOREACH (Object *, object, &bmain->objects) {
         object->lodfactor = 1.0f;
       }
     }
     if (!DNA_struct_elem_find(fd->filesdna, "Camera", "float", "lodfactor")) {
-      LISTBASE_FOREACH (Camera *, camera, &main->cameras) {
+      LISTBASE_FOREACH (Camera *, camera, &bmain->cameras) {
         camera->lodfactor = 1.0f;
       }
     }
   }
 
-  if (!MAIN_VERSION_UPBGE_ATLEAST(main, 30, 5)) {
-    LISTBASE_FOREACH (Scene *, scene, &main->scenes) {
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 5)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       scene->eevee.smaa_quality = SCE_EEVEE_SMAA_PRESET_HIGH;
     }
   }

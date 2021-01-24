@@ -193,32 +193,6 @@ static void object_init_data(ID *id)
   ob->trackflag = OB_POSY;
   ob->upflag = OB_POSZ;
 
-  /* Game engine defaults*/
-  ob->mass = ob->inertia = 1.0f;
-  ob->formfactor = 0.4f;
-  ob->damping = 0.04f;
-  ob->rdamping = 0.1f;
-  ob->anisotropicFriction[0] = 1.0f;
-  ob->anisotropicFriction[1] = 1.0f;
-  ob->anisotropicFriction[2] = 1.0f;
-  ob->gameflag = OB_PROP | OB_COLLISION;
-  ob->gameflag2 = 0;
-  ob->margin = 0.04f;
-  ob->friction = 0.5;
-  ob->init_state = 1;
-  ob->state = 1;
-  ob->obstacleRad = 1.0f;
-  ob->step_height = 0.15f;
-  ob->jump_speed = 10.0f;
-  ob->fall_speed = 55.0f;
-  ob->max_jumps = 1;
-  ob->max_slope = M_PI_2;
-  ob->col_group = 0x01;
-  ob->col_mask = 0xffff;
-  ob->ccd_motion_threshold = 1.0f;
-  ob->ccd_swept_sphere_radius = 0.9f;
-  ob->lodfactor = 1.0f;
-
   /* Animation Visualization defaults */
   animviz_settings_init(&ob->avs);
 }

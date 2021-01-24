@@ -174,6 +174,57 @@
     .flag = PHYS_GLOBAL_GRAVITY, \
   }
 
+#define _DNA_DEFAULT_RecastData \
+  { \
+    .cellsize = 0.3f, \
+    .cellheight = 0.2f, \
+    .agentmaxslope = M_PI_4, \
+    .agentmaxclimb = 0.9f, \
+    .agentheight = 2.0f, \
+    .agentradius = 0.6f, \
+    .edgemaxlen = 12.0f, \
+    .edgemaxerror = 1.3f, \
+    .regionminsize = 8.0f, \
+    .regionmergesize = 20.0f, \
+    .vertsperpoly = 6, \
+    .detailsampledist = 6.0f, \
+    .detailsamplemaxerror = 1.0f, \
+    .partitioning = RC_PARTITION_WATERSHED, \
+  }
+
+#define _DNA_DEFAULT_GameData \
+  { \
+    .stereoflag = STEREO_NOSTEREO, \
+    .stereomode = STEREO_ANAGLYPH, \
+    .eyeseparation = 0.10, \
+    .xplay = 1280, \
+    .yplay = 720, \
+    .freqplay = 60, \
+    .depth = 32, \
+    .gravity = 9.8f, \
+    .physicsEngine = WOPHY_BULLET, \
+    .occlusionRes = 128, \
+    .ticrate = 60, \
+    .maxlogicstep = 5, \
+    .physubstep = 1, \
+    .maxphystep = 5, \
+    .timeScale = 1.0f, \
+    .lineardeactthreshold = 0.8f, \
+    .angulardeactthreshold = 1.0f, \
+    .deactivationtime = 2.0f, \
+    .erp = 0.2f, \
+    .erp2 = 0.8f, \
+    .cfm = 0.0f, \
+    .obstacleSimulation = OBSTSIMULATION_NONE, \
+    .levelHeight = 2.0f, \
+    .exitkey = 218, \
+    .flag = GAME_USE_UNDO, \
+    .lodflag = SCE_LOD_USE_HYST, \
+    .scehysteresis = 10, \
+    .pythonkeys = {212, 217, 213, 116}, \
+    .recastData = _DNA_DEFAULT_RecastData, \
+  }
+
 #define _DNA_DEFAULT_SceneEEVEE \
   { \
     .gi_diffuse_bounces = 3, \
@@ -251,6 +302,9 @@
     .safe_areas = _DNA_DEFAULT_DisplaySafeAreas, \
  \
     .eevee = _DNA_DEFAULT_SceneEEVEE, \
+ \
+    .gm = _DNA_DEFAULT_GameData, \
+ \
   }
 
 /** \} */
