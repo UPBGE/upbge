@@ -140,6 +140,9 @@ void register_node_type_sh_bump(void);
 void register_node_type_sh_tex_ies(void);
 void register_node_type_sh_tex_white_noise(void);
 
+/* UPBGE */
+void register_node_type_sh_sprites_animation(void);
+
 void register_node_type_sh_custom_group(bNodeType *ntype);
 
 #ifdef __cplusplus

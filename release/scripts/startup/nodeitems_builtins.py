@@ -295,6 +295,9 @@ shader_node_categories = [
         NodeItem("NodeFrame"),
         NodeItem("NodeReroute"),
     ]),
+    ShaderNodeCategory("SH_NEW_UPBGE", "UPBGE", items=[
+        NodeItem("ShaderNodeSpritesAnimation"),
+    ]),
 ]
 
 compositor_node_categories = [

@@ -4672,6 +4672,9 @@ static void registerShaderNodes(void)
   register_node_type_sh_tex_pointdensity();
   register_node_type_sh_tex_ies();
   register_node_type_sh_tex_white_noise();
+
+  /* Game Engine transition */
+  register_node_type_sh_sprites_animation();
 }
 
 static void registerTextureNodes(void)
