@@ -1803,7 +1803,7 @@ static void do_versions_seq_set_cache_defaults(Editing *ed)
 }
 
 /* NOLINTNEXTLINE: readability-function-size */
-void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain)
+void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *bmain)
 {
   bool use_collection_compat_28 = true;
 
