@@ -95,8 +95,9 @@ static std::map<SCA_IInputDevice::SCA_EnumInputs, std::pair<char, char>> createK
   map[SCA_IInputDevice::PAD5] = std::make_pair('5', '5');
   map[SCA_IInputDevice::PAD6] = std::make_pair('6', '6');
   map[SCA_IInputDevice::PAD7] = std::make_pair('7', '7');
-  map[SCA_IInputDevice::PAD9] = std::make_pair('8', '8');
-  map[SCA_IInputDevice::PAD0] = std::make_pair('9', '9');
+  map[SCA_IInputDevice::PAD8] = std::make_pair('8', '8');
+  map[SCA_IInputDevice::PAD9] = std::make_pair('9', '9');
+  map[SCA_IInputDevice::PAD0] = std::make_pair('0', '0');
   map[SCA_IInputDevice::PADASTERKEY] = std::make_pair('*', '*');
   map[SCA_IInputDevice::PADPERIOD] = std::make_pair('.', '.');
   map[SCA_IInputDevice::PADSLASHKEY] = std::make_pair('/', '/');
