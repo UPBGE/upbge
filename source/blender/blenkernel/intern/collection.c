@@ -1945,9 +1945,6 @@ static void scene_collections_build_array(Collection *collection, void *data)
 
 static void scene_collections_array(Scene *scene, Collection ***collections_array, int *tot)
 {
-  Collection *collection;
-  Collection **array;
-
   *collections_array = NULL;
   *tot = 0;
 
@@ -1955,7 +1952,7 @@ static void scene_collections_array(Scene *scene, Collection ***collections_arra
     return;
   }
 
-  collection = scene->master_collection;
+  Collection *collection = scene->master_collection;
   BLI_assert(collection != NULL);
   scene_collection_callback(collection, scene_collections_count, tot);
 
@@ -1963,7 +1960,8 @@ static void scene_collections_array(Scene *scene, Collection ***collections_arra
     return;
   }
 
-  *collections_array = array = MEM_mallocN(sizeof(Collection *) * (*tot), "CollectionArray");
+  Collection **array = MEM_mallocN(sizeof(Collection *) * (*tot), "CollectionArray");
+  *collections_array = array;
   scene_collection_callback(collection, scene_collections_build_array, &array);
 }
 

@@ -524,6 +524,9 @@ geometry_node_categories = [
         NodeItem("GeometryNodeRotatePoints"),
         NodeItem("GeometryNodeAlignRotationToVector"),
     ]),
+    GeometryNodeCategory("GEO_VOLUME", "Volume", items=[
+        NodeItem("GeometryNodePointsToVolume"),
+    ]),
     GeometryNodeCategory("GEO_UTILITIES", "Utilities", items=[
         NodeItem("ShaderNodeMapRange"),
         NodeItem("ShaderNodeClamp"),
