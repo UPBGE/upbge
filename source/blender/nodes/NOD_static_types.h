@@ -133,6 +133,9 @@ DefNode(ShaderNode,     SH_NODE_TEX_IES,            def_sh_tex_ies,         "TEX
 DefNode(ShaderNode,     SH_NODE_TEX_WHITE_NOISE,    def_sh_tex_white_noise, "TEX_WHITE_NOISE",    TexWhiteNoise,    "White Noise",       ""       )
 DefNode(ShaderNode,     SH_NODE_OUTPUT_AOV,         def_sh_output_aov,      "OUTPUT_AOV",         OutputAOV,        "AOV Output",        ""       )
 
+/* UPBGE*/
+DefNode(ShaderNode,     SH_NODE_SPRITES_ANIMATION,  0,                      "SPRITES_ANIMATION",  SpritesAnimation, "Sprites Animation", ""       )
+
 DefNode(CompositorNode, CMP_NODE_VIEWER,         def_cmp_viewer,         "VIEWER",         Viewer,           "Viewer",            ""              )
 DefNode(CompositorNode, CMP_NODE_RGB,            0,                      "RGB",            RGB,              "RGB",               ""              )
 DefNode(CompositorNode, CMP_NODE_VALUE,          0,                      "VALUE",          Value,            "Value",             ""              )

@@ -97,6 +97,7 @@ extern char datatoc_gpu_shader_material_separate_rgb_glsl[];
 extern char datatoc_gpu_shader_material_separate_xyz_glsl[];
 extern char datatoc_gpu_shader_material_set_glsl[];
 extern char datatoc_gpu_shader_material_shader_to_rgba_glsl[];
+extern char datatoc_gpu_shader_material_sprites_animation_glsl[]; // UPBGE
 extern char datatoc_gpu_shader_material_squeeze_glsl[];
 extern char datatoc_gpu_shader_material_subsurface_scattering_glsl[];
 extern char datatoc_gpu_shader_material_tangent_glsl[];
@@ -579,6 +580,12 @@ static GPUMaterialLibrary gpu_shader_material_world_normals_library = {
     .dependencies = {&gpu_shader_material_texture_coordinates_library, NULL},
 };
 
+/* UPBGE */
+static GPUMaterialLibrary gpu_shader_material_sprites_animation_library = {
+    .code = datatoc_gpu_shader_material_sprites_animation_glsl,
+    .dependencies = {NULL},
+};
+
 static GPUMaterialLibrary *gpu_material_libraries[] = {
     &gpu_shader_material_math_util_library,
     &gpu_shader_material_color_util_library,
@@ -638,6 +645,7 @@ static GPUMaterialLibrary *gpu_material_libraries[] = {
     &gpu_shader_material_separate_xyz_library,
     &gpu_shader_material_set_library,
     &gpu_shader_material_shader_to_rgba_library,
+    &gpu_shader_material_sprites_animation_library, // UPBGE
     &gpu_shader_material_squeeze_library,
     &gpu_shader_material_subsurface_scattering_library,
     &gpu_shader_material_tex_brick_library,
