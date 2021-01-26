@@ -384,6 +384,9 @@ extern "C" void StartKetsjiShell(struct bContext *C,
 
   RefreshContextAndScreen(C, wm_backup, win_backup, startscene);
 
+  /* ED_screen_init must be called to fix https://github.com/UPBGE/upbge/issues/1388 */
+  ED_screens_init(maggie1, wm_backup);
+
   /* Restore shading type we had before game start */
   CTX_wm_view3d(C)->shading.type = shadingTypeBackup;
 
