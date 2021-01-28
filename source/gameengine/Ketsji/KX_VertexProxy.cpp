@@ -96,8 +96,6 @@ PyMethodDef KX_VertexProxy::Methods[] = {
     {"setRGBA", (PyCFunction)KX_VertexProxy::sPySetRGBA, METH_O},
     {"getNormal", (PyCFunction)KX_VertexProxy::sPyGetNormal, METH_NOARGS},
     {"setNormal", (PyCFunction)KX_VertexProxy::sPySetNormal, METH_O},
-
-    {"getBlenderVertex", (PyCFunction)KX_VertexProxy::sPyGetBlenderVertex, METH_NOARGS},
     {nullptr, nullptr}  // Sentinel
 };
 
@@ -124,6 +122,8 @@ PyAttributeDef KX_VertexProxy::Attributes[] = {
     EXP_PYATTRIBUTE_RW_FUNCTION("color", KX_VertexProxy, pyattr_get_color, pyattr_set_color),
     EXP_PYATTRIBUTE_RW_FUNCTION("colors", KX_VertexProxy, pyattr_get_colors, pyattr_set_colors),
     EXP_PYATTRIBUTE_RW_FUNCTION("normal", KX_VertexProxy, pyattr_get_normal, pyattr_set_normal),
+
+    EXP_PYATTRIBUTE_RO_FUNCTION("blenderVertex", KX_VertexProxy, pyattr_get_blender_vertex),
 
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
@@ -219,6 +219,17 @@ PyObject *KX_VertexProxy::pyattr_get_UV(EXP_PyObjectPlus *self_v,
 {
   KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
   return PyObjectFrom(MT_Vector2(self->m_vertex->getUV(0)));
+}
+
+PyObject *KX_VertexProxy::pyattr_get_blender_vertex(EXP_PyObjectPlus *self_v,
+                                                    const EXP_PYATTRIBUTE_DEF *attrdef)
+{
+  KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
+
+  PointerRNA ptr;
+  RNA_pointer_create(nullptr, &RNA_MeshVertex, self->m_blenderVertex, &ptr);
+  PyObject *ret = pyrna_struct_CreatePyObject(&ptr);
+  return ret;
 }
 
 static int kx_vertex_proxy_get_uvs_size_cb(void *self_v)
@@ -616,7 +627,7 @@ int KX_VertexProxy::pyattr_set_normal(EXP_PyObjectPlus *self_v,
 }
 
 KX_VertexProxy::KX_VertexProxy(RAS_IDisplayArray *array, RAS_IVertex *vertex, MVert *blenderVertex)
-    : m_vertex(vertex), m_array(array), m_blenderVertex(blenderVertex)
+    : m_array(array), m_vertex(vertex), m_blenderVertex(blenderVertex)
 {
 }
 
@@ -734,14 +745,6 @@ PyObject *KX_VertexProxy::PySetUV2(PyObject *args)
     m_array->AppendModifiedFlag(RAS_IDisplayArray::UVS_MODIFIED);
   }
   Py_RETURN_NONE;
-}
-
-PyObject *KX_VertexProxy::PyGetBlenderVertex()
-{
-  PointerRNA ptr;
-  RNA_pointer_create(nullptr, &RNA_MeshVertex, m_blenderVertex, &ptr);
-  PyObject *ret = pyrna_struct_CreatePyObject(&ptr);
-  return ret;
 }
 
 #endif  // WITH_PYTHON

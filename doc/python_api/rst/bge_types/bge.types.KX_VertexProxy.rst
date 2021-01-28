@@ -115,6 +115,12 @@ base class --- :class:`SCA_IObject`
 
       :type: float
 
+   .. attribute:: blenderVertex
+
+      The blender vertex (MVert) corresponding to this KX_VertexProxy.
+
+      :type: MVert
+
    .. method:: getXYZ()
 
       Gets the position of this vertex.

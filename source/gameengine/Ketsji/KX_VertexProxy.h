@@ -44,9 +44,9 @@ class KX_VertexProxy : public EXP_Value {
 
   protected :
 
+  RAS_IDisplayArray *m_array;
   RAS_IVertex *m_vertex;
   MVert *m_blenderVertex;
-  RAS_IDisplayArray *m_array;
 
  public:
   KX_VertexProxy(RAS_IDisplayArray *array, RAS_IVertex *vertex, MVert *blenderVertex);
@@ -127,6 +127,8 @@ class KX_VertexProxy : public EXP_Value {
                             const EXP_PYATTRIBUTE_DEF *attrdef,
                             PyObject *value);
 
+  static PyObject *pyattr_get_blender_vertex(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+
   EXP_PYMETHOD_NOARGS(KX_VertexProxy, GetXYZ);
   EXP_PYMETHOD_O(KX_VertexProxy, SetXYZ);
   EXP_PYMETHOD_NOARGS(KX_VertexProxy, GetUV1);
@@ -139,8 +141,6 @@ class KX_VertexProxy : public EXP_Value {
   EXP_PYMETHOD_O(KX_VertexProxy, SetRGBA);
   EXP_PYMETHOD_NOARGS(KX_VertexProxy, GetNormal);
   EXP_PYMETHOD_O(KX_VertexProxy, SetNormal);
-
-  EXP_PYMETHOD_NOARGS(KX_VertexProxy, GetBlenderVertex);
 };
 
 #endif  // WITH_PYTHON
