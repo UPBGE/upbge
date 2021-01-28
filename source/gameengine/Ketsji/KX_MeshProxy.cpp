@@ -33,12 +33,16 @@
 
 #  include "KX_MeshProxy.h"
 
+#  include "BKE_context.h"
+#  include "depsgraph/DEG_depsgraph_query.h"
 #  include "DNA_mesh_types.h"
 #  include "DNA_meshdata_types.h"
 
 #  include "EXP_ListWrapper.h"
 #  include "EXP_PyObjectPlus.h"
 #  include "KX_BlenderMaterial.h"
+#  include "KX_Globals.h"
+#  include "KX_KetsjiEngine.h"
 #  include "KX_PolyProxy.h"
 #  include "KX_PyMath.h"
 #  include "KX_Scene.h"
@@ -193,7 +197,10 @@ PyObject *KX_MeshProxy::PyGetVertex(PyObject *args, PyObject *kwds)
 
   RAS_VertexInfo *info = &array->GetVertexInfo(vertexindex);
 
-  MVert *mvert = m_meshobj->GetOrigMesh()->mvert;
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  Mesh *me_eval = (Mesh *)DEG_get_evaluated_id(depsgraph, &m_meshobj->GetOrigMesh()->id);
+  MVert *mvert = me_eval->mvert;
   MVert *mv = &mvert[info->getOrigIndex()];
 
   return (new KX_VertexProxy(array, vertex, mv))->NewProxy(true);
