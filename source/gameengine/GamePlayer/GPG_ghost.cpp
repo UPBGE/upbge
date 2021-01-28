@@ -938,8 +938,30 @@ int main(int argc,
 #endif
   UI_theme_init_default();
 
-  UserDef *user_def = BKE_blendfile_userdef_from_defaults();
-  BKE_blender_userdef_data_set_and_free(user_def);
+  /* Try to load existing user preferences from config folder:
+   * Either from exported Game folder, either from blender userprefs file
+   */
+  char filepath_startup[FILE_MAX] = "";
+  char filepath_userdef[FILE_MAX] = "";
+  UserDef *userdef = nullptr;
+
+  const char *const cfgdir = BKE_appdir_folder_id(BLENDER_USER_CONFIG, NULL);
+  if (cfgdir) {
+    BLI_path_join(filepath_startup, sizeof(filepath_startup), cfgdir, BLENDER_STARTUP_FILE, NULL);
+    BLI_path_join(filepath_userdef, sizeof(filepath_startup), cfgdir, BLENDER_USERPREF_FILE, NULL);
+
+    /* load preferences */
+    if (BLI_exists(filepath_userdef)) {
+      userdef = BKE_blendfile_userdef_read(filepath_userdef, NULL);
+    }
+  }
+
+  if (!userdef) {
+    userdef = BKE_blendfile_userdef_from_defaults();
+  }
+
+  BKE_blender_userdef_data_set_and_free(userdef);
+  userdef = nullptr;
 
   BKE_sound_init_once();
 
@@ -1635,12 +1657,6 @@ int main(int argc,
   }
 
   DRW_engines_free();
-
-  if ((U.pref_flag & USER_PREF_FLAG_SAVE) && ((G.f & G_FLAG_USERPREF_NO_SAVE_ON_EXIT) == 0)) {
-    if (U.runtime.is_dirty) {
-      BKE_blendfile_userdef_write_all(NULL);
-    }
-  }
 
   const char *imports[] = {"addon_utils", NULL};
   BPY_run_string_eval(C, imports, "addon_utils.disable_all()");
