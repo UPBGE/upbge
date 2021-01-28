@@ -941,7 +941,6 @@ int main(int argc,
   /* Try to load existing user preferences from config folder:
    * Either from exported Game folder, either from blender userprefs file
    */
-  char filepath_startup[FILE_MAX] = "";
   char filepath_userdef[FILE_MAX] = "";
   UserDef *userdef = nullptr;
 
