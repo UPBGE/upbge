@@ -905,7 +905,7 @@ static void ui_but_update_old_active_from_new(uiBut *oldbut, uiBut *but)
   BLI_assert(oldbut->active);
 
   /* flags from the buttons we want to refresh, may want to add more here... */
-  const int flag_copy = UI_BUT_REDALERT | UI_HAS_ICON;
+  const int flag_copy = UI_BUT_REDALERT | UI_HAS_ICON | UI_SELECT_DRAW;
   const int drawflag_copy = 0; /* None currently. */
 
   /* still stuff needs to be copied */
@@ -1106,6 +1106,11 @@ bool UI_but_active_only(const bContext *C, ARegion *region, uiBlock *block, uiBu
  */
 bool UI_block_active_only_flagged_buttons(const bContext *C, ARegion *region, uiBlock *block)
 {
+
+  /* Running this command before end-block has run, means buttons that open menus
+   * wont have those menus correctly positioned, see T83539. */
+  BLI_assert(block->endblock != 0);
+
   bool done = false;
   LISTBASE_FOREACH (uiBut *, but, &block->buttons) {
     if (but->flag & UI_BUT_ACTIVATE_ON_INIT) {
