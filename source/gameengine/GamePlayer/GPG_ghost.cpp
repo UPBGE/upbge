@@ -945,14 +945,13 @@ int main(int argc,
   char filepath_userdef[FILE_MAX] = "";
   UserDef *userdef = nullptr;
 
-  const char *const cfgdir = BKE_appdir_folder_id(BLENDER_USER_CONFIG, NULL);
+  const char *const cfgdir = BKE_appdir_folder_id(BLENDER_USER_CONFIG, nullptr);
   if (cfgdir) {
-    BLI_path_join(filepath_startup, sizeof(filepath_startup), cfgdir, BLENDER_STARTUP_FILE, NULL);
-    BLI_path_join(filepath_userdef, sizeof(filepath_startup), cfgdir, BLENDER_USERPREF_FILE, NULL);
+    BLI_path_join(filepath_userdef, sizeof(filepath_userdef), cfgdir, BLENDER_USERPREF_FILE, nullptr);
 
     /* load preferences */
     if (BLI_exists(filepath_userdef)) {
-      userdef = BKE_blendfile_userdef_read(filepath_userdef, NULL);
+      userdef = BKE_blendfile_userdef_read(filepath_userdef, nullptr);
     }
   }
 
