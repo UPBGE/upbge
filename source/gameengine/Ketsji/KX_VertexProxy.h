@@ -37,15 +37,19 @@
 
 class RAS_IVertex;
 class RAS_IDisplayArray;
+struct MVert;
 
 class KX_VertexProxy : public EXP_Value {
   Py_Header
 
-      protected : RAS_IVertex *m_vertex;
+  protected :
+
+  RAS_IVertex *m_vertex;
+  MVert *m_blenderVertex;
   RAS_IDisplayArray *m_array;
 
  public:
-  KX_VertexProxy(RAS_IDisplayArray *array, RAS_IVertex *vertex);
+  KX_VertexProxy(RAS_IDisplayArray *array, RAS_IVertex *vertex, MVert *blenderVertex);
   virtual ~KX_VertexProxy();
 
   RAS_IVertex *GetVertex();
@@ -135,6 +139,8 @@ class KX_VertexProxy : public EXP_Value {
   EXP_PYMETHOD_O(KX_VertexProxy, SetRGBA);
   EXP_PYMETHOD_NOARGS(KX_VertexProxy, GetNormal);
   EXP_PYMETHOD_O(KX_VertexProxy, SetNormal);
+
+  EXP_PYMETHOD_NOARGS(KX_VertexProxy, GetBlenderVertex);
 };
 
 #endif  // WITH_PYTHON

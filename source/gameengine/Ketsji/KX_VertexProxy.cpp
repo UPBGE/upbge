@@ -41,6 +41,10 @@
 #  include "RAS_IDisplayArray.h"
 #  include "RAS_IVertex.h"
 
+#  include "RNA_access.h"
+#  include "RNA_types.h"
+#  include "bpy_rna.h"
+
 PyTypeObject KX_VertexProxy::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_VertexProxy",
                                      sizeof(EXP_PyObjectPlus_Proxy),
                                      0,
@@ -92,6 +96,8 @@ PyMethodDef KX_VertexProxy::Methods[] = {
     {"setRGBA", (PyCFunction)KX_VertexProxy::sPySetRGBA, METH_O},
     {"getNormal", (PyCFunction)KX_VertexProxy::sPyGetNormal, METH_NOARGS},
     {"setNormal", (PyCFunction)KX_VertexProxy::sPySetNormal, METH_O},
+
+    {"getBlenderVertex", (PyCFunction)KX_VertexProxy::sPyGetBlenderVertex, METH_NOARGS},
     {nullptr, nullptr}  // Sentinel
 };
 
@@ -609,8 +615,8 @@ int KX_VertexProxy::pyattr_set_normal(EXP_PyObjectPlus *self_v,
   return PY_SET_ATTR_FAIL;
 }
 
-KX_VertexProxy::KX_VertexProxy(RAS_IDisplayArray *array, RAS_IVertex *vertex)
-    : m_vertex(vertex), m_array(array)
+KX_VertexProxy::KX_VertexProxy(RAS_IDisplayArray *array, RAS_IVertex *vertex, MVert *blenderVertex)
+    : m_vertex(vertex), m_array(array), m_blenderVertex(blenderVertex)
 {
 }
 
@@ -728,6 +734,14 @@ PyObject *KX_VertexProxy::PySetUV2(PyObject *args)
     m_array->AppendModifiedFlag(RAS_IDisplayArray::UVS_MODIFIED);
   }
   Py_RETURN_NONE;
+}
+
+PyObject *KX_VertexProxy::PyGetBlenderVertex()
+{
+  PointerRNA ptr;
+  RNA_pointer_create(nullptr, &RNA_MeshVertex, m_blenderVertex, &ptr);
+  PyObject *ret = pyrna_struct_CreatePyObject(&ptr);
+  return ret;
 }
 
 #endif  // WITH_PYTHON

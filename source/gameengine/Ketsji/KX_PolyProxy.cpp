@@ -33,6 +33,9 @@
 
 #  include "KX_PolyProxy.h"
 
+#  include "DNA_mesh_types.h"
+#  include "DNA_meshdata_types.h"
+
 #  include "EXP_ListWrapper.h"
 #  include "KX_BlenderMaterial.h"
 #  include "KX_MeshProxy.h"
@@ -221,7 +224,13 @@ static PyObject *kx_poly_proxy_get_vertices_item_cb(void *self_v, int index)
   RAS_Polygon *polygon = self->GetPolygon();
   int vertindex = polygon->GetVertexOffset(index);
   RAS_IDisplayArray *array = polygon->GetDisplayArray();
-  KX_VertexProxy *vert = new KX_VertexProxy(array, array->GetVertex(vertindex));
+
+  RAS_VertexInfo *info = &array->GetVertexInfo(vertindex);
+
+  MVert *mvert = self->GetMeshProxy()->GetMesh()->GetOrigMesh()->mvert;
+  MVert *mv = &mvert[info->getOrigIndex()];
+
+  KX_VertexProxy *vert = new KX_VertexProxy(array, array->GetVertex(vertindex), mv);
 
   return vert->GetProxy();
 }

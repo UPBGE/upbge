@@ -33,6 +33,9 @@
 
 #  include "KX_MeshProxy.h"
 
+#  include "DNA_mesh_types.h"
+#  include "DNA_meshdata_types.h"
+
 #  include "EXP_ListWrapper.h"
 #  include "EXP_PyObjectPlus.h"
 #  include "KX_BlenderMaterial.h"
@@ -187,7 +190,13 @@ PyObject *KX_MeshProxy::PyGetVertex(PyObject *args, PyObject *kwds)
 
   RAS_IVertex *vertex = array->GetVertex(vertexindex);
 
-  return (new KX_VertexProxy(array, vertex))->NewProxy(true);
+
+  RAS_VertexInfo *info = &array->GetVertexInfo(vertexindex);
+
+  MVert *mvert = m_meshobj->GetOrigMesh()->mvert;
+  MVert *mv = &mvert[info->getOrigIndex()];
+
+  return (new KX_VertexProxy(array, vertex, mv))->NewProxy(true);
 }
 
 PyObject *KX_MeshProxy::PyGetPolygon(PyObject *args, PyObject *kwds)
