@@ -391,7 +391,6 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
   void RemoveObject(KX_GameObject *gameobj);
   void RemoveDupliGroup(KX_GameObject *gameobj);
   void DelayedRemoveObject(KX_GameObject *gameobj);
-  void RemoveObjectSpawn(KX_GameObject *groupobj);
 
   bool NewRemoveObject(KX_GameObject *gameobj);
   void ReplaceMesh(KX_GameObject *gameobj, RAS_MeshObject *mesh, bool use_gfx, bool use_phys);
