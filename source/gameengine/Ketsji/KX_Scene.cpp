@@ -1705,43 +1705,6 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
   }
 }
 
-void KX_Scene::RemoveObjectSpawn(KX_GameObject *groupobj)
-{
-  Object *blgroupobj = groupobj->GetBlenderObject();
-  Collection *group;
-  bool spawn = false;
-
-  if (!groupobj->GetSGNode() || !groupobj->IsDupliGroup())
-    return;
-
-  group = blgroupobj->instance_collection;
-  FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (group, blenderobj) {
-    if (blgroupobj == blenderobj)
-      // this check is also in group_duplilist()
-      continue;
-
-    KX_GameObject *gameobj = (KX_GameObject *)m_logicmgr->FindGameObjByBlendObj(blenderobj);
-    if (gameobj == nullptr) {
-      // this object has not been converted!!!
-      // Should not happen as dupli group are created automatically
-      continue;
-    }
-
-    if (group->flag & COLLECTION_IS_SPAWNED) {
-      if (!BKE_collection_has_object(group, blenderobj)) {
-        // old method to spawn in an empty + all group members
-        continue;
-      }
-      spawn = true;
-    }
-  }
-  FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
-
-  if (spawn) {
-    NewRemoveObject(groupobj);
-  }
-}
-
 KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject,
                                           KX_GameObject *referenceobject,
                                           float lifespan)
