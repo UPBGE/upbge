@@ -2296,10 +2296,16 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
   CcdPhysicsController *c1 = (CcdPhysicsController *)ctrl1;
 
   btRigidBody *rb0 = c0 ? c0->GetRigidBody() : nullptr;
-  btRigidBody *rb1 = c1 && !replicate_dupli ? c1->GetRigidBody() : nullptr;
+  btRigidBody *rb1 = c1 ? c1->GetRigidBody() : nullptr;
 
   bool rb0static = rb0 ? rb0->isStaticOrKinematicObject() : true;
   bool rb1static = rb1 ? rb1->isStaticOrKinematicObject() : true;
+
+  if (replicate_dupli) {
+    if (rb1) {
+      rb1->setCenterOfMassTransform(c1->GetTransformFromMotionState(c1->GetMotionState()));
+    }
+  }
 
   btCollisionObject *colObj0 = c0->GetCollisionObject();
   if (!colObj0) {
