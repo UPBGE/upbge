@@ -392,7 +392,7 @@ static void load_datablocks(Main *main_tmp, BlendHandle *bpy_openlib, const char
   LinkNode *names = nullptr;
 
   int totnames_dummy;
-  names = BLO_blendhandle_get_datablock_names(bpy_openlib, idcode, &totnames_dummy);
+  names = BLO_blendhandle_get_datablock_names(bpy_openlib, idcode, false, &totnames_dummy);
 
   int i = 0;
   LinkNode *n = names;
