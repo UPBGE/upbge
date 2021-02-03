@@ -26,10 +26,6 @@
 
 #include "BL_Action.h"
 
-#include "BL_ArmatureObject.h"
-#include "BL_IpoConvert.h"
-#include "CM_Message.h"
-
 #include "BKE_action.h"
 #include "BKE_context.h"
 #include "BKE_modifier.h"
@@ -37,11 +33,15 @@
 #include "BKE_object.h"
 #include "BLI_listbase.h"
 #include "DEG_depsgraph_query.h"
+#include "ED_node.h"
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_node_types.h"
-#include "ED_node.h"
 #include "RNA_access.h"
+
+#include "BL_ArmatureObject.h"
+#include "BL_IpoConvert.h"
+#include "CM_Message.h"
 
 BL_Action::BL_Action(class KX_GameObject *gameobj)
     : m_action(nullptr),
