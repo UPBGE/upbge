@@ -2286,7 +2286,8 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
                                                          float axis2X,
                                                          float axis2Y,
                                                          float axis2Z,
-                                                         int flags)
+                                                         int flags,
+                                                         bool replicate_dupli)
 {
   bool disableCollisionBetweenLinkedBodies = (0 !=
                                               (flags & CCD_CONSTRAINT_DISABLE_LINKED_COLLISION));
@@ -2299,6 +2300,12 @@ PHY_IConstraint *CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsContr
 
   bool rb0static = rb0 ? rb0->isStaticOrKinematicObject() : true;
   bool rb1static = rb1 ? rb1->isStaticOrKinematicObject() : true;
+
+  if (replicate_dupli) {
+    if (rb1) {
+      rb1->setCenterOfMassTransform(c1->GetTransformFromMotionState(c1->GetMotionState()));
+    }
+  }
 
   btCollisionObject *colObj0 = c0->GetCollisionObject();
   if (!colObj0) {
@@ -3241,7 +3248,8 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter *converter,
 
 void CcdPhysicsEnvironment::SetupObjectConstraints(KX_GameObject *obj_src,
                                                    KX_GameObject *obj_dest,
-                                                   bRigidBodyJointConstraint *dat)
+                                                   bRigidBodyJointConstraint *dat,
+                                                   bool replicate_dupli)
 {
   PHY_IPhysicsController *phy_src = obj_src->GetPhysicsController();
   PHY_IPhysicsController *phy_dest = obj_dest->GetPhysicsController();
@@ -3272,7 +3280,8 @@ void CcdPhysicsEnvironment::SetupObjectConstraints(KX_GameObject *obj_src,
                                                            (float)(axis2.x() * scale.x()),
                                                            (float)(axis2.y() * scale.y()),
                                                            (float)(axis2.z() * scale.z()),
-                                                           dat->flag);
+                                                           dat->flag,
+                                                           replicate_dupli);
 
   /* PHY_POINT2POINT_CONSTRAINT = 1,
    * PHY_LINEHINGE_CONSTRAINT = 2,
