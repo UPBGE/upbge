@@ -1761,7 +1761,7 @@ wmWindow *ED_screen_window_find(const bScreen *screen, const wmWindowManager *wm
  * It is used to set some SCREEN CONTEXT variables which are needed to run some
  * scripts using bpy operators from blenderplayer.
  */
-void ED_screen_refresh_blenderplayer(wmWindowManager *wm, wmWindow *win)
+void ED_screen_refresh_blenderplayer(wmWindow *win)
 {
   bScreen *screen = WM_window_get_active_screen(win);
 

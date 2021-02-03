@@ -459,7 +459,7 @@ enum {
 };
 
 /* Game engine transition */
-void ED_screen_refresh_blenderplayer(struct wmWindowManager *wm, struct wmWindow *win);
+void ED_screen_refresh_blenderplayer(struct wmWindow *win);
 /**************************/
 
 #ifdef __cplusplus

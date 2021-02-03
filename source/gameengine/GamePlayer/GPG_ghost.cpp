@@ -1573,7 +1573,7 @@ int main(int argc,
             wm_window_ghostwindow_blenderplayer_ensure(wm, win, window, first_time_window);
 
             /* The following is needed to run some bpy operators in blenderplayer */
-            ED_screen_refresh_blenderplayer(wm, win);
+            ED_screen_refresh_blenderplayer(win);
 
             if (first_time_window) {
               /* We need to have first an ogl context bound and it's done
