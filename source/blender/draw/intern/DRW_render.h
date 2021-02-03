@@ -61,7 +61,7 @@
 
 #include "RE_engine.h"
 
-#include "../depsgraph/DEG_depsgraph.h"
+#include "DEG_depsgraph.h"
 
 struct GPUBatch;
 struct GPUMaterial;

@@ -44,8 +44,7 @@ set(INC
   ../../SceneGraph
   ../../../blender/blenkernel
   ../../../blender/blenlib
-  ../../../blender/draw/engines/eevee/
-  ../../../blender/gpu
+  ../../../blender/depsgraph
   ../../../blender/makesdna
   ../../../blender/makesrna
   ../../../../intern/guardedalloc

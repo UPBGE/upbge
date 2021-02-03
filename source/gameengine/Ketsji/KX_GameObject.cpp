@@ -42,12 +42,11 @@
 #include "BKE_mball.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
+#include "DEG_depsgraph_query.h"
 #include "DRW_render.h"
-#include "bpy_rna.h"
-#include "depsgraph/DEG_depsgraph_query.h"
 #include "eevee_private.h"
-#include "windowmanager/WM_api.h"
-#include "windowmanager/WM_types.h"
+#include "WM_api.h"
+#include "WM_types.h"
 
 #include "BL_Action.h"
 #include "BL_ActionManager.h"
@@ -73,6 +72,7 @@
 #include "SG_Controller.h"
 
 #ifdef WITH_PYTHON
+#  include "bpy_rna.h"
 #  include "EXP_PythonCallBack.h"
 #  include "python_utildefines.h"
 #endif

@@ -36,6 +36,7 @@ set(INC
   ../../blender/blenlib
   ../../blender/blenkernel
   ../../blender/blentranslation
+  ../../blender/depsgraph
   ../../blender/draw
   ../../blender/draw/intern
   ../../blender/draw/engines/eevee/

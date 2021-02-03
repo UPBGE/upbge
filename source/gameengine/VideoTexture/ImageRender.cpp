@@ -32,15 +32,15 @@
 
 #include "ImageRender.h"
 
+#include "DEG_depsgraph_query.h"
+#include "GPU_viewport.h"
+#include "eevee_private.h"
+
 #include "KX_Globals.h"
 #include "RAS_IVertex.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
 #include "Texture.h"
-
-#include "../depsgraph/DEG_depsgraph_query.h"
-#include "GPU_viewport.h"
-#include "eevee_private.h"
 
 ExceptionID SceneInvalid, CameraInvalid, ObserverInvalid, FrameBufferInvalid;
 ExceptionID MirrorInvalid, MirrorSizeInvalid, MirrorNormalInvalid, MirrorHorizontal,

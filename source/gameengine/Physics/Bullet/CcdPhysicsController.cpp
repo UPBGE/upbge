@@ -25,13 +25,13 @@
 
 #include "CcdPhysicsController.h"
 
-#include "../depsgraph/DEG_depsgraph_query.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_context.h"
 #include "BKE_layer.h"
 #include "BKE_mesh_runtime.h"
 #include "BKE_object.h"
 #include "BKE_scene.h"
+#include "DEG_depsgraph_query.h"
 #include "DNA_mesh_types.h"
 
 #include "BulletCollision/CollisionDispatch/btGhostObject.h"

@@ -38,6 +38,7 @@ set(INC
   ../../../blender/blenkernel
   ../../../blender/blenlib
   ../../../blender/blentranslation
+  ../../../blender/depsgraph
   ../../../blender/draw/intern
   ../../../blender/draw/engines/eevee/
   ../../../blender/gpu

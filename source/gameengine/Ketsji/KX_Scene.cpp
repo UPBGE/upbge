@@ -43,6 +43,7 @@
 #include "BKE_screen.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
+#include "DEG_depsgraph_query.h"
 #include "DNA_collection_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_property_types.h"
@@ -51,8 +52,7 @@
 #include "ED_view3d.h"
 #include "GPU_viewport.h"
 #include "WM_api.h"
-#include "depsgraph/DEG_depsgraph_query.h"
-#include "windowmanager/wm_draw.h"
+#include "wm_draw.h"
 
 #include "BL_BlenderConverter.h"
 #include "BL_BlenderDataConversion.h"

@@ -24,23 +24,23 @@
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	.
+  .
 )
 
 set(INC_SYS
-	../../../../intern/moto/include
+  ../../../../intern/moto/include
 )
 
 set(SRC
-	PHY_IConstraint.h
-	PHY_DynamicTypes.h
-	PHY_ICharacter.h
-	PHY_IController.h
-	PHY_IGraphicController.h
-	PHY_IMotionState.h
-	PHY_IPhysicsController.h
-	PHY_IPhysicsEnvironment.h
-	PHY_IVehicle.h
+  PHY_IConstraint.h
+  PHY_DynamicTypes.h
+  PHY_ICharacter.h
+  PHY_IController.h
+  PHY_IGraphicController.h
+  PHY_IMotionState.h
+  PHY_IPhysicsController.h
+  PHY_IPhysicsEnvironment.h
+  PHY_IVehicle.h
 )
 
 set(LIB
