@@ -178,7 +178,8 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
                                             float axis2X = 0,
                                             float axis2Y = 0,
                                             float axis2Z = 0,
-                                            int flag = 0);
+                                            int flag = 0,
+                                            bool replicate_dupli = false);
   virtual PHY_IVehicle *CreateVehicle(PHY_IPhysicsController *ctrl);
 
   virtual void RemoveConstraintById(int constraintid, bool free);
@@ -296,7 +297,8 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
    * instances. */
   virtual void SetupObjectConstraints(KX_GameObject *obj_src,
                                       KX_GameObject *obj_dest,
-                                      bRigidBodyJointConstraint *dat);
+                                      bRigidBodyJointConstraint *dat,
+                                      bool replicate_dupli);
 
  protected:
   std::set<CcdPhysicsController *> m_controllers;

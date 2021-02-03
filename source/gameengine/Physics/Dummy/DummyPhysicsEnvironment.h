@@ -73,7 +73,8 @@ class DummyPhysicsEnvironment : public PHY_IPhysicsEnvironment {
                                             float axis2X = 0,
                                             float axis2Y = 0,
                                             float axis2Z = 0,
-                                            int flag = 0);
+                                            int flag = 0,
+                                            bool replicate_dupli = false);
   virtual PHY_IVehicle *CreateVehicle(PHY_IPhysicsController *ctrl);
 
   virtual void RemoveConstraintById(int constraintid, bool free);

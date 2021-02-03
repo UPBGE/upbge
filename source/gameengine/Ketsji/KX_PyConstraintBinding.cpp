@@ -500,7 +500,8 @@ static PyObject *gPyCreateConstraint(PyObject *self, PyObject *args, PyObject *k
           (float)axis2.x(),
           (float)axis2.y(),
           (float)axis2.z(),
-          flag);
+          flag,
+          false);
 
       if (!constraint) {
         return nullptr;

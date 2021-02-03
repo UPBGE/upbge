@@ -208,7 +208,8 @@ class PHY_IPhysicsEnvironment {
                                             float axis2X = 0,
                                             float axis2Y = 0,
                                             float axis2Z = 0,
-                                            int flag = 0) = 0;
+                                            int flag = 0,
+                                            bool replicate_dupli = false) = 0;
   virtual PHY_IVehicle *CreateVehicle(PHY_IPhysicsController *ctrl) = 0;
   virtual void RemoveConstraintById(int constraintid, bool free) = 0;
   virtual float GetAppliedImpulse(int constraintid)
@@ -272,7 +273,8 @@ class PHY_IPhysicsEnvironment {
    * instances. */
   virtual void SetupObjectConstraints(KX_GameObject *obj_src,
                                       KX_GameObject *obj_dest,
-                                      bRigidBodyJointConstraint *dat)
+                                      bRigidBodyJointConstraint *dat,
+                                      bool replicate_dupli)
   {
   }
 };

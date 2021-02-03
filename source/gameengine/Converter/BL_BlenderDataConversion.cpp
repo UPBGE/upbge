@@ -1451,7 +1451,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
       if (gotar && (gotar->GetLayer() & activeLayerBitInfo) && gotar->GetPhysicsController() &&
           (gameobj->GetLayer() & activeLayerBitInfo) && gameobj->GetPhysicsController()) {
-        physEnv->SetupObjectConstraints(gameobj, gotar, dat);
+        physEnv->SetupObjectConstraints(gameobj, gotar, dat, false);
       }
     }
   }

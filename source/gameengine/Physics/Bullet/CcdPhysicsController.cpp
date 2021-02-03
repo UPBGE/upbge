@@ -1875,7 +1875,7 @@ void CcdPhysicsController::ReplicateConstraints(KX_GameObject *replica,
       KX_GameObject *member = (*memit);
       /* If the group member is the actual target for the constraint. */
       if (dat->tar->id.name + 2 == member->GetName() && member->GetPhysicsController())
-        physEnv->SetupObjectConstraints(replica, member, dat);
+        physEnv->SetupObjectConstraints(replica, member, dat, true);
     }
   }
 }
