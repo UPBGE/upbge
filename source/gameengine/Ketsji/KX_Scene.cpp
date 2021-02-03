@@ -86,9 +86,8 @@
 #include "SCA_TimeEventManager.h"
 #include "SG_Controller.h"
 
-#include "bpy_rna.h"
-
 #ifdef WITH_PYTHON
+#  include "bpy_rna.h"
 #  include "EXP_PythonCallBack.h"
 #endif
 

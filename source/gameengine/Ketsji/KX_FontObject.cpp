@@ -38,8 +38,6 @@
 
 #include "EXP_StringValue.h"
 
-#define MAX_BGE_TEXT_LEN 1024  // eevee
-
 static std::vector<std::string> split_string(std::string str)
 {
   std::vector<std::string> text = std::vector<std::string>();
@@ -110,7 +108,7 @@ void KX_FontObject::UpdateCurveText(std::string newText)  // eevee
   cu->len = BLI_strlen_utf8(newText.c_str());
   cu->strinfo = (CharInfo *)MEM_callocN((cu->len_char32 + 4) * sizeof(CharInfo), "texteditinfo");
   cu->str = (char *)MEM_mallocN(cu->len + sizeof(wchar_t), "str");
-  BLI_strncpy(cu->str, newText.c_str(), MAX_BGE_TEXT_LEN);
+  BLI_strncpy(cu->str, newText.c_str(), FILE_MAX);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
