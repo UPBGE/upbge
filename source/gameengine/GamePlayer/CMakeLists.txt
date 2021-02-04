@@ -57,6 +57,7 @@ set(INC
   ../../blender/render
   ../../blender/sequencer
   ../../blender/windowmanager
+  ../../blender/windowmanager/gizmo
   ../../blender/windowmanager/message_bus
   ../../../intern/clog
   ../../../intern/ghost

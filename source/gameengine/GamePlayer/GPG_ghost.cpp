@@ -114,7 +114,10 @@
 #include "WM_api.h"
 #include "wm.h"
 #include "wm_event_system.h"
-#include "windowmanager/gizmo/WM_gizmo_api.h"
+
+#include "WM_gizmo_types.h"
+
+#include "WM_gizmo_api.h"
 #include "wm_message_bus.h"
 #include "wm_surface.h"
 #include "wm_window.h"
@@ -961,6 +964,8 @@ int main(int argc,
   BKE_subdiv_init();
 #endif
 
+  BKE_subdiv_init();
+
   ED_spacemacros_init();
 
   /* The following code is done in InitGamePlayerPythonScripting */
@@ -1390,11 +1395,6 @@ int main(int argc,
 
 #ifdef WITH_PYTHON
         PyObject *globalDict = nullptr;
-#endif  // WITH_PYTHON
-
-        DRW_engines_register();
-
-#ifdef WITH_PYTHON
         initGamePlayerPythonScripting(argc, argv, C);
 #endif
         /* Set Viewport render mode and shading type for the whole runtime */

@@ -811,7 +811,6 @@ void WM_init_opengl_blenderplayer(Main *bmain, void *syshandle, wmWindow *win)
   DRW_opengl_context_create_blenderplayer(syshandle, win);
   GPU_init();
   GPU_pass_cache_init();
-  BKE_subdiv_init();
 #ifdef WITH_OPENSUBDIV
   BKE_subsurf_osd_init();
 #endif
