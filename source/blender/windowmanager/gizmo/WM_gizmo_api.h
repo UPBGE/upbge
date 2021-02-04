@@ -49,6 +49,8 @@ struct wmMsgSubscribeKey;
 struct wmMsgSubscribeValue;
 struct wmWindowManager;
 
+#include "WM_gizmo_types.h" /* UPBGE keep as first include */
+
 #include "wm_gizmo_fn.h"
 
 #ifdef __cplusplus

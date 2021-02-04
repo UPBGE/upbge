@@ -60,6 +60,7 @@
 #include "BKE_mball_tessellate.h"
 #include "BKE_modifier.h"
 #include "BKE_node.h"
+#include "BKE_particle.h"
 #include "BKE_report.h"
 #include "BKE_screen.h"
 #include "BKE_shader_fx.h"
@@ -88,6 +89,7 @@
 #include "ED_gpencil.h"
 #include "ED_keyframes_edit.h"
 #include "ED_keyframing.h"
+#include "ED_node.h"
 #include "ED_render.h"
 #include "ED_screen.h"
 #include "ED_space_api.h"
@@ -99,6 +101,7 @@
 #include "GPU_init_exit.h"
 #include "GPU_material.h"
 #include "IMB_imbuf.h"
+#include "IMB_thumbs.h"
 #include "MEM_CacheLimiterC-Api.h"
 #include "MEM_guardedalloc.h"
 #include "RE_engine.h"
@@ -111,6 +114,7 @@
 #include "WM_api.h"
 #include "wm.h"
 #include "wm_event_system.h"
+#include "windowmanager/gizmo/WM_gizmo_api.h"
 #include "wm_message_bus.h"
 #include "wm_surface.h"
 #include "wm_window.h"
@@ -799,6 +803,8 @@ int main(int argc,
 
   BlendFileData *bfd = nullptr;
 
+  /* creator.c */
+
   /* Initialize logging */
   CLG_init();
   CLG_fatal_fn_set(callback_clg_fatal);
@@ -807,9 +813,6 @@ int main(int argc,
 
   BKE_appdir_program_path_init(argv[0]);
   BKE_tempdir_init(nullptr);
-
-  // We don't use threads directly in the BGE, but we need to call this so things like
-  // freeing up GPU_Textures works correctly.
   BLI_threadapi_init();
   BLI_thread_put_process_on_fast_node();
 
@@ -820,10 +823,6 @@ int main(int argc,
   MEM_CacheLimiter_set_disabled(true);
   BKE_cachefiles_init();
   BKE_idtype_init();
-
-  BKE_appdir_init();
-  BLI_task_scheduler_init();
-  IMB_init();
 
   BKE_images_init();
   BKE_modifier_init();
@@ -837,8 +836,33 @@ int main(int argc,
 
   BKE_callback_global_init();
 
+  /* After parsing #ARG_PASS_ENVIRONMENT such as `--env-*`,
+   * since they impact `BKE_appdir` behavior. */
+  BKE_appdir_init();
+
+  /* After parsing number of threads argument. */
+  BLI_task_scheduler_init();
+
+  /* Initialize sub-systems that use `BKE_appdir.h`. */
+  IMB_init();
+
+#ifdef WITH_FFMPEG
+  /* Keep after #ARG_PASS_SETTINGS since debug flags are checked. */
+  IMB_ffmpeg_init();
+#endif
+
   RNA_init();
 
+  RE_engines_init();
+  BKE_node_system_init();
+  BKE_particle_init_rng();
+
+  BKE_sound_init_once();
+
+  // Initialize a default material for meshes without materials.
+  BKE_materials_init();
+
+  /* wm_init_exit */
   GHOST_CreateSystemPaths();
 
   BKE_addon_pref_type_init();
@@ -846,30 +870,33 @@ int main(int argc,
 
   wm_operatortype_init();
   wm_operatortypes_register();
-  wm_gizmotype_init();
-  wm_gizmogrouptype_init();
 
   WM_paneltype_init(); /* Lookup table only. */
   WM_menutype_init();
   WM_uilisttype_init();
+  wm_gizmotype_init();
+  wm_gizmogrouptype_init();
 
   ED_undosys_type_init();
 
   BKE_library_callback_free_notifier_reference_set(
-      WM_main_remove_notifier_reference); /* library.c */
+      WM_main_remove_notifier_reference);                    /* lib_id.c */
+  BKE_region_callback_free_gizmomap_set(wm_gizmomap_remove); /* screen.c */
+  BKE_region_callback_refresh_tag_gizmomap_set(WM_gizmomap_tag_refresh);
   BKE_library_callback_remap_editor_id_reference_set(
-      WM_main_remap_editor_id_reference);                     /* library.c */
+      WM_main_remap_editor_id_reference);                     /* lib_id.c */
   BKE_spacedata_callback_id_remap_set(ED_spacedata_id_remap); /* screen.c */
   DEG_editors_set_update_cb(ED_render_id_flush_update, ED_render_scene_update);
 
   ED_spacetypes_init(); /* editors/space_api/spacetype.c */
 
-  ED_file_init(); /* for fsmenu */
+  ED_node_init_butfuncs();
 
-  // Setup builtin font for BLF (mostly copied from creator.c, wm_init_exit.c and
-  // interface_style.c)
-  BLF_init();
+  BLF_init(); /* Please update source/gamengine/GamePlayer/GPG_ghost.cpp if you change this */
+
   BLT_lang_init();
+  /* Must call first before doing any '.blend' file reading,
+   * since versioning code may create new IDs... See T57066. */
   BLT_lang_set("");
 
   /* Init icons before reading .blend files for preview icons, which can
@@ -887,17 +914,91 @@ int main(int argc,
    * otherwise the versioning cannot find the default studio-light. */
   BKE_studiolight_init();
 
+  BLI_assert((G.fileflags & G_FILE_NO_UI) == 0);
+
+  /* We skip this in blenderplayer
+   * We'll just init userpreferences
+   * a bit later
+   */
+#if 0
+  wm_homefile_read(C,
+                   NULL,
+                   G.factory_startup,
+                   false,
+                   use_data,
+                   use_userdef,
+                   NULL,
+                   WM_init_state_app_template_get(),
+                   &is_factory_startup);
+
+  /* Call again to set from userpreferences... */
+  BLT_lang_set(NULL);
+#endif
+
+  ED_file_init(); /* for fsmenu */
+
+  /* That one is generated on demand, we need to be sure it's clear on init. */
+  IMB_thumb_clear_translations();
+
+  /* For WM_init_opengl and UI_init, we need to initialize later in blenderplayer pipeline */
+
+#if 0
+    if (!G.background) {
+
+#ifdef WITH_INPUT_NDOF
+    /* sets 3D mouse deadzone */
+    WM_ndof_deadzone_set(U.ndof_deadzone);
+#endif
+    WM_init_opengl();
+
+    if (!WM_platform_support_perform_checks()) {
+      exit(-1);
+    }
+
+    UI_init();
+  }
+
+  BKE_subdiv_init();
+#endif
+
   ED_spacemacros_init();
 
-  BKE_node_system_init();
+  /* The following code is done in InitGamePlayerPythonScripting */
 
-  // We load our own G_MAIN, so free the one that BKE_blender_globals_init() gives us
+#if 0
+   /* note: there is a bug where python needs initializing before loading the
+   * startup.blend because it may contain PyDrivers. It also needs to be after
+   * initializing space types and other internal data.
+   *
+   * However cant redo this at the moment. Solution is to load python
+   * before wm_homefile_read() or make py-drivers check if python is running.
+   * Will try fix when the crash can be repeated. - campbell. */
+
+#ifdef WITH_PYTHON
+  BPY_python_start(C, argc, argv);
+  BPY_python_reset(C);
+#else
+  (void)argc; /* unused */
+  (void)argv; /* unused */
+#endif
+
+  if (!G.background && !wm_start_with_console) {
+    GHOST_toggleConsole(3);
+  }
+#endif
+
+  BKE_material_copybuf_clear();
+  ED_render_clear_mtex_copybuf();
+
+  /* Skip wm_init_exit code here
+   * in blenderplayer
+   */
+
+  /* We load our own G_MAIN in blenderplayer,
+   * so free the one that BKE_blender_globals_init() gives us
+   */
   BKE_main_free(G_MAIN);
   G_MAIN = nullptr;
-
-#ifdef WITH_FFMPEG
-  IMB_ffmpeg_init();
-#endif
 
   /* background render uses this font too */
   BKE_vfont_builtin_register(datatoc_bfont_pfb, datatoc_bfont_pfb_size);
@@ -936,7 +1037,6 @@ int main(int argc,
     }
   }
 #endif
-  UI_theme_init_default();
 
   /* Try to load existing user preferences from config folder:
    * Either from exported Game folder, either from blender userprefs file
@@ -961,10 +1061,8 @@ int main(int argc,
   BKE_blender_userdef_data_set_and_free(userdef);
   userdef = nullptr;
 
-  BKE_sound_init_once();
-
-  // Initialize a default material for meshes without materials.
-  BKE_materials_init();
+  /* Call again to set from userpreferences... */
+  BLT_lang_set("");
 
   /* if running blenderplayer the last argument can't be parsed since it has to be the filename.
    * else it is bundled */
@@ -1581,6 +1679,9 @@ int main(int argc,
                */
               WM_init_opengl_blenderplayer(G_MAIN, system, win);
 
+              UI_theme_init_default();
+              UI_init();
+
               /* Set Viewport render mode and shading type for the whole runtime */
               useViewportRender = scene->gm.flag & GAME_USE_VIEWPORT_RENDER;
               shadingTypeRuntime = GetShadingTypeRuntime(C);
@@ -1656,6 +1757,7 @@ int main(int argc,
 
   DRW_engines_free();
 
+  /* wm_init_exit */
   const char *imports[] = {"addon_utils", NULL};
   BPY_run_string_eval(C, imports, "addon_utils.disable_all()");
 
@@ -1760,17 +1862,16 @@ int main(int argc,
 
   ED_file_exit(); /* for fsmenu */
 
-  BKE_icons_free();  // In UI_exit
-
+  UI_exit();
   BKE_blender_userdef_data_free(&U, false);
 
   RNA_exit(); /* should be after BPY_python_end so struct python slots are cleared */
 
   SYS_DeleteSystem(syshandle);
 
-  wm_ghost_exit();
-
   GPU_backend_exit();
+
+  wm_ghost_exit();
 
   CTX_free(C);
 
@@ -1790,16 +1891,16 @@ int main(int argc,
 
   BKE_blender_atexit();
 
+  wm_autosave_delete();
+
+  BKE_tempdir_session_purge();
+
   int totblock = MEM_get_memory_blocks_in_use();
   if (totblock != 0) {
     CM_Error("totblock: " << totblock);
     MEM_set_error_callback(mem_error_cb);
     MEM_printmemlist();
   }
-
-  wm_autosave_delete();
-
-  BKE_tempdir_session_purge();
 
 #ifdef WIN32
   while (argv_num) {
