@@ -1755,8 +1755,6 @@ int main(int argc,
     }
   }
 
-  DRW_engines_free();
-
   /* wm_init_exit */
   const char *imports[] = {"addon_utils", NULL};
   BPY_run_string_eval(C, imports, "addon_utils.disable_all()");
