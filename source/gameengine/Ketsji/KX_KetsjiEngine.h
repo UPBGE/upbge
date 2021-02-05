@@ -35,6 +35,7 @@
 #include <string>
 #include <vector>
 
+#include "CM_Clock.h"
 #include "EXP_Python.h"
 #include "KX_ISystem.h"
 #include "KX_Scene.h"
@@ -285,6 +286,7 @@ class KX_KetsjiEngine {
   void PostProcessScene(KX_Scene *scene);
 
   void BeginFrame();
+  FrameTimes GetFrameTimes();
 
  public:
   KX_KetsjiEngine(KX_ISystem *system,

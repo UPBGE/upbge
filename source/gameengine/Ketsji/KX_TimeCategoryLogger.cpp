@@ -31,8 +31,10 @@
 
 #include "KX_TimeCategoryLogger.h"
 
-KX_TimeCategoryLogger::KX_TimeCategoryLogger(unsigned int maxNumMeasurements)
-    : m_maxNumMeasurements(maxNumMeasurements), m_lastCategory(-1)
+KX_TimeCategoryLogger::KX_TimeCategoryLogger(const CM_Clock &clock,
+                                             unsigned int maxNumMeasurements)
+
+    : m_clock(clock), m_maxNumMeasurements(maxNumMeasurements), m_lastCategory(-1)
 {
 }
 
@@ -61,8 +63,9 @@ void KX_TimeCategoryLogger::AddCategory(TimeCategory tc)
   }
 }
 
-void KX_TimeCategoryLogger::StartLog(TimeCategory tc, double now)
+void KX_TimeCategoryLogger::StartLog(TimeCategory tc)
 {
+  const double now = m_clock.GetTimeSecond();
   if (m_lastCategory != -1) {
     m_loggers[m_lastCategory].EndLog(now);
   }
@@ -70,19 +73,22 @@ void KX_TimeCategoryLogger::StartLog(TimeCategory tc, double now)
   m_lastCategory = tc;
 }
 
-void KX_TimeCategoryLogger::EndLog(TimeCategory tc, double now)
+void KX_TimeCategoryLogger::EndLog(TimeCategory tc)
 {
+  const double now = m_clock.GetTimeSecond();
   m_loggers[tc].EndLog(now);
 }
 
-void KX_TimeCategoryLogger::EndLog(double now)
+void KX_TimeCategoryLogger::EndLog()
 {
+  const double now = m_clock.GetTimeSecond();
   m_loggers[m_lastCategory].EndLog(now);
   m_lastCategory = -1;
 }
 
-void KX_TimeCategoryLogger::NextMeasurement(double now)
+void KX_TimeCategoryLogger::NextMeasurement()
 {
+  const double now = m_clock.GetTimeSecond();
   for (TimeLoggerMap::value_type &pair : m_loggers) {
     pair.second.NextMeasurement(now);
   }
