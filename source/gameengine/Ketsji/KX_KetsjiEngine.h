@@ -35,6 +35,7 @@
 #include <string>
 #include <vector>
 
+#include "CM_Clock.h"
 #include "EXP_Python.h"
 #include "KX_ISystem.h"
 #include "KX_Scene.h"
@@ -144,6 +145,19 @@ class KX_KetsjiEngine {
   PyObject *m_pyprofiledict;
 #endif
   SCA_IInputDevice *m_inputDevice;
+
+  struct FrameTimes
+  {
+    // Number of frames to proceed.
+    int frames;
+    // Real duration of a frame.
+    double timestep;
+    // Scaled duration of a frame.
+    double framestep;
+  };
+
+  CM_Clock m_clock;
+
 
   /// Lists of scenes scheduled to be removed at the end of the frame.
   std::vector<std::string> m_removingScenes;
@@ -272,6 +286,7 @@ class KX_KetsjiEngine {
   void PostProcessScene(KX_Scene *scene);
 
   void BeginFrame();
+  FrameTimes GetFrameTimes();
 
  public:
   KX_KetsjiEngine(KX_ISystem *system,

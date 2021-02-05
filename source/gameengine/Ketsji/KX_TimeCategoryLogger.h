@@ -37,6 +37,7 @@
 
 #include <map>
 
+#include "CM_Clock.h"
 #include "KX_TimeLogger.h"
 
 /**
@@ -54,7 +55,7 @@ class KX_TimeCategoryLogger {
    * Constructor.
    * \param maxNumMesasurements Maximum number of measurements stored (> 1).
    */
-  KX_TimeCategoryLogger(unsigned int maxNumMeasurements = 10);
+  KX_TimeCategoryLogger(const CM_Clock &clock, unsigned int maxNumMeasurements = 10);
 
   /**
    * Destructor.
@@ -82,26 +83,24 @@ class KX_TimeCategoryLogger {
    * \param tc					The category to log to.
    * \param now					The current time.
    */
-  void StartLog(TimeCategory tc, double now);
+  void StartLog(TimeCategory tc);
 
-  /**
+	/**
    * End logging in current measurement for the given category.
    * \param tc	The category to log to.
-   * \param now	The current time.
    */
-  void EndLog(TimeCategory tc, double now);
+  void EndLog(TimeCategory tc);
 
   /**
    * End logging in current measurement for all categories.
-   * \param now	The current time.
    */
-  void EndLog(double now);
+  void EndLog();
 
   /**
    * Logs time in next measurement.
    * \param now	The current time.
    */
-  void NextMeasurement(double now);
+  void NextMeasurement();
 
   /**
    * Returns average of all but the current measurement time.
@@ -115,6 +114,7 @@ class KX_TimeCategoryLogger {
   double GetAverage();
 
  protected:
+  const CM_Clock &m_clock;
   /// Storage for the loggers.
   TimeLoggerMap m_loggers;
   /// Maximum number of measurements.

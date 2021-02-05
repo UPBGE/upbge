@@ -40,10 +40,12 @@ set(INC_SYS
 )
 
 set(SRC
+  CM_clock.cpp
   CM_Message.cpp
   CM_Thread.cpp
   CM_Utils.cpp
 
+  CM_clock.h
   CM_Format.h
   CM_List.h
   CM_Message.h
