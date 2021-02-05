@@ -697,7 +697,7 @@ endif()
 
 if(WITH_OPENVDB)
   list(APPEND INC
-     ../../../intern/openvdb
+    ../../../intern/openvdb
   )
   list(APPEND INC_SYS
     ${OPENVDB_INCLUDE_DIRS}
@@ -711,10 +711,10 @@ endif()
 
 if(WITH_QUADRIFLOW)
   list(APPEND INC
-     ../../../intern/quadriflow
+    ../../../intern/quadriflow
   )
   list(APPEND LIB
-     bf_intern_quadriflow
+    bf_intern_quadriflow
   )
   add_definitions(-DWITH_QUADRIFLOW)
 endif()
