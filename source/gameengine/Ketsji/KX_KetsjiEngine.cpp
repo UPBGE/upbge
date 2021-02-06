@@ -459,13 +459,12 @@ bool KX_KetsjiEngine::NextFrame()
     return false;
   }
 
-  // Fake release events for mouse movements only once.
-  m_inputDevice->ReleaseMoveEvent();
-
   for (unsigned short i = 0; i < times.frames; ++i) {
     m_frameTime += times.framestep;
 
     m_converter->MergeAsyncLoads();
+
+    m_inputDevice->ReleaseMoveEvent();
 
 #ifdef WITH_SDL
     // Handle all SDL Joystick events here to share them for all scenes properly.
