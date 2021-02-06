@@ -23,6 +23,8 @@
 
 #pragma once
 
+#include "BKE_undo_system.h" /* UPBGE linking error */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -61,8 +63,6 @@ struct bAnimContext;
 
 struct wmKeyConfig;
 struct wmOperator;
-
-enum eUndoStepDir;
 
 #define GPENCIL_MINIMUM_JOIN_DIST 20.0f
 
