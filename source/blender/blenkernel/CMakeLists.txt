@@ -265,6 +265,7 @@ set(SRC
   intern/unit.c
   intern/volume.cc
   intern/volume_render.cc
+  intern/volume_to_mesh.cc
   intern/workspace.c
   intern/world.c
   intern/writeavi.c
@@ -423,6 +424,7 @@ set(SRC
   BKE_unit.h
   BKE_volume.h
   BKE_volume_render.h
+  BKE_volume_to_mesh.hh
   BKE_workspace.h
   BKE_world.h
   BKE_writeavi.h
