@@ -179,6 +179,7 @@ bool BL_ShapeDeformer::UpdateInternal(bool recalcNormal)
 	if (!bSkinUpdate && bShapeUpdate && m_bDynamic) {
 		// We also need to handle transverts now (used to be in BL_SkinDeformer::Apply())
 		UpdateTransverts();
+        RecalcNormals();
 		bSkinUpdate = true;
 	}
 
