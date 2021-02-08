@@ -5832,6 +5832,12 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
                            "Respect the frame rate from the Physics panel in the world properties "
                            "rather than rendering as many frames as possible");
 
+  prop = RNA_def_property(srna, "uncap_render_fps", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_UNCAP_RENDER_FPS);
+  RNA_def_property_ui_text(prop,
+                           "Uncap Render Framerate",
+                           "Render as many times as possible keeping logic/physics constant (for gsync/freesync)");
+
   prop = RNA_def_property(srna, "use_deprecation_warnings", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_IGNORE_DEPRECATION_WARNINGS);
   RNA_def_property_ui_text(prop,

@@ -47,6 +47,7 @@
 struct TaskScheduler;
 class KX_ISystem;
 class BL_BlenderConverter;
+class GHOST_ISystem;
 class KX_NetworkMessageManager;
 class RAS_ICanvas;
 class RAS_FrameBuffer;
@@ -132,6 +133,8 @@ class KX_KetsjiEngine {
   struct bContext *m_context;
   bool m_useViewportRender;
   int m_shadingTypeRuntime;
+  GHOST_ISystem *m_ghostSystem;
+  double m_logicTime;
   /*************************************************/
 
   /// 2D Canvas (2D Rendering Device Context)
@@ -289,7 +292,8 @@ class KX_KetsjiEngine {
   FrameTimes GetFrameTimes();
 
  public:
-  KX_KetsjiEngine(KX_ISystem *system,
+  KX_KetsjiEngine(GHOST_ISystem *g_system,
+                  KX_ISystem *system,
                   struct bContext *C,
                   bool useViewportRender,
                   int shadingTypeRuntime);
@@ -303,6 +307,8 @@ class KX_KetsjiEngine {
   void CountDepsgraphTime();
   void EndCountDepsgraphTime();
   void EndFrameViewportRender();
+  double GetLogicTime();
+  CM_Clock *GetClock();
   /***** End of EEVEE integration *****/
 
   void EndFrame();

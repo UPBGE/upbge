@@ -48,6 +48,7 @@
 #include "BL_BlenderSceneConverter.h"
 #include "CM_Message.h"
 #include "DEV_Joystick.h"  // for DEV_Joystick::HandleEvents
+#include "GHOST_ISystem.h"
 #include "KX_Camera.h"
 #include "KX_Globals.h"
 #include "KX_NetworkMessageScene.h"
@@ -119,13 +120,16 @@ const std::string KX_KetsjiEngine::m_profileLabels[tc_numCategories] = {
 /**
  * Constructor of the Ketsji Engine
  */
-KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system,
+KX_KetsjiEngine::KX_KetsjiEngine(GHOST_ISystem *g_system,
+                                 KX_ISystem *system,
                                  bContext *C,
                                  bool useViewportRender,
                                  int shadingTypeRuntime)
     : m_context(C),                              // eevee
       m_useViewportRender(useViewportRender),    // eevee
       m_shadingTypeRuntime(shadingTypeRuntime),  // eevee
+      m_ghostSystem(g_system),                   // eevee
+      m_logicTime(0.0),                          // eevee
       m_canvas(nullptr),
       m_rasterizer(nullptr),
       m_kxsystem(system),
@@ -304,6 +308,19 @@ void KX_KetsjiEngine::EndFrame()
 
   m_logger.StartLog(tc_logic);
   m_canvas->FlushScreenshots();
+
+  if (m_scenes->GetFront()->GetBlenderScene()->gm.vsync == VSYNC_ON) {
+    /* if there is remaining time before next frame, improve events handling
+     * It is only available when not using viewport render mode because
+     * it has to be just before SwapBuffers I think.
+     * This loop will be runned several times only if there is remaining time (framerate > 60)
+     */
+    double remainingtime = m_clockTime - m_logicTime + 1.0 / m_ticrate;
+    double safeMargin = 1e-6;
+    do {
+      m_ghostSystem->processEvents(false);
+    } while (m_clock.GetTimeSecond() + safeMargin < remainingtime);
+  }
 
   // swap backbuffer (drawing into this buffer) <-> front/visible buffer
   m_logger.StartLog(tc_latency);
@@ -553,6 +570,8 @@ bool KX_KetsjiEngine::NextFrame()
 
   // Start logging time spent outside main loop
   m_logger.StartLog(tc_outside);
+
+  m_logicTime = m_clock.GetTimeSecond() - m_clockTime;
 
   return m_doRender;
 }
@@ -1451,6 +1470,16 @@ void KX_KetsjiEngine::SetFlag(FlagType flag, bool enable)
   else {
     m_flags = (FlagType)(m_flags & ~flag);
   }
+}
+
+CM_Clock *KX_KetsjiEngine::GetClock()
+{
+  return &m_clock;
+}
+
+double KX_KetsjiEngine::GetLogicTime()
+{
+  return m_logicTime;
 }
 
 double KX_KetsjiEngine::GetClockTime(void) const

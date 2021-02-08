@@ -112,6 +112,9 @@ class RENDER_PT_game_debug(RenderButtonsPanel, Panel):
         row = col.row()
         col = row.column()
         col.prop(gs, "use_frame_rate")
+        
+        row = layout.row()
+        row.prop(gs, "uncap_render_fps")
 
         row = layout.row()
         row.prop(gs, "vsync")

@@ -203,7 +203,7 @@ void LA_Launcher::InitEngine()
   m_networkMessageManager = new KX_NetworkMessageManager();
 
   // Create the ketsjiengine.
-  m_ketsjiEngine = new KX_KetsjiEngine(
+  m_ketsjiEngine = new KX_KetsjiEngine(m_system,
       m_kxsystem, m_context, m_useViewportRender, m_shadingTypeRuntime);
   KX_SetActiveEngine(m_ketsjiEngine);
 
@@ -469,7 +469,18 @@ bool LA_Launcher::EngineNextFrame()
 
   if (m_exitRequested == KX_ExitRequest::NO_REQUEST) {
     if (renderFrame) {
-      RenderEngine();
+      if (m_ketsjiEngine->CurrentScenes()->GetFront()->GetBlenderScene()->gm.flag &
+          GAME_UNCAP_RENDER_FPS) {
+        double remainingTime = m_ketsjiEngine->GetClockTime() - m_ketsjiEngine->GetLogicTime() +
+                               1.0 / m_ketsjiEngine->GetTicRate();
+        do {
+          RenderEngine();
+          m_system->processEvents(false);
+        } while (m_ketsjiEngine->GetClock()->GetTimeSecond() < remainingTime);
+      }
+      else {
+        RenderEngine();
+      }
     }
   }
 
