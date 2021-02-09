@@ -731,7 +731,7 @@ static BMOpDefine bmo_edgenet_fill_def = {
  *
  * - One single loop; an edge is added to connect the ends
  * - Two loops; two edges are added to connect the endpoints (based on the
- *   shortest distance between each endpont).
+ *   shortest distance between each endpoint).
  */
 static BMOpDefine bmo_edgenet_prepare_def = {
   "edgenet_prepare",
@@ -1394,7 +1394,7 @@ static BMOpDefine bmo_duplicate_def = {
   /* slots_out */
   {{"geom_orig.out", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT | BM_EDGE | BM_FACE}},
    {"geom.out", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT | BM_EDGE | BM_FACE}},
-  /* facemap maps from source faces to dupe
+  /* face_map maps from source faces to dupe
    * faces, and from dupe faces to source faces */
    {"vert_map.out", BMO_OP_SLOT_MAPPING, {(int)BMO_OP_SLOT_SUBTYPE_MAP_ELEM}},
    {"edge_map.out", BMO_OP_SLOT_MAPPING, {(int)BMO_OP_SLOT_SUBTYPE_MAP_ELEM}},

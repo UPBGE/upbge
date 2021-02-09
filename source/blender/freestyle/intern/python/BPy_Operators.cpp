@@ -36,6 +36,8 @@
 extern "C" {
 #endif
 
+using namespace Freestyle;
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //-------------------MODULE INITIALIZATION--------------------------------
@@ -260,8 +262,8 @@ PyDoc_STRVAR(Operators_sequential_split_doc,
              "\n"
              "   .. tip::\n"
              "\n"
-             "      By specifiying a starting and stopping predicate allows\n"
-             "      the chains to overlapp rather than chains partitioning.\n"
+             "      By specifying a starting and stopping predicate allows\n"
+             "      the chains to overlap rather than chains partitioning.\n"
              "\n"
              "   :arg starting_pred: The predicate on a point that expresses the\n"
              "      starting condition. Each time this condition is verified, a new chain begins\n"
