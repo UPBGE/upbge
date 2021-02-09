@@ -161,11 +161,11 @@ base class --- :class:`EXP_PyObjectPlus`
 
       A list of callables to run when the scene is destroyed.
 
-         .. code-block:: python
+      .. code-block:: python
 
-            @scene.onRemove.append
-            def callback(scene):
-                  print('exiting %s...' % scene.name)
+         @scene.onRemove.append
+         def callback(scene):
+            print('exiting %s...' % scene.name)
 
       :type: list
 
