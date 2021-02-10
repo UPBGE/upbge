@@ -2538,8 +2538,7 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
   }
   /* Set window as drawable upon creation. Note this has already been
    * it has already been activated by GHOST_CreateWindow. */
-  GHOST_SetWindowState(win->ghostwin, GHOST_GetWindowState(ghostwin));
-  wm_window_set_drawable(wm, win, true);
+  wm_window_set_drawable(wm, win, false);
   GHOST_SetWindowUserData(ghostwin, win); /* pointer back */
 
   /* We can't call the following function here in blenderplayer pipeline.
@@ -2555,6 +2554,14 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
     win->sizey = GHOST_GetHeightRectangle(bounds);
   }
   GHOST_DisposeRectangle(bounds);
+
+#ifndef __APPLE__
+  /* set the state here, so minimized state comes up correct on windows */
+  if (wm_init_state.window_focus) {
+    GHOST_SetWindowState(win->ghostwin, GHOST_GetWindowState(win->ghostwin));
+  }
+#endif
+
   /* until screens get drawn, make it black */
   GPU_clear_color(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -2566,16 +2573,12 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
   if (first_time_window) {
     wm_window_swap_buffers(win);
   }
-
-  // GHOST_SetWindowState(ghostwin, GHOST_kWindowStateModified);
-  /* standard state vars for window */
-  // GPU_state_init();
 }
 
 void wm_window_ghostwindow_embedded_ensure(wmWindowManager *wm, wmWindow *win)
 {
   wm_window_clear_drawable(wm);
-  wm_window_set_drawable(wm, win, true);
+  wm_window_set_drawable(wm, win, false);
 
   GHOST_RectangleHandle bounds;
   /* store actual window size in blender window */
@@ -2586,6 +2589,14 @@ void wm_window_ghostwindow_embedded_ensure(wmWindowManager *wm, wmWindow *win)
     win->sizey = GHOST_GetHeightRectangle(bounds);
   }
   GHOST_DisposeRectangle(bounds);
+
+#ifndef __APPLE__
+  /* set the state here, so minimized state comes up correct on windows */
+  if (wm_init_state.window_focus) {
+    GHOST_SetWindowState(win->ghostwin, GHOST_GetWindowState(win->ghostwin));
+  }
+#endif
+
   /* until screens get drawn, make it black */
   GPU_clear_color(0.0f, 0.0f, 0.0f, 0.0f);
 
