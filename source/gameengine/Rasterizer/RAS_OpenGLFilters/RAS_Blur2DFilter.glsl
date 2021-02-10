@@ -5,13 +5,13 @@ out vec4 fragColor;
 
 void main(void)
 {
-  vec4 sample[9];
+  vec4 samples[9];
 
   for (int i = 0; i < 9; i++) {
-    sample[i] = texture(bgl_RenderedTexture, bgl_TexCoord.xy + bgl_TextureCoordinateOffset[i]);
+    samples[i] = texture(bgl_RenderedTexture, bgl_TexCoord.xy + bgl_TextureCoordinateOffset[i]);
   }
 
-  fragColor = (sample[0] + (2.0 * sample[1]) + sample[2] + (2.0 * sample[3]) + sample[4] +
-               (2.0 * sample[5]) + sample[6] + (2.0 * sample[7]) + sample[8]) /
+  fragColor = (samples[0] + (2.0 * samples[1]) + samples[2] + (2.0 * samples[3]) + samples[4] +
+               (2.0 * samples[5]) + samples[6] + (2.0 * samples[7]) + samples[8]) /
               13.0;
 }
