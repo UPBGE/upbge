@@ -158,7 +158,7 @@ class VIEW3D_HT_tool_header(Header):
         elif mode_string == 'POSE':
             _row, sub = row_for_mirror()
             sub.prop(context.object.pose, "use_mirror_x", text="X", toggle=True)
-        elif mode_string in {'EDIT_MESH', 'PAINT_WEIGHT', 'SCULPT', 'PAINT_VERTEX'}:
+        elif mode_string in {'EDIT_MESH', 'PAINT_WEIGHT', 'SCULPT', 'PAINT_VERTEX', 'PAINT_TEXTURE'}:
             # Mesh Modes, Use Mesh Symmetry
             row, sub = row_for_mirror()
             sub.prop(context.object.data, "use_mirror_x", text="X", toggle=True)
@@ -694,6 +694,10 @@ class VIEW3D_HT_header(Header):
                 row.prop(tool_settings, "use_gpencil_vertex_select_mask_point", text="")
                 row.prop(tool_settings, "use_gpencil_vertex_select_mask_stroke", text="")
                 row.prop(tool_settings, "use_gpencil_vertex_select_mask_segment", text="")
+
+            if gpd.is_stroke_paint_mode:
+                row = layout.row(align=True)
+                row.prop(gpd, "use_multiedit", text="", icon='GP_MULTIFRAME_EDITING')
 
             if (
                     gpd.use_stroke_edit_mode or
