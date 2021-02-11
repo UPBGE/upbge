@@ -314,7 +314,8 @@ static GHOST_IWindow *startScreenSaverPreview(GHOST_ISystem *system,
     /* Check the size of the client rectangle of the window and resize the window
      * so that the client rectangle has the size requested.
      */
-    window->setClientSize(windowWidth, windowHeight);
+    const float pixelsize = window->getNativePixelSize();
+    window->setClientSize(windowWidth / pixelsize, windowHeight / pixelsize);
 
     return window;
   }
@@ -408,7 +409,8 @@ static GHOST_IWindow *startWindow(GHOST_ISystem *system,
   /* Check the size of the client rectangle of the window and resize the window
    * so that the client rectangle has the size requested.
    */
-  window->setClientSize(windowWidth, windowHeight);
+  const float pixelsize = window->getNativePixelSize();
+  window->setClientSize(windowWidth / pixelsize, windowHeight / pixelsize);
   window->setCursorVisibility(false);
 
   return window;
