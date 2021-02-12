@@ -128,6 +128,8 @@
 #include "LA_PlayerLauncher.h"
 #include "LA_SystemCommandLine.h"
 
+#include <iostream>
+
 #ifdef __APPLE__
 extern "C" int GHOST_HACK_getFirstFile(char buf[]);
 #endif
@@ -410,6 +412,10 @@ static GHOST_IWindow *startWindow(GHOST_ISystem *system,
    * so that the client rectangle has the size requested.
    */
   const float pixelsize = window->getNativePixelSize();
+  std::cout << "window->getNativePixelSize() = " << pixelsize << std::endl;
+  std::cout << "window->getDPIHint() = " << window->getDPIHint() << std::endl;
+  std::cout << "width = " << windowWidth << " and Height = " << windowHeight << std::endl;
+
   window->setClientSize(windowWidth / pixelsize, windowHeight / pixelsize);
   window->setCursorVisibility(false);
 
