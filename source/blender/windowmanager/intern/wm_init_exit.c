@@ -472,9 +472,8 @@ bool WM_init_game(bContext *C)
     }
     else {
       GHOST_RectangleHandle rect = GHOST_GetClientBounds(win->ghostwin);
-      const float pixelsize = GHOST_GetNativePixelSize(win->ghostwin);
-      ar->winrct.ymax = GHOST_GetHeightRectangle(rect) * pixelsize;
-      ar->winrct.xmax = GHOST_GetWidthRectangle(rect) * pixelsize;
+      ar->winrct.ymax = GHOST_GetHeightRectangle(rect);
+      ar->winrct.xmax = GHOST_GetWidthRectangle(rect);
       ar->winx = ar->winrct.xmax + 1;
       ar->winy = ar->winrct.ymax + 1;
       GHOST_DisposeRectangle(rect);
