@@ -2113,20 +2113,8 @@ void initGamePlayerPythonScripting(int argc, char **argv, bContext *C)
   PyImport_ExtendInittab(bge_internal_modules);
   /* Must run before python initializes, but after #PyPreConfig. */
   PyImport_ExtendInittab(bpy_internal_modules);
-}
 
-void postInitGamePlayerPythonScripting(
-    Main *maggie, int argc, char **argv, bContext *C, bool *audioDeviceIsInitialized)
-{
-  /* Yet another gotcha in the py api
-   * Cant run PySys_SetArgv more than once because this adds the
-   * binary dir to the sys.path each time.
-   * Id have thought python being totally restarted would make this ok but
-   * somehow it remembers the sys.path - Campbell
-   */
-  static bool first_time = true;
-
-  if (argv && first_time) {
+  if (argv) {
     PyConfig config;
     PyStatus status;
     bool has_python_executable = false;
@@ -2208,6 +2196,18 @@ void postInitGamePlayerPythonScripting(
       PySys_SetObject("executable", Py_None);
     }
   }
+}
+
+void postInitGamePlayerPythonScripting(
+    Main *maggie, int argc, char **argv, bContext *C, bool *audioDeviceIsInitialized)
+{
+  /* Yet another gotcha in the py api
+   * Cant run PySys_SetArgv more than once because this adds the
+   * binary dir to the sys.path each time.
+   * Id have thought python being totally restarted would make this ok but
+   * somehow it remembers the sys.path - Campbell
+   */
+  static bool first_time = true;
 
   bpy_import_init(PyEval_GetBuiltins());
 
