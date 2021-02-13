@@ -1502,7 +1502,7 @@ class BONE_PT_bClampToConstraint(BoneConstraintPanel, ConstraintButtonsPanel, Pa
 
 # Rigid Body Joint Constraint
 
-class OBJECT_PT_bRigidBodyJointConstraint(ObjectConstraintPanel, ConstraintButtonsPanel):
+class OBJECT_PT_bRigidBodyJointConstraint(ObjectConstraintPanel, ConstraintButtonsPanel, Panel):
     def draw(self, context):
         self.draw_rigid_body_joint(context)
 
