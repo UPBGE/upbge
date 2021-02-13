@@ -2049,70 +2049,70 @@ static struct _inittab bpy_internal_modules[] = {
 };
 
 /**
+ * Convenience function for #initGamePlayerPythonScripting.
+ *
+ * These should happen so rarely that having comprehensive errors isn't needed.
+ * For example if `sys.argv` fails to allocate memory.
+ *
+ * Show an error just to avoid silent failure in the unlikely event something goes wrong,
+ * in this case a developer will need to track down the root cause.
+ */
+static void pystatus_exit_on_error(PyStatus status)
+{
+  if (UNLIKELY(PyStatus_Exception(status))) {
+    fputs("Internal error initializing Python!\n", stderr);
+    /* This calls `exit`. */
+    Py_ExitStatusException(status);
+  }
+}
+
+/**
  * Python is not initialized.
  * see bpy_interface.c's BPY_python_start() which shares the same functionality in blender.
  */
 void initGamePlayerPythonScripting(int argc, char **argv, bContext *C)
 {
-  /* Needed for Python's initialization for portable Python installations.
-   * We could use #Py_SetPath, but this overrides Python's internal logic
-   * for calculating it's own module search paths.
-   *
-   * `sys.executable` is overwritten after initialization to the Python binary. */
+  /* #PyPreConfig (early-configuration).  */
   {
-    const char *program_path = BKE_appdir_program_path();
-    wchar_t program_path_wchar[FILE_MAX];
-    BLI_strncpy_wchar_from_utf8(program_path_wchar, program_path, ARRAY_SIZE(program_path_wchar));
-    Py_SetProgramName(program_path_wchar);
-  }
+    PyPreConfig preconfig;
+    PyStatus status;
 
-  /* must run before python initializes */
-  PyImport_ExtendInittab(bge_internal_modules);
-  /* must run before python initializes */
-  PyImport_ExtendInittab(bpy_internal_modules);
-
-  /* Allow to use our own included Python. `py_path_bundle` may be NULL. */
-  {
-    const char *py_path_bundle = BKE_appdir_folder_id(BLENDER_SYSTEM_PYTHON, NULL);
-    if (py_path_bundle != NULL) {
-      PyC_SetHomePath(py_path_bundle);
+    if (BPY_python_get_use_system_env()) {
+      PyPreConfig_InitPythonConfig(&preconfig);
     }
     else {
-      /* Common enough to use the system Python on Linux/Unix, warn on other systems. */
-#  if defined(__APPLE__) || defined(_WIN32)
-      fprintf(stderr,
-              "Bundled Python not found and is expected on this platform "
-              "(the 'install' target may have not been built)\n");
-#  endif
+      /* Only use the systems environment variables and site when explicitly requested.
+       * Since an incorrect 'PYTHONPATH' causes difficult to debug errors, see: T72807.
+       * An alternative to setting `preconfig.use_environment = 0` */
+      PyPreConfig_InitIsolatedConfig(&preconfig);
     }
+
+    /* Force `utf-8` on all platforms, since this is what's used for Blender's internal strings,
+     * providing consistent encoding behavior across all Blender installations.
+     *
+     * This also uses the `surrogateescape` error handler ensures any unexpected bytes are escaped
+     * instead of raising an error.
+     *
+     * Without this `sys.getfilesystemencoding()` and `sys.stdout` for example may be set to ASCII
+     * or some other encoding - where printing some `utf-8` values will raise an error.
+     *
+     * This can cause scripts to fail entirely on some systems.
+     *
+     * This assignment is the equivalent of enabling the `PYTHONUTF8` environment variable.
+     * See `PEP-540` for details on exactly what this changes. */
+    preconfig.utf8_mode = true;
+
+    /* Note that there is no reason to call #Py_PreInitializeFromBytesArgs here
+     * as this is only used so that command line arguments can be handled by Python itself,
+     * not for setting `sys.argv` (handled below). */
+    status = Py_PreInitialize(&preconfig);
+    pystatus_exit_on_error(status);
   }
 
-  /* Force `utf-8` on all platforms, since this is what's used for Blender's internal strings,
-   * providing consistent encoding behavior across all Blender installations.
-   *
-   * This also uses the `surrogateescape` error handler ensures any unexpected bytes are escaped
-   * instead of raising an error.
-   *
-   * Without this `sys.getfilesystemencoding()` and `sys.stdout` for example may be set to ASCII
-   * or some other encoding - where printing some `utf-8` values will raise an error.
-   *
-   * This can cause scripts to fail entirely on some systems.
-   *
-   * This assignment is the equivalent of enabling the `PYTHONUTF8` environment variable.
-   * See `PEP-540` for details on exactly what this changes. */
-  Py_UTF8Mode = 1;
-
-  /* Suppress error messages when calculating the module search path.
-   * While harmless, it's noisy. */
-  Py_FrozenFlag = 1;
-
-  /* Only use the systems environment variables and site when explicitly requested.
-   * Since an incorrect 'PYTHONPATH' causes difficult to debug errors, see: T72807. */
-  Py_IgnoreEnvironmentFlag = !(BPY_python_get_use_system_env());
-  Py_NoUserSiteDirectory = !(BPY_python_get_use_system_env());
-
-  /* Initialize Python (also acquires lock). */
-  Py_Initialize();
+  /* must run before python initializes, but after #PyPreConfig. */
+  PyImport_ExtendInittab(bge_internal_modules);
+  /* Must run before python initializes, but after #PyPreConfig. */
+  PyImport_ExtendInittab(bpy_internal_modules);
 }
 
 void postInitGamePlayerPythonScripting(
@@ -2126,42 +2126,86 @@ void postInitGamePlayerPythonScripting(
    */
   static bool first_time = true;
 
-  if (argv && first_time) { /* browser plugins don't currently set this */
-    // Until python support ascii again, we use our own.
-    // PySys_SetArgv(argc, argv);
+  if (argv && first_time) {
+    PyConfig config;
+    PyStatus status;
+    bool has_python_executable = false;
 
-    /* We could convert to #wchar_t then pass to #PySys_SetArgv (or use #PyConfig in Python 3.8+).
-     * However this risks introducing subtle changes in encoding that are hard to track down.
+    PyConfig_InitPythonConfig(&config);
+
+    /* Suppress error messages when calculating the module search path.
+     * While harmless, it's noisy. */
+    config.pathconfig_warnings = 0;
+
+    /* When using the system's Python, allow the site-directory as well. */
+    config.user_site_directory = BPY_python_get_use_system_env();
+
+    /* While `sys.argv` is set, we don't want Python to interpret it. */
+    config.parse_argv = 0;
+    status = PyConfig_SetBytesArgv(&config, argc, (char *const *)argv);
+    pystatus_exit_on_error(status);
+
+    /* Needed for Python's initialization for portable Python installations.
+     * We could use #Py_SetPath, but this overrides Python's internal logic
+     * for calculating it's own module search paths.
      *
-     * So rely on #PyC_UnicodeFromByte since it's a tried & true way of getting paths
-     * that include non `utf-8` compatible characters, see: T20021. */
-
-    int i;
-    PyObject *py_argv = PyList_New(argc);
-
-    for (i = 0; i < argc; i++)
-      PyList_SET_ITEM(py_argv, i, PyC_UnicodeFromByte(argv[i]));
-
-    PySys_SetObject("argv", py_argv);
-    Py_DECREF(py_argv);
-  }
-
-  /* Setting the program name is important so the 'multiprocessing' module
-   * can launch new Python instances. */
-  {
-    const char *sys_variable = "executable";
-    char program_path[FILE_MAX];
-    if (BKE_appdir_program_python_search(
-            program_path, sizeof(program_path), PY_MAJOR_VERSION, PY_MINOR_VERSION)) {
-      PyObject *py_program_path = PyC_UnicodeFromByte(program_path);
-      PySys_SetObject(sys_variable, py_program_path);
-      Py_DECREF(py_program_path);
+     * `sys.executable` is overwritten after initialization to the Python binary. */
+    {
+      const char *program_path = BKE_appdir_program_path();
+      status = PyConfig_SetBytesString(&config, &config.program_name, program_path);
+      pystatus_exit_on_error(status);
     }
-    else {
-      fprintf(stderr,
-              "Unable to find the python binary, "
-              "the multiprocessing module may not be functional!\n");
-      PySys_SetObject(sys_variable, Py_None);
+
+    /* Setting the program name is important so the 'multiprocessing' module
+     * can launch new Python instances. */
+    {
+      char program_path[FILE_MAX];
+      if (BKE_appdir_program_python_search(
+              program_path, sizeof(program_path), PY_MAJOR_VERSION, PY_MINOR_VERSION)) {
+        status = PyConfig_SetBytesString(&config, &config.executable, program_path);
+        pystatus_exit_on_error(status);
+        has_python_executable = true;
+      }
+      else {
+        /* Set to `sys.executable = None` below (we can't do before Python is initialized). */
+        fprintf(stderr,
+                "Unable to find the python binary, "
+                "the multiprocessing module may not be functional!\n");
+      }
+    }
+
+    /* Allow to use our own included Python. `py_path_bundle` may be NULL. */
+    {
+      const char *py_path_bundle = BKE_appdir_folder_id(BLENDER_SYSTEM_PYTHON, NULL);
+#  ifdef __APPLE__
+      /* OSX allow file/directory names to contain : character (represented as / in the Finder)
+       * but current Python lib (release 3.1.1) doesn't handle these correctly */
+      if (strchr(py_path_bundle, ':')) {
+        fprintf(stderr,
+                "Warning! Blender application is located in a path containing ':' or '/' chars\n"
+                "This may make python import function fail\n");
+      }
+#  endif
+      if (py_path_bundle != NULL) {
+        status = PyConfig_SetBytesString(&config, &config.home, py_path_bundle);
+        pystatus_exit_on_error(status);
+      }
+      else {
+        /* Common enough to use the system Python on Linux/Unix, warn on other systems. */
+#  if defined(__APPLE__) || defined(_WIN32)
+        fprintf(stderr,
+                "Bundled Python not found and is expected on this platform "
+                "(the 'install' target may have not been built)\n");
+#  endif
+      }
+    }
+
+    /* Initialize Python (also acquires lock). */
+    status = Py_InitializeFromConfig(&config);
+    pystatus_exit_on_error(status);
+
+    if (!has_python_executable) {
+      PySys_SetObject("executable", Py_None);
     }
   }
 
@@ -2254,6 +2298,25 @@ void initGamePythonScripting(Main *maggie, bool *audioDeviceIsInitialized)
    */
 
   static bool first_time = true;
+
+  PyConfig config;
+  PyStatus status;
+  bool has_python_executable = false;
+
+  PyConfig_InitPythonConfig(&config);
+
+  /* Suppress error messages when calculating the module search path.
+     * While harmless, it's noisy. */
+  config.pathconfig_warnings = 0;
+
+  /* When using the system's Python, allow the site-directory as well. */
+  config.user_site_directory = BPY_python_get_use_system_env();
+#if 0
+  /* While `sys.argv` is set, we don't want Python to interpret it. */
+  config.parse_argv = 0;
+  status = PyConfig_SetBytesArgv(&config, argc, (char *const *)argv);
+  pystatus_exit_on_error(status);
+#endif
   /* Needed for Python's initialization for portable Python installations.
    * We could use #Py_SetPath, but this overrides Python's internal logic
    * for calculating it's own module search paths.
@@ -2261,19 +2324,43 @@ void initGamePythonScripting(Main *maggie, bool *audioDeviceIsInitialized)
    * `sys.executable` is overwritten after initialization to the Python binary. */
   {
     const char *program_path = BKE_appdir_program_path();
-    wchar_t program_path_wchar[FILE_MAX];
-    BLI_strncpy_wchar_from_utf8(program_path_wchar, program_path, ARRAY_SIZE(program_path_wchar));
-    Py_SetProgramName(program_path_wchar);
+    status = PyConfig_SetBytesString(&config, &config.program_name, program_path);
+    pystatus_exit_on_error(status);
   }
 
-  /* must run before python initializes */
-  PyImport_ExtendInittab(bge_internal_modules);
+  /* Setting the program name is important so the 'multiprocessing' module
+     * can launch new Python instances. */
+  {
+    char program_path[FILE_MAX];
+    if (BKE_appdir_program_python_search(
+            program_path, sizeof(program_path), PY_MAJOR_VERSION, PY_MINOR_VERSION)) {
+      status = PyConfig_SetBytesString(&config, &config.executable, program_path);
+      pystatus_exit_on_error(status);
+      has_python_executable = true;
+    }
+    else {
+      /* Set to `sys.executable = None` below (we can't do before Python is initialized). */
+      fprintf(stderr,
+              "Unable to find the python binary, "
+              "the multiprocessing module may not be functional!\n");
+    }
+  }
 
   /* Allow to use our own included Python. `py_path_bundle` may be NULL. */
   {
     const char *py_path_bundle = BKE_appdir_folder_id(BLENDER_SYSTEM_PYTHON, NULL);
+#  ifdef __APPLE__
+    /* OSX allow file/directory names to contain : character (represented as / in the Finder)
+       * but current Python lib (release 3.1.1) doesn't handle these correctly */
+    if (strchr(py_path_bundle, ':')) {
+      fprintf(stderr,
+              "Warning! Blender application is located in a path containing ':' or '/' chars\n"
+              "This may make python import function fail\n");
+    }
+#  endif
     if (py_path_bundle != NULL) {
-      PyC_SetHomePath(py_path_bundle);
+      status = PyConfig_SetBytesString(&config, &config.home, py_path_bundle);
+      pystatus_exit_on_error(status);
     }
     else {
       /* Common enough to use the system Python on Linux/Unix, warn on other systems. */
@@ -2285,50 +2372,12 @@ void initGamePythonScripting(Main *maggie, bool *audioDeviceIsInitialized)
     }
   }
 
-  /* Force `utf-8` on all platforms, since this is what's used for Blender's internal strings,
-   * providing consistent encoding behavior across all Blender installations.
-   *
-   * This also uses the `surrogateescape` error handler ensures any unexpected bytes are escaped
-   * instead of raising an error.
-   *
-   * Without this `sys.getfilesystemencoding()` and `sys.stdout` for example may be set to ASCII
-   * or some other encoding - where printing some `utf-8` values will raise an error.
-   *
-   * This can cause scripts to fail entirely on some systems.
-   *
-   * This assignment is the equivalent of enabling the `PYTHONUTF8` environment variable.
-   * See `PEP-540` for details on exactly what this changes. */
-  Py_UTF8Mode = 1;
-
-  /* Suppress error messages when calculating the module search path.
-   * While harmless, it's noisy. */
-  Py_FrozenFlag = 1;
-
-  /* Only use the systems environment variables and site when explicitly requested.
-   * Since an incorrect 'PYTHONPATH' causes difficult to debug errors, see: T72807. */
-  Py_IgnoreEnvironmentFlag = !(BPY_python_get_use_system_env());
-  Py_NoUserSiteDirectory = !(BPY_python_get_use_system_env());
-
   /* Initialize Python (also acquires lock). */
-  Py_Initialize();
+  status = Py_InitializeFromConfig(&config);
+  pystatus_exit_on_error(status);
 
-  /* Setting the program name is important so the 'multiprocessing' module
-   * can launch new Python instances. */
-  {
-    const char *sys_variable = "executable";
-    char program_path[FILE_MAX];
-    if (BKE_appdir_program_python_search(
-            program_path, sizeof(program_path), PY_MAJOR_VERSION, PY_MINOR_VERSION)) {
-      PyObject *py_program_path = PyC_UnicodeFromByte(program_path);
-      PySys_SetObject(sys_variable, py_program_path);
-      Py_DECREF(py_program_path);
-    }
-    else {
-      fprintf(stderr,
-              "Unable to find the python binary, "
-              "the multiprocessing module may not be functional!\n");
-      PySys_SetObject(sys_variable, Py_None);
-    }
+  if (!has_python_executable) {
+    PySys_SetObject("executable", Py_None);
   }
 
   bpy_import_init(PyEval_GetBuiltins());
