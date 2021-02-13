@@ -25,15 +25,15 @@
 
 static bNodeSocketTemplate geo_node_join_geometry_in[] = {
     {SOCK_GEOMETRY,
-        N_("Geometry"),
-        0.0f,
-        0.0f,
-        0.0f,
-        1.0f,
-        -1.0f,
-        1.0f,
-        PROP_NONE,
-        SOCK_MULTI_INPUT},
+     N_("Geometry"),
+     0.0f,
+     0.0f,
+     0.0f,
+     1.0f,
+     -1.0f,
+     1.0f,
+     PROP_NONE,
+     SOCK_MULTI_INPUT},
     {-1, ""},
 };
 
@@ -147,16 +147,17 @@ static void determine_final_data_type_and_domain(Span<const GeometryComponent *>
                                                  AttributeDomain *r_domain)
 {
   Vector<CustomDataType> data_types;
+  Vector<AttributeDomain> domains;
   for (const GeometryComponent *component : components) {
     ReadAttributePtr attribute = component->attribute_try_get_for_read(attribute_name);
     if (attribute) {
       data_types.append(attribute->custom_data_type());
-      /* TODO: Use highest priority domain. */
-      *r_domain = attribute->domain();
+      domains.append(attribute->domain());
     }
   }
 
   *r_type = attribute_data_type_highest_complexity(data_types);
+  *r_domain = attribute_domain_highest_priority(domains);
 }
 
 static void fill_new_attribute(Span<const GeometryComponent *> src_components,

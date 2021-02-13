@@ -1559,7 +1559,7 @@ typedef struct SpaceNode {
    */
   ListBase treepath;
 
-  /* The tree farthest down in the group heirarchy. */
+  /* The tree farthest down in the group hierarchy. */
   struct bNodeTree *edittree;
 
   struct bNodeTree *nodetree;

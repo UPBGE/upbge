@@ -267,7 +267,7 @@ static int py_imbuf_filepath_set(Py_ImBuf *self, PyObject *value, void *UNUSED(c
   ImBuf *ibuf = self->ibuf;
   const Py_ssize_t value_str_len_max = sizeof(ibuf->name);
   Py_ssize_t value_str_len;
-  const char *value_str = _PyUnicode_AsStringAndSize(value, &value_str_len);
+  const char *value_str = PyUnicode_AsUTF8AndSize(value, &value_str_len);
   if (value_str_len >= value_str_len_max) {
     PyErr_Format(PyExc_TypeError, "filepath length over %zd", value_str_len_max - 1);
     return -1;
@@ -347,15 +347,11 @@ PyTypeObject Py_ImBuf_Type = {
     /* Methods to implement standard operations */
 
     (destructor)py_imbuf_dealloc, /* destructor tp_dealloc; */
-#if PY_VERSION_HEX >= 0x03080000
-    0, /* tp_vectorcall_offset */
-#else
-    (printfunc)NULL, /* printfunc tp_print */
-#endif
-    NULL,                    /* getattrfunc tp_getattr; */
-    NULL,                    /* setattrfunc tp_setattr; */
-    NULL,                    /* cmpfunc tp_compare; */
-    (reprfunc)py_imbuf_repr, /* reprfunc tp_repr; */
+    0,                            /* tp_vectorcall_offset */
+    NULL,                         /* getattrfunc tp_getattr; */
+    NULL,                         /* setattrfunc tp_setattr; */
+    NULL,                         /* cmpfunc tp_compare; */
+    (reprfunc)py_imbuf_repr,      /* reprfunc tp_repr; */
 
     /* Method suites for standard classes */
 

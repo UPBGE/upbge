@@ -14,19 +14,28 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#include "BLI_map.hh"
+
+#include "BKE_attribute.h"
+#include "BKE_attribute_access.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_lib_id.h"
 #include "BKE_mesh.h"
 #include "BKE_mesh_wrapper.h"
+#include "BKE_modifier.h"
 #include "BKE_pointcloud.h"
 #include "BKE_volume.h"
 
+#include "DNA_collection_types.h"
 #include "DNA_object_types.h"
+
+#include "BLI_rand.hh"
 
 #include "MEM_guardedalloc.h"
 
 using blender::float3;
 using blender::float4x4;
+using blender::Map;
 using blender::MutableSpan;
 using blender::Span;
 using blender::StringRef;
@@ -577,6 +586,211 @@ bool InstancesComponent::is_empty() const
   return transforms_.size() == 0;
 }
 
+/**
+ * \note This doesn't extract instances from the "dupli" system for non-geometry-nodes instances.
+ */
+static GeometrySet object_get_geometry_set_for_read(const Object &object)
+{
+  /* Objects evaluated with a nodes modifier will have a geometry set already. */
+  if (object.runtime.geometry_set_eval != nullptr) {
+    return *object.runtime.geometry_set_eval;
+  }
+
+  /* Otherwise, construct a new geometry set with the component based on the object type. */
+  GeometrySet new_geometry_set;
+
+  if (object.type == OB_MESH) {
+    Mesh *mesh = BKE_modifier_get_evaluated_mesh_from_evaluated_object(
+        &const_cast<Object &>(object), false);
+
+    if (mesh != nullptr) {
+      BKE_mesh_wrapper_ensure_mdata(mesh);
+
+      MeshComponent &mesh_component = new_geometry_set.get_component_for_write<MeshComponent>();
+      mesh_component.replace(mesh, GeometryOwnershipType::ReadOnly);
+      mesh_component.copy_vertex_group_names_from_object(object);
+    }
+  }
+
+  /* TODO: Cover the case of pointclouds without modifiers-- they may not be covered by the
+   * #geometry_set_eval case above. */
+
+  /* TODO: Add volume support. */
+
+  /* Return by value since there is not always an existing geometry set owned elsewhere to use. */
+  return new_geometry_set;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Geometry Set Gather Recursive Instances
+ * \{ */
+
+static void geometry_set_collect_recursive(const GeometrySet &geometry_set,
+                                           const float4x4 &transform,
+                                           Vector<GeometryInstanceGroup> &r_sets);
+
+static void geometry_set_collect_recursive_collection(const Collection &collection,
+                                                      const float4x4 &transform,
+                                                      Vector<GeometryInstanceGroup> &r_sets);
+
+static void geometry_set_collect_recursive_collection_instance(
+    const Collection &collection, const float4x4 &transform, Vector<GeometryInstanceGroup> &r_sets)
+{
+  float4x4 offset_matrix;
+  unit_m4(offset_matrix.values);
+  sub_v3_v3(offset_matrix.values[3], collection.instance_offset);
+  const float4x4 instance_transform = transform * offset_matrix;
+  geometry_set_collect_recursive_collection(collection, instance_transform, r_sets);
+}
+
+static void geometry_set_collect_recursive_object(const Object &object,
+                                                  const float4x4 &transform,
+                                                  Vector<GeometryInstanceGroup> &r_sets)
+{
+  GeometrySet instance_geometry_set = object_get_geometry_set_for_read(object);
+  geometry_set_collect_recursive(instance_geometry_set, transform, r_sets);
+
+  if (object.type == OB_EMPTY) {
+    const Collection *collection_instance = object.instance_collection;
+    if (collection_instance != nullptr) {
+      geometry_set_collect_recursive_collection_instance(*collection_instance, transform, r_sets);
+    }
+  }
+}
+
+static void geometry_set_collect_recursive_collection(const Collection &collection,
+                                                      const float4x4 &transform,
+                                                      Vector<GeometryInstanceGroup> &r_sets)
+{
+  LISTBASE_FOREACH (const CollectionObject *, collection_object, &collection.gobject) {
+    BLI_assert(collection_object->ob != nullptr);
+    const Object &object = *collection_object->ob;
+    const float4x4 object_transform = transform * object.obmat;
+    geometry_set_collect_recursive_object(object, object_transform, r_sets);
+  }
+  LISTBASE_FOREACH (const CollectionChild *, collection_child, &collection.children) {
+    BLI_assert(collection_child->collection != nullptr);
+    const Collection &collection = *collection_child->collection;
+    geometry_set_collect_recursive_collection(collection, transform, r_sets);
+  }
+}
+
+static void geometry_set_collect_recursive(const GeometrySet &geometry_set,
+                                           const float4x4 &transform,
+                                           Vector<GeometryInstanceGroup> &r_sets)
+{
+  r_sets.append({geometry_set, {transform}});
+
+  if (geometry_set.has_instances()) {
+    const InstancesComponent &instances_component =
+        *geometry_set.get_component_for_read<InstancesComponent>();
+
+    Span<float4x4> transforms = instances_component.transforms();
+    Span<InstancedData> instances = instances_component.instanced_data();
+    for (const int i : instances.index_range()) {
+      const InstancedData &data = instances[i];
+      const float4x4 instance_transform = transform * transforms[i];
+
+      if (data.type == INSTANCE_DATA_TYPE_OBJECT) {
+        BLI_assert(data.data.object != nullptr);
+        const Object &object = *data.data.object;
+        geometry_set_collect_recursive_object(object, instance_transform, r_sets);
+      }
+      else if (data.type == INSTANCE_DATA_TYPE_COLLECTION) {
+        BLI_assert(data.data.collection != nullptr);
+        const Collection &collection = *data.data.collection;
+        geometry_set_collect_recursive_collection_instance(collection, instance_transform, r_sets);
+      }
+    }
+  }
+}
+
+/**
+ * Return flattened vector of the geometry component's recursive instances. I.e. all collection
+ * instances and object instances will be expanded into the instances of their geometry components.
+ * Even the instances in those geometry components' will be included.
+ *
+ * \note For convenience (to avoid duplication in the caller), the returned vector also contains
+ * the argument geometry set.
+ *
+ * \note This doesn't extract instances from the "dupli" system for non-geometry-nodes instances.
+ */
+Vector<GeometryInstanceGroup> BKE_geometry_set_gather_instances(const GeometrySet &geometry_set)
+{
+  Vector<GeometryInstanceGroup> result_vector;
+
+  float4x4 unit_transform;
+  unit_m4(unit_transform.values);
+
+  geometry_set_collect_recursive(geometry_set, unit_transform, result_vector);
+
+  return result_vector;
+}
+
+static blender::Array<int> generate_unique_instance_ids(Span<int> original_ids)
+{
+  using namespace blender;
+  Array<int> unique_ids(original_ids.size());
+
+  Set<int> used_unique_ids;
+  used_unique_ids.reserve(original_ids.size());
+  Vector<int> instances_with_id_collision;
+  for (const int instance_index : original_ids.index_range()) {
+    const int original_id = original_ids[instance_index];
+    if (used_unique_ids.add(original_id)) {
+      /* The original id has not been used by another instance yet. */
+      unique_ids[instance_index] = original_id;
+    }
+    else {
+      /* The original id of this instance collided with a previous instance, it needs to be looked
+       * at again in a second pass. Don't generate a new random id here, because this might collide
+       * with other existing ids. */
+      instances_with_id_collision.append(instance_index);
+    }
+  }
+
+  Map<int, RandomNumberGenerator> generator_by_original_id;
+  for (const int instance_index : instances_with_id_collision) {
+    const int original_id = original_ids[instance_index];
+    RandomNumberGenerator &rng = generator_by_original_id.lookup_or_add_cb(original_id, [&]() {
+      RandomNumberGenerator rng;
+      rng.seed_random(original_id);
+      return rng;
+    });
+
+    const int max_iteration = 100;
+    for (int iteration = 0;; iteration++) {
+      /* Try generating random numbers until an unused one has been found. */
+      const int random_id = rng.get_int32();
+      if (used_unique_ids.add(random_id)) {
+        /* This random id is not used by another instance. */
+        unique_ids[instance_index] = random_id;
+        break;
+      }
+      if (iteration == max_iteration) {
+        /* It seems to be very unlikely that we ever run into this case (assuming there are less
+         * than 2^30 instances). However, if that happens, it's better to use an id that is not
+         * unique than to be stuck in an infinite loop. */
+        unique_ids[instance_index] = original_id;
+        break;
+      }
+    }
+  }
+
+  return unique_ids;
+}
+
+blender::Span<int> InstancesComponent::almost_unique_ids() const
+{
+  std::lock_guard lock(almost_unique_ids_mutex_);
+  if (almost_unique_ids_.size() != ids_.size()) {
+    almost_unique_ids_ = generate_unique_instance_ids(ids_);
+  }
+  return almost_unique_ids_;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -674,7 +888,7 @@ bool BKE_geometry_set_has_instances(const GeometrySet *geometry_set)
 
 int BKE_geometry_set_instances(const GeometrySet *geometry_set,
                                float (**r_transforms)[4][4],
-                               int **r_ids,
+                               const int **r_almost_unique_ids,
                                InstancedData **r_instanced_data)
 {
   const InstancesComponent *component = geometry_set->get_component_for_read<InstancesComponent>();
@@ -682,9 +896,8 @@ int BKE_geometry_set_instances(const GeometrySet *geometry_set,
     return 0;
   }
   *r_transforms = (float(*)[4][4])component->transforms().data();
-  *r_ids = (int *)component->ids().data();
   *r_instanced_data = (InstancedData *)component->instanced_data().data();
-  *r_instanced_data = (InstancedData *)component->instanced_data().data();
+  *r_almost_unique_ids = (const int *)component->almost_unique_ids().data();
   return component->instances_amount();
 }
 

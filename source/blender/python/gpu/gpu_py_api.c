@@ -64,7 +64,7 @@ bool bpygpu_is_init_or_error(void)
 int bpygpu_ParsePrimType(PyObject *o, void *p)
 {
   Py_ssize_t mode_id_len;
-  const char *mode_id = _PyUnicode_AsStringAndSize(o, &mode_id_len);
+  const char *mode_id = PyUnicode_AsUTF8AndSize(o, &mode_id_len);
   if (mode_id == NULL) {
     PyErr_Format(PyExc_ValueError, "expected a string, got %s", Py_TYPE(o)->tp_name);
     return 0;
@@ -122,16 +122,16 @@ PyObject *BPyInit_gpu(void)
 
   mod = PyModule_Create(&GPU_module_def);
 
-  PyModule_AddObject(mod, "types", (submodule = BPyInit_gpu_types()));
+  PyModule_AddObject(mod, "types", (submodule = bpygpu_types_init()));
   PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
 
-  PyModule_AddObject(mod, "matrix", (submodule = BPyInit_gpu_matrix()));
+  PyModule_AddObject(mod, "matrix", (submodule = bpygpu_matrix_init()));
   PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
 
-  PyModule_AddObject(mod, "select", (submodule = BPyInit_gpu_select()));
+  PyModule_AddObject(mod, "select", (submodule = bpygpu_select_init()));
   PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
 
-  PyModule_AddObject(mod, "shader", (submodule = BPyInit_gpu_shader()));
+  PyModule_AddObject(mod, "shader", (submodule = bpygpu_shader_init()));
   PyDict_SetItem(sys_modules, PyModule_GetNameObject(submodule), submodule);
 
   return mod;
