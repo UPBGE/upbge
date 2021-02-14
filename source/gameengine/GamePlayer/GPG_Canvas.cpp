@@ -216,7 +216,7 @@ void GPG_Canvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool UNU
   if (system && m_window) {
     m_window->screenToClient(x, y, r_x, r_y);
     r_x *= m_nativePixelSize;
-    r_y *= m_nativePizelSize;
+    r_y *= m_nativePixelSize;
   }
 }
 
