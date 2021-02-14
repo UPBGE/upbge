@@ -1134,8 +1134,11 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
       activecam->NodeUpdateGS(0.0f);
     }
     else {
-      activecam->NodeSetLocalPosition(MT_Vector3(0.0f, 0.0f, 0.0f));
-      activecam->NodeSetLocalOrientation(MT_Matrix3x3(MT_Vector3(0.0f, 0.0f, 0.0f)));
+      bContext *C = KX_GetActiveEngine()->GetContext();
+      RegionView3D *rv3d = CTX_wm_region_view3d(C);
+      MT_Vector3 pos = MT_Vector3(rv3d->viewinv[3]);
+      activecam->NodeSetLocalPosition(pos);
+      activecam->NodeSetLocalOrientation(MT_Matrix3x3(&rv3d->viewinv[0][0]));
       activecam->NodeUpdateGS(0.0f);
     }
 
