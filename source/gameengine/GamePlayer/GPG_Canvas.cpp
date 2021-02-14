@@ -111,8 +111,8 @@ void GPG_Canvas::SetMousePosition(int x, int y)
 {
   GHOST_ISystem *system = GHOST_ISystem::getSystem();
   if (system && m_window) {
-    GHOST_TInt32 gx = (GHOST_TInt32)x;
-    GHOST_TInt32 gy = (GHOST_TInt32)y;
+    GHOST_TInt32 gx = (GHOST_TInt32)x / m_nativePixelSize;
+    GHOST_TInt32 gy = (GHOST_TInt32)y / m_nativePixelSize;
     GHOST_TInt32 cx;
     GHOST_TInt32 cy;
     m_window->clientToScreen(gx, gy, cx, cy);
@@ -212,7 +212,12 @@ bool GPG_Canvas::GetFullScreen()
 
 void GPG_Canvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool UNUSED(screen))
 {
-  m_window->screenToClient(x, y, r_x, r_y);
+  GHOST_ISystem *system = GHOST_ISystem::getSystem();
+  if (system && m_window) {
+    m_window->screenToClient(x, y, r_x, r_y);
+    r_x *= m_nativePixelSize;
+    r_y *= m_nativePizelSize;
+  }
 }
 
 bool GPG_Canvas::IsBlenderPlayer()
