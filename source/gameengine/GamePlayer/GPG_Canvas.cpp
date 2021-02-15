@@ -42,11 +42,12 @@
 #include "KX_Globals.h"
 
 GPG_Canvas::GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window)
-    : RAS_ICanvas(rasty), m_window(window), m_width(0), m_height(0)
+    : RAS_ICanvas(rasty), m_window(window), m_width(0), m_height(0), m_nativePixelSize(1)
 {
   if (m_window) {
     GHOST_Rect bnds;
     m_window->getClientBounds(bnds);
+    m_nativePixelSize = window->getNativePixelSize();
     this->Resize(bnds.getWidth(), bnds.getHeight());
   }
 }
@@ -73,7 +74,7 @@ void GPG_Canvas::EndDraw()
 
 void GPG_Canvas::Resize(int width, int height)
 {
-  m_viewportArea = RAS_Rect(width, height);
+  m_viewportArea = RAS_Rect(width * m_nativePixelSize, height * m_nativePixelSize);
   m_windowArea = RAS_Rect(width, height);
 }
 
@@ -110,8 +111,8 @@ void GPG_Canvas::SetMousePosition(int x, int y)
 {
   GHOST_ISystem *system = GHOST_ISystem::getSystem();
   if (system && m_window) {
-    GHOST_TInt32 gx = (GHOST_TInt32)x;
-    GHOST_TInt32 gy = (GHOST_TInt32)y;
+    GHOST_TInt32 gx = (GHOST_TInt32)x / m_nativePixelSize;
+    GHOST_TInt32 gy = (GHOST_TInt32)y / m_nativePixelSize;
     GHOST_TInt32 cx;
     GHOST_TInt32 cy;
     m_window->clientToScreen(gx, gy, cx, cy);
@@ -211,7 +212,12 @@ bool GPG_Canvas::GetFullScreen()
 
 void GPG_Canvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool UNUSED(screen))
 {
-  m_window->screenToClient(x, y, r_x, r_y);
+  GHOST_ISystem *system = GHOST_ISystem::getSystem();
+  if (system && m_window) {
+    m_window->screenToClient(x, y, r_x, r_y);
+    r_x *= m_nativePixelSize;
+    r_y *= m_nativePixelSize;
+  }
 }
 
 bool GPG_Canvas::IsBlenderPlayer()

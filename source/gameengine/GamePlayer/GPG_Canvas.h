@@ -59,6 +59,9 @@ class GPG_Canvas : public RAS_ICanvas {
 
   int m_viewport[4];
 
+  /// Native pixel size (for Retina hidpi displays)
+  int m_nativePixelSize;
+
  public:
   GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window);
   virtual ~GPG_Canvas();
