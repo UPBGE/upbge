@@ -106,9 +106,12 @@ void EEVEE_effects_init(EEVEE_ViewLayerData *sldata,
   effects->enabled_effects |= EEVEE_antialiasing_engine_init(vedata);
   /* End of Game engine transition */
 
-  /* Update matrices here because EEVEE_screen_raytrace_init can have reset the
-   * taa_current_sample. (See T66811) */
-  EEVEE_temporal_sampling_update_matrices(vedata);
+  /* Game engine transition: WARNING: Temp fix for shaky camera: See https://github.com/UPBGE/upbge/issues/1402 at the bottom */
+  if ((effects->enabled_effects & EFFECT_TAA) && effects->taa_current_sample > 1) {
+    /* Update matrices here because EEVEE_screen_raytrace_init can have reset the
+     * taa_current_sample. (See T66811) */
+    EEVEE_temporal_sampling_update_matrices(vedata);
+  }
 
   EEVEE_volumes_init(sldata, vedata);
   EEVEE_subsurface_init(sldata, vedata);
