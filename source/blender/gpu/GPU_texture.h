@@ -172,9 +172,9 @@ typedef enum eGPUTextureFormat {
 typedef enum eGPUDataFormat {
   GPU_DATA_FLOAT,
   GPU_DATA_INT,
-  GPU_DATA_UNSIGNED_INT,
-  GPU_DATA_UNSIGNED_BYTE,
-  GPU_DATA_UNSIGNED_INT_24_8,
+  GPU_DATA_UINT,
+  GPU_DATA_UBYTE,
+  GPU_DATA_UINT_24_8,
   GPU_DATA_10_11_11_REV,
 } eGPUDataFormat;
 
@@ -272,6 +272,10 @@ bool GPU_texture_integer(const GPUTexture *tex);
 int GPU_texture_opengl_bindcode(const GPUTexture *tex);
 
 void GPU_texture_get_mipmap_size(GPUTexture *tex, int lvl, int *size);
+
+/* utilities */
+size_t GPU_texture_component_len(eGPUTextureFormat format);
+size_t GPU_texture_dataformat_size(eGPUDataFormat data_format);
 
 /******************Game engine************************/
 void GPU_texture_set_opengl_bindcode(GPUTexture *tex, int bindcode);
