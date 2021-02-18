@@ -168,10 +168,6 @@ class PARTICLE_PT_context_particles(ParticleButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
 
-        if context.engine == 'BLENDER_GAME':
-            layout.label("Not available in the Game Engine")
-            return
-
         ob = context.object
         psys = context.particle_system
         part = 0

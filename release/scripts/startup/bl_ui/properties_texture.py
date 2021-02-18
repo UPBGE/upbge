@@ -37,7 +37,7 @@ from bl_ui.properties_paint_common import brush_texture_settings
 
 class TEXTURE_MT_context_menu(Menu):
     bl_label = "Texture Specials"
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER'}
 
     def draw(self, _context):
         layout = self.layout

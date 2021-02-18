@@ -70,11 +70,6 @@ class DATA_PT_skeleton(ArmatureButtonsPanel, Panel):
         col.label(text="Protected Layers:")
         col.prop(arm, "layers_protected", text="")
 
-        if context.engine == 'BLENDER_GAME':
-            col = layout.column()
-            col.label(text="Deform:")
-            col.prop(arm, "deform_method", expand=True)
-
 
 class DATA_PT_display(ArmatureButtonsPanel, Panel):
     bl_label = "Viewport Display"
