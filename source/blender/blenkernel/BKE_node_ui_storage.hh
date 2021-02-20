@@ -29,8 +29,6 @@ struct Object;
 struct bNode;
 struct bNodeTree;
 
-using blender::Map;
-
 /**
  * Contains the context necessary to determine when to display settings for a certain node tree
  * that may be used for multiple modifiers and objects. The object name and modifier session UUID
@@ -80,13 +78,11 @@ struct NodeUIStorage {
 };
 
 struct NodeTreeUIStorage {
-  Map<NodeTreeEvaluationContext, Map<std::string, NodeUIStorage>> context_map;
+  blender::Map<NodeTreeEvaluationContext, blender::Map<std::string, NodeUIStorage>> context_map;
 };
 
 void BKE_nodetree_ui_storage_free_for_context(bNodeTree &ntree,
                                               const NodeTreeEvaluationContext &context);
-
-void BKE_nodetree_ui_storage_ensure(bNodeTree &ntree);
 
 void BKE_nodetree_error_message_add(bNodeTree &ntree,
                                     const NodeTreeEvaluationContext &context,

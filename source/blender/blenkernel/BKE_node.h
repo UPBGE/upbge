@@ -1373,6 +1373,7 @@ int ntreeTexExecTree(struct bNodeTree *ntree,
 #define GEO_NODE_VOLUME_TO_MESH 1026
 #define GEO_NODE_ATTRIBUTE_COMBINE_XYZ 1027
 #define GEO_NODE_ATTRIBUTE_SEPARATE_XYZ 1028
+#define GEO_NODE_SUBDIVISION_SURFACE_SIMPLE 1029
 
 /** \} */
 
@@ -1388,6 +1389,7 @@ int ntreeTexExecTree(struct bNodeTree *ntree,
 #define FN_NODE_OBJECT_TRANSFORMS 1205
 #define FN_NODE_RANDOM_FLOAT 1206
 #define FN_NODE_INPUT_VECTOR 1207
+#define FN_NODE_INPUT_STRING 1208
 
 /** \} */
 
