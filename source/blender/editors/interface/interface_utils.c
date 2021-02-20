@@ -28,7 +28,6 @@
 
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_space_types.h"
 
 #include "BLI_alloca.h"
 #include "BLI_listbase.h"
@@ -39,7 +38,6 @@
 
 #include "BLT_translation.h"
 
-#include "BKE_context.h"
 #include "BKE_lib_id.h"
 #include "BKE_report.h"
 
