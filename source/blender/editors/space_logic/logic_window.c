@@ -1506,11 +1506,13 @@ static void draw_brick_sensor(uiLayout *layout, PointerRNA *ptr, bContext *C)
 /* Controller code */
 static void draw_controller_header(uiLayout *layout, PointerRNA *ptr, int xco, int width, int yco)
 {
-  uiLayout *box, *row, *sub;
+  uiLayout *box, *row, *sub, *row2, *sub2;
   bController *cont = (bController *)ptr->data;
 
-  char state[3];
-  BLI_snprintf(state, sizeof(state), "%d", RNA_int_get(ptr, "states"));
+  char state[9];
+  char short_state[7];
+  BLI_snprintf(state, sizeof(state), "State %d", RNA_int_get(ptr, "states"));
+  BLI_snprintf(short_state, sizeof(short_state), "Sta %d", RNA_int_get(ptr, "states"));
 
   box = uiLayoutBox(layout);
   row = uiLayoutRow(box, false);
@@ -1521,7 +1523,10 @@ static void draw_controller_header(uiLayout *layout, PointerRNA *ptr, int xco, i
   if (RNA_boolean_get(ptr, "show_expanded")) {
     uiItemR(sub, ptr, "type", 0, "", ICON_NONE);
     uiItemR(sub, ptr, "name", 0, "", ICON_NONE);
-    /* XXX provisory for Blender 2.50Beta */
+    row2 = uiLayoutRow(box, false);
+    sub2 = uiLayoutSplit(row2, 0.4f, true);
+    uiLayoutSetActive(sub2, RNA_boolean_get(ptr, "active"));
+    uiItemL(sub2, IFACE_("Controller visible at: "), ICON_NONE);
     uiDefBlockBut(uiLayoutGetBlock(layout),
                   controller_state_mask_menu,
                   cont,
@@ -1535,7 +1540,7 @@ static void draw_controller_header(uiLayout *layout, PointerRNA *ptr, int xco, i
   else {
     uiItemL(sub, IFACE_(controller_name(cont->type)), ICON_NONE);
     uiItemL(sub, cont->name, ICON_NONE);
-    uiItemL(sub, state, ICON_NONE);
+    uiItemL(sub, short_state, ICON_NONE);
   }
 
   sub = uiLayoutRow(row, false);
@@ -2636,9 +2641,9 @@ void logic_buttons(bContext *C, ARegion *ar)
 
   /* ****************** Controllers ****************** */
 
-  xco = 21 * U.widget_unit;
+  xco = 20 * U.widget_unit;
   yco = -U.widget_unit / 2;
-  width = 15 * U.widget_unit;
+  width = 17 * U.widget_unit;
   layout = UI_block_layout(
       block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, xco, yco, width, 20, 0, UI_style_get());
   row = uiLayoutRow(layout, true);
@@ -2767,8 +2772,7 @@ void logic_buttons(bContext *C, ARegion *ar)
       uiLayoutSetContextPointer(col, "controller", &ptr);
 
       /* should make UI template for controller header.. function will do for now */
-      //			draw_controller_header(col, &ptr);
-      draw_controller_header(col, &ptr, xco, width, yco);  // provisory for 2.50 beta
+      draw_controller_header(col, &ptr, xco, width, yco);
 
       /* draw the brick contents */
       draw_brick_controller(col, &ptr);
