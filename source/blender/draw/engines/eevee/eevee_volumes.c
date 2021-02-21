@@ -857,4 +857,4 @@ void EEVEE_volumes_output_accumulate(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_
   }
 }
 
-/* \} */
+/** \} */

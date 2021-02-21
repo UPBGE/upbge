@@ -7107,7 +7107,6 @@ void uiTemplateKeymapItemProperties(uiLayout *layout, PointerRNA *ptr)
 
 /* -------------------------------------------------------------------- */
 /** \name Event Icon Template
- *
  * \{ */
 
 bool uiTemplateEventFromKeymapItem(struct uiLayout *layout,

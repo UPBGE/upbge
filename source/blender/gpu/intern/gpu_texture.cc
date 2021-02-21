@@ -619,7 +619,6 @@ void GPU_texture_set_opengl_bindcode(GPUTexture *tex, int bindcode)
 
 /* -------------------------------------------------------------------- */
 /** \name GPU texture utilities
- *
  * \{ */
 
 size_t GPU_texture_component_len(eGPUTextureFormat tex_format)

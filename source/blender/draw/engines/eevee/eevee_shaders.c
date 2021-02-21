@@ -839,9 +839,6 @@ struct GPUShader *EEVEE_shaders_effect_screen_raytrace_sh_get(EEVEE_SSRShaderOpt
     if (options & SSR_FULL_TRACE) {
       BLI_dynstr_append(ds_defines, "#define FULLRES\n");
     }
-    if (options & SSR_AO) {
-      BLI_dynstr_append(ds_defines, "#define SSR_AO\n");
-    }
     char *ssr_define_str = BLI_dynstr_get_cstring(ds_defines);
     BLI_dynstr_free(ds_defines);
 
@@ -1098,7 +1095,7 @@ GPUShader *EEVEE_shaders_bloom_resolve_get(bool high_quality)
   return e_data.bloom_resolve_sh[index];
 }
 
-/* \} */
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Depth of field
@@ -1272,7 +1269,7 @@ GPUShader *EEVEE_shaders_depth_of_field_resolve_get(bool b_use_bokeh_tx, bool b_
   return e_data.dof_resolve_sh[use_bokeh_tx][use_hq_gather];
 }
 
-/* \} */
+/** \} */
 
 Material *EEVEE_material_default_diffuse_get(void)
 {
