@@ -780,7 +780,7 @@ const DRWContextState *DRW_context_state_get(void);
 
 /*****************************GAME ENGINE***********************************/
 void DRW_game_render_loop(struct bContext *C,
-                          GPUViewport *viewport,
+                          struct GPUViewport *viewport,
                           struct Main *bmain,
                           struct Depsgraph *depsgraph,
                           const struct rcti *window,
@@ -791,6 +791,8 @@ void DRW_game_python_loop_end(struct ViewLayer *view_layer);
 void DRW_game_viewport_render_loop_end(void);
 void DRW_transform_to_display(struct GPUTexture *tex, struct View3D *v3d, bool do_dithering);
 void DRW_transform_to_display_image_render(struct GPUTexture *tex);
+void DRW_game_gpu_viewport_set(struct GPUViewport *viewport);
+struct GPUViewport *DRW_game_gpu_viewport_get(void);
 /**************************END OF GAME ENGINE*******************************/
 
 #ifdef __cplusplus

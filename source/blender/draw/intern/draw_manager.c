@@ -1339,7 +1339,7 @@ void DRW_notify_view_update(const DRWUpdateContext *update_ctx)
     if (scene->flag & SCE_INTERACTIVE) {
       /* Hack to allow bge to use depsgraph to detect
        * all scene changes and notify drw_engine for redraw. */
-      viewport = DST.viewport;
+      viewport = DRW_game_gpu_viewport_get();
     }
     /* End of Game engine transition */
 
@@ -3595,4 +3595,17 @@ void DRW_transform_to_display(GPUTexture *tex, View3D *v3d, bool do_dithering)
     immUnbindProgram();
   }
 }
-/***************************Enf of Game engine transition***************************/
+
+static GPUViewport *current_game_viewport = NULL;
+
+void DRW_game_gpu_viewport_set(GPUViewport *viewport)
+{
+  current_game_viewport = viewport;
+}
+
+GPUViewport *DRW_game_gpu_viewport_get()
+{
+  return current_game_viewport;
+}
+
+/***************************End of Game engine transition***************************/

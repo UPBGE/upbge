@@ -304,6 +304,7 @@ KX_Scene::~KX_Scene()
   /*************************/
 
   if (!KX_GetActiveEngine()->UseViewportRender()) {
+    DRW_game_gpu_viewport_set(nullptr);
     if (!m_isPythonMainLoop) {
       /* This will free m_gpuViewport and m_gpuOffScreen */
       DRW_game_render_loop_end();
@@ -576,6 +577,7 @@ void KX_Scene::RemoveOverlayCollection(Collection *collection)
 void KX_Scene::SetCurrentGPUViewport(GPUViewport *viewport)
 {
   m_currentGPUViewport = viewport;
+  DRW_game_gpu_viewport_set(viewport);
 }
 
 GPUViewport *KX_Scene::GetCurrentGPUViewport()
@@ -647,12 +649,24 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   Scene *scene = GetBlenderScene();
   /* This ensures a depsgraph is allocated and activates it */
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  bool useViewportRender = KX_GetActiveEngine()->UseViewportRender();
 
   engine->CountDepsgraphTime();
 
   if (m_collectionRemap) {
     BKE_main_collection_sync_remap(bmain);
     m_collectionRemap = false;
+  }
+
+  if (!useViewportRender) {
+    bool calledFromConstructor = cam == nullptr;
+    if (calledFromConstructor) {
+      m_currentGPUViewport = GPU_viewport_create();
+      SetInitMaterialsGPUViewport(m_currentGPUViewport);
+    }
+    else {
+      SetCurrentGPUViewport(cam->GetGPUViewport());
+    }
   }
 
   BKE_scene_graph_update_tagged(depsgraph, bmain);
@@ -683,8 +697,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
     window = {0, canvas->GetWidth(), 0, canvas->GetHeight()};
   }
-
-  bool useViewportRender = KX_GetActiveEngine()->UseViewportRender();
 
   if (useViewportRender) {
     /* When we call wm_draw_update, bContext variables are unset,
@@ -747,13 +759,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   if (cam) {
     UpdateObjectLods(cam);
-    SetCurrentGPUViewport(cam->GetGPUViewport());
-  }
-
-  bool calledFromConstructor = cam == nullptr;
-  if (calledFromConstructor) {
-    m_currentGPUViewport = GPU_viewport_create();
-    SetInitMaterialsGPUViewport(m_currentGPUViewport);
   }
 
   DRW_game_render_loop(
@@ -812,13 +817,13 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
     depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
   }
 
+  SetCurrentGPUViewport(cam->GetGPUViewport());
+
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
   for (KX_GameObject *gameobj : GetObjectList()) {
     gameobj->TagForUpdate(false);
   }
-
-  SetCurrentGPUViewport(cam->GetGPUViewport());
 
   float winmat[4][4];
   cam->GetProjectionMatrix().getValue(&winmat[0][0]);
