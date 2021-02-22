@@ -264,9 +264,6 @@ void KX_GameObject::TagForUpdate(bool is_overlay_pass)
   Main *bmain = CTX_data_main(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
-  if (!staticObject) {
-    GetScene()->ResetTaaSamples();
-  }
   Object *ob_orig = GetBlenderObject();
 
   bool skip_transform = ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY;
@@ -378,7 +375,6 @@ void KX_GameObject::ReplicateBlenderObject()
     }
 
     DEG_relations_tag_update(bmain);
-    GetScene()->ResetTaaSamples();
 
     m_pBlenderObject = newob;
     m_isReplica = true;
@@ -392,7 +388,6 @@ void KX_GameObject::RemoveReplicaObject()
     Main *bmain = CTX_data_main(C);
     BKE_id_delete(bmain, ob);
     SetBlenderObject(nullptr);
-    GetScene()->ResetTaaSamples();
     DEG_relations_tag_update(bmain);
   }
 }
@@ -411,7 +406,6 @@ void KX_GameObject::HideOriginalObject()
       BKE_layer_collection_sync(scene, view_layer);
       DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
       GetScene()->m_hiddenObjectsDuringRuntime.push_back(ob);
-      GetScene()->ResetTaaSamples();
     }
   }
 }
@@ -1166,7 +1160,6 @@ void KX_GameObject::SetVisible(bool v, bool recursive)
 
       BKE_layer_collection_sync(scene, view_layer);
       DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
-      GetScene()->ResetTaaSamples();
     }
   }
 
@@ -1273,7 +1266,6 @@ void KX_GameObject::SetObjectColor(const MT_Vector4 &rgbavec)
       ELEM(ob_orig->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
     copy_v4_v4(ob_orig->color, m_objectColor.getValue());
     DEG_id_tag_update(&ob_orig->id, ID_RECALC_SHADING | ID_RECALC_TRANSFORM);
-    GetScene()->ResetTaaSamples();
     WM_main_add_notifier(NC_OBJECT | ND_DRAW, &ob_orig->id);
   }
 }

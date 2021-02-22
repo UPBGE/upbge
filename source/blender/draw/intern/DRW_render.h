@@ -784,7 +784,6 @@ void DRW_game_render_loop(struct bContext *C,
                           struct Main *bmain,
                           struct Depsgraph *depsgraph,
                           const struct rcti *window,
-                          bool reset_taa_samples,
                           bool is_overlay_pass);
 
 void DRW_game_render_loop_end(void);

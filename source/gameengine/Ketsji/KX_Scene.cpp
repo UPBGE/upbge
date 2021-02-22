@@ -131,7 +131,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
                    class RAS_ICanvas *canvas,
                    KX_NetworkMessageManager *messageManager)
     : EXP_Value(),
-      m_resetTaaSamples(false),               // eevee
       m_lastReplicatedParentObject(nullptr),  // eevee
       m_gameDefaultCamera(nullptr),           // eevee
       m_currentGPUViewport(nullptr),          // eevee
@@ -504,11 +503,6 @@ Object *KX_Scene::GetGameDefaultCamera()
   return m_gameDefaultCamera;
 }
 
-void KX_Scene::ResetTaaSamples()
-{
-  m_resetTaaSamples = true;
-}
-
 void KX_Scene::AddOverlayCollection(KX_Camera *overlay_cam, Collection *collection)
 {
   /* Check if camera is not already in use */
@@ -545,7 +539,6 @@ void KX_Scene::AddOverlayCollection(KX_Camera *overlay_cam, Collection *collecti
       replica->Release();
     }
   }
-  ResetTaaSamples();
 }
 
 void KX_Scene::RemoveOverlayCollection(Collection *collection)
@@ -577,8 +570,6 @@ void KX_Scene::RemoveOverlayCollection(Collection *collection)
       collection_object->gameflag &= ~OB_OVERLAY_COLLECTION;
     }
     FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
-
-    ResetTaaSamples();
   }
 }
 
@@ -672,9 +663,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   engine->EndCountDepsgraphTime();
 
-  bool reset_taa_samples = m_resetTaaSamples;
-  m_resetTaaSamples = false;
-
   rcti window;
   int v[4];
   /* Custom BGE viewports*/
@@ -708,8 +696,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   /* Here we'll render directly the scene with viewport code. */
   if (useViewportRender) {
     if (cam) {
-      DRW_view_set_active(NULL);
-
       if (canvas->IsBlenderPlayer()) {
         ARegion *region = CTX_wm_region(C);
         region->visible = true;
@@ -771,7 +757,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   }
 
   DRW_game_render_loop(
-      C, m_currentGPUViewport, bmain, depsgraph, &window, reset_taa_samples, is_overlay_pass);
+      C, m_currentGPUViewport, bmain, depsgraph, &window, is_overlay_pass);
 
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
   RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextRenderFrameBuffer(s));
@@ -847,7 +833,7 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
                             winmat,
                             NULL);
 
-  DRW_game_render_loop(C, m_currentGPUViewport, bmain, depsgraph, window, true, false);
+  DRW_game_render_loop(C, m_currentGPUViewport, bmain, depsgraph, window, false);
 }
 
 void KX_Scene::SetBlenderSceneConverter(BL_BlenderSceneConverter *sc_converter)
@@ -1982,8 +1968,6 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj,
   if (use_gfx || use_phys) {
     DEG_id_tag_update(&gameobj->GetBlenderObject()->id, ID_RECALC_GEOMETRY);
   }
-
-  ResetTaaSamples();
 }
 
 KX_Camera *KX_Scene::GetActiveCamera()
@@ -2922,7 +2906,6 @@ PyAttributeDef KX_Scene::Attributes[] = {
     EXP_PYATTRIBUTE_FLOAT_RW(
         "activity_culling_radius", 0.5f, FLT_MAX, KX_Scene, m_activity_box_radius),
     EXP_PYATTRIBUTE_BOOL_RO("dbvt_culling", KX_Scene, m_dbvt_culling),
-    EXP_PYATTRIBUTE_BOOL_RW("resetTaaSamples", KX_Scene, m_resetTaaSamples),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 

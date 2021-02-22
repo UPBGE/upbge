@@ -1329,15 +1329,20 @@ void DRW_notify_view_update(const DRWUpdateContext *update_ctx)
   Scene *scene = update_ctx->scene;
   ViewLayer *view_layer = update_ctx->view_layer;
 
-  if (scene->flag & SCE_INTERACTIVE) {
-    return;
-  }
-
   const bool gpencil_engine_needed = drw_gpencil_engine_needed(depsgraph, v3d);
 
   /* Separate update for each stereo view. */
   for (int view = 0; view < 2; view++) {
     GPUViewport *viewport = WM_draw_region_get_viewport(region);
+
+    /* Game engine transition */
+    if (scene->flag & SCE_INTERACTIVE) {
+      /* Hack to allow bge to use depsgraph to detect
+       * all scene changes and notify drw_engine for redraw. */
+      viewport = DST.viewport;
+    }
+    /* End of Game engine transition */
+
     if (!viewport) {
       continue;
     }
@@ -3280,7 +3285,6 @@ void DRW_game_render_loop(bContext *C,
                           Main *bmain,
                           Depsgraph *depsgraph,
                           const rcti *window,
-                          bool reset_taa_samples,
                           bool is_overlay_pass)
 {
   /* Reset before using it. */
@@ -3294,10 +3298,6 @@ void DRW_game_render_loop(bContext *C,
   View3D *v3d = CTX_wm_view3d(C);
 
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
-
-  if (reset_taa_samples) {
-    rv3d->rflag |= RV3D_NAVIGATING;
-  }
 
   GPU_viewport_bind(viewport, 0, window);
 
@@ -3339,12 +3339,6 @@ void DRW_game_render_loop(bContext *C,
 
   /* Init engines */
   drw_engines_init();
-
-  EEVEE_Data *vedata = EEVEE_engine_data_get();
-  EEVEE_EffectsInfo *effects = vedata->stl->effects;
-  if (reset_taa_samples) {
-    effects->taa_current_sample = 1;
-  }
 
   drw_engines_cache_init();
   drw_engines_world_update(DST.draw_ctx.scene);
@@ -3419,8 +3413,6 @@ void DRW_game_render_loop(bContext *C,
   drw_viewport_cache_resize();
 
   GPU_viewport_unbind(DST.viewport);
-
-  rv3d->rflag &= ~RV3D_NAVIGATING;
 }
 
 void DRW_game_render_loop_end()
