@@ -651,8 +651,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   bool useViewportRender = KX_GetActiveEngine()->UseViewportRender();
 
-  engine->CountDepsgraphTime();
-
   if (m_collectionRemap) {
     BKE_main_collection_sync_remap(bmain);
     m_collectionRemap = false;
@@ -668,6 +666,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
       SetCurrentGPUViewport(cam->GetGPUViewport());
     }
   }
+
+  engine->CountDepsgraphTime();
 
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
