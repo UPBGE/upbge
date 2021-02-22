@@ -784,7 +784,8 @@ void DRW_game_render_loop(struct bContext *C,
                           struct Main *bmain,
                           struct Depsgraph *depsgraph,
                           const struct rcti *window,
-                          bool is_overlay_pass);
+                          bool is_overlay_pass,
+                          bool is_extra_render_loop);
 
 void DRW_game_render_loop_end(void);
 void DRW_game_python_loop_end(struct ViewLayer *view_layer);

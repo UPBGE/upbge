@@ -669,11 +669,11 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   engine->CountDepsgraphTime();
 
-  BKE_scene_graph_update_tagged(depsgraph, bmain);
-
   for (KX_GameObject *gameobj : GetObjectList()) {
     gameobj->TagForUpdate(is_overlay_pass);
   }
+
+  BKE_scene_graph_update_tagged(depsgraph, bmain);
 
   engine->EndCountDepsgraphTime();
 
@@ -762,7 +762,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   }
 
   DRW_game_render_loop(
-      C, m_currentGPUViewport, bmain, depsgraph, &window, is_overlay_pass);
+      C, m_currentGPUViewport, bmain, depsgraph, &window, is_overlay_pass, false);
 
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
   RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextRenderFrameBuffer(s));
@@ -819,12 +819,6 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
 
   SetCurrentGPUViewport(cam->GetGPUViewport());
 
-  BKE_scene_graph_update_tagged(depsgraph, bmain);
-
-  for (KX_GameObject *gameobj : GetObjectList()) {
-    gameobj->TagForUpdate(false);
-  }
-
   float winmat[4][4];
   cam->GetProjectionMatrix().getValue(&winmat[0][0]);
   CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
@@ -838,7 +832,7 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
                             winmat,
                             NULL);
 
-  DRW_game_render_loop(C, m_currentGPUViewport, bmain, depsgraph, window, false);
+  DRW_game_render_loop(C, m_currentGPUViewport, bmain, depsgraph, window, false, true);
 }
 
 void KX_Scene::SetBlenderSceneConverter(BL_BlenderSceneConverter *sc_converter)

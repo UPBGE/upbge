@@ -282,6 +282,8 @@ void KX_GameObject::TagForUpdate(bool is_overlay_pass)
       copy_m4_m4(ob_orig->obmat, obmat);
       BKE_object_apply_mat4(ob_orig, ob_orig->obmat, false, true);
     }
+
+    /* We keep that to be able to move fluid domains */
     copy_m4_m4(ob_eval->obmat, obmat);
     BKE_object_apply_mat4(ob_eval, ob_eval->obmat, false, true);
 
