@@ -32,7 +32,11 @@
 
 #include "Texture.h"
 
+#include "BKE_context.h"
+#include "BKE_global.h"
 #include "BKE_image.h"
+#include "BKE_scene.h"
+#include "DEG_depsgraph_query.h"
 #include "GPU_glew.h"
 #include "GPU_texture.h"
 #include "IMB_imbuf.h"
@@ -40,6 +44,7 @@
 
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
+#include "KX_KetsjiEngine.h"
 #include "RAS_IPolygonMaterial.h"
 
 static std::vector<Texture *> textures;
@@ -63,6 +68,7 @@ Texture::Texture()
       m_imgTexture(nullptr),
       m_matTexture(nullptr),
       m_scene(nullptr),
+      m_gameobj(nullptr),
       m_mipmap(false),
       m_scaledImBuf(nullptr),
       m_lastClock(0.0),
@@ -290,6 +296,7 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
           KX_GetActiveScene()->GetLogicManager(), obj, &gameObj, false, "")) {
     // process polygon material or blender material
     try {
+      tex->m_gameobj = gameObj;
       tex->m_scene = gameObj->GetScene();
       // get pointer to texture image
       RAS_IPolyMaterial *mat = getMaterial(gameObj, matID);
@@ -429,6 +436,10 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
           m_source->m_image->refresh();
         }
       }
+      DEG_id_tag_update(&m_gameobj->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
+      bContext *C = KX_GetActiveEngine()->GetContext();
+      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+      BKE_scene_graph_update_tagged(depsgraph, G_MAIN);
     }
     CATCH_EXCP;
   }

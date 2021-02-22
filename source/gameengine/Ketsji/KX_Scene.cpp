@@ -817,11 +817,6 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
 
   SetCurrentGPUViewport(cam->GetGPUViewport());
 
-  /* Add a random notifier to force depsgraph to update rendered texture */
-  DEG_id_tag_update(&cam->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
-
-  BKE_scene_graph_update_tagged(depsgraph, bmain);
-
   float winmat[4][4];
   cam->GetProjectionMatrix().getValue(&winmat[0][0]);
   CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
