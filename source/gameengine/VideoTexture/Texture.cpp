@@ -438,7 +438,7 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
       }
       DEG_id_tag_update(&m_gameobj->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
       bContext *C = KX_GetActiveEngine()->GetContext();
-      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+      Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
       BKE_scene_graph_update_tagged(depsgraph, G_MAIN);
     }
     CATCH_EXCP;
