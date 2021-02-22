@@ -274,18 +274,18 @@ void KX_GameObject::TagForUpdate(bool is_overlay_pass)
 
   if (ob_orig && !skip_transform) {
 
-    Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_orig);
-
     bool applyTransformToOrig = GetScene()->OrigObCanBeTransformedInRealtime(ob_orig);
 
     if (applyTransformToOrig) {
       copy_m4_m4(ob_orig->obmat, obmat);
       BKE_object_apply_mat4(ob_orig, ob_orig->obmat, false, true);
     }
-
-    /* We keep that to be able to move fluid domains */
-    copy_m4_m4(ob_eval->obmat, obmat);
-    BKE_object_apply_mat4(ob_eval, ob_eval->obmat, false, true);
+    else {
+      /* We keep that to be able to move fluid domains */
+      Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_orig);
+      copy_m4_m4(ob_eval->obmat, obmat);
+      BKE_object_apply_mat4(ob_eval, ob_eval->obmat, false, true);
+    }
 
     if (!staticObject || m_forceIgnoreParentTx) {
       std::vector<KX_GameObject *> children = GetChildren();

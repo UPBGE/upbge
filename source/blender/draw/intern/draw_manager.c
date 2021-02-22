@@ -3285,8 +3285,7 @@ void DRW_game_render_loop(bContext *C,
                           Main *bmain,
                           Depsgraph *depsgraph,
                           const rcti *window,
-                          bool is_overlay_pass,
-                          bool is_extra_render_loop)
+                          bool is_overlay_pass)
 {
   /* Reset before using it. */
   drw_state_prepare_clean_for_draw(&DST);
@@ -3340,11 +3339,6 @@ void DRW_game_render_loop(bContext *C,
 
   /* Init engines */
   drw_engines_init();
-
-  if (is_extra_render_loop) {
-    EEVEE_Data *vedata = EEVEE_engine_data_get();
-    vedata->stl->effects->taa_current_sample = 1;
-  }
 
   drw_engines_cache_init();
   drw_engines_world_update(DST.draw_ctx.scene);

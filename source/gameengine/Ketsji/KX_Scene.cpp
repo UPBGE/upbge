@@ -762,7 +762,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   }
 
   DRW_game_render_loop(
-      C, m_currentGPUViewport, bmain, depsgraph, &window, is_overlay_pass, false);
+      C, m_currentGPUViewport, bmain, depsgraph, &window, is_overlay_pass);
 
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
   RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextRenderFrameBuffer(s));
@@ -809,15 +809,18 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
 {
   bContext *C = KX_GetActiveEngine()->GetContext();
   Main *bmain = CTX_data_main(C);
-  Scene *scene = GetBlenderScene();
-  ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
   if (!depsgraph) {
-    depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
+    return;
   }
 
   SetCurrentGPUViewport(cam->GetGPUViewport());
+
+  /* Add a random notifier to force depsgraph to update rendered texture */
+  DEG_id_tag_update(&cam->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
+
+  BKE_scene_graph_update_tagged(depsgraph, bmain);
 
   float winmat[4][4];
   cam->GetProjectionMatrix().getValue(&winmat[0][0]);
@@ -832,7 +835,7 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
                             winmat,
                             NULL);
 
-  DRW_game_render_loop(C, m_currentGPUViewport, bmain, depsgraph, window, false, true);
+  DRW_game_render_loop(C, m_currentGPUViewport, bmain, depsgraph, window, false);
 }
 
 void KX_Scene::SetBlenderSceneConverter(BL_BlenderSceneConverter *sc_converter)
