@@ -268,10 +268,6 @@ void KX_GameObject::TagForUpdate(bool is_last_render_pass)
 
   bool skip_transform = ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY;
 
-  if (skip_transform) {
-    SyncTransformWithDepsgraph();
-  }
-
   if (ob_orig && !skip_transform) {
 
     bool applyTransformToOrig = GetScene()->OrigObCanBeTransformedInRealtime(ob_orig);
@@ -280,10 +276,6 @@ void KX_GameObject::TagForUpdate(bool is_last_render_pass)
       copy_m4_m4(ob_orig->obmat, obmat);
       BKE_object_apply_mat4(ob_orig, ob_orig->obmat, false, true);
     }
-
-    Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_orig);
-    copy_m4_m4(ob_eval->obmat, obmat);
-    BKE_object_apply_mat4(ob_eval, ob_eval->obmat, false, true);
 
     if (!staticObject || m_forceIgnoreParentTx) {
       std::vector<KX_GameObject *> children = GetChildren();
@@ -332,6 +324,29 @@ void KX_GameObject::TagForUpdate(bool is_last_render_pass)
     copy_m4_m4(m_prevObmat, obmat);
   }
   m_forceIgnoreParentTx = false;
+}
+
+void KX_GameObject::TagForUpdateEvaluated()
+{
+  float obmat[4][4];
+  NodeGetWorldTransform().getValue(&obmat[0][0]);
+
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+
+  Object *ob_orig = GetBlenderObject();
+
+  bool skip_transform = ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY;
+
+  if (skip_transform) {
+    SyncTransformWithDepsgraph();
+  }
+
+  if (ob_orig && !skip_transform) {
+    Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_orig);
+    copy_m4_m4(ob_eval->obmat, obmat);
+    BKE_object_apply_mat4(ob_eval, ob_eval->obmat, false, true);
+  }
 }
 
 void KX_GameObject::ReplicateBlenderObject()
