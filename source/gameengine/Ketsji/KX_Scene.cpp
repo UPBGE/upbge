@@ -670,11 +670,11 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   engine->CountDepsgraphTime();
 
+  BKE_scene_graph_update_tagged(depsgraph, bmain);
+
   for (KX_GameObject *gameobj : GetObjectList()) {
     gameobj->TagForUpdate(is_last_render_pass);
   }
-
-  BKE_scene_graph_update_tagged(depsgraph, bmain);
 
   engine->EndCountDepsgraphTime();
 

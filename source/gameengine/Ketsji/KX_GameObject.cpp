@@ -280,12 +280,10 @@ void KX_GameObject::TagForUpdate(bool is_last_render_pass)
       copy_m4_m4(ob_orig->obmat, obmat);
       BKE_object_apply_mat4(ob_orig, ob_orig->obmat, false, true);
     }
-    else {
-      /* We keep that to be able to move fluid domains */
-      Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_orig);
-      copy_m4_m4(ob_eval->obmat, obmat);
-      BKE_object_apply_mat4(ob_eval, ob_eval->obmat, false, true);
-    }
+
+    Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_orig);
+    copy_m4_m4(ob_eval->obmat, obmat);
+    BKE_object_apply_mat4(ob_eval, ob_eval->obmat, false, true);
 
     if (!staticObject || m_forceIgnoreParentTx) {
       std::vector<KX_GameObject *> children = GetChildren();
