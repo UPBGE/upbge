@@ -326,7 +326,7 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
   bool m_isRuntime;  // Too lazy to put that in protected
   std::vector<Object *> m_hiddenObjectsDuringRuntime;
 
-  void RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, bool is_overlay_pass);
+  void RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, bool is_overlay_pass, bool is_last_render_pass);
   void RenderAfterCameraSetupImageRender(KX_Camera *cam,
                                          RAS_Rasterizer *rasty,
                                          const struct rcti *window);

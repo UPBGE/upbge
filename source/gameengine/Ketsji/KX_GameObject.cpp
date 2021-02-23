@@ -254,7 +254,7 @@ void KX_GameObject::ForceIgnoreParentTx()
   m_forceIgnoreParentTx = true;
 }
 
-void KX_GameObject::TagForUpdate(bool is_overlay_pass)
+void KX_GameObject::TagForUpdate(bool is_last_render_pass)
 {
   float obmat[4][4];
   NodeGetWorldTransform().getValue(&obmat[0][0]);
@@ -323,10 +323,11 @@ void KX_GameObject::TagForUpdate(bool is_overlay_pass)
    * the previous frame. If the objects are not static,
    * then evee engine current TAA sample will be set to 1.
    */
-  if (GetScene()->GetOverlayCamera() && !is_overlay_pass) {
+  bool multiple_render_passes = KX_GetActiveEngine()->GetRenderingCameras().size() > 1;
+  if (multiple_render_passes && !is_last_render_pass) {
     // wait
   }
-  else if (GetScene()->GetOverlayCamera() && is_overlay_pass) {
+  else if (multiple_render_passes && is_last_render_pass) {
     copy_m4_m4(m_prevObmat, obmat);
   }
   else {

@@ -262,7 +262,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
      * KX_BlenderMaterials and BL_Textures.
      */
     const RAS_Rect &viewport = KX_GetActiveEngine()->GetCanvas()->GetViewportArea();
-    RenderAfterCameraSetup(nullptr, viewport, false);
+    RenderAfterCameraSetup(nullptr, viewport, false, true);
   }
   else {
     /* This ensures a depsgraph is allocated and activates it.
@@ -639,7 +639,8 @@ static RAS_Rasterizer::FrameBufferType s = RAS_Rasterizer::RAS_FRAMEBUFFER_EYE_L
 
 void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
                                       const RAS_Rect &viewport,
-                                      bool is_overlay_pass)
+                                      bool is_overlay_pass,
+                                      bool is_last_render_pass)
 {
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
   RAS_Rasterizer *rasty = engine->GetRasterizer();
@@ -670,7 +671,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   engine->CountDepsgraphTime();
 
   for (KX_GameObject *gameobj : GetObjectList()) {
-    gameobj->TagForUpdate(is_overlay_pass);
+    gameobj->TagForUpdate(is_last_render_pass);
   }
 
   BKE_scene_graph_update_tagged(depsgraph, bmain);
