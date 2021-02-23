@@ -260,6 +260,10 @@ void KX_GameObject::TagForUpdate(bool is_last_render_pass)
   NodeGetWorldTransform().getValue(&obmat[0][0]);
   bool staticObject = compare_m4m4(m_prevObmat, obmat, FLT_MIN);
 
+  if (!staticObject) {
+    GetScene()->AppendToMovingObjects(this);
+  }
+
   bContext *C = KX_GetActiveEngine()->GetContext();
   Main *bmain = CTX_data_main(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);

@@ -231,6 +231,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
   m_overlay_collections = {};
   m_imageRenderCameraList = {};
+  m_movingObjects = {};
 
   /* To backup and restore obmat */
   m_backupObList = {};
@@ -676,9 +677,11 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
-  for (KX_GameObject *gameobj : GetObjectList()) {
+  for (KX_GameObject *gameobj : m_movingObjects) {
     gameobj->TagForUpdateEvaluated();
   }
+
+  m_movingObjects.clear();
 
   engine->EndCountDepsgraphTime();
 
@@ -1218,6 +1221,11 @@ void KX_Scene::TagForObmatRestore(std::vector<Object *> potentialChildren)
     /* Free what was allocated in BlenderDataConversion */
     delete backup;
   }
+}
+
+void KX_Scene::AppendToMovingObjects(KX_GameObject *gameobj)
+{
+  m_movingObjects.push_back(gameobj);
 }
 
 /******************End of EEVEE INTEGRATION****************************/
