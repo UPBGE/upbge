@@ -140,6 +140,7 @@
 
 static RecentFile *wm_file_history_find(const char *filepath);
 static void wm_history_file_free(RecentFile *recent);
+static void wm_history_files_free(void);
 static void wm_history_file_update(void);
 static void wm_history_file_write(void);
 
@@ -1191,7 +1192,7 @@ void wm_history_file_read(void)
 
   lines = BLI_file_read_as_lines(name);
 
-  BLI_listbase_clear(&G.recent_files);
+  wm_history_files_free();
 
   /* read list of recent opened files from recent-files.txt to memory */
   for (l = lines, num = 0; l && (num < U.recent_files); l = l->next) {
@@ -1220,6 +1221,13 @@ static void wm_history_file_free(RecentFile *recent)
   BLI_assert(BLI_findindex(&G.recent_files, recent) != -1);
   MEM_freeN(recent->filepath);
   BLI_freelinkN(&G.recent_files, recent);
+}
+
+static void wm_history_files_free(void)
+{
+  LISTBASE_FOREACH_MUTABLE (RecentFile *, recent, &G.recent_files) {
+    wm_history_file_free(recent);
+  }
 }
 
 static RecentFile *wm_file_history_find(const char *filepath)
@@ -1393,14 +1401,8 @@ static ImBuf *blend_file_thumb(const bContext *C,
   }
 
   if (ibuf) {
-    float aspect = (scene->r.xsch * scene->r.xasp) / (scene->r.ysch * scene->r.yasp);
-
     /* dirty oversampling */
     IMB_scaleImBuf(ibuf, BLEN_THUMB_SIZE, BLEN_THUMB_SIZE);
-
-    /* add pretty overlay */
-    IMB_thumb_overlay_blend(ibuf->rect, ibuf->x, ibuf->y, aspect);
-
     thumb = BKE_main_thumbnail_from_imbuf(NULL, ibuf);
   }
   else {
