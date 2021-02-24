@@ -360,10 +360,9 @@ typedef struct EEVEE_PassList {
   struct DRWPass *renderpass_pass;
 
   /* Game engine transition */
-  struct DRWPass *aa_accum_ps;
-  struct DRWPass *aa_edge_ps;
-  struct DRWPass *aa_weight_ps;
-  struct DRWPass *aa_resolve_ps;
+  struct DRWPass *smaa_edge_ps;
+  struct DRWPass *smaa_weight_ps;
+  struct DRWPass *smaa_resolve_ps;
   /* End of Game engine transition */
 } EEVEE_PassList;
 
@@ -429,7 +428,7 @@ typedef struct EEVEE_FramebufferList {
   struct GPUFrameBuffer *taa_history_color_fb;
 
   /* Game engine transition */
-  struct GPUFrameBuffer *antialiasing_fb;
+  struct GPUFrameBuffer *smaa_fb;
   struct GPUFrameBuffer *smaa_edge_fb;
   struct GPUFrameBuffer *smaa_weight_fb;
   /* End of Game engine transition */
@@ -1111,7 +1110,6 @@ typedef struct EEVEE_PrivateData {
   int render_sample_count_per_timestep;
 
   /* Game engine transition */
-  struct DRWView *view;
   float smaa_mix_factor;
   float taa_sample_inv;
 
@@ -1601,11 +1599,9 @@ static const float cubefacemat[6][4][4] = {
 /* Game engine transition */
 EEVEE_Data *EEVEE_engine_data_get(void);
 
-GPUShader *eevee_shader_antialiasing_accumulation_get(void);
 GPUShader *eevee_shader_antialiasing_get(int stage, int smaa_quality);
 int EEVEE_antialiasing_engine_init(EEVEE_Data *vedata);
 void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata);
-void eevee_antialiasing_setup(EEVEE_Data *vedata);
 void EEVEE_antialiasing_draw_pass(EEVEE_Data *vedata);
 /* End of Game engine transition */
 
