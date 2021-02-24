@@ -691,6 +691,11 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     gameobj->TagForUpdateEvaluated();
   }
 
+  /* Always update camera ob_eval matrix. Reported by lordloki on discord */
+  if (cam) {
+    cam->TagForUpdateEvaluated();
+  }
+
   m_movingObjects.clear();
 
   engine->EndCountDepsgraphTime();
@@ -839,6 +844,9 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
   DEG_id_tag_update(&cam->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
   /* We need the changes to be flushed before each draw loop! */
   BKE_scene_graph_update_tagged(depsgraph, bmain);
+
+  /* Always update camera ob_eval matrix. Reported by lordloki on discord */
+  cam->TagForUpdateEvaluated();
 
   float winmat[4][4];
   cam->GetProjectionMatrix().getValue(&winmat[0][0]);

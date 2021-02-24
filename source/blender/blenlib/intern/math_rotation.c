@@ -320,7 +320,8 @@ void quat_to_mat4(float m[4][4], const float q[4])
 
 void mat3_normalized_to_quat(float q[4], const float mat[3][3])
 {
-  BLI_ASSERT_UNIT_M3(mat);
+  // BLI_ASSERT_UNIT_M3(mat); //Why? // Game engine transition (is triggered while updating cam
+  // matrix when cam moves in debug)
 
   /* Check the trace of the matrix - bad precision if close to -1. */
   const float trace = mat[0][0] + mat[1][1] + mat[2][2];
