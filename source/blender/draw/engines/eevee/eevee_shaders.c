@@ -178,7 +178,6 @@ static struct {
   } world;
 
   /* Game engine transition */
-  struct GPUShader *aa_accum_sh;
   struct GPUShader *smaa_sh[3];
   /* End of Game engine transition */
 } e_data = {NULL}; /* Engine data */
@@ -281,15 +280,6 @@ extern char datatoc_volumetric_vert_glsl[];
 extern char datatoc_common_smaa_lib_glsl[];
 extern char datatoc_effect_smaa_frag_glsl[];
 extern char datatoc_effect_smaa_vert_glsl[];
-extern char datatoc_effect_smaa_accum_glsl[];
-
-GPUShader *eevee_shader_antialiasing_accumulation_get(void)
-{
-  if (e_data.aa_accum_sh == NULL) {
-    e_data.aa_accum_sh = DRW_shader_create_fullscreen(datatoc_effect_smaa_accum_glsl, NULL);
-  }
-  return e_data.aa_accum_sh;
-}
 
 GPUShader *eevee_shader_antialiasing_get(int stage, int smaa_quality)
 {
@@ -1738,6 +1728,5 @@ void EEVEE_shaders_free(void)
     struct GPUShader **sh_array = &e_data.smaa_sh[0];
     DRW_SHADER_FREE_SAFE(sh_array[j]);
   }
-  DRW_SHADER_FREE_SAFE(e_data.aa_accum_sh);
   /* End of Game engine transition */
 }
