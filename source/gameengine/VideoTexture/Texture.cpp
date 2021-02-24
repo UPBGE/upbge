@@ -47,6 +47,10 @@
 #include "KX_KetsjiEngine.h"
 #include "RAS_IPolygonMaterial.h"
 
+#ifdef WITH_FFMPEG
+extern PyTypeObject VideoFFmpegType;
+#endif
+
 static std::vector<Texture *> textures;
 
 // macro for exception handling and logging
@@ -436,10 +440,18 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
           m_source->m_image->refresh();
         }
       }
-      DEG_id_tag_update(&m_gameobj->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
-      bContext *C = KX_GetActiveEngine()->GetContext();
-      Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-      BKE_scene_graph_update_tagged(depsgraph, G_MAIN);
+
+#ifdef WITH_FFMPEG
+      /* Add a depsgraph notifier to trigger
+       * DRW_notify_view_update on next draw loop
+       * for VideoFFMPEG, because the depsgraph has
+       * not been warned yet. */
+      if (m_source && _Py_IS_TYPE(&m_source->ob_base, &VideoFFmpegType)) {
+        /* This update notifier will be flushed next time
+         * BKE_scene_graph_update_tagged will be called */
+        DEG_id_tag_update(&m_gameobj->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
+      }
+#endif // WITH_FFMPEG
     }
     CATCH_EXCP;
   }

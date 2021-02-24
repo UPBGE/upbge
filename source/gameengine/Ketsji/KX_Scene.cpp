@@ -578,6 +578,12 @@ void KX_Scene::RemoveOverlayCollection(Collection *collection)
 void KX_Scene::SetCurrentGPUViewport(GPUViewport *viewport)
 {
   m_currentGPUViewport = viewport;
+
+  /* We set a GPUViewport as soon as possible
+   * to be able to call DRW_notify_view_update.
+   * The GPUViewport set doesn't really matter
+   * (as far I understood) but we need to have
+   * one set when we use custom bge render loop. */
   DRW_game_gpu_viewport_set(viewport);
 }
 
@@ -653,12 +659,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   bool useViewportRender = KX_GetActiveEngine()->UseViewportRender();
 
-  if (m_collectionRemap) {
-    BKE_main_collection_sync_remap(bmain);
-    m_collectionRemap = false;
-  }
-
-  if (!useViewportRender) {
+  if (!useViewportRender) { // Custom bge render loop only
     bool calledFromConstructor = cam == nullptr;
     if (calledFromConstructor) {
       m_currentGPUViewport = GPU_viewport_create();
@@ -671,12 +672,21 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   engine->CountDepsgraphTime();
 
+  if (m_collectionRemap) {
+    BKE_main_collection_sync_remap(bmain);
+    m_collectionRemap = false;
+  }
+
+  /* Notify the depsgraph if something changed in the scene
+   * for next drawing loop. */
   for (KX_GameObject *gameobj : GetObjectList()) {
     gameobj->TagForUpdate(is_last_render_pass);
   }
 
+  /* We need the changes to be flushed before each draw loop! */
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
+  /* Update evaluated object obmat according to SceneGraph. */
   for (KX_GameObject *gameobj : m_movingObjects) {
     gameobj->TagForUpdateEvaluated();
   }
@@ -750,6 +760,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     }
   }
 
+  /* Custom bge render loop only from here */
   if (cam) {
     float winmat[4][4];
     cam->GetProjectionMatrix().getValue(&winmat[0][0]);
@@ -763,9 +774,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
                               NULL,
                               winmat,
                               NULL);
-  }
 
-  if (cam) {
     UpdateObjectLods(cam);
   }
 
@@ -824,6 +833,12 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
   }
 
   SetCurrentGPUViewport(cam->GetGPUViewport());
+
+  /* Add a depsgraph notifier to trigger
+   * DRW_notify_view_update on next draw loop. */
+  DEG_id_tag_update(&cam->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
+  /* We need the changes to be flushed before each draw loop! */
+  BKE_scene_graph_update_tagged(depsgraph, bmain);
 
   float winmat[4][4];
   cam->GetProjectionMatrix().getValue(&winmat[0][0]);
