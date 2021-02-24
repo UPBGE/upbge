@@ -2056,6 +2056,22 @@ bool WM_paint_cursor_end(wmPaintCursor *handle)
   return false;
 }
 
+void WM_paint_cursor_remove_by_type(wmWindowManager *wm, void *draw_fn, void (*free)(void *))
+{
+  wmPaintCursor *pc = wm->paintcursors.first;
+  while (pc) {
+    wmPaintCursor *pc_next = pc->next;
+    if (pc->draw == draw_fn) {
+      if (free) {
+        free(pc->customdata);
+      }
+      BLI_remlink(&wm->paintcursors, pc);
+      MEM_freeN(pc);
+    }
+    pc = pc_next;
+  }
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -2994,7 +3010,7 @@ static void WM_OT_radial_control(wmOperatorType *ot)
 {
   ot->name = "Radial Control";
   ot->idname = "WM_OT_radial_control";
-  ot->description = "Set some size property (like e.g. brush size) with mouse wheel";
+  ot->description = "Set some size property (e.g. brush size) with mouse wheel";
 
   ot->invoke = radial_control_invoke;
   ot->modal = radial_control_modal;
