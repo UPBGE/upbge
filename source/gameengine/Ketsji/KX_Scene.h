@@ -123,7 +123,6 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
 
  protected:
   /***************EEVEE INTEGRATION*****************/
-  bool m_resetTaaSamples;
   Object *m_lastReplicatedParentObject;
   Object *m_gameDefaultCamera;
   std::vector<struct Collection *> m_overlay_collections;
@@ -320,7 +319,6 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
   virtual ~KX_Scene();
 
   /******************EEVEE INTEGRATION************************/
-  void ResetTaaSamples();
   void ConvertBlenderObject(struct Object *ob);
   void ConvertBlenderObjectsList(std::vector<Object *> objectslist, bool asynchronous);
   void ConvertBlenderCollection(struct Collection *co, bool asynchronous);
@@ -328,7 +326,7 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
   bool m_isRuntime;  // Too lazy to put that in protected
   std::vector<Object *> m_hiddenObjectsDuringRuntime;
 
-  void RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, bool is_overlay_pass);
+  void RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, bool is_overlay_pass, bool is_last_render_pass);
   void RenderAfterCameraSetupImageRender(KX_Camera *cam,
                                          RAS_Rasterizer *rasty,
                                          const struct rcti *window);

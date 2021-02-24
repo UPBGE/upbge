@@ -67,6 +67,7 @@ class Texture : public EXP_Value {
   RAS_Texture *m_matTexture;
 
   KX_Scene *m_scene;
+  KX_GameObject *m_gameobj;
 
   // use mipmapping
   bool m_mipmap;

@@ -131,7 +131,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
                    class RAS_ICanvas *canvas,
                    KX_NetworkMessageManager *messageManager)
     : EXP_Value(),
-      m_resetTaaSamples(false),               // eevee
       m_lastReplicatedParentObject(nullptr),  // eevee
       m_gameDefaultCamera(nullptr),           // eevee
       m_currentGPUViewport(nullptr),          // eevee
@@ -263,7 +262,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
      * KX_BlenderMaterials and BL_Textures.
      */
     const RAS_Rect &viewport = KX_GetActiveEngine()->GetCanvas()->GetViewportArea();
-    RenderAfterCameraSetup(nullptr, viewport, false);
+    RenderAfterCameraSetup(nullptr, viewport, false, true);
   }
   else {
     /* This ensures a depsgraph is allocated and activates it.
@@ -305,6 +304,7 @@ KX_Scene::~KX_Scene()
   /*************************/
 
   if (!KX_GetActiveEngine()->UseViewportRender()) {
+    DRW_game_gpu_viewport_set(nullptr);
     if (!m_isPythonMainLoop) {
       /* This will free m_gpuViewport and m_gpuOffScreen */
       DRW_game_render_loop_end();
@@ -504,11 +504,6 @@ Object *KX_Scene::GetGameDefaultCamera()
   return m_gameDefaultCamera;
 }
 
-void KX_Scene::ResetTaaSamples()
-{
-  m_resetTaaSamples = true;
-}
-
 void KX_Scene::AddOverlayCollection(KX_Camera *overlay_cam, Collection *collection)
 {
   /* Check if camera is not already in use */
@@ -545,7 +540,6 @@ void KX_Scene::AddOverlayCollection(KX_Camera *overlay_cam, Collection *collecti
       replica->Release();
     }
   }
-  ResetTaaSamples();
 }
 
 void KX_Scene::RemoveOverlayCollection(Collection *collection)
@@ -577,14 +571,19 @@ void KX_Scene::RemoveOverlayCollection(Collection *collection)
       collection_object->gameflag &= ~OB_OVERLAY_COLLECTION;
     }
     FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
-
-    ResetTaaSamples();
   }
 }
 
 void KX_Scene::SetCurrentGPUViewport(GPUViewport *viewport)
 {
   m_currentGPUViewport = viewport;
+
+  /* We set a GPUViewport as soon as possible
+   * to be able to call DRW_notify_view_update.
+   * The GPUViewport set doesn't really matter
+   * (as far I understood) but we need to have
+   * one set when we use custom bge render loop. */
+  DRW_game_gpu_viewport_set(viewport);
 }
 
 GPUViewport *KX_Scene::GetCurrentGPUViewport()
@@ -646,7 +645,8 @@ static RAS_Rasterizer::FrameBufferType s = RAS_Rasterizer::RAS_FRAMEBUFFER_EYE_L
 
 void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
                                       const RAS_Rect &viewport,
-                                      bool is_overlay_pass)
+                                      bool is_overlay_pass,
+                                      bool is_last_render_pass)
 {
   KX_KetsjiEngine *engine = KX_GetActiveEngine();
   RAS_Rasterizer *rasty = engine->GetRasterizer();
@@ -656,6 +656,18 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   Scene *scene = GetBlenderScene();
   /* This ensures a depsgraph is allocated and activates it */
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  bool useViewportRender = KX_GetActiveEngine()->UseViewportRender();
+
+  if (!useViewportRender) { // Custom bge render loop only
+    bool calledFromConstructor = cam == nullptr;
+    if (calledFromConstructor) {
+      m_currentGPUViewport = GPU_viewport_create();
+      SetInitMaterialsGPUViewport(m_currentGPUViewport);
+    }
+    else {
+      SetCurrentGPUViewport(cam->GetGPUViewport());
+    }
+  }
 
   engine->CountDepsgraphTime();
 
@@ -664,16 +676,21 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     m_collectionRemap = false;
   }
 
+  /* Notify the depsgraph if something changed in the scene
+   * for next drawing loop. */
+  for (KX_GameObject *gameobj : GetObjectList()) {
+    gameobj->TagForUpdate(is_last_render_pass);
+  }
+
+  /* We need the changes to be flushed before each draw loop! */
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
+  /* Update evaluated object obmat according to SceneGraph. */
   for (KX_GameObject *gameobj : GetObjectList()) {
-    gameobj->TagForUpdate(is_overlay_pass);
+    gameobj->TagForUpdateEvaluated();
   }
 
   engine->EndCountDepsgraphTime();
-
-  bool reset_taa_samples = m_resetTaaSamples;
-  m_resetTaaSamples = false;
 
   rcti window;
   int v[4];
@@ -696,8 +713,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     window = {0, canvas->GetWidth(), 0, canvas->GetHeight()};
   }
 
-  bool useViewportRender = KX_GetActiveEngine()->UseViewportRender();
-
   if (useViewportRender) {
     /* When we call wm_draw_update, bContext variables are unset,
      * then we need to set it again correctly to render the next frame.
@@ -708,8 +723,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   /* Here we'll render directly the scene with viewport code. */
   if (useViewportRender) {
     if (cam) {
-      DRW_view_set_active(NULL);
-
       if (canvas->IsBlenderPlayer()) {
         ARegion *region = CTX_wm_region(C);
         region->visible = true;
@@ -744,6 +757,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     }
   }
 
+  /* Custom bge render loop only from here */
   if (cam) {
     float winmat[4][4];
     cam->GetProjectionMatrix().getValue(&winmat[0][0]);
@@ -757,21 +771,12 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
                               NULL,
                               winmat,
                               NULL);
-  }
 
-  if (cam) {
     UpdateObjectLods(cam);
-    SetCurrentGPUViewport(cam->GetGPUViewport());
-  }
-
-  bool calledFromConstructor = cam == nullptr;
-  if (calledFromConstructor) {
-    m_currentGPUViewport = GPU_viewport_create();
-    SetInitMaterialsGPUViewport(m_currentGPUViewport);
   }
 
   DRW_game_render_loop(
-      C, m_currentGPUViewport, bmain, depsgraph, &window, reset_taa_samples, is_overlay_pass);
+      C, m_currentGPUViewport, bmain, depsgraph, &window, is_overlay_pass);
 
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
   RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextRenderFrameBuffer(s));
@@ -818,21 +823,19 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
 {
   bContext *C = KX_GetActiveEngine()->GetContext();
   Main *bmain = CTX_data_main(C);
-  Scene *scene = GetBlenderScene();
-  ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
   if (!depsgraph) {
-    depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
-  }
-
-  BKE_scene_graph_update_tagged(depsgraph, bmain);
-
-  for (KX_GameObject *gameobj : GetObjectList()) {
-    gameobj->TagForUpdate(false);
+    return;
   }
 
   SetCurrentGPUViewport(cam->GetGPUViewport());
+
+  /* Add a depsgraph notifier to trigger
+   * DRW_notify_view_update on next draw loop. */
+  DEG_id_tag_update(&cam->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
+  /* We need the changes to be flushed before each draw loop! */
+  BKE_scene_graph_update_tagged(depsgraph, bmain);
 
   float winmat[4][4];
   cam->GetProjectionMatrix().getValue(&winmat[0][0]);
@@ -847,7 +850,7 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
                             winmat,
                             NULL);
 
-  DRW_game_render_loop(C, m_currentGPUViewport, bmain, depsgraph, window, true, false);
+  DRW_game_render_loop(C, m_currentGPUViewport, bmain, depsgraph, window, false);
 }
 
 void KX_Scene::SetBlenderSceneConverter(BL_BlenderSceneConverter *sc_converter)
@@ -1982,8 +1985,6 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj,
   if (use_gfx || use_phys) {
     DEG_id_tag_update(&gameobj->GetBlenderObject()->id, ID_RECALC_GEOMETRY);
   }
-
-  ResetTaaSamples();
 }
 
 KX_Camera *KX_Scene::GetActiveCamera()
@@ -2922,7 +2923,6 @@ PyAttributeDef KX_Scene::Attributes[] = {
     EXP_PYATTRIBUTE_FLOAT_RW(
         "activity_culling_radius", 0.5f, FLT_MAX, KX_Scene, m_activity_box_radius),
     EXP_PYATTRIBUTE_BOOL_RO("dbvt_culling", KX_Scene, m_dbvt_culling),
-    EXP_PYATTRIBUTE_BOOL_RW("resetTaaSamples", KX_Scene, m_resetTaaSamples),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 

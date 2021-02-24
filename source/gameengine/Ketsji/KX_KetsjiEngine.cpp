@@ -164,6 +164,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system,
 #endif
 
   m_scenes = new EXP_ListValue<KX_Scene>();
+  m_renderingCameras = {};
 }
 
 /**
@@ -206,6 +207,12 @@ void KX_KetsjiEngine::EndCountDepsgraphTime()
 {
   m_logger.StartLog(tc_rasterizer);
 }
+
+std::vector<KX_Camera *> KX_KetsjiEngine::GetRenderingCameras()
+{
+  return m_renderingCameras;
+}
+
 /* End of EEVEE integration */
 
 void KX_KetsjiEngine::SetInputDevice(SCA_IInputDevice *inputDevice)
@@ -713,11 +720,15 @@ bool KX_KetsjiEngine::GetFrameRenderData(std::vector<FrameRenderData> &frameData
         overlay_cam_at_the_end_of_camera_list_ensure(scene);
       }
 
+      m_renderingCameras.clear();
+
       KX_Camera *overrideCullingCam = scene->GetOverrideCullingCamera();
       for (KX_Camera *cam : scene->GetCameraList()) {
         if ((cam != activecam && cam != scene->GetOverlayCamera()) && !cam->GetViewport()) {
           continue;
         }
+
+        m_renderingCameras.push_back(cam);
 
         for (RAS_Rasterizer::StereoEye eye : eyes) {
           sceneFrameData.m_cameraDataList.push_back(GetCameraRenderData(
@@ -1039,7 +1050,9 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
     m_rasterizer->SetBlendFunc(RAS_Rasterizer::RAS_ONE, RAS_Rasterizer::RAS_ONE_MINUS_SRC_ALPHA);
   }
 
-  scene->RenderAfterCameraSetup(rendercam, viewport, is_overlay_pass);
+  bool is_last_render_pass = rendercam == m_renderingCameras.back();
+
+  scene->RenderAfterCameraSetup(rendercam, viewport, is_overlay_pass, is_last_render_pass);
 
   if (scene->GetPhysicsEnvironment()) {
     scene->GetPhysicsEnvironment()->DebugDrawWorld();

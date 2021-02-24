@@ -383,10 +383,6 @@ void BL_Action::Update(float curtime, bool applyToObject)
   if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
     DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
 
-    // BKE_object_where_is_calc_time(depsgraph, sc, ob, m_localframe);
-
-    scene->ResetTaaSamples();
-
     BL_ArmatureObject *obj = (BL_ArmatureObject *)m_obj;
 
     if (m_layer_weight >= 0)
@@ -431,7 +427,6 @@ void BL_Action::Update(float curtime, bool applyToObject)
         PointerRNA ptrrna;
         RNA_id_pointer_create(&ob->id, &ptrrna);
         animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
-        scene->ResetTaaSamples();
         break;
       }
       /* HERE we can add other modifier action types,
@@ -451,8 +446,6 @@ void BL_Action::Update(float curtime, bool applyToObject)
           animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
 
           m_obj->ForceIgnoreParentTx();
-
-          scene->ResetTaaSamples();
           break;
         }
         /* HERE we can add other constraint action types,
@@ -468,7 +461,6 @@ void BL_Action::Update(float curtime, bool applyToObject)
         RNA_id_pointer_create(&nodetree->id, &ptrrna);
         animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
         ED_node_tag_update_nodetree(bmain, nodetree, nullptr);
-        scene->ResetTaaSamples();
         break;
       }
     }
@@ -509,8 +501,6 @@ void BL_Action::Update(float curtime, bool applyToObject)
         //}
 
         // shape_deformer->SetLastFrame(curtime);
-
-        scene->ResetTaaSamples();
       }
     }
   }
