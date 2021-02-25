@@ -604,6 +604,7 @@ bool CcdPhysicsEnvironment::RemoveCcdPhysicsController(CcdPhysicsController *ctr
 
 void CcdPhysicsEnvironment::UpdateCcdPhysicsController(CcdPhysicsController *ctrl,
                                                        btScalar newMass,
+                                                       btScalar newFriction,
                                                        int newCollisionFlags,
                                                        short int newCollisionGroup,
                                                        short int newCollisionMask)
@@ -621,6 +622,7 @@ void CcdPhysicsEnvironment::UpdateCcdPhysicsController(CcdPhysicsController *ctr
       if (newMass)
         body->getCollisionShape()->calculateLocalInertia(newMass, inertia);
       body->setMassProps(newMass, inertia);
+      body->setFriction(newFriction);
       m_dynamicsWorld->addRigidBody(body, newCollisionGroup, newCollisionMask);
     }
     else if (softBody) {

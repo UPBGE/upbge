@@ -217,6 +217,7 @@ CcdPhysicsController::CcdPhysicsController(const CcdConstructionInfo &ci) : m_cc
   m_savedCollisionFilterGroup = 0;
   m_savedCollisionFilterMask = 0;
   m_savedMass = 0.0f;
+  m_savedFriction = 0.0f;
   m_savedDyna = false;
   m_suspended = false;
 
@@ -1176,6 +1177,7 @@ void CcdPhysicsController::RefreshCollisions()
   btBroadphaseProxy *handle = m_object->getBroadphaseHandle();
   GetPhysicsEnvironment()->UpdateCcdPhysicsController(this,
                                                       GetMass(),
+                                                      GetFriction(),
                                                       m_object->getCollisionFlags(),
                                                       handle->m_collisionFilterGroup,
                                                       handle->m_collisionFilterMask);
@@ -1199,12 +1201,14 @@ void CcdPhysicsController::SuspendDynamics(bool ghost)
 
     m_savedCollisionFlags = body->getCollisionFlags();
     m_savedMass = GetMass();
+    m_savedFriction = GetFriction();
     m_savedDyna = m_cci.m_bDyna;
     m_savedCollisionFilterGroup = handle->m_collisionFilterGroup;
     m_savedCollisionFilterMask = handle->m_collisionFilterMask;
     m_suspended = true;
     GetPhysicsEnvironment()->UpdateCcdPhysicsController(
         this,
+        0.0f,
         0.0f,
         btCollisionObject::CF_STATIC_OBJECT |
             ((ghost) ? btCollisionObject::CF_NO_CONTACT_RESPONSE :
@@ -1223,6 +1227,7 @@ void CcdPhysicsController::RestoreDynamics()
     SetTransform();
     GetPhysicsEnvironment()->UpdateCcdPhysicsController(this,
                                                         m_savedMass,
+                                                        m_savedFriction,
                                                         m_savedCollisionFlags,
                                                         m_savedCollisionFilterGroup,
                                                         m_savedCollisionFilterMask);
@@ -1294,6 +1299,36 @@ void CcdPhysicsController::SetMass(MT_Scalar newmass)
     btBroadphaseProxy *handle = body->getBroadphaseHandle();
     GetPhysicsEnvironment()->UpdateCcdPhysicsController(this,
                                                         newmass,
+                                                        GetFriction(),
+                                                        body->getCollisionFlags(),
+                                                        handle->m_collisionFilterGroup,
+                                                        handle->m_collisionFilterMask);
+  }
+}
+
+MT_Scalar CcdPhysicsController::GetFriction()
+{
+  if (GetSoftBody()) {
+    std::cout << "friction is only available for rigid bodies and dynamic objects" << std::endl;
+  }
+
+  MT_Scalar friction = 0.0f;
+  if (GetRigidBody()) {
+    friction = GetRigidBody()->getFriction();
+    return friction;
+  }
+  return 0.0f;
+}
+
+void CcdPhysicsController::SetFriction(MT_Scalar newfriction)
+{
+  btRigidBody *body = GetRigidBody();
+  if (body && !m_suspended && !IsPhysicsSuspended() &&
+      newfriction > 0.0) {
+    btBroadphaseProxy *handle = body->getBroadphaseHandle();
+    GetPhysicsEnvironment()->UpdateCcdPhysicsController(this,
+                                                        GetMass(),
+                                                        newfriction,
                                                         body->getCollisionFlags(),
                                                         handle->m_collisionFilterGroup,
                                                         handle->m_collisionFilterMask);

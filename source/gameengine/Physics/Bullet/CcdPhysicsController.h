@@ -584,6 +584,7 @@ class CcdPhysicsController : public PHY_IPhysicsController {
   short m_savedCollisionFilterGroup;
   short m_savedCollisionFilterMask;
   MT_Scalar m_savedMass;
+  MT_Scalar m_savedFriction;
   bool m_savedDyna;
   bool m_suspended;
 
@@ -697,6 +698,9 @@ class CcdPhysicsController : public PHY_IPhysicsController {
 
   virtual MT_Scalar GetMass();
   virtual void SetMass(MT_Scalar newmass);
+
+  virtual MT_Scalar GetFriction();
+  virtual void SetFriction(MT_Scalar newfriction);
 
   // physics methods
   virtual void ApplyImpulse(const MT_Vector3 &attach, const MT_Vector3 &impulsein, bool local);

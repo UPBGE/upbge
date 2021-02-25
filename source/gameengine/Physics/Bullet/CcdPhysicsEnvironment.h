@@ -240,6 +240,7 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment {
 
   void UpdateCcdPhysicsController(CcdPhysicsController *ctrl,
                                   btScalar newMass,
+                                  btScalar newFriction,
                                   int newCollisionFlags,
                                   short int newCollisionGroup,
                                   short int newCollisionMask);
