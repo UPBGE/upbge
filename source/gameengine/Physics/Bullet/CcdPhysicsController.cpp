@@ -1324,7 +1324,7 @@ void CcdPhysicsController::SetFriction(MT_Scalar newfriction)
 {
   btRigidBody *body = GetRigidBody();
   if (body && !m_suspended && !IsPhysicsSuspended() &&
-      newfriction > 0.0) {
+      newfriction >= 0.0) {
     btBroadphaseProxy *handle = body->getBroadphaseHandle();
     GetPhysicsEnvironment()->UpdateCcdPhysicsController(this,
                                                         GetMass(),
