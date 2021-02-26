@@ -1986,8 +1986,8 @@ static void rna_def_visibility_actuator(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Visible",
-      "Set the objects visible (initialized from the object render restriction toggle in "
-      "physics button)");
+      "Set the objects visible (initialized from the Renders checkbox, "
+      "in Object Properties > Visibility panel or from outliner's camera icon)");
   RNA_def_property_update(prop, NC_LOGIC, NULL);
 
   prop = RNA_def_property(srna, "use_occlusion", PROP_BOOLEAN, PROP_NONE);
