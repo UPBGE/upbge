@@ -639,6 +639,8 @@ PythonComponent *BKE_python_component_new(char *import, ReportList *reports, bCo
     strcpy(pc->name, classname);
   }
 
+  free(modulename);
+
   // Try load the component.
   if (!load_component(pc, reports, CTX_data_main(context))) {
     BKE_python_component_free(pc);

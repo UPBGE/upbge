@@ -1338,6 +1338,7 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
     if (cont->type == CONT_PYTHON) {
       bPythonCont *pc = cont->data;
       BLO_read_id_address(reader, ob->id.lib, &pc->text);
+      BLO_read_id_address(reader, ob->id.lib, &pc->module_script);
     }
     cont->slinks = NULL;
     cont->totslinks = 0;
@@ -1628,6 +1629,7 @@ static void object_blend_read_expand(BlendExpander *expander, ID *id)
     if (cont->type == CONT_PYTHON) {
       bPythonCont *pc = cont->data;
       BLO_expand(expander, pc->text);
+      BLO_expand(expander, pc->module_script);
     }
   }
 
