@@ -1947,7 +1947,7 @@ static void rna_def_vibration_actuator(BlenderRNA *brna)
   prop = RNA_def_property(srna, "joy_index", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, NULL, "joyindex");
   RNA_def_property_range(prop, 0, 7);
-  RNA_def_property_ui_text(prop, "JoyIndex", "Joystick index");
+  RNA_def_property_ui_text(prop, "Joystick Index", "Joystick index");
   RNA_def_property_update(prop, NC_LOGIC, NULL);
 
   prop = RNA_def_property(srna, "joy_duration", PROP_INT, PROP_NONE);
