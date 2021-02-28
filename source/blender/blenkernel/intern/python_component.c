@@ -627,7 +627,6 @@ PythonComponent *BKE_python_component_new(char *import, ReportList *reports, bCo
     classname = pos + 1;
   }
   else {
-    free(modulename);
     BKE_report(reports, RPT_ERROR_INVALID_INPUT, "Invalid module name.");
     return NULL;
   }
@@ -639,8 +638,6 @@ PythonComponent *BKE_python_component_new(char *import, ReportList *reports, bCo
   if (classname) {
     strcpy(pc->name, classname);
   }
-
-  free(modulename);
 
   // Try load the component.
   if (!load_component(pc, reports, CTX_data_main(context))) {

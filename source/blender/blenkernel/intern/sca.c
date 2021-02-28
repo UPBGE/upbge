@@ -1072,11 +1072,14 @@ void BKE_sca_controllers_id_loop(ListBase *contlist, SCAControllerIDFunc func, v
     switch (controller->type) {
       case CONT_PYTHON: {
         bPythonCont *pc = controller->data;
-        char *modulename = strdup(pc->module);
-        char *ext = strdup(".py");
-        char *dest = strdup("");
-        if (strlen(modulename)) {
+        if (strlen(pc->module)) {
           if (!pc->module_script) {
+            char modulename[FILE_MAX];
+            strcpy(modulename, pc->module);
+            char ext[FILE_MAX];
+            strcpy(ext, ".py");
+            char dest[FILE_MAX];
+            strcpy(dest, "");
             char *classname;
             char *pos = strrchr(modulename, '.');
             if (pos) {
@@ -1095,10 +1098,6 @@ void BKE_sca_controllers_id_loop(ListBase *contlist, SCAControllerIDFunc func, v
             }
           }
         }
-
-        free(modulename);
-        free(ext);
-        free(dest);
 
         func(controller, (ID **)&pc->module_script, userdata, IDWALK_CB_USER);
         func(controller, (ID **)&pc->text, userdata, IDWALK_CB_USER);
