@@ -634,6 +634,7 @@ void CcdPhysicsEnvironment::UpdateCcdPhysicsController(CcdPhysicsController *ctr
   }
   // to avoid nasty interaction, we must update the property of the controller as well
   ctrl->m_cci.m_mass = newMass;
+  ctrl->m_cci.m_friction = newFriction;
   ctrl->m_cci.m_collisionFilterGroup = newCollisionGroup;
   ctrl->m_cci.m_collisionFilterMask = newCollisionMask;
   ctrl->m_cci.m_collisionFlags = newCollisionFlags;
