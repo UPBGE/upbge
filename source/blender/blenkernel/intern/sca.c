@@ -1075,7 +1075,7 @@ void BKE_sca_controllers_id_loop(ListBase *contlist, SCAControllerIDFunc func, v
         if (strlen(pc->module)) {
           if (!pc->module_script) {
             char modulename[FILE_MAX];
-            strcpy(modulename, pc->module);
+            BLI_strncpy(modulename, pc->module, sizeof(modulename));
             char ext[FILE_MAX];
             strcpy(ext, ".py");
             char dest[FILE_MAX];
