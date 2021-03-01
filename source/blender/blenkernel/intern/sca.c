@@ -39,6 +39,7 @@
 #include "DNA_controller_types.h"
 #include "DNA_object_types.h"
 #include "DNA_sensor_types.h"
+#include "DNA_text_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
@@ -227,8 +228,9 @@ void BKE_sca_free_controller(bController *cont)
     MEM_freeN(cont->links);
 
   /* the controller itself */
-  if (cont->data)
+  if (cont->data) {
     MEM_freeN(cont->data);
+  }
   MEM_freeN(cont);
 }
 
@@ -1070,7 +1072,35 @@ void BKE_sca_controllers_id_loop(ListBase *contlist, SCAControllerIDFunc func, v
     switch (controller->type) {
       case CONT_PYTHON: {
         bPythonCont *pc = controller->data;
-        func(controller, (ID **)&pc->text, userdata, IDWALK_CB_NOP);
+        if (strlen(pc->module)) {
+          if (!pc->module_script) {
+            char modulename[FILE_MAX];
+            BLI_strncpy(modulename, pc->module, sizeof(modulename));
+            char ext[FILE_MAX];
+            strcpy(ext, ".py");
+            char dest[FILE_MAX];
+            strcpy(dest, "");
+            char *classname;
+            char *pos = strrchr(modulename, '.');
+            if (pos) {
+              *pos = '\0';
+              classname = pos + 1;
+            }
+            strcat(dest, modulename);
+            strcat(dest, ext);
+            LISTBASE_FOREACH (Text *, text, &G_MAIN->texts) {
+              if (strcmp(text->id.name + 2, dest) == 0) {
+                if (text->filepath == NULL) { // Means the script is embedded
+                  pc->module_script = text;
+                }
+                break;
+              }
+            }
+          }
+        }
+
+        func(controller, (ID **)&pc->module_script, userdata, IDWALK_CB_USER);
+        func(controller, (ID **)&pc->text, userdata, IDWALK_CB_USER);
         break;
       }
       case CONT_LOGIC_AND:

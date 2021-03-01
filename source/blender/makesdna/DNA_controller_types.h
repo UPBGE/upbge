@@ -49,6 +49,7 @@ typedef struct bExpressionCont {
 
 typedef struct bPythonCont {
   struct Text *text;
+  struct Text *module_script;
   char module[64];
   int mode;
   int flag; /* only used for debug now */
