@@ -189,7 +189,10 @@ void EEVEE_volumes_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
   float integration_start = scene_eval->eevee.volumetric_start;
   float integration_end = scene_eval->eevee.volumetric_end;
   common_data->vol_light_clamp = scene_eval->eevee.volumetric_light_clamp;
-  common_data->vol_shadow_steps = (float)scene_eval->eevee.volumetric_shadow_samples;
+  /* Game engine transition (limit shadow steps for performance.
+   * See volumetric_lib.glsl change too #define VOLUMETRIC_SHADOW_MAX_STEP 32.0)
+   * and https://developer.blender.org/rB3a29c19b2bff */
+  common_data->vol_shadow_steps = min_ff(32.0f, (float)scene_eval->eevee.volumetric_shadow_samples);
   if ((scene_eval->eevee.flag & SCE_EEVEE_VOLUMETRIC_SHADOWS) == 0) {
     common_data->vol_shadow_steps = 0;
   }
