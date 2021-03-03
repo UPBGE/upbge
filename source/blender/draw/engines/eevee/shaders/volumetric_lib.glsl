@@ -98,9 +98,7 @@ vec3 light_volume(LightData ld, vec4 l_vector)
   return tint * lum;
 }
 
-//#define VOLUMETRIC_SHADOW_MAX_STEP 128.0
-// Game engine transition (limit shadow steps for performances)
-#define VOLUMETRIC_SHADOW_MAX_STEP 32.0
+#define VOLUMETRIC_SHADOW_MAX_STEP 128.0
 
 vec3 participating_media_extinction(vec3 wpos, sampler3D volume_extinction)
 {
