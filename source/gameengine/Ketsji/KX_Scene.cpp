@@ -1206,7 +1206,8 @@ void KX_Scene::TagForObmatRestore(std::vector<Object *> potentialChildren)
 
       if (applyTransformToOrig) {
         copy_m4_m4(ob_orig->obmat, backup->obmat);
-        BKE_object_apply_mat4(ob_orig, ob_orig->obmat, false, true);
+        BKE_object_apply_mat4(
+            ob_orig, ob_orig->obmat, false, ob_orig->parent && ob_orig->partype != PARVERT1);
       }
       copy_m4_m4(ob_eval->obmat, backup->obmat);
       BKE_object_apply_mat4(ob_eval, ob_eval->obmat, false, true);

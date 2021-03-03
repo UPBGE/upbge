@@ -274,7 +274,7 @@ void KX_GameObject::TagForUpdate(bool is_last_render_pass)
 
     if (applyTransformToOrig) {
       copy_m4_m4(ob_orig->obmat, obmat);
-      BKE_object_apply_mat4(ob_orig, ob_orig->obmat, false, true);
+      BKE_object_apply_mat4(ob_orig, ob_orig->obmat, false, ob_orig->parent && ob_orig->partype != PARVERT1);
     }
 
     if (!staticObject || m_forceIgnoreParentTx) {
