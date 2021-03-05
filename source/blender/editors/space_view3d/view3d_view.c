@@ -1788,7 +1788,8 @@ bool ED_view3d_is_region_xr_mirror_active(const wmWindowManager *wm,
 
 #ifdef WITH_GAMEENGINE
 
-static ListBase queue_back;
+static ListBase events_queue_back;
+
 static void game_engine_save_state(bContext *C, wmWindow *win)
 {
   Object *obact = CTX_data_active_object(C);
@@ -1801,9 +1802,9 @@ static void game_engine_save_state(bContext *C, wmWindow *win)
     BKE_image_paint_set_mipmap(bmain, 1);
   }
 
-  queue_back = win->queue;
+  events_queue_back = win->event_queue;
 
-  BLI_listbase_clear(&win->queue);
+  BLI_listbase_clear(&win->event_queue);
 }
 
 static void game_engine_restore_state(bContext *C, wmWindow *win)
@@ -1816,7 +1817,7 @@ static void game_engine_restore_state(bContext *C, wmWindow *win)
   }
   /* check because closing win can set to NULL */
   if (win) {
-    win->queue = queue_back;
+    win->event_queue = events_queue_back;
   }
 
   /*GPU_state_init();
