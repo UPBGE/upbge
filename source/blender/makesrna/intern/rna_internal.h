@@ -429,6 +429,7 @@ void RNA_api_window(struct StructRNA *srna);
 void RNA_api_wm(struct StructRNA *srna);
 void RNA_api_space_node(struct StructRNA *srna);
 void RNA_api_space_text(struct StructRNA *srna);
+void RNA_api_space_filebrowser(struct StructRNA *srna);
 void RNA_api_region_view3d(struct StructRNA *srna);
 void RNA_api_sensor(struct StructRNA *srna);
 void RNA_api_controller(struct StructRNA *srna);
