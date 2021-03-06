@@ -216,26 +216,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   m_kxobWithLod = {};
   m_obRestrictFlags = {};
 
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Main *bmain = CTX_data_main(C);
-  ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-
-  if (CTX_wm_region_view3d(C)->persp != RV3D_CAMOB) {
-    m_gameDefaultCamera = BKE_object_add_only_object(bmain, OB_CAMERA, "game_default_cam");
-    m_gameDefaultCamera->data = BKE_object_obdata_add_from_type(bmain, OB_CAMERA, NULL);
-    BKE_collection_object_add(bmain, scene->master_collection, m_gameDefaultCamera);
-    Base *defaultCamBase = BKE_view_layer_base_find(view_layer, m_gameDefaultCamera);
-    defaultCamBase->flag |= BASE_HIDDEN;
-    DEG_relations_tag_update(bmain);
-  }
-
-  m_overlay_collections = {};
-  m_imageRenderCameraList = {};
-
-  /* To backup and restore obmat */
-  m_backupObList = {};
-  m_potentialChildren = {};
-
   /* REMINDER TO SET bContext */
   /* 1.MAIN, 2.wmWindowManager, 3.wmWindow, 4.bScreen, 5.ScreenArea, 6.ARegion, 7.Scene */
 
@@ -244,6 +224,30 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
    * the good environment.
    */
   ReinitBlenderContextVariables();
+
+  /* This ensures a depsgraph is allocated and activates it.
+   * It is needed in KX_Scene constructor because we'll need
+   * a depsgraph in BlenderDataConversion.
+   */
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Main *bmain = CTX_data_main(C);
+  ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+
+  CTX_data_depsgraph_pointer(C);
+
+  m_gameDefaultCamera = BKE_object_add_only_object(bmain, OB_CAMERA, "game_default_cam");
+  m_gameDefaultCamera->data = BKE_object_obdata_add_from_type(bmain, OB_CAMERA, NULL);
+  BKE_collection_object_add(bmain, scene->master_collection, m_gameDefaultCamera);
+  Base *defaultCamBase = BKE_view_layer_base_find(view_layer, m_gameDefaultCamera);
+  defaultCamBase->flag |= BASE_HIDDEN;
+  DEG_relations_tag_update(bmain);
+
+  m_overlay_collections = {};
+  m_imageRenderCameraList = {};
+
+  /* To backup and restore obmat */
+  m_backupObList = {};
+  m_potentialChildren = {};
 
   /* Configure Shading types and overlays according to
    * (viewport render or not) and (blenderplayer or not)
@@ -263,13 +267,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
      */
     const RAS_Rect &viewport = KX_GetActiveEngine()->GetCanvas()->GetViewportArea();
     RenderAfterCameraSetup(nullptr, viewport, false, true);
-  }
-  else {
-    /* This ensures a depsgraph is allocated and activates it.
-     * It is needed in KX_Scene constructor because we'll need
-     * a depsgraph in BlenderDataConversion.
-     */
-    CTX_data_depsgraph_pointer(C);
   }
 
   /* Fix black shading issue with addObject https://github.com/UPBGE/upbge/issues/1354 */

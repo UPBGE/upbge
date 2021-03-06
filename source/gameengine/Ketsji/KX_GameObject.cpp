@@ -266,7 +266,7 @@ void KX_GameObject::TagForUpdate(bool is_last_render_pass)
 
   Object *ob_orig = GetBlenderObject();
 
-  bool skip_transform = ob_orig && ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY;
+  bool skip_transform = ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY;
 
   if (ob_orig && !skip_transform) {
 
@@ -336,7 +336,7 @@ void KX_GameObject::TagForUpdateEvaluated()
 
   Object *ob_orig = GetBlenderObject();
 
-  bool skip_transform = ob_orig && ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY;
+  bool skip_transform = ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY;
 
   if (skip_transform) {
     SyncTransformWithDepsgraph();
