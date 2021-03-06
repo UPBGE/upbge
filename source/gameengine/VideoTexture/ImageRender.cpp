@@ -96,7 +96,9 @@ ImageRender::~ImageRender(void)
 #ifdef WITH_PYTHON
   // These may be nullptr but the macro checks.
   Py_CLEAR(m_preDrawCallbacks);
+  m_preDrawCallbacks = nullptr;
   Py_CLEAR(m_postDrawCallbacks);
+  m_postDrawCallbacks = nullptr;
 #endif
   m_scene->RemoveImageRenderCamera(m_camera);
 
@@ -366,7 +368,9 @@ bool ImageRender::Render()
   RunPostDrawCallbacks();
   // These may be nullptr but the macro checks.
   Py_CLEAR(m_preDrawCallbacks);
+  m_preDrawCallbacks = nullptr;
   Py_CLEAR(m_postDrawCallbacks);
+  m_postDrawCallbacks = nullptr;
 #endif
 
   m_canvas->EndFrame();
@@ -390,8 +394,7 @@ void ImageRender::RunPreDrawCallbacks()
     return;
   }
 
-  PyObject *args[1] = {(PyObject *)getSource(0)};
-  EXP_RunPythonCallBackList(list, args, 0, 1);
+  EXP_RunPythonCallBackList(list, nullptr, 0, 0);
 }
 
 void ImageRender::RunPostDrawCallbacks()
@@ -401,8 +404,11 @@ void ImageRender::RunPostDrawCallbacks()
     return;
   }
 
-  PyObject *args[1] = {(PyObject *)getSource(0)};
-  EXP_RunPythonCallBackList(list, args, 0, 1);
+  EXP_RunPythonCallBackList(list, nullptr, 0, 0);
+
+  /* Ensure DRW_notify_view_update will be called on next draw loop if we did
+   * changes related to scene_eval in ImageRender draw callbacks */
+  DEG_id_tag_update(&m_camera->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
 }
 
 // cast Image pointer to ImageRender
