@@ -33,6 +33,7 @@
 #include "DNA_screen_types.h"
 
 #include "Common.h"
+#include "EXP_Value.h"
 #include "ImageViewport.h"
 #include "KX_Camera.h"
 #include "KX_Scene.h"
@@ -84,6 +85,14 @@ class ImageRender : public ImageViewport {
   bool Render();
   /// in case fbo is used, method to unbind
   void Unbind();
+
+  void RunPreDrawCallbacks();
+  void RunPostDrawCallbacks();
+
+#ifdef WITH_PYTHON
+  PyObject *m_preDrawCallbacks;
+  PyObject *m_postDrawCallbacks;
+#endif
 
  protected:
   /// true if ready to render
