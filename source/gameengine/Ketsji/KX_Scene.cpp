@@ -216,9 +216,28 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   m_kxobWithLod = {};
   m_obRestrictFlags = {};
 
+  /* REMINDER TO SET bContext */
+  /* 1.MAIN, 2.wmWindowManager, 3.wmWindow, 4.bScreen, 5.ScreenArea, 6.ARegion, 7.Scene */
+
+  /* In the case of SetScene actuator (not game restart or load .blend)
+   * We might need to Set bContext Variables here to be sure to have
+   * the good environment.
+   */
+  ReinitBlenderContextVariables();
+
   bContext *C = KX_GetActiveEngine()->GetContext();
   Main *bmain = CTX_data_main(C);
+
+  /* Update 3D view cameras and RV3D->persp state and ensure the ViewLayer is updated */
+  ED_screen_scene_change(C, CTX_wm_window(C), scene);
+
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+
+  /* This ensures a depsgraph is allocated and activates it.
+   * It is needed in KX_Scene constructor because we'll need
+   * a depsgraph in BlenderDataConversion.
+   */
+  CTX_data_depsgraph_pointer(C);
 
   if (CTX_wm_region_view3d(C)->persp != RV3D_CAMOB) {
     m_gameDefaultCamera = BKE_object_add_only_object(bmain, OB_CAMERA, "game_default_cam");
@@ -235,15 +254,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   /* To backup and restore obmat */
   m_backupObList = {};
   m_potentialChildren = {};
-
-  /* REMINDER TO SET bContext */
-  /* 1.MAIN, 2.wmWindowManager, 3.wmWindow, 4.bScreen, 5.ScreenArea, 6.ARegion, 7.Scene */
-
-  /* In the case of SetScene actuator (not game restart or load .blend)
-   * We might need to Set bContext Variables here to be sure to have
-   * the good environment.
-   */
-  ReinitBlenderContextVariables();
 
   /* Configure Shading types and overlays according to
    * (viewport render or not) and (blenderplayer or not)
@@ -263,13 +273,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
      */
     const RAS_Rect &viewport = KX_GetActiveEngine()->GetCanvas()->GetViewportArea();
     RenderAfterCameraSetup(nullptr, viewport, false, true);
-  }
-  else {
-    /* This ensures a depsgraph is allocated and activates it.
-     * It is needed in KX_Scene constructor because we'll need
-     * a depsgraph in BlenderDataConversion.
-     */
-    CTX_data_depsgraph_pointer(C);
   }
 
   /* Fix black shading issue with addObject https://github.com/UPBGE/upbge/issues/1354 */
