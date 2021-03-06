@@ -795,7 +795,7 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
 
   btSoftBody *sb = GetSoftBody();
   if (sb) {  // EXPERIMENTAL
-    if (sb->m_pose.m_bframe) {
+    if (sb->m_pose.m_bframe || sb->m_pose.m_bvolume) {
       // btVector3 worldPos = sb->m_pose.m_com;
       // btQuaternion worldquat;
       // btMatrix3x3 trs = sb->m_pose.m_rot * sb->m_pose.m_scl;
@@ -843,7 +843,7 @@ void CcdPhysicsController::UpdateSoftBody()
 {
   btSoftBody *sb = GetSoftBody();
   if (sb && sb->getActivationState() != ISLAND_SLEEPING) {
-    if (sb->m_pose.m_bframe) {
+    if (sb->m_pose.m_bframe || sb->m_pose.m_bvolume) {
 
       RAS_MeshObject *rasMesh = GetShapeInfo()->GetMesh();
 
