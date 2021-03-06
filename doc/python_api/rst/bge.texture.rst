@@ -779,6 +779,65 @@ Image classes
 
       :type: bool
 
+   .. attribute:: pre_draw
+
+      A list of callables to be run before the render step.
+      These callbacks can be used to make background transparent
+      or disable post processing effects of evaluated scene.
+      Evaluated scene has to be used for performance reasons.
+
+      :type: list
+
+   .. code-block:: python
+
+      import bpy, bge
+      from bge import texture
+
+      cont = bge.logic.getCurrentController() # on main camera
+      scene = bge.logic.getCurrentScene()
+      rendercam = scene.objects["rendercam"]
+      renderplane = scene.objects["renderplane"]
+
+      bge.overlayTex = texture.Texture(renderplane, 0, 0)
+      bge.overlayTex.source = texture.ImageRender(scene, rendercam)
+      bge.overlayTex.source.capsize = [512, 512]
+
+      filter = scene.filterManager.addFilter(0, bge.logic.RAS_2DFILTER_CUSTOMFILTER, cont.actuators["overlay"].shaderText)
+
+      def preDraw():
+
+          depsgraph = bpy.context.evaluated_depsgraph_get()
+          scene_eval = bpy.context.scene.evaluated_get(depsgraph)
+
+          # Make background transparent before rendering overlay texture
+          scene_eval.render.film_transparent = True
+
+          # Disable not wanted effects before rendering overlay texture
+          scene_eval.eevee.bloom_intensity = 0
+
+      def renderOverlay():
+
+          # Append preDraw to bge.overlayTex.source pre-draw callbacks
+          bge.overlayTex.source.pre_draw.append(preDraw)
+
+          # Render Overlay Camera to renderplane texture
+          bge.overlayTex.refresh(True)
+
+      def sendUniformsTo2DFilters():
+
+          # Render overlay texture
+          renderOverlay()
+
+          # send uniforms to 2D filter to do the compositing between main render and overlay
+          if filter is not None:
+              filter.setTexture(0, bge.overlayTex.bindId, "overlayTex")
+
+   .. attribute:: post_draw
+
+      A list of callables to be run after the render step.
+
+      :type: list
+
    .. method:: render()
 
       Render the scene but do not extract the pixels yet.

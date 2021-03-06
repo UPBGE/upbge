@@ -33,7 +33,6 @@
 #include "DNA_screen_types.h"
 
 #include "Common.h"
-#include "EXP_Value.h"
 #include "ImageViewport.h"
 #include "KX_Camera.h"
 #include "KX_Scene.h"
