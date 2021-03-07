@@ -580,12 +580,11 @@ void VideoFFmpeg::openCam(char *file, short camIdx)
   char filename[28], rateStr[20];
 
 #  ifdef WIN32
-  // video capture on windows only through Video For Windows driver
-  inputFormat = av_find_input_format("vfwcap");
+  inputFormat = av_find_input_format("dshow");
   if (!inputFormat)
-    // Video For Windows not supported??
+    // dshow not supported??
     return;
-  sprintf(filename, "%d", camIdx);
+  sprintf(filename, "video=%s", file);
 #  else
   // In Linux we support two types of devices: VideoForLinux and DV1394.
   // the user specify it with the filename:
