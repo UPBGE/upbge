@@ -396,8 +396,8 @@ void ImageRender::RunPreDrawCallbacks()
 
   EXP_RunPythonCallBackList(list, nullptr, 0, 0);
 
-  /* Ensure DRW_notify_view_update will be called on next draw loop if we did
-   * changes related to scene_eval in ImageRender draw callbacks */
+  /* Ensure DRW_notify_view_update will be called next time BKE_scene_graph_update_tagged
+   * will be called if we did changes related to scene_eval in ImageRender draw callbacks */
   DEG_id_tag_update(&m_camera->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
 }
 
@@ -410,8 +410,8 @@ void ImageRender::RunPostDrawCallbacks()
 
   EXP_RunPythonCallBackList(list, nullptr, 0, 0);
 
-  /* Ensure DRW_notify_view_update will be called on next draw loop if we did
-   * changes related to scene_eval in ImageRender draw callbacks */
+  /* Ensure DRW_notify_view_update will be called next time BKE_scene_graph_update_tagged
+   * will be called if we did changes related to scene_eval in ImageRender draw callbacks */
   DEG_id_tag_update(&m_camera->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
 }
 
