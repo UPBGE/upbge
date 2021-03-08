@@ -426,14 +426,6 @@ void KX_GameObject::HideOriginalObject()
   }
 }
 
-void KX_GameObject::RecalcGeometry()
-{
-  Object *ob = GetBlenderObject();
-  if (ob) {
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  }
-}
-
 static void suspend_physics_recursive(SG_Node *node, bool freeConstraints)
 {
   const NodeList &children = node->GetSGChildren();
@@ -2094,8 +2086,6 @@ PyMethodDef KX_GameObject::Methods[] = {
     EXP_PYMETHODTABLE(KX_GameObject, getActionName),
     EXP_PYMETHODTABLE(KX_GameObject, setActionFrame),
     EXP_PYMETHODTABLE(KX_GameObject, isPlayingAction),
-    EXP_PYMETHODTABLE(KX_GameObject, recalcGeometry),
-    EXP_PYMETHODTABLE(KX_GameObject, recalcTransform),
 
     // dict style access for props
     {"get", (PyCFunction)KX_GameObject::sPyget, METH_VARARGS},
@@ -4776,23 +4766,6 @@ EXP_PYMETHODDEF_DOC(KX_GameObject,
   layer_check(layer, "isPlayingAction");
 
   return PyBool_FromLong(!IsActionDone(layer));
-}
-
-EXP_PYMETHODDEF_DOC(KX_GameObject, recalcGeometry, "ID_RECALC_GEOMETRY depsgraph notifier\n")
-{
-  RecalcGeometry();
-
-  Py_RETURN_NONE;
-}
-
-EXP_PYMETHODDEF_DOC(KX_GameObject, recalcTransform, "ID_RECALC_TRANSFORM depsgraph notifier\n")
-{
-  Object *ob = GetBlenderObject();
-  if (ob && GetScene()->OrigObCanBeTransformedInRealtime(ob)) {
-    DEG_id_tag_update(&GetBlenderObject()->id, ID_RECALC_TRANSFORM);
-  }
-
-  Py_RETURN_NONE;
 }
 
 EXP_PYMETHODDEF_DOC(KX_GameObject,

@@ -141,7 +141,6 @@ class KX_GameObject : public SCA_IObject {
   void ReplicateBlenderObject();
   void HideOriginalObject();
   void RemoveReplicaObject();
-  void RecalcGeometry();
   void SuspendPhysics(bool freeConstraints, bool childrenRecursive);
   void RestorePhysics(bool childrenRecursive);
   void SuspendLogic(bool childrenRecursive);
@@ -808,9 +807,6 @@ class KX_GameObject : public SCA_IObject {
   EXP_PYMETHOD_DOC(KX_GameObject, getActionName);
   EXP_PYMETHOD_DOC(KX_GameObject, setActionFrame);
   EXP_PYMETHOD_DOC(KX_GameObject, isPlayingAction);
-
-  EXP_PYMETHOD_DOC(KX_GameObject, recalcGeometry);
-  EXP_PYMETHOD_DOC(KX_GameObject, recalcTransform);
 
   /* Dict access */
   EXP_PYMETHOD_VARARGS(KX_GameObject, get);
