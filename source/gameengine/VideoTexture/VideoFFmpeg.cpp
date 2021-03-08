@@ -195,8 +195,14 @@ int VideoFFmpeg::openStream(const char *filename,
   AVCodec *codec;
   AVCodecContext *codecCtx;
 
-  if (avformat_open_input(&formatCtx, filename, inputFormat, formatParams) != 0)
-    return -1;
+  if (avformat_open_input(&formatCtx, filename, inputFormat, formatParams) != 0) {
+    if (avformat_open_input(&formatCtx, filename, inputFormat, nullptr) != 0) {
+      return -1;
+    }
+    else {
+      std::cout << "Camera capture: Format not compatible. Capture in default camera format" << std::endl;
+    }
+  }
 
   if (avformat_find_stream_info(formatCtx, nullptr) < 0) {
     avformat_close_input(&formatCtx);
@@ -580,12 +586,11 @@ void VideoFFmpeg::openCam(char *file, short camIdx)
   char filename[28], rateStr[20];
 
 #  ifdef WIN32
-  // video capture on windows only through Video For Windows driver
-  inputFormat = av_find_input_format("vfwcap");
+  inputFormat = av_find_input_format("dshow");
   if (!inputFormat)
-    // Video For Windows not supported??
+    // dshow not supported??
     return;
-  sprintf(filename, "%d", camIdx);
+  sprintf(filename, "video=%s", file);
 #  else
   // In Linux we support two types of devices: VideoForLinux and DV1394.
   // the user specify it with the filename:
