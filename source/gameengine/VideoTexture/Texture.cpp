@@ -49,7 +49,10 @@
 
 #ifdef WITH_FFMPEG
 extern PyTypeObject VideoFFmpegType;
+extern PyTypeObject ImageFFmpegType;
 #endif
+extern PyTypeObject ImageMixType;
+extern PyTypeObject ImageViewportType;
 
 static std::vector<Texture *> textures;
 
@@ -444,9 +447,14 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 #ifdef WITH_FFMPEG
       /* Add a depsgraph notifier to trigger
        * DRW_notify_view_update on next draw loop
-       * for VideoFFMPEG, because the depsgraph has
-       * not been warned yet. */
-      if (m_source && _Py_IS_TYPE(&m_source->ob_base, &VideoFFmpegType)) {
+       * for some VideoTexture types (types which have a
+       * "refresh" method), because the depsgraph has not been warned yet. */
+      bool needs_notifier = m_source &&
+                            (_Py_IS_TYPE(&m_source->ob_base, &VideoFFmpegType) ||
+                             _Py_IS_TYPE(&m_source->ob_base, &ImageFFmpegType) ||
+                             _Py_IS_TYPE(&m_source->ob_base, &ImageMixType) ||
+                             _Py_IS_TYPE(&m_source->ob_base, &ImageViewportType));
+      if (needs_notifier) {
         /* This update notifier will be flushed next time
          * BKE_scene_graph_update_tagged will be called */
         DEG_id_tag_update(&m_gameobj->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
