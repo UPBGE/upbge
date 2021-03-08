@@ -277,11 +277,10 @@ class TextureMaskPanel(BrushPanel):
         layout.use_property_decorate = False
 
         brush = context.tool_settings.image_paint.brush
+        mask_tex_slot = brush.mask_texture_slot
 
         col = layout.column()
-        col.template_ID_preview(brush, "mask_texture", new="texture.new", rows=3, cols=8)
-
-        mask_tex_slot = brush.mask_texture_slot
+        col.template_ID_preview(mask_tex_slot, "texture", new="texture.new", rows=3, cols=8)
 
         # map_mode
         layout.row().prop(mask_tex_slot, "mask_map_mode", text="Mask Mapping")
@@ -614,7 +613,6 @@ def brush_settings(layout, context, brush, popover=False):
 
         # use_persistent, set_persistent_base
         if capabilities.has_persistence:
-            ob = context.sculpt_object
             layout.separator()
             layout.prop(brush, "use_persistent")
             layout.operator("sculpt.set_persistent_base")
@@ -1283,7 +1281,7 @@ def brush_basic_gpencil_paint_settings(layout, context, brush, *, compact=False)
                 layout.template_curve_mapping(settings, "thickness_primitive_curve", brush=True)
 
 
-def brush_basic_gpencil_sculpt_settings(layout, context, brush, *, compact=False):
+def brush_basic_gpencil_sculpt_settings(layout, _context, brush, *, compact=False):
     gp_settings = brush.gpencil_settings
     tool = brush.gpencil_sculpt_tool
 
@@ -1318,7 +1316,6 @@ def brush_basic_gpencil_sculpt_settings(layout, context, brush, *, compact=False
 
 
 def brush_basic_gpencil_weight_settings(layout, _context, brush, *, compact=False):
-    gp_settings = brush.gpencil_settings
     layout.prop(brush, "size", slider=True)
 
     row = layout.row(align=True)

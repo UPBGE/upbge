@@ -98,7 +98,7 @@ static void wm_paintcursor_draw(bContext *C, ScrArea *area, ARegion *region)
     return;
   }
 
-  LISTBASE_FOREACH (wmPaintCursor *, pc, &wm->paintcursors) {
+  LISTBASE_FOREACH_MUTABLE (wmPaintCursor *, pc, &wm->paintcursors) {
     if ((pc->space_type != SPACE_TYPE_ANY) && (area->spacetype != pc->space_type)) {
       continue;
     }
@@ -117,7 +117,7 @@ static void wm_paintcursor_draw(bContext *C, ScrArea *area, ARegion *region)
 
       if (ELEM(win->grabcursor, GHOST_kGrabWrap, GHOST_kGrabHide)) {
         int x = 0, y = 0;
-        wm_get_cursor_position(win, &x, &y);
+        wm_cursor_position_get(win, &x, &y);
         pc->draw(C, x, y, pc->customdata);
       }
       else {

@@ -2061,6 +2061,19 @@ static int pyrna_py_to_prop(
               Py_XDECREF(value_new);
               return -1;
             }
+
+            if (value_owner_id->tag & LIB_TAG_TEMP_MAIN) {
+              /* Allow passing temporary ID's to functions, but not attribute assignment. */
+              if (ptr->type != &RNA_Function) {
+                PyErr_Format(PyExc_TypeError,
+                             "%.200s %.200s.%.200s ID type assignment is temporary, can't assign",
+                             error_prefix,
+                             RNA_struct_identifier(ptr->type),
+                             RNA_property_identifier(prop));
+                Py_XDECREF(value_new);
+                return -1;
+              }
+            }
           }
         }
 
@@ -4598,13 +4611,12 @@ static PyObject *pyrna_prop_collection_getattro(BPy_PropertyRNA *self, PyObject 
 #else
   {
     /* Could just do this except for 1 awkward case.
-     * PyObject_GenericGetAttr((PyObject *)self, pyname);
-     * so as to support 'bpy.data.library.load()'
-     * note, this _only_ supports static methods */
+     * `PyObject_GenericGetAttr((PyObject *)self, pyname);`
+     * so as to support `bpy.data.library.load()` */
 
     PyObject *ret = PyObject_GenericGetAttr((PyObject *)self, pyname);
 
-    if (ret == NULL && name[0] != '_') { /* Avoid inheriting __call__ and similar. */
+    if (ret == NULL && name[0] != '_') { /* Avoid inheriting `__call__` and similar. */
       /* Since this is least common case, handle it last. */
       PointerRNA r_ptr;
       if (RNA_property_collection_type_get(&self->ptr, self->prop, &r_ptr)) {

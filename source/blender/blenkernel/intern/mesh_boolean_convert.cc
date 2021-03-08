@@ -611,6 +611,9 @@ static void copy_or_interp_loop_attributes(Mesh *dest_mesh,
          * A non bmesh version could have the benefit of not copying data into src_blocks_ofs -
          * using the contiguous data instead. TODO: add to the custom data API. */
         int target_layer_type_index = CustomData_get_named_layer(target_cd, ty, name);
+        if (!CustomData_layer_has_interp(source_cd, source_layer_i)) {
+          continue;
+        }
         int source_layer_type_index = source_layer_i - source_cd->typemap[ty];
         BLI_assert(target_layer_type_index != -1 && source_layer_type_index >= 0);
         for (int j = 0; j < orig_mp->totloop; ++j) {
@@ -759,6 +762,7 @@ static Mesh *imesh_to_mesh(IMesh *im, MeshesToIMeshInfo &mim)
 static Mesh *direct_mesh_boolean(Span<const Mesh *> meshes,
                                  Span<const float4x4 *> obmats,
                                  const bool use_self,
+                                 const bool hole_tolerant,
                                  const BoolOpType boolean_mode)
 {
   const int dbg_level = 0;
@@ -781,7 +785,8 @@ static Mesh *direct_mesh_boolean(Span<const Mesh *> meshes,
     }
     return static_cast<int>(mim.mesh_poly_offset.size()) - 1;
   };
-  IMesh m_out = boolean_mesh(m_in, boolean_mode, meshes_len, shape_fn, use_self, nullptr, &arena);
+  IMesh m_out = boolean_mesh(
+      m_in, boolean_mode, meshes_len, shape_fn, use_self, hole_tolerant, nullptr, &arena);
   if (dbg_level > 1) {
     std::cout << m_out;
     write_obj_mesh(m_out, "m_out");
@@ -805,6 +810,7 @@ Mesh *BKE_mesh_boolean(const Mesh **meshes,
                        const float (*obmats[])[4][4],
                        const int meshes_len,
                        const bool use_self,
+                       const bool hole_tolerant,
                        const int boolean_mode)
 {
   const blender::float4x4 **transforms = (const blender::float4x4 **)obmats;
@@ -812,6 +818,7 @@ Mesh *BKE_mesh_boolean(const Mesh **meshes,
       blender::Span(meshes, meshes_len),
       blender::Span(transforms, meshes_len),
       use_self,
+      hole_tolerant,
       static_cast<blender::meshintersect::BoolOpType>(boolean_mode));
 }
 
@@ -820,6 +827,7 @@ Mesh *BKE_mesh_boolean(const Mesh **UNUSED(meshes),
                        const float (*obmats[])[4][4],
                        const int UNUSED(meshes_len),
                        const bool UNUSED(use_self),
+                       const bool UNUSED(hole_tolerant),
                        const int UNUSED(boolean_mode))
 {
   UNUSED_VARS(obmats);
