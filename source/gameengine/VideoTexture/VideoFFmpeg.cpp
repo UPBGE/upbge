@@ -195,8 +195,14 @@ int VideoFFmpeg::openStream(const char *filename,
   AVCodec *codec;
   AVCodecContext *codecCtx;
 
-  if (avformat_open_input(&formatCtx, filename, inputFormat, formatParams) != 0)
-    return -1;
+  if (avformat_open_input(&formatCtx, filename, inputFormat, formatParams) != 0) {
+    if (avformat_open_input(&formatCtx, filename, inputFormat, nullptr) != 0) {
+      return -1;
+    }
+    else {
+      std::cout << "Camera capture: Format not compatible. Capture in default camera format" << std::endl;
+    }
+  }
 
   if (avformat_find_stream_info(formatCtx, nullptr) < 0) {
     avformat_close_input(&formatCtx);
