@@ -85,6 +85,14 @@ class ImageRender : public ImageViewport {
   /// in case fbo is used, method to unbind
   void Unbind();
 
+  void RunPreDrawCallbacks();
+  void RunPostDrawCallbacks();
+
+#ifdef WITH_PYTHON
+  PyObject *m_preDrawCallbacks;
+  PyObject *m_postDrawCallbacks;
+#endif
+
  protected:
   /// true if ready to render
   bool m_render;

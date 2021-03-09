@@ -832,14 +832,6 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
     return;
   }
 
-  SetCurrentGPUViewport(cam->GetGPUViewport());
-
-  /* Add a depsgraph notifier to trigger
-   * DRW_notify_view_update on next draw loop. */
-  DEG_id_tag_update(&cam->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
-  /* We need the changes to be flushed before each draw loop! */
-  BKE_scene_graph_update_tagged(depsgraph, bmain);
-
   float winmat[4][4];
   cam->GetProjectionMatrix().getValue(&winmat[0][0]);
   CTX_wm_view3d(C)->camera = cam->GetBlenderObject();

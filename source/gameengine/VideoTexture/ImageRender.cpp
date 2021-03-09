@@ -36,6 +36,7 @@
 #include "GPU_viewport.h"
 #include "eevee_private.h"
 
+#include "EXP_PythonCallBack.h"
 #include "KX_Globals.h"
 #include "RAS_IVertex.h"
 #include "RAS_MeshObject.h"
@@ -62,6 +63,10 @@ ImageRender::ImageRender(KX_Scene *scene,
                          unsigned int height,
                          unsigned short samples)
     : ImageViewport(width, height),
+#ifdef WITH_PYTHON
+      m_preDrawCallbacks(nullptr),
+      m_postDrawCallbacks(nullptr),
+#endif
       m_render(true),
       m_done(false),
       m_scene(scene),
@@ -88,6 +93,13 @@ ImageRender::ImageRender(KX_Scene *scene,
 // destructor
 ImageRender::~ImageRender(void)
 {
+#ifdef WITH_PYTHON
+  // These may be nullptr but the macro checks.
+  Py_CLEAR(m_preDrawCallbacks);
+  m_preDrawCallbacks = nullptr;
+  Py_CLEAR(m_postDrawCallbacks);
+  m_postDrawCallbacks = nullptr;
+#endif
   m_scene->RemoveImageRenderCamera(m_camera);
 
   if (m_owncamera) {
@@ -328,9 +340,38 @@ bool ImageRender::Render()
 
   m_engine->UpdateAnimations(m_scene);
 
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Main *bmain = CTX_data_main(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+
+  if (!depsgraph) {
+    return false;
+  }
+
+  m_scene->SetCurrentGPUViewport(m_camera->GetGPUViewport());
+
+  /* Add a depsgraph notifier to trigger
+   * DRW_notify_view_update on next draw loop. */
+  DEG_id_tag_update(&m_camera->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
+  /* We need the changes to be flushed before each draw loop! */
+  BKE_scene_graph_update_tagged(depsgraph, bmain);
+
+#ifdef WITH_PYTHON
+  RunPreDrawCallbacks();
+#endif
+
   /* viewport and window share the same values here */
   const rcti window = {viewport[0], viewport[2], viewport[1], viewport[3]};
   m_scene->RenderAfterCameraSetupImageRender(m_camera, m_rasterizer, &window);
+
+#ifdef WITH_PYTHON
+  RunPostDrawCallbacks();
+  // These may be nullptr but the macro checks.
+  Py_CLEAR(m_preDrawCallbacks);
+  m_preDrawCallbacks = nullptr;
+  Py_CLEAR(m_postDrawCallbacks);
+  m_postDrawCallbacks = nullptr;
+#endif
 
   m_canvas->EndFrame();
 
@@ -344,6 +385,34 @@ bool ImageRender::Render()
 void ImageRender::Unbind()
 {
   GPU_framebuffer_restore();
+}
+
+void ImageRender::RunPreDrawCallbacks()
+{
+  PyObject *list = m_preDrawCallbacks;
+  if (!list || PyList_GET_SIZE(list) == 0) {
+    return;
+  }
+
+  EXP_RunPythonCallBackList(list, nullptr, 0, 0);
+
+  /* Ensure DRW_notify_view_update will be called next time BKE_scene_graph_update_tagged
+   * will be called if we did changes related to scene_eval in ImageRender draw callbacks */
+  DEG_id_tag_update(&m_camera->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
+}
+
+void ImageRender::RunPostDrawCallbacks()
+{
+  PyObject *list = m_postDrawCallbacks;
+  if (!list || PyList_GET_SIZE(list) == 0) {
+    return;
+  }
+
+  EXP_RunPythonCallBackList(list, nullptr, 0, 0);
+
+  /* Ensure DRW_notify_view_update will be called next time BKE_scene_graph_update_tagged
+   * will be called if we did changes related to scene_eval in ImageRender draw callbacks */
+  DEG_id_tag_update(&m_camera->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
 }
 
 // cast Image pointer to ImageRender
@@ -463,6 +532,64 @@ static PyObject *getColorBindCode(PyImage *self, void *closure)
   return PyLong_FromLong(getImageRender(self)->GetColorBindCode());
 }
 
+static PyObject *getPreDrawCallbacks(PyImage *self, void *closure)
+{
+  ImageRender *imageRender = getImageRender(self);
+  if (!imageRender->m_preDrawCallbacks) {
+    imageRender->m_preDrawCallbacks = PyList_New(0);
+  }
+
+  Py_INCREF(imageRender->m_preDrawCallbacks);
+
+  return imageRender->m_preDrawCallbacks;
+}
+
+static int setPreDrawCallbacks(PyImage *self, PyObject *value, void *closure)
+{
+  ImageRender *imageRender = getImageRender(self);
+
+  if (!PyList_CheckExact(value)) {
+    PyErr_SetString(PyExc_ValueError, "Expected a list");
+    return PY_SET_ATTR_FAIL;
+  }
+
+  Py_XDECREF(imageRender->m_preDrawCallbacks);
+
+  Py_INCREF(value);
+  imageRender->m_preDrawCallbacks = value;
+
+  return PY_SET_ATTR_SUCCESS;
+}
+
+static PyObject *getPostDrawCallbacks(PyImage *self, void *closure)
+{
+  ImageRender *imageRender = getImageRender(self);
+  if (!imageRender->m_postDrawCallbacks) {
+    imageRender->m_postDrawCallbacks = PyList_New(0);
+  }
+
+  Py_INCREF(imageRender->m_postDrawCallbacks);
+
+  return imageRender->m_postDrawCallbacks;
+}
+
+static int setPostDrawCallbacks(PyImage *self, PyObject *value, void *closure)
+{
+  ImageRender *imageRender = getImageRender(self);
+
+  if (!PyList_CheckExact(value)) {
+    PyErr_SetString(PyExc_ValueError, "Expected a list");
+    return PY_SET_ATTR_FAIL;
+  }
+
+  Py_XDECREF(imageRender->m_postDrawCallbacks);
+
+  Py_INCREF(value);
+  imageRender->m_postDrawCallbacks = value;
+
+  return PY_SET_ATTR_SUCCESS;
+}
+
 // methods structure
 static PyMethodDef imageRenderMethods[] = {  // methods from ImageBase class
     {"refresh",
@@ -530,6 +657,16 @@ static PyGetSetDef imageRenderGetSets[] = {
      (getter)getColorBindCode,
      nullptr,
      (char *)"Off-screen color texture bind code",
+     nullptr},
+    {(char *)"pre_draw",
+     (getter)getPreDrawCallbacks,
+     (setter)setPreDrawCallbacks,
+     (char *)"Image Render pre-draw callbacks",
+     nullptr},
+    {(char *)"post_draw",
+     (getter)getPostDrawCallbacks,
+     (setter)setPostDrawCallbacks,
+     (char *)"Image Render post-draw callbacks",
      nullptr},
     {nullptr}};
 
