@@ -35,7 +35,11 @@
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
+#include "BKE_node.h"
 #include "BKE_scene.h"
+#include "BLI_listbase.h"
+#include "DNA_node_types.h"
+#include "DNA_material_types.h"
 #include "DEG_depsgraph_query.h"
 #include "GPU_glew.h"
 #include "GPU_texture.h"
@@ -320,6 +324,24 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
         }
         tex->m_imgTexture = tex->m_matTexture->GetImage();
         tex->m_useMatTexture = true;
+
+        Material *bl_mat = mat->GetBlenderMaterial();
+        bNodeTree *ntree = bl_mat->nodetree;
+        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+          if (node->id) {
+            if (node->type == SH_NODE_TEX_IMAGE) {
+              Image *ima = (Image *)node->id;
+              if (ima == tex->m_imgTexture) {
+                NodeTexImage *ntex = (NodeTexImage *)node->storage;
+                if (ntex->interpolation != SHD_INTERP_CLOSEST) {
+                  std::cout << "VideoTexture: Image Texture node interpolation mode is not set to "
+                               "closest. VideoTexture might not work correctly." << std::endl;
+                  break;
+                }
+              }
+            }
+          }
+        }
       }
       else if (lamp != nullptr) {
         // tex->m_imgTexture = lamp->GetLightData()->GetTextureImage(texID);
