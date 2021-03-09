@@ -42,7 +42,6 @@ class Capture(bge.types.KX_PythonComponent):
     # These values are exposed to the UI.
     args = OrderedDict([
         ("Camera", "Camera_Name"),
-        ("Device", 0),
         ("Framerate", 30.0),
         ("Width", 640),
         ("Height", 480),
@@ -51,14 +50,13 @@ class Capture(bge.types.KX_PythonComponent):
 
     def start(self, args):
         self.camera_name = args["Camera"]
-        self.capture = args["Device"]
         self.framerate = args["Framerate"]
         self.width = args["Width"]
         self.height = args["Height"]
         self.flip = args["Flip"]
 
         self.tex = bge.texture.Texture(self.object, 0, 0)
-        self.tex.source = bge.texture.VideoFFmpeg(self.camera_name, self.capture, self.framerate, self.width, self.height)
+        self.tex.source = bge.texture.VideoFFmpeg(self.camera_name, 0, self.framerate, self.width, self.height)
         self.tex.source.repeat = -1
         self.tex.source.scale = True
         self.tex.source.flip = self.flip
