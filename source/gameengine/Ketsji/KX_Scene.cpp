@@ -1074,6 +1074,16 @@ void KX_Scene::ConvertBlenderCollection(Collection *co, bool asynchronous)
   }
 }
 
+void KX_Scene::ConvertBlenderAction(bAction *action)
+{
+  SCA_LogicManager *logicMgr = GetLogicManager();
+  if (logicMgr) {
+    if (!logicMgr->GetActionByName(action->id.name + 2)) {
+      logicMgr->RegisterActionName(action->id.name + 2, (void *)action);
+    }
+  }
+}
+
 void KX_Scene::SetIsPythonMainLoop(bool isPythonMainLoop)
 {
   m_isPythonMainLoop = isPythonMainLoop;
@@ -2571,6 +2581,7 @@ PyMethodDef KX_Scene::Methods[] = {
     EXP_PYMETHODTABLE(KX_Scene, convertBlenderObject),
     EXP_PYMETHODTABLE(KX_Scene, convertBlenderObjectsList),
     EXP_PYMETHODTABLE(KX_Scene, convertBlenderCollection),
+    EXP_PYMETHODTABLE(KX_Scene, convertBlenderAction),
     EXP_PYMETHODTABLE(KX_Scene, addOverlayCollection),
     EXP_PYMETHODTABLE(KX_Scene, removeOverlayCollection),
     EXP_PYMETHODTABLE(KX_Scene, getGameObjectFromObject),
@@ -3108,6 +3119,29 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
 
   Collection *co = (Collection *)id;
   ConvertBlenderCollection(co, asynchronous);
+  Py_RETURN_NONE;
+}
+
+EXP_PYMETHODDEF_DOC(KX_Scene,
+                    convertBlenderAction,
+                    "convertBlenderAction(bpy.types.Action)\n"
+                    "\n")
+{
+  PyObject *bl_action = Py_None;
+
+  if (!PyArg_ParseTuple(args, "O:", &bl_action)) {
+    std::cout << "Expected a bpy.types.Action." << std::endl;
+    return nullptr;
+  }
+
+  ID *id;
+  if (!pyrna_id_FromPyObject(bl_action, &id)) {
+    std::cout << "Failed to convert action." << std::endl;
+    return nullptr;
+  }
+
+  bAction *act = (bAction *)id;
+  ConvertBlenderAction(act);
   Py_RETURN_NONE;
 }
 

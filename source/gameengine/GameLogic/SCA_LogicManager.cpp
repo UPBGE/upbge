@@ -193,7 +193,12 @@ void SCA_LogicManager::UpdateFrame(double curtime)
 void *SCA_LogicManager::GetActionByName(const std::string &actname)
 {
   std::string an = actname;
-  return m_mapStringToActions[an];
+  std::map<std::string, void *>::iterator it;
+  it = m_mapStringToActions.find(an);
+  if (it != m_mapStringToActions.end()) {
+    return m_mapStringToActions[an];
+  }
+  return nullptr;
 }
 
 void *SCA_LogicManager::GetMeshByName(const std::string &meshname)

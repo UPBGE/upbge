@@ -322,6 +322,7 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
   void ConvertBlenderObject(struct Object *ob);
   void ConvertBlenderObjectsList(std::vector<Object *> objectslist, bool asynchronous);
   void ConvertBlenderCollection(struct Collection *co, bool asynchronous);
+  void ConvertBlenderAction(struct bAction *act);
 
   bool m_isRuntime;  // Too lazy to put that in protected
   std::vector<Object *> m_hiddenObjectsDuringRuntime;
@@ -559,6 +560,7 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
   EXP_PYMETHOD_DOC(KX_Scene, convertBlenderObject);
   EXP_PYMETHOD_DOC(KX_Scene, convertBlenderObjectsList);
   EXP_PYMETHOD_DOC(KX_Scene, convertBlenderCollection);
+  EXP_PYMETHOD_DOC(KX_Scene, convertBlenderAction);
   EXP_PYMETHOD_DOC(KX_Scene, addOverlayCollection);
   EXP_PYMETHOD_DOC(KX_Scene, removeOverlayCollection);
   EXP_PYMETHOD_DOC(KX_Scene, getGameObjectFromObject);
