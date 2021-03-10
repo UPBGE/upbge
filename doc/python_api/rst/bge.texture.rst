@@ -853,7 +853,9 @@ Image classes
       :rtype: bool
 
    .. method:: refresh()
+
    .. method:: refresh(buffer, format="RGBA")
+      :noindex:
 
       Refresh video - render and optionally copy the image to an external buffer then invalidate its current content.
       The render may have been started earlier with the :func:`render` method,

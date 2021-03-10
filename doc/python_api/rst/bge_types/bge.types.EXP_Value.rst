@@ -1,8 +1,6 @@
 EXP_Value(EXP_PyObjectPlus)
 ===========================
 
-.. module:: bge.types
-
 base class --- :class:`EXP_PyObjectPlus`
 
 .. class:: EXP_Value(EXP_PyObjectPlus)

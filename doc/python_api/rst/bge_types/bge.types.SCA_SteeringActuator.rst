@@ -1,8 +1,6 @@
 SCA_SteeringActuator(SCA_IActuator)
 ===================================
 
-.. module:: bge.types
-
 base class --- :class:`SCA_IActuator`
 
 .. class:: SCA_SteeringActuator(SCA_IActuator)
