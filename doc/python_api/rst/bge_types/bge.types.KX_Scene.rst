@@ -229,9 +229,6 @@ base class --- :class:`EXP_PyObjectPlus`
       using: bpy.ops.wm.append(...) then convert this Object into a KX_GameObject to have
       logic bricks, physics... converted. This is meant to replace libload.
 
-      Note: When you append an Object with a "module" python controller, you need to append
-      the script (Text) corresponding to the module too.
-
    .. method:: convertBlenderObjectsList(blenderObjectsList, asynchronous)
 
       Converts all bpy.types.Object inside a python List into its correspondent :class:`KX_GameObject` during runtime.
@@ -252,13 +249,19 @@ base class --- :class:`EXP_PyObjectPlus`
       logic bricks, physics... converted. This is meant to replace libload. The conversion can be asynchronous
       or synchronous.
 
-      Note: When you append an Object with a "module" python controller, you need to append
-      the script (Text) corresponding to the module too.
-
       :arg blenderCollection: The collection to be converted.
       :type blenderCollection: bpy.types.Collection
       :arg asynchronous: The collection conversion can be asynchronous or not.
       :type asynchronous: boolean
+
+   .. method:: convertBlenderAction(Action)
+
+      Registers a bpy.types.Action into the bge logic manager to be abled to play it during runtime.
+      For example, you can append an Action from another .blend file during bge runtime
+      using: bpy.ops.wm.append(...) then register this Action to be abled to play it.
+
+      :arg Action: The Action to be converted.
+      :type Action: bpy.types.Action
 
    .. method:: addOverlayCollection(kxCamera, blenderCollection)
 
