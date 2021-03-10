@@ -3142,7 +3142,7 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
 
   bAction *act = (bAction *)id;
   ConvertBlenderAction(act);
-  Py_RETURN_NONE;
+  return bl_action;
 }
 
 EXP_PYMETHODDEF_DOC(KX_Scene,
