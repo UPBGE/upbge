@@ -29,11 +29,11 @@ Examples
    For more examples of Bullet physics and how to use them
    see the `pybullet forum <https://pybullet.org/Bullet/phpBB3/viewforum.php?f=17>`__.
 
-.. include:: __/examples/bge.constraints.py
+.. include:: ../examples/bge.constraints.py
    :start-line: 1
    :end-line: 4
 
-.. literalinclude:: __/examples/bge.constraints.py
+.. literalinclude:: ../examples/bge.constraints.py
    :lines: 6-
 
 

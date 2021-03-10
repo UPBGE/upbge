@@ -1,6 +1,6 @@
 """
 Video Capture with DeckLink
-+++++++++++++++++++++++++++
+---------------------------
 Video frames captured with DeckLink cards have pixel formats that are generally not directly
 usable by OpenGL, they must be processed by a shader. The three shaders presented here should
 cover all common video capture cases.

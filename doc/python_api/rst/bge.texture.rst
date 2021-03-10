@@ -65,25 +65,25 @@ the Blender Game Engine's fancy texturing features: GLSL, multi-texture, custom 
 Examples
 ********
 
-.. include:: __/examples/bge.texture.py
+.. include:: ../examples/bge.texture.py
    :start-line: 1
    :end-line: 5
 
-.. literalinclude:: __/examples/bge.texture.py
+.. literalinclude:: ../examples/bge.texture.py
    :lines: 7-
 
-.. include:: __/examples/bge.texture.1.py
+.. include:: ../examples/bge.texture.1.py
    :start-line: 1
    :end-line: 6
 
-.. literalinclude:: __/examples/bge.texture.1.py
+.. literalinclude:: ../examples/bge.texture.1.py
    :lines: 8-
 
-.. include:: __/examples/bge.texture.2.py
+.. include:: ../examples/bge.texture.2.py
    :start-line: 1
    :end-line: 6
 
-.. literalinclude:: __/examples/bge.texture.2.py
+.. literalinclude:: ../examples/bge.texture.2.py
    :lines: 8-
 
 
@@ -1603,7 +1603,7 @@ Constants
 *********
 
 FFmpeg Video and Image Status
-+++++++++++++++++++++++++++++
+=============================
 
 
 .. data:: SOURCE_ERROR
@@ -1618,7 +1618,7 @@ FFmpeg Video and Image Status
 
 
 Image Blending Modes
-++++++++++++++++++++
+====================
 
 See Wikipedia's `Blend Modes <https://en.wikipedia.org/wiki/Blend_modes>`_ for reference.
 

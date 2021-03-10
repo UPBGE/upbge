@@ -1,6 +1,6 @@
 """
 Basic Video Playback
-++++++++++++++++++++
+--------------------
 Example of how to replace a texture in game with a video.
 It needs to run everyframe.
 To avoid any confusion with the location of the file,
