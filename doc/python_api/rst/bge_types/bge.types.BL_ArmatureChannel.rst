@@ -1,5 +1,5 @@
 BL_ArmatureChannel(EXP_PyObjectPlus)
-================================
+====================================
 
 base class --- :class:`EXP_PyObjectPlus`
 

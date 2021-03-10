@@ -1,5 +1,5 @@
 SCA_NearSensor(KX_CollisionSensor)
-=================================
+==================================
 
 .. module:: bge.types
 

@@ -1,5 +1,5 @@
 KX_LodLevel(EXP_PyObjectPlus)
-=========================
+=============================
 
 .. module:: bge.types
 

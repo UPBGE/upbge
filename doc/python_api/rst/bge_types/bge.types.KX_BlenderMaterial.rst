@@ -1,5 +1,5 @@
 KX_BlenderMaterial(EXP_PyObjectPlus)
-================================
+====================================
 
 .. module:: bge.types
 

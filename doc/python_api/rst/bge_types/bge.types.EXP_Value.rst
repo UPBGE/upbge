@@ -1,5 +1,5 @@
 EXP_Value(EXP_PyObjectPlus)
-=======================
+===========================
 
 .. module:: bge.types
 

@@ -1,5 +1,5 @@
 KX_ConstraintWrapper(EXP_PyObjectPlus)
-==================================
+======================================
 
 base class --- :class:`EXP_PyObjectPlus`
 

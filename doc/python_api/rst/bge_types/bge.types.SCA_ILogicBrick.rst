@@ -1,5 +1,5 @@
 SCA_ILogicBrick(EXP_Value)
-=======================
+==========================
 
 base class --- :class:`EXP_Value`
 

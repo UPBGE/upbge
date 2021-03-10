@@ -1,5 +1,5 @@
 SCA_StateActuator(SCA_IActuator)
-===============================
+================================
 
 base class --- :class:`SCA_IActuator`
 

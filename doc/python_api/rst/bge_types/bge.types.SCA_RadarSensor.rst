@@ -1,5 +1,5 @@
 SCA_RadarSensor(SCA_NearSensor)
-=============================
+===============================
 
 base class --- :class:`SCA_NearSensor`
 

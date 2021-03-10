@@ -1,5 +1,5 @@
 BL_ArmatureConstraint(EXP_PyObjectPlus)
-===================================
+=======================================
 
 base class --- :class:`EXP_PyObjectPlus`
 

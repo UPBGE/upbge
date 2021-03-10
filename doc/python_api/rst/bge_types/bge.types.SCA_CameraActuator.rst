@@ -1,5 +1,5 @@
 SCA_CameraActuator(SCA_IActuator)
-================================
+=================================
 
 base class --- :class:`SCA_IActuator`
 

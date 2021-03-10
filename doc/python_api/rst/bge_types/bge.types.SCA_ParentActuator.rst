@@ -1,5 +1,5 @@
 SCA_ParentActuator(SCA_IActuator)
-================================
+=================================
 
 base class --- :class:`SCA_IActuator`
 

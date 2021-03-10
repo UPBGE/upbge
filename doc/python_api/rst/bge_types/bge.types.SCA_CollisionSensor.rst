@@ -1,5 +1,5 @@
 SCA_CollisionSensor(SCA_ISensor)
-===============================
+================================
 
 base class --- :class:`SCA_ISensor`
 

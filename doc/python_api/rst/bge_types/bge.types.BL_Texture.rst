@@ -1,5 +1,5 @@
 BL_Texture(EXP_Value)
-==================
+=====================
 
 .. module:: bge.types
 

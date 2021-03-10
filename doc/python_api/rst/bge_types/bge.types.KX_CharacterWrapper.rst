@@ -1,5 +1,5 @@
 KX_CharacterWrapper(EXP_PyObjectPlus)
-=================================
+=====================================
 
 .. module:: bge.types
 

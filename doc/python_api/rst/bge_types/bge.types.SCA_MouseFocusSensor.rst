@@ -1,5 +1,5 @@
 SCA_MouseFocusSensor(SCA_MouseSensor)
-====================================
+=====================================
 
 base class --- :class:`SCA_MouseSensor`
 

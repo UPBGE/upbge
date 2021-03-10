@@ -1,5 +1,5 @@
 KX_VehicleWrapper(EXP_PyObjectPlus)
-===============================
+===================================
 
 .. module:: bge.types
 

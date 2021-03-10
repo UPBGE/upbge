@@ -1,5 +1,5 @@
 KX_LodManager(EXP_PyObjectPlus)
-===========================
+===============================
 
 .. module:: bge.types
 

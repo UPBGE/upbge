@@ -1,5 +1,5 @@
 SCA_PythonJoystick(EXP_PyObjectPlus)
-================================
+====================================
 
 base class --- :class:`EXP_PyObjectPlus`
 

@@ -1,5 +1,5 @@
 KX_2DFilterOffScreen(EXP_Value)
-============================
+===============================
 
 .. module:: bge.types
 

@@ -1,5 +1,5 @@
 EXP_PropValue(EXP_Value)
-==================
+========================
 
 .. module:: bge.types
 

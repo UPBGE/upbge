@@ -1,5 +1,5 @@
 KX_CollisionContactPoint(EXP_Value)
-================================
+===================================
 
 .. module:: bge.types
 

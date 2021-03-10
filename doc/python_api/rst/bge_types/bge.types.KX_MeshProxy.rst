@@ -1,5 +1,5 @@
 KX_MeshProxy(EXP_Value)
-====================
+=======================
 
 .. module:: bge.types
 

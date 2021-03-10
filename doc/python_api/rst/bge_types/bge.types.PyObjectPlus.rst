@@ -1,5 +1,5 @@
 EXP_PyObjectPlus
-============
+================
 
 .. class:: EXP_PyObjectPlus
 

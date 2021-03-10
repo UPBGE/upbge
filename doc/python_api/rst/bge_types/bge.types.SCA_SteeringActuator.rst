@@ -1,5 +1,5 @@
 SCA_SteeringActuator(SCA_IActuator)
-==================================
+===================================
 
 .. module:: bge.types
 

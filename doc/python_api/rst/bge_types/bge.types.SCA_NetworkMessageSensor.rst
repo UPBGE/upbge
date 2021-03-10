@@ -1,5 +1,5 @@
 SCA_NetworkMessageSensor(SCA_ISensor)
-====================================
+=====================================
 
 base class --- :class:`SCA_ISensor`
 
