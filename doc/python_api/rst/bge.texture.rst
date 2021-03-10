@@ -86,9 +86,6 @@ Examples
 .. literalinclude:: ../examples/bge.texture.2.py
    :lines: 8-
 
-
-.. module:: bge.texture
-
 *************
 Video classes
 *************
