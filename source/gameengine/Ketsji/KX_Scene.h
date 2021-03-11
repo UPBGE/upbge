@@ -561,6 +561,7 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
   EXP_PYMETHOD_DOC(KX_Scene, convertBlenderObjectsList);
   EXP_PYMETHOD_DOC(KX_Scene, convertBlenderCollection);
   EXP_PYMETHOD_DOC(KX_Scene, convertBlenderAction);
+  EXP_PYMETHOD_DOC(KX_Scene, unregisterBlenderAction);
   EXP_PYMETHOD_DOC(KX_Scene, addOverlayCollection);
   EXP_PYMETHOD_DOC(KX_Scene, removeOverlayCollection);
   EXP_PYMETHOD_DOC(KX_Scene, getGameObjectFromObject);

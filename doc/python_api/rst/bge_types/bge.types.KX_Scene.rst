@@ -263,6 +263,17 @@ base class --- :class:`EXP_PyObjectPlus`
       :arg Action: The Action to be converted.
       :type Action: bpy.types.Action
 
+   .. method:: unregisterBlenderAction(Action)
+
+      Unregisters a bpy.types.Action from the bge logic manager.
+      The unregistered action will still be in the .blend file
+      but can't be played anymore with bge. If you want to completely
+      remove the action you need to call bpy.data.actions.remove(Action, do_unlink=True)
+      after you unregistered it from bge logic manager.
+
+      :arg Action: The Action to be unregistered.
+      :type Action: bpy.types.Action
+
    .. method:: addOverlayCollection(kxCamera, blenderCollection)
 
       Adds an overlay collection (as with collection actuator) to render this collection objects

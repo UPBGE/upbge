@@ -2582,6 +2582,7 @@ PyMethodDef KX_Scene::Methods[] = {
     EXP_PYMETHODTABLE(KX_Scene, convertBlenderObjectsList),
     EXP_PYMETHODTABLE(KX_Scene, convertBlenderCollection),
     EXP_PYMETHODTABLE(KX_Scene, convertBlenderAction),
+    EXP_PYMETHODTABLE(KX_Scene, unregisterBlenderAction),
     EXP_PYMETHODTABLE(KX_Scene, addOverlayCollection),
     EXP_PYMETHODTABLE(KX_Scene, removeOverlayCollection),
     EXP_PYMETHODTABLE(KX_Scene, getGameObjectFromObject),
@@ -3142,6 +3143,34 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
 
   bAction *act = (bAction *)id;
   ConvertBlenderAction(act);
+  Py_RETURN_NONE;
+}
+
+EXP_PYMETHODDEF_DOC(KX_Scene,
+                    unregisterBlenderAction,
+                    "unregisterBlenderAction(bpy.types.Action)\n"
+                    "\n")
+{
+  PyObject *bl_action = Py_None;
+
+  if (!PyArg_ParseTuple(args, "O:", &bl_action)) {
+    std::cout << "Expected a bpy.types.Action." << std::endl;
+    return nullptr;
+  }
+
+  ID *id;
+  if (!pyrna_id_FromPyObject(bl_action, &id)) {
+    std::cout << "Failed to find action to unregister." << std::endl;
+    return nullptr;
+  }
+
+  bAction *act = (bAction *)id;
+  // Now unregister actions.
+  std::map<std::string, void *>::iterator it = GetLogicManager()->GetActionMap().find(act->id.name + 2);
+  std::map<std::string, void *> &mapStringToActions = GetLogicManager()->GetActionMap();
+  if (it != mapStringToActions.end()) {
+    mapStringToActions.erase(it);
+  }
   Py_RETURN_NONE;
 }
 
