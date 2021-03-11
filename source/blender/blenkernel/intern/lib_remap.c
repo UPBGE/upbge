@@ -423,19 +423,21 @@ static void libblock_remap_data(
     FOREACH_MAIN_ID_END;
   }
 
-  /* XXX We may not want to always 'transfer' fake-user from old to new id...
-   *     Think for now it's desired behavior though,
-   *     we can always add an option (flag) to control this later if needed. */
-  if (old_id && (old_id->flag & LIB_FAKEUSER)) {
-    id_fake_user_clear(old_id);
-    id_fake_user_set(new_id);
-  }
+  if ((remap_flags & ID_REMAP_SKIP_USER_CLEAR) == 0) {
+    /* XXX We may not want to always 'transfer' fake-user from old to new id...
+     *     Think for now it's desired behavior though,
+     *     we can always add an option (flag) to control this later if needed. */
+    if (old_id && (old_id->flag & LIB_FAKEUSER)) {
+      id_fake_user_clear(old_id);
+      id_fake_user_set(new_id);
+    }
 
   if (old_id && GS(old_id->name) == ID_OB) {
     BKE_sca_remap_links_logicbricks(bmain, (Object *)old_id, (Object *)new_id);
   }
 
-  id_us_clear_real(old_id);
+    id_us_clear_real(old_id);
+  }
 
   if (new_id && (new_id->tag & LIB_TAG_INDIRECT) &&
       (r_id_remap_data->status & ID_REMAP_IS_LINKED_DIRECT)) {
@@ -484,12 +486,14 @@ void BKE_libblock_remap_locked(Main *bmain, void *old_idv, void *new_idv, const 
   skipped_direct = id_remap_data.skipped_direct;
   skipped_refcounted = id_remap_data.skipped_refcounted;
 
-  /* If old_id was used by some ugly 'user_one' stuff (like Image or Clip editors...), and user
-   * count has actually been incremented for that, we have to decrease once more its user count...
-   * unless we had to skip some 'user_one' cases. */
-  if ((old_id->tag & LIB_TAG_EXTRAUSER_SET) &&
-      !(id_remap_data.status & ID_REMAP_IS_USER_ONE_SKIPPED)) {
-    id_us_clear_real(old_id);
+  if ((remap_flags & ID_REMAP_SKIP_USER_CLEAR) == 0) {
+    /* If old_id was used by some ugly 'user_one' stuff (like Image or Clip editors...), and user
+     * count has actually been incremented for that, we have to decrease once more its user
+     * count... unless we had to skip some 'user_one' cases. */
+    if ((old_id->tag & LIB_TAG_EXTRAUSER_SET) &&
+        !(id_remap_data.status & ID_REMAP_IS_USER_ONE_SKIPPED)) {
+      id_us_clear_real(old_id);
+    }
   }
 
   if (old_id->us - skipped_refcounted < 0) {
