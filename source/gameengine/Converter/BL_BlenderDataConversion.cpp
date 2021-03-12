@@ -67,6 +67,7 @@
 #include "BKE_object.h"
 #include "BKE_scene.h"
 #include "DEG_depsgraph_query.h"
+#include "DNA_actuator_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
@@ -1148,11 +1149,22 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   EXP_ListValue<KX_GameObject> *logicbrick_conversionlist = new EXP_ListValue<KX_GameObject>();
 
   if (!single_object) {
-
     // Convert actions to actionmap
     bAction *curAct;
     for (curAct = (bAction *)maggie->actions.first; curAct; curAct = (bAction *)curAct->id.next) {
       logicmgr->RegisterActionName(curAct->id.name + 2, curAct);
+    }
+  }
+  else {
+    LISTBASE_FOREACH (bActuator *, actu, &single_object->actuators) {
+      if (actu->type == ACT_ACTION) {
+        bActionActuator *actionActu = (bActionActuator *)actu->data;
+        if (actionActu->act != nullptr) {
+          if (!logicmgr->GetActionByName(actionActu->act->id.name + 2)) {
+            logicmgr->RegisterActionName(actionActu->act->id.name + 2, (void *)actionActu->act);
+          }
+        }
+      }
     }
   }
 
