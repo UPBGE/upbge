@@ -503,6 +503,7 @@ class KX_GameObject : public SCA_IObject {
   bool IsDupliGroup()
   {
     return (m_pBlenderObject && (m_pBlenderObject->transflag & OB_DUPLICOLLECTION) &&
+            !ID_IS_LINKED(&m_pBlenderObject->id) &&
             m_pBlenderObject->instance_collection != nullptr) ?
                true :
                false;

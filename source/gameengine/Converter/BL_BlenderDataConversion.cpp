@@ -1175,6 +1175,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   // Beware of name conflict in linked data, it will not crash but will create confusion
   // in Python scripting and in certain actuators (replace mesh). Linked scene *should* have
   // no conflicting name for Object, Object data and Action.
+  std::vector<Collection *> linked_collections = {};
   for (SETLOOPER(blenderscene, sce_iter, base)) {
     Object *blenderobject = base->object;
 
@@ -1184,6 +1185,26 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
     if (single_object) {
       if (blenderobject != single_object) {
+        continue;
+      }
+    }
+
+    if (blenderobject->instance_collection) {
+      bool is_linked_collection = false;
+      FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (blenderobject->instance_collection, obj) {
+        if (ID_IS_LINKED(&obj->id)) {
+          is_linked_collection = true;
+          break;
+        }
+      }
+      FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+      if (is_linked_collection) {
+        std::vector<Collection *>::iterator it = std::find(linked_collections.begin(),
+                                                           linked_collections.end(),
+                                                           blenderobject->instance_collection);
+        if (it == linked_collections.end()) {
+          linked_collections.push_back(blenderobject->instance_collection);
+        }
         continue;
       }
     }
@@ -1228,6 +1249,53 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
        */
       gameobj->Release();
     }
+  }
+
+  for (Collection *linked_col : linked_collections) {
+    FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (linked_col, blenderobject) {
+      if (converter->FindGameObject(blenderobject) != nullptr) {
+        continue;
+      }
+
+      if (blenderobject == kxscene->GetGameDefaultCamera()) {
+        continue;
+      }
+
+      if (single_object) {
+        if (blenderobject != single_object) {
+          continue;
+        }
+      }
+
+      bool isInActiveLayer = (blenderobject->base_flag &
+                              (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH)) != 0;
+      blenderobject->lay = (blenderobject->base_flag &
+                            (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH)) != 0;
+
+      if (!isInActiveLayer) {
+        /* Force OB_RESTRICT_VIEWPORT to avoid not needed depsgraph operations in some cases */
+        kxscene->BackupRestrictFlag(blenderobject, blenderobject->restrictflag);
+        blenderobject->restrictflag |= OB_RESTRICT_VIEWPORT;
+        BKE_main_collection_sync_remap(maggie);
+        DEG_relations_tag_update(maggie);
+      }
+
+      bool converting_during_runtime = single_object != nullptr;
+
+      KX_GameObject *gameobj = BL_gameobject_from_blenderobject(
+          blenderobject, kxscene, rendertools, converter, libloading, converting_during_runtime);
+
+      if (gameobj && converting_during_runtime) {
+        gameobj->SetIsReplicaObject();
+      }
+
+      if (gameobj) {
+        /* macro calls object conversion funcs */
+        BL_CONVERTBLENDEROBJECT_SINGLE;
+        gameobj->Release();
+      }
+    }
+    FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
   }
 
   if (!grouplist.empty()) {
