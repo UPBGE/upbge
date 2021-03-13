@@ -1249,6 +1249,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
     }
   }
 
+  /* In 2.8+, convert linked objects now */
   for (Object *blenderobject : linked_objects) {
 
     if (converter->FindGameObject(blenderobject) != nullptr) {
@@ -1293,6 +1294,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
       gameobj->Release();
     }
   }
+  /* End of linked objects conversion */
 
   if (!grouplist.empty()) {
     // now convert the group referenced by dupli group object
