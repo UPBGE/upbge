@@ -1178,6 +1178,10 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   for (SETLOOPER(blenderscene, sce_iter, base)) {
     Object *blenderobject = base->object;
 
+    if (converter->FindGameObject(blenderobject) != nullptr) {
+      continue;
+    }
+
     if (blenderobject == kxscene->GetGameDefaultCamera()) {
       continue;
     }
