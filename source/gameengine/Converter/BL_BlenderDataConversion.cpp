@@ -1200,7 +1200,9 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
       }
       FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
       if (is_linked_collection) {
-        /* blenderobject->instance_collection seems not a dupligroup but a collection with linked objects */
+        /* blenderobject seems not a "dupligroup" but a collection with linked objects.
+         * We don't convert this blenderobject but only the linked objects from
+         * blenderobject->instance_collection to imitate 0.2.5 behaviour */
         continue;
       }
     }
