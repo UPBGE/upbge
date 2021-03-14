@@ -5029,7 +5029,7 @@ class VIEW3D_MT_edit_gpencil(Menu):
 
         layout.menu("VIEW3D_MT_edit_gpencil_showhide")
 
-        layout.operator_menu_enum("gpencil.stroke_separate", "mode")
+        layout.operator_menu_enum("gpencil.stroke_separate", "mode", text="Separate")
         layout.menu("GPENCIL_MT_cleanup")
 
         layout.separator()
