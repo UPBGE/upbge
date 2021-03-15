@@ -1632,6 +1632,13 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
       }
     }
     if (gameobj->IsDupliGroup()) {
+      /* In 2.8+, hide blenderobjects->instance_collection,
+       * they are not meant to be displayed, they only contain
+       * instances which are meant to be displayed */
+      /* BTW, i'm wondering if adding logic bricks on instance_collections
+       * can lead to a crash */
+      gameobj->SetVisible(false, false);
+
       kxscene->DupliGroupRecurse(gameobj, 0);
     }
   }
