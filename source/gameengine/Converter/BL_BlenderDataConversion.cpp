@@ -1169,7 +1169,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   }
 
   /* Ensure objects base flags are up to date each time we call BL_ConvertObjects */
-  BKE_scene_set_background(maggie, blenderscene);
+  BKE_scene_base_flag_to_objects(BKE_view_layer_default_view(blenderscene));
 
   // Let's support scene set.
   // Beware of name conflict in linked data, it will not crash but will create confusion
