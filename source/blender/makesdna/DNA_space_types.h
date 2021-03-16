@@ -69,6 +69,9 @@ typedef struct SpaceNode_Runtime SpaceNode_Runtime;
 /* Defined in `file_intern.h`. */
 typedef struct SpaceFile_Runtime SpaceFile_Runtime;
 
+/* Defined in `spreadsheet_intern.hh`. */
+typedef struct SpaceSpreadsheet_Runtime SpaceSpreadsheet_Runtime;
+
 /* -------------------------------------------------------------------- */
 /** \name SpaceLink (Base)
  * \{ */
@@ -1895,8 +1898,12 @@ typedef struct SpaceSpreadsheet {
   uint8_t geometry_component_type;
   /* #AttributeDomain. */
   uint8_t attribute_domain;
+  /* eSpaceSpreadsheet_ObjectContext. */
+  uint8_t object_eval_state;
 
-  char _pad1[5];
+  char _pad1[4];
+
+  SpaceSpreadsheet_Runtime *runtime;
 } SpaceSpreadsheet;
 
 /** \} */
@@ -1904,6 +1911,11 @@ typedef struct SpaceSpreadsheet {
 typedef enum eSpaceSpreadsheet_FilterFlag {
   SPREADSHEET_FILTER_SELECTED_ONLY = (1 << 0),
 } eSpaceSpreadsheet_FilterFlag;
+
+typedef enum eSpaceSpreadsheet_ObjectEvalState {
+  SPREADSHEET_OBJECT_EVAL_STATE_FINAL = 0,
+  SPREADSHEET_OBJECT_EVAL_STATE_ORIGINAL = 1,
+} eSpaceSpreadsheet_Context;
 
 /* -------------------------------------------------------------------- */
 /** \name Space Defines (eSpace_Type)
