@@ -3803,7 +3803,7 @@ static BHead *read_global(BlendFileData *bfd, FileData *fd, BHead *bhead)
    * (not after loading file). */
   if (bfd->filename[0] == 0) {
     if (fd->fileversion < 265 || (fd->fileversion == 265 && fg->subversion < 1)) {
-      if ((G.fileflags & G_FILE_RECOVER) == 0) {
+      if ((G.fileflags & G_FILE_RECOVER_READ) == 0) {
         BLI_strncpy(bfd->filename, BKE_main_blendfile_path(bfd->main), sizeof(bfd->filename));
       }
     }
@@ -3814,7 +3814,7 @@ static BHead *read_global(BlendFileData *bfd, FileData *fd, BHead *bhead)
     }
   }
 
-  if (G.fileflags & G_FILE_RECOVER) {
+  if (G.fileflags & G_FILE_RECOVER_READ) {
     BLI_strncpy(fd->relabase, fg->filename, sizeof(fd->relabase));
   }
 
@@ -4271,6 +4271,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
      * we can re-generate overrides from their references. */
     if (fd->memfile == NULL) {
       /* Do not apply in undo case! */
+      BKE_lib_override_library_main_validate(bfd->main, fd->reports);
       BKE_lib_override_library_main_update(bfd->main);
     }
 
