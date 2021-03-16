@@ -56,7 +56,9 @@
 
 #include "rna_internal.h"
 
+#include "SEQ_proxy.h"
 #include "SEQ_relations.h"
+#include "SEQ_sequencer.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -457,6 +459,7 @@ static const EnumPropertyItem buttons_context_items[] = {
     {BCONTEXT_OUTPUT, "OUTPUT", ICON_OUTPUT, "Output", "Output Properties"},
     {BCONTEXT_VIEW_LAYER, "VIEW_LAYER", ICON_RENDER_RESULT, "View Layer", "View Layer Properties"},
     {BCONTEXT_WORLD, "WORLD", ICON_WORLD, "World", "World Properties"},
+    {BCONTEXT_COLLECTION, "COLLECTION", ICON_GROUP, "Collection", "Collection Properties"},
     {BCONTEXT_OBJECT, "OBJECT", ICON_OBJECT_DATA, "Object", "Object Properties"},
     {BCONTEXT_CONSTRAINT,
      "CONSTRAINT",
@@ -2237,6 +2240,48 @@ static void rna_SequenceEditor_update_cache(Main *UNUSED(bmain),
                                             PointerRNA *UNUSED(ptr))
 {
   SEQ_cache_cleanup(scene);
+}
+
+static void seq_build_proxy(bContext *C, PointerRNA *ptr)
+{
+  if (U.sequencer_proxy_setup != USER_SEQ_PROXY_SETUP_AUTOMATIC) {
+    return;
+  }
+
+  SpaceSeq *sseq = ptr->data;
+  Scene *scene = CTX_data_scene(C);
+  ListBase *seqbase = SEQ_active_seqbase_get(SEQ_editing_get(scene, false));
+
+  GSet *file_list = BLI_gset_new(BLI_ghashutil_strhash_p, BLI_ghashutil_strcmp, "file list");
+  wmJob *wm_job = ED_seq_proxy_wm_job_get(C);
+  ProxyJob *pj = ED_seq_proxy_job_get(C, wm_job);
+
+  LISTBASE_FOREACH (Sequence *, seq, seqbase) {
+    if (seq->type != SEQ_TYPE_MOVIE) {
+      continue;
+    }
+
+    /* Add new proxy size. */
+    seq->strip->proxy->build_size_flags |= SEQ_rendersize_to_proxysize(sseq->render_size);
+
+    /* Build proxy. */
+    SEQ_proxy_rebuild_context(pj->main, pj->depsgraph, pj->scene, seq, file_list, &pj->queue);
+  }
+
+  BLI_gset_free(file_list, MEM_freeN);
+
+  if (!WM_jobs_is_running(wm_job)) {
+    G.is_break = false;
+    WM_jobs_start(CTX_wm_manager(C), wm_job);
+  }
+
+  ED_area_tag_redraw(CTX_wm_area(C));
+}
+
+static void rna_SequenceEditor_render_size_update(bContext *C, PointerRNA *ptr)
+{
+  seq_build_proxy(C, ptr);
+  rna_SequenceEditor_update_cache(CTX_data_main(C), CTX_data_scene(C), ptr);
 }
 
 static void rna_Sequencer_view_type_update(Main *UNUSED(bmain),
@@ -5173,12 +5218,11 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
 
   static const EnumPropertyItem proxy_render_size_items[] = {
       {SEQ_RENDER_SIZE_NONE, "NONE", 0, "No display", ""},
-      {SEQ_RENDER_SIZE_SCENE, "SCENE", 0, "Scene render size", ""},
-      {SEQ_RENDER_SIZE_PROXY_25, "PROXY_25", 0, "Proxy size 25%", ""},
-      {SEQ_RENDER_SIZE_PROXY_50, "PROXY_50", 0, "Proxy size 50%", ""},
-      {SEQ_RENDER_SIZE_PROXY_75, "PROXY_75", 0, "Proxy size 75%", ""},
-      {SEQ_RENDER_SIZE_PROXY_100, "PROXY_100", 0, "Proxy size 100%", ""},
-      {SEQ_RENDER_SIZE_FULL, "FULL", 0, "No proxy, full render", ""},
+      {SEQ_RENDER_SIZE_SCENE, "SCENE", 0, "Scene size", ""},
+      {SEQ_RENDER_SIZE_PROXY_25, "PROXY_25", 0, "25%", ""},
+      {SEQ_RENDER_SIZE_PROXY_50, "PROXY_50", 0, "50%", ""},
+      {SEQ_RENDER_SIZE_PROXY_75, "PROXY_75", 0, "75%", ""},
+      {SEQ_RENDER_SIZE_PROXY_100, "PROXY_100", 0, "100%", ""},
       {0, NULL, 0, NULL, NULL},
   };
 
@@ -5332,7 +5376,15 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Proxy Render Size",
                            "Display preview using full resolution or different proxy resolutions");
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, "rna_SequenceEditor_update_cache");
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(
+      prop, NC_SPACE | ND_SPACE_SEQUENCER, "rna_SequenceEditor_render_size_update");
+
+  prop = RNA_def_property(srna, "use_proxies", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", SEQ_USE_PROXIES);
+  RNA_def_property_ui_text(
+      prop, "Use Proxies", "Use optimized files for faster scrubbing when available");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, NULL);
 
   /* grease pencil */
   prop = RNA_def_property(srna, "grease_pencil", PROP_POINTER, PROP_NONE);

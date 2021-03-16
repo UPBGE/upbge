@@ -2092,7 +2092,10 @@ void uiTemplatePalette(uiLayout *layout,
                        struct PointerRNA *ptr,
                        const char *propname,
                        bool colors);
-void uiTemplateCryptoPicker(uiLayout *layout, struct PointerRNA *ptr, const char *propname);
+void uiTemplateCryptoPicker(uiLayout *layout,
+                            struct PointerRNA *ptr,
+                            const char *propname,
+                            int icon);
 void uiTemplateLayers(uiLayout *layout,
                       struct PointerRNA *ptr,
                       const char *propname,

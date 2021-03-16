@@ -147,6 +147,8 @@ extern StructRNA RNA_CompositorNodeCombYUVA;
 extern StructRNA RNA_CompositorNodeComposite;
 extern StructRNA RNA_CompositorNodeCornerPin;
 extern StructRNA RNA_CompositorNodeCrop;
+extern StructRNA RNA_CompositorNodeCryptomatte;
+extern StructRNA RNA_CompositorNodeCryptomatteV2;
 extern StructRNA RNA_CompositorNodeCurveRGB;
 extern StructRNA RNA_CompositorNodeCurveVec;
 extern StructRNA RNA_CompositorNodeDBlur;
@@ -477,6 +479,7 @@ extern StructRNA RNA_NormalEditModifier;
 extern StructRNA RNA_Object;
 extern StructRNA RNA_ObjectBase;
 extern StructRNA RNA_ObjectDisplay;
+extern StructRNA RNA_ObjectLineArt;
 extern StructRNA RNA_OceanModifier;
 extern StructRNA RNA_OceanTexData;
 extern StructRNA RNA_OffsetGpencilModifier;
@@ -1057,7 +1060,6 @@ int RNA_property_string_default_length(PointerRNA *ptr, PropertyRNA *prop);
 int RNA_property_enum_get(PointerRNA *ptr, PropertyRNA *prop);
 void RNA_property_enum_set(PointerRNA *ptr, PropertyRNA *prop, int value);
 int RNA_property_enum_get_default(PointerRNA *ptr, PropertyRNA *prop);
-void *RNA_property_enum_py_data_get(PropertyRNA *prop);
 int RNA_property_enum_step(
     const struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, int from_value, int step);
 
