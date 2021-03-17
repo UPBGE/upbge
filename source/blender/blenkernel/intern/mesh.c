@@ -155,8 +155,7 @@ static void mesh_free_data(ID *id)
 {
   Mesh *mesh = (Mesh *)id;
 
-  BKE_mesh_runtime_clear_cache(
-      mesh, CustomData_has_layer(&mesh->pdata, CD_RECAST)); /* Game Engine transition */
+  BKE_mesh_runtime_clear_cache(mesh);
   mesh_clear_geometry(mesh);
   MEM_SAFE_FREE(mesh->mat);
 }
@@ -828,8 +827,7 @@ static void mesh_clear_geometry(Mesh *mesh)
 void BKE_mesh_clear_geometry(Mesh *mesh)
 {
   BKE_animdata_free(&mesh->id, false);
-  BKE_mesh_runtime_clear_cache(
-      mesh, CustomData_has_layer(&mesh->pdata, CD_RECAST)); /* Game Engine transition */
+  BKE_mesh_runtime_clear_cache(mesh);
   mesh_clear_geometry(mesh);
 }
 

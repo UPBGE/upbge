@@ -27,11 +27,13 @@
 
 #include "KX_NavMeshObject.h"
 
+#include "BKE_cdderivedmesh.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_context.h"
 #include "BKE_layer.h"
 #include "BKE_scene.h"
 #include "BLI_sort.h"
+#include "DEG_depsgraph_query.h"
 #include "MEM_guardedalloc.h"
 
 #include "BL_BlenderConverter.h"
@@ -618,8 +620,10 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices,
   /* TODO: This doesn't work currently because of eval_ctx. */
   bContext *C = KX_GetActiveEngine()->GetContext();
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-  DerivedMesh *dm = mesh_create_derived_no_virtual(
-      depsgraph, GetScene()->GetBlenderScene(), GetBlenderObject(), nullptr, &CD_MASK_MESH);
+  Object *ob_eval = DEG_get_evaluated_object(depsgraph, GetBlenderObject());
+  Mesh *final_me = (Mesh *)ob_eval->data;
+  DerivedMesh *dm = CDDM_from_mesh(final_me);
+  DM_ensure_tessface(dm);
   CustomData *pdata = dm->getPolyDataLayout(dm);
   int *recastData = (int *)CustomData_get_layer(pdata, CD_RECAST);
   if (recastData) {
