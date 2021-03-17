@@ -346,4 +346,20 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *bmain)
       scene->eevee.smaa_quality = SCE_EEVEE_SMAA_PRESET_HIGH;
     }
   }
+
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 7)) {
+    LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
+      collection->flag &= ~COLLECTION_HAS_OBJECT_CACHE_INSTANCED;
+      collection->flag |= COLLECTION_IS_SPAWNED;
+    }
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      /* Old files do not have a master collection, but it will be created by
+       * `BKE_collection_master_add()`. */
+      if (scene->master_collection) {
+        scene->master_collection->flag &= ~COLLECTION_HAS_OBJECT_CACHE_INSTANCED;
+        scene->master_collection->flag |= COLLECTION_IS_SPAWNED;
+      }
+    }
+  }
+
 }
