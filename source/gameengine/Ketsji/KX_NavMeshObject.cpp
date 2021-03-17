@@ -820,6 +820,19 @@ bool KX_NavMeshObject::BuildNavMesh()
     if (dvertices) {
       delete[] dvertices;
     }
+    if (polys) {
+      MEM_freeN(polys);
+    }
+    if (dmeshes) {
+      MEM_freeN(dmeshes);
+    }
+    if (dtris) {
+      MEM_freeN(dtris);
+    }
+
+    if (dvertices) {
+      delete[] dvertices;
+    }
     return false;
   }
 
@@ -835,15 +848,50 @@ bool KX_NavMeshObject::BuildNavMesh()
 
   if (!buildMeshAdjacency(polys, npolys, nverts, vertsPerPoly)) {
     CM_FunctionError("unable to build mesh adjacency information.");
-    delete[] vertices;
+    if (vertices) {
+      delete[] vertices;
+    }
+    if (dvertices) {
+      delete[] dvertices;
+    }
+    if (polys) {
+      MEM_freeN(polys);
+    }
+    if (dmeshes) {
+      MEM_freeN(dmeshes);
+    }
+    if (dtris) {
+      MEM_freeN(dtris);
+    }
+
+    if (dvertices) {
+      delete[] dvertices;
+    }
     return false;
   }
 
   float cs = 0.2f;
 
   if (!nverts || !npolys) {
-    if (vertices)
+    if (vertices) {
       delete[] vertices;
+    }
+    if (dvertices) {
+      delete[] dvertices;
+    }
+    if (polys) {
+      MEM_freeN(polys);
+    }
+    if (dmeshes) {
+      MEM_freeN(dmeshes);
+    }
+    if (dtris) {
+      MEM_freeN(dtris);
+    }
+
+    if (dvertices) {
+      delete[] dvertices;
+    }
     return false;
   }
 
