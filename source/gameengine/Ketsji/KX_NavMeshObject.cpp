@@ -689,6 +689,8 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices,
             int idxInPoly = polyFindVertex(poly, vertsPerPoly, newVertexIdx);
             if (idxInPoly == -1) {
               CM_Error("building NavMeshObject, can't find vertex in polygon\n");
+              MEM_SAFE_FREE(allVerts);
+              MEM_freeN(verticesMap);
               dm->release(dm);
               return false;
             }
