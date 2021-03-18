@@ -2429,28 +2429,28 @@ static void rna_def_modifier_gpencillineart(BlenderRNA *brna)
 
   /* types */
   prop = RNA_def_property(srna, "use_contour", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "line_types", LRT_EDGE_FLAG_CONTOUR);
+  RNA_def_property_boolean_sdna(prop, NULL, "edge_types", LRT_EDGE_FLAG_CONTOUR);
   RNA_def_property_ui_text(prop, "Use Contour", "Generate strokes from contours lines");
   RNA_def_property_update(prop, 0, "rna_GpencilModifier_update");
 
   prop = RNA_def_property(srna, "use_crease", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "line_types", LRT_EDGE_FLAG_CREASE);
+  RNA_def_property_boolean_sdna(prop, NULL, "edge_types", LRT_EDGE_FLAG_CREASE);
   RNA_def_property_ui_text(prop, "Use Crease", "Generate strokes from creased edges");
   RNA_def_property_update(prop, 0, "rna_GpencilModifier_update");
 
   prop = RNA_def_property(srna, "use_material", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "line_types", LRT_EDGE_FLAG_MATERIAL);
+  RNA_def_property_boolean_sdna(prop, NULL, "edge_types", LRT_EDGE_FLAG_MATERIAL);
   RNA_def_property_ui_text(
       prop, "Use Material", "Generate strokes from borders between materials");
   RNA_def_property_update(prop, 0, "rna_GpencilModifier_update");
 
   prop = RNA_def_property(srna, "use_edge_mark", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "line_types", LRT_EDGE_FLAG_EDGE_MARK);
+  RNA_def_property_boolean_sdna(prop, NULL, "edge_types", LRT_EDGE_FLAG_EDGE_MARK);
   RNA_def_property_ui_text(prop, "Use Edge Mark", "Generate strokes from freestyle marked edges");
   RNA_def_property_update(prop, 0, "rna_GpencilModifier_update");
 
   prop = RNA_def_property(srna, "use_intersection", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "line_types", LRT_EDGE_FLAG_INTERSECTION);
+  RNA_def_property_boolean_sdna(prop, NULL, "edge_types", LRT_EDGE_FLAG_INTERSECTION);
   RNA_def_property_ui_text(prop, "Use Intersection", "Generate strokes from intersections");
   RNA_def_property_update(prop, 0, "rna_GpencilModifier_update");
 
@@ -2531,9 +2531,11 @@ static void rna_def_modifier_gpencillineart(BlenderRNA *brna)
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_update(prop, 0, "rna_GpencilModifier_update");
 
-  prop = RNA_def_property(srna, "pre_sample_length", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_ui_text(
-      prop, "Sample Length", "Resolution to sample the generated strokes with");
+  prop = RNA_def_property(srna, "resample_length", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_ui_text(prop,
+                           "Resample Length",
+                           "Resample the strokes so that the stroke points have the specified "
+                           "length between them. Zero length disables the resampling");
   RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.01f, 2);
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_update(prop, 0, "rna_GpencilModifier_update");

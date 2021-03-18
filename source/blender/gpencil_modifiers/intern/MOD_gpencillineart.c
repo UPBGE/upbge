@@ -102,12 +102,12 @@ static void generate_strokes_actual(
       lmd->level_start,
       lmd->use_multiple_levels ? lmd->level_end : lmd->level_start,
       lmd->target_material ? BKE_gpencil_object_material_index_get(ob, lmd->target_material) : 0,
-      lmd->line_types,
+      lmd->edge_types,
       lmd->transparency_flags,
       lmd->transparency_mask,
       lmd->thickness,
       lmd->opacity,
-      lmd->pre_sample_length,
+      lmd->resample_length,
       lmd->source_vertex_group,
       lmd->vgname,
       lmd->flags);
@@ -152,7 +152,6 @@ static void generateStrokes(GpencilModifierData *md, Depsgraph *depsgraph, Objec
   BKE_gpencil_frame_active_set(depsgraph, gpd);
   bGPDframe *gpf = gpl->actframe;
   if (gpf == NULL) {
-    BKE_gpencil_frame_addnew(gpl, DEG_get_evaluated_scene(depsgraph)->r.cfra);
     return;
   }
 
@@ -289,6 +288,7 @@ static void panel_draw(const bContext *UNUSED(C), Panel *panel)
           0,
           IFACE_("Overlapping Edges As Contour"),
           ICON_NONE);
+  uiItemR(layout, ptr, "allow_duplication", 0, NULL, ICON_NONE);
 
   gpencil_modifier_panel_end(layout, ptr);
 }
@@ -391,7 +391,7 @@ static void chaining_panel_draw(const bContext *UNUSED(C), Panel *panel)
   uiItemR(col, ptr, "chaining_geometry_threshold", 0, NULL, ICON_NONE);
   uiItemR(col, ptr, "chaining_image_threshold", 0, NULL, ICON_NONE);
 
-  uiItemR(layout, ptr, "pre_sample_length", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+  uiItemR(layout, ptr, "resample_length", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 
   uiItemR(layout, ptr, "angle_splitting_threshold", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 }
