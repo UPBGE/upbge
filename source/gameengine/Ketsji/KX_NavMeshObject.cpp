@@ -829,10 +829,6 @@ bool KX_NavMeshObject::BuildNavMesh()
     if (dtris) {
       MEM_freeN(dtris);
     }
-
-    if (dvertices) {
-      delete[] dvertices;
-    }
     return false;
   }
 
@@ -863,10 +859,6 @@ bool KX_NavMeshObject::BuildNavMesh()
     if (dtris) {
       MEM_freeN(dtris);
     }
-
-    if (dvertices) {
-      delete[] dvertices;
-    }
     return false;
   }
 
@@ -887,10 +879,6 @@ bool KX_NavMeshObject::BuildNavMesh()
     }
     if (dtris) {
       MEM_freeN(dtris);
-    }
-
-    if (dvertices) {
-      delete[] dvertices;
     }
     return false;
   }
