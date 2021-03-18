@@ -162,6 +162,14 @@ set(SRC
   geometry/nodes/node_geo_edge_split.cc
   geometry/nodes/node_geo_is_viewport.cc
   geometry/nodes/node_geo_join_geometry.cc
+  geometry/nodes/node_geo_mesh_primitive_circle.cc
+  geometry/nodes/node_geo_mesh_primitive_cone.cc
+  geometry/nodes/node_geo_mesh_primitive_cube.cc
+  geometry/nodes/node_geo_mesh_primitive_cylinder.cc
+  geometry/nodes/node_geo_mesh_primitive_ico_sphere.cc
+  geometry/nodes/node_geo_mesh_primitive_line.cc
+  geometry/nodes/node_geo_mesh_primitive_plane.cc
+  geometry/nodes/node_geo_mesh_primitive_uv_sphere.cc
   geometry/nodes/node_geo_object_info.cc
   geometry/nodes/node_geo_point_distribute.cc
   geometry/nodes/node_geo_point_instance.cc
@@ -170,8 +178,8 @@ set(SRC
   geometry/nodes/node_geo_point_separate.cc
   geometry/nodes/node_geo_point_translate.cc
   geometry/nodes/node_geo_points_to_volume.cc
-  geometry/nodes/node_geo_subdivide_smooth.cc
   geometry/nodes/node_geo_subdivide.cc
+  geometry/nodes/node_geo_subdivision_surface.cc
   geometry/nodes/node_geo_transform.cc
   geometry/nodes/node_geo_triangulate.cc
   geometry/nodes/node_geo_volume_to_mesh.cc
