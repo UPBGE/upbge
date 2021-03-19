@@ -1088,12 +1088,14 @@ void BKE_sca_controllers_id_loop(ListBase *contlist, SCAControllerIDFunc func, v
             }
             strcat(dest, modulename);
             strcat(dest, ext);
-            LISTBASE_FOREACH (Text *, text, &G_MAIN->texts) {
-              if (strcmp(text->id.name + 2, dest) == 0) {
-                if (text->filepath == NULL) { // Means the script is embedded
-                  pc->module_script = text;
+            if (G_MAIN) {
+              LISTBASE_FOREACH (Text *, text, &G_MAIN->texts) {
+                if (strcmp(text->id.name + 2, dest) == 0) {
+                  if (text->filepath == NULL) {  // Means the script is embedded
+                    pc->module_script = text;
+                  }
+                  break;
                 }
-                break;
               }
             }
           }
