@@ -34,6 +34,7 @@
 #include "BLI_listbase.h"
 #include "DEG_depsgraph_query.h"
 #include "ED_node.h"
+#include "DNA_gpencil_modifier_types.h"
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_node_types.h"
@@ -432,6 +433,19 @@ void BL_Action::Update(float curtime, bool applyToObject)
       /* HERE we can add other modifier action types,
        * if some actions require another notifier than ID_RECALC_GEOMETRY */
     }
+
+    for (GpencilModifierData *gpmd = (GpencilModifierData *)ob->greasepencil_modifiers.first; gpmd;
+         gpmd = (GpencilModifierData *)gpmd->next) {
+      // TODO: We need to find the good notifier per action (maybe all ID_RECALC_GEOMETRY except the Color ones)
+      if (ob->adt && ob->adt->action->id.name == m_action->id.name) {
+        DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+        PointerRNA ptrrna;
+        RNA_id_pointer_create(&ob->id, &ptrrna);
+        animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
+        break;
+      }
+    }
+
     // TEST FollowPath action
     for (bConstraint *con = (bConstraint *)ob->constraints.first; con;
          con = (bConstraint *)con->next) {
