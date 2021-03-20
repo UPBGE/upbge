@@ -1400,7 +1400,7 @@ static char lineart_identify_feature_line(LineartRenderBuffer *rb,
   dot_1 = dot_v3v3_db(view_vector, rt1->gn);
   dot_2 = dot_v3v3_db(view_vector, rt2->gn);
 
-  if ((result = dot_1 * dot_2) < 0 && (dot_1 + dot_2)) {
+  if ((result = dot_1 * dot_2) <= 0 && (dot_1 + dot_2)) {
     return LRT_EDGE_FLAG_CONTOUR;
   }
 
@@ -1723,7 +1723,7 @@ static bool _lineart_object_not_in_source_collection(Collection *source, Object 
 {
   CollectionChild *cc;
   Collection *c = source->id.orig_id ? (Collection *)source->id.orig_id : source;
-  if (BKE_collection_has_object(c, (Object *)(ob->id.orig_id))) {
+  if (BKE_collection_has_object_recursive_instanced(c, (Object *)(ob->id.orig_id))) {
     return false;
   }
   for (cc = source->children.first; cc; cc = cc->next) {
@@ -1781,7 +1781,7 @@ static int lineart_usage_check(Collection *c, Object *ob, LineartRenderBuffer *_
   /* Temp solution to speed up calculation in the modifier without cache. See the definition of
    * rb->_source_type for details. */
   if (_rb->_source_type == LRT_SOURCE_OBJECT) {
-    if (ob != _rb->_source_object) {
+    if (ob != _rb->_source_object && ob->id.orig_id != (ID *)_rb->_source_object) {
       return OBJECT_LRT_OCCLUSION_ONLY;
     }
   }
