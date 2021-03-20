@@ -506,11 +506,12 @@ typedef struct EEVEE_RenderPassData {
 /* ************ LIGHT UBO ************* */
 typedef struct EEVEE_Light {
   float position[3], invsqrdist;
-  float color[3], spec;
+  float color[3], invsqrdist_volume;
   float spotsize, spotblend, radius, shadow_id;
   float rightvec[3], sizex;
   float upvec[3], sizey;
   float forwardvec[3], light_type;
+  float diff, spec, volume, volume_radius;
   float use_soft_shd, _pad3[3];  // Soft shadow per light -- UPBGE
 } EEVEE_Light;
 
@@ -740,6 +741,7 @@ typedef struct EEVEE_EffectsInfo {
   struct GPUTexture *sss_stencil;
   /* Volumetrics */
   int volume_current_sample;
+  float volume_light_clamp;
   struct GPUTexture *volume_scatter;
   struct GPUTexture *volume_transmit;
   /* SSR */
@@ -878,10 +880,10 @@ typedef struct EEVEE_CommonUniformBuffer {
   float vol_jitter[3], pad6;       /* vec3 */
   float vol_coord_scale[4];        /* vec4 */
   /* -- 16 byte aligned -- */
-  float vol_history_alpha; /* float */
-  float vol_light_clamp;   /* float */
-  float vol_shadow_steps;  /* float */
-  int vol_use_lights;      /* bool */
+  float vol_history_alpha;  /* float */
+  float vol_shadow_steps;   /* float */
+  int vol_use_lights;       /* bool */
+  int vol_use_soft_shadows; /* bool */
   /* Screen Space Reflections */
   /* -- 16 byte aligned -- */
   float ssr_quality, ssr_thickness, ssr_pixelsize[2]; /* vec4 */

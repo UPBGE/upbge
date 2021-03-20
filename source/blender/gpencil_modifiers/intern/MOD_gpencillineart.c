@@ -225,6 +225,8 @@ static void updateDepsgraph(GpencilModifierData *md,
   }
   DEG_add_object_relation(
       ctx->node, ctx->scene->camera, DEG_OB_COMP_TRANSFORM, "Line Art Modifier");
+  DEG_add_object_relation(
+      ctx->node, ctx->scene->camera, DEG_OB_COMP_PARAMETERS, "Line Art Modifier");
 }
 
 static void foreachIDLink(GpencilModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
@@ -289,6 +291,7 @@ static void panel_draw(const bContext *UNUSED(C), Panel *panel)
           IFACE_("Overlapping Edges As Contour"),
           ICON_NONE);
   uiItemR(layout, ptr, "allow_duplication", 0, NULL, ICON_NONE);
+  uiItemR(layout, ptr, "allow_clipping_boundaries", 0, NULL, ICON_NONE);
 
   gpencil_modifier_panel_end(layout, ptr);
 }
@@ -387,9 +390,7 @@ static void chaining_panel_draw(const bContext *UNUSED(C), Panel *panel)
   uiItemR(col, ptr, "fuzzy_intersections", 0, NULL, ICON_NONE);
   uiItemR(col, ptr, "fuzzy_everything", 0, NULL, ICON_NONE);
 
-  col = uiLayoutColumn(layout, true);
-  uiItemR(col, ptr, "chaining_geometry_threshold", 0, NULL, ICON_NONE);
-  uiItemR(col, ptr, "chaining_image_threshold", 0, NULL, ICON_NONE);
+  uiItemR(layout, ptr, "chaining_image_threshold", 0, NULL, ICON_NONE);
 
   uiItemR(layout, ptr, "resample_length", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 
