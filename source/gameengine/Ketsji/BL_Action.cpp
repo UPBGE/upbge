@@ -412,6 +412,9 @@ void BL_Action::Update(float curtime, bool applyToObject)
     obj->UpdateTimestep(curtime);
   }
   else {
+    /* To skip some code if not needed */
+    bool actionIsUpdated = false;
+
     /* WARNING: The check to be sure the right action is played (to know if the action
      * which is in the actuator will be the one which will be played)
      * might be wrong (if (ob->adt && ob->adt->action == m_action) playaction;)
@@ -428,93 +431,107 @@ void BL_Action::Update(float curtime, bool applyToObject)
         PointerRNA ptrrna;
         RNA_id_pointer_create(&ob->id, &ptrrna);
         animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
+        actionIsUpdated = true;
         break;
       }
       /* HERE we can add other modifier action types,
        * if some actions require another notifier than ID_RECALC_GEOMETRY */
     }
 
-    for (GpencilModifierData *gpmd = (GpencilModifierData *)ob->greasepencil_modifiers.first; gpmd;
-         gpmd = (GpencilModifierData *)gpmd->next) {
-      // TODO: We need to find the good notifier per action (maybe all ID_RECALC_GEOMETRY except the Color ones)
-      if (ob->adt && ob->adt->action->id.name == m_action->id.name) {
-        DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-        PointerRNA ptrrna;
-        RNA_id_pointer_create(&ob->id, &ptrrna);
-        animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
-        break;
-      }
-    }
-
-    // TEST FollowPath action
-    for (bConstraint *con = (bConstraint *)ob->constraints.first; con;
-         con = (bConstraint *)con->next) {
-      if (con) {
+    if (!actionIsUpdated) {
+      for (GpencilModifierData *gpmd = (GpencilModifierData *)ob->greasepencil_modifiers.first;
+           gpmd;
+           gpmd = (GpencilModifierData *)gpmd->next) {
+        // TODO: We need to find the good notifier per action (maybe all ID_RECALC_GEOMETRY except
+        // the Color ones)
         if (ob->adt && ob->adt->action->id.name == m_action->id.name) {
-          if (!scene->OrigObCanBeTransformedInRealtime(ob)) {
-            break;
-          }
-          DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+          DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
           PointerRNA ptrrna;
           RNA_id_pointer_create(&ob->id, &ptrrna);
           animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
-
-          m_obj->ForceIgnoreParentTx();
+          actionIsUpdated = true;
           break;
         }
-        /* HERE we can add other constraint action types,
-         * if some actions require another notifier than ID_RECALC_TRANSFORM */
       }
     }
 
-    // Node Trees actions (Geometry one and Shader ones (material, world))
-    Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
-    FOREACH_NODETREE_BEGIN (bmain, nodetree, id) {
-      if (nodetree->adt && nodetree->adt->action->id.name == m_action->id.name) {
-        PointerRNA ptrrna;
-        RNA_id_pointer_create(&nodetree->id, &ptrrna);
-        animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
-        ED_node_tag_update_nodetree(bmain, nodetree, nullptr);
-        break;
-      }
-    }
-    FOREACH_NODETREE_END;
+    if (!actionIsUpdated) {
+      // TEST FollowPath action
+      for (bConstraint *con = (bConstraint *)ob->constraints.first; con;
+           con = (bConstraint *)con->next) {
+        if (con) {
+          if (ob->adt && ob->adt->action->id.name == m_action->id.name) {
+            if (!scene->OrigObCanBeTransformedInRealtime(ob)) {
+              break;
+            }
+            DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+            PointerRNA ptrrna;
+            RNA_id_pointer_create(&ob->id, &ptrrna);
+            animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
 
-    // TEST Shapekeys action
-    Mesh *me = (Mesh *)ob->data;
-    if (ob->type == OB_MESH && me) {
-      const bool bHasShapeKey = me->key && me->key->type == KEY_RELATIVE;
-      if (bHasShapeKey && me->key->adt && me->key->adt->action->id.name == m_action->id.name) {
-        DEG_id_tag_update(&me->id, ID_RECALC_GEOMETRY);
-        Key *key = me->key;
-
-        PointerRNA ptrrna;
-        RNA_id_pointer_create(&key->id, &ptrrna);
-        animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
-
-        // Handle blending between shape actions
-        if (m_blendin && m_blendframe < m_blendin) {
-          IncrementBlending(curtime);
-
-          // float weight = 1.f - (m_blendframe / m_blendin);
-
-          // We go through and clear out the keyblocks so there isn't any interference
-          // from other shape actions
-          KeyBlock *kb;
-          for (kb = (KeyBlock *)key->block.first; kb; kb = (KeyBlock *)kb->next) {
-            kb->curval = 0.f;
+            m_obj->ForceIgnoreParentTx();
+            actionIsUpdated = true;
+            break;
           }
-
-          // Now blend the shape
-          // BlendShape(key, weight, m_blendinshape);
+          /* HERE we can add other constraint action types,
+           * if some actions require another notifier than ID_RECALC_TRANSFORM */
         }
-        //// Handle layer blending
-        // if (m_layer_weight >= 0) {
-        //  shape_deformer->GetShape(m_blendshape);
-        //  BlendShape(key, m_layer_weight, m_blendshape);
-        //}
+      }
+    }
 
-        // shape_deformer->SetLastFrame(curtime);
+    if (!actionIsUpdated) {
+      // Node Trees actions (Geometry one and Shader ones (material, world))
+      Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
+      FOREACH_NODETREE_BEGIN (bmain, nodetree, id) {
+        if (nodetree->adt && nodetree->adt->action->id.name == m_action->id.name) {
+          PointerRNA ptrrna;
+          RNA_id_pointer_create(&nodetree->id, &ptrrna);
+          animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
+          ED_node_tag_update_nodetree(bmain, nodetree, nullptr);
+          actionIsUpdated = true;
+          break;
+        }
+      }
+      FOREACH_NODETREE_END;
+    }
+
+    if (!actionIsUpdated) {
+      // TEST Shapekeys action
+      Mesh *me = (Mesh *)ob->data;
+      if (ob->type == OB_MESH && me) {
+        const bool bHasShapeKey = me->key && me->key->type == KEY_RELATIVE;
+        if (bHasShapeKey && me->key->adt && me->key->adt->action->id.name == m_action->id.name) {
+          DEG_id_tag_update(&me->id, ID_RECALC_GEOMETRY);
+          Key *key = me->key;
+
+          PointerRNA ptrrna;
+          RNA_id_pointer_create(&key->id, &ptrrna);
+          animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
+
+          // Handle blending between shape actions
+          if (m_blendin && m_blendframe < m_blendin) {
+            IncrementBlending(curtime);
+
+            // float weight = 1.f - (m_blendframe / m_blendin);
+
+            // We go through and clear out the keyblocks so there isn't any interference
+            // from other shape actions
+            KeyBlock *kb;
+            for (kb = (KeyBlock *)key->block.first; kb; kb = (KeyBlock *)kb->next) {
+              kb->curval = 0.f;
+            }
+
+            // Now blend the shape
+            // BlendShape(key, weight, m_blendinshape);
+          }
+          //// Handle layer blending
+          // if (m_layer_weight >= 0) {
+          //  shape_deformer->GetShape(m_blendshape);
+          //  BlendShape(key, m_layer_weight, m_blendshape);
+          //}
+
+          // shape_deformer->SetLastFrame(curtime);
+        }
       }
     }
   }
