@@ -1720,18 +1720,6 @@ int main(int argc,
             exitstring = launcher.GetExitString();
             gs = *launcher.GetGlobalSettings();
 
-            /* Delete the globalDict before free the launcher, because the launcher calls
-             * Py_Finalize() which disallow any python commands after.
-             */
-            if (quitGame(exitcode)) {
-#ifdef WITH_PYTHON
-              // If the globalDict is to nullptr then python is certainly not initialized.
-              if (globalDict) {
-                PyDict_Clear(globalDict);
-                Py_DECREF(globalDict);
-              }
-#endif
-            }
             launcher.ExitEngine();
           }
 
@@ -1749,6 +1737,13 @@ int main(int argc,
             ED_screen_exit(C, win, WM_window_get_active_screen(win));
           }
         } while (!quitGame(exitcode));
+#ifdef WITH_PYTHON
+        // Free globalDict OUTSIDE runtime loop.
+        if (globalDict) {
+          PyDict_Clear(globalDict);
+          Py_DECREF(globalDict);
+        }
+#endif
       }
     }
     else {
