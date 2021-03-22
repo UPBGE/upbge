@@ -565,8 +565,6 @@ geometry_node_categories = [
         NodeItem("NodeFrame"),
         NodeItem("NodeReroute"),
     ]),
-    # NodeItem("FunctionNodeCombineStrings"),
-    # NodeItem("FunctionNodeGroupInstanceID"),
 ]
 
 
