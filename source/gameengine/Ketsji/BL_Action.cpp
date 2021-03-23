@@ -29,6 +29,7 @@
 #include "BKE_action.h"
 #include "BKE_context.h"
 #include "BKE_modifier.h"
+#include "BKE_nla.h"
 #include "BKE_node.h"
 #include "BKE_object.h"
 #include "BLI_listbase.h"
@@ -483,7 +484,19 @@ void BL_Action::Update(float curtime, bool applyToObject)
       // Node Trees actions (Geometry one and Shader ones (material, world))
       Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
       FOREACH_NODETREE_BEGIN (bmain, nodetree, id) {
-        if (nodetree->adt && nodetree->adt->action->id.name == m_action->id.name) {
+        bool isRightAction = false;
+        isRightAction = (nodetree->adt && nodetree->adt->action->id.name == m_action->id.name);
+        if (!isRightAction && nodetree->adt && nodetree->adt->nla_tracks.first) {
+          LISTBASE_FOREACH (NlaTrack *, track, &nodetree->adt->nla_tracks) {
+            LISTBASE_FOREACH (NlaStrip *, strip, &track->strips) {
+              if (strcmp(strip->name, m_action->id.name + 2) == 0) {
+                isRightAction = true;
+                break;
+              }
+            }
+          }
+        }
+        if (isRightAction) {
           PointerRNA ptrrna;
           RNA_id_pointer_create(&nodetree->id, &ptrrna);
           animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
