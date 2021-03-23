@@ -800,7 +800,7 @@ void WM_script_tag_reload(void)
 }
 
 /* Game engine transition */
-void WM_init_opengl_blenderplayer(Main *bmain, void *syshandle, wmWindow *win)
+void WM_init_opengl_blenderplayer(Main *bmain, void *ghost_system, wmWindow *win)
 {
   /* must be called only once */
   BLI_assert(opengl_is_init == false);
@@ -808,7 +808,7 @@ void WM_init_opengl_blenderplayer(Main *bmain, void *syshandle, wmWindow *win)
   ////////// wm_ghost_init(NULL);
 
   /* NEEDS TO HAVE AN OGL CONTEXT BOUND FIRST!!!!!!!!!!!!!!!!!!! */
-  DRW_opengl_context_create_blenderplayer(syshandle, win);
+  DRW_opengl_context_create_blenderplayer(ghost_system, win);
   GPU_init();
   GPU_pass_cache_init();
 #ifdef WITH_OPENSUBDIV

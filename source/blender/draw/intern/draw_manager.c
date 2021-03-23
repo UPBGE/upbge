@@ -3451,14 +3451,14 @@ void DRW_game_python_loop_end(ViewLayer *view_layer)
   memset(&DST, 0xFF, offsetof(DRWManager, gl_context));
 }
 
-void DRW_opengl_context_create_blenderplayer(void *syshandle, void *win)
+void DRW_opengl_context_create_blenderplayer(void *ghost_system, void *win)
 {
   BLI_assert(DST.gl_context == NULL); /* Ensure it's called once */
 
   DST.gl_context_mutex = BLI_ticket_mutex_alloc();
 
   /* This changes the active context. */
-  DST.gl_context = WM_opengl_context_create_blenderplayer(syshandle);
+  DST.gl_context = WM_opengl_context_create_blenderplayer(ghost_system);
   WM_opengl_context_activate(DST.gl_context);
   /* Be sure to create gpu_context too. */
   DST.gpu_context = GPU_context_create(0);

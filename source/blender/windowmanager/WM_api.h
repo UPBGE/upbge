@@ -942,8 +942,8 @@ bool WM_xr_session_state_viewer_pose_matrix_info_get(const wmXrData *xr,
 #endif
 
 /* Game engine transition */
-void WM_init_opengl_blenderplayer(struct Main *bmain, void *syshandle, struct wmWindow *win);
-void *WM_opengl_context_create_blenderplayer(void *syshandle);
+void WM_init_opengl_blenderplayer(struct Main *bmain, void *ghost_system, struct wmWindow *win);
+void *WM_opengl_context_create_blenderplayer(void *ghost_system);
 /* End of Game engine transition */
 
 #ifdef __cplusplus

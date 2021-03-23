@@ -2467,7 +2467,7 @@ void WM_ghost_show_message_box(const char *title,
 
 #include "WM_message.h"
 
-void *WM_opengl_context_create_blenderplayer(void *syshandle)
+void *WM_opengl_context_create_blenderplayer(void *ghost_system)
 {
   /* On Windows there is a problem creating contexts that share lists
    * from one context that is current in another thread.
@@ -2480,7 +2480,7 @@ void *WM_opengl_context_create_blenderplayer(void *syshandle)
   if (G.debug & G_DEBUG_GPU) {
     glSettings.flags |= GHOST_glDebugContext;
   }
-  g_system = syshandle;
+  g_system = ghost_system;
   return GHOST_CreateOpenGLContext(g_system, glSettings);
 }
 
