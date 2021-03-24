@@ -126,7 +126,7 @@ template<typename T> class VArray {
 
   virtual Span<T> get_span_impl() const
   {
-    BLI_assert(false);
+    BLI_assert_unreachable();
     return {};
   }
 
@@ -139,7 +139,7 @@ template<typename T> class VArray {
   {
     /* Provide a default implementation, so that subclasses don't have to provide it. This method
      * should never be called because `is_single_impl` returns false by default. */
-    BLI_assert(false);
+    BLI_assert_unreachable();
     return T();
   }
 };
@@ -221,7 +221,7 @@ template<typename T> class VArrayForSingle final : public VArray<T> {
  * exponential number of function instantiations (increasing compile time and binary size).
  *
  * Generally, this function should only be used when the virtual method call overhead to get an
- * element from a virtual array is signifant.
+ * element from a virtual array is significant.
  */
 template<typename T, typename Func>
 inline void devirtualize_varray(const VArray<T> &varray, const Func &func, bool enable = true)

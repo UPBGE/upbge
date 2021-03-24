@@ -211,7 +211,7 @@ static void updateDepsgraph(GpencilModifierData *md,
     FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN (ctx->scene->master_collection, ob, mode) {
       if (ob->type == OB_MESH || ob->type == OB_MBALL || ob->type == OB_CURVE ||
           ob->type == OB_SURF || ob->type == OB_FONT) {
-        if (!(ob->lineart.usage & COLLECTION_LRT_EXCLUDE)) {
+        if (ob->lineart.usage != OBJECT_LRT_EXCLUDE) {
           DEG_add_object_relation(ctx->node, ob, DEG_OB_COMP_GEOMETRY, "Line Art Modifier");
           DEG_add_object_relation(ctx->node, ob, DEG_OB_COMP_TRANSFORM, "Line Art Modifier");
         }
@@ -282,7 +282,7 @@ static void panel_draw(const bContext *UNUSED(C), Panel *panel)
   uiItemR(layout, ptr, "use_remove_doubles", 0, NULL, ICON_NONE);
   uiItemR(layout, ptr, "use_edge_overlap", 0, IFACE_("Overlapping Edges As Contour"), ICON_NONE);
   uiItemR(layout, ptr, "use_object_instances", 0, NULL, ICON_NONE);
-  uiItemR(layout, ptr, "use_clip_plane_bias", 0, NULL, ICON_NONE);
+  uiItemR(layout, ptr, "use_clip_plane_boundaries", 0, NULL, ICON_NONE);
 
   gpencil_modifier_panel_end(layout, ptr);
 }
