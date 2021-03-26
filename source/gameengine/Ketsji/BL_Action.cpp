@@ -428,8 +428,8 @@ void BL_Action::Update(float curtime, bool applyToObject)
          md = (ModifierData *)md->next) {
       bool isRightAction = false;
       /* action - check for F-Curves with paths containing 'modifiers[' */
-      if (ob->adt && ob->adt->action && ob->adt->action->curves.first) {
-        for (FCurve *fcu = (FCurve *)ob->adt->action->curves.first; fcu != NULL;
+      if (m_action->curves.first) {
+        for (FCurve *fcu = (FCurve *)m_action->curves.first; fcu != NULL;
              fcu = (FCurve *)fcu->next) {
           if (fcu->rna_path) {
             std::string fcu_name(fcu->rna_path);
