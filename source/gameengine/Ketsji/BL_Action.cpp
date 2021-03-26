@@ -313,51 +313,16 @@ void BL_Action::BlendShape(Key *key, float srcweight, std::vector<float> &blends
 {
 }
 
-static bool ActionMatchesModifier(bAction *action, ModifierData *md)
+/* Ensure name of data (ModifierData, bConstraint...) matches m_action's FCurve rna path */
+static bool ActionMatchesName(bAction *action, char *name)
 {
   if (action->curves.first) {
     for (FCurve *fcu = (FCurve *)action->curves.first; fcu != NULL; fcu = (FCurve *)fcu->next) {
       if (fcu->rna_path) {
         std::string fcu_name(fcu->rna_path);
-        std::string md_name(md->name);
-        /* Find a correspondance between ob->modifier and actuator action (m_action) */
-        if (fcu_name.find(md_name) != std::string::npos) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-  return false;
-}
-
-static bool ActionMatchesModifier(bAction *action, GpencilModifierData *md)
-{
-  if (action->curves.first) {
-    for (FCurve *fcu = (FCurve *)action->curves.first; fcu != NULL; fcu = (FCurve *)fcu->next) {
-      if (fcu->rna_path) {
-        std::string fcu_name(fcu->rna_path);
-        std::string md_name(md->name);
-        /* Find a correspondance between ob->modifier and actuator action (m_action) */
-        if (fcu_name.find(md_name) != std::string::npos) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-  return false;
-}
-
-static bool ActionMatchesConstraint(bAction *action, bConstraint *con)
-{
-  if (action->curves.first) {
-    for (FCurve *fcu = (FCurve *)action->curves.first; fcu != NULL; fcu = (FCurve *)fcu->next) {
-      if (fcu->rna_path) {
-        std::string fcu_name(fcu->rna_path);
-        std::string con_name(con->name);
-        /* Find a correspondance between ob->modifier and actuator action (m_action) */
-        if (fcu_name.find(con_name) != std::string::npos) {
+        std::string data_name(name);
+        /* Find a correspondance between ob->modifier/ob->constraint... and actuator action (m_action) */
+        if (fcu_name.find(data_name) != std::string::npos) {
           return true;
         }
       }
@@ -480,7 +445,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
     // TEST KEYFRAMED MODIFIERS (WRONG CODE BUT JUST FOR TESTING PURPOSE)
     for (ModifierData *md = (ModifierData *)ob->modifiers.first; md;
          md = (ModifierData *)md->next) {
-      bool isRightAction = ActionMatchesModifier(m_action, md);
+      bool isRightAction = ActionMatchesName(m_action, md->name);
       // TODO: We need to find the good notifier per action
       if (isRightAction && !BKE_modifier_is_non_geometrical(md)) {
         DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -500,7 +465,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
            gpmd = (GpencilModifierData *)gpmd->next) {
         // TODO: We need to find the good notifier per action (maybe all ID_RECALC_GEOMETRY except
         // the Color ones)
-        bool isRightAction = ActionMatchesModifier(m_action, gpmd);
+        bool isRightAction = ActionMatchesName(m_action, gpmd->name);
         if (isRightAction) {
           DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
           PointerRNA ptrrna;
@@ -516,7 +481,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
       // TEST FollowPath action
       for (bConstraint *con = (bConstraint *)ob->constraints.first; con;
            con = (bConstraint *)con->next) {
-        if (ActionMatchesConstraint(m_action, con)) {
+        if (ActionMatchesName(m_action, con->name)) {
           if (!scene->OrigObCanBeTransformedInRealtime(ob)) {
             break;
           }
