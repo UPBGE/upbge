@@ -316,7 +316,7 @@ void BL_Action::BlendShape(Key *key, float srcweight, std::vector<float> &blends
 static bool ActionMatchesName(bAction *action, char *name)
 {
   if (action->curves.first) {
-    for (FCurve *fcu = (FCurve *)action->curves.first; fcu != NULL; fcu = (FCurve *)fcu->next) {
+    LISTBASE_FOREACH (FCurve *, fcu, &action->curves) {
       if (fcu->rna_path) {
         std::string fcu_name(fcu->rna_path);
         std::string data_name(name);
@@ -442,8 +442,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
      * then another check should be found to ensure to play the right action.
      */
     // TEST KEYFRAMED MODIFIERS (WRONG CODE BUT JUST FOR TESTING PURPOSE)
-    for (ModifierData *md = (ModifierData *)ob->modifiers.first; md;
-         md = (ModifierData *)md->next) {
+    LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
       bool isRightAction = ActionMatchesName(m_action, md->name);
       // TODO: We need to find the good notifier per action
       if (isRightAction && !BKE_modifier_is_non_geometrical(md)) {
@@ -459,9 +458,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
     }
 
     if (!actionIsUpdated) {
-      for (GpencilModifierData *gpmd = (GpencilModifierData *)ob->greasepencil_modifiers.first;
-           gpmd;
-           gpmd = (GpencilModifierData *)gpmd->next) {
+      LISTBASE_FOREACH (GpencilModifierData *, gpmd, &ob->greasepencil_modifiers) {
         // TODO: We need to find the good notifier per action (maybe all ID_RECALC_GEOMETRY except
         // the Color ones)
         bool isRightAction = ActionMatchesName(m_action, gpmd->name);
@@ -478,8 +475,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
     if (!actionIsUpdated) {
       // TEST FollowPath action
-      for (bConstraint *con = (bConstraint *)ob->constraints.first; con;
-           con = (bConstraint *)con->next) {
+      LISTBASE_FOREACH (bConstraint *, con, &ob->constraints) {
         if (ActionMatchesName(m_action, con->name)) {
           if (!scene->OrigObCanBeTransformedInRealtime(ob)) {
             break;
