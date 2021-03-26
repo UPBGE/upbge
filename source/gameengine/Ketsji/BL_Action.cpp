@@ -427,13 +427,13 @@ void BL_Action::Update(float curtime, bool applyToObject)
     for (ModifierData *md = (ModifierData *)ob->modifiers.first; md;
          md = (ModifierData *)md->next) {
       bool isRightAction = false;
-      /* action - check for F-Curves with paths containing 'modifiers[' */
       if (m_action->curves.first) {
         for (FCurve *fcu = (FCurve *)m_action->curves.first; fcu != NULL;
              fcu = (FCurve *)fcu->next) {
           if (fcu->rna_path) {
             std::string fcu_name(fcu->rna_path);
             std::string md_name(md->name);
+            /* Find a correspondance between ob->modifier and actuator action (m_action) */
             if (fcu_name.find(md_name) != std::string::npos) {
               isRightAction = true;
               break;
