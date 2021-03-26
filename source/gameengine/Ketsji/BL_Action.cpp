@@ -33,6 +33,7 @@
 #include "BKE_node.h"
 #include "BKE_object.h"
 #include "BLI_listbase.h"
+#include "BLI_string.h"
 #include "DEG_depsgraph_query.h"
 #include "ED_node.h"
 #include "DNA_gpencil_modifier_types.h"
@@ -425,9 +426,23 @@ void BL_Action::Update(float curtime, bool applyToObject)
     // TEST KEYFRAMED MODIFIERS (WRONG CODE BUT JUST FOR TESTING PURPOSE)
     for (ModifierData *md = (ModifierData *)ob->modifiers.first; md;
          md = (ModifierData *)md->next) {
+      bool isRightAction = false;
+      /* action - check for F-Curves with paths containing 'modifiers[' */
+      if (ob->adt && ob->adt->action && ob->adt->action->curves.first) {
+        for (FCurve *fcu = (FCurve *)ob->adt->action->curves.first; fcu != NULL;
+             fcu = (FCurve *)fcu->next) {
+          if (fcu->rna_path) {
+            std::string fcu_name(fcu->rna_path);
+            std::string md_name(md->name);
+            if (fcu_name.find(md_name) != std::string::npos) {
+              isRightAction = true;
+              break;
+            }
+          }
+        }
+      }
       // TODO: We need to find the good notifier per action
-      if (!BKE_modifier_is_non_geometrical(md) && ob->adt &&
-          ob->adt->action->id.name == m_action->id.name) {
+      if (!BKE_modifier_is_non_geometrical(md) && isRightAction) {
         DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
         PointerRNA ptrrna;
         RNA_id_pointer_create(&ob->id, &ptrrna);
