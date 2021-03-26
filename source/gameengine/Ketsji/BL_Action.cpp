@@ -349,6 +349,24 @@ static bool ActionMatchesModifier(bAction *action, GpencilModifierData *md)
   return false;
 }
 
+static bool ActionMatchesConstraint(bAction *action, bConstraint *con)
+{
+  if (action->curves.first) {
+    for (FCurve *fcu = (FCurve *)action->curves.first; fcu != NULL; fcu = (FCurve *)fcu->next) {
+      if (fcu->rna_path) {
+        std::string fcu_name(fcu->rna_path);
+        std::string con_name(con->name);
+        /* Find a correspondance between ob->modifier and actuator action (m_action) */
+        if (fcu_name.find(con_name) != std::string::npos) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+  return false;
+}
+
 void BL_Action::Update(float curtime, bool applyToObject)
 {
   /* Don't bother if we're done with the animation and if the animation was already applied to the
@@ -498,20 +516,18 @@ void BL_Action::Update(float curtime, bool applyToObject)
       // TEST FollowPath action
       for (bConstraint *con = (bConstraint *)ob->constraints.first; con;
            con = (bConstraint *)con->next) {
-        if (con) {
-          if (ob->adt && ob->adt->action->id.name == m_action->id.name) {
-            if (!scene->OrigObCanBeTransformedInRealtime(ob)) {
-              break;
-            }
-            DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
-            PointerRNA ptrrna;
-            RNA_id_pointer_create(&ob->id, &ptrrna);
-            animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
-
-            m_obj->ForceIgnoreParentTx();
-            actionIsUpdated = true;
+        if (ActionMatchesConstraint(m_action, con)) {
+          if (!scene->OrigObCanBeTransformedInRealtime(ob)) {
             break;
           }
+          DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+          PointerRNA ptrrna;
+          RNA_id_pointer_create(&ob->id, &ptrrna);
+          animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
+
+          m_obj->ForceIgnoreParentTx();
+          actionIsUpdated = true;
+          break;
           /* HERE we can add other constraint action types,
            * if some actions require another notifier than ID_RECALC_TRANSFORM */
         }
