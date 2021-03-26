@@ -539,11 +539,11 @@ void BL_Action::Update(float curtime, bool applyToObject)
       Main *bmain = KX_GetActiveEngine()->GetConverter()->GetMain();
       FOREACH_NODETREE_BEGIN (bmain, nodetree, id) {
         bool isRightAction = false;
-        isRightAction = (nodetree->adt && nodetree->adt->action->id.name == m_action->id.name);
+        isRightAction = (nodetree->adt && nodetree->adt->action == m_action);
         if (!isRightAction && nodetree->adt && nodetree->adt->nla_tracks.first) {
           LISTBASE_FOREACH (NlaTrack *, track, &nodetree->adt->nla_tracks) {
             LISTBASE_FOREACH (NlaStrip *, strip, &track->strips) {
-              if (strcmp(strip->name, m_action->id.name + 2) == 0) {
+              if (strip->act == m_action) {
                 isRightAction = true;
                 break;
               }
@@ -567,7 +567,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
       Mesh *me = (Mesh *)ob->data;
       if (ob->type == OB_MESH && me) {
         const bool bHasShapeKey = me->key && me->key->type == KEY_RELATIVE;
-        if (bHasShapeKey && me->key->adt && me->key->adt->action->id.name == m_action->id.name) {
+        if (bHasShapeKey && me->key->adt && me->key->adt->action == m_action) {
           DEG_id_tag_update(&me->id, ID_RECALC_GEOMETRY);
           Key *key = me->key;
 
