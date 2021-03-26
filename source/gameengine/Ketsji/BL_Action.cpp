@@ -313,6 +313,44 @@ void BL_Action::BlendShape(Key *key, float srcweight, std::vector<float> &blends
 {
 }
 
+static bool ActionMatchesModifier(bAction *action, ModifierData *md)
+{
+  if (action->curves.first) {
+    for (FCurve *fcu = (FCurve *)action->curves.first; fcu != NULL; fcu = (FCurve *)fcu->next) {
+      if (fcu->rna_path) {
+        std::string fcu_name(fcu->rna_path);
+        std::string md_name(md->name);
+        /* Find a correspondance between ob->modifier and actuator action (m_action) */
+        if (fcu_name.find(md_name) != std::string::npos) {
+          return true;
+          break;
+        }
+      }
+    }
+    return false;
+  }
+  return false;
+}
+
+static bool ActionMatchesModifier(bAction *action, GpencilModifierData *md)
+{
+  if (action->curves.first) {
+    for (FCurve *fcu = (FCurve *)action->curves.first; fcu != NULL; fcu = (FCurve *)fcu->next) {
+      if (fcu->rna_path) {
+        std::string fcu_name(fcu->rna_path);
+        std::string md_name(md->name);
+        /* Find a correspondance between ob->modifier and actuator action (m_action) */
+        if (fcu_name.find(md_name) != std::string::npos) {
+          return true;
+          break;
+        }
+      }
+    }
+    return false;
+  }
+  return false;
+}
+
 void BL_Action::Update(float curtime, bool applyToObject)
 {
   /* Don't bother if we're done with the animation and if the animation was already applied to the
@@ -426,23 +464,9 @@ void BL_Action::Update(float curtime, bool applyToObject)
     // TEST KEYFRAMED MODIFIERS (WRONG CODE BUT JUST FOR TESTING PURPOSE)
     for (ModifierData *md = (ModifierData *)ob->modifiers.first; md;
          md = (ModifierData *)md->next) {
-      bool isRightAction = false;
-      if (m_action->curves.first) {
-        for (FCurve *fcu = (FCurve *)m_action->curves.first; fcu != NULL;
-             fcu = (FCurve *)fcu->next) {
-          if (fcu->rna_path) {
-            std::string fcu_name(fcu->rna_path);
-            std::string md_name(md->name);
-            /* Find a correspondance between ob->modifier and actuator action (m_action) */
-            if (fcu_name.find(md_name) != std::string::npos) {
-              isRightAction = true;
-              break;
-            }
-          }
-        }
-      }
+      bool isRightAction = ActionMatchesModifier(m_action, md);
       // TODO: We need to find the good notifier per action
-      if (!BKE_modifier_is_non_geometrical(md) && isRightAction) {
+      if (isRightAction && !BKE_modifier_is_non_geometrical(md)) {
         DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
         PointerRNA ptrrna;
         RNA_id_pointer_create(&ob->id, &ptrrna);
@@ -460,7 +484,8 @@ void BL_Action::Update(float curtime, bool applyToObject)
            gpmd = (GpencilModifierData *)gpmd->next) {
         // TODO: We need to find the good notifier per action (maybe all ID_RECALC_GEOMETRY except
         // the Color ones)
-        if (ob->adt && ob->adt->action->id.name == m_action->id.name) {
+        bool isRightAction = ActionMatchesModifier(m_action, gpmd);
+        if (isRightAction) {
           DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
           PointerRNA ptrrna;
           RNA_id_pointer_create(&ob->id, &ptrrna);
