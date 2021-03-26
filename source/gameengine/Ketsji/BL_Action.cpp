@@ -33,7 +33,6 @@
 #include "BKE_node.h"
 #include "BKE_object.h"
 #include "BLI_listbase.h"
-#include "BLI_string.h"
 #include "DEG_depsgraph_query.h"
 #include "ED_node.h"
 #include "DNA_gpencil_modifier_types.h"
