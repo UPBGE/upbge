@@ -315,15 +315,13 @@ void BL_Action::BlendShape(Key *key, float srcweight, std::vector<float> &blends
 /* Ensure name of data (ModifierData, bConstraint...) matches m_action's FCurve rna path */
 static bool ActionMatchesName(bAction *action, char *name)
 {
-  if (action->curves.first) {
-    LISTBASE_FOREACH (FCurve *, fcu, &action->curves) {
-      if (fcu->rna_path) {
-        std::string fcu_name(fcu->rna_path);
-        std::string data_name(name);
-        /* Find a correspondance between ob->modifier/ob->constraint... and actuator action (m_action) */
-        if (fcu_name.find(data_name) != std::string::npos) {
-          return true;
-        }
+  LISTBASE_FOREACH (FCurve *, fcu, &action->curves) {
+    if (fcu->rna_path) {
+      std::string fcu_name(fcu->rna_path);
+      std::string data_name(name);
+      /* Find a correspondance between ob->modifier/ob->constraint... and actuator action (m_action) */
+      if (fcu_name.find(data_name) != std::string::npos) {
+        return true;
       }
     }
     return false;
