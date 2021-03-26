@@ -624,8 +624,8 @@ static ID **get_selected_and_linked_obs(bContext *C, short *count, short scavisf
 
   if (*count == 0)
     return NULL;
-  if (*count > 24)
-    *count = 24; /* temporal */
+  //if (*count > 24)
+    //*count = 24; /* temporal */
 
   idar = MEM_callocN((*count) * sizeof(void *), "idar");
 
@@ -643,8 +643,8 @@ static ID **get_selected_and_linked_obs(bContext *C, short *count, short scavisf
       idar[nr] = (ID *)ob;
       nr++;
     }
-    if (nr >= 24)
-      break;
+    //if (nr >= 24)
+      //break;
     ob = ob->id.next;
   }
 
