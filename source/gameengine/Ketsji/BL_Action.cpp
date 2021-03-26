@@ -324,7 +324,6 @@ static bool ActionMatchesName(bAction *action, char *name)
         return true;
       }
     }
-    return false;
   }
   return false;
 }
