@@ -323,7 +323,6 @@ static bool ActionMatchesModifier(bAction *action, ModifierData *md)
         /* Find a correspondance between ob->modifier and actuator action (m_action) */
         if (fcu_name.find(md_name) != std::string::npos) {
           return true;
-          break;
         }
       }
     }
@@ -342,7 +341,6 @@ static bool ActionMatchesModifier(bAction *action, GpencilModifierData *md)
         /* Find a correspondance between ob->modifier and actuator action (m_action) */
         if (fcu_name.find(md_name) != std::string::npos) {
           return true;
-          break;
         }
       }
     }
