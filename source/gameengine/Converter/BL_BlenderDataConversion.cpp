@@ -544,7 +544,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
 
 //////////////////////////////////////////////////////
 static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
-                                      struct Object *blenderobject,
+                                      Object *blenderobject,
                                       RAS_MeshObject *meshobj,
                                       KX_Scene *kxscene,
                                       int activeLayerBitInfo,
@@ -552,8 +552,7 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
                                       bool processCompoundChildren)
 
 {
-
-  // object has physics representation?
+  // Object has physics representation?
   if (!(blenderobject->gameflag & OB_COLLISION)) {
     // Respond to all collisions so that Near sensors work on No Collision objects.
     gameobj->SetUserCollisionGroup(0xffff);
@@ -589,6 +588,7 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
       parent = parent->parent;
     }
   }
+
   if (processCompoundChildren != isCompoundChild) {
     return;
   }
@@ -611,14 +611,9 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
   bool isActor = (blenderobject->gameflag & OB_ACTOR) != 0;
   bool isSensor = (blenderobject->gameflag & OB_SENSOR) != 0;
   gameobj->getClientInfo()->m_type = (isSensor) ? ((isActor) ? KX_ClientObjectInfo::OBACTORSENSOR :
-                                                               KX_ClientObjectInfo::OBSENSOR) :
-                                                  (isActor) ? KX_ClientObjectInfo::ACTOR :
-                                                              KX_ClientObjectInfo::STATIC;
-
-  if (dm) {
-    dm->needsFree = 1;
-    dm->release(dm);
-  }
+                                                              KX_ClientObjectInfo::OBSENSOR) :
+                                    (isActor)  ? KX_ClientObjectInfo::ACTOR :
+                                                 KX_ClientObjectInfo::STATIC;
 }
 
 static KX_LodManager *BL_lodmanager_from_blenderobject(Object *ob,
@@ -1402,23 +1397,22 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
       kxscene->GetPhysicsEnvironment()->SetNumTimeSubSteps(blenderscene->gm.physubstep);
   }
 
-  bool processCompoundChildren = false;
-  // create physics information
-  for (KX_GameObject *gameobj : sumolist) {
-    struct Object *blenderobject = gameobj->GetBlenderObject();
-    if (single_object) {
-      if (blenderobject != single_object) {
-        continue;
+  // Create physics information.
+  for (unsigned short i = 0; i < 2; ++i) {
+    const bool processCompoundChildren = (i == 1);
+    for (KX_GameObject *gameobj : sumolist) {
+      Object *blenderobject = gameobj->GetBlenderObject();
+
+      int nummeshes = gameobj->GetMeshCount();
+      RAS_MeshObject *meshobj = 0;
+      if (nummeshes > 0) {
+        meshobj = gameobj->GetMesh(0);
       }
+
+      int layerMask = (groupobj.find(blenderobject) == groupobj.end()) ? activeLayerBitInfo : 0;
+      BL_CreatePhysicsObjectNew(
+          gameobj, blenderobject, meshobj, kxscene, layerMask, converter, processCompoundChildren);
     }
-    int nummeshes = gameobj->GetMeshCount();
-    RAS_MeshObject *meshobj = 0;
-    if (nummeshes > 0) {
-      meshobj = gameobj->GetMesh(0);
-    }
-    int layerMask = (groupobj.find(blenderobject) == groupobj.end()) ? activeLayerBitInfo : 0;
-    BL_CreatePhysicsObjectNew(
-        gameobj, blenderobject, meshobj, kxscene, layerMask, converter, processCompoundChildren);
   }
 
   // create physics joints
