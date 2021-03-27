@@ -33,6 +33,7 @@
 #include "BKE_node.h"
 #include "BKE_object.h"
 #include "BLI_listbase.h"
+#include "BLI_string.h"
 #include "DEG_depsgraph_query.h"
 #include "ED_node.h"
 #include "DNA_gpencil_modifier_types.h"
@@ -312,19 +313,55 @@ void BL_Action::BlendShape(Key *key, float srcweight, std::vector<float> &blends
 {
 }
 
+enum eActionType {
+    ACT_TYPE_MODIFIER = 0,
+    ACT_TYPE_GPMODIFIER,
+    ACT_TYPE_CONSTRAINT,
+    ACT_TYPE_IDPROP,
+};
+
 /* Ensure name of data (ModifierData, bConstraint...) matches m_action's FCurve rna path */
-static bool ActionMatchesName(bAction *action, char *name)
+static bool ActionMatchesName(bAction *action, char *name, eActionType type)
 {
+  //std::cout << "curves listbase len: " << BLI_listbase_count(&action->curves) << std::endl;
   LISTBASE_FOREACH (FCurve *, fcu, &action->curves) {
     if (fcu->rna_path) {
-      std::string fcu_name(fcu->rna_path);
-      std::string data_name(name);
-      /* Find a correspondance between ob->modifier/ob->constraint... and actuator action (m_action) */
-      if (fcu_name.find(data_name) != std::string::npos) {
+      char pattern[256];
+      char md_name_esc[sizeof(name) * 2];
+      switch (type) {
+        case ACT_TYPE_MODIFIER:
+          BLI_str_escape(md_name_esc, name, sizeof(md_name_esc));
+          BLI_snprintf(pattern, sizeof(pattern), "modifiers[\"%s\"]", md_name_esc);
+          break;
+        case ACT_TYPE_GPMODIFIER:
+          BLI_str_escape(md_name_esc, name, sizeof(md_name_esc));
+          BLI_snprintf(pattern, sizeof(pattern), "grease_pencil_modifiers[\"%s\"]", md_name_esc);
+          break;
+        case ACT_TYPE_CONSTRAINT:
+          BLI_str_escape(md_name_esc, name, sizeof(md_name_esc));
+          BLI_snprintf(pattern, sizeof(pattern), "constraints[\"%s\"]", md_name_esc);
+          break;
+        case ACT_TYPE_IDPROP:
+          BLI_str_escape(md_name_esc, name, sizeof(md_name_esc));
+          BLI_snprintf(pattern, sizeof(pattern), "[\"%s\"]", md_name_esc);
+          break;
+        default:
+          BLI_str_escape(pattern, "", sizeof(pattern));
+          break;
+      }
+      //std::cout << "fcu name: " << fcu->rna_path << std::endl;
+      //std::cout << "data name: " << pattern << std::endl;
+      /* Find a correspondance between ob->modifier/ob->constraint... and actuator action
+       * (m_action) */
+      if (strstr(fcu->rna_path, pattern)) {
+        //std::cout << "fcu and name match" << std::endl;
         return true;
       }
     }
+    //std::cout << "fcu and name DON'T match" << std::endl;
+    return false;
   }
+  //std::cout << "fcu and name DON'T match" << std::endl;
   return false;
 }
 
@@ -440,7 +477,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
      */
     // TEST KEYFRAMED MODIFIERS (WRONG CODE BUT JUST FOR TESTING PURPOSE)
     LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
-      bool isRightAction = ActionMatchesName(m_action, md->name);
+      bool isRightAction = ActionMatchesName(m_action, md->name, ACT_TYPE_MODIFIER);
       // TODO: We need to find the good notifier per action
       if (isRightAction && !BKE_modifier_is_non_geometrical(md)) {
         DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -458,7 +495,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
       LISTBASE_FOREACH (GpencilModifierData *, gpmd, &ob->greasepencil_modifiers) {
         // TODO: We need to find the good notifier per action (maybe all ID_RECALC_GEOMETRY except
         // the Color ones)
-        bool isRightAction = ActionMatchesName(m_action, gpmd->name);
+        bool isRightAction = ActionMatchesName(m_action, gpmd->name, ACT_TYPE_GPMODIFIER);
         if (isRightAction) {
           DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
           PointerRNA ptrrna;
@@ -473,7 +510,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
     if (!actionIsUpdated) {
       // TEST FollowPath action
       LISTBASE_FOREACH (bConstraint *, con, &ob->constraints) {
-        if (ActionMatchesName(m_action, con->name)) {
+        if (ActionMatchesName(m_action, con->name, ACT_TYPE_CONSTRAINT)) {
           if (!scene->OrigObCanBeTransformedInRealtime(ob)) {
             break;
           }
@@ -487,6 +524,27 @@ void BL_Action::Update(float curtime, bool applyToObject)
           break;
           /* HERE we can add other constraint action types,
            * if some actions require another notifier than ID_RECALC_TRANSFORM */
+        }
+      }
+    }
+
+    // TEST IDPROP ACTIONS
+    if (!actionIsUpdated) {
+      if (ob->id.properties) {
+        LISTBASE_FOREACH (IDProperty *, prop, &ob->id.properties->data.group) {
+          if (prop->type == IDP_GROUP) {
+            continue;
+          }
+          if (ActionMatchesName(m_action, prop->name, ACT_TYPE_IDPROP)) {
+            DEG_id_tag_update(
+                &ob->id,
+                ID_RECALC_TRANSFORM);  // a generic notifier which will update most of actions
+            PointerRNA ptrrna;
+            RNA_id_pointer_create(&ob->id, &ptrrna);
+            animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
+            actionIsUpdated = true;
+            break;
+          }
         }
       }
     }
