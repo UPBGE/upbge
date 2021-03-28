@@ -140,8 +140,6 @@ void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata)
     DRW_shgroup_uniform_texture(grp, "blendTex", g_data->smaa_weight_tx);
     DRW_shgroup_uniform_texture(grp, "colorTex", txl->history_buffer_tx);
     DRW_shgroup_uniform_vec4_copy(grp, "viewportMetrics", metrics);
-    DRW_shgroup_uniform_float(grp, "mixFactor", &g_data->smaa_mix_factor, 1);
-    DRW_shgroup_uniform_float(grp, "taaSampleCountInv", &g_data->taa_sample_inv, 1);
 
     DRW_shgroup_call_procedural_triangles(grp, NULL, 1);
   }
@@ -149,7 +147,6 @@ void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata)
 
 void EEVEE_antialiasing_draw_pass(EEVEE_Data *vedata)
 {
-  EEVEE_PrivateData *g_data = vedata->stl->g_data;
   EEVEE_FramebufferList *fbl = vedata->fbl;
   EEVEE_PassList *psl = vedata->psl;
   DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
@@ -167,19 +164,11 @@ void EEVEE_antialiasing_draw_pass(EEVEE_Data *vedata)
                                    GPU_COLOR_BIT | GPU_DEPTH_BIT;
     GPU_framebuffer_blit(dfbl->default_fb, 0, fbl->smaa_fb, 0, bits);
 
-    /* After a certain point SMAA is no longer necessary. */
-    g_data->smaa_mix_factor = 1.0f -
-                              clamp_f(vedata->stl->effects->taa_current_sample / 4.0f, 0.0f, 1.0f);
-    g_data->taa_sample_inv = 1.0f /
-                             clamp_f((vedata->stl->effects->taa_current_sample + 1), 0.0f, 1.0f);
+    GPU_framebuffer_bind(fbl->smaa_edge_fb);
+    DRW_draw_pass(psl->smaa_edge_ps);
 
-    if (g_data->smaa_mix_factor > 0.0f) {
-      GPU_framebuffer_bind(fbl->smaa_edge_fb);
-      DRW_draw_pass(psl->smaa_edge_ps);
-
-      GPU_framebuffer_bind(fbl->smaa_weight_fb);
-      DRW_draw_pass(psl->smaa_weight_ps);
-    }
+    GPU_framebuffer_bind(fbl->smaa_weight_fb);
+    DRW_draw_pass(psl->smaa_weight_ps);
 
     GPU_framebuffer_bind(dfbl->default_fb);
     DRW_draw_pass(psl->smaa_resolve_ps);

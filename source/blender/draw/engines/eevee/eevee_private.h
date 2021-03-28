@@ -1094,9 +1094,6 @@ typedef struct EEVEE_PrivateData {
   int render_sample_count_per_timestep;
 
   /* Game engine transition */
-  float smaa_mix_factor;
-  float taa_sample_inv;
-
   struct GPUTexture *smaa_edge_tx;
   struct GPUTexture *smaa_weight_tx;
   /* End of Game engine transition */
