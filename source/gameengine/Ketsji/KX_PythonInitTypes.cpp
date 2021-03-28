@@ -70,6 +70,7 @@
 #  include "SCA_AlwaysSensor.h"
 #  include "SCA_ArmatureSensor.h"
 #  include "SCA_CameraActuator.h"
+#  include "SCA_CollectionActuator.h"
 #  include "SCA_CollisionSensor.h"
 #  include "SCA_ConstraintActuator.h"
 #  include "SCA_DelaySensor.h"
@@ -224,6 +225,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
     PyType_Ready_Attr(dict, KX_BlenderMaterial, init_getset);
     PyType_Ready_Attr(dict, KX_Camera, init_getset);
     PyType_Ready_Attr(dict, SCA_CameraActuator, init_getset);
+    PyType_Ready_Attr(dict, SCA_CollectionActuator, init_getset);
     PyType_Ready_Attr(dict, KX_CharacterWrapper, init_getset);
     PyType_Ready_Attr(dict, SCA_ConstraintActuator, init_getset);
     PyType_Ready_Attr(dict, KX_ConstraintWrapper, init_getset);
