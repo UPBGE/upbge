@@ -274,6 +274,9 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
     const RAS_Rect &viewport = KX_GetActiveEngine()->GetCanvas()->GetViewportArea();
     RenderAfterCameraSetup(nullptr, viewport, false, true);
   }
+  else {
+    scene->flag |= SCE_INTERACTIVE_VIEWPORT;
+  }
 
   /* Fix black shading issue with addObject https://github.com/UPBGE/upbge/issues/1354 */
   GPU_shader_force_unbind();
@@ -343,6 +346,7 @@ KX_Scene::~KX_Scene()
 
   // Put that before we flush depsgraph updates at scene exit
   scene->flag &= ~SCE_INTERACTIVE;
+  scene->flag &= ~SCE_INTERACTIVE_VIEWPORT;
 
   /* End of EEVEE INTEGRATION */
 

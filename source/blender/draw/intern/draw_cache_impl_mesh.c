@@ -36,6 +36,8 @@
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
 
+#include "DEG_depsgraph_query.h" // Game engine transition
+
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -1583,8 +1585,13 @@ void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
    * An idea to improve this is to separate the Object mode from the edit mode draw caches. And
    * based on the mode the correct one will be updated. Other option is to look into using
    * drw_batch_cache_generate_requested_delayed. */
-  if (is_paint_mode) {  // Game engine transition
-    BLI_task_graph_work_and_wait(task_graph);
+  Scene *sce_eval = scene;
+  if (sce_eval) {
+    Scene *sce_orig = (Scene *)DEG_get_original_id(&sce_eval->id);
+    if ((sce_orig->flag & SCE_INTERACTIVE) == 0 &&
+        (sce_orig->flag & SCE_INTERACTIVE_VIEWPORT) == 0) {  // Game engine transition
+      BLI_task_graph_work_and_wait(task_graph);
+    }
   }
 #ifdef DEBUG
   drw_mesh_batch_cache_check_available(task_graph, me);

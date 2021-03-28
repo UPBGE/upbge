@@ -2287,6 +2287,7 @@ typedef enum eVGroupSelect {
 #define SCE_INTERACTIVE (1 << 6)
 #define SCE_IS_BLENDERPLAYER (1 << 7)
 #define SCE_IS_GAME_XR_SESSION (1 << 8)
+#define SCE_INTERACTIVE_VIEWPORT (1 << 9)
 
 /* return flag BKE_scene_base_iter_next functions */
 /* #define F_ERROR          -1 */ /* UNUSED */
