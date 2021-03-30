@@ -32,6 +32,8 @@
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 
+namespace blender::compositor {
+
 ViewerOperation::ViewerOperation()
 {
   this->setImage(nullptr);
@@ -53,6 +55,7 @@ ViewerOperation::ViewerOperation()
   this->m_depthInput = nullptr;
   this->m_rd = nullptr;
   this->m_viewName = nullptr;
+  flags.use_viewer_border = true;
 }
 
 void ViewerOperation::initExecution()
@@ -213,3 +216,5 @@ CompositorPriority ViewerOperation::getRenderPriority() const
 
   return CompositorPriority::Low;
 }
+
+}  // namespace blender::compositor

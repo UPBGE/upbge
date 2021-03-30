@@ -27,6 +27,8 @@
 
 #include "intern/openexr/openexr_multi.h"
 
+namespace blender::compositor {
+
 /* Writes the image to a single-layer file. */
 class OutputSingleLayerOperation : public NodeOperation {
  protected:
@@ -67,11 +69,6 @@ class OutputSingleLayerOperation : public NodeOperation {
   CompositorPriority getRenderPriority() const override
   {
     return CompositorPriority::Low;
-  }
-
-  bool isFileOutputOperation() const override
-  {
-    return true;
   }
 };
 
@@ -127,11 +124,6 @@ class OutputOpenExrMultiLayerOperation : public NodeOperation {
   {
     return CompositorPriority::Low;
   }
-
-  bool isFileOutputOperation() const override
-  {
-    return true;
-  }
 };
 
 void add_exr_channels(void *exrhandle,
@@ -146,3 +138,5 @@ void free_exr_channels(void *exrhandle,
                        const char *layerName,
                        const DataType datatype);
 int get_datatype_size(DataType datatype);
+
+}  // namespace blender::compositor

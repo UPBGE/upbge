@@ -340,6 +340,7 @@ class OBJECT_PT_instancing_size(ObjectButtonsPanel, Panel):
 class OBJECT_PT_lineart(ObjectButtonsPanel, Panel):
     bl_label = "Line Art"
     bl_options = {'DEFAULT_CLOSED'}
+    bl_order = 10
 
     @classmethod
     def poll(cls, context):

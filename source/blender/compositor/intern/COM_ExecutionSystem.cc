@@ -37,6 +37,8 @@
 #  include "MEM_guardedalloc.h"
 #endif
 
+namespace blender::compositor {
+
 ExecutionSystem::ExecutionSystem(RenderData *rd,
                                  Scene *scene,
                                  bNodeTree *editingtree,
@@ -128,7 +130,7 @@ static void update_read_buffer_offset(blender::Vector<NodeOperation *> &operatio
 {
   unsigned int order = 0;
   for (NodeOperation *operation : operations) {
-    if (operation->isReadBufferOperation()) {
+    if (operation->get_flags().is_read_buffer_operation) {
       ReadBufferOperation *readOperation = (ReadBufferOperation *)operation;
       readOperation->setOffset(order);
       order++;
@@ -140,7 +142,7 @@ static void init_write_operations_for_execution(blender::Vector<NodeOperation *>
                                                 const bNodeTree *bTree)
 {
   for (NodeOperation *operation : operations) {
-    if (operation->isWriteBufferOperation()) {
+    if (operation->get_flags().is_write_buffer_operation) {
       operation->setbNodeTree(bTree);
       operation->initExecution();
     }
@@ -150,7 +152,7 @@ static void init_write_operations_for_execution(blender::Vector<NodeOperation *>
 static void link_write_buffers(blender::Vector<NodeOperation *> &operations)
 {
   for (NodeOperation *operation : operations) {
-    if (operation->isReadBufferOperation()) {
+    if (operation->get_flags().is_read_buffer_operation) {
       ReadBufferOperation *readOperation = static_cast<ReadBufferOperation *>(operation);
       readOperation->updateMemoryBuffer();
     }
@@ -161,7 +163,7 @@ static void init_non_write_operations_for_execution(blender::Vector<NodeOperatio
                                                     const bNodeTree *bTree)
 {
   for (NodeOperation *operation : operations) {
-    if (!operation->isWriteBufferOperation()) {
+    if (!operation->get_flags().is_write_buffer_operation) {
       operation->setbNodeTree(bTree);
       operation->initExecution();
     }
@@ -213,9 +215,11 @@ void ExecutionSystem::execute()
 void ExecutionSystem::execute_groups(CompositorPriority priority)
 {
   for (ExecutionGroup *execution_group : m_groups) {
-    if (execution_group->isOutputExecutionGroup() &&
+    if (execution_group->get_flags().is_output &&
         execution_group->getRenderPriority() == priority) {
       execution_group->execute(this);
     }
   }
 }
+
+}  // namespace blender::compositor

@@ -37,6 +37,8 @@
 
 #include "BKE_global.h"
 
+namespace blender::compositor {
+
 enum class ThreadingModel {
   /** Everything is executed in the caller thread. easy for debugging. */
   SingleThreaded,
@@ -142,7 +144,7 @@ static void opencl_start(CompositorContext &context)
 
 static bool opencl_schedule(WorkPackage *package)
 {
-  if (package->execution_group->isOpenCL() && g_work_scheduler.opencl.active) {
+  if (package->execution_group->get_flags().open_cl && g_work_scheduler.opencl.active) {
     BLI_thread_queue_push(g_work_scheduler.opencl.queue, package);
     return true;
   }
@@ -583,3 +585,5 @@ int WorkScheduler::current_thread_id()
 }
 
 /* \} */
+
+}  // namespace blender::compositor

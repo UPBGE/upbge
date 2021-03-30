@@ -31,6 +31,8 @@
 
 #include "PIL_time.h"
 
+namespace blender::compositor {
+
 CompositorOperation::CompositorOperation()
 {
   this->addInputSocket(DataType::Color);
@@ -50,6 +52,8 @@ CompositorOperation::CompositorOperation()
   this->m_scene = nullptr;
   this->m_sceneName[0] = '\0';
   this->m_viewName = nullptr;
+
+  flags.use_render_border = true;
 }
 
 void CompositorOperation::initExecution()
@@ -242,3 +246,5 @@ void CompositorOperation::determineResolution(unsigned int resolution[2],
   resolution[0] = width;
   resolution[1] = height;
 }
+
+}  // namespace blender::compositor
