@@ -182,6 +182,8 @@ struct NodeOperationFlags {
    */
   bool open_cl : 1;
 
+  bool single_threaded : 1;
+
   /**
    * Does the operation needs a viewer border.
    * Basically, setting border need to happen for only operations
@@ -210,10 +212,22 @@ struct NodeOperationFlags {
   bool is_set_operation : 1;
   bool is_write_buffer_operation : 1;
   bool is_read_buffer_operation : 1;
+  bool is_proxy_operation : 1;
+  bool is_viewer_operation : 1;
+  bool is_preview_operation : 1;
+
+  /**
+   * When set additional data conversion operations are added to
+   * convert the data. SocketProxyOperation don't always need to do data conversions.
+   *
+   * By default data conversions are enabled.
+   */
+  bool use_datatype_conversion : 1;
 
   NodeOperationFlags()
   {
     complex = false;
+    single_threaded = false;
     open_cl = false;
     use_render_border = false;
     use_viewer_border = false;
@@ -221,6 +235,10 @@ struct NodeOperationFlags {
     is_set_operation = false;
     is_read_buffer_operation = false;
     is_write_buffer_operation = false;
+    is_proxy_operation = false;
+    is_viewer_operation = false;
+    is_preview_operation = false;
+    use_datatype_conversion = true;
   }
 };
 
@@ -293,14 +311,6 @@ class NodeOperation {
   NodeOperationOutput *getOutputSocket(unsigned int index = 0);
   NodeOperationInput *getInputSocket(unsigned int index);
 
-  /** Check if this is an input operation
-   * An input operation is an operation that only has output sockets and no input sockets
-   */
-  bool isInputOperation() const
-  {
-    return m_inputs.is_empty();
-  }
-
   /**
    * \brief determine the resolution of this node
    * \note this method will not set the resolution, this is the responsibility of the caller
@@ -326,11 +336,6 @@ class NodeOperation {
    * \return bool the result of this method
    */
   virtual bool isOutputOperation(bool /*rendering*/) const
-  {
-    return false;
-  }
-
-  virtual int isSingleThreaded()
   {
     return false;
   }
@@ -440,24 +445,6 @@ class NodeOperation {
   virtual CompositorPriority getRenderPriority() const
   {
     return CompositorPriority::Low;
-  }
-
-  virtual bool isViewerOperation() const
-  {
-    return false;
-  }
-  virtual bool isPreviewOperation() const
-  {
-    return false;
-  }
-  virtual bool isProxyOperation() const
-  {
-    return false;
-  }
-
-  virtual bool useDatatypeConversion() const
-  {
-    return true;
   }
 
   inline bool isBraked() const
