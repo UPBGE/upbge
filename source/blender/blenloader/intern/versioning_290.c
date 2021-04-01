@@ -57,6 +57,7 @@
 #include "BKE_collection.h"
 #include "BKE_colortools.h"
 #include "BKE_cryptomatte.h"
+#include "BKE_curve.h"
 #include "BKE_fcurve.h"
 #include "BKE_gpencil.h"
 #include "BKE_lib_id.h"
@@ -1908,7 +1909,7 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
   }
 
   if (!MAIN_VERSION_ATLEAST(bmain, 293, 14)) {
-    if (!DNA_struct_elem_find(fd->filesdna, "Light", "float", "diff_fac")) {
+    if (!DNA_struct_elem_find(fd->filesdna, "Lamp", "float", "diff_fac")) {
       LISTBASE_FOREACH (Light *, light, &bmain->lights) {
         light->diff_fac = 1.0f;
         light->volume_fac = 1.0f;
@@ -1950,10 +1951,57 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
   {
     /* Keep this block, even when empty. */
 
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_GEOMETRY) {
+        version_node_socket_name(ntree, GEO_NODE_VOLUME_TO_MESH, "Grid", "Density");
+      }
+    }
+    FOREACH_NODETREE_END;
+
     if (!DNA_struct_elem_find(fd->filesdna, "bArmature", "float", "axes_position")) {
       /* Convert the axes draw position to its old default (tip of bone). */
       LISTBASE_FOREACH (struct bArmature *, arm, &bmain->armatures) {
         arm->axes_position = 1.0;
+      }
+    }
+
+    /* Initialize the spread parameter for area lights*/
+    if (!DNA_struct_elem_find(fd->filesdna, "Lamp", "float", "area_spread")) {
+      LISTBASE_FOREACH (Light *, la, &bmain->lights) {
+        la->area_spread = DEG2RADF(180.0f);
+      }
+    }
+
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (sl->spacetype == SPACE_NODE) {
+            SpaceNode *snode = (SpaceNode *)sl;
+            LISTBASE_FOREACH (bNodeTreePath *, path, &snode->treepath) {
+              STRNCPY(path->display_name, path->node_name);
+            }
+          }
+        }
+      }
+    }
+
+    /* The CU_2D flag has been removed. */
+    LISTBASE_FOREACH (Curve *, cu, &bmain->curves) {
+#define CU_2D (1 << 3)
+      ListBase *nurbs = BKE_curve_nurbs_get(cu);
+      bool is_2d = true;
+
+      LISTBASE_FOREACH (Nurb *, nu, nurbs) {
+        if (nu->flag & CU_2D) {
+          nu->flag &= ~CU_2D;
+        }
+        else {
+          is_2d = false;
+        }
+      }
+#undef CU_2D
+      if (!is_2d && CU_IS_2D(cu)) {
+        cu->flag |= CU_3D;
       }
     }
   }

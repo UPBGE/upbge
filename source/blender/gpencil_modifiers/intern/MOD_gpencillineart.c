@@ -103,7 +103,6 @@ static void generate_strokes_actual(
       lmd->transparency_mask,
       lmd->thickness,
       lmd->opacity,
-      lmd->resample_length,
       lmd->source_vertex_group,
       lmd->vgname,
       lmd->flags);
@@ -381,8 +380,6 @@ static void chaining_panel_draw(const bContext *UNUSED(C), Panel *panel)
 
   uiItemR(layout, ptr, "chaining_image_threshold", 0, NULL, ICON_NONE);
 
-  uiItemR(layout, ptr, "resample_length", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
-
   uiItemR(layout, ptr, "split_angle", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 }
 
@@ -411,8 +408,6 @@ static void vgroup_panel_draw(const bContext *UNUSED(C), Panel *panel)
     uiItemPointerR(
         col, ptr, "vertex_group", &ob_ptr, "vertex_groups", IFACE_("Target"), ICON_NONE);
   }
-
-  uiItemR(col, ptr, "use_soft_selection", 0, NULL, ICON_NONE);
 }
 
 static void baking_panel_draw(const bContext *UNUSED(C), Panel *panel)

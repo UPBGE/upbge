@@ -49,6 +49,9 @@ constexpr int COM_data_type_num_channels(const DataType datatype)
   }
 }
 
+constexpr int COM_DATA_TYPE_VALUE_CHANNELS = COM_data_type_num_channels(DataType::Value);
+constexpr int COM_DATA_TYPE_COLOR_CHANNELS = COM_data_type_num_channels(DataType::Color);
+
 /**
  * \brief Possible quality settings
  * \see CompositorContext.quality
@@ -74,6 +77,25 @@ enum class CompositorPriority {
   Medium = 1,
   /** \brief Low quality setting */
   Low = 0,
+};
+
+/**
+ * \brief the execution state of a chunk in an ExecutionGroup
+ * \ingroup Execution
+ */
+enum class eChunkExecutionState {
+  /**
+   * \brief chunk is not yet scheduled
+   */
+  NotScheduled = 0,
+  /**
+   * \brief chunk is scheduled, but not yet executed
+   */
+  Scheduled = 1,
+  /**
+   * \brief chunk is executed.
+   */
+  Executed = 2,
 };
 
 // configurable items

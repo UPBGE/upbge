@@ -31,6 +31,7 @@
 #include "COM_MemoryProxy.h"
 #include "COM_Node.h"
 #include "COM_NodeOperation.h"
+#include "COM_WorkPackage.h"
 #include <vector>
 
 namespace blender::compositor {
@@ -40,25 +41,6 @@ class MemoryProxy;
 class MemoryBuffer;
 class ReadBufferOperation;
 class Device;
-
-/**
- * \brief the execution state of a chunk in an ExecutionGroup
- * \ingroup Execution
- */
-enum class eChunkExecutionState {
-  /**
-   * \brief chunk is not yet scheduled
-   */
-  NOT_SCHEDULED = 0,
-  /**
-   * \brief chunk is scheduled, but not yet executed
-   */
-  SCHEDULED = 1,
-  /**
-   * \brief chunk is executed.
-   */
-  EXECUTED = 2,
-};
 
 struct ExecutionGroupFlags {
   bool initialized : 1;
@@ -163,12 +145,9 @@ class ExecutionGroup {
   unsigned int m_chunks_finished;
 
   /**
-   * \brief m_chunk_execution_states holds per chunk the execution state. this state can be
-   *   - eChunkExecutionState::NOT_SCHEDULED: not scheduled
-   *   - eChunkExecutionState::SCHEDULED: scheduled
-   *   - eChunkExecutionState::EXECUTED: executed
+   * \brief m_work_packages holds all unit of work.
    */
-  blender::Vector<eChunkExecutionState> m_chunk_execution_states;
+  blender::Vector<WorkPackage> m_work_packages;
 
   /**
    * \brief denotes boundary for border compositing
@@ -189,25 +168,17 @@ class ExecutionGroup {
   bool can_contain(NodeOperation &operation);
 
   /**
-   * \brief calculate the actual chunk size of this execution group.
-   * \note A chunk size is an unsigned int that is both the height and width of a chunk.
-   * \note The chunk size will not be stored in the chunkSize field. This needs to be done
-   * \note by the calling method.
-   */
-  unsigned int determineChunkSize();
-
-  /**
    * \brief Determine the rect (minx, maxx, miny, maxy) of a chunk at a position.
-   * \note Only gives useful results after the determination of the chunksize
-   * \see determineChunkSize()
    */
-  void determineChunkRect(rcti *rect, const unsigned int xChunk, const unsigned int yChunk) const;
+  void determineChunkRect(rcti *r_rect,
+                          const unsigned int xChunk,
+                          const unsigned int yChunk) const;
 
   /**
    * \brief determine the number of chunks, based on the chunkSize, width and height.
    * \note The result are stored in the fields numberOfChunks, numberOfXChunks, numberOfYChunks
    */
-  void determineNumberOfChunks();
+  void init_number_of_chunks();
 
   /**
    * \brief try to schedule a specific chunk.
@@ -254,7 +225,10 @@ class ExecutionGroup {
   /**
    * Return the execution order of the user visible chunks.
    */
-  blender::Array<unsigned int> determine_chunk_execution_order() const;
+  blender::Array<unsigned int> get_execution_order() const;
+
+  void init_read_buffer_operations();
+  void init_work_packages();
 
  public:
   // constructors
@@ -392,10 +366,8 @@ class ExecutionGroup {
 
   /**
    * \brief Determine the rect (minx, maxx, miny, maxy) of a chunk.
-   * \note Only gives useful results after the determination of the chunksize
-   * \see determineChunkSize()
    */
-  void determineChunkRect(rcti *rect, const unsigned int chunkNumber) const;
+  void determineChunkRect(rcti *r_rect, const unsigned int chunkNumber) const;
 
   void setChunksize(int chunksize)
   {
