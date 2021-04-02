@@ -277,7 +277,7 @@ int EEVEE_temporal_sampling_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data
     if (!DRW_state_is_image_render() && (scene_eval->eevee.flag & SCE_EEVEE_TAA_REPROJECTION)) {
       repro_flag = EFFECT_TAA_REPROJECT | EFFECT_VELOCITY_BUFFER | EFFECT_DEPTH_DOUBLE_BUFFER |
                    EFFECT_DOUBLE_BUFFER | EFFECT_POST_BUFFER;
-      effects->taa_reproject_sample = ((effects->taa_reproject_sample + 1) % 16);
+      effects->taa_reproject_sample = 2 + ((effects->taa_reproject_sample + 1) % 16);
     }
 
     /* Until we support reprojection, we need to make sure
@@ -338,7 +338,7 @@ int EEVEE_temporal_sampling_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data
     const Scene *sce_orig = (Scene *)DEG_get_original_id((ID *)&scene_eval->id);
     if (sce_orig->flag & SCE_INTERACTIVE_MOVES) {
       effects->taa_current_sample = effects->taa_reproject_sample;
-      scene_eval->r.gauss = 1.0f;
+      scene_eval->r.gauss = 0.7f;
     }
     else {
       scene_eval->r.gauss = sce_orig->r.gauss;

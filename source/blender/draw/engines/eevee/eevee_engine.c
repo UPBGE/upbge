@@ -253,8 +253,7 @@ static void eevee_draw_scene(void *vedata)
     DRW_stats_group_end();
 
     if (((stl->effects->enabled_effects & EFFECT_TAA) != 0) &&
-        (stl->effects->taa_current_sample > 1) && !DRW_state_is_image_render() &&
-        !taa_use_reprojection) {
+        (stl->effects->taa_current_sample > 1) && !DRW_state_is_image_render()) {
       DRW_view_set_active(stl->effects->taa_view);
     }
     /* when doing viewport rendering the overrides needs to be recalculated for
