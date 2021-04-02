@@ -269,7 +269,7 @@ int EEVEE_temporal_sampling_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data
   EEVEE_temporal_sampling_create_view(vedata);
 
   const DRWContextState *draw_ctx = DRW_context_state_get();
-  const Scene *scene_eval = DEG_get_evaluated_scene(draw_ctx->depsgraph);
+  Scene *scene_eval = DEG_get_evaluated_scene(draw_ctx->depsgraph);
 
   if ((scene_eval->eevee.taa_samples != 1) || DRW_state_is_image_render()) {
     float persmat[4][4];
@@ -338,6 +338,10 @@ int EEVEE_temporal_sampling_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data
     const Scene *sce_orig = (Scene *)DEG_get_original_id((ID *)&scene_eval->id);
     if (sce_orig->flag & SCE_INTERACTIVE_MOVES) {
       effects->taa_current_sample = effects->taa_reproject_sample;
+      scene_eval->r.gauss = 1.0f;
+    }
+    else {
+      scene_eval->r.gauss = sce_orig->r.gauss;
     }
 
     return repro_flag | EFFECT_TAA | EFFECT_DOUBLE_BUFFER | EFFECT_DEPTH_DOUBLE_BUFFER |
