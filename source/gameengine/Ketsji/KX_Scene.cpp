@@ -149,7 +149,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_blenderScene(scene),
       m_isActivedHysteresis(false),
       m_lodHysteresisValue(0),
-      m_isRuntime(true)  // eevee
+      m_isRuntime(true),  // eevee
+      m_somethingMoves(false)
 {
 
   m_dbvt_culling = false;
@@ -764,6 +765,14 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     }
   }
 
+  if (m_somethingMoves) {
+    GetBlenderScene()->flag |= SCE_INTERACTIVE_MOVES;
+  }
+  else {
+    GetBlenderScene()->flag &= ~SCE_INTERACTIVE_MOVES;
+  }
+  m_somethingMoves = false;
+
   /* Custom bge render loop only from here */
   if (cam) {
     float winmat[4][4];
@@ -1243,6 +1252,11 @@ void KX_Scene::TagForObmatRestore(std::vector<Object *> potentialChildren)
     /* Free what was allocated in BlenderDataConversion */
     delete backup;
   }
+}
+
+void KX_Scene::SomethingMoves()
+{
+  m_somethingMoves = true;
 }
 
 /******************End of EEVEE INTEGRATION****************************/

@@ -141,6 +141,7 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
   bool m_collectionRemap;
   std::vector<BackupObj *> m_backupObList;
   std::vector<Object *> m_potentialChildren;
+  bool m_somethingMoves;
   /*************************************************/
 
   RAS_BucketManager *m_bucketmanager;
@@ -364,6 +365,7 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
                          struct Depsgraph *depsgraph,
                          Object *ob,
                          std::vector<Object *> children);
+  void SomethingMoves();
   /***************End of EEVEE INTEGRATION**********************/
 
   RAS_BucketManager *GetBucketManager() const;

@@ -335,6 +335,11 @@ int EEVEE_temporal_sampling_init(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data
       }
     }
 
+    const Scene *sce_orig = (Scene *)DEG_get_original_id((ID *)&scene_eval->id);
+    if (sce_orig->flag & SCE_INTERACTIVE_MOVES) {
+      effects->taa_current_sample = effects->taa_reproject_sample;
+    }
+
     return repro_flag | EFFECT_TAA | EFFECT_DOUBLE_BUFFER | EFFECT_DEPTH_DOUBLE_BUFFER |
            EFFECT_POST_BUFFER;
   }
