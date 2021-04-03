@@ -48,8 +48,29 @@
 
 namespace blender::compositor {
 
-ExecutionGroup::ExecutionGroup()
+std::ostream &operator<<(std::ostream &os, const ExecutionGroupFlags &flags)
 {
+  if (flags.initialized) {
+    os << "init,";
+  }
+  if (flags.is_output) {
+    os << "output,";
+  }
+  if (flags.complex) {
+    os << "complex,";
+  }
+  if (flags.open_cl) {
+    os << "open_cl,";
+  }
+  if (flags.single_threaded) {
+    os << "single_threaded,";
+  }
+  return os;
+}
+
+ExecutionGroup::ExecutionGroup(int id)
+{
+  m_id = id;
   this->m_bTree = nullptr;
   this->m_height = 0;
   this->m_width = 0;
@@ -62,7 +83,16 @@ ExecutionGroup::ExecutionGroup()
   this->m_executionStartTime = 0;
 }
 
-CompositorPriority ExecutionGroup::getRenderPriority()
+std::ostream &operator<<(std::ostream &os, const ExecutionGroup &execution_group)
+{
+  os << "ExecutionGroup(id=" << execution_group.get_id();
+  os << ",flags={" << execution_group.get_flags() << "}";
+  os << ",operation=" << *execution_group.getOutputOperation() << "";
+  os << ")";
+  return os;
+}
+
+eCompositorPriority ExecutionGroup::getRenderPriority()
 {
   return this->getOutputOperation()->getRenderPriority();
 }
@@ -127,7 +157,7 @@ void ExecutionGroup::init_work_packages()
   if (this->m_chunks_len != 0) {
     m_work_packages.resize(this->m_chunks_len);
     for (unsigned int index = 0; index < m_chunks_len; index++) {
-      m_work_packages[index].state = eChunkExecutionState::NotScheduled;
+      m_work_packages[index].state = eWorkPackageState::NotScheduled;
       m_work_packages[index].execution_group = this;
       m_work_packages[index].chunk_number = index;
       determineChunkRect(&m_work_packages[index].rect, index);
@@ -333,7 +363,7 @@ void ExecutionGroup::execute(ExecutionSystem *graph)
       int xChunk = chunk_index - (yChunk * this->m_x_chunks_len);
       const WorkPackage &work_package = m_work_packages[chunk_index];
       switch (work_package.state) {
-        case eChunkExecutionState::NotScheduled: {
+        case eWorkPackageState::NotScheduled: {
           scheduleChunkWhenPossible(graph, xChunk, yChunk);
           finished = false;
           startEvaluated = true;
@@ -344,13 +374,13 @@ void ExecutionGroup::execute(ExecutionSystem *graph)
           }
           break;
         }
-        case eChunkExecutionState::Scheduled: {
+        case eWorkPackageState::Scheduled: {
           finished = false;
           startEvaluated = true;
           numberEvaluated++;
           break;
         }
-        case eChunkExecutionState::Executed: {
+        case eWorkPackageState::Executed: {
           if (!startEvaluated) {
             startIndex = index + 1;
           }
@@ -397,8 +427,8 @@ MemoryBuffer *ExecutionGroup::constructConsolidatedMemoryBuffer(MemoryProxy &mem
 void ExecutionGroup::finalizeChunkExecution(int chunkNumber, MemoryBuffer **memoryBuffers)
 {
   WorkPackage &work_package = m_work_packages[chunkNumber];
-  if (work_package.state == eChunkExecutionState::Scheduled) {
-    work_package.state = eChunkExecutionState::Executed;
+  if (work_package.state == eWorkPackageState::Scheduled) {
+    work_package.state = eWorkPackageState::Executed;
   }
 
   atomic_add_and_fetch_u(&this->m_chunks_finished, 1);
@@ -511,8 +541,8 @@ bool ExecutionGroup::scheduleAreaWhenPossible(ExecutionSystem *graph, rcti *area
 bool ExecutionGroup::scheduleChunk(unsigned int chunkNumber)
 {
   WorkPackage &work_package = m_work_packages[chunkNumber];
-  if (work_package.state == eChunkExecutionState::NotScheduled) {
-    work_package.state = eChunkExecutionState::Scheduled;
+  if (work_package.state == eWorkPackageState::NotScheduled) {
+    work_package.state = eWorkPackageState::Scheduled;
     WorkScheduler::schedule(&work_package);
     return true;
   }
@@ -533,10 +563,10 @@ bool ExecutionGroup::scheduleChunkWhenPossible(ExecutionSystem *graph,
   // Check if chunk is already executed or scheduled and not yet executed.
   const int chunk_index = chunk_y * this->m_x_chunks_len + chunk_x;
   WorkPackage &work_package = m_work_packages[chunk_index];
-  if (work_package.state == eChunkExecutionState::Executed) {
+  if (work_package.state == eWorkPackageState::Executed) {
     return true;
   }
-  if (work_package.state == eChunkExecutionState::Scheduled) {
+  if (work_package.state == eWorkPackageState::Scheduled) {
     return false;
   }
 
