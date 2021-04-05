@@ -28,8 +28,7 @@
 #include "GPU_glew.h"
 
 RAS_Texture::RAS_Texture()
-	:m_bindCode(-1),
-	m_name(""),
+	:m_name(""),
 	m_renderer(nullptr)
 {
 }
@@ -85,14 +84,4 @@ void RAS_Texture::DesactiveTextures()
 {
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, 0);
-}
-
-int RAS_Texture::GetBindCode() const
-{
-	return m_bindCode;
-}
-
-void RAS_Texture::SetBindCode(int bindcode)
-{
-	m_bindCode = bindcode;
 }
