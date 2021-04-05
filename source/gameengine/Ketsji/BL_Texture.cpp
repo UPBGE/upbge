@@ -131,6 +131,17 @@ void BL_Texture::DisableTexture()
   GPU_texture_unbind(m_gpuTex);
 }
 
+int BL_Texture::GetBindCode() const
+{
+  return m_bindCode;
+}
+
+void BL_Texture::SetBindCode(int bindcode)
+{
+  GPU_texture_set_opengl_bindcode(m_gpuTex, bindcode);
+  m_bindCode = bindcode;
+}
+
 // stuff for cvalue related things
 std::string BL_Texture::GetName()
 {
@@ -209,7 +220,7 @@ int BL_Texture::pyattr_set_bind_code(EXP_PyObjectPlus *self_v,
     return PY_SET_ATTR_FAIL;
   }
 
-  self->m_bindCode = val;
+  self->SetBindCode(val);
   return PY_SET_ATTR_SUCCESS;
 }
 

@@ -26,7 +26,7 @@
 
 #include "GPU_glew.h"
 
-RAS_Texture::RAS_Texture() : m_bindCode(-1), m_name("")
+RAS_Texture::RAS_Texture() : m_name("")
 {
 }
 
@@ -67,12 +67,3 @@ void RAS_Texture::DesactiveTextures()
   glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-int RAS_Texture::GetBindCode() const
-{
-  return m_bindCode;
-}
-
-void RAS_Texture::SetBindCode(int bindcode)
-{
-  m_bindCode = bindcode;
-}

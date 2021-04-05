@@ -37,6 +37,8 @@ class BL_Texture : public EXP_Value, public RAS_Texture {
   GPUTexture *m_gpuTex;
   eGPUTextureTarget m_textarget;
 
+  int m_bindCode;
+
   struct {
     unsigned int bindcode;
   } m_savedData;
@@ -61,6 +63,9 @@ class BL_Texture : public EXP_Value, public RAS_Texture {
   virtual void CheckValidTexture();
   virtual void ActivateTexture(int unit);
   virtual void DisableTexture();
+
+  virtual int GetBindCode() const;
+  virtual void SetBindCode(int bindcode);
 
 #ifdef WITH_PYTHON
   static PyObject *pyattr_get_bind_code(EXP_PyObjectPlus *self_v,

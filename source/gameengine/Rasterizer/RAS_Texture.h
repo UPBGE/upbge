@@ -32,7 +32,6 @@ struct GPUTexture;
 
 class RAS_Texture {
  protected:
-  int m_bindCode;
   std::string m_name;
 
  public:
@@ -61,6 +60,9 @@ class RAS_Texture {
   virtual void ActivateTexture(int unit) = 0;
   virtual void DisableTexture() = 0;
 
+  virtual int GetBindCode() const = 0;
+  virtual void SetBindCode(int bindcode) = 0;
+
   /** Set the current active OpenGL texture to the first texture
    * and bind a null texture in this slot.
    * This function must be used very carfully, normally only after
@@ -70,7 +72,4 @@ class RAS_Texture {
    * not affected but just unused as default.
    */
   static void DesactiveTextures();
-
-  int GetBindCode() const;
-  void SetBindCode(int bindcode);
 };
