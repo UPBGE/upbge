@@ -30,11 +30,10 @@
 #include "GPU_material.h"
 
 BL_Texture::BL_Texture(GPUMaterialTexture *gpumattex, eGPUTextureTarget textarget)
-    : EXP_Value(), m_isCubeMap(false), m_gpuMatTex(gpumattex), m_textarget(textarget)
+    : EXP_Value(), m_isCubeMap(false), m_gpuMatTex(gpumattex), m_textarget(textarget), m_bindCode(-1)
 {
   /* Normally input->textype is Kept in sync with GPU_DATATYPE_STR */
   m_isCubeMap = false; /*(m_gpuTex->type == GPU_TEXCUBE)*/
-  ;
   m_name = m_gpuMatTex->ima->id.name;
 
   m_gpuTex = BKE_image_get_gpu_texture(m_gpuMatTex->ima, m_gpuMatTex->iuser, nullptr);
