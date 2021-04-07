@@ -217,6 +217,18 @@ def do_versions(self):
                         baov.name = caov.get("name", "AOV")
                         baov.type = "COLOR" if caov.get("type", 1) == 1 else "VALUE"
 
+            if version <= (2, 93, 16):
+                cscene = scene.cycles
+                ao_bounces = cscene.get("ao_bounces", 0)
+                ao_bounces_render = cscene.get("ao_bounces_render", 0)
+                if scene.render.use_simplify and (ao_bounces or ao_bounces_render):
+                    cscene.use_fast_gi = True
+                    cscene.ao_bounces = ao_bounces
+                    cscene.ao_bounces_render = ao_bounces_render
+                else:
+                    cscene.ao_bounces = 1
+                    cscene.ao_bounces_render = 1
+
         # Lamps
         for light in bpy.data.lights:
             if light.library not in libraries:
