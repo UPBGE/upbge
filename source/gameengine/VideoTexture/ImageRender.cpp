@@ -364,6 +364,7 @@ bool ImageRender::Render()
 #endif
 
   int num_passes = max_ii(1, m_samples);
+  num_passes = min_ii(num_passes, m_scene->GetBlenderScene()->eevee.taa_samples);
 
   for (int i = 0; i < num_passes; i++) {
     /* viewport and window share the same values here */
