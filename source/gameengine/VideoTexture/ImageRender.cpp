@@ -71,6 +71,7 @@ ImageRender::ImageRender(KX_Scene *scene,
       m_done(false),
       m_scene(scene),
       m_camera(camera),
+      m_samples(samples),
       m_owncamera(false),
       m_observer(nullptr),
       m_mirror(nullptr),
@@ -362,9 +363,13 @@ bool ImageRender::Render()
   RunPreDrawCallbacks();
 #endif
 
-  /* viewport and window share the same values here */
-  const rcti window = {viewport[0], viewport[2], viewport[1], viewport[3]};
-  m_scene->RenderAfterCameraSetupImageRender(m_camera, m_rasterizer, &window);
+  int num_passes = max_ii(1, m_samples);
+
+  for (int i = 0; i < num_passes; i++) {
+    /* viewport and window share the same values here */
+    const rcti window = {viewport[0], viewport[2], viewport[1], viewport[3]};
+    m_scene->RenderAfterCameraSetupImageRender(m_camera, m_rasterizer, &window);
+  }
 
 #ifdef WITH_PYTHON
   RunPostDrawCallbacks();
@@ -888,6 +893,7 @@ ImageRender::ImageRender(KX_Scene *scene,
       m_render(false),
       m_done(false),
       m_scene(scene),
+      m_samples(samples),
       m_observer(observer),
       m_mirror(mirror),
       m_clip(100.f)

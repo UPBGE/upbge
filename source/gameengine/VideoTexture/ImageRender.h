@@ -102,6 +102,8 @@ class ImageRender : public ImageViewport {
   KX_Scene *m_scene;
   /// camera for render
   KX_Camera *m_camera;
+  /// number of render passes
+  unsigned short m_samples;
   /// do we own the camera?
   bool m_owncamera;
 

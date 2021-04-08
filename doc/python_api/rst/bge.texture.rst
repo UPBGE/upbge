@@ -421,7 +421,7 @@ Image classes
    :type width: integer
    :arg height: Off-screen render buffer height (optional).
    :type height: integer
-   :arg samples: Off-screen render buffer samples (optional).
+   :arg samples: Number of times eevee render loop is called to have a fully antialiased pass or soft shadows support (optional).
    :type samples: integer
 
    .. attribute:: alpha
@@ -665,7 +665,7 @@ Image classes
    :type width: integer
    :arg height: Off-screen render buffer height (optional).
    :type height: integer
-   :arg samples: Off-screen render buffer samples (optional).
+   :arg samples: Number of times eevee render loop is called to have a fully antialiased pass or soft shadows support (optional).
    :type samples: integer
 
    .. attribute:: alpha
