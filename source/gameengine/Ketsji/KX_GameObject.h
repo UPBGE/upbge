@@ -150,6 +150,7 @@ class KX_GameObject : public SCA_IObject {
   void ForceIgnoreParentTx();
   void SyncTransformWithDepsgraph();
   void SetIsReplicaObject();
+  float *GetPrevObmat();
   /* END OF EEVEE INTEGRATION */
 
   /**

@@ -1245,6 +1245,16 @@ void KX_Scene::TagForObmatRestore(std::vector<Object *> potentialChildren)
   }
 }
 
+bool KX_Scene::SomethingIsMoving()
+{
+  for (KX_GameObject *gameobj : GetObjectList()) {
+    if (!(compare_m4m4((float(*)[4])(gameobj->GetPrevObmat()), gameobj->GetBlenderObject()->obmat, FLT_MIN))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /******************End of EEVEE INTEGRATION****************************/
 
 std::string KX_Scene::GetName()

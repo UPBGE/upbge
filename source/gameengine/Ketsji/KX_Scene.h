@@ -364,6 +364,7 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
                          struct Depsgraph *depsgraph,
                          Object *ob,
                          std::vector<Object *> children);
+  bool SomethingIsMoving();
   /***************End of EEVEE INTEGRATION**********************/
 
   RAS_BucketManager *GetBucketManager() const;

@@ -350,11 +350,13 @@ bool ImageRender::Render()
 
   m_scene->SetCurrentGPUViewport(m_camera->GetGPUViewport());
 
-  /* Add a depsgraph notifier to trigger
-   * DRW_notify_view_update on next draw loop. */
-  DEG_id_tag_update(&m_camera->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
-  /* We need the changes to be flushed before each draw loop! */
-  BKE_scene_graph_update_tagged(depsgraph, bmain);
+  if (m_scene->SomethingIsMoving()) {
+    /* Add a depsgraph notifier to trigger
+     * DRW_notify_view_update on next draw loop. */
+    DEG_id_tag_update(&m_camera->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
+    /* We need the changes to be flushed before each draw loop! */
+    BKE_scene_graph_update_tagged(depsgraph, bmain);
+  }
 
 #ifdef WITH_PYTHON
   RunPreDrawCallbacks();

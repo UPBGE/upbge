@@ -547,6 +547,11 @@ void KX_GameObject::SetIsReplicaObject()
   m_isReplica = true;
 }
 
+float *KX_GameObject::GetPrevObmat()
+{
+  return (float *)m_prevObmat;
+}
+
 /********************End of EEVEE INTEGRATION*********************/
 
 KX_GameObject *KX_GameObject::GetClientObject(KX_ClientObjectInfo *info)
