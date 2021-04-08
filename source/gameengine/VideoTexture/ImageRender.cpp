@@ -248,7 +248,7 @@ bool ImageRender::Render()
   GPU_scissor(viewport[0], viewport[1], viewport[2], viewport[3]);
   GPU_apply_state();
 
-  GPU_clear_depth(1.0f);
+  //GPU_clear_depth(1.0f);
 
   m_rasterizer->SetAuxilaryClientInfo(m_scene);
 
@@ -367,6 +367,7 @@ bool ImageRender::Render()
   num_passes = min_ii(num_passes, m_scene->GetBlenderScene()->eevee.taa_samples);
 
   for (int i = 0; i < num_passes; i++) {
+    GPU_clear_depth(1.0f);
     /* viewport and window share the same values here */
     const rcti window = {viewport[0], viewport[2], viewport[1], viewport[3]};
     m_scene->RenderAfterCameraSetupImageRender(m_camera, m_rasterizer, &window);
