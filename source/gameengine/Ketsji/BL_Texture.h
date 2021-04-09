@@ -40,6 +40,7 @@ private:
 	bool m_isCubeMap;
 	MTex *m_mtex;
 	GPUTexture *m_gpuTex;
+	int m_bindCode;
 
 	struct {
 		unsigned int bindcode;
@@ -86,6 +87,9 @@ public:
 	virtual void CheckValidTexture();
 	virtual void ActivateTexture(int unit);
 	virtual void DisableTexture();
+
+	virtual int GetBindCode() const;
+	virtual void SetBindCode(int bindcode);
 
 #ifdef WITH_PYTHON
 

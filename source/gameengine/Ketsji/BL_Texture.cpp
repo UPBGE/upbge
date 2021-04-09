@@ -105,6 +105,7 @@ BL_Texture::~BL_Texture()
 	copy_v3_v3(m_mtex->size, m_savedData.uvsize);
 
 	if (m_gpuTex) {
+		SetBindCode(m_savedData.bindcode);
 		GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);
 		GPU_texture_free(m_gpuTex);
 	}
@@ -202,6 +203,22 @@ void BL_Texture::DisableTexture()
 std::string BL_Texture::GetName()
 {
 	return RAS_Texture::GetName();
+}
+
+int BL_Texture::GetBindCode() const
+{
+	return m_bindCode;
+}
+
+void BL_Texture::SetBindCode(int bindcode)
+{
+	if (m_isCubeMap) {
+		GetImage()->bindcode[TEXTARGET_TEXTURE_CUBE_MAP] = bindcode;
+	}
+	else {
+		GetImage()->bindcode[TEXTARGET_TEXTURE_2D] = bindcode;
+	}
+	m_bindCode = bindcode;
 }
 
 #ifdef WITH_PYTHON
@@ -512,7 +529,7 @@ int BL_Texture::pyattr_set_bind_code(EXP_PyObjectPlus *self_v, const EXP_PYATTRI
 		return PY_SET_ATTR_FAIL;
 	}
 
-	self->m_bindCode = val;
+	self->SetBindCode(val);
 	return PY_SET_ATTR_SUCCESS;
 }
 
