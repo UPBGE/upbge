@@ -394,6 +394,11 @@ static void rna_def_light_shadow(StructRNA *srna, bool sun)
   RNA_def_property_ui_text(prop, "Use soft shadows", "Use soft shadows for this light");
   RNA_def_property_update(prop, 0, "rna_Light_update");
 
+  prop = RNA_def_property(srna, "use_pcf_shadows", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "mode", LA_SHADOWS_PCF);
+  RNA_def_property_ui_text(prop, "Use PCF shadows", "Use PCF shadows");
+  RNA_def_property_update(prop, 0, "rna_Light_update");
+
   if (sun) {
     prop = RNA_def_property(srna, "shadow_cascade_max_distance", PROP_FLOAT, PROP_DISTANCE);
     RNA_def_property_float_sdna(prop, NULL, "cascade_max_dist");

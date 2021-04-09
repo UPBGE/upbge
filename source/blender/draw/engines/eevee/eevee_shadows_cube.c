@@ -47,6 +47,7 @@ void EEVEE_shadows_cube_add(EEVEE_LightsInfo *linfo, EEVEE_Light *evli, Object *
   }
 
   sh_data->nearf = max_ff(la->clipsta, 1e-8f);
+  sh_data->use_pcf = (la->mode & LA_SHADOWS_PCF) ? 1.0f : 0.0f; // UPBGE test
   sh_data->bias = max_ff(la->bias * 0.05f, 0.0f);
   eevee_contact_shadow_setup(la, sh_data);
 

@@ -47,6 +47,7 @@ struct LightData {
 struct ShadowData {
   vec4 near_far_bias_id;
   vec4 contact_shadow_data;
+  vec4 use_pcf; // .x
 };
 
 struct ShadowCubeData {
@@ -171,6 +172,19 @@ vec4 sample_cascade(sampler2DArray tex, vec2 co, float cascade_id)
 #define scube(x) shadows_cube_data[x]
 #define scascade(x) shadows_cascade_data[x]
 
+vec2 poissonDisk[4] = vec2[](
+  vec2( -0.94201624, -0.39906216 ),
+  vec2( 0.94558609, -0.76890725 ),
+  vec2( -0.094184101, -0.92938870 ),
+  vec2( 0.34495938, 0.29387760 )
+);
+
+float rand_index(vec4 seed4)
+{
+  float dot_product = dot(seed4, vec4(12.9898,78.233,45.164,94.673));
+  return fract(sin(dot_product) * 43758.5453);
+}
+
 float sample_cube_shadow(int shadow_id, vec3 P)
 {
   int data_id = int(sd(shadow_id).sh_data_index);
@@ -183,7 +197,19 @@ float sample_cube_shadow(int shadow_id, vec3 P)
   vec2 coord = cubeFaceCoordEEVEE(cubevec, face, shadowCubeTexture);
   /* tex_id == data_id for cube shadowmap */
   float tex_id = float(data_id);
-  return texture(shadowCubeTexture, vec4(coord, tex_id * 6.0 + face, dist));
+  vec4 scoord = vec4(coord, tex_id * 6.0 + face, dist);
+  float vis = texture(shadowCubeTexture, scoord);
+
+  if (sd(shadow_id).use_pcf.x == 1.0) {
+    for (int i = 0; i < 4; i++) {
+      if (texture(shadowCubeTexture, vec4(scoord.xy + poissonDisk[i] / 700.0, scoord.z, scoord.w)) < scoord.w - sd(shadow_id).sh_bias) {
+        int index = int(4.0 * rand_index(vec4(gl_FragCoord.xyy, i))) % 4; // A random number between 0 and 15, different for each pixel (and each i !)
+        vis -= 0.2 * (1.0 - texture(shadowCubeTexture, vec4(scoord.xy + poissonDisk[index] / 700.0, (scoord.z-sd(shadow_id).sh_bias)/scoord.w, scoord.w)));
+      }
+    }
+  }
+
+  return vis;
 }
 
 float sample_cascade_shadow(int shadow_id, vec3 P)

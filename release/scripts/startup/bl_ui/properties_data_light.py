@@ -185,6 +185,8 @@ class DATA_PT_EEVEE_shadow(DataButtonsPanel, Panel):
 
         col.separator()
         col.prop(light, "use_soft_shadows", text="Soft Shadows Override")
+        col.separator()
+        col.prop(light, "use_pcf_shadows", text="PCF Shadows")
 
 
 class DATA_PT_EEVEE_shadow_cascaded_shadow_map(DataButtonsPanel, Panel):

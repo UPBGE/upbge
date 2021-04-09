@@ -521,6 +521,7 @@ typedef struct EEVEE_Light {
 typedef struct EEVEE_Shadow {
   float nearf, farf, bias, type_data_id;
   float contact_dist, contact_bias, contact_spread, contact_thickness;
+  float use_pcf, _pad[3];
 } EEVEE_Shadow;
 
 typedef struct EEVEE_ShadowCube {
