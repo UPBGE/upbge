@@ -1174,14 +1174,14 @@ void KX_Scene::DrawDebug(const std::vector<KX_GameObject *>& objects,
 			const mt::vec3& center = box.GetCenter();
 
 			m_debugDraw.DrawAabb(position, orientation, box.GetMin() * scale, box.GetMax() * scale,
-			                   mt::vec4(1.0f, 0.0f, 1.0f, 1.0f));
-
+				mt::vec4(1.0f, 0.0f, 1.0f, 1.0f));
+		
 			static const mt::vec3 axes[] = {mt::axisX3, mt::axisY3, mt::axisZ3};
 			static const mt::vec4 colors[] = {mt::vec4(1.0f, 0.0f, 0.0f, 1.0f), mt::vec4(0.0f, 1.0f, 0.0f, 1.0f), mt::vec4(0.0f, 0.0f, 1.0f, 1.0f)};
 			// Render center in red, green and blue.
 			for (unsigned short i = 0; i < 3; ++i) {
 				m_debugDraw.DrawLine(orientation * (center * scale) + position,
-						orientation * ((center + axes[i]) * scale) + position, colors[i]);
+					orientation * ((center + axes[i]) * scale) + position, colors[i]);
 			}
 		}
 	}
@@ -1202,6 +1202,8 @@ void KX_Scene::DrawDebug(const std::vector<KX_GameObject *>& objects,
 void KX_Scene::RenderDebugProperties(RAS_DebugDraw& debugDraw, int xindent, int ysize, int& xcoord, int& ycoord, unsigned short propsMax)
 {
 	static const mt::vec4 white(1.0f, 1.0f, 1.0f, 1.0f);
+	static const mt::vec4 valuec(0.0f, 0.8f, 0.4f, 1.0f);
+	static const mt::vec4 framec(0.3f, 0.3f, 0.3f, 0.7f);
 
 	// The 'normal' debug props.
 	const std::vector<SCA_DebugProp>& debugproplist = GetDebugProperties();
@@ -1230,15 +1232,20 @@ void KX_Scene::RenderDebugProperties(RAS_DebugDraw& debugDraw, int xindent, int 
 					first = false;
 				}
 			}
-			debugDraw.RenderText2d(debugtxt, mt::vec2(xcoord + xindent, ycoord), white);
+			debugDraw.RenderText2d(debugtxt, mt::vec2(xcoord + xindent, ycoord), valuec);
+			debugDraw.RenderBox2d(mt::vec2((xcoord + xindent) - 1, (ycoord + 2)), mt::vec2(6.1f * debugtxt.length(), 14), framec);
 			ycoord += ysize;
 		}
 		else {
 			EXP_Value *propval = gameobj->GetProperty(propname);
 			if (propval) {
 				const std::string text = propval->GetText();
-				const std::string debugtxt = objname + ": '" + propname + "' = " + text;
+				const std::string textspace(propname.length(),' ');
+				const std::string debugtxt = objname + ": '" + textspace + "' = "; //+ text;
 				debugDraw.RenderText2d(debugtxt, mt::vec2(xcoord + xindent, ycoord), white);
+				debugDraw.RenderText2d(propname, mt::vec2(xcoord + 6.1f * (objname.length() + 3.5f), ycoord), valuec);
+				debugDraw.RenderText2d(text, mt::vec2(xcoord + 6.1f * debugtxt.length() , ycoord), valuec);
+				debugDraw.RenderBox2d(mt::vec2((xcoord + xindent)-1, (ycoord+2)),mt::vec2(6.1f * (debugtxt.length() + text.length()),14), framec);
 				ycoord += ysize;
 			}
 		}

@@ -987,6 +987,7 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
 void KX_KetsjiEngine::RenderDebugProperties()
 {
 	std::string debugtxt;
+	std::string debugtxtfps;
 	int title_xmargin = -7;
 	int title_y_top_margin = 4;
 	int title_y_bottom_margin = 2;
@@ -1005,11 +1006,16 @@ void KX_KetsjiEngine::RenderDebugProperties()
 	}
 
 	static const mt::vec4 white(1.0f, 1.0f, 1.0f, 1.0f);
+	static const mt::vec4 gray(0.3f, 0.3f, 0.3f, 0.7f);
+	static const mt::vec4 med(1.0f, 1.0f, 0.0f, 1.0f);
+	static const mt::vec4 bad(1.0f, 0.0f, 0.0f, 1.0f);
+	mt::vec4 color(0.0f, 1.0f, 0.0f, 1.0f);
+	
 
 	if (m_flags & (SHOW_FRAMERATE | SHOW_PROFILE)) {
 		// Title for profiling("Profile")
 		// Adds the constant x indent (0 for now) to the title x margin
-		m_debugDraw.RenderText2d("Profile", mt::vec2(xcoord + const_xindent + title_xmargin, ycoord), white);
+		m_debugDraw.RenderText2d("UPBGE Profile", mt::vec2(xcoord + const_xindent + title_xmargin, ycoord), white);
 
 		// Increase the indent by default increase
 		ycoord += const_ysize;
@@ -1022,25 +1028,56 @@ void KX_KetsjiEngine::RenderDebugProperties()
 		m_debugDraw.RenderText2d("Frametime :",
 		                       mt::vec2(xcoord + const_xindent,
 		                                ycoord), white);
-
-		debugtxt = (boost::format("%5.2fms (%.1ffps)") %  (tottime * 1000.0f) % (1.0f / tottime)).str();
-		m_debugDraw.RenderText2d(debugtxt, mt::vec2(xcoord + const_xindent + profile_indent, ycoord), white);
+		debugtxt = (boost::format("%5.2f") % (tottime * 1000.0f)).str();
+		debugtxtfps = (boost::format("%.1fFPS") % (1.0f / tottime)).str();
+		if ((1.0f / tottime) < 30) {
+			color = med;
+		}
+		if ((1.0f / tottime) < 24) {
+			color = bad;
+		}
+		m_debugDraw.RenderText2d(debugtxt, mt::vec2(xcoord + const_xindent + profile_indent, ycoord), color);
+		m_debugDraw.RenderText2d("ms (", mt::vec2((xcoord * (0.7f * debugtxt.length())) + const_xindent + profile_indent, ycoord), white);
+		m_debugDraw.RenderText2d(debugtxtfps, mt::vec2((xcoord * (0.5f * debugtxt.length() + 3)) + const_xindent + profile_indent, ycoord), color);
+		m_debugDraw.RenderText2d(")", mt::vec2((xcoord * (0.5f * (debugtxt.length() + debugtxtfps.length() + 5.8f))) + const_xindent + profile_indent, ycoord), white);
+		const mt::vec2 framebox((0.5f * ((debugtxt.length() + debugtxtfps.length() + 14.2f) * 13.3f)), 14);
+		m_debugDraw.RenderBox2d(mt::vec2(xcoord + const_xindent, (ycoord+2)), framebox, gray);
 		// Increase the indent by default increase
 		ycoord += const_ysize;
 	}
-
 	// Profile display
 	if (m_flags & SHOW_PROFILE) {
+		m_debugDraw.RenderBox2d(mt::vec2(xcoord + const_xindent, (ycoord + 128)), mt::vec2(155, 140), gray);
 		for (int j = tc_first; j < tc_numCategories; j++) {
 			m_debugDraw.RenderText2d(m_profileLabels[j], mt::vec2(xcoord + const_xindent, ycoord), white);
-
 			double time = m_logger.GetAverage((KX_TimeCategory)j);
+			float percentage = (int)(time / tottime * 100.f);
+			if (j != tc_latency) {
+				if (percentage > 25) {
+					color = med;
+				}
+				if (percentage > 50) {
+					color = bad;
+				}
+			}
+			else{
+				if (percentage < 80) {
+					color = med;
+				}
+				if (percentage < 50) {
+					color = bad;
+				}
+			}
+			debugtxt = (boost::format("%5.2f    %d%%|") % (time * 1000.f) % (int)(time / tottime * 100.f)).str();
+			m_debugDraw.RenderText2d(debugtxt, mt::vec2(xcoord + const_xindent + profile_indent, ycoord), color);
 
-			debugtxt = (boost::format("%5.2fms | %d%%") % (time * 1000.f) % (int)(time / tottime * 100.f)).str();
-			m_debugDraw.RenderText2d(debugtxt, mt::vec2(xcoord + const_xindent + profile_indent, ycoord), white);
+			m_debugDraw.RenderText2d("ms|", mt::vec2((xcoord * (0.75f *  5)) + const_xindent + profile_indent, ycoord), white);
 
 			const mt::vec2 boxSize(50 * (time / tottime), 9);
-			m_debugDraw.RenderBox2d(mt::vec2(xcoord + (int)(2.2 * profile_indent), ycoord), boxSize, white);
+			const mt::vec2 boxSizeout(50 * (time / tottime) + 2, 13);
+			m_debugDraw.RenderBox2d(mt::vec2(xcoord + (int)(2.2f * profile_indent + 1), (ycoord + 2)), boxSizeout, gray);
+			m_debugDraw.RenderBox2d(mt::vec2(xcoord + (int)(2.2f * profile_indent), ycoord), boxSize, white);
+			
 			ycoord += const_ysize;
 		}
 	}
