@@ -45,6 +45,7 @@
     .bleedexp = 2.5f, \
     .samp = 3, \
     .bias = 1.0f, \
+    .bleedbias = 3.0f, \
     .soft = 3.0f, \
     .area_size = 0.25f, \
     .area_sizey = 0.25f, \

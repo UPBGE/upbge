@@ -47,7 +47,7 @@ struct LightData {
 struct ShadowData {
   vec4 near_far_bias_id;
   vec4 contact_shadow_data;
-  vec4 use_pcf; // .x
+  vec4 usepcf_bleedthing; // .x, .y
 };
 
 struct ShadowCubeData {
@@ -212,11 +212,12 @@ float sample_cube_shadow(int shadow_id, vec3 P)
   vec4 scoord = vec4(coord, tex_id * 6.0 + face, dist);
   float vis = texture(shadowCubeTexture, scoord);
 
-  if (sd(shadow_id).use_pcf.x == 1.0) {
+  if (sd(shadow_id).usepcf_bleedthing.x == 1.0) {
+    float bleed = sd(shadow_id).usepcf_bleedthing.y;
     for (int i = 0; i < 16; i++) {
-      if (texture(shadowCubeTexture, vec4(scoord.xy + poissonDisk[i] / 700.0, scoord.z, scoord.w)) < scoord.w - sd(shadow_id).sh_bias) {
+      if (texture(shadowCubeTexture, vec4(scoord.xy + bleed * poissonDisk[i] / 700.0, scoord.z, scoord.w)) < scoord.w - sd(shadow_id).sh_bias) {
         int index = int(16.0 * rand_index(vec4(gl_FragCoord.xyy, i))) % 16; // A random number between 0 and 15, different for each pixel (and each i !)
-        vis -= 0.2 * (1.0 - texture(shadowCubeTexture, vec4(scoord.xy + poissonDisk[index] / 700.0, (scoord.z-sd(shadow_id).sh_bias)/scoord.w, scoord.w)));
+        vis -= 0.2 * (1.0 - texture(shadowCubeTexture, vec4(scoord.xy + bleed * poissonDisk[index] / 700.0, (scoord.z-sd(shadow_id).sh_bias)/scoord.w, scoord.w)));
       }
     }
   }

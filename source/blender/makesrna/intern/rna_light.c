@@ -399,6 +399,13 @@ static void rna_def_light_shadow(StructRNA *srna, bool sun)
   RNA_def_property_ui_text(prop, "Use PCF shadows", "Use PCF shadows");
   RNA_def_property_update(prop, 0, "rna_Light_update");
 
+  prop = RNA_def_property(srna, "shadow_bleedbias", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "bleedbias");
+  RNA_def_property_range(prop, -9999.0f, 9999.0f);
+  RNA_def_property_ui_range(prop, 1.0f, 5.0f, 1.0, 3);
+  RNA_def_property_ui_text(prop, "Bleed Bias", "Bleed Bias");
+  RNA_def_property_update(prop, 0, "rna_Light_update");
+
   if (sun) {
     prop = RNA_def_property(srna, "shadow_cascade_max_distance", PROP_FLOAT, PROP_DISTANCE);
     RNA_def_property_float_sdna(prop, NULL, "cascade_max_dist");

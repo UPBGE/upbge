@@ -65,7 +65,6 @@ typedef struct Light {
   float soft;      /* DEPRECATED kept for compatibility. */
   float bleedbias; /* DEPRECATED kept for compatibility. */
   float bleedexp;  /* DEPRECATED kept for compatibility. */
-  float use_pcf, _pad7[3];
   short bufsize, samp, buffers, filtertype;
   char bufflag, buftype;
 
