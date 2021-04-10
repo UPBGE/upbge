@@ -136,7 +136,7 @@ static void find_used_ids_from_nodes(const bNodeTree &tree, Set<ID *> &ids)
     addIdsUsedBySocket(&node->inputs, ids);
     addIdsUsedBySocket(&node->outputs, ids);
 
-    if (node->type == NODE_GROUP) {
+    if (ELEM(node->type, NODE_GROUP, NODE_CUSTOM_GROUP)) {
       const bNodeTree *group = (bNodeTree *)node->id;
       if (group != nullptr && handled_groups.add(group)) {
         find_used_ids_from_nodes(*group, ids);
@@ -173,7 +173,7 @@ static void add_object_relation(const ModifierUpdateDepsgraphContext *ctx, Objec
         add_collection_object_relations_recursive(ctx, *collection_instance);
       }
     }
-    else {
+    else if (ELEM(object.type, OB_MESH, OB_POINTCLOUD, OB_VOLUME)) {
       DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_GEOMETRY, "Nodes Modifier");
     }
   }
