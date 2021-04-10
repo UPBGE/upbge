@@ -47,7 +47,7 @@ struct LightData {
 struct ShadowData {
   vec4 near_far_bias_id;
   vec4 contact_shadow_data;
-  vec4 usepcf_bleedthing; // .x, .y
+  vec4 usepcf_softness_samples_res; // UPBGE test
 };
 
 struct ShadowCubeData {
@@ -94,6 +94,8 @@ layout(std140) uniform light_block
 
 uniform sampler2DArrayShadow shadowCubeTexture;
 uniform sampler2DArrayShadow shadowCascadeTexture;
+
+uniform sampler2D jitterTex;
 
 /** \} */
 
@@ -197,12 +199,12 @@ float rand_index(vec4 seed4)
   return fract(sin(dot_product) * 43758.5453);
 }
 
-float texture_shadow_offset(sampler2DShadow shadowmap, vec4 co, vec2 offset)
+float texture_shadow_offset(sampler2DArrayShadow shadowmap, vec4 co, vec2 offset)
 {
-  return textureProj(shadowmap, vec4(co.xy + offset, co.z, co.w));
+  return texture(shadowmap, vec4(co.xy + offset, co.z, co.w));
 }
 
-float test_shadow_pcf_early_bail(sampler2DShadow shadowmap, vec4 co, float samples, float samplesize)
+float test_shadow_pcf_early_bail(sampler2DArrayShadow shadowmap, vec4 co, float samples, float samplesize)
 {
   float step = samplesize / samples;
   float fullstep = samplesize - step * 0.98;
@@ -236,7 +238,7 @@ float test_shadow_pcf_early_bail(sampler2DShadow shadowmap, vec4 co, float sampl
   return result;
 }
 
-float test_shadow_pcf(sampler2DShadow shadowmap, vec4 co, float samples, float samplesize)
+float test_shadow_pcf(sampler2DArrayShadow shadowmap, vec4 co, float samples, float samplesize)
 {
   float step = samplesize / samples;
   float halfsample = samplesize * 0.5 - step * 0.49;
@@ -252,7 +254,7 @@ float test_shadow_pcf(sampler2DShadow shadowmap, vec4 co, float samples, float s
   return result;
 }
 
-float test_shadow_pcf_jitter(sampler2DShadow shadowmap, vec4 co, sampler2D jitter, float samples, float samplesize)
+float test_shadow_pcf_jitter(sampler2DArrayShadow shadowmap, vec4 co, sampler2D jitter, float samples, float samplesize)
 {
   float step = samplesize / samples;
   float halfsample = samplesize * 0.5 - step * 0.49;
@@ -289,14 +291,11 @@ float sample_cube_shadow(int shadow_id, vec3 P)
   vec4 scoord = vec4(coord, tex_id * 6.0 + face, dist);
   float vis = texture(shadowCubeTexture, scoord);
 
-  if (sd(shadow_id).usepcf_bleedthing.x == 1.0) {
-    float bleed = sd(shadow_id).usepcf_bleedthing.y;
-    for (int i = 0; i < 16; i++) {
-      if (texture(shadowCubeTexture, vec4(scoord.xy + bleed * poissonDisk[i] / 700.0, scoord.z, scoord.w)) < scoord.w - sd(shadow_id).sh_bias) {
-        int index = int(16.0 * rand_index(vec4(gl_FragCoord.xyy, i))) % 16; // A random number between 0 and 15, different for each pixel (and each i !)
-        vis -= 0.2 * (1.0 - texture(shadowCubeTexture, vec4(scoord.xy + bleed * poissonDisk[index] / 700.0, (scoord.z-sd(shadow_id).sh_bias)/scoord.w, scoord.w)));
-      }
-    }
+  // UPBGE test
+  if (sd(shadow_id).usepcf_softness_samples_res.x == 1.0) {
+    float soft = sd(shadow_id).usepcf_softness_samples_res.y;
+    float samples = sd(shadow_id).usepcf_softness_samples_res.z;
+    vis *= (test_shadow_pcf_jitter(shadowCubeTexture, scoord, jitterTex, samples, soft/10.0)); //last arg: float samplesize defined from default upbge0.2 values
   }
 
   return vis;

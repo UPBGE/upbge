@@ -399,11 +399,17 @@ static void rna_def_light_shadow(StructRNA *srna, bool sun)
   RNA_def_property_ui_text(prop, "Use PCF shadows", "Use PCF shadows");
   RNA_def_property_update(prop, 0, "rna_Light_update");
 
-  prop = RNA_def_property(srna, "shadow_bleedbias", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, NULL, "bleedbias");
+  prop = RNA_def_property(srna, "shadow_softness", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "pcfsoftness");
   RNA_def_property_range(prop, -9999.0f, 9999.0f);
-  RNA_def_property_ui_range(prop, 1.0f, 5.0f, 1.0, 3);
-  RNA_def_property_ui_text(prop, "Bleed Bias", "Bleed Bias");
+  RNA_def_property_ui_range(prop, 0.01f, 5.0f, 1.0, 3);
+  RNA_def_property_ui_text(prop, "PCF Softness", "PCF Softness");
+  RNA_def_property_update(prop, 0, "rna_Light_update");
+
+  prop = RNA_def_property(srna, "shadow_samples", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "pcfsamples");
+  RNA_def_property_range(prop, 4, 16);
+  RNA_def_property_ui_text(prop, "PCF Shadow Samples", "PCF Shadow Samples");
   RNA_def_property_update(prop, 0, "rna_Light_update");
 
   if (sun) {

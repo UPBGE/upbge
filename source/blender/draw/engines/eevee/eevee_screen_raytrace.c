@@ -171,6 +171,7 @@ void EEVEE_screen_raytrace_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *v
     DRW_shgroup_uniform_texture_ref_ex(grp, "hitDepth", &effects->ssr_hit_depth, no_filter);
     DRW_shgroup_uniform_texture_ref(grp, "colorBuffer", &txl->filtered_radiance);
     DRW_shgroup_uniform_texture_ref(grp, "maxzBuffer", &txl->maxzbuffer);
+    DRW_shgroup_uniform_texture_ref(grp, "jitterTex", &sldata->shadow_jitter);
     DRW_shgroup_uniform_texture_ref(grp, "shadowCubeTexture", &sldata->shadow_cube_pool);
     DRW_shgroup_uniform_texture_ref(grp, "shadowCascadeTexture", &sldata->shadow_cascade_pool);
     DRW_shgroup_uniform_texture(grp, "utilTex", EEVEE_materials_get_util_tex());

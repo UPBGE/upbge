@@ -46,9 +46,16 @@ void EEVEE_shadows_cube_add(EEVEE_LightsInfo *linfo, EEVEE_Light *evli, Object *
     BLI_BITMAP_ENABLE(&linfo->sh_cube_update[0], linfo->cube_len);
   }
 
+  /* UPBGE */
+  sh_data->use_pcf = (la->mode & LA_SHADOWS_PCF) ? 1.0f : 0.0f;
+  sh_data->softness = la->pcfsoftness;
+  float res = DRW_context_state_get()->scene->eevee.shadow_cube_size;
+  sh_data->resolution = res;
+  float samples = la->pcfsamples;
+  sh_data->samples = samples;
+  /***********/
+
   sh_data->nearf = max_ff(la->clipsta, 1e-8f);
-  sh_data->use_pcf = (la->mode & LA_SHADOWS_PCF) ? 1.0f : 0.0f; // UPBGE test
-  sh_data->bleedthing = la->bleedbias; // UPBGE test
   sh_data->bias = max_ff(la->bias * 0.05f, 0.0f);
   eevee_contact_shadow_setup(la, sh_data);
 

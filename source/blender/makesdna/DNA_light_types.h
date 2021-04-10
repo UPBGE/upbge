@@ -60,6 +60,9 @@ typedef struct Light {
   short falloff_type;
   char _pad2[2];
 
+  float pcfsoftness;
+  int pcfsamples;
+
   float clipsta, clipend;
   float bias;
   float soft;      /* DEPRECATED kept for compatibility. */

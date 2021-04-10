@@ -107,6 +107,7 @@ void EEVEE_material_bind_resources(DRWShadingGroup *shgrp,
   DRW_shgroup_uniform_int_copy(shgrp, "outputSssId", 1);
   DRW_shgroup_uniform_texture(shgrp, "utilTex", e_data.util_tex);
   if (use_diffuse || use_glossy || use_refract) {
+    DRW_shgroup_uniform_texture_ref(shgrp, "jitterTex", &sldata->shadow_jitter);
     DRW_shgroup_uniform_texture_ref(shgrp, "shadowCubeTexture", &sldata->shadow_cube_pool);
     DRW_shgroup_uniform_texture_ref(shgrp, "shadowCascadeTexture", &sldata->shadow_cascade_pool);
     DRW_shgroup_uniform_texture_ref(shgrp, "maxzBuffer", &vedata->txl->maxzbuffer);

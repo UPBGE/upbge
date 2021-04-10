@@ -423,6 +423,7 @@ void EEVEE_shadow_output_init(EEVEE_ViewLayerData *sldata,
   DRW_shgroup_uniform_block(grp, "shadow_block", sldata->shadow_ubo);
   DRW_shgroup_uniform_block(grp, "common_block", sldata->common_ubo);
   DRW_shgroup_uniform_block(grp, "renderpass_block", sldata->renderpass_ubo.combined);
+  DRW_shgroup_uniform_texture_ref(grp, "jitterTex", &sldata->shadow_jitter);
   DRW_shgroup_uniform_texture_ref(grp, "shadowCubeTexture", &sldata->shadow_cube_pool);
   DRW_shgroup_uniform_texture_ref(grp, "shadowCascadeTexture", &sldata->shadow_cascade_pool);
 

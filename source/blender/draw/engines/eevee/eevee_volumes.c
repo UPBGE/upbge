@@ -581,6 +581,7 @@ void EEVEE_volumes_cache_finish(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
                                          EEVEE_shaders_volumes_scatter_sh_get();
     grp = DRW_shgroup_create(sh, psl->volumetric_scatter_ps);
     DRW_shgroup_uniform_texture_ref(grp, "irradianceGrid", &lcache->grid_tx.tex);
+    DRW_shgroup_uniform_texture_ref(grp, "jitterTex", &sldata->shadow_jitter);
     DRW_shgroup_uniform_texture_ref(grp, "shadowCubeTexture", &sldata->shadow_cube_pool);
     DRW_shgroup_uniform_texture_ref(grp, "shadowCascadeTexture", &sldata->shadow_cascade_pool);
     DRW_shgroup_uniform_texture_ref(grp, "volumeScattering", &txl->volume_prop_scattering);
