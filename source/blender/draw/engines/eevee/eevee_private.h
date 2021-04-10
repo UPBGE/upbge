@@ -941,6 +941,8 @@ typedef struct EEVEE_ViewLayerData {
   struct GPUTexture *shadow_cube_pool;
   struct GPUTexture *shadow_cascade_pool;
 
+  struct GPUTexture *shadow_jitter; // UPBGE
+
   struct EEVEE_ShadowCasterBuffer shcasters_buffers[2];
 
   /* Probes */

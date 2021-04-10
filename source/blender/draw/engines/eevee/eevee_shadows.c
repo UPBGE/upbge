@@ -20,6 +20,8 @@
  * \ingroup EEVEE
  */
 
+#include "BLI_alloca.h" // UPBGE
+#include "BLI_rand.h" // UPBGE
 #include "BLI_string_utils.h"
 #include "BLI_sys_types.h" /* bool */
 
@@ -30,6 +32,29 @@
 #include "eevee_private.h"
 
 #define SH_CASTER_ALLOC_CHUNK 32
+
+/* UPBGE */
+GPUTexture *GPU_texture_create_jitter(int w)
+{
+  float *jitter = BLI_array_alloca(jitter, w * w * 2);
+  int i;
+
+  for (i = 0; i < (w * w); i++) {
+    RNG *rng = BLI_rng_new_srandom(611330372042337130);
+
+    jitter[i * 2] = 2.0f * BLI_rng_get_float(rng) - 1.0f;
+    jitter[i * 2 + 1] = 2.0f * BLI_rng_get_float(rng) - 1.0f;
+    normalize_v2(&jitter[i * 2]);
+
+    BLI_rng_free(rng);
+  }
+
+  GPUTexture *tex = GPU_texture_create_2d("jitter", w, w, 0, GPU_RG16F, jitter);
+  GPU_texture_filter_mode(tex, true);
+  GPU_texture_wrap_mode(tex, true, false);
+  return tex;
+}
+/************************/
 
 void eevee_contact_shadow_setup(const Light *la, EEVEE_Shadow *evsh)
 {
@@ -241,6 +266,10 @@ void EEVEE_shadows_update(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
                                                               shadow_pool_format,
                                                               DRW_TEX_FILTER | DRW_TEX_COMPARE,
                                                               NULL);
+  }
+
+  if (!sldata->shadow_jitter) {
+    sldata->shadow_jitter = GPU_texture_create_jitter(64);
   }
 
   if (sldata->shadow_fb == NULL) {
