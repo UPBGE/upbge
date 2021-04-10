@@ -65,6 +65,7 @@ typedef struct Light {
   float soft;      /* DEPRECATED kept for compatibility. */
   float bleedbias; /* DEPRECATED kept for compatibility. */
   float bleedexp;  /* DEPRECATED kept for compatibility. */
+  float use_pcf, _pad7[3];
   short bufsize, samp, buffers, filtertype;
   char bufflag, buftype;
 
@@ -145,7 +146,6 @@ typedef struct Light {
 #define LA_CUSTOM_ATTENUATION (1 << 20)
 #define LA_SOFT_SHADOWS (1 << 21) /* Sof shadow per light -- UPBGE */
 #define LA_SHADOWS_PCF (1 << 22) /* PCF shadows -- UPBGE */
-#define LA_SHADOWS_NVIDIA (1 << 23) /* PCF shadows -- UPBGE */
 
 /* falloff_type */
 #define LA_FALLOFF_CONSTANT 0
