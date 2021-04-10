@@ -47,7 +47,7 @@ struct LightData {
 struct ShadowData {
   vec4 near_far_bias_id;
   vec4 contact_shadow_data;
-  vec4 use_pcf; // .x
+  vec4 usepcf_usenvidia_shadowmapres_bleedbias; // .x, .y, .z, .w
 };
 
 struct ShadowCubeData {
@@ -197,6 +197,14 @@ float rand_index(vec4 seed4)
   return fract(sin(dot_product) * 43758.5453);
 }
 
+float offset_lookup(sampler2DArrayShadow map,
+                     vec4 loc,
+                     vec2 offset,
+                     float texmapscale)
+{
+  return texture(map, vec4(loc.xy + offset * texmapscale * loc.w, loc.z, loc.w));
+}
+
 float sample_cube_shadow(int shadow_id, vec3 P)
 {
   int data_id = int(sd(shadow_id).sh_data_index);
@@ -212,12 +220,29 @@ float sample_cube_shadow(int shadow_id, vec3 P)
   vec4 scoord = vec4(coord, tex_id * 6.0 + face, dist);
   float vis = texture(shadowCubeTexture, scoord);
 
-  if (sd(shadow_id).use_pcf.x == 1.0) {
+  float bleedbias = sd(shadow_id).usepcf_usenvidia_shadowmapres_bleedbias.w;
+  if (sd(shadow_id).usepcf_usenvidia_shadowmapres_bleedbias.x == 1.0) {
     for (int i = 0; i < 16; i++) {
-      if (texture(shadowCubeTexture, vec4(scoord.xy + poissonDisk[i] / 700.0, scoord.z, scoord.w)) < scoord.w - sd(shadow_id).sh_bias) {
+      if (texture(shadowCubeTexture, vec4(scoord.xy + poissonDisk[i] / 700.0, scoord.z, scoord.w)) < scoord.w - bleedbias) {
         int index = int(16.0 * rand_index(vec4(gl_FragCoord.xyy, i))) % 16; // A random number between 0 and 15, different for each pixel (and each i !)
-        vis -= 0.2 * (1.0 - texture(shadowCubeTexture, vec4(scoord.xy + poissonDisk[index] / 700.0, (scoord.z-sd(shadow_id).sh_bias)/scoord.w, scoord.w)));
+        vis -= 0.2 * (1.0 - texture(shadowCubeTexture, vec4(scoord.xy + poissonDisk[index] / 700.0, (scoord.z - bleedbias) / scoord.w, scoord.w)));
       }
+    }
+  }
+
+  if (sd(shadow_id).usepcf_usenvidia_shadowmapres_bleedbias.y == 1.0) {
+
+    float sum = 0.0;
+    float x, y;
+    float mapscale = sd(shadow_id).usepcf_usenvidia_shadowmapres_bleedbias.z;
+
+    for (y = -1.5; y <= 1.5; y += 1.0)
+      for (x = -1.5; x <= 1.5; x += 1.0)
+        sum += offset_lookup(shadowCubeTexture, scoord, vec2(x, y), mapscale);
+
+    float shadowCoeff = sum / 16.0;
+    if (texture(shadowCubeTexture, vec4(scoord.xy, scoord.z, scoord.w)) < scoord.w - bleedbias) {
+      vis *= shadowCoeff;
     }
   }
 

@@ -182,11 +182,14 @@ class DATA_PT_EEVEE_shadow(DataButtonsPanel, Panel):
             sub.prop(light, "shadow_buffer_clip_start", text="Clip Start")
 
         col.prop(light, "shadow_buffer_bias", text="Bias")
+        col.prop(light, "shadow_bleedbias", text="BleedBias")
 
         col.separator()
         col.prop(light, "use_soft_shadows", text="Soft Shadows Override")
         col.separator()
         col.prop(light, "use_pcf_shadows", text="PCF Shadows")
+        col.separator()
+        col.prop(light, "use_nvidia_shadows", text="NVIDIA Shadows")
 
 
 class DATA_PT_EEVEE_shadow_cascaded_shadow_map(DataButtonsPanel, Panel):
