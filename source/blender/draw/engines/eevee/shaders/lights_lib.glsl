@@ -197,6 +197,83 @@ float rand_index(vec4 seed4)
   return fract(sin(dot_product) * 43758.5453);
 }
 
+float texture_shadow_offset(sampler2DShadow shadowmap, vec4 co, vec2 offset)
+{
+  return textureProj(shadowmap, vec4(co.xy + offset, co.z, co.w));
+}
+
+float test_shadow_pcf_early_bail(sampler2DShadow shadowmap, vec4 co, float samples, float samplesize)
+{
+  float step = samplesize / samples;
+  float fullstep = samplesize - step * 0.98;
+  float halfsample = samplesize * 0.5 - step * 0.49;
+
+  float result = 0.0;
+  for (float y = -halfsample; y <= halfsample; y += fullstep) {
+    for (float x = -halfsample; x <= halfsample; x += fullstep) {
+      result += texture_shadow_offset(shadowmap, co, vec2(x, y) * 0.1);
+    }
+  }
+
+  if (result > 0.0 && result < 4.0) {
+    float sampleoffset = halfsample - step;
+    for (float y = -sampleoffset; y <= sampleoffset; y += step) {
+      for (float x = -halfsample; x <= halfsample; x += step) {
+        result += texture_shadow_offset(shadowmap, co, vec2(x, y) * 0.1);
+      }
+    }
+    for (float y = -halfsample; y <= halfsample; y += fullstep) {
+      for (float x = -sampleoffset; x <= sampleoffset; x += step) {
+        result += texture_shadow_offset(shadowmap, co, vec2(x, y) * 0.1);
+      }
+    }
+    result /= (samples * samples);
+  }
+  else {
+    result /= 4.0;
+  }
+
+  return result;
+}
+
+float test_shadow_pcf(sampler2DShadow shadowmap, vec4 co, float samples, float samplesize)
+{
+  float step = samplesize / samples;
+  float halfsample = samplesize * 0.5 - step * 0.49;
+
+  float result = 0.0;
+  for (float y = -halfsample; y <= halfsample; y += step) {
+    for (float x = -halfsample; x <= halfsample; x += step) {
+      result += texture_shadow_offset(shadowmap, co, vec2(x, y) * 0.1);
+    }
+  }
+  result /= (samples * samples);
+
+  return result;
+}
+
+float test_shadow_pcf_jitter(sampler2DShadow shadowmap, vec4 co, sampler2D jitter, float samples, float samplesize)
+{
+  float step = samplesize / samples;
+  float halfsample = samplesize * 0.5 - step * 0.49;
+
+  vec2 jitterco = co.xy * 43543.0;
+  vec2 vec = texture2D(jitter, jitterco).xy;
+
+  mat2 rot = mat2(vec.x, vec.y, -vec.y, vec.x);
+
+  float result = 0.0;
+  for (float y = -halfsample; y <= halfsample; y += step) {
+    for (float x = -halfsample; x <= halfsample; x += step) {
+      vec2 ofs = vec2(x, y) * 0.1;
+      result += texture_shadow_offset(shadowmap, co, (vec2(x, y) * rot) * 0.1);
+    }
+  }
+  result /= (samples * samples);
+
+  return result;
+}
+
 float sample_cube_shadow(int shadow_id, vec3 P)
 {
   int data_id = int(sd(shadow_id).sh_data_index);
