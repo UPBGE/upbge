@@ -2035,8 +2035,9 @@ void BKE_scene_collections_iterator_begin(BLI_Iterator *iter, void *data_in)
   CollectionsIteratorData *data = MEM_callocN(sizeof(CollectionsIteratorData), __func__);
 
   data->scene = scene;
+
+  BLI_ITERATOR_INIT(iter);
   iter->data = data;
-  iter->valid = true;
 
   scene_collections_array(scene, (Collection ***)&data->array, &data->tot);
   BLI_assert(data->tot != 0);
@@ -2081,6 +2082,8 @@ typedef struct SceneObjectsIteratorData {
 static void scene_objects_iterator_begin(BLI_Iterator *iter, Scene *scene, GSet *visited_objects)
 {
   SceneObjectsIteratorData *data = MEM_callocN(sizeof(SceneObjectsIteratorData), __func__);
+
+  BLI_ITERATOR_INIT(iter);
   iter->data = data;
 
   /* Lookup list to make sure that each object is only processed once. */
@@ -2167,11 +2170,13 @@ void BKE_scene_objects_iterator_end(BLI_Iterator *iter)
   }
 }
 
-/** Generate a new GSet (or extend given `objects_gset` if not NULL) with all objects referenced by
+/**
+ * Generate a new GSet (or extend given `objects_gset` if not NULL) with all objects referenced by
  * all collections of given `scene`.
  *
  * \note: This will include objects without a base currently (because they would belong to excluded
- * collections only e.g.). */
+ * collections only e.g.).
+ */
 GSet *BKE_scene_objects_as_gset(Scene *scene, GSet *objects_gset)
 {
   BLI_Iterator iter;
