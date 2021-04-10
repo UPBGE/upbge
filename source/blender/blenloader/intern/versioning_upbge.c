@@ -361,5 +361,12 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *bmain)
       }
     }
   }
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 8)) {
+    LISTBASE_FOREACH (Light *, la, &bmain->lights) {
+      if (la->bleedbias == 0.0f) {
+        la->bleedbias = 3.0f;
+      }
+    }
+  }
 
 }
