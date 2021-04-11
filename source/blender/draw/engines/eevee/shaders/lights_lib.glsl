@@ -295,7 +295,13 @@ float sample_cube_shadow(int shadow_id, vec3 P)
   if (sd(shadow_id).usepcf_softness_samples_res.x == 1.0) {
     float soft = sd(shadow_id).usepcf_softness_samples_res.y;
     float samples = sd(shadow_id).usepcf_softness_samples_res.z;
-    vis *= (test_shadow_pcf_jitter(shadowCubeTexture, scoord, jitterTex, samples, soft/10.0)); //last arg: float samplesize defined from default upbge0.2 values
+    float res = sd(shadow_id).usepcf_softness_samples_res.w;
+    for (int i = 0; i < int(samples); i++) {
+      if (texture(shadowCubeTexture, vec4(scoord.xy + soft * poissonDisk[i] / 700.0, scoord.z, scoord.w)) < scoord.w - sd(shadow_id).sh_bias) {
+        int index = int(samples * rand_index(vec4(gl_FragCoord.xyy, i))) % int(samples); // A random number between 0 and 15, different for each pixel (and each i !)
+        vis -= 0.2 * (1.0 - texture(shadowCubeTexture, vec4(scoord.xy + soft * poissonDisk[index] / 700.0, (scoord.z-sd(shadow_id).sh_bias)/scoord.w, scoord.w)));
+      }
+    }
   }
 
   return vis;

@@ -49,7 +49,7 @@ GPUTexture *GPU_texture_create_jitter(int w)
     BLI_rng_free(rng);
   }
 
-  GPUTexture *tex = GPU_texture_create_2d("jitter", w, w, 0, GPU_RG16F, jitter);
+  GPUTexture *tex = GPU_texture_create_2d("jitter", w, w, 1, GPU_RG16, jitter);
   GPU_texture_filter_mode(tex, true);
   GPU_texture_wrap_mode(tex, true, false);
   return tex;
