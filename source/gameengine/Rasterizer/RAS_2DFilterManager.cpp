@@ -46,6 +46,7 @@ extern char datatoc_RAS_Prewitt2DFilter_glsl[];
 extern char datatoc_RAS_GrayScale2DFilter_glsl[];
 extern char datatoc_RAS_Sepia2DFilter_glsl[];
 extern char datatoc_RAS_Invert2DFilter_glsl[];
+extern char datatoc_RAS_OutLine2DFilter_glsl[];
 }
 
 RAS_2DFilterManager::RAS_2DFilterManager(bool useFxaa)
@@ -221,6 +222,11 @@ RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)
 		case RAS_2DFilterManager::FILTER_INVERT:
 		{
 			shaderSource = datatoc_RAS_Invert2DFilter_glsl;
+			break;
+		}
+		case RAS_2DFilterManager::FILTER_OUTLINE:
+		{
+			shaderSource = datatoc_RAS_OutLine2DFilter_glsl;
 			break;
 		}
 	}
