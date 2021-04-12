@@ -196,7 +196,10 @@ void BKE_lib_override_library_free(struct IDOverrideLibrary **override, const bo
 
 static ID *lib_override_library_create_from(Main *bmain, ID *reference_id)
 {
-  ID *local_id = BKE_id_copy(bmain, reference_id);
+  /* Note: We do not want to copy possible override data from reference here (whether it is an
+   * override template, or already an override of some other ref data). */
+  ID *local_id = BKE_id_copy_ex(
+      bmain, reference_id, NULL, LIB_ID_COPY_DEFAULT | LIB_ID_COPY_NO_LIB_OVERRIDE);
 
   if (local_id == NULL) {
     return NULL;
@@ -892,7 +895,7 @@ bool BKE_lib_override_library_resync(Main *bmain,
       BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, __func__);
   ID *id;
   FOREACH_MAIN_ID_BEGIN (bmain, id) {
-    if (id->tag & LIB_TAG_DOIT && ID_IS_OVERRIDE_LIBRARY_REAL(id)) {
+    if (id->tag & LIB_TAG_DOIT && !ID_IS_LINKED(id) && ID_IS_OVERRIDE_LIBRARY_REAL(id)) {
       /* While this should not happen in typical cases (and won't be properly supported here), user
        * is free to do all kind of very bad things, including having different local overrides of a
        * same linked ID in a same hierarchy. */
