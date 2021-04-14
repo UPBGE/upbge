@@ -3063,6 +3063,11 @@ class VIEW3D_MT_sculpt(Menu):
 
         layout.operator("sculpt.optimize")
 
+        layout.separator()
+
+        props = layout.operator("object.transfer_mode", text="Transfer Sculpt Mode")
+        props.use_eyedropper = True
+
 
 class VIEW3D_MT_mask(Menu):
     bl_label = "Mask"
@@ -3115,19 +3120,15 @@ class VIEW3D_MT_mask(Menu):
 
         layout.separator()
 
-        props = layout.operator("sculpt.mask_expand", text="Expand Mask by Topology")
-        props.use_normals = False
-        props.keep_previous_mask = False
+        props = layout.operator("sculpt.expand", text="Expand Mask by Topology")
+        props.target = 'MASK'
+        props.falloff_type = 'GEODESIC'
         props.invert = True
-        props.smooth_iterations = 2
-        props.create_face_set = False
 
-        props = layout.operator("sculpt.mask_expand", text="Expand Mask by Curvature")
-        props.use_normals = True
-        props.keep_previous_mask = True
+        props = layout.operator("sculpt.expand", text="Expand Mask by Normals")
+        props.target = 'MASK'
+        props.falloff_type = 'NORMALS'
         props.invert = False
-        props.smooth_iterations = 0
-        props.create_face_set = False
 
         layout.separator()
 
@@ -3178,6 +3179,20 @@ class VIEW3D_MT_face_sets(Menu):
 
         op = layout.operator("sculpt.face_set_edit", text='Shrink Face Set')
         op.mode = 'SHRINK'
+
+        layout.separator()
+
+        props = layout.operator("sculpt.expand", text="Expand Face Set by Topology")
+        props.target = 'FACE_SETS'
+        props.falloff_type = 'GEODESIC'
+        props.invert = False
+        props.use_modify_active = False
+
+        props = layout.operator("sculpt.expand", text="Expand Active Face Set")
+        props.target = 'FACE_SETS'
+        props.falloff_type = 'BOUNDARY_FACE_SET'
+        props.invert = False
+        props.use_modify_active = True
 
         layout.separator()
 
