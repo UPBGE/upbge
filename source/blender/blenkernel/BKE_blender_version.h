@@ -31,7 +31,7 @@ extern "C" {
  */
 
 /* Blender major and minor version. */
-#define BLENDER_VERSION 293
+#define BLENDER_VERSION 300
 
 #define UPBGE_VERSION 30
 
@@ -46,7 +46,7 @@ extern "C" {
 
 /* Blender file format version. */
 #define BLENDER_FILE_VERSION BLENDER_VERSION
-#define BLENDER_FILE_SUBVERSION 17
+#define BLENDER_FILE_SUBVERSION 0
 
 /* UPBGE file format version. */
 #define UPBGE_FILE_VERSION UPBGE_VERSION
