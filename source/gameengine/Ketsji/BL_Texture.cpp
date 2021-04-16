@@ -38,7 +38,8 @@ BL_Texture::BL_Texture(MTex *mtex)
 	:EXP_Value(),
 	m_isCubeMap(false),
 	m_mtex(mtex),
-	m_gpuTex(nullptr)
+	m_gpuTex(nullptr),
+	m_bindCode(-1)
 {
 	Tex *tex = m_mtex->tex;
 	EnvMap *env = tex->env;
