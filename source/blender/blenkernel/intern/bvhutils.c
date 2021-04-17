@@ -1556,6 +1556,10 @@ BVHTree *BKE_bvhtree_from_mesh_get(struct BVHTreeFromMesh *data,
                                             bvh_cache_type,
                                             bvh_cache_p,
                                             mesh_eval_mutex);
+
+        if (looptri_mask != NULL) {
+          MEM_freeN(looptri_mask);
+        }
       }
       else {
         /* Setup BVHTreeFromMesh */
