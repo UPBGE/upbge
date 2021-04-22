@@ -55,15 +55,37 @@ static AttributeDomain get_result_domain(const GeometryComponent &component,
                                          StringRef source_name,
                                          StringRef result_name)
 {
-  ReadAttributeLookup result_attribute = component.attribute_try_get_for_read(result_name);
-  if (result_attribute) {
-    return result_attribute.domain;
+  std::optional<AttributeMetaData> result_info = component.attribute_get_meta_data(result_name);
+  if (result_info) {
+    return result_info->domain;
   }
-  ReadAttributeLookup source_attribute = component.attribute_try_get_for_read(source_name);
-  if (source_attribute) {
-    return source_attribute.domain;
+  std::optional<AttributeMetaData> source_info = component.attribute_get_meta_data(source_name);
+  if (source_info) {
+    return source_info->domain;
   }
   return ATTR_DOMAIN_POINT;
+}
+
+static bool conversion_can_be_skipped(const GeometryComponent &component,
+                                      const StringRef source_name,
+                                      const StringRef result_name,
+                                      const AttributeDomain result_domain,
+                                      const CustomDataType result_type)
+{
+  if (source_name != result_name) {
+    return false;
+  }
+  std::optional<AttributeMetaData> info = component.attribute_get_meta_data(result_name);
+  if (!info) {
+    return false;
+  }
+  if (info->domain != result_domain) {
+    return false;
+  }
+  if (info->data_type != result_type) {
+    return false;
+  }
+  return true;
 }
 
 static void attribute_convert_calc(GeometryComponent &component,
@@ -77,6 +99,10 @@ static void attribute_convert_calc(GeometryComponent &component,
                                             get_result_domain(
                                                 component, source_name, result_name) :
                                             domain;
+
+  if (conversion_can_be_skipped(component, source_name, result_name, result_domain, result_type)) {
+    return;
+  }
 
   GVArrayPtr source_attribute = component.attribute_try_get_for_read(
       source_name, result_domain, result_type);

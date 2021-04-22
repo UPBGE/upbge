@@ -58,6 +58,7 @@ set(SRC
   intern/versioning_270.c
   intern/versioning_280.c
   intern/versioning_290.c
+  intern/versioning_300.c
   intern/versioning_cycles.c
   intern/versioning_upbge.c
   intern/versioning_defaults.c
