@@ -72,6 +72,8 @@
 #  include "BKE_image.h"
 #  include "BLI_listbase.h"
 
+#  include "UI_interface.h"
+
 #  include "LA_SystemCommandLine.h"
 #endif
 
@@ -1896,6 +1898,18 @@ static int game_engine_exec(bContext *C, wmOperator *op)
   rcti cam_frame;
 
   UNUSED_VARS(op);
+
+  /* Redraw 1 time before context switch (switch to view3d)
+   * to avoid embedded button flickering when we start embedded
+   * player from embedded start button (Issue on some computers (youle)).
+   */
+  if (prevsa == NULL || prevsa->spacetype != SPACE_VIEW3D) {
+    uiBut *but = UI_region_active_but_get(prevar);
+    if (but) {
+      ED_region_tag_redraw(prevar);
+      WM_redraw_windows(C);
+    }
+  }
 
   /* bad context switch .. */
   if (!ED_view3d_context_activate(C))
