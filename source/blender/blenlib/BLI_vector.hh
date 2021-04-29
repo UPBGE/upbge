@@ -444,7 +444,7 @@ class Vector {
     this->append_as(std::move(value));
   }
   /* This is similar to `std::vector::emplace_back`. */
-  template<typename... ForwardValue> void append_as(ForwardValue &&...value)
+  template<typename... ForwardValue> void append_as(ForwardValue &&... value)
   {
     this->ensure_space_for_one();
     this->append_unchecked_as(std::forward<ForwardValue>(value)...);
@@ -486,7 +486,7 @@ class Vector {
   {
     this->append_unchecked_as(std::move(value));
   }
-  template<typename... ForwardT> void append_unchecked_as(ForwardT &&...value)
+  template<typename... ForwardT> void append_unchecked_as(ForwardT &&... value)
   {
     BLI_assert(end_ < capacity_end_);
     new (end_) T(std::forward<ForwardT>(value)...);
@@ -740,11 +740,12 @@ class Vector {
     BLI_assert(index >= 0);
     BLI_assert(index < this->size());
     T *element_to_remove = begin_ + index;
-    if (element_to_remove < end_) {
-      *element_to_remove = std::move(*(end_ - 1));
+    T *last_element = end_ - 1;
+    if (element_to_remove < last_element) {
+      *element_to_remove = std::move(*last_element);
     }
-    end_--;
-    end_->~T();
+    end_ = last_element;
+    last_element->~T();
     UPDATE_VECTOR_SIZE(this);
   }
 

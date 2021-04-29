@@ -7283,7 +7283,7 @@ void uiTemplateComponentMenu(uiLayout *layout,
 /** \name Node Socket Icon Template
  * \{ */
 
-void uiTemplateNodeSocket(uiLayout *layout, bContext *UNUSED(C), float *color)
+void uiTemplateNodeSocket(uiLayout *layout, bContext *UNUSED(C), float color[4])
 {
   uiBlock *block = uiLayoutGetBlock(layout);
   UI_block_align_begin(block);
