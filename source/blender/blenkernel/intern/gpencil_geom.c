@@ -1050,7 +1050,7 @@ void BKE_gpencil_stroke_2d_flat(const bGPDspoint *points,
   normalize_v3(locx);
   normalize_v3(locy);
 
-  /* Calculcate last point first. */
+  /* Calculate last point first. */
   const bGPDspoint *pt_last = &points[totpoints - 1];
   float tmp[3];
   sub_v3_v3v3(tmp, &pt_last->x, &pt0->x);
@@ -1688,6 +1688,7 @@ void BKE_gpencil_stroke_normal(const bGPDstroke *gps, float r_normal[3])
 
   float vec1[3];
   float vec2[3];
+  float vec3[3];
 
   /* initial vector (p0 -> p1) */
   sub_v3_v3v3(vec1, &pt1->x, &pt0->x);
@@ -1696,7 +1697,8 @@ void BKE_gpencil_stroke_normal(const bGPDstroke *gps, float r_normal[3])
   sub_v3_v3v3(vec2, &pt3->x, &pt0->x);
 
   /* vector orthogonal to polygon plane */
-  cross_v3_v3v3(r_normal, vec1, vec2);
+  cross_v3_v3v3(vec3, vec1, vec2);
+  cross_v3_v3v3(r_normal, vec1, vec3);
 
   /* Normalize vector */
   normalize_v3(r_normal);
