@@ -121,7 +121,7 @@ static void game_copy_pose(bPose **dst, bPose *src, int copy_constraint)
 
   BLI_ghash_free(ghash, nullptr, nullptr);
   // set acceleration structure for channel lookup
-  BKE_pose_channels_hash_make(out);
+  BKE_pose_channels_hash_ensure(out);
   *dst = out;
 }
 
