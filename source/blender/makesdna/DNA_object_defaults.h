@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include "DNA_object_force_types.h" // UPBGE
 #include "DNA_vec_defaults.h"
 
 /* Struct members on own line. */
@@ -91,6 +92,47 @@
     .ccd_motion_threshold = 1.0f, \
     .ccd_swept_sphere_radius = 0.9f, \
     .lodfactor = 1.0f, \
+  }
+
+#define _DNA_DEFAULT_BulletSoftBody \
+  { \
+    .flag = OB_BSB_BENDING_CONSTRAINTS | OB_BSB_SHAPE_MATCHING | OB_BSB_AERO_VPOINT, \
+    .linStiff = 0.5f, \
+    .angStiff = 1.0f, \
+    .volume = 1.0f, \
+ \
+    .viterations = 0, \
+    .piterations = 2, \
+    .diterations = 0, \
+    .citerations = 4, \
+ \
+    .kSRHR_CL = 0.1f, \
+    .kSKHR_CL = 1.f, \
+    .kSSHR_CL = 0.5f, \
+    .kSR_SPLT_CL = 0.5f, \
+ \
+    .kSK_SPLT_CL = 0.5f, \
+    .kSS_SPLT_CL = 0.5f, \
+    .kVCF = 1, \
+    .kDP = 0, \
+ \
+    .kDG = 0, \
+    .kLF = 0, \
+    .kPR = 0, \
+    .kVC = 0, \
+ \
+    .kDF = 0.2f, \
+    .kMT = 0.05, \
+    .kCHR = 1.0f, \
+    .kKHR = 0.1f, \
+ \
+    .kSHR = 1.0f, \
+    .kAHR = 0.7f, \
+ \
+    .collisionflags = OB_BSB_COL_CL_RS, \
+    .numclusteriterations = 64, \
+    .bending_dist = 2, \
+    .welding = 0.f, \
   }
 
 /** \} */
