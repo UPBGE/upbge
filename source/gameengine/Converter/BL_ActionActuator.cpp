@@ -180,8 +180,7 @@ bool BL_ActionActuator::Update(double curtime)
 
 	if (positiveEvent) {
 		switch (m_playtype) {
-			case ACT_ACTION_PLAY:
-			{
+			case ACT_ACTION_PLAY: {
 				if (!(m_flag & ACT_FLAG_ACTIVE)) {
 					m_localtime = start;
 					m_flag |= ACT_FLAG_PLAY_END;
@@ -189,9 +188,6 @@ bool BL_ActionActuator::Update(double curtime)
 				ATTR_FALLTHROUGH;
 			}
 			case ACT_ACTION_LOOP_END:
-			case ACT_ACTION_LOOP_STOP:
-			case ACT_ACTION_PINGPONG:
-			{
 				if (!(m_flag & ACT_FLAG_ACTIVE) && Play(obj, start, end, playtype)) {
 					m_flag |= ACT_FLAG_ACTIVE;
 					if (useContinue) {
@@ -199,24 +195,44 @@ bool BL_ActionActuator::Update(double curtime)
 					}
 				}
 				break;
+			case ACT_ACTION_LOOP_STOP:
+				if (!(m_flag & ACT_FLAG_ACTIVE) && Play(obj, start, end, playtype)) {
+					m_flag |= ACT_FLAG_ACTIVE;
+					if (useContinue) {
+						obj->SetActionFrame(m_layer, m_localtime);
+					}
+				}
+				break;
+			case ACT_ACTION_PINGPONG: {
+				if (!(m_flag & ACT_FLAG_ACTIVE) && Play(obj, start, end, playtype)) {
+					m_flag |= ACT_FLAG_ACTIVE;
+					if (useContinue) {
+						obj->SetActionFrame(m_layer, m_localtime);
+					}
+					obj->SetPlayMode(m_layer, BL_Action::ACT_MODE_PLAY);
+					m_flag |= ACT_FLAG_PLAY_END;
+					// Swap the start and end frames
+					float temp = m_startframe;
+					m_startframe = m_endframe;
+					m_endframe = temp;
+				}
+				break;
 			}
-			case ACT_ACTION_FROM_PROP:
-			{
-				EXP_Value *prop = GetParent()->GetProperty(m_propname);
+			case ACT_ACTION_FROM_PROP: {
+				EXP_Value* prop = GetParent()->GetProperty(m_propname);
 				// If we don't have a property, we can't do anything, so just bail
 				if (!prop) {
 					return false;
 				}
-
 				const float frame = prop->GetNumber();
 				if (Play(obj, frame, frame, playtype)) {
 					m_flag |= ACT_FLAG_ACTIVE;
 				}
 				break;
 			}
-			case ACT_ACTION_FLIPPER:
-			{
-				if ((!(m_flag & ACT_FLAG_ACTIVE) || m_flag & ACT_FLAG_PLAY_END) && Play(obj, start, end, playtype)) {
+			case ACT_ACTION_FLIPPER: {
+				if ((!(m_flag & ACT_FLAG_ACTIVE) || m_flag & ACT_FLAG_PLAY_END) &&
+					Play(obj, start, end, playtype)) {
 					m_flag |= ACT_FLAG_ACTIVE;
 					m_flag &= ~ACT_FLAG_PLAY_END;
 					if (useContinue) {
