@@ -11,10 +11,10 @@ void main(){
 	vec2 outl = vec2(Attach.a, 0);
 	vec4 AttachOut;
 
-	if (Attach.a < 1){ 
+	if (Attach.a < 0.1){ 
 		for (int i = 0; i < 4; ++i){
 			AttachOut = texture2D(bgl_DataTextures[0], coord + outl);
-			if (AttachOut.a > .99){
+			if (AttachOut.a > .9){
                 color = vec4(Attach.r,Attach.g,Attach.b,1); //vec4(1,0.5,0,1);
             break;
 			}
