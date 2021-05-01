@@ -478,6 +478,11 @@ void RAS_OpenGLRasterizer::MotionBlur(unsigned short state, float value)
 	}
 }
 
+const unsigned char *RAS_OpenGLRasterizer::GetGraphicsCardVendor()
+{
+  return (unsigned char *)glGetString(GL_VENDOR);
+}
+
 void RAS_OpenGLRasterizer::PrintHardwareInfo()
 {
 	CM_Message("GL_VENDOR: " << glGetString(GL_VENDOR));

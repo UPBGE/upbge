@@ -167,8 +167,10 @@ bool KX_SlowParentRelation::UpdateChildCoordinates(SG_Node *child, const SG_Node
 			child->SetWorldPosition(pos);
 			child->SetWorldOrientation(rot);
 		}
-		else {
-			child->SetWorldFromLocalTransform();
+        else {
+            child->SetWorldScale(child->GetWorldScaling());
+            child->SetWorldPosition(child->GetWorldPosition());
+            child->SetWorldOrientation(child->GetWorldOrientation());
 			m_initialized = true;
 		}
 	}

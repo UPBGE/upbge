@@ -215,7 +215,7 @@ bool KX_MouseActuator::Update()
 			break;
 		}
 	}
-	return true;
+    return false;
 }
 
 EXP_Value *KX_MouseActuator::GetReplica()

@@ -219,3 +219,12 @@ void KX_TextureRendererManager::Merge(KX_TextureRendererManager *other)
 		other->m_renderers[i].clear();
 	}
 }
+
+void KX_TextureRendererManager::InvalidateRenderersProjectionMatrix()
+{
+	for (unsigned short i = 0; i < CATEGORY_MAX; ++i) {
+		for (KX_TextureRenderer* renderer : m_renderers[i]) {
+			renderer->InvalidateProjectionMatrix();
+		}
+	}
+}

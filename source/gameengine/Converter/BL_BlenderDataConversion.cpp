@@ -760,8 +760,8 @@ static void BL_CreateGraphicObjectNew(KX_GameObject *gameobj, KX_Scene *kxscene,
 			gameobj->SetGraphicController(ctrl);
 			ctrl->SetNewClientInfo(&gameobj->GetClientInfo());
 			if (isActive) {
-				// add first, this will create the proxy handle, only if the object is visible
-				if (gameobj->GetVisible()) {
+                // add first, this will create the proxy handle, only if the object is visible or occluder
+                if (gameobj->GetVisible() || gameobj->GetOccluder()) {
 					env->AddCcdGraphicController(ctrl);
 				}
 			}
@@ -1772,9 +1772,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 			KX_NavMeshObject *navmesh = static_cast<KX_NavMeshObject *>(gameobj);
 			navmesh->SetVisible(false, true);
 			navmesh->BuildNavMesh();
-			if (obssimulation) {
-				obssimulation->AddObstaclesForNavMesh(navmesh);
-			}
 		}
 	}
 	for (KX_GameObject *gameobj : inactivelist) {

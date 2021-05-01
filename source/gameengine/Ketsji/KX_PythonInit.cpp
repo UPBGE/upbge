@@ -617,6 +617,19 @@ static PyObject *pyPrintStats(PyObject *, PyObject *, PyObject *)
 	Py_RETURN_NONE;
 }
 
+static PyObject *gPyGetGraphicsCardVendor(PyObject *, PyObject *, PyObject *)
+{
+  RAS_Rasterizer *rasterizer = KX_GetActiveEngine()->GetRasterizer();
+  if (rasterizer) {
+    const unsigned char *vendor = rasterizer->GetGraphicsCardVendor();
+    return PyUnicode_FromString(reinterpret_cast<const char *>(vendor));
+  }
+  else {
+    CM_Error("no rasterizer detected for getGraphicsCardVendor!");
+    Py_RETURN_NONE;
+  }
+}
+
 static PyObject *pyPrintExt(PyObject *, PyObject *, PyObject *)
 {
 	RAS_Rasterizer *rasterizer = KX_GetActiveEngine()->GetRasterizer();
@@ -845,7 +858,8 @@ static struct PyMethodDef game_methods[] = {
 	{"setTimeScale", (PyCFunction)gPySetTimeScale, METH_VARARGS, (const char *)"Set the time multiplier"},
 	{"getBlendFileList", (PyCFunction)gPyGetBlendFileList, METH_VARARGS, (const char *)"Gets a list of blend files in the same directory as the current blend file"},
 	{"PrintGLInfo", (PyCFunction)pyPrintExt, METH_NOARGS, (const char *)"Prints GL Extension Info"},
-	{"PrintMemInfo", (PyCFunction)pyPrintStats, METH_NOARGS, (const char *)"Print engine statistics"},
+  {"getGraphicsCardVendor", (PyCFunction) gPyGetGraphicsCardVendor, METH_NOARGS, (const char *)"Gets graphics card vendor name"},
+  {"PrintMemInfo", (PyCFunction)pyPrintStats, METH_NOARGS, (const char *)"Print engine statistics"},
 	{"NextFrame", (PyCFunction)gPyNextFrame, METH_NOARGS, (const char *)"Render next frame (if Python has control)"},
 	{"getProfileInfo", (PyCFunction)gPyGetProfileInfo, METH_NOARGS, gPyGetProfileInfo_doc},
 	/* library functions */
@@ -1195,6 +1209,33 @@ static PyObject *gPyGetAnisotropicFiltering(PyObject *, PyObject *args)
 	return PyLong_FromLong(KX_GetActiveEngine()->GetRasterizer()->GetAnisotropicFiltering());
 }
 
+static PyObject *gPySetAntiAliasing(PyObject *, PyObject *args)
+{
+	short level;
+
+	if (!PyArg_ParseTuple(args, "h:setAntiAliasing", &level)) {
+		return nullptr;
+	}
+
+	if (!ELEM(level, 0, 2, 4, 8, 16)) {
+		PyErr_SetString(PyExc_ValueError, "Rasterizer.setAntiAliasing(level): Expected value of 0, 2, 4, 8, or 16 for value");
+		return nullptr;
+	}
+
+	RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
+	canvas->SetSamples(level);
+
+	// Recreate off screens.
+	canvas->UpdateOffScreens();
+
+	Py_RETURN_NONE;
+}
+
+static PyObject *gPyGetAntiAliasing(PyObject *, PyObject *args)
+{
+	return PyLong_FromLong(KX_GetActiveEngine()->GetCanvas()->GetSamples());
+}
+
 static PyObject *gPyDrawLine(PyObject *, PyObject *args)
 {
 	PyObject *ob_from;
@@ -1421,6 +1462,10 @@ static struct PyMethodDef rasterizer_methods[] = {
 	 METH_VARARGS, "set the anisotropic filtering level (must be one of 1, 2, 4, 8, 16)"},
 	{"getAnisotropicFiltering", (PyCFunction)gPyGetAnisotropicFiltering,
 	 METH_VARARGS, "get the anisotropic filtering level"},
+	{"setAntiAliasing", (PyCFunction)gPySetAntiAliasing,
+	 METH_VARARGS, "set the anti aliasing level (must be one of 0, 2, 4, 8, 16)"},
+	{"getAntiAliasing", (PyCFunction)gPyGetAntiAliasing,
+	 METH_VARARGS, "get the anti aliasing level"},
 	{"drawLine", (PyCFunction)gPyDrawLine,
 	 METH_VARARGS, "draw a line on the screen"},
 	{"setWindowSize", (PyCFunction)gPySetWindowSize, METH_VARARGS, ""},
@@ -1712,6 +1757,7 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_GRAYSCALE, RAS_2DFilterManager::FILTER_GRAYSCALE);
 	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_SEPIA, RAS_2DFilterManager::FILTER_SEPIA);
 	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_INVERT, RAS_2DFilterManager::FILTER_INVERT);
+    KX_MACRO_addTypesToDict(d, RAS_2DFILTER_OUTLINE, RAS_2DFilterManager::FILTER_OUTLINE);
 	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_CUSTOMFILTER, RAS_2DFilterManager::FILTER_CUSTOMFILTER);
 
 	/* Sound Actuator */

@@ -241,14 +241,14 @@ bool KX_CollisionSensor::NewHandleCollision(PHY_IPhysicsController *ctrl1, PHY_I
 	if (m_links && !m_suspended &&
 	    gameobj && (gameobj != parent) && client_info->isActor()) {
 
-		bool found = m_touchedpropname.empty();
-		bool hitMaterial = false;
+        bool found = m_touchedpropname.empty();
+        std::string hitMaterial = "";
 		if (!found) {
 			if (m_bFindMaterial) {
 				for (KX_Mesh *meshObj : gameobj->GetMeshList()) {
 					found = (meshObj->FindMaterialName(m_touchedpropname) != nullptr);
 					if (found) {
-						hitMaterial = true;
+                        hitMaterial = m_touchedpropname;
 						break;
 					}
 				}

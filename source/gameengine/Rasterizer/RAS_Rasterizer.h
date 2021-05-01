@@ -664,6 +664,8 @@ public:
 	 * Prints information about what the hardware supports.
 	 */
 	void PrintHardwareInfo();
+
+  const unsigned char* GetGraphicsCardVendor();
 };
 
 #endif  /* __RAS_RASTERIZER_H__ */

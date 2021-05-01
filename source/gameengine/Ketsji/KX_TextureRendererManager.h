@@ -71,6 +71,7 @@ public:
 
 	/// Invalidate renderers using the given game object as viewpoint object.
 	void InvalidateViewpoint(KX_GameObject *gameobj);
+	void InvalidateRenderersProjectionMatrix();
 
 	/** Add and create a renderer if none existing renderer was using the same
 	* texture containing in the material texture passed.

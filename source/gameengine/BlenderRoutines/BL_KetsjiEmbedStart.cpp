@@ -56,6 +56,8 @@ extern "C" {
 #  include "BLI_blenlib.h"
 #  include "BLO_readfile.h"
 
+#  include "GPU_material.h"
+
 #  include "WM_api.h"
 #  include "wm_cursors.h"
 
@@ -110,8 +112,9 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 
 #endif
 
-	GlobalSettings gs;
+	GlobalSettings gs, gsBackup;
 	gs.glslflag = startscene->gm.flag;
+	gsBackup.glslflag = startscene->gm.flag;
 
 	do {
 		// if we got an exitcode 3 (KX_ExitInfo::START_OTHER_GAME) load a different file
@@ -228,6 +231,10 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		launcher.ExitEngine();
 
 	} while (ELEM(exitInfo.m_code, KX_ExitInfo::RESTART_GAME, KX_ExitInfo::START_OTHER_GAME));
+
+	// Restore GLSL settings
+	startscene->gm.flag = gsBackup.glslflag;
+	GPU_materials_free(G.main);
 
 	// Restore cursor.
 	wmWindow *win = CTX_wm_window(C);

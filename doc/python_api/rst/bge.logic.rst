@@ -1067,6 +1067,10 @@ Various
 
    :value: 7
 
+.. data:: RAS_2DFILTER_SOBEL
+
+   :value: 14
+
 ----------------
 Armature Channel
 ----------------

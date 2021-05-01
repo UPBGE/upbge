@@ -307,6 +307,21 @@ Functions
 
    :rtype: integer (one of 1, 2, 4, 8, 16)
 
+.. function:: setAntiAliasing(level)
+
+   Set the anti aliasing level.
+
+   :arg level: The new anti aliasing level to use
+   :type level: integer (must be one of 0, 2, 4, 8, 16)
+
+   .. note:: Changing this value cause all off screens to be recreated, which can be slow.
+
+.. function:: getAntiAliasing()
+
+   Get the anti aliasing level setting.
+
+   :rtype: integer (one of 0, 2, 4, 8, 16)
+
 .. function:: setMipmapping(value)
 
    Change how to use mipmapping.
