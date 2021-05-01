@@ -531,7 +531,8 @@ typedef struct bActuator {
 #define ACT_2DFILTER_SEPIA				10
 #define ACT_2DFILTER_INVERT				11
 #define ACT_2DFILTER_CUSTOMFILTER		12
-#define ACT_2DFILTER_NUMBER_OF_FILTERS	13
+#define ACT_2DFILTER_OUTLINE	        13
+#define ACT_2DFILTER_NUMBER_OF_FILTERS	14
 
 /* parentactuator->type */
 #define ACT_PARENT_SET      0

@@ -1833,6 +1833,7 @@ static void rna_def_twodfilter_actuator(BlenderRNA *brna)
 		{ACT_2DFILTER_SEPIA, "SEPIA", 0, "Sepia", ""},
 		{ACT_2DFILTER_INVERT, "INVERT", 0, "Invert", ""},
 		{ACT_2DFILTER_CUSTOMFILTER, "CUSTOMFILTER", 0, "Custom Filter", ""},
+        {ACT_2DFILTER_OUTLINE, "OUTLINE", 0, "Outliner", ""},
 /*		{ACT_2DFILTER_NUMBER_OF_FILTERS, "", 0, "Do not use it. Sentinel", ""}, */
 		{0, NULL, 0, NULL, NULL}
 	};

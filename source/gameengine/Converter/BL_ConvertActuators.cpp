@@ -1065,7 +1065,12 @@ void BL_ConvertActuators(const char *maggiename,
 					{
 						filtermode = RAS_2DFilterManager::FILTER_INVERT;
 						break;
-					}
+                    }
+                    case ACT_2DFILTER_OUTLINE:
+                    {
+                        filtermode = RAS_2DFilterManager::FILTER_OUTLINE;
+                        break;
+                    }
 					case ACT_2DFILTER_CUSTOMFILTER:
 					{
 						filtermode = RAS_2DFilterManager::FILTER_CUSTOMFILTER;
