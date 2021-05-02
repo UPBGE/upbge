@@ -504,7 +504,7 @@ static PyObject *gPyCreateConstraint(PyObject *self, PyObject *args, PyObject *k
           false);
 
       if (!constraint) {
-        return nullptr;
+        Py_RETURN_NONE;
       }
 
       KX_ConstraintWrapper *wrap = new KX_ConstraintWrapper(
