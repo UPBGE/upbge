@@ -115,6 +115,7 @@ set(SRC
   intern/curve_convert.c
   intern/curve_decimate.c
   intern/curve_deform.c
+  intern/curve_eval.cc  
   intern/curveprofile.c
   intern/customdata.c
   intern/customdata_file.c
@@ -136,6 +137,7 @@ set(SRC
   intern/fmodifier.c
   intern/font.c
   intern/freestyle.c
+  intern/geometry_component_curve.cc
   intern/geometry_component_instances.cc
   intern/geometry_component_mesh.cc
   intern/geometry_component_pointcloud.cc
@@ -247,6 +249,10 @@ set(SRC
   intern/softbody.c
   intern/sound.c
   intern/speaker.c
+  intern/spline_base.cc
+  intern/spline_bezier.cc
+  intern/spline_nurbs.cc
+  intern/spline_poly.cc
   intern/studiolight.c
   intern/subdiv.c
   intern/subdiv_ccg.c
@@ -329,6 +335,7 @@ set(SRC
   BKE_customdata_file.h
   BKE_data_transfer.h
   BKE_deform.h
+  BKE_spline.hh
   BKE_displist.h
   BKE_displist_tangent.h
   BKE_duplilist.h
