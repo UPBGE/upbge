@@ -504,6 +504,10 @@ static PyObject *gPyCreateConstraint(PyObject *self, PyObject *args, PyObject *k
           false);
 
       if (!constraint) {
+        /* CreateConstraint can return nullptr but can create an "anchor"
+         * (like softbody pin option). There is no way for now to remove anchors.
+         * It is implemented in bullet but can't be done with bge as it is currently.
+         */
         Py_RETURN_NONE;
       }
 
