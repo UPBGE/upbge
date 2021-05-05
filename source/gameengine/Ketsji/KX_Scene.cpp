@@ -1113,6 +1113,9 @@ std::vector<KX_GameObject *> KX_Scene::CalculateVisibleMeshes(KX_Camera *cam, RA
 	std::vector<KX_GameObject *> objects;
 	if (!cam->GetFrustumCulling()) {
 		for (KX_GameObject *gameobj : m_objectlist) {
+			if (!gameobj->Renderable(layer)) {
+				continue;
+			}
 			gameobj->GetCullingNode().SetCulled(false);
 			objects.push_back(gameobj);
 		}
