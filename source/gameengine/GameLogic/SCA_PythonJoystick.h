@@ -24,34 +24,39 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __SCA_PYTHONJOYSTICK_H__
-#define __SCA_PYTHONJOYSTICK_H__
+#pragma once
 
 #include "EXP_Value.h"
 
-class SCA_PythonJoystick : public EXP_Value
-{
-	Py_Header
-private:
-	class DEV_Joystick *m_joystick;
-	int m_joyindex;
-#ifdef WITH_PYTHON
-	PyObject* m_event_dict;
-#endif
-public:
-	SCA_PythonJoystick(class DEV_Joystick* joystick, int joyindex);
-	virtual ~SCA_PythonJoystick();
+class SCA_PythonJoystick : public EXP_Value {
+  Py_Header private : class DEV_Joystick *m_joystick;
+  int m_joyindex;
+  float m_strengthLeft;
+  float m_strengthRight;
+  int m_duration;
 
-	virtual std::string GetName();
+ public:
+  SCA_PythonJoystick(class DEV_Joystick *joystick, int joyindex);
+  virtual ~SCA_PythonJoystick();
+
+  virtual std::string GetName();
 
 #ifdef WITH_PYTHON
-	static PyObject*	pyattr_get_num_x(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_active_buttons(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_hat_values(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_axis_values(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_num_x(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_active_buttons(EXP_PyObjectPlus *self_v,
+                                             const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_hat_values(EXP_PyObjectPlus *self_v,
+                                         const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_axis_values(EXP_PyObjectPlus *self_v,
+                                          const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_name(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+
+  EXP_PYMETHOD_DOC_NOARGS(SCA_PythonJoystick, startVibration);
+  EXP_PYMETHOD_DOC_NOARGS(SCA_PythonJoystick, stopVibration);
+
+  static PyObject *pyattr_get_isVibrating(EXP_PyObjectPlus *self_v,
+                                          const struct EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_hasVibration(EXP_PyObjectPlus *self_v,
+                                           const struct EXP_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
-
-#endif //__SCA_PYTHONJOYSTICK_H__
-
