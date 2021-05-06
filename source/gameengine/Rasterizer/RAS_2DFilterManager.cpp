@@ -223,12 +223,12 @@ RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)
 		{
 			shaderSource = datatoc_RAS_Invert2DFilter_glsl;
 			break;
-		}
-		case RAS_2DFilterManager::FILTER_OUTLINE:
-		{
-			shaderSource = datatoc_RAS_OutLine2DFilter_glsl;
-			break;
-		}
+        }
+        case RAS_2DFilterManager::FILTER_OUTLINE:
+        {
+            shaderSource = datatoc_RAS_OutLine2DFilter_glsl;
+            break;
+        }
 	}
 	if (shaderSource.empty()) {
 		if (filterData.filterMode == RAS_2DFilterManager::FILTER_CUSTOMFILTER) {
