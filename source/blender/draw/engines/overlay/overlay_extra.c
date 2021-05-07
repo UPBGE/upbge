@@ -446,9 +446,13 @@ static void OVERLAY_pivot(OVERLAY_ExtraCallBuffers *cb, Object *ob, int theme_id
     bRigidBodyJointConstraint *rcon = (bRigidBodyJointConstraint *)con->data;
     if (rcon && rcon->flag & CONSTRAINT_DRAW_PIVOT) {
       float xyz[3] = {rcon->pivX, rcon->pivY, rcon->pivZ};
-      size_to_mat4(tmp, ob->scale);
-      scale_m4_fl(tmp, 0.2f);
-      copy_v3_v3(tmp[3], xyz);
+      float axis[3] = {rcon->axX, rcon->axY, rcon->axZ};
+      float scale[3];
+      float rotmat[3][3];
+      copy_v3_v3(scale, ob->scale);
+      mul_v3_fl(scale, 0.2f);
+      axis_angle_to_mat3(rotmat, axis, len_v3(axis));
+      loc_rot_size_to_mat4(tmp, xyz, rotmat, scale);
       mul_m4_m4m4(tmp, ob->obmat, tmp);
       DRW_buffer_add_entry(cb->origin_xform, color, tmp);
     }
