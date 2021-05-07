@@ -47,6 +47,10 @@
 #  include "Exception.h"
 #  include "PIL_time.h"
 
+extern "C" {
+#  include "libswscale/swscale.h"
+}
+
 // default framerate
 const double defFrameRate = 25.0;
 
@@ -400,8 +404,8 @@ void *VideoFFmpeg::cacheThread(void *data)
           if (input->data[0] != 0 || input->data[1] != 0 || input->data[2] != 0 ||
               input->data[3] != 0) {
             if (video->m_deinterlace) {
-              if (avpicture_deinterlace((AVPicture *)video->m_frameDeinterlaced,
-                                        (const AVPicture *)video->m_frame,
+              if (av_image_deinterlace((AVFrame *)video->m_frameDeinterlaced,
+                                       (const AVFrame *)video->m_frame,
                                         video->m_codecCtx->pix_fmt,
                                         video->m_codecCtx->width,
                                         video->m_codecCtx->height) >= 0) {
@@ -998,8 +1002,8 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
         }
 
         if (m_deinterlace) {
-          if (avpicture_deinterlace((AVPicture *)m_frameDeinterlaced,
-                                    (const AVPicture *)m_frame,
+          if (av_image_deinterlace((AVFrame *)m_frameDeinterlaced,
+                                    (const AVFrame *)m_frame,
                                     m_codecCtx->pix_fmt,
                                     m_codecCtx->width,
                                     m_codecCtx->height) >= 0) {
