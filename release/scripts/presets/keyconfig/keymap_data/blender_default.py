@@ -278,15 +278,11 @@ def _template_items_uv_select_mode(params):
     else:
         return [
             *_template_items_editmode_mesh_select_mode(params),
+            # Hack to prevent fall-through, when sync select isn't enabled (and the island button isn't visible).
             ("mesh.select_mode", {"type": 'FOUR', "value": 'PRESS'}, None),
-            ("wm.context_set_enum", {"type": 'ONE', "value": 'PRESS'},
-             {"properties": [("data_path", 'tool_settings.uv_select_mode'), ("value", 'VERTEX')]}),
-            ("wm.context_set_enum", {"type": 'TWO', "value": 'PRESS'},
-             {"properties": [("data_path", 'tool_settings.uv_select_mode'), ("value", 'EDGE')]}),
-            ("wm.context_set_enum", {"type": 'THREE', "value": 'PRESS'},
-             {"properties": [("data_path", 'tool_settings.uv_select_mode'), ("value", 'FACE')]}),
-            ("wm.context_set_enum", {"type": 'FOUR', "value": 'PRESS'},
-             {"properties": [("data_path", 'tool_settings.uv_select_mode'), ("value", 'ISLAND')]}),
+            *(("wm.context_set_enum", {"type": NUMBERS_1[i], "value": 'PRESS'},
+               {"properties": [("data_path", 'tool_settings.uv_select_mode'), ("value", ty)]})
+              for i, ty in enumerate(('VERTEX', 'EDGE', 'FACE', 'ISLAND')))
         ]
 
 
@@ -3402,6 +3398,11 @@ def km_grease_pencil_stroke_paint_mode(params):
         # Brush size
         ("wm.radial_control", {"type": 'F', "value": 'PRESS'},
          {"properties": [("data_path_primary", 'tool_settings.gpencil_paint.brush.size')]}),
+        # Increase/Decrease brush size
+        ("brush.scale_size", {"type": 'LEFT_BRACKET', "value": 'PRESS', "repeat": True},
+         {"properties": [("scalar", 0.9)]}),
+        ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
+         {"properties": [("scalar", 1.0 / 0.9)]}),
         # Draw delete menu
         op_menu("GPENCIL_MT_gpencil_draw_delete", {"type": 'X', "value": 'PRESS'}),
         # Animation menu
@@ -3569,6 +3570,11 @@ def km_grease_pencil_stroke_sculpt_mode(params):
         # Brush size
         ("wm.radial_control", {"type": 'F', "value": 'PRESS'},
          {"properties": [("data_path_primary", 'tool_settings.gpencil_sculpt_paint.brush.size')]}),
+        # Increase/Decrease brush size
+        ("brush.scale_size", {"type": 'LEFT_BRACKET', "value": 'PRESS', "repeat": True},
+         {"properties": [("scalar", 0.9)]}),
+        ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
+         {"properties": [("scalar", 1.0 / 0.9)]}),
         # Copy
         ("gpencil.copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
         # Display
@@ -3783,6 +3789,11 @@ def km_grease_pencil_stroke_weight_mode(params):
         # Brush size
         ("wm.radial_control", {"type": 'F', "value": 'PRESS'},
          {"properties": [("data_path_primary", 'tool_settings.gpencil_weight_paint.brush.size')]}),
+        # Increase/Decrease brush size
+        ("brush.scale_size", {"type": 'LEFT_BRACKET', "value": 'PRESS', "repeat": True},
+         {"properties": [("scalar", 0.9)]}),
+        ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
+         {"properties": [("scalar", 1.0 / 0.9)]}),
         # Display
         *_grease_pencil_display(),
         # Keyframe menu
@@ -3840,6 +3851,11 @@ def km_grease_pencil_stroke_vertex_mode(params):
         # Brush size
         ("wm.radial_control", {"type": 'F', "value": 'PRESS'},
          {"properties": [("data_path_primary", 'tool_settings.gpencil_vertex_paint.brush.size')]}),
+        # Increase/Decrease brush size
+        ("brush.scale_size", {"type": 'LEFT_BRACKET', "value": 'PRESS', "repeat": True},
+         {"properties": [("scalar", 0.9)]}),
+        ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS', "repeat": True},
+         {"properties": [("scalar", 1.0 / 0.9)]}),
         # Display
         *_grease_pencil_display(),
         # Tools
