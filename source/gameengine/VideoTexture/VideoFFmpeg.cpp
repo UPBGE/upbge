@@ -48,6 +48,7 @@
 #  include "PIL_time.h"
 
 extern "C" {
+#  include <libavutil/imgutils.h>
 #  include "libswscale/swscale.h"
 }
 
@@ -161,22 +162,26 @@ AVFrame *VideoFFmpeg::allocFrameRGB()
   AVFrame *frame;
   frame = av_frame_alloc();
   if (m_format == RGBA32) {
-    avpicture_fill((AVPicture *)frame,
-                   (uint8_t *)MEM_callocN(
-                       avpicture_get_size(AV_PIX_FMT_RGBA, m_codecCtx->width, m_codecCtx->height),
-                       "ffmpeg rgba"),
-                   AV_PIX_FMT_RGBA,
-                   m_codecCtx->width,
-                   m_codecCtx->height);
+    av_image_fill_arrays(frame->data,
+                         frame->linesize,
+                         (uint8_t *)MEM_callocN(
+                         av_image_get_buffer_size(AV_PIX_FMT_RGBA, m_codecCtx->width, m_codecCtx->height, 1),
+                         "ffmpeg rgba"),
+                         AV_PIX_FMT_RGBA,
+                         m_codecCtx->width,
+                         m_codecCtx->height,
+                         1);
   }
   else {
-    avpicture_fill((AVPicture *)frame,
-                   (uint8_t *)MEM_callocN(
-                       avpicture_get_size(AV_PIX_FMT_RGB24, m_codecCtx->width, m_codecCtx->height),
-                       "ffmpeg rgb"),
-                   AV_PIX_FMT_RGB24,
-                   m_codecCtx->width,
-                   m_codecCtx->height);
+    av_image_fill_arrays(frame->data,
+                         frame->linesize,
+                         (uint8_t *)MEM_callocN(
+                         av_image_get_buffer_size(AV_PIX_FMT_RGB24, m_codecCtx->width, m_codecCtx->height, 1),
+                         "ffmpeg rgb"),
+                         AV_PIX_FMT_RGB24,
+                         m_codecCtx->width,
+                         m_codecCtx->height,
+                         1);
   }
   return frame;
 }
@@ -260,14 +265,16 @@ int VideoFFmpeg::openStream(const char *filename,
   m_frameDeinterlaced = av_frame_alloc();
 
   // allocate buffer if deinterlacing is required
-  avpicture_fill(
-      (AVPicture *)m_frameDeinterlaced,
+  av_image_fill_arrays(
+      m_frameDeinterlaced->data,
+      m_frameDeinterlaced->linesize,
       (uint8_t *)MEM_callocN(
-          avpicture_get_size(m_codecCtx->pix_fmt, m_codecCtx->width, m_codecCtx->height),
+          av_image_get_buffer_size(m_codecCtx->pix_fmt, m_codecCtx->width, m_codecCtx->height, 1),
           "ffmpeg deinterlace"),
       m_codecCtx->pix_fmt,
       m_codecCtx->width,
-      m_codecCtx->height);
+      m_codecCtx->height,
+      1);
 
   // check if the pixel format supports Alpha
   if (m_codecCtx->pix_fmt == AV_PIX_FMT_RGB32 || m_codecCtx->pix_fmt == AV_PIX_FMT_BGR32 ||
