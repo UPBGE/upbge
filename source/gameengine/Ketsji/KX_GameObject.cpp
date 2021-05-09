@@ -336,8 +336,7 @@ void KX_GameObject::TagForUpdateEvaluated()
 
   Object *ob_orig = GetBlenderObject();
 
-  bool skip_transform = ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY ||
-                       (ob_orig->parent && ob_orig->parent->type == OB_ARMATURE);
+  bool skip_transform = ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY;
 
   if (skip_transform) {
     SyncTransformWithDepsgraph();
