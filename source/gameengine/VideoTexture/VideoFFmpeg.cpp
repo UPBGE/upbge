@@ -48,8 +48,8 @@
 #  include "PIL_time.h"
 
 extern "C" {
-#  include <libavutil/imgutils.h>
 #  include "libswscale/swscale.h"
+#  include <libavutil/imgutils.h>
 }
 
 // default framerate
@@ -162,26 +162,28 @@ AVFrame *VideoFFmpeg::allocFrameRGB()
   AVFrame *frame;
   frame = av_frame_alloc();
   if (m_format == RGBA32) {
-    av_image_fill_arrays(frame->data,
-                         frame->linesize,
-                         (uint8_t *)MEM_callocN(
-                         av_image_get_buffer_size(AV_PIX_FMT_RGBA, m_codecCtx->width, m_codecCtx->height, 1),
-                         "ffmpeg rgba"),
-                         AV_PIX_FMT_RGBA,
-                         m_codecCtx->width,
-                         m_codecCtx->height,
-                         1);
+    av_image_fill_arrays(
+        frame->data,
+        frame->linesize,
+        (uint8_t *)MEM_callocN(
+            av_image_get_buffer_size(AV_PIX_FMT_RGBA, m_codecCtx->width, m_codecCtx->height, 1),
+            "ffmpeg rgba"),
+        AV_PIX_FMT_RGBA,
+        m_codecCtx->width,
+        m_codecCtx->height,
+        1);
   }
   else {
-    av_image_fill_arrays(frame->data,
-                         frame->linesize,
-                         (uint8_t *)MEM_callocN(
-                         av_image_get_buffer_size(AV_PIX_FMT_RGB24, m_codecCtx->width, m_codecCtx->height, 1),
-                         "ffmpeg rgb"),
-                         AV_PIX_FMT_RGB24,
-                         m_codecCtx->width,
-                         m_codecCtx->height,
-                         1);
+    av_image_fill_arrays(
+        frame->data,
+        frame->linesize,
+        (uint8_t *)MEM_callocN(
+            av_image_get_buffer_size(AV_PIX_FMT_RGB24, m_codecCtx->width, m_codecCtx->height, 1),
+            "ffmpeg rgb"),
+        AV_PIX_FMT_RGB24,
+        m_codecCtx->width,
+        m_codecCtx->height,
+        1);
   }
   return frame;
 }
@@ -209,7 +211,8 @@ int VideoFFmpeg::openStream(const char *filename,
       return -1;
     }
     else {
-      std::cout << "Camera capture: Format not compatible. Capture in default camera format" << std::endl;
+      std::cout << "Camera capture: Format not compatible. Capture in default camera format"
+                << std::endl;
     }
   }
 
@@ -413,9 +416,9 @@ void *VideoFFmpeg::cacheThread(void *data)
             if (video->m_deinterlace) {
               if (av_image_deinterlace((AVFrame *)video->m_frameDeinterlaced,
                                        (const AVFrame *)video->m_frame,
-                                        video->m_codecCtx->pix_fmt,
-                                        video->m_codecCtx->width,
-                                        video->m_codecCtx->height) >= 0) {
+                                       video->m_codecCtx->pix_fmt,
+                                       video->m_codecCtx->width,
+                                       video->m_codecCtx->height) >= 0) {
                 input = video->m_frameDeinterlaced;
               }
             }
@@ -1010,10 +1013,10 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
 
         if (m_deinterlace) {
           if (av_image_deinterlace((AVFrame *)m_frameDeinterlaced,
-                                    (const AVFrame *)m_frame,
-                                    m_codecCtx->pix_fmt,
-                                    m_codecCtx->width,
-                                    m_codecCtx->height) >= 0) {
+                                   (const AVFrame *)m_frame,
+                                   m_codecCtx->pix_fmt,
+                                   m_codecCtx->width,
+                                   m_codecCtx->height) >= 0) {
             input = m_frameDeinterlaced;
           }
         }
