@@ -37,7 +37,7 @@ int EEVEE_antialiasing_engine_init(EEVEE_Data *vedata)
   Scene *scene_eval = draw_ctx->scene;
 
   if (!(scene_eval->eevee.flag & SCE_EEVEE_SMAA) ||
-        scene_eval->gm.samples_per_frame != 1) {
+       (scene_eval->gm.samples_per_frame != 1 && !(scene_eval->gm.flag & GAME_USE_VIEWPORT_RENDER))) {
     /* Cleanup */
     DRW_TEXTURE_FREE_SAFE(txl->history_buffer_tx);
     DRW_TEXTURE_FREE_SAFE(txl->depth_buffer_tx);
