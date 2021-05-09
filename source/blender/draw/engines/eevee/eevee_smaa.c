@@ -156,7 +156,8 @@ void EEVEE_antialiasing_draw_pass(EEVEE_Data *vedata)
     return;
   }
 
-  if (vedata->stl->effects->taa_current_sample < vedata->stl->effects->taa_total_sample) {
+  if (vedata->stl->effects->taa_current_sample < vedata->stl->effects->taa_total_sample &&
+      DRW_context_state_get()->scene->gm.samples_per_frame == 1) {
     /* In playback mode, we are sure the next redraw will not use the same viewmatrix.
      * In this case no need to save the depth buffer. */
     eGPUFrameBufferBits bits = vedata->stl->effects->taa_current_sample == 1 ?
