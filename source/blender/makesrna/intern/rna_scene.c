@@ -5434,6 +5434,12 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Resolution Y", "Number of vertical pixels in the screen");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
+  prop = RNA_def_property(srna, "samp_per_frame", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "samples_per_frame");
+  RNA_def_property_range(prop, 1, 32);
+  RNA_def_property_ui_text(prop, "Samples per frame", "Number of eevee passes rendered in 1 frame");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
   prop = RNA_def_property(srna, "vsync", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, NULL, "vsync");
   RNA_def_property_enum_items(prop, vsync_items);

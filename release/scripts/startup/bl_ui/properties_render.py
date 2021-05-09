@@ -99,6 +99,9 @@ class RENDER_PT_game_resolution(RenderButtonsPanel, Panel):
         col = row.column()
         col.prop(gs, "use_viewport_render")
 
+        row = layout.row()
+        row.prop(gs, "samp_per_frame", text="Samples Per Frame")
+
 class RENDER_PT_game_debug(RenderButtonsPanel, Panel):
     bl_label = "Game Debug"
     COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}

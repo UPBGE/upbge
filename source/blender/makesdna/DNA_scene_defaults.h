@@ -199,6 +199,7 @@
     .eyeseparation = 0.10, \
     .xplay = 1280, \
     .yplay = 720, \
+    .samples_per_frame = 1, \
     .freqplay = 60, \
     .depth = 32, \
     .gravity = 9.8f, \

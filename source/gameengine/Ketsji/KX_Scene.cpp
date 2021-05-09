@@ -782,8 +782,9 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     UpdateObjectLods(cam);
   }
 
-  DRW_game_render_loop(
-      C, m_currentGPUViewport, bmain, depsgraph, &window, is_overlay_pass);
+  for (int i = 0; i < scene->gm.samples_per_frame; i++) {
+    DRW_game_render_loop(C, m_currentGPUViewport, bmain, depsgraph, &window, is_overlay_pass);
+  }
 
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
   RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextRenderFrameBuffer(s));

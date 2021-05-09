@@ -854,7 +854,7 @@ typedef struct GameData {
   struct GameFraming framing;
   short playerflag, xplay, yplay, freqplay;
   short depth, attrib, rt1, rt2;
-  short aasamples, _pad4[3];
+  short aasamples, samples_per_frame, _pad4[2];
 
   /* stereo */
   short stereoflag, stereomode;
