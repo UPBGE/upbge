@@ -401,6 +401,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     sce->gm.eyeseparation = 0.10;
     sce->gm.xplay = 1280;
     sce->gm.yplay = 720;
+    sce->gm.samples_per_frame = 1;
     sce->gm.freqplay = 60;
     sce->gm.depth = 32;
     sce->gm.gravity = 9.8f;

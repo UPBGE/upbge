@@ -782,8 +782,10 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     UpdateObjectLods(cam);
   }
 
-  DRW_game_render_loop(
-      C, m_currentGPUViewport, bmain, depsgraph, &window, is_overlay_pass);
+  for (short i = 0; i < min_ii(scene->gm.samples_per_frame, scene->eevee.taa_samples); i++) {
+    GPU_clear_depth(1.0f);
+    DRW_game_render_loop(C, m_currentGPUViewport, bmain, depsgraph, &window, is_overlay_pass);
+  }
 
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
   RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextRenderFrameBuffer(s));

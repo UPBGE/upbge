@@ -3392,14 +3392,16 @@ void DRW_game_render_loop(bContext *C,
   DRW_render_instance_buffer_finish();
 
   GPU_framebuffer_bind(DST.default_framebuffer);
+  GPU_framebuffer_clear_depth_stencil(DST.default_framebuffer, 1.0f, 0xFF);
 
   DRW_state_reset();
-
-  GPU_framebuffer_clear_depth_stencil(DST.default_framebuffer, 1.0f, 0xFF);
 
   DRW_hair_update();
 
   drw_engines_draw_scene();
+
+  GPU_framebuffer_bind(DST.default_framebuffer);
+  GPU_framebuffer_clear_stencil(DST.default_framebuffer, 0xFF);
 
   /* Fix 3D view being "laggy" on macos and win+nvidia. (See T56996, T61474) */
   GPU_flush();

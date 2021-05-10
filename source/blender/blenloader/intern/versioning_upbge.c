@@ -361,5 +361,11 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *bmain)
       }
     }
   }
-
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 8)) {
+    if (!DNA_struct_elem_find(fd->filesdna, "GameData", "short", "samples_per_frame")) {
+      LISTBASE_FOREACH (Scene *, sce, &bmain->scenes) {
+        sce->gm.samples_per_frame = 1;
+      }
+    }
+  }
 }
