@@ -1103,7 +1103,8 @@ typedef struct ParticleEditSettings {
   /** Runtime. */
   void *paintcursor;
 
-  float emitterdist, rt;
+  float emitterdist;
+  char _pad0[4];
 
   int selectmode;
   int edittype;
@@ -1701,7 +1702,8 @@ typedef struct UnitSettings {
 
 typedef struct PhysicsSettings {
   float gravity[3];
-  int flag, quick_cache_step, rt;
+  int flag, quick_cache_step;
+  char _pad0[4];
 } PhysicsSettings;
 
 /* ------------------------------------------- */

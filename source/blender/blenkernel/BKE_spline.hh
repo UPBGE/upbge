@@ -64,11 +64,6 @@ class Spline {
     Poly,
   };
 
- protected:
-  Type type_;
-  bool is_cyclic_ = false;
-
- public:
   enum NormalCalculationMode {
     ZUp,
     Minimum,
@@ -78,6 +73,9 @@ class Spline {
   NormalCalculationMode normal_mode;
 
  protected:
+  Type type_;
+  bool is_cyclic_ = false;
+
   /** Direction of the spline at each evaluated point. */
   mutable blender::Vector<blender::float3> evaluated_tangents_cache_;
   mutable std::mutex tangent_cache_mutex_;
@@ -99,7 +97,7 @@ class Spline {
   {
   }
   Spline(Spline &other)
-      : type_(other.type_), is_cyclic_(other.is_cyclic_), normal_mode(other.normal_mode)
+      : normal_mode(other.normal_mode), type_(other.type_), is_cyclic_(other.is_cyclic_)
   {
   }
 
@@ -206,8 +204,12 @@ class BezierSpline final : public Spline {
   blender::Vector<HandleType> handle_types_left_;
   blender::Vector<HandleType> handle_types_right_;
 
-  blender::Vector<blender::float3> handle_positions_left_;
-  blender::Vector<blender::float3> handle_positions_right_;
+  /* These are mutable to allow lazy recalculation of #Auto and #Vector handle positions. */
+  mutable blender::Vector<blender::float3> handle_positions_left_;
+  mutable blender::Vector<blender::float3> handle_positions_right_;
+
+  mutable std::mutex auto_handle_mutex_;
+  mutable bool auto_handles_dirty_ = true;
 
   /** Start index in evaluated points array for every control point. */
   mutable blender::Vector<int> offset_cache_;
@@ -296,6 +298,7 @@ class BezierSpline final : public Spline {
       const blender::fn::GVArray &source_data) const override;
 
  private:
+  void ensure_auto_handles() const;
   void correct_end_tangents() const final;
   bool segment_is_vector(const int start_index) const;
   void evaluate_bezier_segment(const int index,
@@ -425,12 +428,10 @@ class NURBSpline final : public Spline {
  * points does not change it.
  */
 class PolySpline final : public Spline {
- public:
   blender::Vector<blender::float3> positions_;
   blender::Vector<float> radii_;
   blender::Vector<float> tilts_;
 
- private:
  public:
   SplinePtr copy() const final;
   PolySpline() : Spline(Type::Poly)
@@ -473,8 +474,15 @@ class PolySpline final : public Spline {
  * more of the data is stored in the splines, but also just to be different than the name in DNA.
  */
 class CurveEval {
+ private:
+  blender::Vector<SplinePtr> splines_;
+
  public:
-  blender::Vector<SplinePtr> splines;
+  blender::Span<SplinePtr> splines() const;
+  blender::MutableSpan<SplinePtr> splines();
+
+  void add_spline(SplinePtr spline);
+  void remove_splines(blender::IndexMask mask);
 
   CurveEval *copy();
 
