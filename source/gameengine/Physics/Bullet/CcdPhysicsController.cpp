@@ -842,7 +842,7 @@ bool CcdPhysicsController::SynchronizeMotionStates(float time)
 void CcdPhysicsController::UpdateSoftBody()
 {
   btSoftBody *sb = GetSoftBody();
-  if (sb && sb->getActivationState() != ISLAND_SLEEPING) {
+  if (sb) {
     if (sb->m_pose.m_bframe || sb->m_pose.m_bvolume) {
 
       RAS_MeshObject *rasMesh = GetShapeInfo()->GetMesh();
