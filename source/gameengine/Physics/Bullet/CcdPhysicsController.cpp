@@ -1309,7 +1309,7 @@ void CcdPhysicsController::SetMass(MT_Scalar newmass)
 MT_Scalar CcdPhysicsController::GetFriction()
 {
   if (GetSoftBody()) {
-    std::cout << "friction is only available for rigid bodies and dynamic objects" << std::endl;
+    //std::cout << "friction is only available for rigid bodies and dynamic objects" << std::endl;
   }
 
   MT_Scalar friction = 0.0f;
