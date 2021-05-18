@@ -784,7 +784,10 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     UpdateObjectLods(cam);
   }
 
-  for (short i = 0; i < min_ii(scene->gm.samples_per_frame, scene->eevee.taa_samples); i++) {
+  short samples_per_frame = min_ii(scene->gm.samples_per_frame, scene->eevee.taa_samples);
+  samples_per_frame = max_ii(samples_per_frame, 1);
+
+  for (short i = 0; i < samples_per_frame; i++) {
     GPU_clear_depth(1.0f);
     DRW_game_render_loop(C, m_currentGPUViewport, bmain, depsgraph, &window, is_overlay_pass);
   }
