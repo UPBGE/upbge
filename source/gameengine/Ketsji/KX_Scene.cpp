@@ -250,7 +250,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
   m_overlay_collections = {};
   m_imageRenderCameraList = {};
-  m_extraObjectsToUpdateInFirstRenderPass = {};
+  m_extraObjectsToUpdateInOtherRenderPass = {};
   m_extraObjectsToUpdateInOverlayPass = {};
 
   /* To backup and restore obmat */
@@ -693,12 +693,11 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   if (cam && cam != GetOverlayCamera()) {
     for (std::map<Object *, IDRecalcFlag>::iterator it =
-             m_extraObjectsToUpdateInFirstRenderPass.begin();
-         it != m_extraObjectsToUpdateInFirstRenderPass.end();
+             m_extraObjectsToUpdateInOtherRenderPass.begin();
+         it != m_extraObjectsToUpdateInOtherRenderPass.end();
          it++) {
       DEG_id_tag_update(&it->first->id, it->second);
     }
-    m_extraObjectsToUpdateInFirstRenderPass.clear();
   }
 
   if (cam && cam == GetOverlayCamera()) {
@@ -709,6 +708,10 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
       DEG_id_tag_update(&it->first->id, it->second);
     }
     m_extraObjectsToUpdateInOverlayPass.clear();
+  }
+
+  if (is_last_render_pass) {
+    m_extraObjectsToUpdateInOtherRenderPass.clear();
   }
 
   /* We need the changes to be flushed before each draw loop! */
@@ -1284,9 +1287,9 @@ bool KX_Scene::SomethingIsMoving()
   return false;
 }
 
-void KX_Scene::AppendToExtraObjectsToUpdateInFirstRenderPass(Object *ob, IDRecalcFlag flag)
+void KX_Scene::AppendToExtraObjectsToUpdateInOtherRenderPass(Object *ob, IDRecalcFlag flag)
 {
-  m_extraObjectsToUpdateInFirstRenderPass.insert({ob, flag});
+  m_extraObjectsToUpdateInOtherRenderPass.insert({ob, flag});
 }
 
 void KX_Scene::AppendToExtraObjectsToUpdateInOverlayPass(Object *ob, IDRecalcFlag flag)

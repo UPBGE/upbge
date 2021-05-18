@@ -114,7 +114,7 @@ void KX_FontObject::UpdateCurveText(std::string newText)  // eevee
     GetScene()->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_GEOMETRY);
   }
   else {
-    GetScene()->AppendToExtraObjectsToUpdateInFirstRenderPass(ob, ID_RECALC_GEOMETRY);
+    GetScene()->AppendToExtraObjectsToUpdateInOtherRenderPass(ob, ID_RECALC_GEOMETRY);
   }
 }
 

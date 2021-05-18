@@ -484,7 +484,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
           scene->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_GEOMETRY);
         }
         else {
-          scene->AppendToExtraObjectsToUpdateInFirstRenderPass(ob, ID_RECALC_GEOMETRY);
+          scene->AppendToExtraObjectsToUpdateInOtherRenderPass(ob, ID_RECALC_GEOMETRY);
         }
         PointerRNA ptrrna;
         RNA_id_pointer_create(&ob->id, &ptrrna);
@@ -506,7 +506,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
             scene->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_GEOMETRY);
           }
           else {
-            scene->AppendToExtraObjectsToUpdateInFirstRenderPass(ob, ID_RECALC_GEOMETRY);
+            scene->AppendToExtraObjectsToUpdateInOtherRenderPass(ob, ID_RECALC_GEOMETRY);
           }
           PointerRNA ptrrna;
           RNA_id_pointer_create(&ob->id, &ptrrna);

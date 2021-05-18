@@ -147,9 +147,11 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
   /* Objects to update at each render pass */
   /* Note: We could try to get the right render pass where
    * we need to update these objects but it would make
-   * the code more complex.
+   * the code more complex. We can only do that for overlay render pass
+   * because the other render pass can contain the same objects
+   * which need to be notified + flushed again.
    */
-  std::map<Object *, IDRecalcFlag> m_extraObjectsToUpdateInFirstRenderPass;
+  std::map<Object *, IDRecalcFlag> m_extraObjectsToUpdateInOtherRenderPass;
   std::map<Object *, IDRecalcFlag> m_extraObjectsToUpdateInOverlayPass;
   /*************************************************/
 
@@ -375,7 +377,7 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
                          Object *ob,
                          std::vector<Object *> children);
   bool SomethingIsMoving();
-  void AppendToExtraObjectsToUpdateInFirstRenderPass(Object *ob, IDRecalcFlag flag);
+  void AppendToExtraObjectsToUpdateInOtherRenderPass(Object *ob, IDRecalcFlag flag);
   void AppendToExtraObjectsToUpdateInOverlayPass(Object *ob, IDRecalcFlag flag);
   /***************End of EEVEE INTEGRATION**********************/
 
