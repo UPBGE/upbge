@@ -480,7 +480,12 @@ void BL_Action::Update(float curtime, bool applyToObject)
       bool isRightAction = ActionMatchesName(m_action, md->name, ACT_TYPE_MODIFIER);
       // TODO: We need to find the good notifier per action
       if (isRightAction && !BKE_modifier_is_non_geometrical(md)) {
-        scene->AppendToExtraObjectsToUpdate(ob, ID_RECALC_GEOMETRY);
+        if (ob->gameflag & OB_OVERLAY_COLLECTION) {
+          scene->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_GEOMETRY);
+        }
+        else {
+          scene->AppendToExtraObjectsToUpdateInFirstRenderPass(ob, ID_RECALC_GEOMETRY);
+        }
         PointerRNA ptrrna;
         RNA_id_pointer_create(&ob->id, &ptrrna);
         animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
@@ -497,7 +502,12 @@ void BL_Action::Update(float curtime, bool applyToObject)
         // the Color ones)
         bool isRightAction = ActionMatchesName(m_action, gpmd->name, ACT_TYPE_GPMODIFIER);
         if (isRightAction) {
-          scene->AppendToExtraObjectsToUpdate(ob, ID_RECALC_GEOMETRY);
+          if (ob->gameflag & OB_OVERLAY_COLLECTION) {
+            scene->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_GEOMETRY);
+          }
+          else {
+            scene->AppendToExtraObjectsToUpdateInFirstRenderPass(ob, ID_RECALC_GEOMETRY);
+          }
           PointerRNA ptrrna;
           RNA_id_pointer_create(&ob->id, &ptrrna);
           animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);

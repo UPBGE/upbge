@@ -149,7 +149,8 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
    * we need to update these objects but it would make
    * the code more complex.
    */
-  std::map<Object *, IDRecalcFlag> m_extraObjectsToUpdate;
+  std::map<Object *, IDRecalcFlag> m_extraObjectsToUpdateInFirstRenderPass;
+  std::map<Object *, IDRecalcFlag> m_extraObjectsToUpdateInOverlayPass;
   /*************************************************/
 
   RAS_BucketManager *m_bucketmanager;
@@ -374,7 +375,8 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
                          Object *ob,
                          std::vector<Object *> children);
   bool SomethingIsMoving();
-  void AppendToExtraObjectsToUpdate(Object *ob, IDRecalcFlag flag);
+  void AppendToExtraObjectsToUpdateInFirstRenderPass(Object *ob, IDRecalcFlag flag);
+  void AppendToExtraObjectsToUpdateInOverlayPass(Object *ob, IDRecalcFlag flag);
   /***************End of EEVEE INTEGRATION**********************/
 
   RAS_BucketManager *GetBucketManager() const;

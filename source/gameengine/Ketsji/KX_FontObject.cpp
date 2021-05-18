@@ -110,7 +110,12 @@ void KX_FontObject::UpdateCurveText(std::string newText)  // eevee
   cu->str = (char *)MEM_mallocN(cu->len + sizeof(wchar_t), "str");
   BLI_strncpy(cu->str, newText.c_str(), FILE_MAX);
 
-  GetScene()->AppendToExtraObjectsToUpdate(ob, ID_RECALC_GEOMETRY);
+  if (ob->gameflag & OB_OVERLAY_COLLECTION) {
+    GetScene()->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_GEOMETRY);
+  }
+  else {
+    GetScene()->AppendToExtraObjectsToUpdateInFirstRenderPass(ob, ID_RECALC_GEOMETRY);
+  }
 }
 
 void KX_FontObject::UpdateTextFromProperty()

@@ -250,6 +250,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
   m_overlay_collections = {};
   m_imageRenderCameraList = {};
+  m_extraObjectsToUpdateInFirstRenderPass = {};
+  m_extraObjectsToUpdateInOverlayPass = {};
 
   /* To backup and restore obmat */
   m_backupObList = {};
@@ -689,13 +691,24 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     gameobj->TagForUpdate(is_last_render_pass);
   }
 
-  for (std::map<Object *, IDRecalcFlag>::iterator it = m_extraObjectsToUpdate.begin();
-       it != m_extraObjectsToUpdate.end(); it++) {
-    DEG_id_tag_update(&it->first->id, it->second);
+  if (cam && cam != GetOverlayCamera()) {
+    for (std::map<Object *, IDRecalcFlag>::iterator it =
+             m_extraObjectsToUpdateInFirstRenderPass.begin();
+         it != m_extraObjectsToUpdateInFirstRenderPass.end();
+         it++) {
+      DEG_id_tag_update(&it->first->id, it->second);
+    }
+    m_extraObjectsToUpdateInFirstRenderPass.clear();
   }
 
-  if (is_last_render_pass) {
-    m_extraObjectsToUpdate.clear();
+  if (cam && cam == GetOverlayCamera()) {
+    for (std::map<Object *, IDRecalcFlag>::iterator it =
+             m_extraObjectsToUpdateInOverlayPass.begin();
+         it != m_extraObjectsToUpdateInOverlayPass.end();
+         it++) {
+      DEG_id_tag_update(&it->first->id, it->second);
+    }
+    m_extraObjectsToUpdateInOverlayPass.clear();
   }
 
   /* We need the changes to be flushed before each draw loop! */
@@ -1271,9 +1284,14 @@ bool KX_Scene::SomethingIsMoving()
   return false;
 }
 
-void KX_Scene::AppendToExtraObjectsToUpdate(Object *ob, IDRecalcFlag flag)
+void KX_Scene::AppendToExtraObjectsToUpdateInFirstRenderPass(Object *ob, IDRecalcFlag flag)
 {
-  m_extraObjectsToUpdate.insert({ob, flag});
+  m_extraObjectsToUpdateInFirstRenderPass.insert({ob, flag});
+}
+
+void KX_Scene::AppendToExtraObjectsToUpdateInOverlayPass(Object *ob, IDRecalcFlag flag)
+{
+  m_extraObjectsToUpdateInOverlayPass.insert({ob, flag});
 }
 
 /******************End of EEVEE INTEGRATION****************************/
