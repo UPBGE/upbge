@@ -35,6 +35,8 @@
 #include <set>
 #include <vector>
 
+#include "DNA_ID.h" // For IDRecalcFlag
+
 #include "EXP_PyObjectPlus.h"
 #include "EXP_Value.h"
 #include "KX_PhysicsEngineEnums.h"
@@ -141,6 +143,13 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
   bool m_collectionRemap;
   std::vector<BackupObj *> m_backupObList;
   std::vector<Object *> m_potentialChildren;
+
+  /* Objects to update at each render pass */
+  /* Note: We could try to get the right render pass where
+   * we need to update these objects but it would make
+   * the code more complex.
+   */
+  std::map<Object *, IDRecalcFlag> m_extraObjectsToUpdate;
   /*************************************************/
 
   RAS_BucketManager *m_bucketmanager;
@@ -365,6 +374,7 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
                          Object *ob,
                          std::vector<Object *> children);
   bool SomethingIsMoving();
+  void AppendToExtraObjectsToUpdate(Object *ob, IDRecalcFlag flag);
   /***************End of EEVEE INTEGRATION**********************/
 
   RAS_BucketManager *GetBucketManager() const;
