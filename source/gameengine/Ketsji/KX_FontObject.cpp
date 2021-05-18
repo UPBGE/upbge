@@ -32,7 +32,6 @@
 #include "KX_FontObject.h"
 
 #include "BLI_blenlib.h"
-#include "DEG_depsgraph.h"
 #include "DNA_curve_types.h"
 #include "MEM_guardedalloc.h"
 
