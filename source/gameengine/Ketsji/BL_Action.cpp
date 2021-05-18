@@ -34,8 +34,6 @@
 #include "BKE_object.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
-#include "DEG_depsgraph_query.h"
-#include "ED_node.h"
 #include "DNA_gpencil_modifier_types.h"
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
@@ -436,7 +434,12 @@ void BL_Action::Update(float curtime, bool applyToObject)
                                                                                m_localframe);
 
   if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
-    DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+    if (ob->gameflag & OB_OVERLAY_COLLECTION) {
+      scene->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_TRANSFORM);
+    }
+    else {
+      scene->AppendToExtraObjectsToUpdateInOtherRenderPass(ob, ID_RECALC_TRANSFORM);
+    }
 
     BL_ArmatureObject *obj = (BL_ArmatureObject *)m_obj;
 
@@ -524,7 +527,12 @@ void BL_Action::Update(float curtime, bool applyToObject)
           if (!scene->OrigObCanBeTransformedInRealtime(ob)) {
             break;
           }
-          DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+          if (ob->gameflag & OB_OVERLAY_COLLECTION) {
+            scene->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_TRANSFORM);
+          }
+          else {
+            scene->AppendToExtraObjectsToUpdateInOtherRenderPass(ob, ID_RECALC_TRANSFORM);
+          }
           PointerRNA ptrrna;
           RNA_id_pointer_create(&ob->id, &ptrrna);
           animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
@@ -546,9 +554,12 @@ void BL_Action::Update(float curtime, bool applyToObject)
             continue;
           }
           if (ActionMatchesName(m_action, prop->name, ACT_TYPE_IDPROP)) {
-            DEG_id_tag_update(
-                &ob->id,
-                ID_RECALC_TRANSFORM);  // a generic notifier which will update most of actions
+            if (ob->gameflag & OB_OVERLAY_COLLECTION) {
+              scene->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_TRANSFORM);
+            }
+            else {
+              scene->AppendToExtraObjectsToUpdateInOtherRenderPass(ob, ID_RECALC_TRANSFORM);
+            }
             PointerRNA ptrrna;
             RNA_id_pointer_create(&ob->id, &ptrrna);
             animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
@@ -576,10 +587,10 @@ void BL_Action::Update(float curtime, bool applyToObject)
           }
         }
         if (isRightAction) {
+          scene->AppendToNodeTreesToUpdateInOterRenderPass(nodetree);
           PointerRNA ptrrna;
           RNA_id_pointer_create(&nodetree->id, &ptrrna);
           animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
-          ED_node_tag_update_nodetree(bmain, nodetree, nullptr);
           actionIsUpdated = true;
           break;
         }
@@ -593,7 +604,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
       if (ob->type == OB_MESH && me) {
         const bool bHasShapeKey = me->key && me->key->type == KEY_RELATIVE;
         if (bHasShapeKey && me->key->adt && me->key->adt->action == m_action) {
-          DEG_id_tag_update(&me->id, ID_RECALC_GEOMETRY);
+          scene->AppendToMeshesToUpdateInOtherRenderPass(me, ID_RECALC_GEOMETRY);
           Key *key = me->key;
 
           PointerRNA ptrrna;

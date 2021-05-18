@@ -90,7 +90,9 @@ class KX_ObstacleSimulation;
 struct TaskPool;
 
 /*********EEVEE INTEGRATION************/
+struct bNodeTree;
 struct GPUTexture;
+struct Mesh;
 struct Object;
 /**************************************/
 
@@ -152,7 +154,9 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
    * which need to be notified + flushed again.
    */
   std::map<Object *, IDRecalcFlag> m_extraObjectsToUpdateInOtherRenderPass;
+  std::map<Mesh *, IDRecalcFlag> m_meshesToUpdateInOtherRenderPass;
   std::map<Object *, IDRecalcFlag> m_extraObjectsToUpdateInOverlayPass;
+  std::vector<bNodeTree *> m_nodeTreesToUpdateInOtherRenderPass;
   /*************************************************/
 
   RAS_BucketManager *m_bucketmanager;
@@ -378,6 +382,8 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
                          std::vector<Object *> children);
   bool SomethingIsMoving();
   void AppendToExtraObjectsToUpdateInOtherRenderPass(Object *ob, IDRecalcFlag flag);
+  void AppendToMeshesToUpdateInOtherRenderPass(Mesh *me, IDRecalcFlag flag);
+  void AppendToNodeTreesToUpdateInOterRenderPass(bNodeTree *ntree);
   void AppendToExtraObjectsToUpdateInOverlayPass(Object *ob, IDRecalcFlag flag);
   /***************End of EEVEE INTEGRATION**********************/
 

@@ -45,9 +45,11 @@
 #include "BLI_threads.h"
 #include "DEG_depsgraph_query.h"
 #include "DNA_collection_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_property_types.h"
 #include "DRW_render.h"
+#include "ED_node.h"
 #include "ED_screen.h"
 #include "ED_view3d.h"
 #include "GPU_viewport.h"
@@ -251,6 +253,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   m_overlay_collections = {};
   m_imageRenderCameraList = {};
   m_extraObjectsToUpdateInOtherRenderPass = {};
+  m_meshesToUpdateInOtherRenderPass = {};
+  m_nodeTreesToUpdateInOtherRenderPass = {};
   m_extraObjectsToUpdateInOverlayPass = {};
 
   /* To backup and restore obmat */
@@ -691,13 +695,21 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     gameobj->TagForUpdate(is_last_render_pass);
   }
 
-  if (cam && cam != GetOverlayCamera()) {
-    for (std::map<Object *, IDRecalcFlag>::iterator it =
-             m_extraObjectsToUpdateInOtherRenderPass.begin();
-         it != m_extraObjectsToUpdateInOtherRenderPass.end();
-         it++) {
-      DEG_id_tag_update(&it->first->id, it->second);
-    }
+  for (std::map<Object *, IDRecalcFlag>::iterator it =
+           m_extraObjectsToUpdateInOtherRenderPass.begin();
+       it != m_extraObjectsToUpdateInOtherRenderPass.end();
+       it++) {
+    DEG_id_tag_update(&it->first->id, it->second);
+  }
+
+  for (std::map<Mesh *, IDRecalcFlag>::iterator it = m_meshesToUpdateInOtherRenderPass.begin();
+       it != m_meshesToUpdateInOtherRenderPass.end();
+       it++) {
+    DEG_id_tag_update(&it->first->id, it->second);
+  }
+
+  for (bNodeTree *ntree : m_nodeTreesToUpdateInOtherRenderPass) {
+    ED_node_tag_update_nodetree(bmain, ntree, nullptr);
   }
 
   if (cam && cam == GetOverlayCamera()) {
@@ -712,6 +724,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   if (is_last_render_pass) {
     m_extraObjectsToUpdateInOtherRenderPass.clear();
+    m_meshesToUpdateInOtherRenderPass.clear();
+    m_nodeTreesToUpdateInOtherRenderPass.clear();
   }
 
   /* We need the changes to be flushed before each draw loop! */
@@ -1290,6 +1304,16 @@ bool KX_Scene::SomethingIsMoving()
 void KX_Scene::AppendToExtraObjectsToUpdateInOtherRenderPass(Object *ob, IDRecalcFlag flag)
 {
   m_extraObjectsToUpdateInOtherRenderPass.insert({ob, flag});
+}
+
+void KX_Scene::AppendToMeshesToUpdateInOtherRenderPass(Mesh *me, IDRecalcFlag flag)
+{
+  m_meshesToUpdateInOtherRenderPass.insert({me, flag});
+}
+
+void KX_Scene::AppendToNodeTreesToUpdateInOterRenderPass(bNodeTree *ntree)
+{
+  m_nodeTreesToUpdateInOtherRenderPass.push_back(ntree);
 }
 
 void KX_Scene::AppendToExtraObjectsToUpdateInOverlayPass(Object *ob, IDRecalcFlag flag)
