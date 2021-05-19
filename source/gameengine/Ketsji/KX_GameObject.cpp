@@ -254,7 +254,7 @@ void KX_GameObject::ForceIgnoreParentTx()
   m_forceIgnoreParentTx = true;
 }
 
-void KX_GameObject::TagForUpdate(bool is_last_render_pass)
+void KX_GameObject::TagForTransformUpdate(bool is_last_render_pass)
 {
   float obmat[4][4];
   NodeGetWorldTransform().getValue(&obmat[0][0]);
@@ -326,7 +326,7 @@ void KX_GameObject::TagForUpdate(bool is_last_render_pass)
   m_forceIgnoreParentTx = false;
 }
 
-void KX_GameObject::TagForUpdateEvaluated()
+void KX_GameObject::TagForTransformUpdateEvaluated()
 {
   float obmat[4][4];
   NodeGetWorldTransform().getValue(&obmat[0][0]);

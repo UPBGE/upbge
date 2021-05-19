@@ -32,7 +32,6 @@
 #include "KX_FontObject.h"
 
 #include "BLI_blenlib.h"
-#include "DEG_depsgraph.h"
 #include "DNA_curve_types.h"
 #include "MEM_guardedalloc.h"
 
@@ -110,8 +109,12 @@ void KX_FontObject::UpdateCurveText(std::string newText)  // eevee
   cu->str = (char *)MEM_mallocN(cu->len + sizeof(wchar_t), "str");
   BLI_strncpy(cu->str, newText.c_str(), FILE_MAX);
 
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
+  if (ob->gameflag & OB_OVERLAY_COLLECTION) {
+    GetScene()->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_GEOMETRY);
+  }
+  else {
+    GetScene()->AppendToExtraObjectsToUpdateInAllRenderPasses(ob, ID_RECALC_GEOMETRY);
+  }
 }
 
 void KX_FontObject::UpdateTextFromProperty()

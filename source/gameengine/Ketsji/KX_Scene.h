@@ -35,6 +35,8 @@
 #include <set>
 #include <vector>
 
+#include "DNA_ID.h" // For IDRecalcFlag
+
 #include "EXP_PyObjectPlus.h"
 #include "EXP_Value.h"
 #include "KX_PhysicsEngineEnums.h"
@@ -88,7 +90,9 @@ class KX_ObstacleSimulation;
 struct TaskPool;
 
 /*********EEVEE INTEGRATION************/
+struct bNodeTree;
 struct GPUTexture;
+struct Mesh;
 struct Object;
 /**************************************/
 
@@ -141,6 +145,18 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
   bool m_collectionRemap;
   std::vector<BackupObj *> m_backupObList;
   std::vector<Object *> m_potentialChildren;
+
+  /* Objects to update at each render pass */
+  /* Note: We could try to get the right render pass where
+   * we need to update these objects but it would make
+   * the code more complex. We can only do that for overlay render pass
+   * because the other render pass can contain the same objects
+   * which need to be notified + flushed again.
+   */
+  std::vector<std::pair<Object *, IDRecalcFlag>> m_extraObjectsToUpdateInAllRenderPasses;
+  std::vector<std::pair<Mesh *, IDRecalcFlag>> m_meshesToUpdateInAllRenderPasses;
+  std::vector<std::pair<Object *, IDRecalcFlag>> m_extraObjectsToUpdateInOverlayPass;
+  std::vector<bNodeTree *> m_nodeTreesToUpdateInAllRenderPasses;
   /*************************************************/
 
   RAS_BucketManager *m_bucketmanager;
@@ -365,6 +381,11 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
                          Object *ob,
                          std::vector<Object *> children);
   bool SomethingIsMoving();
+  void AppendToExtraObjectsToUpdateInAllRenderPasses(Object *ob, IDRecalcFlag flag);
+  void AppendToMeshesToUpdateInAllRenderPasses(Mesh *me, IDRecalcFlag flag);
+  void AppendToNodeTreesToUpdateInAllRenderPasses(bNodeTree *ntree);
+  void AppendToExtraObjectsToUpdateInOverlayPass(Object *ob, IDRecalcFlag flag);
+  void TagForExtraObjectsUpdate(Main *bmain, KX_Camera *cam);
   /***************End of EEVEE INTEGRATION**********************/
 
   RAS_BucketManager *GetBucketManager() const;

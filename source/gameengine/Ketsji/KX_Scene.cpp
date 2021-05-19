@@ -45,9 +45,11 @@
 #include "BLI_threads.h"
 #include "DEG_depsgraph_query.h"
 #include "DNA_collection_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_property_types.h"
 #include "DRW_render.h"
+#include "ED_node.h"
 #include "ED_screen.h"
 #include "ED_view3d.h"
 #include "GPU_viewport.h"
@@ -250,6 +252,10 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
   m_overlay_collections = {};
   m_imageRenderCameraList = {};
+  m_extraObjectsToUpdateInAllRenderPasses = {};
+  m_meshesToUpdateInAllRenderPasses = {};
+  m_nodeTreesToUpdateInAllRenderPasses = {};
+  m_extraObjectsToUpdateInOverlayPass = {};
 
   /* To backup and restore obmat */
   m_backupObList = {};
@@ -683,10 +689,19 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     m_collectionRemap = false;
   }
 
-  /* Notify the depsgraph if something changed in the scene
+  /* Notify the depsgraph if object transform changed in the scene
    * for next drawing loop. */
   for (KX_GameObject *gameobj : GetObjectList()) {
-    gameobj->TagForUpdate(is_last_render_pass);
+    gameobj->TagForTransformUpdate(is_last_render_pass);
+  }
+
+  /* Notify depsgraph for other changes */
+  TagForExtraObjectsUpdate(bmain, cam);
+
+  if (is_last_render_pass) {
+    m_extraObjectsToUpdateInAllRenderPasses.clear();
+    m_meshesToUpdateInAllRenderPasses.clear();
+    m_nodeTreesToUpdateInAllRenderPasses.clear();
   }
 
   /* We need the changes to be flushed before each draw loop! */
@@ -696,7 +711,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   /* Update evaluated object obmat according to SceneGraph. */
   for (KX_GameObject *gameobj : GetObjectList()) {
-    gameobj->TagForUpdateEvaluated();
+    gameobj->TagForTransformUpdateEvaluated();
   }
 
   engine->EndCountDepsgraphTime();
@@ -1260,6 +1275,76 @@ bool KX_Scene::SomethingIsMoving()
     }
   }
   return false;
+}
+
+void KX_Scene::AppendToExtraObjectsToUpdateInAllRenderPasses(Object *ob, IDRecalcFlag flag)
+{
+  std::pair<Object *, IDRecalcFlag> it = {ob, flag};
+  if (std::find(m_extraObjectsToUpdateInAllRenderPasses.begin(),
+                m_extraObjectsToUpdateInAllRenderPasses.end(),
+                it) == m_extraObjectsToUpdateInAllRenderPasses.end()) {
+    m_extraObjectsToUpdateInAllRenderPasses.push_back(it);
+  }
+}
+
+void KX_Scene::AppendToMeshesToUpdateInAllRenderPasses(Mesh *me, IDRecalcFlag flag)
+{
+  std::pair<Mesh *, IDRecalcFlag> it = {me, flag};
+  if (std::find(m_meshesToUpdateInAllRenderPasses.begin(),
+                m_meshesToUpdateInAllRenderPasses.end(),
+                it) == m_meshesToUpdateInAllRenderPasses.end()) {
+    m_meshesToUpdateInAllRenderPasses.push_back(it);
+  }
+}
+
+void KX_Scene::AppendToNodeTreesToUpdateInAllRenderPasses(bNodeTree *ntree)
+{
+  if (std::find(m_nodeTreesToUpdateInAllRenderPasses.begin(),
+                m_nodeTreesToUpdateInAllRenderPasses.end(),
+                ntree) == m_nodeTreesToUpdateInAllRenderPasses.end()) {
+    m_nodeTreesToUpdateInAllRenderPasses.push_back(ntree);
+  }
+}
+
+void KX_Scene::AppendToExtraObjectsToUpdateInOverlayPass(Object *ob, IDRecalcFlag flag)
+{
+  std::pair<Object *, IDRecalcFlag> it = {ob, flag};
+  if (std::find(m_extraObjectsToUpdateInOverlayPass.begin(),
+                m_extraObjectsToUpdateInOverlayPass.end(),
+                it) == m_extraObjectsToUpdateInOverlayPass.end()) {
+    m_extraObjectsToUpdateInOverlayPass.push_back(it);
+  }
+}
+
+void KX_Scene::TagForExtraObjectsUpdate(Main *bmain, KX_Camera *cam)
+{
+  for (std::vector<std::pair<Object *, IDRecalcFlag>>::iterator it =
+       m_extraObjectsToUpdateInAllRenderPasses.begin();
+       it != m_extraObjectsToUpdateInAllRenderPasses.end();
+       it++) {
+    DEG_id_tag_update(&it->first->id, it->second);
+  }
+
+  for (std::vector<std::pair<Mesh *, IDRecalcFlag>>::iterator it =
+       m_meshesToUpdateInAllRenderPasses.begin();
+       it != m_meshesToUpdateInAllRenderPasses.end();
+       it++) {
+    DEG_id_tag_update(&it->first->id, it->second);
+  }
+
+  for (bNodeTree *ntree : m_nodeTreesToUpdateInAllRenderPasses) {
+    ED_node_tag_update_nodetree(bmain, ntree, nullptr);
+  }
+
+  if (cam && cam == GetOverlayCamera()) {
+    for (std::vector<std::pair<Object *, IDRecalcFlag>>::iterator it =
+         m_extraObjectsToUpdateInOverlayPass.begin();
+         it != m_extraObjectsToUpdateInOverlayPass.end();
+         it++) {
+      DEG_id_tag_update(&it->first->id, it->second);
+    }
+    m_extraObjectsToUpdateInOverlayPass.clear();
+  }
 }
 
 /******************End of EEVEE INTEGRATION****************************/
