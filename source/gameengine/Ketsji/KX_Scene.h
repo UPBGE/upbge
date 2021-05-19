@@ -153,9 +153,9 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
    * because the other render pass can contain the same objects
    * which need to be notified + flushed again.
    */
-  std::map<Object *, IDRecalcFlag> m_extraObjectsToUpdateInAllRenderPasses;
-  std::map<Mesh *, IDRecalcFlag> m_meshesToUpdateInAllRenderPasses;
-  std::map<Object *, IDRecalcFlag> m_extraObjectsToUpdateInOverlayPass;
+  std::vector<std::pair<Object *, IDRecalcFlag>> m_extraObjectsToUpdateInAllRenderPasses;
+  std::vector<std::pair<Mesh *, IDRecalcFlag>> m_meshesToUpdateInAllRenderPasses;
+  std::vector<std::pair<Object *, IDRecalcFlag>> m_extraObjectsToUpdateInOverlayPass;
   std::vector<bNodeTree *> m_nodeTreesToUpdateInAllRenderPasses;
   /*************************************************/
 
@@ -385,6 +385,7 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
   void AppendToMeshesToUpdateInAllRenderPasses(Mesh *me, IDRecalcFlag flag);
   void AppendToNodeTreesToUpdateInAllRenderPasses(bNodeTree *ntree);
   void AppendToExtraObjectsToUpdateInOverlayPass(Object *ob, IDRecalcFlag flag);
+  void TagForExtraObjectsUpdate(Main *bmain, KX_Camera *cam);
   /***************End of EEVEE INTEGRATION**********************/
 
   RAS_BucketManager *GetBucketManager() const;
