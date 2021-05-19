@@ -438,7 +438,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
       scene->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_TRANSFORM);
     }
     else {
-      scene->AppendToExtraObjectsToUpdateInOtherRenderPass(ob, ID_RECALC_TRANSFORM);
+      scene->AppendToExtraObjectsToUpdateInAllRenderPasses(ob, ID_RECALC_TRANSFORM);
     }
 
     BL_ArmatureObject *obj = (BL_ArmatureObject *)m_obj;
@@ -487,7 +487,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
           scene->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_GEOMETRY);
         }
         else {
-          scene->AppendToExtraObjectsToUpdateInOtherRenderPass(ob, ID_RECALC_GEOMETRY);
+          scene->AppendToExtraObjectsToUpdateInAllRenderPasses(ob, ID_RECALC_GEOMETRY);
         }
         PointerRNA ptrrna;
         RNA_id_pointer_create(&ob->id, &ptrrna);
@@ -509,7 +509,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
             scene->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_GEOMETRY);
           }
           else {
-            scene->AppendToExtraObjectsToUpdateInOtherRenderPass(ob, ID_RECALC_GEOMETRY);
+            scene->AppendToExtraObjectsToUpdateInAllRenderPasses(ob, ID_RECALC_GEOMETRY);
           }
           PointerRNA ptrrna;
           RNA_id_pointer_create(&ob->id, &ptrrna);
@@ -531,7 +531,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
             scene->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_TRANSFORM);
           }
           else {
-            scene->AppendToExtraObjectsToUpdateInOtherRenderPass(ob, ID_RECALC_TRANSFORM);
+            scene->AppendToExtraObjectsToUpdateInAllRenderPasses(ob, ID_RECALC_TRANSFORM);
           }
           PointerRNA ptrrna;
           RNA_id_pointer_create(&ob->id, &ptrrna);
@@ -558,7 +558,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
               scene->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_TRANSFORM);
             }
             else {
-              scene->AppendToExtraObjectsToUpdateInOtherRenderPass(ob, ID_RECALC_TRANSFORM);
+              scene->AppendToExtraObjectsToUpdateInAllRenderPasses(ob, ID_RECALC_TRANSFORM);
             }
             PointerRNA ptrrna;
             RNA_id_pointer_create(&ob->id, &ptrrna);
@@ -587,7 +587,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
           }
         }
         if (isRightAction) {
-          scene->AppendToNodeTreesToUpdateInOterRenderPass(nodetree);
+          scene->AppendToNodeTreesToUpdateInAllRenderPasses(nodetree);
           PointerRNA ptrrna;
           RNA_id_pointer_create(&nodetree->id, &ptrrna);
           animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
@@ -604,7 +604,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
       if (ob->type == OB_MESH && me) {
         const bool bHasShapeKey = me->key && me->key->type == KEY_RELATIVE;
         if (bHasShapeKey && me->key->adt && me->key->adt->action == m_action) {
-          scene->AppendToMeshesToUpdateInOtherRenderPass(me, ID_RECALC_GEOMETRY);
+          scene->AppendToMeshesToUpdateInAllRenderPasses(me, ID_RECALC_GEOMETRY);
           Key *key = me->key;
 
           PointerRNA ptrrna;

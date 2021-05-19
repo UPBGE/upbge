@@ -153,10 +153,10 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
    * because the other render pass can contain the same objects
    * which need to be notified + flushed again.
    */
-  std::map<Object *, IDRecalcFlag> m_extraObjectsToUpdateInOtherRenderPass;
-  std::map<Mesh *, IDRecalcFlag> m_meshesToUpdateInOtherRenderPass;
+  std::map<Object *, IDRecalcFlag> m_extraObjectsToUpdateInAllRenderPasses;
+  std::map<Mesh *, IDRecalcFlag> m_meshesToUpdateInAllRenderPasses;
   std::map<Object *, IDRecalcFlag> m_extraObjectsToUpdateInOverlayPass;
-  std::vector<bNodeTree *> m_nodeTreesToUpdateInOtherRenderPass;
+  std::vector<bNodeTree *> m_nodeTreesToUpdateInAllRenderPasses;
   /*************************************************/
 
   RAS_BucketManager *m_bucketmanager;
@@ -381,9 +381,9 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
                          Object *ob,
                          std::vector<Object *> children);
   bool SomethingIsMoving();
-  void AppendToExtraObjectsToUpdateInOtherRenderPass(Object *ob, IDRecalcFlag flag);
-  void AppendToMeshesToUpdateInOtherRenderPass(Mesh *me, IDRecalcFlag flag);
-  void AppendToNodeTreesToUpdateInOterRenderPass(bNodeTree *ntree);
+  void AppendToExtraObjectsToUpdateInAllRenderPasses(Object *ob, IDRecalcFlag flag);
+  void AppendToMeshesToUpdateInAllRenderPasses(Mesh *me, IDRecalcFlag flag);
+  void AppendToNodeTreesToUpdateInAllRenderPasses(bNodeTree *ntree);
   void AppendToExtraObjectsToUpdateInOverlayPass(Object *ob, IDRecalcFlag flag);
   /***************End of EEVEE INTEGRATION**********************/
 

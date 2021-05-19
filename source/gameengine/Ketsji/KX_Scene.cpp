@@ -252,9 +252,9 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
   m_overlay_collections = {};
   m_imageRenderCameraList = {};
-  m_extraObjectsToUpdateInOtherRenderPass = {};
-  m_meshesToUpdateInOtherRenderPass = {};
-  m_nodeTreesToUpdateInOtherRenderPass = {};
+  m_extraObjectsToUpdateInAllRenderPasses = {};
+  m_meshesToUpdateInAllRenderPasses = {};
+  m_nodeTreesToUpdateInAllRenderPasses = {};
   m_extraObjectsToUpdateInOverlayPass = {};
 
   /* To backup and restore obmat */
@@ -696,19 +696,19 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   }
 
   for (std::map<Object *, IDRecalcFlag>::iterator it =
-           m_extraObjectsToUpdateInOtherRenderPass.begin();
-       it != m_extraObjectsToUpdateInOtherRenderPass.end();
+           m_extraObjectsToUpdateInAllRenderPasses.begin();
+       it != m_extraObjectsToUpdateInAllRenderPasses.end();
        it++) {
     DEG_id_tag_update(&it->first->id, it->second);
   }
 
-  for (std::map<Mesh *, IDRecalcFlag>::iterator it = m_meshesToUpdateInOtherRenderPass.begin();
-       it != m_meshesToUpdateInOtherRenderPass.end();
+  for (std::map<Mesh *, IDRecalcFlag>::iterator it = m_meshesToUpdateInAllRenderPasses.begin();
+       it != m_meshesToUpdateInAllRenderPasses.end();
        it++) {
     DEG_id_tag_update(&it->first->id, it->second);
   }
 
-  for (bNodeTree *ntree : m_nodeTreesToUpdateInOtherRenderPass) {
+  for (bNodeTree *ntree : m_nodeTreesToUpdateInAllRenderPasses) {
     ED_node_tag_update_nodetree(bmain, ntree, nullptr);
   }
 
@@ -723,9 +723,9 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   }
 
   if (is_last_render_pass) {
-    m_extraObjectsToUpdateInOtherRenderPass.clear();
-    m_meshesToUpdateInOtherRenderPass.clear();
-    m_nodeTreesToUpdateInOtherRenderPass.clear();
+    m_extraObjectsToUpdateInAllRenderPasses.clear();
+    m_meshesToUpdateInAllRenderPasses.clear();
+    m_nodeTreesToUpdateInAllRenderPasses.clear();
   }
 
   /* We need the changes to be flushed before each draw loop! */
@@ -1301,19 +1301,19 @@ bool KX_Scene::SomethingIsMoving()
   return false;
 }
 
-void KX_Scene::AppendToExtraObjectsToUpdateInOtherRenderPass(Object *ob, IDRecalcFlag flag)
+void KX_Scene::AppendToExtraObjectsToUpdateInAllRenderPasses(Object *ob, IDRecalcFlag flag)
 {
-  m_extraObjectsToUpdateInOtherRenderPass.insert({ob, flag});
+  m_extraObjectsToUpdateInAllRenderPasses.insert({ob, flag});
 }
 
-void KX_Scene::AppendToMeshesToUpdateInOtherRenderPass(Mesh *me, IDRecalcFlag flag)
+void KX_Scene::AppendToMeshesToUpdateInAllRenderPasses(Mesh *me, IDRecalcFlag flag)
 {
-  m_meshesToUpdateInOtherRenderPass.insert({me, flag});
+  m_meshesToUpdateInAllRenderPasses.insert({me, flag});
 }
 
-void KX_Scene::AppendToNodeTreesToUpdateInOterRenderPass(bNodeTree *ntree)
+void KX_Scene::AppendToNodeTreesToUpdateInAllRenderPasses(bNodeTree *ntree)
 {
-  m_nodeTreesToUpdateInOtherRenderPass.push_back(ntree);
+  m_nodeTreesToUpdateInAllRenderPasses.push_back(ntree);
 }
 
 void KX_Scene::AppendToExtraObjectsToUpdateInOverlayPass(Object *ob, IDRecalcFlag flag)
