@@ -196,7 +196,9 @@ void BL_ConvertTextProperty(Object *object,
       break;
     }
     case GPROP_STRING: {
-      propval = new EXP_StringValue(str, "");
+      std::string textprop;
+      stream >> textprop;
+      propval = new EXP_StringValue(str, textprop.c_str());
       break;
     }
     case GPROP_TIME: {
@@ -219,8 +221,9 @@ void BL_ConvertTextProperty(Object *object,
     }
   }
 
-  if (stream.fail() || stream.bad()) {
-    CM_Error("failed convert font property \"Text\"");
+  /* check stream integrity */
+  if (stream.bad()) {
+    CM_Error("Failed to convert font property \"Text\"");
   }
 
   if (propval) {
