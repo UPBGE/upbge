@@ -1809,6 +1809,13 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
       // groupobj holds a list of all objects, that belongs to this group
       groupobj->AddInstanceObjects(gameobj);
 
+      /* If the groupobj itself is parented, parent the top parent instance spawned to invisibled groupobj
+       * to have the same behaviour than in viewport.
+       */
+      if (groupobj->GetParent()) {
+        gameobj->SetParent(groupobj, false, false);
+      }
+
       // every object gets the reference to its dupli-group object
       gameobj->SetDupliGroupObject(groupobj);
     }
