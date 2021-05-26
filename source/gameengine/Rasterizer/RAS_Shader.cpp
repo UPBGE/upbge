@@ -292,6 +292,7 @@ bool RAS_Shader::LinkProgram(bool isCustomShader)
                                   geom.empty() ? nullptr : geom.c_str(),
                                   nullptr,
                                   nullptr,
+                                  nullptr,
                                   GPU_SHADER_TFB_NONE,
                                   NULL,
                                   0,
