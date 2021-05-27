@@ -1292,6 +1292,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
     if (single_object) {
       /* Don't bother with object children during single object conversion */
+      std::cout << "Warning: Object's children are not converted during runtime" << std::endl;
       break;
     }
 
@@ -1625,6 +1626,10 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
       /* BTW, i'm wondering if adding logic bricks on instance_collections
        * can lead to a crash */
       gameobj->SetVisible(false, false);
+
+      if (single_object && (gameobj->GetBlenderObject() == single_object)) {
+        std::cout << "Warning: Groupobj conversion is not supported during runtime " << std::endl;
+      }
 
       /* Don't bother with groups during single object conversion */
       if (!single_object) {
