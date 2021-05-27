@@ -1403,6 +1403,12 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
     for (KX_GameObject *gameobj : sumolist) {
       Object *blenderobject = gameobj->GetBlenderObject();
 
+      if (single_object) {
+        if (blenderobject != single_object) {
+          continue;
+        }
+      }
+
       int nummeshes = gameobj->GetMeshCount();
       RAS_MeshObject *meshobj = 0;
       if (nummeshes > 0) {
