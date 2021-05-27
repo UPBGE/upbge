@@ -452,6 +452,7 @@ typedef struct bActuator {
 #define ACT_EDOB_REPLACE_MESH 2
 #define ACT_EDOB_TRACK_TO 3
 #define ACT_EDOB_DYNAMICS 4
+#define ACT_EDOB_ADD_DUPLI 5
 
 /* editObjectActuator->localflag */
 #define ACT_EDOB_LOCAL_LINV 2

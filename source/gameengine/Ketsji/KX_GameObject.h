@@ -138,6 +138,7 @@ class KX_GameObject : public SCA_IObject {
 
   void TagForTransformUpdate(bool is_last_render_pass);
   void TagForTransformUpdateEvaluated();
+  void DuplicateBlenderObject();
   void ReplicateBlenderObject();
   void HideOriginalObject();
   void RemoveReplicaObject();

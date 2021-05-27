@@ -48,12 +48,15 @@
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_property_types.h"
+#include "DNA_userdef_types.h"
 #include "DRW_render.h"
 #include "ED_node.h"
+#include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_view3d.h"
 #include "GPU_viewport.h"
 #include "WM_api.h"
+#include "WM_types.h"
 #include "wm_draw.h"
 
 #include "BL_BlenderConverter.h"
@@ -1345,6 +1348,77 @@ void KX_Scene::TagForExtraObjectsUpdate(Main *bmain, KX_Camera *cam)
     }
     m_extraObjectsToUpdateInOverlayPass.clear();
   }
+}
+
+KX_GameObject *KX_Scene::DuplicateBlenderObject(KX_GameObject *gameobj, KX_GameObject *reference, float lifespan)
+{
+  Object *ob = gameobj->GetBlenderObject();
+  if (ob) {
+    bContext *C = KX_GetActiveEngine()->GetContext();
+    Main *bmain = CTX_data_main(C);
+    Scene *scene = GetBlenderScene();
+    ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+    Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+    Base *base = BKE_view_layer_base_find(view_layer, ob);
+    if (base) {
+      if (ob->type == OB_MESH) {
+        Object *newob;
+        BKE_id_copy_ex(bmain, &ob->id, (ID **)&newob, 0);
+        id_us_min(&newob->id);
+        Mesh *me = (Mesh *)ob->data;
+        newob->data = BKE_id_copy(bmain, &me->id);
+        id_us_min(&me->id); /* Because new curve is a copy: reduce user count. */
+        BKE_collection_object_add_from(bmain,
+                                       scene,
+                                       BKE_view_layer_camera_find(view_layer),
+                                       newob);  // add replica where is the active camera
+        DEG_relations_tag_update(bmain);
+        DEG_id_tag_update(&me->id, ID_RECALC_GEOMETRY);
+        WM_main_add_notifier(NC_OBJECT | ND_DRAW, newob);
+        TagForCollectionRemap();
+        BKE_scene_graph_update_tagged(depsgraph, bmain);
+        ConvertBlenderObject(newob);
+
+        newob->base_flag |= (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH);
+        newob->restrictflag &= ~OB_RESTRICT_VIEWPORT;
+
+        KX_GameObject *replica = GetObjectList()->GetBack();
+
+        // add a timebomb to this object
+        // lifespan of zero means 'this object lives forever'
+        if (lifespan > 0.0f) {
+          // for now, convert between so called frames and realtime
+          m_tempObjectList.push_back(replica);
+          // this convert the life from frames to sort-of seconds, hard coded 0.02 that assumes we
+          // have 50 frames per second if you change this value, make sure you change it in
+          // KX_GameObject::pyattr_get_life property too
+          EXP_Value *fval = new EXP_FloatValue(lifespan * 0.02f);
+          replica->SetProperty("::timebomb", fval);
+          fval->Release();
+        }
+
+        if (reference) {
+          // At this stage all the objects in the hierarchy have been duplicated,
+          // we can update the scenegraph, we need it for the duplication of logic
+          MT_Vector3 newpos = reference->NodeGetWorldPosition();
+          replica->NodeSetLocalPosition(newpos);
+
+          MT_Matrix3x3 newori = reference->NodeGetWorldOrientation();
+          replica->NodeSetLocalOrientation(newori);
+
+          // get the rootnode's scale
+          MT_Vector3 newscale = reference->GetSGNode()->GetRootSGParent()->GetLocalScale();
+          // set the replica's relative scale with the rootnode's scale
+          replica->NodeSetRelativeScale(newscale);
+        }
+
+        replica->GetSGNode()->UpdateWorldData(0);
+
+        return replica;
+      }
+    }
+  }
+  return nullptr;
 }
 
 /******************End of EEVEE INTEGRATION****************************/

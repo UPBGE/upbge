@@ -50,9 +50,11 @@ SCA_AddObjectActuator::SCA_AddObjectActuator(KX_GameObject *gameobj,
                                              const float *linvel,
                                              bool linv_local,
                                              const float *angvel,
-                                             bool angv_local)
+                                             bool angv_local,
+                                             bool duplicateObject)
     : SCA_IActuator(gameobj, KX_ACT_ADD_OBJECT),
       m_OriginalObject(original),
+      m_duplicateObject(duplicateObject),
       m_scene(scene),
 
       m_localLinvFlag(linv_local),
@@ -277,8 +279,16 @@ void SCA_AddObjectActuator::InstantAddObject()
   if (m_OriginalObject) {
     // Add an identical object, with properties inherited from the original object
     // Now it needs to be added to the current scene.
-    KX_GameObject *replica = m_scene->AddReplicaObject(
+    KX_GameObject *replica = nullptr;
+    if (!m_duplicateObject) {
+      replica = m_scene->AddReplicaObject(
         m_OriginalObject, static_cast<KX_GameObject *>(GetParent()), m_timeProp);
+    }
+    else {
+      replica = m_scene->DuplicateBlenderObject(
+          m_OriginalObject, static_cast<KX_GameObject *>(GetParent()), m_timeProp);
+    }
+
     replica->setLinearVelocity(MT_Vector3(m_linear_velocity), m_localLinvFlag);
     replica->setAngularVelocity(MT_Vector3(m_angular_velocity), m_localAngvFlag);
 
@@ -300,6 +310,9 @@ void SCA_AddObjectActuator::InstantAddObject()
     // but registration
     m_lastCreatedObject->RegisterActuator(this);
     // finished using replica? then release it
-    replica->Release();
+
+    if (!m_duplicateObject) {
+      replica->Release();
+    }
   }
 }
