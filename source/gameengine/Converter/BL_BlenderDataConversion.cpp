@@ -1212,7 +1212,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
       /* macro calls object conversion funcs */
       BL_CONVERTBLENDEROBJECT_SINGLE;
 
-      if (gameobj->IsDupliGroup()) {
+      if (gameobj->IsDupliGroup() && !single_object) { // Don't bother with groups during single object conversion
         grouplist.insert(blenderobject->instance_collection);
       }
 
@@ -1228,7 +1228,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
     }
   }
 
-  if (!grouplist.empty()) {
+  if (!grouplist.empty()) { // always empty during single object conversion
     // now convert the group referenced by dupli group object
     // keep track of all groups already converted
     std::set<Collection *> allgrouplist = grouplist;
@@ -1242,20 +1242,13 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
         Collection *group = *git;
         FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (group, blenderobject) {
           if (converter->FindGameObject(blenderobject) == nullptr) {
-
-            if (single_object) {
-              if (blenderobject != single_object) {
-                continue;
-              }
-            }
-            bool converting_during_runtime = single_object != nullptr;
             groupobj.insert(blenderobject);
             KX_GameObject *gameobj = BL_gameobject_from_blenderobject(blenderobject,
                                                                       kxscene,
                                                                       rendertools,
                                                                       converter,
                                                                       libloading,
-                                                                      converting_during_runtime);
+                                                                      false);
 
             bool isInActiveLayer = false;
             if (gameobj) {
@@ -1297,12 +1290,12 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
   for (pcit = vec_parent_child.begin(); !(pcit == vec_parent_child.end()); ++pcit) {
 
-    struct Object *blenderchild = pcit->m_blenderchild;
     if (single_object) {
-      if (blenderchild != single_object) {
-        continue;
-      }
+      /* Don't bother with object children during single object conversion */
+      break;
     }
+
+    struct Object *blenderchild = pcit->m_blenderchild;
     struct Object *blenderparent = blenderchild->parent;
     KX_GameObject *parentobj = converter->FindGameObject(blenderparent);
     KX_GameObject *childobj = converter->FindGameObject(blenderchild);
@@ -1625,11 +1618,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   int objcount = objectlist->GetCount();
   for (unsigned int i = 0; i < objcount; ++i) {
     KX_GameObject *gameobj = objectlist->GetValue(i);
-    if (single_object) {
-      if (gameobj->GetBlenderObject() != single_object) {
-        continue;
-      }
-    }
     if (gameobj->IsDupliGroup()) {
       /* In 2.8+, hide blenderobjects->instance_collection,
        * they are not meant to be displayed, they only contain
@@ -1638,7 +1626,10 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
        * can lead to a crash */
       gameobj->SetVisible(false, false);
 
-      kxscene->DupliGroupRecurse(gameobj, 0);
+      /* Don't bother with groups during single object conversion */
+      if (!single_object) {
+        kxscene->DupliGroupRecurse(gameobj, 0);
+      }
     }
   }
 }
