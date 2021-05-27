@@ -37,9 +37,11 @@
 #include "KX_Scene.h"
 
 #include "BKE_lib_id.h"
+#include "BKE_lib_remap.h"
 #include "BKE_mball.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
+#include "BKE_sca.h"
 #include "BKE_screen.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
@@ -1362,26 +1364,37 @@ KX_GameObject *KX_Scene::DuplicateBlenderObject(KX_GameObject *gameobj, KX_GameO
     Base *base = BKE_view_layer_base_find(view_layer, ob);
     if (base) {
       if (ob->type == OB_MESH) {
+
+        BKE_sca_clear_new_points(); /* BGE logic */
+
         const eDupli_ID_Flags dupflag = USER_DUP_MESH;
 
-        Base *nb = ED_object_add_duplicate(bmain, scene, view_layer, base, dupflag);
-        DEG_id_tag_update(&nb->object->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
-        //id_us_min(&newob->id);
-        //Mesh *me = (Mesh *)ob->data;
-        //newob->data = BKE_id_copy(bmain, &me->id);
-        //id_us_min(&me->id);
+        Object *obn = (Object *)ID_NEW_SET(
+            ob, BKE_object_duplicate(bmain, ob, dupflag, LIB_ID_DUPLICATE_IS_SUBPROCESS));
+        DEG_id_tag_update(&obn->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
         BKE_collection_object_add_from(bmain,
                                        scene,
                                        BKE_view_layer_camera_find(view_layer),
-                                       nb->object);  // add replica where is the active camera
+                                       obn);  // add replica where is the active camera
 
-        nb->object->base_flag |= (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH);
-        nb->object->restrictflag &= ~OB_RESTRICT_VIEWPORT;
+        /* link own references to the newly duplicated data T26816. */
+        BKE_libblock_relink_to_newid(&obn->id);
+
+        BKE_sca_set_new_points_ob(obn);
+
+        if (obn->data != NULL) {
+          DEG_id_tag_update_ex(bmain, (ID *)obn->data, ID_RECALC_EDITORS);
+        }
+
+        BKE_main_id_clear_newpoins(bmain);
+
+        obn->base_flag |= (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH);
+        obn->restrictflag &= ~OB_RESTRICT_VIEWPORT;
         BKE_main_collection_sync_remap(bmain);
 
         DEG_relations_tag_update(bmain);
         BKE_scene_graph_update_tagged(depsgraph, bmain);
-        ConvertBlenderObject(nb->object);
+        ConvertBlenderObject(obn);
 
         KX_GameObject *replica = GetObjectList()->GetBack();
 
