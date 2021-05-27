@@ -1362,25 +1362,26 @@ KX_GameObject *KX_Scene::DuplicateBlenderObject(KX_GameObject *gameobj, KX_GameO
     Base *base = BKE_view_layer_base_find(view_layer, ob);
     if (base) {
       if (ob->type == OB_MESH) {
-        Object *newob;
-        BKE_id_copy_ex(bmain, &ob->id, (ID **)&newob, 0);
-        id_us_min(&newob->id);
-        Mesh *me = (Mesh *)ob->data;
-        newob->data = BKE_id_copy(bmain, &me->id);
-        id_us_min(&me->id); /* Because new curve is a copy: reduce user count. */
+        const eDupli_ID_Flags dupflag = USER_DUP_MESH;
+
+        Base *nb = ED_object_add_duplicate(bmain, scene, view_layer, base, dupflag);
+        DEG_id_tag_update(&nb->object->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
+        //id_us_min(&newob->id);
+        //Mesh *me = (Mesh *)ob->data;
+        //newob->data = BKE_id_copy(bmain, &me->id);
+        //id_us_min(&me->id);
         BKE_collection_object_add_from(bmain,
                                        scene,
                                        BKE_view_layer_camera_find(view_layer),
-                                       newob);  // add replica where is the active camera
-        DEG_relations_tag_update(bmain);
-        DEG_id_tag_update(&me->id, ID_RECALC_GEOMETRY);
-        WM_main_add_notifier(NC_OBJECT | ND_DRAW, newob);
-        TagForCollectionRemap();
-        BKE_scene_graph_update_tagged(depsgraph, bmain);
-        ConvertBlenderObject(newob);
+                                       nb->object);  // add replica where is the active camera
 
-        newob->base_flag |= (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH);
-        newob->restrictflag &= ~OB_RESTRICT_VIEWPORT;
+        nb->object->base_flag |= (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH);
+        nb->object->restrictflag &= ~OB_RESTRICT_VIEWPORT;
+        BKE_main_collection_sync_remap(bmain);
+
+        DEG_relations_tag_update(bmain);
+        BKE_scene_graph_update_tagged(depsgraph, bmain);
+        ConvertBlenderObject(nb->object);
 
         KX_GameObject *replica = GetObjectList()->GetBack();
 
