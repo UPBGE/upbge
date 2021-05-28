@@ -57,7 +57,6 @@
 #include "GPU_viewport.h"
 #include "WM_api.h"
 #include "wm_draw.h"
-#include "WM_types.h"
 
 #include "BL_BlenderConverter.h"
 #include "BL_BlenderDataConversion.h"
