@@ -1352,7 +1352,7 @@ void KX_Scene::TagForExtraObjectsUpdate(Main *bmain, KX_Camera *cam)
   }
 }
 
-KX_GameObject *KX_Scene::DuplicateBlenderObject(KX_GameObject *gameobj, KX_GameObject *reference, float lifespan)
+KX_GameObject *KX_Scene::AddDuplicaObject(KX_GameObject *gameobj, KX_GameObject *reference, float lifespan)
 {
   Object *ob = gameobj->GetBlenderObject();
   if (ob) {
@@ -3119,7 +3119,7 @@ PyAttributeDef KX_Scene::Attributes[] = {
 
 EXP_PYMETHODDEF_DOC(KX_Scene,
                     addObject,
-                    "addObject(object, other, time=0)\n"
+                    "addObject(object, other, time=0, dupli=0)\n"
                     "Returns the added object.\n")
 {
   PyObject *pyob, *pyreference = Py_None;
@@ -3127,7 +3127,10 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
 
   float time = 0.0f;
 
-  if (!PyArg_ParseTuple(args, "O|Of:addObject", &pyob, &pyreference, &time))
+  //Full duplication of ob->data
+  int duplicate = 0;
+
+  if (!PyArg_ParseTuple(args, "O|Ofi:addObject", &pyob, &pyreference, &time, &duplicate))
     return nullptr;
 
   if (!ConvertPythonToGameObject(
@@ -3135,26 +3138,29 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
           pyob,
           &ob,
           false,
-          "scene.addObject(object, reference, time): KX_Scene (first argument)") ||
+          "scene.addObject(object, reference, time, dupli): KX_Scene (first argument)") ||
       !ConvertPythonToGameObject(
           m_logicmgr,
           pyreference,
           &reference,
           true,
-          "scene.addObject(object, reference, time): KX_Scene (second argument)"))
+          "scene.addObject(object, reference, time, dupli): KX_Scene (second argument)"))
     return nullptr;
 
   if (!m_inactivelist->SearchValue(ob)) {
     PyErr_Format(PyExc_ValueError,
-                 "scene.addObject(object, reference, time): KX_Scene (first argument): object "
+                 "scene.addObject(object, reference, time, dupli): KX_Scene (first argument): object "
                  "must be in an inactive layer");
     return nullptr;
   }
-  KX_GameObject *replica = AddReplicaObject(ob, reference, time);
+  bool dupli = duplicate == 1;
+  KX_GameObject *replica = !dupli ? AddReplicaObject(ob, reference, time) : AddDuplicaObject(ob, reference, time);
 
   // release here because AddReplicaObject AddRef's
   // the object is added to the scene so we don't want python to own a reference
-  replica->Release();
+  if (!dupli) {
+    replica->Release();
+  }
   return replica->GetProxy();
 }
 
