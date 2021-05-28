@@ -1362,7 +1362,7 @@ KX_GameObject *KX_Scene::AddDuplicaObject(KX_GameObject *gameobj, KX_GameObject 
     Base *base = BKE_view_layer_base_find(view_layer, ob);
     if (base) {
       Base *basen = ED_object_add_duplicate(
-          bmain, scene, view_layer, base, eDupli_ID_Flags(USER_DUP_OBDATA));
+          bmain, scene, view_layer, base, USER_DUP_OBDATA);
       BKE_collection_object_add_from(bmain,
                                      scene,
                                      BKE_view_layer_camera_find(view_layer),
