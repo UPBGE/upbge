@@ -38,7 +38,6 @@ class PHY_IMotionState;
 class PHY_IPhysicsEnvironment;
 
 class MT_Vector3;
-class MT_Vector3;
 class MT_Matrix3x3;
 
 class KX_GameObject;
@@ -60,6 +59,7 @@ class PHY_IPhysicsController : public PHY_IController {
   virtual bool SynchronizeMotionStates(float time) = 0;
 
   virtual void UpdateSoftBody() = 0;
+  virtual void SetSoftBodyTransform(const MT_Vector3 &pos, const MT_Matrix3x3 &ori) = 0;
   /**
    * WriteMotionStateToDynamics ynchronizes dynas, kinematic and deformable entities (and do 'late
    * binding')

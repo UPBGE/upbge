@@ -1394,6 +1394,7 @@ KX_GameObject *KX_Scene::DuplicateBlenderObject(KX_GameObject *gameobj, KX_GameO
       }
 
       if (reference) {
+        MT_Vector3 oldpos = replica->NodeGetWorldPosition();
         // At this stage all the objects in the hierarchy have been duplicated,
         // we can update the scenegraph, we need it for the duplication of logic
         MT_Vector3 newpos = reference->NodeGetWorldPosition();
@@ -1406,6 +1407,12 @@ KX_GameObject *KX_Scene::DuplicateBlenderObject(KX_GameObject *gameobj, KX_GameO
         MT_Vector3 newscale = reference->GetSGNode()->GetRootSGParent()->GetLocalScale();
         // set the replica's relative scale with the rootnode's scale
         replica->NodeSetRelativeScale(newscale);
+
+        PHY_IPhysicsController *ctrl = replica->GetPhysicsController();
+
+        if (ctrl) {
+          ctrl->SetSoftBodyTransform(newpos - oldpos, newori);
+        }
       }
 
       replica->GetSGNode()->UpdateWorldData(0);
