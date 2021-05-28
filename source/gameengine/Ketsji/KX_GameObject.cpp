@@ -396,7 +396,6 @@ void KX_GameObject::ReplicateBlenderObject()
     m_isReplica = true;
   }
 }
-
 void KX_GameObject::RemoveReplicaObject()
 {
   Object *ob = GetBlenderObject();
