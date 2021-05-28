@@ -402,36 +402,7 @@ void BL_ConvertActuators(const char *maggiename,
                 (editobact->localflag & ACT_EDOB_LOCAL_LINV) != 0,
                 editobact->angVelocity,
                 (editobact->localflag & ACT_EDOB_LOCAL_ANGV) != 0,
-                false);
-
-            // editobact->ob to gameobj
-            baseact = tmpaddact;
-          } break;
-          case ACT_EDOB_ADD_DUPLI: {
-
-            // does the 'original' for replication exists, and
-            // is it in a non-active layer ?
-            KX_GameObject *originalval = nullptr;
-            if (editobact->ob) {
-              if (editobact->ob->lay & activeLayerBitInfo) {
-                CM_Warning("object \"" << objectname << "\" from AddObject actuator \""
-                                       << uniquename << "\" is not in a hidden layer.");
-              }
-              else {
-                originalval = converter->FindGameObject(editobact->ob);
-              }
-            }
-
-            SCA_AddObjectActuator *tmpaddact = new SCA_AddObjectActuator(
-                gameobj,
-                originalval,
-                editobact->time,
-                scene,
-                editobact->linVelocity,
-                (editobact->localflag & ACT_EDOB_LOCAL_LINV) != 0,
-                editobact->angVelocity,
-                (editobact->localflag & ACT_EDOB_LOCAL_ANGV) != 0,
-                true);
+                (editobact->flag & ACT_EDOB_ADD_OBJECT_DUPLI) != 0);
 
             // editobact->ob to gameobj
             baseact = tmpaddact;

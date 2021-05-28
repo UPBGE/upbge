@@ -1462,7 +1462,6 @@ static void rna_def_edit_object_actuator(BlenderRNA *brna)
 
   static const EnumPropertyItem prop_type_items[] = {
       {ACT_EDOB_ADD_OBJECT, "ADDOBJECT", 0, "Add Object", ""},
-      {ACT_EDOB_ADD_DUPLI, "ADDDUPLI", 0, "Add Dupli Object", ""},
       {ACT_EDOB_END_OBJECT, "ENDOBJECT", 0, "End Object", ""},
       {ACT_EDOB_REPLACE_MESH, "REPLACEMESH", 0, "Replace Mesh", ""},
       {ACT_EDOB_TRACK_TO, "TRACKTO", 0, "Track to", ""},
@@ -1565,6 +1564,13 @@ static void rna_def_edit_object_actuator(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_LOGIC, NULL);
 
   /* booleans */
+  prop = RNA_def_property(srna, "use_object_duplicate", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, NULL, "flag", ACT_EDOB_ADD_OBJECT_DUPLI);
+  RNA_def_property_ui_text(prop, "Full duplication", "Warning: works only for the selected object (not children)");
+  RNA_def_property_boolean_default(prop, false);
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+
   prop = RNA_def_property(srna, "children_recursive_suspend", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(
       prop, NULL, "dyn_operation_flag", ACT_EDOB_SUSPEND_PHY_CHILDREN_RECURSIVE);

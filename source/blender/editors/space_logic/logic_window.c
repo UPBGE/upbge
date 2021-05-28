@@ -1929,21 +1929,9 @@ static void draw_actuator_edit_object(uiLayout *layout, PointerRNA *ptr)
       row = uiLayoutRow(split, false);
       uiItemR(row, ptr, "angular_velocity", 0, NULL, ICON_NONE);
       uiItemR(split, ptr, "use_local_angular_velocity", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
-      break;
-    case ACT_EDOB_ADD_DUPLI:
+
       row = uiLayoutRow(layout, false);
-      uiItemR(row, ptr, "object", 0, NULL, ICON_NONE);
-      uiItemR(row, ptr, "time", 0, NULL, ICON_NONE);
-
-      split = uiLayoutSplit(layout, 0.9, false);
-      row = uiLayoutRow(split, false);
-      uiItemR(row, ptr, "linear_velocity", 0, NULL, ICON_NONE);
-      uiItemR(split, ptr, "use_local_linear_velocity", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
-
-      split = uiLayoutSplit(layout, 0.9, false);
-      row = uiLayoutRow(split, false);
-      uiItemR(row, ptr, "angular_velocity", 0, NULL, ICON_NONE);
-      uiItemR(split, ptr, "use_local_angular_velocity", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
+      uiItemR(row, ptr, "use_object_duplicate", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
       break;
     case ACT_EDOB_END_OBJECT:
       break;
