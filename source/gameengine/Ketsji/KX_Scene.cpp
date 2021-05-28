@@ -1410,6 +1410,7 @@ KX_GameObject *KX_Scene::DuplicateBlenderObject(KX_GameObject *gameobj, KX_GameO
 
         PHY_IPhysicsController *ctrl = replica->GetPhysicsController();
 
+        /* Hack to fix softbody transform after conversion */
         if (ctrl) {
           ctrl->SetSoftBodyTransform(newpos - oldpos, newori);
         }
