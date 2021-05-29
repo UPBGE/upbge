@@ -1372,7 +1372,7 @@ KX_GameObject *KX_Scene::AddDuplicaObject(KX_GameObject *gameobj, KX_GameObject 
       BKE_main_collection_sync_remap(bmain);
 
       DEG_relations_tag_update(bmain);
-      BKE_scene_graph_update_tagged(depsgraph, bmain);
+      //BKE_scene_graph_update_tagged(depsgraph, bmain);
       ConvertBlenderObject(basen->object);
 
       KX_GameObject *replica = GetObjectList()->GetBack();
@@ -1392,8 +1392,6 @@ KX_GameObject *KX_Scene::AddDuplicaObject(KX_GameObject *gameobj, KX_GameObject 
 
       if (reference) {
         MT_Vector3 oldpos = replica->NodeGetWorldPosition();
-        // At this stage all the objects in the hierarchy have been duplicated,
-        // we can update the scenegraph, we need it for the duplication of logic
         MT_Vector3 newpos = reference->NodeGetWorldPosition();
         replica->NodeSetLocalPosition(newpos);
 
