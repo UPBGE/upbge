@@ -1357,7 +1357,7 @@ KX_GameObject *KX_Scene::AddDuplicaObject(KX_GameObject *gameobj, KX_GameObject 
     Main *bmain = CTX_data_main(C);
     Scene *scene = GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-    Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+    //Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
     Base *base = BKE_view_layer_base_find(view_layer, ob);
     if (base) {
       Base *basen = ED_object_add_duplicate(
