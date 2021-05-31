@@ -175,7 +175,7 @@ base class --- :class:`EXP_PyObjectPlus`
 
       :type: Vector((gx, gy, gz))
 
-   .. method:: addObject(object, reference, time=0.0)
+   .. method:: addObject(object, reference, time=0.0, dupli=False)
 
       Adds an object to the scene like the Add Object Actuator would.
 
@@ -187,6 +187,8 @@ base class --- :class:`EXP_PyObjectPlus`
       :type time: float
       :return: The newly added object.
       :rtype: :class:`KX_GameObject`
+      :arg dupli: Full duplication of object data (materials...).
+      :type dupli: boolean
 
    .. method:: end()
 

@@ -386,6 +386,7 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
   void AppendToNodeTreesToUpdateInAllRenderPasses(bNodeTree *ntree);
   void AppendToExtraObjectsToUpdateInOverlayPass(Object *ob, IDRecalcFlag flag);
   void TagForExtraObjectsUpdate(Main *bmain, KX_Camera *cam);
+  KX_GameObject *AddDuplicaObject(KX_GameObject *gameobj, KX_GameObject *reference, float lifespan);
   /***************End of EEVEE INTEGRATION**********************/
 
   RAS_BucketManager *GetBucketManager() const;

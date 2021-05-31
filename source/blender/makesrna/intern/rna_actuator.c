@@ -1564,6 +1564,13 @@ static void rna_def_edit_object_actuator(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_LOGIC, NULL);
 
   /* booleans */
+  prop = RNA_def_property(srna, "use_object_duplicate", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, NULL, "flag", ACT_EDOB_ADD_OBJECT_DUPLI);
+  RNA_def_property_ui_text(prop, "Full duplication", "Warning: works only for the selected object (not children)");
+  RNA_def_property_boolean_default(prop, false);
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+
   prop = RNA_def_property(srna, "children_recursive_suspend", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(
       prop, NULL, "dyn_operation_flag", ACT_EDOB_SUSPEND_PHY_CHILDREN_RECURSIVE);

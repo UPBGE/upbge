@@ -459,6 +459,7 @@ typedef struct bActuator {
 
 /* editObjectActuator->flag */
 #define ACT_TRACK_3D 1
+#define ACT_EDOB_ADD_OBJECT_DUPLI 2
 
 /* editObjectActuator->upflag */
 #define ACT_TRACK_UP_X 0

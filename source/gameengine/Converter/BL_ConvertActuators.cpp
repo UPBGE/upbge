@@ -401,7 +401,8 @@ void BL_ConvertActuators(const char *maggiename,
                 editobact->linVelocity,
                 (editobact->localflag & ACT_EDOB_LOCAL_LINV) != 0,
                 editobact->angVelocity,
-                (editobact->localflag & ACT_EDOB_LOCAL_ANGV) != 0);
+                (editobact->localflag & ACT_EDOB_LOCAL_ANGV) != 0,
+                (editobact->flag & ACT_EDOB_ADD_OBJECT_DUPLI) != 0);
 
             // editobact->ob to gameobj
             baseact = tmpaddact;

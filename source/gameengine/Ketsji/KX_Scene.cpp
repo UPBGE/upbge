@@ -37,6 +37,7 @@
 #include "KX_Scene.h"
 
 #include "BKE_lib_id.h"
+#include "BKE_lib_remap.h"
 #include "BKE_mball.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
@@ -50,6 +51,7 @@
 #include "DNA_property_types.h"
 #include "DRW_render.h"
 #include "ED_node.h"
+#include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_view3d.h"
 #include "GPU_viewport.h"
@@ -1345,6 +1347,76 @@ void KX_Scene::TagForExtraObjectsUpdate(Main *bmain, KX_Camera *cam)
     }
     m_extraObjectsToUpdateInOverlayPass.clear();
   }
+}
+
+KX_GameObject *KX_Scene::AddDuplicaObject(KX_GameObject *gameobj, KX_GameObject *reference, float lifespan)
+{
+  Object *ob = gameobj->GetBlenderObject();
+  if (ob) {
+    bContext *C = KX_GetActiveEngine()->GetContext();
+    Main *bmain = CTX_data_main(C);
+    Scene *scene = GetBlenderScene();
+    ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+    //Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+    Base *base = BKE_view_layer_base_find(view_layer, ob);
+    if (base) {
+      Base *basen = ED_object_add_duplicate(
+          bmain, scene, view_layer, base, USER_DUP_OBDATA);
+      BKE_collection_object_add_from(bmain,
+                                     scene,
+                                     BKE_view_layer_camera_find(view_layer),
+                                     basen->object);  // add replica where is the active camera
+
+      basen->flag |= (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH);
+      basen->object->restrictflag &= ~OB_RESTRICT_VIEWPORT;
+      BKE_main_collection_sync_remap(bmain);
+
+      DEG_relations_tag_update(bmain);
+      //BKE_scene_graph_update_tagged(depsgraph, bmain);
+      ConvertBlenderObject(basen->object);
+
+      KX_GameObject *replica = GetObjectList()->GetBack();
+
+      // add a timebomb to this object
+      // lifespan of zero means 'this object lives forever'
+      if (lifespan > 0.0f) {
+        // for now, convert between so called frames and realtime
+        m_tempObjectList.push_back(replica);
+        // this convert the life from frames to sort-of seconds, hard coded 0.02 that assumes we
+        // have 50 frames per second if you change this value, make sure you change it in
+        // KX_GameObject::pyattr_get_life property too
+        EXP_Value *fval = new EXP_FloatValue(lifespan * 0.02f);
+        replica->SetProperty("::timebomb", fval);
+        fval->Release();
+      }
+
+      if (reference) {
+        MT_Vector3 oldpos = replica->NodeGetWorldPosition();
+        MT_Vector3 newpos = reference->NodeGetWorldPosition();
+        replica->NodeSetLocalPosition(newpos);
+
+        MT_Matrix3x3 newori = reference->NodeGetWorldOrientation();
+        replica->NodeSetLocalOrientation(newori);
+
+        // get the rootnode's scale
+        MT_Vector3 newscale = reference->GetSGNode()->GetRootSGParent()->GetLocalScale();
+        // set the replica's relative scale with the rootnode's scale
+        replica->NodeSetRelativeScale(newscale);
+
+        PHY_IPhysicsController *ctrl = replica->GetPhysicsController();
+
+        /* Hack to fix softbody transform after conversion */
+        if (ctrl) {
+          ctrl->SetSoftBodyTransform(newpos - oldpos, newori);
+        }
+      }
+
+      replica->GetSGNode()->UpdateWorldData(0);
+
+      return replica;
+    }
+  }
+  return nullptr;
 }
 
 /******************End of EEVEE INTEGRATION****************************/
@@ -3042,7 +3114,7 @@ PyAttributeDef KX_Scene::Attributes[] = {
 
 EXP_PYMETHODDEF_DOC(KX_Scene,
                     addObject,
-                    "addObject(object, other, time=0)\n"
+                    "addObject(object, other, time=0, dupli=0)\n"
                     "Returns the added object.\n")
 {
   PyObject *pyob, *pyreference = Py_None;
@@ -3050,7 +3122,10 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
 
   float time = 0.0f;
 
-  if (!PyArg_ParseTuple(args, "O|Of:addObject", &pyob, &pyreference, &time))
+  //Full duplication of ob->data
+  int duplicate = 0;
+
+  if (!PyArg_ParseTuple(args, "O|Ofi:addObject", &pyob, &pyreference, &time, &duplicate))
     return nullptr;
 
   if (!ConvertPythonToGameObject(
@@ -3058,26 +3133,29 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
           pyob,
           &ob,
           false,
-          "scene.addObject(object, reference, time): KX_Scene (first argument)") ||
+          "scene.addObject(object, reference, time, dupli): KX_Scene (first argument)") ||
       !ConvertPythonToGameObject(
           m_logicmgr,
           pyreference,
           &reference,
           true,
-          "scene.addObject(object, reference, time): KX_Scene (second argument)"))
+          "scene.addObject(object, reference, time, dupli): KX_Scene (second argument)"))
     return nullptr;
 
   if (!m_inactivelist->SearchValue(ob)) {
     PyErr_Format(PyExc_ValueError,
-                 "scene.addObject(object, reference, time): KX_Scene (first argument): object "
+                 "scene.addObject(object, reference, time, dupli): KX_Scene (first argument): object "
                  "must be in an inactive layer");
     return nullptr;
   }
-  KX_GameObject *replica = AddReplicaObject(ob, reference, time);
+  bool dupli = duplicate == 1;
+  KX_GameObject *replica = !dupli ? AddReplicaObject(ob, reference, time) : AddDuplicaObject(ob, reference, time);
 
   // release here because AddReplicaObject AddRef's
   // the object is added to the scene so we don't want python to own a reference
-  replica->Release();
+  if (!dupli) {
+    replica->Release();
+  }
   return replica->GetProxy();
 }
 

@@ -50,6 +50,9 @@ class SCA_AddObjectActuator : public SCA_IActuator {
   /// Original object reference (object to replicate)
   KX_GameObject *m_OriginalObject;
 
+  /// Full Object copy
+  bool m_duplicateObject;
+
   /// Object will be added to the following scene
   KX_Scene *m_scene;
 
@@ -78,7 +81,8 @@ class SCA_AddObjectActuator : public SCA_IActuator {
                         const float *linvel,
                         bool linv_local,
                         const float *angvel,
-                        bool angv_local);
+                        bool angv_local,
+                        bool duplicateObject);
 
   ~SCA_AddObjectActuator(void);
 
