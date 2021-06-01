@@ -250,6 +250,24 @@ static int logicbricks_move_property_get(wmOperator *op)
     return false;
 }
 
+static bool remove_component_poll(bContext *C)
+{
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "component", &RNA_PythonComponent);
+  Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id : ED_object_active_context(C);
+
+  if (!ob || ID_IS_LINKED(ob)) {
+    return false;
+  }
+
+  if (ID_IS_OVERRIDE_LIBRARY(ob)) {
+    CTX_wm_operator_poll_msg_set(
+        C, "Cannot remove components coming from linked data in a library override");
+    return false;
+  }
+
+  return true;
+}
+
 /* ************* Add/Remove Sensor Operator ************* */
 
 static int sensor_remove_exec(bContext *C, wmOperator *op)
@@ -945,7 +963,7 @@ static void LOGIC_OT_python_component_remove(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = component_remove_exec;
-  ot->poll = ED_operator_object_active_editable;
+  ot->poll = remove_component_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

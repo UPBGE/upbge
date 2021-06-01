@@ -129,6 +129,8 @@ static void rna_def_py_component(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_update(prop, NC_LOGIC, NULL);
 
+  RNA_define_lib_overridable(true);
+
   prop = RNA_def_property(srna, "show_expanded", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", COMPONENT_SHOW);
   RNA_def_property_ui_text(prop, "Expanded", "Set sensor expanded in the user interface");
@@ -139,6 +141,8 @@ static void rna_def_py_component(BlenderRNA *brna)
   RNA_def_property_collection_sdna(prop, NULL, "properties", NULL);
   RNA_def_property_struct_type(prop, "PythonComponentProperty");
   RNA_def_property_ui_text(prop, "Properties", "Component properties");
+
+  RNA_define_lib_overridable(false);
 }
 
 static void rna_def_py_component_property(BlenderRNA *brna)
@@ -147,6 +151,8 @@ static void rna_def_py_component_property(BlenderRNA *brna)
   PropertyRNA *prop;
 
   static EnumPropertyItem empty_items[] = {{0, "EMPTY", 0, "Empty", ""}, {0, NULL, 0, NULL, NULL}};
+
+  RNA_define_lib_overridable(true);
 
   /* Base Python Component Property */
   srna = RNA_def_struct(brna, "PythonComponentProperty", NULL);
@@ -299,6 +305,8 @@ static void rna_def_py_component_property(BlenderRNA *brna)
 
   POINTER_TYPES
 #  undef PT_DEF
+
+  RNA_define_lib_overridable(false);
 }
 
 void RNA_def_py_component(BlenderRNA *brna)

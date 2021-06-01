@@ -40,6 +40,9 @@ struct PythonComponent *BKE_python_component_create_file(char *import,
 void BKE_python_component_reload(struct PythonComponent *pc,
                                  struct ReportList *reports,
                                  struct bContext *context);
+
+struct PythonComponent *BKE_python_component_copy(PythonComponent *comp);
+
 void BKE_python_component_copy_list(struct ListBase *lbn, const struct ListBase *lbo);
 void BKE_python_component_free(struct PythonComponent *pc);
 void BKE_python_component_free_list(struct ListBase *base);

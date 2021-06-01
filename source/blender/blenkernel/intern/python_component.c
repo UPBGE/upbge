@@ -726,7 +726,7 @@ void BKE_python_component_reload(PythonComponent *pc, ReportList *reports, bCont
   load_component(pc, reports, CTX_data_main(context));
 }
 
-static PythonComponent *copy_component(PythonComponent *comp)
+PythonComponent *BKE_python_component_copy(PythonComponent *comp)
 {
   PythonComponent *compn;
   PythonComponentProperty *cprop, *cpropn;
@@ -751,7 +751,7 @@ void BKE_python_component_copy_list(ListBase *lbn, const ListBase *lbo)
   lbn->first = lbn->last = NULL;
   comp = lbo->first;
   while (comp) {
-    compn = copy_component(comp);
+    compn = BKE_python_component_copy(comp);
     BLI_addtail(lbn, compn);
     comp = comp->next;
   }
