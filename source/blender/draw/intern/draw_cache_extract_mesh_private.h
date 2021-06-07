@@ -325,7 +325,7 @@ typedef struct ExtractLEdgeMesh_Params {
 } ExtractLEdgeMesh_Params;
 typedef void(ExtractLEdgeMeshFn)(const MeshRenderData *mr,
                                  const MEdge *med,
-                                 const uint ledge_index,
+                                 const int ledge_index,
                                  void *data);
 
 #define EXTRACT_LEDGE_FOREACH_MESH_BEGIN(elem_edge, index_ledge, params, mr) \
@@ -407,6 +407,7 @@ typedef void(ExtractLVertMeshFn)(const MeshRenderData *mr,
 /** \name Mesh Elements Extract Struct
  * \{ */
 
+/* TODO(jbakker): move parameters inside a struct. */
 typedef void *(ExtractInitFn)(const MeshRenderData *mr,
                               struct MeshBatchCache *cache,
                               void *buffer);
@@ -430,14 +431,14 @@ typedef struct MeshExtract {
   /** Executed on one worker thread after all elements iterations. */
   ExtractFinishFn *finish;
   /** Used to request common data. */
-  const eMRDataType data_type;
+  eMRDataType data_type;
   /** Used to know if the element callbacks are thread-safe and can be parallelized. */
-  const bool use_threading;
+  bool use_threading;
   /**
    * Offset in bytes of the buffer inside a MeshBufferCache instance. Points to a vertex or index
    * buffer.
    */
-  const size_t mesh_buffer_offset;
+  size_t mesh_buffer_offset;
 } MeshExtract;
 
 /** \} */
@@ -463,8 +464,7 @@ void mesh_render_data_update_looptris(MeshRenderData *mr,
 void *mesh_extract_buffer_get(const MeshExtract *extractor, MeshBufferCache *mbc);
 eMRIterType mesh_extract_iter_type(const MeshExtract *ext);
 const MeshExtract *mesh_extract_override_get(const MeshExtract *extractor,
-                                             const bool do_hq_normals,
-                                             const bool do_lines_loose_subbuffer);
+                                             const bool do_hq_normals);
 /*
  * Total number of extractions types.
  */
@@ -473,6 +473,7 @@ const MeshExtract *mesh_extract_override_get(const MeshExtract *extractor,
 extern const MeshExtract extract_tris;
 extern const MeshExtract extract_lines;
 extern const MeshExtract extract_lines_with_lines_loose;
+extern const MeshExtract extract_lines_loose_only;
 extern const MeshExtract extract_points;
 extern const MeshExtract extract_fdots;
 extern const MeshExtract extract_lines_paint_mask;

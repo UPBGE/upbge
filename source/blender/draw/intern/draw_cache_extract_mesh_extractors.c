@@ -94,463 +94,14 @@ static const MeshExtract *mesh_extract_override_hq_normals(const MeshExtract *ex
   return extractor;
 }
 
-static const MeshExtract *mesh_extract_override_loose_lines(const MeshExtract *extractor)
-{
-  if (extractor == &extract_lines) {
-    return &extract_lines_with_lines_loose;
-  }
-  return extractor;
-}
-
 const MeshExtract *mesh_extract_override_get(const MeshExtract *extractor,
-                                             const bool do_hq_normals,
-                                             const bool do_lines_loose_subbuffer)
+                                             const bool do_hq_normals)
 {
   if (do_hq_normals) {
     extractor = mesh_extract_override_hq_normals(extractor);
   }
-  if (do_lines_loose_subbuffer) {
-    extractor = mesh_extract_override_loose_lines(extractor);
-  }
   return extractor;
 }
-
-/** \} */
-
-/* ---------------------------------------------------------------------- */
-/** \name Extract Triangles Indices
- * \{ */
-
-typedef struct MeshExtract_Tri_Data {
-  GPUIndexBufBuilder elb;
-  int *tri_mat_start;
-  int *tri_mat_end;
-} MeshExtract_Tri_Data;
-
-static void *extract_tris_init(const MeshRenderData *mr,
-                               struct MeshBatchCache *UNUSED(cache),
-                               void *UNUSED(ibo))
-{
-  MeshExtract_Tri_Data *data = MEM_callocN(sizeof(*data), __func__);
-
-  size_t mat_tri_idx_size = sizeof(int) * mr->mat_len;
-  data->tri_mat_start = MEM_callocN(mat_tri_idx_size, __func__);
-  data->tri_mat_end = MEM_callocN(mat_tri_idx_size, __func__);
-
-  int *mat_tri_len = data->tri_mat_start;
-  /* Count how many triangle for each material. */
-  if (mr->extract_type == MR_EXTRACT_BMESH) {
-    BMIter iter;
-    BMFace *efa;
-    BM_ITER_MESH (efa, &iter, mr->bm, BM_FACES_OF_MESH) {
-      if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
-        int mat = min_ii(efa->mat_nr, mr->mat_len - 1);
-        mat_tri_len[mat] += efa->len - 2;
-      }
-    }
-  }
-  else {
-    const MPoly *mp = mr->mpoly;
-    for (int mp_index = 0; mp_index < mr->poly_len; mp_index++, mp++) {
-      if (!(mr->use_hide && (mp->flag & ME_HIDE))) {
-        int mat = min_ii(mp->mat_nr, mr->mat_len - 1);
-        mat_tri_len[mat] += mp->totloop - 2;
-      }
-    }
-  }
-  /* Accumulate triangle lengths per material to have correct offsets. */
-  int ofs = mat_tri_len[0];
-  mat_tri_len[0] = 0;
-  for (int i = 1; i < mr->mat_len; i++) {
-    int tmp = mat_tri_len[i];
-    mat_tri_len[i] = ofs;
-    ofs += tmp;
-  }
-
-  memcpy(data->tri_mat_end, mat_tri_len, mat_tri_idx_size);
-
-  int visible_tri_tot = ofs;
-  GPU_indexbuf_init(&data->elb, GPU_PRIM_TRIS, visible_tri_tot, mr->loop_len);
-
-  return data;
-}
-
-static void extract_tris_iter_looptri_bm(const MeshRenderData *mr,
-                                         BMLoop **elt,
-                                         const int UNUSED(elt_index),
-                                         void *_data)
-{
-  MeshExtract_Tri_Data *data = _data;
-  const int mat_last = mr->mat_len - 1;
-
-  if (!BM_elem_flag_test(elt[0]->f, BM_ELEM_HIDDEN)) {
-    int *mat_tri_ofs = data->tri_mat_end;
-    const int mat = min_ii(elt[0]->f->mat_nr, mat_last);
-    GPU_indexbuf_set_tri_verts(&data->elb,
-                               mat_tri_ofs[mat]++,
-                               BM_elem_index_get(elt[0]),
-                               BM_elem_index_get(elt[1]),
-                               BM_elem_index_get(elt[2]));
-  }
-}
-
-static void extract_tris_iter_looptri_mesh(const MeshRenderData *mr,
-                                           const MLoopTri *mlt,
-                                           const int UNUSED(elt_index),
-                                           void *_data)
-{
-  MeshExtract_Tri_Data *data = _data;
-  const int mat_last = mr->mat_len - 1;
-  const MPoly *mp = &mr->mpoly[mlt->poly];
-  if (!(mr->use_hide && (mp->flag & ME_HIDE))) {
-    int *mat_tri_ofs = data->tri_mat_end;
-    const int mat = min_ii(mp->mat_nr, mat_last);
-    GPU_indexbuf_set_tri_verts(
-        &data->elb, mat_tri_ofs[mat]++, mlt->tri[0], mlt->tri[1], mlt->tri[2]);
-  }
-}
-
-static void extract_tris_finish(const MeshRenderData *mr,
-                                struct MeshBatchCache *cache,
-                                void *buf,
-                                void *_data)
-{
-  GPUIndexBuf *ibo = buf;
-  MeshExtract_Tri_Data *data = _data;
-  GPU_indexbuf_build_in_place(&data->elb, ibo);
-
-  /* Create ibo sub-ranges. Always do this to avoid error when the standard surface batch
-   * is created before the surfaces-per-material. */
-  if (mr->use_final_mesh && cache->final.tris_per_mat) {
-    MeshBufferCache *mbc_final = &cache->final;
-    for (int i = 0; i < mr->mat_len; i++) {
-      /* These IBOs have not been queried yet but we create them just in case they are needed
-       * later since they are not tracked by mesh_buffer_cache_create_requested(). */
-      if (mbc_final->tris_per_mat[i] == NULL) {
-        mbc_final->tris_per_mat[i] = GPU_indexbuf_calloc();
-      }
-      /* Multiply by 3 because these are triangle indices. */
-      const int mat_start = data->tri_mat_start[i];
-      const int mat_end = data->tri_mat_end[i];
-      const int start = mat_start * 3;
-      const int len = (mat_end - mat_start) * 3;
-      GPU_indexbuf_create_subrange_in_place(mbc_final->tris_per_mat[i], ibo, start, len);
-    }
-  }
-  MEM_freeN(data->tri_mat_start);
-  MEM_freeN(data->tri_mat_end);
-  MEM_freeN(data);
-}
-
-const MeshExtract extract_tris = {
-    .init = extract_tris_init,
-    .iter_looptri_bm = extract_tris_iter_looptri_bm,
-    .iter_looptri_mesh = extract_tris_iter_looptri_mesh,
-    .finish = extract_tris_finish,
-    .data_type = 0,
-    .use_threading = false,
-    .mesh_buffer_offset = offsetof(MeshBufferCache, ibo.tris),
-};
-
-/** \} */
-
-/* ---------------------------------------------------------------------- */
-/** \name Extract Edges Indices
- * \{ */
-
-static void *extract_lines_init(const MeshRenderData *mr,
-                                struct MeshBatchCache *UNUSED(cache),
-                                void *UNUSED(buf))
-{
-  GPUIndexBufBuilder *elb = MEM_mallocN(sizeof(*elb), __func__);
-  /* Put loose edges at the end. */
-  GPU_indexbuf_init(
-      elb, GPU_PRIM_LINES, mr->edge_len + mr->edge_loose_len, mr->loop_len + mr->loop_loose_len);
-  return elb;
-}
-
-static void extract_lines_iter_poly_bm(const MeshRenderData *UNUSED(mr),
-                                       BMFace *f,
-                                       const int UNUSED(f_index),
-                                       void *elb)
-{
-  BMLoop *l_iter, *l_first;
-  /* Use #BMLoop.prev to match mesh order (to avoid minor differences in data extraction). */
-  l_iter = l_first = BM_FACE_FIRST_LOOP(f)->prev;
-  do {
-    if (!BM_elem_flag_test(l_iter->e, BM_ELEM_HIDDEN)) {
-      GPU_indexbuf_set_line_verts(elb,
-                                  BM_elem_index_get(l_iter->e),
-                                  BM_elem_index_get(l_iter),
-                                  BM_elem_index_get(l_iter->next));
-    }
-    else {
-      GPU_indexbuf_set_line_restart(elb, BM_elem_index_get(l_iter->e));
-    }
-  } while ((l_iter = l_iter->next) != l_first);
-}
-
-static void extract_lines_iter_poly_mesh(const MeshRenderData *mr,
-                                         const MPoly *mp,
-                                         const int UNUSED(mp_index),
-                                         void *elb)
-{
-  /* Using poly & loop iterator would complicate accessing the adjacent loop. */
-  const MLoop *mloop = mr->mloop;
-  const MEdge *medge = mr->medge;
-  if (mr->use_hide || (mr->extract_type == MR_EXTRACT_MAPPED) || (mr->e_origindex != NULL)) {
-    const int ml_index_last = mp->loopstart + (mp->totloop - 1);
-    int ml_index = ml_index_last, ml_index_next = mp->loopstart;
-    do {
-      const MLoop *ml = &mloop[ml_index];
-      const MEdge *med = &medge[ml->e];
-      if (!((mr->use_hide && (med->flag & ME_HIDE)) ||
-            ((mr->extract_type == MR_EXTRACT_MAPPED) && (mr->e_origindex) &&
-             (mr->e_origindex[ml->e] == ORIGINDEX_NONE)))) {
-        GPU_indexbuf_set_line_verts(elb, ml->e, ml_index, ml_index_next);
-      }
-      else {
-        GPU_indexbuf_set_line_restart(elb, ml->e);
-      }
-    } while ((ml_index = ml_index_next++) != ml_index_last);
-  }
-  else {
-    const int ml_index_last = mp->loopstart + (mp->totloop - 1);
-    int ml_index = ml_index_last, ml_index_next = mp->loopstart;
-    do {
-      const MLoop *ml = &mloop[ml_index];
-      GPU_indexbuf_set_line_verts(elb, ml->e, ml_index, ml_index_next);
-    } while ((ml_index = ml_index_next++) != ml_index_last);
-  }
-}
-
-static void extract_lines_iter_ledge_bm(const MeshRenderData *mr,
-                                        BMEdge *eed,
-                                        const int ledge_index,
-                                        void *elb)
-{
-  const int l_index_offset = mr->edge_len + ledge_index;
-  if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
-    const int l_index = mr->loop_len + ledge_index * 2;
-    GPU_indexbuf_set_line_verts(elb, l_index_offset, l_index, l_index + 1);
-  }
-  else {
-    GPU_indexbuf_set_line_restart(elb, l_index_offset);
-  }
-  /* Don't render the edge twice. */
-  GPU_indexbuf_set_line_restart(elb, BM_elem_index_get(eed));
-}
-
-static void extract_lines_iter_ledge_mesh(const MeshRenderData *mr,
-                                          const MEdge *med,
-                                          const uint ledge_index,
-                                          void *elb)
-{
-  const int l_index_offset = mr->edge_len + ledge_index;
-  const int e_index = mr->ledges[ledge_index];
-  if (!((mr->use_hide && (med->flag & ME_HIDE)) ||
-        ((mr->extract_type == MR_EXTRACT_MAPPED) && (mr->e_origindex) &&
-         (mr->e_origindex[e_index] == ORIGINDEX_NONE)))) {
-    const int l_index = mr->loop_len + ledge_index * 2;
-    GPU_indexbuf_set_line_verts(elb, l_index_offset, l_index, l_index + 1);
-  }
-  else {
-    GPU_indexbuf_set_line_restart(elb, l_index_offset);
-  }
-  /* Don't render the edge twice. */
-  GPU_indexbuf_set_line_restart(elb, e_index);
-}
-
-static void extract_lines_finish(const MeshRenderData *UNUSED(mr),
-                                 struct MeshBatchCache *UNUSED(cache),
-                                 void *buf,
-                                 void *elb)
-{
-  GPUIndexBuf *ibo = buf;
-  GPU_indexbuf_build_in_place(elb, ibo);
-  MEM_freeN(elb);
-}
-
-const MeshExtract extract_lines = {
-    .init = extract_lines_init,
-    .iter_poly_bm = extract_lines_iter_poly_bm,
-    .iter_poly_mesh = extract_lines_iter_poly_mesh,
-    .iter_ledge_bm = extract_lines_iter_ledge_bm,
-    .iter_ledge_mesh = extract_lines_iter_ledge_mesh,
-    .finish = extract_lines_finish,
-    .data_type = 0,
-    .use_threading = false,
-    .mesh_buffer_offset = offsetof(MeshBufferCache, ibo.lines),
-};
-
-/** \} */
-
-/* ---------------------------------------------------------------------- */
-/** \name Extract Loose Edges Sub Buffer
- * \{ */
-
-static void extract_lines_loose_subbuffer(const MeshRenderData *mr, struct MeshBatchCache *cache)
-{
-  BLI_assert(cache->final.ibo.lines);
-  /* Multiply by 2 because these are edges indices. */
-  const int start = mr->edge_len * 2;
-  const int len = mr->edge_loose_len * 2;
-  GPU_indexbuf_create_subrange_in_place(
-      cache->final.ibo.lines_loose, cache->final.ibo.lines, start, len);
-  cache->no_loose_wire = (len == 0);
-}
-
-static void extract_lines_with_lines_loose_finish(const MeshRenderData *mr,
-                                                  struct MeshBatchCache *cache,
-                                                  void *buf,
-                                                  void *elb)
-{
-  GPUIndexBuf *ibo = buf;
-  GPU_indexbuf_build_in_place(elb, ibo);
-  extract_lines_loose_subbuffer(mr, cache);
-  MEM_freeN(elb);
-}
-
-const MeshExtract extract_lines_with_lines_loose = {
-    .init = extract_lines_init,
-    .iter_poly_bm = extract_lines_iter_poly_bm,
-    .iter_poly_mesh = extract_lines_iter_poly_mesh,
-    .iter_ledge_bm = extract_lines_iter_ledge_bm,
-    .iter_ledge_mesh = extract_lines_iter_ledge_mesh,
-    .finish = extract_lines_with_lines_loose_finish,
-    .data_type = 0,
-    .use_threading = false,
-    .mesh_buffer_offset = offsetof(MeshBufferCache, ibo.lines)};
-
-/** \} */
-
-/* ---------------------------------------------------------------------- */
-/** \name Extract Point Indices
- * \{ */
-
-static void *extract_points_init(const MeshRenderData *mr,
-                                 struct MeshBatchCache *UNUSED(cache),
-                                 void *UNUSED(buf))
-{
-  GPUIndexBufBuilder *elb = MEM_mallocN(sizeof(*elb), __func__);
-  GPU_indexbuf_init(elb, GPU_PRIM_POINTS, mr->vert_len, mr->loop_len + mr->loop_loose_len);
-  return elb;
-}
-
-BLI_INLINE void vert_set_bm(GPUIndexBufBuilder *elb, BMVert *eve, int l_index)
-{
-  const int v_index = BM_elem_index_get(eve);
-  if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
-    GPU_indexbuf_set_point_vert(elb, v_index, l_index);
-  }
-  else {
-    GPU_indexbuf_set_point_restart(elb, v_index);
-  }
-}
-
-BLI_INLINE void vert_set_mesh(GPUIndexBufBuilder *elb,
-                              const MeshRenderData *mr,
-                              const int v_index,
-                              const int l_index)
-{
-  const MVert *mv = &mr->mvert[v_index];
-  if (!((mr->use_hide && (mv->flag & ME_HIDE)) ||
-        ((mr->extract_type == MR_EXTRACT_MAPPED) && (mr->v_origindex) &&
-         (mr->v_origindex[v_index] == ORIGINDEX_NONE)))) {
-    GPU_indexbuf_set_point_vert(elb, v_index, l_index);
-  }
-  else {
-    GPU_indexbuf_set_point_restart(elb, v_index);
-  }
-}
-
-static void extract_points_iter_poly_bm(const MeshRenderData *UNUSED(mr),
-                                        BMFace *f,
-                                        const int UNUSED(f_index),
-                                        void *elb)
-{
-  BMLoop *l_iter, *l_first;
-  l_iter = l_first = BM_FACE_FIRST_LOOP(f);
-  do {
-    const int l_index = BM_elem_index_get(l_iter);
-
-    vert_set_bm(elb, l_iter->v, l_index);
-  } while ((l_iter = l_iter->next) != l_first);
-}
-
-static void extract_points_iter_poly_mesh(const MeshRenderData *mr,
-                                          const MPoly *mp,
-                                          const int UNUSED(mp_index),
-                                          void *elb)
-{
-  const MLoop *mloop = mr->mloop;
-  const int ml_index_end = mp->loopstart + mp->totloop;
-  for (int ml_index = mp->loopstart; ml_index < ml_index_end; ml_index += 1) {
-    const MLoop *ml = &mloop[ml_index];
-    vert_set_mesh(elb, mr, ml->v, ml_index);
-  }
-}
-
-static void extract_points_iter_ledge_bm(const MeshRenderData *mr,
-                                         BMEdge *eed,
-                                         const int ledge_index,
-                                         void *elb)
-{
-  vert_set_bm(elb, eed->v1, mr->loop_len + (ledge_index * 2));
-  vert_set_bm(elb, eed->v2, mr->loop_len + (ledge_index * 2) + 1);
-}
-
-static void extract_points_iter_ledge_mesh(const MeshRenderData *mr,
-                                           const MEdge *med,
-                                           const uint ledge_index,
-                                           void *elb)
-{
-  vert_set_mesh(elb, mr, med->v1, mr->loop_len + (ledge_index * 2));
-  vert_set_mesh(elb, mr, med->v2, mr->loop_len + (ledge_index * 2) + 1);
-}
-
-static void extract_points_iter_lvert_bm(const MeshRenderData *mr,
-                                         BMVert *eve,
-                                         const int lvert_index,
-                                         void *elb)
-{
-  const int offset = mr->loop_len + (mr->edge_loose_len * 2);
-  vert_set_bm(elb, eve, offset + lvert_index);
-}
-
-static void extract_points_iter_lvert_mesh(const MeshRenderData *mr,
-                                           const MVert *UNUSED(mv),
-                                           const int lvert_index,
-                                           void *elb)
-{
-  const int offset = mr->loop_len + (mr->edge_loose_len * 2);
-
-  vert_set_mesh(elb, mr, mr->lverts[lvert_index], offset + lvert_index);
-}
-
-static void extract_points_finish(const MeshRenderData *UNUSED(mr),
-                                  struct MeshBatchCache *UNUSED(cache),
-                                  void *buf,
-                                  void *elb)
-{
-  GPUIndexBuf *ibo = buf;
-  GPU_indexbuf_build_in_place(elb, ibo);
-  MEM_freeN(elb);
-}
-
-const MeshExtract extract_points = {
-    .init = extract_points_init,
-    .iter_poly_bm = extract_points_iter_poly_bm,
-    .iter_poly_mesh = extract_points_iter_poly_mesh,
-    .iter_ledge_bm = extract_points_iter_ledge_bm,
-    .iter_ledge_mesh = extract_points_iter_ledge_mesh,
-    .iter_lvert_bm = extract_points_iter_lvert_bm,
-    .iter_lvert_mesh = extract_points_iter_lvert_mesh,
-    .finish = extract_points_finish,
-    .data_type = 0,
-    .use_threading = false,
-    .mesh_buffer_offset = offsetof(MeshBufferCache, ibo.points),
-};
 
 /** \} */
 
@@ -1313,7 +864,7 @@ static void extract_pos_nor_iter_ledge_bm(const MeshRenderData *mr,
 
 static void extract_pos_nor_iter_ledge_mesh(const MeshRenderData *mr,
                                             const MEdge *med,
-                                            const uint ledge_index,
+                                            const int ledge_index,
                                             void *_data)
 {
   MeshExtract_PosNor_Data *data = _data;
@@ -1498,7 +1049,7 @@ static void extract_pos_nor_hq_iter_ledge_bm(const MeshRenderData *mr,
 
 static void extract_pos_nor_hq_iter_ledge_mesh(const MeshRenderData *mr,
                                                const MEdge *med,
-                                               const uint ledge_index,
+                                               const int ledge_index,
                                                void *_data)
 {
   MeshExtract_PosNorHQ_Data *data = _data;
@@ -2538,7 +2089,7 @@ static void extract_edge_fac_iter_ledge_bm(const MeshRenderData *mr,
 
 static void extract_edge_fac_iter_ledge_mesh(const MeshRenderData *mr,
                                              const MEdge *UNUSED(med),
-                                             const uint ledge_index,
+                                             const int ledge_index,
                                              void *_data)
 {
   MeshExtract_EdgeFac_Data *data = _data;
@@ -2967,7 +2518,7 @@ static void extract_edit_data_iter_ledge_bm(const MeshRenderData *mr,
 
 static void extract_edit_data_iter_ledge_mesh(const MeshRenderData *mr,
                                               const MEdge *med,
-                                              const uint ledge_index,
+                                              const int ledge_index,
                                               void *_data)
 {
   EditLoopData *data = (EditLoopData *)_data + mr->loop_len + ledge_index * 2;
@@ -4663,7 +4214,7 @@ static void extract_vert_idx_iter_poly_mesh(const MeshRenderData *mr,
 
 static void extract_edge_idx_iter_ledge_mesh(const MeshRenderData *mr,
                                              const MEdge *UNUSED(med),
-                                             const uint ledge_index,
+                                             const int ledge_index,
                                              void *data)
 {
   const int e_index = mr->ledges[ledge_index];
@@ -4674,7 +4225,7 @@ static void extract_edge_idx_iter_ledge_mesh(const MeshRenderData *mr,
 
 static void extract_vert_idx_iter_ledge_mesh(const MeshRenderData *mr,
                                              const MEdge *med,
-                                             const uint ledge_index,
+                                             const int ledge_index,
                                              void *data)
 {
   int v1_orig = (mr->v_origindex) ? mr->v_origindex[med->v1] : med->v1;
