@@ -694,6 +694,11 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   /* Notify the depsgraph if object transform changed in the scene
    * for next drawing loop. */
   for (KX_GameObject *gameobj : GetObjectList()) {
+    /* LOD physics update */
+    if (gameobj->IsTaggedForPhysicsUpdate()) {
+      gameobj->GetPhysicsController()->ReinstancePhysicsShape(gameobj, nullptr, false, true);
+      gameobj->ResetPhysicsUpdateTag();
+    }
     gameobj->TagForTransformUpdate(is_last_render_pass);
   }
 

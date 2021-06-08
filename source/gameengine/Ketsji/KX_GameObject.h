@@ -87,12 +87,14 @@ void KX_GameObject_Mathutils_Callback_Init(void);
 class KX_GameObject : public SCA_IObject {
   Py_Header protected :
 
-      /* EEVEE INTEGRATION */
-      float m_prevObmat[4][4];
+  /* EEVEE INTEGRATION */
+  float m_prevObmat[4][4];
   bool m_isReplica;
   bool m_useCopy;
   bool m_visibleAtGameStart;
   bool m_forceIgnoreParentTx;
+  bool m_taggedForPhysicsUpdate;
+  short m_previousLodLevel;
   /* END OF EEVEE INTEGRATION */
 
   KX_ClientObjectInfo *m_pClient_info;
@@ -151,6 +153,8 @@ class KX_GameObject : public SCA_IObject {
   void SyncTransformWithDepsgraph();
   void SetIsReplicaObject();
   float *GetPrevObmat();
+  void ResetPhysicsUpdateTag();
+  bool IsTaggedForPhysicsUpdate();
   /* END OF EEVEE INTEGRATION */
 
   /**
