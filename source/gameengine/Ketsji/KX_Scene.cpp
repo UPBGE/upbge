@@ -205,7 +205,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_obstacleSimulation = nullptr;
   }
 
-  m_animationPool = BLI_task_pool_create(&m_animationPoolData, TASK_PRIORITY_LOW);
+  m_animationPool = BLI_task_pool_create(
+      &m_animationPoolData, TASK_PRIORITY_LOW, TASK_ISOLATION_ON);
 
 #ifdef WITH_PYTHON
   m_attr_dict = nullptr;
@@ -989,7 +990,7 @@ void KX_Scene::ConvertBlenderObjectsList(std::vector<Object *> objectslist, bool
     task.bmain = CTX_data_main(C);
     task.objectslist = objectslist;
 
-    TaskPool *taskpool = BLI_task_pool_create(&task, TASK_PRIORITY_LOW);
+    TaskPool *taskpool = BLI_task_pool_create(&task, TASK_PRIORITY_LOW, TASK_ISOLATION_ON);
 
     BLI_task_pool_push(
         taskpool,
@@ -1095,7 +1096,7 @@ void KX_Scene::ConvertBlenderCollection(Collection *co, bool asynchronous)
     task.depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     task.bmain = CTX_data_main(C);
 
-    TaskPool *taskpool = BLI_task_pool_create(&task, TASK_PRIORITY_LOW);
+    TaskPool *taskpool = BLI_task_pool_create(&task, TASK_PRIORITY_LOW, TASK_ISOLATION_ON);
 
     BLI_task_pool_push(taskpool, convert_blender_collection_thread_func, &task, false, NULL);
     BLI_task_pool_work_and_wait(taskpool);
