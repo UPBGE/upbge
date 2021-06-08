@@ -73,7 +73,7 @@ static void extract_lines_iter_poly_mesh(const MeshRenderData *mr,
   /* Using poly & loop iterator would complicate accessing the adjacent loop. */
   const MLoop *mloop = mr->mloop;
   const MEdge *medge = mr->medge;
-  if (mr->use_hide || (mr->extract_type == MR_EXTRACT_MAPPED) || (mr->e_origindex != NULL)) {
+  if (mr->use_hide || (mr->extract_type == MR_EXTRACT_MAPPED) || (mr->e_origindex != nullptr)) {
     const int ml_index_last = mp->loopstart + (mp->totloop - 1);
     int ml_index = ml_index_last, ml_index_next = mp->loopstart;
     do {

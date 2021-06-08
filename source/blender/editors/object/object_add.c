@@ -3507,11 +3507,20 @@ static int object_add_named_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  /* prepare dupli */
-
   BKE_sca_clear_new_points(); /* BGE logic */
 
-  basen = object_add_duplicate_internal(bmain, scene, view_layer, ob, dupflag, 0);
+  /* prepare dupli */
+  basen = object_add_duplicate_internal(
+      bmain,
+      scene,
+      view_layer,
+      ob,
+      dupflag,
+      /* Sub-process flag because the new-ID remapping (#BKE_libblock_relink_to_newid()) in this
+       * function will only work if the object is already linked in the view layer, which is not
+       * the case here. So we have to do the new-ID relinking ourselves (#copy_object_set_idnew()).
+       */
+      LIB_ID_DUPLICATE_IS_SUBPROCESS);
 
   if (basen == NULL) {
     BKE_report(op->reports, RPT_ERROR, "Object could not be duplicated");
