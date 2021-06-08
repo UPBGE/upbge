@@ -1091,7 +1091,9 @@ void KX_GameObject::UpdateLod(const MT_Vector3 &cam_pos, float lodfactor)
     ob_eval->data = eval_lod_ob->data;
 
     if (GetBlenderObject()->gameflag2 & OB_LOD_UPDATE_PHYSICS) {
-      GetPhysicsController()->ReinstancePhysicsShape(this, nullptr, false, true);
+      if (GetPhysicsController()) {
+        GetPhysicsController()->ReinstancePhysicsShape(this, nullptr, false, true);
+      }
     }
   }
 }
