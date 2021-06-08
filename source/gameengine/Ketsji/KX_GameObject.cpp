@@ -1090,7 +1090,7 @@ void KX_GameObject::UpdateLod(const MT_Vector3 &cam_pos, float lodfactor)
     /* Try to get the object with all modifiers applied */
     ob_eval->data = eval_lod_ob->data;
 
-    if (GetBlenderObject()->gameflag2 & OB_LOD_UPDATE_PHYSICS) {
+    if (GetBlenderObject()->gameflag & OB_LOD_UPDATE_PHYSICS) {
       if (GetPhysicsController()) {
         GetPhysicsController()->ReinstancePhysicsShape(this, nullptr, false, true);
       }
