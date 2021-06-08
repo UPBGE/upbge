@@ -579,6 +579,9 @@ class OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
         col = layout.column()
         col.prop(ob, "lod_factor", text="Distance Factor")
 
+        col = layout.column()
+        col.prop(ob, "use_lod_physics", text="Physics Update")
+
         for i, level in enumerate(ob.lod_levels):
             if i == 0:
                 continue

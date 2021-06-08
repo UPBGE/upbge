@@ -4490,6 +4490,10 @@ static void rna_def_object(BlenderRNA *brna)
       prop, "Level of Detail Distance Factor", "The factor applied to distance computed in Lod");
   RNA_def_property_update(prop, NC_OBJECT | ND_LOD, NULL);
 
+  prop = RNA_def_property(srna, "use_lod_physics", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "gameflag2", OB_LOD_UPDATE_PHYSICS);
+  RNA_def_property_ui_text(prop, "LOD physics update", "Update LOD physics shape in the same time than render shape");
+
   /* Base Settings */
   prop = RNA_def_property(srna, "is_from_instancer", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "base_flag", BASE_FROM_DUPLI);

@@ -823,6 +823,8 @@ enum {
   OB_RECORD_ANIMATION = 1 << 23,
 
   OB_OVERLAY_COLLECTION = 1 << 24,
+
+  OB_LOD_UPDATE_PHYSICS = 1 << 25,
 };
 
 /* ob->gameflag2 */
