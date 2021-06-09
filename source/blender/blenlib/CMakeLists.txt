@@ -145,6 +145,9 @@ set(SRC
   intern/winstuff.c
   intern/winstuff_dir.c
 
+  # Private headers.
+  intern/BLI_mempool_private.h
+
   ../../../extern/wcwidth/wcwidth.c
 
   # Header as source (included in C files above).
