@@ -93,7 +93,6 @@ class KX_GameObject : public SCA_IObject {
   bool m_useCopy;
   bool m_visibleAtGameStart;
   bool m_forceIgnoreParentTx;
-  bool m_taggedForPhysicsUpdate;
   short m_previousLodLevel;
   /* END OF EEVEE INTEGRATION */
 
@@ -153,8 +152,6 @@ class KX_GameObject : public SCA_IObject {
   void SyncTransformWithDepsgraph();
   void SetIsReplicaObject();
   float *GetPrevObmat();
-  void ResetPhysicsUpdateTag();
-  bool IsTaggedForPhysicsUpdate();
   /* END OF EEVEE INTEGRATION */
 
   /**

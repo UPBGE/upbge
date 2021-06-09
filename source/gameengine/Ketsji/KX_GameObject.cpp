@@ -87,7 +87,6 @@ KX_GameObject::KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
       m_isReplica(false),              // eevee
       m_visibleAtGameStart(false),     // eevee
       m_forceIgnoreParentTx(false),    // eevee
-      m_taggedForPhysicsUpdate(false), // eevee
       m_previousLodLevel(-1),          // eevee
       m_layer(0),
       m_lodManager(nullptr),
@@ -552,16 +551,6 @@ void KX_GameObject::SetIsReplicaObject()
 float *KX_GameObject::GetPrevObmat()
 {
   return (float *)m_prevObmat;
-}
-
-void KX_GameObject::ResetPhysicsUpdateTag()
-{
-  m_taggedForPhysicsUpdate = false;
-}
-
-bool KX_GameObject::IsTaggedForPhysicsUpdate()
-{
-  return m_taggedForPhysicsUpdate;
 }
 
 /********************End of EEVEE INTEGRATION*********************/
@@ -1081,6 +1070,7 @@ void KX_GameObject::UpdateLod(const MT_Vector3 &cam_pos, float lodfactor)
   const float distance2 = NodeGetWorldPosition().distance2(cam_pos) * (lodfactor * lodfactor);
   KX_LodLevel *lodLevel = m_lodManager->GetLevel(scene, m_currentLodLevel, distance2);
 
+  bool updatePhysicsShape = false;
   if (GetBlenderObject()->gameflag & OB_LOD_UPDATE_PHYSICS) {
     if (GetPhysicsController()) {
       /* As m_previousLodLevel is initialized to -1,
@@ -1088,7 +1078,7 @@ void KX_GameObject::UpdateLod(const MT_Vector3 &cam_pos, float lodfactor)
        * to match the lodLevel or the absence of lodLevel
        */
       if (m_currentLodLevel != m_previousLodLevel) {
-        m_taggedForPhysicsUpdate = true;
+        updatePhysicsShape = true;
         m_previousLodLevel = m_currentLodLevel;
       }
     }
@@ -1115,6 +1105,10 @@ void KX_GameObject::UpdateLod(const MT_Vector3 &cam_pos, float lodfactor)
     Object *eval_lod_ob = DEG_get_evaluated_object(depsgraph, currentLodLevel->GetObject());
     /* Try to get the object with all modifiers applied */
     ob_eval->data = eval_lod_ob->data;
+  }
+
+  if (updatePhysicsShape) {
+    GetPhysicsController()->ReinstancePhysicsShape(this, nullptr, false, true);
   }
 }
 
