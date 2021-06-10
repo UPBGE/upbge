@@ -130,6 +130,7 @@ if(WITH_XR_OPENXR)
 endif()
 
 if(WITH_GMP)
+  blender_include_dirs(${GMP_INCLUDE_DIRS})
   add_definitions(-DWITH_GMP)
 endif()
 
@@ -931,6 +932,7 @@ elseif(WIN32)
       DESTINATION "."
       CONFIGURATIONS Debug
     )
+    list(APPEND LIB ${TBB_MALLOC_LIBRARIES})
   endif()
 
   if(WITH_CODEC_SNDFILE)
