@@ -6401,6 +6401,7 @@ void UI_but_drag_set_asset(uiBut *but,
                            const char *name,
                            const char *path,
                            int id_type,
+                           int import_type,
                            int icon,
                            struct ImBuf *imb,
                            float scale)
@@ -6410,6 +6411,7 @@ void UI_but_drag_set_asset(uiBut *but,
   BLI_strncpy(asset_drag->name, name, sizeof(asset_drag->name));
   asset_drag->path = path;
   asset_drag->id_type = id_type;
+  asset_drag->import_type = import_type;
 
   but->dragtype = WM_DRAG_ASSET;
   ui_def_but_icon(but, icon, 0); /* no flag UI_HAS_ICON, so icon doesn't draw in button */
