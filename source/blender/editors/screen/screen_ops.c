@@ -1367,6 +1367,7 @@ static int area_dupli_invoke(bContext *C, wmOperator *op, const wmEvent *event)
                                     area->winx,
                                     area->winy,
                                     SPACE_EMPTY,
+                                    false,
                                     true,
                                     false,
                                     WIN_ALIGN_ABSOLUTE);
@@ -4960,6 +4961,7 @@ static int userpref_show_exec(bContext *C, wmOperator *op)
                      sizey,
                      SPACE_USERPREF,
                      false,
+                     false,
                      true,
                      WIN_ALIGN_LOCATION_CENTER) != NULL) {
     /* The header only contains the editor switcher and looks empty.
@@ -5025,6 +5027,7 @@ static int drivers_editor_show_exec(bContext *C, wmOperator *op)
                      sizex,
                      sizey,
                      SPACE_GRAPH,
+                     false,
                      false,
                      true,
                      WIN_ALIGN_LOCATION_CENTER) != NULL) {
@@ -5093,6 +5096,7 @@ static int info_log_show_exec(bContext *C, wmOperator *op)
                      sizex,
                      sizey,
                      SPACE_INFO,
+                     false,
                      false,
                      true,
                      WIN_ALIGN_LOCATION_CENTER) != NULL) {
