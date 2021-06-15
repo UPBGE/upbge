@@ -1,6 +1,4 @@
 /*
- * Copyright 2017, Blender Foundation.
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -14,27 +12,26 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Contributor: IRIE Shinsuke
+ */
+
+/** \file
+ * \ingroup blenloader
  */
 
 #pragma once
 
-#include "COM_Node.h"
+struct ARegion;
+struct ListBase;
 
-namespace blender::compositor {
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-/**
- * \brief AntiAliasingNode
- * \ingroup Node
- */
-class AntiAliasingNode : public Node {
- public:
-  AntiAliasingNode(bNode *editorNode) : Node(editorNode)
-  {
-  }
-  void convertToOperations(NodeConverter &converter,
-                           const CompositorContext &context) const override;
-};
+struct ARegion *do_versions_add_region_if_not_found(struct ListBase *regionbase,
+                                                    int region_type,
+                                                    const char *name,
+                                                    int link_after_region_type);
 
-}  // namespace blender::compositor
+#ifdef __cplusplus
+}
+#endif

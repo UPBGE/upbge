@@ -108,7 +108,7 @@ BL_BlenderConverter::BL_BlenderConverter(Main *maggie, KX_KetsjiEngine *engine)
     : m_maggie(maggie), m_ketsjiEngine(engine), m_alwaysUseExpandFraming(false)
 {
   BKE_main_id_tag_all(maggie, LIB_TAG_DOIT, false);  // avoid re-tagging later on
-  m_threadinfo.m_pool = BLI_task_pool_create(nullptr, TASK_PRIORITY_LOW, TASK_ISOLATION_ON);
+  m_threadinfo.m_pool = BLI_task_pool_create(nullptr, TASK_PRIORITY_LOW);
 }
 
 BL_BlenderConverter::~BL_BlenderConverter()

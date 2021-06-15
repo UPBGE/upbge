@@ -55,7 +55,7 @@ void save_screenshot_thread_func(TaskPool *__restrict pool, void *taskdata, int 
 
 RAS_ICanvas::RAS_ICanvas(RAS_Rasterizer *rasty) : m_rasterizer(rasty), m_samples(0)
 {
-  m_taskpool = BLI_task_pool_create(nullptr, TASK_PRIORITY_LOW, TASK_ISOLATION_ON);
+  m_taskpool = BLI_task_pool_create(nullptr, TASK_PRIORITY_LOW);
 }
 
 RAS_ICanvas::~RAS_ICanvas()
