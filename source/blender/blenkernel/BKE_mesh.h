@@ -135,7 +135,10 @@ bool BKE_mesh_clear_facemap_customdata(struct Mesh *me);
 
 float (*BKE_mesh_orco_verts_get(struct Object *ob))[3];
 void BKE_mesh_orco_verts_transform(struct Mesh *me, float (*orco)[3], int totvert, int invert);
-int test_index_face(struct MFace *mface, struct CustomData *mfdata, int mfindex, int nr);
+int BKE_mesh_mface_index_validate(struct MFace *mface,
+                                  struct CustomData *mfdata,
+                                  int mfindex,
+                                  int nr);
 struct Mesh *BKE_mesh_from_object(struct Object *ob);
 void BKE_mesh_assign_object(struct Main *bmain, struct Object *ob, struct Mesh *me);
 void BKE_mesh_from_metaball(struct ListBase *lb, struct Mesh *me);
@@ -249,7 +252,6 @@ void BKE_mesh_translate(struct Mesh *me, const float offset[3], const bool do_ke
 
 void BKE_mesh_ensure_navmesh(struct Mesh *me);
 
-void BKE_mesh_tessface_calc(struct Mesh *mesh);
 void BKE_mesh_tessface_ensure(struct Mesh *mesh);
 void BKE_mesh_tessface_clear(struct Mesh *mesh);
 
@@ -271,6 +273,32 @@ void BKE_mesh_vert_coords_apply_with_mat4(struct Mesh *mesh,
                                           const float mat[4][4]);
 void BKE_mesh_vert_coords_apply(struct Mesh *mesh, const float (*vert_coords)[3]);
 void BKE_mesh_vert_normals_apply(struct Mesh *mesh, const short (*vert_normals)[3]);
+
+/* *** mesh_tessellate.c *** */
+
+void BKE_mesh_loops_to_tessdata(struct CustomData *fdata,
+                                struct CustomData *ldata,
+                                struct MFace *mface,
+                                const int *polyindices,
+                                unsigned int (*loopindices)[4],
+                                const int num_faces);
+
+int BKE_mesh_tessface_calc_ex(struct CustomData *fdata,
+                              struct CustomData *ldata,
+                              struct CustomData *pdata,
+                              struct MVert *mvert,
+                              int totface,
+                              int totloop,
+                              int totpoly,
+                              const bool do_face_nor_copy);
+void BKE_mesh_tessface_calc(struct Mesh *mesh);
+
+void BKE_mesh_recalc_looptri(const struct MLoop *mloop,
+                             const struct MPoly *mpoly,
+                             const struct MVert *mvert,
+                             int totloop,
+                             int totpoly,
+                             struct MLoopTri *mlooptri);
 
 /* *** mesh_evaluate.c *** */
 
@@ -511,45 +539,6 @@ void BKE_mesh_calc_volume(const struct MVert *mverts,
                           float r_center[3]);
 
 /* tessface */
-void BKE_mesh_loops_to_mface_corners(struct CustomData *fdata,
-                                     struct CustomData *ldata,
-                                     struct CustomData *pdata,
-                                     unsigned int lindex[4],
-                                     int findex,
-                                     const int polyindex,
-                                     const int mf_len,
-                                     const int numUV,
-                                     const int numCol,
-                                     const bool hasPCol,
-                                     const bool hasOrigSpace,
-                                     const bool hasLNor);
-void BKE_mesh_loops_to_tessdata(struct CustomData *fdata,
-                                struct CustomData *ldata,
-                                struct MFace *mface,
-                                const int *polyindices,
-                                unsigned int (*loopindices)[4],
-                                const int num_faces);
-void BKE_mesh_tangent_loops_to_tessdata(struct CustomData *fdata,
-                                        struct CustomData *ldata,
-                                        struct MFace *mface,
-                                        const int *polyindices,
-                                        unsigned int (*loopindices)[4],
-                                        const int num_faces,
-                                        const char *layer_name);
-int BKE_mesh_tessface_calc_ex(struct CustomData *fdata,
-                              struct CustomData *ldata,
-                              struct CustomData *pdata,
-                              struct MVert *mvert,
-                              int totface,
-                              int totloop,
-                              int totpoly,
-                              const bool do_face_nor_copy);
-void BKE_mesh_recalc_looptri(const struct MLoop *mloop,
-                             const struct MPoly *mpoly,
-                             const struct MVert *mvert,
-                             int totloop,
-                             int totpoly,
-                             struct MLoopTri *mlooptri);
 void BKE_mesh_convert_mfaces_to_mpolys(struct Mesh *mesh);
 void BKE_mesh_do_versions_convert_mfaces_to_mpolys(struct Mesh *mesh);
 void BKE_mesh_convert_mfaces_to_mpolys_ex(struct ID *id,

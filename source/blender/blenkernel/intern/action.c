@@ -665,8 +665,8 @@ bPoseChannel *BKE_pose_channel_ensure(bPose *pose, const char *name)
   unit_axis_angle(chan->rotAxis, &chan->rotAngle);
   chan->size[0] = chan->size[1] = chan->size[2] = 1.0f;
 
-  chan->scale_in_x = chan->scale_in_y = 1.0f;
-  chan->scale_out_x = chan->scale_out_y = 1.0f;
+  copy_v3_fl(chan->scale_in, 1.0f);
+  copy_v3_fl(chan->scale_out, 1.0f);
 
   chan->limitmin[0] = chan->limitmin[1] = chan->limitmin[2] = -M_PI;
   chan->limitmax[0] = chan->limitmax[1] = chan->limitmax[2] = M_PI;
@@ -1206,13 +1206,13 @@ static void copy_pose_channel_data(bPoseChannel *pchan, const bPoseChannel *chan
   pchan->roll1 = chan->roll1;
   pchan->roll2 = chan->roll2;
   pchan->curve_in_x = chan->curve_in_x;
-  pchan->curve_in_y = chan->curve_in_y;
+  pchan->curve_in_z = chan->curve_in_z;
   pchan->curve_out_x = chan->curve_out_x;
-  pchan->curve_out_y = chan->curve_out_y;
+  pchan->curve_out_z = chan->curve_out_z;
   pchan->ease1 = chan->ease1;
   pchan->ease2 = chan->ease2;
-  pchan->scale_in_x = chan->scale_in_y;
-  pchan->scale_out_x = chan->scale_out_y;
+  copy_v3_v3(pchan->scale_in, chan->scale_in);
+  copy_v3_v3(pchan->scale_out, chan->scale_out);
 
   con = chan->constraints.first;
   for (pcon = pchan->constraints.first; pcon && con; pcon = pcon->next, con = con->next) {
@@ -1712,11 +1712,12 @@ void BKE_pose_rest(bPose *pose, bool selected_bones_only)
     pchan->size[0] = pchan->size[1] = pchan->size[2] = 1.0f;
 
     pchan->roll1 = pchan->roll2 = 0.0f;
-    pchan->curve_in_x = pchan->curve_in_y = 0.0f;
-    pchan->curve_out_x = pchan->curve_out_y = 0.0f;
+    pchan->curve_in_x = pchan->curve_in_z = 0.0f;
+    pchan->curve_out_x = pchan->curve_out_z = 0.0f;
     pchan->ease1 = pchan->ease2 = 0.0f;
-    pchan->scale_in_x = pchan->scale_in_y = 1.0f;
-    pchan->scale_out_x = pchan->scale_out_y = 1.0f;
+
+    copy_v3_fl(pchan->scale_in, 1.0f);
+    copy_v3_fl(pchan->scale_out, 1.0f);
 
     pchan->flag &= ~(POSE_LOC | POSE_ROT | POSE_SIZE | POSE_BBONE_SHAPE);
   }
@@ -1739,15 +1740,14 @@ void BKE_pose_copy_pchan_result(bPoseChannel *pchanto, const bPoseChannel *pchan
   pchanto->roll1 = pchanfrom->roll1;
   pchanto->roll2 = pchanfrom->roll2;
   pchanto->curve_in_x = pchanfrom->curve_in_x;
-  pchanto->curve_in_y = pchanfrom->curve_in_y;
+  pchanto->curve_in_z = pchanfrom->curve_in_z;
   pchanto->curve_out_x = pchanfrom->curve_out_x;
-  pchanto->curve_out_y = pchanfrom->curve_out_y;
+  pchanto->curve_out_z = pchanfrom->curve_out_z;
   pchanto->ease1 = pchanfrom->ease1;
   pchanto->ease2 = pchanfrom->ease2;
-  pchanto->scale_in_x = pchanfrom->scale_in_x;
-  pchanto->scale_in_y = pchanfrom->scale_in_y;
-  pchanto->scale_out_x = pchanfrom->scale_out_x;
-  pchanto->scale_out_y = pchanfrom->scale_out_y;
+
+  copy_v3_v3(pchanto->scale_in, pchanfrom->scale_in);
+  copy_v3_v3(pchanto->scale_out, pchanfrom->scale_out);
 
   pchanto->rotmode = pchanfrom->rotmode;
   pchanto->flag = pchanfrom->flag;
