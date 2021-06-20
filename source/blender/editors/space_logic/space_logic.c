@@ -83,7 +83,7 @@ ARegion *logic_has_buttons_region(ScrArea *sa)
   return arnew;
 }
 
-/* ******************** default callbacks for image space ***************** */
+/* ******************** default callbacks for logic space ***************** */
 
 static SpaceLink *logic_new(const ScrArea *sa, const Scene *UNUSED(scene))
 {
