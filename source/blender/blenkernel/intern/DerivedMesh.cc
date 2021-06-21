@@ -617,7 +617,7 @@ void DM_update_tessface_data(DerivedMesh *dm)
      * poly, see tessellation code). So we pass the MFace's, and BKE_mesh_loops_to_tessdata will
      * use MFace->v4 index as quad test.
      */
-    BKE_mesh_loops_to_tessdata(fdata, ldata, mface, polyindex, loopindex, totface);
+    mesh_loops_to_tessdata(fdata, ldata, mface, polyindex, loopindex, totface);
 
     MEM_freeN(loopindex);
   }

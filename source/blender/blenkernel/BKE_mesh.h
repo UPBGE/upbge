@@ -276,12 +276,12 @@ void BKE_mesh_vert_normals_apply(struct Mesh *mesh, const short (*vert_normals)[
 
 /* *** mesh_tessellate.c *** */
 
-void BKE_mesh_loops_to_tessdata(struct CustomData *fdata,
-                                struct CustomData *ldata,
-                                struct MFace *mface,
-                                const int *polyindices,
-                                unsigned int (*loopindices)[4],
-                                const int num_faces);
+void mesh_loops_to_tessdata(struct CustomData *fdata, //UPBGE (not static)
+                       struct CustomData *ldata,
+                       struct MFace *mface,
+                       const int *polyindices,
+                       uint (*loopindices)[4],
+                       const int num_faces);
 
 int BKE_mesh_tessface_calc_ex(struct CustomData *fdata,
                               struct CustomData *ldata,
@@ -299,6 +299,13 @@ void BKE_mesh_recalc_looptri(const struct MLoop *mloop,
                              int totloop,
                              int totpoly,
                              struct MLoopTri *mlooptri);
+void BKE_mesh_recalc_looptri_with_normals(const struct MLoop *mloop,
+                                          const struct MPoly *mpoly,
+                                          const struct MVert *mvert,
+                                          int totloop,
+                                          int totpoly,
+                                          struct MLoopTri *mlooptri,
+                                          const float (*poly_normals)[3]);
 
 /* *** mesh_evaluate.c *** */
 
