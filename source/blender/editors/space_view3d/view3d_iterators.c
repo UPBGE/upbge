@@ -51,13 +51,13 @@
 #include "ED_view3d.h"
 
 /* -------------------------------------------------------------------- */
-/** \name Clipping Plane Utility
- *
- * Calculate clipping planes to use when #V3D_PROJ_TEST_CLIP_CONTENT is enabled.
+/** \name Internal Clipping Utilities
  * \{ */
 
 /**
- * Calculate clip planes from the viewpoint using `clip_flag`
+ * Calculate clipping planes to use when #V3D_PROJ_TEST_CLIP_CONTENT is enabled.
+ *
+ * Planes are selected from the viewpoint using `clip_flag`
  * to detect which planes should be applied (maximum 6).
  *
  * \return The number of planes written into `planes`.
@@ -67,24 +67,31 @@ static int content_planes_from_clip_flag(const ARegion *region,
                                          const eV3DProjTest clip_flag,
                                          float planes[6][4])
 {
+  BLI_assert(clip_flag & V3D_PROJ_TEST_CLIP_CONTENT);
+
   float *clip_xmin = NULL, *clip_xmax = NULL;
   float *clip_ymin = NULL, *clip_ymax = NULL;
   float *clip_zmin = NULL, *clip_zmax = NULL;
 
   int planes_len = 0;
 
+  /* The order of `planes` has been selected based on the likelihood of points being fully
+   * outside the plane to increase the chance of an early exit in #clip_segment_v3_plane_n.
+   * With "near" being most likely and "far" being unlikely.
+   *
+   * Otherwise the order of axes in `planes` isn't significant. */
+
   if (clip_flag & V3D_PROJ_TEST_CLIP_NEAR) {
     clip_zmin = planes[planes_len++];
   }
-  if (clip_flag & V3D_PROJ_TEST_CLIP_FAR) {
-    clip_zmax = planes[planes_len++];
-  }
   if (clip_flag & V3D_PROJ_TEST_CLIP_WIN) {
-    /* The order in `planes` doesn't matter as all planes are looped over. */
     clip_xmin = planes[planes_len++];
     clip_xmax = planes[planes_len++];
     clip_ymin = planes[planes_len++];
     clip_ymax = planes[planes_len++];
+  }
+  if (clip_flag & V3D_PROJ_TEST_CLIP_FAR) {
+    clip_zmax = planes[planes_len++];
   }
 
   BLI_assert(planes_len <= 6);
@@ -97,6 +104,110 @@ static int content_planes_from_clip_flag(const ARegion *region,
   return planes_len;
 }
 
+/**
+ * Edge projection is more involved since part of the edge may be behind the view
+ * or extend beyond the far limits. In the case of single points, these can be ignored.
+ * However it just may still be visible on screen, so constrained the edge to planes
+ * defined by the port to ensure both ends of the edge can be projected, see T32214.
+ *
+ * \note This is unrelated to #V3D_PROJ_TEST_CLIP_BB which must be checked separately.
+ */
+static bool view3d_project_segment_to_screen_with_content_clip_planes(
+    const ARegion *region,
+    const float v_a[3],
+    const float v_b[3],
+    const eV3DProjTest clip_flag,
+    const rctf *win_rect,
+    const float content_planes[][4],
+    const int content_planes_len,
+    /* Output. */
+    float r_screen_co_a[2],
+    float r_screen_co_b[2])
+{
+  /* Clipping already handled, no need to check in projection. */
+  eV3DProjTest clip_flag_nowin = clip_flag & ~V3D_PROJ_TEST_CLIP_WIN;
+
+  const eV3DProjStatus status_a = ED_view3d_project_float_object(
+      region, v_a, r_screen_co_a, clip_flag_nowin);
+  const eV3DProjStatus status_b = ED_view3d_project_float_object(
+      region, v_b, r_screen_co_b, clip_flag_nowin);
+
+  if ((status_a == V3D_PROJ_RET_OK) && (status_b == V3D_PROJ_RET_OK)) {
+    if (clip_flag & V3D_PROJ_TEST_CLIP_WIN) {
+      if (!BLI_rctf_isect_segment(win_rect, r_screen_co_a, r_screen_co_b)) {
+        return false;
+      }
+    }
+  }
+  else {
+    if (content_planes_len == 0) {
+      return false;
+    }
+
+    /* Both too near, ignore. */
+    if ((status_a & V3D_PROJ_TEST_CLIP_NEAR) && (status_b & V3D_PROJ_TEST_CLIP_NEAR)) {
+      return false;
+    }
+
+    /* Both too far, ignore. */
+    if ((status_a & V3D_PROJ_TEST_CLIP_FAR) && (status_b & V3D_PROJ_TEST_CLIP_FAR)) {
+      return false;
+    }
+
+    /* Simple cases have been ruled out, clip by viewport planes, then re-project. */
+    float v_a_clip[3], v_b_clip[3];
+    if (!clip_segment_v3_plane_n(
+            v_a, v_b, content_planes, content_planes_len, v_a_clip, v_b_clip)) {
+      return false;
+    }
+
+    if ((ED_view3d_project_float_object(region, v_a_clip, r_screen_co_a, clip_flag_nowin) !=
+         V3D_PROJ_RET_OK) ||
+        (ED_view3d_project_float_object(region, v_b_clip, r_screen_co_b, clip_flag_nowin) !=
+         V3D_PROJ_RET_OK)) {
+      return false;
+    }
+
+    /* No need for #V3D_PROJ_TEST_CLIP_WIN check here,
+     * clipping the segment by planes handle this. */
+  }
+
+  return true;
+}
+
+/**
+ * Project an edge, points that fail to project are tagged with #IS_CLIPPED.
+ */
+static bool view3d_project_segment_to_screen_with_clip_tag(const ARegion *region,
+                                                           const float v_a[3],
+                                                           const float v_b[3],
+                                                           const eV3DProjTest clip_flag,
+                                                           /* Output. */
+                                                           float r_screen_co_a[2],
+                                                           float r_screen_co_b[2])
+{
+  int count = 0;
+
+  if (ED_view3d_project_float_object(region, v_a, r_screen_co_a, clip_flag) == V3D_PROJ_RET_OK) {
+    count++;
+  }
+  else {
+    r_screen_co_a[0] = IS_CLIPPED; /* weak */
+    /* screen_co_a[1]: intentionally don't set this so we get errors on misuse */
+  }
+
+  if (ED_view3d_project_float_object(region, v_b, r_screen_co_b, clip_flag) == V3D_PROJ_RET_OK) {
+    count++;
+  }
+  else {
+    r_screen_co_b[0] = IS_CLIPPED; /* weak */
+    /* screen_co_b[1]: intentionally don't set this so we get errors on misuse */
+  }
+
+  /* Caller may want to know this value, for now it's not needed. */
+  return count != 0;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -104,14 +215,14 @@ static int content_planes_from_clip_flag(const ARegion *region,
  * \{ */
 
 typedef struct foreachScreenObjectVert_userData {
-  void (*func)(void *userData, MVert *mv, const float screen_co_b[2], int index);
+  void (*func)(void *userData, MVert *mv, const float screen_co[2], int index);
   void *userData;
   ViewContext vc;
   eV3DProjTest clip_flag;
 } foreachScreenObjectVert_userData;
 
 typedef struct foreachScreenVert_userData {
-  void (*func)(void *userData, BMVert *eve, const float screen_co_b[2], int index);
+  void (*func)(void *userData, BMVert *eve, const float screen_co[2], int index);
   void *userData;
   ViewContext vc;
   eV3DProjTest clip_flag;
@@ -261,76 +372,6 @@ void mesh_foreachScreenVert(
 /** \name Edit-Mesh: For Each Screen Mesh Edge
  * \{ */
 
-/**
- * Edge projection is more involved since part of the edge may be behind the view
- * or extend beyond the far limits. In the case of single points, these can be ignored.
- * However it just may still be visible on screen, so constrained the edge to planes
- * defined by the port to ensure both ends of the edge can be projected, see T32214.
- *
- * \note This is unrelated to #V3D_PROJ_TEST_CLIP_BB which must be checked separately.
- */
-static bool mesh_foreachScreenEdge_shared_project_and_test(const ARegion *region,
-                                                           const float v_a[3],
-                                                           const float v_b[3],
-                                                           const eV3DProjTest clip_flag,
-                                                           const rctf *win_rect,
-                                                           const float content_planes[][4],
-                                                           const int content_planes_len,
-                                                           /* Output. */
-                                                           float r_screen_co_a[2],
-                                                           float r_screen_co_b[2])
-{
-  /* Clipping already handled, no need to check in projection. */
-  eV3DProjTest clip_flag_nowin = clip_flag & ~V3D_PROJ_TEST_CLIP_WIN;
-
-  const eV3DProjStatus status_a = ED_view3d_project_float_object(
-      region, v_a, r_screen_co_a, clip_flag_nowin);
-  const eV3DProjStatus status_b = ED_view3d_project_float_object(
-      region, v_b, r_screen_co_b, clip_flag_nowin);
-
-  if ((status_a == V3D_PROJ_RET_OK) && (status_b == V3D_PROJ_RET_OK)) {
-    if (clip_flag & V3D_PROJ_TEST_CLIP_WIN) {
-      if (!BLI_rctf_isect_segment(win_rect, r_screen_co_a, r_screen_co_b)) {
-        return false;
-      }
-    }
-  }
-  else {
-    if (content_planes_len == 0) {
-      return false;
-    }
-
-    /* Both too near, ignore. */
-    if ((status_a & V3D_PROJ_TEST_CLIP_NEAR) && (status_b & V3D_PROJ_TEST_CLIP_NEAR)) {
-      return false;
-    }
-
-    /* Both too far, ignore. */
-    if ((status_a & V3D_PROJ_TEST_CLIP_FAR) && (status_b & V3D_PROJ_TEST_CLIP_FAR)) {
-      return false;
-    }
-
-    /* Simple cases have been ruled out, clip by viewport planes, then re-project. */
-    float v_a_clip[3], v_b_clip[3];
-    if (!clip_segment_v3_plane_n(
-            v_a, v_b, content_planes, content_planes_len, v_a_clip, v_b_clip)) {
-      return false;
-    }
-
-    if ((ED_view3d_project_float_object(region, v_a_clip, r_screen_co_a, clip_flag_nowin) !=
-         V3D_PROJ_RET_OK) ||
-        (ED_view3d_project_float_object(region, v_b_clip, r_screen_co_b, clip_flag_nowin) !=
-         V3D_PROJ_RET_OK)) {
-      return false;
-    }
-
-    /* No need for #V3D_PROJ_TEST_CLIP_WIN check here,
-     * clipping the segment by planes handle this. */
-  }
-
-  return true;
-}
-
 static void mesh_foreachScreenEdge__mapFunc(void *userData,
                                             int index,
                                             const float v_a[3],
@@ -343,15 +384,15 @@ static void mesh_foreachScreenEdge__mapFunc(void *userData,
   }
 
   float screen_co_a[2], screen_co_b[2];
-  if (!mesh_foreachScreenEdge_shared_project_and_test(data->vc.region,
-                                                      v_a,
-                                                      v_b,
-                                                      data->clip_flag,
-                                                      &data->win_rect,
-                                                      data->content_planes,
-                                                      data->content_planes_len,
-                                                      screen_co_a,
-                                                      screen_co_b)) {
+  if (!view3d_project_segment_to_screen_with_content_clip_planes(data->vc.region,
+                                                                 v_a,
+                                                                 v_b,
+                                                                 data->clip_flag,
+                                                                 &data->win_rect,
+                                                                 data->content_planes,
+                                                                 data->content_planes_len,
+                                                                 screen_co_a,
+                                                                 screen_co_b)) {
     return;
   }
 
@@ -430,15 +471,15 @@ static void mesh_foreachScreenEdge_clip_bb_segment__mapFunc(void *userData,
   }
 
   float screen_co_a[2], screen_co_b[2];
-  if (!mesh_foreachScreenEdge_shared_project_and_test(data->vc.region,
-                                                      v_a_clip,
-                                                      v_b_clip,
-                                                      data->clip_flag,
-                                                      &data->win_rect,
-                                                      data->content_planes,
-                                                      data->content_planes_len,
-                                                      screen_co_a,
-                                                      screen_co_b)) {
+  if (!view3d_project_segment_to_screen_with_content_clip_planes(data->vc.region,
+                                                                 v_a_clip,
+                                                                 v_b_clip,
+                                                                 data->clip_flag,
+                                                                 &data->win_rect,
+                                                                 data->content_planes,
+                                                                 data->content_planes_len,
+                                                                 screen_co_a,
+                                                                 screen_co_b)) {
     return;
   }
 
@@ -728,35 +769,51 @@ void armature_foreachScreenBone(struct ViewContext *vc,
 
   ED_view3d_check_mats_rv3d(vc->rv3d);
 
+  float content_planes[6][4];
+  int content_planes_len;
+  rctf win_rect;
+
+  if (clip_flag & V3D_PROJ_TEST_CLIP_CONTENT) {
+    content_planes_len = content_planes_from_clip_flag(
+        vc->region, vc->obedit, clip_flag, content_planes);
+    win_rect.xmin = 0;
+    win_rect.ymin = 0;
+    win_rect.xmax = vc->region->winx;
+    win_rect.ymax = vc->region->winy;
+  }
+  else {
+    content_planes_len = 0;
+  }
+
   for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
-    if (EBONE_VISIBLE(arm, ebone)) {
-      float screen_co_a[2], screen_co_b[2];
-      int points_proj_tot = 0;
+    if (!EBONE_VISIBLE(arm, ebone)) {
+      continue;
+    }
 
-      /* project head location to screenspace */
-      if (ED_view3d_project_float_object(vc->region, ebone->head, screen_co_a, clip_flag) ==
-          V3D_PROJ_RET_OK) {
-        points_proj_tot++;
-      }
-      else {
-        screen_co_a[0] = IS_CLIPPED; /* weak */
-        /* screen_co_a[1]: intentionally don't set this so we get errors on misuse */
-      }
+    float screen_co_a[2], screen_co_b[2];
+    const float *v_a = ebone->head, *v_b = ebone->tail;
 
-      /* project tail location to screenspace */
-      if (ED_view3d_project_float_object(vc->region, ebone->tail, screen_co_b, clip_flag) ==
-          V3D_PROJ_RET_OK) {
-        points_proj_tot++;
-      }
-      else {
-        screen_co_b[0] = IS_CLIPPED; /* weak */
-        /* screen_co_b[1]: intentionally don't set this so we get errors on misuse */
-      }
-
-      if (points_proj_tot) { /* at least one point's projection worked */
-        func(userData, ebone, screen_co_a, screen_co_b);
+    if (clip_flag & V3D_PROJ_TEST_CLIP_CONTENT) {
+      if (!view3d_project_segment_to_screen_with_content_clip_planes(vc->region,
+                                                                     v_a,
+                                                                     v_b,
+                                                                     clip_flag,
+                                                                     &win_rect,
+                                                                     content_planes,
+                                                                     content_planes_len,
+                                                                     screen_co_a,
+                                                                     screen_co_b)) {
+        continue;
       }
     }
+    else {
+      if (!view3d_project_segment_to_screen_with_clip_tag(
+              vc->region, v_a, v_b, clip_flag, screen_co_a, screen_co_b)) {
+        continue;
+      }
+    }
+
+    func(userData, ebone, screen_co_a, screen_co_b);
   }
 }
 
@@ -783,36 +840,52 @@ void pose_foreachScreenBone(struct ViewContext *vc,
 
   ED_view3d_check_mats_rv3d(vc->rv3d);
 
+  float content_planes[6][4];
+  int content_planes_len;
+  rctf win_rect;
+
+  if (clip_flag & V3D_PROJ_TEST_CLIP_CONTENT) {
+    content_planes_len = content_planes_from_clip_flag(
+        vc->region, ob_eval, clip_flag, content_planes);
+    win_rect.xmin = 0;
+    win_rect.ymin = 0;
+    win_rect.xmax = vc->region->winx;
+    win_rect.ymax = vc->region->winy;
+  }
+  else {
+    content_planes_len = 0;
+  }
+
   for (pchan = pose->chanbase.first; pchan; pchan = pchan->next) {
-    if (PBONE_VISIBLE(arm_eval, pchan->bone)) {
-      bPoseChannel *pchan_eval = BKE_pose_channel_find_name(ob_eval->pose, pchan->name);
-      float screen_co_a[2], screen_co_b[2];
-      int points_proj_tot = 0;
+    if (!PBONE_VISIBLE(arm_eval, pchan->bone)) {
+      continue;
+    }
 
-      /* project head location to screenspace */
-      if (ED_view3d_project_float_object(
-              vc->region, pchan_eval->pose_head, screen_co_a, clip_flag) == V3D_PROJ_RET_OK) {
-        points_proj_tot++;
-      }
-      else {
-        screen_co_a[0] = IS_CLIPPED; /* weak */
-        /* screen_co_a[1]: intentionally don't set this so we get errors on misuse */
-      }
+    bPoseChannel *pchan_eval = BKE_pose_channel_find_name(ob_eval->pose, pchan->name);
+    float screen_co_a[2], screen_co_b[2];
+    const float *v_a = pchan_eval->pose_head, *v_b = pchan_eval->pose_tail;
 
-      /* project tail location to screenspace */
-      if (ED_view3d_project_float_object(
-              vc->region, pchan_eval->pose_tail, screen_co_b, clip_flag) == V3D_PROJ_RET_OK) {
-        points_proj_tot++;
-      }
-      else {
-        screen_co_b[0] = IS_CLIPPED; /* weak */
-        /* screen_co_b[1]: intentionally don't set this so we get errors on misuse */
-      }
-
-      if (points_proj_tot) { /* at least one point's projection worked */
-        func(userData, pchan, screen_co_a, screen_co_b);
+    if (clip_flag & V3D_PROJ_TEST_CLIP_CONTENT) {
+      if (!view3d_project_segment_to_screen_with_content_clip_planes(vc->region,
+                                                                     v_a,
+                                                                     v_b,
+                                                                     clip_flag,
+                                                                     &win_rect,
+                                                                     content_planes,
+                                                                     content_planes_len,
+                                                                     screen_co_a,
+                                                                     screen_co_b)) {
+        continue;
       }
     }
+    else {
+      if (!view3d_project_segment_to_screen_with_clip_tag(
+              vc->region, v_a, v_b, clip_flag, screen_co_a, screen_co_b)) {
+        continue;
+      }
+    }
+
+    func(userData, pchan, screen_co_a, screen_co_b);
   }
 }
 

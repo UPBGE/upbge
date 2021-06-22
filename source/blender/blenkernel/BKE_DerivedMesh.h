@@ -476,6 +476,7 @@ DerivedMesh *mesh_create_derived_physics(struct Depsgraph *depsgraph,
                                          float (*vertCos)[3],
                                          const CustomData_MeshMasks *dataMask);
 
+/* same as above but won't use render settings */
 struct Mesh *editbmesh_get_eval_cage(struct Depsgraph *depsgraph,
                                      struct Scene *scene,
                                      struct Object *,

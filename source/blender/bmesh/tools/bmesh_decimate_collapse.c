@@ -1285,6 +1285,11 @@ static bool bm_decim_edge_collapse(BMesh *bm,
  *        a vertex group is the usual source for this.
  * \param symmetry_axis: Axis of symmetry, -1 to disable mirror decimate.
  * \param symmetry_eps: Threshold when matching mirror verts.
+ *
+ * \note The caller is responsible for recalculating face and vertex normals.
+ * - Vertex normals are maintained while decimating,
+ *   although they won't necessarily match the final recalculated normals.
+ * - Face normals are not maintained at all.
  */
 void BM_mesh_decimate_collapse(BMesh *bm,
                                const float factor,
@@ -1367,7 +1372,7 @@ void BM_mesh_decimate_collapse(BMesh *bm,
       /* handy to detect corruptions elsewhere */
       BLI_assert(BM_elem_index_get(e) < tot_edge_orig);
 
-      /* Under normal conditions wont be accessed again,
+      /* Under normal conditions won't be accessed again,
        * but NULL just in case so we don't use freed node. */
       eheap_table[BM_elem_index_get(e)] = NULL;
 

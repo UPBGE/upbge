@@ -40,6 +40,60 @@ Spline::Type Spline::type() const
   return type_;
 }
 
+void Spline::copy_base_settings(const Spline &src, Spline &dst)
+{
+  dst.normal_mode = src.normal_mode;
+  dst.is_cyclic_ = src.is_cyclic_;
+}
+
+static SplinePtr create_spline(const Spline::Type type)
+{
+  switch (type) {
+    case Spline::Type::Poly:
+      return std::make_unique<PolySpline>();
+    case Spline::Type::Bezier:
+      return std::make_unique<BezierSpline>();
+    case Spline::Type::NURBS:
+      return std::make_unique<NURBSpline>();
+  }
+  BLI_assert_unreachable();
+  return {};
+}
+
+/**
+ * Return a new spline with the same data, settings, and attributes.
+ */
+SplinePtr Spline::copy() const
+{
+  SplinePtr dst = this->copy_without_attributes();
+  dst->attributes = this->attributes;
+  return dst;
+}
+
+/**
+ * Return a new spline with the same type and settings like "cyclic", but without any data.
+ */
+SplinePtr Spline::copy_only_settings() const
+{
+  SplinePtr dst = create_spline(type_);
+  this->copy_base_settings(*this, *dst);
+  this->copy_settings(*dst);
+  return dst;
+}
+
+/**
+ * The same as #copy, but skips copying dynamic attributes to the new spline.
+ */
+SplinePtr Spline::copy_without_attributes() const
+{
+  SplinePtr dst = this->copy_only_settings();
+  this->copy_data(*dst);
+
+  /* Though the attributes storage is empty, it still needs to know the correct size. */
+  dst->attributes.reallocate(dst->size());
+  return dst;
+}
+
 void Spline::translate(const blender::float3 &translation)
 {
   for (float3 &position : this->positions()) {
@@ -74,9 +128,9 @@ float Spline::length() const
 
 int Spline::segments_size() const
 {
-  const int points_len = this->size();
+  const int size = this->size();
 
-  return is_cyclic_ ? points_len : points_len - 1;
+  return is_cyclic_ ? size : size - 1;
 }
 
 bool Spline::is_cyclic() const
@@ -411,23 +465,23 @@ Array<float> Spline::sample_uniform_index_factors(const int samples_size) const
 
 Spline::LookupResult Spline::lookup_data_from_index_factor(const float index_factor) const
 {
-  const int points_len = this->evaluated_points_size();
+  const int eval_size = this->evaluated_points_size();
 
   if (is_cyclic_) {
-    if (index_factor < points_len) {
+    if (index_factor < eval_size) {
       const int index = std::floor(index_factor);
-      const int next_index = (index < points_len - 1) ? index + 1 : 0;
+      const int next_index = (index < eval_size - 1) ? index + 1 : 0;
       return LookupResult{index, next_index, index_factor - index};
     }
-    return LookupResult{points_len - 1, 0, 1.0f};
+    return LookupResult{eval_size - 1, 0, 1.0f};
   }
 
-  if (index_factor < points_len - 1) {
+  if (index_factor < eval_size - 1) {
     const int index = std::floor(index_factor);
     const int next_index = index + 1;
     return LookupResult{index, next_index, index_factor - index};
   }
-  return LookupResult{points_len - 2, points_len - 1, 1.0f};
+  return LookupResult{eval_size - 2, eval_size - 1, 1.0f};
 }
 
 void Spline::bounds_min_max(float3 &min, float3 &max, const bool use_evaluated) const

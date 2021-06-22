@@ -36,6 +36,9 @@
 #endif
 
 class GHOST_ContextEGL : public GHOST_Context {
+  /* XR code needs low level graphics data to send to OpenXR. */
+  friend class GHOST_XrGraphicsBindingOpenGL;
+
  public:
   /**
    * Constructor.
@@ -100,6 +103,12 @@ class GHOST_ContextEGL : public GHOST_Context {
    */
   GHOST_TSuccess getSwapInterval(int &intervalOut);
 
+  EGLDisplay getDisplay() const;
+
+  EGLConfig getConfig() const;
+
+  EGLContext getContext() const;
+
  private:
   bool initContextEGLEW();
 
@@ -117,6 +126,7 @@ class GHOST_ContextEGL : public GHOST_Context {
   EGLContext m_context;
   EGLSurface m_surface;
   EGLDisplay m_display;
+  EGLConfig m_config;
 
   EGLint m_swap_interval;
 
