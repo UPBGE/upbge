@@ -109,7 +109,7 @@ RAS_OpenGLRasterizer::ScreenPlane::ScreenPlane()
                                    -1.0f, 3.0f, 1.0f, 0.0f, 2.0f,
                                    3.0f, 3.0f, 1.0f, 2.0f, 2.0f};
   // Indices for screen plane.
-  static const GLubyte indices[] = {2, 1, 0, 0, 1, 2};
+  static const GLubyte indices[] = {0, 1, 2, 2, 0, 3};
 
   // Send indices in the sreen plane IBO.
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ibo);
