@@ -104,10 +104,12 @@ RAS_OpenGLRasterizer::ScreenPlane::ScreenPlane()
   // Vertexes for screen plane, it contains the vertex position (3 floats) and the vertex uv after
   // (2 floats, total size = 5 floats).
   static const float vertices[] = {//   3f position   |   2f UV
-                                   -1.0f, -1.0f, 1.0f, 0.0f, 0.0f, -1.0f, 1.0f,  1.0f, 0.0f, 1.0f,
-                                   1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f,  -1.0f, 1.0f, 1.0f, 0.0f};
+                                   -1.0f, -1.0f, 1.0f, 0.0f, 0.0f,
+                                   3.0f, -1.0f, 1.0f, 2.0f, 0.0f,
+                                   -1.0f, 3.0f, 1.0f, 0.0f, 2.0f,
+                                   3.0f, 3.0f, 1.0f, 2.0f, 2.0f};
   // Indices for screen plane.
-  static const GLubyte indices[] = {3, 2, 1, 0};
+  static const GLubyte indices[] = {2, 1, 0, 0, 1, 2};
 
   // Send indices in the sreen plane IBO.
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ibo);
@@ -146,7 +148,7 @@ inline void RAS_OpenGLRasterizer::ScreenPlane::Render()
   glBindVertexArray(m_vao);
 
   // Draw in triangle fan mode to reduce IBO size.
-  glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_BYTE, 0);
+  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, 0);
 
   // Disable VAO.
   glBindVertexArray(0);
