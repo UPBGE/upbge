@@ -38,11 +38,12 @@ extern "C" {
 #endif
 
 struct BlendFileData;
+struct BlendFileReadReport;
 struct Main;
 struct ReportList;
 
 int BLO_is_a_runtime(const char *file);
-struct BlendFileData *BLO_read_runtime(const char *file, struct ReportList *reports);
+struct BlendFileData *BLO_read_runtime(const char *file, struct BlendFileReadReport *reports);
 
 bool BLO_main_validate_libraries(struct Main *bmain, struct ReportList *reports);
 

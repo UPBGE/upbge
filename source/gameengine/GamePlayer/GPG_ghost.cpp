@@ -593,16 +593,19 @@ static BlendFileData *load_game_data(const char *progname,
 
   BKE_reports_init(&reports, RPT_STORE);
 
+  BlendFileReadReport breports;
+  breports.reports = &reports;
+
   /* try to load ourself, will only work if we are a runtime */
   if (BLO_is_a_runtime(progname)) {
-    bfd = BLO_read_runtime(progname, &reports);
+    bfd = BLO_read_runtime(progname, &breports);
     if (bfd) {
       bfd->type = BLENFILETYPE_RUNTIME;
       BLI_strncpy(bfd->main->name, progname, sizeof(bfd->main->name));
     }
   }
   else {
-    bfd = BLO_read_from_file(progname, BLO_READ_SKIP_NONE, &reports);
+    bfd = BLO_read_from_file(progname, BLO_READ_SKIP_NONE, &breports);
   }
 
   if (!bfd && filename) {

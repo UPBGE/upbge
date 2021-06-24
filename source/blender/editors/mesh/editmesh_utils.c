@@ -1222,12 +1222,12 @@ BMVert *EDBM_verts_mirror_get(BMEditMesh *em, BMVert *v)
 
 BMEdge *EDBM_verts_mirror_get_edge(BMEditMesh *em, BMEdge *e)
 {
-  BMVert *v1_mirr = EDBM_verts_mirror_get(em, e->v1);
-  if (v1_mirr) {
-    BMVert *v2_mirr = EDBM_verts_mirror_get(em, e->v2);
-    if (v2_mirr) {
-      return BM_edge_exists(v1_mirr, v2_mirr);
-    }
+  BMVert *v1_mirr, *v2_mirr;
+  if ((v1_mirr = EDBM_verts_mirror_get(em, e->v1)) &&
+      (v2_mirr = EDBM_verts_mirror_get(em, e->v2)) &&
+      /* While highly unlikely, a zero length central edges vertices can match, see T89342. */
+      LIKELY(v1_mirr != v2_mirr)) {
+    return BM_edge_exists(v1_mirr, v2_mirr);
   }
 
   return NULL;
@@ -1574,7 +1574,7 @@ int EDBM_elem_to_index_any(BMEditMesh *em, BMElem *ele)
   return index;
 }
 
-BMElem *EDBM_elem_from_index_any(BMEditMesh *em, int index)
+BMElem *EDBM_elem_from_index_any(BMEditMesh *em, uint index)
 {
   BMesh *bm = em->bm;
 
@@ -1615,14 +1615,14 @@ int EDBM_elem_to_index_any_multi(ViewLayer *view_layer,
 }
 
 BMElem *EDBM_elem_from_index_any_multi(ViewLayer *view_layer,
-                                       int object_index,
-                                       int elem_index,
+                                       uint object_index,
+                                       uint elem_index,
                                        Object **r_obedit)
 {
   uint bases_len;
   Base **bases = BKE_view_layer_array_from_bases_in_edit_mode(view_layer, NULL, &bases_len);
   *r_obedit = NULL;
-  Object *obedit = ((uint)object_index < bases_len) ? bases[object_index]->object : NULL;
+  Object *obedit = (object_index < bases_len) ? bases[object_index]->object : NULL;
   MEM_freeN(bases);
   if (obedit != NULL) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
