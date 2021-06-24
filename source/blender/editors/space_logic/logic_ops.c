@@ -958,7 +958,7 @@ static void LOGIC_OT_python_component_remove(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Remove Component";
-  ot->description = "Remove Component";
+  ot->description = "Remove this component from the object";
   ot->idname = "LOGIC_OT_python_component_remove";
 
   /* api callbacks */
@@ -1025,7 +1025,7 @@ static void LOGIC_OT_python_component_move_up(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Move Component Up";
-  ot->description = "Move Component Up";
+  ot->description = "Move this component up in the list";
   ot->idname = "LOGIC_OT_python_component_move_up";
 
   /* api callbacks */
@@ -1099,7 +1099,7 @@ static void LOGIC_OT_python_component_move_down(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Move Component Down";
-  ot->description = "Move Component Down";
+  ot->description = "Move this component down in the list.";
   ot->idname = "LOGIC_OT_python_component_move_down";
 
   /* api callbacks */
@@ -1146,7 +1146,7 @@ static void LOGIC_OT_python_component_reload(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Reload Component";
-  ot->description = "Reload Component";
+  ot->description = "Reload component from the source script";
   ot->idname = "LOGIC_OT_python_component_reload";
 
   /* api callbacks */
