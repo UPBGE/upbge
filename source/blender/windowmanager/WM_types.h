@@ -308,6 +308,7 @@ typedef struct wmNotifier {
 /* Changes to asset data in the current .blend. */
 #define NC_ASSET (26 << 24)
 #define NC_LOGIC (27 << 24)
+#define NC_GAME (28 << 24)
 
 /* data type, 256 entries is enough, it can overlap */
 #define NOTE_DATA 0x00FF0000

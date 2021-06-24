@@ -254,6 +254,10 @@ int ED_buttons_tabs_list(SpaceProperties *sbuts, short *context_tabs_array)
     context_tabs_array[length] = BCONTEXT_MATERIAL;
     length++;
   }
+  if (sbuts->pathflag & (1 << BCONTEXT_GAME)) {
+    context_tabs_array[length] = BCONTEXT_GAME;
+    length++;
+  }
   if (length != 0) {
     context_tabs_array[length] = -1;
     length++;
@@ -305,6 +309,8 @@ static const char *buttons_main_region_context_string(const short mainb)
       return "bone_constraint";
     case BCONTEXT_TOOL:
       return "tool";
+    case BCONTEXT_GAME:
+      return "game";
   }
 
   /* All the cases should be handled. */
@@ -707,6 +713,7 @@ static void buttons_area_listener(const wmSpaceTypeListenerParams *params)
         case ND_TRANSFORM:
           buttons_area_redraw(area, BCONTEXT_OBJECT);
           buttons_area_redraw(area, BCONTEXT_DATA); /* autotexpace flag */
+          buttons_area_redraw(area, BCONTEXT_GAME);
           break;
         case ND_POSE:
         case ND_BONE_ACTIVE:
@@ -743,6 +750,7 @@ static void buttons_area_listener(const wmSpaceTypeListenerParams *params)
           buttons_area_redraw(area, BCONTEXT_PHYSICS);
           /* Needed to refresh context path when changing active particle system index. */
           buttons_area_redraw(area, BCONTEXT_PARTICLE);
+          buttons_area_redraw(area, BCONTEXT_GAME);
           break;
         default:
           /* Not all object RNA props have a ND_ notifier (yet) */

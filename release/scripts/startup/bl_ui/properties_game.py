@@ -21,6 +21,107 @@ import bpy
 from bpy.types import Panel, Menu
 
 
+class GameButtonsPanel:
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "game"
+    bl_order = 1000
+
+
+class GAME_PT_game_components(GameButtonsPanel, Panel):
+    bl_label = "Game Components"
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.active_object
+        return ob and ob.game
+
+    def draw(self, context):
+        layout = self.layout
+
+        ob = context.active_object
+        game = ob.game
+
+        row = layout.row()
+        row.operator("logic.python_component_register", text="Register Component", icon="PLUS")
+        row.operator("logic.python_component_create", text="Create Component", icon="PLUS")
+
+        for i, c in enumerate(game.components):
+            box = layout.box()
+            row = box.row()
+            row.prop(c, "show_expanded", text="", emboss=False)
+            row.label(text=c.name)
+            row.operator("logic.python_component_reload", text="", icon='RECOVER_LAST').index = i
+            row.operator("logic.python_component_remove", text="", icon='X').index = i
+
+            if c.show_expanded and len(c.properties) > 0:
+                box = box.box()
+                for prop in c.properties:
+                    row = box.row()
+                    row.label(text=prop.name)
+                    col = row.column()
+                    col.prop(prop, "value", text="")
+
+
+class GAME_PT_game_properties(GameButtonsPanel, Panel):
+    bl_label = "Game Properties"
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.active_object
+        return ob and ob.game
+
+    def draw(self, context):
+        layout = self.layout
+
+        ob = context.active_object
+        game = ob.game
+        is_font = (ob.type == 'FONT')
+
+        if is_font:
+            prop_index = game.properties.find("Text")
+            if prop_index != -1:
+                layout.operator("object.game_property_remove", text="Remove Text Game Property",
+                                icon='X').index = prop_index
+                row = layout.row()
+                sub = row.row()
+                sub.enabled = 0
+                prop = game.properties[prop_index]
+                sub.prop(prop, "name", text="")
+                row.prop(prop, "type", text="")
+                # get the property from the body, not the game property
+                # note, don't do this - it's too slow and body can potentially be a really long string.
+                # ~ row.prop(ob.data, "body", text="")
+                row.label(text="See Text Object")
+            else:
+                props = layout.operator("object.game_property_new", text="Add Text Game Property", icon='PLUS')
+                props.name = "Text"
+                props.type = 'STRING'
+
+        props = layout.operator("object.game_property_new", text="Add Game Property", icon='PLUS')
+        props.name = ""
+
+        for i, prop in enumerate(game.properties):
+
+            if is_font and i == prop_index:
+                continue
+
+            box = layout.box()
+            row = box.row()
+            row.prop(prop, "name", text="")
+            row.prop(prop, "type", text="")
+            row.prop(prop, "value", text="")
+            row.prop(prop, "show_debug", text="", toggle=True, icon='INFO')
+            sub = row.row(align=True)
+            props = sub.operator("object.game_property_move", text="", icon='TRIA_UP')
+            props.index = i
+            props.direction = 'UP'
+            props = sub.operator("object.game_property_move", text="", icon='TRIA_DOWN')
+            props.index = i
+            props.direction = 'DOWN'
+            row.operator("object.game_property_remove", text="", icon='X', emboss=False).index = i
+
+
 class PhysicsButtonsPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -610,6 +711,8 @@ class OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
 
 
 classes = (
+    GAME_PT_game_components,
+    GAME_PT_game_properties,
     PHYSICS_PT_game_physics,
     PHYSICS_PT_game_collision_bounds,
     PHYSICS_PT_game_obstacles,
