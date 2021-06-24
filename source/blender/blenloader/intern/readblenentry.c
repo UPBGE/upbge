@@ -88,12 +88,13 @@ BlendHandle *BLO_blendhandle_from_file(const char *filepath, BlendFileReadReport
  * \param memsize: The size of the data.
  * \return A handle on success, or NULL on failure.
  */
-BlendHandle *BLO_blendhandle_from_memory(const void *mem, int memsize)
+BlendHandle *BLO_blendhandle_from_memory(const void *mem,
+                                         int memsize,
+                                         BlendFileReadReport *reports)
 {
   BlendHandle *bh;
 
-  bh = (BlendHandle *)blo_filedata_from_memory(
-      mem, memsize, &(BlendFileReadReport){.reports = NULL});
+  bh = (BlendHandle *)blo_filedata_from_memory(mem, memsize, reports);
 
   return bh;
 }
@@ -402,8 +403,9 @@ BlendFileData *BLO_read_from_memory(const void *mem,
 {
   BlendFileData *bfd = NULL;
   FileData *fd;
+  BlendFileReadReport bf_reports = {.reports = reports};
 
-  fd = blo_filedata_from_memory(mem, memsize, &(BlendFileReadReport){.reports = reports});
+  fd = blo_filedata_from_memory(mem, memsize, &bf_reports);
   if (fd) {
 #ifdef WITH_GAMEENGINE_BPPLAYER
     BLI_strncpy(fd->relabase, SPINDLE_GetFilePath(), sizeof(fd->relabase));
@@ -437,8 +439,9 @@ BlendFileData *BLO_read_from_memfile(Main *oldmain,
   BlendFileData *bfd = NULL;
   FileData *fd;
   ListBase old_mainlist;
+  BlendFileReadReport bf_reports = {.reports = reports};
 
-  fd = blo_filedata_from_memfile(memfile, params, &(BlendFileReadReport){.reports = reports});
+  fd = blo_filedata_from_memfile(memfile, params, &bf_reports);
   if (fd) {
     fd->skip_flags = params->skip_flags;
     BLI_strncpy(fd->relabase, filename, sizeof(fd->relabase));

@@ -372,7 +372,7 @@ KX_LibLoadStatus *BL_BlenderConverter::LinkBlendFileMemory(void *data,
                                                            char **err_str,
                                                            short options)
 {
-  BlendHandle *bpy_openlib = BLO_blendhandle_from_memory(data, length);
+  BlendHandle *bpy_openlib = BLO_blendhandle_from_memory(data, length, nullptr);
 
   // Error checking is done in LinkBlendFile
   return LinkBlendFile(bpy_openlib, path, group, scene_merge, err_str, options);

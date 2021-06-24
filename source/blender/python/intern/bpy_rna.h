@@ -110,17 +110,17 @@ extern PyTypeObject pyrna_func_Type;
 /* 'in_weakreflist' MUST be aligned */
 
 typedef struct {
-  PyObject_HEAD /* required python macro   */
+  PyObject_HEAD /* Required Python macro. */
 #ifdef USE_WEAKREFS
-      PyObject *in_weakreflist;
+  PyObject *in_weakreflist;
 #endif
   PointerRNA ptr;
 } BPy_DummyPointerRNA;
 
 typedef struct {
-  PyObject_HEAD /* required python macro   */
+  PyObject_HEAD /* Required Python macro. */
 #ifdef USE_WEAKREFS
-      PyObject *in_weakreflist;
+  PyObject *in_weakreflist;
 #endif
   PointerRNA ptr;
 #ifdef USE_PYRNA_STRUCT_REFERENCE
@@ -135,18 +135,18 @@ typedef struct {
 } BPy_StructRNA;
 
 typedef struct {
-  PyObject_HEAD /* required python macro   */
+  PyObject_HEAD /* Required Python macro. */
 #ifdef USE_WEAKREFS
-      PyObject *in_weakreflist;
+  PyObject *in_weakreflist;
 #endif
   PointerRNA ptr;
   PropertyRNA *prop;
 } BPy_PropertyRNA;
 
 typedef struct {
-  PyObject_HEAD /* required python macro   */
+  PyObject_HEAD /* Required Python macro. */
 #ifdef USE_WEAKREFS
-      PyObject *in_weakreflist;
+  PyObject *in_weakreflist;
 #endif
   PointerRNA ptr;
   PropertyRNA *prop;
@@ -159,9 +159,9 @@ typedef struct {
 } BPy_PropertyArrayRNA;
 
 typedef struct {
-  PyObject_HEAD /* required python macro   */
+  PyObject_HEAD /* Required Python macro. */
 #ifdef USE_WEAKREFS
-      PyObject *in_weakreflist;
+  PyObject *in_weakreflist;
 #endif
 
   /* collection iterator specific parts */
@@ -169,9 +169,9 @@ typedef struct {
 } BPy_PropertyCollectionIterRNA;
 
 typedef struct {
-  PyObject_HEAD /* required python macro   */
+  PyObject_HEAD /* Required Python macro. */
 #ifdef USE_WEAKREFS
-      PyObject *in_weakreflist;
+  PyObject *in_weakreflist;
 #endif
   PointerRNA ptr;
   FunctionRNA *func;

@@ -785,12 +785,12 @@ static bool is_filtered_hidden(const char *filename,
                                const FileListInternEntry *file)
 {
   if ((filename[0] == '.') && (filename[1] == '\0')) {
-    return true; /* Ignore . */
+    return true; /* Ignore. */
   }
 
   if (filter->flags & FLF_HIDE_PARENT) {
     if (filename[0] == '.' && filename[1] == '.' && filename[2] == '\0') {
-      return true; /* Ignore .. */
+      return true; /* Ignore. */
     }
   }
 
@@ -2894,7 +2894,8 @@ static int filelist_readjob_list_lib(const char *root, ListBase *entries, const 
   }
 
   /* there we go */
-  libfiledata = BLO_blendhandle_from_file(dir, &(BlendFileReadReport){.reports = NULL});
+  BlendFileReadReport bf_reports = {.reports = NULL};
+  libfiledata = BLO_blendhandle_from_file(dir, &bf_reports);
   if (libfiledata == NULL) {
     return nbr_entries;
   }

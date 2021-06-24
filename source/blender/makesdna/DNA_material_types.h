@@ -40,7 +40,7 @@ struct Image;
 struct Ipo;
 struct bNodeTree;
 
-/* WATCH IT: change type? also make changes in ipo.h  */
+/* WATCH IT: change type? also make changes in ipo.h */
 
 /* Game Engine Options (old Texface mode, transp and flag) */
 typedef struct GameSettings {

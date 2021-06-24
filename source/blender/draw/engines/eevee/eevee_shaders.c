@@ -1350,7 +1350,7 @@ Material *EEVEE_material_default_error_get(void)
   return e_data.error_mat;
 }
 
-/* Configure a default nodetree with the given material.  */
+/* Configure a default nodetree with the given material. */
 struct bNodeTree *EEVEE_shader_default_surface_nodetree(Material *ma)
 {
   /* WARNING: This function is not threadsafe. Which is not a problem for the moment. */
@@ -1378,7 +1378,7 @@ struct bNodeTree *EEVEE_shader_default_surface_nodetree(Material *ma)
   return e_data.surface.ntree;
 }
 
-/* Configure a default nodetree with the given world.  */
+/* Configure a default nodetree with the given world. */
 struct bNodeTree *EEVEE_shader_default_world_nodetree(World *wo)
 {
   /* WARNING: This function is not threadsafe. Which is not a problem for the moment. */
