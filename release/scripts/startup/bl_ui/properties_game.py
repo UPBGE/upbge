@@ -17,7 +17,6 @@
 # ##### END GPL LICENSE BLOCK #####
 
 # <pep8 compliant>
-import bpy
 from bpy.types import Panel, Menu
 
 
@@ -43,16 +42,20 @@ class GAME_PT_game_components(GameButtonsPanel, Panel):
         game = ob.game
 
         row = layout.row()
-        row.operator("logic.python_component_register", text="Register Component", icon="PLUS")
-        row.operator("logic.python_component_create", text="Create Component", icon="PLUS")
+
+        row.operator("logic.python_component_register", icon="PLUS")
+        row.operator("logic.python_component_create", icon="PLUS")
 
         for i, c in enumerate(game.components):
             box = layout.box()
             row = box.row()
+
             row.prop(c, "show_expanded", text="", emboss=False)
             row.label(text=c.name)
-            row.operator("logic.python_component_reload", text="", icon='RECOVER_LAST').index = i
-            row.operator("logic.python_component_remove", text="", icon='X').index = i
+            row.context_pointer_set("component", c)
+            row.menu("GAME_MT_component_context_menu", icon="DOWNARROW_HLT", text="")
+
+            row.operator("logic.python_component_remove", text="", icon="X").index = i
 
             if c.show_expanded and len(c.properties) > 0:
                 box = box.box()
@@ -61,6 +64,30 @@ class GAME_PT_game_components(GameButtonsPanel, Panel):
                     row.label(text=prop.name)
                     col = row.column()
                     col.prop(prop, "value", text="")
+
+
+class GAME_MT_component_context_menu(Menu):
+    bl_label = "Game Component"
+
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.active_object
+
+        return ob and ob.game and ob.game.components and context.component
+
+    def draw(self, context):
+        layout = self.layout
+
+        components = context.active_object.game.components
+        index = components.find(context.component.name)  # FIXME: Should not use component.name as a key.
+
+        layout.operator("logic.python_component_reload", icon="RECOVER_LAST").index = index
+
+        layout.separator()
+
+        layout.operator("logic.python_component_move_up", icon="TRIA_UP").index = index
+        layout.operator("logic.python_component_move_down", icon="TRIA_DOWN").index = index
 
 
 class GAME_PT_game_properties(GameButtonsPanel, Panel):
@@ -713,6 +740,7 @@ class OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
 classes = (
     GAME_PT_game_components,
     GAME_PT_game_properties,
+    GAME_MT_component_context_menu,
     PHYSICS_PT_game_physics,
     PHYSICS_PT_game_collision_bounds,
     PHYSICS_PT_game_obstacles,

@@ -972,6 +972,147 @@ static void LOGIC_OT_python_component_remove(wmOperatorType *ot)
   RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Component index to remove", 0, INT_MAX);
 }
 
+static int component_move_up_exec(bContext *C, wmOperator *op)
+{
+  Object *ob = CTX_data_active_object(C);
+  PythonComponent *p1, *p2 = NULL;
+  int index = RNA_int_get(op->ptr, "index");
+
+  if (!ob) {
+    return OPERATOR_CANCELLED;
+  }
+
+  p1 = BLI_findlink(&ob->components, index);
+
+  if (!p1 || index < 1) {
+    return OPERATOR_CANCELLED;
+  }
+
+  p2 = BLI_findlink(&ob->components, index - 1);
+
+  if (!p2) {
+    return OPERATOR_CANCELLED;
+  }
+
+  BLI_listbase_swaplinks(&ob->components, p1, p2);
+
+  WM_event_add_notifier(C, NC_LOGIC, NULL);
+
+  return OPERATOR_FINISHED;
+}
+
+static bool component_move_up_poll(bContext *C)
+{
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "component", &RNA_PythonComponent);
+  Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id : ED_object_active_context(C);
+
+  if (!ob || ID_IS_LINKED(ob)) {
+    return false;
+  }
+
+  if (ID_IS_OVERRIDE_LIBRARY(ob)) {
+    CTX_wm_operator_poll_msg_set(
+        C, "Cannot move component coming from linked data in a library override");
+    return false;
+  }
+
+  int index = BLI_findindex(&ob->components, ptr.data);
+
+  return index > 0;
+}
+
+static void LOGIC_OT_python_component_move_up(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Move Component Up";
+  ot->description = "Move Component Up";
+  ot->idname = "LOGIC_OT_python_component_move_up";
+
+  /* api callbacks */
+  ot->exec = component_move_up_exec;
+  ot->poll = component_move_up_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* properties */
+  RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Component index to move", 0, INT_MAX);
+}
+
+static bool component_move_down_poll(bContext *C)
+{
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "component", &RNA_PythonComponent);
+  Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id : ED_object_active_context(C);
+
+  if (!ob || ID_IS_LINKED(ob)) {
+    return false;
+  }
+
+  if (ID_IS_OVERRIDE_LIBRARY(ob)) {
+    CTX_wm_operator_poll_msg_set(
+        C, "Cannot move component coming from linked data in a library override");
+    return false;
+  }
+
+  int count = BLI_listbase_count(&ob->components);
+  int index = BLI_findindex(&ob->components, ptr.data);
+
+  return index < count - 1;
+}
+
+static int component_move_down_exec(bContext *C, wmOperator *op)
+{
+  Object *ob = CTX_data_active_object(C);
+  PythonComponent *p1, *p2 = NULL;
+  int index = RNA_int_get(op->ptr, "index");
+
+  if (!ob) {
+    return OPERATOR_CANCELLED;
+  }
+
+  p1 = BLI_findlink(&ob->components, index);
+
+  if (!p1) {
+    return OPERATOR_CANCELLED;
+  }
+
+  int count = BLI_listbase_count(&ob->components);
+
+  if (index >= count - 1) {
+    return OPERATOR_CANCELLED;
+  }
+
+  p2 = BLI_findlink(&ob->components, index + 1);
+
+  if (!p2) {
+    return OPERATOR_CANCELLED;
+  }
+
+  BLI_listbase_swaplinks(&ob->components, p1, p2);
+
+  WM_event_add_notifier(C, NC_LOGIC, NULL);
+
+  return OPERATOR_FINISHED;
+}
+
+static void LOGIC_OT_python_component_move_down(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Move Component Down";
+  ot->description = "Move Component Down";
+  ot->idname = "LOGIC_OT_python_component_move_down";
+
+  /* api callbacks */
+  ot->exec = component_move_down_exec;
+  ot->poll = component_move_down_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* properties */
+  RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Component index to move", 0, INT_MAX);
+}
+
 static int component_reload_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
@@ -1038,6 +1179,8 @@ void ED_operatortypes_logic(void)
   WM_operatortype_append(LOGIC_OT_python_component_reload);
   WM_operatortype_append(LOGIC_OT_python_component_create);
   WM_operatortype_append(LOGIC_OT_python_component_remove);
+  WM_operatortype_append(LOGIC_OT_python_component_move_up);
+  WM_operatortype_append(LOGIC_OT_python_component_move_down);
   WM_operatortype_append(LOGIC_OT_view_all);
   WM_operatortype_append(LOGIC_OT_region_flip);
 }
