@@ -259,7 +259,11 @@ void KX_GameObject::TagForTransformUpdate(bool is_last_render_pass)
 {
   float obmat[4][4];
   NodeGetWorldTransform().getValue(&obmat[0][0]);
-  bool staticObject = compare_m4m4(m_prevObmat, obmat, FLT_MIN);
+  bool staticObject = true;
+  if (GetSGNode()->IsDirty(SG_Node::DIRTY_RENDER)) {
+    staticObject = false;
+    GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
+  }
 
   bContext *C = KX_GetActiveEngine()->GetContext();
   Main *bmain = CTX_data_main(C);
