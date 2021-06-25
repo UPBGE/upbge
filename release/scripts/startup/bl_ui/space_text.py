@@ -295,7 +295,7 @@ class TEXT_MT_templates_py_components(Menu):
 
     def draw(self, _context):
         self.path_menu(
-            bpy.utils.script_paths("templates_py_components"),
+            bpy.utils.script_paths(subdir="templates_py_components"),
             "text.open",
             props_default={"internal": True},
             filter_ext=lambda ext: (ext.lower() == ".py")
@@ -319,7 +319,7 @@ class TEXT_MT_templates_glsl(Menu):
 
     def draw(self, _context):
         self.path_menu(
-            bpy.utils.script_paths("templates_glsl"),
+            bpy.utils.script_paths(subdir="templates_glsl"),
             "text.open",
             props_default={"internal": True},
             filter_ext=lambda ext: (ext.lower() == ".glsl")
