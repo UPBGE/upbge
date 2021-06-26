@@ -480,6 +480,7 @@ static const EnumPropertyItem buttons_context_items[] = {
      "Bone Constraints",
      "Bone Constraint Properties"},
     {BCONTEXT_MATERIAL, "MATERIAL", ICON_MATERIAL, "Material", "Material Properties"},
+    {BCONTEXT_GAME, "GAME", ICON_SCRIPT, "Game", "Game Object Properties"},
     {BCONTEXT_TEXTURE, "TEXTURE", ICON_TEXTURE, "Texture", "Texture Properties"},
     {BCONTEXT_PARTICLE, "PARTICLES", ICON_PARTICLES, "Particles", "Particle Properties"},
     {BCONTEXT_PHYSICS, "PHYSICS", ICON_PHYSICS, "Physics", "Physics Properties"},
