@@ -1450,14 +1450,14 @@ vec3 mtex_2d_mapping(vec3 vec)
 
 void mtex_cube_map(vec3 co, samplerCube ima, float lodbias, out float value, out vec4 color)
 {
-	color = textureCube(ima, co, lodbias);
+	color = textureCubeLod(ima, co, lodbias);
 	value = 1.0;
 }
 
 void mtex_cube_map_refl_from_refldir(
         samplerCube ima, vec3 reflecteddirection, float lodbias, out float value, out vec4 color)
 {
-        color = textureCube(ima, reflecteddirection, lodbias);
+        color = textureCubeLod(ima, reflecteddirection, lodbias);
         value = color.a;
 }
 
@@ -1472,7 +1472,7 @@ vec4 mtex_cube_map_refl_color(samplerCube ima, mat4 viewmatrixinverse, float lod
 {
 	vec3 normaldirection = normalize(viewmatrixinverse * vec4(vn, 0.0)).xyz;
 	vec3 reflecteddirection = reflect(viewdirection, normaldirection);
-	vec4 col = textureCube(ima, reflecteddirection, lodbias);
+	vec4 col = textureCubeLod(ima, reflecteddirection, lodbias);
 	return col;
 }
 
@@ -1480,7 +1480,7 @@ vec4 mtex_cube_map_refr_color(samplerCube ima, mat4 viewmatrixinverse, float ior
 {
 	vec3 normaldirection = normalize(viewmatrixinverse * vec4(vec3(vn.x, vn.y, -vn.z), 0.0)).xyz;
 	vec3 refracteddirection = refract(viewdirection, normaldirection, 1.0 / ior);
-	vec4 col = textureCube(ima, refracteddirection, lodbias);
+	vec4 col = textureCubeLod(ima, refracteddirection, lodbias);
 	return col;
 }
 
