@@ -713,7 +713,6 @@ static void buttons_area_listener(const wmSpaceTypeListenerParams *params)
         case ND_TRANSFORM:
           buttons_area_redraw(area, BCONTEXT_OBJECT);
           buttons_area_redraw(area, BCONTEXT_DATA); /* autotexpace flag */
-          buttons_area_redraw(area, BCONTEXT_GAME);
           break;
         case ND_POSE:
         case ND_BONE_ACTIVE:
@@ -750,13 +749,15 @@ static void buttons_area_listener(const wmSpaceTypeListenerParams *params)
           buttons_area_redraw(area, BCONTEXT_PHYSICS);
           /* Needed to refresh context path when changing active particle system index. */
           buttons_area_redraw(area, BCONTEXT_PARTICLE);
-          buttons_area_redraw(area, BCONTEXT_GAME);
           break;
         default:
           /* Not all object RNA props have a ND_ notifier (yet) */
           ED_area_tag_redraw(area);
           break;
       }
+      break;
+    case NC_LOGIC:
+      buttons_area_redraw(area, BCONTEXT_GAME);
       break;
     case NC_GEOM:
       switch (wmn->data) {
