@@ -129,11 +129,11 @@ typedef struct EXP_PyObjectPlus_Proxy {
     } \
     virtual PyObject *GetProxy() \
     { \
-      return GetProxyPlus_Ext(this, &Type, nullptr); \
+      return GetProxyPlus_Ext(this, this->GetType(), nullptr); \
     } \
     virtual PyObject *NewProxy(bool py_owns) \
     { \
-      return NewProxyPlus_Ext(this, &Type, nullptr, py_owns); \
+      return NewProxyPlus_Ext(this, this->GetType(), nullptr, py_owns); \
     }
 
 /** Use this macro for class that use generic pointer in proxy
