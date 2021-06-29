@@ -47,7 +47,7 @@ class LOGIC_PT_components(bpy.types.Panel):
         for i, c in enumerate(game.components):
             box = layout.box()
             row = box.row(align=1)
-            row.prop(c, "show_expanded", text="", emboss=1, icon="CHECKBOX_DEHLT")
+            row.prop(c, "show_expanded", text="", emboss=0)
             if "C_Icons" in c.properties:
                 try:
                     icondict = c.properties["C_Icons"].value.split("+")
