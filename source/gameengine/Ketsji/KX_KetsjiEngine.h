@@ -85,7 +85,7 @@ enum class KX_DebugOption
 };
 
 typedef struct {
-	short glslflag;
+	int glslflag;
 } GlobalSettings;
 
 /**
