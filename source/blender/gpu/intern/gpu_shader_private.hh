@@ -29,6 +29,8 @@
 namespace blender {
 namespace gpu {
 
+class GPULogParser;
+
 /**
  * Implementation of shader compilation and uniforms handling.
  * Base class which is then specialized for each implementation (GL, VK, ...).
@@ -81,7 +83,11 @@ class Shader {
   virtual int shader_get_uniform_location_old(const char *name) = 0;
 
  protected:
-  void print_log(Span<const char *> sources, char *log, const char *stage, const bool error);
+  void print_log(Span<const char *> sources,
+                 char *log,
+                 const char *stage,
+                 const bool error,
+                 GPULogParser *parser);
 };
 
 /* Syntactic sugar. */
@@ -97,6 +103,37 @@ static inline const Shader *unwrap(const GPUShader *vert)
 {
   return reinterpret_cast<const Shader *>(vert);
 }
+
+enum class Severity {
+  Unknown,
+  Warning,
+  Error,
+};
+
+struct LogCursor {
+  int source = -1;
+  int row = -1;
+  int column = -1;
+};
+
+struct GPULogItem {
+  LogCursor cursor;
+  Severity severity = Severity::Unknown;
+};
+
+class GPULogParser {
+ public:
+  virtual char *parse_line(char *log_line, GPULogItem &log_item) = 0;
+
+ protected:
+  char *skip_severity(char *log_line,
+                      GPULogItem &log_item,
+                      const char *error_msg,
+                      const char *warning_msg) const;
+  char *skip_separators(char *log_line, char sep1, char sep2, char sep3) const;
+
+  MEM_CXX_CLASS_ALLOC_FUNCS("GPULogParser");
+};
 
 }  // namespace gpu
 }  // namespace blender

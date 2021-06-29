@@ -1012,8 +1012,8 @@ void GHOST_SystemWin32::processWintabEvent(GHOST_WindowWin32 *window)
 void GHOST_SystemWin32::processPointerEvent(
     UINT type, GHOST_WindowWin32 *window, WPARAM wParam, LPARAM lParam, bool &eventHandled)
 {
-  /* Pointer events might fire when changing windows for a device which is set to use Wintab, even
-   * when when Wintab is left enabled but set to the bottom of Wintab overlap order. */
+  /* Pointer events might fire when changing windows for a device which is set to use Wintab,
+   * even when Wintab is left enabled but set to the bottom of Wintab overlap order. */
   if (!window->usingTabletAPI(GHOST_kTabletWinPointer)) {
     return;
   }
@@ -1503,7 +1503,7 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
         case WM_SYSKEYDOWN:
         case WM_KEYUP:
         case WM_SYSKEYUP:
-        /* These functions were replaced by WM_INPUT*/
+        /* These functions were replaced by #WM_INPUT. */
         case WM_CHAR:
         /* The WM_CHAR message is posted to the window with the keyboard focus when
          * a WM_KEYDOWN message is translated by the TranslateMessage function. WM_CHAR
@@ -1634,7 +1634,7 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
           }
 
           /* Reset pointer pen info if pen device has left tracking range. */
-          if (pointerInfo.pointerType == PT_PEN && !IS_POINTER_INRANGE_WPARAM(wParam)) {
+          if (pointerInfo.pointerType == PT_PEN) {
             window->resetPointerPenInfo();
             eventHandled = true;
           }
@@ -1851,7 +1851,7 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
            * to perform any move or size change processing during the WM_WINDOWPOSCHANGED
            * message without calling DefWindowProc.
            */
-          /* see WM_SIZE comment*/
+          /* See #WM_SIZE comment. */
           if (window->m_inLiveResize) {
             system->pushEvent(processWindowEvent(GHOST_kEventWindowMove, window));
             system->dispatchEvents();

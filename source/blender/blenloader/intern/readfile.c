@@ -735,7 +735,7 @@ static void bh4_from_bh8(BHead *bhead, BHead8 *bhead8, bool do_endian_swap)
       BLI_endian_switch_uint64(&bhead8->old);
     }
 
-    /* this patch is to avoid a long long being read from not-eight aligned positions
+    /* this patch is to avoid `intptr_t` being read from not-eight aligned positions
      * is necessary on any modern 64bit architecture) */
     memcpy(&old, &bhead8->old, 8);
     bhead4->old = (int)(old >> 3);
@@ -2500,7 +2500,7 @@ static void direct_link_id_common(
     BKE_asset_metadata_read(reader, id->asset_data);
   }
 
-  /*link direct data of ID properties*/
+  /* Link direct data of ID properties. */
   if (id->properties) {
     BLO_read_data_address(reader, &id->properties);
     /* this case means the data was written incorrectly, it should not happen */
@@ -2869,7 +2869,7 @@ static void lib_link_workspace_layout_restore(struct IDNameLib_Map *id_map,
           }
 
           /* TODO: restore path pointers: T40046
-           * (complicated because this contains data pointers too, not just ID)*/
+           * (complicated because this contains data pointers too, not just ID). */
           MEM_SAFE_FREE(sbuts->path);
         }
         else if (sl->spacetype == SPACE_FILE) {

@@ -156,7 +156,7 @@ class WVertex {
   }
 
  public:
-  /** Iterator to iterate over a vertex incoming edges in the CCW order*/
+  /** Iterator to iterate over a vertex incoming edges in the CCW order. */
 #if defined(__GNUC__) && (__GNUC__ < 3)
   class incoming_edge_iterator : public input_iterator<WOEdge *, ptrdiff_t>
 #else
@@ -868,13 +868,13 @@ class WFace {
     return _VerticesTexCoords;
   }
 
-  /** Returns the normal of the vertex of index index */
+  /** Returns the normal of the vertex of `index`. */
   inline Vec3f &GetVertexNormal(int index)
   {
     return _VerticesNormals[index];
   }
 
-  /** Returns the tex coords of the vertex of index index */
+  /** Returns the tex coords of the vertex of `index`. */
   inline Vec2f &GetVertexTexCoords(int index)
   {
     return _VerticesTexCoords[index];

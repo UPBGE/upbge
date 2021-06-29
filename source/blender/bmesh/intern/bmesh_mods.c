@@ -246,8 +246,8 @@ BMFace *BM_faces_join_pair(BMesh *bm, BMLoop *l_a, BMLoop *l_b, const bool do_de
  * \param no_double: Use an existing edge if found
  *
  * \return Pointer to the newly created face representing one side of the split
- * if the split is successful (and the original original face will be the
- * other side). NULL if the split fails.
+ * if the split is successful (and the original face will be the other side).
+ * NULL if the split fails.
  */
 BMFace *BM_face_split(BMesh *bm,
                       BMFace *f,
@@ -328,8 +328,8 @@ BMFace *BM_face_split(BMesh *bm,
  * \param example: Edge used for attributes of splitting edge, if non-NULL.
  *
  * \return Pointer to the newly created face representing one side of the split
- * if the split is successful (and the original original face will be the
- * other side). NULL if the split fails.
+ * if the split is successful (and the original face will be the other side).
+ * NULL if the split fails.
  */
 BMFace *BM_face_split_n(BMesh *bm,
                         BMFace *f,
@@ -962,7 +962,7 @@ bool BM_edge_rotate_check_beauty(BMEdge *e, BMLoop *l1, BMLoop *l2)
 {
   /* Stupid check for now:
    * Could compare angles of surrounding edges
-   * before & after, but this is OK.*/
+   * before & after, but this is OK. */
   return (len_squared_v3v3(e->v1->co, e->v2->co) > len_squared_v3v3(l1->v->co, l2->v->co));
 }
 

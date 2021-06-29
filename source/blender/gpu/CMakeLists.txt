@@ -84,6 +84,7 @@ set(SRC
   intern/gpu_select_sample_query.cc
   intern/gpu_shader.cc
   intern/gpu_shader_builtin.c
+  intern/gpu_shader_log.cc
   intern/gpu_shader_interface.cc
   intern/gpu_state.cc
   intern/gpu_texture.cc
@@ -104,6 +105,7 @@ set(SRC
   opengl/gl_index_buffer.cc
   opengl/gl_query.cc
   opengl/gl_shader.cc
+  opengl/gl_shader_log.cc
   opengl/gl_shader_interface.cc
   opengl/gl_state.cc
   opengl/gl_texture.cc
@@ -409,6 +411,7 @@ if(WITH_GTESTS)
       tests/gpu_testing.cc
 
       tests/gpu_index_buffer_test.cc
+      tests/gpu_shader_builtin_test.cc
       tests/gpu_shader_test.cc
 
       tests/gpu_testing.hh

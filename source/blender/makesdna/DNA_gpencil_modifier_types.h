@@ -873,9 +873,9 @@ typedef enum eLineartGpencilModifierSource {
   LRT_SOURCE_SCENE = 2,
 } eLineartGpencilModifierSource;
 
-/* This enumis for modifier internal state only. */
+/* This enum is for modifier internal state only. */
 typedef enum eLineArtGPencilModifierFlags {
-  /* These two moved to eLineartMainFlags to keep consistent with flag variable purpose. */
+  /* These two moved to #eLineartMainFlags to keep consistent with flag variable purpose. */
   /* LRT_GPENCIL_INVERT_SOURCE_VGROUP = (1 << 0), */
   /* LRT_GPENCIL_MATCH_OUTPUT_VGROUP = (1 << 1), */
   LRT_GPENCIL_BINARY_WEIGHTS = (1 << 2) /* Deprecated, this is removed for lack of use case. */,
@@ -883,11 +883,11 @@ typedef enum eLineArtGPencilModifierFlags {
   LRT_GPENCIL_USE_CACHE = (1 << 4),
 } eLineArtGPencilModifierFlags;
 
-typedef enum eLineartGpencilTransparencyFlags {
-  LRT_GPENCIL_TRANSPARENCY_ENABLE = (1 << 0),
-  /** Set to true means using "and" instead of "or" logic on mask bits. */
-  LRT_GPENCIL_TRANSPARENCY_MATCH = (1 << 1),
-} eLineartGpencilTransparencyFlags;
+typedef enum eLineartGpencilMaterialMaskFlags {
+  LRT_GPENCIL_MATERIAL_MASK_ENABLE = (1 << 0),
+  /** When set, material mask bit comparisons are done with bit wise "AND" instead of "OR". */
+  LRT_GPENCIL_MATERIAL_MASK_MATCH = (1 << 1),
+} eLineartGpencilMaterialMaskFlags;
 
 struct LineartCache;
 
@@ -918,8 +918,8 @@ typedef struct LineartGpencilModifierData {
   float opacity;
   short thickness;
 
-  unsigned char transparency_flags; /* eLineartGpencilTransparencyFlags */
-  unsigned char transparency_mask;
+  unsigned char material_mask_flags; /* eLineartGpencilMaterialMaskFlags */
+  unsigned char material_mask_bits;
 
   /** `0..1` range for cosine angle */
   float crease_threshold;

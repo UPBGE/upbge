@@ -163,7 +163,7 @@ static void precalculate_effector(struct Depsgraph *depsgraph, EffectorCache *ef
     if (cu->flag & CU_PATH) {
       if (eff->ob->runtime.curve_cache == NULL ||
           eff->ob->runtime.curve_cache->anim_path_accum_length == NULL) {
-        BKE_displist_make_curveTypes(depsgraph, eff->scene, eff->ob, false, false);
+        BKE_displist_make_curveTypes(depsgraph, eff->scene, eff->ob, false);
       }
 
       if (eff->ob->runtime.curve_cache->anim_path_accum_length) {
@@ -773,7 +773,7 @@ int get_effector_data(EffectorCache *eff,
     /* use center of object for distance calculus */
     const Object *ob = eff->ob;
 
-    /* use z-axis as normal*/
+    /* Use z-axis as normal. */
     normalize_v3_v3(efd->nor, ob->obmat[2]);
 
     if (eff->pd && ELEM(eff->pd->shape, PFIELD_SHAPE_PLANE, PFIELD_SHAPE_LINE)) {

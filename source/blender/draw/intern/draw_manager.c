@@ -1818,7 +1818,7 @@ static void DRW_render_gpencil_to_image(RenderEngine *engine,
 
 void DRW_render_gpencil(struct RenderEngine *engine, struct Depsgraph *depsgraph)
 {
-  /* This function should only be called if there are are grease pencil objects,
+  /* This function should only be called if there are grease pencil objects,
    * especially important to avoid failing in background renders without OpenGL context. */
   BLI_assert(DRW_render_check_grease_pencil(depsgraph));
 
@@ -2132,7 +2132,7 @@ void DRW_draw_render_loop_2d_ex(struct Depsgraph *depsgraph,
   drw_viewport_colormanagement_set();
 
   /* TODO(jbakker): Only populate when editor needs to draw object.
-   * for the image editor this is when showing UV's.*/
+   * for the image editor this is when showing UV's. */
   const bool do_populate_loop = (DST.draw_ctx.space_data->spacetype == SPACE_IMAGE);
   const bool do_annotations = drw_draw_show_annotation();
   const bool do_draw_gizmos = (DST.draw_ctx.space_data->spacetype != SPACE_IMAGE);

@@ -3583,7 +3583,7 @@ Object *BKE_object_duplicate(Main *bmain,
   }
 
   if (!is_subprocess) {
-    /* This code will follow into all ID links using an ID tagged with LIB_TAG_NEW.*/
+    /* This code will follow into all ID links using an ID tagged with LIB_TAG_NEW. */
     BKE_libblock_relink_to_newid(&obn->id);
 
 #ifndef NDEBUG
@@ -4036,12 +4036,11 @@ void BKE_object_to_mat3(Object *ob, float r_mat[3][3]) /* no parent */
 {
   float smat[3][3];
   float rmat[3][3];
-  /*float q1[4];*/
 
-  /* scale */
+  /* Scale. */
   BKE_object_scale_to_mat3(ob, smat);
 
-  /* rot */
+  /* Rotation. */
   BKE_object_rot_to_mat3(ob, rmat, true);
   mul_m3_m3m3(r_mat, rmat, smat);
 }
@@ -5300,7 +5299,7 @@ Mesh *BKE_object_get_pre_modified_mesh(const Object *object)
 }
 
 /**
- * Get a mesh which corresponds to very very original mesh from #Main.
+ * Get a mesh which corresponds to the very original mesh from #Main.
  * - For original objects it will be object->data.
  * - For evaluated objects it will be same mesh as corresponding original
  *   object uses as data.
@@ -6128,7 +6127,7 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
         tot = 0;
         tree = BLI_kdtree_3d_new(totvert);
 
-        /* we don't how how many verts from the DM we can use */
+        /* We don't how many verts from the DM we can use. */
         for (i = 0; i < totvert; i++) {
           if (index[i] != ORIGINDEX_NONE) {
             float co[3];
