@@ -44,11 +44,10 @@ class LOGIC_PT_components(bpy.types.Panel):
         row = layout.row()
         row.operator("logic.python_component_register", text="Register Component", icon="ZOOMIN")
         row.operator("logic.python_component_create", text="Create Component", icon="ZOOMIN")
-
         for i, c in enumerate(game.components):
             box = layout.box()
-            row = box.row()
-            row.prop(c, "show_expanded", text="", emboss=False)
+            row = box.row(align=1)
+            row.prop(c, "show_expanded", text="", emboss=1, icon="CHECKBOX_DEHLT")
             if "C_Icons" in c.properties:
                 try:
                     icondict = c.properties["C_Icons"].value.split("+")
@@ -62,8 +61,14 @@ class LOGIC_PT_components(bpy.types.Panel):
                         if scene.icons_Show:
                             row.prop(prop,"value", text="")
                         row.prop(scene, "icons_Show", text="", icon="INFO", toggle=True)
-            row.operator("logic.python_component_reload", text="", icon='RECOVER_LAST').index = i
+            
+            row.operator("logic.python_component_reload", icon="RECOVER_LAST", text="").index = i
+            # row.separator()
+            row.operator("logic.python_component_move_up", icon="TRIA_UP", text="").index = i
+            row.operator("logic.python_component_move_down", icon="TRIA_DOWN", text="").index = i
+            row = row.row(align=0)
             row.operator("logic.python_component_remove", text="", icon='X').index = i
+  
             if c.show_expanded and len(c.properties) > 0:
                 box = box.box()
                 iconval = 1
@@ -88,7 +93,6 @@ class LOGIC_PT_components(bpy.types.Panel):
                         col = row.column()
                         col.prop(prop, "value", text="")
 
-
 class LOGIC_PT_properties(Panel):
     bl_space_type = 'LOGIC_EDITOR'
     bl_region_type = 'UI'
@@ -109,7 +113,7 @@ class LOGIC_PT_properties(Panel):
         if is_font:
             prop_index, prop_indexR = game.properties.find("Text"), game.properties.find("Text-Res")
 
-            if prop_index != -1: #and prop_indexR != -1:
+            if prop_index != -1:
                 layout.operator("object.game_property_remove", text="Remove Text Game Property", icon='X').index = prop_index
                 row = layout.row()
                 sub = row.row()
