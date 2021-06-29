@@ -361,7 +361,7 @@ class INFO_MT_help(Menu):
 
         layout.operator(
                 "wm.url_open", text="Python API Reference", icon='URL',
-                ).url = "https://shuvit.org/python_api/contents.html"
+                ).url = "https://upbge.org/manual_api_0.2.5/"
 
         layout.operator("wm.operator_cheat_sheet", icon='TEXT')
         layout.operator("wm.sysinfo", icon='TEXT')
