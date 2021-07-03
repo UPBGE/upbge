@@ -578,12 +578,16 @@ KX_KetsjiEngine::CameraRenderData KX_KetsjiEngine::GetCameraRenderData(
    * and its name is based on with the eye number in addition.
    */
   if (usestereo) {
-    rendercam = new KX_Camera(scene, scene->m_callbacks, *camera->GetCameraData(), true);
+    rendercam = new KX_Camera();
+
+    rendercam->SetScene(scene);
+    rendercam->SetCameraData(*camera->GetCameraData());
     rendercam->SetName("__stereo_" + camera->GetName() + "_" + std::to_string(eye) + "__");
     rendercam->NodeSetGlobalOrientation(camera->NodeGetWorldOrientation());
     rendercam->NodeSetWorldPosition(camera->NodeGetWorldPosition());
     rendercam->NodeSetWorldScale(camera->NodeGetWorldScaling());
     rendercam->NodeUpdateGS(0.0);
+    rendercam->MarkForDeletion();
   }
   // Else use the native camera.
   else {
@@ -1128,11 +1132,13 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
   if (!scene->GetActiveCamera() || override_camera) {
     KX_Camera *activecam = nullptr;
 
-    activecam = new KX_Camera(
-        scene, KX_Scene::m_callbacks, override_camera ? m_overrideCamData : RAS_CameraData());
+    activecam = new KX_Camera();
+
+    activecam->SetScene(scene);
+    activecam->SetBlenderObject(scene->GetGameDefaultCamera());
+    activecam->SetCameraData(override_camera ? m_overrideCamData : RAS_CameraData());
     activecam->SetName("__default__cam__");
 
-    activecam->SetBlenderObject(scene->GetGameDefaultCamera());
     scene->GetBlenderSceneConverter()->RegisterGameObject(activecam,
                                                           activecam->GetBlenderObject());
 

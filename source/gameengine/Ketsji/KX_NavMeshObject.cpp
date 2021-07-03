@@ -575,8 +575,7 @@ static int polyFindVertex(const unsigned short *p,
   return res;
 }
 
-KX_NavMeshObject::KX_NavMeshObject(void *sgReplicationInfo, SG_Callbacks callbacks)
-    : KX_GameObject(sgReplicationInfo, callbacks), m_navMesh(nullptr)
+KX_NavMeshObject::KX_NavMeshObject() : KX_GameObject(), m_navMesh(nullptr)
 {
 }
 

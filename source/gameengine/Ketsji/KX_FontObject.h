@@ -34,12 +34,10 @@
 #include "KX_GameObject.h"
 
 class KX_FontObject : public KX_GameObject {
- public:
-  Py_Header KX_FontObject(void *sgReplicationInfo,
-                          SG_Callbacks callbacks,
-                          RAS_Rasterizer *rasterizer,
-                          Object *ob);
+  Py_Header
 
+ public:
+  KX_FontObject();
   virtual ~KX_FontObject();
 
   /**
@@ -60,6 +58,10 @@ class KX_FontObject : public KX_GameObject {
   void SetText(const std::string &text);
   /// Update text from property.
   void UpdateTextFromProperty();
+
+  void SetRasterizer(RAS_Rasterizer *rasterizer);
+
+  virtual void SetBlenderObject(Object *obj);
 
  protected:
   std::string m_text;

@@ -35,14 +35,20 @@
 
 #include "KX_Light.h"
 
-KX_LightObject::KX_LightObject(void *sgReplicationInfo, SG_Callbacks callbacks, Object *obLight)
-    : KX_GameObject(sgReplicationInfo, callbacks), m_obLight(obLight)
+KX_LightObject::KX_LightObject() : KX_GameObject(),
+    m_obLight(nullptr)
 {
-  m_light = static_cast<Light *>(m_obLight->data);
 }
 
 KX_LightObject::~KX_LightObject()
 {
+}
+
+void KX_LightObject::SetBlenderObject(Object *obj)
+{
+  KX_GameObject::SetBlenderObject(obj);
+
+  m_light = static_cast<Light *>(obj->data);
 }
 
 Light *KX_LightObject::GetLight()

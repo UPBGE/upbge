@@ -46,7 +46,9 @@ bool ConvertPythonToCamera(KX_Scene *scene,
 #endif
 
 class KX_Camera : public KX_GameObject {
-  Py_Header protected : friend class KX_Scene;
+  Py_Header
+
+ protected : friend class KX_Scene;
   /** Camera parameters (clips distances, focal length). These
    * params are closely tied to Blender. In the gameengine, only the
    * projection and modelview matrices are relevant. There's a
@@ -120,10 +122,7 @@ class KX_Camera : public KX_GameObject {
  public:
   enum { INSIDE, INTERSECT, OUTSIDE };
 
-  KX_Camera(void *sgReplicationInfo,
-            SG_Callbacks callbacks,
-            const RAS_CameraData &camdata,
-            bool delete_node = false);
+  KX_Camera();
   virtual ~KX_Camera();
 
   struct GPUViewport *GetGPUViewport();
@@ -187,6 +186,8 @@ class KX_Camera : public KX_GameObject {
   /** Gets all camera data. */
   RAS_CameraData *GetCameraData();
 
+  void SetCameraData(const RAS_CameraData &camdata);
+
   /** Get/Set show camera frustum */
   void SetShowCameraFrustum(bool show);
   bool GetShowCameraFrustum() const;
@@ -237,6 +238,10 @@ class KX_Camera : public KX_GameObject {
   {
     return OBJ_CAMERA;
   }
+
+  virtual void SetBlenderObject(Object *obj);
+
+  void MarkForDeletion();
 
 #ifdef WITH_PYTHON
   EXP_PYMETHOD_DOC_VARARGS(KX_Camera, sphereInsideFrustum);

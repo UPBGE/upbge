@@ -638,39 +638,6 @@ static KX_LodManager *BL_lodmanager_from_blenderobject(Object *ob,
   return lodManager;
 }
 
-static KX_LightObject *BL_gamelight_from_blamp(KX_Scene *kxscene, Object *ob)
-{
-
-  KX_LightObject *gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, ob);
-
-  return gamelight;
-}
-
-static KX_Camera *BL_gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene)
-{
-  Camera *ca = static_cast<Camera *>(ob->data);
-  RAS_CameraData camdata(ca->lens,
-                         ca->ortho_scale,
-                         ca->sensor_x,
-                         ca->sensor_y,
-                         ca->sensor_fit,
-                         ca->shiftx,
-                         ca->shifty,
-                         ca->clip_start,
-                         ca->clip_end,
-                         ca->type == CAM_PERSP);
-  KX_Camera *gamecamera;
-
-  gamecamera = new KX_Camera(kxscene, KX_Scene::m_callbacks, camdata);
-  gamecamera->SetName(ca->id.name + 2);
-
-  gamecamera->SetLodDistanceFactor(ca->lodfactor);
-
-  // kxscene->SetOverrideCullingCamera(gamecamera);
-
-  return gamecamera;
-}
-
 static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
                                                        KX_Scene *kxscene,
                                                        RAS_Rasterizer *rasty,
@@ -682,7 +649,7 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
 
   switch (ob->type) {
     case OB_LAMP: {
-      KX_LightObject *gamelight = BL_gamelight_from_blamp(kxscene, ob);
+      KX_LightObject *gamelight = new KX_LightObject();
       gameobj = gamelight;
       gamelight->AddRef();
       kxscene->GetLightList()->Add(gamelight);
@@ -691,12 +658,13 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
     }
 
     case OB_CAMERA: {
-      KX_Camera *gamecamera = BL_gamecamera_from_bcamera(ob, kxscene);
-      gameobj = gamecamera;
+      KX_Camera *gamecamera = new KX_Camera();
 
       // don't add a reference: the camera list in kxscene->m_cameras is not released at the end
       // gamecamera->AddRef();
       kxscene->GetCameraList()->Add(CM_AddRef(gamecamera));
+
+      gameobj = gamecamera;
 
       break;
     }
@@ -710,12 +678,12 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
       kxscene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
 
       if (ob->gameflag & OB_NAVMESH) {
-        gameobj = new KX_NavMeshObject(kxscene, KX_Scene::m_callbacks);
+        gameobj = new KX_NavMeshObject();
         gameobj->AddMesh(meshobj);
         break;
       }
 
-      gameobj = new KX_EmptyObject(kxscene, KX_Scene::m_callbacks);
+      gameobj = new KX_EmptyObject();
 
       // set transformation
       gameobj->AddMesh(meshobj);
@@ -738,55 +706,30 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
     }
 
     case OB_ARMATURE: {
-      gameobj = new BL_ArmatureObject(kxscene,
-                                      KX_Scene::m_callbacks,
-                                      ob,
-                                      kxscene->GetBlenderScene());  // handle
+      gameobj = new BL_ArmatureObject();
 
       kxscene->AddAnimatedObject(gameobj);
 
       break;
     }
 
-    case OB_EMPTY: {
-      gameobj = new KX_EmptyObject(kxscene, KX_Scene::m_callbacks);
-      // set transformation
-      break;
-    }
-
-    case OB_LIGHTPROBE: {
-      gameobj = new KX_EmptyObject(kxscene, KX_Scene::m_callbacks);
-      // set transformation
-      break;
-    }
-
-    case OB_MBALL: {
-      gameobj = new KX_EmptyObject(kxscene, KX_Scene::m_callbacks);
-      // set transformation
-      break;
-    }
-
-    case OB_SURF: {
-      gameobj = new KX_EmptyObject(kxscene, KX_Scene::m_callbacks);
-      // set transformation
-      break;
-    }
-
-    case OB_GPENCIL: {
-      gameobj = new KX_EmptyObject(kxscene, KX_Scene::m_callbacks);
-      // set transformation
-      break;
-    }
-
+    case OB_EMPTY:
+    case OB_LIGHTPROBE:
+    case OB_MBALL:
+    case OB_SURF:
+    case OB_GPENCIL:
     case OB_SPEAKER: {
-      gameobj = new KX_EmptyObject(kxscene, KX_Scene::m_callbacks);
+      gameobj = new KX_EmptyObject();
       // set transformation
       break;
     }
 
     case OB_FONT: {
       /* font objects have no bounding box */
-      KX_FontObject *fontobj = new KX_FontObject(kxscene, KX_Scene::m_callbacks, rasty, ob);
+      KX_FontObject *fontobj = new KX_FontObject();
+
+      fontobj->SetRasterizer(rasty);
+
       gameobj = fontobj;
 
       kxscene->GetFontList()->Add(CM_AddRef(fontobj));
@@ -802,7 +745,7 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
             depsgraph, blenderscene, DEG_get_evaluated_object(depsgraph, ob), false, false);
       }*/
       // eevee add curves to scene.objects list
-      gameobj = new KX_EmptyObject(kxscene, KX_Scene::m_callbacks);
+      gameobj = new KX_EmptyObject();
       // set transformation
       break;
     }
@@ -810,6 +753,7 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
   }
   if (gameobj) {
     gameobj->SetLayer(ob->lay);
+    gameobj->SetScene(kxscene);
     gameobj->SetBlenderObject(ob);
 
     /* Bakup Objects obmat to restore at scene exit */
