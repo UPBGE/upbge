@@ -4903,11 +4903,7 @@ bool ConvertPythonToGameObject(SCA_LogicManager *manager,
     }
   }
 
-  if (PyObject_TypeCheck(value, &KX_GameObject::Type) ||
-      PyObject_TypeCheck(value, &KX_LightObject::Type) ||
-      PyObject_TypeCheck(value, &KX_Camera::Type) ||
-      PyObject_TypeCheck(value, &KX_FontObject::Type) ||
-      PyObject_TypeCheck(value, &KX_NavMeshObject::Type)) {
+  if (PyObject_TypeCheck(value, &KX_GameObject::Type)) {
     *object = static_cast<KX_GameObject *> EXP_PROXY_REF(value);
 
     /* sets the error */
