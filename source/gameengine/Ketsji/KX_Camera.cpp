@@ -39,18 +39,14 @@
 #include "KX_Globals.h"
 #include "KX_PyMath.h"
 #include "RAS_ICanvas.h"
+#include "DNA_camera_types.h"
 
-KX_Camera::KX_Camera(void *sgReplicationInfo,
-                     SG_Callbacks callbacks,
-                     const RAS_CameraData &camdata,
-                     bool delete_node)
-    : KX_GameObject(sgReplicationInfo, callbacks),
-      m_camdata(camdata),
+KX_Camera::KX_Camera() : KX_GameObject(),
       m_gpuViewport(nullptr),  // eevee
       m_dirty(true),
       m_normalized(false),
       m_set_projection_matrix(false),
-      m_delete_node(delete_node),
+      m_delete_node(false),
       m_lodDistanceFactor(1.0f),
       m_showDebugCameraFrustum(false)
 {
@@ -68,6 +64,34 @@ KX_Camera::~KX_Camera()
     delete m_pSGNode;
     m_pSGNode = nullptr;
   }
+}
+
+void KX_Camera::SetBlenderObject(Object *obj)
+{
+  KX_GameObject::SetBlenderObject(obj);
+
+  Camera *ca = static_cast<Camera *>(obj->data);
+
+  RAS_CameraData camdata(ca->lens,
+                         ca->ortho_scale,
+                         ca->sensor_x,
+                         ca->sensor_y,
+                         ca->sensor_fit,
+                         ca->shiftx,
+                         ca->shifty,
+                         ca->clip_start,
+                         ca->clip_end,
+                         ca->type == CAM_PERSP);
+
+  SetName(ca->id.name + 2);
+  SetLodDistanceFactor(ca->lodfactor);
+
+  SetCameraData(camdata);
+}
+
+void KX_Camera::SetCameraData(const RAS_CameraData &camdata)
+{
+  m_camdata = camdata;
 }
 
 GPUViewport *KX_Camera::GetGPUViewport()
@@ -302,6 +326,11 @@ int KX_Camera::GetViewportRight() const
 int KX_Camera::GetViewportTop() const
 {
   return m_camdata.m_viewporttop;
+}
+
+void KX_Camera::MarkForDeletion()
+{
+  m_delete_node = true;
 }
 
 #ifdef WITH_PYTHON

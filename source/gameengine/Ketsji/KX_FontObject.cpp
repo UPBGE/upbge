@@ -56,17 +56,10 @@ static std::vector<std::string> split_string(std::string str)
   return text;
 }
 
-KX_FontObject::KX_FontObject(void *sgReplicationInfo,
-                             SG_Callbacks callbacks,
-                             RAS_Rasterizer *rasterizer,
-                             Object *ob)
-    : KX_GameObject(sgReplicationInfo, callbacks), m_object(ob), m_rasterizer(rasterizer)
+KX_FontObject::KX_FontObject() : KX_GameObject(),
+    m_object(nullptr),
+    m_rasterizer(nullptr)
 {
-  Curve *text = static_cast<Curve *>(ob->data);
-
-  SetText(text->str);
-
-  m_backupText = std::string(text->str);  // eevee
 }
 
 KX_FontObject::~KX_FontObject()
@@ -124,6 +117,24 @@ void KX_FontObject::UpdateTextFromProperty()
   if (prop && prop->GetText() != m_text) {
     SetText(prop->GetText());
     UpdateCurveText(m_text);  // eevee
+  }
+}
+
+void KX_FontObject::SetRasterizer(RAS_Rasterizer *rasterizer)
+{
+  m_rasterizer = rasterizer;
+}
+
+void KX_FontObject::SetBlenderObject(Object *obj)
+{
+  KX_GameObject::SetBlenderObject(obj);
+
+  if (obj) {
+    Curve *text = static_cast<Curve *>(obj->data);
+
+    m_backupText = std::string(text->str);  // eevee
+
+    SetText(text->str);
   }
 }
 

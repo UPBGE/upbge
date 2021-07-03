@@ -85,7 +85,9 @@ void KX_GameObject_Mathutils_Callback_Init(void);
  * KX_GameObject is the main class for dynamic objects.
  */
 class KX_GameObject : public SCA_IObject {
-  Py_Header protected :
+  Py_Header
+
+ protected :
 
   /* EEVEE INTEGRATION */
   float m_prevObmat[4][4];
@@ -319,8 +321,7 @@ class KX_GameObject : public SCA_IObject {
    * Construct a game object. This class also inherits the
    * default constructors - use those with care!
    */
-
-  KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks);
+  KX_GameObject();
 
   virtual ~KX_GameObject();
 
@@ -490,7 +491,7 @@ class KX_GameObject : public SCA_IObject {
     return m_pBlenderObject;
   }
 
-  void SetBlenderObject(struct Object *obj);
+  virtual void SetBlenderObject(struct Object *obj);
 
   struct Object *GetBlenderGroupObject()
   {
@@ -746,6 +747,8 @@ class KX_GameObject : public SCA_IObject {
   void UpdateComponents();
 
   KX_Scene *GetScene();
+
+  virtual void SetScene(KX_Scene *scene);
 
 #ifdef WITH_PYTHON
   /**

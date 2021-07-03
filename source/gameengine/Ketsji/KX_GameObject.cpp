@@ -82,7 +82,7 @@ static MT_Vector3 dummy_scaling = MT_Vector3(1.0f, 1.0f, 1.0f);
 static MT_Matrix3x3 dummy_orientation = MT_Matrix3x3(
     1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
 
-KX_GameObject::KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
+KX_GameObject::KX_GameObject()
     : SCA_IObject(),
       m_isReplica(false),              // eevee
       m_visibleAtGameStart(false),     // eevee
@@ -98,6 +98,7 @@ KX_GameObject::KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
       m_bVisible(true),
       m_bOccluder(false),
       m_pPhysicsController(nullptr),
+      m_pSGNode(nullptr),
       m_components(NULL),
       m_pInstanceObjects(nullptr),
       m_pDupliGroupObject(nullptr),
@@ -110,12 +111,6 @@ KX_GameObject::KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
 #endif
 {
   m_pClient_info = new KX_ClientObjectInfo(this, KX_ClientObjectInfo::ACTOR);
-  m_pSGNode = new SG_Node(this, sgReplicationInfo, callbacks);
-
-  // define the relationship between this node and it's parent.
-
-  KX_NormalParentRelation *parent_relation = new KX_NormalParentRelation();
-  m_pSGNode->SetParentRelation(parent_relation);
 
   unit_m4(m_prevObmat);  // eevee
 };
@@ -1808,6 +1803,18 @@ KX_Scene *KX_GameObject::GetScene()
 {
   BLI_assert(m_pSGNode);
   return static_cast<KX_Scene *>(m_pSGNode->GetSGClientInfo());
+}
+
+void KX_GameObject::SetScene(KX_Scene *scene)
+{
+  BLI_assert(!m_pSGNode);
+
+  m_pSGNode = new SG_Node(this, scene, KX_Scene::m_callbacks);
+
+  // define the relationship between this node and it's parent.
+
+  KX_NormalParentRelation *parent_relation = new KX_NormalParentRelation();
+  m_pSGNode->SetParentRelation(parent_relation);
 }
 
 /* ---------------------------------------------------------------------

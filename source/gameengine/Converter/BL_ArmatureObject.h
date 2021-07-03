@@ -48,15 +48,14 @@ class RAS_DebugDraw;
 class BL_ArmatureObject : public KX_GameObject {
   Py_Header
 
-      protected :
-      /// List element: BL_ArmatureConstraint.
-      EXP_ListValue<BL_ArmatureConstraint> *m_controlledConstraints;
+ protected :
+  /// List element: BL_ArmatureConstraint.
+  EXP_ListValue<BL_ArmatureConstraint> *m_controlledConstraints;
   /// List element: BL_ArmatureChannel.
   EXP_ListValue<BL_ArmatureChannel> *m_poseChannels;
   Object *m_objArma;
   Object *m_origObjArma;
-  // Need for BKE_pose_where_is.
-  Scene *m_scene;
+
   double m_lastframe;
   size_t m_constraintNumber;
   size_t m_channelNumber;
@@ -68,10 +67,7 @@ class BL_ArmatureObject : public KX_GameObject {
   double m_lastapplyframe;
 
  public:
-  BL_ArmatureObject(void *sgReplicationInfo,
-                    SG_Callbacks callbacks,
-                    Object *armature,
-                    Scene *scene);
+  BL_ArmatureObject();
   virtual ~BL_ArmatureObject();
 
   virtual EXP_Value *GetReplica();
@@ -118,6 +114,8 @@ class BL_ArmatureObject : public KX_GameObject {
 
   /// Returns the bone length.  The end of the bone is in the local y direction.
   float GetBoneLength(Bone *bone) const;
+
+  virtual void SetBlenderObject(Object *obj);
 
 #ifdef WITH_PYTHON
 
