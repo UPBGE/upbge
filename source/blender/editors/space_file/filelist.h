@@ -35,6 +35,8 @@ struct wmWindowManager;
 
 struct FileDirEntry;
 
+typedef uint32_t FileUID;
+
 typedef enum FileSelType {
   FILE_SEL_REMOVE = 0,
   FILE_SEL_ADD = 1,
@@ -97,7 +99,8 @@ FileDirEntry *filelist_file_ex(struct FileList *filelist, int index, bool use_re
 
 int filelist_file_findpath(struct FileList *filelist, const char *file);
 struct ID *filelist_file_get_id(const struct FileDirEntry *file);
-FileDirEntry *filelist_entry_find_uuid(struct FileList *filelist, const int uuid[4]);
+bool filelist_uid_is_set(const FileUID uid);
+void filelist_uid_unset(FileUID *r_uid);
 void filelist_file_cache_slidingwindow_set(struct FileList *filelist, size_t window_size);
 bool filelist_file_cache_block(struct FileList *filelist, const int index);
 
@@ -141,8 +144,8 @@ bool filelist_islibrary(struct FileList *filelist, char *dir, char **r_group);
 void filelist_freelib(struct FileList *filelist);
 
 void filelist_readjob_start(struct FileList *filelist, const struct bContext *C);
-void filelist_readjob_stop(struct wmWindowManager *wm, struct Scene *owner_scene);
-int filelist_readjob_running(struct wmWindowManager *wm, struct Scene *owner_scene);
+void filelist_readjob_stop(struct FileList *filelist, struct wmWindowManager *wm);
+int filelist_readjob_running(struct FileList *filelist, struct wmWindowManager *wm);
 
 bool filelist_cache_previews_update(struct FileList *filelist);
 void filelist_cache_previews_set(struct FileList *filelist, const bool use_previews);

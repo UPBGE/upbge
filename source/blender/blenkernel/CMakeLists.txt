@@ -96,7 +96,7 @@ set(SRC
   intern/bpath.c
   intern/brush.c
   intern/bullet.c
-  intern/bvhutils.c
+  intern/bvhutils.cc
   intern/cachefile.c
   intern/callbacks.c
   intern/camera.c
