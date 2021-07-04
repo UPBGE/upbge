@@ -216,7 +216,12 @@ static struct PyModuleDef bge_types_module_def = {
     NULL,                  /* m_free */
 };
 
-static int verify_class(PyObject *cls)
+static int verify_custom_object_class(PyObject *cls)
+{
+  return PyType_IsSubtype((PyTypeObject *)cls, &FT_KX_GameObject);
+}
+
+static int verify_component_class(PyObject *cls)
 {
   return PyType_IsSubtype((PyTypeObject *)cls, &FT_KX_PythonComponent);
 }
@@ -466,7 +471,7 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 }
 #endif /* WITH_PYTHON */
 
-static bool load_component(PythonComponent *pc, ReportList *reports, Main *maggie)
+static bool load_class(PythonComponent *pc, int (*verifier)(PyObject *), ReportList *reports, Main *maggie)
 {
 #ifdef WITH_PYTHON
 
@@ -578,10 +583,10 @@ static bool load_component(PythonComponent *pc, ReportList *reports, Main *maggi
 
   // Check the subclass with our own function since we don't have access to the KX_PythonComponent
   // type object
-  if (!verify_class(item)) {
+  if (!verifier(item)) {
     BKE_reportf(reports,
                 RPT_ERROR_INVALID_INPUT,
-                "A %s type was found, but it was not a valid subclass of KX_PythonComponent.",
+                "A %s class was found, but it was not of an expected subtype.",
                 pc->name);
     FINISH(false);
   }
@@ -605,7 +610,10 @@ static bool load_component(PythonComponent *pc, ReportList *reports, Main *maggi
 #endif /* WITH_PYTHON */
 }
 
-PythonComponent *BKE_python_component_new(char *import, ReportList *reports, bContext *context)
+PythonComponent *BKE_python_class_new(char *import,
+                                      int (*verifier)(PyObject *),
+                                      ReportList *reports,
+                                      bContext *context)
 {
   char *classname;
   char *modulename;
@@ -613,7 +621,7 @@ PythonComponent *BKE_python_component_new(char *import, ReportList *reports, bCo
 
   // Don't bother with an empty string
   if (strcmp(import, "") == 0) {
-    BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No component was specified.");
+    BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No class was specified.");
     return NULL;
   }
 
@@ -640,7 +648,7 @@ PythonComponent *BKE_python_component_new(char *import, ReportList *reports, bCo
   }
 
   // Try load the component.
-  if (!load_component(pc, reports, CTX_data_main(context))) {
+  if (!load_class(pc, verifier, reports, CTX_data_main(context))) {
     BKE_python_component_free(pc);
     return NULL;
   }
@@ -648,9 +656,22 @@ PythonComponent *BKE_python_component_new(char *import, ReportList *reports, bCo
   return pc;
 }
 
-PythonComponent *BKE_python_component_create_file(char *import,
-                                                  ReportList *reports,
-                                                  bContext *context)
+PythonComponent *BKE_custom_object_new(char *import, ReportList *reports, bContext *context)
+{
+  return BKE_python_class_new(import, verify_custom_object_class, reports, context);
+}
+
+PythonComponent *BKE_python_component_new(char *import, ReportList *reports, bContext *context)
+{
+  return BKE_python_class_new(import, verify_component_class, reports, context);
+}
+
+PythonComponent *BKE_python_class_create_file(char *import,
+                                              const char *template_dir,
+                                              const char *template_name,
+                                              int (*verifier)(PyObject *),
+                                              ReportList *reports,
+                                              bContext *context)
 {
   char *classname;
   char *modulename;
@@ -665,7 +686,7 @@ PythonComponent *BKE_python_component_create_file(char *import,
 
   // Don't bother with an empty string
   if (strcmp(import, "") == 0) {
-    BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No component was specified.");
+    BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No class name was specified.");
     return NULL;
   }
 
@@ -674,7 +695,7 @@ PythonComponent *BKE_python_component_create_file(char *import,
   classname = strtok(NULL, ".");
 
   if (!classname) {
-    BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No component class name was specified.");
+    BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No class name was specified.");
     return NULL;
   }
 
@@ -689,9 +710,9 @@ PythonComponent *BKE_python_component_create_file(char *import,
   text = BKE_text_add(maggie, filename);
 
   BLI_strncpy(respath,
-              BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS, "templates_py_components"),
+              BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS, template_dir),
               sizeof(respath));
-  BLI_path_append(respath, sizeof(respath), "python_component.py");
+  BLI_path_append(respath, sizeof(respath), template_name);
 
   orgfilecontent = BLI_file_read_text_as_mem(respath, 0, &filesize);
   orgfilecontent[filesize] = '\0';
@@ -711,7 +732,7 @@ PythonComponent *BKE_python_component_create_file(char *import,
   }
 
   // Try load the component.
-  if (!load_component(pc, reports, CTX_data_main(context))) {
+  if (!load_class(pc, verifier, reports, CTX_data_main(context))) {
     BKE_python_component_free(pc);
     return NULL;
   }
@@ -721,9 +742,38 @@ PythonComponent *BKE_python_component_create_file(char *import,
   return pc;
 }
 
+PythonComponent *BKE_custom_object_create_file(char *import,
+                                               ReportList *reports,
+                                               bContext *context)
+{
+  return BKE_python_class_create_file(import,
+                                      "templates_custom_objects",
+                                      "custom_object.py",
+                                      verify_custom_object_class,
+                                      reports,
+                                      context);
+}
+
+PythonComponent *BKE_python_component_create_file(char *import,
+                                                  ReportList *reports,
+                                                  bContext *context)
+{
+  return BKE_python_class_create_file(import,
+                                      "templates_py_components",
+                                      "python_component.py",
+                                      verify_component_class,
+                                      reports,
+                                      context);
+}
+
+void BKE_custom_object_reload(PythonComponent *pc, ReportList *reports, bContext *context)
+{
+  load_class(pc, verify_custom_object_class, reports, CTX_data_main(context));
+}
+
 void BKE_python_component_reload(PythonComponent *pc, ReportList *reports, bContext *context)
 {
-  load_component(pc, reports, CTX_data_main(context));
+  load_class(pc, verify_component_class, reports, CTX_data_main(context));
 }
 
 PythonComponent *BKE_python_component_copy(PythonComponent *comp)
@@ -857,18 +907,24 @@ void *BKE_python_component_argument_dict_new(PythonComponent *pc)
 #endif /* WITH_PYTHON */
 }
 
+void BKE_python_component_id_loop(PythonComponent *pc, BKEPyComponentIDFunc func, void *userdata)
+{
+  ListBase *properties = &pc->properties;
+  PythonComponentProperty *prop;
+
+  for (prop = properties->first; prop; prop = prop->next) {
+#define PT_DEF(name, lower, upper) func(pc, (ID **)&prop->lower, userdata, IDWALK_CB_USER);
+    POINTER_TYPES
+#undef PT_DEF
+  }
+}
+
 void BKE_python_components_id_loop(ListBase *complist, BKEPyComponentIDFunc func, void *userdata)
 {
   PythonComponent *comp;
 
   for (comp = complist->first; comp; comp = comp->next) {
-    ListBase *properties = &comp->properties;
-    PythonComponentProperty *prop;
-
-    for (prop = properties->first; prop; prop = prop->next) {
-#define PT_DEF(name, lower, upper) func(comp, (ID **)&prop->lower, userdata, IDWALK_CB_USER);
-      POINTER_TYPES
-#undef PT_DEF
-    }
+    BKE_python_component_id_loop(comp, func, userdata);
   }
 }
+

@@ -385,6 +385,19 @@ PyAttributeDef KX_Camera::Attributes[] = {
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
+PyObject *KX_Camera::game_object_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+  KX_Camera *obj = new KX_Camera();
+
+  PyObject *proxy = py_base_new(type, PyTuple_Pack(1, obj->GetProxy()), kwds);
+  if (!proxy) {
+    delete obj;
+    return nullptr;
+  }
+
+  return proxy;
+}
+
 PyTypeObject KX_Camera::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_Camera",
                                 sizeof(EXP_PyObjectPlus_Proxy),
                                 0,
@@ -421,7 +434,7 @@ PyTypeObject KX_Camera::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_Camera",
                                 0,
                                 0,
                                 0,
-                                py_base_new};
+                                game_object_new};
 
 EXP_PYMETHODDEF_DOC_VARARGS(KX_Camera,
                             sphereInsideFrustum,

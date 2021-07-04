@@ -22,22 +22,24 @@
 
 #ifdef WITH_PYTHON
 
-#  include "KX_PythonComponent.h"
+#include "KX_PythonComponent.h"
+#include "KX_PythonProxy.h"
 
-#  include "BKE_python_component.h"
-#  include "DNA_python_component_types.h"
+#include "BKE_python_component.h"
+#include "DNA_python_component_types.h"
 
-#  include "CM_Message.h"
-#  include "KX_GameObject.h"
+#include "CM_Message.h"
+#include "KX_GameObject.h"
 
-KX_PythonComponent::KX_PythonComponent(const std::string &name)
-    : m_pc(nullptr), m_gameobj(nullptr), m_name(name), m_init(false)
+KX_PythonComponent::KX_PythonComponent(const std::string &name):
+    KX_PythonProxy(),
+    m_gameobj(nullptr),
+    m_name(name)
 {
 }
 
 KX_PythonComponent::~KX_PythonComponent()
 {
-  Dispose();
 }
 
 std::string KX_PythonComponent::GetName()
@@ -65,7 +67,8 @@ void KX_PythonComponent::ProcessReplica()
 {
   EXP_Value::ProcessReplica();
   m_gameobj = nullptr;
-  m_init = false;
+
+  Reset();
 }
 
 KX_GameObject *KX_PythonComponent::GetGameObject() const
@@ -76,55 +79,6 @@ KX_GameObject *KX_PythonComponent::GetGameObject() const
 void KX_PythonComponent::SetGameObject(KX_GameObject *gameobj)
 {
   m_gameobj = gameobj;
-}
-
-void KX_PythonComponent::SetBlenderPythonComponent(PythonComponent *pc)
-{
-  m_pc = pc;
-}
-
-void KX_PythonComponent::Start()
-{
-  PyObject *arg_dict = (PyObject *)BKE_python_component_argument_dict_new(m_pc);
-
-  PyObject *ret = PyObject_CallMethod(GetProxy(), "start", "O", arg_dict);
-
-  if (PyErr_Occurred()) {
-    PyErr_Print();
-  }
-
-  Py_XDECREF(arg_dict);
-  Py_XDECREF(ret);
-}
-
-void KX_PythonComponent::Update()
-{
-  if (!m_init) {
-    Start();
-    m_init = true;
-  }
-
-  PyObject *pycomp = GetProxy();
-  if (!PyObject_CallMethod(pycomp, "update", "")) {
-    PyErr_Print();
-  }
-}
-
-void KX_PythonComponent::Dispose()
-{
-  PyObject *pycomp = GetProxy();
-
-  /* Check if the component has a method named "dispose" */
-  PyObject *item = PyObject_GetAttrString(pycomp, "dispose");
-  if (item) {
-    Py_XDECREF(item);
-    if (!PyObject_CallMethod(pycomp, "dispose", "")) {
-      PyErr_Print();
-    }
-  }
-  else {
-    PyErr_Clear();
-  }
 }
 
 PyObject *KX_PythonComponent::py_component_new(PyTypeObject *type, PyObject *args, PyObject *kwds)

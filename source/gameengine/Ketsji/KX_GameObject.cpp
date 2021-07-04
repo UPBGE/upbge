@@ -1785,17 +1785,16 @@ void KX_GameObject::SetComponents(EXP_ListValue<KX_PythonComponent> *components)
   m_components = components;
 }
 
-void KX_GameObject::UpdateComponents()
+void KX_GameObject::Update()
 {
 #ifdef WITH_PYTHON
-  if (!m_components) {
-    return;
-  }
+  KX_PythonProxy::Update();
 
-  for (KX_PythonComponent *comp : m_components) {
-    comp->Update();
+  if (m_components) {
+    for (KX_PythonComponent *comp : m_components) {
+      comp->Update();
+    }
   }
-
 #endif  // WITH_PYTHON
 }
 
@@ -2512,6 +2511,19 @@ PySequenceMethods KX_GameObject::Sequence = {
     (ssizeargfunc) nullptr,   /* sq_inplace_repeat */
 };
 
+PyObject *KX_GameObject::game_object_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+  KX_GameObject *obj = new KX_GameObject();
+
+  PyObject *proxy = py_base_new(type, PyTuple_Pack(1, obj->GetProxy()), kwds);
+  if (!proxy) {
+    delete obj;
+    return nullptr;
+  }
+
+  return proxy;
+}
+
 PyTypeObject KX_GameObject::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_GameObject",
                                     sizeof(EXP_PyObjectPlus_Proxy),
                                     0,
@@ -2548,7 +2560,7 @@ PyTypeObject KX_GameObject::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_GameOb
                                     0,
                                     0,
                                     0,
-                                    py_base_new};
+                                    game_object_new};
 
 PyObject *KX_GameObject::pyattr_get_name(EXP_PyObjectPlus *self_v,
                                          const EXP_PYATTRIBUTE_DEF *attrdef)

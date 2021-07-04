@@ -66,6 +66,6 @@ void KX_PythonComponentManager::UpdateComponents()
    */
   const std::vector<KX_GameObject *> objects = m_objects;
   for (KX_GameObject *gameobj : objects) {
-    gameobj->UpdateComponents();
+    gameobj->Update();
   }
 }

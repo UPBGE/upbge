@@ -61,5 +61,6 @@ class KX_LightObject : public KX_GameObject {
   virtual void SetBlenderObject(Object *obj);
 
 #ifdef WITH_PYTHON
+  static PyObject *game_object_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 #endif
 };

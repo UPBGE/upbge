@@ -2904,6 +2904,11 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "GameProperty"); /* rna_property.c */
   RNA_def_property_ui_text(prop, "Properties", "Game engine properties");
 
+  prop = RNA_def_property(srna, "custom_object", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "PythonComponent");
+  RNA_def_property_pointer_funcs(prop, NULL, NULL, NULL, NULL);
+  RNA_def_property_ui_text(prop, "Custom Game Object", "Custom game object component for the object");
+
   prop = RNA_def_property(srna, "components", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_collection_sdna(prop, NULL, "components", NULL);
   RNA_def_property_struct_type(prop, "PythonComponent"); /* rna_python_component.c */

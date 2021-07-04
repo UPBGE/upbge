@@ -31,6 +31,16 @@ typedef void (*BKEPyComponentIDFunc)(struct PythonComponent *comp,
                                      void *userdata,
                                      int cb_flag);
 
+struct PythonComponent *BKE_custom_object_new(char *import,
+                                              struct ReportList *reports,
+                                              struct bContext *context);
+struct PythonComponent *BKE_custom_object_create_file(char *import,
+                                                      struct ReportList *reports,
+                                                      struct bContext *context);
+void BKE_custom_object_reload(struct PythonComponent *pc,
+                              struct ReportList *reports,
+                              struct bContext *context);
+
 struct PythonComponent *BKE_python_component_new(char *import,
                                                  struct ReportList *reports,
                                                  struct bContext *context);
@@ -46,6 +56,10 @@ struct PythonComponent *BKE_python_component_copy(PythonComponent *comp);
 void BKE_python_component_copy_list(struct ListBase *lbn, const struct ListBase *lbo);
 void BKE_python_component_free(struct PythonComponent *pc);
 void BKE_python_component_free_list(struct ListBase *base);
+
+void BKE_python_component_id_loop(struct PythonComponent *pc,
+                                  BKEPyComponentIDFunc func,
+                                  void *userdata);
 
 void BKE_python_components_id_loop(struct ListBase *complist,
                                    BKEPyComponentIDFunc func,

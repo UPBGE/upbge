@@ -27,6 +27,7 @@ set(INC
   .
   ../Expressions
   ../GameLogic
+  ../Ketsji
   ../SceneGraph
   ../../blender/blenlib
   ../../blender/python/generic

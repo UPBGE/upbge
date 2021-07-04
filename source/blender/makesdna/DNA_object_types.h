@@ -496,6 +496,8 @@ typedef struct Object {
   /** bit masks of initial state as recorded by the users */
   unsigned int init_state;
 
+  struct PythonComponent *custom_object;
+
   ListBase prop;        /* game logic property list (not to be confused with IDProperties) */
   ListBase sensors;     /* game logic sensors */
   ListBase controllers; /* game logic controllers */

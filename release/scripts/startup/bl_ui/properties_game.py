@@ -27,6 +27,46 @@ class GameButtonsPanel:
     bl_order = 1000
 
 
+class GAME_PT_game_object(GameButtonsPanel, Panel):
+    bl_label = "Game Object"
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.active_object
+        return ob and ob.game
+
+    def draw(self, context):
+        layout = self.layout
+
+        ob = context.active_object
+        game = ob.game
+
+        row = layout.row()
+
+        if game.custom_object and game.custom_object.name:
+            obj = game.custom_object
+
+            box = layout.box()
+            row = box.row()
+
+            row.prop(obj, "show_expanded", text="", emboss=False)
+            row.label(text=obj.name)
+
+            row.operator("logic.custom_object_reload", text="", icon="RECOVER_LAST")
+            row.operator("logic.custom_object_remove", text="", icon="X")
+
+            if obj.show_expanded and len(obj.properties) > 0:
+                box = box.box()
+                for prop in obj.properties:
+                    row = box.row()
+                    row.label(text=prop.name)
+                    col = row.column()
+                    col.prop(prop, "value", text="")
+        else:
+            row.operator("logic.custom_object_register", icon="PLUS", text="Select")
+            row.operator("logic.custom_object_create", icon="PLUS", text="Create")
+
+
 class GAME_PT_game_components(GameButtonsPanel, Panel):
     bl_label = "Game Components"
 
@@ -43,8 +83,8 @@ class GAME_PT_game_components(GameButtonsPanel, Panel):
 
         row = layout.row()
 
-        row.operator("logic.python_component_register", icon="PLUS")
-        row.operator("logic.python_component_create", icon="PLUS")
+        row.operator("logic.python_component_register", icon="PLUS", text="Add")
+        row.operator("logic.python_component_create", icon="PLUS", text="Create")
 
         for i, c in enumerate(game.components):
             box = layout.box()
@@ -738,6 +778,7 @@ class OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
 
 
 classes = (
+    GAME_PT_game_object,
     GAME_PT_game_components,
     GAME_PT_game_properties,
     GAME_MT_component_context_menu,
