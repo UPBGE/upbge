@@ -244,6 +244,8 @@ class KX_Camera : public KX_GameObject {
   void MarkForDeletion();
 
 #ifdef WITH_PYTHON
+  static PyObject *game_object_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
+
   EXP_PYMETHOD_DOC_VARARGS(KX_Camera, sphereInsideFrustum);
   EXP_PYMETHOD_DOC_O(KX_Camera, boxInsideFrustum);
   EXP_PYMETHOD_DOC_O(KX_Camera, pointInsideFrustum);

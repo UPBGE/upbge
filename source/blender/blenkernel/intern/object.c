@@ -238,6 +238,10 @@ static void object_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const in
   }
 
   /* Game engine */
+  if (ob_src->custom_object) {
+    ob_dst->custom_object = BKE_python_component_copy(ob_src->custom_object);
+  }
+
   BLI_listbase_clear(&ob_dst->prop);
   BKE_bproperty_copy_list(&ob_dst->prop, &ob_src->prop);
 
@@ -319,6 +323,10 @@ static void object_free_data(ID *id)
   }
 
   /* Game engine */
+  if (ob->custom_object) {
+    BKE_python_component_free(ob->custom_object);
+  }
+
   BKE_bproperty_free_list(&ob->prop);
 
   BKE_sca_free_sensors(&ob->sensors);
@@ -572,6 +580,11 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
   BKE_sca_actuators_id_loop(&object->actuators, library_foreach_actuatorsObjectLooper, data);
   BKE_python_components_id_loop(&object->components, library_foreach_componentsObjectLooper, data);
 
+  if (object->custom_object) {
+    BKE_python_component_id_loop(
+        object->custom_object, library_foreach_componentsObjectLooper, data);
+  }
+
   if (object->lodlevels.first) {
     LISTBASE_FOREACH (LodLevel *, level, &object->lodlevels) {
       BKE_LIB_FOREACHID_PROCESS(data, level->source, IDWALK_CB_NEVER_SELF);
@@ -781,6 +794,7 @@ static void write_actuators(BlendWriter *writer, ListBase *lb)
 static void write_component_properties(BlendWriter *writer, ListBase *lb)
 {
   PythonComponentProperty *cprop;
+
   cprop = lb->first;
 
   while (cprop) {
@@ -794,6 +808,12 @@ static void write_component_properties(BlendWriter *writer, ListBase *lb)
   }
 }
 
+static void write_component(BlendWriter *writer, PythonComponent *pc)
+{
+  BLO_write_struct(writer, PythonComponent, pc);
+  write_component_properties(writer, &pc->properties);
+}
+
 static void write_components(BlendWriter *writer, ListBase *lb)
 {
   PythonComponent *pc;
@@ -801,8 +821,7 @@ static void write_components(BlendWriter *writer, ListBase *lb)
   pc = lb->first;
 
   while (pc) {
-    BLO_write_struct(writer, PythonComponent, pc);
-    write_component_properties(writer, &pc->properties);
+    write_component(writer, pc);
 
     pc = pc->next;
   }
@@ -841,6 +860,11 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
     write_controllers(writer, &ob->controllers);
     write_actuators(writer, &ob->actuators);
     write_components(writer, &ob->components);
+
+    if (ob->custom_object) {
+      write_component(writer, ob->custom_object);
+    }
+
     if (ob->bsoft) {
       BLO_write_struct(writer, BulletSoftBody, ob->bsoft);
     }
@@ -1102,6 +1126,22 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
     }
     pc = pc->next;
   }
+
+  BLO_read_data_address(reader, &ob->custom_object);
+  pc = ob->custom_object;
+
+  if (pc) {
+    BLO_read_glob_list(reader, &pc->properties);
+    cprop = pc->properties.first;
+    while (cprop) {
+      BLO_read_list(reader, &cprop->enumval);
+      for (LinkData *link = cprop->enumval.first; link; link = link->next) {
+        BLO_read_data_address(reader, &link->data);
+      }
+      cprop = cprop->next;
+    }
+  }
+
   BLO_read_data_address(reader, &ob->bsoft);
 
   BLO_read_list(reader, &ob->lodlevels);
@@ -1446,6 +1486,14 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
 
   LISTBASE_FOREACH (PythonComponent *, comp, &ob->components) {
     LISTBASE_FOREACH (PythonComponentProperty *, prop, &comp->properties) {
+#define PT_DEF(name, lower, upper) BLO_read_id_address(reader, ob->id.lib, &prop->lower);
+      POINTER_TYPES
+#undef PT_DEF
+    }
+  }
+
+  if (ob->custom_object) {
+    LISTBASE_FOREACH (PythonComponentProperty *, prop, &ob->custom_object->properties) {
 #define PT_DEF(name, lower, upper) BLO_read_id_address(reader, ob->id.lib, &prop->lower);
       POINTER_TYPES
 #undef PT_DEF

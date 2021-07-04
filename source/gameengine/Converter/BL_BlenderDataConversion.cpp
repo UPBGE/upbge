@@ -638,6 +638,72 @@ static KX_LodManager *BL_lodmanager_from_blenderobject(Object *ob,
   return lodManager;
 }
 
+static KX_GameObject *BL_gameobject_from_customobject(Object *ob)
+{
+  KX_GameObject *gameobj = nullptr;
+
+  PythonComponent *pc = ob->custom_object;
+
+  if (!pc) {
+    return nullptr;
+  }
+
+  PyObject *arg_dict = NULL, *args = NULL, *mod = NULL, *cls = NULL, *pyobj = NULL, *ret = NULL;
+
+  args = arg_dict = mod = cls = pyobj = ret = NULL;
+
+  // Grab the module
+  mod = PyImport_ImportModule(pc->module);
+
+  bool valid = false;
+
+  if (mod == NULL) {
+    if (PyErr_Occurred()) {
+      PyErr_Print();
+    }
+    CM_Error("Failed to import the module '" << pc->module << "'");
+  } else {
+    // Grab the class object
+    cls = PyObject_GetAttrString(mod, pc->name);
+
+    if (cls == NULL) {
+      if (PyErr_Occurred()) {
+        PyErr_Print();
+      }
+      CM_Error("Python module found, but failed to find the object '" << pc->name << "'");
+    } else if (!PyType_Check(cls) || !PyObject_IsSubclass(cls, (PyObject *)&KX_GameObject::Type)) {
+      CM_Error(pc->module << "." << pc->name << " is not a KX_GameObject subclass");
+    } else {
+      valid = true;
+    }
+  }
+
+  if (valid) {
+    // Every thing checks out, now generate the args dictionary and init the component
+    args = PyTuple_Pack(0);
+
+    pyobj = PyObject_Call(cls, args, NULL);
+
+    if (PyErr_Occurred()) {
+      // The component is invalid, drop it
+      PyErr_Print();
+    } else {
+      gameobj = static_cast<KX_GameObject *>(EXP_PROXY_REF(pyobj));
+    }
+  }
+
+  if (gameobj) {
+      gameobj->SetPrototype(pc);
+  }
+
+  Py_XDECREF(args);
+  Py_XDECREF(mod);
+  Py_XDECREF(cls);
+  Py_XDECREF(pyobj);
+
+  return gameobj;
+}
+
 static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
                                                        KX_Scene *kxscene,
                                                        RAS_Rasterizer *rasty,
@@ -647,9 +713,16 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
 {
   KX_GameObject *gameobj = nullptr;
 
+  KX_GameObject *customobj = BL_gameobject_from_customobject(ob);
+
   switch (ob->type) {
     case OB_LAMP: {
-      KX_LightObject *gamelight = new KX_LightObject();
+      KX_LightObject *gamelight = dynamic_cast<KX_LightObject *>(customobj);
+
+      if (!gamelight) {
+        gamelight = new KX_LightObject();
+      }
+
       gameobj = gamelight;
       gamelight->AddRef();
       kxscene->GetLightList()->Add(gamelight);
@@ -658,7 +731,11 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
     }
 
     case OB_CAMERA: {
-      KX_Camera *gamecamera = new KX_Camera();
+      KX_Camera *gamecamera = dynamic_cast<KX_Camera *>(customobj);
+
+      if (!gamecamera) {
+        gamecamera = new KX_Camera();
+      }
 
       // don't add a reference: the camera list in kxscene->m_cameras is not released at the end
       // gamecamera->AddRef();
@@ -678,12 +755,12 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
       kxscene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
 
       if (ob->gameflag & OB_NAVMESH) {
-        gameobj = new KX_NavMeshObject();
+        gameobj = customobj ? customobj : new KX_NavMeshObject();
         gameobj->AddMesh(meshobj);
         break;
+      } else {
+        gameobj = customobj ? customobj : new KX_EmptyObject();
       }
-
-      gameobj = new KX_EmptyObject();
 
       // set transformation
       gameobj->AddMesh(meshobj);
@@ -706,7 +783,11 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
     }
 
     case OB_ARMATURE: {
-      gameobj = new BL_ArmatureObject();
+      gameobj = dynamic_cast<BL_ArmatureObject *>(customobj);
+
+      if (!gameobj) {
+        gameobj = new BL_ArmatureObject();
+      }
 
       kxscene->AddAnimatedObject(gameobj);
 
@@ -719,14 +800,18 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
     case OB_SURF:
     case OB_GPENCIL:
     case OB_SPEAKER: {
-      gameobj = new KX_EmptyObject();
+      gameobj = customobj ? customobj : new KX_EmptyObject();
       // set transformation
       break;
     }
 
     case OB_FONT: {
       /* font objects have no bounding box */
-      KX_FontObject *fontobj = new KX_FontObject();
+      KX_FontObject *fontobj = dynamic_cast<KX_FontObject *>(customobj);
+
+      if (!fontobj) {
+        fontobj = new KX_FontObject();
+      }
 
       fontobj->SetRasterizer(rasty);
 
@@ -745,13 +830,20 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
             depsgraph, blenderscene, DEG_get_evaluated_object(depsgraph, ob), false, false);
       }*/
       // eevee add curves to scene.objects list
-      gameobj = new KX_EmptyObject();
+      gameobj = customobj ? customobj : new KX_EmptyObject();
       // set transformation
       break;
     }
 #endif
   }
+
   if (gameobj) {
+    if (customobj && customobj != gameobj) {
+      CM_Error("The custom object has an invalid type for '" << ob->id.name << "'.");
+
+      delete customobj;
+    }
+
     gameobj->SetLayer(ob->lay);
     gameobj->SetScene(kxscene);
     gameobj->SetBlenderObject(ob);
@@ -851,7 +943,7 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
     }
     else {
       KX_PythonComponent *comp = static_cast<KX_PythonComponent *>(EXP_PROXY_REF(pycomp));
-      comp->SetBlenderPythonComponent(pc);
+      comp->SetPrototype(pc);
       comp->SetGameObject(gameobj);
       components->Add(comp);
     }

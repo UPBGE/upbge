@@ -551,6 +551,18 @@ float BL_ArmatureObject::GetBoneLength(Bone *bone) const
 #ifdef WITH_PYTHON
 
 // PYTHON
+PyObject *BL_ArmatureObject::game_object_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+  BL_ArmatureObject *obj = new BL_ArmatureObject();
+
+  PyObject *proxy = py_base_new(type, PyTuple_Pack(1, obj->GetProxy()), kwds);
+  if (!proxy) {
+    delete obj;
+    return nullptr;
+  }
+
+  return proxy;
+}
 
 PyTypeObject BL_ArmatureObject::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "BL_ArmatureObject",
                                         sizeof(EXP_PyObjectPlus_Proxy),
@@ -588,7 +600,7 @@ PyTypeObject BL_ArmatureObject::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "BL_Ar
                                         0,
                                         0,
                                         0,
-                                        py_base_new};
+                                        game_object_new};
 
 PyMethodDef BL_ArmatureObject::Methods[] = {
     EXP_PYMETHODTABLE_NOARGS(BL_ArmatureObject, update),

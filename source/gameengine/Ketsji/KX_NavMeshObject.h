@@ -75,6 +75,8 @@ class KX_NavMeshObject : public KX_GameObject {
   /* Python interface ---------------------------------------------------- */
   /* --------------------------------------------------------------------- */
 
+  static PyObject *game_object_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
+
   EXP_PYMETHOD_DOC(KX_NavMeshObject, findPath);
   EXP_PYMETHOD_DOC(KX_NavMeshObject, raycast);
   EXP_PYMETHOD_DOC(KX_NavMeshObject, draw);

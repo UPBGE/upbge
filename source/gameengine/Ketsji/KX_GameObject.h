@@ -743,17 +743,19 @@ class KX_GameObject : public SCA_IObject {
   EXP_ListValue<KX_PythonComponent> *GetComponents() const;
   /// Add a components.
   void SetComponents(EXP_ListValue<KX_PythonComponent> *components);
-  /// Updates the components.
-  void UpdateComponents();
 
   KX_Scene *GetScene();
 
   virtual void SetScene(KX_Scene *scene);
 
+  virtual void Update();
+
 #ifdef WITH_PYTHON
   /**
    * \section Python interface functions.
    */
+
+  static PyObject *game_object_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 
   EXP_PYMETHOD_O(KX_GameObject, SetWorldPosition);
   EXP_PYMETHOD_VARARGS(KX_GameObject, ApplyForce);

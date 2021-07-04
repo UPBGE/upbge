@@ -829,6 +829,182 @@ static void LOGIC_OT_region_flip(wmOperatorType *ot)
   ot->flag = 0;
 }
 
+/* Custom object operators */
+static int python_class_new_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+{
+  /* Better for user feedback. */
+  return WM_operator_props_dialog_popup(C, op, 15 * UI_UNIT_X);
+}
+
+static int custom_object_register_exec(bContext *C, wmOperator *op)
+{
+  PythonComponent *pycomp;
+  Object *ob = CTX_data_active_object(C);
+  char import[MAX_NAME];
+
+  if (!ob) {
+    return OPERATOR_CANCELLED;
+  }
+
+  RNA_string_get(op->ptr, "class_name", import);
+  pycomp = BKE_custom_object_new(import, op->reports, C);
+
+  if (!pycomp) {
+    return OPERATOR_CANCELLED;
+  }
+
+  ob->custom_object = pycomp;
+
+  WM_event_add_notifier(C, NC_LOGIC, NULL);
+
+  return OPERATOR_FINISHED;
+}
+
+static int custom_object_create_exec(bContext *C, wmOperator *op)
+{
+  PythonComponent *pycomp;
+  Object *ob = CTX_data_active_object(C);
+  char import[MAX_NAME];
+
+  if (!ob) {
+    return OPERATOR_CANCELLED;
+  }
+
+  RNA_string_get(op->ptr, "class_name", import);
+  pycomp = BKE_custom_object_create_file(import, op->reports, C);
+
+  if (!pycomp) {
+    return OPERATOR_CANCELLED;
+  }
+
+  ob->custom_object = pycomp;
+
+  WM_event_add_notifier(C, NC_LOGIC, NULL);
+
+  return OPERATOR_FINISHED;
+}
+
+static void LOGIC_OT_custom_object_register(wmOperatorType *ot)
+{
+  ot->name = "Select Custom Object";
+  ot->idname = "LOGIC_OT_custom_object_register";
+  ot->description = "Use a custom KX_GameObject subclass for the selected object";
+
+  /* api callbacks */
+  ot->exec = custom_object_register_exec;
+  ot->invoke = python_class_new_invoke;
+  ot->poll = ED_operator_object_active_editable;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  PropertyRNA *parm;
+  parm = RNA_def_string(ot->srna,
+                        "class_name",
+                        "module.MyObject",
+                        64,
+                        "MyObject",
+                        "The class name with module (module.ClassName)");
+  RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
+}
+
+static void LOGIC_OT_custom_object_create(wmOperatorType *ot)
+{
+  ot->name = "Create Custom Object";
+  ot->idname = "LOGIC_OT_custom_object_create";
+  ot->description = "Create a KX_GameObject subclass and attach it to the selected object";
+
+  /* api callbacks */
+  ot->exec = custom_object_create_exec;
+  ot->invoke = python_class_new_invoke;
+  ot->poll = ED_operator_object_active_editable;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  PropertyRNA *parm;
+  parm = RNA_def_string(ot->srna,
+                        "class_name",
+                        "module.MyObject",
+                        64,
+                        "MyObject",
+                        "The class name with module (module.ClassName)");
+  RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
+}
+
+static int custom_object_remove_exec(bContext *C, wmOperator *op)
+{
+  Object *ob = CTX_data_active_object(C);
+
+  if (!ob) {
+    return OPERATOR_CANCELLED;
+  }
+
+  PythonComponent *pc = ob->custom_object;
+
+  if (!pc) {
+    return OPERATOR_CANCELLED;
+  }
+
+  ob->custom_object = NULL;
+
+  BKE_python_component_free(pc);
+
+  WM_event_add_notifier(C, NC_LOGIC, NULL);
+
+  return OPERATOR_FINISHED;
+}
+
+static void LOGIC_OT_custom_object_remove(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Remove Custom Object";
+  ot->description = "Remove this custom class from the object";
+  ot->idname = "LOGIC_OT_custom_object_remove";
+
+  /* api callbacks */
+  ot->exec = custom_object_remove_exec;
+  ot->poll = remove_component_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static int custom_object_reload_exec(bContext *C, wmOperator *op)
+{
+  Object *ob = CTX_data_active_object(C);
+
+  if (!ob) {
+    return OPERATOR_CANCELLED;
+  }
+
+  PythonComponent *pc = ob->custom_object;
+
+  if (!pc) {
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Try to create a new object */
+  BKE_custom_object_reload(pc, op->reports, C);
+
+  return OPERATOR_FINISHED;
+}
+
+static void LOGIC_OT_custom_object_reload(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Reload Object";
+  ot->description = "Reload custom object from the source script";
+  ot->idname = "LOGIC_OT_custom_object_reload";
+
+  /* api callbacks */
+  ot->exec = custom_object_reload_exec;
+  ot->poll = ED_operator_object_active_editable;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
 /* Component operators */
 static int component_register_exec(bContext *C, wmOperator *op)
 {
@@ -876,21 +1052,15 @@ static int component_create_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int component_new_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
-{
-  /* Better for user feedback. */
-  return WM_operator_props_dialog_popup(C, op, 15 * UI_UNIT_X);
-}
-
 static void LOGIC_OT_python_component_register(wmOperatorType *ot)
 {
   ot->name = "Add Python Component";
   ot->idname = "LOGIC_OT_python_component_register";
-  ot->description = "Add a python component to the selected object";
+  ot->description = "Add a Python component to the selected object";
 
   /* api callbacks */
   ot->exec = component_register_exec;
-  ot->invoke = component_new_invoke;
+  ot->invoke = python_class_new_invoke;
   ot->poll = ED_operator_object_active_editable;
 
   /* flags */
@@ -910,11 +1080,11 @@ static void LOGIC_OT_python_component_create(wmOperatorType *ot)
 {
   ot->name = "Create Python Component";
   ot->idname = "LOGIC_OT_python_component_create";
-  ot->description = "Create a python component to the selected object";
+  ot->description = "Create a Python component to the selected object";
 
   /* api callbacks */
   ot->exec = component_create_exec;
-  ot->invoke = component_new_invoke;
+  ot->invoke = python_class_new_invoke;
   ot->poll = ED_operator_object_active_editable;
 
   /* flags */
@@ -1175,6 +1345,10 @@ void ED_operatortypes_logic(void)
   WM_operatortype_append(LOGIC_OT_actuator_remove);
   WM_operatortype_append(LOGIC_OT_actuator_add);
   WM_operatortype_append(LOGIC_OT_actuator_move);
+  WM_operatortype_append(LOGIC_OT_custom_object_register);
+  WM_operatortype_append(LOGIC_OT_custom_object_reload);
+  WM_operatortype_append(LOGIC_OT_custom_object_create);
+  WM_operatortype_append(LOGIC_OT_custom_object_remove);
   WM_operatortype_append(LOGIC_OT_python_component_register);
   WM_operatortype_append(LOGIC_OT_python_component_reload);
   WM_operatortype_append(LOGIC_OT_python_component_create);

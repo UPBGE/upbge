@@ -143,6 +143,18 @@ void KX_FontObject::SetBlenderObject(Object *obj)
 /* ------------------------------------------------------------------------- */
 /* Python Integration Hooks					                                 */
 /* ------------------------------------------------------------------------- */
+PyObject *KX_FontObject::game_object_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+  KX_FontObject *obj = new KX_FontObject();
+
+  PyObject *proxy = py_base_new(type, PyTuple_Pack(1, obj->GetProxy()), kwds);
+  if (!proxy) {
+    delete obj;
+    return nullptr;
+  }
+
+  return proxy;
+}
 
 PyTypeObject KX_FontObject::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_FontObject",
                                     sizeof(EXP_PyObjectPlus_Proxy),
@@ -180,7 +192,7 @@ PyTypeObject KX_FontObject::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_FontOb
                                     0,
                                     0,
                                     0,
-                                    py_base_new};
+                                    game_object_new};
 
 PyMethodDef KX_FontObject::Methods[] = {
     {nullptr, nullptr}  // Sentinel

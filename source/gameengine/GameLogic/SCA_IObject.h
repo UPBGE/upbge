@@ -35,7 +35,7 @@
 
 #include <vector>
 
-#include "EXP_Value.h"
+#include "KX_PythonProxy.h"
 #include "SG_QList.h"
 
 class SCA_IObject;
@@ -48,13 +48,13 @@ typedef std::vector<SCA_IController *> SCA_ControllerList;
 typedef std::vector<SCA_IActuator *> SCA_ActuatorList;
 typedef std::vector<SCA_IObject *> SCA_ObjectList;
 
-class SCA_IObject : public EXP_Value {
+class SCA_IObject : public KX_PythonProxy {
 
   Py_Header
 
-      protected :
+ protected :
 
-      SCA_SensorList m_sensors;
+  SCA_SensorList m_sensors;
   SCA_ControllerList m_controllers;
   SCA_ActuatorList m_actuators;
   /// Actuators that use a pointer to this object.

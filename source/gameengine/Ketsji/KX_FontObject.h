@@ -63,6 +63,14 @@ class KX_FontObject : public KX_GameObject {
 
   virtual void SetBlenderObject(Object *obj);
 
+#ifdef WITH_PYTHON
+  /**
+   * \section Python interface functions.
+   */
+
+  static PyObject *game_object_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
+#endif
+
  protected:
   std::string m_text;
   std::vector<std::string> m_texts;

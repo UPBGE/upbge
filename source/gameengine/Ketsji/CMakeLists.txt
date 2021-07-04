@@ -118,6 +118,7 @@ set(SRC
   KX_PythonInit.cpp
   KX_PythonInitTypes.cpp
   KX_PythonMain.cpp
+  KX_PythonProxy.cpp
   KX_RayCast.cpp
   KX_BoneParentNodeRelationship.cpp
   KX_NodeRelationships.cpp
@@ -177,6 +178,7 @@ set(SRC
   KX_PythonInit.h
   KX_PythonInitTypes.h
   KX_PythonMain.h
+  KX_PythonProxy.h
   KX_RayCast.h
   KX_BoneParentNodeRelationship.h
   KX_NodeRelationships.h

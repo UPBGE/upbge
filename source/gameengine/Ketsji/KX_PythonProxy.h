@@ -22,37 +22,33 @@
 
 #pragma once
 
-#ifdef WITH_PYTHON
+#include "EXP_Value.h"
 
-#include "KX_PythonProxy.h"
-
-class KX_GameObject;
 struct PythonComponent;
 
-class KX_PythonComponent : public KX_PythonProxy {
-  Py_Header
+class KX_PythonProxy : public EXP_Value {
 
  private:
-  KX_GameObject *m_gameobj;
-  std::string m_name;
+  bool m_init;
+
+  PythonComponent *m_pc;
+
+  PyObject *m_update;
+
+  PyObject *m_dispose;
 
  public:
-  KX_PythonComponent(const std::string &name);
-  virtual ~KX_PythonComponent();
+  KX_PythonProxy();
 
-  // stuff for cvalue related things
-  virtual std::string GetName();
-  virtual EXP_Value *GetReplica();
+  virtual ~KX_PythonProxy();
 
-  void ProcessReplica();
+  void SetPrototype(PythonComponent *pc);
 
-  KX_GameObject *GetGameObject() const;
-  void SetGameObject(KX_GameObject *gameobj);
+  virtual void Start();
 
-  static PyObject *py_component_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
+  virtual void Update();
 
-  // Attributes
-  static PyObject *pyattr_get_object(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  virtual void Dispose();
+
+  void Reset();
 };
-
-#endif  // WITH_PYTHON
