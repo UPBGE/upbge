@@ -334,7 +334,7 @@ static GHOST_IWindow *startFullScreen(GHOST_ISystem *system,
                                       const int alphaBackground,
                                       bool useDesktop)
 {
-  GHOST_TUns32 sysWidth = 0, sysHeight = 0;
+  uint32_t sysWidth = 0, sysHeight = 0;
   system->getMainDisplayDimensions(sysWidth, sysHeight);
   // Create the main window
   GHOST_DisplaySetting setting;
@@ -756,8 +756,8 @@ int main(int argc,
   int windowTop = 100;
   int windowWidth = 640;
   int windowHeight = 480;
-  GHOST_TUns32 fullScreenWidth = 0;
-  GHOST_TUns32 fullScreenHeight = 0;
+  uint32_t fullScreenWidth = 0;
+  uint32_t fullScreenHeight = 0;
   GHOST_IWindow *window = nullptr;
   int fullScreenBpp = 32;
   int fullScreenFrequency = 60;
@@ -767,7 +767,7 @@ int main(int argc,
   int validArguments = 0;
   bool samplesParFound = false;
   std::string pythonControllerFile;
-  GHOST_TUns16 aasamples = 0;
+  uint16_t aasamples = 0;
   int alphaBackground = 0;
 
 #ifdef WIN32

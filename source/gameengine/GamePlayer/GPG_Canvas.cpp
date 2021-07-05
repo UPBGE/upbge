@@ -111,10 +111,10 @@ void GPG_Canvas::SetMousePosition(int x, int y)
 {
   GHOST_ISystem *system = GHOST_ISystem::getSystem();
   if (system && m_window) {
-    GHOST_TInt32 gx = (GHOST_TInt32)x / m_nativePixelSize;
-    GHOST_TInt32 gy = (GHOST_TInt32)y / m_nativePixelSize;
-    GHOST_TInt32 cx;
-    GHOST_TInt32 cy;
+    int32_t gx = (int32_t)x / m_nativePixelSize;
+    int32_t gy = (int32_t)y / m_nativePixelSize;
+    int32_t cx;
+    int32_t cy;
     m_window->clientToScreen(gx, gy, cx, cy);
     system->setCursorPosition(cx, cy);
   }

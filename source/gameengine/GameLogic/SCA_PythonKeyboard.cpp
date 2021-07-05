@@ -62,7 +62,7 @@ static PyObject *gPySetClipboard(PyObject *args, PyObject *value)
   if (!PyArg_ParseTuple(value, "s:setClipboard", &buf))
     Py_RETURN_NONE;
 
-  GHOST_putClipboard((GHOST_TInt8 *)buf, 0);
+  GHOST_putClipboard((char *)buf, 0);
   Py_RETURN_NONE;
 }
 
