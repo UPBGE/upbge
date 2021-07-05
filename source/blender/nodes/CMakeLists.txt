@@ -134,6 +134,7 @@ set(SRC
 
   function/nodes/node_fn_boolean_math.cc
   function/nodes/node_fn_float_compare.cc
+  function/nodes/node_fn_float_to_int.cc
   function/nodes/node_fn_input_string.cc
   function/nodes/node_fn_input_vector.cc
   function/nodes/node_fn_random_float.cc
@@ -166,6 +167,7 @@ set(SRC
   geometry/nodes/node_geo_curve_length.cc  
   geometry/nodes/node_geo_curve_primitive_bezier_segment.cc
   geometry/nodes/node_geo_curve_primitive_circle.cc
+  geometry/nodes/node_geo_curve_primitive_line.cc
   geometry/nodes/node_geo_curve_primitive_quadratic_bezier.cc
   geometry/nodes/node_geo_curve_primitive_spiral.cc
   geometry/nodes/node_geo_curve_primitive_star.cc
@@ -206,6 +208,7 @@ set(SRC
   geometry/nodes/node_geo_switch.cc
   geometry/nodes/node_geo_transform.cc
   geometry/nodes/node_geo_triangulate.cc
+  geometry/nodes/node_geo_viewer.cc
   geometry/nodes/node_geo_volume_to_mesh.cc
   geometry/node_geometry_exec.cc
   geometry/node_geometry_tree.cc

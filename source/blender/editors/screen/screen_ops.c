@@ -2797,9 +2797,9 @@ static int region_scale_modal(bContext *C, wmOperator *op, const wmEvent *event)
         }
         CLAMP(rmd->region->sizey, 0, rmd->maxsize);
 
-        /* note, 'UI_UNIT_Y/4' means you need to drag the footer and execute region
+        /* NOTE: `UI_UNIT_Y / 4` means you need to drag the footer and execute region
          * almost all the way down for it to become hidden, this is done
-         * otherwise its too easy to do this by accident */
+         * otherwise its too easy to do this by accident. */
         if (size_no_snap < (UI_UNIT_Y / 4) / aspect) {
           rmd->region->sizey = rmd->origval;
           if (!(rmd->region->flag & RGN_FLAG_HIDDEN)) {
@@ -5224,7 +5224,7 @@ static void SCREEN_OT_delete(wmOperatorType *ot)
 /* -------------------------------------------------------------------- */
 /** \name Region Alpha Blending Operator
  *
- * Implementation note: a disappearing region needs at least 1 last draw with
+ * Implementation NOTE: a disappearing region needs at least 1 last draw with
  * 100% back-buffer texture over it - then triple buffer will clear it entirely.
  * This because flag #RGN_FLAG_HIDDEN is set in end - region doesn't draw at all then.
  *

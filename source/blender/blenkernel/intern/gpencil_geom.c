@@ -634,6 +634,7 @@ bool BKE_gpencil_stroke_trim_points(bGPDstroke *gps, const int index_from, const
         new_dv[i].dw[j].weight = dv->dw[j].weight;
         new_dv[i].dw[j].def_nr = dv->dw[j].def_nr;
       }
+      BKE_defvert_clear(dv);
     }
     MEM_freeN(gps->dvert);
     gps->dvert = new_dv;
@@ -696,6 +697,7 @@ bool BKE_gpencil_stroke_split(bGPdata *gpd,
         new_dv[i].dw[j].weight = dv->dw[j].weight;
         new_dv[i].dw[j].def_nr = dv->dw[j].def_nr;
       }
+      BKE_defvert_clear(dv);
     }
     new_gps->dvert = new_dv;
   }
@@ -3561,7 +3563,7 @@ void BKE_gpencil_stroke_uniform_subdivide(bGPdata *gpd,
  * Stroke to view space
  * Transforms a stroke to view space. This allows for manipulations in 2D but also easy conversion
  * back to 3D.
- * Note: also takes care of parent space transform
+ * NOTE: also takes care of parent space transform
  */
 void BKE_gpencil_stroke_to_view_space(RegionView3D *rv3d,
                                       bGPDstroke *gps,
@@ -3580,7 +3582,7 @@ void BKE_gpencil_stroke_to_view_space(RegionView3D *rv3d,
  * Stroke from view space
  * Transforms a stroke from view space back to world space. Inverse of
  * BKE_gpencil_stroke_to_view_space
- * Note: also takes care of parent space transform
+ * NOTE: also takes care of parent space transform
  */
 void BKE_gpencil_stroke_from_view_space(RegionView3D *rv3d,
                                         bGPDstroke *gps,

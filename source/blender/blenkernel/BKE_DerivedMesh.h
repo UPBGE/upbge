@@ -55,7 +55,7 @@
  */
 
 /*
- * Note: This structure is read-only, for all practical purposes.
+ * NOTE: This structure is read-only, for all practical purposes.
  *       At some point in the future, we may want to consider
  *       creating a replacement structure that implements a proper
  *       abstract mesh kernel interface.  Or, we can leave this
@@ -94,7 +94,7 @@ struct PBVH;
 struct Scene;
 
 /*
- * Note: all mface interfaces now officially operate on tessellated data.
+ * NOTE: all mface interfaces now officially operate on tessellated data.
  *       Also, the mface origindex layer indexes mpolys, not mfaces.
  */
 

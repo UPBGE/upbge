@@ -388,9 +388,9 @@ typedef struct Object {
 
   /** Custom index, for renderpasses. */
   short index;
-  /** Current deformation group, note: index starts at 1. */
+  /** Current deformation group, NOTE: index starts at 1. */
   unsigned short actdef;
-  /** Current face map, note: index starts at 1. */
+  /** Current face map, NOTE: index starts at 1. */
   unsigned short actfmap;
   char _pad2[2];
   /** Object color (in most cases the material color is used for drawing). */
@@ -897,7 +897,7 @@ enum {
   /* OB_ADS_SHOWCONS = 1 << 12, */ /* UNUSED */
   /* object's material channels */
   /* OB_ADS_SHOWMATS = 1 << 13, */ /* UNUSED */
-  /* object's marticle channels */
+  /* object's particle channels */
   /* OB_ADS_SHOWPARTS = 1 << 14, */ /* UNUSED */
 };
 

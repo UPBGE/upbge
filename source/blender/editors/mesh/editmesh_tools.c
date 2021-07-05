@@ -145,7 +145,7 @@ static int edbm_subdivide_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-/* Note, these values must match delete_mesh() event values */
+/* NOTE: these values must match delete_mesh() event values. */
 static const EnumPropertyItem prop_mesh_cornervert_types[] = {
     {SUBD_CORNER_INNERVERT, "INNERVERT", 0, "Inner Vert", ""},
     {SUBD_CORNER_PATH, "PATH", 0, "Path", ""},
@@ -245,7 +245,7 @@ static void mesh_operator_edgering_props(wmOperatorType *ot,
                                          const int cuts_min,
                                          const int cuts_default)
 {
-  /* Note, these values must match delete_mesh() event values */
+  /* NOTE: these values must match delete_mesh() event values. */
   static const EnumPropertyItem prop_subd_edgering_types[] = {
       {SUBD_RING_INTERP_LINEAR, "LINEAR", 0, "Linear", ""},
       {SUBD_RING_INTERP_PATH, "PATH", 0, "Blend Path", ""},
@@ -431,7 +431,7 @@ void MESH_OT_unsubdivide(wmOperatorType *ot)
 /** \name Delete Operator
  * \{ */
 
-/* Note, these values must match delete_mesh() event values */
+/* NOTE: these values must match delete_mesh() event values. */
 enum {
   MESH_DELETE_VERT = 0,
   MESH_DELETE_EDGE = 1,
@@ -1264,9 +1264,12 @@ static bool edbm_connect_vert_pair(BMEditMesh *em, struct Mesh *me, wmOperator *
     }
   }
   if (checks_succeded) {
+    BMBackup em_backup = EDBM_redo_state_store(em);
+
     BM_custom_loop_normals_to_vector_layer(bm);
 
     BMO_op_exec(bm, &bmop);
+    const bool failure = BMO_error_occurred_at_level(bm, BMO_ERROR_FATAL);
     len = BMO_slot_get(bmop.slots_out, "edges.out")->len;
 
     if (len && is_pair) {
@@ -1275,8 +1278,14 @@ static bool edbm_connect_vert_pair(BMEditMesh *em, struct Mesh *me, wmOperator *
           em->bm, bmop.slots_out, "edges.out", BM_EDGE, BM_ELEM_SELECT, true);
     }
 
-    if (!EDBM_op_finish(em, &bmop, op, true)) {
+    bool em_backup_free = true;
+    if (!EDBM_op_finish(em, &bmop, op, false)) {
       len = 0;
+    }
+    else if (failure) {
+      len = 0;
+      EDBM_redo_state_restore_and_free(&em_backup, em, true);
+      em_backup_free = false;
     }
     else {
       /* so newly created edges get the selection state from the vertex */
@@ -1290,6 +1299,10 @@ static bool edbm_connect_vert_pair(BMEditMesh *em, struct Mesh *me, wmOperator *
                       .calc_normals = false,
                       .is_destructive = true,
                   });
+    }
+
+    if (em_backup_free) {
+      EDBM_redo_state_free(&em_backup);
     }
   }
   MEM_freeN(verts);
@@ -3012,10 +3025,8 @@ static int edbm_rotate_uvs_exec(bContext *C, wmOperator *op)
 
     BMOperator bmop;
 
-    /* initialize the bmop using EDBM api, which does various ui error reporting and other stuff */
     EDBM_op_init(em, &bmop, op, "rotate_uvs faces=%hf use_ccw=%b", BM_ELEM_SELECT, use_ccw);
 
-    /* execute the operator */
     BMO_op_exec(em->bm, &bmop);
 
     if (!EDBM_op_finish(em, &bmop, op, true)) {
@@ -3050,13 +3061,10 @@ static int edbm_reverse_uvs_exec(bContext *C, wmOperator *op)
 
     BMOperator bmop;
 
-    /* initialize the bmop using EDBM api, which does various ui error reporting and other stuff */
     EDBM_op_init(em, &bmop, op, "reverse_uvs faces=%hf", BM_ELEM_SELECT);
 
-    /* execute the operator */
     BMO_op_exec(em->bm, &bmop);
 
-    /* finish the operator */
     if (!EDBM_op_finish(em, &bmop, op, true)) {
       continue;
     }
@@ -3091,13 +3099,10 @@ static int edbm_rotate_colors_exec(bContext *C, wmOperator *op)
 
     BMOperator bmop;
 
-    /* initialize the bmop using EDBM api, which does various ui error reporting and other stuff */
     EDBM_op_init(em, &bmop, op, "rotate_colors faces=%hf use_ccw=%b", BM_ELEM_SELECT, use_ccw);
 
-    /* execute the operator */
     BMO_op_exec(em->bm, &bmop);
 
-    /* finish the operator */
     if (!EDBM_op_finish(em, &bmop, op, true)) {
       continue;
     }
@@ -3133,15 +3138,12 @@ static int edbm_reverse_colors_exec(bContext *C, wmOperator *op)
 
     BMOperator bmop;
 
-    /* initialize the bmop using EDBM api, which does various ui error reporting and other stuff */
     EDBM_op_init(em, &bmop, op, "reverse_colors faces=%hf", BM_ELEM_SELECT);
 
-    /* execute the operator */
     BMO_op_exec(em->bm, &bmop);
 
-    /* finish the operator */
     if (!EDBM_op_finish(em, &bmop, op, true)) {
-      return OPERATOR_CANCELLED;
+      continue;
     }
 
     EDBM_update(obedit->data,
@@ -4222,7 +4224,7 @@ static int edbm_knife_cut_exec(bContext *C, wmOperator *op)
   /* for ED_view3d_project_float_object */
   ED_view3d_init_mats_rv3d(obedit, region->regiondata);
 
-  /* TODO, investigate using index lookup for screen_vert_coords() rather than a hash table */
+  /* TODO: investigate using index lookup for #screen_vert_coords() rather than a hash table. */
 
   /* the floating point coordinates of verts in screen space will be
    * stored in a hash table according to the vertices pointer */
@@ -5874,7 +5876,7 @@ void MESH_OT_decimate(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  /* Note, keep in sync with 'rna_def_modifier_decimate' */
+  /* NOTE: keep in sync with 'rna_def_modifier_decimate'. */
   RNA_def_float(ot->srna, "ratio", 1.0f, 0.0f, 1.0f, "Ratio", "", 0.0f, 1.0f);
 
   RNA_def_boolean(ot->srna,
@@ -6751,7 +6753,7 @@ static void sort_bmelem_flag(bContext *C,
     BM_ITER_MESH_INDEX (fa, &iter, em->bm, BM_FACES_OF_MESH, i) {
       if (BM_elem_flag_test(fa, flag)) {
         /* Reverse materials' order, not order of faces inside each mat! */
-        /* Note: cannot use totcol, as mat_nr may sometimes be greater... */
+        /* NOTE: cannot use totcol, as mat_nr may sometimes be greater... */
         float srt = reverse ? (float)(MAXMAT - fa->mat_nr) : (float)fa->mat_nr;
         pb[i] = false;
         sb[affected[2]].org_idx = i;
@@ -7304,7 +7306,7 @@ static int edbm_bridge_edge_loops_for_single_editmesh(wmOperator *op,
 
   BMO_op_exec(em->bm, &bmop);
 
-  if (!BMO_error_occurred(em->bm)) {
+  if (!BMO_error_occurred_at_level(em->bm, BMO_ERROR_CANCEL)) {
     /* when merge is used the edges are joined and remain selected */
     if (use_merge == false) {
       EDBM_flag_disable_all(em, BM_ELEM_SELECT);
@@ -7670,7 +7672,7 @@ static int edbm_convex_hull_exec(bContext *C, wmOperator *op)
     BMO_op_exec(em->bm, &bmop);
 
     /* Hull fails if input is coplanar */
-    if (BMO_error_occurred(em->bm)) {
+    if (BMO_error_occurred_at_level(em->bm, BMO_ERROR_CANCEL)) {
       EDBM_op_finish(em, &bmop, op, true);
       continue;
     }
@@ -8385,7 +8387,7 @@ static void point_normals_update_header(bContext *C, wmOperator *op)
   ED_area_status_text(CTX_wm_area(C), header);
 }
 
-/* TODO move that to generic function in BMesh? */
+/* TODO: move that to generic function in BMesh? */
 static void bmesh_selected_verts_center_calc(BMesh *bm, float *r_center)
 {
   BMVert *v;
@@ -9691,7 +9693,7 @@ static int edbm_smooth_normals_exec(bContext *C, wmOperator *op)
       BKE_lnor_space_custom_data_to_normal(
           bm->lnor_spacearr->lspacearr[lnor_ed->loop_index], lnor_ed->clnors_data, current_normal);
 
-      /* Note: again, this is not true spherical interpolation that normals would need...
+      /* NOTE: again, this is not true spherical interpolation that normals would need...
        * But it's probably good enough for now. */
       mul_v3_fl(current_normal, 1.0f - factor);
       mul_v3_fl(smooth_normal[i], factor);

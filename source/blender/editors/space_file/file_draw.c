@@ -110,7 +110,7 @@ void ED_file_path_button(bScreen *screen,
   UI_but_func_complete_set(but, autocomplete_directory, NULL);
   UI_but_funcN_set(but, file_directory_enter_handle, NULL, but);
 
-  /* TODO, directory editing is non-functional while a library is loaded
+  /* TODO: directory editing is non-functional while a library is loaded
    * until this is properly supported just disable it. */
   if (sfile && sfile->files && filelist_lib(sfile->files)) {
     UI_but_flag_enable(but, UI_BUT_DISABLED);
@@ -170,7 +170,7 @@ static void file_draw_icon(const SpaceFile *sfile,
   UI_but_func_tooltip_set(but, file_draw_tooltip_func, BLI_strdup(path), MEM_freeN);
 
   if (drag) {
-    /* TODO duplicated from file_draw_preview(). */
+    /* TODO: duplicated from file_draw_preview(). */
     ID *id;
 
     if ((id = filelist_file_get_id(file))) {
@@ -542,13 +542,7 @@ static void renamebutton_cb(bContext *C, void *UNUSED(arg1), char *oldname)
       else {
         /* If rename is successful, scroll to newly renamed entry. */
         BLI_strncpy(params->renamefile, filename, sizeof(params->renamefile));
-        params->rename_flag = FILE_PARAMS_RENAME_POSTSCROLL_PENDING;
-
-        if (sfile->smoothscroll_timer != NULL) {
-          WM_event_remove_timer(CTX_wm_manager(C), CTX_wm_window(C), sfile->smoothscroll_timer);
-        }
-        sfile->smoothscroll_timer = WM_event_add_timer(wm, CTX_wm_window(C), TIMER1, 1.0 / 1000.0);
-        sfile->scroll_offset = 0;
+        file_params_invoke_rename_postscroll(wm, CTX_wm_window(C), sfile);
       }
 
       /* to make sure we show what is on disk */

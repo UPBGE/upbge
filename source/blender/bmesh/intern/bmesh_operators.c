@@ -829,7 +829,7 @@ void BMO_slot_buffer_from_all(BMesh *bm,
 
     BMO_slot_buffer_alloc(op, slot_args, slot_name, totelement);
 
-    /* TODO - collapse these loops into one */
+    /* TODO: collapse these loops into one. */
 
     if (htype & BM_VERT) {
       BM_ITER_MESH (ele, &iter, bm, BM_VERTS_OF_MESH) {
@@ -890,7 +890,7 @@ static void bmo_slot_buffer_from_hflag(BMesh *bm,
 
     BMO_slot_buffer_alloc(op, slot_args, slot_name, totelement);
 
-    /* TODO - collapse these loops into one */
+    /* TODO: collapse these loops into one. */
 
     if (htype & BM_VERT) {
       BM_ITER_MESH (ele, &iter, bm, BM_VERTS_OF_MESH) {
@@ -1061,7 +1061,7 @@ static void bmo_slot_buffer_from_flag(BMesh *bm,
 
     ele_array = (BMHeader **)slot->data.buf;
 
-    /* TODO - collapse these loops into one */
+    /* TODO: collapse these loops into one. */
 
     if (htype & BM_VERT) {
       BM_ITER_MESH (ele, &iter, bm, BM_VERTS_OF_MESH) {
@@ -1553,32 +1553,39 @@ typedef struct BMOpError {
   struct BMOpError *next, *prev;
   BMOperator *op;
   const char *msg;
+  eBMOpErrorLevel level;
 } BMOpError;
 
 void BMO_error_clear(BMesh *bm)
 {
-  while (BMO_error_pop(bm, NULL, NULL)) {
+  while (BMO_error_pop(bm, NULL, NULL, NULL)) {
     /* pass */
   }
 }
 
-void BMO_error_raise(BMesh *bm, BMOperator *owner, const char *msg)
+void BMO_error_raise(BMesh *bm, BMOperator *owner, eBMOpErrorLevel level, const char *msg)
 {
   BMOpError *err = MEM_callocN(sizeof(BMOpError), "bmop_error");
 
   err->msg = msg;
   err->op = owner;
+  err->level = level;
 
   BLI_addhead(&bm->errorstack, err);
 }
 
-bool BMO_error_occurred(BMesh *bm)
+bool BMO_error_occurred_at_level(BMesh *bm, eBMOpErrorLevel level)
 {
-  return (BLI_listbase_is_empty(&bm->errorstack) == false);
+  for (const BMOpError *err = bm->errorstack.first; err; err = err->next) {
+    if (err->level == level) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /* returns error code or 0 if no error */
-bool BMO_error_get(BMesh *bm, const char **r_msg, BMOperator **r_op)
+bool BMO_error_get(BMesh *bm, const char **r_msg, BMOperator **r_op, eBMOpErrorLevel *r_level)
 {
   BMOpError *err = bm->errorstack.first;
   if (err == NULL) {
@@ -1591,13 +1598,36 @@ bool BMO_error_get(BMesh *bm, const char **r_msg, BMOperator **r_op)
   if (r_op) {
     *r_op = err->op;
   }
+  if (r_level) {
+    *r_level = err->level;
+  }
 
   return true;
 }
 
-bool BMO_error_pop(BMesh *bm, const char **msg, BMOperator **op)
+bool BMO_error_get_at_level(BMesh *bm,
+                            eBMOpErrorLevel level,
+                            const char **r_msg,
+                            BMOperator **r_op)
 {
-  bool result = BMO_error_get(bm, msg, op);
+  for (BMOpError *err = bm->errorstack.first; err; err = err->next) {
+    if (err->level >= level) {
+      if (r_msg) {
+        *r_msg = err->msg;
+      }
+      if (r_op) {
+        *r_op = err->op;
+      }
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool BMO_error_pop(BMesh *bm, const char **r_msg, BMOperator **r_op, eBMOpErrorLevel *r_level)
+{
+  bool result = BMO_error_get(bm, r_msg, r_op, r_level);
 
   if (result) {
     BMOpError *err = bm->errorstack.first;
@@ -1953,7 +1983,7 @@ bool BMO_op_vinitf(BMesh *bm, BMOperator *op, const int flag, const char *_fmt, 
   return true;
 error:
 
-  /* non urgent todo - explain exactly what is failing */
+  /* TODO: explain exactly what is failing (not urgent). */
   fprintf(stderr, "%s: error parsing formatting string\n", __func__);
 
   fprintf(stderr, "string: '%s', position %d\n", _fmt, (int)(fmt - ofmt));

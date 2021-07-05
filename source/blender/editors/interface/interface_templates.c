@@ -878,7 +878,7 @@ static uiBut *template_id_def_new_but(uiBlock *block,
                             BLT_I18NCONTEXT_ID_POINTCLOUD,
                             BLT_I18NCONTEXT_ID_VOLUME,
                             BLT_I18NCONTEXT_ID_SIMULATION, );
-  /* Note: BLT_I18N_MSGID_MULTI_CTXT takes a maximum number of parameters,
+  /* NOTE: BLT_I18N_MSGID_MULTI_CTXT takes a maximum number of parameters,
    * check the definition to see if a new call must be added when the limit
    * is exceeded. */
 
@@ -2557,7 +2557,7 @@ void uiTemplateOperatorPropertyButs(
   wmWindowManager *wm = CTX_wm_manager(C);
 
   /* If there are only checkbox items, don't use split layout by default. It looks weird if the
-   * checkboxes only use half the width. */
+   * check-boxes only use half the width. */
   if (ui_layout_operator_properties_only_booleans(C, wm, op, flag)) {
     flag |= UI_TEMPLATE_OP_PROPS_NO_SPLIT_LAYOUT;
   }
@@ -5896,7 +5896,7 @@ static void uilist_filter_items_default(struct uiList *ui_list,
 
     if (order_by_name) {
       int new_idx;
-      /* note: order_idx equals either to ui_list->items_len if no filtering done,
+      /* NOTE: order_idx equals either to ui_list->items_len if no filtering done,
        *       or to ui_list->items_shown if filter is enabled,
        *       or to (ui_list->items_len - ui_list->items_shown) if filtered items are excluded.
        *       This way, we only sort items we actually intend to draw!

@@ -965,7 +965,7 @@ void BKE_nodetree_remove_layer_n(struct bNodeTree *ntree,
 /** \name Shader Nodes
  * \{ */
 
-/* note: types are needed to restore callbacks, don't change values */
+/* NOTE: types are needed to restore callbacks, don't change values. */
 /* range 1 - 100 is reserved for common nodes */
 /* using toolbox, we add node groups by assuming the values below
  * don't exceed NODE_GROUP_MENU for now. */
@@ -1133,7 +1133,7 @@ void ntreeGPUMaterialNodes(struct bNodeTree *localtree,
 // #define RRES_OUT_SUBSURFACE_COLOR 30
 // #define RRES_OUT_DEBUG 31
 
-/* note: types are needed to restore callbacks, don't change values */
+/* NOTE: types are needed to restore callbacks, don't change values. */
 #define CMP_NODE_VIEWER 201
 #define CMP_NODE_RGB 202
 #define CMP_NODE_VALUE 203
@@ -1445,6 +1445,8 @@ int ntreeTexExecTree(struct bNodeTree *ntree,
 #define GEO_NODE_CURVE_PRIMITIVE_QUADRATIC_BEZIER 1064
 #define GEO_NODE_CURVE_PRIMITIVE_BEZIER_SEGMENT 1065
 #define GEO_NODE_CURVE_PRIMITIVE_CIRCLE 1066
+#define GEO_NODE_VIEWER 1067
+#define GEO_NODE_CURVE_PRIMITIVE_LINE 1068
 
 /** \} */
 
@@ -1457,6 +1459,7 @@ int ntreeTexExecTree(struct bNodeTree *ntree,
 #define FN_NODE_RANDOM_FLOAT 1206
 #define FN_NODE_INPUT_VECTOR 1207
 #define FN_NODE_INPUT_STRING 1208
+#define FN_NODE_FLOAT_TO_INT 1209
 
 /** \} */
 

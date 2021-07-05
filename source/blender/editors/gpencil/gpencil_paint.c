@@ -1526,7 +1526,7 @@ static void gpencil_stroke_eraser_dostroke(tGPsdata *p,
 
     /* Clear Tags
      *
-     * Note: It's better this way, as we are sure that
+     * NOTE: It's better this way, as we are sure that
      * we don't miss anything, though things will be
      * slightly slower as a result
      */
@@ -2174,7 +2174,7 @@ static void gpencil_paint_initstroke(tGPsdata *p,
       /* Add a new frame if needed (and based off the active frame,
        * as we need some existing strokes to erase)
        *
-       * Note: We don't add a new frame if there's nothing there now, so
+       * NOTE: We don't add a new frame if there's nothing there now, so
        *       -> If there are no frames at all, don't add one
        *       -> If there are no strokes in that frame, don't add a new empty frame
        */
@@ -3602,18 +3602,15 @@ static int gpencil_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
   /* default exit state - pass through to support MMB view nav, etc. */
   int estate = OPERATOR_PASS_THROUGH;
 
-  /* if (event->type == NDOF_MOTION)
-   *    return OPERATOR_PASS_THROUGH;
-   * -------------------------------
-   * [mce] Not quite what I was looking
-   * for, but a good start! GP continues to
-   * draw on the screen while the 3D mouse
-   * moves the viewpoint. Problem is that
-   * the stroke is converted to 3D only after
-   * it is finished. This approach should work
-   * better in tools that immediately apply
-   * in 3D space.
-   */
+  /* NOTE(mike erwin): Not quite what I was looking for, but a good start!
+   * grease-pencil continues to draw on the screen while the 3D mouse moves the viewpoint.
+   * Problem is that the stroke is converted to 3D only after it is finished.
+   * This approach should work better in tools that immediately apply in 3D space. */
+#if 0
+  if (event->type == NDOF_MOTION) {
+    return OPERATOR_PASS_THROUGH;
+  }
+#endif
 
   if (p->status == GP_STATUS_IDLING) {
     ARegion *region = CTX_wm_region(C);

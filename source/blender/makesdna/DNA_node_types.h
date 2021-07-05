@@ -325,6 +325,7 @@ typedef struct bNode {
 #define NODE_HIDDEN 8
 #define NODE_ACTIVE 16
 #define NODE_ACTIVE_ID 32
+/* Used to indicate which group output node is used and which viewer node is active. */
 #define NODE_DO_OUTPUT 64
 #define __NODE_GROUP_EDIT 128 /* DEPRECATED */
 /* free test flag, undefined */
@@ -340,7 +341,7 @@ typedef struct bNode {
 #define NODE_TRANSFORM (1 << 13)
 /* node is active texture */
 
-/* note: take care with this flag since its possible it gets
+/* NOTE: take care with this flag since its possible it gets
  * `stuck` inside/outside the active group - which makes buttons
  * window texture not update, we try to avoid it by clearing the
  * flag when toggling group editing - Campbell */
@@ -359,7 +360,7 @@ typedef struct bNode {
  */
 #define NODE_DO_OUTPUT_RECALC (1 << 17)
 /* A preview for the data in this node can be displayed in the spreadsheet editor. */
-#define NODE_ACTIVE_PREVIEW (1 << 18)
+#define __NODE_ACTIVE_PREVIEW (1 << 18) /* deprecated */
 
 /* node->update */
 /* XXX NODE_UPDATE is a generic update flag. More fine-grained updates
@@ -1357,6 +1358,11 @@ typedef struct NodeSwitch {
   uint8_t input_type;
 } NodeSwitch;
 
+typedef struct NodeGeometryCurvePrimitiveLine {
+  /* GeometryNodeCurvePrimitiveLineMode. */
+  uint8_t mode;
+} NodeGeometryCurvePrimitiveLine;
+
 typedef struct NodeGeometryCurvePrimitiveBezierSegment {
   /* GeometryNodeCurvePrimitiveBezierSegmentMode. */
   uint8_t mode;
@@ -1687,6 +1693,14 @@ typedef enum FloatCompareOperation {
   NODE_FLOAT_COMPARE_NOT_EQUAL = 5,
 } FloatCompareOperation;
 
+/* Float to Int node operations. */
+typedef enum FloatToIntRoundingMode {
+  FN_NODE_FLOAT_TO_INT_ROUND = 0,
+  FN_NODE_FLOAT_TO_INT_FLOOR = 1,
+  FN_NODE_FLOAT_TO_INT_CEIL = 2,
+  FN_NODE_FLOAT_TO_INT_TRUNCATE = 3,
+} FloatToIntRoundingMode;
+
 /* Clamp node types. */
 enum {
   NODE_CLAMP_MINMAX = 0,
@@ -1903,6 +1917,11 @@ typedef enum GeometryNodeMeshLineCountMode {
   GEO_NODE_MESH_LINE_COUNT_TOTAL = 0,
   GEO_NODE_MESH_LINE_COUNT_RESOLUTION = 1,
 } GeometryNodeMeshLineCountMode;
+
+typedef enum GeometryNodeCurvePrimitiveLineMode {
+  GEO_NODE_CURVE_PRIMITIVE_LINE_MODE_POINTS = 0,
+  GEO_NODE_CURVE_PRIMITIVE_LINE_MODE_DIRECTION = 1
+} GeometryNodeCurvePrimitiveLineMode;
 
 typedef enum GeometryNodeCurvePrimitiveBezierSegmentMode {
   GEO_NODE_CURVE_PRIMITIVE_BEZIER_SEGMENT_POSITION = 0,
