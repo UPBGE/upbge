@@ -85,6 +85,8 @@ static KeyingSet *keyingset_get_from_op_with_error(wmOperator *op,
                                                    PropertyRNA *prop,
                                                    Scene *scene);
 
+static int delete_key_using_keying_set(bContext *C, wmOperator *op, KeyingSet *ks);
+
 /* ************************************************** */
 /* Keyframing Setting Wrangling */
 
@@ -2079,42 +2081,19 @@ void ANIM_OT_keyframe_insert_menu(wmOperatorType *ot)
 static int delete_key_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
-  float cfra = (float)CFRA; /* XXX for now, don't bother about all the yucky offset crap */
-  int num_channels;
-
   KeyingSet *ks = keyingset_get_from_op_with_error(op, op->type->prop, scene);
   if (ks == NULL) {
     return OPERATOR_CANCELLED;
   }
 
-  const int prop_type = RNA_property_type(op->type->prop);
-  if (prop_type == PROP_ENUM) {
-    int type = RNA_property_enum_get(op->ptr, op->type->prop);
-    ks = ANIM_keyingset_get_from_enum_type(scene, type);
-    if (ks == NULL) {
-      BKE_report(op->reports, RPT_ERROR, "No active Keying Set");
-      return OPERATOR_CANCELLED;
-    }
-  }
-  else if (prop_type == PROP_STRING) {
-    char type_id[MAX_ID_NAME - 2];
-    RNA_property_string_get(op->ptr, op->type->prop, type_id);
-    ks = ANIM_keyingset_get_from_idname(scene, type_id);
+  return delete_key_using_keying_set(C, op, ks);
+}
 
-    if (ks == NULL) {
-      BKE_reportf(op->reports, RPT_ERROR, "Active Keying Set '%s' not found", type_id);
-      return OPERATOR_CANCELLED;
-    }
-  }
-  else {
-    BLI_assert(0);
-  }
-
-  /* report failure */
-  if (ks == NULL) {
-    BKE_report(op->reports, RPT_ERROR, "No active Keying Set");
-    return OPERATOR_CANCELLED;
-  }
+static int delete_key_using_keying_set(bContext *C, wmOperator *op, KeyingSet *ks)
+{
+  Scene *scene = CTX_data_scene(C);
+  float cfra = (float)CFRA; /* XXX for now, don't bother about all the yucky offset crap */
+  int num_channels;
 
   /* try to delete keyframes for the channels specified by KeyingSet */
   num_channels = ANIM_apply_keyingset(C, NULL, NULL, ks, MODIFYKEY_MODE_DELETE, cfra);
@@ -2130,7 +2109,8 @@ static int delete_key_exec(bContext *C, wmOperator *op)
 
   if (num_channels > 0) {
     /* if the appropriate properties have been set, make a note that we've inserted something */
-    if (RNA_boolean_get(op->ptr, "confirm_success")) {
+    PropertyRNA *prop = RNA_struct_find_property(op->ptr, "confirm_success");
+    if (prop != NULL && RNA_property_boolean_get(op->ptr, prop)) {
       BKE_reportf(op->reports,
                   RPT_INFO,
                   "Successfully removed %d keyframes for keying set '%s'",
@@ -2301,7 +2281,7 @@ void ANIM_OT_keyframe_clear_v3d(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int delete_key_v3d_exec(bContext *C, wmOperator *op)
+static int delete_key_v3d_without_keying_set(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   float cfra = (float)CFRA;
@@ -2406,6 +2386,18 @@ static int delete_key_v3d_exec(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, NULL);
 
   return OPERATOR_FINISHED;
+}
+
+static int delete_key_v3d_exec(bContext *C, wmOperator *op)
+{
+  Scene *scene = CTX_data_scene(C);
+  KeyingSet *ks = ANIM_scene_get_active_keyingset(scene);
+
+  if (ks == NULL) {
+    return delete_key_v3d_without_keying_set(C, op);
+  }
+
+  return delete_key_using_keying_set(C, op, ks);
 }
 
 void ANIM_OT_keyframe_delete_v3d(wmOperatorType *ot)

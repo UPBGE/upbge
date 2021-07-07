@@ -28,12 +28,14 @@
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_brush_types.h"
+#include "DNA_collection_types.h"
 #include "DNA_genfile.h"
 #include "DNA_listBase.h"
 #include "DNA_modifier_types.h"
 #include "DNA_text_types.h"
 
 #include "BKE_animsys.h"
+#include "BKE_collection.h"
 #include "BKE_fcurve_driver.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
@@ -468,6 +470,16 @@ void blo_do_versions_300(FileData *fd, Library *UNUSED(lib), Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_ATLEAST(bmain, 300, 8)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      if (scene->master_collection != NULL) {
+        BLI_strncpy(scene->master_collection->id.name + 2,
+                    BKE_SCENE_COLLECTION_NAME,
+                    sizeof(scene->master_collection->id.name) - 2);
+      }
+    }
+  }
+
   /**
    * Versioning code until next subversion bump goes here.
    *
@@ -479,5 +491,16 @@ void blo_do_versions_300(FileData *fd, Library *UNUSED(lib), Main *bmain)
    */
   {
     /* Keep this block, even when empty. */
+
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_GEOMETRY) {
+        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+          if (node->type == GEO_NODE_MESH_SUBDIVIDE) {
+            strcpy(node->idname, "GeometryNodeMeshSubdivide");
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 }

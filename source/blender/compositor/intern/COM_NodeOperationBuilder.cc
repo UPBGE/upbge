@@ -36,12 +36,15 @@
 #include "COM_ViewerOperation.h"
 #include "COM_WriteBufferOperation.h"
 
+#include "COM_ConstantFolder.h"
 #include "COM_NodeOperationBuilder.h" /* own include */
 
 namespace blender::compositor {
 
-NodeOperationBuilder::NodeOperationBuilder(const CompositorContext *context, bNodeTree *b_nodetree)
-    : m_context(context), m_current_node(nullptr), m_active_viewer(nullptr)
+NodeOperationBuilder::NodeOperationBuilder(const CompositorContext *context,
+                                           bNodeTree *b_nodetree,
+                                           ExecutionSystem *system)
+    : m_context(context), exec_system_(system), m_current_node(nullptr), m_active_viewer(nullptr)
 {
   m_graph.from_bNodeTree(*context, b_nodetree);
 }
@@ -97,6 +100,15 @@ void NodeOperationBuilder::convertToOperations(ExecutionSystem *system)
 
   add_datatype_conversions();
 
+  if (m_context->get_execution_model() == eExecutionModel::FullFrame) {
+    /* Copy operations to system. Needed for graphviz. */
+    system->set_operations(m_operations, {});
+
+    DebugInfo::graphviz(system, "compositor_prior_folding");
+    ConstantFolder folder(*this);
+    folder.fold_operations();
+  }
+
   determineResolutions();
 
   if (m_context->get_execution_model() == eExecutionModel::Tiled) {
@@ -130,6 +142,29 @@ void NodeOperationBuilder::addOperation(NodeOperation *operation)
     operation->set_name(m_current_node->getbNode()->name);
   }
   operation->set_execution_model(m_context->get_execution_model());
+  operation->set_execution_system(exec_system_);
+}
+
+void NodeOperationBuilder::replace_operation_with_constant(NodeOperation *operation,
+                                                           ConstantOperation *constant_operation)
+{
+  BLI_assert(constant_operation->getNumberOfInputSockets() == 0);
+  int i = 0;
+  while (i < m_links.size()) {
+    Link &link = m_links[i];
+    if (&link.to()->getOperation() == operation) {
+      link.to()->setLink(nullptr);
+      m_links.remove(i);
+      continue;
+    }
+
+    if (&link.from()->getOperation() == operation) {
+      link.to()->setLink(constant_operation->getOutputSocket());
+      m_links[i] = Link(constant_operation->getOutputSocket(), link.to());
+    }
+    i++;
+  }
+  addOperation(constant_operation);
 }
 
 void NodeOperationBuilder::mapInputSocket(NodeInput *node_socket,

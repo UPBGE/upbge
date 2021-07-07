@@ -509,6 +509,7 @@ geometry_node_categories = [
         NodeItem("GeometryNodeCurveResample"),
         NodeItem("GeometryNodeMeshToCurve"),
         NodeItem("GeometryNodeCurveToPoints"),
+        NodeItem("GeometryNodeCurveEndpoints"),
         NodeItem("GeometryNodeCurveLength"),
         NodeItem("GeometryNodeCurveReverse"),
     ]),
@@ -549,7 +550,7 @@ geometry_node_categories = [
         NodeItem("GeometryNodeTriangulate"),
         NodeItem("GeometryNodeEdgeSplit"),
         NodeItem("GeometryNodeSubdivisionSurface"),
-        NodeItem("GeometryNodeSubdivide"),
+        NodeItem("GeometryNodeMeshSubdivide"),
     ]),
     GeometryNodeCategory("GEO_PRIMITIVES_MESH", "Mesh Primitives", items=[
         NodeItem("GeometryNodeMeshCircle"),
