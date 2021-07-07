@@ -218,7 +218,6 @@ set(SRC
   intern/multires_versioning.c
   intern/nla.c
   intern/node.cc
-  intern/node_ui_storage.cc
   intern/object.c
   intern/object_deform.c
   intern/object_dupli.cc
@@ -406,7 +405,6 @@ set(SRC
   BKE_multires.h
   BKE_nla.h
   BKE_node.h
-  BKE_node_ui_storage.hh
   BKE_object.h
   BKE_object_deform.h
   BKE_object_facemap.h

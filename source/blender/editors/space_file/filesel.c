@@ -1086,6 +1086,15 @@ void ED_file_change_dir(bContext *C)
   ED_file_change_dir_ex(C, area);
 }
 
+void file_select_deselect_all(SpaceFile *sfile, uint flag)
+{
+  FileSelection sel;
+  sel.first = 0;
+  sel.last = filelist_files_ensure(sfile->files) - 1;
+
+  filelist_entries_select_index_range_set(sfile->files, &sel, FILE_SEL_REMOVE, flag, CHECK_ALL);
+}
+
 int file_select_match(struct SpaceFile *sfile, const char *pattern, char *matched_file)
 {
   int match = 0;
@@ -1237,7 +1246,7 @@ void file_params_smoothscroll_timer_clear(wmWindowManager *wm, wmWindow *win, Sp
  * Set the renaming-state to #FILE_PARAMS_RENAME_POSTSCROLL_PENDING and trigger the smooth-scroll
  * timer. To be used right after a file was renamed.
  * Note that the caller is responsible for setting the correct rename-file info
- * (#FileSelectParams.renamefile or #FileSelectParams.renamefile_uuid).
+ * (#FileSelectParams.renamefile or #FileSelectParams.rename_id).
  */
 void file_params_invoke_rename_postscroll(wmWindowManager *wm, wmWindow *win, SpaceFile *sfile)
 {
@@ -1252,10 +1261,38 @@ void file_params_invoke_rename_postscroll(wmWindowManager *wm, wmWindow *win, Sp
   sfile->scroll_offset = 0;
 }
 
+/**
+ * To be executed whenever renaming ends (successfully or not).
+ */
+void file_params_rename_end(wmWindowManager *wm,
+                            wmWindow *win,
+                            SpaceFile *sfile,
+                            FileDirEntry *rename_file)
+{
+  FileSelectParams *params = ED_fileselect_get_active_params(sfile);
+
+  filelist_entry_select_set(
+      sfile->files, rename_file, FILE_SEL_REMOVE, FILE_SEL_EDITING, CHECK_ALL);
+
+  /* Ensure smooth-scroll timer is active, even if not needed, because that way rename state is
+   * handled properly. */
+  file_params_invoke_rename_postscroll(wm, win, sfile);
+  /* Also always activate the rename file, even if renaming was cancelled. */
+  file_params_renamefile_activate(sfile, params);
+}
+
 void file_params_renamefile_clear(FileSelectParams *params)
 {
   params->renamefile[0] = '\0';
+  params->rename_id = NULL;
   params->rename_flag = 0;
+}
+
+static int file_params_find_renamed(const FileSelectParams *params, struct FileList *filelist)
+{
+  /* Find the file either through the local ID/asset it represents or its relative path. */
+  return (params->rename_id != NULL) ? filelist_file_find_id(filelist, params->rename_id) :
+                                       filelist_file_find_path(filelist, params->renamefile);
 }
 
 /**
@@ -1271,20 +1308,26 @@ void file_params_renamefile_activate(SpaceFile *sfile, FileSelectParams *params)
     return;
   }
 
-  BLI_assert(params->renamefile[0] != '\0');
+  BLI_assert(params->renamefile[0] != '\0' || params->rename_id != NULL);
 
-  const int idx = filelist_file_findpath(sfile->files, params->renamefile);
+  const int idx = file_params_find_renamed(params, sfile->files);
   if (idx >= 0) {
     FileDirEntry *file = filelist_file(sfile->files, idx);
     BLI_assert(file != NULL);
+
+    params->active_file = idx;
+    filelist_entry_select_set(sfile->files, file, FILE_SEL_ADD, FILE_SEL_SELECTED, CHECK_ALL);
 
     if ((params->rename_flag & FILE_PARAMS_RENAME_PENDING) != 0) {
       filelist_entry_select_set(sfile->files, file, FILE_SEL_ADD, FILE_SEL_EDITING, CHECK_ALL);
       params->rename_flag = FILE_PARAMS_RENAME_ACTIVE;
     }
     else if ((params->rename_flag & FILE_PARAMS_RENAME_POSTSCROLL_PENDING) != 0) {
-      filelist_entry_select_set(sfile->files, file, FILE_SEL_ADD, FILE_SEL_HIGHLIGHTED, CHECK_ALL);
-      params->renamefile[0] = '\0';
+      file_select_deselect_all(sfile, FILE_SEL_SELECTED);
+      filelist_entry_select_set(
+          sfile->files, file, FILE_SEL_ADD, FILE_SEL_SELECTED | FILE_SEL_HIGHLIGHTED, CHECK_ALL);
+      params->active_file = idx;
+      file_params_renamefile_clear(params);
       params->rename_flag = FILE_PARAMS_RENAME_POSTSCROLL_ACTIVE;
     }
   }
