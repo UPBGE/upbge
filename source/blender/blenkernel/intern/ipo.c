@@ -2088,7 +2088,7 @@ void do_versions_ipos_to_animato(Main *bmain)
     /* check if object has any animation data */
     if (ob->nlastrips.first) {
       /* Add AnimData block */
-      BKE_animdata_add_id(id);
+      BKE_animdata_ensure_id(id);
 
       /* IPO first to take into any non-NLA'd Object Animation */
       if (ob->ipo) {
@@ -2110,7 +2110,7 @@ void do_versions_ipos_to_animato(Main *bmain)
     }
     else if ((ob->ipo) || (ob->action)) {
       /* Add AnimData block */
-      AnimData *adt = BKE_animdata_add_id(id);
+      AnimData *adt = BKE_animdata_ensure_id(id);
 
       /* Action first - so that Action name get conserved */
       if (ob->action) {
@@ -2134,7 +2134,7 @@ void do_versions_ipos_to_animato(Main *bmain)
     /* check PoseChannels for constraints with local data */
     if (ob->pose) {
       /* Verify if there's AnimData block */
-      BKE_animdata_add_id(id);
+      BKE_animdata_ensure_id(id);
 
       for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
         for (con = pchan->constraints.first; con; con = con->next) {
@@ -2160,7 +2160,7 @@ void do_versions_ipos_to_animato(Main *bmain)
        */
       if (con->ipo) {
         /* Verify if there's AnimData block, just in case */
-        BKE_animdata_add_id(id);
+        BKE_animdata_ensure_id(id);
 
         /* although this was the constraint's local IPO, we still need to provide con
          * so that drivers can be added properly...
@@ -2177,7 +2177,7 @@ void do_versions_ipos_to_animato(Main *bmain)
     /* check constraint channels - we need to remove them anyway... */
     if (ob->constraintChannels.first) {
       /* Verify if there's AnimData block */
-      BKE_animdata_add_id(id);
+      BKE_animdata_ensure_id(id);
 
       for (conchan = ob->constraintChannels.first; conchan; conchan = conchann) {
         /* get pointer to next Constraint Channel */
@@ -2218,7 +2218,7 @@ void do_versions_ipos_to_animato(Main *bmain)
      */
     if (key->ipo) {
       /* Add AnimData block */
-      AnimData *adt = BKE_animdata_add_id(id);
+      AnimData *adt = BKE_animdata_ensure_id(id);
 
       /* Convert Shapekey data... */
       ipo_to_animdata(bmain, id, key->ipo, NULL, NULL, NULL);
@@ -2243,7 +2243,7 @@ void do_versions_ipos_to_animato(Main *bmain)
     /* we're only interested in the IPO */
     if (ma->ipo) {
       /* Add AnimData block */
-      AnimData *adt = BKE_animdata_add_id(id);
+      AnimData *adt = BKE_animdata_ensure_id(id);
 
       /* Convert Material data... */
       ipo_to_animdata(bmain, id, ma->ipo, NULL, NULL, NULL);
@@ -2268,7 +2268,7 @@ void do_versions_ipos_to_animato(Main *bmain)
     /* we're only interested in the IPO */
     if (wo->ipo) {
       /* Add AnimData block */
-      AnimData *adt = BKE_animdata_add_id(id);
+      AnimData *adt = BKE_animdata_ensure_id(id);
 
       /* Convert World data... */
       ipo_to_animdata(bmain, id, wo->ipo, NULL, NULL, NULL);
@@ -2289,7 +2289,7 @@ void do_versions_ipos_to_animato(Main *bmain)
     if (ed && ed->seqbasep) {
       Sequence *seq;
 
-      AnimData *adt = BKE_animdata_add_id(id);
+      AnimData *adt = BKE_animdata_ensure_id(id);
 
       SEQ_ALL_BEGIN (ed, seq) {
         IpoCurve *icu = (seq->ipo) ? seq->ipo->curve.first : NULL;
@@ -2347,7 +2347,7 @@ void do_versions_ipos_to_animato(Main *bmain)
     /* we're only interested in the IPO */
     if (te->ipo) {
       /* Add AnimData block */
-      AnimData *adt = BKE_animdata_add_id(id);
+      AnimData *adt = BKE_animdata_ensure_id(id);
 
       /* Convert Texture data... */
       ipo_to_animdata(bmain, id, te->ipo, NULL, NULL, NULL);
@@ -2372,7 +2372,7 @@ void do_versions_ipos_to_animato(Main *bmain)
     /* we're only interested in the IPO */
     if (ca->ipo) {
       /* Add AnimData block */
-      AnimData *adt = BKE_animdata_add_id(id);
+      AnimData *adt = BKE_animdata_ensure_id(id);
 
       /* Convert Camera data... */
       ipo_to_animdata(bmain, id, ca->ipo, NULL, NULL, NULL);
@@ -2397,7 +2397,7 @@ void do_versions_ipos_to_animato(Main *bmain)
     /* we're only interested in the IPO */
     if (la->ipo) {
       /* Add AnimData block */
-      AnimData *adt = BKE_animdata_add_id(id);
+      AnimData *adt = BKE_animdata_ensure_id(id);
 
       /* Convert Light data... */
       ipo_to_animdata(bmain, id, la->ipo, NULL, NULL, NULL);
@@ -2422,7 +2422,7 @@ void do_versions_ipos_to_animato(Main *bmain)
     /* we're only interested in the IPO */
     if (cu->ipo) {
       /* Add AnimData block */
-      AnimData *adt = BKE_animdata_add_id(id);
+      AnimData *adt = BKE_animdata_ensure_id(id);
 
       /* Convert Curve data... */
       ipo_to_animdata(bmain, id, cu->ipo, NULL, NULL, NULL);
