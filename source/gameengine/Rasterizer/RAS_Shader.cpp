@@ -27,6 +27,7 @@
 #include <cstring>
 
 #include "BLI_alloca.h"
+#include "GPU_immediate.h"
 #include "GPU_shader.h"
 #include "MEM_guardedalloc.h"
 
@@ -338,10 +339,12 @@ void RAS_Shader::SetSampler(int loc, int unit)
 void RAS_Shader::SetProg(bool enable)
 {
   if (m_shader && enable) {
-    GPU_shader_bind(m_shader);
+    //GPU_shader_bind(m_shader);
+    immBindShader(m_shader);
   }
   else {
-    GPU_shader_unbind();
+    //GPU_shader_unbind();
+    immUnbindProgram();
   }
 }
 
