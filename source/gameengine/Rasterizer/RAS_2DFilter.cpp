@@ -175,7 +175,7 @@ bool RAS_2DFilter::LinkProgram()
     return false;
   }
 
-  BindAttributes({{0, "bgl_InPosition"}, {1, "bgl_InTexCoord"}});
+  //BindAttributes({{0, "bgl_InPosition"}, {1, "bgl_InTexCoord"}});
 
   m_uniformInitialized = false;
 
