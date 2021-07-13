@@ -143,8 +143,6 @@ RAS_FrameBuffer *RAS_2DFilter::Start(RAS_Rasterizer *rasty,
 
   ApplyShader();
 
-  //rasty->DrawOverlayPlane();
-
   immBegin(GPU_PRIM_TRIS, 3);
   immAttr2f(texco, 0.0f, 0.0f);
   immVertex2f(pos, -1.0f, -1.0f);

@@ -339,11 +339,9 @@ void RAS_Shader::SetSampler(int loc, int unit)
 void RAS_Shader::SetProg(bool enable)
 {
   if (m_shader && enable) {
-    //GPU_shader_bind(m_shader);
     immBindShader(m_shader);
   }
   else {
-    //GPU_shader_unbind();
     immUnbindProgram();
   }
 }
