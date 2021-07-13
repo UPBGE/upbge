@@ -191,13 +191,13 @@ PyObject *KX_Mesh::PyGetVertex(PyObject *args, PyObject *kwds)
 		return nullptr;
 	}
 
-	RAS_DisplayArray *array = GetDisplayArray(matindex);
-	if (vertexindex < 0 || vertexindex >= array->GetVertexCount()) {
-		PyErr_SetString(PyExc_ValueError, "mesh.getVertex(mat_idx, vert_idx): KX_Mesh, could not get a vertex at the given indices");
+	RAS_DisplayArray *darray = GetDisplayArray(matindex);
+	if (!darray || (vertexindex < 0 || vertexindex >= darray->GetVertexCount())) {
+		PyErr_SetString(PyExc_ValueError, "mesh.getVertex(mat_idx, vert_idx): KX_Mesh, could not get a vertex at the given indices for the given material index");
 		return nullptr;
 	}
 
-	return (new KX_VertexProxy(array, vertexindex))->NewProxy(true);
+	return (new KX_VertexProxy(darray, vertexindex))->NewProxy(true);
 }
 
 PyObject *KX_Mesh::PyGetPolygon(PyObject *args, PyObject *kwds)
