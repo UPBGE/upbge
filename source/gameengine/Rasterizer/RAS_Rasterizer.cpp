@@ -41,6 +41,7 @@
 #include "RAS_Polygon.h"
 
 #include "DRW_render.h"
+#include "GPU_immediate.h"
 #include "GPU_matrix.h"
 
 RAS_Rasterizer::FrameBuffers::FrameBuffers() : m_width(0), m_height(0), m_samples(0)
@@ -378,23 +379,34 @@ RAS_FrameBuffer *RAS_Rasterizer::GetFrameBuffer(FrameBufferType type)
 void RAS_Rasterizer::DrawFrameBuffer(RAS_FrameBuffer *srcFrameBuffer,
                                      RAS_FrameBuffer *dstFrameBuffer)
 {
+  GPUVertFormat *vert_format = immVertexFormat();
+  uint pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint texco = GPU_vertformat_attr_add(vert_format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+
+  GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_DRAW_FRAME_BUFFER);
+  immBindShader(shader);
+
   GPUTexture *src = GPU_framebuffer_color_texture(srcFrameBuffer->GetFrameBuffer());
   GPU_texture_bind(src, 0);
   GPU_apply_state();
 
-  GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_DRAW_FRAME_BUFFER);
-  GPU_shader_bind(shader);
+  immBegin(GPU_PRIM_TRIS, 3);
+  immAttr2f(texco, 0.0f, 0.0f);
+  immVertex2f(pos, -1.0f, -1.0f);
+  immAttr2f(texco, 2.0f, 0.0f);
+  immVertex2f(pos, 3.0f, -1.0f);
 
-  DrawOverlayPlane();
+  immAttr2f(texco, 0.0f, 2.0f);
+  immVertex2f(pos, -1.0f, 3.0f);
+  immEnd();
 
-  GPU_shader_unbind();
+  immUnbindProgram();
 
   GPU_texture_unbind(src);
 }
 
 void RAS_Rasterizer::DrawFrameBuffer(RAS_ICanvas *canvas, RAS_FrameBuffer *frameBuffer)
 {
-  Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
   GPU_scissor_test(true);
   const RAS_Rect &viewport = canvas->GetViewportArea();
   GPU_viewport(
