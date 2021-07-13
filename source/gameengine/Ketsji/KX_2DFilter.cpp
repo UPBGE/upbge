@@ -217,11 +217,12 @@ EXP_PYMETHODDEF_DOC(KX_2DFilter, setCubeMap, "setCubeMap(index, bindCode, sample
 
 EXP_PYMETHODDEF_DOC(KX_2DFilter, addOffScreen, " addOffScreen(slots, width, height, mipmap)")
 {
-  unsigned short slots;
-  unsigned int width = -1;
-  unsigned int height = -1;
+  int slots;
+  int width = -1;
+  int height = -1;
   int mipmap = 0;
   int flag = 0;
+  flag |= RAS_2DFilterFrameBuffer::RAS_VIEWPORT_SIZE; //tmp: not viewport size not supported for now
 
   static const char *kwlist[] = {"slots", "width", "height", "mipmap", nullptr};
 
