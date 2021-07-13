@@ -379,16 +379,16 @@ RAS_FrameBuffer *RAS_Rasterizer::GetFrameBuffer(FrameBufferType type)
 void RAS_Rasterizer::DrawFrameBuffer(RAS_FrameBuffer *srcFrameBuffer,
                                      RAS_FrameBuffer *dstFrameBuffer)
 {
-  GPUTexture *src = GPU_framebuffer_color_texture(srcFrameBuffer->GetFrameBuffer());
-  GPU_texture_bind(src, 0);
-  GPU_apply_state();
-
   GPUVertFormat *vert_format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   uint texco = GPU_vertformat_attr_add(vert_format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
   GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_DRAW_FRAME_BUFFER);
   immBindShader(shader);
+
+  GPUTexture *src = GPU_framebuffer_color_texture(srcFrameBuffer->GetFrameBuffer());
+  GPU_texture_bind(src, 0);
+  GPU_apply_state();
 
   immBegin(GPU_PRIM_TRIS, 3);
   immAttr2f(texco, 0.0f, 0.0f);

@@ -1,10 +1,10 @@
-in vec4 bgl_InPosition;
-in vec2 bgl_InTexCoord;
+in vec4 pos;
+in vec2 texCoord;
 
 out vec4 texcovar;
 
 void main()
 {
-  gl_Position = bgl_InPosition;
-  texcovar = vec4(bgl_InTexCoord, 0.0, 0.0);
+  gl_Position = pos;
+  texcovar = vec4(texCoord, 0.0, 0.0);
 }
