@@ -1696,7 +1696,7 @@ static void lineart_geometry_object_load(LineartObjectInfo *obi, LineartRenderBu
   }
 
   if (rb->remove_doubles) {
-    BMEditMesh *em = BKE_editmesh_create(bm, false);
+    BMEditMesh *em = BKE_editmesh_create(bm);
     BMOperator findop, weldop;
 
     /* See bmesh_opdefines.c and bmesh_operators.c for op names and argument formatting. */
@@ -4302,7 +4302,7 @@ static void lineart_gpencil_generate(LineartCache *cache,
           int dindex = 0;
           Mesh *me = (Mesh *)eval_ob->data;
           if (me->dvert) {
-            LISTBASE_FOREACH (bDeformGroup *, db, &eval_ob->defbase) {
+            LISTBASE_FOREACH (bDeformGroup *, db, &me->vertex_group_names) {
               if ((!source_vgname) || strstr(db->name, source_vgname) == db->name) {
                 if (match_output) {
                   gpdg = BKE_object_defgroup_name_index(gpencil_object, db->name);
