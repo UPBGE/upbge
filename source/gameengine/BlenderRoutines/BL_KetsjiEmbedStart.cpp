@@ -190,6 +190,9 @@ extern "C" void StartKetsjiShell(struct bContext *C,
 
   if (startscene->gm.flag & GAME_USE_UNDO) {
     BKE_undosys_step_push(CTX_wm_manager(C)->undo_stack, C, "bge_start");
+    /* Temp hack to fix issue with undo https://github.com/UPBGE/upbge/issues/1516 */
+    /* https://github.com/UPBGE/upbge/commit/1b4d5c7a35597a70411515f721a405416244b540 */
+    BKE_undosys_step_push(CTX_wm_manager(C)->undo_stack, C, "pre");
   }
 
   wmWindowManager *wm_backup = CTX_wm_manager(C);
