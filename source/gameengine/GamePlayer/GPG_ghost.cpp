@@ -1771,7 +1771,6 @@ int main(int argc,
   wm_surfaces_free();
   wm_dropbox_free();
   WM_menutype_free();
-  WM_uilisttype_free();
 
   /* all non-screen and non-space stuff editors did, like editmode */
   if (C) {
@@ -1832,6 +1831,8 @@ int main(int argc,
   wm_gizmomaptypes_free();
   wm_gizmogrouptype_free();
   wm_gizmotype_free();
+  /* Same for UI-list types. */
+  WM_uilisttype_free();
 
   BLF_exit();
 
