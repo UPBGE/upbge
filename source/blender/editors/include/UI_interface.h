@@ -25,6 +25,7 @@
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_sys_types.h" /* size_t */
+#include "BLI_utildefines.h"
 #include "RNA_types.h"     /* UPBGE */
 #include "UI_interface_icons.h"
 
@@ -35,6 +36,7 @@ extern "C" {
 /* Struct Declarations */
 
 struct ARegion;
+struct AssetFilterSettings;
 struct AutoComplete;
 struct EnumPropertyItem;
 struct FileSelectParams;
@@ -370,6 +372,9 @@ typedef enum {
   /** Buttons with value >= #UI_BTYPE_SEARCH_MENU don't get undo pushes. */
   UI_BTYPE_SEARCH_MENU = 41 << 9,
   UI_BTYPE_EXTRA = 42 << 9,
+  /** A preview image (#PreviewImage), with text under it. Typically bigger than normal buttons and
+   * laid out in a grid, e.g. like the File Browser in thumbnail display mode. */
+  UI_BTYPE_PREVIEW_TILE = 43 << 9,
   UI_BTYPE_HOTKEY_EVENT = 46 << 9,
   /** Non-interactive image, used for splash screen */
   UI_BTYPE_IMAGE = 47 << 9,
@@ -591,6 +596,8 @@ bool UI_block_is_empty_ex(const uiBlock *block, const bool skip_title);
 bool UI_block_is_empty(const uiBlock *block);
 bool UI_block_can_add_separator(const uiBlock *block);
 
+struct uiList *UI_list_find_mouse_over(const struct ARegion *region, const struct wmEvent *event);
+
 /* interface_region_menu_popup.c */
 /**
  * Popup Menus
@@ -708,6 +715,7 @@ void UI_block_end_ex(const struct bContext *C, uiBlock *block, const int xy[2], 
 void UI_block_end(const struct bContext *C, uiBlock *block);
 void UI_block_draw(const struct bContext *C, struct uiBlock *block);
 void UI_blocklist_update_window_matrix(const struct bContext *C, const struct ListBase *lb);
+void UI_blocklist_update_view_for_buttons(const struct bContext *C, const struct ListBase *lb);
 void UI_blocklist_draw(const struct bContext *C, const struct ListBase *lb);
 void UI_block_update_from_old(const struct bContext *C, struct uiBlock *block);
 
@@ -2214,6 +2222,17 @@ void uiTemplateCacheFile(uiLayout *layout,
 
 /* Default UIList class name, keep in sync with its declaration in bl_ui/__init__.py */
 #define UI_UL_DEFAULT_CLASS_NAME "UI_UL_list"
+enum uiTemplateListFlags {
+  UI_TEMPLATE_LIST_FLAG_NONE = 0,
+  UI_TEMPLATE_LIST_SORT_REVERSE = (1 << 0),
+  UI_TEMPLATE_LIST_SORT_LOCK = (1 << 1),
+  /* Don't allow resizing the list, i.e. don't add the grip button. */
+  UI_TEMPLATE_LIST_NO_GRIP = (1 << 2),
+
+  UI_TEMPLATE_LIST_FLAGS_LAST
+};
+ENUM_OPERATORS(enum uiTemplateListFlags, UI_TEMPLATE_LIST_FLAGS_LAST);
+
 void uiTemplateList(uiLayout *layout,
                     struct bContext *C,
                     const char *listtype_name,
@@ -2227,8 +2246,23 @@ void uiTemplateList(uiLayout *layout,
                     int maxrows,
                     int layout_type,
                     int columns,
-                    bool sort_reverse,
-                    bool sort_lock);
+                    enum uiTemplateListFlags flags);
+struct uiList *uiTemplateList_ex(uiLayout *layout,
+                                 struct bContext *C,
+                                 const char *listtype_name,
+                                 const char *list_id,
+                                 struct PointerRNA *dataptr,
+                                 const char *propname,
+                                 struct PointerRNA *active_dataptr,
+                                 const char *active_propname,
+                                 const char *item_dyntip_propname,
+                                 int rows,
+                                 int maxrows,
+                                 int layout_type,
+                                 int columns,
+                                 enum uiTemplateListFlags flags,
+                                 void *customdata);
+
 void uiTemplateNodeLink(uiLayout *layout,
                         struct bContext *C,
                         struct bNodeTree *ntree,
@@ -2274,6 +2308,27 @@ int uiTemplateRecentFiles(struct uiLayout *layout, int rows);
 void uiTemplateFileSelectPath(uiLayout *layout,
                               struct bContext *C,
                               struct FileSelectParams *params);
+void uiTemplateAssetView(struct uiLayout *layout,
+                         struct bContext *C,
+                         const char *list_id,
+                         struct PointerRNA *asset_library_dataptr,
+                         const char *asset_library_propname,
+                         struct PointerRNA *assets_dataptr,
+                         const char *assets_propname,
+                         struct PointerRNA *active_dataptr,
+                         const char *active_propname,
+                         const struct AssetFilterSettings *filter_settings,
+                         const char *activate_opname,
+                         struct PointerRNA *r_activate_op_properties,
+                         const char *drag_opname,
+                         struct PointerRNA *r_drag_op_properties);
+
+struct PointerRNA *UI_list_custom_activate_operator_set(struct uiList *ui_list,
+                                                        const char *opname,
+                                                        bool create_properties);
+struct PointerRNA *UI_list_custom_drag_operator_set(struct uiList *ui_list,
+                                                    const char *opname,
+                                                    bool create_properties);
 
 /* items */
 void uiItemO(uiLayout *layout, const char *name, int icon, const char *opname);
@@ -2538,6 +2593,7 @@ typedef struct uiDragColorHandle {
 
 void ED_operatortypes_ui(void);
 void ED_keymap_ui(struct wmKeyConfig *keyconf);
+void ED_uilisttypes_ui(void);
 
 void UI_drop_color_copy(struct wmDrag *drag, struct wmDropBox *drop);
 bool UI_drop_color_poll(struct bContext *C,
@@ -2637,6 +2693,8 @@ void UI_template_fix_linking(void);
 bool UI_editsource_enable_check(void);
 void UI_editsource_active_but_test(uiBut *but);
 void UI_editsource_but_replace(const uiBut *old_but, uiBut *new_but);
+
+void UI_but_ensure_in_view(const struct bContext *C, struct ARegion *region, const uiBut *but);
 
 /* UI_butstore_ helpers */
 typedef struct uiButStore uiButStore;

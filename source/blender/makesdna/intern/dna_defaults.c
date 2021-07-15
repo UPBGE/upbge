@@ -152,6 +152,7 @@
 
 /* DNA_asset_defaults.h */
 SDNA_DEFAULT_DECL_STRUCT(AssetMetaData);
+SDNA_DEFAULT_DECL_STRUCT(AssetLibraryReference);
 
 /* DNA_armature_defaults.h */
 SDNA_DEFAULT_DECL_STRUCT(bArmature);
@@ -349,6 +350,7 @@ const void *DNA_default_table[SDNA_TYPE_MAX] = {
 
     /* DNA_asset_defaults.h */
     SDNA_DEFAULT_DECL(AssetMetaData),
+    SDNA_DEFAULT_DECL(AssetLibraryReference),
 
     /* DNA_armature_defaults.h */
     SDNA_DEFAULT_DECL(bArmature),
