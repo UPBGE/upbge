@@ -85,6 +85,7 @@
 #include "DNA_genfile.h"
 #include "DNA_space_types.h"
 #include "DRW_engine.h"
+#include "ED_asset.h"
 #include "ED_datafiles.h"
 #include "ED_gpencil.h"
 #include "ED_keyframes_edit.h"
@@ -1787,6 +1788,7 @@ int main(int argc,
   RE_engines_exit();
 
   ED_preview_free_dbase(); /* frees a Main dbase, before BKE_blender_free! */
+  ED_assetlist_storage_exit();
 
   if (CTX_wm_manager(C)) {
     /* Before BKE_blender_free! - since the ListBases get freed there. */
