@@ -2703,7 +2703,7 @@ static const EnumPropertyItem *rna_FileBrowser_FileSelectEntry_id_type_itemf(
 {
   const FileDirEntry *entry = ptr->data;
   if (entry->blentype == 0) {
-    const static EnumPropertyItem none_items[] = {
+    static const EnumPropertyItem none_items[] = {
         {0, "NONE", 0, "None", ""},
     };
     return none_items;
