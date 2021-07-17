@@ -59,7 +59,7 @@
 #include "DNA_object_types.h"
 #include "DNA_pointcloud_types.h"
 #include "DNA_property_types.h"
-#include "DNA_python_component_types.h"
+#include "DNA_python_proxy_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
@@ -136,7 +136,7 @@
 #include "BKE_pointcache.h"
 #include "BKE_pointcloud.h"
 #include "BKE_property.h"
-#include "BKE_python_component.h"
+#include "BKE_python_proxy.h"
 #include "BKE_rigidbody.h"
 #include "BKE_sca.h"
 #include "BKE_scene.h"
@@ -238,11 +238,15 @@ static void object_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const in
   }
 
   /* Game engine */
+  if (ob_src->custom_object) {
+    ob_dst->custom_object = BKE_python_proxy_copy(ob_src->custom_object);
+  }
+
   BLI_listbase_clear(&ob_dst->prop);
   BKE_bproperty_copy_list(&ob_dst->prop, &ob_src->prop);
 
   BKE_sca_copy_logicbricks(ob_dst, ob_src, flag_subdata);
-  BKE_python_component_copy_list(&ob_dst->components, &ob_src->components);
+  BKE_python_proxy_copy_list(&ob_dst->components, &ob_src->components);
   if (ob_src->bsoft) {
     ob_dst->bsoft = copy_bulletsoftbody(ob_src->bsoft, 0);
   }
@@ -319,12 +323,16 @@ static void object_free_data(ID *id)
   }
 
   /* Game engine */
+  if (ob->custom_object) {
+    BKE_python_proxy_free(ob->custom_object);
+  }
+
   BKE_bproperty_free_list(&ob->prop);
 
   BKE_sca_free_sensors(&ob->sensors);
   BKE_sca_free_controllers(&ob->controllers);
   BKE_sca_free_actuators(&ob->actuators);
-  BKE_python_component_free_list(&ob->components);
+  BKE_python_proxy_free_list(&ob->components);
   BKE_object_free_bulletsoftbody(ob);
   BLI_freelistN(&ob->lodlevels);
   /****************/
@@ -429,10 +437,10 @@ static void library_foreach_actuatorsObjectLooper(bActuator *UNUSED(actuator),
   BKE_lib_query_foreachid_process(data, id_pointer, cb_flag);
 }
 
-static void library_foreach_componentsObjectLooper(PythonComponent *UNUSED(component),
-                                                   ID **id_pointer,
-                                                   void *user_data,
-                                                   int cb_flag)
+static void library_foreach_proxiesObjectLooper(PythonProxy *UNUSED(proxy),
+                                                ID **id_pointer,
+                                                void *user_data,
+                                                int cb_flag)
 {
   LibraryForeachIDData *data = (LibraryForeachIDData *)user_data;
   BKE_lib_query_foreachid_process(data, id_pointer, cb_flag);
@@ -570,7 +578,11 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
   BKE_sca_sensors_id_loop(&object->sensors, library_foreach_sensorsObjectLooper, data);
   BKE_sca_controllers_id_loop(&object->controllers, library_foreach_controllersObjectLooper, data);
   BKE_sca_actuators_id_loop(&object->actuators, library_foreach_actuatorsObjectLooper, data);
-  BKE_python_components_id_loop(&object->components, library_foreach_componentsObjectLooper, data);
+  BKE_python_proxies_id_loop(&object->components, library_foreach_proxiesObjectLooper, data);
+
+  if (object->custom_object) {
+    BKE_python_proxy_id_loop(object->custom_object, library_foreach_proxiesObjectLooper, data);
+  }
 
   if (object->lodlevels.first) {
     LISTBASE_FOREACH (LodLevel *, level, &object->lodlevels) {
@@ -778,33 +790,39 @@ static void write_actuators(BlendWriter *writer, ListBase *lb)
   }
 }
 
-static void write_component_properties(BlendWriter *writer, ListBase *lb)
+static void write_proxy_properties(BlendWriter *writer, ListBase *lb)
 {
-  PythonComponentProperty *cprop;
-  cprop = lb->first;
+  PythonProxyProperty *pprop;
 
-  while (cprop) {
+  pprop = lb->first;
+
+  while (pprop) {
     LinkData *link;
-    BLO_write_struct(writer, PythonComponentProperty, cprop);
-    BLO_write_struct_list(writer, LinkData, &cprop->enumval);
-    for (link = cprop->enumval.first; link; link = link->next) {
+    BLO_write_struct(writer, PythonProxyProperty, pprop);
+    BLO_write_struct_list(writer, LinkData, &pprop->enumval);
+    for (link = pprop->enumval.first; link; link = link->next) {
       BLO_write_string(writer, link->data);
     }
-    cprop = cprop->next;
+    pprop = pprop->next;
   }
 }
 
-static void write_components(BlendWriter *writer, ListBase *lb)
+static void write_proxy(BlendWriter *writer, PythonProxy *pp)
 {
-  PythonComponent *pc;
+  BLO_write_struct(writer, PythonProxy, pp);
+  write_proxy_properties(writer, &pp->properties);
+}
 
-  pc = lb->first;
+static void write_proxies(BlendWriter *writer, ListBase *lb)
+{
+  PythonProxy *pp;
 
-  while (pc) {
-    BLO_write_struct(writer, PythonComponent, pc);
-    write_component_properties(writer, &pc->properties);
+  pp = lb->first;
 
-    pc = pc->next;
+  while (pp) {
+    write_proxy(writer, pp);
+
+    pp = pp->next;
   }
 }
 
@@ -840,7 +858,12 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
     write_sensors(writer, &ob->sensors);
     write_controllers(writer, &ob->controllers);
     write_actuators(writer, &ob->actuators);
-    write_components(writer, &ob->components);
+    write_proxies(writer, &ob->components);
+
+    if (ob->custom_object) {
+      write_proxy(writer, ob->custom_object);
+    }
+
     if (ob->bsoft) {
       BLO_write_struct(writer, BulletSoftBody, ob->bsoft);
     }
@@ -1049,8 +1072,8 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   bSensor *sens;
   bController *cont;
   bActuator *act;
-  PythonComponent *pc;
-  PythonComponentProperty *cprop;
+  PythonProxy *pp;
+  PythonProxyProperty *pprop;
 
   BLO_read_list(reader, &ob->prop);
   for (prop = ob->prop.first; prop; prop = prop->next) {
@@ -1089,19 +1112,35 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   }
 
   BLO_read_glob_list(reader, &ob->components);
-  pc = ob->components.first;
-  while (pc) {
-    BLO_read_glob_list(reader, &pc->properties);
-    cprop = pc->properties.first;
-    while (cprop) {
-      BLO_read_list(reader, &cprop->enumval);
-      for (LinkData *link = cprop->enumval.first; link; link = link->next) {
+  pp = ob->components.first;
+  while (pp) {
+    BLO_read_glob_list(reader, &pp->properties);
+    pprop = pp->properties.first;
+    while (pprop) {
+      BLO_read_list(reader, &pprop->enumval);
+      for (LinkData *link = pprop->enumval.first; link; link = link->next) {
         BLO_read_data_address(reader, &link->data);
       }
-      cprop = cprop->next;
+      pprop = pprop->next;
     }
-    pc = pc->next;
+    pp = pp->next;
   }
+
+  BLO_read_data_address(reader, &ob->custom_object);
+  pp = ob->custom_object;
+
+  if (pp) {
+    BLO_read_glob_list(reader, &pp->properties);
+    pprop = pp->properties.first;
+    while (pprop) {
+      BLO_read_list(reader, &pprop->enumval);
+      for (LinkData *link = pprop->enumval.first; link; link = link->next) {
+        BLO_read_data_address(reader, &link->data);
+      }
+      pprop = pprop->next;
+    }
+  }
+
   BLO_read_data_address(reader, &ob->bsoft);
 
   BLO_read_list(reader, &ob->lodlevels);
@@ -1444,8 +1483,16 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
     }
   }
 
-  LISTBASE_FOREACH (PythonComponent *, comp, &ob->components) {
-    LISTBASE_FOREACH (PythonComponentProperty *, prop, &comp->properties) {
+  LISTBASE_FOREACH (PythonProxy *, proxy, &ob->components) {
+    LISTBASE_FOREACH (PythonProxyProperty *, prop, &proxy->properties) {
+#define PT_DEF(name, lower, upper) BLO_read_id_address(reader, ob->id.lib, &prop->lower);
+      POINTER_TYPES
+#undef PT_DEF
+    }
+  }
+
+  if (ob->custom_object) {
+    LISTBASE_FOREACH (PythonProxyProperty *, prop, &ob->custom_object->properties) {
 #define PT_DEF(name, lower, upper) BLO_read_id_address(reader, ob->id.lib, &prop->lower);
       POINTER_TYPES
 #undef PT_DEF
@@ -1698,8 +1745,8 @@ static void object_blend_read_expand(BlendExpander *expander, ID *id)
     }
   }
 
-  LISTBASE_FOREACH (PythonComponent *, comp, &ob->components) {
-    LISTBASE_FOREACH (PythonComponentProperty *, prop, &comp->properties) {
+  LISTBASE_FOREACH (PythonProxy *, proxy, &ob->components) {
+    LISTBASE_FOREACH (PythonProxyProperty *, prop, &proxy->properties) {
 #define PT_DEF(name, lower, upper) BLO_expand(expander, prop->lower);
       POINTER_TYPES
 #undef PT_DEF

@@ -24,18 +24,17 @@
 
 #ifdef WITH_PYTHON
 
-#  include "EXP_Value.h"
+#include "KX_PythonProxy.h"
 
 class KX_GameObject;
-struct PythonComponent;
+struct PythonProxy;
 
-class KX_PythonComponent : public EXP_Value {
+class KX_PythonComponent : public KX_PythonProxy {
   Py_Header
 
-      private : PythonComponent *m_pc;
+ private:
   KX_GameObject *m_gameobj;
   std::string m_name;
-  bool m_init;
 
  public:
   KX_PythonComponent(const std::string &name);
@@ -49,12 +48,6 @@ class KX_PythonComponent : public EXP_Value {
 
   KX_GameObject *GetGameObject() const;
   void SetGameObject(KX_GameObject *gameobj);
-
-  void SetBlenderPythonComponent(PythonComponent *pc);
-
-  void Start();
-  void Update();
-  void Dispose();
 
   static PyObject *py_component_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 

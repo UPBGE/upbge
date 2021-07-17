@@ -46,6 +46,7 @@
 #  include "KX_2DFilterFrameBuffer.h"
 #  include "KX_2DFilterManager.h"
 #  include "KX_BlenderMaterial.h"
+#  include "KX_EmptyObject.h"
 #  include "KX_Camera.h"
 #  include "KX_CharacterWrapper.h"
 #  include "KX_CollisionContactPoints.h"
@@ -231,6 +232,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
     PyType_Ready_Attr(dict, KX_ConstraintWrapper, init_getset);
     PyType_Ready_Attr(dict, SCA_GameActuator, init_getset);
     PyType_Ready_Attr(dict, KX_GameObject, init_getset);
+    PyType_Ready_Attr(dict, KX_EmptyObject, init_getset);
     PyType_Ready_Attr(dict, KX_LibLoadStatus, init_getset);
     PyType_Ready_Attr(dict, KX_LightObject, init_getset);
     PyType_Ready_Attr(dict, KX_LodLevel, init_getset);

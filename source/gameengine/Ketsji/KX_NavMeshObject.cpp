@@ -575,8 +575,7 @@ static int polyFindVertex(const unsigned short *p,
   return res;
 }
 
-KX_NavMeshObject::KX_NavMeshObject(void *sgReplicationInfo, SG_Callbacks callbacks)
-    : KX_GameObject(sgReplicationInfo, callbacks), m_navMesh(nullptr)
+KX_NavMeshObject::KX_NavMeshObject() : KX_GameObject(), m_navMesh(nullptr)
 {
 }
 
@@ -1180,6 +1179,18 @@ void KX_NavMeshObject::DrawPath(const float *path, int pathLen, const MT_Vector4
 #ifdef WITH_PYTHON
 //----------------------------------------------------------------------------
 // Python
+PyObject *KX_NavMeshObject::game_object_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+  KX_NavMeshObject *obj = new KX_NavMeshObject();
+
+  PyObject *proxy = py_base_new(type, PyTuple_Pack(1, obj->GetProxy()), kwds);
+  if (!proxy) {
+    delete obj;
+    return nullptr;
+  }
+
+  return proxy;
+}
 
 PyTypeObject KX_NavMeshObject::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_NavMeshObject",
                                        sizeof(EXP_PyObjectPlus_Proxy),
@@ -1217,7 +1228,7 @@ PyTypeObject KX_NavMeshObject::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_Nav
                                        0,
                                        0,
                                        0,
-                                       py_base_new};
+                                       game_object_new};
 
 PyAttributeDef KX_NavMeshObject::Attributes[] = {
     EXP_PYATTRIBUTE_NULL  // Sentinel

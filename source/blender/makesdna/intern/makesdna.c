@@ -134,7 +134,7 @@ static const char *includefiles[] = {
     "DNA_rigidbody_types.h",
     "DNA_freestyle_types.h",
     "DNA_linestyle_types.h",
-    "DNA_python_component_types.h",
+    "DNA_python_proxy_types.h",
     "DNA_cachefile_types.h",
     "DNA_layer_types.h",
     "DNA_workspace_types.h",
@@ -1624,7 +1624,7 @@ int main(int argc, char **argv)
 #include "DNA_pointcache_types.h"
 #include "DNA_pointcloud_types.h"
 #include "DNA_property_types.h"
-#include "DNA_python_component_types.h"
+#include "DNA_python_proxy_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"

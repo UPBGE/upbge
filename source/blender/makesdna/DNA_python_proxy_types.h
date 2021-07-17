@@ -46,8 +46,8 @@
 extern "C" {
 #endif
 
-typedef struct PythonComponentProperty {
-  struct PythonComponentProperty *next, *prev;
+typedef struct PythonProxyProperty {
+  struct PythonProxyProperty *next, *prev;
   char name[128]; /* 128 = MAX_PROPSTRING */
   short type;
   short boolval;
@@ -79,50 +79,50 @@ typedef struct PythonComponentProperty {
   struct VFont *vector_font;
   struct Volume *volume;
   struct World *world;
-} PythonComponentProperty;
+} PythonProxyProperty;
 
-typedef struct PythonComponent {
-  struct PythonComponent *next, *prev;
+typedef struct PythonProxy {
+  struct PythonProxy *next, *prev;
   ListBase properties;
   char name[1024];   /* 1024 = FILE_MAX */
   char module[1024]; /* 1024 = FILE_MAX */
   int flag;
   int _pad;
-} PythonComponent;
+} PythonProxy;
 
-/* PythonComponentProperty.type */
-#define CPROP_TYPE_INT 0
-#define CPROP_TYPE_FLOAT 1
-#define CPROP_TYPE_STRING 2
-#define CPROP_TYPE_BOOLEAN 3
-#define CPROP_TYPE_SET 4
-#define CPROP_TYPE_VEC2 5
-#define CPROP_TYPE_VEC3 6
-#define CPROP_TYPE_VEC4 7
-#define CPROP_TYPE_COL3 8
-#define CPROP_TYPE_COL4 9
-#define CPROP_TYPE_ACTION 10
-#define CPROP_TYPE_ARMATURE 11
-#define CPROP_TYPE_CAMERA 12
-#define CPROP_TYPE_COLLECTION 13
-#define CPROP_TYPE_CURVE 14
-#define CPROP_TYPE_IMAGE 15
-#define CPROP_TYPE_KEY 16
-#define CPROP_TYPE_LIBRARY 17
-#define CPROP_TYPE_LIGHT 18
-#define CPROP_TYPE_MATERIAL 19
-#define CPROP_TYPE_MESH 20
-#define CPROP_TYPE_MOVIE_CLIP 21
-#define CPROP_TYPE_NODE_TREE 22
-#define CPROP_TYPE_OBJECT 23
-#define CPROP_TYPE_PARTICLE_SETTINGS 24
-#define CPROP_TYPE_SOUND 25
-#define CPROP_TYPE_SPEAKER 26
-#define CPROP_TYPE_TEXT 27
-#define CPROP_TYPE_TEXTURE 28
-#define CPROP_TYPE_VECTOR_FONT 29
-#define CPROP_TYPE_VOLUME 30
-#define CPROP_TYPE_WORLD 31
+/* PythonProxyProperty.type */
+#define PPROP_TYPE_INT 0
+#define PPROP_TYPE_FLOAT 1
+#define PPROP_TYPE_STRING 2
+#define PPROP_TYPE_BOOLEAN 3
+#define PPROP_TYPE_SET 4
+#define PPROP_TYPE_VEC2 5
+#define PPROP_TYPE_VEC3 6
+#define PPROP_TYPE_VEC4 7
+#define PPROP_TYPE_COL3 8
+#define PPROP_TYPE_COL4 9
+#define PPROP_TYPE_ACTION 10
+#define PPROP_TYPE_ARMATURE 11
+#define PPROP_TYPE_CAMERA 12
+#define PPROP_TYPE_COLLECTION 13
+#define PPROP_TYPE_CURVE 14
+#define PPROP_TYPE_IMAGE 15
+#define PPROP_TYPE_KEY 16
+#define PPROP_TYPE_LIBRARY 17
+#define PPROP_TYPE_LIGHT 18
+#define PPROP_TYPE_MATERIAL 19
+#define PPROP_TYPE_MESH 20
+#define PPROP_TYPE_MOVIE_CLIP 21
+#define PPROP_TYPE_NODE_TREE 22
+#define PPROP_TYPE_OBJECT 23
+#define PPROP_TYPE_PARTICLE_SETTINGS 24
+#define PPROP_TYPE_SOUND 25
+#define PPROP_TYPE_SPEAKER 26
+#define PPROP_TYPE_TEXT 27
+#define PPROP_TYPE_TEXTURE 28
+#define PPROP_TYPE_VECTOR_FONT 29
+#define PPROP_TYPE_VOLUME 30
+#define PPROP_TYPE_WORLD 31
 
 #define POINTER_TYPES \
   PT_DEF(Action, action, ACTION) \

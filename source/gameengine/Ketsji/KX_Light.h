@@ -39,13 +39,13 @@ struct Object;
 class KX_LightObject : public KX_GameObject {
   Py_Header
 
-      protected :
+ protected :
 
-      Object *m_obLight;
+  Object *m_obLight;
   Light *m_light;
 
  public:
-  KX_LightObject(void *sgReplicationInfo, SG_Callbacks callbacks, Object *ob);
+  KX_LightObject();
   virtual ~KX_LightObject();
 
   virtual void ProcessReplica();
@@ -58,6 +58,9 @@ class KX_LightObject : public KX_GameObject {
 
   Light *GetLight();
 
+  virtual void SetBlenderObject(Object *obj);
+
 #ifdef WITH_PYTHON
+  static PyObject *game_object_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 #endif
 };
