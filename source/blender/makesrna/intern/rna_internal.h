@@ -194,7 +194,7 @@ void RNA_def_particle(struct BlenderRNA *brna);
 void RNA_def_pointcloud(struct BlenderRNA *brna);
 void RNA_def_pose(struct BlenderRNA *brna);
 void RNA_def_profile(struct BlenderRNA *brna);
-void RNA_def_py_component(struct BlenderRNA *brna);
+void RNA_def_py_proxy(struct BlenderRNA *brna);
 void RNA_def_lightprobe(struct BlenderRNA *brna);
 void RNA_def_render(struct BlenderRNA *brna);
 void RNA_def_rigidbody(struct BlenderRNA *brna);

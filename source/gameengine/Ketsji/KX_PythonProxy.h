@@ -24,14 +24,14 @@
 
 #include "EXP_Value.h"
 
-struct PythonComponent;
+struct PythonProxy;
 
 class KX_PythonProxy : public EXP_Value {
 
  private:
   bool m_init;
 
-  PythonComponent *m_pc;
+  PythonProxy *m_pp;
 
   PyObject *m_update;
 
@@ -42,7 +42,7 @@ class KX_PythonProxy : public EXP_Value {
 
   virtual ~KX_PythonProxy();
 
-  void SetPrototype(PythonComponent *pc);
+  void SetPrototype(PythonProxy *pp);
 
   virtual void Start();
 

@@ -71,7 +71,7 @@
 #include "DNA_camera_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_python_component_types.h"
+#include "DNA_python_proxy_types.h"
 #include "DNA_scene_types.h"
 #include "wm_event_types.h"
 
@@ -642,9 +642,9 @@ static KX_GameObject *BL_gameobject_from_customobject(Object *ob)
 {
   KX_GameObject *gameobj = nullptr;
 
-  PythonComponent *pc = ob->custom_object;
+  PythonProxy *pp = ob->custom_object;
 
-  if (!pc) {
+  if (!pp) {
     return nullptr;
   }
 
@@ -653,7 +653,7 @@ static KX_GameObject *BL_gameobject_from_customobject(Object *ob)
   args = arg_dict = mod = cls = pyobj = ret = NULL;
 
   // Grab the module
-  mod = PyImport_ImportModule(pc->module);
+  mod = PyImport_ImportModule(pp->module);
 
   bool valid = false;
 
@@ -661,18 +661,18 @@ static KX_GameObject *BL_gameobject_from_customobject(Object *ob)
     if (PyErr_Occurred()) {
       PyErr_Print();
     }
-    CM_Error("Failed to import the module '" << pc->module << "'");
+    CM_Error("Failed to import the module '" << pp->module << "'");
   } else {
     // Grab the class object
-    cls = PyObject_GetAttrString(mod, pc->name);
+    cls = PyObject_GetAttrString(mod, pp->name);
 
     if (cls == NULL) {
       if (PyErr_Occurred()) {
         PyErr_Print();
       }
-      CM_Error("Python module found, but failed to find the object '" << pc->name << "'");
+      CM_Error("Python module found, but failed to find the object '" << pp->name << "'");
     } else if (!PyType_Check(cls) || !PyObject_IsSubclass(cls, (PyObject *)&KX_GameObject::Type)) {
-      CM_Error(pc->module << "." << pc->name << " is not a KX_GameObject subclass");
+      CM_Error(pp->module << "." << pp->name << " is not a KX_GameObject subclass");
     } else {
       valid = true;
     }
@@ -693,7 +693,7 @@ static KX_GameObject *BL_gameobject_from_customobject(Object *ob)
   }
 
   if (gameobj) {
-      gameobj->SetPrototype(pc);
+      gameobj->SetPrototype(pp);
   }
 
   Py_XDECREF(args);
@@ -883,16 +883,16 @@ static ListBase *BL_GetActiveConstraint(Object *ob)
 
 static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderobj)
 {
-  PythonComponent *pc = (PythonComponent *)blenderobj->components.first;
+  PythonProxy *pp = (PythonProxy *)blenderobj->components.first;
   PyObject *arg_dict = NULL, *args = NULL, *mod = NULL, *cls = NULL, *pycomp = NULL, *ret = NULL;
 
-  if (!pc) {
+  if (!pp) {
     return;
   }
 
   EXP_ListValue<KX_PythonComponent> *components = new EXP_ListValue<KX_PythonComponent>();
 
-  while (pc) {
+  while (pp) {
     // Make sure to clean out anything from previous loops
     Py_XDECREF(args);
     Py_XDECREF(arg_dict);
@@ -903,32 +903,32 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
     args = arg_dict = mod = cls = pycomp = ret = NULL;
 
     // Grab the module
-    mod = PyImport_ImportModule(pc->module);
+    mod = PyImport_ImportModule(pp->module);
 
     if (mod == NULL) {
       if (PyErr_Occurred()) {
         PyErr_Print();
       }
-      CM_Error("Failed to import the module '" << pc->module << "'");
-      pc = pc->next;
+      CM_Error("Failed to import the module '" << pp->module << "'");
+      pp = pp->next;
       continue;
     }
 
     // Grab the class object
-    cls = PyObject_GetAttrString(mod, pc->name);
+    cls = PyObject_GetAttrString(mod, pp->name);
     if (cls == NULL) {
       if (PyErr_Occurred()) {
         PyErr_Print();
       }
-      CM_Error("Python module found, but failed to find the component '" << pc->name << "'");
-      pc = pc->next;
+      CM_Error("Python module found, but failed to find the component '" << pp->name << "'");
+      pp = pp->next;
       continue;
     }
 
     // Lastly make sure we have a class and it's an appropriate sub type
     if (!PyType_Check(cls) || !PyObject_IsSubclass(cls, (PyObject *)&KX_PythonComponent::Type)) {
-      CM_Error(pc->module << "." << pc->name << " is not a KX_PythonComponent subclass");
-      pc = pc->next;
+      CM_Error(pp->module << "." << pp->name << " is not a KX_PythonComponent subclass");
+      pp = pp->next;
       continue;
     }
 
@@ -943,12 +943,12 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
     }
     else {
       KX_PythonComponent *comp = static_cast<KX_PythonComponent *>(EXP_PROXY_REF(pycomp));
-      comp->SetPrototype(pc);
+      comp->SetPrototype(pp);
       comp->SetGameObject(gameobj);
       components->Add(comp);
     }
 
-    pc = pc->next;
+    pp = pp->next;
   }
 
   Py_XDECREF(args);

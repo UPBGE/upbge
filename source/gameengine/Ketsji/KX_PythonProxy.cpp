@@ -22,15 +22,14 @@
 
 #include "KX_PythonProxy.h"
 
+#include "BKE_python_proxy.h"
+#include "DNA_python_proxy_types.h"
 #include "EXP_Value.h"
-#include "BKE_python_component.h"
-#include "DNA_python_component_types.h"
-
 
 KX_PythonProxy::KX_PythonProxy():
     EXP_Value(),
     m_init(false),
-    m_pc(nullptr),
+    m_pp(nullptr),
     m_update(nullptr),
     m_dispose(nullptr)
 {
@@ -42,21 +41,21 @@ KX_PythonProxy::~KX_PythonProxy()
   Reset();
 }
 
-void KX_PythonProxy::SetPrototype(PythonComponent *pc)
+void KX_PythonProxy::SetPrototype(PythonProxy *pp)
 {
-  m_pc = pc;
+  m_pp = pp;
 }
 
 void KX_PythonProxy::Start()
 {
-  if (!m_pc || m_init) {
+  if (!m_pp || m_init) {
     return;
   } else {
     m_init = true;
   }
 
   PyObject *proxy = GetProxy();
-  PyObject *arg_dict = (PyObject *)BKE_python_component_argument_dict_new(m_pc);
+  PyObject *arg_dict = (PyObject *)BKE_python_proxy_argument_dict_new(m_pp);
 
   if (PyObject_CallMethod(proxy, "start", "O", arg_dict))
   {
@@ -74,7 +73,7 @@ void KX_PythonProxy::Start()
 
 void KX_PythonProxy::Update()
 {
-  if (!m_pc) {
+  if (!m_pp) {
     return;
   }
 

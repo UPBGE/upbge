@@ -25,8 +25,8 @@
 #include "KX_PythonComponent.h"
 #include "KX_PythonProxy.h"
 
-#include "BKE_python_component.h"
-#include "DNA_python_component_types.h"
+#include "BKE_python_proxy.h"
+#include "DNA_python_proxy_types.h"
 
 #include "CM_Message.h"
 #include "KX_GameObject.h"

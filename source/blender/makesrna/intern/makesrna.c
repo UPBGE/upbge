@@ -4367,7 +4367,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
 #endif
     {"rna_pose.c", "rna_pose_api.c", RNA_def_pose},
     {"rna_property.c", NULL, RNA_def_gameproperty},
-    {"rna_python_component.c", NULL, RNA_def_py_component},
+    {"rna_python_proxy.c", NULL, RNA_def_py_proxy},
     {"rna_curveprofile.c", NULL, RNA_def_profile},
     {"rna_lightprobe.c", NULL, RNA_def_lightprobe},
     {"rna_render.c", NULL, RNA_def_render},

@@ -74,7 +74,7 @@ set(DEFSRC
   rna_particle.c
   rna_pose.c
   rna_property.c
-  rna_python_component.c
+  rna_python_proxy.c
   rna_render.c
   rna_rigidbody.c
   rna_rna.c
@@ -131,7 +131,7 @@ set(APISRC
   rna_meta_api.c
   rna_object_api.c
   rna_pose_api.c
-  rna_python_component.c
+  rna_python_proxy.c
   rna_scene_api.c
   rna_sensor_api.c
   rna_sequencer_api.c
