@@ -923,7 +923,7 @@ void CcdPhysicsController::UpdateSoftBody()
         }
         DM_to_mesh(dm,
                    me,
-                   rasMesh->GetOriginalObject(),
+                   gameobj->GetBlenderObject(),
                    &CD_MASK_MESH,
                    true);  // if take_ownership is true, dm is freed
         DEG_id_tag_update(&me->id, ID_RECALC_GEOMETRY);
