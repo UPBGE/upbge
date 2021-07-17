@@ -33,7 +33,7 @@
 #include "DNA_actuator_types.h"
 #include "DNA_controller_types.h"
 #include "DNA_object_types.h"
-#include "DNA_python_component_types.h"
+#include "DNA_python_proxy_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sensor_types.h"
 
@@ -45,7 +45,7 @@
 
 #include "BKE_context.h"
 #include "BKE_main.h"
-#include "BKE_python_component.h"
+#include "BKE_python_proxy.h"
 #include "BKE_sca.h"
 
 #include "ED_logic.h"
@@ -252,7 +252,7 @@ static int logicbricks_move_property_get(wmOperator *op)
 
 static bool remove_component_poll(bContext *C)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "component", &RNA_PythonComponent);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "component", &RNA_PythonProxy);
   Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id : ED_object_active_context(C);
 
   if (!ob || ID_IS_LINKED(ob)) {
@@ -838,7 +838,7 @@ static int python_class_new_invoke(bContext *C, wmOperator *op, const wmEvent *U
 
 static int custom_object_register_exec(bContext *C, wmOperator *op)
 {
-  PythonComponent *pycomp;
+  PythonProxy *pp;
   Object *ob = CTX_data_active_object(C);
   char import[MAX_NAME];
 
@@ -847,13 +847,13 @@ static int custom_object_register_exec(bContext *C, wmOperator *op)
   }
 
   RNA_string_get(op->ptr, "class_name", import);
-  pycomp = BKE_custom_object_new(import, op->reports, C);
+  pp = BKE_custom_object_new(import, op->reports, C);
 
-  if (!pycomp) {
+  if (!pp) {
     return OPERATOR_CANCELLED;
   }
 
-  ob->custom_object = pycomp;
+  ob->custom_object = pp;
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -862,7 +862,7 @@ static int custom_object_register_exec(bContext *C, wmOperator *op)
 
 static int custom_object_create_exec(bContext *C, wmOperator *op)
 {
-  PythonComponent *pycomp;
+  PythonProxy *pp;
   Object *ob = CTX_data_active_object(C);
   char import[MAX_NAME];
 
@@ -871,13 +871,13 @@ static int custom_object_create_exec(bContext *C, wmOperator *op)
   }
 
   RNA_string_get(op->ptr, "class_name", import);
-  pycomp = BKE_custom_object_create_file(import, op->reports, C);
+  pp = BKE_custom_object_create_file(import, op->reports, C);
 
-  if (!pycomp) {
+  if (!pp) {
     return OPERATOR_CANCELLED;
   }
 
-  ob->custom_object = pycomp;
+  ob->custom_object = pp;
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -940,15 +940,15 @@ static int custom_object_remove_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  PythonComponent *pc = ob->custom_object;
+  PythonProxy *pp = ob->custom_object;
 
-  if (!pc) {
+  if (!pp) {
     return OPERATOR_CANCELLED;
   }
 
   ob->custom_object = NULL;
 
-  BKE_python_component_free(pc);
+  BKE_python_proxy_free(pp);
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -978,14 +978,14 @@ static int custom_object_reload_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  PythonComponent *pc = ob->custom_object;
+  PythonProxy *pp = ob->custom_object;
 
-  if (!pc) {
+  if (!pp) {
     return OPERATOR_CANCELLED;
   }
 
   /* Try to create a new object */
-  BKE_custom_object_reload(pc, op->reports, C);
+  BKE_custom_object_reload(pp, op->reports, C);
 
   return OPERATOR_FINISHED;
 }
@@ -1008,7 +1008,7 @@ static void LOGIC_OT_custom_object_reload(wmOperatorType *ot)
 /* Component operators */
 static int component_register_exec(bContext *C, wmOperator *op)
 {
-  PythonComponent *pycomp;
+  PythonProxy *pp;
   Object *ob = CTX_data_active_object(C);
   char import[MAX_NAME];
 
@@ -1017,13 +1017,13 @@ static int component_register_exec(bContext *C, wmOperator *op)
   }
 
   RNA_string_get(op->ptr, "component_name", import);
-  pycomp = BKE_python_component_new(import, op->reports, C);
+  pp = BKE_python_component_new(import, op->reports, C);
 
-  if (!pycomp) {
+  if (!pp) {
     return OPERATOR_CANCELLED;
   }
 
-  BLI_addtail(&ob->components, pycomp);
+  BLI_addtail(&ob->components, pp);
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
   return OPERATOR_FINISHED;
@@ -1031,7 +1031,7 @@ static int component_register_exec(bContext *C, wmOperator *op)
 
 static int component_create_exec(bContext *C, wmOperator *op)
 {
-  PythonComponent *pycomp;
+  PythonProxy *pp;
   Object *ob = CTX_data_active_object(C);
   char import[MAX_NAME];
 
@@ -1040,13 +1040,13 @@ static int component_create_exec(bContext *C, wmOperator *op)
   }
 
   RNA_string_get(op->ptr, "component_name", import);
-  pycomp = BKE_python_component_create_file(import, op->reports, C);
+  pp = BKE_python_component_create_file(import, op->reports, C);
 
-  if (!pycomp) {
+  if (!pp) {
     return OPERATOR_CANCELLED;
   }
 
-  BLI_addtail(&ob->components, pycomp);
+  BLI_addtail(&ob->components, pp);
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
   return OPERATOR_FINISHED;
@@ -1103,21 +1103,21 @@ static void LOGIC_OT_python_component_create(wmOperatorType *ot)
 static int component_remove_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
-  PythonComponent *pc = NULL;
+  PythonProxy *pp = NULL;
   int index = RNA_int_get(op->ptr, "index");
 
   if (!ob) {
     return OPERATOR_CANCELLED;
   }
 
-  pc = BLI_findlink(&ob->components, index);
+  pp = BLI_findlink(&ob->components, index);
 
-  if (!pc) {
+  if (!pp) {
     return OPERATOR_CANCELLED;
   }
 
-  BLI_remlink(&ob->components, pc);
-  BKE_python_component_free(pc);
+  BLI_remlink(&ob->components, pp);
+  BKE_python_proxy_free(pp);
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -1145,7 +1145,7 @@ static void LOGIC_OT_python_component_remove(wmOperatorType *ot)
 static int component_move_up_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
-  PythonComponent *p1, *p2 = NULL;
+  PythonProxy *p1, *p2 = NULL;
   int index = RNA_int_get(op->ptr, "index");
 
   if (!ob) {
@@ -1173,7 +1173,7 @@ static int component_move_up_exec(bContext *C, wmOperator *op)
 
 static bool component_move_up_poll(bContext *C)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "component", &RNA_PythonComponent);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "component", &RNA_PythonProxy);
   Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id : ED_object_active_context(C);
 
   if (!ob || ID_IS_LINKED(ob)) {
@@ -1211,7 +1211,7 @@ static void LOGIC_OT_python_component_move_up(wmOperatorType *ot)
 
 static bool component_move_down_poll(bContext *C)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "component", &RNA_PythonComponent);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "component", &RNA_PythonProxy);
   Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id : ED_object_active_context(C);
 
   if (!ob || ID_IS_LINKED(ob)) {
@@ -1233,7 +1233,7 @@ static bool component_move_down_poll(bContext *C)
 static int component_move_down_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
-  PythonComponent *p1, *p2 = NULL;
+  PythonProxy *p1, *p2 = NULL;
   int index = RNA_int_get(op->ptr, "index");
 
   if (!ob) {
@@ -1286,7 +1286,7 @@ static void LOGIC_OT_python_component_move_down(wmOperatorType *ot)
 static int component_reload_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
-  PythonComponent *pc = NULL, *prev_pc = NULL;
+  PythonProxy *pp = NULL, *prev_pp = NULL;
   int index = RNA_int_get(op->ptr, "index");
 
   if (!ob) {
@@ -1294,20 +1294,20 @@ static int component_reload_exec(bContext *C, wmOperator *op)
   }
 
   if (index > 0) {
-    prev_pc = BLI_findlink(&ob->components, index - 1);
-    pc = prev_pc->next;
+    prev_pp = BLI_findlink(&ob->components, index - 1);
+    pp = prev_pp->next;
   }
   else {
     /* pc is at the head */
-    pc = BLI_findlink(&ob->components, index);
+    pp = BLI_findlink(&ob->components, index);
   }
 
-  if (!pc) {
+  if (!pp) {
     return OPERATOR_CANCELLED;
   }
 
   /* Try to create a new component */
-  BKE_python_component_reload(pc, op->reports, C);
+  BKE_python_component_reload(pp, op->reports, C);
 
   return OPERATOR_FINISHED;
 }
