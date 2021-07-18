@@ -5123,6 +5123,7 @@ static void registerGeometryNodes()
   register_node_type_geo_curve_subdivide();
   register_node_type_geo_curve_to_mesh();
   register_node_type_geo_curve_to_points();
+  register_node_type_geo_curve_trim();
   register_node_type_geo_delete_geometry();
   register_node_type_geo_edge_split();
   register_node_type_geo_input_material();
