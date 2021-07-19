@@ -344,7 +344,7 @@ void ED_operatormacros_mesh(void)
 
   ot = WM_operatortype_append_macro("MESH_OT_polybuild_face_at_cursor_move",
                                     "Face at Cursor Move",
-                                    "",
+                                    NULL,
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
   WM_operatortype_macro_define(ot, "MESH_OT_polybuild_face_at_cursor");
   otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
@@ -353,7 +353,7 @@ void ED_operatormacros_mesh(void)
 
   ot = WM_operatortype_append_macro("MESH_OT_polybuild_split_at_cursor_move",
                                     "Split at Cursor Move",
-                                    "",
+                                    NULL,
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
   WM_operatortype_macro_define(ot, "MESH_OT_polybuild_split_at_cursor");
   otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
@@ -362,7 +362,7 @@ void ED_operatormacros_mesh(void)
 
   ot = WM_operatortype_append_macro("MESH_OT_polybuild_transform_at_cursor_move",
                                     "Transform at Cursor Move",
-                                    "",
+                                    NULL,
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
   WM_operatortype_macro_define(ot, "MESH_OT_polybuild_transform_at_cursor");
   otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
@@ -371,7 +371,7 @@ void ED_operatormacros_mesh(void)
 
   ot = WM_operatortype_append_macro("MESH_OT_polybuild_extrude_at_cursor_move",
                                     "Extrude at Cursor Move",
-                                    "",
+                                    NULL,
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
   WM_operatortype_macro_define(ot, "MESH_OT_polybuild_transform_at_cursor");
   otmacro = WM_operatortype_macro_define(ot, "MESH_OT_extrude_edges_indiv");
