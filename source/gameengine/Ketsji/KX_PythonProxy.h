@@ -42,6 +42,8 @@ class KX_PythonProxy : public EXP_Value {
 
   virtual ~KX_PythonProxy();
 
+  PythonProxy *GetPrototype();
+
   void SetPrototype(PythonProxy *pp);
 
   virtual void Start();

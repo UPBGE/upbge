@@ -41,6 +41,11 @@ KX_PythonProxy::~KX_PythonProxy()
   Reset();
 }
 
+PythonProxy *KX_PythonProxy::GetPrototype()
+{
+  return m_pp;
+}
+
 void KX_PythonProxy::SetPrototype(PythonProxy *pp)
 {
   m_pp = pp;

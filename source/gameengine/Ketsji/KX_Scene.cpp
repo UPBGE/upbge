@@ -1588,7 +1588,7 @@ KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *game
   }
 
   // Register object for component update.
-  if (gameobj->GetComponents()) {
+  if (gameobj->GetPrototype() || gameobj->GetComponents()) {
     m_componentManager.RegisterObject(newobj);
   }
 
