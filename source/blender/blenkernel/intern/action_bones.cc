@@ -12,43 +12,37 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
+ * All rights reserved.
  */
 
 /** \file
- * \ingroup DNA
+ * \ingroup bke
  */
 
-#pragma once
+#include "BKE_action.hh"
 
-/* Struct members on own line. */
-/* clang-format off */
+#include "BLI_listbase.h"
+#include "BLI_string.h"
 
-/* -------------------------------------------------------------------- */
-/** \name Material Struct
- * \{ */
+#include "DNA_action_types.h"
+#include "DNA_anim_types.h"
 
-#define _DNA_DEFAULT_Material \
-  { \
-    .r = 0.8, \
-    .g = 0.8, \
-    .b = 0.8, \
-    .specr = 1.0, \
-    .specg = 1.0, \
-    .specb = 1.0, \
-    .a = 1.0f, \
-    .spec = 0.5, \
- \
-    .roughness = 0.4f, \
- \
-    .pr_type = MA_SPHERE, \
- \
-    .alpha_threshold = 0.5f, \
- \
-    .blend_shadow = MA_BS_SOLID, \
-    \
-    .lineart.mat_occlusion = 1, \
+#include "MEM_guardedalloc.h"
+
+namespace blender::bke {
+
+void BKE_action_find_fcurves_with_bones(const bAction *action, FoundFCurveCallback callback)
+{
+  LISTBASE_FOREACH (FCurve *, fcu, &action->curves) {
+    char *bone_name = BLI_str_quoted_substrN(fcu->rna_path, "pose.bones[");
+    if (!bone_name) {
+      continue;
+    }
+    callback(fcu, bone_name);
+    MEM_freeN(bone_name);
   }
+}
 
-/** \} */
-
-/* clang-format on */
+}  // namespace blender::bke

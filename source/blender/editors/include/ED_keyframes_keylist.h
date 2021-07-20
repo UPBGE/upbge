@@ -31,13 +31,9 @@ struct AnimData;
 struct CacheFile;
 struct DLRBT_Tree;
 struct FCurve;
-struct ListBase;
 struct MaskLayer;
 struct Object;
 struct Scene;
-struct View2D;
-struct bAction;
-struct bActionGroup;
 struct bAnimContext;
 struct bDopeSheet;
 struct bGPDlayer;
@@ -137,7 +133,8 @@ typedef enum eKeyframeExtremeDrawOpts {
 
 /* ******************************* Methods ****************************** */
 
-/* Keydata Generation --------------- */
+/* Key-data Generation --------------- */
+
 /* F-Curve */
 void fcurve_to_keylist(struct AnimData *adt,
                        struct FCurve *fcu,

@@ -678,7 +678,7 @@ DerivedMesh *CDDM_from_curve_displist(Object *ob, ListBase *dispbase)
   MLoopUV *alluv = NULL;
   int totvert, totedge, totloop, totpoly;
 
-  if (BKE_mesh_nurbs_displist_to_mdata(ob,
+  if (mesh_nurbs_displist_to_mdata((Curve *)ob->data,
                                        dispbase,
                                        &allvert,
                                        &totvert,

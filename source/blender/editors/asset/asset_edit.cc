@@ -133,23 +133,3 @@ AssetLibraryReference ED_asset_library_reference_from_enum_value(int value)
   }
   return library;
 }
-
-const char *ED_asset_handle_get_name(const AssetHandle *asset)
-{
-  return asset->file_data->name;
-}
-
-void ED_asset_handle_get_full_library_path(const bContext *C,
-                                           const AssetLibraryReference *asset_library,
-                                           const AssetHandle *asset,
-                                           char r_full_lib_path[FILE_MAX_LIBEXTRA])
-{
-  *r_full_lib_path = '\0';
-
-  std::string asset_path = ED_assetlist_asset_filepath_get(C, *asset_library, *asset);
-  if (asset_path.empty()) {
-    return;
-  }
-
-  BLO_library_path_explode(asset_path.c_str(), r_full_lib_path, nullptr, nullptr);
-}

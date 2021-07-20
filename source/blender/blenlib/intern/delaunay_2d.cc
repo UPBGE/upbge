@@ -441,11 +441,11 @@ template<typename T> std::ostream &operator<<(std::ostream &os, const CDT_state<
     if (se) {
       os << "  edges out:\n";
       do {
-        if (se->next == NULL) {
+        if (se->next == nullptr) {
           os << "    [NULL] next/rot symedge, se=" << trunc_ptr(se) << "\n";
           break;
         }
-        if (se->next->next == NULL) {
+        if (se->next->next == nullptr) {
           os << "    [NULL] next-next/rot symedge, se=" << trunc_ptr(se) << "\n";
           break;
         }
@@ -2851,10 +2851,12 @@ extern "C" ::CDT_result *BLI_delaunay_2d_cdt_calc(const ::CDT_input *input,
     for (int e = 0; e < ne; ++e) {
       tot_e_orig += res.edge_orig[e].size();
     }
-    for (int f = 0; f < nf; ++f) {
+  }
+  for (int f = 0; f < nf; ++f) {
+    if (input->need_ids) {
       tot_f_orig += res.face_orig[f].size();
-      tot_f_lens += res.face[f].size();
     }
+    tot_f_lens += res.face[f].size();
   }
 
   output->vert_coords = static_cast<decltype(output->vert_coords)>(
@@ -2882,15 +2884,15 @@ extern "C" ::CDT_result *BLI_delaunay_2d_cdt_calc(const ::CDT_input *input,
         MEM_malloc_arrayN(nf, sizeof(int), __func__));
   }
   else {
-    output->verts_orig = NULL;
-    output->verts_orig_start_table = NULL;
-    output->verts_orig_len_table = NULL;
-    output->edges_orig = NULL;
-    output->edges_orig_start_table = NULL;
-    output->edges_orig_len_table = NULL;
-    output->faces_orig = NULL;
-    output->faces_orig_start_table = NULL;
-    output->faces_orig_len_table = NULL;
+    output->verts_orig = nullptr;
+    output->verts_orig_start_table = nullptr;
+    output->verts_orig_len_table = nullptr;
+    output->edges_orig = nullptr;
+    output->edges_orig_start_table = nullptr;
+    output->edges_orig_len_table = nullptr;
+    output->faces_orig = nullptr;
+    output->faces_orig_start_table = nullptr;
+    output->faces_orig_len_table = nullptr;
   }
 
   int v_orig_index = 0;
