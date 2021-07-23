@@ -585,11 +585,9 @@ KX_NavMeshObject::~KX_NavMeshObject()
     delete m_navMesh;
 }
 
-EXP_Value *KX_NavMeshObject::GetReplica()
+KX_PythonProxy *KX_NavMeshObject::NewInstance()
 {
-  KX_NavMeshObject *replica = new KX_NavMeshObject(*this);
-  replica->ProcessReplica();
-  return replica;
+  return new KX_NavMeshObject(*this);
 }
 
 void KX_NavMeshObject::ProcessReplica()

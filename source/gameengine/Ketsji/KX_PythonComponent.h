@@ -42,12 +42,13 @@ class KX_PythonComponent : public KX_PythonProxy {
 
   // stuff for cvalue related things
   virtual std::string GetName();
-  virtual EXP_Value *GetReplica();
 
   void ProcessReplica();
 
   KX_GameObject *GetGameObject() const;
   void SetGameObject(KX_GameObject *gameobj);
+
+  virtual KX_PythonProxy *NewInstance();
 
   static PyObject *py_component_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 

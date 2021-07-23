@@ -128,12 +128,7 @@ class KX_Camera : public KX_GameObject {
   struct GPUViewport *GetGPUViewport();
   void RemoveGPUViewport();
 
-  /**
-   * Inherited from EXP_Value -- return a new copy of this
-   * instance allocated on the heap. Ownership of the new
-   * object belongs with the caller.
-   */
-  virtual EXP_Value *GetReplica();
+  virtual KX_PythonProxy *NewInstance();
   virtual void ProcessReplica();
 
   MT_Transform GetWorldToCamera() const;

@@ -110,14 +110,9 @@ void KX_Camera::RemoveGPUViewport()
   }
 }
 
-EXP_Value *KX_Camera::GetReplica()
+KX_PythonProxy *KX_Camera::NewInstance()
 {
-  KX_Camera *replica = new KX_Camera(*this);
-
-  // this will copy properties and so on...
-  replica->ProcessReplica();
-
-  return replica;
+  return new KX_Camera(*this);
 }
 
 void KX_Camera::ProcessReplica()

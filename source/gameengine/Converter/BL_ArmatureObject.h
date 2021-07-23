@@ -70,7 +70,7 @@ class BL_ArmatureObject : public KX_GameObject {
   BL_ArmatureObject();
   virtual ~BL_ArmatureObject();
 
-  virtual EXP_Value *GetReplica();
+  virtual KX_PythonProxy *NewInstance();
   virtual void ProcessReplica();
   virtual int GetGameObjectType() const;
   virtual void ReParentLogic();

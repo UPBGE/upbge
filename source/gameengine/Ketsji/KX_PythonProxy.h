@@ -52,5 +52,11 @@ class KX_PythonProxy : public EXP_Value {
 
   virtual void Dispose();
 
+  virtual KX_PythonProxy *NewInstance() = 0;
+
+  virtual KX_PythonProxy *GetReplica();
+
+  virtual void ProcessReplica();
+
   void Reset();
 };

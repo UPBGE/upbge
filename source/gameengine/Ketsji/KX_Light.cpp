@@ -56,13 +56,9 @@ Light *KX_LightObject::GetLight()
   return m_light;
 }
 
-EXP_Value *KX_LightObject::GetReplica()
+KX_PythonProxy *KX_LightObject::NewInstance()
 {
-  KX_LightObject *replica = new KX_LightObject(*this);
-
-  replica->ProcessReplica();
-
-  return replica;
+  return new KX_LightObject(*this);
 }
 
 void KX_LightObject::ProcessReplica()

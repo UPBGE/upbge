@@ -836,7 +836,7 @@ void KX_GameObject::SetPlayMode(short layer, short mode)
 
 void KX_GameObject::ProcessReplica()
 {
-  SCA_IObject::ProcessReplica();
+  KX_PythonProxy::ProcessReplica();
 
   ReplicateBlenderObject();
   GetScene()->GetBlenderSceneConverter()->RegisterGameObject(this, m_pBlenderObject);
@@ -900,14 +900,9 @@ bool KX_GameObject::CheckCollision(KX_GameObject *other)
   return this->m_userCollisionGroup & other->m_userCollisionMask;
 }
 
-EXP_Value *KX_GameObject::GetReplica()
+KX_PythonProxy *KX_GameObject::NewInstance()
 {
-  KX_GameObject *replica = new KX_GameObject(*this);
-
-  // this will copy properties and so on...
-  replica->ProcessReplica();
-
-  return replica;
+  return new KX_GameObject(*this);
 }
 
 bool KX_GameObject::IsDynamic() const

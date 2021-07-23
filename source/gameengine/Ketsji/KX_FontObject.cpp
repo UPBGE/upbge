@@ -69,11 +69,9 @@ KX_FontObject::~KX_FontObject()
   UpdateCurveText(m_backupText);  // eevee
 }
 
-EXP_Value *KX_FontObject::GetReplica()
+KX_PythonProxy *KX_FontObject::NewInstance()
 {
-  KX_FontObject *replica = new KX_FontObject(*this);
-  replica->ProcessReplica();
-  return replica;
+  return new KX_FontObject(*this);
 }
 
 void KX_FontObject::ProcessReplica()

@@ -48,8 +48,8 @@ class KX_LightObject : public KX_GameObject {
   KX_LightObject();
   virtual ~KX_LightObject();
 
+  virtual KX_PythonProxy *NewInstance();
   virtual void ProcessReplica();
-  virtual EXP_Value *GetReplica();
 
   virtual int GetGameObjectType() const
   {

@@ -374,11 +374,9 @@ BL_ArmatureChannel *BL_ArmatureObject::GetChannel(int index)
   return static_cast<BL_ArmatureChannel *>(m_poseChannels->GetValue(index));
 }
 
-EXP_Value *BL_ArmatureObject::GetReplica()
+KX_PythonProxy *BL_ArmatureObject::NewInstance()
 {
-  BL_ArmatureObject *replica = new BL_ArmatureObject(*this);
-  replica->ProcessReplica();
-  return replica;
+  return new BL_ArmatureObject(*this);
 }
 
 void BL_ArmatureObject::ProcessReplica()

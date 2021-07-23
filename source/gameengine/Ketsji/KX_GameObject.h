@@ -347,16 +347,12 @@ class KX_GameObject : public SCA_IObject {
   virtual void SetName(const std::string &name);
 
   /**
-   * Inherited from EXP_Value -- return a new copy of this
+   * Inherited from KX_PythonProxy -- return a new copy of this
    * instance allocated on the heap. Ownership of the new
    * object belongs with the caller.
    */
-  virtual EXP_Value *GetReplica();
+  virtual KX_PythonProxy *NewInstance();
 
-  /**
-   * Makes sure any internal
-   * data owned by this class is deep copied. Called internally
-   */
   virtual void ProcessReplica();
 
   /**

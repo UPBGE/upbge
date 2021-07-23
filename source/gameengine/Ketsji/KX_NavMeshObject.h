@@ -56,7 +56,7 @@ class KX_NavMeshObject : public KX_GameObject {
   KX_NavMeshObject();
   ~KX_NavMeshObject();
 
-  virtual EXP_Value *GetReplica();
+  virtual KX_PythonProxy *NewInstance();
   virtual void ProcessReplica();
 
   bool BuildNavMesh();

@@ -23,6 +23,7 @@
 #include "KX_PythonProxy.h"
 
 #include "BKE_python_proxy.h"
+#include "CM_Message.h"
 #include "DNA_python_proxy_types.h"
 #include "EXP_Value.h"
 
@@ -89,6 +90,34 @@ void KX_PythonProxy::Update()
   } else {
     Start();
   }
+}
+
+KX_PythonProxy *KX_PythonProxy::GetReplica()
+{
+  KX_PythonProxy *replica = NewInstance();
+
+  // this will copy properties and so on...
+  replica->ProcessReplica();
+
+  PyTypeObject *type = Py_TYPE(GetProxy());
+
+  if (!py_base_new(type, PyTuple_Pack(1, replica->GetProxy()), nullptr)) {
+    CM_Error("Failed to replicate object: \"" << GetName() << "\"");
+    delete replica;
+    return nullptr;
+  }
+
+  return replica;
+}
+
+void KX_PythonProxy::ProcessReplica()
+{
+  EXP_Value::ProcessReplica();
+
+  m_init = false;
+
+  m_update = nullptr;
+  m_dispose = nullptr;
 }
 
 void KX_PythonProxy::Dispose()

@@ -47,25 +47,14 @@ std::string KX_PythonComponent::GetName()
   return m_name;
 }
 
-EXP_Value *KX_PythonComponent::GetReplica()
+KX_PythonProxy *KX_PythonComponent::NewInstance()
 {
-  KX_PythonComponent *replica = new KX_PythonComponent(*this);
-  replica->ProcessReplica();
-
-  // Subclass the python component.
-  PyTypeObject *type = Py_TYPE(GetProxy());
-  if (!py_base_new(type, PyTuple_Pack(1, replica->GetProxy()), nullptr)) {
-    CM_Error("failed replicate component: \"" << m_name << "\"");
-    delete replica;
-    return nullptr;
-  }
-
-  return replica;
+  return new KX_PythonComponent(*this);
 }
 
 void KX_PythonComponent::ProcessReplica()
 {
-  EXP_Value::ProcessReplica();
+  KX_PythonProxy::ProcessReplica();
   m_gameobj = nullptr;
 
   Reset();
