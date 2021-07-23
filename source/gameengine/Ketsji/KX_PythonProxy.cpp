@@ -65,11 +65,16 @@ void KX_PythonProxy::Start()
 
   if (PyObject_CallMethod(proxy, "start", "O", arg_dict))
   {
-    m_update = PyObject_GetAttrString(proxy, "update");
-    m_dispose = PyObject_GetAttrString(proxy, "dispose");
+    if (PyObject_HasAttrString(proxy, "update")) {
+      m_update = PyObject_GetAttrString(proxy, "update");
+    }
 
-    PyErr_Clear();
-  } else {
+    if (PyObject_HasAttrString(proxy, "dispose")) {
+      m_dispose = PyObject_GetAttrString(proxy, "dispose");
+    }
+  }
+
+  if (PyErr_Occurred()) {
     PyErr_Print();
   }
 
@@ -84,7 +89,7 @@ void KX_PythonProxy::Update()
   }
 
   if (m_init) {
-    if (m_update && !PyObject_CallNoArgs(m_update)) {
+    if (m_update && !PyObject_CallNoArgs(m_update) && PyErr_Occurred()) {
       PyErr_Print();
     }
   } else {
