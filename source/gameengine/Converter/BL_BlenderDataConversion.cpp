@@ -923,6 +923,30 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
   gameobj->SetComponents(components);
 }
 
+static std::vector<Object *> lod_level_object_list(ViewLayer *view_layer)
+{
+  Base *base = (Base *)view_layer->object_bases.first;
+  std::vector<Object *> lod_objs = {};
+
+  while (base) {
+    Object *ob = base->object;
+    if (ob) {
+      LISTBASE_FOREACH (LodLevel *, level, &ob->lodlevels) {
+        if (level->source) {
+          lod_objs.push_back(level->source);
+        }
+      }
+    }
+    base = base->next;
+  }
+  return lod_objs;
+}
+
+static bool is_lod_level(std::vector<Object *>lod_objs, Object *blenderobject)
+{
+  return std::find(lod_objs.begin(), lod_objs.end(), blenderobject) != lod_objs.end();
+}
+
 /* helper for BL_ConvertBlenderObjects, avoids code duplication
  * note: all var names match args are passed from the caller */
 static void bl_ConvertBlenderObject_Single(BL_BlenderSceneConverter *converter,
@@ -1166,6 +1190,9 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   /* Ensure objects base flags are up to date each time we call BL_ConvertObjects */
   BKE_scene_base_flag_to_objects(BKE_view_layer_default_view(blenderscene));
 
+  std::vector<Object *> lod_objects = lod_level_object_list(
+      BKE_view_layer_default_view(blenderscene));
+
   // Let's support scene set.
   // Beware of name conflict in linked data, it will not crash but will create confusion
   // in Python scripting and in certain actuators (replace mesh). Linked scene *should* have
@@ -1191,8 +1218,11 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
                             (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH)) != 0;
     blenderobject->lay = isInActiveLayer ? blenderscene->lay : 0;
 
-    if (!isInActiveLayer) {
-      /* Force OB_RESTRICT_VIEWPORT to avoid not needed depsgraph operations in some cases */
+    /* Force OB_RESTRICT_VIEWPORT to avoid not needed depsgraph operations in some cases,
+     * unless blenderobject is a lodlevel because we want to be abled to get
+     * evaluated meshes from lodlevels and restrict viewport prevents meshes to be evaluated
+     */
+    if (!isInActiveLayer && !is_lod_level(lod_objects, blenderobject)) {
       kxscene->BackupRestrictFlag(blenderobject, blenderobject->restrictflag);
       blenderobject->restrictflag |= OB_RESTRICT_VIEWPORT;
       BKE_main_collection_sync_remap(maggie);
