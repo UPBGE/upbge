@@ -1099,7 +1099,7 @@ static void LOGIC_OT_python_component_move_down(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Move Component Down";
-  ot->description = "Move this component down in the list.";
+  ot->description = "Move this component down in the list";
   ot->idname = "LOGIC_OT_python_component_move_down";
 
   /* api callbacks */
