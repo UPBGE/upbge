@@ -40,7 +40,7 @@
 #include "EXP_PyObjectPlus.h"
 #include "EXP_Value.h"
 #include "KX_PhysicsEngineEnums.h"
-#include "KX_PythonComponentManager.h"
+#include "KX_PythonProxyManager.h"
 #include "MT_Transform.h"
 #include "RAS_FramingManager.h"
 #include "RAS_Rect.h"
@@ -195,7 +195,7 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
   SCA_MouseManager *m_mousemgr;
   SCA_TimeEventManager *m_timemgr;
 
-  KX_PythonComponentManager m_componentManager;
+  KX_PythonProxyManager m_proxyManager;
 
   /**
    * physics engine abstraction
@@ -438,7 +438,7 @@ class KX_Scene : public EXP_Value, public SCA_IScene {
 
   SCA_TimeEventManager *GetTimeEventManager() const;
 
-  KX_PythonComponentManager &GetPythonComponentManager();
+  KX_PythonProxyManager &GetPythonProxyManager();
 
   EXP_ListValue<KX_Camera> *GetCameraList() const;
   void SetCameraList(EXP_ListValue<KX_Camera> *camList);
