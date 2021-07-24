@@ -42,6 +42,11 @@ KX_PythonProxy::~KX_PythonProxy()
   Reset();
 }
 
+std::string KX_PythonProxy::GetName()
+{
+  return m_pp->name;
+}
+
 PythonProxy *KX_PythonProxy::GetPrototype()
 {
   return m_pp;
