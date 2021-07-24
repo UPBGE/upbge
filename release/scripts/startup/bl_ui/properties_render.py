@@ -132,6 +132,9 @@ class RENDER_PT_game_debug(RenderButtonsPanel, Panel):
         flow.prop(gs, "show_mouse", text="Mouse Cursor")
         flow.prop(gs, "use_undo", text="Undo at exit")
 
+        row = layout.row()
+        row.prop(gs, "log_level", text="Log Level")
+
 class RENDER_PT_color_management(RenderButtonsPanel, Panel):
     bl_label = "Color Management"
     bl_options = {'DEFAULT_CLOSED'}
