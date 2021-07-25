@@ -652,6 +652,8 @@ if(WIN32)
   option(WITH_WINDOWS_STRIPPED_PDB "Use a stripped PDB file" On)
   mark_as_advanced(WITH_WINDOWS_STRIPPED_PDB)
 
+  option(WITH_WINDOWS_7 "The executable supports Windows 7. It needs additional libraries" OFF)
+  mark_as_advanced(WITH_WINDOWS_7)
 endif()
 
 if(UNIX)
@@ -696,6 +698,10 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 endif()
 
 
+if(WIN32 AND WITH_WINDOWS_7)
+  # UPBGE modification for Windows 7
+  set(CMAKE_SYSTEM_VERSION 10.0 (latest installed version))
+endif ()
 
 # Apple
 
