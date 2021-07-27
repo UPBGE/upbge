@@ -135,6 +135,9 @@ void KX_PythonProxy::Dispose()
   if (m_dispose && !PyObject_CallNoArgs(m_dispose)) {
     PyErr_Print();
   }
+
+  m_update = nullptr;
+  m_dispose = nullptr;
 }
 
 void KX_PythonProxy::Reset()

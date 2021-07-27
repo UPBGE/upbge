@@ -355,6 +355,8 @@ class KX_GameObject : public SCA_IObject {
 
   virtual void ProcessReplica();
 
+  virtual void Dispose();
+
   /**
    * Return the linear velocity of the game object.
    */

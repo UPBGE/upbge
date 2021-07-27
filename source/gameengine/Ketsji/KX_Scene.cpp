@@ -2030,6 +2030,8 @@ void KX_Scene::DelayedRemoveObject(KX_GameObject *gameobj)
 
 bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
 {
+  gameobj->Dispose();
+
   /* remove property from debug list */
   RemoveObjectDebugProperties(gameobj);
 

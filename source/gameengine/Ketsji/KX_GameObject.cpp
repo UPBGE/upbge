@@ -426,6 +426,17 @@ void KX_GameObject::HideOriginalObject()
   }
 }
 
+void KX_GameObject::Dispose()
+{
+  if (m_components) {
+    for (KX_PythonComponent *comp : m_components) {
+      comp->Dispose();
+    }
+  }
+
+  SCA_IObject::Dispose();
+}
+
 static void suspend_physics_recursive(SG_Node *node, bool freeConstraints)
 {
   const NodeList &children = node->GetSGChildren();
