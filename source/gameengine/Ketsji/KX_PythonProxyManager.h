@@ -13,8 +13,8 @@ class KX_PythonProxyManager {
   KX_PythonProxyManager();
   ~KX_PythonProxyManager();
 
-  void RegisterObject(KX_GameObject *gameobj);
-  void UnregisterObject(KX_GameObject *gameobj);
+  void Register(KX_GameObject *gameobj);
+  void Unregister(KX_GameObject *gameobj);
 
-  void UpdateComponents();
+  void Update();
 };

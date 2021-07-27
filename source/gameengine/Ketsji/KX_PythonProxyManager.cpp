@@ -39,20 +39,20 @@ KX_PythonProxyManager::~KX_PythonProxyManager()
 {
 }
 
-void KX_PythonProxyManager::RegisterObject(KX_GameObject *gameobj)
+void KX_PythonProxyManager::Register(KX_GameObject *gameobj)
 {
   // Always register only once an object.
   m_objects.push_back(gameobj);
   m_objects_changed = true;
 }
 
-void KX_PythonProxyManager::UnregisterObject(KX_GameObject *gameobj)
+void KX_PythonProxyManager::Unregister(KX_GameObject *gameobj)
 {
   CM_ListRemoveIfFound(m_objects, gameobj);
   m_objects_changed = true;
 }
 
-void KX_PythonProxyManager::UpdateComponents()
+void KX_PythonProxyManager::Update()
 {
   if (m_objects_changed) {
     std::sort(m_objects.begin(), m_objects.end(), compareObjectDepth);

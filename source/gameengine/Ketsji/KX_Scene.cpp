@@ -1589,7 +1589,7 @@ KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *game
 
   // Register object for component update.
   if (gameobj->GetPrototype() || gameobj->GetComponents()) {
-    m_proxyManager.RegisterObject(newobj);
+    m_proxyManager.Register(newobj);
   }
 
   replicanode->SetSGClientObject(newobj);
@@ -2097,7 +2097,7 @@ bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
     m_obstacleSimulation->DestroyObstacleForObj(gameobj);
   }
 
-  m_proxyManager.UnregisterObject(gameobj);
+  m_proxyManager.Unregister(gameobj);
 
   gameobj->RemoveMeshes();
 
@@ -2364,7 +2364,7 @@ void KX_Scene::UpdateAnimations(double curtime)
 
 void KX_Scene::LogicUpdateFrame(double curtime)
 {
-  m_proxyManager.UpdateComponents();
+  m_proxyManager.Update();
 
   m_logicmgr->UpdateFrame(curtime);
 }
