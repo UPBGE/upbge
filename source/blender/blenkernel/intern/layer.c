@@ -179,8 +179,8 @@ static ViewLayer *view_layer_add(const char *name)
   BLI_strncpy_utf8(view_layer->name, name, sizeof(view_layer->name));
 
   /* Pure rendering pipeline settings. */
-  view_layer->layflag = 0x7FFF; /* solid ztra halo edge strand */
-  view_layer->passflag = SCE_PASS_COMBINED | SCE_PASS_Z;
+  view_layer->layflag = SCE_LAY_FLAG_DEFAULT;
+  view_layer->passflag = SCE_PASS_COMBINED;
   view_layer->pass_alpha_threshold = 0.5f;
   view_layer->cryptomatte_levels = 6;
   view_layer->cryptomatte_flag = VIEW_LAYER_CRYPTOMATTE_ACCURATE;
