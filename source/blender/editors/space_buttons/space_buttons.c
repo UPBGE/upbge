@@ -250,12 +250,12 @@ int ED_buttons_tabs_list(SpaceProperties *sbuts, short *context_tabs_array)
     context_tabs_array[length] = BCONTEXT_BONE_CONSTRAINT;
     length++;
   }
-  if (sbuts->pathflag & (1 << BCONTEXT_MATERIAL)) {
-    context_tabs_array[length] = BCONTEXT_MATERIAL;
-    length++;
-  }
   if (sbuts->pathflag & (1 << BCONTEXT_GAME)) {
     context_tabs_array[length] = BCONTEXT_GAME;
+    length++;
+  }
+  if (sbuts->pathflag & (1 << BCONTEXT_MATERIAL)) {
+    context_tabs_array[length] = BCONTEXT_MATERIAL;
     length++;
   }
   if (length != 0) {
