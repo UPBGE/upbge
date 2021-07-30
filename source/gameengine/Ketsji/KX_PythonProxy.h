@@ -1,4 +1,4 @@
-/*
+/**
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -15,26 +15,50 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_EmptyObject.h
- *  \ingroup ketsji
- */
-
 #pragma once
 
-#include "KX_GameObject.h"
+#include "EXP_Value.h"
 
-class KX_EmptyObject : public KX_GameObject {
+struct PythonProxy;
+
+class KX_PythonProxy : public EXP_Value {
+
+ private:
+  bool m_init;
+
+  PythonProxy *m_pp;
+
+  PyObject *m_update;
+
+  PyObject *m_dispose;
+
  public:
-  KX_EmptyObject() : KX_GameObject() {};
-  virtual ~KX_EmptyObject();
+  KX_PythonProxy();
+
+  virtual ~KX_PythonProxy();
+
+  std::string GetName();
+
+  PythonProxy *GetPrototype();
+
+  void SetPrototype(PythonProxy *pp);
+
+  virtual void Start();
+
+  virtual void Update();
+
+  virtual void Dispose();
+
+  virtual KX_PythonProxy *NewInstance() = 0;
+
+  virtual KX_PythonProxy *GetReplica();
+
+  virtual void ProcessReplica();
+
+  void Reset();
 };

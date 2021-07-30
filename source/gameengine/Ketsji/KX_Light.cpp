@@ -35,14 +35,20 @@
 
 #include "KX_Light.h"
 
-KX_LightObject::KX_LightObject(void *sgReplicationInfo, SG_Callbacks callbacks, Object *obLight)
-    : KX_GameObject(sgReplicationInfo, callbacks), m_obLight(obLight)
+KX_LightObject::KX_LightObject() : KX_GameObject(),
+    m_obLight(nullptr)
 {
-  m_light = static_cast<Light *>(m_obLight->data);
 }
 
 KX_LightObject::~KX_LightObject()
 {
+}
+
+void KX_LightObject::SetBlenderObject(Object *obj)
+{
+  KX_GameObject::SetBlenderObject(obj);
+
+  m_light = static_cast<Light *>(obj->data);
 }
 
 Light *KX_LightObject::GetLight()
@@ -50,13 +56,9 @@ Light *KX_LightObject::GetLight()
   return m_light;
 }
 
-EXP_Value *KX_LightObject::GetReplica()
+KX_PythonProxy *KX_LightObject::NewInstance()
 {
-  KX_LightObject *replica = new KX_LightObject(*this);
-
-  replica->ProcessReplica();
-
-  return replica;
+  return new KX_LightObject(*this);
 }
 
 void KX_LightObject::ProcessReplica()
@@ -71,6 +73,18 @@ void KX_LightObject::ProcessReplica()
 /* ------------------------------------------------------------------------- */
 /* Python Integration Hooks					                                 */
 /* ------------------------------------------------------------------------- */
+PyObject *KX_LightObject::game_object_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+  KX_LightObject *obj = new KX_LightObject();
+
+  PyObject *proxy = py_base_new(type, PyTuple_Pack(1, obj->GetProxy()), kwds);
+  if (!proxy) {
+    delete obj;
+    return nullptr;
+  }
+
+  return proxy;
+}
 
 PyTypeObject KX_LightObject::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_LightObject",
                                      sizeof(EXP_PyObjectPlus_Proxy),
@@ -108,7 +122,7 @@ PyTypeObject KX_LightObject::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_Light
                                      0,
                                      0,
                                      0,
-                                     py_base_new};
+                                     game_object_new};
 
 PyMethodDef KX_LightObject::Methods[] = {
     // EXP_PYMETHODTABLE_NOARGS(KX_LightObject, updateShadow),

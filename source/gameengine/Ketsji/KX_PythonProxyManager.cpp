@@ -20,7 +20,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "KX_PythonComponentManager.h"
+#include "KX_PythonProxyManager.h"
 
 #include "CM_List.h"
 #include "KX_GameObject.h"
@@ -31,28 +31,28 @@ static bool compareObjectDepth(KX_GameObject *o1, KX_GameObject *o2)
   return o1->GetSGNode()->GetDepth() > o2->GetSGNode()->GetDepth();
 }
 
-KX_PythonComponentManager::KX_PythonComponentManager()
+KX_PythonProxyManager::KX_PythonProxyManager()
 {
 }
 
-KX_PythonComponentManager::~KX_PythonComponentManager()
+KX_PythonProxyManager::~KX_PythonProxyManager()
 {
 }
 
-void KX_PythonComponentManager::RegisterObject(KX_GameObject *gameobj)
+void KX_PythonProxyManager::Register(KX_GameObject *gameobj)
 {
   // Always register only once an object.
   m_objects.push_back(gameobj);
   m_objects_changed = true;
 }
 
-void KX_PythonComponentManager::UnregisterObject(KX_GameObject *gameobj)
+void KX_PythonProxyManager::Unregister(KX_GameObject *gameobj)
 {
   CM_ListRemoveIfFound(m_objects, gameobj);
   m_objects_changed = true;
 }
 
-void KX_PythonComponentManager::UpdateComponents()
+void KX_PythonProxyManager::Update()
 {
   if (m_objects_changed) {
     std::sort(m_objects.begin(), m_objects.end(), compareObjectDepth);
@@ -66,6 +66,6 @@ void KX_PythonComponentManager::UpdateComponents()
    */
   const std::vector<KX_GameObject *> objects = m_objects;
   for (KX_GameObject *gameobj : objects) {
-    gameobj->UpdateComponents();
+    gameobj->Update();
   }
 }

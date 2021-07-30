@@ -190,28 +190,13 @@ static void game_blend_poses(bPose *dst, bPose *src, float srcweight, short mode
   dst->ctime = src->ctime;
 }
 
-BL_ArmatureObject::BL_ArmatureObject(void *sgReplicationInfo,
-                                     SG_Callbacks callbacks,
-                                     Object *armature,
-                                     Scene *scene)
-    : KX_GameObject(sgReplicationInfo, callbacks),
-      m_scene(scene),
+BL_ArmatureObject::BL_ArmatureObject() : KX_GameObject(),
       m_lastframe(0.0),
       m_drawDebug(false),
       m_lastapplyframe(0.0)
 {
   m_controlledConstraints = new EXP_ListValue<BL_ArmatureConstraint>();
   m_poseChannels = new EXP_ListValue<BL_ArmatureChannel>();
-
-  // Keep a copy of the original armature so we can fix drivers later
-  m_origObjArma = armature;
-  m_objArma = m_origObjArma;  // BKE_object_copy(bmain, armature);
-  // m_objArma->data = BKE_armature_copy(bmain, (bArmature *)armature->data);
-  // During object replication ob->data is increase, we decrease it now because we get a copy.
-  // id_us_min(&((bArmature *)m_origObjArma->data)->id);
-  // need this to get iTaSC working ok in the BGE
-  // m_objArma->pose->flag |= POSE_GAME_ENGINE;
-  memcpy(m_obmat, m_objArma->obmat, sizeof(m_obmat));
 }
 
 BL_ArmatureObject::~BL_ArmatureObject()
@@ -226,6 +211,34 @@ BL_ArmatureObject::~BL_ArmatureObject()
   //	m_objArma->data = nullptr;
   //	BKE_id_free(bmain, m_objArma);
   //}
+}
+
+void BL_ArmatureObject::SetBlenderObject(Object *obj)
+{
+  KX_GameObject::SetBlenderObject(obj);
+
+  // XXX: I copied below from the destructor verbatim. But why we shouldn't free it?
+  //
+  // if (m_objArma) {
+  //	BKE_id_free(bmain, m_objArma->data);
+  //	/* avoid BKE_libblock_free(bmain, m_objArma)
+  //	   try to access m_objArma->data */
+  //	m_objArma->data = nullptr;
+  //	BKE_id_free(bmain, m_objArma);
+  //}
+
+  // Keep a copy of the original armature so we can fix drivers later
+  m_origObjArma = obj;
+  m_objArma = m_origObjArma;  // BKE_object_copy(bmain, armature);
+  // m_objArma->data = BKE_armature_copy(bmain, (bArmature *)armature->data);
+  // During object replication ob->data is increase, we decrease it now because we get a copy.
+  // id_us_min(&((bArmature *)m_origObjArma->data)->id);
+  // need this to get iTaSC working ok in the BGE
+  // m_objArma->pose->flag |= POSE_GAME_ENGINE;
+
+  if (m_objArma) {
+    memcpy(m_obmat, m_objArma->obmat, sizeof(m_obmat));
+  }
 }
 
 void BL_ArmatureObject::LoadConstraints(BL_BlenderSceneConverter *converter)
@@ -361,11 +374,9 @@ BL_ArmatureChannel *BL_ArmatureObject::GetChannel(int index)
   return static_cast<BL_ArmatureChannel *>(m_poseChannels->GetValue(index));
 }
 
-EXP_Value *BL_ArmatureObject::GetReplica()
+KX_PythonProxy *BL_ArmatureObject::NewInstance()
 {
-  BL_ArmatureObject *replica = new BL_ArmatureObject(*this);
-  replica->ProcessReplica();
-  return replica;
+  return new BL_ArmatureObject(*this);
 }
 
 void BL_ArmatureObject::ProcessReplica()
@@ -424,7 +435,7 @@ void BL_ArmatureObject::ApplyPose()
     UpdateBlenderObjectMatrix(m_objArma);
     bContext *C = KX_GetActiveEngine()->GetContext();
     Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-    BKE_pose_where_is(depsgraph, m_scene, m_objArma);
+    BKE_pose_where_is(depsgraph, GetScene()->GetBlenderScene(), m_objArma);
     // restore ourself
     memcpy(m_objArma->obmat, m_obmat, sizeof(m_obmat));
     m_lastapplyframe = m_lastframe;
@@ -538,6 +549,18 @@ float BL_ArmatureObject::GetBoneLength(Bone *bone) const
 #ifdef WITH_PYTHON
 
 // PYTHON
+PyObject *BL_ArmatureObject::game_object_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+  BL_ArmatureObject *obj = new BL_ArmatureObject();
+
+  PyObject *proxy = py_base_new(type, PyTuple_Pack(1, obj->GetProxy()), kwds);
+  if (!proxy) {
+    delete obj;
+    return nullptr;
+  }
+
+  return proxy;
+}
 
 PyTypeObject BL_ArmatureObject::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "BL_ArmatureObject",
                                         sizeof(EXP_PyObjectPlus_Proxy),
@@ -575,7 +598,7 @@ PyTypeObject BL_ArmatureObject::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "BL_Ar
                                         0,
                                         0,
                                         0,
-                                        py_base_new};
+                                        game_object_new};
 
 PyMethodDef BL_ArmatureObject::Methods[] = {
     EXP_PYMETHODTABLE_NOARGS(BL_ArmatureObject, update),

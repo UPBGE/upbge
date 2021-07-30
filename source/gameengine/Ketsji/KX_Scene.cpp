@@ -1468,9 +1468,9 @@ SCA_TimeEventManager *KX_Scene::GetTimeEventManager() const
   return m_timemgr;
 }
 
-KX_PythonComponentManager &KX_Scene::GetPythonComponentManager()
+KX_PythonProxyManager &KX_Scene::GetPythonProxyManager()
 {
-  return m_componentManager;
+  return m_proxyManager;
 }
 
 EXP_ListValue<KX_Camera> *KX_Scene::GetCameraList() const
@@ -1588,8 +1588,8 @@ KX_GameObject *KX_Scene::AddNodeReplicaObject(SG_Node *node, KX_GameObject *game
   }
 
   // Register object for component update.
-  if (gameobj->GetComponents()) {
-    m_componentManager.RegisterObject(newobj);
+  if (gameobj->GetPrototype() || gameobj->GetComponents()) {
+    m_proxyManager.Register(newobj);
   }
 
   replicanode->SetSGClientObject(newobj);
@@ -2030,6 +2030,8 @@ void KX_Scene::DelayedRemoveObject(KX_GameObject *gameobj)
 
 bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
 {
+  gameobj->Dispose();
+
   /* remove property from debug list */
   RemoveObjectDebugProperties(gameobj);
 
@@ -2095,7 +2097,7 @@ bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
     m_obstacleSimulation->DestroyObstacleForObj(gameobj);
   }
 
-  m_componentManager.UnregisterObject(gameobj);
+  m_proxyManager.Unregister(gameobj);
 
   gameobj->RemoveMeshes();
 
@@ -2362,7 +2364,7 @@ void KX_Scene::UpdateAnimations(double curtime)
 
 void KX_Scene::LogicUpdateFrame(double curtime)
 {
-  m_componentManager.UpdateComponents();
+  m_proxyManager.Update();
 
   m_logicmgr->UpdateFrame(curtime);
 }

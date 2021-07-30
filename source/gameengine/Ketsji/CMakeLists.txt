@@ -114,10 +114,11 @@ set(SRC
   KX_PyConstraintBinding.cpp
   KX_PyMath.cpp
   KX_PythonComponent.cpp
-  KX_PythonComponentManager.cpp
+  KX_PythonProxyManager.cpp
   KX_PythonInit.cpp
   KX_PythonInitTypes.cpp
   KX_PythonMain.cpp
+  KX_PythonProxy.cpp
   KX_RayCast.cpp
   KX_BoneParentNodeRelationship.cpp
   KX_NodeRelationships.cpp
@@ -173,10 +174,11 @@ set(SRC
   KX_PyConstraintBinding.h
   KX_PyMath.h
   KX_PythonComponent.h
-  KX_PythonComponentManager.h
+  KX_PythonProxyManager.h
   KX_PythonInit.h
   KX_PythonInitTypes.h
   KX_PythonMain.h
+  KX_PythonProxy.h
   KX_RayCast.h
   KX_BoneParentNodeRelationship.h
   KX_NodeRelationships.h

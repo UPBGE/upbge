@@ -34,7 +34,7 @@
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_property_types.h"
-#include "DNA_python_component_types.h"
+#include "DNA_python_proxy_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_shader_fx_types.h"
 #include "DNA_workspace_types.h"
@@ -53,7 +53,7 @@
 #include "BKE_object_deform.h"
 #include "BKE_object_facemap.h"
 #include "BKE_paint.h"
-#include "BKE_python_component.h"
+#include "BKE_python_proxy.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -1831,32 +1831,32 @@ static bool rna_GameObjectSettings_components_override_apply(Main *UNUSED(bmain)
     Object *ob_dst = (Object *)ptr_dst->owner_id;
     Object *ob_src = (Object *)ptr_src->owner_id;
 
-    PythonComponent *comp_anchor = NULL;
+    PythonProxy *proxy_anchor = NULL;
     if (opop->subitem_local_name && opop->subitem_local_name[0]) {
-      comp_anchor = BLI_findstring(
-          &ob_dst->components, opop->subitem_local_name, offsetof(PythonComponent, name));
+      proxy_anchor = BLI_findstring(
+          &ob_dst->components, opop->subitem_local_name, offsetof(PythonProxy, name));
     }
-    if (comp_anchor == NULL && opop->subitem_local_index >= 0) {
-      comp_anchor = BLI_findlink(&ob_dst->components, opop->subitem_local_index);
+    if (proxy_anchor == NULL && opop->subitem_local_index >= 0) {
+      proxy_anchor = BLI_findlink(&ob_dst->components, opop->subitem_local_index);
     }
     /* Otherwise we just insert in first position. */
 
-    PythonComponent *comp_src = NULL;
+    PythonProxy *proxy_src = NULL;
     if (opop->subitem_local_name && opop->subitem_local_name[0]) {
-      comp_src = BLI_findstring(
-          &ob_src->components, opop->subitem_local_name, offsetof(PythonComponent, name));
+      proxy_src = BLI_findstring(
+          &ob_src->components, opop->subitem_local_name, offsetof(PythonProxy, name));
     }
-    if (comp_src == NULL && opop->subitem_local_index >= 0) {
-      comp_src = BLI_findlink(&ob_src->components, opop->subitem_local_index);
+    if (proxy_src == NULL && opop->subitem_local_index >= 0) {
+      proxy_src = BLI_findlink(&ob_src->components, opop->subitem_local_index);
     }
-    comp_src = comp_src ? comp_src->next : ob_src->components.first;
+    proxy_src = proxy_src ? proxy_src->next : ob_src->components.first;
 
-    BLI_assert(comp_src != NULL);
+    BLI_assert(proxy_src != NULL);
 
-    PythonComponent *comp_dst = BKE_python_component_copy(comp_src);
+    PythonProxy *proxy_dst = BKE_python_proxy_copy(proxy_src);
 
     /* This handles NULL anchor as expected by adding at head of list. */
-    BLI_insertlinkafter(&ob_dst->components, comp_anchor, comp_dst);
+    BLI_insertlinkafter(&ob_dst->components, proxy_anchor, proxy_dst);
 
     return true;
 }
@@ -2904,9 +2904,14 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "GameProperty"); /* rna_property.c */
   RNA_def_property_ui_text(prop, "Properties", "Game engine properties");
 
+  prop = RNA_def_property(srna, "custom_object", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "PythonProxy");
+  RNA_def_property_pointer_funcs(prop, NULL, NULL, NULL, NULL);
+  RNA_def_property_ui_text(prop, "Custom Game Object", "Custom game object component for the object");
+
   prop = RNA_def_property(srna, "components", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_collection_sdna(prop, NULL, "components", NULL);
-  RNA_def_property_struct_type(prop, "PythonComponent"); /* rna_python_component.c */
+  RNA_def_property_struct_type(prop, "PythonProxy"); /* rna_python_proxy.c */
   RNA_def_property_ui_text(prop, "Components", "Game engine components");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY | PROPOVERRIDE_LIBRARY_INSERTION);
   RNA_def_property_override_funcs(prop, NULL, NULL, "rna_GameObjectSettings_components_override_apply");

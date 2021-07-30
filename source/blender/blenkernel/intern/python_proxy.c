@@ -27,7 +27,7 @@
 #include "BLI_path_util.h"
 #include "BLI_string.h"
 #include "DNA_property_types.h" /* For MAX_PROPSTRING */
-#include "DNA_python_component_types.h"
+#include "DNA_python_proxy_types.h"
 #include "DNA_windowmanager_types.h"
 #include "MEM_guardedalloc.h"
 
@@ -35,7 +35,7 @@
 #include "BKE_context.h"
 #include "BKE_lib_query.h"
 #include "BKE_main.h"
-#include "BKE_python_component.h"
+#include "BKE_python_proxy.h"
 #include "BKE_report.h"
 #include "BKE_text.h"
 
@@ -216,58 +216,63 @@ static struct PyModuleDef bge_types_module_def = {
     NULL,                  /* m_free */
 };
 
-static int verify_class(PyObject *cls)
+static int verify_custom_object_class(PyObject *cls)
+{
+  return PyType_IsSubtype((PyTypeObject *)cls, &FT_KX_GameObject);
+}
+
+static int verify_component_class(PyObject *cls)
 {
   return PyType_IsSubtype((PyTypeObject *)cls, &FT_KX_PythonComponent);
 }
 
-static PythonComponentProperty *create_property(char *name)
+static PythonProxyProperty *create_property(char *name)
 {
-  PythonComponentProperty *cprop;
+  PythonProxyProperty *pprop;
 
-  cprop = MEM_callocN(sizeof(PythonComponentProperty), "PythonComponentProperty");
-  BLI_strncpy(cprop->name, name, sizeof(cprop->name));
+  pprop = MEM_callocN(sizeof(PythonProxyProperty), "PythonProxyProperty");
+  BLI_strncpy(pprop->name, name, sizeof(pprop->name));
 
-  return cprop;
+  return pprop;
 }
 
 #endif
 
-static PythonComponentProperty *copy_property(PythonComponentProperty *cprop)
+static PythonProxyProperty *copy_property(PythonProxyProperty *pprop)
 {
-  PythonComponentProperty *cpropn;
+  PythonProxyProperty *ppropn;
 
-  cpropn = MEM_dupallocN(cprop);
+  ppropn = MEM_dupallocN(pprop);
 
-  BLI_duplicatelist(&cpropn->enumval, &cprop->enumval);
-  for (LinkData *link = cpropn->enumval.first; link; link = link->next) {
+  BLI_duplicatelist(&ppropn->enumval, &pprop->enumval);
+  for (LinkData *link = ppropn->enumval.first; link; link = link->next) {
     link->data = MEM_dupallocN(link->data);
   }
 
-  return cpropn;
+  return ppropn;
 }
 
-static void free_property(PythonComponentProperty *cprop)
+static void free_property(PythonProxyProperty *pprop)
 {
-  for (LinkData *link = cprop->enumval.first; link; link = link->next) {
+  for (LinkData *link = pprop->enumval.first; link; link = link->next) {
     MEM_freeN(link->data);
   }
-  BLI_freelistN(&cprop->enumval);
-  MEM_freeN(cprop);
+  BLI_freelistN(&pprop->enumval);
+  MEM_freeN(pprop);
 }
 
 static void free_properties(ListBase *lb)
 {
-  PythonComponentProperty *cprop;
+  PythonProxyProperty *pprop;
 
-  while ((cprop = lb->first)) {
-    BLI_remlink(lb, cprop);
-    free_property(cprop);
+  while ((pprop = lb->first)) {
+    BLI_remlink(lb, pprop);
+    free_property(pprop);
   }
 }
 
 #ifdef WITH_PYTHON
-static void create_properties(PythonComponent *pycomp, PyObject *cls)
+static void create_properties(PythonProxy *pp, PyObject *cls)
 {
   PyObject *args_dict, *pyitems;
   ListBase properties;
@@ -289,7 +294,7 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
   pyitems = PyMapping_Items(args_dict);
 
   for (unsigned int i = 0, size = PyList_Size(pyitems); i < size; ++i) {
-    PythonComponentProperty *cprop;
+    PythonProxyProperty *pprop;
     char name[64];
     bool free = false;
     PyObject *pyitem = PyList_GetItem(pyitems, i);
@@ -304,31 +309,31 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 
     BLI_strncpy(name, _PyUnicode_AsString(pykey), sizeof(name));
 
-    cprop = create_property(name);
+    pprop = create_property(name);
 
     // Determine the type and default value
     if (PyBool_Check(pyvalue)) {
-      cprop->type = CPROP_TYPE_BOOLEAN;
-      cprop->boolval = PyLong_AsLong(pyvalue) != 0;
+      pprop->type = PPROP_TYPE_BOOLEAN;
+      pprop->boolval = PyLong_AsLong(pyvalue) != 0;
     }
     else if (PyLong_Check(pyvalue)) {
-      cprop->type = CPROP_TYPE_INT;
-      cprop->intval = PyLong_AsLong(pyvalue);
+      pprop->type = PPROP_TYPE_INT;
+      pprop->intval = PyLong_AsLong(pyvalue);
     }
     else if (PyFloat_Check(pyvalue)) {
-      cprop->type = CPROP_TYPE_FLOAT;
-      cprop->floatval = (float)PyFloat_AsDouble(pyvalue);
+      pprop->type = PPROP_TYPE_FLOAT;
+      pprop->floatval = (float)PyFloat_AsDouble(pyvalue);
     }
     else if (PyUnicode_Check(pyvalue)) {
-      cprop->type = CPROP_TYPE_STRING;
-      BLI_strncpy((char *)cprop->strval, _PyUnicode_AsString(pyvalue), MAX_PROPSTRING);
+      pprop->type = PPROP_TYPE_STRING;
+      BLI_strncpy((char *)pprop->strval, _PyUnicode_AsString(pyvalue), MAX_PROPSTRING);
     }
     else if (PySet_Check(pyvalue)) {
       PyObject *iterator = PyObject_GetIter(pyvalue), *v = NULL;
       unsigned int j = 0;
-      cprop->type = CPROP_TYPE_SET;
+      pprop->type = PPROP_TYPE_SET;
 
-      memset(&cprop->enumval, 0, sizeof(ListBase));
+      memset(&pprop->enumval, 0, sizeof(ListBase));
       // Iterate to convert every enums to char.
       while ((v = PyIter_Next(iterator))) {
         if (!PyUnicode_Check(v)) {
@@ -341,25 +346,25 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
         BLI_strncpy(str, _PyUnicode_AsString(v), MAX_PROPSTRING);
 
         link->data = str;
-        BLI_addtail(&cprop->enumval, link);
+        BLI_addtail(&pprop->enumval, link);
 
         Py_DECREF(v);
         ++j;
       }
       Py_DECREF(iterator);
-      cprop->itemval = 0;
+      pprop->itemval = 0;
     }
     else if (PySequence_Check(pyvalue)) {
       int len = PySequence_Size(pyvalue);
       switch (len) {
         case 2:
-          cprop->type = CPROP_TYPE_VEC2;
+          pprop->type = PPROP_TYPE_VEC2;
           break;
         case 3:
-          cprop->type = CPROP_TYPE_VEC3;
+          pprop->type = PPROP_TYPE_VEC3;
           break;
         case 4:
-          cprop->type = CPROP_TYPE_VEC4;
+          pprop->type = PPROP_TYPE_VEC4;
           break;
         default:
           printf("Sequence property \"%s\" length %i out of range [2, 4]\n", name, len);
@@ -371,7 +376,7 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
         for (unsigned int j = 0; j < len; ++j) {
           PyObject *item = PySequence_GetItem(pyvalue, j);
           if (PyFloat_Check(item)) {
-            cprop->vec[j] = PyFloat_AsDouble(item);
+            pprop->vec[j] = PyFloat_AsDouble(item);
           }
           else {
             printf("Sequence property \"%s\" contains a non-float item (%u)\n", name, j);
@@ -387,7 +392,7 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 
 #  define PT_DEF(name, lower, upper) \
     if (!strcmp(tp_name, STRINGIFY(name))) { \
-      cprop->type = CPROP_TYPE_##upper; \
+      pprop->type = PPROP_TYPE_##upper; \
       free = false; \
     }
       POINTER_TYPES
@@ -408,28 +413,27 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
     }
 
     if (free) {
-      free_property(cprop);
+      free_property(pprop);
       continue;
     }
 
     bool found = false;
-    for (PythonComponentProperty *propit = pycomp->properties.first; propit;
-         propit = propit->next) {
-      if ((strcmp(propit->name, cprop->name) == 0) && propit->type == cprop->type) {
+    for (PythonProxyProperty *propit = pp->properties.first; propit; propit = propit->next) {
+      if ((strcmp(propit->name, pprop->name) == 0) && propit->type == pprop->type) {
         /* We never reuse a enum property because we don't know if one of the
          * enum value was modified and it easier to just copy the current item
          * index than the list.
          */
-        if (cprop->type == CPROP_TYPE_SET) {
+        if (pprop->type == PPROP_TYPE_SET) {
           /* Unfortunatly the python type set doesn't repect an order even with same
            * content. To solve that we iterate on all new enums and find the coresponding
            * index for the old enum name.
            */
           char *str = ((LinkData *)BLI_findlink(&propit->enumval, propit->itemval))->data;
           int j = 0;
-          for (LinkData *link = cprop->enumval.first; link; link = link->next) {
+          for (LinkData *link = pprop->enumval.first; link; link = link->next) {
             if (strcmp(link->data, str) == 0) {
-              cprop->itemval = j;
+              pprop->itemval = j;
             }
             ++j;
           }
@@ -439,11 +443,11 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
          * is released, the old property is removed from the original list and
          * added to the new list.
          */
-        free_property(cprop);
+        free_property(pprop);
         /* The exisiting property is removed to allow at the end free properties
          * that are no longuer used.
          */
-        BLI_remlink(&pycomp->properties, propit);
+        BLI_remlink(&pp->properties, propit);
         BLI_addtail(&properties, propit);
         found = true;
         break;
@@ -451,22 +455,25 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
     }
     // If no exisiting property was found we add it simply.
     if (!found) {
-      BLI_addtail(&properties, cprop);
+      BLI_addtail(&properties, pprop);
     }
   }
 
   // Free properties no used in the new component.
-  for (PythonComponentProperty *propit = pycomp->properties.first; propit;) {
-    PythonComponentProperty *prop = propit;
+  for (PythonProxyProperty *propit = pp->properties.first; propit;) {
+    PythonProxyProperty *prop = propit;
     propit = propit->next;
     free_property(prop);
   }
   // Set the new property list.
-  pycomp->properties = properties;
+  pp->properties = properties;
 }
 #endif /* WITH_PYTHON */
 
-static bool load_component(PythonComponent *pc, ReportList *reports, Main *maggie)
+static bool load_class(PythonProxy *pp,
+                       int (*verifier)(PyObject *),
+                       ReportList *reports,
+                       Main *maggie)
 {
 #ifdef WITH_PYTHON
 
@@ -481,7 +488,7 @@ static bool load_component(PythonComponent *pc, ReportList *reports, Main *maggi
     if (mod) { \
       /* Take the module out of the module list so it's not cached \
          by Python (this allows for simpler reloading of components)*/ \
-      PyDict_DelItemString(sys_modules, pc->module); \
+      PyDict_DelItemString(sys_modules, pp->module); \
     } \
     Py_XDECREF(mod); \
     Py_XDECREF(item); \
@@ -554,40 +561,40 @@ static bool load_component(PythonComponent *pc, ReportList *reports, Main *maggi
   PyDict_SetItemString(PyModule_GetDict(bgemod), "__component__", Py_True);
 
   // Try to load up the module
-  mod = PyImport_ImportModule(pc->module);
+  mod = PyImport_ImportModule(pp->module);
 
   if (!mod) {
     BKE_reportf(reports,
                 RPT_ERROR_INVALID_INPUT,
                 "No module named \"%s\" or script error at loading.",
-                pc->module);
+                pp->module);
     FINISH(false);
   }
-  else if (strlen(pc->module) > 0 && strlen(pc->name) == 0) {
+  else if (strlen(pp->module) > 0 && strlen(pp->name) == 0) {
     BKE_report(reports,
                RPT_ERROR_INVALID_INPUT,
                "No component class was specified, only the module was.");
     FINISH(false);
   }
 
-  item = PyObject_GetAttrString(mod, pc->name);
+  item = PyObject_GetAttrString(mod, pp->name);
   if (!item) {
-    BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "No class named %s was found.", pc->name);
+    BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "No class named %s was found.", pp->name);
     FINISH(false);
   }
 
   // Check the subclass with our own function since we don't have access to the KX_PythonComponent
   // type object
-  if (!verify_class(item)) {
+  if (!verifier(item)) {
     BKE_reportf(reports,
                 RPT_ERROR_INVALID_INPUT,
-                "A %s type was found, but it was not a valid subclass of KX_PythonComponent.",
-                pc->name);
+                "A %s class was found, but it was not of an expected subtype.",
+                pp->name);
     FINISH(false);
   }
   else {
     // Setup the properties
-    create_properties(pc, item);
+    create_properties(pp, item);
   }
 
   FINISH(true);
@@ -605,15 +612,18 @@ static bool load_component(PythonComponent *pc, ReportList *reports, Main *maggi
 #endif /* WITH_PYTHON */
 }
 
-PythonComponent *BKE_python_component_new(char *import, ReportList *reports, bContext *context)
+PythonProxy *BKE_python_class_new(char *import,
+                                  int (*verifier)(PyObject *),
+                                  ReportList *reports,
+                                  bContext *context)
 {
   char *classname;
   char *modulename;
-  PythonComponent *pc;
+  PythonProxy *pp;
 
   // Don't bother with an empty string
   if (strcmp(import, "") == 0) {
-    BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No component was specified.");
+    BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No class was specified.");
     return NULL;
   }
 
@@ -631,26 +641,39 @@ PythonComponent *BKE_python_component_new(char *import, ReportList *reports, bCo
     return NULL;
   }
 
-  pc = MEM_callocN(sizeof(PythonComponent), "PythonComponent");
+  pp = MEM_callocN(sizeof(PythonProxy), "PythonProxy");
 
   // Copy module and class names.
-  strcpy(pc->module, modulename);
+  strcpy(pp->module, modulename);
   if (classname) {
-    strcpy(pc->name, classname);
+    strcpy(pp->name, classname);
   }
 
   // Try load the component.
-  if (!load_component(pc, reports, CTX_data_main(context))) {
-    BKE_python_component_free(pc);
+  if (!load_class(pp, verifier, reports, CTX_data_main(context))) {
+    BKE_python_proxy_free(pp);
     return NULL;
   }
 
-  return pc;
+  return pp;
 }
 
-PythonComponent *BKE_python_component_create_file(char *import,
-                                                  ReportList *reports,
-                                                  bContext *context)
+PythonProxy *BKE_custom_object_new(char *import, ReportList *reports, bContext *context)
+{
+  return BKE_python_class_new(import, verify_custom_object_class, reports, context);
+}
+
+PythonProxy *BKE_python_component_new(char *import, ReportList *reports, bContext *context)
+{
+  return BKE_python_class_new(import, verify_component_class, reports, context);
+}
+
+PythonProxy *BKE_python_class_create_file(char *import,
+                                          const char *template_dir,
+                                          const char *template_name,
+                                          int (*verifier)(PyObject *),
+                                          ReportList *reports,
+                                          bContext *context)
 {
   char *classname;
   char *modulename;
@@ -661,11 +684,11 @@ PythonComponent *BKE_python_component_create_file(char *import,
   char *filecontent;
   Main *maggie = CTX_data_main(context);
   struct Text *text;
-  PythonComponent *pc;
+  PythonProxy *pp;
 
   // Don't bother with an empty string
   if (strcmp(import, "") == 0) {
-    BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No component was specified.");
+    BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No class name was specified.");
     return NULL;
   }
 
@@ -674,7 +697,7 @@ PythonComponent *BKE_python_component_create_file(char *import,
   classname = strtok(NULL, ".");
 
   if (!classname) {
-    BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No component class name was specified.");
+    BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No class name was specified.");
     return NULL;
   }
 
@@ -689,9 +712,9 @@ PythonComponent *BKE_python_component_create_file(char *import,
   text = BKE_text_add(maggie, filename);
 
   BLI_strncpy(respath,
-              BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS, "templates_py_components"),
+              BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS, template_dir),
               sizeof(respath));
-  BLI_path_append(respath, sizeof(respath), "python_component.py");
+  BLI_path_append(respath, sizeof(respath), template_name);
 
   orgfilecontent = BLI_file_read_text_as_mem(respath, 0, &filesize);
   orgfilecontent[filesize] = '\0';
@@ -702,126 +725,155 @@ PythonComponent *BKE_python_component_create_file(char *import,
 
   MEM_freeN(filecontent);
 
-  pc = MEM_callocN(sizeof(PythonComponent), "PythonComponent");
+  pp = MEM_callocN(sizeof(PythonProxy), "PythonProxy");
 
   // Copy module and class names.
-  strcpy(pc->module, modulename);
+  strcpy(pp->module, modulename);
   if (classname) {
-    strcpy(pc->name, classname);
+    strcpy(pp->name, classname);
   }
 
   // Try load the component.
-  if (!load_component(pc, reports, CTX_data_main(context))) {
-    BKE_python_component_free(pc);
+  if (!load_class(pp, verifier, reports, CTX_data_main(context))) {
+    BKE_python_proxy_free(pp);
     return NULL;
   }
 
   BKE_reportf(reports, RPT_INFO, "File %s created.", filename);
 
-  return pc;
+  return pp;
 }
 
-void BKE_python_component_reload(PythonComponent *pc, ReportList *reports, bContext *context)
+PythonProxy *BKE_custom_object_create_file(char *import,
+                                           ReportList *reports,
+                                           bContext *context)
 {
-  load_component(pc, reports, CTX_data_main(context));
+  return BKE_python_class_create_file(import,
+                                      "templates_custom_objects",
+                                      "custom_object.py",
+                                      verify_custom_object_class,
+                                      reports,
+                                      context);
 }
 
-PythonComponent *BKE_python_component_copy(PythonComponent *comp)
+PythonProxy *BKE_python_component_create_file(char *import,
+                                              ReportList *reports,
+                                              bContext *context)
 {
-  PythonComponent *compn;
-  PythonComponentProperty *cprop, *cpropn;
+  return BKE_python_class_create_file(import,
+                                      "templates_py_components",
+                                      "python_component.py",
+                                      verify_component_class,
+                                      reports,
+                                      context);
+}
 
-  compn = MEM_dupallocN(comp);
+void BKE_custom_object_reload(PythonProxy *pp, ReportList *reports, bContext *context)
+{
+  load_class(pp, verify_custom_object_class, reports, CTX_data_main(context));
+}
 
-  BLI_listbase_clear(&compn->properties);
-  cprop = comp->properties.first;
-  while (cprop) {
-    cpropn = copy_property(cprop);
-    BLI_addtail(&compn->properties, cpropn);
-    cprop = cprop->next;
+void BKE_python_component_reload(PythonProxy *pp, ReportList *reports, bContext *context)
+{
+  load_class(pp, verify_component_class, reports, CTX_data_main(context));
+}
+
+PythonProxy *BKE_python_proxy_copy(PythonProxy *pp)
+{
+  PythonProxy *proxyn;
+  PythonProxyProperty *pprop, *ppropn;
+
+  proxyn = MEM_dupallocN(pp);
+
+  BLI_listbase_clear(&proxyn->properties);
+  pprop = pp->properties.first;
+  while (pprop) {
+    ppropn = copy_property(pprop);
+    BLI_addtail(&proxyn->properties, ppropn);
+    pprop = pprop->next;
   }
 
-  return compn;
+  return proxyn;
 }
 
-void BKE_python_component_copy_list(ListBase *lbn, const ListBase *lbo)
+void BKE_python_proxy_copy_list(ListBase *lbn, const ListBase *lbo)
 {
-  PythonComponent *comp, *compn;
+  PythonProxy *proxy, *proxyn;
 
   lbn->first = lbn->last = NULL;
-  comp = lbo->first;
-  while (comp) {
-    compn = BKE_python_component_copy(comp);
-    BLI_addtail(lbn, compn);
-    comp = comp->next;
+  proxy = lbo->first;
+  while (proxy) {
+    proxyn = BKE_python_proxy_copy(proxy);
+    BLI_addtail(lbn, proxyn);
+    proxy = proxy->next;
   }
 }
 
-void BKE_python_component_free(PythonComponent *pc)
+void BKE_python_proxy_free(PythonProxy *pp)
 {
-  free_properties(&pc->properties);
+  free_properties(&pp->properties);
 
-  MEM_freeN(pc);
+  MEM_freeN(pp);
 }
 
-void BKE_python_component_free_list(ListBase *lb)
+void BKE_python_proxy_free_list(ListBase *lb)
 {
-  PythonComponent *pc;
+  PythonProxy *pp;
 
-  while ((pc = lb->first)) {
-    BLI_remlink(lb, pc);
-    BKE_python_component_free(pc);
+  while ((pp = lb->first)) {
+    BLI_remlink(lb, pp);
+    BKE_python_proxy_free(pp);
   }
 }
 
-void *BKE_python_component_argument_dict_new(PythonComponent *pc)
+void *BKE_python_proxy_argument_dict_new(PythonProxy *pp)
 {
 #ifdef WITH_PYTHON
-  PythonComponentProperty *cprop = (PythonComponentProperty *)pc->properties.first;
+  PythonProxyProperty *pprop = (PythonProxyProperty *)pp->properties.first;
   PyObject *args = PyDict_New();
 
-  while (cprop) {
+  while (pprop) {
     PyObject *value;
-    if (cprop->type == CPROP_TYPE_INT) {
-      value = PyLong_FromLong(cprop->intval);
+    if (pprop->type == PPROP_TYPE_INT) {
+      value = PyLong_FromLong(pprop->intval);
     }
-    else if (cprop->type == CPROP_TYPE_FLOAT) {
-      value = PyFloat_FromDouble(cprop->floatval);
+    else if (pprop->type == PPROP_TYPE_FLOAT) {
+      value = PyFloat_FromDouble(pprop->floatval);
     }
-    else if (cprop->type == CPROP_TYPE_BOOLEAN) {
-      value = PyBool_FromLong(cprop->boolval);
+    else if (pprop->type == PPROP_TYPE_BOOLEAN) {
+      value = PyBool_FromLong(pprop->boolval);
     }
-    else if (cprop->type == CPROP_TYPE_STRING) {
-      value = PyUnicode_FromString(cprop->strval);
+    else if (pprop->type == PPROP_TYPE_STRING) {
+      value = PyUnicode_FromString(pprop->strval);
     }
-    else if (cprop->type == CPROP_TYPE_SET) {
-      LinkData *link = BLI_findlink(&cprop->enumval, cprop->itemval);
+    else if (pprop->type == PPROP_TYPE_SET) {
+      LinkData *link = BLI_findlink(&pprop->enumval, pprop->itemval);
       value = PyUnicode_FromString(link->data);
     }
-    else if (cprop->type == CPROP_TYPE_VEC2 || cprop->type == CPROP_TYPE_VEC3 ||
-             cprop->type == CPROP_TYPE_VEC4) {
+    else if (pprop->type == PPROP_TYPE_VEC2 || pprop->type == PPROP_TYPE_VEC3 ||
+             pprop->type == PPROP_TYPE_VEC4) {
       int size;
-      switch (cprop->type) {
-        case CPROP_TYPE_VEC2:
+      switch (pprop->type) {
+        case PPROP_TYPE_VEC2:
           size = 2;
           break;
-        case CPROP_TYPE_VEC3:
+        case PPROP_TYPE_VEC3:
           size = 3;
           break;
-        case CPROP_TYPE_VEC4:
+        case PPROP_TYPE_VEC4:
           size = 4;
           break;
       }
       value = PyList_New(size);
       // Fill the vector list.
       for (unsigned int i = 0; i < size; ++i) {
-        PyList_SetItem(value, i, PyFloat_FromDouble(cprop->vec[i]));
+        PyList_SetItem(value, i, PyFloat_FromDouble(pprop->vec[i]));
       }
     }
 #  define PT_DEF(name, lower, upper) \
-    else if (cprop->type == CPROP_TYPE_##upper && cprop->lower) \
+    else if (pprop->type == PPROP_TYPE_##upper && pprop->lower) \
     { \
-      ID *id = &cprop->lower->id; \
+      ID *id = &pprop->lower->id; \
       if (id) { \
         if (!id->py_instance) { \
           id->py_instance = pyrna_id_CreatePyObject(id); \
@@ -829,7 +881,7 @@ void *BKE_python_component_argument_dict_new(PythonComponent *pc)
         value = (PyObject *)id->py_instance; \
       } \
       else { \
-        cprop = cprop->next; \
+        pprop = pprop->next; \
         continue; \
       } \
     }
@@ -837,38 +889,44 @@ void *BKE_python_component_argument_dict_new(PythonComponent *pc)
 #  undef PT_DEF
     else
     {
-      cprop = cprop->next;
+      pprop = pprop->next;
       continue;
     }
 
-    PyDict_SetItemString(args, cprop->name, value);
+    PyDict_SetItemString(args, pprop->name, value);
 
-    cprop = cprop->next;
+    pprop = pprop->next;
   }
 
   return args;
 
 #else
 
-  (void)pc;
+  (void)pp;
 
   return NULL;
 
 #endif /* WITH_PYTHON */
 }
 
-void BKE_python_components_id_loop(ListBase *complist, BKEPyComponentIDFunc func, void *userdata)
+void BKE_python_proxy_id_loop(PythonProxy *pp, BKEPyProxyIDFunc func, void *userdata)
 {
-  PythonComponent *comp;
+  ListBase *properties = &pp->properties;
+  PythonProxyProperty *prop;
 
-  for (comp = complist->first; comp; comp = comp->next) {
-    ListBase *properties = &comp->properties;
-    PythonComponentProperty *prop;
-
-    for (prop = properties->first; prop; prop = prop->next) {
-#define PT_DEF(name, lower, upper) func(comp, (ID **)&prop->lower, userdata, IDWALK_CB_USER);
-      POINTER_TYPES
+  for (prop = properties->first; prop; prop = prop->next) {
+#define PT_DEF(name, lower, upper) func(pp, (ID **)&prop->lower, userdata, IDWALK_CB_USER);
+    POINTER_TYPES
 #undef PT_DEF
-    }
   }
 }
+
+void BKE_python_proxies_id_loop(ListBase *list, BKEPyProxyIDFunc func, void *userdata)
+{
+  PythonProxy *pp;
+
+  for (pp = list->first; pp; pp = pp->next) {
+    BKE_python_proxy_id_loop(pp, func, userdata);
+  }
+}
+

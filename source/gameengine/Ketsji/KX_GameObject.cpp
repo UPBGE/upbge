@@ -82,7 +82,7 @@ static MT_Vector3 dummy_scaling = MT_Vector3(1.0f, 1.0f, 1.0f);
 static MT_Matrix3x3 dummy_orientation = MT_Matrix3x3(
     1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
 
-KX_GameObject::KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
+KX_GameObject::KX_GameObject()
     : SCA_IObject(),
       m_isReplica(false),              // eevee
       m_visibleAtGameStart(false),     // eevee
@@ -98,6 +98,7 @@ KX_GameObject::KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
       m_bVisible(true),
       m_bOccluder(false),
       m_pPhysicsController(nullptr),
+      m_pSGNode(nullptr),
       m_components(NULL),
       m_pInstanceObjects(nullptr),
       m_pDupliGroupObject(nullptr),
@@ -110,12 +111,6 @@ KX_GameObject::KX_GameObject(void *sgReplicationInfo, SG_Callbacks callbacks)
 #endif
 {
   m_pClient_info = new KX_ClientObjectInfo(this, KX_ClientObjectInfo::ACTOR);
-  m_pSGNode = new SG_Node(this, sgReplicationInfo, callbacks);
-
-  // define the relationship between this node and it's parent.
-
-  KX_NormalParentRelation *parent_relation = new KX_NormalParentRelation();
-  m_pSGNode->SetParentRelation(parent_relation);
 
   unit_m4(m_prevObmat);  // eevee
 };
@@ -429,6 +424,17 @@ void KX_GameObject::HideOriginalObject()
       GetScene()->m_hiddenObjectsDuringRuntime.push_back(ob);
     }
   }
+}
+
+void KX_GameObject::Dispose()
+{
+  if (m_components) {
+    for (KX_PythonComponent *comp : m_components) {
+      comp->Dispose();
+    }
+  }
+
+  SCA_IObject::Dispose();
 }
 
 static void suspend_physics_recursive(SG_Node *node, bool freeConstraints)
@@ -841,7 +847,7 @@ void KX_GameObject::SetPlayMode(short layer, short mode)
 
 void KX_GameObject::ProcessReplica()
 {
-  SCA_IObject::ProcessReplica();
+  KX_PythonProxy::ProcessReplica();
 
   ReplicateBlenderObject();
   GetScene()->GetBlenderSceneConverter()->RegisterGameObject(this, m_pBlenderObject);
@@ -905,14 +911,9 @@ bool KX_GameObject::CheckCollision(KX_GameObject *other)
   return this->m_userCollisionGroup & other->m_userCollisionMask;
 }
 
-EXP_Value *KX_GameObject::GetReplica()
+KX_PythonProxy *KX_GameObject::NewInstance()
 {
-  KX_GameObject *replica = new KX_GameObject(*this);
-
-  // this will copy properties and so on...
-  replica->ProcessReplica();
-
-  return replica;
+  return new KX_GameObject(*this);
 }
 
 bool KX_GameObject::IsDynamic() const
@@ -1790,17 +1791,16 @@ void KX_GameObject::SetComponents(EXP_ListValue<KX_PythonComponent> *components)
   m_components = components;
 }
 
-void KX_GameObject::UpdateComponents()
+void KX_GameObject::Update()
 {
 #ifdef WITH_PYTHON
-  if (!m_components) {
-    return;
-  }
+  KX_PythonProxy::Update();
 
-  for (KX_PythonComponent *comp : m_components) {
-    comp->Update();
+  if (m_components) {
+    for (KX_PythonComponent *comp : m_components) {
+      comp->Update();
+    }
   }
-
 #endif  // WITH_PYTHON
 }
 
@@ -1808,6 +1808,18 @@ KX_Scene *KX_GameObject::GetScene()
 {
   BLI_assert(m_pSGNode);
   return static_cast<KX_Scene *>(m_pSGNode->GetSGClientInfo());
+}
+
+void KX_GameObject::SetScene(KX_Scene *scene)
+{
+  BLI_assert(!m_pSGNode);
+
+  m_pSGNode = new SG_Node(this, scene, KX_Scene::m_callbacks);
+
+  // define the relationship between this node and it's parent.
+
+  KX_NormalParentRelation *parent_relation = new KX_NormalParentRelation();
+  m_pSGNode->SetParentRelation(parent_relation);
 }
 
 /* ---------------------------------------------------------------------
@@ -2505,6 +2517,19 @@ PySequenceMethods KX_GameObject::Sequence = {
     (ssizeargfunc) nullptr,   /* sq_inplace_repeat */
 };
 
+PyObject *KX_GameObject::game_object_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+  KX_GameObject *obj = new KX_GameObject();
+
+  PyObject *proxy = py_base_new(type, PyTuple_Pack(1, obj->GetProxy()), kwds);
+  if (!proxy) {
+    delete obj;
+    return nullptr;
+  }
+
+  return proxy;
+}
+
 PyTypeObject KX_GameObject::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_GameObject",
                                     sizeof(EXP_PyObjectPlus_Proxy),
                                     0,
@@ -2541,7 +2566,7 @@ PyTypeObject KX_GameObject::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_GameOb
                                     0,
                                     0,
                                     0,
-                                    py_base_new};
+                                    game_object_new};
 
 PyObject *KX_GameObject::pyattr_get_name(EXP_PyObjectPlus *self_v,
                                          const EXP_PYATTRIBUTE_DEF *attrdef)
@@ -4896,11 +4921,7 @@ bool ConvertPythonToGameObject(SCA_LogicManager *manager,
     }
   }
 
-  if (PyObject_TypeCheck(value, &KX_GameObject::Type) ||
-      PyObject_TypeCheck(value, &KX_LightObject::Type) ||
-      PyObject_TypeCheck(value, &KX_Camera::Type) ||
-      PyObject_TypeCheck(value, &KX_FontObject::Type) ||
-      PyObject_TypeCheck(value, &KX_NavMeshObject::Type)) {
+  if (PyObject_TypeCheck(value, &KX_GameObject::Type)) {
     *object = static_cast<KX_GameObject *> EXP_PROXY_REF(value);
 
     /* sets the error */

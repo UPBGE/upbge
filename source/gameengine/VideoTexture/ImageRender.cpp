@@ -923,8 +923,12 @@ ImageRender::ImageRender(KX_Scene *scene,
   float mirrorMat[3][3];
   float left, right, top, bottom, back;
   // make sure this camera will delete its node
-  m_camera = new KX_Camera(scene, KX_Scene::m_callbacks, camdata, true);
+  m_camera = new KX_Camera();
+  m_camera->SetScene(scene);
+  m_camera->SetCameraData(camdata);
   m_camera->SetName("__mirror__cam__");
+  m_camera->MarkForDeletion();
+
   // don't add the camera to the scene object list, it doesn't need to be accessible
   m_owncamera = true;
   // locate the vertex assigned to mat and do following calculation in mesh coordinates

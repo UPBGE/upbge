@@ -36,7 +36,12 @@
 
 SG_QList SCA_IObject::m_activeBookmarkedControllers;
 
-SCA_IObject::SCA_IObject() : m_suspended(false), m_initState(0), m_state(0), m_firstState(nullptr)
+SCA_IObject::SCA_IObject():
+    KX_PythonProxy(),
+    m_suspended(false),
+    m_initState(0),
+    m_state(0),
+    m_firstState(nullptr)
 {
 }
 

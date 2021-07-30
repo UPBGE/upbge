@@ -38,7 +38,8 @@ class MT_Transform;
 class KX_NavMeshObject : public KX_GameObject {
   Py_Header
 
-      protected : dtStatNavMesh *m_navMesh;
+ protected :
+  dtStatNavMesh *m_navMesh;
 
   bool BuildVertIndArrays(float *&vertices,
                           int &nverts,
@@ -52,10 +53,10 @@ class KX_NavMeshObject : public KX_GameObject {
                           int &vertsPerPoly);
 
  public:
-  KX_NavMeshObject(void *sgReplicationInfo, SG_Callbacks callbacks);
+  KX_NavMeshObject();
   ~KX_NavMeshObject();
 
-  virtual EXP_Value *GetReplica();
+  virtual KX_PythonProxy *NewInstance();
   virtual void ProcessReplica();
 
   bool BuildNavMesh();
@@ -73,6 +74,8 @@ class KX_NavMeshObject : public KX_GameObject {
   /* --------------------------------------------------------------------- */
   /* Python interface ---------------------------------------------------- */
   /* --------------------------------------------------------------------- */
+
+  static PyObject *game_object_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 
   EXP_PYMETHOD_DOC(KX_NavMeshObject, findPath);
   EXP_PYMETHOD_DOC(KX_NavMeshObject, raycast);

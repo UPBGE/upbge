@@ -39,18 +39,14 @@
 #include "KX_Globals.h"
 #include "KX_PyMath.h"
 #include "RAS_ICanvas.h"
+#include "DNA_camera_types.h"
 
-KX_Camera::KX_Camera(void *sgReplicationInfo,
-                     SG_Callbacks callbacks,
-                     const RAS_CameraData &camdata,
-                     bool delete_node)
-    : KX_GameObject(sgReplicationInfo, callbacks),
-      m_camdata(camdata),
+KX_Camera::KX_Camera() : KX_GameObject(),
       m_gpuViewport(nullptr),  // eevee
       m_dirty(true),
       m_normalized(false),
       m_set_projection_matrix(false),
-      m_delete_node(delete_node),
+      m_delete_node(false),
       m_lodDistanceFactor(1.0f),
       m_showDebugCameraFrustum(false)
 {
@@ -70,6 +66,34 @@ KX_Camera::~KX_Camera()
   }
 }
 
+void KX_Camera::SetBlenderObject(Object *obj)
+{
+  KX_GameObject::SetBlenderObject(obj);
+
+  Camera *ca = static_cast<Camera *>(obj->data);
+
+  RAS_CameraData camdata(ca->lens,
+                         ca->ortho_scale,
+                         ca->sensor_x,
+                         ca->sensor_y,
+                         ca->sensor_fit,
+                         ca->shiftx,
+                         ca->shifty,
+                         ca->clip_start,
+                         ca->clip_end,
+                         ca->type == CAM_PERSP);
+
+  SetName(ca->id.name + 2);
+  SetLodDistanceFactor(ca->lodfactor);
+
+  SetCameraData(camdata);
+}
+
+void KX_Camera::SetCameraData(const RAS_CameraData &camdata)
+{
+  m_camdata = camdata;
+}
+
 GPUViewport *KX_Camera::GetGPUViewport()
 {
   if (!m_gpuViewport) {
@@ -86,14 +110,9 @@ void KX_Camera::RemoveGPUViewport()
   }
 }
 
-EXP_Value *KX_Camera::GetReplica()
+KX_PythonProxy *KX_Camera::NewInstance()
 {
-  KX_Camera *replica = new KX_Camera(*this);
-
-  // this will copy properties and so on...
-  replica->ProcessReplica();
-
-  return replica;
+  return new KX_Camera(*this);
 }
 
 void KX_Camera::ProcessReplica()
@@ -304,6 +323,11 @@ int KX_Camera::GetViewportTop() const
   return m_camdata.m_viewporttop;
 }
 
+void KX_Camera::MarkForDeletion()
+{
+  m_delete_node = true;
+}
+
 #ifdef WITH_PYTHON
 //----------------------------------------------------------------------------
 // Python
@@ -356,6 +380,19 @@ PyAttributeDef KX_Camera::Attributes[] = {
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
+PyObject *KX_Camera::game_object_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+  KX_Camera *obj = new KX_Camera();
+
+  PyObject *proxy = py_base_new(type, PyTuple_Pack(1, obj->GetProxy()), kwds);
+  if (!proxy) {
+    delete obj;
+    return nullptr;
+  }
+
+  return proxy;
+}
+
 PyTypeObject KX_Camera::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_Camera",
                                 sizeof(EXP_PyObjectPlus_Proxy),
                                 0,
@@ -392,7 +429,7 @@ PyTypeObject KX_Camera::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "KX_Camera",
                                 0,
                                 0,
                                 0,
-                                py_base_new};
+                                game_object_new};
 
 EXP_PYMETHODDEF_DOC_VARARGS(KX_Camera,
                             sphereInsideFrustum,
