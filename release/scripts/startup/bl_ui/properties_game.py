@@ -114,7 +114,7 @@ class GAME_MT_component_context_menu(Menu):
     def poll(cls, context):
         ob = context.active_object
 
-        return ob and ob.game and ob.game.components and context.component
+        return ob and ob.game and ob.game.components
 
     def draw(self, context):
         layout = self.layout
