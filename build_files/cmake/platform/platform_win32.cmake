@@ -875,3 +875,8 @@ if(WITH_HARU)
     set(WITH_HARU OFF)
   endif()
 endif()
+
+# Compatibility with Windows 7
+if(WITH_WINDOWS_7)
+  set(BCOMPAT7_LIBRARIES ${LIBDIR}/bcompat7/lib/bcompat7.lib)
+endif()

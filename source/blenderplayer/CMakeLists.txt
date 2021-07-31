@@ -36,6 +36,11 @@ list(APPEND LIB
   bf_blenloader
 )
 
+# Compatibility with Windows 7
+if(WIN32 AND WITH_WINDOWS_7)
+  list(INSERT LIB 0 ${BCOMPAT7_LIBRARIES})
+endif()
+
 # MSVC 2010 gives linking errors with the manifest
 if(WIN32 AND NOT UNIX)
     add_definitions(
