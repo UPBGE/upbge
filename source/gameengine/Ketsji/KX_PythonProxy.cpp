@@ -28,12 +28,11 @@
 #include "EXP_Value.h"
 
 KX_PythonProxy::KX_PythonProxy():
-    EXP_Value(),
+    KX_PythonLogger(),
     m_init(false),
     m_pp(nullptr),
     m_update(nullptr),
-    m_dispose(nullptr),
-    m_logger(nullptr)
+    m_dispose(nullptr)
 {
 }
 
@@ -56,66 +55,6 @@ PythonProxy *KX_PythonProxy::GetPrototype()
 void KX_PythonProxy::SetPrototype(PythonProxy *pp)
 {
   m_pp = pp;
-}
-
-PyObject *KX_PythonProxy::GetLogger()
-{
-  if (!m_logger) {
-    PyObject *module = PyImport_GetModule(PyUnicode_FromStdString("logging"));
-
-    if (module) {
-      PyObject *proxy = GetProxy();
-      PyObject *name = PyObject_GetAttrString(proxy, "logger_name");
-
-      if (PyErr_Occurred()) {
-        PyErr_Print();
-      } else {
-        m_logger = PyObject_CallMethod(module, "getLogger", "O", name);
-      }
-
-      Py_XDECREF(module);
-    }
-
-    if (PyErr_Occurred()) {
-      PyErr_Print();
-    }
-  }
-  
-  return m_logger;
-}
-
-void KX_PythonProxy::LogError()
-{
-  PyObject *type, *value, *traceback;
-  PyErr_Fetch(&type, &value, &traceback);
-
-  PyObject *logger = GetLogger();
-
-  if (logger && value) {
-    PyObject *exc_info = PyTuple_New(3);
-
-    PyTuple_SetItem(exc_info, 0, type);
-    PyTuple_SetItem(exc_info, 1, value);
-    PyTuple_SetItem(exc_info, 2, traceback);
-
-    PyObject *args = PyTuple_New(1);
-    PyObject *kwargs = PyDict_New();
-
-    PyTuple_SetItem(args, 0, PyUnicode_FromString("Unhandled exception occurred."));
-    PyDict_SetItemString(kwargs, "exc_info", exc_info);
-
-    PyObject *reporter = PyObject_GetAttrString(logger, "error");
-
-    PyObject_Call(reporter, args, kwargs);
-
-    Py_DECREF(exc_info);
-    Py_DECREF(args);
-    Py_DECREF(kwargs);
-  }
-
-  Py_XDECREF(type);
-  Py_XDECREF(value);
-  Py_XDECREF(traceback);
 }
 
 void KX_PythonProxy::Start()
@@ -183,13 +122,12 @@ KX_PythonProxy *KX_PythonProxy::GetReplica()
 
 void KX_PythonProxy::ProcessReplica()
 {
-  EXP_Value::ProcessReplica();
+  KX_PythonLogger::ProcessReplica();
 
   m_init = false;
 
   m_update = nullptr;
   m_dispose = nullptr;
-  m_logger = nullptr;
 }
 
 void KX_PythonProxy::Dispose()
@@ -200,41 +138,18 @@ void KX_PythonProxy::Dispose()
 
   Py_XDECREF(m_update);
   Py_XDECREF(m_dispose);
-  Py_XDECREF(m_logger);
 
   m_update = nullptr;
   m_dispose = nullptr;
-  m_logger = nullptr;
 }
 
 void KX_PythonProxy::Reset()
 {
   Py_XDECREF(m_update);
   Py_XDECREF(m_dispose);
-  Py_XDECREF(m_logger);
 
   m_update = nullptr;
   m_dispose = nullptr;
-  m_logger = nullptr;
 
   m_init = false;
-}
-
-PyObject *KX_PythonProxy::pyattr_get_logger_name(EXP_PyObjectPlus *self_v,
-                                                 const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-  KX_PythonProxy *self = static_cast<KX_PythonProxy *>(self_v);
-  return PyUnicode_FromStdString(self->GetName());
-}
-
-PyObject *KX_PythonProxy::pyattr_get_logger(EXP_PyObjectPlus *self_v,
-                                            const EXP_PYATTRIBUTE_DEF *attrdef)
-{
-  KX_PythonProxy *self = static_cast<KX_PythonProxy *>(self_v);
-
-  PyObject *logger = self->GetLogger();
-
-  Py_XINCREF(logger);
-
-  return logger;
 }
