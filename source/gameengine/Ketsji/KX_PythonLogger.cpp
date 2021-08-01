@@ -47,9 +47,7 @@ PyObject *KX_PythonLogger::GetLogger()
       PyObject *proxy = GetProxy();
       PyObject *name = PyObject_GetAttrString(proxy, "logger_name");
 
-      if (PyErr_Occurred()) {
-        PyErr_Print();
-      } else {
+      if (proxy && name) {
         m_logger = PyObject_CallMethod(module, "getLogger", "O", name);
       }
 
@@ -60,42 +58,58 @@ PyObject *KX_PythonLogger::GetLogger()
       PyErr_Print();
     }
   }
-  
+
   return m_logger;
 }
 
-void KX_PythonLogger::LogError()
+void KX_PythonLogger::LogError(const std::string &name)
 {
   PyObject *type, *value, *traceback;
+
   PyErr_Fetch(&type, &value, &traceback);
+  PyErr_NormalizeException(&type, &value, &traceback);
 
   PyObject *logger = GetLogger();
 
-  if (logger && value) {
-    PyObject *exc_info = PyTuple_New(3);
-
-    PyTuple_SetItem(exc_info, 0, type);
-    PyTuple_SetItem(exc_info, 1, value);
-    PyTuple_SetItem(exc_info, 2, traceback);
+  if (logger) {
+    PyObject *msg = PyUnicode_FromStdString(name);
+    PyObject *reporter = PyObject_GetAttrString(logger, "error");
 
     PyObject *args = PyTuple_New(1);
     PyObject *kwargs = PyDict_New();
+    PyObject *exc_info = nullptr;
 
-    PyTuple_SetItem(args, 0, PyUnicode_FromString("Unhandled exception occurred."));
-    PyDict_SetItemString(kwargs, "exc_info", exc_info);
+    if (value)
+    {
+      PyTuple_SetItem(args, 0, msg);
 
-    PyObject *reporter = PyObject_GetAttrString(logger, "error");
+      exc_info = PyTuple_New(3);
+
+      PyTuple_SetItem(exc_info, 0, type);
+      PyTuple_SetItem(exc_info, 1, value);
+
+      if (traceback) {
+        PyTuple_SetItem(exc_info, 2, traceback);
+      }
+      else {
+        PyTuple_SetItem(exc_info, 2, Py_None);
+      }
+
+      PyDict_SetItemString(kwargs, "exc_info", exc_info);
+    }
+    else
+    {
+      PyTuple_SetItem(args, 0, msg);
+    }
 
     PyObject_Call(reporter, args, kwargs);
 
-    Py_DECREF(exc_info);
+    Py_XDECREF(exc_info);
+
     Py_DECREF(args);
     Py_DECREF(kwargs);
+    Py_DECREF(reporter);
   }
-
-  Py_XDECREF(type);
-  Py_XDECREF(value);
-  Py_XDECREF(traceback);
 }
 
 void KX_PythonLogger::ProcessReplica()

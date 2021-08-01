@@ -36,7 +36,7 @@ class KX_PythonLogger : public EXP_Value {
 
   PyObject *GetLogger();
 
-  void LogError();
+  void LogError(const std::string &name);
 
   void ProcessReplica();
 

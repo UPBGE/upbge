@@ -80,7 +80,7 @@ void KX_PythonProxy::Start()
   }
 
   if (PyErr_Occurred()) {
-    LogError();
+    LogError("Fails to invoke the start callback.");
   }
 
   Py_XDECREF(arg_dict);
@@ -95,7 +95,7 @@ void KX_PythonProxy::Update()
 
   if (m_init) {
     if (m_update && !PyObject_CallNoArgs(m_update) && PyErr_Occurred()) {
-      LogError();
+      LogError("Fails to invoke the update callback.");
     }
   } else {
     Start();
@@ -133,7 +133,7 @@ void KX_PythonProxy::ProcessReplica()
 void KX_PythonProxy::Dispose()
 {
   if (m_dispose && !PyObject_CallNoArgs(m_dispose)) {
-    LogError();
+    LogError("Fails to invoke the dispose callback.");
   }
 
   Py_XDECREF(m_update);
