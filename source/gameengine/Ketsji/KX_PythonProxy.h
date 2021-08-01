@@ -28,14 +28,15 @@ struct PythonProxy;
 
 class KX_PythonProxy : public EXP_Value {
 
- private:
-  bool m_init;
+ private : bool m_init;
 
   PythonProxy *m_pp;
 
   PyObject *m_update;
 
   PyObject *m_dispose;
+
+  PyObject *m_logger;
 
  public:
   KX_PythonProxy();
@@ -61,4 +62,11 @@ class KX_PythonProxy : public EXP_Value {
   virtual void ProcessReplica();
 
   void Reset();
+
+  PyObject *GetLogger();
+
+  static PyObject *pyattr_get_logger(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+
+  static PyObject *pyattr_get_logger_name(EXP_PyObjectPlus *self_v, 
+                                          const EXP_PYATTRIBUTE_DEF *attrdef);
 };

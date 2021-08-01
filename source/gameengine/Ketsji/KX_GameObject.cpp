@@ -2244,6 +2244,9 @@ PyAttributeDef KX_GameObject::Attributes[] = {
     EXP_PYATTRIBUTE_RO_FUNCTION("controllers", KX_GameObject, pyattr_get_controllers),
     EXP_PYATTRIBUTE_RO_FUNCTION("actuators", KX_GameObject, pyattr_get_actuators),
     EXP_PYATTRIBUTE_RO_FUNCTION("components", KX_GameObject, pyattr_get_components),
+    EXP_PYATTRIBUTE_RO_FUNCTION("logger", KX_GameObject, KX_PythonProxy::pyattr_get_logger),
+    EXP_PYATTRIBUTE_RO_FUNCTION(
+        "logger_name", KX_GameObject, KX_PythonProxy::pyattr_get_logger_name),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 

@@ -32,7 +32,8 @@ KX_PythonProxy::KX_PythonProxy():
     m_init(false),
     m_pp(nullptr),
     m_update(nullptr),
-    m_dispose(nullptr)
+    m_dispose(nullptr),
+    m_logger(nullptr)
 {
 }
 
@@ -55,6 +56,32 @@ PythonProxy *KX_PythonProxy::GetPrototype()
 void KX_PythonProxy::SetPrototype(PythonProxy *pp)
 {
   m_pp = pp;
+}
+
+PyObject *KX_PythonProxy::GetLogger()
+{
+  if (!m_logger) {
+    PyObject *module = PyImport_GetModule(PyUnicode_FromStdString("logging"));
+
+    if (module) {
+      PyObject *proxy = GetProxy();
+      PyObject *name = PyObject_GetAttrString(proxy, "logger_name");
+
+      if (PyErr_Occurred()) {
+        PyErr_Print();
+      } else {
+        m_logger = PyObject_CallMethod(module, "getLogger", "O", name);
+      }
+
+      Py_XDECREF(module);
+    }
+
+    if (PyErr_Occurred()) {
+      PyErr_Print();
+    }
+  }
+  
+  return m_logger;
 }
 
 void KX_PythonProxy::Start()
@@ -128,6 +155,7 @@ void KX_PythonProxy::ProcessReplica()
 
   m_update = nullptr;
   m_dispose = nullptr;
+  m_logger = nullptr;
 }
 
 void KX_PythonProxy::Dispose()
@@ -136,19 +164,43 @@ void KX_PythonProxy::Dispose()
     PyErr_Print();
   }
 
+  Py_XDECREF(m_update);
+  Py_XDECREF(m_dispose);
+  Py_XDECREF(m_logger);
+
   m_update = nullptr;
   m_dispose = nullptr;
+  m_logger = nullptr;
 }
 
 void KX_PythonProxy::Reset()
 {
-  if (m_update) {
-    Py_DECREF(m_update);
-  }
+  Py_XDECREF(m_update);
+  Py_XDECREF(m_dispose);
+  Py_XDECREF(m_logger);
 
-  if (m_dispose) {
-    Py_DECREF(m_dispose);
-  }
+  m_update = nullptr;
+  m_dispose = nullptr;
+  m_logger = nullptr;
 
   m_init = false;
+}
+
+PyObject *KX_PythonProxy::pyattr_get_logger_name(EXP_PyObjectPlus *self_v,
+                                                 const EXP_PYATTRIBUTE_DEF *attrdef)
+{
+  KX_PythonProxy *self = static_cast<KX_PythonProxy *>(self_v);
+  return PyUnicode_FromStdString(self->GetName());
+}
+
+PyObject *KX_PythonProxy::pyattr_get_logger(EXP_PyObjectPlus *self_v,
+                                            const EXP_PYATTRIBUTE_DEF *attrdef)
+{
+  KX_PythonProxy *self = static_cast<KX_PythonProxy *>(self_v);
+
+  PyObject *logger = self->GetLogger();
+
+  Py_XINCREF(logger);
+
+  return logger;
 }

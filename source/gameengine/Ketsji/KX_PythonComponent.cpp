@@ -127,6 +127,9 @@ PyMethodDef KX_PythonComponent::Methods[] = {
 
 PyAttributeDef KX_PythonComponent::Attributes[] = {
     EXP_PYATTRIBUTE_RO_FUNCTION("object", KX_PythonComponent, pyattr_get_object),
+    EXP_PYATTRIBUTE_RO_FUNCTION("logger", KX_PythonComponent, KX_PythonProxy::pyattr_get_logger),
+    EXP_PYATTRIBUTE_RO_FUNCTION(
+        "logger_name", KX_PythonComponent, KX_PythonProxy::pyattr_get_logger_name),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
