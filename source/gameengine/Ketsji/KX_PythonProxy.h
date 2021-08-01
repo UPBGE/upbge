@@ -65,6 +65,8 @@ class KX_PythonProxy : public EXP_Value {
 
   PyObject *GetLogger();
 
+  void LogError();
+
   static PyObject *pyattr_get_logger(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 
   static PyObject *pyattr_get_logger_name(EXP_PyObjectPlus *self_v, 

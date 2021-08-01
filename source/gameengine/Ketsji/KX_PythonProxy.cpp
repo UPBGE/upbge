@@ -84,6 +84,40 @@ PyObject *KX_PythonProxy::GetLogger()
   return m_logger;
 }
 
+void KX_PythonProxy::LogError()
+{
+  PyObject *type, *value, *traceback;
+  PyErr_Fetch(&type, &value, &traceback);
+
+  PyObject *logger = GetLogger();
+
+  if (logger && value) {
+    PyObject *exc_info = PyTuple_New(3);
+
+    PyTuple_SetItem(exc_info, 0, type);
+    PyTuple_SetItem(exc_info, 1, value);
+    PyTuple_SetItem(exc_info, 2, traceback);
+
+    PyObject *args = PyTuple_New(1);
+    PyObject *kwargs = PyDict_New();
+
+    PyTuple_SetItem(args, 0, PyUnicode_FromString("Unhandled exception occurred."));
+    PyDict_SetItemString(kwargs, "exc_info", exc_info);
+
+    PyObject *reporter = PyObject_GetAttrString(logger, "error");
+
+    PyObject_Call(reporter, args, kwargs);
+
+    Py_DECREF(exc_info);
+    Py_DECREF(args);
+    Py_DECREF(kwargs);
+  }
+
+  Py_XDECREF(type);
+  Py_XDECREF(value);
+  Py_XDECREF(traceback);
+}
+
 void KX_PythonProxy::Start()
 {
   if (!m_pp || m_init) {
@@ -107,7 +141,7 @@ void KX_PythonProxy::Start()
   }
 
   if (PyErr_Occurred()) {
-    PyErr_Print();
+    LogError();
   }
 
   Py_XDECREF(arg_dict);
@@ -122,7 +156,7 @@ void KX_PythonProxy::Update()
 
   if (m_init) {
     if (m_update && !PyObject_CallNoArgs(m_update) && PyErr_Occurred()) {
-      PyErr_Print();
+      LogError();
     }
   } else {
     Start();
@@ -161,7 +195,7 @@ void KX_PythonProxy::ProcessReplica()
 void KX_PythonProxy::Dispose()
 {
   if (m_dispose && !PyObject_CallNoArgs(m_dispose)) {
-    PyErr_Print();
+    LogError();
   }
 
   Py_XDECREF(m_update);
