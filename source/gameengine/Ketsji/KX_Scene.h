@@ -40,7 +40,7 @@
 #include "EXP_PyObjectPlus.h"
 #include "EXP_Value.h"
 #include "KX_PhysicsEngineEnums.h"
-#include "KX_PythonLogger.h"
+#include "KX_PythonProxy.h"
 #include "KX_PythonProxyManager.h"
 #include "MT_Transform.h"
 #include "RAS_FramingManager.h"
@@ -109,7 +109,7 @@ typedef struct BackupObj {
  * The KX_Scene holds all data for an independent scene. It relates
  * KX_Objects to the specific objects in the modules.
  * */
-class KX_Scene : public KX_PythonLogger, public SCA_IScene {
+class KX_Scene : public KX_PythonProxy, public SCA_IScene {
  public:
   enum DrawingCallbackType { PRE_DRAW = 0, POST_DRAW, PRE_DRAW_SETUP, MAX_DRAW_CALLBACK };
 
@@ -569,6 +569,8 @@ class KX_Scene : public KX_PythonLogger, public SCA_IScene {
 
   /** Inherited from EXP_Value -- set the name of this object. */
   virtual void SetName(const std::string &name);
+
+  virtual KX_Scene *NewInstance();
 
 #ifdef WITH_PYTHON
   /* --------------------------------------------------------------------- */

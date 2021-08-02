@@ -22,11 +22,11 @@
 
 #pragma once
 
-#include "KX_PythonLogger.h"
+#include "EXP_Value.h"
 
 struct PythonProxy;
 
-class KX_PythonProxy : public KX_PythonLogger {
+class KX_PythonProxy : public EXP_Value {
 
  private:
   bool m_init;
@@ -36,6 +36,10 @@ class KX_PythonProxy : public KX_PythonLogger {
   PyObject *m_update;
 
   PyObject *m_dispose;
+
+  PyObject *m_logger;
+
+  void ReleasePyRefs();
 
  public:
   KX_PythonProxy();
@@ -61,4 +65,13 @@ class KX_PythonProxy : public KX_PythonLogger {
   virtual void ProcessReplica();
 
   void Reset();
+
+  PyObject *GetLogger();
+
+  void LogError(const std::string &name);
+
+  static PyObject *pyattr_get_logger(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+
+  static PyObject *pyattr_get_logger_name(EXP_PyObjectPlus *self_v,
+                                          const EXP_PYATTRIBUTE_DEF *attrdef);
 };

@@ -117,7 +117,6 @@ set(SRC
   KX_PythonProxyManager.cpp
   KX_PythonInit.cpp
   KX_PythonInitTypes.cpp
-  KX_PythonLogger.cpp
   KX_PythonMain.cpp
   KX_PythonProxy.cpp
   KX_RayCast.cpp
@@ -178,7 +177,6 @@ set(SRC
   KX_PythonProxyManager.h
   KX_PythonInit.h
   KX_PythonInitTypes.h
-  KX_PythonLogger.h
   KX_PythonMain.h
   KX_PythonProxy.h
   KX_RayCast.h
