@@ -129,6 +129,25 @@ base class --- :class:`EXP_Value`
 
       :type: dict
 
+   .. attribute:: logger
+
+      A logger instance that can be used to log messages related to this object (read-only).
+
+      :type: logging.Logger
+
+   .. attribute:: loggerName
+
+      A name used to create the logger instance. By default, it takes the form *Type[Name]*
+      and can be optionally overridden as below:
+
+      .. code-block:: python
+
+         @property
+         def loggerName():
+            return "MyObject"
+
+      :type: str
+
    .. method:: start(args)
 
       Initialize the component.

@@ -175,6 +175,18 @@ base class --- :class:`EXP_PyObjectPlus`
 
       :type: Vector((gx, gy, gz))
 
+   .. attribute:: logger
+
+      A logger instance that can be used to log messages related to this object (read-only).
+
+      :type: logging.Logger
+
+   .. attribute:: loggerName
+
+      A name used to create the logger instance. By default, it takes the form *KX_Scene[Name]*.
+
+      :type: str
+
    .. method:: addObject(object, reference, time=0.0, dupli=False)
 
       Adds an object to the scene like the Add Object Actuator would.
