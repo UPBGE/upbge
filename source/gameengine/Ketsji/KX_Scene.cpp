@@ -3121,7 +3121,7 @@ PyAttributeDef KX_Scene::Attributes[] = {
         "activity_culling_radius", 0.5f, FLT_MAX, KX_Scene, m_activity_box_radius),
     EXP_PYATTRIBUTE_BOOL_RO("dbvt_culling", KX_Scene, m_dbvt_culling),
     EXP_PYATTRIBUTE_RO_FUNCTION("logger", KX_Scene, KX_PythonLogger::pyattr_get_logger),
-    EXP_PYATTRIBUTE_RO_FUNCTION("logger_name", KX_Scene, KX_PythonLogger::pyattr_get_logger_name),
+    EXP_PYATTRIBUTE_RO_FUNCTION("loggerName", KX_Scene, KX_PythonLogger::pyattr_get_logger_name),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 

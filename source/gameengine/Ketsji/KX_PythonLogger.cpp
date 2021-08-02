@@ -45,7 +45,7 @@ PyObject *KX_PythonLogger::GetLogger()
 
     if (module) {
       PyObject *proxy = GetProxy();
-      PyObject *name = PyObject_GetAttrString(proxy, "logger_name");
+      PyObject *name = PyObject_GetAttrString(proxy, "loggerName");
 
       if (proxy && name) {
         m_logger = PyObject_CallMethod(module, "getLogger", "O", name);
