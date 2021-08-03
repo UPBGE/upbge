@@ -29,14 +29,14 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_math.h"
+#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 
 #include "BLT_translation.h"
@@ -132,7 +132,6 @@ static int voxel_remesh_exec(bContext *C, wmOperator *op)
   Object *ob = CTX_data_active_object(C);
 
   Mesh *mesh = static_cast<Mesh *>(ob->data);
-  Mesh *new_mesh;
 
   if (mesh->remesh_voxel_size <= 0.0f) {
     BKE_report(op->reports, RPT_ERROR, "Voxel remesher cannot run with a voxel size of 0.0");
@@ -151,7 +150,7 @@ static int voxel_remesh_exec(bContext *C, wmOperator *op)
     isovalue = mesh->remesh_voxel_size * 0.3f;
   }
 
-  new_mesh = BKE_mesh_remesh_voxel_to_mesh_nomain(
+  Mesh *new_mesh = BKE_mesh_remesh_voxel(
       mesh, mesh->remesh_voxel_size, mesh->remesh_voxel_adaptivity, isovalue);
 
   if (!new_mesh) {
@@ -164,9 +163,12 @@ static int voxel_remesh_exec(bContext *C, wmOperator *op)
   }
 
   if (mesh->flag & ME_REMESH_FIX_POLES && mesh->remesh_voxel_adaptivity <= 0.0f) {
-    new_mesh = BKE_mesh_remesh_voxel_fix_poles(new_mesh);
-    BKE_mesh_calc_normals(new_mesh);
+    Mesh *mesh_fixed_poles = BKE_mesh_remesh_voxel_fix_poles(new_mesh);
+    BKE_id_free(nullptr, new_mesh);
+    new_mesh = mesh_fixed_poles;
   }
+
+  BKE_mesh_calc_normals(new_mesh);
 
   if (mesh->flag & ME_REMESH_REPROJECT_VOLUME || mesh->flag & ME_REMESH_REPROJECT_PAINT_MASK ||
       mesh->flag & ME_REMESH_REPROJECT_SCULPT_FACE_SETS) {
@@ -853,19 +855,18 @@ static void quadriflow_start_job(void *customdata, short *stop, short *do_update
   /* Bisect the input mesh using the paint symmetry settings */
   bisect_mesh = remesh_symmetry_bisect(bisect_mesh, qj->symmetry_axes);
 
-  new_mesh = BKE_mesh_remesh_quadriflow_to_mesh_nomain(
-      bisect_mesh,
-      qj->target_faces,
-      qj->seed,
-      qj->use_preserve_sharp,
-      (qj->use_preserve_boundary || qj->use_mesh_symmetry),
+  new_mesh = BKE_mesh_remesh_quadriflow(bisect_mesh,
+                                        qj->target_faces,
+                                        qj->seed,
+                                        qj->use_preserve_sharp,
+                                        (qj->use_preserve_boundary || qj->use_mesh_symmetry),
 #ifdef USE_MESH_CURVATURE
-      qj->use_mesh_curvature,
+                                        qj->use_mesh_curvature,
 #else
-      false,
+                                        false,
 #endif
-      quadriflow_update_job,
-      (void *)qj);
+                                        quadriflow_update_job,
+                                        (void *)qj);
 
   BKE_id_free(nullptr, bisect_mesh);
 

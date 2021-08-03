@@ -31,15 +31,12 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array.hh"
-#include "BLI_blenlib.h"
 #include "BLI_float3.hh"
 #include "BLI_index_range.hh"
-#include "BLI_math.h"
-#include "BLI_utildefines.h"
+#include "BLI_span.hh"
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_object_types.h"
 
 #include "BKE_bvhutils.h"
 #include "BKE_customdata.h"
@@ -52,7 +49,9 @@
 #include "bmesh_tools.h"
 
 #ifdef WITH_OPENVDB
-#  include "openvdb_capi.h"
+#  include <openvdb/openvdb.h>
+#  include <openvdb/tools/MeshToVolume.h>
+#  include <openvdb/tools/VolumeToMesh.h>
 #endif
 
 #ifdef WITH_QUADRIFLOW
@@ -62,114 +61,23 @@
 using blender::Array;
 using blender::float3;
 using blender::IndexRange;
-
-#ifdef WITH_OPENVDB
-struct OpenVDBLevelSet *BKE_mesh_remesh_voxel_ovdb_mesh_to_level_set_create(
-    Mesh *mesh, struct OpenVDBTransform *transform)
-{
-  BKE_mesh_runtime_looptri_recalc(mesh);
-  const MLoopTri *looptri = BKE_mesh_runtime_looptri_ensure(mesh);
-  MVertTri *verttri = (MVertTri *)MEM_callocN(
-      sizeof(*verttri) * BKE_mesh_runtime_looptri_len(mesh), "remesh_looptri");
-  BKE_mesh_runtime_verttri_from_looptri(
-      verttri, mesh->mloop, looptri, BKE_mesh_runtime_looptri_len(mesh));
-
-  const int totfaces = BKE_mesh_runtime_looptri_len(mesh);
-  const int totverts = mesh->totvert;
-  Array<float3> verts(totverts);
-  Array<int> faces(totfaces * 3);
-
-  for (const int i : IndexRange(totverts)) {
-    verts[i] = mesh->mvert[i].co;
-  }
-
-  for (const int i : IndexRange(totfaces)) {
-    MVertTri &vt = verttri[i];
-    faces[i * 3] = vt.tri[0];
-    faces[i * 3 + 1] = vt.tri[1];
-    faces[i * 3 + 2] = vt.tri[2];
-  }
-
-  struct OpenVDBLevelSet *level_set = OpenVDBLevelSet_create(false, nullptr);
-  OpenVDBLevelSet_mesh_to_level_set(
-      level_set, (const float *)verts.data(), faces.data(), totverts, totfaces, transform);
-
-  MEM_freeN(verttri);
-
-  return level_set;
-}
-
-Mesh *BKE_mesh_remesh_voxel_ovdb_volume_to_mesh_nomain(struct OpenVDBLevelSet *level_set,
-                                                       double isovalue,
-                                                       double adaptivity,
-                                                       bool relax_disoriented_triangles)
-{
-  struct OpenVDBVolumeToMeshData output_mesh;
-  OpenVDBLevelSet_volume_to_mesh(
-      level_set, &output_mesh, isovalue, adaptivity, relax_disoriented_triangles);
-
-  Mesh *mesh = BKE_mesh_new_nomain(output_mesh.totvertices,
-                                   0,
-                                   0,
-                                   (output_mesh.totquads * 4) + (output_mesh.tottriangles * 3),
-                                   output_mesh.totquads + output_mesh.tottriangles);
-
-  for (const int i : IndexRange(output_mesh.totvertices)) {
-    copy_v3_v3(mesh->mvert[i].co, &output_mesh.vertices[i * 3]);
-  }
-
-  for (const int i : IndexRange(output_mesh.totquads)) {
-    MPoly &poly = mesh->mpoly[i];
-    const int loopstart = i * 4;
-    poly.loopstart = loopstart;
-    poly.totloop = 4;
-    mesh->mloop[loopstart].v = output_mesh.quads[loopstart];
-    mesh->mloop[loopstart + 1].v = output_mesh.quads[loopstart + 1];
-    mesh->mloop[loopstart + 2].v = output_mesh.quads[loopstart + 2];
-    mesh->mloop[loopstart + 3].v = output_mesh.quads[loopstart + 3];
-  }
-
-  const int triangle_poly_start = output_mesh.totquads;
-  const int triangle_loop_start = output_mesh.totquads * 4;
-  for (const int i : IndexRange(output_mesh.tottriangles)) {
-    MPoly &poly = mesh->mpoly[triangle_poly_start + i];
-    const int loopstart = triangle_loop_start + i * 3;
-    poly.loopstart = loopstart;
-    poly.totloop = 3;
-    mesh->mloop[loopstart].v = output_mesh.triangles[i * 3 + 2];
-    mesh->mloop[loopstart + 1].v = output_mesh.triangles[i * 3 + 1];
-    mesh->mloop[loopstart + 2].v = output_mesh.triangles[i * 3];
-  }
-
-  BKE_mesh_calc_edges(mesh, false, false);
-  BKE_mesh_calc_normals(mesh);
-
-  MEM_freeN(output_mesh.quads);
-  MEM_freeN(output_mesh.vertices);
-
-  if (output_mesh.tottriangles > 0) {
-    MEM_freeN(output_mesh.triangles);
-  }
-
-  return mesh;
-}
-#endif
+using blender::MutableSpan;
+using blender::Span;
 
 #ifdef WITH_QUADRIFLOW
-static Mesh *BKE_mesh_remesh_quadriflow(Mesh *input_mesh,
-                                        int target_faces,
-                                        int seed,
-                                        bool preserve_sharp,
-                                        bool preserve_boundary,
-                                        bool adaptive_scale,
-                                        void (*update_cb)(void *, float progress, int *cancel),
-                                        void *update_cb_data)
+static Mesh *remesh_quadriflow(const Mesh *input_mesh,
+                               int target_faces,
+                               int seed,
+                               bool preserve_sharp,
+                               bool preserve_boundary,
+                               bool adaptive_scale,
+                               void (*update_cb)(void *, float progress, int *cancel),
+                               void *update_cb_data)
 {
   /* Ensure that the triangulated mesh data is up to data */
-  BKE_mesh_runtime_looptri_recalc(input_mesh);
   const MLoopTri *looptri = BKE_mesh_runtime_looptri_ensure(input_mesh);
 
-  /* Gather the required data for export to the internal quadiflow mesh format */
+  /* Gather the required data for export to the internal quadriflow mesh format. */
   MVertTri *verttri = (MVertTri *)MEM_callocN(
       sizeof(*verttri) * BKE_mesh_runtime_looptri_len(input_mesh), "remesh_looptri");
   BKE_mesh_runtime_verttri_from_looptri(
@@ -254,30 +162,27 @@ static Mesh *BKE_mesh_remesh_quadriflow(Mesh *input_mesh,
 }
 #endif
 
-Mesh *BKE_mesh_remesh_quadriflow_to_mesh_nomain(Mesh *mesh,
-                                                int target_faces,
-                                                int seed,
-                                                bool preserve_sharp,
-                                                bool preserve_boundary,
-                                                bool adaptive_scale,
-                                                void (*update_cb)(void *,
-                                                                  float progress,
-                                                                  int *cancel),
-                                                void *update_cb_data)
+Mesh *BKE_mesh_remesh_quadriflow(const Mesh *mesh,
+                                 int target_faces,
+                                 int seed,
+                                 bool preserve_sharp,
+                                 bool preserve_boundary,
+                                 bool adaptive_scale,
+                                 void (*update_cb)(void *, float progress, int *cancel),
+                                 void *update_cb_data)
 {
-  Mesh *new_mesh = nullptr;
 #ifdef WITH_QUADRIFLOW
   if (target_faces <= 0) {
     target_faces = -1;
   }
-  new_mesh = BKE_mesh_remesh_quadriflow(mesh,
-                                        target_faces,
-                                        seed,
-                                        preserve_sharp,
-                                        preserve_boundary,
-                                        adaptive_scale,
-                                        update_cb,
-                                        update_cb_data);
+  return remesh_quadriflow(mesh,
+                           target_faces,
+                           seed,
+                           preserve_sharp,
+                           preserve_boundary,
+                           adaptive_scale,
+                           update_cb,
+                           update_cb_data);
 #else
   UNUSED_VARS(mesh,
               target_faces,
@@ -287,29 +192,102 @@ Mesh *BKE_mesh_remesh_quadriflow_to_mesh_nomain(Mesh *mesh,
               adaptive_scale,
               update_cb,
               update_cb_data);
+  return nullptr;
 #endif
-  return new_mesh;
 }
 
-Mesh *BKE_mesh_remesh_voxel_to_mesh_nomain(Mesh *mesh,
-                                           float voxel_size,
-                                           float adaptivity,
-                                           float isovalue)
-{
-  Mesh *new_mesh = nullptr;
 #ifdef WITH_OPENVDB
-  struct OpenVDBLevelSet *level_set;
-  struct OpenVDBTransform *xform = OpenVDBTransform_create();
-  OpenVDBTransform_create_linear_transform(xform, (double)voxel_size);
-  level_set = BKE_mesh_remesh_voxel_ovdb_mesh_to_level_set_create(mesh, xform);
-  new_mesh = BKE_mesh_remesh_voxel_ovdb_volume_to_mesh_nomain(
-      level_set, (double)isovalue, (double)adaptivity, false);
-  OpenVDBLevelSet_free(level_set);
-  OpenVDBTransform_free(xform);
+static openvdb::FloatGrid::Ptr remesh_voxel_level_set_create(const Mesh *mesh,
+                                                             const float voxel_size)
+{
+  Span<MLoop> mloop{mesh->mloop, mesh->totloop};
+  Span<MLoopTri> looptris{BKE_mesh_runtime_looptri_ensure(mesh),
+                          BKE_mesh_runtime_looptri_len(mesh)};
+
+  std::vector<openvdb::Vec3s> points(mesh->totvert);
+  std::vector<openvdb::Vec3I> triangles(looptris.size());
+
+  for (const int i : IndexRange(mesh->totvert)) {
+    const float3 co = mesh->mvert[i].co;
+    points[i] = openvdb::Vec3s(co.x, co.y, co.z);
+  }
+
+  for (const int i : IndexRange(looptris.size())) {
+    const MLoopTri &loop_tri = looptris[i];
+    triangles[i] = openvdb::Vec3I(
+        mloop[loop_tri.tri[0]].v, mloop[loop_tri.tri[1]].v, mloop[loop_tri.tri[2]].v);
+  }
+
+  openvdb::math::Transform::Ptr transform = openvdb::math::Transform::createLinearTransform(
+      voxel_size);
+  openvdb::FloatGrid::Ptr grid = openvdb::tools::meshToLevelSet<openvdb::FloatGrid>(
+      *transform, points, triangles, 1.0f);
+
+  return grid;
+}
+
+static Mesh *remesh_voxel_volume_to_mesh(const openvdb::FloatGrid::Ptr level_set_grid,
+                                         const float isovalue,
+                                         const float adaptivity,
+                                         const bool relax_disoriented_triangles)
+{
+  std::vector<openvdb::Vec3s> vertices;
+  std::vector<openvdb::Vec4I> quads;
+  std::vector<openvdb::Vec3I> tris;
+  openvdb::tools::volumeToMesh<openvdb::FloatGrid>(
+      *level_set_grid, vertices, tris, quads, isovalue, adaptivity, relax_disoriented_triangles);
+
+  Mesh *mesh = BKE_mesh_new_nomain(
+      vertices.size(), 0, 0, quads.size() * 4 + tris.size() * 3, quads.size() + tris.size());
+  MutableSpan<MVert> mverts{mesh->mvert, mesh->totvert};
+  MutableSpan<MLoop> mloops{mesh->mloop, mesh->totloop};
+  MutableSpan<MPoly> mpolys{mesh->mpoly, mesh->totpoly};
+
+  for (const int i : mverts.index_range()) {
+    copy_v3_v3(mverts[i].co, float3(vertices[i].x(), vertices[i].y(), vertices[i].z()));
+  }
+
+  for (const int i : IndexRange(quads.size())) {
+    MPoly &poly = mpolys[i];
+    const int loopstart = i * 4;
+    poly.loopstart = loopstart;
+    poly.totloop = 4;
+    mloops[loopstart].v = quads[i][0];
+    mloops[loopstart + 1].v = quads[i][3];
+    mloops[loopstart + 2].v = quads[i][2];
+    mloops[loopstart + 3].v = quads[i][1];
+  }
+
+  const int triangle_loop_start = quads.size() * 4;
+  for (const int i : IndexRange(tris.size())) {
+    MPoly &poly = mpolys[quads.size() + i];
+    const int loopstart = triangle_loop_start + i * 3;
+    poly.loopstart = loopstart;
+    poly.totloop = 3;
+    mloops[loopstart].v = tris[i][2];
+    mloops[loopstart + 1].v = tris[i][1];
+    mloops[loopstart + 2].v = tris[i][0];
+  }
+
+  BKE_mesh_calc_edges(mesh, false, false);
+  BKE_mesh_normals_tag_dirty(mesh);
+
+  return mesh;
+}
+#endif
+
+Mesh *BKE_mesh_remesh_voxel(const Mesh *mesh,
+                            const float voxel_size,
+                            const float adaptivity,
+                            const float isovalue)
+{
+#ifdef WITH_OPENVDB
+  openvdb::FloatGrid::Ptr level_set = remesh_voxel_level_set_create(mesh, voxel_size);
+  return remesh_voxel_volume_to_mesh(level_set, isovalue, adaptivity, false);
 #else
   UNUSED_VARS(mesh, voxel_size, adaptivity, isovalue);
+  return nullptr;
 #endif
-  return new_mesh;
 }
 
 void BKE_mesh_remesh_reproject_paint_mask(Mesh *target, Mesh *source)
@@ -367,12 +345,12 @@ void BKE_remesh_reproject_sculpt_face_sets(Mesh *target, Mesh *source)
         &target->pdata, CD_SCULPT_FACE_SETS, CD_CALLOC, nullptr, target->totpoly);
   }
 
-  int *source_face_sets;
+  const int *source_face_sets;
   if (CustomData_has_layer(&source->pdata, CD_SCULPT_FACE_SETS)) {
-    source_face_sets = (int *)CustomData_get_layer(&source->pdata, CD_SCULPT_FACE_SETS);
+    source_face_sets = (const int *)CustomData_get_layer(&source->pdata, CD_SCULPT_FACE_SETS);
   }
   else {
-    source_face_sets = (int *)CustomData_add_layer(
+    source_face_sets = (const int *)CustomData_add_layer(
         &source->pdata, CD_SCULPT_FACE_SETS, CD_CALLOC, nullptr, source->totpoly);
   }
 
@@ -397,7 +375,7 @@ void BKE_remesh_reproject_sculpt_face_sets(Mesh *target, Mesh *source)
   free_bvhtree_from_mesh(&bvhtree);
 }
 
-void BKE_remesh_reproject_vertex_paint(Mesh *target, Mesh *source)
+void BKE_remesh_reproject_vertex_paint(Mesh *target, const Mesh *source)
 {
   BVHTreeFromMesh bvhtree = {{nullptr}};
   BKE_bvhtree_from_mesh_get(&bvhtree, source, BVHTREE_FROM_VERTS, 2);
@@ -412,7 +390,7 @@ void BKE_remesh_reproject_vertex_paint(Mesh *target, Mesh *source)
     MPropCol *target_color = (MPropCol *)CustomData_get_layer_n(
         &target->vdata, CD_PROP_COLOR, layer_n);
     MVert *target_verts = (MVert *)CustomData_get_layer(&target->vdata, CD_MVERT);
-    MPropCol *source_color = (MPropCol *)CustomData_get_layer_n(
+    const MPropCol *source_color = (const MPropCol *)CustomData_get_layer_n(
         &source->vdata, CD_PROP_COLOR, layer_n);
     for (int i = 0; i < target->totvert; i++) {
       BVHTreeNearest nearest;
@@ -428,13 +406,12 @@ void BKE_remesh_reproject_vertex_paint(Mesh *target, Mesh *source)
   free_bvhtree_from_mesh(&bvhtree);
 }
 
-struct Mesh *BKE_mesh_remesh_voxel_fix_poles(struct Mesh *mesh)
+struct Mesh *BKE_mesh_remesh_voxel_fix_poles(const Mesh *mesh)
 {
   const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(mesh);
-  BMesh *bm;
 
   const BMeshCreateParams bmesh_create_params = {true};
-  bm = BM_mesh_create(&allocsize, &bmesh_create_params);
+  BMesh *bm = BM_mesh_create(&allocsize, &bmesh_create_params);
 
   BMeshFromMeshParams bmesh_from_mesh_params{};
   bmesh_from_mesh_params.calc_face_normal = true;
@@ -529,7 +506,6 @@ struct Mesh *BKE_mesh_remesh_voxel_fix_poles(struct Mesh *mesh)
   bmesh_to_mesh_params.calc_object_remap = false;
   Mesh *result = BKE_mesh_from_bmesh_nomain(bm, &bmesh_to_mesh_params, mesh);
 
-  BKE_id_free(nullptr, mesh);
   BM_mesh_free(bm);
   return result;
 }
