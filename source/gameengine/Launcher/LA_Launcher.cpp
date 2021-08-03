@@ -125,6 +125,12 @@ const std::string &LA_Launcher::GetExitString()
 
 void LA_Launcher::InitEngine()
 {
+  /* 2.8+: Always set starscene->lay to 1
+   * to avoid potential conversion issues:
+   * https://github.com/UPBGE/upbge/issues/1525
+   */
+  m_startScene->lay = 1;
+
   // Get and set the preferences.
   SYS_SystemHandle syshandle = SYS_GetSystem();
 
