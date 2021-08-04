@@ -404,7 +404,7 @@ static int object_hide_collection_exec(bContext *C, wmOperator *op)
   DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
 
   if (v3d->flag & V3D_LOCAL_COLLECTIONS) {
-    if (lc->runtime_flag & LAYER_COLLECTION_RESTRICT_VIEWPORT) {
+    if (lc->runtime_flag & LAYER_COLLECTION_HIDE_VIEWPORT) {
       return OPERATOR_CANCELLED;
     }
     if (toggle) {
@@ -441,7 +441,7 @@ void ED_collection_hide_menu_draw(const bContext *C, uiLayout *layout)
       continue;
     }
 
-    if (lc->collection->flag & COLLECTION_RESTRICT_VIEWPORT) {
+    if (lc->collection->flag & COLLECTION_HIDE_VIEWPORT) {
       continue;
     }
 
@@ -946,7 +946,7 @@ static bool editmode_toggle_poll(bContext *C)
   }
 
   /* if hidden but in edit mode, we still display */
-  if ((ob->restrictflag & OB_RESTRICT_VIEWPORT) && !(ob->mode & OB_MODE_EDIT)) {
+  if ((ob->visibility_flag & OB_HIDE_VIEWPORT) && !(ob->mode & OB_MODE_EDIT)) {
     return false;
   }
 
@@ -2167,10 +2167,10 @@ static int game_physics_copy_exec(bContext *C, wmOperator *UNUSED(op))
       ob_iter->collision_boundtype = ob->collision_boundtype;
       ob_iter->margin = ob->margin;
       ob_iter->bsoft = copy_bulletsoftbody(ob->bsoft, 0);
-      if (ob->restrictflag & OB_RESTRICT_RENDER)
-        ob_iter->restrictflag |= OB_RESTRICT_RENDER;
+      if (ob->visibility_flag & OB_HIDE_RENDER)
+        ob_iter->visibility_flag |= OB_HIDE_RENDER;
       else
-        ob_iter->restrictflag &= ~OB_RESTRICT_RENDER;
+        ob_iter->visibility_flag &= ~OB_HIDE_RENDER;
 
       ob_iter->col_group = ob->col_group;
       ob_iter->col_mask = ob->col_mask;

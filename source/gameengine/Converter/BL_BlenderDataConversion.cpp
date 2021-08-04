@@ -862,7 +862,7 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
      * and it seems it can still be used for this purpose in checking it in outliner
      * even if I removed the button from physics tab. (youle)
      */
-    if (ob->restrictflag & OB_RESTRICT_RENDER)
+    if (ob->visibility_flag & OB_HIDE_RENDER)
       gameobj->SetVisible(0, 0);
   }
   return gameobj;
@@ -1259,8 +1259,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
      * evaluated meshes from lodlevels and restrict viewport prevents meshes to be evaluated
      */
     if (!isInActiveLayer && !is_lod_level(lod_objects, blenderobject)) {
-      kxscene->BackupRestrictFlag(blenderobject, blenderobject->restrictflag);
-      blenderobject->restrictflag |= OB_RESTRICT_VIEWPORT;
+      kxscene->BackupRestrictFlag(blenderobject, blenderobject->visibility_flag);
+      blenderobject->visibility_flag |= OB_HIDE_VIEWPORT;
       BKE_main_collection_sync_remap(maggie);
       DEG_relations_tag_update(maggie);
     }

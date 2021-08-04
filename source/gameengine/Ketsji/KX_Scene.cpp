@@ -1147,7 +1147,7 @@ void KX_Scene::RestoreRestrictFlags()
        it != m_obRestrictFlags.end();
        it++) {
     Object *ob = it->first;
-    ob->restrictflag = it->second;
+    ob->visibility_flag = it->second;
   }
 }
 
@@ -1369,7 +1369,7 @@ KX_GameObject *KX_Scene::AddDuplicaObject(KX_GameObject *gameobj, KX_GameObject 
                                      basen->object);  // add replica where is the active camera
 
       basen->flag |= (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH);
-      basen->object->restrictflag &= ~OB_RESTRICT_VIEWPORT;
+      basen->object->visibility_flag &= ~OB_HIDE_VIEWPORT;
       BKE_main_collection_sync_remap(bmain);
 
       DEG_relations_tag_update(bmain);

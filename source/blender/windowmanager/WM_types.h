@@ -115,6 +115,7 @@ struct wmEvent;
 struct wmOperator;
 struct wmWindowManager;
 struct wmDrag;
+struct wmDropBox;
 
 #include "BLI_compiler_attrs.h"
 #include "DNA_listBase.h"
@@ -938,7 +939,8 @@ typedef struct wmDragAsset {
 
 typedef char *(*WMDropboxTooltipFunc)(struct bContext *,
                                       struct wmDrag *,
-                                      const struct wmEvent *event);
+                                      const struct wmEvent *event,
+                                      struct wmDropBox *drop);
 
 typedef struct wmDrag {
   struct wmDrag *next, *prev;
