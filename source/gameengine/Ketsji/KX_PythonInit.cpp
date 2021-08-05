@@ -2291,7 +2291,7 @@ void exitGamePlayerPythonScripting()
 /**
  * Python is already initialized.
  */
-void initGamePythonScripting(Main *maggie, bool *audioDeviceIsInitialized)
+void initGamePythonScripting(Main *maggie, bContext *C, bool *audioDeviceIsInitialized)
 {
   /* Yet another gotcha in the py api
    * Cant run PySys_SetArgv more than once because this adds the
@@ -2467,6 +2467,8 @@ void initGamePythonScripting(Main *maggie, bool *audioDeviceIsInitialized)
 
   first_time = false;
 
+  BPY_python_reset(C);
+
   EXP_PyObjectPlus::ClearDeprecationWarning();
 }
 
@@ -2507,7 +2509,7 @@ void setupGamePython(KX_KetsjiEngine *ketsjiengine,
   if (argv) /* player only */
     postInitGamePlayerPythonScripting(blenderdata, argc, argv, C, audioDeviceIsInitialized);
   else
-    initGamePythonScripting(blenderdata, audioDeviceIsInitialized);
+    initGamePythonScripting(blenderdata, C, audioDeviceIsInitialized);
 
   modules = PyImport_GetModuleDict();
 
