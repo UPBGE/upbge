@@ -6430,7 +6430,7 @@ int UI_but_return_value_get(uiBut *but)
 void UI_but_drag_set_id(uiBut *but, ID *id)
 {
   but->dragtype = WM_DRAG_ID;
-  if ((but->dragflag & UI_BUT_DRAGPOIN_FREE)) {
+  if (but->dragflag & UI_BUT_DRAGPOIN_FREE) {
     WM_drag_data_free(but->dragtype, but->dragpoin);
     but->dragflag &= ~UI_BUT_DRAGPOIN_FREE;
   }
@@ -6457,7 +6457,7 @@ void UI_but_drag_set_asset(uiBut *but,
 
   but->dragtype = WM_DRAG_ASSET;
   ui_def_but_icon(but, icon, 0); /* no flag UI_HAS_ICON, so icon doesn't draw in button */
-  if ((but->dragflag & UI_BUT_DRAGPOIN_FREE)) {
+  if (but->dragflag & UI_BUT_DRAGPOIN_FREE) {
     WM_drag_data_free(but->dragtype, but->dragpoin);
   }
   but->dragpoin = asset_drag;
@@ -6469,7 +6469,7 @@ void UI_but_drag_set_asset(uiBut *but,
 void UI_but_drag_set_rna(uiBut *but, PointerRNA *ptr)
 {
   but->dragtype = WM_DRAG_RNA;
-  if ((but->dragflag & UI_BUT_DRAGPOIN_FREE)) {
+  if (but->dragflag & UI_BUT_DRAGPOIN_FREE) {
     WM_drag_data_free(but->dragtype, but->dragpoin);
     but->dragflag &= ~UI_BUT_DRAGPOIN_FREE;
   }
@@ -6479,7 +6479,7 @@ void UI_but_drag_set_rna(uiBut *but, PointerRNA *ptr)
 void UI_but_drag_set_path(uiBut *but, const char *path, const bool use_free)
 {
   but->dragtype = WM_DRAG_PATH;
-  if ((but->dragflag & UI_BUT_DRAGPOIN_FREE)) {
+  if (but->dragflag & UI_BUT_DRAGPOIN_FREE) {
     WM_drag_data_free(but->dragtype, but->dragpoin);
     but->dragflag &= ~UI_BUT_DRAGPOIN_FREE;
   }
@@ -6492,7 +6492,7 @@ void UI_but_drag_set_path(uiBut *but, const char *path, const bool use_free)
 void UI_but_drag_set_name(uiBut *but, const char *name)
 {
   but->dragtype = WM_DRAG_NAME;
-  if ((but->dragflag & UI_BUT_DRAGPOIN_FREE)) {
+  if (but->dragflag & UI_BUT_DRAGPOIN_FREE) {
     WM_drag_data_free(but->dragtype, but->dragpoin);
     but->dragflag &= ~UI_BUT_DRAGPOIN_FREE;
   }
@@ -6510,7 +6510,7 @@ void UI_but_drag_set_image(
 {
   but->dragtype = WM_DRAG_PATH;
   ui_def_but_icon(but, icon, 0); /* no flag UI_HAS_ICON, so icon doesn't draw in button */
-  if ((but->dragflag & UI_BUT_DRAGPOIN_FREE)) {
+  if (but->dragflag & UI_BUT_DRAGPOIN_FREE) {
     WM_drag_data_free(but->dragtype, but->dragpoin);
     but->dragflag &= ~UI_BUT_DRAGPOIN_FREE;
   }

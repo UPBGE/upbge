@@ -115,5 +115,5 @@ if(WITH_MOD_FLUID)
 endif()
 
 if (WITH_COMPOSITOR)
-	add_subdirectory(smaa_areatex)
+  add_subdirectory(smaa_areatex)
 endif()
