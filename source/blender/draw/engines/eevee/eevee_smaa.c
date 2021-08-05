@@ -157,21 +157,19 @@ void EEVEE_antialiasing_draw_pass(EEVEE_Data *vedata)
     return;
   }
 
-  if (vedata->stl->effects->taa_current_sample < vedata->stl->effects->taa_total_sample) {
-    /* In playback mode, we are sure the next redraw will not use the same viewmatrix.
-     * In this case no need to save the depth buffer. */
-    eGPUFrameBufferBits bits = vedata->stl->effects->taa_current_sample == 1 ?
-                                   GPU_COLOR_BIT :
-                                   GPU_COLOR_BIT | GPU_DEPTH_BIT;
-    GPU_framebuffer_blit(dfbl->default_fb, 0, fbl->smaa_fb, 0, bits);
+  /* In playback mode, we are sure the next redraw will not use the same viewmatrix.
+   * In this case no need to save the depth buffer. */
+  eGPUFrameBufferBits bits = vedata->stl->effects->taa_current_sample == 1 ?
+                                 GPU_COLOR_BIT :
+                                 GPU_COLOR_BIT | GPU_DEPTH_BIT;
+  GPU_framebuffer_blit(dfbl->default_fb, 0, fbl->smaa_fb, 0, bits);
 
-    GPU_framebuffer_bind(fbl->smaa_edge_fb);
-    DRW_draw_pass(psl->smaa_edge_ps);
+  GPU_framebuffer_bind(fbl->smaa_edge_fb);
+  DRW_draw_pass(psl->smaa_edge_ps);
 
-    GPU_framebuffer_bind(fbl->smaa_weight_fb);
-    DRW_draw_pass(psl->smaa_weight_ps);
+  GPU_framebuffer_bind(fbl->smaa_weight_fb);
+  DRW_draw_pass(psl->smaa_weight_ps);
 
-    GPU_framebuffer_bind(dfbl->default_fb);
-    DRW_draw_pass(psl->smaa_resolve_ps);
-  }
+  GPU_framebuffer_bind(dfbl->default_fb);
+  DRW_draw_pass(psl->smaa_resolve_ps);
 }
