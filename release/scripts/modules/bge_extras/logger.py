@@ -17,10 +17,12 @@
 # ##### END GPL LICENSE BLOCK #####
 
 # <pep8-80 compliant>
-import logging
-from logging import Handler, NOTSET, INFO, DEBUG, config
-
 import bpy
+import json
+import logging
+
+from pathlib import Path
+from logging import Handler, NOTSET, INFO, DEBUG, config
 
 
 def setup(log_level: int) -> None:
@@ -30,35 +32,50 @@ def setup(log_level: int) -> None:
 
     logging.disable(NOTSET)
 
-    log_conf = {
-        "version": 1,
-        "disable_existing_loggers": False,
-        "loggers": {
-            "root": {
-                "level": logging.getLevelName(log_level),
-                "handlers": [
-                    "stdout",
-                    "console"
-                ]
-            }
-        },
-        "formatters": {
-            "simple": {
-                "format": "[%(levelname)s] %(name)s - %(message)s"
-            }
-        },
-        "handlers": {
-            "stdout": {
-                "class": "logging.StreamHandler",
-                "formatter": "simple",
-                "stream": "ext://sys.stdout"
+    config_file = Path(bpy.path.abspath("//logging.json"))
+
+    log_conf = None
+
+    if config_file.exists():
+        with open(config_file) as f:
+            print(f"Loading logging configuration from {config_file}.")
+
+            log_conf = json.load(f)
+    else:
+        log_conf = {
+            "version": 1,
+            "disable_existing_loggers": False,
+            "loggers": {
+                "root": {
+                    "handlers": [
+                        "stdout",
+                        "console"
+                    ]
+                }
             },
-            "console": {
-                "class": "bge_extras.logger.ConsoleLogger",
-                "formatter": "simple"
+            "formatters": {
+                "simple": {
+                    "format": "[%(levelname)s] %(name)s - %(message)s"
+                }
+            },
+            "handlers": {
+                "stdout": {
+                    "class": "logging.StreamHandler",
+                    "formatter": "simple",
+                    "stream": "ext://sys.stdout"
+                },
+                "console": {
+                    "class": "bge_extras.logger.ConsoleLogger",
+                    "formatter": "simple"
+                }
             }
         }
-    }
+
+    if log_conf["loggers"]:
+        root = log_conf["loggers"]["root"]
+
+        if root:
+            root["level"] = logging.getLevelName(log_level)
 
     logging.config.dictConfig(log_conf)
 
