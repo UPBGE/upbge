@@ -43,6 +43,7 @@
 #include "BLI_blenlib.h"
 #include "BLO_readfile.h"
 #include "DNA_space_types.h"
+#include "DNA_windowmanager_types.h"
 #include "ED_screen.h"
 #include "WM_api.h"
 #include "wm_window.h"
@@ -260,6 +261,11 @@ extern "C" void StartKetsjiShell(struct bContext *C,
         win->ghostwin = ghostwin_backup;
         win->gpuctx = gpuctx_backup;
         wm->message_bus = (wmMsgBus *)msgbus_backup;
+
+        wm->defaultconf = wm_backup->defaultconf;
+        wm->addonconf = wm_backup->addonconf;
+        wm->userconf = wm_backup->userconf;
+        wm->initialized |= WM_KEYCONFIG_IS_INIT;
 
         wm_window_ghostwindow_embedded_ensure(wm, win);
 

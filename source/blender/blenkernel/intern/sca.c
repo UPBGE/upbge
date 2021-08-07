@@ -1072,34 +1072,34 @@ void BKE_sca_controllers_id_loop(ListBase *contlist, SCAControllerIDFunc func, v
     switch (controller->type) {
       case CONT_PYTHON: {
         bPythonCont *pc = controller->data;
-        if (strlen(pc->module)) {
-          if (!pc->module_script) {
-            char modulename[FILE_MAX];
-            BLI_strncpy(modulename, pc->module, sizeof(modulename));
-            char ext[FILE_MAX];
-            strcpy(ext, ".py");
-            char dest[FILE_MAX];
-            strcpy(dest, "");
-            char *classname;
-            char *pos = strrchr(modulename, '.');
-            if (pos) {
-              *pos = '\0';
-              classname = pos + 1;
-            }
-            strcat(dest, modulename);
-            strcat(dest, ext);
-            if (G_MAIN) {
-              LISTBASE_FOREACH (Text *, text, &G_MAIN->texts) {
-                if (strcmp(text->id.name + 2, dest) == 0) {
-                  if (text->filepath == NULL) {  // Means the script is embedded
-                    pc->module_script = text;
-                  }
-                  break;
-                }
-              }
-            }
-          }
-        }
+        //if (strlen(pc->module)) {
+        //  if (!pc->module_script) {
+        //    char modulename[FILE_MAX];
+        //    BLI_strncpy(modulename, pc->module, sizeof(modulename));
+        //    char ext[FILE_MAX];
+        //    strcpy(ext, ".py");
+        //    char dest[FILE_MAX];
+        //    strcpy(dest, "");
+        //    char *classname;
+        //    char *pos = strrchr(modulename, '.');
+        //    if (pos) {
+        //      *pos = '\0';
+        //      classname = pos + 1;
+        //    }
+        //    strcat(dest, modulename);
+        //    strcat(dest, ext);
+        //    if (G_MAIN /* && G.file_loaded */) { // FIXME: Need to wait file has been completely read
+        //      LISTBASE_FOREACH (Text *, text, &G_MAIN->texts) {
+        //        if (strcmp(text->id.name + 2, dest) == 0) {
+        //          if (text->filepath == NULL) {  // Means the script is embedded
+        //            pc->module_script = text;
+        //          }
+        //          break;
+        //        }
+        //      }
+        //    }
+        //  }
+        //}
 
         func(controller, (ID **)&pc->module_script, userdata, IDWALK_CB_USER);
         func(controller, (ID **)&pc->text, userdata, IDWALK_CB_USER);
