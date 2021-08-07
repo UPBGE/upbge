@@ -150,24 +150,26 @@ KX_GameObject::~KX_GameObject()
     }
   }
 
-  KX_Scene *scene = GetScene();
+  if (m_pSGNode) {
+    KX_Scene *scene = GetScene();
 
-  if (scene->m_isRuntime) {
-    HideOriginalObject();
-    RemoveReplicaObject();
-  }
-  else {  // at scene exit
-    if (ob && strcmp(ob->id.name, "OBgame_default_cam") != 0) {
-      SetVisible(m_visibleAtGameStart, false);
+    if (scene->m_isRuntime) {
+      HideOriginalObject();
+      RemoveReplicaObject();
     }
-    RemoveReplicaObject();
+    else {  // at scene exit
+      if (ob && strcmp(ob->id.name, "OBgame_default_cam") != 0) {
+        SetVisible(m_visibleAtGameStart, false);
+      }
+      RemoveReplicaObject();
 
-    if (ob && ob->type == OB_MBALL) {
-      DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+      if (ob && ob->type == OB_MBALL) {
+        DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+      }
     }
-  }
 
-  GetScene()->GetBlenderSceneConverter()->UnregisterGameObject(this);
+    scene->GetBlenderSceneConverter()->UnregisterGameObject(this);
+  }
 
   /* END OF EEVEE INTEGRATION */
 
