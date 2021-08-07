@@ -1794,13 +1794,13 @@ void KX_GameObject::SetComponents(EXP_ListValue<KX_PythonComponent> *components)
 void KX_GameObject::Update()
 {
 #ifdef WITH_PYTHON
-  KX_PythonProxy::Update();
-
   if (m_components) {
     for (KX_PythonComponent *comp : m_components) {
       comp->Update();
     }
   }
+
+  KX_PythonProxy::Update();
 #endif  // WITH_PYTHON
 }
 
