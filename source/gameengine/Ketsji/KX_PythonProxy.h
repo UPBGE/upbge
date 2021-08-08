@@ -39,8 +39,6 @@ class KX_PythonProxy : public EXP_Value {
 
   PyObject *m_logger;
 
-  void ReleasePyRefs();
-
  public:
   KX_PythonProxy();
 
