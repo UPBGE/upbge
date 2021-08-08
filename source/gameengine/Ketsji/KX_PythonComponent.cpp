@@ -55,9 +55,8 @@ KX_PythonProxy *KX_PythonComponent::NewInstance()
 void KX_PythonComponent::ProcessReplica()
 {
   KX_PythonProxy::ProcessReplica();
-  m_gameobj = nullptr;
 
-  Reset();
+  m_gameobj = nullptr;
 }
 
 KX_GameObject *KX_PythonComponent::GetGameObject() const

@@ -42,7 +42,6 @@ KX_PythonProxy::KX_PythonProxy():
 KX_PythonProxy::~KX_PythonProxy()
 {
   Dispose();
-  Reset();
 }
 
 std::string KX_PythonProxy::GetName()
@@ -128,7 +127,10 @@ void KX_PythonProxy::ProcessReplica()
   EXP_Value::ProcessReplica();
 
   m_init = false;
-  ReleasePyRefs();
+
+  m_update = nullptr;
+  m_dispose = nullptr;
+  m_logger = nullptr;
 }
 
 void KX_PythonProxy::Dispose()
@@ -137,17 +139,6 @@ void KX_PythonProxy::Dispose()
     LogError("Failed to invoke the dispose callback.");
   }
 
-  ReleasePyRefs();
-}
-
-void KX_PythonProxy::Reset()
-{
-  m_init = false;
-  ReleasePyRefs();
-}
-
-void KX_PythonProxy::ReleasePyRefs()
-{
   Py_XDECREF(m_update);
   Py_XDECREF(m_dispose);
   Py_XDECREF(m_logger);
