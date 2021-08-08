@@ -368,4 +368,11 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *bmain)
       }
     }
   }
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 9)) {
+    if (!DNA_struct_elem_find(fd->filesdna, "GameData", "short", "logLevel")) {
+      LISTBASE_FOREACH (Scene *, sce, &bmain->scenes) {
+        sce->gm.logLevel = GAME_LOG_LEVEL_WARNING;
+      }
+    }
+  }
 }

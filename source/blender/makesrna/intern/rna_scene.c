@@ -5392,6 +5392,15 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
       {VSYNC_ADAPTIVE, "ADAPTIVE", 0, "Adaptive", "Enable adaptive vsync (if supported)"},
       {0, NULL, 0, NULL, NULL}};
 
+  static const EnumPropertyItem log_levels[] = {
+      {GAME_LOG_LEVEL_NOTSET, "NOTSET", 0, "Not Set", "Disable logging"},
+      {GAME_LOG_LEVEL_DEBUG, "DEBUG", 0, "Debug", "Print debug level messages and above"},
+      {GAME_LOG_LEVEL_INFO, "INFO", 0, "Info", "Print info level messages and above"},
+      {GAME_LOG_LEVEL_WARNING, "WARNING", 0, "Warning", "Print warning level messages and above"},
+      {GAME_LOG_LEVEL_ERROR, "ERROR", 0, "Error", "Print error level messages and above"},
+      {GAME_LOG_LEVEL_CRITICAL, "CRITICAL", 0, "Critical", "Print critical level messages"},
+      {0, NULL, 0, NULL, NULL}};
+
   srna = RNA_def_struct(brna, "SceneGameData", NULL);
   RNA_def_struct_sdna(srna, "GameData");
   RNA_def_struct_nested(brna, srna, "Scene");
@@ -5438,6 +5447,11 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_exit_key_set", NULL);
   RNA_def_property_ui_text(prop, "Exit Key", "The key that exits the Game Engine");
   RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "log_level", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "logLevel");
+  RNA_def_property_enum_items(prop, log_levels);
+  RNA_def_property_ui_text(prop, "Log Level", "Log level for the root logger");
 
   /* Do we need it here ? (since we already have it in World */
   prop = RNA_def_property(srna, "frequency", PROP_INT, PROP_NONE);

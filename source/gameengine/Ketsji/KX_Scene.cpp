@@ -77,6 +77,7 @@
 #include "KX_ObstacleSimulation.h"
 #include "KX_PhysicsEngineEnums.h"
 #include "KX_PyMath.h"
+#include "KX_PythonProxy.h"
 #include "PHY_IPhysicsController.h"
 #include "PHY_IPhysicsEnvironment.h"
 #include "RAS_BucketManager.h"
@@ -134,7 +135,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
                    Scene *scene,
                    class RAS_ICanvas *canvas,
                    KX_NetworkMessageManager *messageManager)
-    : EXP_Value(),
+    : KX_PythonProxy(),
       m_lastReplicatedParentObject(nullptr),  // eevee
       m_gameDefaultCamera(nullptr),           // eevee
       m_currentGPUViewport(nullptr),          // eevee
@@ -2719,6 +2720,11 @@ void KX_Scene::RunOnRemoveCallbacks()
   EXP_RunPythonCallBackList(list, args, 0, 1);
 }
 
+KX_Scene *KX_Scene::NewInstance()
+{
+  return new KX_Scene(*this);
+}
+
 //----------------------------------------------------------------------------
 // Python
 
@@ -3119,6 +3125,8 @@ PyAttributeDef KX_Scene::Attributes[] = {
     EXP_PYATTRIBUTE_FLOAT_RW(
         "activity_culling_radius", 0.5f, FLT_MAX, KX_Scene, m_activity_box_radius),
     EXP_PYATTRIBUTE_BOOL_RO("dbvt_culling", KX_Scene, m_dbvt_culling),
+    EXP_PYATTRIBUTE_RO_FUNCTION("logger", KX_Scene, KX_PythonProxy::pyattr_get_logger),
+    EXP_PYATTRIBUTE_RO_FUNCTION("loggerName", KX_Scene, KX_PythonProxy::pyattr_get_logger_name),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 

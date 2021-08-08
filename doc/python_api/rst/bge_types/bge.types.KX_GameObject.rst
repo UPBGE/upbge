@@ -531,7 +531,7 @@ base class --- :class:`SCA_IObject`
       If true, the object's and children's debug properties will be displayed on screen.
 
       :type: boolean
-      
+
    .. attribute:: currentLodLevel
 
       The index of the level of detail (LOD) currently used by this object (read-only).
@@ -552,15 +552,15 @@ base class --- :class:`SCA_IObject`
       A list of callables to run when the KX_GameObject is destroyed.
 
       .. code-block:: python
-      
+
          @gameobj.onRemove.append
          def callback(gameobj):
             print('exiting %s...' % gameobj.name)
 
       or
-      
+
       .. code-block:: python
-      
+
          cont = bge.logic.getCurrentController()
          gameobj = cont.owner
 
@@ -568,8 +568,27 @@ base class --- :class:`SCA_IObject`
             print('exiting' %s...' % gameobj.name)
 
          gameobj.onRemove.append(callback)
- 
+
       :type: list
+
+   .. attribute:: logger
+
+      A logger instance that can be used to log messages related to this object (read-only).
+
+      :type: logging.Logger
+
+   .. attribute:: loggerName
+
+      A name used to create the logger instance. By default, it takes the form *Type[Name]*
+      and can be optionally overridden as below:
+
+      .. code-block:: python
+
+         @property
+         def loggerName():
+            return "MyObject"
+
+      :type: str
 
    .. method:: endObject()
 

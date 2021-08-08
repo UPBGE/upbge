@@ -2145,7 +2145,8 @@ PyAttributeDef KX_GameObject::Attributes[] = {
     EXP_PYATTRIBUTE_RO_FUNCTION("scene", KX_GameObject, pyattr_get_scene),
     EXP_PYATTRIBUTE_RO_FUNCTION("life", KX_GameObject, pyattr_get_life),
     EXP_PYATTRIBUTE_RW_FUNCTION("mass", KX_GameObject, pyattr_get_mass, pyattr_set_mass),
-    EXP_PYATTRIBUTE_RW_FUNCTION("friction", KX_GameObject, pyattr_get_friction, pyattr_set_friction),
+    EXP_PYATTRIBUTE_RW_FUNCTION(
+        "friction", KX_GameObject, pyattr_get_friction, pyattr_set_friction),
     EXP_PYATTRIBUTE_RO_FUNCTION(
         "isSuspendDynamics", KX_GameObject, pyattr_get_is_suspend_dynamics),
     EXP_PYATTRIBUTE_RW_FUNCTION(
@@ -2244,6 +2245,9 @@ PyAttributeDef KX_GameObject::Attributes[] = {
     EXP_PYATTRIBUTE_RO_FUNCTION("controllers", KX_GameObject, pyattr_get_controllers),
     EXP_PYATTRIBUTE_RO_FUNCTION("actuators", KX_GameObject, pyattr_get_actuators),
     EXP_PYATTRIBUTE_RO_FUNCTION("components", KX_GameObject, pyattr_get_components),
+    EXP_PYATTRIBUTE_RO_FUNCTION("logger", KX_GameObject, KX_PythonProxy::pyattr_get_logger),
+    EXP_PYATTRIBUTE_RO_FUNCTION(
+        "loggerName", KX_GameObject, KX_PythonProxy::pyattr_get_logger_name),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 

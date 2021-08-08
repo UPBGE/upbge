@@ -857,7 +857,9 @@ typedef struct GameData {
   struct GameFraming framing;
   short playerflag, xplay, yplay, freqplay;
   short depth, attrib, rt1, rt2;
-  short aasamples, samples_per_frame, _pad4[2];
+  short aasamples, samples_per_frame, _pad4;
+
+  short logLevel;
 
   /* stereo */
   short stereoflag, stereomode;
@@ -964,6 +966,14 @@ enum {
 
 /* GameData.lodflag */
 #define SCE_LOD_USE_HYST (1 << 0)
+
+/* GameData.logLevel */
+#define GAME_LOG_LEVEL_NOTSET 0
+#define GAME_LOG_LEVEL_DEBUG 10
+#define GAME_LOG_LEVEL_INFO 20
+#define GAME_LOG_LEVEL_WARNING 30
+#define GAME_LOG_LEVEL_ERROR 40
+#define GAME_LOG_LEVEL_CRITICAL 50
 
 /* UV Paint */
 /** #ToolSettings.uv_sculpt_settings */
