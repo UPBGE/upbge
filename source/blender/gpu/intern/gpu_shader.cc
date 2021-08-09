@@ -621,6 +621,6 @@ int GPU_shader_get_uniform_location_old(GPUShader *shader, const char *name)
   Shader *shad = reinterpret_cast<Shader *>(shader);
   return shad->shader_get_uniform_location_old(name);
 }
-/**********************End of Game engine*******************************/
+/**********************End of UPBGE*******************************/
 
 /** \} */

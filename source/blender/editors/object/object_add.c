@@ -2609,7 +2609,7 @@ static void object_data_convert_curve_to_mesh(Main *bmain, Depsgraph *depsgraph,
   BKE_object_free_modifiers(ob, 0);
 
   if (ob->type == OB_MESH) {
-    /* Game engine defaults for mesh objects */
+    /* UPBGE defaults for mesh objects */
     ob->body_type = OB_BODY_TYPE_STATIC;
     ob->gameflag = OB_PROP | OB_COLLISION;
   }

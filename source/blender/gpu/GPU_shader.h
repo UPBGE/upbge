@@ -382,13 +382,13 @@ typedef enum eGPUBuiltinShader {
   GPU_SHADER_2D_UV_EDGES_SMOOTH,
   GPU_SHADER_2D_UV_FACES,
   GPU_SHADER_2D_UV_FACES_STRETCH_AREA,
-  /**********Game engine***********/
+  /**********UPBGE***********/
   GPU_SHADER_DRAW_FRAME_BUFFER,
   GPU_SHADER_BLACK,
   GPU_SHADER_BLACK_INSTANCING,
   GPU_SHADER_STEREO_STIPPLE,
   GPU_SHADER_STEREO_ANAGLYPH,
-  /*******End of Game engine*******/
+  /*******End of UPBGE*******/
   GPU_SHADER_2D_UV_FACES_STRETCH_ANGLE,
 } eGPUBuiltinShader;
 #define GPU_SHADER_BUILTIN_LEN (GPU_SHADER_2D_UV_FACES_STRETCH_ANGLE + 1)
@@ -428,14 +428,14 @@ void GPU_shader_free_builtin_shaders(void);
 /* Determined by the maximum uniform buffer size divided by chunk size. */
 #define GPU_MAX_UNIFORM_ATTR 8
 
-/******************************************Game engine*****************************************/
+/******************************************UPBGE*****************************************/
 void GPU_shader_force_unbind(void);
 char *GPU_shader_validate(GPUShader *shader);
 void GPU_shader_bind_attributes(GPUShader *shader, int *locations, const char **names, int len);
 // GPU_shader_get_uniform doesn't handle array uniforms e.g: uniform vec2
 // bgl_TextureCoordinateOffset[9];
 int GPU_shader_get_uniform_location_old(GPUShader *shader, const char *name);
-/****************************************End of Game engine************************************/
+/****************************************End of UPBGE************************************/
 
 #ifdef __cplusplus
 }

@@ -443,7 +443,7 @@ typedef struct Object {
   /** Runtime evaluation data (keep last). */
   Object_Runtime runtime;
 
-  /************Game engine**************/
+  /************UPBGE**************/
 
   /** Contains data for levels of detail. */
   ListBase lodlevels;
@@ -520,7 +520,7 @@ typedef struct Object {
   float ccd_motion_threshold;
   float ccd_swept_sphere_radius;
 
-  /********End of Game engine***********/
+  /********End of UPBGE***********/
 
 } Object;
 
@@ -551,10 +551,10 @@ typedef struct ObHook {
 
 /* **************** OBJECT ********************* */
 
-/***********Game engine****************/
+/***********UPBGE****************/
 /* dynamode */
 #define OB_FH_NOR 2
-/********End of Game engine************/
+/********End of UPBGE************/
 
 /* used many places, should be specialized. */
 #define SELECT 1

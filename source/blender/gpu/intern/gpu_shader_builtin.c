@@ -133,12 +133,12 @@ extern char datatoc_gpu_shader_cfg_world_clip_lib_glsl[];
 
 extern char datatoc_gpu_shader_colorspace_lib_glsl[];
 
-/********************Game engine*********************/
+/********************UPBGE*********************/
 extern char datatoc_gpu_shader_black_frag_glsl[];
 extern char datatoc_gpu_shader_black_vert_glsl[];
 extern char datatoc_gpu_shader_frame_buffer_frag_glsl[];
 extern char datatoc_gpu_shader_frame_buffer_vert_glsl[];
-/*****************End of Game engine*****************/
+/*****************End of UPBGE*****************/
 
 const struct GPUShaderConfigData GPU_shader_cfg_data[GPU_SHADER_CFG_LEN] = {
     [GPU_SHADER_CFG_DEFAULT] =

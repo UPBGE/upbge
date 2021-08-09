@@ -419,7 +419,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     sce->gm.scehysteresis = 10;
   }
   for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
-    /* Game engine defaults*/
+    /* UPBGE defaults*/
     ob->mass = ob->inertia = 1.0f;
     ob->formfactor = 0.4f;
     ob->damping = 0.04f;

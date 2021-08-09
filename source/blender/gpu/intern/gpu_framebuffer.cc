@@ -718,7 +718,7 @@ void GPU_offscreen_viewport_data_get(GPUOffScreen *ofs,
   *r_depth = ofs->depth;
 }
 
-/**************Game engine****************/
+/**************UPBGE****************/
 
 int GPU_framebuffer_color_bindcode(GPUFrameBuffer *fb)
 {
@@ -751,6 +751,6 @@ void GPU_framebuffer_unmipmap_texture(GPUFrameBuffer *fb)
   GPUTexture *tex = GPU_framebuffer_color_texture(fb);
   GPU_texture_mipmap_mode(tex, false, false);
 }
-/************End of Game engine***********/
+/************End of UPBGE***********/
 
 /** \} */

@@ -3281,8 +3281,7 @@ void DRW_draw_state_init_gtests(eGPUShaderConfig sh_cfg)
 
 /** \} */
 
-/***********************************Game engine
- * transition*******************************************/
+/****************UPBGE**************************/
 
 #include "BKE_camera.h"
 #include "BKE_main.h"
