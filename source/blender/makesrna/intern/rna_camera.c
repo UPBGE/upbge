@@ -627,12 +627,14 @@ void RNA_def_camera(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Shift Y", "Camera vertical shift");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
+  /* UPBGE */
   prop = RNA_def_property(srna, "lod_factor", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "lodfactor");
   RNA_def_property_range(prop, 0.0f, FLT_MAX);
   RNA_def_property_ui_text(
       prop, "Level of Detail Distance Factor", "The factor applied to distance computed in Lod");
   RNA_def_property_update(prop, NC_OBJECT | ND_LOD, NULL);
+  /*********/
 
   /* Stereo Settings */
   prop = RNA_def_property(srna, "stereo", PROP_POINTER, PROP_NONE);
@@ -690,7 +692,7 @@ void RNA_def_camera(BlenderRNA *brna)
       prop, "Display Background Images", "Display reference images behind objects in the 3D View");
   RNA_def_property_update(prop, NC_CAMERA | ND_DRAW_RENDER_VIEWPORT, NULL);
 
-  /* Game engine transition */
+  /* UPBGE */
   prop = RNA_def_property(srna, "use_overlay_mouse_control", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", CAM_GAME_OVERLAY_MOUSE_CONTROL);
   RNA_def_property_ui_text(prop,

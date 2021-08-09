@@ -62,12 +62,12 @@ void BKE_mesh_runtime_verttri_from_looptri(struct MVertTri *r_verttri,
  * They should also be renamed to use conventions from BKE, not old DerivedMesh.cc.
  * For now keep the names similar to avoid confusion. */
 
-/* Game engine transition */
+/* UPBGE */
 struct DerivedMesh *mesh_get_derived_final(struct Depsgraph *depsgraph,
                                            struct Scene *scene,
                                            struct Object *ob,
                                            const struct CustomData_MeshMasks *dataMask);
-/* End of  Game engine transition */
+/* End of  UPBGE */
 
 struct Mesh *mesh_get_eval_final(struct Depsgraph *depsgraph,
                                  struct Scene *scene,

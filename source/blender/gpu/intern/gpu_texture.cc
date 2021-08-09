@@ -626,13 +626,13 @@ void GPU_samplers_update(void)
   GPUBackend::get()->samplers_update();
 }
 
-/***********************Game engine**************************/
+/***********************UPBGE**************************/
 void GPU_texture_set_opengl_bindcode(GPUTexture *tex, int bindcode)
 {
   Texture *t = reinterpret_cast<Texture *>(tex);
   t->gl_bindcode_set(bindcode);
 }
-/********************End of Game engine**********************/
+/********************End of UPBGE**********************/
 
 /** \} */
 

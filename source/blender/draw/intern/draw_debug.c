@@ -229,6 +229,8 @@ void drw_debug_init(void)
   DRW_debug_modelmat_reset();
 }
 
+/***************UPBGE***************/
+
 #include "BLF_api.h"
 #include "GPU_matrix.h"
 
@@ -371,3 +373,5 @@ void drw_debug_draw_bge(void)
   drw_debug_draw_boxes_bge();
   drw_debug_draw_text_bge();
 }
+
+/**********End of UPBGE*************/

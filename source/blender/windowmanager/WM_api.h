@@ -1072,10 +1072,10 @@ bool WM_xr_actionmap_binding_remove(XrActionMapItem *ami, XrActionMapBinding *am
 XrActionMapBinding *WM_xr_actionmap_binding_find(XrActionMapItem *ami, const char *name);
 #endif /* WITH_XR_OPENXR */
 
-/* Game engine transition */
+/* UPBGE */
 void WM_init_opengl_blenderplayer(struct Main *bmain, void *ghost_system, struct wmWindow *win);
 void *WM_opengl_context_create_blenderplayer(void *ghost_system);
-/* End of Game engine transition */
+/* End of UPBGE */
 
 #ifdef __cplusplus
 }

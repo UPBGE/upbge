@@ -443,7 +443,7 @@ typedef struct Object {
   /** Runtime evaluation data (keep last). */
   Object_Runtime runtime;
 
-  /************Game engine**************/
+  /************UPBGE**************/
 
   /** Contains data for levels of detail. */
   ListBase lodlevels;
@@ -520,7 +520,7 @@ typedef struct Object {
   float ccd_motion_threshold;
   float ccd_swept_sphere_radius;
 
-  /********End of Game engine***********/
+  /********End of UPBGE***********/
 
 } Object;
 
@@ -551,10 +551,10 @@ typedef struct ObHook {
 
 /* **************** OBJECT ********************* */
 
-/***********Game engine****************/
+/***********UPBGE****************/
 /* dynamode */
 #define OB_FH_NOR 2
-/********End of Game engine************/
+/********End of UPBGE************/
 
 /* used many places, should be specialized. */
 #define SELECT 1
@@ -645,7 +645,7 @@ enum {
   PARVERT3 = 6,
   PARBONE = 7,
 
-  /** Slow parenting - is not threadsafe and/or may give errors after jumping. */
+  /** Slow parenting - UPBGE: still used in game engine */
   PARSLOW = 16,
 
 };
@@ -668,7 +668,7 @@ enum {
   OB_TRANSFLAG_UNUSED_12 = 1 << 12, /* cleared */
   /* runtime constraints disable */
   OB_NO_CONSTRAINTS = 1 << 13,
-  OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY = 1 << 14,  // Game engine transition
+  OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY = 1 << 14,  // UPBGE
 
   OB_DUPLI = OB_DUPLIVERTS | OB_DUPLICOLLECTION | OB_DUPLIFACES | OB_DUPLIPARTS,
 };

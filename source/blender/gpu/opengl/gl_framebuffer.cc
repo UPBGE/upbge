@@ -495,7 +495,7 @@ void GLFrameBuffer::blit_to(
   context_->active_fb = dst;
 }
 
-/* Game engine transition */
+/* UPBGE */
 int GLFrameBuffer::get_bindcode()
 {
   return fbo_id_;

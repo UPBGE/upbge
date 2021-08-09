@@ -46,7 +46,7 @@ void EEVEE_shadows_cube_add(EEVEE_LightsInfo *linfo, EEVEE_Light *evli, Object *
     BLI_BITMAP_ENABLE(&linfo->sh_cube_update[0], linfo->cube_len);
   }
 
-  sh_data->nearf = max_ff(la->clipsta, 1e-8f);
+  sh_data->near = max_ff(la->clipsta, 1e-8f);
   sh_data->bias = max_ff(la->bias * 0.05f, 0.0f);
   eevee_contact_shadow_setup(la, sh_data);
 
@@ -103,8 +103,8 @@ bool EEVEE_shadows_cube_setup(EEVEE_LightsInfo *linfo, const EEVEE_Light *evli, 
 
   eevee_light_matrix_get(evli, cube_data->shadowmat);
 
-  shdw_data->farf = max_ff(sqrt(1.0f / evli->invsqrdist), 3e-4);
-  shdw_data->nearf = min_ff(shdw_data->nearf, shdw_data->farf - 1e-4);
+  shdw_data->far = max_ff(sqrt(1.0f / evli->invsqrdist), 3e-4);
+  shdw_data->near = min_ff(shdw_data->near, shdw_data->far - 1e-4);
 
   bool update = false;
 
@@ -189,8 +189,8 @@ void EEVEE_shadows_draw_cubemap(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata,
   EEVEE_Shadow *shdw_data = linfo->shadow_data + (int)evli->shadow_id;
   EEVEE_ShadowCube *cube_data = linfo->shadow_cube_data + (int)shdw_data->type_data_id;
 
-  eevee_ensure_cube_views(shdw_data->nearf,
-                          shdw_data->farf,
+  eevee_ensure_cube_views(shdw_data->near,
+                          shdw_data->far,
                           linfo->shadow_cube_size,
                           cube_data->shadowmat,
                           g_data->cube_views);

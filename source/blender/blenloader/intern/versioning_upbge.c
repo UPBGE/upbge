@@ -64,7 +64,7 @@
 
 void blo_do_versions_upbge(FileData *fd, Library *lib, Main *bmain)
 {
-  /* Game engine hack to force defaults in files saved in normal blender2.8 */
+  /* UPBGE hack to force defaults in files saved in normal blender2.8 */
   if (!DNA_struct_elem_find(fd->filesdna, "Scene", "GameData", "gm")) {
     for (Scene *sce = bmain->scenes.first; sce; sce = sce->id.next) {
       /* game data */
@@ -115,7 +115,7 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *bmain)
     }
 
     for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
-      /* Game engine defaults*/
+      /* UPBGE defaults*/
       ob->mass = ob->inertia = 1.0f;
       ob->formfactor = 0.4f;
       ob->damping = 0.04f;
@@ -159,7 +159,7 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *bmain)
       }
     }
   }
-  /* Game engine hack to force defaults in files saved in normal blender2.8 END */
+  /* UPBGE hack to force defaults in files saved in normal blender2.8 END */
 
   // printf("UPBGE: open file from versionfile: %i, subversionfile: %i\n", main->upbgeversionfile,
   // main->upbgesubversionfile);

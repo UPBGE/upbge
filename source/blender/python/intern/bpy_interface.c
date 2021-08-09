@@ -915,7 +915,7 @@ int text_check_identifier_nodigit_unicode(const uint ch)
   return (ch < 255 && text_check_identifier_nodigit((char)ch)) || Py_UNICODE_ISALPHA(ch);
 }
 
-/*************** Game engine transition *****************/
+/*************** UPBGE *****************/
 
 bool BPY_python_get_use_system_env(void)
 {
@@ -926,4 +926,4 @@ void BPY_python_rna_alloc_types(void)  // Just to call from blenderplayer
 {
   pyrna_alloc_types();
 }
-/*********** End of Game engine transition **************/
+/*********** End of UPBGE **************/

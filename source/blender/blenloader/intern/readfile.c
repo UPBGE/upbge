@@ -5949,7 +5949,7 @@ BlendFileData *blo_read_blendafterruntime(int file,
   return bfd;
 }
 
-/* Game engine transition */
+/* UPBGE */
 /* direct datablocks with global linking */
 void *BLO_read_get_new_globaldata_address(BlendLibReader *reader, const void *adr)
 {

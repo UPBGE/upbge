@@ -68,8 +68,6 @@
 
 #include "versioning_common.h"
 
-#include "wm_event_types.h"
-
 /* Make preferences read-only, use versioning_userdef.c. */
 #define U (*((const UserDef *)&U))
 
@@ -372,7 +370,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
  */
 void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 {
-  /*********************Game engine transition*********************/
+  /*********************UPBGE*********************/
   // WARNING: ALWAYS KEEP THIS IN BLO_update_defaults_startup_blend
   for (Scene *sce = bmain->scenes.first; sce; sce = sce->id.next) {
     /* game data */
@@ -421,7 +419,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     sce->gm.scehysteresis = 10;
   }
   for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
-    /* Game engine defaults*/
+    /* UPBGE defaults*/
     ob->mass = ob->inertia = 1.0f;
     ob->formfactor = 0.4f;
     ob->damping = 0.04f;
@@ -444,7 +442,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     ob->col_group = 0x01;
     ob->col_mask = 0xffff;
   }
-  /***********************End of Game engine transition**********************/
+  /***********************End of UPBGE**********************/
 
   /* For all app templates. */
   for (WorkSpace *workspace = bmain->workspaces.first; workspace; workspace = workspace->id.next) {

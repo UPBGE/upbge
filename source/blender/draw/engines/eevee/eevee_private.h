@@ -345,11 +345,11 @@ typedef struct EEVEE_PassList {
   struct DRWPass *lookdev_diffuse_pass;
   struct DRWPass *renderpass_pass;
 
-  /* Game engine transition */
+  /* UPBGE */
   struct DRWPass *smaa_edge_ps;
   struct DRWPass *smaa_weight_ps;
   struct DRWPass *smaa_resolve_ps;
-  /* End of Game engine transition */
+  /* End of UPBGE */
 } EEVEE_PassList;
 
 typedef struct EEVEE_FramebufferList {
@@ -414,11 +414,11 @@ typedef struct EEVEE_FramebufferList {
   struct GPUFrameBuffer *taa_history_fb;
   struct GPUFrameBuffer *taa_history_color_fb;
 
-  /* Game engine transition */
+  /* UPBGE */
   struct GPUFrameBuffer *smaa_fb;
   struct GPUFrameBuffer *smaa_edge_fb;
   struct GPUFrameBuffer *smaa_weight_fb;
-  /* End of Game engine transition */
+  /* End of UPBGE */
 } EEVEE_FramebufferList;
 
 typedef struct EEVEE_TextureList {
@@ -469,12 +469,12 @@ typedef struct EEVEE_TextureList {
   struct GPUTexture *color_double_buffer;
   struct GPUTexture *depth_double_buffer;
 
-  /* Game engine transition */
+  /* UPBGE */
   struct GPUTexture *history_buffer_tx;
   struct GPUTexture *depth_buffer_tx;
   struct GPUTexture *smaa_search_tx;
   struct GPUTexture *smaa_area_tx;
-  /* End of Game engine transition */
+  /* End of UPBGE */
 } EEVEE_TextureList;
 
 typedef struct EEVEE_StorageList {
@@ -519,7 +519,7 @@ typedef struct EEVEE_Light {
 #define LAMPTYPE_AREA_ELLIPSE 100.0f
 
 typedef struct EEVEE_Shadow {
-  float nearf, farf, bias, type_data_id;
+  float near, far, bias, type_data_id;
   float contact_dist, contact_bias, contact_spread, contact_thickness;
 } EEVEE_Shadow;
 
@@ -725,7 +725,7 @@ typedef enum EEVEE_EffectsFlag {
   EFFECT_VELOCITY_BUFFER = (1 << 12),     /* Not really an effect but a feature */
   EFFECT_TAA_REPROJECT = (1 << 13),       /* should be mutually exclusive with EFFECT_TAA */
   EFFECT_DEPTH_DOUBLE_BUFFER = (1 << 14), /* Not really an effect but a feature */
-  EFFECT_SMAA = (1 << 15),
+  EFFECT_SMAA = (1 << 15),                /* UPBGE */
 } EEVEE_EffectsFlag;
 
 typedef struct EEVEE_EffectsInfo {
@@ -1093,10 +1093,10 @@ typedef struct EEVEE_PrivateData {
   int render_timesteps;
   int render_sample_count_per_timestep;
 
-  /* Game engine transition */
+  /* UPBGE */
   struct GPUTexture *smaa_edge_tx;
   struct GPUTexture *smaa_weight_tx;
-  /* End of Game engine transition */
+  /* End of UPBGE */
 } EEVEE_PrivateData; /* Transient data */
 
 /* eevee_data.c */
@@ -1573,14 +1573,14 @@ static const float cubefacemat[6][4][4] = {
      {0.0f, 0.0f, 0.0f, 1.0f}},
 };
 
-/* Game engine transition */
+/* UPBGE */
 EEVEE_Data *EEVEE_engine_data_get(void);
 
 GPUShader *eevee_shader_antialiasing_get(int stage, int smaa_quality);
 int EEVEE_antialiasing_engine_init(EEVEE_Data *vedata);
 void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata);
 void EEVEE_antialiasing_draw_pass(EEVEE_Data *vedata);
-/* End of Game engine transition */
+/* End of UPBGE */
 
 #ifdef __cplusplus
 }

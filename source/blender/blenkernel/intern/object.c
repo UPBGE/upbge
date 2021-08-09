@@ -238,7 +238,7 @@ static void object_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const in
     BLI_addtail(&ob_dst->shader_fx, nfx);
   }
 
-  /* Game engine */
+  /* UPBGE */
   if (ob_src->custom_object) {
     ob_dst->custom_object = BKE_python_proxy_copy(ob_src->custom_object);
   }
@@ -323,7 +323,7 @@ static void object_free_data(ID *id)
     ob->mpath = NULL;
   }
 
-  /* Game engine */
+  /* UPBGE */
   if (ob->custom_object) {
     BKE_python_proxy_free(ob->custom_object);
   }
@@ -575,7 +575,7 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
   BKE_constraints_id_loop(&object->constraints, library_foreach_constraintObjectLooper, data);
   BKE_shaderfx_foreach_ID_link(object, library_foreach_shaderfxForeachIDLink, data);
 
-  /* Game engine */
+  /* UPBGE */
   BKE_sca_sensors_id_loop(&object->sensors, library_foreach_sensorsObjectLooper, data);
   BKE_sca_controllers_id_loop(&object->controllers, library_foreach_controllersObjectLooper, data);
   BKE_sca_actuators_id_loop(&object->actuators, library_foreach_actuatorsObjectLooper, data);
@@ -854,7 +854,7 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
     BLO_write_pointer_array(writer, ob->totcol, ob->mat);
     BLO_write_raw(writer, sizeof(char) * ob->totcol, ob->matbits);
 
-    /* Game engine */
+    /* UPBGE */
     write_properties(writer, &ob->prop);
     write_sensors(writer, &ob->sensors);
     write_controllers(writer, &ob->controllers);
@@ -1068,7 +1068,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
     }
   }
 
-  /* Game engine */
+  /* UPBGE */
   bProperty *prop;
   bSensor *sens;
   bController *cont;
@@ -1146,7 +1146,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
 
   BLO_read_list(reader, &ob->lodlevels);
   ob->currentlod = ob->lodlevels.first;
-  /* End of Game engine */
+  /* End of UPBGE */
 
   BLO_read_data_address(reader, &ob->fluidsimSettings); /* NT */
 
@@ -1364,7 +1364,7 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
     }
   }
 
-  /* Game engine */
+  /* UPBGE */
   for (bSensor *sens = ob->sensors.first; sens; sens = sens->next) {
     for (int a = 0; a < sens->totlinks; a++)
       sens->links[a] = BLO_read_get_new_globaldata_address(reader, sens->links[a]);
@@ -1516,7 +1516,7 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
       level->source = ob;
     }
   }
-  /* End of Game engine */
+  /* End of UPBGE */
 
   {
     FluidsimModifierData *fluidmd = (FluidsimModifierData *)BKE_modifiers_findby_type(
@@ -1663,7 +1663,7 @@ static void object_blend_read_expand(BlendExpander *expander, ID *id)
     BLO_expand(expander, psys->part);
   }
 
-  /* Game engine */
+  /* UPBGE */
   bSensor *sens;
   bController *cont;
   bActuator *act;
@@ -1765,7 +1765,7 @@ static void object_blend_read_expand(BlendExpander *expander, ID *id)
       BLO_expand(expander, level->source);
     }
   }
-  /* End of Game engine */
+  /* End of UPBGE */
 
   if (ob->pd) {
     BLO_expand(expander, ob->pd->tex);

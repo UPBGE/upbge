@@ -218,14 +218,14 @@ void GPU_framebuffer_push(GPUFrameBuffer *fb);
 GPUFrameBuffer *GPU_framebuffer_pop(void);
 uint GPU_framebuffer_stack_level_get(void);
 
-/********************Game engine*******************/
+/********************UPBGE*******************/
 void GPU_framebuffer_bind_all_attachments(GPUFrameBuffer *fb);
 int GPU_framebuffer_color_bindcode(GPUFrameBuffer *fb);
 struct GPUTexture *GPU_framebuffer_color_texture(GPUFrameBuffer *fb);
 struct GPUTexture *GPU_framebuffer_depth_texture(GPUFrameBuffer *fb);
 void GPU_framebuffer_mipmap_texture(GPUFrameBuffer *fb);
 void GPU_framebuffer_unmipmap_texture(GPUFrameBuffer *fb);
-/****************End of Game engine****************/
+/****************End of UPBGE****************/
 
 /* GPU OffScreen
  * - wrapper around frame-buffer and texture for simple off-screen drawing

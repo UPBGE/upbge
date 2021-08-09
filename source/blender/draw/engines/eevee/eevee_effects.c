@@ -102,16 +102,13 @@ void EEVEE_effects_init(EEVEE_ViewLayerData *sldata,
   effects->enabled_effects |= EEVEE_occlusion_init(sldata, vedata);
   effects->enabled_effects |= EEVEE_screen_raytrace_init(sldata, vedata);
 
-  /* Game engine transition */
+  /* UPBGE */
   effects->enabled_effects |= EEVEE_antialiasing_engine_init(vedata);
-  /* End of Game engine transition */
+  /* End of UPBGE */
 
-  /* Game engine transition: WARNING: Temp fix for shaky camera: See https://github.com/UPBGE/upbge/issues/1402 at the bottom */
-  if ((effects->enabled_effects & EFFECT_TAA) && effects->taa_current_sample > 1) {
-    /* Update matrices here because EEVEE_screen_raytrace_init can have reset the
-     * taa_current_sample. (See T66811) */
-    EEVEE_temporal_sampling_update_matrices(vedata);
-  }
+  /* Update matrices here because EEVEE_screen_raytrace_init can have reset the
+   * taa_current_sample. (See T66811) */
+  EEVEE_temporal_sampling_update_matrices(vedata);
 
   EEVEE_volumes_init(sldata, vedata);
   EEVEE_subsurface_init(sldata, vedata);
@@ -248,9 +245,9 @@ void EEVEE_effects_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
   DRWState downsample_write = DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_ALWAYS;
   DRWShadingGroup *grp;
 
-  /* Game engine transition */
+  /* UPBGE */
   EEVEE_antialiasing_cache_init(vedata);
-  /* End of Game engine transition */
+  /* End of UPBGE */
 
   /* Intel gpu seems to have problem rendering to only depth format.
    * Use color texture instead. */

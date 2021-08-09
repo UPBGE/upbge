@@ -35,7 +35,6 @@ extern "C" {
 #endif
 
 #include "BLI_compiler_attrs.h"
-#include "DNA_ID.h"
 
 typedef void (*DrawInfoFreeFP)(void *drawinfo);
 
@@ -93,6 +92,8 @@ struct ImBuf;
 struct PreviewImage;
 struct StudioLight;
 struct bGPDlayer;
+
+enum eIconSizes;
 
 void BKE_icons_init(int first_dyn_id);
 

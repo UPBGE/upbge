@@ -76,13 +76,13 @@ class GLShader : public Shader {
   /* DEPRECATED: Kept only because of BGL API. */
   int program_handle_get(void) const override;
 
-  /******************************************Game engine*****************************************/
+  /******************************************UPBGE*****************************************/
   char *shader_validate();
   void shader_bind_attributes(int *locations, const char **names, int len);
   // GPU_shader_get_uniform doesn't handle array uniforms e.g: uniform vec2
   // bgl_TextureCoordinateOffset[9];
   int shader_get_uniform_location_old(const char *name);
-  /****************************************End of Game engine************************************/
+  /****************************************End of UPBGE************************************/
 
  private:
   char *glsl_patch_get(GLenum gl_stage);

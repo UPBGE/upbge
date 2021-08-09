@@ -491,7 +491,7 @@ typedef struct DRWDebugSphere {
   float color[4];
 } DRWDebugSphere;
 
-/* Game engine transition */
+/* UPBGE */
 typedef struct DRWDebugText2D {
   struct DRWDebugText2D *next; /* linked list */
   char text[64];
@@ -506,7 +506,7 @@ typedef struct DRWDebugBox2D {
   float xsize;
   float ysize;
 } DRWDebugBox2D;
-/* End of Game engine transition */
+/* End of UPBGE */
 
 /* ------------- DRAW MANAGER ------------ */
 
@@ -611,14 +611,14 @@ typedef struct DRWManager {
     DRWDebugSphere *spheres;
   } debug;
 
-  /* Game engine transition */
+  /* UPBGE */
   struct {
     /* TODO(fclem) optimize: use chunks. */
     DRWDebugLine *lines;
     DRWDebugBox2D *boxes;
     DRWDebugText2D *texts;
   } debug_bge;
-  /* Game engine transition */
+  /* UPBGE */
 
 } DRWManager;
 
@@ -655,6 +655,6 @@ void drw_uniform_attrs_pool_update(struct GHash *table,
                                    struct Object *dupli_parent,
                                    struct DupliObject *dupli_source);
 
-/* Game engine transition */
+/* UPBGE */
 void drw_debug_draw_bge(void);
 /**************************/

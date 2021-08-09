@@ -73,7 +73,7 @@ extern char datatoc_gpu_shader_2D_nodelink_vert_glsl[];
 
 extern char datatoc_gpu_shader_3D_image_vert_glsl[];
 extern char datatoc_gpu_shader_image_frag_glsl[];
-extern char datatoc_gpu_shader_image_linear_frag_glsl[];  // Game engine transition
+extern char datatoc_gpu_shader_image_linear_frag_glsl[];  // UPBGE
 extern char datatoc_gpu_shader_image_overlays_merge_frag_glsl[];
 extern char datatoc_gpu_shader_image_overlays_stereo_merge_frag_glsl[];
 extern char datatoc_gpu_shader_image_color_frag_glsl[];
@@ -133,12 +133,12 @@ extern char datatoc_gpu_shader_cfg_world_clip_lib_glsl[];
 
 extern char datatoc_gpu_shader_colorspace_lib_glsl[];
 
-/********************Game engine*********************/
+/********************UPBGE*********************/
 extern char datatoc_gpu_shader_black_frag_glsl[];
 extern char datatoc_gpu_shader_black_vert_glsl[];
 extern char datatoc_gpu_shader_frame_buffer_frag_glsl[];
 extern char datatoc_gpu_shader_frame_buffer_vert_glsl[];
-/*****************End of Game engine*****************/
+/*****************End of UPBGE*****************/
 
 const struct GPUShaderConfigData GPU_shader_cfg_data[GPU_SHADER_CFG_LEN] = {
     [GPU_SHADER_CFG_DEFAULT] =
@@ -520,7 +520,7 @@ static const GPUShaderStages builtin_shader_stages[GPU_SHADER_BUILTIN_LEN] = {
             .frag = datatoc_gpu_shader_gpencil_stroke_frag_glsl,
         },
 
-    /********************Game engine transition *************/
+    /********************UPBGE *************/
     [GPU_SHADER_2D_IMAGE_LINEAR_TO_SRGB] =
         {
             .vert = datatoc_gpu_shader_2D_image_vert_glsl,
@@ -552,7 +552,7 @@ static const GPUShaderStages builtin_shader_stages[GPU_SHADER_BUILTIN_LEN] = {
             .vert = datatoc_gpu_shader_frame_buffer_vert_glsl,
             .frag = datatoc_gpu_shader_frame_buffer_frag_glsl,
         },
-    /************End of Game engine transition******************/
+    /************End of UPBGE******************/
 };
 
 GPUShader *GPU_shader_get_builtin_shader_with_config(eGPUBuiltinShader shader,

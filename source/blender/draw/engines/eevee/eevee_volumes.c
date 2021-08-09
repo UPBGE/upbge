@@ -168,7 +168,7 @@ void EEVEE_volumes_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
 
   if (do_taa) {
     if (!(scene_eval->eevee.flag &
-          SCE_EEVEE_VOLUMETRIC_BLENDING)) { /* Game engine transition, Force to use frostbite's
+          SCE_EEVEE_VOLUMETRIC_BLENDING)) { /* UPBGE, Force to use frostbite's
                                                paper solution to avoid ugly banding */
       common_data->vol_history_alpha = 0.0f;
     }

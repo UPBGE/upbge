@@ -77,7 +77,7 @@ class GLTexture : public Texture {
   static void samplers_free(void);
   static void samplers_update(void);
 
-  /* Game engine transition */
+  /* UPBGE */
   void gl_bindcode_set(int bindcode);
 
  protected:

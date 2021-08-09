@@ -1645,7 +1645,7 @@ eAutoPropButsReturn uiDefAutoButsRNA(uiLayout *layout,
 
 /* Links
  *
- * Game engine logic brick links. Non-functional currently in 2.5,
+ * UPBGE logic brick links. Non-functional currently in 2.5,
  * code to handle and draw these is disabled internally. */
 
 void UI_but_link_set(struct uiBut *but, void **poin, void ***ppoin, short *tot, int from, int to);

@@ -2470,7 +2470,7 @@ void WM_ghost_show_message_box(const char *title,
   GHOST_ShowMessageBox(g_system, title, message, help_label, continue_label, link, dialog_options);
 }
 
-/* Game engine transition */
+/* UPBGE */
 
 #include "WM_message.h"
 
@@ -2584,5 +2584,5 @@ void wm_window_ghostwindow_embedded_ensure(wmWindowManager *wm, wmWindow *win)
   /* needed here, because it's used before it reads userdef */
   WM_window_set_dpi(win);
 }
-/* End of Game engine transition */
+/* End of UPBGE */
 /** \} */

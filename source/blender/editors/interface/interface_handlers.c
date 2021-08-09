@@ -2232,7 +2232,7 @@ static uiLinkLine *ui_but_find_link(uiBut *from, uiBut *to)
   return NULL;
 }
 
-#include "DNA_object_types.h"  // Game engine transition
+#include "DNA_object_types.h"  // UPBGE
 /* XXX BAD BAD HACK, fixme later **************** */
 /* Try to add an AND Controller between the sensor and the actuator logic bricks and to connect
  * them all */

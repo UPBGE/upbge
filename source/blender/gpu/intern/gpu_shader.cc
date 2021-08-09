@@ -594,7 +594,7 @@ void GPU_shader_set_framebuffer_srgb_target(int use_srgb_to_linear)
   }
 }
 
-/********************Game engine transition*****************************/
+/********************UPBGE*****************************/
 void GPU_shader_force_unbind(void)
 {
   Context *ctx = Context::get();
@@ -621,6 +621,6 @@ int GPU_shader_get_uniform_location_old(GPUShader *shader, const char *name)
   Shader *shad = reinterpret_cast<Shader *>(shader);
   return shad->shader_get_uniform_location_old(name);
 }
-/**********************End of Game engine*******************************/
+/**********************End of UPBGE*******************************/
 
 /** \} */
