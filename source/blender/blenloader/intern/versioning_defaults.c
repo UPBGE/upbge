@@ -68,8 +68,6 @@
 
 #include "versioning_common.h"
 
-#include "wm_event_types.h"
-
 /* Make preferences read-only, use versioning_userdef.c. */
 #define U (*((const UserDef *)&U))
 
