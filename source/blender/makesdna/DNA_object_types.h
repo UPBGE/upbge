@@ -645,7 +645,7 @@ enum {
   PARVERT3 = 6,
   PARBONE = 7,
 
-  /** Slow parenting - is not threadsafe and/or may give errors after jumping. */
+  /** Slow parenting - UPBGE: still used in game engine */
   PARSLOW = 16,
 
 };
