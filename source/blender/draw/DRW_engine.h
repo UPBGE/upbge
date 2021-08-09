@@ -175,9 +175,9 @@ void DRW_deferred_shader_remove(struct GPUMaterial *mat);
 struct DrawDataList *DRW_drawdatalist_from_id(struct ID *id);
 void DRW_drawdata_free(struct ID *id);
 
-/* Game engine transition */
+/* UPBGE */
 void DRW_opengl_context_create_blenderplayer(void *syshandle, void *win);
-/* End of Game engine transition */
+/* End of UPBGE */
 
 #ifdef __cplusplus
 }

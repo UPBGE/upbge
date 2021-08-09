@@ -32,13 +32,13 @@ set(INC
   opengl
   ../blenkernel
   ../blenlib
-  ../blentranslation # Game engine transition
+  ../blentranslation # UPBGE
   ../bmesh
   ../draw
   ../imbuf
   ../makesdna
   ../makesrna
-  ../render # Game engine transition
+  ../render # UPBGE
 
   ../editors/include
 
@@ -225,7 +225,7 @@ data_to_c_simple(shaders/gpu_shader_2D_image_rect_vert.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_2D_image_multi_rect_vert.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_image_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_image_desaturate_frag.glsl SRC)
-data_to_c_simple(shaders/gpu_shader_image_linear_frag.glsl SRC) # Game engine transition
+data_to_c_simple(shaders/gpu_shader_image_linear_frag.glsl SRC) # UPBGE
 data_to_c_simple(shaders/gpu_shader_image_overlays_merge_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_image_overlays_stereo_merge_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_image_shuffle_color_frag.glsl SRC)

@@ -102,9 +102,9 @@ void EEVEE_effects_init(EEVEE_ViewLayerData *sldata,
   effects->enabled_effects |= EEVEE_occlusion_init(sldata, vedata);
   effects->enabled_effects |= EEVEE_screen_raytrace_init(sldata, vedata);
 
-  /* Game engine transition */
+  /* UPBGE */
   effects->enabled_effects |= EEVEE_antialiasing_engine_init(vedata);
-  /* End of Game engine transition */
+  /* End of UPBGE */
 
   /* Update matrices here because EEVEE_screen_raytrace_init can have reset the
    * taa_current_sample. (See T66811) */
@@ -245,9 +245,9 @@ void EEVEE_effects_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
   DRWState downsample_write = DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_ALWAYS;
   DRWShadingGroup *grp;
 
-  /* Game engine transition */
+  /* UPBGE */
   EEVEE_antialiasing_cache_init(vedata);
-  /* End of Game engine transition */
+  /* End of UPBGE */
 
   /* Intel gpu seems to have problem rendering to only depth format.
    * Use color texture instead. */

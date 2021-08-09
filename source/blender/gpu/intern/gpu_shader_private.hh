@@ -76,7 +76,7 @@ class Shader {
     return name;
   };
 
-  /* Game engine transition */
+  /* UPBGE */
   virtual char *shader_validate() = 0;
   virtual void shader_bind_attributes(int *locations, const char **names, int len) = 0;
   // GPU_shader_get_uniform doesn't handle array uniforms e.g: uniform vec2

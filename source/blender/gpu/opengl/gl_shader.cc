@@ -467,7 +467,7 @@ int GLShader::program_handle_get() const
   return (int)this->shader_program_;
 }
 
-/****************Game engine transition*************************/
+/****************UPBGE*************************/
 char *GLShader::shader_validate()
 {
   int stat = 0;
@@ -501,6 +501,6 @@ int GLShader::shader_get_uniform_location_old(const char *name)
   int loc = glGetUniformLocation(shader_program_, name);
   return loc;
 }
-/**************End of Game engine transition*************/
+/**************End of UPBGE*************/
 
 /** \} */

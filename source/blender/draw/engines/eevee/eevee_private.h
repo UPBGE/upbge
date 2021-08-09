@@ -345,11 +345,11 @@ typedef struct EEVEE_PassList {
   struct DRWPass *lookdev_diffuse_pass;
   struct DRWPass *renderpass_pass;
 
-  /* Game engine transition */
+  /* UPBGE */
   struct DRWPass *smaa_edge_ps;
   struct DRWPass *smaa_weight_ps;
   struct DRWPass *smaa_resolve_ps;
-  /* End of Game engine transition */
+  /* End of UPBGE */
 } EEVEE_PassList;
 
 typedef struct EEVEE_FramebufferList {
@@ -414,11 +414,11 @@ typedef struct EEVEE_FramebufferList {
   struct GPUFrameBuffer *taa_history_fb;
   struct GPUFrameBuffer *taa_history_color_fb;
 
-  /* Game engine transition */
+  /* UPBGE */
   struct GPUFrameBuffer *smaa_fb;
   struct GPUFrameBuffer *smaa_edge_fb;
   struct GPUFrameBuffer *smaa_weight_fb;
-  /* End of Game engine transition */
+  /* End of UPBGE */
 } EEVEE_FramebufferList;
 
 typedef struct EEVEE_TextureList {
@@ -469,12 +469,12 @@ typedef struct EEVEE_TextureList {
   struct GPUTexture *color_double_buffer;
   struct GPUTexture *depth_double_buffer;
 
-  /* Game engine transition */
+  /* UPBGE */
   struct GPUTexture *history_buffer_tx;
   struct GPUTexture *depth_buffer_tx;
   struct GPUTexture *smaa_search_tx;
   struct GPUTexture *smaa_area_tx;
-  /* End of Game engine transition */
+  /* End of UPBGE */
 } EEVEE_TextureList;
 
 typedef struct EEVEE_StorageList {
@@ -1093,10 +1093,10 @@ typedef struct EEVEE_PrivateData {
   int render_timesteps;
   int render_sample_count_per_timestep;
 
-  /* Game engine transition */
+  /* UPBGE */
   struct GPUTexture *smaa_edge_tx;
   struct GPUTexture *smaa_weight_tx;
-  /* End of Game engine transition */
+  /* End of UPBGE */
 } EEVEE_PrivateData; /* Transient data */
 
 /* eevee_data.c */
@@ -1573,14 +1573,14 @@ static const float cubefacemat[6][4][4] = {
      {0.0f, 0.0f, 0.0f, 1.0f}},
 };
 
-/* Game engine transition */
+/* UPBGE */
 EEVEE_Data *EEVEE_engine_data_get(void);
 
 GPUShader *eevee_shader_antialiasing_get(int stage, int smaa_quality);
 int EEVEE_antialiasing_engine_init(EEVEE_Data *vedata);
 void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata);
 void EEVEE_antialiasing_draw_pass(EEVEE_Data *vedata);
-/* End of Game engine transition */
+/* End of UPBGE */
 
 #ifdef __cplusplus
 }

@@ -1917,7 +1917,7 @@ wmWindow *ED_screen_window_find(const bScreen *screen, const wmWindowManager *wm
   return NULL;
 }
 
-/* Game engine transition: Simplified version of ED_screen_refresh.
+/* UPBGE: Simplified version of ED_screen_refresh.
  * It is used to set some SCREEN CONTEXT variables which are needed to run some
  * scripts using bpy operators from blenderplayer.
  */

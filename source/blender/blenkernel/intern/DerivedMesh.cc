@@ -3036,7 +3036,7 @@ MFace *DM_get_tessface_array(DerivedMesh *dm, bool *r_allocated)
   return mface;
 }
 
-/* Game engine transition */
+/* UPBGE */
 static void mesh_build_derived_data(struct Depsgraph *depsgraph,
                                     Scene *scene,
                                     Object *ob,
@@ -3128,4 +3128,4 @@ DerivedMesh *mesh_get_derived_final(struct Depsgraph *depsgraph,
   return cdDM_from_mesh_ex(BKE_object_get_evaluated_mesh(ob), CD_REFERENCE, &CD_MASK_MESH);
 }
 
-/* End of Game engine transition */
+/* End of UPBGE */

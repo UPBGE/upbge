@@ -112,7 +112,7 @@ void BPY_callback_wm_free(struct wmWindowManager *wm);
 const char *BPY_app_translations_py_pgettext(const char *msgctxt, const char *msgid);
 #endif
 
-/********** Game engine transition **********/
+/********** UPBGE **********/
 void BPY_python_rna_alloc_types(void);
 /********************************************/
 

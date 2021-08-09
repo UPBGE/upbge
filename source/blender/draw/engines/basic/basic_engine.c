@@ -102,7 +102,7 @@ static void basic_engine_init(void *UNUSED(vedata))
         .defs = (const char *[]){sh_cfg->def, NULL},
     });
 
-    if (!sh_data->depth_conservative) { /* Game Engine transition */
+    if (!sh_data->depth_conservative) { /* UPBGE */
 
       sh_data->depth_conservative = GPU_shader_create_from_arrays({
           .vert = (const char *[]){sh_cfg->lib,

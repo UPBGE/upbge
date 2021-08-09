@@ -807,7 +807,7 @@ void WM_script_tag_reload(void)
   UI_interface_tag_script_reload();
 }
 
-/* Game engine transition */
+/* UPBGE */
 void WM_init_opengl_blenderplayer(Main *bmain, void *ghost_system, wmWindow *win)
 {
   /* must be called only once */
@@ -824,4 +824,4 @@ void WM_init_opengl_blenderplayer(Main *bmain, void *ghost_system, wmWindow *win
 #endif
   opengl_is_init = true;
 }
-/* End of Game engine transition */
+/* End of UPBGE */

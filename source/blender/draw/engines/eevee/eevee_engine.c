@@ -360,9 +360,9 @@ static void eevee_draw_scene(void *vedata)
     GPU_framebuffer_blit(fbl->double_buffer_depth_fb, 0, dfbl->default_fb, 0, GPU_DEPTH_BIT);
   }
 
-  /* Game engine transition */
+  /* UPBGE */
   EEVEE_antialiasing_draw_pass(vedata);
-  /* End of Game engine transition */
+  /* End of UPBGE */
 
   EEVEE_renderpasses_draw_debug(vedata);
 

@@ -179,9 +179,9 @@ static struct {
     bNodeSocketValueRGBA *color_socket;
   } world;
 
-  /* Game engine transition */
+  /* UPBGE */
   struct GPUShader *smaa_sh[3];
-  /* End of Game engine transition */
+  /* End of UPBGE */
 } e_data = {NULL}; /* Engine data */
 
 extern char datatoc_common_hair_lib_glsl[];
@@ -281,7 +281,7 @@ extern char datatoc_volumetric_resolve_frag_glsl[];
 extern char datatoc_volumetric_scatter_frag_glsl[];
 extern char datatoc_volumetric_vert_glsl[];
 
-/* Game engine transition */
+/* UPBGE */
 extern char datatoc_common_smaa_lib_glsl[];
 extern char datatoc_effect_smaa_frag_glsl[];
 extern char datatoc_effect_smaa_vert_glsl[];
@@ -352,7 +352,7 @@ GPUShader *eevee_shader_antialiasing_get(int stage, int smaa_quality)
   return e_data.smaa_sh[stage];
 }
 
-/* End of Game engine transition */
+/* End of UPBGE */
 /* *********** FUNCTIONS *********** */
 
 static void eevee_shader_library_ensure(void)
@@ -1728,10 +1728,10 @@ void EEVEE_shaders_free(void)
     e_data.world.ntree = NULL;
   }
 
-  /* Game engine transition */
+  /* UPBGE */
   for (int j = 0; j < sizeof(e_data.smaa_sh) / sizeof(void *); j++) {
     struct GPUShader **sh_array = &e_data.smaa_sh[0];
     DRW_SHADER_FREE_SAFE(sh_array[j]);
   }
-  /* End of Game engine transition */
+  /* End of UPBGE */
 }

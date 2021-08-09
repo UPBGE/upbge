@@ -2603,8 +2603,8 @@ enum {
   SCE_EEVEE_OVERSCAN = (1 << 21),
   SCE_EEVEE_DOF_HQ_SLIGHT_FOCUS = (1 << 22),
   SCE_EEVEE_DOF_JITTER = (1 << 23),
-  SCE_EEVEE_SMAA = (1 << 24),                 // Game engine transition
-  SCE_EEVEE_VOLUMETRIC_BLENDING = (1 << 25),  // Game engine transition
+  SCE_EEVEE_SMAA = (1 << 24),                 // UPBGE
+  SCE_EEVEE_VOLUMETRIC_BLENDING = (1 << 25),  // UPBGE
 };
 
 /** #SceneEEVEE.shadow_method */

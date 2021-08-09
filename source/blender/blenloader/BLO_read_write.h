@@ -256,7 +256,7 @@ void BLO_reportf_wrap(struct BlendFileReadReport *reports,
                       const char *format,
                       ...) ATTR_PRINTF_FORMAT(3, 4);
 
-/* Game engine transition */
+/* UPBGE */
 void *BLO_read_get_new_globaldata_address(BlendLibReader *reader, const void *adr);
 /**************************/
 

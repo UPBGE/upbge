@@ -692,7 +692,7 @@ void RNA_def_camera(BlenderRNA *brna)
       prop, "Display Background Images", "Display reference images behind objects in the 3D View");
   RNA_def_property_update(prop, NC_CAMERA | ND_DRAW_RENDER_VIEWPORT, NULL);
 
-  /* Game engine transition */
+  /* UPBGE */
   prop = RNA_def_property(srna, "use_overlay_mouse_control", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", CAM_GAME_OVERLAY_MOUSE_CONTROL);
   RNA_def_property_ui_text(prop,

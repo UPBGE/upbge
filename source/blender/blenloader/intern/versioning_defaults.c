@@ -370,7 +370,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
  */
 void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 {
-  /*********************Game engine transition*********************/
+  /*********************UPBGE*********************/
   // WARNING: ALWAYS KEEP THIS IN BLO_update_defaults_startup_blend
   for (Scene *sce = bmain->scenes.first; sce; sce = sce->id.next) {
     /* game data */
@@ -442,7 +442,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     ob->col_group = 0x01;
     ob->col_mask = 0xffff;
   }
-  /***********************End of Game engine transition**********************/
+  /***********************End of UPBGE**********************/
 
   /* For all app templates. */
   for (WorkSpace *workspace = bmain->workspaces.first; workspace; workspace = workspace->id.next) {

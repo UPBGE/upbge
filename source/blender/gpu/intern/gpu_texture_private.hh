@@ -140,7 +140,7 @@ class Texture {
   /* TODO(fclem): Legacy. Should be removed at some point. */
   virtual uint gl_bindcode_get(void) const = 0;
 
-  /* Game engine transition */
+  /* UPBGE */
   virtual void gl_bindcode_set(int bindcode) = 0;
 
   int width_get(void) const

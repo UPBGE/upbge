@@ -190,7 +190,7 @@ struct Depsgraph;
 
 void BKE_sound_evaluate(struct Depsgraph *depsgraph, struct Main *bmain, struct bSound *sound);
 
-/* Game engine transition */
+/* UPBGE */
 void BKE_sound_load_no_assert(struct Main *main, struct bSound *sound);
 /**************************/
 

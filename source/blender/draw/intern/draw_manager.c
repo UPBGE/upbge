@@ -1342,13 +1342,13 @@ void DRW_notify_view_update(const DRWUpdateContext *update_ctx)
   for (int view = 0; view < 2; view++) {
     GPUViewport *viewport = WM_draw_region_get_viewport(region);
 
-    /* Game engine transition */
+    /* UPBGE */
     if (scene->flag & SCE_INTERACTIVE) {
       /* Hack to allow bge to use depsgraph to detect
        * all scene changes and notify drw_engine for redraw. */
       viewport = DRW_game_gpu_viewport_get();
     }
-    /* End of Game engine transition */
+    /* End of UPBGE */
 
     if (!viewport) {
       continue;
@@ -1447,7 +1447,7 @@ void DRW_draw_callbacks_post_scene(void)
 
     drw_debug_draw();
 
-    /* Game engine transition */
+    /* UPBGE */
     drw_debug_draw_bge();
     GPU_matrix_projection_set(rv3d->winmat);
     GPU_matrix_set(rv3d->viewmat);
@@ -1472,7 +1472,7 @@ void DRW_draw_callbacks_post_scene(void)
     GPU_depth_test(GPU_DEPTH_NONE);
     drw_engines_draw_text();
 
-    /* Game engine transition */
+    /* UPBGE */
     Scene *orig_scene = (Scene *)DEG_get_original_id(&DST.draw_ctx.scene->id);
     if (!(orig_scene->flag & SCE_IS_BLENDERPLAYER)) {
       DRW_draw_region_info();
@@ -1528,7 +1528,7 @@ struct DRWTextStore *DRW_text_cache_ensure(void)
 /** \name Main Draw Loops (DRW_draw)
  * \{ */
 
-/* Game engine transition */
+/* UPBGE */
 static void update_lods(Depsgraph *depsgraph, Scene *scene, Object *ob_eval, float camera_pos[3])
 {
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
@@ -1540,7 +1540,7 @@ static void update_lods(Depsgraph *depsgraph, Scene *scene, Object *ob_eval, flo
     ob_eval->data = DEG_get_evaluated_object(depsgraph, lod_ob)->data;
   }
 }
-/* End of Game engine transition */
+/* End of UPBGE */
 
 /* Everything starts here.
  * This function takes care of calling all cache and rendering functions
@@ -1653,9 +1653,9 @@ void DRW_draw_render_loop_ex(struct Depsgraph *depsgraph,
           continue;
         }
 
-        /* Game engine transition */
+        /* UPBGE */
         update_lods(depsgraph, scene, ob, DST.draw_ctx.rv3d->viewinv[3]);
-        /* End of Game engine transition */
+        /* End of UPBGE */
 
         DST.dupli_parent = data_.dupli_parent;
         DST.dupli_source = data_.dupli_object_current;
@@ -3063,7 +3063,7 @@ void DRW_engines_free(void)
 
   if (DST.draw_list) {
     GPU_draw_list_discard(DST.draw_list);
-    DST.draw_list = NULL; /* Game Engine transition */
+    DST.draw_list = NULL; /* UPBGE */
   }
 
   DRW_opengl_context_disable();
@@ -3627,4 +3627,4 @@ GPUViewport *DRW_game_gpu_viewport_get()
   return current_game_viewport;
 }
 
-/***************************End of Game engine transition***************************/
+/***************************End of UPBGE***************************/

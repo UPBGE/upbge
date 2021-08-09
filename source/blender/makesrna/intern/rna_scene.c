@@ -7715,7 +7715,7 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
-  /* Game engine transition */
+  /* UPBGE */
   prop = RNA_def_property(srna, "use_eevee_smaa", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", SCE_EEVEE_SMAA);
   RNA_def_property_ui_text(prop, "SMAA", "Enhanced Subpixel Morphological Antialiasing");
@@ -7729,7 +7729,7 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
                            "SMAA quality presets");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
-  /* Game engine transition */
+  /* UPBGE */
 
   /* Screen Space Subsurface Scattering */
   prop = RNA_def_property(srna, "sss_samples", PROP_INT, PROP_NONE);
@@ -7839,14 +7839,14 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
-  /* Game engine transition */
+  /* UPBGE */
   prop = RNA_def_property(srna, "use_volumetric_blending", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", SCE_EEVEE_VOLUMETRIC_BLENDING);
   RNA_def_property_ui_text(
       prop, "Volumetric Blending", "Enable volumes blending with previous frame");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
-  /* End of Game engine transition */
+  /* End of UPBGE */
 
   prop = RNA_def_property(srna, "volumetric_light_clamp", PROP_FLOAT, PROP_NONE);
   RNA_def_property_range(prop, 0.0f, FLT_MAX);

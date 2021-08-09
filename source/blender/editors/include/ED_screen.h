@@ -458,7 +458,7 @@ typedef enum eScreenCycle {
   SPACE_CONTEXT_CYCLE_NEXT,
 } eScreenCycle;
 
-/* Game engine transition */
+/* UPBGE */
 void ED_screen_refresh_blenderplayer(struct wmWindow *win);
 /**************************/
 

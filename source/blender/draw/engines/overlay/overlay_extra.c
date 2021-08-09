@@ -436,7 +436,7 @@ static void OVERLAY_bounds(OVERLAY_ExtraCallBuffers *cb,
   }
 }
 
-/* Game engine transition */
+/* UPBGE */
 static void OVERLAY_pivot(OVERLAY_ExtraCallBuffers *cb, Object *ob, int theme_id)
 {
   float color[4], tmp[4][4];
@@ -458,7 +458,7 @@ static void OVERLAY_pivot(OVERLAY_ExtraCallBuffers *cb, Object *ob, int theme_id
     }
   }
 }
-/* End of Game engine transition */
+/* End of UPBGE */
 
 static void OVERLAY_collision(OVERLAY_ExtraCallBuffers *cb, Object *ob, const float *color)
 {
@@ -1648,7 +1648,7 @@ void OVERLAY_extra_cache_populate(OVERLAY_Data *vedata, Object *ob)
     if (ob->rigidbody_object != NULL) {
       OVERLAY_collision(cb, ob, color);
     }
-    if (ob->constraints.first) { /* Game engine transition */
+    if (ob->constraints.first) { /* UPBGE */
       OVERLAY_pivot(cb, ob, theme_id);
     }
     if (ob->dtx & OB_AXIS) {
