@@ -3988,8 +3988,8 @@ static void rna_def_object(BlenderRNA *brna)
                            "parent instead");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_internal_update");
 
-  /* slow parenting */
-  /* XXX: evil old crap */
+  /* slow parenting  UPBGE */
+  /* XXX: evil old crap (still used in ge :p)*/
   prop = RNA_def_property(srna, "use_slow_parent", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "partype", PARSLOW);
   RNA_def_property_ui_text(
@@ -4004,6 +4004,7 @@ static void rna_def_object(BlenderRNA *brna)
   RNA_def_property_range(prop, MINAFRAMEF, MAXFRAMEF);
   RNA_def_property_ui_text(prop, "Slow Parent Offset", "Delay in the parent relationship");
   RNA_def_property_update(prop, NC_OBJECT | ND_TRANSFORM, "rna_Object_internal_update");
+  /*************************/
 
   /* Track and Up flags */
   /* XXX: these have been saved here for a bit longer (after old track was removed),
