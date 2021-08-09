@@ -519,7 +519,7 @@ typedef struct EEVEE_Light {
 #define LAMPTYPE_AREA_ELLIPSE 100.0f
 
 typedef struct EEVEE_Shadow {
-  float nearf, farf, bias, type_data_id;
+  float near, far, bias, type_data_id;
   float contact_dist, contact_bias, contact_spread, contact_thickness;
 } EEVEE_Shadow;
 

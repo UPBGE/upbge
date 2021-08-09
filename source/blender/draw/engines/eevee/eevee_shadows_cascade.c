@@ -378,8 +378,8 @@ static void eevee_shadow_cascade_setup(EEVEE_LightsInfo *linfo,
 
   /* Bias is in clip-space, divide by range. */
   shdw_data->bias = csm_render->original_bias * 0.05f / fabsf(sh_far - sh_near);
-  shdw_data->nearf = sh_near;
-  shdw_data->farf = sh_far;
+  shdw_data->near = sh_near;
+  shdw_data->far = sh_far;
 }
 
 static void eevee_ensure_cascade_views(EEVEE_ShadowCascadeRender *csm_render,
