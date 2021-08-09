@@ -1005,6 +1005,9 @@ static const char arg_handle_debug_mode_generic_set_doc_depsgraph_no_threads[] =
 static const char arg_handle_debug_mode_generic_set_doc_depsgraph_pretty[] =
     "\n\t"
     "Enable colors for dependency graph debug messages.";
+static const char arg_handle_debug_mode_generic_set_doc_depsgraph_uuid[] =
+    "\n\t"
+    "Verify validness of session-wide identifiers assigned to ID datablocks.";
 static const char arg_handle_debug_mode_generic_set_doc_gpu_force_workarounds[] =
     "\n\t"
     "Enable workarounds for typical GPU issues and disable all GPU extensions.";
@@ -2283,7 +2286,7 @@ void main_args_setup(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
   BLI_args_add(ba,
                NULL,
                "--debug-depsgraph-uuid",
-               CB_EX(arg_handle_debug_mode_generic_set, depsgraph_build),
+               CB_EX(arg_handle_debug_mode_generic_set, depsgraph_uuid),
                (void *)G_DEBUG_DEPSGRAPH_UUID);
   BLI_args_add(ba,
                NULL,
