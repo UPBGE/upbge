@@ -127,7 +127,6 @@
 #include "IMB_imbuf.h"
 
 #include "bmesh.h"
-#include "wm_event_types.h"
 
 static void scene_init_data(ID *id)
 {
