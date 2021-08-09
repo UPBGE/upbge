@@ -4632,7 +4632,7 @@ static void rna_def_object(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Dynamic Topology Sculpting", NULL);
 
-  /* Levels of Detail */
+  /* Levels of Detail UPBGE */
   prop = RNA_def_property(srna, "lod_levels", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_collection_sdna(prop, NULL, "lodlevels", NULL);
   RNA_def_property_struct_type(prop, "LodLevel");
