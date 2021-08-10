@@ -219,6 +219,13 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 #endif
 
   /**************EEVEE INTEGRATION******************/
+
+  /* 2.8+: Always set scene->lay to 1
+   * to avoid potential conversion issues:
+   * https://github.com/UPBGE/upbge/issues/1525
+   */
+  scene->lay = 1;
+
   m_kxobWithLod = {};
   m_obRestrictFlags = {};
 
