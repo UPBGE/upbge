@@ -1055,7 +1055,7 @@ context_type_map = {
     "annotation_data": ("GreasePencil", False),
     "annotation_data_owner": ("ID", False),
     "armature": ("Armature", False),
-    "asset_library": ("AssetLibraryReference", False),
+    "asset_library_ref": ("AssetLibraryReference", False),
     "bone": ("Bone", False),
     "brush": ("Brush", False),
     "camera": ("Camera", False),
