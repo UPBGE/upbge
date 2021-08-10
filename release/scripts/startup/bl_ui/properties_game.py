@@ -19,6 +19,16 @@
 # <pep8 compliant>
 from bpy.types import Panel, Menu
 
+import re
+
+
+PascalCasePattern = r"((?<=[a-z])[A-Z]|(?<!\A)[A-Z](?=[a-z]))"
+
+ReplacementPattern = r" \1"
+
+def split_pascal_case(text):
+    return re.sub(PascalCasePattern, ReplacementPattern, text)
+
 
 class GameButtonsPanel:
     bl_space_type = 'PROPERTIES'
@@ -50,7 +60,7 @@ class GAME_PT_game_object(GameButtonsPanel, Panel):
             row = box.row()
 
             row.prop(obj, "show_expanded", text="", emboss=False)
-            row.label(text=obj.name)
+            row.label(text=split_pascal_case(obj.name))
 
             row.operator("logic.custom_object_reload", text="", icon="RECOVER_LAST")
             row.operator("logic.custom_object_remove", text="", icon="X")
@@ -59,7 +69,7 @@ class GAME_PT_game_object(GameButtonsPanel, Panel):
                 box = box.box()
                 for prop in obj.properties:
                     row = box.row()
-                    row.label(text=prop.name)
+                    row.label(text=split_pascal_case(prop.name))
                     col = row.column()
                     col.prop(prop, "value", text="")
         else:
@@ -91,7 +101,7 @@ class GAME_PT_game_components(GameButtonsPanel, Panel):
             row = box.row()
 
             row.prop(c, "show_expanded", text="", emboss=False)
-            row.label(text=c.name)
+            row.label(text=split_pascal_case(c.name))
             row.context_pointer_set("component", c)
             row.menu("GAME_MT_component_context_menu", icon="DOWNARROW_HLT", text="")
 
@@ -101,7 +111,7 @@ class GAME_PT_game_components(GameButtonsPanel, Panel):
                 box = box.box()
                 for prop in c.properties:
                     row = box.row()
-                    row.label(text=prop.name)
+                    row.label(text=split_pascal_case(prop.name))
                     col = row.column()
                     col.prop(prop, "value", text="")
 
