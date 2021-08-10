@@ -675,7 +675,7 @@ See :class:`bge.types.BL_ActionActuator`
 Armature Actuator
 -----------------
 
- .. _armatureactuator-constants-type:
+.. _armatureactuator-constants-type:
    
 See :class:`bge.types.BL_ArmatureActuator.type`
 
