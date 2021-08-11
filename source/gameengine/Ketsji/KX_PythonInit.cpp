@@ -66,6 +66,7 @@
 #  include "bpy_intern_string.h"
 #  include "bpy_internal_import.h" /* from the blender python api, but we want to import text too! */
 #  include "bpy_path.h"
+#  include "bpy_rna.h"
 #  include "gpu/gpu_py_api.h"
 #  include "idprop_py_api.h"
 #  include "imbuf_py_api.h"
@@ -2226,6 +2227,9 @@ void postInitGamePlayerPythonScripting(
   if (first_time) {
 
     bpy_intern_string_init();
+
+    BPY_rna_init();
+
     BPy_init_modules(C);
 
     BPY_python_rna_alloc_types();
