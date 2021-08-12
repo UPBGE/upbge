@@ -1388,8 +1388,8 @@ int file_highlight_set(SpaceFile *sfile, ARegion *region, int mx, int my)
   FileSelectParams *params;
   int numfiles, origfile;
 
-  /* In case blender starts where the mouse is over a File broser, this operator can be invoked
-   * when the sfile or sfile->layout isn't initialized yet. */
+  /* In case blender starts where the mouse is over a File browser,
+   * this operator can be invoked when the `sfile` or `sfile->layout` isn't initialized yet. */
   if (sfile == NULL || sfile->files == NULL || sfile->layout == NULL) {
     return 0;
   }
@@ -2540,7 +2540,7 @@ void file_directory_enter_handle(bContext *C, void *UNUSED(arg_unused), void *UN
 
       /* don't do for now because it selects entire text instead of
        * placing cursor at the end */
-      /* UI_textbutton_activate_but(C, but); */
+      // UI_textbutton_activate_but(C, but);
     }
 #if defined(WIN32)
     else if (!can_create_dir(params->dir)) {
