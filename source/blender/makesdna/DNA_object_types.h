@@ -521,6 +521,8 @@ typedef struct Object {
   float ccd_motion_threshold;
   float ccd_swept_sphere_radius;
 
+  void *_pad54;
+
   /********End of UPBGE***********/
 
 } Object;

@@ -843,7 +843,7 @@ typedef struct RecastData {
   float detailsamplemaxerror;
   char partitioning;
   char _pad1;
-  short _pad2;
+  short _pad2[5];
 } RecastData;
 
 /* RecastData.partitioning */
@@ -898,6 +898,7 @@ typedef struct GameData {
   /* Scene LoD */
   short lodflag, _pad3;
   int scehysteresis;
+  void *_pad10;
 } GameData;
 
 /* GameData.stereoflag */
@@ -1777,8 +1778,6 @@ typedef struct SceneEEVEE {
   int sss_samples;
   float sss_jitter_threshold;
 
-  int smaa_quality, _pad[1]; // UPBGE
-
   float ssr_quality;
   float ssr_max_roughness;
   float ssr_thickness;
@@ -1827,6 +1826,9 @@ typedef struct SceneEEVEE {
 
   float overscan;
   float light_threshold;
+
+  int smaa_quality, _pad[3];  // UPBGE
+
 } SceneEEVEE;
 
 typedef struct SceneGpencil {
@@ -1969,6 +1971,8 @@ typedef struct Scene {
   struct SceneDisplay display;
   struct SceneEEVEE eevee;
   struct SceneGpencil grease_pencil_settings;
+
+  void *_pad10;
 } Scene;
 
 /* **************** RENDERDATA ********************* */

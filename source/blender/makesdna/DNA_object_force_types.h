@@ -241,6 +241,7 @@ typedef struct BulletSoftBody {
   int bending_dist;         /* Bending constraint distance */
   float welding;            /* welding limit to remove duplicate/nearby vertices, 0.0..0.01 */
   float margin;             /* margin specific to softbody */
+  int _pad;
 } BulletSoftBody;
 
 /* BulletSoftBody.flag */
