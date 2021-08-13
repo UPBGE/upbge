@@ -43,6 +43,14 @@ struct bGPDlayer;
 /* draw simple diamond-shape keyframe */
 /* caller should set up vertex format, bind GPU_SHADER_KEYFRAME_DIAMOND,
  * immBegin(GPU_PRIM_POINTS, n), then call this n times */
+typedef struct KeyframeShaderBindings {
+  uint pos_id;
+  uint size_id;
+  uint color_id;
+  uint outline_color_id;
+  uint flags_id;
+} KeyframeShaderBindings;
+
 void draw_keyframe_shape(float x,
                          float y,
                          float size,
@@ -50,11 +58,7 @@ void draw_keyframe_shape(float x,
                          short key_type,
                          short mode,
                          float alpha,
-                         unsigned int pos_id,
-                         unsigned int size_id,
-                         unsigned int color_id,
-                         unsigned int outline_color_id,
-                         unsigned int flags_id,
+                         const KeyframeShaderBindings *sh_bindings,
                          short handle_type,
                          short extreme_type);
 
@@ -99,13 +103,6 @@ void draw_scene_channel(struct AnimKeylistDrawList *draw_list,
 /* DopeSheet Summary */
 void draw_summary_channel(struct AnimKeylistDrawList *draw_list,
                           struct bAnimContext *ac,
-                          float ypos,
-                          float yscale_fac,
-                          int saction_flag);
-/* Grease Pencil datablock summary */
-void draw_gpencil_channel(struct View2D *v2d,
-                          struct bDopeSheet *ads,
-                          struct bGPdata *gpd,
                           float ypos,
                           float yscale_fac,
                           int saction_flag);
