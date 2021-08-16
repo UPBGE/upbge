@@ -989,13 +989,13 @@ EXP_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect, "getScreenVect()\n")
   GLint viewport[4];
   GLfloat vec[3];
   GLfloat win[3];
-  GLfloat modelmatrix[4][4];
+  GLfloat modelmatrixinv[4][4];
   GLfloat projmatrix[4][4];
 
   MT_Matrix4x4 m_modelmatrix = MT_Matrix4x4(GetWorldToCamera());
   MT_Matrix4x4 m_projmatrix = this->GetProjectionMatrix();
 
-  m_modelmatrix.getValue((float *)modelmatrix);
+  m_modelmatrix.inverse().getValue((float *)modelmatrixinv);
   m_projmatrix.getValue((float *)projmatrix);
 
   KX_GetActiveEngine()->GetCanvas()->GetViewportArea().Pack(viewport);
@@ -1008,7 +1008,7 @@ EXP_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect, "getScreenVect()\n")
 
   vec[2] = 0.f;
 
-  GPU_matrix_unproject_3fv(vec, modelmatrix, projmatrix, viewport, win);
+  GPU_matrix_unproject_3fv(vec, modelmatrixinv, projmatrix, viewport, win);
 
   MT_Vector3 campos = NodeGetWorldPosition();
   MT_Vector3 screenpos(win[0], win[1], win[2]);
