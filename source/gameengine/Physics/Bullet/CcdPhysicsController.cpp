@@ -2038,8 +2038,7 @@ bool CcdShapeConstructionInfo::SetMesh(class KX_Scene *kxscene,
     bContext *C = KX_GetActiveEngine()->GetContext();
     Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
-    Object *ob_eval = DEG_get_evaluated_object(depsgraph, meshobj->GetOriginalObject());
-    Mesh *me = (Mesh *)ob_eval->data;
+    Mesh *me = (Mesh *)DEG_get_evaluated_id(depsgraph, &meshobj->GetOrigMesh()->id);
     dm = CDDM_from_mesh(me);
   }
 
