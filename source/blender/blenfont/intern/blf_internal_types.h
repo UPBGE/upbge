@@ -31,10 +31,6 @@
 /* Number of characters in GlyphCacheBLF.glyph_ascii_table. */
 #define GLYPH_ASCII_TABLE_SIZE 128
 
-/* First and last characters (inclusive) of range to cache within GLYPH_ASCII_TABLE_SIZE. */
-#define GLYPH_ASCII_CACHE_MIN 32  /* Space */
-#define GLYPH_ASCII_CACHE_MAX 126 /* Tilde */
-
 /* Number of characters in KerningCacheBLF.table. */
 #define KERNING_CACHE_TABLE_SIZE 128
 
@@ -59,9 +55,11 @@ typedef struct KerningCacheBLF {
   /* kerning mode. */
   FT_UInt mode;
 
-  /* only cache a ascii glyph pairs. Only store the x
-   * offset we are interested in, instead of the full FT_Vector. */
-  int table[KERNING_CACHE_TABLE_SIZE][KERNING_CACHE_TABLE_SIZE];
+  /**
+   * Cache a ascii glyph pairs. Only store the x offset we are interested in,
+   * instead of the full #FT_Vector since it's not used for drawing at the moment.
+   */
+  int ascii_table[KERNING_CACHE_TABLE_SIZE][KERNING_CACHE_TABLE_SIZE];
 } KerningCacheBLF;
 
 typedef struct GlyphCacheBLF {
