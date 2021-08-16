@@ -2356,11 +2356,11 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *fromGameObj, RAS_
 
   RAS_MeshObject *meshobj = nullptr;
 
-  if (fromMeshObj) { // Always give the priority to mesh when set
-    meshobj = fromMeshObj;
-  }
-  else if (fromGameObj) {
+  if (fromGameObj) {
     meshobj = fromGameObj->GetMesh(0);
+  }
+  else if (fromMeshObj) {
+    meshobj = fromMeshObj;
   }
 
   if (!fromGameObj && !meshobj)
@@ -2370,12 +2370,11 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *fromGameObj, RAS_
     return false;
 
   Mesh *me = nullptr;
-
-  bContext *C = KX_GetActiveEngine()->GetContext();
-  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-
   if (evaluatedMesh) {
-    me = (Mesh *)DEG_get_evaluated_id(depsgraph, &meshobj->GetOrigMesh()->id);
+    bContext *C = KX_GetActiveEngine()->GetContext();
+    Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+    Object *ob_eval = DEG_get_evaluated_object(depsgraph, fromGameObj->GetBlenderObject());
+    me = (Mesh *)ob_eval->data;
   }
   else {
     me = meshobj->GetOrigMesh();
