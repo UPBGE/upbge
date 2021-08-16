@@ -1865,7 +1865,7 @@ bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj,
   }
 
   /* updates the arrays used for making the new bullet mesh */
-  m_shapeInfo->UpdateMesh(from_gameobj, evaluatedMesh);
+  m_shapeInfo->UpdateMesh(from_gameobj, from_meshobj, evaluatedMesh);
 
   /* create the new bullet mesh */
   GetPhysicsEnvironment()->UpdateCcdPhysicsControllerShape(m_shapeInfo);
@@ -2338,7 +2338,7 @@ cleanup_empty_mesh:
 /* Updates the arrays used by CreateBulletShape(),
  * take care that recalcLocalAabb() runs after CreateBulletShape is called.
  * */
-bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj, bool evaluatedMesh)
+bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *fromGameObj, RAS_MeshObject *fromMeshObj, bool evaluatedMesh)
 {
   int numpolys;
   int numverts;
@@ -2354,9 +2354,16 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj, bool eva
   const int tri_verts[4] = {0, 1, 2, -1};
   const int *fv_pt;
 
-  RAS_MeshObject *meshobj = gameobj->GetMesh(0);
+  RAS_MeshObject *meshobj = nullptr;
 
-  if (!gameobj && !meshobj)
+  if (fromGameObj) {
+    meshobj = fromGameObj->GetMesh(0);
+  }
+  else if (fromMeshObj) {
+    meshobj = fromMeshObj;
+  }
+
+  if (!fromGameObj && !meshobj)
     return false;
 
   if (m_shapeType != PHY_SHAPE_MESH)
@@ -2366,7 +2373,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj, bool eva
   if (evaluatedMesh) {
     bContext *C = KX_GetActiveEngine()->GetContext();
     Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-    Object *ob_eval = DEG_get_evaluated_object(depsgraph, gameobj->GetBlenderObject());
+    Object *ob_eval = DEG_get_evaluated_object(depsgraph, fromGameObj->GetBlenderObject());
     me = (Mesh *)ob_eval->data;
   }
   else {
@@ -2376,20 +2383,6 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj, bool eva
   DerivedMesh *dm = CDDM_from_mesh(me);
 
   DM_ensure_tessface(dm);
-
-  // get the mesh from the object if not defined... What's that?
-  if (!meshobj) {
-    // modifier mesh
-    if (dm)
-      meshobj = gameobj->GetMesh(0);
-
-    // game object first mesh
-    if (!meshobj) {
-      if (gameobj->GetMeshCount() > 0) {
-        meshobj = gameobj->GetMesh(0);
-      }
-    }
-  }
 
   if (dm && meshobj) {
     /*
