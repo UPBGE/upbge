@@ -2162,22 +2162,23 @@ bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
 }
 
 void KX_Scene::ReplaceMesh(KX_GameObject *gameobj,
-                           RAS_MeshObject *mesh,
+                           KX_GameObject *gameobj_for_mesh,
                            bool use_gfx,
-                           bool use_phys)
+                           bool use_phys,
+                           bool physics_evaluated)
 {
   if (!gameobj) {
     CM_FunctionWarning("invalid object, doing nothing");
     return;
   }
 
-  if (!mesh) {
+  if (!gameobj_for_mesh) {
     return;
   }
 
   if (use_gfx) {
     gameobj->RemoveMeshes();
-    gameobj->AddMesh(mesh);
+    gameobj->AddMesh(gameobj_for_mesh->GetMesh(0));
 
     /* Here we are in the case where we use ReplaceMesh not for levels of details
      * but for other purposes. We'll add a dummy LodManager with only 1 KX_LodLevel
@@ -2187,13 +2188,13 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj,
       if (gameobj->GetLodManager()) {
         gameobj->GetLodManager()->Release();
       }
-      gameobj->AddDummyLodManager(mesh, mesh->GetOriginalObject());  // tmp
+      gameobj->AddDummyLodManager(gameobj_for_mesh->GetBlenderObject());
     }
   }
 
   if (use_phys) { /* update the new assigned mesh with the physics mesh */
     if (gameobj->GetPhysicsController())
-      gameobj->GetPhysicsController()->ReinstancePhysicsShape(nullptr, use_gfx ? nullptr : mesh);
+      gameobj->GetPhysicsController()->ReinstancePhysicsShape(gameobj_for_mesh, false, physics_evaluated);
   }
 
   if (use_gfx || use_phys) {

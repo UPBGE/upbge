@@ -543,9 +543,9 @@ void KX_GameObject::RestoreLogic(bool childrenRecursive)
   }
 }
 
-void KX_GameObject::AddDummyLodManager(RAS_MeshObject *meshObj, Object *ob)
+void KX_GameObject::AddDummyLodManager(Object *ob)
 {
-  m_lodManager = new KX_LodManager(meshObj, ob);
+  m_lodManager = new KX_LodManager(GetScene()->GetBlenderSceneConverter(), ob);
   m_lodManager->AddRef();
   GetScene()->AddObjToLodObjList(this);
 }
@@ -1047,8 +1047,8 @@ void KX_GameObject::SetLodManager(KX_LodManager *lodManager)
   // Restore object original mesh.
   if (!lodManager && m_lodManager && m_lodManager->GetLevelCount() > 0) {
     KX_Scene *scene = GetScene();
-    RAS_MeshObject *origmesh = m_lodManager->GetLevel(0)->GetMesh();
-    scene->ReplaceMesh(this, origmesh, true, false);
+    KX_GameObject *origob_for_mesh = m_lodManager->GetLevel(0)->GetGameobjForMesh();
+    scene->ReplaceMesh(this, origob_for_mesh, true, false, false);
   }
 
   if (m_lodManager) {
@@ -1092,9 +1092,9 @@ void KX_GameObject::UpdateLod(const MT_Vector3 &cam_pos, float lodfactor)
   }
 
   if (lodLevel) {
-    RAS_MeshObject *mesh = lodLevel->GetMesh();
+    RAS_MeshObject *mesh = lodLevel->GetGameobjForMesh()->GetMesh(0);
     if (mesh != m_meshes[0]) {
-      scene->ReplaceMesh(this, mesh, true, false);
+      scene->ReplaceMesh(this, lodLevel->GetGameobjForMesh(), true, false, false);
     }
     m_currentLodLevel = lodLevel->GetLevel();
   }
@@ -1109,13 +1109,14 @@ void KX_GameObject::UpdateLod(const MT_Vector3 &cam_pos, float lodfactor)
      * depsgraph */
     Object *ob_eval = DEG_get_evaluated_object(depsgraph, GetBlenderObject());
 
-    Object *eval_lod_ob = DEG_get_evaluated_object(depsgraph, currentLodLevel->GetObject());
+    Object *eval_lod_ob = DEG_get_evaluated_object(
+        depsgraph, currentLodLevel->GetGameobjForMesh()->GetBlenderObject());
     /* Try to get the object with all modifiers applied */
     ob_eval->data = eval_lod_ob->data;
   }
 
   if (updatePhysicsShape) {
-    GetPhysicsController()->ReinstancePhysicsShape(this, nullptr, false, true);
+    GetPhysicsController()->ReinstancePhysicsShape(this, false, true);
   }
 }
 
@@ -2259,24 +2260,30 @@ PyObject *KX_GameObject::PyReplaceMesh(PyObject *args, PyObject *kwds)
 
   PyObject *value;
   int use_gfx = 1, use_phys = 0;
-  RAS_MeshObject *new_mesh;
+  int physics_evaluated = 0;
+  KX_GameObject *new_gameobj_for_mesh;
 
-  static const char *kwlist[] = {"mesh", "useDisplayMesh", "usePhysicsMesh", nullptr};
+  static const char *kwlist[] = {"ob", "useDisplayMesh", "usePhysicsMesh", "physicsEvaluated", nullptr};
   if (!PyArg_ParseTupleAndKeywords(args,
                                    kwds,
-                                   "O|ii:replaceMesh",
+                                   "O|iii:replaceMesh",
                                    const_cast<char **>(kwlist),
                                    &value,
                                    &use_gfx,
-                                   &use_phys)) {
+                                   &use_phys,
+                                   &physics_evaluated)) {
     return nullptr;
   }
 
-  if (!ConvertPythonToMesh(
-          logicmgr, value, &new_mesh, false, "gameOb.replaceMesh(value): KX_GameObject"))
+  if (!ConvertPythonToGameObject(logicmgr,
+                                 value,
+                                 &new_gameobj_for_mesh,
+                                 false,
+                                 "gameOb.replaceMesh(value): KX_GameObject")) {
     return nullptr;
+  }
 
-  GetScene()->ReplaceMesh(this, new_mesh, (bool)use_gfx, (bool)use_phys);
+  GetScene()->ReplaceMesh(this, new_gameobj_for_mesh, (bool)use_gfx, (bool)use_phys, (bool)physics_evaluated);
   Py_RETURN_NONE;
 }
 
@@ -2289,42 +2296,34 @@ PyObject *KX_GameObject::PyEndObject()
 
 PyObject *KX_GameObject::PyReinstancePhysicsMesh(PyObject *args, PyObject *kwds)
 {
-  KX_GameObject *gameobj = nullptr;
-  RAS_MeshObject *mesh = nullptr;
+  KX_GameObject *gameobj_for_mesh = nullptr;;
   SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
   int dupli = 0;
-  int evaluated;
+  int evaluated = 0;
 
-  PyObject *gameobj_py = nullptr;
-  PyObject *mesh_py = nullptr;
+  PyObject *gameobj_for_mesh_py = nullptr;
 
-  static const char *kwlist[] = {"gameObject", "meshObject", "dupli", "evaluated", nullptr};
+  static const char *kwlist[] = {"gameObject", "dupli", "evaluated", nullptr};
   if (!PyArg_ParseTupleAndKeywords(args,
                                    kwds,
-                                   "|OOii:reinstancePhysicsMesh",
+                                   "|Oii:reinstancePhysicsMesh",
                                    const_cast<char **>(kwlist),
-                                   &gameobj_py,
-                                   &mesh_py,
+                                   &gameobj_for_mesh_py,
                                    &dupli,
                                    &evaluated) ||
-      (gameobj_py && !ConvertPythonToGameObject(
+      (gameobj_for_mesh_py &&
+       !ConvertPythonToGameObject(
                          logicmgr,
-                         gameobj_py,
-                         &gameobj,
+           gameobj_for_mesh_py,
+           &gameobj_for_mesh,
                          true,
-                         "gameOb.reinstancePhysicsMesh(obj, mesh, dupli): KX_GameObject")) ||
-      (mesh_py &&
-       !ConvertPythonToMesh(logicmgr,
-                            mesh_py,
-                            &mesh,
-                            true,
-                            "gameOb.reinstancePhysicsMesh(obj, mesh, dupli): KX_GameObject"))) {
+                         "gameOb.reinstancePhysicsMesh(obj, dupli, evaluated): KX_GameObject"))) {
     return nullptr;
   }
 
   /* gameobj and mesh can be nullptr */
   if (GetPhysicsController() &&
-      GetPhysicsController()->ReinstancePhysicsShape(gameobj, mesh, dupli, evaluated))
+      GetPhysicsController()->ReinstancePhysicsShape(gameobj_for_mesh, dupli, evaluated))
     Py_RETURN_TRUE;
 
   Py_RETURN_FALSE;

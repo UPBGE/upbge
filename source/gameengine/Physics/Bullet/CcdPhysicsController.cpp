@@ -1847,16 +1847,15 @@ bool CcdPhysicsController::IsPhysicsSuspended()
  *
  * Most of the logic behind this is in m_shapeInfo->UpdateMesh(...)
  */
-bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj,
-                                                  RAS_MeshObject *from_meshobj,
+bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *gameobj_for_mesh,
                                                   bool dupli,
                                                   bool evaluatedMesh)
 {
   if (m_shapeInfo->m_shapeType != PHY_SHAPE_MESH)
     return false;
 
-  if (!from_gameobj && !from_meshobj)
-    from_gameobj = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)GetNewClientInfo());
+  if (!gameobj_for_mesh)
+    gameobj_for_mesh = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)GetNewClientInfo());
 
   if (dupli && (m_shapeInfo->GetRefCount() > 1)) {
     CcdShapeConstructionInfo *newShapeInfo = m_shapeInfo->GetReplica();
@@ -1865,7 +1864,7 @@ bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj,
   }
 
   /* updates the arrays used for making the new bullet mesh */
-  m_shapeInfo->UpdateMesh(from_gameobj, evaluatedMesh);
+  m_shapeInfo->UpdateMesh(gameobj_for_mesh, evaluatedMesh);
 
   /* create the new bullet mesh */
   GetPhysicsEnvironment()->UpdateCcdPhysicsControllerShape(m_shapeInfo);
@@ -2338,7 +2337,7 @@ cleanup_empty_mesh:
 /* Updates the arrays used by CreateBulletShape(),
  * take care that recalcLocalAabb() runs after CreateBulletShape is called.
  * */
-bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj, bool evaluatedMesh)
+bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj_for_mesh, bool evaluatedMesh)
 {
   int numpolys;
   int numverts;
@@ -2354,10 +2353,10 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj, bool eva
   const int tri_verts[4] = {0, 1, 2, -1};
   const int *fv_pt;
 
-  RAS_MeshObject *meshobj = gameobj->GetMesh(0);
-
-  if (!gameobj && !meshobj)
+  if (!gameobj_for_mesh)
     return false;
+
+  RAS_MeshObject *meshobj = gameobj_for_mesh->GetMesh(0);
 
   if (m_shapeType != PHY_SHAPE_MESH)
     return false;
@@ -2366,7 +2365,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj, bool eva
   if (evaluatedMesh) {
     bContext *C = KX_GetActiveEngine()->GetContext();
     Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-    Object *ob_eval = DEG_get_evaluated_object(depsgraph, gameobj->GetBlenderObject());
+    Object *ob_eval = DEG_get_evaluated_object(depsgraph, gameobj_for_mesh->GetBlenderObject());
     me = (Mesh *)ob_eval->data;
   }
   else {
@@ -2376,20 +2375,6 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj, bool eva
   DerivedMesh *dm = CDDM_from_mesh(me);
 
   DM_ensure_tessface(dm);
-
-  // get the mesh from the object if not defined... What's that?
-  if (!meshobj) {
-    // modifier mesh
-    if (dm)
-      meshobj = gameobj->GetMesh(0);
-
-    // game object first mesh
-    if (!meshobj) {
-      if (gameobj->GetMeshCount() > 0) {
-        meshobj = gameobj->GetMesh(0);
-      }
-    }
-  }
 
   if (dm && meshobj) {
     /*

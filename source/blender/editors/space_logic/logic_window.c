@@ -1941,10 +1941,13 @@ static void draw_actuator_edit_object(uiLayout *layout, PointerRNA *ptr)
         break;
       }
       split = uiLayoutSplit(layout, 0.6, false);
-      uiItemR(split, ptr, "mesh", 0, NULL, ICON_NONE);
+      uiItemR(split, ptr, "object_for_mesh", 0, NULL, ICON_NONE);
       row = uiLayoutRow(split, false);
       uiItemR(row, ptr, "use_replace_display_mesh", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
       uiItemR(row, ptr, "use_replace_physics_mesh", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
+      split = uiLayoutSplit(layout, 0.6, false);
+      uiLayoutSetActive(split, RNA_boolean_get(ptr, "use_replace_physics_mesh") == true);
+      uiItemR(split, ptr, "replace_physics_mesh_evaluated", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
       break;
     case ACT_EDOB_TRACK_TO:
       split = uiLayoutSplit(layout, 0.5, false);

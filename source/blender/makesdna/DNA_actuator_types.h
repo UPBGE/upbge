@@ -95,7 +95,7 @@ typedef struct bEditObjectActuator {
   int time;
   short type, flag;
   struct Object *ob;
-  struct Mesh *me;
+  struct Object *ob_for_mesh;
   char name[64];        /* MAX_NAME */
   float linVelocity[3]; /* initial lin. velocity on creation */
   float angVelocity[3]; /* initial ang. velocity on creation */
@@ -477,6 +477,7 @@ typedef struct bActuator {
 /* editObjectActuator->flag for replace mesh actuator */
 #define ACT_EDOB_REPLACE_MESH_NOGFX 2 /* use for replace mesh actuator */
 #define ACT_EDOB_REPLACE_MESH_PHYS 4
+#define ACT_EDOB_REPLACE_MESH_PHYS_EVALUATED 8
 
 /* editObjectActuator->dyn_operation */
 #define ACT_EDOB_RESTORE_DYN 0

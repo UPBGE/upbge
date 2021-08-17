@@ -27,22 +27,23 @@
 #pragma once
 
 #include "EXP_PyObjectPlus.h"
+#include "KX_GameObject.h"
 #include "RAS_MeshObject.h"
 
 class KX_LodLevel : public EXP_PyObjectPlus {
-  Py_Header private : float m_distance;
+  Py_Header private :
+
+  float m_distance;
   float m_hysteresis;
   short m_level;
   unsigned short m_flags;
-  RAS_MeshObject *m_meshobj;
-  struct Object *m_object;
+  KX_GameObject *m_gameobj_for_mesh;
 
  public:
   KX_LodLevel(float distance,
               float hysteresis,
               unsigned short level,
-              RAS_MeshObject *meshobj,
-              struct Object *object,
+              KX_GameObject *gameobj_for_mesh,
               unsigned short flag);
   virtual ~KX_LodLevel();
 
@@ -50,8 +51,8 @@ class KX_LodLevel : public EXP_PyObjectPlus {
   float GetHysteresis() const;
   unsigned short GetLevel() const;
   unsigned short GetFlag() const;
-  RAS_MeshObject *GetMesh() const;
-  struct Object *GetObject();
+  class RAS_MeshObject *GetMesh() const;
+  KX_GameObject *GetGameobjForMesh();
 
   enum {
     /// Use custom hysteresis for this level.
@@ -66,7 +67,7 @@ class KX_LodLevel : public EXP_PyObjectPlus {
 
   virtual PyObject *py_repr()
   {
-    return PyUnicode_FromStdString(m_meshobj->GetName());
+    return PyUnicode_FromStdString(m_gameobj_for_mesh->GetMesh(0)->GetName());
   }
 
   static PyObject *pyattr_get_mesh(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);

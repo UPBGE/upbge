@@ -1427,7 +1427,7 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
         }
         else {
           BLO_read_id_address(reader, ob->id.lib, &eoa->ob);
-          BLO_read_id_address(reader, ob->id.lib, &eoa->me);
+          BLO_read_id_address(reader, ob->id.lib, &eoa->ob_for_mesh);
         }
         break;
       }
@@ -1696,7 +1696,7 @@ static void object_blend_read_expand(BlendExpander *expander, ID *id)
       bEditObjectActuator *eoa = act->data;
       if (eoa) {
         BLO_expand(expander, eoa->ob);
-        BLO_expand(expander, eoa->me);
+        BLO_expand(expander, eoa->ob_for_mesh);
       }
     }
     else if (act->type == ACT_OBJECT) {

@@ -95,9 +95,11 @@ PyMethodDef SCA_ReplaceMeshActuator::Methods[] = {
 };
 
 PyAttributeDef SCA_ReplaceMeshActuator::Attributes[] = {
-    EXP_PYATTRIBUTE_RW_FUNCTION("mesh", SCA_ReplaceMeshActuator, pyattr_get_mesh, pyattr_set_mesh),
+    EXP_PYATTRIBUTE_RO_FUNCTION("mesh", SCA_ReplaceMeshActuator, pyattr_get_mesh),
+    EXP_PYATTRIBUTE_RW_FUNCTION("ob", SCA_ReplaceMeshActuator, pyattr_get_gameobj_for_mesh, pyattr_set_gameobj_for_mesh),
     EXP_PYATTRIBUTE_BOOL_RW("useDisplayMesh", SCA_ReplaceMeshActuator, m_use_gfx),
     EXP_PYATTRIBUTE_BOOL_RW("usePhysicsMesh", SCA_ReplaceMeshActuator, m_use_phys),
+    EXP_PYATTRIBUTE_BOOL_RW("physicsEvaluated", SCA_ReplaceMeshActuator, m_physics_evaluated),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
@@ -105,27 +107,36 @@ PyObject *SCA_ReplaceMeshActuator::pyattr_get_mesh(EXP_PyObjectPlus *self,
                                                    const struct EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_ReplaceMeshActuator *actuator = static_cast<SCA_ReplaceMeshActuator *>(self);
-  if (!actuator->m_mesh)
+  if (!actuator->m_gameobj_for_mesh)
     Py_RETURN_NONE;
-  KX_MeshProxy *meshproxy = new KX_MeshProxy(actuator->m_mesh);
+  KX_MeshProxy *meshproxy = new KX_MeshProxy(actuator->m_gameobj_for_mesh->GetMesh(0));
   return meshproxy->NewProxy(true);
 }
 
-int SCA_ReplaceMeshActuator::pyattr_set_mesh(EXP_PyObjectPlus *self,
+PyObject *SCA_ReplaceMeshActuator::pyattr_get_gameobj_for_mesh(EXP_PyObjectPlus *self,
+                                                   const struct EXP_PYATTRIBUTE_DEF *attrdef)
+{
+  SCA_ReplaceMeshActuator *actuator = static_cast<SCA_ReplaceMeshActuator *>(self);
+  if (!actuator->m_gameobj_for_mesh)
+    Py_RETURN_NONE;
+  return actuator->m_gameobj_for_mesh->GetProxy();
+}
+
+int SCA_ReplaceMeshActuator::pyattr_set_gameobj_for_mesh(EXP_PyObjectPlus *self,
                                              const struct EXP_PYATTRIBUTE_DEF *attrdef,
                                              PyObject *value)
 {
   SCA_ReplaceMeshActuator *actuator = static_cast<SCA_ReplaceMeshActuator *>(self);
-  RAS_MeshObject *new_mesh;
+  KX_GameObject *new_gameobj_for_mesh;
 
-  if (!ConvertPythonToMesh(actuator->GetLogicManager(),
-                           value,
-                           &new_mesh,
-                           true,
-                           "actuator.mesh = value: SCA_ReplaceMeshActuator"))
+  if (!ConvertPythonToGameObject(actuator->GetLogicManager(),
+                                 value,
+                                 &new_gameobj_for_mesh,
+                                 true,
+                                 "actuator.ob = value: SCA_ReplaceMeshActuator"))
     return PY_SET_ATTR_FAIL;
 
-  actuator->m_mesh = new_mesh;
+  actuator->m_gameobj_for_mesh = new_gameobj_for_mesh;
   return PY_SET_ATTR_SUCCESS;
 }
 
@@ -144,14 +155,13 @@ EXP_PYMETHODDEF_DOC(SCA_ReplaceMeshActuator,
 /* ------------------------------------------------------------------------- */
 
 SCA_ReplaceMeshActuator::SCA_ReplaceMeshActuator(
-    KX_GameObject *gameobj, RAS_MeshObject *mesh, KX_Scene *scene, bool use_gfx, bool use_phys)
-    :
-
+    KX_GameObject *gameobj, KX_GameObject *gamobj_for_mesh, KX_Scene *scene, bool use_gfx, bool use_phys, bool physics_evaluated):
       SCA_IActuator(gameobj, KX_ACT_REPLACE_MESH),
-      m_mesh(mesh),
+      m_gameobj_for_mesh(gamobj_for_mesh),
       m_scene(scene),
       m_use_gfx(use_gfx),
-      m_use_phys(use_phys)
+      m_use_phys(use_phys),
+      m_physics_evaluated(physics_evaluated)
 {
 } /* End of constructor */
 
@@ -169,8 +179,8 @@ bool SCA_ReplaceMeshActuator::Update()
   if (bNegativeEvent)
     return false;  // do nothing on negative events
 
-  if (m_mesh || m_use_phys) /* nullptr mesh is ok if were updating physics */
-    m_scene->ReplaceMesh(static_cast<KX_GameObject *>(GetParent()), m_mesh, m_use_gfx, m_use_phys);
+  if (m_gameobj_for_mesh || m_use_phys) /* nullptr mesh is ok if were updating physics */
+    m_scene->ReplaceMesh(static_cast<KX_GameObject *>(GetParent()), m_gameobj_for_mesh, m_use_gfx, m_use_phys, m_physics_evaluated);
 
   return false;
 }
@@ -189,8 +199,8 @@ EXP_Value *SCA_ReplaceMeshActuator::GetReplica()
 
 void SCA_ReplaceMeshActuator::InstantReplaceMesh()
 {
-  if (m_mesh)
-    m_scene->ReplaceMesh(static_cast<KX_GameObject *>(GetParent()), m_mesh, m_use_gfx, m_use_phys);
+  if (m_gameobj_for_mesh)
+    m_scene->ReplaceMesh(static_cast<KX_GameObject *>(GetParent()), m_gameobj_for_mesh, m_use_gfx, m_use_phys, m_physics_evaluated);
 }
 
 void SCA_ReplaceMeshActuator::Replace_IScene(SCA_IScene *val)

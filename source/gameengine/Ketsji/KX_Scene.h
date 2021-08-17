@@ -416,7 +416,7 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   void DelayedRemoveObject(KX_GameObject *gameobj);
 
   bool NewRemoveObject(KX_GameObject *gameobj);
-  void ReplaceMesh(KX_GameObject *gameobj, RAS_MeshObject *mesh, bool use_gfx, bool use_phys);
+  void ReplaceMesh(KX_GameObject *gameobj, KX_GameObject *gameobj_for_mesh, bool use_gfx, bool use_phys, bool physics_evaluated);
 
   void AddAnimatedObject(KX_GameObject *gameobj);
 

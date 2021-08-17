@@ -144,7 +144,7 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
     return m_meshObject;
   }
 
-  bool UpdateMesh(class KX_GameObject *gameobj, bool evaluatedMesh = false);
+  bool UpdateMesh(class KX_GameObject *gameobj_for_mesh, bool evaluatedMesh = false);
 
   CcdShapeConstructionInfo *GetReplica();
 
@@ -872,8 +872,7 @@ class CcdPhysicsController : public PHY_IPhysicsController {
     return GetConstructionInfo().m_shapeInfo->m_shapeType == PHY_SHAPE_COMPOUND;
   }
 
-  virtual bool ReinstancePhysicsShape(KX_GameObject *from_gameobj,
-                                      RAS_MeshObject *from_meshobj,
+  virtual bool ReinstancePhysicsShape(KX_GameObject *gameobj_for_mesh,
                                       bool dupli = false,
                                       bool evaluatedMesh = false);
 

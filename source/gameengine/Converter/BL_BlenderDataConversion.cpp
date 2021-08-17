@@ -788,19 +788,6 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
       // set transformation
       gameobj->AddMesh(meshobj);
 
-      // gather levels of detail
-      KX_LodManager *lodManager = BL_lodmanager_from_blenderobject(
-          ob, kxscene, rasty, converter, libloading, converting_during_runtime);
-      gameobj->SetLodManager(lodManager);
-      if (lodManager) {
-        lodManager->Release();
-        kxscene->AddObjToLodObjList(gameobj);
-      }
-      else {
-        /* Just in case */
-        kxscene->RemoveObjFromLodObjList(gameobj);
-      }
-
       gameobj->SetOccluder((ob->gameflag & OB_OCCLUDER) != 0, false);
       break;
     }
@@ -1486,6 +1473,22 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
     if (gameobj->GetSGNode()->GetSGParent() == 0) {
       parentlist->Add(CM_AddRef(gameobj));
       gameobj->NodeUpdateGS(0);
+    }
+    // gather levels of detail
+    KX_LodManager *lodManager = BL_lodmanager_from_blenderobject(gameobj->GetBlenderObject(),
+                                                                 kxscene,
+                                                                 rendertools,
+                                                                 converter,
+                                                                 libloading,
+                                                                 single_object != nullptr);
+    gameobj->SetLodManager(lodManager);
+    if (lodManager) {
+      lodManager->Release();
+      kxscene->AddObjToLodObjList(gameobj);
+    }
+    else {
+      /* Just in case */
+      kxscene->RemoveObjFromLodObjList(gameobj);
     }
   }
 

@@ -1152,7 +1152,7 @@ void BKE_sca_actuators_id_loop(ListBase *actlist, SCAActuatorIDFunc func, void *
       case ACT_EDIT_OBJECT: {
         bEditObjectActuator *eoa = actuator->data;
         func(actuator, (ID **)&eoa->ob, userdata, IDWALK_CB_NOP);
-        func(actuator, (ID **)&eoa->me, userdata, IDWALK_CB_USER);
+        func(actuator, (ID **)&eoa->ob_for_mesh, userdata, IDWALK_CB_USER);
         break;
       }
       case ACT_SCENE: {

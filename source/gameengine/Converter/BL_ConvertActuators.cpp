@@ -412,9 +412,9 @@ void BL_ConvertActuators(const char *maggiename,
             baseact = tmpendact;
           } break;
           case ACT_EDOB_REPLACE_MESH: {
-            RAS_MeshObject *tmpmesh = converter->FindGameMesh(editobact->me);
+            KX_GameObject *tmpobj = converter->FindGameObject(editobact->ob_for_mesh);
 
-            if (!tmpmesh) {
+            if (!tmpobj) {
               CM_Warning("object \""
                          << objectname << "\" from ReplaceMesh actuator \"" << uniquename
                          << "\" uses a mesh not owned by an object in scene \"" << scene->GetName()
@@ -423,10 +423,11 @@ void BL_ConvertActuators(const char *maggiename,
 
             SCA_ReplaceMeshActuator *tmpreplaceact = new SCA_ReplaceMeshActuator(
                 gameobj,
-                tmpmesh,
+                tmpobj,
                 scene,
                 (editobact->flag & ACT_EDOB_REPLACE_MESH_NOGFX) == 0,
-                (editobact->flag & ACT_EDOB_REPLACE_MESH_PHYS) != 0);
+                (editobact->flag & ACT_EDOB_REPLACE_MESH_PHYS) != 0,
+                (editobact->flag & ACT_EDOB_REPLACE_MESH_PHYS_EVALUATED) != 0);
 
             baseact = tmpreplaceact;
           } break;

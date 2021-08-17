@@ -154,8 +154,7 @@ class PHY_IPhysicsController : public PHY_IController {
   virtual bool IsDynamicsSuspended() const = 0;
   virtual bool IsPhysicsSuspended() = 0;
 
-  virtual bool ReinstancePhysicsShape(KX_GameObject *from_gameobj,
-                                      RAS_MeshObject *from_meshobj,
+  virtual bool ReinstancePhysicsShape(KX_GameObject *gameobj_for_mesh,
                                       bool dupli = false,
                                       bool evaluatedMesh = false) = 0;
 

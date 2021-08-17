@@ -588,14 +588,14 @@ static void rna_SteeringActuator_navmesh_set(PointerRNA *ptr,
 }
 
 /* note: the following set functions exists only to avoid id refcounting */
-static void rna_Actuator_editobject_mesh_set(PointerRNA *ptr,
+static void rna_Actuator_editobject_obj_for_mesh_set(PointerRNA *ptr,
                                              PointerRNA value,
                                              struct ReportList *UNUSED(reports))
 {
   bActuator *act = (bActuator *)ptr->data;
   bEditObjectActuator *eoa = (bEditObjectActuator *)act->data;
 
-  eoa->me = value.data;
+  eoa->ob_for_mesh = value.data;
 }
 
 #else
@@ -1526,16 +1526,16 @@ static void rna_def_edit_object_actuator(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Object", "Track to this Object");
   RNA_def_property_update(prop, NC_LOGIC, NULL);
 
-  prop = RNA_def_property(srna, "mesh", PROP_POINTER, PROP_NONE);
-  RNA_def_property_struct_type(prop, "Mesh");
-  RNA_def_property_pointer_sdna(prop, NULL, "me");
+  prop = RNA_def_property(srna, "object_for_mesh", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "Object");
+  RNA_def_property_pointer_sdna(prop, NULL, "ob_for_mesh");
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(
       prop,
-      "Mesh",
+      "Object",
       "Replace the existing, when left blank 'Phys' will remake the existing physics mesh");
   /* note: custom set function is ONLY to avoid rna setting a user for this. */
-  RNA_def_property_pointer_funcs(prop, NULL, "rna_Actuator_editobject_mesh_set", NULL, NULL);
+  RNA_def_property_pointer_funcs(prop, NULL, "rna_Actuator_editobject_obj_for_mesh_set", NULL, NULL);
   RNA_def_property_update(prop, NC_LOGIC, NULL);
 
   prop = RNA_def_property(srna, "time", PROP_INT, PROP_NONE);
@@ -1613,6 +1613,14 @@ static void rna_def_edit_object_actuator(BlenderRNA *brna)
       prop,
       "Phys",
       "Replace the physics mesh (triangle bounds only - compound shapes not supported)");
+  RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+  prop = RNA_def_property(srna, "replace_physics_mesh_evaluated", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", ACT_EDOB_REPLACE_MESH_PHYS_EVALUATED);
+  RNA_def_property_ui_text(
+      prop,
+      "Physics Evaluated",
+      "Replace the physics mesh from evaluated mesh");
   RNA_def_property_update(prop, NC_LOGIC, NULL);
 
   prop = RNA_def_property(srna, "use_3d_tracking", PROP_BOOLEAN, PROP_NONE);
