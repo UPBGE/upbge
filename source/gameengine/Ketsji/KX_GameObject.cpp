@@ -543,9 +543,9 @@ void KX_GameObject::RestoreLogic(bool childrenRecursive)
   }
 }
 
-void KX_GameObject::AddDummyLodManager(Object *ob)
+void KX_GameObject::AddDummyLodManager(RAS_MeshObject *meshobj, Object *ob)
 {
-  m_lodManager = new KX_LodManager(GetScene()->GetBlenderSceneConverter(), ob);
+  m_lodManager = new KX_LodManager(GetScene()->GetBlenderSceneConverter(), meshobj, ob);
   m_lodManager->AddRef();
   GetScene()->AddObjToLodObjList(this);
 }
@@ -1092,7 +1092,7 @@ void KX_GameObject::UpdateLod(const MT_Vector3 &cam_pos, float lodfactor)
   }
 
   if (lodLevel) {
-    RAS_MeshObject *mesh = lodLevel->GetGameobjForMesh()->GetMesh(0);
+    RAS_MeshObject *mesh = lodLevel->GetMesh();
     if (mesh != m_meshes[0]) {
       scene->ReplaceMesh(this, lodLevel->GetGameobjForMesh(), true, false, false);
     }

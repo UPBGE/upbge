@@ -148,7 +148,7 @@ class KX_GameObject : public SCA_IObject {
   void RestorePhysics(bool childrenRecursive);
   void SuspendLogic(bool childrenRecursive);
   void RestoreLogic(bool childrenRecursive);
-  void AddDummyLodManager(Object *ob);
+  void AddDummyLodManager(RAS_MeshObject *meshobj, Object *ob);
   bool IsReplica();
   void ForceIgnoreParentTx();
   void SyncTransformWithDepsgraph();

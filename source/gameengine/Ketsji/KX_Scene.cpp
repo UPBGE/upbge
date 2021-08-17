@@ -2188,7 +2188,7 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj,
       if (gameobj->GetLodManager()) {
         gameobj->GetLodManager()->Release();
       }
-      gameobj->AddDummyLodManager(gameobj_for_mesh->GetBlenderObject());
+      gameobj->AddDummyLodManager(gameobj_for_mesh->GetMesh(0), gameobj_for_mesh->GetBlenderObject());
     }
   }
 

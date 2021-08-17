@@ -38,11 +38,13 @@ class KX_LodLevel : public EXP_PyObjectPlus {
   short m_level;
   unsigned short m_flags;
   KX_GameObject *m_gameobj_for_mesh;
+  RAS_MeshObject *m_mesh;
 
  public:
   KX_LodLevel(float distance,
               float hysteresis,
               unsigned short level,
+              RAS_MeshObject *meshobj,
               KX_GameObject *gameobj_for_mesh,
               unsigned short flag);
   virtual ~KX_LodLevel();
@@ -51,7 +53,7 @@ class KX_LodLevel : public EXP_PyObjectPlus {
   float GetHysteresis() const;
   unsigned short GetLevel() const;
   unsigned short GetFlag() const;
-  class RAS_MeshObject *GetMesh() const;
+  RAS_MeshObject *GetMesh() const;
   KX_GameObject *GetGameobjForMesh();
 
   enum {
