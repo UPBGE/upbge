@@ -1577,11 +1577,6 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
   /* need to set this first */
   UI_fontstyle_set(fstyle);
 
-  if (fstyle->kerning == 1) {
-    /* for BLF_width */
-    BLF_enable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
-  }
-
   float strwidth = BLF_width(fstyle->uifont_id, str, max_len);
 
   if ((okwidth > 0.0f) && (strwidth > okwidth)) {
@@ -1675,10 +1670,6 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
     strwidth = BLF_width(fstyle->uifont_id, str, max_len);
   }
 
-  if (fstyle->kerning == 1) {
-    BLF_disable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
-  }
-
   BLI_assert(strwidth <= okwidth);
 
   return strwidth;
@@ -1737,11 +1728,6 @@ static void ui_text_clip_cursor(const uiFontStyle *fstyle, uiBut *but, const rct
   /* need to set this first */
   UI_fontstyle_set(fstyle);
 
-  if (fstyle->kerning == 1) {
-    /* for BLF_width */
-    BLF_enable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
-  }
-
   /* define ofs dynamically */
   if (but->ofs > but->pos) {
     but->ofs = but->pos;
@@ -1786,10 +1772,6 @@ static void ui_text_clip_cursor(const uiFontStyle *fstyle, uiBut *but, const rct
       }
     }
   }
-
-  if (fstyle->kerning == 1) {
-    BLF_disable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
-  }
 }
 
 /**
@@ -1806,11 +1788,6 @@ static void ui_text_clip_right_label(const uiFontStyle *fstyle, uiBut *but, cons
 
   /* need to set this first */
   UI_fontstyle_set(fstyle);
-
-  if (fstyle->kerning == 1) {
-    /* for BLF_width */
-    BLF_enable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
-  }
 
   but->strwidth = BLF_width(fstyle->uifont_id, but->drawstr, sizeof(but->drawstr));
   but->ofs = 0;
@@ -1870,10 +1847,6 @@ static void ui_text_clip_right_label(const uiFontStyle *fstyle, uiBut *but, cons
                   but->ofs;
     but->strwidth = strwidth;
     but->drawstr[drawstr_len] = 0;
-  }
-
-  if (fstyle->kerning == 1) {
-    BLF_disable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
   }
 }
 
@@ -1984,11 +1957,6 @@ static void widget_draw_text(const uiFontStyle *fstyle,
   }
   else {
     align = UI_STYLE_TEXT_CENTER;
-  }
-
-  if (fstyle->kerning == 1) {
-    /* for BLF_width */
-    BLF_enable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
   }
 
   /* Special case: when we're entering text for multiple buttons,
@@ -2152,10 +2120,6 @@ static void widget_draw_text(const uiFontStyle *fstyle,
 #endif
   }
 
-  if (fstyle->kerning == 1) {
-    BLF_disable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
-  }
-
 #if 0
   ui_rasterpos_safe(x, y, but->aspect);
   transopts = ui_translate_buttons();
@@ -2233,10 +2197,6 @@ static void widget_draw_text(const uiFontStyle *fstyle,
         }
 
         if (ul_index != -1) {
-          if (fstyle->kerning == 1) {
-            BLF_enable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
-          }
-
           int ul_width = round_fl_to_int(BLF_width(fstyle->uifont_id, "_", 2));
 
           struct UnderlineData ul_data = {
@@ -2257,10 +2217,6 @@ static void widget_draw_text(const uiFontStyle *fstyle,
           BLF_position(fstyle->uifont_id, pos_x, pos_y, 0.0f);
           BLF_color4ubv(fstyle->uifont_id, wcol->text);
           BLF_draw(fstyle->uifont_id, "_", 2);
-
-          if (fstyle->kerning == 1) {
-            BLF_disable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
-          }
         }
       }
     }
@@ -5454,11 +5410,6 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
       /* need to set this first */
       UI_fontstyle_set(fstyle);
 
-      if (fstyle->kerning == 1) {
-        /* for BLF_width */
-        BLF_enable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
-      }
-
       if (separator_type == UI_MENU_ITEM_SEPARATOR_SHORTCUT) {
         /* Shrink rect to exclude the shortcut string. */
         rect->xmax -= BLF_width(fstyle->uifont_id, cpoin + 1, INT_MAX) + UI_DPI_ICON_SIZE;
@@ -5482,10 +5433,6 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
       }
       else {
         BLI_assert_msg(0, "Unknwon menu item separator type");
-      }
-
-      if (fstyle->kerning == 1) {
-        BLF_disable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
       }
     }
   }

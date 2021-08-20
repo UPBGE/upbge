@@ -3328,11 +3328,6 @@ static void ui_textedit_set_cursor_pos(uiBut *but, uiHandleButtonData *data, con
 
   UI_fontstyle_set(&fstyle);
 
-  if (fstyle.kerning == 1) {
-    /* for BLF_width */
-    BLF_enable(fstyle.uifont_id, BLF_KERNING_DEFAULT);
-  }
-
   ui_but_text_password_hide(password_str, but, false);
 
   if (ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_SEARCH_MENU)) {
@@ -3381,10 +3376,6 @@ static void ui_textedit_set_cursor_pos(uiBut *but, uiHandleButtonData *data, con
       glyph_data[1] = str_last_len;
     }
     but->pos = glyph_data[1] + but->ofs;
-  }
-
-  if (fstyle.kerning == 1) {
-    BLF_disable(fstyle.uifont_id, BLF_KERNING_DEFAULT);
   }
 
   ui_but_text_password_hide(password_str, but, true);

@@ -985,6 +985,14 @@ static bool write_file_handle(Main *mainvar,
         BLI_assert(
             (id->tag & (LIB_TAG_NO_MAIN | LIB_TAG_NO_USER_REFCOUNT | LIB_TAG_NOT_ALLOCATED)) == 0);
 
+        /* We only write unused IDs in undo case.
+         * NOTE: All Scenes, WindowManagers and WorkSpaces should always be written to disk, so
+         * their usercount should never be NULL currently. */
+        if (id->us == 0 && !wd->use_memfile) {
+          BLI_assert(!ELEM(GS(id->name), ID_SCE, ID_WM, ID_WS));
+          continue;
+        }
+
         const bool do_override = !ELEM(override_storage, NULL, bmain) &&
                                  ID_IS_OVERRIDE_LIBRARY_REAL(id);
 
@@ -1018,12 +1026,23 @@ static bool write_file_handle(Main *mainvar,
 
         memcpy(id_buffer, id, idtype_struct_size);
 
+        /* Clear runtime data to reduce false detection of changed data in undo/redo context. */
         ((ID *)id_buffer)->tag = 0;
+        ((ID *)id_buffer)->us = 0;
+        ((ID *)id_buffer)->icon_id = 0;
         /* Those listbase data change every time we add/remove an ID, and also often when
          * renaming one (due to re-sorting). This avoids generating a lot of false 'is changed'
          * detections between undo steps. */
         ((ID *)id_buffer)->prev = NULL;
         ((ID *)id_buffer)->next = NULL;
+        /* Those runtime pointers should never be set during writing stage, but just in case clear
+         * them too. */
+        ((ID *)id_buffer)->orig_id = NULL;
+        ((ID *)id_buffer)->newid = NULL;
+        /* Even though in theory we could be able to preserve this python instance across undo even
+         * when we need to re-read the ID into its original address, this is currently cleared in
+         * #direct_link_id_common in `readfile.c` anyway, */
+        ((ID *)id_buffer)->py_instance = NULL;
 
         const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(id);
         if (id_type->blend_write != NULL) {

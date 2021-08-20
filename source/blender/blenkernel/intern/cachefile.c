@@ -49,6 +49,8 @@
 
 #include "DEG_depsgraph_query.h"
 
+#include "RE_engine.h"
+
 #include "BLO_read_write.h"
 
 #ifdef WITH_ALEMBIC
@@ -95,19 +97,18 @@ static void cache_file_free_data(ID *id)
 static void cache_file_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
   CacheFile *cache_file = (CacheFile *)id;
-  if (cache_file->id.us > 0 || BLO_write_is_undo(writer)) {
-    /* Clean up, important in undo case to reduce false detection of changed datablocks. */
-    BLI_listbase_clear(&cache_file->object_paths);
-    cache_file->handle = NULL;
-    memset(cache_file->handle_filepath, 0, sizeof(cache_file->handle_filepath));
-    cache_file->handle_readers = NULL;
 
-    BLO_write_id_struct(writer, CacheFile, id_address, &cache_file->id);
-    BKE_id_blend_write(writer, &cache_file->id);
+  /* Clean up, important in undo case to reduce false detection of changed datablocks. */
+  BLI_listbase_clear(&cache_file->object_paths);
+  cache_file->handle = NULL;
+  memset(cache_file->handle_filepath, 0, sizeof(cache_file->handle_filepath));
+  cache_file->handle_readers = NULL;
 
-    if (cache_file->adt) {
-      BKE_animdata_blend_write(writer, cache_file->adt);
-    }
+  BLO_write_id_struct(writer, CacheFile, id_address, &cache_file->id);
+  BKE_id_blend_write(writer, &cache_file->id);
+
+  if (cache_file->adt) {
+    BKE_animdata_blend_write(writer, cache_file->adt);
   }
 }
 
@@ -408,4 +409,20 @@ float BKE_cachefile_time_offset(const CacheFile *cache_file, const float time, c
   const float time_offset = cache_file->frame_offset / fps;
   const float frame = (cache_file->override_frame ? cache_file->frame : time);
   return cache_file->is_sequence ? frame : frame / fps - time_offset;
+}
+
+bool BKE_cache_file_uses_render_procedural(const CacheFile *cache_file,
+                                           Scene *scene,
+                                           const int dag_eval_mode)
+{
+  RenderEngineType *render_engine_type = RE_engines_find(scene->r.engine);
+
+  if (cache_file->type != CACHEFILE_TYPE_ALEMBIC ||
+      !RE_engine_supports_alembic_procedural(render_engine_type, scene)) {
+    return false;
+  }
+
+  /* The render time procedural is only enabled during viewport rendering. */
+  const bool is_final_render = (eEvaluationMode)dag_eval_mode == DAG_EVAL_RENDER;
+  return cache_file->use_render_procedural && !is_final_render;
 }
