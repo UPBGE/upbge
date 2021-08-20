@@ -262,9 +262,9 @@ void KX_GameObject::TagForTransformUpdate(bool is_last_render_pass)
     GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
   }
 
-  bContext *C = KX_GetActiveEngine()->GetContext();
+  /*bContext *C = KX_GetActiveEngine()->GetContext();
   Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);*/
 
   Object *ob_orig = GetBlenderObject();
 
@@ -279,7 +279,7 @@ void KX_GameObject::TagForTransformUpdate(bool is_last_render_pass)
       BKE_object_apply_mat4(ob_orig, ob_orig->obmat, false, ob_orig->parent && ob_orig->partype != PARVERT1);
     }
 
-    if (!staticObject || m_forceIgnoreParentTx) {
+    /*if (!staticObject || m_forceIgnoreParentTx) {
       std::vector<KX_GameObject *> children = GetChildren();
       if (children.size() > 0) {
         std::vector<Object *> childrenObjects;
@@ -291,7 +291,7 @@ void KX_GameObject::TagForTransformUpdate(bool is_last_render_pass)
         }
         GetScene()->IgnoreParentTxBGE(bmain, depsgraph, ob_orig, childrenObjects);
       }
-    }
+    }*/
 
     if (applyTransformToOrig) {
       /* NORMAL CASE */

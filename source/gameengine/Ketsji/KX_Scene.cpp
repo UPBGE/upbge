@@ -1266,7 +1266,7 @@ void KX_Scene::TagForObmatRestore(std::vector<Object *> potentialChildren)
       copy_m4_m4(ob_eval->obmat, backup->obmat);
       BKE_object_apply_mat4(ob_eval, ob_eval->obmat, false, true);
 
-      IgnoreParentTxBGE(bmain, depsgraph, ob_orig, potentialChildren);
+      //IgnoreParentTxBGE(bmain, depsgraph, ob_orig, potentialChildren);
 
       if (applyTransformToOrig) {
         /* NORMAL CASE */
