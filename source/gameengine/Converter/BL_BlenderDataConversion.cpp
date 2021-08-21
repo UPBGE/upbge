@@ -883,7 +883,7 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
       if (!converting_during_runtime) {
         BackupObj *backup = new BackupObj();  // Can't allocate on stack
         backup->ob = ob;
-        copy_m4_m4(backup->obmat, ob->obmat);
+        backup->obtfm = BKE_object_tfm_backup(ob);
         kxscene->BackupObjectsObmat(backup);
       }
     }
