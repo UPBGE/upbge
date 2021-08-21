@@ -272,7 +272,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
   /* To backup and restore obmat */
   m_backupObList = {};
-  m_potentialChildren = {};
 
   /* Configure Shading types and overlays according to
    * (viewport render or not) and (blenderplayer or not)
@@ -324,7 +323,7 @@ KX_Scene::~KX_Scene()
   /* Restore Objects obmat */
   if (scene->gm.flag & GAME_USE_UNDO) {
     RestoreObjectsObmat();
-    TagForObmatRestore(m_potentialChildren);
+    TagForObmatRestore();
   }
   /*************************/
 
@@ -1189,11 +1188,7 @@ void KX_Scene::BackupObjectsObmat(BackupObj *backup)
 void KX_Scene::RestoreObjectsObmat()
 {
   for (BackupObj *backup : m_backupObList) {
-    Object *ob = backup->ob;
-    copy_m4_m4(ob->obmat, backup->obmat);
-    if (ob->parent) {
-      m_potentialChildren.push_back(ob);
-    }
+    BKE_object_tfm_restore(backup->ob, backup->obtfm);
   }
 }
 
@@ -1243,30 +1238,20 @@ void KX_Scene::IgnoreParentTxBGE(Main *bmain,
   }
 }
 
-void KX_Scene::TagForObmatRestore(std::vector<Object *> potentialChildren)
+void KX_Scene::TagForObmatRestore()
 {
   for (BackupObj *backup : m_backupObList) {
-    bContext *C = KX_GetActiveEngine()->GetContext();
-    Main *bmain = CTX_data_main(C);
-    Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
     Object *ob_orig = backup->ob;
 
     if (ob_orig) {
 
-      Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_orig);
-
       bool applyTransformToOrig = OrigObCanBeTransformedInRealtime(ob_orig);
 
       if (applyTransformToOrig) {
-        copy_m4_m4(ob_orig->obmat, backup->obmat);
         BKE_object_apply_mat4(
             ob_orig, ob_orig->obmat, false, ob_orig->parent && ob_orig->partype != PARVERT1);
       }
-      copy_m4_m4(ob_eval->obmat, backup->obmat);
-      BKE_object_apply_mat4(ob_eval, ob_eval->obmat, false, true);
-
-      IgnoreParentTxBGE(bmain, depsgraph, ob_orig, potentialChildren);
 
       if (applyTransformToOrig) {
         /* NORMAL CASE */
@@ -1286,6 +1271,7 @@ void KX_Scene::TagForObmatRestore(std::vector<Object *> potentialChildren)
       }
     }
     /* Free what was allocated in BlenderDataConversion */
+    MEM_freeN(backup->obtfm);
     delete backup;
   }
 }

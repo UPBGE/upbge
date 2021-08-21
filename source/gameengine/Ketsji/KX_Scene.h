@@ -99,7 +99,7 @@ struct Object;
 
 typedef struct BackupObj {
   Object *ob;
-  float obmat[4][4];
+  void *obtfm;
 } BackupObj;
 
 /* for ID freeing */
@@ -145,7 +145,6 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   std::map<Object *, char> m_obRestrictFlags;
   bool m_collectionRemap;
   std::vector<BackupObj *> m_backupObList;
-  std::vector<Object *> m_potentialChildren;
 
   /* Objects to update at each render pass */
   /* Note: We could try to get the right render pass where
@@ -375,7 +374,7 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   KX_GameObject *GetGameObjectFromObject(Object *ob);
   void BackupObjectsObmat(BackupObj *back);
   void RestoreObjectsObmat();
-  void TagForObmatRestore(std::vector<Object *> potentialChildren);
+  void TagForObmatRestore();
   bool OrigObCanBeTransformedInRealtime(Object *ob);
   void IgnoreParentTxBGE(struct Main *bmain,
                          struct Depsgraph *depsgraph,
