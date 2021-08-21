@@ -6580,6 +6580,17 @@ void uiTemplateCacheFile(uiLayout *layout,
   uiLayoutSetActive(row, engine_supports_procedural);
   uiItemR(row, &fileptr, "use_render_procedural", 0, NULL, ICON_NONE);
 
+  const bool use_render_procedural = RNA_boolean_get(&fileptr, "use_render_procedural");
+  const bool use_prefetch = RNA_boolean_get(&fileptr, "use_prefetch");
+
+  row = uiLayoutRow(layout, false);
+  uiLayoutSetEnabled(row, use_render_procedural);
+  uiItemR(row, &fileptr, "use_prefetch", 0, NULL, ICON_NONE);
+
+  sub = uiLayoutRow(layout, false);
+  uiLayoutSetEnabled(sub, use_prefetch && use_render_procedural);
+  uiItemR(sub, &fileptr, "prefetch_cache_size", 0, NULL, ICON_NONE);
+
   row = uiLayoutRowWithHeading(layout, true, IFACE_("Override Frame"));
   sub = uiLayoutRow(row, true);
   uiLayoutSetPropDecorate(sub, false);
