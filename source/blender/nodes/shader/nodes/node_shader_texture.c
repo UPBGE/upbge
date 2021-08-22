@@ -115,9 +115,9 @@ static void node_shader_exec_texture(void *data, int UNUSED(thread), bNode *node
 static int gpu_shader_texture(GPUMaterial *mat, bNode *node, bNodeExecData *UNUSED(execdata), GPUNodeStack *in, GPUNodeStack *out)
 {
 	Tex *tex = (Tex *)node->id;
-	EnvMap *env = tex->env;
 
 	if (tex && tex->ima && (tex->type == TEX_IMAGE || tex->type == TEX_ENVMAP)) {
+		EnvMap* env = tex->env;
 		if (tex->type == TEX_IMAGE) {
 			GPUNodeLink *texlink = GPU_image(tex->ima, &tex->iuser, false);
 			GPU_stack_link(mat, "texture_image", in, out, texlink);
