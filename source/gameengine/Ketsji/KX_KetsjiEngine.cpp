@@ -398,11 +398,6 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
   // Get elapsed time.
   const double dt = m_clockTime - m_previousRealTime;
 
-#ifdef WITH_GAMEENGINE_CEGUI
-  /*CEGUI::System::getSingleton().getDefaultGUIContext().injectTimePulse(deltatime);*/
-  //CEGUI::System::getSingleton().injectTimePulse(deltatime); // for CEGUI animations, time is in seconds
-#endif
-
   // Time of a frame (without scale).
   double timestep;
   if (m_flags & FIXED_FRAMERATE) {
@@ -413,6 +408,11 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
     // The frame is the smallest as possible.
     timestep = dt;
   }
+
+#ifdef WITH_GAMEENGINE_CEGUI
+  CEGUI::System::getSingleton().getDefaultGUIContext().injectTimePulse(timestep);
+  CEGUI::System::getSingleton().injectTimePulse(timestep); // for CEGUI animations, time is in seconds
+#endif
 
   // Number of frames to proceed.
   int frames;
