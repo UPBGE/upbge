@@ -55,7 +55,7 @@ SCA_GUIActuator::~SCA_GUIActuator()
 {
 }
 
-CValue *SCA_GUIActuator::GetReplica()
+EXP_Value *SCA_GUIActuator::GetReplica()
 {
   SCA_GUIActuator *replica = new SCA_GUIActuator(*this);
   replica->ProcessReplica();
@@ -139,7 +139,7 @@ bool SCA_GUIActuator::Update()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_GUIActuator::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_GUIActuator",
-                                       sizeof(PyObjectPlus_Proxy),
+                                       sizeof(EXP_PyObjectPlus_Proxy),
                                        0,
                                        py_base_dealloc,
                                        0,
@@ -182,13 +182,13 @@ PyMethodDef SCA_GUIActuator::Methods[] =
 };
 
 PyAttributeDef SCA_GUIActuator::Attributes[] = {
-  KX_PYATTRIBUTE_STRING_RW("themeName", 0, 64, true, SCA_GUIActuator, m_themeName),
-  KX_PYATTRIBUTE_STRING_RW("cursorName", 0, 64, true, SCA_GUIActuator, m_cursorName),
-  KX_PYATTRIBUTE_STRING_RW("layoutName", 0, 64, true, SCA_GUIActuator, m_layoutName),
-  KX_PYATTRIBUTE_STRING_RW("prefix", 0, 64, true, SCA_GUIActuator, m_prefix),
-  KX_PYATTRIBUTE_BOOL_RW("changeDefault", SCA_GUIActuator, m_cursorDefault),
-  KX_PYATTRIBUTE_INT_RW("mode", KX_GUI_NODEF + 1, KX_GUI_MAX - 1, true, SCA_GUIActuator, m_mode),
-  KX_PYATTRIBUTE_NULL  // Sentinel
+  EXP_PYATTRIBUTE_STRING_RW("themeName", 0, 64, true, SCA_GUIActuator, m_themeName),
+  EXP_PYATTRIBUTE_STRING_RW("cursorName", 0, 64, true, SCA_GUIActuator, m_cursorName),
+  EXP_PYATTRIBUTE_STRING_RW("layoutName", 0, 64, true, SCA_GUIActuator, m_layoutName),
+  EXP_PYATTRIBUTE_STRING_RW("prefix", 0, 64, true, SCA_GUIActuator, m_prefix),
+  EXP_PYATTRIBUTE_BOOL_RW("changeDefault", SCA_GUIActuator, m_cursorDefault),
+  EXP_PYATTRIBUTE_INT_RW("mode", KX_GUI_NODEF + 1, KX_GUI_MAX - 1, true, SCA_GUIActuator, m_mode),
+  EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
 #endif  // WITH_PYTHON

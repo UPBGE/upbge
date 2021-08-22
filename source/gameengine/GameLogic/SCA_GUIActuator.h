@@ -71,7 +71,7 @@ class SCA_GUIActuator : public SCA_IActuator
 
   virtual ~SCA_GUIActuator();
 
-  virtual CValue *GetReplica();
+  virtual EXP_Value *GetReplica();
 
   virtual bool Update();
 
