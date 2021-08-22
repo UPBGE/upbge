@@ -5652,9 +5652,9 @@ BlendFileData *blo_read_blendafterruntime(int file,
 {
   BlendFileData *bfd = NULL;
   FileData *fd = filedata_new(reports);
-  fd->filedes = file;
+  /*fd->filedes = file;
   fd->buffersize = actualsize;
-  fd->read = fd_read_data_from_file;
+  fd->read = fd_read_data_from_file;*/
 
   /* needed for library_append and read_libraries */
   BLI_strncpy(fd->relabase, name, sizeof(fd->relabase));
