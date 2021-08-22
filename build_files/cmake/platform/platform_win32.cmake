@@ -874,6 +874,9 @@ if(WITH_HARU)
   endif()
 endif()
 
+set(ZSTD_INCLUDE_DIRS ${LIBDIR}/zstd/include)
+set(ZSTD_LIBRARIES ${LIBDIR}/zstd/lib/zstd_static.lib)
+
 # Compatibility with Windows 7
 if(WITH_WINDOWS_7)
   set(BCOMPAT7_LIBRARIES ${LIBDIR}/bcompat7/lib/bcompat7.lib)
