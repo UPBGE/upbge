@@ -5652,6 +5652,8 @@ BlendFileData *blo_read_blendafterruntime(int file,
 {
   BlendFileData *bfd = NULL;
   FileData *fd = filedata_new(reports);
+  fd->file = BLI_filereader_new_file(file);
+  fd->file->seek(fd->file, actualsize, SEEK_SET);
   /*fd->filedes = file;
   fd->buffersize = actualsize;
   fd->read = fd_read_data_from_file;*/
