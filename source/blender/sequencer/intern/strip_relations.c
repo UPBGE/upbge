@@ -118,7 +118,7 @@ static void sequence_invalidate_cache(Scene *scene,
   }
 
   if (seq->effectdata && seq->type == SEQ_TYPE_SPEED) {
-    seq_effect_speed_rebuild_map(scene, seq, true);
+    seq_effect_speed_rebuild_map(scene, seq);
   }
 
   sequence_do_invalidate_dependent(scene, seq, &ed->seqbase);
@@ -268,7 +268,7 @@ void SEQ_relations_free_imbuf(Scene *scene, ListBase *seqbase, bool for_render)
         SEQ_relations_sequence_free_anim(seq);
       }
       if (seq->type == SEQ_TYPE_SPEED) {
-        seq_effect_speed_rebuild_map(scene, seq, true);
+        seq_effect_speed_rebuild_map(scene, seq);
       }
     }
     if (seq->type == SEQ_TYPE_META) {
@@ -325,7 +325,7 @@ static bool update_changed_seq_recurs(
         SEQ_relations_sequence_free_anim(seq);
       }
       else if (seq->type == SEQ_TYPE_SPEED) {
-        seq_effect_speed_rebuild_map(scene, seq, true);
+        seq_effect_speed_rebuild_map(scene, seq);
       }
     }
 
@@ -503,4 +503,24 @@ void SEQ_relations_check_uuids_unique_and_report(const Scene *scene)
   SEQ_ALL_END;
 
   BLI_gset_free(used_uuids, NULL);
+}
+
+/* Return immediate parent meta of sequence */
+struct Sequence *SEQ_find_metastrip_by_sequence(ListBase *seqbase, Sequence *meta, Sequence *seq)
+{
+  Sequence *iseq;
+
+  for (iseq = seqbase->first; iseq; iseq = iseq->next) {
+    Sequence *rval;
+
+    if (seq == iseq) {
+      return meta;
+    }
+    if (iseq->seqbase.first &&
+        (rval = SEQ_find_metastrip_by_sequence(&iseq->seqbase, iseq, seq))) {
+      return rval;
+    }
+  }
+
+  return NULL;
 }
