@@ -259,7 +259,22 @@ void KX_GameObject::TagForTransformUpdate(bool is_last_render_pass)
   bool staticObject = true;
   if (GetSGNode()->IsDirty(SG_Node::DIRTY_RENDER)) {
     staticObject = false;
-    GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
+    /* Wait the end of all render passes (main + overlay)
+     * to clear dirty render because we want the objects to
+     * be tagged for transform update for each render pass.
+     */
+    bool multiple_render_passes = KX_GetActiveEngine()->GetRenderingCameras().size() > 1;
+    if (multiple_render_passes && !is_last_render_pass) {
+      // wait
+    }
+    else if (multiple_render_passes && is_last_render_pass) {
+      GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
+      copy_m4_m4(m_prevObmat, obmat); // This is used for ImageRender but could be changed...
+    }
+    else {
+      GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
+      copy_m4_m4(m_prevObmat, obmat);
+    }
   }
 
   bContext *C = KX_GetActiveEngine()->GetContext();
@@ -310,21 +325,7 @@ void KX_GameObject::TagForTransformUpdate(bool is_last_render_pass)
       }
     }
   }
-  /* Wait the end of all render passes (main + overlay)
-   * to evaluate if the objects were static compared to
-   * the previous frame. If the objects are not static,
-   * then evee engine current TAA sample will be set to 1.
-   */
-  bool multiple_render_passes = KX_GetActiveEngine()->GetRenderingCameras().size() > 1;
-  if (multiple_render_passes && !is_last_render_pass) {
-    // wait
-  }
-  else if (multiple_render_passes && is_last_render_pass) {
-    copy_m4_m4(m_prevObmat, obmat);
-  }
-  else {
-    copy_m4_m4(m_prevObmat, obmat);
-  }
+
   m_forceIgnoreParentTx = false;
 }
 
