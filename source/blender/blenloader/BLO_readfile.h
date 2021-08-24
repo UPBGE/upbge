@@ -287,7 +287,7 @@ void *BLO_library_read_struct(struct FileData *fd, struct BHead *bh, const char 
 
 BlendFileData *blo_read_blendafterruntime(int file,
                                           const char *name,
-                                          int actualsize,
+                                          int datastart,
                                           struct BlendFileReadReport *reports);
 
 /* internal function but we need to expose it */

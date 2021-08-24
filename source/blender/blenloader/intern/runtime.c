@@ -128,8 +128,7 @@ BlendFileData *BLO_read_runtime(const char *path, BlendFileReadReport *reports)
   }
   else {
     // printf("starting to read runtime from %s at datastart %d\n", path, datastart);
-    lseek(fd, datastart, SEEK_SET);
-    bfd = blo_read_blendafterruntime(fd, path, actualsize - datastart, reports);
+    bfd = blo_read_blendafterruntime(fd, path, datastart, reports);
     fd = -1;  // file was closed in blo_read_blendafterruntime()
   }
 
