@@ -53,8 +53,7 @@ static void geo_attribute_proximity_init(bNodeTree *UNUSED(ntree), bNode *node)
   NodeGeometryAttributeProximity *node_storage = (NodeGeometryAttributeProximity *)MEM_callocN(
       sizeof(NodeGeometryAttributeProximity), __func__);
 
-  node_storage->target_geometry_element =
-      GEO_NODE_ATTRIBUTE_PROXIMITY_TARGET_GEOMETRY_ELEMENT_FACES;
+  node_storage->target_geometry_element = GEO_NODE_PROXIMITY_TARGET_FACES;
   node->storage = node_storage;
 }
 
@@ -63,15 +62,10 @@ namespace blender::nodes {
 static void proximity_calc(MutableSpan<float> distance_span,
                            MutableSpan<float3> location_span,
                            const VArray<float3> &positions,
-                           BVHTreeFromMesh &tree_data_mesh,
-                           BVHTreeFromPointCloud &tree_data_pointcloud,
-                           const bool bvh_mesh_success,
-                           const bool bvh_pointcloud_success,
-                           const bool store_distances,
-                           const bool store_locations)
+                           BVHTreeFromMesh *tree_data_mesh,
+                           BVHTreeFromPointCloud *tree_data_pointcloud)
 {
-  IndexRange range = positions.index_range();
-  threading::parallel_for(range, 512, [&](IndexRange range) {
+  threading::parallel_for(positions.index_range(), 512, [&](IndexRange range) {
     BVHTreeNearest nearest_from_mesh;
     BVHTreeNearest nearest_from_pointcloud;
 
@@ -85,12 +79,12 @@ static void proximity_calc(MutableSpan<float> distance_span,
       /* Use the distance to the last found point as upper bound to speedup the bvh lookup. */
       nearest_from_mesh.dist_sq = len_squared_v3v3(nearest_from_mesh.co, positions[i]);
 
-      if (bvh_mesh_success) {
-        BLI_bvhtree_find_nearest(tree_data_mesh.tree,
+      if (tree_data_mesh != nullptr) {
+        BLI_bvhtree_find_nearest(tree_data_mesh->tree,
                                  positions[i],
                                  &nearest_from_mesh,
-                                 tree_data_mesh.nearest_callback,
-                                 &tree_data_mesh);
+                                 tree_data_mesh->nearest_callback,
+                                 tree_data_mesh);
       }
 
       /* Use the distance to the closest point in the mesh to speedup the pointcloud bvh lookup.
@@ -98,27 +92,27 @@ static void proximity_calc(MutableSpan<float> distance_span,
        * than the mesh. */
       nearest_from_pointcloud.dist_sq = nearest_from_mesh.dist_sq;
 
-      if (bvh_pointcloud_success) {
-        BLI_bvhtree_find_nearest(tree_data_pointcloud.tree,
+      if (tree_data_pointcloud != nullptr) {
+        BLI_bvhtree_find_nearest(tree_data_pointcloud->tree,
                                  positions[i],
                                  &nearest_from_pointcloud,
-                                 tree_data_pointcloud.nearest_callback,
-                                 &tree_data_pointcloud);
+                                 tree_data_pointcloud->nearest_callback,
+                                 tree_data_pointcloud);
       }
 
       if (nearest_from_pointcloud.dist_sq < nearest_from_mesh.dist_sq) {
-        if (store_distances) {
+        if (!distance_span.is_empty()) {
           distance_span[i] = sqrtf(nearest_from_pointcloud.dist_sq);
         }
-        if (store_locations) {
+        if (!location_span.is_empty()) {
           location_span[i] = nearest_from_pointcloud.co;
         }
       }
       else {
-        if (store_distances) {
+        if (!distance_span.is_empty()) {
           distance_span[i] = sqrtf(nearest_from_mesh.dist_sq);
         }
-        if (store_locations) {
+        if (!location_span.is_empty()) {
           location_span[i] = nearest_from_mesh.co;
         }
       }
@@ -132,13 +126,13 @@ static bool bvh_from_mesh(const Mesh *target_mesh,
 {
   BVHCacheType bvh_type = BVHTREE_FROM_LOOPTRI;
   switch (target_geometry_element) {
-    case GEO_NODE_ATTRIBUTE_PROXIMITY_TARGET_GEOMETRY_ELEMENT_POINTS:
+    case GEO_NODE_PROXIMITY_TARGET_POINTS:
       bvh_type = BVHTREE_FROM_VERTS;
       break;
-    case GEO_NODE_ATTRIBUTE_PROXIMITY_TARGET_GEOMETRY_ELEMENT_EDGES:
+    case GEO_NODE_PROXIMITY_TARGET_EDGES:
       bvh_type = BVHTREE_FROM_EDGES;
       break;
-    case GEO_NODE_ATTRIBUTE_PROXIMITY_TARGET_GEOMETRY_ELEMENT_FACES:
+    case GEO_NODE_PROXIMITY_TARGET_FACES:
       bvh_type = BVHTREE_FROM_LOOPTRI;
       break;
   }
@@ -181,23 +175,20 @@ static void attribute_calc_proximity(GeometryComponent &component,
   }
   BLI_assert(position_attribute.varray->type().is<float3>());
 
-  const bNode &node = params.node();
-  const NodeGeometryAttributeProximity &storage = *(const NodeGeometryAttributeProximity *)
-                                                       node.storage;
+  const NodeGeometryAttributeProximity &storage =
+      *(const NodeGeometryAttributeProximity *)params.node().storage;
 
-  BVHTreeFromMesh tree_data_mesh;
-  BVHTreeFromPointCloud tree_data_pointcloud;
   bool bvh_mesh_success = false;
-  bool bvh_pointcloud_success = false;
-
+  BVHTreeFromMesh tree_data_mesh;
   if (geometry_set_target.has_mesh()) {
     bvh_mesh_success = bvh_from_mesh(
         geometry_set_target.get_mesh_for_read(), storage.target_geometry_element, tree_data_mesh);
   }
 
+  bool bvh_pointcloud_success = false;
+  BVHTreeFromPointCloud tree_data_pointcloud;
   if (geometry_set_target.has_pointcloud() &&
-      storage.target_geometry_element ==
-          GEO_NODE_ATTRIBUTE_PROXIMITY_TARGET_GEOMETRY_ELEMENT_POINTS) {
+      storage.target_geometry_element == GEO_NODE_PROXIMITY_TARGET_POINTS) {
     bvh_pointcloud_success = bvh_from_pointcloud(geometry_set_target.get_pointcloud_for_read(),
                                                  tree_data_pointcloud);
   }
@@ -211,12 +202,8 @@ static void attribute_calc_proximity(GeometryComponent &component,
   proximity_calc(distance_span,
                  location_span,
                  positions,
-                 tree_data_mesh,
-                 tree_data_pointcloud,
-                 bvh_mesh_success,
-                 bvh_pointcloud_success,
-                 distance_attribute,  /* Boolean. */
-                 location_attribute); /* Boolean. */
+                 bvh_mesh_success ? &tree_data_mesh : nullptr,
+                 bvh_pointcloud_success ? &tree_data_pointcloud : nullptr);
 
   if (bvh_mesh_success) {
     free_bvhtree_from_mesh(&tree_data_mesh);

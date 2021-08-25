@@ -234,7 +234,6 @@ static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_
 
     if (t->con.mode & CON_APPLY) {
       int i = 0;
-      zero_v3(dvec);
       if (t->con.mode & CON_AXIS0) {
         dvec[i++] = dvec[0];
       }
@@ -243,6 +242,9 @@ static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_
       }
       if (t->con.mode & CON_AXIS2) {
         dvec[i++] = dvec[2];
+      }
+      while (i != 3) {
+        dvec[i++] = 0.0f;
       }
     }
 
