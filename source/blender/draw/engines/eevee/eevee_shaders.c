@@ -286,12 +286,32 @@ extern char datatoc_common_smaa_lib_glsl[];
 extern char datatoc_effect_smaa_frag_glsl[];
 extern char datatoc_effect_smaa_vert_glsl[];
 
-GPUShader *eevee_shader_antialiasing_get(int stage, int smaa_quality)
+static void free_smaa_shaders()
+{
+  for (int j = 0; j < sizeof(e_data.smaa_sh) / sizeof(void *); j++) {
+    struct GPUShader **sh_array = &e_data.smaa_sh[0];
+    DRW_SHADER_FREE_SAFE(sh_array[j]);
+    sh_array[j] = NULL;
+  }
+}
+
+GPUShader *eevee_shader_antialiasing_get(int stage,
+                                         int smaa_quality,
+                                         float smaa_predication_threshold,
+                                         float smaa_predication_scale,
+                                         bool recompile)
 {
   BLI_assert(stage < 3);
+
+  if (recompile) {
+    free_smaa_shaders();
+  }
+
   if (!e_data.smaa_sh[stage]) {
     char stage_define[32];
     char smaa_quality_define[32];
+    char smaa_predication_threshold_define[64];
+    char smaa_predication_scale_define[64];
     BLI_snprintf(stage_define, sizeof(stage_define), "#define SMAA_STAGE %d\n", stage);
     switch (smaa_quality) {
       case 0:
@@ -317,6 +337,15 @@ GPUShader *eevee_shader_antialiasing_get(int stage, int smaa_quality)
       default:
         break;
     }
+
+    BLI_snprintf(smaa_predication_threshold_define,
+                 sizeof(smaa_predication_threshold_define),
+                 "#define SMAA_PREDICATION_THRESHOLD %.8f\n",
+                 smaa_predication_threshold);
+    BLI_snprintf(smaa_predication_scale_define,
+                 sizeof(smaa_predication_scale_define),
+                 "#define SMAA_PREDICATION_SCALE %.8f\n",
+                 smaa_predication_scale);
 
     e_data.smaa_sh[stage] = GPU_shader_create_from_arrays({
         .vert =
@@ -344,6 +373,8 @@ GPUShader *eevee_shader_antialiasing_get(int stage, int smaa_quality)
                 "#define SMAA_NO_DISCARD\n",
                 smaa_quality_define,
                 "#define SMAA_PREDICATION 1\n",
+                smaa_predication_threshold_define,
+                smaa_predication_scale_define,
                 stage_define,
                 NULL,
             },
