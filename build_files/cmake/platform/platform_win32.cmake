@@ -670,8 +670,10 @@ if(WITH_GAMEENGINE_CEGUI)
   set(CEGUI_LIBRARIES
     optimized ${CEGUI_LIBPATH}/CEGUIBase-0.lib
     optimized ${CEGUI_LIBPATH}/CEGUIOpenGLRenderer-0.lib
+    optimized ${CEGUI_LIBPATH}/CEGUICoreWindowRendererSet.lib
     debug ${CEGUI_LIBPATH}/CEGUIBase-0_d.lib
     debug ${CEGUI_LIBPATH}/CEGUIOpenGLRenderer-0_d.lib
+    debug ${CEGUI_LIBPATH}/CEGUICoreWindowRendererSet_d.lib
   )
 endif()
 

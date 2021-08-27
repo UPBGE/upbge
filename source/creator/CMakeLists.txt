@@ -1004,6 +1004,7 @@ elseif(WIN32)
       FILES
         ${LIBDIR}/cegui/lib/CEGUIBase-0.dll
         ${LIBDIR}/cegui/lib/CEGUIOpenGLRenderer-0.dll
+        ${LIBDIR}/cegui/lib/CEGUICoreWindowRendererSet.dll
       DESTINATION "."
       CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
     )
@@ -1011,6 +1012,7 @@ elseif(WIN32)
       FILES
         ${LIBDIR}/cegui/lib/CEGUIBase-0_d.dll
         ${LIBDIR}/cegui/lib/CEGUIOpenGLRenderer-0_d.dll
+        ${LIBDIR}/cegui/lib/CEGUICoreWindowRendererSet_d.dll
       DESTINATION "."
       CONFIGURATIONS Debug
     )
