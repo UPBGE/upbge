@@ -375,4 +375,10 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *bmain)
       }
     }
   }
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 10)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->eevee.smaa_predication_threshold = 0.01f;
+      scene->eevee.smaa_predication_scale = 1.0f;
+    }
+  }
 }

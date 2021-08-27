@@ -513,6 +513,10 @@ class RENDER_PT_eevee_sampling_smaa(RenderButtonsPanel, Panel):
         layout.active = props.use_eevee_smaa
         col = layout.column(align=True)
         col.prop(props, "smaa_quality", text="Quality")
+        row = layout.row()
+        row.prop(props, "smaa_predication_threshold", text="SMAA Threshold")
+        row = layout.row()
+        row.prop(props, "smaa_predication_scale", text="SMAA Scale")
 
 
 class RENDER_PT_eevee_indirect_lighting(RenderButtonsPanel, Panel):

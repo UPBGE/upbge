@@ -242,8 +242,6 @@
     .sss_samples = 7, \
     .sss_jitter_threshold = 0.3f, \
  \
-    .smaa_quality = SCE_EEVEE_SMAA_PRESET_HIGH, \
- \
     .ssr_quality = 0.25f, \
     .ssr_max_roughness = 0.5f, \
     .ssr_thickness = 0.2f, \
@@ -291,6 +289,11 @@
     .flag = SCE_EEVEE_VOLUMETRIC_LIGHTS | SCE_EEVEE_GTAO_BENT_NORMALS | \
                     SCE_EEVEE_GTAO_BOUNCE | SCE_EEVEE_TAA_REPROJECTION | \
                     SCE_EEVEE_SSR_HALF_RESOLUTION | SCE_EEVEE_SHADOW_SOFT, \
+ \
+    .smaa_quality = SCE_EEVEE_SMAA_PRESET_HIGH, \
+    .smaa_predication_threshold = 0.01, \
+    .smaa_predication_scale = 1.0, \
+ \
   }
 
 #define _DNA_DEFAULT_Scene \

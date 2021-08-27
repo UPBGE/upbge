@@ -1827,7 +1827,8 @@ typedef struct SceneEEVEE {
   float overscan;
   float light_threshold;
 
-  int smaa_quality, _pad[3];  // UPBGE
+  int smaa_quality;                                                // UPBGE
+  float smaa_predication_threshold, smaa_predication_scale, _pad;  // UPBGE
 
 } SceneEEVEE;
 
