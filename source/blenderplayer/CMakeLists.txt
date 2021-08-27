@@ -359,6 +359,10 @@ if(APPLE)
       FILES ${LIBDIR}/openmp/lib/libomp.dylib
       DESTINATION Blenderplayer.app/Contents/Resources/lib
     )
+    install(
+      FILES ${LIBDIR}/openmp/lib/libomp.dylib
+      DESTINATION Blenderplayer.app/Contents/Resources/${BLENDER_VERSION}/lib
+    )
   endif()
 
   if(WITH_LLVM AND NOT LLVM_STATIC)
