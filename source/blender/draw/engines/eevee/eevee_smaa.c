@@ -84,7 +84,7 @@ int EEVEE_antialiasing_engine_init(EEVEE_Data *vedata)
     GPU_texture_filter_mode(txl->smaa_search_tx, true);
     GPU_texture_filter_mode(txl->smaa_area_tx, true);
   }
-  return EFFECT_SMAA;
+  return EFFECT_SMAA | EFFECT_DOUBLE_BUFFER;
 }
 
 static int prev_smaa_quality = 2;
@@ -184,7 +184,7 @@ void EEVEE_antialiasing_draw_pass(EEVEE_Data *vedata)
   DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
 
   EEVEE_EffectsInfo *effects = vedata->stl->effects;
-  if (!(effects->enabled_effects & EFFECT_SMAA)) {
+  if (!(effects->enabled_effects & EFFECT_SMAA) || !vedata->stl->g_data->valid_double_buffer) {
     return;
   }
 
