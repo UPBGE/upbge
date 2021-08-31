@@ -43,6 +43,10 @@
 
 #include "draw_instance_data.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct DupliObject;
 struct Object;
 
@@ -560,7 +564,6 @@ typedef struct DRWManager {
     uint is_depth : 1;
     uint is_image_render : 1;
     uint is_scene_render : 1;
-    uint do_color_management : 1;
     uint draw_background : 1;
     uint draw_text : 1;
   } options;
@@ -658,3 +661,7 @@ void drw_uniform_attrs_pool_update(struct GHash *table,
 /* UPBGE */
 void drw_debug_draw_bge(void);
 /**************************/
+
+#ifdef __cplusplus
+}
+#endif

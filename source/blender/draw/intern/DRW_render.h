@@ -63,6 +63,10 @@
 
 #include "DEG_depsgraph.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct GPUBatch;
 struct GPUMaterial;
 struct GPUShader;
@@ -143,10 +147,6 @@ typedef enum {
   DRW_TEX_COMPARE = (1 << 2),
   DRW_TEX_MIPMAP = (1 << 3),
 } DRWTextureFlag;
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* Textures from DRW_texture_pool_query_* have the options
  * DRW_TEX_FILTER for color float textures, and no options
@@ -735,7 +735,6 @@ bool DRW_state_is_fbo(void);
 bool DRW_state_is_select(void);
 bool DRW_state_is_depth(void);
 bool DRW_state_is_image_render(void);
-bool DRW_state_do_color_management(void);
 bool DRW_state_is_scene_render(void);
 bool DRW_state_is_opengl_render(void);
 bool DRW_state_is_playback(void);
@@ -798,6 +797,7 @@ void DRW_transform_to_display_image_render(struct GPUTexture *tex);
 void DRW_game_gpu_viewport_set(struct GPUViewport *viewport);
 struct GPUViewport *DRW_game_gpu_viewport_get(void);
 /**************************END OF GAME ENGINE*******************************/
+
 
 #ifdef __cplusplus
 }
