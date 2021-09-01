@@ -1367,28 +1367,31 @@ class WM_OT_properties_edit(Operator):
         }
 
     def get_value_eval(self):
+        failed = False
         try:
             value_eval = eval(self.value)
             # assert else None -> None, not "None", see T33431.
             assert(type(value_eval) in {str, float, int, bool, tuple, list})
         except:
+            failed = True
             value_eval = self.value
 
-        return value_eval
+        return value_eval, failed
 
     def get_default_eval(self):
+        failed = False
         try:
             default_eval = eval(self.default)
             # assert else None -> None, not "None", see T33431.
             assert(type(default_eval) in {str, float, int, bool, tuple, list})
         except:
+            failed = True
             default_eval = self.default
 
-        return default_eval
+        return default_eval, failed
 
     def execute(self, context):
         from rna_prop_ui import (
-            rna_idprop_ui_prop_clear,
             rna_idprop_ui_prop_update,
             rna_idprop_value_item_type,
         )
@@ -1403,8 +1406,8 @@ class WM_OT_properties_edit(Operator):
             self.report({'ERROR'}, "Direct execution not supported")
             return {'CANCELLED'}
 
-        value_eval = self.get_value_eval()
-        default_eval = self.get_default_eval()
+        value_eval, value_failed = self.get_value_eval()
+        default_eval, default_failed = self.get_default_eval()
 
         # First remove
         item = eval("context.%s" % data_path)
@@ -1415,7 +1418,7 @@ class WM_OT_properties_edit(Operator):
 
         prop_type_old = type(item[prop_old])
 
-        rna_idprop_ui_prop_clear(item, prop_old)
+        # Deleting the property will also remove the UI data.
         del item[prop_old]
 
         # Reassign
@@ -1459,7 +1462,7 @@ class WM_OT_properties_edit(Operator):
                 subtype=self.subtype,
                 description=self.description
             )
-        elif prop_type == str and not is_array: # String arrays do not support UI data.
+        elif prop_type == str and not is_array and not default_failed: # String arrays do not support UI data.
             ui_data = item.id_properties_ui(prop)
             ui_data.update(
                 default=self.default,
@@ -1532,7 +1535,8 @@ class WM_OT_properties_edit(Operator):
         self.is_overridable_library = bool(is_overridable)
 
         # default default value
-        prop_type, is_array = rna_idprop_value_item_type(self.get_value_eval())
+        value, value_failed = self.get_value_eval()
+        prop_type, is_array = rna_idprop_value_item_type(value)
         if prop_type in {int, float}:
             self.default = str(prop_type(0))
         else:
@@ -1552,7 +1556,7 @@ class WM_OT_properties_edit(Operator):
                 self.max != self.soft_max
             )
             self.default = str(rna_data["default"])
-        if prop_type == str and not is_array: # String arrays do not support UI data.
+        if prop_type == str and not is_array and not value_failed: # String arrays do not support UI data.
             ui_data = item.id_properties_ui(prop)
             rna_data = ui_data.as_dict()
             self.subtype =  rna_data["subtype"]
