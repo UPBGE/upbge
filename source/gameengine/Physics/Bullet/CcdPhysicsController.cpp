@@ -2379,14 +2379,17 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj, cla
 
 
   Mesh *me = nullptr;
-  if (evaluatedMesh) {
+  if (from_meshobj) {
+    me = nullptr;
+  }
+  else if (evaluatedMesh) {
     bContext *C = KX_GetActiveEngine()->GetContext();
     Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
     Object *ob_eval = DEG_get_evaluated_object(depsgraph, from_gameobj->GetBlenderObject());
     me = (Mesh *)ob_eval->data;
   }
-  else {
-    me = nullptr;
+  else if (from_gameobj && !evaluatedMesh) {
+    me = (Mesh *)from_gameobj->GetBlenderObject()->data;
   }
 
   DerivedMesh *dm = nullptr;
