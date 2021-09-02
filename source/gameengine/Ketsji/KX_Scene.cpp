@@ -2179,7 +2179,7 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj,
 
   if (use_phys) { /* update the new assigned mesh with the physics mesh */
     if (gameobj->GetPhysicsController())
-      gameobj->GetPhysicsController()->ReinstancePhysicsShape(nullptr, use_gfx ? nullptr : mesh);
+      gameobj->GetPhysicsController()->ReinstancePhysicsShape(nullptr, mesh);
   }
 
   if (use_gfx || use_phys) {
