@@ -144,7 +144,7 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
     return m_meshObject;
   }
 
-  bool UpdateMesh(class KX_GameObject *gameobj, bool evaluatedMesh = false);
+  bool UpdateMesh(class KX_GameObject *from_gameobj, class RAS_MeshObject *from_meshobj, bool evaluatedMesh = false);
 
   CcdShapeConstructionInfo *GetReplica();
 
