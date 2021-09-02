@@ -2386,12 +2386,15 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj, cla
     me = (Mesh *)ob_eval->data;
   }
   else {
-    me = meshobj->GetOrigMesh();
+    me = nullptr;
   }
 
-  DerivedMesh *dm = CDDM_from_mesh(me);
+  DerivedMesh *dm = nullptr;
 
-  DM_ensure_tessface(dm);
+  if (me) {
+    dm = CDDM_from_mesh(me);
+    DM_ensure_tessface(dm);
+  }
 
   if (dm && meshobj) {
     /*
