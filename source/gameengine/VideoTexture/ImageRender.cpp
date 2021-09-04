@@ -163,6 +163,14 @@ bool ImageRender::Render()
     return false;
   }
 
+  /* Viewport render mode doesn't support ImageRender then exit here
+   * if we are trying to use not supported features. */
+  if (KX_GetActiveEngine()->UseViewportRender()) {
+    std::cout << "Warning: Viewport Render mode doesn't support ImageRender"
+              << std::endl;
+    return false;
+  }
+
   if (m_mirror) {
     // mirror mode, compute camera frustum, position and orientation
     // convert mirror position and normal in world space

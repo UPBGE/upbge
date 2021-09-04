@@ -758,6 +758,12 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   /* Here we'll render directly the scene with viewport code. */
   if (useViewportRender) {
+    /* Viewport render mode doesn't support several render passes then exit here
+     * if we are trying to use not supported features. */
+    if (cam && cam != KX_GetActiveEngine()->GetRenderingCameras().front()) {
+      std::cout << "Warning: Viewport Render mode doesn't support multiple render passes" << std::endl;
+      return;
+    }
     if (cam) {
       if (canvas->IsBlenderPlayer()) {
         ARegion *region = CTX_wm_region(C);
