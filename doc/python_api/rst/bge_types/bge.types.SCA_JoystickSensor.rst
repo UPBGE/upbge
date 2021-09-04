@@ -33,7 +33,7 @@ base class --- :class:`~bge.types.SCA_ISensor`
          
          Only use this for "Single Axis" type sensors otherwise it will raise an error.
 
-   .. attribute:: hatValues (Deprecated. Use :data:button instead)
+   .. attribute:: hatValues
 
       The state of the joysticks hats as a list of values :attr:`numHats` long. (read-only).
 
@@ -53,11 +53,19 @@ base class --- :class:`~bge.types.SCA_ISensor`
       * 12:Down - Left
       * 9:Up - Left
 
-   .. attribute:: hatSingle (Deprecated. Use :data:button instead)
+      .. deprecated:: 0.2.2
+
+         Use :attr:`button` instead.
+
+   .. attribute:: hatSingle
 
       Like :attr:`hatValues` but returns a single hat direction value that is set by the sensor. (read-only).
 
       :type: integer
+
+      .. deprecated:: 0.2.2
+
+         Use :attr:`button` instead.
 
    .. attribute:: numAxis
 
@@ -71,11 +79,15 @@ base class --- :class:`~bge.types.SCA_ISensor`
 
       :type: integer
 
-   .. attribute:: numHats (Deprecated. Use :data:numButtons instead)
+   .. attribute:: numHats
 
       The number of hats for the joystick at this index. (read-only).
 
       :type: integer
+
+      .. deprecated:: 0.2.2
+
+         Use :attr:`numButtons` instead.
 
    .. attribute:: connected
 
@@ -110,7 +122,7 @@ base class --- :class:`~bge.types.SCA_ISensor`
 
       :type: [integer, integer]
 
-   .. attribute:: hat (Deprecated. Use :attr:`button` instead)
+   .. attribute:: hat
 
       The hat the sensor reacts to, as a list of two values: [hatIndex, hatDirection]
 
@@ -118,6 +130,10 @@ base class --- :class:`~bge.types.SCA_ISensor`
       * hatDirection: 1-12.
 
       :type: [integer, integer]
+
+      .. deprecated:: 0.2.2
+
+         Use :attr:`button` instead.
 
    .. method:: getButtonActiveList()
 

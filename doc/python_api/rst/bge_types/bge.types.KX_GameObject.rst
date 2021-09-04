@@ -314,7 +314,9 @@ base class --- :class:`~bge.types.SCA_IObject`
 
       The object's position. [x, y, z] On write: local position, on read: world position
 
-      .. deprecated:: use :attr:`localPosition` and :attr:`worldPosition`.
+      .. deprecated:: 0.0.1
+
+         Use :attr:`localPosition` and :attr:`worldPosition`.
 
       :type: :class:`mathutils.Vector`
 
@@ -322,7 +324,9 @@ base class --- :class:`~bge.types.SCA_IObject`
 
       The object's orientation. 3x3 Matrix. You can also write a Quaternion or Euler vector. On write: local orientation, on read: world orientation
 
-      .. deprecated:: use :attr:`localOrientation` and :attr:`worldOrientation`.
+      .. deprecated:: 0.0.1
+
+         Use :attr:`localOrientation` and :attr:`worldOrientation`.
 
       :type: :class:`mathutils.Matrix`
 
@@ -330,7 +334,9 @@ base class --- :class:`~bge.types.SCA_IObject`
 
       The object's scaling factor. [sx, sy, sz] On write: local scaling, on read: world scaling
 
-      .. deprecated:: use :attr:`localScale` and :attr:`worldScale`.
+      .. deprecated:: 0.0.1
+
+         Use :attr:`localScale` and :attr:`worldScale`.
 
       :type: :class:`mathutils.Vector`
 

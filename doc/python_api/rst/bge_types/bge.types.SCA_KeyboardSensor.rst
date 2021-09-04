@@ -57,7 +57,9 @@ base class --- :class:`~bge.types.SCA_ISensor`
 
       a list of pressed keys that have either been pressed, or just released, or are active this frame. (read-only).
 
-      .. deprecated:: use :data:`inputs`
+      .. deprecated:: 0.2.2
+
+         Use :data:`inputs`
 
       :type: list [[:ref:`keycode<keyboard-keys>`, :ref:`status<input-status>`], ...]
 

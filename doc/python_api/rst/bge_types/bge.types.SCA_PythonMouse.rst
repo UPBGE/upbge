@@ -19,7 +19,9 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
       a dictionary containing the status of each mouse event. (read-only).
 
-      .. deprecated:: use :attr:`inputs`
+      .. deprecated:: 0.2.2
+
+         Use :attr:`inputs`.
 
       :type: dictionary {:ref:`keycode<mouse-keys>`::ref:`status<input-status>`, ...}
 
@@ -33,7 +35,9 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
       a dictionary containing the status of only the active mouse events. (read-only).
 
-      .. deprecated:: use :data:`activeInputs`
+      .. deprecated:: 0.2.2
+
+         Use :data:`activeInputs`.
 
       :type: dictionary {:ref:`keycode<mouse-keys>`::ref:`status<input-status>`, ...}
       

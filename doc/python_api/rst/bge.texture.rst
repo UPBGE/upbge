@@ -448,7 +448,9 @@ Image classes
 
       :type: float list [r, g, b, a] in [0.0, 1.0]
 
-      Deprecated use :py:attr:`bge.texture.ImageMirror.horizon` or :py:attr:`bge.texture.ImageMirror.zenith` instead.
+      .. deprecated:: 0.2.2
+
+         Use :py:attr:`bge.texture.ImageMirror.horizon` or :py:attr:`bge.texture.ImageMirror.zenith` instead.
 
    .. attribute:: updateShadow
 
@@ -694,7 +696,9 @@ Image classes
 
       :type: float list [r, g, b, a] in [0.0, 1.0]
 
-      Deprecated use :py:attr:`bge.texture.ImageRender.horizon` or :py:attr:`bge.texture.ImageRender.zenith` instead.
+      .. deprecated:: 0.2.2
+
+         Use :py:attr:`bge.texture.ImageRender.horizon` or :py:attr:`bge.texture.ImageRender.zenith` instead.
 
    .. attribute:: updateShadow
 

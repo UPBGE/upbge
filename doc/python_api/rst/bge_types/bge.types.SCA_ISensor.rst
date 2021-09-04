@@ -23,9 +23,13 @@ base class --- :class:`~bge.types.SCA_ILogicBrick`
 
    .. attribute:: frequency
 
-      The frequency for pulse mode sensors. (Deprecated: use :attr:`skippedTicks`)
+      The frequency for pulse mode sensors.
 
       :type: integer
+
+      .. deprecated:: 0.0.1
+
+         Use :attr:`skippedTicks`
 
    .. attribute:: skippedTicks
 

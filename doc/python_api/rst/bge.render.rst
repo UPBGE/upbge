@@ -58,15 +58,15 @@ Constants
 
 .. data:: KX_TEXFACE_MATERIAL
 
-   Deprecated.
+   .. deprecated:: 0.2.2
 
 .. data:: KX_BLENDER_MULTITEX_MATERIAL
 
-   Deprecated.
+   .. deprecated:: 0.2.2
 
 .. data:: KX_BLENDER_GLSL_MATERIAL
 
-   Deprecated.
+   .. deprecated:: 0.2.2
 
 .. DATA:: VSYNC_OFF
 
@@ -166,7 +166,9 @@ Functions
 
 .. function:: enableVisibility(visible)
 
-   Deprecated; doesn't do anything.
+   .. deprecated:: 0.0.1
+
+      Doesn't do anything.
 
 
 .. function:: showMouse(visible)
@@ -189,7 +191,9 @@ Functions
 
 .. function:: setBackgroundColor(rgba)
 
-   Deprecated and no longer functional. Use :attr:`bge.texture.ImageRender.horizon` or :attr:`bge.texture.ImageRender.zenith` instead.
+   .. deprecated:: 0.2.2
+
+      Use :attr:`bge.texture.ImageRender.horizon` or :attr:`bge.texture.ImageRender.zenith` instead.
 
 
 .. function:: setEyeSeparation(eyesep)
@@ -231,23 +235,19 @@ Functions
 
 .. function:: setMaterialMode(mode)
 
-   Deprecated and no longer functional.
-
+   .. deprecated:: 0.2.2
 
 .. function:: getMaterialMode(mode)
 
-   Deprecated and no longer functional.
-
+   .. deprecated:: 0.2.2
 
 .. function:: setGLSLMaterialSetting(setting, enable)
 
-   Deprecated and no longer functional.
-
+   .. deprecated:: 0.3.0
 
 .. function:: getGLSLMaterialSetting(setting)
 
-   Deprecated and no longer functional.
-
+   .. deprecated:: 0.3.0
 
 .. function:: setAnisotropicFiltering(level)
 

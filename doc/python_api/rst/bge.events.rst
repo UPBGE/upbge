@@ -246,7 +246,11 @@ Other Keys
 .. data:: PERIODKEY
 .. data:: QUOTEKEY
 .. data:: RIGHTBRACKETKEY
-.. data:: RETKEY (Deprecated: use bge.events.ENTERKEY)
+.. data:: RETKEY
+
+   .. deprecated:: 0.0.1
+
+      Use :data:`~bge.events.ENTERKEY`.
 .. data:: ENTERKEY
 .. data:: SEMICOLONKEY
 .. data:: SLASHKEY

@@ -37,7 +37,11 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       * up:[0.0, -1.0, ...]
       * down:[0.0, 1.0, ...]
 
-   .. attribute:: hatValues (Deprecated. Use :attr:`activeButtons` instead)
+   .. attribute:: hatValues
+
+      .. deprecated:: 0.2.2
+
+         Use :attr:`activeButtons` instead.
 
    .. attribute:: numAxis
 
@@ -51,8 +55,11 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
       :type: integer
 
-   .. attribute:: numHats (Deprecated. Use :data:`numButtons` instead)
+   .. attribute:: numHats
 
+      .. deprecated:: 0.2.2
+
+         Use :attr:`numButtons` instead.
 
    .. method:: startVibration()
 
