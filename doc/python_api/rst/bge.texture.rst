@@ -69,24 +69,24 @@ Examples
 
 .. include:: ../examples/bge.texture.py
    :start-line: 1
-   :end-line: 5
+   :end-line: 8
 
 .. literalinclude:: ../examples/bge.texture.py
-   :lines: 7-
+   :lines: 10-
 
 .. include:: ../examples/bge.texture.1.py
    :start-line: 1
-   :end-line: 6
+   :end-line: 7
 
 .. literalinclude:: ../examples/bge.texture.1.py
-   :lines: 8-
+   :lines: 9-
 
 .. include:: ../examples/bge.texture.2.py
    :start-line: 1
-   :end-line: 6
+   :end-line: 30
 
 .. literalinclude:: ../examples/bge.texture.2.py
-   :lines: 8-
+   :lines: 32-
 
 *************
 Video classes

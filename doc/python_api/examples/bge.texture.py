@@ -4,7 +4,7 @@ Basic Video Playback
 Example of how to replace a texture in game with a video.
 It needs to run everyframe.
 To avoid any confusion with the location of the file,
-we will use ``GameLogic.expandPath()`` to build an absolute file name,
+we will use :meth:`bge.logic.expandPath` to build an absolute file name,
 assuming the video file is in the same directory as the blend-file.
 """
 import bge

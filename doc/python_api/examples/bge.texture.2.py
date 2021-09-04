@@ -23,9 +23,11 @@ To find which pixel format is suitable for a particular video stream, use the 'M
 utility that comes with the Decklink software : if you see the video in the 'Log and Capture'
 Window, you have selected the right pixel format and you can use the same in Blender.
 
-Notes: * these shaders only decode the RGB channel and set the alpha channel to a fixed
-value (look for color.a = ). It's up to you to add postprocessing to the color.
-       * these shaders are compatible with 2D and 3D video stream
+.. note::
+    These shaders only decode the RGB channel and set the alpha channel to a fixed
+    value (look for color.a = ). It's up to you to add postprocessing to the color.
+.. note::
+    These shaders are compatible with 2D and 3D video stream.
 """
 import bge
 from bge import logic
