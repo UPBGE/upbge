@@ -175,13 +175,13 @@ base class --- :class:`EXP_PyObjectPlus`
 
       :type: Vector((gx, gy, gz))
 
-   .. attribute:: logger
+   .. property:: logger
 
       A logger instance that can be used to log messages related to this object (read-only).
 
-      :type: logging.Logger
+      :type: :class:`logging.Logger`
 
-   .. attribute:: loggerName
+   .. property:: loggerName
 
       A name used to create the logger instance. By default, it takes the form *KX_Scene[Name]*.
 
