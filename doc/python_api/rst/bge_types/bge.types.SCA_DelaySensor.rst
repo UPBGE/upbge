@@ -1,7 +1,9 @@
 SCA_DelaySensor(SCA_ISensor)
 ============================
 
-base class --- :class:`SCA_ISensor`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.SCA_ISensor`
 
 .. class:: SCA_DelaySensor(SCA_ISensor)
 
@@ -13,7 +15,7 @@ base class --- :class:`SCA_ISensor`
 
    The sensor runs the OFF-ON cycle once unless the repeat option is set: the OFF-ON cycle repeats indefinately (or the OFF cycle if duration is 0).
 
-   Use :class:`SCA_ISensor.reset` at any time to restart sensor.
+   Use :meth:`SCA_ISensor.reset <bge.types.SCA_ISensor.reset>` at any time to restart sensor.
 
    .. attribute:: delay
 

@@ -1,7 +1,9 @@
 SCA_NORController(SCA_IController)
 ==================================
 
-base class --- :class:`SCA_IController`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.SCA_IController`
 
 .. class:: SCA_NORController(SCA_IController)
 

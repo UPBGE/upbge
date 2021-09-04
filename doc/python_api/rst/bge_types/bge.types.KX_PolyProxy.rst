@@ -1,7 +1,9 @@
 KX_PolyProxy(SCA_IObject)
 =========================
 
-base class --- :class:`SCA_IObject`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.SCA_IObject`
 
 .. class:: KX_PolyProxy(SCA_IObject)
 
@@ -21,7 +23,7 @@ base class --- :class:`SCA_IObject`
 
       The material of the polygon.
 
-      :type: :class:`KX_BlenderMaterial`
+      :type: :class:`~bge.types.KX_BlenderMaterial`
 
    .. attribute:: texture_name
 
@@ -76,7 +78,7 @@ base class --- :class:`SCA_IObject`
 
       Returns the list of vertices of this polygon.
 
-      :type: :class:`KX_VertexProxy` list (read only)
+      :type: :class:`~bge.types.KX_VertexProxy` list (read only)
 
    .. method:: getMaterialName()
 
@@ -88,7 +90,7 @@ base class --- :class:`SCA_IObject`
    .. method:: getMaterial()
 
       :return: The polygon material
-      :rtype: :class:`KX_BlenderMaterial`
+      :rtype: :class:`~bge.types.KX_BlenderMaterial`
 
    .. method:: getTextureName()
 
@@ -98,7 +100,7 @@ base class --- :class:`SCA_IObject`
    .. method:: getMaterialIndex()
 
       Returns the material bucket index of the polygon.
-      This index and the ones returned by getVertexIndex() are needed to retrieve the vertex proxy from :class:`MeshProxy`.
+      This index and the ones returned by getVertexIndex() are needed to retrieve the vertex proxy from :class:`~bge.types.KX_MeshProxy`.
 
       :return: the material index in the mesh
       :rtype: integer
@@ -127,7 +129,7 @@ base class --- :class:`SCA_IObject`
    .. method:: getVertexIndex(vertex)
 
       Returns the mesh vertex index of a polygon vertex
-      This index and the one returned by getMaterialIndex() are needed to retrieve the vertex proxy from :class:`MeshProxy`.
+      This index and the one returned by getMaterialIndex() are needed to retrieve the vertex proxy from :class:`~bge.types.KX_MeshProxy`.
 
       :arg vertex: index of the vertex in the polygon: 0->3
       :arg vertex: integer
@@ -139,4 +141,4 @@ base class --- :class:`SCA_IObject`
       Returns a mesh proxy
 
       :return: mesh proxy
-      :rtype: :class:`MeshProxy`
+      :rtype: :class:`~bge.types.KX_MeshProxy`

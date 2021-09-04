@@ -1,7 +1,9 @@
 SCA_MouseFocusSensor(SCA_MouseSensor)
 =====================================
 
-base class --- :class:`SCA_MouseSensor`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.SCA_MouseSensor`
 
 .. class:: SCA_MouseFocusSensor(SCA_MouseSensor)
 
@@ -24,7 +26,7 @@ base class --- :class:`SCA_MouseSensor`
 
    .. attribute:: rayDirection
 
-      The :data:`rayTarget` - :class:`raySource` normalized.
+      The :attr:`rayTarget` - :attr:`raySource` normalized.
 
       :type: list (normalized vector of 3 floats)
 
@@ -32,7 +34,7 @@ base class --- :class:`SCA_MouseSensor`
 
       the last object the mouse was over.
 
-      :type: :class:`KX_GameObject` or None
+      :type: :class:`~bge.types.KX_GameObject` or None
 
    .. attribute:: hitPosition
 

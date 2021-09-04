@@ -1,13 +1,15 @@
 SCA_SoundActuator(SCA_IActuator)
 ================================
 
-base class --- :class:`SCA_IActuator`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.SCA_IActuator`
 
 .. class:: SCA_SoundActuator(SCA_IActuator)
 
    Sound Actuator.
 
-   The :data:`startSound`, :data:`pauseSound` and :data:`stopSound` do not require the actuator to be activated - they act instantly provided that the actuator has been activated once at least.
+   The :meth:`startSound`, :meth:`pauseSound` and :meth:`stopSound` do not require the actuator to be activated - they act instantly provided that the actuator has been activated once at least.
 
    .. attribute:: volume
 

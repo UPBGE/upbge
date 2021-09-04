@@ -1,7 +1,9 @@
 KX_2DFilterManager(EXP_PyObjectPlus)
 ====================================
 
-base class --- :class:`EXP_PyObjectPlus`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
 .. class:: KX_2DFilterManager(EXP_PyObjectPlus)
 
@@ -31,7 +33,7 @@ base class --- :class:`EXP_PyObjectPlus`
           Specified only if :data:`type` is :data:`bge.logic.RAS_2DFILTER_CUSTOMFILTER`. (optional)
       :type fragmentProgram: string
       :return: The 2D Filter.
-      :rtype: :class:`KX_2DFilter`
+      :rtype: :class:`~bge.types.KX_2DFilter`
 
    .. method:: removeFilter(index)
 
@@ -44,11 +46,11 @@ base class --- :class:`EXP_PyObjectPlus`
 
       Return filter to the pass index :data:`index`.
 
-      :warning: If the 2D Filter is added with a :class:`SCA_2DFilterActuator`, the filter will
+      :warning: If the 2D Filter is added with a :class:`~bge.types.SCA_2DFilterActuator`, the filter will
           be available only after the 2D Filter program is linked. The python script to get the filter
           has to be executed one frame later. A delay sensor can be used.
 
       :arg index: The filter pass index.
       :type index: integer
       :return: The filter in the specified pass index or None.
-      :rtype: :class:`KX_2DFilter` or None
+      :rtype: :class:`~bge.types.KX_2DFilter` or None

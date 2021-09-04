@@ -1,7 +1,9 @@
 KX_VertexProxy(SCA_IObject)
 ===========================
 
-base class --- :class:`SCA_IObject`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.SCA_IObject`
 
 .. class:: KX_VertexProxy(SCA_IObject)
 

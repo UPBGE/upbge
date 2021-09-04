@@ -1,7 +1,9 @@
 KX_VehicleWrapper(EXP_PyObjectPlus)
 ===================================
 
-base class --- :class:`EXP_PyObjectPlus`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
 .. class:: KX_VehicleWrapper(EXP_PyObjectPlus)
 
@@ -14,7 +16,7 @@ base class --- :class:`EXP_PyObjectPlus`
       Add a wheel to the vehicle
 
       :arg wheel: The object to use as a wheel.
-      :type wheel: :class:`KX_GameObject` or a :class:`KX_GameObject` name
+      :type wheel: :class:`~bge.types.KX_GameObject` or a :class:`~bge.types.KX_GameObject` name
       :arg attachPos: The position to attach the wheel, relative to the chassis object center.
       :type attachPos: vector of 3 floats
       :arg downDir: The direction vector pointing down to where the vehicle should collide with the floor.

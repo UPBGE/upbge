@@ -9,10 +9,10 @@ Intro
 .. module:: bge.render
 
 Example of using a :class:`bge.types.SCA_MouseSensor`,
-and two :class:`bge.types.KX_ObjectActuator` to implement MouseLook:
+and two :class:`bge.types.SCA_ObjectActuator` to implement MouseLook:
 
 .. note::
-   This can also be achieved with the :class:`bge.types.KX_MouseActuator`.
+   This can also be achieved with the :class:`bge.types.SCA_MouseActuator`.
 
 .. code-block:: python
 
@@ -189,7 +189,7 @@ Functions
 
 .. function:: setBackgroundColor(rgba)
 
-   Deprecated and no longer functional. Use :data:`bge.types.KX_WorldInfo.horizonColor` or :data:`bge.types.KX_WorldInfo.zenithColor` instead.
+   Deprecated and no longer functional. Use :attr:`bge.texture.ImageRender.horizon` or :attr:`bge.texture.ImageRender.zenith` instead.
 
 
 .. function:: setEyeSeparation(eyesep)
@@ -223,7 +223,7 @@ Functions
 .. function:: getStereoEye()
 
    Gets the current stereoscopy eye being rendered.
-   This function is mainly used in a :class:`bge.types.KX_Scene.pre_draw` callback
+   This function is mainly used in a :attr:`bge.types.KX_Scene.pre_draw` callback
    function to customize the camera projection matrices for each
    stereoscopic eye.
 

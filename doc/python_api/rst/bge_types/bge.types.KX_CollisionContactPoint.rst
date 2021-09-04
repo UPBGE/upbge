@@ -1,7 +1,9 @@
 KX_CollisionContactPoint(EXP_Value)
 ===================================
 
-base class --- :class:`EXP_Value`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.EXP_Value`
 
 .. class:: KX_CollisionContactPoint(EXP_Value)
 

@@ -1,7 +1,9 @@
 SCA_CollisionSensor(SCA_ISensor)
 ================================
 
-base class --- :class:`SCA_ISensor`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.SCA_ISensor`
 
 .. class:: SCA_CollisionSensor(SCA_ISensor)
 
@@ -29,13 +31,13 @@ base class --- :class:`SCA_ISensor`
 
       The last collided object. (read-only).
 
-      :type: :class:`KX_GameObject` or None
+      :type: :class:`~bge.types.KX_GameObject` or None
 
    .. attribute:: hitObjectList
 
       A list of colliding objects. (read-only).
 
-      :type: :class:`EXP_ListValue` of :class:`KX_GameObject`
+      :type: :class:`~bge.types.EXP_ListValue` of :class:`~bge.types.KX_GameObject`
 
    .. attribute:: hitMaterial
 

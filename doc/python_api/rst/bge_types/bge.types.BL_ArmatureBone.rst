@@ -1,7 +1,9 @@
 BL_ArmatureBone(EXP_PyObjectPlus)
 =================================
 
-base class --- :class:`EXP_PyObjectPlus`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
 .. class:: BL_ArmatureBone(EXP_PyObjectPlus)
 
@@ -94,10 +96,10 @@ base class --- :class:`EXP_PyObjectPlus`
 
       parent bone, or None for root bone.
 
-      :type: :class:`BL_ArmatureBone`
+      :type: :class:`~bge.types.BL_ArmatureBone`
 
    .. attribute:: children
 
       list of bone's children.
 
-      :type: list of :class:`BL_ArmatureBone`
+      :type: list of :class:`~bge.types.BL_ArmatureBone`

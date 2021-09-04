@@ -1,12 +1,14 @@
 BL_ArmatureConstraint(EXP_PyObjectPlus)
 =======================================
 
-base class --- :class:`EXP_PyObjectPlus`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
 .. class:: BL_ArmatureConstraint(EXP_PyObjectPlus)
 
    Proxy to Armature Constraint. Allows to change constraint on the fly.
-   Obtained through :class:`BL_ArmatureObject`.constraints.
+   Obtained through :class:`~bge.types.BL_ArmatureObject`.constraints.
 
    .. note::
    
@@ -27,7 +29,7 @@ base class --- :class:`EXP_PyObjectPlus`
 
       :type: string
 
-      This name is also the key subscript on :class:`BL_ArmatureObject`.
+      This name is also the key subscript on :class:`~bge.types.BL_ArmatureObject`.
 
    .. attribute:: enforce
 
@@ -67,13 +69,13 @@ base class --- :class:`EXP_PyObjectPlus`
 
       Primary target object for the constraint. The position of this object in the GE will be used as target for the constraint.
 
-      :type: :class:`KX_GameObject`.
+      :type: :class:`~bge.types.KX_GameObject`.
 
    .. attribute:: subtarget
 
       Secondary target object for the constraint. The position of this object in the GE will be used as secondary target for the constraint.
 
-      :type: :class:`KX_GameObject`.
+      :type: :class:`~bge.types.KX_GameObject`.
 
       Currently this is only used for pole target on IK constraint.
 

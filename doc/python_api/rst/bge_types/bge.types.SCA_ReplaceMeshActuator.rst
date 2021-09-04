@@ -1,7 +1,9 @@
 SCA_ReplaceMeshActuator(SCA_IActuator)
 ======================================
 
-base class --- :class:`SCA_IActuator`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.SCA_IActuator`
 
 .. class:: SCA_ReplaceMeshActuator(SCA_IActuator)
 
@@ -63,11 +65,11 @@ base class --- :class:`SCA_IActuator`
 
    .. attribute:: mesh
 
-      :class:`MeshProxy` or the name of the mesh that will replace the current one.
+      :class:`~bge.types.KX_MeshProxy` or the name of the mesh that will replace the current one.
    
       Set to None to disable actuator.
 
-      :type: :class:`MeshProxy` or None if no mesh is set
+      :type: :class:`~bge.types.KX_MeshProxy` or None if no mesh is set
 
    .. attribute:: useDisplayMesh
 

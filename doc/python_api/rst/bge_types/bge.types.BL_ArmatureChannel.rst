@@ -1,7 +1,9 @@
 BL_ArmatureChannel(EXP_PyObjectPlus)
 ====================================
 
-base class --- :class:`EXP_PyObjectPlus`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
 .. class:: BL_ArmatureChannel(EXP_PyObjectPlus)
 
@@ -18,13 +20,13 @@ base class --- :class:`EXP_PyObjectPlus`
 
       return the bone object corresponding to this pose channel, read-only.
 
-      :type: :class:`BL_ArmatureBone`
+      :type: :class:`~bge.types.BL_ArmatureBone`
 
    .. attribute:: parent
 
       return the parent channel object, None if root channel, read-only.
 
-      :type: :class:`BL_ArmatureChannel`
+      :type: :class:`~bge.types.BL_ArmatureChannel`
 
    .. attribute:: has_ik
 
@@ -93,7 +95,7 @@ base class --- :class:`EXP_PyObjectPlus`
 
       .. note::
       
-         Changing this field has no immediate effect, the pose is updated when the armature is updated during the graphic render (see :data:`BL_ArmatureObject.update`).
+         Changing this field has no immediate effect, the pose is updated when the armature is updated during the graphic render (see :data:`BL_ArmatureObject.update <bge.types.BL_ArmatureObject.update>`).
 
    .. attribute:: scale
 
@@ -107,7 +109,7 @@ base class --- :class:`EXP_PyObjectPlus`
 
       .. note::
       
-         Changing this field has no immediate effect, the pose is updated when the armature is updated during the graphic render (see :data:`BL_ArmatureObject.update`)
+         Changing this field has no immediate effect, the pose is updated when the armature is updated during the graphic render (see :data:`BL_ArmatureObject.update <bge.types.BL_ArmatureObject.update>`)
 
    .. attribute:: rotation_quaternion
 
@@ -121,7 +123,7 @@ base class --- :class:`EXP_PyObjectPlus`
 
       .. note::
       
-         Changing this field has no immediate effect, the pose is updated when the armature is updated during the graphic render (see :data:`BL_ArmatureObject.update`)
+         Changing this field has no immediate effect, the pose is updated when the armature is updated during the graphic render (see :data:`BL_ArmatureObject.update <bge.types.BL_ArmatureObject.update>`)
 
    .. attribute:: rotation_euler
 
@@ -135,7 +137,7 @@ base class --- :class:`EXP_PyObjectPlus`
 
       .. note::
       
-         Changing this field has no immediate effect, the pose is updated when the armature is updated during the graphic render (see :data:`BL_ArmatureObject.update`)
+         Changing this field has no immediate effect, the pose is updated when the armature is updated during the graphic render (see :data:`BL_ArmatureObject.update <bge.types.BL_ArmatureObject.update>`)
 
    .. attribute:: rotation_mode
 
@@ -268,7 +270,7 @@ base class --- :class:`EXP_PyObjectPlus`
 
       .. note::
       
-         You must request the armature pose to update and wait for the next graphic frame to see the effect of setting this attribute (see :data:`BL_ArmatureObject.update`).
+         You must request the armature pose to update and wait for the next graphic frame to see the effect of setting this attribute (see :data:`BL_ArmatureObject.update <bge.types.BL_ArmatureObject.update>`).
 
       .. note::
       

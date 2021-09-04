@@ -1,13 +1,15 @@
 KX_FontObject(KX_GameObject)
 ============================
 
-base class --- :class:`KX_GameObject`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.KX_GameObject`
 
 .. class:: KX_FontObject(KX_GameObject)
 
    A Font object.
    
-   It is possible to use attributes from :type: :class:`bpy.types.TextCurve`
+   It is possible to use attributes from :type: :class:`~bpy.types.TextCurve`
 
    .. code-block:: python
 

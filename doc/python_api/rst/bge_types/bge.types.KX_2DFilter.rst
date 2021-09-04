@@ -1,11 +1,13 @@
 KX_2DFilter(BL_Shader)
 ======================
 
-base class --- :class:`BL_Shader`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.BL_Shader`
 
 .. class:: KX_2DFilter(BL_Shader)
 
-   2D filter shader object. Can be alterated with :class:`BL_Shader`'s functions.
+   2D filter shader object. Can be alterated with :class:`~bge.types.BL_Shader`'s functions.
 
    .. warning::
 
@@ -38,12 +40,12 @@ base class --- :class:`BL_Shader`
 
       The custom off screen the filter render to (read-only).
 
-      :type: :class:`bge.types.KX_2DFilterOffScreen` or None
+      :type: :class:`~bge.types.KX_2DFilterOffScreen` or None
 
    .. method:: setTexture(index, bindCode, samplerName="")
 
       Set specified texture bind code :data:`bindCode` in specified slot :data:`index`. Any call to :data:`setTexture`
-      should be followed by a call to :data:`BL_Shader.setSampler` with the same :data:`index` if :data:`sampleName` is not specified.
+      should be followed by a call to :data:`BL_Shader.setSampler <bge.types.BL_Shader.setSampler>` with the same :data:`index` if :data:`sampleName` is not specified.
 
       :arg index: The texture slot.
       :type index: integer
@@ -55,7 +57,7 @@ base class --- :class:`BL_Shader`
    .. method:: setCubeMap(index, bindCode, samplerName="")
 
       Set specified cube map texture bind code :data:`bindCode` in specified slot :data:`index`. Any call to :data:`setCubeMap`
-      should be followed by a call to :data:`BL_Shader.setSampler` with the same :data:`index` if :data:`sampleName` is not specified.
+      should be followed by a call to :data:`BL_Shader.setSampler <bge.types.BL_Shader.setSampler>` with the same :data:`index` if :data:`sampleName` is not specified.
 
       :arg index: The texture slot.
       :type index: integer

@@ -1,7 +1,9 @@
 KX_LodManager(EXP_PyObjectPlus)
 ===============================
 
-base class --- :class:`EXP_PyObjectPlus`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
 .. class:: KX_LodManager(EXP_PyObjectPlus)
 
@@ -11,7 +13,7 @@ base class --- :class:`EXP_PyObjectPlus`
 
       Return the list of all levels of detail of the lod manager.
 
-      :type: list of :class:`KX_LodLevel`
+      :type: list of :class:`~bge.types.KX_LodLevel`
 
    .. attribute:: distanceFactor
 

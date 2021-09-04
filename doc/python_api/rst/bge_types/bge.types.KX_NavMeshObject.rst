@@ -1,7 +1,9 @@
 KX_NavMeshObject(KX_GameObject)
 ===============================
 
-base class --- :class:`KX_GameObject`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.KX_GameObject`
 
 .. class:: KX_NavMeshObject(KX_GameObject)
 

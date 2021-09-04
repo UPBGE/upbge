@@ -1,7 +1,9 @@
 SCA_StateActuator(SCA_IActuator)
 ================================
 
-base class --- :class:`SCA_IActuator`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.SCA_IActuator`
 
 .. class:: SCA_StateActuator(SCA_IActuator)
 

@@ -1,7 +1,9 @@
 SCA_KeyboardSensor(SCA_ISensor)
 ===============================
 
-base class --- :class:`SCA_ISensor`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.SCA_ISensor`
 
 .. class:: SCA_KeyboardSensor(SCA_ISensor)
 
@@ -49,7 +51,7 @@ base class --- :class:`SCA_ISensor`
 
       A list of pressed input keys that have either been pressed, or just released, or are active this frame. (read-only).
 
-      :type: dictionary {:ref:`keycode<keyboard-keys>`::class:`SCA_InputEvent`, ...}
+      :type: dictionary {:ref:`keycode<keyboard-keys>`::class:`SCA_InputEvent`}
 
    .. attribute:: events
 

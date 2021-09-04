@@ -1,7 +1,9 @@
 KX_LodLevel(EXP_PyObjectPlus)
 =============================
 
-base class --- :class:`EXP_PyObjectPlus`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
 .. class:: KX_LodLevel(EXP_PyObjectPlus)
 
@@ -11,7 +13,7 @@ base class --- :class:`EXP_PyObjectPlus`
 
       The mesh used for this lod level. (read only)
 
-      :type: :class:`RAS_MeshObject`
+      :type: :class:`~bge.types.KX_MeshProxy`
 
    .. attribute:: level
 

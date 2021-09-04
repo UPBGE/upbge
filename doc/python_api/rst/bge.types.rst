@@ -13,7 +13,7 @@ script must interact with these classes if it is to affect the behaviour of
 objects in a game.
 
 The following example would move an object (i.e. an instance of
-:class:`KX_GameObject`) one unit up.
+:class:`~bge.types.KX_GameObject`) one unit up.
 
 .. code-block:: python
 
@@ -25,7 +25,7 @@ The following example would move an object (i.e. an instance of
    obj.worldPosition.z += 1
 
 To run the code, it could be placed in a Blender text block and executed with
-a :class:`SCA_PythonController` logic brick.
+a :class:`~bge.types.SCA_PythonController` logic brick.
 
 *****
 Types

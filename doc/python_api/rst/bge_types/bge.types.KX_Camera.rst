@@ -1,7 +1,9 @@
 KX_Camera(KX_GameObject)
 ========================
 
-base class --- :class:`KX_GameObject`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.KX_GameObject`
 
 .. class:: KX_Camera(KX_GameObject)
 
@@ -278,7 +280,7 @@ base class --- :class:`KX_GameObject`
          coord = camera.getScreenPosition(object)
 
       :arg object: object name or list [x, y, z]
-      :type object: :class:`KX_GameObject` or 3D Vector
+      :type object: :class:`~bge.types.KX_GameObject` or 3D Vector
       :return: the object's position in screen coordinates.
       :rtype: list [x, y]
 
@@ -311,7 +313,7 @@ base class --- :class:`KX_GameObject`
       :type dist: float
       :arg property: property name that object must have; can be omitted => detect any object
       :type property: string
-      :rtype: :class:`KX_GameObject`
+      :rtype: :class:`~bge.types.KX_GameObject`
       :return: the first object hit or None if no object or object does not match prop
 
       .. code-block:: python

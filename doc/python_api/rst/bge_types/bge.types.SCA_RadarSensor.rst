@@ -1,7 +1,9 @@
 SCA_RadarSensor(SCA_NearSensor)
 ===============================
 
-base class --- :class:`SCA_NearSensor`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.SCA_NearSensor`
 
 .. class:: SCA_RadarSensor(SCA_NearSensor)
 

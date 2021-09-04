@@ -1,7 +1,9 @@
 KX_ConstraintWrapper(EXP_PyObjectPlus)
 ======================================
 
-base class --- :class:`EXP_PyObjectPlus`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
 .. class:: KX_ConstraintWrapper(EXP_PyObjectPlus)
 

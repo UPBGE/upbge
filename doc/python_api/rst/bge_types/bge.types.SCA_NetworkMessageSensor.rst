@@ -1,7 +1,9 @@
 SCA_NetworkMessageSensor(SCA_ISensor)
 =====================================
 
-base class --- :class:`SCA_ISensor`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.SCA_ISensor`
 
 .. class:: SCA_NetworkMessageSensor(SCA_ISensor)
 

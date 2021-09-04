@@ -1,7 +1,9 @@
 KX_Scene(EXP_PyObjectPlus)
 ==========================
 
-base class --- :class:`EXP_PyObjectPlus`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
 .. class:: KX_Scene(EXP_PyObjectPlus)
 
@@ -51,31 +53,31 @@ base class --- :class:`EXP_PyObjectPlus`
 
       A list of objects in the scene, (read-only).
 
-      :type: :class:`EXP_ListValue` of :class:`KX_GameObject`
+      :type: :class:`~bge.types.EXP_ListValue` of :class:`~bge.types.KX_GameObject`
 
    .. attribute:: objectsInactive
 
       A list of objects on background layers (used for the addObject actuator), (read-only).
 
-      :type: :class:`EXP_ListValue` of :class:`KX_GameObject`
+      :type: :class:`~bge.types.EXP_ListValue` of :class:`~bge.types.KX_GameObject`
 
    .. attribute:: lights
 
       A list of lights in the scene, (read-only).
 
-      :type: :class:`EXP_ListValue` of :class:`KX_LightObject`
+      :type: :class:`~bge.types.EXP_ListValue` of :class:`~bge.types.KX_LightObject`
 
    .. attribute:: cameras
 
       A list of cameras in the scene, (read-only).
 
-      :type: :class:`EXP_ListValue` of :class:`KX_Camera`
+      :type: :class:`~bge.types.EXP_ListValue` of :class:`~bge.types.KX_Camera`
 
    .. attribute:: texts
 
       A list of texts in the scene, (read-only).
 
-      :type: :class:`EXP_ListValue` of :class:`KX_FontObject`
+      :type: :class:`~bge.types.EXP_ListValue` of :class:`~bge.types.KX_FontObject`
 
    .. attribute:: active_camera
 
@@ -90,29 +92,29 @@ base class --- :class:`EXP_PyObjectPlus`
 
          scene.active_camera = scene.objects["Camera.001"]
 
-      :type: :class:`KX_Camera`
+      :type: :class:`~bge.types.KX_Camera`
 
       .. note::
 
-         This can be set directly from python to avoid using the :class:`KX_SceneActuator`.
+         This can be set directly from python to avoid using the :class:`~bge.types.KX_SceneActuator`.
 
    .. attribute:: overrideCullingCamera
 
       The override camera used for scene culling, if set to None the culling is proceeded with the camera used to render.
 
-      :type: :class:`KX_Camera` or None
+      :type: :class:`~bge.types.KX_Camera` or None
 
    .. attribute:: world
 
       The current active world, (read-only).
 
-      :type: :class:`KX_WorldInfo`
+      :type: :class:`~bge.types.KX_WorldInfo`
 
    .. attribute:: filterManager
 
       The scene's 2D filter manager, (read-only).
 
-      :type: :class:`KX_2DFilterManager`
+      :type: :class:`~bge.types.KX_2DFilterManager`
 
    .. attribute:: suspended
 
@@ -192,13 +194,13 @@ base class --- :class:`EXP_PyObjectPlus`
       Adds an object to the scene like the Add Object Actuator would.
 
       :arg object: The (name of the) object to add.
-      :type object: :class:`KX_GameObject` or string
+      :type object: :class:`~bge.types.KX_GameObject` or string
       :arg reference: The (name of the) object which position, orientation, and scale to copy (optional), if the object to add is a light and there is not reference the light's layer will be the same that the active layer in the blender scene.
-      :type reference: :class:`KX_GameObject` or string
+      :type reference: :class:`~bge.types.KX_GameObject` or string
       :arg time: The lifetime of the added object, in frames (assumes one frame is 1/50 second). A time of 0.0 means the object will last forever (optional).
       :type time: float
       :return: The newly added object.
-      :rtype: :class:`KX_GameObject`
+      :rtype: :class:`~bge.types.KX_GameObject`
       :arg dupli: Full duplication of object data (materials...).
       :type dupli: boolean
 
@@ -238,14 +240,14 @@ base class --- :class:`EXP_PyObjectPlus`
 
    .. method:: convertBlenderObject(blenderObject)
 
-      Converts a bpy.types.Object into a :class:`KX_GameObject` during runtime.
+      Converts a bpy.types.Object into a :class:`~bge.types.KX_GameObject` during runtime.
       For example, you can append an Object from another .blend file during bge runtime
       using: bpy.ops.wm.append(...) then convert this Object into a KX_GameObject to have
       logic bricks, physics... converted. This is meant to replace libload.
 
    .. method:: convertBlenderObjectsList(blenderObjectsList, asynchronous)
 
-      Converts all bpy.types.Object inside a python List into its correspondent :class:`KX_GameObject` during runtime.
+      Converts all bpy.types.Object inside a python List into its correspondent :class:`~bge.types.KX_GameObject` during runtime.
       For example, you can append an Object List during bge runtime using: ob = object_data_add(...) and ML.append(ob) then convert the Objects 
       inside the List into several KX_GameObject to have logic bricks, physics... converted. This is meant to replace libload. 
       The conversion can be asynchronous or synchronous.
@@ -257,7 +259,7 @@ base class --- :class:`EXP_PyObjectPlus`
       
    .. method:: convertBlenderCollection(blenderCollection, asynchronous)
 
-      Converts all bpy.types.Object inside a Collection into its correspondent :class:`KX_GameObject` during runtime.
+      Converts all bpy.types.Object inside a Collection into its correspondent :class:`~bge.types.KX_GameObject` during runtime.
       For example, you can append a Collection from another .blend file during bge runtime
       using: bpy.ops.wm.append(...) then convert the Objects inside the Collection into several KX_GameObject to have
       logic bricks, physics... converted. This is meant to replace libload. The conversion can be asynchronous

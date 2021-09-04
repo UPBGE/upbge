@@ -1,7 +1,9 @@
 SCA_PythonController(SCA_IController)
 =====================================
 
-base class --- :class:`SCA_IController`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.SCA_IController`
 
 .. class:: SCA_PythonController(SCA_IController)
 
@@ -12,7 +14,7 @@ base class --- :class:`SCA_IController`
 
       The object the controller is attached to.
 
-      :type: :class:`KX_GameObject`
+      :type: :class:`~bge.types.KX_GameObject`
 
    .. attribute:: script
 
@@ -31,8 +33,8 @@ base class --- :class:`SCA_IController`
 
       the execution mode for this controller (read-only).
 
-      * Script: 0, Execite the :data:`script` as a python code.
-      * Module: 1, Execite the :data:`script` as a module and function.
+      * Script: 0, Execite the :attr:`script` as a python code.
+      * Module: 1, Execite the :attr:`script` as a module and function.
 
       :type: integer
 

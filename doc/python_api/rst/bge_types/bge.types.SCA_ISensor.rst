@@ -1,7 +1,9 @@
 SCA_ISensor(SCA_ILogicBrick)
 ============================
 
-base class --- :class:`SCA_ILogicBrick`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.SCA_ILogicBrick`
 
 .. class:: SCA_ISensor(SCA_ILogicBrick)
 
@@ -21,7 +23,7 @@ base class --- :class:`SCA_ILogicBrick`
 
    .. attribute:: frequency
 
-      The frequency for pulse mode sensors. (Deprecated: use SCA_ISensor.skippedTicks)
+      The frequency for pulse mode sensors. (Deprecated: use :attr:`skippedTicks`)
 
       :type: integer
 
@@ -38,7 +40,7 @@ base class --- :class:`SCA_ILogicBrick`
       A level detector will immediately generate a pulse, negative or positive
       depending on the sensor condition, as soon as the state is activated.
       A edge detector will wait for a state change before generating a pulse.
-      note: mutually exclusive with :data:`tap`, enabling will disable :data:`tap`.
+      note: mutually exclusive with :attr:`tap`, enabling will disable :attr:`tap`.
 
       :type: boolean
 
@@ -47,7 +49,7 @@ base class --- :class:`SCA_ILogicBrick`
       When enabled only sensors that are just activated will send a positive event, 
       after this they will be detected as negative by the controllers.
       This will make a key thats held act as if its only tapped for an instant.
-      note: mutually exclusive with :data:`level`, enabling will disable :data:`level`.
+      note: mutually exclusive with :attr:`level`, enabling will disable :attr:`level`.
 
       :type: boolean
 

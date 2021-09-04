@@ -1,7 +1,9 @@
 SCA_IController(SCA_ILogicBrick)
 ================================
 
-base class --- :class:`SCA_ILogicBrick`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.SCA_ILogicBrick`
 
 .. class:: SCA_IController(SCA_ILogicBrick)
 

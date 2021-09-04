@@ -1,6 +1,8 @@
 EXP_PyObjectPlus
 ================
 
+.. currentmodule:: bge.types
+
 .. class:: EXP_PyObjectPlus
 
    EXP_PyObjectPlus base class of most other types in the Game Engine.

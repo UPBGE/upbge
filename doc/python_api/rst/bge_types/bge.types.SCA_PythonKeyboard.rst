@@ -1,7 +1,9 @@
 SCA_PythonKeyboard(EXP_PyObjectPlus)
 ====================================
 
-base class --- :class:`EXP_PyObjectPlus`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
 .. class:: SCA_PythonKeyboard(EXP_PyObjectPlus)
 
@@ -11,13 +13,13 @@ base class --- :class:`EXP_PyObjectPlus`
 
       A dictionary containing the input of each keyboard key. (read-only).
 
-      :type: dictionary {:ref:`keycode<keyboard-keys>`::class:`SCA_InputEvent`, ...}
+      :type: dictionary {:ref:`keycode<keyboard-keys>`::class:`~bge.types.SCA_InputEvent`, ...}
 
    .. attribute:: events
 
       A dictionary containing the status of each keyboard event or key. (read-only).
 
-      .. deprecated:: use :data:`inputs`
+      .. deprecated:: use :attr:`inputs`
 
       :type: dictionary {:ref:`keycode<keyboard-keys>`::ref:`status<input-status>`, ...}
 
@@ -25,13 +27,13 @@ base class --- :class:`EXP_PyObjectPlus`
 
       A dictionary containing the input of only the active keyboard keys. (read-only).
 
-      :type: dictionary {:ref:`keycode<keyboard-keys>`::class:`SCA_InputEvent`, ...}
+      :type: dictionary {:ref:`keycode<keyboard-keys>`::class:`~bge.types.SCA_InputEvent`, ...}
 
    .. attribute:: active_events
 
       A dictionary containing the status of only the active keyboard events or keys. (read-only).
 
-      .. deprecated:: use :data:`activeInputs`
+      .. deprecated:: use :attr:`activeInputs`
 
       :type: dictionary {:ref:`keycode<keyboard-keys>`::ref:`status<input-status>`, ...}
 

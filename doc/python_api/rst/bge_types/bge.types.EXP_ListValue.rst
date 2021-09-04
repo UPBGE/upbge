@@ -1,7 +1,9 @@
 EXP_ListValue(EXP_PropValue)
 ============================
 
-base class --- :class:`EXP_PropValue`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.EXP_PropValue`
 
 .. class:: EXP_ListValue(EXP_PropValue)
 

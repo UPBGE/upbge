@@ -1,7 +1,9 @@
 SCA_ArmatureActuator(SCA_IActuator)
 ===================================
 
-base class --- :class:`SCA_IActuator`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.SCA_IActuator`
 
 .. class:: SCA_ArmatureActuator(SCA_IActuator)
 
@@ -19,19 +21,19 @@ base class --- :class:`SCA_IActuator`
 
       The constraint object this actuator is controlling.
 
-      :type: :class:`BL_ArmatureConstraint`
+      :type: :class:`~bge.types.BL_ArmatureConstraint`
 
    .. attribute:: target
 
       The object that this actuator will set as primary target to the constraint it controls.
 
-      :type: :class:`KX_GameObject`
+      :type: :class:`~bge.types.KX_GameObject`
 
    .. attribute:: subtarget
 
       The object that this actuator will set as secondary target to the constraint it controls.
 
-      :type: :class:`KX_GameObject`.
+      :type: :class:`~bge.types.KX_GameObject`.
       
       .. note::
       
@@ -49,7 +51,7 @@ base class --- :class:`SCA_IActuator`
 
       .. note::
       
-         A weight of 0 disables a constraint while still updating constraint runtime values (see :class:`BL_ArmatureConstraint`)
+         A weight of 0 disables a constraint while still updating constraint runtime values (see :class:`~bge.types.BL_ArmatureConstraint`)
 
    .. attribute:: influence
 

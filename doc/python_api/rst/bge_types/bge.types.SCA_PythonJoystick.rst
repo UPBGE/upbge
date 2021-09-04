@@ -1,7 +1,9 @@
 SCA_PythonJoystick(EXP_PyObjectPlus)
 ====================================
 
-base class --- :class:`EXP_PyObjectPlus`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
 .. class:: SCA_PythonJoystick(EXP_PyObjectPlus)
 
@@ -21,7 +23,7 @@ base class --- :class:`EXP_PyObjectPlus`
 
    .. attribute:: axisValues
 
-      The state of the joysticks axis as a list of values :data:`numAxis` long. (read-only).
+      The state of the joysticks axis as a list of values :attr:`numAxis` long. (read-only).
 
       :type: list of ints.
 
@@ -35,7 +37,7 @@ base class --- :class:`EXP_PyObjectPlus`
       * up:[0.0, -1.0, ...]
       * down:[0.0, 1.0, ...]
 
-   .. attribute:: hatValues (Deprecated. Use :data:`activeButtons` instead)
+   .. attribute:: hatValues (Deprecated. Use :attr:`activeButtons` instead)
 
    .. attribute:: numAxis
 

@@ -1,7 +1,9 @@
 SCA_SceneActuator(SCA_IActuator)
 ================================
 
-base class --- :class:`SCA_IActuator`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.SCA_IActuator`
 
 .. class:: SCA_SceneActuator(SCA_IActuator)
 
@@ -27,11 +29,11 @@ base class --- :class:`SCA_IActuator`
 
       the camera to change to.
 
-      :type: :class:`KX_Camera` on read, string or :class:`KX_Camera` on write
+      :type: :class:`~bge.types.KX_Camera` on read, string or :class:`~bge.types.KX_Camera` on write
       
       .. note::
          
-         When setting the attribute, you can use either a :class:`KX_Camera` or the name of the camera.
+         When setting the attribute, you can use either a :class:`~bge.types.KX_Camera` or the name of the camera.
 
    .. attribute:: useRestart
 

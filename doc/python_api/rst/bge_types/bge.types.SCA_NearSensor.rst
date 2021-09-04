@@ -1,7 +1,9 @@
 SCA_NearSensor(KX_CollisionSensor)
 ==================================
 
-base class --- :class:`SCA_CollisionSensor`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.SCA_CollisionSensor`
 
 .. class:: SCA_NearSensor(SCA_CollisionSensor)
 

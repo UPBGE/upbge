@@ -1,7 +1,9 @@
 SCA_ArmatureSensor(SCA_ISensor)
 ===============================
 
-base class --- :class:`SCA_ISensor`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.SCA_ISensor`
 
 .. class:: SCA_ArmatureSensor(SCA_ISensor)
 
@@ -19,7 +21,7 @@ base class --- :class:`SCA_ISensor`
 
       The constraint object this sensor is watching.
 
-      :type: :class:`BL_ArmatureConstraint`
+      :type: :class:`~bge.types.BL_ArmatureConstraint`
 
    .. attribute:: value
    

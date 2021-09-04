@@ -1,7 +1,9 @@
 SCA_PythonMouse(EXP_PyObjectPlus)
 =================================
 
-base class --- :class:`EXP_PyObjectPlus`
+.. currentmodule:: bge.types
+
+base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
 .. class:: SCA_PythonMouse(EXP_PyObjectPlus)
 
@@ -11,13 +13,13 @@ base class --- :class:`EXP_PyObjectPlus`
 
       A dictionary containing the input of each mouse event. (read-only).
 
-      :type: dictionary {:ref:`keycode<mouse-keys>`::class:`SCA_InputEvent`, ...}
+      :type: dictionary {:ref:`keycode<mouse-keys>`::class:`~bge.types.SCA_InputEvent`, ...}
 
    .. attribute:: events
 
       a dictionary containing the status of each mouse event. (read-only).
 
-      .. deprecated:: use :data:`inputs`
+      .. deprecated:: use :attr:`inputs`
 
       :type: dictionary {:ref:`keycode<mouse-keys>`::ref:`status<input-status>`, ...}
 
@@ -25,7 +27,7 @@ base class --- :class:`EXP_PyObjectPlus`
 
       A dictionary containing the input of only the active mouse events. (read-only).
 
-      :type: dictionary {:ref:`keycode<mouse-keys>`::class:`SCA_InputEvent`, ...}
+      :type: dictionary {:ref:`keycode<mouse-keys>`::class:`~bge.types.SCA_InputEvent`, ...}
 
    .. attribute:: active_events
 

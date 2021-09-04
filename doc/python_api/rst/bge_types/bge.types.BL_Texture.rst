@@ -1,6 +1,8 @@
 BL_Texture(EXP_Value)
 =====================
 
+.. currentmodule:: bge.types
+
 base class --- :class:`EXP_Value`
 
 .. class:: BL_Texture(EXP_Value)
