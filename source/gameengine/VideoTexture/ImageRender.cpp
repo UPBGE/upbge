@@ -453,7 +453,7 @@ static int ImageRender_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
   RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
   int width = canvas->GetWidth();
   int height = canvas->GetHeight();
-  int samples = 0;
+  int samples = 1;
   // parameter keywords
   static const char *kwlist[] = {"sceneObj", "cameraObj", "width", "height", "samples", nullptr};
   // get parameters
@@ -745,7 +745,7 @@ static int ImageMirror_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
   RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
   int width = canvas->GetWidth();
   int height = canvas->GetHeight();
-  int samples = 0;
+  int samples = 1;
 
   // parameter keywords
   static const char *kwlist[] = {
