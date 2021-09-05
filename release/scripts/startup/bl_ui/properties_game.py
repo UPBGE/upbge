@@ -734,7 +734,7 @@ class ObjectButtonsPanel:
 
 class OBJECT_PT_activity_culling(ObjectButtonsPanel, Panel):
     bl_label = "Activity Culling"
-    COMPAT_ENGINES = {'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
 
     @classmethod
     def poll(cls, context):
