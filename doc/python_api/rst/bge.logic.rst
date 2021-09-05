@@ -118,19 +118,27 @@ Variables
 
    .. note:: only python built in types such as int/string/bool/float/tuples/lists can be saved, GameObjects, Actuators etc will not work as expected.
 
+   :type: dictionary
+
 .. data:: keyboard
 
    The current keyboard wrapped in an :class:`~bge.types.SCA_PythonKeyboard` object.
 
+   :type: :class:`~bge.types.SCA_PythonKeyboard`
+
 .. data:: mouse
 
    The current mouse wrapped in an :class:`~bge.types.SCA_PythonMouse` object.
+
+   :type: :class:`~bge.types.SCA_PythonMouse`
 
 .. data:: joysticks
 
    A list of attached :class:`~bge.types.SCA_PythonJoystick`.
    The list size is the maximum number of supported joysticks.
    If no joystick is available for a given slot, the slot is set to None.
+
+   :type: list of :class:`~bge.types.SCA_PythonJoystick`
 
 *****************
 General functions
