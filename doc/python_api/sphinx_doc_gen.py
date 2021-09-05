@@ -443,6 +443,7 @@ REFERENCE_NAME = "blender_python_reference_%s" % BLENDER_VERSION_PATH
 REFERENCE_PATH = os.path.join(ARGS.output_dir, REFERENCE_NAME)
 BLENDER_PDF_FILENAME = "%s.pdf" % REFERENCE_NAME
 BLENDER_ZIP_FILENAME = "%s.zip" % REFERENCE_NAME
+UPBGE_BLENDER_ZIP_FILENAME = "upbge_0_3_blender_%s_python_reference.zip" % BLENDER_VERSION_PATH
 
 # -------------------------------SPHINX-----------------------------------------
 
@@ -1813,13 +1814,13 @@ def write_rst_index(basepath):
 
     fw(title_string("UPBGE 0.3 + Blender %s Python API Documentation" % BLENDER_VERSION_DOTS, "%", double=True))
     fw("\n")
-    fw("Welcome to the Python API documentation for `Blender <https://www.blender.org>`__, ")
-    fw("the free and open source 3D creation suite.\n")
+    fw("Welcome to the Python API documentation for `UPBGE <https://upbge.org>`__ and `Blender <https://www.blender.org>`__, ")
+    fw("the free and open source 3D creation suite + integrated game engine.\n")
     fw("\n")
 
     # fw("`A PDF version of this document is also available <%s>`_\n" % BLENDER_PDF_FILENAME)
     fw("This site can be used offline: `Download the full documentation (zipped HTML files) <%s>`__\n" %
-       BLENDER_ZIP_FILENAME)
+       UPBGE_BLENDER_ZIP_FILENAME)
     fw("\n")
 
     if not EXCLUDE_INFO_DOCS:
