@@ -569,6 +569,10 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
             sub = col.row()
             sub.prop(gs, "deactivation_time", text="Time")
 
+            col = split.column()
+            col.label(text="Object Activity:")
+            col.prop(gs, "use_activity_culling")
+
             col = layout.column()
             col.label(text="Physics Joint Error Reduction:")
             sub = col.column(align=True)
@@ -728,6 +732,32 @@ class ObjectButtonsPanel:
     bl_region_type = 'WINDOW'
     bl_context = "object"
 
+class OBJECT_PT_activity_culling(ObjectButtonsPanel, Panel):
+    bl_label = "Activity Culling"
+    COMPAT_ENGINES = {'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.object
+        return context.scene.render.engine in cls.COMPAT_ENGINES and ob.type not in {'CAMERA'}
+
+    def draw(self, context):
+        layout = self.layout
+        activity = context.object.game.activity_culling
+
+        split = layout.split()
+
+        col = split.column()
+        col.prop(activity, "use_physics", text="Physics")
+        sub = col.column()
+        sub.active = activity.use_physics
+        sub.prop(activity, "physics_radius")
+
+        col = split.column()
+        col.prop(activity, "use_logic", text="Logic")
+        sub = col.column()
+        sub.active = activity.use_logic
+        sub.prop(activity, "logic_radius")
 
 class OBJECT_MT_lod_tools(Menu):
     bl_label = "Level Of Detail Tools"
@@ -801,6 +831,7 @@ classes = (
     SCENE_PT_game_hysteresis,
     SCENE_PT_game_console,
     OBJECT_MT_lod_tools,
+    OBJECT_PT_activity_culling,
     OBJECT_PT_levels_of_detail,
 )
 

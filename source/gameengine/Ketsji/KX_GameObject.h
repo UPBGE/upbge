@@ -87,6 +87,23 @@ void KX_GameObject_Mathutils_Callback_Init(void);
 class KX_GameObject : public SCA_IObject {
   Py_Header
 
+ public :
+
+  struct ActivityCullingInfo {
+    ActivityCullingInfo();
+
+    enum Flag {
+      ACTIVITY_NONE = 0,
+      ACTIVITY_PHYSICS = (1 << 0),
+      ACTIVITY_LOGIC = (1 << 1)
+    } m_flags;
+
+    /// Squared physics culling radius.
+    float m_physicsRadius;
+    /// Squared logic culling radius.
+    float m_logicRadius;
+  };
+
  protected :
 
   /* EEVEE INTEGRATION */
@@ -118,6 +135,9 @@ class KX_GameObject : public SCA_IObject {
   // culled = while rendering, depending on camera
   bool m_bVisible;
   bool m_bOccluder;
+
+  // Object activity culling settings converted from blender objects.
+  ActivityCullingInfo m_activityCullingInfo;
 
   PHY_IPhysicsController *m_pPhysicsController;
   SG_Node *m_pSGNode;
@@ -304,6 +324,8 @@ class KX_GameObject : public SCA_IObject {
    * Check if an action has finished playing
    */
   bool IsActionDone(short layer);
+
+  bool IsActionsSuspended();
 
   /**
    * Kick the object's action manager
@@ -639,6 +661,11 @@ class KX_GameObject : public SCA_IObject {
    */
   void UpdateLod(const MT_Vector3 &cam_pos, float lodfactor);
 
+  /** Update the activity culling of the object.
+   * \param distance Squared nearest distance to the cameras of this object.
+   */
+  void UpdateActivity(float distance);
+
   /**
    * Pick out a mesh associated with the integer 'num'.
    */
@@ -701,6 +728,11 @@ class KX_GameObject : public SCA_IObject {
   {
     return m_bIsNegativeScaling;
   }
+
+  ActivityCullingInfo &GetActivityCullingInfo();
+  void SetActivityCullingInfo(const ActivityCullingInfo &cullingInfo);
+  /// Enable or disable a category of object activity culling.
+  void SetActivityCulling(ActivityCullingInfo::Flag flag, bool enable);
 
   /**
    * \section Logic bubbling methods.

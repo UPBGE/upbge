@@ -3462,7 +3462,7 @@ void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *bmain)
     }
 
     for (World *world = bmain->worlds.first; world; world = world->id.next) {
-      world->flag &= ~(WO_MODE_UNUSED_1 | WO_MODE_UNUSED_2 | WO_MODE_UNUSED_3 | WO_MODE_UNUSED_4 |
+      world->flag &= ~(WO_MODE_UNUSED_1 | WO_MODE_UNUSED_2 | WO_MODE_UNUSED_4 |
                        WO_MODE_UNUSED_5 | WO_MODE_UNUSED_7);
     }
 

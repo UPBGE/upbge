@@ -103,7 +103,8 @@ typedef struct Camera {
   float lens, ortho_scale, drawsize;
   float sensor_x, sensor_y;
   float shiftx, shifty;
-  float lodfactor, _pad1[1]; /* UPBGE Transition */
+  float lodfactor; /* UPBGE */
+  int gameflag;    /* UPBGE */
   float dof_distance DNA_DEPRECATED;
 
   /** Old animation system, deprecated for 2.5. */
@@ -162,7 +163,12 @@ enum {
   CAM_SHOWSENSOR = (1 << 8),
   CAM_SHOW_SAFE_CENTER = (1 << 9),
   CAM_SHOW_BG_IMAGE = (1 << 10),
-  CAM_GAME_OVERLAY_MOUSE_CONTROL = (1 << 11),  // UPBGE
+};
+
+/* gameflag */
+enum {
+  GAME_CAM_OVERLAY_MOUSE_CONTROL = (1 << 1),
+  GAME_CAM_OBJECT_ACTIVITY_CULLING = (1 << 2),
 };
 
 /* Sensor fit */

@@ -47,6 +47,7 @@ KX_Camera::KX_Camera() : KX_GameObject(),
       m_normalized(false),
       m_set_projection_matrix(false),
       m_delete_node(false),
+      m_activityCulling(false),
       m_lodDistanceFactor(1.0f),
       m_showDebugCameraFrustum(false)
 {
@@ -85,6 +86,7 @@ void KX_Camera::SetBlenderObject(Object *obj)
 
   SetName(ca->id.name + 2);
   SetLodDistanceFactor(ca->lodfactor);
+  SetActivityCulling(ca->gameflag & GAME_CAM_OBJECT_ACTIVITY_CULLING);
 
   SetCameraData(camdata);
 }
@@ -268,6 +270,16 @@ float KX_Camera::GetLodDistanceFactor() const
 void KX_Camera::SetLodDistanceFactor(float lodfactor)
 {
   m_lodDistanceFactor = lodfactor;
+}
+
+bool KX_Camera::GetActivityCulling() const
+{
+  return m_activityCulling;
+}
+
+void KX_Camera::SetActivityCulling(bool enable)
+{
+  m_activityCulling = enable;
 }
 
 void KX_Camera::ExtractFrustum()

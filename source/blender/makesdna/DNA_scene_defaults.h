@@ -204,6 +204,7 @@
     .depth = 32, \
     .gravity = 9.8f, \
     .physicsEngine = WOPHY_BULLET, \
+    .mode = WO_ACTIVITY_CULLING, \
     .occlusionRes = 128, \
     .ticrate = 60, \
     .maxlogicstep = 5, \

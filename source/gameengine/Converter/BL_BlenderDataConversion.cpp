@@ -640,6 +640,35 @@ static KX_LodManager *BL_lodmanager_from_blenderobject(Object *ob,
   return lodManager;
 }
 
+/** Convert the object activity culling settings from blender to a
+ * KX_GameObject::ActivityCullingInfo. \param ob The object to convert the activity culling
+ * settings from.
+ */
+static KX_GameObject::ActivityCullingInfo activityCullingInfoFromBlenderObject(Object *ob)
+{
+  KX_GameObject::ActivityCullingInfo cullingInfo;
+  const ObjectActivityCulling &blenderInfo = ob->activityCulling;
+  // Convert the flags.
+  if (blenderInfo.flags & OB_ACTIVITY_PHYSICS) {
+    // Enable physics culling.
+    cullingInfo.m_flags = (KX_GameObject::ActivityCullingInfo::
+                               Flag)(cullingInfo.m_flags |
+                                     KX_GameObject::ActivityCullingInfo::ACTIVITY_PHYSICS);
+  }
+  if (blenderInfo.flags & OB_ACTIVITY_LOGIC) {
+    // Enable logic culling.
+    cullingInfo.m_flags = (KX_GameObject::ActivityCullingInfo::
+                               Flag)(cullingInfo.m_flags |
+                                     KX_GameObject::ActivityCullingInfo::ACTIVITY_LOGIC);
+  }
+
+  // Set culling radius.
+  cullingInfo.m_physicsRadius = blenderInfo.physicsRadius * blenderInfo.physicsRadius;
+  cullingInfo.m_logicRadius = blenderInfo.logicRadius * blenderInfo.logicRadius;
+
+  return cullingInfo;
+}
+
 static KX_GameObject *BL_gameobject_from_customobject(Object *ob,
                                                       PyTypeObject *type,
                                                       KX_Scene *kxscene)
@@ -802,6 +831,7 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
       }
 
       gameobj->SetOccluder((ob->gameflag & OB_OCCLUDER) != 0, false);
+      gameobj->SetActivityCullingInfo(activityCullingInfoFromBlenderObject(ob));
       break;
     }
 
@@ -1211,8 +1241,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
     kxscene->SetGravity(MT_Vector3(0, 0, -blenderscene->gm.gravity));
 
     /* set activity culling parameters */
-    kxscene->SetActivityCulling(false);
-    kxscene->SetActivityCullingRadius(blenderscene->gm.activityBoxRadius);
+    kxscene->SetActivityCulling((blenderscene->gm.mode & WO_ACTIVITY_CULLING) != 0);
     kxscene->SetDbvtCulling(false);
 
     // no occlusion culling by default

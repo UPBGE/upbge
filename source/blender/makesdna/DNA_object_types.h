@@ -121,6 +121,21 @@ typedef struct LodLevel {
   int obhysteresis;
 } LodLevel;
 
+typedef struct ObjectActivityCulling {
+  /* For game engine, values around active camera where physics or logic are suspended */
+  float physicsRadius;
+  float logicRadius;
+
+  int flags;
+  int _pad;
+} ObjectActivityCulling;
+
+/* object activity flags */
+enum {
+  OB_ACTIVITY_PHYSICS = (1 << 0),
+  OB_ACTIVITY_LOGIC = (1 << 1),
+};
+
 struct CustomData_MeshMasks;
 
 /* Not saved in file! */
@@ -504,6 +519,8 @@ typedef struct Object {
   ListBase controllers; /* game logic controllers */
   ListBase actuators;   /* game logic actuators */
   ListBase components;  /* python components */
+
+  struct ObjectActivityCulling activityCulling;
 
   float sf; /* sf is time-offset */
 

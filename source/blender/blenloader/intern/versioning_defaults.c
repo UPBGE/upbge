@@ -48,6 +48,7 @@
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_workspace_types.h"
+#include "DNA_world_types.h" // UPBGE
 
 #include "BKE_appdir.h"
 #include "BKE_brush.h"
@@ -384,6 +385,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     sce->gm.depth = 32;
     sce->gm.gravity = 9.8f;
     sce->gm.physicsEngine = WOPHY_BULLET;
+    sce->gm.mode = WO_ACTIVITY_CULLING;
     sce->gm.occlusionRes = 128;
     sce->gm.ticrate = 60;
     sce->gm.maxlogicstep = 5;
