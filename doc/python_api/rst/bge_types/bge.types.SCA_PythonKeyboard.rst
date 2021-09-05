@@ -13,7 +13,7 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
       A dictionary containing the input of each keyboard key. (read-only).
 
-      :type: dictionary {:ref:`keycode<keyboard-keys>`::class:`~bge.types.SCA_InputEvent`, ...}
+      :type: dict[:ref:`keycode<keyboard-keys>`, :class:`~bge.types.SCA_InputEvent`]
 
    .. attribute:: events
 
@@ -23,13 +23,13 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
          Use :attr:`inputs`.
 
-      :type: dictionary {:ref:`keycode<keyboard-keys>`::ref:`status<input-status>`, ...}
+      :type: dict[:ref:`keycode<keyboard-keys>`, :ref:`status<input-status>`]
 
    .. attribute:: activeInputs
 
       A dictionary containing the input of only the active keyboard keys. (read-only).
 
-      :type: dictionary {:ref:`keycode<keyboard-keys>`::class:`~bge.types.SCA_InputEvent`, ...}
+      :type: dict[:ref:`keycode<keyboard-keys>`, :class:`~bge.types.SCA_InputEvent`]
 
    .. attribute:: active_events
 
@@ -39,7 +39,7 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
          Use :attr:`activeInputs`.
 
-      :type: dictionary {:ref:`keycode<keyboard-keys>`::ref:`status<input-status>`, ...}
+      :type: dict[:ref:`keycode<keyboard-keys>`, :ref:`status<input-status>`]
 
    .. attribute:: text
 
