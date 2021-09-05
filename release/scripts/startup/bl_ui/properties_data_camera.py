@@ -77,12 +77,9 @@ class DATA_PT_game_camera_settings(CameraButtonsPanel, Panel):
 
         cam = context.camera
 
-        split = layout.split()
-        col = split.column()
-        col.label(text="Overlay Mouse Control:")
+        col = layout.column()
         col.prop(cam, "use_overlay_mouse_control")
-        col = split.column()
-        col.label(text="Object Activity:")
+        col = layout.column()
         col.prop(cam, "use_object_activity_culling")
 
 
