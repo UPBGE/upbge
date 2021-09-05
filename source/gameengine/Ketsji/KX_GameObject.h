@@ -90,7 +90,6 @@ class KX_GameObject : public SCA_IObject {
  public :
 
   struct ActivityCullingInfo {
-    ActivityCullingInfo();
 
     enum Flag {
       ACTIVITY_NONE = 0,
