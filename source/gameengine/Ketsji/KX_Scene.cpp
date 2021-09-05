@@ -749,13 +749,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     window = {0, canvas->GetWidth(), 0, canvas->GetHeight()};
   }
 
-  if (useViewportRender) {
-    /* When we call wm_draw_update, bContext variables are unset,
-     * then we need to set it again correctly to render the next frame.
-     */
-    ReinitBlenderContextVariables();
-  }
-
   /* Here we'll render directly the scene with viewport code. */
   if (useViewportRender) {
     /* Viewport render mode doesn't support several render passes then exit here
@@ -764,6 +757,11 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
       std::cout << "Warning: Viewport Render mode doesn't support multiple render passes" << std::endl;
       return;
     }
+
+    /* When we call wm_draw_update, bContext variables are unset,
+     * then we need to set it again correctly to render the next frame. */
+    ReinitBlenderContextVariables();
+
     if (cam) {
       if (canvas->IsBlenderPlayer()) {
         ARegion *region = CTX_wm_region(C);
