@@ -42,6 +42,7 @@
 #include "DEV_EventConsumer.h"
 #include "DEV_InputDevice.h"
 #include "DEV_Joystick.h"
+#include "GHOST_C-api.h"
 #include "GHOST_ISystem.h"
 #include "GPG_Canvas.h"
 #include "KX_Globals.h"
@@ -389,12 +390,20 @@ void LA_Launcher::HandlePythonConsole()
 #    endif
 
   // Pop the console window for windows.
+#    if defined(WIN32)
+  GHOST_toggleConsole(1);
+#    else
   m_system->toggleConsole(1);
+#    endif
 
   createPythonConsole();
 
   // Hide the console window for windows.
+#    if defined(WIN32)
+  GHOST_toggleConsole(0);
+#    else
   m_system->toggleConsole(0);
+#    endif
 
   /* As we show the console, the release events of the shortcut keys can be not handled by the
    * engine. We simulate they them.
