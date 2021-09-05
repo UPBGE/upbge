@@ -253,7 +253,7 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       The conversion can be asynchronous or synchronous.
 
       :arg blenderObjectsList: The Object list to be converted.
-      :type blenderObjectsList: bpy.types.Object list
+      :type blenderObjectsList: list of :class:`bpy.types.Object`
       :arg asynchronous: The Object list conversion can be asynchronous or not.
       :type asynchronous: boolean
       
@@ -266,7 +266,7 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       or synchronous.
 
       :arg blenderCollection: The collection to be converted.
-      :type blenderCollection: bpy.types.Collection
+      :type blenderCollection: :class:`bpy.types.Collection`
       :arg asynchronous: The collection conversion can be asynchronous or not.
       :type asynchronous: boolean
 
@@ -277,7 +277,7 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       using: bpy.ops.wm.append(...) then register this Action to be abled to play it.
 
       :arg Action: The Action to be converted.
-      :type Action: bpy.types.Action
+      :type Action: :class:`bpy.types.Action`
 
    .. method:: unregisterBlenderAction(Action)
 
@@ -288,7 +288,7 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       after you unregistered it from bge logic manager.
 
       :arg Action: The Action to be unregistered.
-      :type Action: bpy.types.Action
+      :type Action: :class:`bpy.types.Action`
 
    .. method:: addOverlayCollection(kxCamera, blenderCollection)
 
@@ -296,21 +296,21 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       during a second render pass in overlay using the KX_Camera passed as argument.
 
       :arg kxCamera: The camera used to render the overlay collection.
-      :type kxCamera: bge.types.KX_Camera
+      :type kxCamera: :class:`bge.types.KX_Camera`
 
       :arg blenderCollection: The overlay collection to add.
-      :type blenderCollection: bpy.types.Collection
+      :type blenderCollection: :class:`bpy.types.Collection`
 
    .. method:: removeOverlayCollection(blenderCollection)
 
       Removes an overlay collection (as with collection actuator).
 
       :arg blenderCollection: The overlay collection to remove.
-      :type blenderCollection: bpy.types.Collection
+      :type blenderCollection: :class:`bpy.types.Collection`
 
    .. method:: getGameObjectFromObject(blenderObject)
 
       Get the KX_GameObject corresponding to the blenderObject.
 
       :arg blenderObject: the Object from which we want to get the KX_GameObject.
-      :type blenderObject: bpy.types.Object
+      :type blenderObject: :class:`bpy.types.Object`

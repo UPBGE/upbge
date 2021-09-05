@@ -406,7 +406,7 @@ Image classes
 
       :type: bool
 
-.. class:: ImageMirror(scene, observer, mirror, material=0, width, height, samples)
+.. class:: ImageMirror(scene, observer, mirror, material=0, width=None, height=None, samples=None)
 
    Image source from mirror.
 
