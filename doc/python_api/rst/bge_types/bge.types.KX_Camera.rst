@@ -127,6 +127,12 @@ base class --- :class:`~bge.types.KX_GameObject`
 
       :type: boolean
 
+   .. attribute:: activityCulling
+
+      True if this camera is used to compute object distance for object activity culling.
+
+      :type: boolean
+
    .. method:: sphereInsideFrustum(centre, radius)
 
       Tests the given sphere against the view frustum.

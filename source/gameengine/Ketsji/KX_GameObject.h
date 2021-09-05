@@ -900,6 +900,28 @@ class KX_GameObject : public SCA_IObject {
   static int pyattr_set_visible(EXP_PyObjectPlus *self_v,
                                 const EXP_PYATTRIBUTE_DEF *attrdef,
                                 PyObject *value);
+
+  static PyObject *pyattr_get_physicsCulling(EXP_PyObjectPlus *self_v,
+                                             const EXP_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_physicsCulling(EXP_PyObjectPlus *self_v,
+                                       const EXP_PYATTRIBUTE_DEF *attrdef,
+                                       PyObject *value);
+  static PyObject *pyattr_get_logicCulling(EXP_PyObjectPlus *self_v,
+                                           const EXP_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_logicCulling(EXP_PyObjectPlus *self_v,
+                                     const EXP_PYATTRIBUTE_DEF *attrdef,
+                                     PyObject *value);
+  static PyObject *pyattr_get_physicsCullingRadius(EXP_PyObjectPlus *self_v,
+                                                   const EXP_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_physicsCullingRadius(EXP_PyObjectPlus *self_v,
+                                             const EXP_PYATTRIBUTE_DEF *attrdef,
+                                             PyObject *value);
+  static PyObject *pyattr_get_logicCullingRadius(EXP_PyObjectPlus *self_v,
+                                                 const EXP_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_logicCullingRadius(EXP_PyObjectPlus *self_v,
+                                           const EXP_PYATTRIBUTE_DEF *attrdef,
+                                           PyObject *value);
+
   static PyObject *pyattr_get_worldPosition(EXP_PyObjectPlus *self_v,
                                             const EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_worldPosition(EXP_PyObjectPlus *self_v,

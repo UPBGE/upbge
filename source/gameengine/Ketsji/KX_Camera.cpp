@@ -384,6 +384,8 @@ PyAttributeDef KX_Camera::Attributes[] = {
     EXP_PYATTRIBUTE_RO_FUNCTION("camera_to_world", KX_Camera, pyattr_get_camera_to_world),
     EXP_PYATTRIBUTE_RO_FUNCTION("world_to_camera", KX_Camera, pyattr_get_world_to_camera),
 
+    EXP_PYATTRIBUTE_BOOL_RW("activityCulling", KX_Camera, m_activityCulling),
+
     /* Grrr, functions for constants? */
     EXP_PYATTRIBUTE_RO_FUNCTION("INSIDE", KX_Camera, pyattr_get_INSIDE),
     EXP_PYATTRIBUTE_RO_FUNCTION("OUTSIDE", KX_Camera, pyattr_get_OUTSIDE),
