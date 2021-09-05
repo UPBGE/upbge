@@ -47,7 +47,7 @@ base class --- :class:`~bge.types.SCA_ILogicBrick`
 
       When set the controller executes always before all other controllers that dont have this set.
       
-      :type: boolen
+      :type: boolean
 
       .. note::
          
