@@ -13,36 +13,34 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
+ * The Original Code is Copyright (C) 2021 Blender Foundation.
  * All rights reserved.
  */
 
 /** \file
- * \ingroup bke
+ * \ingroup cmpnodes
  */
 
-#include "BKE_action.hh"
+#include "node_composite_util.h"
 
-#include "BLI_listbase.h"
-#include "BLI_string.h"
+/* **************** Posterize ******************** */
 
-#include "DNA_action_types.h"
-#include "DNA_anim_types.h"
-#include "DNA_armature_types.h"
+static bNodeSocketTemplate cmp_node_posterize_in[] = {
+    {SOCK_RGBA, N_("Image"), 1.0f, 1.0f, 1.0f, 1.0f},
+    {SOCK_FLOAT, N_("Steps"), 8.0f, 8.0f, 8.0f, 8.0f, 2.0f, 1024.0f, PROP_NONE},
+    {-1, ""},
+};
+static bNodeSocketTemplate cmp_node_posterize_out[] = {
+    {SOCK_RGBA, N_("Image")},
+    {-1, ""},
+};
 
-#include "MEM_guardedalloc.h"
-
-namespace blender::bke {
-
-void BKE_action_find_fcurves_with_bones(const bAction *action, FoundFCurveCallback callback)
+void register_node_type_cmp_posterize(void)
 {
-  LISTBASE_FOREACH (FCurve *, fcu, &action->curves) {
-    char bone_name[MAXBONENAME];
-    if (!BLI_str_quoted_substr(fcu->rna_path, "pose.bones[", bone_name, sizeof(bone_name))) {
-      continue;
-    }
-    callback(fcu, bone_name);
-  }
-}
+  static bNodeType ntype;
 
-}  // namespace blender::bke
+  cmp_node_type_base(&ntype, CMP_NODE_POSTERIZE, "Posterize", NODE_CLASS_OP_COLOR, 0);
+  node_type_socket_templates(&ntype, cmp_node_posterize_in, cmp_node_posterize_out);
+
+  nodeRegisterType(&ntype);
+}

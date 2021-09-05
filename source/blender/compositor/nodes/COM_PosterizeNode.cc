@@ -13,22 +13,29 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Copyright 2011, Blender Foundation.
+ * Copyright 2020, Blender Foundation.
  */
 
-#pragma once
-
-#include "COM_ConvolutionFilterOperation.h"
+#include "COM_PosterizeNode.h"
+#include "COM_PosterizeOperation.h"
+#include "COM_ExecutionSystem.h"
 
 namespace blender::compositor {
 
-class ConvolutionEdgeFilterOperation : public ConvolutionFilterOperation {
- public:
-  void executePixel(float output[4], int x, int y, void *data) override;
+PosterizeNode::PosterizeNode(bNode *editorNode) : Node(editorNode)
+{
+  /* pass */
+}
 
-  void update_memory_buffer_partial(MemoryBuffer *output,
-                                    const rcti &area,
-                                    Span<MemoryBuffer *> inputs) override;
-};
+void PosterizeNode::convertToOperations(NodeConverter &converter,
+                                        const CompositorContext & /*context*/) const
+{
+  PosterizeOperation *operation = new PosterizeOperation();
+  converter.addOperation(operation);
+
+  converter.mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
+  converter.mapInputSocket(getInputSocket(1), operation->getInputSocket(1));
+  converter.mapOutputSocket(getOutputSocket(0), operation->getOutputSocket(0));
+}
 
 }  // namespace blender::compositor

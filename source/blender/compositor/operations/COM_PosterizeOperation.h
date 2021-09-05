@@ -13,43 +13,25 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Copyright 2011, Blender Foundation.
+ * Copyright 2021, Blender Foundation.
  */
 
 #pragma once
 
-#include "COM_FastGaussianBlurOperation.h"
 #include "COM_MultiThreadedOperation.h"
-#include "DNA_object_types.h"
 
 namespace blender::compositor {
 
-/**
- * this program converts an input color to an output value.
- * it assumes we are in sRGB color space.
- */
-class ConvertDepthToRadiusOperation : public MultiThreadedOperation {
+class PosterizeOperation : public MultiThreadedOperation {
  private:
   /**
    * Cached reference to the inputProgram
    */
-  SocketReader *m_inputOperation;
-  float m_fStop;
-  float m_aspect;
-  float m_maxRadius;
-  float m_inverseFocalDistance;
-  float m_aperture;
-  float m_cam_lens;
-  float m_dof_sp;
-  Object *m_cameraObject;
-
-  FastGaussianBlurValueOperation *m_blurPostOperation;
+  SocketReader *m_inputProgram;
+  SocketReader *m_inputStepsProgram;
 
  public:
-  /**
-   * Default constructor
-   */
-  ConvertDepthToRadiusOperation();
+  PosterizeOperation();
 
   /**
    * The inner loop of this operation.
@@ -65,24 +47,6 @@ class ConvertDepthToRadiusOperation : public MultiThreadedOperation {
    * Deinitialize the execution
    */
   void deinitExecution() override;
-
-  void setfStop(float fStop)
-  {
-    this->m_fStop = fStop;
-  }
-  void setMaxRadius(float maxRadius)
-  {
-    this->m_maxRadius = maxRadius;
-  }
-  void setCameraObject(Object *camera)
-  {
-    this->m_cameraObject = camera;
-  }
-  float determineFocalDistance();
-  void setPostBlur(FastGaussianBlurValueOperation *operation)
-  {
-    this->m_blurPostOperation = operation;
-  }
 
   void update_memory_buffer_partial(MemoryBuffer *output,
                                     const rcti &area,

@@ -182,6 +182,7 @@ extern StructRNA RNA_CompositorNodeMixRGB;
 extern StructRNA RNA_CompositorNodeNormal;
 extern StructRNA RNA_CompositorNodeNormalize;
 extern StructRNA RNA_CompositorNodeOutputFile;
+extern StructRNA RNA_CompositorNodePosterize;
 extern StructRNA RNA_CompositorNodePremulKey;
 extern StructRNA RNA_CompositorNodeRGB;
 extern StructRNA RNA_CompositorNodeRGBToBW;

@@ -13,36 +13,24 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
+ * Copyright 2021, Blender Foundation.
  */
 
-/** \file
- * \ingroup bke
+#pragma once
+
+#include "COM_Node.h"
+
+namespace blender::compositor {
+
+/**
+ * \brief PosterizeNode
+ * \ingroup Node
  */
+class PosterizeNode : public Node {
+ public:
+  PosterizeNode(bNode *editorNode);
+  void convertToOperations(NodeConverter &converter,
+                           const CompositorContext &context) const override;
+};
 
-#include "BKE_action.hh"
-
-#include "BLI_listbase.h"
-#include "BLI_string.h"
-
-#include "DNA_action_types.h"
-#include "DNA_anim_types.h"
-#include "DNA_armature_types.h"
-
-#include "MEM_guardedalloc.h"
-
-namespace blender::bke {
-
-void BKE_action_find_fcurves_with_bones(const bAction *action, FoundFCurveCallback callback)
-{
-  LISTBASE_FOREACH (FCurve *, fcu, &action->curves) {
-    char bone_name[MAXBONENAME];
-    if (!BLI_str_quoted_substr(fcu->rna_path, "pose.bones[", bone_name, sizeof(bone_name))) {
-      continue;
-    }
-    callback(fcu, bone_name);
-  }
-}
-
-}  // namespace blender::bke
+}  // namespace blender::compositor
