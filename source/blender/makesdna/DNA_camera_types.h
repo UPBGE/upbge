@@ -163,6 +163,7 @@ enum {
   CAM_SHOWSENSOR = (1 << 8),
   CAM_SHOW_SAFE_CENTER = (1 << 9),
   CAM_SHOW_BG_IMAGE = (1 << 10),
+  //(1 << 11) was CAM_GAME_OVERLAY_MOUSE_CONTROL
 };
 
 /* gameflag */
