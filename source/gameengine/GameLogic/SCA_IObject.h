@@ -92,6 +92,8 @@ class SCA_IObject : public KX_PythonProxy {
   /// Current state = bit mask of state that are active.
   unsigned int m_state;
 
+  unsigned int m_backupState;
+
   /// Pointer inside state actuator list for sorting.
   SG_QList *m_firstState;
 
