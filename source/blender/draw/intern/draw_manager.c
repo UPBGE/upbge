@@ -3303,6 +3303,7 @@ void DRW_game_render_loop(bContext *C,
   drw_engines_world_update(DST.draw_ctx.scene);
 
   DST.dupli_origin = NULL;
+  DST.dupli_origin_data = NULL;
 
   if (is_overlay_pass) {
     DEG_OBJECT_ITER_FOR_RENDER_ENGINE_BEGIN (depsgraph, ob) {
@@ -3318,7 +3319,7 @@ void DRW_game_render_loop(bContext *C,
       if (orig_ob->gameflag & OB_OVERLAY_COLLECTION) {
         DST.dupli_parent = data_.dupli_parent;
         DST.dupli_source = data_.dupli_object_current;
-        drw_duplidata_load(DST.dupli_source);
+        drw_duplidata_load(ob);
         drw_engines_cache_populate(ob);
       }
     }
@@ -3340,7 +3341,7 @@ void DRW_game_render_loop(bContext *C,
       }
       DST.dupli_parent = data_.dupli_parent;
       DST.dupli_source = data_.dupli_object_current;
-      drw_duplidata_load(DST.dupli_source);
+      drw_duplidata_load(ob);
       drw_engines_cache_populate(ob);
     }
     DEG_OBJECT_ITER_FOR_RENDER_ENGINE_END;
