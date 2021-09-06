@@ -70,7 +70,7 @@ const EnumPropertyItem rna_enum_object_greasepencil_modifier_type_items[] = {
      "Create duplication of strokes"},
     {eGpencilModifierType_Lineart,
      "GP_LINEART",
-     ICON_MOD_EDGESPLIT, /* TODO: Use a proper icon. */
+     ICON_MOD_LINEART,
      "Line Art",
      "Generate line art strokes from selected source"},
     {eGpencilModifierType_Mirror,
@@ -116,7 +116,7 @@ const EnumPropertyItem rna_enum_object_greasepencil_modifier_type_items[] = {
      "Deform strokes using lattice"},
     {eGpencilModifierType_Length,
      "GP_LENGTH",
-     ICON_MOD_EDGESPLIT,
+     ICON_MOD_LENGTH,
      "Length",
      "Extend or shrink strokes"},
     {eGpencilModifierType_Noise, "GP_NOISE", ICON_MOD_NOISE, "Noise", "Add noise to strokes"},
@@ -2902,7 +2902,7 @@ static void rna_def_modifier_gpencillineart(BlenderRNA *brna)
   RNA_def_struct_ui_text(
       srna, "Line Art Modifier", "Generate line art strokes from selected source");
   RNA_def_struct_sdna(srna, "LineartGpencilModifierData");
-  RNA_def_struct_ui_icon(srna, ICON_MOD_EDGESPLIT);
+  RNA_def_struct_ui_icon(srna, ICON_MOD_LINEART);
 
   RNA_define_lib_overridable(true);
 
@@ -3199,7 +3199,7 @@ static void rna_def_modifier_gpencillength(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "LengthGpencilModifier", "GpencilModifier");
   RNA_def_struct_ui_text(srna, "Length Modifier", "Stretch or shrink strokes");
   RNA_def_struct_sdna(srna, "LengthGpencilModifierData");
-  RNA_def_struct_ui_icon(srna, ICON_MOD_EDGESPLIT);
+  RNA_def_struct_ui_icon(srna, ICON_MOD_LENGTH);
 
   RNA_define_lib_overridable(true);
 
