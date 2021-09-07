@@ -483,8 +483,8 @@ bool KX_KetsjiEngine::NextFrame()
     }
 
     // Process Joystick force feedback duration
-    for (unsigned short i = 0; i < JOYINDEX_MAX; ++i) {
-      DEV_Joystick *joy = DEV_Joystick::GetInstance(i);
+    for (unsigned short j = 0; j < JOYINDEX_MAX; ++j) {
+      DEV_Joystick *joy = DEV_Joystick::GetInstance(j);
       if (joy && joy->Connected() && joy->GetRumbleSupport() && joy->GetRumbleStatus()) {
         joy->ProcessRumbleStatus();
       }
