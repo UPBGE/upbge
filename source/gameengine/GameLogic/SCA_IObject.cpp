@@ -41,6 +41,7 @@ SCA_IObject::SCA_IObject():
     m_suspended(false),
     m_initState(0),
     m_state(0),
+    m_backupState(0),
     m_firstState(nullptr)
 {
 }
@@ -247,6 +248,10 @@ void SCA_IObject::SuspendSensors()
     for (SCA_ISensor *sensor : m_sensors) {
       sensor->Suspend();
     }
+    m_backupState = GetState();
+    /* Suspend sensors is not enough to stop logic activity
+     * then we change logic state to a state which is probably not used */
+    SetState((1 << 30));
   }
 }
 
@@ -258,6 +263,7 @@ void SCA_IObject::ResumeSensors(void)
     for (SCA_ISensor *sensor : m_sensors) {
       sensor->Resume();
     }
+    SetState(m_backupState);
   }
 }
 

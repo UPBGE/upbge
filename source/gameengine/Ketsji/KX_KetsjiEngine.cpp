@@ -499,7 +499,9 @@ bool KX_KetsjiEngine::NextFrame()
        * update. */
       m_logger.StartLog(tc_logic);
 
-      scene->UpdateObjectActivity();
+      if (i == 0) { // No need to UpdateObjectActivity several times
+        scene->UpdateObjectActivity();
+      }
 
       m_logger.StartLog(tc_physics);
       // set Python hooks for each scene

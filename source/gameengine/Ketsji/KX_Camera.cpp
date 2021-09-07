@@ -47,6 +47,7 @@ KX_Camera::KX_Camera() : KX_GameObject(),
       m_normalized(false),
       m_set_projection_matrix(false),
       m_delete_node(false),
+      m_activityCulling(false),
       m_lodDistanceFactor(1.0f),
       m_showDebugCameraFrustum(false)
 {
@@ -85,6 +86,7 @@ void KX_Camera::SetBlenderObject(Object *obj)
 
   SetName(ca->id.name + 2);
   SetLodDistanceFactor(ca->lodfactor);
+  SetActivityCulling(ca->gameflag & GAME_CAM_OBJECT_ACTIVITY_CULLING);
 
   SetCameraData(camdata);
 }
@@ -270,6 +272,16 @@ void KX_Camera::SetLodDistanceFactor(float lodfactor)
   m_lodDistanceFactor = lodfactor;
 }
 
+bool KX_Camera::GetActivityCulling() const
+{
+  return m_activityCulling;
+}
+
+void KX_Camera::SetActivityCulling(bool enable)
+{
+  m_activityCulling = enable;
+}
+
 void KX_Camera::ExtractFrustum()
 {
   if (m_dirty) {
@@ -371,6 +383,8 @@ PyAttributeDef KX_Camera::Attributes[] = {
     EXP_PYATTRIBUTE_RO_FUNCTION("modelview_matrix", KX_Camera, pyattr_get_modelview_matrix),
     EXP_PYATTRIBUTE_RO_FUNCTION("camera_to_world", KX_Camera, pyattr_get_camera_to_world),
     EXP_PYATTRIBUTE_RO_FUNCTION("world_to_camera", KX_Camera, pyattr_get_world_to_camera),
+
+    EXP_PYATTRIBUTE_BOOL_RW("activityCulling", KX_Camera, m_activityCulling),
 
     /* Grrr, functions for constants? */
     EXP_PYATTRIBUTE_RO_FUNCTION("INSIDE", KX_Camera, pyattr_get_INSIDE),

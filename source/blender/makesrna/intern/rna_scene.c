@@ -5694,15 +5694,6 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
       "increases");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
-  /* not used  */ /* deprecated !!!!!!!!!!!!! */
-  prop = RNA_def_property(srna, "activity_culling_box_radius", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, NULL, "activityBoxRadius");
-  RNA_def_property_range(prop, 0.0, 1000.0);
-  RNA_def_property_ui_text(prop,
-                           "Box Radius",
-                           "Radius of the activity bubble, in Manhattan length "
-                           "(objects outside the box are activity-culled)");
-
   /* booleans */
   prop = RNA_def_property(srna, "use_viewport_render", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_USE_VIEWPORT_RENDER);
@@ -5712,6 +5703,11 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_undo", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_USE_UNDO);
   RNA_def_property_ui_text(prop, "Undo at Exit", "Undo bpy changes at game engine exit");
+
+  prop = RNA_def_property(srna, "use_activity_culling", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "mode", WO_ACTIVITY_CULLING);
+  RNA_def_property_ui_text(
+      prop, "Activity Culling", "Enable object activity culling in this scene");
 
   prop = RNA_def_property(srna, "show_debug_properties", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_DEBUG_PROPS);

@@ -270,14 +270,9 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   int m_ueberExecutionPriority;
 
   /**
-   * Radius in Manhattan distance of the box for activity culling.
-   */
-  float m_activity_box_radius;
-
-  /**
    * Toggle to enable or disable activity culling.
    */
-  bool m_activity_culling;
+  bool m_activityCulling;
 
   /**
    * Toggle to enable or disable culling via DBVT broadphase of Bullet.
@@ -514,8 +509,6 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   // Enable/disable activity culling.
   void SetActivityCulling(bool b);
 
-  // Set the radius of the activity culling box.
-  void SetActivityCullingRadius(float f);
   // use of DBVT tree for camera culling
   void SetDbvtCulling(bool b)
   {

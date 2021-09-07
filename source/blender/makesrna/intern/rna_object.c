@@ -2848,6 +2848,41 @@ static void rna_def_material_slot(BlenderRNA *brna)
   RNA_def_struct_path_func(srna, "rna_MaterialSlot_path");
 }
 
+static void rna_def_game_object_activity_culling(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "ObjectActivityCulling", NULL);
+  RNA_def_struct_sdna(srna, "ObjectActivityCulling");
+  RNA_def_struct_nested(brna, srna, "Object");
+  RNA_def_struct_ui_text(srna, "Object Activity Culling", "Object activity culling info");
+
+  prop = RNA_def_property(srna, "physics_radius", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, NULL, "physicsRadius");
+  RNA_def_property_range(prop, 0.0, FLT_MAX);
+  RNA_def_property_ui_text(
+      prop, "Physics Radius", "Distance to begin suspend physics of this object");
+
+  prop = RNA_def_property(srna, "logic_radius", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, NULL, "logicRadius");
+  RNA_def_property_range(prop, 0.0, FLT_MAX);
+  RNA_def_property_ui_text(
+      prop, "Logic Radius", "Distance to begin suspend logic and animation of this object");
+
+  prop = RNA_def_property(srna, "use_physics", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flags", OB_ACTIVITY_PHYSICS);
+  RNA_def_property_ui_text(
+      prop, "Cull Physics", "Suspend physics of this object by its distance to nearest camera");
+
+  prop = RNA_def_property(srna, "use_logic", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flags", OB_ACTIVITY_LOGIC);
+  RNA_def_property_ui_text(
+      prop,
+      "Cull Logic",
+      "Suspend logic and animation of this object by its distance to nearest camera");
+}
+
 static void rna_def_object_game_settings(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -3258,6 +3293,15 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, NULL, "scaflag", OB_SHOWSTATE);
   RNA_def_property_ui_text(prop, "States", "Show state panel");
   RNA_def_property_ui_icon(prop, ICON_DISCLOSURE_TRI_RIGHT, 1);
+
+  /* activity culling */
+  prop = RNA_def_property(srna, "activity_culling", PROP_POINTER, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_NEVER_NULL);
+  RNA_def_property_pointer_sdna(prop, NULL, "activityCulling");
+  RNA_def_property_struct_type(prop, "ObjectActivityCulling");
+  RNA_def_property_ui_text(prop, "Object Activity Culling", "");
+
+  rna_def_game_object_activity_culling(brna);
 
   /* rigid body ccd settings */
   prop = RNA_def_property(srna, "use_ccd_rigid_body", PROP_BOOLEAN, PROP_NONE);

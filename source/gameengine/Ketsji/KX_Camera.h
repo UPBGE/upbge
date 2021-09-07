@@ -107,6 +107,9 @@ class KX_Camera : public KX_GameObject {
    */
   bool m_delete_node;
 
+  /** Enable object activity culling for this camera. */
+  bool m_activityCulling;
+
   /** Distance factor for level of detail*/
   float m_lodDistanceFactor;
 
@@ -191,6 +194,9 @@ class KX_Camera : public KX_GameObject {
   float GetLodDistanceFactor() const;
   /** Set level of detail distance factor */
   void SetLodDistanceFactor(float lodfactor);
+
+  bool GetActivityCulling() const;
+  void SetActivityCulling(bool enable);
 
   const SG_Frustum &GetFrustum();
 

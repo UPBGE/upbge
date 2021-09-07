@@ -872,7 +872,7 @@ typedef struct GameData {
   /*
    * Radius of the activity bubble, in Manhattan length. Objects
    * outside the box are activity-culled. */
-  float activityBoxRadius;
+  float _pad11;
 
   /*
    * bit 3: (gameengine): Activity culling is enabled.
