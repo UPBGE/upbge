@@ -249,6 +249,8 @@ void SCA_IObject::SuspendSensors()
       sensor->Suspend();
     }
     m_backupState = GetState();
+    /* Suspend sensors is not enough to stop logic activity
+     * then we change logic state to a state which is probably not used */
     SetState((1 << 30));
   }
 }
