@@ -2274,6 +2274,7 @@ void DRW_draw_select_loop(struct Depsgraph *depsgraph,
                           bool use_obedit_skip,
                           bool draw_surface,
                           bool UNUSED(use_nearest),
+                          const bool do_material_sub_selection,
                           const rcti *rect,
                           DRW_SelectPassFn select_pass_fn,
                           void *select_pass_user_data,
@@ -2341,6 +2342,7 @@ void DRW_draw_select_loop(struct Depsgraph *depsgraph,
 
   DST.viewport = viewport;
   DST.options.is_select = true;
+  DST.options.is_material_select = do_material_sub_selection;
   drw_task_graph_init();
   /* Get list of enabled engines */
   if (use_obedit) {
@@ -2816,6 +2818,11 @@ bool DRW_state_is_fbo(void)
 bool DRW_state_is_select(void)
 {
   return DST.options.is_select;
+}
+
+bool DRW_state_is_material_select(void)
+{
+  return DST.options.is_material_select;
 }
 
 bool DRW_state_is_depth(void)
