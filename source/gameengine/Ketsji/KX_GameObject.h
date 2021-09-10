@@ -165,14 +165,15 @@ class KX_GameObject : public SCA_IObject {
   void RemoveReplicaObject();
   void SuspendPhysics(bool freeConstraints, bool childrenRecursive);
   void RestorePhysics(bool childrenRecursive);
-  void SuspendLogic(bool childrenRecursive);
-  void RestoreLogic(bool childrenRecursive);
+  void SuspendLogicAndActions(bool childrenRecursive);
+  void RestoreLogicAndActions(bool childrenRecursive);
   void AddDummyLodManager(RAS_MeshObject *meshObj, Object *ob);
   bool IsReplica();
   void ForceIgnoreParentTx();
   void SyncTransformWithDepsgraph();
   void SetIsReplicaObject();
   float *GetPrevObmat();
+  BL_ActionManager *GetActionManagerNoCreate();
   /* END OF EEVEE INTEGRATION */
 
   /**

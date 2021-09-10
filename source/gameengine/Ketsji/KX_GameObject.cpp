@@ -501,6 +501,9 @@ static void suspend_logic_recursive(SG_Node *node)
     KX_GameObject *clientgameobj = static_cast<KX_GameObject *>(childnode->GetSGClientObject());
     if (clientgameobj != nullptr) {  // This is a GameObject
       clientgameobj->SuspendSensors();
+      if (clientgameobj->GetActionManagerNoCreate()) {
+        clientgameobj->GetActionManagerNoCreate()->Suspend();
+      }
     }
 
     // if the childobj is nullptr then this may be an inverse parent link
@@ -510,9 +513,15 @@ static void suspend_logic_recursive(SG_Node *node)
 }
 
 /* We Disable Sensors */
-void KX_GameObject::SuspendLogic(bool childrenRecursive)
+void KX_GameObject::SuspendLogicAndActions(bool childrenRecursive)
 {
   SuspendSensors();
+  /* Even if SuspendSensors might stop actions, we call
+   * m_actionManager->Suspend() to update IsActionsSuspended()
+   * result */
+  if (m_actionManager) {
+    m_actionManager->Suspend();
+  }
 
   if (childrenRecursive) {
     suspend_logic_recursive(GetSGNode());
@@ -527,6 +536,9 @@ static void restore_logic_recursive(SG_Node *node)
     KX_GameObject *clientgameobj = static_cast<KX_GameObject *>(childnode->GetSGClientObject());
     if (clientgameobj != nullptr) {  // This is a GameObject
       clientgameobj->ResumeSensors();
+      if (clientgameobj->GetActionManagerNoCreate()) {
+        clientgameobj->GetActionManagerNoCreate()->Resume();
+      }
     }
 
     // if the childobj is nullptr then this may be an inverse parent link
@@ -535,9 +547,12 @@ static void restore_logic_recursive(SG_Node *node)
   }
 }
 
-void KX_GameObject::RestoreLogic(bool childrenRecursive)
+void KX_GameObject::RestoreLogicAndActions(bool childrenRecursive)
 {
   ResumeSensors();
+  if (m_actionManager) {
+    m_actionManager->Resume();
+  }
 
   if (childrenRecursive) {
     restore_logic_recursive(GetSGNode());
@@ -569,7 +584,7 @@ void KX_GameObject::SetActivityCulling(ActivityCullingInfo::Flag flag, bool enab
       RestorePhysics(false);
     }
     if (flag & ActivityCullingInfo::ACTIVITY_LOGIC) {
-      RestoreLogic(false);
+      RestoreLogicAndActions(false);
     }
   }
 }
@@ -805,6 +820,11 @@ BL_ActionManager *KX_GameObject::GetActionManager()
     GetScene()->AddAnimatedObject(this);
     m_actionManager = new BL_ActionManager(this);
   }
+  return m_actionManager;
+}
+
+BL_ActionManager *KX_GameObject::GetActionManagerNoCreate()
+{
   return m_actionManager;
 }
 
@@ -1170,16 +1190,10 @@ void KX_GameObject::UpdateActivity(float distance)
   // Manage logic culling.
   if (m_activityCullingInfo.m_flags & ActivityCullingInfo::ACTIVITY_LOGIC) {
     if (distance > m_activityCullingInfo.m_logicRadius) {
-      SuspendLogic(false);
-      if (m_actionManager) {
-        m_actionManager->Suspend();
-      }
+      SuspendLogicAndActions(false);
     }
     else {
-      RestoreLogic(false);
-      if (m_actionManager) {
-        m_actionManager->Resume();
-      }
+      RestoreLogicAndActions(false);
     }
   }
 }

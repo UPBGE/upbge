@@ -118,7 +118,7 @@ bool SCA_CollectionActuator::Update()
         Object *ob = gameobj->GetBlenderObject();
         if (ob && BKE_collection_has_object(m_collection, ob)) {
           if (m_useLogic) {
-            gameobj->SuspendLogic(true);
+            gameobj->SuspendLogicAndActions(true);
           }
           if (m_usePhysics) {
             gameobj->SuspendPhysics(false, true);
@@ -134,7 +134,7 @@ bool SCA_CollectionActuator::Update()
         Object *ob = gameobj->GetBlenderObject();
         if (ob && BKE_collection_has_object(m_collection, ob)) {
           if (m_useLogic) {
-            gameobj->RestoreLogic(true);
+            gameobj->RestoreLogicAndActions(true);
           }
           if (m_usePhysics) {
             gameobj->RestorePhysics(true);
