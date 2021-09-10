@@ -238,6 +238,8 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       For example, you can append an Object from another .blend file during bge runtime
       using: bpy.ops.wm.append(...) then convert this Object into a KX_GameObject to have
       logic bricks, physics... converted. This is meant to replace libload.
+      :return: Returns the newly converted gameobject.
+      :rtype: :class:`bge.types.KX_GameObject`
 
    .. method:: convertBlenderObjectsList(blenderObjectsList, asynchronous)
 
@@ -250,7 +252,7 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       :type blenderObjectsList: list of :class:`bpy.types.Object`
       :arg asynchronous: The Object list conversion can be asynchronous or not.
       :type asynchronous: boolean
-      
+
    .. method:: convertBlenderCollection(blenderCollection, asynchronous)
 
       Converts all bpy.types.Object inside a Collection into its correspondent :class:`~bge.types.KX_GameObject` during runtime.
