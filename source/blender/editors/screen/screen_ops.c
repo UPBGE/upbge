@@ -3112,6 +3112,7 @@ static int keyframe_jump_exec(bContext *C, wmOperator *op)
       mask_to_keylist(&ads, masklay, keylist);
     }
   }
+  ED_keylist_prepare_for_direct_access(keylist);
 
   /* find matching keyframe in the right direction */
   const ActKeyColumn *ak;

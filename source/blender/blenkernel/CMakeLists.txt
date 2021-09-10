@@ -78,6 +78,7 @@ set(SRC
   intern/anim_path.c
   intern/anim_sys.c
   intern/anim_visualization.c
+  intern/anonymous_attribute.cc
   intern/appdir.c
   intern/armature.c
   intern/armature_deform.c
@@ -301,6 +302,8 @@ set(SRC
   BKE_anim_path.h
   BKE_anim_visualization.h
   BKE_animsys.h
+  BKE_anonymous_attribute.h
+  BKE_anonymous_attribute.hh
   BKE_appdir.h
   BKE_armature.h
   BKE_armature.hh
