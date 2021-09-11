@@ -108,7 +108,6 @@ class KX_GameObject : public SCA_IObject {
   /* EEVEE INTEGRATION */
   float m_prevObmat[4][4];
   bool m_isReplica;
-  bool m_useCopy;
   bool m_visibleAtGameStart;
   bool m_forceIgnoreParentTx;
   short m_previousLodLevel;
