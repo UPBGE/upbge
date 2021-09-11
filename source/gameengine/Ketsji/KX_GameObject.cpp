@@ -1803,27 +1803,27 @@ void KX_GameObject::RunOnRemoveCallbacks()
  * So far, only switch the physics and logic.
  * */
 
-void KX_GameObject::ResumeDynamics(void)
-{
-  if (m_logicSuspended) {
-    SCA_IObject::ResumeLogic();
-    // Child objects must be static, so we block changing to dynamic
-    if (GetPhysicsController() && !GetParent())
-      GetPhysicsController()->RestoreDynamics();
-
-    m_logicSuspended = false;
-  }
-}
-
-void KX_GameObject::SuspendDynamics()
-{
-  if (!m_logicSuspended) {
-    SCA_IObject::SuspendLogic();
-    if (GetPhysicsController())
-      GetPhysicsController()->SuspendDynamics();
-    m_logicSuspended = true;
-  }
-}
+//void KX_GameObject::ResumeDynamics(void)
+//{
+//  if (m_logicSuspended) {
+//    SCA_IObject::ResumeLogic();
+//    // Child objects must be static, so we block changing to dynamic
+//    if (GetPhysicsController() && !GetParent())
+//      GetPhysicsController()->RestoreDynamics();
+//
+//    m_logicSuspended = false;
+//  }
+//}
+//
+//void KX_GameObject::SuspendDynamics()
+//{
+//  if (!m_logicSuspended) {
+//    SCA_IObject::SuspendLogic();
+//    if (GetPhysicsController())
+//      GetPhysicsController()->SuspendDynamics();
+//    m_logicSuspended = true;
+//  }
+//}
 
 template<bool recursive>
 static void walk_children(const SG_Node *node, std::vector<KX_GameObject *> &list)
