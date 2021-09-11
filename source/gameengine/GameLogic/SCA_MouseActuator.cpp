@@ -99,8 +99,12 @@ bool SCA_MouseActuator::Update()
     mouact_count = 0;
   }
 
-  if (bNegativeEvent)
+  if (bNegativeEvent) {
+    // Reset previous position on negative events.
+    m_oldposition[0] = -1.0f;
+    m_oldposition[1] = -1.0f;
     return false;  // do nothing on negative events
+  }
 
   KX_GameObject *parent = static_cast<KX_GameObject *>(GetParent());
 
