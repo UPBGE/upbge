@@ -38,6 +38,7 @@
 
 #include "KX_Globals.h"
 #include "KX_PyMath.h"
+#include "KX_RayCast.h"
 #include "RAS_ICanvas.h"
 #include "DNA_camera_types.h"
 
@@ -994,8 +995,8 @@ EXP_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition, "getScreenPosition()\n")
 
 EXP_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect, "getScreenVect()\n")
 {
-  double x, y;
-  if (!PyArg_ParseTuple(args, "dd:getScreenVect", &x, &y))
+  float x, y;
+  if (!PyArg_ParseTuple(args, "ff:getScreenVect", &x, &y))
     return nullptr;
 
   y = 1.0 - y;  // to follow Blender window coordinate system (Top-Down)
@@ -1034,41 +1035,68 @@ EXP_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect, "getScreenVect()\n")
 EXP_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenRay, "getScreenRay()\n")
 {
   MT_Vector3 vect;
-  double x, y, dist;
+  float x, y, dist;
   char *propName = nullptr;
 
-  if (!PyArg_ParseTuple(args, "ddd|s:getScreenRay", &x, &y, &dist, &propName))
+  if (!PyArg_ParseTuple(args, "fff|s:getScreenRay", &x, &y, &dist, &propName))
     return nullptr;
 
-  PyObject *argValue = PyTuple_New(2);
-  PyTuple_SET_ITEM(argValue, 0, PyFloat_FromDouble(x));
-  PyTuple_SET_ITEM(argValue, 1, PyFloat_FromDouble(y));
+  y = 1.0 - y;  // to follow Blender window coordinate system (Top-Down)
 
-  if (!PyVecTo(PygetScreenVect(argValue), vect)) {
-    Py_DECREF(argValue);
-    PyErr_SetString(PyExc_TypeError,
-                    "Error in getScreenRay. Invalid 2D coordinate. "
-                    "Expected a normalized 2D screen coordinate, "
-                    "a distance and an optional property argument");
-    return nullptr;
+  GLint viewport[4];
+  GLfloat modelmatrixinv[4][4];
+  GLfloat projmatrix[4][4];
+
+  MT_Matrix4x4 m_modelmatrix = MT_Matrix4x4(GetWorldToCamera());
+  MT_Matrix4x4 m_projmatrix = this->GetProjectionMatrix();
+
+  m_modelmatrix.inverse().getValue((float *)modelmatrixinv);
+  m_projmatrix.getValue((float *)projmatrix);
+
+  KX_GetActiveEngine()->GetCanvas()->GetViewportArea().Pack(viewport);
+
+  RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
+  const int width = canvas->GetWidth();
+  const int height = canvas->GetHeight();
+
+  MT_Vector3 fromPoint;
+  MT_Vector3 toPoint;
+
+  // Unproject a point in near plane.
+  const MT_Vector3 point(x * width, y * height, 0.0f);
+
+  float screenpos[3];
+  GPU_matrix_unproject_3fv(point.getValue(), modelmatrixinv, projmatrix, viewport, screenpos);
+
+  // For perpspective the vector is from camera center to unprojected point.
+  if (m_camdata.m_perspective) {
+    fromPoint = NodeGetWorldPosition();
+    toPoint = MT_Vector3(screenpos);
   }
-  Py_DECREF(argValue);
-
-  dist = -dist;
-  vect += NodeGetWorldPosition();
-
-  argValue = (propName ? PyTuple_New(3) : PyTuple_New(2));
-  if (argValue) {
-    PyTuple_SET_ITEM(argValue, 0, PyObjectFrom(vect));
-    PyTuple_SET_ITEM(argValue, 1, PyFloat_FromDouble(dist));
-    if (propName)
-      PyTuple_SET_ITEM(argValue, 2, PyUnicode_FromString(propName));
-
-    PyObject *ret = this->PyrayCastTo(argValue, nullptr);
-    Py_DECREF(argValue);
-    return ret;
+  // For orthographic the vector is the same as the -Z rotation axis but start from unprojected
+  // point.
+  else {
+    fromPoint = MT_Vector3(screenpos);
+    toPoint = fromPoint - NodeGetWorldOrientation().getColumn(2);
   }
 
-  return nullptr;
+  if (dist != 0.0f) {
+    toPoint = fromPoint + (toPoint - fromPoint).safe_normalized() * dist;
+  }
+
+  PHY_IPhysicsEnvironment *pe = GetScene()->GetPhysicsEnvironment();
+  PHY_IPhysicsController *spc = m_pPhysicsController;
+  KX_GameObject *parent = GetParent();
+  if (!spc && parent) {
+    spc = parent->GetPhysicsController();
+  }
+
+  RayCastData rayData("", false, (1u << OB_MAX_COL_MASKS) - 1);
+  KX_RayCast::Callback<KX_Camera, RayCastData> callback(this, spc, &rayData);
+  if (KX_RayCast::RayTest(pe, fromPoint, toPoint, callback) && rayData.m_hitObject) {
+    return rayData.m_hitObject->GetProxy();
+  }
+
+  Py_RETURN_NONE;
 }
 #endif

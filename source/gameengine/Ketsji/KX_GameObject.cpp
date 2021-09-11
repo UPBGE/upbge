@@ -4481,17 +4481,10 @@ EXP_PYMETHODDEF_DOC_O(
   return returnValue;
 }
 
-struct KX_GameObject::RayCastData {
-  RayCastData(std::string prop, bool xray, unsigned int mask)
-      : m_prop(prop), m_xray(xray), m_mask(mask), m_hitObject(nullptr)
-  {
-  }
-
-  std::string m_prop;
-  bool m_xray;
-  unsigned int m_mask;
-  KX_GameObject *m_hitObject;
-};
+KX_GameObject::RayCastData::RayCastData(const std::string &prop, bool xray, unsigned int mask)
+    : m_prop(prop), m_xray(xray), m_mask(mask), m_hitObject(nullptr)
+{
+}
 
 bool KX_GameObject::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, RayCastData *rayData)
 {
@@ -4747,14 +4740,14 @@ EXP_PYMETHODDEF_DOC(
 
   if (dist != 0.0f) {
     MT_Vector3 toDir = toPoint - fromPoint;
-    if (MT_fuzzyZero(toDir.length2())) {
+    if (MT_fuzzyZero(toDir)) {
       // return Py_BuildValue("OOO", Py_None, Py_None, Py_None);
       return none_tuple_3();
     }
     toDir.normalize();
     toPoint = fromPoint + (dist)*toDir;
   }
-  else if (MT_fuzzyZero((toPoint - fromPoint).length2())) {
+  else if (MT_fuzzyZero((toPoint - fromPoint))) {
     // return Py_BuildValue("OOO", Py_None, Py_None, Py_None);
     return none_tuple_3();
   }
