@@ -1063,7 +1063,15 @@ EXP_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenRay, "getScreenRay()\n")
   MT_Vector3 toPoint;
 
   // Unproject a point in near plane.
-  const MT_Vector3 point(x * width, y * height, 0.0f);
+  MT_Vector3 point;
+
+  point[0] = x * viewport[2];
+  point[1] = y * viewport[3];
+
+  point[0] += viewport[0];
+  point[1] += viewport[1];
+
+  point[2] = 0.f;
 
   float screenpos[3];
   GPU_matrix_unproject_3fv(point.getValue(), modelmatrixinv, projmatrix, viewport, screenpos);
@@ -1091,7 +1099,8 @@ EXP_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenRay, "getScreenRay()\n")
     spc = parent->GetPhysicsController();
   }
 
-  RayCastData rayData("", false, (1u << OB_MAX_COL_MASKS) - 1);
+  std::string prop = propName ? (std::string)propName : "";
+  RayCastData rayData(prop, false, (1u << OB_MAX_COL_MASKS) - 1);
   KX_RayCast::Callback<KX_Camera, RayCastData> callback(this, spc, &rayData);
   if (KX_RayCast::RayTest(pe, fromPoint, toPoint, callback) && rayData.m_hitObject) {
     return rayData.m_hitObject->GetProxy();
