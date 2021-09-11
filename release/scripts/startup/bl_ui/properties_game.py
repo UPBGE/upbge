@@ -535,7 +535,7 @@ class SceneButtonsPanel:
 
 
 class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
-    bl_label = "Physics"
+    bl_label = "Game Physics"
     COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
 
     @classmethod
