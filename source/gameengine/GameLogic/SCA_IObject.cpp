@@ -38,7 +38,7 @@ SG_QList SCA_IObject::m_activeBookmarkedControllers;
 
 SCA_IObject::SCA_IObject():
     KX_PythonProxy(),
-    m_suspended(false),
+    m_logicSuspended(false),
     m_initState(0),
     m_state(0),
     m_backupState(0),
@@ -240,10 +240,10 @@ SCA_IActuator *SCA_IObject::FindActuator(const std::string &actuatorname)
   return nullptr;
 }
 
-void SCA_IObject::SuspendSensors()
+void SCA_IObject::SuspendLogic()
 {
-  if (!m_suspended) {
-    m_suspended = true;
+  if (!m_logicSuspended) {
+    m_logicSuspended = true;
     /* flag suspend for all sensors */
     for (SCA_ISensor *sensor : m_sensors) {
       sensor->Suspend();
@@ -255,10 +255,10 @@ void SCA_IObject::SuspendSensors()
   }
 }
 
-void SCA_IObject::ResumeSensors(void)
+void SCA_IObject::ResumeLogic(void)
 {
-  if (m_suspended) {
-    m_suspended = false;
+  if (m_logicSuspended) {
+    m_logicSuspended = false;
     /* unflag suspend for all sensors */
     for (SCA_ISensor *sensor : m_sensors) {
       sensor->Resume();

@@ -84,7 +84,7 @@ class SCA_IObject : public KX_PythonProxy {
   static SG_QList m_activeBookmarkedControllers;
 
   /// Ignore updates?
-  bool m_suspended;
+  bool m_logicSuspended;
 
   /// Init state of object (used when object is created).
   unsigned int m_initState;
@@ -134,10 +134,10 @@ class SCA_IObject : public KX_PythonProxy {
   virtual void ReParentLogic();
 
   /// Suspend all progress.
-  void SuspendSensors(void);
+  void SuspendLogic(void);
 
   /// Resume progress.
-  void ResumeSensors(void);
+  void ResumeLogic(void);
 
   /// Set init state.
   void SetInitState(unsigned int initState);

@@ -500,7 +500,7 @@ static void suspend_logic_recursive(SG_Node *node)
   for (SG_Node *childnode : children) {
     KX_GameObject *clientgameobj = static_cast<KX_GameObject *>(childnode->GetSGClientObject());
     if (clientgameobj != nullptr) {  // This is a GameObject
-      clientgameobj->SuspendSensors();
+      clientgameobj->SuspendLogic();
       if (clientgameobj->GetActionManagerNoCreate()) {
         clientgameobj->GetActionManagerNoCreate()->Suspend();
       }
@@ -515,7 +515,7 @@ static void suspend_logic_recursive(SG_Node *node)
 /* We Disable Sensors */
 void KX_GameObject::SuspendLogicAndActions(bool childrenRecursive)
 {
-  SuspendSensors();
+  SuspendLogic();
   /* Even if SuspendSensors might stop actions, we call
    * m_actionManager->Suspend() to update IsActionsSuspended()
    * result */
@@ -535,7 +535,7 @@ static void restore_logic_recursive(SG_Node *node)
   for (SG_Node *childnode : children) {
     KX_GameObject *clientgameobj = static_cast<KX_GameObject *>(childnode->GetSGClientObject());
     if (clientgameobj != nullptr) {  // This is a GameObject
-      clientgameobj->ResumeSensors();
+      clientgameobj->ResumeLogic();
       if (clientgameobj->GetActionManagerNoCreate()) {
         clientgameobj->GetActionManagerNoCreate()->Resume();
       }
@@ -549,7 +549,7 @@ static void restore_logic_recursive(SG_Node *node)
 
 void KX_GameObject::RestoreLogicAndActions(bool childrenRecursive)
 {
-  ResumeSensors();
+  ResumeLogic();
   if (m_actionManager) {
     m_actionManager->Resume();
   }
@@ -1805,23 +1805,23 @@ void KX_GameObject::RunOnRemoveCallbacks()
 
 void KX_GameObject::ResumeDynamics(void)
 {
-  if (m_suspended) {
-    SCA_IObject::ResumeSensors();
+  if (m_logicSuspended) {
+    SCA_IObject::ResumeLogic();
     // Child objects must be static, so we block changing to dynamic
     if (GetPhysicsController() && !GetParent())
       GetPhysicsController()->RestoreDynamics();
 
-    m_suspended = false;
+    m_logicSuspended = false;
   }
 }
 
 void KX_GameObject::SuspendDynamics()
 {
-  if (!m_suspended) {
-    SCA_IObject::SuspendSensors();
+  if (!m_logicSuspended) {
+    SCA_IObject::SuspendLogic();
     if (GetPhysicsController())
       GetPhysicsController()->SuspendDynamics();
-    m_suspended = true;
+    m_logicSuspended = true;
   }
 }
 
@@ -1875,7 +1875,7 @@ void KX_GameObject::SetComponents(EXP_ListValue<KX_PythonComponent> *components)
 void KX_GameObject::Update()
 {
 #ifdef WITH_PYTHON
-  if (!m_suspended) {
+  if (!m_logicSuspended) {
     if (m_components) {
       for (KX_PythonComponent *comp : m_components) {
         comp->Update();
