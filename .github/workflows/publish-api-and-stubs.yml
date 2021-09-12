@@ -210,7 +210,11 @@ jobs:
 
     - name: Build Python Package
       working-directory: python_api/upbge-stub
-      run: APP_NAME=upbge APP_VERSION=0.3 BUILD_NUMBER=${{github.run_id}} python setup.py sdist
+      run: |
+        sed -i "s/#APP_NAME#/upbge/g" setup.py && \
+        sed -i "s/#APP_VERSION#/0.3/g" setup.py && \
+        sed -i "s/#BUILD_NUMBER#/${{ github.run_id }}/g" setup.py && \
+        python setup.py sdist
 
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
