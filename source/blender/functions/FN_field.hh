@@ -37,7 +37,7 @@
  *    use is to compose multiple existing fields into new fields.
  *
  * When fields are evaluated, they are converted into a multi-function procedure which allows
- * efficient compution. In the future, we might support different field evaluation mechanisms for
+ * efficient computation. In the future, we might support different field evaluation mechanisms for
  * e.g. the following scenarios:
  *  - Latency of a single evaluation is more important than throughput.
  *  - Evaluation should happen on other hardware like GPUs.
@@ -151,12 +151,14 @@ template<typename NodePtr> class GFieldBase {
 
   friend bool operator==(const GFieldBase &a, const GFieldBase &b)
   {
-    return &*a.node_ == &*b.node_ && a.node_output_index_ == b.node_output_index_;
+    /* Two nodes can compare equal even when their pointer is not the same. For example, two
+     * "Position" nodes are the same. */
+    return *a.node_ == *b.node_ && a.node_output_index_ == b.node_output_index_;
   }
 
   uint64_t hash() const
   {
-    return get_default_hash_2(node_, node_output_index_);
+    return get_default_hash_2(*node_, node_output_index_);
   }
 
   const fn::CPPType &cpp_type() const
