@@ -1055,10 +1055,6 @@ EXP_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenRay, "getScreenRay()\n")
 
   KX_GetActiveEngine()->GetCanvas()->GetViewportArea().Pack(viewport);
 
-  RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
-  const int width = canvas->GetWidth();
-  const int height = canvas->GetHeight();
-
   MT_Vector3 fromPoint;
   MT_Vector3 toPoint;
 
