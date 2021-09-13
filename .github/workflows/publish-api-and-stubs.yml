@@ -204,7 +204,7 @@ jobs:
     - name: Build API Stubs
       working-directory: python_api
       run: |
-        python -m bpystubgen --quiet --format sphinx-in upbge-stub && \
+        python -m bpystubgen --quiet sphinx-in upbge-stub && \
         curl https://raw.githubusercontent.com/mysticfall/bpystubgen/main/package/setup.py -o upbge-stub/setup.py && \
         curl https://raw.githubusercontent.com/mysticfall/bpystubgen/main/package/README.md -o upbge-stub/README.md
 
