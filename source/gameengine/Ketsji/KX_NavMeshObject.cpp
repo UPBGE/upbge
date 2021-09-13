@@ -97,20 +97,20 @@ static int polyNumVerts(const unsigned short *p, const int vertsPerPoly)
   return nv;
 }
 
-static int polyIsConvex(const unsigned short *p, const int vertsPerPoly, const float *verts)
-{
-  int j, nv = polyNumVerts(p, vertsPerPoly);
-  if (nv < 3)
-    return 0;
-  for (j = 0; j < nv; j++) {
-    const float *v = &verts[3 * p[j]];
-    const float *v_next = &verts[3 * p[(j + 1) % nv]];
-    const float *v_prev = &verts[3 * p[(nv + j - 1) % nv]];
-    if (!left(v_prev, v, v_next))
-      return 0;
-  }
-  return 1;
-}
+//static int polyIsConvex(const unsigned short *p, const int vertsPerPoly, const float *verts)
+//{
+//  int j, nv = polyNumVerts(p, vertsPerPoly);
+//  if (nv < 3)
+//    return 0;
+//  for (j = 0; j < nv; j++) {
+//    const float *v = &verts[3 * p[j]];
+//    const float *v_next = &verts[3 * p[(j + 1) % nv]];
+//    const float *v_prev = &verts[3 * p[(nv + j - 1) % nv]];
+//    if (!left(v_prev, v, v_next))
+//      return 0;
+//  }
+//  return 1;
+//}
 
 /* XXX, could replace with #dist_to_line_segment_v3(), or add a squared version */
 static float distPointToSegmentSq(const float point[3], const float a[3], const float b[3])

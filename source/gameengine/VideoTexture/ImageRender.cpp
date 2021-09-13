@@ -380,7 +380,7 @@ bool ImageRender::Render()
     GPU_clear_depth(1.0f);
     /* viewport and window share the same values here */
     const rcti window = {viewport[0], viewport[2], viewport[1], viewport[3]};
-    m_scene->RenderAfterCameraSetupImageRender(m_camera, m_rasterizer, &window);
+    m_scene->RenderAfterCameraSetupImageRender(m_camera, &window);
   }
 
 #ifdef WITH_PYTHON

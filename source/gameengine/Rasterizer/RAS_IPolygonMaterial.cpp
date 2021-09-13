@@ -87,14 +87,6 @@ bool RAS_IPolyMaterial::IsCullFace() const
   return !(m_rasMode & (RAS_TWOSIDED | RAS_WIRE));
 }
 
-void RAS_IPolyMaterial::GetRGBAColor(unsigned char *rgba) const
-{
-  *rgba++ = 0xFF;
-  *rgba++ = 0xFF;
-  *rgba++ = 0xFF;
-  *rgba++ = 0xFF;
-}
-
 bool RAS_IPolyMaterial::IsAlpha() const
 {
   return (m_rasMode & (RAS_ALPHA | RAS_ZSORT));

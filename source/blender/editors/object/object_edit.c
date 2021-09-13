@@ -131,20 +131,6 @@ static void move_to_collection_menus_items(struct uiLayout *layout,
                                            struct MoveToCollectionData *menu);
 static ListBase selected_objects_get(bContext *C);
 
-/* ************* XXX **************** */
-static void error(const char *UNUSED(arg))
-{
-}
-static int pupmenu(const char *UNUSED(msg))
-{
-  return 0;
-}
-
-/* port over here */
-static void error_libdata(void)
-{
-}
-
 /* -------------------------------------------------------------------- */
 /** \name Internal Utilities
  * \{ */
@@ -2099,7 +2085,7 @@ static int logicbricks_copy_exec(bContext *C, wmOperator *UNUSED(op))
       BKE_sca_clear_new_points_ob(ob);
       BKE_sca_copy_sensors(&ob_iter->sensors, &ob->sensors, 0);
       BKE_sca_copy_controllers(&ob_iter->controllers, &ob->controllers, 0);
-      BKE_sca_copy_actuators(&ob_iter->actuators, &ob->actuators, 0);
+      BKE_sca_copy_actuators(&ob_iter->actuators, &ob->actuators);
       BKE_sca_set_new_points_ob(ob_iter);
 
       /* some menu settings */

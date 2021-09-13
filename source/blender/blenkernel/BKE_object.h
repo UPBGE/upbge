@@ -163,7 +163,7 @@ void BKE_object_lod_sort(struct Object *ob);
 bool BKE_object_lod_remove(struct Object *ob, int level);
 void BKE_object_lod_update(struct Object *ob, const float camera_position[3]);
 bool BKE_object_lod_is_usable(struct Object *ob);
-struct Object *BKE_object_lod_meshob_get(struct Object *ob, struct ViewLayer *view_layer);
+struct Object *BKE_object_lod_meshob_get(struct Object *ob);
 struct Object *BKE_object_lod_matob_get(struct Object *ob, struct ViewLayer *view_layer);
 
 bool BKE_object_is_libdata(const struct Object *ob);

@@ -87,8 +87,8 @@ inline RAS_FrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(FrameBuffer
     // The offscreen need to be created now.
 
     // Check if the off screen type can support samples.
-    const bool sampleofs = fbtype == RAS_FRAMEBUFFER_EYE_LEFT0 ||
-                           fbtype == RAS_FRAMEBUFFER_EYE_RIGHT0;
+//    const bool sampleofs = fbtype == RAS_FRAMEBUFFER_EYE_LEFT0 ||
+//                           fbtype == RAS_FRAMEBUFFER_EYE_RIGHT0;
 
     /* Some GPUs doesn't support high multisample value with GL_RGBA16F or GL_RGBA32F.
      * To avoid crashing we check if the off screen was created and if not decremente

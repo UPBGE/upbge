@@ -370,7 +370,7 @@ void BKE_sca_free_actuators(ListBase *lb)
   }
 }
 
-bActuator *BKE_sca_copy_actuator(bActuator *act, const int flag)
+bActuator *BKE_sca_copy_actuator(bActuator *act)
 {
   bActuator *actn;
 
@@ -400,14 +400,14 @@ bActuator *BKE_sca_copy_actuator(bActuator *act, const int flag)
   return actn;
 }
 
-void BKE_sca_copy_actuators(ListBase *lbn, const ListBase *lbo, const int flag)
+void BKE_sca_copy_actuators(ListBase *lbn, const ListBase *lbo)
 {
   bActuator *act, *actn;
 
   lbn->first = lbn->last = NULL;
   act = lbo->first;
   while (act) {
-    actn = BKE_sca_copy_actuator(act, flag);
+    actn = BKE_sca_copy_actuator(act);
     BLI_addtail(lbn, actn);
     act = act->next;
   }
@@ -816,7 +816,7 @@ void BKE_sca_copy_logicbricks(Object *ob_new, const Object *ob, const int flag)
 {
   BKE_sca_copy_sensors(&ob_new->sensors, &ob->sensors, flag);
   BKE_sca_copy_controllers(&ob_new->controllers, &ob->controllers, flag);
-  BKE_sca_copy_actuators(&ob_new->actuators, &ob->actuators, flag);
+  BKE_sca_copy_actuators(&ob_new->actuators, &ob->actuators);
 
   for (bSensor *sens = ob_new->sensors.first; sens; sens = sens->next) {
     if (sens->flag & SENS_NEW) {

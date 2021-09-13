@@ -830,7 +830,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   for (short i = 0; i < samples_per_frame; i++) {
     GPU_clear_depth(1.0f);
-    DRW_game_render_loop(C, m_currentGPUViewport, bmain, depsgraph, &window, is_overlay_pass);
+    DRW_game_render_loop(C, m_currentGPUViewport, depsgraph, &window, is_overlay_pass);
   }
 
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
@@ -873,11 +873,9 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 }
 
 void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
-                                                 RAS_Rasterizer *rasty,
                                                  const rcti *window)
 {
   bContext *C = KX_GetActiveEngine()->GetContext();
-  Main *bmain = CTX_data_main(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
   if (!depsgraph) {
@@ -897,7 +895,7 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
                             winmat,
                             NULL);
 
-  DRW_game_render_loop(C, m_currentGPUViewport, bmain, depsgraph, window, false);
+  DRW_game_render_loop(C, m_currentGPUViewport, depsgraph, window, false);
 }
 
 void KX_Scene::SetBlenderSceneConverter(BL_BlenderSceneConverter *sc_converter)
@@ -1796,8 +1794,12 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
       }
     }
     else {
-      if ((blenderobj->lay & group->layer) == 0) {
-        // object is not visible in the 3D view, will not be instantiated
+      if ((blenderobj->lay & groupobj->GetLayer()) == 0) {
+        // Object is not visible in the 3D view, will not be instantiated. ??
+        /* 3 remarks:
+         * - The comment souldn't be: "if blenderobj not in same layer than groupobj, don't convert it as gameobj"?
+         * - The code was using blenderobj->lay & group->layer but group->layer is deprecated.
+         * - Maybe it shouldn't be in an else statement. */
         continue;
       }
     }
@@ -2310,54 +2312,54 @@ void KX_Scene::AddAnimatedObject(KX_GameObject *gameobj)
   CM_ListAddIfNotFound(m_animatedlist, gameobj);
 }
 
-static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(threadid))
-{
-  KX_GameObject *gameobj, *parent;
-  bool needs_update;
-  KX_Scene::AnimationPoolData *data = (KX_Scene::AnimationPoolData *)BLI_task_pool_user_data(pool);
-  double curtime = data->curtime;
+//static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(threadid))
+//{
+//  KX_GameObject *gameobj, *parent;
+//  bool needs_update;
+//  KX_Scene::AnimationPoolData *data = (KX_Scene::AnimationPoolData *)BLI_task_pool_user_data(pool);
+//  double curtime = data->curtime;
 
-  gameobj = (KX_GameObject *)taskdata;
+//  gameobj = (KX_GameObject *)taskdata;
 
-  // Non-armature updates are fast enough, so just update them
-  needs_update = gameobj->GetGameObjectType() != SCA_IObject::OBJ_ARMATURE;
+//  // Non-armature updates are fast enough, so just update them
+//  needs_update = gameobj->GetGameObjectType() != SCA_IObject::OBJ_ARMATURE;
 
-  if (!needs_update) {
-    // If we got here, we're looking to update an armature, so check its children meshes
-    // to see if we need to bother with a more expensive pose update
-    const std::vector<KX_GameObject *> children = gameobj->GetChildren();
+//  if (!needs_update) {
+//    // If we got here, we're looking to update an armature, so check its children meshes
+//    // to see if we need to bother with a more expensive pose update
+//    const std::vector<KX_GameObject *> children = gameobj->GetChildren();
 
-    bool has_mesh = false, has_non_mesh = false;
+//    bool has_mesh = false, has_non_mesh = false;
 
-    // Check for meshes that haven't been culled
-    for (KX_GameObject *child : children) {
-      // if (!child->GetCulled()) { // eevee disable armature animation culling
-      needs_update = true;
-      break;
-      //}
+//    // Check for meshes that haven't been culled
+//    for (KX_GameObject *child : children) {
+//      // if (!child->GetCulled()) { // eevee disable armature animation culling
+//      needs_update = true;
+//      break;
+//      //}
 
-      if (child->GetMeshCount() == 0)
-        has_non_mesh = true;
-      else
-        has_mesh = true;
-    }
+//      if (child->GetMeshCount() == 0)
+//        has_non_mesh = true;
+//      else
+//        has_mesh = true;
+//    }
 
-    // If we didn't find a non-culled mesh, check to see
-    // if we even have any meshes, and update if this
-    // armature has only non-mesh children.
-    if (!needs_update && !has_mesh && has_non_mesh)
-      needs_update = true;
-  }
+//    // If we didn't find a non-culled mesh, check to see
+//    // if we even have any meshes, and update if this
+//    // armature has only non-mesh children.
+//    if (!needs_update && !has_mesh && has_non_mesh)
+//      needs_update = true;
+//  }
 
-  // If the object is a culled armature, then we manage only the animation time and end of its
-  // animations.
-  gameobj->UpdateActionManager(curtime, needs_update);
+//  // If the object is a culled armature, then we manage only the animation time and end of its
+//  // animations.
+//  gameobj->UpdateActionManager(curtime, needs_update);
 
-  if (needs_update) {
-    const std::vector<KX_GameObject *> children = gameobj->GetChildren();
-    parent = gameobj->GetParent();
-  }
-}
+//  if (needs_update) {
+//    const std::vector<KX_GameObject *> children = gameobj->GetChildren();
+//    parent = gameobj->GetParent();
+//  }
+//}
 
 void KX_Scene::UpdateAnimations(double curtime)
 {

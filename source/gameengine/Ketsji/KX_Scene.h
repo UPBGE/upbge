@@ -340,7 +340,6 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
 
   void RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, bool is_overlay_pass, bool is_last_render_pass);
   void RenderAfterCameraSetupImageRender(KX_Camera *cam,
-                                         RAS_Rasterizer *rasty,
                                          const struct rcti *window);
 
   void SetLastReplicatedParentObject(Object *ob);

@@ -105,8 +105,6 @@
 
 #include <boost/format.hpp>
 
-static bool default_light_mode = 0;
-
 /* The reverse table. In order to not confuse ourselves, we
  * immediately convert all events that come in to KX codes. */
 static std::map<int, SCA_IInputDevice::SCA_EnumInputs> gReverseKeyTranslateTable = {

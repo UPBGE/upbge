@@ -1479,14 +1479,13 @@ struct DRWTextStore *DRW_text_cache_ensure(void)
  * \{ */
 
 /* UPBGE */
-static void update_lods(Depsgraph *depsgraph, Scene *scene, Object *ob_eval, float camera_pos[3])
+static void update_lods(Depsgraph *depsgraph, Object *ob_eval, float camera_pos[3])
 {
-  ViewLayer *view_layer = BKE_view_layer_default_view(scene);
   Object *ob_orig = DEG_get_original_object(ob_eval);
   BKE_object_lod_update(ob_orig, camera_pos);
 
   if (ob_orig->currentlod) {
-    Object *lod_ob = BKE_object_lod_meshob_get(ob_orig, view_layer);
+    Object *lod_ob = BKE_object_lod_meshob_get(ob_orig);
     ob_eval->data = DEG_get_evaluated_object(depsgraph, lod_ob)->data;
   }
 }
@@ -1604,7 +1603,7 @@ void DRW_draw_render_loop_ex(struct Depsgraph *depsgraph,
         }
 
         /* UPBGE */
-        update_lods(depsgraph, scene, ob, DST.draw_ctx.rv3d->viewinv[3]);
+        update_lods(depsgraph, ob, DST.draw_ctx.rv3d->viewinv[3]);
         /* End of UPBGE */
 
         DST.dupli_parent = data_.dupli_parent;
@@ -3249,7 +3248,6 @@ EEVEE_Data *EEVEE_engine_data_get(void)
 
 void DRW_game_render_loop(bContext *C,
                           GPUViewport *viewport,
-                          Main *bmain,
                           Depsgraph *depsgraph,
                           const rcti *window,
                           bool is_overlay_pass)
@@ -3420,7 +3418,7 @@ void DRW_game_python_loop_end(ViewLayer *view_layer)
   memset(&DST, 0xFF, offsetof(DRWManager, gl_context));
 }
 
-void DRW_opengl_context_create_blenderplayer(void *ghost_system, void *win)
+void DRW_opengl_context_create_blenderplayer(void *ghost_system)
 {
   BLI_assert(DST.gl_context == NULL); /* Ensure it's called once */
 

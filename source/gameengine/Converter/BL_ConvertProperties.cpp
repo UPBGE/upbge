@@ -215,6 +215,7 @@ void BL_ConvertTextProperty(Object *object,
       if (isInActiveLayer) {
         timemgr->AddTimeProperty(propval);
       }
+      break;
     }
     default: {
       BLI_assert(0);

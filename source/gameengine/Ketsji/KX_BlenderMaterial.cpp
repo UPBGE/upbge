@@ -110,18 +110,6 @@ RAS_MaterialShader *KX_BlenderMaterial::GetShader() const
   return nullptr;
 }
 
-void KX_BlenderMaterial::GetRGBAColor(unsigned char *rgba) const
-{
-  if (m_material) {
-    *rgba++ = (unsigned char)(m_material->r * 255.0f);
-    *rgba++ = (unsigned char)(m_material->g * 255.0f);
-    *rgba++ = (unsigned char)(m_material->b * 255.0f);
-    *rgba++ = (unsigned char)(m_material->alpha * 255.0f);
-  }
-  else
-    RAS_IPolyMaterial::GetRGBAColor(rgba);
-}
-
 const std::string KX_BlenderMaterial::GetTextureName() const
 {
   return (m_textures[0] ? m_textures[0]->GetName() : "");
@@ -261,28 +249,6 @@ bool KX_BlenderMaterial::UsesLighting() const
   else {
     return true;
   }
-}
-
-void KX_BlenderMaterial::UpdateIPO(MT_Vector4 rgba,
-                                   MT_Vector3 specrgb,
-                                   MT_Scalar hard,
-                                   MT_Scalar spec,
-                                   MT_Scalar ref,
-                                   MT_Scalar emit,
-                                   MT_Scalar ambient,
-                                   MT_Scalar alpha,
-                                   MT_Scalar specalpha)
-{
-  // only works one deep now
-
-  // GLSL								Input
-  m_material->specr = (float)(specrgb)[0];
-  m_material->specg = (float)(specrgb)[1];
-  m_material->specb = (float)(specrgb)[2];
-  m_material->r = (float)(rgba[0]);
-  m_material->g = (float)(rgba[1]);
-  m_material->b = (float)(rgba[2]);
-  m_material->alpha = (float)(rgba[3]);
 }
 
 void KX_BlenderMaterial::ReplaceScene(KX_Scene *scene)

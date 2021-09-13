@@ -145,7 +145,7 @@ const char *BKE_blender_version_string(void)
   return blender_version_string;
 }
 
-static void upbge_version_init()
+static void upbge_version_init(void)
 {
   /* Version number. */
   const char *version_cycle = NULL;

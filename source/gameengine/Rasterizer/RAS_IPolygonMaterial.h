@@ -110,18 +110,7 @@ class RAS_IPolyMaterial {
   virtual Scene *GetBlenderScene() const = 0;
   virtual SCA_IScene *GetScene() const = 0;
   virtual void ReleaseMaterial() = 0;
-  virtual void GetRGBAColor(unsigned char *rgba) const;
   virtual bool UsesLighting() const;
-
-  virtual void UpdateIPO(MT_Vector4 rgba,
-                         MT_Vector3 specrgb,
-                         MT_Scalar hard,
-                         MT_Scalar spec,
-                         MT_Scalar ref,
-                         MT_Scalar emit,
-                         MT_Scalar ambient,
-                         MT_Scalar alpha,
-                         MT_Scalar specalpha) = 0;
 
   /**
    * \return the equivalent drawing mode for the material settings (equivalent to old TexFace

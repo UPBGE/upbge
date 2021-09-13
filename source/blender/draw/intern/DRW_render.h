@@ -785,7 +785,6 @@ const DRWContextState *DRW_context_state_get(void);
 /*****************************GAME ENGINE***********************************/
 void DRW_game_render_loop(struct bContext *C,
                           struct GPUViewport *viewport,
-                          struct Main *bmain,
                           struct Depsgraph *depsgraph,
                           const struct rcti *window,
                           bool is_overlay_pass);

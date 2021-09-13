@@ -159,22 +159,6 @@ bool BL_Action::Play(const std::string &name,
     sg_contr->SetNode(m_obj->GetSGNode());
   }
 
-  // Now try materials
-  for (unsigned short i = 0, meshcount = m_obj->GetMeshCount(); i < meshcount; ++i) {
-    RAS_MeshObject *mesh = m_obj->GetMesh(i);
-    for (unsigned short j = 0, matcount = mesh->NumMaterials(); j < matcount; ++j) {
-      RAS_MeshMaterial *meshmat = mesh->GetMeshMaterial(j);
-      RAS_IPolyMaterial *polymat = meshmat->GetBucket()->GetPolyMaterial();
-
-      sg_contr = BL_CreateMaterialIpo(m_action, polymat, m_obj, kxscene);
-      if (sg_contr) {
-        m_sg_contr_list.push_back(sg_contr);
-        m_obj->GetSGNode()->AddSGController(sg_contr);
-        sg_contr->SetNode(m_obj->GetSGNode());
-      }
-    }
-  }
-
   // Extra controllers
   if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_LIGHT) {
     sg_contr = BL_CreateLampIPO(m_action, m_obj, kxscene);

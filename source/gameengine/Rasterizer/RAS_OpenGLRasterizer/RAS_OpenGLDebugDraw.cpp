@@ -208,8 +208,6 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
     GPU_depth_test(GPU_DEPTH_ALWAYS);
 
     /* The Performances profiler */
-
-    const unsigned int width = canvas->GetWidth();
     const unsigned int height = canvas->GetHeight();
 
     if (!debugDraw->m_boxes2D.empty()) {

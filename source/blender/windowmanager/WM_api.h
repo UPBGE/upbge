@@ -1076,7 +1076,7 @@ XrActionMapBinding *WM_xr_actionmap_binding_find(XrActionMapItem *ami, const cha
 #endif /* WITH_XR_OPENXR */
 
 /* UPBGE */
-void WM_init_opengl_blenderplayer(struct Main *bmain, void *ghost_system, struct wmWindow *win);
+void WM_init_opengl_blenderplayer(void *ghost_system);
 void *WM_opengl_context_create_blenderplayer(void *ghost_system);
 /* End of UPBGE */
 

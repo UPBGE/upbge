@@ -789,7 +789,7 @@ static void LOGIC_OT_view_all(wmOperatorType *ot)
 
 /* ********** flip a region alignment ********************* */
 
-static int logic_region_flip_exec(bContext *C, wmOperator *op)
+static int logic_region_flip_exec(bContext *C, wmOperator *UNUSED(op))
 {
   ScrArea *sa = CTX_wm_area(C);
   ARegion *ar = logic_has_buttons_region(sa);
@@ -932,7 +932,7 @@ static void LOGIC_OT_custom_object_create(wmOperatorType *ot)
   RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
 }
 
-static int custom_object_remove_exec(bContext *C, wmOperator *op)
+static int custom_object_remove_exec(bContext *C, wmOperator *UNUSED(op))
 {
   Object *ob = CTX_data_active_object(C);
 

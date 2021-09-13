@@ -78,7 +78,7 @@ class GLTexture : public Texture {
   static void samplers_update(void);
 
   /* UPBGE */
-  void gl_bindcode_set(int bindcode);
+  void gl_bindcode_set(int bindcode) override;
 
  protected:
   bool init_internal(void) override;

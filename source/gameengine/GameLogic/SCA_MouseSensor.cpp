@@ -94,6 +94,7 @@ bool SCA_MouseSensor::Evaluate()
     case KX_MOUSESENSORMODE_WHEELUP:
     case KX_MOUSESENSORMODE_WHEELDOWN: {
       forceevent = true;
+      ATTR_FALLTHROUGH;
       /* pass-through */
     }
     case KX_MOUSESENSORMODE_LEFTBUTTON:

@@ -106,7 +106,7 @@ class GLFrameBuffer : public FrameBuffer {
 
   void apply_state(void);
 
-  int get_bindcode(void);  // UPBGE
+  int get_bindcode(void) override;  // UPBGE
 
  private:
   void init(void);

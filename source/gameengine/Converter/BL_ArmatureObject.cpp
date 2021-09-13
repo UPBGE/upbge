@@ -58,72 +58,72 @@
  * When it is about to evaluate the pose, set the KX object position in the obmat of the
  * corresponding Blender objects and restore after the evaluation.
  */
-static void game_copy_pose(bPose **dst, bPose *src, int copy_constraint)
-{
-  /* The game engine copies the current armature pose and then swaps
-   * the object pose pointer. this makes it possible to change poses
-   * without affecting the original blender data. */
+//static void game_copy_pose(bPose **dst, bPose *src, int copy_constraint)
+//{
+//  /* The game engine copies the current armature pose and then swaps
+//   * the object pose pointer. this makes it possible to change poses
+//   * without affecting the original blender data. */
 
-  if (!src) {
-    *dst = nullptr;
-    return;
-  }
-  else if (*dst == src) {
-    CM_Warning("game_copy_pose source and target are the same");
-    *dst = nullptr;
-    return;
-  }
+//  if (!src) {
+//    *dst = nullptr;
+//    return;
+//  }
+//  else if (*dst == src) {
+//    CM_Warning("game_copy_pose source and target are the same");
+//    *dst = nullptr;
+//    return;
+//  }
 
-  bPose *out = (bPose *)MEM_dupallocN(src);
-  out->chanhash = nullptr;
-  out->agroups.first = out->agroups.last = nullptr;
-  out->ikdata = nullptr;
-  out->ikparam = MEM_dupallocN(src->ikparam);
-  // out->flag |= POSE_GAME_ENGINE;
-  BLI_duplicatelist(&out->chanbase, &src->chanbase);
+//  bPose *out = (bPose *)MEM_dupallocN(src);
+//  out->chanhash = nullptr;
+//  out->agroups.first = out->agroups.last = nullptr;
+//  out->ikdata = nullptr;
+//  out->ikparam = MEM_dupallocN(src->ikparam);
+//  // out->flag |= POSE_GAME_ENGINE;
+//  BLI_duplicatelist(&out->chanbase, &src->chanbase);
 
-  /* remap pointers */
-  GHash *ghash = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "game_copy_pose gh");
+//  /* remap pointers */
+//  GHash *ghash = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "game_copy_pose gh");
 
-  bPoseChannel *pchan = (bPoseChannel *)src->chanbase.first;
-  bPoseChannel *outpchan = (bPoseChannel *)out->chanbase.first;
-  for (; pchan; pchan = pchan->next, outpchan = outpchan->next) {
-    BLI_ghash_insert(ghash, pchan, outpchan);
-  }
+//  bPoseChannel *pchan = (bPoseChannel *)src->chanbase.first;
+//  bPoseChannel *outpchan = (bPoseChannel *)out->chanbase.first;
+//  for (; pchan; pchan = pchan->next, outpchan = outpchan->next) {
+//    BLI_ghash_insert(ghash, pchan, outpchan);
+//  }
 
-  for (pchan = (bPoseChannel *)out->chanbase.first; pchan; pchan = pchan->next) {
-    pchan->parent = (bPoseChannel *)BLI_ghash_lookup(ghash, pchan->parent);
-    pchan->child = (bPoseChannel *)BLI_ghash_lookup(ghash, pchan->child);
+//  for (pchan = (bPoseChannel *)out->chanbase.first; pchan; pchan = pchan->next) {
+//    pchan->parent = (bPoseChannel *)BLI_ghash_lookup(ghash, pchan->parent);
+//    pchan->child = (bPoseChannel *)BLI_ghash_lookup(ghash, pchan->child);
 
-    if (copy_constraint) {
-      ListBase listb;
-      // copy all constraint for backward compatibility
-      // BKE_constraints_copy nullptrs listb, no need to make extern for this operation.
-      BKE_constraints_copy(&listb, &pchan->constraints, false);
-      pchan->constraints = listb;
-    }
-    else {
-      BLI_listbase_clear(&pchan->constraints);
-    }
+//    if (copy_constraint) {
+//      ListBase listb;
+//      // copy all constraint for backward compatibility
+//      // BKE_constraints_copy nullptrs listb, no need to make extern for this operation.
+//      BKE_constraints_copy(&listb, &pchan->constraints, false);
+//      pchan->constraints = listb;
+//    }
+//    else {
+//      BLI_listbase_clear(&pchan->constraints);
+//    }
 
-    if (pchan->custom) {
-      id_us_plus(&pchan->custom->id);
-    }
+//    if (pchan->custom) {
+//      id_us_plus(&pchan->custom->id);
+//    }
 
-    // fails to link, props are not used in the BGE yet.
-#if 0
-		if (pchan->prop) {
-			pchan->prop = IDP_CopyProperty(pchan->prop);
-		}
-#endif
-    pchan->prop = nullptr;
-  }
+//    // fails to link, props are not used in the BGE yet.
+//#if 0
+//		if (pchan->prop) {
+//			pchan->prop = IDP_CopyProperty(pchan->prop);
+//		}
+//#endif
+//    pchan->prop = nullptr;
+//  }
 
-  BLI_ghash_free(ghash, nullptr, nullptr);
-  // set acceleration structure for channel lookup
-  BKE_pose_channels_hash_ensure(out);
-  *dst = out;
-}
+//  BLI_ghash_free(ghash, nullptr, nullptr);
+//  // set acceleration structure for channel lookup
+//  BKE_pose_channels_hash_ensure(out);
+//  *dst = out;
+//}
 
 // Only allowed for Poses with identical channels.
 static void game_blend_poses(bPose *dst, bPose *src, float srcweight, short mode)

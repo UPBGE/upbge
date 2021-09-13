@@ -3126,7 +3126,7 @@ void BKE_object_lod_update(Object *ob, const float camera_position[3])
   }
 }
 
-static Object *lod_ob_get(Object *ob, ViewLayer *view_layer /*, int flag*/)
+static Object *lod_ob_get(Object *ob)
 {
   LodLevel *current = ob->currentlod;
 
@@ -3141,9 +3141,9 @@ static Object *lod_ob_get(Object *ob, ViewLayer *view_layer /*, int flag*/)
   return current->source;
 }
 
-struct Object *BKE_object_lod_meshob_get(Object *ob, ViewLayer *view_layer)
+struct Object *BKE_object_lod_meshob_get(Object *ob)
 {
-  return lod_ob_get(ob, view_layer /*, OB_LOD_USE_MESH*/);
+  return lod_ob_get(ob/*, OB_LOD_USE_MESH*/);
 }
 
 // struct Object *BKE_object_lod_matob_get(Object *ob, ViewLayer *view_layer)

@@ -171,7 +171,7 @@ static void logic_operatortypes(void)
   WM_operatortype_append(LOGIC_OT_links_cut);
 }
 
-static void logic_keymap(struct wmKeyConfig *keyconf)
+static void logic_keymap(struct wmKeyConfig *UNUSED(keyconf))
 {
 }
 

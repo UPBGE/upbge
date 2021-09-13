@@ -1683,7 +1683,7 @@ int main(int argc,
               /* We need to have first an ogl context bound and it's done
                * in wm_window_ghostwindow_blenderplayer_ensure.
                */
-              WM_init_opengl_blenderplayer(G_MAIN, system, win);
+              WM_init_opengl_blenderplayer(system);
 
               UI_theme_init_default();
               UI_init();

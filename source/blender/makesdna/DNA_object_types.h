@@ -351,7 +351,7 @@ typedef struct Object {
   float imat[4][4];
 
   /** Copy of Base's layer in the scene. */
-  unsigned int lay DNA_DEPRECATED;
+  unsigned int lay;
 
   /** Copy of Base. */
   short flag;

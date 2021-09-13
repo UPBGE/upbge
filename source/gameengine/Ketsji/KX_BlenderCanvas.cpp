@@ -31,6 +31,7 @@
 
 #include "KX_BlenderCanvas.h"
 
+#include "BKE_context.h"
 #include "BKE_image.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
@@ -42,6 +43,7 @@
 #include "wm_window.h"
 
 #include "KX_Globals.h"
+#include "KX_KetsjiEngine.h"
 
 KX_BlenderCanvas::KX_BlenderCanvas(
     RAS_Rasterizer *rasty, wmWindowManager *wm, wmWindow *win, rcti *viewport, struct ARegion *ar)
@@ -169,15 +171,14 @@ void KX_BlenderCanvas::SetMousePosition(int x, int y)
 
 void KX_BlenderCanvas::MakeScreenShot(const std::string &filename)
 {
-  bScreen *screen = m_win->screen;
-
   int x = m_viewportArea.GetLeft();
   int y = m_viewportArea.GetBottom();
   int width = m_viewportArea.GetWidth();
   int height = m_viewportArea.GetHeight();
 
   /* initialize image file format data */
-  Scene *scene = (screen) ? screen->scene : nullptr;
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  Scene *scene = CTX_data_scene(C);
   ImageFormatData *im_format = (ImageFormatData *)MEM_mallocN(sizeof(ImageFormatData),
                                                               "im_format");
 

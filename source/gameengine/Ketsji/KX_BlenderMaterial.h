@@ -35,7 +35,6 @@ class KX_BlenderMaterial : public EXP_Value, public RAS_IPolyMaterial {
   virtual const std::string GetTextureName() const;
   virtual Material *GetBlenderMaterial() const;
   virtual bool UsesLighting() const;
-  virtual void GetRGBAColor(unsigned char *rgba) const;
   virtual Scene *GetBlenderScene() const;
   virtual SCA_IScene *GetScene() const;
   virtual void ReleaseMaterial();
@@ -44,16 +43,6 @@ class KX_BlenderMaterial : public EXP_Value, public RAS_IPolyMaterial {
   {
     return m_blendFunc;
   }
-  // for ipos
-  virtual void UpdateIPO(MT_Vector4 rgba,
-                         MT_Vector3 specrgb,
-                         MT_Scalar hard,
-                         MT_Scalar spec,
-                         MT_Scalar ref,
-                         MT_Scalar emit,
-                         MT_Scalar ambient,
-                         MT_Scalar alpha,
-                         MT_Scalar specalpha);
 
   void ReplaceScene(KX_Scene *scene);
 

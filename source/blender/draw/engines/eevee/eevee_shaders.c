@@ -286,7 +286,7 @@ extern char datatoc_common_smaa_lib_glsl[];
 extern char datatoc_effect_smaa_frag_glsl[];
 extern char datatoc_effect_smaa_vert_glsl[];
 
-static void free_smaa_shaders()
+static void free_smaa_shaders(void)
 {
   for (int j = 0; j < sizeof(e_data.smaa_sh) / sizeof(void *); j++) {
     struct GPUShader **sh_array = &e_data.smaa_sh[0];

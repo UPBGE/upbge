@@ -2305,8 +2305,6 @@ void initGamePythonScripting(Main *maggie, bContext *C, bool *audioDeviceIsIniti
    * somehow it remembers the sys.path - Campbell
    */
 
-  static bool first_time = true;
-
 /* #PyPreConfig (early-configuration).  */
   {
     PyPreConfig preconfig;
@@ -2469,8 +2467,6 @@ void initGamePythonScripting(Main *maggie, bContext *C, bool *audioDeviceIsIniti
 #  endif
 
   PyDict_SetItemString(PyImport_GetModuleDict(), "bge", initBGE());
-
-  first_time = false;
 
   BPY_python_reset(C);
 

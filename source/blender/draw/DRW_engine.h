@@ -177,7 +177,7 @@ struct DrawDataList *DRW_drawdatalist_from_id(struct ID *id);
 void DRW_drawdata_free(struct ID *id);
 
 /* UPBGE */
-void DRW_opengl_context_create_blenderplayer(void *syshandle, void *win);
+void DRW_opengl_context_create_blenderplayer(void *syshandle);
 /* End of UPBGE */
 
 #ifdef __cplusplus
