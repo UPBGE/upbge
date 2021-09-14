@@ -1,8 +1,8 @@
 name: publish-api-and-stubs
 
 on:
-  push:
-    branches: [ master ]
+  schedule:
+    - cron: "0 1 * * *" # Run at 1 AM UTC
 
 env:
   PYTHON_VERSION: "3.9"
