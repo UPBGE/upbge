@@ -432,32 +432,11 @@ static PyObject *gPyCreateConstraint(PyObject *self, PyObject *args, PyObject *k
   int flag = 0;
   float pivotX = 0.0f, pivotY = 0.0f, pivotZ = 0.0f, axisX = 0.0f, axisY = 0.0f, axisZ = 0.0f;
 
-  static const char *kwlist[] = {"physicsid_1",
-                                 "physicsid_2",
-                                 "constraint_type",
-                                 "pivot_x",
-                                 "pivot_y",
-                                 "pivot_z",
-                                 "axis_x",
-                                 "axis_y",
-                                 "axis_z",
-                                 "flag",
-                                 nullptr};
-
-  if (!PyArg_ParseTupleAndKeywords(args,
-                                   kwds,
-                                   "KKi|ffffffi:createConstraint",
-                                   (char **)kwlist,
-                                   &physicsid,
-                                   &physicsid2,
-                                   &constrainttype,
-                                   &pivotX,
-                                   &pivotY,
-                                   &pivotZ,
-                                   &axisX,
-                                   &axisY,
-                                   &axisZ,
-                                   &flag)) {
+  if (!EXP_ParseTupleArgsAndKeywords(args,
+                                     kwds,
+                                     "KKi|ffffffi:createConstraint",
+                                     {"physicsid_1", "physicsid_2", "constraint_type", "pivot_x", "pivot_y", "pivot_z", "axis_x", "axis_y", "axis_z", "flag", 0},
+                                     &physicsid, &physicsid2, &constrainttype, &pivotX, &pivotY, &pivotZ, &axisX, &axisY, &axisZ, &flag)) {
     return nullptr;
   }
 
