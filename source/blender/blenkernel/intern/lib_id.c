@@ -98,7 +98,7 @@ IDTypeInfo IDType_ID_LINK_PLACEHOLDER = {
     .name = "LinkPlaceholder",
     .name_plural = "link_placeholders",
     .translation_context = BLT_I18NCONTEXT_ID_ID,
-    .flags = IDTYPE_FLAGS_NO_COPY | IDTYPE_FLAGS_NO_LIBLINKING | IDTYPE_FLAGS_NO_MAKELOCAL,
+    .flags = IDTYPE_FLAGS_NO_COPY | IDTYPE_FLAGS_NO_LIBLINKING,
 
     .init_data = NULL,
     .copy_data = NULL,
@@ -336,12 +336,34 @@ void id_fake_user_clear(ID *id)
   }
 }
 
-void BKE_id_clear_newpoin(ID *id)
+void BKE_id_newptr_and_tag_clear(ID *id)
 {
-  if (id->newid) {
-    id->newid->tag &= ~LIB_TAG_NEW;
+  /* We assume that if this ID has no new ID, its embedded data has not either. */
+  if (id->newid == NULL) {
+    return;
   }
+
+  id->newid->tag &= ~LIB_TAG_NEW;
   id->newid = NULL;
+
+  /* Deal with embedded data too. */
+  /* NOTE: even though ShapeKeys are not technically embedded data currently, they behave as such
+   * in most cases, so for sake of consistency treat them as such here. Also mirrors the behavior
+   * in `BKE_lib_id_make_local`. */
+  Key *key = BKE_key_from_id(id);
+  if (key != NULL) {
+    BKE_id_newptr_and_tag_clear(&key->id);
+  }
+  bNodeTree *ntree = ntreeFromID(id);
+  if (ntree != NULL) {
+    BKE_id_newptr_and_tag_clear(&ntree->id);
+  }
+  if (GS(id->name) == ID_SCE) {
+    Collection *master_collection = ((Scene *)id)->master_collection;
+    if (master_collection != NULL) {
+      BKE_id_newptr_and_tag_clear(&master_collection->id);
+    }
+  }
 }
 
 static int lib_id_expand_local_cb(LibraryIDLinkCallbackData *cb_data)
@@ -480,10 +502,9 @@ void BKE_lib_id_make_local_generic(Main *bmain, ID *id, const int flags)
  *
  * \param flags: Special flag used when making a whole library's content local,
  * it needs specific handling.
- *
- * \return true if the block can be made local.
+ * \return true is the ID has successfully been made local.
  */
-bool BKE_lib_id_make_local(Main *bmain, ID *id, const bool test, const int flags)
+bool BKE_lib_id_make_local(Main *bmain, ID *id, const int flags)
 {
   const bool lib_local = (flags & LIB_ID_MAKELOCAL_FULL_LIBRARY) != 0;
 
@@ -495,23 +516,21 @@ bool BKE_lib_id_make_local(Main *bmain, ID *id, const bool test, const int flags
 
   const IDTypeInfo *idtype_info = BKE_idtype_get_info_from_id(id);
 
-  if (idtype_info != NULL) {
-    if ((idtype_info->flags & IDTYPE_FLAGS_NO_MAKELOCAL) == 0) {
-      if (!test) {
-        if (idtype_info->make_local != NULL) {
-          idtype_info->make_local(bmain, id, flags);
-        }
-        else {
-          BKE_lib_id_make_local_generic(bmain, id, flags);
-        }
-      }
-      return true;
-    }
+  if (idtype_info == NULL) {
+    BLI_assert_msg(0, "IDType Missing IDTypeInfo");
     return false;
   }
 
-  BLI_assert_msg(0, "IDType Missing IDTypeInfo");
-  return false;
+  BLI_assert((idtype_info->flags & IDTYPE_FLAGS_NO_LIBLINKING) == 0);
+
+  if (idtype_info->make_local != NULL) {
+    idtype_info->make_local(bmain, id, flags);
+  }
+  else {
+    BKE_lib_id_make_local_generic(bmain, id, flags);
+  }
+
+  return true;
 }
 
 struct IDCopyLibManagementData {
@@ -1766,8 +1785,7 @@ void BKE_main_id_newptr_and_tag_clear(Main *bmain)
   ID *id;
 
   FOREACH_MAIN_ID_BEGIN (bmain, id) {
-    id->newid = NULL;
-    id->tag &= ~LIB_TAG_NEW;
+    BKE_id_newptr_and_tag_clear(id);
   }
   FOREACH_MAIN_ID_END;
 }
@@ -2034,11 +2052,8 @@ void BKE_library_make_local(Main *bmain,
        * Note that for objects, we don't want proxy pointers to be cleared yet. This will happen
        * down the road in this function.
        */
-      BKE_lib_id_make_local(bmain,
-                            id,
-                            false,
-                            LIB_ID_MAKELOCAL_FULL_LIBRARY |
-                                LIB_ID_MAKELOCAL_OBJECT_NO_PROXY_CLEARING);
+      BKE_lib_id_make_local(
+          bmain, id, LIB_ID_MAKELOCAL_FULL_LIBRARY | LIB_ID_MAKELOCAL_OBJECT_NO_PROXY_CLEARING);
 
       if (id->newid) {
         if (GS(id->newid->name) == ID_OB) {
