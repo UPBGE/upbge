@@ -125,8 +125,9 @@ bool VideoFFmpeg::release()
 {
   // release
   stopCache();
+
   if (m_codecCtx) {
-    avcodec_close(m_codecCtx);
+    avcodec_free_context(&m_codecCtx);
     m_codecCtx = nullptr;
   }
   if (m_formatCtx) {
@@ -134,17 +135,17 @@ bool VideoFFmpeg::release()
     m_formatCtx = nullptr;
   }
   if (m_frame) {
-    av_free(m_frame);
+    av_frame_free(&m_frame);
     m_frame = nullptr;
   }
   if (m_frameDeinterlaced) {
     MEM_freeN(m_frameDeinterlaced->data[0]);
-    av_free(m_frameDeinterlaced);
+    av_frame_free(&m_frameDeinterlaced);
     m_frameDeinterlaced = nullptr;
   }
   if (m_frameRGB) {
     MEM_freeN(m_frameRGB->data[0]);
-    av_free(m_frameRGB);
+    av_frame_free(&m_frameRGB);
     m_frameRGB = nullptr;
   }
   if (m_imgConvertCtx) {
@@ -198,72 +199,87 @@ void VideoFFmpeg::initParams(short width, short height, float rate, bool image)
 }
 
 int VideoFFmpeg::openStream(const char *filename,
-                            AVInputFormat *inputFormat,
-                            AVDictionary **formatParams)
+                            AVInputFormat *UNUSED(inputFormat),
+                            AVDictionary **UNUSED(formatParams))
 {
-  AVFormatContext *formatCtx = nullptr;
-  int i, videoStream;
-  AVCodec *codec;
-  AVCodecContext *codecCtx;
+  int i, video_stream_index;
 
-  if (avformat_open_input(&formatCtx, filename, inputFormat, formatParams) != 0) {
-    if (avformat_open_input(&formatCtx, filename, inputFormat, nullptr) != 0) {
+  AVCodec *pCodec;
+  AVFormatContext *pFormatCtx = NULL;
+  AVCodecContext *pCodecCtx;
+  AVStream *video_stream;
+
+  if (avformat_open_input(&pFormatCtx, filename, NULL, NULL) != 0) {
+    return -1;
+  }
+
+  if (avformat_find_stream_info(pFormatCtx, NULL) < 0) {
+    avformat_close_input(&pFormatCtx);
+    return -1;
+  }
+
+  av_dump_format(pFormatCtx, 0, filename, 0);
+
+  /* Find the video stream */
+  video_stream_index = -1;
+
+  for (i = 0; i < pFormatCtx->nb_streams; i++) {
+      if (pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+        video_stream_index = i;
+        break;
+      }
+    }
+
+    if (video_stream_index == -1) {
+      avformat_close_input(&pFormatCtx);
       return -1;
     }
+
+    video_stream = pFormatCtx->streams[video_stream_index];
+
+    /* Find the decoder for the video stream */
+    pCodec = avcodec_find_decoder(video_stream->codecpar->codec_id);
+    if (pCodec == NULL) {
+      avformat_close_input(&pFormatCtx);
+      return -1;
+    }
+
+    pCodecCtx = avcodec_alloc_context3(NULL);
+    avcodec_parameters_to_context(pCodecCtx, video_stream->codecpar);
+    pCodecCtx->workaround_bugs = FF_BUG_AUTODETECT;
+
+    if (pCodec->capabilities & AV_CODEC_CAP_AUTO_THREADS) {
+      pCodecCtx->thread_count = 0;
+    }
     else {
-      std::cout << "Camera capture: Format not compatible. Capture in default camera format"
-                << std::endl;
+      pCodecCtx->thread_count = BLI_system_thread_count();
     }
-  }
 
-  if (avformat_find_stream_info(formatCtx, nullptr) < 0) {
-    avformat_close_input(&formatCtx);
-    return -1;
-  }
-
-  /* Find the first video stream */
-  videoStream = -1;
-  for (i = 0; i < formatCtx->nb_streams; i++) {
-    if (formatCtx->streams[i] && get_codec_from_stream(formatCtx->streams[i]) &&
-        (get_codec_from_stream(formatCtx->streams[i])->codec_type == AVMEDIA_TYPE_VIDEO)) {
-      videoStream = i;
-      break;
+    if (pCodec->capabilities & AV_CODEC_CAP_FRAME_THREADS) {
+      pCodecCtx->thread_type = FF_THREAD_FRAME;
     }
-  }
+    else if (pCodec->capabilities & AV_CODEC_CAP_SLICE_THREADS) {
+      pCodecCtx->thread_type = FF_THREAD_SLICE;
+    }
 
-  if (videoStream == -1) {
-    avformat_close_input(&formatCtx);
-    return -1;
-  }
+    if (avcodec_open2(pCodecCtx, pCodec, NULL) < 0) {
+      avformat_close_input(&pFormatCtx);
+      return -1;
+    }
+    if (pCodecCtx->pix_fmt == AV_PIX_FMT_NONE) {
+      avcodec_free_context(&pCodecCtx);
+      avformat_close_input(&pFormatCtx);
+      return -1;
+    }
+  m_baseFrameRate = av_q2d(av_guess_frame_rate(pFormatCtx, video_stream, NULL));
 
-  codecCtx = get_codec_from_stream(formatCtx->streams[videoStream]);
-
-  /* Find the decoder for the video stream */
-  codec = avcodec_find_decoder(codecCtx->codec_id);
-  if (codec == nullptr) {
-    avformat_close_input(&formatCtx);
-    return -1;
-  }
-  codecCtx->workaround_bugs = 1;
-  if (avcodec_open2(codecCtx, codec, nullptr) < 0) {
-    avformat_close_input(&formatCtx);
-    return -1;
-  }
-
-#  ifdef FFMPEG_OLD_FRAME_RATE
-  if (codecCtx->frame_rate > 1000 && codecCtx->frame_rate_base == 1)
-    codecCtx->frame_rate_base = 1000;
-  m_baseFrameRate = (double)codecCtx->frame_rate / (double)codecCtx->frame_rate_base;
-#  else
-  m_baseFrameRate = av_q2d(av_guess_frame_rate(formatCtx, formatCtx->streams[videoStream], NULL));
-#  endif
   if (m_baseFrameRate <= 0.0)
     m_baseFrameRate = defFrameRate;
 
-  m_codec = codec;
-  m_codecCtx = codecCtx;
-  m_formatCtx = formatCtx;
-  m_videoStream = videoStream;
+  m_codec = pCodec;
+  m_codecCtx = pCodecCtx;
+  m_formatCtx = pFormatCtx;
+  m_videoStream = video_stream_index;
   m_frame = av_frame_alloc();
   m_frameDeinterlaced = av_frame_alloc();
 
@@ -314,17 +330,17 @@ int VideoFFmpeg::openStream(const char *filename,
   m_frameRGB = allocFrameRGB();
 
   if (!m_imgConvertCtx) {
-    avcodec_close(m_codecCtx);
+    avcodec_free_context(&m_codecCtx);
     m_codecCtx = nullptr;
     avformat_close_input(&m_formatCtx);
     m_formatCtx = nullptr;
-    av_free(m_frame);
+    av_frame_free(&m_frame);
     m_frame = nullptr;
     MEM_freeN(m_frameDeinterlaced->data[0]);
-    av_free(m_frameDeinterlaced);
+    av_frame_free(&m_frameDeinterlaced);
     m_frameDeinterlaced = nullptr;
     MEM_freeN(m_frameRGB->data[0]);
-    av_free(m_frameRGB);
+    av_frame_free(&m_frameRGB);
     m_frameRGB = nullptr;
     return -1;
   }
@@ -369,7 +385,10 @@ void *VideoFFmpeg::cacheThread(void *data)
       if (av_read_frame(video->m_formatCtx, &cachePacket->packet) >= 0) {
         if (cachePacket->packet.stream_index == video->m_videoStream) {
           // make sure fresh memory is allocated for the packet and move it to queue
-          av_dup_packet(&cachePacket->packet);
+          AVPacket newPacket;
+          av_packet_ref(&newPacket, &cachePacket->packet);
+          cachePacket->packet = newPacket;
+
           BLI_remlink(&video->m_packetCacheFree, cachePacket);
           BLI_addtail(&video->m_packetCacheBase, cachePacket);
           break;
@@ -377,7 +396,7 @@ void *VideoFFmpeg::cacheThread(void *data)
         else {
           // this is not a good packet for us, just leave it on free queue
           // Note: here we could handle sound packet
-          av_free_packet(&cachePacket->packet);
+          av_packet_unref(&cachePacket->packet);
           frameFinished++;
         }
       }
@@ -405,8 +424,9 @@ void *VideoFFmpeg::cacheThread(void *data)
         BLI_remlink(&video->m_packetCacheBase, cachePacket);
         // use m_frame because when caching, it is not used in main thread
         // we can't use currentFrame directly because we need to convert to RGB first
-        avcodec_decode_video2(
-            video->m_codecCtx, video->m_frame, &frameFinished, &cachePacket->packet);
+        avcodec_send_packet(video->m_codecCtx, (AVPacket *)&cachePacket->packet);
+        frameFinished = avcodec_receive_frame(video->m_codecCtx, video->m_frame) == 0;
+
         if (frameFinished) {
           AVFrame *input = video->m_frame;
 
@@ -441,7 +461,7 @@ void *VideoFFmpeg::cacheThread(void *data)
             currentFrame = nullptr;
           }
         }
-        av_free_packet(&cachePacket->packet);
+        av_packet_unref(&cachePacket->packet);
         BLI_addtail(&video->m_packetCacheFree, cachePacket);
       }
       if (currentFrame && endOfFile) {
@@ -512,7 +532,7 @@ void VideoFFmpeg::stopCache()
     }
     while ((packet = (CachePacket *)m_packetCacheBase.first) != nullptr) {
       BLI_remlink(&m_packetCacheBase, packet);
-      av_free_packet(&packet->packet);
+      av_packet_unref(&packet->packet);
       delete packet;
     }
     while ((packet = (CachePacket *)m_packetCacheFree.first) != nullptr) {
@@ -914,12 +934,14 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
     if (position > m_curPosition + 1 && m_preseek && position - (m_curPosition + 1) < m_preseek) {
       while (av_read_frame(m_formatCtx, &packet) >= 0) {
         if (packet.stream_index == m_videoStream) {
-          avcodec_decode_video2(m_codecCtx, m_frame, &frameFinished, &packet);
+          avcodec_send_packet(m_codecCtx, &packet);
+          frameFinished = avcodec_receive_frame(m_codecCtx, m_frame) == 0;
+
           if (frameFinished) {
             m_curPosition = (long)((packet.dts - startTs) * (m_baseFrameRate * timeBase) + 0.5);
           }
         }
-        av_free_packet(&packet);
+        av_packet_unref(&packet);
         if (position == m_curPosition + 1)
           break;
       }
@@ -986,7 +1008,9 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
       /* If m_isImage, while the data is not read properly (png, tiffs, etc formats may need
        * several pass), else don't need while loop*/
       do {
-        avcodec_decode_video2(m_codecCtx, m_frame, &frameFinished, &packet);
+        avcodec_send_packet(m_codecCtx, &packet);
+        frameFinished = avcodec_receive_frame(m_codecCtx, m_frame) == 0;
+
         counter++;
       } while ((input->data[0] == 0 && input->data[1] == 0 && input->data[2] == 0 &&
                 input->data[3] == 0) &&
@@ -1007,7 +1031,7 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
          * this check stops crashing */
         if (input->data[0] == 0 && input->data[1] == 0 && input->data[2] == 0 &&
             input->data[3] == 0) {
-          av_free_packet(&packet);
+          av_packet_unref(&packet);
           break;
         }
 
@@ -1028,12 +1052,12 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
                   m_codecCtx->height,
                   m_frameRGB->data,
                   m_frameRGB->linesize);
-        av_free_packet(&packet);
+        av_packet_unref(&packet);
         frameLoaded = true;
         break;
       }
     }
-    av_free_packet(&packet);
+    av_packet_unref(&packet);
   }
   m_eof = m_isFile && !frameLoaded;
   if (frameLoaded) {
