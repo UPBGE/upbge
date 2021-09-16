@@ -337,6 +337,7 @@ set(ICON_NAMES
   lightprobe_cubemap
   lightprobe_planar
   lightprobe_grid
+  mod_dash
   color_red
   color_green
   color_blue
