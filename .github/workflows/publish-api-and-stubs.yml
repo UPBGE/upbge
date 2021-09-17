@@ -144,14 +144,17 @@ jobs:
 
     - name: Build API Documentation
       working-directory: python_api
-      run: sphinx-build -b html -j auto sphinx-in sphinx-out && rm -Rf sphinx-out/.doctrees
+      run: |
+        sphinx-build -b html -j auto sphinx-in upbge-api-reference && \
+        rm -Rf upbge-api-reference/.doctrees && \
+        zip -r upbge-api-reference/upbge-api-reference.zip upbge-api-reference
 
     - name: Publish to UPBGE
       uses: peaceiris/actions-gh-pages@v3
       with:
         external_repository: UPBGE/UPBGE-API
         publish_branch: master
-        publish_dir: python_api/sphinx-out
+        publish_dir: python_api/upbge-api-reference
         deploy_key: ${{ secrets.APIDOCS_DEPLOY_KEY }}
 
     - name: Archive Documents
