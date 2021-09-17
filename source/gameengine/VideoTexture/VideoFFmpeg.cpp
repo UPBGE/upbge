@@ -1074,14 +1074,12 @@ static int VideoFFmpeg_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
   // capture rate, only if capt is >= 0
   float rate = 25.f;
 
+  static const char *kwlist[] = {"file", "capture", "rate", "width", "height", nullptr};
+
   // get parameters
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "s|hfhh",
-                                     {"file", "capture", "rate", "width", "height", 0},
-                                     &file, &capt, &rate, &width, &height)) {
+  if (!PyArg_ParseTupleAndKeywords(
+          args, kwds, "s|hfhh", const_cast<char **>(kwlist), &file, &capt, &rate, &width, &height))
     return -1;
-  }
 
   try {
     // create video object

@@ -34,7 +34,6 @@
 // For now keep weakrefs optional.
 #define USE_WEAKREFS
 
-#include <initializer_list>
 #include <stddef.h>
 #include <string>
 
@@ -867,14 +866,6 @@ typedef struct EXP_PYATTRIBUTE_DEF {
         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr \
       } \
     }
-
-template <class ... Args>
-inline bool EXP_ParseTupleArgsAndKeywords(PyObject *pyargs, PyObject *pykwds, const char *format, std::initializer_list<const char *> keyword, Args ... args)
-{
-  BLI_assert((keyword.size() - 1) == (sizeof...Args));
-  static _PyArg_Parser _parser = {format, keyword.begin(), 0};
-  return _PyArg_ParseTupleAndKeywordsFast(pyargs, pykwds, &_parser, args ...);
-}
 
 /*------------------------------
  * EXP_PyObjectPlus

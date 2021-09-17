@@ -454,16 +454,19 @@ static int ImageRender_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
   int width = canvas->GetWidth();
   int height = canvas->GetHeight();
   int samples = 1;
-
+  // parameter keywords
+  static const char *kwlist[] = {"sceneObj", "cameraObj", "width", "height", "samples", nullptr};
   // get parameters
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "OO|iii",
-                                     {"sceneObj", "cameraObj", "width", "height", "samples", nullptr},
-                                     &scene, &camera, &width, &height, &samples)) {
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   kwds,
+                                   "OO|iii",
+                                   const_cast<char **>(kwlist),
+                                   &scene,
+                                   &camera,
+                                   &width,
+                                   &height,
+                                   &samples))
     return -1;
-  }
-
   try {
     // get scene pointer
     KX_Scene *scenePtr(nullptr);
@@ -744,15 +747,22 @@ static int ImageMirror_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
   int height = canvas->GetHeight();
   int samples = 1;
 
+  // parameter keywords
+  static const char *kwlist[] = {
+      "scene", "observer", "mirror", "material", "width", "height", "samples", nullptr};
   // get parameters
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "OOO|hiii",
-                                     {"scene", "observer", "mirror", "material", "width", "height", "samples", 0},
-                                     &scene, &observer, &mirror, &materialID, &width, &height, &samples)) {
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   kwds,
+                                   "OOO|hiii",
+                                   const_cast<char **>(kwlist),
+                                   &scene,
+                                   &observer,
+                                   &mirror,
+                                   &materialID,
+                                   &width,
+                                   &height,
+                                   &samples))
     return -1;
-  }
-
   try {
     // get scene pointer
     KX_Scene *scenePtr(nullptr);

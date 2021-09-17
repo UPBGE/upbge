@@ -2356,11 +2356,14 @@ PyObject *KX_GameObject::PyReplaceMesh(PyObject *args, PyObject *kwds)
   int use_gfx = 1, use_phys = 0;
   RAS_MeshObject *new_mesh;
 
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "O|ii:replaceMesh",
-                                     {"mesh", "useDisplayMesh", "usePhysicsMesh", 0},
-                                     &value, &use_gfx, &use_phys)) {
+  static const char *kwlist[] = {"mesh", "useDisplayMesh", "usePhysicsMesh", nullptr};
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   kwds,
+                                   "O|ii:replaceMesh",
+                                   const_cast<char **>(kwlist),
+                                   &value,
+                                   &use_gfx,
+                                   &use_phys)) {
     return nullptr;
   }
 
@@ -2390,11 +2393,15 @@ PyObject *KX_GameObject::PyReinstancePhysicsMesh(PyObject *args, PyObject *kwds)
   PyObject *gameobj_py = nullptr;
   PyObject *mesh_py = nullptr;
 
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "|OOii:reinstancePhysicsMesh",
-                                     {"gameObject", "meshObject", "dupli", "evaluated", 0},
-                                     &gameobj_py, &mesh_py, &dupli, &evaluated) ||
+  static const char *kwlist[] = {"gameObject", "meshObject", "dupli", "evaluated", nullptr};
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   kwds,
+                                   "|OOii:reinstancePhysicsMesh",
+                                   const_cast<char **>(kwlist),
+                                   &gameobj_py,
+                                   &mesh_py,
+                                   &dupli,
+                                   &evaluated) ||
       (gameobj_py && !ConvertPythonToGameObject(
                          logicmgr,
                          gameobj_py,
@@ -4230,11 +4237,14 @@ PyObject *KX_GameObject::PySetParent(PyObject *args, PyObject *kwds)
   KX_GameObject *obj;
   int addToCompound = 1, ghost = 1;
 
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "O|ii:setParent",
-                                     {"parent", "compound", "ghost", 0},
-                                     &pyobj, &addToCompound, &ghost)) {
+  static const char *kwlist[] = {"parent", "compound", "ghost", nullptr};
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   kwds,
+                                   "O|ii:setParent",
+                                   const_cast<char **>(kwlist),
+                                   &pyobj,
+                                   &addToCompound,
+                                   &ghost)) {
     return nullptr;  // Python sets a simple error
   }
   if (!ConvertPythonToGameObject(
@@ -4337,11 +4347,9 @@ PyObject *KX_GameObject::PyAlignAxisToVect(PyObject *args, PyObject *kwds)
   int axis = 2;  // z axis is the default
   float fac = 1.0f;
 
-  if (EXP_ParseTupleArgsAndKeywords(args,
-                                    kwds,
-                                    "O|if:alignAxisToVect",
-                                    {"vect", "axis", "factor", 0},
-                                    &pyvect, &axis, &fac)) {
+  static const char *kwlist[] = {"vect", "axis", "factor", nullptr};
+  if (PyArg_ParseTupleAndKeywords(
+          args, kwds, "O|if:alignAxisToVect", const_cast<char **>(kwlist), &pyvect, &axis, &fac)) {
     MT_Vector3 vect;
     if (PyVecTo(pyvect, vect)) {
       if (fac > 0.0f) {
@@ -4532,11 +4540,9 @@ EXP_PYMETHODDEF_DOC(
   const char *propName = "";
   SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
 
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "O|fs:rayCastTo",
-                                     {"other", "dist", "prop", 0},
-                                     &pyarg, &dist, &propName)) {
+  static const char *kwlist[] = {"other", "dist", "prop", nullptr};
+  if (!PyArg_ParseTupleAndKeywords(
+          args, kwds, "O|fs:rayCastTo", const_cast<char **>(kwlist), &pyarg, &dist, &propName)) {
     return nullptr;  // python sets simple error
   }
 
@@ -4670,11 +4676,20 @@ EXP_PYMETHODDEF_DOC(
   int mask = (1 << OB_MAX_COL_MASKS) - 1;
   SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
 
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "O|Ofsiiii:rayCast",
-                                     {"objto", "objfrom", "dist", "prop", "face", "xray", "poly", "mask", 0},
-                                     &pyto, &pyfrom, &dist, &propName, &face, &xray, &poly, &mask)) {
+  static const char *kwlist[] = {
+      "objto", "objfrom", "dist", "prop", "face", "xray", "poly", "mask", nullptr};
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   kwds,
+                                   "O|Ofsiiii:rayCast",
+                                   const_cast<char **>(kwlist),
+                                   &pyto,
+                                   &pyfrom,
+                                   &dist,
+                                   &propName,
+                                   &face,
+                                   &xray,
+                                   &poly,
+                                   &mask)) {
     return nullptr;  // Python sets a simple error
   }
 
@@ -4800,11 +4815,9 @@ EXP_PYMETHODDEF_DOC(KX_GameObject,
   char *body = (char *)"";
   char *to = (char *)"";
 
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "s|ss:sendMessage",
-                                     {"subject", "body", "to", 0},
-                                     &subject, &body, &to)) {
+  static const char *kwlist[] = {"subject", "body", "to", nullptr};
+  if (!PyArg_ParseTupleAndKeywords(
+          args, kwds, "s|ss:sendMessage", const_cast<char **>(kwlist), &subject, &body, &to)) {
     return nullptr;
   }
 
@@ -4836,11 +4849,34 @@ EXP_PYMETHODDEF_DOC(KX_GameObject,
   short play_mode = 0;
   short blend_mode = 0;
 
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "sff|hhfhfhfh:playAction",
-                                     {"name", "start_frame", "end_frame", "layer", "priority", "blendin", "play_mode", "layer_weight", "ipo_flags", "speed", "blend_mode", 0},
-                                     &name, &start, &end, &layer, &priority, &blendin, &play_mode, &layer_weight, &ipo_flags, &speed, &blend_mode)) {
+  static const char *kwlist[] = {"name",
+                                 "start_frame",
+                                 "end_frame",
+                                 "layer",
+                                 "priority",
+                                 "blendin",
+                                 "play_mode",
+                                 "layer_weight",
+                                 "ipo_flags",
+                                 "speed",
+                                 "blend_mode",
+                                 nullptr};
+
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   kwds,
+                                   "sff|hhfhfhfh:playAction",
+                                   const_cast<char **>(kwlist),
+                                   &name,
+                                   &start,
+                                   &end,
+                                   &layer,
+                                   &priority,
+                                   &blendin,
+                                   &play_mode,
+                                   &layer_weight,
+                                   &ipo_flags,
+                                   &speed,
+                                   &blend_mode)) {
     return nullptr;
   }
 

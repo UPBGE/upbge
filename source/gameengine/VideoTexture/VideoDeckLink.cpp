@@ -1142,6 +1142,7 @@ void VideoDeckLink::VideoFrameArrived(IDeckLinkVideoInputFrame *inputFrame)
 // object initialization
 static int VideoDeckLink_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 {
+  static const char *kwlist[] = {"format", "capture", nullptr};
   PyImage *self = reinterpret_cast<PyImage *>(pySelf);
   // see openCam for a description of format
   char *format = nullptr;
@@ -1152,15 +1153,9 @@ static int VideoDeckLink_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
     PyErr_SetString(PyExc_RuntimeError, "VideoDeckLink requires at least OpenGL 1.5");
     return -1;
   }
-
   // get parameters
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "s|h",
-                                     {"format", "capture", 0},
-                                     &format, &capt)) {
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|h", const_cast<char **>(kwlist), &format, &capt))
     return -1;
-  }
 
   try {
     // create video object

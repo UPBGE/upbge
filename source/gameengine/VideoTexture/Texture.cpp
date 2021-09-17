@@ -288,14 +288,19 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
   // texture object with shared texture ID
   Texture *texObj = nullptr;
 
+  static const char *kwlist[] = {"gameObj", "materialID", "textureID", "textureObj", nullptr};
+
   // get parameters
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "O|hhO!",
-                                     {"gameObj", "materialID", "textureID", "textureObj", 0},
-                                     &obj, &matID, &texID, &Texture::Type, &texObj)) {
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   kwds,
+                                   "O|hhO!",
+                                   const_cast<char **>(kwlist),
+                                   &obj,
+                                   &matID,
+                                   &texID,
+                                   &Texture::Type,
+                                   &texObj))
     return -1;
-  }
 
   KX_GameObject *gameObj = nullptr;
   if (ConvertPythonToGameObject(
