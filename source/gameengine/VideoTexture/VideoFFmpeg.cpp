@@ -199,21 +199,27 @@ void VideoFFmpeg::initParams(short width, short height, float rate, bool image)
 }
 
 int VideoFFmpeg::openStream(const char *filename,
-                            AVInputFormat *UNUSED(inputFormat),
-                            AVDictionary **UNUSED(formatParams))
+                            AVInputFormat *inputFormat,
+                            AVDictionary **formatParams)
 {
   int i, video_stream_index;
 
   AVCodec *pCodec;
-  AVFormatContext *pFormatCtx = NULL;
+  AVFormatContext *pFormatCtx = nullptr;
   AVCodecContext *pCodecCtx;
   AVStream *video_stream;
 
-  if (avformat_open_input(&pFormatCtx, filename, NULL, NULL) != 0) {
-    return -1;
+  if (avformat_open_input(&pFormatCtx, filename, inputFormat, formatParams) != 0) {
+    if (avformat_open_input(&pFormatCtx, filename, inputFormat, nullptr) != 0) {
+      return -1;
+    }
+    else {
+      std::cout << "Camera capture: Format not compatible. Capture in default camera format"
+                << std::endl;
+    }
   }
 
-  if (avformat_find_stream_info(pFormatCtx, NULL) < 0) {
+  if (avformat_find_stream_info(pFormatCtx, nullptr) < 0) {
     avformat_close_input(&pFormatCtx);
     return -1;
   }
@@ -224,54 +230,54 @@ int VideoFFmpeg::openStream(const char *filename,
   video_stream_index = -1;
 
   for (i = 0; i < pFormatCtx->nb_streams; i++) {
-      if (pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
-        video_stream_index = i;
-        break;
-      }
+    if (pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+      video_stream_index = i;
+      break;
     }
+  }
 
-    if (video_stream_index == -1) {
-      avformat_close_input(&pFormatCtx);
-      return -1;
-    }
+  if (video_stream_index == -1) {
+    avformat_close_input(&pFormatCtx);
+    return -1;
+  }
 
-    video_stream = pFormatCtx->streams[video_stream_index];
+  video_stream = pFormatCtx->streams[video_stream_index];
 
-    /* Find the decoder for the video stream */
-    pCodec = avcodec_find_decoder(video_stream->codecpar->codec_id);
-    if (pCodec == NULL) {
-      avformat_close_input(&pFormatCtx);
-      return -1;
-    }
+  /* Find the decoder for the video stream */
+  pCodec = avcodec_find_decoder(video_stream->codecpar->codec_id);
+  if (pCodec == nullptr) {
+    avformat_close_input(&pFormatCtx);
+    return -1;
+  }
 
-    pCodecCtx = avcodec_alloc_context3(NULL);
-    avcodec_parameters_to_context(pCodecCtx, video_stream->codecpar);
-    pCodecCtx->workaround_bugs = FF_BUG_AUTODETECT;
+  pCodecCtx = avcodec_alloc_context3(nullptr);
+  avcodec_parameters_to_context(pCodecCtx, video_stream->codecpar);
+  pCodecCtx->workaround_bugs = FF_BUG_AUTODETECT;
 
-    if (pCodec->capabilities & AV_CODEC_CAP_AUTO_THREADS) {
-      pCodecCtx->thread_count = 0;
-    }
-    else {
-      pCodecCtx->thread_count = BLI_system_thread_count();
-    }
+  if (pCodec->capabilities & AV_CODEC_CAP_AUTO_THREADS) {
+    pCodecCtx->thread_count = 0;
+  }
+  else {
+    pCodecCtx->thread_count = BLI_system_thread_count();
+  }
 
-    if (pCodec->capabilities & AV_CODEC_CAP_FRAME_THREADS) {
-      pCodecCtx->thread_type = FF_THREAD_FRAME;
-    }
-    else if (pCodec->capabilities & AV_CODEC_CAP_SLICE_THREADS) {
-      pCodecCtx->thread_type = FF_THREAD_SLICE;
-    }
+  if (pCodec->capabilities & AV_CODEC_CAP_FRAME_THREADS) {
+    pCodecCtx->thread_type = FF_THREAD_FRAME;
+  }
+  else if (pCodec->capabilities & AV_CODEC_CAP_SLICE_THREADS) {
+    pCodecCtx->thread_type = FF_THREAD_SLICE;
+  }
 
-    if (avcodec_open2(pCodecCtx, pCodec, NULL) < 0) {
-      avformat_close_input(&pFormatCtx);
-      return -1;
-    }
-    if (pCodecCtx->pix_fmt == AV_PIX_FMT_NONE) {
-      avcodec_free_context(&pCodecCtx);
-      avformat_close_input(&pFormatCtx);
-      return -1;
-    }
-  m_baseFrameRate = av_q2d(av_guess_frame_rate(pFormatCtx, video_stream, NULL));
+  if (avcodec_open2(pCodecCtx, pCodec, nullptr) < 0) {
+    avformat_close_input(&pFormatCtx);
+    return -1;
+  }
+  if (pCodecCtx->pix_fmt == AV_PIX_FMT_NONE) {
+    avcodec_free_context(&pCodecCtx);
+    avformat_close_input(&pFormatCtx);
+    return -1;
+  }
+  m_baseFrameRate = av_q2d(av_guess_frame_rate(pFormatCtx, video_stream, nullptr));
 
   if (m_baseFrameRate <= 0.0)
     m_baseFrameRate = defFrameRate;
@@ -424,7 +430,7 @@ void *VideoFFmpeg::cacheThread(void *data)
         BLI_remlink(&video->m_packetCacheBase, cachePacket);
         // use m_frame because when caching, it is not used in main thread
         // we can't use currentFrame directly because we need to convert to RGB first
-        avcodec_send_packet(video->m_codecCtx, (AVPacket *)&cachePacket->packet);
+        avcodec_send_packet(video->m_codecCtx, &cachePacket->packet);
         frameFinished = avcodec_receive_frame(video->m_codecCtx, video->m_frame) == 0;
 
         if (frameFinished) {
@@ -1103,7 +1109,11 @@ static int VideoFFmpeg_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
                                      kwds,
                                      "s|hfhh",
                                      {"file", "capture", "rate", "width", "height", 0},
-                                     &file, &capt, &rate, &width, &height)) {
+                                     &file,
+                                     &capt,
+                                     &rate,
+                                     &width,
+                                     &height)) {
     return -1;
   }
 
