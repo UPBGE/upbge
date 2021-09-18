@@ -310,3 +310,5 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
       :arg blenderObject: the Object from which we want to get the KX_GameObject.
       :type blenderObject: :class:`bpy.types.Object`
+      :rtype: :class:`~bge.types.KX_GameObject`
+
