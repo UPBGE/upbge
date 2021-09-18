@@ -443,7 +443,7 @@ REFERENCE_NAME = "blender_python_reference_%s" % BLENDER_VERSION_PATH
 REFERENCE_PATH = os.path.join(ARGS.output_dir, REFERENCE_NAME)
 BLENDER_PDF_FILENAME = "%s.pdf" % REFERENCE_NAME
 BLENDER_ZIP_FILENAME = "%s.zip" % REFERENCE_NAME
-UPBGE_BLENDER_ZIP_FILENAME = "upbge_0_3_blender_%s_python_reference.zip" % BLENDER_VERSION_PATH
+UPBGE_BLENDER_ZIP_FILENAME = "upbge-api-reference.zip"
 
 # -------------------------------SPHINX-----------------------------------------
 
