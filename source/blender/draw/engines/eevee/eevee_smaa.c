@@ -88,8 +88,7 @@ int EEVEE_antialiasing_engine_init(EEVEE_Data *vedata)
 }
 
 static int prev_smaa_quality = 2;
-static float prev_smaa_threshold = 0.01f;
-static float prev_smaa_scale = 1.0f;
+static float prev_smaa_scale = 0.01f;
 
 void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata)
 {
@@ -112,8 +111,6 @@ void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata)
   bool shader_changed = false;
   shader_changed = scene_eval->eevee.smaa_quality != prev_smaa_quality;
   shader_changed = shader_changed ||
-                   scene_eval->eevee.smaa_predication_threshold != prev_smaa_threshold;
-  shader_changed = shader_changed ||
                    scene_eval->eevee.smaa_predication_scale != prev_smaa_scale;
 
   if (shader_changed) {
@@ -121,7 +118,6 @@ void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata)
   }
 
   prev_smaa_quality = scene_eval->eevee.smaa_quality;
-  prev_smaa_threshold = scene_eval->eevee.smaa_predication_threshold;
   prev_smaa_scale = scene_eval->eevee.smaa_predication_scale;
 
   {
@@ -130,7 +126,6 @@ void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata)
 
     GPUShader *sh = eevee_shader_antialiasing_get(0,
                                                   scene_eval->eevee.smaa_quality,
-                                                  scene_eval->eevee.smaa_predication_threshold,
                                                   scene_eval->eevee.smaa_predication_scale,
                                                   shader_changed);
     grp = DRW_shgroup_create(sh, psl->smaa_edge_ps);
@@ -147,7 +142,6 @@ void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata)
 
     GPUShader *sh = eevee_shader_antialiasing_get(1,
                                                   scene_eval->eevee.smaa_quality,
-                                                  scene_eval->eevee.smaa_predication_threshold,
                                                   scene_eval->eevee.smaa_predication_scale,
                                                   shader_changed);
     grp = DRW_shgroup_create(sh, psl->smaa_weight_ps);
@@ -165,7 +159,6 @@ void EEVEE_antialiasing_cache_init(EEVEE_Data *vedata)
 
     GPUShader *sh = eevee_shader_antialiasing_get(2,
                                                   scene_eval->eevee.smaa_quality,
-                                                  scene_eval->eevee.smaa_predication_threshold,
                                                   scene_eval->eevee.smaa_predication_scale,
                                                   shader_changed);
     grp = DRW_shgroup_create(sh, psl->smaa_resolve_ps);

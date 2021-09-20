@@ -1578,7 +1578,6 @@ EEVEE_Data *EEVEE_engine_data_get(void);
 
 GPUShader *eevee_shader_antialiasing_get(int stage,
                                          int smaa_quality,
-                                         float smaa_predication_threshold,
                                          float smaa_predication_scale,
                                          bool recompile);
 int EEVEE_antialiasing_engine_init(EEVEE_Data *vedata);

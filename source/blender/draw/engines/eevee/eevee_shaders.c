@@ -297,7 +297,6 @@ static void free_smaa_shaders(void)
 
 GPUShader *eevee_shader_antialiasing_get(int stage,
                                          int smaa_quality,
-                                         float smaa_predication_threshold,
                                          float smaa_predication_scale,
                                          bool recompile)
 {
@@ -310,7 +309,6 @@ GPUShader *eevee_shader_antialiasing_get(int stage,
   if (!e_data.smaa_sh[stage]) {
     char stage_define[32];
     char smaa_quality_define[32];
-    char smaa_predication_threshold_define[64];
     char smaa_predication_scale_define[64];
     BLI_snprintf(stage_define, sizeof(stage_define), "#define SMAA_STAGE %d\n", stage);
     switch (smaa_quality) {
@@ -338,10 +336,6 @@ GPUShader *eevee_shader_antialiasing_get(int stage,
         break;
     }
 
-    BLI_snprintf(smaa_predication_threshold_define,
-                 sizeof(smaa_predication_threshold_define),
-                 "#define SMAA_PREDICATION_THRESHOLD %.8f\n",
-                 smaa_predication_threshold);
     BLI_snprintf(smaa_predication_scale_define,
                  sizeof(smaa_predication_scale_define),
                  "#define SMAA_PREDICATION_SCALE %.8f\n",
@@ -373,7 +367,6 @@ GPUShader *eevee_shader_antialiasing_get(int stage,
                 "#define SMAA_NO_DISCARD\n",
                 smaa_quality_define,
                 "#define SMAA_PREDICATION 1\n",
-                smaa_predication_threshold_define,
                 smaa_predication_scale_define,
                 stage_define,
                 NULL,

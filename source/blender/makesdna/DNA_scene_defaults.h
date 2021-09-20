@@ -292,8 +292,7 @@
                     SCE_EEVEE_SSR_HALF_RESOLUTION | SCE_EEVEE_SHADOW_SOFT, \
  \
     .smaa_quality = SCE_EEVEE_SMAA_PRESET_HIGH, \
-    .smaa_predication_threshold = 0.01, \
-    .smaa_predication_scale = 1.0, \
+    .smaa_predication_scale = 0.01, \
  \
   }
 
