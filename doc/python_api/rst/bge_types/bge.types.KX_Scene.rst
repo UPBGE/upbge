@@ -234,12 +234,15 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
    .. method:: convertBlenderObject(blenderObject)
 
-      Converts a bpy.types.Object into a :class:`~bge.types.KX_GameObject` during runtime.
+      Converts a :class:`~bpy.types.Object` into a :class:`~bge.types.KX_GameObject` during runtime.
       For example, you can append an Object from another .blend file during bge runtime
       using: bpy.ops.wm.append(...) then convert this Object into a KX_GameObject to have
       logic bricks, physics... converted. This is meant to replace libload.
+
+      :arg blenderObject: The Object to be converted.
+      :type blenderObject: :class:`~bpy.types.Object`
       :return: Returns the newly converted gameobject.
-      :rtype: :class:`bge.types.KX_GameObject`
+      :rtype: :class:`~bge.types.KX_GameObject`
 
    .. method:: convertBlenderObjectsList(blenderObjectsList, asynchronous)
 
@@ -249,7 +252,7 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       The conversion can be asynchronous or synchronous.
 
       :arg blenderObjectsList: The Object list to be converted.
-      :type blenderObjectsList: list of :class:`bpy.types.Object`
+      :type blenderObjectsList: list of :class:`~bpy.types.Object`
       :arg asynchronous: The Object list conversion can be asynchronous or not.
       :type asynchronous: boolean
 
@@ -262,7 +265,7 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       or synchronous.
 
       :arg blenderCollection: The collection to be converted.
-      :type blenderCollection: :class:`bpy.types.Collection`
+      :type blenderCollection: :class:`~bpy.types.Collection`
       :arg asynchronous: The collection conversion can be asynchronous or not.
       :type asynchronous: boolean
 
@@ -273,7 +276,7 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       using: bpy.ops.wm.append(...) then register this Action to be abled to play it.
 
       :arg Action: The Action to be converted.
-      :type Action: :class:`bpy.types.Action`
+      :type Action: :class:`~bpy.types.Action`
 
    .. method:: unregisterBlenderAction(Action)
 
@@ -284,7 +287,7 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       after you unregistered it from bge logic manager.
 
       :arg Action: The Action to be unregistered.
-      :type Action: :class:`bpy.types.Action`
+      :type Action: :class:`~bpy.types.Action`
 
    .. method:: addOverlayCollection(kxCamera, blenderCollection)
 
@@ -292,17 +295,17 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       during a second render pass in overlay using the KX_Camera passed as argument.
 
       :arg kxCamera: The camera used to render the overlay collection.
-      :type kxCamera: :class:`bge.types.KX_Camera`
+      :type kxCamera: :class:`~bge.types.KX_Camera`
 
       :arg blenderCollection: The overlay collection to add.
-      :type blenderCollection: :class:`bpy.types.Collection`
+      :type blenderCollection: :class:`~bpy.types.Collection`
 
    .. method:: removeOverlayCollection(blenderCollection)
 
       Removes an overlay collection (as with collection actuator).
 
       :arg blenderCollection: The overlay collection to remove.
-      :type blenderCollection: :class:`bpy.types.Collection`
+      :type blenderCollection: :class:`~bpy.types.Collection`
 
    .. method:: getGameObjectFromObject(blenderObject)
 

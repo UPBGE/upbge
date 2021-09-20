@@ -454,7 +454,7 @@ base class --- :class:`~bge.types.SCA_IObject`
 
       This KX_GameObject's Object.
 
-      :type: :class:`bpy.types.Object`, (readonly)
+      :type: :class:`~bpy.types.Object`, (readonly)
 
    .. attribute:: state
 
