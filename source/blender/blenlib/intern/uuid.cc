@@ -22,7 +22,9 @@
 
 #include <cstdio>
 #include <cstring>
+#include <ctime>
 #include <random>
+#include <string>
 
 /* Ensure the UUID struct doesn't have any padding, to be compatible with memcmp(). */
 static_assert(sizeof(UUID) == 16, "expect UUIDs to be 128 bit exactly");
@@ -37,8 +39,20 @@ UUID BLI_uuid_generate_random()
     static_assert(std::mt19937_64::max() == 0xffffffffffffffffLL);
 
     struct timespec ts;
+#ifdef __APPLE__
+    /* `timespec_get()` is only available on macOS 10.15+, so until that's the minimum version
+     * supported by Blender, use another function to get the timespec.
+     *
+     * `clock_gettime()` is only available on POSIX, so not on Windows; Linux uses the newer C++11
+     * function `timespec_get()` as well. */
+    clock_gettime(CLOCK_REALTIME, &ts);
+#else
     timespec_get(&ts, TIME_UTC);
-    rng.seed(ts.tv_nsec);
+#endif
+    /* XOR the nanosecond and second fields, just in case the clock only has seconds resolution. */
+    uint64_t seed = ts.tv_nsec;
+    seed ^= ts.tv_sec;
+    rng.seed(seed);
 
     return rng;
   }();
@@ -62,6 +76,17 @@ UUID BLI_uuid_generate_random()
   uuid.clock_seq_hi_and_reserved |= 0x80;
 
   return uuid;
+}
+
+UUID BLI_uuid_nil(void)
+{
+  const UUID nil = {0, 0, 0, 0, 0, 0};
+  return nil;
+}
+
+bool BLI_uuid_is_nil(UUID uuid)
+{
+  return BLI_uuid_equal(BLI_uuid_nil(), uuid);
 }
 
 bool BLI_uuid_equal(const UUID uuid1, const UUID uuid2)

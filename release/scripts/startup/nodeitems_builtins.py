@@ -549,6 +549,7 @@ geometry_node_categories = [
         NodeItem("GeometryNodeJoinGeometry"),
         NodeItem("GeometryNodeSeparateComponents"),
         NodeItem("GeometryNodeSetPosition", poll=geometry_nodes_fields_poll),
+        NodeItem("GeometryNodeRealizeInstances", poll=geometry_nodes_fields_poll),
     ]),
     GeometryNodeCategory("GEO_INPUT", "Input", items=[
         NodeItem("GeometryNodeObjectInfo"),
@@ -605,6 +606,9 @@ geometry_node_categories = [
         NodeItem("FunctionNodeFloatCompare"),
         NodeItem("FunctionNodeFloatToInt"),
         NodeItem("GeometryNodeSwitch"),
+    ]),
+    GeometryNodeCategory("GEO_TEXTURE", "Texture", items=[
+        NodeItem("ShaderNodeTexNoise", poll=geometry_nodes_fields_poll),
     ]),
     GeometryNodeCategory("GEO_VECTOR", "Vector", items=[
         NodeItem("ShaderNodeVectorCurve"),

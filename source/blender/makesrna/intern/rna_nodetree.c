@@ -8890,11 +8890,36 @@ static void def_cmp_denoise(StructRNA *srna)
 {
   PropertyRNA *prop;
 
+  static const EnumPropertyItem prefilter_items[] = {
+      {CMP_NODE_DENOISE_PREFILTER_NONE,
+       "NONE",
+       0,
+       "None",
+       "No prefiltering, use when guiding passes are noise-free"},
+      {CMP_NODE_DENOISE_PREFILTER_FAST,
+       "FAST",
+       0,
+       "Fast",
+       "Denoise image and guiding passes together. Improves quality when guiding passes are noisy "
+       "using least amount of extra processing time"},
+      {CMP_NODE_DENOISE_PREFILTER_ACCURATE,
+       "ACCURATE",
+       0,
+       "Accurate",
+       "Prefilter noisy guiding passes before denoising image. Improves quality when guiding "
+       "passes are noisy using extra processing time"},
+      {0, NULL, 0, NULL, NULL}};
+
   RNA_def_struct_sdna_from(srna, "NodeDenoise", "storage");
 
   prop = RNA_def_property(srna, "use_hdr", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "hdr", 0);
   RNA_def_property_ui_text(prop, "HDR", "Process HDR images");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "prefilter", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, prefilter_items);
+  RNA_def_property_ui_text(prop, "", "Denoising prefilter");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
@@ -10091,18 +10116,18 @@ static void def_geo_curve_resample(StructRNA *srna)
   PropertyRNA *prop;
 
   static EnumPropertyItem mode_items[] = {
-      {GEO_NODE_CURVE_SAMPLE_EVALUATED,
+      {GEO_NODE_CURVE_RESAMPLE_EVALUATED,
        "EVALUATED",
        0,
        "Evaluated",
        "Output the input spline's evaluated points, based on the resolution attribute for NURBS "
        "and Bezier splines. Poly splines are unchanged"},
-      {GEO_NODE_CURVE_SAMPLE_COUNT,
+      {GEO_NODE_CURVE_RESAMPLE_COUNT,
        "COUNT",
        0,
        "Count",
        "Sample the specified number of points along each spline"},
-      {GEO_NODE_CURVE_SAMPLE_LENGTH,
+      {GEO_NODE_CURVE_RESAMPLE_LENGTH,
        "LENGTH",
        0,
        "Length",
@@ -10136,18 +10161,18 @@ static void def_geo_curve_to_points(StructRNA *srna)
   PropertyRNA *prop;
 
   static EnumPropertyItem mode_items[] = {
-      {GEO_NODE_CURVE_SAMPLE_EVALUATED,
+      {GEO_NODE_CURVE_RESAMPLE_EVALUATED,
        "EVALUATED",
        0,
        "Evaluated",
        "Create points from the curve's evaluated points, based on the resolution attribute for "
        "NURBS and Bezier splines"},
-      {GEO_NODE_CURVE_SAMPLE_COUNT,
+      {GEO_NODE_CURVE_RESAMPLE_COUNT,
        "COUNT",
        0,
        "Count",
        "Sample each spline by evenly distributing the specified number of points"},
-      {GEO_NODE_CURVE_SAMPLE_LENGTH,
+      {GEO_NODE_CURVE_RESAMPLE_LENGTH,
        "LENGTH",
        0,
        "Length",
@@ -10168,12 +10193,12 @@ static void def_geo_curve_trim(StructRNA *srna)
   PropertyRNA *prop;
 
   static EnumPropertyItem mode_items[] = {
-      {GEO_NODE_CURVE_INTERPOLATE_FACTOR,
+      {GEO_NODE_CURVE_SAMPLE_FACTOR,
        "FACTOR",
        0,
        "Factor",
        "Find the endpoint positions using a factor of each spline's length"},
-      {GEO_NODE_CURVE_INTERPOLATE_LENGTH,
+      {GEO_NODE_CURVE_RESAMPLE_LENGTH,
        "LENGTH",
        0,
        "Length",

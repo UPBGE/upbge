@@ -37,7 +37,15 @@ extern "C" {
  * This function is not thread-safe. */
 UUID BLI_uuid_generate_random(void);
 
-/** Compare two UUIDs, return true iff they are equal. */
+/**
+ * Return the UUID nil value, consisting of all-zero fields.
+ */
+UUID BLI_uuid_nil(void);
+
+/** Return true only if this is the nil UUID. */
+bool BLI_uuid_is_nil(UUID uuid);
+
+/** Compare two UUIDs, return true only if they are equal. */
 bool BLI_uuid_equal(UUID uuid1, UUID uuid2);
 
 /**
@@ -48,7 +56,7 @@ void BLI_uuid_format(char *buffer, UUID uuid) ATTR_NONNULL();
 
 /**
  * Parse a string as UUID.
- * The string MUST be in the format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx,
+ * The string MUST be in the format `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`,
  * as produced by #BLI_uuid_format().
  *
  * Return true if the string could be parsed, and false otherwise. In the latter case, the UUID may
