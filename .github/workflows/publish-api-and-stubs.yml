@@ -90,6 +90,7 @@ jobs:
       with:
         name: blender
         path: build.tar.gz
+        retention-days: 3
 
   publish_api:
     name: Publish API Documentation
@@ -167,6 +168,7 @@ jobs:
       with:
         name: apidocs
         path: apidocs.tar.gz
+        retention-days: 3
 
   publish_stubs:
     name: Publish API Stubs
