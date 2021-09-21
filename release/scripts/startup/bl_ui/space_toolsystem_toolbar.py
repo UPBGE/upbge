@@ -105,6 +105,7 @@ class _defs_view3d_generic:
             icon="ops.generic.cursor",
             keymap="3D View Tool: Cursor",
             draw_settings=draw_settings,
+            options={'KEYMAP_FALLBACK'},
         )
 
     @ToolDef.from_fn
@@ -143,6 +144,7 @@ class _defs_view3d_generic:
             icon="ops.view3d.ruler",
             widget="VIEW3D_GGT_ruler",
             keymap="3D View Tool: Measure",
+            options={'KEYMAP_FALLBACK'},
         )
 
 
@@ -237,6 +239,7 @@ class _defs_annotate:
             cursor='PAINT_BRUSH',
             keymap="Generic Tool: Annotate",
             draw_settings=draw_settings,
+            options={'KEYMAP_FALLBACK'},
         )
 
     @ToolDef.from_fn.with_args(draw_settings=draw_settings_common)
@@ -248,6 +251,7 @@ class _defs_annotate:
             cursor='PAINT_BRUSH',
             keymap="Generic Tool: Annotate Line",
             draw_settings=draw_settings,
+            options={'KEYMAP_FALLBACK'},
         )
 
     @ToolDef.from_fn.with_args(draw_settings=draw_settings_common)
@@ -259,6 +263,7 @@ class _defs_annotate:
             cursor='PAINT_BRUSH',
             keymap="Generic Tool: Annotate Polygon",
             draw_settings=draw_settings,
+            options={'KEYMAP_FALLBACK'},
         )
 
     @ToolDef.from_fn
@@ -274,6 +279,7 @@ class _defs_annotate:
             cursor='ERASER',
             keymap="Generic Tool: Annotate Eraser",
             draw_settings=draw_settings,
+            options={'KEYMAP_FALLBACK'},
         )
 
 
@@ -543,6 +549,7 @@ class _defs_view3d_add:
             widget="VIEW3D_GGT_placement",
             keymap="3D View Tool: Object, Add Primitive",
             draw_settings=draw_settings,
+            options={'KEYMAP_FALLBACK'},
         )
 
     @ToolDef.from_fn
@@ -569,6 +576,7 @@ class _defs_view3d_add:
             widget="VIEW3D_GGT_placement",
             keymap="3D View Tool: Object, Add Primitive",
             draw_settings=draw_settings,
+            options={'KEYMAP_FALLBACK'},
         )
 
     @ToolDef.from_fn
@@ -594,6 +602,7 @@ class _defs_view3d_add:
             widget="VIEW3D_GGT_placement",
             keymap="3D View Tool: Object, Add Primitive",
             draw_settings=draw_settings,
+            options={'KEYMAP_FALLBACK'},
         )
 
     @ToolDef.from_fn
@@ -619,6 +628,7 @@ class _defs_view3d_add:
             widget="VIEW3D_GGT_placement",
             keymap="3D View Tool: Object, Add Primitive",
             draw_settings=draw_settings,
+            options={'KEYMAP_FALLBACK'},
         )
 
     @ToolDef.from_fn
@@ -643,6 +653,7 @@ class _defs_view3d_add:
             widget="VIEW3D_GGT_placement",
             keymap="3D View Tool: Object, Add Primitive",
             draw_settings=draw_settings,
+            options={'KEYMAP_FALLBACK'},
         )
 
 
@@ -1089,6 +1100,7 @@ class _defs_edit_mesh:
             widget=None,
             keymap=(),
             draw_settings=draw_settings,
+            options={'KEYMAP_FALLBACK'},
         )
 
     @ToolDef.from_fn
@@ -1695,6 +1707,7 @@ class _defs_image_generic:
             ),
             icon="ops.generic.cursor",
             keymap=(),
+            options={'KEYMAP_FALLBACK'},
         )
 
     # Currently a place holder so we can switch away from the annotation tool.
@@ -1846,6 +1859,7 @@ class _defs_image_uv_edit:
             # TODO: generic operator (UV version of `VIEW3D_GGT_tool_generic_handle_free`).
             widget=None,
             keymap=(),
+            options={'KEYMAP_FALLBACK'},
         )
 
 
@@ -1879,6 +1893,7 @@ class _defs_image_uv_sculpt:
                 operator="sculpt.uv_sculpt_stroke",
                 keymap="Image Editor Tool: Uv, Sculpt Stroke",
                 draw_cursor=draw_cursor,
+                options={'KEYMAP_FALLBACK'},
             ),
         )
 
@@ -2437,6 +2452,39 @@ class _defs_sequencer_generic:
             ),
             icon="ops.paint.weight_sample",  # XXX, needs own icon.
             keymap="Sequencer Tool: Sample",
+        )
+
+    @ToolDef.from_fn
+    def translate():
+        return dict(
+            idname="builtin.move",
+            label="Move",
+            icon="ops.transform.translate",
+            widget="SEQUENCER_GGT_gizmo2d_translate",
+            operator="transform.translate",
+            keymap="Sequencer Tool: Move",
+        )
+
+    @ToolDef.from_fn
+    def rotate():
+        return dict(
+            idname="builtin.rotate",
+            label="Rotate",
+            icon="ops.transform.rotate",
+            widget="SEQUENCER_GGT_gizmo2d_rotate",
+            operator="transform.rotate",
+            keymap="Sequencer Tool: Rotate",
+        )
+
+    @ToolDef.from_fn
+    def scale():
+        return dict(
+            idname="builtin.scale",
+            label="Scale",
+            icon="ops.transform.resize",
+            widget="SEQUENCER_GGT_gizmo2d_resize",
+            operator="transform.resize",
+            keymap="Sequencer Tool: Scale",
         )
 
 
@@ -3030,6 +3078,10 @@ class SEQUENCER_PT_tools_active(ToolSelectPanelHelper, Panel):
         None: [
         ],
         'PREVIEW': [
+            *_tools_select,
+            _defs_sequencer_generic.translate,
+            _defs_sequencer_generic.rotate,
+            _defs_sequencer_generic.scale,
             _defs_sequencer_generic.sample,
             *_tools_annotate,
         ],
@@ -3039,6 +3091,9 @@ class SEQUENCER_PT_tools_active(ToolSelectPanelHelper, Panel):
         ],
         'SEQUENCER_PREVIEW': [
             *_tools_select,
+            _defs_sequencer_generic.translate,
+            _defs_sequencer_generic.rotate,
+            _defs_sequencer_generic.scale,
             _defs_sequencer_generic.blade,
             _defs_sequencer_generic.sample,
             *_tools_annotate,

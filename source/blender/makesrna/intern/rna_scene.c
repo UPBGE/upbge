@@ -532,7 +532,6 @@ const EnumPropertyItem rna_enum_stereo3d_interlace_type_items[] = {
 
 const EnumPropertyItem rna_enum_bake_pass_filter_type_items[] = {
     {R_BAKE_PASS_FILTER_NONE, "NONE", 0, "None", ""},
-    {R_BAKE_PASS_FILTER_AO, "AO", 0, "Ambient Occlusion", ""},
     {R_BAKE_PASS_FILTER_EMIT, "EMIT", 0, "Emit", ""},
     {R_BAKE_PASS_FILTER_DIRECT, "DIRECT", 0, "Direct", ""},
     {R_BAKE_PASS_FILTER_INDIRECT, "INDIRECT", 0, "Indirect", ""},
@@ -3594,6 +3593,16 @@ static void rna_def_sequencer_tool_settings(BlenderRNA *brna)
       {0, NULL, 0, NULL, NULL},
   };
 
+    static const EnumPropertyItem pivot_points[] = {
+      {V3D_AROUND_CENTER_MEDIAN, "MEDIAN", ICON_PIVOT_MEDIAN, "Median Point", ""},
+      {V3D_AROUND_LOCAL_ORIGINS,
+       "INDIVIDUAL_ORIGINS",
+       ICON_PIVOT_INDIVIDUAL,
+       "Individual Origins",
+       "Pivot around each selected island's own median point"},
+      {0, NULL, 0, NULL, NULL},
+
+  };
   srna = RNA_def_struct(brna, "SequencerToolSettings", NULL);
   RNA_def_struct_path_func(srna, "rna_SequencerToolSettings_path");
   RNA_def_struct_ui_text(srna, "Sequencer Tool Settings", "");
@@ -3637,6 +3646,10 @@ static void rna_def_sequencer_tool_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "overlap_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, scale_overlap_modes);
   RNA_def_property_ui_text(prop, "Overlap Mode", "How to resolve overlap after transformation");
+
+  prop = RNA_def_property(srna, "pivot_point", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, pivot_points);
+  RNA_def_property_ui_text(prop, "Pivot Point", "Rotation or scaling pivot point");
 }
 
 static void rna_def_unified_paint_settings(BlenderRNA *brna)
@@ -4206,13 +4219,6 @@ void rna_def_view_layer_common(BlenderRNA *brna, StructRNA *srna, const bool sce
         prop, "Cryptomatte Levels", "Sets how many unique objects can be distinguished per pixel");
     RNA_def_property_ui_range(prop, 2.0, 16.0, 2.0, 0.0);
     RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
-
-    prop = RNA_def_property(srna, "use_pass_cryptomatte_accurate", PROP_BOOLEAN, PROP_NONE);
-    RNA_def_property_boolean_sdna(prop, NULL, "cryptomatte_flag", VIEW_LAYER_CRYPTOMATTE_ACCURATE);
-    RNA_def_property_boolean_default(prop, true);
-    RNA_def_property_ui_text(
-        prop, "Cryptomatte Accurate", "Generate a more accurate cryptomatte pass");
-    RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
   }
 
   prop = RNA_def_property(srna, "use_solid", PROP_BOOLEAN, PROP_NONE);
@@ -4299,6 +4305,16 @@ void rna_def_view_layer_common(BlenderRNA *brna, StructRNA *srna, const bool sce
   prop = RNA_def_property(srna, "use_pass_vector", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "passflag", SCE_PASS_VECTOR);
   RNA_def_property_ui_text(prop, "Vector", "Deliver speed vector pass");
+  if (scene) {
+    RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
+  }
+  else {
+    RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  }
+
+  prop = RNA_def_property(srna, "use_pass_position", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "passflag", SCE_PASS_POSITION);
+  RNA_def_property_ui_text(prop, "Position", "Deliver position pass");
   if (scene) {
     RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
   }
@@ -5294,10 +5310,6 @@ static void rna_def_bake_data(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
   /* custom passes flags */
-  prop = RNA_def_property(srna, "use_pass_ambient_occlusion", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "pass_filter", R_BAKE_PASS_FILTER_AO);
-  RNA_def_property_ui_text(prop, "Ambient Occlusion", "Add ambient occlusion contribution");
-
   prop = RNA_def_property(srna, "use_pass_emit", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "pass_filter", R_BAKE_PASS_FILTER_EMIT);
   RNA_def_property_ui_text(prop, "Emit", "Add emission contribution");
@@ -6599,29 +6611,6 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Resolution %", "Percentage scale for render resolution");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_SceneSequencer_update");
 
-  prop = RNA_def_property(srna, "tile_x", PROP_INT, PROP_PIXEL);
-  RNA_def_property_int_sdna(prop, NULL, "tilex");
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_range(prop, 8, 65536);
-  RNA_def_property_ui_text(prop, "Tile X", "Horizontal tile size to use while rendering");
-  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
-
-  prop = RNA_def_property(srna, "tile_y", PROP_INT, PROP_PIXEL);
-  RNA_def_property_int_sdna(prop, NULL, "tiley");
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_range(prop, 8, 65536);
-  RNA_def_property_ui_text(prop, "Tile Y", "Vertical tile size to use while rendering");
-  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
-
-  prop = RNA_def_property(srna, "preview_start_resolution", PROP_INT, PROP_NONE);
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_range(prop, 8, 16384);
-  RNA_def_property_ui_text(prop,
-                           "Start Resolution",
-                           "Resolution to start rendering preview at, "
-                           "progressively increasing it to the full viewport size");
-  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
-
   prop = RNA_def_property(srna, "preview_pixel_size", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, NULL, "preview_pixel_size");
   RNA_def_property_enum_items(prop, pixel_size_items);
@@ -6877,24 +6866,6 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   RNA_def_property_boolean_funcs(prop, "rna_RenderSettings_is_movie_format_get", NULL);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Movie Format", "When true the format is a movie");
-
-  prop = RNA_def_property(srna, "use_save_buffers", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "scemode", R_EXR_TILE_FILE);
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_ui_text(
-      prop,
-      "Save Buffers",
-      "Save tiles for all RenderLayers and SceneNodes to files in the temp directory "
-      "(saves memory, required for Full Sample)");
-  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
-
-  prop = RNA_def_property(srna, "use_full_sample", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "scemode", R_FULL_SAMPLE);
-  RNA_def_property_ui_text(prop,
-                           "Full Sample",
-                           "Save for every anti-aliasing sample the entire RenderLayer results "
-                           "(this solves anti-aliasing issues with compositing)");
-  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
   prop = RNA_def_property(srna, "use_lock_interface", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "use_lock_interface", 1);

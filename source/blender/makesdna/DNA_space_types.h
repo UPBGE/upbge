@@ -598,6 +598,7 @@ typedef struct SequencerPreviewOverlay {
 
 /* SequencerPreviewOverlay.flag */
 typedef enum eSpaceSeq_SequencerPreviewOverlay_Flag {
+  SEQ_PREVIEW_SHOW_OUTLINE_SELECTED = (1 << 2),
   SEQ_PREVIEW_SHOW_SAFE_MARGINS = (1 << 3),
   SEQ_PREVIEW_SHOW_GPENCIL = (1 << 4),
   SEQ_PREVIEW_SHOW_SAFE_CENTER = (1 << 9),
@@ -612,6 +613,7 @@ typedef struct SequencerTimelineOverlay {
 /* SequencerTimelineOverlay.flag */
 typedef enum eSpaceSeq_SequencerTimelineOverlay_Flag {
   SEQ_TIMELINE_SHOW_STRIP_OFFSETS = (1 << 1),
+  SEQ_TIMELINE_SHOW_THUMBNAILS = (1 << 2),
   SEQ_TIMELINE_SHOW_FCURVES = (1 << 5),
   SEQ_TIMELINE_ALL_WAVEFORMS = (1 << 7), /* draw all waveforms */
   SEQ_TIMELINE_NO_WAVEFORMS = (1 << 8),  /* draw no waveforms */
@@ -620,6 +622,13 @@ typedef enum eSpaceSeq_SequencerTimelineOverlay_Flag {
   SEQ_TIMELINE_SHOW_STRIP_DURATION = (1 << 16),
   SEQ_TIMELINE_SHOW_GRID = (1 << 18),
 } eSpaceSeq_SequencerTimelineOverlay_Flag;
+
+typedef struct SpaceSeqRuntime {
+  /** Required for Thumbnail job start condition. */
+  struct rctf last_thumbnail_area;
+  /** Stores lists of most recently displayed thumbnails. */
+  struct GHash *last_displayed_thumbnails;
+} SpaceSeqRuntime;
 
 /* Sequencer */
 typedef struct SpaceSeq {
@@ -664,6 +673,7 @@ typedef struct SpaceSeq {
   char multiview_eye;
   char _pad2[7];
 
+  SpaceSeqRuntime runtime;
 } SpaceSeq;
 
 /* SpaceSeq.mainb */
@@ -700,6 +710,7 @@ typedef enum eSpaceSeq_Flag {
   SPACE_SEQ_FLAG_UNUSED_15 = (1 << 15),
   SPACE_SEQ_FLAG_UNUSED_16 = (1 << 16),
   SEQ_USE_PROXIES = (1 << 17),
+  SEQ_SHOW_GRID = (1 << 18),
 } eSpaceSeq_Flag;
 
 /* SpaceSeq.view */
