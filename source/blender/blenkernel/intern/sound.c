@@ -204,7 +204,7 @@ IDTypeInfo IDType_ID_SO = {
     .name = "Sound",
     .name_plural = "sounds",
     .translation_context = BLT_I18NCONTEXT_ID_SOUND,
-    .flags = IDTYPE_FLAGS_NO_ANIMDATA,
+    .flags = IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_APPEND_IS_REUSABLE,
 
     /* A fuzzy case, think NULLified content is OK here... */
     .init_data = NULL,
@@ -1230,7 +1230,10 @@ bool BKE_sound_info_get(struct Main *main, struct bSound *sound, SoundInfo *soun
   return result;
 }
 
-bool BKE_sound_stream_info_get(struct Main *main, const char *filepath, int stream, SoundStreamInfo *sound_info)
+bool BKE_sound_stream_info_get(struct Main *main,
+                               const char *filepath,
+                               int stream,
+                               SoundStreamInfo *sound_info)
 {
   const char *path;
   char str[FILE_MAX];

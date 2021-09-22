@@ -992,7 +992,7 @@ IDTypeInfo IDType_ID_NT = {
     /* name */ "NodeTree",
     /* name_plural */ "node_groups",
     /* translation_context */ BLT_I18NCONTEXT_ID_NODETREE,
-    /* flags */ 0,
+    /* flags */ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
 
     /* init_data */ ntree_init_data,
     /* copy_data */ ntree_copy_data,
@@ -5190,6 +5190,7 @@ static void registerGeometryNodes()
   register_node_type_geo_curve_endpoints();
   register_node_type_geo_curve_fill();
   register_node_type_geo_curve_length();
+  register_node_type_geo_curve_parameter();
   register_node_type_geo_curve_primitive_bezier_segment();
   register_node_type_geo_curve_primitive_circle();
   register_node_type_geo_curve_primitive_line();
@@ -5202,6 +5203,7 @@ static void registerGeometryNodes()
   register_node_type_geo_curve_set_handles();
   register_node_type_geo_curve_spline_type();
   register_node_type_geo_curve_subdivide();
+  register_node_type_geo_curve_fillet();
   register_node_type_geo_curve_to_mesh();
   register_node_type_geo_curve_to_points();
   register_node_type_geo_curve_trim();
