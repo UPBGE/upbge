@@ -644,10 +644,6 @@ void RNA_def_camera(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, NULL, "gameflag", GAME_CAM_OVERLAY_DISABLE_BLOOM);
   RNA_def_property_ui_text(prop, "Disable Bloom", "Disable Bloom in Overlay Pass");
 
-  prop = RNA_def_property(srna, "overlay_disable_dof", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "gameflag", GAME_CAM_OVERLAY_DISABLE_DOF);
-  RNA_def_property_ui_text(prop, "Disable DOF", "Disable Dof in Overlay Pass");
-
   prop = RNA_def_property(srna, "overlay_disable_ao", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "gameflag", GAME_CAM_OVERLAY_DISABLE_AO);
   RNA_def_property_ui_text(prop, "Disable AO", "Disable AO in Overlay Pass");

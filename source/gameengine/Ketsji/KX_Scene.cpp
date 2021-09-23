@@ -619,9 +619,6 @@ void KX_Scene::OverlayPassDisableEffects(Depsgraph *depsgraph,
   if (cam->gameflag & GAME_CAM_OVERLAY_DISABLE_BLOOM) {
     scene_eval->eevee.flag &= ~SCE_EEVEE_BLOOM_ENABLED;
   }
-  if (cam->gameflag & GAME_CAM_OVERLAY_DISABLE_DOF) {
-    cam->dof.flag &= ~CAM_DOF_ENABLED;
-  }
   if (cam->gameflag & GAME_CAM_OVERLAY_DISABLE_AO) {
     scene_eval->eevee.flag &= ~SCE_EEVEE_GTAO_ENABLED;
   }

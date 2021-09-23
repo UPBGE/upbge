@@ -87,8 +87,6 @@ class DATA_PT_game_camera_settings(CameraButtonsPanel, Panel):
         col = layout.column()
         col.prop(cam, "overlay_disable_bloom")
         col = layout.column()
-        col.prop(cam, "overlay_disable_dof")
-        col = layout.column()
         col.prop(cam, "overlay_disable_ao")
         col = layout.column()
         col.prop(cam, "overlay_disable_ssr")
