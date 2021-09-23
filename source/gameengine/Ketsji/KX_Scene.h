@@ -381,6 +381,7 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   void AppendToExtraObjectsToUpdateInOverlayPass(Object *ob, IDRecalcFlag flag);
   void TagForExtraObjectsUpdate(Main *bmain, KX_Camera *cam);
   KX_GameObject *AddDuplicaObject(KX_GameObject *gameobj, KX_GameObject *reference, float lifespan);
+  void OverlayPassDisableEffects(struct Depsgraph *depsgraph, KX_Camera *kxcam, bool isOverlayPass);
   /***************End of EEVEE INTEGRATION**********************/
 
   RAS_BucketManager *GetBucketManager() const;

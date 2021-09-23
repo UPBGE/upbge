@@ -45,6 +45,7 @@
 #include "BLI_task.h"
 #include "BLI_threads.h"
 #include "DEG_depsgraph_query.h"
+#include "DNA_camera_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
@@ -599,6 +600,45 @@ void KX_Scene::RemoveOverlayCollection(Collection *collection)
   }
 }
 
+/* Only use scene eval for performances */
+void KX_Scene::OverlayPassDisableEffects(Depsgraph *depsgraph,
+                                         KX_Camera *kxcam,
+                                         bool isOverlayPass)
+{
+  if (!isOverlayPass) {
+    return;
+  }
+  if (!kxcam) {
+    return;
+  }
+  Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
+
+  Object *obcam = kxcam->GetBlenderObject();
+  Camera *cam = (Camera *)obcam->data;
+
+  if (cam->gameflag & GAME_CAM_OVERLAY_DISABLE_BLOOM) {
+    scene_eval->eevee.flag &= ~SCE_EEVEE_BLOOM_ENABLED;
+  }
+  if (cam->gameflag & GAME_CAM_OVERLAY_DISABLE_DOF) {
+    cam->dof.flag &= ~CAM_DOF_ENABLED;
+  }
+  if (cam->gameflag & GAME_CAM_OVERLAY_DISABLE_AO) {
+    scene_eval->eevee.flag &= ~SCE_EEVEE_GTAO_ENABLED;
+  }
+  if (cam->gameflag & GAME_CAM_OVERLAY_DISABLE_SSR) {
+    scene_eval->eevee.flag &= ~SCE_EEVEE_SSR_ENABLED;
+  }
+  struct World *wo = scene_eval->world;
+  if (wo) {
+    if (cam->gameflag & GAME_CAM_OVERLAY_DISABLE_WORLD_VOLUMES) {
+      wo->use_nodes = false; //hack to disable world volumetrics
+    }
+  }
+  /* Ensure DRW_notify_view_update will be called next time BKE_scene_graph_update_tagged
+   * will be called if we did changes related to scene_eval */
+  DEG_id_tag_update(&cam->id, ID_RECALC_TRANSFORM);
+}
+
 void KX_Scene::SetCurrentGPUViewport(GPUViewport *viewport)
 {
   m_currentGPUViewport = viewport;
@@ -824,6 +864,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
     UpdateObjectLods(cam);
   }
+
+  OverlayPassDisableEffects(depsgraph, cam, is_overlay_pass);
 
   short samples_per_frame = min_ii(scene->gm.samples_per_frame, scene->eevee.taa_samples);
   samples_per_frame = max_ii(samples_per_frame, 1);
