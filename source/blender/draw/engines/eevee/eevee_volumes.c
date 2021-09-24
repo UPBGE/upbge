@@ -281,10 +281,16 @@ void EEVEE_volumes_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
   DRW_PASS_CREATE(psl->volumetric_world_ps, DRW_STATE_WRITE_COLOR);
   DRW_PASS_CREATE(psl->volumetric_objects_ps, DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ADD);
 
+  /* UPBGE: Overlay Pass -> check if volumetrics are enabled for overlay pass */
+  Scene *scene_orig = (Scene *)DEG_get_original_id(&scene->id);
+  bool do_world_volumes = (scene->eevee.flag & SCE_EEVEE_WORLD_VOLUMES_ENABLED) != 0 ||
+                          (scene_orig->flag & SCE_INTERACTIVE) == 0;
+  /****************************************************************************/
+
   /* World Volumetric */
   struct World *wo = scene->world;
   if (wo != NULL && wo->use_nodes && wo->nodetree &&
-      !LOOK_DEV_STUDIO_LIGHT_ENABLED(draw_ctx->v3d)) {
+      !LOOK_DEV_STUDIO_LIGHT_ENABLED(draw_ctx->v3d) && do_world_volumes) {
     struct GPUMaterial *mat = EEVEE_material_get(vedata, scene, NULL, wo, VAR_MAT_VOLUME);
 
     if (GPU_material_has_volume_output(mat)) {
