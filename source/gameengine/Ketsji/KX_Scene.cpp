@@ -601,7 +601,6 @@ void KX_Scene::RemoveOverlayCollection(Collection *collection)
   }
 }
 
-/* Only use scene eval for performances */
 /* It is a weak implementation because we restore "before runtime"
  * eevee post processing settings whereas we should be abled to change
  * it during runtime but I've only this idea for now. */
