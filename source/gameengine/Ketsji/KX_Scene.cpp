@@ -602,11 +602,18 @@ void KX_Scene::RemoveOverlayCollection(Collection *collection)
 }
 
 /* Only use scene eval for performances */
+/* It is a weak implementation because we restore "before runtime"
+ * eevee post processing settings whereas we should be abled to change
+ * it during runtime but I've only this idea for now. */
 void KX_Scene::OverlayPassDisableEffects(Depsgraph *depsgraph,
                                          KX_Camera *kxcam,
                                          bool isOverlayPass)
 {
   if (!kxcam) {
+    return;
+  }
+  /* Don't use this if we don't use overlay collection feature */
+  if (!GetOverlayCamera()) {
     return;
   }
 
