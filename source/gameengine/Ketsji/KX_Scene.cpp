@@ -231,7 +231,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
   m_kxobWithLod = {};
   m_obRestrictFlags = {};
-  m_origEffectsFlag = -1;
 
   /* REMINDER TO SET bContext */
   /* 1.MAIN, 2.wmWindowManager, 3.wmWindow, 4.bScreen, 5.ScreenArea, 6.ARegion, 7.Scene */
@@ -601,9 +600,6 @@ void KX_Scene::RemoveOverlayCollection(Collection *collection)
   }
 }
 
-/* It is a weak implementation because we restore "before runtime"
- * eevee post processing settings whereas we should be abled to change
- * it during runtime but I've only this idea for now. */
 void KX_Scene::OverlayPassDisableEffects(Depsgraph *depsgraph,
                                          KX_Camera *kxcam,
                                          bool isOverlayPass)
@@ -620,11 +616,8 @@ void KX_Scene::OverlayPassDisableEffects(Depsgraph *depsgraph,
 
   /* Restore original eevee post process flag in non overlay passes */
   if (!isOverlayPass) {
-    if (m_origEffectsFlag == -1) {
-      m_origEffectsFlag = scene_eval->eevee.flag;
-      m_origEffectsFlag |= SCE_EEVEE_WORLD_VOLUMES_ENABLED;
-    }
-    scene_eval->eevee.flag = m_origEffectsFlag;
+    scene_eval->eevee.flag = GetBlenderScene()->eevee.flag;
+    scene_eval->eevee.flag |= SCE_EEVEE_WORLD_VOLUMES_ENABLED;
     return;
   }
 
