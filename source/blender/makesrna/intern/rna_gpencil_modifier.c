@@ -59,6 +59,12 @@
 
 const EnumPropertyItem rna_enum_object_greasepencil_modifier_type_items[] = {
     {0, "", 0, N_("Modify"), ""},
+    {eGpencilModifierType_Texture,
+     "GP_TEXTURE",
+     ICON_MOD_UVPROJECT,
+     "Texture Mapping",
+     "Change stroke uv texture values"},
+    {eGpencilModifierType_Time, "GP_TIME", ICON_MOD_TIME, "Time Offset", "Offset keyframes"},
     {eGpencilModifierType_WeightAngle,
      "GP_WEIGHT_ANGLE",
      ICON_MOD_VERTEX_WEIGHT,
@@ -143,7 +149,6 @@ const EnumPropertyItem rna_enum_object_greasepencil_modifier_type_items[] = {
      ICON_MOD_THICKNESS,
      "Thickness",
      "Change stroke thickness"},
-    {eGpencilModifierType_Time, "GP_TIME", ICON_MOD_TIME, "Time Offset", "Offset keyframes"},
     {0, "", 0, N_("Color"), ""},
     {eGpencilModifierType_Color,
      "GP_COLOR",
@@ -155,11 +160,6 @@ const EnumPropertyItem rna_enum_object_greasepencil_modifier_type_items[] = {
      ICON_MOD_OPACITY,
      "Opacity",
      "Opacity of the strokes"},
-    {eGpencilModifierType_Texture,
-     "GP_TEXTURE",
-     ICON_TEXTURE,
-     "Texture Mapping",
-     "Change stroke uv texture values"},
     {eGpencilModifierType_Tint, "GP_TINT", ICON_MOD_TINT, "Tint", "Tint strokes with new color"},
     {0, NULL, 0, NULL, NULL},
 };
@@ -2685,7 +2685,7 @@ static void rna_def_modifier_gpenciltexture(BlenderRNA *brna)
   RNA_def_struct_ui_text(
       srna, "Texture Modifier", "Transform stroke texture coordinates Modifier");
   RNA_def_struct_sdna(srna, "TextureGpencilModifierData");
-  RNA_def_struct_ui_icon(srna, ICON_TEXTURE);
+  RNA_def_struct_ui_icon(srna, ICON_MOD_UVPROJECT);
 
   RNA_define_lib_overridable(true);
 
@@ -2864,10 +2864,11 @@ static void rna_def_modifier_gpencilweight_proximity(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_SELF_CHECK);
   RNA_def_property_update(prop, 0, "rna_GpencilModifier_dependency_update");
 
-  prop = RNA_def_property(srna, "distance_start", PROP_FLOAT, PROP_NONE);
+  prop = RNA_def_property(srna, "distance_start", PROP_FLOAT, PROP_DISTANCE);
   RNA_def_property_float_sdna(prop, NULL, "dist_start");
-  RNA_def_property_ui_range(prop, 0, 1000.0, 1.0, 2);
-  RNA_def_property_ui_text(prop, "Lowest", "Start value for distance calculation");
+  RNA_def_property_range(prop, 0.0, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0, 1000.0, 1.0, 2);
+  RNA_def_property_ui_text(prop, "Lowest", "Distance mapping to 0.0 weight");
   RNA_def_property_update(prop, 0, "rna_GpencilModifier_update");
 
   prop = RNA_def_property(srna, "minimum_weight", PROP_FLOAT, PROP_FACTOR);
@@ -2875,10 +2876,11 @@ static void rna_def_modifier_gpencilweight_proximity(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Minimum", "Minimum value for vertex weight");
   RNA_def_property_update(prop, 0, "rna_GpencilModifier_update");
 
-  prop = RNA_def_property(srna, "distance_end", PROP_FLOAT, PROP_NONE);
+  prop = RNA_def_property(srna, "distance_end", PROP_FLOAT, PROP_DISTANCE);
   RNA_def_property_float_sdna(prop, NULL, "dist_end");
-  RNA_def_property_ui_range(prop, 0, 1000.0, 1.0, 2);
-  RNA_def_property_ui_text(prop, "Highest", "Max value for distance calculation");
+  RNA_def_property_range(prop, 0.0, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0, 1000.0, 1.0, 2);
+  RNA_def_property_ui_text(prop, "Highest", "Distance mapping to 1.0 weight");
   RNA_def_property_update(prop, 0, "rna_GpencilModifier_update");
 
   prop = RNA_def_property(srna, "pass_index", PROP_INT, PROP_NONE);

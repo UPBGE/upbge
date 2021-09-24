@@ -311,6 +311,8 @@ void BlenderSession::read_render_tile()
   for (BL::RenderPass &b_pass : b_rlay.passes) {
     session->set_render_tile_pixels(b_pass.name(), b_pass.channels(), (float *)b_pass.rect());
   }
+
+  b_engine.end_result(b_rr, false, false, false);
 }
 
 void BlenderSession::write_render_tile()
@@ -993,8 +995,9 @@ void BlenderSession::update_status_progress()
   get_status(status, substatus);
   get_progress(progress, total_time, render_time);
 
-  if (progress > 0)
-    remaining_time = (1.0 - (double)progress) * (render_time / (double)progress);
+  if (progress > 0) {
+    remaining_time = session->get_estimated_remaining_time();
+  }
 
   if (background) {
     if (scene)

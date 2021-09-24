@@ -38,7 +38,6 @@
 #include "util/util_function.h"
 #include "util/util_logging.h"
 #include "util/util_math.h"
-#include "util/util_opengl.h"
 #include "util/util_task.h"
 #include "util/util_time.h"
 
@@ -397,8 +396,8 @@ int2 Session::get_effective_tile_size() const
 
   /* TODO(sergey): Take available memory into account, and if there is enough memory do not tile
    * and prefer optimal performance. */
-
-  return make_int2(params.tile_size, params.tile_size);
+  const int tile_size = tile_manager_.compute_render_tile_size(params.tile_size);
+  return make_int2(tile_size, tile_size);
 }
 
 void Session::do_delayed_reset()
@@ -518,6 +517,25 @@ void Session::set_pause(bool pause)
 void Session::set_gpu_display(unique_ptr<GPUDisplay> gpu_display)
 {
   path_trace_->set_gpu_display(move(gpu_display));
+}
+
+double Session::get_estimated_remaining_time() const
+{
+  const float completed = progress.get_progress();
+  if (completed == 0.0f) {
+    return 0.0;
+  }
+
+  double total_time, render_time;
+  progress.get_time(total_time, render_time);
+  double remaining = (1.0 - (double)completed) * (render_time / (double)completed);
+
+  const double time_limit = render_scheduler_.get_time_limit();
+  if (time_limit != 0.0) {
+    remaining = min(remaining, max(time_limit - render_time, 0.0));
+  }
+
+  return remaining;
 }
 
 void Session::wait()

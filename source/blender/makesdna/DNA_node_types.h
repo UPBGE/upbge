@@ -1230,6 +1230,11 @@ typedef struct NodeAttributeMix {
   uint8_t input_type_b;
 } NodeAttributeMix;
 
+typedef struct NodeRandomValue {
+  /* CustomDataType. */
+  uint8_t data_type;
+} NodeRandomValue;
+
 typedef struct NodeAttributeRandomize {
   /* CustomDataType. */
   uint8_t data_type;
@@ -1501,6 +1506,16 @@ typedef struct NodeGeometryAttributeCapture {
   /* AttributeDomain. */
   int8_t domain;
 } NodeGeometryAttributeCapture;
+
+typedef struct NodeGeometryStringToCurves {
+  /* GeometryNodeStringToCurvesOverflowMode */
+  uint8_t overflow;
+  /* GeometryNodeStringToCurvesAlignXMode */
+  uint8_t align_x;
+  /* GeometryNodeStringToCurvesAlignYMode */
+  uint8_t align_y;
+  char _pad[1];
+} NodeGeometryStringToCurves;
 
 /* script node mode */
 #define NODE_SCRIPT_INTERNAL 0
@@ -1980,6 +1995,11 @@ typedef enum GeometryNodePointDistributeMode {
   GEO_NODE_POINT_DISTRIBUTE_POISSON = 1,
 } GeometryNodePointDistributeMode;
 
+typedef enum GeometryNodeDistributePointsOnFacesMode {
+  GEO_NODE_POINT_DISTRIBUTE_POINTS_ON_FACES_RANDOM = 0,
+  GEO_NODE_POINT_DISTRIBUTE_POINTS_ON_FACES_POISSON = 1,
+} GeometryNodeDistributePointsOnFacesMode;
+
 typedef enum GeometryNodeRotatePointsType {
   GEO_NODE_POINT_ROTATE_TYPE_EULER = 0,
   GEO_NODE_POINT_ROTATE_TYPE_AXIS_ANGLE = 1,
@@ -2092,6 +2112,28 @@ typedef enum GeometryNodeCurveFillMode {
   GEO_NODE_CURVE_FILL_MODE_TRIANGULATED = 0,
   GEO_NODE_CURVE_FILL_MODE_NGONS = 1,
 } GeometryNodeCurveFillMode;
+
+typedef enum GeometryNodeStringToCurvesOverflowMode {
+  GEO_NODE_STRING_TO_CURVES_MODE_OVERFLOW = 0,
+  GEO_NODE_STRING_TO_CURVES_MODE_SCALE_TO_FIT = 1,
+  GEO_NODE_STRING_TO_CURVES_MODE_TRUNCATE = 2,
+} GeometryNodeStringToCurvesOverflowMode;
+
+typedef enum GeometryNodeStringToCurvesAlignXMode {
+  GEO_NODE_STRING_TO_CURVES_ALIGN_X_LEFT = 0,
+  GEO_NODE_STRING_TO_CURVES_ALIGN_X_CENTER = 1,
+  GEO_NODE_STRING_TO_CURVES_ALIGN_X_RIGHT = 2,
+  GEO_NODE_STRING_TO_CURVES_ALIGN_X_JUSTIFY = 3,
+  GEO_NODE_STRING_TO_CURVES_ALIGN_X_FLUSH = 4,
+} GeometryNodeStringToCurvesAlignXMode;
+
+typedef enum GeometryNodeStringToCurvesAlignYMode {
+  GEO_NODE_STRING_TO_CURVES_ALIGN_Y_TOP_BASELINE = 0,
+  GEO_NODE_STRING_TO_CURVES_ALIGN_Y_TOP = 1,
+  GEO_NODE_STRING_TO_CURVES_ALIGN_Y_MIDDLE = 2,
+  GEO_NODE_STRING_TO_CURVES_ALIGN_Y_BOTTOM_BASELINE = 3,
+  GEO_NODE_STRING_TO_CURVES_ALIGN_Y_BOTTOM = 4,
+} GeometryNodeStringToCurvesAlignYMode;
 
 #ifdef __cplusplus
 }

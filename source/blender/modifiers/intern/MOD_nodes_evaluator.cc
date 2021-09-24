@@ -334,6 +334,10 @@ static void get_socket_value(const SocketRef &socket, void *r_value)
           std::make_shared<bke::AttributeFieldInput>("position", CPPType::get<float3>()));
       return;
     }
+    if (bsocket.type == SOCK_INT && bnode.type == FN_NODE_RANDOM_VALUE) {
+      new (r_value) Field<int>(std::make_shared<fn::IndexFieldInput>());
+      return;
+    }
   }
   const bNodeSocketType *typeinfo = socket.typeinfo();
   typeinfo->get_geometry_nodes_cpp_value(*socket.bsocket(), r_value);
@@ -883,6 +887,16 @@ class GeometryNodesEvaluator {
                                    const MultiFunction &fn,
                                    NodeState &node_state)
   {
+    if (USER_EXPERIMENTAL_TEST(&U, use_geometry_nodes_fields)) {
+      if (node->idname().find("Legacy") != StringRef::not_found) {
+        /* Create geometry nodes params just for creating an error message. */
+        NodeParamsProvider params_provider{*this, node, node_state};
+        GeoNodeExecParams params{params_provider};
+        params.error_message_add(geo_log::NodeWarningType::Legacy,
+                                 TIP_("Legacy node will be removed before Blender 4.0"));
+      }
+    }
+
     LinearAllocator<> &allocator = local_allocators_.local();
 
     /* Prepare the inputs for the multi function. */

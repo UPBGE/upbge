@@ -1123,7 +1123,7 @@ static void node_init(const struct bContext *C, bNodeTree *ntree, bNode *node)
     RNA_pointer_create((ID *)ntree, &RNA_Node, node, &ptr);
 
     /* XXX Warning: context can be nullptr in case nodes are added in do_versions.
-     * Delayed init is not supported for nodes with context-based initfunc_api atm.
+     * Delayed init is not supported for nodes with context-based `initfunc_api` at the moment.
      */
     BLI_assert(C != nullptr);
     ntype->initfunc_api(C, &ptr);
@@ -4519,13 +4519,17 @@ static InputSocketFieldType get_interface_input_field_type(const NodeRef &node,
   /* Node declarations should be implemented for nodes involved here. */
   BLI_assert(node_decl != nullptr);
 
+  /* Get the field type from the declaration. */
+  const SocketDeclaration &socket_decl = *node_decl->inputs()[socket.index()];
+  const InputSocketFieldType field_type = socket_decl.input_field_type();
+  if (field_type == InputSocketFieldType::Implicit) {
+    return field_type;
+  }
   if (node_decl->is_function_node()) {
     /* In a function node, every socket supports fields. */
     return InputSocketFieldType::IsSupported;
   }
-  /* Get the field type from the declaration. */
-  const SocketDeclaration &socket_decl = *node_decl->inputs()[socket.index()];
-  return socket_decl.input_field_type();
+  return field_type;
 }
 
 static OutputFieldDependency get_interface_output_field_dependency(const NodeRef &node,
@@ -5712,6 +5716,7 @@ static void registerGeometryNodes()
 {
   register_node_type_geo_group();
 
+  register_node_type_geo_legacy_attribute_randomize();
   register_node_type_geo_legacy_material_assign();
   register_node_type_geo_legacy_select_by_material();
 
@@ -5728,7 +5733,6 @@ static void registerGeometryNodes()
   register_node_type_geo_attribute_math();
   register_node_type_geo_attribute_mix();
   register_node_type_geo_attribute_proximity();
-  register_node_type_geo_attribute_randomize();
   register_node_type_geo_attribute_remove();
   register_node_type_geo_attribute_separate_xyz();
   register_node_type_geo_attribute_statistic();
@@ -5761,6 +5765,7 @@ static void registerGeometryNodes()
   register_node_type_geo_curve_to_points();
   register_node_type_geo_curve_trim();
   register_node_type_geo_delete_geometry();
+  register_node_type_geo_distribute_points_on_faces();
   register_node_type_geo_edge_split();
   register_node_type_geo_input_index();
   register_node_type_geo_input_material();
@@ -5797,6 +5802,7 @@ static void registerGeometryNodes()
   register_node_type_geo_material_selection();
   register_node_type_geo_separate_components();
   register_node_type_geo_set_position();
+  register_node_type_geo_string_to_curves();
   register_node_type_geo_subdivision_surface();
   register_node_type_geo_switch();
   register_node_type_geo_transform();
@@ -5807,12 +5813,15 @@ static void registerGeometryNodes()
 
 static void registerFunctionNodes()
 {
+  register_node_type_fn_legacy_random_float();
+
   register_node_type_fn_boolean_math();
   register_node_type_fn_float_compare();
   register_node_type_fn_float_to_int();
+  register_node_type_fn_input_special_characters();
   register_node_type_fn_input_string();
   register_node_type_fn_input_vector();
-  register_node_type_fn_random_float();
+  register_node_type_fn_random_value();
   register_node_type_fn_string_length();
   register_node_type_fn_string_substring();
   register_node_type_fn_value_to_string();

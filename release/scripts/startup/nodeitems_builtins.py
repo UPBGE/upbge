@@ -557,9 +557,10 @@ geometry_node_categories = [
         NodeItem("GeometryNodeRealizeInstances", poll=geometry_nodes_fields_poll),
     ]),
     GeometryNodeCategory("GEO_INPUT", "Input", items=[
+        NodeItem("FunctionNodeLegacyRandomFloat", poll=geometry_nodes_fields_legacy_poll),
+        
         NodeItem("GeometryNodeObjectInfo"),
         NodeItem("GeometryNodeCollectionInfo"),
-        NodeItem("FunctionNodeRandomFloat"),
         NodeItem("ShaderNodeValue"),
         NodeItem("FunctionNodeInputString"),
         NodeItem("FunctionNodeInputVector"),
@@ -595,6 +596,7 @@ geometry_node_categories = [
         NodeItem("GeometryNodeMeshUVSphere"),
     ]),
     GeometryNodeCategory("GEO_POINT", "Point", items=[
+        NodeItem("GeometryNodeDistributePointsOnFaces", poll=geometry_nodes_fields_poll),
         NodeItem("GeometryNodeLegacyPointDistribute", poll=geometry_nodes_fields_legacy_poll),
         NodeItem("GeometryNodeLegacyPointInstance", poll=geometry_nodes_fields_legacy_poll),
         NodeItem("GeometryNodeLegacyPointSeparate", poll=geometry_nodes_fields_legacy_poll),
@@ -608,6 +610,8 @@ geometry_node_categories = [
         NodeItem("FunctionNodeStringSubstring"),
         NodeItem("FunctionNodeValueToString"),
         NodeItem("GeometryNodeStringJoin"),
+        NodeItem("FunctionNodeInputSpecialCharacters"),
+        NodeItem("GeometryNodeStringToCurves"),
     ]),
     GeometryNodeCategory("GEO_UTILITIES", "Utilities", items=[
         NodeItem("ShaderNodeMapRange"),
@@ -617,6 +621,7 @@ geometry_node_categories = [
         NodeItem("FunctionNodeFloatCompare"),
         NodeItem("FunctionNodeFloatToInt"),
         NodeItem("GeometryNodeSwitch"),
+        NodeItem("FunctionNodeRandomValue", poll=geometry_nodes_fields_poll),
     ]),
     GeometryNodeCategory("GEO_TEXTURE", "Texture", items=[
         NodeItem("ShaderNodeTexNoise", poll=geometry_nodes_fields_poll),

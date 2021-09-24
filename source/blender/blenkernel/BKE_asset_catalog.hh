@@ -32,6 +32,7 @@
 
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 
 namespace blender::bke {
@@ -69,7 +70,7 @@ class AssetCatalogService {
    * still have to be saved.
    *
    * Return true on success, which either means there were no in-memory categories to save, or the
-   * save was succesfful. */
+   * save was successful. */
   bool write_to_disk(const CatalogFilePath &directory_for_new_files);
 
   /**
@@ -96,7 +97,7 @@ class AssetCatalogService {
 
   AssetCatalogTree *get_catalog_tree();
 
-  /** Return true iff there are no catalogs known. */
+  /** Return true only if there are no catalogs known. */
   bool is_empty() const;
 
  protected:
@@ -196,7 +197,7 @@ class AssetCatalogDefinitionFile {
   bool write_to_disk(const CatalogFilePath &dest_file_path) const;
 
   bool contains(CatalogID catalog_id) const;
-  /* Add a new catalog. Undefined behaviour if a catalog with the same ID was already added. */
+  /* Add a new catalog. Undefined behavior if a catalog with the same ID was already added. */
   void add_new(AssetCatalog *catalog);
 
   using AssetCatalogParsedFn = FunctionRef<bool(std::unique_ptr<AssetCatalog>)>;
@@ -230,9 +231,9 @@ class AssetCatalog {
   CatalogPath path;
   /**
    * Simple, human-readable name for the asset catalog. This is stored on assets alongside the
-   * catalog ID; the catalog ID is a UUID that is not human-readable, so to avoid complete dataloss
-   * when the catalog definition file gets lost, we also store a human-readable simple name for the
-   * catalog. */
+   * catalog ID; the catalog ID is a UUID that is not human-readable,
+   * so to avoid complete data-loss when the catalog definition file gets lost,
+   * we also store a human-readable simple name for the catalog. */
   std::string simple_name;
 
   struct Flags {
@@ -242,7 +243,7 @@ class AssetCatalog {
   } flags;
 
   /**
-   * Create a new Catalog with the given path, auto-generating a sensible catalog simplename.
+   * Create a new Catalog with the given path, auto-generating a sensible catalog simple-name.
    *
    * NOTE: the given path will be cleaned up (trailing spaces removed, etc.), so the returned
    * `AssetCatalog`'s path differ from the given one.
@@ -254,5 +255,21 @@ class AssetCatalog {
   /** Generate a sensible catalog ID for the given path. */
   static std::string sensible_simple_name_for_path(const CatalogPath &path);
 };
+
+/** Comparator for asset catalogs, ordering by (path, UUID). */
+struct AssetCatalogPathCmp {
+  bool operator()(const AssetCatalog *lhs, const AssetCatalog *rhs) const
+  {
+    if (lhs->path == rhs->path) {
+      return lhs->catalog_id < rhs->catalog_id;
+    }
+    return lhs->path < rhs->path;
+  }
+};
+
+/**
+ * Set that stores catalogs ordered by (path, UUID).
+ * Being a set, duplicates are removed. The catalog's simple name is ignored in this. */
+using AssetCatalogOrderedSet = std::set<const AssetCatalog *, AssetCatalogPathCmp>;
 
 }  // namespace blender::bke
