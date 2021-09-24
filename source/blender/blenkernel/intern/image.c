@@ -211,11 +211,8 @@ static void image_foreach_cache(ID *id,
   for (int eye = 0; eye < 2; eye++) {
     for (int a = 0; a < TEXTARGET_COUNT; a++) {
       for (int resolution = 0; resolution < IMA_TEXTURE_RESOLUTION_LEN; resolution++) {
-        if (image->gputexture[a][eye][resolution] == NULL) { // UPBGE: tmp fix for undo bug T91294
-          continue;
-        }
         key.offset_in_ID = offsetof(Image, gputexture[a][eye][resolution]);
-        key.cache_v = image->gputexture[a][eye];
+        key.cache_v = image->gputexture[a][eye][resolution]; // UPBGE: tmp fix for undo bug T91294
         function_callback(id, &key, (void **)&image->gputexture[a][eye][resolution], 0, user_data);
       }
     }
