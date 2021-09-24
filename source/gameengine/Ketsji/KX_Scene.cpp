@@ -231,6 +231,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
   m_kxobWithLod = {};
   m_obRestrictFlags = {};
+  m_origEffectsFlag = -1;
 
   /* REMINDER TO SET bContext */
   /* 1.MAIN, 2.wmWindowManager, 3.wmWindow, 4.bScreen, 5.ScreenArea, 6.ARegion, 7.Scene */
@@ -605,13 +606,20 @@ void KX_Scene::OverlayPassDisableEffects(Depsgraph *depsgraph,
                                          KX_Camera *kxcam,
                                          bool isOverlayPass)
 {
-  if (!isOverlayPass) {
-    return;
-  }
   if (!kxcam) {
     return;
   }
+
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
+
+  /* Restore original eevee post process flag in non overlay passes */
+  if (!isOverlayPass) {
+    if (m_origEffectsFlag == -1) {
+      m_origEffectsFlag = scene_eval->eevee.flag;
+    }
+    scene_eval->eevee.flag = m_origEffectsFlag;
+    return;
+  }
 
   Object *obcam = kxcam->GetBlenderObject();
   Camera *cam = (Camera *)obcam->data;
@@ -625,15 +633,15 @@ void KX_Scene::OverlayPassDisableEffects(Depsgraph *depsgraph,
   if (cam->gameflag & GAME_CAM_OVERLAY_DISABLE_SSR) {
     scene_eval->eevee.flag &= ~SCE_EEVEE_SSR_ENABLED;
   }
-  struct World *wo = scene_eval->world;
-  if (wo) {
-    if (cam->gameflag & GAME_CAM_OVERLAY_DISABLE_WORLD_VOLUMES) {
-      wo->use_nodes = false; //hack to disable world volumetrics
-    }
-  }
+  //struct World *wo = scene_eval->world;
+  //if (wo) {
+  //  if (cam->gameflag & GAME_CAM_OVERLAY_DISABLE_WORLD_VOLUMES) {
+  //    wo->use_nodes = false; //hack to disable world volumetrics
+  //  }
+  //}
   /* Ensure DRW_notify_view_update will be called next time BKE_scene_graph_update_tagged
    * will be called if we did changes related to scene_eval */
-  DEG_id_tag_update(&cam->id, ID_RECALC_TRANSFORM);
+  //DEG_id_tag_update(&cam->id, ID_RECALC_TRANSFORM);
 }
 
 void KX_Scene::SetCurrentGPUViewport(GPUViewport *viewport)

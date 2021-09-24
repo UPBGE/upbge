@@ -145,6 +145,7 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   std::map<Object *, char> m_obRestrictFlags;
   bool m_collectionRemap;
   std::vector<BackupObj *> m_backupObList;
+  int m_origEffectsFlag;
 
   /* Objects to update at each render pass */
   /* Note: We could try to get the right render pass where
