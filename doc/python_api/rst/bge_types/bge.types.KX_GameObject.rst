@@ -153,7 +153,7 @@ base class --- :class:`~bge.types.SCA_IObject`
 
       Enforces the object keeps rotating at a minimum velocity. A value of 0.0 disables this.
 
-      :type: non-negative float
+      :type: float (non-negative)
 
       .. note::
 
@@ -166,7 +166,7 @@ base class --- :class:`~bge.types.SCA_IObject`
       Clamp the maximum angular velocity to prevent objects rotating beyond a set speed.
       A value of 0.0 disables clamping; it does not stop rotation.
 
-      :type: non-negative float
+      :type: float (non-negative)
 
       .. note::
 
@@ -200,13 +200,13 @@ base class --- :class:`~bge.types.SCA_IObject`
 
       The object's collision group.
 
-      :type: bitfield
+      :type: integer (bit mask)
 
    .. attribute:: collisionMask
 
       The object's collision mask.
 
-      :type: bitfield
+      :type: integer (bit mask)
 
    .. attribute:: collisionCallbacks
 
@@ -280,7 +280,7 @@ base class --- :class:`~bge.types.SCA_IObject`
 
       The layer mask used for shadow and real-time cube map render.
 
-      :type: bitfield
+      :type: integer (bit mask)
 
    .. attribute:: cullingBox
 
@@ -1033,7 +1033,7 @@ base class --- :class:`~bge.types.SCA_IObject`
 
       :type poly: integer
       :arg mask: collision mask: The collision mask (16 layers mapped to a 16-bit integer) is combined with each object's collision group, to hit only a subset of the objects in the scene. Only those objects for which ``collisionGroup & mask`` is true can be hit.
-      :type mask: bitfield
+      :type mask: integer (bit mask)
       :return: (object, hitpoint, hitnormal) or (object, hitpoint, hitnormal, polygon) or (object, hitpoint, hitnormal, polygon, hituv).
 
          * object, hitpoint and hitnormal are None if no hit.
@@ -1139,28 +1139,28 @@ base class --- :class:`~bge.types.SCA_IObject`
 
       Plays an action.
 
-      :arg name: the name of the action
+      :arg name: the name of the action.
       :type name: string
-      :arg start: the start frame of the action
+      :arg start: the start frame of the action.
       :type start: float
-      :arg end: the end frame of the action
+      :arg end: the end frame of the action.
       :type end: float
-      :arg layer: the layer the action will play in (actions in different layers are added/blended together)
+      :arg layer: the layer the action will play in (actions in different layers are added/blended together).
       :type layer: integer
-      :arg priority: only play this action if there isn't an action currently playing in this layer with a higher (lower number) priority
+      :arg priority: only play this action if there isn't an action currently playing in this layer with a higher (lower number) priority.
       :type priority: integer
-      :arg blendin: the amount of blending between this animation and the previous one on this layer
+      :arg blendin: the amount of blending between this animation and the previous one on this layer.
       :type blendin: float
-      :arg play_mode: the play mode
-      :type play_mode: one of :ref:`these constants <gameobject-playaction-mode>`
-      :arg layer_weight: how much of the previous layer to use for blending
+      :arg play_mode: the play mode. one of :ref:`these constants <gameobject-playaction-mode>`.
+      :type play_mode: integer
+      :arg layer_weight: how much of the previous layer to use for blending.
       :type layer_weight: float
-      :arg ipo_flags: flags for the old IPO behaviors (force, etc)
-      :type ipo_flags: int bitfield
-      :arg speed: the playback speed of the action as a factor (1.0 = normal speed, 2.0 = 2x speed, etc)
+      :arg ipo_flags: flags for the old IPO behaviors (force, etc).
+      :type ipo_flags: integer (bit mask)
+      :arg speed: the playback speed of the action as a factor (1.0 = normal speed, 2.0 = 2x speed, etc).
       :type speed: float
-      :arg blend_mode: how to blend this layer with previous layers
-      :type blend_mode: one of :ref:`these constants <gameobject-playaction-blend>`
+      :arg blend_mode: how to blend this layer with previous layers. one of :ref:`these constants <gameobject-playaction-blend>`.
+      :type blend_mode: integer
 
    .. method:: stopAction([layer])
 
