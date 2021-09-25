@@ -39,7 +39,7 @@ base class --- :class:`~bge.types.SCA_IActuator`
 
       The sound the actuator should play.
 
-      :type: Audaspace factory
+      :type: :class:`aud.Sound`
 
    .. attribute:: is3D
 
