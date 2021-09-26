@@ -1492,29 +1492,16 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 
 	split = uiLayoutSplit(layout, 0.0f, false);
 	col = uiLayoutColumn(split, false);
-	uiItemL(col, IFACE_("Links"), ICON_NONE);
-#if 0
-	uiItemStringO(col, IFACE_("Support an Open Animation Movie"), ICON_URL, "WM_OT_url_open", "url",
-	              "https://cloud.blender.org/join");
-#endif
-	uiItemStringO(col, IFACE_("Donations"), ICON_URL, "WM_OT_url_open", "url",
-	              "http://www.blender.org/foundation/donation-payment/");
-	uiItemStringO(col, IFACE_("Credits"), ICON_URL, "WM_OT_url_open", "url",
-	              "http://www.blender.org/about/credits/");
-	BLI_snprintf(url, sizeof(url), "http://wiki.blender.org/index.php/Dev:Ref/Release_Notes/%d.%d",
-	             BLENDER_VERSION / 100, BLENDER_VERSION % 100);
-	uiItemStringO(col, IFACE_("Release Log"), ICON_URL, "WM_OT_url_open", "url", url);
-	uiItemStringO(col, IFACE_("Manual"), ICON_URL, "WM_OT_url_open", "url",
-	              "https://docs.blender.org/manual/en/dev/");
-	uiItemStringO(col, IFACE_("Blender Website"), ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org");
-	if (STREQ(STRINGIFY(BLENDER_VERSION_CYCLE), "release")) {
-		BLI_snprintf(url, sizeof(url), "https://docs.blender.org/api/%d.%d"STRINGIFY(BLENDER_VERSION_CHAR),
-		             BLENDER_VERSION / 100, BLENDER_VERSION % 100);
-	}
-	else {
-		BLI_snprintf(url, sizeof(url), "https://pythonapi.upbge.org/");
-	}
-	uiItemStringO(col, IFACE_("Python API Reference"), ICON_URL, "WM_OT_url_open", "url", url);
+	uiItemL(col, IFACE_("Project:"), ICON_FILE_SCRIPT);
+	uiItemO(col, "Create New Project", ICON_ZOOMIN, "WM_OT_read_homefile");
+	uiItemO(col, "Open Console", ICON_CONSOLE, "WM_OT_console_toggle");
+	uiItemO(col, NULL, ICON_RECOVER_LAST, "WM_OT_recover_last_session");
+
+	uiItemL(col, IFACE_("Info:"), ICON_HELP);
+
+	uiItemStringO(col, IFACE_("UPBGE - Website"), ICON_URL, "WM_OT_url_open", "url", "http://https://upbge.org");
+	uiItemStringO(col, IFACE_("UPBGE - Python API Reference"), ICON_URL, "WM_OT_url_open", "url", url);
+
 	uiItemL(col, "", ICON_NONE);
 
 	col = uiLayoutColumn(split, false);
@@ -1523,17 +1510,15 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 		uiItemO(col, NULL, ICON_NEW, "WM_OT_copy_prev_settings");
 		uiItemS(col);
 	}
-
-	uiItemL(col, IFACE_("Recent"), ICON_NONE);
-	for (recent = G.recent_files.first, i = 0; (i < 5) && (recent); recent = recent->next, i++) {
-		const char *filename = BLI_path_basename(recent->filepath);
+	uiItemL(col, IFACE_("Recent Projects:"), ICON_ZOOM_ALL);
+	for (recent = G.recent_files.first, i = 0; (i < 6) && (recent); recent = recent->next, i++) {
+		const char* filename = BLI_path_basename(recent->filepath);
 		uiItemStringO(col, filename,
-		              BLO_has_bfile_extension(filename) ? ICON_FILE_BLEND : ICON_FILE_BACKUP,
-		              "WM_OT_open_mainfile", "filepath", recent->filepath);
+			BLO_has_bfile_extension(filename) ? ICON_BLENDER : ICON_FILE_BACKUP,
+			"WM_OT_open_mainfile", "filepath", recent->filepath);
 	}
 
-	uiItemS(col);
-	uiItemO(col, NULL, ICON_RECOVER_LAST, "WM_OT_recover_last_session");
+	//uiItemS(col);
 	uiItemL(col, "", ICON_NONE);
 
 	mt = WM_menutype_find("USERPREF_MT_splash_footer", false);
