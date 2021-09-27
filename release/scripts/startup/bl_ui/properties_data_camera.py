@@ -67,9 +67,10 @@ class DATA_PT_context_camera(CameraButtonsPanel, Panel):
         elif cam:
             layout.template_ID(space, "pin_id")
 
-# Game engine transition
+# UPBGE
 class DATA_PT_game_camera_settings(CameraButtonsPanel, Panel):
     bl_label = "Game Camera Settings"
+    bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
 
     def draw(self, context):
@@ -81,6 +82,16 @@ class DATA_PT_game_camera_settings(CameraButtonsPanel, Panel):
         col.prop(cam, "use_overlay_mouse_control")
         col = layout.column()
         col.prop(cam, "use_object_activity_culling")
+        col = layout.column()
+        col.label(text="Overlay Pass Settings:")
+        col = layout.column()
+        col.prop(cam, "overlay_disable_bloom")
+        col = layout.column()
+        col.prop(cam, "overlay_disable_ao")
+        col = layout.column()
+        col.prop(cam, "overlay_disable_ssr")
+        col = layout.column()
+        col.prop(cam, "overlay_disable_world_volumes")
 
 
 class DATA_PT_lens(CameraButtonsPanel, Panel):

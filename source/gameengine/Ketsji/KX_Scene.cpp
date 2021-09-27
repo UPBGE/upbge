@@ -45,6 +45,7 @@
 #include "BLI_task.h"
 #include "BLI_threads.h"
 #include "DEG_depsgraph_query.h"
+#include "DNA_camera_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
@@ -230,6 +231,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
   m_kxobWithLod = {};
   m_obRestrictFlags = {};
+  m_backupOverlayFlag = -1;
 
   /* REMINDER TO SET bContext */
   /* 1.MAIN, 2.wmWindowManager, 3.wmWindow, 4.bScreen, 5.ScreenArea, 6.ARegion, 7.Scene */
@@ -599,6 +601,53 @@ void KX_Scene::RemoveOverlayCollection(Collection *collection)
   }
 }
 
+void KX_Scene::OverlayPassDisableEffects(Depsgraph *depsgraph,
+                                         KX_Camera *kxcam,
+                                         bool isOverlayPass)
+{
+  if (!kxcam) {
+    return;
+  }
+  /* Don't use this if we don't use overlay collection feature */
+  if (!GetOverlayCamera()) {
+    return;
+  }
+
+  Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
+
+  /* Restore original eevee post process flag in non overlay passes */
+  if (!isOverlayPass) {
+    scene_eval->eevee.flag = GetBlenderScene()->eevee.flag;
+    scene_eval->eevee.flag |= SCE_EEVEE_WORLD_VOLUMES_ENABLED;
+    return;
+  }
+
+  Object *obcam = kxcam->GetBlenderObject();
+  Camera *cam = (Camera *)obcam->data;
+
+  if (cam->gameflag & GAME_CAM_OVERLAY_DISABLE_BLOOM) {
+    scene_eval->eevee.flag &= ~SCE_EEVEE_BLOOM_ENABLED;
+  }
+  if (cam->gameflag & GAME_CAM_OVERLAY_DISABLE_AO) {
+    scene_eval->eevee.flag &= ~SCE_EEVEE_GTAO_ENABLED;
+  }
+  if (cam->gameflag & GAME_CAM_OVERLAY_DISABLE_SSR) {
+    scene_eval->eevee.flag &= ~SCE_EEVEE_SSR_ENABLED;
+  }
+  struct World *wo = scene_eval->world;
+  if (wo) {
+    if (cam->gameflag & GAME_CAM_OVERLAY_DISABLE_WORLD_VOLUMES) {
+      scene_eval->eevee.flag &= ~SCE_EEVEE_WORLD_VOLUMES_ENABLED;
+    }
+  }
+
+  if (m_backupOverlayFlag != scene_eval->eevee.flag) {
+    /* Only tag if overlay settings changed since previous frame */
+    AppendToExtraObjectsToUpdateInOverlayPass(obcam, ID_RECALC_TRANSFORM);
+  }
+  m_backupOverlayFlag = scene_eval->eevee.flag;
+}
+
 void KX_Scene::SetCurrentGPUViewport(GPUViewport *viewport)
 {
   m_currentGPUViewport = viewport;
@@ -824,6 +873,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
     UpdateObjectLods(cam);
   }
+
+  OverlayPassDisableEffects(depsgraph, cam, is_overlay_pass);
 
   short samples_per_frame = min_ii(scene->gm.samples_per_frame, scene->eevee.taa_samples);
   samples_per_frame = max_ii(samples_per_frame, 1);
