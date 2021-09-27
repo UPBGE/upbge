@@ -74,6 +74,25 @@ class AssetCatalogService {
   bool write_to_disk(const CatalogFilePath &directory_for_new_files);
 
   /**
+   * Write the catalog definitions to disk in response to the blend file being saved.
+   *
+   * The location where the catalogs are saved is variable, and depends on the location of the
+   * blend file. The first matching rule wins:
+   *
+   * - Already loaded a CDF from disk?
+   *    -> Always write to that file.
+   * - The directory containing the blend file has a blender_assets.cats.txt file?
+   *    -> Merge with & write to that file.
+   * - The directory containing the blend file is part of an asset library, as per
+   *   the user's preferences?
+   *    -> Merge with & write to ${ASSET_LIBRARY_ROOT}/blender_assets.cats.txt
+   * - Create a new file blender_assets.cats.txt next to the blend file.
+   *
+   * Return true on success, which either means there were no in-memory categories to save,
+   * or the save was successful. */
+  bool write_to_disk_on_blendfile_save(const char *blend_file_path);
+
+  /**
    * Merge on-disk changes into the in-memory asset catalogs.
    * This should be called before writing the asset catalogs to disk.
    *
@@ -85,6 +104,10 @@ class AssetCatalogService {
 
   /** Return catalog with the given ID. Return nullptr if not found. */
   AssetCatalog *find_catalog(CatalogID catalog_id);
+
+  /** Return first catalog with the given path. Return nullptr if not found. This is not an
+   * efficient call as it's just a linear search over the catalogs. */
+  AssetCatalog *find_catalog_by_path(const CatalogPath &path) const;
 
   /** Create a catalog with some sensible auto-generated catalog ID.
    * The catalog will be saved to the default catalog file.*/
@@ -120,52 +143,87 @@ class AssetCatalogService {
   std::unique_ptr<AssetCatalogDefinitionFile> construct_cdf_in_memory(
       const CatalogFilePath &file_path);
 
+  /**
+   * Find a suitable path to write a CDF to.
+   *
+   * This depends on the location of the blend file, and on whether a CDF already exists next to it
+   * or whether the blend file is saved inside an asset library.
+   */
+  static CatalogFilePath find_suitable_cdf_path_for_writing(
+      const CatalogFilePath &blend_file_path);
+
   std::unique_ptr<AssetCatalogTree> read_into_tree();
   void rebuild_tree();
 };
 
+/**
+ * Representation of a catalog path in the #AssetCatalogTree.
+ */
 class AssetCatalogTreeItem {
-  friend class AssetCatalogService;
+  friend class AssetCatalogTree;
 
  public:
+  /** Container for child items. Uses a #std::map to keep items ordered by their name (i.e. their
+   * last catalog component). */
   using ChildMap = std::map<std::string, AssetCatalogTreeItem>;
-  using ItemIterFn = FunctionRef<void(const AssetCatalogTreeItem &)>;
+  using ItemIterFn = FunctionRef<void(AssetCatalogTreeItem &)>;
 
-  AssetCatalogTreeItem(StringRef name, const AssetCatalogTreeItem *parent = nullptr);
+  AssetCatalogTreeItem(StringRef name,
+                       CatalogID catalog_id,
+                       const AssetCatalogTreeItem *parent = nullptr);
 
+  CatalogID get_catalog_id() const;
   StringRef get_name() const;
   /** Return the full catalog path, defined as the name of this catalog prefixed by the full
    * catalog path of its parent and a separator. */
   CatalogPath catalog_path() const;
   int count_parents() const;
+  bool has_children() const;
 
-  static void foreach_item_recursive(const ChildMap &children_, const ItemIterFn callback);
+  /** Iterate over children calling \a callback for each of them, but do not recurse into their
+   * children. */
+  void foreach_child(const ItemIterFn callback);
 
  protected:
   /** Child tree items, ordered by their names. */
   ChildMap children_;
   /** The user visible name of this component. */
   CatalogPathComponent name_;
+  CatalogID catalog_id_;
 
   /** Pointer back to the parent item. Used to reconstruct the hierarchy from an item (e.g. to
    * build a path). */
   const AssetCatalogTreeItem *parent_ = nullptr;
+
+ private:
+  static void foreach_item_recursive(ChildMap &children_, ItemIterFn callback);
 };
 
 /**
  * A representation of the catalog paths as tree structure. Each component of the catalog tree is
- * represented by a #AssetCatalogTreeItem.
+ * represented by an #AssetCatalogTreeItem. The last path component of an item is used as its name,
+ * which may also be shown to the user.
+ * An item can not have multiple children with the same name. That means the name uniquely
+ * identifies an item within its parent.
+ *
  * There is no single root tree element, the #AssetCatalogTree instance itself represents the root.
  */
 class AssetCatalogTree {
-  friend class AssetCatalogService;
+  using ChildMap = AssetCatalogTreeItem::ChildMap;
+  using ItemIterFn = AssetCatalogTreeItem::ItemIterFn;
 
  public:
-  void foreach_item(const AssetCatalogTreeItem::ItemIterFn callback) const;
+  /** Ensure an item representing \a path is in the tree, adding it if necessary. */
+  void insert_item(const AssetCatalog &catalog);
+
+  void foreach_item(const AssetCatalogTreeItem::ItemIterFn callback);
+  /** Iterate over root items calling \a callback for each of them, but do not recurse into their
+   * children. */
+  void foreach_root_item(const ItemIterFn callback);
 
  protected:
   /** Child tree items, ordered by their names. */
-  AssetCatalogTreeItem::ChildMap children_;
+  ChildMap root_items_;
 };
 
 /** Keeps track of which catalogs are defined in a certain file on disk.

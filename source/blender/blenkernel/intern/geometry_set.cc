@@ -291,6 +291,19 @@ bool GeometrySet::has_curve() const
   return component != nullptr && component->has_curve();
 }
 
+/* Returns true when the geometry set has any data that is not an instance. */
+bool GeometrySet::has_realized_data() const
+{
+  if (components_.is_empty()) {
+    return false;
+  }
+  if (components_.size() > 1) {
+    return true;
+  }
+  /* Check if the only component is an #InstancesComponent. */
+  return this->get_component_for_read<InstancesComponent>() == nullptr;
+}
+
 /* Create a new geometry set that only contains the given mesh. */
 GeometrySet GeometrySet::create_with_mesh(Mesh *mesh, GeometryOwnershipType ownership)
 {
@@ -443,6 +456,28 @@ void GeometrySet::gather_attributes_for_propagation(
         r_attributes.add_or_modify(attribute_id, add_info, modify_info);
       });
   delete dummy_component;
+}
+
+/**
+ * Modify every (recursive) instance separately. This is often more efficient than realizing all
+ * instances just to change the same thing on all of them.
+ */
+void GeometrySet::modify_geometry_sets(ForeachSubGeometryCallback callback)
+{
+  callback(*this);
+  if (!this->has_instances()) {
+    return;
+  }
+  /* In the future this can be improved by deduplicating instance references across different
+   * instances. */
+  InstancesComponent &instances_component = this->get_component_for_write<InstancesComponent>();
+  instances_component.ensure_geometry_instances();
+  for (const int handle : instances_component.references().index_range()) {
+    if (instances_component.references()[handle].type() == InstanceReference::Type::GeometrySet) {
+      GeometrySet &instance_geometry = instances_component.geometry_set_from_reference(handle);
+      instance_geometry.modify_geometry_sets(callback);
+    }
+  }
 }
 
 /** \} */

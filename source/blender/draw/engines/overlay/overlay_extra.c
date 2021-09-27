@@ -720,7 +720,7 @@ void OVERLAY_light_cache_populate(OVERLAY_Data *vedata, Object *ob)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Lightprobe
+/** \name Light-probe
  * \{ */
 
 void OVERLAY_lightprobe_cache_populate(OVERLAY_Data *vedata, Object *ob)

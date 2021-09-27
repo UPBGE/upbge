@@ -3742,7 +3742,7 @@ static void rna_Node_image_layer_update(Main *bmain, Scene *scene, PointerRNA *p
 
   rna_Node_update(bmain, scene, ptr);
 
-  if (scene->nodetree != NULL) {
+  if (scene != NULL && scene->nodetree != NULL) {
     ntreeCompositUpdateRLayers(scene->nodetree);
   }
 }
@@ -3914,7 +3914,7 @@ static const EnumPropertyItem *rna_Node_view_layer_itemf(bContext *UNUSED(C),
 static void rna_Node_view_layer_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
   rna_Node_update(bmain, scene, ptr);
-  if (scene->nodetree != NULL) {
+  if (scene != NULL && scene->nodetree != NULL) {
     ntreeCompositUpdateRLayers(scene->nodetree);
   }
 }
@@ -4349,7 +4349,7 @@ static void rna_ShaderNodeScript_update(Main *bmain, Scene *scene, PointerRNA *p
 {
   bNodeTree *ntree = (bNodeTree *)ptr->owner_id;
   bNode *node = (bNode *)ptr->data;
-  RenderEngineType *engine_type = RE_engines_find(scene->r.engine);
+  RenderEngineType *engine_type = (scene != NULL) ? RE_engines_find(scene->r.engine) : NULL;
 
   if (engine_type && engine_type->update_script_node) {
     /* auto update node */
@@ -10831,6 +10831,14 @@ static void rna_def_node_socket_interface(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(
       prop, "Hide Value", "Hide the socket input value even when the socket is not connected");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocketInterface_update");
+
+  prop = RNA_def_property(srna, "attribute_domain", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_attribute_domain_items);
+  RNA_def_property_ui_text(
+      prop,
+      "Attribute Domain",
+      "Attribute domain used by the geometry nodes modifier to create an attribute output");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocketInterface_update");
 
   /* registration */

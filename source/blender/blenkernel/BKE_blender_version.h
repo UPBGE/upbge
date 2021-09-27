@@ -46,7 +46,7 @@ extern "C" {
 
 /* Blender file format version. */
 #define BLENDER_FILE_VERSION BLENDER_VERSION
-#define BLENDER_FILE_SUBVERSION 25
+#define BLENDER_FILE_SUBVERSION 27
 
 /* UPBGE file format version. */
 #define UPBGE_FILE_VERSION UPBGE_VERSION
@@ -56,7 +56,7 @@ extern "C" {
  * version. Older Blender versions will test this and show a warning if the file
  * was written with too new a version. */
 #define BLENDER_FILE_MIN_VERSION 300
-#define BLENDER_FILE_MIN_SUBVERSION 11
+#define BLENDER_FILE_MIN_SUBVERSION 26
 
 /** User readable version string. */
 const char *BKE_blender_version_string(void);

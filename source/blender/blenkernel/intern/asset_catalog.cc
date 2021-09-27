@@ -19,10 +19,13 @@
  */
 
 #include "BKE_asset_catalog.hh"
+#include "BKE_preferences.h"
 
 #include "BLI_fileops.h"
 #include "BLI_path_util.h"
 #include "BLI_string_ref.hh"
+
+#include "DNA_userdef_types.h"
 
 /* For S_ISREG() and S_ISDIR() on Windows. */
 #ifdef WIN32
@@ -64,6 +67,17 @@ AssetCatalog *AssetCatalogService::find_catalog(CatalogID catalog_id)
   return catalog_uptr_ptr->get();
 }
 
+AssetCatalog *AssetCatalogService::find_catalog_by_path(const CatalogPath &path) const
+{
+  for (const auto &catalog : catalogs_.values()) {
+    if (catalog->path == path) {
+      return catalog.get();
+    }
+  }
+
+  return nullptr;
+}
+
 void AssetCatalogService::delete_catalog(CatalogID catalog_id)
 {
   std::unique_ptr<AssetCatalog> *catalog_uptr_ptr = this->catalogs_.lookup_ptr(catalog_id);
@@ -102,6 +116,12 @@ AssetCatalog *AssetCatalogService::create_catalog(const CatalogPath &catalog_pat
     /* Ensure the new catalog gets written to disk at some point. If there is no CDF in memory yet,
      * it's enough to have the catalog known to the service as it'll be saved to a new file. */
     catalog_definition_file_->add_new(catalog_ptr);
+  }
+
+  /* The tree may not exist; this happens when no catalog definition file has been loaded yet. When
+   * the tree is created any in-memory catalogs will be added, so it doesn't need to happen now. */
+  if (catalog_tree_) {
+    catalog_tree_->insert_item(*catalog_ptr);
   }
 
   return catalog_ptr;
@@ -249,6 +269,65 @@ bool AssetCatalogService::write_to_disk(const CatalogFilePath &directory_for_new
   return catalog_definition_file_->write_to_disk();
 }
 
+bool AssetCatalogService::write_to_disk_on_blendfile_save(const char *blend_file_path)
+{
+  /* TODO(Sybren): deduplicate this and write_to_disk(...); maybe the latter function isn't even
+   * necessary any more. */
+
+  /* - Already loaded a CDF from disk? -> Always write to that file. */
+  if (this->catalog_definition_file_) {
+    merge_from_disk_before_writing();
+    return catalog_definition_file_->write_to_disk();
+  }
+
+  if (catalogs_.is_empty() && deleted_catalogs_.is_empty()) {
+    /* Avoid saving anything, when there is nothing to save. */
+    return true; /* Writing nothing when there is nothing to write is still a success. */
+  }
+
+  const CatalogFilePath cdf_path_to_write = find_suitable_cdf_path_for_writing(blend_file_path);
+  this->catalog_definition_file_ = construct_cdf_in_memory(cdf_path_to_write);
+  merge_from_disk_before_writing();
+  return catalog_definition_file_->write_to_disk();
+}
+
+CatalogFilePath AssetCatalogService::find_suitable_cdf_path_for_writing(
+    const CatalogFilePath &blend_file_path)
+{
+  /* Determine the default CDF path in the same directory of the blend file. */
+  char blend_dir_path[PATH_MAX];
+  BLI_split_dir_part(blend_file_path.c_str(), blend_dir_path, sizeof(blend_dir_path));
+  const CatalogFilePath cdf_path_next_to_blend = asset_definition_default_file_path_from_dir(
+      blend_dir_path);
+
+  if (BLI_exists(cdf_path_next_to_blend.c_str())) {
+    /* - The directory containing the blend file has a blender_assets.cats.txt file?
+     *    -> Merge with & write to that file. */
+    return cdf_path_next_to_blend;
+  }
+
+  const bUserAssetLibrary *asset_lib_pref = BKE_preferences_asset_library_containing_path(
+      &U, blend_file_path.c_str());
+  if (asset_lib_pref) {
+    /* - The directory containing the blend file is part of an asset library, as per
+     *   the user's preferences?
+     *    -> Merge with & write to ${ASSET_LIBRARY_ROOT}/blender_assets.cats.txt  */
+
+    char asset_lib_cdf_path[PATH_MAX];
+    BLI_path_join(asset_lib_cdf_path,
+                  sizeof(asset_lib_cdf_path),
+                  asset_lib_pref->path,
+                  DEFAULT_CATALOG_FILENAME.c_str(),
+                  NULL);
+
+    return asset_lib_cdf_path;
+  }
+
+  /* - Otherwise
+   *    -> Create a new file blender_assets.cats.txt next to the blend file. */
+  return cdf_path_next_to_blend;
+}
+
 std::unique_ptr<AssetCatalogDefinitionFile> AssetCatalogService::construct_cdf_in_memory(
     const CatalogFilePath &file_path)
 {
@@ -268,34 +347,7 @@ std::unique_ptr<AssetCatalogTree> AssetCatalogService::read_into_tree()
 
   /* Go through the catalogs, insert each path component into the tree where needed. */
   for (auto &catalog : catalogs_.values()) {
-    const AssetCatalogTreeItem *parent = nullptr;
-    AssetCatalogTreeItem::ChildMap *insert_to_map = &tree->children_;
-
-    BLI_assert_msg(!ELEM(catalog->path[0], '/', '\\'),
-                   "Malformed catalog path; should not start with a separator");
-
-    const char *next_slash_ptr;
-    /* Looks more complicated than it is, this just iterates over path components. E.g.
-     * "just/some/path" iterates over "just", then "some" then "path". */
-    for (const char *name_begin = catalog->path.data(); name_begin && name_begin[0];
-         /* Jump to one after the next slash if there is any. */
-         name_begin = next_slash_ptr ? next_slash_ptr + 1 : nullptr) {
-      next_slash_ptr = BLI_path_slash_find(name_begin);
-
-      /* Note that this won't be null terminated. */
-      StringRef component_name = next_slash_ptr ?
-                                     StringRef(name_begin, next_slash_ptr - name_begin) :
-                                     /* Last component in the path. */
-                                     name_begin;
-
-      /* Insert new tree element - if no matching one is there yet! */
-      auto [item, was_inserted] = insert_to_map->emplace(
-          component_name, AssetCatalogTreeItem(component_name, parent));
-
-      /* Walk further into the path (no matter if a new item was created or not). */
-      parent = &item->second;
-      insert_to_map = &item->second.children_;
-    }
+    tree->insert_item(*catalog);
   }
 
   return tree;
@@ -306,9 +358,18 @@ void AssetCatalogService::rebuild_tree()
   this->catalog_tree_ = read_into_tree();
 }
 
-AssetCatalogTreeItem::AssetCatalogTreeItem(StringRef name, const AssetCatalogTreeItem *parent)
-    : name_(name), parent_(parent)
+/* ---------------------------------------------------------------------- */
+
+AssetCatalogTreeItem::AssetCatalogTreeItem(StringRef name,
+                                           CatalogID catalog_id,
+                                           const AssetCatalogTreeItem *parent)
+    : name_(name), catalog_id_(catalog_id), parent_(parent)
 {
+}
+
+CatalogID AssetCatalogTreeItem::get_catalog_id() const
+{
+  return catalog_id_;
 }
 
 StringRef AssetCatalogTreeItem::get_name() const
@@ -334,17 +395,97 @@ int AssetCatalogTreeItem::count_parents() const
   return i;
 }
 
-void AssetCatalogTree::foreach_item(const AssetCatalogTreeItem::ItemIterFn callback) const
+bool AssetCatalogTreeItem::has_children() const
 {
-  AssetCatalogTreeItem::foreach_item_recursive(children_, callback);
+  return !children_.empty();
 }
 
-void AssetCatalogTreeItem::foreach_item_recursive(const AssetCatalogTreeItem::ChildMap &children,
+/* ---------------------------------------------------------------------- */
+
+/**
+ * Iterate over path components, calling \a callback for each component. E.g. "just/some/path"
+ * iterates over "just", then "some" then "path".
+ */
+static void iterate_over_catalog_path_components(
+    const CatalogPath &path,
+    FunctionRef<void(StringRef component_name, bool is_last_component)> callback)
+{
+  const char *next_slash_ptr;
+
+  for (const char *path_component = path.data(); path_component && path_component[0];
+       /* Jump to one after the next slash if there is any. */
+       path_component = next_slash_ptr ? next_slash_ptr + 1 : nullptr) {
+    next_slash_ptr = BLI_path_slash_find(path_component);
+
+    const bool is_last_component = next_slash_ptr == nullptr;
+    /* Note that this won't be null terminated. */
+    const StringRef component_name = is_last_component ?
+                                         path_component :
+                                         StringRef(path_component,
+                                                   next_slash_ptr - path_component);
+
+    callback(component_name, is_last_component);
+  }
+}
+
+void AssetCatalogTree::insert_item(const AssetCatalog &catalog)
+{
+  const AssetCatalogTreeItem *parent = nullptr;
+  /* The children for the currently iterated component, where the following component should be
+   * added to (if not there yet). */
+  AssetCatalogTreeItem::ChildMap *current_item_children = &root_items_;
+
+  BLI_assert_msg(!ELEM(catalog.path[0], '/', '\\'),
+                 "Malformed catalog path; should not start with a separator");
+
+  const CatalogID nil_id{};
+
+  iterate_over_catalog_path_components(
+      catalog.path, [&](StringRef component_name, const bool is_last_component) {
+        /* Insert new tree element - if no matching one is there yet! */
+        auto [key_and_item, was_inserted] = current_item_children->emplace(
+            component_name,
+            AssetCatalogTreeItem(
+                component_name, is_last_component ? catalog.catalog_id : nil_id, parent));
+        AssetCatalogTreeItem &item = key_and_item->second;
+
+        /* If full path of this catalog already exists as parent path of a previously read catalog,
+         * we can ensure this tree item's UUID is set here. */
+        if (is_last_component && BLI_uuid_is_nil(item.catalog_id_)) {
+          item.catalog_id_ = catalog.catalog_id;
+        }
+
+        /* Walk further into the path (no matter if a new item was created or not). */
+        parent = &item;
+        current_item_children = &item.children_;
+      });
+}
+
+void AssetCatalogTree::foreach_item(AssetCatalogTreeItem::ItemIterFn callback)
+{
+  AssetCatalogTreeItem::foreach_item_recursive(root_items_, callback);
+}
+
+void AssetCatalogTreeItem::foreach_item_recursive(AssetCatalogTreeItem::ChildMap &children,
                                                   const ItemIterFn callback)
 {
-  for (const auto &[key, item] : children) {
+  for (auto &[key, item] : children) {
     callback(item);
     foreach_item_recursive(item.children_, callback);
+  }
+}
+
+void AssetCatalogTree::foreach_root_item(const ItemIterFn callback)
+{
+  for (auto &[key, item] : root_items_) {
+    callback(item);
+  }
+}
+
+void AssetCatalogTreeItem::foreach_child(const ItemIterFn callback)
+{
+  for (auto &[key, item] : children_) {
+    callback(item);
   }
 }
 

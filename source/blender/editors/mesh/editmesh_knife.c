@@ -333,6 +333,9 @@ enum {
   KNF_MODAL_SHOW_DISTANCE_ANGLE_TOGGLE,
   KNF_MODAL_DEPTH_TEST_TOGGLE,
   KNF_MODAL_PANNING,
+  KNF_MODAL_X_AXIS,
+  KNF_MODAL_Y_AXIS,
+  KNF_MODAL_Z_AXIS,
   KNF_MODAL_ADD_CUT_CLOSED,
 };
 
@@ -1112,7 +1115,7 @@ static void knife_update_header(bContext *C, wmOperator *op, KnifeTool_OpData *k
            "%s: start/define cut, %s: close cut, %s: new cut, "
            "%s: midpoint snap (%s), %s: ignore snap (%s), "
            "%s: angle constraint %.2f(%.2f) (%s%s%s%s), %s: cut through (%s), "
-           "%s: panning, XYZ: orientation lock (%s), "
+           "%s: panning, %s%s%s: orientation lock (%s), "
            "%s: distance/angle measurements (%s), "
            "%s: x-ray (%s)"),
       WM_MODALKEY(KNF_MODAL_CONFIRM),
@@ -1144,6 +1147,9 @@ static void knife_update_header(bContext *C, wmOperator *op, KnifeTool_OpData *k
       WM_MODALKEY(KNF_MODAL_CUT_THROUGH_TOGGLE),
       WM_bool_as_string(kcd->cut_through),
       WM_MODALKEY(KNF_MODAL_PANNING),
+      WM_MODALKEY(KNF_MODAL_X_AXIS),
+      WM_MODALKEY(KNF_MODAL_Y_AXIS),
+      WM_MODALKEY(KNF_MODAL_Z_AXIS),
       (kcd->axis_constrained ? kcd->axis_string : WM_bool_as_string(kcd->axis_constrained)),
       WM_MODALKEY(KNF_MODAL_SHOW_DISTANCE_ANGLE_TOGGLE),
       WM_bool_as_string(kcd->show_dist_angle),
@@ -4307,6 +4313,9 @@ wmKeyMap *knifetool_modal_keymap(wmKeyConfig *keyconf)
       {KNF_MODAL_ADD_CUT, "ADD_CUT", 0, "Add Cut", ""},
       {KNF_MODAL_ADD_CUT_CLOSED, "ADD_CUT_CLOSED", 0, "Add Cut Closed", ""},
       {KNF_MODAL_PANNING, "PANNING", 0, "Panning", ""},
+      {KNF_MODAL_X_AXIS, "X_AXIS", 0, "X Axis Locking", ""},
+      {KNF_MODAL_Y_AXIS, "Y_AXIS", 0, "Y Axis Locking", ""},
+      {KNF_MODAL_Z_AXIS, "Z_AXIS", 0, "Z Axis Locking", ""},
       {0, NULL, 0, NULL, NULL},
   };
 
@@ -4614,52 +4623,58 @@ static int knifetool_modal(bContext *C, wmOperator *op, const wmEvent *event)
     if (kcd->num.str_cur >= 2) {
       knife_reset_snap_angle_input(kcd);
     }
-    /* Modal numinput inactive, try to handle numeric inputs last... */
-    if (!handled && event->val == KM_PRESS && handleNumInput(C, &kcd->num, event)) {
-      applyNumInput(&kcd->num, &snapping_increment_temp);
-      /* Restrict number key input to 0 - 90 degree range. */
-      if (snapping_increment_temp > KNIFE_MIN_ANGLE_SNAPPING_INCREMENT &&
-          snapping_increment_temp < KNIFE_MAX_ANGLE_SNAPPING_INCREMENT) {
-        kcd->angle_snapping_increment = snapping_increment_temp;
+    if (event->type != EVT_MODAL_MAP) {
+      /* Modal number-input inactive, try to handle numeric inputs last. */
+      if (!handled && event->val == KM_PRESS && handleNumInput(C, &kcd->num, event)) {
+        applyNumInput(&kcd->num, &snapping_increment_temp);
+        /* Restrict number key input to 0 - 90 degree range. */
+        if (snapping_increment_temp > KNIFE_MIN_ANGLE_SNAPPING_INCREMENT &&
+            snapping_increment_temp < KNIFE_MAX_ANGLE_SNAPPING_INCREMENT) {
+          kcd->angle_snapping_increment = snapping_increment_temp;
+        }
+        knife_update_active(C, kcd);
+        knife_update_header(C, op, kcd);
+        ED_region_tag_redraw(kcd->region);
+        return OPERATOR_RUNNING_MODAL;
       }
-      knife_update_active(C, kcd);
-      knife_update_header(C, op, kcd);
-      ED_region_tag_redraw(kcd->region);
-      return OPERATOR_RUNNING_MODAL;
     }
   }
 
   /* Constrain axes with X,Y,Z keys. */
-  if (event->val == KM_PRESS && ELEM(event->type, EVT_XKEY, EVT_YKEY, EVT_ZKEY)) {
-    if (event->type == EVT_XKEY && kcd->constrain_axis != KNF_CONSTRAIN_AXIS_X) {
-      kcd->constrain_axis = KNF_CONSTRAIN_AXIS_X;
-      kcd->constrain_axis_mode = KNF_CONSTRAIN_AXIS_MODE_GLOBAL;
-      kcd->axis_string[0] = 'X';
-    }
-    else if (event->type == EVT_YKEY && kcd->constrain_axis != KNF_CONSTRAIN_AXIS_Y) {
-      kcd->constrain_axis = KNF_CONSTRAIN_AXIS_Y;
-      kcd->constrain_axis_mode = KNF_CONSTRAIN_AXIS_MODE_GLOBAL;
-      kcd->axis_string[0] = 'Y';
-    }
-    else if (event->type == EVT_ZKEY && kcd->constrain_axis != KNF_CONSTRAIN_AXIS_Z) {
-      kcd->constrain_axis = KNF_CONSTRAIN_AXIS_Z;
-      kcd->constrain_axis_mode = KNF_CONSTRAIN_AXIS_MODE_GLOBAL;
-      kcd->axis_string[0] = 'Z';
-    }
-    else {
-      /* Cycle through modes with repeated key presses. */
-      if (kcd->constrain_axis_mode != KNF_CONSTRAIN_AXIS_MODE_LOCAL) {
-        kcd->constrain_axis_mode++;
-        kcd->axis_string[0] += 32; /* Lower case. */
+  if (event->type == EVT_MODAL_MAP) {
+    if (ELEM(event->val, KNF_MODAL_X_AXIS, KNF_MODAL_Y_AXIS, KNF_MODAL_Z_AXIS)) {
+      if (event->val == KNF_MODAL_X_AXIS && kcd->constrain_axis != KNF_CONSTRAIN_AXIS_X) {
+        kcd->constrain_axis = KNF_CONSTRAIN_AXIS_X;
+        kcd->constrain_axis_mode = KNF_CONSTRAIN_AXIS_MODE_GLOBAL;
+        kcd->axis_string[0] = 'X';
+      }
+      else if (event->val == KNF_MODAL_Y_AXIS && kcd->constrain_axis != KNF_CONSTRAIN_AXIS_Y) {
+        kcd->constrain_axis = KNF_CONSTRAIN_AXIS_Y;
+        kcd->constrain_axis_mode = KNF_CONSTRAIN_AXIS_MODE_GLOBAL;
+        kcd->axis_string[0] = 'Y';
+      }
+      else if (event->val == KNF_MODAL_Z_AXIS && kcd->constrain_axis != KNF_CONSTRAIN_AXIS_Z) {
+        kcd->constrain_axis = KNF_CONSTRAIN_AXIS_Z;
+        kcd->constrain_axis_mode = KNF_CONSTRAIN_AXIS_MODE_GLOBAL;
+        kcd->axis_string[0] = 'Z';
       }
       else {
-        kcd->constrain_axis = KNF_CONSTRAIN_AXIS_NONE;
-        kcd->constrain_axis_mode = KNF_CONSTRAIN_AXIS_MODE_NONE;
+        /* Cycle through modes with repeated key presses. */
+        if (kcd->constrain_axis_mode != KNF_CONSTRAIN_AXIS_MODE_LOCAL) {
+          kcd->constrain_axis_mode++;
+          kcd->axis_string[0] += 32; /* Lower case. */
+        }
+        else {
+          kcd->constrain_axis = KNF_CONSTRAIN_AXIS_NONE;
+          kcd->constrain_axis_mode = KNF_CONSTRAIN_AXIS_MODE_NONE;
+        }
       }
+      kcd->axis_constrained = (kcd->constrain_axis != KNF_CONSTRAIN_AXIS_NONE);
+      knifetool_disable_angle_snapping(kcd);
+      knife_update_header(C, op, kcd);
+      ED_region_tag_redraw(kcd->region);
+      do_refresh = true;
     }
-    kcd->axis_constrained = (kcd->constrain_axis != KNF_CONSTRAIN_AXIS_NONE);
-    knifetool_disable_angle_snapping(kcd);
-    knife_update_header(C, op, kcd);
   }
 
   if (kcd->mode == MODE_DRAGGING) {

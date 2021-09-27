@@ -291,6 +291,16 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     btheme->space_sequencer.grid[3] = 255;
   }
 
+  if (!USER_VERSION_ATLEAST(300, 27)) {
+    /* If users have not changed the color of the wires inner color or main color,
+     * set it to the new default. */
+    if ((btheme->space_node.wire[0] == 35) && (btheme->space_node.wire[1] == 35) &&
+        (btheme->space_node.wire[2] == 35) && (btheme->space_node.syntaxr[0] == 128) &&
+        (btheme->space_node.syntaxr[1] == 128) && (btheme->space_node.syntaxr[2] == 128)) {
+      FROM_DEFAULT_V4_UCHAR(space_node.wire);
+    }
+  }
+
   /**
    * Versioning code until next subversion bump goes here.
    *
@@ -728,7 +738,7 @@ void blo_do_versions_userdef(UserDef *userdef)
     }
   }
 
-  /* patch to set Dupli Lightprobes and Grease Pencil */
+  /* Patch to set dupli light-probes and grease-pencil. */
   if (!USER_VERSION_ATLEAST(280, 58)) {
     userdef->dupflag |= USER_DUP_LIGHTPROBE;
     userdef->dupflag |= USER_DUP_GPENCIL;
