@@ -608,17 +608,16 @@ void KX_Scene::OverlayPassDisableEffects(Depsgraph *depsgraph,
   if (!kxcam) {
     return;
   }
-  /* Don't use this if we don't use overlay collection feature */
-  if (!GetOverlayCamera()) {
-    return;
-  }
-
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
 
   /* Restore original eevee post process flag in non overlay passes */
   if (!isOverlayPass) {
     scene_eval->eevee.flag = GetBlenderScene()->eevee.flag;
     scene_eval->eevee.gameflag |= SCE_EEVEE_WORLD_VOLUMES_ENABLED;
+    return;
+  }
+  /* Don't use this if we don't use overlay collection feature */
+  if (!GetOverlayCamera()) {
     return;
   }
 
