@@ -232,6 +232,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   m_kxobWithLod = {};
   m_obRestrictFlags = {};
   m_backupOverlayFlag = -1;
+  m_backupOverlayGameFlag = -1;
 
   /* REMINDER TO SET bContext */
   /* 1.MAIN, 2.wmWindowManager, 3.wmWindow, 4.bScreen, 5.ScreenArea, 6.ARegion, 7.Scene */
@@ -640,11 +641,12 @@ void KX_Scene::OverlayPassDisableEffects(Depsgraph *depsgraph,
     }
   }
 
-  if (m_backupOverlayFlag != scene_eval->eevee.flag) {
+  if ((m_backupOverlayFlag != scene_eval->eevee.flag) || (m_backupOverlayGameFlag != scene_eval->eevee.gameflag)) {
     /* Only tag if overlay settings changed since previous frame */
     AppendToExtraObjectsToUpdateInOverlayPass(obcam, ID_RECALC_TRANSFORM);
   }
   m_backupOverlayFlag = scene_eval->eevee.flag;
+  m_backupOverlayGameFlag = scene_eval->eevee.gameflag;
 }
 
 void KX_Scene::SetCurrentGPUViewport(GPUViewport *viewport)
