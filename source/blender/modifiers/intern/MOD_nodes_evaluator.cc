@@ -329,7 +329,7 @@ static void get_socket_value(const SocketRef &socket, void *r_value)
   if (bsocket.flag & SOCK_HIDE_VALUE) {
     const bNode &bnode = *socket.bnode();
     if (bsocket.type == SOCK_VECTOR) {
-      if (ELEM(bnode.type, GEO_NODE_SET_POSITION, SH_NODE_TEX_NOISE)) {
+      if (ELEM(bnode.type, GEO_NODE_SET_POSITION, SH_NODE_TEX_NOISE, GEO_NODE_MESH_TO_POINTS)) {
         new (r_value) Field<float3>(
             std::make_shared<bke::AttributeFieldInput>("position", CPPType::get<float3>()));
         return;
@@ -878,11 +878,9 @@ class GeometryNodesEvaluator {
 
     NodeParamsProvider params_provider{*this, node, node_state};
     GeoNodeExecParams params{params_provider};
-    if (USER_EXPERIMENTAL_TEST(&U, use_geometry_nodes_fields)) {
-      if (node->idname().find("Legacy") != StringRef::not_found) {
-        params.error_message_add(geo_log::NodeWarningType::Legacy,
-                                 TIP_("Legacy node will be removed before Blender 4.0"));
-      }
+    if (node->idname().find("Legacy") != StringRef::not_found) {
+      params.error_message_add(geo_log::NodeWarningType::Legacy,
+                               TIP_("Legacy node will be removed before Blender 4.0"));
     }
     bnode.typeinfo->geometry_node_execute(params);
   }
@@ -891,14 +889,12 @@ class GeometryNodesEvaluator {
                                    const MultiFunction &fn,
                                    NodeState &node_state)
   {
-    if (USER_EXPERIMENTAL_TEST(&U, use_geometry_nodes_fields)) {
-      if (node->idname().find("Legacy") != StringRef::not_found) {
-        /* Create geometry nodes params just for creating an error message. */
-        NodeParamsProvider params_provider{*this, node, node_state};
-        GeoNodeExecParams params{params_provider};
-        params.error_message_add(geo_log::NodeWarningType::Legacy,
-                                 TIP_("Legacy node will be removed before Blender 4.0"));
-      }
+    if (node->idname().find("Legacy") != StringRef::not_found) {
+      /* Create geometry nodes params just for creating an error message. */
+      NodeParamsProvider params_provider{*this, node, node_state};
+      GeoNodeExecParams params{params_provider};
+      params.error_message_add(geo_log::NodeWarningType::Legacy,
+                               TIP_("Legacy node will be removed before Blender 4.0"));
     }
 
     LinearAllocator<> &allocator = local_allocators_.local();

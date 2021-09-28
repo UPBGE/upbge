@@ -463,7 +463,15 @@ typedef struct bNodeLink {
 #define NTREE_CHUNKSIZE_512 512
 #define NTREE_CHUNKSIZE_1024 1024
 
+/** Workaround to forward-declare C++ type in C header. */
+#ifdef __cplusplus
+namespace blender::nodes {
 struct FieldInferencingInterface;
+}
+using FieldInferencingInterfaceHandle = blender::nodes::FieldInferencingInterface;
+#else
+typedef struct FieldInferencingInterfaceHandle FieldInferencingInterfaceHandle;
+#endif
 
 /* the basis for a Node tree, all links and nodes reside internal here */
 /* only re-usable node trees are in the library though,
@@ -488,7 +496,7 @@ typedef struct bNodeTree {
 
   ListBase nodes, links;
   /** Information about how inputs and outputs of the node group interact with fields. */
-  struct FieldInferencingInterface *field_inferencing_interface;
+  FieldInferencingInterfaceHandle *field_inferencing_interface;
 
   /** Set init on fileread. */
   int type, init;
@@ -1503,6 +1511,11 @@ typedef struct NodeGeometryCurveFill {
   uint8_t mode;
 } NodeGeometryCurveFill;
 
+typedef struct NodeGeometryMeshToPoints {
+  /* GeometryNodeMeshToPointsMode */
+  uint8_t mode;
+} NodeGeometryMeshToPoints;
+
 typedef struct NodeGeometryAttributeCapture {
   /* CustomDataType. */
   int8_t data_type;
@@ -2115,6 +2128,13 @@ typedef enum GeometryNodeCurveFillMode {
   GEO_NODE_CURVE_FILL_MODE_TRIANGULATED = 0,
   GEO_NODE_CURVE_FILL_MODE_NGONS = 1,
 } GeometryNodeCurveFillMode;
+
+typedef enum GeometryNodeMeshToPointsMode {
+  GEO_NODE_MESH_TO_POINTS_VERTICES = 0,
+  GEO_NODE_MESH_TO_POINTS_EDGES = 1,
+  GEO_NODE_MESH_TO_POINTS_FACES = 2,
+  GEO_NODE_MESH_TO_POINTS_CORNERS = 3,
+} GeometryNodeMeshToPointsMode;
 
 typedef enum GeometryNodeStringToCurvesOverflowMode {
   GEO_NODE_STRING_TO_CURVES_MODE_OVERFLOW = 0,

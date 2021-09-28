@@ -449,6 +449,73 @@ static void do_versions_sequencer_speed_effect_recursive(Scene *scene, const Lis
 #undef SEQ_SPEED_COMPRESS_IPO_Y
 }
 
+static bNodeLink *find_connected_link(bNodeTree *ntree, bNodeSocket *in_socket)
+{
+  LISTBASE_FOREACH (bNodeLink *, link, &ntree->links) {
+    if (link->tosock == in_socket) {
+      return link;
+    }
+  }
+  return NULL;
+}
+
+static void add_realize_instances_before_socket(bNodeTree *ntree,
+                                                bNode *node,
+                                                bNodeSocket *geometry_socket)
+{
+  BLI_assert(geometry_socket->type == SOCK_GEOMETRY);
+  bNodeLink *link = find_connected_link(ntree, geometry_socket);
+  if (link == NULL) {
+    return;
+  }
+
+  /* If the realize instances node is already before this socket, no need to continue. */
+  if (link->fromnode->type == GEO_NODE_REALIZE_INSTANCES) {
+    return;
+  }
+
+  bNode *realize_node = nodeAddStaticNode(NULL, ntree, GEO_NODE_REALIZE_INSTANCES);
+  realize_node->parent = node->parent;
+  realize_node->locx = node->locx - 100;
+  realize_node->locy = node->locy;
+  nodeAddLink(ntree, link->fromnode, link->fromsock, realize_node, realize_node->inputs.first);
+  link->fromnode = realize_node;
+  link->fromsock = realize_node->outputs.first;
+}
+
+/**
+ * If a node used to realize instances implicitly and will no longer do so in 3.0, add a "Realize
+ * Instances" node in front of it to avoid changing behavior. Don't do this if the node will be
+ * replaced anyway though.
+ */
+static void version_geometry_nodes_add_realize_instance_nodes(bNodeTree *ntree)
+{
+  LISTBASE_FOREACH_MUTABLE (bNode *, node, &ntree->nodes) {
+    if (ELEM(node->type,
+             GEO_NODE_ATTRIBUTE_CAPTURE,
+             GEO_NODE_SEPARATE_COMPONENTS,
+             GEO_NODE_CONVEX_HULL,
+             GEO_NODE_CURVE_LENGTH,
+             GEO_NODE_BOOLEAN,
+             GEO_NODE_CURVE_FILLET,
+             GEO_NODE_CURVE_RESAMPLE,
+             GEO_NODE_CURVE_TO_MESH,
+             GEO_NODE_CURVE_TRIM,
+             GEO_NODE_MATERIAL_REPLACE,
+             GEO_NODE_MESH_SUBDIVIDE,
+             GEO_NODE_ATTRIBUTE_REMOVE,
+             GEO_NODE_TRIANGULATE)) {
+      bNodeSocket *geometry_socket = node->inputs.first;
+      add_realize_instances_before_socket(ntree, node, geometry_socket);
+    }
+    /* Also realize instances for the profile input of the curve to mesh node. */
+    if (node->type == GEO_NODE_CURVE_TO_MESH) {
+      bNodeSocket *profile_socket = node->inputs.last;
+      add_realize_instances_before_socket(ntree, node, profile_socket);
+    }
+  }
+}
+
 void do_versions_after_linking_300(Main *bmain, ReportList *UNUSED(reports))
 {
   if (MAIN_VERSION_ATLEAST(bmain, 300, 0) && !MAIN_VERSION_ATLEAST(bmain, 300, 1)) {
@@ -527,6 +594,14 @@ void do_versions_after_linking_300(Main *bmain, ReportList *UNUSED(reports))
       if (brush->clone.image != NULL &&
           ELEM(brush->clone.image->type, IMA_TYPE_R_RESULT, IMA_TYPE_COMPOSITE)) {
         brush->clone.image = NULL;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 300, 28)) {
+    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+      if (ntree->type == NTREE_GEOMETRY) {
+        version_geometry_nodes_add_realize_instance_nodes(ntree);
       }
     }
   }
@@ -682,10 +757,8 @@ static bool geometry_node_is_293_legacy(const short node_type)
   switch (node_type) {
     /* Not legacy: No attribute inputs or outputs. */
     case GEO_NODE_TRIANGULATE:
-    case GEO_NODE_EDGE_SPLIT:
     case GEO_NODE_TRANSFORM:
     case GEO_NODE_BOOLEAN:
-    case GEO_NODE_SUBDIVISION_SURFACE:
     case GEO_NODE_IS_VIEWPORT:
     case GEO_NODE_MESH_SUBDIVIDE:
     case GEO_NODE_MESH_PRIMITIVE_CUBE:
@@ -732,15 +805,15 @@ static bool geometry_node_is_293_legacy(const short node_type)
     case GEO_NODE_COLLECTION_INFO:
       return false;
 
-    /* Maybe legacy: Transferred *all* attributes before, will not transfer all built-ins now. */
-    case GEO_NODE_CURVE_ENDPOINTS:
-    case GEO_NODE_CURVE_TO_POINTS:
-      return false;
-
-    /* Maybe legacy: Special case for grid names? Or finish patch from level set branch to generate
-     * a mesh for all grids in the volume. */
+    /* Maybe legacy: Special case for grid names? Or finish patch from level set branch to
+     * generate a mesh for all grids in the volume. */
     case GEO_NODE_VOLUME_TO_MESH:
       return false;
+
+    /* Legacy: Transferred *all* attributes before, will not transfer all built-ins now. */
+    case GEO_NODE_LEGACY_CURVE_ENDPOINTS:
+    case GEO_NODE_LEGACY_CURVE_TO_POINTS:
+      return true;
 
     /* Legacy: Attribute operation completely replaced by field nodes. */
     case GEO_NODE_LEGACY_ATTRIBUTE_RANDOMIZE:
@@ -753,10 +826,10 @@ static bool geometry_node_is_293_legacy(const short node_type)
     case GEO_NODE_LEGACY_ALIGN_ROTATION_TO_VECTOR:
     case GEO_NODE_LEGACY_POINT_SCALE:
     case GEO_NODE_LEGACY_ATTRIBUTE_SAMPLE_TEXTURE:
-    case GEO_NODE_ATTRIBUTE_VECTOR_ROTATE:
+    case GEO_NODE_LEGACY_ATTRIBUTE_VECTOR_ROTATE:
     case GEO_NODE_LEGACY_ATTRIBUTE_CURVE_MAP:
     case GEO_NODE_LEGACY_ATTRIBUTE_MAP_RANGE:
-    case GEO_NODE_LECAGY_ATTRIBUTE_CLAMP:
+    case GEO_NODE_LEGACY_ATTRIBUTE_CLAMP:
     case GEO_NODE_LEGACY_ATTRIBUTE_VECTOR_MATH:
     case GEO_NODE_LEGACY_ATTRIBUTE_COMBINE_XYZ:
     case GEO_NODE_LEGACY_ATTRIBUTE_SEPARATE_XYZ:
@@ -778,15 +851,17 @@ static bool geometry_node_is_293_legacy(const short node_type)
     case GEO_NODE_LEGACY_CURVE_SET_HANDLES:
       return true;
 
-    /* Legacy: More complex attribute inputs or outputs. */
-    case GEO_NODE_LEGACY_DELETE_GEOMETRY:    /* Needs field input, domain drop-down. */
-    case GEO_NODE_LEGACY_CURVE_SUBDIVIDE:    /* Needs field count input. */
-    case GEO_NODE_LEGACY_POINTS_TO_VOLUME:   /* Needs field radius input. */
-    case GEO_NODE_LEGACY_SELECT_BY_MATERIAL: /* Output anonymous attribute. */
-    case GEO_NODE_LEGACY_POINT_TRANSLATE:    /* Needs field inputs. */
-    case GEO_NODE_LEGACY_POINT_INSTANCE:     /* Needs field inputs. */
-    case GEO_NODE_LEGACY_POINT_DISTRIBUTE:   /* Needs field input, remove max for random mode. */
-    case GEO_NODE_LEGACY_ATTRIBUTE_CONVERT:  /* Attribute Capture, Store Attribute. */
+      /* Legacy: More complex attribute inputs or outputs. */
+    case GEO_NODE_LEGACY_SUBDIVISION_SURFACE: /* Used "crease" attribute. */
+    case GEO_NODE_LEGACY_EDGE_SPLIT:          /* Needs selection input version. */
+    case GEO_NODE_LEGACY_DELETE_GEOMETRY:     /* Needs field input, domain drop-down. */
+    case GEO_NODE_LEGACY_CURVE_SUBDIVIDE:     /* Needs field count input. */
+    case GEO_NODE_LEGACY_POINTS_TO_VOLUME:    /* Needs field radius input. */
+    case GEO_NODE_LEGACY_SELECT_BY_MATERIAL:  /* Output anonymous attribute. */
+    case GEO_NODE_LEGACY_POINT_TRANSLATE:     /* Needs field inputs. */
+    case GEO_NODE_LEGACY_POINT_INSTANCE:      /* Needs field inputs. */
+    case GEO_NODE_LEGACY_POINT_DISTRIBUTE:    /* Needs field input, remove max for random mode. */
+    case GEO_NODE_LEGACY_ATTRIBUTE_CONVERT:   /* Attribute Capture, Store Attribute. */
       return true;
   }
   return false;
@@ -1269,7 +1344,7 @@ void blo_do_versions_300(FileData *fd, Library *UNUSED(lib), Main *bmain)
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_GEOMETRY) {
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-          if (node->type == GEO_NODE_SUBDIVISION_SURFACE) {
+          if (node->type == GEO_NODE_LEGACY_SUBDIVISION_SURFACE) {
             if (node->storage == NULL) {
               NodeGeometrySubdivisionSurface *data = MEM_callocN(
                   sizeof(NodeGeometrySubdivisionSurface), __func__);
@@ -1340,11 +1415,6 @@ void blo_do_versions_300(FileData *fd, Library *UNUSED(lib), Main *bmain)
   }
 
   if (!MAIN_VERSION_ATLEAST(bmain, 300, 22)) {
-    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
-      if (ntree->type == NTREE_GEOMETRY) {
-        version_geometry_nodes_change_legacy_names(ntree);
-      }
-    }
     if (!DNA_struct_elem_find(
             fd->filesdna, "LineartGpencilModifierData", "bool", "use_crease_on_smooth")) {
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
@@ -1520,5 +1590,27 @@ void blo_do_versions_300(FileData *fd, Library *UNUSED(lib), Main *bmain)
    */
   {
     /* Keep this block, even when empty. */
+
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (sl->spacetype == SPACE_SEQ) {
+            ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
+                                                                   &sl->regionbase;
+            LISTBASE_FOREACH (ARegion *, region, regionbase) {
+              if (region->regiontype == RGN_TYPE_WINDOW) {
+                region->v2d.max[1] = MAXSEQ;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+      if (ntree->type == NTREE_GEOMETRY) {
+        version_geometry_nodes_change_legacy_names(ntree);
+      }
+    }
   }
 }

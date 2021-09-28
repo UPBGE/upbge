@@ -532,4 +532,13 @@ if(WITH_CYCLES_CUDA_BINARIES OR NOT WITH_CUDA_DYNLOAD)
   endif()
 endif()
 
+
+###########################################################################
+# HIP
+###########################################################################
+
+if(NOT WITH_HIP_DYNLOAD)
+  set(WITH_HIP_DYNLOAD ON)
+endif()
+
 unset(_cycles_lib_dir)

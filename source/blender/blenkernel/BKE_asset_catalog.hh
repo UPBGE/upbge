@@ -65,15 +65,6 @@ class AssetCatalogService {
   void load_from_disk(const CatalogFilePath &file_or_directory_path);
 
   /**
-   * Write the catalog definitions to disk.
-   * The provided directory path is only used when there is no CDF loaded from disk yet but assets
-   * still have to be saved.
-   *
-   * Return true on success, which either means there were no in-memory categories to save, or the
-   * save was successful. */
-  bool write_to_disk(const CatalogFilePath &directory_for_new_files);
-
-  /**
    * Write the catalog definitions to disk in response to the blend file being saved.
    *
    * The location where the catalogs are saved is variable, and depends on the location of the
@@ -90,7 +81,7 @@ class AssetCatalogService {
    *
    * Return true on success, which either means there were no in-memory categories to save,
    * or the save was successful. */
-  bool write_to_disk_on_blendfile_save(const char *blend_file_path);
+  bool write_to_disk_on_blendfile_save(const CatalogFilePath &blend_file_path);
 
   /**
    * Merge on-disk changes into the in-memory asset catalogs.
@@ -117,6 +108,11 @@ class AssetCatalogService {
    * Soft-delete the catalog, ensuring it actually gets deleted when the catalog definition file is
    * written. */
   void delete_catalog(CatalogID catalog_id);
+
+  /**
+   * Update the catalog path, also updating the catalog path of all sub-catalogs.
+   */
+  void update_catalog_path(CatalogID catalog_id, const CatalogPath &new_catalog_path);
 
   AssetCatalogTree *get_catalog_tree();
 
@@ -235,6 +231,7 @@ class AssetCatalogDefinitionFile {
    * Later versioning code may be added to handle older files. */
   const static int SUPPORTED_VERSION;
   const static std::string VERSION_MARKER;
+  const static std::string HEADER;
 
   CatalogFilePath file_path;
 
@@ -299,6 +296,15 @@ class AssetCatalog {
      * merging of on-disk changes with in-memory changes. */
     bool is_deleted = false;
   } flags;
+
+  /**
+   * \return true only if this catalog's path is contained within the given path.
+   * When this catalog's path is equal to the given path, return true as well.
+   *
+   * Note that non-normalized paths (so for example starting or ending with a slash) are not
+   * supported, and result in undefined behaviour.
+   */
+  bool is_contained_in(const CatalogPath &other_path) const;
 
   /**
    * Create a new Catalog with the given path, auto-generating a sensible catalog simple-name.
