@@ -283,7 +283,7 @@ void EEVEE_volumes_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
 
   /* UPBGE: Overlay Pass -> check if volumetrics are enabled for overlay pass */
   Scene *scene_orig = (Scene *)DEG_get_original_id(&scene->id);
-  bool do_world_volumes = (scene->eevee.flag & SCE_EEVEE_WORLD_VOLUMES_ENABLED) != 0 ||
+  bool do_world_volumes = (scene->eevee.gameflag & SCE_EEVEE_WORLD_VOLUMES_ENABLED) != 0 ||
                           (scene_orig->flag & SCE_INTERACTIVE) == 0;
   /****************************************************************************/
 

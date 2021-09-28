@@ -387,4 +387,15 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *bmain)
       scene->eevee.smaa_predication_scale = 0.01f;
     }
   }
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 13)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      /* Move some scene->eevee.flag to scene->eevee.gameflag */
+      if (scene->eevee.flag & (1 << 24)) {
+        scene->eevee.gameflag |= SCE_EEVEE_SMAA;
+      }
+      if (scene->eevee.flag & (1 << 25)) {
+        scene->eevee.gameflag |= SCE_EEVEE_VOLUMETRIC_BLENDING;
+      }
+    }
+  }
 }

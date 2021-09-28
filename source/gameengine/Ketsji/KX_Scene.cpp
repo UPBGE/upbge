@@ -618,7 +618,7 @@ void KX_Scene::OverlayPassDisableEffects(Depsgraph *depsgraph,
   /* Restore original eevee post process flag in non overlay passes */
   if (!isOverlayPass) {
     scene_eval->eevee.flag = GetBlenderScene()->eevee.flag;
-    scene_eval->eevee.flag |= SCE_EEVEE_WORLD_VOLUMES_ENABLED;
+    scene_eval->eevee.gameflag |= SCE_EEVEE_WORLD_VOLUMES_ENABLED;
     return;
   }
 
@@ -637,7 +637,7 @@ void KX_Scene::OverlayPassDisableEffects(Depsgraph *depsgraph,
   struct World *wo = scene_eval->world;
   if (wo) {
     if (cam->gameflag & GAME_CAM_OVERLAY_DISABLE_WORLD_VOLUMES) {
-      scene_eval->eevee.flag &= ~SCE_EEVEE_WORLD_VOLUMES_ENABLED;
+      scene_eval->eevee.gameflag &= ~SCE_EEVEE_WORLD_VOLUMES_ENABLED;
     }
   }
 
