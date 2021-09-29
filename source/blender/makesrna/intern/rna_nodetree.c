@@ -6545,11 +6545,11 @@ static void def_cmp_levels(StructRNA *srna)
   PropertyRNA *prop;
 
   static const EnumPropertyItem channel_items[] = {
-      {1, "COMBINED_RGB", 0, "C", "Combined RGB"},
-      {2, "RED", 0, "R", "Red Channel"},
-      {3, "GREEN", 0, "G", "Green Channel"},
-      {4, "BLUE", 0, "B", "Blue Channel"},
-      {5, "LUMINANCE", 0, "L", "Luminance Channel"},
+      {1, "COMBINED_RGB", 0, "Combined", "Combined RGB"},
+      {2, "RED", 0, "Red", "Red Channel"},
+      {3, "GREEN", 0, "Green", "Green Channel"},
+      {4, "BLUE", 0, "Blue", "Blue Channel"},
+      {5, "LUMINANCE", 0, "Luminance", "Luminance Channel"},
       {0, NULL, 0, NULL, NULL},
   };
 
@@ -9972,7 +9972,7 @@ static void def_geo_collection_info(StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
-static void def_geo_attribute_proximity(StructRNA *srna)
+static void def_geo_legacy_attribute_proximity(StructRNA *srna)
 {
   static const EnumPropertyItem target_geometry_element[] = {
       {GEO_NODE_PROXIMITY_TARGET_POINTS,
@@ -10000,6 +10000,39 @@ static void def_geo_attribute_proximity(StructRNA *srna)
   prop = RNA_def_property(srna, "target_geometry_element", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, target_geometry_element);
   RNA_def_property_enum_default(prop, GEO_NODE_PROXIMITY_TARGET_FACES);
+  RNA_def_property_ui_text(
+      prop, "Target Geometry", "Element of the target geometry to calculate the distance from");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+}
+
+static void def_geo_proximity(StructRNA *srna)
+{
+  static const EnumPropertyItem target_element_items[] = {
+      {GEO_NODE_PROX_TARGET_POINTS,
+       "POINTS",
+       ICON_NONE,
+       "Points",
+       "Calculate the proximity to the target's points (faster than the other modes)"},
+      {GEO_NODE_PROX_TARGET_EDGES,
+       "EDGES",
+       ICON_NONE,
+       "Edges",
+       "Calculate the proximity to the target's edges"},
+      {GEO_NODE_PROX_TARGET_FACES,
+       "FACES",
+       ICON_NONE,
+       "Faces",
+       "Calculate the proximity to the target's faces"},
+      {0, NULL, 0, NULL, NULL},
+  };
+
+  PropertyRNA *prop;
+
+  RNA_def_struct_sdna_from(srna, "NodeGeometryProximity", "storage");
+
+  prop = RNA_def_property(srna, "target_element", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, target_element_items);
+  RNA_def_property_enum_default(prop, GEO_NODE_PROX_TARGET_FACES);
   RNA_def_property_ui_text(
       prop, "Target Geometry", "Element of the target geometry to calculate the distance from");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");

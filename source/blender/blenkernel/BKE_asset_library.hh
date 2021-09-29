@@ -48,3 +48,7 @@ struct AssetLibrary {
 };
 
 }  // namespace blender::bke
+
+blender::bke::AssetCatalogService *BKE_asset_library_get_catalog_service(
+    const ::AssetLibrary *library);
+blender::bke::AssetCatalogTree *BKE_asset_library_get_catalog_tree(const ::AssetLibrary *library);

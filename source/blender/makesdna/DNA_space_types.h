@@ -614,6 +614,7 @@ typedef struct SequencerTimelineOverlay {
 typedef enum eSpaceSeq_SequencerTimelineOverlay_Flag {
   SEQ_TIMELINE_SHOW_STRIP_OFFSETS = (1 << 1),
   SEQ_TIMELINE_SHOW_THUMBNAILS = (1 << 2),
+  SEQ_TIMELINE_SHOW_STRIP_COLOR_TAG = (1 << 3), /* use Sequence->color_tag */
   SEQ_TIMELINE_SHOW_FCURVES = (1 << 5),
   SEQ_TIMELINE_ALL_WAVEFORMS = (1 << 7), /* draw all waveforms */
   SEQ_TIMELINE_NO_WAVEFORMS = (1 << 8),  /* draw no waveforms */
@@ -820,14 +821,25 @@ typedef struct FileAssetSelectParams {
   FileSelectParams base_params;
 
   AssetLibraryReference asset_library_ref;
+  short asset_catalog_visibility; /* eFileSel_Params_AssetCatalogVisibility */
+  char _pad[6];
+  /** If #asset_catalog_visibility is #FILE_SHOW_ASSETS_FROM_CATALOG, this sets the ID of the
+   * catalog to show. */
+  bUUID catalog_id;
 
   short import_type; /* eFileAssetImportType */
-  char _pad[6];
+  char _pad2[6];
 } FileAssetSelectParams;
 
 typedef enum eFileAssetImportType {
+  /** Regular data-block linking. */
   FILE_ASSET_IMPORT_LINK = 0,
+  /** Regular data-block appending (basically linking + "Make Local"). */
   FILE_ASSET_IMPORT_APPEND = 1,
+  /** Append data-block with the #BLO_LIBLINK_APPEND_LOCAL_ID_REUSE flag enabled. Some typically
+   * heavy data dependencies (e.g. the image data-blocks of a material, the mesh of an object) may
+   * be reused from an earlier append. */
+  FILE_ASSET_IMPORT_APPEND_REUSE = 2,
 } eFileAssetImportType;
 
 /**
@@ -1017,7 +1029,15 @@ typedef enum eFileSel_Params_Flag {
   FILE_HIDE_TOOL_PROPS = (1 << 12),
   FILE_CHECK_EXISTING = (1 << 13),
   FILE_ASSETS_ONLY = (1 << 14),
+  /** Enables filtering by asset catalog. */
+  FILE_FILTER_ASSET_CATALOG = (1 << 15),
 } eFileSel_Params_Flag;
+
+typedef enum eFileSel_Params_AssetCatalogVisibility {
+  FILE_SHOW_ASSETS_ALL_CATALOGS,
+  FILE_SHOW_ASSETS_FROM_CATALOG,
+  FILE_SHOW_ASSETS_WITHOUT_CATALOG,
+} eFileSel_Params_AssetCatalogVisibility;
 
 /* sfile->params->rename_flag */
 /* NOTE: short flag. Defined as bitflags, but currently only used as exclusive status markers... */
@@ -1215,6 +1235,12 @@ typedef struct SpaceImage {
   float uv_opacity;
 
   int tile_grid_shape[2];
+  /**
+   * UV editor custom-grid. Value of `N` will produce `NxN` grid.
+   * Use when #SI_CUSTOM_GRID is set.
+   */
+  int custom_grid_subdiv;
+  char _pad3[4];
 
   MaskSpaceInfo mask_info;
   SpaceImageOverlay overlay;
@@ -1270,6 +1296,7 @@ typedef enum eSpaceImage_Flag {
   SI_FLAG_UNUSED_7 = (1 << 7), /* cleared */
   SI_FLAG_UNUSED_8 = (1 << 8), /* cleared */
   SI_COORDFLOATS = (1 << 9),
+
   SI_FLAG_UNUSED_10 = (1 << 10),
   SI_LIVE_UNWRAP = (1 << 11),
   SI_USE_ALPHA = (1 << 12),
@@ -1281,7 +1308,7 @@ typedef enum eSpaceImage_Flag {
   SI_FULLWINDOW = (1 << 16),
 
   SI_FLAG_UNUSED_17 = (1 << 17),
-  SI_FLAG_UNUSED_18 = (1 << 18), /* cleared */
+  SI_CUSTOM_GRID = (1 << 18),
 
   /**
    * This means that the image is drawn until it reaches the view edge,
@@ -1306,6 +1333,9 @@ typedef enum eSpaceImage_Flag {
 typedef enum eSpaceImageOverlay_Flag {
   SI_OVERLAY_SHOW_OVERLAYS = (1 << 0),
 } eSpaceImageOverlay_Flag;
+
+/** Keep in sync with `STEPS_LEN` in `grid_frag.glsl`. */
+#define SI_GRID_STEPS_LEN 8
 
 /** \} */
 

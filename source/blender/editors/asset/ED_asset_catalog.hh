@@ -12,35 +12,24 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2006 Blender Foundation.
- * All rights reserved.
  */
 
 /** \file
- * \ingroup cmpnodes
+ * \ingroup edasset
  */
 
-#include "node_composite_util.hh"
+#pragma once
 
-/* **************** Premul and Key Alpha Convert ******************** */
+#include "BKE_asset_catalog.hh"
 
-namespace blender::nodes {
+#include "BLI_string_ref.hh"
 
-static void cmp_node_premulkey_declare(NodeDeclarationBuilder &b)
-{
-  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f});
-  b.add_output<decl::Color>("Image");
-}
+struct AssetLibrary;
+namespace blender::bke {
+class AssetCatalog;
+}  // namespace blender::bke
 
-}  // namespace blender::nodes
-
-void register_node_type_cmp_premulkey(void)
-{
-  static bNodeType ntype;
-
-  cmp_node_type_base(&ntype, CMP_NODE_PREMULKEY, "Alpha Convert", NODE_CLASS_CONVERTER, 0);
-  ntype.declare = blender::nodes::cmp_node_premulkey_declare;
-  
-  nodeRegisterType(&ntype);
-}
+blender::bke::AssetCatalog *ED_asset_catalog_add(AssetLibrary *library,
+                                                 blender::StringRefNull name,
+                                                 blender::StringRef parent_path = nullptr);
+void ED_asset_catalog_remove(AssetLibrary *library, const blender::bke::CatalogID &catalog_id);

@@ -855,7 +855,7 @@ typedef struct NodeVertexCol {
   char name[64];
 } NodeVertexCol;
 
-/* qdn: Defocus blur node */
+/** Defocus blur node. */
 typedef struct NodeDefocus {
   char bktype, _pad0, preview, gamco;
   short samples, no_zbuf;
@@ -871,7 +871,7 @@ typedef struct NodeScriptDict {
   void *node;
 } NodeScriptDict;
 
-/* qdn: glare node */
+/** glare node. */
 typedef struct NodeGlare {
   char quality, type, iter;
   /* XXX angle is only kept for backward/forward compatibility,
@@ -882,14 +882,14 @@ typedef struct NodeGlare {
   char _pad1[4];
 } NodeGlare;
 
-/* qdn: tonemap node */
+/** Tonemap node. */
 typedef struct NodeTonemap {
   float key, offset, gamma;
   float f, m, a, c;
   int type;
 } NodeTonemap;
 
-/* qdn: lens distortion node */
+/** Lens distortion node. */
 typedef struct NodeLensDist {
   short jit, proj, fit;
   char _pad[2];
@@ -1361,6 +1361,11 @@ typedef struct NodeGeometryAttributeProximity {
   /* GeometryNodeAttributeProximityTargetType. */
   uint8_t target_geometry_element;
 } NodeGeometryAttributeProximity;
+
+typedef struct NodeGeometryProximity {
+  /* GeometryNodeProximityTargetType. */
+  uint8_t target_element;
+} NodeGeometryProximity;
 
 typedef struct NodeGeometryVolumeToMesh {
   /* VolumeToMeshResolutionMode */
@@ -1945,6 +1950,12 @@ typedef enum GeometryNodeAttributeProximityTargetType {
   GEO_NODE_PROXIMITY_TARGET_EDGES = 1,
   GEO_NODE_PROXIMITY_TARGET_FACES = 2,
 } GeometryNodeAttributeProximityTargetType;
+
+typedef enum GeometryNodeProximityTargetType {
+  GEO_NODE_PROX_TARGET_POINTS = 0,
+  GEO_NODE_PROX_TARGET_EDGES = 1,
+  GEO_NODE_PROX_TARGET_FACES = 2,
+} GeometryNodeProximityTargetType;
 
 typedef enum GeometryNodeBooleanOperation {
   GEO_NODE_BOOLEAN_INTERSECT = 0,

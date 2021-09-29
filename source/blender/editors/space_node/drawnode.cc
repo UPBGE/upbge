@@ -1563,7 +1563,7 @@ static void node_composit_buts_antialiasing(uiLayout *layout, bContext *UNUSED(C
   uiItemR(col, ptr, "corner_rounding", 0, nullptr, ICON_NONE);
 }
 
-/* qdn: glare node */
+/* glare node */
 static void node_composit_buts_glare(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "glare_type", DEFAULT_FLAGS, "", ICON_NONE);
@@ -2079,7 +2079,7 @@ static void node_composit_buts_premulkey(uiLayout *layout, bContext *UNUSED(C), 
 
 static void node_composit_buts_view_levels(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "channel", DEFAULT_FLAGS | UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "channel", DEFAULT_FLAGS, "", ICON_NONE);
 }
 
 static void node_composit_buts_colorbalance(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)

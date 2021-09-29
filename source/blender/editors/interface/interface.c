@@ -826,6 +826,15 @@ static bool ui_but_equals_old(const uiBut *but, const uiBut *oldbut)
     return false;
   }
 
+  if ((but->type == UI_BTYPE_TREEROW) && (oldbut->type == UI_BTYPE_TREEROW)) {
+    uiButTreeRow *but_treerow = (uiButTreeRow *)but;
+    uiButTreeRow *oldbut_treerow = (uiButTreeRow *)oldbut;
+    if (!but_treerow->tree_item || !oldbut_treerow->tree_item ||
+        !UI_tree_view_item_matches(but_treerow->tree_item, oldbut_treerow->tree_item)) {
+      return false;
+    }
+  }
+
   return true;
 }
 
@@ -6480,6 +6489,13 @@ void UI_but_drag_set_asset(uiBut *but,
   asset_drag->path = path;
   asset_drag->id_type = ED_asset_handle_get_id_type(asset);
   asset_drag->import_type = import_type;
+
+  /* FIXME: This is temporary evil solution to get scene/viewlayer/etc in the copy callback of the
+   * #wmDropBox.
+   * TODO: Handle link/append in operator called at the end of the drop process, and NOT in its
+   * copy callback.
+   * */
+  asset_drag->evil_C = but->block->evil_C;
 
   but->dragtype = WM_DRAG_ASSET;
   ui_def_but_icon(but, icon, 0); /* no flag UI_HAS_ICON, so icon doesn't draw in button */

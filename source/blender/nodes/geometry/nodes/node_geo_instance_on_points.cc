@@ -57,10 +57,9 @@ static void geo_node_instance_on_points_declare(NodeDeclarationBuilder &b)
 
 static void add_instances_from_component(InstancesComponent &dst_component,
                                          const GeometryComponent &src_component,
+                                         const GeometrySet &instance,
                                          const GeoNodeExecParams &params)
 {
-  GeometrySet instance = params.get_input<GeometrySet>("Instance");
-
   const AttributeDomain domain = ATTR_DOMAIN_POINT;
   const int domain_size = src_component.attribute_domain_size(domain);
 
@@ -163,28 +162,35 @@ static void add_instances_from_component(InstancesComponent &dst_component,
 static void geo_node_instance_on_points_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Points");
-  GeometrySet geometry_set_out;
+  GeometrySet instance = params.get_input<GeometrySet>("Instance");
+  instance.ensure_owns_direct_data();
 
-  InstancesComponent &instances = geometry_set_out.get_component_for_write<InstancesComponent>();
+  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+    InstancesComponent &instances = geometry_set.get_component_for_write<InstancesComponent>();
 
-  if (geometry_set.has<MeshComponent>()) {
-    add_instances_from_component(
-        instances, *geometry_set.get_component_for_read<MeshComponent>(), params);
-  }
-  if (geometry_set.has<PointCloudComponent>()) {
-    add_instances_from_component(
-        instances, *geometry_set.get_component_for_read<PointCloudComponent>(), params);
-  }
-  if (geometry_set.has<CurveComponent>()) {
-    add_instances_from_component(
-        instances, *geometry_set.get_component_for_read<CurveComponent>(), params);
-  }
+    if (geometry_set.has<MeshComponent>()) {
+      add_instances_from_component(
+          instances, *geometry_set.get_component_for_read<MeshComponent>(), instance, params);
+      geometry_set.remove(GEO_COMPONENT_TYPE_MESH);
+    }
+    if (geometry_set.has<PointCloudComponent>()) {
+      add_instances_from_component(instances,
+                                   *geometry_set.get_component_for_read<PointCloudComponent>(),
+                                   instance,
+                                   params);
+      geometry_set.remove(GEO_COMPONENT_TYPE_POINT_CLOUD);
+    }
+    if (geometry_set.has<CurveComponent>()) {
+      add_instances_from_component(
+          instances, *geometry_set.get_component_for_read<CurveComponent>(), instance, params);
+      geometry_set.remove(GEO_COMPONENT_TYPE_CURVE);
+    }
+    /* Unused references may have been added above. Remove those now so that other nodes don't
+     * process them needlessly. */
+    instances.remove_unused_references();
+  });
 
-  /* Unused references may have been added above. Remove those now so that other nodes don't
-   * process them needlessly. */
-  instances.remove_unused_references();
-
-  params.set_output("Instances", std::move(geometry_set_out));
+  params.set_output("Instances", std::move(geometry_set));
 }
 
 }  // namespace blender::nodes
