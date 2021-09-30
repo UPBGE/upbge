@@ -29,7 +29,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-class BlenderGPUDisplay;
+class BlenderDisplayDriver;
 class BlenderSync;
 class ImageMetaData;
 class Scene;
@@ -70,20 +70,7 @@ class BlenderSession {
             const int bake_width,
             const int bake_height);
 
-  void write_render_result(BL::RenderLayer &b_rlay);
-  void write_render_tile();
-
-  void update_render_tile();
-
   void full_buffer_written(string_view filename);
-
-  /* update functions are used to update display buffer only after sample was rendered
-   * only needed for better visual feedback */
-  void update_render_result(BL::RenderLayer &b_rlay);
-
-  /* read functions for baking input */
-  void read_render_tile();
-
   /* interactive updates */
   void synchronize(BL::Depsgraph &b_depsgraph);
 
@@ -164,8 +151,8 @@ class BlenderSession {
     int last_pass_index = -1;
   } draw_state_;
 
-  /* NOTE: The BlenderSession references the GPU display. */
-  BlenderGPUDisplay *gpu_display_ = nullptr;
+  /* NOTE: The BlenderSession references the display driver. */
+  BlenderDisplayDriver *display_driver_ = nullptr;
 
   vector<string> full_buffer_files_;
 };

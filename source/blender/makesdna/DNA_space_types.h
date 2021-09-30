@@ -1213,13 +1213,10 @@ typedef struct SpaceImage {
   char mode_prev;
 
   char pin;
-  char _pad1;
-  /**
-   * The currently active tile of the image when tile is enabled,
-   * is kept in sync with the active faces tile.
-   */
-  short curtile;
-  short lock;
+
+  char pixel_snap_mode;
+
+  char lock;
   /** UV draw type. */
   char dt_uv;
   /** Sticky selection type. */
@@ -1227,10 +1224,9 @@ typedef struct SpaceImage {
   char dt_uvstretch;
   char around;
 
-  int flag;
+  char _pad1[3];
 
-  char pixel_snap_mode;
-  char _pad2[7];
+  int flag;
 
   float uv_opacity;
 
