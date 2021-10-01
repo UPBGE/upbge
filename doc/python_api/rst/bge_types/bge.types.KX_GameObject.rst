@@ -278,17 +278,23 @@ base class --- :class:`~bge.types.SCA_IObject`
 
    .. attribute:: layer
 
+   .. deprecated:: 0.3.0
+
       The layer mask used for shadow and real-time cube map render.
 
       :type: integer (bit mask)
 
    .. attribute:: cullingBox
 
+   .. deprecated:: 0.3.0
+
       The object's bounding volume box used for culling.
 
       :type: :class:`~bge.types.KX_BoundingBox`
 
    .. attribute:: culled
+
+   .. deprecated:: 0.3.0
 
       Returns True if the object is culled, else False.
 
@@ -331,6 +337,8 @@ base class --- :class:`~bge.types.SCA_IObject`
       :type: float
 
    .. attribute:: occlusion
+
+   .. deprecated:: 0.3.0
 
       occlusion capability flag.
 
@@ -477,6 +485,8 @@ base class --- :class:`~bge.types.SCA_IObject`
          Changes to this list will not update the KX_GameObject.
 
    .. attribute:: batchGroup
+
+   .. deprecated:: 0.3.0
 
       The object batch group containing the batched mesh.
 
@@ -652,6 +662,8 @@ base class --- :class:`~bge.types.SCA_IObject`
 
    .. method:: setOcclusion(occlusion[, recursive])
 
+   .. deprecated:: 0.3.0
+
       Sets the game object's occlusion capability.
 
       :arg occlusion: the state to set the occlusion to.
@@ -808,6 +820,8 @@ base class --- :class:`~bge.types.SCA_IObject`
 
    .. method:: getReactionForce()
 
+   .. deprecated:: 0.0.0
+
       Gets the game object's reaction force.
 
       The reaction force is the force applied to this object over the last simulation timestep.
@@ -818,7 +832,7 @@ base class --- :class:`~bge.types.SCA_IObject`
 
       .. note::
 
-         This is not implimented at the moment.
+         This is not implemented at the moment. (Removed when switching from Sumo to Bullet)
 
    .. method:: applyImpulse(point, impulse[, local])
 
@@ -1084,7 +1098,7 @@ base class --- :class:`~bge.types.SCA_IObject`
       :type meshObject: string, :class:`~bge.types.KX_MeshProxy` or None
       :arg dupli: optional argument, duplicate the physics shape.
       :type dupli: boolean
-      :arg evaluated: optional argument, use evaluated mesh physics shape.
+      :arg evaluated: optional argument, use evaluated object physics shape (Object with modifiers applied).
       :type dupli: boolean
 
       :return: True if reinstance succeeded, False if it failed.
