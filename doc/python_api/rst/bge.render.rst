@@ -96,11 +96,15 @@ Constants
 
 .. data:: LEFT_EYE
 
+   .. deprecated:: 0.3.0
+
    Left eye being used during stereoscopic rendering.
 
    :type: integer
 
 .. data:: RIGHT_EYE
+
+   .. deprecated:: 0.3.0
 
    Right eye being used during stereoscopic rendering.
 
@@ -108,17 +112,23 @@ Constants
 
 .. data:: RAS_MIPMAP_NONE
 
+   .. deprecated:: 0.3.0
+
    Disables Mipmap filtering.
 
    :type: integer
 
 .. data:: RAS_MIPMAP_NEAREST
 
+   .. deprecated:: 0.3.0
+
    Applies mipmap filtering with nearest neighbour interpolation.
 
    :type: integer
 
 .. data:: RAS_MIPMAP_LINEAR
+
+   .. deprecated:: 0.3.0
 
    Applies mipmap filtering with nearest linear interpolation.
 
@@ -232,6 +242,8 @@ Functions
 
 .. function:: setEyeSeparation(eyesep)
 
+   .. deprecated:: 0.3.0
+
    Sets the eye separation for stereo mode. Usually Focal Length/30 provides a confortable value.
 
    :arg eyesep: The distance between the left and right eye.
@@ -240,12 +252,16 @@ Functions
 
 .. function:: getEyeSeparation()
 
+   .. deprecated:: 0.3.0
+
    Gets the current eye separation for stereo mode.
 
    :rtype: float
 
 
 .. function:: setFocalLength(focallength)
+
+   .. deprecated:: 0.3.0
 
    Sets the focal length for stereo mode. It uses the current camera focal length as initial value.
 
@@ -254,11 +270,15 @@ Functions
 
 .. function:: getFocalLength()
 
+   .. deprecated:: 0.3.0
+
    Gets the current focal length for stereo mode.
 
    :rtype: float
 
 .. function:: getStereoEye()
+
+   .. deprecated:: 0.3.0
 
    Gets the current stereoscopy eye being rendered.
    This function is mainly used in a :attr:`bge.types.KX_Scene.pre_draw` callback
@@ -286,6 +306,8 @@ Functions
 
 .. function:: setAnisotropicFiltering(level)
 
+   .. deprecated:: 0.3.0
+
    Set the anisotropic filtering level for textures.
 
    :arg level: The new anisotropic filtering level to use
@@ -295,11 +317,15 @@ Functions
 
 .. function:: getAnisotropicFiltering()
 
+   .. deprecated:: 0.3.0
+
    Get the anisotropic filtering level used for textures.
 
    :rtype: integer (one of 1, 2, 4, 8, 16)
 
 .. function:: setMipmapping(value)
+
+   .. deprecated:: 0.3.0
 
    Change how to use mipmapping.
 
@@ -309,6 +335,8 @@ Functions
    .. note:: Changing this value can cause all textures to be recreated, which can be slow.
 
 .. function:: getMipmapping()
+
+   .. deprecated:: 0.3.0
 
    Get the current mipmapping setting.
 
@@ -329,6 +357,8 @@ Functions
 
 .. function:: enableMotionBlur(factor)
 
+   .. deprecated:: 0.3.0
+
    Enable the motion blur effect.
 
    :arg factor: the ammount of motion blur to display.
@@ -336,6 +366,8 @@ Functions
 
 
 .. function:: disableMotionBlur()
+
+   .. deprecated:: 0.3.0
 
    Disable the motion blur effect.
 
