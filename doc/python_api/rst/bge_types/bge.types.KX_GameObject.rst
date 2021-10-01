@@ -288,7 +288,7 @@ base class --- :class:`~bge.types.SCA_IObject`
 
    .. deprecated:: 0.3.0
 
-      The object's bounding volume box used for culling.
+      (You can use bpy.types.Object.bound_box instead) The object's bounding volume box used for culling.
 
       :type: :class:`~bge.types.KX_BoundingBox`
 
