@@ -65,9 +65,9 @@ bool AssetCatalogService::is_empty() const
   return catalogs_.is_empty();
 }
 
-AssetCatalog *AssetCatalogService::find_catalog(CatalogID catalog_id)
+AssetCatalog *AssetCatalogService::find_catalog(CatalogID catalog_id) const
 {
-  std::unique_ptr<AssetCatalog> *catalog_uptr_ptr = this->catalogs_.lookup_ptr(catalog_id);
+  const std::unique_ptr<AssetCatalog> *catalog_uptr_ptr = this->catalogs_.lookup_ptr(catalog_id);
   if (catalog_uptr_ptr == nullptr) {
     return nullptr;
   }
@@ -83,6 +83,33 @@ AssetCatalog *AssetCatalogService::find_catalog_by_path(const AssetCatalogPath &
   }
 
   return nullptr;
+}
+
+AssetCatalogFilter AssetCatalogService::create_catalog_filter(
+    const CatalogID active_catalog_id) const
+{
+  Set<CatalogID> matching_catalog_ids;
+  matching_catalog_ids.add(active_catalog_id);
+
+  const AssetCatalog *active_catalog = find_catalog(active_catalog_id);
+  if (!active_catalog) {
+    /* If the UUID is unknown (i.e. not mapped to an actual Catalog), it is impossible to determine
+     * its children. The filter can still work on the given UUID. */
+    return AssetCatalogFilter(std::move(matching_catalog_ids));
+  }
+
+  /* This cannot just iterate over tree items to get all the required data, because tree items only
+   * represent single UUIDs. It could be used to get the main UUIDs of the children, though, and
+   * then only do an exact match on the path (instead of the more complex `is_contained_in()`
+   * call). Without an extra indexed-by-path acceleration structure, this is still going to require
+   * a linear search, though. */
+  for (const auto &catalog_uptr : this->catalogs_.values()) {
+    if (catalog_uptr->path.is_contained_in(active_catalog->path)) {
+      matching_catalog_ids.add(catalog_uptr->catalog_id);
+    }
+  }
+
+  return AssetCatalogFilter(std::move(matching_catalog_ids));
 }
 
 void AssetCatalogService::delete_catalog(CatalogID catalog_id)
@@ -144,11 +171,8 @@ AssetCatalog *AssetCatalogService::create_catalog(const AssetCatalogPath &catalo
     catalog_definition_file_->add_new(catalog_ptr);
   }
 
-  /* The tree may not exist; this happens when no catalog definition file has been loaded yet. When
-   * the tree is created any in-memory catalogs will be added, so it doesn't need to happen now. */
-  if (catalog_tree_) {
-    catalog_tree_->insert_item(*catalog_ptr);
-  }
+  BLI_assert_msg(catalog_tree_, "An Asset Catalog tree should always exist.");
+  catalog_tree_->insert_item(*catalog_ptr);
 
   return catalog_ptr;
 }
@@ -752,6 +776,16 @@ std::string AssetCatalog::sensible_simple_name_for_path(const AssetCatalogPath &
   /* Trim off the start of the path, as that's the most generic part and thus contains the least
    * information. */
   return "..." + name.substr(name.length() - 60);
+}
+
+AssetCatalogFilter::AssetCatalogFilter(Set<CatalogID> &&matching_catalog_ids)
+    : matching_catalog_ids(std::move(matching_catalog_ids))
+{
+}
+
+bool AssetCatalogFilter::contains(const CatalogID asset_catalog_id) const
+{
+  return matching_catalog_ids.contains(asset_catalog_id);
 }
 
 }  // namespace blender::bke

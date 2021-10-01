@@ -5712,11 +5712,14 @@ static void registerGeometryNodes()
 {
   register_node_type_geo_group();
 
+  register_node_type_geo_legacy_curve_set_handles();
   register_node_type_geo_legacy_attribute_proximity();
   register_node_type_geo_legacy_attribute_randomize();
   register_node_type_geo_legacy_material_assign();
   register_node_type_geo_legacy_select_by_material();
+  register_node_type_geo_legacy_curve_spline_type();
   register_node_type_geo_legacy_curve_reverse();
+  register_node_type_geo_legacy_curve_subdivide();
 
   register_node_type_geo_align_rotation_to_vector();
   register_node_type_geo_attribute_capture();
@@ -5769,6 +5772,7 @@ static void registerGeometryNodes()
   register_node_type_geo_input_normal();
   register_node_type_geo_input_position();
   register_node_type_geo_input_tangent();
+  register_node_type_geo_input_spline_length();
   register_node_type_geo_instance_on_points();
   register_node_type_geo_is_viewport();
   register_node_type_geo_join_geometry();

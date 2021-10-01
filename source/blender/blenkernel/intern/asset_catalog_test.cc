@@ -62,6 +62,17 @@ class TestableAssetCatalogService : public AssetCatalogService {
   {
     AssetCatalogService::create_missing_catalogs();
   }
+
+  int64_t count_catalogs_with_path(const CatalogFilePath &path)
+  {
+    int64_t count = 0;
+    for (auto &catalog_uptr : catalogs_.values()) {
+      if (catalog_uptr->path == path) {
+        count++;
+      }
+    }
+    return count;
+  }
 };
 
 class AssetCatalogTest : public testing::Test {
@@ -434,7 +445,7 @@ TEST_F(AssetCatalogTest, on_blendfile_save__with_existing_cdf)
   const AssetCatalog *cat = service.create_catalog("some/catalog/path");
 
   const CatalogFilePath blendfilename = top_level_dir + "subdir/some_file.blend";
-  ASSERT_TRUE(service.write_to_disk_on_blendfile_save(blendfilename.c_str()));
+  ASSERT_TRUE(service.write_to_disk_on_blendfile_save(blendfilename));
   EXPECT_EQ(cdf_filename, service.get_catalog_definition_file()->file_path);
 
   /* Test that the CDF was created in the expected location. */
@@ -461,7 +472,7 @@ TEST_F(AssetCatalogTest, on_blendfile_save__from_memory_into_empty_directory)
   const AssetCatalog *cat = service.create_catalog("some/catalog/path");
 
   const CatalogFilePath blendfilename = target_dir + "some_file.blend";
-  ASSERT_TRUE(service.write_to_disk_on_blendfile_save(blendfilename.c_str()));
+  ASSERT_TRUE(service.write_to_disk_on_blendfile_save(blendfilename));
 
   /* Test that the CDF was created in the expected location. */
   const CatalogFilePath expected_cdf_path = target_dir +
@@ -494,7 +505,7 @@ TEST_F(AssetCatalogTest, on_blendfile_save__from_memory_into_existing_cdf_and_me
 
   /* Mock that the blend file is written to a subdirectory of the asset library. */
   const CatalogFilePath blendfilename = target_dir + "some_file.blend";
-  ASSERT_TRUE(service.write_to_disk_on_blendfile_save(blendfilename.c_str()));
+  ASSERT_TRUE(service.write_to_disk_on_blendfile_save(blendfilename));
 
   /* Test that the CDF still exists in the expected location. */
   const CatalogFilePath backup_filename = writable_cdf_file + "~";
@@ -539,7 +550,7 @@ TEST_F(AssetCatalogTest, on_blendfile_save__from_memory_into_existing_asset_lib)
   const AssetCatalog *cat = service.create_catalog("some/catalog/path");
 
   /* Mock that the blend file is written to the directory already containing a CDF. */
-  ASSERT_TRUE(service.write_to_disk_on_blendfile_save(blendfilename.c_str()));
+  ASSERT_TRUE(service.write_to_disk_on_blendfile_save(blendfilename));
 
   /* Test that the CDF still exists in the expected location. */
   EXPECT_TRUE(BLI_exists(writable_cdf_file.c_str()));
@@ -887,6 +898,68 @@ TEST_F(AssetCatalogTest, create_missing_catalogs_after_loading)
   EXPECT_TRUE(cdf->contains(cat_ellie->catalog_id)) << "Missing parents should be saved to a CDF.";
   EXPECT_TRUE(cdf->contains(cat_ruzena->catalog_id))
       << "Missing parents should be saved to a CDF.";
+
+  /* Check that each missing parent is only created once. The CDF contains multiple paths that
+   * could trigger the creation of missing parents, so this test makes sense. */
+  EXPECT_EQ(1, loaded_service.count_catalogs_with_path("character"));
+  EXPECT_EQ(1, loaded_service.count_catalogs_with_path("character/Ellie"));
+  EXPECT_EQ(1, loaded_service.count_catalogs_with_path("character/Ružena"));
+}
+
+TEST_F(AssetCatalogTest, create_catalog_filter)
+{
+  AssetCatalogService service(asset_library_root_);
+  service.load_from_disk();
+
+  /* Alias for the same catalog as the main one. */
+  AssetCatalog *alias_ruzena = service.create_catalog("character/Ružena/poselib");
+  /* Alias for a sub-catalog. */
+  AssetCatalog *alias_ruzena_hand = service.create_catalog("character/Ružena/poselib/hand");
+
+  AssetCatalogFilter filter = service.create_catalog_filter(UUID_POSES_RUZENA);
+
+  /* Positive test for loaded-from-disk catalogs. */
+  EXPECT_TRUE(filter.contains(UUID_POSES_RUZENA))
+      << "Main catalog should be included in the filter.";
+  EXPECT_TRUE(filter.contains(UUID_POSES_RUZENA_HAND))
+      << "Sub-catalog should be included in the filter.";
+  EXPECT_TRUE(filter.contains(UUID_POSES_RUZENA_FACE))
+      << "Sub-catalog should be included in the filter.";
+
+  /* Positive test for newly-created catalogs. */
+  EXPECT_TRUE(filter.contains(alias_ruzena->catalog_id))
+      << "Alias of main catalog should be included in the filter.";
+  EXPECT_TRUE(filter.contains(alias_ruzena_hand->catalog_id))
+      << "Alias of sub-catalog should be included in the filter.";
+
+  /* Negative test for unrelated catalogs. */
+  EXPECT_FALSE(filter.contains(BLI_uuid_nil())) << "Nil catalog should not be included.";
+  EXPECT_FALSE(filter.contains(UUID_ID_WITHOUT_PATH));
+  EXPECT_FALSE(filter.contains(UUID_POSES_ELLIE));
+  EXPECT_FALSE(filter.contains(UUID_POSES_ELLIE_WHITESPACE));
+  EXPECT_FALSE(filter.contains(UUID_POSES_ELLIE_TRAILING_SLASH));
+  EXPECT_FALSE(filter.contains(UUID_WITHOUT_SIMPLENAME));
+}
+
+TEST_F(AssetCatalogTest, create_catalog_filter_for_unknown_uuid)
+{
+  AssetCatalogService service;
+  const bUUID unknown_uuid = BLI_uuid_generate_random();
+
+  AssetCatalogFilter filter = service.create_catalog_filter(unknown_uuid);
+  EXPECT_TRUE(filter.contains(unknown_uuid));
+
+  EXPECT_FALSE(filter.contains(BLI_uuid_nil())) << "Nil catalog should not be included.";
+  EXPECT_FALSE(filter.contains(UUID_POSES_ELLIE));
+}
+
+TEST_F(AssetCatalogTest, create_catalog_filter_for_unassigned_assets)
+{
+  AssetCatalogService service;
+
+  AssetCatalogFilter filter = service.create_catalog_filter(BLI_uuid_nil());
+  EXPECT_TRUE(filter.contains(BLI_uuid_nil()));
+  EXPECT_FALSE(filter.contains(UUID_POSES_ELLIE));
 }
 
 }  // namespace blender::bke::tests
