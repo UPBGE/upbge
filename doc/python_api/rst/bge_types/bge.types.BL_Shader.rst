@@ -86,8 +86,6 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
    .. method:: setSampler(name, index)
 
-   .. deprecated:: 0.3.0
-
       Set uniform texture sample index.
 
       :arg name: Uniform name

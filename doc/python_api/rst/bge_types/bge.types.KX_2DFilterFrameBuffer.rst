@@ -5,19 +5,19 @@ KX_2DFilterOffScreen(EXP_Value)
 
 base class --- :class:`~bge.types.EXP_Value`
 
-.. class:: KX_2DFilterOffScreen(EXP_Value)
+.. class:: KX_2DFilterFrameBuffer(EXP_Value)
 
-   2D filter custom off screen.
+   2D filter custom off screen (framebuffer in 0.3.0).
 
    .. attribute:: width
 
-      The off screen width, -1 if the off screen can be resized dynamically (read-only).
+      The off screen width, always canvas width in 0.3.0 (read-only).
 
       :type: integer
 
    .. attribute:: height
 
-      The off screen height, -1 if the off screen can be resized dynamically (read-only).
+      The off screen height, always canvas height in 0.3.0 (read-only).
 
       :type: integer
 
