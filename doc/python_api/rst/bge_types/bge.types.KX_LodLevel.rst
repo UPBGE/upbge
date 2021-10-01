@@ -35,11 +35,15 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
    .. attribute:: useMesh
 
+   .. deprecated:: 0.3.0
+
       Return True if the lod level uses a different mesh than the original object mesh. (read only)
 
       :type: boolean
 
    .. attribute:: useMaterial
+
+   .. deprecated:: 0.3.0
 
       Return True if the lod level uses a different material than the original object mesh material. (read only)
 

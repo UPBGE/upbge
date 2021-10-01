@@ -100,11 +100,15 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
    .. attribute:: overrideCullingCamera
 
+   .. deprecated:: 0.3.0
+
       The override camera used for scene culling, if set to None the culling is proceeded with the camera used to render.
 
       :type: :class:`~bge.types.KX_Camera` or None
 
    .. attribute:: world
+
+   .. deprecated:: 0.3.0
 
       The current active world, (read-only).
 
@@ -118,6 +122,8 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
    .. attribute:: suspended
 
+   .. deprecated:: 0.3.0
+
       True if the scene is suspended, (read-only).
 
       :type: boolean
@@ -129,6 +135,8 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       :type: boolean
 
    .. attribute:: dbvt_culling
+
+   .. deprecated:: 0.3.0
 
       True when Dynamic Bounding box Volume Tree is set (read-only).
 
@@ -195,7 +203,7 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       :type time: float
       :return: The newly added object.
       :rtype: :class:`~bge.types.KX_GameObject`
-      :arg dupli: Full duplication of object data (materials...).
+      :arg dupli: Full duplication of object data (mesh, materials...).
       :type dupli: boolean
 
    .. method:: end()
@@ -217,9 +225,13 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
    .. method:: suspend()
 
+   .. deprecated:: 0.3.0
+
       Suspends this scene.
 
    .. method:: resume()
+
+   .. deprecated:: 0.3.0
 
       Resume this scene.
 
