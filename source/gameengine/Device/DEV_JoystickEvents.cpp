@@ -59,10 +59,6 @@ bool DEV_Joystick::HandleEvents(short (&addrem)[JOYINDEX_MAX])
   SDL_Event sdl_event;
   bool remap = false;
 
-  if (SDL_PollEvent == (void *)0) {
-    return 0;
-  }
-
   for (int i = 0; i < JOYINDEX_MAX; i++) {
     if (DEV_Joystick::m_instance[i])
       DEV_Joystick::m_instance[i]->OnNothing(&sdl_event);
