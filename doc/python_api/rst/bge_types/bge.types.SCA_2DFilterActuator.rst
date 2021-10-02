@@ -23,6 +23,8 @@ base class --- :class:`~bge.types.SCA_IActuator`
 
    .. attribute:: disableMotionBlur
 
+   .. deprecated:: 0.3.0
+
       action on motion blur: 0=enable, 1=disable.
 
       :type: integer
@@ -42,6 +44,8 @@ base class --- :class:`~bge.types.SCA_IActuator`
       :type: integer (0-100)
 
    .. attribute:: value
+
+   .. deprecated:: 0.3.0
 
       argument for motion blur filter.
 
