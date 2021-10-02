@@ -100,7 +100,6 @@
 
 // python physics binding
 #include "BL_Action.h"
-#include "BL_ActionActuator.h"
 #include "BL_BlenderConverter.h"
 #include "BL_Shader.h"
 #include "CM_Message.h"
@@ -116,6 +115,7 @@
 #include "RAS_2DFilterManager.h"
 #include "RAS_BucketManager.h"
 #include "RAS_ICanvas.h"
+#include "SCA_ActionActuator.h"
 #include "SCA_ArmatureSensor.h"
 #include "SCA_ConstraintActuator.h"
 #include "SCA_DynamicActuator.h"

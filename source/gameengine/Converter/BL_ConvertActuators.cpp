@@ -51,7 +51,6 @@
 
 // Actuators
 // SCA logiclibrary native logicbricks
-#include "BL_ActionActuator.h"
 #include "BL_ArmatureActuator.h"
 #include "BL_BlenderSceneConverter.h"
 #include "CM_Utils.h"
@@ -60,6 +59,7 @@
 #include "KX_NetworkMessageActuator.h"
 #include "RAS_2DFilterManager.h"  // for filter type.
 #include "SCA_2DFilterActuator.h"
+#include "SCA_ActionActuator.h"
 #include "SCA_AddObjectActuator.h"
 #include "SCA_CameraActuator.h"
 #include "SCA_CollectionActuator.h"

@@ -69,7 +69,6 @@ set(INC_SYS
 )
 
 set(SRC
-  BL_ActionActuator.cpp
   BL_ArmatureActuator.cpp
   BL_ArmatureChannel.cpp
   BL_ArmatureConstraint.cpp
@@ -84,7 +83,6 @@ set(SRC
   BL_ConvertSensors.cpp
   #BL_IpoConvert.cpp (everything inside BL_IpoConvert.h)
 
-  BL_ActionActuator.h
   BL_ArmatureActuator.h
   BL_ArmatureChannel.h
   BL_ArmatureConstraint.h

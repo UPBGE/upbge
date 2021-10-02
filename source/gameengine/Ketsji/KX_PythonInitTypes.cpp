@@ -34,7 +34,6 @@
 #  include "KX_PythonInitTypes.h"
 
 /* Only for Class::Parents */
-#  include "BL_ActionActuator.h"
 #  include "BL_ArmatureActuator.h"
 #  include "BL_ArmatureChannel.h"
 #  include "BL_ArmatureConstraint.h"
@@ -65,6 +64,7 @@
 #  include "KX_VehicleWrapper.h"
 #  include "KX_VertexProxy.h"
 #  include "SCA_2DFilterActuator.h"
+#  include "SCA_ActionActuator.h"
 #  include "SCA_ANDController.h"
 #  include "SCA_ActuatorSensor.h"
 #  include "SCA_AddObjectActuator.h"

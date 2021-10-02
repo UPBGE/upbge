@@ -29,7 +29,7 @@
  *  \ingroup bgeconv
  */
 
-#include "BL_ActionActuator.h"
+#include "SCA_ActionActuator.h"
 
 #include "DNA_scene_types.h"
 

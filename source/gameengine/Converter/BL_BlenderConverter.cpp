@@ -52,7 +52,6 @@
 #include "DNA_mesh_types.h"
 #include "DNA_scene_types.h"
 
-#include "BL_ActionActuator.h"
 #include "BL_BlenderDataConversion.h"
 #include "BL_BlenderSceneConverter.h"
 #include "DummyPhysicsEnvironment.h"
@@ -62,6 +61,7 @@
 #include "KX_PythonInit.h"  // So we can handle adding new text datablocks for Python to import
 #include "LA_SystemCommandLine.h"
 #include "RAS_BucketManager.h"
+#include "SCA_ActionActuator.h"
 
 #ifdef WITH_BULLET
 #  include "CcdPhysicsEnvironment.h"
