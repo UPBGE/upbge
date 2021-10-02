@@ -89,6 +89,7 @@ set(SRC
   SCA_MovementSensor.cpp
   SCA_NANDController.cpp
   SCA_NearSensor.cpp
+  SCA_NetworkMessageActuator.cpp
   SCA_NetworkMessageSensor.cpp
   SCA_NORController.cpp
   SCA_ObjectActuator.cpp
@@ -156,6 +157,7 @@ set(SRC
   SCA_MovementSensor.h
   SCA_NANDController.h
   SCA_NearSensor.h
+  SCA_NetworkMessageActuator.h
   SCA_NetworkMessageSensor.h
   SCA_NORController.h
   SCA_ObjectActuator.h

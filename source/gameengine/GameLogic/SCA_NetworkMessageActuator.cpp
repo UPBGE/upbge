@@ -30,7 +30,7 @@
  *  \ingroup ketsjinet
  */
 
-#include "KX_NetworkMessageActuator.h"
+#include "SCA_NetworkMessageActuator.h"
 
 #include "KX_NetworkMessageScene.h"
 

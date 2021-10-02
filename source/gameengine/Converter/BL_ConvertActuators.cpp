@@ -56,7 +56,6 @@
 #include "CM_Utils.h"
 #include "EXP_IntValue.h"
 #include "KX_Globals.h"
-#include "KX_NetworkMessageActuator.h"
 #include "RAS_2DFilterManager.h"  // for filter type.
 #include "SCA_2DFilterActuator.h"
 #include "SCA_ActionActuator.h"
@@ -68,6 +67,7 @@
 #include "SCA_EndObjectActuator.h"
 #include "SCA_GameActuator.h"
 #include "SCA_MouseActuator.h"
+#include "SCA_NetworkMessageActuator.h"
 #include "SCA_ObjectActuator.h"
 #include "SCA_ParentActuator.h"
 #include "SCA_RandomActuator.h"
