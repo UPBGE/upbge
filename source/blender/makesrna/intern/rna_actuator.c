@@ -2024,7 +2024,7 @@ static void rna_def_twodfilter_actuator(BlenderRNA *brna)
       {ACT_2DFILTER_ENABLED, "ENABLE", 0, "Enable Filter", ""},
       {ACT_2DFILTER_DISABLED, "DISABLE", 0, "Disable Filter", ""},
       {ACT_2DFILTER_NOFILTER, "REMOVE", 0, "Remove Filter", ""},
-      {ACT_2DFILTER_MOTIONBLUR, "MOTIONBLUR", 0, "Motion Blur", ""},
+      //{ACT_2DFILTER_MOTIONBLUR, "MOTIONBLUR", 0, "Motion Blur", ""}, Deprecated since 0.3.0
       {ACT_2DFILTER_BLUR, "BLUR", 0, "Blur", ""},
       {ACT_2DFILTER_SHARPEN, "SHARPEN", 0, "Sharpen", ""},
       {ACT_2DFILTER_DILATION, "DILATION", 0, "Dilation", ""},

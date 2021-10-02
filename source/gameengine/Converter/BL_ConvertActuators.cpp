@@ -857,9 +857,9 @@ void BL_ConvertActuators(const char *maggiename,
 
         RAS_2DFilterManager::FILTER_MODE filtermode;
         switch (_2dfilter->type) {
-          case ACT_2DFILTER_MOTIONBLUR:
+          /*case ACT_2DFILTER_MOTIONBLUR:
             filtermode = RAS_2DFilterManager::FILTER_MOTIONBLUR;
-            break;
+            break;*/
           case ACT_2DFILTER_BLUR:
             filtermode = RAS_2DFilterManager::FILTER_BLUR;
             break;

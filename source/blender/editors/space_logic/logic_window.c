@@ -1980,7 +1980,7 @@ static void draw_actuator_edit_object(uiLayout *layout, PointerRNA *ptr)
 
 static void draw_actuator_filter_2d(uiLayout *layout, PointerRNA *ptr)
 {
-  uiLayout *row, *split;
+  //uiLayout *row, *split;
 
   uiItemR(layout, ptr, "mode", 0, NULL, ICON_NONE);
   switch (RNA_enum_get(ptr, "mode")) {
@@ -1988,13 +1988,13 @@ static void draw_actuator_filter_2d(uiLayout *layout, PointerRNA *ptr)
       uiItemR(layout, ptr, "filter_pass", 0, NULL, ICON_NONE);
       uiItemR(layout, ptr, "glsl_shader", 0, NULL, ICON_NONE);
       break;
-    case ACT_2DFILTER_MOTIONBLUR:
+    /*case ACT_2DFILTER_MOTIONBLUR:
       split = uiLayoutSplit(layout, 0.75f, true);
       row = uiLayoutRow(split, false);
       uiLayoutSetActive(row, RNA_boolean_get(ptr, "use_motion_blur") == true);
       uiItemR(row, ptr, "motion_blur_factor", 0, NULL, ICON_NONE);
       uiItemR(split, ptr, "use_motion_blur", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
-      break;
+      break;*/
     default:  // all other 2D Filters
       uiItemR(layout, ptr, "filter_pass", 0, NULL, ICON_NONE);
       break;
