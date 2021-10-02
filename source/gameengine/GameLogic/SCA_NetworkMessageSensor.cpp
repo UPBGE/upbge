@@ -30,7 +30,7 @@
  *  \ingroup ketsjinet
  */
 
-#include "KX_NetworkMessageSensor.h"
+#include "SCA_NetworkMessageSensor.h"
 
 #include "EXP_ListValue.h"
 #include "EXP_StringValue.h"
