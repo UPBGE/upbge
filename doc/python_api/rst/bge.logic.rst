@@ -39,7 +39,7 @@ See the sensor's reference for available methods:
 
    * :class:`~bge.types.SCA_MouseFocusSensor`
    * :class:`~bge.types.SCA_NearSensor`
-   * :class:`~bge.types.KX_NetworkMessageSensor`
+   * :class:`~bge.types.SCA_NetworkMessageSensor`
    * :class:`~bge.types.SCA_RadarSensor`
    * :class:`~bge.types.SCA_RaySensor`
    * :class:`~bge.types.SCA_CollisionSensor`
@@ -68,12 +68,12 @@ See the actuator's reference for available methods
 .. hlist::
    :columns: 3
    
-   * :class:`~bge.types.BL_ActionActuator`
+   * :class:`~bge.types.SCA_ActionActuator`
    * :class:`~bge.types.SCA_CameraActuator`
    * :class:`~bge.types.SCA_ConstraintActuator`
    * :class:`~bge.types.SCA_GameActuator`
    * :class:`~bge.types.SCA_MouseActuator`
-   * :class:`~bge.types.KX_NetworkMessageActuator`
+   * :class:`~bge.types.SCA_NetworkMessageActuator`
    * :class:`~bge.types.SCA_ObjectActuator`
    * :class:`~bge.types.SCA_ParentActuator`
    * :class:`~bge.types.SCA_AddObjectActuator`
