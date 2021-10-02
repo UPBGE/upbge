@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Converter/BL_ActionActuator.cpp
+/** \file gameengine/Converter/SCA_ActionActuator.cpp
  *  \ingroup bgeconv
  */
 
@@ -37,7 +37,7 @@
 #include "BL_ArmatureObject.h"
 #include "EXP_FloatValue.h"
 
-BL_ActionActuator::BL_ActionActuator(SCA_IObject *gameobj,
+SCA_ActionActuator::SCA_ActionActuator(SCA_IObject *gameobj,
                                      const std::string &propname,
                                      const std::string &framepropname,
                                      float starttime,
@@ -71,11 +71,11 @@ BL_ActionActuator::BL_ActionActuator(SCA_IObject *gameobj,
     m_flag |= ACT_FLAG_CONTINUE;
 };
 
-BL_ActionActuator::~BL_ActionActuator()
+SCA_ActionActuator::~SCA_ActionActuator()
 {
 }
 
-void BL_ActionActuator::ProcessReplica()
+void SCA_ActionActuator::ProcessReplica()
 {
   SCA_IActuator::ProcessReplica();
 
@@ -83,14 +83,14 @@ void BL_ActionActuator::ProcessReplica()
   m_localtime = m_startframe;
 }
 
-EXP_Value *BL_ActionActuator::GetReplica()
+EXP_Value *SCA_ActionActuator::GetReplica()
 {
-  BL_ActionActuator *replica = new BL_ActionActuator(*this);  // m_float,GetName());
+  SCA_ActionActuator *replica = new SCA_ActionActuator(*this);  // m_float,GetName());
   replica->ProcessReplica();
   return replica;
 }
 
-bool BL_ActionActuator::Update(double curtime)
+bool SCA_ActionActuator::Update(double curtime)
 {
   KX_GameObject *obj = (KX_GameObject *)GetParent();
   short playtype = BL_Action::ACT_MODE_PLAY;
@@ -257,7 +257,7 @@ bool BL_ActionActuator::Update(double curtime)
   return m_flag & ACT_FLAG_ACTIVE;
 }
 
-void BL_ActionActuator::DecLink()
+void SCA_ActionActuator::DecLink()
 {
   SCA_IActuator::DecLink();
   /* In this case no controllers use this action actuator,
@@ -268,7 +268,7 @@ void BL_ActionActuator::DecLink()
   }
 }
 
-bool BL_ActionActuator::Play(KX_GameObject *obj, float start, float end, short mode)
+bool SCA_ActionActuator::Play(KX_GameObject *obj, float start, float end, short mode)
 {
   const short blendmode = (m_blendmode == ACT_ACTION_ADD) ? BL_Action::ACT_BLEND_ADD :
                                                             BL_Action::ACT_BLEND_BLEND;
@@ -291,7 +291,7 @@ bool BL_ActionActuator::Play(KX_GameObject *obj, float start, float end, short m
 /* Python Integration Hooks					                                 */
 /* ------------------------------------------------------------------------- */
 
-PyTypeObject BL_ActionActuator::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "BL_ActionActuator",
+PyTypeObject SCA_ActionActuator::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_ActionActuator",
                                         sizeof(EXP_PyObjectPlus_Proxy),
                                         0,
                                         py_base_dealloc,
@@ -329,41 +329,41 @@ PyTypeObject BL_ActionActuator::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "BL_Ac
                                         0,
                                         py_base_new};
 
-PyMethodDef BL_ActionActuator::Methods[] = {
+PyMethodDef SCA_ActionActuator::Methods[] = {
     {nullptr, nullptr}  // Sentinel
 };
 
-PyAttributeDef BL_ActionActuator::Attributes[] = {
-    EXP_PYATTRIBUTE_FLOAT_RW("frameStart", 0, MAXFRAMEF, BL_ActionActuator, m_startframe),
-    EXP_PYATTRIBUTE_FLOAT_RW("frameEnd", 0, MAXFRAMEF, BL_ActionActuator, m_endframe),
-    EXP_PYATTRIBUTE_FLOAT_RW("blendIn", 0, MAXFRAMEF, BL_ActionActuator, m_blendin),
-    EXP_PYATTRIBUTE_RW_FUNCTION("action", BL_ActionActuator, pyattr_get_action, pyattr_set_action),
-    EXP_PYATTRIBUTE_SHORT_RW("priority", 0, 100, false, BL_ActionActuator, m_priority),
-    EXP_PYATTRIBUTE_SHORT_RW("layer", 0, MAX_ACTION_LAYERS - 1, true, BL_ActionActuator, m_layer),
-    EXP_PYATTRIBUTE_FLOAT_RW("layerWeight", 0, 1.0, BL_ActionActuator, m_layer_weight),
-    EXP_PYATTRIBUTE_RW_FUNCTION("frame", BL_ActionActuator, pyattr_get_frame, pyattr_set_frame),
-    EXP_PYATTRIBUTE_STRING_RW("propName", 0, MAX_PROP_NAME, false, BL_ActionActuator, m_propname),
+PyAttributeDef SCA_ActionActuator::Attributes[] = {
+    EXP_PYATTRIBUTE_FLOAT_RW("frameStart", 0, MAXFRAMEF, SCA_ActionActuator, m_startframe),
+    EXP_PYATTRIBUTE_FLOAT_RW("frameEnd", 0, MAXFRAMEF, SCA_ActionActuator, m_endframe),
+    EXP_PYATTRIBUTE_FLOAT_RW("blendIn", 0, MAXFRAMEF, SCA_ActionActuator, m_blendin),
+    EXP_PYATTRIBUTE_RW_FUNCTION("action", SCA_ActionActuator, pyattr_get_action, pyattr_set_action),
+    EXP_PYATTRIBUTE_SHORT_RW("priority", 0, 100, false, SCA_ActionActuator, m_priority),
+    EXP_PYATTRIBUTE_SHORT_RW("layer", 0, MAX_ACTION_LAYERS - 1, true, SCA_ActionActuator, m_layer),
+    EXP_PYATTRIBUTE_FLOAT_RW("layerWeight", 0, 1.0, SCA_ActionActuator, m_layer_weight),
+    EXP_PYATTRIBUTE_RW_FUNCTION("frame", SCA_ActionActuator, pyattr_get_frame, pyattr_set_frame),
+    EXP_PYATTRIBUTE_STRING_RW("propName", 0, MAX_PROP_NAME, false, SCA_ActionActuator, m_propname),
     EXP_PYATTRIBUTE_STRING_RW(
-        "framePropName", 0, MAX_PROP_NAME, false, BL_ActionActuator, m_framepropname),
+        "framePropName", 0, MAX_PROP_NAME, false, SCA_ActionActuator, m_framepropname),
     EXP_PYATTRIBUTE_RW_FUNCTION(
-        "useContinue", BL_ActionActuator, pyattr_get_use_continue, pyattr_set_use_continue),
+        "useContinue", SCA_ActionActuator, pyattr_get_use_continue, pyattr_set_use_continue),
     EXP_PYATTRIBUTE_SHORT_RW_CHECK(
-        "mode", 0, 100, false, BL_ActionActuator, m_playtype, CheckType),
+        "mode", 0, 100, false, SCA_ActionActuator, m_playtype, CheckType),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
-PyObject *BL_ActionActuator::pyattr_get_action(EXP_PyObjectPlus *self_v,
+PyObject *SCA_ActionActuator::pyattr_get_action(EXP_PyObjectPlus *self_v,
                                                const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-  BL_ActionActuator *self = static_cast<BL_ActionActuator *>(self_v);
+  SCA_ActionActuator *self = static_cast<SCA_ActionActuator *>(self_v);
   return PyUnicode_FromString(self->GetAction() ? self->GetAction()->id.name + 2 : "");
 }
 
-int BL_ActionActuator::pyattr_set_action(EXP_PyObjectPlus *self_v,
+int SCA_ActionActuator::pyattr_set_action(EXP_PyObjectPlus *self_v,
                                          const EXP_PYATTRIBUTE_DEF *attrdef,
                                          PyObject *value)
 {
-  BL_ActionActuator *self = static_cast<BL_ActionActuator *>(self_v);
+  SCA_ActionActuator *self = static_cast<SCA_ActionActuator *>(self_v);
 
   if (!PyUnicode_Check(value)) {
     PyErr_SetString(
@@ -388,18 +388,18 @@ int BL_ActionActuator::pyattr_set_action(EXP_PyObjectPlus *self_v,
   return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *BL_ActionActuator::pyattr_get_use_continue(EXP_PyObjectPlus *self_v,
+PyObject *SCA_ActionActuator::pyattr_get_use_continue(EXP_PyObjectPlus *self_v,
                                                      const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-  BL_ActionActuator *self = static_cast<BL_ActionActuator *>(self_v);
+  SCA_ActionActuator *self = static_cast<SCA_ActionActuator *>(self_v);
   return PyBool_FromLong(self->m_flag & ACT_FLAG_CONTINUE);
 }
 
-int BL_ActionActuator::pyattr_set_use_continue(EXP_PyObjectPlus *self_v,
+int SCA_ActionActuator::pyattr_set_use_continue(EXP_PyObjectPlus *self_v,
                                                const EXP_PYATTRIBUTE_DEF *attrdef,
                                                PyObject *value)
 {
-  BL_ActionActuator *self = static_cast<BL_ActionActuator *>(self_v);
+  SCA_ActionActuator *self = static_cast<SCA_ActionActuator *>(self_v);
 
   if (PyObject_IsTrue(value))
     self->m_flag |= ACT_FLAG_CONTINUE;
@@ -409,18 +409,18 @@ int BL_ActionActuator::pyattr_set_use_continue(EXP_PyObjectPlus *self_v,
   return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *BL_ActionActuator::pyattr_get_frame(EXP_PyObjectPlus *self_v,
+PyObject *SCA_ActionActuator::pyattr_get_frame(EXP_PyObjectPlus *self_v,
                                               const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-  BL_ActionActuator *self = static_cast<BL_ActionActuator *>(self_v);
+  SCA_ActionActuator *self = static_cast<SCA_ActionActuator *>(self_v);
   return PyFloat_FromDouble(((KX_GameObject *)self->m_gameobj)->GetActionFrame(self->m_layer));
 }
 
-int BL_ActionActuator::pyattr_set_frame(EXP_PyObjectPlus *self_v,
+int SCA_ActionActuator::pyattr_set_frame(EXP_PyObjectPlus *self_v,
                                         const EXP_PYATTRIBUTE_DEF *attrdef,
                                         PyObject *value)
 {
-  BL_ActionActuator *self = static_cast<BL_ActionActuator *>(self_v);
+  SCA_ActionActuator *self = static_cast<SCA_ActionActuator *>(self_v);
 
   ((KX_GameObject *)self->m_gameobj)->SetActionFrame(self->m_layer, PyFloat_AsDouble(value));
 

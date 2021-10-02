@@ -187,7 +187,7 @@ void BL_ConvertActuators(const char *maggiename,
         if (actact->flag & ACT_IPOCHILD)
           ipo_flags |= BL_Action::ACT_IPOFLAG_CHILD;
 
-        BL_ActionActuator *tmpbaseact = new BL_ActionActuator(
+        SCA_ActionActuator *tmpbaseact = new SCA_ActionActuator(
             gameobj,
             propname,
             propframe,
@@ -247,7 +247,7 @@ void BL_ConvertActuators(const char *maggiename,
          */
         const std::string body = msgAct->body;
 
-        KX_NetworkMessageActuator *tmpmsgact = new KX_NetworkMessageActuator(
+        SCA_NetworkMessageActuator *tmpmsgact = new SCA_NetworkMessageActuator(
             gameobj,                          // actuator controlling object
             scene->GetNetworkMessageScene(),  // needed for replication
             toPropName,

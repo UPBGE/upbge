@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file BL_ActionActuator.h
+/** \file SCA_ActionActuator.h
  *  \ingroup bgeconv
  */
 
@@ -37,9 +37,9 @@
 #include "MT_Vector3.h"
 #include "SCA_IActuator.h"
 
-class BL_ActionActuator : public SCA_IActuator {
+class SCA_ActionActuator : public SCA_IActuator {
  public:
-  Py_Header BL_ActionActuator(SCA_IObject *gameobj,
+  Py_Header SCA_ActionActuator(SCA_IObject *gameobj,
                               const std::string &propname,
                               const std::string &framepropname,
                               float starttime,
@@ -54,7 +54,7 @@ class BL_ActionActuator : public SCA_IActuator {
                               short ipo_flags,
                               short end_reset);
 
-  virtual ~BL_ActionActuator();
+  virtual ~SCA_ActionActuator();
   virtual bool Update(double curtime);
   virtual EXP_Value *GetReplica();
   virtual void ProcessReplica();
@@ -93,7 +93,7 @@ class BL_ActionActuator : public SCA_IActuator {
 
   static int CheckType(EXP_PyObjectPlus *self, const PyAttributeDef *)
   {
-    BL_ActionActuator *act = reinterpret_cast<BL_ActionActuator *>(self);
+    SCA_ActionActuator *act = reinterpret_cast<SCA_ActionActuator *>(self);
 
     switch (act->m_playtype) {
       case ACT_ACTION_PLAY:

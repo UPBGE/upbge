@@ -26,7 +26,7 @@
  * Ketsji Logic Extension: Network Message Sensor generic implementation
  */
 
-/** \file gameengine/Ketsji/KXNetwork/KX_NetworkMessageSensor.cpp
+/** \file gameengine/Ketsji/KXNetwork/SCA_NetworkMessageSensor.cpp
  *  \ingroup ketsjinet
  */
 
@@ -40,7 +40,7 @@
 #  include <iostream>
 #endif
 
-KX_NetworkMessageSensor::KX_NetworkMessageSensor(
+SCA_NetworkMessageSensor::SCA_NetworkMessageSensor(
     SCA_EventManager *eventmgr,                  // our eventmanager
     class KX_NetworkMessageScene *NetworkScene,  // our scene
     SCA_IObject *gameobj,                        // the sensor controlling object
@@ -55,20 +55,20 @@ KX_NetworkMessageSensor::KX_NetworkMessageSensor(
   Init();
 }
 
-void KX_NetworkMessageSensor::Init()
+void SCA_NetworkMessageSensor::Init()
 {
   m_IsUp = false;
 }
 
-KX_NetworkMessageSensor::~KX_NetworkMessageSensor()
+SCA_NetworkMessageSensor::~SCA_NetworkMessageSensor()
 {
 }
 
-EXP_Value *KX_NetworkMessageSensor::GetReplica()
+EXP_Value *SCA_NetworkMessageSensor::GetReplica()
 {
   // This is the standard sensor implementation of GetReplica
   // There may be more network message sensor specific stuff to do here.
-  EXP_Value *replica = new KX_NetworkMessageSensor(*this);
+  EXP_Value *replica = new SCA_NetworkMessageSensor(*this);
 
   if (replica == nullptr) {
     return nullptr;
@@ -79,7 +79,7 @@ EXP_Value *KX_NetworkMessageSensor::GetReplica()
 }
 
 /// Return true only for flank (UP and DOWN)
-bool KX_NetworkMessageSensor::Evaluate()
+bool SCA_NetworkMessageSensor::Evaluate()
 {
   bool result = false;
   bool WasUp = m_IsUp;
@@ -106,7 +106,7 @@ bool KX_NetworkMessageSensor::Evaluate()
 
   if (!messages.empty()) {
 #ifdef NAN_NET_DEBUG
-    std::cout << "KX_NetworkMessageSensor found one or more messages" << std::endl;
+    std::cout << "SCA_NetworkMessageSensor found one or more messages" << std::endl;
 #endif
     m_IsUp = true;
     m_BodyList = new EXP_ListValue<EXP_StringValue>();
@@ -140,7 +140,7 @@ bool KX_NetworkMessageSensor::Evaluate()
 }
 
 /// return true for being up (no flank needed)
-bool KX_NetworkMessageSensor::IsPositiveTrigger()
+bool SCA_NetworkMessageSensor::IsPositiveTrigger()
 {
   // attempt to fix [ #3809 ] IPO Actuator does not work with some Sensors
   // a better solution is to properly introduce separate Edge and Level triggering concept
@@ -155,8 +155,8 @@ bool KX_NetworkMessageSensor::IsPositiveTrigger()
 /* --------------------------------------------------------------------- */
 
 /* Integration hooks --------------------------------------------------- */
-PyTypeObject KX_NetworkMessageSensor::Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0) "KX_NetworkMessageSensor",
+PyTypeObject SCA_NetworkMessageSensor::Type = {
+    PyVarObject_HEAD_INIT(nullptr, 0) "SCA_NetworkMessageSensor",
     sizeof(EXP_PyObjectPlus_Proxy),
     0,
     py_base_dealloc,
@@ -194,22 +194,22 @@ PyTypeObject KX_NetworkMessageSensor::Type = {
     0,
     py_base_new};
 
-PyMethodDef KX_NetworkMessageSensor::Methods[] = {
+PyMethodDef SCA_NetworkMessageSensor::Methods[] = {
     {nullptr, nullptr}  // Sentinel
 };
 
-PyAttributeDef KX_NetworkMessageSensor::Attributes[] = {
-    EXP_PYATTRIBUTE_STRING_RW("subject", 0, 100, false, KX_NetworkMessageSensor, m_subject),
-    EXP_PYATTRIBUTE_INT_RO("frameMessageCount", KX_NetworkMessageSensor, m_frame_message_count),
-    EXP_PYATTRIBUTE_RO_FUNCTION("bodies", KX_NetworkMessageSensor, pyattr_get_bodies),
-    EXP_PYATTRIBUTE_RO_FUNCTION("subjects", KX_NetworkMessageSensor, pyattr_get_subjects),
+PyAttributeDef SCA_NetworkMessageSensor::Attributes[] = {
+    EXP_PYATTRIBUTE_STRING_RW("subject", 0, 100, false, SCA_NetworkMessageSensor, m_subject),
+    EXP_PYATTRIBUTE_INT_RO("frameMessageCount", SCA_NetworkMessageSensor, m_frame_message_count),
+    EXP_PYATTRIBUTE_RO_FUNCTION("bodies", SCA_NetworkMessageSensor, pyattr_get_bodies),
+    EXP_PYATTRIBUTE_RO_FUNCTION("subjects", SCA_NetworkMessageSensor, pyattr_get_subjects),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
-PyObject *KX_NetworkMessageSensor::pyattr_get_bodies(EXP_PyObjectPlus *self_v,
+PyObject *SCA_NetworkMessageSensor::pyattr_get_bodies(EXP_PyObjectPlus *self_v,
                                                      const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-  KX_NetworkMessageSensor *self = static_cast<KX_NetworkMessageSensor *>(self_v);
+  SCA_NetworkMessageSensor *self = static_cast<SCA_NetworkMessageSensor *>(self_v);
   if (self->m_BodyList) {
     return self->m_BodyList->GetProxy();
   }
@@ -218,10 +218,10 @@ PyObject *KX_NetworkMessageSensor::pyattr_get_bodies(EXP_PyObjectPlus *self_v,
   }
 }
 
-PyObject *KX_NetworkMessageSensor::pyattr_get_subjects(EXP_PyObjectPlus *self_v,
+PyObject *SCA_NetworkMessageSensor::pyattr_get_subjects(EXP_PyObjectPlus *self_v,
                                                        const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-  KX_NetworkMessageSensor *self = static_cast<KX_NetworkMessageSensor *>(self_v);
+  SCA_NetworkMessageSensor *self = static_cast<SCA_NetworkMessageSensor *>(self_v);
   if (self->m_SubjectList) {
     return self->m_SubjectList->GetProxy();
   }

@@ -175,7 +175,7 @@ void BL_ConvertSensors(struct Object *blenderobject,
           /* filter on the incoming subjects, might be empty */
           const std::string subject = msgSens->subject;
 
-          gamesensor = new KX_NetworkMessageSensor(eventmgr,      // our eventmanager
+          gamesensor = new SCA_NetworkMessageSensor(eventmgr,      // our eventmanager
                                                    NetworkScene,  // our NetworkScene
                                                    gameobj,       // the sensor controlling object
                                                    subject);      // subject to filter on

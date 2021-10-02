@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_NetworkMessageActuator.h
+/** \file SCA_NetworkMessageActuator.h
  *  \ingroup ketsjinet
  *  \brief Ketsji Logic Extension: Network Message Actuator class
  */
@@ -36,7 +36,7 @@
 
 #include <string>
 
-class KX_NetworkMessageActuator : public SCA_IActuator {
+class SCA_NetworkMessageActuator : public SCA_IActuator {
   Py_Header bool m_lastEvent;
   class KX_NetworkMessageScene *m_networkscene;  // needed for replication
   std::string m_toPropName;
@@ -45,13 +45,13 @@ class KX_NetworkMessageActuator : public SCA_IActuator {
   std::string m_body;
 
  public:
-  KX_NetworkMessageActuator(SCA_IObject *gameobj,
+  SCA_NetworkMessageActuator(SCA_IObject *gameobj,
                             KX_NetworkMessageScene *networkscene,
                             const std::string &toPropName,
                             const std::string &subject,
                             int bodyType,
                             const std::string &body);
-  virtual ~KX_NetworkMessageActuator();
+  virtual ~SCA_NetworkMessageActuator();
 
   virtual bool Update();
   virtual EXP_Value *GetReplica();

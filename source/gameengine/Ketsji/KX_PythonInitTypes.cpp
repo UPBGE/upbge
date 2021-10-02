@@ -207,7 +207,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 
   for (int init_getset = 1; init_getset > -1;
        init_getset--) { /* run twice, once to init the getsets another to run PyType_Ready */
-    PyType_Ready_Attr(dict, BL_ActionActuator, init_getset);
+    PyType_Ready_Attr(dict, SCA_ActionActuator, init_getset);
     PyType_Ready_Attr(dict, BL_Shader, init_getset);
     PyType_Ready_Attr(dict, BL_ArmatureObject, init_getset);
     PyType_Ready_Attr(dict, BL_ArmatureActuator, init_getset);
@@ -242,8 +242,8 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
     PyType_Ready_Attr(dict, SCA_MouseFocusSensor, init_getset);
     PyType_Ready_Attr(dict, SCA_MovementSensor, init_getset);
     PyType_Ready_Attr(dict, SCA_NearSensor, init_getset);
-    PyType_Ready_Attr(dict, KX_NetworkMessageActuator, init_getset);
-    PyType_Ready_Attr(dict, KX_NetworkMessageSensor, init_getset);
+    PyType_Ready_Attr(dict, SCA_NetworkMessageActuator, init_getset);
+    PyType_Ready_Attr(dict, SCA_NetworkMessageSensor, init_getset);
     PyType_Ready_Attr(dict, SCA_ObjectActuator, init_getset);
     PyType_Ready_Attr(dict, SCA_ParentActuator, init_getset);
     PyType_Ready_Attr(dict, KX_PolyProxy, init_getset);

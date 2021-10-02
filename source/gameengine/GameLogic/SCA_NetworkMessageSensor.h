@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_NetworkMessageSensor.h
+/** \file SCA_NetworkMessageSensor.h
  *  \ingroup ketsjinet
  *  \brief Ketsji Logic Extension: Network Message Sensor class
  */
@@ -37,7 +37,7 @@ class KX_NetworkMessageScene;
 class EXP_StringValue;
 template<class ItemType> class EXP_ListValue;
 
-class KX_NetworkMessageSensor : public SCA_ISensor {
+class SCA_NetworkMessageSensor : public SCA_ISensor {
   // note: Py_Header MUST BE the first listed here
   Py_Header KX_NetworkMessageScene *m_NetworkScene;
 
@@ -53,11 +53,11 @@ class KX_NetworkMessageSensor : public SCA_ISensor {
   EXP_ListValue<EXP_StringValue> *m_SubjectList;
 
  public:
-  KX_NetworkMessageSensor(SCA_EventManager *eventmgr,            // our eventmanager
+  SCA_NetworkMessageSensor(SCA_EventManager *eventmgr,            // our eventmanager
                           KX_NetworkMessageScene *NetworkScene,  // our scene
                           SCA_IObject *gameobj,                  // the sensor controlling object
                           const std::string &subject);
-  virtual ~KX_NetworkMessageSensor();
+  virtual ~SCA_NetworkMessageSensor();
 
   virtual EXP_Value *GetReplica();
   virtual bool Evaluate();

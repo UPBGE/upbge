@@ -26,7 +26,7 @@
  * Ketsji Logic Extension: Network Message Actuator generic implementation
  */
 
-/** \file gameengine/Ketsji/KXNetwork/KX_NetworkMessageActuator.cpp
+/** \file gameengine/Ketsji/KXNetwork/SCA_NetworkMessageActuator.cpp
  *  \ingroup ketsjinet
  */
 
@@ -34,7 +34,7 @@
 
 #include "KX_NetworkMessageScene.h"
 
-KX_NetworkMessageActuator::KX_NetworkMessageActuator(
+SCA_NetworkMessageActuator::SCA_NetworkMessageActuator(
     SCA_IObject *gameobj,                  // the actuator controlling object
     KX_NetworkMessageScene *networkscene,  // needed for replication
     const std::string &toPropName,
@@ -50,12 +50,12 @@ KX_NetworkMessageActuator::KX_NetworkMessageActuator(
 {
 }
 
-KX_NetworkMessageActuator::~KX_NetworkMessageActuator()
+SCA_NetworkMessageActuator::~SCA_NetworkMessageActuator()
 {
 }
 
 /// returns true if the actuators needs to be running over several frames
-bool KX_NetworkMessageActuator::Update()
+bool SCA_NetworkMessageActuator::Update()
 {
   bool bNegativeEvent = IsNegativeEvent();
   RemoveAllEvents();
@@ -75,9 +75,9 @@ bool KX_NetworkMessageActuator::Update()
   return false;
 }
 
-EXP_Value *KX_NetworkMessageActuator::GetReplica()
+EXP_Value *SCA_NetworkMessageActuator::GetReplica()
 {
-  KX_NetworkMessageActuator *replica = new KX_NetworkMessageActuator(*this);
+  SCA_NetworkMessageActuator *replica = new SCA_NetworkMessageActuator(*this);
   replica->ProcessReplica();
 
   return replica;
@@ -90,8 +90,8 @@ EXP_Value *KX_NetworkMessageActuator::GetReplica()
 /* -------------------------------------------------------------------- */
 
 /* Integration hooks -------------------------------------------------- */
-PyTypeObject KX_NetworkMessageActuator::Type = {
-    PyVarObject_HEAD_INIT(nullptr, 0) "KX_NetworkMessageActuator",
+PyTypeObject SCA_NetworkMessageActuator::Type = {
+    PyVarObject_HEAD_INIT(nullptr, 0) "SCA_NetworkMessageActuator",
     sizeof(EXP_PyObjectPlus_Proxy),
     0,
     py_base_dealloc,
@@ -129,16 +129,16 @@ PyTypeObject KX_NetworkMessageActuator::Type = {
     0,
     py_base_new};
 
-PyMethodDef KX_NetworkMessageActuator::Methods[] = {
+PyMethodDef SCA_NetworkMessageActuator::Methods[] = {
     {nullptr, nullptr}  // Sentinel
 };
 
-PyAttributeDef KX_NetworkMessageActuator::Attributes[] = {
+PyAttributeDef SCA_NetworkMessageActuator::Attributes[] = {
     EXP_PYATTRIBUTE_STRING_RW(
-        "propName", 0, MAX_PROP_NAME, false, KX_NetworkMessageActuator, m_toPropName),
-    EXP_PYATTRIBUTE_STRING_RW("subject", 0, 100, false, KX_NetworkMessageActuator, m_subject),
-    EXP_PYATTRIBUTE_BOOL_RW("usePropBody", KX_NetworkMessageActuator, m_bPropBody),
-    EXP_PYATTRIBUTE_STRING_RW("body", 0, 16384, false, KX_NetworkMessageActuator, m_body),
+        "propName", 0, MAX_PROP_NAME, false, SCA_NetworkMessageActuator, m_toPropName),
+    EXP_PYATTRIBUTE_STRING_RW("subject", 0, 100, false, SCA_NetworkMessageActuator, m_subject),
+    EXP_PYATTRIBUTE_BOOL_RW("usePropBody", SCA_NetworkMessageActuator, m_bPropBody),
+    EXP_PYATTRIBUTE_STRING_RW("body", 0, 16384, false, SCA_NetworkMessageActuator, m_body),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 

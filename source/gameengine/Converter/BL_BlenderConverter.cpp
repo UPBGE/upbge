@@ -694,7 +694,7 @@ bool BL_BlenderConverter::FreeBlendFile(Main *maggie)
             // make sure action actuators are not referencing tagged actions
             for (unsigned int act_idx = 0; act_idx < gameobj->GetActuators().size(); act_idx++) {
               if (gameobj->GetActuators()[act_idx]->IsType(SCA_IActuator::KX_ACT_ACTION)) {
-                BL_ActionActuator *act = (BL_ActionActuator *)gameobj->GetActuators()[act_idx];
+                SCA_ActionActuator *act = (SCA_ActionActuator *)gameobj->GetActuators()[act_idx];
                 if (IS_TAGGED(act->GetAction())) {
                   act->SetAction(nullptr);
                 }

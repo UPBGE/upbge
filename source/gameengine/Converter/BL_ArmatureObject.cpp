@@ -486,7 +486,7 @@ void BL_ArmatureObject::GetPose(bPose **pose) const
     /* probably not to good of an idea to
      * duplicate everything, but it clears up
      * a crash and memory leakage when
-     * &BL_ActionActuator::m_pose is freed
+     * &SCA_ActionActuator::m_pose is freed
      */
     BKE_pose_copy_data(pose, m_objArma->pose, 1);
   }
