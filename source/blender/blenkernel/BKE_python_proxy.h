@@ -20,8 +20,9 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __BKE_PYTHON_PROXY_H__
-#define __BKE_PYTHON_PROXY_H__
+#pragma once
+
+#include "DNA_windowmanager_types.h" /* for ReportType */
 
 #ifdef __cplusplus
 extern "C" {
@@ -68,5 +69,3 @@ void *BKE_python_proxy_argument_dict_new(struct PythonProxy *pp);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __BKE_PYTHON_PROXY_H__ */
