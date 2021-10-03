@@ -1668,6 +1668,9 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
                     child->SetIsBoneSubTarget();
                   }
                 }
+                if (cti->flush_constraint_targets) {
+                  cti->flush_constraint_targets(pcon, &listb, 1);
+                }
               }
             }
           }
