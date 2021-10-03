@@ -89,6 +89,7 @@ KX_GameObject::KX_GameObject()
       m_forceIgnoreParentTx(false),    // eevee
       m_previousLodLevel(-1),          // eevee
       m_isBoneTarget(false),           // eevee
+      m_isBoneSubTarget(false),        // eevee
       m_layer(0),
       m_lodManager(nullptr),
       m_currentLodLevel(0),
@@ -443,6 +444,16 @@ void KX_GameObject::SetIsBoneTarget()
 bool KX_GameObject::IsBoneTarget()
 {
   return m_isBoneTarget;
+}
+
+void KX_GameObject::SetIsBoneSubTarget()
+{
+  m_isBoneSubTarget = true;
+}
+
+bool KX_GameObject::IsBoneSubTarget()
+{
+  return m_isBoneSubTarget;
 }
 
 void KX_GameObject::Dispose()

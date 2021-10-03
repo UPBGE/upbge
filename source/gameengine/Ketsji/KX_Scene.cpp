@@ -1493,7 +1493,7 @@ void KX_Scene::RemapBoneConstraintTargets()
 {
   for (KX_GameObject *gameobj : m_replicaArmatureList) {
     for (KX_GameObject *child : gameobj->GetChildren()) {
-      if (child->IsBoneTarget()) {
+      if (child->IsBoneTarget() || child->IsBoneSubTarget()) {
         Object *blenderobject = gameobj->GetBlenderObject();
         if (blenderobject->pose) {
           LISTBASE_FOREACH (bPoseChannel *, pchan, &blenderobject->pose->chanbase) {
@@ -1504,14 +1504,14 @@ void KX_Scene::RemapBoneConstraintTargets()
                 cti->get_constraint_targets(pcon, &listb);
                 if (listb.first) {
                   bConstraintTarget *target = (bConstraintTarget *)listb.first;
-                  if (target->tar) {
+                  if (target->tar && child->IsBoneTarget()) {
                     target->tar = child->GetBlenderObject();
                   }
                   if (target->next != nullptr) {
                     // secondary target
                     target = target->next;
                   }
-                  if (target->tar) { // if subtarget
+                  if (target->tar && child->IsBoneSubTarget()) { // if subtarget
                     target->tar = child->GetBlenderObject();
                   }
                 }

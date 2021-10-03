@@ -1648,30 +1648,24 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
     /* Mark armature bone constraint targets only if they are in armature children list */
     if (blenderobject->type == OB_ARMATURE) {
       if (blenderobject->pose) {
-        LISTBASE_FOREACH (bPoseChannel *, pchan, &blenderobject->pose->chanbase) {
-          LISTBASE_FOREACH (bConstraint *, pcon, &pchan->constraints) {
-            const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(pcon);
-            if (cti && cti->get_constraint_targets) {
-              ListBase listb = {nullptr, nullptr};
-              KX_GameObject *gametarget = nullptr;
-              KX_GameObject *gamesubtarget = nullptr;
-              cti->get_constraint_targets(pcon, &listb);
-              if (listb.first) {
-                bConstraintTarget *target = (bConstraintTarget *)listb.first;
-                if (target->tar && target->tar != blenderobject) {
-                  gametarget = converter->FindGameObject(target->tar);
-                  if (gametarget && gametarget->GetParent() == gameobj) {
-                    gametarget->SetIsBoneTarget();
+        for (KX_GameObject *child : gameobj->GetChildren()) {
+          LISTBASE_FOREACH (bPoseChannel *, pchan, &blenderobject->pose->chanbase) {
+            LISTBASE_FOREACH (bConstraint *, pcon, &pchan->constraints) {
+              const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(pcon);
+              if (cti && cti->get_constraint_targets) {
+                ListBase listb = {nullptr, nullptr};
+                cti->get_constraint_targets(pcon, &listb);
+                if (listb.first) {
+                  bConstraintTarget *target = (bConstraintTarget *)listb.first;
+                  if (target->tar && child->GetBlenderObject() == target->tar) {
+                    child->SetIsBoneTarget();
                   }
-                }
-                if (target->next != nullptr) {
-                  // secondary target
-                  target = target->next;
-                }
-                if (target->tar && target->tar != blenderobject) {
-                  gamesubtarget = converter->FindGameObject(target->tar);
-                  if (gamesubtarget && gamesubtarget->GetParent() == gameobj) {
-                    gamesubtarget->SetIsBoneTarget();
+                  if (target->next != nullptr) {
+                    // secondary target
+                    target = target->next;
+                  }
+                  if (target->tar && child->GetBlenderObject() == target->tar) {
+                    child->SetIsBoneSubTarget();
                   }
                 }
               }
@@ -1681,7 +1675,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
       }
     }
   }
-
   // convert logic bricks, sensors, controllers and actuators
   for (KX_GameObject *gameobj : logicbrick_conversionlist) {
     struct Object *blenderobj = gameobj->GetBlenderObject();
