@@ -1489,7 +1489,6 @@ void KX_Scene::AppendToReplicaArmatures(KX_GameObject *gameobj)
 
 void KX_Scene::RemapArmatureConstraintTarget()
 {
-  bContext *C = KX_GetActiveEngine()->GetContext();
   for (KX_GameObject *gameobj : m_replicaArmatureList) {
     for (KX_GameObject *child : gameobj->GetChildren()) {
       if (child->IsBoneTarget()) {
@@ -1505,8 +1504,6 @@ void KX_Scene::RemapArmatureConstraintTarget()
                   bConstraintTarget *target = (bConstraintTarget *)listb.first;
                   if (target->tar) {
                     target->tar = child->GetBlenderObject();
-                    std::cout << blenderobject->id.name + 2 << std::endl;
-                    std::cout << target->tar->id.name + 2 << std::endl;
                   }
                   if (target->next != nullptr) {
                     // secondary target
@@ -1515,6 +1512,9 @@ void KX_Scene::RemapArmatureConstraintTarget()
                   if (target->tar) {
                     target->tar = child->GetBlenderObject();
                   }
+                }
+                if (cti->flush_constraint_targets) {
+                  cti->flush_constraint_targets(pcon, &listb, 0);
                 }
               }
             }
