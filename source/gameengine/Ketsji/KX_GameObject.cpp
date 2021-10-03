@@ -88,6 +88,7 @@ KX_GameObject::KX_GameObject()
       m_visibleAtGameStart(false),     // eevee
       m_forceIgnoreParentTx(false),    // eevee
       m_previousLodLevel(-1),          // eevee
+      m_isBoneTarget(false),           // eevee
       m_layer(0),
       m_lodManager(nullptr),
       m_currentLodLevel(0),
@@ -372,6 +373,10 @@ void KX_GameObject::ReplicateBlenderObject()
     newob->visibility_flag &= ~OB_HIDE_VIEWPORT;
     GetScene()->TagForCollectionRemap();
 
+    if (newob->type == OB_ARMATURE) {
+      GetScene()->AppendToReplicaArmatures(this);
+    }
+
     if (ob->parent) {
       if (GetScene()->GetLastReplicatedParentObject()) {
         newob->parent = GetScene()->GetLastReplicatedParentObject();
@@ -427,6 +432,16 @@ void KX_GameObject::HideOriginalObject()
       GetScene()->m_hiddenObjectsDuringRuntime.push_back(ob);
     }
   }
+}
+
+void KX_GameObject::SetIsBoneTarget()
+{
+  m_isBoneTarget = true;
+}
+
+bool KX_GameObject::IsBoneTarget()
+{
+  return m_isBoneTarget;
 }
 
 void KX_GameObject::Dispose()

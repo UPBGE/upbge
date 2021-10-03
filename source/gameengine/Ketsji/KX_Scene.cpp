@@ -36,6 +36,7 @@
 
 #include "KX_Scene.h"
 
+#include "BKE_constraint.h"
 #include "BKE_lib_id.h"
 #include "BKE_lib_remap.h"
 #include "BKE_mball.h"
@@ -231,6 +232,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
   m_kxobWithLod = {};
   m_obRestrictFlags = {};
+  m_replicaArmatureList = {};
   m_backupOverlayFlag = -1;
   m_backupOverlayGameFlag = -1;
 
@@ -1480,6 +1482,50 @@ KX_GameObject *KX_Scene::AddDuplicaObject(KX_GameObject *gameobj, KX_GameObject 
   return nullptr;
 }
 
+void KX_Scene::AppendToReplicaArmatures(KX_GameObject *gameobj)
+{
+  m_replicaArmatureList.push_back(gameobj);
+}
+
+void KX_Scene::RemapArmatureConstraintTarget()
+{
+  bContext *C = KX_GetActiveEngine()->GetContext();
+  for (KX_GameObject *gameobj : m_replicaArmatureList) {
+    for (KX_GameObject *child : gameobj->GetChildren()) {
+      if (child->IsBoneTarget()) {
+        Object *blenderobject = gameobj->GetBlenderObject();
+        if (blenderobject->pose) {
+          LISTBASE_FOREACH (bPoseChannel *, pchan, &blenderobject->pose->chanbase) {
+            LISTBASE_FOREACH (bConstraint *, pcon, &pchan->constraints) {
+              const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(pcon);
+              if (cti && cti->get_constraint_targets) {
+                ListBase listb = {nullptr, nullptr};
+                cti->get_constraint_targets(pcon, &listb);
+                if (listb.first) {
+                  bConstraintTarget *target = (bConstraintTarget *)listb.first;
+                  if (target->tar) {
+                    target->tar = child->GetBlenderObject();
+                    std::cout << blenderobject->id.name + 2 << std::endl;
+                    std::cout << target->tar->id.name + 2 << std::endl;
+                  }
+                  if (target->next != nullptr) {
+                    // secondary target
+                    target = target->next;
+                  }
+                  if (target->tar) {
+                    target->tar = child->GetBlenderObject();
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  m_replicaArmatureList.clear();
+}
+
 /******************End of EEVEE INTEGRATION****************************/
 
 std::string KX_Scene::GetName()
@@ -2438,6 +2484,8 @@ void KX_Scene::LogicUpdateFrame(double curtime)
 void KX_Scene::LogicEndFrame()
 {
   m_logicmgr->EndFrame();
+
+  RemapArmatureConstraintTarget();
 
   /* Don't remove the objects from the euthanasy list here as the child objects of a deleted
    * parent object are destructed directly from the sgnode in the same time the parent

@@ -159,6 +159,8 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   std::vector<std::pair<Mesh *, IDRecalcFlag>> m_meshesToUpdateInAllRenderPasses;
   std::vector<std::pair<Object *, IDRecalcFlag>> m_extraObjectsToUpdateInOverlayPass;
   std::vector<bNodeTree *> m_nodeTreesToUpdateInAllRenderPasses;
+
+  std::vector<KX_GameObject *> m_replicaArmatureList;
   /*************************************************/
 
   RAS_BucketManager *m_bucketmanager;
@@ -384,6 +386,8 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   void TagForExtraObjectsUpdate(Main *bmain, KX_Camera *cam);
   KX_GameObject *AddDuplicaObject(KX_GameObject *gameobj, KX_GameObject *reference, float lifespan);
   void OverlayPassDisableEffects(struct Depsgraph *depsgraph, KX_Camera *kxcam, bool isOverlayPass);
+  void RemapArmatureConstraintTarget();
+  void AppendToReplicaArmatures(KX_GameObject *gameobj);
   /***************End of EEVEE INTEGRATION**********************/
 
   RAS_BucketManager *GetBucketManager() const;
