@@ -1487,7 +1487,9 @@ void KX_Scene::AppendToReplicaArmatures(KX_GameObject *gameobj)
   m_replicaArmatureList.push_back(gameobj);
 }
 
-void KX_Scene::RemapArmatureConstraintTarget()
+/* Do an automatic bone constraints targets remapping
+ * only when targets are children of Armature */
+void KX_Scene::RemapBoneConstraintTargets()
 {
   for (KX_GameObject *gameobj : m_replicaArmatureList) {
     for (KX_GameObject *child : gameobj->GetChildren()) {
@@ -1509,7 +1511,7 @@ void KX_Scene::RemapArmatureConstraintTarget()
                     // secondary target
                     target = target->next;
                   }
-                  if (target->tar) {
+                  if (target->tar) { // if subtarget
                     target->tar = child->GetBlenderObject();
                   }
                 }
@@ -2485,7 +2487,7 @@ void KX_Scene::LogicEndFrame()
 {
   m_logicmgr->EndFrame();
 
-  RemapArmatureConstraintTarget();
+  RemapBoneConstraintTargets();
 
   /* Don't remove the objects from the euthanasy list here as the child objects of a deleted
    * parent object are destructed directly from the sgnode in the same time the parent

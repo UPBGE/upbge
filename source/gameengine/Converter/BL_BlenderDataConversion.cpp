@@ -1645,7 +1645,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
       navmesh->SetVisible(0, true);
     }
 
-    /* Mark armature constraint targets only if they are in armature children list */
+    /* Mark armature bone constraint targets only if they are in armature children list */
     if (blenderobject->type == OB_ARMATURE) {
       if (blenderobject->pose) {
         LISTBASE_FOREACH (bPoseChannel *, pchan, &blenderobject->pose->chanbase) {

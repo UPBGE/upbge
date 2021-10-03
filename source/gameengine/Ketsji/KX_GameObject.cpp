@@ -373,6 +373,7 @@ void KX_GameObject::ReplicateBlenderObject()
     newob->visibility_flag &= ~OB_HIDE_VIEWPORT;
     GetScene()->TagForCollectionRemap();
 
+    /* Used for bone constraint targets remapping (See KX_Scene::RemapBoneConstraintTargets) */
     if (newob->type == OB_ARMATURE) {
       GetScene()->AppendToReplicaArmatures(this);
     }

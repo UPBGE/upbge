@@ -160,6 +160,7 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   std::vector<std::pair<Object *, IDRecalcFlag>> m_extraObjectsToUpdateInOverlayPass;
   std::vector<bNodeTree *> m_nodeTreesToUpdateInAllRenderPasses;
 
+  /* For bone constraint targets remapping */
   std::vector<KX_GameObject *> m_replicaArmatureList;
   /*************************************************/
 
@@ -386,7 +387,9 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   void TagForExtraObjectsUpdate(Main *bmain, KX_Camera *cam);
   KX_GameObject *AddDuplicaObject(KX_GameObject *gameobj, KX_GameObject *reference, float lifespan);
   void OverlayPassDisableEffects(struct Depsgraph *depsgraph, KX_Camera *kxcam, bool isOverlayPass);
-  void RemapArmatureConstraintTarget();
+
+  /* For bone constraint targets remapping */
+  void RemapBoneConstraintTargets();
   void AppendToReplicaArmatures(KX_GameObject *gameobj);
   /***************End of EEVEE INTEGRATION**********************/
 
