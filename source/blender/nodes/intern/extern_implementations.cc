@@ -12,35 +12,23 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2006 Blender Foundation.
- * All rights reserved.
  */
 
-/** \file
- * \ingroup cmpnodes
- */
-
-#include "node_composite_util.hh"
-
-/* **************** Premul and Key Alpha Convert ******************** */
+#include "NOD_socket_declarations.hh"
 
 namespace blender::nodes {
+#define MAKE_EXTERN_SOCKET_IMPLEMENTATION(TYPE) \
+  template class SocketDeclarationBuilder<TYPE>; \
+  template TYPE::Builder &NodeDeclarationBuilder::add_input<TYPE>(StringRef, StringRef); \
+  template TYPE::Builder &NodeDeclarationBuilder::add_output<TYPE>(StringRef, StringRef);
 
-static void cmp_node_premulkey_declare(NodeDeclarationBuilder &b)
-{
-  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f});
-  b.add_output<decl::Color>("Image");
-}
+MAKE_EXTERN_SOCKET_IMPLEMENTATION(decl::Float)
+MAKE_EXTERN_SOCKET_IMPLEMENTATION(decl::Int)
+MAKE_EXTERN_SOCKET_IMPLEMENTATION(decl::Vector)
+MAKE_EXTERN_SOCKET_IMPLEMENTATION(decl::Bool)
+MAKE_EXTERN_SOCKET_IMPLEMENTATION(decl::Color)
+MAKE_EXTERN_SOCKET_IMPLEMENTATION(decl::String)
+MAKE_EXTERN_SOCKET_IMPLEMENTATION(decl::Geometry)
 
+#undef MAKE_EXTERN_SOCKET_IMPLEMENTATION
 }  // namespace blender::nodes
-
-void register_node_type_cmp_premulkey(void)
-{
-  static bNodeType ntype;
-
-  cmp_node_type_base(&ntype, CMP_NODE_PREMULKEY, "Alpha Convert", NODE_CLASS_CONVERTER, 0);
-  ntype.declare = blender::nodes::cmp_node_premulkey_declare;
-
-  nodeRegisterType(&ntype);
-}

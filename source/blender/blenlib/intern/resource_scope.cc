@@ -14,26 +14,19 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#pragma once
+#include "BLI_resource_scope.hh"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace blender {
 
-void register_node_type_fn_legacy_random_float(void);
+ResourceScope::ResourceScope() = default;
 
-void register_node_type_fn_boolean_math(void);
-void register_node_type_fn_float_compare(void);
-void register_node_type_fn_float_to_int(void);
-void register_node_type_fn_input_special_characters(void);
-void register_node_type_fn_input_string(void);
-void register_node_type_fn_input_vector(void);
-void register_node_type_fn_random_value(void);
-void register_node_type_fn_rotate_euler(void);
-void register_node_type_fn_string_length(void);
-void register_node_type_fn_string_substring(void);
-void register_node_type_fn_value_to_string(void);
-
-#ifdef __cplusplus
+ResourceScope::~ResourceScope()
+{
+  /* Free in reversed order. */
+  for (int64_t i = resources_.size(); i--;) {
+    ResourceData &data = resources_[i];
+    data.free(data.data);
+  }
 }
-#endif
+
+}  // namespace blender

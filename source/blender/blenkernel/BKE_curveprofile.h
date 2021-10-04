@@ -75,6 +75,8 @@ void BKE_curveprofile_create_samples(struct CurveProfile *profile,
                                      bool sample_straight_edges,
                                      struct CurveProfilePoint *r_samples);
 
+int BKE_curveprofile_table_size(const struct CurveProfile *profile);
+
 void BKE_curveprofile_init(struct CurveProfile *profile, short segments_len);
 
 /* Called for a complete update of the widget after modifications */
@@ -84,9 +86,6 @@ enum {
   PROF_UPDATE_CLIP = (1 << 1),
 };
 void BKE_curveprofile_update(struct CurveProfile *profile, const int update_flags);
-
-/* Need to find the total length of the curve to sample a portion of it */
-float BKE_curveprofile_total_length(const struct CurveProfile *profile);
 
 void BKE_curveprofile_create_samples_even_spacing(struct CurveProfile *profile,
                                                   int n_segments,

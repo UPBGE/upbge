@@ -14,26 +14,14 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#pragma once
+#include "BKE_attribute_access.hh"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace blender::bke {
 
-void register_node_type_fn_legacy_random_float(void);
+template class OutputAttribute_Typed<float>;
+template class OutputAttribute_Typed<int>;
+template class OutputAttribute_Typed<float3>;
+template class OutputAttribute_Typed<bool>;
+template class OutputAttribute_Typed<ColorGeometry4f>;
 
-void register_node_type_fn_boolean_math(void);
-void register_node_type_fn_float_compare(void);
-void register_node_type_fn_float_to_int(void);
-void register_node_type_fn_input_special_characters(void);
-void register_node_type_fn_input_string(void);
-void register_node_type_fn_input_vector(void);
-void register_node_type_fn_random_value(void);
-void register_node_type_fn_rotate_euler(void);
-void register_node_type_fn_string_length(void);
-void register_node_type_fn_string_substring(void);
-void register_node_type_fn_value_to_string(void);
-
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender::bke
