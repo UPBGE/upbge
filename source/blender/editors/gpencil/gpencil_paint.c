@@ -109,7 +109,6 @@ typedef enum eGP_StrokeAdd_Result {
 /* Runtime flags */
 typedef enum eGPencil_PaintFlags {
   GP_PAINTFLAG_FIRSTRUN = (1 << 0), /* operator just started */
-  GP_PAINTFLAG_STROKEADDED = (1 << 1),
   GP_PAINTFLAG_SELECTMASK = (1 << 3),
   GP_PAINTFLAG_HARD_ERASER = (1 << 4),
   GP_PAINTFLAG_STROKE_ERASER = (1 << 5),
@@ -280,15 +279,6 @@ static void gpencil_update_cache(bGPdata *gpd)
     DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
     gpd->flag |= GP_DATA_CACHE_IS_DIRTY;
   }
-}
-
-static void gpencil_stroke_added_enable(tGPsdata *p)
-{
-  BLI_assert(p->gpf->strokes.last != NULL);
-  p->flags |= GP_PAINTFLAG_STROKEADDED;
-
-  /* drawing batch cache is dirty now */
-  gpencil_update_cache(p->gpd);
 }
 
 /* ------ */
@@ -1324,7 +1314,7 @@ static void gpencil_stroke_newfrombuffer(tGPsdata *p)
     BKE_gpencil_stroke_copy_to_keyframes(gpd, gpl, p->gpf, gps, tail);
   }
 
-  gpencil_stroke_added_enable(p);
+  gpencil_update_cache(p->gpd);
 }
 
 /* --- 'Eraser' for 'Paint' Tool ------ */
