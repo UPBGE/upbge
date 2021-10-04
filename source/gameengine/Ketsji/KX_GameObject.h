@@ -111,8 +111,7 @@ class KX_GameObject : public SCA_IObject {
   bool m_visibleAtGameStart;
   bool m_forceIgnoreParentTx;
   short m_previousLodLevel;
-  bool m_isBoneTarget;
-  bool m_isBoneSubTarget;
+  std::pair<char *, bool> m_boneConstraintTargetIdentifier;
   /* END OF EEVEE INTEGRATION */
 
   KX_ClientObjectInfo *m_pClient_info;
@@ -175,10 +174,8 @@ class KX_GameObject : public SCA_IObject {
   void SetIsReplicaObject();
   float *GetPrevObmat();
   BL_ActionManager *GetActionManagerNoCreate();
-  void SetIsBoneTarget();
-  bool IsBoneTarget();
-  void SetIsBoneSubTarget();
-  bool IsBoneSubTarget();
+  void RegisterAsBoneConstraintTarget(char *constraintName, bool isSubTarget);
+  std::pair<char *, bool> GetBoneConstraintTargetIdentifier();
   /* END OF EEVEE INTEGRATION */
 
   /**

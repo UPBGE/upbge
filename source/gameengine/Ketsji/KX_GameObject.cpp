@@ -88,8 +88,6 @@ KX_GameObject::KX_GameObject()
       m_visibleAtGameStart(false),     // eevee
       m_forceIgnoreParentTx(false),    // eevee
       m_previousLodLevel(-1),          // eevee
-      m_isBoneTarget(false),           // eevee
-      m_isBoneSubTarget(false),        // eevee
       m_layer(0),
       m_lodManager(nullptr),
       m_currentLodLevel(0),
@@ -113,6 +111,8 @@ KX_GameObject::KX_GameObject()
 #endif
 {
   m_pClient_info = new KX_ClientObjectInfo(this, KX_ClientObjectInfo::ACTOR);
+
+  m_boneConstraintTargetIdentifier = {};
 
   unit_m4(m_prevObmat);  // eevee
 };
@@ -436,24 +436,14 @@ void KX_GameObject::HideOriginalObject()
   }
 }
 
-void KX_GameObject::SetIsBoneTarget()
+void KX_GameObject::RegisterAsBoneConstraintTarget(char *constraintName, bool isSubTarget)
 {
-  m_isBoneTarget = true;
+  m_boneConstraintTargetIdentifier = {constraintName, isSubTarget};
 }
 
-bool KX_GameObject::IsBoneTarget()
+std::pair<char *, bool> KX_GameObject::GetBoneConstraintTargetIdentifier()
 {
-  return m_isBoneTarget;
-}
-
-void KX_GameObject::SetIsBoneSubTarget()
-{
-  m_isBoneSubTarget = true;
-}
-
-bool KX_GameObject::IsBoneSubTarget()
-{
-  return m_isBoneSubTarget;
+  return m_boneConstraintTargetIdentifier;
 }
 
 void KX_GameObject::Dispose()
