@@ -3302,7 +3302,7 @@ void DRW_opengl_context_activate(bool drw_state)
 
 EEVEE_Data *EEVEE_engine_data_get(void)
 {
-  EEVEE_Data *data = (EEVEE_Data *)drw_viewport_engine_data_ensure(&draw_engine_eevee_type);
+  EEVEE_Data *data = NULL; /* (EEVEE_Data *)drw_viewport_engine_data_ensure(&draw_engine_eevee_type); */
   return data;
 }
 
@@ -3355,7 +3355,7 @@ void DRW_game_render_loop(bContext *C,
 
   drw_task_graph_init();
   drw_context_state_init();
-  drw_viewport_var_init();
+  //drw_viewport_var_init();
 
   const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
 
@@ -3437,7 +3437,7 @@ void DRW_game_render_loop(bContext *C,
   DRW_state_reset();
 
   drw_engines_disable();
-  drw_viewport_cache_resize();
+  //drw_viewport_cache_resize();
 
   GPU_viewport_unbind(DST.viewport);
 }
