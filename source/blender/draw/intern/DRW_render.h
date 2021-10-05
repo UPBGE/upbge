@@ -24,10 +24,6 @@
 
 #pragma once
 
-#include "MEM_guardedalloc.h"
-
-#include "../draw/DRW_engine_types.h"
-
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
@@ -58,6 +54,9 @@
 
 #include "draw_debug.h"
 #include "draw_manager_profiling.h"
+#include "draw_view_data.h"
+
+#include "MEM_guardedalloc.h"
 
 #include "RE_engine.h"
 
