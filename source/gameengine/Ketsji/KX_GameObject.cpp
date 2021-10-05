@@ -436,12 +436,14 @@ void KX_GameObject::HideOriginalObject()
   }
 }
 
-void KX_GameObject::RegisterAsBoneConstraintTarget(char *constraintName, bool isSubTarget)
+void KX_GameObject::RegisterAsBoneConstraintTarget(char *pchanName, char *constraintName, bool isSubTarget)
 {
-  m_boneConstraintTargetIdentifier = {constraintName, isSubTarget};
+  m_boneConstraintTargetIdentifier.pchanName = pchanName;
+  m_boneConstraintTargetIdentifier.pconName = constraintName;
+  m_boneConstraintTargetIdentifier.isSubTarget = isSubTarget;
 }
 
-std::pair<char *, bool> KX_GameObject::GetBoneConstraintTargetIdentifier()
+BoneConstraintTargetID KX_GameObject::GetBoneConstraintTargetIdentifier()
 {
   return m_boneConstraintTargetIdentifier;
 }

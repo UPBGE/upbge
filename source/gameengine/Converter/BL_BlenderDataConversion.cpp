@@ -1658,14 +1658,14 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
                 if (listb.first) {
                   bConstraintTarget *target = (bConstraintTarget *)listb.first;
                   if (target->tar && child->GetBlenderObject() == target->tar) {
-                    child->RegisterAsBoneConstraintTarget(pcon->name, false);
+                    child->RegisterAsBoneConstraintTarget(pchan->name, pcon->name, false);
                   }
                   if (target->next != nullptr) {
                     // secondary target
                     target = target->next;
-                  }
-                  if (target->tar && child->GetBlenderObject() == target->tar) {
-                    child->RegisterAsBoneConstraintTarget(pcon->name, true);
+                    if (target->tar && child->GetBlenderObject() == target->tar) {
+                      child->RegisterAsBoneConstraintTarget(pchan->name, pcon->name, true);
+                    }
                   }
                 }
                 if (cti->flush_constraint_targets) {

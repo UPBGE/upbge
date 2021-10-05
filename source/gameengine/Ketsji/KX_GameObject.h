@@ -81,6 +81,12 @@ bool ConvertPythonToGameObject(SCA_LogicManager *logicmgr,
 void KX_GameObject_Mathutils_Callback_Init(void);
 #endif
 
+typedef struct BoneConstraintTargetId {
+  char *pchanName;  // pointer to orig inactiveList pchan name (don't free)
+  char *pconName;   // pointer to orig inactiveList pcon name (don't free)
+  bool isSubTarget;
+} BoneConstraintTargetID;
+
 /**
  * KX_GameObject is the main class for dynamic objects.
  */
@@ -111,7 +117,7 @@ class KX_GameObject : public SCA_IObject {
   bool m_visibleAtGameStart;
   bool m_forceIgnoreParentTx;
   short m_previousLodLevel;
-  std::pair<char *, bool> m_boneConstraintTargetIdentifier;
+  BoneConstraintTargetId m_boneConstraintTargetIdentifier;
   /* END OF EEVEE INTEGRATION */
 
   KX_ClientObjectInfo *m_pClient_info;
@@ -174,8 +180,8 @@ class KX_GameObject : public SCA_IObject {
   void SetIsReplicaObject();
   float *GetPrevObmat();
   BL_ActionManager *GetActionManagerNoCreate();
-  void RegisterAsBoneConstraintTarget(char *constraintName, bool isSubTarget);
-  std::pair<char *, bool> GetBoneConstraintTargetIdentifier();
+  void RegisterAsBoneConstraintTarget(char *pchanName, char *constraintName, bool isSubTarget);
+  BoneConstraintTargetId GetBoneConstraintTargetIdentifier();
   /* END OF EEVEE INTEGRATION */
 
   /**
