@@ -529,7 +529,7 @@ typedef struct DRWDebugBox2D {
 typedef struct DRWData {
   /** Instance data. */
   DRWInstanceDataList *idatalist;
-  /** Mempools for drawcalls. */
+  /** Memory-pools for draw-calls. */
   struct BLI_memblock *commands;
   struct BLI_memblock *commands_small;
   struct BLI_memblock *callbuffers;

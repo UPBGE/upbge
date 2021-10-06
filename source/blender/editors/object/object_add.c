@@ -66,7 +66,6 @@
 #include "BKE_displist.h"
 #include "BKE_duplilist.h"
 #include "BKE_effect.h"
-#include "BKE_font.h"
 #include "BKE_geometry_set.h"
 #include "BKE_gpencil_curve.h"
 #include "BKE_gpencil_geom.h"
@@ -94,6 +93,7 @@
 #include "BKE_sca.h"
 #include "BKE_scene.h"
 #include "BKE_speaker.h"
+#include "BKE_vfont.h"
 #include "BKE_volume.h"
 
 #include "DEG_depsgraph.h"
