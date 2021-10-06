@@ -140,7 +140,7 @@ void ImageRender::calcViewport(unsigned int texId, double ts, unsigned int forma
 
   GPU_framebuffer_texture_attach(
       m_targetfb, GPU_viewport_color_texture(m_camera->GetGPUViewport(), 0), 0, 0);
-  GPU_framebuffer_texture_attach(m_targetfb, DRW_viewport_texture_list_get()->depth, 0, 0);
+  GPU_framebuffer_texture_attach(m_targetfb, GPU_viewport_depth_texture(m_camera->GetGPUViewport()), 0, 0);
   GPU_framebuffer_bind(m_targetfb);
 
   // get image from viewport (or FBO)
@@ -148,7 +148,8 @@ void ImageRender::calcViewport(unsigned int texId, double ts, unsigned int forma
 
   GPU_framebuffer_texture_detach(m_targetfb,
                                  GPU_viewport_color_texture(m_camera->GetGPUViewport(), 0));
-  GPU_framebuffer_texture_detach(m_targetfb, DRW_viewport_texture_list_get()->depth);
+  GPU_framebuffer_texture_detach(m_targetfb,
+                                 GPU_viewport_depth_texture(m_camera->GetGPUViewport()));
 
   GPU_framebuffer_restore();
 }

@@ -331,7 +331,6 @@ KX_Scene::~KX_Scene()
   /*************************/
 
   if (!KX_GetActiveEngine()->UseViewportRender()) {
-    DRW_game_gpu_viewport_set(nullptr);
     if (!m_isPythonMainLoop) {
       /* This will free m_gpuViewport and m_gpuOffScreen */
       DRW_game_render_loop_end();
@@ -349,6 +348,7 @@ KX_Scene::~KX_Scene()
         DRW_game_python_loop_end(DEG_get_evaluated_view_layer(depsgraph));
       }
     }
+    DRW_game_gpu_viewport_set(nullptr);
   }
   else {
     // Free the allocated profile a last time
@@ -737,6 +737,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     bool calledFromConstructor = cam == nullptr;
     if (calledFromConstructor) {
       m_currentGPUViewport = GPU_viewport_create();
+      DRW_game_gpu_viewport_set(m_currentGPUViewport);
       SetInitMaterialsGPUViewport(m_currentGPUViewport);
     }
     else {
@@ -882,7 +883,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   for (short i = 0; i < samples_per_frame; i++) {
     GPU_clear_depth(1.0f);
-    DRW_game_render_loop(C, m_currentGPUViewport, depsgraph, &window, is_overlay_pass);
+    DRW_game_render_loop(C, m_currentGPUViewport, depsgraph, &window, is_overlay_pass, cam == nullptr);
   }
 
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
@@ -895,7 +896,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   GPU_framebuffer_texture_attach(
       input->GetFrameBuffer(), GPU_viewport_color_texture(m_currentGPUViewport, 0), 0, 0);
   GPU_framebuffer_texture_attach(
-      input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth, 0, 0);
+      input->GetFrameBuffer(), GPU_viewport_depth_texture(m_currentGPUViewport), 0, 0);
 
   RAS_FrameBuffer *f = is_overlay_pass ? input : Render2DFilters(rasty, canvas, input, output);
 
@@ -909,12 +910,14 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()),
                            CTX_wm_view3d(C),
+                           CTX_data_scene(C),
                            GetOverlayCamera() && !is_overlay_pass ? false : true);
 
   /* Detach viewport textures from input framebuffer... */
   GPU_framebuffer_texture_detach(input->GetFrameBuffer(),
                                  GPU_viewport_color_texture(m_currentGPUViewport, 0));
-  GPU_framebuffer_texture_detach(input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth);
+  GPU_framebuffer_texture_detach(input->GetFrameBuffer(),
+                                 GPU_viewport_depth_texture(m_currentGPUViewport));
   /* And restore defaults attachments */
   GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetColorAttachment(), 0, 0);
   GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetDepthAttachment(), 0, 0);
@@ -947,7 +950,7 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
                             winmat,
                             NULL);
 
-  DRW_game_render_loop(C, m_currentGPUViewport, depsgraph, window, false);
+  DRW_game_render_loop(C, m_currentGPUViewport, depsgraph, window, false, false);
 }
 
 void KX_Scene::SetBlenderSceneConverter(BL_BlenderSceneConverter *sc_converter)

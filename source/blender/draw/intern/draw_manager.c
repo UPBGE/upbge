@@ -3302,7 +3302,7 @@ void DRW_opengl_context_activate(bool drw_state)
 
 EEVEE_Data *EEVEE_engine_data_get(void)
 {
-  EEVEE_Data *data = NULL; /* (EEVEE_Data *)drw_viewport_engine_data_ensure(&draw_engine_eevee_type); */
+  EEVEE_Data *data = (EEVEE_Data *)drw_viewport_data_ensure(DRW_game_gpu_viewport_get());
   return data;
 }
 
@@ -3310,7 +3310,8 @@ void DRW_game_render_loop(bContext *C,
                           GPUViewport *viewport,
                           Depsgraph *depsgraph,
                           const rcti *window,
-                          bool is_overlay_pass)
+                          bool is_overlay_pass,
+                          bool called_from_constructor)
 {
   /* Reset before using it. */
   drw_state_prepare_clean_for_draw(&DST);
@@ -3325,15 +3326,6 @@ void DRW_game_render_loop(bContext *C,
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
   GPU_viewport_bind(viewport, 0, window);
-
-  bool gpencil_engine_needed = drw_gpencil_engine_needed(depsgraph, v3d);
-
-  use_drw_engine(&draw_engine_eevee_type);
-  if (gpencil_engine_needed) {
-    use_drw_engine(&draw_engine_gpencil_type);
-  }
-
-  DST.viewport = viewport;
 
   DRW_view_set_active(NULL);
 
@@ -3355,7 +3347,15 @@ void DRW_game_render_loop(bContext *C,
 
   drw_task_graph_init();
   drw_context_state_init();
-  //drw_viewport_var_init();
+
+  drw_manager_init(&DST, viewport, NULL);
+
+  bool gpencil_engine_needed = drw_gpencil_engine_needed(depsgraph, v3d);
+
+  use_drw_engine(&draw_engine_eevee_type);
+  if (gpencil_engine_needed) {
+    use_drw_engine(&draw_engine_gpencil_type);
+  }
 
   const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
 
@@ -3437,19 +3437,17 @@ void DRW_game_render_loop(bContext *C,
   DRW_state_reset();
 
   drw_engines_disable();
-  //drw_viewport_cache_resize();
+
+  if (!called_from_constructor) {
+    drw_manager_exit(&DST);
+  }
 
   GPU_viewport_unbind(DST.viewport);
 }
 
 void DRW_game_render_loop_end()
 {
-  GPU_viewport_free(DST.viewport);
-
-  EEVEE_view_layer_data_free(EEVEE_view_layer_data_ensure());
-  DRW_engines_free();
-
-  memset(&DST, 0xFF, offsetof(DRWManager, gl_context));
+  GPU_viewport_free(DRW_game_gpu_viewport_get());
 }
 
 void DRW_game_viewport_render_loop_end()
@@ -3540,7 +3538,7 @@ void DRW_transform_to_display_image_render(GPUTexture *tex)
 }
 
 /* Use color management profile to draw texture to framebuffer */
-void DRW_transform_to_display(GPUTexture *tex, View3D *v3d, bool do_dithering)
+void DRW_transform_to_display(GPUTexture *tex, View3D *v3d, Scene *scene, bool do_dithering)
 {
   drw_state_set(DRW_STATE_WRITE_COLOR);
 
@@ -3562,7 +3560,6 @@ void DRW_transform_to_display(GPUTexture *tex, View3D *v3d, bool do_dithering)
   float dither = 0.0f;
   bool use_ocio = false;
   /* Should we apply the view transform */
-  Scene *scene = DST.draw_ctx.scene;
   ColorManagedDisplaySettings *display_settings = &scene->display_settings;
   ColorManagedViewSettings view_settings;
   if (use_render_settings) {
