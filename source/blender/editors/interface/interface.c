@@ -1132,6 +1132,9 @@ bool UI_but_active_only_ex(
   else if ((found == true) && (isactive == false)) {
     if (remove_on_failure) {
       BLI_remlink(&block->buttons, but);
+      if (but->layout) {
+        ui_layout_remove_but(but->layout, but);
+      }
       ui_but_free(C, but);
     }
     return false;
@@ -2791,7 +2794,7 @@ double ui_but_value_get(uiBut *but)
 
 void ui_but_value_set(uiBut *but, double value)
 {
-  /* value is a hsv value: convert to rgb */
+  /* Value is a HSV value: convert to RGB. */
   if (but->rnaprop) {
     PropertyRNA *prop = but->rnaprop;
 
