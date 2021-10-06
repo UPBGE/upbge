@@ -331,15 +331,14 @@ KX_Scene::~KX_Scene()
   /*************************/
 
   if (!KX_GetActiveEngine()->UseViewportRender()) {
-    DRW_game_gpu_viewport_set(nullptr);
     if (!m_isPythonMainLoop) {
       /* This will free m_gpuViewport and m_gpuOffScreen */
-      DRW_game_render_loop_end();
+      DRW_game_render_loop_end(DEG_get_evaluated_view_layer(depsgraph));
     }
     else {
       /* If we are in python loop and we called render code */
       if (!m_initMaterialsGPUViewport) {
-        DRW_game_render_loop_end();
+        DRW_game_render_loop_end(DEG_get_evaluated_view_layer(depsgraph));
       }
       else {
         /* It has not been freed before because the main Render loop
@@ -349,6 +348,7 @@ KX_Scene::~KX_Scene()
         DRW_game_python_loop_end(DEG_get_evaluated_view_layer(depsgraph));
       }
     }
+    DRW_game_gpu_viewport_set(nullptr);
   }
   else {
     // Free the allocated profile a last time
@@ -895,7 +895,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   GPU_framebuffer_texture_attach(
       input->GetFrameBuffer(), GPU_viewport_color_texture(m_currentGPUViewport, 0), 0, 0);
   GPU_framebuffer_texture_attach(
-      input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth, 0, 0);
+      input->GetFrameBuffer(), GPU_viewport_depth_texture(m_currentGPUViewport), 0, 0);
 
   RAS_FrameBuffer *f = is_overlay_pass ? input : Render2DFilters(rasty, canvas, input, output);
 
@@ -909,12 +909,14 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   DRW_transform_to_display(GPU_framebuffer_color_texture(f->GetFrameBuffer()),
                            CTX_wm_view3d(C),
+                           CTX_data_scene(C),
                            GetOverlayCamera() && !is_overlay_pass ? false : true);
 
   /* Detach viewport textures from input framebuffer... */
   GPU_framebuffer_texture_detach(input->GetFrameBuffer(),
                                  GPU_viewport_color_texture(m_currentGPUViewport, 0));
-  GPU_framebuffer_texture_detach(input->GetFrameBuffer(), DRW_viewport_texture_list_get()->depth);
+  GPU_framebuffer_texture_detach(input->GetFrameBuffer(),
+                                 GPU_viewport_depth_texture(m_currentGPUViewport));
   /* And restore defaults attachments */
   GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetColorAttachment(), 0, 0);
   GPU_framebuffer_texture_attach(input->GetFrameBuffer(), input->GetDepthAttachment(), 0, 0);
