@@ -62,7 +62,7 @@ KX_BlenderMaterial::KX_BlenderMaterial(RAS_Rasterizer *rasty,
    * because it is causing a crash
    * (m_textures list won't be available for these object)
    */
-  /*if (m_material->use_nodes && m_material->nodetree && !converting_during_runtime) {
+  if (m_material->use_nodes && m_material->nodetree && !converting_during_runtime) {
     if (!KX_GetActiveEngine()->UseViewportRender()) {
       EEVEE_Data *vedata = EEVEE_engine_data_get();
       EEVEE_EffectsInfo *effects = vedata->stl->effects;
@@ -86,8 +86,7 @@ KX_BlenderMaterial::KX_BlenderMaterial(RAS_Rasterizer *rasty,
   }
   else {
     m_gpuMat = nullptr;
-  }*/
-  m_gpuMat = nullptr;
+  }
 }
 
 KX_BlenderMaterial::~KX_BlenderMaterial()

@@ -333,12 +333,12 @@ KX_Scene::~KX_Scene()
   if (!KX_GetActiveEngine()->UseViewportRender()) {
     if (!m_isPythonMainLoop) {
       /* This will free m_gpuViewport and m_gpuOffScreen */
-      DRW_game_render_loop_end(DEG_get_evaluated_view_layer(depsgraph));
+      DRW_game_render_loop_end();
     }
     else {
       /* If we are in python loop and we called render code */
       if (!m_initMaterialsGPUViewport) {
-        DRW_game_render_loop_end(DEG_get_evaluated_view_layer(depsgraph));
+        DRW_game_render_loop_end();
       }
       else {
         /* It has not been freed before because the main Render loop
@@ -737,6 +737,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     bool calledFromConstructor = cam == nullptr;
     if (calledFromConstructor) {
       m_currentGPUViewport = GPU_viewport_create();
+      DRW_game_gpu_viewport_set(m_currentGPUViewport);
       SetInitMaterialsGPUViewport(m_currentGPUViewport);
     }
     else {
@@ -882,7 +883,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   for (short i = 0; i < samples_per_frame; i++) {
     GPU_clear_depth(1.0f);
-    DRW_game_render_loop(C, m_currentGPUViewport, depsgraph, &window, is_overlay_pass);
+    DRW_game_render_loop(C, m_currentGPUViewport, depsgraph, &window, is_overlay_pass, cam == nullptr);
   }
 
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
@@ -949,7 +950,7 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
                             winmat,
                             NULL);
 
-  DRW_game_render_loop(C, m_currentGPUViewport, depsgraph, window, false);
+  DRW_game_render_loop(C, m_currentGPUViewport, depsgraph, window, false, false);
 }
 
 void KX_Scene::SetBlenderSceneConverter(BL_BlenderSceneConverter *sc_converter)

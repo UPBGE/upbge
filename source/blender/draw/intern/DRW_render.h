@@ -787,9 +787,10 @@ void DRW_game_render_loop(struct bContext *C,
                           struct GPUViewport *viewport,
                           struct Depsgraph *depsgraph,
                           const struct rcti *window,
-                          bool is_overlay_pass);
+                          bool is_overlay_pass,
+                          bool called_from_constructor);
 
-void DRW_game_render_loop_end(struct ViewLayer *view_layer);
+void DRW_game_render_loop_end(void);
 void DRW_game_python_loop_end(struct ViewLayer *view_layer);
 void DRW_game_viewport_render_loop_end(void);
 void DRW_transform_to_display(struct GPUTexture *tex, struct View3D *v3d, struct Scene *scene, bool do_dithering);
