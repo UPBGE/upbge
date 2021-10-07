@@ -755,7 +755,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   /* Notify the depsgraph if object transform changed in the scene
    * for next drawing loop. */
   for (KX_GameObject *gameobj : GetObjectList()) {
-    gameobj->TagForTransformUpdate(is_last_render_pass);
+    gameobj->TagForTransformUpdate(is_overlay_pass, is_last_render_pass);
   }
 
   /* Notify depsgraph for other changes */

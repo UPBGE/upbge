@@ -157,7 +157,7 @@ class KX_GameObject : public SCA_IObject {
  public:
   /* EEVEE INTEGRATION */
 
-  void TagForTransformUpdate(bool is_last_render_pass);
+  void TagForTransformUpdate(bool is_overlay_pass, bool is_last_render_pass);
   void TagForTransformUpdateEvaluated();
   void ReplicateBlenderObject();
   void HideOriginalObject();

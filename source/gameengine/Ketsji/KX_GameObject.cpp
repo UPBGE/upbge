@@ -252,7 +252,7 @@ void KX_GameObject::ForceIgnoreParentTx()
   m_forceIgnoreParentTx = true;
 }
 
-void KX_GameObject::TagForTransformUpdate(bool is_last_render_pass)
+void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_render_pass)
 {
   float obmat[4][4];
   NodeGetWorldTransform().getValue(&obmat[0][0]);
@@ -284,6 +284,10 @@ void KX_GameObject::TagForTransformUpdate(bool is_last_render_pass)
   Object *ob_orig = GetBlenderObject();
 
   bool skip_transform = ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY;
+  /* Don't tag non overlay collection objects in overlay collection render pass */
+  skip_transform = skip_transform || ((ob_orig->gameflag & OB_OVERLAY_COLLECTION) == 0 && is_overlay_pass);
+  /* Don't tag overlay collection objects in non overlay collection render pass */
+  skip_transform = skip_transform || (ob_orig->gameflag & OB_OVERLAY_COLLECTION && !is_overlay_pass);
 
   if (ob_orig && !skip_transform) {
 
