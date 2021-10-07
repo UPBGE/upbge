@@ -259,7 +259,7 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
   bool staticObject = true;
   if (GetSGNode()->IsDirty(SG_Node::DIRTY_RENDER)) {
     staticObject = false;
-    /* Wait the end of all render passes (main + overlay)
+    /* Wait the end of all render passes (main + custom viewports)
      * to clear dirty render because we want the objects to
      * be tagged for transform update for each render pass.
      */
