@@ -1042,6 +1042,22 @@ class SEQUENCER_MT_preview_context_menu(Menu):
             pass
 
 
+class SEQUENCER_MT_pivot_pie(Menu):
+    bl_label = "Pivot Point"
+
+    def draw(self, context):
+        layout = self.layout
+        pie = layout.menu_pie()
+
+        tool_settings = context.tool_settings
+        sequencer_tool_settings = context.tool_settings.sequencer_tool_settings
+
+        pie.prop_enum(sequencer_tool_settings, "pivot_point", value='CENTER')
+        pie.prop_enum(sequencer_tool_settings, "pivot_point", value='CURSOR')
+        pie.prop_enum(sequencer_tool_settings, "pivot_point", value='INDIVIDUAL_ORIGINS')
+        pie.prop_enum(sequencer_tool_settings, "pivot_point", value='MEDIAN')
+
+
 class SequencerButtonsPanel:
     bl_space_type = 'SEQUENCE_EDITOR'
     bl_region_type = 'UI'
@@ -1801,15 +1817,26 @@ class SEQUENCER_PT_adjust_sound(SequencerButtonsPanel, Panel):
             split.label(text="Pitch")
             split.prop(strip, "pitch", text="")
 
+            audio_channels = context.scene.render.ffmpeg.audio_channels
+            pan_enabled = sound.use_mono and audio_channels != 'MONO'
+            pan_text = "%.2f°" % (strip.pan * 90)
+
             split = col.split(factor=0.4)
             split.alignment = 'RIGHT'
             split.label(text="Pan")
-            audio_channels = context.scene.render.ffmpeg.audio_channels
-            pan_text = ""
+            split.prop(strip, "pan", text="")
+            split.enabled = pan_enabled
+
             if audio_channels != 'MONO' and audio_channels != 'STEREO':
-                pan_text = "%.2f°" % (strip.pan * 90)
-            split.prop(strip, "pan", text=pan_text)
-            split.enabled = sound.use_mono and audio_channels != 'MONO'
+                split = col.split(factor=0.4)
+                split.alignment = 'RIGHT'
+                split.label(text="Pan Angle")
+                split.enabled = pan_enabled
+                subsplit = split.row()
+                subsplit.alignment = 'CENTER'
+                subsplit.label(text=pan_text)
+                subsplit.label(text=" ")  # Compensate for no decorate.
+                subsplit.enabled = pan_enabled
 
             layout.use_property_split = False
             col = layout.column()
@@ -2174,6 +2201,22 @@ class SEQUENCER_PT_view(SequencerButtonsPanel_Output, Panel):
             col.prop(st, "show_separate_color")
 
 
+class SEQUENCER_PT_view_cursor(SequencerButtonsPanel_Output, Panel):
+    bl_category = "View"
+    bl_label = "2D Cursor"
+
+    def draw(self, context):
+        layout = self.layout
+
+        st = context.space_data
+
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        col = layout.column()
+        col.prop(st, "cursor_location", text="Location")
+
+
 class SEQUENCER_PT_frame_overlay(SequencerButtonsPanel_Output, Panel):
     bl_label = "Frame Overlay"
     bl_category = "View"
@@ -2453,6 +2496,7 @@ classes = (
     SEQUENCER_MT_color_tag_picker,
     SEQUENCER_MT_context_menu,
     SEQUENCER_MT_preview_context_menu,
+    SEQUENCER_MT_pivot_pie,
 
     SEQUENCER_PT_color_tag_picker,
 
@@ -2489,6 +2533,7 @@ classes = (
     SEQUENCER_PT_custom_props,
 
     SEQUENCER_PT_view,
+    SEQUENCER_PT_view_cursor,
     SEQUENCER_PT_frame_overlay,
     SEQUENCER_PT_view_safe_areas,
     SEQUENCER_PT_view_safe_areas_center_cut,

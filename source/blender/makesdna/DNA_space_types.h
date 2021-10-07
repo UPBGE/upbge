@@ -662,6 +662,9 @@ typedef struct SpaceSeq {
   int draw_flag;
   char _pad[4];
 
+  /** 2D cursor for transform. */
+  float cursor[2];
+
   /** Grease-pencil data. */
   struct bGPdata *gpd;
 
