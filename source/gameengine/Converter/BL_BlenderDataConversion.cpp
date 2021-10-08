@@ -1648,7 +1648,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
     /* Mark armature bone constraint targets only if they are in armature children list */
     if (blenderobject->type == OB_ARMATURE) {
       if (blenderobject->pose) {
-        for (KX_GameObject *child : gameobj->GetChildren()) {
+        for (KX_GameObject *potentialTar : inactivelist) {
           LISTBASE_FOREACH (bPoseChannel *, pchan, &blenderobject->pose->chanbase) {
             LISTBASE_FOREACH (bConstraint *, pcon, &pchan->constraints) {
               const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(pcon);
@@ -1657,14 +1657,14 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
                 cti->get_constraint_targets(pcon, &listb);
                 if (listb.first) {
                   bConstraintTarget *target = (bConstraintTarget *)listb.first;
-                  if (target->tar && child->GetBlenderObject() == target->tar) {
-                    child->RegisterAsBoneConstraintTarget(pchan->name, pcon->name, false);
+                  if (target->tar && potentialTar->GetBlenderObject() == target->tar) {
+                    potentialTar->RegisterAsBoneConstraintTarget(pchan->name, pcon->name, false);
                   }
                   if (target->next != nullptr) {
                     // secondary target
                     target = target->next;
-                    if (target->tar && child->GetBlenderObject() == target->tar) {
-                      child->RegisterAsBoneConstraintTarget(pchan->name, pcon->name, true);
+                    if (target->tar && potentialTar->GetBlenderObject() == target->tar) {
+                      potentialTar->RegisterAsBoneConstraintTarget(pchan->name, pcon->name, true);
                     }
                   }
                 }

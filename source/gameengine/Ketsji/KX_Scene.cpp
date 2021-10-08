@@ -233,6 +233,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   m_kxobWithLod = {};
   m_obRestrictFlags = {};
   m_replicaArmatureList = {};
+  m_replicaNonArmatureList = {};
+
   m_backupOverlayFlag = -1;
   m_backupOverlayGameFlag = -1;
 
@@ -1487,13 +1489,18 @@ void KX_Scene::AppendToReplicaArmatures(KX_GameObject *gameobj)
   m_replicaArmatureList.push_back(gameobj);
 }
 
+void KX_Scene::AppendToReplicaNonArmatures(KX_GameObject *gameobj)
+{
+  m_replicaNonArmatureList.push_back(gameobj);
+}
+
 /* Do an automatic bone constraints targets remapping
  * only when targets are children of Armature */
 void KX_Scene::RemapBoneConstraintTargets()
 {
   for (KX_GameObject *gameobj : m_replicaArmatureList) {
-    for (KX_GameObject *child : gameobj->GetChildren()) {
-      BoneConstraintTargetID id = child->GetBoneConstraintTargetIdentifier();
+    for (KX_GameObject *addedObj : m_replicaNonArmatureList) {
+      BoneConstraintTargetID id = addedObj->GetBoneConstraintTargetIdentifier();
       if (id.pchanName != nullptr) {
         Object *blenderobject = gameobj->GetBlenderObject();
         if (blenderobject->pose) {
@@ -1509,13 +1516,13 @@ void KX_Scene::RemapBoneConstraintTargets()
                   bool constraintMatch = boneMatch && strcmp(id.pconName, pcon->name) == 0;
                   bool isSubTarget = id.isSubTarget;
                   if (target->tar && constraintMatch && !isSubTarget) {
-                    target->tar = child->GetBlenderObject();
+                    target->tar = addedObj->GetBlenderObject();
                   }
                   if (target->next != nullptr) {
                     // secondary target
                     target = target->next;
                     if (target->tar && constraintMatch && isSubTarget) {  // if subtarget
-                      target->tar = child->GetBlenderObject();
+                      target->tar = addedObj->GetBlenderObject();
                     }
                   }
                 }
@@ -1530,6 +1537,7 @@ void KX_Scene::RemapBoneConstraintTargets()
     }
   }
   m_replicaArmatureList.clear();
+  m_replicaNonArmatureList.clear();
 }
 
 /******************End of EEVEE INTEGRATION****************************/
