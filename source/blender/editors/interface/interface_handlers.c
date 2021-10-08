@@ -8230,6 +8230,14 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
     /* handle menu */
     if ((event->type == RIGHTMOUSE) && !IS_EVENT_MOD(event, shift, ctrl, alt, oskey) &&
         (event->val == KM_PRESS)) {
+      /* For some button types that are typically representing entire sets of data, right-clicking
+       * to spawn the context menu should also activate the item. This makes it clear which item
+       * will be operated on.
+       * Apply the button immediately, so context menu polls get the right active item. */
+      if (ELEM(but->type, UI_BTYPE_TREEROW)) {
+        ui_apply_but(C, but->block, but, but->active, true);
+      }
+
       /* RMB has two options now */
       if (ui_popup_context_menu_for_button(C, but, event)) {
         return WM_UI_HANDLER_BREAK;
@@ -8508,7 +8516,11 @@ static ARegion *ui_but_tooltip_init(
   uiBut *but = UI_region_active_but_get(region);
   *r_exit_on_event = false;
   if (but) {
-    return UI_tooltip_create_from_button(C, region, but, is_label);
+    const wmWindow *win = CTX_wm_window(C);
+    uiButExtraOpIcon *extra_icon = ui_but_extra_operator_icon_mouse_over_get(
+        but, but->active, win->eventstate);
+
+    return UI_tooltip_create_from_button_or_extra_icon(C, region, but, extra_icon, is_label);
   }
   return NULL;
 }

@@ -643,6 +643,19 @@ void do_versions_after_linking_300(Main *bmain, ReportList *UNUSED(reports))
       }
     }
   }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 300, 33)) {
+    /* This was missing from #move_vertex_group_names_to_object_data. */
+    LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+      if (ELEM(object->type, OB_MESH, OB_LATTICE, OB_GPENCIL)) {
+        /* This uses the fact that the active vertex group index starts counting at 1. */
+        if (BKE_object_defgroup_active_index_get(object) == 0) {
+          BKE_object_defgroup_active_index_set(object, object->actdef);
+        }
+      }
+    }
+  }
+
   /**
    * Versioning code until next subversion bump goes here.
    *
@@ -655,16 +668,6 @@ void do_versions_after_linking_300(Main *bmain, ReportList *UNUSED(reports))
    */
   {
     /* Keep this block, even when empty. */
-
-    /* This was missing from #move_vertex_group_names_to_object_data. */
-    LISTBASE_FOREACH (Object *, object, &bmain->objects) {
-      if (ELEM(object->type, OB_MESH, OB_LATTICE, OB_GPENCIL)) {
-        /* This uses the fact that the active vertex group index starts counting at 1. */
-        if (BKE_object_defgroup_active_index_get(object) == 0) {
-          BKE_object_defgroup_active_index_set(object, object->actdef);
-        }
-      }
-    }
   }
 }
 
@@ -1702,6 +1705,30 @@ void blo_do_versions_300(FileData *fd, Library *UNUSED(lib), Main *bmain)
           if (sl->spacetype == SPACE_SEQ) {
             SpaceSeq *sseq = (SpaceSeq *)sl;
             sseq->timeline_overlay.flag |= SEQ_TIMELINE_SHOW_STRIP_COLOR_TAG;
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 300, 33)) {
+    for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          switch (sl->spacetype) {
+            case SPACE_SEQ: {
+              SpaceSeq *sseq = (SpaceSeq *)sl;
+              enum { SEQ_DRAW_SEQUENCE = 0 };
+              if (sseq->mainb == SEQ_DRAW_SEQUENCE) {
+                sseq->mainb = SEQ_DRAW_IMG_IMBUF;
+              }
+              break;
+            }
+            case SPACE_TEXT: {
+              SpaceText *st = (SpaceText *)sl;
+              st->flags &= ~ST_FLAG_UNUSED_4;
+              break;
+            }
           }
         }
       }

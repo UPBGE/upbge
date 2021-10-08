@@ -2165,7 +2165,6 @@ def km_file_browser(params):
              ("only_activate_if_selected", params.select_mouse == 'LEFTMOUSE'), ("pass_through", True),
          ]}),
         *_template_items_context_menu("FILEBROWSER_MT_context_menu", params.context_menu_event),
-        *_template_items_context_menu("ASSETBROWSER_MT_context_menu", params.context_menu_event),
     ])
 
     return keymap
@@ -2233,6 +2232,7 @@ def km_file_browser_main(params):
         ("file.highlight", {"type": 'MOUSEMOVE', "value": 'ANY', "any": True}, None),
         ("file.sort_column_ui_context", {"type": 'LEFTMOUSE', "value": 'PRESS', "any": True}, None),
         ("file.view_selected", {"type": 'NUMPAD_PERIOD', "value": 'PRESS'}, None),
+        *_template_items_context_menu("ASSETBROWSER_MT_context_menu", params.context_menu_event),
     ])
 
     return keymap
@@ -2847,7 +2847,6 @@ def km_sequencerpreview(params):
             value=params.select_mouse_value_fallback,
             legacy=params.legacy,
         ),
-        op_menu_pie("SEQUENCER_MT_pivot_pie", {"type": 'PERIOD', "value": 'PRESS'}),
 
         ("sequencer.view_all_preview", {"type": 'HOME', "value": 'PRESS'}, None),
         ("sequencer.view_all_preview", {"type": 'NDOF_BUTTON_FIT', "value": 'PRESS'}, None),
@@ -2884,6 +2883,16 @@ def km_sequencerpreview(params):
          {"properties": [("property", 'ROTATION')]}),
         *_template_items_context_menu("SEQUENCER_MT_preview_context_menu", params.context_menu_event),
     ])
+
+    if not params.legacy:
+        # New pie menus.
+        items.extend([
+            ("wm.context_toggle", {"type": 'ACCENT_GRAVE', "value": 'PRESS', "ctrl": True},
+             {"properties": [("data_path", 'space_data.show_gizmo')]}),
+            op_menu_pie("SEQUENCER_MT_pivot_pie", {"type": 'PERIOD', "value": 'PRESS'}),
+            ("wm.context_toggle", {"type": 'Z', "value": 'PRESS', "alt": True, "shift": True},
+             {"properties": [("data_path", "space_data.overlay.show_overlays")]}),
+        ])
 
     # 2D cursor.
     if params.cursor_tweak_event:
