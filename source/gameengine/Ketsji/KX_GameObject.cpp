@@ -378,9 +378,7 @@ void KX_GameObject::ReplicateBlenderObject()
     if (newob->type == OB_ARMATURE) {
       GetScene()->AppendToReplicaArmatures(this);
     }
-    else {
-      GetScene()->AppendToReplicaNonArmatures(this);
-    }
+    GetScene()->AppendToReplica(this);
 
     if (ob->parent) {
       if (GetScene()->GetLastReplicatedParentObject()) {

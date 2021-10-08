@@ -1657,13 +1657,16 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
                 cti->get_constraint_targets(pcon, &listb);
                 if (listb.first) {
                   bConstraintTarget *target = (bConstraintTarget *)listb.first;
-                  if (target->tar && potentialTar->GetBlenderObject() == target->tar) {
+                  bool targetIsNotSelf = potentialTar != gameobj;
+                  if (target->tar && potentialTar->GetBlenderObject() == target->tar &&
+                      targetIsNotSelf) {
                     potentialTar->RegisterAsBoneConstraintTarget(pchan->name, pcon->name, false);
                   }
                   if (target->next != nullptr) {
                     // secondary target
                     target = target->next;
-                    if (target->tar && potentialTar->GetBlenderObject() == target->tar) {
+                    if (target->tar && potentialTar->GetBlenderObject() == target->tar &&
+                        targetIsNotSelf) {
                       potentialTar->RegisterAsBoneConstraintTarget(pchan->name, pcon->name, true);
                     }
                   }
