@@ -162,7 +162,7 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
 
   /* For bone constraint targets remapping */
   std::vector<KX_GameObject *> m_replicaArmatureList;
-  std::vector<KX_GameObject *> m_replicaList;
+  std::vector<KX_GameObject *> m_replicaTargetList;
   /*************************************************/
 
   RAS_BucketManager *m_bucketmanager;
@@ -392,7 +392,7 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   /* For bone constraint targets remapping */
   void RemapBoneConstraintTargets();
   void AppendToReplicaArmatures(KX_GameObject *gameobj);
-  void AppendToReplica(KX_GameObject *gameobj);
+  void AppendToReplicaTargets(KX_GameObject *gameobj);
   /***************End of EEVEE INTEGRATION**********************/
 
   RAS_BucketManager *GetBucketManager() const;

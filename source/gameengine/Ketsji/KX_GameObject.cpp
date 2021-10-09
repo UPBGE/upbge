@@ -378,7 +378,9 @@ void KX_GameObject::ReplicateBlenderObject()
     if (newob->type == OB_ARMATURE) {
       GetScene()->AppendToReplicaArmatures(this);
     }
-    GetScene()->AppendToReplica(this);
+    if (GetBoneConstraintTargetIdentifier().pchanName != nullptr) {
+      GetScene()->AppendToReplicaTargets(this);
+    }
 
     if (ob->parent) {
       if (GetScene()->GetLastReplicatedParentObject()) {

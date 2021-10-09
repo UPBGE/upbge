@@ -235,7 +235,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
   /* For bone constraint targets remapping */
   m_replicaArmatureList = {};
-  m_replicaList = {};
+  m_replicaTargetList = {};
 
   m_backupOverlayFlag = -1;
   m_backupOverlayGameFlag = -1;
@@ -1491,9 +1491,9 @@ void KX_Scene::AppendToReplicaArmatures(KX_GameObject *gameobj)
   m_replicaArmatureList.push_back(gameobj);
 }
 
-void KX_Scene::AppendToReplica(KX_GameObject *gameobj)
+void KX_Scene::AppendToReplicaTargets(KX_GameObject *gameobj)
 {
-  m_replicaList.push_back(gameobj);
+  m_replicaTargetList.push_back(gameobj);
 }
 
 /* Do an automatic bone constraints targets remapping
@@ -1501,7 +1501,7 @@ void KX_Scene::AppendToReplica(KX_GameObject *gameobj)
 void KX_Scene::RemapBoneConstraintTargets()
 {
   for (KX_GameObject *gameobj : m_replicaArmatureList) {
-    for (KX_GameObject *addedObj : m_replicaList) {
+    for (KX_GameObject *addedObj : m_replicaTargetList) {
       BoneConstraintTargetID id = addedObj->GetBoneConstraintTargetIdentifier();
       if (id.pchanName != nullptr) {
         Object *blenderobject = gameobj->GetBlenderObject();
@@ -1517,15 +1517,13 @@ void KX_Scene::RemapBoneConstraintTargets()
                   bool boneMatch = strcmp(id.pchanName, pchan->name) == 0;
                   bool constraintMatch = boneMatch && strcmp(id.pconName, pcon->name) == 0;
                   bool isSubTarget = id.isSubTarget;
-                  bool targetIsNotSelf = gameobj != addedObj;
-                  if (target->tar && constraintMatch && !isSubTarget && targetIsNotSelf) {
+                  if (target->tar && constraintMatch && !isSubTarget) {
                     target->tar = addedObj->GetBlenderObject();
                   }
                   if (target->next != nullptr) {
                     // secondary target
                     target = target->next;
-                    if (target->tar && constraintMatch && isSubTarget &&
-                        targetIsNotSelf) {  // if subtarget
+                    if (target->tar && constraintMatch && isSubTarget) {  // if subtarget
                       target->tar = addedObj->GetBlenderObject();
                     }
                   }
@@ -1541,7 +1539,7 @@ void KX_Scene::RemapBoneConstraintTargets()
     }
   }
   m_replicaArmatureList.clear();
-  m_replicaList.clear();
+  m_replicaTargetList.clear();
 }
 
 /******************End of EEVEE INTEGRATION****************************/
