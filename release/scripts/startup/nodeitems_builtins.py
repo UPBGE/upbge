@@ -633,6 +633,7 @@ geometry_node_categories = [
         NodeItem("FunctionNodeFloatToInt"),
         NodeItem("GeometryNodeSwitch"),
         NodeItem("FunctionNodeRandomValue"),
+        NodeItem("FunctionNodeAlignEulerToVector"),
     ]),
     GeometryNodeCategory("GEO_TEXTURE", "Texture", items=[
         NodeItem("ShaderNodeTexNoise"),
