@@ -2177,14 +2177,19 @@ static void draw_nodetree(const bContext *C,
 }
 
 /**
- * Make the background slightly brighter to indicate that users are inside a nodegroup.
+ * Make the background slightly brighter to indicate that users are inside a node-group.
  */
 static void draw_background_color(const SpaceNode *snode)
 {
-  const int max_depth = 2;
+  const int max_tree_length = 3;
   const float bright_factor = 0.25f;
 
-  const int depth = BLI_listbase_count_at_most(&snode->treepath, max_depth);
+  /* We ignore the first element of the path since it is the top-most tree and it doesn't need to
+   * be brighter. We also set a cap to how many levels we want to set apart, to avoid the
+   * background from getting too bright. */
+  const int clamped_tree_path_length = BLI_listbase_count_at_most(&snode->treepath,
+                                                                  max_tree_length);
+  const int depth = max_ii(0, clamped_tree_path_length - 1);
 
   float color[3];
   UI_GetThemeColor3fv(TH_BACK, color);

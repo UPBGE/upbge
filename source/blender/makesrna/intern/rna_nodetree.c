@@ -4678,6 +4678,11 @@ static const EnumPropertyItem node_principled_distribution_items[] = {
 };
 
 static const EnumPropertyItem node_subsurface_method_items[] = {
+    {SHD_SUBSURFACE_BURLEY,
+     "BURLEY",
+     0,
+     "Christensen-Burley",
+     "Approximation to physically based volume scattering"},
     {SHD_SUBSURFACE_RANDOM_WALK_FIXED_RADIUS,
      "RANDOM_WALK_FIXED_RADIUS",
      0,
@@ -4980,6 +4985,19 @@ static void def_texture(StructRNA *srna)
   RNA_def_property_int_sdna(prop, NULL, "custom1");
   RNA_def_property_ui_text(
       prop, "Node Output", "For node-based textures, which output node to use");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_fn_input_color(StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  RNA_def_struct_sdna_from(srna, "NodeInputColor", "storage");
+
+  prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_float_sdna(prop, NULL, "color");
+  RNA_def_property_ui_text(prop, "Color", "");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
@@ -9689,6 +9707,18 @@ static void def_geo_legacy_curve_set_handles(StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
 
+static void def_geo_curve_set_handle_positions(StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  RNA_def_struct_sdna_from(srna, "NodeGeometrySetCurveHandlePositions", "storage");
+
+  prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_node_geometry_curve_handle_side_items);
+  RNA_def_property_ui_text(prop, "Mode", "Whether to update left and right handles");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+}
+
 static void def_geo_curve_select_handles(StructRNA *srna)
 {
   PropertyRNA *prop;
@@ -10700,6 +10730,31 @@ static void def_geo_attribute_capture(StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
+static void def_geo_delete_geometry(StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  static const EnumPropertyItem mode_items[] = {
+      {GEO_NODE_DELETE_GEOMETRY_MODE_ALL, "ALL", 0, "All", ""},
+      {GEO_NODE_DELETE_GEOMETRY_MODE_EDGE_FACE, "EDGE_FACE", 0, "Only Edges & Faces", ""},
+      {GEO_NODE_DELETE_GEOMETRY_MODE_ONLY_FACE, "ONLY_FACE", 0, "Only Faces", ""},
+      {0, NULL, 0, NULL, NULL},
+  };
+  RNA_def_struct_sdna_from(srna, "NodeGeometryDeleteGeometry", "storage");
+
+  prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, mode_items);
+  RNA_def_property_enum_default(prop, GEO_NODE_DELETE_GEOMETRY_MODE_ALL);
+  RNA_def_property_ui_text(prop, "Mode", "Which parts of the mesh component to delete");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "domain", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_attribute_domain_without_corner_items);
+  RNA_def_property_enum_default(prop, ATTR_DOMAIN_POINT);
+  RNA_def_property_ui_text(prop, "Domain", "Which domain to delete in");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
 static void def_geo_string_to_curves(StructRNA *srna)
 {
   static const EnumPropertyItem rna_node_geometry_string_to_curves_overflow_items[] = {
@@ -10811,6 +10866,19 @@ static void def_geo_string_to_curves(StructRNA *srna)
   RNA_def_property_enum_items(prop, rna_node_geometry_string_to_curves_align_y_items);
   RNA_def_property_enum_default(prop, GEO_NODE_STRING_TO_CURVES_ALIGN_Y_TOP_BASELINE);
   RNA_def_property_ui_text(prop, "Align Y", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_geo_separate_geometry(StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  RNA_def_struct_sdna_from(srna, "NodeGeometrySeparateGeometry", "storage");
+
+  prop = RNA_def_property(srna, "domain", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_attribute_domain_without_corner_items);
+  RNA_def_property_enum_default(prop, ATTR_DOMAIN_POINT);
+  RNA_def_property_ui_text(prop, "Domain", "Which domain to separate on");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
