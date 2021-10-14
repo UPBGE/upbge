@@ -86,7 +86,7 @@ ccl_device_forceinline bool integrator_intersect_terminate(INTEGRATOR_STATE_ARGS
 template<uint32_t current_kernel>
 ccl_device_forceinline void integrator_intersect_shader_next_kernel(
     INTEGRATOR_STATE_ARGS,
-    const Intersection *ccl_restrict isect,
+    ccl_private const Intersection *ccl_restrict isect,
     const int shader,
     const int shader_flags)
 {
@@ -126,18 +126,20 @@ ccl_device_forceinline void integrator_intersect_shader_next_kernel(
     if (kernel_data.film.pass_background != PASS_UNUSED && !kernel_data.background.transparent) {
       INTEGRATOR_STATE_WRITE(path, flag) |= PATH_RAY_SHADOW_CATCHER_BACKGROUND;
 
-      if (use_raytrace_kernel) {
-        INTEGRATOR_PATH_INIT(DEVICE_KERNEL_INTEGRATOR_SHADE_BACKGROUND);
-      }
-      else {
-        INTEGRATOR_PATH_INIT(DEVICE_KERNEL_INTEGRATOR_SHADE_BACKGROUND);
-      }
+      INTEGRATOR_PATH_INIT(DEVICE_KERNEL_INTEGRATOR_SHADE_BACKGROUND);
     }
     else if (use_raytrace_kernel) {
       INTEGRATOR_PATH_INIT_SORTED(DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE, shader);
     }
     else {
       INTEGRATOR_PATH_INIT_SORTED(DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE, shader);
+    }
+
+    /* If the split happened after bounce through a transparent object it's possible to have shadow
+     * patch. Make sure it is properly re-scheduled on the split path. */
+    const int shadow_kernel = INTEGRATOR_STATE(shadow_path, queued_kernel);
+    if (shadow_kernel != 0) {
+      INTEGRATOR_SHADOW_PATH_INIT(shadow_kernel);
     }
   }
 #endif
