@@ -143,6 +143,7 @@ def mesh_node_items(context):
         yield NodeItem("GeometryNodeLegacySubdivisionSurface", poll=geometry_nodes_legacy_poll)
         yield NodeItemCustom(draw=lambda self, layout, context: layout.separator())
 
+    yield NodeItem("GeometryNodeEdgeSplit")
     yield NodeItem("GeometryNodeBoolean")
     yield NodeItem("GeometryNodeMeshSubdivide")
     yield NodeItem("GeometryNodePointsToVertices")
@@ -179,6 +180,29 @@ def geometry_input_node_items(context):
     yield NodeItem("GeometryNodeInputNormal")
     yield NodeItem("GeometryNodeInputPosition")
     yield NodeItem("GeometryNodeInputRadius")
+
+# Custom Menu for Material Node Input Nodes
+def geometry_material_node_items(context):
+    if context is None:
+        return
+    space = context.space_data
+    if not space:
+        return
+    if not space.edit_tree:
+        return
+
+    if geometry_nodes_legacy_poll(context):
+        yield NodeItem("GeometryNodeLegacyMaterialAssign")
+        yield NodeItem("GeometryNodeLegacySelectByMaterial")
+        yield NodeItemCustom(draw=lambda self, layout, context: layout.separator())
+
+    yield NodeItem("GeometryNodeMaterialReplace")
+    yield NodeItemCustom(draw=lambda self, layout, context: layout.separator())
+    yield NodeItem("GeometryNodeInputMaterialIndex")
+    yield NodeItem("GeometryNodeMaterialSelection")
+    yield NodeItemCustom(draw=lambda self, layout, context: layout.separator())
+    yield NodeItem("GeometryNodeSetMaterial")
+    yield NodeItem("GeometryNodeSetMaterialIndex")
 
 # Custom Menu for Geometry Node Curves
 def point_node_items(context):
@@ -663,16 +687,12 @@ geometry_node_categories = [
         NodeItem("GeometryNodeSeparateGeometry"),
         NodeItem("GeometryNodeSetPosition"),
         NodeItem("GeometryNodeRealizeInstances"),
+        NodeItem("GeometryNodeRotateInstances"),
+        NodeItem("GeometryNodeScaleInstances"),
+        NodeItem("GeometryNodeTranslateInstances"),
     ]),
     GeometryNodeCategory("GEO_INPUT", "Input", items=geometry_input_node_items),
-    GeometryNodeCategory("GEO_MATERIAL", "Material", items=[
-        NodeItem("GeometryNodeLegacyMaterialAssign", poll=geometry_nodes_legacy_poll),
-        NodeItem("GeometryNodeLegacySelectByMaterial", poll=geometry_nodes_legacy_poll),
-
-        NodeItem("GeometryNodeMaterialAssign"),
-        NodeItem("GeometryNodeMaterialSelection"),
-        NodeItem("GeometryNodeMaterialReplace"),
-    ]),
+    GeometryNodeCategory("GEO_MATERIAL", "Material", items=geometry_material_node_items),
     GeometryNodeCategory("GEO_MESH", "Mesh", items=mesh_node_items),
     GeometryNodeCategory("GEO_PRIMITIVES_MESH", "Mesh Primitives", items=[
         NodeItem("GeometryNodeMeshCircle"),

@@ -220,10 +220,12 @@ set(SRC
   geometry/nodes/node_geo_curve_trim.cc
   geometry/nodes/node_geo_delete_geometry.cc
   geometry/nodes/node_geo_distribute_points_on_faces.cc
+  geometry/nodes/node_geo_edge_split.cc
   geometry/nodes/node_geo_input_curve_handles.cc
   geometry/nodes/node_geo_input_curve_tilt.cc  
   geometry/nodes/node_geo_input_index.cc
   geometry/nodes/node_geo_input_material.cc
+  geometry/nodes/node_geo_input_material_index.cc
   geometry/nodes/node_geo_input_normal.cc
   geometry/nodes/node_geo_input_position.cc
   geometry/nodes/node_geo_input_radius.cc
@@ -235,7 +237,6 @@ set(SRC
   geometry/nodes/node_geo_instance_on_points.cc
   geometry/nodes/node_geo_is_viewport.cc
   geometry/nodes/node_geo_join_geometry.cc
-  geometry/nodes/node_geo_material_assign.cc
   geometry/nodes/node_geo_material_replace.cc
   geometry/nodes/node_geo_material_selection.cc
   geometry/nodes/node_geo_mesh_primitive_circle.cc
@@ -253,11 +254,15 @@ set(SRC
   geometry/nodes/node_geo_points_to_volume.cc
   geometry/nodes/node_geo_proximity.cc
   geometry/nodes/node_geo_realize_instances.cc
+  geometry/nodes/node_geo_rotate_instances.cc
+  geometry/nodes/node_geo_scale_instances.cc
   geometry/nodes/node_geo_separate_components.cc
   geometry/nodes/node_geo_separate_geometry.cc
   geometry/nodes/node_geo_set_curve_handles.cc
   geometry/nodes/node_geo_set_curve_radius.cc
   geometry/nodes/node_geo_set_curve_tilt.cc  
+  geometry/nodes/node_geo_set_material.cc
+  geometry/nodes/node_geo_set_material_index.cc
   geometry/nodes/node_geo_set_point_radius.cc
   geometry/nodes/node_geo_set_position.cc
   geometry/nodes/node_geo_set_shade_smooth.cc
@@ -267,6 +272,7 @@ set(SRC
   geometry/nodes/node_geo_string_to_curves.cc
   geometry/nodes/node_geo_switch.cc
   geometry/nodes/node_geo_transform.cc
+  geometry/nodes/node_geo_translate_instances.cc
   geometry/nodes/node_geo_triangulate.cc
   geometry/nodes/node_geo_viewer.cc
   geometry/nodes/node_geo_volume_to_mesh.cc
