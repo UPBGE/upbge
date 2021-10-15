@@ -32,7 +32,6 @@
 #include "KX_NodeRelationships.h"
 
 #include "MT_Matrix4x4.h"
-#include "MT_Transform.h"
 
 KX_NormalParentRelation::KX_NormalParentRelation()
 {

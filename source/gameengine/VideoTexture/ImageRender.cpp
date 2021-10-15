@@ -32,8 +32,6 @@
 
 #include "ImageRender.h"
 
-#include "DEG_depsgraph_query.h"
-#include "GPU_viewport.h"
 #include "eevee_private.h"
 
 #include "EXP_PythonCallBack.h"

@@ -30,7 +30,6 @@
 
 #include "LA_Launcher.h"
 
-#include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_sound.h"
 #include "DNA_scene_types.h"

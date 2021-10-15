@@ -31,11 +31,9 @@
 #include "BKE_screen.h"
 #undef new
 
-#include "BKE_context.h"
 #include "BLI_rect.h"
 #include "DNA_scene_types.h"
 #include "WM_api.h"
-#include "WM_types.h"
 #include "wm_event_system.h"
 
 #include "CM_Message.h"

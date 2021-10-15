@@ -39,7 +39,6 @@
 #include "GHOST_IWindow.h"
 #include "MEM_guardedalloc.h"
 #include "WM_api.h"
-#include "wm_cursors.h"
 #include "wm_window.h"
 
 #include "KX_Globals.h"

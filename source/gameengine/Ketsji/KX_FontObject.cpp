@@ -35,7 +35,6 @@
 #include "DNA_curve_types.h"
 #include "MEM_guardedalloc.h"
 
-#include "EXP_StringValue.h"
 
 static std::vector<std::string> split_string(std::string str)
 {

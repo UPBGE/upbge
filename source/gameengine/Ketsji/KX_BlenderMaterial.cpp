@@ -33,7 +33,6 @@
 #include "KX_KetsjiEngine.h"
 #include "KX_MaterialShader.h"
 #include "RAS_BucketManager.h"
-#include "RAS_ICanvas.h"
 
 #ifdef WITH_PYTHON
 #  include "bpy_rna.h"

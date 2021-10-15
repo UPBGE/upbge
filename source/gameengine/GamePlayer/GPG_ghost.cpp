@@ -45,7 +45,6 @@
 #include "BKE_brush.h"
 #include "BKE_cachefile.h"
 #include "BKE_callbacks.h"
-#include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_gpencil_modifier.h"
 #include "BKE_icons.h"
@@ -81,9 +80,7 @@
 #include "BPY_extern_python.h"
 #include "BPY_extern_run.h"
 #include "CLG_log.h"
-#include "DEG_depsgraph.h"
 #include "DNA_genfile.h"
-#include "DNA_space_types.h"
 #include "DRW_engine.h"
 #include "ED_asset.h"
 #include "ED_datafiles.h"
@@ -116,9 +113,7 @@
 #include "wm.h"
 #include "wm_event_system.h"
 
-#include "WM_gizmo_types.h"
 
-#include "WM_gizmo_api.h"
 #include "wm_message_bus.h"
 #include "wm_surface.h"
 #include "wm_window.h"

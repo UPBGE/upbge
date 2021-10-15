@@ -42,7 +42,6 @@
 
 /* This little block needed for linking to Blender... */
 #include "BKE_context.h"
-#include "BKE_layer.h"
 #include "BKE_text.h"
 #include "DNA_scene_types.h"
 #include "DNA_sound_types.h"

@@ -37,13 +37,9 @@
 
 #include "BKE_context.h"
 #include "BKE_idtype.h"
-#include "BKE_layer.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
-#include "BKE_material.h"  // BKE_material_copy
-#include "BKE_mesh.h"      // BKE_mesh_copy
 #include "BKE_report.h"
-#include "BKE_scene.h"
 #include "BLI_blenlib.h"
 #include "BLI_linklist.h"
 #include "BLI_task.h"

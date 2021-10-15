@@ -24,7 +24,6 @@
 
 #include "CM_List.h"
 #include "KX_GameObject.h"
-#include "KX_PythonComponent.h"
 
 static bool compareObjectDepth(KX_GameObject *o1, KX_GameObject *o2)
 {

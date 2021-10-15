@@ -113,7 +113,6 @@
 #include "KX_PythonInitTypes.h"
 #include "PHY_IPhysicsEnvironment.h"
 #include "RAS_2DFilterManager.h"
-#include "RAS_BucketManager.h"
 #include "RAS_ICanvas.h"
 #include "SCA_ActionActuator.h"
 #include "SCA_ArmatureSensor.h"
