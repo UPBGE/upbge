@@ -87,9 +87,9 @@ void KX_GameObject_Mathutils_Callback_Init(void);
 class KX_GameObject : public SCA_IObject {
   Py_Header
 
- public :
+      public :
 
-  struct ActivityCullingInfo {
+      struct ActivityCullingInfo {
 
     enum Flag {
       ACTIVITY_NONE = 0,
@@ -103,8 +103,7 @@ class KX_GameObject : public SCA_IObject {
     float m_logicRadius;
   };
 
- protected :
-
+ protected:
   /* EEVEE INTEGRATION */
   float m_prevObmat[4][4];
   bool m_isReplica;
@@ -872,10 +871,11 @@ class KX_GameObject : public SCA_IObject {
   static int pyattr_set_mass(EXP_PyObjectPlus *self_v,
                              const EXP_PYATTRIBUTE_DEF *attrdef,
                              PyObject *value);
-  static PyObject *pyattr_get_friction(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_friction(EXP_PyObjectPlus *self_v,
+                                       const EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_friction(EXP_PyObjectPlus *self_v,
-                             const EXP_PYATTRIBUTE_DEF *attrdef,
-                             PyObject *value);
+                                 const EXP_PYATTRIBUTE_DEF *attrdef,
+                                 PyObject *value);
   static PyObject *pyattr_get_is_suspend_dynamics(EXP_PyObjectPlus *self_v,
                                                   const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_lin_vel_min(EXP_PyObjectPlus *self_v,

@@ -113,7 +113,6 @@
 #include "wm.h"
 #include "wm_event_system.h"
 
-
 #include "wm_message_bus.h"
 #include "wm_surface.h"
 #include "wm_window.h"
@@ -949,10 +948,10 @@ int main(int argc,
 #if 0
     if (!G.background) {
 
-#ifdef WITH_INPUT_NDOF
+#  ifdef WITH_INPUT_NDOF
     /* sets 3D mouse deadzone */
     WM_ndof_deadzone_set(U.ndof_deadzone);
-#endif
+#  endif
     WM_init_opengl();
 
     if (!WM_platform_support_perform_checks()) {
@@ -980,13 +979,13 @@ int main(int argc,
    * before wm_homefile_read() or make py-drivers check if python is running.
    * Will try fix when the crash can be repeated. - campbell. */
 
-#ifdef WITH_PYTHON
+#  ifdef WITH_PYTHON
   BPY_python_start(C, argc, argv);
   BPY_python_reset(C);
-#else
+#  else
   (void)argc; /* unused */
   (void)argv; /* unused */
-#endif
+#  endif
 
   if (!G.background && !wm_start_with_console) {
     GHOST_toggleConsole(3);
@@ -1052,7 +1051,8 @@ int main(int argc,
 
   const char *const cfgdir = BKE_appdir_folder_id(BLENDER_USER_CONFIG, nullptr);
   if (cfgdir) {
-    BLI_path_join(filepath_userdef, sizeof(filepath_userdef), cfgdir, BLENDER_USERPREF_FILE, nullptr);
+    BLI_path_join(
+        filepath_userdef, sizeof(filepath_userdef), cfgdir, BLENDER_USERPREF_FILE, nullptr);
 
     /* load preferences */
     if (BLI_exists(filepath_userdef)) {

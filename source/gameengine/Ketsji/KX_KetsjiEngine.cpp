@@ -427,7 +427,7 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
     m_previousRealTime = m_clockTime;
   }
   //// Else in case of fixed framerate, try to sleep until the next frame.
-  //else if (m_flags & FIXED_FRAMERATE) {
+  // else if (m_flags & FIXED_FRAMERATE) {
   //  const double sleeptime = timestep - dt - 1.0e-3;
   //  /* If the remaining time is greather than 1ms (sleep resolution) sleep this thread.
   //   * The other 1ms will be busy wait.
@@ -495,7 +495,7 @@ bool KX_KetsjiEngine::NextFrame()
        * update. */
       m_logger.StartLog(tc_logic);
 
-      if (i == 0) { // No need to UpdateObjectActivity several times
+      if (i == 0) {  // No need to UpdateObjectActivity several times
         scene->UpdateObjectActivity();
       }
 

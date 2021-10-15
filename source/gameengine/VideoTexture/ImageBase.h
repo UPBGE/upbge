@@ -307,8 +307,8 @@ class ImageBase {
 // python structure for image filter
 struct PyImage {
   PyObject_HEAD
-      // source object
-      ImageBase *m_image;
+  // source object
+  ImageBase *m_image;
 };
 
 // size of id

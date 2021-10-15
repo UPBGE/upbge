@@ -48,9 +48,9 @@ class RAS_DebugDraw;
 class BL_ArmatureObject : public KX_GameObject {
   Py_Header
 
- protected :
-  /// List element: BL_ArmatureConstraint.
-  EXP_ListValue<BL_ArmatureConstraint> *m_controlledConstraints;
+      protected :
+      /// List element: BL_ArmatureConstraint.
+      EXP_ListValue<BL_ArmatureConstraint> *m_controlledConstraints;
   /// List element: BL_ArmatureChannel.
   EXP_ListValue<BL_ArmatureChannel> *m_poseChannels;
   Object *m_objArma;

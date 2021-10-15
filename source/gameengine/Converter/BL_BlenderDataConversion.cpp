@@ -606,9 +606,9 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
   bool isActor = (blenderobject->gameflag & OB_ACTOR) != 0;
   bool isSensor = (blenderobject->gameflag & OB_SENSOR) != 0;
   gameobj->getClientInfo()->m_type = (isSensor) ? ((isActor) ? KX_ClientObjectInfo::OBACTORSENSOR :
-                                                              KX_ClientObjectInfo::OBSENSOR) :
-                                    (isActor)  ? KX_ClientObjectInfo::ACTOR :
-                                                 KX_ClientObjectInfo::STATIC;
+                                                               KX_ClientObjectInfo::OBSENSOR) :
+                                     (isActor)  ? KX_ClientObjectInfo::ACTOR :
+                                                  KX_ClientObjectInfo::STATIC;
 }
 
 static KX_LodManager *BL_lodmanager_from_blenderobject(Object *ob,
@@ -686,20 +686,24 @@ static KX_GameObject *BL_gameobject_from_customobject(Object *ob,
   if (mod == NULL) {
     std::string msg = (boost::format("Failed to import the module '%s'") % pp->module).str();
     kxscene->LogError(msg);
-  } else {
+  }
+  else {
     // Grab the class object
     cls = PyObject_GetAttrString(mod, pp->name);
 
     if (cls == NULL) {
       std::string msg = (boost::format("Python module found, but failed to find the object '%s'") %
-                         pp->name).str();
+                         pp->name)
+                            .str();
       kxscene->LogError(msg);
-    } else if (!PyType_Check(cls) || !PyObject_IsSubclass(cls, (PyObject *)type)) {
-      std::string msg = (boost::format("%s.%s is not a subclass of %s") % pp->name 
-                                                                        % pp->name 
-                                                                        % type->tp_name).str();
+    }
+    else if (!PyType_Check(cls) || !PyObject_IsSubclass(cls, (PyObject *)type)) {
+      std::string msg = (boost::format("%s.%s is not a subclass of %s") % pp->name % pp->name %
+                         type->tp_name)
+                            .str();
       kxscene->LogError(msg);
-    } else {
+    }
+    else {
       valid = true;
     }
   }
@@ -714,13 +718,14 @@ static KX_GameObject *BL_gameobject_from_customobject(Object *ob,
       // The component is invalid, drop it
       std::string msg = (boost::format("Failed to instantiate the class '%s'") % pp->name).str();
       kxscene->LogError(msg);
-    } else {
+    }
+    else {
       gameobj = static_cast<KX_GameObject *>(EXP_PROXY_REF(pyobj));
     }
   }
 
   if (gameobj) {
-      gameobj->SetPrototype(pp);
+    gameobj->SetPrototype(pp);
   }
 
   Py_XDECREF(args);
@@ -743,7 +748,8 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
   switch (ob->type) {
     case OB_LAMP: {
       KX_LightObject *gamelight = nullptr;
-      KX_GameObject *customobj = BL_gameobject_from_customobject(ob, &KX_LightObject::Type, kxscene);
+      KX_GameObject *customobj = BL_gameobject_from_customobject(
+          ob, &KX_LightObject::Type, kxscene);
 
       if (customobj) {
         gamelight = dynamic_cast<KX_LightObject *>(customobj);
@@ -858,7 +864,8 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
     case OB_FONT: {
       /* font objects have no bounding box */
       KX_FontObject *fontobj = nullptr;
-      KX_GameObject *customobj = BL_gameobject_from_customobject(ob, &KX_FontObject::Type, kxscene);
+      KX_GameObject *customobj = BL_gameobject_from_customobject(
+          ob, &KX_FontObject::Type, kxscene);
 
       if (customobj) {
         fontobj = dynamic_cast<KX_FontObject *>(customobj);
@@ -971,9 +978,9 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
     // Grab the class object
     cls = PyObject_GetAttrString(mod, pp->name);
     if (cls == NULL) {
-      std::string msg = (boost::format(
-                         "Python module found, but failed to find the component '%s'") % pp->name
-                        ).str();
+      std::string msg =
+          (boost::format("Python module found, but failed to find the component '%s'") % pp->name)
+              .str();
       gameobj->LogError(msg);
 
       pp = pp->next;
@@ -982,9 +989,9 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 
     // Lastly make sure we have a class and it's an appropriate sub type
     if (!PyType_Check(cls) || !PyObject_IsSubclass(cls, (PyObject *)&KX_PythonComponent::Type)) {
-      std::string msg = (boost::format("%s.%s is not a KX_PythonComponent subclass") % 
-                                       pp->module % 
-                                       pp->name).str();
+      std::string msg = (boost::format("%s.%s is not a KX_PythonComponent subclass") % pp->module %
+                         pp->name)
+                            .str();
 
       gameobj->LogError(msg);
 
@@ -1038,7 +1045,7 @@ static std::vector<Object *> lod_level_object_list(ViewLayer *view_layer)
   return lod_objs;
 }
 
-static bool is_lod_level(std::vector<Object *>lod_objs, Object *blenderobject)
+static bool is_lod_level(std::vector<Object *> lod_objs, Object *blenderobject)
 {
   return std::find(lod_objs.begin(), lod_objs.end(), blenderobject) != lod_objs.end();
 }
@@ -1337,7 +1344,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
       /* macro calls object conversion funcs */
       BL_CONVERTBLENDEROBJECT_SINGLE;
 
-      if (gameobj->IsDupliGroup() && !single_object) { // Don't bother with groups during single object conversion
+      if (gameobj->IsDupliGroup() &&
+          !single_object) {  // Don't bother with groups during single object conversion
         grouplist.insert(blenderobject->instance_collection);
       }
 
@@ -1353,7 +1361,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
     }
   }
 
-  if (!grouplist.empty()) { // always empty during single object conversion
+  if (!grouplist.empty()) {  // always empty during single object conversion
     // now convert the group referenced by dupli group object
     // keep track of all groups already converted
     std::set<Collection *> allgrouplist = grouplist;
@@ -1368,12 +1376,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
         FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (group, blenderobject) {
           if (converter->FindGameObject(blenderobject) == nullptr) {
             groupobj.insert(blenderobject);
-            KX_GameObject *gameobj = BL_gameobject_from_blenderobject(blenderobject,
-                                                                      kxscene,
-                                                                      rendertools,
-                                                                      converter,
-                                                                      libloading,
-                                                                      false);
+            KX_GameObject *gameobj = BL_gameobject_from_blenderobject(
+                blenderobject, kxscene, rendertools, converter, libloading, false);
 
             bool isInActiveLayer = false;
             if (gameobj) {

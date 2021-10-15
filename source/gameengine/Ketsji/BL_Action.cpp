@@ -293,16 +293,16 @@ void BL_Action::BlendShape(Key *key, float srcweight, std::vector<float> &blends
 }
 
 enum eActionType {
-    ACT_TYPE_MODIFIER = 0,
-    ACT_TYPE_GPMODIFIER,
-    ACT_TYPE_CONSTRAINT,
-    ACT_TYPE_IDPROP,
+  ACT_TYPE_MODIFIER = 0,
+  ACT_TYPE_GPMODIFIER,
+  ACT_TYPE_CONSTRAINT,
+  ACT_TYPE_IDPROP,
 };
 
 /* Ensure name of data (ModifierData, bConstraint...) matches m_action's FCurve rna path */
 static bool ActionMatchesName(bAction *action, char *name, eActionType type)
 {
-  //std::cout << "curves listbase len: " << BLI_listbase_count(&action->curves) << std::endl;
+  // std::cout << "curves listbase len: " << BLI_listbase_count(&action->curves) << std::endl;
   LISTBASE_FOREACH (FCurve *, fcu, &action->curves) {
     if (fcu->rna_path) {
       char pattern[256];
@@ -328,19 +328,19 @@ static bool ActionMatchesName(bAction *action, char *name, eActionType type)
           BLI_str_escape(pattern, "", sizeof(pattern));
           break;
       }
-      //std::cout << "fcu name: " << fcu->rna_path << std::endl;
-      //std::cout << "data name: " << pattern << std::endl;
+      // std::cout << "fcu name: " << fcu->rna_path << std::endl;
+      // std::cout << "data name: " << pattern << std::endl;
       /* Find a correspondance between ob->modifier/ob->constraint... and actuator action
        * (m_action) */
       if (strstr(fcu->rna_path, pattern)) {
-        //std::cout << "fcu and name match" << std::endl;
+        // std::cout << "fcu and name match" << std::endl;
         return true;
       }
     }
-    //std::cout << "fcu and name DON'T match" << std::endl;
+    // std::cout << "fcu and name DON'T match" << std::endl;
     return false;
   }
-  //std::cout << "fcu and name DON'T match" << std::endl;
+  // std::cout << "fcu and name DON'T match" << std::endl;
   return false;
 }
 

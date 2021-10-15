@@ -46,11 +46,11 @@ class SCA_NetworkMessageActuator : public SCA_IActuator {
 
  public:
   SCA_NetworkMessageActuator(SCA_IObject *gameobj,
-                            KX_NetworkMessageScene *networkscene,
-                            const std::string &toPropName,
-                            const std::string &subject,
-                            int bodyType,
-                            const std::string &body);
+                             KX_NetworkMessageScene *networkscene,
+                             const std::string &toPropName,
+                             const std::string &subject,
+                             int bodyType,
+                             const std::string &body);
   virtual ~SCA_NetworkMessageActuator();
 
   virtual bool Update();

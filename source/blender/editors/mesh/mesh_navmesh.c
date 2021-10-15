@@ -64,12 +64,8 @@
 
 #include "mesh_intern.h" /* own include */
 
-static void createVertsTrisData(bContext *C,
-                                LinkNode *obs,
-                                int *nverts_r,
-                                float **verts_r,
-                                int *ntris_r,
-                                int **tris_r)
+static void createVertsTrisData(
+    bContext *C, LinkNode *obs, int *nverts_r, float **verts_r, int *ntris_r, int **tris_r)
 {
   MVert *mvert;
   int nfaces = 0, *tri, i, curnverts, basenverts, curnfaces;

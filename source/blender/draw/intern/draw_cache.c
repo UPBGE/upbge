@@ -945,8 +945,8 @@ int DRW_cache_object_material_count_get(struct Object *ob)
 
   /* UPBGE */
   if (ob->currentlod) {
-    //https:// github.com/UPBGE/upbge/issues/1512
-    me = NULL; // We need ob_eval->data to evaluate materials number in case of LOD
+    // https:// github.com/UPBGE/upbge/issues/1512
+    me = NULL;  // We need ob_eval->data to evaluate materials number in case of LOD
   }
   /*********/
 

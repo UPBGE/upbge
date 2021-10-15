@@ -215,15 +215,12 @@ static void rna_def_py_proxy_property(BlenderRNA *brna)
   /* Set */
   srna = RNA_def_struct(brna, "ProxySetProperty", "PythonProxyProperty");
   RNA_def_struct_sdna(srna, "PythonProxyProperty");
-  RNA_def_struct_ui_text(
-      srna, "Python Proxy Set Property", "A set property of a Python Proxy");
+  RNA_def_struct_ui_text(srna, "Python Proxy Set Property", "A set property of a Python Proxy");
 
   prop = RNA_def_property(srna, "value", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, empty_items);
-  RNA_def_property_enum_funcs(prop,
-                              "rna_ProxySetProperty_get",
-                              "rna_ProxySetProperty_set",
-                              "rna_ProxySetProperty_itemf");
+  RNA_def_property_enum_funcs(
+      prop, "rna_ProxySetProperty_get", "rna_ProxySetProperty_set", "rna_ProxySetProperty_itemf");
   RNA_def_property_enum_default(prop, 0);
   RNA_def_property_ui_text(prop, "Value", "Property value");
   RNA_def_property_update(prop, NC_LOGIC, NULL);
@@ -267,9 +264,8 @@ static void rna_def_py_proxy_property(BlenderRNA *brna)
   /* Color 3 */
   srna = RNA_def_struct(brna, "ProxyColor3Property", "PythonProxyProperty");
   RNA_def_struct_sdna(srna, "PythonProxyProperty");
-  RNA_def_struct_ui_text(srna,
-                         "Python Proxy Color 3 Property",
-                         "A 3 channels color property of a Python Proxy");
+  RNA_def_struct_ui_text(
+      srna, "Python Proxy Color 3 Property", "A 3 channels color property of a Python Proxy");
 
   prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_COLOR);
   RNA_def_property_float_sdna(prop, NULL, "vec");
@@ -280,9 +276,8 @@ static void rna_def_py_proxy_property(BlenderRNA *brna)
   /* Color 4 */
   srna = RNA_def_struct(brna, "ProxyColor4Property", "PythonProxyProperty");
   RNA_def_struct_sdna(srna, "PythonProxyProperty");
-  RNA_def_struct_ui_text(srna,
-                         "Python Proxy Color 4 Property",
-                         "A 4 channels color property of a Python Proxy");
+  RNA_def_struct_ui_text(
+      srna, "Python Proxy Color 4 Property", "A 4 channels color property of a Python Proxy");
 
   prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_COLOR);
   RNA_def_property_float_sdna(prop, NULL, "vec");

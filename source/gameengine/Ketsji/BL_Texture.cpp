@@ -29,7 +29,11 @@
 #include "GPU_material.h"
 
 BL_Texture::BL_Texture(GPUMaterialTexture *gpumattex, eGPUTextureTarget textarget)
-    : EXP_Value(), m_isCubeMap(false), m_gpuMatTex(gpumattex), m_textarget(textarget), m_bindCode(-1)
+    : EXP_Value(),
+      m_isCubeMap(false),
+      m_gpuMatTex(gpumattex),
+      m_textarget(textarget),
+      m_bindCode(-1)
 {
   /* Normally input->textype is Kept in sync with GPU_DATATYPE_STR */
   m_isCubeMap = false; /*(m_gpuTex->type == GPU_TEXCUBE)*/

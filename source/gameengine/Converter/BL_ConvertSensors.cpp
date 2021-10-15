@@ -176,9 +176,9 @@ void BL_ConvertSensors(struct Object *blenderobject,
           const std::string subject = msgSens->subject;
 
           gamesensor = new SCA_NetworkMessageSensor(eventmgr,      // our eventmanager
-                                                   NetworkScene,  // our NetworkScene
-                                                   gameobj,       // the sensor controlling object
-                                                   subject);      // subject to filter on
+                                                    NetworkScene,  // our NetworkScene
+                                                    gameobj,       // the sensor controlling object
+                                                    subject);      // subject to filter on
           break;
         }
         case SENS_NEAR: {

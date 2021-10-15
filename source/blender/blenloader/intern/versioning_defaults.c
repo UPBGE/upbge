@@ -48,7 +48,7 @@
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_workspace_types.h"
-#include "DNA_world_types.h" // UPBGE
+#include "DNA_world_types.h"  // UPBGE
 
 #include "BKE_appdir.h"
 #include "BKE_brush.h"

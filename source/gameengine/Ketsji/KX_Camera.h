@@ -48,7 +48,7 @@ bool ConvertPythonToCamera(KX_Scene *scene,
 class KX_Camera : public KX_GameObject {
   Py_Header
 
- protected : friend class KX_Scene;
+      protected : friend class KX_Scene;
   /** Camera parameters (clips distances, focal length). These
    * params are closely tied to Blender. In the gameengine, only the
    * projection and modelview matrices are relevant. There's a

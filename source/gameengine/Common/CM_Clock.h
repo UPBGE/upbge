@@ -2,16 +2,15 @@
 
 #include <chrono>
 
-class CM_Clock
-{
-public:
+class CM_Clock {
+ public:
   using Rep = std::chrono::nanoseconds::rep;
 
-private:
+ private:
   std::chrono::high_resolution_clock::time_point m_start;
   std::chrono::high_resolution_clock m_clock;
 
-public:
+ public:
   CM_Clock();
 
   void Reset();

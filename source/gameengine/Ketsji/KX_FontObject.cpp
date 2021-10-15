@@ -35,7 +35,6 @@
 #include "DNA_curve_types.h"
 #include "MEM_guardedalloc.h"
 
-
 static std::vector<std::string> split_string(std::string str)
 {
   std::vector<std::string> text = std::vector<std::string>();
@@ -55,9 +54,7 @@ static std::vector<std::string> split_string(std::string str)
   return text;
 }
 
-KX_FontObject::KX_FontObject() : KX_GameObject(),
-    m_object(nullptr),
-    m_rasterizer(nullptr)
+KX_FontObject::KX_FontObject() : KX_GameObject(), m_object(nullptr), m_rasterizer(nullptr)
 {
 }
 

@@ -282,7 +282,7 @@ void SCA_AddObjectActuator::InstantAddObject()
     KX_GameObject *replica = nullptr;
     if (!m_duplicateObject) {
       replica = m_scene->AddReplicaObject(
-        m_OriginalObject, static_cast<KX_GameObject *>(GetParent()), m_timeProp);
+          m_OriginalObject, static_cast<KX_GameObject *>(GetParent()), m_timeProp);
     }
     else {
       replica = m_scene->AddDuplicaObject(

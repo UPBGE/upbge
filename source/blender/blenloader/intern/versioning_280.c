@@ -643,7 +643,7 @@ static ARegion *do_versions_find_region(ListBase *regionbase, int regiontype)
 {
   ARegion *region = do_versions_find_region_or_null(regionbase, regiontype);
   if (region == NULL) {
-    //BLI_assert_msg(0, "Did not find expected region in versioning");
+    // BLI_assert_msg(0, "Did not find expected region in versioning");
   }
   return region;
 }
@@ -3462,8 +3462,8 @@ void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *bmain)
     }
 
     for (World *world = bmain->worlds.first; world; world = world->id.next) {
-      world->flag &= ~(WO_MODE_UNUSED_1 | WO_MODE_UNUSED_2 | WO_MODE_UNUSED_4 |
-                       WO_MODE_UNUSED_5 | WO_MODE_UNUSED_7);
+      world->flag &= ~(WO_MODE_UNUSED_1 | WO_MODE_UNUSED_2 | WO_MODE_UNUSED_4 | WO_MODE_UNUSED_5 |
+                       WO_MODE_UNUSED_7);
     }
 
     for (Image *image = bmain->images.first; image; image = image->id.next) {

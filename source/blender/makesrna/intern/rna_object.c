@@ -1826,55 +1826,56 @@ static void rna_GameObjectSettings_col_mask_set(PointerRNA *ptr, const bool *val
   }
 }
 
-static bool rna_GameObjectSettings_components_override_apply(Main *UNUSED(bmain),
-                                             PointerRNA *ptr_dst,
-                                             PointerRNA *ptr_src,
-                                             PointerRNA *UNUSED(ptr_storage),
-                                             PropertyRNA *UNUSED(prop_dst),
-                                             PropertyRNA *UNUSED(prop_src),
-                                             PropertyRNA *UNUSED(prop_storage),
-                                             const int UNUSED(len_dst),
-                                             const int UNUSED(len_src),
-                                             const int UNUSED(len_storage),
-                                             PointerRNA *UNUSED(ptr_item_dst),
-                                             PointerRNA *UNUSED(ptr_item_src),
-                                             PointerRNA *UNUSED(ptr_item_storage),
-                                             IDOverrideLibraryPropertyOperation *opop)
+static bool rna_GameObjectSettings_components_override_apply(
+    Main *UNUSED(bmain),
+    PointerRNA *ptr_dst,
+    PointerRNA *ptr_src,
+    PointerRNA *UNUSED(ptr_storage),
+    PropertyRNA *UNUSED(prop_dst),
+    PropertyRNA *UNUSED(prop_src),
+    PropertyRNA *UNUSED(prop_storage),
+    const int UNUSED(len_dst),
+    const int UNUSED(len_src),
+    const int UNUSED(len_storage),
+    PointerRNA *UNUSED(ptr_item_dst),
+    PointerRNA *UNUSED(ptr_item_src),
+    PointerRNA *UNUSED(ptr_item_storage),
+    IDOverrideLibraryPropertyOperation *opop)
 {
-    BLI_assert(opop->operation == IDOVERRIDE_LIBRARY_OP_INSERT_AFTER &&
-               "Unsupported RNA override operation on components collection");
+  BLI_assert(opop->operation == IDOVERRIDE_LIBRARY_OP_INSERT_AFTER &&
+             "Unsupported RNA override operation on components collection");
 
-    Object *ob_dst = (Object *)ptr_dst->owner_id;
-    Object *ob_src = (Object *)ptr_src->owner_id;
+  Object *ob_dst = (Object *)ptr_dst->owner_id;
+  Object *ob_src = (Object *)ptr_src->owner_id;
 
-    PythonProxy *proxy_anchor = NULL;
-    if (opop->subitem_local_name && opop->subitem_local_name[0]) {
-      proxy_anchor = BLI_findstring(
-          &ob_dst->components, opop->subitem_local_name, offsetof(PythonProxy, name));
-    }
-    if (proxy_anchor == NULL && opop->subitem_local_index >= 0) {
-      proxy_anchor = BLI_findlink(&ob_dst->components, opop->subitem_local_index);
-    }
-    /* Otherwise we just insert in first position. */
+  PythonProxy *proxy_anchor = NULL;
+  if (opop->subitem_local_name && opop->subitem_local_name[0]) {
+    proxy_anchor = BLI_findstring(
+        &ob_dst->components, opop->subitem_local_name, offsetof(PythonProxy, name));
+  }
+  if (proxy_anchor == NULL && opop->subitem_local_index >= 0) {
+    proxy_anchor = BLI_findlink(&ob_dst->components, opop->subitem_local_index);
+  }
+  /* Otherwise we just insert in first position. */
 
-    PythonProxy *proxy_src = NULL;
-    if (opop->subitem_local_name && opop->subitem_local_name[0]) {
-      proxy_src = BLI_findstring(
-          &ob_src->components, opop->subitem_local_name, offsetof(PythonProxy, name));
-    }
-    if (proxy_src == NULL && opop->subitem_local_index >= 0) {
-      proxy_src = BLI_findlink(&ob_src->components, opop->subitem_local_index);
-    }
-    proxy_src = proxy_src ? proxy_src->next : ob_src->components.first;
+  PythonProxy *proxy_src = NULL;
+  if (opop->subitem_local_name && opop->subitem_local_name[0]) {
+    proxy_src = BLI_findstring(
+        &ob_src->components, opop->subitem_local_name, offsetof(PythonProxy, name));
+  }
+  if (proxy_src == NULL && opop->subitem_local_index >= 0) {
+    proxy_src = BLI_findlink(&ob_src->components, opop->subitem_local_index);
+  }
+  proxy_src = proxy_src ? proxy_src->next : ob_src->components.first;
 
-    BLI_assert(proxy_src != NULL);
+  BLI_assert(proxy_src != NULL);
 
-    PythonProxy *proxy_dst = BKE_python_proxy_copy(proxy_src);
+  PythonProxy *proxy_dst = BKE_python_proxy_copy(proxy_src);
 
-    /* This handles NULL anchor as expected by adding at head of list. */
-    BLI_insertlinkafter(&ob_dst->components, proxy_anchor, proxy_dst);
+  /* This handles NULL anchor as expected by adding at head of list. */
+  BLI_insertlinkafter(&ob_dst->components, proxy_anchor, proxy_dst);
 
-    return true;
+  return true;
 }
 
 static void rna_Object_active_shape_key_index_range(
@@ -2958,14 +2959,17 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "custom_object", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "PythonProxy");
   RNA_def_property_pointer_funcs(prop, NULL, NULL, NULL, NULL);
-  RNA_def_property_ui_text(prop, "Custom Game Object", "Custom game object component for the object");
+  RNA_def_property_ui_text(
+      prop, "Custom Game Object", "Custom game object component for the object");
 
   prop = RNA_def_property(srna, "components", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_collection_sdna(prop, NULL, "components", NULL);
   RNA_def_property_struct_type(prop, "PythonProxy"); /* rna_python_proxy.c */
   RNA_def_property_ui_text(prop, "Components", "Game engine components");
-  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY | PROPOVERRIDE_LIBRARY_INSERTION);
-  RNA_def_property_override_funcs(prop, NULL, NULL, "rna_GameObjectSettings_components_override_apply");
+  RNA_def_property_override_flag(
+      prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY | PROPOVERRIDE_LIBRARY_INSERTION);
+  RNA_def_property_override_funcs(
+      prop, NULL, NULL, "rna_GameObjectSettings_components_override_apply");
 
   prop = RNA_def_property(srna, "show_sensors", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "scaflag", OB_SHOWSENS);
@@ -4710,7 +4714,8 @@ static void rna_def_object(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "use_lod_physics", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "gameflag", OB_LOD_UPDATE_PHYSICS);
-  RNA_def_property_ui_text(prop, "LOD physics update", "Update LOD physics shape in the same time than render shape");
+  RNA_def_property_ui_text(
+      prop, "LOD physics update", "Update LOD physics shape in the same time than render shape");
 
   /* Base Settings */
   prop = RNA_def_property(srna, "is_from_instancer", PROP_BOOLEAN, PROP_NONE);

@@ -54,9 +54,9 @@ class SCA_NetworkMessageSensor : public SCA_ISensor {
 
  public:
   SCA_NetworkMessageSensor(SCA_EventManager *eventmgr,            // our eventmanager
-                          KX_NetworkMessageScene *NetworkScene,  // our scene
-                          SCA_IObject *gameobj,                  // the sensor controlling object
-                          const std::string &subject);
+                           KX_NetworkMessageScene *NetworkScene,  // our scene
+                           SCA_IObject *gameobj,                  // the sensor controlling object
+                           const std::string &subject);
   virtual ~SCA_NetworkMessageSensor();
 
   virtual EXP_Value *GetReplica();

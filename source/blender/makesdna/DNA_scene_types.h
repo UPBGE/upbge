@@ -2616,16 +2616,17 @@ enum {
   SCE_EEVEE_OVERSCAN = (1 << 21),
   SCE_EEVEE_DOF_HQ_SLIGHT_FOCUS = (1 << 22),
   SCE_EEVEE_DOF_JITTER = (1 << 23),
-  //SCE_EEVEE_SMAA = (1 << 24),                   // UPBGE
-  //SCE_EEVEE_VOLUMETRIC_BLENDING = (1 << 25),    // UPBGE
-  //SCE_EEVEE_WORLD_VOLUMES_ENABLED = (1 << 26),  // UPBGE (only used to disable wo volumes in overlay pass)
+  // SCE_EEVEE_SMAA = (1 << 24),                   // UPBGE
+  // SCE_EEVEE_VOLUMETRIC_BLENDING = (1 << 25),    // UPBGE
+  // SCE_EEVEE_WORLD_VOLUMES_ENABLED = (1 << 26),  // UPBGE (only used to disable wo volumes in
+  // overlay pass)
 };
 
 /** #SceneEEVEE.gameflag UPBGE */
 enum {
   SCE_EEVEE_SMAA = (1 << 0),
   SCE_EEVEE_VOLUMETRIC_BLENDING = (1 << 1),
-  SCE_EEVEE_WORLD_VOLUMES_ENABLED = (1 << 2), // (only used to disable wo volumes in overlay pass)
+  SCE_EEVEE_WORLD_VOLUMES_ENABLED = (1 << 2),  // (only used to disable wo volumes in overlay pass)
 };
 
 /** #SceneEEVEE.shadow_method */

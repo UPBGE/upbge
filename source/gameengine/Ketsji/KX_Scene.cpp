@@ -89,8 +89,8 @@
 #include "SG_Controller.h"
 
 #ifdef WITH_PYTHON
-#  include "bpy_rna.h"
 #  include "EXP_PythonCallBack.h"
+#  include "bpy_rna.h"
 #endif
 
 static void *KX_SceneReplicationFunc(SG_Node *node, void *gameobj, void *scene)
@@ -203,8 +203,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
       m_obstacleSimulation = nullptr;
   }
 
-  m_animationPool = BLI_task_pool_create(
-      &m_animationPoolData, TASK_PRIORITY_LOW);
+  m_animationPool = BLI_task_pool_create(&m_animationPoolData, TASK_PRIORITY_LOW);
 
 #ifdef WITH_PYTHON
   m_attr_dict = nullptr;
@@ -635,7 +634,8 @@ void KX_Scene::OverlayPassDisableEffects(Depsgraph *depsgraph,
     }
   }
 
-  if ((m_backupOverlayFlag != scene_eval->eevee.flag) || (m_backupOverlayGameFlag != scene_eval->eevee.gameflag)) {
+  if ((m_backupOverlayFlag != scene_eval->eevee.flag) ||
+      (m_backupOverlayGameFlag != scene_eval->eevee.gameflag)) {
     /* Only tag if overlay settings changed since previous frame */
     AppendToExtraObjectsToUpdateInOverlayPass(obcam, ID_RECALC_TRANSFORM);
   }
@@ -727,7 +727,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   bool useViewportRender = KX_GetActiveEngine()->UseViewportRender();
 
-  if (!useViewportRender) { // Custom bge render loop only
+  if (!useViewportRender) {  // Custom bge render loop only
     bool calledFromConstructor = cam == nullptr;
     if (calledFromConstructor) {
       m_currentGPUViewport = GPU_viewport_create();
@@ -799,7 +799,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     /* Viewport render mode doesn't support several render passes then exit here
      * if we are trying to use not supported features. */
     if (cam && cam != KX_GetActiveEngine()->GetRenderingCameras().front()) {
-      std::cout << "Warning: Viewport Render mode doesn't support multiple render passes" << std::endl;
+      std::cout << "Warning: Viewport Render mode doesn't support multiple render passes"
+                << std::endl;
       return;
     }
 
@@ -829,8 +830,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
       wmWindowManager *wm = CTX_wm_manager(C);
       if (WM_xr_session_exists(&wm->xr)) {
         if (WM_xr_session_is_ready(&wm->xr)) {
-          wm_event_do_handlers(C); //TODO: Find more specific XR code
-          wm_event_do_notifiers(C); //TODO: Find more specific XR code
+          wm_event_do_handlers(C);   // TODO: Find more specific XR code
+          wm_event_do_notifiers(C);  // TODO: Find more specific XR code
         }
       }
 #endif
@@ -877,7 +878,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
 
   for (short i = 0; i < samples_per_frame; i++) {
     GPU_clear_depth(1.0f);
-    DRW_game_render_loop(C, m_currentGPUViewport, depsgraph, &window, is_overlay_pass, cam == nullptr);
+    DRW_game_render_loop(
+        C, m_currentGPUViewport, depsgraph, &window, is_overlay_pass, cam == nullptr);
   }
 
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
@@ -921,8 +923,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   GPU_blend(GPU_BLEND_NONE);
 }
 
-void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam,
-                                                 const rcti *window)
+void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, const rcti *window)
 {
   bContext *C = KX_GetActiveEngine()->GetContext();
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
@@ -1330,7 +1331,9 @@ void KX_Scene::TagForObmatRestore()
 bool KX_Scene::SomethingIsMoving()
 {
   for (KX_GameObject *gameobj : GetObjectList()) {
-    if (!(compare_m4m4((float(*)[4])(gameobj->GetPrevObmat()), gameobj->GetBlenderObject()->obmat, FLT_MIN))) {
+    if (!(compare_m4m4((float(*)[4])(gameobj->GetPrevObmat()),
+                       gameobj->GetBlenderObject()->obmat,
+                       FLT_MIN))) {
       return true;
     }
   }
@@ -1379,14 +1382,14 @@ void KX_Scene::AppendToExtraObjectsToUpdateInOverlayPass(Object *ob, IDRecalcFla
 void KX_Scene::TagForExtraObjectsUpdate(Main *bmain, KX_Camera *cam)
 {
   for (std::vector<std::pair<Object *, IDRecalcFlag>>::iterator it =
-       m_extraObjectsToUpdateInAllRenderPasses.begin();
+           m_extraObjectsToUpdateInAllRenderPasses.begin();
        it != m_extraObjectsToUpdateInAllRenderPasses.end();
        it++) {
     DEG_id_tag_update(&it->first->id, it->second);
   }
 
   for (std::vector<std::pair<Mesh *, IDRecalcFlag>>::iterator it =
-       m_meshesToUpdateInAllRenderPasses.begin();
+           m_meshesToUpdateInAllRenderPasses.begin();
        it != m_meshesToUpdateInAllRenderPasses.end();
        it++) {
     DEG_id_tag_update(&it->first->id, it->second);
@@ -1398,7 +1401,7 @@ void KX_Scene::TagForExtraObjectsUpdate(Main *bmain, KX_Camera *cam)
 
   if (cam && cam == GetOverlayCamera()) {
     for (std::vector<std::pair<Object *, IDRecalcFlag>>::iterator it =
-         m_extraObjectsToUpdateInOverlayPass.begin();
+             m_extraObjectsToUpdateInOverlayPass.begin();
          it != m_extraObjectsToUpdateInOverlayPass.end();
          it++) {
       DEG_id_tag_update(&it->first->id, it->second);
@@ -1407,7 +1410,9 @@ void KX_Scene::TagForExtraObjectsUpdate(Main *bmain, KX_Camera *cam)
   }
 }
 
-KX_GameObject *KX_Scene::AddDuplicaObject(KX_GameObject *gameobj, KX_GameObject *reference, float lifespan)
+KX_GameObject *KX_Scene::AddDuplicaObject(KX_GameObject *gameobj,
+                                          KX_GameObject *reference,
+                                          float lifespan)
 {
   Object *ob = gameobj->GetBlenderObject();
   if (ob) {
@@ -1415,11 +1420,10 @@ KX_GameObject *KX_Scene::AddDuplicaObject(KX_GameObject *gameobj, KX_GameObject 
     Main *bmain = CTX_data_main(C);
     Scene *scene = GetBlenderScene();
     ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-    //Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+    // Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
     Base *base = BKE_view_layer_base_find(view_layer, ob);
     if (base) {
-      Base *basen = ED_object_add_duplicate(
-          bmain, scene, view_layer, base, USER_DUP_OBDATA);
+      Base *basen = ED_object_add_duplicate(bmain, scene, view_layer, base, USER_DUP_OBDATA);
       BKE_collection_object_add_from(bmain,
                                      scene,
                                      BKE_view_layer_camera_find(view_layer),
@@ -1430,7 +1434,7 @@ KX_GameObject *KX_Scene::AddDuplicaObject(KX_GameObject *gameobj, KX_GameObject 
       BKE_main_collection_sync_remap(bmain);
 
       DEG_relations_tag_update(bmain);
-      //BKE_scene_graph_update_tagged(depsgraph, bmain);
+      // BKE_scene_graph_update_tagged(depsgraph, bmain);
       ConvertBlenderObject(basen->object);
 
       KX_GameObject *replica = GetObjectList()->GetBack();
@@ -1846,7 +1850,8 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
       if ((blenderobj->lay & groupobj->GetLayer()) == 0) {
         // Object is not visible in the 3D view, will not be instantiated. ??
         /* 3 remarks:
-         * - The comment souldn't be: "if blenderobj not in same layer than groupobj, don't convert it as gameobj"?
+         * - The comment souldn't be: "if blenderobj not in same layer than groupobj, don't convert
+         * it as gameobj"?
          * - The code was using blenderobj->lay & group->layer but group->layer is deprecated.
          * - Maybe it shouldn't be in an else statement. */
         continue;
@@ -1943,8 +1948,8 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
       // groupobj holds a list of all objects, that belongs to this group
       groupobj->AddInstanceObjects(gameobj);
 
-      /* If the groupobj itself is parented, parent the top parent instance spawned to invisibled groupobj
-       * to have the same behaviour than in viewport.
+      /* If the groupobj itself is parented, parent the top parent instance spawned to invisibled
+       * groupobj to have the same behaviour than in viewport.
        */
       if (groupobj->GetParent()) {
         gameobj->SetParent(groupobj, false, false);
@@ -2361,12 +2366,12 @@ void KX_Scene::AddAnimatedObject(KX_GameObject *gameobj)
   CM_ListAddIfNotFound(m_animatedlist, gameobj);
 }
 
-//static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(threadid))
+// static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(threadid))
 //{
 //  KX_GameObject *gameobj, *parent;
 //  bool needs_update;
-//  KX_Scene::AnimationPoolData *data = (KX_Scene::AnimationPoolData *)BLI_task_pool_user_data(pool);
-//  double curtime = data->curtime;
+//  KX_Scene::AnimationPoolData *data = (KX_Scene::AnimationPoolData
+//  *)BLI_task_pool_user_data(pool); double curtime = data->curtime;
 
 //  gameobj = (KX_GameObject *)taskdata;
 
@@ -3226,7 +3231,7 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
 
   float time = 0.0f;
 
-  //Full duplication of ob->data
+  // Full duplication of ob->data
   int duplicate = 0;
 
   if (!PyArg_ParseTuple(args, "O|Ofi:addObject", &pyob, &pyreference, &time, &duplicate))
@@ -3247,13 +3252,15 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
     return nullptr;
 
   if (!m_inactivelist->SearchValue(ob)) {
-    PyErr_Format(PyExc_ValueError,
-                 "scene.addObject(object, reference, time, dupli): KX_Scene (first argument): object "
-                 "must be in an inactive layer");
+    PyErr_Format(
+        PyExc_ValueError,
+        "scene.addObject(object, reference, time, dupli): KX_Scene (first argument): object "
+        "must be in an inactive layer");
     return nullptr;
   }
   bool dupli = duplicate == 1;
-  KX_GameObject *replica = !dupli ? AddReplicaObject(ob, reference, time) : AddDuplicaObject(ob, reference, time);
+  KX_GameObject *replica = !dupli ? AddReplicaObject(ob, reference, time) :
+                                    AddDuplicaObject(ob, reference, time);
 
   // release here because AddReplicaObject AddRef's
   // the object is added to the scene so we don't want python to own a reference
@@ -3454,7 +3461,8 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
 
   bAction *act = (bAction *)id;
   // Now unregister actions.
-  std::map<std::string, void *>::iterator it = GetLogicManager()->GetActionMap().find(act->id.name + 2);
+  std::map<std::string, void *>::iterator it = GetLogicManager()->GetActionMap().find(
+      act->id.name + 2);
   std::map<std::string, void *> &mapStringToActions = GetLogicManager()->GetActionMap();
   if (it != mapStringToActions.end()) {
     mapStringToActions.erase(it);

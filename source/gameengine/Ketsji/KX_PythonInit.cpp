@@ -2304,7 +2304,7 @@ void initGamePythonScripting(Main *maggie, bContext *C, bool *audioDeviceIsIniti
    * somehow it remembers the sys.path - Campbell
    */
 
-/* #PyPreConfig (early-configuration).  */
+  /* #PyPreConfig (early-configuration).  */
   {
     PyPreConfig preconfig;
     PyStatus status;
@@ -2363,8 +2363,8 @@ void initGamePythonScripting(Main *maggie, bContext *C, bool *audioDeviceIsIniti
 
     /* While `sys.argv` is set, we don't want Python to interpret it. */
     config.parse_argv = 0;
-    //status = PyConfig_SetBytesArgv(&config, argc, (char *const *)argv);
-    //pystatus_exit_on_error(status);
+    // status = PyConfig_SetBytesArgv(&config, argc, (char *const *)argv);
+    // pystatus_exit_on_error(status);
 
     /* Needed for Python's initialization for portable Python installations.
      * We could use #Py_SetPath, but this overrides Python's internal logic

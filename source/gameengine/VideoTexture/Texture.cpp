@@ -35,8 +35,8 @@
 #include "BKE_image.h"
 #include "BKE_node.h"
 #include "BLI_listbase.h"
-#include "DNA_material_types.h"
 #include "DEG_depsgraph_query.h"
+#include "DNA_material_types.h"
 #include "GPU_glew.h"
 #include "GPU_texture.h"
 #include "IMB_imbuf.h"
@@ -330,7 +330,8 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
                 NodeTexImage *ntex = (NodeTexImage *)node->storage;
                 if (ntex->interpolation != SHD_INTERP_CLOSEST) {
                   std::cout << "VideoTexture: Image Texture node interpolation mode is not set to "
-                               "closest. VideoTexture might not work correctly." << std::endl;
+                               "closest. VideoTexture might not work correctly."
+                            << std::endl;
                   break;
                 }
               }

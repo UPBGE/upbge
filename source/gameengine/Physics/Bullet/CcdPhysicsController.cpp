@@ -865,7 +865,8 @@ void CcdPhysicsController::UpdateSoftBody()
         btSoftBody::tNodeArray &nodes(sb->m_nodes);
         bContext *C = KX_GetActiveEngine()->GetContext();
         Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-        KX_GameObject *gameobj = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)GetNewClientInfo());
+        KX_GameObject *gameobj = KX_GameObject::GetClientObject(
+            (KX_ClientObjectInfo *)GetNewClientInfo());
         Object *ob = DEG_get_evaluated_object(depsgraph, gameobj->GetBlenderObject());
 
         for (int p2 = 0; p2 < numpolys; p2++) {
@@ -1313,7 +1314,7 @@ void CcdPhysicsController::SetMass(MT_Scalar newmass)
 MT_Scalar CcdPhysicsController::GetFriction()
 {
   if (GetSoftBody()) {
-    //std::cout << "friction is only available for rigid bodies and dynamic objects" << std::endl;
+    // std::cout << "friction is only available for rigid bodies and dynamic objects" << std::endl;
   }
 
   MT_Scalar friction = 0.0f;
@@ -1327,8 +1328,7 @@ MT_Scalar CcdPhysicsController::GetFriction()
 void CcdPhysicsController::SetFriction(MT_Scalar newfriction)
 {
   btRigidBody *body = GetRigidBody();
-  if (body && !m_suspended && !IsPhysicsSuspended() &&
-      newfriction >= 0.0) {
+  if (body && !m_suspended && !IsPhysicsSuspended() && newfriction >= 0.0) {
     btBroadphaseProxy *handle = body->getBroadphaseHandle();
     GetPhysicsEnvironment()->UpdateCcdPhysicsController(this,
                                                         GetMass(),
@@ -2334,7 +2334,9 @@ cleanup_empty_mesh:
 /* Updates the arrays used by CreateBulletShape(),
  * take care that recalcLocalAabb() runs after CreateBulletShape is called.
  * */
-bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj, class RAS_MeshObject *from_meshobj, bool evaluatedMesh)
+bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
+                                          class RAS_MeshObject *from_meshobj,
+                                          bool evaluatedMesh)
 {
   int numpolys;
   int numverts;
@@ -2372,7 +2374,6 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj, cla
     std::cout << "A KX_GameObject is needed if we want to use evaluated data" << std::endl;
     return false;
   }
-
 
   Mesh *me = nullptr;
   if (from_meshobj) {

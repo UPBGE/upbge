@@ -393,7 +393,8 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     wm_backup->message_bus = (wmMsgBus *)msgbus_backup;
   }
   else {
-    CTX_wm_window_set(C, win_backup); // Fix for crash at exit when we have preferences window open
+    CTX_wm_window_set(C,
+                      win_backup);  // Fix for crash at exit when we have preferences window open
   }
 
   RefreshContextAndScreen(C, wm_backup, win_backup, startscene);

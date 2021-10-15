@@ -47,8 +47,8 @@
 struct DeckLink {
   PyObject_HEAD
 
-      // last refresh
-      double m_lastClock;
+  // last refresh
+  double m_lastClock;
   // decklink card to which we output
   IDeckLinkOutput *mDLOutput;
   IDeckLinkKeyer *mKeyer;

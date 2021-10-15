@@ -38,8 +38,7 @@ class MT_Transform;
 class KX_NavMeshObject : public KX_GameObject {
   Py_Header
 
- protected :
-  dtStatNavMesh *m_navMesh;
+      protected : dtStatNavMesh *m_navMesh;
 
   bool BuildVertIndArrays(float *&vertices,
                           int &nverts,

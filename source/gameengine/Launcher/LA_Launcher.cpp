@@ -150,12 +150,12 @@ void LA_Launcher::InitEngine()
   }
   m_pythonConsole.use = (gm.flag & GAME_PYTHON_CONSOLE);
 
-  const KX_KetsjiEngine::FlagType flags = (KX_KetsjiEngine::FlagType)(
-      (fixed_framerate ? KX_KetsjiEngine::FIXED_FRAMERATE : 0) |
-      (frameRate ? KX_KetsjiEngine::SHOW_FRAMERATE : 0) |
-      (restrictAnimFPS ? KX_KetsjiEngine::RESTRICT_ANIMATION : 0) |
-      (properties ? KX_KetsjiEngine::SHOW_DEBUG_PROPERTIES : 0) |
-      (profile ? KX_KetsjiEngine::SHOW_PROFILE : 0));
+  const KX_KetsjiEngine::FlagType flags =
+      (KX_KetsjiEngine::FlagType)((fixed_framerate ? KX_KetsjiEngine::FIXED_FRAMERATE : 0) |
+                                  (frameRate ? KX_KetsjiEngine::SHOW_FRAMERATE : 0) |
+                                  (restrictAnimFPS ? KX_KetsjiEngine::RESTRICT_ANIMATION : 0) |
+                                  (properties ? KX_KetsjiEngine::SHOW_DEBUG_PROPERTIES : 0) |
+                                  (profile ? KX_KetsjiEngine::SHOW_PROFILE : 0));
 
   m_rasterizer = new RAS_Rasterizer();
 

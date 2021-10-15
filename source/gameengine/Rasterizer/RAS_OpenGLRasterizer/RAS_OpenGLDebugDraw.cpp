@@ -36,7 +36,6 @@
 #include "RAS_ICanvas.h"
 #include "RAS_OpenGLDebugDraw.h"
 
-
 RAS_OpenGLDebugDraw::RAS_OpenGLDebugDraw()
 {
 }

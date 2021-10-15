@@ -711,9 +711,8 @@ PythonProxy *BKE_python_class_create_file(char *import,
 
   text = BKE_text_add(maggie, filename);
 
-  BLI_strncpy(respath,
-              BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS, template_dir),
-              sizeof(respath));
+  BLI_strncpy(
+      respath, BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS, template_dir), sizeof(respath));
   BLI_path_append(respath, sizeof(respath), template_name);
 
   orgfilecontent = BLI_file_read_text_as_mem(respath, 0, &filesize);
@@ -744,9 +743,7 @@ PythonProxy *BKE_python_class_create_file(char *import,
   return pp;
 }
 
-PythonProxy *BKE_custom_object_create_file(char *import,
-                                           ReportList *reports,
-                                           bContext *context)
+PythonProxy *BKE_custom_object_create_file(char *import, ReportList *reports, bContext *context)
 {
   return BKE_python_class_create_file(import,
                                       "templates_custom_objects",
@@ -756,9 +753,7 @@ PythonProxy *BKE_custom_object_create_file(char *import,
                                       context);
 }
 
-PythonProxy *BKE_python_component_create_file(char *import,
-                                              ReportList *reports,
-                                              bContext *context)
+PythonProxy *BKE_python_component_create_file(char *import, ReportList *reports, bContext *context)
 {
   return BKE_python_class_create_file(import,
                                       "templates_py_components",
@@ -929,4 +924,3 @@ void BKE_python_proxies_id_loop(ListBase *list, BKEPyProxyIDFunc func, void *use
     BKE_python_proxy_id_loop(pp, func, userdata);
   }
 }
-

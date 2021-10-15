@@ -312,24 +312,24 @@ GPUShader *eevee_shader_antialiasing_get(int stage,
     char smaa_predication_scale_define[64];
     BLI_snprintf(stage_define, sizeof(stage_define), "#define SMAA_STAGE %d\n", stage);
     switch (smaa_quality) {
-      case 0:
-      {
-        BLI_snprintf(smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_LOW\n");
+      case 0: {
+        BLI_snprintf(
+            smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_LOW\n");
         break;
       }
-      case 1:
-      {
-        BLI_snprintf(smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_MEDIUM\n");
+      case 1: {
+        BLI_snprintf(
+            smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_MEDIUM\n");
         break;
       }
-      case 2:
-      {
-        BLI_snprintf(smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_HIGH\n");
+      case 2: {
+        BLI_snprintf(
+            smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_HIGH\n");
         break;
       }
-      case 3:
-      {
-        BLI_snprintf(smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_ULTRA\n");
+      case 3: {
+        BLI_snprintf(
+            smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_ULTRA\n");
         break;
       }
       default:

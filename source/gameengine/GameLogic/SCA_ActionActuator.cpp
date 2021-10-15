@@ -38,19 +38,19 @@
 #include "EXP_FloatValue.h"
 
 SCA_ActionActuator::SCA_ActionActuator(SCA_IObject *gameobj,
-                                     const std::string &propname,
-                                     const std::string &framepropname,
-                                     float starttime,
-                                     float endtime,
-                                     struct bAction *action,
-                                     short playtype,
-                                     short blend_mode,
-                                     short blendin,
-                                     short priority,
-                                     short layer,
-                                     float layer_weight,
-                                     short ipo_flags,
-                                     short end_reset)
+                                       const std::string &propname,
+                                       const std::string &framepropname,
+                                       float starttime,
+                                       float endtime,
+                                       struct bAction *action,
+                                       short playtype,
+                                       short blend_mode,
+                                       short blendin,
+                                       short priority,
+                                       short layer,
+                                       float layer_weight,
+                                       short ipo_flags,
+                                       short end_reset)
     : SCA_IActuator(gameobj, KX_ACT_ACTION),
       m_flag(0),
       m_startframe(starttime),
@@ -292,42 +292,42 @@ bool SCA_ActionActuator::Play(KX_GameObject *obj, float start, float end, short 
 /* ------------------------------------------------------------------------- */
 
 PyTypeObject SCA_ActionActuator::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_ActionActuator",
-                                        sizeof(EXP_PyObjectPlus_Proxy),
-                                        0,
-                                        py_base_dealloc,
-                                        0,
-                                        0,
-                                        0,
-                                        0,
-                                        py_base_repr,
-                                        0,
-                                        0,
-                                        0,
-                                        0,
-                                        0,
-                                        0,
-                                        0,
-                                        0,
-                                        0,
-                                        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-                                        0,
-                                        0,
-                                        0,
-                                        0,
-                                        0,
-                                        0,
-                                        0,
-                                        Methods,
-                                        0,
-                                        0,
-                                        &SCA_IActuator::Type,
-                                        0,
-                                        0,
-                                        0,
-                                        0,
-                                        0,
-                                        0,
-                                        py_base_new};
+                                         sizeof(EXP_PyObjectPlus_Proxy),
+                                         0,
+                                         py_base_dealloc,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         py_base_repr,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         Methods,
+                                         0,
+                                         0,
+                                         &SCA_IActuator::Type,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         py_base_new};
 
 PyMethodDef SCA_ActionActuator::Methods[] = {
     {nullptr, nullptr}  // Sentinel
@@ -337,7 +337,8 @@ PyAttributeDef SCA_ActionActuator::Attributes[] = {
     EXP_PYATTRIBUTE_FLOAT_RW("frameStart", 0, MAXFRAMEF, SCA_ActionActuator, m_startframe),
     EXP_PYATTRIBUTE_FLOAT_RW("frameEnd", 0, MAXFRAMEF, SCA_ActionActuator, m_endframe),
     EXP_PYATTRIBUTE_FLOAT_RW("blendIn", 0, MAXFRAMEF, SCA_ActionActuator, m_blendin),
-    EXP_PYATTRIBUTE_RW_FUNCTION("action", SCA_ActionActuator, pyattr_get_action, pyattr_set_action),
+    EXP_PYATTRIBUTE_RW_FUNCTION(
+        "action", SCA_ActionActuator, pyattr_get_action, pyattr_set_action),
     EXP_PYATTRIBUTE_SHORT_RW("priority", 0, 100, false, SCA_ActionActuator, m_priority),
     EXP_PYATTRIBUTE_SHORT_RW("layer", 0, MAX_ACTION_LAYERS - 1, true, SCA_ActionActuator, m_layer),
     EXP_PYATTRIBUTE_FLOAT_RW("layerWeight", 0, 1.0, SCA_ActionActuator, m_layer_weight),
@@ -353,15 +354,15 @@ PyAttributeDef SCA_ActionActuator::Attributes[] = {
 };
 
 PyObject *SCA_ActionActuator::pyattr_get_action(EXP_PyObjectPlus *self_v,
-                                               const EXP_PYATTRIBUTE_DEF *attrdef)
+                                                const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_ActionActuator *self = static_cast<SCA_ActionActuator *>(self_v);
   return PyUnicode_FromString(self->GetAction() ? self->GetAction()->id.name + 2 : "");
 }
 
 int SCA_ActionActuator::pyattr_set_action(EXP_PyObjectPlus *self_v,
-                                         const EXP_PYATTRIBUTE_DEF *attrdef,
-                                         PyObject *value)
+                                          const EXP_PYATTRIBUTE_DEF *attrdef,
+                                          PyObject *value)
 {
   SCA_ActionActuator *self = static_cast<SCA_ActionActuator *>(self_v);
 
@@ -389,15 +390,15 @@ int SCA_ActionActuator::pyattr_set_action(EXP_PyObjectPlus *self_v,
 }
 
 PyObject *SCA_ActionActuator::pyattr_get_use_continue(EXP_PyObjectPlus *self_v,
-                                                     const EXP_PYATTRIBUTE_DEF *attrdef)
+                                                      const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_ActionActuator *self = static_cast<SCA_ActionActuator *>(self_v);
   return PyBool_FromLong(self->m_flag & ACT_FLAG_CONTINUE);
 }
 
 int SCA_ActionActuator::pyattr_set_use_continue(EXP_PyObjectPlus *self_v,
-                                               const EXP_PYATTRIBUTE_DEF *attrdef,
-                                               PyObject *value)
+                                                const EXP_PYATTRIBUTE_DEF *attrdef,
+                                                PyObject *value)
 {
   SCA_ActionActuator *self = static_cast<SCA_ActionActuator *>(self_v);
 
@@ -410,15 +411,15 @@ int SCA_ActionActuator::pyattr_set_use_continue(EXP_PyObjectPlus *self_v,
 }
 
 PyObject *SCA_ActionActuator::pyattr_get_frame(EXP_PyObjectPlus *self_v,
-                                              const EXP_PYATTRIBUTE_DEF *attrdef)
+                                               const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_ActionActuator *self = static_cast<SCA_ActionActuator *>(self_v);
   return PyFloat_FromDouble(((KX_GameObject *)self->m_gameobj)->GetActionFrame(self->m_layer));
 }
 
 int SCA_ActionActuator::pyattr_set_frame(EXP_PyObjectPlus *self_v,
-                                        const EXP_PYATTRIBUTE_DEF *attrdef,
-                                        PyObject *value)
+                                         const EXP_PYATTRIBUTE_DEF *attrdef,
+                                         PyObject *value)
 {
   SCA_ActionActuator *self = static_cast<SCA_ActionActuator *>(self_v);
 

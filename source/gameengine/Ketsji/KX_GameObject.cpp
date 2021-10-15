@@ -65,8 +65,8 @@
 #include "SG_Controller.h"
 
 #ifdef WITH_PYTHON
-#  include "bpy_rna.h"
 #  include "EXP_PythonCallBack.h"
+#  include "bpy_rna.h"
 #  include "python_utildefines.h"
 #endif
 
@@ -77,10 +77,10 @@ static MT_Matrix3x3 dummy_orientation = MT_Matrix3x3(
 
 KX_GameObject::KX_GameObject()
     : SCA_IObject(),
-      m_isReplica(false),              // eevee
-      m_visibleAtGameStart(false),     // eevee
-      m_forceIgnoreParentTx(false),    // eevee
-      m_previousLodLevel(-1),          // eevee
+      m_isReplica(false),            // eevee
+      m_visibleAtGameStart(false),   // eevee
+      m_forceIgnoreParentTx(false),  // eevee
+      m_previousLodLevel(-1),        // eevee
       m_layer(0),
       m_lodManager(nullptr),
       m_currentLodLevel(0),
@@ -262,7 +262,7 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
     }
     else if (multiple_render_passes && is_last_render_pass) {
       GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
-      copy_m4_m4(m_prevObmat, obmat); // This is used for ImageRender but could be changed...
+      copy_m4_m4(m_prevObmat, obmat);  // This is used for ImageRender but could be changed...
     }
     else {
       GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
@@ -278,9 +278,11 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
 
   bool skip_transform = ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY;
   /* Don't tag non overlay collection objects in overlay collection render pass */
-  skip_transform = skip_transform || ((ob_orig->gameflag & OB_OVERLAY_COLLECTION) == 0 && is_overlay_pass);
+  skip_transform = skip_transform ||
+                   ((ob_orig->gameflag & OB_OVERLAY_COLLECTION) == 0 && is_overlay_pass);
   /* Don't tag overlay collection objects in non overlay collection render pass */
-  skip_transform = skip_transform || (ob_orig->gameflag & OB_OVERLAY_COLLECTION && !is_overlay_pass);
+  skip_transform = skip_transform ||
+                   (ob_orig->gameflag & OB_OVERLAY_COLLECTION && !is_overlay_pass);
 
   if (ob_orig && !skip_transform) {
 
@@ -288,7 +290,8 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
 
     if (applyTransformToOrig) {
       copy_m4_m4(ob_orig->obmat, obmat);
-      BKE_object_apply_mat4(ob_orig, ob_orig->obmat, false, ob_orig->parent && ob_orig->partype != PARVERT1);
+      BKE_object_apply_mat4(
+          ob_orig, ob_orig->obmat, false, ob_orig->parent && ob_orig->partype != PARVERT1);
     }
 
     if (!staticObject || m_forceIgnoreParentTx) {
@@ -1800,7 +1803,7 @@ void KX_GameObject::RunOnRemoveCallbacks()
  * So far, only switch the physics and logic.
  * */
 
-//void KX_GameObject::ResumeDynamics(void)
+// void KX_GameObject::ResumeDynamics(void)
 //{
 //  if (m_logicSuspended) {
 //    SCA_IObject::ResumeLogic();
@@ -1812,7 +1815,7 @@ void KX_GameObject::RunOnRemoveCallbacks()
 //  }
 //}
 //
-//void KX_GameObject::SuspendDynamics()
+// void KX_GameObject::SuspendDynamics()
 //{
 //  if (!m_logicSuspended) {
 //    SCA_IObject::SuspendLogic();
@@ -2941,7 +2944,7 @@ int KX_GameObject::pyattr_set_mass(EXP_PyObjectPlus *self_v,
 }
 
 PyObject *KX_GameObject::pyattr_get_friction(EXP_PyObjectPlus *self_v,
-                                         const EXP_PYATTRIBUTE_DEF *attrdef)
+                                             const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
   PHY_IPhysicsController *spc = self->GetPhysicsController();
@@ -2949,8 +2952,8 @@ PyObject *KX_GameObject::pyattr_get_friction(EXP_PyObjectPlus *self_v,
 }
 
 int KX_GameObject::pyattr_set_friction(EXP_PyObjectPlus *self_v,
-                                   const EXP_PYATTRIBUTE_DEF *attrdef,
-                                   PyObject *value)
+                                       const EXP_PYATTRIBUTE_DEF *attrdef,
+                                       PyObject *value)
 {
   KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
   PHY_IPhysicsController *spc = self->GetPhysicsController();
@@ -4758,7 +4761,8 @@ EXP_PYMETHODDEF_DOC(
 
   if (KX_RayCast::RayTest(pe, fromPoint, toPoint, callback) && rayData.m_hitObject) {
     PyObject *returnValue = (poly == 2) ? PyTuple_New(5) :
-                                          (poly) ? PyTuple_New(4) : PyTuple_New(3);
+                            (poly)      ? PyTuple_New(4) :
+                                          PyTuple_New(3);
     if (returnValue) {  // unlikely this would ever fail, if it does python sets an error
       PyTuple_SET_ITEM(returnValue, 0, rayData.m_hitObject->GetProxy());
       PyTuple_SET_ITEM(returnValue, 1, PyObjectFrom(callback.m_hitPoint));

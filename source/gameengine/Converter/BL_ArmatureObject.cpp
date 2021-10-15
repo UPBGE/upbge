@@ -53,7 +53,7 @@
  * When it is about to evaluate the pose, set the KX object position in the obmat of the
  * corresponding Blender objects and restore after the evaluation.
  */
-//static void game_copy_pose(bPose **dst, bPose *src, int copy_constraint)
+// static void game_copy_pose(bPose **dst, bPose *src, int copy_constraint)
 //{
 //  /* The game engine copies the current armature pose and then swaps
 //   * the object pose pointer. this makes it possible to change poses
@@ -185,10 +185,8 @@ static void game_blend_poses(bPose *dst, bPose *src, float srcweight, short mode
   dst->ctime = src->ctime;
 }
 
-BL_ArmatureObject::BL_ArmatureObject() : KX_GameObject(),
-      m_lastframe(0.0),
-      m_drawDebug(false),
-      m_lastapplyframe(0.0)
+BL_ArmatureObject::BL_ArmatureObject()
+    : KX_GameObject(), m_lastframe(0.0), m_drawDebug(false), m_lastapplyframe(0.0)
 {
   m_controlledConstraints = new EXP_ListValue<BL_ArmatureConstraint>();
   m_poseChannels = new EXP_ListValue<BL_ArmatureChannel>();

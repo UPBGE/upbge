@@ -85,7 +85,7 @@ class KX_TimeCategoryLogger {
    */
   void StartLog(TimeCategory tc);
 
-	/**
+  /**
    * End logging in current measurement for the given category.
    * \param tc	The category to log to.
    */

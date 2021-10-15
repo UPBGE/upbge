@@ -60,9 +60,7 @@ void BKE_python_proxy_free_list(struct ListBase *base);
 
 void BKE_python_proxy_id_loop(struct PythonProxy *pp, BKEPyProxyIDFunc func, void *userdata);
 
-void BKE_python_proxies_id_loop(struct ListBase *complist,
-                                BKEPyProxyIDFunc func,
-                                void *userdata);
+void BKE_python_proxies_id_loop(struct ListBase *complist, BKEPyProxyIDFunc func, void *userdata);
 
 void *BKE_python_proxy_argument_dict_new(struct PythonProxy *pp);
 

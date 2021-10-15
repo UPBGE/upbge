@@ -63,11 +63,11 @@
  * is used to test quads, else, loopindices[face_index][3] is used.
  */
 void mesh_loops_to_tessdata(CustomData *fdata,
-                                   CustomData *ldata,
-                                   MFace *mface,
-                                   const int *polyindices,
-                                   uint (*loopindices)[4],
-                                   const int num_faces)
+                            CustomData *ldata,
+                            MFace *mface,
+                            const int *polyindices,
+                            uint (*loopindices)[4],
+                            const int num_faces)
 {
   /* NOTE(mont29): performances are sub-optimal when we get a NULL #MFace,
    * we could be ~25% quicker with dedicated code.

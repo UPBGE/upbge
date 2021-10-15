@@ -31,7 +31,7 @@ struct BMeshCreateParams;
 struct BMeshFromMeshParams;
 struct BMeshToMeshParams;
 struct BoundBox;
-struct Curve; //UPBGE
+struct Curve;  // UPBGE
 struct CustomData;
 struct CustomData_MeshMasks;
 struct Depsgraph;
@@ -267,12 +267,12 @@ void BKE_mesh_vert_normals_apply(struct Mesh *mesh, const short (*vert_normals)[
 
 /* *** mesh_tessellate.c *** */
 
-void mesh_loops_to_tessdata(struct CustomData *fdata, //UPBGE (not static)
-                       struct CustomData *ldata,
-                       struct MFace *mface,
-                       const int *polyindices,
-                       uint (*loopindices)[4],
-                       const int num_faces);
+void mesh_loops_to_tessdata(struct CustomData *fdata,  // UPBGE (not static)
+                            struct CustomData *ldata,
+                            struct MFace *mface,
+                            const int *polyindices,
+                            uint (*loopindices)[4],
+                            const int num_faces);
 
 int BKE_mesh_tessface_calc_ex(struct CustomData *fdata,
                               struct CustomData *ldata,

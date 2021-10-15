@@ -28,13 +28,13 @@
 
 #include <boost/format.hpp>
 
-KX_PythonProxy::KX_PythonProxy():
-    EXP_Value(),
-    m_init(false),
-    m_pp(nullptr),
-    m_update(nullptr),
-    m_dispose(nullptr),
-    m_logger(nullptr)
+KX_PythonProxy::KX_PythonProxy()
+    : EXP_Value(),
+      m_init(false),
+      m_pp(nullptr),
+      m_update(nullptr),
+      m_dispose(nullptr),
+      m_logger(nullptr)
 {
 }
 
@@ -62,15 +62,15 @@ void KX_PythonProxy::Start()
 {
   if (!m_pp || m_init) {
     return;
-  } else {
+  }
+  else {
     m_init = true;
   }
 
   PyObject *proxy = GetProxy();
   PyObject *arg_dict = (PyObject *)BKE_python_proxy_argument_dict_new(m_pp);
 
-  if (PyObject_CallMethod(proxy, "start", "O", arg_dict))
-  {
+  if (PyObject_CallMethod(proxy, "start", "O", arg_dict)) {
     if (PyObject_HasAttrString(proxy, "update")) {
       m_update = PyObject_GetAttrString(proxy, "update");
     }
@@ -98,7 +98,8 @@ void KX_PythonProxy::Update()
     if (m_update && !PyObject_CallNoArgs(m_update) && PyErr_Occurred()) {
       LogError("Failed to invoke the update callback.");
     }
-  } else {
+  }
+  else {
     Start();
   }
 }

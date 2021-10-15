@@ -22,19 +22,17 @@
 
 #ifdef WITH_PYTHON
 
-#include "KX_PythonComponent.h"
-#include "KX_PythonProxy.h"
+#  include "KX_PythonComponent.h"
+#  include "KX_PythonProxy.h"
 
-#include "BKE_python_proxy.h"
-#include "DNA_python_proxy_types.h"
+#  include "BKE_python_proxy.h"
+#  include "DNA_python_proxy_types.h"
 
-#include "CM_Message.h"
-#include "KX_GameObject.h"
+#  include "CM_Message.h"
+#  include "KX_GameObject.h"
 
-KX_PythonComponent::KX_PythonComponent(const std::string &name):
-    KX_PythonProxy(),
-    m_gameobj(nullptr),
-    m_name(name)
+KX_PythonComponent::KX_PythonComponent(const std::string &name)
+    : KX_PythonProxy(), m_gameobj(nullptr), m_name(name)
 {
 }
 

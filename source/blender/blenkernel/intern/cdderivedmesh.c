@@ -679,16 +679,16 @@ DerivedMesh *CDDM_from_curve_displist(Object *ob, ListBase *dispbase)
   int totvert, totedge, totloop, totpoly;
 
   if (mesh_nurbs_displist_to_mdata((Curve *)ob->data,
-                                       dispbase,
-                                       &allvert,
-                                       &totvert,
-                                       &alledge,
-                                       &totedge,
-                                       &allloop,
-                                       &allpoly,
-                                       &alluv,
-                                       &totloop,
-                                       &totpoly) != 0) {
+                                   dispbase,
+                                   &allvert,
+                                   &totvert,
+                                   &alledge,
+                                   &totedge,
+                                   &allloop,
+                                   &allpoly,
+                                   &alluv,
+                                   &totloop,
+                                   &totpoly) != 0) {
     /* Error initializing mdata. This often happens when curve is empty */
     return CDDM_new(0, 0, 0, 0, 0);
   }
@@ -1214,8 +1214,7 @@ void CDDM_calc_loop_normals_spacearr(DerivedMesh *dm,
   bool only_face_normals = (dm->dirty & DM_DIRTY_NORMALS) == 0;
 
   if (only_face_normals) {
-    BKE_mesh_calc_normals_poly(
-        mverts, numVerts, mloops, numLoops, mpolys, numPolys, pnors);
+    BKE_mesh_calc_normals_poly(mverts, numVerts, mloops, numLoops, mpolys, numPolys, pnors);
   }
   else {
     BKE_mesh_calc_normals_poly_and_vertex(

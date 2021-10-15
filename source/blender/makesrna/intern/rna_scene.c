@@ -5469,7 +5469,8 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   prop = RNA_def_property(srna, "samp_per_frame", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, NULL, "samples_per_frame");
   RNA_def_property_range(prop, 1, 32);
-  RNA_def_property_ui_text(prop, "Samples per frame", "Number of eevee passes rendered in 1 frame");
+  RNA_def_property_ui_text(
+      prop, "Samples per frame", "Number of eevee passes rendered in 1 frame");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "vsync", PROP_ENUM, PROP_NONE);
@@ -7727,16 +7728,16 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "smaa_quality", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, eevee_smaa_quality_items);
-  RNA_def_property_ui_text(prop,
-                           "SMAA Quality",
-                           "SMAA quality presets");
+  RNA_def_property_ui_text(prop, "SMAA Quality", "SMAA quality presets");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
   prop = RNA_def_property(srna, "smaa_predication_scale", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_ui_text(
-      prop, "SMAA Scale", "SMAA Predication Scale");
-  RNA_def_property_range(prop, 0.01f, 5.0f); // normally in range [1 - 5] but sometimes best results noticed with 0.01
+  RNA_def_property_ui_text(prop, "SMAA Scale", "SMAA Predication Scale");
+  RNA_def_property_range(
+      prop,
+      0.01f,
+      5.0f);  // normally in range [1 - 5] but sometimes best results noticed with 0.01
   RNA_def_property_ui_range(prop, 0.01f, 5.0, 5, 3);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);

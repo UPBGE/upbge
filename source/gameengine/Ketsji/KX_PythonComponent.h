@@ -24,7 +24,7 @@
 
 #ifdef WITH_PYTHON
 
-#include "KX_PythonProxy.h"
+#  include "KX_PythonProxy.h"
 
 class KX_GameObject;
 struct PythonProxy;
@@ -32,8 +32,7 @@ struct PythonProxy;
 class KX_PythonComponent : public KX_PythonProxy {
   Py_Header
 
- private:
-  KX_GameObject *m_gameobj;
+      private : KX_GameObject *m_gameobj;
   std::string m_name;
 
  public:

@@ -1072,7 +1072,7 @@ void BKE_sca_controllers_id_loop(ListBase *contlist, SCAControllerIDFunc func, v
     switch (controller->type) {
       case CONT_PYTHON: {
         bPythonCont *pc = controller->data;
-        //if (strlen(pc->module)) {
+        // if (strlen(pc->module)) {
         //  if (!pc->module_script) {
         //    char modulename[FILE_MAX];
         //    BLI_strncpy(modulename, pc->module, sizeof(modulename));
@@ -1088,7 +1088,8 @@ void BKE_sca_controllers_id_loop(ListBase *contlist, SCAControllerIDFunc func, v
         //    }
         //    strcat(dest, modulename);
         //    strcat(dest, ext);
-        //    if (G_MAIN /* && G.file_loaded */) { // FIXME: Need to wait file has been completely read
+        //    if (G_MAIN /* && G.file_loaded */) { // FIXME: Need to wait file has been completely
+        //    read
         //      LISTBASE_FOREACH (Text *, text, &G_MAIN->texts) {
         //        if (strcmp(text->id.name + 2, dest) == 0) {
         //          if (text->filepath == NULL) {  // Means the script is embedded

@@ -81,8 +81,8 @@ typedef struct {
 typedef struct EXP_PyObjectPlus_Proxy {
   /// Required python macro.
   PyObject_HEAD
-      /// Pointer to GE object, it holds a reference to this proxy.
-      class EXP_PyObjectPlus *ref;
+  /// Pointer to GE object, it holds a reference to this proxy.
+  class EXP_PyObjectPlus *ref;
   /// Optional pointer to generic structure, the structure holds no reference to this proxy.
   void *ptr;
   /// True if the object pointed by ref should be deleted when the proxy is deleted.

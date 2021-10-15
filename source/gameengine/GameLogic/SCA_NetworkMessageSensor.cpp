@@ -207,7 +207,7 @@ PyAttributeDef SCA_NetworkMessageSensor::Attributes[] = {
 };
 
 PyObject *SCA_NetworkMessageSensor::pyattr_get_bodies(EXP_PyObjectPlus *self_v,
-                                                     const EXP_PYATTRIBUTE_DEF *attrdef)
+                                                      const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_NetworkMessageSensor *self = static_cast<SCA_NetworkMessageSensor *>(self_v);
   if (self->m_BodyList) {
@@ -219,7 +219,7 @@ PyObject *SCA_NetworkMessageSensor::pyattr_get_bodies(EXP_PyObjectPlus *self_v,
 }
 
 PyObject *SCA_NetworkMessageSensor::pyattr_get_subjects(EXP_PyObjectPlus *self_v,
-                                                       const EXP_PYATTRIBUTE_DEF *attrdef)
+                                                        const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   SCA_NetworkMessageSensor *self = static_cast<SCA_NetworkMessageSensor *>(self_v);
   if (self->m_SubjectList) {

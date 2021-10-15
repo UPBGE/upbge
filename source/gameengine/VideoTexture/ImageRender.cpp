@@ -138,7 +138,8 @@ void ImageRender::calcViewport(unsigned int texId, double ts, unsigned int forma
 
   GPU_framebuffer_texture_attach(
       m_targetfb, GPU_viewport_color_texture(m_camera->GetGPUViewport(), 0), 0, 0);
-  GPU_framebuffer_texture_attach(m_targetfb, GPU_viewport_depth_texture(m_camera->GetGPUViewport()), 0, 0);
+  GPU_framebuffer_texture_attach(
+      m_targetfb, GPU_viewport_depth_texture(m_camera->GetGPUViewport()), 0, 0);
   GPU_framebuffer_bind(m_targetfb);
 
   // get image from viewport (or FBO)
@@ -165,8 +166,7 @@ bool ImageRender::Render()
   /* Viewport render mode doesn't support ImageRender then exit here
    * if we are trying to use not supported features. */
   if (KX_GetActiveEngine()->UseViewportRender()) {
-    std::cout << "Warning: Viewport Render mode doesn't support ImageRender"
-              << std::endl;
+    std::cout << "Warning: Viewport Render mode doesn't support ImageRender" << std::endl;
     return false;
   }
 
@@ -255,7 +255,7 @@ bool ImageRender::Render()
   GPU_scissor(viewport[0], viewport[1], viewport[2], viewport[3]);
   GPU_apply_state();
 
-  //GPU_clear_depth(1.0f);
+  // GPU_clear_depth(1.0f);
 
   m_rasterizer->SetAuxilaryClientInfo(m_scene);
 

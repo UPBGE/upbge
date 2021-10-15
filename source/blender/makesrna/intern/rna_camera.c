@@ -654,7 +654,8 @@ void RNA_def_camera(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "overlay_disable_world_volumes", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "gameflag", GAME_CAM_OVERLAY_DISABLE_WORLD_VOLUMES);
-  RNA_def_property_ui_text(prop, "Disable World Volumetrics", "Disable World Volumes in Overlay Pass");
+  RNA_def_property_ui_text(
+      prop, "Disable World Volumetrics", "Disable World Volumes in Overlay Pass");
   /*********/
 
   /* Stereo Settings */

@@ -35,8 +35,7 @@
 
 #include "KX_Light.h"
 
-KX_LightObject::KX_LightObject() : KX_GameObject(),
-    m_obLight(nullptr)
+KX_LightObject::KX_LightObject() : KX_GameObject(), m_obLight(nullptr)
 {
 }
 

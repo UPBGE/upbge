@@ -34,7 +34,6 @@
 
 #include "SCA_MovementSensor.h"
 
-
 #include "DNA_sensor_types.h"
 #include "KX_GameObject.h"
 

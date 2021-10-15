@@ -766,7 +766,7 @@ static void obmat_to_viewmat(RegionView3D *rv3d, Object *ob)
   invert_m4_m4(rv3d->viewmat, bmat);
 
   /* view quat calculation, needed for add object */
-  //mat4_normalized_to_quat(rv3d->viewquat, rv3d->viewmat);
+  // mat4_normalized_to_quat(rv3d->viewquat, rv3d->viewmat);
 
   /* UPBGE (to avoid an annoying assert -> will normalize anyway) */
   mat4_to_quat(rv3d->viewquat, rv3d->viewmat);
@@ -1902,7 +1902,8 @@ static int game_engine_exec(bContext *C, wmOperator *op)
    * player from embedded start button (Issue on some computers (youle)).
    */
   if (prevsa == NULL || prevsa->spacetype != SPACE_VIEW3D) {
-    ED_region_tag_redraw(prevar); // "properties render" region (where is the embedded start button)
+    ED_region_tag_redraw(
+        prevar);  // "properties render" region (where is the embedded start button)
     WM_redraw_windows(C);
   }
 

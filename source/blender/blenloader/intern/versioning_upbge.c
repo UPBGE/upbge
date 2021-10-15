@@ -377,7 +377,7 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *bmain)
   }
   if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 30, 11)) {
     LISTBASE_FOREACH (Camera *, cam, &bmain->cameras) {
-      if (cam->flag & (1 << 11)) { // Game overlay mouse control moved from flag to gameflag
+      if (cam->flag & (1 << 11)) {  // Game overlay mouse control moved from flag to gameflag
         cam->gameflag |= GAME_CAM_OVERLAY_MOUSE_CONTROL;
       }
     }

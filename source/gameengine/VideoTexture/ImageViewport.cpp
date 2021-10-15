@@ -136,7 +136,7 @@ void ImageViewport::setPosition(GLint pos[2])
   // save position
   for (int idx = 0; idx < 2; ++idx)
     m_position[idx] = pos[idx] < 0 ? 0 :
-                                     pos[idx] >= getViewportSize()[idx] - m_capSize[idx] ?
+                      pos[idx] >= getViewportSize()[idx] - m_capSize[idx] ?
                                      getViewportSize()[idx] - m_capSize[idx] :
                                      pos[idx];
   // recalc up left corner

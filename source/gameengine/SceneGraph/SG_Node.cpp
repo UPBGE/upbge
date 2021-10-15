@@ -154,8 +154,9 @@ const SG_Node *SG_Node::GetRootSGParent() const
 
 bool SG_Node::IsAncessor(const SG_Node *child) const
 {
-  return (!child->m_SGparent) ? false :
-                                (child->m_SGparent == this) ? true : IsAncessor(child->m_SGparent);
+  return (!child->m_SGparent)        ? false :
+         (child->m_SGparent == this) ? true :
+                                       IsAncessor(child->m_SGparent);
 }
 
 const NodeList &SG_Node::GetSGChildren() const

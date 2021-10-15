@@ -624,8 +624,8 @@ static ID **get_selected_and_linked_obs(bContext *C, short *count, short scavisf
 
   if (*count == 0)
     return NULL;
-  //if (*count > 24)
-    //*count = 24; /* temporal */
+  // if (*count > 24)
+  //*count = 24; /* temporal */
 
   idar = MEM_callocN((*count) * sizeof(void *), "idar");
 
@@ -643,8 +643,8 @@ static ID **get_selected_and_linked_obs(bContext *C, short *count, short scavisf
       idar[nr] = (ID *)ob;
       nr++;
     }
-    //if (nr >= 24)
-      //break;
+    // if (nr >= 24)
+    // break;
     ob = ob->id.next;
   }
 
@@ -1980,7 +1980,7 @@ static void draw_actuator_edit_object(uiLayout *layout, PointerRNA *ptr)
 
 static void draw_actuator_filter_2d(uiLayout *layout, PointerRNA *ptr)
 {
-  //uiLayout *row, *split;
+  // uiLayout *row, *split;
 
   uiItemR(layout, ptr, "mode", 0, NULL, ICON_NONE);
   switch (RNA_enum_get(ptr, "mode")) {
@@ -2289,8 +2289,7 @@ static void draw_actuator_scene(uiLayout *layout, PointerRNA *ptr)
       break;
     case ACT_SCENE_RESTART:
       break;
-    default
-        :  // ACT_SCENE_SET|ACT_SCENE_ADD_FRONT|ACT_SCENE_ADD_BACK|ACT_SCENE_REMOVE|ACT_SCENE_SUSPEND|ACT_SCENE_RESUME
+    default:  // ACT_SCENE_SET|ACT_SCENE_ADD_FRONT|ACT_SCENE_ADD_BACK|ACT_SCENE_REMOVE|ACT_SCENE_SUSPEND|ACT_SCENE_RESUME
       uiItemR(layout, ptr, "scene", 0, NULL, ICON_NONE);
       break;
   }

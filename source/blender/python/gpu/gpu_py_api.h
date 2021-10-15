@@ -30,7 +30,6 @@ extern "C" {
 
 PyObject *BPyInit_gpu(void);
 
-
 #ifdef __cplusplus
 }
 #endif

@@ -35,7 +35,7 @@
 #include <set>
 #include <vector>
 
-#include "DNA_ID.h" // For IDRecalcFlag
+#include "DNA_ID.h"  // For IDRecalcFlag
 
 #include "EXP_PyObjectPlus.h"
 #include "EXP_Value.h"
@@ -340,9 +340,11 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   bool m_isRuntime;  // Too lazy to put that in protected
   std::vector<Object *> m_hiddenObjectsDuringRuntime;
 
-  void RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, bool is_overlay_pass, bool is_last_render_pass);
-  void RenderAfterCameraSetupImageRender(KX_Camera *cam,
-                                         const struct rcti *window);
+  void RenderAfterCameraSetup(KX_Camera *cam,
+                              const RAS_Rect &viewport,
+                              bool is_overlay_pass,
+                              bool is_last_render_pass);
+  void RenderAfterCameraSetupImageRender(KX_Camera *cam, const struct rcti *window);
 
   void SetLastReplicatedParentObject(Object *ob);
   Object *GetLastReplicatedParentObject();
@@ -382,8 +384,12 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   void AppendToNodeTreesToUpdateInAllRenderPasses(bNodeTree *ntree);
   void AppendToExtraObjectsToUpdateInOverlayPass(Object *ob, IDRecalcFlag flag);
   void TagForExtraObjectsUpdate(Main *bmain, KX_Camera *cam);
-  KX_GameObject *AddDuplicaObject(KX_GameObject *gameobj, KX_GameObject *reference, float lifespan);
-  void OverlayPassDisableEffects(struct Depsgraph *depsgraph, KX_Camera *kxcam, bool isOverlayPass);
+  KX_GameObject *AddDuplicaObject(KX_GameObject *gameobj,
+                                  KX_GameObject *reference,
+                                  float lifespan);
+  void OverlayPassDisableEffects(struct Depsgraph *depsgraph,
+                                 KX_Camera *kxcam,
+                                 bool isOverlayPass);
   /***************End of EEVEE INTEGRATION**********************/
 
   RAS_BucketManager *GetBucketManager() const;

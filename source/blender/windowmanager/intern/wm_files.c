@@ -1959,7 +1959,8 @@ static void wm_autosave_write(Main *bmain, wmWindowManager *wm)
     }
 
     /* Save as regular blend file with recovery information. */
-    const int fileflags = (G.fileflags & ~(G_FILE_COMPRESS | G_FILE_AUTOPLAY)) | G_FILE_RECOVER_WRITE;
+    const int fileflags = (G.fileflags & ~(G_FILE_COMPRESS | G_FILE_AUTOPLAY)) |
+                          G_FILE_RECOVER_WRITE;
 
     ED_editors_flush_edits(bmain);
 

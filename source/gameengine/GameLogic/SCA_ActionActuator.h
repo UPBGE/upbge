@@ -40,19 +40,19 @@
 class SCA_ActionActuator : public SCA_IActuator {
  public:
   Py_Header SCA_ActionActuator(SCA_IObject *gameobj,
-                              const std::string &propname,
-                              const std::string &framepropname,
-                              float starttime,
-                              float endtime,
-                              struct bAction *action,
-                              short playtype,
-                              short blend_mode,
-                              short blendin,
-                              short priority,
-                              short layer,
-                              float layer_weight,
-                              short ipo_flags,
-                              short end_reset);
+                               const std::string &propname,
+                               const std::string &framepropname,
+                               float starttime,
+                               float endtime,
+                               struct bAction *action,
+                               short playtype,
+                               short blend_mode,
+                               short blendin,
+                               short priority,
+                               short layer,
+                               float layer_weight,
+                               short ipo_flags,
+                               short end_reset);
 
   virtual ~SCA_ActionActuator();
   virtual bool Update(double curtime);

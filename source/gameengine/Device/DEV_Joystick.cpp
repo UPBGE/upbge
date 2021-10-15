@@ -180,8 +180,7 @@ bool DEV_Joystick::aAnyButtonPressIsPositive(void)
 bool DEV_Joystick::aButtonPressIsPositive(int button)
 {
 #ifdef WITH_SDL
-  if (SDL_GameControllerGetButton(m_private->m_gamecontroller,
-                                  (SDL_GameControllerButton)button)) {
+  if (SDL_GameControllerGetButton(m_private->m_gamecontroller, (SDL_GameControllerButton)button)) {
     return true;
   }
 #endif

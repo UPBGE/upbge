@@ -3199,20 +3199,16 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter *converter,
   ci.m_fh_normal = (blenderobject->dynamode & OB_FH_NOR);
   ci.m_fh_spring = blenderobject->fh;
 
-  ci.m_collisionFilterGroup = (isbulletsensor) ?
-                                  short(CcdConstructionInfo::SensorFilter) :
-                                  (isbulletdyna) ?
-                                  short(CcdConstructionInfo::DefaultFilter) :
-                                  (isbulletchar) ? short(CcdConstructionInfo::CharacterFilter) :
-                                                   short(CcdConstructionInfo::StaticFilter);
-  ci.m_collisionFilterMask = (isbulletsensor) ?
-                                 short(CcdConstructionInfo::AllFilter ^
-                                       CcdConstructionInfo::SensorFilter) :
-                                 (isbulletdyna) ?
-                                 short(CcdConstructionInfo::AllFilter) :
-                                 (isbulletchar) ? short(CcdConstructionInfo::AllFilter) :
-                                                  short(CcdConstructionInfo::AllFilter ^
-                                                        CcdConstructionInfo::StaticFilter);
+  ci.m_collisionFilterGroup = (isbulletsensor) ? short(CcdConstructionInfo::SensorFilter) :
+                              (isbulletdyna)   ? short(CcdConstructionInfo::DefaultFilter) :
+                              (isbulletchar)   ? short(CcdConstructionInfo::CharacterFilter) :
+                                                 short(CcdConstructionInfo::StaticFilter);
+  ci.m_collisionFilterMask = (isbulletsensor) ? short(CcdConstructionInfo::AllFilter ^
+                                                      CcdConstructionInfo::SensorFilter) :
+                             (isbulletdyna)   ? short(CcdConstructionInfo::AllFilter) :
+                             (isbulletchar)   ? short(CcdConstructionInfo::AllFilter) :
+                                                short(CcdConstructionInfo::AllFilter ^
+                                                    CcdConstructionInfo::StaticFilter);
   ci.m_bRigid = isbulletdyna && isbulletrigidbody;
   ci.m_bSoft = isbulletsoftbody;
   ci.m_bDyna = isbulletdyna;

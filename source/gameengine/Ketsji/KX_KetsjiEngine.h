@@ -147,8 +147,7 @@ class KX_KetsjiEngine {
 #endif
   SCA_IInputDevice *m_inputDevice;
 
-  struct FrameTimes
-  {
+  struct FrameTimes {
     // Number of frames to proceed.
     int frames;
     // Real duration of a frame.
@@ -158,7 +157,6 @@ class KX_KetsjiEngine {
   };
 
   CM_Clock m_clock;
-
 
   /// Lists of scenes scheduled to be removed at the end of the frame.
   std::vector<std::string> m_removingScenes;

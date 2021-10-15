@@ -24,7 +24,6 @@
 
 #include "RAS_Shader.h"
 
-
 #include "BLI_alloca.h"
 #include "GPU_immediate.h"
 #include "MEM_guardedalloc.h"

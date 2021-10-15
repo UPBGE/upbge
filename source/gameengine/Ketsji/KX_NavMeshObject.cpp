@@ -94,7 +94,7 @@ static int polyNumVerts(const unsigned short *p, const int vertsPerPoly)
   return nv;
 }
 
-//static int polyIsConvex(const unsigned short *p, const int vertsPerPoly, const float *verts)
+// static int polyIsConvex(const unsigned short *p, const int vertsPerPoly, const float *verts)
 //{
 //  int j, nv = polyNumVerts(p, vertsPerPoly);
 //  if (nv < 3)
