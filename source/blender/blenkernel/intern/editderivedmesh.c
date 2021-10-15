@@ -531,8 +531,8 @@ static void emDM_calc_loop_tangents(
 			num_face_as_quad_map = totface;
 		}
 #endif
-		/* Calculation */
-		{
+        /* Calculation */
+        if (bmdm->em->tottri != 0) {
 			TaskScheduler *scheduler = BLI_task_scheduler_get();
 			TaskPool *task_pool;
 			task_pool = BLI_task_pool_create(scheduler, NULL);
@@ -595,6 +595,9 @@ static void emDM_calc_loop_tangents(
 			BLI_task_pool_work_and_wait(task_pool);
 			BLI_task_pool_free(task_pool);
 		}
+        else {
+            dm->tangent_mask = tangent_mask;
+        }
 #ifdef USE_LOOPTRI_DETECT_QUADS
 		if (face_as_quad_map) {
 			MEM_freeN(face_as_quad_map);
