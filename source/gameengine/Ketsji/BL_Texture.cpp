@@ -26,7 +26,6 @@
 
 #include "BL_Texture.h"
 
-#include "DNA_texture_types.h"
 #include "GPU_material.h"
 
 BL_Texture::BL_Texture(GPUMaterialTexture *gpumattex, eGPUTextureTarget textarget)

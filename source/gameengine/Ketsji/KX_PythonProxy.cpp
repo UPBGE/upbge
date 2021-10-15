@@ -25,7 +25,6 @@
 #include "BKE_python_proxy.h"
 #include "CM_Message.h"
 #include "DNA_python_proxy_types.h"
-#include "EXP_Value.h"
 
 #include <boost/format.hpp>
 

@@ -33,7 +33,6 @@
 #include "SCA_KeyboardSensor.h"
 
 #include <codecvt>
-#include <locale>
 
 #include "EXP_StringValue.h"
 #include "SCA_KeyboardManager.h"

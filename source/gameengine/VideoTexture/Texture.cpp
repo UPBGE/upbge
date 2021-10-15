@@ -32,13 +32,9 @@
 
 #include "Texture.h"
 
-#include "BKE_context.h"
-#include "BKE_global.h"
 #include "BKE_image.h"
 #include "BKE_node.h"
-#include "BKE_scene.h"
 #include "BLI_listbase.h"
-#include "DNA_node_types.h"
 #include "DNA_material_types.h"
 #include "DEG_depsgraph_query.h"
 #include "GPU_glew.h"
@@ -48,7 +44,6 @@
 
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
-#include "KX_KetsjiEngine.h"
 #include "RAS_IPolygonMaterial.h"
 
 #ifdef WITH_FFMPEG

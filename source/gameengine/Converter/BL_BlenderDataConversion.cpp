@@ -60,7 +60,6 @@
 #include "BKE_armature.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_context.h"
-#include "BKE_displist.h"
 #include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_material.h" /* give_current_material */
@@ -68,11 +67,7 @@
 #include "BKE_scene.h"
 #include "DEG_depsgraph_query.h"
 #include "DNA_actuator_types.h"
-#include "DNA_camera_types.h"
-#include "DNA_material_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_python_proxy_types.h"
-#include "DNA_scene_types.h"
 #include "wm_event_types.h"
 
 /* end of blender include block */

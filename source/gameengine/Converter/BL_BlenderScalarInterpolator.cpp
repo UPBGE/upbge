@@ -31,8 +31,6 @@
 
 #include "BL_BlenderScalarInterpolator.h"
 
-#include <stdio.h>
-#include <string.h>
 
 #include "BKE_fcurve.h"
 #include "DNA_anim_types.h"

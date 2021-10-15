@@ -28,10 +28,7 @@
 #include "KX_NavMeshObject.h"
 
 #include "BKE_cdderivedmesh.h"
-#include "BKE_DerivedMesh.h"
 #include "BKE_context.h"
-#include "BKE_layer.h"
-#include "BKE_scene.h"
 #include "BLI_sort.h"
 #include "DEG_depsgraph_query.h"
 #include "MEM_guardedalloc.h"

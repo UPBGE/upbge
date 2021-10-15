@@ -42,8 +42,6 @@
 #include "BKE_undo_system.h"
 #include "BLI_blenlib.h"
 #include "BLO_readfile.h"
-#include "DNA_space_types.h"
-#include "DNA_windowmanager_types.h"
 #include "ED_screen.h"
 #include "WM_api.h"
 #include "wm_window.h"

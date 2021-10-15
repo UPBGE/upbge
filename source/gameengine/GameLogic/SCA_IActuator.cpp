@@ -31,7 +31,6 @@
 
 #include "SCA_IActuator.h"
 
-#include <algorithm>
 
 #include "CM_List.h"
 #include "CM_Message.h"

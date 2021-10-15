@@ -32,15 +32,10 @@
 #include "BL_ArmatureObject.h"
 
 #include "BKE_action.h"
-#include "BKE_animsys.h"
 #include "BKE_armature.h"
 #include "BKE_constraint.h"
 #include "BKE_context.h"
-#include "BKE_layer.h"
-#include "BKE_lib_id.h"
-#include "BKE_scene.h"
 #include "DNA_armature_types.h"
-#include "MEM_guardedalloc.h"
 #include "RNA_access.h"
 
 #include "BL_Action.h"

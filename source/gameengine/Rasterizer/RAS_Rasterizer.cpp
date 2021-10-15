@@ -32,7 +32,6 @@
 #include "RAS_Rasterizer.h"
 
 #include "KX_GameObject.h"
-#include "KX_Globals.h"
 #include "KX_RayCast.h"
 #include "RAS_FrameBuffer.h"
 #include "RAS_ICanvas.h"

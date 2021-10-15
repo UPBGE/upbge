@@ -44,24 +44,17 @@
 #include "BKE_object.h"
 #include "DEG_depsgraph_query.h"
 #include "DRW_render.h"
-#include "eevee_private.h"
 #include "WM_api.h"
-#include "WM_types.h"
 
 #include "BL_Action.h"
 #include "BL_ActionManager.h"
 #include "BL_BlenderSceneConverter.h"
-#include "CM_Message.h"
-#include "KX_Camera.h"  // only for their ::Type
 #include "KX_ClientObjectInfo.h"
 #include "KX_CollisionContactPoints.h"
-#include "KX_FontObject.h"  // only for their ::Type
 #include "KX_Globals.h"
-#include "KX_Light.h"  // only for their ::Type
 #include "KX_LodLevel.h"
 #include "KX_LodManager.h"
 #include "KX_MeshProxy.h"
-#include "KX_NavMeshObject.h"
 #include "KX_NetworkMessageScene.h"  //Needed for sendMessage()
 #include "KX_NodeRelationships.h"
 #include "KX_PolyProxy.h"
