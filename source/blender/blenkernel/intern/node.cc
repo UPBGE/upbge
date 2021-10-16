@@ -4858,6 +4858,9 @@ static void propagate_field_status_from_left_to_right(
         case OutputSocketFieldType::DependentField: {
           for (const InputSocketRef *input_socket :
                gather_input_socket_dependencies(field_dependency, *node)) {
+            if (!input_socket->is_available()) {
+              continue;
+            }
             if (!field_state_by_socket_id[input_socket->id()].is_single) {
               state.is_single = false;
               break;
@@ -5712,6 +5715,7 @@ static void registerGeometryNodes()
 {
   register_node_type_geo_group();
 
+  register_node_type_geo_legacy_attribute_transfer();
   register_node_type_geo_legacy_curve_set_handles();
   register_node_type_geo_legacy_attribute_proximity();
   register_node_type_geo_legacy_attribute_randomize();
@@ -5725,6 +5729,7 @@ static void registerGeometryNodes()
   register_node_type_geo_legacy_select_by_handle_type();
   register_node_type_geo_legacy_curve_subdivide();
   register_node_type_geo_legacy_edge_split();
+  register_node_type_geo_legacy_subdivision_surface();
 
   register_node_type_geo_align_rotation_to_vector();
   register_node_type_geo_attribute_capture();
@@ -5741,7 +5746,6 @@ static void registerGeometryNodes()
   register_node_type_geo_attribute_remove();
   register_node_type_geo_attribute_separate_xyz();
   register_node_type_geo_attribute_statistic();
-  register_node_type_geo_attribute_transfer();
   register_node_type_geo_attribute_vector_math();
   register_node_type_geo_attribute_vector_rotate();
   register_node_type_geo_boolean();
@@ -5833,6 +5837,7 @@ static void registerGeometryNodes()
   register_node_type_geo_string_to_curves();
   register_node_type_geo_subdivision_surface();
   register_node_type_geo_switch();
+  register_node_type_geo_transfer_attribute();
   register_node_type_geo_transform();
   register_node_type_geo_translate_instances();
   register_node_type_geo_triangulate();
