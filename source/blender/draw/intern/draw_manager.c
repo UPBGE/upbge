@@ -3386,7 +3386,7 @@ void DRW_game_render_loop(bContext *C,
 
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
-  /* Resize viewport is needed and set active view */
+  /* Resize viewport if needed and set active view */
   GPU_viewport_bind(viewport, 0, window);
 
   DRW_view_set_active(NULL);
