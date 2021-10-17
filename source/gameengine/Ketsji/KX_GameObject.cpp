@@ -3776,8 +3776,15 @@ PyObject *KX_GameObject::pyattr_get_meshes(EXP_PyObjectPlus *self_v,
 PyObject *KX_GameObject::pyattr_get_obcolor(EXP_PyObjectPlus *self_v,
                                             const EXP_PYATTRIBUTE_DEF *attrdef)
 {
+#  ifdef USE_MATHUTILS
+  return Vector_CreatePyObject_cb(EXP_PROXY_FROM_REF_BORROW(self_v),
+                                  4,
+                                  mathutils_kxgameob_vector_cb_index,
+                                  MATHUTILS_VEC_CB_OBJECT_COLOR);
+#  else
   KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-  return PyObjectFrom(self->m_objectColor);
+  return PyObjectFrom(self->GetObjectColor());
+#  endif
 }
 
 int KX_GameObject::pyattr_set_obcolor(EXP_PyObjectPlus *self_v,
