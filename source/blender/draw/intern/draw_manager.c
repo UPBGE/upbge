@@ -3354,11 +3354,6 @@ void DRW_opengl_context_activate(bool drw_state)
 
 /****************UPBGE**************************/
 
-#include "BKE_camera.h"
-#include "BKE_main.h"
-#include "BKE_scene.h"
-
-#include "engines/eevee/eevee_lightcache.h"
 #include "engines/eevee/eevee_private.h"
 
 EEVEE_Data *EEVEE_engine_data_get(void)
