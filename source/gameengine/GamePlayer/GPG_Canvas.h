@@ -41,8 +41,6 @@
 #include "RAS_Rect.h"
 
 class RAS_Rasterizer;
-struct ARegion;
-struct Scene;
 
 class GPG_Canvas : public RAS_ICanvas {
  protected:

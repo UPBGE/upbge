@@ -30,7 +30,6 @@
 #include "PHY_IMotionState.h"
 
 class CcdPhysicsEnvironment;
-class btCollisionObject;
 
 /// CcdGraphicController is a graphic object that supports view frustrum culling and occlusion
 class CcdGraphicController : public PHY_IGraphicController {

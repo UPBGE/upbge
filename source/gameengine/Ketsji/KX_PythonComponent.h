@@ -27,7 +27,6 @@
 #  include "KX_PythonProxy.h"
 
 class KX_GameObject;
-struct PythonProxy;
 
 class KX_PythonComponent : public KX_PythonProxy {
   Py_Header

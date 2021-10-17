@@ -39,7 +39,6 @@
 #include "RAS_Rect.h"
 
 struct ARegion;
-struct Scene;
 struct rcti;
 struct wmWindow;
 struct wmWindowManager;

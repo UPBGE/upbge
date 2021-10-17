@@ -35,13 +35,8 @@
 
 #include "EXP_Value.h"
 
-class SCA_IObject;
-class KX_GameObject;
 class BL_ArmatureObject;
-struct bConstraint;
 struct bPoseChannel;
-struct Object;
-struct bPose;
 
 class BL_ArmatureChannel : public EXP_Value {
   // use Py_HeaderPtr since we use generic pointer in proxy

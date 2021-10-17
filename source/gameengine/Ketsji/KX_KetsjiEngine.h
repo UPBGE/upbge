@@ -44,14 +44,12 @@
 #include "RAS_CameraData.h"
 #include "RAS_Rasterizer.h"
 
-struct TaskScheduler;
 class KX_ISystem;
 class BL_BlenderConverter;
 class KX_NetworkMessageManager;
 class RAS_ICanvas;
 class RAS_FrameBuffer;
 class SCA_IInputDevice;
-struct EEVEE_ViewLayerData;
 
 enum class KX_ExitRequest {
   NO_REQUEST = 0,

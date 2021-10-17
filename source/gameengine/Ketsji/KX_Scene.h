@@ -52,8 +52,6 @@
 /**
  * \section Forward declarations
  */
-struct SM_MaterialProps;
-struct SM_ShapeProps;
 struct Scene;
 
 template<class T> class EXP_ListValue;
@@ -80,11 +78,8 @@ class RAS_IPolyMaterial;
 class RAS_Rasterizer;
 class RAS_DebugDraw;
 class RAS_FrameBuffer;
-class RAS_2DFilter;
 class RAS_2DFilterManager;
 class KX_2DFilterManager;
-class SCA_JoystickManager;
-class btCollisionShape;
 class BL_BlenderSceneConverter;
 struct KX_ClientObjectInfo;
 class KX_ObstacleSimulation;
@@ -92,7 +87,6 @@ struct TaskPool;
 
 /*********EEVEE INTEGRATION************/
 struct bNodeTree;
-struct GPUTexture;
 struct Mesh;
 struct Object;
 /**************************************/

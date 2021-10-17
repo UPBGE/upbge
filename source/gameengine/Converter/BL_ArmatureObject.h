@@ -36,10 +36,8 @@
 #include "KX_GameObject.h"
 
 struct AnimationEvalContext;
-struct bArmature;
 struct Bone;
 struct bPose;
-struct bConstraint;
 struct Object;
 class MT_Matrix4x4;
 class BL_BlenderSceneConverter;

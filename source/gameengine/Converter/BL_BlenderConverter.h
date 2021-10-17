@@ -46,20 +46,13 @@ class KX_KetsjiEngine;
 class KX_LibLoadStatus;
 class KX_BlenderMaterial;
 class BL_InterpolatorList;
-class SCA_IActuator;
-class SCA_IController;
 class RAS_MeshObject;
 class RAS_Rasterizer;
 struct Main;
 struct BlendHandle;
-struct Mesh;
 struct Scene;
-struct Material;
 struct bAction;
-struct bActuator;
-struct bController;
 struct TaskPool;
-struct Depsgraph;
 
 template<class Value> using UniquePtrList = std::vector<std::unique_ptr<Value>>;
 

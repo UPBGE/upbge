@@ -43,7 +43,6 @@ class BL_ArmatureObject;
 struct bConstraint;
 struct bPoseChannel;
 struct Object;
-struct bPose;
 
 class BL_ArmatureConstraint : public EXP_Value {
   Py_Header

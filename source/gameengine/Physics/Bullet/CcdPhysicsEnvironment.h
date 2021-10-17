@@ -37,8 +37,6 @@
 #include "PHY_IPhysicsEnvironment.h"
 
 class btTypedConstraint;
-class btSimulationIslandManager;
-class btCollisionDispatcher;
 class btDispatcher;
 class WrapperVehicle;
 class btPersistentManifold;

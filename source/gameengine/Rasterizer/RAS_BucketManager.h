@@ -36,7 +36,6 @@
 #include "MT_Transform.h"
 #include "RAS_MaterialBucket.h"
 
-class RAS_FrameBuffer;
 
 class RAS_BucketManager {
  public:

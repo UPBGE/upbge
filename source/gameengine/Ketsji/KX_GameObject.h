@@ -58,11 +58,9 @@ class KX_RayCast;
 class KX_LodManager;
 class KX_PythonComponent;
 class RAS_MeshObject;
-class PHY_IPhysicsEnvironment;
 class PHY_IPhysicsController;
 class BL_ActionManager;
 struct Object;
-class KX_ObstacleSimulation;
 class KX_CollisionContactPointList;
 struct bAction;
 

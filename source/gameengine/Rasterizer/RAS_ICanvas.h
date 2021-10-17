@@ -35,9 +35,7 @@
 
 class RAS_Rect;
 
-struct ARegion;
 struct ImageFormatData;
-struct Scene;
 struct TaskPool;
 
 /**

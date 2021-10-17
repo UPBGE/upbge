@@ -35,7 +35,6 @@
 #include "SG_Controller.h"
 #include "SG_Node.h"
 
-struct RAS_CameraData;
 
 class KX_CameraIpoSGController : public SG_Controller {
  public:

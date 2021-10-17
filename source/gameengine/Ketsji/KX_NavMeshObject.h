@@ -32,8 +32,6 @@
 #include "EXP_PyObjectPlus.h"
 #include "KX_GameObject.h"
 
-class RAS_MeshObject;
-class MT_Transform;
 
 class KX_NavMeshObject : public KX_GameObject {
   Py_Header
