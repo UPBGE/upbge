@@ -339,6 +339,10 @@ typedef struct bNodeType {
 
   /* Declares which sockets the node has. */
   NodeDeclareFunction declare;
+  /* Different nodes of this type can have different declarations. */
+  bool declaration_is_dynamic;
+  /* Declaration to be used when it is not dynamic. */
+  NodeDeclarationHandle *fixed_declaration;
 
   /* RNA integration */
   ExtensionRNA rna_ext;
@@ -1540,6 +1544,7 @@ int ntreeTexExecTree(struct bNodeTree *ntree,
 #define GEO_NODE_MESH_TO_CURVE 1124
 #define GEO_NODE_TRANSFER_ATTRIBUTE 1125
 #define GEO_NODE_SUBDIVISION_SURFACE 1126
+#define GEO_NODE_CURVE_ENDPOINT_SELECTION 1127
 
 /** \} */
 

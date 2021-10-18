@@ -599,7 +599,7 @@ void MOD_nodes_update_interface(Object *object, NodesModifierData *nmd)
       }
     }
 
-    if (input_has_attribute_toggle(*nmd->node_group, socket_index)) {
+    if (socket_type_has_attribute_toggle(*socket)) {
       const std::string use_attribute_id = socket->identifier + use_attribute_suffix;
       const std::string attribute_name_id = socket->identifier + attribute_name_suffix;
 
@@ -924,7 +924,7 @@ static GeometrySet compute_geometry(const DerivedNodeTree &tree,
 {
   blender::ResourceScope scope;
   blender::LinearAllocator<> &allocator = scope.linear_allocator();
-  blender::nodes::NodeMultiFunctions mf_by_node{tree, scope};
+  blender::nodes::NodeMultiFunctions mf_by_node{tree};
 
   Map<DOutputSocket, GMutablePointer> group_inputs;
 

@@ -1208,57 +1208,57 @@ static FileData *blo_filedata_from_file_descriptor(const char *filepath,
   if (typeencryption <= SPINDLE_NO_ENCRYPTION) {
 #endif
 
-    errno = 0;
-    /* If opening the file failed or we can't read the header, give up. */
-    if (rawfile == NULL || rawfile->read(rawfile, header, sizeof(header)) != sizeof(header)) {
-      BKE_reportf(reports->reports,
-                  RPT_WARNING,
-                  "Unable to read '%s': %s",
-                  filepath,
-                  errno ? strerror(errno) : TIP_("insufficient content"));
-      if (rawfile) {
-        rawfile->close(rawfile);
-      }
-      else {
-        close(filedes);
-      }
-      return NULL;
-    }
-
-    /* Rewind the file after reading the header. */
-    rawfile->seek(rawfile, 0, SEEK_SET);
-
-    /* Check if we have a regular file. */
-    if (memcmp(header, "BLENDER", sizeof(header)) == 0) {
-      /* Try opening the file with memory-mapped IO. */
-      file = BLI_filereader_new_mmap(filedes);
-      if (file == NULL) {
-        /* mmap failed, so just keep using rawfile. */
-        file = rawfile;
-        rawfile = NULL;
-      }
-    }
-    else if (BLI_file_magic_is_gzip(header)) {
-      file = BLI_filereader_new_gzip(rawfile);
-      if (file != NULL) {
-        rawfile = NULL; /* The Gzip FileReader takes ownership of `rawfile`. */
-      }
-    }
-    else if (BLI_file_magic_is_zstd(header)) {
-      file = BLI_filereader_new_zstd(rawfile);
-      if (file != NULL) {
-        rawfile = NULL; /* The Zstd FileReader takes ownership of `rawfile`. */
-      }
-    }
-
-    /* Clean up `rawfile` if it wasn't taken over. */
-    if (rawfile != NULL) {
+  errno = 0;
+  /* If opening the file failed or we can't read the header, give up. */
+  if (rawfile == NULL || rawfile->read(rawfile, header, sizeof(header)) != sizeof(header)) {
+    BKE_reportf(reports->reports,
+                RPT_WARNING,
+                "Unable to read '%s': %s",
+                filepath,
+                errno ? strerror(errno) : TIP_("insufficient content"));
+    if (rawfile) {
       rawfile->close(rawfile);
     }
-    if (file == NULL) {
-      BKE_reportf(reports->reports, RPT_WARNING, "Unrecognized file format '%s'", filepath);
-      return NULL;
+    else {
+      close(filedes);
     }
+    return NULL;
+  }
+
+  /* Rewind the file after reading the header. */
+  rawfile->seek(rawfile, 0, SEEK_SET);
+
+  /* Check if we have a regular file. */
+  if (memcmp(header, "BLENDER", sizeof(header)) == 0) {
+    /* Try opening the file with memory-mapped IO. */
+    file = BLI_filereader_new_mmap(filedes);
+    if (file == NULL) {
+      /* mmap failed, so just keep using rawfile. */
+      file = rawfile;
+      rawfile = NULL;
+    }
+  }
+  else if (BLI_file_magic_is_gzip(header)) {
+    file = BLI_filereader_new_gzip(rawfile);
+    if (file != NULL) {
+      rawfile = NULL; /* The `Gzip` #FileReader takes ownership of `rawfile`. */
+    }
+  }
+  else if (BLI_file_magic_is_zstd(header)) {
+    file = BLI_filereader_new_zstd(rawfile);
+    if (file != NULL) {
+      rawfile = NULL; /* The `Zstd` #FileReader takes ownership of `rawfile`. */
+    }
+  }
+
+  /* Clean up `rawfile` if it wasn't taken over. */
+  if (rawfile != NULL) {
+    rawfile->close(rawfile);
+  }
+  if (file == NULL) {
+    BKE_reportf(reports->reports, RPT_WARNING, "Unrecognized file format '%s'", filepath);
+    return NULL;
+  }
 
 #ifdef WITH_GAMEENGINE_BPPLAYER
   }
