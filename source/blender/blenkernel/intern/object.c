@@ -1101,8 +1101,10 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
 
   BLO_read_glob_list(reader, &ob->controllers);
   if (ob->init_state) {
-    /* if a known first state is specified, set it so that the game will start ok */
-    ob->state = ob->init_state;
+    if (!is_undo) {
+      /* if a known first state is specified, set it so that the game will start ok */
+      ob->state = ob->init_state;
+    }
   }
   else if (!ob->state) {
     ob->state = 1;
