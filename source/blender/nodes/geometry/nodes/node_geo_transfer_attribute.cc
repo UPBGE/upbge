@@ -170,7 +170,9 @@ static void get_closest_pointcloud_points(const PointCloud &pointcloud,
     BLI_bvhtree_find_nearest(
         tree_data.tree, position, &nearest, tree_data.nearest_callback, &tree_data);
     r_indices[i] = nearest.index;
-    r_distances_sq[i] = nearest.dist_sq;
+    if (!r_distances_sq.is_empty()) {
+      r_distances_sq[i] = nearest.dist_sq;
+    }
   }
 
   free_bvhtree_from_pointcloud(&tree_data);
@@ -409,8 +411,8 @@ class NearestInterpolatedTransferFunction : public fn::MultiFunction {
     Array<float3> sampled_positions(mask.min_array_size());
     get_closest_mesh_looptris(mesh, positions, mask, looptri_indices, {}, sampled_positions);
 
-    MeshAttributeInterpolator interp(&mesh, sampled_positions, looptri_indices);
-    interp.sample_data(*target_data_, domain_, eAttributeMapMode::INTERPOLATED, mask, dst);
+    MeshAttributeInterpolator interp(&mesh, mask, sampled_positions, looptri_indices);
+    interp.sample_data(*target_data_, domain_, eAttributeMapMode::INTERPOLATED, dst);
   }
 
  private:

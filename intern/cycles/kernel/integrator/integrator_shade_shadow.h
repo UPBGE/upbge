@@ -23,14 +23,14 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device_inline bool shadow_intersections_has_remaining(const int num_hits)
+ccl_device_inline bool shadow_intersections_has_remaining(const uint num_hits)
 {
   return num_hits >= INTEGRATOR_SHADOW_ISECT_SIZE;
 }
 
 #ifdef __TRANSPARENT_SHADOWS__
 ccl_device_inline float3 integrate_transparent_surface_shadow(KernelGlobals kg,
-                                                              IntegratorState state,
+                                                              IntegratorShadowState state,
                                                               const int hit)
 {
   PROFILING_INIT(kg, PROFILING_SHADE_SHADOW_SURFACE);
@@ -69,7 +69,7 @@ ccl_device_inline float3 integrate_transparent_surface_shadow(KernelGlobals kg,
 
 #  ifdef __VOLUME__
 ccl_device_inline void integrate_transparent_volume_shadow(KernelGlobals kg,
-                                                           IntegratorState state,
+                                                           IntegratorShadowState state,
                                                            const int hit,
                                                            const int num_recorded_hits,
                                                            ccl_private float3 *ccl_restrict
@@ -97,20 +97,20 @@ ccl_device_inline void integrate_transparent_volume_shadow(KernelGlobals kg,
   shader_setup_from_volume(kg, shadow_sd, &ray);
 
   const float step_size = volume_stack_step_size(
-      kg, state, [=](const int i) { return integrator_state_read_shadow_volume_stack(state, i); });
+      kg, [=](const int i) { return integrator_state_read_shadow_volume_stack(state, i); });
 
   volume_shadow_heterogeneous(kg, state, &ray, shadow_sd, throughput, step_size);
 }
 #  endif
 
 ccl_device_inline bool integrate_transparent_shadow(KernelGlobals kg,
-                                                    IntegratorState state,
-                                                    const int num_hits)
+                                                    IntegratorShadowState state,
+                                                    const uint num_hits)
 {
   /* Accumulate shadow for transparent surfaces. */
-  const int num_recorded_hits = min(num_hits, INTEGRATOR_SHADOW_ISECT_SIZE);
+  const uint num_recorded_hits = min(num_hits, INTEGRATOR_SHADOW_ISECT_SIZE);
 
-  for (int hit = 0; hit < num_recorded_hits + 1; hit++) {
+  for (uint hit = 0; hit < num_recorded_hits + 1; hit++) {
     /* Volume shaders. */
     if (hit < num_recorded_hits || !shadow_intersections_has_remaining(num_hits)) {
 #  ifdef __VOLUME__
@@ -158,11 +158,11 @@ ccl_device_inline bool integrate_transparent_shadow(KernelGlobals kg,
 #endif /* __TRANSPARENT_SHADOWS__ */
 
 ccl_device void integrator_shade_shadow(KernelGlobals kg,
-                                        IntegratorState state,
+                                        IntegratorShadowState state,
                                         ccl_global float *ccl_restrict render_buffer)
 {
   PROFILING_INIT(kg, PROFILING_SHADE_SHADOW_SETUP);
-  const int num_hits = INTEGRATOR_STATE(state, shadow_path, num_hits);
+  const uint num_hits = INTEGRATOR_STATE(state, shadow_path, num_hits);
 
 #ifdef __TRANSPARENT_SHADOWS__
   /* Evaluate transparent shadows. */

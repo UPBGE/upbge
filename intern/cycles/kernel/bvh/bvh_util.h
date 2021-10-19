@@ -71,8 +71,7 @@ ccl_device_inline float3 ray_offset(float3 P, float3 Ng)
 #endif
 }
 
-#if defined(__VOLUME_RECORD_ALL__) || (defined(__SHADOW_RECORD_ALL__) && defined(__KERNEL_CPU__))
-/* TODO: Move to another file? */
+#if defined(__KERNEL_CPU__)
 ccl_device int intersections_compare(const void *a, const void *b)
 {
   const Intersection *isect_a = (const Intersection *)a;
@@ -86,32 +85,6 @@ ccl_device int intersections_compare(const void *a, const void *b)
     return 0;
 }
 #endif
-
-#if defined(__SHADOW_RECORD_ALL__)
-ccl_device_inline void sort_intersections(ccl_private Intersection *hits, uint num_hits)
-{
-  kernel_assert(num_hits > 0);
-
-#  ifdef __KERNEL_GPU__
-  /* Use bubble sort which has more friendly memory pattern on GPU. */
-  bool swapped;
-  do {
-    swapped = false;
-    for (int j = 0; j < num_hits - 1; ++j) {
-      if (hits[j].t > hits[j + 1].t) {
-        struct Intersection tmp = hits[j];
-        hits[j] = hits[j + 1];
-        hits[j + 1] = tmp;
-        swapped = true;
-      }
-    }
-    --num_hits;
-  } while (swapped);
-#  else
-  qsort(hits, num_hits, sizeof(Intersection), intersections_compare);
-#  endif
-}
-#endif /* __SHADOW_RECORD_ALL__ | __VOLUME_RECORD_ALL__ */
 
 /* For subsurface scattering, only sorting a small amount of intersections
  * so bubble sort is fine for CPU and GPU. */
@@ -220,6 +193,34 @@ ccl_device_inline int intersection_find_attribute(KernelGlobals kg,
 
   /* return result */
   return (attr_map.y == ATTR_ELEMENT_NONE) ? (int)ATTR_STD_NOT_FOUND : (int)attr_map.z;
+}
+
+/* Transparent Shadows */
+
+/* Cut-off value to stop transparent shadow tracing when practically opaque. */
+#define CURVE_SHADOW_TRANSPARENCY_CUTOFF 0.001f
+
+ccl_device_inline float intersection_curve_shadow_transparency(KernelGlobals kg,
+                                                               const int object,
+                                                               const int prim,
+                                                               const float u)
+{
+  /* Find attribute. */
+  const int offset = intersection_find_attribute(kg, object, ATTR_STD_SHADOW_TRANSPARENCY);
+  if (offset == ATTR_STD_NOT_FOUND) {
+    /* If no shadow transparency attribute, assume opaque. */
+    return 0.0f;
+  }
+
+  /* Interpolate transparency between curve keys. */
+  const KernelCurve kcurve = kernel_tex_fetch(__curves, prim);
+  const int k0 = kcurve.first_key + PRIMITIVE_UNPACK_SEGMENT(kcurve.type);
+  const int k1 = k0 + 1;
+
+  const float f0 = kernel_tex_fetch(__attributes_float, offset + k0);
+  const float f1 = kernel_tex_fetch(__attributes_float, offset + k1);
+
+  return (1.0f - u) * f0 + u * f1;
 }
 
 CCL_NAMESPACE_END

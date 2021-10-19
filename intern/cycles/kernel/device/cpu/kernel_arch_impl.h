@@ -69,6 +69,18 @@ CCL_NAMESPACE_BEGIN
 #  define KERNEL_INVOKE(name, ...) integrator_##name(__VA_ARGS__)
 #endif
 
+/* TODO: Either use something like get_work_pixel(), or simplify tile which is passed here, so
+ * that it does not contain unused fields. */
+#define DEFINE_INTEGRATOR_INIT_KERNEL(name) \
+  bool KERNEL_FUNCTION_FULL_NAME(integrator_##name)(const KernelGlobalsCPU *kg, \
+                                                    IntegratorStateCPU *state, \
+                                                    KernelWorkTile *tile, \
+                                                    ccl_global float *render_buffer) \
+  { \
+    return KERNEL_INVOKE( \
+        name, kg, state, tile, render_buffer, tile->x, tile->y, tile->start_sample); \
+  }
+
 #define DEFINE_INTEGRATOR_KERNEL(name) \
   void KERNEL_FUNCTION_FULL_NAME(integrator_##name)(const KernelGlobalsCPU *kg, \
                                                     IntegratorStateCPU *state) \
@@ -83,30 +95,32 @@ CCL_NAMESPACE_BEGIN
     KERNEL_INVOKE(name, kg, state, render_buffer); \
   }
 
-/* TODO: Either use something like get_work_pixel(), or simplify tile which is passed here, so
- * that it does not contain unused fields. */
-#define DEFINE_INTEGRATOR_INIT_KERNEL(name) \
-  bool KERNEL_FUNCTION_FULL_NAME(integrator_##name)(const KernelGlobalsCPU *kg, \
-                                                    IntegratorStateCPU *state, \
-                                                    KernelWorkTile *tile, \
-                                                    ccl_global float *render_buffer) \
+#define DEFINE_INTEGRATOR_SHADOW_KERNEL(name) \
+  void KERNEL_FUNCTION_FULL_NAME(integrator_##name)(const KernelGlobalsCPU *kg, \
+                                                    IntegratorStateCPU *state) \
   { \
-    return KERNEL_INVOKE( \
-        name, kg, state, tile, render_buffer, tile->x, tile->y, tile->start_sample); \
+    KERNEL_INVOKE(name, kg, &state->shadow); \
+  }
+
+#define DEFINE_INTEGRATOR_SHADOW_SHADE_KERNEL(name) \
+  void KERNEL_FUNCTION_FULL_NAME(integrator_##name)( \
+      const KernelGlobalsCPU *kg, IntegratorStateCPU *state, ccl_global float *render_buffer) \
+  { \
+    KERNEL_INVOKE(name, kg, &state->shadow, render_buffer); \
   }
 
 DEFINE_INTEGRATOR_INIT_KERNEL(init_from_camera)
 DEFINE_INTEGRATOR_INIT_KERNEL(init_from_bake)
 DEFINE_INTEGRATOR_KERNEL(intersect_closest)
-DEFINE_INTEGRATOR_KERNEL(intersect_shadow)
 DEFINE_INTEGRATOR_KERNEL(intersect_subsurface)
 DEFINE_INTEGRATOR_KERNEL(intersect_volume_stack)
 DEFINE_INTEGRATOR_SHADE_KERNEL(shade_background)
 DEFINE_INTEGRATOR_SHADE_KERNEL(shade_light)
-DEFINE_INTEGRATOR_SHADE_KERNEL(shade_shadow)
 DEFINE_INTEGRATOR_SHADE_KERNEL(shade_surface)
 DEFINE_INTEGRATOR_SHADE_KERNEL(shade_volume)
 DEFINE_INTEGRATOR_SHADE_KERNEL(megakernel)
+DEFINE_INTEGRATOR_SHADOW_KERNEL(intersect_shadow)
+DEFINE_INTEGRATOR_SHADOW_SHADE_KERNEL(shade_shadow)
 
 /* --------------------------------------------------------------------
  * Shader evaluation.
@@ -133,6 +147,19 @@ void KERNEL_FUNCTION_FULL_NAME(shader_eval_background)(const KernelGlobalsCPU *k
   STUB_ASSERT(KERNEL_ARCH, shader_eval_background);
 #else
   kernel_background_evaluate(kg, input, output, offset);
+#endif
+}
+
+void KERNEL_FUNCTION_FULL_NAME(shader_eval_curve_shadow_transparency)(
+    const KernelGlobalsCPU *kg,
+    const KernelShaderEvalInput *input,
+    float *output,
+    const int offset)
+{
+#ifdef KERNEL_STUB
+  STUB_ASSERT(KERNEL_ARCH, shader_eval_curve_shadow_transparency);
+#else
+  kernel_curve_shadow_transparency_evaluate(kg, input, output, offset);
 #endif
 }
 

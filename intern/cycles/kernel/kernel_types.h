@@ -61,6 +61,15 @@ CCL_NAMESPACE_BEGIN
 #define ID_NONE (0.0f)
 #define PASS_UNUSED (~0)
 
+#define INTEGRATOR_SHADOW_ISECT_SIZE_CPU 1024U
+#define INTEGRATOR_SHADOW_ISECT_SIZE_GPU 4U
+
+#ifdef __KERNEL_CPU__
+#  define INTEGRATOR_SHADOW_ISECT_SIZE INTEGRATOR_SHADOW_ISECT_SIZE_CPU
+#else
+#  define INTEGRATOR_SHADOW_ISECT_SIZE INTEGRATOR_SHADOW_ISECT_SIZE_GPU
+#endif
+
 /* Kernel features */
 #define __SOBOL__
 #define __DPDU__
@@ -582,6 +591,7 @@ typedef enum AttributeStandard {
   ATTR_STD_VOLUME_VELOCITY,
   ATTR_STD_POINTINESS,
   ATTR_STD_RANDOM_PER_ISLAND,
+  ATTR_STD_SHADOW_TRANSPARENCY,
   ATTR_STD_NUM,
 
   ATTR_STD_NOT_FOUND = ~0
@@ -812,6 +822,7 @@ typedef struct ccl_align(16) ShaderData
 #ifdef __OSL__
   const struct KernelGlobalsCPU *osl_globals;
   const struct IntegratorStateCPU *osl_path_state;
+  const struct IntegratorShadowStateCPU *osl_shadow_path_state;
 #endif
 
   /* LCG state for closures that require additional random numbers. */
@@ -1451,6 +1462,7 @@ typedef enum DeviceKernel {
 
   DEVICE_KERNEL_SHADER_EVAL_DISPLACE,
   DEVICE_KERNEL_SHADER_EVAL_BACKGROUND,
+  DEVICE_KERNEL_SHADER_EVAL_CURVE_SHADOW_TRANSPARENCY,
 
 #define DECLARE_FILM_CONVERT_KERNEL(variant) \
   DEVICE_KERNEL_FILM_CONVERT_##variant, DEVICE_KERNEL_FILM_CONVERT_##variant##_HALF_RGBA

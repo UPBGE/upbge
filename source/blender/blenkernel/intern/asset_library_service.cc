@@ -24,6 +24,8 @@
 #include "BKE_blender.h"
 #include "BKE_callbacks.h"
 
+#include "BLI_fileops.h"
+#include "BLI_path_util.h"
 #include "BLI_string_ref.hh"
 
 #include "MEM_guardedalloc.h"
@@ -54,25 +56,38 @@ void AssetLibraryService::destroy()
   instance_.reset();
 }
 
+namespace {
+std::string normalize_directory_path(StringRefNull directory)
+{
+
+  char dir_normalized[PATH_MAX];
+  STRNCPY(dir_normalized, directory.c_str());
+  BLI_path_normalize_dir(nullptr, dir_normalized);
+  return std::string(dir_normalized);
+}
+}  // namespace
+
 AssetLibrary *AssetLibraryService::get_asset_library_on_disk(StringRefNull top_level_directory)
 {
   BLI_assert_msg(!top_level_directory.is_empty(),
                  "top level directory must be given for on-disk asset library");
 
-  AssetLibraryPtr *lib_uptr_ptr = on_disk_libraries_.lookup_ptr(top_level_directory);
+  std::string top_dir_trailing_slash = normalize_directory_path(top_level_directory);
+
+  AssetLibraryPtr *lib_uptr_ptr = on_disk_libraries_.lookup_ptr(top_dir_trailing_slash);
   if (lib_uptr_ptr != nullptr) {
-    CLOG_INFO(&LOG, 2, "get \"%s\" (cached)", top_level_directory.c_str());
+    CLOG_INFO(&LOG, 2, "get \"%s\" (cached)", top_dir_trailing_slash.c_str());
     return lib_uptr_ptr->get();
   }
 
   AssetLibraryPtr lib_uptr = std::make_unique<AssetLibrary>();
   AssetLibrary *lib = lib_uptr.get();
 
-  lib->on_save_handler_register();
-  lib->load(top_level_directory);
+  lib->on_blend_save_handler_register();
+  lib->load(top_dir_trailing_slash);
 
-  on_disk_libraries_.add_new(top_level_directory, std::move(lib_uptr));
-  CLOG_INFO(&LOG, 2, "get \"%s\" (loaded)", top_level_directory.c_str());
+  on_disk_libraries_.add_new(top_dir_trailing_slash, std::move(lib_uptr));
+  CLOG_INFO(&LOG, 2, "get \"%s\" (loaded)", top_dir_trailing_slash.c_str());
   return lib;
 }
 
@@ -84,7 +99,7 @@ AssetLibrary *AssetLibraryService::get_asset_library_current_file()
   else {
     CLOG_INFO(&LOG, 2, "get current file lib (loaded)");
     current_file_library_ = std::make_unique<AssetLibrary>();
-    current_file_library_->on_save_handler_register();
+    current_file_library_->on_blend_save_handler_register();
   }
 
   AssetLibrary *lib = current_file_library_.get();
@@ -131,6 +146,21 @@ void AssetLibraryService::app_handler_unregister()
   BKE_callback_remove(&on_load_callback_store_, BKE_CB_EVT_LOAD_PRE);
   on_load_callback_store_.func = nullptr;
   on_load_callback_store_.arg = nullptr;
+}
+
+bool AssetLibraryService::has_any_unsaved_catalogs() const
+{
+  if (current_file_library_ && current_file_library_->catalog_service->has_unsaved_changes()) {
+    return true;
+  }
+
+  for (const auto &asset_lib_uptr : on_disk_libraries_.values()) {
+    if (asset_lib_uptr->catalog_service->has_unsaved_changes()) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 }  // namespace blender::bke

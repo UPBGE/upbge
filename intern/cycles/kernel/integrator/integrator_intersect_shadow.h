@@ -20,7 +20,7 @@ CCL_NAMESPACE_BEGIN
 
 /* Visibility for the shadow ray. */
 ccl_device_forceinline uint integrate_intersect_shadow_visibility(KernelGlobals kg,
-                                                                  ConstIntegratorState state)
+                                                                  ConstIntegratorShadowState state)
 {
   uint visibility = PATH_RAY_SHADOW;
 
@@ -33,7 +33,7 @@ ccl_device_forceinline uint integrate_intersect_shadow_visibility(KernelGlobals 
 }
 
 ccl_device bool integrate_intersect_shadow_opaque(KernelGlobals kg,
-                                                  IntegratorState state,
+                                                  IntegratorShadowState state,
                                                   ccl_private const Ray *ray,
                                                   const uint visibility)
 {
@@ -55,7 +55,7 @@ ccl_device bool integrate_intersect_shadow_opaque(KernelGlobals kg,
 }
 
 ccl_device_forceinline int integrate_shadow_max_transparent_hits(KernelGlobals kg,
-                                                                 ConstIntegratorState state)
+                                                                 ConstIntegratorShadowState state)
 {
   const int transparent_max_bounce = kernel_data.integrator.transparent_max_bounce;
   const int transparent_bounce = INTEGRATOR_STATE(state, shadow_path, transparent_bounce);
@@ -64,36 +64,79 @@ ccl_device_forceinline int integrate_shadow_max_transparent_hits(KernelGlobals k
 }
 
 #ifdef __TRANSPARENT_SHADOWS__
+#  if defined(__KERNEL_CPU__)
+ccl_device int shadow_intersections_compare(const void *a, const void *b)
+{
+  const Intersection *isect_a = (const Intersection *)a;
+  const Intersection *isect_b = (const Intersection *)b;
+
+  if (isect_a->t < isect_b->t)
+    return -1;
+  else if (isect_a->t > isect_b->t)
+    return 1;
+  else
+    return 0;
+}
+#  endif
+
+ccl_device_inline void sort_shadow_intersections(IntegratorShadowState state, uint num_hits)
+{
+  kernel_assert(num_hits > 0);
+
+#  ifdef __KERNEL_GPU__
+  /* Use bubble sort which has more friendly memory pattern on GPU. */
+  bool swapped;
+  do {
+    swapped = false;
+    for (int j = 0; j < num_hits - 1; ++j) {
+      if (INTEGRATOR_STATE_ARRAY(state, shadow_isect, j, t) >
+          INTEGRATOR_STATE_ARRAY(state, shadow_isect, j + 1, t)) {
+        struct Intersection tmp_j ccl_optional_struct_init;
+        struct Intersection tmp_j_1 ccl_optional_struct_init;
+        integrator_state_read_shadow_isect(state, &tmp_j, j);
+        integrator_state_read_shadow_isect(state, &tmp_j_1, j + 1);
+        integrator_state_write_shadow_isect(state, &tmp_j_1, j);
+        integrator_state_write_shadow_isect(state, &tmp_j, j + 1);
+        swapped = true;
+      }
+    }
+    --num_hits;
+  } while (swapped);
+#  else
+  Intersection *isect_array = (Intersection *)state->shadow_isect;
+  qsort(isect_array, num_hits, sizeof(Intersection), shadow_intersections_compare);
+#  endif
+}
+
 ccl_device bool integrate_intersect_shadow_transparent(KernelGlobals kg,
-                                                       IntegratorState state,
+                                                       IntegratorShadowState state,
                                                        ccl_private const Ray *ray,
                                                        const uint visibility)
 {
-  Intersection isect[INTEGRATOR_SHADOW_ISECT_SIZE];
-
   /* Limit the number hits to the max transparent bounces allowed and the size that we
    * have available in the integrator state. */
-  const uint max_transparent_hits = integrate_shadow_max_transparent_hits(kg, state);
-  const uint max_hits = min(max_transparent_hits, (uint)INTEGRATOR_SHADOW_ISECT_SIZE);
+  const uint max_hits = integrate_shadow_max_transparent_hits(kg, state);
   uint num_hits = 0;
-  bool opaque_hit = scene_intersect_shadow_all(kg, ray, isect, visibility, max_hits, &num_hits);
+  float throughput = 1.0f;
+  bool opaque_hit = scene_intersect_shadow_all(
+      kg, state, ray, visibility, max_hits, &num_hits, &throughput);
+
+  /* Computed throughput from baked shadow transparency, where we can bypass recording
+   * intersections and shader evaluation. */
+  if (throughput != 1.0f) {
+    INTEGRATOR_STATE_WRITE(state, shadow_path, throughput) *= throughput;
+  }
 
   /* If number of hits exceed the transparent bounces limit, make opaque. */
-  if (num_hits > max_transparent_hits) {
+  if (num_hits > max_hits) {
     opaque_hit = true;
   }
 
   if (!opaque_hit) {
-    uint num_recorded_hits = min(num_hits, max_hits);
+    const uint num_recorded_hits = min(num_hits, min(max_hits, INTEGRATOR_SHADOW_ISECT_SIZE));
 
     if (num_recorded_hits > 0) {
-      sort_intersections(isect, num_recorded_hits);
-
-      /* Write intersection result into global integrator state memory.
-       * More efficient may be to do this directly from the intersection kernel. */
-      for (int hit = 0; hit < num_recorded_hits; hit++) {
-        integrator_state_write_shadow_isect(state, &isect[hit], hit);
-      }
+      sort_shadow_intersections(state, num_recorded_hits);
     }
 
     INTEGRATOR_STATE_WRITE(state, shadow_path, num_hits) = num_hits;
@@ -106,7 +149,7 @@ ccl_device bool integrate_intersect_shadow_transparent(KernelGlobals kg,
 }
 #endif
 
-ccl_device void integrator_intersect_shadow(KernelGlobals kg, IntegratorState state)
+ccl_device void integrator_intersect_shadow(KernelGlobals kg, IntegratorShadowState state)
 {
   PROFILING_INIT(kg, PROFILING_INTERSECT_SHADOW);
 
