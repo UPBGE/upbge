@@ -85,9 +85,11 @@ void KX_GameObject_Mathutils_Callback_Init(void);
 class KX_GameObject : public SCA_IObject {
   Py_Header
 
-      public :
+ public :
 
-      struct ActivityCullingInfo {
+  struct ActivityCullingInfo {
+
+    ActivityCullingInfo();
 
     enum Flag {
       ACTIVITY_NONE = 0,
