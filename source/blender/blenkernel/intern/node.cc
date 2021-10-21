@@ -1417,7 +1417,7 @@ void nodeUnregisterType(bNodeType *nt)
 bool nodeTypeUndefined(bNode *node)
 {
   return (node->typeinfo == &NodeTypeUndefined) ||
-         ((node->type == NODE_GROUP || node->type == NODE_CUSTOM_GROUP) && node->id &&
+         ((ELEM(node->type, NODE_GROUP, NODE_CUSTOM_GROUP)) && node->id &&
           ID_IS_LINKED(node->id) && (node->id->tag & LIB_TAG_MISSING));
 }
 
@@ -5755,6 +5755,7 @@ static void registerGeometryNodes()
   register_node_type_geo_legacy_edge_split();
   register_node_type_geo_legacy_subdivision_surface();
   register_node_type_geo_legacy_raycast();
+  register_node_type_geo_legacy_curve_to_points();
 
   register_node_type_geo_align_rotation_to_vector();
   register_node_type_geo_attribute_capture();
@@ -5805,8 +5806,8 @@ static void registerGeometryNodes()
   register_node_type_geo_input_curve_handles();
   register_node_type_geo_input_curve_tilt();
   register_node_type_geo_input_index();
-  register_node_type_geo_input_material();
   register_node_type_geo_input_material_index();
+  register_node_type_geo_input_material();
   register_node_type_geo_input_normal();
   register_node_type_geo_input_position();
   register_node_type_geo_input_radius();
@@ -5818,6 +5819,7 @@ static void registerGeometryNodes()
   register_node_type_geo_instance_on_points();
   register_node_type_geo_is_viewport();
   register_node_type_geo_join_geometry();
+  register_node_type_geo_material_replace();
   register_node_type_geo_material_selection();
   register_node_type_geo_mesh_primitive_circle();
   register_node_type_geo_mesh_primitive_cone();
@@ -5850,8 +5852,8 @@ static void registerGeometryNodes()
   register_node_type_geo_set_curve_handles();
   register_node_type_geo_set_curve_radius();
   register_node_type_geo_set_curve_tilt();
-  register_node_type_geo_set_material();
   register_node_type_geo_set_material_index();
+  register_node_type_geo_set_material();
   register_node_type_geo_set_point_radius();
   register_node_type_geo_set_position();
   register_node_type_geo_set_shade_smooth();
@@ -5882,6 +5884,7 @@ static void registerFunctionNodes()
   register_node_type_fn_input_vector();
   register_node_type_fn_input_color();
   register_node_type_fn_random_value();
+  register_node_type_fn_replace_string();
   register_node_type_fn_rotate_euler();
   register_node_type_fn_string_length();
   register_node_type_fn_string_substring();

@@ -290,11 +290,11 @@ int ui_searchbox_find_index(ARegion *region, const char *name)
 }
 
 /* x and y in screen-coords. */
-bool ui_searchbox_inside(ARegion *region, int x, int y)
+bool ui_searchbox_inside(ARegion *region, const int xy[2])
 {
   uiSearchboxData *data = region->regiondata;
 
-  return BLI_rcti_isect_pt(&data->bbox, x - region->winrct.xmin, y - region->winrct.ymin);
+  return BLI_rcti_isect_pt(&data->bbox, xy[0] - region->winrct.xmin, xy[1] - region->winrct.ymin);
 }
 
 /* string validated to be of correct length (but->hardmax) */
@@ -400,8 +400,9 @@ bool ui_searchbox_event(
              * (a little confusing if this isn't the case, although it does work). */
             rcti rect;
             ui_searchbox_butrect(&rect, data, data->active);
-            if (BLI_rcti_isect_pt(
-                    &rect, event->x - region->winrct.xmin, event->y - region->winrct.ymin)) {
+            if (BLI_rcti_isect_pt(&rect,
+                                  event->xy[0] - region->winrct.xmin,
+                                  event->xy[1] - region->winrct.ymin)) {
 
               void *active = data->items.pointers[data->active];
               if (search_but->item_context_menu_fn(C, search_but->arg, active, event)) {
@@ -415,14 +416,14 @@ bool ui_searchbox_event(
     case MOUSEMOVE: {
       bool is_inside = false;
 
-      if (BLI_rcti_isect_pt(&region->winrct, event->x, event->y)) {
+      if (BLI_rcti_isect_pt(&region->winrct, event->xy[0], event->xy[1])) {
         rcti rect;
         int a;
 
         for (a = 0; a < data->items.totitem; a++) {
           ui_searchbox_butrect(&rect, data, a);
           if (BLI_rcti_isect_pt(
-                  &rect, event->x - region->winrct.xmin, event->y - region->winrct.ymin)) {
+                  &rect, event->xy[0] - region->winrct.xmin, event->xy[1] - region->winrct.ymin)) {
             is_inside = true;
             if (data->active != a) {
               data->active = a;

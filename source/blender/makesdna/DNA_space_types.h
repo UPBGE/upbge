@@ -1165,7 +1165,6 @@ typedef struct FileDirEntryArr {
   ListBase entries;
   int nbr_entries;
   int nbr_entries_filtered;
-  int entry_idx_start, entry_idx_end;
 
   /** FILE_MAX. */
   char root[1024];
