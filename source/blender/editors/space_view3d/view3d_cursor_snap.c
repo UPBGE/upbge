@@ -94,7 +94,7 @@ typedef struct SnapCursorDataIntern {
   bool is_initiated;
 } SnapCursorDataIntern;
 
-static void v3d_cursor_snap_state_init(V3DSnapCursorState *state)
+static void UNUSED_FUNCTION(v3d_cursor_snap_state_init)(V3DSnapCursorState *state)
 {
   state->prevpoint = NULL;
   state->snap_elem_force = (SCE_SNAP_MODE_VERTEX | SCE_SNAP_MODE_EDGE | SCE_SNAP_MODE_FACE |
@@ -799,8 +799,6 @@ static void v3d_cursor_snap_draw_fn(bContext *C, int x, int y, void *UNUSED(cust
   /* Setup viewport & matrix. */
   RegionView3D *rv3d = region->regiondata;
   wmViewport(&region->winrct);
-  GPU_matrix_push_projection();
-  GPU_matrix_push();
   GPU_matrix_projection_set(rv3d->winmat);
   GPU_matrix_set(rv3d->viewmat);
 
@@ -834,8 +832,7 @@ static void v3d_cursor_snap_draw_fn(bContext *C, int x, int y, void *UNUSED(cust
   GPU_blend(GPU_BLEND_NONE);
 
   /* Restore matrix. */
-  GPU_matrix_pop();
-  GPU_matrix_pop_projection();
+  wmWindowViewport(CTX_wm_window(C));
 }
 
 /** \} */

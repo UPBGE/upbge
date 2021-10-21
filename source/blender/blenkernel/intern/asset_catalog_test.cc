@@ -39,6 +39,7 @@ const bUUID UUID_POSES_RUZENA("79a4f887-ab60-4bd4-94da-d572e27d6aed");
 const bUUID UUID_POSES_RUZENA_HAND("81811c31-1a88-4bd7-bb34-c6fc2607a12e");
 const bUUID UUID_POSES_RUZENA_FACE("82162c1f-06cc-4d91-a9bf-4f72c104e348");
 const bUUID UUID_WITHOUT_SIMPLENAME("d7916a31-6ca9-4909-955f-182ca2b81fa3");
+const bUUID UUID_ANOTHER_RUZENA("00000000-d9fa-4b91-b704-e6af1f1339ef");
 
 /* UUIDs from lib/tests/asset_library/modified_assets.cats.txt */
 const bUUID UUID_AGENT_47("c5744ba5-43f5-4f73-8e52-010ad4a61b34");
@@ -290,6 +291,57 @@ TEST_F(AssetCatalogTest, load_single_file)
   EXPECT_EQ(UUID_POSES_RUZENA, poses_ruzena->catalog_id);
   EXPECT_EQ("character/Ružena/poselib", poses_ruzena->path.str());
   EXPECT_EQ("POSES_RUŽENA", poses_ruzena->simple_name);
+
+  /* Test getting a catalog that aliases an earlier-defined catalog. */
+  AssetCatalog *another_ruzena = service.find_catalog(UUID_ANOTHER_RUZENA);
+  ASSERT_NE(nullptr, another_ruzena);
+  EXPECT_EQ(UUID_ANOTHER_RUZENA, another_ruzena->catalog_id);
+  EXPECT_EQ("character/Ružena/poselib", another_ruzena->path.str());
+  EXPECT_EQ("Another Ružena", another_ruzena->simple_name);
+}
+
+TEST_F(AssetCatalogTest, load_catalog_path_backslashes)
+{
+  AssetCatalogService service(asset_library_root_);
+  service.load_from_disk(asset_library_root_ + "/" + "blender_assets.cats.txt");
+
+  const bUUID ELLIE_BACKSLASHES_UUID("a51e17ae-34fc-47d5-ba0f-64c2c9b771f7");
+  const AssetCatalog *found_by_id = service.find_catalog(ELLIE_BACKSLASHES_UUID);
+  ASSERT_NE(nullptr, found_by_id);
+  EXPECT_EQ(AssetCatalogPath("character/Ellie/backslashes"), found_by_id->path)
+      << "Backslashes should be normalised when loading from disk.";
+  EXPECT_EQ(StringRefNull("Windows For Life!"), found_by_id->simple_name);
+
+  const AssetCatalog *found_by_path = service.find_catalog_by_path("character/Ellie/backslashes");
+  EXPECT_EQ(found_by_id, found_by_path)
+      << "Catalog with backslashed path should be findable by the normalized path.";
+
+  EXPECT_EQ(nullptr, service.find_catalog_by_path("character\\Ellie\\backslashes"))
+      << "Nothing should be found when searching for backslashes.";
+}
+
+TEST_F(AssetCatalogTest, is_first_loaded_flag)
+{
+  AssetCatalogService service(asset_library_root_);
+  service.load_from_disk(asset_library_root_ + "/" + "blender_assets.cats.txt");
+
+  AssetCatalog *new_cat = service.create_catalog("never/before/seen/path");
+  EXPECT_FALSE(new_cat->flags.is_first_loaded)
+      << "Adding a catalog at runtime should never mark it as 'first loaded'; "
+         "only loading from disk is allowed to do that.";
+
+  AssetCatalog *alias_cat = service.create_catalog("character/Ružena/poselib");
+  EXPECT_FALSE(alias_cat->flags.is_first_loaded)
+      << "Adding a new catalog with an already-loaded path should not mark it as 'first loaded'";
+
+  EXPECT_TRUE(service.find_catalog(UUID_POSES_ELLIE)->flags.is_first_loaded);
+  EXPECT_TRUE(service.find_catalog(UUID_POSES_ELLIE_WHITESPACE)->flags.is_first_loaded);
+  EXPECT_TRUE(service.find_catalog(UUID_POSES_RUZENA)->flags.is_first_loaded);
+  EXPECT_FALSE(service.find_catalog(UUID_ANOTHER_RUZENA)->flags.is_first_loaded);
+
+  AssetCatalog *ruzena = service.find_catalog_by_path("character/Ružena/poselib");
+  EXPECT_EQ(UUID_POSES_RUZENA, ruzena->catalog_id)
+      << "The first-seen definition of a catalog should be returned";
 }
 
 TEST_F(AssetCatalogTest, insert_item_into_tree)
@@ -381,6 +433,7 @@ TEST_F(AssetCatalogTest, load_single_file_into_tree)
   std::vector<AssetCatalogPath> expected_paths{
       "character",
       "character/Ellie",
+      "character/Ellie/backslashes",
       "character/Ellie/poselib",
       "character/Ellie/poselib/tailslash",
       "character/Ellie/poselib/white space",
@@ -727,6 +780,7 @@ TEST_F(AssetCatalogTest, delete_catalog_leaf)
   std::vector<AssetCatalogPath> expected_paths{
       "character",
       "character/Ellie",
+      "character/Ellie/backslashes",
       "character/Ellie/poselib",
       "character/Ellie/poselib/tailslash",
       "character/Ellie/poselib/white space",
@@ -763,7 +817,8 @@ TEST_F(AssetCatalogTest, delete_catalog_parent_by_path)
   service.load_from_disk(asset_library_root_ + "/" + "blender_assets.cats.txt");
 
   /* Create an extra catalog with the to-be-deleted path, and one with a child of that.
-   * This creates some duplicates that are bound to occur in production asset libraries as well. */
+   * This creates some duplicates that are bound to occur in production asset libraries as well.
+   */
   const bUUID cat1_uuid = service.create_catalog("character/Ružena/poselib")->catalog_id;
   const bUUID cat2_uuid = service.create_catalog("character/Ružena/poselib/body")->catalog_id;
 
@@ -782,6 +837,7 @@ TEST_F(AssetCatalogTest, delete_catalog_parent_by_path)
   std::vector<AssetCatalogPath> expected_paths{
       "character",
       "character/Ellie",
+      "character/Ellie/backslashes",
       "character/Ellie/poselib",
       "character/Ellie/poselib/tailslash",
       "character/Ellie/poselib/white space",
@@ -848,6 +904,22 @@ TEST_F(AssetCatalogTest, update_catalog_path)
       << "Changing the path should update children.";
   EXPECT_EQ("charlib/Ružena/face", service.find_catalog(UUID_POSES_RUZENA_FACE)->path.str())
       << "Changing the path should update children.";
+}
+
+TEST_F(AssetCatalogTest, update_catalog_path_simple_name)
+{
+  AssetCatalogService service(asset_library_root_);
+  service.load_from_disk(asset_library_root_ + "/" +
+                         AssetCatalogService::DEFAULT_CATALOG_FILENAME);
+  service.update_catalog_path(UUID_POSES_RUZENA, "charlib/Ružena");
+
+  /* This may not be valid forever; maybe at some point we'll expose the simple name to users &
+   * let them change it from the UI. Until then, automatically updating it is better, because
+   * otherwise all simple names would be "Catalog". */
+  EXPECT_EQ("charlib-Ružena", service.find_catalog(UUID_POSES_RUZENA)->simple_name)
+      << "Changing the path should update the simplename.";
+  EXPECT_EQ("charlib-Ružena-face", service.find_catalog(UUID_POSES_RUZENA_FACE)->simple_name)
+      << "Changing the path should update the simplename of children.";
 }
 
 TEST_F(AssetCatalogTest, merge_catalog_files)
@@ -946,6 +1018,50 @@ TEST_F(AssetCatalogTest, order_by_path)
   EXPECT_EQ(cat4.catalog_id, (*(set_iter++))->catalog_id); /* simple/path with 111.. ID */
   EXPECT_EQ(cat2.catalog_id, (*(set_iter++))->catalog_id); /* simple/path with 222.. ID */
   EXPECT_EQ(cat1.catalog_id, (*(set_iter++))->catalog_id); /* simple/path/child */
+
+  if (set_iter != by_path.end()) {
+    const AssetCatalog *next_cat = *set_iter;
+    FAIL() << "Did not expect more items in the set, had at least " << next_cat->catalog_id << ":"
+           << next_cat->path;
+  }
+}
+
+TEST_F(AssetCatalogTest, order_by_path_and_first_seen)
+{
+  AssetCatalogService service;
+  service.load_from_disk(asset_library_root_);
+
+  const bUUID first_seen_uuid("3d451c87-27d1-40fd-87fc-f4c9e829c848");
+  const bUUID first_sorted_uuid("00000000-0000-0000-0000-000000000001");
+  const bUUID last_sorted_uuid("ffffffff-ffff-ffff-ffff-ffffffffffff");
+
+  AssetCatalog first_seen_cat(first_seen_uuid, "simple/path/child", "");
+  const AssetCatalog first_sorted_cat(first_sorted_uuid, "simple/path/child", "");
+  const AssetCatalog last_sorted_cat(last_sorted_uuid, "simple/path/child", "");
+
+  /* Mimick that this catalog was first-seen when loading from disk. */
+  first_seen_cat.flags.is_first_loaded = true;
+
+  /* Just an assertion of the defaults; this is more to avoid confusing errors later on than an
+   * actual test of these defaults. */
+  ASSERT_FALSE(first_sorted_cat.flags.is_first_loaded);
+  ASSERT_FALSE(last_sorted_cat.flags.is_first_loaded);
+
+  AssetCatalogOrderedSet by_path;
+  by_path.insert(&first_seen_cat);
+  by_path.insert(&first_sorted_cat);
+  by_path.insert(&last_sorted_cat);
+
+  AssetCatalogOrderedSet::const_iterator set_iter = by_path.begin();
+
+  EXPECT_EQ(1, by_path.count(&first_seen_cat));
+  EXPECT_EQ(1, by_path.count(&first_sorted_cat));
+  EXPECT_EQ(1, by_path.count(&last_sorted_cat));
+  ASSERT_EQ(3, by_path.size());
+
+  EXPECT_EQ(first_seen_uuid, (*(set_iter++))->catalog_id);
+  EXPECT_EQ(first_sorted_uuid, (*(set_iter++))->catalog_id);
+  EXPECT_EQ(last_sorted_uuid, (*(set_iter++))->catalog_id);
 
   if (set_iter != by_path.end()) {
     const AssetCatalog *next_cat = *set_iter;
