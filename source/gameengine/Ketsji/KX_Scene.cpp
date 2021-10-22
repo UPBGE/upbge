@@ -240,7 +240,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   Main *bmain = CTX_data_main(C);
 
   /* Update 3D view cameras and RV3D->persp state and ensure the ViewLayer is updated */
-  ED_screen_scene_change(C, CTX_wm_window(C), scene);
+  ED_screen_scene_change(C, CTX_wm_window(C), scene, true);
 
   ViewLayer *view_layer = BKE_view_layer_default_view(scene);
 

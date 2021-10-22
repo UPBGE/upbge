@@ -1197,7 +1197,7 @@ static void correct_bone_roll_value(const float head[3],
       /* Recompute roll using legacy code to interpret the old value. */
       legacy_vec_roll_to_mat3_normalized(vec, *r_roll, bone_mat);
       mat3_to_vec_roll(bone_mat, vec2, r_roll);
-      BLI_assert(compare_v3v3(vec, vec2, FLT_EPSILON));
+      BLI_assert(compare_v3v3(vec, vec2, 0.001f));
     }
   }
 }
@@ -1998,6 +1998,22 @@ void blo_do_versions_300(FileData *fd, Library *UNUSED(lib), Main *bmain)
               SpaceNode *snode = (SpaceNode *)space;
               snode->overlay.flag |= SN_OVERLAY_SHOW_OVERLAYS;
               snode->overlay.flag |= SN_OVERLAY_SHOW_WIRE_COLORS;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_ATLEAST(bmain, 300, 38)) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, space, &area->spacedata) {
+          if (space->spacetype == SPACE_FILE) {
+            SpaceFile *sfile = (SpaceFile *)space;
+            FileAssetSelectParams *asset_params = sfile->asset_params;
+            if (asset_params) {
+              asset_params->base_params.filter_id = FILTER_ID_ALL;
             }
           }
         }
