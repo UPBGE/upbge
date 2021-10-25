@@ -251,8 +251,6 @@ class Scene : public NodeOwner {
   Scene(const SceneParams &params, Device *device);
   ~Scene();
 
-  void host_update(Progress &progress);
-
   void device_update(Device *device, Progress &progress);
 
   bool need_global_attribute(AttributeStandard std);
@@ -272,7 +270,6 @@ class Scene : public NodeOwner {
 
   void enable_update_stats();
 
-  void update_kernel_features();
   bool update(Progress &progress);
 
   bool has_shadow_catcher();
@@ -335,6 +332,7 @@ class Scene : public NodeOwner {
   bool kernels_loaded;
   uint loaded_kernel_features;
 
+  void update_kernel_features();
   bool load_kernels(Progress &progress, bool lock_scene = true);
 
   bool has_shadow_catcher_ = false;

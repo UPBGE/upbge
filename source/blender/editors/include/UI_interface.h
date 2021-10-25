@@ -97,8 +97,9 @@ typedef struct uiTreeViewItemHandle uiTreeViewItemHandle;
 #define UI_SEP_CHAR '|'
 #define UI_SEP_CHAR_S "|"
 
-/* Separator for text in search menus. */
-#define UI_MENU_ARROW_SEP "▶"
+/* Separator for text in search menus (right pointing arrow).
+ * keep in sync with `string_search.cc`. */
+#define UI_MENU_ARROW_SEP "\xe2\x96\xb6"
 
 /* names */
 #define UI_MAX_DRAW_STR 400
@@ -2800,11 +2801,8 @@ void UI_interface_tag_script_reload(void);
 bool UI_tree_view_item_is_active(const uiTreeViewItemHandle *item);
 bool UI_tree_view_item_matches(const uiTreeViewItemHandle *a, const uiTreeViewItemHandle *b);
 bool UI_tree_view_item_can_drop(const uiTreeViewItemHandle *item_, const struct wmDrag *drag);
+char *UI_tree_view_item_drop_tooltip(const uiTreeViewItemHandle *item, const struct wmDrag *drag);
 bool UI_tree_view_item_drop_handle(uiTreeViewItemHandle *item_, const struct ListBase *drags);
-char *UI_tree_view_item_drop_tooltip(const uiTreeViewItemHandle *item,
-                                     const struct bContext *C,
-                                     const struct wmDrag *drag,
-                                     const struct wmEvent *event);
 bool UI_tree_view_item_can_rename(const uiTreeViewItemHandle *item_handle);
 void UI_tree_view_item_begin_rename(uiTreeViewItemHandle *item_handle);
 

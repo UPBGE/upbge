@@ -228,28 +228,16 @@ void Scene::free_memory(bool final)
   }
 }
 
-void Scene::host_update(Progress &progress)
-{
-  if (update_stats) {
-    update_stats->clear();
-  }
-
-  scoped_callback_timer timer([this](double time) {
-    if (update_stats) {
-      update_stats->scene.times.add_entry({"host_update", time});
-    }
-  });
-
-  progress.set_status("Updating Shaders");
-  shader_manager->host_update(this, progress);
-}
-
 void Scene::device_update(Device *device_, Progress &progress)
 {
   if (!device)
     device = device_;
 
   bool print_stats = need_data_update();
+
+  if (update_stats) {
+    update_stats->clear();
+  }
 
   scoped_callback_timer timer([this, print_stats](double time) {
     if (update_stats) {
@@ -372,6 +360,8 @@ void Scene::device_update(Device *device_, Progress &progress)
     return;
 
   if (device->have_error() == false) {
+    dscene.data.volume_stack_size = get_volume_stack_size();
+
     progress.set_status("Updating Device", "Writing constant memory");
     device->const_copy_to("__data", &dscene.data, sizeof(dscene.data));
   }
@@ -539,8 +529,6 @@ void Scene::update_kernel_features()
   const uint max_closures = (params.background) ? get_max_closure_count() : MAX_CLOSURE;
   dscene.data.max_closures = max_closures;
   dscene.data.max_shaders = shaders.size();
-
-  dscene.data.volume_stack_size = get_volume_stack_size();
 }
 
 bool Scene::update(Progress &progress)
@@ -549,17 +537,11 @@ bool Scene::update(Progress &progress)
     return false;
   }
 
-  /* Update scene data on the host side.
-   * Only updates which do not depend on the kernel (including kernel features). */
-  progress.set_status("Updating Scene");
-  MEM_GUARDED_CALL(&progress, host_update, progress);
-
-  /* Load render kernels. After host scene update so that the required kernel features are known.
-   */
+  /* Load render kernels, before device update where we upload data to the GPU. */
   load_kernels(progress, false);
 
-  /* Upload scene data to the device. */
-  progress.set_status("Updating Scene Device");
+  /* Upload scene data to the GPU. */
+  progress.set_status("Updating Scene");
   MEM_GUARDED_CALL(&progress, device_update, device, progress);
 
   return true;
@@ -603,6 +585,8 @@ bool Scene::load_kernels(Progress &progress, bool lock_scene)
   if (lock_scene) {
     scene_lock = thread_scoped_lock(mutex);
   }
+
+  update_kernel_features();
 
   const uint kernel_features = dscene.data.kernel_features;
 
@@ -674,10 +658,25 @@ int Scene::get_volume_stack_size() const
 
   /* Quick non-expensive check. Can over-estimate maximum possible nested level, but does not
    * require expensive calculation during pre-processing. */
+  bool has_volume_object = false;
   for (const Object *object : objects) {
-    if (object->check_is_volume()) {
+    if (!object->get_geometry()->has_volume) {
+      continue;
+    }
+
+    if (object->intersects_volume) {
+      /* Object intersects another volume, assume it's possible to go deeper in the stack. */
+      /* TODO(sergey): This might count nesting twice (A intersects B and B intersects A), but
+       * can't think of a computationally cheap algorithm. Dividing my 2 doesn't work because of
+       * Venn diagram example with 3 circles. */
       ++volume_stack_size;
     }
+    else if (!has_volume_object) {
+      /* Allocate space for at least one volume object. */
+      ++volume_stack_size;
+    }
+
+    has_volume_object = true;
 
     if (volume_stack_size == MAX_VOLUME_STACK_SIZE) {
       break;
@@ -685,6 +684,8 @@ int Scene::get_volume_stack_size() const
   }
 
   volume_stack_size = min(volume_stack_size, MAX_VOLUME_STACK_SIZE);
+
+  VLOG(3) << "Detected required volume stack size " << volume_stack_size;
 
   return volume_stack_size;
 }

@@ -149,8 +149,8 @@ set(SRC
   function/nodes/node_fn_random_value.cc
   function/nodes/node_fn_replace_string.cc
   function/nodes/node_fn_rotate_euler.cc
+  function/nodes/node_fn_slice_string.cc
   function/nodes/node_fn_string_length.cc
-  function/nodes/node_fn_string_substring.cc
   function/nodes/node_fn_value_to_string.cc
   function/node_function_util.cc
 
@@ -226,6 +226,7 @@ set(SRC
   geometry/nodes/node_geo_delete_geometry.cc
   geometry/nodes/node_geo_distribute_points_on_faces.cc
   geometry/nodes/node_geo_edge_split.cc
+  geometry/nodes/node_geo_image_texture.cc
   geometry/nodes/node_geo_input_curve_handles.cc
   geometry/nodes/node_geo_input_curve_tilt.cc
   geometry/nodes/node_geo_input_index.cc
@@ -240,6 +241,7 @@ set(SRC
   geometry/nodes/node_geo_input_spline_resolution.cc
   geometry/nodes/node_geo_input_tangent.cc
   geometry/nodes/node_geo_instance_on_points.cc
+  geometry/nodes/node_geo_instances_to_points.cc
   geometry/nodes/node_geo_is_viewport.cc
   geometry/nodes/node_geo_join_geometry.cc
   geometry/nodes/node_geo_material_replace.cc

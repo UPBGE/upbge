@@ -168,7 +168,7 @@ def geometry_input_node_items(context):
         return
 
     if geometry_nodes_legacy_poll(context):
-        yield NodeItem("FunctionNodeLegacyRandomFloat"),
+        yield NodeItem("FunctionNodeLegacyRandomFloat")
         yield NodeItemCustom(draw=lambda self, layout, context: layout.separator())
 
     yield NodeItem("GeometryNodeCollectionInfo")
@@ -698,6 +698,7 @@ geometry_node_categories = [
     GeometryNodeCategory("GEO_INPUT", "Input", items=geometry_input_node_items),
     GeometryNodeCategory("GEO_INSTANCE", "Instances", items=[
         NodeItem("GeometryNodeInstanceOnPoints"),
+        NodeItem("GeometryNodeInstancesToPoints"),
         NodeItem("GeometryNodeRealizeInstances"),
         NodeItem("GeometryNodeRotateInstances"),
         NodeItem("GeometryNodeScaleInstances"),
@@ -721,7 +722,7 @@ geometry_node_categories = [
     GeometryNodeCategory("GEO_POINT", "Point", items=point_node_items),
     GeometryNodeCategory("GEO_TEXT", "Text", items=[
         NodeItem("FunctionNodeStringLength"),
-        NodeItem("FunctionNodeStringSubstring"),
+        NodeItem("FunctionNodeSliceString"),
         NodeItem("FunctionNodeValueToString"),
         NodeItem("GeometryNodeStringJoin"),
         NodeItem("FunctionNodeInputSpecialCharacters"),
@@ -737,6 +738,7 @@ geometry_node_categories = [
         NodeItem("ShaderNodeTexVoronoi"),
         NodeItem("ShaderNodeTexWave"),
         NodeItem("ShaderNodeTexWhiteNoise"),
+        NodeItem("GeometryNodeImageTexture"),
     ]),
     GeometryNodeCategory("GEO_UTILITIES", "Utilities", items=[
         NodeItem("ShaderNodeMapRange"),
