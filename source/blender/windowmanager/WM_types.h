@@ -990,6 +990,7 @@ typedef struct wmDragAsset {
   /* Always freed. */
   const char *path;
   int id_type;
+  struct AssetMetaData *metadata;
   int import_type; /* eFileAssetImportType */
 
   /* FIXME: This is temporary evil solution to get scene/view-layer/etc in the copy callback of the
@@ -1021,7 +1022,7 @@ typedef struct wmDragAssetListItem {
 
 typedef char *(*WMDropboxTooltipFunc)(struct bContext *,
                                       struct wmDrag *,
-                                      const struct wmEvent *event,
+                                      const int xy[2],
                                       struct wmDropBox *drop);
 
 typedef struct wmDrag {
@@ -1039,8 +1040,11 @@ typedef struct wmDrag {
   float scale;
   int sx, sy;
 
-  /** If filled, draws operator tooltip/operator name. */
-  char tooltip[200];
+  /** Informs which dropbox is activated with the drag item.
+   * When this value changes, the #draw_activate and #draw_deactivate dropbox callbacks are
+   * triggered.
+   */
+  struct wmDropBox *active_dropbox;
   unsigned int flags;
 
   /** List of wmDragIDs, all are guaranteed to have the same ID type. */
@@ -1067,6 +1071,18 @@ typedef struct wmDropBox {
    * `copy()` resources.
    */
   void (*cancel)(struct Main *, struct wmDrag *, struct wmDropBox *);
+
+  /** Override the default drawing function. */
+  void (*draw)(struct bContext *, struct wmWindow *, struct wmDrag *, const int *);
+
+  /** Called when pool returns true the first time. */
+  void (*draw_activate)(struct wmDropBox *, struct wmDrag *drag);
+
+  /** Called when pool returns false the first time or when the drag event ends. */
+  void (*draw_deactivate)(struct wmDropBox *, struct wmDrag *drag);
+
+  /** Custom data for drawing. */
+  void *draw_data;
 
   /** Custom tooltip shown during dragging. */
   WMDropboxTooltipFunc tooltip;

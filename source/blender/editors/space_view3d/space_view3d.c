@@ -40,6 +40,7 @@
 
 #include "BLT_translation.h"
 
+#include "BKE_asset.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_global.h"
@@ -515,6 +516,46 @@ static bool view3d_drop_id_in_main_region_poll(bContext *C,
   return WM_drag_is_ID_type(drag, id_type);
 }
 
+static void view3d_ob_drop_draw_activate(struct wmDropBox *drop, wmDrag *drag)
+{
+  V3DSnapCursorState *state = drop->draw_data;
+  if (state) {
+    return;
+  }
+
+  state = drop->draw_data = ED_view3d_cursor_snap_active();
+  if (!state) {
+    /* The maximum snap status stack value has been reached. */
+    return;
+  }
+
+  float dimensions[3] = {0.0f};
+  if (drag->type == WM_DRAG_ID) {
+    Object *ob = (Object *)WM_drag_get_local_ID(drag, ID_OB);
+    BKE_object_dimensions_get(ob, dimensions);
+  }
+  else {
+    struct AssetMetaData *meta_data = WM_drag_get_asset_meta_data(drag, ID_OB);
+    IDProperty *dimensions_prop = BKE_asset_metadata_idprop_find(meta_data, "dimensions");
+    if (dimensions_prop) {
+      copy_v3_v3(dimensions, IDP_Array(dimensions_prop));
+    }
+  }
+
+  if (!is_zero_v3(dimensions)) {
+    mul_v3_v3fl(state->box_dimensions, dimensions, 0.5f);
+    UI_GetThemeColor4ubv(TH_GIZMO_PRIMARY, state->color_box);
+    state->draw_box = true;
+  }
+}
+
+static void view3d_ob_drop_draw_deactivate(struct wmDropBox *drop, wmDrag *UNUSED(drag))
+{
+  V3DSnapCursorState *state = drop->draw_data;
+  ED_view3d_cursor_snap_deactive(state);
+  drop->draw_data = NULL;
+}
+
 static bool view3d_ob_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
   return view3d_drop_id_in_main_region_poll(C, drag, event, ID_OB);
@@ -532,12 +573,17 @@ static bool view3d_mat_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event
 
 static char *view3d_mat_drop_tooltip(bContext *C,
                                      wmDrag *drag,
-                                     const wmEvent *event,
+                                     const int xy[2],
                                      struct wmDropBox *drop)
 {
   const char *name = WM_drag_get_item_name(drag);
+  ARegion *region = CTX_wm_region(C);
   RNA_string_set(drop->ptr, "name", name);
-  return ED_object_ot_drop_named_material_tooltip(C, drop->ptr, event);
+  int mval[2] = {
+      xy[0] - region->winrct.xmin,
+      xy[1] - region->winrct.ymin,
+  };
+  return ED_object_ot_drop_named_material_tooltip(C, drop->ptr, mval);
 }
 
 static bool view3d_world_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
@@ -556,7 +602,7 @@ static bool view3d_object_data_drop_poll(bContext *C, wmDrag *drag, const wmEven
 
 static char *view3d_object_data_drop_tooltip(bContext *UNUSED(C),
                                              wmDrag *UNUSED(drag),
-                                             const wmEvent *UNUSED(event),
+                                             const int UNUSED(xy[2]),
                                              wmDropBox *UNUSED(drop))
 {
   return BLI_strdup(TIP_("Create object instance from object-data"));
@@ -634,6 +680,29 @@ static void view3d_ob_drop_copy(wmDrag *drag, wmDropBox *drop)
   /* Don't duplicate ID's which were just imported. Only do that for existing, local IDs. */
   const bool is_imported_id = drag->type == WM_DRAG_ASSET;
   RNA_boolean_set(drop->ptr, "duplicate", !is_imported_id);
+
+  V3DSnapCursorState *snap_state = ED_view3d_cursor_snap_state_get();
+  Object *ob = (Object *)id;
+  float obmat_final[4][4];
+
+  V3DSnapCursorData *snap_data;
+  snap_data = ED_view3d_cursor_snap_data_get(snap_state, NULL, 0, 0);
+  copy_m4_m3(obmat_final, snap_data->plane_omat);
+  copy_v3_v3(obmat_final[3], snap_data->loc);
+
+  float scale[3];
+  mat4_to_size(scale, ob->obmat);
+  rescale_m4(obmat_final, scale);
+
+  BoundBox *bb = BKE_object_boundbox_get(ob);
+  if (bb) {
+    float offset[3];
+    BKE_boundbox_calc_center_aabb(bb, offset);
+    offset[2] = bb->vec[0][2];
+    mul_mat3_m4_v3(obmat_final, offset);
+    sub_v3_v3(obmat_final[3], offset);
+  }
+  RNA_float_set_array(drop->ptr, "matrix", &obmat_final[0][0]);
 }
 
 static void view3d_collection_drop_copy(wmDrag *drag, wmDropBox *drop)
@@ -698,12 +767,19 @@ static void view3d_dropboxes(void)
 {
   ListBase *lb = WM_dropboxmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW);
 
-  WM_dropbox_add(lb,
-                 "OBJECT_OT_add_named",
-                 view3d_ob_drop_poll,
-                 view3d_ob_drop_copy,
-                 WM_drag_free_imported_drag_ID,
-                 NULL);
+  struct wmDropBox *drop;
+  drop = WM_dropbox_add(lb,
+                        "OBJECT_OT_add_named",
+                        view3d_ob_drop_poll,
+                        view3d_ob_drop_copy,
+                        WM_drag_free_imported_drag_ID,
+                        NULL);
+
+  drop->draw = WM_drag_draw_item_name_fn;
+  drop->draw_activate = view3d_ob_drop_draw_activate;
+  drop->draw_deactivate = view3d_ob_drop_draw_deactivate;
+  drop->opcontext = WM_OP_EXEC_DEFAULT; /* Not really needed. */
+
   WM_dropbox_add(lb,
                  "OBJECT_OT_drop_named_material",
                  view3d_mat_drop_poll,
