@@ -42,7 +42,7 @@ namespace blender::nodes {
 
 static void geo_node_point_distribute_points_on_faces_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Geometry");
+  b.add_input<decl::Geometry>("Geometry").supported_type(GEO_COMPONENT_TYPE_MESH);
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().supports_field();
   b.add_input<decl::Float>("Distance Min").min(0.0f).subtype(PROP_DISTANCE);
   b.add_input<decl::Float>("Density Max").default_value(10.0f).min(0.0f);
@@ -543,10 +543,10 @@ static void geo_node_point_distribute_points_on_faces_exec(GeoNodeExecParams par
 
   AttributeOutputs attribute_outputs;
   if (params.output_is_required("Normal")) {
-    attribute_outputs.normal_id = StrongAnonymousAttributeID("normal");
+    attribute_outputs.normal_id = StrongAnonymousAttributeID("Normal");
   }
   if (params.output_is_required("Rotation")) {
-    attribute_outputs.rotation_id = StrongAnonymousAttributeID("rotation");
+    attribute_outputs.rotation_id = StrongAnonymousAttributeID("Rotation");
   }
 
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
@@ -562,12 +562,14 @@ static void geo_node_point_distribute_points_on_faces_exec(GeoNodeExecParams par
   if (attribute_outputs.normal_id) {
     params.set_output(
         "Normal",
-        AnonymousAttributeFieldInput::Create<float3>(std::move(attribute_outputs.normal_id)));
+        AnonymousAttributeFieldInput::Create<float3>(std::move(attribute_outputs.normal_id),
+                                                     params.attribute_producer_name()));
   }
   if (attribute_outputs.rotation_id) {
     params.set_output(
         "Rotation",
-        AnonymousAttributeFieldInput::Create<float3>(std::move(attribute_outputs.rotation_id)));
+        AnonymousAttributeFieldInput::Create<float3>(std::move(attribute_outputs.rotation_id),
+                                                     params.attribute_producer_name()));
   }
 }
 

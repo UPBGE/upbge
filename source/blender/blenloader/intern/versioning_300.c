@@ -967,7 +967,7 @@ static bool geometry_node_is_293_legacy(const short node_type)
 
     /* Maybe legacy: Special case for grid names? Or finish patch from level set branch to
      * generate a mesh for all grids in the volume. */
-    case GEO_NODE_VOLUME_TO_MESH:
+    case GEO_NODE_LEGACY_VOLUME_TO_MESH:
       return false;
 
     /* Legacy: Transferred *all* attributes before, will not transfer all built-ins now. */
@@ -2071,6 +2071,15 @@ void blo_do_versions_300(FileData *fd, Library *UNUSED(lib), Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_ATLEAST(bmain, 300, 39)) {
+    LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
+      wm->xr.session_settings.base_scale = 1.0f;
+      wm->xr.session_settings.draw_flags |= (V3D_OFSDRAW_SHOW_SELECTION |
+                                             V3D_OFSDRAW_XR_SHOW_CONTROLLERS |
+                                             V3D_OFSDRAW_XR_SHOW_CUSTOM_OVERLAYS);
+    }
+  }
+
   /**
    * Versioning code until next subversion bump goes here.
    *
@@ -2089,7 +2098,25 @@ void blo_do_versions_300(FileData *fd, Library *UNUSED(lib), Main *bmain)
       }
       version_node_id(ntree, FN_NODE_SLICE_STRING, "FunctionNodeSliceString");
       version_geometry_nodes_set_position_node_offset(ntree);
+      version_node_id(ntree, GEO_NODE_LEGACY_VOLUME_TO_MESH, "GeometryNodeLegacyVolumeToMesh");
     }
     /* Keep this block, even when empty. */
+
+    /* Add storage to viewer node. */
+    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+      if (ntree->type != NTREE_GEOMETRY) {
+        continue;
+      }
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (node->type == GEO_NODE_VIEWER) {
+          if (node->storage == NULL) {
+            NodeGeometryViewer *data = (NodeGeometryViewer *)MEM_callocN(
+                sizeof(NodeGeometryViewer), __func__);
+            data->data_type = CD_PROP_FLOAT;
+            node->storage = data;
+          }
+        }
+      }
+    }
   }
 }

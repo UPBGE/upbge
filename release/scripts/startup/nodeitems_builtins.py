@@ -157,6 +157,34 @@ def mesh_node_items(context):
     yield NodeItemCustom(draw=lambda self, layout, context: layout.separator())
     yield NodeItem("GeometryNodeSetShadeSmooth")
 
+# Custom Menu for Geometry Nodes "Geometry" category
+def geometry_node_items(context):
+    if context is None:
+        return
+    space = context.space_data
+    if not space:
+        return
+    if not space.edit_tree:
+        return
+
+    if geometry_nodes_legacy_poll(context):
+        yield NodeItem("GeometryNodeLegacyDeleteGeometry", poll=geometry_nodes_legacy_poll)
+        yield NodeItem("GeometryNodeLegacyRaycast", poll=geometry_nodes_legacy_poll)
+        yield NodeItemCustom(draw=lambda self, layout, context: layout.separator())
+
+    yield NodeItem("GeometryNodeBoundBox")
+    yield NodeItem("GeometryNodeConvexHull")
+    yield NodeItem("GeometryNodeDeleteGeometry")
+    yield NodeItem("GeometryNodeProximity")
+    yield NodeItem("GeometryNodeJoinGeometry")
+    yield NodeItem("GeometryNodeRaycast")
+    yield NodeItem("GeometryNodeSeparateComponents")
+    yield NodeItem("GeometryNodeSeparateGeometry")
+    yield NodeItem("GeometryNodeTransform")
+    yield NodeItemCustom(draw=lambda self, layout, context: layout.separator())
+    yield NodeItem("GeometryNodeSetID")
+    yield NodeItem("GeometryNodeSetPosition")
+
 # Custom Menu for Geometry Node Input Nodes
 def geometry_input_node_items(context):
     if context is None:
@@ -182,6 +210,7 @@ def geometry_input_node_items(context):
     yield NodeItem("ShaderNodeValue")
     yield NodeItem("FunctionNodeInputVector")
     yield NodeItemCustom(draw=lambda self, layout, context: layout.separator())
+    yield NodeItem("GeometryNodeInputID")
     yield NodeItem("GeometryNodeInputIndex")
     yield NodeItem("GeometryNodeInputNormal")
     yield NodeItem("GeometryNodeInputPosition")
@@ -680,21 +709,7 @@ geometry_node_categories = [
         NodeItem("GeometryNodeCurvePrimitiveQuadrilateral"),
         NodeItem("GeometryNodeCurvePrimitiveBezierSegment"),
     ]),
-    GeometryNodeCategory("GEO_GEOMETRY", "Geometry", items=[
-        NodeItem("GeometryNodeLegacyDeleteGeometry", poll=geometry_nodes_legacy_poll),
-        NodeItem("GeometryNodeLegacyRaycast", poll=geometry_nodes_legacy_poll),
-
-        NodeItem("GeometryNodeRaycast"),
-        NodeItem("GeometryNodeProximity"),
-        NodeItem("GeometryNodeBoundBox"),
-        NodeItem("GeometryNodeConvexHull"),
-        NodeItem("GeometryNodeDeleteGeometry"),
-        NodeItem("GeometryNodeTransform"),
-        NodeItem("GeometryNodeJoinGeometry"),
-        NodeItem("GeometryNodeSeparateComponents"),
-        NodeItem("GeometryNodeSeparateGeometry"),
-        NodeItem("GeometryNodeSetPosition"),
-    ]),
+    GeometryNodeCategory("GEO_GEOMETRY", "Geometry", items=geometry_node_items),
     GeometryNodeCategory("GEO_INPUT", "Input", items=geometry_input_node_items),
     GeometryNodeCategory("GEO_INSTANCE", "Instances", items=[
         NodeItem("GeometryNodeInstanceOnPoints"),
@@ -730,6 +745,7 @@ geometry_node_categories = [
         NodeItem("FunctionNodeReplaceString"),
     ]),
     GeometryNodeCategory("GEO_TEXTURE", "Texture", items=[
+        NodeItem("ShaderNodeTexBrick"),
         NodeItem("ShaderNodeTexChecker"),
         NodeItem("ShaderNodeTexGradient"),
         NodeItem("ShaderNodeTexMagic"),
@@ -762,6 +778,7 @@ geometry_node_categories = [
     ]),
     GeometryNodeCategory("GEO_VOLUME", "Volume", items=[
         NodeItem("GeometryNodeLegacyPointsToVolume", poll=geometry_nodes_legacy_poll),
+        NodeItem("GeometryNodeLegacyVolumeToMesh", poll=geometry_nodes_legacy_poll),
 
         NodeItem("GeometryNodeVolumeToMesh"),
     ]),

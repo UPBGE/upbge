@@ -125,6 +125,11 @@ enum_texture_limit = (
     ('8192', "8192", "Limit texture size to 8192 pixels", 7),
 )
 
+enum_fast_gi_method = (
+    ('REPLACE', "Replace", "Replace global illumination with ambient occlusion after a specified number of bounces"),
+    ('ADD', "Add", "Add ambient occlusion to diffuse surfaces"),
+)
+
 # NOTE: Identifiers are expected to be an upper case version of identifiers from  `Pass::get_type_enum()`
 enum_view3d_shading_render_pass = (
     ('', "General", ""),
@@ -335,6 +340,24 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         description="Random sampling pattern used by the integrator. When adaptive sampling is enabled, Progressive Multi-Jitter is always used instead of Sobol",
         items=enum_sampling_pattern,
         default='PROGRESSIVE_MUTI_JITTER',
+    )
+
+    scrambling_distance: FloatProperty(
+        name="Scrambling Distance",
+        default=1.0,
+        min=0.0, max=1.0,
+        description="Lower values give faster rendering with GPU rendering and less noise with all devices at the cost of possible artifacts if set too low",
+    )
+    preview_scrambling_distance: BoolProperty(
+        name="Scrambling Distance viewport",
+        default=False,
+        description="Uses the Scrambling Distance value for the viewport. Faster but may flicker",
+    )
+
+    adaptive_scrambling_distance: BoolProperty(
+        name="Adaptive Scrambling Distance",
+        default=False,
+        description="Uses a formula to adapt the scrambling distance strength based on the sample count",
     )
 
     use_layer_samples: EnumProperty(
@@ -724,6 +747,14 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         description="Approximate diffuse indirect light with background tinted ambient occlusion. This provides fast alternative to full global illumination, for interactive viewport rendering or final renders with reduced quality",
         default=False,
     )
+
+    fast_gi_method: EnumProperty(
+        name="Fast GI Method",
+        default='REPLACE',
+        description="Fast GI approximation method",
+        items=enum_fast_gi_method
+    )
+
     ao_bounces: IntProperty(
         name="AO Bounces",
         default=1,
