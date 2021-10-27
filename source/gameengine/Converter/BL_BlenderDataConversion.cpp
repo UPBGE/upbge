@@ -830,7 +830,6 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
       }
 
       gameobj->SetOccluder((ob->gameflag & OB_OCCLUDER) != 0, false);
-      gameobj->SetActivityCullingInfo(activityCullingInfoFromBlenderObject(ob));
       break;
     }
 
@@ -904,6 +903,10 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
   }
 
   if (gameobj) {
+    if (ob->type != OB_CAMERA) {
+      gameobj->SetActivityCullingInfo(activityCullingInfoFromBlenderObject(ob));
+    }
+
     gameobj->SetLayer(ob->lay);
     gameobj->SetScene(kxscene);
     gameobj->SetBlenderObject(ob);
