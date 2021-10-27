@@ -181,6 +181,7 @@ wmDrag *WM_event_start_drag(
       }
       break;
     case WM_DRAG_ASSET:
+    case WM_DRAG_ASSET_CATALOG:
       /* Move ownership of poin to wmDrag. */
       drag->poin = poin;
       drag->flags |= WM_DRAG_FREE_DATA;
@@ -218,6 +219,7 @@ void wm_drags_exit(wmWindowManager *wm, wmWindow *win)
   LISTBASE_FOREACH (const wmDrag *, drag, &wm->drags) {
     if (drag->active_dropbox) {
       any_active = true;
+      break;
     }
   }
 
@@ -648,6 +650,15 @@ void WM_drag_free_imported_drag_ID(struct Main *bmain, wmDrag *drag, wmDropBox *
   }
 }
 
+wmDragAssetCatalog *WM_drag_get_asset_catalog_data(const wmDrag *drag)
+{
+  if (drag->type != WM_DRAG_ASSET_CATALOG) {
+    return NULL;
+  }
+
+  return drag->poin;
+}
+
 /**
  * \note: Does not store \a asset in any way, so it's fine to pass a temporary.
  */
@@ -808,14 +819,9 @@ static void wm_drag_draw_tooltip(bContext *C, wmWindow *win, wmDrag *drag, const
   int iconsize = UI_DPI_ICON_SIZE;
   int padding = 4 * UI_DPI_FAC;
 
-  const char *tooltip = NULL;
-  bool free_tooltip = false;
-  if (UI_but_active_drop_name(C)) {
-    tooltip = IFACE_("Paste name");
-  }
-  else if (drag->active_dropbox) {
+  char *tooltip = NULL;
+  if (drag->active_dropbox) {
     tooltip = dropbox_tooltip(C, drag, xy, drag->active_dropbox);
-    free_tooltip = true;
   }
 
   if (!tooltip && !drag->disabled_info) {
@@ -847,9 +853,7 @@ static void wm_drag_draw_tooltip(bContext *C, wmWindow *win, wmDrag *drag, const
 
   if (tooltip) {
     wm_drop_operator_draw(tooltip, x, y);
-    if (free_tooltip) {
-      MEM_freeN((void *)tooltip);
-    }
+    MEM_freeN(tooltip);
   }
   else if (drag->disabled_info) {
     wm_drop_redalert_draw(drag->disabled_info, x, y);
@@ -896,7 +900,6 @@ void wm_drags_draw(bContext *C, wmWindow *win)
     xy[1] = win->eventstate->xy[1];
   }
 
-  /* Set a region. It is used in the `UI_but_active_drop_name`. */
   bScreen *screen = CTX_wm_screen(C);
   ScrArea *area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, UNPACK2(xy));
   ARegion *region = BKE_area_find_region_xy(area, RGN_TYPE_ANY, UNPACK2(xy));

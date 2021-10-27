@@ -249,7 +249,7 @@ enum {
 #define UI_DEFAULT_TEXT_POINTS 11
 
 /* Larger size used for title text. */
-#define UI_DEFAULT_TITLE_POINTS 12
+#define UI_DEFAULT_TITLE_POINTS 11
 
 #define UI_PANEL_WIDTH 340
 #define UI_COMPACT_PANEL_WIDTH 160
@@ -792,7 +792,8 @@ void UI_but_drag_set_value(uiBut *but);
 void UI_but_drag_set_image(
     uiBut *but, const char *path, int icon, struct ImBuf *imb, float scale, const bool use_free);
 
-bool UI_but_active_drop_name(struct bContext *C);
+uiBut *UI_but_active_drop_name_button(const struct bContext *C);
+bool UI_but_active_drop_name(const struct bContext *C);
 bool UI_but_active_drop_color(struct bContext *C);
 
 void UI_but_flag_enable(uiBut *but, int flag);
@@ -2797,6 +2798,7 @@ void UI_interface_tag_script_reload(void);
 
 bool UI_tree_view_item_is_active(const uiTreeViewItemHandle *item);
 bool UI_tree_view_item_matches(const uiTreeViewItemHandle *a, const uiTreeViewItemHandle *b);
+bool UI_tree_view_item_drag_start(struct bContext *C, uiTreeViewItemHandle *item_);
 bool UI_tree_view_item_can_drop(const uiTreeViewItemHandle *item_,
                                 const struct wmDrag *drag,
                                 const char **r_disabled_hint);

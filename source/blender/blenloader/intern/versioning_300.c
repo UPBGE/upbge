@@ -535,7 +535,7 @@ static void version_geometry_nodes_add_realize_instance_nodes(bNodeTree *ntree)
     }
     /* Also realize instances for the profile input of the curve to mesh node. */
     if (node->type == GEO_NODE_CURVE_TO_MESH) {
-      bNodeSocket *profile_socket = node->inputs.last;
+      bNodeSocket *profile_socket = (bNodeSocket *)BLI_findlink(&node->inputs, 1);
       add_realize_instances_before_socket(ntree, node, profile_socket);
     }
   }
@@ -2080,17 +2080,7 @@ void blo_do_versions_300(FileData *fd, Library *UNUSED(lib), Main *bmain)
     }
   }
 
-  /**
-   * Versioning code until next subversion bump goes here.
-   *
-   * \note Be sure to check when bumping the version:
-   * - "versioning_userdef.c", #blo_do_versions_userdef
-   * - "versioning_userdef.c", #do_versions_theme
-   *
-   * \note Keep this message at the bottom of the function.
-   */
-
-  {
+  if (!MAIN_VERSION_ATLEAST(bmain, 300, 40)) {
     /* Update the `idnames` for renamed geometry and function nodes. */
     LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
       if (ntree->type != NTREE_GEOMETRY) {
@@ -2100,7 +2090,6 @@ void blo_do_versions_300(FileData *fd, Library *UNUSED(lib), Main *bmain)
       version_geometry_nodes_set_position_node_offset(ntree);
       version_node_id(ntree, GEO_NODE_LEGACY_VOLUME_TO_MESH, "GeometryNodeLegacyVolumeToMesh");
     }
-    /* Keep this block, even when empty. */
 
     /* Add storage to viewer node. */
     LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
@@ -2118,5 +2107,53 @@ void blo_do_versions_300(FileData *fd, Library *UNUSED(lib), Main *bmain)
         }
       }
     }
+
+    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+      if (ntree->type == NTREE_GEOMETRY) {
+        version_node_input_socket_name(
+            ntree, GEO_NODE_DISTRIBUTE_POINTS_ON_FACES, "Geometry", "Mesh");
+        version_node_input_socket_name(ntree, GEO_NODE_POINTS_TO_VOLUME, "Geometry", "Points");
+        version_node_output_socket_name(ntree, GEO_NODE_POINTS_TO_VOLUME, "Geometry", "Volume");
+        version_node_socket_name(ntree, GEO_NODE_SUBDIVISION_SURFACE, "Geometry", "Mesh");
+        version_node_socket_name(ntree, GEO_NODE_RESAMPLE_CURVE, "Geometry", "Curve");
+        version_node_socket_name(ntree, GEO_NODE_SUBDIVIDE_CURVE, "Geometry", "Curve");
+        version_node_socket_name(ntree, GEO_NODE_SET_CURVE_RADIUS, "Geometry", "Curve");
+        version_node_socket_name(ntree, GEO_NODE_SET_CURVE_TILT, "Geometry", "Curve");
+        version_node_socket_name(ntree, GEO_NODE_SET_CURVE_HANDLES, "Geometry", "Curve");
+        version_node_socket_name(ntree, GEO_NODE_TRANSLATE_INSTANCES, "Geometry", "Instances");
+        version_node_socket_name(ntree, GEO_NODE_ROTATE_INSTANCES, "Geometry", "Instances");
+        version_node_socket_name(ntree, GEO_NODE_SCALE_INSTANCES, "Geometry", "Instances");
+        version_node_output_socket_name(ntree, GEO_NODE_MESH_BOOLEAN, "Geometry", "Mesh");
+        version_node_input_socket_name(ntree, GEO_NODE_MESH_BOOLEAN, "Geometry 1", "Mesh 1");
+        version_node_input_socket_name(ntree, GEO_NODE_MESH_BOOLEAN, "Geometry 2", "Mesh 2");
+        version_node_socket_name(ntree, GEO_NODE_SUBDIVIDE_MESH, "Geometry", "Mesh");
+        version_node_socket_name(ntree, GEO_NODE_TRIANGULATE, "Geometry", "Mesh");
+        version_node_output_socket_name(ntree, GEO_NODE_MESH_PRIMITIVE_CONE, "Geometry", "Mesh");
+        version_node_output_socket_name(ntree, GEO_NODE_MESH_PRIMITIVE_CUBE, "Geometry", "Mesh");
+        version_node_output_socket_name(
+            ntree, GEO_NODE_MESH_PRIMITIVE_CYLINDER, "Geometry", "Mesh");
+        version_node_output_socket_name(ntree, GEO_NODE_MESH_PRIMITIVE_GRID, "Geometry", "Mesh");
+        version_node_output_socket_name(
+            ntree, GEO_NODE_MESH_PRIMITIVE_ICO_SPHERE, "Geometry", "Mesh");
+        version_node_output_socket_name(ntree, GEO_NODE_MESH_PRIMITIVE_CIRCLE, "Geometry", "Mesh");
+        version_node_output_socket_name(ntree, GEO_NODE_MESH_PRIMITIVE_LINE, "Geometry", "Mesh");
+        version_node_output_socket_name(
+            ntree, GEO_NODE_MESH_PRIMITIVE_UV_SPHERE, "Geometry", "Mesh");
+        version_node_socket_name(ntree, GEO_NODE_SET_POINT_RADIUS, "Geometry", "Points");
+      }
+    }
+  }
+
+  /**
+   * Versioning code until next subversion bump goes here.
+   *
+   * \note Be sure to check when bumping the version:
+   * - "versioning_userdef.c", #blo_do_versions_userdef
+   * - "versioning_userdef.c", #do_versions_theme
+   *
+   * \note Keep this message at the bottom of the function.
+   */
+  {
+    /* Keep this block, even when empty. */
   }
 }

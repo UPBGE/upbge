@@ -318,7 +318,8 @@ struct GeometrySet {
       bool include_instances,
       blender::Map<blender::bke::AttributeIDRef, AttributeKind> &r_attributes) const;
 
-  blender::Vector<GeometryComponentType> gather_component_types(bool include_instances, bool ignore_empty) const;
+  blender::Vector<GeometryComponentType> gather_component_types(bool include_instances,
+                                                                bool ignore_empty) const;
 
   using ForeachSubGeometryCallback = blender::FunctionRef<void(GeometrySet &geometry_set)>;
 
@@ -774,8 +775,6 @@ class IDAttributeFieldInput : public fn::FieldInput {
   {
     category_ = Category::Generated;
   }
-
-  static fn::Field<int> Create();
 
   const GVArray *get_varray_for_context(const fn::FieldContext &context,
                                         IndexMask mask,

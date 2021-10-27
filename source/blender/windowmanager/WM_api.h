@@ -771,6 +771,8 @@ void WM_drag_free_imported_drag_ID(struct Main *bmain,
                                    struct wmDrag *drag,
                                    struct wmDropBox *drop);
 
+struct wmDragAssetCatalog *WM_drag_get_asset_catalog_data(const struct wmDrag *drag);
+
 void WM_drag_add_asset_list_item(wmDrag *drag,
                                  const struct bContext *C,
                                  const struct AssetLibraryReference *asset_library_ref,
@@ -936,6 +938,7 @@ bool WM_event_is_modal_tweak_exit(const struct wmEvent *event, int tweak_event);
 bool WM_event_is_last_mousemove(const struct wmEvent *event);
 bool WM_event_is_mouse_drag(const struct wmEvent *event);
 bool WM_event_is_mouse_drag_or_press(const wmEvent *event);
+bool WM_cursor_test_motion_and_update(const int mval[2]) ATTR_NONNULL(1) ATTR_WARN_UNUSED_RESULT;
 
 int WM_event_drag_threshold(const struct wmEvent *event);
 bool WM_event_drag_test(const struct wmEvent *event, const int prev_xy[2]);

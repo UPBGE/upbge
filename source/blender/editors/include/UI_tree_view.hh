@@ -49,6 +49,7 @@ namespace blender::ui {
 class AbstractTreeView;
 class AbstractTreeViewItem;
 class AbstractTreeViewItemDropController;
+class AbstractTreeViewItemDragController;
 
 /* ---------------------------------------------------------------------- */
 /** \name Tree-View Item Container
@@ -274,6 +275,11 @@ class AbstractTreeViewItem : public TreeViewItemContainer {
   virtual bool matches(const AbstractTreeViewItem &other) const;
 
   /**
+   * If an item wants to support being dragged, it has to return a drag controller here.
+   * That is an object implementing #AbstractTreeViewItemDragController.
+   */
+  virtual std::unique_ptr<AbstractTreeViewItemDragController> create_drag_controller() const;
+  /**
    * If an item wants to support dropping data into it, it has to return a drop controller here.
    * That is an object implementing #AbstractTreeViewItemDropController.
    *
@@ -348,6 +354,18 @@ class AbstractTreeViewItem : public TreeViewItemContainer {
  * \{ */
 
 /**
+ * Class to enable dragging a tree-item. An item can return a drop controller for itself via a
+ * custom implementation of #AbstractTreeViewItem::create_drag_controller().
+ */
+class AbstractTreeViewItemDragController {
+ public:
+  virtual ~AbstractTreeViewItemDragController() = default;
+
+  virtual int get_drag_type() const = 0;
+  virtual void *create_drag_data() const = 0;
+};
+
+/**
  * Class to customize the drop behavior of a tree-item, plus the behavior when dragging over this
  * item. An item can return a drop controller for itself via a custom implementation of
  * #AbstractTreeViewItem::create_drop_controller().
@@ -401,9 +419,10 @@ class BasicTreeViewItem : public AbstractTreeViewItem {
   using ActivateFn = std::function<void(BasicTreeViewItem &new_active)>;
   BIFIconID icon;
 
-  BasicTreeViewItem(StringRef label, BIFIconID icon = ICON_NONE);
+  explicit BasicTreeViewItem(StringRef label, BIFIconID icon = ICON_NONE);
 
   void build_row(uiLayout &row) override;
+  void add_label(uiLayout &layout, StringRefNull label_override = "");
   void on_activate(ActivateFn fn);
 
  protected:
@@ -436,6 +455,8 @@ inline ItemT &TreeViewItemContainer::add_tree_item(Args &&...args)
 
 template<class TreeViewType> TreeViewType &AbstractTreeViewItemDropController::tree_view() const
 {
+  static_assert(std::is_base_of<AbstractTreeView, TreeViewType>::value,
+                "Type must derive from and implement the AbstractTreeView interface");
   return static_cast<TreeViewType &>(tree_view_);
 }
 
