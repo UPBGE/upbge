@@ -33,7 +33,7 @@ extern "C" {
 /* Blender major and minor version. */
 #define BLENDER_VERSION 301
 
-#define UPBGE_VERSION 31
+#define UPBGE_VERSION 30
 /* Blender patch version for bugfix releases. */
 #define BLENDER_VERSION_PATCH 0
 /** Blender release cycle stage: alpha/beta/rc/release. */
@@ -41,7 +41,7 @@ extern "C" {
 
 #define UPBGE_VERSION_PATCH 0
 /** alpha/beta/rc/release, docs use this. */
-#define UPBGE_VERSION_CYCLE alpha
+#define UPBGE_VERSION_CYCLE beta
 
 /* Blender file format version. */
 #define BLENDER_FILE_VERSION BLENDER_VERSION
@@ -49,7 +49,7 @@ extern "C" {
 
 /* UPBGE file format version. */
 #define UPBGE_FILE_VERSION UPBGE_VERSION
-#define UPBGE_FILE_SUBVERSION 0
+#define UPBGE_FILE_SUBVERSION 13
 
 /* Minimum Blender version that supports reading file written with the current
  * version. Older Blender versions will test this and show a warning if the file
