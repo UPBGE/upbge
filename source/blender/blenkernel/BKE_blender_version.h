@@ -31,13 +31,13 @@ extern "C" {
  */
 
 /* Blender major and minor version. */
-#define BLENDER_VERSION 301
+#define BLENDER_VERSION 300
 
 #define UPBGE_VERSION 30
 /* Blender patch version for bugfix releases. */
 #define BLENDER_VERSION_PATCH 0
 /** Blender release cycle stage: alpha/beta/rc/release. */
-#define BLENDER_VERSION_CYCLE alpha
+#define BLENDER_VERSION_CYCLE beta
 
 #define UPBGE_VERSION_PATCH 0
 /** alpha/beta/rc/release, docs use this. */
@@ -45,7 +45,7 @@ extern "C" {
 
 /* Blender file format version. */
 #define BLENDER_FILE_VERSION BLENDER_VERSION
-#define BLENDER_FILE_SUBVERSION 0
+#define BLENDER_FILE_SUBVERSION 40
 
 /* UPBGE file format version. */
 #define UPBGE_FILE_VERSION UPBGE_VERSION
