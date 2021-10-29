@@ -1119,6 +1119,7 @@ context_type_map = {
     "selected_editable_sequences": ("Sequence", True),
     "selected_ids": ("ID", True),
     "selected_files": ("FileSelectEntry", True),
+    "selected_ids": ("ID", True),
     "selected_nla_strips": ("NlaStrip", True),
     "selected_movieclip_tracks": ("MovieTrackingTrack", True),
     "selected_nodes": ("Node", True),
@@ -1232,7 +1233,10 @@ def pycontext2sphinx(basepath):
         while char_array[i] is not None:
             member = ctypes.string_at(char_array[i]).decode(encoding="ascii")
             fw(".. data:: %s\n\n" % member)
-            member_type, is_seq = context_type_map[member]
+            try:
+                member_type, is_seq = context_type_map[member]
+            except KeyError:
+                raise SystemExit("Error: context key %r not found in context_type_map; update %s" % (member, __file__)) from None
             fw("   :type: %s :class:`bpy.types.%s`\n\n" % ("sequence of " if is_seq else "", member_type))
             unique.add(member)
             i += 1
