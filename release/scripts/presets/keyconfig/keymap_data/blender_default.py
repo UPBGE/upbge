@@ -6189,7 +6189,7 @@ def km_popup_toolbar(_params):
 
 
 # ------------------------------------------------------------------------------
-# Tool System Keymaps
+# Tool System (Generic)
 #
 # Named are auto-generated based on the tool name and it's toolbar.
 
@@ -6254,6 +6254,9 @@ def km_image_editor_tool_generic_sample(params):
         ]},
     )
 
+
+# ------------------------------------------------------------------------------
+# Tool System (UV Editor)
 
 def km_image_editor_tool_uv_cursor(params):
     return (
@@ -6383,6 +6386,9 @@ def km_image_editor_tool_uv_scale(params):
     )
 
 
+# ------------------------------------------------------------------------------
+# Tool System (Node Editor)
+
 def km_node_editor_tool_select(params, *, fallback):
     return (
         _fallback_id("Node Tool: Tweak", fallback),
@@ -6448,6 +6454,9 @@ def km_node_editor_tool_links_cut(params):
         ]},
     )
 
+
+# ------------------------------------------------------------------------------
+# Tool System (3D View, Generic)
 
 def km_3d_view_tool_cursor(params):
     return (
@@ -6592,6 +6601,9 @@ def km_3d_view_tool_measure(params):
     )
 
 
+# ------------------------------------------------------------------------------
+# Tool System (3D View, Pose Mode)
+
 def km_3d_view_tool_pose_breakdowner(params):
     return (
         "3D View Tool: Pose, Breakdowner",
@@ -6621,6 +6633,9 @@ def km_3d_view_tool_pose_relax(params):
         ]},
     )
 
+
+# ------------------------------------------------------------------------------
+# Tool System (3D View, Edit Armature)
 
 def km_3d_view_tool_edit_armature_roll(params):
     return (
@@ -6677,6 +6692,9 @@ def km_3d_view_tool_edit_armature_extrude_to_cursor(params):
     )
 
 
+# ------------------------------------------------------------------------------
+# Tool System (3D View, Object Mode)
+
 def km_3d_view_tool_interactive_add(params):
     return (
         "3D View Tool: Object, Add Primitive",
@@ -6692,6 +6710,9 @@ def km_3d_view_tool_interactive_add(params):
         ]},
     )
 
+
+# ------------------------------------------------------------------------------
+# Tool System (3D View, Edit Mesh)
 
 def km_3d_view_tool_edit_mesh_extrude_region(params):
     return (
@@ -6959,6 +6980,9 @@ def km_3d_view_tool_edit_mesh_rip_edge(params):
     )
 
 
+# ------------------------------------------------------------------------------
+# Tool System (3D View, Edit Curve)
+
 def km_3d_view_tool_edit_curve_draw(params):
     return (
         "3D View Tool: Edit Curve, Draw",
@@ -7025,6 +7049,9 @@ def km_3d_view_tool_edit_curve_extrude_to_cursor(params):
         ]},
     )
 
+
+# ------------------------------------------------------------------------------
+# Tool System (3D View, Sculpt)
 
 def km_3d_view_tool_sculpt_box_hide(params):
     return (
@@ -7181,6 +7208,9 @@ def km_3d_view_tool_sculpt_face_set_edit(params):
     )
 
 
+# ------------------------------------------------------------------------------
+# Tool System (3D View, Weight Paint)
+
 def km_3d_view_tool_paint_weight_sample_weight(params):
     return (
         "3D View Tool: Paint Weight, Sample Weight",
@@ -7210,6 +7240,9 @@ def km_3d_view_tool_paint_weight_gradient(params):
         ]},
     )
 
+
+# ------------------------------------------------------------------------------
+# Tool System (3D View, Grease Pencil, Paint)
 
 def km_3d_view_tool_paint_gpencil_line(params):
     return (
@@ -7344,6 +7377,9 @@ def km_3d_view_tool_paint_gpencil_interpolate(params):
         ]},
     )
 
+
+# ------------------------------------------------------------------------------
+# Tool System (3D View, Grease Pencil, Edit)
 
 def km_3d_view_tool_edit_gpencil_select(params, *, fallback):
     return (
@@ -7480,6 +7516,9 @@ def km_3d_view_tool_edit_gpencil_interpolate(params):
     )
 
 
+# ------------------------------------------------------------------------------
+# Tool System (3D View, Grease Pencil, Sculpt)
+
 def km_3d_view_tool_sculpt_gpencil_select(params):
     return (
         "3D View Tool: Sculpt Gpencil, Tweak",
@@ -7515,7 +7554,10 @@ def km_3d_view_tool_sculpt_gpencil_select_lasso(params):
     )
 
 
-def km_sequencer_editor_tool_select(params, *, fallback):
+# ------------------------------------------------------------------------------
+# Tool System (Sequencer, Generic)
+
+def km_sequencer_editor_tool_generic_select(params, *, fallback):
     return (
         _fallback_id("Sequencer Tool: Tweak", fallback),
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
@@ -7531,7 +7573,7 @@ def km_sequencer_editor_tool_select(params, *, fallback):
     )
 
 
-def km_sequencer_editor_tool_select_box(params, *, fallback):
+def km_sequencer_editor_tool_generic_select_box(params, *, fallback):
     return (
         _fallback_id("Sequencer Tool: Select Box", fallback),
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
@@ -7550,17 +7592,7 @@ def km_sequencer_editor_tool_select_box(params, *, fallback):
     )
 
 
-def km_sequencer_editor_tool_generic_sample(params):
-    return (
-        "Sequencer Tool: Sample",
-        {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
-        {"items": [
-            ("sequencer.sample", {"type": params.tool_mouse, "value": 'PRESS'}, None),
-        ]},
-    )
-
-
-def km_sequencer_editor_tool_cursor(params):
+def km_sequencer_editor_tool_generic_cursor(params):
     return (
         "Sequencer Tool: Cursor",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
@@ -7572,6 +7604,9 @@ def km_sequencer_editor_tool_cursor(params):
         ]},
     )
 
+
+# ------------------------------------------------------------------------------
+# Tool System (Sequencer, Timeline)
 
 def km_sequencer_editor_tool_blade(_params):
     return (
@@ -7585,6 +7620,19 @@ def km_sequencer_editor_tool_blade(_params):
                  ("use_cursor_position", True),
                  ("ignore_selection", True),
              ]}),
+        ]},
+    )
+
+
+# ------------------------------------------------------------------------------
+# Tool System (Sequencer, Preview)
+
+def km_sequencer_editor_tool_sample(params):
+    return (
+        "Sequencer Tool: Sample",
+        {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            ("sequencer.sample", {"type": params.tool_mouse, "value": 'PRESS'}, None),
         ]},
     )
 
@@ -7872,14 +7920,14 @@ def generate_keymaps(params=None):
         km_3d_view_tool_sculpt_gpencil_select_box(params),
         km_3d_view_tool_sculpt_gpencil_select_circle(params),
         km_3d_view_tool_sculpt_gpencil_select_lasso(params),
-        *(km_sequencer_editor_tool_select(params, fallback=fallback) for fallback in (False, True)),
-        *(km_sequencer_editor_tool_select_box(params, fallback=fallback) for fallback in (False, True)),
+        *(km_sequencer_editor_tool_generic_select(params, fallback=fallback) for fallback in (False, True)),
+        *(km_sequencer_editor_tool_generic_select_box(params, fallback=fallback) for fallback in (False, True)),
+        km_sequencer_editor_tool_generic_cursor(params),
         km_sequencer_editor_tool_blade(params),
-        km_sequencer_editor_tool_generic_sample(params),
-        km_sequencer_editor_tool_cursor(params),
-        km_sequencer_editor_tool_scale(params),
-        km_sequencer_editor_tool_rotate(params),
+        km_sequencer_editor_tool_sample(params),
         km_sequencer_editor_tool_move(params),
+        km_sequencer_editor_tool_rotate(params),
+        km_sequencer_editor_tool_scale(params),
     ]
 
 # ------------------------------------------------------------------------------
