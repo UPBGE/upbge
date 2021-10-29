@@ -2154,7 +2154,7 @@ static void copy_object_set_idnew(bContext *C)
   Main *bmain = CTX_data_main(C);
 
   CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
-    BKE_libblock_relink_to_newid(&ob->id);
+    BKE_libblock_relink_to_newid(bmain, &ob->id);
   }
   CTX_DATA_END;
 
@@ -2389,7 +2389,8 @@ static void make_object_duplilist_real(bContext *C,
     Object *ob_dst = BLI_ghash_lookup(dupli_gh, dob);
 
     /* Remap new object to itself, and clear again newid pointer of orig object. */
-    BKE_libblock_relink_to_newid(&ob_dst->id);
+    BKE_libblock_relink_to_newid(bmain, &ob_dst->id);
+
     BKE_sca_set_new_points_ob(ob_dst);
 
     DEG_id_tag_update(&ob_dst->id, ID_RECALC_GEOMETRY);
@@ -3396,7 +3397,7 @@ Base *ED_object_add_duplicate(
   ob = basen->object;
 
   /* link own references to the newly duplicated data T26816. */
-  BKE_libblock_relink_to_newid(&ob->id);
+  BKE_libblock_relink_to_newid(bmain, &ob->id);
 
   BKE_sca_set_new_points_ob(ob);
 

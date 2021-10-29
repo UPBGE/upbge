@@ -28,28 +28,29 @@ namespace blender::nodes {
 
 static void geo_node_instance_on_points_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Points").description("Points to instance on");
-  b.add_input<decl::Bool>("Selection").default_value(true).supports_field().hide_value();
-  b.add_input<decl::Geometry>("Instance").description("Geometry that is instanced on the points");
-  b.add_input<decl::Bool>("Pick Instance")
+  b.add_input<decl::Geometry>(N_("Points")).description(N_("Points to instance on"));
+  b.add_input<decl::Bool>(N_("Selection")).default_value(true).supports_field().hide_value();
+  b.add_input<decl::Geometry>(N_("Instance"))
+      .description(N_("Geometry that is instanced on the points"));
+  b.add_input<decl::Bool>(N_("Pick Instance"))
       .supports_field()
       .description("Place different instances on different points");
-  b.add_input<decl::Int>("Instance Index")
+  b.add_input<decl::Int>(N_("Instance Index"))
       .implicit_field()
-      .description(
+      .description(N_(
           "Index of the instance that used for each point. This is only used when Pick Instances "
-          "is on. By default the point index is used");
-  b.add_input<decl::Vector>("Rotation")
+          "is on. By default the point index is used"));
+  b.add_input<decl::Vector>(N_("Rotation"))
       .subtype(PROP_EULER)
       .supports_field()
-      .description("Rotation of the instances");
-  b.add_input<decl::Vector>("Scale")
+      .description(N_("Rotation of the instances"));
+  b.add_input<decl::Vector>(N_("Scale"))
       .default_value({1.0f, 1.0f, 1.0f})
       .subtype(PROP_XYZ)
       .supports_field()
-      .description("Scale of the instances");
+      .description(N_("Scale of the instances"));
 
-  b.add_output<decl::Geometry>("Instances");
+  b.add_output<decl::Geometry>(N_("Instances"));
 }
 
 static void add_instances_from_component(InstancesComponent &dst_component,
@@ -202,11 +203,14 @@ static void geo_node_instance_on_points_exec(GeoNodeExecParams params)
           instances, *geometry_set.get_component_for_read<CurveComponent>(), instance, params);
       geometry_set.remove(GEO_COMPONENT_TYPE_CURVE);
     }
-    /* Unused references may have been added above. Remove those now so that other nodes don't
-     * process them needlessly. */
-    /** \note: This currently expects that all originally existing instances were used. */
-    instances.remove_unused_references();
   });
+
+  /* Unused references may have been added above. Remove those now so that other nodes don't
+   * process them needlessly.
+   * This should eventually be moved into the loop above, but currently this is quite tricky
+   * because it might remove references that the loop still wants to iterate over. */
+  InstancesComponent &instances = geometry_set.get_component_for_write<InstancesComponent>();
+  instances.remove_unused_references();
 
   params.set_output("Instances", std::move(geometry_set));
 }

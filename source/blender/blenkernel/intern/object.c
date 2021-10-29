@@ -466,7 +466,8 @@ static void library_foreach_modifiersForeachIDLink(void *user_data,
                                                    int cb_flag)
 {
   LibraryForeachIDData *data = (LibraryForeachIDData *)user_data;
-  BKE_lib_query_foreachid_process(data, id_pointer, cb_flag);
+  BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+      data, BKE_lib_query_foreachid_process(data, id_pointer, cb_flag));
 }
 
 static void library_foreach_gpencil_modifiersForeachIDLink(void *user_data,
@@ -475,7 +476,8 @@ static void library_foreach_gpencil_modifiersForeachIDLink(void *user_data,
                                                            int cb_flag)
 {
   LibraryForeachIDData *data = (LibraryForeachIDData *)user_data;
-  BKE_lib_query_foreachid_process(data, id_pointer, cb_flag);
+  BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+      data, BKE_lib_query_foreachid_process(data, id_pointer, cb_flag));
 }
 
 static void library_foreach_shaderfxForeachIDLink(void *user_data,
@@ -484,7 +486,8 @@ static void library_foreach_shaderfxForeachIDLink(void *user_data,
                                                   int cb_flag)
 {
   LibraryForeachIDData *data = (LibraryForeachIDData *)user_data;
-  BKE_lib_query_foreachid_process(data, id_pointer, cb_flag);
+  BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+      data, BKE_lib_query_foreachid_process(data, id_pointer, cb_flag));
 }
 
 static void library_foreach_constraintObjectLooper(bConstraint *UNUSED(con),
@@ -494,7 +497,8 @@ static void library_foreach_constraintObjectLooper(bConstraint *UNUSED(con),
 {
   LibraryForeachIDData *data = (LibraryForeachIDData *)user_data;
   const int cb_flag = is_reference ? IDWALK_CB_USER : IDWALK_CB_NOP;
-  BKE_lib_query_foreachid_process(data, id_pointer, cb_flag);
+  BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+      data, BKE_lib_query_foreachid_process(data, id_pointer, cb_flag));
 }
 
 static void library_foreach_particlesystemsObjectLooper(ParticleSystem *UNUSED(psys),
@@ -503,7 +507,8 @@ static void library_foreach_particlesystemsObjectLooper(ParticleSystem *UNUSED(p
                                                         int cb_flag)
 {
   LibraryForeachIDData *data = (LibraryForeachIDData *)user_data;
-  BKE_lib_query_foreachid_process(data, id_pointer, cb_flag);
+  BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+      data, BKE_lib_query_foreachid_process(data, id_pointer, cb_flag));
 }
 
 static void object_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -570,10 +575,18 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
     const int cb_flag_orig = BKE_lib_query_foreachid_process_callback_flag_override(
         data, proxy_cb_flag, false);
     LISTBASE_FOREACH (bPoseChannel *, pchan, &object->pose->chanbase) {
-      IDP_foreach_property(
-          pchan->prop, IDP_TYPE_FILTER_ID, BKE_lib_query_idpropertiesForeachIDLink_callback, data);
+      BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+          data,
+          IDP_foreach_property(pchan->prop,
+                               IDP_TYPE_FILTER_ID,
+                               BKE_lib_query_idpropertiesForeachIDLink_callback,
+                               data));
+
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, pchan->custom, IDWALK_CB_USER);
-      BKE_constraints_id_loop(&pchan->constraints, library_foreach_constraintObjectLooper, data);
+      BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+          data,
+          BKE_constraints_id_loop(
+              &pchan->constraints, library_foreach_constraintObjectLooper, data));
     }
     BKE_lib_query_foreachid_process_callback_flag_override(data, cb_flag_orig, true);
   }
@@ -585,11 +598,17 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
         data, object->rigidbody_constraint->ob2, IDWALK_CB_NEVER_SELF);
   }
 
-  BKE_modifiers_foreach_ID_link(object, library_foreach_modifiersForeachIDLink, data);
-  BKE_gpencil_modifiers_foreach_ID_link(
-      object, library_foreach_gpencil_modifiersForeachIDLink, data);
-  BKE_constraints_id_loop(&object->constraints, library_foreach_constraintObjectLooper, data);
-  BKE_shaderfx_foreach_ID_link(object, library_foreach_shaderfxForeachIDLink, data);
+  BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+      data, BKE_modifiers_foreach_ID_link(object, library_foreach_modifiersForeachIDLink, data));
+  BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+      data,
+      BKE_gpencil_modifiers_foreach_ID_link(
+          object, library_foreach_gpencil_modifiersForeachIDLink, data));
+  BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+      data,
+      BKE_constraints_id_loop(&object->constraints, library_foreach_constraintObjectLooper, data));
+  BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+      data, BKE_shaderfx_foreach_ID_link(object, library_foreach_shaderfxForeachIDLink, data));
 
   /* UPBGE */
   BKE_sca_sensors_id_loop(&object->sensors, library_foreach_sensorsObjectLooper, data);
@@ -609,7 +628,8 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
   /****************/
 
   LISTBASE_FOREACH (ParticleSystem *, psys, &object->particlesystem) {
-    BKE_particlesystem_id_loop(psys, library_foreach_particlesystemsObjectLooper, data);
+    BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+        data, BKE_particlesystem_id_loop(psys, library_foreach_particlesystemsObjectLooper, data));
   }
 
   if (object->soft) {
@@ -3731,7 +3751,7 @@ Object *BKE_object_duplicate(Main *bmain,
 
   if (!is_subprocess) {
     /* This code will follow into all ID links using an ID tagged with LIB_TAG_NEW. */
-    BKE_libblock_relink_to_newid(&obn->id);
+    BKE_libblock_relink_to_newid(bmain, &obn->id);
 
 #ifndef NDEBUG
     /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those flags. */
