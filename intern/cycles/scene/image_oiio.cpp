@@ -30,7 +30,8 @@ OIIOImageLoader::~OIIOImageLoader()
 {
 }
 
-bool OIIOImageLoader::load_metadata(const ImageDeviceFeatures &features, ImageMetaData &metadata)
+bool OIIOImageLoader::load_metadata(const ImageDeviceFeatures & /*features*/,
+                                    ImageMetaData &metadata)
 {
   /* Perform preliminary checks, with meaningful logging. */
   if (!path_exists(filepath.string())) {
@@ -76,7 +77,7 @@ bool OIIOImageLoader::load_metadata(const ImageDeviceFeatures &features, ImageMe
   }
 
   /* check if it's half float */
-  if (spec.format == TypeDesc::HALF && features.has_half_float) {
+  if (spec.format == TypeDesc::HALF) {
     is_half = true;
   }
 

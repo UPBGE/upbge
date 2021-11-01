@@ -32,7 +32,7 @@ namespace blender::nodes {
 
 static void geo_node_points_to_volume_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>(N_("Points")).supported_type(GEO_COMPONENT_TYPE_POINT_CLOUD);
+  b.add_input<decl::Geometry>(N_("Points"));
   b.add_input<decl::Float>(N_("Density")).default_value(1.0f).min(0.0f);
   b.add_input<decl::Float>(N_("Voxel Size")).default_value(0.3f).min(0.01f).subtype(PROP_DISTANCE);
   b.add_input<decl::Float>(N_("Voxel Amount")).default_value(64.0f).min(0.0f);
@@ -222,16 +222,12 @@ static void initialize_volume_component_from_points(GeoNodeExecParams &params,
   Volume *volume = (Volume *)BKE_id_new_nomain(ID_VO, nullptr);
   BKE_volume_init_grids(volume);
 
-  VolumeGrid *c_density_grid = BKE_volume_grid_add(volume, "density", VOLUME_GRID_FLOAT);
-  openvdb::FloatGrid::Ptr density_grid = openvdb::gridPtrCast<openvdb::FloatGrid>(
-      BKE_volume_grid_openvdb_for_write(volume, c_density_grid, false));
-
   const float density = params.get_input<float>("Density");
   convert_to_grid_index_space(voxel_size, positions, radii);
   openvdb::FloatGrid::Ptr new_grid = generate_volume_from_points(positions, radii, density);
-  /* This merge is cheap, because the #density_grid is empty. */
-  density_grid->merge(*new_grid);
-  density_grid->transform().postScale(voxel_size);
+  new_grid->transform().postScale(voxel_size);
+  BKE_volume_grid_add_vdb(*volume, "density", std::move(new_grid));
+
   r_geometry_set.keep_only({GEO_COMPONENT_TYPE_VOLUME, GEO_COMPONENT_TYPE_INSTANCES});
   r_geometry_set.replace_volume(volume);
 }

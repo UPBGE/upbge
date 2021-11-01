@@ -1377,7 +1377,6 @@ FileData *blo_filedata_from_memfile(MemFile *memfile,
 void blo_filedata_free(FileData *fd)
 {
   if (fd) {
-    fd->file->close(fd->file);
 
     /* Free all BHeadN data blocks */
 #ifndef NDEBUG
@@ -1391,6 +1390,7 @@ void blo_filedata_free(FileData *fd)
       MEM_freeN(new_bhead);
     }
 #endif
+    fd->file->close(fd->file);
 
     if (fd->filesdna) {
       DNA_sdna_free(fd->filesdna);

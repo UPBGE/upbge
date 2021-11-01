@@ -768,7 +768,7 @@ static bool seq_foreach_member_id_cb(Sequence *seq, void *user_data)
   { \
     CHECK_TYPE(&((_id_super)->id), ID *); \
     BKE_lib_query_foreachid_process((_data), (ID **)&(_id_super), (_cb_flag)); \
-    if (!BKE_lib_query_foreachid_iter_stop((_data))) { \
+    if (BKE_lib_query_foreachid_iter_stop((_data))) { \
       return false; \
     } \
   } \
@@ -1925,7 +1925,7 @@ Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
 
     if (!is_subprocess) {
       /* This code will follow into all ID links using an ID tagged with LIB_TAG_NEW. */
-      BKE_libblock_relink_to_newid(bmain, &sce_copy->id);
+      BKE_libblock_relink_to_newid(bmain, &sce_copy->id, 0);
 
 #ifndef NDEBUG
       /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those
