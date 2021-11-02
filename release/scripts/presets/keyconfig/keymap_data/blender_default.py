@@ -141,10 +141,11 @@ class Params:
             # Use the "cursor" functionality for RMB select.
             if use_alt_tool_or_cursor:
                 self.cursor_set_event = {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True}
+                self.cursor_tweak_event = {"type": 'EVT_TWEAK_L', "value": 'ANY', "alt": True}
             else:
                 self.cursor_set_event = {"type": 'LEFTMOUSE', "value": 'CLICK'}
+                self.cursor_tweak_event = None
 
-            self.cursor_tweak_event = None
             self.use_fallback_tool = use_fallback_tool
             self.tool_modifier = {}
         else:
@@ -2161,7 +2162,9 @@ def km_file_browser(params):
         ("file.parent", {"type": 'UP_ARROW', "value": 'PRESS', "alt": True}, None),
         ("file.previous", {"type": 'LEFT_ARROW', "value": 'PRESS', "alt": True}, None),
         ("file.next", {"type": 'RIGHT_ARROW', "value": 'PRESS', "alt": True}, None),
+        # The two refresh operators have polls excluding each other (so only one is available depending on context).
         ("file.refresh", {"type": 'R', "value": 'PRESS'}, None),
+        ("file.asset_library_refresh", {"type": 'R', "value": 'PRESS'}, None),
         ("file.parent", {"type": 'P', "value": 'PRESS'}, None),
         ("file.previous", {"type": 'BACK_SPACE', "value": 'PRESS'}, None),
         ("file.next", {"type": 'BACK_SPACE', "value": 'PRESS', "shift": True}, None),
@@ -7642,7 +7645,7 @@ def km_sequencer_editor_tool_move(params):
         "Sequencer Tool: Move",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
-            ("transform.translate", params.tool_maybe_tweak_event,
+            ("transform.translate", {**params.tool_maybe_tweak_event, **params.tool_modifier},
              {"properties": [("release_confirm", True)]}),
         ]},
     )
@@ -7653,7 +7656,7 @@ def km_sequencer_editor_tool_rotate(params):
         "Sequencer Tool: Rotate",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
-            ("transform.rotate", params.tool_maybe_tweak_event,
+            ("transform.rotate", {**params.tool_maybe_tweak_event, **params.tool_modifier},
              {"properties": [("release_confirm", True)]}),
         ]},
     )
@@ -7664,7 +7667,7 @@ def km_sequencer_editor_tool_scale(params):
         "Sequencer Tool: Scale",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
-            ("transform.resize", params.tool_maybe_tweak_event,
+            ("transform.resize", {**params.tool_maybe_tweak_event, **params.tool_modifier},
              {"properties": [("release_confirm", True)]}),
         ]},
     )
