@@ -1031,6 +1031,27 @@ typedef char *(*WMDropboxTooltipFunc)(struct bContext *,
                                       const int xy[2],
                                       struct wmDropBox *drop);
 
+typedef struct wmDragActiveDropState {
+  /** Informs which dropbox is activated with the drag item.
+   * When this value changes, the #draw_activate and #draw_deactivate dropbox callbacks are
+   * triggered.
+   */
+  struct wmDropBox *active_dropbox;
+
+  /** If `active_dropbox` is set, the area it successfully polled in. To restore the context of it
+   * as needed. */
+  struct ScrArea *area_from;
+  /** If `active_dropbox` is set, the region it successfully polled in. To restore the context of
+   * it as needed. */
+  struct ARegion *region_from;
+
+  /** Text to show when a dropbox poll succeeds (so the dropbox itself is available) but the
+   * operator poll fails. Typically the message the operator set with
+   * CTX_wm_operator_poll_msg_set(). */
+  const char *disabled_info;
+  bool free_disabled_info;
+} wmDragActiveDropState;
+
 typedef struct wmDrag {
   struct wmDrag *next, *prev;
 
@@ -1046,15 +1067,7 @@ typedef struct wmDrag {
   float scale;
   int sx, sy;
 
-  /** Informs which dropbox is activated with the drag item.
-   * When this value changes, the #draw_activate and #draw_deactivate dropbox callbacks are
-   * triggered.
-   */
-  struct wmDropBox *active_dropbox;
-  /* Text to show when the operator poll fails. Typically the message the
-   * operator set with CTX_wm_operator_poll_msg_set(). */
-  const char *disabled_info;
-  bool free_disabled_info;
+  wmDragActiveDropState drop_state;
 
   unsigned int flags;
 
@@ -1067,6 +1080,10 @@ typedef struct wmDrag {
 /**
  * Dropboxes are like keymaps, part of the screen/area/region definition.
  * Allocation and free is on startup and exit.
+ *
+ * The operator is polled and invoked with the current context (#WM_OP_INVOKE_DEFAULT), there is no
+ * way to override that (by design, since dropboxes should act on the exact mouse position). So the
+ * drop-boxes are supposed to check the required area and region context in their poll.
  */
 typedef struct wmDropBox {
   struct wmDropBox *next, *prev;
@@ -1108,10 +1125,6 @@ typedef struct wmDropBox {
   struct IDProperty *properties;
   /** RNA pointer to access properties. */
   struct PointerRNA *ptr;
-
-  /** Default invoke. */
-  short opcontext;
-
 } wmDropBox;
 
 /**
