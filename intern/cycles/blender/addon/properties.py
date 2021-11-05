@@ -87,7 +87,7 @@ enum_use_layer_samples = (
 
 enum_sampling_pattern = (
     ('SOBOL', "Sobol", "Use Sobol random sampling pattern", 0),
-    ('PROGRESSIVE_MUTI_JITTER', "Progressive Multi-Jitter", "Use Progressive Multi-Jitter random sampling pattern", 1),
+    ('PROGRESSIVE_MULTI_JITTER', "Progressive Multi-Jitter", "Use Progressive Multi-Jitter random sampling pattern", 1),
 )
 
 enum_volume_sampling = (
@@ -339,7 +339,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         name="Sampling Pattern",
         description="Random sampling pattern used by the integrator. When adaptive sampling is enabled, Progressive Multi-Jitter is always used instead of Sobol",
         items=enum_sampling_pattern,
-        default='PROGRESSIVE_MUTI_JITTER',
+        default='PROGRESSIVE_MULTI_JITTER',
     )
 
     scrambling_distance: FloatProperty(
@@ -1419,9 +1419,10 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 col.label(text="and NVIDIA driver version 470 or newer", icon='BLANK1')
             elif device_type == 'HIP':
                 import sys
-                col.label(text="Requires discrete AMD GPU with ??? architecture", icon='BLANK1')
-                if sys.platform[:3] == "win":
-                    col.label(text="and AMD driver version ??? or newer", icon='BLANK1')
+                col.label(text="Requires discrete AMD GPU with RDNA2 architecture", icon='BLANK1')
+                # TODO: provide driver version info.
+                #if sys.platform[:3] == "win":
+                #    col.label(text="and AMD driver version ??? or newer", icon='BLANK1')
             return
 
         for device in devices:
