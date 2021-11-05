@@ -24,8 +24,12 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef __BKE_BULLET_H__
-#define __BKE_BULLET_H__
+
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /** \file BKE_bullet.h
  *  \ingroup bke
@@ -39,4 +43,6 @@ extern struct BulletSoftBody *bsbNew(void);
 /* frees internal data and softbody itself */
 extern void bsbFree(struct BulletSoftBody *sb);
 
+#ifdef __cplusplus
+}
 #endif
