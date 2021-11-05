@@ -1756,7 +1756,7 @@ typedef enum PredefinedExtraOpIconType {
 
 static PointerRNA *ui_but_extra_operator_icon_add_ptr(uiBut *but,
                                                       wmOperatorType *optype,
-                                                      short opcontext,
+                                                      wmOperatorCallContext opcontext,
                                                       int icon)
 {
   uiButExtraOpIcon *extra_op_icon = MEM_mallocN(sizeof(*extra_op_icon), __func__);
@@ -1796,7 +1796,7 @@ void ui_but_extra_operator_icons_free(uiBut *but)
 
 PointerRNA *UI_but_extra_operator_icon_add(uiBut *but,
                                            const char *opname,
-                                           short opcontext,
+                                           wmOperatorCallContext opcontext,
                                            int icon)
 {
   wmOperatorType *optype = WM_operatortype_find(opname, false);
@@ -1999,7 +1999,7 @@ bool ui_but_context_poll_operator_ex(bContext *C,
 
 bool ui_but_context_poll_operator(bContext *C, wmOperatorType *ot, const uiBut *but)
 {
-  const int opcontext = but ? but->opcontext : WM_OP_INVOKE_DEFAULT;
+  const wmOperatorCallContext opcontext = but ? but->opcontext : WM_OP_INVOKE_DEFAULT;
   return ui_but_context_poll_operator_ex(
       C, but, &(wmOperatorCallParams){.optype = ot, .opcontext = opcontext});
 }
@@ -4986,7 +4986,7 @@ static uiBut *ui_def_but_rna_propname(uiBlock *block,
 static uiBut *ui_def_but_operator_ptr(uiBlock *block,
                                       int type,
                                       wmOperatorType *ot,
-                                      int opcontext,
+                                      wmOperatorCallContext opcontext,
                                       const char *str,
                                       int x,
                                       int y,
@@ -5524,7 +5524,7 @@ uiBut *uiDefButR_prop(uiBlock *block,
 uiBut *uiDefButO_ptr(uiBlock *block,
                      int type,
                      wmOperatorType *ot,
-                     int opcontext,
+                     wmOperatorCallContext opcontext,
                      const char *str,
                      int x,
                      int y,
@@ -5539,7 +5539,7 @@ uiBut *uiDefButO_ptr(uiBlock *block,
 uiBut *uiDefButO(uiBlock *block,
                  int type,
                  const char *opname,
-                 int opcontext,
+                 wmOperatorCallContext opcontext,
                  const char *str,
                  int x,
                  int y,
@@ -5907,7 +5907,7 @@ uiBut *uiDefIconButR_prop(uiBlock *block,
 uiBut *uiDefIconButO_ptr(uiBlock *block,
                          int type,
                          wmOperatorType *ot,
-                         int opcontext,
+                         wmOperatorCallContext opcontext,
                          int icon,
                          int x,
                          int y,
@@ -5922,7 +5922,7 @@ uiBut *uiDefIconButO_ptr(uiBlock *block,
 uiBut *uiDefIconButO(uiBlock *block,
                      int type,
                      const char *opname,
-                     int opcontext,
+                     wmOperatorCallContext opcontext,
                      int icon,
                      int x,
                      int y,
@@ -6310,7 +6310,7 @@ uiBut *uiDefIconTextButR_prop(uiBlock *block,
 uiBut *uiDefIconTextButO_ptr(uiBlock *block,
                              int type,
                              wmOperatorType *ot,
-                             int opcontext,
+                             wmOperatorCallContext opcontext,
                              int icon,
                              const char *str,
                              int x,
@@ -6327,7 +6327,7 @@ uiBut *uiDefIconTextButO_ptr(uiBlock *block,
 uiBut *uiDefIconTextButO(uiBlock *block,
                          int type,
                          const char *opname,
-                         int opcontext,
+                         wmOperatorCallContext opcontext,
                          int icon,
                          const char *str,
                          int x,
