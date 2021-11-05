@@ -64,8 +64,7 @@ void BKE_object_workob_calc_parent(struct Depsgraph *depsgraph,
                                    struct Object *workob);
 
 void BKE_object_transform_copy(struct Object *ob_tar, const struct Object *ob_src);
-struct SoftBody *copy_softbody(const struct SoftBody *sb, const int flag);
-struct BulletSoftBody *copy_bulletsoftbody(const struct BulletSoftBody *sb, const int flag);
+struct BulletSoftBody *copy_bulletsoftbody(const struct BulletSoftBody *sb, const int flag); /* UPBGE */
 void BKE_object_copy_softbody(struct Object *ob_dst, const struct Object *ob_src, const int flag);
 struct ParticleSystem *BKE_object_copy_particlesystem(struct ParticleSystem *psys, const int flag);
 void BKE_object_copy_particlesystems(struct Object *ob_dst,

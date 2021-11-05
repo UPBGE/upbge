@@ -652,7 +652,7 @@ static void write_properties(BlendWriter *writer, ListBase *lb)
 {
   bProperty *prop;
 
-  prop = lb->first;
+  prop = (bProperty *)lb->first;
   while (prop) {
     BLO_write_struct(writer, bProperty, prop);
 
@@ -668,7 +668,7 @@ static void write_sensors(BlendWriter *writer, ListBase *lb)
 {
   bSensor *sens;
 
-  sens = lb->first;
+  sens = (bSensor *)lb->first;
   while (sens) {
     BLO_write_struct(writer, bSensor, sens);
 
@@ -728,7 +728,7 @@ static void write_controllers(BlendWriter *writer, ListBase *lb)
 {
   bController *cont;
 
-  cont = lb->first;
+  cont = (bController *)lb->first;
   while (cont) {
     BLO_write_struct(writer, bController, cont);
 
@@ -752,7 +752,7 @@ static void write_actuators(BlendWriter *writer, ListBase *lb)
 {
   bActuator *act;
 
-  act = lb->first;
+  act = (bActuator *)lb->first;
   while (act) {
     BLO_write_struct(writer, bActuator, act);
 
@@ -831,14 +831,14 @@ static void write_proxy_properties(BlendWriter *writer, ListBase *lb)
 {
   PythonProxyProperty *pprop;
 
-  pprop = lb->first;
+  pprop = (PythonProxyProperty *)lb->first;
 
   while (pprop) {
     LinkData *link;
     BLO_write_struct(writer, PythonProxyProperty, pprop);
     BLO_write_struct_list(writer, LinkData, &pprop->enumval);
-    for (link = pprop->enumval.first; link; link = link->next) {
-      BLO_write_string(writer, link->data);
+    for (link = (LinkData *)pprop->enumval.first; link; link = link->next) {
+      BLO_write_string(writer, (const char *)link->data);
     }
     pprop = pprop->next;
   }
@@ -854,7 +854,7 @@ static void write_proxies(BlendWriter *writer, ListBase *lb)
 {
   PythonProxy *pp;
 
-  pp = lb->first;
+  pp = (PythonProxy *)lb->first;
 
   while (pp) {
     write_proxy(writer, pp);
@@ -1111,14 +1111,14 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   PythonProxyProperty *pprop;
 
   BLO_read_list(reader, &ob->prop);
-  for (prop = ob->prop.first; prop; prop = prop->next) {
+  for (prop = (bProperty *)ob->prop.first; prop; prop = prop->next) {
     BLO_read_data_address(reader, &prop->poin);
-    if (prop->poin == NULL)
+    if (prop->poin == nullptr)
       prop->poin = &prop->data;
   }
 
   BLO_read_list(reader, &ob->sensors);
-  for (sens = ob->sensors.first; sens; sens = sens->next) {
+  for (sens = (bSensor *)ob->sensors.first; sens; sens = sens->next) {
     BLO_read_data_address(reader, &sens->data);
     BLO_read_pointer_array(reader, (void **)&sens->links);
   }
@@ -1136,7 +1136,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   else if (!ob->init_state) {
     ob->init_state = 1;
   }
-  for (cont = ob->controllers.first; cont; cont = cont->next) {
+  for (cont = (bController *)ob->controllers.first; cont; cont = cont->next) {
     BLO_read_data_address(reader, &cont->data);
     BLO_read_pointer_array(reader, (void **)&cont->links);
     if (cont->state_mask == 0)
@@ -1144,18 +1144,18 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   }
 
   BLO_read_glob_list(reader, &ob->actuators);
-  for (act = ob->actuators.first; act; act = act->next) {
+  for (act = (bActuator *)ob->actuators.first; act; act = act->next) {
     BLO_read_data_address(reader, &act->data);
   }
 
   BLO_read_glob_list(reader, &ob->components);
-  pp = ob->components.first;
+  pp = (PythonProxy *)ob->components.first;
   while (pp) {
     BLO_read_glob_list(reader, &pp->properties);
-    pprop = pp->properties.first;
+    pprop = (PythonProxyProperty *)pp->properties.first;
     while (pprop) {
       BLO_read_list(reader, &pprop->enumval);
-      for (LinkData *link = pprop->enumval.first; link; link = link->next) {
+      for (LinkData *link = (LinkData *)pprop->enumval.first; link; link = link->next) {
         BLO_read_data_address(reader, &link->data);
       }
       pprop = pprop->next;
@@ -1168,10 +1168,10 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
 
   if (pp) {
     BLO_read_glob_list(reader, &pp->properties);
-    pprop = pp->properties.first;
+    pprop = (PythonProxyProperty *)pp->properties.first;
     while (pprop) {
       BLO_read_list(reader, &pprop->enumval);
-      for (LinkData *link = pprop->enumval.first; link; link = link->next) {
+      for (LinkData *link = (LinkData *)pprop->enumval.first; link; link = link->next) {
         BLO_read_data_address(reader, &link->data);
       }
       pprop = pprop->next;
@@ -1181,7 +1181,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_data_address(reader, &ob->bsoft);
 
   BLO_read_list(reader, &ob->lodlevels);
-  ob->currentlod = ob->lodlevels.first;
+  ob->currentlod = (LodLevel *)ob->lodlevels.first;
   /* End of UPBGE */
 
   BLO_read_data_address(reader, &ob->fluidsimSettings); /* NT */
@@ -1397,33 +1397,33 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
   }
 
   /* UPBGE */
-  for (bSensor *sens = ob->sensors.first; sens; sens = sens->next) {
+  for (bSensor *sens = (bSensor *)ob->sensors.first; sens; sens = sens->next) {
     for (int a = 0; a < sens->totlinks; a++)
-      sens->links[a] = BLO_read_get_new_globaldata_address(reader, sens->links[a]);
+      sens->links[a] = (bController *)BLO_read_get_new_globaldata_address(reader, sens->links[a]);
 
     if (sens->type == SENS_MESSAGE) {
-      bMessageSensor *ms = sens->data;
+      bMessageSensor *ms = (bMessageSensor *)sens->data;
       BLO_read_id_address(reader, ob->id.lib, &ms->fromObject);
     }
   }
 
-  for (bController *cont = ob->controllers.first; cont; cont = cont->next) {
+  for (bController *cont = (bController *)ob->controllers.first; cont; cont = cont->next) {
     for (int a = 0; a < cont->totlinks; a++)
-      cont->links[a] = BLO_read_get_new_globaldata_address(reader, cont->links[a]);
+      cont->links[a] = (bActuator *)BLO_read_get_new_globaldata_address(reader, cont->links[a]);
 
     if (cont->type == CONT_PYTHON) {
-      bPythonCont *pc = cont->data;
+      bPythonCont *pc = (bPythonCont *)cont->data;
       BLO_read_id_address(reader, ob->id.lib, &pc->text);
       BLO_read_id_address(reader, ob->id.lib, &pc->module_script);
     }
-    cont->slinks = NULL;
+    cont->slinks = nullptr;
     cont->totslinks = 0;
   }
 
-  for (bActuator *act = ob->actuators.first; act; act = act->next) {
+  for (bActuator *act = (bActuator *)ob->actuators.first; act; act = act->next) {
     switch (act->type) {
       case ACT_SOUND: {
-        bSoundActuator *sa = act->data;
+        bSoundActuator *sa = (bSoundActuator *)act->data;
         BLO_read_id_address(reader, ob->id.lib, &sa->sound);
         break;
       }
@@ -1431,20 +1431,20 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
         /* bGameActuator *ga= act->data; */
         break;
       case ACT_CAMERA: {
-        bCameraActuator *ca = act->data;
+        bCameraActuator *ca = (bCameraActuator *)act->data;
         BLO_read_id_address(reader, ob->id.lib, &ca->ob);
         break;
       }
       /* leave this one, it's obsolete but necessary to read for conversion */
       case ACT_ADD_OBJECT: {
-        bAddObjectActuator *eoa = act->data;
+        bAddObjectActuator *eoa = (bAddObjectActuator *)act->data;
         if (eoa)
           BLO_read_id_address(reader, ob->id.lib, &eoa->ob);
         break;
       }
       case ACT_OBJECT: {
-        bObjectActuator *oa = act->data;
-        if (oa == NULL) {
+        bObjectActuator *oa = (bObjectActuator *)act->data;
+        if (oa == nullptr) {
           BKE_sca_init_actuator(act);
         }
         else {
@@ -1453,8 +1453,8 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
         break;
       }
       case ACT_EDIT_OBJECT: {
-        bEditObjectActuator *eoa = act->data;
-        if (eoa == NULL) {
+        bEditObjectActuator *eoa = (bEditObjectActuator *)act->data;
+        if (eoa == nullptr) {
           BKE_sca_init_actuator(act);
         }
         else {
@@ -1464,44 +1464,44 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
         break;
       }
       case ACT_SCENE: {
-        bSceneActuator *sa = act->data;
+        bSceneActuator *sa = (bSceneActuator *)act->data;
         BLO_read_id_address(reader, ob->id.lib, &sa->camera);
         BLO_read_id_address(reader, ob->id.lib, &sa->scene);
         break;
       }
       case ACT_COLLECTION: {
-        bCollectionActuator *ca = act->data;
+        bCollectionActuator *ca = (bCollectionActuator *)act->data;
         BLO_read_id_address(reader, ob->id.lib, &ca->collection);
         BLO_read_id_address(reader, ob->id.lib, &ca->camera);
         break;
       }
       case ACT_ACTION: {
-        bActionActuator *aa = act->data;
+        bActionActuator *aa = (bActionActuator *)act->data;
         BLO_read_id_address(reader, ob->id.lib, &aa->act);
         break;
       }
       case ACT_SHAPEACTION: {
-        bActionActuator *aa = act->data;
+        bActionActuator *aa = (bActionActuator *)act->data;
         BLO_read_id_address(reader, ob->id.lib, &aa->act);
         break;
       }
       case ACT_PROPERTY: {
-        bPropertyActuator *pa = act->data;
+        bPropertyActuator *pa = (bPropertyActuator *)act->data;
         BLO_read_id_address(reader, ob->id.lib, &pa->ob);
         break;
       }
       case ACT_MESSAGE: {
-        bMessageActuator *ma = act->data;
+        bMessageActuator *ma = (bMessageActuator *)act->data;
         BLO_read_id_address(reader, ob->id.lib, &ma->toObject);
         break;
       }
       case ACT_2DFILTER: {
-        bTwoDFilterActuator *_2dfa = act->data;
+        bTwoDFilterActuator *_2dfa = (bTwoDFilterActuator *)act->data;
         BLO_read_id_address(reader, ob->id.lib, &_2dfa->text);
         break;
       }
       case ACT_PARENT: {
-        bParentActuator *parenta = act->data;
+        bParentActuator *parenta = (bParentActuator *)act->data;
         BLO_read_id_address(reader, ob->id.lib, &parenta->ob);
         break;
       }
@@ -1509,13 +1509,13 @@ static void object_blend_read_lib(BlendLibReader *reader, ID *id)
         /* bStateActuator *statea = act->data; */
         break;
       case ACT_ARMATURE: {
-        bArmatureActuator *arma = act->data;
+        bArmatureActuator *arma = (bArmatureActuator *)act->data;
         BLO_read_id_address(reader, ob->id.lib, &arma->target);
         BLO_read_id_address(reader, ob->id.lib, &arma->subtarget);
         break;
       }
       case ACT_STEERING: {
-        bSteeringActuator *steeringa = act->data;
+        bSteeringActuator *steeringa = (bSteeringActuator *)act->data;
         BLO_read_id_address(reader, ob->id.lib, &steeringa->target);
         BLO_read_id_address(reader, ob->id.lib, &steeringa->navmesh);
         break;
@@ -1700,85 +1700,85 @@ static void object_blend_read_expand(BlendExpander *expander, ID *id)
   bController *cont;
   bActuator *act;
 
-  for (sens = ob->sensors.first; sens; sens = sens->next) {
+  for (sens = (bSensor *)ob->sensors.first; sens; sens = sens->next) {
     if (sens->type == SENS_MESSAGE) {
-      bMessageSensor *ms = sens->data;
+      bMessageSensor *ms = (bMessageSensor *)sens->data;
       BLO_expand(expander, ms->fromObject);
     }
   }
 
-  for (cont = ob->controllers.first; cont; cont = cont->next) {
+  for (cont = (bController *)ob->controllers.first; cont; cont = cont->next) {
     if (cont->type == CONT_PYTHON) {
-      bPythonCont *pc = cont->data;
+      bPythonCont *pc = (bPythonCont *)cont->data;
       BLO_expand(expander, pc->text);
       BLO_expand(expander, pc->module_script);
     }
   }
 
-  for (act = ob->actuators.first; act; act = act->next) {
+  for (act = (bActuator *)ob->actuators.first; act; act = act->next) {
     if (act->type == ACT_SOUND) {
-      bSoundActuator *sa = act->data;
+      bSoundActuator *sa = (bSoundActuator *)act->data;
       BLO_expand(expander, sa->sound);
     }
     else if (act->type == ACT_CAMERA) {
-      bCameraActuator *ca = act->data;
+      bCameraActuator *ca = (bCameraActuator *)act->data;
       BLO_expand(expander, ca->ob);
     }
     else if (act->type == ACT_EDIT_OBJECT) {
-      bEditObjectActuator *eoa = act->data;
+      bEditObjectActuator *eoa = (bEditObjectActuator *)act->data;
       if (eoa) {
         BLO_expand(expander, eoa->ob);
         BLO_expand(expander, eoa->me);
       }
     }
     else if (act->type == ACT_OBJECT) {
-      bObjectActuator *oa = act->data;
+      bObjectActuator *oa = (bObjectActuator *)act->data;
       BLO_expand(expander, oa->reference);
     }
     else if (act->type == ACT_ADD_OBJECT) {
-      bAddObjectActuator *aoa = act->data;
+      bAddObjectActuator *aoa = (bAddObjectActuator *)act->data;
       BLO_expand(expander, aoa->ob);
     }
     else if (act->type == ACT_SCENE) {
-      bSceneActuator *sa = act->data;
+      bSceneActuator *sa = (bSceneActuator *)act->data;
       BLO_expand(expander, sa->camera);
       BLO_expand(expander, sa->scene);
     }
     else if (act->type == ACT_COLLECTION) {
-      bCollectionActuator *ca = act->data;
+      bCollectionActuator *ca = (bCollectionActuator *)act->data;
       BLO_expand(expander, ca->collection);
       BLO_expand(expander, ca->camera);
     }
     else if (act->type == ACT_2DFILTER) {
-      bTwoDFilterActuator *tdfa = act->data;
+      bTwoDFilterActuator *tdfa = (bTwoDFilterActuator *)act->data;
       BLO_expand(expander, tdfa->text);
     }
     else if (act->type == ACT_ACTION) {
-      bActionActuator *aa = act->data;
+      bActionActuator *aa = (bActionActuator *)act->data;
       BLO_expand(expander, aa->act);
     }
     else if (act->type == ACT_SHAPEACTION) {
-      bActionActuator *aa = act->data;
+      bActionActuator *aa = (bActionActuator *)act->data;
       BLO_expand(expander, aa->act);
     }
     else if (act->type == ACT_PROPERTY) {
-      bPropertyActuator *pa = act->data;
+      bPropertyActuator *pa = (bPropertyActuator *)act->data;
       BLO_expand(expander, pa->ob);
     }
     else if (act->type == ACT_MESSAGE) {
-      bMessageActuator *ma = act->data;
+      bMessageActuator *ma = (bMessageActuator *)act->data;
       BLO_expand(expander, ma->toObject);
     }
     else if (act->type == ACT_PARENT) {
-      bParentActuator *pa = act->data;
+      bParentActuator *pa = (bParentActuator *)act->data;
       BLO_expand(expander, pa->ob);
     }
     else if (act->type == ACT_ARMATURE) {
-      bArmatureActuator *arma = act->data;
+      bArmatureActuator *arma = (bArmatureActuator *)act->data;
       BLO_expand(expander, arma->target);
     }
     else if (act->type == ACT_STEERING) {
-      bSteeringActuator *sta = act->data;
+      bSteeringActuator *sta = (bSteeringActuator *)act->data;
       BLO_expand(expander, sta->target);
       BLO_expand(expander, sta->navmesh);
     }
@@ -1972,7 +1972,7 @@ void BKE_object_free_bulletsoftbody(Object *ob)
 {
   if (ob->bsoft) {
     bsbFree(ob->bsoft);
-    ob->bsoft = NULL;
+    ob->bsoft = nullptr;
   }
 }
 
@@ -3130,12 +3130,12 @@ void BKE_object_copy_softbody(Object *ob_dst, const Object *ob_src, const int fl
 
 void BKE_object_lod_add(Object *ob)
 {
-  LodLevel *lod = MEM_callocN(sizeof(LodLevel), "LoD Level");
-  LodLevel *last = ob->lodlevels.last;
+  LodLevel *lod = (LodLevel *)MEM_callocN(sizeof(LodLevel), "LoD Level");
+  LodLevel *last = (LodLevel *)ob->lodlevels.last;
 
   /* If the lod list is empty, initialize it with the base lod level */
   if (!last) {
-    LodLevel *base = MEM_callocN(sizeof(LodLevel), "Base LoD Level");
+    LodLevel *base = (LodLevel *)MEM_callocN(sizeof(LodLevel), "Base LoD Level");
     BLI_addtail(&ob->lodlevels, base);
     base->flags = OB_LOD_USE_MESH | OB_LOD_USE_MAT;
     base->source = ob;
@@ -3152,8 +3152,8 @@ void BKE_object_lod_add(Object *ob)
 
 static int lod_cmp(const void *a, const void *b)
 {
-  const LodLevel *loda = a;
-  const LodLevel *lodb = b;
+  const LodLevel *loda = (LodLevel *)a;
+  const LodLevel *lodb = (LodLevel *)b;
 
   if (loda->distance < lodb->distance)
     return -1;
@@ -3172,7 +3172,7 @@ bool BKE_object_lod_remove(Object *ob, int level)
   if (level < 1 || level > BLI_listbase_count(&ob->lodlevels) - 1)
     return false;
 
-  rem = BLI_findlink(&ob->lodlevels, level);
+  rem = (LodLevel *)BLI_findlink(&ob->lodlevels, level);
 
   if (rem == ob->currentlod) {
     ob->currentlod = rem->prev;
@@ -3183,7 +3183,7 @@ bool BKE_object_lod_remove(Object *ob, int level)
 
   /* If there are no user defined lods, remove the base lod as well */
   if (BLI_listbase_is_single(&ob->lodlevels)) {
-    LodLevel *base = ob->lodlevels.first;
+    LodLevel *base = (LodLevel *)ob->lodlevels.first;
     BLI_remlink(&ob->lodlevels, base);
     MEM_freeN(base);
     ob->currentlod = NULL;
@@ -3259,64 +3259,18 @@ struct Object *BKE_object_lod_meshob_get(Object *ob)
 //	return lod_ob_get(ob, view_layer, OB_LOD_USE_MAT);
 //}
 
-#endif /* WITH_GAMEENGINE */
-
-SoftBody *copy_softbody(const SoftBody *sb, const int flag)
-{
-  SoftBody *sbn;
-
-  if (sb == NULL)
-    return (NULL);
-
-  sbn = MEM_dupallocN(sb);
-
-  if ((flag & LIB_ID_COPY_CACHES) == 0) {
-    sbn->totspring = sbn->totpoint = 0;
-    sbn->bpoint = NULL;
-    sbn->bspring = NULL;
-  }
-  else {
-    sbn->totspring = sb->totspring;
-    sbn->totpoint = sb->totpoint;
-
-    if (sbn->bpoint) {
-      int i;
-
-      sbn->bpoint = MEM_dupallocN(sbn->bpoint);
-
-      for (i = 0; i < sbn->totpoint; i++) {
-        if (sbn->bpoint[i].springs)
-          sbn->bpoint[i].springs = MEM_dupallocN(sbn->bpoint[i].springs);
-      }
-    }
-
-    if (sb->bspring)
-      sbn->bspring = MEM_dupallocN(sb->bspring);
-  }
-
-  sbn->keys = NULL;
-  sbn->totkey = sbn->totpointkey = 0;
-
-  sbn->scratch = NULL;
-
-  sbn->pointcache = BKE_ptcache_copy_list(&sbn->ptcaches, &sb->ptcaches, flag);
-
-  if (sb->effector_weights)
-    sbn->effector_weights = MEM_dupallocN(sb->effector_weights);
-
-  return sbn;
-}
-
 BulletSoftBody *copy_bulletsoftbody(const BulletSoftBody *bsb, const int UNUSED(flag))
 {
   BulletSoftBody *bsbn;
 
-  if (bsb == NULL)
-    return NULL;
-  bsbn = MEM_dupallocN(bsb);
+  if (bsb == nullptr)
+    return nullptr;
+  bsbn = (BulletSoftBody *)MEM_dupallocN(bsb);
   /* no pointer in this structure yet */
   return bsbn;
 }
+
+#endif /* WITH_GAMEENGINE */
 
 ParticleSystem *BKE_object_copy_particlesystem(ParticleSystem *psys, const int flag)
 {
