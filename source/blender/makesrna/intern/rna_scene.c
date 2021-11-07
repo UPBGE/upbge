@@ -5468,7 +5468,7 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "samp_per_frame", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, NULL, "samples_per_frame");
-  RNA_def_property_range(prop, 1, INT_MAX);
+  RNA_def_property_range(prop, 1, 10000);
   RNA_def_property_ui_text(prop,
                            "Samples per frame",
                            "Number of eevee passes rendered in 1 frame "
