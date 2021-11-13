@@ -233,9 +233,7 @@ string HIPDevice::compile_kernel_get_common_cflags(const uint kernel_features)
   return cflags;
 }
 
-string HIPDevice::compile_kernel(const uint kernel_features,
-                                 const char *name,
-                                 const char *base)
+string HIPDevice::compile_kernel(const uint kernel_features, const char *name, const char *base)
 {
   /* Compute kernel name. */
   int major, minor;
@@ -245,7 +243,7 @@ string HIPDevice::compile_kernel(const uint kernel_features,
   hipGetDeviceProperties(&props, hipDevId);
 
   /* gcnArchName can contain tokens after the arch name with features, ie.
-    "gfx1010:sramecc-:xnack-" so we tokenize it to get the first part. */
+   * `gfx1010:sramecc-:xnack-` so we tokenize it to get the first part. */
   char *arch = strtok(props.gcnArchName, ":");
   if (arch == NULL) {
     arch = props.gcnArchName;
