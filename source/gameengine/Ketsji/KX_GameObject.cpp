@@ -915,6 +915,11 @@ void KX_GameObject::ProcessReplica()
   ReplicateBlenderObject();
   GetScene()->GetBlenderSceneConverter()->RegisterGameObject(this, m_pBlenderObject);
 
+  if (m_lodManager) {
+    m_lodManager->AddRef();
+    GetScene()->AddObjToLodObjList(this);
+  }
+
   m_pPhysicsController = nullptr;
   m_pSGNode = nullptr;
 
@@ -926,11 +931,6 @@ void KX_GameObject::ProcessReplica()
   m_pClient_info->m_gameobject = this;
   m_actionManager = nullptr;
   m_state = 0;
-
-  if (m_lodManager) {
-    m_lodManager->AddRef();
-    GetScene()->AddObjToLodObjList(this);
-  }
 
 #ifdef WITH_PYTHON
 
