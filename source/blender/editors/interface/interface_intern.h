@@ -631,7 +631,7 @@ typedef struct uiSafetyRct {
 
 extern void ui_linkline_remove(uiLinkLine *line, uiBut *but);
 
-void ui_fontscale(short *points, float aspect);
+void ui_fontscale(float *points, float aspect);
 
 extern void ui_block_to_region_fl(const struct ARegion *region,
                                   uiBlock *block,

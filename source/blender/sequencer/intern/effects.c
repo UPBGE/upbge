@@ -2942,6 +2942,9 @@ static ImBuf *do_solid_color(const SeqRenderData *context,
       }
     }
   }
+
+  out->planes = R_IMF_PLANES_RGB;
+
   return out;
 }
 
@@ -3741,7 +3744,7 @@ static void init_text_effect(Sequence *seq)
   data = seq->effectdata = MEM_callocN(sizeof(TextVars), "textvars");
   data->text_font = NULL;
   data->text_blf_id = -1;
-  data->text_size = 60;
+  data->text_size = 60.0f;
 
   copy_v4_fl(data->color, 1.0f);
   data->shadow_color[3] = 0.7f;
@@ -3842,7 +3845,7 @@ static int num_inputs_text(void)
 static int early_out_text(Sequence *seq, float UNUSED(facf0), float UNUSED(facf1))
 {
   TextVars *data = seq->effectdata;
-  if (data->text[0] == 0 || data->text_size < 1 ||
+  if (data->text[0] == 0 || data->text_size < 1.0f ||
       ((data->color[3] == 0.0f) &&
        (data->shadow_color[3] == 0.0f || (data->flag & SEQ_TEXT_SHADOW) == 0))) {
     return EARLY_USE_INPUT_1;
@@ -4024,6 +4027,14 @@ static int early_out_mul_input2(Sequence *UNUSED(seq), float facf0, float facf1)
   return EARLY_DO_EFFECT;
 }
 
+static int early_out_mul_input1(Sequence *UNUSED(seq), float facf0, float facf1)
+{
+  if (facf0 == 0.0f && facf1 == 0.0f) {
+    return EARLY_USE_INPUT_2;
+  }
+  return EARLY_DO_EFFECT;
+}
+
 static void get_default_fac_noop(Sequence *UNUSED(seq),
                                  float UNUSED(timeline_frame),
                                  float *facf0,
@@ -4134,6 +4145,7 @@ static struct SeqEffectHandle get_sequence_effect_impl(int seq_type)
       rval.multithreaded = true;
       rval.init = init_alpha_over_or_under;
       rval.execute_slice = do_alphaover_effect;
+      rval.early_out = early_out_mul_input1;
       break;
     case SEQ_TYPE_OVERDROP:
       rval.multithreaded = true;
