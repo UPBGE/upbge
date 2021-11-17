@@ -685,7 +685,7 @@ base class --- :class:`~bge.types.SCA_IObject`
          * 2: Z axis
 
       :type axis: integer
-      :arg factor: Only rotate a feaction of the distance to the target vector (0.0 - 1.0)
+      :arg factor: Only rotate a fraction of the distance to the target vector (0.0 - 1.0)
       :type factor: float
 
    .. method:: getAxisVect(vect)
