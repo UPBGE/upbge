@@ -25,9 +25,8 @@ using blender::float3;
 using blender::IndexRange;
 using blender::MutableSpan;
 using blender::Span;
+using blender::VArray;
 using blender::fn::GVArray;
-using blender::fn::GVArray_For_ArrayContainer;
-using blender::fn::GVArrayPtr;
 
 void BezierSpline::copy_settings(Spline &dst) const
 {
@@ -599,7 +598,10 @@ Span<float> BezierSpline::evaluated_mappings() const
 
   Span<int> offsets = this->control_point_offsets();
 
-  calculate_mappings_linear_resolution(offsets, size, resolution_, is_cyclic_, mappings);
+  blender::threading::isolate_task([&]() {
+    /* Isolate the task, since this is function is multi-threaded and holds a lock. */
+    calculate_mappings_linear_resolution(offsets, size, resolution_, is_cyclic_, mappings);
+  });
 
   mapping_cache_dirty_ = false;
   return mappings;
@@ -635,10 +637,13 @@ Span<float3> BezierSpline::evaluated_positions() const
   Span<int> offsets = this->control_point_offsets();
 
   const int grain_size = std::max(512 / resolution_, 1);
-  blender::threading::parallel_for(IndexRange(size - 1), grain_size, [&](IndexRange range) {
-    for (const int i : range) {
-      this->evaluate_segment(i, i + 1, positions.slice(offsets[i], offsets[i + 1] - offsets[i]));
-    }
+  blender::threading::isolate_task([&]() {
+    /* Isolate the task, since this is function is multi-threaded and holds a lock. */
+    blender::threading::parallel_for(IndexRange(size - 1), grain_size, [&](IndexRange range) {
+      for (const int i : range) {
+        this->evaluate_segment(i, i + 1, positions.slice(offsets[i], offsets[i + 1] - offsets[i]));
+      }
+    });
   });
   if (is_cyclic_) {
     this->evaluate_segment(
@@ -702,26 +707,26 @@ static void interpolate_to_evaluated_impl(const BezierSpline &spline,
   }
 }
 
-GVArrayPtr BezierSpline::interpolate_to_evaluated(const GVArray &src) const
+GVArray BezierSpline::interpolate_to_evaluated(const GVArray &src) const
 {
   BLI_assert(src.size() == this->size());
 
   if (src.is_single()) {
-    return src.shallow_copy();
+    return src;
   }
 
   const int eval_size = this->evaluated_points_size();
   if (eval_size == 1) {
-    return src.shallow_copy();
+    return src;
   }
 
-  GVArrayPtr new_varray;
+  GVArray new_varray;
   blender::attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
     using T = decltype(dummy);
     if constexpr (!std::is_void_v<blender::attribute_math::DefaultMixer<T>>) {
       Array<T> values(eval_size);
       interpolate_to_evaluated_impl<T>(*this, src.typed<T>(), values);
-      new_varray = std::make_unique<GVArray_For_ArrayContainer<Array<T>>>(std::move(values));
+      new_varray = VArray<T>::ForContainer(std::move(values));
     }
   });
 

@@ -296,13 +296,13 @@ static BufferParams scale_buffer_params(const BufferParams &params, int resoluti
 
   scaled_params.window_x = params.window_x / resolution_divider;
   scaled_params.window_y = params.window_y / resolution_divider;
-  scaled_params.window_width = params.window_width / resolution_divider;
-  scaled_params.window_height = params.window_height / resolution_divider;
+  scaled_params.window_width = max(1, params.window_width / resolution_divider);
+  scaled_params.window_height = max(1, params.window_height / resolution_divider);
 
   scaled_params.full_x = params.full_x / resolution_divider;
   scaled_params.full_y = params.full_y / resolution_divider;
-  scaled_params.full_width = params.full_width / resolution_divider;
-  scaled_params.full_height = params.full_height / resolution_divider;
+  scaled_params.full_width = max(1, params.full_width / resolution_divider);
+  scaled_params.full_height = max(1, params.full_height / resolution_divider);
 
   scaled_params.update_offset_stride();
 
@@ -850,7 +850,8 @@ void PathTrace::progress_update_if_needed(const RenderWork &render_work)
 {
   if (progress_ != nullptr) {
     const int2 tile_size = get_render_tile_size();
-    const int num_samples_added = tile_size.x * tile_size.y * render_work.path_trace.num_samples;
+    const uint64_t num_samples_added = uint64_t(tile_size.x) * tile_size.y *
+                                       render_work.path_trace.num_samples;
     const int current_sample = render_work.path_trace.start_sample +
                                render_work.path_trace.num_samples -
                                render_work.path_trace.sample_offset;
