@@ -273,6 +273,7 @@ set(SRC_KERNEL_UTIL_HEADERS
 )
 
 set(SRC_KERNEL_TYPES_HEADERS
+  tables.h
   textures.h
   types.h
 )
@@ -570,6 +571,12 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIP)
       --hipcc-func-supp
       -ffast-math
       -o ${CMAKE_CURRENT_BINARY_DIR}/${hip_file})
+
+    if(WITH_NANOVDB)
+      set(hip_flags ${hip_flags}
+        -D WITH_NANOVDB
+        -I "${NANOVDB_INCLUDE_DIR}")
+    endif()
 
     if(WITH_CYCLES_DEBUG)
       set(hip_flags ${hip_flags} -D WITH_CYCLES_DEBUG)
