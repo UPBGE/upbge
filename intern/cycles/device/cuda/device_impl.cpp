@@ -46,12 +46,6 @@ bool CUDADevice::have_precompiled_kernels()
   return path_exists(cubins_path);
 }
 
-bool CUDADevice::show_samples() const
-{
-  /* The CUDADevice only processes one tile at a time, so showing samples is fine. */
-  return true;
-}
-
 BVHLayoutMask CUDADevice::get_bvh_layout_mask() const
 {
   return BVH_LAYOUT_BVH2;
@@ -240,6 +234,10 @@ string CUDADevice::compile_kernel_get_common_cflags(const uint kernel_features)
 
 #  ifdef WITH_NANOVDB
   cflags += " -DWITH_NANOVDB";
+#  endif
+
+#  ifdef WITH_CYCLES_DEBUG
+  cflags += " -DWITH_CYCLES_DEBUG";
 #  endif
 
   return cflags;
