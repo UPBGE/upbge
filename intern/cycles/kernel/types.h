@@ -279,17 +279,17 @@ enum PathRayFlag {
   PATH_RAY_SUBSURFACE_RANDOM_WALK = (1U << 20U),
   PATH_RAY_SUBSURFACE_DISK = (1U << 21U),
   PATH_RAY_SUBSURFACE_USE_FRESNEL = (1U << 22U),
+  PATH_RAY_SUBSURFACE_BACKFACING = (1U << 23U),
   PATH_RAY_SUBSURFACE = (PATH_RAY_SUBSURFACE_RANDOM_WALK | PATH_RAY_SUBSURFACE_DISK |
-                         PATH_RAY_SUBSURFACE_USE_FRESNEL),
+                         PATH_RAY_SUBSURFACE_USE_FRESNEL | PATH_RAY_SUBSURFACE_BACKFACING),
 
   /* Contribute to denoising features. */
-  PATH_RAY_DENOISING_FEATURES = (1U << 23U),
+  PATH_RAY_DENOISING_FEATURES = (1U << 24U),
 
   /* Render pass categories. */
-  PATH_RAY_REFLECT_PASS = (1U << 24U),
-  PATH_RAY_TRANSMISSION_PASS = (1U << 25U),
+  PATH_RAY_SURFACE_PASS = (1U << 25U),
   PATH_RAY_VOLUME_PASS = (1U << 26U),
-  PATH_RAY_ANY_PASS = (PATH_RAY_REFLECT_PASS | PATH_RAY_TRANSMISSION_PASS | PATH_RAY_VOLUME_PASS),
+  PATH_RAY_ANY_PASS = (PATH_RAY_SURFACE_PASS | PATH_RAY_VOLUME_PASS),
 
   /* Shadow ray is for a light or surface, or AO. */
   PATH_RAY_SHADOW_FOR_LIGHT = (1U << 27U),
@@ -428,7 +428,19 @@ typedef enum CryptomatteType {
 typedef struct BsdfEval {
   float3 diffuse;
   float3 glossy;
+  float3 sum;
 } BsdfEval;
+
+/* Closure Filter */
+
+typedef enum FilterClosures {
+  FILTER_CLOSURE_EMISSION = (1 << 0),
+  FILTER_CLOSURE_DIFFUSE = (1 << 1),
+  FILTER_CLOSURE_GLOSSY = (1 << 2),
+  FILTER_CLOSURE_TRANSMISSION = (1 << 3),
+  FILTER_CLOSURE_TRANSPARENT = (1 << 4),
+  FILTER_CLOSURE_DIRECT_LIGHT = (1 << 5),
+} FilterClosures;
 
 /* Shader Flag */
 
@@ -1186,7 +1198,11 @@ typedef struct KernelIntegrator {
   int has_shadow_catcher;
   float scrambling_distance;
 
+  /* Closure filter. */
+  int filter_closures;
+
   /* padding */
+  int pad1, pad2, pad3;
 } KernelIntegrator;
 static_assert_align(KernelIntegrator, 16);
 

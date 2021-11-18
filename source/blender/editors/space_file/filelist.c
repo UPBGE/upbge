@@ -914,21 +914,11 @@ static void prepare_filter_asset_library(const FileList *filelist, FileListFilte
   if (!filter->asset_catalog_filter) {
     return;
   }
+  BLI_assert_msg(filelist->asset_library,
+                 "prepare_filter_asset_library() should only be called when the file browser is "
+                 "in asset browser mode");
 
   file_ensure_updated_catalog_filter_data(filter->asset_catalog_filter, filelist->asset_library);
-}
-
-/**
- * Copy a string from source to `dest`, but prefix and suffix it with a single space.
- * Assumes `dest` has at least space enough for the two spaces.
- */
-static void tag_copy_with_spaces(char *dest, const char *source, const size_t dest_size)
-{
-  BLI_assert(dest_size > 2);
-  const size_t source_length = BLI_strncpy_rlen(dest + 1, source, dest_size - 2);
-  dest[0] = ' ';
-  dest[source_length + 1] = ' ';
-  dest[source_length + 2] = '\0';
 }
 
 /**
@@ -946,9 +936,7 @@ static void tag_copy_with_spaces(char *dest, const char *source, const size_t de
 static bool asset_tag_matches_filter(const char *filter_search, const AssetMetaData *asset_data)
 {
   LISTBASE_FOREACH (const AssetTag *, asset_tag, &asset_data->tags) {
-    char tag_name[MAX_NAME + 2]; /* sizeof(AssetTag::name) + 2 */
-    tag_copy_with_spaces(tag_name, asset_tag->name, sizeof(tag_name));
-    if (BLI_strcasestr(filter_search, tag_name) != NULL) {
+    if (BLI_strcasestr(asset_tag->name, filter_search) != NULL) {
       return true;
     }
   }
@@ -979,13 +967,7 @@ static bool is_filtered_asset(FileListInternEntry *file, FileListFilter *filter)
   if (BLI_strcasestr(file->name, filter_search + 1) != NULL) {
     return true;
   }
-
-  /* Replace the asterisks with spaces, so that we can do matching on " sometag "; that way
-   * an artist searching for "redder" doesn't result in a match for the tag "red". */
-  filter_search[string_length - 1] = ' ';
-  filter_search[0] = ' ';
-
-  return asset_tag_matches_filter(filter_search, asset_data);
+  return asset_tag_matches_filter(filter_search + 1, asset_data);
 }
 
 static bool is_filtered_lib_type(FileListInternEntry *file,
@@ -1876,11 +1858,13 @@ void filelist_settype(FileList *filelist, short type)
     case FILE_MAIN:
       filelist->check_dir_fn = filelist_checkdir_main;
       filelist->read_job_fn = filelist_readjob_main;
+      filelist->prepare_filter_fn = NULL;
       filelist->filter_fn = is_filtered_main;
       break;
     case FILE_LOADLIB:
       filelist->check_dir_fn = filelist_checkdir_lib;
       filelist->read_job_fn = filelist_readjob_lib;
+      filelist->prepare_filter_fn = NULL;
       filelist->filter_fn = is_filtered_lib;
       break;
     case FILE_ASSET_LIBRARY:
@@ -1900,6 +1884,7 @@ void filelist_settype(FileList *filelist, short type)
     default:
       filelist->check_dir_fn = filelist_checkdir_dir;
       filelist->read_job_fn = filelist_readjob_dir;
+      filelist->prepare_filter_fn = NULL;
       filelist->filter_fn = is_filtered_file;
       break;
   }

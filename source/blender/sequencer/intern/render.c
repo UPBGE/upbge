@@ -1181,7 +1181,8 @@ static ImBuf *seq_render_movieclip_strip(const SeqRenderData *context,
   /* Try to get a proxy image. */
   ibuf = seq_get_movieclip_ibuf(seq, user);
 
-  if (ibuf != NULL && psize != IMB_PROXY_NONE) {
+  /* If clip doesn't use proxies, it will fallback to full size render of original file. */
+  if (ibuf != NULL && psize != IMB_PROXY_NONE && BKE_movieclip_proxy_enabled(seq->clip)) {
     *r_is_proxy_image = true;
   }
 
@@ -2046,7 +2047,7 @@ int SEQ_render_thumbnails_guaranteed_set_frame_step_get(const Sequence *seq)
   /* Arbitrary, but due to performance reasons should be as low as possible. */
   const int thumbnails_base_set_count = min_ii(content_len / 100, 30);
   if (thumbnails_base_set_count <= 0) {
-    return 0;
+    return content_len;
   }
   return content_len / thumbnails_base_set_count;
 }
