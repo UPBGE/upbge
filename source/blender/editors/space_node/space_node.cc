@@ -303,7 +303,10 @@ static void node_free(SpaceLink *sl)
     MEM_freeN(path);
   }
 
-  MEM_SAFE_FREE(snode->runtime);
+  if (snode->runtime) {
+    snode->runtime->linkdrag.reset();
+    MEM_freeN(snode->runtime);
+  }
 }
 
 /* spacetype; init callback */
@@ -534,10 +537,7 @@ static SpaceLink *node_duplicate(SpaceLink *sl)
 
   BLI_duplicatelist(&snoden->treepath, &snode->treepath);
 
-  if (snode->runtime != nullptr) {
-    snoden->runtime = (SpaceNode_Runtime *)MEM_dupallocN(snode->runtime);
-    BLI_listbase_clear(&snoden->runtime->linkdrag);
-  }
+  snoden->runtime = nullptr;
 
   /* NOTE: no need to set node tree user counts,
    * the editor only keeps at least 1 (id_us_ensure_real),
@@ -687,7 +687,7 @@ static void node_id_drop_copy(wmDrag *drag, wmDropBox *drop)
 {
   ID *id = WM_drag_get_local_ID_or_import_from_asset(drag, 0);
 
-  RNA_string_set(drop->ptr, "name", id->name + 2);
+  RNA_int_set(drop->ptr, "session_uuid", (int)id->session_uuid);
 }
 
 static void node_id_path_drop_copy(wmDrag *drag, wmDropBox *drop)
