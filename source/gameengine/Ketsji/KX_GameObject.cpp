@@ -2914,9 +2914,9 @@ PyObject *KX_GameObject::pyattr_get_life(EXP_PyObjectPlus *self_v,
 
   EXP_Value *life = self->GetProperty("::timebomb");
   if (life)
-    // this convert the timebomb seconds to frames, hard coded 50.0f (assuming 50fps)
+    // this convert the timebomb seconds to frames, hard coded 60.0f (assuming 60fps)
     // value hardcoded in KX_Scene::AddReplicaObject()
-    return PyFloat_FromDouble(life->GetNumber() * 50.0);
+    return PyFloat_FromDouble(life->GetNumber() * 60.0);
   else
     Py_RETURN_NONE;
 }
