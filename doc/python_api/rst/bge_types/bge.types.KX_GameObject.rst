@@ -560,7 +560,7 @@ base class --- :class:`~bge.types.SCA_IObject`
 
    .. attribute:: life
 
-      The number of frames until the object ends, assumes one frame is 1/50 second (read-only).
+      The number of frames until the object ends, assumes one frame is 1/60 second (read-only).
 
       :type: float
 

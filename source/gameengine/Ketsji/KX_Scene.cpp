@@ -1986,10 +1986,10 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject,
   if (lifespan > 0.0f) {
     // for now, convert between so called frames and realtime
     m_tempObjectList.push_back(replica);
-    // this convert the life from frames to sort-of seconds, hard coded 0.02 that assumes we have
-    // 50 frames per second if you change this value, make sure you change it in
+    // this convert the life from frames to sort-of seconds, hard coded 0.016666667 that assumes we have
+    // 60 frames per second if you change this value, make sure you change it in
     // KX_GameObject::pyattr_get_life property too
-    EXP_Value *fval = new EXP_FloatValue(lifespan * 0.02f);
+    EXP_Value *fval = new EXP_FloatValue(lifespan * 0.016666667f);
     replica->SetProperty("::timebomb", fval);
     fval->Release();
   }
