@@ -2573,9 +2573,6 @@ static void ui_apply_but(
     case UI_BTYPE_LISTROW:
       ui_apply_but_LISTROW(C, block, but, data);
       break;
-    case UI_BTYPE_DATASETROW:
-      ui_apply_but_ROW(C, block, but, data);
-      break;
     case UI_BTYPE_TAB:
       ui_apply_but_TAB(C, but, data);
       break;
@@ -8282,7 +8279,6 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
     case UI_BTYPE_CHECKBOX:
     case UI_BTYPE_CHECKBOX_N:
     case UI_BTYPE_ROW:
-    case UI_BTYPE_DATASETROW:
       retval = ui_do_but_TOG(C, but, data, event);
       break;
     case UI_BTYPE_TREEROW:
