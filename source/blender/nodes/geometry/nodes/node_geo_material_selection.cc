@@ -26,9 +26,9 @@
 
 #include "BKE_material.h"
 
-namespace blender::nodes {
+namespace blender::nodes::node_geo_material_selection_cc {
 
-static void geo_node_material_selection_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Material>(N_("Material")).hide_label(true);
   b.add_output<decl::Bool>(N_("Selection")).field_source();
@@ -111,22 +111,24 @@ class MaterialSelectionFieldInput final : public fn::FieldInput {
   }
 };
 
-static void geo_node_material_selection_exec(GeoNodeExecParams params)
+static void node_geo_exec(GeoNodeExecParams params)
 {
   Material *material = params.extract_input<Material *>("Material");
   Field<bool> material_field{std::make_shared<MaterialSelectionFieldInput>(material)};
   params.set_output("Selection", std::move(material_field));
 }
 
-}  // namespace blender::nodes
+}  // namespace blender::nodes::node_geo_material_selection_cc
 
 void register_node_type_geo_material_selection()
 {
+  namespace file_ns = blender::nodes::node_geo_material_selection_cc;
+
   static bNodeType ntype;
 
   geo_node_type_base(
       &ntype, GEO_NODE_MATERIAL_SELECTION, "Material Selection", NODE_CLASS_GEOMETRY, 0);
-  ntype.declare = blender::nodes::geo_node_material_selection_declare;
-  ntype.geometry_node_execute = blender::nodes::geo_node_material_selection_exec;
+  ntype.declare = file_ns::node_declare;
+  ntype.geometry_node_execute = file_ns::node_geo_exec;
   nodeRegisterType(&ntype);
 }

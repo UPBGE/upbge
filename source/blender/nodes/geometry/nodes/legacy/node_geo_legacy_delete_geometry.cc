@@ -29,23 +29,23 @@
 using blender::bke::CustomDataAttributes;
 
 /* Code from the mask modifier in MOD_mask.cc. */
-extern void copy_masked_vertices_to_new_mesh(const Mesh &src_mesh,
-                                             Mesh &dst_mesh,
-                                             blender::Span<int> vertex_map);
-extern void copy_masked_edges_to_new_mesh(const Mesh &src_mesh,
-                                          Mesh &dst_mesh,
-                                          blender::Span<int> vertex_map,
-                                          blender::Span<int> edge_map);
-extern void copy_masked_polys_to_new_mesh(const Mesh &src_mesh,
-                                          Mesh &dst_mesh,
-                                          blender::Span<int> vertex_map,
-                                          blender::Span<int> edge_map,
-                                          blender::Span<int> masked_poly_indices,
-                                          blender::Span<int> new_loop_starts);
+void copy_masked_vertices_to_new_mesh(const Mesh &src_mesh,
+                                      Mesh &dst_mesh,
+                                      blender::Span<int> vertex_map);
+void copy_masked_edges_to_new_mesh(const Mesh &src_mesh,
+                                   Mesh &dst_mesh,
+                                   blender::Span<int> vertex_map,
+                                   blender::Span<int> edge_map);
+void copy_masked_polys_to_new_mesh(const Mesh &src_mesh,
+                                   Mesh &dst_mesh,
+                                   blender::Span<int> vertex_map,
+                                   blender::Span<int> edge_map,
+                                   blender::Span<int> masked_poly_indices,
+                                   blender::Span<int> new_loop_starts);
 
-namespace blender::nodes {
+namespace blender::nodes::node_geo_legacy_delete_geometry_cc {
 
-static void geo_node_delete_geometry_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>(N_("Geometry"));
   b.add_input<decl::String>(N_("Selection"));
@@ -627,7 +627,7 @@ static void delete_mesh_selection(MeshComponent &component,
   component.replace(mesh_out);
 }
 
-static void geo_node_delete_geometry_exec(GeoNodeExecParams params)
+static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
   geometry_set = bke::geometry_set_realize_instances(geometry_set);
@@ -662,16 +662,18 @@ static void geo_node_delete_geometry_exec(GeoNodeExecParams params)
   params.set_output("Geometry", std::move(out_set));
 }
 
-}  // namespace blender::nodes
+}  // namespace blender::nodes::node_geo_legacy_delete_geometry_cc
 
 void register_node_type_geo_legacy_delete_geometry()
 {
+  namespace file_ns = blender::nodes::node_geo_legacy_delete_geometry_cc;
+
   static bNodeType ntype;
 
   geo_node_type_base(
       &ntype, GEO_NODE_LEGACY_DELETE_GEOMETRY, "Delete Geometry", NODE_CLASS_GEOMETRY, 0);
 
-  ntype.declare = blender::nodes::geo_node_delete_geometry_declare;
-  ntype.geometry_node_execute = blender::nodes::geo_node_delete_geometry_exec;
+  ntype.declare = file_ns::node_declare;
+  ntype.geometry_node_execute = file_ns::node_geo_exec;
   nodeRegisterType(&ntype);
 }

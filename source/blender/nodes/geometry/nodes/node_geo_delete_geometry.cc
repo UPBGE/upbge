@@ -29,58 +29,24 @@
 
 #include "node_geometry_util.hh"
 
-using blender::bke::CustomDataAttributes;
-
 /* Code from the mask modifier in MOD_mask.cc. */
-extern void copy_masked_vertices_to_new_mesh(const Mesh &src_mesh,
-                                             Mesh &dst_mesh,
-                                             blender::Span<int> vertex_map);
-extern void copy_masked_edges_to_new_mesh(const Mesh &src_mesh,
-                                          Mesh &dst_mesh,
-                                          blender::Span<int> vertex_map,
-                                          blender::Span<int> edge_map);
-extern void copy_masked_polys_to_new_mesh(const Mesh &src_mesh,
-                                          Mesh &dst_mesh,
-                                          blender::Span<int> vertex_map,
-                                          blender::Span<int> edge_map,
-                                          blender::Span<int> masked_poly_indices,
-                                          blender::Span<int> new_loop_starts);
+void copy_masked_vertices_to_new_mesh(const Mesh &src_mesh,
+                                      Mesh &dst_mesh,
+                                      blender::Span<int> vertex_map);
+void copy_masked_edges_to_new_mesh(const Mesh &src_mesh,
+                                   Mesh &dst_mesh,
+                                   blender::Span<int> vertex_map,
+                                   blender::Span<int> edge_map);
+void copy_masked_polys_to_new_mesh(const Mesh &src_mesh,
+                                   Mesh &dst_mesh,
+                                   blender::Span<int> vertex_map,
+                                   blender::Span<int> edge_map,
+                                   blender::Span<int> masked_poly_indices,
+                                   blender::Span<int> new_loop_starts);
 
 namespace blender::nodes {
 
-static void geo_node_delete_geometry_declare(NodeDeclarationBuilder &b)
-{
-  b.add_input<decl::Geometry>(N_("Geometry"));
-  b.add_input<decl::Bool>(N_("Selection"))
-      .default_value(true)
-      .hide_value()
-      .supports_field()
-      .description(N_("The parts of the geometry to be deleted"));
-  b.add_output<decl::Geometry>(N_("Geometry"));
-}
-
-static void geo_node_delete_geometry_layout(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
-{
-  const bNode *node = static_cast<bNode *>(ptr->data);
-  const NodeGeometryDeleteGeometry &storage = *(const NodeGeometryDeleteGeometry *)node->storage;
-  const AttributeDomain domain = static_cast<AttributeDomain>(storage.domain);
-
-  uiItemR(layout, ptr, "domain", 0, "", ICON_NONE);
-  /* Only show the mode when it is relevant. */
-  if (ELEM(domain, ATTR_DOMAIN_POINT, ATTR_DOMAIN_EDGE, ATTR_DOMAIN_FACE)) {
-    uiItemR(layout, ptr, "mode", 0, "", ICON_NONE);
-  }
-}
-
-static void geo_node_delete_geometry_init(bNodeTree *UNUSED(tree), bNode *node)
-{
-  NodeGeometryDeleteGeometry *data = (NodeGeometryDeleteGeometry *)MEM_callocN(
-      sizeof(NodeGeometryDeleteGeometry), __func__);
-  data->domain = ATTR_DOMAIN_POINT;
-  data->mode = GEO_NODE_DELETE_GEOMETRY_MODE_ALL;
-
-  node->storage = data;
-}
+using blender::bke::CustomDataAttributes;
 
 template<typename T> static void copy_data(Span<T> data, MutableSpan<T> r_data, IndexMask mask)
 {
@@ -195,6 +161,27 @@ static void copy_attributes_based_on_mask(const Map<AttributeIDRef, AttributeKin
     });
     result_attribute.save();
   }
+}
+
+static void copy_face_corner_attributes(const Map<AttributeIDRef, AttributeKind> &attributes,
+                                        const GeometryComponent &in_component,
+                                        GeometryComponent &out_component,
+                                        const int num_selected_loops,
+                                        const Span<int> selected_poly_indices,
+                                        const Mesh &mesh_in)
+{
+  Vector<int64_t> indices;
+  indices.reserve(num_selected_loops);
+  for (const int src_poly_index : selected_poly_indices) {
+    const MPoly &src_poly = mesh_in.mpoly[src_poly_index];
+    const int src_loop_start = src_poly.loopstart;
+    const int tot_loop = src_poly.totloop;
+    for (const int i : IndexRange(tot_loop)) {
+      indices.append_unchecked(src_loop_start + i);
+    }
+  }
+  copy_attributes_based_on_mask(
+      attributes, in_component, out_component, ATTR_DOMAIN_CORNER, IndexMask(indices));
 }
 
 static void copy_masked_edges_to_new_mesh(const Mesh &src_mesh, Mesh &dst_mesh, Span<int> edge_map)
@@ -1051,12 +1038,17 @@ static void do_mesh_separation(GeometrySet &geometry_set,
                                     out_component,
                                     ATTR_DOMAIN_EDGE,
                                     index_mask_indices(edge_map, num_selected_edges, indices));
-      copy_attributes_based_on_mask(
-          attributes,
-          in_component,
-          out_component,
-          ATTR_DOMAIN_FACE,
-          index_mask_indices(selected_poly_indices, num_selected_polys, indices));
+      copy_attributes_based_on_mask(attributes,
+                                    in_component,
+                                    out_component,
+                                    ATTR_DOMAIN_FACE,
+                                    IndexMask(Vector<int64_t>(selected_poly_indices.as_span())));
+      copy_face_corner_attributes(attributes,
+                                  in_component,
+                                  out_component,
+                                  num_selected_loops,
+                                  selected_poly_indices,
+                                  mesh_in);
       break;
     }
     case GEO_NODE_DELETE_GEOMETRY_MODE_ONLY_FACE: {
@@ -1103,11 +1095,17 @@ static void do_mesh_separation(GeometrySet &geometry_set,
       copy_attributes(
           attributes, in_component, out_component, {ATTR_DOMAIN_POINT, ATTR_DOMAIN_EDGE});
       copy_masked_polys_to_new_mesh(mesh_in, *mesh_out, selected_poly_indices, new_loop_starts);
-      Vector<int64_t> indices;
-      const IndexMask mask = index_mask_indices(
-          selected_poly_indices, num_selected_polys, indices);
-      copy_attributes_based_on_mask(
-          attributes, in_component, out_component, ATTR_DOMAIN_FACE, mask);
+      copy_attributes_based_on_mask(attributes,
+                                    in_component,
+                                    out_component,
+                                    ATTR_DOMAIN_FACE,
+                                    IndexMask(Vector<int64_t>(selected_poly_indices.as_span())));
+      copy_face_corner_attributes(attributes,
+                                  in_component,
+                                  out_component,
+                                  num_selected_loops,
+                                  selected_poly_indices,
+                                  mesh_in);
       break;
     }
   }
@@ -1177,7 +1175,45 @@ void separate_geometry(GeometrySet &geometry_set,
   r_is_error = !some_valid_domain && geometry_set.has_realized_data();
 }
 
-static void geo_node_delete_geometry_exec(GeoNodeExecParams params)
+}  // namespace blender::nodes
+
+namespace blender::nodes::node_geo_delete_geometry_cc {
+
+static void node_declare(NodeDeclarationBuilder &b)
+{
+  b.add_input<decl::Geometry>(N_("Geometry"));
+  b.add_input<decl::Bool>(N_("Selection"))
+      .default_value(true)
+      .hide_value()
+      .supports_field()
+      .description(N_("The parts of the geometry to be deleted"));
+  b.add_output<decl::Geometry>(N_("Geometry"));
+}
+
+static void node_layout(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+  const bNode *node = static_cast<bNode *>(ptr->data);
+  const NodeGeometryDeleteGeometry &storage = *(const NodeGeometryDeleteGeometry *)node->storage;
+  const AttributeDomain domain = static_cast<AttributeDomain>(storage.domain);
+
+  uiItemR(layout, ptr, "domain", 0, "", ICON_NONE);
+  /* Only show the mode when it is relevant. */
+  if (ELEM(domain, ATTR_DOMAIN_POINT, ATTR_DOMAIN_EDGE, ATTR_DOMAIN_FACE)) {
+    uiItemR(layout, ptr, "mode", 0, "", ICON_NONE);
+  }
+}
+
+static void node_init(bNodeTree *UNUSED(tree), bNode *node)
+{
+  NodeGeometryDeleteGeometry *data = (NodeGeometryDeleteGeometry *)MEM_callocN(
+      sizeof(NodeGeometryDeleteGeometry), __func__);
+  data->domain = ATTR_DOMAIN_POINT;
+  data->mode = GEO_NODE_DELETE_GEOMETRY_MODE_ALL;
+
+  node->storage = data;
+}
+
+static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
 
@@ -1204,10 +1240,12 @@ static void geo_node_delete_geometry_exec(GeoNodeExecParams params)
   params.set_output("Geometry", std::move(geometry_set));
 }
 
-}  // namespace blender::nodes
+}  // namespace blender::nodes::node_geo_delete_geometry_cc
 
 void register_node_type_geo_delete_geometry()
 {
+  namespace file_ns = blender::nodes::node_geo_delete_geometry_cc;
+
   static bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_DELETE_GEOMETRY, "Delete Geometry", NODE_CLASS_GEOMETRY, 0);
@@ -1217,10 +1255,10 @@ void register_node_type_geo_delete_geometry()
                     node_free_standard_storage,
                     node_copy_standard_storage);
 
-  node_type_init(&ntype, blender::nodes::geo_node_delete_geometry_init);
+  node_type_init(&ntype, file_ns::node_init);
 
-  ntype.declare = blender::nodes::geo_node_delete_geometry_declare;
-  ntype.geometry_node_execute = blender::nodes::geo_node_delete_geometry_exec;
-  ntype.draw_buttons = blender::nodes::geo_node_delete_geometry_layout;
+  ntype.declare = file_ns::node_declare;
+  ntype.geometry_node_execute = file_ns::node_geo_exec;
+  ntype.draw_buttons = file_ns::node_layout;
   nodeRegisterType(&ntype);
 }

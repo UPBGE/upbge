@@ -21,9 +21,9 @@
 #include "UI_interface.h"
 #include "UI_resources.h"
 
-namespace blender::nodes {
+namespace blender::nodes::node_geo_legacy_attribute_vector_rotate_cc {
 
-static void geo_node_attribute_vector_rotate_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>(N_("Geometry"));
   b.add_input<decl::String>(N_("Vector"));
@@ -42,9 +42,7 @@ static void geo_node_attribute_vector_rotate_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>(N_("Geometry"));
 }
 
-static void geo_node_attribute_vector_rotate_layout(uiLayout *layout,
-                                                    bContext *UNUSED(C),
-                                                    PointerRNA *ptr)
+static void node_layout(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
   bNode *node = (bNode *)ptr->data;
   const NodeAttributeVectorRotate &node_storage = *(NodeAttributeVectorRotate *)node->storage;
@@ -70,7 +68,7 @@ static void geo_node_attribute_vector_rotate_layout(uiLayout *layout,
   }
 }
 
-static void geo_node_attribute_vector_rotate_update(bNodeTree *ntree, bNode *node)
+static void node_update(bNodeTree *ntree, bNode *node)
 {
   const NodeAttributeVectorRotate *node_storage = (NodeAttributeVectorRotate *)node->storage;
   const GeometryNodeAttributeVectorRotateMode mode = (const GeometryNodeAttributeVectorRotateMode)
@@ -112,7 +110,7 @@ static float3 vector_rotate_around_axis(const float3 vector,
   return result + center;
 }
 
-static void geo_node_attribute_vector_rotate_init(bNodeTree *UNUSED(ntree), bNode *node)
+static void node_init(bNodeTree *UNUSED(ntree), bNode *node)
 {
   NodeAttributeVectorRotate *node_storage = (NodeAttributeVectorRotate *)MEM_callocN(
       sizeof(NodeAttributeVectorRotate), __func__);
@@ -309,7 +307,7 @@ static void execute_on_component(const GeoNodeExecParams &params, GeometryCompon
   attribute_result.save();
 }
 
-static void geo_node_attribute_vector_rotate_exec(GeoNodeExecParams params)
+static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
 
@@ -328,10 +326,12 @@ static void geo_node_attribute_vector_rotate_exec(GeoNodeExecParams params)
   params.set_output("Geometry", std::move(geometry_set));
 }
 
-}  // namespace blender::nodes
+}  // namespace blender::nodes::node_geo_legacy_attribute_vector_rotate_cc
 
 void register_node_type_geo_attribute_vector_rotate()
 {
+  namespace file_ns = blender::nodes::node_geo_legacy_attribute_vector_rotate_cc;
+
   static bNodeType ntype;
 
   geo_node_type_base(&ntype,
@@ -339,13 +339,13 @@ void register_node_type_geo_attribute_vector_rotate()
                      "Attribute Vector Rotate",
                      NODE_CLASS_ATTRIBUTE,
                      0);
-  node_type_update(&ntype, blender::nodes::geo_node_attribute_vector_rotate_update);
-  node_type_init(&ntype, blender::nodes::geo_node_attribute_vector_rotate_init);
+  node_type_update(&ntype, file_ns::node_update);
+  node_type_init(&ntype, file_ns::node_init);
   node_type_size(&ntype, 165, 100, 600);
   node_type_storage(
       &ntype, "NodeAttributeVectorRotate", node_free_standard_storage, node_copy_standard_storage);
-  ntype.geometry_node_execute = blender::nodes::geo_node_attribute_vector_rotate_exec;
-  ntype.draw_buttons = blender::nodes::geo_node_attribute_vector_rotate_layout;
-  ntype.declare = blender::nodes::geo_node_attribute_vector_rotate_declare;
+  ntype.geometry_node_execute = file_ns::node_geo_exec;
+  ntype.draw_buttons = file_ns::node_layout;
+  ntype.declare = file_ns::node_declare;
   nodeRegisterType(&ntype);
 }

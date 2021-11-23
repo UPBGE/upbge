@@ -28,9 +28,9 @@
 #  include "RBI_hull_api.h"
 #endif
 
-namespace blender::nodes {
+namespace blender::nodes::node_geo_convex_hull_cc {
 
-static void geo_node_convex_hull_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>(N_("Geometry"));
   b.add_output<decl::Geometry>(N_("Convex Hull"));
@@ -296,7 +296,7 @@ static Mesh *convex_hull_from_instances(const GeometrySet &geometry_set)
 
 #endif /* WITH_BULLET */
 
-static void geo_node_convex_hull_exec(GeoNodeExecParams params)
+static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
 
@@ -316,14 +316,16 @@ static void geo_node_convex_hull_exec(GeoNodeExecParams params)
 #endif /* WITH_BULLET */
 }
 
-}  // namespace blender::nodes
+}  // namespace blender::nodes::node_geo_convex_hull_cc
 
 void register_node_type_geo_convex_hull()
 {
+  namespace file_ns = blender::nodes::node_geo_convex_hull_cc;
+
   static bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_CONVEX_HULL, "Convex Hull", NODE_CLASS_GEOMETRY, 0);
-  ntype.declare = blender::nodes::geo_node_convex_hull_declare;
-  ntype.geometry_node_execute = blender::nodes::geo_node_convex_hull_exec;
+  ntype.declare = file_ns::node_declare;
+  ntype.geometry_node_execute = file_ns::node_geo_exec;
   nodeRegisterType(&ntype);
 }

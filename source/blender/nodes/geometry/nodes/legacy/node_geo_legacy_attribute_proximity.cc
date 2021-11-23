@@ -26,9 +26,9 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes {
+namespace blender::nodes::node_geo_legacy_attribute_proximity_cc {
 
-static void geo_node_attribute_proximity_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>(N_("Geometry"));
   b.add_input<decl::Geometry>(N_("Target"));
@@ -37,14 +37,12 @@ static void geo_node_attribute_proximity_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>(N_("Geometry"));
 }
 
-static void geo_node_attribute_proximity_layout(uiLayout *layout,
-                                                bContext *UNUSED(C),
-                                                PointerRNA *ptr)
+static void node_layout(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "target_geometry_element", 0, "", ICON_NONE);
 }
 
-static void geo_attribute_proximity_init(bNodeTree *UNUSED(ntree), bNode *node)
+static void node_init(bNodeTree *UNUSED(ntree), bNode *node)
 {
   NodeGeometryAttributeProximity *node_storage = (NodeGeometryAttributeProximity *)MEM_callocN(
       sizeof(NodeGeometryAttributeProximity), __func__);
@@ -203,7 +201,7 @@ static void attribute_calc_proximity(GeometryComponent &component,
   }
 }
 
-static void geo_node_attribute_proximity_exec(GeoNodeExecParams params)
+static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
   GeometrySet geometry_set_target = params.extract_input<GeometrySet>("Target");
@@ -230,22 +228,24 @@ static void geo_node_attribute_proximity_exec(GeoNodeExecParams params)
   params.set_output("Geometry", geometry_set);
 }
 
-}  // namespace blender::nodes
+}  // namespace blender::nodes::node_geo_legacy_attribute_proximity_cc
 
 void register_node_type_geo_legacy_attribute_proximity()
 {
+  namespace file_ns = blender::nodes::node_geo_legacy_attribute_proximity_cc;
+
   static bNodeType ntype;
 
   geo_node_type_base(
       &ntype, GEO_NODE_LEGACY_ATTRIBUTE_PROXIMITY, "Attribute Proximity", NODE_CLASS_ATTRIBUTE, 0);
-  node_type_init(&ntype, blender::nodes::geo_attribute_proximity_init);
+  node_type_init(&ntype, file_ns::node_init);
   node_type_storage(&ntype,
                     "NodeGeometryAttributeProximity",
                     node_free_standard_storage,
                     node_copy_standard_storage);
 
-  ntype.declare = blender::nodes::geo_node_attribute_proximity_declare;
-  ntype.geometry_node_execute = blender::nodes::geo_node_attribute_proximity_exec;
-  ntype.draw_buttons = blender::nodes::geo_node_attribute_proximity_layout;
+  ntype.declare = file_ns::node_declare;
+  ntype.geometry_node_execute = file_ns::node_geo_exec;
+  ntype.draw_buttons = file_ns::node_layout;
   nodeRegisterType(&ntype);
 }

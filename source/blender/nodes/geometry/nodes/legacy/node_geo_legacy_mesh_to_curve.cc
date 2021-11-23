@@ -18,16 +18,16 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes {
+namespace blender::nodes::node_geo_legacy_mesh_to_curve_cc {
 
-static void geo_node_legacy_mesh_to_curve_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>(N_("Mesh"));
   b.add_input<decl::String>(N_("Selection"));
   b.add_output<decl::Geometry>(N_("Curve"));
 }
 
-static void geo_node_legacy_mesh_to_curve_exec(GeoNodeExecParams params)
+static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh");
 
@@ -65,15 +65,17 @@ static void geo_node_legacy_mesh_to_curve_exec(GeoNodeExecParams params)
   params.set_output("Curve", GeometrySet::create_with_curve(curve.release()));
 }
 
-}  // namespace blender::nodes
+}  // namespace blender::nodes::node_geo_legacy_mesh_to_curve_cc
 
 void register_node_type_geo_legacy_mesh_to_curve()
 {
+  namespace file_ns = blender::nodes::node_geo_legacy_mesh_to_curve_cc;
+
   static bNodeType ntype;
 
   geo_node_type_base(
       &ntype, GEO_NODE_LEGACY_MESH_TO_CURVE, "Mesh to Curve", NODE_CLASS_GEOMETRY, 0);
-  ntype.declare = blender::nodes::geo_node_legacy_mesh_to_curve_declare;
-  ntype.geometry_node_execute = blender::nodes::geo_node_legacy_mesh_to_curve_exec;
+  ntype.declare = file_ns::node_declare;
+  ntype.geometry_node_execute = file_ns::node_geo_exec;
   nodeRegisterType(&ntype);
 }

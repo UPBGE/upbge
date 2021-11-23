@@ -36,11 +36,11 @@
 
 #include "node_geometry_util.hh"
 
+namespace blender::nodes::node_geo_legacy_point_distribute_cc {
+
 using blender::bke::GeometryInstanceGroup;
 
-namespace blender::nodes {
-
-static void geo_node_point_distribute_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>(N_("Geometry"));
   b.add_input<decl::Float>(N_("Distance Min")).min(0.0f).max(100000.0f).subtype(PROP_DISTANCE);
@@ -54,9 +54,7 @@ static void geo_node_point_distribute_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>(N_("Geometry"));
 }
 
-static void geo_node_point_distribute_layout(uiLayout *layout,
-                                             bContext *UNUSED(C),
-                                             PointerRNA *ptr)
+static void node_layout(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "distribute_method", 0, "", ICON_NONE);
 }
@@ -541,7 +539,7 @@ static void distribute_points_poisson_disk(Span<GeometryInstanceGroup> set_group
   }
 }
 
-static void geo_node_point_distribute_exec(GeoNodeExecParams params)
+static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
 
@@ -655,17 +653,19 @@ static void geo_node_point_distribute_exec(GeoNodeExecParams params)
   params.set_output("Geometry", std::move(geometry_set_out));
 }
 
-}  // namespace blender::nodes
+}  // namespace blender::nodes::node_geo_legacy_point_distribute_cc
 
 void register_node_type_geo_point_distribute()
 {
+  namespace file_ns = blender::nodes::node_geo_legacy_point_distribute_cc;
+
   static bNodeType ntype;
 
   geo_node_type_base(
       &ntype, GEO_NODE_LEGACY_POINT_DISTRIBUTE, "Point Distribute", NODE_CLASS_GEOMETRY, 0);
-  node_type_update(&ntype, blender::nodes::node_point_distribute_update);
-  ntype.declare = blender::nodes::geo_node_point_distribute_declare;
-  ntype.geometry_node_execute = blender::nodes::geo_node_point_distribute_exec;
-  ntype.draw_buttons = blender::nodes::geo_node_point_distribute_layout;
+  node_type_update(&ntype, file_ns::node_point_distribute_update);
+  ntype.declare = file_ns::node_declare;
+  ntype.geometry_node_execute = file_ns::node_geo_exec;
+  ntype.draw_buttons = file_ns::node_layout;
   nodeRegisterType(&ntype);
 }

@@ -20,9 +20,9 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes {
+namespace blender::nodes::node_geo_curve_parameter_cc {
 
-static void geo_node_curve_parameter_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_output<decl::Float>(N_("Factor"))
       .field_source()
@@ -261,7 +261,7 @@ class CurveLengthFieldInput final : public fn::FieldInput {
   }
 };
 
-static void geo_node_curve_parameter_exec(GeoNodeExecParams params)
+static void node_geo_exec(GeoNodeExecParams params)
 {
   Field<float> parameter_field{std::make_shared<CurveParameterFieldInput>()};
   Field<float> length_field{std::make_shared<CurveLengthFieldInput>()};
@@ -269,13 +269,15 @@ static void geo_node_curve_parameter_exec(GeoNodeExecParams params)
   params.set_output("Length", std::move(length_field));
 }
 
-}  // namespace blender::nodes
+}  // namespace blender::nodes::node_geo_curve_parameter_cc
 
 void register_node_type_geo_curve_parameter()
 {
+  namespace file_ns = blender::nodes::node_geo_curve_parameter_cc;
+
   static bNodeType ntype;
   geo_node_type_base(&ntype, GEO_NODE_CURVE_PARAMETER, "Curve Parameter", NODE_CLASS_INPUT, 0);
-  ntype.geometry_node_execute = blender::nodes::geo_node_curve_parameter_exec;
-  ntype.declare = blender::nodes::geo_node_curve_parameter_declare;
+  ntype.geometry_node_execute = file_ns::node_geo_exec;
+  ntype.declare = file_ns::node_declare;
   nodeRegisterType(&ntype);
 }

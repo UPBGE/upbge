@@ -36,11 +36,9 @@
 
 #include "node_geometry_util.hh"
 
-using blender::bke::GeometryInstanceGroup;
+namespace blender::nodes::node_geo_distribute_points_on_faces_cc {
 
-namespace blender::nodes {
-
-static void geo_node_point_distribute_points_on_faces_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>(N_("Mesh")).supported_type(GEO_COMPONENT_TYPE_MESH);
   b.add_input<decl::Bool>(N_("Selection")).default_value(true).hide_value().supports_field();
@@ -60,9 +58,7 @@ static void geo_node_point_distribute_points_on_faces_declare(NodeDeclarationBui
   b.add_output<decl::Vector>(N_("Rotation")).subtype(PROP_EULER).field_source();
 }
 
-static void geo_node_point_distribute_points_on_faces_layout(uiLayout *layout,
-                                                             bContext *UNUSED(C),
-                                                             PointerRNA *ptr)
+static void node_layout(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "distribute_method", 0, "", ICON_NONE);
 }
@@ -528,7 +524,7 @@ static void point_distribution_calculate(GeometrySet &geometry_set,
       mesh_component, point_component, bary_coords, looptri_indices, attribute_outputs);
 }
 
-static void geo_node_point_distribute_points_on_faces_exec(GeoNodeExecParams params)
+static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh");
 
@@ -570,10 +566,12 @@ static void geo_node_point_distribute_points_on_faces_exec(GeoNodeExecParams par
   }
 }
 
-}  // namespace blender::nodes
+}  // namespace blender::nodes::node_geo_distribute_points_on_faces_cc
 
 void register_node_type_geo_distribute_points_on_faces()
 {
+  namespace file_ns = blender::nodes::node_geo_distribute_points_on_faces_cc;
+
   static bNodeType ntype;
 
   geo_node_type_base(&ntype,
@@ -581,10 +579,10 @@ void register_node_type_geo_distribute_points_on_faces()
                      "Distribute Points on Faces",
                      NODE_CLASS_GEOMETRY,
                      0);
-  node_type_update(&ntype, blender::nodes::node_point_distribute_points_on_faces_update);
+  node_type_update(&ntype, file_ns::node_point_distribute_points_on_faces_update);
   node_type_size(&ntype, 170, 100, 320);
-  ntype.declare = blender::nodes::geo_node_point_distribute_points_on_faces_declare;
-  ntype.geometry_node_execute = blender::nodes::geo_node_point_distribute_points_on_faces_exec;
-  ntype.draw_buttons = blender::nodes::geo_node_point_distribute_points_on_faces_layout;
+  ntype.declare = file_ns::node_declare;
+  ntype.geometry_node_execute = file_ns::node_geo_exec;
+  ntype.draw_buttons = file_ns::node_layout;
   nodeRegisterType(&ntype);
 }

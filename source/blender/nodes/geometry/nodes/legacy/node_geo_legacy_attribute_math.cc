@@ -25,9 +25,9 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes {
+namespace blender::nodes::node_geo_legacy_attribute_math_cc {
 
-static void geo_node_attribute_math_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>(N_("Geometry"));
   b.add_input<decl::String>(N_("A"));
@@ -100,7 +100,7 @@ static bool operation_use_input_b(const NodeMathOperation operation)
   return false;
 }
 
-static void geo_node_attribute_math_layout(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+static void node_layout(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
   bNode *node = (bNode *)ptr->data;
   NodeAttributeMath *node_storage = (NodeAttributeMath *)node->storage;
@@ -119,7 +119,7 @@ static void geo_node_attribute_math_layout(uiLayout *layout, bContext *UNUSED(C)
   }
 }
 
-static void geo_node_attribute_math_init(bNodeTree *UNUSED(tree), bNode *node)
+static void node_init(bNodeTree *UNUSED(tree), bNode *node)
 {
   NodeAttributeMath *data = (NodeAttributeMath *)MEM_callocN(sizeof(NodeAttributeMath), __func__);
 
@@ -141,7 +141,7 @@ static void geo_node_math_label(bNodeTree *UNUSED(ntree), bNode *node, char *lab
   BLI_strncpy(label, IFACE_(name), maxlen);
 }
 
-static void geo_node_attribute_math_update(bNodeTree *ntree, bNode *node)
+static void node_update(bNodeTree *ntree, bNode *node)
 {
   NodeAttributeMath &node_storage = *(NodeAttributeMath *)node->storage;
   NodeMathOperation operation = static_cast<NodeMathOperation>(node_storage.operation);
@@ -278,7 +278,7 @@ static void attribute_math_calc(GeometryComponent &component, const GeoNodeExecP
   attribute_result.save();
 }
 
-static void geo_node_attribute_math_exec(GeoNodeExecParams params)
+static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
 
@@ -297,20 +297,22 @@ static void geo_node_attribute_math_exec(GeoNodeExecParams params)
   params.set_output("Geometry", geometry_set);
 }
 
-}  // namespace blender::nodes
+}  // namespace blender::nodes::node_geo_legacy_attribute_math_cc
 
 void register_node_type_geo_attribute_math()
 {
+  namespace file_ns = blender::nodes::node_geo_legacy_attribute_math_cc;
+
   static bNodeType ntype;
 
   geo_node_type_base(
       &ntype, GEO_NODE_LEGACY_ATTRIBUTE_MATH, "Attribute Math", NODE_CLASS_ATTRIBUTE, 0);
-  ntype.declare = blender::nodes::geo_node_attribute_math_declare;
-  ntype.geometry_node_execute = blender::nodes::geo_node_attribute_math_exec;
-  ntype.draw_buttons = blender::nodes::geo_node_attribute_math_layout;
-  node_type_label(&ntype, blender::nodes::geo_node_math_label);
-  node_type_update(&ntype, blender::nodes::geo_node_attribute_math_update);
-  node_type_init(&ntype, blender::nodes::geo_node_attribute_math_init);
+  ntype.declare = file_ns::node_declare;
+  ntype.geometry_node_execute = file_ns::node_geo_exec;
+  ntype.draw_buttons = file_ns::node_layout;
+  node_type_label(&ntype, file_ns::geo_node_math_label);
+  node_type_update(&ntype, file_ns::node_update);
+  node_type_init(&ntype, file_ns::node_init);
   node_type_storage(
       &ntype, "NodeAttributeMath", node_free_standard_storage, node_copy_standard_storage);
   nodeRegisterType(&ntype);

@@ -28,7 +28,59 @@
 
 namespace blender::nodes {
 
-static void geo_node_curve_to_points_declare(NodeDeclarationBuilder &b)
+static GMutableSpan create_attribute_and_retrieve_span(PointCloudComponent &points,
+                                                       const AttributeIDRef &attribute_id,
+                                                       const CustomDataType data_type)
+{
+  points.attribute_try_create(attribute_id, ATTR_DOMAIN_POINT, data_type, AttributeInitDefault());
+  WriteAttributeLookup attribute = points.attribute_try_get_for_write(attribute_id);
+  BLI_assert(attribute);
+  return attribute.varray.get_internal_span();
+}
+
+template<typename T>
+static MutableSpan<T> create_attribute_and_retrieve_span(PointCloudComponent &points,
+                                                         const AttributeIDRef &attribute_id)
+{
+  GMutableSpan attribute = create_attribute_and_retrieve_span(
+      points, attribute_id, bke::cpp_type_to_custom_data_type(CPPType::get<T>()));
+  return attribute.typed<T>();
+}
+
+CurveToPointsResults curve_to_points_create_result_attributes(PointCloudComponent &points,
+                                                              const CurveEval &curve)
+{
+  CurveToPointsResults attributes;
+
+  attributes.result_size = points.attribute_domain_size(ATTR_DOMAIN_POINT);
+
+  attributes.positions = create_attribute_and_retrieve_span<float3>(points, "position");
+  attributes.radii = create_attribute_and_retrieve_span<float>(points, "radius");
+  attributes.tilts = create_attribute_and_retrieve_span<float>(points, "tilt");
+
+  /* Because of the invariants of the curve component, we use the attributes of the
+   * first spline as a representative for the attribute meta data all splines. */
+  curve.splines().first()->attributes.foreach_attribute(
+      [&](const AttributeIDRef &attribute_id, const AttributeMetaData &meta_data) {
+        attributes.point_attributes.add_new(
+            attribute_id,
+            create_attribute_and_retrieve_span(points, attribute_id, meta_data.data_type));
+        return true;
+      },
+      ATTR_DOMAIN_POINT);
+
+  attributes.tangents = create_attribute_and_retrieve_span<float3>(points, "tangent");
+  attributes.normals = create_attribute_and_retrieve_span<float3>(points, "normal");
+  attributes.rotations = create_attribute_and_retrieve_span<float3>(points, "rotation");
+
+  return attributes;
+}
+
+}  // namespace blender::nodes
+
+namespace blender::nodes::node_geo_legacy_curve_to_points_cc {
+
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>(N_("Geometry"));
   b.add_input<decl::Int>(N_("Count")).default_value(10).min(2).max(100000);
@@ -36,12 +88,12 @@ static void geo_node_curve_to_points_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>(N_("Geometry"));
 }
 
-static void geo_node_curve_to_points_layout(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+static void node_layout(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "mode", 0, "", ICON_NONE);
 }
 
-static void geo_node_curve_to_points_init(bNodeTree *UNUSED(tree), bNode *node)
+static void node_init(bNodeTree *UNUSED(tree), bNode *node)
 {
   NodeGeometryCurveToPoints *data = (NodeGeometryCurveToPoints *)MEM_callocN(
       sizeof(NodeGeometryCurveToPoints), __func__);
@@ -50,7 +102,7 @@ static void geo_node_curve_to_points_init(bNodeTree *UNUSED(tree), bNode *node)
   node->storage = data;
 }
 
-static void geo_node_curve_to_points_update(bNodeTree *ntree, bNode *node)
+static void node_update(bNodeTree *ntree, bNode *node)
 {
   NodeGeometryCurveToPoints &node_storage = *(NodeGeometryCurveToPoints *)node->storage;
   const GeometryNodeCurveResampleMode mode = (GeometryNodeCurveResampleMode)node_storage.mode;
@@ -112,54 +164,6 @@ static Array<int> calculate_spline_point_offsets(GeoNodeExecParams &params,
   }
   BLI_assert_unreachable();
   return {0};
-}
-
-static GMutableSpan create_attribute_and_retrieve_span(PointCloudComponent &points,
-                                                       const AttributeIDRef &attribute_id,
-                                                       const CustomDataType data_type)
-{
-  points.attribute_try_create(attribute_id, ATTR_DOMAIN_POINT, data_type, AttributeInitDefault());
-  WriteAttributeLookup attribute = points.attribute_try_get_for_write(attribute_id);
-  BLI_assert(attribute);
-  return attribute.varray.get_internal_span();
-}
-
-template<typename T>
-static MutableSpan<T> create_attribute_and_retrieve_span(PointCloudComponent &points,
-                                                         const AttributeIDRef &attribute_id)
-{
-  GMutableSpan attribute = create_attribute_and_retrieve_span(
-      points, attribute_id, bke::cpp_type_to_custom_data_type(CPPType::get<T>()));
-  return attribute.typed<T>();
-}
-
-CurveToPointsResults curve_to_points_create_result_attributes(PointCloudComponent &points,
-                                                              const CurveEval &curve)
-{
-  CurveToPointsResults attributes;
-
-  attributes.result_size = points.attribute_domain_size(ATTR_DOMAIN_POINT);
-
-  attributes.positions = create_attribute_and_retrieve_span<float3>(points, "position");
-  attributes.radii = create_attribute_and_retrieve_span<float>(points, "radius");
-  attributes.tilts = create_attribute_and_retrieve_span<float>(points, "tilt");
-
-  /* Because of the invariants of the curve component, we use the attributes of the
-   * first spline as a representative for the attribute meta data all splines. */
-  curve.splines().first()->attributes.foreach_attribute(
-      [&](const AttributeIDRef &attribute_id, const AttributeMetaData &meta_data) {
-        attributes.point_attributes.add_new(
-            attribute_id,
-            create_attribute_and_retrieve_span(points, attribute_id, meta_data.data_type));
-        return true;
-      },
-      ATTR_DOMAIN_POINT);
-
-  attributes.tangents = create_attribute_and_retrieve_span<float3>(points, "tangent");
-  attributes.normals = create_attribute_and_retrieve_span<float3>(points, "normal");
-  attributes.rotations = create_attribute_and_retrieve_span<float3>(points, "rotation");
-
-  return attributes;
 }
 
 /**
@@ -286,7 +290,7 @@ static void copy_spline_domain_attributes(const CurveComponent &curve_component,
       });
 }
 
-static void geo_node_curve_to_points_exec(GeoNodeExecParams params)
+static void node_geo_exec(GeoNodeExecParams params)
 {
   NodeGeometryCurveToPoints &node_storage = *(NodeGeometryCurveToPoints *)params.node().storage;
   const GeometryNodeCurveResampleMode mode = (GeometryNodeCurveResampleMode)node_storage.mode;
@@ -340,21 +344,23 @@ static void geo_node_curve_to_points_exec(GeoNodeExecParams params)
   params.set_output("Geometry", std::move(result));
 }
 
-}  // namespace blender::nodes
+}  // namespace blender::nodes::node_geo_legacy_curve_to_points_cc
 
 void register_node_type_geo_legacy_curve_to_points()
 {
+  namespace file_ns = blender::nodes::node_geo_legacy_curve_to_points_cc;
+
   static bNodeType ntype;
 
   geo_node_type_base(
       &ntype, GEO_NODE_LEGACY_CURVE_TO_POINTS, "Curve to Points", NODE_CLASS_GEOMETRY, 0);
-  ntype.declare = blender::nodes::geo_node_curve_to_points_declare;
-  ntype.geometry_node_execute = blender::nodes::geo_node_curve_to_points_exec;
-  ntype.draw_buttons = blender::nodes::geo_node_curve_to_points_layout;
+  ntype.declare = file_ns::node_declare;
+  ntype.geometry_node_execute = file_ns::node_geo_exec;
+  ntype.draw_buttons = file_ns::node_layout;
   node_type_storage(
       &ntype, "NodeGeometryCurveToPoints", node_free_standard_storage, node_copy_standard_storage);
-  node_type_init(&ntype, blender::nodes::geo_node_curve_to_points_init);
-  node_type_update(&ntype, blender::nodes::geo_node_curve_to_points_update);
+  node_type_init(&ntype, file_ns::node_init);
+  node_type_update(&ntype, file_ns::node_update);
 
   nodeRegisterType(&ntype);
 }
