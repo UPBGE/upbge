@@ -320,6 +320,7 @@ IDTypeInfo IDType_ID_AC = {
     .name_plural = "actions",
     .translation_context = BLT_I18NCONTEXT_ID_ACTION,
     .flags = IDTYPE_FLAGS_NO_ANIMDATA,
+    .asset_type_info = &AssetType_AC,
 
     .init_data = NULL,
     .copy_data = action_copy_data,
@@ -337,8 +338,6 @@ IDTypeInfo IDType_ID_AC = {
     .blend_read_undo_preserve = NULL,
 
     .lib_override_apply_post = NULL,
-
-    .asset_type_info = &AssetType_AC,
 };
 
 /* ***************** Library data level operations on action ************** */
@@ -1605,6 +1604,30 @@ void calc_action_range(const bAction *act, float *start, float *end, short incl_
     *start = 0.0f;
     *end = 1.0f;
   }
+}
+
+/* Retrieve the intended playback frame range, using the manually set range if available,
+ * or falling back to scanning F-Curves for their first & last frames otherwise. */
+void BKE_action_get_frame_range(const struct bAction *act, float *r_start, float *r_end)
+{
+  if (act && (act->flag & ACT_FRAME_RANGE)) {
+    *r_start = act->frame_start;
+    *r_end = act->frame_end;
+  }
+  else {
+    calc_action_range(act, r_start, r_end, false);
+  }
+
+  /* Ensure that action is at least 1 frame long (for NLA strips to have a valid length). */
+  if (*r_start >= *r_end) {
+    *r_end = *r_start + 1.0f;
+  }
+}
+
+/* Is the action configured as cyclic. */
+bool BKE_action_is_cyclic(const struct bAction *act)
+{
+  return act && (act->flag & ACT_FRAME_RANGE) && (act->flag & ACT_CYCLIC);
 }
 
 /* Return flags indicating which transforms the given object/posechannel has

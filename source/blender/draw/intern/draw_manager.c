@@ -1377,7 +1377,7 @@ void DRW_notify_view_update(const DRWUpdateContext *update_ctx)
 }
 
 /* update a viewport which belongs to a GPUOffscreen */
-static void DRW_notify_view_update_offscreen(struct Depsgraph *depsgraph,
+static void drw_notify_view_update_offscreen(struct Depsgraph *depsgraph,
                                              RenderEngineType *engine_type,
                                              ARegion *region,
                                              View3D *v3d,
@@ -1841,7 +1841,7 @@ void DRW_draw_render_loop_offscreen(struct Depsgraph *depsgraph,
     render_viewport = GPU_viewport_create();
   }
   else {
-    DRW_notify_view_update_offscreen(depsgraph, engine_type, region, v3d, render_viewport);
+    drw_notify_view_update_offscreen(depsgraph, engine_type, region, v3d, render_viewport);
   }
 
   GPU_viewport_bind_from_offscreen(render_viewport, ofs);

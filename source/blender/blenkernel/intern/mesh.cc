@@ -355,28 +355,32 @@ static void mesh_read_expand(BlendExpander *expander, ID *id)
 }
 
 IDTypeInfo IDType_ID_ME = {
-    ID_ME,
-    FILTER_ID_ME,
-    INDEX_ID_ME,
-    sizeof(Mesh),
-    "Mesh",
-    "meshes",
-    BLT_I18NCONTEXT_ID_MESH,
-    IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    /* id_code */ ID_ME,
+    /* id_filter */ FILTER_ID_ME,
+    /* main_listbase_index */ INDEX_ID_ME,
+    /* struct_size */ sizeof(Mesh),
+    /* name */ "Mesh",
+    /* name_plural */ "meshes",
+    /* translation_context */ BLT_I18NCONTEXT_ID_MESH,
+    /* flags */ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    /* asset_type_info */ nullptr,
 
-    mesh_init_data,
-    mesh_copy_data,
-    mesh_free_data,
-    nullptr,
-    mesh_foreach_id,
-    nullptr,
-    nullptr,
-    mesh_blend_write,
-    mesh_blend_read_data,
-    mesh_blend_read_lib,
-    mesh_read_expand,
-    nullptr,
-    nullptr,
+    /* init_data */ mesh_init_data,
+    /* copy_data */ mesh_copy_data,
+    /* free_data */ mesh_free_data,
+    /* make_local */ nullptr,
+    /* foreach_id */ mesh_foreach_id,
+    /* foreach_cache */ nullptr,
+    /* owner_get */ nullptr,
+
+    /* blend_write */ mesh_blend_write,
+    /* blend_read_data */ mesh_blend_read_data,
+    /* blend_read_lib */ mesh_blend_read_lib,
+    /* blend_read_expand */ mesh_read_expand,
+
+    /* blend_read_undo_preserve */ nullptr,
+
+    /* lib_override_apply_post */ nullptr,
 };
 
 enum {
@@ -438,13 +442,15 @@ static int customdata_compare(
   const uint64_t cd_mask_all_attr = CD_MASK_PROP_ALL | cd_mask_non_generic;
 
   for (int i = 0; i < c1->totlayer; i++) {
-    if (CD_TYPE_AS_MASK(c1->layers[i].type) & cd_mask_all_attr) {
+    l1 = &c1->layers[i];
+    if (CD_TYPE_AS_MASK(l1->type) & cd_mask_all_attr && l1->anonymous_id != nullptr) {
       layer_count1++;
     }
   }
 
   for (int i = 0; i < c2->totlayer; i++) {
-    if (CD_TYPE_AS_MASK(c2->layers[i].type) & cd_mask_all_attr) {
+    l2 = &c2->layers[i];
+    if (CD_TYPE_AS_MASK(l1->type) & cd_mask_all_attr && l2->anonymous_id != nullptr) {
       layer_count2++;
     }
   }
@@ -460,7 +466,8 @@ static int customdata_compare(
     l1 = c1->layers + i1;
     for (int i2 = 0; i2 < c2->totlayer; i2++) {
       l2 = c2->layers + i2;
-      if (l1->type != l2->type || !STREQ(l1->name, l2->name)) {
+      if (l1->type != l2->type || !STREQ(l1->name, l2->name) || l1->anonymous_id != nullptr ||
+          l2->anonymous_id != nullptr) {
         continue;
       }
       /* At this point `l1` and `l2` have the same name and type, so they should be compared. */

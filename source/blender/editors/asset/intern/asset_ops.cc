@@ -413,7 +413,7 @@ static int asset_library_refresh_exec(bContext *C, wmOperator *UNUSED(unused))
   if (ED_operator_asset_browsing_active(C)) {
     SpaceFile *sfile = CTX_wm_space_file(C);
     ED_fileselect_clear(CTX_wm_manager(C), sfile);
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_FILE_LIST, NULL);
+    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_FILE_LIST, nullptr);
   }
   else {
     /* Execution mode #2: Outside the Asset Browser, use the asset list. */
@@ -688,6 +688,9 @@ static bool asset_bundle_install_poll(bContext *C)
 {
   /* This operator only works when the asset browser is set to Current File. */
   const SpaceFile *sfile = CTX_wm_space_file(C);
+  if (sfile == nullptr) {
+    return false;
+  }
   if (!ED_fileselect_is_local_asset_library(sfile)) {
     return false;
   }
