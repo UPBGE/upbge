@@ -1072,9 +1072,10 @@ typedef enum hiprtcResult {
 typedef hipError_t HIPAPI thipGetErrorName(hipError_t error, const char** pStr);
 typedef hipError_t HIPAPI thipInit(unsigned int Flags);
 typedef hipError_t HIPAPI thipDriverGetVersion(int* driverVersion);
-typedef hipError_t HIPAPI thipGetDevice(hipDevice_t* device, int ordinal);
+typedef hipError_t HIPAPI thipGetDevice(int* device);
 typedef hipError_t HIPAPI thipGetDeviceCount(int* count);
 typedef hipError_t HIPAPI thipGetDeviceProperties(hipDeviceProp_t* props, int deviceId);
+typedef hipError_t HIPAPI thipDeviceGet(hipDevice_t* device, int ordinal);
 typedef hipError_t HIPAPI thipDeviceGetName(char* name, int len, hipDevice_t dev);
 typedef hipError_t HIPAPI thipDeviceGetAttribute(int* pi, hipDeviceAttribute_t attrib, hipDevice_t dev);
 typedef hipError_t HIPAPI thipDeviceComputeCapability(int* major, int* minor, hipDevice_t dev);
@@ -1207,6 +1208,7 @@ extern thipDriverGetVersion *hipDriverGetVersion;
 extern thipGetDevice *hipGetDevice;
 extern thipGetDeviceCount *hipGetDeviceCount;
 extern thipGetDeviceProperties *hipGetDeviceProperties;
+extern thipDeviceGet* hipDeviceGet;
 extern thipDeviceGetName *hipDeviceGetName;
 extern thipDeviceGetAttribute *hipDeviceGetAttribute;
 extern thipDeviceComputeCapability *hipDeviceComputeCapability;
@@ -1331,6 +1333,7 @@ enum {
   HIPEW_SUCCESS = 0,
   HIPEW_ERROR_OPEN_FAILED = -1,
   HIPEW_ERROR_ATEXIT_FAILED = -2,
+  HIPEW_ERROR_OLD_DRIVER = -3,
 };
 
 enum {
