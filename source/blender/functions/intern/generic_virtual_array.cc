@@ -139,13 +139,15 @@ bool GVMutableArrayImpl::try_assign_VMutableArray(void *UNUSED(varray)) const
 /** \name #GVArrayImpl_For_GSpan
  * \{ */
 
-GVArrayImpl_For_GSpan::GVArrayImpl_For_GSpan(const GSpan span)
-    : GVArrayImpl(span.type(), span.size()), data_(span.data()), element_size_(span.type().size())
+GVArrayImpl_For_GSpan::GVArrayImpl_For_GSpan(const GMutableSpan span)
+    : GVMutableArrayImpl(span.type(), span.size()),
+      data_(span.data()),
+      element_size_(span.type().size())
 {
 }
 
 GVArrayImpl_For_GSpan::GVArrayImpl_For_GSpan(const CPPType &type, const int64_t size)
-    : GVArrayImpl(type, size), element_size_(type.size())
+    : GVMutableArrayImpl(type, size), element_size_(type.size())
 {
 }
 
@@ -159,6 +161,21 @@ void GVArrayImpl_For_GSpan::get_to_uninitialized(const int64_t index, void *r_va
   type_->copy_construct(POINTER_OFFSET(data_, element_size_ * index), r_value);
 }
 
+void GVArrayImpl_For_GSpan::set_by_copy(const int64_t index, const void *value)
+{
+  type_->copy_assign(value, POINTER_OFFSET(data_, element_size_ * index));
+}
+
+void GVArrayImpl_For_GSpan::set_by_move(const int64_t index, void *value)
+{
+  type_->move_construct(value, POINTER_OFFSET(data_, element_size_ * index));
+}
+
+void GVArrayImpl_For_GSpan::set_by_relocate(const int64_t index, void *value)
+{
+  type_->relocate_assign(value, POINTER_OFFSET(data_, element_size_ * index));
+}
+
 bool GVArrayImpl_For_GSpan::is_span() const
 {
   return true;
@@ -169,77 +186,9 @@ GSpan GVArrayImpl_For_GSpan::get_internal_span() const
   return GSpan(*type_, data_, size_);
 }
 
-/** See #VArrayImpl_For_Span_final. */
 class GVArrayImpl_For_GSpan_final final : public GVArrayImpl_For_GSpan {
  public:
   using GVArrayImpl_For_GSpan::GVArrayImpl_For_GSpan;
-
- private:
-  bool may_have_ownership() const override
-  {
-    return false;
-  }
-};
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name #GVMutableArrayImpl_For_GMutableSpan
- * \{ */
-
-GVMutableArrayImpl_For_GMutableSpan::GVMutableArrayImpl_For_GMutableSpan(const GMutableSpan span)
-    : GVMutableArrayImpl(span.type(), span.size()),
-      data_(span.data()),
-      element_size_(span.type().size())
-{
-}
-
-GVMutableArrayImpl_For_GMutableSpan::GVMutableArrayImpl_For_GMutableSpan(const CPPType &type,
-                                                                         const int64_t size)
-    : GVMutableArrayImpl(type, size), element_size_(type.size())
-{
-}
-
-void GVMutableArrayImpl_For_GMutableSpan::get(const int64_t index, void *r_value) const
-{
-  type_->copy_assign(POINTER_OFFSET(data_, element_size_ * index), r_value);
-}
-
-void GVMutableArrayImpl_For_GMutableSpan::get_to_uninitialized(const int64_t index,
-                                                               void *r_value) const
-{
-  type_->copy_construct(POINTER_OFFSET(data_, element_size_ * index), r_value);
-}
-
-void GVMutableArrayImpl_For_GMutableSpan::set_by_copy(const int64_t index, const void *value)
-{
-  type_->copy_assign(value, POINTER_OFFSET(data_, element_size_ * index));
-}
-
-void GVMutableArrayImpl_For_GMutableSpan::set_by_move(const int64_t index, void *value)
-{
-  type_->move_construct(value, POINTER_OFFSET(data_, element_size_ * index));
-}
-
-void GVMutableArrayImpl_For_GMutableSpan::set_by_relocate(const int64_t index, void *value)
-{
-  type_->relocate_assign(value, POINTER_OFFSET(data_, element_size_ * index));
-}
-
-bool GVMutableArrayImpl_For_GMutableSpan::is_span() const
-{
-  return true;
-}
-
-GSpan GVMutableArrayImpl_For_GMutableSpan::get_internal_span() const
-{
-  return GSpan(*type_, data_, size_);
-}
-
-class GVMutableArrayImpl_For_GMutableSpan_final final
-    : public GVMutableArrayImpl_For_GMutableSpan {
- public:
-  using GVMutableArrayImpl_For_GMutableSpan::GVMutableArrayImpl_For_GMutableSpan;
 
  private:
   bool may_have_ownership() const override
@@ -337,6 +286,57 @@ class GVArrayImpl_For_SingleValue : public GVArrayImpl_For_SingleValueRef,
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name #GVArrayImpl_For_SmallTrivialSingleValue
+ * \{ */
+
+/**
+ * Contains an inline buffer that can store a single value of a trivial type.
+ * This avoids the allocation that would be done by #GVArrayImpl_For_SingleValue.
+ */
+template<int BufferSize> class GVArrayImpl_For_SmallTrivialSingleValue : public GVArrayImpl {
+ private:
+  AlignedBuffer<BufferSize, 8> buffer_;
+
+ public:
+  GVArrayImpl_For_SmallTrivialSingleValue(const CPPType &type,
+                                          const int64_t size,
+                                          const void *value)
+      : GVArrayImpl(type, size)
+  {
+    BLI_assert(type.is_trivial());
+    BLI_assert(type.alignment() <= 8);
+    BLI_assert(type.size() <= BufferSize);
+    type.copy_construct(value, &buffer_);
+  }
+
+ private:
+  void get(const int64_t UNUSED(index), void *r_value) const override
+  {
+    this->copy_value_to(r_value);
+  }
+  void get_to_uninitialized(const int64_t UNUSED(index), void *r_value) const override
+  {
+    this->copy_value_to(r_value);
+  }
+
+  bool is_single() const override
+  {
+    return true;
+  }
+  void get_internal_single(void *r_value) const override
+  {
+    this->copy_value_to(r_value);
+  }
+
+  void copy_value_to(void *dst) const
+  {
+    memcpy(dst, &buffer_, type_->size());
+  }
+};
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name #GVArray_GSpan
  * \{ */
 
@@ -426,12 +426,14 @@ class GVArrayImpl_For_SlicedGVArray : public GVArrayImpl {
  protected:
   GVArray varray_;
   int64_t offset_;
+  IndexRange slice_;
 
  public:
   GVArrayImpl_For_SlicedGVArray(GVArray varray, const IndexRange slice)
       : GVArrayImpl(varray.type(), slice.size()),
         varray_(std::move(varray)),
-        offset_(slice.start())
+        offset_(slice.start()),
+        slice_(slice)
   {
     BLI_assert(slice.one_after_last() <= varray_.size());
   }
@@ -444,6 +446,24 @@ class GVArrayImpl_For_SlicedGVArray : public GVArrayImpl {
   void get_to_uninitialized(const int64_t index, void *r_value) const override
   {
     varray_.get_to_uninitialized(index + offset_, r_value);
+  }
+
+  bool is_span() const override
+  {
+    return varray_.is_span();
+  }
+  GSpan get_internal_span() const override
+  {
+    return varray_.get_internal_span().slice(slice_);
+  }
+
+  bool is_single() const override
+  {
+    return varray_.is_single();
+  }
+  void get_internal_single(void *r_value) const override
+  {
+    varray_.get_internal_single(r_value);
   }
 };
 
@@ -593,6 +613,9 @@ GVArray::GVArray(std::shared_ptr<const GVArrayImpl> impl) : GVArrayCommon(std::m
 
 GVArray GVArray::ForSingle(const CPPType &type, const int64_t size, const void *value)
 {
+  if (type.is_trivial() && type.size() <= 16 && type.alignment() <= 8) {
+    return GVArray::For<GVArrayImpl_For_SmallTrivialSingleValue<16>>(type, size, value);
+  }
   return GVArray::For<GVArrayImpl_For_SingleValue>(type, size, value);
 }
 
@@ -608,7 +631,10 @@ GVArray GVArray::ForSingleDefault(const CPPType &type, const int64_t size)
 
 GVArray GVArray::ForSpan(GSpan span)
 {
-  return GVArray::For<GVArrayImpl_For_GSpan_final>(span);
+  /* Use const-cast because the underlying virtual array implementation is shared between const
+   * and non const data. */
+  GMutableSpan mutable_span{span.type(), const_cast<void *>(span.data()), span.size()};
+  return GVArray::For<GVArrayImpl_For_GSpan_final>(mutable_span);
 }
 
 class GVArrayImpl_For_GArray : public GVArrayImpl_For_GSpan {
@@ -617,7 +643,7 @@ class GVArrayImpl_For_GArray : public GVArrayImpl_For_GSpan {
 
  public:
   GVArrayImpl_For_GArray(GArray<> array)
-      : GVArrayImpl_For_GSpan(array.as_span()), array_(std::move(array))
+      : GVArrayImpl_For_GSpan(array.as_mutable_span()), array_(std::move(array))
   {
   }
 };
@@ -669,7 +695,7 @@ GVMutableArray::GVMutableArray(std::shared_ptr<GVMutableArrayImpl> impl)
 
 GVMutableArray GVMutableArray::ForSpan(GMutableSpan span)
 {
-  return GVMutableArray::For<GVMutableArrayImpl_For_GMutableSpan_final>(span);
+  return GVMutableArray::For<GVArrayImpl_For_GSpan_final>(span);
 }
 
 GVMutableArray::operator GVArray() const &

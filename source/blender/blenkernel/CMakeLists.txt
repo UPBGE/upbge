@@ -169,7 +169,7 @@ set(SRC
   intern/idtype.c
   intern/image.c
   intern/image_gen.c
-  intern/image_gpu.c
+  intern/image_gpu.cc
   intern/image_save.c
   intern/ipo.c
   intern/kelvinlet.c
@@ -823,6 +823,7 @@ if(WITH_GTESTS)
     intern/asset_library_service_test.cc
     intern/asset_library_test.cc
     intern/asset_test.cc
+    intern/bpath_test.cc
     intern/cryptomatte_test.cc
     intern/fcurve_test.cc
     intern/lattice_deform_test.cc
