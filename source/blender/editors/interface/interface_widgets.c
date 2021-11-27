@@ -3754,7 +3754,8 @@ static void widget_link(uiBut *but,
                         uiWidgetColors *UNUSED(wcol),
                         rcti *rect,
                         int UNUSED(state),
-                        int UNUSED(roundboxalign))
+                        int UNUSED(roundboxalign),
+                        const float UNUSED(zoom))
 {
   if (but->flag & UI_SELECT) {
     rcti rectlink;
