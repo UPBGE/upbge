@@ -3095,7 +3095,7 @@ class WM_MT_splash_about(Menu):
 
         col = split.column(align=True)
         col.scale_y = 0.8
-        col.label(text=bpy.app.version_string, translate=False)
+        ##col.label(text=bpy.app.version_string, translate=False) // UPBGE
         col.separator(factor=2.5)
         col.label(text=iface_("Date: %s %s") % (bpy.app.build_commit_date.decode('utf-8', 'replace'),
                                                 bpy.app.build_commit_time.decode('utf-8', 'replace')), translate=False)
