@@ -168,7 +168,7 @@ static void upbge_version_init(void)
 
   BLI_snprintf(upbge_version_string,
                ARRAY_SIZE(upbge_version_string),
-               "UPBGE %d.%d.%d%s",
+               "%d.%d.%d%s",
                UPBGE_VERSION / 100,
                UPBGE_VERSION % 100,
                UPBGE_VERSION_PATCH,

@@ -690,7 +690,7 @@ static const char *info_statusbar_string(Main *bmain,
     }
     ofs += BLI_snprintf(info + ofs,
                         len - ofs,
-                        TIP_("%s (based on Blender %s)"),
+                        TIP_("UPBGE %s (based on Blender %s)"),
                         BKE_upbge_version_string(),
                         BKE_blender_version_string());
   }
