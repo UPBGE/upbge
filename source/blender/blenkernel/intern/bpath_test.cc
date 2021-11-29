@@ -42,7 +42,7 @@ namespace blender::bke::tests {
 #  define ABSOLUTE_ROOT SEP_STR
 #endif
 
-#define RELATIVE_ROOT SEP_STR SEP_STR
+#define RELATIVE_ROOT "//"
 #define BASE_DIR ABSOLUTE_ROOT "blendfiles" SEP_STR
 #define REBASE_DIR BASE_DIR "rebase" SEP_STR
 
@@ -51,13 +51,13 @@ namespace blender::bke::tests {
 
 #define TEXT_PATH_ITEM "texts" SEP_STR "text.txt"
 #define TEXT_PATH_ABSOLUTE ABSOLUTE_ROOT TEXT_PATH_ITEM
-#define TEXT_PATH_ABSOLUTE_MADE_RELATIVE RELATIVE_ROOT ".." TEXT_PATH_ABSOLUTE
+#define TEXT_PATH_ABSOLUTE_MADE_RELATIVE RELATIVE_ROOT ".." SEP_STR TEXT_PATH_ITEM
 #define TEXT_PATH_RELATIVE RELATIVE_ROOT TEXT_PATH_ITEM
 #define TEXT_PATH_RELATIVE_MADE_ABSOLUTE BASE_DIR TEXT_PATH_ITEM
 
 #define MOVIECLIP_PATH_ITEM "movieclips" SEP_STR "movieclip.avi"
 #define MOVIECLIP_PATH_ABSOLUTE ABSOLUTE_ROOT MOVIECLIP_PATH_ITEM
-#define MOVIECLIP_PATH_ABSOLUTE_MADE_RELATIVE RELATIVE_ROOT ".." MOVIECLIP_PATH_ABSOLUTE
+#define MOVIECLIP_PATH_ABSOLUTE_MADE_RELATIVE RELATIVE_ROOT ".." SEP_STR MOVIECLIP_PATH_ITEM
 #define MOVIECLIP_PATH_RELATIVE RELATIVE_ROOT MOVIECLIP_PATH_ITEM
 #define MOVIECLIP_PATH_RELATIVE_MADE_ABSOLUTE BASE_DIR MOVIECLIP_PATH_ITEM
 
@@ -160,7 +160,7 @@ TEST_F(BPathTest, list_backup_restore)
   MovieClip *movie_clip = reinterpret_cast<MovieClip *>(bmain->movieclips.first);
   BLI_strncpy(movie_clip->filepath, MOVIECLIP_PATH_ABSOLUTE, sizeof(movie_clip->filepath));
 
-  void *path_list_handle = BKE_bpath_list_backup(bmain, 0);
+  void *path_list_handle = BKE_bpath_list_backup(bmain, static_cast<eBPathForeachFlag>(0));
 
   ListBase *path_list = reinterpret_cast<ListBase *>(path_list_handle);
   EXPECT_EQ(BLI_listbase_count(path_list), 2);
@@ -169,7 +169,7 @@ TEST_F(BPathTest, list_backup_restore)
   text->filepath = BLI_strdup(TEXT_PATH_ABSOLUTE);
   BLI_strncpy(movie_clip->filepath, MOVIECLIP_PATH_RELATIVE, sizeof(movie_clip->filepath));
 
-  BKE_bpath_list_restore(bmain, 0, path_list_handle);
+  BKE_bpath_list_restore(bmain, static_cast<eBPathForeachFlag>(0), path_list_handle);
 
   EXPECT_STREQ(text->filepath, TEXT_PATH_RELATIVE);
   EXPECT_STREQ(movie_clip->filepath, MOVIECLIP_PATH_ABSOLUTE);
