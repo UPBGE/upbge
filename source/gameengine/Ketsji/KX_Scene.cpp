@@ -56,6 +56,7 @@
 #include "WM_api.h"
 #include "wm_draw.h"
 #include "wm_event_system.h"
+#include "xr/wm_xr.h"
 
 #include "BL_BlenderConverter.h"
 #include "BL_BlenderDataConversion.h"
@@ -830,7 +831,8 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
       wmWindowManager *wm = CTX_wm_manager(C);
       if (WM_xr_session_exists(&wm->xr)) {
         if (WM_xr_session_is_ready(&wm->xr)) {
-          wm_event_do_handlers(C);   // TODO: Find more specific XR code
+          wm_xr_events_handle(CTX_wm_manager(C));
+          //wm_event_do_handlers(C);   // TODO: Find more specific XR code
           wm_event_do_notifiers(C);  // TODO: Find more specific XR code
         }
       }
