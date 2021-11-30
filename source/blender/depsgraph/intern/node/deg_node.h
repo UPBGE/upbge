@@ -106,7 +106,7 @@ enum class NodeType {
   /* Component which is used to define visibility relation between IDs, on the ID level.
    *
    * Consider two ID nodes NodeA and NodeB, with the relation between visibility components going
-   * as NodeA -> NodeB. If NodeB is considreed visible on screen, then the relation will ensure
+   * as NodeA -> NodeB. If NodeB is considered visible on screen, then the relation will ensure
    * that NodeA is also visible. The way how relation is oriented could be seen as a inverted from
    * visibility dependency point of view, but it follows the same direction as data dependency
    * which simplifies common algorithms which are dealing with relations and visibility.
@@ -130,7 +130,6 @@ enum class NodeType {
   PARTICLE_SETTINGS,
   /* Material Shading Component */
   SHADING,
-  SHADING_PARAMETERS,
   /* Point cache Component */
   POINT_CACHE,
   /* Image Animation Component */

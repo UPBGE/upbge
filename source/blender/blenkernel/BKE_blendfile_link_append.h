@@ -58,6 +58,14 @@ struct BlendfileLinkAppendContextItem *BKE_blendfile_link_append_context_item_ad
     const char *idname,
     const short idcode,
     void *userdata);
+
+#define BLENDFILE_LINK_APPEND_INVALID -1
+int BKE_blendfile_link_append_context_item_idtypes_from_library_add(
+    struct BlendfileLinkAppendContext *lapp_context,
+    struct ReportList *reports,
+    const uint64_t id_types_filter,
+    const int library_index);
+
 void BKE_blendfile_link_append_context_item_library_index_enable(
     struct BlendfileLinkAppendContext *lapp_context,
     struct BlendfileLinkAppendContextItem *item,
@@ -72,13 +80,13 @@ short BKE_blendfile_link_append_context_item_idcode_get(
     struct BlendfileLinkAppendContext *lapp_context, struct BlendfileLinkAppendContextItem *item);
 
 typedef enum eBlendfileLinkAppendForeachItemFlag {
-  /** Loop over directly linked items (i.e. those explicitely defined by user code). */
+  /** Loop over directly linked items (i.e. those explicitly defined by user code). */
   BKE_BLENDFILE_LINK_APPEND_FOREACH_ITEM_FLAG_DO_DIRECT = 1 << 0,
   /** Loop over indirectly linked items (i.e. those defined by internal code, as dependencies of
    * direct ones).
    *
-   * IMPORTANT: Those 'indirect' items currently may not cover **all** indrectly linked data. See
-   * comments in #foreach_libblock_link_append_callback. */
+   * IMPORTANT: Those 'indirect' items currently may not cover **all** indirectly linked data.
+   * See comments in #foreach_libblock_link_append_callback. */
   BKE_BLENDFILE_LINK_APPEND_FOREACH_ITEM_FLAG_DO_INDIRECT = 1 << 0,
 } eBlendfileLinkAppendForeachItemFlag;
 /** Callback called by #BKE_blendfile_link_append_context_item_foreach over each (or a subset of

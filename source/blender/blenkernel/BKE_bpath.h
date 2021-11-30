@@ -22,7 +22,7 @@
  */
 
 /* TODO: Make this module handle a bit more safely string length, instead of assuming buffers are
- * FILE_MAX len etc. */
+ * FILE_MAX length etc. */
 
 #pragma once
 
@@ -49,18 +49,24 @@ typedef enum eBPathForeachFlag {
   BKE_BPATH_FOREACH_PATH_SKIP_LINKED = (1 << 1),
   /** Skip paths when their matching data is packed. */
   BKE_BPATH_FOREACH_PATH_SKIP_PACKED = (1 << 2),
+  /* Skip weak reference paths. Those paths are typically 'nice to have' extra information, but are
+   * not used as actual source of data by the current .blend file.
+   *
+   * NOTE: Currently this only concerns the weak reference to a library file stored in
+   * `ID::library_weak_reference`. */
+  BKE_BPATH_TRAVERSE_SKIP_WEAK_REFERENCES = (1 << 5),
 
   /** Flags not affecting the generic BPath API. Those may be used by specific IDTypeInfo
    * `foreach_path` implementations and/or callbacks to implement specific behaviors. */
 
   /** Skip paths where a single dir is used with an array of files, eg. sequence strip images or
-   * pointcaches. In this case only use the first file path is processed.
+   * point-caches. In this case only use the first file path is processed.
    *
    * This is needed for directory manipulation callbacks which might otherwise modify the same
    * directory multiple times. */
   BKE_BPATH_FOREACH_PATH_SKIP_MULTIFILE = (1 << 8),
   /** Reload data (when the path is edited).
-   *  \note Ony used by Image IDType currently. */
+   *  \note Only used by Image IDType currently. */
   BKE_BPATH_FOREACH_PATH_RELOAD_EDITED = (1 << 9),
 } eBPathForeachFlag;
 
@@ -76,7 +82,7 @@ typedef bool (*BPathForeachPathFunctionCallback)(struct BPathForeachPathData *bp
                                                  char *r_path_dst,
                                                  const char *path_src);
 
-/** Storage for common data needed accross the BPath 'foreach_path' code. */
+/** Storage for common data needed across the BPath 'foreach_path' code. */
 typedef struct BPathForeachPathData {
   struct Main *bmain;
 

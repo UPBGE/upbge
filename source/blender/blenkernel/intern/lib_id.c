@@ -194,7 +194,7 @@ static int lib_id_clear_library_data_users_update_cb(LibraryIDLinkCallbackData *
  * Pull an ID out of a library (make it local). Only call this for IDs that
  * don't have other library users.
  *
- * \param flags Same set of `LIB_ID_MAKELOCAL_` flags as passed to `BKE_lib_id_make_local`.
+ * \param flags: Same set of `LIB_ID_MAKELOCAL_` flags as passed to `BKE_lib_id_make_local`.
  */
 void BKE_lib_id_clear_library_data(Main *bmain, ID *id, const int flags)
 {
@@ -1854,7 +1854,7 @@ bool BKE_id_new_name_validate(ListBase *lb, ID *id, const char *tname, const boo
   return result;
 }
 
-/* next to indirect usage in read/writefile also in editobject.c scene.c */
+/* Next to indirect usage in `readfile.c/writefile.c` also in `editobject.c`, `scene.c`. */
 void BKE_main_id_newptr_and_tag_clear(Main *bmain)
 {
   ID *id;

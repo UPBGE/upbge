@@ -211,6 +211,11 @@ static FileSelect file_select_do(bContext *C, int selected_idx, bool do_diropen)
             filelist_setrecursion(sfile->files, params->recursion_level);
           }
         }
+        else if (file->redirection_path) {
+          BLI_strncpy(params->dir, file->redirection_path, sizeof(params->dir));
+          BLI_path_normalize_dir(BKE_main_blendfile_path(bmain), params->dir);
+          BLI_path_slash_ensure(params->dir);
+        }
         else {
           BLI_path_normalize_dir(BKE_main_blendfile_path(bmain), params->dir);
           strcat(params->dir, file->relpath);
@@ -1413,8 +1418,13 @@ int file_highlight_set(SpaceFile *sfile, ARegion *region, int mx, int my)
     return 0;
   }
 
-  numfiles = filelist_files_ensure(sfile->files);
   params = ED_fileselect_get_active_params(sfile);
+  /* In case #SpaceFile.browse_mode just changed, the area may be pending a refresh still, which is
+   * what creates the params for the current browse mode. See T93508. */
+  if (!params) {
+    return false;
+  }
+  numfiles = filelist_files_ensure(sfile->files);
 
   origfile = params->highlight_file;
 

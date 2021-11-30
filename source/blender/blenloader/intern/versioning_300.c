@@ -2376,8 +2376,8 @@ void blo_do_versions_300(FileData *fd, Library *UNUSED(lib), Main *bmain)
     }
   }
 
-  /* Special case to handle older in-dev 3.1 files, before change from 3.0 branch gets merged in
-   * master. */
+  /* Special case to handle older in-development 3.1 files, before change from 3.0 branch gets
+   * merged in master. */
   if (!MAIN_VERSION_ATLEAST(bmain, 300, 42) ||
       (bmain->versionfile == 301 && !MAIN_VERSION_ATLEAST(bmain, 301, 3))) {
     /* Update LibOverride operations regarding insertions in RNA collections (i.e. modifiers,
@@ -2404,6 +2404,19 @@ void blo_do_versions_300(FileData *fd, Library *UNUSED(lib), Main *bmain)
    * \note Keep this message at the bottom of the function.
    */
   {
+    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+      if (ntree->type != NTREE_GEOMETRY) {
+        continue;
+      }
+      version_node_id(ntree, GEO_NODE_CURVE_SPLINE_PARAMETER, "GeometryNodeSplineParameter");
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (node->type == GEO_NODE_CURVE_SPLINE_PARAMETER) {
+          version_node_add_socket_if_not_exist(
+              ntree, node, SOCK_OUT, SOCK_INT, PROP_NONE, "Index", "Index");
+        }
+      }
+    }
+
     /* Keep this block, even when empty. */
   }
 }
