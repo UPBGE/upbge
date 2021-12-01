@@ -1556,6 +1556,7 @@ int ntreeTexExecTree(struct bNodeTree *ntree,
 #define GEO_NODE_INPUT_ID 1134
 #define GEO_NODE_SET_ID 1135
 #define GEO_NODE_ATTRIBUTE_DOMAIN_SIZE 1136
+#define GEO_NODE_DUAL_MESH 1137
 
 /** \} */
 
@@ -1564,7 +1565,7 @@ int ntreeTexExecTree(struct bNodeTree *ntree,
  * \{ */
 
 #define FN_NODE_BOOLEAN_MATH 1200
-#define FN_NODE_COMPARE_FLOATS 1202
+#define FN_NODE_COMPARE 1202
 #define FN_NODE_LEGACY_RANDOM_FLOAT 1206
 #define FN_NODE_INPUT_VECTOR 1207
 #define FN_NODE_INPUT_STRING 1208
