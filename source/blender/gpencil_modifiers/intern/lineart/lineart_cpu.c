@@ -502,10 +502,6 @@ static void lineart_main_occlusion_begin(LineartRenderBuffer *rb)
   rb->edge_mark.last = rb->edge_mark.first;
   rb->floating.last = rb->floating.first;
 
-  /* This is needed because the occlusion function expects the camera vector to point towards the
-   * camera. */
-  negate_v3_db(rb->view_vector);
-
   TaskPool *tp = BLI_task_pool_create(NULL, TASK_PRIORITY_HIGH);
 
   for (i = 0; i < thread_count; i++) {
@@ -3010,7 +3006,7 @@ static void lineart_triangle_intersect_in_bounding_area(LineartRenderBuffer *rb,
  */
 static void lineart_main_get_view_vector(LineartRenderBuffer *rb)
 {
-  float direction[3] = {0, 0, -1};
+  float direction[3] = {0, 0, 1};
   float trans[3];
   float inv[4][4];
   float obmat_no_scale[4][4];
@@ -4398,7 +4394,7 @@ static void lineart_gpencil_generate(LineartCache *cache,
         }
       }
     }
-    if (types & LRT_EDGE_FLAG_INTERSECTION) {
+    if (ec->type & LRT_EDGE_FLAG_INTERSECTION) {
       if (mask_switches & LRT_GPENCIL_INTERSECTION_MATCH) {
         if (ec->intersection_mask != intersection_mask) {
           continue;
