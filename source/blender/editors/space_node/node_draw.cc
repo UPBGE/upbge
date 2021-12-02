@@ -382,8 +382,8 @@ static void node_update_basis(const bContext *C, bNodeTree *ntree, bNode *node)
   /* Header. */
   dy -= NODE_DY;
 
-  /* Little bit of space in top. */
-  if (node->outputs.first) {
+  /* Add a little bit of padding above the top socket. */
+  if (node->outputs.first || node->inputs.first) {
     dy -= NODE_DYS / 2;
   }
 
@@ -2650,16 +2650,16 @@ void node_draw_space(const bContext *C, ARegion *region)
   /* Reset view matrix. */
   UI_view2d_view_restore(C);
 
-  if (snode->treepath.last) {
-    if (snode->overlay.flag & SN_OVERLAY_SHOW_OVERLAYS && snode->flag & SNODE_SHOW_GPENCIL) {
+  if (snode->overlay.flag & SN_OVERLAY_SHOW_OVERLAYS) {
+    if (snode->flag & SNODE_SHOW_GPENCIL && snode->treepath.last) {
       /* Draw grease-pencil (screen strokes, and also paint-buffer). */
       ED_annotation_draw_view2d(C, false);
     }
-  }
 
-  /* Draw context path. */
-  if (snode->edittree) {
-    draw_tree_path(*C, *region);
+    /* Draw context path. */
+    if (snode->overlay.flag & SN_OVERLAY_SHOW_PATH && snode->edittree) {
+      draw_tree_path(*C, *region);
+    }
   }
 
   /* Scrollers. */

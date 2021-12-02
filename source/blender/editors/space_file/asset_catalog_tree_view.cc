@@ -79,7 +79,7 @@ class AssetCatalogTreeView : public ui::AbstractTreeView {
   ui::BasicTreeViewItem &build_catalog_items_recursive(ui::TreeViewItemContainer &view_parent_item,
                                                        AssetCatalogTreeItem &catalog);
 
-  void add_all_item();
+  AssetCatalogTreeViewAllItem &add_all_item();
   void add_unassigned_item();
   bool is_active_catalog(CatalogID catalog_id) const;
 };
@@ -197,14 +197,13 @@ AssetCatalogTreeView::AssetCatalogTreeView(::AssetLibrary *library,
 
 void AssetCatalogTreeView::build_tree()
 {
-  add_all_item();
+  AssetCatalogTreeViewAllItem &all_item = add_all_item();
+  all_item.set_collapsed(false);
 
   if (catalog_tree_) {
-    catalog_tree_->foreach_root_item([this](AssetCatalogTreeItem &item) {
-      ui::BasicTreeViewItem &child_view_item = build_catalog_items_recursive(*this, item);
-
-      /* Open root-level items by default. */
-      child_view_item.set_collapsed(false);
+    /* Pass the "All" item on as parent of the actual catalog items. */
+    catalog_tree_->foreach_root_item([this, &all_item](AssetCatalogTreeItem &item) {
+      build_catalog_items_recursive(all_item, item);
     });
   }
 
@@ -225,18 +224,18 @@ ui::BasicTreeViewItem &AssetCatalogTreeView::build_catalog_items_recursive(
   return view_item;
 }
 
-void AssetCatalogTreeView::add_all_item()
+AssetCatalogTreeViewAllItem &AssetCatalogTreeView::add_all_item()
 {
   FileAssetSelectParams *params = params_;
 
-  AssetCatalogTreeViewAllItem &item = add_tree_item<AssetCatalogTreeViewAllItem>(IFACE_("All"),
-                                                                                 ICON_HOME);
+  AssetCatalogTreeViewAllItem &item = add_tree_item<AssetCatalogTreeViewAllItem>(IFACE_("All"));
   item.set_on_activate_fn([params](ui::BasicTreeViewItem & /*item*/) {
     params->asset_catalog_visibility = FILE_SHOW_ASSETS_ALL_CATALOGS;
     WM_main_add_notifier(NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
   });
   item.set_is_active_fn(
       [params]() { return params->asset_catalog_visibility == FILE_SHOW_ASSETS_ALL_CATALOGS; });
+  return item;
 }
 
 void AssetCatalogTreeView::add_unassigned_item()
@@ -516,7 +515,7 @@ bool AssetCatalogDropController::has_droppable_asset(const wmDrag &drag,
     }
   }
 
-  *r_disabled_hint = "Only assets from this current file can be moved between catalogs";
+  *r_disabled_hint = TIP_("Only assets from this current file can be moved between catalogs");
   return false;
 }
 

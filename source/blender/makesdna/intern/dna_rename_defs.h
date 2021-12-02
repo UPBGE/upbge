@@ -146,6 +146,10 @@ DNA_STRUCT_RENAME_ELEM(LineartGpencilModifierData, transparency_mask, material_m
 DNA_STRUCT_RENAME_ELEM(SurfaceDeformModifierData, numverts, num_bind_verts)
 DNA_STRUCT_RENAME_ELEM(MaterialLineArt, transparency_mask, material_mask_bits)
 
-/* Game Engine */
+DNA_STRUCT_RENAME_ELEM(Curve, width, offset)
+DNA_STRUCT_RENAME_ELEM(Curve, ext1, extrude)
+DNA_STRUCT_RENAME_ELEM(Curve, ext2, bevel_radius)
+
+/* UPBGE */
 DNA_STRUCT_RENAME(PythonComponent, PythonProxy)
 DNA_STRUCT_RENAME(PythonComponentProperty, PythonProxyProperty)

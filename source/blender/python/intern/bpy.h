@@ -26,6 +26,7 @@ extern "C" {
 
 struct bContext;
 
+/** Creates the bpy module and adds it to `sys.modules` for importing. */
 void BPy_init_modules(struct bContext *C);
 void BPy_end_modules(void);
 extern PyObject *bpy_package_py;
