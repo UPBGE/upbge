@@ -2539,12 +2539,12 @@ DerivedMesh *mesh_create_derived_no_virtual(struct Depsgraph *depsgraph,
                                             float (*vertCos)[3],
                                             const CustomData_MeshMasks *dataMask)
 {
-  DerivedMesh *final;
+  DerivedMesh *result;
 
   mesh_calc_modifiers_dm(
-      depsgraph, scene, ob, vertCos, -1, false, dataMask, -1, false, false, nullptr, &final);
+      depsgraph, scene, ob, vertCos, -1, false, dataMask, -1, false, false, nullptr, &result);
 
-  return final;
+  return result;
 }
 
 DerivedMesh *mesh_create_derived_physics(struct Depsgraph *depsgraph,
@@ -2553,12 +2553,12 @@ DerivedMesh *mesh_create_derived_physics(struct Depsgraph *depsgraph,
                                          float (*vertCos)[3],
                                          const CustomData_MeshMasks *dataMask)
 {
-  DerivedMesh *final;
+  DerivedMesh *result;
 
   mesh_calc_modifiers_dm(
-      depsgraph, scene, ob, vertCos, -1, true, dataMask, -1, false, false, nullptr, &final);
+      depsgraph, scene, ob, vertCos, -1, true, dataMask, -1, false, false, nullptr, &result);
 
-  return final;
+  return result;
 }
 
 /***/
