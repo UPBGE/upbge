@@ -41,7 +41,7 @@ extern "C" {
 
 #define UPBGE_VERSION_PATCH 0
 /** alpha/beta/rc/release, docs use this. */
-#define UPBGE_VERSION_CYCLE rc
+#define UPBGE_VERSION_CYCLE release
 
 /* Blender file format version. */
 #define BLENDER_FILE_VERSION BLENDER_VERSION
