@@ -215,7 +215,7 @@ set(SRC
   shader/nodes/node_shader_sepcombRGB.cc
   shader/nodes/node_shader_sepcombXYZ.cc
   shader/nodes/node_shader_shaderToRgb.cc
-  shader/nodes/node_shader_sprites_animation.c #UPBGE
+  shader/nodes/node_shader_sprites_animation.cc #UPBGE
   shader/nodes/node_shader_squeeze.cc
   shader/nodes/node_shader_subsurface_scattering.cc
   shader/nodes/node_shader_tangent.cc
