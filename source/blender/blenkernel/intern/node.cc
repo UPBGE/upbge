@@ -5686,7 +5686,7 @@ static void registerShaderNodes()
   register_node_type_sh_wavelength();
   register_node_type_sh_blackbody();
   register_node_type_sh_mix_rgb();
-  register_node_type_sh_valtorgb();
+  register_node_type_sh_color_ramp();
   register_node_type_sh_rgbtobw();
   register_node_type_sh_shadertorgb();
   register_node_type_sh_normal();
@@ -5903,6 +5903,10 @@ static void registerGeometryNodes()
   register_node_type_geo_input_index();
   register_node_type_geo_input_material_index();
   register_node_type_geo_input_material();
+  register_node_type_geo_input_mesh_edge_vertices();
+  register_node_type_geo_input_mesh_face_area();
+  register_node_type_geo_input_mesh_face_neighbors();
+  register_node_type_geo_input_mesh_vertex_neighbors();
   register_node_type_geo_input_normal();
   register_node_type_geo_input_position();
   register_node_type_geo_input_radius();

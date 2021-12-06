@@ -714,6 +714,7 @@ static void v3d_cursor_snap_update(V3DSnapCursorState *state,
   float *co_depth = snap_elem ? co : scene->cursor.location;
   snap_elem &= ~data_intern->snap_elem_hidden;
   if (snap_elem == 0) {
+    RegionView3D *rv3d = region->regiondata;
     float plane[4];
     if (state->plane_depth != V3D_PLACE_DEPTH_CURSOR_VIEW) {
       const float *plane_normal = omat[state->plane_axis];
@@ -721,7 +722,7 @@ static void v3d_cursor_snap_update(V3DSnapCursorState *state,
     }
 
     if ((state->plane_depth == V3D_PLACE_DEPTH_CURSOR_VIEW) ||
-        !ED_view3d_win_to_3d_on_plane(region, plane, mval_fl, true, co)) {
+        !ED_view3d_win_to_3d_on_plane(region, plane, mval_fl, rv3d->is_persp, co)) {
       ED_view3d_win_to_3d(v3d, region, co_depth, mval_fl, co);
     }
 
@@ -919,6 +920,14 @@ static void v3d_cursor_snap_free(void)
 void ED_view3d_cursor_snap_state_default_set(V3DSnapCursorState *state)
 {
   g_data_intern.state_default = *state;
+
+  /* These values are temporarily set by the tool.
+   * They are not convenient as default values.
+   * So reset to null. */
+  g_data_intern.state_default.gzgrp_type = NULL;
+  g_data_intern.state_default.prevpoint = NULL;
+  g_data_intern.state_default.draw_plane = false;
+  g_data_intern.state_default.draw_box = false;
 }
 
 V3DSnapCursorState *ED_view3d_cursor_snap_active(void)
