@@ -25,7 +25,6 @@
 
 #include "BLI_compiler_compat.h"
 #include "BLI_ghash.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_listBase.h"
 
@@ -223,16 +222,6 @@ typedef int (*NodeGPUExecFunction)(struct GPUMaterial *mat,
                                    struct GPUNodeStack *in,
                                    struct GPUNodeStack *out);
 
-typedef enum NodeResizeDirection {
-  NODE_RESIZE_NONE = 0,
-  NODE_RESIZE_TOP = (1 << 0),
-  NODE_RESIZE_BOTTOM = (1 << 1),
-  NODE_RESIZE_RIGHT = (1 << 2),
-  NODE_RESIZE_LEFT = (1 << 3),
-} NodeResizeDirection;
-
-ENUM_OPERATORS(NodeResizeDirection, NODE_RESIZE_LEFT);
-
 /**
  * \brief Defines a node type.
  *
@@ -240,8 +229,6 @@ ENUM_OPERATORS(NodeResizeDirection, NODE_RESIZE_LEFT);
  * implementing the node behavior.
  */
 typedef struct bNodeType {
-  void *next, *prev;
-
   char idname[64]; /* identifier name */
   int type;
 
@@ -258,18 +245,6 @@ typedef struct bNodeType {
 
   char storagename[64]; /* struct name for DNA */
 
-  /* Main draw function for the node */
-  void (*draw_nodetype)(const struct bContext *C,
-                        struct ARegion *region,
-                        struct SpaceNode *snode,
-                        struct bNodeTree *ntree,
-                        struct bNode *node,
-                        bNodeInstanceKey key);
-  /* Updates the node geometry attributes according to internal state before actual drawing */
-  void (*draw_nodetype_prepare)(const struct bContext *C,
-                                struct bNodeTree *ntree,
-                                struct bNode *node);
-
   /* Draw the option buttons on the node */
   void (*draw_buttons)(struct uiLayout *, struct bContext *C, struct PointerRNA *ptr);
   /* Additional parameters in the side panel */
@@ -284,12 +259,6 @@ typedef struct bNodeType {
    * \note Used as a fallback when #bNode.label isn't set.
    */
   void (*labelfunc)(struct bNodeTree *ntree, struct bNode *node, char *label, int maxlen);
-  /** Optional custom resize handle polling. */
-  NodeResizeDirection (*resize_area_func)(const struct bNode *node, int x, int y);
-  /** Optional selection area polling. */
-  int (*select_area_func)(struct bNode *node, int x, int y);
-  /** Optional tweak area polling (for grabbing). */
-  int (*tweak_area_func)(struct bNode *node, int x, int y);
 
   /** Called when the node is updated in the editor. */
   void (*updatefunc)(struct bNodeTree *ntree, struct bNode *node);

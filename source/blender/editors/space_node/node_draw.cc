@@ -31,6 +31,7 @@
 #include "DNA_node_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
+#include "DNA_text_types.h"
 #include "DNA_texture_types.h"
 #include "DNA_world_types.h"
 
@@ -663,26 +664,6 @@ static void node_update_hidden(bNode &node)
                                node.totr.ymax);
 }
 
-void node_update_default(const bContext *C, bNodeTree *ntree, bNode *node)
-{
-  if (node->flag & NODE_HIDDEN) {
-    node_update_hidden(*node);
-  }
-  else {
-    node_update_basis(*C, *ntree, *node);
-  }
-}
-
-int node_select_area_default(bNode *node, int x, int y)
-{
-  return BLI_rctf_isect_pt(&node->totr, x, y);
-}
-
-int node_tweak_area_default(bNode *node, int x, int y)
-{
-  return BLI_rctf_isect_pt(&node->totr, x, y);
-}
-
 int node_get_colorid(bNode &node)
 {
   switch (node.typeinfo->nclass) {
@@ -1268,22 +1249,22 @@ static void node_toggle_button_cb(struct bContext *C, void *node_argv, void *op_
   WM_operator_name_call(C, opname, WM_OP_INVOKE_DEFAULT, nullptr);
 }
 
-void node_draw_shadow(const SpaceNode &snode,
-                      const bNode &node,
-                      const float radius,
-                      const float alpha)
+static void node_draw_shadow(const SpaceNode &snode,
+                             const bNode &node,
+                             const float radius,
+                             const float alpha)
 {
   const rctf &rct = node.totr;
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
   ui_draw_dropshadow(&rct, radius, snode.runtime->aspect, alpha, node.flag & SELECT);
 }
 
-void node_draw_sockets(const View2D &v2d,
-                       const bContext &C,
-                       bNodeTree &ntree,
-                       bNode &node,
-                       const bool draw_outputs,
-                       const bool select_all)
+static void node_draw_sockets(const View2D &v2d,
+                              const bContext &C,
+                              bNodeTree &ntree,
+                              bNode &node,
+                              const bool draw_outputs,
+                              const bool select_all)
 {
   const uint total_input_len = BLI_listbase_count(&node.inputs);
   const uint total_output_len = BLI_listbase_count(&node.outputs);
@@ -1766,7 +1747,7 @@ static void node_draw_extra_info_row(const bNode &node,
   }
 }
 
-void node_draw_extra_info_panel(const SpaceNode &snode, const bNode &node)
+static void node_draw_extra_info_panel(const SpaceNode &snode, const bNode &node)
 {
   Vector<NodeExtraInfoRow> extra_info_rows = node_get_extra_info(snode, node);
 
@@ -2323,34 +2304,11 @@ void node_set_cursor(wmWindow &win, SpaceNode &snode, const float2 &cursor)
     }
   }
   if (node) {
-    NodeResizeDirection dir = node->typeinfo->resize_area_func(node, cursor[0], cursor[1]);
+    NodeResizeDirection dir = node_get_resize_direction(node, cursor[0], cursor[1]);
     wmcursor = node_get_resize_cursor(dir);
   }
 
   WM_cursor_set(&win, wmcursor);
-}
-
-void node_draw_default(const bContext *C,
-                       ARegion *region,
-                       SpaceNode *snode,
-                       bNodeTree *ntree,
-                       bNode *node,
-                       bNodeInstanceKey key)
-{
-  const View2D *v2d = &region->v2d;
-  if (node->flag & NODE_HIDDEN) {
-    node_draw_hidden(*C, *v2d, *snode, *ntree, *node);
-  }
-  else {
-    node_draw_basis(*C, *v2d, *snode, *ntree, *node, key);
-  }
-}
-
-static void node_update(const bContext &C, bNodeTree &ntree, bNode &node)
-{
-  if (node.typeinfo->draw_nodetype_prepare) {
-    node.typeinfo->draw_nodetype_prepare(&C, &ntree, &node);
-  }
 }
 
 static void count_multi_input_socket_links(bNodeTree &ntree, SpaceNode &snode)
@@ -2381,6 +2339,82 @@ static void count_multi_input_socket_links(bNodeTree &ntree, SpaceNode &snode)
   }
 }
 
+/* XXX Does a bounding box update by iterating over all children.
+ * Not ideal to do this in every draw call, but doing as transform callback doesn't work,
+ * since the child node totr rects are not updated properly at that point.
+ */
+static void frame_node_prepare_for_draw(bNodeTree &ntree, bNode &node)
+{
+  const float margin = 1.5f * U.widget_unit;
+  NodeFrame *data = (NodeFrame *)node.storage;
+
+  /* init rect from current frame size */
+  rctf rect;
+  node_to_view(node, node.offsetx, node.offsety, &rect.xmin, &rect.ymax);
+  node_to_view(
+      node, node.offsetx + node.width, node.offsety - node.height, &rect.xmax, &rect.ymin);
+
+  /* frame can be resized manually only if shrinking is disabled or no children are attached */
+  data->flag |= NODE_FRAME_RESIZEABLE;
+  /* for shrinking bbox, initialize the rect from first child node */
+  bool bbinit = (data->flag & NODE_FRAME_SHRINK);
+  /* fit bounding box to all children */
+  LISTBASE_FOREACH (bNode *, tnode, &ntree.nodes) {
+    if (tnode->parent != &node) {
+      continue;
+    }
+
+    /* add margin to node rect */
+    rctf noderect = tnode->totr;
+    noderect.xmin -= margin;
+    noderect.xmax += margin;
+    noderect.ymin -= margin;
+    noderect.ymax += margin;
+
+    /* first child initializes frame */
+    if (bbinit) {
+      bbinit = false;
+      rect = noderect;
+      data->flag &= ~NODE_FRAME_RESIZEABLE;
+    }
+    else {
+      BLI_rctf_union(&rect, &noderect);
+    }
+  }
+
+  /* now adjust the frame size from view-space bounding box */
+  node_from_view(node, rect.xmin, rect.ymax, &node.offsetx, &node.offsety);
+  float xmax, ymax;
+  node_from_view(node, rect.xmax, rect.ymin, &xmax, &ymax);
+  node.width = xmax - node.offsetx;
+  node.height = -ymax + node.offsety;
+
+  node.totr = rect;
+}
+
+static void reroute_node_prepare_for_draw(bNode &node)
+{
+  /* get "global" coords */
+  float locx, locy;
+  node_to_view(node, 0.0f, 0.0f, &locx, &locy);
+
+  /* reroute node has exactly one input and one output, both in the same place */
+  bNodeSocket *nsock = (bNodeSocket *)node.outputs.first;
+  nsock->locx = locx;
+  nsock->locy = locy;
+
+  nsock = (bNodeSocket *)node.inputs.first;
+  nsock->locx = locx;
+  nsock->locy = locy;
+
+  const float size = 8.0f;
+  node.width = size * 2;
+  node.totr.xmin = locx - size;
+  node.totr.xmax = locx + size;
+  node.totr.ymax = locy + size;
+  node.totr.ymin = locy - size;
+}
+
 void node_update_nodetree(const bContext &C, bNodeTree &ntree)
 {
   /* Make sure socket "used" tags are correct, for displaying value buttons. */
@@ -2391,29 +2425,235 @@ void node_update_nodetree(const bContext &C, bNodeTree &ntree)
 
   /* Update nodes front to back, so children sizes get updated before parents. */
   LISTBASE_FOREACH_BACKWARD (bNode *, node, &ntree.nodes) {
-    node_update(C, ntree, *node);
+    if (node->type == NODE_FRAME) {
+      frame_node_prepare_for_draw(ntree, *node);
+    }
+    else if (node->type == NODE_REROUTE) {
+      reroute_node_prepare_for_draw(*node);
+    }
+    else {
+      if (node->flag & NODE_HIDDEN) {
+        node_update_hidden(*node);
+      }
+      else {
+        node_update_basis(C, ntree, *node);
+      }
+    }
   }
+}
+
+static void frame_node_draw_label(bNodeTree &ntree, bNode &node, const SpaceNode &snode)
+{
+  const float aspect = snode.runtime->aspect;
+  /* XXX font id is crap design */
+  const int fontid = UI_style_get()->widgetlabel.uifont_id;
+  NodeFrame *data = (NodeFrame *)node.storage;
+  const float font_size = data->label_size / aspect;
+
+  char label[MAX_NAME];
+  nodeLabel(&ntree, &node, label, sizeof(label));
+
+  BLF_enable(fontid, BLF_ASPECT);
+  BLF_aspect(fontid, aspect, aspect, 1.0f);
+  /* clamp otherwise it can suck up a LOT of memory */
+  BLF_size(fontid, MIN2(24.0f, font_size), U.dpi);
+
+  /* title color */
+  int color_id = node_get_colorid(node);
+  uchar color[3];
+  UI_GetThemeColorBlendShade3ubv(TH_TEXT, color_id, 0.4f, 10, color);
+  BLF_color3ubv(fontid, color);
+
+  const float margin = (float)(NODE_DY / 4);
+  const float width = BLF_width(fontid, label, sizeof(label));
+  const float ascender = BLF_ascender(fontid);
+  const int label_height = ((margin / aspect) + (ascender * aspect));
+
+  /* 'x' doesn't need aspect correction */
+  const rctf &rct = node.totr;
+  /* XXX a bit hacky, should use separate align values for x and y */
+  float x = BLI_rctf_cent_x(&rct) - (0.5f * width);
+  float y = rct.ymax - label_height;
+
+  /* label */
+  const bool has_label = node.label[0] != '\0';
+  if (has_label) {
+    BLF_position(fontid, x, y, 0);
+    BLF_draw(fontid, label, BLF_DRAW_STR_DUMMY_MAX);
+  }
+
+  /* draw text body */
+  if (node.id) {
+    Text *text = (Text *)node.id;
+    const int line_height_max = BLF_height_max(fontid);
+    const float line_spacing = (line_height_max * aspect);
+    const float line_width = (BLI_rctf_size_x(&rct) - margin) / aspect;
+
+    /* 'x' doesn't need aspect correction */
+    x = rct.xmin + margin;
+    y = rct.ymax - label_height - (has_label ? line_spacing : 0);
+
+    /* early exit */
+    int y_min = y + ((margin * 2) - (y - rct.ymin));
+
+    BLF_enable(fontid, BLF_CLIPPING | BLF_WORD_WRAP);
+    BLF_clipping(fontid,
+                 rct.xmin,
+                 /* round to avoid clipping half-way through a line */
+                 y - (floorf(((y - rct.ymin) - (margin * 2)) / line_spacing) * line_spacing),
+                 rct.xmin + line_width,
+                 rct.ymax);
+
+    BLF_wordwrap(fontid, line_width);
+
+    LISTBASE_FOREACH (TextLine *, line, &text->lines) {
+      struct ResultBLF info;
+      if (line->line[0]) {
+        BLF_position(fontid, x, y, 0);
+        BLF_draw_ex(fontid, line->line, line->len, &info);
+        y -= line_spacing * info.lines;
+      }
+      else {
+        y -= line_spacing;
+      }
+      if (y < y_min) {
+        break;
+      }
+    }
+
+    BLF_disable(fontid, BLF_CLIPPING | BLF_WORD_WRAP);
+  }
+
+  BLF_disable(fontid, BLF_ASPECT);
+}
+
+static void frame_node_draw(const bContext &C,
+                            const ARegion &region,
+                            const SpaceNode &snode,
+                            bNodeTree &ntree,
+                            bNode &node)
+{
+  /* skip if out of view */
+  if (BLI_rctf_isect(&node.totr, &region.v2d.cur, nullptr) == false) {
+    UI_block_end(&C, node.block);
+    node.block = nullptr;
+    return;
+  }
+
+  float color[4];
+  UI_GetThemeColor4fv(TH_NODE_FRAME, color);
+  const float alpha = color[3];
+
+  /* shadow */
+  node_draw_shadow(snode, node, BASIS_RAD, alpha);
+
+  /* body */
+  if (node.flag & NODE_CUSTOM_COLOR) {
+    rgba_float_args_set(color, node.color[0], node.color[1], node.color[2], alpha);
+  }
+  else {
+    UI_GetThemeColor4fv(TH_NODE_FRAME, color);
+  }
+
+  const rctf &rct = node.totr;
+  UI_draw_roundbox_corner_set(UI_CNR_ALL);
+  UI_draw_roundbox_4fv(&rct, true, BASIS_RAD, color);
+
+  /* outline active and selected emphasis */
+  if (node.flag & SELECT) {
+    if (node.flag & NODE_ACTIVE) {
+      UI_GetThemeColorShadeAlpha4fv(TH_ACTIVE, 0, -40, color);
+    }
+    else {
+      UI_GetThemeColorShadeAlpha4fv(TH_SELECT, 0, -40, color);
+    }
+
+    UI_draw_roundbox_aa(&rct, false, BASIS_RAD, color);
+  }
+
+  /* label and text */
+  frame_node_draw_label(ntree, node, snode);
+
+  node_draw_extra_info_panel(snode, node);
+
+  UI_block_end(&C, node.block);
+  UI_block_draw(&C, node.block);
+  node.block = nullptr;
+}
+
+static void reroute_node_draw(const bContext &C, ARegion &region, bNodeTree &ntree, bNode &node)
+{
+  char showname[128]; /* 128 used below */
+  const rctf &rct = node.totr;
+
+  /* skip if out of view */
+  if (rct.xmax < region.v2d.cur.xmin || rct.xmin > region.v2d.cur.xmax ||
+      rct.ymax < region.v2d.cur.ymin || node.totr.ymin > region.v2d.cur.ymax) {
+    UI_block_end(&C, node.block);
+    node.block = nullptr;
+    return;
+  }
+
+  if (node.label[0] != '\0') {
+    /* draw title (node label) */
+    BLI_strncpy(showname, node.label, sizeof(showname));
+    uiDefBut(node.block,
+             UI_BTYPE_LABEL,
+             0,
+             showname,
+             (int)(rct.xmin - NODE_DYS),
+             (int)(rct.ymax),
+             (short)512,
+             (short)NODE_DY,
+             nullptr,
+             0,
+             0,
+             0,
+             0,
+             nullptr);
+  }
+
+  /* only draw input socket. as they all are placed on the same position.
+   * highlight also if node itself is selected, since we don't display the node body separately!
+   */
+  node_draw_sockets(region.v2d, C, ntree, node, false, node.flag & SELECT);
+
+  UI_block_end(&C, node.block);
+  UI_block_draw(&C, node.block);
+  node.block = nullptr;
 }
 
 static void node_draw(const bContext &C,
                       ARegion &region,
-                      SpaceNode &snode,
+                      const SpaceNode &snode,
                       bNodeTree &ntree,
                       bNode &node,
                       bNodeInstanceKey key)
 {
-  if (node.typeinfo->draw_nodetype) {
-    node.typeinfo->draw_nodetype(&C, &region, &snode, &ntree, &node, key);
+  if (node.type == NODE_FRAME) {
+    frame_node_draw(C, region, snode, ntree, node);
+  }
+  else if (node.type == NODE_REROUTE) {
+    reroute_node_draw(C, region, ntree, node);
+  }
+  else {
+    const View2D &v2d = region.v2d;
+    if (node.flag & NODE_HIDDEN) {
+      node_draw_hidden(C, v2d, snode, ntree, node);
+    }
+    else {
+      node_draw_basis(C, v2d, snode, ntree, node, key);
+    }
   }
 }
 
 #define USE_DRAW_TOT_UPDATE
 
-void node_draw_nodetree(const bContext &C,
-                        ARegion &region,
-                        SpaceNode &snode,
-                        bNodeTree &ntree,
-                        bNodeInstanceKey parent_key)
+static void node_draw_nodetree(const bContext &C,
+                               ARegion &region,
+                               SpaceNode &snode,
+                               bNodeTree &ntree,
+                               bNodeInstanceKey parent_key)
 {
 #ifdef USE_DRAW_TOT_UPDATE
   if (ntree.nodes.first) {
