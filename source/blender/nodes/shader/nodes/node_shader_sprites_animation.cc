@@ -46,7 +46,7 @@ static int gpu_shader_sprites_animation(GPUMaterial *mat,
 
 }  // namespace blender::nodes::node_shader_sprites_animation_cc
 
-void register_node_type_sh_sprites_animation(void)
+void register_node_type_sh_sprites_animation()
 {
   namespace file_ns = blender::nodes::node_shader_sprites_animation_cc;
 

@@ -100,6 +100,7 @@ set(SRC
   nodes/node_shader_separate_rgb.cc
   nodes/node_shader_separate_xyz.cc
   nodes/node_shader_shader_to_rgb.cc
+  nodes/node_shader_sprites_animation.cc
   nodes/node_shader_squeeze.cc
   nodes/node_shader_subsurface_scattering.cc
   nodes/node_shader_tangent.cc
