@@ -683,12 +683,13 @@ class TOPBAR_MT_help(Menu):
 
         show_developer = context.preferences.view.show_developer_ui
 
-        layout.operator("wm.url_open_preset", text="Manual",
-                        icon='HELP').type = 'MANUAL'
+        layout.operator(
+            "wm.url_open", text="Manual", icon='HELP',
+        ).url = "https://upbge.org/docs/latest/manual/index.html"
 
         layout.operator(
             "wm.url_open", text="Tutorials", icon='URL',
-        ).url = "https://www.blender.org/tutorials"
+        ).url = "https://upbge.org/docs/latest/manual/manual/tutorials/index.html"
         layout.operator(
             "wm.url_open", text="Support", icon='URL',
         ).url = "https://www.blender.org/support"
@@ -706,7 +707,7 @@ class TOPBAR_MT_help(Menu):
 
         layout.operator(
             "wm.url_open", text="Python API Reference", icon='URL',
-        ).url = "https://upbge.org/api/index.html" #bpy.types.WM_OT_doc_view._prefix
+        ).url = "https://upbge.org/docs/latest/api/index.html" #bpy.types.WM_OT_doc_view._prefix
 
         if show_developer:
             layout.operator(
