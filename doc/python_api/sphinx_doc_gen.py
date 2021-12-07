@@ -443,7 +443,6 @@ REFERENCE_NAME = "blender_python_reference_%s" % BLENDER_VERSION_PATH
 REFERENCE_PATH = os.path.join(ARGS.output_dir, REFERENCE_NAME)
 BLENDER_PDF_FILENAME = "%s.pdf" % REFERENCE_NAME
 BLENDER_ZIP_FILENAME = "%s.zip" % REFERENCE_NAME
-UPBGE_BLENDER_ZIP_FILENAME = "upbge-api-reference.zip"
 
 # -------------------------------SPHINX-----------------------------------------
 
@@ -1828,8 +1827,7 @@ def write_rst_index(basepath):
     fw("\n")
 
     # fw("`A PDF version of this document is also available <%s>`_\n" % BLENDER_PDF_FILENAME)
-    fw("This site can be used offline: `Download the full documentation (zipped HTML files) <%s>`__\n" %
-       UPBGE_BLENDER_ZIP_FILENAME)
+    fw("This site can be used offline: `Download the full documentation (zipped HTML files) <https://upbge.org/docs/latest/api/upbge-api-reference.zip>`__\n")
     fw("\n")
 
     if not EXCLUDE_INFO_DOCS:
