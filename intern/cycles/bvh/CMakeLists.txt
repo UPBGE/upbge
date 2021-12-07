@@ -33,6 +33,16 @@ set(SRC
   unaligned.cpp
 )
 
+set(SRC_METAL
+  metal.mm
+)
+
+if(WITH_CYCLES_DEVICE_METAL)
+  list(APPEND SRC
+    ${SRC_METAL}
+  )
+endif()
+
 set(SRC_HEADERS
   bvh.h
   bvh2.h
@@ -46,6 +56,7 @@ set(SRC_HEADERS
   sort.h
   split.h
   unaligned.h
+  metal.h
 )
 
 set(LIB

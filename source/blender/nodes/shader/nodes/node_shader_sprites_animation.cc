@@ -15,11 +15,9 @@
  *
  */
 
-#include "node_shader_util.hh"
+#include "../node_shader_util.h"
 
 /* **************** SPRITES ANIMATION - UPBGE **************** */
-
-namespace blender::nodes::node_shader_sprites_animation_cc {
 
 static bNodeSocketTemplate sh_node_sprites_animation_in[] = {
     {SOCK_FLOAT, N_("Frames"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 10000.0f, PROP_NONE},
@@ -44,21 +42,18 @@ static int gpu_shader_sprites_animation(GPUMaterial *mat,
   return GPU_stack_link(mat, node, "node_sprites_animation", in, out);
 }
 
-}  // namespace blender::nodes::node_shader_sprites_animation_cc
-
-void register_node_type_sh_sprites_animation()
+void register_node_type_sh_sprites_animation(void)
 {
-  namespace file_ns = blender::nodes::node_shader_sprites_animation_cc;
 
   static bNodeType ntype;
 
   sh_fn_node_type_base(
       &ntype, SH_NODE_SPRITES_ANIMATION, "Sprites Animation", NODE_CLASS_SHADER, 0);
   node_type_socket_templates(
-      &ntype, file_ns::sh_node_sprites_animation_in, file_ns::sh_node_sprites_animation_out);
+      &ntype, sh_node_sprites_animation_in, sh_node_sprites_animation_out);
   node_type_init(&ntype, nullptr);
   node_type_storage(&ntype, "", nullptr, nullptr);
-  node_type_gpu(&ntype, file_ns::gpu_shader_sprites_animation);
+  node_type_gpu(&ntype, gpu_shader_sprites_animation);
 
   nodeRegisterType(&ntype);
 }

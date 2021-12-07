@@ -1016,6 +1016,8 @@ typedef struct EEVEE_Data {
   EEVEE_TextureList *txl;
   EEVEE_PassList *psl;
   EEVEE_StorageList *stl;
+  void *instance_data;
+
   char info[GPU_INFO_SIZE];
 } EEVEE_Data;
 

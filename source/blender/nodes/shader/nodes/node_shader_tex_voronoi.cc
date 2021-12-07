@@ -17,11 +17,13 @@
  * All rights reserved.
  */
 
-#include "node_shader_util.hh"
+#include "../node_shader_util.h"
 
 #include "BLI_noise.hh"
 
-namespace blender::nodes::node_shader_tex_voronoi_cc {
+NODE_STORAGE_FUNCS(NodeTexVoronoi)
+
+namespace blender::nodes {
 
 static void sh_node_tex_voronoi_declare(NodeDeclarationBuilder &b)
 {
@@ -46,6 +48,8 @@ static void sh_node_tex_voronoi_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>(N_("W")).no_muted_links();
   b.add_output<decl::Float>(N_("Radius")).no_muted_links();
 };
+
+}  // namespace blender::nodes
 
 static void node_shader_init_tex_voronoi(bNodeTree *UNUSED(ntree), bNode *node)
 {
@@ -134,34 +138,37 @@ static void node_shader_update_tex_voronoi(bNodeTree *ntree, bNode *node)
   bNodeSocket *outWSock = nodeFindSocket(node, SOCK_OUT, "W");
   bNodeSocket *outRadiusSock = nodeFindSocket(node, SOCK_OUT, "Radius");
 
-  NodeTexVoronoi *tex = (NodeTexVoronoi *)node->storage;
+  const NodeTexVoronoi &storage = node_storage(*node);
 
-  nodeSetSocketAvailability(ntree, inWSock, tex->dimensions == 1 || tex->dimensions == 4);
-  nodeSetSocketAvailability(ntree, inVectorSock, tex->dimensions != 1);
+  nodeSetSocketAvailability(ntree, inWSock, storage.dimensions == 1 || storage.dimensions == 4);
+  nodeSetSocketAvailability(ntree, inVectorSock, storage.dimensions != 1);
   nodeSetSocketAvailability(
       ntree,
       inExponentSock,
-      tex->distance == SHD_VORONOI_MINKOWSKI && tex->dimensions != 1 &&
-          !ELEM(tex->feature, SHD_VORONOI_DISTANCE_TO_EDGE, SHD_VORONOI_N_SPHERE_RADIUS));
-  nodeSetSocketAvailability(ntree, inSmoothnessSock, tex->feature == SHD_VORONOI_SMOOTH_F1);
+      storage.distance == SHD_VORONOI_MINKOWSKI && storage.dimensions != 1 &&
+          !ELEM(storage.feature, SHD_VORONOI_DISTANCE_TO_EDGE, SHD_VORONOI_N_SPHERE_RADIUS));
+  nodeSetSocketAvailability(ntree, inSmoothnessSock, storage.feature == SHD_VORONOI_SMOOTH_F1);
 
-  nodeSetSocketAvailability(ntree, outDistanceSock, tex->feature != SHD_VORONOI_N_SPHERE_RADIUS);
+  nodeSetSocketAvailability(
+      ntree, outDistanceSock, storage.feature != SHD_VORONOI_N_SPHERE_RADIUS);
   nodeSetSocketAvailability(ntree,
                             outColorSock,
-                            tex->feature != SHD_VORONOI_DISTANCE_TO_EDGE &&
-                                tex->feature != SHD_VORONOI_N_SPHERE_RADIUS);
+                            storage.feature != SHD_VORONOI_DISTANCE_TO_EDGE &&
+                                storage.feature != SHD_VORONOI_N_SPHERE_RADIUS);
   nodeSetSocketAvailability(ntree,
                             outPositionSock,
-                            tex->feature != SHD_VORONOI_DISTANCE_TO_EDGE &&
-                                tex->feature != SHD_VORONOI_N_SPHERE_RADIUS &&
-                                tex->dimensions != 1);
+                            storage.feature != SHD_VORONOI_DISTANCE_TO_EDGE &&
+                                storage.feature != SHD_VORONOI_N_SPHERE_RADIUS &&
+                                storage.dimensions != 1);
   nodeSetSocketAvailability(ntree,
                             outWSock,
-                            tex->feature != SHD_VORONOI_DISTANCE_TO_EDGE &&
-                                tex->feature != SHD_VORONOI_N_SPHERE_RADIUS &&
-                                (ELEM(tex->dimensions, 1, 4)));
-  nodeSetSocketAvailability(ntree, outRadiusSock, tex->feature == SHD_VORONOI_N_SPHERE_RADIUS);
+                            storage.feature != SHD_VORONOI_DISTANCE_TO_EDGE &&
+                                storage.feature != SHD_VORONOI_N_SPHERE_RADIUS &&
+                                (ELEM(storage.dimensions, 1, 4)));
+  nodeSetSocketAvailability(ntree, outRadiusSock, storage.feature == SHD_VORONOI_N_SPHERE_RADIUS);
 }
+
+namespace blender::nodes {
 
 static MultiFunction::ExecutionHints voronoi_execution_hints{50, false};
 
@@ -1300,39 +1307,40 @@ class VoronoiEdgeFunction : public fn::MultiFunction {
 
 static void sh_node_voronoi_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
 {
-  bNode &node = builder.node();
-  NodeTexVoronoi *tex = (NodeTexVoronoi *)node.storage;
-  bool minowski = (tex->distance == SHD_VORONOI_MINKOWSKI && tex->dimensions != 1 &&
-                   !ELEM(tex->feature, SHD_VORONOI_DISTANCE_TO_EDGE, SHD_VORONOI_N_SPHERE_RADIUS));
-  bool dist_radius = ELEM(tex->feature, SHD_VORONOI_DISTANCE_TO_EDGE, SHD_VORONOI_N_SPHERE_RADIUS);
+  const NodeTexVoronoi &storage = node_storage(builder.node());
+  bool minowski =
+      (storage.distance == SHD_VORONOI_MINKOWSKI && storage.dimensions != 1 &&
+       !ELEM(storage.feature, SHD_VORONOI_DISTANCE_TO_EDGE, SHD_VORONOI_N_SPHERE_RADIUS));
+  bool dist_radius = ELEM(
+      storage.feature, SHD_VORONOI_DISTANCE_TO_EDGE, SHD_VORONOI_N_SPHERE_RADIUS);
   if (dist_radius) {
-    builder.construct_and_set_matching_fn<VoronoiEdgeFunction>(tex->dimensions, tex->feature);
+    builder.construct_and_set_matching_fn<VoronoiEdgeFunction>(storage.dimensions,
+                                                               storage.feature);
   }
   else if (minowski) {
-    builder.construct_and_set_matching_fn<VoronoiMinowskiFunction>(tex->dimensions, tex->feature);
+    builder.construct_and_set_matching_fn<VoronoiMinowskiFunction>(storage.dimensions,
+                                                                   storage.feature);
   }
   else {
     builder.construct_and_set_matching_fn<VoronoiMetricFunction>(
-        tex->dimensions, tex->feature, tex->distance);
+        storage.dimensions, storage.feature, storage.distance);
   }
 }
 
-}  // namespace blender::nodes::node_shader_tex_voronoi_cc
+}  // namespace blender::nodes
 
-void register_node_type_sh_tex_voronoi()
+void register_node_type_sh_tex_voronoi(void)
 {
-  namespace file_ns = blender::nodes::node_shader_tex_voronoi_cc;
-
   static bNodeType ntype;
 
   sh_fn_node_type_base(&ntype, SH_NODE_TEX_VORONOI, "Voronoi Texture", NODE_CLASS_TEXTURE, 0);
-  ntype.declare = file_ns::sh_node_tex_voronoi_declare;
-  node_type_init(&ntype, file_ns::node_shader_init_tex_voronoi);
+  ntype.declare = blender::nodes::sh_node_tex_voronoi_declare;
+  node_type_init(&ntype, node_shader_init_tex_voronoi);
   node_type_storage(
       &ntype, "NodeTexVoronoi", node_free_standard_storage, node_copy_standard_storage);
-  node_type_gpu(&ntype, file_ns::node_shader_gpu_tex_voronoi);
-  node_type_update(&ntype, file_ns::node_shader_update_tex_voronoi);
-  ntype.build_multi_function = file_ns::sh_node_voronoi_build_multi_function;
+  node_type_gpu(&ntype, node_shader_gpu_tex_voronoi);
+  node_type_update(&ntype, node_shader_update_tex_voronoi);
+  ntype.build_multi_function = blender::nodes::sh_node_voronoi_build_multi_function;
 
   nodeRegisterType(&ntype);
 }

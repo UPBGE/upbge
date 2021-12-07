@@ -41,18 +41,42 @@ struct Mesh;
 struct Object;
 struct Scene;
 
+/**
+ * \brief Initialize the runtime of the given mesh.
+ *
+ * Function expects that the runtime is already cleared.
+ */
 void BKE_mesh_runtime_init_data(struct Mesh *mesh);
+/**
+ * \brief Free all data (and mutexes) inside the runtime of the given mesh.
+ */
 void BKE_mesh_runtime_free_data(struct Mesh *mesh);
+/**
+ * Clear all pointers which we don't want to be shared on copying the datablock.
+ * However, keep all the flags which defines what the mesh is (for example, that
+ * it's deformed only, or that its custom data layers are out of date.)
+ */
 void BKE_mesh_runtime_reset_on_copy(struct Mesh *mesh, const int flag);
 int BKE_mesh_runtime_looptri_len(const struct Mesh *mesh);
 void BKE_mesh_runtime_looptri_recalc(struct Mesh *mesh);
+/**
+ * \note This function only fills a cache, and therefore the mesh argument can
+ * be considered logically const. Concurrent access is protected by a mutex.
+ * \note This is a ported copy of dm_getLoopTriArray(dm).
+ */
 const struct MLoopTri *BKE_mesh_runtime_looptri_ensure(const struct Mesh *mesh);
 bool BKE_mesh_runtime_ensure_edit_data(struct Mesh *mesh);
 bool BKE_mesh_runtime_clear_edit_data(struct Mesh *mesh);
 bool BKE_mesh_runtime_reset_edit_data(struct Mesh *mesh);
 void BKE_mesh_runtime_clear_geometry(struct Mesh *mesh);
+/**
+ * \brief This function clears runtime cache of the given mesh.
+ *
+ * Call this function to recalculate runtime data when used.
+ */
 void BKE_mesh_runtime_clear_cache(struct Mesh *mesh);
 
+/* This is a copy of DM_verttri_from_looptri(). */
 void BKE_mesh_runtime_verttri_from_looptri(struct MVertTri *r_verttri,
                                            const struct MLoop *mloop,
                                            const struct MLoopTri *looptri,
@@ -107,6 +131,7 @@ void BKE_mesh_runtime_eval_to_meshkey(struct Mesh *me_deformed,
 #ifndef NDEBUG
 char *BKE_mesh_runtime_debug_info(struct Mesh *me_eval);
 void BKE_mesh_runtime_debug_print(struct Mesh *me_eval);
+/* XXX Should go in customdata file? */
 void BKE_mesh_runtime_debug_print_cdlayers(struct CustomData *data);
 bool BKE_mesh_runtime_is_valid(struct Mesh *me_eval);
 #endif /* NDEBUG */
