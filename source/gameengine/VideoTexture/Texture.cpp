@@ -466,9 +466,9 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
        * DRW_notify_view_update on next draw loop
        * for some VideoTexture types (types which have a
        * "refresh" method), because the depsgraph has not been warned yet. */
-      bool needs_notifier = m_source &&
+      bool needs_notifier = m_source && (
 #ifdef WITH_FFMPEG
-                            (_Py_IS_TYPE(&m_source->ob_base, &VideoFFmpegType) ||
+                            _Py_IS_TYPE(&m_source->ob_base, &VideoFFmpegType) ||
                              _Py_IS_TYPE(&m_source->ob_base, &ImageFFmpegType) ||
 #endif  // WITH_FFMPEG
                              _Py_IS_TYPE(&m_source->ob_base, &ImageMixType) ||
