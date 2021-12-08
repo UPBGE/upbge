@@ -1315,9 +1315,6 @@ static bool do_history(const char *name, ReportList *reports)
 /** \name File Writing (Public)
  * \{ */
 
-/**
- * \return Success.
- */
 bool BLO_write_file(Main *mainvar,
                     const char *filepath,
                     const int write_flags,
@@ -1456,9 +1453,6 @@ bool BLO_write_file(Main *mainvar,
   return 1;
 }
 
-/**
- * \return Success.
- */
 bool BLO_write_file_mem(Main *mainvar, MemFile *compare, MemFile *current, int write_flags)
 {
   bool use_userdef = false;
@@ -1581,9 +1575,6 @@ void BLO_write_float3_array(BlendWriter *writer, uint num, const float *data_ptr
   BLO_write_raw(writer, sizeof(float[3]) * (size_t)num, data_ptr);
 }
 
-/**
- * Write a null terminated string.
- */
 void BLO_write_string(BlendWriter *writer, const char *data_ptr)
 {
   if (data_ptr != NULL) {
@@ -1591,10 +1582,6 @@ void BLO_write_string(BlendWriter *writer, const char *data_ptr)
   }
 }
 
-/**
- * Sometimes different data is written depending on whether the file is saved to disk or used for
- * undo. This function returns true when the current file-writing is done for undo.
- */
 bool BLO_write_is_undo(BlendWriter *writer)
 {
   return writer->wd->use_memfile;

@@ -1040,12 +1040,6 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
   return (const uchar *)cp;
 }
 
-/**
- * Initialize default theme.
- *
- * \note When you add new colors, created & saved themes need initialized
- * use function below, #init_userdef_do_versions.
- */
 void UI_theme_init_default(void)
 {
   /* we search for the theme with name Default */
@@ -1096,9 +1090,6 @@ bTheme *UI_GetTheme(void)
   return U.themes.first;
 }
 
-/**
- * For the rare case we need to temp swap in a different theme (off-screen render).
- */
 void UI_Theme_Store(struct bThemeState *theme_state)
 {
   *theme_state = g_theme_state;
@@ -1168,21 +1159,18 @@ void UI_FontThemeColor(int fontid, int colorid)
   BLF_color4ubv(fontid, color);
 }
 
-/* get individual values, not scaled */
 float UI_GetThemeValuef(int colorid)
 {
   const uchar *cp = UI_ThemeGetColorPtr(theme_active, theme_spacetype, colorid);
   return ((float)cp[0]);
 }
 
-/* get individual values, not scaled */
 int UI_GetThemeValue(int colorid)
 {
   const uchar *cp = UI_ThemeGetColorPtr(theme_active, theme_spacetype, colorid);
   return ((int)cp[0]);
 }
 
-/* versions of the function above, which take a space-type */
 float UI_GetThemeValueTypef(int colorid, int spacetype)
 {
   const uchar *cp = UI_ThemeGetColorPtr(theme_active, spacetype, colorid);
@@ -1195,7 +1183,6 @@ int UI_GetThemeValueType(int colorid, int spacetype)
   return ((int)cp[0]);
 }
 
-/* get the color, range 0.0-1.0 */
 void UI_GetThemeColor3fv(int colorid, float col[3])
 {
   const uchar *cp = UI_ThemeGetColorPtr(theme_active, theme_spacetype, colorid);
@@ -1222,7 +1209,6 @@ void UI_GetThemeColorType4fv(int colorid, int spacetype, float col[4])
   col[3] = ((float)cp[3]) / 255.0f;
 }
 
-/* get the color, range 0.0-1.0, complete with shading offset */
 void UI_GetThemeColorShade3fv(int colorid, int offset, float col[3])
 {
   const uchar *cp = UI_ThemeGetColorPtr(theme_active, theme_spacetype, colorid);
@@ -1355,7 +1341,6 @@ void UI_GetThemeColorBlendShade4fv(int colorid1, int colorid2, float fac, int of
   col[3] = ((float)a) / 255.0f;
 }
 
-/* get the color, in char pointer */
 void UI_GetThemeColor3ubv(int colorid, uchar col[3])
 {
   const uchar *cp = UI_ThemeGetColorPtr(theme_active, theme_spacetype, colorid);
@@ -1364,7 +1349,6 @@ void UI_GetThemeColor3ubv(int colorid, uchar col[3])
   col[2] = cp[2];
 }
 
-/* get the color, range 0.0-1.0, complete with shading offset */
 void UI_GetThemeColorShade4fv(int colorid, int offset, float col[4])
 {
   const uchar *cp = UI_ThemeGetColorPtr(theme_active, theme_spacetype, colorid);
@@ -1386,7 +1370,6 @@ void UI_GetThemeColorShade4fv(int colorid, int offset, float col[4])
   col[3] = ((float)a) / 255.0f;
 }
 
-/* get the color, in char pointer */
 void UI_GetThemeColor4ubv(int colorid, uchar col[4])
 {
   const uchar *cp = UI_ThemeGetColorPtr(theme_active, theme_spacetype, colorid);
@@ -1464,7 +1447,6 @@ void UI_GetColorPtrShade3ubv(const uchar cp[3], uchar col[3], int offset)
   col[2] = b;
 }
 
-/* get a 3 byte color, blended and shaded between two other char color pointers */
 void UI_GetColorPtrBlendShade3ubv(
     const uchar cp1[3], const uchar cp2[3], uchar col[3], float fac, int offset)
 {

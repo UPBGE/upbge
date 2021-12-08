@@ -1329,7 +1329,7 @@ static void sh_node_voronoi_build_multi_function(blender::nodes::NodeMultiFuncti
 
 }  // namespace blender::nodes
 
-void register_node_type_sh_tex_voronoi(void)
+void register_node_type_sh_tex_voronoi()
 {
   static bNodeType ntype;
 
