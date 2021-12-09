@@ -873,11 +873,11 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
       KX_FontObject *fontobj = nullptr;
 #ifdef WITH_PYTHON
       KX_GameObject *customobj = BL_gameobject_from_customobject(ob, &KX_FontObject::Type, kxscene);
-#endif
+
       if (customobj) {
         fontobj = dynamic_cast<KX_FontObject *>(customobj);
       }
-
+#endif
       if (!fontobj) {
         fontobj = new KX_FontObject();
       }
@@ -1040,8 +1040,6 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 #else
   (void)gameobj;
   (void)blenderobj;
-
-  return nullptr;
 #endif
 }
 
