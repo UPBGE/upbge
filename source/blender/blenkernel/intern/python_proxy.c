@@ -796,8 +796,6 @@ void BKE_custom_object_reload(PythonProxy *pp, ReportList *reports, bContext *co
   (void)pp;
   (void)reports;
   (void)context;
-
-  return NULL;
 #endif /* WITH_PYTHON */
 }
 
@@ -809,8 +807,6 @@ void BKE_python_component_reload(PythonProxy *pp, ReportList *reports, bContext 
   (void)pp;
   (void)reports;
   (void)context;
-
-  return NULL;
 #endif /* WITH_PYTHON */
 }
 
@@ -853,8 +849,6 @@ void BKE_python_proxy_copy_list(ListBase *lbn, const ListBase *lbo)
 #else
   (void)lbn;
   (void)lbo;
-
-  return NULL;
 #endif /* WITH_PYTHON */
 }
 
@@ -866,8 +860,6 @@ void BKE_python_proxy_free(PythonProxy *pp)
   MEM_freeN(pp);
 #else
   (void)pp;
-
-  return NULL;
 #endif /* WITH_PYTHON */
 }
 
@@ -882,8 +874,6 @@ void BKE_python_proxy_free_list(ListBase *lb)
   }
 #else
   (void)lb;
-
-  return NULL;
 #endif /* WITH_PYTHON */
 }
 
@@ -984,8 +974,6 @@ void BKE_python_proxy_id_loop(PythonProxy *pp, BKEPyProxyIDFunc func, void *user
   (void)pp;
   (void)func;
   (void)userdata;
-
-  return NULL;
 #endif /* WITH_PYTHON */
 }
 
@@ -1001,7 +989,5 @@ void BKE_python_proxies_id_loop(ListBase *list, BKEPyProxyIDFunc func, void *use
   (void)list;
   (void)func;
   (void)userdata;
-
-  return NULL;
 #endif /* WITH_PYTHON */
 }
