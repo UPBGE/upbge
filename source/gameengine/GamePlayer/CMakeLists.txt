@@ -68,7 +68,6 @@ set(INC
 
 set(INC_SYS
   ../../../intern/moto/include
-  ${PYTHON_INCLUDE_DIRS}
   ${BOOST_INCLUDE_DIR}
   ${GLEW_INCLUDE_PATH}
 )
@@ -87,6 +86,12 @@ add_definitions(${GL_DEFINITIONS})
 
 if(WIN32)
   blender_include_dirs(../../../intern/utfconv)
+endif()
+
+if(WITH_PYTHON)
+  list(APPEND INC_SYS
+    ${PYTHON_INCLUDE_DIRS}
+  )
 endif()
 
 if(WITH_INPUT_NDOF)

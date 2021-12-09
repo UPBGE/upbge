@@ -1752,8 +1752,9 @@ int main(int argc,
 
   /* wm_init_exit */
   const char *imports[] = {"addon_utils", NULL};
+#ifdef WITH_PYTHON
   BPY_run_string_eval(C, imports, "addon_utils.disable_all()");
-
+#endif
   BLI_timer_free();
 
   WM_paneltype_clear();

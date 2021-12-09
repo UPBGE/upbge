@@ -468,14 +468,13 @@ static void create_properties(PythonProxy *pp, PyObject *cls)
   // Set the new property list.
   pp->properties = properties;
 }
-#endif /* WITH_PYTHON */
+
 
 static bool load_class(PythonProxy *pp,
                        int (*verifier)(PyObject *),
                        ReportList *reports,
                        Main *maggie)
 {
-#ifdef WITH_PYTHON
 
 /* Macro used to release all python variable if the convertion fail or succeed.
  * The "value" argument is false on failure and true on succes.
@@ -601,15 +600,6 @@ static bool load_class(PythonProxy *pp,
 
 #  undef ERROR
 
-#else
-
-  (void)pc;
-  (void)reports;
-  (void)maggie;
-
-  return true;
-
-#endif /* WITH_PYTHON */
 }
 
 PythonProxy *BKE_python_class_new(char *import,
@@ -657,17 +647,35 @@ PythonProxy *BKE_python_class_new(char *import,
 
   return pp;
 }
+#endif /* WITH_PYTHON */
 
 PythonProxy *BKE_custom_object_new(char *import, ReportList *reports, bContext *context)
 {
+#ifdef WITH_PYTHON
   return BKE_python_class_new(import, verify_custom_object_class, reports, context);
+#else
+(void)import;
+(void)reports;
+(void)context;
+
+return NULL;
+#endif /* WITH_PYTHON */
 }
 
 PythonProxy *BKE_python_component_new(char *import, ReportList *reports, bContext *context)
 {
+#ifdef WITH_PYTHON
   return BKE_python_class_new(import, verify_component_class, reports, context);
+#else
+(void)import;
+(void)reports;
+(void)context;
+
+return NULL;
+#endif /* WITH_PYTHON */
 }
 
+#ifdef WITH_PYTHON
 PythonProxy *BKE_python_class_create_file(char *import,
                                           const char *template_dir,
                                           const char *template_name,
@@ -742,39 +750,73 @@ PythonProxy *BKE_python_class_create_file(char *import,
 
   return pp;
 }
+#endif /* WITH_PYTHON */
 
 PythonProxy *BKE_custom_object_create_file(char *import, ReportList *reports, bContext *context)
 {
+#ifdef WITH_PYTHON
   return BKE_python_class_create_file(import,
                                       "templates_custom_objects",
                                       "custom_object.py",
                                       verify_custom_object_class,
                                       reports,
                                       context);
+#else
+(void)import;
+(void)reports;
+(void)context;
+
+return NULL;
+#endif /* WITH_PYTHON */
 }
 
 PythonProxy *BKE_python_component_create_file(char *import, ReportList *reports, bContext *context)
 {
+#ifdef WITH_PYTHON
   return BKE_python_class_create_file(import,
                                       "templates_py_components",
                                       "python_component.py",
                                       verify_component_class,
                                       reports,
                                       context);
+#else
+  (void)import;
+  (void)reports;
+  (void)context;
+
+  return NULL;
+#endif /* WITH_PYTHON */
 }
 
 void BKE_custom_object_reload(PythonProxy *pp, ReportList *reports, bContext *context)
 {
+#ifdef WITH_PYTHON
   load_class(pp, verify_custom_object_class, reports, CTX_data_main(context));
+#else
+  (void)pp;
+  (void)reports;
+  (void)context;
+
+  return NULL;
+#endif /* WITH_PYTHON */
 }
 
 void BKE_python_component_reload(PythonProxy *pp, ReportList *reports, bContext *context)
 {
+#ifdef WITH_PYTHON
   load_class(pp, verify_component_class, reports, CTX_data_main(context));
+#else
+  (void)pp;
+  (void)reports;
+  (void)context;
+
+  return NULL;
+#endif /* WITH_PYTHON */
 }
 
 PythonProxy *BKE_python_proxy_copy(PythonProxy *pp)
 {
+#ifdef WITH_PYTHON
   PythonProxy *proxyn;
   PythonProxyProperty *pprop, *ppropn;
 
@@ -789,10 +831,16 @@ PythonProxy *BKE_python_proxy_copy(PythonProxy *pp)
   }
 
   return proxyn;
+#else
+  (void)pp;
+
+  return NULL;
+#endif /* WITH_PYTHON */
 }
 
 void BKE_python_proxy_copy_list(ListBase *lbn, const ListBase *lbo)
 {
+#ifdef WITH_PYTHON
   PythonProxy *proxy, *proxyn;
 
   lbn->first = lbn->last = NULL;
@@ -802,23 +850,41 @@ void BKE_python_proxy_copy_list(ListBase *lbn, const ListBase *lbo)
     BLI_addtail(lbn, proxyn);
     proxy = proxy->next;
   }
+#else
+  (void)lbn;
+  (void)lbo;
+
+  return NULL;
+#endif /* WITH_PYTHON */
 }
 
 void BKE_python_proxy_free(PythonProxy *pp)
 {
+#ifdef WITH_PYTHON
   free_properties(&pp->properties);
 
   MEM_freeN(pp);
+#else
+  (void)pp;
+
+  return NULL;
+#endif /* WITH_PYTHON */
 }
 
 void BKE_python_proxy_free_list(ListBase *lb)
 {
+#ifdef WITH_PYTHON
   PythonProxy *pp;
 
   while ((pp = lb->first)) {
     BLI_remlink(lb, pp);
     BKE_python_proxy_free(pp);
   }
+#else
+  (void)lb;
+
+  return NULL;
+#endif /* WITH_PYTHON */
 }
 
 void *BKE_python_proxy_argument_dict_new(PythonProxy *pp)
@@ -896,16 +962,15 @@ void *BKE_python_proxy_argument_dict_new(PythonProxy *pp)
   return args;
 
 #else
-
   (void)pp;
 
   return NULL;
-
 #endif /* WITH_PYTHON */
 }
 
 void BKE_python_proxy_id_loop(PythonProxy *pp, BKEPyProxyIDFunc func, void *userdata)
 {
+#ifdef WITH_PYTHON
   ListBase *properties = &pp->properties;
   PythonProxyProperty *prop;
 
@@ -914,13 +979,29 @@ void BKE_python_proxy_id_loop(PythonProxy *pp, BKEPyProxyIDFunc func, void *user
     POINTER_TYPES
 #undef PT_DEF
   }
+
+#else
+  (void)pp;
+  (void)func;
+  (void)userdata;
+
+  return NULL;
+#endif /* WITH_PYTHON */
 }
 
 void BKE_python_proxies_id_loop(ListBase *list, BKEPyProxyIDFunc func, void *userdata)
 {
+#ifdef WITH_PYTHON
   PythonProxy *pp;
 
   for (pp = list->first; pp; pp = pp->next) {
     BKE_python_proxy_id_loop(pp, func, userdata);
   }
+#else
+  (void)list;
+  (void)func;
+  (void)userdata;
+
+  return NULL;
+#endif /* WITH_PYTHON */
 }

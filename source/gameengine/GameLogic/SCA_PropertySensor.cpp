@@ -39,6 +39,8 @@
 #include "CM_Format.h"
 #include "EXP_FloatValue.h"
 
+#include "BLI_compiler_attrs.h"
+
 SCA_PropertySensor::SCA_PropertySensor(SCA_EventManager *eventmgr,
                                        SCA_IObject *gameobj,
                                        const std::string &propname,
