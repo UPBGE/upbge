@@ -2814,12 +2814,14 @@ void KX_Scene::RunOnRemoveCallbacks()
   PyObject *args[1] = {GetProxy()};
   EXP_RunPythonCallBackList(list, args, 0, 1);
 }
+#endif
 
 KX_Scene *KX_Scene::NewInstance()
 {
   return new KX_Scene(*this);
 }
 
+#ifdef WITH_PYTHON
 //----------------------------------------------------------------------------
 // Python
 

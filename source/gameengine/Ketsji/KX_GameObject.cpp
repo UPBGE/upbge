@@ -97,12 +97,12 @@ KX_GameObject::KX_GameObject()
       m_bOccluder(false),
       m_pPhysicsController(nullptr),
       m_pSGNode(nullptr),
-      m_components(NULL),
       m_pInstanceObjects(nullptr),
       m_pDupliGroupObject(nullptr),
       m_actionManager(nullptr)
 #ifdef WITH_PYTHON
       ,
+      m_components(NULL),
       m_attr_dict(nullptr),
       m_collisionCallbacks(nullptr),
       m_removeCallbacks(nullptr)
@@ -436,12 +436,13 @@ void KX_GameObject::HideOriginalObject()
 
 void KX_GameObject::Dispose()
 {
+#ifdef WITH_PYTHON
   if (m_components) {
     for (KX_PythonComponent *comp : m_components) {
       comp->Dispose();
     }
   }
-
+#endif
   SCA_IObject::Dispose();
 }
 
@@ -1869,12 +1870,18 @@ std::vector<KX_GameObject *> KX_GameObject::GetChildrenRecursive() const
 
 EXP_ListValue<KX_PythonComponent> *KX_GameObject::GetComponents() const
 {
+#ifdef WITH_PYTHON
   return m_components;
+#else
+  return nullptr;
+#endif
 }
 
 void KX_GameObject::SetComponents(EXP_ListValue<KX_PythonComponent> *components)
 {
+#ifdef WITH_PYTHON
   m_components = components;
+#endif
 }
 
 void KX_GameObject::Update()

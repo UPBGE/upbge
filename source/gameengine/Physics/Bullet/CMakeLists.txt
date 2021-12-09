@@ -52,7 +52,6 @@ set(INC
 
 set(INC_SYS
   ../../../../intern/moto/include
-  ${PYTHON_INCLUDE_DIRS}
   ${BOOST_INCLUDE_DIR}
 )
 
@@ -71,6 +70,12 @@ set(SRC
 
 set(LIB
 )
+
+if(WITH_PYTHON)
+  list(APPEND INC_SYS
+    ${PYTHON_INCLUDE_DIRS}
+  )
+endif()
 
 if(WITH_BULLET)
   list(APPEND INC_SYS

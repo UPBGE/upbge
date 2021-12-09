@@ -78,10 +78,15 @@ set(LIB
   ge_expressions
   ge_logic_bricks
   ge_msg_network
-  ge_videotexture
   ge_device
   ge_blender_routines
 )
+
+if(WITH_PYTHON)
+  list(APPEND LIB
+    ge_videotexture
+  )
+endif()
 
 if(WITH_GAMEENGINE_SECURITY)
   add_definitions(-DWITH_GAMEENGINE_SECURITY)

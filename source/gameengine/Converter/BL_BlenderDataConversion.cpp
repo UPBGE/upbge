@@ -662,6 +662,7 @@ static KX_GameObject::ActivityCullingInfo activityCullingInfoFromBlenderObject(O
   return cullingInfo;
 }
 
+#ifdef WITH_PYTHON
 static KX_GameObject *BL_gameobject_from_customobject(Object *ob,
                                                       PyTypeObject *type,
                                                       KX_Scene *kxscene)
@@ -735,6 +736,7 @@ static KX_GameObject *BL_gameobject_from_customobject(Object *ob,
 
   return gameobj;
 }
+#endif
 
 static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
                                                        KX_Scene *kxscene,
@@ -748,13 +750,13 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
   switch (ob->type) {
     case OB_LAMP: {
       KX_LightObject *gamelight = nullptr;
-      KX_GameObject *customobj = BL_gameobject_from_customobject(
-          ob, &KX_LightObject::Type, kxscene);
+#ifdef WITH_PYTHON
+      KX_GameObject *customobj = BL_gameobject_from_customobject(ob, &KX_LightObject::Type, kxscene);
 
       if (customobj) {
         gamelight = dynamic_cast<KX_LightObject *>(customobj);
       }
-
+#endif
       if (!gamelight) {
         gamelight = new KX_LightObject();
       }
@@ -768,12 +770,13 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
 
     case OB_CAMERA: {
       KX_Camera *gamecamera = nullptr;
+#ifdef WITH_PYTHON
       KX_GameObject *customobj = BL_gameobject_from_customobject(ob, &KX_Camera::Type, kxscene);
 
       if (customobj) {
         gamecamera = dynamic_cast<KX_Camera *>(customobj);
       }
-
+#endif
       if (!gamecamera) {
         gamecamera = new KX_Camera();
       }
@@ -796,8 +799,9 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
       kxscene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
 
       if (ob->gameflag & OB_NAVMESH) {
+#ifdef WITH_PYTHON
         gameobj = BL_gameobject_from_customobject(ob, &KX_NavMeshObject::Type, kxscene);
-
+#endif
         if (!gameobj) {
           gameobj = new KX_NavMeshObject();
         }
@@ -806,8 +810,9 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
         break;
       }
       else {
+#ifdef WITH_PYTHON
         gameobj = BL_gameobject_from_customobject(ob, &KX_GameObject::Type, kxscene);
-
+#endif
         if (!gameobj) {
           gameobj = new KX_EmptyObject();
         }
@@ -834,8 +839,9 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
     }
 
     case OB_ARMATURE: {
+#ifdef WITH_PYTHON
       gameobj = BL_gameobject_from_customobject(ob, &BL_ArmatureObject::Type, kxscene);
-
+#endif
       if (!gameobj) {
         gameobj = new BL_ArmatureObject();
       }
@@ -851,7 +857,9 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
     case OB_SURF:
     case OB_GPENCIL:
     case OB_SPEAKER: {
+#ifdef WITH_PYTHON
       gameobj = BL_gameobject_from_customobject(ob, &KX_GameObject::Type, kxscene);
+#endif
 
       if (!gameobj) {
         gameobj = new KX_EmptyObject();
@@ -863,13 +871,13 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
     case OB_FONT: {
       /* font objects have no bounding box */
       KX_FontObject *fontobj = nullptr;
-      KX_GameObject *customobj = BL_gameobject_from_customobject(
-          ob, &KX_FontObject::Type, kxscene);
+#ifdef WITH_PYTHON
+      KX_GameObject *customobj = BL_gameobject_from_customobject(ob, &KX_FontObject::Type, kxscene);
 
       if (customobj) {
         fontobj = dynamic_cast<KX_FontObject *>(customobj);
       }
-
+#endif
       if (!fontobj) {
         fontobj = new KX_FontObject();
       }
@@ -891,8 +899,9 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
             depsgraph, blenderscene, DEG_get_evaluated_object(depsgraph, ob), false, false);
       }*/
       // eevee add curves to scene.objects list
+#ifdef WITH_PYTHON
       gameobj = BL_gameobject_from_customobject(ob, &KX_GameObject::Type, kxscene);
-
+#endif
       if (!gameobj) {
         gameobj = new KX_EmptyObject();
       }
@@ -948,6 +957,7 @@ static ListBase *BL_GetActiveConstraint(Object *ob)
 
 static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderobj)
 {
+#ifdef WITH_PYTHON
   PythonProxy *pp = (PythonProxy *)blenderobj->components.first;
   PyObject *arg_dict = NULL, *args = NULL, *mod = NULL, *cls = NULL, *pycomp = NULL, *ret = NULL;
 
@@ -1027,6 +1037,10 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
   Py_XDECREF(pycomp);
 
   gameobj->SetComponents(components);
+#else
+  (void)gameobj;
+  (void)blenderobj;
+#endif
 }
 
 static std::vector<Object *> lod_level_object_list(ViewLayer *view_layer)

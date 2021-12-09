@@ -54,9 +54,14 @@ set(INC
 set(INC_SYS
   ../../../intern/moto/include
   ${GLEW_INCLUDE_PATH}
-  ${PYTHON_INCLUDE_DIRS}
   ${BOOST_INCLUDE_DIR}
 )
+
+if(WITH_PYTHON)
+  list(APPEND INC_SYS
+    ${PYTHON_INCLUDE_DIRS}
+  )
+endif()
 
 set(SRC
   RAS_2DFilter.cpp
