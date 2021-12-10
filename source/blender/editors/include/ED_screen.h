@@ -388,6 +388,10 @@ void ED_screens_navigation_bar_tools_menu_create(struct bContext *C,
  */
 bool ED_screen_stereo3d_required(const struct bScreen *screen, const struct Scene *scene);
 Scene *ED_screen_scene_find(const struct bScreen *screen, const struct wmWindowManager *wm);
+/**
+ * Find the scene displayed in \a screen.
+ * \note Assumes \a screen to be visible/active!
+ */
 Scene *ED_screen_scene_find_with_window(const struct bScreen *screen,
                                         const struct wmWindowManager *wm,
                                         struct wmWindow **r_window);
@@ -440,7 +444,7 @@ bool ED_workspace_delete(struct WorkSpace *workspace,
  */
 void ED_workspace_scene_data_sync(struct WorkSpaceInstanceHook *hook, Scene *scene) ATTR_NONNULL();
 /**
- * Make sure there is a non-fullscreen layout to switch to that is not used yet by an other window.
+ * Make sure there is a non-full-screen layout to switch to that isn't used yet by an other window.
  * Needed for workspace or screen switching to ensure valid screens.
  *
  * \param layout_fallback_base: As last resort, this layout is duplicated and returned.
