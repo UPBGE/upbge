@@ -3147,7 +3147,7 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "form_factor", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "formfactor");
-  RNA_def_property_range(prop, 0.0, 1.0);
+  RNA_def_property_range(prop, 0.0, 100.0);
   RNA_def_property_ui_text(prop, "Form Factor", "Form factor scales the inertia tensor");
 
   prop = RNA_def_property(srna, "use_anisotropic_friction", PROP_BOOLEAN, PROP_NONE);

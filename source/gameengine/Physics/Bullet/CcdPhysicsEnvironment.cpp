@@ -621,7 +621,7 @@ void CcdPhysicsEnvironment::UpdateCcdPhysicsController(CcdPhysicsController *ctr
     if (body) {
       if (newMass)
         body->getCollisionShape()->calculateLocalInertia(newMass, inertia);
-      body->setMassProps(newMass, inertia);
+      body->setMassProps(newMass, inertia * ctrl->GetInertiaFactor());
       body->setFriction(newFriction);
       m_dynamicsWorld->addRigidBody(body, newCollisionGroup, newCollisionMask);
     }
@@ -3121,13 +3121,13 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter *converter,
 
       parentShapeInfo->AddShape(shapeInfo);
       compoundShape->addChildShape(shapeInfo->m_childTrans, bm);
-      // do some recalc?
-      // recalc inertia for rigidbody
+
+      // Recalculate inertia for object owning compound shape.
       if (!rigidbody->isStaticOrKinematicObject()) {
         btVector3 localInertia;
-        float mass = 1.0f / rigidbody->getInvMass();
+        const float mass = 1.0f / rigidbody->getInvMass();
         compoundShape->calculateLocalInertia(mass, localInertia);
-        rigidbody->setMassProps(mass, localInertia);
+        rigidbody->setMassProps(mass, localInertia * parentCtrl->GetInertiaFactor());
       }
       shapeInfo->Release();
       // delete motionstate as it's not used

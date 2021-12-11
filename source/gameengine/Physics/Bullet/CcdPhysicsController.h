@@ -702,6 +702,8 @@ class CcdPhysicsController : public PHY_IPhysicsController {
   virtual MT_Scalar GetMass();
   virtual void SetMass(MT_Scalar newmass);
 
+  float GetInertiaFactor() const;
+
   virtual MT_Scalar GetFriction();
   virtual void SetFriction(MT_Scalar newfriction);
 

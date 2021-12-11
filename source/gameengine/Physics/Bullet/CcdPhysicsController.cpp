@@ -1339,6 +1339,11 @@ void CcdPhysicsController::SetFriction(MT_Scalar newfriction)
   }
 }
 
+float CcdPhysicsController::GetInertiaFactor() const
+{
+  return m_cci.m_inertiaFactor;
+}
+
 // physics methods
 void CcdPhysicsController::ApplyTorque(const MT_Vector3 &torquein, bool local)
 {
@@ -1722,12 +1727,13 @@ void CcdPhysicsController::AddCompoundChild(PHY_IPhysicsController *child)
   proxyShapeInfo->Release();
   // remember we created this shape
   childCtrl->m_bulletChildShape = newChildShape;
-  // recompute inertia of parent
+
+  // Recalculate inertia for object owning compound shape.
   if (!rootBody->isStaticOrKinematicObject()) {
     btVector3 localInertia;
     float mass = 1.0f / rootBody->getInvMass();
     compoundShape->calculateLocalInertia(mass, localInertia);
-    rootBody->setMassProps(mass, localInertia);
+    rootBody->setMassProps(mass, localInertia * m_cci.m_inertiaFactor);
   }
   // must update the broadphase cache,
   GetPhysicsEnvironment()->RefreshCcdPhysicsController(this);
@@ -1779,7 +1785,7 @@ void CcdPhysicsController::RemoveCompoundChild(PHY_IPhysicsController *child)
     btVector3 localInertia;
     float mass = 1.f / rootBody->getInvMass();
     compoundShape->calculateLocalInertia(mass, localInertia);
-    rootBody->setMassProps(mass, localInertia);
+    rootBody->setMassProps(mass, localInertia * m_cci.m_inertiaFactor);
   }
   // must update the broadphase cache,
   GetPhysicsEnvironment()->RefreshCcdPhysicsController(this);
