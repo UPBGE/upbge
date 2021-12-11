@@ -39,6 +39,7 @@ class SCA_MouseActuator : public SCA_IActuator {
   SCA_IInputDevice *m_mouse;
   RAS_ICanvas *m_canvas;
   int m_type;
+  bool m_initialSkipping;
 
   bool m_visible;
 

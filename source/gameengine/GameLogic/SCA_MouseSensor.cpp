@@ -139,7 +139,6 @@ bool SCA_MouseSensor::Evaluate()
           eventX.Find(SCA_InputEvent::JUSTACTIVATED) || eventY.Find(SCA_InputEvent::JUSTACTIVATED) ||
           eventX.Find(SCA_InputEvent::JUSTRELEASED) || eventY.Find(SCA_InputEvent::JUSTRELEASED)) {
         m_val = 1;
-        result = true;
       }
       else {
         m_val = 0;

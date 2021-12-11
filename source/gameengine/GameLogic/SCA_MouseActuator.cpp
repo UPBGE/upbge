@@ -66,7 +66,8 @@ SCA_MouseActuator::SCA_MouseActuator(SCA_IObject *gameobj,
       m_local_y(local[1])
 {
   m_canvas = m_ketsji->GetCanvas();
-  m_oldposition[0] = m_oldposition[1] = -1.f;
+  m_oldposition[0] = m_oldposition[1] = 0.0f;
+  m_initialSkipping = true;
   m_limit_x[0] = limit_x[0];
   m_limit_x[1] = limit_x[1];
   m_limit_y[0] = limit_y[0];
@@ -90,8 +91,6 @@ SCA_MouseActuator::~SCA_MouseActuator()
 
 bool SCA_MouseActuator::Update()
 {
-  bool result = false;
-
   bool bNegativeEvent = IsNegativeEvent();
   mouact_count++;
   if (mouact_count == mouact_total) {
@@ -100,9 +99,8 @@ bool SCA_MouseActuator::Update()
   }
 
   if (bNegativeEvent) {
-    // Reset previous position on negative events.
-    m_oldposition[0] = -1.0f;
-    m_oldposition[1] = -1.0f;
+    // Reset initial skipping check on negative events.
+    m_initialSkipping = true;
     return false;  // do nothing on negative events
   }
 
@@ -147,7 +145,7 @@ bool SCA_MouseActuator::Update()
         }
 
         // preventing initial skipping.
-        if ((m_oldposition[0] <= -0.9f) && (m_oldposition[1] <= -0.9f)) {
+        if (m_initialSkipping) {
 
           if (m_reset_x) {
             m_oldposition[0] = center_x;
@@ -163,6 +161,7 @@ bool SCA_MouseActuator::Update()
             m_oldposition[1] = position[1];
           }
           setMousePosition(m_oldposition[0], m_oldposition[1]);
+          m_initialSkipping = false;
           break;
         }
 
@@ -289,7 +288,7 @@ bool SCA_MouseActuator::Update()
     default:
       break;
   }
-  return result;
+  return false;
 }
 
 EXP_Value *SCA_MouseActuator::GetReplica()
