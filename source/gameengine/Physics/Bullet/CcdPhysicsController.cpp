@@ -1515,6 +1515,26 @@ void CcdPhysicsController::SetActive(bool active)
 {
 }
 
+unsigned short CcdPhysicsController::GetCollisionGroup() const
+{
+  return m_cci.m_collisionGroup;
+}
+
+unsigned short CcdPhysicsController::GetCollisionMask() const
+{
+  return m_cci.m_collisionMask;
+}
+
+void CcdPhysicsController::SetCollisionGroup(unsigned short group)
+{
+  m_cci.m_collisionGroup = group;
+}
+
+void CcdPhysicsController::SetCollisionMask(unsigned short mask)
+{
+  m_cci.m_collisionMask = mask;
+}
+
 float CcdPhysicsController::GetLinearDamping() const
 {
   const btRigidBody *body = GetRigidBody();

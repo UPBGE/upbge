@@ -549,14 +549,8 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
 {
   // Object has physics representation?
   if (!(blenderobject->gameflag & OB_COLLISION)) {
-    // Respond to all collisions so that Near sensors work on No Collision objects.
-    gameobj->SetUserCollisionGroup(0xffff);
-    gameobj->SetUserCollisionMask(0xffff);
     return;
   }
-
-  gameobj->SetUserCollisionGroup(blenderobject->col_group);
-  gameobj->SetUserCollisionMask(blenderobject->col_mask);
 
   Object *parent = blenderobject->parent;
 

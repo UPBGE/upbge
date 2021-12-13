@@ -124,10 +124,6 @@ class KX_GameObject : public SCA_IObject {
   bool m_bIsNegativeScaling;
   MT_Vector4 m_objectColor;
 
-  // Bit fields for user control over physics collisions
-  unsigned short m_userCollisionGroup;
-  unsigned short m_userCollisionMask;
-
   // visible = user setting
   // culled = while rendering, depending on camera
   bool m_bVisible;
@@ -451,18 +447,14 @@ class KX_GameObject : public SCA_IObject {
   /** Set the object's collison group
    * \param filter The group bitfield
    */
-  void SetUserCollisionGroup(unsigned short filter);
+  void SetCollisionGroup(unsigned short filter);
 
   /** Set the object's collison mask
    * \param filter The mask bitfield
    */
-  void SetUserCollisionMask(unsigned short mask);
-  unsigned short GetUserCollisionGroup();
-  unsigned short GetUserCollisionMask();
-  /**
-   * Extra broadphase check for user controllable collisions
-   */
-  bool CheckCollision(KX_GameObject *other);
+  void SetCollisionMask(unsigned short mask);
+  unsigned short GetCollisionGroup() const;
+  unsigned short GetCollisionMask() const;
 
   /**
    * \section Coordinate system manipulation functions

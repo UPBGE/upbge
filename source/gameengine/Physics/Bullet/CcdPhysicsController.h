@@ -276,6 +276,8 @@ struct CcdConstructionInfo {
         m_bGimpact(false),
         m_collisionFilterGroup(DefaultFilter),
         m_collisionFilterMask(AllFilter),
+        m_collisionGroup(0xFFFF),
+        m_collisionMask(0xFFFF),
         m_collisionShape(nullptr),
         m_MotionState(nullptr),
         m_shapeInfo(nullptr),
@@ -399,6 +401,9 @@ struct CcdConstructionInfo {
    */
   short int m_collisionFilterGroup;
   short int m_collisionFilterMask;
+
+  unsigned short m_collisionGroup;
+  unsigned short m_collisionMask;
 
   /** these pointers are used as argument passing for the CcdPhysicsController constructor
    * and not anymore after that
@@ -716,6 +721,11 @@ class CcdPhysicsController : public PHY_IPhysicsController {
   virtual void Jump();
   virtual void SetActive(bool active);
 
+  virtual unsigned short GetCollisionGroup() const;
+  virtual unsigned short GetCollisionMask() const;
+  virtual void SetCollisionGroup(unsigned short group);
+  virtual void SetCollisionMask(unsigned short mask);
+
   virtual float GetLinearDamping() const;
   virtual float GetAngularDamping() const;
   virtual void SetLinearDamping(float damping);
@@ -831,8 +841,6 @@ class CcdPhysicsController : public PHY_IPhysicsController {
   void SetCenterOfMassTransform(btTransform &xform);
 
   static btTransform GetTransformFromMotionState(PHY_IMotionState *motionState);
-
-  void setAabb(const btVector3 &aabbMin, const btVector3 &aabbMax);
 
   class PHY_IMotionState *GetMotionState()
   {

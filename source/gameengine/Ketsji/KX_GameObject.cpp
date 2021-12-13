@@ -948,31 +948,29 @@ void KX_GameObject::ProcessReplica()
 #endif
 }
 
-void KX_GameObject::SetUserCollisionGroup(unsigned short group)
+void KX_GameObject::SetCollisionGroup(unsigned short group)
 {
-  m_userCollisionGroup = group;
-  if (m_pPhysicsController)
+  if (m_pPhysicsController) {
+    m_pPhysicsController->SetCollisionGroup(group);
     m_pPhysicsController->RefreshCollisions();
+  }
 }
-void KX_GameObject::SetUserCollisionMask(unsigned short mask)
+void KX_GameObject::SetCollisionMask(unsigned short mask)
 {
-  m_userCollisionMask = mask;
-  if (m_pPhysicsController)
+  if (m_pPhysicsController) {
+    m_pPhysicsController->SetCollisionMask(mask);
     m_pPhysicsController->RefreshCollisions();
+  }
 }
 
-unsigned short KX_GameObject::GetUserCollisionGroup()
+unsigned short KX_GameObject::GetCollisionGroup() const
 {
-  return m_userCollisionGroup;
-}
-unsigned short KX_GameObject::GetUserCollisionMask()
-{
-  return m_userCollisionMask;
+  return m_pPhysicsController ? m_pPhysicsController->GetCollisionGroup() : 0;
 }
 
-bool KX_GameObject::CheckCollision(KX_GameObject *other)
+unsigned short KX_GameObject::GetCollisionMask() const
 {
-  return this->m_userCollisionGroup & other->m_userCollisionMask;
+  return m_pPhysicsController ? m_pPhysicsController->GetCollisionMask() : 0;
 }
 
 KX_PythonProxy *KX_GameObject::NewInstance()
@@ -2832,7 +2830,7 @@ PyObject *KX_GameObject::pyattr_get_collisionGroup(EXP_PyObjectPlus *self_v,
                                                    const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-  return PyLong_FromLong(self->GetUserCollisionGroup());
+  return PyLong_FromLong(self->GetCollisionGroup());
 }
 
 int KX_GameObject::pyattr_set_collisionGroup(EXP_PyObjectPlus *self_v,
@@ -2856,7 +2854,7 @@ int KX_GameObject::pyattr_set_collisionGroup(EXP_PyObjectPlus *self_v,
     return PY_SET_ATTR_FAIL;
   }
 
-  self->SetUserCollisionGroup(val);
+  self->SetCollisionGroup(val);
   return PY_SET_ATTR_SUCCESS;
 }
 
@@ -2864,7 +2862,7 @@ PyObject *KX_GameObject::pyattr_get_collisionMask(EXP_PyObjectPlus *self_v,
                                                   const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-  return PyLong_FromLong(self->GetUserCollisionMask());
+  return PyLong_FromLong(self->GetCollisionMask());
 }
 
 int KX_GameObject::pyattr_set_collisionMask(EXP_PyObjectPlus *self_v,
@@ -2888,7 +2886,7 @@ int KX_GameObject::pyattr_set_collisionMask(EXP_PyObjectPlus *self_v,
     return PY_SET_ATTR_FAIL;
   }
 
-  self->SetUserCollisionMask(val);
+  self->SetCollisionMask(val);
   return PY_SET_ATTR_SUCCESS;
 }
 
@@ -4514,7 +4512,7 @@ static bool CheckRayCastObject(KX_GameObject *obj, KX_GameObject::RayCastData *r
   // Check if the object had a given property (if this one is non empty) and have the correct group
   // mask (if this one is different from 0xFFFF).
   return ((prop.empty() || obj->GetProperty(prop)) &&
-          (mask == ((1u << OB_MAX_COL_MASKS) - 1) || obj->GetUserCollisionGroup() & mask));
+          (mask == ((1u << OB_MAX_COL_MASKS) - 1) || obj->GetCollisionGroup() & mask));
 }
 
 bool KX_GameObject::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, RayCastData *rayData)
