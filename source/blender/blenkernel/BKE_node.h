@@ -164,20 +164,20 @@ typedef struct bNodeSocketType {
   void (*interface_draw)(struct bContext *C, struct uiLayout *layout, struct PointerRNA *ptr);
   void (*interface_draw_color)(struct bContext *C, struct PointerRNA *ptr, float *r_color);
   void (*interface_register_properties)(struct bNodeTree *ntree,
-                                        struct bNodeSocket *stemp,
+                                        struct bNodeSocket *interface_socket,
                                         struct StructRNA *data_srna);
   void (*interface_init_socket)(struct bNodeTree *ntree,
-                                struct bNodeSocket *stemp,
+                                const struct bNodeSocket *interface_socket,
                                 struct bNode *node,
                                 struct bNodeSocket *sock,
                                 const char *data_path);
   void (*interface_verify_socket)(struct bNodeTree *ntree,
-                                  struct bNodeSocket *stemp,
+                                  const struct bNodeSocket *interface_socket,
                                   struct bNode *node,
                                   struct bNodeSocket *sock,
                                   const char *data_path);
   void (*interface_from_socket)(struct bNodeTree *ntree,
-                                struct bNodeSocket *stemp,
+                                struct bNodeSocket *interface_socket,
                                 struct bNode *node,
                                 struct bNodeSocket *sock);
 
@@ -258,7 +258,10 @@ typedef struct bNodeType {
    * Optional custom label function for the node header.
    * \note Used as a fallback when #bNode.label isn't set.
    */
-  void (*labelfunc)(struct bNodeTree *ntree, struct bNode *node, char *label, int maxlen);
+  void (*labelfunc)(const struct bNodeTree *ntree,
+                    const struct bNode *node,
+                    char *label,
+                    int maxlen);
 
   /** Called when the node is updated in the editor. */
   void (*updatefunc)(struct bNodeTree *ntree, struct bNode *node);
@@ -967,7 +970,7 @@ void BKE_node_preview_set_pixel(
 /** \name Node Type Access
  * \{ */
 
-void nodeLabel(struct bNodeTree *ntree, struct bNode *node, char *label, int maxlen);
+void nodeLabel(const struct bNodeTree *ntree, const struct bNode *node, char *label, int maxlen);
 /**
  * Get node socket label if it is set.
  */
@@ -1000,9 +1003,6 @@ void node_type_storage(struct bNodeType *ntype,
                        void (*copyfunc)(struct bNodeTree *dest_ntree,
                                         struct bNode *dest_node,
                                         const struct bNode *src_node));
-void node_type_label(
-    struct bNodeType *ntype,
-    void (*labelfunc)(struct bNodeTree *ntree, struct bNode *, char *label, int maxlen));
 void node_type_update(struct bNodeType *ntype,
                       void (*updatefunc)(struct bNodeTree *ntree, struct bNode *node));
 void node_type_group_update(struct bNodeType *ntype,

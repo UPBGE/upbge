@@ -480,18 +480,12 @@ static void node_update_basis(const bContext &C, bNodeTree &ntree, bNode &node)
   if (node.typeinfo->draw_buttons && (node.flag & NODE_OPTIONS)) {
     dy -= NODE_DYS / 2;
 
-    /* Set this for `uifunc()` that don't use layout engine yet. */
-    node.butr.xmin = 0;
-    node.butr.xmax = NODE_WIDTH(node) - 2 * NODE_DYS;
-    node.butr.ymin = 0;
-    node.butr.ymax = 0;
-
     uiLayout *layout = UI_block_layout(node.block,
                                        UI_LAYOUT_VERTICAL,
                                        UI_LAYOUT_PANEL,
                                        loc.x + NODE_DYS,
                                        dy,
-                                       node.butr.xmax,
+                                       NODE_WIDTH(node) - NODE_DY,
                                        0,
                                        0,
                                        UI_style_get_dpi());
@@ -657,7 +651,7 @@ static void node_update_hidden(bNode &node)
                                node.totr.ymax);
 }
 
-int node_get_colorid(bNode &node)
+static int node_get_colorid(const bNode &node)
 {
   switch (node.typeinfo->nclass) {
     case NODE_CLASS_INPUT:
@@ -1508,8 +1502,10 @@ static char *node_errors_tooltip_fn(bContext *UNUSED(C), void *argN, const char 
 
 #define NODE_HEADER_ICON_SIZE (0.8f * U.widget_unit)
 
-static void node_add_error_message_button(
-    const bContext &C, bNodeTree &UNUSED(ntree), bNode &node, const rctf &rect, float &icon_offset)
+static void node_add_error_message_button(const bContext &C,
+                                          bNode &node,
+                                          const rctf &rect,
+                                          float &icon_offset)
 {
   SpaceNode *snode = CTX_wm_space_node(&C);
   const geo_log::NodeLog *node_log = geo_log::ModifierLog::find_node_by_node_editor_context(*snode,
@@ -1908,7 +1904,7 @@ static void node_draw_basis(const bContext &C,
     UI_block_emboss_set(node.block, UI_EMBOSS);
   }
 
-  node_add_error_message_button(C, ntree, node, rct, iconofs);
+  node_add_error_message_button(C, node, rct, iconofs);
 
   /* Title. */
   if (node.flag & SELECT) {
@@ -2426,12 +2422,14 @@ void node_update_nodetree(const bContext &C, bNodeTree &ntree)
   }
 }
 
-static void frame_node_draw_label(bNodeTree &ntree, bNode &node, const SpaceNode &snode)
+static void frame_node_draw_label(const bNodeTree &ntree,
+                                  const bNode &node,
+                                  const SpaceNode &snode)
 {
   const float aspect = snode.runtime->aspect;
   /* XXX font id is crap design */
   const int fontid = UI_style_get()->widgetlabel.uifont_id;
-  NodeFrame *data = (NodeFrame *)node.storage;
+  const NodeFrame *data = (const NodeFrame *)node.storage;
   const float font_size = data->label_size / aspect;
 
   char label[MAX_NAME];
@@ -2468,7 +2466,7 @@ static void frame_node_draw_label(bNodeTree &ntree, bNode &node, const SpaceNode
 
   /* draw text body */
   if (node.id) {
-    Text *text = (Text *)node.id;
+    const Text *text = (const Text *)node.id;
     const int line_height_max = BLF_height_max(fontid);
     const float line_spacing = (line_height_max * aspect);
     const float line_width = (BLI_rctf_size_x(&rct) - margin) / aspect;
@@ -2490,7 +2488,7 @@ static void frame_node_draw_label(bNodeTree &ntree, bNode &node, const SpaceNode
 
     BLF_wordwrap(fontid, line_width);
 
-    LISTBASE_FOREACH (TextLine *, line, &text->lines) {
+    LISTBASE_FOREACH (const TextLine *, line, &text->lines) {
       struct ResultBLF info;
       if (line->line[0]) {
         BLF_position(fontid, x, y, 0);
