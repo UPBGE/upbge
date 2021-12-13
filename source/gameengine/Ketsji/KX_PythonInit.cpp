@@ -751,7 +751,7 @@ static PyObject *gLibList(PyObject *, PyObject *args)
   PyObject *list = PyList_New(dynMaggie.size());
 
   for (unsigned short i = 0, size = dynMaggie.size(); i < size; ++i) {
-    PyList_SET_ITEM(list, i, PyUnicode_FromString(dynMaggie[i]->name));
+    PyList_SET_ITEM(list, i, PyUnicode_FromString(dynMaggie[i]->filepath));
   }
 
   return list;

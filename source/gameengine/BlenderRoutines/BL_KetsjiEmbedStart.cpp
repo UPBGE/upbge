@@ -161,15 +161,15 @@ extern "C" void StartKetsjiShell(struct bContext *C,
   std::string exitstring = "";
   BlendFileData *bfd = nullptr;
 
-  BLI_strncpy(pathname, blenderdata->name, sizeof(pathname));
-  BLI_strncpy(prevPathName, G_MAIN->name, sizeof(prevPathName));
+  BLI_strncpy(pathname, blenderdata->filepath, sizeof(pathname));
+  BLI_strncpy(prevPathName, G_MAIN->filepath, sizeof(prevPathName));
 
   /* Without this step, the bmain->name can be ".blend~"
    * and as I don't understand why and as the bug has been
    * reported, we ensure the extension is ".blend"
    * else this is causing issues with globalDict. (youle)
    */
-  char *blend_name = blenderdata->name;
+  char *blend_name = blenderdata->filepath;
   BLI_path_extension_ensure(blend_name, FILE_MAX, ".blend");
 
   KX_SetOrigPath(std::string(blend_name));
@@ -275,9 +275,9 @@ extern "C" void StartKetsjiShell(struct bContext *C,
         RefreshContextAndScreen(C, wm, win, bfd->curscene);
 
         if (blenderdata) {
-          BLI_strncpy(pathname, blenderdata->name, sizeof(pathname));
+          BLI_strncpy(pathname, blenderdata->filepath, sizeof(pathname));
           // Change G_MAIN path to ensure loading of data using relative paths.
-          BLI_strncpy(G_MAIN->name, pathname, sizeof(G_MAIN->name));
+          BLI_strncpy(G_MAIN->filepath, pathname, sizeof(G_MAIN->filepath));
         }
       }
       // else forget it, we can't find it
@@ -428,5 +428,5 @@ extern "C" void StartKetsjiShell(struct bContext *C,
 #endif
 
   // Restore G_MAIN path.
-  BLI_strncpy(G_MAIN->name, prevPathName, sizeof(G_MAIN->name));
+  BLI_strncpy(G_MAIN->filepath, prevPathName, sizeof(G_MAIN->filepath));
 }

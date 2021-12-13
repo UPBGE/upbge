@@ -237,7 +237,7 @@ void LA_Launcher::InitEngine()
   InitCamera();
 
 #ifdef WITH_PYTHON
-  KX_SetMainPath(std::string(m_maggie->name));
+  KX_SetMainPath(std::string(m_maggie->filepath));
   setupGamePython(m_ketsjiEngine,
                   m_maggie,
                   m_globalDict,

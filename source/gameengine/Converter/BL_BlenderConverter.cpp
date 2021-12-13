@@ -270,7 +270,7 @@ BL_InterpolatorList *BL_BlenderConverter::FindInterpolatorList(KX_Scene *scene, 
 Main *BL_BlenderConverter::CreateMainDynamic(const std::string &path)
 {
   Main *maggie = BKE_main_new();
-  strncpy(maggie->name, path.c_str(), sizeof(maggie->name) - 1);
+  strncpy(maggie->filepath, path.c_str(), sizeof(maggie->filepath) - 1);
   m_DynamicMaggie.push_back(maggie);
 
   return maggie;
@@ -284,7 +284,7 @@ const std::vector<Main *> &BL_BlenderConverter::GetMainDynamic() const
 Main *BL_BlenderConverter::GetMainDynamicPath(const std::string &path) const
 {
   for (Main *maggie : m_DynamicMaggie) {
-    if (BLI_path_cmp(maggie->name, path.c_str()) == 0) {
+    if (BLI_path_cmp(maggie->filepath, path.c_str()) == 0) {
       return maggie;
     }
   }
@@ -464,7 +464,7 @@ KX_LibLoadStatus *BL_BlenderConverter::LinkBlendFile(BlendHandle *bpy_openlib,
 
   // needed for lookups
   m_DynamicMaggie.push_back(main_newlib);
-  BLI_strncpy(main_newlib->name, path, sizeof(main_newlib->name));
+  BLI_strncpy(main_newlib->filepath, path, sizeof(main_newlib->filepath));
 
   status = new KX_LibLoadStatus(this, m_ketsjiEngine, scene_merge, path);
 
@@ -558,7 +558,7 @@ KX_LibLoadStatus *BL_BlenderConverter::LinkBlendFile(BlendHandle *bpy_openlib,
     status->Finish();
   }
 
-  m_status_map[main_newlib->name] = status;
+  m_status_map[main_newlib->filepath] = status;
   return status;
 }
 
@@ -571,13 +571,13 @@ bool BL_BlenderConverter::FreeBlendFile(Main *maggie)
   }
 
   // If the given library is currently in loading, we do nothing.
-  if (m_status_map.count(maggie->name)) {
+  if (m_status_map.count(maggie->filepath)) {
     m_threadinfo.m_mutex.Lock();
-    const bool finished = m_status_map[maggie->name]->IsFinished();
+    const bool finished = m_status_map[maggie->filepath]->IsFinished();
     m_threadinfo.m_mutex.Unlock();
 
     if (!finished) {
-      CM_Error("Library (" << maggie->name
+      CM_Error("Library (" << maggie->filepath
                            << ") is currently being loaded asynchronously, and cannot be freed "
                               "until this process is done");
       return false;
@@ -753,8 +753,8 @@ bool BL_BlenderConverter::FreeBlendFile(Main *maggie)
   removeImportMain(maggie);
 #endif
 
-  delete m_status_map[maggie->name];
-  m_status_map.erase(maggie->name);
+  delete m_status_map[maggie->filepath];
+  m_status_map.erase(maggie->filepath);
 
   BKE_main_free(maggie);
 

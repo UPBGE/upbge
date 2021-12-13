@@ -1665,7 +1665,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
     }
     int layerMask = (groupobj.find(blenderobj) == groupobj.end()) ? activeLayerBitInfo : 0;
     bool isInActiveLayer = (blenderobj->lay & layerMask) != 0;
-    BL_ConvertActuators(maggie->name,
+    BL_ConvertActuators(maggie->filepath,
                         blenderobj,
                         gameobj,
                         logicmgr,

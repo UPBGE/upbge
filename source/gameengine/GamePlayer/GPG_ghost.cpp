@@ -596,7 +596,7 @@ static BlendFileData *load_game_data(const char *progname,
     bfd = BLO_read_runtime(progname, &breports);
     if (bfd) {
       bfd->type = BLENFILETYPE_RUNTIME;
-      BLI_strncpy(bfd->main->name, progname, sizeof(bfd->main->name));
+      BLI_strncpy(bfd->main->filepath, progname, sizeof(bfd->main->filepath));
     }
   }
   else {
@@ -1456,7 +1456,7 @@ int main(int argc,
               // The file is valid and it's the original file name.
               if (bfd) {
                 remove(filename);
-                KX_SetOrigPath(bfd->main->name);
+                KX_SetOrigPath(bfd->main->filepath);
               }
             }
             else
@@ -1471,7 +1471,7 @@ int main(int argc,
                  * reported, we ensure the extension is ".blend"
                  * else this is causing issues with globalDict. (youle)
                  */
-                char *blend_name = bfd->main->name;
+                char *blend_name = bfd->main->filepath;
                 BLI_path_extension_ensure(blend_name, FILE_MAX, ".blend");
 
                 KX_SetOrigPath(blend_name);
@@ -1509,7 +1509,7 @@ int main(int argc,
               gs.glslflag = scene->gm.flag;
             }
 
-            titlename = maggie->name;
+            titlename = maggie->filepath;
 
             // Check whether the game should be displayed full-screen
             if ((!fullScreenParFound) && (!windowParFound)) {
@@ -1573,7 +1573,7 @@ int main(int argc,
             if (!samplesParFound)
               aasamples = scene->gm.aasamples;
 
-            BLI_strncpy(pathname, maggie->name, sizeof(pathname));
+            BLI_strncpy(pathname, maggie->filepath, sizeof(pathname));
             if (firstTimeRunning) {
               firstTimeRunning = false;
 
