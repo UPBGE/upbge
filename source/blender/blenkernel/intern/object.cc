@@ -4602,9 +4602,6 @@ void BKE_object_apply_mat4_ex(Object *ob,
   /* BKE_object_mat3_to_rot handles delta rotations */
 }
 
-/**
- * XXX: should be removed after COW operators port to use BKE_object_apply_mat4_ex directly.
- */
 void BKE_object_apply_mat4(Object *ob,
                            const float mat[4][4],
                            const bool use_compat,
@@ -5121,6 +5118,12 @@ void BKE_scene_foreach_display_point(Depsgraph *depsgraph,
   DEG_OBJECT_ITER_END;
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Object Transform Channels (Backup/Restore)
+ * \{ */
+
 /**
  * See struct members from #Object in DNA_object_types.h
  */
@@ -5181,17 +5184,11 @@ void BKE_object_tfm_restore(Object *ob, void *obtfm_pt)
   copy_m4_m4(ob->imat, obtfm->imat);
 }
 
-bool BKE_object_parent_loop_check(const Object *par, const Object *ob)
-{
-  /* test if 'ob' is a parent somewhere in par's parents */
-  if (par == nullptr) {
-    return false;
-  }
-  if (ob == par) {
-    return true;
-  }
-  return BKE_object_parent_loop_check(par->parent, ob);
-}
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Object Evaluation/Update API
+ * \{ */
 
 static void object_handle_update_proxy(Depsgraph *depsgraph,
                                        Scene *scene,
@@ -5416,6 +5413,12 @@ Lattice *BKE_object_get_evaluated_lattice(const Object *object)
   return lt_eval;
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Object Point Cache
+ * \{ */
+
 static int pc_cmp(const void *a, const void *b)
 {
   const LinkData *ad = (const LinkData *)a, *bd = (const LinkData *)b;
@@ -5479,6 +5482,8 @@ void BKE_object_delete_ptcache(Object *ob, int index)
   LinkData *link = (LinkData *)BLI_findlink(&ob->pc_ids, list_index);
   BLI_freelinkN(&ob->pc_ids, link);
 }
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Object Data Shape Key Insert
@@ -5718,6 +5723,22 @@ bool BKE_object_shapekey_remove(Main *bmain, Object *ob, KeyBlock *kb)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name Object Query API
+ * \{ */
+
+bool BKE_object_parent_loop_check(const Object *par, const Object *ob)
+{
+  /* test if 'ob' is a parent somewhere in par's parents */
+  if (par == nullptr) {
+    return false;
+  }
+  if (ob == par) {
+    return true;
+  }
+  return BKE_object_parent_loop_check(par->parent, ob);
+}
+
 bool BKE_object_flag_test_recursive(const Object *ob, short flag)
 {
   if (ob->flag & flag) {
@@ -5956,6 +5977,26 @@ MovieClip *BKE_object_movieclip_get(Scene *scene, Object *ob, bool use_default)
   return clip;
 }
 
+bool BKE_object_supports_material_slots(struct Object *ob)
+{
+  return ELEM(ob->type,
+              OB_MESH,
+              OB_CURVE,
+              OB_SURF,
+              OB_FONT,
+              OB_MBALL,
+              OB_HAIR,
+              OB_POINTCLOUD,
+              OB_VOLUME,
+              OB_GPENCIL);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Object Runtime
+ * \{ */
+
 void BKE_object_runtime_reset(Object *object)
 {
   memset(&object->runtime, 0, sizeof(object->runtime));
@@ -5980,6 +6021,12 @@ void BKE_object_runtime_free_data(Object *object)
 
   BKE_object_runtime_reset(object);
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Object Relationships
+ * \{ */
 
 /**
  * Find an associated armature object.
@@ -6111,6 +6158,12 @@ void BKE_object_groups_clear(Main *bmain, Scene *scene, Object *ob)
   }
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Object KD-Tree
+ * \{ */
+
 KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
 {
   KDTree_3d *tree = nullptr;
@@ -6227,6 +6280,12 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
   *r_tot = tot;
   return tree;
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Object Modifier Utilities
+ * \{ */
 
 bool BKE_object_modifier_use_time(Scene *scene,
                                   Object *ob,
@@ -6486,6 +6545,12 @@ void BKE_object_update_select_id(struct Main *bmain)
   }
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Object Conversion
+ * \{ */
+
 Mesh *BKE_object_to_mesh(Depsgraph *depsgraph, Object *object, bool preserve_all_data_layers)
 {
   BKE_object_to_mesh_clear(object);
@@ -6553,16 +6618,4 @@ void BKE_object_replace_data_on_shallow_copy(Object *ob, ID *new_data)
   ob->id.py_instance = nullptr;
 }
 
-bool BKE_object_supports_material_slots(struct Object *ob)
-{
-  return ELEM(ob->type,
-              OB_MESH,
-              OB_CURVE,
-              OB_SURF,
-              OB_FONT,
-              OB_MBALL,
-              OB_HAIR,
-              OB_POINTCLOUD,
-              OB_VOLUME,
-              OB_GPENCIL);
-}
+/** \} */

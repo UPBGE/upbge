@@ -52,6 +52,18 @@ void wm_surfaces_iter(bContext *C, void (*cb)(bContext *C, wmSurface *))
   }
 }
 
+static void wm_surface_do_depsgraph_fn(bContext *C, wmSurface *surface)
+{
+  if (surface->do_depsgraph) {
+    surface->do_depsgraph(C);
+  }
+}
+
+void wm_surfaces_do_depsgraph(bContext *C)
+{
+  wm_surfaces_iter(C, wm_surface_do_depsgraph_fn);
+}
+
 void wm_surface_clear_drawable(bContext *C)
 {
   if (g_drawable) {
@@ -124,8 +136,11 @@ void wm_surface_add(wmSurface *surface)
   BLI_addtail(&global_surface_list, surface);
 }
 
-void wm_surface_remove(wmSurface *surface)
+void wm_surface_remove(wmSurface *surface, bContext *C)
 {
+  if (surface == g_drawable) {
+    wm_surface_clear_drawable(C);
+  }
   BLI_remlink(&global_surface_list, surface);
   surface->free_data(surface);
   MEM_freeN(surface);
@@ -136,7 +151,7 @@ void wm_surfaces_free(void)
   wm_surface_clear_drawable(NULL);
 
   LISTBASE_FOREACH_MUTABLE (wmSurface *, surf, &global_surface_list) {
-    wm_surface_remove(surf);
+    wm_surface_remove(surf, NULL);
   }
 
   BLI_assert(BLI_listbase_is_empty(&global_surface_list));

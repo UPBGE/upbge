@@ -1145,6 +1145,10 @@ static int *read_file_thumbnail(FileData *fd)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name File Data API
+ * \{ */
+
 static FileData *filedata_new(BlendFileReadReport *reports)
 {
   BLI_assert(reports != NULL);

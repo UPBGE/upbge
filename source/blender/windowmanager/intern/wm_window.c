@@ -428,7 +428,7 @@ void wm_window_title(wmWindowManager *wm, wmWindow *win)
   }
   else if (win->ghostwin) {
     /* this is set to 1 if you don't have startup.blend open */
-    if (G.save_over && BKE_main_blendfile_path_from_global()[0]) {
+    if (G.relbase_valid && BKE_main_blendfile_path_from_global()[0]) {
       char str[sizeof(((Main *)NULL)->filepath) + 24];
       BLI_snprintf(str,
                    sizeof(str),
@@ -1851,6 +1851,7 @@ bool wm_window_get_swap_interval(wmWindow *win, int *intervalOut)
 /* -------------------------------------------------------------------- */
 /** \name Find Window Utility
  * \{ */
+
 static void wm_window_desktop_pos_get(const wmWindow *win,
                                       const int screen_pos[2],
                                       int r_desk_pos[2])

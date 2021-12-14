@@ -435,3 +435,5 @@
   }
 
 /* clang-format off */
+
+/** \} */

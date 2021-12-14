@@ -930,6 +930,7 @@ struct GPUShader *EEVEE_shaders_subsurface_translucency_sh_get()
 }
 
 /** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name Volumes
  * \{ */

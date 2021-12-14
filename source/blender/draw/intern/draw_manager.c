@@ -3265,6 +3265,8 @@ void DRW_xr_drawing_end(void)
 
 #endif
 
+/** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name Internal testing API for gtests
  * \{ */
