@@ -1439,7 +1439,7 @@ KX_GameObject *KX_Scene::AddDuplicaObject(KX_GameObject *gameobj,
       // BKE_scene_graph_update_tagged(depsgraph, bmain);
       ConvertBlenderObject(basen->object);
 
-      KX_GameObject *replica = GetObjectList()->GetBack();
+      KX_GameObject *replica = m_sceneConverter->FindGameObject(basen->object);
 
       // add a timebomb to this object
       // lifespan of zero means 'this object lives forever'
@@ -3362,7 +3362,8 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
   }
   Object *ob = (Object *)id;
   ConvertBlenderObject(ob);
-  return GetObjectList()->GetBack()->GetProxy();
+  KX_GameObject *newgameobj = m_sceneConverter->FindGameObject(ob);
+  return newgameobj->GetProxy();
 }
 
 EXP_PYMETHODDEF_DOC(KX_Scene,
