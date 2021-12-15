@@ -135,12 +135,6 @@ class KX_GameObject : public SCA_IObject {
   PHY_IPhysicsController *m_pPhysicsController;
   SG_Node *m_pSGNode;
 
-#ifdef WITH_PYTHON
-  EXP_ListValue<KX_PythonComponent> *m_components;
-#endif
-
-  std::vector<bRigidBodyJointConstraint *> m_constraints;
-
   EXP_ListValue<KX_GameObject> *m_pInstanceObjects;
   KX_GameObject *m_pDupliGroupObject;
 
@@ -148,6 +142,12 @@ class KX_GameObject : public SCA_IObject {
   BL_ActionManager *m_actionManager;
 
   BL_ActionManager *GetActionManager();
+
+#ifdef WITH_PYTHON
+  EXP_ListValue<KX_PythonComponent> *m_components;
+#endif
+
+  std::vector<bRigidBodyJointConstraint *> m_constraints;
 
  public:
   /* EEVEE INTEGRATION */
