@@ -60,6 +60,11 @@ void BL_BlenderSceneConverter::RegisterGameObject(KX_GameObject *gameobject,
 {
   // 	CM_FunctionDebug("object name: " << gameobject->GetName());
   // only maintained while converting, freed during game runtime (not anymore in 0.3)
+  std::map<Object *, KX_GameObject *>::iterator it = m_map_blender_to_gameobject.find(for_blenderobject);
+  if (it != m_map_blender_to_gameobject.end() && it->second == gameobject) {
+    std::cout << "Warning: You're trying to register the same Object several times" << std::endl;
+    return;
+  }
   m_map_blender_to_gameobject[for_blenderobject] = gameobject;
 }
 
