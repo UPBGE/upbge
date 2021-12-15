@@ -1314,7 +1314,10 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
     Object *blenderobject = base->object;
 
     if (converter->FindGameObject(blenderobject) != nullptr) {
-      std::cout << "Warning: Attempt to convert the same Object several times" << std::endl;
+      if (single_object && single_object == blenderobject) {
+        std::cout << "Warning: Attempt to convert the same Object several times: "
+                  << blenderobject->id.name + 2 << std::endl;
+      }
       continue;
     }
 
