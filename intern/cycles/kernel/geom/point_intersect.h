@@ -23,7 +23,7 @@ CCL_NAMESPACE_BEGIN
 #ifdef __POINTCLOUD__
 
 ccl_device_forceinline bool point_intersect_test(
-    const float4 point, const float3 P, const float3 dir, const float tmax, float *t)
+    const float4 point, const float3 P, const float3 dir, const float tmax, ccl_private float *t)
 {
   const float3 center = float4_to_float3(point);
   const float radius = point.w;
@@ -43,7 +43,7 @@ ccl_device_forceinline bool point_intersect_test(
   const float t_front = projC0 - td;
   const bool valid_front = (0.0f <= t_front) & (t_front <= tmax);
 
-  /* Always backface culling for now. */
+  /* Always back-face culling for now. */
 #  if 0
   const float t_back = projC0 + td;
   const bool valid_back = (0.0f <= t_back) & (t_back <= tmax);
@@ -93,7 +93,7 @@ ccl_device_forceinline bool point_intersect(KernelGlobals kg,
 ccl_device_inline void point_shader_setup(KernelGlobals kg,
                                           ccl_private ShaderData *sd,
                                           ccl_private const Intersection *isect,
-                                          const Ray *ray)
+                                          ccl_private const Ray *ray)
 {
   sd->shader = kernel_tex_fetch(__points_shader, isect->prim);
   sd->P = ray->P + ray->D * isect->t;
