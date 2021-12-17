@@ -40,12 +40,12 @@
 #  include <map>
 #  include <set>
 
-extern "C" {
+
 #  include "BLI_blenlib.h"
 #  include "BLI_threads.h"
 #  include "DNA_listBase.h"
 #  include <pthread.h>
-}
+
 #  include "GPU_glew.h"
 #  ifdef WIN32
 #    include "dvpapi.h"
