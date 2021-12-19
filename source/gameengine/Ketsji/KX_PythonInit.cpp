@@ -2543,8 +2543,7 @@ void createPythonConsole()
   BLI_strncpy(filepath, BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS, "bge"), sizeof(filepath));
   BLI_path_append(filepath, sizeof(filepath), "interpreter.py");
 
-  // Use _Py_fopen to make sure we use the same fopen function as python use.
-  FILE *fp = _Py_fopen(filepath, "r+");
+  FILE *fp = fopen(filepath, "r+");
   // Execute the file in python.
   PyRun_SimpleFile(fp, filepath);
 }
