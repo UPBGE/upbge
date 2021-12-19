@@ -2094,6 +2094,12 @@ void KX_Scene::DelayedRemoveObject(KX_GameObject *gameobj)
   RemoveDupliGroup(gameobj);
 
   CM_ListAddIfNotFound(m_euthanasyobjects, gameobj);
+
+  /* Unregister asap (don't wait next frame) to avoid issue
+   * when objects are added/removed the same frame
+   * https://github.com/UPBGE/upbge/issues/1600
+   */
+  GetBlenderSceneConverter()->UnregisterGameObject(gameobj);
 }
 
 bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
