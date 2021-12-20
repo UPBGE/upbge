@@ -34,7 +34,7 @@ extern "C" {
 #  define BLI_qsort_r qsort_r
 #endif
 
-/* Quick sort re-entrant */
+/** Quick sort (re-entrant). */
 typedef int (*BLI_sort_cmp_t)(const void *a, const void *b, void *ctx);
 
 void BLI_qsort_r(void *a, size_t n, size_t es, BLI_sort_cmp_t cmp, void *thunk)

@@ -75,8 +75,8 @@ ccl_device_forceinline bool point_intersect(KernelGlobals kg,
                                             const float time,
                                             const int type)
 {
-  const float4 point = (type & PRIMITIVE_ALL_MOTION) ? motion_point(kg, object, prim, time) :
-                                                       kernel_tex_fetch(__points, prim);
+  const float4 point = (type & PRIMITIVE_MOTION) ? motion_point(kg, object, prim, time) :
+                                                   kernel_tex_fetch(__points, prim);
 
   if (!point_intersect_test(point, P, dir, tmax, &isect->t)) {
     return false;
@@ -104,17 +104,12 @@ ccl_device_inline void point_shader_setup(KernelGlobals kg,
   sd->v = isect->v;
 #  endif
 
-  /* Computer point center for normal. */
-  float3 center = float4_to_float3((isect->type & PRIMITIVE_ALL_MOTION) ?
+  /* Compute point center for normal. */
+  float3 center = float4_to_float3((isect->type & PRIMITIVE_MOTION) ?
                                        motion_point(kg, sd->object, sd->prim, sd->time) :
                                        kernel_tex_fetch(__points, sd->prim));
-
   if (!(sd->object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
-    const Transform tfm = object_get_transform(kg, sd);
-
-#  ifndef __KERNEL_OPTIX__
-    center = transform_point(&tfm, center);
-#  endif
+    object_position_transform_auto(kg, sd, &center);
   }
 
   /* Normal */

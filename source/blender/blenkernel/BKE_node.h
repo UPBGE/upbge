@@ -960,10 +960,7 @@ bNodePreview *BKE_node_preview_verify(
     struct bNodeInstanceHash *previews, bNodeInstanceKey key, int xsize, int ysize, bool create);
 bNodePreview *BKE_node_preview_copy(struct bNodePreview *preview);
 void BKE_node_preview_free(struct bNodePreview *preview);
-void BKE_node_preview_init_tree(struct bNodeTree *ntree,
-                                int xsize,
-                                int ysize,
-                                bool create_previews);
+void BKE_node_preview_init_tree(struct bNodeTree *ntree, int xsize, int ysize);
 void BKE_node_preview_free_tree(struct bNodeTree *ntree);
 void BKE_node_preview_remove_unused(struct bNodeTree *ntree);
 void BKE_node_preview_clear(struct bNodePreview *preview);
@@ -973,14 +970,6 @@ void BKE_node_preview_sync_tree(struct bNodeTree *to_ntree, struct bNodeTree *fr
 void BKE_node_preview_merge_tree(struct bNodeTree *to_ntree,
                                  struct bNodeTree *from_ntree,
                                  bool remove_old);
-
-/**
- * Hack warning! this function is only used for shader previews,
- * and since it gets called multiple times per pixel for Z-transparency we only add the color once.
- * Preview gets cleared before it starts render though.
- */
-void BKE_node_preview_set_pixel(
-    struct bNodePreview *preview, const float col[4], int x, int y, bool do_manage);
 
 /** \} */
 
@@ -1170,7 +1159,6 @@ void BKE_nodetree_remove_layer_n(struct bNodeTree *ntree,
 #define SH_NODE_SEPRGB 120
 #define SH_NODE_COMBRGB 121
 #define SH_NODE_HUE_SAT 122
-#define NODE_DYNAMIC 123
 
 #define SH_NODE_OUTPUT_MATERIAL 124
 #define SH_NODE_OUTPUT_WORLD 125
