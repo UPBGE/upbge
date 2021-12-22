@@ -48,7 +48,6 @@
 #include "DNA_mesh_types.h"
 #include "DNA_property_types.h"
 #include "DRW_render.h"
-#include "ED_node.h"
 #include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_view3d.h"
@@ -1398,7 +1397,7 @@ void KX_Scene::TagForExtraObjectsUpdate(Main *bmain, KX_Camera *cam)
   }
 
   for (bNodeTree *ntree : m_nodeTreesToUpdateInAllRenderPasses) {
-    ED_node_tag_update_nodetree(bmain, ntree, nullptr);
+    DEG_id_tag_update(&ntree->id, 0); // TODO: Find more specific notifier in BKE_node_tree_update.h
   }
 
   if (cam && cam == GetOverlayCamera()) {
