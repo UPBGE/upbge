@@ -36,6 +36,8 @@
 #include "BKE_node_tree_update.h"
 #include "BKE_tracking.h"
 
+#include "UI_resources.h"
+
 #include "node_common.h"
 #include "node_util.h"
 
@@ -196,13 +198,12 @@ bNodeTreeType *ntreeType_Composite;
 
 void register_node_tree_type_cmp()
 {
-  bNodeTreeType *tt = ntreeType_Composite = (bNodeTreeType *)MEM_callocN(
-      sizeof(bNodeTreeType), "compositor node tree type");
+  bNodeTreeType *tt = ntreeType_Composite = MEM_cnew<bNodeTreeType>(__func__);
 
   tt->type = NTREE_COMPOSIT;
   strcpy(tt->idname, "CompositorNodeTree");
   strcpy(tt->ui_name, N_("Compositor"));
-  tt->ui_icon = 0; /* Defined in `drawnode.c`. */
+  tt->ui_icon = ICON_NODE_COMPOSITING;
   strcpy(tt->ui_description, N_("Compositing nodes"));
 
   tt->free_cache = free_cache;

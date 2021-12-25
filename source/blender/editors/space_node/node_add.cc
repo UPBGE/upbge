@@ -85,7 +85,7 @@ bNode *node_add_node(const bContext &C, const char *idname, int type, float locx
   nodeSetSelected(node, true);
 
   ED_node_set_active(&bmain, &snode, snode.edittree, node, nullptr);
-  BKE_ntree_update_main_tree(&bmain, snode.edittree, nullptr);
+  ED_node_tree_propagate_change(&C, &bmain, snode.edittree);
   return node;
 }
 
@@ -130,7 +130,7 @@ static bNodeSocketLink *add_reroute_insert_socket_link(ListBase *lb,
 {
   bNodeSocketLink *socklink, *prev;
 
-  socklink = (bNodeSocketLink *)MEM_callocN(sizeof(bNodeSocketLink), "socket link");
+  socklink = MEM_cnew<bNodeSocketLink>("socket link");
   socklink->sock = sock;
   socklink->link = link;
   copy_v2_v2(socklink->point, point);
