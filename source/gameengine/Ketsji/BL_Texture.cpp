@@ -39,7 +39,8 @@ BL_Texture::BL_Texture(GPUMaterialTexture *gpumattex, eGPUTextureTarget textarge
   m_isCubeMap = false; /*(m_gpuTex->type == GPU_TEXCUBE)*/
   m_name = m_gpuMatTex->ima->id.name;
 
-  m_gpuTex = BKE_image_get_gpu_texture(m_gpuMatTex->ima, m_gpuMatTex->iuser, nullptr);
+  ImageUser *iuser = m_gpuMatTex->iuser_available ? &m_gpuMatTex->iuser : NULL;
+  m_gpuTex = BKE_image_get_gpu_texture(m_gpuMatTex->ima, iuser, nullptr);
 
   if (m_gpuTex) {
     m_bindCode = GPU_texture_opengl_bindcode(m_gpuTex);
@@ -74,9 +75,8 @@ void BL_Texture::CheckValidTexture()
     // Restore gpu texture original bind cdoe to make sure we will delete the right opengl texture.
     GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);
     GPU_texture_free(m_gpuTex);
-
-    m_gpuTex = (m_gpuMatTex->ima ?
-                    BKE_image_get_gpu_texture(m_gpuMatTex->ima, m_gpuMatTex->iuser, nullptr) :
+    ImageUser *iuser = m_gpuMatTex->iuser_available ? &m_gpuMatTex->iuser : NULL;
+    m_gpuTex = (m_gpuMatTex->ima ? BKE_image_get_gpu_texture(m_gpuMatTex->ima, iuser, nullptr) :
                     nullptr);
 
     if (m_gpuTex) {
