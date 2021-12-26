@@ -54,89 +54,89 @@
 #ifdef WITH_PYTHON
 
 #  define FAKE_TYPES \
-    FT_DEF(BL_ArmatureBone) \
-    FT_DEF(BL_ArmatureChannel) \
-    FT_DEF(BL_ArmatureConstraint) \
-    FT_DEF(BL_ArmatureObject) \
-    FT_DEF(BL_Shader) \
-    FT_DEF(BL_Texture) \
-    FT_DEF(KX_2DFilter) \
-    FT_DEF(KX_2DFilterManager) \
-    FT_DEF(KX_2DFilterOffScreen) \
-    FT_DEF(KX_BlenderMaterial) \
-    FT_DEF(KX_Camera) \
-    FT_DEF(KX_CharacterWrapper) \
-    FT_DEF(KX_CollisionContactPoint) \
-    FT_DEF(KX_ConstraintWrapper) \
-    FT_DEF(KX_FontObject) \
-    FT_DEF(KX_GameObject) \
-    FT_DEF(KX_LibLoadStatus) \
-    FT_DEF(KX_LightObject) \
-    FT_DEF(KX_LodLevel) \
-    FT_DEF(KX_LodManager) \
-    FT_DEF(KX_MeshProxy) \
-    FT_DEF(KX_NavMeshObject) \
-    FT_DEF(KX_PolyProxy) \
-    FT_DEF(KX_PythonComponent) \
-    FT_DEF(KX_Scene) \
-    FT_DEF(KX_VehicleWrapper) \
-    FT_DEF(KX_VertexProxy) \
-    FT_DEF(SCA_2DFilterActuator) \
-    FT_DEF(SCA_ANDController) \
-    FT_DEF(SCA_ActionActuator) \
-    FT_DEF(SCA_ActuatorSensor) \
-    FT_DEF(SCA_AddObjectActuator) \
-    FT_DEF(SCA_AlwaysSensor) \
-    FT_DEF(SCA_ArmatureActuator) \
-    FT_DEF(SCA_ArmatureSensor) \
-    FT_DEF(SCA_CameraActuator) \
-    FT_DEF(SCA_CollisionSensor) \
-    FT_DEF(SCA_ConstraintActuator) \
-    FT_DEF(SCA_DelaySensor) \
-    FT_DEF(SCA_DynamicActuator) \
-    FT_DEF(SCA_EndObjectActuator) \
-    FT_DEF(SCA_GameActuator) \
-    FT_DEF(SCA_IActuator) \
-    FT_DEF(SCA_IController) \
-    FT_DEF(SCA_ILogicBrick) \
-    FT_DEF(SCA_IObject) \
-    FT_DEF(SCA_ISensor) \
-    FT_DEF(SCA_InputEvent) \
-    FT_DEF(SCA_JoystickSensor) \
-    FT_DEF(SCA_KeyboardSensor) \
-    FT_DEF(SCA_MouseActuator) \
-    FT_DEF(SCA_MouseFocusSensor) \
-    FT_DEF(SCA_MouseSensor) \
-    FT_DEF(SCA_NANDController) \
-    FT_DEF(SCA_NORController) \
-    FT_DEF(SCA_NearSensor) \
-    FT_DEF(SCA_NetworkMessageActuator) \
-    FT_DEF(SCA_NetworkMessageSensor) \
-    FT_DEF(SCA_ORController) \
-    FT_DEF(SCA_ObjectActuator) \
-    FT_DEF(SCA_ParentActuator) \
-    FT_DEF(SCA_PropertyActuator) \
-    FT_DEF(SCA_PropertySensor) \
-    FT_DEF(SCA_PythonController) \
-    FT_DEF(SCA_PythonJoystick) \
-    FT_DEF(SCA_PythonKeyboard) \
-    FT_DEF(SCA_PythonMouse) \
-    FT_DEF(SCA_RadarSensor) \
-    FT_DEF(SCA_RandomActuator) \
-    FT_DEF(SCA_RandomSensor) \
-    FT_DEF(SCA_RaySensor) \
-    FT_DEF(SCA_ReplaceMeshActuator) \
-    FT_DEF(SCA_SceneActuator) \
-    FT_DEF(SCA_SoundActuator) \
-    FT_DEF(SCA_StateActuator) \
-    FT_DEF(SCA_SteeringActuator) \
-    FT_DEF(SCA_TrackToActuator) \
-    FT_DEF(SCA_VibrationActuator) \
-    FT_DEF(SCA_VisibilityActuator) \
-    FT_DEF(SCA_XNORController) \
-    FT_DEF(SCA_XORController)
+    FT_DEF(KX_2DFilter, NULL) \
+    FT_DEF(KX_2DFilterManager, NULL) \
+    FT_DEF(KX_2DFilterOffScreen, NULL) \
+    FT_DEF(KX_BlenderMaterial, NULL) \
+    FT_DEF(KX_CharacterWrapper, NULL) \
+    FT_DEF(KX_CollisionContactPoint, NULL) \
+    FT_DEF(KX_ConstraintWrapper, NULL) \
+    FT_DEF(KX_GameObject, NULL) \
+    FT_DEF(KX_FontObject, &FT_KX_GameObject) \
+    FT_DEF(KX_Camera, &FT_KX_GameObject) \
+    FT_DEF(KX_LibLoadStatus, NULL) \
+    FT_DEF(KX_LightObject, &FT_KX_GameObject) \
+    FT_DEF(KX_LodLevel, NULL) \
+    FT_DEF(KX_LodManager, NULL) \
+    FT_DEF(KX_MeshProxy, NULL) \
+    FT_DEF(KX_NavMeshObject, &FT_KX_GameObject) \
+    FT_DEF(KX_PolyProxy, NULL) \
+    FT_DEF(KX_PythonComponent, NULL) \
+    FT_DEF(KX_Scene, NULL) \
+    FT_DEF(KX_VehicleWrapper, NULL) \
+    FT_DEF(KX_VertexProxy, NULL) \
+    FT_DEF(BL_ArmatureBone, NULL) \
+    FT_DEF(BL_ArmatureChannel, NULL) \
+    FT_DEF(BL_ArmatureConstraint, NULL) \
+    FT_DEF(BL_ArmatureObject, &FT_KX_GameObject) \
+    FT_DEF(BL_Shader, NULL) \
+    FT_DEF(BL_Texture, NULL) \
+    FT_DEF(SCA_2DFilterActuator, NULL) \
+    FT_DEF(SCA_ANDController, NULL) \
+    FT_DEF(SCA_ActionActuator, NULL) \
+    FT_DEF(SCA_ActuatorSensor, NULL) \
+    FT_DEF(SCA_AddObjectActuator, NULL) \
+    FT_DEF(SCA_AlwaysSensor, NULL) \
+    FT_DEF(SCA_ArmatureActuator, NULL) \
+    FT_DEF(SCA_ArmatureSensor, NULL) \
+    FT_DEF(SCA_CameraActuator, NULL) \
+    FT_DEF(SCA_CollisionSensor, NULL) \
+    FT_DEF(SCA_ConstraintActuator, NULL) \
+    FT_DEF(SCA_DelaySensor, NULL) \
+    FT_DEF(SCA_DynamicActuator, NULL) \
+    FT_DEF(SCA_EndObjectActuator, NULL) \
+    FT_DEF(SCA_GameActuator, NULL) \
+    FT_DEF(SCA_IActuator, NULL) \
+    FT_DEF(SCA_IController, NULL) \
+    FT_DEF(SCA_ILogicBrick, NULL) \
+    FT_DEF(SCA_IObject, NULL) \
+    FT_DEF(SCA_ISensor, NULL) \
+    FT_DEF(SCA_InputEvent, NULL) \
+    FT_DEF(SCA_JoystickSensor, NULL) \
+    FT_DEF(SCA_KeyboardSensor, NULL) \
+    FT_DEF(SCA_MouseActuator, NULL) \
+    FT_DEF(SCA_MouseFocusSensor, NULL) \
+    FT_DEF(SCA_MouseSensor, NULL) \
+    FT_DEF(SCA_NANDController, NULL) \
+    FT_DEF(SCA_NORController, NULL) \
+    FT_DEF(SCA_NearSensor, NULL) \
+    FT_DEF(SCA_NetworkMessageActuator, NULL) \
+    FT_DEF(SCA_NetworkMessageSensor, NULL) \
+    FT_DEF(SCA_ORController, NULL) \
+    FT_DEF(SCA_ObjectActuator, NULL) \
+    FT_DEF(SCA_ParentActuator, NULL) \
+    FT_DEF(SCA_PropertyActuator, NULL) \
+    FT_DEF(SCA_PropertySensor, NULL) \
+    FT_DEF(SCA_PythonController, NULL) \
+    FT_DEF(SCA_PythonJoystick, NULL) \
+    FT_DEF(SCA_PythonKeyboard, NULL) \
+    FT_DEF(SCA_PythonMouse, NULL) \
+    FT_DEF(SCA_RadarSensor, NULL) \
+    FT_DEF(SCA_RandomActuator, NULL) \
+    FT_DEF(SCA_RandomSensor, NULL) \
+    FT_DEF(SCA_RaySensor, NULL) \
+    FT_DEF(SCA_ReplaceMeshActuator, NULL) \
+    FT_DEF(SCA_SceneActuator, NULL) \
+    FT_DEF(SCA_SoundActuator, NULL) \
+    FT_DEF(SCA_StateActuator, NULL) \
+    FT_DEF(SCA_SteeringActuator, NULL) \
+    FT_DEF(SCA_TrackToActuator, NULL) \
+    FT_DEF(SCA_VibrationActuator, NULL) \
+    FT_DEF(SCA_VisibilityActuator, NULL) \
+    FT_DEF(SCA_XNORController, NULL) \
+    FT_DEF(SCA_XORController, NULL)
 
-#  define FakeType(Type) \
+#  define FakeType(Type, Base) \
     static PyTypeObject FT_##Type = { \
         PyVarObject_HEAD_INIT(NULL, 0) STRINGIFY(Type), /* tp_name */ \
         sizeof(PyObject),                               /* tp_basicsize */ \
@@ -167,7 +167,7 @@
         NULL,                                           /* tp_methods */ \
         NULL,                                           /* tp_members */ \
         NULL,                                           /* tp_getset */ \
-        NULL,                                           /* tp_base */ \
+        Base,                                           /* tp_base */ \
         NULL,                                           /* tp_dict */ \
         NULL,                                           /* tp_descr_get */ \
         NULL,                                           /* tp_descr_set */ \
@@ -185,7 +185,7 @@
         NULL                                            /* tp_del */ \
     };
 
-#  define FT_DEF(Type) FakeType(Type)
+#  define FT_DEF(Type, Base) FakeType(Type, Base)
 FAKE_TYPES
 #  undef FT_DEF
 
@@ -548,7 +548,7 @@ static bool load_class(PythonProxy *pp,
   PyModule_AddObject(bgemod, "types", bgesubmod);
   PyType_Ready(&FT_KX_PythonComponent);
 
-#  define FT_DEF(Type) \
+#  define FT_DEF(Type, NULL) \
     PyType_Ready(&FT_##Type); \
     PyModule_AddObject(bgesubmod, STRINGIFY(Type), (PyObject *)&FT_##Type);
 
