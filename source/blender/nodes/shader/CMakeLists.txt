@@ -100,8 +100,8 @@ set(SRC
   nodes/node_shader_sepcomb_rgb.cc
   nodes/node_shader_sepcomb_xyz.cc
   nodes/node_shader_shader_to_rgb.cc
-  nodes/node_shader_squeeze.c
   nodes/node_shader_sprites_animation.cc
+  nodes/node_shader_squeeze.c
   nodes/node_shader_subsurface_scattering.cc
   nodes/node_shader_tangent.c
   nodes/node_shader_tex_brick.cc
