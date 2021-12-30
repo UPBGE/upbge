@@ -372,7 +372,7 @@ struct GeometrySet {
    */
   blender::Vector<const GeometryComponent *> get_components_for_read() const;
 
-  void compute_boundbox_without_instances(blender::float3 *r_min, blender::float3 *r_max) const;
+  bool compute_boundbox_without_instances(blender::float3 *r_min, blender::float3 *r_max) const;
 
   friend std::ostream &operator<<(std::ostream &stream, const GeometrySet &geometry_set);
 
@@ -921,6 +921,11 @@ class InstancesComponent : public GeometryComponent {
 
   int instances_amount() const;
   int references_amount() const;
+
+  /**
+   * Remove the indices in the selection mask and remove unused instance references afterwards.
+   */
+  void remove_instances(const blender::IndexMask selection);
 
   blender::Span<int> almost_unique_ids() const;
 

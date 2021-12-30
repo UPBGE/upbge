@@ -136,24 +136,11 @@ static void node_buts_mix_rgb(uiLayout *layout, bContext *UNUSED(C), PointerRNA 
 
 static void node_buts_time(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
-#if 0
-  /* XXX no context access here. */
-  bNode *node = (bNode*)ptr->data;
-  CurveMapping *cumap = node->storage;
-
-  if (cumap) {
-    cumap->flag |= CUMA_DRAW_CFRA;
-    if (node->custom1 < node->custom2) {
-      cumap->sample[0] = (float)(CFRA - node->custom1) / (float)(node->custom2 - node->custom1);
-    }
-  }
-#endif
-
   uiTemplateCurveMapping(layout, ptr, "curve", 's', false, false, false, false);
 
-  uiLayout *row = uiLayoutRow(layout, true);
-  uiItemR(row, ptr, "frame_start", DEFAULT_FLAGS, IFACE_("Start"), ICON_NONE);
-  uiItemR(row, ptr, "frame_end", DEFAULT_FLAGS, IFACE_("End"), ICON_NONE);
+  uiLayout *col = uiLayoutColumn(layout, true);
+  uiItemR(col, ptr, "frame_start", DEFAULT_FLAGS, IFACE_("Start"), ICON_NONE);
+  uiItemR(col, ptr, "frame_end", DEFAULT_FLAGS, IFACE_("End"), ICON_NONE);
 }
 
 static void node_buts_colorramp(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
