@@ -2309,6 +2309,8 @@ void initGamePythonScripting(Main *maggie, bContext *C, bool *audioDeviceIsIniti
     PyPreConfig preconfig;
     PyStatus status;
 
+    backupPySysObjects();
+
     if (BPY_python_get_use_system_env()) {
       PyPreConfig_InitPythonConfig(&preconfig);
     }
