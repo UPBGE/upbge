@@ -969,9 +969,11 @@ bool nodeGroupPoll(struct bNodeTree *nodetree,
 /**
  * Initialize a new node type struct with default values and callbacks.
  */
-void node_type_base(struct bNodeType *ntype, int type, const char *name, short nclass, short flag);
-void node_type_base_custom(
-    struct bNodeType *ntype, const char *idname, const char *name, short nclass, short flag);
+void node_type_base(struct bNodeType *ntype, int type, const char *name, short nclass);
+void node_type_base_custom(struct bNodeType *ntype,
+                           const char *idname,
+                           const char *name,
+                           short nclass);
 void node_type_socket_templates(struct bNodeType *ntype,
                                 struct bNodeSocketTemplate *inputs,
                                 struct bNodeSocketTemplate *outputs);
@@ -1708,6 +1710,7 @@ int ntreeTexExecTree(struct bNodeTree *ntree,
 #define GEO_NODE_INPUT_MESH_ISLAND 1144
 #define GEO_NODE_INPUT_SCENE_TIME 1145
 #define GEO_NODE_ACCUMULATE_FIELD 1146
+#define GEO_NODE_INPUT_MESH_EDGE_ANGLE 1147
 
 /** \} */
 

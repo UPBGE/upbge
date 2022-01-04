@@ -545,7 +545,7 @@ static void separate_instance_selection(GeometrySet &geometry_set,
   Vector<int64_t> indices;
   const IndexMask mask = index_mask_indices(selection, invert, indices);
 
-  if (mask.size() == 0) {
+  if (mask.is_empty()) {
     geometry_set.remove<InstancesComponent>();
     return;
   }
@@ -1377,7 +1377,7 @@ void register_node_type_geo_delete_geometry()
 
   static bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_DELETE_GEOMETRY, "Delete Geometry", NODE_CLASS_GEOMETRY, 0);
+  geo_node_type_base(&ntype, GEO_NODE_DELETE_GEOMETRY, "Delete Geometry", NODE_CLASS_GEOMETRY);
 
   node_type_storage(&ntype,
                     "NodeGeometryDeleteGeometry",

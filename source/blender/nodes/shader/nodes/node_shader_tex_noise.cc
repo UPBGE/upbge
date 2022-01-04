@@ -21,9 +21,9 @@
 
 #include "BLI_noise.hh"
 
-NODE_STORAGE_FUNCS(NodeTexNoise)
-
 namespace blender::nodes::node_shader_tex_noise_cc {
+
+NODE_STORAGE_FUNCS(NodeTexNoise)
 
 static void sh_node_tex_noise_declare(NodeDeclarationBuilder &b)
 {
@@ -254,7 +254,7 @@ void register_node_type_sh_tex_noise()
 
   static bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, SH_NODE_TEX_NOISE, "Noise Texture", NODE_CLASS_TEXTURE, 0);
+  sh_fn_node_type_base(&ntype, SH_NODE_TEX_NOISE, "Noise Texture", NODE_CLASS_TEXTURE);
   ntype.declare = file_ns::sh_node_tex_noise_declare;
   node_type_init(&ntype, file_ns::node_shader_init_tex_noise);
   node_type_storage(
