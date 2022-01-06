@@ -231,7 +231,6 @@ set(SRC
   intern/nla.c
   intern/node.cc
   intern/node_tree_update.cc
-  intern/type_conversions.cc
   intern/object.cc
   intern/object_deform.c
   intern/object_dupli.cc
@@ -297,6 +296,7 @@ set(SRC
   intern/tracking_solver.c
   intern/tracking_stabilize.c
   intern/tracking_util.c
+  intern/type_conversions.cc
   intern/undo_system.c
   intern/unit.c
   intern/vfont.c

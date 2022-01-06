@@ -25,21 +25,8 @@ set(INC
   ../../io/alembic
   ../../io/collada
   ../../io/gpencil
+  ../../io/usd
   ../../io/wavefront_obj
-  ../../io/usd
-  ../../makesdna
-  ../../makesrna
-  ../../windowmanager
-  ../../../../intern/guardedalloc
-)
-
-set(INC_SYS
-
-)
-
-set(SRC
-  io_alembic.c
-  ../../io/usd
   ../../makesdna
   ../../makesrna
   ../../windowmanager
@@ -65,6 +52,7 @@ set(SRC
   io_cache.h
   io_collada.h
   io_gpencil.h
+  io_obj.h
   io_ops.h
   io_usd.h
 )

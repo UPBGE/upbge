@@ -226,9 +226,9 @@ set(SRC
   engines/eevee/eevee_lut.h
   engines/eevee/eevee_private.h
   engines/external/external_engine.h
+  engines/image/image_drawing_mode_image_space.hh
   engines/image/image_engine.h
   engines/image/image_private.hh
-  engines/image/image_drawing_mode_image_space.hh
   engines/image/image_space_image.hh
   engines/image/image_space_node.hh
   engines/workbench/workbench_engine.h
@@ -556,8 +556,8 @@ if(WITH_GTESTS)
       tests/draw_testing.hh
     )
     set(TEST_INC
-      "../../../intern/ghost/"
-      "../gpu/tests/"
+      ../../../intern/ghost
+      ../gpu/tests
     )
     set(TEST_LIB
     )

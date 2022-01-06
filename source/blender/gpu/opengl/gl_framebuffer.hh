@@ -110,14 +110,14 @@ class GLFrameBuffer : public FrameBuffer {
                int dst_offset_x,
                int dst_offset_y) override;
 
-  void apply_state(void);
+  void apply_state();
 
   int get_bindcode(void) override;  // UPBGE
 
  private:
-  void init(void);
-  void update_attachments(void);
-  void update_drawbuffers(void);
+  void init();
+  void update_attachments();
+  void update_drawbuffers();
 
   MEM_CXX_CLASS_ALLOC_FUNCS("GLFrameBuffer");
 };
