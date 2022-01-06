@@ -23,7 +23,7 @@
 
 #include "DNA_node_types.h"
 
-#include "node_shader_util.h"
+#include "node_shader_util.hh"
 
 #include "NOD_socket_search_link.hh"
 
@@ -67,7 +67,7 @@ void sh_fn_node_type_base(bNodeType *ntype, int type, const char *name, short nc
 
 /* ****** */
 
-void nodestack_get_vec(float *in, short type_in, bNodeStack *ns)
+static void nodestack_get_vec(float *in, short type_in, bNodeStack *ns)
 {
   const float *from = ns->vec;
 

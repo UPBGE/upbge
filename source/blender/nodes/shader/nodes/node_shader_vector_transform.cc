@@ -21,7 +21,7 @@
  * \ingroup shdnodes
  */
 
-#include "node_shader_util.h"
+#include "node_shader_util.hh"
 
 namespace blender::nodes::node_shader_vector_transform_cc {
 
@@ -42,15 +42,6 @@ static void node_shader_init_vect_transform(bNodeTree *UNUSED(ntree), bNode *nod
   vect->convert_to = 1;
 
   node->storage = vect;
-}
-
-static void node_shader_exec_vect_transform(void *UNUSED(data),
-                                            int UNUSED(thread),
-                                            bNode *UNUSED(node),
-                                            bNodeExecData *UNUSED(execdata),
-                                            bNodeStack **UNUSED(in),
-                                            bNodeStack **UNUSED(out))
-{
 }
 
 static GPUNodeLink *get_gpulink_matrix_from_to(short from, short to)
@@ -152,7 +143,6 @@ void register_node_type_sh_vect_transform()
       &ntype, file_ns::sh_node_vect_transform_in, file_ns::sh_node_vect_transform_out);
   node_type_storage(
       &ntype, "NodeShaderVectTransform", node_free_standard_storage, node_copy_standard_storage);
-  node_type_exec(&ntype, nullptr, nullptr, file_ns::node_shader_exec_vect_transform);
   node_type_gpu(&ntype, file_ns::gpu_shader_vect_transform);
 
   nodeRegisterType(&ntype);

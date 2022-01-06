@@ -282,6 +282,10 @@ ID *BKE_lib_override_library_create_from_id(Main *bmain,
   BLI_assert(ID_IS_LINKED(reference_id));
 
   ID *local_id = lib_override_library_create_from(bmain, reference_id, 0);
+  /* We cannot allow automatic hierarchy resync on this ID, it is highly likely to generate a giant
+   * mess in case there are a lot of hidden, non-instantiated, non-properly organized dependencies.
+   * Ref T94650. */
+  local_id->override_library->flag |= IDOVERRIDE_LIBRARY_FLAG_NO_HIERARCHY;
 
   if (do_tagged_remap) {
     Key *reference_key, *local_key = NULL;
@@ -672,54 +676,56 @@ static void lib_override_linked_group_tag(LibOverrideGroupTagData *data)
     id_root->tag |= data->tag;
   }
 
-  if (ELEM(GS(id_root->name), ID_OB, ID_GR)) {
-    /* Tag all collections and objects. */
-    lib_override_linked_group_tag_recursive(data);
+  /* Only objects and groups are currently considered as 'keys' in override hierarchies. */
+  if (!ELEM(GS(id_root->name), ID_OB, ID_GR)) {
+    return;
+  }
 
-    /* Do not override objects used as bone shapes, nor their collections if possible. */
-    lib_override_linked_group_tag_clear_boneshapes_objects(data);
+  /* Tag all collections and objects recursively. */
+  lib_override_linked_group_tag_recursive(data);
 
-    /* For each object tagged for override, ensure we get at least one local or liboverride
-     * collection to host it. Avoids getting a bunch of random object in the scene's master
-     * collection when all objects' dependencies are not properly 'packed' into a single root
-     * collection. */
-    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-      if (ID_IS_LINKED(ob) && (ob->id.tag & data->tag) != 0) {
-        Collection *instantiating_collection = NULL;
-        Collection *instantiating_collection_override_candidate = NULL;
-        /* Loop over all collections instantiating the object, if we already have a 'locale' one we
-         * have nothing to do, otherwise try to find a 'linked' one that we can override too. */
-        LinkNodePair *instantiating_collection_linklist = BLI_ghash_lookup(
-            data->linked_object_to_instantiating_collections, ob);
-        if (instantiating_collection_linklist != NULL) {
-          for (LinkNode *instantiating_collection_linknode =
-                   instantiating_collection_linklist->list;
-               instantiating_collection_linknode != NULL;
-               instantiating_collection_linknode = instantiating_collection_linknode->next) {
-            instantiating_collection = instantiating_collection_linknode->link;
-            /* In (recursive) resync case, if a collection of a 'parent' lib instantiates the
-             * linked object, it is also fine. */
-            if (!ID_IS_LINKED(instantiating_collection) ||
-                (is_resync && ID_IS_LINKED(id_root) &&
-                 instantiating_collection->id.lib->temp_index < id_root->lib->temp_index)) {
-              break;
-            }
-            if (ID_IS_LINKED(instantiating_collection) &&
-                (!is_resync || instantiating_collection->id.lib == id_root->lib)) {
-              instantiating_collection_override_candidate = instantiating_collection;
-            }
-            instantiating_collection = NULL;
+  /* Do not override objects used as bone shapes, nor their collections if possible. */
+  lib_override_linked_group_tag_clear_boneshapes_objects(data);
+
+  /* For each object tagged for override, ensure we get at least one local or liboverride
+   * collection to host it. Avoids getting a bunch of random object in the scene's master
+   * collection when all objects' dependencies are not properly 'packed' into a single root
+   * collection. */
+  LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+    if (ID_IS_LINKED(ob) && (ob->id.tag & data->tag) != 0) {
+      Collection *instantiating_collection = NULL;
+      Collection *instantiating_collection_override_candidate = NULL;
+      /* Loop over all collections instantiating the object, if we already have a 'locale' one we
+       * have nothing to do, otherwise try to find a 'linked' one that we can override too. */
+      LinkNodePair *instantiating_collection_linklist = BLI_ghash_lookup(
+          data->linked_object_to_instantiating_collections, ob);
+      if (instantiating_collection_linklist != NULL) {
+        for (LinkNode *instantiating_collection_linknode = instantiating_collection_linklist->list;
+             instantiating_collection_linknode != NULL;
+             instantiating_collection_linknode = instantiating_collection_linknode->next) {
+          instantiating_collection = instantiating_collection_linknode->link;
+          /* In (recursive) resync case, if a collection of a 'parent' lib instantiates the
+           * linked object, it is also fine. */
+          if (!ID_IS_LINKED(instantiating_collection) ||
+              (is_resync && ID_IS_LINKED(id_root) &&
+               instantiating_collection->id.lib->temp_index < id_root->lib->temp_index)) {
+            break;
           }
+          if (ID_IS_LINKED(instantiating_collection) &&
+              (!is_resync || instantiating_collection->id.lib == id_root->lib)) {
+            instantiating_collection_override_candidate = instantiating_collection;
+          }
+          instantiating_collection = NULL;
         }
+      }
 
-        if (instantiating_collection == NULL &&
-            instantiating_collection_override_candidate != NULL) {
-          if (instantiating_collection_override_candidate->id.tag & LIB_TAG_MISSING) {
-            instantiating_collection_override_candidate->id.tag |= data->missing_tag;
-          }
-          else {
-            instantiating_collection_override_candidate->id.tag |= data->tag;
-          }
+      if (instantiating_collection == NULL &&
+          instantiating_collection_override_candidate != NULL) {
+        if (instantiating_collection_override_candidate->id.tag & LIB_TAG_MISSING) {
+          instantiating_collection_override_candidate->id.tag |= data->missing_tag;
+        }
+        else {
+          instantiating_collection_override_candidate->id.tag |= data->tag;
         }
       }
     }
@@ -732,6 +738,11 @@ static void lib_override_overrides_group_tag_recursive(LibOverrideGroupTagData *
   ID *id_owner = data->id_root;
   BLI_assert(ID_IS_OVERRIDE_LIBRARY(id_owner));
   BLI_assert(data->is_override);
+
+  if (id_owner->override_library->flag & IDOVERRIDE_LIBRARY_FLAG_NO_HIERARCHY) {
+    return;
+  }
+
   const uint tag = data->tag;
   const uint missing_tag = data->missing_tag;
 
@@ -1641,6 +1652,11 @@ static void lib_override_library_main_resync_on_library_indirect_level(
       continue;
     }
 
+    if (id->override_library->flag & IDOVERRIDE_LIBRARY_FLAG_NO_HIERARCHY) {
+      /* This ID is not part of an override hierarchy. */
+      continue;
+    }
+
     data.id_root = id->override_library->reference;
     lib_override_linked_group_tag(&data);
     BKE_main_relations_tag_set(bmain, MAINIDRELATIONS_ENTRY_TAGS_PROCESSED, false);
@@ -1655,6 +1671,12 @@ static void lib_override_library_main_resync_on_library_indirect_level(
   BKE_main_relations_tag_set(bmain, MAINIDRELATIONS_ENTRY_TAGS_PROCESSED, false);
   FOREACH_MAIN_ID_BEGIN (bmain, id) {
     if (!ID_IS_OVERRIDE_LIBRARY_REAL(id)) {
+      continue;
+    }
+
+    if (id->override_library->flag & IDOVERRIDE_LIBRARY_FLAG_NO_HIERARCHY) {
+      /* This ID is not part of an override hierarchy. */
+      BLI_assert((id->tag & LIB_TAG_LIB_OVERRIDE_NEED_RESYNC) == 0);
       continue;
     }
 
