@@ -21,19 +21,36 @@
 
 namespace blender::nodes::node_shader_sprites_animation_cc {
 
-static bNodeSocketTemplate sh_node_sprites_animation_in[] = {
-    {SOCK_FLOAT, N_("Frames"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 10000.0f, PROP_NONE},
-    {SOCK_FLOAT, N_("Columns"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1024.0f, PROP_NONE},
-    {SOCK_FLOAT, N_("Rows"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1024.0f, PROP_NONE},
-    {SOCK_FLOAT, N_("Columns Offset"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 10000.0f, PROP_NONE},
-    {SOCK_FLOAT, N_("Rows Offset"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 10000.0f, PROP_NONE},
-    {-1, ""}};
-
-static bNodeSocketTemplate sh_node_sprites_animation_out[] = {
-    {SOCK_VECTOR, N_("Location")},
-    {SOCK_VECTOR, N_("Scale")},
-    {-1, ""},
-};
+static void node_declare(NodeDeclarationBuilder &b)
+{
+  b.add_input<decl::Float>(N_("Frames"))
+      .default_value(0.0f)
+      .min(0.0f)
+      .max(10000.0f)
+      .subtype(PROP_NONE);
+  b.add_input<decl::Float>(N_("Columns"))
+      .default_value(0.0f)
+      .min(0.0f)
+      .max(1024.0f)
+      .subtype(PROP_NONE);
+  b.add_input<decl::Float>(N_("Rows"))
+      .default_value(0.0f)
+      .min(0.0f)
+      .max(1024.0f)
+      .subtype(PROP_NONE);
+  b.add_input<decl::Float>(N_("Columns Offset"))
+      .default_value(0.0f)
+      .min(0.0f)
+      .max(10000.0f)
+      .subtype(PROP_NONE);
+  b.add_input<decl::Float>(N_("Rows Offset"))
+      .default_value(0.0f)
+      .min(0.0f)
+      .max(10000.0f)
+      .subtype(PROP_NONE);
+  b.add_output<decl::Vector>(N_("Location")).hide_value();
+  b.add_output<decl::Vector>(N_("Scale")).hide_value();
+}
 
 static int gpu_shader_sprites_animation(GPUMaterial *mat,
                                         bNode *node,
@@ -56,8 +73,7 @@ void register_node_type_sh_sprites_animation()
 
   sh_fn_node_type_base(
       &ntype, SH_NODE_SPRITES_ANIMATION, "Sprites Animation", NODE_CLASS_SHADER);
-  node_type_socket_templates(
-      &ntype, file_ns::sh_node_sprites_animation_in, file_ns::sh_node_sprites_animation_out);
+  ntype.declare = file_ns::node_declare;
   node_type_gpu(&ntype, file_ns::gpu_shader_sprites_animation);
 
   nodeRegisterType(&ntype);
