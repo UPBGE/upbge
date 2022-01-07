@@ -56,7 +56,7 @@ class Shader {
   virtual bool finalize() = 0;
 
   virtual void transform_feedback_names_set(Span<const char *> name_list,
-                                            const eGPUShaderTFBType geom_type) = 0;
+                                            eGPUShaderTFBType geom_type) = 0;
   virtual bool transform_feedback_enable(GPUVertBuf *) = 0;
   virtual void transform_feedback_disable() = 0;
 
@@ -84,11 +84,8 @@ class Shader {
   virtual int shader_get_uniform_location_old(const char *name) = 0;
 
  protected:
-  void print_log(Span<const char *> sources,
-                 char *log,
-                 const char *stage,
-                 const bool error,
-                 GPULogParser *parser);
+  void print_log(
+      Span<const char *> sources, char *log, const char *stage, bool error, GPULogParser *parser);
 };
 
 /* Syntactic sugar. */

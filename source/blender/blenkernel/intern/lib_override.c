@@ -376,7 +376,6 @@ bool BKE_lib_override_library_create_from_tag(Main *bmain,
    * existing linked IDs usages. */
   if (success) {
     for (todo_id_iter = todo_ids.first; todo_id_iter != NULL; todo_id_iter = todo_id_iter->next) {
-      ID *other_id;
       reference_id = todo_id_iter->data;
       ID *local_id = reference_id->newid;
 
@@ -394,6 +393,7 @@ bool BKE_lib_override_library_create_from_tag(Main *bmain,
        * remapped to use newly created overriding IDs, if needed. */
       ID *id;
       FOREACH_MAIN_ID_BEGIN (bmain, id) {
+        ID *other_id;
         /* In case we created new overrides as 'no main', they are not accessible directly in this
          * loop, but we can get to them through their reference's `newid` pointer. */
         if (do_no_main && id->lib == reference_id->lib && id->newid != NULL) {
@@ -1121,14 +1121,14 @@ void BKE_lib_override_library_main_proxy_convert(Main *bmain, BlendFileReadRepor
   }
 }
 
-bool BKE_lib_override_library_resync(Main *bmain,
-                                     Scene *scene,
-                                     ViewLayer *view_layer,
-                                     ID *id_root,
-                                     Collection *override_resync_residual_storage,
-                                     const bool do_hierarchy_enforce,
-                                     const bool do_post_process,
-                                     BlendFileReadReport *reports)
+static bool lib_override_library_resync(Main *bmain,
+                                        Scene *scene,
+                                        ViewLayer *view_layer,
+                                        ID *id_root,
+                                        Collection *override_resync_residual_storage,
+                                        const bool do_hierarchy_enforce,
+                                        const bool do_post_process,
+                                        BlendFileReadReport *reports)
 {
   BLI_assert(ID_IS_OVERRIDE_LIBRARY_REAL(id_root));
 
@@ -1499,6 +1499,26 @@ bool BKE_lib_override_library_resync(Main *bmain,
   return success;
 }
 
+bool BKE_lib_override_library_resync(Main *bmain,
+                                     Scene *scene,
+                                     ViewLayer *view_layer,
+                                     ID *id_root,
+                                     Collection *override_resync_residual_storage,
+                                     const bool do_hierarchy_enforce,
+                                     BlendFileReadReport *reports)
+{
+  const bool success = lib_override_library_resync(bmain,
+                                                   scene,
+                                                   view_layer,
+                                                   id_root,
+                                                   override_resync_residual_storage,
+                                                   do_hierarchy_enforce,
+                                                   true,
+                                                   reports);
+
+  return success;
+}
+
 /* Also tag ancestors overrides for resync.
  *
  * WARNING: Expects `bmain` to have valid relation data.
@@ -1733,6 +1753,10 @@ static void lib_override_library_main_resync_on_library_indirect_level(
           continue;
         }
 
+        if (ID_IS_LINKED(id)) {
+          id->lib->tag |= LIBRARY_TAG_RESYNC_REQUIRED;
+        }
+
         /* We cannot resync a scene that is currently active. */
         if (id == &scene->id) {
           id->tag &= ~LIB_TAG_LIB_OVERRIDE_NEED_RESYNC;
@@ -1759,7 +1783,7 @@ static void lib_override_library_main_resync_on_library_indirect_level(
         do_continue = true;
 
         CLOG_INFO(&LOG, 2, "Resyncing %s (%p)...", id->name, library);
-        const bool success = BKE_lib_override_library_resync(
+        const bool success = lib_override_library_resync(
             bmain, scene, view_layer, id, override_resync_residual_storage, false, false, reports);
         CLOG_INFO(&LOG, 2, "\tSuccess: %d", success);
         if (success) {
@@ -1888,6 +1912,16 @@ void BKE_lib_override_library_main_resync(Main *bmain,
 
   if (BKE_collection_is_empty(override_resync_residual_storage)) {
     BKE_collection_delete(bmain, override_resync_residual_storage, true);
+  }
+
+  LISTBASE_FOREACH (Library *, library, &bmain->libraries) {
+    if (library->tag & LIBRARY_TAG_RESYNC_REQUIRED) {
+      CLOG_INFO(&LOG,
+                2,
+                "library '%s' contains some linked overrides that required recursive resync, "
+                "consider updating it",
+                library->filepath);
+    }
   }
 }
 
