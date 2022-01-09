@@ -220,7 +220,7 @@ jobs:
       working-directory: python_api/upbge-stub
       run: |
         sed -i "s/#APP_NAME#/upbge/g" setup.py && \
-        sed -i "s/#APP_VERSION#/0.3.0/g" setup.py && \
+        sed -i "s/#APP_VERSION#/0.3.1/g" setup.py && \
         sed -i "s/#BUILD_NUMBER#/${{ github.run_id }}/g" setup.py && \
         python setup.py sdist
 
