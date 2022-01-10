@@ -194,6 +194,11 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     BKE_undosys_step_push(CTX_wm_manager(C)->undo_stack, C, "pre");
   }
 
+  /* Make sure we'll use old undo at bge exit to properly restore scene
+   * See memfile_undo.c and search for keyword UPBGE
+   */
+  G.is_undo_at_exit = true;
+
   wmWindowManager *wm_backup = CTX_wm_manager(C);
   wmWindow *win_backup = CTX_wm_window(C);
   void *msgbus_backup = wm_backup->message_bus;
@@ -417,6 +422,9 @@ extern "C" void StartKetsjiShell(struct bContext *C,
       BKE_undosys_step_undo(CTX_wm_manager(C)->undo_stack, C);
     }
   }
+
+  /* Make sure we'll use new undo in viewport because faster */
+  G.is_undo_at_exit = false;
 
 #ifdef WITH_PYTHON
 
