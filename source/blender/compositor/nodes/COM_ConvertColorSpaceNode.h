@@ -13,31 +13,34 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2005 Blender Foundation.
- * All rights reserved.
+ * Copyright 2021, Blender Foundation.
  */
 
-#include "node_shader_util.hh"
+#pragma once
 
-namespace blender::nodes::node_shader_output_light_cc {
+#include "COM_Node.h"
+#include "COM_defines.h"
+#include "DNA_image_types.h"
+#include "DNA_node_types.h"
 
-static void node_declare(NodeDeclarationBuilder &b)
-{
-  b.add_input<decl::Shader>(N_("Surface"));
-}
+#include "RE_engine.h"
+#include "RE_pipeline.h"
 
-}  // namespace blender::nodes::node_shader_output_light_cc
+namespace blender::compositor {
 
-/* node type definition */
-void register_node_type_sh_output_light()
-{
-  namespace file_ns = blender::nodes::node_shader_output_light_cc;
+/**
+ * \brief ImageNode
+ * \ingroup Node
+ */
+class ConvertColorSpaceNode : public Node {
+ public:
+  ConvertColorSpaceNode(bNode *editorNode);
+  void convert_to_operations(NodeConverter &converter,
+                             const CompositorContext &context) const override;
 
-  static bNodeType ntype;
+ private:
+  /** \brief check if the given settings changes color space. */
+  bool performs_conversion(NodeConvertColorSpace &settings) const;
+};
 
-  sh_node_type_base(&ntype, SH_NODE_OUTPUT_LIGHT, "Light Output", NODE_CLASS_OUTPUT);
-  ntype.declare = file_ns::node_declare;
-  ntype.no_muting = true;
-
-  nodeRegisterType(&ntype);
-}
+}  // namespace blender::compositor

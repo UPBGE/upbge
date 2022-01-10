@@ -295,14 +295,6 @@ typedef enum eGPUBuiltinShader {
   GPU_SHADER_3D_IMAGE_MODULATE_ALPHA,
   /* points */
   /**
-   * Draw round points with a hardcoded size.
-   * Take a single color for all the vertices and a 2D position for each vertex.
-   *
-   * \param color: uniform vec4
-   * \param pos: in vec2
-   */
-  GPU_SHADER_2D_POINT_FIXED_SIZE_UNIFORM_COLOR,
-  /**
    * Draw round points with a constant size.
    * Take a single color for all the vertices and a 2D position for each vertex.
    *
@@ -323,34 +315,6 @@ typedef enum eGPUBuiltinShader {
    */
   GPU_SHADER_2D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_OUTLINE_AA,
   /**
-   * Draw round points with a constant size and an outline.
-   * Take a 2D position and a color for each vertex.
-   *
-   * \param size: uniform float
-   * \param outlineWidth: uniform float
-   * \param outlineColor: uniform vec4
-   * \param color: in vec4
-   * \param pos: in vec2
-   */
-  GPU_SHADER_2D_POINT_UNIFORM_SIZE_VARYING_COLOR_OUTLINE_AA,
-  /**
-   * Draw round points with a constant size and an outline.
-   * Take a 2D position and a color for each vertex.
-   *
-   * \param size: in float
-   * \param color: in vec4
-   * \param pos: in vec2
-   */
-  GPU_SHADER_2D_POINT_VARYING_SIZE_VARYING_COLOR,
-  /**
-   * Draw round points with a hardcoded size.
-   * Take a single color for all the vertices and a 3D position for each vertex.
-   *
-   * \param color: uniform vec4
-   * \param pos: in vec3
-   */
-  GPU_SHADER_3D_POINT_FIXED_SIZE_UNIFORM_COLOR,
-  /**
    * Draw round points with a hardcoded size.
    * Take a single color for all the vertices and a 3D position for each vertex.
    *
@@ -369,26 +333,6 @@ typedef enum eGPUBuiltinShader {
   GPU_SHADER_3D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_AA,
   /**
    * Draw round points with a constant size and an outline.
-   * Take a single color for all the vertices and a 3D position for each vertex.
-   *
-   * \param size: uniform float
-   * \param outlineWidth: uniform float
-   * \param color: uniform vec4
-   * \param outlineColor: uniform vec4
-   * \param pos: in vec3
-   */
-  GPU_SHADER_3D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_OUTLINE_AA,
-  /**
-   * Draw round points with a constant size and an outline.
-   * Take a single color for all the vertices and a 3D position for each vertex.
-   *
-   * \param color: uniform vec4
-   * \param size: in float
-   * \param pos: in vec3
-   */
-  GPU_SHADER_3D_POINT_VARYING_SIZE_UNIFORM_COLOR,
-  /**
-   * Draw round points with a constant size and an outline.
    * Take a 3D position and a color for each vertex.
    *
    * \param size: in float
@@ -404,20 +348,12 @@ typedef enum eGPUBuiltinShader {
   /* grease pencil drawing */
   GPU_SHADER_GPENCIL_STROKE,
   /* specialized for widget drawing */
-  GPU_SHADER_2D_AREA_EDGES,
+  GPU_SHADER_2D_AREA_BORDERS,
   GPU_SHADER_2D_WIDGET_BASE,
   GPU_SHADER_2D_WIDGET_BASE_INST,
   GPU_SHADER_2D_WIDGET_SHADOW,
   GPU_SHADER_2D_NODELINK,
-  GPU_SHADER_2D_NODELINK_INST,
-  /* specialized for edituv drawing */
-  GPU_SHADER_2D_UV_UNIFORM_COLOR,
-  GPU_SHADER_2D_UV_VERTS,
-  GPU_SHADER_2D_UV_FACEDOTS,
-  GPU_SHADER_2D_UV_EDGES,
-  GPU_SHADER_2D_UV_EDGES_SMOOTH,
-  GPU_SHADER_2D_UV_FACES,
-  GPU_SHADER_2D_UV_FACES_STRETCH_AREA,
+
   /**********UPBGE***********/
   GPU_SHADER_DRAW_FRAME_BUFFER,
   GPU_SHADER_BLACK,
@@ -425,9 +361,10 @@ typedef enum eGPUBuiltinShader {
   GPU_SHADER_STEREO_STIPPLE,
   GPU_SHADER_STEREO_ANAGLYPH,
   /*******End of UPBGE*******/
-  GPU_SHADER_2D_UV_FACES_STRETCH_ANGLE,
+
+  GPU_SHADER_2D_NODELINK_INST,
 } eGPUBuiltinShader;
-#define GPU_SHADER_BUILTIN_LEN (GPU_SHADER_2D_UV_FACES_STRETCH_ANGLE + 1)
+#define GPU_SHADER_BUILTIN_LEN (GPU_SHADER_2D_NODELINK_INST + 1)
 
 /** Support multiple configurations. */
 typedef enum eGPUShaderConfig {
