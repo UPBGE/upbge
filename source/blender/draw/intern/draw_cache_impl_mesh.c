@@ -2085,21 +2085,9 @@ void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
                                      ts,
                                      use_hide);
 
-  /* Ensure that all requested batches have finished.
-   * Ideally we want to remove this sync, but there are cases where this doesn't work.
-   * See T79038 for example.
-   *
-   * An idea to improve this is to separate the Object mode from the edit mode draw caches. And
-   * based on the mode the correct one will be updated. Other option is to look into using
-   * drw_batch_cache_generate_requested_delayed. */
-  // const Scene *sce_eval = scene;
-  // if (sce_eval) {
-  //  Scene *sce_orig = (Scene *)DEG_get_original_id((ID *)&sce_eval->id);
-  //  if ((sce_orig->flag & SCE_INTERACTIVE) == 0 &&
-  //      (sce_orig->flag & SCE_INTERACTIVE_VIEWPORT) == 0) {  // UPBGE
-  BLI_task_graph_work_and_wait(task_graph);
-  //  }
-  //}
+  /* Ensure that all requested batches have finished on GPU side */  // UPBGE
+  GPU_finish();
+
 #ifdef DEBUG
   drw_mesh_batch_cache_check_available(task_graph, me);
 #endif
