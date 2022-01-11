@@ -35,6 +35,7 @@
 
 #include "BKE_blender_undo.h"
 #include "BKE_context.h"
+#include "BKE_global.h" //UPBGE
 #include "BKE_icons.h"
 #include "BKE_lib_id.h"
 #include "BKE_lib_query.h"
@@ -192,8 +193,8 @@ static void memfile_undosys_step_decode(struct bContext *C,
       use_old_bmain_data = false;
     }
   }
-  /* UPBGE (we force undo legacy while we try to fix new fast undo for UPBGE */
-  else if (true) {
+  /* UPBGE (we force undo legacy at bge exit only (while we try to fix new fast undo for) UPBGE */
+  else if (G.is_undo_at_exit == true) {
     use_old_bmain_data = false;
   }
   /* End UPBGE */

@@ -144,6 +144,8 @@ typedef struct Global {
    */
   int fileflags;
 
+  bool is_undo_at_exit; // UPBGE
+
   /**
    * Message to show when loading a `.blend` file attempts to execute
    * a Python script or driver-expression when doing so is disallowed.
