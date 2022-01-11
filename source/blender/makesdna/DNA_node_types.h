@@ -377,7 +377,7 @@ typedef struct bNode {
 #define NODE_PREVIEW 4
 #define NODE_HIDDEN 8
 #define NODE_ACTIVE 16
-#define NODE_ACTIVE_ID 32
+// #define NODE_ACTIVE_ID 32 /* deprecated */
 /* Used to indicate which group output node is used and which viewer node is active. */
 #define NODE_DO_OUTPUT 64
 #define __NODE_GROUP_EDIT 128 /* DEPRECATED */
@@ -2118,6 +2118,7 @@ typedef enum GeometryNodeTriangulateQuads {
   GEO_NODE_TRIANGULATE_QUAD_FIXED = 1,
   GEO_NODE_TRIANGULATE_QUAD_ALTERNATE = 2,
   GEO_NODE_TRIANGULATE_QUAD_SHORTEDGE = 3,
+  GEO_NODE_TRIANGULATE_QUAD_LONGEDGE = 4,
 } GeometryNodeTriangulateQuads;
 
 typedef enum GeometryNodePointInstanceType {

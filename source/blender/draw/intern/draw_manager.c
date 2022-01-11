@@ -2573,16 +2573,17 @@ static void drw_draw_depth_loop_impl(struct Depsgraph *depsgraph,
                                      ARegion *region,
                                      View3D *v3d,
                                      GPUViewport *viewport,
-                                     const bool use_opengl_context)
+                                     const bool use_gpencil,
+                                     const bool use_basic,
+                                     const bool use_overlay)
 {
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
   RenderEngineType *engine_type = ED_view3d_engine_type(scene, v3d->shading.type);
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
   RegionView3D *rv3d = region->regiondata;
 
-  if (use_opengl_context) {
-    DRW_opengl_context_enable();
-  }
+  /* Reset before using it. */
+  drw_state_prepare_clean_for_draw(&DST);
 
   DST.options.is_depth = true;
 
@@ -2598,6 +2599,18 @@ static void drw_draw_depth_loop_impl(struct Depsgraph *depsgraph,
       .depsgraph = depsgraph,
   };
   drw_context_state_init();
+  drw_manager_init(&DST, viewport, NULL);
+
+  if (use_gpencil) {
+    use_drw_engine(&draw_engine_gpencil_type);
+  }
+  if (use_basic) {
+    drw_engines_enable_basic();
+  }
+  if (use_overlay) {
+    drw_engines_enable_overlays();
+  }
+
   drw_task_graph_init();
 
   /* Setup frame-buffer. */
@@ -2665,11 +2678,6 @@ static void drw_draw_depth_loop_impl(struct Depsgraph *depsgraph,
   drw_engines_disable();
 
   drw_manager_exit(&DST);
-
-  /* Changing context. */
-  if (use_opengl_context) {
-    DRW_opengl_context_disable();
-  }
 }
 
 void DRW_draw_depth_loop(struct Depsgraph *depsgraph,
@@ -2677,26 +2685,8 @@ void DRW_draw_depth_loop(struct Depsgraph *depsgraph,
                          View3D *v3d,
                          GPUViewport *viewport)
 {
-  /* Reset before using it. */
-  drw_state_prepare_clean_for_draw(&DST);
-
-  /* Required by `drw_manager_init()` */
-  DST.draw_ctx.region = region;
-  DST.draw_ctx.rv3d = region->regiondata;
-  drw_manager_init(&DST, viewport, NULL);
-
-  /* Get list of enabled engines */
-  {
-    /* Required by `DRW_state_draw_support()` */
-    DST.draw_ctx.v3d = v3d;
-
-    drw_engines_enable_basic();
-    if (DRW_state_draw_support()) {
-      drw_engines_enable_overlays();
-    }
-  }
-
-  drw_draw_depth_loop_impl(depsgraph, region, v3d, viewport, false);
+  drw_draw_depth_loop_impl(
+      depsgraph, region, v3d, viewport, false, true, DRW_state_draw_support());
 }
 
 void DRW_draw_depth_loop_gpencil(struct Depsgraph *depsgraph,
@@ -2704,17 +2694,7 @@ void DRW_draw_depth_loop_gpencil(struct Depsgraph *depsgraph,
                                  View3D *v3d,
                                  GPUViewport *viewport)
 {
-  /* Reset before using it. */
-  drw_state_prepare_clean_for_draw(&DST);
-
-  /* Required by `drw_manager_init()` */
-  DST.draw_ctx.region = region;
-  DST.draw_ctx.rv3d = region->regiondata;
-  drw_manager_init(&DST, viewport, NULL);
-
-  use_drw_engine(&draw_engine_gpencil_type);
-
-  drw_draw_depth_loop_impl(depsgraph, region, v3d, viewport, false);
+  drw_draw_depth_loop_impl(depsgraph, region, v3d, viewport, true, false, false);
 }
 
 void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d, const rcti *rect)
