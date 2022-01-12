@@ -212,6 +212,9 @@ set(INC
   ../../blenloader
 
   ${CMAKE_BINARY_DIR}/source/blender/makesdna/intern
+
+  # dna_type_offsets.h
+  ${CMAKE_CURRENT_BINARY_DIR}/../../makesdna/intern
 )
 
 set(INC_SYS

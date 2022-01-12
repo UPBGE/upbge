@@ -499,7 +499,7 @@ float UI_text_clip_middle_ex(const struct uiFontStyle *fstyle,
                              char *str,
                              float okwidth,
                              float minwidth,
-                             const size_t max_len,
+                             size_t max_len,
                              char rpart_sep);
 
 /**
@@ -2977,15 +2977,17 @@ void UI_fontstyle_set(const struct uiFontStyle *fs);
 void UI_fontstyle_draw_ex(const struct uiFontStyle *fs,
                           const struct rcti *rect,
                           const char *str,
+                          size_t str_len,
                           const uchar col[4],
                           const struct uiFontStyleDraw_Params *fs_params,
-                          size_t len,
                           int *r_xofs,
                           int *r_yofs,
                           struct ResultBLF *r_info);
+
 void UI_fontstyle_draw(const struct uiFontStyle *fs,
                        const struct rcti *rect,
                        const char *str,
+                       size_t str_len,
                        const uchar col[4],
                        const struct uiFontStyleDraw_Params *fs_params);
 /**

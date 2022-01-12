@@ -33,6 +33,9 @@ set(INC
   ../../render
   ../../windowmanager
   ../../../../intern/guardedalloc
+
+  # dna_type_offsets.h
+  ${CMAKE_CURRENT_BINARY_DIR}/../../makesdna/intern
 )
 
 
@@ -122,6 +125,7 @@ set(SRC
   nodes/node_composite_vec_blur.cc
   nodes/node_composite_viewer.cc
   nodes/node_composite_zcombine.cc
+  nodes/node_composite_scene_time.cc
 
   node_composite_tree.cc
   node_composite_util.cc

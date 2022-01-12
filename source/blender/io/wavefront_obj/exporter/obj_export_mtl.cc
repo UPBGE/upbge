@@ -21,8 +21,8 @@
 #include "BKE_image.h"
 #include "BKE_node.h"
 
-#include "BLI_float3.hh"
 #include "BLI_map.hh"
+#include "BLI_math_vec_types.hh"
 #include "BLI_path_util.h"
 
 #include "DNA_material_types.h"
@@ -353,9 +353,7 @@ MTLMaterial mtlmaterial_for_material(const Material *material)
   const nodes::NodeRef *bsdf_node = find_bsdf_node(nodetree);
   store_bsdf_properties(bsdf_node, material, mtlmat);
   store_image_textures(bsdf_node, nodetree, material, mtlmat);
-  if (nodetree) {
-    delete nodetree;
-  }
+  delete nodetree;
   return mtlmat;
 }
 
