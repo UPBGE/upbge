@@ -42,7 +42,7 @@
 #include "UI_interface.h"
 #include "UI_view2d.h"
 
-#include "outliner_intern.h"
+#include "outliner_intern.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Tree View Context
@@ -58,7 +58,7 @@ void outliner_viewcontext_init(const bContext *C, TreeViewContext *tvc)
 
   /* Objects. */
   tvc->obact = OBACT(tvc->view_layer);
-  if (tvc->obact != NULL) {
+  if (tvc->obact != nullptr) {
     tvc->ob_edit = OBEDIT_FROM_OBACT(tvc->obact);
 
     if ((tvc->obact->type == OB_ARMATURE) ||
@@ -104,14 +104,14 @@ TreeElement *outliner_find_item_at_y(const SpaceOutliner *space_outliner,
     }
   }
 
-  return NULL;
+  return nullptr;
 }
 
 static TreeElement *outliner_find_item_at_x_in_row_recursive(const TreeElement *parent_te,
                                                              float view_co_x,
                                                              bool *r_is_merged_icon)
 {
-  TreeElement *child_te = parent_te->subtree.first;
+  TreeElement *child_te = reinterpret_cast<TreeElement *>(parent_te->subtree.first);
 
   while (child_te) {
     const bool over_element = (view_co_x > child_te->xs) && (view_co_x < child_te->xend);
@@ -168,7 +168,7 @@ TreeElement *outliner_find_tree_element(ListBase *lb, const TreeStoreElem *store
       return tes;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 TreeElement *outliner_find_parent_element(ListBase *lb,
@@ -185,15 +185,15 @@ TreeElement *outliner_find_parent_element(ListBase *lb,
       return find_te;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 TreeElement *outliner_find_tse(SpaceOutliner *space_outliner, const TreeStoreElem *tse)
 {
   TreeStoreElem *tselem;
 
-  if (tse->id == NULL) {
-    return NULL;
+  if (tse->id == nullptr) {
+    return nullptr;
   }
 
   /* check if 'tse' is in treestore */
@@ -203,7 +203,7 @@ TreeElement *outliner_find_tse(SpaceOutliner *space_outliner, const TreeStoreEle
     return outliner_find_tree_element(&space_outliner->tree, tselem);
   }
 
-  return NULL;
+  return nullptr;
 }
 
 TreeElement *outliner_find_id(SpaceOutliner *space_outliner, ListBase *lb, const ID *id)
@@ -221,7 +221,7 @@ TreeElement *outliner_find_id(SpaceOutliner *space_outliner, ListBase *lb, const
       return tes;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 TreeElement *outliner_find_posechannel(ListBase *lb, const bPoseChannel *pchan)
@@ -239,7 +239,7 @@ TreeElement *outliner_find_posechannel(ListBase *lb, const bPoseChannel *pchan)
       }
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 TreeElement *outliner_find_editbone(ListBase *lb, const EditBone *ebone)
@@ -257,7 +257,7 @@ TreeElement *outliner_find_editbone(ListBase *lb, const EditBone *ebone)
       }
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 TreeElement *outliner_search_back_te(TreeElement *te, short idcode)
@@ -272,7 +272,7 @@ TreeElement *outliner_search_back_te(TreeElement *te, short idcode)
     }
     te = te->parent;
   }
-  return NULL;
+  return nullptr;
 }
 
 ID *outliner_search_back(TreeElement *te, short idcode)
@@ -285,7 +285,7 @@ ID *outliner_search_back(TreeElement *te, short idcode)
     tselem = TREESTORE(search_te);
     return tselem->id;
   }
-  return NULL;
+  return nullptr;
 }
 
 bool outliner_tree_traverse(const SpaceOutliner *space_outliner,
@@ -295,7 +295,8 @@ bool outliner_tree_traverse(const SpaceOutliner *space_outliner,
                             TreeTraversalFunc func,
                             void *customdata)
 {
-  for (TreeElement *te = tree->first, *te_next; te; te = te_next) {
+  for (TreeElement *te = reinterpret_cast<TreeElement *>(tree->first), *te_next; te;
+       te = te_next) {
     TreeTraversalAction func_retval = TRAVERSE_CONTINUE;
     /* in case te is freed in callback */
     TreeStoreElem *tselem = TREESTORE(te);
@@ -382,7 +383,7 @@ TreeElement *outliner_find_element_with_flag(const ListBase *lb, short flag)
       return active_element;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 bool outliner_is_element_visible(const TreeElement *te)
@@ -467,7 +468,7 @@ Base *ED_outliner_give_base_under_cursor(bContext *C, const int mval[2])
   ViewLayer *view_layer = CTX_data_view_layer(C);
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   TreeElement *te;
-  Base *base = NULL;
+  Base *base = nullptr;
   float view_mval[2];
 
   UI_view2d_region_to_view(&region->v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);

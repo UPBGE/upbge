@@ -118,6 +118,7 @@ struct wmOperator;
 struct wmWindowManager;
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_utildefines.h"
 #include "DNA_listBase.h"
 #include "DNA_uuid_types.h"
 #include "DNA_vec_types.h"
@@ -977,6 +978,7 @@ typedef enum eWM_DragFlags {
   WM_DRAG_NOP = 0,
   WM_DRAG_FREE_DATA = 1,
 } eWM_DragFlags;
+ENUM_OPERATORS(eWM_DragFlags, WM_DRAG_FREE_DATA)
 
 /* NOTE: structs need not exported? */
 
