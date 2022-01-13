@@ -1602,6 +1602,8 @@ BVHTree *BKE_bvhtree_from_mesh_get(struct BVHTreeFromMesh *data,
     memset(data, 0, sizeof(*data));
   }
 
+  data->vert_normals = BKE_mesh_vertex_normals_ensure(mesh);
+
   return tree;
 }
 
