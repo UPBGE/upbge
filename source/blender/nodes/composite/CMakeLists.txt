@@ -154,8 +154,6 @@ endif()
 
 blender_add_lib(bf_nodes_composite "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-add_dependencies(bf_nodes_composite bf_dna) #UPBGE temp: maybe the linking issue is in blender too
-
 if(WITH_UNITY_BUILD)
   set_target_properties(bf_nodes_composite PROPERTIES UNITY_BUILD ON)
   set_target_properties(bf_nodes_composite PROPERTIES UNITY_BUILD_BATCH_SIZE 10)
