@@ -1401,6 +1401,9 @@ int main(int argc,
         int shadingTypeRuntime = 0;
         bool useViewportRender = false;
 
+        /* We don't want to use other windows than the one where is the 3D view */
+        std::vector<wmWindow *> unused_windows = {};
+
         do {
           // Read the Blender file
 
@@ -1669,6 +1672,15 @@ int main(int argc,
             InitBlenderContextVariables(C, wm, bfd->curscene);
             wm_window_ghostwindow_blenderplayer_ensure(wm, win, window, first_time_window);
 
+            /* Get rid of windows which are not the 3D view windows */
+            LISTBASE_FOREACH (wmWindow *, win_in_list, &wm->windows) {
+              if (win_in_list == win) {
+                continue;
+              }
+              unused_windows.push_back(win_in_list);
+              BLI_remlink(&wm->windows, win_in_list);
+            }
+
             /* The following is needed to run some bpy operators in blenderplayer */
             ED_screen_refresh_blenderplayer(win);
 
@@ -1734,6 +1746,13 @@ int main(int argc,
             ED_screen_exit(C, win, WM_window_get_active_screen(win));
           }
         } while (!quitGame(exitcode));
+
+        /* Restore the windows we disabled during standalone runtime to free it
+         * (normally) in standalone exit pipeline */
+        for (wmWindow *tmp_win : unused_windows) {
+          BLI_addtail(&CTX_wm_manager(C)->windows, tmp_win);
+        }
+
 #ifdef WITH_PYTHON
         // Free globalDict OUTSIDE runtime loop.
         if (globalDict) {
