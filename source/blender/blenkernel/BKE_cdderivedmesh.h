@@ -56,9 +56,6 @@ struct DerivedMesh *cdDM_from_mesh_ex(struct Mesh *mesh,
                                       eCDAllocType alloctype,
                                       const struct CustomData_MeshMasks *mask);
 
-/* creates a CDDerivedMesh from the given BMEditMesh */
-DerivedMesh *CDDM_from_editbmesh(struct BMEditMesh *em, const bool use_mdisps);
-
 /* merge verts  */
 /* Enum for merge_mode of CDDM_merge_verts.
  * Refer to cdderivedmesh.c for details. */
@@ -100,24 +97,9 @@ struct DerivedMesh *CDDM_from_template(struct DerivedMesh *source,
                                        int numLoops,
                                        int numPolys);
 
-/* converts mfaces to mpolys.  note things may break if there are not valid
- * medges surrounding each mface.
- */
-void CDDM_tessfaces_to_faces(struct DerivedMesh *dm);
-
-/* applies vertex coordinates or normals to a CDDerivedMesh. if the MVert
- * layer is a referenced layer, it will be duplicate to not overwrite the
- * original
- */
-void CDDM_apply_vert_coords(struct DerivedMesh *cddm, float (*vertCoords)[3]);
-void CDDM_apply_vert_normals(struct DerivedMesh *cddm, short (*vertNormals)[3]);
-
 /* recalculates vertex and face normals for a CDDerivedMesh
  */
-void CDDM_calc_normals_mapping_ex(struct DerivedMesh *dm, const bool only_face_normals);
-void CDDM_calc_normals_mapping(struct DerivedMesh *dm);
 void CDDM_calc_normals(struct DerivedMesh *dm);
-void CDDM_calc_normals_tessface(struct DerivedMesh *dm);
 
 void CDDM_calc_loop_normals(struct DerivedMesh *dm,
                             const bool use_split_normals,
@@ -172,15 +154,6 @@ struct MEdge *CDDM_get_edges(struct DerivedMesh *dm);
 struct MFace *CDDM_get_tessfaces(struct DerivedMesh *dm);
 struct MLoop *CDDM_get_loops(struct DerivedMesh *dm);
 struct MPoly *CDDM_get_polys(struct DerivedMesh *dm);
-
-/* Assigns news m*** layers to the cddm.  Note that you must handle
- * freeing the old ones yourself.  Also you must ensure dm->num****Data
- * is correct.*/
-void CDDM_set_mvert(struct DerivedMesh *dm, struct MVert *mvert);
-void CDDM_set_medge(struct DerivedMesh *dm, struct MEdge *medge);
-void CDDM_set_mface(struct DerivedMesh *dm, struct MFace *mface);
-void CDDM_set_mloop(struct DerivedMesh *dm, struct MLoop *mloop);
-void CDDM_set_mpoly(struct DerivedMesh *dm, struct MPoly *mpoly);
 
 #ifdef __cplusplus
 }

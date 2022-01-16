@@ -303,7 +303,8 @@ static void mesh_calc_normals_poly_and_vertex_finalize_fn(
   }
 }
 
-static void mesh_calc_normals_poly_and_vertex(MVert *mvert,
+/* UPBGE - we need this function to be accesible through BKE API instead of static */
+void BKE_mesh_calc_normals_poly_and_vertex(MVert *mvert,
                                               const int mvert_len,
                                               const MLoop *mloop,
                                               const int UNUSED(mloop_len),
@@ -378,7 +379,7 @@ const float (*BKE_mesh_vertex_normals_ensure(const Mesh *mesh))[3]
   float(*vert_normals)[3] = BKE_mesh_vertex_normals_for_write(&mesh_mutable);
   float(*poly_normals)[3] = BKE_mesh_poly_normals_for_write(&mesh_mutable);
 
-  mesh_calc_normals_poly_and_vertex(mesh_mutable.mvert,
+  BKE_mesh_calc_normals_poly_and_vertex(mesh_mutable.mvert,
                                     mesh_mutable.totvert,
                                     mesh_mutable.mloop,
                                     mesh_mutable.totloop,

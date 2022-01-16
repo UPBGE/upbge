@@ -890,18 +890,10 @@ void CcdPhysicsController::UpdateSoftBody()
             MT_Vector3 p2 = ToMoto(nodes.at(i2).m_x - sb->m_pose.m_com);
             MT_Vector3 p3 = ToMoto(nodes.at(i3).m_x - sb->m_pose.m_com);
 
-            MT_Vector3 n1 = ToMoto(nodes.at(i1).m_n);
-            MT_Vector3 n2 = ToMoto(nodes.at(i2).m_n);
-            MT_Vector3 n3 = ToMoto(nodes.at(i3).m_n);
-
             // Do we need obmat? maybe
             copy_v3_v3(v1->co, p1.getValue());
             copy_v3_v3(v2->co, p2.getValue());
             copy_v3_v3(v3->co, p3.getValue());
-
-            normal_float_to_short_v3(v1->no, n1.getValue());
-            normal_float_to_short_v3(v2->no, n2.getValue());
-            normal_float_to_short_v3(v3->no, n3.getValue());
 
             if (mf->v4) {
               MVert *v4 = &mverts[mf->v4];
@@ -910,11 +902,8 @@ void CcdPhysicsController::UpdateSoftBody()
 
               MT_Vector3 p4 = ToMoto(nodes.at(i4).m_x - sb->m_pose.m_com);
 
-              MT_Vector3 n4 = ToMoto(nodes.at(i4).m_n);
-
               copy_v3_v3(v4->co, p4.getValue());
 
-              normal_float_to_short_v3(v4->no, n4.getValue());
             }
           }
         }
