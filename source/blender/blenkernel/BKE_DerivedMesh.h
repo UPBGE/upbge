@@ -281,8 +281,7 @@ struct DerivedMesh {
                             void (*func)(void *userData,
                                          int index,
                                          const float co[3],
-                                         const float no_f[3],
-                                         const short no_s[3]),
+                                         const float no[3]),
                             void *userData,
                             DMForeachFlag flag);
 
