@@ -246,9 +246,10 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
   /* This ensures a depsgraph is allocated and activates it.
    * It is needed in KX_Scene constructor because we'll need
-   * a depsgraph in BlenderDataConversion.
+   * a depsgraph in BlenderDataConversion + Ensure evaluation
+   * to avoid potential bugs (https://github.com/UPBGE/upbge/issues/1629)
    */
-  CTX_data_depsgraph_pointer(C);
+  CTX_data_ensure_evaluated_depsgraph(C);
 
   if (CTX_wm_region_view3d(C)->persp != RV3D_CAMOB) {
     m_gameDefaultCamera = BKE_object_add_only_object(bmain, OB_CAMERA, "game_default_cam");
