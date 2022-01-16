@@ -279,10 +279,7 @@ struct DerivedMesh {
    */
   void (*foreachMappedVert)(DerivedMesh *dm,
                             void (*func)(void *userData,
-                                         int index,
-                                         const float co[3],
-                                         const float no_f[3],
-                                         const short no_s[3]),
+                                         const float co[3]),
                             void *userData,
                             DMForeachFlag flag);
 

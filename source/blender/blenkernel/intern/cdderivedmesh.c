@@ -295,7 +295,7 @@ static PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 }
 
 static void cdDM_foreachMappedVert(DerivedMesh *dm,
-                                   void (*func)(void *userData, int index, const float co[3], const float no[3]),
+                                   void (*func)(void *userData, int index, const float co[3]),
                                    void *userData,
                                    DMForeachFlag flag)
 {
