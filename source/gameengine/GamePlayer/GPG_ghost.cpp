@@ -1801,6 +1801,7 @@ int main(int argc,
   RE_engines_exit();
 
   ED_preview_free_dbase(); /* frees a Main dbase, before BKE_blender_free! */
+  ED_preview_restart_queue_free();
   ED_assetlist_storage_exit();
 
   if (CTX_wm_manager(C)) {
@@ -1833,6 +1834,8 @@ int main(int argc,
   /* G_MAIN == bfd->main, it gets referenced in free_nodesystem so we can't have a dangling pointer
    */
   G_MAIN = nullptr;
+
+  DRW_subdiv_free();
 
   ANIM_fcurves_copybuf_free();
   ANIM_drivers_copybuf_free();
