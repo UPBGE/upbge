@@ -48,13 +48,13 @@
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_bvhutils.h"
-#include "BKE_cdderivedmesh.h"
+#include "BKE_cdderivedmesh.h" // UPBGE
 #include "BKE_colorband.h"
 #include "BKE_deform.h"
 #include "BKE_editmesh.h"
 #include "BKE_geometry_set.hh"
 #include "BKE_geometry_set_instances.hh"
-#include "BKE_global.h" /* For debug flag, DM_update_tessface_data() func. */
+#include "BKE_global.h" /* For debug flag, DM_update_tessface_data() func. */ // UPBGE
 #include "BKE_key.h"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
@@ -95,8 +95,6 @@
 
 static CLG_LogRef LOG = {"bke.derivedmesh"};
 static ThreadRWMutex loops_cache_lock = PTHREAD_RWLOCK_INITIALIZER;
-
-static void shapekey_layers_to_keyblocks(DerivedMesh *dm, Mesh *me, int actshape_uid);
 
 static void mesh_init_origspace(Mesh *mesh);
 static void editbmesh_calc_modifier_final_normals(Mesh *mesh_final,
@@ -477,41 +475,6 @@ void DM_ensure_normals(DerivedMesh *dm)
   BLI_assert((dm->dirty & DM_DIRTY_NORMALS) == 0);
 }
 
-/* note: until all modifiers can take MPoly's as input,
- * use this at the start of modifiers  */
-void DM_ensure_tessface(DerivedMesh *dm)
-{
-  const int numTessFaces = dm->getNumTessFaces(dm);
-  const int numPolys = dm->getNumPolys(dm);
-
-  if ((numTessFaces == 0) && (numPolys != 0)) {
-    dm->recalcTessellation(dm);
-
-    if (dm->getNumTessFaces(dm) != 0) {
-      /* printf("info %s: polys -> ngons calculated\n", __func__); */
-    }
-    else {
-      printf("warning %s: could not create tessfaces from %d polygons, dm->type=%u\n",
-             __func__,
-             numPolys,
-             dm->type);
-    }
-  }
-
-  else if (dm->dirty & DM_DIRTY_TESS_CDLAYERS) {
-    BLI_assert(CustomData_has_layer(&dm->faceData, CD_ORIGINDEX) || numTessFaces == 0);
-    DM_update_tessface_data(dm);
-  }
-
-  dm->dirty &= ~DM_DIRTY_TESS_CDLAYERS;
-}
-
-/**
- * Ensure the array is large enough
- *
- * \note This function must always be thread-protected by caller.
- * It should only be used by internal code.
- */
 void DM_ensure_looptri_data(DerivedMesh *dm)
 {
   const unsigned int totpoly = dm->numPolyData;
@@ -540,279 +503,6 @@ void DM_ensure_looptri_data(DerivedMesh *dm)
   }
 }
 
-void DM_verttri_from_looptri(MVertTri *verttri,
-                             const MLoop *mloop,
-                             const MLoopTri *looptri,
-                             int looptri_num)
-{
-  int i;
-  for (i = 0; i < looptri_num; i++) {
-    verttri[i].tri[0] = mloop[looptri[i].tri[0]].v;
-    verttri[i].tri[1] = mloop[looptri[i].tri[1]].v;
-    verttri[i].tri[2] = mloop[looptri[i].tri[2]].v;
-  }
-}
-
-/* Update tessface CD data from loop/poly ones. Needed when not retessellating after modstack
- * evaluation. */
-/* NOTE: Assumes dm has valid tessellated data! */
-void DM_update_tessface_data(DerivedMesh *dm)
-{
-  MFace *mf, *mface = dm->getTessFaceArray(dm);
-  MPoly *mp = dm->getPolyArray(dm);
-  MLoop *ml = dm->getLoopArray(dm);
-
-  CustomData *fdata = dm->getTessFaceDataLayout(dm);
-  CustomData *ldata = dm->getLoopDataLayout(dm);
-
-  const int totface = dm->getNumTessFaces(dm);
-  int mf_idx;
-
-  int *polyindex = (int *)CustomData_get_layer(fdata, CD_ORIGINDEX);
-  unsigned int(*loopindex)[4];
-
-  /* Should never occur, but better abort than segfault! */
-  if (!polyindex)
-    return;
-
-  CustomData_from_bmeshpoly(fdata, ldata, totface);
-
-  if (CustomData_has_layer(fdata, CD_MTFACE) || CustomData_has_layer(fdata, CD_MCOL) ||
-      CustomData_has_layer(fdata, CD_PREVIEW_MCOL) || CustomData_has_layer(fdata, CD_ORIGSPACE) ||
-      CustomData_has_layer(fdata, CD_TESSLOOPNORMAL) || CustomData_has_layer(fdata, CD_TANGENT)) {
-    loopindex = (unsigned int(*)[4])MEM_malloc_arrayN(totface, sizeof(*loopindex), __func__);
-
-    for (mf_idx = 0, mf = mface; mf_idx < totface; mf_idx++, mf++) {
-      const int mf_len = mf->v4 ? 4 : 3;
-      unsigned int *ml_idx = loopindex[mf_idx];
-      int i, not_done;
-
-      /* Find out loop indices. */
-      /* NOTE: This assumes tessface are valid and in sync with loop/poly... Else, most likely,
-       * segfault! */
-      for (i = mp[polyindex[mf_idx]].loopstart, not_done = mf_len; not_done; i++) {
-        const int tf_v = BKE_MESH_TESSFACE_VINDEX_ORDER(mf, ml[i].v);
-        if (tf_v != -1) {
-          ml_idx[tf_v] = i;
-          not_done--;
-        }
-      }
-    }
-
-    /* NOTE: quad detection issue - fourth vertidx vs fourth loopidx:
-     * Here, our tfaces' fourth vertex index is never 0 for a quad. However, we know our fourth
-     * loop index may be 0 for quads (because our quads may have been rotated compared to their org
-     * poly, see tessellation code). So we pass the MFace's, and BKE_mesh_loops_to_tessdata will
-     * use MFace->v4 index as quad test.
-     */
-    mesh_loops_to_tessdata(fdata, ldata, mface, polyindex, loopindex, totface);
-
-    MEM_freeN(loopindex);
-  }
-
-  if (G.debug & G_DEBUG)
-    printf("%s: Updated tessellated customdata of dm %p\n", __func__, dm);
-
-  dm->dirty &= ~DM_DIRTY_TESS_CDLAYERS;
-}
-
-void DM_update_materials(DerivedMesh *dm, Object *ob)
-{
-  int i, totmat = ob->totcol + 1; /* materials start from 1, default material is 0 */
-
-  if (dm->totmat != totmat) {
-    dm->totmat = totmat;
-    /* invalidate old materials */
-    if (dm->mat)
-      MEM_freeN(dm->mat);
-
-    dm->mat = (Material **)MEM_malloc_arrayN(totmat, sizeof(*dm->mat), "DerivedMesh.mat");
-  }
-
-  /* we leave last material as empty - rationale here is being able to index
-   * the materials by using the mf->mat_nr directly and leaving the last
-   * material as nullptr in case no materials exist on mesh, so indexing will not fail */
-  for (i = 0; i < totmat - 1; i++) {
-    dm->mat[i] = BKE_object_material_get(ob, i + 1);
-  }
-  dm->mat[i] = nullptr;
-}
-
-MLoopUV *DM_paint_uvlayer_active_get(DerivedMesh *dm, int mat_nr)
-{
-  MLoopUV *uv_base;
-
-  BLI_assert(mat_nr < dm->totmat);
-
-  if (dm->mat[mat_nr] && dm->mat[mat_nr]->texpaintslot &&
-      dm->mat[mat_nr]->texpaintslot[dm->mat[mat_nr]->paint_active_slot].uvname) {
-    uv_base = (MLoopUV *)CustomData_get_layer_named(
-        &dm->loopData,
-        CD_MLOOPUV,
-        dm->mat[mat_nr]->texpaintslot[dm->mat[mat_nr]->paint_active_slot].uvname);
-    /* This can fail if we have changed the name in the UV layer list and have assigned the old
-     * name in the material texture slot.*/
-    if (!uv_base)
-      uv_base = (MLoopUV *)CustomData_get_layer(&dm->loopData, CD_MLOOPUV);
-  }
-  else {
-    uv_base = (MLoopUV *)CustomData_get_layer(&dm->loopData, CD_MLOOPUV);
-  }
-
-  return uv_base;
-}
-
-void DM_to_mesh(
-    DerivedMesh *dm, Mesh *me, Object *ob, const CustomData_MeshMasks *mask, bool take_ownership)
-{
-  /* dm might depend on me, so we need to do everything with a local copy */
-  Mesh tmp = *me;
-  int totvert, totedge /*, totface */ /* UNUSED */, totloop, totpoly;
-  int did_shapekeys = 0;
-  eCDAllocType alloctype = CD_DUPLICATE;
-
-  if (take_ownership && dm->type == DM_TYPE_CDDM && dm->needsFree) {
-    bool has_any_referenced_layers = CustomData_has_referenced(&dm->vertData) ||
-                                     CustomData_has_referenced(&dm->edgeData) ||
-                                     CustomData_has_referenced(&dm->loopData) ||
-                                     CustomData_has_referenced(&dm->faceData) ||
-                                     CustomData_has_referenced(&dm->polyData);
-    if (!has_any_referenced_layers) {
-      alloctype = CD_ASSIGN;
-    }
-  }
-
-  CustomData_reset(&tmp.vdata);
-  CustomData_reset(&tmp.edata);
-  CustomData_reset(&tmp.fdata);
-  CustomData_reset(&tmp.ldata);
-  CustomData_reset(&tmp.pdata);
-
-  DM_ensure_normals(dm);
-
-  totvert = tmp.totvert = dm->getNumVerts(dm);
-  totedge = tmp.totedge = dm->getNumEdges(dm);
-  totloop = tmp.totloop = dm->getNumLoops(dm);
-  totpoly = tmp.totpoly = dm->getNumPolys(dm);
-  tmp.totface = 0;
-
-  CustomData_copy(&dm->vertData, &tmp.vdata, mask->vmask, alloctype, totvert);
-  CustomData_copy(&dm->edgeData, &tmp.edata, mask->emask, alloctype, totedge);
-  CustomData_copy(&dm->loopData, &tmp.ldata, mask->lmask, alloctype, totloop);
-  CustomData_copy(&dm->polyData, &tmp.pdata, mask->pmask, alloctype, totpoly);
-  tmp.cd_flag = dm->cd_flag;
-  tmp.runtime.deformed_only = dm->deformedOnly;
-
-  if (CustomData_has_layer(&dm->vertData, CD_SHAPEKEY)) {
-    KeyBlock *kb;
-    int uid;
-
-    if (ob) {
-      kb = (KeyBlock *)BLI_findlink(&me->key->block, ob->shapenr - 1);
-      if (kb) {
-        uid = kb->uid;
-      }
-      else {
-        CLOG_ERROR(&LOG, "could not find active shapekey %d!", ob->shapenr - 1);
-        uid = INT_MAX;
-      }
-    }
-    else {
-      /* if no object, set to INT_MAX so we don't mess up any shapekey layers */
-      uid = INT_MAX;
-    }
-
-    shapekey_layers_to_keyblocks(dm, me, uid);
-    did_shapekeys = 1;
-  }
-
-  /* copy texture space */
-  if (ob) {
-    BKE_mesh_texspace_copy_from_object(&tmp, ob);
-  }
-
-  /* not all DerivedMeshes store their verts/edges/faces in CustomData, so
-   * we set them here in case they are missing */
-  if (!CustomData_has_layer(&tmp.vdata, CD_MVERT)) {
-    CustomData_add_layer(&tmp.vdata,
-                         CD_MVERT,
-                         CD_ASSIGN,
-                         (alloctype == CD_ASSIGN) ? dm->getVertArray(dm) : dm->dupVertArray(dm),
-                         totvert);
-  }
-  if (!CustomData_has_layer(&tmp.edata, CD_MEDGE)) {
-    CustomData_add_layer(&tmp.edata,
-                         CD_MEDGE,
-                         CD_ASSIGN,
-                         (alloctype == CD_ASSIGN) ? dm->getEdgeArray(dm) : dm->dupEdgeArray(dm),
-                         totedge);
-  }
-  if (!CustomData_has_layer(&tmp.pdata, CD_MPOLY)) {
-    tmp.mloop = (alloctype == CD_ASSIGN) ? dm->getLoopArray(dm) : dm->dupLoopArray(dm);
-    tmp.mpoly = (alloctype == CD_ASSIGN) ? dm->getPolyArray(dm) : dm->dupPolyArray(dm);
-
-    CustomData_add_layer(&tmp.ldata, CD_MLOOP, CD_ASSIGN, tmp.mloop, tmp.totloop);
-    CustomData_add_layer(&tmp.pdata, CD_MPOLY, CD_ASSIGN, tmp.mpoly, tmp.totpoly);
-  }
-
-  /* object had got displacement layer, should copy this layer to save sculpted data */
-  /* NOTE: maybe some other layers should be copied? nazgul */
-  if (CustomData_has_layer(&me->ldata, CD_MDISPS)) {
-    if (totloop == me->totloop) {
-      MDisps *mdisps = (MDisps *)CustomData_get_layer(&me->ldata, CD_MDISPS);
-      CustomData_add_layer(&tmp.ldata, CD_MDISPS, alloctype, mdisps, totloop);
-    }
-  }
-
-  /* yes, must be before _and_ after tessellate */
-  BKE_mesh_update_customdata_pointers(&tmp, false);
-
-  /* since 2.65 caller must do! */
-  // BKE_mesh_tessface_calc(&tmp);
-
-  CustomData_free(&me->vdata, me->totvert);
-  CustomData_free(&me->edata, me->totedge);
-  CustomData_free(&me->fdata, me->totface);
-  CustomData_free(&me->ldata, me->totloop);
-  CustomData_free(&me->pdata, me->totpoly);
-
-  /* ok, this should now use new CD shapekey data,
-   * which should be fed through the modifier
-   * stack */
-  if (tmp.totvert != me->totvert && !did_shapekeys && me->key) {
-    CLOG_WARN(&LOG, "YEEK! this should be recoded! Shape key loss!: ID '%s'", tmp.id.name);
-    if (tmp.key && !(tmp.id.tag & LIB_TAG_NO_MAIN)) {
-      id_us_min(&tmp.key->id);
-    }
-    tmp.key = nullptr;
-  }
-
-  /* Clear selection history */
-  MEM_SAFE_FREE(tmp.mselect);
-  tmp.totselect = 0;
-  /*BLI_assert(ELEM(tmp.bb, nullptr, me->bb));
-  if (me->bb) {
-    MEM_freeN(me->bb);
-    tmp.bb = nullptr;
-  }*/
-
-  /* skip the listbase */
-  MEMCPY_STRUCT_AFTER(me, &tmp, id.prev);
-
-  if (take_ownership) {
-    if (alloctype == CD_ASSIGN) {
-      CustomData_free_typemask(&dm->vertData, dm->numVertData, ~mask->vmask);
-      CustomData_free_typemask(&dm->edgeData, dm->numEdgeData, ~mask->emask);
-      CustomData_free_typemask(&dm->loopData, dm->numLoopData, ~mask->lmask);
-      CustomData_free_typemask(&dm->polyData, dm->numPolyData, ~mask->pmask);
-    }
-    dm->release(dm);
-  }
-}
-
-/** Utility function to convert an (evaluated) Mesh to a shape key block. */
-/* Just a shallow wrapper around BKE_keyblock_convert_from_mesh,
- * that ensures both evaluated mesh and original one has same number of vertices. */
 void BKE_mesh_runtime_eval_to_meshkey(Mesh *me_deformed, Mesh *me, KeyBlock *kb)
 {
   /* Just a shallow wrapper around #BKE_keyblock_convert_from_mesh,
@@ -1076,58 +766,6 @@ static void add_orco_mesh(Object *ob, BMEditMesh *em, Mesh *mesh, Mesh *mesh_orc
     memcpy(layerorco, orco, sizeof(float[3]) * totvert);
     if (free) {
       MEM_freeN(orco);
-    }
-  }
-}
-
-static void shapekey_layers_to_keyblocks(DerivedMesh *dm, Mesh *me, int actshape_uid)
-{
-  KeyBlock *kb;
-  int i, j, tot;
-  if (!me->key) {
-    return;
-  }
-  tot = CustomData_number_of_layers(&dm->vertData, CD_SHAPEKEY);
-  for (i = 0; i < tot; i++) {
-    CustomDataLayer *layer =
-        &dm->vertData.layers[CustomData_get_layer_index_n(&dm->vertData, CD_SHAPEKEY, i)];
-    float(*cos)[3], (*kbcos)[3];
-    for (kb = (KeyBlock *)me->key->block.first; kb; kb = kb->next) {
-      if (kb->uid == layer->uid) {
-        break;
-      }
-    }
-    if (!kb) {
-      kb = BKE_keyblock_add(me->key, layer->name);
-      kb->uid = layer->uid;
-    }
-    if (kb->data) {
-      MEM_freeN(kb->data);
-    }
-    cos = (float(*)[3])CustomData_get_layer_n(&dm->vertData, CD_SHAPEKEY, i);
-    kb->totelem = (int)dm->numVertData;
-    kb->data = kbcos = (float(*)[3])MEM_malloc_arrayN(
-        kb->totelem, 3 * sizeof(float), "kbcos DerivedMesh.c");
-    if (kb->uid == actshape_uid) {
-      MVert *mvert = dm->getVertArray(dm);
-      for (j = 0; j < dm->numVertData; j++, kbcos++, mvert++) {
-        copy_v3_v3(*kbcos, mvert->co);
-      }
-    }
-    else {
-      for (j = 0; j < kb->totelem; j++, cos++, kbcos++) {
-        copy_v3_v3(*kbcos, *cos);
-      }
-    }
-  }
-  for (kb = (KeyBlock *)me->key->block.first; kb; kb = kb->next) {
-    if (kb->totelem != dm->numVertData) {
-      if (kb->data) {
-        MEM_freeN(kb->data);
-      }
-      kb->totelem = dm->numVertData;
-      kb->data = MEM_calloc_arrayN(kb->totelem, 3 * sizeof(float), "kb->data derivedmesh.c");
-      CLOG_ERROR(&LOG, "lost a shapekey layer: '%s'! (bmesh internal error)", kb->name);
     }
   }
 }
@@ -2445,34 +2083,6 @@ Mesh *mesh_create_eval_no_deform_render(Depsgraph *depsgraph,
   return result;
 }
 
-DerivedMesh *mesh_create_derived_no_virtual(struct Depsgraph *depsgraph,
-                                            Scene *scene,
-                                            Object *ob,
-                                            float (*vertCos)[3],
-                                            const CustomData_MeshMasks *dataMask)
-{
-  DerivedMesh *result;
-
-  mesh_calc_modifiers_dm(
-      depsgraph, scene, ob, vertCos, -1, false, dataMask, -1, false, false, nullptr, &result);
-
-  return result;
-}
-
-DerivedMesh *mesh_create_derived_physics(struct Depsgraph *depsgraph,
-                                         Scene *scene,
-                                         Object *ob,
-                                         float (*vertCos)[3],
-                                         const CustomData_MeshMasks *dataMask)
-{
-  DerivedMesh *result;
-
-  mesh_calc_modifiers_dm(
-      depsgraph, scene, ob, vertCos, -1, true, dataMask, -1, false, false, nullptr, &result);
-
-  return result;
-}
-
 /***/
 
 Mesh *editbmesh_get_eval_cage(struct Depsgraph *depsgraph,
@@ -2648,6 +2258,387 @@ static void mesh_init_origspace(Mesh *mesh)
   }
 
   BKE_mesh_tessface_clear(mesh);
+}
+
+/* UPBGE */
+
+/* note: until all modifiers can take MPoly's as input,
+ * use this at the start of modifiers  */
+void DM_ensure_tessface(DerivedMesh *dm)
+{
+  const int numTessFaces = dm->getNumTessFaces(dm);
+  const int numPolys = dm->getNumPolys(dm);
+
+  if ((numTessFaces == 0) && (numPolys != 0)) {
+    dm->recalcTessellation(dm);
+
+    if (dm->getNumTessFaces(dm) != 0) {
+      /* printf("info %s: polys -> ngons calculated\n", __func__); */
+    }
+    else {
+      printf("warning %s: could not create tessfaces from %d polygons, dm->type=%u\n",
+             __func__,
+             numPolys,
+             dm->type);
+    }
+  }
+
+  else if (dm->dirty & DM_DIRTY_TESS_CDLAYERS) {
+    BLI_assert(CustomData_has_layer(&dm->faceData, CD_ORIGINDEX) || numTessFaces == 0);
+    DM_update_tessface_data(dm);
+  }
+
+  dm->dirty &= ~DM_DIRTY_TESS_CDLAYERS;
+}
+
+void DM_verttri_from_looptri(MVertTri *verttri,
+                             const MLoop *mloop,
+                             const MLoopTri *looptri,
+                             int looptri_num)
+{
+  int i;
+  for (i = 0; i < looptri_num; i++) {
+    verttri[i].tri[0] = mloop[looptri[i].tri[0]].v;
+    verttri[i].tri[1] = mloop[looptri[i].tri[1]].v;
+    verttri[i].tri[2] = mloop[looptri[i].tri[2]].v;
+  }
+}
+
+/* Update tessface CD data from loop/poly ones. Needed when not retessellating after modstack
+ * evaluation. */
+/* NOTE: Assumes dm has valid tessellated data! */
+void DM_update_tessface_data(DerivedMesh *dm)
+{
+  MFace *mf, *mface = dm->getTessFaceArray(dm);
+  MPoly *mp = dm->getPolyArray(dm);
+  MLoop *ml = dm->getLoopArray(dm);
+
+  CustomData *fdata = dm->getTessFaceDataLayout(dm);
+  CustomData *ldata = dm->getLoopDataLayout(dm);
+
+  const int totface = dm->getNumTessFaces(dm);
+  int mf_idx;
+
+  int *polyindex = (int *)CustomData_get_layer(fdata, CD_ORIGINDEX);
+  unsigned int(*loopindex)[4];
+
+  /* Should never occur, but better abort than segfault! */
+  if (!polyindex)
+    return;
+
+  CustomData_from_bmeshpoly(fdata, ldata, totface);
+
+  if (CustomData_has_layer(fdata, CD_MTFACE) || CustomData_has_layer(fdata, CD_MCOL) ||
+      CustomData_has_layer(fdata, CD_PREVIEW_MCOL) || CustomData_has_layer(fdata, CD_ORIGSPACE) ||
+      CustomData_has_layer(fdata, CD_TESSLOOPNORMAL) || CustomData_has_layer(fdata, CD_TANGENT)) {
+    loopindex = (unsigned int(*)[4])MEM_malloc_arrayN(totface, sizeof(*loopindex), __func__);
+
+    for (mf_idx = 0, mf = mface; mf_idx < totface; mf_idx++, mf++) {
+      const int mf_len = mf->v4 ? 4 : 3;
+      unsigned int *ml_idx = loopindex[mf_idx];
+      int i, not_done;
+
+      /* Find out loop indices. */
+      /* NOTE: This assumes tessface are valid and in sync with loop/poly... Else, most likely,
+       * segfault! */
+      for (i = mp[polyindex[mf_idx]].loopstart, not_done = mf_len; not_done; i++) {
+        const int tf_v = BKE_MESH_TESSFACE_VINDEX_ORDER(mf, ml[i].v);
+        if (tf_v != -1) {
+          ml_idx[tf_v] = i;
+          not_done--;
+        }
+      }
+    }
+
+    /* NOTE: quad detection issue - fourth vertidx vs fourth loopidx:
+     * Here, our tfaces' fourth vertex index is never 0 for a quad. However, we know our fourth
+     * loop index may be 0 for quads (because our quads may have been rotated compared to their org
+     * poly, see tessellation code). So we pass the MFace's, and BKE_mesh_loops_to_tessdata will
+     * use MFace->v4 index as quad test.
+     */
+    mesh_loops_to_tessdata(fdata, ldata, mface, polyindex, loopindex, totface);
+
+    MEM_freeN(loopindex);
+  }
+
+  if (G.debug & G_DEBUG)
+    printf("%s: Updated tessellated customdata of dm %p\n", __func__, dm);
+
+  dm->dirty &= ~DM_DIRTY_TESS_CDLAYERS;
+}
+
+void DM_update_materials(DerivedMesh *dm, Object *ob)
+{
+  int i, totmat = ob->totcol + 1; /* materials start from 1, default material is 0 */
+
+  if (dm->totmat != totmat) {
+    dm->totmat = totmat;
+    /* invalidate old materials */
+    if (dm->mat)
+      MEM_freeN(dm->mat);
+
+    dm->mat = (Material **)MEM_malloc_arrayN(totmat, sizeof(*dm->mat), "DerivedMesh.mat");
+  }
+
+  /* we leave last material as empty - rationale here is being able to index
+   * the materials by using the mf->mat_nr directly and leaving the last
+   * material as nullptr in case no materials exist on mesh, so indexing will not fail */
+  for (i = 0; i < totmat - 1; i++) {
+    dm->mat[i] = BKE_object_material_get(ob, i + 1);
+  }
+  dm->mat[i] = nullptr;
+}
+
+MLoopUV *DM_paint_uvlayer_active_get(DerivedMesh *dm, int mat_nr)
+{
+  MLoopUV *uv_base;
+
+  BLI_assert(mat_nr < dm->totmat);
+
+  if (dm->mat[mat_nr] && dm->mat[mat_nr]->texpaintslot &&
+      dm->mat[mat_nr]->texpaintslot[dm->mat[mat_nr]->paint_active_slot].uvname) {
+    uv_base = (MLoopUV *)CustomData_get_layer_named(
+        &dm->loopData,
+        CD_MLOOPUV,
+        dm->mat[mat_nr]->texpaintslot[dm->mat[mat_nr]->paint_active_slot].uvname);
+    /* This can fail if we have changed the name in the UV layer list and have assigned the old
+     * name in the material texture slot.*/
+    if (!uv_base)
+      uv_base = (MLoopUV *)CustomData_get_layer(&dm->loopData, CD_MLOOPUV);
+  }
+  else {
+    uv_base = (MLoopUV *)CustomData_get_layer(&dm->loopData, CD_MLOOPUV);
+  }
+
+  return uv_base;
+}
+
+static void shapekey_layers_to_keyblocks(DerivedMesh *dm, Mesh *me, int actshape_uid)
+{
+  KeyBlock *kb;
+  int i, j, tot;
+  if (!me->key) {
+    return;
+  }
+  tot = CustomData_number_of_layers(&dm->vertData, CD_SHAPEKEY);
+  for (i = 0; i < tot; i++) {
+    CustomDataLayer *layer =
+        &dm->vertData.layers[CustomData_get_layer_index_n(&dm->vertData, CD_SHAPEKEY, i)];
+    float(*cos)[3], (*kbcos)[3];
+    for (kb = (KeyBlock *)me->key->block.first; kb; kb = kb->next) {
+      if (kb->uid == layer->uid) {
+        break;
+      }
+    }
+    if (!kb) {
+      kb = BKE_keyblock_add(me->key, layer->name);
+      kb->uid = layer->uid;
+    }
+    if (kb->data) {
+      MEM_freeN(kb->data);
+    }
+    cos = (float(*)[3])CustomData_get_layer_n(&dm->vertData, CD_SHAPEKEY, i);
+    kb->totelem = (int)dm->numVertData;
+    kb->data = kbcos = (float(*)[3])MEM_malloc_arrayN(
+        kb->totelem, 3 * sizeof(float), "kbcos DerivedMesh.c");
+    if (kb->uid == actshape_uid) {
+      MVert *mvert = dm->getVertArray(dm);
+      for (j = 0; j < dm->numVertData; j++, kbcos++, mvert++) {
+        copy_v3_v3(*kbcos, mvert->co);
+      }
+    }
+    else {
+      for (j = 0; j < kb->totelem; j++, cos++, kbcos++) {
+        copy_v3_v3(*kbcos, *cos);
+      }
+    }
+  }
+  for (kb = (KeyBlock *)me->key->block.first; kb; kb = kb->next) {
+    if (kb->totelem != dm->numVertData) {
+      if (kb->data) {
+        MEM_freeN(kb->data);
+      }
+      kb->totelem = dm->numVertData;
+      kb->data = MEM_calloc_arrayN(kb->totelem, 3 * sizeof(float), "kb->data derivedmesh.c");
+      CLOG_ERROR(&LOG, "lost a shapekey layer: '%s'! (bmesh internal error)", kb->name);
+    }
+  }
+}
+
+void DM_to_mesh(
+    DerivedMesh *dm, Mesh *me, Object *ob, const CustomData_MeshMasks *mask, bool take_ownership)
+{
+  /* dm might depend on me, so we need to do everything with a local copy */
+  Mesh tmp = *me;
+  int totvert, totedge /*, totface */ /* UNUSED */, totloop, totpoly;
+  int did_shapekeys = 0;
+  eCDAllocType alloctype = CD_DUPLICATE;
+
+  if (take_ownership && dm->type == DM_TYPE_CDDM && dm->needsFree) {
+    bool has_any_referenced_layers = CustomData_has_referenced(&dm->vertData) ||
+                                     CustomData_has_referenced(&dm->edgeData) ||
+                                     CustomData_has_referenced(&dm->loopData) ||
+                                     CustomData_has_referenced(&dm->faceData) ||
+                                     CustomData_has_referenced(&dm->polyData);
+    if (!has_any_referenced_layers) {
+      alloctype = CD_ASSIGN;
+    }
+  }
+
+  CustomData_reset(&tmp.vdata);
+  CustomData_reset(&tmp.edata);
+  CustomData_reset(&tmp.fdata);
+  CustomData_reset(&tmp.ldata);
+  CustomData_reset(&tmp.pdata);
+
+  DM_ensure_normals(dm);
+
+  totvert = tmp.totvert = dm->getNumVerts(dm);
+  totedge = tmp.totedge = dm->getNumEdges(dm);
+  totloop = tmp.totloop = dm->getNumLoops(dm);
+  totpoly = tmp.totpoly = dm->getNumPolys(dm);
+  tmp.totface = 0;
+
+  CustomData_copy(&dm->vertData, &tmp.vdata, mask->vmask, alloctype, totvert);
+  CustomData_copy(&dm->edgeData, &tmp.edata, mask->emask, alloctype, totedge);
+  CustomData_copy(&dm->loopData, &tmp.ldata, mask->lmask, alloctype, totloop);
+  CustomData_copy(&dm->polyData, &tmp.pdata, mask->pmask, alloctype, totpoly);
+  tmp.cd_flag = dm->cd_flag;
+  tmp.runtime.deformed_only = dm->deformedOnly;
+
+  if (CustomData_has_layer(&dm->vertData, CD_SHAPEKEY)) {
+    KeyBlock *kb;
+    int uid;
+
+    if (ob) {
+      kb = (KeyBlock *)BLI_findlink(&me->key->block, ob->shapenr - 1);
+      if (kb) {
+        uid = kb->uid;
+      }
+      else {
+        CLOG_ERROR(&LOG, "could not find active shapekey %d!", ob->shapenr - 1);
+        uid = INT_MAX;
+      }
+    }
+    else {
+      /* if no object, set to INT_MAX so we don't mess up any shapekey layers */
+      uid = INT_MAX;
+    }
+
+    shapekey_layers_to_keyblocks(dm, me, uid);
+    did_shapekeys = 1;
+  }
+
+  /* copy texture space */
+  if (ob) {
+    BKE_mesh_texspace_copy_from_object(&tmp, ob);
+  }
+
+  /* not all DerivedMeshes store their verts/edges/faces in CustomData, so
+   * we set them here in case they are missing */
+  if (!CustomData_has_layer(&tmp.vdata, CD_MVERT)) {
+    CustomData_add_layer(&tmp.vdata,
+                         CD_MVERT,
+                         CD_ASSIGN,
+                         (alloctype == CD_ASSIGN) ? dm->getVertArray(dm) : dm->dupVertArray(dm),
+                         totvert);
+  }
+  if (!CustomData_has_layer(&tmp.edata, CD_MEDGE)) {
+    CustomData_add_layer(&tmp.edata,
+                         CD_MEDGE,
+                         CD_ASSIGN,
+                         (alloctype == CD_ASSIGN) ? dm->getEdgeArray(dm) : dm->dupEdgeArray(dm),
+                         totedge);
+  }
+  if (!CustomData_has_layer(&tmp.pdata, CD_MPOLY)) {
+    tmp.mloop = (alloctype == CD_ASSIGN) ? dm->getLoopArray(dm) : dm->dupLoopArray(dm);
+    tmp.mpoly = (alloctype == CD_ASSIGN) ? dm->getPolyArray(dm) : dm->dupPolyArray(dm);
+
+    CustomData_add_layer(&tmp.ldata, CD_MLOOP, CD_ASSIGN, tmp.mloop, tmp.totloop);
+    CustomData_add_layer(&tmp.pdata, CD_MPOLY, CD_ASSIGN, tmp.mpoly, tmp.totpoly);
+  }
+
+  /* object had got displacement layer, should copy this layer to save sculpted data */
+  /* NOTE: maybe some other layers should be copied? nazgul */
+  if (CustomData_has_layer(&me->ldata, CD_MDISPS)) {
+    if (totloop == me->totloop) {
+      MDisps *mdisps = (MDisps *)CustomData_get_layer(&me->ldata, CD_MDISPS);
+      CustomData_add_layer(&tmp.ldata, CD_MDISPS, alloctype, mdisps, totloop);
+    }
+  }
+
+  /* yes, must be before _and_ after tessellate */
+  BKE_mesh_update_customdata_pointers(&tmp, false);
+
+  /* since 2.65 caller must do! */
+  // BKE_mesh_tessface_calc(&tmp);
+
+  CustomData_free(&me->vdata, me->totvert);
+  CustomData_free(&me->edata, me->totedge);
+  CustomData_free(&me->fdata, me->totface);
+  CustomData_free(&me->ldata, me->totloop);
+  CustomData_free(&me->pdata, me->totpoly);
+
+  /* ok, this should now use new CD shapekey data,
+   * which should be fed through the modifier
+   * stack */
+  if (tmp.totvert != me->totvert && !did_shapekeys && me->key) {
+    CLOG_WARN(&LOG, "YEEK! this should be recoded! Shape key loss!: ID '%s'", tmp.id.name);
+    if (tmp.key && !(tmp.id.tag & LIB_TAG_NO_MAIN)) {
+      id_us_min(&tmp.key->id);
+    }
+    tmp.key = nullptr;
+  }
+
+  /* Clear selection history */
+  MEM_SAFE_FREE(tmp.mselect);
+  tmp.totselect = 0;
+  /*BLI_assert(ELEM(tmp.bb, nullptr, me->bb));
+  if (me->bb) {
+    MEM_freeN(me->bb);
+    tmp.bb = nullptr;
+  }*/
+
+  /* skip the listbase */
+  MEMCPY_STRUCT_AFTER(me, &tmp, id.prev);
+
+  if (take_ownership) {
+    if (alloctype == CD_ASSIGN) {
+      CustomData_free_typemask(&dm->vertData, dm->numVertData, ~mask->vmask);
+      CustomData_free_typemask(&dm->edgeData, dm->numEdgeData, ~mask->emask);
+      CustomData_free_typemask(&dm->loopData, dm->numLoopData, ~mask->lmask);
+      CustomData_free_typemask(&dm->polyData, dm->numPolyData, ~mask->pmask);
+    }
+    dm->release(dm);
+  }
+}
+
+DerivedMesh *mesh_create_derived_no_virtual(struct Depsgraph *depsgraph,
+                                            Scene *scene,
+                                            Object *ob,
+                                            float (*vertCos)[3],
+                                            const CustomData_MeshMasks *dataMask)
+{
+  DerivedMesh *result;
+
+  mesh_calc_modifiers_dm(
+      depsgraph, scene, ob, vertCos, -1, false, dataMask, -1, false, false, nullptr, &result);
+
+  return result;
+}
+
+DerivedMesh *mesh_create_derived_physics(struct Depsgraph *depsgraph,
+                                         Scene *scene,
+                                         Object *ob,
+                                         float (*vertCos)[3],
+                                         const CustomData_MeshMasks *dataMask)
+{
+  DerivedMesh *result;
+
+  mesh_calc_modifiers_dm(
+      depsgraph, scene, ob, vertCos, -1, true, dataMask, -1, false, false, nullptr, &result);
+
+  return result;
 }
 
 /* derivedmesh info printing function,
@@ -2873,7 +2864,6 @@ MFace *DM_get_tessface_array(DerivedMesh *dm, bool *r_allocated)
   return mface;
 }
 
-/* UPBGE */
 static void mesh_build_derived_data(struct Depsgraph *depsgraph,
                                     Scene *scene,
                                     Object *ob,

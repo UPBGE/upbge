@@ -396,14 +396,6 @@ void DM_from_template(DerivedMesh *dm,
  */
 bool DM_release(DerivedMesh *dm);
 
-/** utility function to convert a DerivedMesh to a Mesh
- */
-void DM_to_mesh(DerivedMesh *dm,
-                struct Mesh *me,
-                struct Object *ob,
-                const struct CustomData_MeshMasks *mask,
-                bool take_ownership);
-
 /**
  * set the #CD_FLAG_NOCOPY flag in custom data layers where the mask is
  * zero for the layer type, so only layer types specified by the mask
@@ -470,7 +462,6 @@ void DM_copy_vert_data(struct DerivedMesh *source,
 void DM_DupPolys(DerivedMesh *source, DerivedMesh *target);
 
 void DM_ensure_normals(DerivedMesh *dm);
-void DM_ensure_tessface(DerivedMesh *dm);
 
 /**
  * Ensure the array is large enough.
@@ -479,15 +470,6 @@ void DM_ensure_tessface(DerivedMesh *dm);
  * It should only be used by internal code.
  */
 void DM_ensure_looptri_data(DerivedMesh *dm);
-void DM_verttri_from_looptri(MVertTri *verttri,
-                             const MLoop *mloop,
-                             const MLoopTri *looptri,
-                             int looptri_num);
-
-void DM_update_tessface_data(DerivedMesh *dm);
-
-void DM_update_materials(DerivedMesh *dm, struct Object *ob);
-struct MLoopUV *DM_paint_uvlayer_active_get(DerivedMesh *dm, int mat_nr);
 
 /**
  * Interpolates vertex data from the vertices indexed by `src_indices` in the
@@ -505,17 +487,6 @@ void mesh_get_mapped_verts_coords(struct Mesh *me_eval, float (*r_cos)[3], int t
 
 /* same as above but wont use render settings */
 DerivedMesh *mesh_create_derived(struct Mesh *me, float (*vertCos)[3]);
-/* for gameengine */
-DerivedMesh *mesh_create_derived_no_virtual(struct Depsgraph *depsgraph,
-                                            struct Scene *scene,
-                                            struct Object *ob,
-                                            float (*vertCos)[3],
-                                            const CustomData_MeshMasks *dataMask);
-DerivedMesh *mesh_create_derived_physics(struct Depsgraph *depsgraph,
-                                         struct Scene *scene,
-                                         struct Object *ob,
-                                         float (*vertCos)[3],
-                                         const CustomData_MeshMasks *dataMask);
 
 /**
  * Same as above but won't use render settings.
@@ -546,14 +517,6 @@ void DM_calc_loop_tangents(DerivedMesh *dm,
                            const char (*tangent_names)[MAX_NAME],
                            int tangent_names_len);
 
-/* debug only */
-#ifndef NDEBUG
-char *DM_debug_info(DerivedMesh *dm);
-void DM_debug_print(DerivedMesh *dm);
-
-bool DM_is_valid(DerivedMesh *dm);
-#endif
-
 BLI_INLINE int DM_origindex_mface_mpoly(const int *index_mf_to_mpoly,
                                         const int *index_mp_to_orig,
                                         const int i) ATTR_NONNULL(1);
@@ -566,11 +529,54 @@ BLI_INLINE int DM_origindex_mface_mpoly(const int *index_mf_to_mpoly,
   return (j != ORIGINDEX_NONE) ? (index_mp_to_orig ? index_mp_to_orig[j] : j) : ORIGINDEX_NONE;
 }
 
+/* UPBGE */
+void DM_ensure_tessface(DerivedMesh *dm);
+
+void DM_verttri_from_looptri(MVertTri *verttri,
+                             const MLoop *mloop,
+                             const MLoopTri *looptri,
+                             int looptri_num);
+
+void DM_update_tessface_data(DerivedMesh *dm);
+
+void DM_update_materials(DerivedMesh *dm, struct Object *ob);
+
+struct MLoopUV *DM_paint_uvlayer_active_get(DerivedMesh *dm, int mat_nr);
+
+/** utility function to convert a DerivedMesh to a Mesh
+ */
+void DM_to_mesh(DerivedMesh *dm,
+                struct Mesh *me,
+                struct Object *ob,
+                const struct CustomData_MeshMasks *mask,
+                bool take_ownership);
+
+DerivedMesh *mesh_create_derived_no_virtual(struct Depsgraph *depsgraph,
+                                            struct Scene *scene,
+                                            struct Object *ob,
+                                            float (*vertCos)[3],
+                                            const CustomData_MeshMasks *dataMask);
+DerivedMesh *mesh_create_derived_physics(struct Depsgraph *depsgraph,
+                                         struct Scene *scene,
+                                         struct Object *ob,
+                                         float (*vertCos)[3],
+                                         const CustomData_MeshMasks *dataMask);
+
+/* debug only */
+#ifndef NDEBUG
+char *DM_debug_info(DerivedMesh *dm);
+void DM_debug_print(DerivedMesh *dm);
+
+bool DM_is_valid(DerivedMesh *dm);
+#endif
+
 struct MVert *DM_get_vert_array(struct DerivedMesh *dm, bool *r_allocated);
 struct MEdge *DM_get_edge_array(struct DerivedMesh *dm, bool *r_allocated);
 struct MLoop *DM_get_loop_array(struct DerivedMesh *dm, bool *r_allocated);
 struct MPoly *DM_get_poly_array(struct DerivedMesh *dm, bool *r_allocated);
 struct MFace *DM_get_tessface_array(struct DerivedMesh *dm, bool *r_allocated);
+
+/* End of UPBGE */
 
 #ifdef __cplusplus
 }
