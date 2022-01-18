@@ -234,6 +234,7 @@ set(GLSL_SRC
   shaders/gpu_shader_2D_image_multi_rect_vert.glsl
   shaders/gpu_shader_image_frag.glsl
   shaders/gpu_shader_image_desaturate_frag.glsl
+  shaders/gpu_shader_image_linear_frag.glsl #UPBGE
   shaders/gpu_shader_image_overlays_merge_frag.glsl
   shaders/gpu_shader_image_overlays_stereo_merge_frag.glsl
   shaders/gpu_shader_image_modulate_alpha_frag.glsl
@@ -334,6 +335,7 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_separate_xyz.glsl
   shaders/material/gpu_shader_material_set.glsl
   shaders/material/gpu_shader_material_shader_to_rgba.glsl
+  shaders/material/gpu_shader_material_sprites_animation.glsl #UPBGE
   shaders/material/gpu_shader_material_squeeze.glsl
   shaders/material/gpu_shader_material_subsurface_scattering.glsl
   shaders/material/gpu_shader_material_tangent.glsl
