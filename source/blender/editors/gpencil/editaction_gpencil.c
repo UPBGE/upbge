@@ -457,6 +457,9 @@ bool ED_gpencil_anim_copybuf_paste(bAnimContext *ac, const short offset_mode)
       /* Ensure to use same keyframe type. */
       gpf->key_type = gpfs->key_type;
       if (gpf) {
+        /* Ensure to use same keyframe type. */
+        gpf->key_type = gpfs->key_type;
+
         bGPDstroke *gps, *gpsn;
 
         /* This should be the right frame... as it may be a pre-existing frame,
