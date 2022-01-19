@@ -13,27 +13,29 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2012 Blender Foundation.
+ * The Original Code is Copyright (C) 2022 Blender Foundation.
  * All rights reserved.
  */
 
+#pragma once
+
 /** \file
- * \ingroup nodes
+ * \ingroup sequencer
  */
 
-#include "BLI_utildefines.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#include "DNA_node_types.h"
+struct GSet;
+struct ListBase;
+struct Scene;
+struct Sequence;
 
-#include "BKE_context.h"
-#include "BKE_screen.h"
+void SEQ_free_animdata(struct Scene *scene, struct Sequence *seq);
+void SEQ_offset_animdata(struct Scene *scene, struct Sequence *seq, int ofs);
+struct GSet *SEQ_fcurves_by_strip_get(const struct Sequence *seq, struct ListBase *fcurve_base);
 
-#include "WM_api.h"
-
-#include "node_intern.hh" /* own include */
-
-/* ******************* node toolbar registration ************** */
-
-void node_toolbar_register(ARegionType *UNUSED(art))
-{
+#ifdef __cplusplus
 }
+#endif

@@ -12,30 +12,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2004 Blender Foundation.
- * All rights reserved.
  */
 
 #pragma once
 
 /** \file
- * \ingroup sequencer
+ * \ingroup bmesh
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "BLI_compiler_attrs.h"
 
-struct Scene;
-struct Sequence;
+#include "bmesh.h"
 
-/**
- * Cache must be freed before calling this function
- * since it leaves the seqbase in an invalid state.
- */
-void seq_free_sequence_recurse(struct Scene *scene, struct Sequence *seq, bool do_id_user);
-
-#ifdef __cplusplus
-}
-#endif
+#ifndef NDEBUG
+char *BM_mesh_debug_info(BMesh *bm) ATTR_NONNULL(1) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
+void BM_mesh_debug_print(BMesh *bm) ATTR_NONNULL(1);
+#endif /* NDEBUG */
