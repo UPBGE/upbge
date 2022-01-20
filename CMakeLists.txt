@@ -740,6 +740,9 @@ endif()
 set(POSTINSTALL_SCRIPT "" CACHE FILEPATH "Run given CMake script after installation process")
 mark_as_advanced(POSTINSTALL_SCRIPT)
 
+set(POSTCONFIGURE_SCRIPT "" CACHE FILEPATH "Run given CMake script as the last step of CMake configuration")
+mark_as_advanced(POSTCONFIGURE_SCRIPT)
+
 # end option(...)
 
 
@@ -2197,4 +2200,9 @@ endif()
 
 if(0)
   print_all_vars()
+endif()
+
+# Should be the last step of configuration.
+if(POSTCONFIGURE_SCRIPT)
+  include(${POSTCONFIGURE_SCRIPT})
 endif()
