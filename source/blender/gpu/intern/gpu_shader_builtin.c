@@ -200,8 +200,18 @@ static const GPUShaderStages builtin_shader_stages[GPU_SHADER_BUILTIN_LEN] = {
                                   .create_info = "gpu_shader_2D_flat_color"},
     [GPU_SHADER_2D_SMOOTH_COLOR] = {.name = "GPU_SHADER_2D_SMOOTH_COLOR",
                                     .create_info = "gpu_shader_2D_smooth_color"},
-    [GPU_SHADER_2D_IMAGE_OVERLAYS_MERGE] = {.name = "GPU_SHADER_2D_IMAGE_OVERLAYS_MERGE",
-                                            .create_info = "gpu_shader_2D_image_overlays_merge"},
+    [GPU_SHADER_2D_IMAGE_OVERLAYS_MERGE] =
+        {
+            .name = "GPU_SHADER_2D_IMAGE_OVERLAYS_MERGE",
+#ifdef __APPLE__
+            /* GPUShaderCreateInfo is disabled on MacOS due to mismatch with OCIO shader. See
+             * T95052 for more details. */
+            .vert = datatoc_gpu_shader_2D_image_vert_glsl,
+            .frag = datatoc_gpu_shader_image_overlays_merge_frag_glsl,
+#else
+            .create_info = "gpu_shader_2D_image_overlays_merge",
+#endif
+        },
     [GPU_SHADER_2D_IMAGE_OVERLAYS_STEREO_MERGE] =
         {.name = "GPU_SHADER_2D_IMAGE_OVERLAYS_STEREO_MERGE",
          .create_info = "gpu_shader_2D_image_overlays_stereo_merge"},

@@ -533,7 +533,7 @@ set(LIB
   bf_simulation
 
   # For `vfontdata_freetype.c`.
-  ${FREETYPE_LIBRARY}
+  ${FREETYPE_LIBRARIES}
 )
 
 if(WITH_BINRELOC)
