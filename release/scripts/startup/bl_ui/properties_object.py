@@ -193,7 +193,6 @@ class COLLECTION_MT_context_menu(Menu):
         layout.operator("object.collection_objects_select")
         layout.operator("object.instance_offset_from_cursor")
 
-
 class OBJECT_PT_collections(ObjectButtonsPanel, Panel):
     bl_label = "Collections"
     bl_options = {'DEFAULT_CLOSED'}
@@ -223,9 +222,8 @@ class OBJECT_PT_collections(ObjectButtonsPanel, Panel):
             row = col.box().row()
             row.prop(collection, "instance_offset", text="")
 
-                row = col.box().row()
-                row.prop(collection, "use_collection_spawn", text="Instance Spawn")
-
+            row = col.box().row()
+            row.prop(collection, "use_collection_spawn", text="Instance Spawn")
 
 class OBJECT_PT_display(ObjectButtonsPanel, Panel):
     bl_label = "Viewport Display"
