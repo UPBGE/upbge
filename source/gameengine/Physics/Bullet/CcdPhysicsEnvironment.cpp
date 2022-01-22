@@ -2207,7 +2207,7 @@ PHY_IVehicle *CcdPhysicsEnvironment::GetVehicleConstraint(int constraintId)
 PHY_ICharacter *CcdPhysicsEnvironment::GetCharacterController(KX_GameObject *ob)
 {
   CcdPhysicsController *controller = (CcdPhysicsController *)ob->GetPhysicsController();
-  return (controller) ? dynamic_cast<BlenderBulletCharacterController *>(
+  return (controller) ? dynamic_cast<CcdCharacter *>(
                             controller->GetCharacterController()) :
                         nullptr;
 }

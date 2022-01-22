@@ -454,7 +454,7 @@ class btCollisionObject;
 class btSoftBody;
 class btPairCachingGhostObject;
 
-class BlenderBulletCharacterController : public btKinematicCharacterController,
+class CcdCharacter : public btKinematicCharacterController,
                                          public PHY_ICharacter {
  private:
   CcdPhysicsController *m_ctrl;
@@ -463,7 +463,7 @@ class BlenderBulletCharacterController : public btKinematicCharacterController,
   unsigned char m_maxJumps;
 
  public:
-  BlenderBulletCharacterController(CcdPhysicsController *ctrl,
+  CcdCharacter(CcdPhysicsController *ctrl,
                                    btMotionState *motionState,
                                    btPairCachingGhostObject *ghost,
                                    btConvexShape *shape,
@@ -562,7 +562,7 @@ class CleanPairCallback : public btOverlapCallback {
 class CcdPhysicsController : public PHY_IPhysicsController {
  protected:
   btCollisionObject *m_object;
-  BlenderBulletCharacterController *m_characterController;
+  CcdCharacter *m_characterController;
 
   class PHY_IMotionState *m_MotionState;
   btMotionState *m_bulletMotionState;
