@@ -72,19 +72,19 @@ class KX_CollisionEventManager : public SCA_EventManager {
   std::set<NewCollision> m_newCollisions;
 
   static bool newCollisionResponse(void *client_data,
-                                   void *object1,
-                                   void *object2,
+                                   PHY_IPhysicsController *ctrl1,
+                                   PHY_IPhysicsController *ctrl2,
                                    const PHY_ICollData *coll_data,
                                    bool first);
 
   static bool newBroadphaseResponse(void *client_data,
-                                    void *object1,
-                                    void *object2,
+                                    PHY_IPhysicsController *ctrl1,
+                                    PHY_IPhysicsController *ctrl2,
                                     const PHY_ICollData *coll_data,
                                     bool first);
 
-  virtual bool NewHandleCollision(void *obj1,
-                                  void *obj2,
+  virtual bool NewHandleCollision(PHY_IPhysicsController *ctrl1,
+                                  PHY_IPhysicsController *ctrl2,
                                   const PHY_ICollData *coll_data,
                                   bool first);
 
@@ -93,17 +93,12 @@ class KX_CollisionEventManager : public SCA_EventManager {
  public:
   KX_CollisionEventManager(class SCA_LogicManager *logicmgr, PHY_IPhysicsEnvironment *physEnv);
   virtual ~KX_CollisionEventManager();
+
   virtual void NextFrame();
   virtual void EndFrame();
   virtual bool RegisterSensor(SCA_ISensor *sensor);
   virtual bool RemoveSensor(SCA_ISensor *sensor);
 
-  SCA_LogicManager *GetLogicManager()
-  {
-    return m_logicmgr;
-  }
-  PHY_IPhysicsEnvironment *GetPhysicsEnvironment()
-  {
-    return m_physEnv;
-  }
+  SCA_LogicManager *GetLogicManager();
+  PHY_IPhysicsEnvironment *GetPhysicsEnvironment();
 };
