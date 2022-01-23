@@ -375,7 +375,6 @@ CcdPhysicsEnvironment::CcdPhysicsEnvironment(PHY_SolverType solverType, bool use
       m_angularDeactivationThreshold(1.0f),
       m_contactBreakingThreshold(0.02f),
       m_solver(nullptr),
-      m_ownPairCache(nullptr),
       m_filterCallback(nullptr),
       m_ghostPairCallback(nullptr),
       m_ownDispatcher(nullptr)
@@ -1999,9 +1998,6 @@ CcdPhysicsEnvironment::~CcdPhysicsEnvironment()
   // delete m_dispatcher;
   delete m_dynamicsWorld;
 
-  if (nullptr != m_ownPairCache)
-    delete m_ownPairCache;
-
   if (nullptr != m_ownDispatcher)
     delete m_ownDispatcher;
 
@@ -2126,9 +2122,7 @@ void CcdPhysicsEnvironment::CallbackTriggers()
       const CcdCollData *coll_data = new CcdCollData(manifold);
 
       m_triggerCallbacks[PHY_OBJECT_RESPONSE](m_triggerCallbacksUserPtrs[PHY_OBJECT_RESPONSE],
-                                              colliding_ctrl0 ? ctrl0 : ctrl1,
-                                              colliding_ctrl0 ? ctrl1 : ctrl0,
-                                              coll_data);
+                                              ctrl0, ctrl1, coll_data, colliding_ctrl0);
     }
     // Bullet does not refresh the manifold contact point for object without contact response
     // may need to remove this when a newer Bullet version is integrated
@@ -2140,6 +2134,40 @@ void CcdPhysicsEnvironment::CallbackTriggers()
           ->clearManifold();  // refreshContactPoints(rb0->getCenterOfMassTransform(),rb1->getCenterOfMassTransform());
     }
   }
+}
+
+PHY_CollisionTestResult CcdPhysicsEnvironment::CheckCollision(PHY_IPhysicsController *ctrl0, PHY_IPhysicsController *ctrl1)
+{
+  PHY_CollisionTestResult result{false, false, nullptr};
+
+  btCollisionObject *col0 = static_cast<CcdPhysicsController *>(ctrl0)->GetCollisionObject();
+  btCollisionObject *col1 = static_cast<CcdPhysicsController *>(ctrl1)->GetCollisionObject();
+
+  if (!col0 || !col1) {
+    return result;
+  }
+
+  btBroadphaseProxy *proxy0 = col0->getBroadphaseHandle();
+  btBroadphaseProxy *proxy1 = col1->getBroadphaseHandle();
+
+  btBroadphasePair *pair = m_dynamicsWorld->getPairCache()->findPair(proxy0, proxy1);
+
+  if (!pair) {
+    return result;
+  }
+
+  result.collide = true;
+
+  if (pair->m_algorithm) {
+    btManifoldArray manifoldArray;
+    pair->m_algorithm->getAllContactManifolds(manifoldArray);
+    btPersistentManifold *manifold = manifoldArray[0];
+
+    result.isFirst = (col0 == manifold->getBody0());
+    result.collData = new CcdCollData(manifold);
+  }
+
+  return result;
 }
 
 // This call back is called before a pair is added in the cache
@@ -2184,7 +2212,7 @@ bool CcdOverlapFilterCallBack::needBroadphaseCollision(btBroadphaseProxy *proxy0
 
   if (m_physEnv->m_triggerCallbacks[PHY_BROADPH_RESPONSE]) {
     return m_physEnv->m_triggerCallbacks[PHY_BROADPH_RESPONSE](
-        m_physEnv->m_triggerCallbacksUserPtrs[PHY_BROADPH_RESPONSE], sensorCtrl, objCtrl, 0);
+        m_physEnv->m_triggerCallbacksUserPtrs[PHY_BROADPH_RESPONSE], sensorCtrl, objCtrl, nullptr, false);
   }
   return true;
 }

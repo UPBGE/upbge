@@ -229,7 +229,7 @@ bool SCA_CollisionSensor::BroadPhaseSensorFilterCollision(void *obj1, void *obj2
 
 bool SCA_CollisionSensor::NewHandleCollision(void *object1,
                                              void *object2,
-                                             const PHY_CollData *colldata)
+                                             const PHY_ICollData *colldata)
 {
   KX_GameObject *parent = (KX_GameObject *)GetParent();
 

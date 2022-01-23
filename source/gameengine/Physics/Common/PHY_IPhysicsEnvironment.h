@@ -261,6 +261,7 @@ class PHY_IPhysicsEnvironment {
                                     void *user) = 0;
   virtual bool RequestCollisionCallback(PHY_IPhysicsController *ctrl) = 0;
   virtual bool RemoveCollisionCallback(PHY_IPhysicsController *ctrl) = 0;
+  virtual PHY_CollisionTestResult CheckCollision(PHY_IPhysicsController *ctrl0, PHY_IPhysicsController *ctrl1) = 0;
   // These two methods are *solely* used to create controllers for sensor! Don't use for anything
   // else
   virtual PHY_IPhysicsController *CreateSphereController(float radius,
