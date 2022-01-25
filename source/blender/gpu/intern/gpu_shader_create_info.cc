@@ -72,6 +72,8 @@ void ShaderCreateInfo::finalize()
     pass_resources_.extend(info.pass_resources_);
     typedef_sources_.extend(info.typedef_sources_);
 
+    validate(info);
+
     if (info.local_group_size_[0] != 0) {
       BLI_assert(local_group_size_[0] == 0);
       for (int i = 0; i < 3; i++) {
@@ -100,6 +102,67 @@ void ShaderCreateInfo::finalize()
   }
 }
 
+void ShaderCreateInfo::validate(const ShaderCreateInfo &other_info)
+{
+  {
+    /* Check same bindpoints usage in OGL. */
+    Set<int> images, samplers, ubos, ssbos;
+
+    auto register_resource = [&](const Resource &res) -> bool {
+      switch (res.bind_type) {
+        case Resource::BindType::UNIFORM_BUFFER:
+          return images.add(res.slot);
+        case Resource::BindType::STORAGE_BUFFER:
+          return samplers.add(res.slot);
+        case Resource::BindType::SAMPLER:
+          return ubos.add(res.slot);
+        case Resource::BindType::IMAGE:
+          return ssbos.add(res.slot);
+        default:
+          return false;
+      }
+    };
+
+    auto print_error_msg = [&](const Resource &res) {
+      std::cerr << name_ << ": Validation failed : Overlapping ";
+
+      switch (res.bind_type) {
+        case Resource::BindType::UNIFORM_BUFFER:
+          std::cerr << "Uniform Buffer " << res.uniformbuf.name;
+          break;
+        case Resource::BindType::STORAGE_BUFFER:
+          std::cerr << "Storage Buffer " << res.storagebuf.name;
+          break;
+        case Resource::BindType::SAMPLER:
+          std::cerr << "Sampler " << res.sampler.name;
+          break;
+        case Resource::BindType::IMAGE:
+          std::cerr << "Image " << res.image.name;
+          break;
+        default:
+          std::cerr << "Unknown Type";
+          break;
+      }
+      std::cerr << " (" << res.slot << ") while merging " << other_info.name_ << std::endl;
+    };
+
+    for (auto &res : batch_resources_) {
+      if (register_resource(res) == false) {
+        print_error_msg(res);
+      }
+    }
+
+    for (auto &res : pass_resources_) {
+      if (register_resource(res) == false) {
+        print_error_msg(res);
+      }
+    }
+  }
+  {
+    /* TODO(fclem) Push constant validation. */
+  }
+}
+
 }  // namespace blender::gpu::shader
 
 using namespace blender::gpu::shader;
@@ -125,8 +188,8 @@ void gpu_shader_create_info_init()
 #include "gpu_shader_create_info_list.hh"
 
 /* Baked shader data appended to create infos. */
-/* TODO(jbakker): should call a function with a callback. so we could switch implementations. We
- * cannot compile bf_gpu twice.*/
+/* TODO(jbakker): should call a function with a callback. so we could switch implementations.
+ * We cannot compile bf_gpu twice. */
 #ifdef GPU_RUNTIME
 #  include "gpu_shader_baked.hh"
 #endif

@@ -631,6 +631,7 @@ static const EnumPropertyItem rna_node_geometry_attribute_input_type_items_no_bo
 #  include "NOD_geometry.h"
 #  include "NOD_shader.h"
 #  include "NOD_socket.h"
+#  include "NOD_texture.h"
 
 #  include "RE_engine.h"
 #  include "RE_pipeline.h"
@@ -9892,6 +9893,27 @@ static void def_geo_point_distribute(StructRNA *srna)
   RNA_def_property_enum_default(prop, GEO_NODE_POINT_DISTRIBUTE_RANDOM);
   RNA_def_property_ui_text(prop, "Distribution Method", "Method to use for scattering points");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+}
+
+static void def_geo_extrude_mesh(StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  static const EnumPropertyItem mode_items[] = {
+      {GEO_NODE_EXTRUDE_MESH_VERTICES, "VERTICES", 0, "Vertices", ""},
+      {GEO_NODE_EXTRUDE_MESH_EDGES, "EDGES", 0, "Edges", ""},
+      {GEO_NODE_EXTRUDE_MESH_FACES, "FACES", 0, "Faces", ""},
+      {0, NULL, 0, NULL, NULL},
+  };
+
+  RNA_def_struct_sdna_from(srna, "NodeGeometryExtrudeMesh", "storage");
+
+  prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "mode");
+  RNA_def_property_enum_items(prop, mode_items);
+  RNA_def_property_enum_default(prop, GEO_NODE_EXTRUDE_MESH_FACES);
+  RNA_def_property_ui_text(prop, "Mode", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
 static void def_geo_distribute_points_on_faces(StructRNA *srna)
