@@ -91,6 +91,7 @@ extern char datatoc_gpu_shader_material_output_aov_glsl[];
 extern char datatoc_gpu_shader_material_output_material_glsl[];
 extern char datatoc_gpu_shader_material_output_world_glsl[];
 extern char datatoc_gpu_shader_material_particle_info_glsl[];
+extern char datatoc_gpu_shader_material_point_info_glsl[];
 extern char datatoc_gpu_shader_material_principled_glsl[];
 extern char datatoc_gpu_shader_material_refraction_glsl[];
 extern char datatoc_gpu_shader_material_rgb_curves_glsl[];
@@ -296,7 +297,7 @@ static GPUMaterialLibrary gpu_shader_material_glass_library = {
 
 static GPUMaterialLibrary gpu_shader_material_hair_info_library = {
     .code = datatoc_gpu_shader_material_hair_info_glsl,
-    .dependencies = {NULL},
+    .dependencies = {&gpu_shader_material_hash_library, NULL},
 };
 
 static GPUMaterialLibrary gpu_shader_material_holdout_library = {
@@ -387,6 +388,11 @@ static GPUMaterialLibrary gpu_shader_material_output_world_library = {
 static GPUMaterialLibrary gpu_shader_material_particle_info_library = {
     .code = datatoc_gpu_shader_material_particle_info_glsl,
     .dependencies = {NULL},
+};
+
+static GPUMaterialLibrary gpu_shader_material_point_info_library = {
+    .code = datatoc_gpu_shader_material_point_info_glsl,
+    .dependencies = {&gpu_shader_material_hash_library, NULL},
 };
 
 static GPUMaterialLibrary gpu_shader_material_principled_library = {
@@ -651,6 +657,7 @@ static GPUMaterialLibrary *gpu_material_libraries[] = {
     &gpu_shader_material_output_material_library,
     &gpu_shader_material_output_world_library,
     &gpu_shader_material_particle_info_library,
+    &gpu_shader_material_point_info_library,
     &gpu_shader_material_principled_library,
     &gpu_shader_material_refraction_library,
     &gpu_shader_material_rgb_curves_library,

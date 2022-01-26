@@ -74,12 +74,12 @@ void ShaderCreateInfo::finalize()
 
     validate(info);
 
-    if (info.local_group_size_[0] != 0) {
-      BLI_assert(local_group_size_[0] == 0);
-      for (int i = 0; i < 3; i++) {
-        local_group_size_[i] = info.local_group_size_[i];
-      }
+    if (info.compute_layout_.local_size_x != -1) {
+      compute_layout_.local_size_x = info.compute_layout_.local_size_x;
+      compute_layout_.local_size_y = info.compute_layout_.local_size_y;
+      compute_layout_.local_size_z = info.compute_layout_.local_size_z;
     }
+
     if (!info.vertex_source_.is_empty()) {
       BLI_assert(vertex_source_.is_empty());
       vertex_source_ = info.vertex_source_;
@@ -105,7 +105,7 @@ void ShaderCreateInfo::finalize()
 void ShaderCreateInfo::validate(const ShaderCreateInfo &other_info)
 {
   {
-    /* Check same bindpoints usage in OGL. */
+    /* Check same bind-points usage in OGL. */
     Set<int> images, samplers, ubos, ssbos;
 
     auto register_resource = [&](const Resource &res) -> bool {

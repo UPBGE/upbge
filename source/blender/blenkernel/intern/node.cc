@@ -4671,6 +4671,7 @@ static void registerTextureNodes()
   register_node_type_sh_tangent();
   register_node_type_sh_normal_map();
   register_node_type_sh_hair_info();
+  register_node_type_sh_point_info();
   register_node_type_sh_volume_info();
 
   register_node_type_tex_checker();
@@ -4804,6 +4805,7 @@ static void registerGeometryNodes()
   register_node_type_geo_join_geometry();
   register_node_type_geo_material_replace();
   register_node_type_geo_material_selection();
+  register_node_type_geo_merge_by_distance();
   register_node_type_geo_mesh_primitive_circle();
   register_node_type_geo_mesh_primitive_cone();
   register_node_type_geo_mesh_primitive_cube();

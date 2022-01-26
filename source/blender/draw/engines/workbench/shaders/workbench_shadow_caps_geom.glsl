@@ -1,6 +1,4 @@
-#extension GL_ARB_gpu_shader5 : enable
-
-#ifdef GL_ARB_gpu_shader5
+#ifdef GPU_ARB_gpu_shader5
 #  define USE_INVOC_EXT
 #endif
 

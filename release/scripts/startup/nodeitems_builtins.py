@@ -181,6 +181,7 @@ def geometry_node_items(context):
     yield NodeItem("GeometryNodeConvexHull")
     yield NodeItem("GeometryNodeDeleteGeometry")
     yield NodeItem("GeometryNodeGeometryToInstance")
+    yield NodeItem("GeometryNodeMergeByDistance")
     yield NodeItem("GeometryNodeProximity")
     yield NodeItem("GeometryNodeJoinGeometry")
     yield NodeItem("GeometryNodeRaycast")
@@ -390,6 +391,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeAmbientOcclusion"),
         NodeItem("ShaderNodeObjectInfo"),
         NodeItem("ShaderNodeHairInfo"),
+        NodeItem("ShaderNodePointInfo"),
         NodeItem("ShaderNodeVolumeInfo"),
         NodeItem("ShaderNodeParticleInfo"),
         NodeItem("ShaderNodeCameraData"),

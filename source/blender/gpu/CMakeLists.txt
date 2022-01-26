@@ -326,6 +326,7 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_output_material.glsl
   shaders/material/gpu_shader_material_output_world.glsl
   shaders/material/gpu_shader_material_particle_info.glsl
+  shaders/material/gpu_shader_material_point_info.glsl
   shaders/material/gpu_shader_material_principled.glsl
   shaders/material/gpu_shader_material_refraction.glsl
   shaders/material/gpu_shader_material_rgb_curves.glsl
@@ -415,6 +416,7 @@ set(SHADER_CREATE_INFOS
 ../draw/intern/shaders/draw_fullscreen_info.hh
 ../draw/intern/shaders/draw_object_infos_info.hh
 ../draw/intern/shaders/draw_view_info.hh
+../draw/intern/shaders/draw_hair_refine_info.hh
 
 shaders/infos/gpu_clip_planes_info.hh
 shaders/infos/gpu_shader_2D_area_borders_info.hh
