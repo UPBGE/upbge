@@ -295,7 +295,9 @@ DRWShaderLibrary *DRW_shader_library_create(void);
 /**
  * \warning Each library must be added after all its dependencies.
  */
-void DRW_shader_library_add_file(DRWShaderLibrary *lib, char *lib_code, const char *lib_name);
+void DRW_shader_library_add_file(DRWShaderLibrary *lib,
+                                 const char *lib_code,
+                                 const char *lib_name);
 #define DRW_SHADER_LIB_ADD(lib, lib_name) \
   DRW_shader_library_add_file(lib, datatoc_##lib_name##_glsl, STRINGIFY(lib_name) ".glsl")
 
@@ -698,7 +700,7 @@ const DRWView *DRW_view_default_get(void);
 /**
  * MUST only be called once per render and only in render mode. Sets default view.
  */
-void DRW_view_default_set(DRWView *view);
+void DRW_view_default_set(const DRWView *view);
 /**
  * \warning Only use in render AND only if you are going to set view_default again.
  */
@@ -706,7 +708,7 @@ void DRW_view_reset(void);
 /**
  * Set active view for rendering.
  */
-void DRW_view_set_active(DRWView *view);
+void DRW_view_set_active(const DRWView *view);
 const DRWView *DRW_view_get_active(void);
 
 /**

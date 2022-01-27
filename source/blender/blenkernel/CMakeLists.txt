@@ -183,6 +183,7 @@ set(SRC
   intern/lib_id.c
   intern/lib_id_delete.c
   intern/lib_id_eval.c
+  intern/lib_id_remapper.cc
   intern/lib_override.c
   intern/lib_query.c
   intern/lib_remap.c
@@ -533,7 +534,7 @@ set(LIB
   bf_simulation
 
   # For `vfontdata_freetype.c`.
-  ${FREETYPE_LIBRARIES}
+  ${FREETYPE_LIBRARIES} ${BROTLI_LIBRARIES}
 )
 
 if(WITH_BINRELOC)
@@ -838,6 +839,7 @@ if(WITH_GTESTS)
     intern/idprop_serialize_test.cc
     intern/lattice_deform_test.cc
     intern/layer_test.cc
+    intern/lib_id_remapper_test.cc
     intern/lib_id_test.cc
     intern/lib_remap_test.cc
     intern/tracking_test.cc

@@ -217,6 +217,8 @@ static void print_image_type(std::ostream &os,
     case ImageType::UINT_2D_ARRAY:
     case ImageType::SHADOW_2D:
     case ImageType::SHADOW_2D_ARRAY:
+    case ImageType::DEPTH_2D:
+    case ImageType::DEPTH_2D_ARRAY:
       os << "2D";
       break;
     case ImageType::FLOAT_3D:
@@ -232,6 +234,8 @@ static void print_image_type(std::ostream &os,
     case ImageType::UINT_CUBE_ARRAY:
     case ImageType::SHADOW_CUBE:
     case ImageType::SHADOW_CUBE_ARRAY:
+    case ImageType::DEPTH_CUBE:
+    case ImageType::DEPTH_CUBE_ARRAY:
       os << "Cube";
       break;
     default:
@@ -250,6 +254,8 @@ static void print_image_type(std::ostream &os,
     case ImageType::UINT_CUBE_ARRAY:
     case ImageType::SHADOW_2D_ARRAY:
     case ImageType::SHADOW_CUBE_ARRAY:
+    case ImageType::DEPTH_2D_ARRAY:
+    case ImageType::DEPTH_CUBE_ARRAY:
       os << "Array";
       break;
     default:
@@ -403,9 +409,6 @@ std::string GLShader::resources_declare(const ShaderCreateInfo &info) const
   }
   ss << "\n/* Push Constants. */\n";
   for (const ShaderCreateInfo::PushConst &uniform : info.push_constants_) {
-    if (GLContext::explicit_location_support) {
-      ss << "layout(location = " << uniform.index << ") ";
-    }
     ss << "uniform " << to_string(uniform.type) << " " << uniform.name;
     if (uniform.array_size > 0) {
       ss << "[" << uniform.array_size << "]";

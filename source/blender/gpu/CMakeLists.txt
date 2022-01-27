@@ -402,7 +402,7 @@ set(GLSL_SOURCE_CONTENT "")
 foreach(GLSL_FILE ${GLSL_SRC})
   get_filename_component(GLSL_FILE_NAME ${GLSL_FILE} NAME)
   string(REPLACE "." "_" GLSL_FILE_NAME_UNDERSCORES ${GLSL_FILE_NAME})
-  string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(datatoc_${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\"\)\n")
+  string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(datatoc_${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\", \"${GLSL_FILE}\"\)\n")
 endforeach()
 
 set(glsl_source_list_file "${CMAKE_CURRENT_BINARY_DIR}/glsl_gpu_source_list.h")
@@ -411,8 +411,16 @@ list(APPEND SRC ${glsl_source_list_file})
 list(APPEND INC ${CMAKE_CURRENT_BINARY_DIR})
 
 set(SHADER_CREATE_INFOS
-#../draw/engines/workbench/shaders/workbench_effect_cavity_info.hh
-#../draw/engines/workbench/shaders/workbench_prepass_info.hh
+../draw/engines/workbench/shaders/infos/workbench_composite_info.hh
+../draw/engines/workbench/shaders/infos/workbench_effect_antialiasing_info.hh
+../draw/engines/workbench/shaders/infos/workbench_effect_cavity_info.hh
+../draw/engines/workbench/shaders/infos/workbench_effect_dof_info.hh
+../draw/engines/workbench/shaders/infos/workbench_effect_outline_info.hh
+../draw/engines/workbench/shaders/infos/workbench_merge_infront_info.hh
+../draw/engines/workbench/shaders/infos/workbench_prepass_info.hh
+../draw/engines/workbench/shaders/infos/workbench_shadow_info.hh
+../draw/engines/workbench/shaders/infos/workbench_transparent_resolve_info.hh
+../draw/engines/workbench/shaders/infos/workbench_volume_info.hh
 ../draw/intern/shaders/draw_fullscreen_info.hh
 ../draw/intern/shaders/draw_object_infos_info.hh
 ../draw/intern/shaders/draw_view_info.hh
