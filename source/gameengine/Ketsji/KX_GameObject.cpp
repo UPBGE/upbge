@@ -1282,7 +1282,12 @@ void KX_GameObject::SetVisible(bool v, bool recursive)
       }
 
       BKE_layer_collection_sync(scene, view_layer);
-      DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
+      if (ob->gameflag & OB_OVERLAY_COLLECTION) {
+        GetScene()->AppendToIdsToUpdateInOverlayPass(&scene->id, ID_RECALC_BASE_FLAGS);
+      }
+      else {
+        GetScene()->AppendToIdsToUpdateInAllRenderPasses(&scene->id, ID_RECALC_BASE_FLAGS);
+      }
     }
   }
 
