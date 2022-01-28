@@ -73,7 +73,6 @@ extern char datatoc_gpu_shader_2D_nodelink_vert_glsl[];
 
 extern char datatoc_gpu_shader_3D_image_vert_glsl[];
 extern char datatoc_gpu_shader_image_frag_glsl[];
-extern char datatoc_gpu_shader_image_linear_frag_glsl[];  // UPBGE
 extern char datatoc_gpu_shader_image_overlays_merge_frag_glsl[];
 extern char datatoc_gpu_shader_image_overlays_stereo_merge_frag_glsl[];
 extern char datatoc_gpu_shader_image_color_frag_glsl[];
@@ -122,6 +121,7 @@ extern char datatoc_gpu_shader_cfg_world_clip_lib_glsl[];
 extern char datatoc_gpu_shader_colorspace_lib_glsl[];
 
 /********************UPBGE*********************/
+extern char datatoc_gpu_shader_image_linear_frag_glsl[];
 extern char datatoc_gpu_shader_black_frag_glsl[];
 extern char datatoc_gpu_shader_black_vert_glsl[];
 extern char datatoc_gpu_shader_frame_buffer_frag_glsl[];
@@ -360,32 +360,38 @@ static const GPUShaderStages builtin_shader_stages[GPU_SHADER_BUILTIN_LEN] = {
     /********************UPBGE *************/
     [GPU_SHADER_2D_IMAGE_LINEAR_TO_SRGB] =
         {
+            .name = "GPU_SHADER_2D_IMAGE_LINEAR_TO_SRGB",
             .vert = datatoc_gpu_shader_2D_image_vert_glsl,
             .frag = datatoc_gpu_shader_image_linear_frag_glsl,
         },
 
     [GPU_SHADER_DRAW_FRAME_BUFFER] =
         {
+            .name = "GPU_SHADER_DRAW_FRAME_BUFFER",
             .vert = datatoc_gpu_shader_frame_buffer_vert_glsl,
             .frag = datatoc_gpu_shader_frame_buffer_frag_glsl,
         },
     [GPU_SHADER_BLACK] =
         {
+            .name = "GPU_SHADER_BLACK",
             .vert = datatoc_gpu_shader_black_vert_glsl,
             .frag = datatoc_gpu_shader_black_frag_glsl,
         },
     [GPU_SHADER_BLACK_INSTANCING] =
         {
+            .name = "GPU_SHADER_BLACK_INSTANCING",
             .vert = datatoc_gpu_shader_black_vert_glsl,
             .frag = datatoc_gpu_shader_black_frag_glsl,
         },
     [GPU_SHADER_STEREO_STIPPLE] =
         {
+            .name = "GPU_SHADER_STEREO_STIPPLE",
             .vert = datatoc_gpu_shader_frame_buffer_vert_glsl,
             .frag = datatoc_gpu_shader_frame_buffer_frag_glsl,
         },
     [GPU_SHADER_STEREO_ANAGLYPH] =
         {
+            .name = "GPU_SHADER_STEREO_ANAGLYPH",
             .vert = datatoc_gpu_shader_frame_buffer_vert_glsl,
             .frag = datatoc_gpu_shader_frame_buffer_frag_glsl,
         },
