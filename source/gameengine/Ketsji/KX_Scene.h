@@ -149,10 +149,8 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
    * because the other render pass can contain the same objects
    * which need to be notified + flushed again.
    */
-  std::vector<std::pair<Object *, IDRecalcFlag>> m_extraObjectsToUpdateInAllRenderPasses;
-  std::vector<std::pair<Mesh *, IDRecalcFlag>> m_meshesToUpdateInAllRenderPasses;
-  std::vector<std::pair<Object *, IDRecalcFlag>> m_extraObjectsToUpdateInOverlayPass;
-  std::vector<bNodeTree *> m_nodeTreesToUpdateInAllRenderPasses;
+  std::vector<std::pair<ID *, IDRecalcFlag>> m_idsToUpdateInAllRenderPasses;
+  std::vector<std::pair<ID *, IDRecalcFlag>> m_idsToUpdateInOverlayPass;
   /*************************************************/
 
   RAS_BucketManager *m_bucketmanager;
@@ -373,11 +371,9 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
                          Object *ob,
                          std::vector<Object *> children);
   bool SomethingIsMoving();
-  void AppendToExtraObjectsToUpdateInAllRenderPasses(Object *ob, IDRecalcFlag flag);
-  void AppendToMeshesToUpdateInAllRenderPasses(Mesh *me, IDRecalcFlag flag);
-  void AppendToNodeTreesToUpdateInAllRenderPasses(bNodeTree *ntree);
-  void AppendToExtraObjectsToUpdateInOverlayPass(Object *ob, IDRecalcFlag flag);
-  void TagForExtraObjectsUpdate(Main *bmain, KX_Camera *cam);
+  void AppendToIdsToUpdateInAllRenderPasses(ID *id, IDRecalcFlag flag);
+  void AppendToIdsToUpdateInOverlayPass(ID *id, IDRecalcFlag flag);
+  void TagForExtraIdsUpdate(Main *bmain, KX_Camera *cam);
   KX_GameObject *AddDuplicaObject(KX_GameObject *gameobj,
                                   KX_GameObject *reference,
                                   float lifespan);

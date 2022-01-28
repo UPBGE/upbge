@@ -416,10 +416,10 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
   if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
     if (ob->gameflag & OB_OVERLAY_COLLECTION) {
-      scene->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_TRANSFORM);
+      scene->AppendToIdsToUpdateInOverlayPass(&ob->id, ID_RECALC_TRANSFORM);
     }
     else {
-      scene->AppendToExtraObjectsToUpdateInAllRenderPasses(ob, ID_RECALC_TRANSFORM);
+      scene->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_TRANSFORM);
     }
 
     BL_ArmatureObject *obj = (BL_ArmatureObject *)m_obj;
@@ -465,10 +465,10 @@ void BL_Action::Update(float curtime, bool applyToObject)
       // TODO: We need to find the good notifier per action
       if (isRightAction && !BKE_modifier_is_non_geometrical(md)) {
         if (ob->gameflag & OB_OVERLAY_COLLECTION) {
-          scene->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_GEOMETRY);
+          scene->AppendToIdsToUpdateInOverlayPass(&ob->id, ID_RECALC_GEOMETRY);
         }
         else {
-          scene->AppendToExtraObjectsToUpdateInAllRenderPasses(ob, ID_RECALC_GEOMETRY);
+          scene->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_GEOMETRY);
         }
         PointerRNA ptrrna;
         RNA_id_pointer_create(&ob->id, &ptrrna);
@@ -487,10 +487,10 @@ void BL_Action::Update(float curtime, bool applyToObject)
         bool isRightAction = ActionMatchesName(m_action, gpmd->name, ACT_TYPE_GPMODIFIER);
         if (isRightAction) {
           if (ob->gameflag & OB_OVERLAY_COLLECTION) {
-            scene->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_GEOMETRY);
+            scene->AppendToIdsToUpdateInOverlayPass(&ob->id, ID_RECALC_GEOMETRY);
           }
           else {
-            scene->AppendToExtraObjectsToUpdateInAllRenderPasses(ob, ID_RECALC_GEOMETRY);
+            scene->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_GEOMETRY);
           }
           PointerRNA ptrrna;
           RNA_id_pointer_create(&ob->id, &ptrrna);
@@ -509,10 +509,10 @@ void BL_Action::Update(float curtime, bool applyToObject)
             break;
           }
           if (ob->gameflag & OB_OVERLAY_COLLECTION) {
-            scene->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_TRANSFORM);
+            scene->AppendToIdsToUpdateInOverlayPass(&ob->id, ID_RECALC_TRANSFORM);
           }
           else {
-            scene->AppendToExtraObjectsToUpdateInAllRenderPasses(ob, ID_RECALC_TRANSFORM);
+            scene->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_TRANSFORM);
           }
           PointerRNA ptrrna;
           RNA_id_pointer_create(&ob->id, &ptrrna);
@@ -536,10 +536,10 @@ void BL_Action::Update(float curtime, bool applyToObject)
           }
           if (ActionMatchesName(m_action, prop->name, ACT_TYPE_IDPROP)) {
             if (ob->gameflag & OB_OVERLAY_COLLECTION) {
-              scene->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_TRANSFORM);
+              scene->AppendToIdsToUpdateInOverlayPass(&ob->id, ID_RECALC_TRANSFORM);
             }
             else {
-              scene->AppendToExtraObjectsToUpdateInAllRenderPasses(ob, ID_RECALC_TRANSFORM);
+              scene->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_TRANSFORM);
             }
             PointerRNA ptrrna;
             RNA_id_pointer_create(&ob->id, &ptrrna);
@@ -568,7 +568,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
           }
         }
         if (isRightAction) {
-          scene->AppendToNodeTreesToUpdateInAllRenderPasses(nodetree);
+          scene->AppendToIdsToUpdateInAllRenderPasses(&nodetree->id, (IDRecalcFlag)0);
           PointerRNA ptrrna;
           RNA_id_pointer_create(&nodetree->id, &ptrrna);
           animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
@@ -585,7 +585,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
       if (ob->type == OB_MESH && me) {
         const bool bHasShapeKey = me->key && me->key->type == KEY_RELATIVE;
         if (bHasShapeKey && me->key->adt && me->key->adt->action == m_action) {
-          scene->AppendToMeshesToUpdateInAllRenderPasses(me, ID_RECALC_GEOMETRY);
+          scene->AppendToIdsToUpdateInAllRenderPasses(&me->id, ID_RECALC_GEOMETRY);
           Key *key = me->key;
 
           PointerRNA ptrrna;

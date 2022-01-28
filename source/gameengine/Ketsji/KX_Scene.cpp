@@ -262,10 +262,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
   m_overlay_collections = {};
   m_imageRenderCameraList = {};
-  m_extraObjectsToUpdateInAllRenderPasses = {};
-  m_meshesToUpdateInAllRenderPasses = {};
-  m_nodeTreesToUpdateInAllRenderPasses = {};
-  m_extraObjectsToUpdateInOverlayPass = {};
+  m_idsToUpdateInAllRenderPasses = {};
+  m_idsToUpdateInOverlayPass = {};
 
   /* To backup and restore obmat */
   m_backupObList = {};
@@ -638,7 +636,7 @@ void KX_Scene::OverlayPassDisableEffects(Depsgraph *depsgraph,
   if ((m_backupOverlayFlag != scene_eval->eevee.flag) ||
       (m_backupOverlayGameFlag != scene_eval->eevee.gameflag)) {
     /* Only tag if overlay settings changed since previous frame */
-    AppendToExtraObjectsToUpdateInOverlayPass(obcam, ID_RECALC_TRANSFORM);
+    AppendToIdsToUpdateInOverlayPass(&obcam->id, ID_RECALC_TRANSFORM);
   }
   m_backupOverlayFlag = scene_eval->eevee.flag;
   m_backupOverlayGameFlag = scene_eval->eevee.gameflag;
@@ -754,12 +752,10 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   }
 
   /* Notify depsgraph for other changes */
-  TagForExtraObjectsUpdate(bmain, cam);
+  TagForExtraIdsUpdate(bmain, cam);
 
   if (is_last_render_pass) {
-    m_extraObjectsToUpdateInAllRenderPasses.clear();
-    m_meshesToUpdateInAllRenderPasses.clear();
-    m_nodeTreesToUpdateInAllRenderPasses.clear();
+    m_idsToUpdateInAllRenderPasses.clear();
   }
 
   /* We need the changes to be flushed before each draw loop! */
@@ -1342,73 +1338,43 @@ bool KX_Scene::SomethingIsMoving()
   return false;
 }
 
-void KX_Scene::AppendToExtraObjectsToUpdateInAllRenderPasses(Object *ob, IDRecalcFlag flag)
+void KX_Scene::AppendToIdsToUpdateInAllRenderPasses(ID *id, IDRecalcFlag flag)
 {
-  std::pair<Object *, IDRecalcFlag> it = {ob, flag};
-  if (std::find(m_extraObjectsToUpdateInAllRenderPasses.begin(),
-                m_extraObjectsToUpdateInAllRenderPasses.end(),
-                it) == m_extraObjectsToUpdateInAllRenderPasses.end()) {
-    m_extraObjectsToUpdateInAllRenderPasses.push_back(it);
+  std::pair<ID *, IDRecalcFlag> it = {id, flag};
+  if (std::find(m_idsToUpdateInAllRenderPasses.begin(),
+                m_idsToUpdateInAllRenderPasses.end(),
+                it) == m_idsToUpdateInAllRenderPasses.end()) {
+    m_idsToUpdateInAllRenderPasses.push_back(it);
   }
 }
 
-void KX_Scene::AppendToMeshesToUpdateInAllRenderPasses(Mesh *me, IDRecalcFlag flag)
+void KX_Scene::AppendToIdsToUpdateInOverlayPass(ID *id, IDRecalcFlag flag)
 {
-  std::pair<Mesh *, IDRecalcFlag> it = {me, flag};
-  if (std::find(m_meshesToUpdateInAllRenderPasses.begin(),
-                m_meshesToUpdateInAllRenderPasses.end(),
-                it) == m_meshesToUpdateInAllRenderPasses.end()) {
-    m_meshesToUpdateInAllRenderPasses.push_back(it);
+  std::pair<ID *, IDRecalcFlag> it = {id, flag};
+  if (std::find(m_idsToUpdateInOverlayPass.begin(),
+                m_idsToUpdateInOverlayPass.end(),
+                it) == m_idsToUpdateInOverlayPass.end()) {
+    m_idsToUpdateInOverlayPass.push_back(it);
   }
 }
 
-void KX_Scene::AppendToNodeTreesToUpdateInAllRenderPasses(bNodeTree *ntree)
+void KX_Scene::TagForExtraIdsUpdate(Main *bmain, KX_Camera *cam)
 {
-  if (std::find(m_nodeTreesToUpdateInAllRenderPasses.begin(),
-                m_nodeTreesToUpdateInAllRenderPasses.end(),
-                ntree) == m_nodeTreesToUpdateInAllRenderPasses.end()) {
-    m_nodeTreesToUpdateInAllRenderPasses.push_back(ntree);
-  }
-}
-
-void KX_Scene::AppendToExtraObjectsToUpdateInOverlayPass(Object *ob, IDRecalcFlag flag)
-{
-  std::pair<Object *, IDRecalcFlag> it = {ob, flag};
-  if (std::find(m_extraObjectsToUpdateInOverlayPass.begin(),
-                m_extraObjectsToUpdateInOverlayPass.end(),
-                it) == m_extraObjectsToUpdateInOverlayPass.end()) {
-    m_extraObjectsToUpdateInOverlayPass.push_back(it);
-  }
-}
-
-void KX_Scene::TagForExtraObjectsUpdate(Main *bmain, KX_Camera *cam)
-{
-  for (std::vector<std::pair<Object *, IDRecalcFlag>>::iterator it =
-           m_extraObjectsToUpdateInAllRenderPasses.begin();
-       it != m_extraObjectsToUpdateInAllRenderPasses.end();
+  for (std::vector<std::pair<ID *, IDRecalcFlag>>::iterator it =
+           m_idsToUpdateInAllRenderPasses.begin();
+       it != m_idsToUpdateInAllRenderPasses.end();
        it++) {
-    DEG_id_tag_update(&it->first->id, it->second);
-  }
-
-  for (std::vector<std::pair<Mesh *, IDRecalcFlag>>::iterator it =
-           m_meshesToUpdateInAllRenderPasses.begin();
-       it != m_meshesToUpdateInAllRenderPasses.end();
-       it++) {
-    DEG_id_tag_update(&it->first->id, it->second);
-  }
-
-  for (bNodeTree *ntree : m_nodeTreesToUpdateInAllRenderPasses) {
-    DEG_id_tag_update(&ntree->id, 0); // TODO: Find more specific notifier in BKE_node_tree_update.h
+    DEG_id_tag_update(it->first, it->second);
   }
 
   if (cam && cam == GetOverlayCamera()) {
-    for (std::vector<std::pair<Object *, IDRecalcFlag>>::iterator it =
-             m_extraObjectsToUpdateInOverlayPass.begin();
-         it != m_extraObjectsToUpdateInOverlayPass.end();
+    for (std::vector<std::pair<ID *, IDRecalcFlag>>::iterator it =
+             m_idsToUpdateInOverlayPass.begin();
+         it != m_idsToUpdateInOverlayPass.end();
          it++) {
-      DEG_id_tag_update(&it->first->id, it->second);
+      DEG_id_tag_update(it->first, it->second);
     }
-    m_extraObjectsToUpdateInOverlayPass.clear();
+    m_idsToUpdateInOverlayPass.clear();
   }
 }
 
