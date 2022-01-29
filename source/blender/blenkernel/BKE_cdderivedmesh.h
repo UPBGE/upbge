@@ -63,10 +63,12 @@ enum {
   CDDM_MERGE_VERTS_DUMP_IF_MAPPED,
   CDDM_MERGE_VERTS_DUMP_IF_EQUAL,
 };
+#if 0
 DerivedMesh *CDDM_merge_verts(DerivedMesh *dm,
                               const int *vtargetmap,
                               const int tot_vtargetmap,
                               const int merge_mode);
+#endif
 
 /* creates a CDDerivedMesh from the given curve object */
 struct DerivedMesh *CDDM_from_curve(struct Object *ob);

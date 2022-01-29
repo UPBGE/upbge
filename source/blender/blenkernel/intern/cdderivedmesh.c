@@ -1197,6 +1197,7 @@ static bool poly_gset_compare_fn(const void *k1, const void *k2)
  *
  * \note #CDDM_recalc_tessellation has to run on the returned DM if you want to access tessfaces.
  */
+#if 0
 DerivedMesh *CDDM_merge_verts(DerivedMesh *dm,
                               const int *vtargetmap,
                               const int tot_vtargetmap,
@@ -1642,6 +1643,7 @@ DerivedMesh *CDDM_merge_verts(DerivedMesh *dm,
 
   return (DerivedMesh *)cddm2;
 }
+#endif
 #endif
 
 void CDDM_calc_edges_tessface(DerivedMesh *dm)
