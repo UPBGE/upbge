@@ -378,7 +378,7 @@ SG_Controller *KX_IpoController::GetReplica(SG_Node *destnode)
     uint_ptr newaddrbase = (uint_ptr)&iporeplica->m_ipo_xform;
     newaddrbase += offset;
     MT_Scalar *blaptr = (MT_Scalar *)newaddrbase;
-    copyipo->SetNewTarget((MT_Scalar *)blaptr);
+    copyipo->SetTarget((MT_Scalar *)blaptr);
   }
 
   return iporeplica;
