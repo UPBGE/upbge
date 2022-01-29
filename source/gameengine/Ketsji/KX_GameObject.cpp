@@ -4320,9 +4320,12 @@ PyObject *KX_GameObject::PyCollide(PyObject *value)
   if (!testResult.collide) {
     PyTuple_SET_ITEM(result, 0, Py_False);
     PyTuple_SET_ITEM(result, 1, Py_None);
+    Py_INCREF(Py_False);
+    Py_INCREF(Py_None);
   }
   else {
     PyTuple_SET_ITEM(result, 0, Py_True);
+    Py_INCREF(Py_True);
 
     if (testResult.collData) {
       KX_CollisionContactPointList *contactPointList = new KX_CollisionContactPointList(testResult.collData, testResult.isFirst);
@@ -4330,6 +4333,7 @@ PyObject *KX_GameObject::PyCollide(PyObject *value)
     }
     else {
       PyTuple_SET_ITEM(result, 1, Py_None);
+      Py_INCREF(Py_None);
     }
   }
 
