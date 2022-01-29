@@ -33,7 +33,7 @@ extern "C" {
 /* Blender major and minor version. */
 #define BLENDER_VERSION 302
 
-#define UPBGE_VERSION 31
+#define UPBGE_VERSION 32
 
 /* Blender patch version for bugfix releases. */
 #define BLENDER_VERSION_PATCH 0
