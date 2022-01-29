@@ -1441,6 +1441,7 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
     PyList_SET_ITEM(joylist, i, Py_None);
   }
   PyDict_SetItemString(d, "joysticks", joylist);
+  Py_DECREF(joylist);
 
   ErrorObject = PyUnicode_FromString("GameLogic.error");
   PyDict_SetItemString(d, "error", ErrorObject);
@@ -2258,7 +2259,9 @@ void postInitGamePlayerPythonScripting(
   }
 #  endif
 
-  PyDict_SetItemString(PyImport_GetModuleDict(), "bge", initBGE());
+  PyObject *mod = initBGE();
+  PyDict_SetItemString(PyImport_GetModuleDict(), "bge", mod);
+  Py_DECREF(mod);
 
   first_time = false;
 
@@ -2467,7 +2470,9 @@ void initGamePythonScripting(Main *maggie, bContext *C, bool *audioDeviceIsIniti
   }
 #  endif
 
-  PyDict_SetItemString(PyImport_GetModuleDict(), "bge", initBGE());
+  PyObject *mod = initBGE();
+  PyDict_SetItemString(PyImport_GetModuleDict(), "bge", mod);
+  Py_DECREF(mod);
 
   BPY_python_reset(C);
 
@@ -2500,7 +2505,6 @@ void exitGamePythonScripting()
 void setupGamePython(KX_KetsjiEngine *ketsjiengine,
                      Main *blenderdata,
                      PyObject *pyGlobalDict,
-                     PyObject **gameLogic,
                      int argc,
                      char **argv,
                      bContext *C,
@@ -2515,13 +2519,14 @@ void setupGamePython(KX_KetsjiEngine *ketsjiengine,
 
   modules = PyImport_GetModuleDict();
 
-  *gameLogic = PyDict_GetItemString(modules, "GameLogic");
+  PyObject *gameLogic = PyDict_GetItemString(modules, "GameLogic");
   /* is set in initGameLogicPythonBinding so only set here if we want it to persist between scenes
    */
   if (pyGlobalDict)
-    PyDict_SetItemString(PyModule_GetDict(*gameLogic),
+    PyDict_SetItemString(PyModule_GetDict(gameLogic),
                          "globalDict",
                          pyGlobalDict);  // Same as importing the module.z
+  Py_DECREF(gameLogic);
 
   Scene *startscene = CTX_data_scene(C);
 

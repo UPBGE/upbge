@@ -64,7 +64,6 @@ void exitGamePythonScripting();
 void setupGamePython(KX_KetsjiEngine *ketsjiengine,
                      Main *blenderdata,
                      PyObject *pyGlobalDict,
-                     PyObject **gameLogic,
                      int argc,
                      char **argv,
                      struct bContext *C,
