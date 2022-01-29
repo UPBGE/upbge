@@ -31,6 +31,7 @@
 
 #include "SCA_IObject.h"
 
+#include "CM_List.h"
 #include "SCA_IActuator.h"
 #include "SCA_ISensor.h"
 
@@ -138,15 +139,7 @@ void SCA_IObject::RegisterActuator(SCA_IActuator *act)
 
 void SCA_IObject::UnregisterActuator(SCA_IActuator *act)
 {
-  for (SCA_ActuatorList::iterator ita = m_registeredActuators.begin();
-       ita != m_registeredActuators.end();) {
-    if (*ita == act) {
-      ita = m_registeredActuators.erase(ita);
-    }
-    else {
-      ++ita;
-    }
-  }
+  CM_ListRemoveIfFound(m_registeredActuators, act);
 }
 
 void SCA_IObject::RegisterObject(SCA_IObject *obj)
@@ -158,15 +151,7 @@ void SCA_IObject::RegisterObject(SCA_IObject *obj)
 
 void SCA_IObject::UnregisterObject(SCA_IObject *obj)
 {
-  for (SCA_ObjectList::iterator ito = m_registeredObjects.begin();
-       ito != m_registeredObjects.end();) {
-    if (*ito == obj) {
-      ito = m_registeredObjects.erase(ito);
-    }
-    else {
-      ++ito;
-    }
-  }
+  CM_ListRemoveIfFound(m_registeredObjects, obj);
 }
 
 bool SCA_IObject::UnlinkObject(SCA_IObject *clientobj)
