@@ -26,7 +26,7 @@
  * Scenegraph controller for ipos.
  */
 
-/** \file gameengine/Ketsji/KX_IPO_SGController.cpp
+/** \file gameengine/Ketsji/KX_IpoController.cpp
  *  \ingroup ketsji
  */
 
@@ -42,7 +42,7 @@ typedef unsigned long uint_ptr;
 #  pragma warning(disable : 4786)
 #endif
 
-#include "KX_IPO_SGController.h"
+#include "KX_IpoController.h"
 
 #include "DNA_ipo_types.h"
 
@@ -52,7 +52,7 @@ typedef unsigned long uint_ptr;
 
 // All objects should start on frame 1! Will we ever need an object to
 // start on another frame, the 1.0 should change.
-KX_IpoSGController::KX_IpoSGController()
+KX_IpoController::KX_IpoController()
     : m_ipo_as_force(false),
       m_ipo_add(false),
       m_ipo_local(false),
@@ -67,7 +67,7 @@ KX_IpoSGController::KX_IpoSGController()
     m_ipo_channels_active[i] = false;
 }
 
-void KX_IpoSGController::SetOption(int option, int value)
+void KX_IpoController::SetOption(int option, int value)
 {
   switch (option) {
     case SG_CONTR_IPO_IPO_AS_FORCE:
@@ -98,12 +98,12 @@ void KX_IpoSGController::SetOption(int option, int value)
   }
 }
 
-void KX_IpoSGController::SetGameObject(KX_GameObject *go)
+void KX_IpoController::SetGameObject(KX_GameObject *go)
 {
   m_game_object = go;
 }
 
-bool KX_IpoSGController::Update(double currentTime)
+bool KX_IpoController::Update(double currentTime)
 {
   if (m_modified) {
     T_InterpolatorList::iterator i;
@@ -348,14 +348,14 @@ bool KX_IpoSGController::Update(double currentTime)
   return false;
 }
 
-void KX_IpoSGController::AddInterpolator(KX_IInterpolator *interp)
+void KX_IpoController::AddInterpolator(KX_IInterpolator *interp)
 {
   m_interpolators.push_back(interp);
 }
 
-SG_Controller *KX_IpoSGController::GetReplica(SG_Node *destnode)
+SG_Controller *KX_IpoController::GetReplica(SG_Node *destnode)
 {
-  KX_IpoSGController *iporeplica = new KX_IpoSGController(*this);
+  KX_IpoController *iporeplica = new KX_IpoController(*this);
   // clear object that ipo acts on in the replica.
   iporeplica->ClearNode();
   iporeplica->SetGameObject((KX_GameObject *)destnode->GetSGClientObject());
@@ -384,7 +384,7 @@ SG_Controller *KX_IpoSGController::GetReplica(SG_Node *destnode)
   return iporeplica;
 }
 
-KX_IpoSGController::~KX_IpoSGController()
+KX_IpoController::~KX_IpoController()
 {
   T_InterpolatorList::iterator i;
   for (i = m_interpolators.begin(); i != m_interpolators.end(); ++i) {

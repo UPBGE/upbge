@@ -56,7 +56,7 @@
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
 #include "KX_IInterpolator.h"
-#include "KX_IPO_SGController.h"
+#include "KX_IpoController.h"
 #include "KX_LightIpoSGController.h"
 #include "KX_ObColorIpoSGController.h"
 #include "KX_ScalarInterpolator.h"
@@ -89,7 +89,7 @@ static BL_InterpolatorList *GetAdtList(struct bAction *for_act, KX_Scene *scene)
 
 SG_Controller *BL_CreateIPO(struct bAction *action, KX_GameObject *gameobj, KX_Scene *scene)
 {
-  KX_IpoSGController *ipocontr = new KX_IpoSGController();
+  KX_IpoController *ipocontr = new KX_IpoController();
   ipocontr->SetGameObject(gameobj);
 
   Object *blenderobject = gameobj->GetBlenderObject();

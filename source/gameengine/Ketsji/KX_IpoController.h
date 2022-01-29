@@ -25,21 +25,21 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_IPO_SGController.h
+/** \file KX_IpoController.h
  *  \ingroup ketsji
  */
 
 #pragma once
 
 #include "KX_IInterpolator.h"
-#include "KX_IPOTransform.h"
+#include "KX_IpoTransform.h"
 #include "SG_Controller.h"
 #include "SG_Node.h"
 
 #define KX_MAX_IPO_CHANNELS 19  // note- [0] is not used
 
-class KX_IpoSGController : public SG_Controller {
-  KX_IPOTransform m_ipo_xform;
+class KX_IpoController : public SG_Controller {
+  KX_IpoTransform m_ipo_xform;
   T_InterpolatorList m_interpolators;
 
   /** Flag for each IPO channel that can be applied to a game object */
@@ -83,9 +83,9 @@ class KX_IpoSGController : public SG_Controller {
   class KX_GameObject *m_game_object;
 
  public:
-  KX_IpoSGController();
+  KX_IpoController();
 
-  virtual ~KX_IpoSGController();
+  virtual ~KX_IpoController();
 
   virtual SG_Controller *GetReplica(class SG_Node *destnode);
 
@@ -100,7 +100,7 @@ class KX_IpoSGController : public SG_Controller {
     m_ipo_channels_active[index] = value;
   }
 
-  KX_IPOTransform &GetIPOTransform()
+  KX_IpoTransform &GetIPOTransform()
   {
     return m_ipo_xform;
   }

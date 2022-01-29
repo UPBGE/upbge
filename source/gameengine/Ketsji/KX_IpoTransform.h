@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_IPOTransform.h
+/** \file KX_IpoTransform.h
  *  \ingroup ketsji
  *  \brief An abstract object you can move around in a 3d world, and has some logic
  */
@@ -34,9 +34,9 @@
 
 #include "MT_Transform.h"
 
-class KX_IPOTransform {
+class KX_IpoTransform {
  public:
-  KX_IPOTransform()
+  KX_IpoTransform()
       : m_position(0.0f, 0.0f, 0.0f),
         m_eulerAngles(0.0f, 0.0f, 0.0f),
         m_scaling(1.0f, 1.0f, 1.0f),
