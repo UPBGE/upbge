@@ -416,7 +416,9 @@ std::string GLShader::resources_declare(const ShaderCreateInfo &info) const
     ss << ";\n";
   }
   for (const ShaderCreateInfo::PushConst &uniform : info.push_constants_) {
-    ss << "#define " << uniform.name << " (" << uniform.name << ")\n";
+    /* T95278: Double macro to avoid some compilers think it is recursive. */
+    ss << "#define " << uniform.name << "_ " << uniform.name << "\n";
+    ss << "#define " << uniform.name << " (" << uniform.name << "_)\n";
   }
   ss << "\n";
   return ss.str();
@@ -498,7 +500,7 @@ std::string GLShader::geometry_layout_declare(const ShaderCreateInfo &info) cons
 static StageInterfaceInfo *find_interface_by_name(const Vector<StageInterfaceInfo *> &ifaces,
                                                   const StringRefNull &name)
 {
-  for (auto iface : ifaces) {
+  for (auto *iface : ifaces) {
     if (iface->name == name) {
       return iface;
     }

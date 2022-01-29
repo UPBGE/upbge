@@ -397,7 +397,7 @@ static void export_in_memory_texture(Image *ima,
     return;
   }
 
-  if (BLI_paths_equal(export_path, image_abs_path) && BLI_exists(image_abs_path)) {
+  if ((BLI_path_cmp_normalized(export_path, image_abs_path) == 0) && BLI_exists(image_abs_path)) {
     /* As a precaution, don't overwrite the original path. */
     return;
   }
@@ -440,7 +440,7 @@ static pxr::TfToken get_node_tex_image_color_space(bNode *node)
   return pxr::TfToken();
 }
 
-/* Search the upstream nodes connected to the given socket and return the first occurrance
+/* Search the upstream nodes connected to the given socket and return the first occurrence
  * of the node of the given type. Return null if no node of this type was found. */
 static bNode *traverse_channel(bNodeSocket *input, const short target_type)
 {
@@ -464,7 +464,7 @@ static bNode *traverse_channel(bNodeSocket *input, const short target_type)
   return nullptr;
 }
 
-/* Returns the first occurence of a principled bsdf or a diffuse bsdf node found in the given
+/* Returns the first occurrence of a principled BSDF or a diffuse BSDF node found in the given
  * material's node tree.  Returns null if no instance of either type was found.*/
 static bNode *find_bsdf_node(Material *material)
 {
@@ -668,7 +668,7 @@ static void copy_tiled_textures(Image *ima,
       continue;
     }
 
-    if (BLI_paths_equal(src_tile_path, dest_tile_path)) {
+    if (BLI_path_cmp_normalized(src_tile_path, dest_tile_path) == 0) {
       /* Source and destination paths are the same, don't copy. */
       continue;
     }
@@ -703,7 +703,7 @@ static void copy_single_file(Image *ima, const std::string &dest_dir, const bool
     return;
   }
 
-  if (BLI_paths_equal(source_path, dest_path)) {
+  if (BLI_path_cmp_normalized(source_path, dest_path) == 0) {
     /* Source and destination paths are the same, don't copy. */
     return;
   }

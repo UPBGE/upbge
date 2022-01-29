@@ -367,8 +367,8 @@ if(WITH_GMP)
 endif()
 
 if(WIN32)
-  if (WITH_BLENDER_THUMBNAILER)
-    # Needed for querying the thumbnailer .dll in winstuff.c
+  if(WITH_BLENDER_THUMBNAILER)
+    # Needed for querying the `thumbnailer .dll` in `winstuff.c`.
     add_definitions(-DWITH_BLENDER_THUMBNAILER)
   endif()
   list(APPEND INC
