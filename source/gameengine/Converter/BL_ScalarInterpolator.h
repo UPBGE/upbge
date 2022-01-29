@@ -62,5 +62,5 @@ class BL_InterpolatorList {
 
   bAction *GetAction() const;
 
-  BL_ScalarInterpolator *GetScalarInterpolator(std::string& rna_path, int array_index);
+  BL_ScalarInterpolator *GetScalarInterpolator(const std::string& rna_path, int array_index);
 };

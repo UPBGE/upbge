@@ -75,7 +75,7 @@ bAction *BL_InterpolatorList::GetAction() const
   return m_action;
 }
 
-BL_ScalarInterpolator *BL_InterpolatorList::GetScalarInterpolator(std::string& rna_path,
+BL_ScalarInterpolator *BL_InterpolatorList::GetScalarInterpolator(const std::string& rna_path,
                                                                   int array_index)
 {
   for (BL_ScalarInterpolator *interp : m_interpolators) {
