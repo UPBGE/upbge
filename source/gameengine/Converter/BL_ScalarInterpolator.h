@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file BL_BlenderScalarInterpolator.h
+/** \file BL_ScalarInterpolator.h
  *  \ingroup bgeconv
  */
 

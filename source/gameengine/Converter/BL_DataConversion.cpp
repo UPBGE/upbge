@@ -26,7 +26,7 @@
  * Convert blender data to ketsji
  */
 
-/** \file gameengine/Converter/BL_BlenderDataConversion.cpp
+/** \file gameengine/Converter/BL_DataConversion.cpp
  *  \ingroup bgeconv
  */
 
@@ -49,7 +49,7 @@
 /* TODO: Disabled for now, because of eval_ctx. */
 #define THREADED_DAG_WORKAROUND
 
-#include "BL_BlenderDataConversion.h"
+#include "BL_DataConversion.h"
 
 /* This little block needed for linking to Blender... */
 #ifdef WIN32
@@ -73,7 +73,7 @@
 /* end of blender include block */
 
 #include "BL_ArmatureObject.h"
-#include "BL_BlenderSceneConverter.h"
+#include "BL_SceneConverter.h"
 #include "BL_ConvertActuators.h"
 #include "BL_ConvertControllers.h"
 #include "BL_ConvertProperties.h"
@@ -310,7 +310,7 @@ static RAS_MaterialBucket *BL_material_from_mesh(Material *ma,
                                                  int lightlayer,
                                                  KX_Scene *scene,
                                                  RAS_Rasterizer *rasty,
-                                                 BL_BlenderSceneConverter *converter,
+                                                 BL_SceneConverter *converter,
                                                  bool converting_during_runtime)
 {
   KX_BlenderMaterial *mat = converter->FindMaterial(ma);
@@ -334,7 +334,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
                                Object *blenderobj,
                                KX_Scene *scene,
                                RAS_Rasterizer *rasty,
-                               BL_BlenderSceneConverter *converter,
+                               BL_SceneConverter *converter,
                                bool libloading,
                                bool converting_during_runtime)
 {
@@ -543,7 +543,7 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
                                       RAS_MeshObject *meshobj,
                                       KX_Scene *kxscene,
                                       int activeLayerBitInfo,
-                                      BL_BlenderSceneConverter *converter,
+                                      BL_SceneConverter *converter,
                                       bool processCompoundChildren)
 
 {
@@ -608,7 +608,7 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
 static KX_LodManager *BL_lodmanager_from_blenderobject(Object *ob,
                                                        KX_Scene *scene,
                                                        RAS_Rasterizer *rasty,
-                                                       BL_BlenderSceneConverter *converter,
+                                                       BL_SceneConverter *converter,
                                                        bool libloading,
                                                        bool converting_during_runtime)
 {
@@ -735,7 +735,7 @@ static KX_GameObject *BL_gameobject_from_customobject(Object *ob,
 static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
                                                        KX_Scene *kxscene,
                                                        RAS_Rasterizer *rasty,
-                                                       BL_BlenderSceneConverter *converter,
+                                                       BL_SceneConverter *converter,
                                                        bool libloading,
                                                        bool converting_during_runtime)
 {
@@ -1063,7 +1063,7 @@ static bool is_lod_level(std::vector<Object *> lod_objs, Object *blenderobject)
 
 /* helper for BL_ConvertBlenderObjects, avoids code duplication
  * note: all var names match args are passed from the caller */
-static void bl_ConvertBlenderObject_Single(BL_BlenderSceneConverter *converter,
+static void bl_ConvertBlenderObject_Single(BL_SceneConverter *converter,
                                            Object *blenderobject,
                                            std::vector<BL_parentChildLink> &vec_parent_child,
                                            EXP_ListValue<KX_GameObject> *logicbrick_conversionlist,
@@ -1182,7 +1182,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
                               e_PhysicsEngine physics_engine,
                               RAS_Rasterizer *rendertools,
                               RAS_ICanvas *canvas,
-                              BL_BlenderSceneConverter *converter,
+                              BL_SceneConverter *converter,
                               Object *single_object,
                               bool alwaysUseExpandFraming,
                               bool libloading)

@@ -30,7 +30,7 @@
 #include "BLI_math.h"
 #include "DNA_object_types.h"
 
-#include "BL_BlenderDataConversion.h"
+#include "BL_DataConversion.h"
 #include "EXP_ListWrapper.h"
 #include "KX_LodLevel.h"
 #include "KX_Scene.h"
@@ -97,7 +97,7 @@ inline bool KX_LodManager::LodLevelIterator::operator>(float distance2) const
 KX_LodManager::KX_LodManager(Object *ob,
                              KX_Scene *scene,
                              RAS_Rasterizer *rasty,
-                             BL_BlenderSceneConverter *converter,
+                             BL_SceneConverter *converter,
                              bool libloading,
                              bool converting_during_runtime)
     : m_refcount(1), m_distanceFactor(ob->lodfactor)

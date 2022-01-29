@@ -49,7 +49,7 @@ class RAS_MeshObject;
 struct DerivedMesh;
 class KX_GameObject;
 class KX_Scene;
-class BL_BlenderSceneConverter;
+class BL_SceneConverter;
 
 class PHY_IMotionState;
 struct bRigidBodyJointConstraint;
@@ -272,7 +272,7 @@ class PHY_IPhysicsEnvironment {
 
   virtual void MergeEnvironment(PHY_IPhysicsEnvironment *other_env) = 0;
 
-  virtual void ConvertObject(BL_BlenderSceneConverter *converter,
+  virtual void ConvertObject(BL_SceneConverter *converter,
                              KX_GameObject *gameobj,
                              RAS_MeshObject *meshobj,
                              DerivedMesh *dm,

@@ -32,7 +32,7 @@
 #include "BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h"
 #include "BulletSoftBody/btSoftRigidDynamicsWorld.h"
 
-#include "BL_BlenderSceneConverter.h"
+#include "BL_SceneConverter.h"
 #include "CM_List.h"
 #include "CcdConstraint.h"
 #include "CcdGraphicController.h"
@@ -2754,7 +2754,7 @@ CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool v
   return ccdPhysEnv;
 }
 
-void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter *converter,
+void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
                                           KX_GameObject *gameobj,
                                           RAS_MeshObject *meshobj,
                                           DerivedMesh *dm,

@@ -32,7 +32,7 @@
 
 class KX_Scene;
 class RAS_Rasterizer;
-class BL_BlenderSceneConverter;
+class BL_SceneConverter;
 class KX_LodLevel;
 struct Object;
 
@@ -82,7 +82,7 @@ class KX_LodManager : public EXP_Value {
   KX_LodManager(Object *ob,
                 KX_Scene *scene,
                 RAS_Rasterizer *rasty,
-                BL_BlenderSceneConverter *converter,
+                BL_SceneConverter *converter,
                 bool libloading,
                 bool converting_during_runtime);
   KX_LodManager(class RAS_MeshObject *meshObj, struct Object *ob);  // just to use for ReplaceMesh

@@ -48,7 +48,7 @@
 
 #include "BL_Action.h"
 #include "BL_ActionManager.h"
-#include "BL_BlenderSceneConverter.h"
+#include "BL_SceneConverter.h"
 #include "KX_ClientObjectInfo.h"
 #include "KX_CollisionContactPoints.h"
 #include "KX_Globals.h"
@@ -1090,7 +1090,7 @@ void KX_GameObject::UpdateBuckets()
 
 void KX_GameObject::RemoveMeshes()
 {
-  // note: meshes can be shared, and are deleted by BL_BlenderSceneConverter
+  // note: meshes can be shared, and are deleted by BL_SceneConverter
   m_meshes.clear();
 }
 

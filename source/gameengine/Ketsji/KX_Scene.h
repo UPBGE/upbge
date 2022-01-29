@@ -80,7 +80,7 @@ class RAS_DebugDraw;
 class RAS_FrameBuffer;
 class RAS_2DFilterManager;
 class KX_2DFilterManager;
-class BL_BlenderSceneConverter;
+class BL_SceneConverter;
 struct KX_ClientObjectInfo;
 class KX_ObstacleSimulation;
 struct TaskPool;
@@ -133,7 +133,7 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   struct GPUViewport *m_initMaterialsGPUViewport;
   KX_Camera *m_overlayCamera;
   std::vector<KX_Camera *> m_imageRenderCameraList;
-  BL_BlenderSceneConverter *m_sceneConverter;
+  BL_SceneConverter *m_sceneConverter;
   bool m_isPythonMainLoop;
   std::vector<KX_GameObject *> m_kxobWithLod;
   std::map<Object *, char> m_obRestrictFlags;
@@ -525,8 +525,8 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
     return m_dbvt_occlusion_res;
   }
 
-  void SetBlenderSceneConverter(class BL_BlenderSceneConverter *sceneConverter);
-  class BL_BlenderSceneConverter *GetBlenderSceneConverter();
+  void SetBlenderSceneConverter(class BL_SceneConverter *sceneConverter);
+  class BL_SceneConverter *GetBlenderSceneConverter();
 
   class PHY_IPhysicsEnvironment *GetPhysicsEnvironment()
   {

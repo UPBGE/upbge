@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Converter/BL_BlenderConverter.cpp
+/** \file gameengine/Converter/BL_Converter.cpp
  *  \ingroup bgeconv
  */
 
@@ -33,7 +33,7 @@
 #  pragma warning(disable : 4786)  // suppress stl-MSVC debug info warning
 #endif
 
-#include "BL_BlenderConverter.h"
+#include "BL_Converter.h"
 
 #include "BKE_context.h"
 #include "BKE_idtype.h"
@@ -48,8 +48,8 @@
 #include "DNA_mesh_types.h"
 #include "DNA_scene_types.h"
 
-#include "BL_BlenderDataConversion.h"
-#include "BL_BlenderSceneConverter.h"
+#include "BL_DataConversion.h"
+#include "BL_SceneConverter.h"
 #include "DummyPhysicsEnvironment.h"
 #include "EXP_StringValue.h"
 #include "KX_GameObject.h"
@@ -67,16 +67,16 @@
 #  include "Texture.h"  // For FreeAllTextures.
 #endif                  // WITH_PYTHON
 
-BL_BlenderConverter::SceneSlot::SceneSlot() = default;
+BL_Converter::SceneSlot::SceneSlot() = default;
 
-BL_BlenderConverter::SceneSlot::SceneSlot(const BL_BlenderSceneConverter *converter)
+BL_Converter::SceneSlot::SceneSlot(const BL_SceneConverter *converter)
 {
   Merge(converter);
 }
 
-BL_BlenderConverter::SceneSlot::~SceneSlot() = default;
+BL_Converter::SceneSlot::~SceneSlot() = default;
 
-void BL_BlenderConverter::SceneSlot::Merge(BL_BlenderConverter::SceneSlot &other)
+void BL_Converter::SceneSlot::Merge(BL_Converter::SceneSlot &other)
 {
   m_interpolators.insert(m_interpolators.begin(),
                          std::make_move_iterator(other.m_interpolators.begin()),
@@ -90,7 +90,7 @@ void BL_BlenderConverter::SceneSlot::Merge(BL_BlenderConverter::SceneSlot &other
   m_actionToInterp.insert(other.m_actionToInterp.begin(), other.m_actionToInterp.end());
 }
 
-void BL_BlenderConverter::SceneSlot::Merge(const BL_BlenderSceneConverter *converter)
+void BL_Converter::SceneSlot::Merge(const BL_SceneConverter *converter)
 {
   for (KX_BlenderMaterial *mat : converter->m_materials) {
     m_materials.emplace_back(mat);
@@ -100,14 +100,14 @@ void BL_BlenderConverter::SceneSlot::Merge(const BL_BlenderSceneConverter *conve
   }
 }
 
-BL_BlenderConverter::BL_BlenderConverter(Main *maggie, KX_KetsjiEngine *engine)
+BL_Converter::BL_Converter(Main *maggie, KX_KetsjiEngine *engine)
     : m_maggie(maggie), m_ketsjiEngine(engine), m_alwaysUseExpandFraming(false)
 {
   BKE_main_id_tag_all(maggie, LIB_TAG_DOIT, false);  // avoid re-tagging later on
   m_threadinfo.m_pool = BLI_task_pool_create(nullptr, TASK_PRIORITY_LOW);
 }
 
-BL_BlenderConverter::~BL_BlenderConverter()
+BL_Converter::~BL_Converter()
 {
   // free any data that was dynamically loaded
   while (m_DynamicMaggie.size() != 0) {
@@ -122,12 +122,12 @@ BL_BlenderConverter::~BL_BlenderConverter()
   BLI_task_pool_free(m_threadinfo.m_pool);
 }
 
-Main *BL_BlenderConverter::GetMain()
+Main *BL_Converter::GetMain()
 {
   return m_maggie;
 }
 
-Scene *BL_BlenderConverter::GetBlenderSceneForName(const std::string &name)
+Scene *BL_Converter::GetBlenderSceneForName(const std::string &name)
 {
   Scene *sce;
 
@@ -145,7 +145,7 @@ Scene *BL_BlenderConverter::GetBlenderSceneForName(const std::string &name)
   return nullptr;
 }
 
-EXP_ListValue<EXP_StringValue> *BL_BlenderConverter::GetInactiveSceneNames()
+EXP_ListValue<EXP_StringValue> *BL_Converter::GetInactiveSceneNames()
 {
   EXP_ListValue<EXP_StringValue> *list = new EXP_ListValue<EXP_StringValue>();
 
@@ -161,7 +161,7 @@ EXP_ListValue<EXP_StringValue> *BL_BlenderConverter::GetInactiveSceneNames()
   return list;
 }
 
-void BL_BlenderConverter::ConvertScene(KX_Scene *destinationscene,
+void BL_Converter::ConvertScene(KX_Scene *destinationscene,
                                        RAS_Rasterizer *rasty,
                                        RAS_ICanvas *canvas,
                                        bool libloading)
@@ -200,7 +200,7 @@ void BL_BlenderConverter::ConvertScene(KX_Scene *destinationscene,
 
   destinationscene->SetPhysicsEnvironment(phy_env);
 
-  BL_BlenderSceneConverter *sceneConverter = new BL_BlenderSceneConverter();
+  BL_SceneConverter *sceneConverter = new BL_SceneConverter();
   bContext *C = KX_GetActiveEngine()->GetContext();
   Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
 
@@ -226,9 +226,9 @@ void BL_BlenderConverter::ConvertScene(KX_Scene *destinationscene,
  * Note that there was some provision for sharing entities (meshes...) between
  * scenes but that is now disabled so all scene will have their own copy
  * and we can delete them here. If the sharing is reactivated, change this code too..
- * (see BL_BlenderConverter::ConvertScene)
+ * (see BL_Converter::ConvertScene)
  */
-void BL_BlenderConverter::RemoveScene(KX_Scene *scene)
+void BL_Converter::RemoveScene(KX_Scene *scene)
 {
 
 #ifdef WITH_PYTHON
@@ -248,12 +248,12 @@ void BL_BlenderConverter::RemoveScene(KX_Scene *scene)
   m_sceneSlots.erase(scene);
 }
 
-void BL_BlenderConverter::SetAlwaysUseExpandFraming(bool to_what)
+void BL_Converter::SetAlwaysUseExpandFraming(bool to_what)
 {
   m_alwaysUseExpandFraming = to_what;
 }
 
-void BL_BlenderConverter::RegisterInterpolatorList(KX_Scene *scene,
+void BL_Converter::RegisterInterpolatorList(KX_Scene *scene,
                                                    BL_InterpolatorList *interpolator,
                                                    bAction *for_act)
 {
@@ -262,12 +262,12 @@ void BL_BlenderConverter::RegisterInterpolatorList(KX_Scene *scene,
   sceneSlot.m_actionToInterp[for_act] = interpolator;
 }
 
-BL_InterpolatorList *BL_BlenderConverter::FindInterpolatorList(KX_Scene *scene, bAction *for_act)
+BL_InterpolatorList *BL_Converter::FindInterpolatorList(KX_Scene *scene, bAction *for_act)
 {
   return m_sceneSlots[scene].m_actionToInterp[for_act];
 }
 
-Main *BL_BlenderConverter::CreateMainDynamic(const std::string &path)
+Main *BL_Converter::CreateMainDynamic(const std::string &path)
 {
   Main *maggie = BKE_main_new();
   strncpy(maggie->filepath, path.c_str(), sizeof(maggie->filepath) - 1);
@@ -276,12 +276,12 @@ Main *BL_BlenderConverter::CreateMainDynamic(const std::string &path)
   return maggie;
 }
 
-const std::vector<Main *> &BL_BlenderConverter::GetMainDynamic() const
+const std::vector<Main *> &BL_Converter::GetMainDynamic() const
 {
   return m_DynamicMaggie;
 }
 
-Main *BL_BlenderConverter::GetMainDynamicPath(const std::string &path) const
+Main *BL_Converter::GetMainDynamicPath(const std::string &path) const
 {
   for (Main *maggie : m_DynamicMaggie) {
     if (BLI_path_cmp(maggie->filepath, path.c_str()) == 0) {
@@ -292,7 +292,7 @@ Main *BL_BlenderConverter::GetMainDynamicPath(const std::string &path) const
   return nullptr;
 }
 
-void BL_BlenderConverter::MergeAsyncLoads()
+void BL_Converter::MergeAsyncLoads()
 {
   std::vector<KX_Scene *> *merge_scenes;
 
@@ -320,7 +320,7 @@ void BL_BlenderConverter::MergeAsyncLoads()
   m_threadinfo.m_mutex.Unlock();
 }
 
-void BL_BlenderConverter::FinalizeAsyncLoads()
+void BL_Converter::FinalizeAsyncLoads()
 {
   // Finish all loading libraries.
   BLI_task_pool_work_and_wait(m_threadinfo.m_pool);
@@ -328,7 +328,7 @@ void BL_BlenderConverter::FinalizeAsyncLoads()
   MergeAsyncLoads();
 }
 
-void BL_BlenderConverter::AddScenesToMergeQueue(KX_LibLoadStatus *status)
+void BL_Converter::AddScenesToMergeQueue(KX_LibLoadStatus *status)
 {
   m_threadinfo.m_mutex.Lock();
   m_mergequeue.push_back(status);
@@ -360,7 +360,7 @@ static void async_convert(TaskPool *pool, void *ptr, int UNUSED(threadid))
   status->GetConverter()->AddScenesToMergeQueue(status);
 }
 
-KX_LibLoadStatus *BL_BlenderConverter::LinkBlendFileMemory(void *data,
+KX_LibLoadStatus *BL_Converter::LinkBlendFileMemory(void *data,
                                                            int length,
                                                            const char *path,
                                                            char *group,
@@ -374,7 +374,7 @@ KX_LibLoadStatus *BL_BlenderConverter::LinkBlendFileMemory(void *data,
   return LinkBlendFile(bpy_openlib, path, group, scene_merge, err_str, options);
 }
 
-KX_LibLoadStatus *BL_BlenderConverter::LinkBlendFilePath(
+KX_LibLoadStatus *BL_Converter::LinkBlendFilePath(
     const char *filepath, char *group, KX_Scene *scene_merge, char **err_str, short options)
 {
   BlendHandle *bpy_openlib = BLO_blendhandle_from_file(filepath, nullptr);
@@ -401,7 +401,7 @@ static void load_datablocks(Main *main_tmp, BlendHandle *bpy_openlib, const char
   BLI_linklist_free(names, free);  // free linklist *and* each node's data
 }
 
-KX_LibLoadStatus *BL_BlenderConverter::LinkBlendFile(BlendHandle *bpy_openlib,
+KX_LibLoadStatus *BL_Converter::LinkBlendFile(BlendHandle *bpy_openlib,
                                                      const char *path,
                                                      char *group,
                                                      KX_Scene *scene_merge,
@@ -472,7 +472,7 @@ KX_LibLoadStatus *BL_BlenderConverter::LinkBlendFile(BlendHandle *bpy_openlib,
     // Convert all new meshes into BGE meshes
     ID *mesh;
 
-    BL_BlenderSceneConverter *sceneConverter = new BL_BlenderSceneConverter();
+    BL_SceneConverter *sceneConverter = new BL_SceneConverter();
     for (mesh = (ID *)main_newlib->meshes.first; mesh; mesh = (ID *)mesh->next) {
       if (options & LIB_LOAD_VERBOSE) {
         CM_Debug("mesh name: " << mesh->name + 2);
@@ -564,7 +564,7 @@ KX_LibLoadStatus *BL_BlenderConverter::LinkBlendFile(BlendHandle *bpy_openlib,
 
 /** Note m_map_*** are all ok and don't need to be freed
  * most are temp and NewRemoveObject frees m_map_gameobject_to_blender */
-bool BL_BlenderConverter::FreeBlendFile(Main *maggie)
+bool BL_Converter::FreeBlendFile(Main *maggie)
 {
   if (maggie == nullptr) {
     return false;
@@ -761,12 +761,12 @@ bool BL_BlenderConverter::FreeBlendFile(Main *maggie)
   return true;
 }
 
-bool BL_BlenderConverter::FreeBlendFile(const std::string &path)
+bool BL_Converter::FreeBlendFile(const std::string &path)
 {
   return FreeBlendFile(GetMainDynamicPath(path));
 }
 
-void BL_BlenderConverter::MergeScene(KX_Scene *to, KX_Scene *from)
+void BL_Converter::MergeScene(KX_Scene *to, KX_Scene *from)
 {
   SceneSlot &sceneSlotFrom = m_sceneSlots[from];
 
@@ -780,7 +780,7 @@ void BL_BlenderConverter::MergeScene(KX_Scene *to, KX_Scene *from)
 
 /** This function merges a mesh from the current scene into another main
  * it does not convert */
-RAS_MeshObject *BL_BlenderConverter::ConvertMeshSpecial(KX_Scene *kx_scene,
+RAS_MeshObject *BL_Converter::ConvertMeshSpecial(KX_Scene *kx_scene,
                                                         Main *maggie,
                                                         const std::string &name)
 {
@@ -857,7 +857,7 @@ RAS_MeshObject *BL_BlenderConverter::ConvertMeshSpecial(KX_Scene *kx_scene,
     }
   }
 
-  BL_BlenderSceneConverter *sceneConverter = new BL_BlenderSceneConverter();
+  BL_SceneConverter *sceneConverter = new BL_SceneConverter();
 
   RAS_MeshObject *meshobj = BL_ConvertMesh(
       (Mesh *)me, nullptr, kx_scene, m_ketsjiEngine->GetRasterizer(), sceneConverter, false, true);
@@ -869,7 +869,7 @@ RAS_MeshObject *BL_BlenderConverter::ConvertMeshSpecial(KX_Scene *kx_scene,
   return meshobj;
 }
 
-void BL_BlenderConverter::PrintStats()
+void BL_Converter::PrintStats()
 {
   CM_Message("BGE STATS");
   CM_Message(std::endl << "Assets:");

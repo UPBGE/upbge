@@ -145,7 +145,7 @@ class DummyPhysicsEnvironment : public PHY_IPhysicsEnvironment {
     // Dummy, nothing to do here
   }
 
-  virtual void ConvertObject(BL_BlenderSceneConverter *converter,
+  virtual void ConvertObject(BL_SceneConverter *converter,
                              KX_GameObject *gameobj,
                              RAS_MeshObject *meshobj,
                              DerivedMesh *dm,

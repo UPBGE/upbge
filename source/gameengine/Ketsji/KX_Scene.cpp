@@ -57,9 +57,9 @@
 #include "wm_event_system.h"
 #include "xr/wm_xr.h"
 
-#include "BL_BlenderConverter.h"
-#include "BL_BlenderDataConversion.h"
-#include "BL_BlenderSceneConverter.h"
+#include "BL_Converter.h"
+#include "BL_DataConversion.h"
+#include "BL_SceneConverter.h"
 #include "CM_List.h"
 #include "EXP_FloatValue.h"
 #include "KX_2DFilterManager.h"
@@ -946,12 +946,12 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, const rcti *win
   DRW_game_render_loop(C, m_currentGPUViewport, depsgraph, window, false, false);
 }
 
-void KX_Scene::SetBlenderSceneConverter(BL_BlenderSceneConverter *sc_converter)
+void KX_Scene::SetBlenderSceneConverter(BL_SceneConverter *sc_converter)
 {
   m_sceneConverter = sc_converter;
 }
 
-BL_BlenderSceneConverter *KX_Scene::GetBlenderSceneConverter()
+BL_SceneConverter *KX_Scene::GetBlenderSceneConverter()
 {
   return m_sceneConverter;
 }
@@ -1009,7 +1009,7 @@ struct ConvertBlenderObjectsListTaskData {
   KX_KetsjiEngine *engine;
   e_PhysicsEngine physics_engine;
   KX_Scene *kxscene;
-  BL_BlenderSceneConverter *converter;
+  BL_SceneConverter *converter;
   RAS_Rasterizer *rasty;
   RAS_ICanvas *canvas;
   Depsgraph *depsgraph;
@@ -1112,7 +1112,7 @@ struct ConvertBlenderCollectionTaskData {
   KX_KetsjiEngine *engine;
   e_PhysicsEngine physics_engine;
   KX_Scene *kxscene;
-  BL_BlenderSceneConverter *converter;
+  BL_SceneConverter *converter;
   RAS_Rasterizer *rasty;
   RAS_ICanvas *canvas;
   Depsgraph *depsgraph;

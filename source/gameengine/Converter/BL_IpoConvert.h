@@ -50,8 +50,8 @@
 #include "DNA_object_types.h"
 #include "DNA_world_types.h"
 
-#include "BL_BlenderConverter.h"
-#include "BL_BlenderScalarInterpolator.h"
+#include "BL_Converter.h"
+#include "BL_ScalarInterpolator.h"
 #include "KX_CameraIpoSGController.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
@@ -76,7 +76,7 @@ SG_Controller *BL_CreateCameraIPO(struct bAction *action,
 /* Definitions */
 static BL_InterpolatorList *GetAdtList(struct bAction *for_act, KX_Scene *scene)
 {
-  BL_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
+  BL_Converter *converter = KX_GetActiveEngine()->GetConverter();
   BL_InterpolatorList *adtList = converter->FindInterpolatorList(scene, for_act);
 
   if (!adtList) {

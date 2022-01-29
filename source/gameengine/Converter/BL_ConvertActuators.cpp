@@ -51,7 +51,7 @@
 // Actuators
 // SCA logiclibrary native logicbricks
 #include "BL_ArmatureActuator.h"
-#include "BL_BlenderSceneConverter.h"
+#include "BL_SceneConverter.h"
 #include "CM_Utils.h"
 #include "EXP_IntValue.h"
 #include "KX_Globals.h"
@@ -97,7 +97,7 @@ void BL_ConvertActuators(const char *maggiename,
                          KX_KetsjiEngine *ketsjiEngine,
                          int activeLayerBitInfo,
                          bool isInActiveLayer,
-                         BL_BlenderSceneConverter *converter)
+                         BL_SceneConverter *converter)
 {
 
   int uniqueint = 0;

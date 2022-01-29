@@ -73,29 +73,29 @@ set(SRC
   BL_ArmatureChannel.cpp
   BL_ArmatureConstraint.cpp
   BL_ArmatureObject.cpp
-  BL_BlenderConverter.cpp
-  BL_BlenderDataConversion.cpp
-  BL_BlenderScalarInterpolator.cpp
-  BL_BlenderSceneConverter.cpp
+  BL_Converter.cpp
   BL_ConvertActuators.cpp
   BL_ConvertControllers.cpp
   BL_ConvertProperties.cpp
   BL_ConvertSensors.cpp
+  BL_DataConversion.cpp
+  BL_ScalarInterpolator.cpp
+  BL_SceneConverter.cpp
   #BL_IpoConvert.cpp (everything inside BL_IpoConvert.h)
 
   BL_ArmatureActuator.h
   BL_ArmatureChannel.h
   BL_ArmatureConstraint.h
   BL_ArmatureObject.h
-  BL_BlenderConverter.h
-  BL_BlenderDataConversion.h
-  BL_BlenderScalarInterpolator.h
-  BL_BlenderSceneConverter.h
+  BL_Converter.h
   BL_ConvertActuators.h
   BL_ConvertControllers.h
   BL_ConvertProperties.h
   BL_ConvertSensors.h
+  BL_DataConversion.h
   BL_IpoConvert.h
+  BL_ScalarInterpolator.h
+  BL_SceneConverter.h
 )
 
 set(LIB

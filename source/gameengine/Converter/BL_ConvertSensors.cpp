@@ -48,8 +48,8 @@
 //#  include "BLI_winstuff.h"
 #endif
 
-#include "BL_BlenderDataConversion.h"
-#include "BL_BlenderSceneConverter.h"
+#include "BL_DataConversion.h"
+#include "BL_SceneConverter.h"
 #include "CM_Utils.h"
 #include "EXP_IntValue.h"
 #include "KX_GameObject.h"
@@ -78,7 +78,7 @@ void BL_ConvertSensors(struct Object *blenderobject,
                        int activeLayerBitInfo,
                        bool isInActiveLayer,
                        RAS_ICanvas *canvas,
-                       BL_BlenderSceneConverter *converter)
+                       BL_SceneConverter *converter)
 {
 
   int executePriority = 0;
