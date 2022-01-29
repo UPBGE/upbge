@@ -31,35 +31,24 @@
 
 #pragma once
 
+#include <string>
 #include <vector>
 
 #include "KX_IScalarInterpolator.h"
 
 struct bAction;
-
-typedef unsigned short BL_IpoChannel;
+struct FCurve;
 
 class BL_ScalarInterpolator : public KX_IScalarInterpolator {
- public:
-  BL_ScalarInterpolator()
-  {
-  }  // required for use in STL list
-  BL_ScalarInterpolator(struct FCurve *fcu) : m_fcu(fcu)
-  {
-  }
+ private:
+  FCurve *m_fcu;
 
-  virtual ~BL_ScalarInterpolator()
-  {
-  }
+ public:
+  BL_ScalarInterpolator(FCurve *fcu);
+  virtual ~BL_ScalarInterpolator() = default;
 
   virtual float GetValue(float currentTime) const;
-  struct FCurve *GetFCurve()
-  {
-    return m_fcu;
-  }
-
- private:
-  struct FCurve *m_fcu;
+  FCurve *GetFCurve() const;
 };
 
 class BL_InterpolatorList {
@@ -68,10 +57,10 @@ class BL_InterpolatorList {
   std::vector<BL_ScalarInterpolator *> m_interpolators;
 
  public:
-  BL_InterpolatorList(struct bAction *action);
+  BL_InterpolatorList(bAction *action);
   ~BL_InterpolatorList();
 
   bAction *GetAction() const;
 
-  BL_ScalarInterpolator *GetScalarInterpolator(const char *rna_path, int array_index);
+  BL_ScalarInterpolator *GetScalarInterpolator(std::string& rna_path, int array_index);
 };
