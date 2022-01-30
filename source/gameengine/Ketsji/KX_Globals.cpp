@@ -28,8 +28,6 @@
 
 #include "BLI_blenlib.h"
 
-#include "KX_KetsjiEngine.h"
-
 static KX_KetsjiEngine *g_engine = nullptr;
 static KX_Scene *g_scene = nullptr;
 static std::string g_mainPath = "";
@@ -69,6 +67,11 @@ KX_KetsjiEngine *KX_GetActiveEngine()
 KX_Scene *KX_GetActiveScene()
 {
   return g_scene;
+}
+
+PHY_IPhysicsEnvironment *KX_GetPhysicsEnvironment()
+{
+  return g_scene->GetPhysicsEnvironment();
 }
 
 const std::string &KX_GetMainPath()

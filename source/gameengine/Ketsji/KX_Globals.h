@@ -33,6 +33,7 @@
 
 class KX_KetsjiEngine;
 class KX_Scene;
+class PHY_IPhysicsEnvironment;
 
 void KX_SetActiveEngine(KX_KetsjiEngine *engine);
 void KX_SetActiveScene(KX_Scene *scene);
@@ -41,6 +42,7 @@ void KX_SetOrigPath(const std::string &path);
 
 KX_KetsjiEngine *KX_GetActiveEngine();
 KX_Scene *KX_GetActiveScene();
+PHY_IPhysicsEnvironment *KX_GetPhysicsEnvironment();
 const std::string &KX_GetMainPath();
 const std::string &KX_GetOrigPath();
 
