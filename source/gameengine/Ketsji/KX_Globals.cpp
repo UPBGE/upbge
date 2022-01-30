@@ -28,6 +28,8 @@
 
 #include "BLI_blenlib.h"
 
+#include "KX_KetsjiEngine.h"
+
 static KX_KetsjiEngine *g_engine = nullptr;
 static KX_Scene *g_scene = nullptr;
 static std::string g_mainPath = "";

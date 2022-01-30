@@ -1611,7 +1611,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
   if (!single_object) {
     KX_SetActiveScene(kxscene);
-    PHY_SetActiveEnvironment(kxscene->GetPhysicsEnvironment());
   }
 
   // create object representations for obstacle simulation
