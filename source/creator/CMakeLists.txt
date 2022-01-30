@@ -345,7 +345,7 @@ if(UNIX AND NOT APPLE)
     if(WITH_INSTALL_PORTABLE)
       set(TARGETDIR_VER ${BLENDER_VERSION})
     else()
-      set(TARGETDIR_VER share/blender/${BLENDER_VERSION})
+      set(TARGETDIR_VER share/upbge/${BLENDER_VERSION})
     endif()
   endif()
 
