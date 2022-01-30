@@ -606,14 +606,8 @@ static void processSamples(KX_Obstacle *activeObst,
 
   const float ivmax = 1.0f / vmax;
 
-  float adir[2] /*, adist */;
-  if (normalize_v2_v2(adir, activeObst->pvel) <= 0.01f) {
-    zero_v2(adir);
-  }
-
   float activeObstPos[2];
   vset(activeObstPos, activeObst->m_pos.x(), activeObst->m_pos.y());
-  /* adist = vdot(adir, activeObstPos); */
 
   float minPenalty = FLT_MAX;
 
