@@ -586,8 +586,6 @@ DerivedMesh *cdDM_from_mesh_ex(Mesh *mesh,
   if (mesh->runtime.cd_dirty_vert & CD_MASK_NORMAL) {
     dm->dirty |= DM_DIRTY_NORMALS;
   }
-  /* TODO: DM_DIRTY_TESS_CDLAYERS ? Maybe not though,
-   * since we probably want to switch to looptris? */
 
   CustomData_merge(&mesh->vdata, &dm->vertData, cddata_masks.vmask, alloctype, mesh->totvert);
   CustomData_merge(&mesh->edata, &dm->edgeData, cddata_masks.emask, alloctype, mesh->totedge);
@@ -745,12 +743,6 @@ DerivedMesh *CDDM_copy(DerivedMesh *source)
   DM_from_template(dm, source, DM_TYPE_CDDM, numVerts, numEdges, numTessFaces, numLoops, numPolys);
   dm->deformedOnly = source->deformedOnly;
   dm->cd_flag = source->cd_flag;
-  dm->dirty = source->dirty;
-
-  /* Tessellation data is never copied, so tag it here.
-   * Only tag dirty layers if we really ignored tessellation faces.
-   */
-  dm->dirty |= DM_DIRTY_TESS_CDLAYERS;
 
   CustomData_copy_data(&source->vertData, &dm->vertData, 0, 0, numVerts);
   CustomData_copy_data(&source->edgeData, &dm->edgeData, 0, 0, numEdges);
