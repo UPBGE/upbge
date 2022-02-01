@@ -119,12 +119,6 @@ static void cdDM_copyEdgeArray(DerivedMesh *dm, MEdge *r_edge)
   memcpy(r_edge, cddm->medge, sizeof(*r_edge) * dm->numEdgeData);
 }
 
-static void cdDM_copyTessFaceArray(DerivedMesh *dm, MFace *r_face)
-{
-  CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
-  memcpy(r_face, cddm->mface, sizeof(*r_face) * dm->numTessFaceData);
-}
-
 static void cdDM_copyLoopArray(DerivedMesh *dm, MLoop *r_loop)
 {
   CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
@@ -175,57 +169,6 @@ static void cdDM_getVertNo(DerivedMesh *dm, int index, float r_no[3])
   CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
   copy_v3_v3(r_no, cddm->vert_normals[index]);
 }
-
-static const MeshElemMap *cdDM_getPolyMap(Object *ob, DerivedMesh *dm)
-{
-  CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
-
-  if (!cddm->pmap && ob->type == OB_MESH) {
-    Mesh *me = ob->data;
-
-    BKE_mesh_vert_poly_map_create(
-        &cddm->pmap, &cddm->pmap_mem, me->mpoly, me->mloop, me->totvert, me->totpoly, me->totloop);
-  }
-
-  return cddm->pmap;
-}
-
-// static bool check_sculpt_object_deformed(Object *object, bool for_construction)
-//{
-//  //bool deformed = false;
-//
-//  /* Active modifiers means extra deformation, which can't be handled correct
-//   * on birth of PBVH and sculpt "layer" levels, so use PBVH only for internal brush
-//   * stuff and show final DerivedMesh so user would see actual object shape.
-//   */
-//  //deformed |= object->sculpt->modifiers_active;
-//
-//  if (for_construction) {
-//    //deformed |= object->sculpt->kb != NULL;
-//  }
-//  else {
-//    /* As in case with modifiers, we can't synchronize deformation made against
-//     * PBVH and non-locked keyblock, so also use PBVH only for brushes and
-//     * final DM to give final result to user.
-//     */
-//    deformed |= object->sculpt->kb && (object->shapeflag & OB_SHAPE_LOCK) == 0;
-//  }
-//
-//  return deformed;
-//}
-
-// static bool can_pbvh_draw(Object *ob, DerivedMesh *dm)
-//{
-//  CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
-//  Mesh *me = ob->data;
-//  bool deformed = check_sculpt_object_deformed(ob, false);
-//
-//  if (deformed) {
-//    return false;
-//  }
-//
-//  return cddm->mvert == me->mvert || ob->sculpt->kb;
-//}
 
 static PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 {
@@ -447,7 +390,7 @@ void CDDM_recalc_tessellation(DerivedMesh *dm)
   CDDM_recalc_tessellation_ex(dm, true);
 }
 
-void cdDM_recalc_looptri(DerivedMesh *dm)
+static void cdDM_recalc_looptri(DerivedMesh *dm)
 {
   CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
   const unsigned int totpoly = dm->numPolyData;
@@ -526,16 +469,11 @@ static CDDerivedMesh *cdDM_create(const char *desc)
 
   dm->copyVertArray = cdDM_copyVertArray;
   dm->copyEdgeArray = cdDM_copyEdgeArray;
-  dm->copyTessFaceArray = cdDM_copyTessFaceArray;
   dm->copyLoopArray = cdDM_copyLoopArray;
   dm->copyPolyArray = cdDM_copyPolyArray;
 
-  dm->getVertData = DM_get_vert_data;
-  dm->getEdgeData = DM_get_edge_data;
-  dm->getTessFaceData = DM_get_tessface_data;
   dm->getVertDataArray = DM_get_vert_data_layer;
   dm->getEdgeDataArray = DM_get_edge_data_layer;
-  dm->getTessFaceDataArray = DM_get_tessface_data_layer;
 
   dm->calcNormals = CDDM_calc_normals;
   dm->calcLoopNormals = CDDM_calc_loop_normals;
@@ -549,7 +487,6 @@ static CDDerivedMesh *cdDM_create(const char *desc)
   dm->getVertNo = cdDM_getVertNo;
 
   dm->getPBVH = cdDM_getPBVH;
-  dm->getPolyMap = cdDM_getPolyMap;
 
   dm->foreachMappedVert = cdDM_foreachMappedVert;
   dm->foreachMappedEdge = cdDM_foreachMappedEdge;
