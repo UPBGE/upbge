@@ -85,13 +85,6 @@ struct DerivedMesh *CDDM_copy(struct DerivedMesh *source);
  * given DerivedMesh and containing the requested numbers of elements.
  * elements are initialized to all zeros
  */
-struct DerivedMesh *CDDM_from_template_ex(struct DerivedMesh *source,
-                                          int numVerts,
-                                          int numEdges,
-                                          int numFaces,
-                                          int numLoops,
-                                          int numPolys,
-                                          const struct CustomData_MeshMasks *mask);
 struct DerivedMesh *CDDM_from_template(struct DerivedMesh *source,
                                        int numVerts,
                                        int numEdges,

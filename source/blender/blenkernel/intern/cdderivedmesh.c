@@ -764,13 +764,12 @@ DerivedMesh *CDDM_copy(DerivedMesh *source)
 
 /* note, the CD_ORIGINDEX layers are all 0, so if there is a direct
  * relationship between mesh data this needs to be set by the caller. */
-DerivedMesh *CDDM_from_template_ex(DerivedMesh *source,
+DerivedMesh *CDDM_from_template(DerivedMesh *source,
                                    int numVerts,
                                    int numEdges,
                                    int numTessFaces,
                                    int numLoops,
-                                   int numPolys,
-                                   const CustomData_MeshMasks *mask)
+                                   int numPolys)
 {
   CDDerivedMesh *cddm = cdDM_create("CDDM_from_template dest");
   DerivedMesh *dm = &cddm->dm;
@@ -782,8 +781,8 @@ DerivedMesh *CDDM_from_template_ex(DerivedMesh *source,
   source->getPolyDataArray(source, CD_ORIGINDEX);
 
   /* this does a copy of all non mvert/medge/mface layers */
-  DM_from_template_ex(
-      dm, source, DM_TYPE_CDDM, numVerts, numEdges, numTessFaces, numLoops, numPolys, mask);
+  DM_from_template(dm, source, DM_TYPE_CDDM,
+                   numVerts, numEdges, numTessFaces, numLoops, numPolys);
 
   /* now add mvert/medge/mface layers */
   CustomData_add_layer(&dm->vertData, CD_MVERT, CD_CALLOC, NULL, numVerts);
@@ -809,12 +808,6 @@ DerivedMesh *CDDM_from_template_ex(DerivedMesh *source,
   cddm->mpoly = CustomData_get_layer(&dm->polyData, CD_MPOLY);
 
   return dm;
-}
-DerivedMesh *CDDM_from_template(
-    DerivedMesh *source, int numVerts, int numEdges, int numTessFaces, int numLoops, int numPolys)
-{
-  return CDDM_from_template_ex(
-      source, numVerts, numEdges, numTessFaces, numLoops, numPolys, &CD_MASK_DERIVEDMESH);
 }
 
 /* poly normal layer is now only for final display */
