@@ -209,6 +209,7 @@ struct DerivedMesh {
    */
   struct MVert *(*getVertArray)(DerivedMesh *dm);
   struct MEdge *(*getEdgeArray)(DerivedMesh *dm);
+  struct MFace *(*getTessFaceArray)(DerivedMesh *dm);
   struct MLoop *(*getLoopArray)(DerivedMesh *dm);
   struct MPoly *(*getPolyArray)(DerivedMesh *dm);
 
@@ -217,6 +218,7 @@ struct DerivedMesh {
    */
   void (*copyVertArray)(DerivedMesh *dm, struct MVert *r_vert);
   void (*copyEdgeArray)(DerivedMesh *dm, struct MEdge *r_edge);
+  void (*copyTessFaceArray)(DerivedMesh *dm, struct MFace *r_face);
   void (*copyLoopArray)(DerivedMesh *dm, struct MLoop *r_loop);
   void (*copyPolyArray)(DerivedMesh *dm, struct MPoly *r_poly);
 
@@ -225,8 +227,18 @@ struct DerivedMesh {
    */
   struct MVert *(*dupVertArray)(DerivedMesh *dm);
   struct MEdge *(*dupEdgeArray)(DerivedMesh *dm);
+  struct MFace *(*dupTessFaceArray)(DerivedMesh *dm);
   struct MLoop *(*dupLoopArray)(DerivedMesh *dm);
   struct MPoly *(*dupPolyArray)(DerivedMesh *dm);
+
+  /** Return a pointer to a single element of vert/edge/face custom data
+   * from the derived mesh (this gives a pointer to the actual data, not
+   * a copy)
+   */
+  void *(*getVertData)(DerivedMesh *dm, int index, int type);
+  void *(*getEdgeData)(DerivedMesh *dm, int index, int type);
+  void *(*getTessFaceData)(DerivedMesh *dm, int index, int type);
+  void *(*getPolyData)(DerivedMesh *dm, int index, int type);
 
   /** Return a pointer to the entire array of vert/edge/face custom data
    * from the derived mesh (this gives a pointer to the actual data, not
@@ -234,6 +246,7 @@ struct DerivedMesh {
    */
   void *(*getVertDataArray)(DerivedMesh *dm, int type);
   void *(*getEdgeDataArray)(DerivedMesh *dm, int type);
+  void *(*getTessFaceDataArray)(DerivedMesh *dm, int type);
   void *(*getLoopDataArray)(DerivedMesh *dm, int type);
   void *(*getPolyDataArray)(DerivedMesh *dm, int type);
 
@@ -241,6 +254,14 @@ struct DerivedMesh {
   void (*copyFromVertCData)(DerivedMesh *dm, int source, CustomData *dst, int dest);
   void (*copyFromEdgeCData)(DerivedMesh *dm, int source, CustomData *dst, int dest);
   void (*copyFromFaceCData)(DerivedMesh *dm, int source, CustomData *dst, int dest);
+
+  /** Retrieves the base CustomData structures for
+   * verts/edges/tessfaces/loops/faces. */
+  CustomData *(*getVertDataLayout)(DerivedMesh *dm);
+  CustomData *(*getEdgeDataLayout)(DerivedMesh *dm);
+  CustomData *(*getTessFaceDataLayout)(DerivedMesh *dm);
+  CustomData *(*getLoopDataLayout)(DerivedMesh *dm);
+  CustomData *(*getPolyDataLayout)(DerivedMesh *dm);
 
   /** Optional grid access for subsurf */
   int (*getNumGrids)(DerivedMesh *dm);
@@ -313,6 +334,11 @@ struct DerivedMesh {
 
   /** Get smooth vertex normal, undefined if index is not valid */
   void (*getVertNo)(DerivedMesh *dm, int index, float r_no[3]);
+  void (*getPolyNo)(DerivedMesh *dm, int index, float r_no[3]);
+
+  /** Get a map of vertices to faces
+   */
+  const struct MeshElemMap *(*getPolyMap)(struct Object *ob, DerivedMesh *dm);
 
   /** Get the BVH used for paint modes
    */
@@ -384,7 +410,24 @@ void DM_set_only_copy(DerivedMesh *dm, const struct CustomData_MeshMasks *mask);
 
 void DM_add_vert_layer(struct DerivedMesh *dm, int type, eCDAllocType alloctype, void *layer);
 void DM_add_edge_layer(struct DerivedMesh *dm, int type, eCDAllocType alloctype, void *layer);
+void DM_add_tessface_layer(struct DerivedMesh *dm, int type, eCDAllocType alloctype, void *layer);
+void DM_add_loop_layer(DerivedMesh *dm, int type, eCDAllocType alloctype, void *layer);
 void DM_add_poly_layer(struct DerivedMesh *dm, int type, eCDAllocType alloctype, void *layer);
+
+/* -------------------------------------------------------------------- */
+/** \name Custom Data Access Functions
+ *
+ * \return pointer to data from first layer which matches type
+ * if they return NULL for valid indices, data doesn't exist.
+ * \note these return pointers - any change modifies the internals of the mesh.
+ * \{ */
+
+void *DM_get_vert_data(struct DerivedMesh *dm, int index, int type);
+void *DM_get_edge_data(struct DerivedMesh *dm, int index, int type);
+void *DM_get_tessface_data(struct DerivedMesh *dm, int index, int type);
+void *DM_get_poly_data(struct DerivedMesh *dm, int index, int type);
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Custom Data Layer Access Functions
@@ -396,6 +439,7 @@ void DM_add_poly_layer(struct DerivedMesh *dm, int type, eCDAllocType alloctype,
 
 void *DM_get_vert_data_layer(struct DerivedMesh *dm, int type);
 void *DM_get_edge_data_layer(struct DerivedMesh *dm, int type);
+void *DM_get_tessface_data_layer(struct DerivedMesh *dm, int type);
 void *DM_get_poly_data_layer(struct DerivedMesh *dm, int type);
 void *DM_get_loop_data_layer(struct DerivedMesh *dm, int type);
 
