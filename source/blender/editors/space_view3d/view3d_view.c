@@ -874,10 +874,10 @@ void view3d_opengl_select_cache_end(void)
 struct DrawSelectLoopUserData {
   uint pass;
   uint hits;
-  uint *buffer;
+  GPUSelectResult *buffer;
   uint buffer_len;
   const rcti *rect;
-  char gpu_select_mode;
+  eGPUSelectMode gpu_select_mode;
 };
 
 static bool drw_select_loop_pass(eDRWSelectStage stage, void *user_data)
@@ -938,8 +938,8 @@ static bool drw_select_filter_object_mode_lock_for_weight_paint(Object *ob, void
 }
 
 int view3d_opengl_select_ex(ViewContext *vc,
-                            uint *buffer,
-                            uint bufsize,
+                            GPUSelectResult *buffer,
+                            uint buffer_len,
                             const rcti *input,
                             eV3DSelectMode select_mode,
                             eV3DSelectObjectFilter select_filter,
@@ -961,7 +961,7 @@ int view3d_opengl_select_ex(ViewContext *vc,
   const bool use_nearest = (is_pick_select && select_mode == VIEW3D_SELECT_PICK_NEAREST);
   bool draw_surface = true;
 
-  char gpu_select_mode;
+  eGPUSelectMode gpu_select_mode;
 
   /* case not a box select */
   if (input->xmin == input->xmax) {
@@ -1054,7 +1054,7 @@ int view3d_opengl_select_ex(ViewContext *vc,
   /* Re-use cache (rect must be smaller than the cached)
    * other context is assumed to be unchanged */
   if (GPU_select_is_cached()) {
-    GPU_select_begin(buffer, bufsize, &rect, gpu_select_mode, 0);
+    GPU_select_begin(buffer, buffer_len, &rect, gpu_select_mode, 0);
     GPU_select_cache_load_id();
     hits = GPU_select_end();
     goto finally;
@@ -1082,7 +1082,7 @@ int view3d_opengl_select_ex(ViewContext *vc,
         .pass = 0,
         .hits = 0,
         .buffer = buffer,
-        .buffer_len = bufsize,
+        .buffer_len = buffer_len,
         .rect = &rect,
         .gpu_select_mode = gpu_select_mode,
     };
@@ -1112,7 +1112,7 @@ int view3d_opengl_select_ex(ViewContext *vc,
         .pass = 0,
         .hits = 0,
         .buffer = buffer,
-        .buffer_len = bufsize,
+        .buffer_len = buffer_len,
         .rect = &rect,
         .gpu_select_mode = gpu_select_mode,
     };
@@ -1155,24 +1155,24 @@ finally:
 }
 
 int view3d_opengl_select(ViewContext *vc,
-                         uint *buffer,
-                         uint bufsize,
+                         GPUSelectResult *buffer,
+                         uint buffer_len,
                          const rcti *input,
                          eV3DSelectMode select_mode,
                          eV3DSelectObjectFilter select_filter)
 {
-  return view3d_opengl_select_ex(vc, buffer, bufsize, input, select_mode, select_filter, false);
+  return view3d_opengl_select_ex(vc, buffer, buffer_len, input, select_mode, select_filter, false);
 }
 
 int view3d_opengl_select_with_id_filter(ViewContext *vc,
-                                        uint *buffer,
-                                        uint bufsize,
+                                        GPUSelectResult *buffer,
+                                        const uint buffer_len,
                                         const rcti *input,
                                         eV3DSelectMode select_mode,
                                         eV3DSelectObjectFilter select_filter,
                                         uint select_id)
 {
-  int hits = view3d_opengl_select(vc, buffer, bufsize, input, select_mode, select_filter);
+  int hits = view3d_opengl_select(vc, buffer, buffer_len, input, select_mode, select_filter);
 
   /* Selection sometimes uses -1 for an invalid selection ID, remove these as they
    * interfere with detection of actual number of hits in the selection. */

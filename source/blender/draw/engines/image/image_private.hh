@@ -54,6 +54,8 @@ struct IMAGE_Data {
 #define IMAGE_DRAW_FLAG_APPLY_ALPHA (1 << 1)
 #define IMAGE_DRAW_FLAG_SHUFFLING (1 << 2)
 #define IMAGE_DRAW_FLAG_DEPTH (1 << 3)
+/** Flag to disable depth testing (used for node editor back drop drawing).*/
+#define IMAGE_DRAW_FLAG_DEPTH_ALWAYS (1 << 4)
 
 /**
  * Abstract class for a drawing mode of the image engine.
@@ -72,7 +74,7 @@ class AbstractDrawingMode {
 
 /* image_shader.c */
 GPUShader *IMAGE_shader_image_get();
-void IMAGE_shader_library_ensure();
+GPUShader *IMAGE_shader_depth_get();
 void IMAGE_shader_free();
 
 }  // namespace blender::draw::image_engine
