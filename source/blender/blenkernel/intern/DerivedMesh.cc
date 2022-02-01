@@ -527,7 +527,7 @@ void DM_set_only_copy(DerivedMesh *dm, const CustomData_MeshMasks *mask)
    * see replies to r50969, Campbell */
 #if 0
   CustomData_set_only_copy(&dm->loopData, mask->lmask);
-  CustomData_set_only_copy(&dm->polyData, mask->pmask);
+  Custom(&dm->polyData, mask->pmask);
 #endif
 }
 
