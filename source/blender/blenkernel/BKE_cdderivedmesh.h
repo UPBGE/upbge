@@ -118,8 +118,6 @@ void CDDM_calc_edges(struct DerivedMesh *dm);
 void CDDM_recalc_tessellation(struct DerivedMesh *dm);
 void CDDM_recalc_tessellation_ex(struct DerivedMesh *dm, const bool do_face_nor_cpy);
 
-void cdDM_recalc_looptri(struct DerivedMesh *dm);
-
 /* lowers the number of vertices/edges/faces in a CDDerivedMesh
  * the layer data stays the same size
  */
