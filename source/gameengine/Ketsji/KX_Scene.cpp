@@ -3508,13 +3508,14 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
   PyObject *pyBlenderObject = Py_None;
 
   if (!PyArg_ParseTuple(args, "O:", &pyBlenderObject)) {
-    std::cout << "Expected a bpy.types.Object." << std::endl;
+    std::cout << "getGameObjectFromObject: Expected a bpy.types.Object." << std::endl;
     return nullptr;
   }
 
   ID *id = nullptr;
   if (!pyrna_id_FromPyObject(pyBlenderObject, &id)) {
-    std::cout << "Failed to convert Object." << std::endl;
+    std::cout << "getGameObjectFromObject: Failed to convert Object " << id->name + 2
+              << std::endl;
     return nullptr;
   }
 
@@ -3524,7 +3525,7 @@ EXP_PYMETHODDEF_DOC(KX_Scene,
     if (gameobj) {
       return gameobj->GetProxy();
     }
-    std::cout << "No KX_GameObject found for this Object" << std::endl;
+    std::cout << "getGameObjectFromObject: No KX_GameObject found for this Object " << ob->id.name + 2 << std::endl;
     Py_RETURN_NONE;
   }
 
