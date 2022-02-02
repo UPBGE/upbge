@@ -470,6 +470,5 @@ TEST_F(obj_exporter_regression_test, all_objects)
                                "io_tests/obj/all_objects.mtl",
                                _export.params);
 }
-#endif
 
 }  // namespace blender::io::obj
