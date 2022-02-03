@@ -63,6 +63,8 @@
 #include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_material.h" /* give_current_material */
+#include "BKE_mesh.h"
+#include "BKE_mesh_tangent.h"
 #include "BKE_object.h"
 #include "BKE_scene.h"
 #include "DEG_depsgraph_query.h"
@@ -373,7 +375,6 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   if (CustomData_get_layer_index(&dm->loopData, CD_NORMAL) == -1) {
     dm->calcLoopNormals(dm, (final_me->flag & ME_AUTOSMOOTH), final_me->smoothresh);
   }
-  const float(*normals)[3] = (float(*)[3])dm->getLoopDataArray(dm, CD_NORMAL);
 
   /* Extract available layers.
    * Get the active color and uv layer. */
@@ -400,10 +401,30 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     layersInfo.layers.push_back({nullptr, col, i, name});
   }
 
+  const float(*vert_normals)[3] = BKE_mesh_vertex_normals_ensure(final_me);
+
   float(*tangent)[4] = nullptr;
   if (uvLayers > 0) {
     if (CustomData_get_layer_index(&dm->loopData, CD_TANGENT) == -1) {
-      DM_calc_loop_tangents(dm, true, nullptr, 0);
+      BKE_mesh_calc_loop_tangent_ex(
+          mverts,
+          mpolys,
+          numpolys,
+          mloops,
+          dm->getLoopTriArray(dm),
+          dm->getNumLoopTri(dm),
+          &dm->loopData,
+          true,
+          nullptr,
+          0,
+          vert_normals,
+          (const float(*)[3])CustomData_get_layer(&dm->polyData, CD_NORMAL),
+          (const float(*)[3])dm->getLoopDataArray(dm, CD_NORMAL),
+          (const float(*)[3])dm->getVertDataArray(dm, CD_ORCO), /* may be nullptr */
+          /* result */
+          &dm->loopData,
+          dm->getNumLoops(dm),
+          &dm->tangent_mask);
     }
     tangent = (float(*)[4])dm->getLoopDataArray(dm, CD_TANGENT);
   }
@@ -480,7 +501,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
       const MVert &mvert = mverts[vertid];
 
       const MT_Vector3 pt(mvert.co);
-      const MT_Vector3 no(normals[j]);
+      const MT_Vector3 no(vert_normals[j]);
       const MT_Vector4 tan = tangent ? MT_Vector4(tangent[j]) : MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f);
       MT_Vector2 uvs[RAS_Texture::MaxUnits];
       unsigned int rgba[RAS_Texture::MaxUnits];

@@ -2244,6 +2244,35 @@ static void mesh_init_origspace(Mesh *mesh)
 
 /* UPBGE */
 
+/* See 2f591adc1a95dee6e76983c81eb592b6c34d3b1a if we want to remove
+ * DM_calc_loop_tangents totally but we would sacrifice some performance
+ * as we would need to create a temporal mesh */
+void DM_calc_loop_tangents(DerivedMesh *dm,
+                           bool calc_active_tangent,
+                           const char (*tangent_names)[MAX_NAME],
+                           int tangent_names_len)
+{
+  BKE_mesh_calc_loop_tangent_ex(
+      dm->getVertArray(dm),
+      dm->getPolyArray(dm),
+      dm->getNumPolys(dm),
+      dm->getLoopArray(dm),
+      dm->getLoopTriArray(dm),
+      dm->getNumLoopTri(dm),
+      &dm->loopData,
+      calc_active_tangent,
+      tangent_names,
+      tangent_names_len,
+      (const float(*)[3])CustomData_get_layer(&dm->vertData, CD_NORMAL),
+      (const float(*)[3])CustomData_get_layer(&dm->polyData, CD_NORMAL),
+      (const float(*)[3])dm->getLoopDataArray(dm, CD_NORMAL),
+      (const float(*)[3])dm->getVertDataArray(dm, CD_ORCO), /* may be nullptr */
+      /* result */
+      &dm->loopData,
+      dm->getNumLoops(dm),
+      &dm->tangent_mask);
+}
+
 /* note: until all modifiers can take MPoly's as input,
  * use this at the start of modifiers  */
 void DM_ensure_tessface(DerivedMesh *dm)
