@@ -1441,6 +1441,7 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
     PyList_SET_ITEM(joylist, i, Py_None);
   }
   PyDict_SetItemString(d, "joysticks", joylist);
+  Py_DECREF(joylist);
 
   ErrorObject = PyUnicode_FromString("GameLogic.error");
   PyDict_SetItemString(d, "error", ErrorObject);
