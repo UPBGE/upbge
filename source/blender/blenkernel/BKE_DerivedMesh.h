@@ -502,11 +502,6 @@ void makeDerivedMesh(struct Depsgraph *depsgraph,
                      struct Object *ob,
                      const struct CustomData_MeshMasks *dataMask);
 
-void DM_calc_loop_tangents(DerivedMesh *dm,
-                           bool calc_active_tangent,
-                           const char (*tangent_names)[MAX_NAME],
-                           int tangent_names_len);
-
 BLI_INLINE int DM_origindex_mface_mpoly(const int *index_mf_to_mpoly,
                                         const int *index_mp_to_orig,
                                         const int i) ATTR_NONNULL(1);
@@ -567,7 +562,6 @@ struct MPoly *DM_get_poly_array(struct DerivedMesh *dm, bool *r_allocated);
 struct MFace *DM_get_tessface_array(struct DerivedMesh *dm, bool *r_allocated);
 
 /* End of UPBGE */
-
 #ifdef __cplusplus
 }
 #endif

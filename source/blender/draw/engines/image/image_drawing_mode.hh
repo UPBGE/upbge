@@ -211,7 +211,7 @@ template<typename TextureMethod> class ScreenSpaceDrawingMode : public AbstractD
       if (iterator.tile_data.tile_buffer == nullptr) {
         continue;
       }
-      ensure_float_buffer(*iterator.tile_data.tile_buffer);
+      const bool float_buffer_created = ensure_float_buffer(*iterator.tile_data.tile_buffer);
       const float tile_width = static_cast<float>(iterator.tile_data.tile_buffer->x);
       const float tile_height = static_cast<float>(iterator.tile_data.tile_buffer->y);
 
@@ -227,8 +227,7 @@ template<typename TextureMethod> class ScreenSpaceDrawingMode : public AbstractD
         GPUTexture *texture = info.texture;
         const float texture_width = GPU_texture_width(texture);
         const float texture_height = GPU_texture_height(texture);
-        // TODO
-        // early bound check.
+        /* TODO: early bound check. */
         ImageTileWrapper tile_accessor(iterator.tile_data.tile);
         float tile_offset_x = static_cast<float>(tile_accessor.get_tile_x_offset());
         float tile_offset_y = static_cast<float>(tile_accessor.get_tile_y_offset());
@@ -253,9 +252,9 @@ template<typename TextureMethod> class ScreenSpaceDrawingMode : public AbstractD
         if (!region_overlap) {
           continue;
         }
-        // convert the overlapping region to texel space and to ss_pixel space...
-        // TODO: first convert to ss_pixel space as integer based. and from there go back to texel
-        // space. But perhaps this isn't needed and we could use an extraction offset somehow.
+        /* Convert the overlapping region to texel space and to ss_pixel space...
+         * TODO: first convert to ss_pixel space as integer based. and from there go back to texel
+         * space. But perhaps this isn't needed and we could use an extraction offset somehow. */
         rcti gpu_texture_region_to_update;
         BLI_rcti_init(&gpu_texture_region_to_update,
                       floor((changed_overlapping_region_in_uv_space.xmin - info.uv_bounds.xmin) *
@@ -275,8 +274,8 @@ template<typename TextureMethod> class ScreenSpaceDrawingMode : public AbstractD
             ceil((changed_overlapping_region_in_uv_space.ymin - tile_offset_y) * tile_height),
             ceil((changed_overlapping_region_in_uv_space.ymax - tile_offset_y) * tile_height));
 
-        // Create an image buffer with a size
-        // extract and scale into an imbuf
+        /* Create an image buffer with a size.
+         * Extract and scale into an imbuf. */
         const int texture_region_width = BLI_rcti_size_x(&gpu_texture_region_to_update);
         const int texture_region_height = BLI_rcti_size_y(&gpu_texture_region_to_update);
 
@@ -313,6 +312,10 @@ template<typename TextureMethod> class ScreenSpaceDrawingMode : public AbstractD
                                extracted_buffer.y,
                                0);
         imb_freerectImbuf_all(&extracted_buffer);
+      }
+      /* TODO(jbakker): Find leak when rendering VSE and remove this call. */
+      if (float_buffer_created) {
+        imb_freerectfloatImBuf(iterator.tile_data.tile_buffer);
       }
     }
   }
@@ -367,12 +370,19 @@ template<typename TextureMethod> class ScreenSpaceDrawingMode : public AbstractD
 
   /**
    * \brief Ensure that the float buffer of the given image buffer is available.
+   *
+   * Returns true when a float buffer was created. Somehow the VSE cache increases the ref
+   * counter, but might use a different mechanism for destructing the image, that doesn't free the
+   * rect_float as the refcounter isn't 0. To work around this we destruct any created local
+   * buffers ourself.
    */
-  void ensure_float_buffer(ImBuf &image_buffer) const
+  bool ensure_float_buffer(ImBuf &image_buffer) const
   {
     if (image_buffer.rect_float == nullptr) {
       IMB_float_from_rect(&image_buffer);
+      return true;
     }
+    return false;
   }
 
   void do_full_update_texture_slot(const IMAGE_InstanceData &instance_data,
@@ -383,7 +393,7 @@ template<typename TextureMethod> class ScreenSpaceDrawingMode : public AbstractD
   {
     const int texture_width = texture_buffer.x;
     const int texture_height = texture_buffer.y;
-    ensure_float_buffer(tile_buffer);
+    const bool float_buffer_created = ensure_float_buffer(tile_buffer);
 
     /* IMB_transform works in a non-consistent space. This should be documented or fixed!.
      * Construct a variant of the info_uv_to_texture that adds the texel space
@@ -418,6 +428,11 @@ template<typename TextureMethod> class ScreenSpaceDrawingMode : public AbstractD
                   IMB_FILTER_NEAREST,
                   uv_to_texel,
                   crop_rect_ptr);
+
+    /* TODO(jbakker): Find leak when rendering VSE and remove this call. */
+    if (float_buffer_created) {
+      imb_freerectfloatImBuf(&tile_buffer);
+    }
   }
 
  public:
@@ -437,17 +452,17 @@ template<typename TextureMethod> class ScreenSpaceDrawingMode : public AbstractD
     instance_data->partial_update.ensure_image(image);
     instance_data->clear_dirty_flag();
 
-    // Step: Find out which screen space textures are needed to draw on the screen. Remove the
-    // screen space textures that aren't needed.
+    /* Step: Find out which screen space textures are needed to draw on the screen. Remove the
+     * screen space textures that aren't needed. */
     const ARegion *region = draw_ctx->region;
     method.update_screen_space_bounds(region);
     method.update_uv_bounds(region);
 
-    // Step: Update the GPU textures based on the changes in the image.
+    /* Step: Update the GPU textures based on the changes in the image. */
     instance_data->update_gpu_texture_allocations();
     update_textures(*instance_data, image, iuser);
 
-    // Step: Add the GPU textures to the shgroup.
+    /* Step: Add the GPU textures to the shgroup. */
     instance_data->update_batches();
     add_depth_shgroups(*instance_data, image, iuser);
     add_shgroups(instance_data);
