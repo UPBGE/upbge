@@ -3274,7 +3274,7 @@ EXP_PYMETHODDEF_DOC(
     "Replaces this scene with another one.\n"
     "Return True if the new scene exists and scheduled for replacement, False otherwise.\n")
 {
-  char *name;
+  char *name = (char *)"";
 
   if (!PyArg_ParseTuple(args, "s:replace", &name))
     return nullptr;

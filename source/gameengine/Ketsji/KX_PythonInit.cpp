@@ -222,7 +222,7 @@ PyDoc_STRVAR(gPyStartGame_doc,
              "Loads the blend file");
 static PyObject *gPyStartGame(PyObject *, PyObject *args)
 {
-  char *blendfile;
+  char *blendfile = (char *)"";
 
   if (!PyArg_ParseTuple(args, "s:startGame", &blendfile))
     return nullptr;
@@ -291,7 +291,7 @@ PyDoc_STRVAR(gPySendMessage_doc,
              " from = Name of object to send the string from");
 static PyObject *gPySendMessage(PyObject *, PyObject *args)
 {
-  char *subject;
+  char *subject = (char *)"";
   char *body = (char *)"";
   char *to = (char *)"";
   PyObject *pyfrom = Py_None;
@@ -676,7 +676,7 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 static PyObject *gLibNew(PyObject *, PyObject *args)
 {
   KX_Scene *kx_scene = KX_GetActiveScene();
-  char *path;
+  char *path = (char *)"";
   char *group;
   const char *name;
   PyObject *names;
@@ -732,7 +732,7 @@ static PyObject *gLibNew(PyObject *, PyObject *args)
 
 static PyObject *gLibFree(PyObject *, PyObject *args)
 {
-  char *path;
+  char *path = (char *)"";
 
   if (!PyArg_ParseTuple(args, "s:LibFree", &path))
     return nullptr;
@@ -1056,7 +1056,7 @@ static PyObject *gPyGetStereoEye(PyObject *, PyObject *, PyObject *)
 
 static PyObject *gPyMakeScreenshot(PyObject *, PyObject *args)
 {
-  char *filename;
+  char *filename = (char *)"";
   if (!PyArg_ParseTuple(args, "s:makeScreenshot", &filename))
     return nullptr;
 
