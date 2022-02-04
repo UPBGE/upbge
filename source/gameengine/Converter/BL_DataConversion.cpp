@@ -376,6 +376,8 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     dm->calcLoopNormals(dm, (final_me->flag & ME_AUTOSMOOTH), final_me->smoothresh);
   }
 
+  const float(*normals)[3] = (float(*)[3])dm->getLoopDataArray(dm, CD_NORMAL);
+
   /* Extract available layers.
    * Get the active color and uv layer. */
   const short activeUv = CustomData_get_active_layer(&dm->loopData, CD_MLOOPUV);
@@ -401,8 +403,6 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
     layersInfo.layers.push_back({nullptr, col, i, name});
   }
 
-  const float(*vert_normals)[3] = BKE_mesh_vertex_normals_ensure(final_me);
-
   float(*tangent)[4] = nullptr;
   if (uvLayers > 0) {
     if (CustomData_get_layer_index(&dm->loopData, CD_TANGENT) == -1) {
@@ -417,9 +417,9 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
           true,
           nullptr,
           0,
-          vert_normals,
+          (const float(*)[3])CustomData_get_layer(&dm->vertData, CD_NORMAL),
           (const float(*)[3])CustomData_get_layer(&dm->polyData, CD_NORMAL),
-          (const float(*)[3])dm->getLoopDataArray(dm, CD_NORMAL),
+          normals,
           (const float(*)[3])dm->getVertDataArray(dm, CD_ORCO), /* may be nullptr */
           /* result */
           &dm->loopData,
@@ -501,7 +501,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
       const MVert &mvert = mverts[vertid];
 
       const MT_Vector3 pt(mvert.co);
-      const MT_Vector3 no(vert_normals[j]);
+      const MT_Vector3 no(normals[j]);
       const MT_Vector4 tan = tangent ? MT_Vector4(tangent[j]) : MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f);
       MT_Vector2 uvs[RAS_Texture::MaxUnits];
       unsigned int rgba[RAS_Texture::MaxUnits];

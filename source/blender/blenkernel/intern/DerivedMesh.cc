@@ -2244,7 +2244,7 @@ static void mesh_init_origspace(Mesh *mesh)
 
 /* UPBGE */
 
-/* See 2f591adc1a95dee6e76983c81eb592b6c34d3b1a if we want to remove
+/* See 2f591adc1a95, df754fbfedf5418 and following fix commit if we want to remove
  * DM_calc_loop_tangents totally but we would sacrifice some performance
  * as we would need to create a temporal mesh */
 void DM_calc_loop_tangents(DerivedMesh *dm,
