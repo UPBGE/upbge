@@ -370,7 +370,8 @@ static int viewrotate_modal(bContext *C, wmOperator *op, const wmEvent *event)
   }
 
   if (ret & OPERATOR_FINISHED) {
-    viewops_data_free(C, op);
+    viewops_data_free(C, op->customdata);
+    op->customdata = NULL;
   }
 
   return ret;
@@ -383,22 +384,13 @@ static int viewrotate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   const bool use_cursor_init = RNA_boolean_get(op->ptr, "use_cursor_init");
 
   /* makes op->customdata */
-  viewops_data_alloc(C, op);
-  vod = op->customdata;
-
-  /* poll should check but in some cases fails, see poll func for details */
-  if (RV3D_LOCK_FLAGS(vod->rv3d) & RV3D_LOCK_ROTATION) {
-    viewops_data_free(C, op);
-    return OPERATOR_PASS_THROUGH;
-  }
+  vod = op->customdata = viewops_data_create(
+      C,
+      event,
+      viewops_flag_from_prefs() | VIEWOPS_FLAG_PERSP_ENSURE |
+          (use_cursor_init ? VIEWOPS_FLAG_USE_MOUSE_INIT : 0));
 
   ED_view3d_smooth_view_force_finish(C, vod->v3d, vod->region);
-
-  viewops_data_create(C,
-                      op,
-                      event,
-                      viewops_flag_from_prefs() | VIEWOPS_FLAG_PERSP_ENSURE |
-                          (use_cursor_init ? VIEWOPS_FLAG_USE_MOUSE_INIT : 0));
 
   if (ELEM(event->type, MOUSEPAN, MOUSEROTATE)) {
     /* Rotate direction we keep always same */
@@ -420,7 +412,8 @@ static int viewrotate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
     viewrotate_apply(vod, event_xy);
 
-    viewops_data_free(C, op);
+    viewops_data_free(C, op->customdata);
+    op->customdata = NULL;
 
     return OPERATOR_FINISHED;
   }
@@ -433,7 +426,8 @@ static int viewrotate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
 static void viewrotate_cancel(bContext *C, wmOperator *op)
 {
-  viewops_data_free(C, op);
+  viewops_data_free(C, op->customdata);
+  op->customdata = NULL;
 }
 
 void VIEW3D_OT_rotate(wmOperatorType *ot)
@@ -446,7 +440,7 @@ void VIEW3D_OT_rotate(wmOperatorType *ot)
   /* api callbacks */
   ot->invoke = viewrotate_invoke;
   ot->modal = viewrotate_modal;
-  ot->poll = ED_operator_region_view3d_active;
+  ot->poll = view3d_rotation_poll;
   ot->cancel = viewrotate_cancel;
 
   /* flags */

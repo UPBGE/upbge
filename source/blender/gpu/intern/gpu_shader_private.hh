@@ -127,6 +127,7 @@ struct LogCursor {
 
 struct GPULogItem {
   LogCursor cursor;
+  bool source_base_row = false;
   Severity severity = Severity::Unknown;
 };
 

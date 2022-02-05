@@ -59,22 +59,29 @@
 /** \name Navigation Polls
  * \{ */
 
-static bool view3d_pan_poll(bContext *C)
+static bool view3d_navigation_poll_impl(bContext *C, const char viewlock)
 {
-  if (ED_operator_region_view3d_active(C)) {
-    const RegionView3D *rv3d = CTX_wm_region_view3d(C);
-    return !(RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_LOCATION);
+  if (!ED_operator_region_view3d_active(C)) {
+    return false;
   }
-  return false;
+
+  const RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  return !(RV3D_LOCK_FLAGS(rv3d) & viewlock);
+}
+
+bool view3d_location_poll(bContext *C)
+{
+  return view3d_navigation_poll_impl(C, RV3D_LOCK_LOCATION);
+}
+
+bool view3d_rotation_poll(bContext *C)
+{
+  return view3d_navigation_poll_impl(C, RV3D_LOCK_ROTATION);
 }
 
 bool view3d_zoom_or_dolly_poll(bContext *C)
 {
-  if (ED_operator_region_view3d_active(C)) {
-    const RegionView3D *rv3d = CTX_wm_region_view3d(C);
-    return !(RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ZOOM_AND_DOLLY);
-  }
-  return false;
+  return view3d_navigation_poll_impl(C, RV3D_LOCK_ZOOM_AND_DOLLY);
 }
 
 /** \} */
@@ -134,21 +141,6 @@ void calctrackballvec(const rcti *rect, const int event_xy[2], float r_dir[3])
     /* On hyperbola. */
     r_dir[2] = square_f(t) / d;
   }
-}
-
-void viewops_data_alloc(bContext *C, wmOperator *op)
-{
-  ViewOpsData *vod = MEM_callocN(sizeof(ViewOpsData), "viewops data");
-
-  /* store data */
-  op->customdata = vod;
-  vod->bmain = CTX_data_main(C);
-  vod->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  vod->scene = CTX_data_scene(C);
-  vod->area = CTX_wm_area(C);
-  vod->region = CTX_wm_region(C);
-  vod->v3d = vod->area->spacedata.first;
-  vod->rv3d = vod->region->regiondata;
 }
 
 void view3d_orbit_apply_dyn_ofs(float r_ofs[3],
@@ -254,7 +246,7 @@ bool view3d_orbit_calc_center(bContext *C, float r_dyn_ofs[3])
     }
   }
   else {
-    /* If there's no selection, lastofs is unmodified and last value since static */
+    /* If there's no selection, `lastofs` is unmodified and last value since static. */
     is_set = calculateTransformCenter(C, V3D_AROUND_CENTER_MEDIAN, lastofs, NULL);
   }
 
@@ -282,13 +274,20 @@ enum eViewOpsFlag viewops_flag_from_prefs(void)
                                 (U.uiflag & USER_DEPTH_NAVIGATE) != 0);
 }
 
-void viewops_data_create(bContext *C,
-                         wmOperator *op,
-                         const wmEvent *event,
-                         enum eViewOpsFlag viewops_flag)
+ViewOpsData *viewops_data_create(bContext *C, const wmEvent *event, enum eViewOpsFlag viewops_flag)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  ViewOpsData *vod = op->customdata;
+  ViewOpsData *vod = MEM_callocN(sizeof(ViewOpsData), __func__);
+
+  /* Store data. */
+  vod->bmain = CTX_data_main(C);
+  vod->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  vod->scene = CTX_data_scene(C);
+  vod->area = CTX_wm_area(C);
+  vod->region = CTX_wm_region(C);
+  vod->v3d = vod->area->spacedata.first;
+  vod->rv3d = vod->region->regiondata;
+
+  Depsgraph *depsgraph = vod->depsgraph;
   RegionView3D *rv3d = vod->rv3d;
 
   /* Could do this more nicely. */
@@ -300,7 +299,7 @@ void viewops_data_create(bContext *C,
   if (viewops_flag & VIEWOPS_FLAG_DEPTH_NAVIGATE) {
     float fallback_depth_pt[3];
 
-    view3d_operator_needs_opengl(C); /* needed for zbuf drawing */
+    view3d_operator_needs_opengl(C); /* Needed for Z-buffer drawing. */
 
     negate_v3_v3(fallback_depth_pt, rv3d->ofs);
 
@@ -356,8 +355,8 @@ void viewops_data_create(bContext *C,
   if (viewops_flag & VIEWOPS_FLAG_DEPTH_NAVIGATE) {
     if (vod->use_dyn_ofs) {
       if (rv3d->is_persp) {
-        float my_origin[3]; /* original G.vd->ofs */
-        float my_pivot[3];  /* view */
+        float my_origin[3]; /* Original #RegionView3D.ofs. */
+        float my_pivot[3];  /* View pivot. */
         float dvec[3];
 
         /* locals for dist correction */
@@ -420,13 +419,14 @@ void viewops_data_create(bContext *C,
   }
 
   rv3d->rflag |= RV3D_NAVIGATING;
+
+  return vod;
 }
 
-void viewops_data_free(bContext *C, wmOperator *op)
+void viewops_data_free(bContext *C, ViewOpsData *vod)
 {
   ARegion *region;
-  if (op->customdata) {
-    ViewOpsData *vod = op->customdata;
+  if (vod) {
     region = vod->region;
     vod->rv3d->rflag &= ~RV3D_NAVIGATING;
 
@@ -439,7 +439,6 @@ void viewops_data_free(bContext *C, wmOperator *op)
     }
 
     MEM_freeN(vod);
-    op->customdata = NULL;
   }
   else {
     region = CTX_wm_region(C);
@@ -1053,7 +1052,7 @@ void VIEW3D_OT_view_center_cursor(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = viewcenter_cursor_exec;
-  ot->poll = view3d_pan_poll;
+  ot->poll = view3d_location_poll;
 
   /* flags */
   ot->flag = 0;
@@ -1105,7 +1104,7 @@ void VIEW3D_OT_view_center_pick(wmOperatorType *ot)
 
   /* api callbacks */
   ot->invoke = viewcenter_pick_invoke;
-  ot->poll = view3d_pan_poll;
+  ot->poll = view3d_location_poll;
 
   /* flags */
   ot->flag = 0;
@@ -1562,13 +1561,12 @@ static int viewpan_invoke(bContext *C, wmOperator *op, const wmEvent *event)
     y = 25;
   }
 
-  viewops_data_alloc(C, op);
-  viewops_data_create(C, op, event, (viewops_flag_from_prefs() & ~VIEWOPS_FLAG_ORBIT_SELECT));
-  ViewOpsData *vod = op->customdata;
+  ViewOpsData *vod = viewops_data_create(
+      C, event, (viewops_flag_from_prefs() & ~VIEWOPS_FLAG_ORBIT_SELECT));
 
   viewmove_apply(vod, vod->prev.event_xy[0] + x, vod->prev.event_xy[1] + y);
 
-  viewops_data_free(C, op);
+  viewops_data_free(C, vod);
 
   return OPERATOR_FINISHED;
 }
@@ -1582,7 +1580,7 @@ void VIEW3D_OT_view_pan(wmOperatorType *ot)
 
   /* api callbacks */
   ot->invoke = viewpan_invoke;
-  ot->poll = view3d_pan_poll;
+  ot->poll = view3d_location_poll;
 
   /* flags */
   ot->flag = 0;

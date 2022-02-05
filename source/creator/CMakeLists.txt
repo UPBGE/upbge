@@ -1128,6 +1128,13 @@ elseif(APPLE)
     Blender.app/Contents/
   )
 
+  if(WITH_BLENDER_THUMBNAILER)
+      install(
+        TARGETS blender-thumbnailer
+        DESTINATION Blender.app/Contents/MacOS/
+      )
+  endif()
+
   if(WITH_OPENMP AND OPENMP_CUSTOM)
     install(
       FILES "${OpenMP_LIBRARY}"
