@@ -26,6 +26,7 @@
 #include "BLI_string_utils.h"
 
 #include "GPU_capabilities.h"
+#include "GPU_debug.h"
 #include "GPU_matrix.h"
 #include "GPU_platform.h"
 
@@ -273,6 +274,8 @@ GPUShader *GPU_shader_create_from_info(const GPUShaderCreateInfo *_info)
 
   const_cast<ShaderCreateInfo &>(info).finalize();
 
+  GPU_debug_group_begin(GPU_DEBUG_SHADER_COMPILATION_GROUP);
+
   /* At least a vertex shader and a fragment shader are required, or only a compute shader. */
   if (info.compute_source_.is_empty()) {
     if (info.vertex_source_.is_empty()) {
@@ -306,7 +309,7 @@ GPUShader *GPU_shader_create_from_info(const GPUShaderCreateInfo *_info)
 
   Vector<const char *> typedefs;
   if (!info.typedef_sources_.is_empty() || !info.typedef_source_generated.empty()) {
-    typedefs.append(gpu_shader_dependency_get_source("gpu_shader_shared_utils.h").c_str());
+    typedefs.append(gpu_shader_dependency_get_source("GPU_shader_shared_utils.h").c_str());
   }
   if (!info.typedef_source_generated.empty()) {
     typedefs.append(info.typedef_source_generated.c_str());
@@ -393,9 +396,11 @@ GPUShader *GPU_shader_create_from_info(const GPUShaderCreateInfo *_info)
 
   if (!shader->finalize(&info)) {
     delete shader;
+    GPU_debug_group_end();
     return nullptr;
   }
 
+  GPU_debug_group_end();
   return wrap(shader);
 }
 

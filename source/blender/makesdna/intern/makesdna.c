@@ -139,7 +139,7 @@ static const char *includefiles[] = {
     "DNA_lightprobe_types.h",
     "DNA_curveprofile_types.h",
     "DNA_xr_types.h",
-    "DNA_hair_types.h",
+    "DNA_curves_types.h",
     "DNA_pointcloud_types.h",
     "DNA_volume_types.h",
     "DNA_simulation_types.h",
@@ -1643,6 +1643,7 @@ int main(int argc, char **argv)
 #include "DNA_controller_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_curveprofile_types.h"
+#include "DNA_curves_types.h"
 #include "DNA_customdata_types.h"
 #include "DNA_dynamicpaint_types.h"
 #include "DNA_effect_types.h"
@@ -1651,7 +1652,6 @@ int main(int argc, char **argv)
 #include "DNA_freestyle_types.h"
 #include "DNA_gpencil_modifier_types.h"
 #include "DNA_gpencil_types.h"
-#include "DNA_hair_types.h"
 #include "DNA_image_types.h"
 #include "DNA_ipo_types.h"
 #include "DNA_key_types.h"

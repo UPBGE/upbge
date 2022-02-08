@@ -34,8 +34,8 @@
 #include "BKE_paint.h"
 #include "BKE_particle.h"
 
+#include "DNA_curves_types.h"
 #include "DNA_fluid_types.h"
-#include "DNA_hair_types.h"
 #include "DNA_image_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
@@ -272,8 +272,8 @@ static eV3DShadingColorType workbench_color_type_get(WORKBENCH_PrivateData *wpd,
 {
   eV3DShadingColorType color_type = wpd->shading.color_type;
   const Mesh *me = (ob->type == OB_MESH) ? ob->data : NULL;
-  const CustomData *ldata = workbench_mesh_get_loop_custom_data(me);
-  const CustomData *vdata = workbench_mesh_get_vert_custom_data(me);
+  const CustomData *ldata = (me == NULL) ? NULL : workbench_mesh_get_loop_custom_data(me);
+  const CustomData *vdata = (me == NULL) ? NULL : workbench_mesh_get_vert_custom_data(me);
 
   const DRWContextState *draw_ctx = DRW_context_state_get();
   const bool is_active = (ob == draw_ctx->obact);
@@ -419,9 +419,9 @@ void workbench_cache_populate(void *ved, Object *ob)
       workbench_shadow_cache_populate(vedata, ob, has_transp_mat);
     }
   }
-  else if (ob->type == OB_HAIR) {
+  else if (ob->type == OB_CURVES) {
     int color_type = workbench_color_type_get(wpd, ob, NULL, NULL, NULL);
-    workbench_cache_hair_populate(wpd, ob, NULL, NULL, color_type, false, HAIR_MATERIAL_NR);
+    workbench_cache_hair_populate(wpd, ob, NULL, NULL, color_type, false, CURVES_MATERIAL_NR);
   }
   else if (ob->type == OB_VOLUME) {
     if (wpd->shading.type != OB_WIRE) {

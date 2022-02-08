@@ -85,7 +85,7 @@ static const char *to_string(const Interpolation &interp)
     case Interpolation::NO_PERSPECTIVE:
       return "noperspective";
     default:
-      return "unkown";
+      return "unknown";
   }
 }
 
@@ -123,7 +123,7 @@ static const char *to_string(const Type &type)
     case Type::BOOL:
       return "bool";
     default:
-      return "unkown";
+      return "unknown";
   }
 }
 
@@ -520,7 +520,7 @@ std::string GLShader::vertex_interface_declare(const ShaderCreateInfo &info) con
   ss << "\n/* Inputs. */\n";
   for (const ShaderCreateInfo::VertIn &attr : info.vertex_inputs_) {
     if (GLContext::explicit_location_support &&
-        /* Fix issue with amdgpu-pro + workbench_prepass_mesh_vert.glsl being quantized. */
+        /* Fix issue with AMDGPU-PRO + workbench_prepass_mesh_vert.glsl being quantized. */
         GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL) == false) {
       ss << "layout(location = " << attr.index << ") ";
     }
