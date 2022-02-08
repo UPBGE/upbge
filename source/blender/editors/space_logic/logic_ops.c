@@ -47,7 +47,6 @@
 #include "BKE_main.h"
 #include "BKE_python_proxy.h"
 #include "BKE_sca.h"
-#include "BKE_undo_system.h"
 
 #include "ED_logic.h"
 #include "ED_object.h"
@@ -283,9 +282,7 @@ static int sensor_remove_exec(bContext *C, wmOperator *op)
   BLI_remlink(&(ob->sensors), sens);
   BKE_sca_free_sensor(sens);
 
-  ED_undo_push(C, "sensor_remove_exec");
-  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
-  last_step->use_old_bmain_data = false;
+  ED_undo_push_old(C, "sensor_remove_exec");
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -349,9 +346,7 @@ static int sensor_add_exec(bContext *C, wmOperator *op)
       &ob->sensors, sens, DATA_("Sensor"), '.', offsetof(bSensor, name), sizeof(sens->name));
   ob->scaflag |= OB_SHOWSENS;
 
-  ED_undo_push(C, "sensor_add_exec");
-  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
-  last_step->use_old_bmain_data = false;
+  ED_undo_push_old(C, "sensor_add_exec");
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -400,9 +395,7 @@ static int controller_remove_exec(bContext *C, wmOperator *op)
   BKE_sca_unlink_controller(cont);
   BKE_sca_free_controller(cont);
 
-  ED_undo_push(C, "controller_remove_exec");
-  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
-  last_step->use_old_bmain_data = false;
+  ED_undo_push_old(C, "controller_remove_exec");
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -485,9 +478,7 @@ static int controller_add_exec(bContext *C, wmOperator *op)
 
   ob->scaflag |= OB_SHOWCONT;
 
-  ED_undo_push(C, "controller_add_exec");
-  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
-  last_step->use_old_bmain_data = false;
+  ED_undo_push_old(C, "controller_add_exec");
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -539,9 +530,7 @@ static int actuator_remove_exec(bContext *C, wmOperator *op)
   BKE_sca_unlink_actuator(act);
   BKE_sca_free_actuator(act);
 
-  ED_undo_push(C, "actuator_remove_exec");
-  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
-  last_step->use_old_bmain_data = false;
+  ED_undo_push_old(C, "actuator_remove_exec");
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -605,9 +594,7 @@ static int actuator_add_exec(bContext *C, wmOperator *op)
       &ob->actuators, act, DATA_("Actuator"), '.', offsetof(bActuator, name), sizeof(act->name));
   ob->scaflag |= OB_SHOWACT;
 
-  ED_undo_push(C, "actuator_add_exec");
-  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
-  last_step->use_old_bmain_data = false;
+  ED_undo_push_old(C, "actuator_add_exec");
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -657,9 +644,7 @@ static int sensor_move_exec(bContext *C, wmOperator *op)
 
   BKE_sca_move_sensor(sens, ob, move_up);
 
-  ED_undo_push(C, "sensor_move_exec");
-  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
-  last_step->use_old_bmain_data = false;
+  ED_undo_push_old(C, "sensor_move_exec");
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -706,9 +691,7 @@ static int controller_move_exec(bContext *C, wmOperator *op)
 
   BKE_sca_move_controller(cont, ob, move_up);
 
-  ED_undo_push(C, "controller_move_exec");
-  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
-  last_step->use_old_bmain_data = false;
+  ED_undo_push_old(C, "controller_move_exec");
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -755,9 +738,7 @@ static int actuator_move_exec(bContext *C, wmOperator *op)
 
   BKE_sca_move_actuator(act, ob, move_up);
 
-  ED_undo_push(C, "actuator_move_exec");
-  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
-  last_step->use_old_bmain_data = false;
+  ED_undo_push_old(C, "actuator_move_exec");
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -893,9 +874,7 @@ static int custom_object_register_exec(bContext *C, wmOperator *op)
 
   ob->custom_object = pp;
 
-  ED_undo_push(C, "custom_object_register_exec");
-  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
-  last_step->use_old_bmain_data = false;
+  ED_undo_push_old(C, "custom_object_register_exec");
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -921,9 +900,7 @@ static int custom_object_create_exec(bContext *C, wmOperator *op)
 
   ob->custom_object = pp;
 
-  ED_undo_push(C, "custom_object_create_exec");
-  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
-  last_step->use_old_bmain_data = false;
+  ED_undo_push_old(C, "custom_object_create_exec");
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -996,9 +973,7 @@ static int custom_object_remove_exec(bContext *C, wmOperator *UNUSED(op))
 
   BKE_python_proxy_free(pp);
 
-  ED_undo_push(C, "custom_object_remove_exec");
-  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
-  last_step->use_old_bmain_data = false;
+  ED_undo_push_old(C, "custom_object_remove_exec");
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -1037,9 +1012,7 @@ static int custom_object_reload_exec(bContext *C, wmOperator *op)
   /* Try to create a new object */
   BKE_custom_object_reload(pp, op->reports, C);
 
-  ED_undo_push(C, "custom_object_reload_exec");
-  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
-  last_step->use_old_bmain_data = false;
+  ED_undo_push_old(C, "custom_object_reload_exec");
 
   return OPERATOR_FINISHED;
 }
@@ -1079,9 +1052,7 @@ static int component_register_exec(bContext *C, wmOperator *op)
 
   BLI_addtail(&ob->components, pp);
 
-  ED_undo_push(C, "component_register_exec");
-  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
-  last_step->use_old_bmain_data = false;
+  ED_undo_push_old(C, "component_register_exec");
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -1107,9 +1078,7 @@ static int component_create_exec(bContext *C, wmOperator *op)
 
   BLI_addtail(&ob->components, pp);
 
-  ED_undo_push(C, "component_create_exec");
-  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
-  last_step->use_old_bmain_data = false;
+  ED_undo_push_old(C, "component_create_exec");
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -1183,9 +1152,7 @@ static int component_remove_exec(bContext *C, wmOperator *op)
   BLI_remlink(&ob->components, pp);
   BKE_python_proxy_free(pp);
 
-  ED_undo_push(C, "component_remove_exec");
-  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
-  last_step->use_old_bmain_data = false;
+  ED_undo_push_old(C, "component_remove_exec");
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -1234,9 +1201,7 @@ static int component_move_up_exec(bContext *C, wmOperator *op)
 
   BLI_listbase_swaplinks(&ob->components, p1, p2);
 
-  ED_undo_push(C, "component_move_up_exec");
-  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
-  last_step->use_old_bmain_data = false;
+  ED_undo_push_old(C, "component_move_up_exec");
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -1332,9 +1297,7 @@ static int component_move_down_exec(bContext *C, wmOperator *op)
 
   BLI_listbase_swaplinks(&ob->components, p1, p2);
 
-  ED_undo_push(C, "component_move_down_exec");
-  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
-  last_step->use_old_bmain_data = false;
+  ED_undo_push_old(C, "component_move_down_exec");
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -1385,9 +1348,7 @@ static int component_reload_exec(bContext *C, wmOperator *op)
   /* Try to create a new component */
   BKE_python_component_reload(pp, op->reports, C);
 
-  ED_undo_push(C, "component_reload_exec");
-  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
-  last_step->use_old_bmain_data = false;
+  ED_undo_push_old(C, "component_reload_exec");
 
   return OPERATOR_FINISHED;
 }
