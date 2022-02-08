@@ -47,10 +47,12 @@
 #include "BKE_main.h"
 #include "BKE_python_proxy.h"
 #include "BKE_sca.h"
+#include "BKE_undo_system.h"
 
 #include "ED_logic.h"
 #include "ED_object.h"
 #include "ED_screen.h"
+#include "ED_undo.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -281,6 +283,10 @@ static int sensor_remove_exec(bContext *C, wmOperator *op)
   BLI_remlink(&(ob->sensors), sens);
   BKE_sca_free_sensor(sens);
 
+  ED_undo_push(C, "sensor_remove_exec");
+  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
+  last_step->use_old_bmain_data = false;
+
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
   return OPERATOR_FINISHED;
@@ -305,7 +311,7 @@ static void LOGIC_OT_sensor_remove(wmOperatorType *ot)
   ot->poll = edit_sensor_poll;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+  ot->flag = 0;
   edit_sensor_properties(ot);
 }
 
@@ -343,6 +349,10 @@ static int sensor_add_exec(bContext *C, wmOperator *op)
       &ob->sensors, sens, DATA_("Sensor"), '.', offsetof(bSensor, name), sizeof(sens->name));
   ob->scaflag |= OB_SHOWSENS;
 
+  ED_undo_push(C, "sensor_add_exec");
+  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
+  last_step->use_old_bmain_data = false;
+
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
   return OPERATOR_FINISHED;
@@ -363,7 +373,7 @@ static void LOGIC_OT_sensor_add(wmOperatorType *ot)
   ot->poll = ED_operator_object_active_editable;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+  ot->flag = 0;
 
   /* properties */
   ot->prop = prop = RNA_def_enum(
@@ -390,6 +400,10 @@ static int controller_remove_exec(bContext *C, wmOperator *op)
   BKE_sca_unlink_controller(cont);
   BKE_sca_free_controller(cont);
 
+  ED_undo_push(C, "controller_remove_exec");
+  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
+  last_step->use_old_bmain_data = false;
+
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
   return OPERATOR_FINISHED;
@@ -414,7 +428,7 @@ static void LOGIC_OT_controller_remove(wmOperatorType *ot)
   ot->poll = edit_controller_poll;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+  ot->flag = 0;
   edit_controller_properties(ot);
 }
 
@@ -471,6 +485,10 @@ static int controller_add_exec(bContext *C, wmOperator *op)
 
   ob->scaflag |= OB_SHOWCONT;
 
+  ED_undo_push(C, "controller_add_exec");
+  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
+  last_step->use_old_bmain_data = false;
+
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
   return OPERATOR_FINISHED;
@@ -491,7 +509,7 @@ static void LOGIC_OT_controller_add(wmOperatorType *ot)
   ot->poll = ED_operator_object_active_editable;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+  ot->flag = 0;
 
   /* properties */
   ot->prop = RNA_def_enum(ot->srna,
@@ -521,6 +539,10 @@ static int actuator_remove_exec(bContext *C, wmOperator *op)
   BKE_sca_unlink_actuator(act);
   BKE_sca_free_actuator(act);
 
+  ED_undo_push(C, "actuator_remove_exec");
+  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
+  last_step->use_old_bmain_data = false;
+
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
   return OPERATOR_FINISHED;
@@ -545,7 +567,7 @@ static void LOGIC_OT_actuator_remove(wmOperatorType *ot)
   ot->poll = edit_actuator_poll;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+  ot->flag = 0;
   edit_actuator_properties(ot);
 }
 
@@ -583,6 +605,10 @@ static int actuator_add_exec(bContext *C, wmOperator *op)
       &ob->actuators, act, DATA_("Actuator"), '.', offsetof(bActuator, name), sizeof(act->name));
   ob->scaflag |= OB_SHOWACT;
 
+  ED_undo_push(C, "actuator_add_exec");
+  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
+  last_step->use_old_bmain_data = false;
+
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
   return OPERATOR_FINISHED;
@@ -603,7 +629,7 @@ static void LOGIC_OT_actuator_add(wmOperatorType *ot)
   ot->poll = ED_operator_object_active_editable;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+  ot->flag = 0;
 
   /* properties */
   ot->prop = prop = RNA_def_enum(
@@ -631,6 +657,10 @@ static int sensor_move_exec(bContext *C, wmOperator *op)
 
   BKE_sca_move_sensor(sens, ob, move_up);
 
+  ED_undo_push(C, "sensor_move_exec");
+  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
+  last_step->use_old_bmain_data = false;
+
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
   return OPERATOR_FINISHED;
@@ -657,7 +687,7 @@ static void LOGIC_OT_sensor_move(wmOperatorType *ot)
   ot->poll = edit_sensor_poll;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+  ot->flag = 0;
 
   /* properties */
   edit_sensor_properties(ot);
@@ -675,6 +705,10 @@ static int controller_move_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
 
   BKE_sca_move_controller(cont, ob, move_up);
+
+  ED_undo_push(C, "controller_move_exec");
+  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
+  last_step->use_old_bmain_data = false;
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -702,7 +736,7 @@ static void LOGIC_OT_controller_move(wmOperatorType *ot)
   ot->poll = edit_controller_poll;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+  ot->flag = 0;
 
   /* properties */
   edit_controller_properties(ot);
@@ -720,6 +754,10 @@ static int actuator_move_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
 
   BKE_sca_move_actuator(act, ob, move_up);
+
+  ED_undo_push(C, "actuator_move_exec");
+  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
+  last_step->use_old_bmain_data = false;
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -747,7 +785,7 @@ static void LOGIC_OT_actuator_move(wmOperatorType *ot)
   ot->poll = edit_actuator_poll;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+  ot->flag = 0;
 
   /* properties */
   edit_actuator_properties(ot);
@@ -855,6 +893,10 @@ static int custom_object_register_exec(bContext *C, wmOperator *op)
 
   ob->custom_object = pp;
 
+  ED_undo_push(C, "custom_object_register_exec");
+  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
+  last_step->use_old_bmain_data = false;
+
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
   return OPERATOR_FINISHED;
@@ -879,6 +921,10 @@ static int custom_object_create_exec(bContext *C, wmOperator *op)
 
   ob->custom_object = pp;
 
+  ED_undo_push(C, "custom_object_create_exec");
+  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
+  last_step->use_old_bmain_data = false;
+
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
   return OPERATOR_FINISHED;
@@ -896,7 +942,7 @@ static void LOGIC_OT_custom_object_register(wmOperatorType *ot)
   ot->poll = ED_operator_object_active_editable;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = 0;
 
   PropertyRNA *parm;
   parm = RNA_def_string(ot->srna,
@@ -920,7 +966,7 @@ static void LOGIC_OT_custom_object_create(wmOperatorType *ot)
   ot->poll = ED_operator_object_active_editable;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = 0;
 
   PropertyRNA *parm;
   parm = RNA_def_string(ot->srna,
@@ -950,6 +996,10 @@ static int custom_object_remove_exec(bContext *C, wmOperator *UNUSED(op))
 
   BKE_python_proxy_free(pp);
 
+  ED_undo_push(C, "custom_object_remove_exec");
+  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
+  last_step->use_old_bmain_data = false;
+
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
   return OPERATOR_FINISHED;
@@ -967,7 +1017,7 @@ static void LOGIC_OT_custom_object_remove(wmOperatorType *ot)
   ot->poll = remove_component_poll;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = 0;
 }
 
 static int custom_object_reload_exec(bContext *C, wmOperator *op)
@@ -987,6 +1037,10 @@ static int custom_object_reload_exec(bContext *C, wmOperator *op)
   /* Try to create a new object */
   BKE_custom_object_reload(pp, op->reports, C);
 
+  ED_undo_push(C, "custom_object_reload_exec");
+  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
+  last_step->use_old_bmain_data = false;
+
   return OPERATOR_FINISHED;
 }
 
@@ -1002,7 +1056,7 @@ static void LOGIC_OT_custom_object_reload(wmOperatorType *ot)
   ot->poll = ED_operator_object_active_editable;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = 0;
 }
 
 /* Component operators */
@@ -1024,6 +1078,11 @@ static int component_register_exec(bContext *C, wmOperator *op)
   }
 
   BLI_addtail(&ob->components, pp);
+
+  ED_undo_push(C, "component_register_exec");
+  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
+  last_step->use_old_bmain_data = false;
+
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
   return OPERATOR_FINISHED;
@@ -1047,6 +1106,11 @@ static int component_create_exec(bContext *C, wmOperator *op)
   }
 
   BLI_addtail(&ob->components, pp);
+
+  ED_undo_push(C, "component_create_exec");
+  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
+  last_step->use_old_bmain_data = false;
+
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
   return OPERATOR_FINISHED;
@@ -1064,7 +1128,7 @@ static void LOGIC_OT_python_component_register(wmOperatorType *ot)
   ot->poll = ED_operator_object_active_editable;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = 0;
 
   PropertyRNA *parm;
   parm = RNA_def_string(ot->srna,
@@ -1088,7 +1152,7 @@ static void LOGIC_OT_python_component_create(wmOperatorType *ot)
   ot->poll = ED_operator_object_active_editable;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = 0;
 
   PropertyRNA *parm;
   parm = RNA_def_string(ot->srna,
@@ -1119,6 +1183,10 @@ static int component_remove_exec(bContext *C, wmOperator *op)
   BLI_remlink(&ob->components, pp);
   BKE_python_proxy_free(pp);
 
+  ED_undo_push(C, "component_remove_exec");
+  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
+  last_step->use_old_bmain_data = false;
+
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
   return OPERATOR_FINISHED;
@@ -1136,7 +1204,7 @@ static void LOGIC_OT_python_component_remove(wmOperatorType *ot)
   ot->poll = remove_component_poll;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = 0;
 
   /* properties */
   RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Component index to remove", 0, INT_MAX);
@@ -1165,6 +1233,10 @@ static int component_move_up_exec(bContext *C, wmOperator *op)
   }
 
   BLI_listbase_swaplinks(&ob->components, p1, p2);
+
+  ED_undo_push(C, "component_move_up_exec");
+  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
+  last_step->use_old_bmain_data = false;
 
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -1203,7 +1275,7 @@ static void LOGIC_OT_python_component_move_up(wmOperatorType *ot)
   ot->poll = component_move_up_poll;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = 0;
 
   /* properties */
   RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Component index to move", 0, INT_MAX);
@@ -1260,6 +1332,10 @@ static int component_move_down_exec(bContext *C, wmOperator *op)
 
   BLI_listbase_swaplinks(&ob->components, p1, p2);
 
+  ED_undo_push(C, "component_move_down_exec");
+  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
+  last_step->use_old_bmain_data = false;
+
   WM_event_add_notifier(C, NC_LOGIC, NULL);
 
   return OPERATOR_FINISHED;
@@ -1277,7 +1353,7 @@ static void LOGIC_OT_python_component_move_down(wmOperatorType *ot)
   ot->poll = component_move_down_poll;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = 0;
 
   /* properties */
   RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Component index to move", 0, INT_MAX);
@@ -1309,6 +1385,10 @@ static int component_reload_exec(bContext *C, wmOperator *op)
   /* Try to create a new component */
   BKE_python_component_reload(pp, op->reports, C);
 
+  ED_undo_push(C, "component_reload_exec");
+  UndoStep *last_step = CTX_wm_manager(C)->undo_stack->steps.last;
+  last_step->use_old_bmain_data = false;
+
   return OPERATOR_FINISHED;
 }
 
@@ -1324,7 +1404,7 @@ static void LOGIC_OT_python_component_reload(wmOperatorType *ot)
   ot->poll = ED_operator_object_active_editable;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = 0;
 
   /* properties */
   RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Component index to reload", 0, INT_MAX);
