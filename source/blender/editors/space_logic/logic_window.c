@@ -43,6 +43,7 @@
 #include "DNA_screen_types.h"
 #include "DNA_sensor_types.h"
 #include "DNA_space_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -137,8 +138,7 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
           ob->scaflag |= OB_SHOWSENS;
         }
       }
-
-      ED_undo_push(C, "Add sensor");
+      ED_undo_push_old(C, "sensor add");
       break;
 
     case B_CHANGE_SENS:
@@ -167,7 +167,7 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
           sens = sens->next;
         }
       }
-      ED_undo_push(C, "Delete sensor");
+      ED_undo_push_old(C, "sensor delete");
       break;
 
     case B_ADD_CONT:
@@ -197,7 +197,7 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
           }
         }
       }
-      ED_undo_push(C, "Add controller");
+      ED_undo_push_old(C, "controller add");
       break;
 
     case B_SET_STATE_BIT:
@@ -247,7 +247,7 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
           cont = cont->next;
         }
       }
-      ED_undo_push(C, "Delete controller");
+      ED_undo_push_old(C, "controller delete");
       break;
 
     case B_ADD_ACT:
@@ -265,7 +265,7 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
           ob->scaflag |= OB_SHOWACT;
         }
       }
-      ED_undo_push(C, "Add actuator");
+      ED_undo_push_old(C, "actuator add");
       break;
 
     case B_CHANGE_ACT:
@@ -295,7 +295,7 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
           act = act->next;
         }
       }
-      ED_undo_push(C, "Delete actuator");
+      ED_undo_push_old(C, "actuator delete");
       break;
 
     case B_SOUNDACT_BROWSE:
