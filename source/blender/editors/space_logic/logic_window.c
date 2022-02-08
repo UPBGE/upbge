@@ -43,6 +43,7 @@
 #include "DNA_screen_types.h"
 #include "DNA_sensor_types.h"
 #include "DNA_space_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -55,6 +56,7 @@
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
 #include "BKE_sca.h"
+#include "BKE_undo_system.h"
 
 #include "ED_undo.h"
 
@@ -105,6 +107,8 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
   Object *ob;
   int didit, bit;
 
+  UndoStep *last_step = NULL;
+
   ob = CTX_data_active_object(C);
   if (ob == NULL)
     return;
@@ -139,6 +143,8 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
       }
 
       ED_undo_push(C, "Add sensor");
+      last_step = CTX_wm_manager(C)->undo_stack->steps.last;
+      last_step->use_old_bmain_data = false;
       break;
 
     case B_CHANGE_SENS:
@@ -168,6 +174,8 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
         }
       }
       ED_undo_push(C, "Delete sensor");
+      last_step = CTX_wm_manager(C)->undo_stack->steps.last;
+      last_step->use_old_bmain_data = false;
       break;
 
     case B_ADD_CONT:
@@ -198,6 +206,8 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
         }
       }
       ED_undo_push(C, "Add controller");
+      last_step = CTX_wm_manager(C)->undo_stack->steps.last;
+      last_step->use_old_bmain_data = false;
       break;
 
     case B_SET_STATE_BIT:
@@ -248,6 +258,8 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
         }
       }
       ED_undo_push(C, "Delete controller");
+      last_step = CTX_wm_manager(C)->undo_stack->steps.last;
+      last_step->use_old_bmain_data = false;
       break;
 
     case B_ADD_ACT:
@@ -266,6 +278,8 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
         }
       }
       ED_undo_push(C, "Add actuator");
+      last_step = CTX_wm_manager(C)->undo_stack->steps.last;
+      last_step->use_old_bmain_data = false;
       break;
 
     case B_CHANGE_ACT:
@@ -296,6 +310,8 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
         }
       }
       ED_undo_push(C, "Delete actuator");
+      last_step = CTX_wm_manager(C)->undo_stack->steps.last;
+      last_step->use_old_bmain_data = false;
       break;
 
     case B_SOUNDACT_BROWSE:
