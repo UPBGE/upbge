@@ -15,8 +15,6 @@
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
- *
- * The Original Code is: some of this file.
  */
 
 /** \file
@@ -2142,6 +2140,16 @@ void mat4_to_size(float size[3], const float M[4][4])
   size[0] = len_v3(M[0]);
   size[1] = len_v3(M[1]);
   size[2] = len_v3(M[2]);
+}
+
+float mat3_to_size_max_axis(const float M[3][3])
+{
+  return sqrtf(max_fff(len_squared_v3(M[0]), len_squared_v3(M[1]), len_squared_v3(M[2])));
+}
+
+float mat4_to_size_max_axis(const float M[4][4])
+{
+  return sqrtf(max_fff(len_squared_v3(M[0]), len_squared_v3(M[1]), len_squared_v3(M[2])));
 }
 
 void mat4_to_size_fix_shear(float size[3], const float M[4][4])

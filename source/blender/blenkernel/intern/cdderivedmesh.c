@@ -15,13 +15,12 @@
  *
  * The Original Code is Copyright (C) 2006 Blender Foundation.
  * All rights reserved.
- * Implementation of CDDerivedMesh.
- *
- * BKE_cdderivedmesh.h contains the function prototypes for this file.
  */
 
 /** \file
  * \ingroup bke
+ * Implementation of #CDDerivedMesh.
+ * BKE_cdderivedmesh.h contains the function prototypes for this file.
  */
 
 #include "atomic_ops.h"
