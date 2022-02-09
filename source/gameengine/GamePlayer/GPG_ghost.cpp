@@ -1495,7 +1495,7 @@ int main(int argc,
 #ifdef WIN32
 #  if !defined(DEBUG)
             if (closeConsole) {
-              system->toggleConsole(0);  // Close a console window
+              system->setConsoleWindowState(GHOST_kConsoleWindowStateHide);  // Close a console window
             }
 #  endif  // !defined(DEBUG)
 #endif    // WIN32

@@ -390,18 +390,18 @@ void LA_Launcher::HandlePythonConsole()
 
   // Pop the console window for windows.
 #    if defined(WIN32)
-  GHOST_toggleConsole(1);
+  setConsoleWindowState(GHOST_kConsoleWindowStateShow);
 #    else
-  m_system->toggleConsole(1);
+  m_system->setConsoleWindowState(GHOST_kConsoleWindowStateShow);
 #    endif
 
   createPythonConsole();
 
   // Hide the console window for windows.
 #    if defined(WIN32)
-  GHOST_toggleConsole(0);
+  setConsoleWindowState(GHOST_kConsoleWindowStateHide);
 #    else
-  m_system->toggleConsole(0);
+  m_system->setConsoleWindowState(GHOST_kConsoleWindowStateHide);
 #    endif
 
   /* As we show the console, the release events of the shortcut keys can be not handled by the
