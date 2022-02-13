@@ -689,7 +689,7 @@ void BKE_sca_set_new_points(void)
  * reference to data-block involved). This is bad, bad, bad!!!
  *     ...and forces us to add yet another very ugly hack to get remapping with logic bricks
  * working. */
-void BKE_sca_remap_links_logicbricks(Main *bmain, Object *ob_old, Object *ob_new)
+void BKE_sca_remap_data_postprocess_links_logicbricks_update(Main *bmain, Object *ob_old, Object *ob_new)
 {
   if (ob_new == NULL || (ob_old->controllers.first == NULL && ob_old->actuators.first == NULL)) {
     /* Nothing to do here... */
