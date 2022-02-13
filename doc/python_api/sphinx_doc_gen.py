@@ -1812,7 +1812,7 @@ def write_rst_index(basepath):
     file = open(filepath, "w", encoding="utf-8")
     fw = file.write
 
-    fw(title_string("UPBGE 0.3 + Blender %s Python API Documentation" % BLENDER_VERSION_DOTS, "%", double=True))
+    fw(title_string("UPBGE 0.32 + Blender %s Python API Documentation" % BLENDER_VERSION_DOTS, "%", double=True))
     fw("\n")
     fw("Welcome to the Python API documentation for `UPBGE <https://upbge.org>`__ and `Blender <https://www.blender.org>`__, ")
     fw("the free and open source 3D creation suite + integrated game engine.\n")
