@@ -79,26 +79,26 @@ struct DerivedMesh *mesh_get_derived_final(struct Depsgraph *depsgraph,
 /* End of  UPBGE */
 
 struct Mesh *mesh_get_eval_final(struct Depsgraph *depsgraph,
-                                 struct Scene *scene,
+                                 const struct Scene *scene,
                                  struct Object *ob,
                                  const struct CustomData_MeshMasks *dataMask);
 
 struct Mesh *mesh_get_eval_deform(struct Depsgraph *depsgraph,
-                                  struct Scene *scene,
+                                  const struct Scene *scene,
                                   struct Object *ob,
                                   const struct CustomData_MeshMasks *dataMask);
 
 struct Mesh *mesh_create_eval_final(struct Depsgraph *depsgraph,
-                                    struct Scene *scene,
+                                    const struct Scene *scene,
                                     struct Object *ob,
                                     const struct CustomData_MeshMasks *dataMask);
 
 struct Mesh *mesh_create_eval_no_deform(struct Depsgraph *depsgraph,
-                                        struct Scene *scene,
+                                        const struct Scene *scene,
                                         struct Object *ob,
                                         const struct CustomData_MeshMasks *dataMask);
 struct Mesh *mesh_create_eval_no_deform_render(struct Depsgraph *depsgraph,
-                                               struct Scene *scene,
+                                               const struct Scene *scene,
                                                struct Object *ob,
                                                const struct CustomData_MeshMasks *dataMask);
 
