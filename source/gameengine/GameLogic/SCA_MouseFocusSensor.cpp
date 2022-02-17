@@ -105,7 +105,7 @@ bool SCA_MouseFocusSensor::Evaluate()
   if (overlayCam) {
     Object *obcam = overlayCam->GetBlenderObject();
     Camera *blCam = (Camera *)obcam->data;
-    if (blCam->flag & GAME_CAM_OVERLAY_MOUSE_CONTROL) {
+    if (blCam->gameflag & GAME_CAM_OVERLAY_MOUSE_CONTROL) {
       m_kxscene->SetActiveCamera(m_kxscene->GetOverlayCamera());
       restorePreviousCam = true;
     }
