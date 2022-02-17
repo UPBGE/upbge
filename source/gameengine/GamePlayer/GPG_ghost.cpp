@@ -1494,7 +1494,7 @@ int main(int argc,
             /* Setting options according to the blend file if not overriden in the command line */
 #ifdef WIN32
 #  if !defined(DEBUG)
-            if (closeConsole) {
+            if (closeConsole && firstTimeRunning) {
               system->setConsoleWindowState(GHOST_kConsoleWindowStateHide);  // Close a console window
             }
 #  endif  // !defined(DEBUG)
