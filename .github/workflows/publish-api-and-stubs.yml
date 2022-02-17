@@ -22,7 +22,7 @@ jobs:
         sudo apt install -y build-essential cmake libembree-dev \
           libxi-dev libxxf86vm-dev libboost-dev libboost-locale-dev libgl1-mesa-dev \
           libavformat-dev libtbb-dev libswscale-dev libavdevice-dev libblas3 \
-          libzstd-dev libopenal-dev
+          libzstd-dev libopenal-dev libopenblas-dev
 
     - name: Install Python
       uses: actions/setup-python@v2.3.1
