@@ -906,7 +906,7 @@ static KX_GameObject *BL_gameobject_from_blenderobject(Object *ob,
     }
 
 #ifdef THREADED_DAG_WORKAROUND
-    case OB_CURVE: {
+    case OB_CURVES_LEGACY: {
       /*bContext *C = KX_GetActiveEngine()->GetContext();
       if (ob->runtime.curve_cache == nullptr) {
         Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);

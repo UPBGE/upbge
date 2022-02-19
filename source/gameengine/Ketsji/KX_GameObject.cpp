@@ -1391,7 +1391,7 @@ void KX_GameObject::SetObjectColor(const MT_Vector4 &rgbavec)
   m_objectColor = rgbavec;
   Object *ob_orig = GetBlenderObject();
   if (ob_orig && GetScene()->OrigObCanBeTransformedInRealtime(ob_orig) &&
-      ELEM(ob_orig->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
+      ELEM(ob_orig->type, OB_MESH, OB_CURVES_LEGACY, OB_SURF, OB_FONT, OB_MBALL)) {
     copy_v4_v4(ob_orig->color, m_objectColor.getValue());
     DEG_id_tag_update(&ob_orig->id, ID_RECALC_SHADING | ID_RECALC_TRANSFORM);
     WM_main_add_notifier(NC_OBJECT | ND_DRAW, &ob_orig->id);
