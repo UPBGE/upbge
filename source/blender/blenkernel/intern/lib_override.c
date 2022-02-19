@@ -72,12 +72,19 @@ static void lib_override_library_property_operation_clear(
     IDOverrideLibraryPropertyOperation *opop);
 
 /** Get override data for a given ID. Needed because of our beloved shape keys snowflake. */
-BLI_INLINE IDOverrideLibrary *lib_override_get(Main *bmain, ID *id)
+BLI_INLINE IDOverrideLibrary *lib_override_get(Main *bmain, ID *id, ID **r_owner_id)
 {
+  if (r_owner_id != NULL) {
+    *r_owner_id = id;
+  }
   if (id->flag & LIB_EMBEDDED_DATA_LIB_OVERRIDE) {
     const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(id);
     if (id_type->owner_get != NULL) {
-      return id_type->owner_get(bmain, id)->override_library;
+      ID *owner_id = id_type->owner_get(bmain, id);
+      if (r_owner_id != NULL) {
+        *r_owner_id = owner_id;
+      }
+      return owner_id->override_library;
     }
     BLI_assert_msg(0, "IDTypeInfo of liboverride-embedded ID with no owner getter");
   }
@@ -832,8 +839,8 @@ static void lib_override_overrides_group_tag_recursive(LibOverrideGroupTagData *
       continue;
     }
 
-    Library *reference_lib = lib_override_get(bmain, id_owner)->reference->lib;
-    ID *to_id_reference = lib_override_get(bmain, to_id)->reference;
+    Library *reference_lib = lib_override_get(bmain, id_owner, NULL)->reference->lib;
+    ID *to_id_reference = lib_override_get(bmain, to_id, NULL)->reference;
     if (to_id_reference->lib != reference_lib) {
       /* We do not override data-blocks from other libraries, nor do we process them. */
       continue;
@@ -1102,11 +1109,18 @@ static ID *lib_override_root_find(Main *bmain, ID *id, const int curr_level, int
   MainIDRelationsEntry *entry = BLI_ghash_lookup(bmain->relations->relations_from_pointers, id);
   BLI_assert(entry != NULL);
 
-  if (entry->tags & MAINIDRELATIONS_ENTRY_TAGS_PROCESSED && ID_IS_OVERRIDE_LIBRARY_REAL(id)) {
-    /* This ID has already been processed. */
-    BLI_assert(id->override_library != NULL);
-    *r_best_level = curr_level;
-    return id->override_library->hierarchy_root;
+  if (entry->tags & MAINIDRELATIONS_ENTRY_TAGS_PROCESSED) {
+    if (ID_IS_OVERRIDE_LIBRARY_REAL(id)) {
+      /* This ID has already been processed. */
+      *r_best_level = curr_level;
+      return id->override_library->hierarchy_root;
+    }
+
+    BLI_assert(id->flag & LIB_EMBEDDED_DATA_LIB_OVERRIDE);
+    ID *id_owner;
+    int best_level_placeholder = 0;
+    lib_override_get(bmain, id, &id_owner);
+    return lib_override_root_find(bmain, id_owner, curr_level + 1, &best_level_placeholder);
   }
   /* This way we won't process again that ID, should we encounter it again through another
    * relationship hierarchy. */
@@ -1140,7 +1154,17 @@ static ID *lib_override_root_find(Main *bmain, ID *id, const int curr_level, int
     }
   }
 
+  if (!ID_IS_OVERRIDE_LIBRARY_REAL(best_root_id_candidate)) {
+    BLI_assert(id->flag & LIB_EMBEDDED_DATA_LIB_OVERRIDE);
+    ID *id_owner;
+    int best_level_placeholder = 0;
+    lib_override_get(bmain, best_root_id_candidate, &id_owner);
+    best_root_id_candidate = lib_override_root_find(
+        bmain, id_owner, curr_level + 1, &best_level_placeholder);
+  }
+
   BLI_assert(best_root_id_candidate != NULL);
+  BLI_assert((best_root_id_candidate->flag & LIB_EMBEDDED_DATA_LIB_OVERRIDE) == 0);
 
   *r_best_level = best_level_candidate;
   return best_root_id_candidate;
@@ -1430,7 +1454,7 @@ static bool lib_override_library_resync(Main *bmain,
         /* While this should not happen in typical cases (and won't be properly supported here),
          * user is free to do all kind of very bad things, including having different local
          * overrides of a same linked ID in a same hierarchy. */
-        IDOverrideLibrary *id_override_library = lib_override_get(bmain, id);
+        IDOverrideLibrary *id_override_library = lib_override_get(bmain, id, NULL);
         ID *reference_id = id_override_library->reference;
         if (GS(reference_id->name) != GS(id->name)) {
           switch (GS(id->name)) {
@@ -2127,7 +2151,7 @@ static void lib_override_library_main_resync_on_library_indirect_level(
                  "ID override %s from library level %d still found as needing resync, when all "
                  "IDs from that level should have been processed after tackling library level %d",
                  id->name,
-                 id->lib != NULL ? id->lib->temp_index : 0,
+                 ID_IS_LINKED(id) ? id->lib->temp_index : 0,
                  library_indirect_level);
       id->tag &= ~LIB_TAG_LIB_OVERRIDE_NEED_RESYNC;
     }
@@ -2135,6 +2159,10 @@ static void lib_override_library_main_resync_on_library_indirect_level(
   FOREACH_MAIN_ID_END;
 
   BLI_ghash_free(id_roots, NULL, MEM_freeN);
+
+  /* In some fairly rare (and degenerate) cases, some root ID from other liboverrides may have been
+   * freed, and therefore set to NULL. Attempt to fix this as best as possible. */
+  BKE_lib_override_library_main_hierarchy_root_ensure(bmain);
 
   if (do_reports_recursive_resync_timing) {
     reports->duration.lib_overrides_recursive_resync += PIL_check_seconds_timer() - init_time;

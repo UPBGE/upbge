@@ -103,6 +103,12 @@ static XrActionMapBinding *wm_xr_actionmap_binding_copy(XrActionMapBinding *amb_
   XrActionMapBinding *amb_dst = MEM_dupallocN(amb_src);
   amb_dst->prev = amb_dst->next = NULL;
 
+  BLI_listbase_clear(&amb_dst->component_paths);
+  LISTBASE_FOREACH (XrComponentPath *, path, &amb_src->component_paths) {
+    XrComponentPath *path_new = MEM_dupallocN(path);
+    BLI_addtail(&amb_dst->component_paths, path_new);
+  }
+
   return amb_dst;
 }
 
@@ -118,11 +124,17 @@ XrActionMapBinding *WM_xr_actionmap_binding_add_copy(XrActionMapItem *ami,
   return amb_dst;
 }
 
+static void wm_xr_actionmap_binding_clear(XrActionMapBinding *amb)
+{
+  BLI_freelistN(&amb->component_paths);
+}
+
 bool WM_xr_actionmap_binding_remove(XrActionMapItem *ami, XrActionMapBinding *amb)
 {
   int idx = BLI_findindex(&ami->bindings, amb);
 
   if (idx != -1) {
+    wm_xr_actionmap_binding_clear(amb);
     BLI_freelinkN(&ami->bindings, amb);
 
     if (idx <= ami->selbinding) {
@@ -155,12 +167,6 @@ XrActionMapBinding *WM_xr_actionmap_binding_find(XrActionMapItem *ami, const cha
  * Item in an XR action map, that maps an XR event to an operator, pose, or haptic output.
  * \{ */
 
-static void wm_xr_actionmap_item_bindings_clear(XrActionMapItem *ami)
-{
-  BLI_freelistN(&ami->bindings);
-  ami->selbinding = 0;
-}
-
 static void wm_xr_actionmap_item_properties_set(XrActionMapItem *ami)
 {
   WM_operator_properties_alloc(&(ami->op_properties_ptr), &(ami->op_properties), ami->op);
@@ -178,6 +184,19 @@ static void wm_xr_actionmap_item_properties_free(XrActionMapItem *ami)
   else {
     BLI_assert(ami->op_properties == NULL);
   }
+}
+
+static void wm_xr_actionmap_item_clear(XrActionMapItem *ami)
+{
+  LISTBASE_FOREACH (XrActionMapBinding *, amb, &ami->bindings) {
+    wm_xr_actionmap_binding_clear(amb);
+  }
+  BLI_freelistN(&ami->bindings);
+  ami->selbinding = 0;
+
+  wm_xr_actionmap_item_properties_free(ami);
+
+  BLI_freelistN(&ami->user_paths);
 }
 
 void WM_xr_actionmap_item_properties_update_ot(XrActionMapItem *ami)
@@ -305,6 +324,12 @@ static XrActionMapItem *wm_xr_actionmap_item_copy(XrActionMapItem *ami_src)
     ami_dst->op_properties_ptr = NULL;
   }
 
+  BLI_listbase_clear(&ami_dst->user_paths);
+  LISTBASE_FOREACH (XrUserPath *, path, &ami_src->user_paths) {
+    XrUserPath *path_new = MEM_dupallocN(path);
+    BLI_addtail(&ami_dst->user_paths, path_new);
+  }
+
   return ami_dst;
 }
 
@@ -324,8 +349,7 @@ bool WM_xr_actionmap_item_remove(XrActionMap *actionmap, XrActionMapItem *ami)
   int idx = BLI_findindex(&actionmap->items, ami);
 
   if (idx != -1) {
-    wm_xr_actionmap_item_bindings_clear(ami);
-    wm_xr_actionmap_item_properties_free(ami);
+    wm_xr_actionmap_item_clear(ami);
     BLI_freelinkN(&actionmap->items, ami);
 
     if (idx <= actionmap->selitem) {
@@ -480,12 +504,9 @@ XrActionMap *WM_xr_actionmap_find(wmXrRuntimeData *runtime, const char *name)
 void WM_xr_actionmap_clear(XrActionMap *actionmap)
 {
   LISTBASE_FOREACH (XrActionMapItem *, ami, &actionmap->items) {
-    wm_xr_actionmap_item_bindings_clear(ami);
-    wm_xr_actionmap_item_properties_free(ami);
+    wm_xr_actionmap_item_clear(ami);
   }
-
   BLI_freelistN(&actionmap->items);
-
   actionmap->selitem = 0;
 }
 
@@ -494,9 +515,7 @@ void WM_xr_actionmaps_clear(wmXrRuntimeData *runtime)
   LISTBASE_FOREACH (XrActionMap *, am, &runtime->actionmaps) {
     WM_xr_actionmap_clear(am);
   }
-
   BLI_freelistN(&runtime->actionmaps);
-
   runtime->actactionmap = runtime->selactionmap = 0;
 }
 

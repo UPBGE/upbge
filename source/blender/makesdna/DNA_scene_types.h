@@ -141,7 +141,6 @@ typedef struct FFMpegCodecData {
   int audio_bitrate;
   int audio_mixrate;
   int audio_channels;
-  char _pad0[4];
   float audio_volume;
   int gop_size;
   /** Only used if FFMPEG_USE_MAX_B_FRAMES flag is set. */
@@ -156,9 +155,7 @@ typedef struct FFMpegCodecData {
   int rc_buffer_size;
   int mux_packet_size;
   int mux_rate;
-  char _pad1[4];
-
-  IDProperty *properties;
+  void *_pad1;
 } FFMpegCodecData;
 
 /* ************************************************************* */
@@ -1157,6 +1154,10 @@ typedef struct Sculpt {
   struct Object *gravity_object;
 } Sculpt;
 
+typedef struct CurvesSculpt {
+  Paint paint;
+} CurvesSculpt;
+
 typedef struct UvSculpt {
   Paint paint;
 } UvSculpt;
@@ -1542,6 +1543,8 @@ typedef struct ToolSettings {
   GpSculptPaint *gp_sculptpaint;
   /** Gpencil weight paint. */
   GpWeightPaint *gp_weightpaint;
+  /** Curves sculpt. */
+  CurvesSculpt *curves_sculpt;
 
   /* Vertex group weight - used only for editmode, not weight
    * paint */
@@ -2159,7 +2162,7 @@ extern const char *RE_engine_id_CYCLES;
    ((v3d == NULL) || (((1 << (base)->object->type) & (v3d)->object_type_exclude_select) == 0)) && \
    (((base)->flag & BASE_SELECTABLE) != 0))
 #define BASE_SELECTED(v3d, base) (BASE_VISIBLE(v3d, base) && (((base)->flag & BASE_SELECTED) != 0))
-#define BASE_EDITABLE(v3d, base) (BASE_VISIBLE(v3d, base) && ((base)->object->id.lib == NULL))
+#define BASE_EDITABLE(v3d, base) (BASE_VISIBLE(v3d, base) && !ID_IS_LINKED((base)->object))
 #define BASE_SELECTED_EDITABLE(v3d, base) \
   (BASE_EDITABLE(v3d, base) && (((base)->flag & BASE_SELECTED) != 0))
 

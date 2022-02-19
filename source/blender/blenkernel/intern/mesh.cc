@@ -1111,11 +1111,9 @@ Mesh *BKE_mesh_new_nomain_from_template_ex(const Mesh *me_src,
 
   /* Ensure that when no normal layers exist, they are marked dirty, because
    * normals might not have been included in the mask of copied layers. */
-  if (!CustomData_has_layer(&me_dst->vdata, CD_NORMAL)) {
-    me_dst->runtime.cd_dirty_vert |= CD_MASK_NORMAL;
-  }
-  if (!CustomData_has_layer(&me_dst->pdata, CD_NORMAL)) {
-    me_dst->runtime.cd_dirty_poly |= CD_MASK_NORMAL;
+  if (!CustomData_has_layer(&me_dst->vdata, CD_NORMAL) ||
+      !CustomData_has_layer(&me_dst->pdata, CD_NORMAL)) {
+    BKE_mesh_normals_tag_dirty(me_dst);
   }
 
   /* The destination mesh should at least have valid primary CD layers,
@@ -1202,6 +1200,23 @@ Mesh *BKE_mesh_from_bmesh_for_eval_nomain(BMesh *bm,
   BM_mesh_bm_to_me_for_eval(bm, mesh, cd_mask_extra);
   BKE_mesh_copy_parameters_for_eval(mesh, me_settings);
   return mesh;
+}
+
+static void ensure_orig_index_layer(CustomData &data, const int size)
+{
+  if (CustomData_has_layer(&data, CD_ORIGINDEX)) {
+    return;
+  }
+  int *indices = (int *)CustomData_add_layer(&data, CD_ORIGINDEX, CD_DEFAULT, nullptr, size);
+  range_vn_i(indices, size, 0);
+}
+
+void BKE_mesh_ensure_default_orig_index_customdata(Mesh *mesh)
+{
+  BLI_assert(mesh->runtime.wrapper_type == ME_WRAPPER_TYPE_MDATA);
+  ensure_orig_index_layer(mesh->vdata, mesh->totvert);
+  ensure_orig_index_layer(mesh->edata, mesh->totedge);
+  ensure_orig_index_layer(mesh->pdata, mesh->totpoly);
 }
 
 BoundBox *BKE_mesh_boundbox_get(Object *ob)
