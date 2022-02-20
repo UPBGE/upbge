@@ -368,7 +368,7 @@ static void cdDM_foreachMappedFaceCenter(
   }
 }
 
-void CDDM_recalc_tessellation_ex(DerivedMesh *dm, const bool do_face_nor_cpy)
+void CDDM_recalc_tessellation_ex(DerivedMesh *dm, const bool UNUSED(do_face_nor_cpy))
 {
   CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
 
@@ -378,8 +378,7 @@ void CDDM_recalc_tessellation_ex(DerivedMesh *dm, const bool do_face_nor_cpy)
                                                   cddm->mvert,
                                                   dm->numTessFaceData,
                                                   dm->numLoopData,
-                                                  dm->numPolyData,
-                                                  do_face_nor_cpy);
+                                                  dm->numPolyData);
 
   cddm->mface = CustomData_get_layer(&dm->faceData, CD_MFACE);
 
