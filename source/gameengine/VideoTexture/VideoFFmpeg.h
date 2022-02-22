@@ -46,23 +46,10 @@ extern "C" {
 #  include "ffmpeg_compat.h"
 }
 
-#  if LIBAVFORMAT_VERSION_INT < (49 << 16)
-#    define FFMPEG_OLD_FRAME_RATE 1
-#  else
-#    define FFMPEG_CODEC_IS_POINTER 1
-#  endif
-
-#  ifdef FFMPEG_CODEC_IS_POINTER
 static inline AVCodecContext *get_codec_from_stream(AVStream *stream)
 {
   return stream->codec;
 }
-#  else
-static inline AVCodecContext *get_codec_from_stream(AVStream *stream)
-{
-  return &stream->codec;
-}
-#  endif
 
 #  include "VideoBase.h"
 
@@ -123,7 +110,6 @@ class VideoFFmpeg : public VideoBase {
 
  protected:
   // format and codec information
-  AVCodec *m_codec;
   AVFormatContext *m_formatCtx;
   AVCodecContext *m_codecCtx;
   // raw frame extracted from video file

@@ -68,7 +68,6 @@ const double defFrameRate = 25.0;
 // constructor
 VideoFFmpeg::VideoFFmpeg(HRESULT *hRslt)
     : VideoBase(),
-      m_codec(nullptr),
       m_formatCtx(nullptr),
       m_codecCtx(nullptr),
       m_frame(nullptr),
@@ -151,7 +150,6 @@ bool VideoFFmpeg::release()
     sws_freeContext(m_imgConvertCtx);
     m_imgConvertCtx = nullptr;
   }
-  m_codec = nullptr;
   m_status = SourceStopped;
   m_lastFrame = -1;
   return true;
@@ -203,7 +201,6 @@ int VideoFFmpeg::openStream(const char *filename,
 {
   AVFormatContext *formatCtx = nullptr;
   int i, videoStream;
-  AVCodec *codec;
   AVCodecContext *codecCtx;
 
   if (avformat_open_input(&formatCtx, filename, inputFormat, formatParams) != 0) {
@@ -239,7 +236,7 @@ int VideoFFmpeg::openStream(const char *filename,
   codecCtx = get_codec_from_stream(formatCtx->streams[videoStream]);
 
   /* Find the decoder for the video stream */
-  codec = avcodec_find_decoder(codecCtx->codec_id);
+  const AVCodec *codec = avcodec_find_decoder(codecCtx->codec_id);
   if (codec == nullptr) {
     avformat_close_input(&formatCtx);
     return -1;
@@ -250,17 +247,12 @@ int VideoFFmpeg::openStream(const char *filename,
     return -1;
   }
 
-#  ifdef FFMPEG_OLD_FRAME_RATE
-  if (codecCtx->frame_rate > 1000 && codecCtx->frame_rate_base == 1)
-    codecCtx->frame_rate_base = 1000;
-  m_baseFrameRate = (double)codecCtx->frame_rate / (double)codecCtx->frame_rate_base;
-#  else
   m_baseFrameRate = av_q2d(av_guess_frame_rate(formatCtx, formatCtx->streams[videoStream], NULL));
-#  endif
-  if (m_baseFrameRate <= 0.0)
-    m_baseFrameRate = defFrameRate;
 
-  m_codec = codec;
+  if (m_baseFrameRate <= 0.0) {
+    m_baseFrameRate = defFrameRate;
+  }
+
   m_codecCtx = codecCtx;
   m_formatCtx = formatCtx;
   m_videoStream = videoStream;
