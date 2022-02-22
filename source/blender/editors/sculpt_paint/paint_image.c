@@ -502,7 +502,10 @@ static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, const flo
   return pop;
 }
 
-static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, PointerRNA *itemptr)
+static void paint_stroke_update_step(bContext *C,
+                                     wmOperator *UNUSED(op),
+                                     struct PaintStroke *stroke,
+                                     PointerRNA *itemptr)
 {
   PaintOperation *pop = paint_stroke_mode_data(stroke);
   Scene *scene = CTX_data_scene(C);
@@ -685,7 +688,7 @@ static int paint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
                                     event->type);
 
   if ((retval = op->type->modal(C, op, event)) == OPERATOR_FINISHED) {
-    paint_stroke_free(C, op);
+    paint_stroke_free(C, op, op->customdata);
     return OPERATOR_FINISHED;
   }
   /* add modal handler */
@@ -720,7 +723,17 @@ static int paint_exec(bContext *C, wmOperator *op)
                                     paint_stroke_done,
                                     0);
   /* frees op->customdata */
-  return paint_stroke_exec(C, op);
+  return paint_stroke_exec(C, op, op->customdata);
+}
+
+static int paint_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  return paint_stroke_modal(C, op, event, op->customdata);
+}
+
+static void paint_cancel(bContext *C, wmOperator *op)
+{
+  paint_stroke_cancel(C, op, op->customdata);
 }
 
 void PAINT_OT_image_paint(wmOperatorType *ot)
@@ -732,10 +745,10 @@ void PAINT_OT_image_paint(wmOperatorType *ot)
 
   /* api callbacks */
   ot->invoke = paint_invoke;
-  ot->modal = paint_stroke_modal;
+  ot->modal = paint_modal;
   ot->exec = paint_exec;
   ot->poll = image_paint_poll;
-  ot->cancel = paint_stroke_cancel;
+  ot->cancel = paint_cancel;
 
   /* flags */
   ot->flag = OPTYPE_BLOCKING;
