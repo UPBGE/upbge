@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup spimage
@@ -34,6 +18,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
+#include "DNA_view2d_types.h"
 
 #include "PIL_time.h"
 
@@ -111,13 +96,6 @@ static void draw_render_info(
       GPU_matrix_translate_2f(x, y);
       GPU_matrix_scale_2f(zoomx, zoomy);
 
-      RenderData *rd = RE_engine_get_render_data(re);
-      if (rd->mode & R_BORDER) {
-        /* TODO: round or floor instead of casting to int */
-        GPU_matrix_translate_2f((int)(-rd->border.xmin * rd->xsch * rd->size * 0.01f),
-                                (int)(-rd->border.ymin * rd->ysch * rd->size * 0.01f));
-      }
-
       uint pos = GPU_vertformat_attr_add(
           immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
       immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
@@ -141,7 +119,6 @@ static void draw_render_info(
   }
 }
 
-/* used by node view too */
 void ED_image_draw_info(Scene *scene,
                         ARegion *region,
                         bool color_manage,
@@ -191,7 +168,7 @@ void ED_image_draw_info(Scene *scene,
 
   GPU_blend(GPU_BLEND_NONE);
 
-  BLF_size(blf_mono_font, 11 * U.pixelsize, U.dpi);
+  BLF_size(blf_mono_font, 11.0f * U.pixelsize, U.dpi);
 
   BLF_color3ub(blf_mono_font, 255, 255, 255);
   SNPRINTF(str, "X:%-4d  Y:%-4d |", x, y);
@@ -506,7 +483,7 @@ void draw_image_main_helpers(const bContext *C, ARegion *region)
   }
 }
 
-bool ED_space_image_show_cache(SpaceImage *sima)
+bool ED_space_image_show_cache(const SpaceImage *sima)
 {
   Image *image = ED_space_image(sima);
   Mask *mask = NULL;
@@ -520,6 +497,17 @@ bool ED_space_image_show_cache(SpaceImage *sima)
     return ELEM(image->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE);
   }
   return true;
+}
+
+bool ED_space_image_show_cache_and_mval_over(const SpaceImage *sima,
+                                             ARegion *region,
+                                             const int mval[2])
+{
+  const rcti *rect_visible = ED_region_visible_rect(region);
+  if (mval[1] > rect_visible->ymin + (16 * UI_DPI_FAC)) {
+    return false;
+  }
+  return ED_space_image_show_cache(sima);
 }
 
 void draw_image_cache(const bContext *C, ARegion *region)
@@ -575,4 +563,58 @@ void draw_image_cache(const bContext *C, ARegion *region)
   if (mask != NULL) {
     ED_mask_draw_frames(mask, region, cfra, sfra, efra);
   }
+}
+
+float ED_space_image_zoom_level(const View2D *v2d, const int grid_dimension)
+{
+  /* UV-space length per pixel */
+  float xzoom = (v2d->cur.xmax - v2d->cur.xmin) / ((float)(v2d->mask.xmax - v2d->mask.xmin));
+  float yzoom = (v2d->cur.ymax - v2d->cur.ymin) / ((float)(v2d->mask.ymax - v2d->mask.ymin));
+
+  /* Zoom_factor for UV/Image editor is calculated based on:
+   * - Default grid size on startup, which is 256x256 pixels
+   * - How blend factor for grid lines is set up in the fragment shader `grid_frag.glsl`. */
+  float zoom_factor;
+  zoom_factor = (xzoom + yzoom) / 2.0f; /* Average for accuracy. */
+  zoom_factor *= 256.0f / (powf(grid_dimension, 2));
+  return zoom_factor;
+}
+
+void ED_space_image_grid_steps(SpaceImage *sima,
+                               float grid_steps[SI_GRID_STEPS_LEN],
+                               const int grid_dimension)
+{
+  if (sima->flag & SI_CUSTOM_GRID) {
+    for (int step = 0; step < SI_GRID_STEPS_LEN; step++) {
+      grid_steps[step] = powf(1, step) * (1.0f / ((float)sima->custom_grid_subdiv));
+    }
+  }
+  else {
+    for (int step = 0; step < SI_GRID_STEPS_LEN; step++) {
+      grid_steps[step] = powf(grid_dimension, step) *
+                         (1.0f / (powf(grid_dimension, SI_GRID_STEPS_LEN)));
+    }
+  }
+}
+
+float ED_space_image_increment_snap_value(const int grid_dimesnions,
+                                          const float grid_steps[SI_GRID_STEPS_LEN],
+                                          const float zoom_factor)
+{
+  /* Small offset on each grid_steps[] so that snapping value doesn't change until grid lines are
+   * significantly visible.
+   * `Offset = 3/4 * (grid_steps[i] - (grid_steps[i] / grid_dimesnsions))`
+   *
+   * Refer `grid_frag.glsl` to find out when grid lines actually start appearing */
+
+  for (int step = 0; step < SI_GRID_STEPS_LEN; step++) {
+    float offset = (3.0f / 4.0f) * (grid_steps[step] - (grid_steps[step] / grid_dimesnions));
+
+    if ((grid_steps[step] - offset) > zoom_factor) {
+      return grid_steps[step];
+    }
+  }
+
+  /* Fallback */
+  return grid_steps[0];
 }

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2005 by the Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2005 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup modifiers
@@ -194,20 +178,16 @@ static void copyData(const ModifierData *md, ModifierData *target, const int fla
   }
 
   BKE_ptcache_free_list(&tclmd->ptcaches);
-  if (flag & LIB_ID_CREATE_NO_MAIN) {
+  if (flag & LIB_ID_COPY_SET_COPIED_ON_WRITE) {
     /* Share the cache with the original object's modifier. */
     tclmd->modifier.flag |= eModifierFlag_SharedCaches;
     tclmd->ptcaches = clmd->ptcaches;
     tclmd->point_cache = clmd->point_cache;
   }
   else {
-    tclmd->point_cache = BKE_ptcache_add(&tclmd->ptcaches);
-    if (clmd->point_cache != NULL) {
-      tclmd->point_cache->step = clmd->point_cache->step;
-      tclmd->point_cache->startframe = clmd->point_cache->startframe;
-      tclmd->point_cache->endframe = clmd->point_cache->endframe;
-      tclmd->point_cache->flag |= (clmd->point_cache->flag & PTCACHE_FLAGS_COPY);
-    }
+    const int clmd_point_cache_index = BLI_findindex(&clmd->ptcaches, clmd->point_cache);
+    BKE_ptcache_copy_list(&tclmd->ptcaches, &clmd->ptcaches, flag);
+    tclmd->point_cache = BLI_findlink(&tclmd->ptcaches, clmd_point_cache_index);
   }
 
   tclmd->sim_parms = MEM_dupallocN(clmd->sim_parms);
@@ -285,7 +265,7 @@ static void panel_draw(const bContext *UNUSED(C), Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, NULL);
 
-  uiItemL(layout, IFACE_("Settings are inside the Physics tab"), ICON_NONE);
+  uiItemL(layout, TIP_("Settings are inside the Physics tab"), ICON_NONE);
 
   modifier_panel_end(layout, ptr);
 }
@@ -312,7 +292,6 @@ ModifierTypeInfo modifierType_Cloth = {
     /* deformVertsEM */ NULL,
     /* deformMatricesEM */ NULL,
     /* modifyMesh */ NULL,
-    /* modifyHair */ NULL,
     /* modifyGeometrySet */ NULL,
 
     /* initData */ initData,

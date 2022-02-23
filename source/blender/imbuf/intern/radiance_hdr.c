@@ -1,32 +1,11 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup imbuf
- */
-
-/* ----------------------------------------------------------------------
  * Radiance High Dynamic Range image file IO
  * For description and code for reading/writing of radiance hdr files
  * by Greg Ward, refer to:
  * http://radsite.lbl.gov/radiance/refer/Notes/picture_format.html
- * ----------------------------------------------------------------------
  */
 
 #include "MEM_guardedalloc.h"
@@ -77,7 +56,7 @@ static const unsigned char *oldreadcolrs(RGBE *scan,
     scan[0][BLU] = *mem++;
     scan[0][EXP] = *mem++;
     if (scan[0][RED] == 1 && scan[0][GRN] == 1 && scan[0][BLU] == 1) {
-      for (i = scan[0][EXP] << rshift; i > 0; i--) {
+      for (i = scan[0][EXP] << rshift; i > 0 && len > 0; i--) {
         COPY_RGBE(scan[-1], scan[0]);
         scan++;
         len--;
@@ -227,7 +206,7 @@ struct ImBuf *imb_loadhdr(const unsigned char *mem,
   int found = 0;
   int width = 0, height = 0;
   const unsigned char *ptr, *mem_eof = mem + size;
-  char oriY[80], oriX[80];
+  char oriY[3], oriX[3];
 
   if (!imb_is_a_hdr(mem, size)) {
     return NULL;
@@ -244,22 +223,33 @@ struct ImBuf *imb_loadhdr(const unsigned char *mem,
     }
   }
 
-  if ((found && (x < (size + 2))) == 0) {
+  if ((found && (x < (size - 1))) == 0) {
     /* Data not found! */
     return NULL;
   }
 
-  if (sscanf((const char *)&mem[x + 1],
-             "%79s %d %79s %d",
-             (char *)&oriY,
-             &height,
-             (char *)&oriX,
-             &width) != 4) {
+  x++;
+
+  /* sscanf requires a null-terminated buffer argument */
+  char buf[32] = {0};
+  memcpy(buf, &mem[x], MIN2(sizeof(buf) - 1, size - x));
+
+  if (sscanf(buf, "%2s %d %2s %d", (char *)&oriY, &height, (char *)&oriX, &width) != 4) {
     return NULL;
   }
 
+  if (width < 1 || height < 1) {
+    return NULL;
+  }
+
+  /* Checking that width x height does not extend past mem_eof is not easily possible
+   * since the format uses RLE compression. Can cause excessive memory allocation to occur. */
+
   /* find end of this line, data right behind it */
-  ptr = (const unsigned char *)strchr((const char *)&mem[x + 1], '\n');
+  ptr = (const unsigned char *)strchr((const char *)&mem[x], '\n');
+  if (ptr == NULL || ptr >= mem_eof) {
+    return NULL;
+  }
   ptr++;
 
   if (flags & IB_test) {
@@ -294,7 +284,7 @@ struct ImBuf *imb_loadhdr(const unsigned char *mem,
       break;
     }
     for (x = 0; x < width; x++) {
-      /* convert to ldr */
+      /* Convert to LDR. */
       RGBE2FLOAT(sline[x], fcol);
       *rect_float++ = fcol[RED];
       *rect_float++ = fcol[GRN];
@@ -328,7 +318,7 @@ static int fwritecolrs(
 
   rgbe_scan = (RGBE *)MEM_mallocN(sizeof(RGBE) * width, "radhdr_write_tmpscan");
 
-  /* convert scanline */
+  /* Convert scan-line. */
   for (size_t i = 0, j = 0; i < width; i++) {
     if (fpscan) {
       fcol[RED] = fpscan[j];

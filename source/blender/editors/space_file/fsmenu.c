@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup spfile
@@ -185,8 +169,8 @@ static void fsmenu_xdg_user_dirs_free(GHash *xdg_map)
 
 /**
  * Add fsmenu entry for system folders on linux.
- * - Check if a path is stored in the GHash generated from user-dirs.dirs
- * - If not, check for a default path in $HOME
+ * - Check if a path is stored in the #GHash generated from `user-dirs.dirs`.
+ * - If not, check for a default path in `$HOME`.
  *
  * \param key: Use `user-dirs.dirs` format "XDG_EXAMPLE_DIR"
  * \param default_path: Directory name to check in $HOME, also used for the menu entry name.
@@ -745,14 +729,17 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
                                 N_("Fonts"),
                                 ICON_FILE_FONT,
                                 FS_INSERT_LAST);
+      fsmenu_add_windows_folder(fsmenu,
+                                FS_CATEGORY_SYSTEM_BOOKMARKS,
+                                &FOLDERID_SkyDrive,
+                                N_("OneDrive"),
+                                ICON_URL,
+                                FS_INSERT_LAST);
 
       /* These items are just put in path cache for thumbnail views and if bookmarked. */
 
       fsmenu_add_windows_folder(
           fsmenu, FS_CATEGORY_OTHER, &FOLDERID_UserProfiles, NULL, ICON_COMMUNITY, FS_INSERT_LAST);
-
-      fsmenu_add_windows_folder(
-          fsmenu, FS_CATEGORY_OTHER, &FOLDERID_SkyDrive, NULL, ICON_URL, FS_INSERT_LAST);
     }
   }
 #elif defined(__APPLE__)
@@ -769,24 +756,25 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
                         FS_INSERT_LAST);
 
     const char *home = BLI_getenv("HOME");
-
+    if (home) {
 #  define FS_MACOS_PATH(path, name, icon) \
     BLI_snprintf(line, sizeof(line), path, home); \
     fsmenu_insert_entry(fsmenu, FS_CATEGORY_OTHER, line, name, icon, FS_INSERT_LAST);
 
-    FS_MACOS_PATH("%s/", NULL, ICON_HOME)
-    FS_MACOS_PATH("%s/Desktop/", N_("Desktop"), ICON_DESKTOP)
-    FS_MACOS_PATH("%s/Documents/", N_("Documents"), ICON_DOCUMENTS)
-    FS_MACOS_PATH("%s/Downloads/", N_("Downloads"), ICON_IMPORT)
-    FS_MACOS_PATH("%s/Movies/", N_("Movies"), ICON_FILE_MOVIE)
-    FS_MACOS_PATH("%s/Music/", N_("Music"), ICON_FILE_SOUND)
-    FS_MACOS_PATH("%s/Pictures/", N_("Pictures"), ICON_FILE_IMAGE)
-    FS_MACOS_PATH("%s/Library/Fonts/", N_("Fonts"), ICON_FILE_FONT)
+      FS_MACOS_PATH("%s/", NULL, ICON_HOME)
+      FS_MACOS_PATH("%s/Desktop/", N_("Desktop"), ICON_DESKTOP)
+      FS_MACOS_PATH("%s/Documents/", N_("Documents"), ICON_DOCUMENTS)
+      FS_MACOS_PATH("%s/Downloads/", N_("Downloads"), ICON_IMPORT)
+      FS_MACOS_PATH("%s/Movies/", N_("Movies"), ICON_FILE_MOVIE)
+      FS_MACOS_PATH("%s/Music/", N_("Music"), ICON_FILE_SOUND)
+      FS_MACOS_PATH("%s/Pictures/", N_("Pictures"), ICON_FILE_IMAGE)
+      FS_MACOS_PATH("%s/Library/Fonts/", N_("Fonts"), ICON_FILE_FONT)
 
 #  undef FS_MACOS_PATH
+    }
 
     /* Get mounted volumes better method OSX 10.6 and higher, see:
-     * https://developer.apple.com/library/mac/#documentation/CoreFOundation/Reference/CFURLRef/Reference/reference.html
+     * https://developer.apple.com/library/mac/#documentation/CoreFoundation/Reference/CFURLRef/Reference/reference.html
      */
 
     /* We get all volumes sorted including network and do not relay
@@ -958,7 +946,7 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
           found = 1;
         }
         if (endmntent(fp) == 0) {
-          fprintf(stderr, "could not close the list of mounted filesystems\n");
+          fprintf(stderr, "could not close the list of mounted file-systems\n");
         }
       }
       /* Check gvfs shares. */

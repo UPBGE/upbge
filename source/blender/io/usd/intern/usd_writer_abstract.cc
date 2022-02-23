@@ -1,27 +1,15 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2019 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2019 Blender Foundation. All rights reserved. */
 #include "usd_writer_abstract.h"
 #include "usd_hierarchy_iterator.h"
+#include "usd_writer_material.h"
 
 #include <pxr/base/tf/stringUtils.h>
 
+#include "BKE_customdata.h"
 #include "BLI_assert.h"
+
+#include "DNA_mesh_types.h"
 
 /* TfToken objects are not cheap to construct, so we do it once. */
 namespace usdtokens {
@@ -33,6 +21,19 @@ static const pxr::TfToken preview_surface("UsdPreviewSurface", pxr::TfToken::Imm
 static const pxr::TfToken roughness("roughness", pxr::TfToken::Immortal);
 static const pxr::TfToken surface("surface", pxr::TfToken::Immortal);
 }  // namespace usdtokens
+
+static std::string get_mesh_active_uvlayer_name(const Object *ob)
+{
+  if (!ob || ob->type != OB_MESH || !ob->data) {
+    return "";
+  }
+
+  const Mesh *me = static_cast<Mesh *>(ob->data);
+
+  const char *name = CustomData_get_active_layer_name(&me->ldata, CD_MLOOPUV);
+
+  return name ? name : "";
+}
 
 namespace blender::io::usd {
 
@@ -78,7 +79,8 @@ const pxr::SdfPath &USDAbstractWriter::usd_path() const
   return usd_export_context_.usd_path;
 }
 
-pxr::UsdShadeMaterial USDAbstractWriter::ensure_usd_material(Material *material)
+pxr::UsdShadeMaterial USDAbstractWriter::ensure_usd_material(const HierarchyContext &context,
+                                                             Material *material)
 {
   static pxr::SdfPath material_library_path("/_materials");
   pxr::UsdStageRefPtr stage = usd_export_context_.stage;
@@ -92,17 +94,14 @@ pxr::UsdShadeMaterial USDAbstractWriter::ensure_usd_material(Material *material)
   }
   usd_material = pxr::UsdShadeMaterial::Define(stage, usd_path);
 
-  /* Construct the shader. */
-  pxr::SdfPath shader_path = usd_path.AppendChild(usdtokens::preview_shader);
-  pxr::UsdShadeShader shader = pxr::UsdShadeShader::Define(stage, shader_path);
-  shader.CreateIdAttr(pxr::VtValue(usdtokens::preview_surface));
-  shader.CreateInput(usdtokens::diffuse_color, pxr::SdfValueTypeNames->Color3f)
-      .Set(pxr::GfVec3f(material->r, material->g, material->b));
-  shader.CreateInput(usdtokens::roughness, pxr::SdfValueTypeNames->Float).Set(material->roughness);
-  shader.CreateInput(usdtokens::metallic, pxr::SdfValueTypeNames->Float).Set(material->metallic);
-
-  /* Connect the shader and the material together. */
-  usd_material.CreateSurfaceOutput().ConnectToSource(shader, usdtokens::surface);
+  if (material->use_nodes && this->usd_export_context_.export_params.generate_preview_surface) {
+    std::string active_uv = get_mesh_active_uvlayer_name(context.object);
+    create_usd_preview_surface_material(
+        this->usd_export_context_, material, usd_material, active_uv);
+  }
+  else {
+    create_usd_viewport_material(this->usd_export_context_, material, usd_material);
+  }
 
   return usd_material;
 }
@@ -121,7 +120,6 @@ void USDAbstractWriter::write_visibility(const HierarchyContext &context,
   usd_value_writer_.SetAttribute(attr_visibility, pxr::VtValue(visibility), timecode);
 }
 
-/* Reference the original data instead of writing a copy. */
 bool USDAbstractWriter::mark_as_instance(const HierarchyContext &context, const pxr::UsdPrim &prim)
 {
   BLI_assert(context.is_instance());
@@ -134,7 +132,7 @@ bool USDAbstractWriter::mark_as_instance(const HierarchyContext &context, const 
 
   pxr::SdfPath ref_path(context.original_export_path);
   if (!prim.GetReferences().AddInternalReference(ref_path)) {
-    /* See this URL for a description fo why referencing may fail"
+    /* See this URL for a description for why referencing may fail"
      * https://graphics.pixar.com/usd/docs/api/class_usd_references.html#Usd_Failing_References
      */
     printf("USD Export warning: unable to add reference from %s to %s, not instancing object\n",

@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <cstring>
 
@@ -105,12 +91,17 @@ static std::string value_string(const SpreadsheetRowFilter &row_filter,
         return row_filter.value_string;
       }
       return "";
-    case SPREADSHEET_VALUE_TYPE_COLOR:
+    case SPREADSHEET_VALUE_TYPE_COLOR: {
       std::ostringstream result;
       result.precision(3);
       result << std::fixed << "(" << row_filter.value_color[0] << ", " << row_filter.value_color[1]
              << ", " << row_filter.value_color[2] << ", " << row_filter.value_color[3] << ")";
       return result.str();
+    }
+    case SPREADSHEET_VALUE_TYPE_STRING:
+      return row_filter.value_string;
+    case SPREADSHEET_VALUE_TYPE_UNKNOWN:
+      return "";
   }
   BLI_assert_unreachable();
   return "";
@@ -234,6 +225,12 @@ static void spreadsheet_filter_panel_draw(const bContext *C, Panel *panel)
       uiItemR(layout, filter_ptr, "value_color", 0, IFACE_("Value"), ICON_NONE);
       uiItemR(layout, filter_ptr, "threshold", 0, nullptr, ICON_NONE);
       break;
+    case SPREADSHEET_VALUE_TYPE_STRING:
+      uiItemR(layout, filter_ptr, "value_string", 0, IFACE_("Value"), ICON_NONE);
+      break;
+    case SPREADSHEET_VALUE_TYPE_UNKNOWN:
+      uiItemL(layout, IFACE_("Unknown column type"), ICON_ERROR);
+      break;
   }
 }
 
@@ -320,7 +317,7 @@ static void set_filter_expand_flag(const bContext *UNUSED(C), Panel *panel, shor
 void register_row_filter_panels(ARegionType &region_type)
 {
   {
-    PanelType *panel_type = (PanelType *)MEM_callocN(sizeof(PanelType), __func__);
+    PanelType *panel_type = MEM_cnew<PanelType>(__func__);
     strcpy(panel_type->idname, "SPREADSHEET_PT_row_filters");
     strcpy(panel_type->label, N_("Filters"));
     strcpy(panel_type->category, "Filters");
@@ -331,12 +328,12 @@ void register_row_filter_panels(ARegionType &region_type)
   }
 
   {
-    PanelType *panel_type = (PanelType *)MEM_callocN(sizeof(PanelType), __func__);
+    PanelType *panel_type = MEM_cnew<PanelType>(__func__);
     strcpy(panel_type->idname, "SPREADSHEET_PT_filter");
     strcpy(panel_type->label, "");
     strcpy(panel_type->category, "Filters");
     strcpy(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
-    panel_type->flag = PANEL_TYPE_INSTANCED | PANEL_TYPE_DRAW_BOX | PANEL_TYPE_HEADER_EXPAND;
+    panel_type->flag = PANEL_TYPE_INSTANCED | PANEL_TYPE_HEADER_EXPAND;
     panel_type->draw_header = spreadsheet_filter_panel_draw_header;
     panel_type->draw = spreadsheet_filter_panel_draw;
     panel_type->get_list_data_expand_flag = get_filter_expand_flag;

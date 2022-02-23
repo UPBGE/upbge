@@ -31,8 +31,7 @@
 
 #define IS_TAGGED(_id) ((_id) && (((ID *)_id)->tag & LIB_TAG_DOIT))
 
-BL_ActionManager::BL_ActionManager(class KX_GameObject *obj) :
-    m_obj(obj), m_suspended(false)
+BL_ActionManager::BL_ActionManager(class KX_GameObject *obj) : m_obj(obj), m_suspended(false)
 {
 }
 

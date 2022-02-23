@@ -1,22 +1,5 @@
-# ***** BEGIN GPL LICENSE BLOCK *****
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# The Original Code is Copyright (C) 2006, Blender Foundation
-# All rights reserved.
-# ***** END GPL LICENSE BLOCK *****
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright 2006 Blender Foundation. All rights reserved.
 
 set(SRC_DNA_INC
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_ID.h
@@ -50,7 +33,7 @@ set(SRC_DNA_INC
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_gpencil_modifier_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_gpencil_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_gpu_types.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_hair_types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_curves_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_image_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_ipo_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_key_types.h
@@ -95,7 +78,9 @@ set(SRC_DNA_INC
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_text_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_texture_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_tracking_types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_userdef_enums.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_userdef_types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_uuid_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_vec_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_vfont_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_view2d_types.h
@@ -122,6 +107,7 @@ add_subdirectory(blenloader)
 add_subdirectory(depsgraph)
 add_subdirectory(ikplugin)
 add_subdirectory(simulation)
+add_subdirectory(geometry)
 add_subdirectory(gpu)
 add_subdirectory(imbuf)
 add_subdirectory(nodes)
@@ -133,6 +119,10 @@ add_subdirectory(io)
 add_subdirectory(functions)
 add_subdirectory(makesdna)
 add_subdirectory(makesrna)
+
+if(WITH_BLENDER_THUMBNAILER)
+  add_subdirectory(blendthumb)
+endif()
 
 if(WITH_COMPOSITOR)
   add_subdirectory(compositor)
@@ -160,8 +150,4 @@ endif()
 
 if(WITH_FREESTYLE)
   add_subdirectory(freestyle)
-endif()
-
-if(WIN32)
-  add_subdirectory(blendthumb)
 endif()

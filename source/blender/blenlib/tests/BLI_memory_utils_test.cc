@@ -1,6 +1,6 @@
-/* Apache License, Version 2.0 */
+/* SPDX-License-Identifier: Apache-2.0 */
 
-#include "BLI_float3.hh"
+#include "BLI_math_vec_types.hh"
 #include "BLI_memory_utils.hh"
 #include "BLI_strict_flags.h"
 #include "testing/testing.h"
@@ -168,5 +168,12 @@ static_assert(is_span_convertible_pointer_v<int *, void *>);
 static_assert(is_span_convertible_pointer_v<int *, const void *>);
 static_assert(!is_span_convertible_pointer_v<TestBaseClass *, TestChildClass *>);
 static_assert(!is_span_convertible_pointer_v<TestChildClass *, TestBaseClass *>);
+
+static_assert(is_same_any_v<int, float, bool, int>);
+static_assert(is_same_any_v<int, int, float>);
+static_assert(is_same_any_v<int, int>);
+static_assert(!is_same_any_v<int, float, bool>);
+static_assert(!is_same_any_v<int, float>);
+static_assert(!is_same_any_v<int>);
 
 }  // namespace blender::tests

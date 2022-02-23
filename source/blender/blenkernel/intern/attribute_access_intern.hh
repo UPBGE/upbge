@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_map.hh"
 #include "BLI_span.hh"
@@ -23,9 +9,6 @@
 #include "BKE_geometry_set.hh"
 
 namespace blender::bke {
-
-using fn::GVArrayPtr;
-using fn::GVMutableArrayPtr;
 
 /**
  * Utility to group together multiple functions that are used to access custom data on geometry
@@ -86,8 +69,8 @@ class BuiltinAttributeProvider {
   {
   }
 
-  virtual GVArrayPtr try_get_for_read(const GeometryComponent &component) const = 0;
-  virtual GVMutableArrayPtr try_get_for_write(GeometryComponent &component) const = 0;
+  virtual GVArray try_get_for_read(const GeometryComponent &component) const = 0;
+  virtual WriteAttributeLookup try_get_for_write(GeometryComponent &component) const = 0;
   virtual bool try_delete(GeometryComponent &component) const = 0;
   virtual bool try_create(GeometryComponent &UNUSED(component),
                           const AttributeInit &UNUSED(initializer)) const = 0;
@@ -143,7 +126,8 @@ class CustomDataAttributeProvider final : public DynamicAttributesProvider {
  private:
   static constexpr uint64_t supported_types_mask = CD_MASK_PROP_FLOAT | CD_MASK_PROP_FLOAT2 |
                                                    CD_MASK_PROP_FLOAT3 | CD_MASK_PROP_INT32 |
-                                                   CD_MASK_PROP_COLOR | CD_MASK_PROP_BOOL;
+                                                   CD_MASK_PROP_COLOR | CD_MASK_PROP_BOOL |
+                                                   CD_MASK_PROP_INT8;
   const AttributeDomain domain_;
   const CustomDataAccessInfo custom_data_access_;
 
@@ -164,7 +148,7 @@ class CustomDataAttributeProvider final : public DynamicAttributesProvider {
 
   bool try_create(GeometryComponent &component,
                   const AttributeIDRef &attribute_id,
-                  const AttributeDomain domain,
+                  AttributeDomain domain,
                   const CustomDataType data_type,
                   const AttributeInit &initializer) const final;
 
@@ -177,24 +161,6 @@ class CustomDataAttributeProvider final : public DynamicAttributesProvider {
   }
 
  private:
-  template<typename T>
-  ReadAttributeLookup layer_to_read_attribute(const CustomDataLayer &layer,
-                                              const int domain_size) const
-  {
-    return {std::make_unique<fn::GVArray_For_Span<T>>(
-                Span(static_cast<const T *>(layer.data), domain_size)),
-            domain_};
-  }
-
-  template<typename T>
-  WriteAttributeLookup layer_to_write_attribute(CustomDataLayer &layer,
-                                                const int domain_size) const
-  {
-    return {std::make_unique<fn::GVMutableArray_For_MutableSpan<T>>(
-                MutableSpan(static_cast<T *>(layer.data), domain_size)),
-            domain_};
-  }
-
   bool type_is_supported(CustomDataType data_type) const
   {
     return ((1ULL << data_type) & supported_types_mask) != 0;
@@ -206,8 +172,8 @@ class CustomDataAttributeProvider final : public DynamicAttributesProvider {
  */
 class NamedLegacyCustomDataProvider final : public DynamicAttributesProvider {
  private:
-  using AsReadAttribute = GVArrayPtr (*)(const void *data, const int domain_size);
-  using AsWriteAttribute = GVMutableArrayPtr (*)(void *data, const int domain_size);
+  using AsReadAttribute = GVArray (*)(const void *data, int domain_size);
+  using AsWriteAttribute = GVMutableArray (*)(void *data, int domain_size);
   const AttributeDomain domain_;
   const CustomDataType attribute_type_;
   const CustomDataType stored_type_;
@@ -241,14 +207,27 @@ class NamedLegacyCustomDataProvider final : public DynamicAttributesProvider {
   void foreach_domain(const FunctionRef<void(AttributeDomain)> callback) const final;
 };
 
+template<typename T> GVArray make_array_read_attribute(const void *data, const int domain_size)
+{
+  return VArray<T>::ForSpan(Span<T>((const T *)data, domain_size));
+}
+
+template<typename T> GVMutableArray make_array_write_attribute(void *data, const int domain_size)
+{
+  return VMutableArray<T>::ForSpan(MutableSpan<T>((T *)data, domain_size));
+}
+
 /**
  * This provider is used to provide access to builtin attributes. It supports making internal types
  * available as different types. For example, the vertex position attribute is stored as part of
  * the #MVert struct, but is exposed as float3 attribute.
+ *
+ * It also supports named builtin attributes, and will look up attributes in #CustomData by name
+ * if the stored type is the same as the attribute type.
  */
 class BuiltinCustomDataLayerProvider final : public BuiltinAttributeProvider {
-  using AsReadAttribute = GVArrayPtr (*)(const void *data, const int domain_size);
-  using AsWriteAttribute = GVMutableArrayPtr (*)(void *data, const int domain_size);
+  using AsReadAttribute = GVArray (*)(const void *data, int domain_size);
+  using AsWriteAttribute = GVMutableArray (*)(void *data, int domain_size);
   using UpdateOnRead = void (*)(const GeometryComponent &component);
   using UpdateOnWrite = void (*)(GeometryComponent &component);
   const CustomDataType stored_type_;
@@ -256,6 +235,7 @@ class BuiltinCustomDataLayerProvider final : public BuiltinAttributeProvider {
   const AsReadAttribute as_read_attribute_;
   const AsWriteAttribute as_write_attribute_;
   const UpdateOnWrite update_on_write_;
+  bool stored_as_named_attribute_;
 
  public:
   BuiltinCustomDataLayerProvider(std::string attribute_name,
@@ -275,12 +255,13 @@ class BuiltinCustomDataLayerProvider final : public BuiltinAttributeProvider {
         custom_data_access_(custom_data_access),
         as_read_attribute_(as_read_attribute),
         as_write_attribute_(as_write_attribute),
-        update_on_write_(update_on_write)
+        update_on_write_(update_on_write),
+        stored_as_named_attribute_(data_type_ == stored_type_)
   {
   }
 
-  GVArrayPtr try_get_for_read(const GeometryComponent &component) const final;
-  GVMutableArrayPtr try_get_for_write(GeometryComponent &component) const final;
+  GVArray try_get_for_read(const GeometryComponent &component) const final;
+  WriteAttributeLookup try_get_for_write(GeometryComponent &component) const final;
   bool try_delete(GeometryComponent &component) const final;
   bool try_create(GeometryComponent &component, const AttributeInit &initializer) const final;
   bool exists(const GeometryComponent &component) const final;

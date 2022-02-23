@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup python
@@ -56,7 +42,13 @@ bool BPY_python_get_use_system_env(void); /* Game Engine Integration */
 
 typedef void *BPy_ThreadStatePtr;
 
+/**
+ * Analogue of #PyEval_SaveThread()
+ */
 BPy_ThreadStatePtr BPY_thread_save(void);
+/**
+ * Analogue of #PyEval_RestoreThread()
+ */
 void BPY_thread_restore(BPy_ThreadStatePtr tstate);
 
 /* our own wrappers to Py_BEGIN_ALLOW_THREADS/Py_END_ALLOW_THREADS */
@@ -70,12 +62,26 @@ void BPY_thread_restore(BPy_ThreadStatePtr tstate);
   (void)0
 
 void BPY_text_free_code(struct Text *text);
+/**
+ * Needed so the #Main pointer in `bpy.data` doesn't become out of date.
+ */
 void BPY_modules_update(void);
 void BPY_modules_load_user(struct bContext *C);
 
-void BPY_app_handlers_reset(const short do_all);
+void BPY_app_handlers_reset(short do_all);
 
+/**
+ * Update function, it gets rid of py-drivers global dictionary, forcing
+ * BPY_driver_exec to recreate it. This function is used to force
+ * reloading the Blender text module "pydrivers.py", if available, so
+ * updates in it reach py-driver evaluation.
+ */
 void BPY_driver_reset(void);
+
+/**
+ * This evaluates Python driver expressions, `driver_orig->expression`
+ * is a Python expression that should evaluate to a float number, which is returned.
+ */
 float BPY_driver_exec(struct PathResolvedRNA *anim_rna,
                       struct ChannelDriver *driver,
                       struct ChannelDriver *driver_orig,
@@ -87,6 +93,9 @@ int BPY_context_member_get(struct bContext *C,
                            const char *member,
                            struct bContextDataResult *result);
 void BPY_context_set(struct bContext *C);
+/**
+ * Use for updating while a python script runs - in case of file load.
+ */
 void BPY_context_update(struct bContext *C);
 
 #define BPY_context_dict_clear_members(C, ...) \
@@ -94,6 +103,16 @@ void BPY_context_update(struct bContext *C);
                                        (C)->data.py_context_orig, \
                                        ((const char *[]){__VA_ARGS__}), \
                                        VA_NARGS_COUNT(__VA_ARGS__))
+/**
+ * Use for `CTX_*_set(..)` functions need to set values which are later read back as expected.
+ * In this case we don't want the Python context to override the values as it causes problems
+ * see T66256.
+ *
+ * \param dict_p: A pointer to #bContext.data.py_context so we can assign a new value.
+ * \param dict_orig: The value of #bContext.data.py_context_orig to check if we need to copy.
+ *
+ * \note Typically accessed via #BPY_context_dict_clear_members macro.
+ */
 void BPY_context_dict_clear_members_array(void **dict_p,
                                           void *dict_orig,
                                           const char *context_members[],
@@ -101,6 +120,9 @@ void BPY_context_dict_clear_members_array(void **dict_p,
 
 void BPY_id_release(struct ID *id);
 
+/**
+ * Avoids duplicating keyword list.
+ */
 bool BPY_string_is_keyword(const char *str);
 
 /* bpy_rna_callback.c */

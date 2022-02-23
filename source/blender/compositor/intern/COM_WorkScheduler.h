@@ -1,30 +1,17 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #pragma once
 
-#include "COM_ExecutionGroup.h"
-
-#include "COM_Device.h"
-#include "COM_WorkPackage.h"
-#include "COM_defines.h"
+#ifdef WITH_CXX_GUARDEDALLOC
+#  include "MEM_guardedalloc.h"
+#endif
 
 namespace blender::compositor {
+
+struct WorkPackage;
+
+class CompositorContext;
 
 /** \brief the workscheduler
  * \ingroup execution
@@ -83,7 +70,7 @@ struct WorkScheduler {
    * \brief Are there OpenCL capable GPU devices initialized?
    * the result of this method is stored in the CompositorContext
    * A node can generate a different operation tree when OpenCLDevices exists.
-   * \see CompositorContext.getHasActiveOpenCLDevices
+   * \see CompositorContext.get_has_active_opencl_devices
    */
   static bool has_gpu_devices();
 

@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8 compliant>
 import bpy
@@ -209,9 +193,9 @@ class TOPBAR_MT_editor_menus(Menu):
 
         # Allow calling this menu directly (this might not be a header area).
         if getattr(context.area, "show_menus", False):
-            layout.menu("TOPBAR_MT_app", text="", icon='BLENDER')
+            layout.menu("TOPBAR_MT_blender", text="", icon='BLENDER')
         else:
-            layout.menu("TOPBAR_MT_app", text="Blender")
+            layout.menu("TOPBAR_MT_blender", text="Blender")
 
         layout.menu("TOPBAR_MT_file")
         layout.menu("TOPBAR_MT_edit")
@@ -222,7 +206,7 @@ class TOPBAR_MT_editor_menus(Menu):
         layout.menu("TOPBAR_MT_help")
 
 
-class TOPBAR_MT_app(Menu):
+class TOPBAR_MT_blender(Menu):
     bl_label = "Blender"
 
     def draw(self, _context):
@@ -238,7 +222,7 @@ class TOPBAR_MT_app(Menu):
 
         layout.separator()
 
-        layout.menu("TOPBAR_MT_app_system")
+        layout.menu("TOPBAR_MT_blender_system")
 
 
 class TOPBAR_MT_file_cleanup(Menu):
@@ -430,7 +414,7 @@ class TOPBAR_MT_file_defaults(Menu):
 
 
 # Include technical operators here which would otherwise have no way for users to access.
-class TOPBAR_MT_app_system(Menu):
+class TOPBAR_MT_blender_system(Menu):
     bl_label = "System"
 
     def draw(self, _context):
@@ -464,8 +448,7 @@ class TOPBAR_MT_file_import(Menu):
 
     def draw(self, _context):
         if bpy.app.build_options.collada:
-            self.layout.operator("wm.collada_import",
-                                 text="Collada (Default) (.dae)")
+            self.layout.operator("wm.collada_import", text="Collada (.dae)")
         if bpy.app.build_options.alembic:
             self.layout.operator("wm.alembic_import", text="Alembic (.abc)")
         if bpy.app.build_options.usd:
@@ -481,9 +464,9 @@ class TOPBAR_MT_file_export(Menu):
     bl_owner_use_filter = False
 
     def draw(self, _context):
+        self.layout.operator("wm.obj_export", text="Wavefront OBJ (.obj)")
         if bpy.app.build_options.collada:
-            self.layout.operator("wm.collada_export",
-                                 text="Collada (Default) (.dae)")
+            self.layout.operator("wm.collada_export", text="Collada (.dae)")
         if bpy.app.build_options.alembic:
             self.layout.operator("wm.alembic_export", text="Alembic (.abc)")
         if bpy.app.build_options.usd:
@@ -588,7 +571,7 @@ class TOPBAR_MT_edit(Menu):
 
         layout.separator()
 
-        layout.operator("ed.undo_history", text="Undo History...")
+        layout.menu("TOPBAR_MT_undo_history")
 
         layout.separator()
 
@@ -634,6 +617,8 @@ class TOPBAR_MT_window(Menu):
 
         layout = self.layout
 
+        operator_context_default = layout.operator_context
+
         layout.operator("wm.window_new")
         layout.operator("wm.window_new_main")
 
@@ -656,6 +641,14 @@ class TOPBAR_MT_window(Menu):
 
         layout.operator("screen.screenshot")
 
+        # Showing the status in the area doesn't work well in this case.
+        # - From the top-bar, the text replaces the file-menu (not so bad but strange).
+        # - From menu-search it replaces the area that the user may want to screen-shot.
+        # Setting the context to screen causes the status to show in the global status-bar.
+        layout.operator_context = 'INVOKE_SCREEN'
+        layout.operator("screen.screenshot_area")
+        layout.operator_context = operator_context_default
+
         if sys.platform[:3] == "win":
             layout.separator()
             layout.operator("wm.console_toggle", icon='CONSOLE')
@@ -673,12 +666,13 @@ class TOPBAR_MT_help(Menu):
 
         show_developer = context.preferences.view.show_developer_ui
 
-        layout.operator("wm.url_open_preset", text="Manual",
-                        icon='HELP').type = 'MANUAL'
+        layout.operator(
+            "wm.url_open", text="Manual", icon='HELP',
+        ).url = "https://upbge.org/docs/latest/manual/index.html"
 
         layout.operator(
             "wm.url_open", text="Tutorials", icon='URL',
-        ).url = "https://www.blender.org/tutorials"
+        ).url = "https://upbge.org/docs/latest/manual/manual/tutorials/index.html"
         layout.operator(
             "wm.url_open", text="Support", icon='URL',
         ).url = "https://www.blender.org/support"
@@ -696,7 +690,7 @@ class TOPBAR_MT_help(Menu):
 
         layout.operator(
             "wm.url_open", text="Python API Reference", icon='URL',
-        ).url = "https://upbge.org/api/index.html" #bpy.types.WM_OT_doc_view._prefix
+        ).url = "https://upbge.org/docs/latest/api/index.html" #bpy.types.WM_OT_doc_view._prefix
 
         if show_developer:
             layout.operator(
@@ -821,6 +815,14 @@ class TOPBAR_PT_name(Panel):
                 row = row_with_icon(layout, 'NODE')
                 row.prop(item, "label", text="")
                 found = True
+        elif space_type == 'NLA_EDITOR':
+            layout.label(text="NLA Strip Name")
+            item = next(
+                (strip for strip in context.selected_nla_strips if strip.active), None)
+            if item:
+                row = row_with_icon(layout, 'NLA')
+                row.prop(item, "name", text="")
+                found = True
         else:
             if mode == 'POSE' or (mode == 'WEIGHT_PAINT' and context.pose_object):
                 layout.label(text="Bone Name")
@@ -854,8 +856,8 @@ classes = (
     TOPBAR_MT_file_context_menu,
     TOPBAR_MT_workspace_menu,
     TOPBAR_MT_editor_menus,
-    TOPBAR_MT_app,
-    TOPBAR_MT_app_system,
+    TOPBAR_MT_blender,
+    TOPBAR_MT_blender_system,
     TOPBAR_MT_file,
     TOPBAR_MT_file_new,
     TOPBAR_MT_file_recover,

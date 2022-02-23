@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup DNA
@@ -23,10 +7,8 @@
  * \brief Struct muncher for making SDNA.
  *
  * \section aboutmakesdnac About makesdna tool
- * Originally by Ton, some mods by Frank, and some cleaning and
- * extension by Nzc.
  *
- * Makesdna creates a .c file with a long string of numbers that
+ * `makesdna` creates a .c file with a long string of numbers that
  * encode the Blender file format. It is fast, because it is basically
  * a binary dump. There are some details to mind when reconstructing
  * the file (endianness and byte-alignment).
@@ -36,9 +18,9 @@
  * how much memory (on disk or in ram) is needed to store that struct,
  * and the offsets for reaching a particular one.
  *
- * There is a facility to get verbose output from sdna. Search for
- * \ref debugSDNA. This int can be set to 0 (no output) to some int. Higher
- * numbers give more output.
+ * There is a facility to get verbose output from `sdna`. Search for
+ * \ref debugSDNA. This int can be set to 0 (no output) to some int.
+ * Higher numbers give more output.
  */
 
 #define DNA_DEPRECATED_ALLOW
@@ -141,11 +123,12 @@ static const char *includefiles[] = {
     "DNA_lightprobe_types.h",
     "DNA_curveprofile_types.h",
     "DNA_xr_types.h",
-    "DNA_hair_types.h",
+    "DNA_curves_types.h",
     "DNA_pointcloud_types.h",
     "DNA_volume_types.h",
     "DNA_simulation_types.h",
     "DNA_pointcache_types.h",
+    "DNA_uuid_types.h",
     "DNA_asset_types.h",
 
     /* see comment above before editing! */
@@ -1138,7 +1121,7 @@ static int calculate_struct_sizes(int firststruct, FILE *file_verify, const char
              * to the struct to resolve the problem. */
             if ((size_64 % max_align_64 == 0) && (size_32 % max_align_32 == 4)) {
               fprintf(stderr,
-                      "Sizeerror in 32 bit struct: %s (add paddding pointer)\n",
+                      "Sizeerror in 32 bit struct: %s (add padding pointer)\n",
                       types[structtype]);
             }
             else {
@@ -1561,8 +1544,18 @@ int main(int argc, char **argv)
         base_directory = BASE_HEADER;
       }
 
+      /* NOTE: #init_structDNA() in dna_genfile.c expects `sdna->data` is 4-bytes aligned.
+       * `DNAstr[]` buffer written by `makesdna` is used for this data, so make `DNAstr` forcefully
+       * 4-bytes aligned. */
+#ifdef __GNUC__
+#  define FORCE_ALIGN_4 " __attribute__((aligned(4))) "
+#else
+#  define FORCE_ALIGN_4 " "
+#endif
       fprintf(file_dna, "extern const unsigned char DNAstr[];\n");
-      fprintf(file_dna, "const unsigned char DNAstr[] = {\n");
+      fprintf(file_dna, "const unsigned char" FORCE_ALIGN_4 "DNAstr[] = {\n");
+#undef FORCE_ALIGN_4
+
       if (make_structDNA(base_directory, file_dna, file_dna_offsets, file_dna_verify)) {
         /* error */
         fclose(file_dna);
@@ -1634,6 +1627,7 @@ int main(int argc, char **argv)
 #include "DNA_controller_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_curveprofile_types.h"
+#include "DNA_curves_types.h"
 #include "DNA_customdata_types.h"
 #include "DNA_dynamicpaint_types.h"
 #include "DNA_effect_types.h"
@@ -1642,7 +1636,6 @@ int main(int argc, char **argv)
 #include "DNA_freestyle_types.h"
 #include "DNA_gpencil_modifier_types.h"
 #include "DNA_gpencil_types.h"
-#include "DNA_hair_types.h"
 #include "DNA_image_types.h"
 #include "DNA_ipo_types.h"
 #include "DNA_key_types.h"
@@ -1688,6 +1681,7 @@ int main(int argc, char **argv)
 #include "DNA_texture_types.h"
 #include "DNA_tracking_types.h"
 #include "DNA_userdef_types.h"
+#include "DNA_uuid_types.h"
 #include "DNA_vec_types.h"
 #include "DNA_vfont_types.h"
 #include "DNA_view2d_types.h"

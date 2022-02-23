@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #pragma once
 
@@ -25,50 +10,50 @@ namespace blender::compositor {
 class DoubleEdgeMaskOperation : public NodeOperation {
  private:
   /**
-   * Cached reference to the inputProgram
+   * Cached reference to the input_program
    */
-  SocketReader *m_inputOuterMask;
-  SocketReader *m_inputInnerMask;
-  bool m_adjacentOnly;
-  bool m_keepInside;
+  SocketReader *input_outer_mask_;
+  SocketReader *input_inner_mask_;
+  bool adjacent_only_;
+  bool keep_inside_;
 
   /* TODO(manzanilla): To be removed with tiled implementation. */
-  float *m_cachedInstance;
+  float *cached_instance_;
 
   bool is_output_rendered_;
 
  public:
   DoubleEdgeMaskOperation();
 
-  void doDoubleEdgeMask(float *imask, float *omask, float *res);
+  void do_double_edge_mask(float *imask, float *omask, float *res);
   /**
    * The inner loop of this operation.
    */
-  void executePixel(float output[4], int x, int y, void *data) override;
+  void execute_pixel(float output[4], int x, int y, void *data) override;
 
   /**
    * Initialize the execution
    */
-  void initExecution() override;
+  void init_execution() override;
 
   /**
    * Deinitialize the execution
    */
-  void deinitExecution() override;
+  void deinit_execution() override;
 
-  void *initializeTileData(rcti *rect) override;
+  void *initialize_tile_data(rcti *rect) override;
 
-  bool determineDependingAreaOfInterest(rcti *input,
-                                        ReadBufferOperation *readOperation,
-                                        rcti *output) override;
+  bool determine_depending_area_of_interest(rcti *input,
+                                            ReadBufferOperation *read_operation,
+                                            rcti *output) override;
 
-  void setAdjecentOnly(bool adjacentOnly)
+  void set_adjecent_only(bool adjacent_only)
   {
-    this->m_adjacentOnly = adjacentOnly;
+    adjacent_only_ = adjacent_only;
   }
-  void setKeepInside(bool keepInside)
+  void set_keep_inside(bool keep_inside)
   {
-    this->m_keepInside = keepInside;
+    keep_inside_ = keep_inside;
   }
 
   void get_area_of_interest(int input_idx, const rcti &output_area, rcti &r_input_area) override;

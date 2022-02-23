@@ -222,13 +222,19 @@ EXP_PYMETHODDEF_DOC(KX_2DFilter, addOffScreen, " addOffScreen(slots, width, heig
   int height = -1;
   int mipmap = 0;
   int flag = 0;
-  flag |= RAS_2DFilterFrameBuffer::RAS_VIEWPORT_SIZE; //tmp: not viewport size not supported for now
+  flag |=
+      RAS_2DFilterFrameBuffer::RAS_VIEWPORT_SIZE;  // tmp: not viewport size not supported for now
 
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "i|iii:addOffScreen",
-                                     {"slots", "width", "height", "mipmap", 0},
-                                     &slots, &width, &height, &mipmap)) {
+  static const char *kwlist[] = {"slots", "width", "height", "mipmap", nullptr};
+
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   kwds,
+                                   "i|iii:addOffScreen",
+                                   const_cast<char **>(kwlist),
+                                   &slots,
+                                   &width,
+                                   &height,
+                                   &mipmap)) {
     return nullptr;
   }
 

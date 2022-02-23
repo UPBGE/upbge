@@ -32,15 +32,11 @@
 
 #include "Texture.h"
 
-#include "BKE_context.h"
-#include "BKE_global.h"
 #include "BKE_image.h"
 #include "BKE_node.h"
-#include "BKE_scene.h"
 #include "BLI_listbase.h"
-#include "DNA_node_types.h"
-#include "DNA_material_types.h"
 #include "DEG_depsgraph_query.h"
+#include "DNA_material_types.h"
 #include "GPU_glew.h"
 #include "GPU_texture.h"
 #include "IMB_imbuf.h"
@@ -48,7 +44,6 @@
 
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
-#include "KX_KetsjiEngine.h"
 #include "RAS_IPolygonMaterial.h"
 
 #ifdef WITH_FFMPEG
@@ -288,14 +283,19 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
   // texture object with shared texture ID
   Texture *texObj = nullptr;
 
+  static const char *kwlist[] = {"gameObj", "materialID", "textureID", "textureObj", nullptr};
+
   // get parameters
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "O|hhO!",
-                                     {"gameObj", "materialID", "textureID", "textureObj", 0},
-                                     &obj, &matID, &texID, &Texture::Type, &texObj)) {
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   kwds,
+                                   "O|hhO!",
+                                   const_cast<char **>(kwlist),
+                                   &obj,
+                                   &matID,
+                                   &texID,
+                                   &Texture::Type,
+                                   &texObj))
     return -1;
-  }
 
   KX_GameObject *gameObj = nullptr;
   if (ConvertPythonToGameObject(
@@ -330,7 +330,8 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
                 NodeTexImage *ntex = (NodeTexImage *)node->storage;
                 if (ntex->interpolation != SHD_INTERP_CLOSEST) {
                   std::cout << "VideoTexture: Image Texture node interpolation mode is not set to "
-                               "closest. VideoTexture might not work correctly." << std::endl;
+                               "closest. VideoTexture might not work correctly."
+                            << std::endl;
                   break;
                 }
               }
@@ -465,9 +466,9 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
        * DRW_notify_view_update on next draw loop
        * for some VideoTexture types (types which have a
        * "refresh" method), because the depsgraph has not been warned yet. */
-      bool needs_notifier = m_source &&
+      bool needs_notifier = m_source && (
 #ifdef WITH_FFMPEG
-                            (_Py_IS_TYPE(&m_source->ob_base, &VideoFFmpegType) ||
+                            _Py_IS_TYPE(&m_source->ob_base, &VideoFFmpegType) ||
                              _Py_IS_TYPE(&m_source->ob_base, &ImageFFmpegType) ||
 #endif  // WITH_FFMPEG
                              _Py_IS_TYPE(&m_source->ob_base, &ImageMixType) ||

@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #include "COM_ChangeHSVOperation.h"
 
@@ -22,54 +7,54 @@ namespace blender::compositor {
 
 ChangeHSVOperation::ChangeHSVOperation()
 {
-  this->addInputSocket(DataType::Color);
-  this->addInputSocket(DataType::Value);
-  this->addInputSocket(DataType::Value);
-  this->addInputSocket(DataType::Value);
-  this->addOutputSocket(DataType::Color);
-  this->m_inputOperation = nullptr;
-  this->flags.can_be_constant = true;
+  this->add_input_socket(DataType::Color);
+  this->add_input_socket(DataType::Value);
+  this->add_input_socket(DataType::Value);
+  this->add_input_socket(DataType::Value);
+  this->add_output_socket(DataType::Color);
+  input_operation_ = nullptr;
+  flags_.can_be_constant = true;
 }
 
-void ChangeHSVOperation::initExecution()
+void ChangeHSVOperation::init_execution()
 {
-  this->m_inputOperation = getInputSocketReader(0);
-  this->m_hueOperation = getInputSocketReader(1);
-  this->m_saturationOperation = getInputSocketReader(2);
-  this->m_valueOperation = getInputSocketReader(3);
+  input_operation_ = get_input_socket_reader(0);
+  hue_operation_ = get_input_socket_reader(1);
+  saturation_operation_ = get_input_socket_reader(2);
+  value_operation_ = get_input_socket_reader(3);
 }
 
-void ChangeHSVOperation::deinitExecution()
+void ChangeHSVOperation::deinit_execution()
 {
-  this->m_inputOperation = nullptr;
-  this->m_hueOperation = nullptr;
-  this->m_saturationOperation = nullptr;
-  this->m_valueOperation = nullptr;
+  input_operation_ = nullptr;
+  hue_operation_ = nullptr;
+  saturation_operation_ = nullptr;
+  value_operation_ = nullptr;
 }
 
-void ChangeHSVOperation::executePixelSampled(float output[4],
-                                             float x,
-                                             float y,
-                                             PixelSampler sampler)
+void ChangeHSVOperation::execute_pixel_sampled(float output[4],
+                                               float x,
+                                               float y,
+                                               PixelSampler sampler)
 {
-  float inputColor1[4];
+  float input_color1[4];
   float hue[4], saturation[4], value[4];
 
-  this->m_inputOperation->readSampled(inputColor1, x, y, sampler);
-  this->m_hueOperation->readSampled(hue, x, y, sampler);
-  this->m_saturationOperation->readSampled(saturation, x, y, sampler);
-  this->m_valueOperation->readSampled(value, x, y, sampler);
+  input_operation_->read_sampled(input_color1, x, y, sampler);
+  hue_operation_->read_sampled(hue, x, y, sampler);
+  saturation_operation_->read_sampled(saturation, x, y, sampler);
+  value_operation_->read_sampled(value, x, y, sampler);
 
-  output[0] = inputColor1[0] + (hue[0] - 0.5f);
+  output[0] = input_color1[0] + (hue[0] - 0.5f);
   if (output[0] > 1.0f) {
     output[0] -= 1.0f;
   }
   else if (output[0] < 0.0f) {
     output[0] += 1.0f;
   }
-  output[1] = inputColor1[1] * saturation[0];
-  output[2] = inputColor1[2] * value[0];
-  output[3] = inputColor1[3];
+  output[1] = input_color1[1] * saturation[0];
+  output[2] = input_color1[2] * value[0];
+  output[3] = input_color1[3];
 }
 
 void ChangeHSVOperation::update_memory_buffer_partial(MemoryBuffer *output,

@@ -42,12 +42,13 @@ base class --- :class:`~bge.types.SCA_IController`
 
       Activates an actuator attached to this controller.
 
-      :arg actuator: The actuator to operate on.
-      :type actuator: actuator or the actuator name as a string
+      :arg actuator: The actuator to operate on. Expects either an actuator instance or its name.
+      :type actuator: :class:`~bge.types.SCA_IActuator` or string
 
    .. method:: deactivate(actuator)
 
       Deactivates an actuator attached to this controller.
 
-      :arg actuator: The actuator to operate on.
-      :type actuator: actuator or the actuator name as a string
+      :arg actuator: The actuator to operate on. Expects either an actuator instance or its name.
+      :type actuator: :class:`~bge.types.SCA_IActuator` or string
+

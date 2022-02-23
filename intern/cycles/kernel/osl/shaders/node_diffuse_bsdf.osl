@@ -1,0 +1,15 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
+
+#include "stdcycles.h"
+
+shader node_diffuse_bsdf(color Color = 0.8,
+                         float Roughness = 0.0,
+                         normal Normal = N,
+                         output closure color BSDF = 0)
+{
+  if (Roughness == 0.0)
+    BSDF = Color * diffuse(Normal);
+  else
+    BSDF = Color * oren_nayar(Normal, Roughness);
+}

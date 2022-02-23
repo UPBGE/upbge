@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2021, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2021 Blender Foundation. */
 
 #pragma once
 
@@ -44,14 +29,20 @@ constexpr blender::StringRef META_DATA_KEY_CRYPTOMATTE_NAME("cryptomatte/{hash}/
 class MetaData {
  private:
   Map<std::string, std::string> entries_;
-  void addCryptomatteEntry(const blender::StringRef layer_name,
-                           const blender::StringRefNull key,
-                           const blender::StringRef value);
+  void add_cryptomatte_entry(const blender::StringRef layer_name,
+                             const blender::StringRefNull key,
+                             const blender::StringRef value);
 
  public:
   void add(const blender::StringRef key, const blender::StringRef value);
-  void replaceHashNeutralCryptomatteKeys(const blender::StringRef layer_name);
-  void addToRenderResult(RenderResult *render_result) const;
+  /**
+   * Replace the hash neutral cryptomatte keys with hashed versions.
+   *
+   * When a conversion happens it will also add the cryptomatte name key with the given
+   * `layer_name`.
+   */
+  void replace_hash_neutral_cryptomatte_keys(const blender::StringRef layer_name);
+  void add_to_render_result(RenderResult *render_result) const;
 #ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("COM:MetaData")
 #endif
@@ -63,8 +54,8 @@ struct MetaDataExtractCallbackData {
   std::string conversion_key;
   std::string manifest_key;
 
-  void addMetaData(blender::StringRef key, blender::StringRefNull value);
-  void setCryptomatteKeys(blender::StringRef cryptomatte_layer_name);
+  void add_meta_data(blender::StringRef key, blender::StringRefNull value);
+  void set_cryptomatte_keys(blender::StringRef cryptomatte_layer_name);
   /* C type callback function (StampCallback). */
   static void extract_cryptomatte_meta_data(void *_data,
                                             const char *propname,

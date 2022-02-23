@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spview3d
@@ -115,8 +101,10 @@ enum {
   CONSTRAIN_AXIS_Z = 2,
 };
 
-/* Constraining modes.
-   Off / Scene orientation / Global (or Local if Scene orientation is Global) */
+/**
+ * Constraining modes.
+ * Off / Scene orientation / Global (or Local if Scene orientation is Global).
+ */
 enum {
   CONSTRAIN_MODE_OFF = 0,
   CONSTRAIN_MODE_1 = 1,
@@ -163,7 +151,7 @@ typedef struct RulerInfo {
 typedef struct RulerItem {
   wmGizmo gz;
 
-  /* worldspace coords, middle being optional */
+  /** World-space coords, middle being optional. */
   float co[3][3];
 
   int flag;
@@ -332,7 +320,8 @@ static void view3d_ruler_item_project(RulerInfo *ruler_info, float r_co[3], cons
 /**
  * Use for mouse-move events.
  */
-static bool view3d_ruler_item_mousemove(struct Depsgraph *depsgraph,
+static bool view3d_ruler_item_mousemove(const bContext *C,
+                                        struct Depsgraph *depsgraph,
                                         RulerInfo *ruler_info,
                                         RulerItem *ruler_item,
                                         const int mval[2],
@@ -356,8 +345,7 @@ static bool view3d_ruler_item_mousemove(struct Depsgraph *depsgraph,
     if (do_thickness && inter->co_index != 1) {
       Scene *scene = DEG_get_input_scene(depsgraph);
       View3D *v3d = ruler_info->area->spacedata.first;
-      SnapObjectContext *snap_context = ED_gizmotypes_snap_3d_context_ensure(
-          scene, ruler_info->region, v3d, snap_gizmo);
+      SnapObjectContext *snap_context = ED_gizmotypes_snap_3d_context_ensure(scene, snap_gizmo);
       const float mval_fl[2] = {UNPACK2(mval)};
       float ray_normal[3];
       float ray_start[3];
@@ -367,6 +355,8 @@ static bool view3d_ruler_item_mousemove(struct Depsgraph *depsgraph,
 
       if (ED_transform_snap_object_project_view3d(snap_context,
                                                   depsgraph,
+                                                  ruler_info->region,
+                                                  v3d,
                                                   SCE_SNAP_MODE_FACE,
                                                   &(const struct SnapObjectParams){
                                                       .snap_select = SNAP_ALL,
@@ -382,6 +372,7 @@ static bool view3d_ruler_item_mousemove(struct Depsgraph *depsgraph,
         madd_v3_v3v3fl(ray_start, co, ray_normal, eps_bias);
         ED_transform_snap_object_project_ray(snap_context,
                                              depsgraph,
+                                             v3d,
                                              &(const struct SnapObjectParams){
                                                  .snap_select = SNAP_ALL,
                                                  .edit_mode_type = SNAP_GEOM_CAGE,
@@ -399,7 +390,6 @@ static bool view3d_ruler_item_mousemove(struct Depsgraph *depsgraph,
 #endif
     {
       View3D *v3d = ruler_info->area->spacedata.first;
-      const float mval_fl[2] = {UNPACK2(mval)};
       float *prev_point = NULL;
 
       if (inter->co_index != 1) {
@@ -418,11 +408,8 @@ static bool view3d_ruler_item_mousemove(struct Depsgraph *depsgraph,
             snap_gizmo->ptr, ruler_info->snap_data.prop_prevpoint, prev_point);
       }
 
-      ED_gizmotypes_snap_3d_update(
-          snap_gizmo, depsgraph, ruler_info->region, v3d, ruler_info->wm, mval_fl);
-
       if (ED_gizmotypes_snap_3d_is_enabled(snap_gizmo)) {
-        ED_gizmotypes_snap_3d_data_get(snap_gizmo, co, NULL, NULL, NULL);
+        ED_gizmotypes_snap_3d_data_get(C, snap_gizmo, co, NULL, NULL, NULL);
       }
 
 #ifdef USE_AXIS_CONSTRAINTS
@@ -644,7 +631,7 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
   GPU_line_width(1.0f);
 
   BLF_enable(blf_mono_font, BLF_ROTATION);
-  BLF_size(blf_mono_font, 14 * U.pixelsize, U.dpi);
+  BLF_size(blf_mono_font, 14.0f * U.pixelsize, U.dpi);
   BLF_rotation(blf_mono_font, 0.0f);
 
   UI_GetThemeColor3ubv(TH_TEXT, color_text);
@@ -1048,7 +1035,8 @@ static int gizmo_ruler_modal(bContext *C,
   if (do_cursor_update) {
     if (ruler_info->state == RULER_STATE_DRAG) {
       struct Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-      if (view3d_ruler_item_mousemove(depsgraph,
+      if (view3d_ruler_item_mousemove(C,
+                                      depsgraph,
                                       ruler_info,
                                       ruler_item,
                                       event->mval,
@@ -1115,7 +1103,8 @@ static int gizmo_ruler_invoke(bContext *C, wmGizmo *gz, const wmEvent *event)
 
       /* update the new location */
       struct Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-      view3d_ruler_item_mousemove(depsgraph,
+      view3d_ruler_item_mousemove(C,
+                                  depsgraph,
                                   ruler_info,
                                   ruler_item_pick,
                                   event->mval,
@@ -1234,7 +1223,7 @@ static void WIDGETGROUP_ruler_setup(const bContext *C, wmGizmoGroup *gzgroup)
                  (SCE_SNAP_MODE_VERTEX | SCE_SNAP_MODE_EDGE | SCE_SNAP_MODE_FACE |
                   /* SCE_SNAP_MODE_VOLUME | SCE_SNAP_MODE_GRID | SCE_SNAP_MODE_INCREMENT | */
                   SCE_SNAP_MODE_EDGE_PERPENDICULAR | SCE_SNAP_MODE_EDGE_MIDPOINT));
-    ED_gizmotypes_snap_3d_flag_set(gizmo, ED_SNAPGIZMO_SNAP_EDIT_GEOM_CAGE);
+    ED_gizmotypes_snap_3d_flag_set(gizmo, V3D_SNAPCURSOR_SNAP_EDIT_GEOM_CAGE);
     WM_gizmo_set_color(gizmo, (float[4]){1.0f, 1.0f, 1.0f, 1.0f});
 
     wmOperatorType *ot = WM_operatortype_find("VIEW3D_OT_ruler_add", true);
@@ -1319,7 +1308,8 @@ static int view3d_ruler_add_invoke(bContext *C, wmOperator *op, const wmEvent *e
       struct Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
       /* snap the first point added, not essential but handy */
       inter->co_index = 0;
-      view3d_ruler_item_mousemove(depsgraph,
+      view3d_ruler_item_mousemove(C,
+                                  depsgraph,
                                   ruler_info,
                                   ruler_item,
                                   event->mval,

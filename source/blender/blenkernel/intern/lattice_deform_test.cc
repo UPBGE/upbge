@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2020 by Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2020 Blender Foundation. */
 #include "testing/testing.h"
 
 #include "BKE_idtype.h"
@@ -44,7 +29,7 @@ static void test_lattice_deform_init(LatticeDeformTestContext *ctx,
                                      int32_t num_items)
 {
   /* Generate random input data between -5 and 5. */
-  ctx->coords = (float(*)[3])MEM_malloc_arrayN(sizeof(float[3]), num_items, __func__);
+  ctx->coords = (float(*)[3])MEM_malloc_arrayN(num_items, sizeof(float[3]), __func__);
   for (uint32_t index = 0; index < num_items; index++) {
     ctx->coords[index][0] = (rng->get_float() - 0.5f) * 10;
     ctx->coords[index][1] = (rng->get_float() - 0.5f) * 10;

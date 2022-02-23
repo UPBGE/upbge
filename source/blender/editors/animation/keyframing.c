@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2009 Blender Foundation, Joshua Leung. All rights reserved. */
 
 /** \file
  * \ingroup edanimation
@@ -35,6 +19,7 @@
 
 #include "BLT_translation.h"
 
+#include "DNA_action_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
@@ -90,7 +75,6 @@ static int delete_key_using_keying_set(bContext *C, wmOperator *op, KeyingSet *k
 /* ************************************************** */
 /* Keyframing Setting Wrangling */
 
-/* Get the active settings for keyframing settings from context (specifically the given scene) */
 eInsertKeyFlags ANIM_get_keyframing_flags(Scene *scene, const bool use_autokey_mode)
 {
   eInsertKeyFlags flag = INSERTKEY_NOFLAGS;
@@ -132,9 +116,6 @@ eInsertKeyFlags ANIM_get_keyframing_flags(Scene *scene, const bool use_autokey_m
 /* ******************************************* */
 /* Animation Data Validation */
 
-/* Get (or add relevant data to be able to do so) the Active Action for the given
- * Animation Data block, given an ID block where the Animation Data should reside.
- */
 bAction *ED_id_action_ensure(Main *bmain, ID *id)
 {
   AnimData *adt;
@@ -176,10 +157,6 @@ bAction *ED_id_action_ensure(Main *bmain, ID *id)
   return adt->action;
 }
 
-/**
- * Find the F-Curve from the Active Action,
- * for the given Animation Data block. This assumes that all the destinations are valid.
- */
 FCurve *ED_action_fcurve_find(struct bAction *act, const char rna_path[], const int array_index)
 {
   /* Sanity checks. */
@@ -189,10 +166,6 @@ FCurve *ED_action_fcurve_find(struct bAction *act, const char rna_path[], const 
   return BKE_fcurve_find(&act->curves, rna_path, array_index);
 }
 
-/**
- * Get (or add relevant data to be able to do so) F-Curve from the Active Action,
- * for the given Animation Data block. This assumes that all the destinations are valid.
- */
 FCurve *ED_action_fcurve_ensure(struct Main *bmain,
                                 struct bAction *act,
                                 const char group[],
@@ -294,9 +267,6 @@ static void update_autoflags_fcurve_direct(FCurve *fcu, PropertyRNA *prop)
   }
 }
 
-/* Update integer/discrete flags of the FCurve (used when creating/inserting keyframes,
- * but also through RNA when editing an ID prop, see T37103).
- */
 void update_autoflags_fcurve(FCurve *fcu, bContext *C, ReportList *reports, PointerRNA *ptr)
 {
   PointerRNA tmp_ptr;
@@ -375,6 +345,43 @@ static eFCU_Cycle_Type remap_cyclic_keyframe_location(FCurve *fcu, float *px, fl
   return type;
 }
 
+/* Used to make curves newly added to a cyclic Action cycle with the correct period. */
+static void make_new_fcurve_cyclic(const bAction *act, FCurve *fcu)
+{
+  /* The curve must contain one (newly-added) keyframe. */
+  if (fcu->totvert != 1 || !fcu->bezt) {
+    return;
+  }
+
+  const float period = act->frame_end - act->frame_start;
+
+  if (period < 0.1f) {
+    return;
+  }
+
+  /* Move the keyframe into the range. */
+  const float frame_offset = fcu->bezt[0].vec[1][0] - act->frame_start;
+  const float fix = floorf(frame_offset / period) * period;
+
+  fcu->bezt[0].vec[0][0] -= fix;
+  fcu->bezt[0].vec[1][0] -= fix;
+  fcu->bezt[0].vec[2][0] -= fix;
+
+  /* Duplicate and offset the keyframe. */
+  fcu->bezt = MEM_reallocN(fcu->bezt, sizeof(BezTriple) * 2);
+  fcu->totvert = 2;
+
+  fcu->bezt[1] = fcu->bezt[0];
+  fcu->bezt[1].vec[0][0] += period;
+  fcu->bezt[1].vec[1][0] += period;
+  fcu->bezt[1].vec[2][0] += period;
+
+  /* Add the cycles modifier. */
+  if (!fcu->modifiers.first) {
+    add_fmodifier(&fcu->modifiers, FMODIFIER_TYPE_CYCLES, fcu);
+  }
+}
+
 /* -------------- BezTriple Insertion -------------------- */
 
 /* Change the Y position of a keyframe to match the input, adjusting handles. */
@@ -395,13 +402,6 @@ static void replace_bezt_keyframe_ypos(BezTriple *dst, const BezTriple *bezt)
   /* TODO: perform some other operations? */
 }
 
-/* This function adds a given BezTriple to an F-Curve. It will allocate
- * memory for the array if needed, and will insert the BezTriple into a
- * suitable place in chronological order.
- *
- * NOTE: any recalculate of the F-Curve that needs to be done will need to
- *      be done by the caller.
- */
 int insert_bezt_fcurve(FCurve *fcu, const BezTriple *bezt, eInsertKeyFlags flag)
 {
   int i = 0;
@@ -425,7 +425,7 @@ int insert_bezt_fcurve(FCurve *fcu, const BezTriple *bezt, eInsertKeyFlags flag)
         if (flag & INSERTKEY_CYCLE_AWARE) {
           /* If replacing an end point of a cyclic curve without offset,
            * modify the other end too. */
-          if ((i == 0 || i == fcu->totvert - 1) &&
+          if (ELEM(i, 0, fcu->totvert - 1) &&
               BKE_fcurve_get_cycle_type(fcu) == FCU_CYCLE_PERFECT) {
             replace_bezt_keyframe_ypos(&fcu->bezt[i == 0 ? fcu->totvert - 1 : 0], bezt);
           }
@@ -537,15 +537,6 @@ static void subdivide_nonauto_handles(const FCurve *fcu,
   bezt->h1 = bezt->h2 = HD_ALIGN;
 }
 
-/**
- * This function is a wrapper for #insert_bezt_fcurve(), and should be used when
- * adding a new keyframe to a curve, when the keyframe doesn't exist anywhere else yet.
- * It returns the index at which the keyframe was added.
- *
- * \param keyframe_type: The type of keyframe (#eBezTriple_KeyframeType).
- * \param flag: Optional flags (eInsertKeyFlags) for controlling how keys get added
- * and/or whether updates get done.
- */
 int insert_vert_fcurve(
     FCurve *fcu, float x, float y, eBezTriple_KeyframeType keyframe_type, eInsertKeyFlags flag)
 {
@@ -573,7 +564,7 @@ int insert_vert_fcurve(
     beztr.ipo = BEZT_IPO_BEZ;
   }
   else {
-    /* for UI usage - defaults should come from the userprefs and/or toolsettings */
+    /* For UI usage - defaults should come from the user-preferences and/or tool-settings. */
     beztr.h1 = beztr.h2 = U.keyhandles_new; /* use default handle type here */
 
     /* use default interpolation mode, with exceptions for int/discrete values */
@@ -792,12 +783,12 @@ static float *setting_get_rna_values(
     int *tmp_int;
 
     if (length > buffer_size) {
-      values = MEM_malloc_arrayN(sizeof(float), length, __func__);
+      values = MEM_malloc_arrayN(length, sizeof(float), __func__);
     }
 
     switch (RNA_property_type(prop)) {
       case PROP_BOOLEAN:
-        tmp_bool = MEM_malloc_arrayN(sizeof(*tmp_bool), length, __func__);
+        tmp_bool = MEM_malloc_arrayN(length, sizeof(*tmp_bool), __func__);
         RNA_property_boolean_get_array(ptr, prop, tmp_bool);
         for (int i = 0; i < length; i++) {
           values[i] = (float)tmp_bool[i];
@@ -805,7 +796,7 @@ static float *setting_get_rna_values(
         MEM_freeN(tmp_bool);
         break;
       case PROP_INT:
-        tmp_int = MEM_malloc_arrayN(sizeof(*tmp_int), length, __func__);
+        tmp_int = MEM_malloc_arrayN(length, sizeof(*tmp_int), __func__);
         RNA_property_int_get_array(ptr, prop, tmp_int);
         for (int i = 0; i < length; i++) {
           values[i] = (float)tmp_int[i];
@@ -1235,19 +1226,6 @@ static bool insert_keyframe_value(ReportList *reports,
   return insert_vert_fcurve(fcu, cfra, curval, keytype, flag) >= 0;
 }
 
-/* Secondary Keyframing API call:
- * Use this when validation of necessary animation data is not necessary,
- * since an RNA-pointer to the necessary data being keyframed,
- * and a pointer to the F-Curve to use have both been provided.
- *
- * This function can't keyframe quaternion channels on some NLA strip types.
- *
- * keytype is the "keyframe type" (eBezTriple_KeyframeType), as shown in the Dope Sheet.
- *
- * The flag argument is used for special settings that alter the behavior of
- * the keyframe insertion. These include the 'visual' keyframing modes, quick refresh,
- * and extra keyframe filtering.
- */
 bool insert_keyframe_direct(ReportList *reports,
                             PointerRNA ptr,
                             PropertyRNA *prop,
@@ -1352,8 +1330,10 @@ static bool insert_keyframe_fcurve_value(Main *bmain,
 
   /* we may not have a F-Curve when we're replacing only... */
   if (fcu) {
+    const bool is_new_curve = (fcu->totvert == 0);
+
     /* set color mode if the F-Curve is new (i.e. without any keyframes) */
-    if ((fcu->totvert == 0) && (flag & INSERTKEY_XYZ2RGB)) {
+    if (is_new_curve && (flag & INSERTKEY_XYZ2RGB)) {
       /* for Loc/Rot/Scale and also Color F-Curves, the color of the F-Curve in the Graph Editor,
        * is determined by the array index for the F-Curve
        */
@@ -1366,12 +1346,26 @@ static bool insert_keyframe_fcurve_value(Main *bmain,
       }
     }
 
+    /* If the curve has only one key, make it cyclic if appropriate. */
+    const bool is_cyclic_action = (flag & INSERTKEY_CYCLE_AWARE) && BKE_action_is_cyclic(act);
+
+    if (is_cyclic_action && fcu->totvert == 1) {
+      make_new_fcurve_cyclic(act, fcu);
+    }
+
     /* update F-Curve flags to ensure proper behavior for property type */
     update_autoflags_fcurve_direct(fcu, prop);
 
     /* insert keyframe */
-    return insert_keyframe_value(
+    const bool success = insert_keyframe_value(
         reports, ptr, prop, fcu, anim_eval_context, curval, keytype, flag);
+
+    /* If the curve is new, make it cyclic if appropriate. */
+    if (is_cyclic_action && is_new_curve) {
+      make_new_fcurve_cyclic(act, fcu);
+    }
+
+    return success;
   }
 
   return false;
@@ -1399,19 +1393,6 @@ static AnimationEvalContext nla_time_remap(const AnimationEvalContext *anim_eval
   return *anim_eval_context;
 }
 
-/**
- * Main Keyframing API call
- *
- * Use this when validation of necessary animation data is necessary, since it may not exist yet.
- *
- * The flag argument is used for special settings that alter the behavior of
- * the keyframe insertion. These include the 'visual' keyframing modes, quick refresh,
- * and extra keyframe filtering.
- *
- * index of -1 keys all array indices
- *
- * \return The number of key-frames inserted.
- */
 int insert_keyframe(Main *bmain,
                     ReportList *reports,
                     ID *id,
@@ -1638,9 +1619,6 @@ static void deg_tag_after_keyframe_delete(Main *bmain, ID *id, AnimData *adt)
   }
 }
 
-/**
- * \return The number of key-frames deleted.
- */
 int delete_keyframe(Main *bmain,
                     ReportList *reports,
                     ID *id,
@@ -1879,6 +1857,7 @@ static int insert_key_exec(bContext *C, wmOperator *op)
 
   float cfra = (float)CFRA; /* XXX for now, don't bother about all the yucky offset crap */
   int num_channels;
+  const bool confirm = op->flag & OP_IS_INVOKE;
 
   KeyingSet *ks = keyingset_get_from_op_with_error(op, op->type->prop, scene);
   if (ks == NULL) {
@@ -1915,20 +1894,22 @@ static int insert_key_exec(bContext *C, wmOperator *op)
   }
 
   if (num_channels > 0) {
-    /* if the appropriate properties have been set, make a note that we've inserted something */
-    if (RNA_boolean_get(op->ptr, "confirm_success")) {
+    /* send notifiers that keyframes have been changed */
+    WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, NULL);
+  }
+
+  if (confirm) {
+    /* if called by invoke (from the UI), make a note that we've inserted keyframes */
+    if (num_channels > 0) {
       BKE_reportf(op->reports,
                   RPT_INFO,
                   "Successfully added %d keyframes for keying set '%s'",
                   num_channels,
                   ks->name);
     }
-
-    /* send notifiers that keyframes have been changed */
-    WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, NULL);
-  }
-  else {
-    BKE_report(op->reports, RPT_WARNING, "Keying set failed to insert any keyframes");
+    else {
+      BKE_report(op->reports, RPT_WARNING, "Keying set failed to insert any keyframes");
+    }
   }
 
   return OPERATOR_FINISHED;
@@ -1957,19 +1938,8 @@ void ANIM_OT_keyframe_insert(wmOperatorType *ot)
   RNA_def_enum_funcs(prop, ANIM_keying_sets_enum_itemf);
   RNA_def_property_flag(prop, PROP_HIDDEN);
   ot->prop = prop;
-
-  /* confirm whether a keyframe was added by showing a popup
-   * - by default, this is enabled, since this operator is assumed to be called independently
-   */
-  prop = RNA_def_boolean(ot->srna,
-                         "confirm_success",
-                         1,
-                         "Confirm Successful Insert",
-                         "Show a popup when the keyframes get successfully added");
-  RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
-/* Clone of 'ANIM_OT_keyframe_insert' which uses a name for the keying set instead of an enum. */
 void ANIM_OT_keyframe_insert_by_name(wmOperatorType *ot)
 {
   PropertyRNA *prop;
@@ -1990,16 +1960,6 @@ void ANIM_OT_keyframe_insert_by_name(wmOperatorType *ot)
   prop = RNA_def_string_file_path(ot->srna, "type", "Type", MAX_ID_NAME - 2, "", "");
   RNA_def_property_flag(prop, PROP_HIDDEN);
   ot->prop = prop;
-
-  /* confirm whether a keyframe was added by showing a popup
-   * - by default, this is enabled, since this operator is assumed to be called independently
-   */
-  prop = RNA_def_boolean(ot->srna,
-                         "confirm_success",
-                         1,
-                         "Confirm Successful Insert",
-                         "Show a popup when the keyframes get successfully added");
-  RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
 /* Insert Key Operator (With Menu) ------------------------ */
@@ -2027,8 +1987,6 @@ static int insert_key_menu_invoke(bContext *C, wmOperator *op, const wmEvent *UN
 
   /* just call the exec() on the active keyingset */
   RNA_enum_set(op->ptr, "type", 0);
-  RNA_boolean_set(op->ptr, "confirm_success", true);
-
   return op->type->exec(C, op);
 }
 
@@ -2057,17 +2015,6 @@ void ANIM_OT_keyframe_insert_menu(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN);
   ot->prop = prop;
 
-  /* confirm whether a keyframe was added by showing a popup
-   * - by default, this is disabled so that if a menu is shown, this doesn't come up too
-   */
-  /* XXX should this just be always on? */
-  prop = RNA_def_boolean(ot->srna,
-                         "confirm_success",
-                         0,
-                         "Confirm Successful Insert",
-                         "Show a popup when the keyframes get successfully added");
-  RNA_def_property_flag(prop, PROP_HIDDEN);
-
   /* whether the menu should always be shown
    * - by default, the menu should only be shown when there is no active Keying Set (2.5 behavior),
    *   although in some cases it might be useful to always shown (pre 2.5 behavior)
@@ -2094,6 +2041,7 @@ static int delete_key_using_keying_set(bContext *C, wmOperator *op, KeyingSet *k
   Scene *scene = CTX_data_scene(C);
   float cfra = (float)CFRA; /* XXX for now, don't bother about all the yucky offset crap */
   int num_channels;
+  const bool confirm = op->flag & OP_IS_INVOKE;
 
   /* try to delete keyframes for the channels specified by KeyingSet */
   num_channels = ANIM_apply_keyingset(C, NULL, NULL, ks, MODIFYKEY_MODE_DELETE, cfra);
@@ -2108,23 +2056,22 @@ static int delete_key_using_keying_set(bContext *C, wmOperator *op, KeyingSet *k
   }
 
   if (num_channels > 0) {
-    /* if the appropriate properties have been set, make a note that we've inserted something */
-    PropertyRNA *prop = RNA_struct_find_property(op->ptr, "confirm_success");
-    if (prop != NULL && RNA_property_boolean_get(op->ptr, prop)) {
+    WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, NULL);
+  }
+
+  if (confirm) {
+    /* if called by invoke (from the UI), make a note that we've removed keyframes */
+    if (num_channels > 0) {
       BKE_reportf(op->reports,
                   RPT_INFO,
                   "Successfully removed %d keyframes for keying set '%s'",
                   num_channels,
                   ks->name);
     }
-
-    /* send notifiers that keyframes have been changed */
-    WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, NULL);
+    else {
+      BKE_report(op->reports, RPT_WARNING, "Keying set failed to remove any keyframes");
+    }
   }
-  else {
-    BKE_report(op->reports, RPT_WARNING, "Keying set failed to remove any keyframes");
-  }
-
   return OPERATOR_FINISHED;
 }
 
@@ -2151,15 +2098,6 @@ void ANIM_OT_keyframe_delete(wmOperatorType *ot)
   RNA_def_enum_funcs(prop, ANIM_keying_sets_enum_itemf);
   RNA_def_property_flag(prop, PROP_HIDDEN);
   ot->prop = prop;
-
-  /* confirm whether a keyframe was added by showing a popup
-   * - by default, this is enabled, since this operator is assumed to be called independently
-   */
-  RNA_def_boolean(ot->srna,
-                  "confirm_success",
-                  1,
-                  "Confirm Successful Delete",
-                  "Show a popup when the keyframes get successfully removed");
 }
 
 void ANIM_OT_keyframe_delete_by_name(wmOperatorType *ot)
@@ -2182,15 +2120,6 @@ void ANIM_OT_keyframe_delete_by_name(wmOperatorType *ot)
   prop = RNA_def_string_file_path(ot->srna, "type", "Type", MAX_ID_NAME - 2, "", "");
   RNA_def_property_flag(prop, PROP_HIDDEN);
   ot->prop = prop;
-
-  /* confirm whether a keyframe was added by showing a popup
-   * - by default, this is enabled, since this operator is assumed to be called independently
-   */
-  RNA_def_boolean(ot->srna,
-                  "confirm_success",
-                  1,
-                  "Confirm Successful Delete",
-                  "Show a popup when the keyframes get successfully removed");
 }
 
 /* Delete Key Operator ------------------------ */
@@ -2289,6 +2218,8 @@ static int delete_key_v3d_without_keying_set(bContext *C, wmOperator *op)
   int selected_objects_success_len = 0;
   int success_multi = 0;
 
+  const bool confirm = op->flag & OP_IS_INVOKE;
+
   CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
     ID *id = &ob->id;
     int success = 0;
@@ -2368,22 +2299,25 @@ static int delete_key_v3d_without_keying_set(bContext *C, wmOperator *op)
   }
   CTX_DATA_END;
 
-  /* report success (or failure) */
   if (selected_objects_success_len) {
-    BKE_reportf(op->reports,
-                RPT_INFO,
-                "%d object(s) successfully had %d keyframes removed",
-                selected_objects_success_len,
-                success_multi);
-  }
-  else {
-    BKE_reportf(
-        op->reports, RPT_ERROR, "No keyframes removed from %d object(s)", selected_objects_len);
+    /* send updates */
+    WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, NULL);
   }
 
-  /* send updates */
-  WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, NULL);
-
+  if (confirm) {
+    /* if called by invoke (from the UI), make a note that we've removed keyframes */
+    if (selected_objects_success_len) {
+      BKE_reportf(op->reports,
+                  RPT_INFO,
+                  "%d object(s) successfully had %d keyframes removed",
+                  selected_objects_success_len,
+                  success_multi);
+    }
+    else {
+      BKE_reportf(
+          op->reports, RPT_ERROR, "No keyframes removed from %d object(s)", selected_objects_len);
+    }
+  }
   return OPERATOR_FINISHED;
 }
 
@@ -2800,7 +2734,6 @@ bool autokeyframe_cfra_can_key(const Scene *scene, ID *id)
 
 /* --------------- API/Per-Datablock Handling ------------------- */
 
-/* Checks if some F-Curve has a keyframe for a given frame */
 bool fcurve_frame_has_keyframe(const FCurve *fcu, float frame, short filter)
 {
   /* quick sanity check */
@@ -2827,7 +2760,6 @@ bool fcurve_frame_has_keyframe(const FCurve *fcu, float frame, short filter)
   return false;
 }
 
-/* Returns whether the current value of a given property differs from the interpolated value. */
 bool fcurve_is_changed(PointerRNA ptr,
                        PropertyRNA *prop,
                        FCurve *fcu,
@@ -2956,7 +2888,6 @@ static bool object_frame_has_keyframe(Object *ob, float frame, short filter)
 
 /* --------------- API ------------------- */
 
-/* Checks whether a keyframe exists for the given ID-block one the given frame */
 bool id_frame_has_keyframe(ID *id, float frame, short filter)
 {
   /* sanity checks */
@@ -3032,9 +2963,6 @@ bool ED_autokeyframe_pchan(
   return false;
 }
 
-/**
- * Use for auto-keyframing from the UI.
- */
 bool ED_autokeyframe_property(
     bContext *C, Scene *scene, PointerRNA *ptr, PropertyRNA *prop, int rnaindex, float cfra)
 {

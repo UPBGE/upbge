@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #pragma once
 
@@ -25,13 +10,13 @@ namespace blender::compositor {
 class InvertOperation : public MultiThreadedOperation {
  private:
   /**
-   * Cached reference to the inputProgram
+   * Cached reference to the input_program
    */
-  SocketReader *m_inputValueProgram;
-  SocketReader *m_inputColorProgram;
+  SocketReader *input_value_program_;
+  SocketReader *input_color_program_;
 
-  bool m_alpha;
-  bool m_color;
+  bool alpha_;
+  bool color_;
 
  public:
   InvertOperation();
@@ -39,25 +24,25 @@ class InvertOperation : public MultiThreadedOperation {
   /**
    * The inner loop of this operation.
    */
-  void executePixelSampled(float output[4], float x, float y, PixelSampler sampler) override;
+  void execute_pixel_sampled(float output[4], float x, float y, PixelSampler sampler) override;
 
   /**
    * Initialize the execution
    */
-  void initExecution() override;
+  void init_execution() override;
 
   /**
    * Deinitialize the execution
    */
-  void deinitExecution() override;
+  void deinit_execution() override;
 
-  void setColor(bool color)
+  void set_color(bool color)
   {
-    this->m_color = color;
+    color_ = color;
   }
-  void setAlpha(bool alpha)
+  void set_alpha(bool alpha)
   {
-    this->m_alpha = alpha;
+    alpha_ = alpha;
   }
 
   void update_memory_buffer_partial(MemoryBuffer *output,

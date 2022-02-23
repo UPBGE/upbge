@@ -28,15 +28,12 @@
 #include "KX_NavMeshObject.h"
 
 #include "BKE_cdderivedmesh.h"
-#include "BKE_DerivedMesh.h"
 #include "BKE_context.h"
-#include "BKE_layer.h"
-#include "BKE_scene.h"
 #include "BLI_sort.h"
 #include "DEG_depsgraph_query.h"
 #include "MEM_guardedalloc.h"
 
-#include "BL_BlenderConverter.h"
+#include "BL_Converter.h"
 #include "CM_Message.h"
 #include "DetourStatNavMeshBuilder.h"
 #include "KX_Globals.h"
@@ -97,7 +94,7 @@ static int polyNumVerts(const unsigned short *p, const int vertsPerPoly)
   return nv;
 }
 
-//static int polyIsConvex(const unsigned short *p, const int vertsPerPoly, const float *verts)
+// static int polyIsConvex(const unsigned short *p, const int vertsPerPoly, const float *verts)
 //{
 //  int j, nv = polyNumVerts(p, vertsPerPoly);
 //  if (nv < 3)

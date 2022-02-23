@@ -7,7 +7,7 @@ base class --- :class:`~bge.types.KX_GameObject`
 
 .. class:: KX_FontObject(KX_GameObject)
 
-   A Font object.
+   A Font game object.
    
    It is possible to use attributes from :type: :class:`~bpy.types.TextCurve`
 

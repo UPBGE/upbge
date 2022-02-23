@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2007 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2007 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup wm
@@ -71,7 +55,6 @@ static void event_ids_from_type_and_value(const short type,
   }
 }
 
-/* for debugging only, getting inspecting events manually is tedious */
 void WM_event_print(const wmEvent *event)
 {
   if (event) {
@@ -82,7 +65,7 @@ void WM_event_print(const wmEvent *event)
     const char *prev_val_id = unknown;
 
     event_ids_from_type_and_value(event->type, event->val, &type_id, &val_id);
-    event_ids_from_type_and_value(event->prevtype, event->prevval, &prev_type_id, &prev_val_id);
+    event_ids_from_type_and_value(event->prev_type, event->prev_val, &prev_type_id, &prev_val_id);
 
     printf(
         "wmEvent type:%d / %s, val:%d / %s,\n"
@@ -93,9 +76,9 @@ void WM_event_print(const wmEvent *event)
         type_id,
         event->val,
         val_id,
-        event->prevtype,
+        event->prev_type,
         prev_type_id,
-        event->prevval,
+        event->prev_val,
         prev_val_id,
         event->shift,
         event->ctrl,
@@ -103,8 +86,8 @@ void WM_event_print(const wmEvent *event)
         event->oskey,
         event->keymodifier,
         event->is_repeat,
-        event->x,
-        event->y,
+        event->xy[0],
+        event->xy[1],
         event->ascii,
         BLI_str_utf8_size(event->utf8_buf),
         event->utf8_buf,
@@ -218,7 +201,6 @@ bool WM_event_type_mask_test(const int event_type, const enum eEventType_Mask ma
 /** \name Event Motion Queries
  * \{ */
 
-/* for modal callbacks, check configuration for how to interpret exit with tweaks. */
 bool WM_event_is_modal_tweak_exit(const wmEvent *event, int tweak_event)
 {
   /* if the release-confirm userpref setting is enabled,
@@ -270,6 +252,20 @@ bool WM_event_is_mouse_drag(const wmEvent *event)
   return ISTWEAK(event->type) || (ISMOUSE_BUTTON(event->type) && (event->val == KM_CLICK_DRAG));
 }
 
+bool WM_event_is_mouse_drag_or_press(const wmEvent *event)
+{
+  return WM_event_is_mouse_drag(event) ||
+         (ISMOUSE_BUTTON(event->type) && (event->val == KM_PRESS));
+}
+
+bool WM_cursor_test_motion_and_update(const int mval[2])
+{
+  static int mval_prev[2] = {-1, -1};
+  bool use_cycle = (len_manhattan_v2v2_int(mval, mval_prev) <= WM_EVENT_CURSOR_MOTION_THRESHOLD);
+  copy_v2_v2_int(mval_prev, mval);
+  return !use_cycle;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -282,8 +278,8 @@ bool WM_event_is_mouse_drag(const wmEvent *event)
 int WM_event_drag_threshold(const struct wmEvent *event)
 {
   int drag_threshold;
-  if (ISMOUSE(event->prevtype)) {
-    BLI_assert(event->prevtype != MOUSEMOVE);
+  if (ISMOUSE(event->prev_type)) {
+    BLI_assert(event->prev_type != MOUSEMOVE);
     /* Using the previous type is important is we want to check the last pressed/released button,
      * The `event->type` would include #MOUSEMOVE which is always the case when dragging
      * and does not help us know which threshold to use. */
@@ -309,10 +305,8 @@ bool WM_event_drag_test_with_delta(const wmEvent *event, const int drag_delta[2]
 
 bool WM_event_drag_test(const wmEvent *event, const int prev_xy[2])
 {
-  const int drag_delta[2] = {
-      prev_xy[0] - event->x,
-      prev_xy[1] - event->y,
-  };
+  int drag_delta[2];
+  sub_v2_v2v2_int(drag_delta, prev_xy, event->xy);
   return WM_event_drag_test_with_delta(event, drag_delta);
 }
 
@@ -334,11 +328,6 @@ int WM_userdef_event_map(int kmitype)
   return kmitype;
 }
 
-/**
- * Use so we can check if 'wmEvent.type' is released in modal operators.
- *
- * An alternative would be to add a 'wmEvent.type_nokeymap'... or similar.
- */
 int WM_userdef_event_type_from_keymap_type(int kmitype)
 {
   switch (kmitype) {
@@ -405,10 +394,22 @@ void WM_event_ndof_to_quat(const struct wmNDOFMotionData *ndof, float q[4])
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Event XR Input Access
+ * \{ */
+
+#ifdef WITH_XR_OPENXR
+bool WM_event_is_xr(const struct wmEvent *event)
+{
+  return (event->type == EVT_XR_ACTION && event->custom == EVT_DATA_XR);
+}
+#endif
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Event Tablet Input Access
  * \{ */
 
-/* applies the global tablet pressure correction curve */
 float wm_pressure_curve(float pressure)
 {
   if (U.pressure_threshold_max != 0.0f) {
@@ -424,8 +425,6 @@ float wm_pressure_curve(float pressure)
   return pressure;
 }
 
-/* if this is a tablet event, return tablet pressure and set *pen_flip
- * to 1 if the eraser tool is being used, 0 otherwise */
 float WM_event_tablet_data(const wmEvent *event, int *pen_flip, float tilt[2])
 {
   if (tilt) {
@@ -457,7 +456,7 @@ bool WM_event_is_tablet(const struct wmEvent *event)
 
 int WM_event_absolute_delta_x(const struct wmEvent *event)
 {
-  int dx = event->x - event->prevx;
+  int dx = event->xy[0] - event->prev_xy[0];
 
   if (!event->is_direction_inverted) {
     dx = -dx;
@@ -468,7 +467,7 @@ int WM_event_absolute_delta_x(const struct wmEvent *event)
 
 int WM_event_absolute_delta_y(const struct wmEvent *event)
 {
-  int dy = event->y - event->prevy;
+  int dy = event->xy[1] - event->prev_xy[1];
 
   if (!event->is_direction_inverted) {
     dy = -dy;

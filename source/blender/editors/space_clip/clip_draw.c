@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2011 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup spclip
@@ -1219,10 +1203,11 @@ static void draw_plane_marker_image(Scene *scene,
       uint texCoord = GPU_vertformat_attr_add(
           imm_format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
-      immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_COLOR);
+      /* Use 3D image for correct display of planar tracked images. */
+      immBindBuiltinProgram(GPU_SHADER_3D_IMAGE_MODULATE_ALPHA);
 
       immBindTexture("image", texture);
-      immUniformColor4f(1.0f, 1.0f, 1.0f, plane_track->image_opacity);
+      immUniform1f("alpha", plane_track->image_opacity);
 
       immBegin(GPU_PRIM_TRI_FAN, 4);
 
@@ -1980,7 +1965,6 @@ void clip_draw_cache_and_notes(const bContext *C, SpaceClip *sc, ARegion *region
   }
 }
 
-/* draw grease pencil */
 void clip_draw_grease_pencil(bContext *C, int onlyv2d)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);

@@ -15,10 +15,16 @@ base class --- :class:`~bge.types.BL_Shader`
 
       .. code-block:: glsl
 
-         void main()
-         {
-             gl_Position = gl_Vertex;
-         }
+        in vec4 pos;
+        in vec2 texCoord;
+
+        out vec4 bgl_TexCoord;
+
+        void main(void)
+        {
+            gl_Position = pos;
+            bgl_TexCoord = vec4(texCoord, 0.0, 0.0);
+        }
 
    .. attribute:: mipmap
 
@@ -27,20 +33,22 @@ base class --- :class:`~bge.types.BL_Shader`
       .. code-block:: glsl
 
          uniform sampler2D bgl_RenderedTexture;
+         in vec4 bgl_TexCoord;
+         out vec4 fragColor;
 
          void main()
          {
              float level = 2.0; // mipmap level
-             gl_FragColor = textureLod(bgl_RenderedTexture, gl_TexCoord[0].st, level);
+             fragColor = textureLod(bgl_RenderedTexture, bgl_TexCoord.xy, level);
          }
 
       :type: boolean
 
    .. attribute:: offScreen
 
-      The custom off screen the filter render to (read-only).
+      The custom off screen (framebuffer in 0.3.0) the filter render to (read-only).
 
-      :type: :class:`~bge.types.KX_2DFilterOffScreen` or None
+      :type: :class:`~bge.types.KX_2DFilterFrameBuffer` or None
 
    .. method:: setTexture(index, bindCode, samplerName="")
 
@@ -66,15 +74,15 @@ base class --- :class:`~bge.types.BL_Shader`
       :arg samplerName: The shader sampler name set to :data:`index` if :data:`samplerName` is passed in the function. (optional)
       :type samplerName: string
 
-   .. method:: addOffScreen(slots, width=-1, height=-1, mipmap=False)
+   .. method:: addOffScreen(slots, width=None, height=None, mipmap=False)
 
-      Register a custom off screen to render the filter to.
+      Register a custom off screen (framebuffer in 0.3.0) to render the filter to.
 
       :arg slots: The number of color texture attached to the off screen, between 0 and 8 excluded.
       :type slots: integer
-      :arg width: The off screen width, -1 if it can be resized dynamically when the viewport dimensions changed (optional).
+      :arg width: In 0.3.0, always canvas width (optional).
       :type width: integer
-      :arg height: The off screen height, -1 if it can be resized dynamically when the viewport dimensions changed (optional).
+      :arg height: In 0.3.0, always canvas height (optional).
       :type height: integer
       :arg mipmap: True if the color texture generate mipmap at the end of the filter rendering (optional).
       :type mipmap: boolean
@@ -85,4 +93,4 @@ base class --- :class:`~bge.types.BL_Shader`
 
    .. method:: removeOffScreen()
 
-      Unregister the custom off screen the filter render to.
+      Unregister the custom off screen (framebuffer in 0.3.0) the filter render to.

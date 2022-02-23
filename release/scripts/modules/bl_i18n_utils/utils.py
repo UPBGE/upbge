@@ -1,20 +1,4 @@
-# ***** BEGIN GPL LICENSE BLOCK *****
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ***** END GPL LICENSE BLOCK *****
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8 compliant>
 
@@ -219,7 +203,7 @@ def enable_addons(addons=None, support=None, disable=False, check_only=False):
     try:
         import bpy
     except ModuleNotFoundError:
-        print("Could not import bpy, enable_addons must be run from whithin Blender.")
+        print("Could not import bpy, enable_addons must be run from within Blender.")
         return
 
     if addons is None:
@@ -778,7 +762,7 @@ class I18nMessages:
         try:
             import bpy
         except ModuleNotFoundError:
-            print("Could not import bpy, find_best_messages_matches must be run from whithin Blender.")
+            print("Could not import bpy, find_best_messages_matches must be run from within Blender.")
             return
 
         # Build helper mappings.
@@ -1135,6 +1119,7 @@ class I18nMessages:
         # XXX Temp solution, until I can make own mo generator working...
         import subprocess
         with tempfile.NamedTemporaryFile(mode='w+', encoding="utf-8") as tmp_po_f:
+            os.makedirs(os.path.dirname(fname), exist_ok=True)
             self.write_messages_to_po(tmp_po_f)
             cmd = (
                 self.settings.GETTEXT_MSGFMT_EXECUTABLE,

@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #pragma once
 
@@ -24,13 +9,13 @@ namespace blender::compositor {
 
 class MultilayerBaseOperation : public BaseImageOperation {
  private:
-  int m_passId;
-  int m_view;
+  int pass_id_;
+  int view_;
 
  protected:
-  RenderLayer *m_renderLayer;
-  RenderPass *m_renderPass;
-  ImBuf *getImBuf() override;
+  RenderLayer *render_layer_;
+  RenderPass *render_pass_;
+  ImBuf *get_im_buf() override;
 
  public:
   /**
@@ -48,10 +33,10 @@ class MultilayerColorOperation : public MultilayerBaseOperation {
   MultilayerColorOperation(RenderLayer *render_layer, RenderPass *render_pass, int view)
       : MultilayerBaseOperation(render_layer, render_pass, view)
   {
-    this->addOutputSocket(DataType::Color);
+    this->add_output_socket(DataType::Color);
   }
-  void executePixelSampled(float output[4], float x, float y, PixelSampler sampler) override;
-  std::unique_ptr<MetaData> getMetaData() override;
+  void execute_pixel_sampled(float output[4], float x, float y, PixelSampler sampler) override;
+  std::unique_ptr<MetaData> get_meta_data() override;
 };
 
 class MultilayerValueOperation : public MultilayerBaseOperation {
@@ -59,9 +44,9 @@ class MultilayerValueOperation : public MultilayerBaseOperation {
   MultilayerValueOperation(RenderLayer *render_layer, RenderPass *render_pass, int view)
       : MultilayerBaseOperation(render_layer, render_pass, view)
   {
-    this->addOutputSocket(DataType::Value);
+    this->add_output_socket(DataType::Value);
   }
-  void executePixelSampled(float output[4], float x, float y, PixelSampler sampler) override;
+  void execute_pixel_sampled(float output[4], float x, float y, PixelSampler sampler) override;
 };
 
 class MultilayerVectorOperation : public MultilayerBaseOperation {
@@ -69,9 +54,9 @@ class MultilayerVectorOperation : public MultilayerBaseOperation {
   MultilayerVectorOperation(RenderLayer *render_layer, RenderPass *render_pass, int view)
       : MultilayerBaseOperation(render_layer, render_pass, view)
   {
-    this->addOutputSocket(DataType::Vector);
+    this->add_output_socket(DataType::Vector);
   }
-  void executePixelSampled(float output[4], float x, float y, PixelSampler sampler) override;
+  void execute_pixel_sampled(float output[4], float x, float y, PixelSampler sampler) override;
 };
 
 }  // namespace blender::compositor

@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #pragma once
 
@@ -31,19 +16,19 @@ namespace blender::compositor {
 class ConvertDepthToRadiusOperation : public MultiThreadedOperation {
  private:
   /**
-   * Cached reference to the inputProgram
+   * Cached reference to the input_program
    */
-  SocketReader *m_inputOperation;
-  float m_fStop;
-  float m_aspect;
-  float m_maxRadius;
-  float m_inverseFocalDistance;
-  float m_aperture;
-  float m_cam_lens;
-  float m_dof_sp;
-  Object *m_cameraObject;
+  SocketReader *input_operation_;
+  float f_stop_;
+  float aspect_;
+  float max_radius_;
+  float inverse_focal_distance_;
+  float aperture_;
+  float cam_lens_;
+  float dof_sp_;
+  Object *camera_object_;
 
-  FastGaussianBlurValueOperation *m_blurPostOperation;
+  FastGaussianBlurValueOperation *blur_post_operation_;
 
  public:
   /**
@@ -54,34 +39,34 @@ class ConvertDepthToRadiusOperation : public MultiThreadedOperation {
   /**
    * The inner loop of this operation.
    */
-  void executePixelSampled(float output[4], float x, float y, PixelSampler sampler) override;
+  void execute_pixel_sampled(float output[4], float x, float y, PixelSampler sampler) override;
 
   /**
    * Initialize the execution
    */
-  void initExecution() override;
+  void init_execution() override;
 
   /**
    * Deinitialize the execution
    */
-  void deinitExecution() override;
+  void deinit_execution() override;
 
-  void setfStop(float fStop)
+  void setf_stop(float f_stop)
   {
-    this->m_fStop = fStop;
+    f_stop_ = f_stop;
   }
-  void setMaxRadius(float maxRadius)
+  void set_max_radius(float max_radius)
   {
-    this->m_maxRadius = maxRadius;
+    max_radius_ = max_radius;
   }
-  void setCameraObject(Object *camera)
+  void set_camera_object(Object *camera)
   {
-    this->m_cameraObject = camera;
+    camera_object_ = camera;
   }
-  float determineFocalDistance();
-  void setPostBlur(FastGaussianBlurValueOperation *operation)
+  float determine_focal_distance();
+  void set_post_blur(FastGaussianBlurValueOperation *operation)
   {
-    this->m_blurPostOperation = operation;
+    blur_post_operation_ = operation;
   }
 
   void update_memory_buffer_partial(MemoryBuffer *output,

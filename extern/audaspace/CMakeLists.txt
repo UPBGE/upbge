@@ -129,6 +129,7 @@ set(SRC
 	src/util/Barrier.cpp
 	src/util/Buffer.cpp
 	src/util/BufferReader.cpp
+	src/util/RingBuffer.cpp
 	src/util/StreamBuffer.cpp
 	src/util/ThreadPool.cpp
 )
@@ -152,6 +153,7 @@ set(PUBLIC_HDR
 	include/devices/ThreadedDevice.h
 	include/Exception.h
 	include/file/File.h
+	include/file/FileInfo.h
 	include/file/FileManager.h
 	include/file/FileWriter.h
 	include/file/IFileInput.h
@@ -244,6 +246,7 @@ set(PUBLIC_HDR
 	include/util/BufferReader.h
 	include/util/ILockable.h
 	include/util/Math3D.h
+	include/util/RingBuffer.h
 	include/util/StreamBuffer.h
 	include/util/ThreadPool.h
 )
@@ -689,6 +692,7 @@ endif()
 
 # Python
 if(WITH_PYTHON)
+	add_definitions(-DWITH_PYTHON) #UPBGE
 	if(AUDASPACE_STANDALONE)
 		find_package(PythonLibs 3.2 ${PACKAGE_OPTION})
 		find_package(NumPy ${PACKAGE_OPTION})
@@ -960,7 +964,10 @@ endif()
 if(BUILD_DEMOS)
 	include_directories(${INCLUDE})
 
-	set(DEMOS audaplay audaconvert audaremap signalgen randsounds dynamicmusic playbackmanager)
+	set(DEMOS audainfo audaplay audaconvert audaremap signalgen randsounds dynamicmusic playbackmanager)
+
+	add_executable(audainfo demos/audainfo.cpp)
+	target_link_libraries(audainfo audaspace)
 
 	add_executable(audaplay demos/audaplay.cpp)
 	target_link_libraries(audaplay audaspace)
@@ -1086,12 +1093,12 @@ if(WITH_PYTHON)
 		configure_file(${PYTHON_SOURCE_DIRECTORY}/setup.py.in ${CMAKE_CURRENT_BINARY_DIR}/setup.py ESCAPE_QUOTES @ONLY)
 
 		if(APPLE)
-			add_custom_command(OUTPUT build COMMAND MACOSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET} ${PYTHON_EXECUTABLE} setup.py build DEPENDS ${PYTHON_SRC} ${PYTHON_HDR})
+			add_custom_command(OUTPUT build COMMAND MACOSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET} ${PYTHON_EXECUTABLE} setup.py build DEPENDS ${PYTHON_SRC} ${PYTHON_HDR} setup.py)
 		elseif(WIN32)
 			set(ENV{VS100COMNTOOLS} $ENV{VS120COMNTOOLS})
-			add_custom_command(OUTPUT build COMMAND ${PYTHON_EXECUTABLE} setup.py build DEPENDS ${PYTHON_SRC} ${PYTHON_HDR})
+			add_custom_command(OUTPUT build COMMAND ${PYTHON_EXECUTABLE} setup.py build DEPENDS ${PYTHON_SRC} ${PYTHON_HDR} setup.py)
 		else()
-			add_custom_command(OUTPUT build COMMAND ${PYTHON_EXECUTABLE} setup.py build DEPENDS ${PYTHON_SRC} ${PYTHON_HDR})
+			add_custom_command(OUTPUT build COMMAND ${PYTHON_EXECUTABLE} setup.py build DEPENDS ${PYTHON_SRC} ${PYTHON_HDR} setup.py)
 		endif()
 		add_custom_target(pythonmodule ALL DEPENDS build SOURCES ${PYTHON_SOURCE_DIRECTORY}/setup.py.in ${PYTHON_SRC} ${PYTHON_HDR})
 		add_dependencies(pythonmodule audaspace)

@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2021, Blender Foundation
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2021 Blender Foundation. */
 
 /** \file
  * \ingroup edarmature
@@ -25,6 +10,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_math.h"
 #include "BLI_string.h"
 
 #include "BLT_translation.h"
@@ -209,11 +195,11 @@ static void poselib_slide_mouse_update_blendfactor(PoseBlendData *pbd, const wmE
   if (pbd->release_confirm_info.use_release_confirm) {
     /* Release confirm calculates factor based on where the dragging was started from. */
     const float range = 300 * U.pixelsize;
-    const float new_factor = (event->x - pbd->release_confirm_info.drag_start_xy[0]) / range;
+    const float new_factor = (event->xy[0] - pbd->release_confirm_info.drag_start_xy[0]) / range;
     poselib_blend_set_factor(pbd, new_factor);
   }
   else {
-    const float new_factor = (event->x - pbd->area->v1->vec.x) / ((float)pbd->area->winx);
+    const float new_factor = (event->xy[0] - pbd->area->v1->vec.x) / ((float)pbd->area->winx);
     poselib_blend_set_factor(pbd, new_factor);
   }
 }
@@ -379,8 +365,7 @@ static bool poselib_blend_init_data(bContext *C, wmOperator *op, const wmEvent *
 
   if (pbd->release_confirm_info.use_release_confirm) {
     BLI_assert(event != NULL);
-    pbd->release_confirm_info.drag_start_xy[0] = event->x;
-    pbd->release_confirm_info.drag_start_xy[1] = event->y;
+    copy_v2_v2_int(pbd->release_confirm_info.drag_start_xy, event->xy);
     pbd->release_confirm_info.init_event_type = WM_userdef_event_type_from_keymap_type(
         event->type);
   }
@@ -562,7 +547,7 @@ static bool poselib_blend_poll(bContext *C)
 void POSELIB_OT_apply_pose_asset(wmOperatorType *ot)
 {
   /* Identifiers: */
-  ot->name = "Apply Pose Library Pose";
+  ot->name = "Apply Pose Asset";
   ot->idname = "POSELIB_OT_apply_pose_asset";
   ot->description = "Apply the given Pose Action to the rig";
 
@@ -595,7 +580,7 @@ void POSELIB_OT_blend_pose_asset(wmOperatorType *ot)
   PropertyRNA *prop;
 
   /* Identifiers: */
-  ot->name = "Blend Pose Library Pose";
+  ot->name = "Blend Pose Asset";
   ot->idname = "POSELIB_OT_blend_pose_asset";
   ot->description = "Blend the given Pose Action to the rig";
 

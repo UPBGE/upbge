@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edtransform
@@ -295,10 +279,6 @@ static void constraint_snap_plane_to_edge(const TransInfo *t, const float plane[
   }
 }
 
-/**
- * Snap to the nearest point between the snap point and the line that
- * intersects the face plane with the constraint plane.
- */
 static void UNUSED_FUNCTION(constraint_snap_plane_to_face(const TransInfo *t,
                                                           const float plane[4],
                                                           float r_out[3]))
@@ -314,9 +294,6 @@ static void UNUSED_FUNCTION(constraint_snap_plane_to_face(const TransInfo *t,
   }
 }
 
-/**
- * Snap to the nearest point on the axis to the edge/line element.
- */
 void transform_constraint_snap_axis_to_edge(const TransInfo *t,
                                             const float axis[3],
                                             float r_out[3])
@@ -331,9 +308,6 @@ void transform_constraint_snap_axis_to_edge(const TransInfo *t,
   }
 }
 
-/**
- * Snap to the intersection of the axis and the plane defined by the face.
- */
 void transform_constraint_snap_axis_to_face(const TransInfo *t,
                                             const float axis[3],
                                             float r_out[3])
@@ -384,6 +358,29 @@ static void planeProjection(const TransInfo *t, const float in[3], float out[3])
   add_v3_v3v3(out, in, vec);
 }
 
+static short transform_orientation_or_default(const TransInfo *t)
+{
+  short orientation = t->orient[t->orient_curr].type;
+  if (orientation == V3D_ORIENT_CUSTOM_MATRIX) {
+    /* Use the real value of the "orient_type". */
+    orientation = t->orient[O_DEFAULT].type;
+  }
+  return orientation;
+}
+
+static const float (*transform_object_axismtx_get(const TransInfo *t,
+                                                  const TransDataContainer *UNUSED(tc),
+                                                  const TransData *td))[3]
+{
+  if (transform_orientation_or_default(t) == V3D_ORIENT_GIMBAL) {
+    BLI_assert(t->orient_type_mask & (1 << V3D_ORIENT_GIMBAL));
+    if (t->options & (CTX_POSE_BONE | CTX_OBJECT)) {
+      return td->ext->axismtx_gimbal;
+    }
+  }
+  return td->axismtx;
+}
+
 /**
  * Generic callback for constant spatial constraints applied to linear motion
  *
@@ -393,7 +390,7 @@ static void planeProjection(const TransInfo *t, const float in[3], float out[3])
  */
 static void applyAxisConstraintVec(const TransInfo *t,
                                    const TransDataContainer *UNUSED(tc),
-                                   TransData *td,
+                                   const TransData *td,
                                    const float in[3],
                                    float out[3])
 {
@@ -477,7 +474,7 @@ static void applyAxisConstraintVec(const TransInfo *t,
  */
 static void applyObjectConstraintVec(const TransInfo *t,
                                      const TransDataContainer *tc,
-                                     TransData *td,
+                                     const TransData *td,
                                      const float in[3],
                                      float out[3])
 {
@@ -489,7 +486,8 @@ static void applyObjectConstraintVec(const TransInfo *t,
     copy_v3_v3(out, in);
     if (t->con.mode & CON_APPLY) {
       mul_m3_v3(t->spacemtx_inv, out);
-      mul_m3_v3(td->axismtx, out);
+      const float(*axismtx)[3] = transform_object_axismtx_get(t, tc, td);
+      mul_m3_v3(axismtx, out);
       if (t->flag & T_EDIT) {
         mul_m3_v3(tc->mat3_unit, out);
       }
@@ -502,7 +500,7 @@ static void applyObjectConstraintVec(const TransInfo *t,
  */
 static void applyAxisConstraintSize(const TransInfo *t,
                                     const TransDataContainer *UNUSED(tc),
-                                    TransData *td,
+                                    const TransData *td,
                                     float r_smat[3][3])
 {
   if (!td && t->con.mode & CON_APPLY) {
@@ -528,14 +526,15 @@ static void applyAxisConstraintSize(const TransInfo *t,
  */
 static void applyObjectConstraintSize(const TransInfo *t,
                                       const TransDataContainer *tc,
-                                      TransData *td,
+                                      const TransData *td,
                                       float r_smat[3][3])
 {
   if (td && t->con.mode & CON_APPLY) {
     float tmat[3][3];
     float imat[3][3];
 
-    invert_m3_m3(imat, td->axismtx);
+    const float(*axismtx)[3] = transform_object_axismtx_get(t, tc, td);
+    invert_m3_m3(imat, axismtx);
 
     if (!(t->con.mode & CON_AXIS0)) {
       r_smat[0][0] = 1.0f;
@@ -551,7 +550,7 @@ static void applyObjectConstraintSize(const TransInfo *t,
     if (t->flag & T_EDIT) {
       mul_m3_m3m3(r_smat, tc->mat3_unit, r_smat);
     }
-    mul_m3_m3m3(r_smat, td->axismtx, tmat);
+    mul_m3_m3m3(r_smat, axismtx, tmat);
   }
 }
 
@@ -603,7 +602,7 @@ static void constraints_rotation_impl(const TransInfo *t,
  */
 static void applyAxisConstraintRot(const TransInfo *t,
                                    const TransDataContainer *UNUSED(tc),
-                                   TransData *td,
+                                   const TransData *td,
                                    float r_axis[3],
                                    float *r_angle)
 {
@@ -627,7 +626,7 @@ static void applyAxisConstraintRot(const TransInfo *t,
  */
 static void applyObjectConstraintRot(const TransInfo *t,
                                      const TransDataContainer *tc,
-                                     TransData *td,
+                                     const TransData *td,
                                      float r_axis[3],
                                      float *r_angle)
 {
@@ -647,7 +646,7 @@ static void applyObjectConstraintRot(const TransInfo *t,
       axismtx = tmp_axismtx;
     }
     else {
-      axismtx = td->axismtx;
+      axismtx = transform_object_axismtx_get(t, tc, td);
     }
 
     constraints_rotation_impl(t, axismtx, r_axis, r_angle);
@@ -675,7 +674,6 @@ void setConstraint(TransInfo *t, int mode, const char text[])
   t->redraw = TREDRAW_HARD;
 }
 
-/* applies individual td->axismtx constraints */
 void setAxisMatrixConstraint(TransInfo *t, int mode, const char text[])
 {
   BLI_strncpy(t->con.text + 1, text, sizeof(t->con.text) - 1);
@@ -703,26 +701,16 @@ void setLocalConstraint(TransInfo *t, int mode, const char text[])
   }
 }
 
-/**
- * Set the constraint according to the user defined orientation
- *
- * `ftext` is a format string passed to #BLI_snprintf. It will add the name of
- * the orientation where %s is (logically).
- */
 void setUserConstraint(TransInfo *t, int mode, const char ftext[])
 {
   char text[256];
-  short orientation = t->orient[t->orient_curr].type;
-  if (orientation == V3D_ORIENT_CUSTOM_MATRIX) {
-    /* Use the real value of the "orient_type". */
-    orientation = t->orient[0].type;
-  }
-
+  const short orientation = transform_orientation_or_default(t);
   const char *spacename = transform_orientations_spacename_get(t, orientation);
   BLI_snprintf(text, sizeof(text), ftext, spacename);
 
   switch (orientation) {
     case V3D_ORIENT_LOCAL:
+    case V3D_ORIENT_GIMBAL:
       setLocalConstraint(t, mode, text);
       break;
     case V3D_ORIENT_NORMAL:
@@ -734,7 +722,6 @@ void setUserConstraint(TransInfo *t, int mode, const char ftext[])
     case V3D_ORIENT_GLOBAL:
     case V3D_ORIENT_VIEW:
     case V3D_ORIENT_CURSOR:
-    case V3D_ORIENT_GIMBAL:
     case V3D_ORIENT_CUSTOM_MATRIX:
     case V3D_ORIENT_CUSTOM:
     default: {
@@ -755,7 +742,7 @@ void drawConstraint(TransInfo *t)
 {
   TransCon *tc = &(t->con);
 
-  if (!ELEM(t->spacetype, SPACE_VIEW3D, SPACE_IMAGE, SPACE_NODE)) {
+  if (!ELEM(t->spacetype, SPACE_VIEW3D, SPACE_IMAGE, SPACE_NODE, SPACE_SEQ)) {
     return;
   }
   if (!(tc->mode & CON_APPLY)) {
@@ -822,7 +809,6 @@ void drawConstraint(TransInfo *t)
   }
 }
 
-/* called from drawview.c, as an extra per-window draw option */
 void drawPropCircle(const struct bContext *C, TransInfo *t)
 {
   if (t->flag & T_PROP_EDIT) {
@@ -905,7 +891,7 @@ static void drawObjectConstraint(TransInfo *t)
     TransData *td = tc->data;
     for (int i = 0; i < tc->data_len; i++, td++) {
       float co[3];
-      float(*axismtx)[3];
+      const float(*axismtx)[3];
 
       if (t->flag & T_PROP_EDIT) {
         /* we're sorted, so skip the rest */
@@ -921,19 +907,30 @@ static void drawObjectConstraint(TransInfo *t)
         }
       }
 
+      if (t->options & CTX_SEQUENCER_IMAGE) {
+        /* Because we construct an "L" shape to deform the sequence, we should skip
+         * all points except the first vertex. Otherwise we will draw the same axis constraint line
+         * 3 times for each strip.
+         */
+        if (i % 3 != 0) {
+          continue;
+        }
+      }
+
       if (t->flag & T_EDIT) {
         mul_v3_m4v3(co, tc->mat, td->center);
 
         mul_m3_m3m3(tmp_axismtx, tc->mat3_unit, td->axismtx);
         axismtx = tmp_axismtx;
       }
-      else if (t->options & CTX_POSE_BONE) {
-        mul_v3_m4v3(co, tc->mat, td->center);
-        axismtx = td->axismtx;
-      }
       else {
-        copy_v3_v3(co, td->center);
-        axismtx = td->axismtx;
+        if (t->options & CTX_POSE_BONE) {
+          mul_v3_m4v3(co, tc->mat, td->center);
+        }
+        else {
+          copy_v3_v3(co, td->center);
+        }
+        axismtx = transform_object_axismtx_get(t, tc, td);
       }
 
       if (t->con.mode & CON_AXIS0) {
@@ -1169,13 +1166,6 @@ bool isLockConstraint(const TransInfo *t)
   return false;
 }
 
-/**
- * Returns the dimension of the constraint space.
- *
- * For that reason, the flags always needs to be set to properly evaluate here,
- * even if they aren't actually used in the callback function.
- * (Which could happen for weird constraints not yet designed. Along a path for example.)
- */
 int getConstraintSpaceDimension(const TransInfo *t)
 {
   int n = 0;

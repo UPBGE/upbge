@@ -104,10 +104,8 @@ RAS_OpenGLRasterizer::ScreenPlane::ScreenPlane()
   // Vertexes for screen plane, it contains the vertex position (3 floats) and the vertex uv after
   // (2 floats, total size = 5 floats).
   static const float vertices[] = {//   3f position   |   2f UV
-                                   -1.0f, -1.0f, 1.0f, 0.0f, 0.0f,
-                                   3.0f, -1.0f, 1.0f, 2.0f, 0.0f,
-                                   -1.0f, 3.0f, 1.0f, 0.0f, 2.0f,
-                                   3.0f, 3.0f, 1.0f, 2.0f, 2.0f};
+                                   -1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 3.0f, -1.0f, 1.0f, 2.0f, 0.0f,
+                                   -1.0f, 3.0f,  1.0f, 0.0f, 2.0f, 3.0f, 3.0f,  1.0f, 2.0f, 2.0f};
   // Indices for screen plane.
   static const GLubyte indices[] = {0, 1, 2, 2, 0, 3};
 

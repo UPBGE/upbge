@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 # Turn everything ON that's expected for an official release builds.
 #
 # Example usage:
@@ -63,6 +65,7 @@ set(WITH_MEM_JEMALLOC          ON  CACHE BOOL "" FORCE)
 # platform dependent options
 if(APPLE)
   set(WITH_COREAUDIO           ON  CACHE BOOL "" FORCE)
+  set(WITH_CYCLES_DEVICE_METAL ON  CACHE BOOL "" FORCE)
 endif()
 if(NOT WIN32)
   set(WITH_JACK                ON  CACHE BOOL "" FORCE)
@@ -83,4 +86,5 @@ if(NOT APPLE)
   set(WITH_CYCLES_DEVICE_OPTIX    ON  CACHE BOOL "" FORCE)
   set(WITH_CYCLES_CUDA_BINARIES   ON  CACHE BOOL "" FORCE)
   set(WITH_CYCLES_CUBIN_COMPILER  OFF CACHE BOOL "" FORCE)
+  set(WITH_CYCLES_HIP_BINARIES    ON  CACHE BOOL "" FORCE)
 endif()

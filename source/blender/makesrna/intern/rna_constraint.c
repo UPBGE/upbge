@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup RNA
@@ -3177,7 +3163,7 @@ static void rna_def_constraint_spline_ik(BlenderRNA *brna)
   PropertyRNA *prop;
 
   static const EnumPropertyItem splineik_xz_scale_mode[] = {
-      {CONSTRAINT_SPLINEIK_XZS_NONE, "NONE", 0, "None", "Don't scale the X and Z axes (Default)"},
+      {CONSTRAINT_SPLINEIK_XZS_NONE, "NONE", 0, "None", "Don't scale the X and Z axes"},
       {CONSTRAINT_SPLINEIK_XZS_ORIGINAL,
        "BONE_ORIGINAL",
        0,
@@ -3640,7 +3626,8 @@ static void rna_def_constraint_transform_cache(BlenderRNA *brna)
   RNA_define_lib_overridable(false);
 }
 
-/* base struct for constraints */
+/* Define the base struct for constraints. */
+
 void RNA_def_constraint(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -3667,6 +3654,15 @@ void RNA_def_constraint(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, NULL, "type");
   RNA_def_property_enum_items(prop, rna_enum_constraint_type_items);
   RNA_def_property_ui_text(prop, "Type", "");
+
+  prop = RNA_def_boolean(srna,
+                         "is_override_data",
+                         false,
+                         "Override Constraint",
+                         "In a local override object, whether this constraint comes from the "
+                         "linked reference object, or is local to the override");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", CONSTRAINT_OVERRIDE_LIBRARY_LOCAL);
 
   RNA_define_lib_overridable(true);
 
@@ -3726,14 +3722,6 @@ void RNA_def_constraint(BlenderRNA *brna)
   prop = RNA_def_property(srna, "active", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", CONSTRAINT_ACTIVE);
   RNA_def_property_ui_text(prop, "Active", "Constraint is the one being edited");
-
-  prop = RNA_def_property(srna, "is_proxy_local", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_boolean_sdna(prop, NULL, "flag", CONSTRAINT_PROXY_LOCAL);
-  RNA_def_property_ui_text(
-      prop,
-      "Proxy Local",
-      "Constraint was added in this proxy instance (i.e. did not belong to source Armature)");
 
   /* values */
   prop = RNA_def_property(srna, "influence", PROP_FLOAT, PROP_FACTOR);

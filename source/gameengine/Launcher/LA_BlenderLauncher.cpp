@@ -31,11 +31,9 @@
 #include "BKE_screen.h"
 #undef new
 
-#include "BKE_context.h"
 #include "BLI_rect.h"
 #include "DNA_scene_types.h"
 #include "WM_api.h"
-#include "WM_types.h"
 #include "wm_event_system.h"
 
 #include "CM_Message.h"
@@ -148,7 +146,7 @@ void LA_BlenderLauncher::InitEngine()
   m_savedBlenderData.camera = m_startScene->camera;
 
   if (m_view3d->scenelock == 0) {
-    //m_startScene->lay = m_view3d->local_view_uuid;
+    // m_startScene->lay = m_view3d->local_view_uuid;
     m_startScene->camera = m_view3d->camera;
   }
 

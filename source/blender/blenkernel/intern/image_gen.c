@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -101,13 +87,12 @@ static void image_buf_fill_checker_slice(
   /* these two passes could be combined into one, but it's more readable and
    * easy to tweak like this, speed isn't really that much of an issue in this situation... */
 
-  int checkerwidth = 32, dark = 1;
+  int checkerwidth = 32;
   int x, y;
 
   unsigned char *rect_orig = rect;
   float *rect_float_orig = rect_float;
 
-  float h = 0.0, hoffs = 0.0;
   float hsv[3] = {0.0f, 0.9f, 0.9f};
   float rgb[3];
 
@@ -119,7 +104,7 @@ static void image_buf_fill_checker_slice(
 
   /* checkers */
   for (y = offset; y < height + offset; y++) {
-    dark = powf(-1.0f, floorf(y / checkerwidth));
+    int dark = powf(-1.0f, floorf(y / checkerwidth));
 
     for (x = 0; x < width; x++) {
       if (x % checkerwidth == 0) {
@@ -156,10 +141,10 @@ static void image_buf_fill_checker_slice(
 
   /* 2nd pass, colored + */
   for (y = offset; y < height + offset; y++) {
-    hoffs = 0.125f * floorf(y / checkerwidth);
+    float hoffs = 0.125f * floorf(y / checkerwidth);
 
     for (x = 0; x < width; x++) {
-      h = 0.125f * floorf(x / checkerwidth);
+      float h = 0.125f * floorf(x / checkerwidth);
 
       if ((abs((x % checkerwidth) - (checkerwidth / 2)) < 4) &&
           (abs((y % checkerwidth) - (checkerwidth / 2)) < 4)) {
@@ -370,7 +355,7 @@ static void checker_board_text(
   char text[3] = {'A', '1', '\0'};
   const int mono = blf_mono_font_render;
 
-  BLF_size(mono, 54, 72); /* hard coded size! */
+  BLF_size(mono, 54.0f, 72); /* hard coded size! */
 
   /* OCIO_TODO: using NULL as display will assume using sRGB display
    *            this is correct since currently generated images are assumed to be in sRGB space,

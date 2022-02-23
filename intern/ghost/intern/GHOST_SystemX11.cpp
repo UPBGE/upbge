@@ -1,23 +1,7 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- * Part of this code has been taken from Qt, under LGPL license
- * Copyright (C) 2009 Nokia Corporation and/or its subsidiary(-ies).
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved.
+ *           2009 Nokia Corporation and/or its subsidiary(-ies).
+ *                Part of this code has been taken from Qt, under LGPL license. */
 
 /** \file
  * \ingroup GHOST
@@ -714,7 +698,7 @@ bool GHOST_SystemX11::processEvents(bool waitForEvent)
       anyProcessed = true;
 
 #ifdef USE_UNITY_WORKAROUND
-      /* note: processEvent() can't include this code because
+      /* NOTE: processEvent() can't include this code because
        * KeymapNotify event have no valid window information. */
 
       /* the X server generates KeymapNotify event immediately after
@@ -973,8 +957,8 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
         if (window->getCursorGrabBounds(bounds) == GHOST_kFailure)
           window->getClientBounds(bounds);
 
-        /* Could also clamp to screen bounds wrap with a window outside the view will fail atm.
-         * Use offset of 8 in case the window is at screen bounds. */
+        /* Could also clamp to screen bounds wrap with a window outside the view will
+         * fail at the moment. Use offset of 8 in case the window is at screen bounds. */
         bounds.wrapPoint(x_new, y_new, 8, window->getCursorGrabAxis());
 
         window->getCursorGrabAccum(x_accum, y_accum);
@@ -1044,7 +1028,7 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
 
 #ifdef USE_NON_LATIN_KB_WORKAROUND
       /* XXX: Code below is kinda awfully convoluted... Issues are:
-       * - In keyboards like latin ones, numbers need a 'Shift' to be accessed but key_sym
+       * - In keyboards like Latin ones, numbers need a 'Shift' to be accessed but key_sym
        *   is unmodified (or anyone swapping the keys with `xmodmap`).
        * - #XLookupKeysym seems to always use first defined key-map (see T47228), which generates
        *   key-codes unusable by ghost_key_from_keysym for non-Latin-compatible key-maps.
@@ -1131,7 +1115,7 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
         }
       }
 #else
-      /* In keyboards like latin ones,
+      /* In keyboards like Latin ones,
        * numbers needs a 'Shift' to be accessed but key_sym
        * is unmodified (or anyone swapping the keys with xmodmap).
        *
@@ -1514,7 +1498,7 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
            * around tablet surface */
           window->GetTabletData().Active = xtablet.mode;
 
-          /* Note: This event might be generated with incomplete data-set
+          /* NOTE: This event might be generated with incomplete data-set
            * (don't exactly know why, looks like in some cases, if the value does not change,
            * it is not included in subsequent #XDeviceMotionEvent events).
            * So we have to check which values this event actually contains!
@@ -1528,13 +1512,13 @@ void GHOST_SystemX11::processEvent(XEvent *xe)
             window->GetTabletData().Pressure = axis_value / ((float)xtablet.PressureLevels);
           }
 
-          /* the (short) cast and the & 0xffff is bizarre and unexplained anywhere,
-           * but I got garbage data without it. Found it in the xidump.c source --matt
+          /* NOTE(@broken): the (short) cast and the & 0xffff is bizarre and unexplained anywhere,
+           * but I got garbage data without it. Found it in the `xidump.c` source.
            *
-           * The '& 0xffff' just truncates the value to its two lowest bytes, this probably means
-           * some drivers do not properly set the whole int value? Since we convert to float
-           * afterward, I don't think we need to cast to short here, but do not have a device to
-           * check this. --mont29
+           * NOTE(@mont29): The '& 0xffff' just truncates the value to its two lowest bytes,
+           * this probably means some drivers do not properly set the whole int value?
+           * Since we convert to float afterward,
+           * I don't think we need to cast to short here, but do not have a device to check this.
            */
           if (AXIS_VALUE_GET(3, axis_value)) {
             window->GetTabletData().Xtilt = (short)(axis_value & 0xffff) /
@@ -2278,6 +2262,7 @@ void GHOST_SystemX11::putClipboard(const char *buffer, bool selection) const
 /* -------------------------------------------------------------------- */
 /** \name Message Box
  * \{ */
+
 class DialogData {
  public:
   /* Width of the dialog. */

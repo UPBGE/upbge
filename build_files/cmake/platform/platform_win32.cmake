@@ -1,22 +1,5 @@
-# ***** BEGIN GPL LICENSE BLOCK *****
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# The Original Code is Copyright (C) 2016, Blender Foundation
-# All rights reserved.
-# ***** END GPL LICENSE BLOCK *****
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright 2016 Blender Foundation. All rights reserved.
 
 # Libraries configuration for Windows.
 
@@ -27,7 +10,7 @@ if(NOT MSVC)
 endif()
 
 if(CMAKE_C_COMPILER_ID MATCHES "Clang")
-  set(MSVC_CLANG On)
+  set(MSVC_CLANG ON)
   set(VC_TOOLS_DIR $ENV{VCToolsRedistDir} CACHE STRING "Location of the msvc redistributables")
   set(MSVC_REDIST_DIR ${VC_TOOLS_DIR})
   if(DEFINED MSVC_REDIST_DIR)
@@ -53,7 +36,11 @@ if(CMAKE_C_COMPILER_ID MATCHES "Clang")
   endif()
   if(WITH_WINDOWS_STRIPPED_PDB)
     message(WARNING "stripped pdb not supported with clang, disabling..")
-    set(WITH_WINDOWS_STRIPPED_PDB Off)
+    set(WITH_WINDOWS_STRIPPED_PDB OFF)
+  endif()
+else()
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.28.29921) # MSVC 2019 16.9.16
+    message(FATAL_ERROR "Compiler is unsupported, MSVC 2019 16.9.16 or newer is required for building blender.")
   endif()
 endif()
 
@@ -159,7 +146,7 @@ endif()
 if(WITH_COMPILER_ASAN AND MSVC AND NOT MSVC_CLANG)
   if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.28.29828)
     #set a flag so we don't have to do this comparison all the time
-    SET(MSVC_ASAN On)
+    SET(MSVC_ASAN ON)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /fsanitize=address")
     set(CMAKE_C_FLAGS     "${CMAKE_C_FLAGS} /fsanitize=address")
     string(APPEND CMAKE_EXE_LINKER_FLAGS_DEBUG " /INCREMENTAL:NO")
@@ -179,22 +166,22 @@ endif()
 
 if(WITH_WINDOWS_SCCACHE AND CMAKE_VS_MSBUILD_COMMAND)
     message(WARNING "Disabling sccache, sccache is not supported with msbuild")
-    set(WITH_WINDOWS_SCCACHE Off)
+    set(WITH_WINDOWS_SCCACHE OFF)
 endif()
 
 # Debug Symbol format
 # sccache # MSVC_ASAN # format # why
-# On      # On        # Z7     # sccache will only play nice with Z7
-# On      # Off       # Z7     # sccache will only play nice with Z7
-# Off     # On        # Zi     # Asan will not play nice with Edit and Continue
-# Off     # Off       # ZI     # Neither asan nor sscache is enabled Edit and Continue is available
+# ON      # ON        # Z7     # sccache will only play nice with Z7
+# ON      # OFF       # Z7     # sccache will only play nice with Z7
+# OFF     # ON        # Zi     # Asan will not play nice with Edit and Continue
+# OFF     # OFF       # ZI     # Neither asan nor sscache is enabled Edit and Continue is available
 
 # Release Symbol format
 # sccache # MSVC_ASAN # format # why
-# On      # On        # Z7     # sccache will only play nice with Z7
-# On      # Off       # Z7     # sccache will only play nice with Z7
-# Off     # On        # Zi     # Asan will not play nice with Edit and Continue
-# Off     # Off       # Zi     # Edit and Continue disables some optimizations
+# ON      # ON        # Z7     # sccache will only play nice with Z7
+# ON      # OFF       # Z7     # sccache will only play nice with Z7
+# OFF     # ON        # Zi     # Asan will not play nice with Edit and Continue
+# OFF     # OFF       # Zi     # Edit and Continue disables some optimizations
 
 
 if(WITH_WINDOWS_SCCACHE)
@@ -265,12 +252,6 @@ if(NOT DEFINED LIBDIR)
   elseif(MSVC_VERSION GREATER 1919)
     message(STATUS "Visual Studio 2019 detected.")
     set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/${LIBDIR_BASE}_vc15)
-  elseif(MSVC_VERSION GREATER 1909)
-    message(STATUS "Visual Studio 2017 detected.")
-    set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/${LIBDIR_BASE}_vc15)
-  elseif(MSVC_VERSION EQUAL 1900)
-    message(STATUS "Visual Studio 2015 detected.")
-    set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/${LIBDIR_BASE}_vc15)
   endif()
 else()
   message(STATUS "Using pre-compiled LIBDIR: ${LIBDIR}")
@@ -288,7 +269,7 @@ if(CMAKE_GENERATOR MATCHES "^Visual Studio.+" AND # Only supported in the VS IDE
     "EnableMicrosoftCodeAnalysis=false"
     "EnableClangTidyCodeAnalysis=true"
   )
-  set(VS_CLANG_TIDY On)
+  set(VS_CLANG_TIDY ON)
 endif()
 
 # Mark libdir as system headers with a lower warn level, to resolve some warnings
@@ -347,7 +328,11 @@ set(FREETYPE_INCLUDE_DIRS
   ${LIBDIR}/freetype/include
   ${LIBDIR}/freetype/include/freetype2
 )
-set(FREETYPE_LIBRARY ${LIBDIR}/freetype/lib/freetype2ST.lib)
+set(FREETYPE_LIBRARIES
+  ${LIBDIR}/freetype/lib/freetype2ST.lib
+  ${LIBDIR}/brotli/lib/brotlidec-static.lib
+  ${LIBDIR}/brotli/lib/brotlicommon-static.lib
+)
 windows_find_package(freetype REQUIRED)
 
 if(WITH_FFTW3)
@@ -461,7 +446,7 @@ if(WITH_JACK)
 endif()
 
 if(WITH_PYTHON)
-  set(PYTHON_VERSION 3.9) # CACHE STRING)
+  set(PYTHON_VERSION 3.10) # CACHE STRING)
 
   string(REPLACE "." "" _PYTHON_VERSION_NO_DOTS ${PYTHON_VERSION})
   set(PYTHON_LIBRARY ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/libs/python${_PYTHON_VERSION_NO_DOTS}.lib)
@@ -469,7 +454,7 @@ if(WITH_PYTHON)
 
   set(PYTHON_INCLUDE_DIR ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/include)
   set(PYTHON_NUMPY_INCLUDE_DIRS ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/lib/site-packages/numpy/core/include)
-  set(NUMPY_FOUND On)
+  set(NUMPY_FOUND ON)
   unset(_PYTHON_VERSION_NO_DOTS)
   # uncached vars
   set(PYTHON_INCLUDE_DIRS "${PYTHON_INCLUDE_DIR}")
@@ -477,7 +462,7 @@ if(WITH_PYTHON)
 endif()
 
 if(WITH_BOOST)
-  if(WITH_CYCLES_OSL)
+  if(WITH_CYCLES AND WITH_CYCLES_OSL)
     set(boost_extra_libs wave)
   endif()
   if(WITH_INTERNATIONAL)
@@ -520,7 +505,7 @@ if(WITH_BOOST)
       debug ${BOOST_LIBPATH}/libboost_thread-${BOOST_DEBUG_POSTFIX}
       debug ${BOOST_LIBPATH}/libboost_chrono-${BOOST_DEBUG_POSTFIX}
     )
-    if(WITH_CYCLES_OSL)
+    if(WITH_CYCLES AND WITH_CYCLES_OSL)
       set(BOOST_LIBRARIES ${BOOST_LIBRARIES}
         optimized ${BOOST_LIBPATH}/libboost_wave-${BOOST_POSTFIX}
         debug ${BOOST_LIBPATH}/libboost_wave-${BOOST_DEBUG_POSTFIX})
@@ -708,7 +693,7 @@ if(WITH_CODEC_SNDFILE)
   set(LIBSNDFILE_LIBRARIES ${LIBSNDFILE_LIBPATH}/libsndfile-1.lib)
 endif()
 
-if(WITH_CYCLES_OSL)
+if(WITH_CYCLES AND WITH_CYCLES_OSL)
   set(CYCLES_OSL ${LIBDIR}/osl CACHE PATH "Path to OpenShadingLanguage installation")
   set(OSL_SHADER_DIR ${CYCLES_OSL}/shaders)
   # Shaders have moved around a bit between OSL versions, check multiple locations
@@ -741,7 +726,7 @@ if(WITH_CYCLES_OSL)
   endif()
 endif()
 
-if(WITH_CYCLES_EMBREE)
+if(WITH_CYCLES AND WITH_CYCLES_EMBREE)
   windows_find_package(Embree)
   if(NOT EMBREE_FOUND)
     set(EMBREE_INCLUDE_DIRS ${LIBDIR}/embree/include)
@@ -853,18 +838,18 @@ if(WITH_GMP)
   set(GMP_INCLUDE_DIRS ${LIBDIR}/gmp/include)
   set(GMP_LIBRARIES ${LIBDIR}/gmp/lib/libgmp-10.lib optimized ${LIBDIR}/gmp/lib/libgmpxx.lib debug ${LIBDIR}/gmp/lib/libgmpxx_d.lib)
   set(GMP_ROOT_DIR ${LIBDIR}/gmp)
-  set(GMP_FOUND On)
+  set(GMP_FOUND ON)
 endif()
 
 if(WITH_POTRACE)
   set(POTRACE_INCLUDE_DIRS ${LIBDIR}/potrace/include)
   set(POTRACE_LIBRARIES ${LIBDIR}/potrace/lib/potrace.lib)
-  set(POTRACE_FOUND On)
+  set(POTRACE_FOUND ON)
 endif()
 
 if(WITH_HARU)
   if(EXISTS ${LIBDIR}/haru)
-    set(HARU_FOUND On)
+    set(HARU_FOUND ON)
     set(HARU_ROOT_DIR ${LIBDIR}/haru)
     set(HARU_INCLUDE_DIRS ${HARU_ROOT_DIR}/include)
     set(HARU_LIBRARIES ${HARU_ROOT_DIR}/lib/libhpdfs.lib)

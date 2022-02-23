@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup pythonintern
@@ -57,19 +43,12 @@
 #  include <opcode.h>
 #endif
 
-/**
- * For PyDrivers
- * (drivers using one-line Python expressions to express relationships between targets).
- */
 PyObject *bpy_pydriver_Dict = NULL;
 
 #ifdef USE_BYTECODE_WHITELIST
 static PyObject *bpy_pydriver_Dict__whitelist = NULL;
 #endif
 
-/* For faster execution we keep a special dictionary for pydrivers, with
- * the needed modules and aliases.
- */
 int bpy_pydriver_create_dict(void)
 {
   PyObject *d, *mod;
@@ -220,11 +199,6 @@ static void bpy_pydriver_namespace_clear_self(void)
   }
 }
 
-/* Update function, it gets rid of pydrivers global dictionary, forcing
- * BPY_driver_exec to recreate it. This function is used to force
- * reloading the Blender text module "pydrivers.py", if available, so
- * updates in it reach pydriver evaluation.
- */
 void BPY_driver_reset(void)
 {
   PyGILState_STATE gilstate;
@@ -429,28 +403,24 @@ static void bpy_pydriver_namespace_add_depsgraph(PyObject *driver_vars,
   }
 }
 
-/**
- * This evaluates Python driver expressions, `driver_orig->expression`
- * is a Python expression that should evaluate to a float number, which is returned.
- *
- * (old) NOTE: PyGILState_Ensure() isn't always called because python can call
- * the bake operator which intern starts a thread which calls scene update
- * which does a driver update. to avoid a deadlock check #PyC_IsInterpreterActive()
- * if #PyGILState_Ensure() is needed, see T27683.
- *
- * (new) NOTE: checking if python is running is not thread-safe T28114
- * now release the GIL on python operator execution instead, using
- * #PyEval_SaveThread() / #PyEval_RestoreThread() so we don't lock up blender.
- *
- * For copy-on-write we always cache expressions and write errors in the
- * original driver, otherwise these would get freed while editing. Due to
- * the GIL this is thread-safe.
- */
 float BPY_driver_exec(struct PathResolvedRNA *anim_rna,
                       ChannelDriver *driver,
                       ChannelDriver *driver_orig,
                       const AnimationEvalContext *anim_eval_context)
 {
+  /* (old) NOTE: PyGILState_Ensure() isn't always called because python can call
+   * the bake operator which intern starts a thread which calls scene update
+   * which does a driver update. to avoid a deadlock check #PyC_IsInterpreterActive()
+   * if #PyGILState_Ensure() is needed, see T27683.
+   *
+   * (new) NOTE: checking if python is running is not thread-safe T28114
+   * now release the GIL on python operator execution instead, using
+   * #PyEval_SaveThread() / #PyEval_RestoreThread() so we don't lock up blender.
+   *
+   * For copy-on-write we always cache expressions and write errors in the
+   * original driver, otherwise these would get freed while editing.
+   * Due to the GIL this is thread-safe. */
+
   PyObject *driver_vars = NULL;
   PyObject *retval = NULL;
 

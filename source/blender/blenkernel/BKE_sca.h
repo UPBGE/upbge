@@ -44,7 +44,7 @@ struct bActuator;
 /* Logicbricks */
 void BKE_sca_link_logicbricks(void **poin, void ***ppoin, short *tot, short size);
 void BKE_sca_unlink_logicbricks(void **poin, void ***ppoin, short *tot);
-void BKE_sca_remap_links_logicbricks(struct Main *bmain,
+void BKE_sca_remap_data_postprocess_links_logicbricks_update(struct Main *bmain,
                                      struct Object *ob_old,
                                      struct Object *ob_new);
 void BKE_sca_copy_logicbricks(struct Object *ob_new, const struct Object *ob, const int flag);

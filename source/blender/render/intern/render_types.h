@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup render
@@ -47,29 +31,9 @@ struct ReportList;
 extern "C" {
 #endif
 
-/* this is handed over to threaded hiding/passes/shading engine */
-typedef struct RenderPart {
-  struct RenderPart *next, *prev;
-
-  RenderResult *result; /* result of part rendering */
-  ListBase fullresult;  /* optional full sample buffers */
-
-  rcti disprect;    /* part coordinates within total picture */
-  int rectx, recty; /* the size */
-  int nr;           /* nr is partnr */
-  short status;
-} RenderPart;
-
 typedef struct HighlightedTile {
   rcti rect;
 } HighlightedTile;
-
-enum {
-  /* PART_STATUS_NONE = 0, */ /* UNUSED */
-  PART_STATUS_IN_PROGRESS = 1,
-  PART_STATUS_RENDERED = 2,
-  PART_STATUS_MERGED = 3,
-};
 
 /* controls state of render, everything that's read-only during render stage */
 struct Render {
@@ -91,6 +55,9 @@ struct Render {
    * to not conflict with writes, so no lock used for that */
   ThreadRWMutex resultmutex;
 
+  /* Guard for drawing render result using engine's `draw()` callback. */
+  ThreadMutex engine_draw_mutex;
+
   /** Window size, display rect, viewplane.
    * \note Buffer width and height with percentage applied
    * without border & crop. convert to long before multiplying together to avoid overflow. */
@@ -100,10 +67,6 @@ struct Render {
 
   /* final picture width and height (within disprect) */
   int rectx, recty;
-
-  /* real maximum size of parts after correction for minimum
-   * partx*xparts can be larger than rectx, in that case last part is smaller */
-  int partx, party;
 
   /* Camera transform, only used by Freestyle. */
   float winmat[4][4];
@@ -120,9 +83,6 @@ struct Render {
   int active_view_layer;
   struct Object *camera_override;
 
-  ThreadRWMutex partsmutex;
-  struct GHash *parts;
-
   ThreadMutex highlighted_tiles_mutex;
   struct GSet *highlighted_tiles;
 
@@ -130,7 +90,7 @@ struct Render {
   struct RenderEngine *engine;
 
   /* NOTE: This is a minimal dependency graph and evaluated scene which is enough to access view
-   * layer visibility and use for post-precessing (compositor and sequencer). */
+   * layer visibility and use for postprocessing (compositor and sequencer). */
   Depsgraph *pipeline_depsgraph;
   Scene *pipeline_scene_eval;
 

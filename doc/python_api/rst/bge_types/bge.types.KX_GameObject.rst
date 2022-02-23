@@ -153,7 +153,7 @@ base class --- :class:`~bge.types.SCA_IObject`
 
       Enforces the object keeps rotating at a minimum velocity. A value of 0.0 disables this.
 
-      :type: non-negative float
+      :type: float (non-negative)
 
       .. note::
 
@@ -166,7 +166,7 @@ base class --- :class:`~bge.types.SCA_IObject`
       Clamp the maximum angular velocity to prevent objects rotating beyond a set speed.
       A value of 0.0 disables clamping; it does not stop rotation.
 
-      :type: non-negative float
+      :type: float (non-negative)
 
       .. note::
 
@@ -200,13 +200,13 @@ base class --- :class:`~bge.types.SCA_IObject`
 
       The object's collision group.
 
-      :type: bitfield
+      :type: integer (bit mask)
 
    .. attribute:: collisionMask
 
       The object's collision mask.
 
-      :type: bitfield
+      :type: integer (bit mask)
 
    .. attribute:: collisionCallbacks
 
@@ -278,17 +278,23 @@ base class --- :class:`~bge.types.SCA_IObject`
 
    .. attribute:: layer
 
+   .. deprecated:: 0.3.0
+
       The layer mask used for shadow and real-time cube map render.
 
-      :type: bitfield
+      :type: integer (bit mask)
 
    .. attribute:: cullingBox
 
-      The object's bounding volume box used for culling.
+   .. deprecated:: 0.3.0
+
+      (You can use bpy.types.Object.bound_box instead) The object's bounding volume box used for culling.
 
       :type: :class:`~bge.types.KX_BoundingBox`
 
    .. attribute:: culled
+
+   .. deprecated:: 0.3.0
 
       Returns True if the object is culled, else False.
 
@@ -331,6 +337,8 @@ base class --- :class:`~bge.types.SCA_IObject`
       :type: float
 
    .. attribute:: occlusion
+
+   .. deprecated:: 0.3.0
 
       occlusion capability flag.
 
@@ -454,7 +462,7 @@ base class --- :class:`~bge.types.SCA_IObject`
 
       This KX_GameObject's Object.
 
-      :type: :class:`bpy.types.Object`, (readonly)
+      :type: :class:`~bpy.types.Object`, (readonly)
 
    .. attribute:: state
 
@@ -477,6 +485,8 @@ base class --- :class:`~bge.types.SCA_IObject`
          Changes to this list will not update the KX_GameObject.
 
    .. attribute:: batchGroup
+
+   .. deprecated:: 0.3.0
 
       The object batch group containing the batched mesh.
 
@@ -550,7 +560,7 @@ base class --- :class:`~bge.types.SCA_IObject`
 
    .. attribute:: life
 
-      The number of frames until the object ends, assumes one frame is 1/50 second (read-only).
+      The number of frames until the object ends, assumes one frame is 1/60 second (read-only).
 
       :type: float
 
@@ -652,6 +662,8 @@ base class --- :class:`~bge.types.SCA_IObject`
 
    .. method:: setOcclusion(occlusion[, recursive])
 
+   .. deprecated:: 0.3.0
+
       Sets the game object's occlusion capability.
 
       :arg occlusion: the state to set the occlusion to.
@@ -673,7 +685,7 @@ base class --- :class:`~bge.types.SCA_IObject`
          * 2: Z axis
 
       :type axis: integer
-      :arg factor: Only rotate a feaction of the distance to the target vector (0.0 - 1.0)
+      :arg factor: Only rotate a fraction of the distance to the target vector (0.0 - 1.0)
       :type factor: float
 
    .. method:: getAxisVect(vect)
@@ -808,6 +820,8 @@ base class --- :class:`~bge.types.SCA_IObject`
 
    .. method:: getReactionForce()
 
+   .. deprecated:: 0.0.0
+
       Gets the game object's reaction force.
 
       The reaction force is the force applied to this object over the last simulation timestep.
@@ -818,7 +832,7 @@ base class --- :class:`~bge.types.SCA_IObject`
 
       .. note::
 
-         This is not implimented at the moment.
+         This is not implemented at the moment. (Removed when switching from Sumo to Bullet)
 
    .. method:: applyImpulse(point, impulse[, local])
 
@@ -1033,7 +1047,7 @@ base class --- :class:`~bge.types.SCA_IObject`
 
       :type poly: integer
       :arg mask: collision mask: The collision mask (16 layers mapped to a 16-bit integer) is combined with each object's collision group, to hit only a subset of the objects in the scene. Only those objects for which ``collisionGroup & mask`` is true can be hit.
-      :type mask: bitfield
+      :type mask: integer (bit mask)
       :return: (object, hitpoint, hitnormal) or (object, hitpoint, hitnormal, polygon) or (object, hitpoint, hitnormal, polygon, hituv).
 
          * object, hitpoint and hitnormal are None if no hit.
@@ -1049,6 +1063,19 @@ base class --- :class:`~bge.types.SCA_IObject`
       .. note::
 
          The ray ignores the object on which the method is called. It is casted from/to object center or explicit [x, y, z] points.
+
+   .. method:: collide(obj)
+
+         Test if this object collides object :data:`obj`.
+
+         :arg obj: the object to test collision with
+         :type obj: string or :class:`KX_GameObject`
+         :return: (collide, points)
+
+            * collide, True if this object collides object :data:`obj`
+            * points, contact point data of the collision or None
+
+         :rtype: 2-tuple (boolean, list of :class:`KX_CollisionContactPoint` or None)
 
    .. method:: setCollisionMargin(margin)
 
@@ -1084,7 +1111,7 @@ base class --- :class:`~bge.types.SCA_IObject`
       :type meshObject: string, :class:`~bge.types.KX_MeshProxy` or None
       :arg dupli: optional argument, duplicate the physics shape.
       :type dupli: boolean
-      :arg evaluated: optional argument, use evaluated mesh physics shape.
+      :arg evaluated: optional argument, use evaluated object physics shape (Object with modifiers applied).
       :type dupli: boolean
 
       :return: True if reinstance succeeded, False if it failed.
@@ -1139,28 +1166,28 @@ base class --- :class:`~bge.types.SCA_IObject`
 
       Plays an action.
 
-      :arg name: the name of the action
+      :arg name: the name of the action.
       :type name: string
-      :arg start: the start frame of the action
+      :arg start: the start frame of the action.
       :type start: float
-      :arg end: the end frame of the action
+      :arg end: the end frame of the action.
       :type end: float
-      :arg layer: the layer the action will play in (actions in different layers are added/blended together)
+      :arg layer: the layer the action will play in (actions in different layers are added/blended together).
       :type layer: integer
-      :arg priority: only play this action if there isn't an action currently playing in this layer with a higher (lower number) priority
+      :arg priority: only play this action if there isn't an action currently playing in this layer with a higher (lower number) priority.
       :type priority: integer
-      :arg blendin: the amount of blending between this animation and the previous one on this layer
+      :arg blendin: the amount of blending between this animation and the previous one on this layer.
       :type blendin: float
-      :arg play_mode: the play mode
-      :type play_mode: one of :ref:`these constants <gameobject-playaction-mode>`
-      :arg layer_weight: how much of the previous layer to use for blending
+      :arg play_mode: the play mode. one of :ref:`these constants <gameobject-playaction-mode>`.
+      :type play_mode: integer
+      :arg layer_weight: how much of the previous layer to use for blending.
       :type layer_weight: float
-      :arg ipo_flags: flags for the old IPO behaviors (force, etc)
-      :type ipo_flags: int bitfield
-      :arg speed: the playback speed of the action as a factor (1.0 = normal speed, 2.0 = 2x speed, etc)
+      :arg ipo_flags: flags for the old IPO behaviors (force, etc).
+      :type ipo_flags: integer (bit mask)
+      :arg speed: the playback speed of the action as a factor (1.0 = normal speed, 2.0 = 2x speed, etc).
       :type speed: float
-      :arg blend_mode: how to blend this layer with previous layers
-      :type blend_mode: one of :ref:`these constants <gameobject-playaction-blend>`
+      :arg blend_mode: how to blend this layer with previous layers. one of :ref:`these constants <gameobject-playaction-blend>`.
+      :type blend_mode: integer
 
    .. method:: stopAction([layer])
 

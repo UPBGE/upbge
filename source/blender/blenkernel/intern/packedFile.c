@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup bke
@@ -43,12 +27,12 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_font.h"
 #include "BKE_image.h"
 #include "BKE_main.h"
 #include "BKE_packedFile.h"
 #include "BKE_report.h"
 #include "BKE_sound.h"
+#include "BKE_vfont.h"
 #include "BKE_volume.h"
 
 #include "IMB_imbuf.h"
@@ -242,7 +226,6 @@ PackedFile *BKE_packedfile_new(ReportList *reports, const char *filename, const 
   return pf;
 }
 
-/* no libraries for now */
 void BKE_packedfile_pack_all(Main *bmain, ReportList *reports, bool verbose)
 {
   Image *ima;
@@ -373,14 +356,6 @@ int BKE_packedfile_write_to_file(ReportList *reports,
   return ret_value;
 }
 
-/**
- * This function compares a packed file to a 'real' file.
- * It returns an integer indicating if:
- *
- * - PF_EQUAL:     the packed file and original file are identical
- * - PF_DIFFERENT: the packed file and original file differ
- * - PF_NOFILE:    the original file doesn't exist
- */
 enum ePF_FileCompare BKE_packedfile_compare_to_file(const char *ref_file_name,
                                                     const char *filename,
                                                     PackedFile *pf)
@@ -434,16 +409,6 @@ enum ePF_FileCompare BKE_packedfile_compare_to_file(const char *ref_file_name,
   return ret_val;
 }
 
-/**
- * #BKE_packedfile_unpack_to_file() looks at the existing files (abs_name, local_name)
- * and a packed file.
- *
- * It returns a char *to the existing file name / new file name or NULL when
- * there was an error or when the user decides to cancel the operation.
- *
- * \warning 'abs_name' may be relative still! (use a "//" prefix)
- * be sure to run #BLI_path_abs on it first.
- */
 char *BKE_packedfile_unpack_to_file(ReportList *reports,
                                     const char *ref_file_name,
                                     const char *abs_name,
@@ -753,7 +718,7 @@ void BKE_packedfile_pack_all_libraries(Main *bmain, ReportList *reports)
 {
   Library *lib;
 
-  /* test for relativenss */
+  /* Test for relativeness. */
   for (lib = bmain->libraries.first; lib; lib = lib->id.next) {
     if (!BLI_path_is_rel(lib->filepath)) {
       break;
@@ -804,28 +769,27 @@ void BKE_packedfile_unpack_all(Main *bmain, ReportList *reports, enum ePF_FileSt
   }
 }
 
-/* ID should be not NULL, return 1 if there's a packed file */
-bool BKE_packedfile_id_check(ID *id)
+bool BKE_packedfile_id_check(const ID *id)
 {
   switch (GS(id->name)) {
     case ID_IM: {
-      Image *ima = (Image *)id;
+      const Image *ima = (const Image *)id;
       return BKE_image_has_packedfile(ima);
     }
     case ID_VF: {
-      VFont *vf = (VFont *)id;
+      const VFont *vf = (const VFont *)id;
       return vf->packedfile != NULL;
     }
     case ID_SO: {
-      bSound *snd = (bSound *)id;
+      const bSound *snd = (const bSound *)id;
       return snd->packedfile != NULL;
     }
     case ID_VO: {
-      Volume *volume = (Volume *)id;
+      const Volume *volume = (const Volume *)id;
       return volume->packedfile != NULL;
     }
     case ID_LI: {
-      Library *li = (Library *)id;
+      const Library *li = (const Library *)id;
       return li->packedfile != NULL;
     }
     default:
@@ -834,7 +798,6 @@ bool BKE_packedfile_id_check(ID *id)
   return false;
 }
 
-/* ID should be not NULL */
 void BKE_packedfile_id_unpack(Main *bmain, ID *id, ReportList *reports, enum ePF_FileStatus how)
 {
   switch (GS(id->name)) {

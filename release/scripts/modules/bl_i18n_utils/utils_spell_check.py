@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8 compliant>
 
@@ -66,6 +50,7 @@ class SpellChecker:
         "ons",  # add-ons
         "pong",  # ping pong
         "resumable",
+        "runtimes",
         "scalable",
         "shadeless",
         "shouldn",  # shouldn't
@@ -75,6 +60,14 @@ class SpellChecker:
         "tangency",
         "vertices",
         "wasn",  # wasn't
+        "zig", "zag",
+
+        # Brands etc.
+        "htc",
+        "huawei",
+        "radeon",
+        "vive",
+        "xbox",
 
         # Merged words
         "antialiasing", "antialias",
@@ -129,8 +122,10 @@ class SpellChecker:
         "filename", "filenames",
         "filepath", "filepaths",
         "forcefield", "forcefields",
+        "framerange",
         "fulldome", "fulldomes",
         "fullscreen",
+        "gamepad",
         "gridline", "gridlines",
         "hardlight",
         "hemi",
@@ -176,6 +171,7 @@ class SpellChecker:
         "precalculate",
         "precomputing",
         "prefetch",
+        "prefilter", "prefiltering",
         "preload",
         "premultiply", "premultiplied",
         "prepass",
@@ -225,6 +221,7 @@ class SpellChecker:
         "subpath",
         "subsize",
         "substep", "substeps",
+        "substring",
         "targetless",
         "textbox", "textboxes",
         "tilemode",
@@ -488,6 +485,7 @@ class SpellChecker:
         "framerate",
         "gimbal",
         "grayscale",
+        "icosahedron",
         "icosphere",
         "inpaint",
         "kerning",
@@ -546,6 +544,7 @@ class SpellChecker:
         "bspline",
         "bweight",
         "colorband",
+        "crazyspace",
         "datablock", "datablocks",
         "despeckle",
         "depsgraph",
@@ -679,11 +678,13 @@ class SpellChecker:
         "ctrl",
         "cw", "ccw",
         "dev",
+        "dls",
         "djv",
         "dpi",
         "dvar",
         "dx",
         "eo",
+        "ewa",
         "fh",
         "fk",
         "fov",
@@ -718,11 +719,13 @@ class SpellChecker:
         "precisa",
         "px",
         "qmc",
+        "rdna",
         "rdp",
         "rgb", "rgba",
         "rhs",
         "rv",
         "sdl",
+        "sdls",
         "sl",
         "smpte",
         "ssao",
@@ -731,6 +734,7 @@ class SpellChecker:
         "tma",
         "ui",
         "unix",
+        "uuid",
         "vbo", "vbos",
         "vr",
         "wxyz",
@@ -757,6 +761,7 @@ class SpellChecker:
         "svbvh",
 
         # Files types/formats
+        "aac",
         "avi",
         "attrac",
         "autocad",
@@ -779,6 +784,7 @@ class SpellChecker:
         "ico",
         "jpg", "jpeg", "jpegs",
         "json",
+        "lzw",
         "matroska",
         "mdd",
         "mkv",
@@ -788,6 +794,7 @@ class SpellChecker:
         "openjpeg",
         "osl",
         "oso",
+        "pcm",
         "piz",
         "png", "pngs",
         "po",

@@ -50,13 +50,13 @@
 #include "DNA_object_types.h"
 #include "DNA_world_types.h"
 
-#include "BL_BlenderConverter.h"
-#include "BL_BlenderScalarInterpolator.h"
+#include "BL_Converter.h"
+#include "BL_ScalarInterpolator.h"
 #include "KX_CameraIpoSGController.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
 #include "KX_IInterpolator.h"
-#include "KX_IPO_SGController.h"
+#include "KX_IpoController.h"
 #include "KX_LightIpoSGController.h"
 #include "KX_ObColorIpoSGController.h"
 #include "KX_ScalarInterpolator.h"
@@ -76,7 +76,7 @@ SG_Controller *BL_CreateCameraIPO(struct bAction *action,
 /* Definitions */
 static BL_InterpolatorList *GetAdtList(struct bAction *for_act, KX_Scene *scene)
 {
-  BL_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
+  BL_Converter *converter = KX_GetActiveEngine()->GetConverter();
   BL_InterpolatorList *adtList = converter->FindInterpolatorList(scene, for_act);
 
   if (!adtList) {
@@ -89,7 +89,7 @@ static BL_InterpolatorList *GetAdtList(struct bAction *for_act, KX_Scene *scene)
 
 SG_Controller *BL_CreateIPO(struct bAction *action, KX_GameObject *gameobj, KX_Scene *scene)
 {
-  KX_IpoSGController *ipocontr = new KX_IpoSGController();
+  KX_IpoController *ipocontr = new KX_IpoController();
   ipocontr->SetGameObject(gameobj);
 
   Object *blenderobject = gameobj->GetBlenderObject();

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2008 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2008 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup edscr
@@ -49,11 +33,13 @@
 #include "BKE_gpencil.h"
 #include "BKE_layer.h"
 #include "BKE_object.h"
+#include "BKE_tracking.h"
 
 #include "RNA_access.h"
 
 #include "ED_anim_api.h"
 #include "ED_armature.h"
+#include "ED_clip.h"
 #include "ED_gpencil.h"
 
 #include "SEQ_select.h"
@@ -99,6 +85,7 @@ const char *screen_context_dir[] = {
     "active_nla_track",
     "active_nla_strip",
     "selected_nla_strips", /* nla editor */
+    "selected_movieclip_tracks",
     "gpencil_data",
     "gpencil_data_owner", /* grease pencil data */
     "annotation_data",
@@ -110,6 +97,8 @@ const char *screen_context_dir[] = {
     "active_gpencil_frame",
     "active_annotation_layer",
     "active_operator",
+    "selected_visible_actions",
+    "selected_editable_actions",
     "visible_fcurves",
     "editable_fcurves",
     "selected_visible_fcurves",
@@ -496,7 +485,7 @@ static eContextResult screen_ctx_active_pose_bone(const bContext *C, bContextDat
   Object *obact = view_layer->basact ? view_layer->basact->object : NULL;
   Object *obpose = BKE_object_pose_armature_get(obact);
 
-  bPoseChannel *pchan = BKE_pose_channel_active(obpose);
+  bPoseChannel *pchan = BKE_pose_channel_active_if_layer_visible(obpose);
   if (pchan) {
     CTX_data_pointer_set(result, &obpose->id, &RNA_PoseBone, pchan);
     return CTX_RESULT_OK;
@@ -708,6 +697,33 @@ static eContextResult screen_ctx_selected_nla_strips(const bContext *C, bContext
     return CTX_RESULT_OK;
   }
   return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_selected_movieclip_tracks(const bContext *C,
+                                                           bContextDataResult *result)
+{
+  SpaceClip *space_clip = CTX_wm_space_clip(C);
+  if (space_clip == NULL) {
+    return CTX_RESULT_NO_DATA;
+  }
+  MovieClip *clip = ED_space_clip_get_clip(space_clip);
+  if (clip == NULL) {
+    return CTX_RESULT_NO_DATA;
+  }
+  MovieTracking *tracking = &clip->tracking;
+  if (tracking == NULL) {
+    return CTX_RESULT_NO_DATA;
+  }
+
+  ListBase *tracks_list = BKE_tracking_get_active_tracks(tracking);
+  LISTBASE_FOREACH (MovieTrackingTrack *, track, tracks_list) {
+    if (!TRACK_SELECTED(track)) {
+      continue;
+    }
+    CTX_data_list_add(result, &clip->id, &RNA_MovieTrackingTrack, track);
+  }
+
+  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  return CTX_RESULT_OK;
 }
 static eContextResult screen_ctx_gpencil_data(const bContext *C, bContextDataResult *result)
 {
@@ -945,6 +961,90 @@ static eContextResult screen_ctx_active_operator(const bContext *C, bContextData
   }
   return CTX_RESULT_NO_DATA;
 }
+static eContextResult screen_ctx_sel_actions_impl(const bContext *C,
+                                                  bContextDataResult *result,
+                                                  bool editable)
+{
+  bAnimContext ac;
+  if (ANIM_animdata_get_context(C, &ac) && ELEM(ac.spacetype, SPACE_ACTION, SPACE_GRAPH)) {
+    /* In the Action and Shape Key editor always use the action field at the top. */
+    if (ac.spacetype == SPACE_ACTION) {
+      SpaceAction *saction = (SpaceAction *)ac.sl;
+
+      if (ELEM(saction->mode, SACTCONT_ACTION, SACTCONT_SHAPEKEY)) {
+        if (saction->action && !(editable && ID_IS_LINKED(saction->action))) {
+          CTX_data_id_list_add(result, &saction->action->id);
+        }
+
+        CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+        return CTX_RESULT_OK;
+      }
+    }
+
+    /* Search for selected animation data items. */
+    ListBase anim_data = {NULL, NULL};
+
+    int filter = ANIMFILTER_DATA_VISIBLE;
+    bool check_selected = false;
+
+    switch (ac.spacetype) {
+      case SPACE_GRAPH:
+        filter |= ANIMFILTER_CURVE_VISIBLE | ANIMFILTER_SEL;
+        break;
+
+      case SPACE_ACTION:
+        filter |= ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS;
+        check_selected = true;
+        break;
+    }
+
+    ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
+
+    GSet *seen_set = BLI_gset_ptr_new("seen actions");
+
+    LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
+      /* In dopesheet check selection status of individual items, skipping
+       * if not selected or has no selection flag. This is needed so that
+       * selecting action or group rows without any channels works. */
+      if (check_selected && ANIM_channel_setting_get(&ac, ale, ACHANNEL_SETTING_SELECT) <= 0) {
+        continue;
+      }
+
+      bAction *action = ANIM_channel_action_get(ale);
+
+      if (action) {
+        if (editable && ID_IS_LINKED(action)) {
+          continue;
+        }
+
+        /* Add the action to the output list if not already added. */
+        if (!BLI_gset_haskey(seen_set, action)) {
+          CTX_data_id_list_add(result, &action->id);
+          BLI_gset_add(seen_set, action);
+        }
+      }
+    }
+
+    BLI_gset_free(seen_set, NULL);
+
+    ANIM_animdata_freelist(&anim_data);
+
+    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+
+static eContextResult screen_ctx_selected_visible_actions(const bContext *C,
+                                                          bContextDataResult *result)
+{
+  return screen_ctx_sel_actions_impl(C, result, false);
+}
+static eContextResult screen_ctx_selected_editable_actions(const bContext *C,
+                                                           bContextDataResult *result)
+{
+  return screen_ctx_sel_actions_impl(C, result, true);
+}
 static eContextResult screen_ctx_sel_edit_fcurves_(const bContext *C,
                                                    bContextDataResult *result,
                                                    const int extra_filter)
@@ -1073,9 +1173,14 @@ static eContextResult screen_ctx_ui_list(const bContext *C, bContextDataResult *
 {
   wmWindow *win = CTX_wm_window(C);
   ARegion *region = CTX_wm_region(C);
-  uiList *list = UI_list_find_mouse_over(region, win->eventstate);
-  CTX_data_pointer_set(result, NULL, &RNA_UIList, list);
-  return CTX_RESULT_OK;
+  if (region) {
+    uiList *list = UI_list_find_mouse_over(region, win->eventstate);
+    if (list) {
+      CTX_data_pointer_set(result, NULL, &RNA_UIList, list);
+      return CTX_RESULT_OK;
+    }
+  }
+  return CTX_RESULT_NO_DATA;
 }
 
 /* Registry of context callback functions. */
@@ -1138,6 +1243,7 @@ static void ensure_ed_screen_context_functions(void)
   register_context_function("active_nla_track", screen_ctx_active_nla_track);
   register_context_function("active_nla_strip", screen_ctx_active_nla_strip);
   register_context_function("selected_nla_strips", screen_ctx_selected_nla_strips);
+  register_context_function("selected_movieclip_tracks", screen_ctx_selected_movieclip_tracks);
   register_context_function("gpencil_data", screen_ctx_gpencil_data);
   register_context_function("gpencil_data_owner", screen_ctx_gpencil_data_owner);
   register_context_function("annotation_data", screen_ctx_annotation_data);
@@ -1149,6 +1255,8 @@ static void ensure_ed_screen_context_functions(void)
   register_context_function("editable_gpencil_layers", screen_ctx_editable_gpencil_layers);
   register_context_function("editable_gpencil_strokes", screen_ctx_editable_gpencil_strokes);
   register_context_function("active_operator", screen_ctx_active_operator);
+  register_context_function("selected_visible_actions", screen_ctx_selected_visible_actions);
+  register_context_function("selected_editable_actions", screen_ctx_selected_editable_actions);
   register_context_function("editable_fcurves", screen_ctx_editable_fcurves);
   register_context_function("visible_fcurves", screen_ctx_visible_fcurves);
   register_context_function("selected_editable_fcurves", screen_ctx_selected_editable_fcurves);
@@ -1159,7 +1267,6 @@ static void ensure_ed_screen_context_functions(void)
   register_context_function("ui_list", screen_ctx_ui_list);
 }
 
-/* Entry point for the screen context. */
 int ed_screen_context(const bContext *C, const char *member, bContextDataResult *result)
 {
   if (CTX_data_dir(member)) {

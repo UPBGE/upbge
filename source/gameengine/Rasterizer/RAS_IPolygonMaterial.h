@@ -38,8 +38,9 @@
 #include "RAS_MeshObject.h"
 #include "RAS_Texture.h"
 
-class RAS_Rasterizer;
 class RAS_MaterialShader;
+class SCA_IScene;
+
 struct Material;
 struct Scene;
 struct GameSettings;

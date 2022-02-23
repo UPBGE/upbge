@@ -56,8 +56,8 @@ class FilterBase;
 // python structure for filter
 struct PyFilter {
   PyObject_HEAD
-      // source object
-      FilterBase *m_filter;
+  // source object
+  FilterBase *m_filter;
 };
 
 /// base class for pixel filters

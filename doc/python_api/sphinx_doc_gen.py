@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8 compliant>
 
@@ -425,7 +409,8 @@ MODULE_GROUPING = {
 BLENDER_REVISION = str(bpy.app.build_hash, 'utf_8')
 
 # '2.83.0 Beta' or '2.83.0' or '2.83.1'
-BLENDER_VERSION_DOTS = bpy.app.version_string
+BLENDER_VERSION_STRING = bpy.app.version_string
+BLENDER_VERSION_DOTS = "%d.%d" % (bpy.app.version[0], bpy.app.version[1])
 
 if BLENDER_REVISION != "Unknown":
     # SHA1 Git hash
@@ -443,7 +428,6 @@ REFERENCE_NAME = "blender_python_reference_%s" % BLENDER_VERSION_PATH
 REFERENCE_PATH = os.path.join(ARGS.output_dir, REFERENCE_NAME)
 BLENDER_PDF_FILENAME = "%s.pdf" % REFERENCE_NAME
 BLENDER_ZIP_FILENAME = "%s.zip" % REFERENCE_NAME
-UPBGE_BLENDER_ZIP_FILENAME = "upbge_0_3_blender_%s_python_reference.zip" % BLENDER_VERSION_PATH
 
 # -------------------------------SPHINX-----------------------------------------
 
@@ -1086,7 +1070,7 @@ context_type_map = {
     "gpencil": ("GreasePencil", False),
     "gpencil_data": ("GreasePencil", False),
     "gpencil_data_owner": ("ID", False),
-    "hair": ("Hair", False),
+    "curves": ("Hair Curves", False),
     "id": ("ID", False),
     "image_paint_object": ("Object", False),
     "lattice": ("Lattice", False),
@@ -1110,25 +1094,31 @@ context_type_map = {
     "scene": ("Scene", False),
     "sculpt_object": ("Object", False),
     "selectable_objects": ("Object", True),
+    "selected_asset_files": ("FileSelectEntry", True),
     "selected_bones": ("EditBone", True),
+    "selected_editable_actions": ("Action", True),
     "selected_editable_bones": ("EditBone", True),
     "selected_editable_fcurves": ("FCurve", True),
     "selected_editable_keyframes": ("Keyframe", True),
     "selected_editable_objects": ("Object", True),
     "selected_editable_sequences": ("Sequence", True),
+    "selected_ids": ("ID", True),
     "selected_files": ("FileSelectEntry", True),
+    "selected_ids": ("ID", True),
     "selected_nla_strips": ("NlaStrip", True),
+    "selected_movieclip_tracks": ("MovieTrackingTrack", True),
     "selected_nodes": ("Node", True),
     "selected_objects": ("Object", True),
     "selected_pose_bones": ("PoseBone", True),
     "selected_pose_bones_from_active_object": ("PoseBone", True),
     "selected_sequences": ("Sequence", True),
+    "selected_visible_actions": ("Action", True),
     "selected_visible_fcurves": ("FCurve", True),
     "sequences": ("Sequence", True),
     "soft_body": ("SoftBodyModifier", False),
     "speaker": ("Speaker", False),
     "texture": ("Texture", False),
-    "texture_slot": ("MaterialTextureSlot", False),
+    "texture_slot": ("TextureSlot", False),
     "texture_user": ("ID", False),
     "texture_user_property": ("Property", False),
     "ui_list": ("UIList", False),
@@ -1229,7 +1219,10 @@ def pycontext2sphinx(basepath):
         while char_array[i] is not None:
             member = ctypes.string_at(char_array[i]).decode(encoding="ascii")
             fw(".. data:: %s\n\n" % member)
-            member_type, is_seq = context_type_map[member]
+            try:
+                member_type, is_seq = context_type_map[member]
+            except KeyError:
+                raise SystemExit("Error: context key %r not found in context_type_map; update %s" % (member, __file__)) from None
             fw("   :type: %s :class:`bpy.types.%s`\n\n" % ("sequence of " if is_seq else "", member_type))
             unique.add(member)
             i += 1
@@ -1724,11 +1717,11 @@ def write_sphinx_conf_py(basepath):
     fw("import sys, os\n\n")
     fw("extensions = ['sphinx.ext.intersphinx']\n\n")
     fw("intersphinx_mapping = {'blender_manual': ('https://docs.blender.org/manual/en/dev/', None)}\n\n")
-    fw("project = 'UPBGE 0.3 + Blender %s Python API'\n" % BLENDER_VERSION_DOTS)
+    fw("project = 'UPBGE 0.32 + Blender %s Python API'\n" % BLENDER_VERSION_STRING)
     fw("master_doc = 'index'\n")
     fw("copyright = u'Blender Foundation'\n")
-    fw("version = '%s'\n" % BLENDER_VERSION_HASH)
-    fw("release = '%s'\n" % BLENDER_VERSION_HASH)
+    fw("version = '%s'\n" % BLENDER_VERSION_DOTS)
+    fw("release = '%s'\n" % BLENDER_VERSION_DOTS)
 
     # Quiet file not in table-of-contents warnings.
     fw("exclude_patterns = [\n")
@@ -1749,6 +1742,7 @@ except ModuleNotFoundError:
 
     fw("if html_theme == 'sphinx_rtd_theme':\n")
     fw("    html_theme_options = {\n")
+    fw("        'display_version': False,\n")
     # fw("        'analytics_id': '',\n")
     # fw("        'collapse_navigation': True,\n")
     fw("        'sticky_navigation': False,\n")
@@ -1760,14 +1754,20 @@ except ModuleNotFoundError:
     # not helpful since the source is generated, adds to upload size.
     fw("html_copy_source = False\n")
     fw("html_show_sphinx = False\n")
-    fw("html_baseurl = 'https://docs.blender.org/api/current/'\n")
-    fw("html_use_opensearch = 'https://docs.blender.org/api/current'\n")
+    fw("html_baseurl = 'https://upbge.org/docs/latest/api/'\n")
+    fw("html_use_opensearch = 'https://upbge.org/docs/latest/api'\n")
+    fw("html_show_search_summary = True\n")
     fw("html_split_index = True\n")
     fw("html_static_path = ['static']\n")
+    fw("templates_path = ['templates']\n")
+    fw("html_context = {'commit': '%s'}\n" % BLENDER_VERSION_HASH)
     fw("html_extra_path = ['static/favicon.ico', 'static/upbge_logo.png']\n")
     fw("html_favicon = 'static/favicon.ico'\n")
     fw("html_logo = 'static/upbge_logo.png'\n")
     fw("html_last_updated_fmt = '%m/%d/%Y'\n\n")
+    fw("if html_theme == 'sphinx_rtd_theme':\n")
+    fw("    html_css_files = ['css/version_switch.css']\n")
+    fw("    html_js_files = ['js/version_switch.js']\n")
 
     # needed for latex, pdf gen
     fw("latex_elements = {\n")
@@ -1812,15 +1812,14 @@ def write_rst_index(basepath):
     file = open(filepath, "w", encoding="utf-8")
     fw = file.write
 
-    fw(title_string("UPBGE 0.3 + Blender %s Python API Documentation" % BLENDER_VERSION_DOTS, "%", double=True))
+    fw(title_string("UPBGE 0.32 + Blender %s Python API Documentation" % BLENDER_VERSION_DOTS, "%", double=True))
     fw("\n")
     fw("Welcome to the Python API documentation for `UPBGE <https://upbge.org>`__ and `Blender <https://www.blender.org>`__, ")
     fw("the free and open source 3D creation suite + integrated game engine.\n")
     fw("\n")
 
     # fw("`A PDF version of this document is also available <%s>`_\n" % BLENDER_PDF_FILENAME)
-    fw("This site can be used offline: `Download the full documentation (zipped HTML files) <%s>`__\n" %
-       UPBGE_BLENDER_ZIP_FILENAME)
+    fw("This site can be used offline: `Download the full documentation (zipped HTML files) <https://upbge.org/docs/latest/api/upbge-api-reference.zip>`__\n")
     fw("\n")
 
     if not EXCLUDE_INFO_DOCS:
@@ -2161,6 +2160,9 @@ def copy_theme_assets(basepath):
     shutil.copytree(os.path.join(SCRIPT_DIR, "static"),
                     os.path.join(basepath, "static"),
                     copy_function=shutil.copy)
+    shutil.copytree(os.path.join(SCRIPT_DIR, "templates"),
+                    os.path.join(basepath, "templates"),
+                    copy_function=shutil.copy)
 
 
 def rna2sphinx(basepath):
@@ -2293,7 +2295,7 @@ def main():
     # First monkey patch to load in fake members.
     setup_monkey_patch()
 
-    # Perform changes to Blender it's self.
+    # Perform changes to Blender itself.
     setup_data = setup_blender()
 
     # eventually, create the dirs

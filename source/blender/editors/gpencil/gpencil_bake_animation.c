@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2021 Blender Foundation
- * This is a new part of Blender
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2021 Blender Foundation. */
 
 /** \file
  * \ingroup edgpencil
@@ -102,7 +86,7 @@ static bool gpencil_bake_grease_pencil_animation_poll(bContext *C)
   }
 
   /* Check if grease pencil or empty for dupli groups. */
-  if ((obact == NULL) || ((obact->type != OB_GPENCIL) && (obact->type != OB_EMPTY))) {
+  if ((obact == NULL) || (!ELEM(obact->type, OB_GPENCIL, OB_EMPTY))) {
     return false;
   }
 
@@ -213,7 +197,6 @@ static int gpencil_bake_grease_pencil_animation_exec(bContext *C, wmOperator *op
   Main *bmain = CTX_data_main(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
-  ARegion *region = CTX_wm_region(C);
   View3D *v3d = CTX_wm_view3d(C);
 
   ListBase ob_selected_list = {NULL, NULL};
@@ -256,7 +239,7 @@ static int gpencil_bake_grease_pencil_animation_exec(bContext *C, wmOperator *op
     gsc.ob = ob_gpencil;
 
     /* Init snap context for geometry projection. */
-    sctx = ED_transform_snap_object_context_create_view3d(scene, 0, region, CTX_wm_view3d(C));
+    sctx = ED_transform_snap_object_context_create(scene, 0);
   }
 
   /* Loop all frame range. */

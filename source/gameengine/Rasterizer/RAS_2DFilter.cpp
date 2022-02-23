@@ -24,8 +24,8 @@
 
 #include "DRW_render.h"
 
-#include "glew-mx.h"  // We'll remove that later (or skip 2D filters when there will be vulkan)
 #include "GPU_immediate.h"
+#include "glew-mx.h"  // We'll remove that later (or skip 2D filters when there will be vulkan)
 
 #include "EXP_Value.h"
 #include "RAS_2DFilterFrameBuffer.h"
@@ -175,7 +175,7 @@ bool RAS_2DFilter::LinkProgram()
     return false;
   }
 
-  //BindAttributes({{0, "bgl_InPosition"}, {1, "bgl_InTexCoord"}});
+  // BindAttributes({{0, "bgl_InPosition"}, {1, "bgl_InTexCoord"}});
 
   m_uniformInitialized = false;
 

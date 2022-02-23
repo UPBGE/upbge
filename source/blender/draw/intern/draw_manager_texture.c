@@ -1,26 +1,12 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2016, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2016 Blender Foundation. */
 
 /** \file
  * \ingroup draw
  */
 
 #include "draw_manager.h"
+#include "draw_texture_pool.h"
 
 #ifndef NDEBUG
 /* Maybe gpu_texture.c is a better place for this. */
@@ -147,7 +133,7 @@ GPUTexture *DRW_texture_pool_query_2d(int w,
                                       DrawEngineType *engine_type)
 {
   BLI_assert(drw_texture_format_supports_framebuffer(format));
-  GPUTexture *tex = GPU_viewport_texture_pool_query(DST.viewport, engine_type, w, h, format);
+  GPUTexture *tex = DRW_texture_pool_query(DST.vmempool->texture_pool, w, h, format, engine_type);
 
   return tex;
 }

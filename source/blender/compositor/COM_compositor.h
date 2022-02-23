@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #pragma once
 
@@ -28,12 +13,19 @@ extern "C" {
 /* Keep ascii art. */
 /* clang-format off */
 /**
+ *
  * \defgroup Model The data model of the compositor
+ * \ingroup compositor
  * \defgroup Memory The memory management stuff
+ * \ingroup compositor
  * \defgroup Execution The execution logic
+ * \ingroup compositor
  * \defgroup Conversion Conversion logic
+ * \ingroup compositor
  * \defgroup Node All nodes of the compositor
+ * \ingroup compositor
  * \defgroup Operation All operations of the compositor
+ * \ingroup compositor
  *
  * \page Introduction of the Blender Compositor
  *
@@ -74,8 +66,8 @@ extern "C" {
  *
  * during the preparation of the execution All ReadBufferOperation will receive an offset.
  * This offset is used during execution as an optimization trick
- * Next all operations will be initialized for execution \see NodeOperation.initExecution
- * Next all ExecutionGroup's will be initialized for execution \see ExecutionGroup.initExecution
+ * Next all operations will be initialized for execution \see NodeOperation.init_execution
+ * Next all ExecutionGroup's will be initialized for execution \see ExecutionGroup.init_execution
  * this all is controlled from \see ExecutionSystem.execute
  *
  * \section priority Render priority
@@ -92,7 +84,7 @@ extern "C" {
  * When match the ExecutionGroup will be executed (this happens in serial)
  *
  * \see ExecutionSystem.execute control of the Render priority
- * \see NodeOperation.getRenderPriority receive the render priority
+ * \see NodeOperation.get_render_priority receive the render priority
  * \see ExecutionGroup.execute the main loop to execute a whole ExecutionGroup
  *
  * \section order Chunk order
@@ -121,7 +113,7 @@ extern "C" {
  *    Chunk is finished.
  *
  * \see ExecutionGroup.execute
- * \see ViewerOperation.getChunkOrder
+ * \see ViewerOperation.get_chunk_order
  * \see ChunkOrdering
  *
  * \section interest Area of interest
@@ -152,13 +144,13 @@ extern "C" {
  *
  * In the above example ExecutionGroup B has an outputoperation (ViewerOperation)
  * and is being executed.
- * The first chunk is evaluated [@ref ExecutionGroup.scheduleChunkWhenPossible],
+ * The first chunk is evaluated [@ref ExecutionGroup.schedule_chunk_when_possible],
  * but not all input chunks are available.
  * The relevant ExecutionGroup (that can calculate the missing chunks; ExecutionGroup A)
  * is asked to calculate the area ExecutionGroup B is missing.
- * [@ref ExecutionGroup.scheduleAreaWhenPossible]
+ * [@ref ExecutionGroup.schedule_area_when_possible]
  * ExecutionGroup B checks what chunks the area spans, and tries to schedule these chunks.
- * If all input data is available these chunks are scheduled [@ref ExecutionGroup.scheduleChunk]
+ * If all input data is available these chunks are scheduled [@ref ExecutionGroup.schedule_chunk]
  *
  * <pre>
  *
@@ -171,18 +163,18 @@ extern "C" {
  *            O------------------------------->O                                            |
  *            .                                O                                            |
  *            .                                O-------\                                    |
- *            .                                .       | ExecutionGroup.scheduleChunkWhenPossible
+ *            .                                .       | ExecutionGroup.schedule_chunk_when_possible
  *            .                                .  O----/ (*)                                |
  *            .                                .  O                                         |
  *            .                                .  O                                         |
- *            .                                .  O  ExecutionGroup.scheduleAreaWhenPossible|
+ *            .                                .  O  ExecutionGroup.schedule_area_when_possible|
  *            .                                .  O---------------------------------------->O
- *            .                                .  .                                         O----------\ ExecutionGroup.scheduleChunkWhenPossible
+ *            .                                .  .                                         O----------\ ExecutionGroup.schedule_chunk_when_possible
  *            .                                .  .                                         .          | (*)
  *            .                                .  .                                         .  O-------/
  *            .                                .  .                                         .  O
  *            .                                .  .                                         .  O
- *            .                                .  .                                         .  O-------\ ExecutionGroup.scheduleChunk
+ *            .                                .  .                                         .  O-------\ ExecutionGroup.schedule_chunk
  *            .                                .  .                                         .  .       |
  *            .                                .  .                                         .  .  O----/
  *            .                                .  .                                         .  O<=O
@@ -198,7 +190,7 @@ extern "C" {
  * This happens until all chunks of (ExecutionGroup B) are finished executing or the user break's the process.
  *
  * NodeOperation like the ScaleOperation can influence the area of interest by reimplementing the
- * [@ref NodeOperation.determineAreaOfInterest] method
+ * [@ref NodeOperation.determine_area_of_interest] method
  *
  * <pre>
  *
@@ -221,13 +213,13 @@ extern "C" {
  *
  * \see ExecutionGroup.execute Execute a complete ExecutionGroup.
  * Halts until finished or breaked by user
- * \see ExecutionGroup.scheduleChunkWhenPossible Tries to schedule a single chunk,
+ * \see ExecutionGroup.schedule_chunk_when_possible Tries to schedule a single chunk,
  * checks if all input data is available. Can trigger dependent chunks to be calculated
- * \see ExecutionGroup.scheduleAreaWhenPossible
+ * \see ExecutionGroup.schedule_area_when_possible
  * Tries to schedule an area. This can be multiple chunks
- * (is called from [@ref ExecutionGroup.scheduleChunkWhenPossible])
- * \see ExecutionGroup.scheduleChunk Schedule a chunk on the WorkScheduler
- * \see NodeOperation.determineDependingAreaOfInterest Influence the area of interest of a chunk.
+ * (is called from [@ref ExecutionGroup.schedule_chunk_when_possible])
+ * \see ExecutionGroup.schedule_chunk Schedule a chunk on the WorkScheduler
+ * \see NodeOperation.determine_depending_area_of_interest Influence the area of interest of a chunk.
  * \see WriteBufferOperation Operation to write to a MemoryProxy/MemoryBuffer
  * \see ReadBufferOperation Operation to read from a MemoryProxy/MemoryBuffer
  * \see MemoryProxy proxy for information about memory image
@@ -283,16 +275,16 @@ extern "C" {
  * The OutputOperation of the ExecutionGroup is called to execute the area of the outputbuffer.
  *
  * \see ExecutionGroup
- * \see NodeOperation.executeRegion executes a single chunk of a NodeOperation
+ * \see NodeOperation.execute_region executes a single chunk of a NodeOperation
  * \see CPUDevice.execute
  *
  * \subsection GPUDevice OpenCLDevice
  *
  * To be completed!
- * \see NodeOperation.executeOpenCLRegion
+ * \see NodeOperation.execute_opencl_region
  * \see OpenCLDevice.execute
  *
- * \section executePixel executing a pixel
+ * \section execute_pixel executing a pixel
  * Finally the last step, the node functionality :)
  */
 
@@ -301,10 +293,10 @@ extern "C" {
  * It can be executed during editing (blenkernel/node.cc) or rendering
  * (renderer/pipeline.c)
  *
- * \param rd: [struct RenderData]
+ * \param render_data: [struct RenderData]
  *   Render data for this composite, this won't always belong to a scene.
  *
- * \param editingtree: [struct bNodeTree]
+ * \param node_tree: [struct bNodeTree]
  *   reference to the compositor editing tree
  *
  * \param rendering: [true false]
@@ -312,10 +304,10 @@ extern "C" {
  *    (true) or editing (false).
  *    based on this setting the system will work differently:
  *     - during rendering only Composite & the File output node will be calculated
- * \see NodeOperation.isOutputProgram(int rendering) of the specific operations
+ * \see NodeOperation.is_output_program(int rendering) of the specific operations
  *
  *     - during editing all output nodes will be calculated
- * \see NodeOperation.isOutputProgram(int rendering) of the specific operations
+ * \see NodeOperation.is_output_program(int rendering) of the specific operations
  *
  *     - another quality setting can be used bNodeTree.
  *       The quality is determined by the bNodeTree fields.
@@ -326,10 +318,10 @@ extern "C" {
  *     - output nodes can have different priorities in the WorkScheduler.
  * This is implemented in the COM_execute function.
  *
- * \param viewSettings:
+ * \param view_settings:
  *   reference to view settings used for color management
  *
- * \param displaySettings:
+ * \param display_settings:
  *   reference to display settings used for color management
  *
  * OCIO_TODO: this options only used in rare cases, namely in output file node,
@@ -343,13 +335,13 @@ void COM_execute(RenderData *render_data,
                  Scene *scene,
                  bNodeTree *node_tree,
                  int rendering,
-                 const ColorManagedViewSettings *viewSettings,
-                 const ColorManagedDisplaySettings *displaySettings,
-                 const char *viewName);
+                 const ColorManagedViewSettings *view_settings,
+                 const ColorManagedDisplaySettings *display_settings,
+                 const char *view_name);
 
 /**
  * \brief Deinitialize the compositor caches and allocated memory.
- * Use COM_clearCaches to only free the caches.
+ * Use COM_clear_caches to only free the caches.
  */
 void COM_deinitialize(void);
 
@@ -357,7 +349,7 @@ void COM_deinitialize(void);
  * \brief Clear all compositor caches. (Compositor system will still remain available).
  * To deinitialize the compositor use the COM_deinitialize method.
  */
-// void COM_clearCaches(void); // NOT YET WRITTEN
+// void COM_clear_caches(void); // NOT YET WRITTEN
 
 #ifdef __cplusplus
 }

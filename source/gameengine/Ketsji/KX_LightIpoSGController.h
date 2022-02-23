@@ -35,7 +35,6 @@
 #include "SG_Controller.h"
 #include "SG_Node.h"
 
-class RAS_ILightObject;
 
 class KX_LightIpoSGController : public SG_Controller {
  public:

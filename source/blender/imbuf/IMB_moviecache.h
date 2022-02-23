@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2011 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. All rights reserved. */
 
 #pragma once
 
@@ -59,7 +43,7 @@ void IMB_moviecache_set_priority_callback(struct MovieCache *cache,
 
 void IMB_moviecache_put(struct MovieCache *cache, void *userkey, struct ImBuf *ibuf);
 bool IMB_moviecache_put_if_possible(struct MovieCache *cache, void *userkey, struct ImBuf *ibuf);
-struct ImBuf *IMB_moviecache_get(struct MovieCache *cache, void *userkey);
+struct ImBuf *IMB_moviecache_get(struct MovieCache *cache, void *userkey, bool *r_is_cached_empty);
 void IMB_moviecache_remove(struct MovieCache *cache, void *userkey);
 bool IMB_moviecache_has_frame(struct MovieCache *cache, void *userkey);
 void IMB_moviecache_free(struct MovieCache *cache);
@@ -70,6 +54,9 @@ void IMB_moviecache_cleanup(struct MovieCache *cache,
                                                    void *userdata),
                             void *userdata);
 
+/**
+ * Get segments of cached frames. Useful for debugging cache policies.
+ */
 void IMB_moviecache_get_cache_segments(
     struct MovieCache *cache, int proxy, int render_flags, int *r_totseg, int **r_points);
 

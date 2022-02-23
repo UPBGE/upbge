@@ -63,7 +63,7 @@ class SCA_ReplaceMeshActuator : public SCA_IActuator {
 
   void InstantReplaceMesh();
 
-#ifdef WITH_PYTHON
+
 
   /* --------------------------------------------------------------------- */
   /* Python interface ---------------------------------------------------- */
@@ -71,6 +71,7 @@ class SCA_ReplaceMeshActuator : public SCA_IActuator {
 
   virtual void Replace_IScene(SCA_IScene *val);
 
+#ifdef WITH_PYTHON
   static PyObject *pyattr_get_mesh(EXP_PyObjectPlus *self,
                                    const struct EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_mesh(EXP_PyObjectPlus *self,

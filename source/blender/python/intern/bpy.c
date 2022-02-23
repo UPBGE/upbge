@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup pythonintern
@@ -22,9 +8,13 @@
  * A script writer should never directly access this module.
  */
 
+/* Future-proof, See https://docs.python.org/3/c-api/arg.html#strings-and-buffers */
+#define PY_SSIZE_T_CLEAN
+
 #include <Python.h>
 
 #include "BLI_string.h"
+#include "BLI_string_utils.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_appdir.h"
@@ -91,10 +81,13 @@ static PyObject *bpy_script_paths(PyObject *UNUSED(self))
   return ret;
 }
 
-static bool bpy_blend_paths_visit_cb(void *userdata, char *UNUSED(path_dst), const char *path_src)
+static bool bpy_blend_foreach_path_cb(BPathForeachPathData *bpath_data,
+                                      char *UNUSED(path_dst),
+                                      const char *path_src)
 {
-  PyList_APPEND((PyObject *)userdata, PyC_UnicodeFromByte(path_src));
-  return false; /* never edits the path */
+  PyObject *py_list = bpath_data->user_data;
+  PyList_APPEND(py_list, PyC_UnicodeFromByte(path_src));
+  return false; /* Never edits the path. */
 }
 
 PyDoc_STRVAR(bpy_blend_paths_doc,
@@ -112,7 +105,7 @@ PyDoc_STRVAR(bpy_blend_paths_doc,
              "   :rtype: list of strings\n");
 static PyObject *bpy_blend_paths(PyObject *UNUSED(self), PyObject *args, PyObject *kw)
 {
-  int flag = 0;
+  eBPathForeachFlag flag = 0;
   PyObject *list;
 
   bool absolute = false;
@@ -134,20 +127,71 @@ static PyObject *bpy_blend_paths(PyObject *UNUSED(self), PyObject *args, PyObjec
   }
 
   if (absolute) {
-    flag |= BKE_BPATH_TRAVERSE_ABS;
+    flag |= BKE_BPATH_FOREACH_PATH_ABSOLUTE;
   }
   if (!packed) {
-    flag |= BKE_BPATH_TRAVERSE_SKIP_PACKED;
+    flag |= BKE_BPATH_FOREACH_PATH_SKIP_PACKED;
   }
   if (local) {
-    flag |= BKE_BPATH_TRAVERSE_SKIP_LIBRARY;
+    flag |= BKE_BPATH_FOREACH_PATH_SKIP_LINKED;
   }
 
   list = PyList_New(0);
 
-  BKE_bpath_traverse_main(G_MAIN, bpy_blend_paths_visit_cb, flag, (void *)list);
+  BKE_bpath_foreach_path_main(&(BPathForeachPathData){
+      .bmain = G_MAIN,
+      .callback_function = bpy_blend_foreach_path_cb,
+      .flag = flag,
+      .user_data = list,
+  });
 
   return list;
+}
+
+PyDoc_STRVAR(bpy_flip_name_doc,
+             ".. function:: flip_name(name, strip_digits=False)\n"
+             "\n"
+             "   Flip a name between left/right sides, useful for \n"
+             "   mirroring bone names.\n"
+             "\n"
+             "   :arg name: Bone name to flip.\n"
+             "   :type name: string\n"
+             "   :arg strip_digits: Whether to remove ``.###`` suffix.\n"
+             "   :type strip_digits: bool\n"
+             "   :return: The flipped name.\n"
+             "   :rtype: string\n");
+static PyObject *bpy_flip_name(PyObject *UNUSED(self), PyObject *args, PyObject *kw)
+{
+  const char *name_src = NULL;
+  Py_ssize_t name_src_len;
+  bool strip_digits = false;
+
+  static const char *_keywords[] = {"", "strip_digits", NULL};
+  static _PyArg_Parser _parser = {
+      "s#" /* `name` */
+      "|$" /* Optional, keyword only arguments. */
+      "O&" /* `strip_digits` */
+      /* Name to show in the case of an error. */
+      ":flip_name",
+      _keywords,
+      0,
+  };
+  if (!_PyArg_ParseTupleAndKeywordsFast(
+          args, kw, &_parser, &name_src, &name_src_len, PyC_ParseBool, &strip_digits)) {
+    return NULL;
+  }
+
+  /* Worst case we gain one extra byte (besides null-terminator) by changing
+  "Left" to "Right", because only the first appearance of "Left" gets replaced. */
+  const size_t size = name_src_len + 2;
+  char *name_dst = PyMem_MALLOC(size);
+  const size_t name_dst_len = BLI_string_flip_side_name(name_dst, name_src, strip_digits, size);
+
+  PyObject *result = PyUnicode_FromStringAndSize(name_dst, name_dst_len);
+
+  PyMem_FREE(name_dst);
+
+  return result;
 }
 
 // PyDoc_STRVAR(bpy_user_resource_doc[] = /* now in bpy/utils.py */
@@ -339,6 +383,12 @@ static PyMethodDef meth_bpy_blend_paths = {
     METH_VARARGS | METH_KEYWORDS,
     bpy_blend_paths_doc,
 };
+static PyMethodDef meth_bpy_flip_name = {
+    "flip_name",
+    (PyCFunction)bpy_flip_name,
+    METH_VARARGS | METH_KEYWORDS,
+    bpy_flip_name_doc,
+};
 static PyMethodDef meth_bpy_user_resource = {
     "user_resource",
     (PyCFunction)bpy_user_resource,
@@ -387,9 +437,6 @@ static PyObject *bpy_import_test(const char *modname)
   return mod;
 }
 
-/******************************************************************************
- * Description: Creates the bpy module and adds it to sys.modules for importing
- ******************************************************************************/
 void BPy_init_modules(struct bContext *C)
 {
   PointerRNA ctx_ptr;
@@ -473,6 +520,8 @@ void BPy_init_modules(struct bContext *C)
   PyModule_AddObject(mod,
                      meth_bpy_unescape_identifier.ml_name,
                      (PyObject *)PyCFunction_New(&meth_bpy_unescape_identifier, NULL));
+  PyModule_AddObject(
+      mod, meth_bpy_flip_name.ml_name, (PyObject *)PyCFunction_New(&meth_bpy_flip_name, NULL));
 
   /* register funcs (bpy_rna.c) */
   PyModule_AddObject(mod,

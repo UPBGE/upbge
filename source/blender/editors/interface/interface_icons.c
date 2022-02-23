@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edinterface
@@ -31,6 +15,7 @@
 #include "GPU_batch_presets.h"
 #include "GPU_immediate.h"
 #include "GPU_matrix.h"
+#include "GPU_shader_shared.h"
 #include "GPU_state.h"
 #include "GPU_texture.h"
 
@@ -47,6 +32,7 @@
 #include "DNA_gpencil_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 
 #include "RNA_access.h"
@@ -252,37 +238,6 @@ static void def_internal_vicon(int icon_id, VectorDrawFunc drawFunc)
 
 /* Utilities */
 
-static void viconutil_set_point(int pt[2], int x, int y)
-{
-  pt[0] = x;
-  pt[1] = y;
-}
-
-static void vicon_small_tri_right_draw(int x, int y, int w, int UNUSED(h), float alpha)
-{
-  int pts[3][2];
-  const int cx = x + w / 2 - 4;
-  const int cy = y + w / 2;
-  const int d = w / 5, d2 = w / 7;
-
-  viconutil_set_point(pts[0], cx - d2, cy + d);
-  viconutil_set_point(pts[1], cx - d2, cy - d);
-  viconutil_set_point(pts[2], cx + d2, cy);
-
-  uint pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
-  immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
-  immUniformColor4f(0.2f, 0.2f, 0.2f, alpha);
-
-  immBegin(GPU_PRIM_TRIS, 3);
-  immVertex2iv(pos, pts[0]);
-  immVertex2iv(pos, pts[1]);
-  immVertex2iv(pos, pts[2]);
-  immEnd();
-
-  immUnbindProgram();
-}
-
 static void vicon_keytype_draw_wrapper(
     int x, int y, int w, int h, float alpha, short key_type, short handle_type)
 {
@@ -309,7 +264,7 @@ static void vicon_keytype_draw_wrapper(
   sh_bindings.flags_id = GPU_vertformat_attr_add(format, "flags", GPU_COMP_U32, 1, GPU_FETCH_INT);
 
   GPU_program_point_size(true);
-  immBindBuiltinProgram(GPU_SHADER_KEYFRAME_DIAMOND);
+  immBindBuiltinProgram(GPU_SHADER_KEYFRAME_SHAPE);
   immUniform1f("outline_scale", 1.0f);
   immUniform2f("ViewportSize", -1.0f, -1.0f);
   immBegin(GPU_PRIM_POINTS, 1);
@@ -479,6 +434,35 @@ DEF_ICON_COLLECTION_COLOR_DRAW(07, COLLECTION_COLOR_07);
 DEF_ICON_COLLECTION_COLOR_DRAW(08, COLLECTION_COLOR_08);
 
 #  undef DEF_ICON_COLLECTION_COLOR_DRAW
+
+static void vicon_strip_color_draw(
+    short color_tag, int x, int y, int w, int UNUSED(h), float UNUSED(alpha))
+{
+  bTheme *btheme = UI_GetTheme();
+  const ThemeStripColor *strip_color = &btheme->strip_color[color_tag];
+
+  const float aspect = (float)ICON_DEFAULT_WIDTH / (float)w;
+
+  UI_icon_draw_ex(x, y, ICON_SNAP_FACE, aspect, 1.0f, 0.0f, strip_color->color, true);
+}
+
+#  define DEF_ICON_STRIP_COLOR_DRAW(index, color) \
+    static void vicon_strip_color_draw_##index(int x, int y, int w, int h, float alpha) \
+    { \
+      vicon_strip_color_draw(color, x, y, w, h, alpha); \
+    }
+
+DEF_ICON_STRIP_COLOR_DRAW(01, SEQUENCE_COLOR_01);
+DEF_ICON_STRIP_COLOR_DRAW(02, SEQUENCE_COLOR_02);
+DEF_ICON_STRIP_COLOR_DRAW(03, SEQUENCE_COLOR_03);
+DEF_ICON_STRIP_COLOR_DRAW(04, SEQUENCE_COLOR_04);
+DEF_ICON_STRIP_COLOR_DRAW(05, SEQUENCE_COLOR_05);
+DEF_ICON_STRIP_COLOR_DRAW(06, SEQUENCE_COLOR_06);
+DEF_ICON_STRIP_COLOR_DRAW(07, SEQUENCE_COLOR_07);
+DEF_ICON_STRIP_COLOR_DRAW(08, SEQUENCE_COLOR_08);
+DEF_ICON_STRIP_COLOR_DRAW(09, SEQUENCE_COLOR_09);
+
+#  undef DEF_ICON_STRIP_COLOR_DRAW
 
 /* Dynamically render icon instead of rendering a plain color to a texture/buffer
  * This is not strictly a "vicon", as it needs access to icon->obj to get the color info,
@@ -831,8 +815,6 @@ static void free_icons_textures(void)
   }
 }
 
-/* Reload the textures for internal icons.
- * This function will release the previous textures. */
 void UI_icons_reload_internal_textures(void)
 {
   bTheme *btheme = UI_GetTheme();
@@ -952,8 +934,6 @@ static void init_internal_icons(void)
     }
   }
 
-  def_internal_vicon(ICON_SMALL_TRI_RIGHT_VEC, vicon_small_tri_right_draw);
-
   def_internal_vicon(ICON_KEYTYPE_KEYFRAME_VEC, vicon_keytype_keyframe_draw);
   def_internal_vicon(ICON_KEYTYPE_BREAKDOWN_VEC, vicon_keytype_breakdown_draw);
   def_internal_vicon(ICON_KEYTYPE_EXTREME_VEC, vicon_keytype_extreme_draw);
@@ -995,6 +975,16 @@ static void init_internal_icons(void)
   def_internal_vicon(ICON_COLLECTION_COLOR_06, vicon_collection_color_draw_06);
   def_internal_vicon(ICON_COLLECTION_COLOR_07, vicon_collection_color_draw_07);
   def_internal_vicon(ICON_COLLECTION_COLOR_08, vicon_collection_color_draw_08);
+
+  def_internal_vicon(ICON_SEQUENCE_COLOR_01, vicon_strip_color_draw_01);
+  def_internal_vicon(ICON_SEQUENCE_COLOR_02, vicon_strip_color_draw_02);
+  def_internal_vicon(ICON_SEQUENCE_COLOR_03, vicon_strip_color_draw_03);
+  def_internal_vicon(ICON_SEQUENCE_COLOR_04, vicon_strip_color_draw_04);
+  def_internal_vicon(ICON_SEQUENCE_COLOR_05, vicon_strip_color_draw_05);
+  def_internal_vicon(ICON_SEQUENCE_COLOR_06, vicon_strip_color_draw_06);
+  def_internal_vicon(ICON_SEQUENCE_COLOR_07, vicon_strip_color_draw_07);
+  def_internal_vicon(ICON_SEQUENCE_COLOR_08, vicon_strip_color_draw_08);
+  def_internal_vicon(ICON_SEQUENCE_COLOR_09, vicon_strip_color_draw_09);
 }
 
 static void init_iconfile_list(struct ListBase *list)
@@ -1175,7 +1165,6 @@ static DrawInfo *icon_ensure_drawinfo(Icon *icon)
   return di;
 }
 
-/* NOTE:, returns unscaled by DPI. */
 int UI_icon_get_width(int icon_id)
 {
   Icon *icon = BKE_icon_get(icon_id);
@@ -1235,8 +1224,6 @@ void UI_icons_init()
 #endif
 }
 
-/* Render size for preview images and icons
- */
 int UI_icon_preview_to_render_size(enum eIconSizes size)
 {
   switch (size) {
@@ -1263,7 +1250,7 @@ static void icon_create_rect(struct PreviewImage *prv_img, enum eIconSizes size)
   else if (!prv_img->rect[size]) {
     prv_img->w[size] = render_size;
     prv_img->h[size] = render_size;
-    prv_img->flag[size] |= (PRV_CHANGED | PRV_UNFINISHED);
+    prv_img->flag[size] |= PRV_CHANGED;
     prv_img->changed_timestamp[size] = 0;
     prv_img->rect[size] = MEM_callocN(render_size * render_size * sizeof(uint), "prv_rect");
   }
@@ -1415,15 +1402,14 @@ static void icon_set_image(const bContext *C,
 
   if (use_job && (!id || BKE_previewimg_id_supports_jobs(id))) {
     /* Job (background) version */
-    ED_preview_icon_job(
-        C, prv_img, id, prv_img->rect[size], prv_img->w[size], prv_img->h[size], delay);
+    ED_preview_icon_job(C, prv_img, id, size, delay);
   }
   else {
     if (!scene) {
       scene = CTX_data_scene(C);
     }
     /* Immediate version */
-    ED_preview_icon_render(C, scene, id, prv_img->rect[size], prv_img->w[size], prv_img->h[size]);
+    ED_preview_icon_render(C, scene, prv_img, id, size);
   }
 }
 
@@ -1486,11 +1472,11 @@ static void icon_draw_rect(float x,
                            float alpha,
                            const float desaturate)
 {
-  ImBuf *ima = NULL;
   int draw_w = w;
   int draw_h = h;
   int draw_x = x;
-  int draw_y = y;
+  /* We need to round y, to avoid the icon jittering in some cases. */
+  int draw_y = round_fl_to_int(y);
 
   /* sanity check */
   if (w <= 0 || h <= 0 || w > 2000 || h > 2000) {
@@ -1501,6 +1487,8 @@ static void icon_draw_rect(float x,
   /* modulate color */
   const float col[4] = {alpha, alpha, alpha, alpha};
 
+  float scale_x = 1.0f;
+  float scale_y = 1.0f;
   /* rect contains image in 'rendersize', we only scale if needed */
   if (rw != w || rh != h) {
     /* preserve aspect ratio and center */
@@ -1514,13 +1502,9 @@ static void icon_draw_rect(float x,
       draw_h = h;
       draw_x += (w - draw_w) / 2;
     }
+    scale_x = draw_w / (float)rw;
+    scale_y = draw_h / (float)rh;
     /* If the image is squared, the `draw_*` initialization values are good. */
-
-    /* first allocate imbuf for scaling and copy preview into it */
-    ima = IMB_allocImBuf(rw, rh, 32, IB_rect);
-    memcpy(ima->rect, rect, rw * rh * sizeof(uint));
-    IMB_scaleImBuf(ima, draw_w, draw_h); /* scale it */
-    rect = ima->rect;
   }
 
   /* draw */
@@ -1537,12 +1521,8 @@ static void icon_draw_rect(float x,
     immUniform1f("factor", desaturate);
   }
 
-  immDrawPixelsTex(
-      &state, draw_x, draw_y, draw_w, draw_h, GPU_RGBA8, false, rect, 1.0f, 1.0f, col);
-
-  if (ima) {
-    IMB_freeImBuf(ima);
-  }
+  immDrawPixelsTexScaledFullSize(
+      &state, draw_x, draw_y, rw, rh, GPU_RGBA8, true, rect, scale_x, scale_y, 1.0f, 1.0f, col);
 }
 
 /* High enough to make a difference, low enough so that
@@ -1585,18 +1565,21 @@ static void icon_draw_cache_texture_flush_ex(GPUTexture *texture,
   GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_2D_IMAGE_MULTI_RECT_COLOR);
   GPU_shader_bind(shader);
 
-  const int img_binding = GPU_shader_get_texture_binding(shader, "image");
-  const int data_loc = GPU_shader_get_uniform(shader, "calls_data");
+  const int data_loc = GPU_shader_get_uniform_block(shader, "multi_rect_data");
+  GPUUniformBuf *ubo = GPU_uniformbuf_create_ex(
+      sizeof(struct MultiRectCallData), texture_draw_calls->drawcall_cache, __func__);
+  GPU_uniformbuf_bind(ubo, data_loc);
 
+  const int img_binding = GPU_shader_get_texture_binding(shader, "image");
   GPU_texture_bind_ex(texture, GPU_SAMPLER_ICON, img_binding, false);
-  GPU_shader_uniform_vector(
-      shader, data_loc, 4, ICON_DRAW_CACHE_SIZE * 3, (float *)texture_draw_calls->drawcall_cache);
 
   GPUBatch *quad = GPU_batch_preset_quad();
   GPU_batch_set_shader(quad, shader);
   GPU_batch_draw_instanced(quad, texture_draw_calls->calls);
 
   GPU_texture_unbind(texture);
+  GPU_uniformbuf_unbind(ubo);
+  GPU_uniformbuf_free(ubo);
 
   texture_draw_calls->calls = 0;
 }
@@ -1948,19 +1931,39 @@ static void ui_id_preview_image_render_size(
   }
 }
 
-/**
- * Note that if an ID doesn't support jobs for preview creation, \a use_job will be ignored.
- */
+void UI_icon_render_id_ex(const bContext *C,
+                          Scene *scene,
+                          ID *id_to_render,
+                          const enum eIconSizes size,
+                          const bool use_job,
+                          PreviewImage *r_preview_image)
+{
+  ui_id_preview_image_render_size(C, scene, id_to_render, r_preview_image, size, use_job);
+}
+
 void UI_icon_render_id(
     const bContext *C, Scene *scene, ID *id, const enum eIconSizes size, const bool use_job)
 {
   PreviewImage *pi = BKE_previewimg_id_ensure(id);
-
   if (pi == NULL) {
     return;
   }
 
-  ui_id_preview_image_render_size(C, scene, id, pi, size, use_job);
+  ID *id_to_render = id;
+
+  /* For objects, first try if a preview can created via the object data. */
+  if (GS(id->name) == ID_OB) {
+    Object *ob = (Object *)id;
+    if (ED_preview_id_is_supported(ob->data)) {
+      id_to_render = ob->data;
+    }
+  }
+
+  if (!ED_preview_id_is_supported(id_to_render)) {
+    return;
+  }
+
+  UI_icon_render_id_ex(C, scene, id_to_render, size, use_job, pi);
 }
 
 static void ui_id_icon_render(const bContext *C, ID *id, bool use_jobs)
@@ -2266,7 +2269,7 @@ int UI_icon_from_idcode(const int idcode)
       return ICON_CAMERA_DATA;
     case ID_CF:
       return ICON_FILE;
-    case ID_CU:
+    case ID_CU_LEGACY:
       return ICON_CURVE_DATA;
     case ID_GD:
       return ICON_OUTLINER_DATA_GREASEPENCIL;
@@ -2314,8 +2317,8 @@ int UI_icon_from_idcode(const int idcode)
       return ICON_TEXT;
     case ID_VF:
       return ICON_FONT_DATA;
-    case ID_HA:
-      return ICON_HAIR_DATA;
+    case ID_CV:
+      return ICON_CURVES_DATA;
     case ID_PT:
       return ICON_POINTCLOUD_DATA;
     case ID_VO:
@@ -2349,6 +2352,7 @@ int UI_icon_from_object_mode(const int mode)
       return ICON_EDITMODE_HLT;
     case OB_MODE_SCULPT:
     case OB_MODE_SCULPT_GPENCIL:
+    case OB_MODE_SCULPT_CURVES:
       return ICON_SCULPTMODE_HLT;
     case OB_MODE_VERTEX_PAINT:
     case OB_MODE_VERTEX_GPENCIL:
@@ -2379,7 +2383,6 @@ int UI_icon_color_from_collection(const Collection *collection)
   return icon;
 }
 
-/* draws icon with dpi scale factor */
 void UI_icon_draw(float x, float y, int icon_id)
 {
   UI_icon_draw_ex(x, y, icon_id, U.inv_dpi_fac, 1.0f, 0.0f, NULL, false);

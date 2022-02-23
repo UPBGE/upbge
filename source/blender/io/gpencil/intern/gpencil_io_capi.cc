@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2020 Blender Foundation
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2020 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup bgpencil
@@ -112,32 +96,39 @@ static bool gpencil_io_export_pdf(Depsgraph *depsgraph,
   exporter->frame_number_set(iparams->frame_cur);
   result |= exporter->new_document();
 
-  const bool use_frame_selected = (iparams->frame_mode == GP_EXPORT_FRAME_SELECTED);
-  if (use_frame_selected) {
-    for (int32_t i = iparams->frame_start; i < iparams->frame_end + 1; i++) {
-      if (!is_keyframe_included(gpd_eval, i, use_frame_selected)) {
-        continue;
-      }
-
-      CFRA = i;
-      BKE_scene_graph_update_for_newframe(depsgraph);
+  switch (iparams->frame_mode) {
+    case GP_EXPORT_FRAME_ACTIVE: {
       exporter->prepare_camera_params(scene, iparams);
-      exporter->frame_number_set(i);
       exporter->add_newpage();
       exporter->add_body();
+      result = exporter->write();
+      break;
     }
-    result = exporter->write();
-    /* Back to original frame. */
-    exporter->frame_number_set(iparams->frame_cur);
-    CFRA = iparams->frame_cur;
-    BKE_scene_camera_switch_update(scene);
-    BKE_scene_graph_update_for_newframe(depsgraph);
-  }
-  else {
-    exporter->prepare_camera_params(scene, iparams);
-    exporter->add_newpage();
-    exporter->add_body();
-    result = exporter->write();
+    case GP_EXPORT_FRAME_SELECTED:
+    case GP_EXPORT_FRAME_SCENE: {
+      for (int32_t i = iparams->frame_start; i < iparams->frame_end + 1; i++) {
+        if ((iparams->frame_mode == GP_EXPORT_FRAME_SELECTED) &&
+            (!is_keyframe_included(gpd_eval, i, true))) {
+          continue;
+        }
+
+        CFRA = i;
+        BKE_scene_graph_update_for_newframe(depsgraph);
+        exporter->prepare_camera_params(scene, iparams);
+        exporter->frame_number_set(i);
+        exporter->add_newpage();
+        exporter->add_body();
+      }
+      result = exporter->write();
+      /* Back to original frame. */
+      exporter->frame_number_set(iparams->frame_cur);
+      CFRA = iparams->frame_cur;
+      BKE_scene_camera_switch_update(scene);
+      BKE_scene_graph_update_for_newframe(depsgraph);
+      break;
+    }
+    default:
+      break;
   }
 
   return result;
@@ -170,7 +161,6 @@ static bool gpencil_io_export_frame_svg(GpencilExporterSVG *exporter,
 }
 #endif
 
-/* Main import entry point function. */
 bool gpencil_io_import(const char *filename, GpencilIOParams *iparams)
 {
   GpencilImporterSVG importer = GpencilImporterSVG(filename, iparams);
@@ -178,7 +168,6 @@ bool gpencil_io_import(const char *filename, GpencilIOParams *iparams)
   return gpencil_io_import_frame(&importer, *iparams);
 }
 
-/* Main export entry point function. */
 bool gpencil_io_export(const char *filename, GpencilIOParams *iparams)
 {
   Depsgraph *depsgraph_ = CTX_data_depsgraph_pointer(iparams->C);

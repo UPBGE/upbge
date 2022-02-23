@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 # turn everything OFF except for python which defaults to ON
 # and is needed for the UI
 #
@@ -9,6 +11,7 @@ set(WITH_INSTALL_PORTABLE    ON  CACHE BOOL "" FORCE)
 
 set(WITH_ALEMBIC             OFF CACHE BOOL "" FORCE)
 set(WITH_AUDASPACE           OFF CACHE BOOL "" FORCE)
+set(WITH_BLENDER_THUMBNAILER OFF CACHE BOOL "" FORCE)
 set(WITH_BOOST               OFF CACHE BOOL "" FORCE)
 set(WITH_BUILDINFO           OFF CACHE BOOL "" FORCE)
 set(WITH_BULLET              OFF CACHE BOOL "" FORCE)
@@ -18,9 +21,6 @@ set(WITH_CODEC_SNDFILE       OFF CACHE BOOL "" FORCE)
 set(WITH_COMPOSITOR          OFF CACHE BOOL "" FORCE)
 set(WITH_COREAUDIO           OFF CACHE BOOL "" FORCE)
 set(WITH_CYCLES              OFF CACHE BOOL "" FORCE)
-set(WITH_CYCLES_DEVICE_OPTIX OFF CACHE BOOL "" FORCE)
-set(WITH_CYCLES_EMBREE       OFF CACHE BOOL "" FORCE)
-set(WITH_CYCLES_OSL          OFF CACHE BOOL "" FORCE)
 set(WITH_DRACO               OFF CACHE BOOL "" FORCE)
 set(WITH_FFTW3               OFF CACHE BOOL "" FORCE)
 set(WITH_FREESTYLE           OFF CACHE BOOL "" FORCE)

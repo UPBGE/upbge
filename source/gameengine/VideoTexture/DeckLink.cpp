@@ -410,14 +410,11 @@ static int DeckLink_init(DeckLink *self, PyObject *args, PyObject *kwds)
   // texture ID
   char *format = nullptr;
 
+  static const char *kwlist[] = {"cardIdx", "format", nullptr};
   // get parameters
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "|hs",
-                                     {"cardIdx", "format", 0},
-                                     &cardIdx, &format)) {
+  if (!PyArg_ParseTupleAndKeywords(
+          args, kwds, "|hs", const_cast<char **>(kwlist), &cardIdx, &format))
     return -1;
-  }
 
   try {
     if (format == nullptr) {

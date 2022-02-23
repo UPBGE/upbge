@@ -1,55 +1,39 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #include "COM_CalculateStandardDeviationOperation.h"
-#include "BLI_math.h"
-#include "BLI_utildefines.h"
+
 #include "COM_ExecutionSystem.h"
 
 #include "IMB_colormanagement.h"
 
 namespace blender::compositor {
 
-void CalculateStandardDeviationOperation::executePixel(float output[4],
-                                                       int /*x*/,
-                                                       int /*y*/,
-                                                       void * /*data*/)
+void CalculateStandardDeviationOperation::execute_pixel(float output[4],
+                                                        int /*x*/,
+                                                        int /*y*/,
+                                                        void * /*data*/)
 {
-  output[0] = this->m_standardDeviation;
+  output[0] = standard_deviation_;
 }
 
-void *CalculateStandardDeviationOperation::initializeTileData(rcti *rect)
+void *CalculateStandardDeviationOperation::initialize_tile_data(rcti *rect)
 {
-  lockMutex();
-  if (!this->m_iscalculated) {
-    MemoryBuffer *tile = (MemoryBuffer *)this->m_imageReader->initializeTileData(rect);
-    CalculateMeanOperation::calculateMean(tile);
-    this->m_standardDeviation = 0.0f;
-    float *buffer = tile->getBuffer();
-    int size = tile->getWidth() * tile->getHeight();
+  lock_mutex();
+  if (!iscalculated_) {
+    MemoryBuffer *tile = (MemoryBuffer *)image_reader_->initialize_tile_data(rect);
+    CalculateMeanOperation::calculate_mean(tile);
+    standard_deviation_ = 0.0f;
+    float *buffer = tile->get_buffer();
+    int size = tile->get_width() * tile->get_height();
     int pixels = 0;
     float sum = 0.0f;
-    float mean = this->m_result;
+    float mean = result_;
     for (int i = 0, offset = 0; i < size; i++, offset += 4) {
       if (buffer[offset + 3] > 0) {
         pixels++;
 
-        switch (this->m_setting) {
+        switch (setting_) {
           case 1: /* rgb combined */
           {
             float value = IMB_colormanagement_get_luminance(&buffer[offset]);
@@ -90,17 +74,17 @@ void *CalculateStandardDeviationOperation::initializeTileData(rcti *rect)
         }
       }
     }
-    this->m_standardDeviation = sqrt(sum / (float)(pixels - 1));
-    this->m_iscalculated = true;
+    standard_deviation_ = sqrt(sum / (float)(pixels - 1));
+    iscalculated_ = true;
   }
-  unlockMutex();
+  unlock_mutex();
   return nullptr;
 }
 
 void CalculateStandardDeviationOperation::update_memory_buffer_started(
     MemoryBuffer *UNUSED(output), const rcti &UNUSED(area), Span<MemoryBuffer *> inputs)
 {
-  if (!this->m_iscalculated) {
+  if (!iscalculated_) {
     const MemoryBuffer *input = inputs[0];
     const float mean = CalculateMeanOperation::calc_mean(input);
 
@@ -113,17 +97,16 @@ void CalculateStandardDeviationOperation::update_memory_buffer_started(
           join.sum += chunk.sum;
           join.num_pixels += chunk.num_pixels;
         });
-    this->m_standardDeviation = total.num_pixels <= 1 ?
-                                    0.0f :
-                                    sqrt(total.sum / (float)(total.num_pixels - 1));
-    this->m_iscalculated = true;
+    standard_deviation_ = total.num_pixels <= 1 ? 0.0f :
+                                                  sqrt(total.sum / (float)(total.num_pixels - 1));
+    iscalculated_ = true;
   }
 }
 
 void CalculateStandardDeviationOperation::update_memory_buffer_partial(
     MemoryBuffer *output, const rcti &area, Span<MemoryBuffer *> UNUSED(inputs))
 {
-  output->fill(area, &m_standardDeviation);
+  output->fill(area, &standard_deviation_);
 }
 
 using PixelsSum = CalculateMeanOperation::PixelsSum;

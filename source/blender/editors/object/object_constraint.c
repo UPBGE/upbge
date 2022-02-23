@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edobj
@@ -80,10 +64,6 @@
 /** \name Constraint Data Accessors
  * \{ */
 
-/**
- * If object is in pose-mode, return active bone constraints, else object constraints.
- * No constraints are returned for a bone on an inactive bone-layer.
- */
 ListBase *ED_object_constraint_active_list(Object *ob)
 {
   if (ob == NULL) {
@@ -93,7 +73,7 @@ ListBase *ED_object_constraint_active_list(Object *ob)
   if (ob->mode & OB_MODE_POSE) {
     bPoseChannel *pchan;
 
-    pchan = BKE_pose_channel_active(ob);
+    pchan = BKE_pose_channel_active_if_layer_visible(ob);
     if (pchan) {
       return &pchan->constraints;
     }
@@ -105,10 +85,6 @@ ListBase *ED_object_constraint_active_list(Object *ob)
   return NULL;
 }
 
-/**
- * Get the constraints for the active pose bone. Bone may be on an inactive bone-layer
- * (unlike #ED_object_constraint_active_list, such constraints are not excluded here).
- */
 ListBase *ED_object_pose_constraint_list(const bContext *C)
 {
   bPoseChannel *pose_bone = CTX_data_pointer_get(C, "pose_bone").data;
@@ -122,8 +98,6 @@ ListBase *ED_object_pose_constraint_list(const bContext *C)
   return &pose_bone->constraints;
 }
 
-/* Find the list that a given constraint belongs to,
- * and/or also get the posechannel this is from (if applicable) */
 ListBase *ED_object_constraint_list_from_constraint(Object *ob,
                                                     bConstraint *con,
                                                     bPoseChannel **r_pchan)
@@ -164,7 +138,6 @@ ListBase *ED_object_constraint_list_from_constraint(Object *ob,
   return NULL;
 }
 
-/* single constraint */
 bConstraint *ED_object_constraint_active_get(Object *ob)
 {
   return BKE_constraints_active_get(ED_object_constraint_active_list(ob));
@@ -538,7 +511,7 @@ static void test_constraint(
            *
            * In other cases it should be impossible to have a type mismatch.
            */
-          if (ct->tar->type != OB_CURVE) {
+          if (ct->tar->type != OB_CURVES_LEGACY) {
             con->flag |= CONSTRAINT_DISABLE;
           }
           else {
@@ -1367,15 +1340,6 @@ void ED_object_constraint_update(Main *bmain, Object *ob)
 static void object_pose_tag_update(Main *bmain, Object *ob)
 {
   BKE_pose_tag_recalc(bmain, ob->pose); /* Checks & sort pose channels. */
-  if (ob->proxy && ob->adt) {
-    /* We need to make use of ugly #POSE_ANIMATION_WORKAROUND here too,
-     * else anim data are not reloaded after calling `BKE_pose_rebuild()`,
-     * which causes T43872.
-     * Note that this is a bit wide here, since we cannot be sure whether there are some locked
-     * proxy bones or not.
-     * XXX Temp hack until new depsgraph hopefully solves this. */
-    DEG_id_tag_update(&ob->id, ID_RECALC_ANIMATION);
-  }
 }
 
 void ED_object_constraint_dependency_update(Main *bmain, Object *ob)
@@ -1449,7 +1413,9 @@ void ED_object_constraint_link(Main *bmain, Object *ob_dst, ListBase *dst, ListB
 
 void ED_object_constraint_copy_for_object(Main *bmain, Object *ob_dst, bConstraint *con)
 {
-  BKE_constraint_copy_for_object(ob_dst, con);
+  bConstraint *copy_con = BKE_constraint_copy_for_object(ob_dst, con);
+  copy_con->flag |= CONSTRAINT_OVERRIDE_LIBRARY_LOCAL;
+
   ED_object_constraint_dependency_tag_update(bmain, ob_dst, con);
   WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT | NA_ADDED, ob_dst);
 }
@@ -1459,7 +1425,9 @@ void ED_object_constraint_copy_for_pose(Main *bmain,
                                         bPoseChannel *pchan,
                                         bConstraint *con)
 {
-  BKE_constraint_copy_for_pose(ob_dst, pchan, con);
+  bConstraint *copy_con = BKE_constraint_copy_for_pose(ob_dst, pchan, con);
+  copy_con->flag |= CONSTRAINT_OVERRIDE_LIBRARY_LOCAL;
+
   ED_object_constraint_dependency_tag_update(bmain, ob_dst, con);
   WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT | NA_ADDED, ob_dst);
 }
@@ -1654,6 +1622,8 @@ static int constraint_copy_exec(bContext *C, wmOperator *op)
     /* Couldn't remove due to some invalid data. */
     return OPERATOR_CANCELLED;
   }
+  copy_con->flag |= CONSTRAINT_OVERRIDE_LIBRARY_LOCAL;
+
   /* Move constraint to correct position. */
   const int new_index = BLI_findindex(constraints, con) + 1;
   const int current_index = BLI_findindex(constraints, copy_con);
@@ -1731,7 +1701,9 @@ static int constraint_copy_to_selected_exec(bContext *C, wmOperator *op)
         continue;
       }
 
-      BKE_constraint_copy_for_pose(ob, chan, con);
+      bConstraint *copy_con = BKE_constraint_copy_for_pose(ob, chan, con);
+      copy_con->flag |= CONSTRAINT_OVERRIDE_LIBRARY_LOCAL;
+
       /* Update flags (need to add here, not just copy). */
       chan->constflag |= pchan->constflag;
 
@@ -1753,7 +1725,9 @@ static int constraint_copy_to_selected_exec(bContext *C, wmOperator *op)
         continue;
       }
 
-      BKE_constraint_copy_for_object(ob, con);
+      bConstraint *copy_con = BKE_constraint_copy_for_object(ob, con);
+      copy_con->flag |= CONSTRAINT_OVERRIDE_LIBRARY_LOCAL;
+
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
     }
     CTX_DATA_END;
@@ -2216,7 +2190,7 @@ static bool get_new_constraint_target(
     bContext *C, int con_type, Object **tar_ob, bPoseChannel **tar_pchan, bool add)
 {
   Object *obact = ED_object_active_context(C);
-  bPoseChannel *pchanact = BKE_pose_channel_active(obact);
+  bPoseChannel *pchanact = BKE_pose_channel_active_if_layer_visible(obact);
   bool only_curve = false, only_mesh = false, only_ob = false;
   bool found = false;
 
@@ -2301,7 +2275,8 @@ static bool get_new_constraint_target(
 
           break;
         }
-        if (((!only_curve) || (ob->type == OB_CURVE)) && ((!only_mesh) || (ob->type == OB_MESH))) {
+        if (((!only_curve) || (ob->type == OB_CURVES_LEGACY)) &&
+            ((!only_mesh) || (ob->type == OB_MESH))) {
           /* set target */
           *tar_ob = ob;
           found = true;
@@ -2371,7 +2346,7 @@ static int constraint_add_exec(
     pchan = NULL;
   }
   else {
-    pchan = BKE_pose_channel_active(ob);
+    pchan = BKE_pose_channel_active_if_layer_visible(ob);
 
     /* ensure not to confuse object/pose adding */
     if (pchan == NULL) {
@@ -2454,12 +2429,6 @@ static int constraint_add_exec(
 
   if ((ob->type == OB_ARMATURE) && (pchan)) {
     BKE_pose_tag_recalc(bmain, ob->pose); /* sort pose channels */
-    if (BKE_constraints_proxylocked_owner(ob, pchan) && ob->adt) {
-      /* We need to make use of ugly POSE_ANIMATION_WORKAROUND here too,
-       * else anim data are not reloaded after calling `BKE_pose_rebuild()`, which causes T43872.
-       * XXX Temp hack until new depsgraph hopefully solves this. */
-      DEG_id_tag_update(&ob->id, ID_RECALC_ANIMATION);
-    }
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
   }
   else {
@@ -2651,7 +2620,7 @@ void POSE_OT_constraint_add_with_targets(wmOperatorType *ot)
 static int pose_ik_add_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
   Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
-  bPoseChannel *pchan = BKE_pose_channel_active(ob);
+  bPoseChannel *pchan = BKE_pose_channel_active_if_layer_visible(ob);
   bConstraint *con = NULL;
 
   uiPopupMenu *pup;

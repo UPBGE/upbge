@@ -30,6 +30,7 @@ set(INC
   ../Device
   ../Expressions
   ../Ketsji
+  ../Ketsji/KXNetwork
   ../Physics/Common
   ../Rasterizer
   ../SceneGraph
@@ -50,6 +51,7 @@ set(INC_SYS
 
 set(SRC
   SCA_2DFilterActuator.cpp
+  SCA_ActionActuator.cpp
   SCA_AddObjectActuator.cpp
   SCA_ANDController.cpp
   SCA_ActuatorEventManager.cpp
@@ -87,6 +89,8 @@ set(SRC
   SCA_MovementSensor.cpp
   SCA_NANDController.cpp
   SCA_NearSensor.cpp
+  SCA_NetworkMessageActuator.cpp
+  SCA_NetworkMessageSensor.cpp
   SCA_NORController.cpp
   SCA_ObjectActuator.cpp
   SCA_ORController.cpp
@@ -115,6 +119,7 @@ set(SRC
   SCA_XORController.cpp
 
   SCA_2DFilterActuator.h
+  SCA_ActionActuator.h
   SCA_AddObjectActuator.h
   SCA_ANDController.h
   SCA_ActuatorEventManager.h
@@ -152,6 +157,8 @@ set(SRC
   SCA_MovementSensor.h
   SCA_NANDController.h
   SCA_NearSensor.h
+  SCA_NetworkMessageActuator.h
+  SCA_NetworkMessageSensor.h
   SCA_NORController.h
   SCA_ObjectActuator.h
   SCA_ORController.h

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2004 by Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2004 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup edmesh
@@ -930,7 +914,7 @@ static int edbm_rip_invoke__edge(bContext *C, const wmEvent *event, Object *obed
       /* NOTE: if the case of 3 edges has one change in loop stepping,
        * if this becomes more involved we may be better off splitting
        * the 3 edge case into its own else-if branch */
-      if ((totedge_manifold == 4 || totedge_manifold == 3) || (all_manifold == false)) {
+      if ((ELEM(totedge_manifold, 4, 3)) || (all_manifold == false)) {
         BMLoop *l_a = e_best->l;
         BMLoop *l_b = l_a->radial_next;
 
@@ -1124,7 +1108,7 @@ void MESH_OT_rip(wmOperatorType *ot)
   ot->poll = EDBM_view3d_poll;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 
   /* to give to transform */
   Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR_DUMMY);

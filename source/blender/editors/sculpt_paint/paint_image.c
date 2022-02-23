@@ -1,22 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: some of this file.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edsculpt
@@ -56,6 +39,8 @@
 #include "BKE_paint.h"
 #include "BKE_undo_system.h"
 
+#include "NOD_texture.h"
+
 #include "DEG_depsgraph.h"
 
 #include "UI_interface.h"
@@ -87,7 +72,7 @@
  * Maybe it should be exposed as part of the paint operation,
  * but for now just give a public interface.
  */
-static ImagePaintPartialRedraw imapaintpartial = {0, 0, 0, 0, 0};
+static ImagePaintPartialRedraw imapaintpartial = {{0}};
 
 ImagePaintPartialRedraw *get_imapaintpartial(void)
 {
@@ -103,7 +88,7 @@ void set_imapaintpartial(struct ImagePaintPartialRedraw *ippr)
 
 void ED_imapaint_clear_partial_redraw(void)
 {
-  memset(&imapaintpartial, 0, sizeof(imapaintpartial));
+  BLI_rcti_init_minmax(&imapaintpartial.dirty_region);
 }
 
 void imapaint_region_tiles(
@@ -132,19 +117,9 @@ void ED_imapaint_dirty_region(
     return;
   }
 
-  if (!imapaintpartial.enabled) {
-    imapaintpartial.x1 = x;
-    imapaintpartial.y1 = y;
-    imapaintpartial.x2 = x + w;
-    imapaintpartial.y2 = y + h;
-    imapaintpartial.enabled = 1;
-  }
-  else {
-    imapaintpartial.x1 = min_ii(imapaintpartial.x1, x);
-    imapaintpartial.y1 = min_ii(imapaintpartial.y1, y);
-    imapaintpartial.x2 = max_ii(imapaintpartial.x2, x + w);
-    imapaintpartial.y2 = max_ii(imapaintpartial.y2, y + h);
-  }
+  rcti rect_to_merge;
+  BLI_rcti_init(&rect_to_merge, x, x + w, y, y + h);
+  BLI_rcti_do_minmax_rcti(&imapaintpartial.dirty_region, &rect_to_merge);
 
   imapaint_region_tiles(ibuf, x, y, w, h, &tilex, &tiley, &tilew, &tileh);
 
@@ -167,27 +142,30 @@ void ED_imapaint_dirty_region(
 void imapaint_image_update(
     SpaceImage *sima, Image *image, ImBuf *ibuf, ImageUser *iuser, short texpaint)
 {
-  if (imapaintpartial.x1 != imapaintpartial.x2 && imapaintpartial.y1 != imapaintpartial.y2) {
-    IMB_partial_display_buffer_update_delayed(
-        ibuf, imapaintpartial.x1, imapaintpartial.y1, imapaintpartial.x2, imapaintpartial.y2);
+  if (BLI_rcti_is_empty(&imapaintpartial.dirty_region)) {
+    return;
   }
 
   if (ibuf->mipmap[0]) {
     ibuf->userflags |= IB_MIPMAP_INVALID;
   }
 
+  IMB_partial_display_buffer_update_delayed(ibuf,
+                                            imapaintpartial.dirty_region.xmin,
+                                            imapaintpartial.dirty_region.ymin,
+                                            imapaintpartial.dirty_region.xmax,
+                                            imapaintpartial.dirty_region.ymax);
+
   /* TODO: should set_tpage create ->rect? */
   if (texpaint || (sima && sima->lock)) {
-    int w = imapaintpartial.x2 - imapaintpartial.x1;
-    int h = imapaintpartial.y2 - imapaintpartial.y1;
-    if (w && h) {
-      /* Testing with partial update in uv editor too */
-      BKE_image_update_gputexture(image, iuser, imapaintpartial.x1, imapaintpartial.y1, w, h);
-    }
+    const int w = BLI_rcti_size_x(&imapaintpartial.dirty_region);
+    const int h = BLI_rcti_size_y(&imapaintpartial.dirty_region);
+    /* Testing with partial update in uv editor too */
+    BKE_image_update_gputexture(
+        image, iuser, imapaintpartial.dirty_region.xmin, imapaintpartial.dirty_region.ymin, w, h);
   }
 }
 
-/* paint blur kernels. Projective painting enforces use of a 2x2 kernel due to lagging */
 BlurKernel *paint_new_blur_kernel(Brush *br, bool proj)
 {
   int i, j;
@@ -524,7 +502,10 @@ static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, const flo
   return pop;
 }
 
-static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, PointerRNA *itemptr)
+static void paint_stroke_update_step(bContext *C,
+                                     wmOperator *UNUSED(op),
+                                     struct PaintStroke *stroke,
+                                     PointerRNA *itemptr)
 {
   PaintOperation *pop = paint_stroke_mode_data(stroke);
   Scene *scene = CTX_data_scene(C);
@@ -707,7 +688,7 @@ static int paint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
                                     event->type);
 
   if ((retval = op->type->modal(C, op, event)) == OPERATOR_FINISHED) {
-    paint_stroke_free(C, op);
+    paint_stroke_free(C, op, op->customdata);
     return OPERATOR_FINISHED;
   }
   /* add modal handler */
@@ -742,7 +723,17 @@ static int paint_exec(bContext *C, wmOperator *op)
                                     paint_stroke_done,
                                     0);
   /* frees op->customdata */
-  return paint_stroke_exec(C, op);
+  return paint_stroke_exec(C, op, op->customdata);
+}
+
+static int paint_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  return paint_stroke_modal(C, op, event, op->customdata);
+}
+
+static void paint_cancel(bContext *C, wmOperator *op)
+{
+  paint_stroke_cancel(C, op, op->customdata);
 }
 
 void PAINT_OT_image_paint(wmOperatorType *ot)
@@ -754,10 +745,10 @@ void PAINT_OT_image_paint(wmOperatorType *ot)
 
   /* api callbacks */
   ot->invoke = paint_invoke;
-  ot->modal = paint_stroke_modal;
+  ot->modal = paint_modal;
   ot->exec = paint_exec;
   ot->poll = image_paint_poll;
-  ot->cancel = paint_stroke_cancel;
+  ot->cancel = paint_cancel;
 
   /* flags */
   ot->flag = OPTYPE_BLOCKING;
@@ -799,11 +790,6 @@ static void toggle_paint_cursor(Scene *scene, bool enable)
   }
 }
 
-/* enable the paint cursor if it isn't already.
- *
- * purpose is to make sure the paint cursor is shown if paint
- * mode is enabled in the image editor. the paint poll will
- * ensure that the cursor is hidden when not in paint mode */
 void ED_space_image_paint_update(Main *bmain, wmWindowManager *wm, Scene *scene)
 {
   ToolSettings *settings = scene->toolsettings;
@@ -863,8 +849,8 @@ static int grab_clone_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
   cmv = MEM_callocN(sizeof(GrabClone), "GrabClone");
   copy_v2_v2(cmv->startoffset, brush->clone.offset);
-  cmv->startx = event->x;
-  cmv->starty = event->y;
+  cmv->startx = event->xy[0];
+  cmv->starty = event->xy[1];
   op->customdata = cmv;
 
   WM_event_add_modal_handler(C, op);
@@ -890,7 +876,7 @@ static int grab_clone_modal(bContext *C, wmOperator *op, const wmEvent *event)
       /* mouse moved, so move the clone image */
       UI_view2d_region_to_view(
           &region->v2d, cmv->startx - xmin, cmv->starty - ymin, &startfx, &startfy);
-      UI_view2d_region_to_view(&region->v2d, event->x - xmin, event->y - ymin, &fx, &fy);
+      UI_view2d_region_to_view(&region->v2d, event->xy[0] - xmin, event->xy[1] - ymin, &fx, &fy);
 
       delta[0] = fx - startfx;
       delta[1] = fy - startfy;

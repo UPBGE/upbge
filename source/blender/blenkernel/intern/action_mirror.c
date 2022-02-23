@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -327,10 +313,10 @@ static void action_flip_pchan(Object *ob_arm,
      * the X-axis, it turns into a 180 degree rotation over the Y-axis.
      * This has only been observed with bones that can't be flipped,
      * hence the check for `pchan_flip`. */
-    const float unit_x[4] = {1.0f, 0.0f, 0.0f, 0.0f};
-    const bool is_problematic = pchan_flip == NULL &&
-                                fabsf(dot_v4v4(pchan->bone->arm_mat[0], unit_x)) <= 1e-6;
-    if (is_problematic) {
+    const float unit_x[3] = {1.0f, 0.0f, 0.0f};
+    const bool is_x_axis_orthogonal = (pchan_flip == NULL) &&
+                                      (fabsf(dot_v3v3(pchan->bone->arm_mat[0], unit_x)) <= 1e-6f);
+    if (is_x_axis_orthogonal) {
       /* Matrix needs to flip both the X and Z axes to come out right. */
       float extra_mat[4][4] = {
           {-1.0f, 0.0f, 0.0f, 0.0f},

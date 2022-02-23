@@ -1,0 +1,9 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
+
+#include "stdcycles.h"
+
+volume node_output_volume(closure color Volume = 0)
+{
+  Ci = Volume;
+}

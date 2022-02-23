@@ -1,16 +1,5 @@
-# Copyright 2011-2020 Blender Foundation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2011-2022 Blender Foundation
 
 # Standalone or with Blender
 if(NOT WITH_BLENDER AND WITH_CYCLES_STANDALONE)
@@ -226,6 +215,9 @@ add_definitions(
   -DCCL_NAMESPACE_END=}
 )
 
+if(WITH_CYCLES_DEBUG)
+  add_definitions(-DWITH_CYCLES_DEBUG)
+endif()
 if(WITH_CYCLES_STANDALONE_GUI)
   add_definitions(-DWITH_CYCLES_STANDALONE_GUI)
 endif()
@@ -247,7 +239,7 @@ if(WITH_CYCLES_OSL)
 endif()
 
 if(WITH_CYCLES_DEVICE_OPTIX)
-  find_package(OptiX)
+  find_package(OptiX 7.3.0)
 
   if(OPTIX_FOUND)
     add_definitions(-DWITH_OPTIX)
@@ -286,14 +278,14 @@ if(WITH_OPENSUBDIV)
   )
 endif()
 
-if(WITH_CYCLES_STANDALONE)
-  set(WITH_CYCLES_DEVICE_OPENCL TRUE)
-  set(WITH_CYCLES_DEVICE_CUDA TRUE)
-  # Experimental and unfinished.
-  set(WITH_CYCLES_NETWORK FALSE)
+if(WITH_OPENIMAGEDENOISE)
+  add_definitions(-DWITH_OPENIMAGEDENOISE)
+  add_definitions(-DOIDN_STATIC_LIB)
+  include_directories(
+    SYSTEM
+    ${OPENIMAGEDENOISE_INCLUDE_DIRS}
+  )
 endif()
-# TODO(sergey): Consider removing it, only causes confusion in interface.
-set(WITH_CYCLES_DEVICE_MULTI TRUE)
 
 # Logging capabilities using GLog library.
 if(WITH_CYCLES_LOGGING)
@@ -334,7 +326,7 @@ else()
 endif()
 
 # Warnings
-if(CMAKE_COMPILER_IS_GNUCXX)
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_C_COMPILER_ID MATCHES "Clang")
   ADD_CHECK_CXX_COMPILER_FLAG(CMAKE_CXX_FLAGS _has_cxxflag_float_conversion "-Werror=float-conversion")
   ADD_CHECK_CXX_COMPILER_FLAG(CMAKE_CXX_FLAGS _has_cxxflag_double_promotion "-Werror=double-promotion")
   ADD_CHECK_CXX_COMPILER_FLAG(CMAKE_CXX_FLAGS _has_no_error_unused_macros "-Wno-error=unused-macros")
@@ -386,20 +378,15 @@ if(WITH_CYCLES_BLENDER)
   add_subdirectory(blender)
 endif()
 
-if(WITH_CYCLES_NETWORK)
-  add_definitions(-DWITH_NETWORK)
-endif()
-
-if(WITH_CYCLES_STANDALONE OR WITH_CYCLES_NETWORK OR WITH_CYCLES_CUBIN_COMPILER)
-  add_subdirectory(app)
-endif()
-
+add_subdirectory(app)
 add_subdirectory(bvh)
 add_subdirectory(device)
 add_subdirectory(doc)
 add_subdirectory(graph)
+add_subdirectory(integrator)
 add_subdirectory(kernel)
-add_subdirectory(render)
+add_subdirectory(scene)
+add_subdirectory(session)
 add_subdirectory(subd)
 add_subdirectory(util)
 

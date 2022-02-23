@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2008 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2008 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup edobj
@@ -45,6 +29,7 @@ enum eObject_Hook_Add_Mode {
 /* internal exports only */
 
 /* object_transform.c */
+
 void OBJECT_OT_location_clear(struct wmOperatorType *ot);
 void OBJECT_OT_rotation_clear(struct wmOperatorType *ot);
 void OBJECT_OT_scale_clear(struct wmOperatorType *ot);
@@ -55,6 +40,7 @@ void OBJECT_OT_transform_axis_target(struct wmOperatorType *ot);
 void OBJECT_OT_origin_set(struct wmOperatorType *ot);
 
 /* object_relations.c */
+
 void OBJECT_OT_parent_set(struct wmOperatorType *ot);
 void OBJECT_OT_parent_no_inverse_set(struct wmOperatorType *ot);
 void OBJECT_OT_parent_clear(struct wmOperatorType *ot);
@@ -63,14 +49,21 @@ void OBJECT_OT_track_set(struct wmOperatorType *ot);
 void OBJECT_OT_track_clear(struct wmOperatorType *ot);
 void OBJECT_OT_make_local(struct wmOperatorType *ot);
 void OBJECT_OT_make_override_library(struct wmOperatorType *ot);
-void OBJECT_OT_convert_proxy_to_override(struct wmOperatorType *ot);
 void OBJECT_OT_make_single_user(struct wmOperatorType *ot);
 void OBJECT_OT_make_links_scene(struct wmOperatorType *ot);
 void OBJECT_OT_make_links_data(struct wmOperatorType *ot);
+/**
+ * Used for drop-box.
+ * Assigns to object under cursor, only first material slot.
+ */
 void OBJECT_OT_drop_named_material(struct wmOperatorType *ot);
+/**
+ * \note Only for empty-image objects, this operator is needed
+ */
 void OBJECT_OT_unlink_data(struct wmOperatorType *ot);
 
 /* object_edit.c */
+
 void OBJECT_OT_hide_view_set(struct wmOperatorType *ot);
 void OBJECT_OT_hide_view_clear(struct wmOperatorType *ot);
 void OBJECT_OT_hide_collection(struct wmOperatorType *ot);
@@ -78,13 +71,13 @@ void OBJECT_OT_mode_set(struct wmOperatorType *ot);
 void OBJECT_OT_mode_set_with_submode(struct wmOperatorType *ot);
 void OBJECT_OT_editmode_toggle(struct wmOperatorType *ot);
 void OBJECT_OT_posemode_toggle(struct wmOperatorType *ot);
-void OBJECT_OT_proxy_make(struct wmOperatorType *ot);
 void OBJECT_OT_shade_smooth(struct wmOperatorType *ot);
 void OBJECT_OT_shade_flat(struct wmOperatorType *ot);
 void OBJECT_OT_paths_calculate(struct wmOperatorType *ot);
 void OBJECT_OT_paths_update(struct wmOperatorType *ot);
 void OBJECT_OT_paths_clear(struct wmOperatorType *ot);
 void OBJECT_OT_paths_range_update(struct wmOperatorType *ot);
+void OBJECT_OT_paths_update_visible(struct wmOperatorType *ot);
 void OBJECT_OT_forcefield_toggle(struct wmOperatorType *ot);
 
 void OBJECT_OT_game_property_new(struct wmOperatorType *ot);
@@ -101,6 +94,7 @@ void OBJECT_OT_link_to_collection(struct wmOperatorType *ot);
 void OBJECT_OT_transfer_mode(struct wmOperatorType *ot);
 
 /* object_select.c */
+
 void OBJECT_OT_select_all(struct wmOperatorType *ot);
 void OBJECT_OT_select_random(struct wmOperatorType *ot);
 void OBJECT_OT_select_by_type(struct wmOperatorType *ot);
@@ -112,8 +106,10 @@ void OBJECT_OT_select_less(struct wmOperatorType *ot);
 void OBJECT_OT_select_same_collection(struct wmOperatorType *ot);
 
 /* object_add.c */
+
 void OBJECT_OT_add(struct wmOperatorType *ot);
 void OBJECT_OT_add_named(struct wmOperatorType *ot);
+void OBJECT_OT_transform_to_mouse(struct wmOperatorType *ot);
 void OBJECT_OT_metaball_add(struct wmOperatorType *ot);
 void OBJECT_OT_text_add(struct wmOperatorType *ot);
 void OBJECT_OT_armature_add(struct wmOperatorType *ot);
@@ -125,8 +121,11 @@ void OBJECT_OT_light_add(struct wmOperatorType *ot);
 void OBJECT_OT_effector_add(struct wmOperatorType *ot);
 void OBJECT_OT_camera_add(struct wmOperatorType *ot);
 void OBJECT_OT_speaker_add(struct wmOperatorType *ot);
-void OBJECT_OT_hair_add(struct wmOperatorType *ot);
+void OBJECT_OT_hair_curves_add(struct wmOperatorType *ot);
 void OBJECT_OT_pointcloud_add(struct wmOperatorType *ot);
+/**
+ * Only used as menu.
+ */
 void OBJECT_OT_collection_instance_add(struct wmOperatorType *ot);
 void OBJECT_OT_data_instance_add(struct wmOperatorType *ot);
 
@@ -138,10 +137,15 @@ void OBJECT_OT_join_shapes(struct wmOperatorType *ot);
 void OBJECT_OT_convert(struct wmOperatorType *ot);
 
 /* object_volume.c */
+
 void OBJECT_OT_volume_add(struct wmOperatorType *ot);
+/**
+ * Called by other space types too.
+ */
 void OBJECT_OT_volume_import(struct wmOperatorType *ot);
 
 /* object_hook.c */
+
 void OBJECT_OT_hook_add_selob(struct wmOperatorType *ot);
 void OBJECT_OT_hook_add_newob(struct wmOperatorType *ot);
 void OBJECT_OT_hook_remove(struct wmOperatorType *ot);
@@ -151,6 +155,7 @@ void OBJECT_OT_hook_reset(struct wmOperatorType *ot);
 void OBJECT_OT_hook_recenter(struct wmOperatorType *ot);
 
 /* object_collection.c */
+
 void COLLECTION_OT_create(struct wmOperatorType *ot);
 void COLLECTION_OT_objects_remove_all(struct wmOperatorType *ot);
 void COLLECTION_OT_objects_remove(struct wmOperatorType *ot);
@@ -158,11 +163,12 @@ void COLLECTION_OT_objects_add_active(struct wmOperatorType *ot);
 void COLLECTION_OT_objects_remove_active(struct wmOperatorType *ot);
 
 /* object_modifier.c */
+
 bool edit_modifier_poll_generic(struct bContext *C,
                                 struct StructRNA *rna_type,
                                 int obtype_flag,
-                                const bool is_editmode_allowed,
-                                const bool is_liboverride_allowed);
+                                bool is_editmode_allowed,
+                                bool is_liboverride_allowed);
 void edit_modifier_properties(struct wmOperatorType *ot);
 bool edit_modifier_invoke_properties(struct bContext *C, struct wmOperator *op);
 
@@ -199,6 +205,7 @@ void OBJECT_OT_skin_radii_equalize(struct wmOperatorType *ot);
 void OBJECT_OT_skin_armature_create(struct wmOperatorType *ot);
 void OBJECT_OT_laplaciandeform_bind(struct wmOperatorType *ot);
 void OBJECT_OT_surfacedeform_bind(struct wmOperatorType *ot);
+void OBJECT_OT_geometry_nodes_input_attribute_toggle(struct wmOperatorType *ot);
 
 /* object_gpencil_modifiers.c */
 void OBJECT_OT_gpencil_modifier_add(struct wmOperatorType *ot);
@@ -255,6 +262,7 @@ void CONSTRAINT_OT_objectsolver_clear_inverse(struct wmOperatorType *ot);
 void CONSTRAINT_OT_followpath_path_animate(struct wmOperatorType *ot);
 
 /* object_vgroup.c */
+
 void OBJECT_OT_vertex_group_add(struct wmOperatorType *ot);
 void OBJECT_OT_vertex_group_remove(struct wmOperatorType *ot);
 void OBJECT_OT_vertex_group_assign(struct wmOperatorType *ot);
@@ -285,6 +293,7 @@ void OBJECT_OT_vertex_weight_normalize_active_vertex(struct wmOperatorType *ot);
 void OBJECT_OT_vertex_weight_copy(struct wmOperatorType *ot);
 
 /* object_facemap_ops.c */
+
 void OBJECT_OT_face_map_add(struct wmOperatorType *ot);
 void OBJECT_OT_face_map_remove(struct wmOperatorType *ot);
 void OBJECT_OT_face_map_assign(struct wmOperatorType *ot);
@@ -294,9 +303,11 @@ void OBJECT_OT_face_map_deselect(struct wmOperatorType *ot);
 void OBJECT_OT_face_map_move(struct wmOperatorType *ot);
 
 /* object_warp.c */
+
 void TRANSFORM_OT_vertex_warp(struct wmOperatorType *ot);
 
 /* object_shapekey.c */
+
 void OBJECT_OT_shape_key_add(struct wmOperatorType *ot);
 void OBJECT_OT_shape_key_remove(struct wmOperatorType *ot);
 void OBJECT_OT_shape_key_clear(struct wmOperatorType *ot);
@@ -305,6 +316,7 @@ void OBJECT_OT_shape_key_mirror(struct wmOperatorType *ot);
 void OBJECT_OT_shape_key_move(struct wmOperatorType *ot);
 
 /* object_collection.c */
+
 void OBJECT_OT_collection_add(struct wmOperatorType *ot);
 void OBJECT_OT_collection_link(struct wmOperatorType *ot);
 void OBJECT_OT_collection_remove(struct wmOperatorType *ot);
@@ -312,6 +324,7 @@ void OBJECT_OT_collection_unlink(struct wmOperatorType *ot);
 void OBJECT_OT_collection_objects_select(struct wmOperatorType *ot);
 
 /* object_bake.c */
+
 void OBJECT_OT_bake_image(wmOperatorType *ot);
 void OBJECT_OT_bake(wmOperatorType *ot);
 
@@ -320,14 +333,20 @@ void OBJECT_OT_lod_add(struct wmOperatorType *ot);
 void OBJECT_OT_lod_remove(struct wmOperatorType *ot);
 
 /* object_random.c */
+
 void TRANSFORM_OT_vertex_random(struct wmOperatorType *ot);
 
 /* object_remesh.cc */
+
 void OBJECT_OT_voxel_remesh(struct wmOperatorType *ot);
 void OBJECT_OT_voxel_size_edit(struct wmOperatorType *ot);
 void OBJECT_OT_quadriflow_remesh(struct wmOperatorType *ot);
 
 /* object_transfer_data.c */
+
+/**
+ * Transfer mesh data from active to selected objects.
+ */
 void OBJECT_OT_data_transfer(struct wmOperatorType *ot);
 void OBJECT_OT_datalayout_transfer(struct wmOperatorType *ot);
 

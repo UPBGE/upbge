@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edarmature
@@ -108,7 +92,6 @@ void ED_pose_bone_select_tag_update(Object *ob)
   DEG_id_tag_update(&arm->id, ID_RECALC_SELECT);
 }
 
-/* Utility method for changing the selection status of a bone */
 void ED_pose_bone_select(Object *ob, bPoseChannel *pchan, bool select)
 {
   bArmature *arm;
@@ -238,15 +221,11 @@ void ED_armature_pose_select_pick_bone(ViewLayer *view_layer,
   }
 }
 
-/**
- * Called for mode-less pose selection.
- * assumes the active object is still on old situation.
- */
 bool ED_armature_pose_select_pick_with_buffer(ViewLayer *view_layer,
                                               View3D *v3d,
                                               Base *base,
-                                              const uint *buffer,
-                                              short hits,
+                                              const struct GPUSelectResult *buffer,
+                                              const short hits,
                                               bool extend,
                                               bool deselect,
                                               bool toggle,
@@ -269,14 +248,6 @@ bool ED_armature_pose_select_pick_with_buffer(ViewLayer *view_layer,
   return nearBone != NULL;
 }
 
-/**
- * While in weight-paint mode, a single pose may be active as well.
- * While not common, it's possible we have multiple armatures deforming a mesh.
- *
- * This function de-selects all other objects, and selects the new base.
- * It can't be set to the active object because we need
- * to keep this set to the weight paint object.
- */
 void ED_armature_pose_select_in_wpaint_mode(ViewLayer *view_layer, Base *base_select)
 {
   BLI_assert(base_select && (base_select->object->type == OB_ARMATURE));
@@ -323,9 +294,6 @@ void ED_armature_pose_select_in_wpaint_mode(ViewLayer *view_layer, Base *base_se
   }
 }
 
-/* 'select_mode' is usual SEL_SELECT/SEL_DESELECT/SEL_TOGGLE/SEL_INVERT.
- * When true, 'ignore_visibility' makes this func also affect invisible bones
- * (hidden or on hidden layers). */
 bool ED_pose_deselect_all(Object *ob, int select_mode, const bool ignore_visibility)
 {
   bArmature *arm = ob->data;
@@ -762,7 +730,7 @@ static int pose_select_hierarchy_exec(bContext *C, wmOperator *op)
   const bool add_to_sel = RNA_boolean_get(op->ptr, "extend");
   bool changed = false;
 
-  pchan_act = BKE_pose_channel_active(ob);
+  pchan_act = BKE_pose_channel_active_if_layer_visible(ob);
   if (pchan_act == NULL) {
     return OPERATOR_CANCELLED;
   }

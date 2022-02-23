@@ -27,7 +27,6 @@
 #include "RAS_2DFilterFrameBuffer.h"
 
 #include "GPU_framebuffer.h"
-#include "GPU_texture.h"
 
 #include "RAS_FrameBuffer.h"
 #include "RAS_ICanvas.h"

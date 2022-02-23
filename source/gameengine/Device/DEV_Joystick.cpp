@@ -41,10 +41,6 @@
 #include "CM_Message.h"
 #include "DEV_JoystickPrivate.h"
 
-#ifdef WITH_SDL
-#  define SDL_CHECK(x) ((x) != (void *)0)
-#endif
-
 DEV_Joystick::DEV_Joystick(short index)
     : m_joyindex(index),
       m_prec(3200),
@@ -71,10 +67,6 @@ DEV_Joystick *DEV_Joystick::m_instance[JOYINDEX_MAX];
 void DEV_Joystick::Init()
 {
 #ifdef WITH_SDL
-
-  if (!(SDL_CHECK(SDL_InitSubSystem)) || !(SDL_CHECK(SDL_GameControllerAddMapping))) {
-    return;
-  }
 
   /* Initializing Game Controller related subsystems */
   bool success = (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC) != -1);
@@ -109,9 +101,7 @@ void DEV_Joystick::Close()
   }
 
   /* Closing SDL Game controller system */
-  if (SDL_CHECK(SDL_QuitSubSystem)) {
-    SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC);
-  }
+  SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC);
 #endif
 }
 
@@ -176,10 +166,6 @@ bool DEV_Joystick::aAxisIsPositive(int axis_single)
 bool DEV_Joystick::aAnyButtonPressIsPositive(void)
 {
 #ifdef WITH_SDL
-  if (!(SDL_CHECK(SDL_GameControllerGetButton))) {
-    return false;
-  }
-
   /* this is needed for the "all events" option
    * so we know if there are no buttons pressed */
   for (int i = 0; i < m_buttonmax; i++) {
@@ -194,9 +180,7 @@ bool DEV_Joystick::aAnyButtonPressIsPositive(void)
 bool DEV_Joystick::aButtonPressIsPositive(int button)
 {
 #ifdef WITH_SDL
-  if ((SDL_CHECK(SDL_GameControllerGetButton) &&
-       SDL_GameControllerGetButton(m_private->m_gamecontroller,
-                                   (SDL_GameControllerButton)button))) {
+  if (SDL_GameControllerGetButton(m_private->m_gamecontroller, (SDL_GameControllerButton)button)) {
     return true;
   }
 #endif
@@ -206,8 +190,7 @@ bool DEV_Joystick::aButtonPressIsPositive(int button)
 bool DEV_Joystick::aButtonReleaseIsPositive(int button)
 {
 #ifdef WITH_SDL
-  if (!(SDL_CHECK(SDL_GameControllerGetButton) &&
-        SDL_GameControllerGetButton(m_private->m_gamecontroller,
+  if (!(SDL_GameControllerGetButton(m_private->m_gamecontroller,
                                     (SDL_GameControllerButton)button))) {
     return true;
   }
@@ -224,13 +207,6 @@ bool DEV_Joystick::CreateJoystickDevice(void)
   joy_error = true;
 #else  /* WITH_SDL */
   if (!m_isinit) {
-
-    if (!(SDL_CHECK(SDL_IsGameController) && SDL_CHECK(SDL_GameControllerOpen) &&
-          SDL_CHECK(SDL_GameControllerEventState) && SDL_CHECK(SDL_GameControllerGetJoystick) &&
-          SDL_CHECK(SDL_JoystickInstanceID))) {
-      joy_error = true;
-    }
-
     if (!joy_error && !SDL_IsGameController(m_joyindex)) {
       /* mapping instruccions if joystick is not a game controller */
       CM_Error(
@@ -291,7 +267,7 @@ bool DEV_Joystick::CreateJoystickDevice(void)
     }
 
     /* Haptic configuration */
-    if (!joy_error && SDL_CHECK(SDL_HapticOpen)) {
+    if (!joy_error) {
       m_private->m_haptic = SDL_HapticOpen(m_joyindex);
       if (!m_private->m_haptic) {
         CM_Warning("Game Controller (" << GetName() << ") with index " << m_joyindex
@@ -316,12 +292,12 @@ void DEV_Joystick::DestroyJoystickDevice(void)
 #ifdef WITH_SDL
   if (m_isinit) {
 
-    if (m_private->m_haptic && SDL_CHECK(SDL_HapticClose)) {
+    if (m_private->m_haptic) {
       SDL_HapticClose(m_private->m_haptic);
       m_private->m_haptic = nullptr;
     }
 
-    if (m_private->m_gamecontroller && SDL_CHECK(SDL_GameControllerClose)) {
+    if (m_private->m_gamecontroller) {
       CM_Debug("Game Controller (" << GetName() << ") with index " << m_joyindex << " closed");
       SDL_GameControllerClose(m_private->m_gamecontroller);
       m_private->m_gamecontroller = nullptr;
@@ -335,8 +311,7 @@ void DEV_Joystick::DestroyJoystickDevice(void)
 int DEV_Joystick::Connected(void)
 {
 #ifdef WITH_SDL
-  if (m_isinit && (SDL_CHECK(SDL_GameControllerGetAttached) &&
-                   SDL_GameControllerGetAttached(m_private->m_gamecontroller))) {
+  if (m_isinit && SDL_GameControllerGetAttached(m_private->m_gamecontroller)) {
     return 1;
   }
 #endif
@@ -379,9 +354,7 @@ int DEV_Joystick::pAxisTest(int axisnum)
 const std::string DEV_Joystick::GetName()
 {
 #ifdef WITH_SDL
-  return (SDL_CHECK(SDL_GameControllerName)) ?
-             SDL_GameControllerName(m_private->m_gamecontroller) :
-             "";
+  return SDL_GameControllerName(m_private->m_gamecontroller);
 #else  /* WITH_SDL */
   return "";
 #endif /* WITH_SDL */

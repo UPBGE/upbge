@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2009 by Blender Foundation
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2009 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup spseq
@@ -78,9 +62,10 @@ static void metadata_panel_context_draw(const bContext *C, Panel *panel)
   SpaceSeq *space_sequencer = CTX_wm_space_seq(C);
   /* NOTE: We can only reliably show metadata for the original (current)
    * frame when split view is used. */
-  const bool show_split = (scene->ed && (scene->ed->over_flag & SEQ_EDIT_OVERLAY_SHOW) &&
+  const bool show_split = (scene->ed &&
+                           (scene->ed->overlay_frame_flag & SEQ_EDIT_OVERLAY_FRAME_SHOW) &&
                            (space_sequencer->mainb == SEQ_DRAW_IMG_IMBUF));
-  if (show_split && space_sequencer->overlay_type == SEQ_DRAW_OVERLAY_REFERENCE) {
+  if (show_split && (space_sequencer->overlay_frame_type == SEQ_OVERLAY_FRAME_TYPE_REFERENCE)) {
     return;
   }
   /* NOTE: We disable multiview for drawing, since we don't know what is the

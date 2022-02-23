@@ -27,7 +27,6 @@
 #include "RAS_FrameBuffer.h"
 
 #include "GPU_framebuffer.h"
-#include "GPU_texture.h"
 
 RAS_FrameBuffer::RAS_FrameBuffer(unsigned int width,
                                  unsigned int height,

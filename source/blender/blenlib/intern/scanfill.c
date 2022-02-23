@@ -1,22 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- * (uit traces) maart 95
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup bli
@@ -357,8 +340,10 @@ static ScanFillVertLink *addedgetoscanlist(ScanFillVertLink *scdata,
   return NULL;
 }
 
+/**
+ * Return true if `eve` inside the bound-box of `eed`.
+ */
 static bool boundinsideEV(ScanFillEdge *eed, ScanFillVert *eve)
-/* is eve inside boundbox eed */
 {
   float minx, maxx, miny, maxy;
 
@@ -448,7 +433,7 @@ static void splitlist(ScanFillContext *sf_ctx,
                       ListBase *temped,
                       unsigned short nr)
 {
-  /* everything is in templist, write only poly nr to fillist */
+  /* Everything is in temp-list, write only poly nr to fill-list. */
   ScanFillVert *eve, *eve_next;
   ScanFillEdge *eed, *eed_next;
 
@@ -1040,13 +1025,13 @@ unsigned int BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag, const
   }
 
   /* CURRENT STATUS:
-   * - eve->f        :1 = available in edges
-   * - eve->poly_nr  :polynumber
-   * - eve->edge_tot :amount of edges connected to vertex
-   * - eve->tmp.v    :store! original vertex number
+   * - `eve->f`:        1 = available in edges.
+   * - `eve->poly_nr`:  poly-number.
+   * - `eve->edge_tot`: amount of edges connected to vertex.
+   * - `eve->tmp.v`:    store! original vertex number.
    *
-   * - eed->f        :1 = boundary edge (optionally set by caller)
-   * - eed->poly_nr  :poly number
+   * - `eed->f`:        1 = boundary edge (optionally set by caller).
+   * - `eed->poly_nr`:  poly number.
    */
 
   /* STEP 3: MAKE POLYFILL STRUCT */

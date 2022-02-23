@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2018, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2018 Blender Foundation. */
 
 #include "COM_CryptomatteOperation.h"
 
@@ -24,27 +9,27 @@ CryptomatteOperation::CryptomatteOperation(size_t num_inputs)
 {
   inputs.resize(num_inputs);
   for (size_t i = 0; i < num_inputs; i++) {
-    this->addInputSocket(DataType::Color);
+    this->add_input_socket(DataType::Color);
   }
-  this->addOutputSocket(DataType::Color);
-  this->flags.complex = true;
+  this->add_output_socket(DataType::Color);
+  flags_.complex = true;
 }
 
-void CryptomatteOperation::initExecution()
+void CryptomatteOperation::init_execution()
 {
   for (size_t i = 0; i < inputs.size(); i++) {
-    inputs[i] = this->getInputSocketReader(i);
+    inputs[i] = this->get_input_socket_reader(i);
   }
 }
 
-void CryptomatteOperation::addObjectIndex(float objectIndex)
+void CryptomatteOperation::add_object_index(float object_index)
 {
-  if (objectIndex != 0.0f) {
-    m_objectIndex.append(objectIndex);
+  if (object_index != 0.0f) {
+    object_index_.append(object_index);
   }
 }
 
-void CryptomatteOperation::executePixel(float output[4], int x, int y, void *data)
+void CryptomatteOperation::execute_pixel(float output[4], int x, int y, void *data)
 {
   float input[4];
   output[0] = output[1] = output[2] = output[3] = 0.0f;
@@ -60,7 +45,7 @@ void CryptomatteOperation::executePixel(float output[4], int x, int y, void *dat
       output[1] = ((float)(m3hash << 8) / (float)UINT32_MAX);
       output[2] = ((float)(m3hash << 16) / (float)UINT32_MAX);
     }
-    for (float hash : m_objectIndex) {
+    for (float hash : object_index_) {
       if (input[0] == hash) {
         output[3] += input[1];
       }
@@ -89,7 +74,7 @@ void CryptomatteOperation::update_memory_buffer_partial(MemoryBuffer *output,
         it.out[1] = ((float)(m3hash << 8) / (float)UINT32_MAX);
         it.out[2] = ((float)(m3hash << 16) / (float)UINT32_MAX);
       }
-      for (const float hash : m_objectIndex) {
+      for (const float hash : object_index_) {
         if (input[0] == hash) {
           it.out[3] += input[1];
         }

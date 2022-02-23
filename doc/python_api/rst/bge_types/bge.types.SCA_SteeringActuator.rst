@@ -11,9 +11,9 @@ base class --- :class:`~bge.types.SCA_IActuator`
 
    .. attribute:: behavior
 
-      The steering behavior to use.
+      The steering behavior to use. One of :ref:`these constants <logic-steering-actuator>`.
 
-      :type: one of :ref:`these constants <logic-steering-actuator>`
+      :type: integer
 
    .. attribute:: velocity
 

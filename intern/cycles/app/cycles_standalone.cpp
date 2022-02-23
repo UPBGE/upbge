@@ -1,46 +1,35 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include <stdio.h>
 
 #include "device/device.h"
-#include "render/buffers.h"
-#include "render/camera.h"
-#include "render/integrator.h"
-#include "render/scene.h"
-#include "render/session.h"
+#include "scene/camera.h"
+#include "scene/integrator.h"
+#include "scene/scene.h"
+#include "session/buffers.h"
+#include "session/session.h"
 
-#include "util/util_args.h"
-#include "util/util_foreach.h"
-#include "util/util_function.h"
-#include "util/util_image.h"
-#include "util/util_logging.h"
-#include "util/util_path.h"
-#include "util/util_progress.h"
-#include "util/util_string.h"
-#include "util/util_time.h"
-#include "util/util_transform.h"
-#include "util/util_unique_ptr.h"
-#include "util/util_version.h"
-
-#ifdef WITH_CYCLES_STANDALONE_GUI
-#  include "util/util_view.h"
-#endif
+#include "util/args.h"
+#include "util/foreach.h"
+#include "util/function.h"
+#include "util/image.h"
+#include "util/log.h"
+#include "util/path.h"
+#include "util/progress.h"
+#include "util/string.h"
+#include "util/time.h"
+#include "util/transform.h"
+#include "util/unique_ptr.h"
+#include "util/version.h"
 
 #include "app/cycles_xml.h"
+#include "app/oiio_output_driver.h"
+
+#ifdef WITH_CYCLES_STANDALONE_GUI
+#  include "opengl/display_driver.h"
+#  include "opengl/window.h"
+#endif
 
 CCL_NAMESPACE_BEGIN
 
@@ -53,7 +42,8 @@ struct Options {
   SessionParams session_params;
   bool quiet;
   bool show_help, interactive, pause;
-  string output_path;
+  string output_filepath;
+  string output_pass;
 } options;
 
 static void session_print(const string &str)
@@ -78,7 +68,7 @@ static void session_print_status()
   string status, substatus;
 
   /* get status */
-  float progress = options.session->progress.get_progress();
+  double progress = options.session->progress.get_progress();
   options.session->progress.get_status(status, substatus);
 
   if (substatus != "")
@@ -87,30 +77,6 @@ static void session_print_status()
   /* print status */
   status = string_printf("Progress %05.2f   %s", (double)progress * 100, status.c_str());
   session_print(status);
-}
-
-static bool write_render(const uchar *pixels, int w, int h, int channels)
-{
-  string msg = string_printf("Writing image %s", options.output_path.c_str());
-  session_print(msg);
-
-  unique_ptr<ImageOutput> out = unique_ptr<ImageOutput>(ImageOutput::create(options.output_path));
-  if (!out) {
-    return false;
-  }
-
-  ImageSpec spec(w, h, channels, TypeDesc::UINT8);
-  if (!out->open(options.output_path, spec)) {
-    return false;
-  }
-
-  /* conversion for different top/bottom convention */
-  out->write_image(
-      TypeDesc::UINT8, pixels + (h - 1) * w * channels, AutoStride, -w * channels, AutoStride);
-
-  out->close();
-
-  return true;
 }
 
 static BufferParams &session_buffer_params()
@@ -126,7 +92,7 @@ static BufferParams &session_buffer_params()
 
 static void scene_init()
 {
-  options.scene = new Scene(options.scene_params, options.session->device);
+  options.scene = options.session->scene;
 
   /* Read XML */
   xml_read_file(options.scene, options.filepath.c_str());
@@ -147,21 +113,37 @@ static void scene_init()
 
 static void session_init()
 {
-  options.session_params.write_render_cb = write_render;
-  options.session = new Session(options.session_params);
+  options.output_pass = "combined";
+  options.session = new Session(options.session_params, options.scene_params);
+
+#ifdef WITH_CYCLES_STANDALONE_GUI
+  if (!options.session_params.background) {
+    options.session->set_display_driver(make_unique<OpenGLDisplayDriver>(
+        window_opengl_context_enable, window_opengl_context_disable));
+  }
+  else
+#endif
+      if (!options.output_filepath.empty()) {
+    options.session->set_output_driver(make_unique<OIIOOutputDriver>(
+        options.output_filepath, options.output_pass, session_print));
+  }
 
   if (options.session_params.background && !options.quiet)
     options.session->progress.set_update_callback(function_bind(&session_print_status));
 #ifdef WITH_CYCLES_STANDALONE_GUI
   else
-    options.session->progress.set_update_callback(function_bind(&view_redraw));
+    options.session->progress.set_update_callback(function_bind(&window_redraw));
 #endif
 
   /* load scene */
   scene_init();
-  options.session->scene = options.scene;
 
-  options.session->reset(session_buffer_params(), options.session_params.samples);
+  /* add pass for output. */
+  Pass *pass = options.scene->create_node<Pass>();
+  pass->set_name(ustring(options.output_pass.c_str()));
+  pass->set_type(PASS_COMBINED);
+
+  options.session->reset(options.session_params, session_buffer_params());
   options.session->start();
 }
 
@@ -194,7 +176,7 @@ static void display_info(Progress &progress)
 
   progress.get_time(total_time, sample_time);
   progress.get_status(status, substatus);
-  float progress_val = progress.get_progress();
+  double progress_val = progress.get_progress();
 
   if (substatus != "")
     status += ": " + substatus;
@@ -215,17 +197,15 @@ static void display_info(Progress &progress)
       sample_time,
       interactive.c_str());
 
-  view_display_info(str.c_str());
+  window_display_info(str.c_str());
 
   if (options.show_help)
-    view_display_help();
+    window_display_help();
 }
 
 static void display()
 {
-  static DeviceDrawParams draw_params = DeviceDrawParams();
-
-  options.session->draw(session_buffer_params(), draw_params);
+  options.session->draw();
 
   display_info(options.session->progress);
 }
@@ -255,7 +235,7 @@ static void motion(int x, int y, int button)
     options.session->scene->camera->need_flags_update = true;
     options.session->scene->camera->need_device_update = true;
 
-    options.session->reset(session_buffer_params(), options.session_params.samples);
+    options.session->reset(options.session_params, session_buffer_params());
   }
 }
 
@@ -272,7 +252,7 @@ static void resize(int width, int height)
     options.session->scene->camera->need_flags_update = true;
     options.session->scene->camera->need_device_update = true;
 
-    options.session->reset(session_buffer_params(), options.session_params.samples);
+    options.session->reset(options.session_params, session_buffer_params());
   }
 }
 
@@ -284,7 +264,7 @@ static void keyboard(unsigned char key)
 
   /* Reset */
   else if (key == 'r')
-    options.session->reset(session_buffer_params(), options.session_params.samples);
+    options.session->reset(options.session_params, session_buffer_params());
 
   /* Cancel */
   else if (key == 27)  // escape
@@ -321,7 +301,7 @@ static void keyboard(unsigned char key)
     options.session->scene->camera->need_flags_update = true;
     options.session->scene->camera->need_device_update = true;
 
-    options.session->reset(session_buffer_params(), options.session_params.samples);
+    options.session->reset(options.session_params, session_buffer_params());
   }
 
   /* Set Max Bounces */
@@ -347,7 +327,7 @@ static void keyboard(unsigned char key)
 
     options.session->scene->integrator->set_max_bounce(bounce);
 
-    options.session->reset(session_buffer_params(), options.session_params.samples);
+    options.session->reset(options.session_params, session_buffer_params());
   }
 }
 #endif
@@ -362,11 +342,13 @@ static int files_parse(int argc, const char *argv[])
 
 static void options_parse(int argc, const char **argv)
 {
-  options.width = 0;
-  options.height = 0;
+  options.width = 1024;
+  options.height = 512;
   options.filepath = "";
   options.session = NULL;
   options.quiet = false;
+  options.session_params.use_auto_tile = false;
+  options.session_params.tile_size = 0;
 
   /* device names */
   string device_names = "";
@@ -412,7 +394,7 @@ static void options_parse(int argc, const char **argv)
              &options.session_params.samples,
              "Number of samples to render",
              "--output %s",
-             &options.output_path,
+             &options.output_filepath,
              "File path to write output image",
              "--threads %d",
              &options.session_params.threads,
@@ -423,12 +405,9 @@ static void options_parse(int argc, const char **argv)
              "--height %d",
              &options.height,
              "Window height in pixel",
-             "--tile-width %d",
-             &options.session_params.tile_size.x,
-             "Tile width in pixels",
-             "--tile-height %d",
-             &options.session_params.tile_size.y,
-             "Tile height in pixels",
+             "--tile-size %d",
+             &options.session_params.tile_size,
+             "Tile size in pixels",
              "--list-devices",
              &list,
              "List information about all available devices",
@@ -490,8 +469,9 @@ static void options_parse(int argc, const char **argv)
   options.session_params.background = true;
 #endif
 
-  /* Use progressive rendering */
-  options.session_params.progressive = true;
+  if (options.session_params.tile_size > 0) {
+    options.session_params.use_auto_tile = true;
+  }
 
   /* find matching device */
   DeviceType device_type = Device::type_from_string(devicename.c_str());
@@ -527,9 +507,6 @@ static void options_parse(int argc, const char **argv)
     fprintf(stderr, "No file path specified\n");
     exit(EXIT_FAILURE);
   }
-
-  /* For smoother Viewport */
-  options.session_params.start_resolution = 64;
 }
 
 CCL_NAMESPACE_END
@@ -554,15 +531,15 @@ int main(int argc, const char **argv)
     string title = "Cycles: " + path_filename(options.filepath);
 
     /* init/exit are callback so they run while GL is initialized */
-    view_main_loop(title.c_str(),
-                   options.width,
-                   options.height,
-                   session_init,
-                   session_exit,
-                   resize,
-                   display,
-                   keyboard,
-                   motion);
+    window_main_loop(title.c_str(),
+                     options.width,
+                     options.height,
+                     session_init,
+                     session_exit,
+                     resize,
+                     display,
+                     keyboard,
+                     motion);
   }
 #endif
 

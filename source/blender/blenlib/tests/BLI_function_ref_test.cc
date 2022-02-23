@@ -1,4 +1,4 @@
-/* Apache License, Version 2.0 */
+/* SPDX-License-Identifier: Apache-2.0 */
 
 #include "BLI_function_ref.hh"
 
@@ -122,6 +122,12 @@ TEST(function_ref, CallSafeVoid)
   f = func;
   f.call_safe();
   EXPECT_EQ(value, 1);
+}
+
+TEST(function_ref, InitializeWithNull)
+{
+  FunctionRef<int(int, int)> f{nullptr};
+  EXPECT_FALSE(f);
 }
 
 }  // namespace blender::tests

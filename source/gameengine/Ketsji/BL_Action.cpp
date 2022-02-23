@@ -29,15 +29,12 @@
 #include "BKE_action.h"
 #include "BKE_context.h"
 #include "BKE_modifier.h"
-#include "BKE_nla.h"
 #include "BKE_node.h"
-#include "BKE_object.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "DNA_gpencil_modifier_types.h"
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_node_types.h"
 #include "RNA_access.h"
 
 #include "BL_ArmatureObject.h"
@@ -296,16 +293,16 @@ void BL_Action::BlendShape(Key *key, float srcweight, std::vector<float> &blends
 }
 
 enum eActionType {
-    ACT_TYPE_MODIFIER = 0,
-    ACT_TYPE_GPMODIFIER,
-    ACT_TYPE_CONSTRAINT,
-    ACT_TYPE_IDPROP,
+  ACT_TYPE_MODIFIER = 0,
+  ACT_TYPE_GPMODIFIER,
+  ACT_TYPE_CONSTRAINT,
+  ACT_TYPE_IDPROP,
 };
 
 /* Ensure name of data (ModifierData, bConstraint...) matches m_action's FCurve rna path */
 static bool ActionMatchesName(bAction *action, char *name, eActionType type)
 {
-  //std::cout << "curves listbase len: " << BLI_listbase_count(&action->curves) << std::endl;
+  // std::cout << "curves listbase len: " << BLI_listbase_count(&action->curves) << std::endl;
   LISTBASE_FOREACH (FCurve *, fcu, &action->curves) {
     if (fcu->rna_path) {
       char pattern[256];
@@ -331,19 +328,19 @@ static bool ActionMatchesName(bAction *action, char *name, eActionType type)
           BLI_str_escape(pattern, "", sizeof(pattern));
           break;
       }
-      //std::cout << "fcu name: " << fcu->rna_path << std::endl;
-      //std::cout << "data name: " << pattern << std::endl;
+      // std::cout << "fcu name: " << fcu->rna_path << std::endl;
+      // std::cout << "data name: " << pattern << std::endl;
       /* Find a correspondance between ob->modifier/ob->constraint... and actuator action
        * (m_action) */
       if (strstr(fcu->rna_path, pattern)) {
-        //std::cout << "fcu and name match" << std::endl;
+        // std::cout << "fcu and name match" << std::endl;
         return true;
       }
     }
-    //std::cout << "fcu and name DON'T match" << std::endl;
+    // std::cout << "fcu and name DON'T match" << std::endl;
     return false;
   }
-  //std::cout << "fcu and name DON'T match" << std::endl;
+  // std::cout << "fcu and name DON'T match" << std::endl;
   return false;
 }
 
@@ -419,10 +416,10 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
   if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
     if (ob->gameflag & OB_OVERLAY_COLLECTION) {
-      scene->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_TRANSFORM);
+      scene->AppendToIdsToUpdateInOverlayPass(&ob->id, ID_RECALC_TRANSFORM);
     }
     else {
-      scene->AppendToExtraObjectsToUpdateInAllRenderPasses(ob, ID_RECALC_TRANSFORM);
+      scene->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_TRANSFORM);
     }
 
     BL_ArmatureObject *obj = (BL_ArmatureObject *)m_obj;
@@ -468,10 +465,10 @@ void BL_Action::Update(float curtime, bool applyToObject)
       // TODO: We need to find the good notifier per action
       if (isRightAction && !BKE_modifier_is_non_geometrical(md)) {
         if (ob->gameflag & OB_OVERLAY_COLLECTION) {
-          scene->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_GEOMETRY);
+          scene->AppendToIdsToUpdateInOverlayPass(&ob->id, ID_RECALC_GEOMETRY);
         }
         else {
-          scene->AppendToExtraObjectsToUpdateInAllRenderPasses(ob, ID_RECALC_GEOMETRY);
+          scene->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_GEOMETRY);
         }
         PointerRNA ptrrna;
         RNA_id_pointer_create(&ob->id, &ptrrna);
@@ -490,10 +487,10 @@ void BL_Action::Update(float curtime, bool applyToObject)
         bool isRightAction = ActionMatchesName(m_action, gpmd->name, ACT_TYPE_GPMODIFIER);
         if (isRightAction) {
           if (ob->gameflag & OB_OVERLAY_COLLECTION) {
-            scene->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_GEOMETRY);
+            scene->AppendToIdsToUpdateInOverlayPass(&ob->id, ID_RECALC_GEOMETRY);
           }
           else {
-            scene->AppendToExtraObjectsToUpdateInAllRenderPasses(ob, ID_RECALC_GEOMETRY);
+            scene->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_GEOMETRY);
           }
           PointerRNA ptrrna;
           RNA_id_pointer_create(&ob->id, &ptrrna);
@@ -512,10 +509,10 @@ void BL_Action::Update(float curtime, bool applyToObject)
             break;
           }
           if (ob->gameflag & OB_OVERLAY_COLLECTION) {
-            scene->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_TRANSFORM);
+            scene->AppendToIdsToUpdateInOverlayPass(&ob->id, ID_RECALC_TRANSFORM);
           }
           else {
-            scene->AppendToExtraObjectsToUpdateInAllRenderPasses(ob, ID_RECALC_TRANSFORM);
+            scene->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_TRANSFORM);
           }
           PointerRNA ptrrna;
           RNA_id_pointer_create(&ob->id, &ptrrna);
@@ -539,10 +536,10 @@ void BL_Action::Update(float curtime, bool applyToObject)
           }
           if (ActionMatchesName(m_action, prop->name, ACT_TYPE_IDPROP)) {
             if (ob->gameflag & OB_OVERLAY_COLLECTION) {
-              scene->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_TRANSFORM);
+              scene->AppendToIdsToUpdateInOverlayPass(&ob->id, ID_RECALC_TRANSFORM);
             }
             else {
-              scene->AppendToExtraObjectsToUpdateInAllRenderPasses(ob, ID_RECALC_TRANSFORM);
+              scene->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_TRANSFORM);
             }
             PointerRNA ptrrna;
             RNA_id_pointer_create(&ob->id, &ptrrna);
@@ -571,7 +568,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
           }
         }
         if (isRightAction) {
-          scene->AppendToNodeTreesToUpdateInAllRenderPasses(nodetree);
+          scene->AppendToIdsToUpdateInAllRenderPasses(&nodetree->id, (IDRecalcFlag)0);
           PointerRNA ptrrna;
           RNA_id_pointer_create(&nodetree->id, &ptrrna);
           animsys_evaluate_action(&ptrrna, m_action, &animEvalContext, false);
@@ -588,7 +585,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
       if (ob->type == OB_MESH && me) {
         const bool bHasShapeKey = me->key && me->key->type == KEY_RELATIVE;
         if (bHasShapeKey && me->key->adt && me->key->adt->action == m_action) {
-          scene->AppendToMeshesToUpdateInAllRenderPasses(me, ID_RECALC_GEOMETRY);
+          scene->AppendToIdsToUpdateInAllRenderPasses(&me->id, ID_RECALC_GEOMETRY);
           Key *key = me->key;
 
           PointerRNA ptrrna;

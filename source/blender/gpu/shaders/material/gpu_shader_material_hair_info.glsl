@@ -1,21 +1,13 @@
 
-float wang_hash_noise(uint s)
-{
-  s = (s ^ 61u) ^ (s >> 16u);
-  s *= 9u;
-  s = s ^ (s >> 4u);
-  s *= 0x27d4eb2du;
-  s = s ^ (s >> 15u);
-
-  return fract(float(s) / 4294967296.0);
-}
-
-void node_hair_info(out float is_strand,
+void node_hair_info(float hair_length,
+                    out float is_strand,
                     out float intercept,
+                    out float length,
                     out float thickness,
                     out vec3 tangent,
                     out float random)
 {
+  length = hair_length;
 #ifdef HAIR_SHADER
   is_strand = 1.0;
   intercept = hairTime;

@@ -1,17 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup sptext
@@ -709,7 +696,7 @@ static int txtfmt_pov_find_bool(const char *string)
   /* Keep aligned args for readability. */
   /* clang-format off */
 
-  /* Built-in Constants */
+  /* Built-in Constants. */
   if        (STR_LITERAL_STARTSWITH(string, "unofficial",          len)) { i = len;
   } else if (STR_LITERAL_STARTSWITH(string, "false",               len)) { i = len;
   } else if (STR_LITERAL_STARTSWITH(string, "no",                  len)) { i = len;
@@ -719,7 +706,7 @@ static int txtfmt_pov_find_bool(const char *string)
   } else if (STR_LITERAL_STARTSWITH(string, "on",                  len)) { i = len;
   } else if (STR_LITERAL_STARTSWITH(string, "pi",                  len)) { i = len;
   } else if (STR_LITERAL_STARTSWITH(string, "tau",                 len)) { i = len;
-  /* Encodings */
+  /* Encodings. */
   } else if (STR_LITERAL_STARTSWITH(string, "sint16be",            len)) { i = len;
   } else if (STR_LITERAL_STARTSWITH(string, "sint16le",            len)) { i = len;
   } else if (STR_LITERAL_STARTSWITH(string, "sint32be",            len)) { i = len;
@@ -732,7 +719,7 @@ static int txtfmt_pov_find_bool(const char *string)
   } else if (STR_LITERAL_STARTSWITH(string, "uint8",               len)) { i = len;
   } else if (STR_LITERAL_STARTSWITH(string, "ascii",               len)) { i = len;
   } else if (STR_LITERAL_STARTSWITH(string, "utf8",                len)) { i = len;
-  /* Filetypes */
+  /* File-types. */
   } else if (STR_LITERAL_STARTSWITH(string, "tiff",                len)) { i = len;
   } else if (STR_LITERAL_STARTSWITH(string, "df3",                 len)) { i = len;
   } else if (STR_LITERAL_STARTSWITH(string, "exr",                 len)) { i = len;
@@ -870,7 +857,7 @@ static void txtfmt_pov_format_line(SpaceText *st, TextLine *line, const bool do_
         cont = (*str == '"') ? FMT_CONT_QUOTEDOUBLE : FMT_CONT_QUOTESINGLE;
         *fmt = FMT_TYPE_STRING;
       }
-      /* Whitespace (all ws. has been converted to spaces) */
+      /* White-space (all ws. has been converted to spaces). */
       else if (*str == ' ') {
         *fmt = FMT_TYPE_WHITESPACE;
       }

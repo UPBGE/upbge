@@ -3,9 +3,12 @@ name: publish-api-and-stubs
 on:
   schedule:
     - cron: "0 1 * * *" # Run at 1 AM UTC
+  
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
 
 env:
-  PYTHON_VERSION: "3.9"
+  PYTHON_VERSION: "3.10"
 
 jobs:
   build:
@@ -19,17 +22,17 @@ jobs:
         sudo apt install -y build-essential cmake libembree-dev \
           libxi-dev libxxf86vm-dev libboost-dev libboost-locale-dev libgl1-mesa-dev \
           libavformat-dev libtbb-dev libswscale-dev libavdevice-dev libblas3 \
-          libzstd-dev
+          libzstd-dev libopenal-dev libopenblas-dev
 
     - name: Install Python
-      uses: actions/setup-python@v2.2.2
+      uses: actions/setup-python@v2.3.1
       with: 
         python-version: "${{env.PYTHON_VERSION}}"
 
     - name: Install Python Dependencies
       run: | 
         curl https://bootstrap.pypa.io/get-pip.py | python && \
-        python -m pip install numpy==1.17.4 requests
+        python -m pip install numpy requests cython
 
     - name: Setup Python Path
       run: |
@@ -90,6 +93,7 @@ jobs:
       with:
         name: blender
         path: build.tar.gz
+        retention-days: 3
 
   publish_api:
     name: Publish API Documentation
@@ -114,14 +118,14 @@ jobs:
           libavformat58 libavdevice58 libboost-locale1.71.0
 
     - name: Install Python
-      uses: actions/setup-python@v2.2.2
+      uses: actions/setup-python@v2.3.1
       with: 
         python-version: "${{env.PYTHON_VERSION}}"
 
     - name: Install Python Dependencies
       run: | 
         curl https://bootstrap.pypa.io/get-pip.py | python && \
-        python -m pip install sphinx sphinx-rtd-theme yapf tqdm numpy==1.17.4
+        python -m pip install sphinx sphinx-rtd-theme yapf tqdm numpy
 
     - name: Setup Python Path
       run: |
@@ -144,14 +148,17 @@ jobs:
 
     - name: Build API Documentation
       working-directory: python_api
-      run: sphinx-build -b html -j auto sphinx-in sphinx-out && rm -Rf sphinx-out/.doctrees
+      run: |
+        sphinx-build -b html -j auto sphinx-in upbge-api-reference && \
+        rm -Rf upbge-api-reference/.doctrees && \
+        zip -r upbge-api-reference/upbge-api-reference.zip upbge-api-reference
 
     - name: Publish to UPBGE
       uses: peaceiris/actions-gh-pages@v3
       with:
         external_repository: UPBGE/UPBGE-API
         publish_branch: master
-        publish_dir: python_api/sphinx-out
+        publish_dir: python_api/upbge-api-reference
         deploy_key: ${{ secrets.APIDOCS_DEPLOY_KEY }}
 
     - name: Archive Documents
@@ -164,6 +171,7 @@ jobs:
       with:
         name: apidocs
         path: apidocs.tar.gz
+        retention-days: 3
 
   publish_stubs:
     name: Publish API Stubs
@@ -192,7 +200,7 @@ jobs:
       run: tar zxvf apidocs.tar.gz
 
     - name: Install Python
-      uses: actions/setup-python@v2.2.2
+      uses: actions/setup-python@v2.3.1
       with: 
         python-version: "${{env.PYTHON_VERSION}}"
 
@@ -212,7 +220,7 @@ jobs:
       working-directory: python_api/upbge-stub
       run: |
         sed -i "s/#APP_NAME#/upbge/g" setup.py && \
-        sed -i "s/#APP_VERSION#/0.3.0/g" setup.py && \
+        sed -i "s/#APP_VERSION#/0.3.1/g" setup.py && \
         sed -i "s/#BUILD_NUMBER#/${{ github.run_id }}/g" setup.py && \
         python setup.py sdist
 

@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup wm
@@ -41,11 +27,7 @@ void ED_gizmotypes_primitive_3d(void);
 void ED_gizmotypes_blank_3d(void);
 void ED_gizmotypes_snap_3d(void);
 
-struct ARegion;
-struct Depsgraph;
 struct Object;
-struct SnapObjectContext;
-struct View3D;
 struct bContext;
 struct wmGizmo;
 struct wmWindowManager;
@@ -69,7 +51,7 @@ void ED_gizmo_draw_preset_circle(const struct wmGizmo *gz,
 void ED_gizmo_draw_preset_facemap(const struct bContext *C,
                                   const struct wmGizmo *gz,
                                   struct Object *ob,
-                                  const int facemap,
+                                  int facemap,
                                   int select_id);
 
 /* -------------------------------------------------------------------- */
@@ -96,8 +78,18 @@ enum {
   ED_GIZMO_ARROW_DRAW_FLAG_STEM = (1 << 0),
 };
 
-void ED_gizmo_arrow3d_set_ui_range(struct wmGizmo *gz, const float min, const float max);
-void ED_gizmo_arrow3d_set_range_fac(struct wmGizmo *gz, const float range_fac);
+/**
+ * Define a custom property UI range.
+ *
+ * \note Needs to be called before #WM_gizmo_target_property_def_rna!
+ */
+void ED_gizmo_arrow3d_set_ui_range(struct wmGizmo *gz, float min, float max);
+/**
+ * Define a custom factor for arrow min/max distance.
+ *
+ * \note Needs to be called before #WM_gizmo_target_property_def_rna!
+ */
+void ED_gizmo_arrow3d_set_range_fac(struct wmGizmo *gz, float range_fac);
 
 /* -------------------------------------------------------------------- */
 /* Cage Gizmo */
@@ -242,49 +234,28 @@ struct Dial3dParams {
 };
 void ED_gizmotypes_dial_3d_draw_util(const float matrix_basis[4][4],
                                      const float matrix_final[4][4],
-                                     const float line_width,
+                                     float line_width,
                                      const float color[4],
-                                     const bool select,
+                                     bool select,
                                      struct Dial3dParams *params);
 
 /* snap3d_gizmo.c */
-#define USE_SNAP_DETECT_FROM_KEYMAP_HACK
-void ED_gizmotypes_snap_3d_draw_util(struct RegionView3D *rv3d,
-                                     const float loc_prev[3],
-                                     const float loc_curr[3],
-                                     const float normal[3],
-                                     const uchar color_line[4],
-                                     const uchar color_point[4],
-                                     const short snap_elem_type);
 struct SnapObjectContext *ED_gizmotypes_snap_3d_context_ensure(struct Scene *scene,
-                                                               const struct ARegion *region,
-                                                               const struct View3D *v3d,
                                                                struct wmGizmo *gz);
 
-typedef enum {
-  ED_SNAPGIZMO_TOGGLE_ALWAYS_TRUE = 1 << 0,
-  ED_SNAPGIZMO_OCCLUSION_ALWAYS_TRUE = 1 << 1,
-  ED_SNAPGIZMO_OCCLUSION_ALWAYS_FALSE = 1 << 2, /* TODO. */
-  ED_SNAPGIZMO_SNAP_ONLY_ACTIVE = 1 << 3,
-  ED_SNAPGIZMO_SNAP_EDIT_GEOM_FINAL = 1 << 4,
-  ED_SNAPGIZMO_SNAP_EDIT_GEOM_CAGE = 1 << 5,
-} eSnapGizmo;
-
-void ED_gizmotypes_snap_3d_flag_set(struct wmGizmo *gz, eSnapGizmo flag);
-void ED_gizmotypes_snap_3d_flag_clear(struct wmGizmo *gz, eSnapGizmo flag);
-bool ED_gizmotypes_snap_3d_flag_test(struct wmGizmo *gz, eSnapGizmo flag);
+void ED_gizmotypes_snap_3d_flag_set(struct wmGizmo *gz, int flag);
+void ED_gizmotypes_snap_3d_flag_clear(struct wmGizmo *gz, int flag);
+bool ED_gizmotypes_snap_3d_flag_test(struct wmGizmo *gz, int flag);
 
 bool ED_gizmotypes_snap_3d_invert_snap_get(struct wmGizmo *gz);
 bool ED_gizmotypes_snap_3d_is_enabled(const struct wmGizmo *gz);
 
-short ED_gizmotypes_snap_3d_update(struct wmGizmo *gz,
-                                   struct Depsgraph *depsgraph,
-                                   const struct ARegion *region,
-                                   const struct View3D *v3d,
-                                   const struct wmWindowManager *wm,
-                                   const float mval_fl[2]);
-void ED_gizmotypes_snap_3d_data_get(
-    struct wmGizmo *gz, float r_loc[3], float r_nor[3], int r_elem_index[3], int *r_snap_elem);
+void ED_gizmotypes_snap_3d_data_get(const struct bContext *C,
+                                    struct wmGizmo *gz,
+                                    float r_loc[3],
+                                    float r_nor[3],
+                                    int r_elem_index[3],
+                                    int *r_snap_elem);
 
 #ifdef __cplusplus
 }

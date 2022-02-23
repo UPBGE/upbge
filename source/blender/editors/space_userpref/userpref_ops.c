@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2009 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2009 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup spuserpref
@@ -24,11 +8,13 @@
 #include <string.h>
 
 #include "DNA_screen_types.h"
+#include "DNA_space_types.h"
 
 #include "BLI_listbase.h"
 #ifdef WIN32
 #  include "BLI_winstuff.h"
 #endif
+#include "BLI_path_util.h"
 
 #include "BKE_context.h"
 #include "BKE_main.h"
@@ -139,23 +125,55 @@ static void PREFERENCES_OT_autoexec_path_remove(wmOperatorType *ot)
 /** \name Add Asset Library Operator
  * \{ */
 
-static int preferences_asset_library_add_exec(bContext *UNUSED(C), wmOperator *UNUSED(op))
+static int preferences_asset_library_add_exec(bContext *UNUSED(C), wmOperator *op)
 {
-  BKE_preferences_asset_library_add(&U, NULL, NULL);
+  char *path = RNA_string_get_alloc(op->ptr, "directory", NULL, 0, NULL);
+  char dirname[FILE_MAXFILE];
+
+  BLI_path_slash_rstrip(path);
+  BLI_split_file_part(path, dirname, sizeof(dirname));
+
+  /* NULL is a valid directory path here. A library without path will be created then. */
+  BKE_preferences_asset_library_add(&U, dirname, path);
   U.runtime.is_dirty = true;
+
+  /* There's no dedicated notifier for the Preferences. */
+  WM_main_add_notifier(NC_WINDOW, NULL);
+
+  MEM_freeN(path);
   return OPERATOR_FINISHED;
+}
+
+static int preferences_asset_library_add_invoke(bContext *C,
+                                                wmOperator *op,
+                                                const wmEvent *UNUSED(event))
+{
+  if (!RNA_struct_property_is_set(op->ptr, "directory")) {
+    WM_event_add_fileselect(C, op);
+    return OPERATOR_RUNNING_MODAL;
+  }
+
+  return preferences_asset_library_add_exec(C, op);
 }
 
 static void PREFERENCES_OT_asset_library_add(wmOperatorType *ot)
 {
   ot->name = "Add Asset Library";
   ot->idname = "PREFERENCES_OT_asset_library_add";
-  ot->description =
-      "Add a path to a .blend file to be used by the Asset Browser as source of assets";
+  ot->description = "Add a directory to be used by the Asset Browser as source of assets";
 
   ot->exec = preferences_asset_library_add_exec;
+  ot->invoke = preferences_asset_library_add_invoke;
 
   ot->flag = OPTYPE_INTERNAL;
+
+  WM_operator_properties_filesel(ot,
+                                 FILE_TYPE_FOLDER,
+                                 FILE_SPECIAL,
+                                 FILE_OPENFILE,
+                                 WM_FILESEL_DIRECTORY,
+                                 FILE_DEFAULTDISPLAY,
+                                 FILE_SORT_DEFAULT);
 }
 
 /** \} */

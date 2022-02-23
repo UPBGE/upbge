@@ -60,35 +60,79 @@ Constants
 
    .. deprecated:: 0.2.2
 
+   :type: integer
+
 .. data:: KX_BLENDER_MULTITEX_MATERIAL
 
    .. deprecated:: 0.2.2
+
+   :type: integer
 
 .. data:: KX_BLENDER_GLSL_MATERIAL
 
    .. deprecated:: 0.2.2
 
-.. DATA:: VSYNC_OFF
+   :type: integer
+
+.. data:: VSYNC_OFF
 
    Disables vsync
 
-.. DATA:: VSYNC_ON
+   :type: integer
+
+.. data:: VSYNC_ON
 
    Enables vsync
 
-.. DATA:: VSYNC_ADAPTIVE
+   :type: integer
+
+.. data:: VSYNC_ADAPTIVE
 
    Enables adaptive vsync if supported.
    Adaptive vsync enables vsync if the framerate is above the monitors refresh rate.
    Otherwise, vsync is diabled if the framerate is too low.
 
+   :type: integer
+
 .. data:: LEFT_EYE
+
+   .. deprecated:: 0.3.0
 
    Left eye being used during stereoscopic rendering.
 
+   :type: integer
+
 .. data:: RIGHT_EYE
 
+   .. deprecated:: 0.3.0
+
    Right eye being used during stereoscopic rendering.
+
+   :type: integer
+
+.. data:: RAS_MIPMAP_NONE
+
+   .. deprecated:: 0.3.0
+
+   Disables Mipmap filtering.
+
+   :type: integer
+
+.. data:: RAS_MIPMAP_NEAREST
+
+   .. deprecated:: 0.3.0
+
+   Applies mipmap filtering with nearest neighbour interpolation.
+
+   :type: integer
+
+.. data:: RAS_MIPMAP_LINEAR
+
+   .. deprecated:: 0.3.0
+
+   Applies mipmap filtering with nearest linear interpolation.
+
+   :type: integer
 
 *********
 Functions
@@ -198,6 +242,8 @@ Functions
 
 .. function:: setEyeSeparation(eyesep)
 
+   .. deprecated:: 0.3.0
+
    Sets the eye separation for stereo mode. Usually Focal Length/30 provides a confortable value.
 
    :arg eyesep: The distance between the left and right eye.
@@ -206,12 +252,16 @@ Functions
 
 .. function:: getEyeSeparation()
 
+   .. deprecated:: 0.3.0
+
    Gets the current eye separation for stereo mode.
 
    :rtype: float
 
 
 .. function:: setFocalLength(focallength)
+
+   .. deprecated:: 0.3.0
 
    Sets the focal length for stereo mode. It uses the current camera focal length as initial value.
 
@@ -220,17 +270,22 @@ Functions
 
 .. function:: getFocalLength()
 
+   .. deprecated:: 0.3.0
+
    Gets the current focal length for stereo mode.
 
    :rtype: float
 
 .. function:: getStereoEye()
 
+   .. deprecated:: 0.3.0
+
    Gets the current stereoscopy eye being rendered.
    This function is mainly used in a :attr:`bge.types.KX_Scene.pre_draw` callback
    function to customize the camera projection matrices for each
    stereoscopic eye.
 
+   :return: One of :data:`~bge.render.LEFT_EYE`, :data:`~bge.render.RIGHT_EYE`.
    :rtype: LEFT_EYE, RIGHT_EYE
 
 .. function:: setMaterialMode(mode)
@@ -251,6 +306,8 @@ Functions
 
 .. function:: setAnisotropicFiltering(level)
 
+   .. deprecated:: 0.3.0
+
    Set the anisotropic filtering level for textures.
 
    :arg level: The new anisotropic filtering level to use
@@ -260,23 +317,31 @@ Functions
 
 .. function:: getAnisotropicFiltering()
 
+   .. deprecated:: 0.3.0
+
    Get the anisotropic filtering level used for textures.
 
    :rtype: integer (one of 1, 2, 4, 8, 16)
 
 .. function:: setMipmapping(value)
 
+   .. deprecated:: 0.3.0
+
    Change how to use mipmapping.
 
-   :type value: RAS_MIPMAP_NONE, RAS_MIPMAP_NEAREST, RAS_MIPMAP_LINEAR
+   :arg value: One of :data:`~bge.render.RAS_MIPMAP_NONE`, :data:`~bge.render.RAS_MIPMAP_NEAREST`, :data:`~bge.render.RAS_MIPMAP_LINEAR`
+   :type value: integer
 
    .. note:: Changing this value can cause all textures to be recreated, which can be slow.
 
 .. function:: getMipmapping()
 
+   .. deprecated:: 0.3.0
+
    Get the current mipmapping setting.
 
-   :rtype: RAS_MIPMAP_NONE, RAS_MIPMAP_NEAREST, RAS_MIPMAP_LINEAR
+   :return: One of :data:`~bge.render.RAS_MIPMAP_NONE`, :data:`~bge.render.RAS_MIPMAP_NEAREST`, :data:`~bge.render.RAS_MIPMAP_LINEAR`
+   :rtype: integer
 
 .. function:: drawLine(fromVec,toVec,color)
 
@@ -292,6 +357,8 @@ Functions
 
 .. function:: enableMotionBlur(factor)
 
+   .. deprecated:: 0.3.0
+
    Enable the motion blur effect.
 
    :arg factor: the ammount of motion blur to display.
@@ -299,6 +366,8 @@ Functions
 
 
 .. function:: disableMotionBlur()
+
+   .. deprecated:: 0.3.0
 
    Disable the motion blur effect.
 
@@ -338,11 +407,13 @@ Functions
 
    Set the vsync value
 
-   :arg value: One of VSYNC_OFF, VSYNC_ON, VSYNC_ADAPTIVE
+   :arg value: One of :data:`~bge.render.VSYNC_OFF`, :data:`~bge.render.VSYNC_ON`, :data:`~bge.render.VSYNC_ADAPTIVE`
    :type value: integer
 
 .. function:: getVsync()
 
    Get the current vsync value
 
-   :rtype: One of VSYNC_OFF, VSYNC_ON, VSYNC_ADAPTIVE
+   :return: One of :data:`~bge.render.VSYNC_OFF`, :data:`~bge.render.VSYNC_ON`, :data:`~bge.render.VSYNC_ADAPTIVE`
+   :rtype: integer
+

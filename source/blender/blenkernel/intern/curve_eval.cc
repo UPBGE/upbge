@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array.hh"
 #include "BLI_index_range.hh"
@@ -50,12 +36,6 @@ blender::MutableSpan<SplinePtr> CurveEval::splines()
   return splines_;
 }
 
-/**
- * \return True if the curve contains a spline with the given type.
- *
- * \note If you are looping over all of the splines in the same scope anyway,
- * it's better to avoid calling this function, in case there are many splines.
- */
 bool CurveEval::has_spline_with_type(const Spline::Type type) const
 {
   for (const SplinePtr &spline : this->splines()) {
@@ -72,12 +52,16 @@ void CurveEval::resize(const int size)
   attributes.reallocate(size);
 }
 
-/**
- * \warning Call #reallocate on the spline's attributes after adding all splines.
- */
 void CurveEval::add_spline(SplinePtr spline)
 {
   splines_.append(std::move(spline));
+}
+
+void CurveEval::add_splines(MutableSpan<SplinePtr> splines)
+{
+  for (SplinePtr &spline : splines) {
+    this->add_spline(std::move(spline));
+  }
 }
 
 void CurveEval::remove_splines(blender::IndexMask mask)
@@ -102,20 +86,37 @@ void CurveEval::transform(const float4x4 &matrix)
   }
 }
 
-void CurveEval::bounds_min_max(float3 &min, float3 &max, const bool use_evaluated) const
+bool CurveEval::bounds_min_max(float3 &min, float3 &max, const bool use_evaluated) const
 {
+  bool have_minmax = false;
   for (const SplinePtr &spline : this->splines()) {
-    spline->bounds_min_max(min, max, use_evaluated);
+    if (spline->size()) {
+      spline->bounds_min_max(min, max, use_evaluated);
+      have_minmax = true;
+    }
   }
+
+  return have_minmax;
 }
 
-/**
- * Return the start indices for each of the curve spline's evaluated points, as if they were part
- * of a flattened array. This can be used to facilitate parallelism by avoiding the need to
- * accumulate an offset while doing more complex calculations.
- *
- * \note The result array is one longer than the spline count; the last element is the total size.
- */
+float CurveEval::total_length() const
+{
+  float length = 0.0f;
+  for (const SplinePtr &spline : this->splines()) {
+    length += spline->length();
+  }
+  return length;
+}
+
+int CurveEval::total_control_point_size() const
+{
+  int count = 0;
+  for (const SplinePtr &spline : this->splines()) {
+    count += spline->size();
+  }
+  return count;
+}
+
 blender::Array<int> CurveEval::control_point_offsets() const
 {
   Array<int> offsets(splines_.size() + 1);
@@ -128,9 +129,6 @@ blender::Array<int> CurveEval::control_point_offsets() const
   return offsets;
 }
 
-/**
- * Exactly like #control_point_offsets, but uses the number of evaluated points instead.
- */
 blender::Array<int> CurveEval::evaluated_point_offsets() const
 {
   Array<int> offsets(splines_.size() + 1);
@@ -141,6 +139,25 @@ blender::Array<int> CurveEval::evaluated_point_offsets() const
   }
   offsets.last() = offset;
   return offsets;
+}
+
+blender::Array<float> CurveEval::accumulated_spline_lengths() const
+{
+  Array<float> spline_lengths(splines_.size() + 1);
+  float spline_length = 0.0f;
+  for (const int i : splines_.index_range()) {
+    spline_lengths[i] = spline_length;
+    spline_length += splines_[i]->length();
+  }
+  spline_lengths.last() = spline_length;
+  return spline_lengths;
+}
+
+void CurveEval::mark_cache_invalid()
+{
+  for (SplinePtr &spline : splines_) {
+    spline->mark_cache_invalid();
+  }
 }
 
 static BezierSpline::HandleType handle_type_from_dna_bezt(const eBezTriple_Handle dna_handle_type)
@@ -201,8 +218,8 @@ static SplinePtr spline_from_dna_bezier(const Nurb &nurb)
   Span<const BezTriple> src_points{nurb.bezt, nurb.pntsu};
   spline->resize(src_points.size());
   MutableSpan<float3> positions = spline->positions();
-  MutableSpan<float3> handle_positions_left = spline->handle_positions_left();
-  MutableSpan<float3> handle_positions_right = spline->handle_positions_right();
+  MutableSpan<float3> handle_positions_left = spline->handle_positions_left(true);
+  MutableSpan<float3> handle_positions_right = spline->handle_positions_right(true);
   MutableSpan<BezierSpline::HandleType> handle_types_left = spline->handle_types_left();
   MutableSpan<BezierSpline::HandleType> handle_types_right = spline->handle_types_right();
   MutableSpan<float> radii = spline->radii();
@@ -319,12 +336,6 @@ std::unique_ptr<CurveEval> curve_eval_from_dna_curve(const Curve &dna_curve)
   return curve_eval_from_dna_curve(dna_curve, *BKE_curve_nurbs_get_for_read(&dna_curve));
 }
 
-/**
- * Check the invariants that curve control point attributes should always uphold, necessary
- * because attributes are stored on splines rather than in a flat array on the curve:
- *  - The same set of attributes exists on every spline.
- *  - Attributes with the same name have the same type on every spline.
- */
 void CurveEval::assert_valid_point_attributes() const
 {
 #ifdef DEBUG
@@ -332,25 +343,40 @@ void CurveEval::assert_valid_point_attributes() const
     return;
   }
   const int layer_len = splines_.first()->attributes.data.totlayer;
-  Map<AttributeIDRef, AttributeMetaData> map;
-  for (const SplinePtr &spline : splines_) {
-    BLI_assert(spline->attributes.data.totlayer == layer_len);
-    spline->attributes.foreach_attribute(
+
+  Array<AttributeIDRef> ids_in_order(layer_len);
+  Array<AttributeMetaData> meta_data_in_order(layer_len);
+
+  {
+    int i = 0;
+    splines_.first()->attributes.foreach_attribute(
         [&](const AttributeIDRef &attribute_id, const AttributeMetaData &meta_data) {
-          map.add_or_modify(
-              attribute_id,
-              [&](AttributeMetaData *map_data) {
-                /* All unique attribute names should be added on the first spline. */
-                BLI_assert(spline == splines_.first());
-                *map_data = meta_data;
-              },
-              [&](AttributeMetaData *map_data) {
-                /* Attributes on different splines should all have the same type. */
-                BLI_assert(meta_data == *map_data);
-              });
+          ids_in_order[i] = attribute_id;
+          meta_data_in_order[i] = meta_data;
+          i++;
           return true;
         },
         ATTR_DOMAIN_POINT);
   }
+
+  for (const SplinePtr &spline : splines_) {
+    /* All splines should have the same number of attributes. */
+    BLI_assert(spline->attributes.data.totlayer == layer_len);
+
+    int i = 0;
+    spline->attributes.foreach_attribute(
+        [&](const AttributeIDRef &attribute_id, const AttributeMetaData &meta_data) {
+          /* Attribute names and IDs should have the same order and exist on all splines. */
+          BLI_assert(attribute_id == ids_in_order[i]);
+
+          /* Attributes with the same ID different splines should all have the same type. */
+          BLI_assert(meta_data == meta_data_in_order[i]);
+
+          i++;
+          return true;
+        },
+        ATTR_DOMAIN_POINT);
+  }
+
 #endif
 }

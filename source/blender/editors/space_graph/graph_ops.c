@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2008 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2008 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup spgraph
@@ -52,11 +36,13 @@
 /* ************************** view-based operators **********************************/
 /* XXX should these really be here? */
 
-/* Set Cursor --------------------------------------------------------------------- */
-/* The 'cursor' in the Graph Editor consists of two parts:
+/* -------------------------------------------------------------------- */
+/** \name Set Cursor
+ *
+ * The 'cursor' in the Graph Editor consists of two parts:
  * 1) Current Frame Indicator (as per ANIM_OT_change_frame)
  * 2) Value Indicator (stored per Graph Editor instance)
- */
+ * \{ */
 
 static bool graphview_cursor_poll(bContext *C)
 {
@@ -101,7 +87,7 @@ static void graphview_cursor_apply(bContext *C, wmOperator *op)
     }
 
     SUBFRA = 0.0f;
-    DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO_SEEK);
+    DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
   }
 
   /* set the cursor value */
@@ -225,7 +211,11 @@ static void GRAPH_OT_cursor_set(wmOperatorType *ot)
   RNA_def_float(ot->srna, "value", 0, -FLT_MAX, FLT_MAX, "Value", "", -100.0f, 100.0f);
 }
 
-/* Hide/Reveal ------------------------------------------------------------ */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Hide/Reveal
+ * \{ */
 
 static int graphview_curves_hide_exec(bContext *C, wmOperator *op)
 {
@@ -413,7 +403,11 @@ static void GRAPH_OT_reveal(wmOperatorType *ot)
   RNA_def_boolean(ot->srna, "select", true, "Select", "");
 }
 
-/* ************************** registration - operator types **********************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Registration: operator types
+ * \{ */
 
 void graphedit_operatortypes(void)
 {
@@ -446,6 +440,7 @@ void graphedit_operatortypes(void)
 
   /* editing */
   WM_operatortype_append(GRAPH_OT_snap);
+  WM_operatortype_append(GRAPH_OT_equalize_handles);
   WM_operatortype_append(GRAPH_OT_mirror);
   WM_operatortype_append(GRAPH_OT_frame_jump);
   WM_operatortype_append(GRAPH_OT_snap_cursor_value);
@@ -460,6 +455,8 @@ void graphedit_operatortypes(void)
   WM_operatortype_append(GRAPH_OT_smooth);
   WM_operatortype_append(GRAPH_OT_clean);
   WM_operatortype_append(GRAPH_OT_decimate);
+  WM_operatortype_append(GRAPH_OT_blend_to_neighbor);
+  WM_operatortype_append(GRAPH_OT_breakdown);
   WM_operatortype_append(GRAPH_OT_euler_filter);
   WM_operatortype_append(GRAPH_OT_delete);
   WM_operatortype_append(GRAPH_OT_duplicate);
@@ -496,7 +493,11 @@ void ED_operatormacros_graph(void)
   RNA_boolean_set(otmacro->ptr, "use_proportional_edit", false);
 }
 
-/* ************************** registration - keymaps **********************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Registration: Key-Maps
+ * \{ */
 
 void graphedit_keymap(wmKeyConfig *keyconf)
 {
@@ -514,3 +515,5 @@ void graphedit_keymap(wmKeyConfig *keyconf)
   /* keyframes */
   WM_keymap_ensure(keyconf, "Graph Editor", SPACE_GRAPH, 0);
 }
+
+/** \} */

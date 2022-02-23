@@ -34,7 +34,6 @@
 // For now keep weakrefs optional.
 #define USE_WEAKREFS
 
-#include <initializer_list>
 #include <stddef.h>
 #include <string>
 
@@ -82,8 +81,8 @@ typedef struct {
 typedef struct EXP_PyObjectPlus_Proxy {
   /// Required python macro.
   PyObject_HEAD
-      /// Pointer to GE object, it holds a reference to this proxy.
-      class EXP_PyObjectPlus *ref;
+  /// Pointer to GE object, it holds a reference to this proxy.
+  class EXP_PyObjectPlus *ref;
   /// Optional pointer to generic structure, the structure holds no reference to this proxy.
   void *ptr;
   /// True if the object pointed by ref should be deleted when the proxy is deleted.
@@ -867,14 +866,6 @@ typedef struct EXP_PYATTRIBUTE_DEF {
         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr \
       } \
     }
-
-template <class ... Args>
-inline bool EXP_ParseTupleArgsAndKeywords(PyObject *pyargs, PyObject *pykwds, const char *format, std::initializer_list<const char *> keyword, Args ... args)
-{
-  BLI_assert((keyword.size() - 1) == (sizeof...Args));
-  static _PyArg_Parser _parser = {format, keyword.begin(), 0};
-  return _PyArg_ParseTupleAndKeywordsFast(pyargs, pykwds, &_parser, args ...);
-}
 
 /*------------------------------
  * EXP_PyObjectPlus

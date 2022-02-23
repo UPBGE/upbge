@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8 compliant>
 
@@ -196,7 +180,7 @@ class BONE_PT_curved(BoneButtonsPanel, Panel):
         row2.prop(bone, "bbone_handle_use_scale_start", index=1, text="Y", toggle=True)
         row2.prop(bone, "bbone_handle_use_scale_start", index=2, text="Z", toggle=True)
         split2.prop(bone, "bbone_handle_use_ease_start", text="Ease", toggle=True)
-        row.label(icon="BLANK1")
+        row.label(icon='BLANK1')
 
         col = topcol.column(align=True)
         col.prop(bone, "bbone_handle_type_end", text="End Handle")
@@ -216,7 +200,7 @@ class BONE_PT_curved(BoneButtonsPanel, Panel):
         row2.prop(bone, "bbone_handle_use_scale_end", index=1, text="Y", toggle=True)
         row2.prop(bone, "bbone_handle_use_scale_end", index=2, text="Z", toggle=True)
         split2.prop(bone, "bbone_handle_use_ease_end", text="Ease", toggle=True)
-        row.label(icon="BLANK1")
+        row.label(icon='BLANK1')
 
 
 class BONE_PT_relations(BoneButtonsPanel, Panel):

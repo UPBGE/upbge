@@ -35,6 +35,7 @@
 #include "BKE_context.h"
 
 #include "ED_screen.h"
+#include "ED_undo.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -132,6 +133,9 @@ static int cut_links_exec(bContext *C, wmOperator *op)
         but = but->next;
       }
     }
+
+    ED_undo_push_old(C, "cut_links_exec");
+
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
@@ -151,7 +155,7 @@ void LOGIC_OT_links_cut(wmOperatorType *ot)
   ot->poll = ED_operator_logic_active;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = 0;
 
   /* properties */
   PropertyRNA *prop;

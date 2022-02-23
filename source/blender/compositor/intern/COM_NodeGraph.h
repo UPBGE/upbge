@@ -1,27 +1,7 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2013, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2013 Blender Foundation. */
 
 #pragma once
-
-#include "BLI_vector.hh"
-
-#include <map>
-#include <set>
 
 #include "DNA_node_types.h"
 
@@ -52,19 +32,19 @@ class NodeGraph {
   };
 
  private:
-  Vector<Node *> m_nodes;
-  Vector<Link> m_links;
+  Vector<Node *> nodes_;
+  Vector<Link> links_;
 
  public:
   ~NodeGraph();
 
   const Vector<Node *> &nodes() const
   {
-    return m_nodes;
+    return nodes_;
   }
   const Vector<Link> &links() const
   {
-    return m_links;
+    return links_;
   }
 
   void from_bNodeTree(const CompositorContext &context, bNodeTree *tree);
@@ -76,7 +56,7 @@ class NodeGraph {
   static bNodeSocket *find_b_node_output(bNode *b_node, const char *identifier);
 
   void add_node(Node *node, bNodeTree *b_ntree, bNodeInstanceKey key, bool is_active_group);
-  void add_link(NodeOutput *fromSocket, NodeInput *toSocket);
+  void add_link(NodeOutput *from_socket, NodeInput *to_socket);
 
   void add_bNodeTree(const CompositorContext &context,
                      int nodes_start,

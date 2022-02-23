@@ -42,8 +42,6 @@
 #include "BKE_undo_system.h"
 #include "BLI_blenlib.h"
 #include "BLO_readfile.h"
-#include "DNA_space_types.h"
-#include "DNA_windowmanager_types.h"
 #include "ED_screen.h"
 #include "WM_api.h"
 #include "wm_window.h"
@@ -163,15 +161,15 @@ extern "C" void StartKetsjiShell(struct bContext *C,
   std::string exitstring = "";
   BlendFileData *bfd = nullptr;
 
-  BLI_strncpy(pathname, blenderdata->name, sizeof(pathname));
-  BLI_strncpy(prevPathName, G_MAIN->name, sizeof(prevPathName));
+  BLI_strncpy(pathname, blenderdata->filepath, sizeof(pathname));
+  BLI_strncpy(prevPathName, G_MAIN->filepath, sizeof(prevPathName));
 
   /* Without this step, the bmain->name can be ".blend~"
    * and as I don't understand why and as the bug has been
    * reported, we ensure the extension is ".blend"
    * else this is causing issues with globalDict. (youle)
    */
-  char *blend_name = blenderdata->name;
+  char *blend_name = blenderdata->filepath;
   BLI_path_extension_ensure(blend_name, FILE_MAX, ".blend");
 
   KX_SetOrigPath(std::string(blend_name));
@@ -195,6 +193,11 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     /* https://github.com/UPBGE/upbge/commit/1b4d5c7a35597a70411515f721a405416244b540 */
     BKE_undosys_step_push(CTX_wm_manager(C)->undo_stack, C, "pre");
   }
+
+  /* Make sure we'll use old undo at bge exit to properly restore scene
+   * See memfile_undo.c and search for keyword UPBGE
+   */
+  G.is_undo_at_exit = true;
 
   wmWindowManager *wm_backup = CTX_wm_manager(C);
   wmWindow *win_backup = CTX_wm_window(C);
@@ -277,9 +280,9 @@ extern "C" void StartKetsjiShell(struct bContext *C,
         RefreshContextAndScreen(C, wm, win, bfd->curscene);
 
         if (blenderdata) {
-          BLI_strncpy(pathname, blenderdata->name, sizeof(pathname));
+          BLI_strncpy(pathname, blenderdata->filepath, sizeof(pathname));
           // Change G_MAIN path to ensure loading of data using relative paths.
-          BLI_strncpy(G_MAIN->name, pathname, sizeof(G_MAIN->name));
+          BLI_strncpy(G_MAIN->filepath, pathname, sizeof(G_MAIN->filepath));
         }
       }
       // else forget it, we can't find it
@@ -395,7 +398,8 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     wm_backup->message_bus = (wmMsgBus *)msgbus_backup;
   }
   else {
-    CTX_wm_window_set(C, win_backup); // Fix for crash at exit when we have preferences window open
+    CTX_wm_window_set(C,
+                      win_backup);  // Fix for crash at exit when we have preferences window open
   }
 
   RefreshContextAndScreen(C, wm_backup, win_backup, startscene);
@@ -419,6 +423,9 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     }
   }
 
+  /* Make sure we'll use new undo in viewport because faster */
+  G.is_undo_at_exit = false;
+
 #ifdef WITH_PYTHON
 
   PyDict_Clear(globalDict);
@@ -429,5 +436,5 @@ extern "C" void StartKetsjiShell(struct bContext *C,
 #endif
 
   // Restore G_MAIN path.
-  BLI_strncpy(G_MAIN->name, prevPathName, sizeof(G_MAIN->name));
+  BLI_strncpy(G_MAIN->filepath, prevPathName, sizeof(G_MAIN->filepath));
 }

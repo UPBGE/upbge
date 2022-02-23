@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #pragma once
 
@@ -27,17 +12,17 @@ class BoxMaskOperation : public MultiThreadedOperation {
   using MaskFunc = std::function<float(bool is_inside, const float *mask, const float *value)>;
 
   /**
-   * Cached reference to the inputProgram
+   * Cached reference to the input_program
    */
-  SocketReader *m_inputMask;
-  SocketReader *m_inputValue;
+  SocketReader *input_mask_;
+  SocketReader *input_value_;
 
-  float m_sine;
-  float m_cosine;
-  float m_aspectRatio;
-  int m_maskType;
+  float sine_;
+  float cosine_;
+  float aspect_ratio_;
+  int mask_type_;
 
-  NodeBoxMask *m_data;
+  NodeBoxMask *data_;
 
  public:
   BoxMaskOperation();
@@ -45,26 +30,26 @@ class BoxMaskOperation : public MultiThreadedOperation {
   /**
    * The inner loop of this operation.
    */
-  void executePixelSampled(float output[4], float x, float y, PixelSampler sampler) override;
+  void execute_pixel_sampled(float output[4], float x, float y, PixelSampler sampler) override;
 
   /**
    * Initialize the execution
    */
-  void initExecution() override;
+  void init_execution() override;
 
   /**
    * Deinitialize the execution
    */
-  void deinitExecution() override;
+  void deinit_execution() override;
 
-  void setData(NodeBoxMask *data)
+  void set_data(NodeBoxMask *data)
   {
-    this->m_data = data;
+    data_ = data;
   }
 
-  void setMaskType(int maskType)
+  void set_mask_type(int mask_type)
   {
-    this->m_maskType = maskType;
+    mask_type_ = mask_type;
   }
 
   void update_memory_buffer_partial(MemoryBuffer *output,

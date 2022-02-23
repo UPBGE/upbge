@@ -29,7 +29,7 @@
 #include "EXP_PyObjectPlus.h"
 
 class KX_LibLoadStatus : public EXP_PyObjectPlus {
-  Py_Header private : class BL_BlenderConverter *m_converter;
+  Py_Header private : class BL_Converter *m_converter;
   class KX_KetsjiEngine *m_engine;
   class KX_Scene *m_mergescene;
   void *m_data;
@@ -48,7 +48,7 @@ class KX_LibLoadStatus : public EXP_PyObjectPlus {
 #endif
 
  public:
-  KX_LibLoadStatus(class BL_BlenderConverter *kx_converter,
+  KX_LibLoadStatus(class BL_Converter *kx_converter,
                    class KX_KetsjiEngine *kx_engine,
                    class KX_Scene *merge_scene,
                    const std::string &path);
@@ -57,7 +57,7 @@ class KX_LibLoadStatus : public EXP_PyObjectPlus {
   void RunFinishCallback();
   void RunProgressCallback();
 
-  class BL_BlenderConverter *GetConverter();
+  class BL_Converter *GetConverter();
   class KX_KetsjiEngine *GetEngine();
   class KX_Scene *GetMergeScene();
 

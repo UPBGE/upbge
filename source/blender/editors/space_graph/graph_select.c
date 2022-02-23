@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2008 Blender Foundation
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2008 Blender Foundation. */
 
 /** \file
  * \ingroup spgraph
@@ -56,8 +41,9 @@
 
 #include "graph_intern.h"
 
-/* ************************************************************************** */
-/* KEYFRAMES STUFF */
+/* -------------------------------------------------------------------- */
+/** \name Internal Keyframe Utilities
+ * \{ */
 
 /* temp info for caching handle vertices close */
 typedef struct tNearestVertInfo {
@@ -334,23 +320,17 @@ static tNearestVertInfo *find_nearest_fcurve_vert(bAnimContext *ac, const int mv
   return nvi;
 }
 
-/* ******************** Deselect All Operator ***************************** */
-/* This operator works in one of three ways:
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Deselect All Operator
+ *
+ * This operator works in one of three ways:
  * 1) (de)select all (AKEY) - test if select all or deselect all
  * 2) invert all (CTRL-IKEY) - invert selection of all keyframes
  * 3) (de)select all - no testing is done; only for use internal tools as normal function...
- */
+ * \{ */
 
-/* Deselects keyframes in the Graph Editor
- * - This is called by the deselect all operator, as well as other ones!
- *
- * - test: check if select or deselect all
- * - sel: how to select keyframes
- *   0 = deselect
- *   1 = select
- *   2 = invert
- * - do_channels: whether to affect selection status of channels
- */
 void deselect_graph_keys(bAnimContext *ac, bool test, short sel, bool do_channels)
 {
   ListBase anim_data = {NULL, NULL};
@@ -490,8 +470,12 @@ void GRAPH_OT_select_all(wmOperatorType *ot)
   WM_operator_properties_select_all(ot);
 }
 
-/* ******************** Box Select Operator **************************** */
-/* This operator currently works in one of three ways:
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Box Select Operator
+ *
+ * This operator currently works in one of three ways:
  * -> BKEY     - 1) all keyframes within region are selected (validation with BEZT_OK_REGION)
  * -> ALT-BKEY - depending on which axis of the region was larger...
  *    -> 2) x-axis, so select all frames within frame range (validation with BEZT_OK_FRAMERANGE)
@@ -499,7 +483,7 @@ void GRAPH_OT_select_all(wmOperatorType *ot)
  *          (validation with BEZT_OK_VALUERANGE).
  *
  * The selection backend is also reused for the Lasso and Circle select operators.
- */
+ * \{ */
 
 static rctf initialize_box_select_coords(const bAnimContext *ac, const rctf *rectf_view)
 {
@@ -572,7 +556,8 @@ static void initialize_box_select_key_editing_data(const SpaceGraph *sipo,
   *r_mapping_flag |= ANIM_get_normalization_flags(ac);
 }
 
-/* Box Select only selects keyframes, as overshooting handles often get caught too,
+/**
+ * Box Select only selects keyframes, as overshooting handles often get caught too,
  * which means that they may be inadvertently moved as well. However, incl_handles overrides
  * this, and allow handles to be considered independently too.
  * Also, for convenience, handles should get same status as keyframe (if it was within bounds).
@@ -667,7 +652,8 @@ static bool box_select_graphkeys(bAnimContext *ac,
   return any_key_selection_changed;
 }
 
-/* This function is used to set all the keyframes of a given curve as selectable
+/**
+ * This function is used to set all the keyframes of a given curve as selectable
  * by the "select_cb" function inside of "box_select_graphcurves".
  */
 static short ok_bezier_always_ok(KeyframeEditData *UNUSED(ked), BezTriple *UNUSED(bezt))
@@ -732,11 +718,12 @@ static bool rectf_curve_intersection(
 #undef INSIDE
 #undef BELOW
 
-/* Perform a box selection of the curves themselves. This means this function tries
+/**
+ * Perform a box selection of the curves themselves. This means this function tries
  * to select a curve by sampling it at various points instead of trying to select the
  * keyframes directly.
  * The selection actions done to a curve are actually done on all the keyframes of the curve.
- * NOTE: This function is only called if no keyframe is in the selection area.
+ * \note This function is only called if no keyframe is in the selection area.
  */
 static void box_select_graphcurves(bAnimContext *ac,
                                    const rctf *rectf_view,
@@ -1006,7 +993,7 @@ void GRAPH_OT_select_lasso(wmOperatorType *ot)
   ot->cancel = WM_gesture_lasso_cancel;
 
   /* Flags. */
-  ot->flag = OPTYPE_UNDO;
+  ot->flag = OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 
   /* Properties. */
   WM_operator_properties_gesture_lasso(ot);
@@ -1107,13 +1094,17 @@ void GRAPH_OT_select_circle(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-/* ******************** Column Select Operator **************************** */
-/* This operator works in one of four ways:
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Column Select Operator
+ *
+ * This operator works in one of four ways:
  * - 1) select all keyframes in the same frame as a selected one  (KKEY)
  * - 2) select all keyframes in the same frame as the current frame marker (CTRL-KKEY)
  * - 3) select all keyframes in the same frame as a selected markers (SHIFT-KKEY)
  * - 4) select all keyframes that occur between selected markers (ALT-KKEY)
- */
+ * \{ */
 
 /* defines for column-select mode */
 static const EnumPropertyItem prop_column_select_types[] = {
@@ -1297,7 +1288,11 @@ void GRAPH_OT_select_column(wmOperatorType *ot)
   ot->prop = RNA_def_enum(ot->srna, "mode", prop_column_select_types, 0, "Mode", "");
 }
 
-/* ******************** Select Linked Operator *********************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Select Linked Operator
+ * \{ */
 
 static int graphkeys_select_linked_exec(bContext *C, wmOperator *UNUSED(op))
 {
@@ -1353,7 +1348,11 @@ void GRAPH_OT_select_linked(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-/* ******************** Select More/Less Operators *********************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Select More/Less Operators
+ * \{ */
 
 /* Common code to perform selection */
 static void select_moreless_graph_keys(bAnimContext *ac, short mode)
@@ -1467,8 +1466,13 @@ void GRAPH_OT_select_less(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-/* ******************** Select Left/Right Operator ************************* */
-/* Select keyframes left/right of the current frame indicator */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Select Left/Right Operator
+ *
+ * Select keyframes left/right of the current frame indicator.
+ * \{ */
 
 /* defines for left-right select tool */
 static const EnumPropertyItem prop_graphkeys_leftright_select_types[] = {
@@ -1628,15 +1632,19 @@ void GRAPH_OT_select_leftright(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-/* ******************** Mouse-Click Select Operator *********************** */
-/* This operator works in one of three ways:
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Mouse-Click Select Operator
+ *
+ * This operator works in one of three ways:
  * - 1) keyframe under mouse - no special modifiers
  * - 2) all keyframes on the same side of current frame indicator as mouse - ALT modifier
  * - 3) column select all keyframes in frame under mouse - CTRL modifier
  *
  * In addition to these basic options, the SHIFT modifier can be used to toggle the
  * selection mode between replacing the selection (without) and inverting the selection (with).
- */
+ * \{ */
 
 /* option 1) select keyframe directly under mouse */
 static int mouse_graph_keys(bAnimContext *ac,
@@ -1888,9 +1896,12 @@ static int graphkeys_mselect_column(bAnimContext *ac,
   return run_modal ? OPERATOR_RUNNING_MODAL : OPERATOR_FINISHED;
 }
 
-/* ------------------- */
+/** \} */
 
-/* handle clicking */
+/* -------------------------------------------------------------------- */
+/** \name Click Select Operator
+ * \{ */
+
 static int graphkeys_clickselect_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
@@ -1988,4 +1999,4 @@ void GRAPH_OT_clickselect(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-/* ************************************************************************** */
+/** \} */

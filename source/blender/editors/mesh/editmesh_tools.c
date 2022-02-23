@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2004 by Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2004 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup edmesh
@@ -285,7 +269,8 @@ static void mesh_operator_edgering_props(wmOperatorType *ot,
   RNA_def_property_enum_items(prop, rna_enum_proportional_falloff_curve_only_items);
   RNA_def_property_enum_default(prop, PROP_SMOOTH);
   RNA_def_property_ui_text(prop, "Profile Shape", "Shape of the profile");
-  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_CURVE); /* Abusing id_curve :/ */
+  RNA_def_property_translation_context(prop,
+                                       BLT_I18NCONTEXT_ID_CURVE_LEGACY); /* Abusing id_curve :/ */
 }
 
 static void mesh_operator_edgering_props_get(wmOperator *op, struct EdgeRingOpSubdProps *op_props)
@@ -3706,10 +3691,7 @@ static int edbm_shape_propagate_to_all_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   if (tot_shapekeys == 0) {
-    BKE_report(op->reports,
-               RPT_ERROR,
-               objects_len > 1 ? "Meshes do not have shape keys" :
-                                 "Mesh does not have shape keys");
+    BKE_report(op->reports, RPT_ERROR, "Mesh(es) do not have shape keys");
     return OPERATOR_CANCELLED;
   }
 
@@ -4323,7 +4305,7 @@ void MESH_OT_knife_cut(wmOperatorType *ot)
   ot->poll = EDBM_view3d_poll;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 
   /* properties */
   PropertyRNA *prop;
@@ -8229,7 +8211,6 @@ enum {
   EDBM_CLNOR_MODAL_POINTTO_SET_USE_SELECTED = 114,
 };
 
-/* Called in transform_ops.c, on each regeneration of key-maps. */
 wmKeyMap *point_normals_modal_keymap(wmKeyConfig *keyconf)
 {
   static const EnumPropertyItem modal_items[] = {

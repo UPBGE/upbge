@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2009 Blender Foundation, Joshua Leung. All rights reserved. */
 
 /** \file
  * \ingroup edanimation
@@ -35,8 +19,8 @@
 #include "DNA_armature_types.h"
 #include "DNA_cachefile_types.h"
 #include "DNA_camera_types.h"
+#include "DNA_curves_types.h"
 #include "DNA_gpencil_types.h"
-#include "DNA_hair_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_light_types.h"
@@ -199,7 +183,7 @@ static void acf_generic_channel_color(bAnimContext *ac, bAnimListElem *ale, floa
   }
 
   /* set color for normal channels
-   * - use 3 shades of color group/standard color for 3 indention level
+   * - use 3 shades of color group/standard color for 3 indentation level
    * - only use group colors if allowed to, and if actually feasible
    */
   if (showGroupColors && (grp) && (grp->customCol)) {
@@ -684,7 +668,7 @@ static int acf_object_icon(bAnimListElem *ale)
       return ICON_OUTLINER_OB_MESH;
     case OB_CAMERA:
       return ICON_OUTLINER_OB_CAMERA;
-    case OB_CURVE:
+    case OB_CURVES_LEGACY:
       return ICON_OUTLINER_OB_CURVE;
     case OB_MBALL:
       return ICON_OUTLINER_OB_META;
@@ -700,8 +684,8 @@ static int acf_object_icon(bAnimListElem *ale)
       return ICON_OUTLINER_OB_FONT;
     case OB_SURF:
       return ICON_OUTLINER_OB_SURFACE;
-    case OB_HAIR:
-      return ICON_OUTLINER_OB_HAIR;
+    case OB_CURVES:
+      return ICON_OUTLINER_OB_CURVES;
     case OB_POINTCLOUD:
       return ICON_OUTLINER_OB_POINTCLOUD;
     case OB_VOLUME:
@@ -2813,15 +2797,15 @@ static bAnimChannelType ACF_DSSPK = {
 /* Hair Expander  ------------------------------------------- */
 
 /* TODO: just get this from RNA? */
-static int acf_dshair_icon(bAnimListElem *UNUSED(ale))
+static int acf_dscurves_icon(bAnimListElem *UNUSED(ale))
 {
-  return ICON_HAIR_DATA;
+  return ICON_CURVES_DATA;
 }
 
 /* Get the appropriate flag(s) for the setting when it is valid. */
-static int acf_dshair_setting_flag(bAnimContext *UNUSED(ac),
-                                   eAnimChannel_Settings setting,
-                                   bool *neg)
+static int acf_dscurves_setting_flag(bAnimContext *UNUSED(ac),
+                                     eAnimChannel_Settings setting,
+                                     bool *neg)
 {
   /* clear extra return data first */
   *neg = false;
@@ -2846,22 +2830,24 @@ static int acf_dshair_setting_flag(bAnimContext *UNUSED(ac),
 }
 
 /* get pointer to the setting */
-static void *acf_dshair_setting_ptr(bAnimListElem *ale, eAnimChannel_Settings setting, short *type)
+static void *acf_dscurves_setting_ptr(bAnimListElem *ale,
+                                      eAnimChannel_Settings setting,
+                                      short *type)
 {
-  Hair *hair = (Hair *)ale->data;
+  Curves *curves = (Curves *)ale->data;
 
   /* clear extra return data first */
   *type = 0;
 
   switch (setting) {
     case ACHANNEL_SETTING_EXPAND: /* expanded */
-      return GET_ACF_FLAG_PTR(hair->flag, type);
+      return GET_ACF_FLAG_PTR(curves->flag, type);
 
     case ACHANNEL_SETTING_SELECT:  /* selected */
     case ACHANNEL_SETTING_MUTE:    /* muted (for NLA only) */
     case ACHANNEL_SETTING_VISIBLE: /* visible (for Graph Editor only) */
-      if (hair->adt) {
-        return GET_ACF_FLAG_PTR(hair->adt->flag, type);
+      if (curves->adt) {
+        return GET_ACF_FLAG_PTR(curves->adt->flag, type);
       }
       return NULL;
 
@@ -2870,9 +2856,9 @@ static void *acf_dshair_setting_ptr(bAnimListElem *ale, eAnimChannel_Settings se
   }
 }
 
-/* hair expander type define */
+/* Curves expander type define */
 static bAnimChannelType ACF_DSHAIR = {
-    "Hair Expander",        /* type name */
+    "Curves Expander",      /* type name */
     ACHANNEL_ROLE_EXPANDER, /* role */
 
     acf_generic_dataexpand_color,    /* backdrop color */
@@ -2882,11 +2868,11 @@ static bAnimChannelType ACF_DSHAIR = {
 
     acf_generic_idblock_name,      /* name */
     acf_generic_idblock_name_prop, /* name prop */
-    acf_dshair_icon,               /* icon */
+    acf_dscurves_icon,             /* icon */
 
     acf_generic_dataexpand_setting_valid, /* has setting */
-    acf_dshair_setting_flag,              /* flag for setting */
-    acf_dshair_setting_ptr                /* pointer for setting */
+    acf_dscurves_setting_flag,            /* flag for setting */
+    acf_dscurves_setting_ptr              /* pointer for setting */
 };
 
 /* PointCloud Expander  ------------------------------------------- */
@@ -3418,7 +3404,7 @@ static void acf_gpd_color(bAnimContext *UNUSED(ac), bAnimListElem *UNUSED(ale), 
 /* TODO: just get this from RNA? */
 static int acf_gpd_icon(bAnimListElem *UNUSED(ale))
 {
-  return ICON_GREASEPENCIL;
+  return ICON_OUTLINER_OB_GREASEPENCIL;
 }
 
 /* check if some setting exists for this channel */
@@ -4158,7 +4144,6 @@ static void ANIM_init_channel_typeinfo_data(void)
   }
 }
 
-/* Get type info from given channel type */
 const bAnimChannelType *ANIM_channel_get_typeinfo(bAnimListElem *ale)
 {
   /* Sanity checks. */
@@ -4179,7 +4164,6 @@ const bAnimChannelType *ANIM_channel_get_typeinfo(bAnimListElem *ale)
 
 /* --------------------------- */
 
-/* Print debug info string for the given channel */
 void ANIM_channel_debug_print_info(bAnimListElem *ale, short indent_level)
 {
   const bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale);
@@ -4212,11 +4196,25 @@ void ANIM_channel_debug_print_info(bAnimListElem *ale, short indent_level)
   }
 }
 
+bAction *ANIM_channel_action_get(const bAnimListElem *ale)
+{
+  if (ale->datatype == ALE_ACT) {
+    return (bAction *)ale->key_data;
+  }
+
+  if (ELEM(ale->type, ANIMTYPE_GROUP, ANIMTYPE_FCURVE)) {
+    ID *owner = ale->fcurve_owner_id;
+
+    if (owner && GS(owner->name) == ID_AC) {
+      return (bAction *)owner;
+    }
+  }
+
+  return NULL;
+}
+
 /* --------------------------- */
 
-/* Check if some setting for a channel is enabled
- * Returns: 1 = On, 0 = Off, -1 = Invalid
- */
 short ANIM_channel_setting_get(bAnimContext *ac, bAnimListElem *ale, eAnimChannel_Settings setting)
 {
   const bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale);
@@ -4299,10 +4297,6 @@ short ANIM_channel_setting_get(bAnimContext *ac, bAnimListElem *ale, eAnimChanne
   } \
   (void)0
 
-/* Change value of some setting for a channel
- * - setting: eAnimChannel_Settings
- * - mode: eAnimChannels_SetFlag
- */
 void ANIM_channel_setting_set(bAnimContext *ac,
                               bAnimListElem *ale,
                               eAnimChannel_Settings setting,
@@ -4376,7 +4370,6 @@ static bool achannel_is_being_renamed(const bAnimContext *ac,
   return false;
 }
 
-/* Draw the given channel */
 void ANIM_channel_draw(
     bAnimContext *ac, bAnimListElem *ale, float yminc, float ymaxc, size_t channel_index)
 {
@@ -5132,7 +5125,6 @@ static void draw_setting_widget(bAnimContext *ac,
   }
 }
 
-/* Draw UI widgets the given channel */
 void ANIM_channel_draw_widgets(const bContext *C,
                                bAnimContext *ac,
                                bAnimListElem *ale,

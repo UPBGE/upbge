@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edmeta
@@ -47,6 +31,8 @@
 
 #include "DEG_depsgraph.h"
 
+#include "GPU_select.h"
+
 #include "ED_mball.h"
 #include "ED_object.h"
 #include "ED_screen.h"
@@ -62,7 +48,6 @@
 /** \name Edit Mode Functions
  * \{ */
 
-/* This function is used to free all MetaElems from MetaBall */
 void ED_mball_editmball_free(Object *obedit)
 {
   MetaBall *mb = (MetaBall *)obedit->data;
@@ -71,8 +56,6 @@ void ED_mball_editmball_free(Object *obedit)
   mb->lastelem = NULL;
 }
 
-/* This function is called, when MetaBall Object is
- * switched from object mode to edit mode */
 void ED_mball_editmball_make(Object *obedit)
 {
   MetaBall *mb = (MetaBall *)obedit->data;
@@ -90,9 +73,6 @@ void ED_mball_editmball_make(Object *obedit)
   mb->editelems = &mb->elems;
 }
 
-/* This function is called, when MetaBall Object switched from
- * edit mode to object mode. List of MetaElements is copied
- * from object->data->edit_elems to object->data->elems. */
 void ED_mball_editmball_load(Object *UNUSED(obedit))
 {
 }
@@ -122,9 +102,6 @@ bool ED_mball_deselect_all_multi(bContext *C)
 /** \name Add Meta Primitive Utility
  * \{ */
 
-/**
- * Add meta-element primitive to meta-ball object (which is in edit mode).
- */
 MetaElem *ED_mball_add_primitive(
     bContext *UNUSED(C), Object *obedit, bool obedit_is_new, float mat[4][4], float dia, int type)
 {
@@ -759,23 +736,25 @@ void MBALL_OT_reveal_metaelems(wmOperatorType *ot)
 /** \name Select Pick Utility
  * \{ */
 
-/* Select MetaElement with mouse click (user can select radius circle or
- * stiffness circle) */
 bool ED_mball_select_pick(bContext *C, const int mval[2], bool extend, bool deselect, bool toggle)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   static MetaElem *startelem = NULL;
   ViewContext vc;
   int a, hits;
-  uint buffer[MAXPICKBUF];
+  GPUSelectResult buffer[MAXPICKELEMS];
   rcti rect;
 
   ED_view3d_viewcontext_init(C, &vc, depsgraph);
 
   BLI_rcti_init_pt_radius(&rect, mval, 12);
 
-  hits = view3d_opengl_select(
-      &vc, buffer, MAXPICKBUF, &rect, VIEW3D_SELECT_PICK_NEAREST, VIEW3D_SELECT_FILTER_NOP);
+  hits = view3d_opengl_select(&vc,
+                              buffer,
+                              ARRAY_SIZE(buffer),
+                              &rect,
+                              VIEW3D_SELECT_PICK_NEAREST,
+                              VIEW3D_SELECT_FILTER_NOP);
 
   FOREACH_BASE_IN_EDIT_MODE_BEGIN (vc.view_layer, vc.v3d, base) {
     ED_view3d_viewcontext_init_object(&vc, base->object);
@@ -800,7 +779,7 @@ bool ED_mball_select_pick(bContext *C, const int mval[2], bool extend, bool dese
       ml = startelem;
       while (ml) {
         for (a = 0; a < hits; a++) {
-          int hitresult = buffer[(4 * a) + 3];
+          const int hitresult = buffer[a].id;
           if (hitresult == -1) {
             continue;
           }

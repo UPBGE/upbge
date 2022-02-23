@@ -95,7 +95,7 @@ base class --- :class:`~bge.types.SCA_IActuator`
 
       The damping parameter of the servo controller.
 
-      :type: short
+      :type: integer (short)
 
    .. attribute:: forceLimitX
 

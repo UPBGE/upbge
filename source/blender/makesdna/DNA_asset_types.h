@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -22,6 +8,7 @@
 
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
+#include "DNA_uuid_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -55,11 +42,31 @@ typedef struct AssetFilterSettings {
  *       more than that from the file. So pointers to other IDs or ID data are strictly forbidden.
  */
 typedef struct AssetMetaData {
+  /** Runtime type, to reference event callbacks. Only valid for local assets. */
+  struct AssetTypeInfo *local_type_info;
+
   /** Custom asset meta-data. Cannot store pointers to IDs (#STRUCT_NO_DATABLOCK_IDPROPERTIES)! */
   struct IDProperty *properties;
 
+  /**
+   * Asset Catalog identifier. Should not contain spaces.
+   * Mapped to a path in the asset catalog hierarchy by an #AssetCatalogService.
+   * Use #BKE_asset_metadata_catalog_id_set() to ensure a valid ID is set.
+   */
+  struct bUUID catalog_id;
+  /**
+   * Short name of the asset's catalog. This is for debugging purposes only, to allow (partial)
+   * reconstruction of asset catalogs in the unfortunate case that the mapping from catalog UUID to
+   * catalog path is lost. The catalog's simple name is copied to #catalog_simple_name whenever
+   * #catalog_id is updated. */
+  char catalog_simple_name[64]; /* MAX_NAME */
+
+  /** Optional name of the author for display in the UI. Dynamic length. */
+  char *author;
+
   /** Optional description of this asset for display in the UI. Dynamic length. */
   char *description;
+
   /** User defined tags for this asset. The asset manager uses these for filtering, but how they
    * function exactly (e.g. how they are registered to provide a list of searchable available tags)
    * is up to the asset-engine. */

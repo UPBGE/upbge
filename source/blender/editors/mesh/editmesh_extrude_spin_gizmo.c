@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edmesh
@@ -461,7 +447,7 @@ void MESH_GGT_spin(struct wmGizmoGroupType *gzgt)
   gzgt->name = "Mesh Spin Init";
   gzgt->idname = "MESH_GGT_spin";
 
-  gzgt->flag = WM_GIZMOGROUPTYPE_3D;
+  gzgt->flag = WM_GIZMOGROUPTYPE_TOOL_FALLBACK_KEYMAP | WM_GIZMOGROUPTYPE_3D;
 
   gzgt->gzmap_params.spaceid = SPACE_VIEW3D;
   gzgt->gzmap_params.regionid = RGN_TYPE_WINDOW;
@@ -941,7 +927,7 @@ static void gizmo_mesh_spin_redo_setup(const bContext *C, wmGizmoGroup *gzgroup)
     /* Use cursor as fallback if it's not set by the 'ortho_axis_active'. */
     if (is_zero_v3(ggd->data.orient_axis_relative)) {
       float cursor_co[3];
-      const int mval[2] = {event->x - region->winrct.xmin, event->y - region->winrct.ymin};
+      const int mval[2] = {event->xy[0] - region->winrct.xmin, event->xy[1] - region->winrct.ymin};
       float plane[4];
       plane_from_point_normal_v3(plane, plane_co, plane_no);
       if (UNLIKELY(!ED_view3d_win_to_3d_on_plane_int(region, plane, mval, false, cursor_co))) {
@@ -1063,7 +1049,7 @@ void MESH_GGT_spin_redo(struct wmGizmoGroupType *gzgt)
   gzgt->name = "Mesh Spin Redo";
   gzgt->idname = "MESH_GGT_spin_redo";
 
-  gzgt->flag = WM_GIZMOGROUPTYPE_3D;
+  gzgt->flag = WM_GIZMOGROUPTYPE_TOOL_FALLBACK_KEYMAP | WM_GIZMOGROUPTYPE_3D;
 
   gzgt->gzmap_params.spaceid = SPACE_VIEW3D;
   gzgt->gzmap_params.regionid = RGN_TYPE_WINDOW;

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2011 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup bke
@@ -475,7 +459,7 @@ static void autotrack_context_init_autotrack(AutoTrackContext *context)
 
   /* Allocate memory for all the markers. */
   libmv_Marker *libmv_markers = MEM_malloc_arrayN(
-      sizeof(libmv_Marker), num_trackable_markers, "libmv markers array");
+      num_trackable_markers, sizeof(libmv_Marker), "libmv markers array");
 
   /* Fill in markers array. */
   int num_filled_libmv_markers = 0;
@@ -516,7 +500,7 @@ static void autotrack_context_init_markers(AutoTrackContext *context)
 
   /* Allocate required memory. */
   context->autotrack_markers = MEM_calloc_arrayN(
-      sizeof(AutoTrackMarker), context->num_autotrack_markers, "auto track options");
+      context->num_autotrack_markers, sizeof(AutoTrackMarker), "auto track options");
 
   /* Fill in all the markers. */
   int autotrack_marker_index = 0;
@@ -775,7 +759,7 @@ void BKE_autotrack_context_sync(AutoTrackContext *context)
 }
 
 /* TODO(sergey): Find a way to avoid this, somehow making all needed logic in
- * BKE_autotrack_context_sync(). */
+ * #BKE_autotrack_context_sync(). */
 void BKE_autotrack_context_sync_user(AutoTrackContext *context, MovieClipUser *user)
 {
   user->framenr = context->synchronized_scene_frame;

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edtransform
@@ -208,29 +192,17 @@ void createTransNlaData(bContext *C, TransInfo *t)
               /* just set tdn to assume that it only has one handle for now */
               tdn->handle = -1;
 
-              /* now, link the transform data up to this data */
+              /* Now, link the transform data up to this data. */
+              td->loc = tdn->h1;
+              copy_v3_v3(td->iloc, tdn->h1);
+
               if (ELEM(t->mode, TFM_TRANSLATION, TFM_TIME_EXTEND)) {
-                td->loc = tdn->h1;
-                copy_v3_v3(td->iloc, tdn->h1);
-
-                /* store all the other gunk that is required by transform */
+                /* Store all the other gunk that is required by transform. */
                 copy_v3_v3(td->center, center);
-                memset(td->axismtx, 0, sizeof(td->axismtx));
                 td->axismtx[2][2] = 1.0f;
-
-                td->ext = NULL;
-                td->val = NULL;
-
                 td->flag |= TD_SELECTED;
-                td->dist = 0.0f;
-
                 unit_m3(td->mtx);
                 unit_m3(td->smtx);
-              }
-              else {
-                /* time scaling only needs single value */
-                td->val = &tdn->h1[0];
-                td->ival = tdn->h1[0];
               }
 
               td->extra = tdn;
@@ -241,29 +213,17 @@ void createTransNlaData(bContext *C, TransInfo *t)
                * then we're doing both, otherwise, only end */
               tdn->handle = (tdn->handle) ? 2 : 1;
 
-              /* now, link the transform data up to this data */
+              /* Now, link the transform data up to this data. */
+              td->loc = tdn->h2;
+              copy_v3_v3(td->iloc, tdn->h2);
+
               if (ELEM(t->mode, TFM_TRANSLATION, TFM_TIME_EXTEND)) {
-                td->loc = tdn->h2;
-                copy_v3_v3(td->iloc, tdn->h2);
-
-                /* store all the other gunk that is required by transform */
+                /* Store all the other gunk that is required by transform. */
                 copy_v3_v3(td->center, center);
-                memset(td->axismtx, 0, sizeof(td->axismtx));
                 td->axismtx[2][2] = 1.0f;
-
-                td->ext = NULL;
-                td->val = NULL;
-
                 td->flag |= TD_SELECTED;
-                td->dist = 0.0f;
-
                 unit_m3(td->mtx);
                 unit_m3(td->smtx);
-              }
-              else {
-                /* time scaling only needs single value */
-                td->val = &tdn->h2[0];
-                td->ival = tdn->h2[0];
               }
 
               td->extra = tdn;
@@ -290,7 +250,6 @@ void createTransNlaData(bContext *C, TransInfo *t)
   ANIM_animdata_freelist(&anim_data);
 }
 
-/* helper for recalcData() - for NLA Editor transforms */
 void recalcData_nla(TransInfo *t)
 {
   SpaceNla *snla = (SpaceNla *)t->area->spacedata.first;

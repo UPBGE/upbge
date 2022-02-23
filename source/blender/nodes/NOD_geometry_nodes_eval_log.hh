@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -40,6 +26,8 @@
 #include "FN_generic_pointer.hh"
 
 #include "NOD_derived_node_tree.hh"
+
+#include <chrono>
 
 struct SpaceNode;
 struct SpaceSpreadsheet;
@@ -76,6 +64,31 @@ class GenericValueLog : public ValueLog {
   }
 };
 
+class GFieldValueLog : public ValueLog {
+ private:
+  fn::GField field_;
+  const fn::CPPType &type_;
+  Vector<std::string> input_tooltips_;
+
+ public:
+  GFieldValueLog(fn::GField field, bool log_full_field);
+
+  const fn::GField &field() const
+  {
+    return field_;
+  }
+
+  Span<std::string> input_tooltips() const
+  {
+    return input_tooltips_;
+  }
+
+  const fn::CPPType &type() const
+  {
+    return type_;
+  }
+};
+
 struct GeometryAttributeInfo {
   std::string name;
   AttributeDomain domain;
@@ -109,7 +122,7 @@ class GeometryValueLog : public ValueLog {
   std::optional<PointCloudInfo> pointcloud_info;
   std::optional<InstancesInfo> instances_info;
 
-  GeometryValueLog(const GeometrySet &geometry_set, bool log_full_geometry);
+  GeometryValueLog(const GeometrySet &geometry_set, bool log_full_geometry = false);
 
   Span<GeometryAttributeInfo> attributes() const
   {
@@ -131,6 +144,7 @@ enum class NodeWarningType {
   Error,
   Warning,
   Info,
+  Legacy,
 };
 
 struct NodeWarning {
@@ -141,6 +155,16 @@ struct NodeWarning {
 struct NodeWithWarning {
   DNode node;
   NodeWarning warning;
+};
+
+struct NodeWithExecutionTime {
+  DNode node;
+  std::chrono::microseconds exec_time;
+};
+
+struct NodeWithDebugMessage {
+  DNode node;
+  std::string message;
 };
 
 /** The same value can be referenced by multiple sockets when they are linked. */
@@ -163,6 +187,8 @@ class LocalGeoLogger {
   std::unique_ptr<LinearAllocator<>> allocator_;
   Vector<ValueOfSockets> values_;
   Vector<NodeWithWarning> node_warnings_;
+  Vector<NodeWithExecutionTime> node_exec_times_;
+  Vector<NodeWithDebugMessage> node_debug_messages_;
 
   friend ModifierLog;
 
@@ -175,24 +201,47 @@ class LocalGeoLogger {
   void log_value_for_sockets(Span<DSocket> sockets, GPointer value);
   void log_multi_value_socket(DSocket socket, Span<GPointer> values);
   void log_node_warning(DNode node, NodeWarningType type, std::string message);
+  void log_execution_time(DNode node, std::chrono::microseconds exec_time);
+  /**
+   * Log a message that will be displayed in the node editor next to the node.
+   * This should only be used for debugging purposes and not to display information to users.
+   */
+  void log_debug_message(DNode node, std::string message);
 };
 
 /** The root logger class. */
 class GeoLogger {
  private:
-  /** The entire geometry of sockets in this set should be cached, because e.g. the spreadsheet
-   * displays the data. We don't log the entire geometry at all places, because that would require
-   * way too much memory. */
-  Set<DSocket> log_full_geometry_sockets_;
+  /**
+   * Log the entire value for these sockets, because they may be inspected afterwards.
+   * We don't log everything, because that would take up too much memory and cause significant
+   * slowdowns.
+   */
+  Set<DSocket> log_full_sockets_;
   threading::EnumerableThreadSpecific<LocalGeoLogger> threadlocals_;
 
+  /* These are only optional since they don't have a default constructor. */
+  std::unique_ptr<GeometryValueLog> input_geometry_log_;
+  std::unique_ptr<GeometryValueLog> output_geometry_log_;
+
   friend LocalGeoLogger;
+  friend ModifierLog;
 
  public:
-  GeoLogger(Set<DSocket> log_full_geometry_sockets)
-      : log_full_geometry_sockets_(std::move(log_full_geometry_sockets)),
+  GeoLogger(Set<DSocket> log_full_sockets)
+      : log_full_sockets_(std::move(log_full_sockets)),
         threadlocals_([this]() { return LocalGeoLogger(*this); })
   {
+  }
+
+  void log_input_geometry(const GeometrySet &geometry)
+  {
+    input_geometry_log_ = std::make_unique<GeometryValueLog>(geometry);
+  }
+
+  void log_output_geometry(const GeometrySet &geometry)
+  {
+    output_geometry_log_ = std::make_unique<GeometryValueLog>(geometry);
   }
 
   LocalGeoLogger &local()
@@ -231,12 +280,15 @@ class NodeLog {
   Vector<SocketLog> input_logs_;
   Vector<SocketLog> output_logs_;
   Vector<NodeWarning, 0> warnings_;
+  Vector<std::string, 0> debug_messages_;
+  std::chrono::microseconds exec_time_;
 
   friend ModifierLog;
 
  public:
   const SocketLog *lookup_socket_log(eNodeSocketInOut in_out, int index) const;
   const SocketLog *lookup_socket_log(const bNode &node, const bNodeSocket &socket) const;
+  void execution_time(std::chrono::microseconds exec_time);
 
   Span<SocketLog> input_logs() const
   {
@@ -251,6 +303,16 @@ class NodeLog {
   Span<NodeWarning> warnings() const
   {
     return warnings_;
+  }
+
+  Span<std::string> debug_messages() const
+  {
+    return debug_messages_;
+  }
+
+  std::chrono::microseconds execution_time() const
+  {
+    return exec_time_;
   }
 
   Vector<const GeometryAttributeInfo *> lookup_available_attributes() const;
@@ -280,6 +342,9 @@ class ModifierLog {
   destruct_ptr<TreeLog> root_tree_logs_;
   Vector<destruct_ptr<ValueLog>> logged_values_;
 
+  std::unique_ptr<GeometryValueLog> input_geometry_log_;
+  std::unique_ptr<GeometryValueLog> output_geometry_log_;
+
  public:
   ModifierLog(GeoLogger &logger);
 
@@ -299,6 +364,9 @@ class ModifierLog {
   static const NodeLog *find_node_by_spreadsheet_editor_context(
       const SpaceSpreadsheet &sspreadsheet);
   void foreach_node_log(FunctionRef<void(const NodeLog &)> fn) const;
+
+  const GeometryValueLog *input_geometry_log() const;
+  const GeometryValueLog *output_geometry_log() const;
 
  private:
   using LogByTreeContext = Map<const DTreeContext *, TreeLog *>;

@@ -1,0 +1,14 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
+
+#include "stdcycles.h"
+
+shader node_separate_rgb(color Image = 0.8,
+                         output float R = 0.0,
+                         output float G = 0.0,
+                         output float B = 0.0)
+{
+  R = Image[0];
+  G = Image[1];
+  B = Image[2];
+}

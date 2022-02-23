@@ -1,22 +1,9 @@
-/*
- * Copyright 2011-2016 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include "testing/testing.h"
 
-#include "util/util_string.h"
+#include "util/string.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -279,6 +266,42 @@ TEST(util_string_remove_trademark, r_space_middle)
 {
   string str = string_remove_trademark("foo bar (R) baz");
   EXPECT_EQ(str, "foo bar baz");
+}
+
+/* ******** Tests for string_startswith() ******** */
+
+TEST(string_startswith, basic)
+{
+  EXPECT_TRUE(string_startswith("", ""));
+
+  EXPECT_FALSE(string_startswith("", "World"));
+  EXPECT_TRUE(string_startswith("Hello", ""));
+
+  EXPECT_FALSE(string_startswith("Hello", "World"));
+
+  EXPECT_TRUE(string_startswith("Hello", "Hello"));
+  EXPECT_TRUE(string_startswith("Hello", "He"));
+  EXPECT_TRUE(string_startswith("Hello", "H"));
+
+  EXPECT_FALSE(string_startswith("Hello", "e"));
+  EXPECT_FALSE(string_startswith("Hello", "HelloWorld"));
+}
+
+TEST(string_endswith, basic)
+{
+  EXPECT_TRUE(string_endswith("", ""));
+
+  EXPECT_FALSE(string_endswith("", "World"));
+  EXPECT_TRUE(string_endswith("Hello", ""));
+
+  EXPECT_FALSE(string_endswith("Hello", "World"));
+
+  EXPECT_TRUE(string_endswith("Hello", "Hello"));
+  EXPECT_TRUE(string_endswith("Hello", "lo"));
+  EXPECT_TRUE(string_endswith("Hello", "o"));
+
+  EXPECT_FALSE(string_endswith("Hello", "e"));
+  EXPECT_FALSE(string_endswith("Hello", "WorldHello"));
 }
 
 CCL_NAMESPACE_END

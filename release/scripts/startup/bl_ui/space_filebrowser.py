@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8 compliant>
 
@@ -36,15 +20,10 @@ class FILEBROWSER_HT_header(Header):
         space_data = context.space_data
         params = space_data.params
 
-        row = layout.row(align=True)
-        row.prop(params, "asset_library_ref", text="")
-        # External libraries don't auto-refresh, add refresh button.
-        if params.asset_library_ref != 'LOCAL':
-            row.operator("file.refresh", text="", icon='FILE_REFRESH')
-
         layout.separator_spacer()
 
-        layout.prop(params, "import_type", text="")
+        if params.asset_library_ref != 'LOCAL':
+            layout.prop(params, "import_type", text="")
 
         layout.separator_spacer()
 
@@ -57,7 +36,15 @@ class FILEBROWSER_HT_header(Header):
             icon_only=True,
         )
 
-        layout.prop(params, "filter_search", text="", icon='VIEWZOOM')
+        sub = layout.row()
+        sub.ui_units_x = 8
+        sub.prop(params, "filter_search", text="", icon='VIEWZOOM')
+
+        layout.popover(
+            panel="ASSETBROWSER_PT_filter",
+            text="",
+            icon='FILTER'
+        )
 
         layout.operator(
             "screen.region_toggle",
@@ -132,7 +119,7 @@ class FILEBROWSER_PT_display(FileBrowserPanel, Panel):
 class FILEBROWSER_PT_filter(FileBrowserPanel, Panel):
     bl_region_type = 'HEADER'
     bl_label = "Filter Settings"  # Shows as tooltip in popover
-    bl_ui_units_x = 8
+    bl_ui_units_x = 10
 
     def draw(self, context):
         layout = self.layout
@@ -195,13 +182,14 @@ class FILEBROWSER_PT_filter(FileBrowserPanel, Panel):
 
                 sub = row.column(align=True)
 
-                if context.preferences.experimental.use_extended_asset_browser:
-                    sub.prop(params, "use_filter_asset_only")
+                sub.prop(params, "use_filter_asset_only")
 
                 filter_id = params.filter_id
                 for identifier in dir(filter_id):
                     if identifier.startswith("category_"):
-                        sub.prop(filter_id, identifier, toggle=True)
+                        subrow = sub.row()
+                        subrow.label(icon=filter_id.bl_rna.properties[identifier].icon)
+                        subrow.prop(filter_id, identifier, toggle=False)
 
                 col.separator()
 
@@ -300,7 +288,7 @@ class FILEBROWSER_PT_bookmarks_favorites(FileBrowserPanel, Panel):
     bl_space_type = 'FILE_BROWSER'
     bl_region_type = 'TOOLS'
     bl_category = "Bookmarks"
-    bl_label = "Favorites"
+    bl_label = "Bookmarks"
 
     @classmethod
     def poll(cls, context):
@@ -394,11 +382,19 @@ class FILEBROWSER_PT_advanced_filter(Panel):
             filter_id = params.filter_id
             for identifier in dir(filter_id):
                 if identifier.startswith("filter_"):
-                    col.prop(filter_id, identifier, toggle=True)
+                    row = col.row()
+                    row.label(icon=filter_id.bl_rna.properties[identifier].icon)
+                    row.prop(filter_id, identifier, toggle=False)
 
 
 def is_option_region_visible(context, space):
-    if not space.active_operator:
+    from bpy_extras.asset_utils import SpaceAssetInfo
+
+    if SpaceAssetInfo.is_asset_browser(space):
+        pass
+    # For the File Browser, there must be an operator for there to be options
+    # (irrelevant for the Asset Browser).
+    elif not space.active_operator:
         return False
 
     for region in context.area.regions:
@@ -594,6 +590,31 @@ class ASSETBROWSER_PT_display(asset_utils.AssetBrowserPanel, Panel):
             col.prop(params, "show_details_datetime", text="Date")
 
 
+class ASSETBROWSER_PT_filter(asset_utils.AssetBrowserPanel, Panel):
+    bl_region_type = 'HEADER'
+    bl_category = "Filter"
+    bl_label = "Filter"
+
+    def draw(self, context):
+        layout = self.layout
+        space = context.space_data
+        params = space.params
+        use_extended_browser = context.preferences.experimental.use_extended_asset_browser
+
+        if params.use_filter_blendid:
+            col = layout.column(align=True)
+
+            filter_id = params.filter_asset_id
+            for identifier in dir(filter_id):
+                if (
+                        identifier.startswith("filter_") or
+                        (identifier.startswith("experimental_filter_") and use_extended_browser)
+                ):
+                    row = col.row()
+                    row.label(icon=filter_id.bl_rna.properties[identifier].icon)
+                    row.prop(filter_id, identifier, toggle=False)
+
+
 class AssetBrowserMenu:
     @classmethod
     def poll(cls, context):
@@ -610,6 +631,7 @@ class ASSETBROWSER_MT_editor_menus(AssetBrowserMenu, Menu):
 
         layout.menu("ASSETBROWSER_MT_view")
         layout.menu("ASSETBROWSER_MT_select")
+        layout.menu("ASSETBROWSER_MT_edit")
 
 
 class ASSETBROWSER_MT_view(AssetBrowserMenu, Menu):
@@ -648,28 +670,14 @@ class ASSETBROWSER_MT_select(AssetBrowserMenu, Menu):
         layout.operator("file.select_box")
 
 
-class ASSETBROWSER_PT_navigation_bar(asset_utils.AssetBrowserPanel, Panel):
-    bl_label = "Asset Navigation"
-    bl_region_type = 'TOOLS'
-    bl_options = {'HIDE_HEADER'}
+class ASSETBROWSER_MT_edit(AssetBrowserMenu, Menu):
+    bl_label = "Edit"
 
-    @classmethod
-    def poll(cls, context):
-        return (
-            asset_utils.AssetBrowserPanel.poll(context) and
-            context.preferences.experimental.use_extended_asset_browser
-        )
-
-    def draw(self, context):
+    def draw(self, _context):
         layout = self.layout
 
-        space_file = context.space_data
-
-        col = layout.column()
-
-        col.scale_x = 1.3
-        col.scale_y = 1.3
-        col.prop(space_file.params, "asset_category", expand=True)
+        layout.operator("asset.catalog_undo", text="Undo")
+        layout.operator("asset.catalog_redo", text="Redo")
 
 
 class ASSETBROWSER_PT_metadata(asset_utils.AssetBrowserPanel, Panel):
@@ -679,28 +687,47 @@ class ASSETBROWSER_PT_metadata(asset_utils.AssetBrowserPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
+        wm = context.window_manager
         asset_file_handle = context.asset_file_handle
 
         if asset_file_handle is None:
-            layout.label(text="No asset selected", icon='INFO')
+            layout.label(text="No active asset", icon='INFO')
             return
 
         asset_library_ref = context.asset_library_ref
         asset_lib_path = bpy.types.AssetHandle.get_full_library_path(asset_file_handle, asset_library_ref)
 
+        prefs = context.preferences
+        show_asset_debug_info = prefs.view.show_developer_ui and prefs.experimental.show_asset_debug_info
+
+        layout.use_property_split = True
+        layout.use_property_decorate = False  # No animation.
+
         if asset_file_handle.local_id:
             # If the active file is an ID, use its name directly so renaming is possible from right here.
-            layout.prop(asset_file_handle.local_id, "name", text="")
-            row = layout.row()
-            row.label(text="Source: Current File")
-        else:
-            layout.prop(asset_file_handle, "name", text="")
-            col = layout.column(align=True)  # Just to reduce margin.
-            col.label(text="Source:")
-            row = col.row()
-            row.label(text=asset_lib_path)
+            layout.prop(asset_file_handle.local_id, "name")
 
+            if show_asset_debug_info:
+                col = layout.column(align=True)
+                col.label(text="Asset Catalog:")
+                col.prop(asset_file_handle.local_id.asset_data, "catalog_id", text="UUID")
+                col.prop(asset_file_handle.local_id.asset_data, "catalog_simple_name", text="Simple Name")
+        else:
+            layout.prop(asset_file_handle, "name")
+
+            if show_asset_debug_info:
+                col = layout.column(align=True)
+                col.enabled = False
+                col.label(text="Asset Catalog:")
+                col.prop(asset_file_handle.asset_data, "catalog_id", text="UUID")
+                col.prop(asset_file_handle.asset_data, "catalog_simple_name", text="Simple Name")
+
+        row = layout.row(align=True)
+        row.prop(wm, "asset_path_dummy", text="Source")
         row.operator("asset.open_containing_blend_file", text="", icon='TOOL_SETTINGS')
+
+        layout.prop(asset_file_handle.asset_data, "description")
+        layout.prop(asset_file_handle.asset_data, "author")
 
 
 class ASSETBROWSER_PT_metadata_preview(asset_utils.AssetMetaDataPanel, Panel):
@@ -713,24 +740,20 @@ class ASSETBROWSER_PT_metadata_preview(asset_utils.AssetMetaDataPanel, Panel):
         row = layout.row()
         box = row.box()
         box.template_icon(icon_value=active_file.preview_icon_id, scale=5.0)
-        if bpy.ops.ed.lib_id_load_custom_preview.poll():
-            col = row.column(align=True)
-            col.operator("ed.lib_id_load_custom_preview", icon='FILEBROWSER', text="")
-            col.separator()
-            col.operator("ed.lib_id_generate_preview", icon='FILE_REFRESH', text="")
+
+        col = row.column(align=True)
+        col.operator("ed.lib_id_load_custom_preview", icon='FILEBROWSER', text="")
+        col.separator()
+        col.operator("ed.lib_id_generate_preview", icon='FILE_REFRESH', text="")
+        col.menu("ASSETBROWSER_MT_metadata_preview_menu", icon='DOWNARROW_HLT', text="")
 
 
-class ASSETBROWSER_PT_metadata_details(asset_utils.AssetMetaDataPanel, Panel):
-    bl_label = "Details"
+class ASSETBROWSER_MT_metadata_preview_menu(bpy.types.Menu):
+    bl_label = "Preview"
 
     def draw(self, context):
         layout = self.layout
-        active_asset = asset_utils.SpaceAssetInfo.get_active_asset(context)
-
-        layout.use_property_split = True
-
-        if active_asset:
-            layout.prop(active_asset, "description")
+        layout.operator("ed.lib_id_generate_preview_from_object", text="Render Active Object")
 
 
 class ASSETBROWSER_PT_metadata_tags(asset_utils.AssetMetaDataPanel, Panel):
@@ -769,13 +792,14 @@ class ASSETBROWSER_MT_context_menu(AssetBrowserMenu, Menu):
         st = context.space_data
         params = st.params
 
-        layout.operator("file.refresh", text="Refresh")
+        layout.operator("asset.library_refresh")
 
         layout.separator()
 
-        sub = layout.row()
+        sub = layout.column()
         sub.operator_context = 'EXEC_DEFAULT'
-        sub.operator("asset.clear", text="Clear Asset")
+        sub.operator("asset.clear", text="Clear Asset").set_fake_user = False
+        sub.operator("asset.clear", text="Clear Asset (Set Fake User)").set_fake_user = True
 
         layout.separator()
 
@@ -804,17 +828,47 @@ classes = (
     FILEBROWSER_MT_select,
     FILEBROWSER_MT_context_menu,
     ASSETBROWSER_PT_display,
+    ASSETBROWSER_PT_filter,
     ASSETBROWSER_MT_editor_menus,
     ASSETBROWSER_MT_view,
     ASSETBROWSER_MT_select,
-    ASSETBROWSER_PT_navigation_bar,
+    ASSETBROWSER_MT_edit,
+    ASSETBROWSER_MT_metadata_preview_menu,
     ASSETBROWSER_PT_metadata,
     ASSETBROWSER_PT_metadata_preview,
-    ASSETBROWSER_PT_metadata_details,
     ASSETBROWSER_PT_metadata_tags,
     ASSETBROWSER_UL_metadata_tags,
     ASSETBROWSER_MT_context_menu,
 )
+
+def asset_path_str_get(_self):
+    asset_file_handle = bpy.context.asset_file_handle
+    if asset_file_handle is None:
+        return ""
+
+    if asset_file_handle.local_id:
+        return "Current File"
+
+    asset_library_ref = bpy.context.asset_library_ref
+    return bpy.types.AssetHandle.get_full_library_path(asset_file_handle, asset_library_ref)
+
+
+def register_props():
+    from bpy.props import (
+        StringProperty,
+    )
+    from bpy.types import (
+        WindowManager,
+    )
+
+    # Just a dummy property to be able to show a string in a label button via
+    # UILayout.prop().
+    WindowManager.asset_path_dummy = StringProperty(
+        name="Asset Blend Path",
+        description="Full path to the Blender file containing the active asset",
+        get=asset_path_str_get,
+    )
+
 
 if __name__ == "__main__":  # only for live edit.
     from bpy.utils import register_class

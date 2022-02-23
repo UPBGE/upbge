@@ -1,25 +1,9 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2016, Blender Foundation
- * This is a new part of Blender
- * Operators for interpolating new Grease Pencil frames from existing strokes
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2016 Blender Foundation. */
 
 /** \file
  * \ingroup edgpencil
+ * Operators for interpolating new Grease Pencil frames from existing strokes.
  */
 
 #include <math.h>
@@ -316,6 +300,9 @@ static void gpencil_stroke_pair_table(bContext *C,
     if (ELEM(NULL, gps_from, gps_to)) {
       continue;
     }
+    if ((gps_from->totpoints == 0) || (gps_to->totpoints == 0)) {
+      continue;
+    }
     /* Insert the pair entry in the hash table and the list of strokes to keep order. */
     BLI_addtail(&tgpil->selected_strokes, BLI_genericNodeN(gps_from));
     BLI_ghash_insert(tgpil->pair_strokes, gps_from, gps_to);
@@ -333,7 +320,7 @@ static void gpencil_interpolate_smooth_stroke(bGPDstroke *gps,
   float reduce = 0.0f;
   for (int r = 0; r < smooth_steps; r++) {
     for (int i = 0; i < gps->totpoints - 1; i++) {
-      BKE_gpencil_stroke_smooth_point(gps, i, smooth_factor - reduce);
+      BKE_gpencil_stroke_smooth_point(gps, i, smooth_factor - reduce, false);
       BKE_gpencil_stroke_smooth_strength(gps, i, smooth_factor);
     }
     reduce += 0.25f; /* reduce the factor */
@@ -583,7 +570,7 @@ static void gpencil_interpolate_set_points(bContext *C, tGPDinterpolate *tgpi)
 static void gpencil_mouse_update_shift(tGPDinterpolate *tgpi, wmOperator *op, const wmEvent *event)
 {
   float mid = (float)(tgpi->region->winx - tgpi->region->winrct.xmin) / 2.0f;
-  float mpos = event->x - tgpi->region->winrct.xmin;
+  float mpos = event->xy[0] - tgpi->region->winrct.xmin;
 
   if (mpos >= mid) {
     tgpi->shift = ((mpos - mid) * tgpi->high_limit) / mid;
@@ -1331,6 +1318,9 @@ static int gpencil_interpolate_seq_exec(bContext *C, wmOperator *op)
       }
 
       if (ELEM(NULL, gps_from, gps_to)) {
+        continue;
+      }
+      if ((gps_from->totpoints == 0) || (gps_to->totpoints == 0)) {
         continue;
       }
 

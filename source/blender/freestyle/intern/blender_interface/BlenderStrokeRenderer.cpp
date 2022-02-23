@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -48,6 +34,7 @@
 #include "BKE_material.h"
 #include "BKE_mesh.h"
 #include "BKE_node.h"
+#include "BKE_node_tree_update.h"
 #include "BKE_object.h"
 #include "BKE_scene.h"
 
@@ -94,17 +81,15 @@ BlenderStrokeRenderer::BlenderStrokeRenderer(Render *re, int render_count)
   freestyle_scene = BKE_scene_add(freestyle_bmain, name);
   freestyle_scene->r.cfra = old_scene->r.cfra;
   freestyle_scene->r.mode = old_scene->r.mode & ~(R_EDGE_FRS | R_BORDER);
-  freestyle_scene->r.xsch = re->rectx;  // old_scene->r.xsch
-  freestyle_scene->r.ysch = re->recty;  // old_scene->r.ysch
-  freestyle_scene->r.xasp = 1.0f;       // old_scene->r.xasp;
-  freestyle_scene->r.yasp = 1.0f;       // old_scene->r.yasp;
-  freestyle_scene->r.tilex = old_scene->r.tilex;
-  freestyle_scene->r.tiley = old_scene->r.tiley;
+  freestyle_scene->r.xsch = re->rectx;    // old_scene->r.xsch
+  freestyle_scene->r.ysch = re->recty;    // old_scene->r.ysch
+  freestyle_scene->r.xasp = 1.0f;         // old_scene->r.xasp;
+  freestyle_scene->r.yasp = 1.0f;         // old_scene->r.yasp;
   freestyle_scene->r.size = 100;          // old_scene->r.size
   freestyle_scene->r.color_mgt_flag = 0;  // old_scene->r.color_mgt_flag;
   freestyle_scene->r.scemode = (old_scene->r.scemode &
                                 ~(R_SINGLE_LAYER | R_NO_FRAME_UPDATE | R_MULTIVIEW)) &
-                               (re->r.scemode | ~R_FULL_SAMPLE);
+                               (re->r.scemode);
   freestyle_scene->r.flag = old_scene->r.flag;
   freestyle_scene->r.threads = old_scene->r.threads;
   freestyle_scene->r.border.xmin = old_scene->r.border.xmin;
@@ -417,7 +402,7 @@ Material *BlenderStrokeRenderer::GetStrokeShader(Main *bmain,
   }
 
   nodeSetActive(ntree, output_material);
-  ntreeUpdateTree(bmain, ntree);
+  BKE_ntree_update_main_tree(bmain, ntree, nullptr);
 
   return ma;
 }
@@ -686,9 +671,7 @@ void BlenderStrokeRenderer::GenerateStrokeMesh(StrokeGroup *group, bool hasTex)
             vertices->co[0] = svRep[0]->point2d()[0];
             vertices->co[1] = svRep[0]->point2d()[1];
             vertices->co[2] = get_stroke_vertex_z();
-            vertices->no[0] = 0;
-            vertices->no[1] = 0;
-            vertices->no[2] = SHRT_MAX;
+
             ++vertices;
             ++vertex_index;
 
@@ -696,9 +679,7 @@ void BlenderStrokeRenderer::GenerateStrokeMesh(StrokeGroup *group, bool hasTex)
             vertices->co[0] = svRep[1]->point2d()[0];
             vertices->co[1] = svRep[1]->point2d()[1];
             vertices->co[2] = get_stroke_vertex_z();
-            vertices->no[0] = 0;
-            vertices->no[1] = 0;
-            vertices->no[2] = SHRT_MAX;
+
             ++vertices;
             ++vertex_index;
 
@@ -714,9 +695,6 @@ void BlenderStrokeRenderer::GenerateStrokeMesh(StrokeGroup *group, bool hasTex)
           vertices->co[0] = svRep[2]->point2d()[0];
           vertices->co[1] = svRep[2]->point2d()[1];
           vertices->co[2] = get_stroke_vertex_z();
-          vertices->no[0] = 0;
-          vertices->no[1] = 0;
-          vertices->no[2] = SHRT_MAX;
           ++vertices;
           ++vertex_index;
 
@@ -822,6 +800,7 @@ void BlenderStrokeRenderer::GenerateStrokeMesh(StrokeGroup *group, bool hasTex)
   }      // loop over strokes
 
   BKE_object_materials_test(freestyle_bmain, object_mesh, (ID *)mesh);
+  BKE_mesh_normals_tag_dirty(mesh);
 
 #if 0  // XXX
   BLI_assert(mesh->totvert == vertex_index);

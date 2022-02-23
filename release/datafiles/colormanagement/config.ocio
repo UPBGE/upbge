@@ -9,7 +9,7 @@
 #
 # See ocio-license.txt for details.
 
-ocio_profile_version: 1
+ocio_profile_version: 2
 
 search_path: "luts:filmic"
 strictparsing: true
@@ -42,7 +42,7 @@ roles:
   # For interop between configs, and to determine XYZ for rendering
   aces_interchange: Linear ACES
 
-  # Specifed by OCIO, not used in Blender
+  # Specified by OCIO, not used in Blender
   color_timing: Filmic Log
   compositing_log: Filmic Log
   default: Linear
@@ -100,8 +100,7 @@ colorspaces:
     from_reference: !<GroupTransform>
       children:
         - !<FileTransform> {src: srgb_to_xyz.spimtx, interpolation: linear}
-        - !<FileTransform> {src: xyz_D65_to_E.spimtx, interpolation: linear}
-        - !<FileTransform> {src: xyz_to_aces.spimtx, interpolation: linear}
+        - !<BuiltinTransform> {style: "UTILITY - ACES-AP0_to_CIE-XYZ-D65_BFD", direction: inverse}
 
   - !<ColorSpace>
     name: nuke_rec709

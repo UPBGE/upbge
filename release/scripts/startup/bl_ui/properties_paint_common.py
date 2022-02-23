@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8 compliant>
 from bpy.types import Menu
@@ -95,6 +79,8 @@ class UnifiedPaintPanel:
             return tool_settings.gpencil_weight_paint
         elif mode == 'VERTEX_GPENCIL':
             return tool_settings.gpencil_vertex_paint
+        elif mode == 'SCULPT_CURVES':
+            return tool_settings.curves_sculpt
         return None
 
     @staticmethod
@@ -496,7 +482,7 @@ class DisplayPanel(BrushPanel):
             icon='HIDE_OFF' if brush.use_cursor_overlay else 'HIDE_ON',
         )
 
-        if mode in ['PAINT_2D', 'PAINT_TEXTURE', 'PAINT_VERTEX', 'SCULPT']:
+        if mode in {'PAINT_2D', 'PAINT_TEXTURE', 'PAINT_VERTEX', 'SCULPT'}:
             row = col.row(align=True)
             row.prop(brush, "texture_overlay_alpha", text="Texture Opacity")
             row.prop(brush, "use_primary_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
@@ -506,7 +492,7 @@ class DisplayPanel(BrushPanel):
                     icon='HIDE_OFF' if brush.use_primary_overlay else 'HIDE_ON',
                 )
 
-        if mode in ['PAINT_TEXTURE', 'PAINT_2D']:
+        if mode in {'PAINT_TEXTURE', 'PAINT_2D'}:
             row = col.row(align=True)
             row.prop(brush, "mask_overlay_alpha", text="Mask Texture Opacity")
             row.prop(brush, "use_secondary_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
@@ -1107,7 +1093,11 @@ def brush_basic_texpaint_settings(layout, context, brush, *, compact=False):
     capabilities = brush.image_paint_capabilities
 
     if capabilities.has_color:
-        UnifiedPaintPanel.prop_unified_color(layout, context, brush, "color", text="")
+        row = layout.row(align=True)
+        row.ui_units_x = 4
+        UnifiedPaintPanel.prop_unified_color(row, context, brush, "color", text="")
+        UnifiedPaintPanel.prop_unified_color(row, context, brush, "secondary_color", text="")
+        row.separator()
         layout.prop(brush, "blend", text="" if compact else "Blend")
 
     UnifiedPaintPanel.prop_unified(
@@ -1151,7 +1141,8 @@ def brush_basic__draw_color_selector(context, layout, brush, gp_settings, props)
             if len(txt_ma) > maxw:
                 txt_ma = txt_ma[:maxw - 5] + '..' + txt_ma[-3:]
 
-    sub = row.row()
+    sub = row.row(align=True)
+    sub.enabled = not gp_settings.use_material_pin
     sub.ui_units_x = 8
     sub.popover(
         panel="TOPBAR_PT_gpencil_materials",

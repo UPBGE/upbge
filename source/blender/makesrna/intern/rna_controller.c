@@ -152,41 +152,6 @@ static int rna_Controller_actuators_length(PointerRNA *ptr)
   return (int)cont->totlinks;
 }
 
-#  if 0 /* editable is set to false, comment for now. */
-static void rna_Controller_state_get(PointerRNA *ptr, int *values)
-{
-	bController *cont = (bController *)ptr->data;
-	int i;
-
-	memset(values, 0, sizeof(int) * OB_MAX_STATES);
-	for (i = 0; i < OB_MAX_STATES; i++)
-		values[i] = (cont->state_mask & (1 << i));
-}
-
-static void rna_Controller_state_set(PointerRNA *ptr, const int *values)
-{
-	bController *cont = (bController *)ptr->data;
-	int i, tot = 0;
-
-	/* ensure we always have some state selected */
-	for (i = 0; i < OB_MAX_STATES; i++)
-		if (values[i])
-			tot++;
-	
-	if (tot == 0)
-		return;
-
-	/* only works for one state at once */
-	if (tot > 1)
-		return;
-
-	for (i = 0; i < OB_MAX_STATES; i++) {
-		if (values[i]) cont->state_mask |= (1 << i);
-		else cont->state_mask &= ~(1 << i);
-	}
-}
-#  endif
-
 #else
 
 void RNA_def_controller(BlenderRNA *brna)
@@ -258,18 +223,7 @@ void RNA_def_controller(BlenderRNA *brna)
                                     NULL,
                                     NULL);
 
-  /* State */
-
-  /* array of OB_MAX_STATES */
-  /*prop = RNA_def_property(srna, "states", PROP_BOOLEAN, PROP_LAYER_MEMBER); */
-  /*RNA_def_property_array(prop, OB_MAX_STATES); */
-  /*RNA_def_property_clear_flag(prop, PROP_EDITABLE); */
-  /*RNA_def_property_ui_text(prop, "", "Set Controller state index (1 to 30)"); */
-  /*RNA_def_property_boolean_funcs(prop, "rna_Controller_state_get", "rna_Controller_state_set");
-   */
-  /*RNA_def_property_update(prop, NC_LOGIC, NULL); */
-
-  /* number of the state */
+  /* Number of the state */
   prop = RNA_def_property(srna, "states", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_int_sdna(prop, NULL, "state_mask");
   RNA_def_property_range(prop, 1, OB_MAX_STATES);

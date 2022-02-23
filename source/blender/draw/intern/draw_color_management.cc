@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2020, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2020 Blender Foundation. */
 
 /** \file
  * \ingroup draw
@@ -30,6 +15,7 @@
 #include "GPU_texture.h"
 
 #include "DNA_space_types.h"
+#include "DNA_view3d_types.h"
 
 #include "BKE_colortools.h"
 
@@ -60,14 +46,8 @@ static eDRWColorManagementType drw_color_management_type_for_v3d(const Scene &sc
 {
 
   const bool use_workbench = BKE_scene_uses_blender_workbench(&scene);
-  const bool use_scene_lights = ((v3d.shading.type == OB_MATERIAL) &&
-                                 (v3d.shading.flag & V3D_SHADING_SCENE_LIGHTS)) ||
-                                ((v3d.shading.type == OB_RENDER) &&
-                                 (v3d.shading.flag & V3D_SHADING_SCENE_LIGHTS_RENDER));
-  const bool use_scene_world = ((v3d.shading.type == OB_MATERIAL) &&
-                                (v3d.shading.flag & V3D_SHADING_SCENE_WORLD)) ||
-                               ((v3d.shading.type == OB_RENDER) &&
-                                (v3d.shading.flag & V3D_SHADING_SCENE_WORLD_RENDER));
+  const bool use_scene_lights = V3D_USES_SCENE_LIGHTS(&v3d);
+  const bool use_scene_world = V3D_USES_SCENE_WORLD(&v3d);
 
   if ((use_workbench && v3d.shading.type == OB_RENDER) || use_scene_lights || use_scene_world) {
     return eDRWColorManagementType::UseRenderSettings;
@@ -180,7 +160,6 @@ void DRW_viewport_colormanagement_set(GPUViewport *viewport)
   blender::draw::color_management::viewport_color_management_set(*viewport);
 }
 
-/* Draw texture to framebuffer without any color transforms */
 void DRW_transform_none(GPUTexture *tex)
 {
   drw_state_set(DRW_STATE_WRITE_COLOR);

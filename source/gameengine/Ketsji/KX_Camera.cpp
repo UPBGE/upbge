@@ -36,13 +36,14 @@
 #include "GPU_matrix.h"
 #include "GPU_viewport.h"
 
+#include "DNA_camera_types.h"
 #include "KX_Globals.h"
 #include "KX_PyMath.h"
 #include "KX_RayCast.h"
 #include "RAS_ICanvas.h"
-#include "DNA_camera_types.h"
 
-KX_Camera::KX_Camera() : KX_GameObject(),
+KX_Camera::KX_Camera()
+    : KX_GameObject(),
       m_gpuViewport(nullptr),  // eevee
       m_dirty(true),
       m_normalized(false),

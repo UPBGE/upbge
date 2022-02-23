@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edanimation
@@ -43,14 +27,6 @@
 
 /* ----------------------- Getter functions ----------------------- */
 
-/**
- * Write into "name" buffer, the name of the property
- * (retrieved using RNA from the curve's settings),
- * and return the icon used for the struct that this property refers to
- *
- * \warning name buffer we're writing to cannot exceed 256 chars
- * (check anim_channels_defines.c for details).
- */
 int getname_anim_fcurve(char *name, ID *id, FCurve *fcu)
 {
   int icon = 0;
@@ -126,9 +102,10 @@ int getname_anim_fcurve(char *name, ID *id, FCurve *fcu)
           structname = RNA_struct_ui_name(ptr.type);
         }
 
-        /* For the VSE, a strip's 'Transform' or 'Crop' is a nested (under Sequence) struct, but
-         * displaying the struct name alone is no meaningful information (and also cannot be
-         * filtered well), same for modifiers. So display strip name alongside as well. */
+        /* For the sequencer, a strip's 'Transform' or 'Crop' is a nested (under Sequence)
+         * struct, but displaying the struct name alone is no meaningful information
+         * (and also cannot be filtered well), same for modifiers.
+         * So display strip name alongside as well. */
         if (GS(ptr.owner_id->name) == ID_SCE) {
           char stripname[256];
           if (BLI_str_quoted_substr(
@@ -142,6 +119,22 @@ int getname_anim_fcurve(char *name, ID *id, FCurve *fcu)
               structname = structname_all;
               free_structname = 1;
             }
+          }
+        }
+        /* For node sockets, it is useful to include the node name as well (multiple similar nodes
+         * are not distinguishable otherwise). Unfortunately, the node label cannot be retrieved
+         * from the rna path, for this to work access to the underlying node is needed (but finding
+         * the node iterates all nodes & sockets which would result in bad performance in some
+         * circumstances). */
+        if (RNA_struct_is_a(ptr.type, &RNA_NodeSocket)) {
+          char nodename[256];
+          if (BLI_str_quoted_substr(fcu->rna_path, "nodes[", nodename, sizeof(nodename))) {
+            const char *structname_all = BLI_sprintfN("%s : %s", nodename, structname);
+            if (free_structname) {
+              MEM_freeN((void *)structname);
+            }
+            structname = structname_all;
+            free_structname = 1;
           }
         }
       }

@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2016 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 /* Evaluate the BSDF from wi to wo.
  * Evaluation is split into the analytical single-scattering BSDF and the multi-scattering BSDF,
@@ -31,7 +18,7 @@ ccl_device_forceinline float3 MF_FUNCTION_FULL_NAME(mf_eval)(float3 wi,
                                                              const float3 color,
                                                              const float alpha_x,
                                                              const float alpha_y,
-                                                             ccl_addr_space uint *lcg_state,
+                                                             ccl_private uint *lcg_state,
                                                              const float eta,
                                                              bool use_fresnel,
                                                              const float3 cspec0)
@@ -101,12 +88,12 @@ ccl_device_forceinline float3 MF_FUNCTION_FULL_NAME(mf_eval)(float3 wi,
 
   for (int order = 0; order < 10; order++) {
     /* Sample microfacet height. */
-    float height_rand = lcg_step_float_addrspace(lcg_state);
+    float height_rand = lcg_step_float(lcg_state);
     if (!mf_sample_height(wr, &hr, &C1_r, &G1_r, &lambda_r, height_rand))
       break;
     /* Sample microfacet normal. */
-    float vndf_rand_y = lcg_step_float_addrspace(lcg_state);
-    float vndf_rand_x = lcg_step_float_addrspace(lcg_state);
+    float vndf_rand_y = lcg_step_float(lcg_state);
+    float vndf_rand_x = lcg_step_float(lcg_state);
     float3 wm = mf_sample_vndf(-wr, alpha, vndf_rand_x, vndf_rand_y);
 
 #ifdef MF_MULTI_GLASS
@@ -145,7 +132,7 @@ ccl_device_forceinline float3 MF_FUNCTION_FULL_NAME(mf_eval)(float3 wi,
 #ifdef MF_MULTI_GLASS
       bool next_outside;
       float3 wi_prev = -wr;
-      float phase_rand = lcg_step_float_addrspace(lcg_state);
+      float phase_rand = lcg_step_float(lcg_state);
       wr = mf_sample_phase_glass(-wr, outside ? eta : 1.0f / eta, wm, phase_rand, &next_outside);
       if (!next_outside) {
         outside = !outside;
@@ -186,11 +173,11 @@ ccl_device_forceinline float3 MF_FUNCTION_FULL_NAME(mf_eval)(float3 wi,
  * reflection losses due to coloring or fresnel absorption in conductors, the sampling is optimal.
  */
 ccl_device_forceinline float3 MF_FUNCTION_FULL_NAME(mf_sample)(float3 wi,
-                                                               float3 *wo,
+                                                               ccl_private float3 *wo,
                                                                const float3 color,
                                                                const float alpha_x,
                                                                const float alpha_y,
-                                                               ccl_addr_space uint *lcg_state,
+                                                               ccl_private uint *lcg_state,
                                                                const float eta,
                                                                bool use_fresnel,
                                                                const float3 cspec0)
@@ -206,22 +193,19 @@ ccl_device_forceinline float3 MF_FUNCTION_FULL_NAME(mf_sample)(float3 wi,
   bool outside = true;
 
   float F0 = fresnel_dielectric_cos(1.0f, eta);
-  if (use_fresnel) {
-    throughput = interpolate_fresnel_color(wi, normalize(wi + wr), eta, F0, cspec0);
-  }
 
   int order;
   for (order = 0; order < 10; order++) {
     /* Sample microfacet height. */
-    float height_rand = lcg_step_float_addrspace(lcg_state);
+    float height_rand = lcg_step_float(lcg_state);
     if (!mf_sample_height(wr, &hr, &C1_r, &G1_r, &lambda_r, height_rand)) {
       /* The random walk has left the surface. */
       *wo = outside ? wr : -wr;
       return throughput;
     }
     /* Sample microfacet normal. */
-    float vndf_rand_y = lcg_step_float_addrspace(lcg_state);
-    float vndf_rand_x = lcg_step_float_addrspace(lcg_state);
+    float vndf_rand_y = lcg_step_float(lcg_state);
+    float vndf_rand_x = lcg_step_float(lcg_state);
     float3 wm = mf_sample_vndf(-wr, alpha, vndf_rand_x, vndf_rand_y);
 
     /* First-bounce color is already accounted for in mix weight. */
@@ -232,7 +216,7 @@ ccl_device_forceinline float3 MF_FUNCTION_FULL_NAME(mf_sample)(float3 wi,
 #ifdef MF_MULTI_GLASS
     bool next_outside;
     float3 wi_prev = -wr;
-    float phase_rand = lcg_step_float_addrspace(lcg_state);
+    float phase_rand = lcg_step_float(lcg_state);
     wr = mf_sample_phase_glass(-wr, outside ? eta : 1.0f / eta, wm, phase_rand, &next_outside);
     if (!next_outside) {
       hr = -hr;

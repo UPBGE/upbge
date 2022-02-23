@@ -1,25 +1,9 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2015, Blender Foundation
- * This is a new part of Blender
- * Brush based operators for editing Grease Pencil strokes
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2015 Blender Foundation. */
 
 /** \file
  * \ingroup edgpencil
+ * Brush based operators for editing Grease Pencil strokes.
  */
 
 #include "MEM_guardedalloc.h"
@@ -441,12 +425,12 @@ static bool brush_tint_apply(tGP_BrushVertexpaintData *gso,
       CLAMP_MIN(pt->vert_color[3], 0.0f);
     }
     else {
-      /* Premult. */
+      /* Pre-multiply. */
       mul_v3_fl(pt->vert_color, pt->vert_color[3]);
       /* "Alpha over" blending. */
       interp_v3_v3v3(pt->vert_color, pt->vert_color, gso->linear_color, inf);
       pt->vert_color[3] = pt->vert_color[3] * (1.0 - inf) + inf;
-      /* Un-premult. */
+      /* Un pre-multiply. */
       if (pt->vert_color[3] > 0.0f) {
         mul_v3_fl(pt->vert_color, 1.0f / pt->vert_color[3]);
       }
@@ -460,12 +444,12 @@ static bool brush_tint_apply(tGP_BrushVertexpaintData *gso,
       CLAMP_MIN(gps->vert_color_fill[3], 0.0f);
     }
     else {
-      /* Premult. */
+      /* Pre-multiply. */
       mul_v3_fl(gps->vert_color_fill, gps->vert_color_fill[3]);
       /* "Alpha over" blending. */
       interp_v3_v3v3(gps->vert_color_fill, gps->vert_color_fill, gso->linear_color, inf_fill);
       gps->vert_color_fill[3] = gps->vert_color_fill[3] * (1.0 - inf_fill) + inf_fill;
-      /* Un-premult. */
+      /* Un pre-multiply. */
       if (gps->vert_color_fill[3] > 0.0f) {
         mul_v3_fl(gps->vert_color_fill, 1.0f / gps->vert_color_fill[3]);
       }
@@ -865,7 +849,7 @@ static bool gpencil_vertexpaint_select_stroke(tGP_BrushVertexpaintData *gso,
     gpencil_point_to_xy(gsc, gps, &pt_temp, &pc1[0], &pc1[1]);
 
     pt_active = (pt->runtime.pt_orig) ? pt->runtime.pt_orig : pt;
-    /* do boundbox check first */
+    /* Do bound-box check first. */
     if ((!ELEM(V2D_IS_CLIPPED, pc1[0], pc1[1])) && BLI_rcti_isect_pt(rect, pc1[0], pc1[1])) {
       /* only check if point is inside */
       int mval_i[2];
@@ -905,7 +889,7 @@ static bool gpencil_vertexpaint_select_stroke(tGP_BrushVertexpaintData *gso,
       gpencil_point_to_parent_space(pt2, diff_mat, &npt);
       gpencil_point_to_xy(gsc, gps, &npt, &pc2[0], &pc2[1]);
 
-      /* Check that point segment of the boundbox of the selection stroke */
+      /* Check that point segment of the bound-box of the selection stroke. */
       if (((!ELEM(V2D_IS_CLIPPED, pc1[0], pc1[1])) && BLI_rcti_isect_pt(rect, pc1[0], pc1[1])) ||
           ((!ELEM(V2D_IS_CLIPPED, pc2[0], pc2[1])) && BLI_rcti_isect_pt(rect, pc2[0], pc2[1]))) {
         /* Check if point segment of stroke had anything to do with

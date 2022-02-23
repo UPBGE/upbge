@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup RNA
@@ -388,6 +374,7 @@ void rna_DriverVariable_name_set(PointerRNA *ptr, const char *value)
 
   BLI_strncpy_utf8(data->name, value, 64);
   driver_variable_name_validate(data);
+  driver_variable_unique_name(data);
 }
 
 /* ----------- */
@@ -1013,7 +1000,7 @@ static void rna_FKeyframe_points_add(ID *id, FCurve *fcu, Main *bmain, int tot)
     fcu->totvert += tot;
 
     while (tot--) {
-      /* defaults, no userprefs gives predictable results for API */
+      /* Defaults, ignoring user-preference gives predictable results for API. */
       bezt->f1 = bezt->f2 = bezt->f3 = SELECT;
       bezt->ipo = BEZT_IPO_BEZ;
       bezt->h1 = bezt->h2 = HD_AUTO_ANIM;
@@ -1893,7 +1880,7 @@ static void rna_def_drivervar(BlenderRNA *brna)
        "SINGLE_PROP",
        ICON_RNA,
        "Single Property",
-       "Use the value from some RNA property (Default)"},
+       "Use the value from some RNA property"},
       {DVAR_TYPE_TRANSFORM_CHAN,
        "TRANSFORMS",
        ICON_DRIVER_TRANSFORM,

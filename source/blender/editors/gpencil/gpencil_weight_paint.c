@@ -1,25 +1,9 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2015, Blender Foundation
- * This is a new part of Blender
- * Brush based operators for editing Grease Pencil strokes
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2015 Blender Foundation. */
 
 /** \file
  * \ingroup edgpencil
+ * Brush based operators for editing Grease Pencil strokes.
  */
 
 #include "MEM_guardedalloc.h"
@@ -29,15 +13,18 @@
 
 #include "BLT_translation.h"
 
+#include "DNA_armature_types.h"
 #include "DNA_brush_types.h"
 #include "DNA_gpencil_types.h"
 
+#include "BKE_action.h"
 #include "BKE_brush.h"
 #include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_deform.h"
 #include "BKE_gpencil.h"
 #include "BKE_main.h"
+#include "BKE_modifier.h"
 #include "BKE_object_deform.h"
 #include "BKE_report.h"
 #include "DNA_meshdata_types.h"
@@ -246,7 +233,22 @@ static bool brush_draw_apply(tGP_BrushWeightpaintData *gso,
   /* need a vertex group */
   if (gso->vrgroup == -1) {
     if (gso->object) {
-      BKE_object_defgroup_add(gso->object);
+      Object *ob_armature = BKE_modifiers_is_deformed_by_armature(gso->object);
+      if ((ob_armature != NULL)) {
+        Bone *actbone = ((bArmature *)ob_armature->data)->act_bone;
+        if (actbone != NULL) {
+          bPoseChannel *pchan = BKE_pose_channel_find_name(ob_armature->pose, actbone->name);
+          if (pchan != NULL) {
+            bDeformGroup *dg = BKE_object_defgroup_find_name(gso->object, pchan->name);
+            if (dg == NULL) {
+              dg = BKE_object_defgroup_add_name(gso->object, pchan->name);
+            }
+          }
+        }
+      }
+      else {
+        BKE_object_defgroup_add(gso->object);
+      }
       DEG_relations_tag_update(gso->bmain);
       gso->vrgroup = 0;
     }
@@ -414,7 +416,7 @@ static void gpencil_weightpaint_select_stroke(tGP_BrushWeightpaintData *gso,
     gpencil_point_to_xy(gsc, gps, &pt_temp, &pc1[0], &pc1[1]);
 
     pt_active = (pt->runtime.pt_orig) ? pt->runtime.pt_orig : pt;
-    /* do boundbox check first */
+    /* Do bound-box check first. */
     if ((!ELEM(V2D_IS_CLIPPED, pc1[0], pc1[1])) && BLI_rcti_isect_pt(rect, pc1[0], pc1[1])) {
       /* only check if point is inside */
       int mval_i[2];
@@ -443,7 +445,7 @@ static void gpencil_weightpaint_select_stroke(tGP_BrushWeightpaintData *gso,
       gpencil_point_to_parent_space(pt2, diff_mat, &npt);
       gpencil_point_to_xy(gsc, gps, &npt, &pc2[0], &pc2[1]);
 
-      /* Check that point segment of the boundbox of the selection stroke */
+      /* Check that point segment of the bound-box of the selection stroke */
       if (((!ELEM(V2D_IS_CLIPPED, pc1[0], pc1[1])) && BLI_rcti_isect_pt(rect, pc1[0], pc1[1])) ||
           ((!ELEM(V2D_IS_CLIPPED, pc2[0], pc2[1])) && BLI_rcti_isect_pt(rect, pc2[0], pc2[1]))) {
         /* Check if point segment of stroke had anything to do with

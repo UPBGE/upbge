@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup blenloader
@@ -652,13 +638,6 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
         mat->line_col[3] = mat->alpha;
       }
     }
-
-    if (!DNA_struct_elem_find(fd->filesdna, "RenderData", "int", "preview_start_resolution")) {
-      Scene *scene;
-      for (scene = bmain->scenes.first; scene; scene = scene->id.next) {
-        scene->r.preview_start_resolution = 64;
-      }
-    }
   }
 
   if (!MAIN_VERSION_ATLEAST(bmain, 271, 3)) {
@@ -695,15 +674,6 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *bmain)
             pmd->psys->clmd->sim_parms->vel_damping = 1.0f;
           }
         }
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_ATLEAST(bmain, 272, 0)) {
-    if (!DNA_struct_elem_find(fd->filesdna, "RenderData", "int", "preview_start_resolution")) {
-      Scene *scene;
-      for (scene = bmain->scenes.first; scene; scene = scene->id.next) {
-        scene->r.preview_start_resolution = 64;
       }
     }
   }

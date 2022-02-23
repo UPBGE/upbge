@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup wm
@@ -24,18 +10,21 @@
 
 #include "BKE_global.h"
 #include "BKE_idprop.h"
+#include "BKE_main.h"
 #include "BKE_report.h"
+
+#include "DEG_depsgraph.h"
 
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "DEG_depsgraph.h"
-
-#include "MEM_guardedalloc.h"
+#include "ED_screen.h"
 
 #include "GHOST_C-api.h"
 
 #include "GPU_platform.h"
+
+#include "MEM_guardedalloc.h"
 
 #include "WM_api.h"
 
@@ -137,7 +126,7 @@ bool wm_xr_events_handle(wmWindowManager *wm)
 
     /* Process OpenXR action events. */
     if (WM_xr_session_is_ready(&wm->xr)) {
-      wm_xr_session_actions_update(&wm->xr);
+      wm_xr_session_actions_update(wm);
     }
 
     /* wm_window_process_events() uses the return value to determine if it can put the main thread
@@ -172,6 +161,12 @@ void wm_xr_runtime_data_free(wmXrRuntimeData **runtime)
      * first call, see comment above. */
     (*runtime)->context = NULL;
 
+    if ((*runtime)->area) {
+      wmWindowManager *wm = G_MAIN->wm.first;
+      wmWindow *win = wm_xr_session_root_window_or_fallback_get(wm, (*runtime));
+      ED_area_offscreen_free(wm, win, (*runtime)->area);
+      (*runtime)->area = NULL;
+    }
     wm_xr_session_data_free(&(*runtime)->session_state);
     WM_xr_actionmaps_clear(*runtime);
 

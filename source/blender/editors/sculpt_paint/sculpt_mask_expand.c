@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2020 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2020 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup edsculpt
@@ -153,7 +137,7 @@ static void sculpt_expand_task_cb(void *__restrict userdata,
 
       if (*vd.mask != final_mask) {
         if (vd.mvert) {
-          vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+          BKE_pbvh_vert_mark_update(ss->pbvh, vd.index);
         }
         *vd.mask = final_mask;
         BKE_pbvh_node_mark_update_mask(node);
@@ -170,10 +154,10 @@ static int sculpt_mask_expand_modal(bContext *C, wmOperator *op, const wmEvent *
   SculptSession *ss = ob->sculpt;
   Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
   ARegion *region = CTX_wm_region(C);
-  float prevclick_f[2];
-  copy_v2_v2(prevclick_f, op->customdata);
-  const int prevclick[2] = {(int)prevclick_f[0], (int)prevclick_f[1]};
-  int len = (int)len_v2v2_int(prevclick, event->mval);
+  float prev_click_f[2];
+  copy_v2_v2(prev_click_f, op->customdata);
+  const int prev_click[2] = {(int)prev_click_f[0], (int)prev_click_f[1]};
+  int len = (int)len_v2v2_int(prev_click, event->mval);
   len = abs(len);
   int mask_speed = RNA_int_get(op->ptr, "mask_speed");
   int mask_expand_update_it = len / mask_speed;

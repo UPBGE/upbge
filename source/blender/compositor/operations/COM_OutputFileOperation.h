@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #pragma once
 
@@ -32,21 +17,21 @@ namespace blender::compositor {
 /* Writes the image to a single-layer file. */
 class OutputSingleLayerOperation : public MultiThreadedOperation {
  protected:
-  const RenderData *m_rd;
-  const bNodeTree *m_tree;
+  const RenderData *rd_;
+  const bNodeTree *tree_;
 
-  ImageFormatData *m_format;
-  char m_path[FILE_MAX];
+  ImageFormatData *format_;
+  char path_[FILE_MAX];
 
-  float *m_outputBuffer;
-  DataType m_datatype;
-  SocketReader *m_imageInput;
+  float *output_buffer_;
+  DataType datatype_;
+  SocketReader *image_input_;
 
-  const ColorManagedViewSettings *m_viewSettings;
-  const ColorManagedDisplaySettings *m_displaySettings;
+  const ColorManagedViewSettings *view_settings_;
+  const ColorManagedDisplaySettings *display_settings_;
 
-  const char *m_viewName;
-  bool m_saveAsRender;
+  const char *view_name_;
+  bool save_as_render_;
 
  public:
   OutputSingleLayerOperation(const RenderData *rd,
@@ -54,19 +39,19 @@ class OutputSingleLayerOperation : public MultiThreadedOperation {
                              DataType datatype,
                              ImageFormatData *format,
                              const char *path,
-                             const ColorManagedViewSettings *viewSettings,
-                             const ColorManagedDisplaySettings *displaySettings,
-                             const char *viewName,
-                             const bool saveAsRender);
+                             const ColorManagedViewSettings *view_settings,
+                             const ColorManagedDisplaySettings *display_settings,
+                             const char *view_name,
+                             bool save_as_render);
 
-  void executeRegion(rcti *rect, unsigned int tileNumber) override;
-  bool isOutputOperation(bool /*rendering*/) const override
+  void execute_region(rcti *rect, unsigned int tile_number) override;
+  bool is_output_operation(bool /*rendering*/) const override
   {
     return true;
   }
-  void initExecution() override;
-  void deinitExecution() override;
-  eCompositorPriority getRenderPriority() const override
+  void init_execution() override;
+  void deinit_execution() override;
+  eCompositorPriority get_render_priority() const override
   {
     return eCompositorPriority::Low;
   }
@@ -85,24 +70,24 @@ struct OutputOpenExrLayer {
   bool use_layer;
 
   /* internals */
-  float *outputBuffer;
-  SocketReader *imageInput;
+  float *output_buffer;
+  SocketReader *image_input;
 };
 
 /* Writes inputs into OpenEXR multilayer channels. */
 class OutputOpenExrMultiLayerOperation : public MultiThreadedOperation {
  protected:
-  const Scene *m_scene;
-  const RenderData *m_rd;
-  const bNodeTree *m_tree;
+  const Scene *scene_;
+  const RenderData *rd_;
+  const bNodeTree *tree_;
 
-  char m_path[FILE_MAX];
-  char m_exr_codec;
-  bool m_exr_half_float;
-  Vector<OutputOpenExrLayer> m_layers;
-  const char *m_viewName;
+  char path_[FILE_MAX];
+  char exr_codec_;
+  bool exr_half_float_;
+  Vector<OutputOpenExrLayer> layers_;
+  const char *view_name_;
 
-  StampData *createStampData() const;
+  StampData *create_stamp_data() const;
 
  public:
   OutputOpenExrMultiLayerOperation(const Scene *scene,
@@ -111,18 +96,18 @@ class OutputOpenExrMultiLayerOperation : public MultiThreadedOperation {
                                    const char *path,
                                    char exr_codec,
                                    bool exr_half_float,
-                                   const char *viewName);
+                                   const char *view_name);
 
   void add_layer(const char *name, DataType datatype, bool use_layer);
 
-  void executeRegion(rcti *rect, unsigned int tileNumber) override;
-  bool isOutputOperation(bool /*rendering*/) const override
+  void execute_region(rcti *rect, unsigned int tile_number) override;
+  bool is_output_operation(bool /*rendering*/) const override
   {
     return true;
   }
-  void initExecution() override;
-  void deinitExecution() override;
-  eCompositorPriority getRenderPriority() const override
+  void init_execution() override;
+  void deinit_execution() override;
+  eCompositorPriority get_render_priority() const override
   {
     return eCompositorPriority::Low;
   }
@@ -133,15 +118,15 @@ class OutputOpenExrMultiLayerOperation : public MultiThreadedOperation {
 };
 
 void add_exr_channels(void *exrhandle,
-                      const char *layerName,
+                      const char *layer_name,
                       const DataType datatype,
-                      const char *viewName,
-                      const size_t width,
+                      const char *view_name,
+                      size_t width,
                       bool use_half_float,
                       float *buf);
 void free_exr_channels(void *exrhandle,
                        const RenderData *rd,
-                       const char *layerName,
+                       const char *layer_name,
                        const DataType datatype);
 int get_datatype_size(DataType datatype);
 

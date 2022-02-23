@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup GHOST
@@ -105,6 +89,8 @@
  */
 #define BROKEN_PEEK_TOUCHPAD
 
+static bool isStartedFromCommandPrompt();
+
 static void initRawInput()
 {
 #ifdef WITH_INPUT_NDOF
@@ -166,7 +152,10 @@ GHOST_SystemWin32::~GHOST_SystemWin32()
 {
   // Shutdown COM
   OleUninitialize();
-  toggleConsole(1);
+
+  if (isStartedFromCommandPrompt()) {
+    setConsoleWindowState(GHOST_kConsoleWindowStateShow);
+  }
 }
 
 uint64_t GHOST_SystemWin32::performanceCounterToMillis(__int64 perf_ticks) const
@@ -1002,10 +991,10 @@ void GHOST_SystemWin32::processWintabEvent(GHOST_WindowWin32 *window)
     DWORD pos = GetMessagePos();
     int x = GET_X_LPARAM(pos);
     int y = GET_Y_LPARAM(pos);
+    GHOST_TabletData td = wt->getLastTabletData();
 
-    /* TODO supply tablet data */
     system->pushEvent(new GHOST_EventCursor(
-        system->getMilliSeconds(), GHOST_kEventCursorMove, window, x, y, GHOST_TABLET_DATA_NONE));
+        system->getMilliSeconds(), GHOST_kEventCursorMove, window, x, y, td));
   }
 }
 
@@ -1100,8 +1089,8 @@ GHOST_EventCursor *GHOST_SystemWin32::processCursorEvent(GHOST_WindowWin32 *wind
       window->getClientBounds(bounds);
     }
 
-    /* Could also clamp to screen bounds wrap with a window outside the view will fail atm.
-     * Use inset in case the window is at screen bounds. */
+    /* Could also clamp to screen bounds wrap with a window outside the view will
+     * fail at the moment. Use inset in case the window is at screen bounds. */
     bounds.wrapPoint(x_new, y_new, 2, window->getCursorGrabAxis());
 
     window->getCursorGrabAccum(x_accum, y_accum);
@@ -1220,7 +1209,7 @@ GHOST_EventKey *GHOST_SystemWin32::processKeyEvent(GHOST_WindowWin32 *window, RA
     }
 
 #ifdef WITH_INPUT_IME
-    if (window->getImeInput()->IsImeKeyEvent(ascii)) {
+    if (window->getImeInput()->IsImeKeyEvent(ascii, key)) {
       return NULL;
     }
 #endif /* WITH_INPUT_IME */
@@ -1472,6 +1461,7 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
         case WM_IME_SETCONTEXT: {
           GHOST_ImeWin32 *ime = window->getImeInput();
           ime->UpdateInputLanguage();
+          ime->UpdateConversionStatus(hwnd);
           ime->CreateImeWindow(hwnd);
           ime->CleanupComposition(hwnd);
           ime->CheckFirst(hwnd);
@@ -1551,8 +1541,8 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
            * button is press for menu. To prevent this we must return preventing DefWindowProc.
            *
            * Note that the four low-order bits of the wParam parameter are used internally by the
-           * OS. To obtain the correct result when testing the value of wParam, an application
-           * must combine the value 0xFFF0 with the wParam value by using the bitwise AND operator.
+           * OS. To obtain the correct result when testing the value of wParam, an application must
+           * combine the value 0xFFF0 with the wParam value by using the bit-wise AND operator.
            */
           switch (wParam & 0xFFF0) {
             case SC_KEYMENU:
@@ -2215,31 +2205,30 @@ static bool isStartedFromCommandPrompt()
   return false;
 }
 
-int GHOST_SystemWin32::toggleConsole(int action)
+int GHOST_SystemWin32::setConsoleWindowState(GHOST_TConsoleWindowState action)
 {
   HWND wnd = GetConsoleWindow();
 
   switch (action) {
-    case 3:  // startup: hide if not started from command prompt
-    {
+    case GHOST_kConsoleWindowStateHideForNonConsoleLaunch: {
       if (!isStartedFromCommandPrompt()) {
         ShowWindow(wnd, SW_HIDE);
         m_consoleStatus = 0;
       }
       break;
     }
-    case 0:  // hide
+    case GHOST_kConsoleWindowStateHide:
       ShowWindow(wnd, SW_HIDE);
       m_consoleStatus = 0;
       break;
-    case 1:  // show
+    case GHOST_kConsoleWindowStateShow:
       ShowWindow(wnd, SW_SHOW);
       if (!isStartedFromCommandPrompt()) {
         DeleteMenu(GetSystemMenu(wnd, FALSE), SC_CLOSE, MF_BYCOMMAND);
       }
       m_consoleStatus = 1;
       break;
-    case 2:  // toggle
+    case GHOST_kConsoleWindowStateToggle:
       ShowWindow(wnd, m_consoleStatus ? SW_HIDE : SW_SHOW);
       m_consoleStatus = !m_consoleStatus;
       if (m_consoleStatus && !isStartedFromCommandPrompt()) {

@@ -36,7 +36,7 @@
 #include "SCA_CollisionSensor.h"
 
 class KX_Scene;
-class PHY_CollData;
+class PHY_ICollData;
 
 class SCA_NearSensor : public SCA_CollisionSensor {
   Py_Header protected : float m_Margin;
@@ -70,9 +70,11 @@ public:
   virtual bool Evaluate();
 
   virtual void ReParent(SCA_IObject *parent);
-  virtual bool NewHandleCollision(void *obj1, void *obj2, const PHY_CollData *coll_data);
-  virtual bool BroadPhaseFilterCollision(void *obj1, void *obj2);
-  virtual bool BroadPhaseSensorFilterCollision(void *obj1, void *obj2)
+  virtual bool NewHandleCollision(PHY_IPhysicsController *ctrl1,
+                                  PHY_IPhysicsController *ctrl2,
+                                  const PHY_ICollData *coll_data);
+  virtual bool BroadPhaseFilterCollision(PHY_IPhysicsController *ctrl1, PHY_IPhysicsController *ctrl2);
+  virtual bool BroadPhaseSensorFilterCollision(PHY_IPhysicsController *ctrl1, PHY_IPhysicsController *ctrl2)
   {
     return false;
   }

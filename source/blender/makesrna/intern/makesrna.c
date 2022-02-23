@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup RNA
@@ -4378,8 +4364,8 @@ static RNAProcessItem PROCESS_ITEMS[] = {
     {"rna_dynamicpaint.c", NULL, RNA_def_dynamic_paint},
     {"rna_fcurve.c", "rna_fcurve_api.c", RNA_def_fcurve},
     {"rna_gpencil.c", NULL, RNA_def_gpencil},
-#ifdef WITH_HAIR_NODES
-    {"rna_hair.c", NULL, RNA_def_hair},
+#ifdef WITH_NEW_CURVES_TYPE
+    {"rna_curves.c", NULL, RNA_def_curves},
 #endif
     {"rna_image.c", "rna_image_api.c", RNA_def_image},
     {"rna_key.c", NULL, RNA_def_key},
@@ -4403,9 +4389,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
     {"rna_packedfile.c", NULL, RNA_def_packedfile},
     {"rna_palette.c", NULL, RNA_def_palette},
     {"rna_particle.c", NULL, RNA_def_particle},
-#ifdef WITH_POINT_CLOUD
     {"rna_pointcloud.c", NULL, RNA_def_pointcloud},
-#endif
     {"rna_pose.c", "rna_pose_api.c", RNA_def_pose},
     {"rna_property.c", NULL, RNA_def_gameproperty},
     {"rna_python_proxy.c", NULL, RNA_def_py_proxy},
@@ -4703,6 +4687,19 @@ static const char *cpp_classes =
     "    inline static int sname##_##identifier##_length_wrap(PointerRNA *ptr) \\\n"
     "    { return sname##_##identifier##_length(ptr); } \n"
     "\n"
+    "#define COLLECTION_PROPERTY_EMPTY_false(sname, identifier) \\\n"
+    "    inline static bool sname##_##identifier##_empty_wrap(PointerRNA *ptr) \\\n"
+    "    { \\\n"
+    "        CollectionPropertyIterator iter; \\\n"
+    "        sname##_##identifier##_begin(&iter, ptr); \\\n"
+    "        bool empty = !iter.valid; \\\n"
+    "        sname##_##identifier##_end(&iter); \\\n"
+    "        return empty; \\\n"
+    "    } \n"
+    "#define COLLECTION_PROPERTY_EMPTY_true(sname, identifier) \\\n"
+    "    inline static bool sname##_##identifier##_empty_wrap(PointerRNA *ptr) \\\n"
+    "    { return sname##_##identifier##_length(ptr) == 0; } \n"
+    "\n"
     "#define COLLECTION_PROPERTY_LOOKUP_INT_false(sname, identifier) \\\n"
     "    inline static int sname##_##identifier##_lookup_int_wrap(PointerRNA *ptr, int key, "
     "PointerRNA *r_ptr) \\\n"
@@ -4779,11 +4776,13 @@ static const char *cpp_classes =
     "    typedef CollectionIterator<type, sname##_##identifier##_begin, \\\n"
     "        sname##_##identifier##_next, sname##_##identifier##_end> identifier##_iterator; \\\n"
     "    COLLECTION_PROPERTY_LENGTH_##has_length(sname, identifier) \\\n"
+    "    COLLECTION_PROPERTY_EMPTY_##has_length(sname, identifier) \\\n"
     "    COLLECTION_PROPERTY_LOOKUP_INT_##has_lookup_int(sname, identifier) \\\n"
     "    COLLECTION_PROPERTY_LOOKUP_STRING_##has_lookup_string(sname, identifier) \\\n"
     "    CollectionRef<sname, type, sname##_##identifier##_begin, \\\n"
     "        sname##_##identifier##_next, sname##_##identifier##_end, \\\n"
     "        sname##_##identifier##_length_wrap, \\\n"
+    "        sname##_##identifier##_empty_wrap, \\\n"
     "        sname##_##identifier##_lookup_int_wrap, sname##_##identifier##_lookup_string_wrap, "
     "collection_funcs> identifier;\n"
     "\n"
@@ -4797,6 +4796,7 @@ static const char *cpp_classes =
     "\n"
     "    bool operator==(const Pointer &other) const { return ptr.data == other.ptr.data; }\n"
     "    bool operator!=(const Pointer &other) const { return ptr.data != other.ptr.data; }\n"
+    "    bool operator<(const Pointer &other) const { return ptr.data < other.ptr.data; }\n"
     "\n"
     "    PointerRNA ptr;\n"
     "};\n"
@@ -4848,6 +4848,7 @@ static const char *cpp_classes =
     "typedef void (*TNextFunc)(CollectionPropertyIterator *iter);\n"
     "typedef void (*TEndFunc)(CollectionPropertyIterator *iter);\n"
     "typedef int (*TLengthFunc)(PointerRNA *ptr);\n"
+    "typedef bool (*TEmptyFunc)(PointerRNA *ptr);\n"
     "typedef int (*TLookupIntFunc)(PointerRNA *ptr, int key, PointerRNA *r_ptr);\n"
     "typedef int (*TLookupStringFunc)(PointerRNA *ptr, const char *key, PointerRNA *r_ptr);\n"
     "\n"
@@ -4886,8 +4887,8 @@ static const char *cpp_classes =
     "};\n"
     "\n"
     "template<typename Tp, typename T, TBeginFunc Tbegin, TNextFunc Tnext, TEndFunc Tend,\n"
-    "         TLengthFunc Tlength, TLookupIntFunc Tlookup_int, TLookupStringFunc Tlookup_string,\n"
-    "         typename Tcollection_funcs>\n"
+    "         TLengthFunc Tlength, TEmptyFunc Tempty, TLookupIntFunc Tlookup_int,\n"
+    "         TLookupStringFunc Tlookup_string, typename Tcollection_funcs>\n"
     "class CollectionRef : public Tcollection_funcs {\n"
     "public:\n"
     "    CollectionRef(const PointerRNA &p) : Tcollection_funcs(p), ptr(p) {}\n"
@@ -4901,6 +4902,8 @@ static const char *cpp_classes =
     ""
     "    int length()\n"
     "    { return Tlength(&ptr); }\n"
+    "    bool empty()\n"
+    "    { return Tempty(&ptr); }\n"
     "    T operator[](int key)\n"
     "    { PointerRNA r_ptr; Tlookup_int(&ptr, key, &r_ptr); return T(r_ptr); }\n"
     "    T operator[](const std::string &key)\n"

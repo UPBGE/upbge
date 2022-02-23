@@ -1,18 +1,5 @@
-#
-# Copyright 2011-2013 Blender Foundation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2011-2022 Blender Foundation
 
 # <pep8 compliant>
 from __future__ import annotations
@@ -58,7 +45,6 @@ class CyclesRender(bpy.types.RenderEngine):
     bl_use_eevee_viewport = True
     bl_use_preview = True
     bl_use_exclude_layers = True
-    bl_use_save_buffers = True
     bl_use_spherical_stereo = True
     bl_use_custom_freestyle = True
     bl_use_alembic_procedural = True
@@ -85,6 +71,12 @@ class CyclesRender(bpy.types.RenderEngine):
     def render(self, depsgraph):
         engine.render(self, depsgraph)
 
+    def render_frame_finish(self):
+        engine.render_frame_finish(self)
+
+    def draw(self, context, depsgraph):
+        engine.draw(self, depsgraph, context.space_data)
+
     def bake(self, depsgraph, obj, pass_type, pass_filter, width, height):
         engine.bake(self, depsgraph, obj, pass_type, pass_filter, width, height)
 
@@ -98,7 +90,7 @@ class CyclesRender(bpy.types.RenderEngine):
         engine.sync(self, depsgraph, context.blend_data)
 
     def view_draw(self, context, depsgraph):
-        engine.draw(self, depsgraph, context.region, context.space_data, context.region_data)
+        engine.view_draw(self, depsgraph, context.region, context.space_data, context.region_data)
 
     def update_script_node(self, node):
         if engine.with_osl():

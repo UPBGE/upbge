@@ -1,25 +1,9 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- * Making screendumps.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edscr
+ * Making screenshots of the entire window or sub-regions.
  */
 
 #include <errno.h>
@@ -42,6 +26,7 @@
 #include "BKE_image.h"
 #include "BKE_main.h"
 #include "BKE_report.h"
+#include "BKE_screen.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -57,12 +42,13 @@ typedef struct ScreenshotData {
   uint *dumprect;
   int dumpsx, dumpsy;
   rcti crop;
+  bool use_crop;
 
   ImageFormatData im_format;
 } ScreenshotData;
 
 /* call from both exec and invoke */
-static int screenshot_data_create(bContext *C, wmOperator *op)
+static int screenshot_data_create(bContext *C, wmOperator *op, ScrArea *area)
 {
   int dumprect_size[2];
 
@@ -76,7 +62,6 @@ static int screenshot_data_create(bContext *C, wmOperator *op)
 
   if (dumprect) {
     ScreenshotData *scd = MEM_callocN(sizeof(ScreenshotData), "screenshot");
-    ScrArea *area = CTX_wm_area(C);
 
     scd->dumpsx = dumprect_size[0];
     scd->dumpsy = dumprect_size[1];
@@ -110,12 +95,13 @@ static void screenshot_data_free(wmOperator *op)
 
 static int screenshot_exec(bContext *C, wmOperator *op)
 {
+  const bool use_crop = STREQ(op->idname, "SCREEN_OT_screenshot_area");
   ScreenshotData *scd = op->customdata;
   bool ok = false;
 
   if (scd == NULL) {
     /* when running exec directly */
-    screenshot_data_create(C, op);
+    screenshot_data_create(C, op, use_crop ? CTX_wm_area(C) : NULL);
     scd = op->customdata;
   }
 
@@ -132,7 +118,7 @@ static int screenshot_exec(bContext *C, wmOperator *op)
       ibuf->rect = scd->dumprect;
 
       /* crop to show only single editor */
-      if (!RNA_boolean_get(op->ptr, "full")) {
+      if (use_crop) {
         IMB_rect_crop(ibuf, &scd->crop);
         scd->dumprect = ibuf->rect;
       }
@@ -157,17 +143,29 @@ static int screenshot_exec(bContext *C, wmOperator *op)
   return ok ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
-static int screenshot_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+static int screenshot_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  if (screenshot_data_create(C, op)) {
+  const bool use_crop = STREQ(op->idname, "SCREEN_OT_screenshot_area");
+  ScrArea *area = NULL;
+  if (use_crop) {
+    area = CTX_wm_area(C);
+    bScreen *screen = CTX_wm_screen(C);
+    ScrArea *area_test = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, event->xy);
+    if (area_test != NULL) {
+      area = area_test;
+    }
+  }
+
+  if (screenshot_data_create(C, op, area)) {
     if (RNA_struct_property_is_set(op->ptr, "filepath")) {
       return screenshot_exec(C, op);
     }
 
     /* extension is added by 'screenshot_check' after */
     char filepath[FILE_MAX] = "//screen";
-    if (G.relbase_valid) {
-      BLI_strncpy(filepath, BKE_main_blendfile_path_from_global(), sizeof(filepath));
+    const char *blendfile_path = BKE_main_blendfile_path_from_global();
+    if (blendfile_path[0] != '\0') {
+      BLI_strncpy(filepath, blendfile_path, sizeof(filepath));
       BLI_path_extension_replace(filepath, sizeof(filepath), ""); /* strip '.blend' */
     }
     RNA_string_set(op->ptr, "filepath", filepath);
@@ -226,20 +224,14 @@ static bool screenshot_poll(bContext *C)
   return WM_operator_winactive(C);
 }
 
-void SCREEN_OT_screenshot(wmOperatorType *ot)
+static void screen_screenshot_impl(wmOperatorType *ot)
 {
-  ot->name = "Save Screenshot";
-  ot->idname = "SCREEN_OT_screenshot";
-  ot->description = "Capture a picture of the active area or whole Blender window";
-
   ot->invoke = screenshot_invoke;
   ot->check = screenshot_check;
   ot->exec = screenshot_exec;
   ot->cancel = screenshot_cancel;
   ot->ui = screenshot_draw;
   ot->poll = screenshot_poll;
-
-  ot->flag = 0;
 
   WM_operator_properties_filesel(ot,
                                  FILE_TYPE_FOLDER | FILE_TYPE_IMAGE,
@@ -248,9 +240,27 @@ void SCREEN_OT_screenshot(wmOperatorType *ot)
                                  WM_FILESEL_FILEPATH,
                                  FILE_DEFAULTDISPLAY,
                                  FILE_SORT_DEFAULT);
-  RNA_def_boolean(ot->srna,
-                  "full",
-                  1,
-                  "Full Screen",
-                  "Capture the whole window (otherwise only capture the active area)");
+}
+
+void SCREEN_OT_screenshot(wmOperatorType *ot)
+{
+  ot->name = "Save Screenshot";
+  ot->idname = "SCREEN_OT_screenshot";
+  ot->description = "Capture a picture of the whole Blender window";
+
+  screen_screenshot_impl(ot);
+
+  ot->flag = 0;
+}
+
+void SCREEN_OT_screenshot_area(wmOperatorType *ot)
+{
+  /* NOTE: the term "area" is a Blender internal name, "Editor" makes more sense for the UI. */
+  ot->name = "Save Screenshot (Editor)";
+  ot->idname = "SCREEN_OT_screenshot_area";
+  ot->description = "Capture a picture of an editor";
+
+  screen_screenshot_impl(ot);
+
+  ot->flag = OPTYPE_DEPENDS_ON_CURSOR;
 }

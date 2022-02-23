@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup bke
@@ -29,6 +13,8 @@
 #include "BLI_string.h"
 
 #include "DNA_image_types.h"
+
+#include "MEM_guardedalloc.h"
 
 #include "IMB_colormanagement.h"
 #include "IMB_imbuf.h"
@@ -402,15 +388,17 @@ bool BKE_image_save(
 
   bool colorspace_changed = false;
 
+  eUDIM_TILE_FORMAT tile_format;
+  char *udim_pattern = NULL;
+
   if (ima->source == IMA_SRC_TILED) {
-    /* Verify filepath for tiles images. */
-    ImageTile *first_tile = ima->tiles.first;
-    if (BLI_path_sequence_decode(opts->filepath, NULL, NULL, NULL) != first_tile->tile_number) {
+    /* Verify filepath for tiled images contains a valid UDIM marker. */
+    udim_pattern = BKE_image_get_tile_strformat(opts->filepath, &tile_format);
+    if (tile_format == UDIM_TILE_FORMAT_NONE) {
       BKE_reportf(reports,
                   RPT_ERROR,
-                  "When saving a tiled image, the path '%s' must contain the UDIM tile number %d",
-                  opts->filepath,
-                  first_tile->tile_number);
+                  "When saving a tiled image, the path '%s' must contain a valid UDIM marker",
+                  opts->filepath);
       return false;
     }
 
@@ -420,36 +408,29 @@ bool BKE_image_save(
     }
   }
 
-  /* Save image - or, for tiled images, the first tile. */
-  bool ok = image_save_single(reports, ima, iuser, opts, &colorspace_changed);
-
-  if (ok && ima->source == IMA_SRC_TILED) {
+  /* Save images */
+  bool ok = false;
+  if (ima->source != IMA_SRC_TILED) {
+    ok = image_save_single(reports, ima, iuser, opts, &colorspace_changed);
+  }
+  else {
     char filepath[FILE_MAX];
     BLI_strncpy(filepath, opts->filepath, sizeof(filepath));
 
-    char head[FILE_MAX], tail[FILE_MAX];
-    unsigned short numlen;
-    BLI_path_sequence_decode(filepath, head, tail, &numlen);
-
-    /* Save all other tiles. */
-    int index;
-    LISTBASE_FOREACH_INDEX (ImageTile *, tile, &ima->tiles, index) {
-      /* First tile was already saved before the loop. */
-      if (index == 0) {
-        continue;
-      }
-
-      if (!ok) {
-        continue;
-      }
-
-      /* Build filepath of the tile. */
-      BLI_path_sequence_encode(opts->filepath, head, tail, numlen, tile->tile_number);
+    /* Save all the tiles. */
+    LISTBASE_FOREACH (ImageTile *, tile, &ima->tiles) {
+      BKE_image_set_filepath_from_tile_number(
+          opts->filepath, udim_pattern, tile_format, tile->tile_number);
 
       iuser->tile = tile->tile_number;
-      ok = ok && image_save_single(reports, ima, iuser, opts, &colorspace_changed);
+      ok = image_save_single(reports, ima, iuser, opts, &colorspace_changed);
+      if (!ok) {
+        break;
+      }
     }
+    BLI_strncpy(ima->filepath, filepath, sizeof(ima->filepath));
     BLI_strncpy(opts->filepath, filepath, sizeof(opts->filepath));
+    MEM_freeN(udim_pattern);
   }
 
   if (colorspace_changed) {

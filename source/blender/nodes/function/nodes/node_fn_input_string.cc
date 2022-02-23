@@ -1,46 +1,29 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "node_function_util.hh"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
 
-namespace blender::nodes {
+namespace blender::nodes::node_fn_input_string_cc {
 
 static void fn_node_input_string_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::String>("String");
-};
-
-}  // namespace blender::nodes
+  b.is_function_node();
+  b.add_output<decl::String>(N_("String"));
+}
 
 static void fn_node_input_string_layout(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "string", 0, "", ICON_NONE);
 }
 
-static void fn_node_input_string_build_multi_function(
-    blender::nodes::NodeMultiFunctionBuilder &builder)
+static void fn_node_input_string_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
   bNode &bnode = builder.node();
   NodeInputString *node_storage = static_cast<NodeInputString *>(bnode.storage);
   std::string string = std::string((node_storage->string) ? node_storage->string : "");
-  builder.construct_and_set_matching_fn<blender::fn::CustomMF_Constant<std::string>>(
-      std::move(string));
+  builder.construct_and_set_matching_fn<fn::CustomMF_Constant<std::string>>(std::move(string));
 }
 
 static void fn_node_input_string_init(bNodeTree *UNUSED(ntree), bNode *node)
@@ -74,15 +57,20 @@ static void fn_node_string_copy(bNodeTree *UNUSED(dest_ntree),
   dest_node->storage = destination_storage;
 }
 
+}  // namespace blender::nodes::node_fn_input_string_cc
+
 void register_node_type_fn_input_string()
 {
+  namespace file_ns = blender::nodes::node_fn_input_string_cc;
+
   static bNodeType ntype;
 
-  fn_node_type_base(&ntype, FN_NODE_INPUT_STRING, "String", NODE_CLASS_INPUT, 0);
-  ntype.declare = blender::nodes::fn_node_input_string_declare;
-  node_type_init(&ntype, fn_node_input_string_init);
-  node_type_storage(&ntype, "NodeInputString", fn_node_input_string_free, fn_node_string_copy);
-  ntype.build_multi_function = fn_node_input_string_build_multi_function;
-  ntype.draw_buttons = fn_node_input_string_layout;
+  fn_node_type_base(&ntype, FN_NODE_INPUT_STRING, "String", NODE_CLASS_INPUT);
+  ntype.declare = file_ns::fn_node_input_string_declare;
+  node_type_init(&ntype, file_ns::fn_node_input_string_init);
+  node_type_storage(
+      &ntype, "NodeInputString", file_ns::fn_node_input_string_free, file_ns::fn_node_string_copy);
+  ntype.build_multi_function = file_ns::fn_node_input_string_build_multi_function;
+  ntype.draw_buttons = file_ns::fn_node_input_string_layout;
   nodeRegisterType(&ntype);
 }

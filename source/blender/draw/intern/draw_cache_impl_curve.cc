@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2017 by Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2017 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup draw
@@ -26,8 +10,8 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array.hh"
-#include "BLI_float3.hh"
 #include "BLI_listbase.h"
+#include "BLI_math_vec_types.hh"
 #include "BLI_math_vector.h"
 #include "BLI_span.hh"
 #include "BLI_utildefines.h"
@@ -36,9 +20,9 @@
 
 #include "BKE_curve.h"
 #include "BKE_displist.h"
-#include "BKE_font.h"
 #include "BKE_geometry_set.hh"
 #include "BKE_spline.hh"
+#include "BKE_vfont.h"
 
 #include "GPU_batch.h"
 #include "GPU_capabilities.h"
@@ -341,6 +325,9 @@ static void curve_cd_calc_used_gpu_layers(CustomDataMask *cd_layers,
           break;
         case CD_ORCO:
           *cd_layers |= CD_MASK_ORCO;
+          break;
+        case CD_HAIRLENGTH:
+          *cd_layers |= CD_MASK_HAIRLENGTH;
           break;
       }
     }
@@ -958,7 +945,7 @@ int DRW_curve_material_count_get(Curve *cu)
 
 void DRW_curve_batch_cache_create_requested(Object *ob, const struct Scene *scene)
 {
-  BLI_assert(ELEM(ob->type, OB_CURVE, OB_SURF, OB_FONT));
+  BLI_assert(ELEM(ob->type, OB_CURVES_LEGACY, OB_SURF, OB_FONT));
 
   Curve *cu = (Curve *)ob->data;
   CurveBatchCache *cache = curve_batch_cache_get(cu);

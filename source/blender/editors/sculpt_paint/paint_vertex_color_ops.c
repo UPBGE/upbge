@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edsculpt
@@ -48,7 +34,7 @@ static bool vertex_weight_paint_mode_poll(bContext *C)
 {
   Object *ob = CTX_data_active_object(C);
   Mesh *me = BKE_mesh_from_object(ob);
-  return (ob && (ob->mode == OB_MODE_VERTEX_PAINT || ob->mode == OB_MODE_WEIGHT_PAINT)) &&
+  return (ob && (ELEM(ob->mode, OB_MODE_VERTEX_PAINT, OB_MODE_WEIGHT_PAINT))) &&
          (me && me->totpoly && me->dvert);
 }
 
@@ -209,9 +195,6 @@ static void vertex_color_smooth_looptag(Mesh *me, const bool *mlooptag)
   const MPoly *mp;
   int(*scol)[4];
   bool has_shared = false;
-
-  /* if no mloopcol: do not do */
-  /* if mtexpoly: only the involved faces, otherwise all */
 
   if (me->mloopcol == NULL || me->totvert == 0 || me->totpoly == 0) {
     return;

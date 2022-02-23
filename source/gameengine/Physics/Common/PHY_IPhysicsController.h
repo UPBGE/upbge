@@ -111,6 +111,11 @@ class PHY_IPhysicsController : public PHY_IController {
 
   virtual void SetActive(bool active) = 0;
 
+  virtual unsigned short GetCollisionGroup() const = 0;
+  virtual unsigned short GetCollisionMask() const = 0;
+  virtual void SetCollisionGroup(unsigned short group) = 0;
+  virtual void SetCollisionMask(unsigned short mask) = 0;
+
   // reading out information from physics
   virtual MT_Vector3 GetLinearVelocity() = 0;
   virtual MT_Vector3 GetAngularVelocity() = 0;

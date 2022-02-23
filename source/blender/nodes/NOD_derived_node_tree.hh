@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -72,8 +58,10 @@ class DTreeContext {
   bool is_root() const;
 };
 
-/* A (nullable) reference to a node and the context it is in. It is unique within an entire nested
- * node group hierarchy. This type is small and can be passed around by value. */
+/**
+ * A (nullable) reference to a node and the context it is in. It is unique within an entire nested
+ * node group hierarchy. This type is small and can be passed around by value.
+ */
 class DNode {
  private:
   const DTreeContext *context_ = nullptr;
@@ -100,11 +88,13 @@ class DNode {
   DOutputSocket output_by_identifier(StringRef identifier) const;
 };
 
-/* A (nullable) reference to a socket and the context it is in. It is unique within an entire
+/**
+ * A (nullable) reference to a socket and the context it is in. It is unique within an entire
  * nested node group hierarchy. This type is small and can be passed around by value.
  *
  * A #DSocket can represent an input or an output socket. If the type of a socket is known at
- * compile time is preferable to use #DInputSocket or #DOutputSocket instead. */
+ * compile time is preferable to use #DInputSocket or #DOutputSocket instead.
+ */
 class DSocket {
  protected:
   const DTreeContext *context_ = nullptr;
@@ -129,7 +119,7 @@ class DSocket {
   DNode node() const;
 };
 
-/* A (nullable) reference to an input socket and the context it is in. */
+/** A (nullable) reference to an input socket and the context it is in. */
 class DInputSocket : public DSocket {
  public:
   DInputSocket() = default;
@@ -142,10 +132,15 @@ class DInputSocket : public DSocket {
   DOutputSocket get_corresponding_group_node_output() const;
   Vector<DOutputSocket, 4> get_corresponding_group_input_sockets() const;
 
+  /**
+   * Call `origin_fn` for every "real" origin socket. "Real" means that reroutes, muted nodes
+   * and node groups are handled by this function. Origin sockets are ones where a node gets its
+   * inputs from.
+   */
   void foreach_origin_socket(FunctionRef<void(DSocket)> origin_fn) const;
 };
 
-/* A (nullable) reference to an output socket and the context it is in. */
+/** A (nullable) reference to an output socket and the context it is in. */
 class DOutputSocket : public DSocket {
  public:
   DOutputSocket() = default;
@@ -158,8 +153,24 @@ class DOutputSocket : public DSocket {
   DInputSocket get_corresponding_group_node_input() const;
   DInputSocket get_active_corresponding_group_output_socket() const;
 
-  void foreach_target_socket(FunctionRef<void(DInputSocket)> target_fn,
-                             FunctionRef<void(DSocket)> skipped_fn) const;
+  struct TargetSocketPathInfo {
+    /** All sockets on the path from the current to the final target sockets, excluding `this`. */
+    Vector<DSocket, 16> sockets;
+  };
+
+  using ForeachTargetSocketFn =
+      FunctionRef<void(DInputSocket, const TargetSocketPathInfo &path_info)>;
+
+  /**
+   * Calls `target_fn` for every "real" target socket. "Real" means that reroutes, muted nodes
+   * and node groups are handled by this function. Target sockets are on the nodes that use the
+   * value from this socket.
+   */
+  void foreach_target_socket(ForeachTargetSocketFn target_fn) const;
+
+ private:
+  void foreach_target_socket(ForeachTargetSocketFn target_fn,
+                             TargetSocketPathInfo &path_info) const;
 };
 
 class DerivedNodeTree {
@@ -169,16 +180,27 @@ class DerivedNodeTree {
   VectorSet<const NodeTreeRef *> used_node_tree_refs_;
 
  public:
+  /**
+   * Construct a new derived node tree for a given root node tree. The generated derived node tree
+   * does not own the used node tree refs (so that those can be used by others as well). The caller
+   * has to make sure that the node tree refs added to #node_tree_refs live at least as long as the
+   * derived node tree.
+   */
   DerivedNodeTree(bNodeTree &btree, NodeTreeRefMap &node_tree_refs);
   ~DerivedNodeTree();
 
   const DTreeContext &root_context() const;
   Span<const NodeTreeRef *> used_node_tree_refs() const;
 
+  /**
+   * \return True when there is a link cycle. Unavailable sockets are ignored.
+   */
   bool has_link_cycles() const;
   bool has_undefined_nodes_or_sockets() const;
+  /** Calls the given callback on all nodes in the (possibly nested) derived node tree. */
   void foreach_node(FunctionRef<void(DNode)> callback) const;
 
+  /** Generates a graph in dot format. The generated graph has all node groups inlined. */
   std::string to_dot() const;
 
  private:
@@ -202,9 +224,9 @@ using nodes::DSocket;
 using nodes::DTreeContext;
 }  // namespace derived_node_tree_types
 
-/* --------------------------------------------------------------------
- * DTreeContext inline methods.
- */
+/* -------------------------------------------------------------------- */
+/** \name #DTreeContext Inline Methods
+ * \{ */
 
 inline const NodeTreeRef &DTreeContext::tree() const
 {
@@ -236,9 +258,11 @@ inline bool DTreeContext::is_root() const
   return parent_context_ == nullptr;
 }
 
-/* --------------------------------------------------------------------
- * DNode inline methods.
- */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name #DNode Inline Methods
+ * \{ */
 
 inline DNode::DNode(const DTreeContext *context, const NodeRef *node_ref)
     : context_(context), node_ref_(node_ref)
@@ -301,9 +325,11 @@ inline DOutputSocket DNode::output_by_identifier(StringRef identifier) const
   return {context_, &node_ref_->output_by_identifier(identifier)};
 }
 
-/* --------------------------------------------------------------------
- * DSocket inline methods.
- */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name #DSocket Inline Methods
+ * \{ */
 
 inline DSocket::DSocket(const DTreeContext *context, const SocketRef *socket_ref)
     : context_(context), socket_ref_(socket_ref)
@@ -362,9 +388,11 @@ inline DNode DSocket::node() const
   return {context_, &socket_ref_->node()};
 }
 
-/* --------------------------------------------------------------------
- * DInputSocket inline methods.
- */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name #DInputSocket Inline Methods
+ * \{ */
 
 inline DInputSocket::DInputSocket(const DTreeContext *context, const InputSocketRef *socket_ref)
     : DSocket(context, socket_ref)
@@ -386,9 +414,11 @@ inline const InputSocketRef *DInputSocket::operator->() const
   return (const InputSocketRef *)socket_ref_;
 }
 
-/* --------------------------------------------------------------------
- * DOutputSocket inline methods.
- */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name #DOutputSocket Inline Methods
+ * \{ */
 
 inline DOutputSocket::DOutputSocket(const DTreeContext *context, const OutputSocketRef *socket_ref)
     : DSocket(context, socket_ref)
@@ -410,9 +440,11 @@ inline const OutputSocketRef *DOutputSocket::operator->() const
   return (const OutputSocketRef *)socket_ref_;
 }
 
-/* --------------------------------------------------------------------
- * DerivedNodeTree inline methods.
- */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name #DerivedNodeTree Inline Methods
+ * \{ */
 
 inline const DTreeContext &DerivedNodeTree::root_context() const
 {
@@ -423,5 +455,7 @@ inline Span<const NodeTreeRef *> DerivedNodeTree::used_node_tree_refs() const
 {
   return used_node_tree_refs_;
 }
+
+/** \} */
 
 }  // namespace blender::nodes

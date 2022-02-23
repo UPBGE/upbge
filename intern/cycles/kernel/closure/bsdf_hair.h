@@ -1,41 +1,16 @@
-/*
- * Adapted from Open Shading Language with this license:
+/* SPDX-License-Identifier: BSD-3-Clause
  *
+ * Adapted from Open Shading Language
  * Copyright (c) 2009-2010 Sony Pictures Imageworks Inc., et al.
  * All Rights Reserved.
  *
- * Modifications Copyright 2011, Blender Foundation.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- * * Redistributions of source code must retain the above copyright
- *   notice, this list of conditions and the following disclaimer.
- * * Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in the
- *   documentation and/or other materials provided with the distribution.
- * * Neither the name of Sony Pictures Imageworks nor the names of its
- *   contributors may be used to endorse or promote products derived from
- *   this software without specific prior written permission.
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+ * Modifications Copyright 2011-2022 Blender Foundation. */
 
-#ifndef __BSDF_HAIR_H__
-#define __BSDF_HAIR_H__
+#pragma once
 
 CCL_NAMESPACE_BEGIN
 
-typedef ccl_addr_space struct HairBsdf {
+typedef struct HairBsdf {
   SHADER_CLOSURE_BASE;
 
   float3 T;
@@ -46,7 +21,7 @@ typedef ccl_addr_space struct HairBsdf {
 
 static_assert(sizeof(ShaderClosure) >= sizeof(HairBsdf), "HairBsdf is too large!");
 
-ccl_device int bsdf_hair_reflection_setup(HairBsdf *bsdf)
+ccl_device int bsdf_hair_reflection_setup(ccl_private HairBsdf *bsdf)
 {
   bsdf->type = CLOSURE_BSDF_HAIR_REFLECTION_ID;
   bsdf->roughness1 = clamp(bsdf->roughness1, 0.001f, 1.0f);
@@ -54,7 +29,7 @@ ccl_device int bsdf_hair_reflection_setup(HairBsdf *bsdf)
   return SD_BSDF | SD_BSDF_HAS_EVAL;
 }
 
-ccl_device int bsdf_hair_transmission_setup(HairBsdf *bsdf)
+ccl_device int bsdf_hair_transmission_setup(ccl_private HairBsdf *bsdf)
 {
   bsdf->type = CLOSURE_BSDF_HAIR_TRANSMISSION_ID;
   bsdf->roughness1 = clamp(bsdf->roughness1, 0.001f, 1.0f);
@@ -62,21 +37,12 @@ ccl_device int bsdf_hair_transmission_setup(HairBsdf *bsdf)
   return SD_BSDF | SD_BSDF_HAS_EVAL;
 }
 
-ccl_device bool bsdf_hair_merge(const ShaderClosure *a, const ShaderClosure *b)
-{
-  const HairBsdf *bsdf_a = (const HairBsdf *)a;
-  const HairBsdf *bsdf_b = (const HairBsdf *)b;
-
-  return (isequal_float3(bsdf_a->T, bsdf_b->T)) && (bsdf_a->roughness1 == bsdf_b->roughness1) &&
-         (bsdf_a->roughness2 == bsdf_b->roughness2) && (bsdf_a->offset == bsdf_b->offset);
-}
-
-ccl_device float3 bsdf_hair_reflection_eval_reflect(const ShaderClosure *sc,
+ccl_device float3 bsdf_hair_reflection_eval_reflect(ccl_private const ShaderClosure *sc,
                                                     const float3 I,
                                                     const float3 omega_in,
-                                                    float *pdf)
+                                                    ccl_private float *pdf)
 {
-  const HairBsdf *bsdf = (const HairBsdf *)sc;
+  ccl_private const HairBsdf *bsdf = (ccl_private const HairBsdf *)sc;
   float offset = bsdf->offset;
   float3 Tg = bsdf->T;
   float roughness1 = bsdf->roughness1;
@@ -118,28 +84,28 @@ ccl_device float3 bsdf_hair_reflection_eval_reflect(const ShaderClosure *sc,
   return make_float3(*pdf, *pdf, *pdf);
 }
 
-ccl_device float3 bsdf_hair_transmission_eval_reflect(const ShaderClosure *sc,
+ccl_device float3 bsdf_hair_transmission_eval_reflect(ccl_private const ShaderClosure *sc,
                                                       const float3 I,
                                                       const float3 omega_in,
-                                                      float *pdf)
+                                                      ccl_private float *pdf)
 {
   return make_float3(0.0f, 0.0f, 0.0f);
 }
 
-ccl_device float3 bsdf_hair_reflection_eval_transmit(const ShaderClosure *sc,
+ccl_device float3 bsdf_hair_reflection_eval_transmit(ccl_private const ShaderClosure *sc,
                                                      const float3 I,
                                                      const float3 omega_in,
-                                                     float *pdf)
+                                                     ccl_private float *pdf)
 {
   return make_float3(0.0f, 0.0f, 0.0f);
 }
 
-ccl_device float3 bsdf_hair_transmission_eval_transmit(const ShaderClosure *sc,
+ccl_device float3 bsdf_hair_transmission_eval_transmit(ccl_private const ShaderClosure *sc,
                                                        const float3 I,
                                                        const float3 omega_in,
-                                                       float *pdf)
+                                                       ccl_private float *pdf)
 {
-  const HairBsdf *bsdf = (const HairBsdf *)sc;
+  ccl_private const HairBsdf *bsdf = (ccl_private const HairBsdf *)sc;
   float offset = bsdf->offset;
   float3 Tg = bsdf->T;
   float roughness1 = bsdf->roughness1;
@@ -180,20 +146,20 @@ ccl_device float3 bsdf_hair_transmission_eval_transmit(const ShaderClosure *sc,
   return make_float3(*pdf, *pdf, *pdf);
 }
 
-ccl_device int bsdf_hair_reflection_sample(const ShaderClosure *sc,
+ccl_device int bsdf_hair_reflection_sample(ccl_private const ShaderClosure *sc,
                                            float3 Ng,
                                            float3 I,
                                            float3 dIdx,
                                            float3 dIdy,
                                            float randu,
                                            float randv,
-                                           float3 *eval,
-                                           float3 *omega_in,
-                                           float3 *domega_in_dx,
-                                           float3 *domega_in_dy,
-                                           float *pdf)
+                                           ccl_private float3 *eval,
+                                           ccl_private float3 *omega_in,
+                                           ccl_private float3 *domega_in_dx,
+                                           ccl_private float3 *domega_in_dy,
+                                           ccl_private float *pdf)
 {
-  const HairBsdf *bsdf = (const HairBsdf *)sc;
+  ccl_private const HairBsdf *bsdf = (ccl_private const HairBsdf *)sc;
   float offset = bsdf->offset;
   float3 Tg = bsdf->T;
   float roughness1 = bsdf->roughness1;
@@ -241,20 +207,20 @@ ccl_device int bsdf_hair_reflection_sample(const ShaderClosure *sc,
   return LABEL_REFLECT | LABEL_GLOSSY;
 }
 
-ccl_device int bsdf_hair_transmission_sample(const ShaderClosure *sc,
+ccl_device int bsdf_hair_transmission_sample(ccl_private const ShaderClosure *sc,
                                              float3 Ng,
                                              float3 I,
                                              float3 dIdx,
                                              float3 dIdy,
                                              float randu,
                                              float randv,
-                                             float3 *eval,
-                                             float3 *omega_in,
-                                             float3 *domega_in_dx,
-                                             float3 *domega_in_dy,
-                                             float *pdf)
+                                             ccl_private float3 *eval,
+                                             ccl_private float3 *omega_in,
+                                             ccl_private float3 *domega_in_dx,
+                                             ccl_private float3 *domega_in_dy,
+                                             ccl_private float *pdf)
 {
-  const HairBsdf *bsdf = (const HairBsdf *)sc;
+  ccl_private const HairBsdf *bsdf = (ccl_private const HairBsdf *)sc;
   float offset = bsdf->offset;
   float3 Tg = bsdf->T;
   float roughness1 = bsdf->roughness1;
@@ -309,5 +275,3 @@ ccl_device int bsdf_hair_transmission_sample(const ShaderClosure *sc,
 }
 
 CCL_NAMESPACE_END
-
-#endif /* __BSDF_HAIR_H__ */

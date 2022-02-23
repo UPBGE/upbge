@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2012, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2012 Blender Foundation. */
 
 #pragma once
 
@@ -49,42 +34,41 @@ class KeyingScreenOperation : public MultiThreadedOperation {
     int triangles_total;
   } TileData;
 
-  MovieClip *m_movieClip;
-  int m_framenumber;
-  TriangulationData *m_cachedTriangulation;
-  char m_trackingObject[64];
+  MovieClip *movie_clip_;
+  int framenumber_;
+  TriangulationData *cached_triangulation_;
+  char tracking_object_[64];
 
   /**
    * Determine the output resolution. The resolution is retrieved from the Renderer
    */
-  void determineResolution(unsigned int resolution[2],
-                           unsigned int preferredResolution[2]) override;
+  void determine_canvas(const rcti &preferred_area, rcti &r_area) override;
 
-  TriangulationData *buildVoronoiTriangulation();
+  TriangulationData *build_voronoi_triangulation();
 
  public:
   KeyingScreenOperation();
 
-  void initExecution() override;
-  void deinitExecution() override;
+  void init_execution() override;
+  void deinit_execution() override;
 
-  void *initializeTileData(rcti *rect) override;
-  void deinitializeTileData(rcti *rect, void *data) override;
+  void *initialize_tile_data(rcti *rect) override;
+  void deinitialize_tile_data(rcti *rect, void *data) override;
 
-  void setMovieClip(MovieClip *clip)
+  void set_movie_clip(MovieClip *clip)
   {
-    this->m_movieClip = clip;
+    movie_clip_ = clip;
   }
-  void setTrackingObject(const char *object)
+  void set_tracking_object(const char *object)
   {
-    BLI_strncpy(this->m_trackingObject, object, sizeof(this->m_trackingObject));
+    BLI_strncpy(tracking_object_, object, sizeof(tracking_object_));
   }
-  void setFramenumber(int framenumber)
+  void set_framenumber(int framenumber)
   {
-    this->m_framenumber = framenumber;
+    framenumber_ = framenumber;
   }
 
-  void executePixel(float output[4], int x, int y, void *data) override;
+  void execute_pixel(float output[4], int x, int y, void *data) override;
 
   void update_memory_buffer_partial(MemoryBuffer *output,
                                     const rcti &area,

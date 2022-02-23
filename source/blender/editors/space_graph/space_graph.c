@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2008 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2008 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup spgraph
@@ -36,6 +20,7 @@
 
 #include "BKE_context.h"
 #include "BKE_fcurve.h"
+#include "BKE_lib_remap.h"
 #include "BKE_screen.h"
 
 #include "ED_anim_api.h"
@@ -237,29 +222,27 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
     v2d->tot.xmax += 10.0f;
   }
 
-  if (((sipo->flag & SIPO_NODRAWCURSOR) == 0) || (sipo->mode == SIPO_MODE_DRIVERS)) {
+  if (((sipo->flag & SIPO_NODRAWCURSOR) == 0)) {
     uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
     immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
     /* horizontal component of value-cursor (value line before the current frame line) */
-    if ((sipo->flag & SIPO_NODRAWCURSOR) == 0) {
-      float y = sipo->cursorVal;
+    float y = sipo->cursorVal;
 
-      /* Draw a green line to indicate the cursor value */
-      immUniformThemeColorShadeAlpha(TH_CFRAME, -10, -50);
-      GPU_blend(GPU_BLEND_ALPHA);
-      GPU_line_width(2.0);
+    /* Draw a line to indicate the cursor value. */
+    immUniformThemeColorShadeAlpha(TH_CFRAME, -10, -50);
+    GPU_blend(GPU_BLEND_ALPHA);
+    GPU_line_width(2.0);
 
-      immBegin(GPU_PRIM_LINES, 2);
-      immVertex2f(pos, v2d->cur.xmin, y);
-      immVertex2f(pos, v2d->cur.xmax, y);
-      immEnd();
+    immBegin(GPU_PRIM_LINES, 2);
+    immVertex2f(pos, v2d->cur.xmin, y);
+    immVertex2f(pos, v2d->cur.xmax, y);
+    immEnd();
 
-      GPU_blend(GPU_BLEND_NONE);
-    }
+    GPU_blend(GPU_BLEND_NONE);
 
-    /* current frame or vertical component of vertical component of the cursor */
+    /* Vertical component of of the cursor. */
     if (sipo->mode == SIPO_MODE_DRIVERS) {
       /* cursor x-value */
       float x = sipo->cursorTime;
@@ -311,12 +294,17 @@ static void graph_main_region_draw_overlay(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
   const SpaceGraph *sipo = CTX_wm_space_graph(C);
+
+  /* Driver Editor's X axis is not time. */
+  if (sipo->mode == SIPO_MODE_DRIVERS) {
+    return;
+  }
+
   const Scene *scene = CTX_data_scene(C);
-  const bool draw_vert_line = sipo->mode != SIPO_MODE_DRIVERS;
   View2D *v2d = &region->v2d;
 
   /* scrubbing region */
-  ED_time_scrub_draw_current_frame(region, scene, sipo->flag & SIPO_DRAWTIME, draw_vert_line);
+  ED_time_scrub_draw_current_frame(region, scene, sipo->flag & SIPO_DRAWTIME);
 
   /* scrollers */
   /* FIXME: args for scrollers depend on the type of data being shown. */
@@ -793,18 +781,17 @@ static void graph_refresh(const bContext *C, ScrArea *area)
   graph_refresh_fcurve_colors(C);
 }
 
-static void graph_id_remap(ScrArea *UNUSED(area), SpaceLink *slink, ID *old_id, ID *new_id)
+static void graph_id_remap(ScrArea *UNUSED(area),
+                           SpaceLink *slink,
+                           const struct IDRemapper *mappings)
 {
   SpaceGraph *sgraph = (SpaceGraph *)slink;
-
-  if (sgraph->ads) {
-    if ((ID *)sgraph->ads->filter_grp == old_id) {
-      sgraph->ads->filter_grp = (Collection *)new_id;
-    }
-    if ((ID *)sgraph->ads->source == old_id) {
-      sgraph->ads->source = new_id;
-    }
+  if (!sgraph->ads) {
+    return;
   }
+
+  BKE_id_remapper_apply(mappings, (ID **)&sgraph->ads->filter_grp, ID_REMAP_APPLY_DEFAULT);
+  BKE_id_remapper_apply(mappings, (ID **)&sgraph->ads->source, ID_REMAP_APPLY_DEFAULT);
 }
 
 static int graph_space_subtype_get(ScrArea *area)
@@ -826,7 +813,6 @@ static void graph_space_subtype_item_extend(bContext *UNUSED(C),
   RNA_enum_items_add(item, totitem, rna_enum_space_graph_mode_items);
 }
 
-/* only called once, from space/spacetypes.c */
 void ED_spacetype_ipo(void)
 {
   SpaceType *st = MEM_callocN(sizeof(SpaceType), "spacetype ipo");

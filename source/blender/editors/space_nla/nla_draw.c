@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2009 Blender Foundation, Joshua Leung. All rights reserved. */
 
 /** \file
  * \ingroup spnla
@@ -65,9 +49,6 @@
 
 /* Action-Line ---------------------- */
 
-/* get colors for drawing Action-Line
- * NOTE: color returned includes fine-tuned alpha!
- */
 void nla_action_get_color(AnimData *adt, bAction *act, float color[4])
 {
   if (adt && (adt->flag & ADT_NLA_EDIT_ON)) {
@@ -111,11 +92,11 @@ static void nla_action_draw_keyframes(
 
   /* draw a darkened region behind the strips
    * - get and reset the background color, this time without the alpha to stand out better
-   *   (amplified alpha is used instead)
+   *   (amplified alpha is used instead, but clamped to avoid 100% opacity)
    */
   float color[4];
   nla_action_get_color(adt, act, color);
-  color[3] *= 2.5f;
+  color[3] = min_ff(0.7f, color[3] * 2.5f);
 
   GPUVertFormat *format = immVertexFormat();
   uint pos_id = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
@@ -152,7 +133,7 @@ static void nla_action_draw_keyframes(
         format, "flags", GPU_COMP_U32, 1, GPU_FETCH_INT);
 
     GPU_program_point_size(true);
-    immBindBuiltinProgram(GPU_SHADER_KEYFRAME_DIAMOND);
+    immBindBuiltinProgram(GPU_SHADER_KEYFRAME_SHAPE);
     immUniform1f("outline_scale", 1.0f);
     immUniform2f("ViewportSize", BLI_rcti_size_x(&v2d->mask) + 1, BLI_rcti_size_y(&v2d->mask) + 1);
     immBegin(GPU_PRIM_POINTS, key_len);
@@ -323,11 +304,18 @@ static void nla_draw_strip_curves(NlaStrip *strip, float yminc, float ymaxc, uin
 {
   const float yheight = ymaxc - yminc;
 
-  immUniformColor3f(0.7f, 0.7f, 0.7f);
-
   /* draw with AA'd line */
   GPU_line_smooth(true);
   GPU_blend(GPU_BLEND_ALPHA);
+
+  /* Fully opaque line on selected strips. */
+  if (strip->flag & NLASTRIP_FLAG_SELECT) {
+    /* TODO: Use theme setting. */
+    immUniformColor3f(1.0f, 1.0f, 1.0f);
+  }
+  else {
+    immUniformColor4f(1.0f, 1.0f, 1.0f, 0.5f);
+  }
 
   /* influence -------------------------- */
   if (strip->flag & NLASTRIP_FLAG_USR_INFLUENCE) {
@@ -501,7 +489,7 @@ static void nla_draw_strip(SpaceNla *snla,
 
     /* strip is in normal track */
     UI_draw_roundbox_corner_set(UI_CNR_ALL); /* all corners rounded */
-    UI_draw_roundbox_shade_x(
+    UI_draw_roundbox_4fv(
         &(const rctf){
             .xmin = strip->start,
             .xmax = strip->end,
@@ -509,9 +497,7 @@ static void nla_draw_strip(SpaceNla *snla,
             .ymax = ymaxc,
         },
         true,
-        0.0,
-        0.5,
-        0.1,
+        0.0f,
         color);
 
     /* restore current vertex format & program (roundbox trashes it) */
@@ -545,11 +531,9 @@ static void nla_draw_strip(SpaceNla *snla,
   /* draw strip outline
    * - color used here is to indicate active vs non-active
    */
-  if (strip->flag & NLASTRIP_FLAG_ACTIVE) {
+  if (strip->flag & (NLASTRIP_FLAG_ACTIVE | NLASTRIP_FLAG_SELECT)) {
     /* strip should appear 'sunken', so draw a light border around it */
-    color[0] = 0.9f; /* FIXME: hardcoded temp-hack colors */
-    color[1] = 1.0f;
-    color[2] = 0.9f;
+    color[0] = color[1] = color[2] = 1.0f; /* FIXME: hardcoded temp-hack colors */
   }
   else {
     /* strip should appear to stand out, so draw a dark border around it */
@@ -566,7 +550,7 @@ static void nla_draw_strip(SpaceNla *snla,
   }
   else {
     /* non-muted - draw solid, rounded outline */
-    UI_draw_roundbox_shade_x(
+    UI_draw_roundbox_4fv(
         &(const rctf){
             .xmin = strip->start,
             .xmax = strip->end,
@@ -574,9 +558,7 @@ static void nla_draw_strip(SpaceNla *snla,
             .ymax = ymaxc,
         },
         false,
-        0.0,
-        0.0,
-        0.1,
+        0.0f,
         color);
 
     /* restore current vertex format & program (roundbox trashes it) */
@@ -661,7 +643,7 @@ static void nla_draw_strip_text(AnimData *adt,
   }
 
   /* set text color - if colors (see above) are light, draw black text, otherwise draw white */
-  if (strip->flag & (NLASTRIP_FLAG_ACTIVE | NLASTRIP_FLAG_SELECT | NLASTRIP_FLAG_TWEAKUSER)) {
+  if (strip->flag & (NLASTRIP_FLAG_ACTIVE | NLASTRIP_FLAG_TWEAKUSER)) {
     col[0] = col[1] = col[2] = 0;
   }
   else {
@@ -785,6 +767,11 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *region)
         case ANIMTYPE_NLAACTION: {
           AnimData *adt = ale->adt;
 
+          /* Draw the manually set intended playback frame range highlight. */
+          if (ale->data) {
+            ANIM_draw_action_framerange(adt, ale->data, v2d, ymin, ymax);
+          }
+
           uint pos = GPU_vertformat_attr_add(
               immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
           immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
@@ -804,29 +791,6 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *region)
            */
           immRectf(
               pos, v2d->cur.xmin, ymin + NLACHANNEL_SKIP, v2d->cur.xmax, ymax - NLACHANNEL_SKIP);
-
-          /* draw 'embossed' lines above and below the strip for effect */
-          /* white base-lines */
-          GPU_line_width(2.0f);
-          immUniformColor4f(1.0f, 1.0f, 1.0f, 0.3f);
-          immBegin(GPU_PRIM_LINES, 4);
-          immVertex2f(pos, v2d->cur.xmin, ymin + NLACHANNEL_SKIP);
-          immVertex2f(pos, v2d->cur.xmax, ymin + NLACHANNEL_SKIP);
-          immVertex2f(pos, v2d->cur.xmin, ymax - NLACHANNEL_SKIP);
-          immVertex2f(pos, v2d->cur.xmax, ymax - NLACHANNEL_SKIP);
-          immEnd();
-
-          /* black top-lines */
-          GPU_line_width(1.0f);
-          immUniformColor3f(0.0f, 0.0f, 0.0f);
-          immBegin(GPU_PRIM_LINES, 4);
-          immVertex2f(pos, v2d->cur.xmin, ymin + NLACHANNEL_SKIP);
-          immVertex2f(pos, v2d->cur.xmax, ymin + NLACHANNEL_SKIP);
-          immVertex2f(pos, v2d->cur.xmin, ymax - NLACHANNEL_SKIP);
-          immVertex2f(pos, v2d->cur.xmax, ymax - NLACHANNEL_SKIP);
-          immEnd();
-
-          /* TODO: these lines but better --^ */
 
           immUnbindProgram();
 

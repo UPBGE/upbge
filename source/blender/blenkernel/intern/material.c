@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup bke
@@ -36,16 +20,17 @@
 #include "DNA_anim_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_curve_types.h"
+#include "DNA_curves_types.h"
 #include "DNA_customdata_types.h"
 #include "DNA_defaults.h"
 #include "DNA_gpencil_types.h"
-#include "DNA_hair_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
+#include "DNA_particle_types.h"
 #include "DNA_pointcloud_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_volume_types.h"
@@ -62,7 +47,6 @@
 #include "BKE_curve.h"
 #include "BKE_displist.h"
 #include "BKE_editmesh.h"
-#include "BKE_font.h"
 #include "BKE_gpencil.h"
 #include "BKE_icons.h"
 #include "BKE_idtype.h"
@@ -73,7 +57,9 @@
 #include "BKE_material.h"
 #include "BKE_mesh.h"
 #include "BKE_node.h"
+#include "BKE_object.h"
 #include "BKE_scene.h"
+#include "BKE_vfont.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
@@ -164,15 +150,14 @@ static void material_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Material *material = (Material *)id;
   /* Nodetrees **are owned by IDs**, treat them as mere sub-data and not real ID! */
-  if (!BKE_library_foreach_ID_embedded(data, (ID **)&material->nodetree)) {
-    return;
-  }
+  BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+      data, BKE_library_foreach_ID_embedded(data, (ID **)&material->nodetree));
   if (material->texpaintslot != NULL) {
-    BKE_LIB_FOREACHID_PROCESS(data, material->texpaintslot->ima, IDWALK_CB_NOP);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, material->texpaintslot->ima, IDWALK_CB_NOP);
   }
   if (material->gp_style != NULL) {
-    BKE_LIB_FOREACHID_PROCESS(data, material->gp_style->sima, IDWALK_CB_USER);
-    BKE_LIB_FOREACHID_PROCESS(data, material->gp_style->ima, IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, material->gp_style->sima, IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, material->gp_style->ima, IDWALK_CB_USER);
   }
 }
 
@@ -259,7 +244,8 @@ IDTypeInfo IDType_ID_MA = {
     .name = "Material",
     .name_plural = "materials",
     .translation_context = BLT_I18NCONTEXT_ID_MATERIAL,
-    .flags = 0,
+    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .asset_type_info = NULL,
 
     .init_data = material_init_data,
     .copy_data = material_copy_data,
@@ -267,6 +253,7 @@ IDTypeInfo IDType_ID_MA = {
     .make_local = NULL,
     .foreach_id = material_foreach_id,
     .foreach_cache = NULL,
+    .foreach_path = NULL,
     .owner_get = NULL,
 
     .blend_write = material_blend_write,
@@ -326,7 +313,7 @@ Material ***BKE_object_material_array_p(Object *ob)
     Mesh *me = ob->data;
     return &(me->mat);
   }
-  if (ELEM(ob->type, OB_CURVE, OB_FONT, OB_SURF)) {
+  if (ELEM(ob->type, OB_CURVES_LEGACY, OB_FONT, OB_SURF)) {
     Curve *cu = ob->data;
     return &(cu->mat);
   }
@@ -338,9 +325,9 @@ Material ***BKE_object_material_array_p(Object *ob)
     bGPdata *gpd = ob->data;
     return &(gpd->mat);
   }
-  if (ob->type == OB_HAIR) {
-    Hair *hair = ob->data;
-    return &(hair->mat);
+  if (ob->type == OB_CURVES) {
+    Curves *curves = ob->data;
+    return &(curves->mat);
   }
   if (ob->type == OB_POINTCLOUD) {
     PointCloud *pointcloud = ob->data;
@@ -359,7 +346,7 @@ short *BKE_object_material_len_p(Object *ob)
     Mesh *me = ob->data;
     return &(me->totcol);
   }
-  if (ELEM(ob->type, OB_CURVE, OB_FONT, OB_SURF)) {
+  if (ELEM(ob->type, OB_CURVES_LEGACY, OB_FONT, OB_SURF)) {
     Curve *cu = ob->data;
     return &(cu->totcol);
   }
@@ -371,9 +358,9 @@ short *BKE_object_material_len_p(Object *ob)
     bGPdata *gpd = ob->data;
     return &(gpd->totcol);
   }
-  if (ob->type == OB_HAIR) {
-    Hair *hair = ob->data;
-    return &(hair->totcol);
+  if (ob->type == OB_CURVES) {
+    Curves *curves = ob->data;
+    return &(curves->totcol);
   }
   if (ob->type == OB_POINTCLOUD) {
     PointCloud *pointcloud = ob->data;
@@ -386,7 +373,6 @@ short *BKE_object_material_len_p(Object *ob)
   return NULL;
 }
 
-/* same as above but for ID's */
 Material ***BKE_id_material_array_p(ID *id)
 {
   /* ensure we don't try get materials from non-obdata */
@@ -395,14 +381,14 @@ Material ***BKE_id_material_array_p(ID *id)
   switch (GS(id->name)) {
     case ID_ME:
       return &(((Mesh *)id)->mat);
-    case ID_CU:
+    case ID_CU_LEGACY:
       return &(((Curve *)id)->mat);
     case ID_MB:
       return &(((MetaBall *)id)->mat);
     case ID_GD:
       return &(((bGPdata *)id)->mat);
-    case ID_HA:
-      return &(((Hair *)id)->mat);
+    case ID_CV:
+      return &(((Curves *)id)->mat);
     case ID_PT:
       return &(((PointCloud *)id)->mat);
     case ID_VO:
@@ -421,14 +407,14 @@ short *BKE_id_material_len_p(ID *id)
   switch (GS(id->name)) {
     case ID_ME:
       return &(((Mesh *)id)->totcol);
-    case ID_CU:
+    case ID_CU_LEGACY:
       return &(((Curve *)id)->totcol);
     case ID_MB:
       return &(((MetaBall *)id)->totcol);
     case ID_GD:
       return &(((bGPdata *)id)->totcol);
-    case ID_HA:
-      return &(((Hair *)id)->totcol);
+    case ID_CV:
+      return &(((Curves *)id)->totcol);
     case ID_PT:
       return &(((PointCloud *)id)->totcol);
     case ID_VO:
@@ -448,11 +434,11 @@ static void material_data_index_remove_id(ID *id, short index)
     case ID_ME:
       BKE_mesh_material_index_remove((Mesh *)id, index);
       break;
-    case ID_CU:
+    case ID_CU_LEGACY:
       BKE_curve_material_index_remove((Curve *)id, index);
       break;
     case ID_MB:
-    case ID_HA:
+    case ID_CV:
     case ID_PT:
     case ID_VO:
       /* No material indices for these object data types. */
@@ -462,21 +448,33 @@ static void material_data_index_remove_id(ID *id, short index)
   }
 }
 
-bool BKE_object_material_slot_used(ID *id, short actcol)
+bool BKE_object_material_slot_used(Object *object, short actcol)
 {
-  /* ensure we don't try get materials from non-obdata */
-  BLI_assert(OB_DATA_SUPPORT_ID(GS(id->name)));
+  if (!BKE_object_supports_material_slots(object)) {
+    return false;
+  }
 
-  switch (GS(id->name)) {
+  LISTBASE_FOREACH (ParticleSystem *, psys, &object->particlesystem) {
+    if (psys->part->omat == actcol) {
+      return true;
+    }
+  }
+
+  ID *ob_data = object->data;
+  if (ob_data == NULL || !OB_DATA_SUPPORT_ID(GS(ob_data->name))) {
+    return false;
+  }
+
+  switch (GS(ob_data->name)) {
     case ID_ME:
-      return BKE_mesh_material_index_used((Mesh *)id, actcol - 1);
-    case ID_CU:
-      return BKE_curve_material_index_used((Curve *)id, actcol - 1);
+      return BKE_mesh_material_index_used((Mesh *)ob_data, actcol - 1);
+    case ID_CU_LEGACY:
+      return BKE_curve_material_index_used((Curve *)ob_data, actcol - 1);
     case ID_MB:
-      /* meta-elems don't have materials atm */
+      /* Meta-elements don't support materials at the moment. */
       return false;
     case ID_GD:
-      return BKE_gpencil_material_index_used((bGPdata *)id, actcol - 1);
+      return BKE_gpencil_material_index_used((bGPdata *)ob_data, actcol - 1);
     default:
       return false;
   }
@@ -491,11 +489,11 @@ static void material_data_index_clear_id(ID *id)
     case ID_ME:
       BKE_mesh_material_index_clear((Mesh *)id);
       break;
-    case ID_CU:
+    case ID_CU_LEGACY:
       BKE_curve_material_index_clear((Curve *)id);
       break;
     case ID_MB:
-    case ID_HA:
+    case ID_CV:
     case ID_PT:
     case ID_VO:
       /* No material indices for these object data types. */
@@ -706,20 +704,14 @@ static ID *get_evaluated_object_data_with_materials(Object *ob)
   /* Meshes in edit mode need special handling. */
   if (ob->type == OB_MESH && ob->mode == OB_MODE_EDIT) {
     Mesh *mesh = ob->data;
-    if (mesh->edit_mesh && mesh->edit_mesh->mesh_eval_final) {
-      data = &mesh->edit_mesh->mesh_eval_final->id;
+    Mesh *editmesh_eval_final = BKE_object_get_editmesh_eval_final(ob);
+    if (mesh->edit_mesh && editmesh_eval_final) {
+      data = &editmesh_eval_final->id;
     }
   }
   return data;
 }
 
-/**
- * On evaluated objects the number of materials on an object and its data might go out of sync.
- * This is because during evaluation materials can be added/removed on the object data.
- *
- * For rendering or exporting we generally use the materials on the object data. However, some
- * material indices might be overwritten by the object.
- */
 Material *BKE_object_material_get_eval(Object *ob, short act)
 {
   BLI_assert(DEG_is_evaluated_object(ob));
@@ -793,10 +785,6 @@ void BKE_id_material_eval_assign(ID *id, int slot, Material *material)
   (*materials_ptr)[slot_index] = material;
 }
 
-/**
- * Add an empty material slot if the id has no material slots. This material slot allows the
- * material to be overwritten by object-linked materials.
- */
 void BKE_id_material_eval_ensure_default_slot(ID *id)
 {
   short *len_ptr = BKE_id_material_len_p(id);
@@ -886,7 +874,17 @@ void BKE_object_materials_test(Main *bmain, Object *ob, ID *id)
     return;
   }
 
-  BKE_object_material_resize(bmain, ob, *totcol, false);
+  if ((ob->id.tag & LIB_TAG_MISSING) == 0 && (id->tag & LIB_TAG_MISSING) != 0) {
+    /* Exception: In case the object is a valid data, but its obdata is an empty place-holder,
+     * use object's material slots amount as reference.
+     * This avoids losing materials in a local object when its linked obdata goes missing.
+     * See T92780. */
+    BKE_id_material_resize(bmain, id, (short)ob->totcol, false);
+  }
+  else {
+    /* Normal case: the use the obdata amount of materials slots to update the object's one. */
+    BKE_object_material_resize(bmain, ob, *totcol, false);
+  }
 }
 
 void BKE_objects_materials_test_all(Main *bmain, ID *id)
@@ -1064,7 +1062,7 @@ void BKE_object_material_remap(Object *ob, const unsigned int *remap)
   if (ob->type == OB_MESH) {
     BKE_mesh_material_remap(ob->data, remap, ob->totcol);
   }
-  else if (ELEM(ob->type, OB_CURVE, OB_SURF, OB_FONT)) {
+  else if (ELEM(ob->type, OB_CURVES_LEGACY, OB_SURF, OB_FONT)) {
     BKE_curve_material_remap(ob->data, remap, ob->totcol);
   }
   else if (ob->type == OB_GPENCIL) {
@@ -1076,12 +1074,6 @@ void BKE_object_material_remap(Object *ob, const unsigned int *remap)
   }
 }
 
-/**
- * Calculate a material remapping from \a ob_src to \a ob_dst.
- *
- * \param remap_src_to_dst: An array the size of `ob_src->totcol`
- * where index values are filled in which map to \a ob_dst materials.
- */
 void BKE_object_material_remap_calc(Object *ob_dst, Object *ob_src, short *remap_src_to_dst)
 {
   if (ob_src->totcol == 0) {
@@ -1130,9 +1122,6 @@ void BKE_object_material_remap_calc(Object *ob_dst, Object *ob_src, short *remap
   BLI_ghash_free(gh_mat_map, NULL, NULL);
 }
 
-/**
- * Copy materials from evaluated geometry to the original geometry of an object.
- */
 void BKE_object_material_from_eval_data(Main *bmain, Object *ob_orig, ID *data_eval)
 {
   ID *data_orig = ob_orig->data;
@@ -1167,7 +1156,6 @@ void BKE_object_material_from_eval_data(Main *bmain, Object *ob_orig, ID *data_e
   BKE_object_materials_test(bmain, ob_orig, data_orig);
 }
 
-/* XXX: this calls many more update calls per object then are needed, could be optimized. */
 void BKE_object_material_array_assign(Main *bmain,
                                       struct Object *ob,
                                       struct Material ***matar,
@@ -1326,7 +1314,7 @@ bool BKE_object_material_slot_remove(Main *bmain, Object *ob)
   }
 
   /* check indices from mesh */
-  if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT)) {
+  if (ELEM(ob->type, OB_MESH, OB_CURVES_LEGACY, OB_SURF, OB_FONT)) {
     material_data_index_remove_id((ID *)ob->data, actcol - 1);
     if (ob->runtime.curve_cache) {
       BKE_displist_free(&ob->runtime.curve_cache->disp);
@@ -1530,7 +1518,6 @@ bNode *BKE_texpaint_slot_material_find_node(Material *ma, short texpaint_slot)
   return find_data.r_node;
 }
 
-/* r_col = current value, col = new value, (fac == 0) is no change */
 void ramp_blend(int type, float r_col[3], const float fac, const float col[3])
 {
   float tmp, facm = 1.0f - fac;

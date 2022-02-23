@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #pragma once
 
@@ -25,15 +10,15 @@ namespace blender::compositor {
 class ColorCorrectionOperation : public MultiThreadedRowOperation {
  private:
   /**
-   * Cached reference to the inputProgram
+   * Cached reference to the input_program
    */
-  SocketReader *m_inputImage;
-  SocketReader *m_inputMask;
-  NodeColorCorrection *m_data;
+  SocketReader *input_image_;
+  SocketReader *input_mask_;
+  NodeColorCorrection *data_;
 
-  bool m_redChannelEnabled;
-  bool m_greenChannelEnabled;
-  bool m_blueChannelEnabled;
+  bool red_channel_enabled_;
+  bool green_channel_enabled_;
+  bool blue_channel_enabled_;
 
  public:
   ColorCorrectionOperation();
@@ -41,33 +26,33 @@ class ColorCorrectionOperation : public MultiThreadedRowOperation {
   /**
    * The inner loop of this operation.
    */
-  void executePixelSampled(float output[4], float x, float y, PixelSampler sampler) override;
+  void execute_pixel_sampled(float output[4], float x, float y, PixelSampler sampler) override;
 
   /**
    * Initialize the execution
    */
-  void initExecution() override;
+  void init_execution() override;
 
   /**
    * Deinitialize the execution
    */
-  void deinitExecution() override;
+  void deinit_execution() override;
 
-  void setData(NodeColorCorrection *data)
+  void set_data(NodeColorCorrection *data)
   {
-    this->m_data = data;
+    data_ = data;
   }
-  void setRedChannelEnabled(bool enabled)
+  void set_red_channel_enabled(bool enabled)
   {
-    this->m_redChannelEnabled = enabled;
+    red_channel_enabled_ = enabled;
   }
-  void setGreenChannelEnabled(bool enabled)
+  void set_green_channel_enabled(bool enabled)
   {
-    this->m_greenChannelEnabled = enabled;
+    green_channel_enabled_ = enabled;
   }
-  void setBlueChannelEnabled(bool enabled)
+  void set_blue_channel_enabled(bool enabled)
   {
-    this->m_blueChannelEnabled = enabled;
+    blue_channel_enabled_ = enabled;
   }
 
   void update_memory_buffer_row(PixelCursor &p) override;

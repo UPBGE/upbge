@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8-80 compliant>
 
@@ -1578,6 +1562,7 @@ class CLIP_MT_select(Menu):
 
         layout.operator("clip.select_box")
         layout.operator("clip.select_circle")
+        layout.operator_menu_enum("clip.select_lasso", "mode")
 
         layout.separator()
 
@@ -1857,6 +1842,43 @@ class CLIP_MT_reconstruction_pie(Menu):
         pie.operator("clip.apply_solution_scale", icon='ARROW_LEFTRIGHT')
 
 
+class CLIP_MT_view_pie(Menu):
+    bl_label = "View"
+
+    @classmethod
+    def poll(cls, context):
+        space = context.space_data
+
+        # View operators are not yet implemented in Dopesheet mode.
+        return space.view != 'DOPESHEET'
+
+    def draw(self, context):
+        layout = self.layout
+        sc = context.space_data
+
+        pie = layout.menu_pie()
+
+        if sc.view == 'CLIP':
+            pie.operator("clip.view_all")
+            pie.operator("clip.view_selected", icon='ZOOM_SELECTED')
+
+            if sc.mode == 'MASK':
+                pie.operator("clip.view_center_cursor")
+                pie.separator()
+            else:
+                # Add spaces so items stay in the same position through all modes.
+                pie.separator()
+                pie.separator()
+
+            pie.operator("clip.view_all", text="Frame All Fit").fit_view = True
+
+        if sc.view == 'GRAPH':
+            pie.operator_context = 'INVOKE_REGION_PREVIEW'
+            pie.operator("clip.graph_view_all")
+            pie.separator()
+            pie.operator("clip.graph_center_current_frame")
+
+
 classes = (
     CLIP_UL_tracking_objects,
     CLIP_HT_header,
@@ -1924,6 +1946,7 @@ classes = (
     CLIP_MT_tracking_pie,
     CLIP_MT_reconstruction_pie,
     CLIP_MT_solving_pie,
+    CLIP_MT_view_pie,
 )
 
 if __name__ == "__main__":  # only for live edit.

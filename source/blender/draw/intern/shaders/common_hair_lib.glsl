@@ -5,6 +5,9 @@
  * of data the CPU has to precompute and transfer for each update.
  */
 
+/* TODO(fclem): Keep documentation but remove the uniform declaration. */
+#ifndef USE_GPU_SHADER_CREATE_INFO
+
 /**
  * hairStrandsRes: Number of points per hair strand.
  * 2 - no subdivision
@@ -33,8 +36,6 @@ uniform int hairStrandOffset = 0;
 
 /* -- Per control points -- */
 uniform samplerBuffer hairPointBuffer; /* RGBA32F */
-#define point_position xyz
-#define point_time w /* Position along the hair length */
 
 /* -- Per strands data -- */
 uniform usamplerBuffer hairStrandBuffer;    /* R32UI */
@@ -43,6 +44,10 @@ uniform usamplerBuffer hairStrandSegBuffer; /* R16UI */
 /* Not used, use one buffer per uv layer */
 // uniform samplerBuffer hairUVBuffer; /* RG32F */
 // uniform samplerBuffer hairColBuffer; /* RGBA16 linear color */
+#endif
+
+#define point_position xyz
+#define point_time w /* Position along the hair length */
 
 /* -- Subdivision stage -- */
 /**
@@ -208,6 +213,12 @@ void hair_get_pos_tan_binor_time(bool is_persp,
 
     wpos += wbinor * thick_time * scale;
   }
+}
+
+float hair_get_customdata_float(const samplerBuffer cd_buf)
+{
+  int id = hair_get_strand_id();
+  return texelFetch(cd_buf, id).r;
 }
 
 vec2 hair_get_customdata_vec2(const samplerBuffer cd_buf)

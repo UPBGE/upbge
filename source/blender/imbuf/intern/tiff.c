@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup imbuf
@@ -29,7 +15,7 @@
  * high-level routine that loads all images as 32-bit RGBA, handling all the
  * required conversions between many different TIFF types internally.
  *
- * Saving supports RGB, RGBA and BW (grayscale) images correctly, with
+ * Saving supports RGB, RGBA and BW (gray-scale) images correctly, with
  * 8 bits per channel in all cases.  The "deflate" compression algorithm is
  * used to compress images.
  */
@@ -52,7 +38,7 @@
 #include "IMB_colormanagement.h"
 #include "IMB_colormanagement_intern.h"
 
-#include "tiffio.h"
+#include <tiffio.h>
 
 #ifdef WIN32
 #  include "utfconv.h"
@@ -457,7 +443,7 @@ static int imb_read_tiff_pixels(ImBuf *ibuf, TIFF *image)
   }
 
   /* simple RGBA image */
-  if (!(bitspersample == 32 || bitspersample == 16)) {
+  if (!(ELEM(bitspersample, 32, 16))) {
     success |= TIFFReadRGBAImage(image, ibuf->x, ibuf->y, tmpibuf->rect, 0);
   }
   /* contiguous channels: RGBRGBRGB */
@@ -488,7 +474,7 @@ static int imb_read_tiff_pixels(ImBuf *ibuf, TIFF *image)
           if (chan == 3 && spp == 3) { /* fill alpha if only RGB TIFF */
             copy_vn_fl(fbuf, ibuf->x, 1.0f);
           }
-          else if (chan >= spp) { /* for grayscale, duplicate first channel into G and B */
+          else if (chan >= spp) { /* For gray-scale, duplicate first channel into G and B. */
             success |= TIFFReadScanline(image, fbuf, row, 0);
           }
           else {
@@ -500,7 +486,7 @@ static int imb_read_tiff_pixels(ImBuf *ibuf, TIFF *image)
           if (chan == 3 && spp == 3) { /* fill alpha if only RGB TIFF */
             copy_vn_ushort(sbuf, ibuf->x, 65535);
           }
-          else if (chan >= spp) { /* for grayscale, duplicate first channel into G and B */
+          else if (chan >= spp) { /* For gray-scale, duplicate first channel into G and B. */
             success |= TIFFReadScanline(image, fbuf, row, 0);
           }
           else {
@@ -553,15 +539,6 @@ void imb_inittiff(void)
   }
 }
 
-/**
- * Loads a TIFF file.
- * \param mem: Memory containing the TIFF file.
- * \param size: Size of the mem buffer.
- * \param flags: If flags has IB_test set then the file is not actually loaded,
- * but all other operations take place.
- *
- * \return A newly allocated #ImBuf structure if successful, otherwise NULL.
- */
 ImBuf *imb_loadtiff(const unsigned char *mem,
                     size_t size,
                     int flags,
@@ -744,21 +721,6 @@ void imb_loadtiletiff(
 /** \name Save TIFF
  * \{ */
 
-/**
- * Saves a TIFF file.
- *
- * #ImBuf structures with 1, 3 or 4 bytes per pixel (GRAY, RGB, RGBA
- * respectively) are accepted, and interpreted correctly.  Note that the TIFF
- * convention is to use pre-multiplied alpha, which can be achieved within
- * Blender by setting "Premul" alpha handling.  Other alpha conventions are
- * not strictly correct, but are permitted anyhow.
- *
- * \param ibuf: Image buffer.
- * \param name: Name of the TIFF file to create.
- * \param flags: Currently largely ignored.
- *
- * \return 1 if the function is successful, 0 on failure.
- */
 bool imb_savetiff(ImBuf *ibuf, const char *filepath, int flags)
 {
   TIFF *image = NULL;
@@ -872,7 +834,7 @@ bool imb_savetiff(ImBuf *ibuf, const char *filepath, int flags)
     TIFFSetField(image, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_RGB);
   }
   else if (samplesperpixel == 1) {
-    /* grayscale images, 1 channel */
+    /* Gray-scale images, 1 channel */
     TIFFSetField(image, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_MINISBLACK);
   }
 
@@ -895,9 +857,7 @@ bool imb_savetiff(ImBuf *ibuf, const char *filepath, int flags)
             copy_v3_v3(rgb, &fromf[from_i]);
           }
           else {
-            /* Standard linear-to-srgb conversion if float buffer
-             * wasn't managed.
-             */
+            /* Standard linear-to-SRGB conversion if float buffer wasn't managed. */
             linearrgb_to_srgb_v3_v3(rgb, &fromf[from_i]);
           }
           if (channels_in_float == 4) {

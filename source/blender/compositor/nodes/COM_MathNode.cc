@@ -1,33 +1,17 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #include "COM_MathNode.h"
-#include "COM_ExecutionSystem.h"
 #include "COM_MathBaseOperation.h"
 
 namespace blender::compositor {
 
-void MathNode::convertToOperations(NodeConverter &converter,
-                                   const CompositorContext & /*context*/) const
+void MathNode::convert_to_operations(NodeConverter &converter,
+                                     const CompositorContext & /*context*/) const
 {
   MathBaseOperation *operation = nullptr;
 
-  switch (this->getbNode()->custom1) {
+  switch (this->get_bnode()->custom1) {
     case NODE_MATH_ADD:
       operation = new MathAddOperation();
       break;
@@ -151,14 +135,14 @@ void MathNode::convertToOperations(NodeConverter &converter,
   }
 
   if (operation) {
-    bool useClamp = getbNode()->custom2;
-    operation->setUseClamp(useClamp);
-    converter.addOperation(operation);
+    bool use_clamp = get_bnode()->custom2;
+    operation->set_use_clamp(use_clamp);
+    converter.add_operation(operation);
 
-    converter.mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
-    converter.mapInputSocket(getInputSocket(1), operation->getInputSocket(1));
-    converter.mapInputSocket(getInputSocket(2), operation->getInputSocket(2));
-    converter.mapOutputSocket(getOutputSocket(0), operation->getOutputSocket());
+    converter.map_input_socket(get_input_socket(0), operation->get_input_socket(0));
+    converter.map_input_socket(get_input_socket(1), operation->get_input_socket(1));
+    converter.map_input_socket(get_input_socket(2), operation->get_input_socket(2));
+    converter.map_output_socket(get_output_socket(0), operation->get_output_socket());
   }
 }
 

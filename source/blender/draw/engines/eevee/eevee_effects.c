@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2016, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2016 Blender Foundation. */
 
 /** \file
  * \ingroup draw_engine
@@ -38,7 +23,8 @@ static struct {
   struct GPUTexture *color_src;
 
   int depth_src_layer;
-  float cube_texel_size;
+  /* Size can be vec3. But we only use 2 components in the shader. */
+  float texel_size[2];
 } e_data = {NULL}; /* Engine data */
 
 #define SETUP_BUFFER(tex, fb, fb_color) \
@@ -93,6 +79,10 @@ void EEVEE_effects_init(EEVEE_ViewLayerData *sldata,
 
   effects = stl->effects;
 
+  int div = 1 << MAX_SCREEN_BUFFERS_LOD_LEVEL;
+  effects->hiz_size[0] = divide_ceil_u(size_fs[0], div) * div;
+  effects->hiz_size[1] = divide_ceil_u(size_fs[1], div) * div;
+
   effects->enabled_effects = 0;
   effects->enabled_effects |= (G.debug_value == 9) ? EFFECT_VELOCITY_BUFFER : 0;
   effects->enabled_effects |= EEVEE_motion_blur_init(sldata, vedata);
@@ -121,9 +111,6 @@ void EEVEE_effects_init(EEVEE_ViewLayerData *sldata,
   /**
    * MinMax Pyramid
    */
-  int div = 1 << MAX_SCREEN_BUFFERS_LOD_LEVEL;
-  effects->hiz_size[0] = divide_ceil_u(size_fs[0], div) * div;
-  effects->hiz_size[1] = divide_ceil_u(size_fs[1], div) * div;
 
   if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_ANY, GPU_DRIVER_ANY)) {
     /* Intel gpu seems to have problem rendering to only depth hiz_format */
@@ -267,6 +254,7 @@ void EEVEE_effects_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
     DRW_PASS_CREATE(psl->color_downsample_ps, DRW_STATE_WRITE_COLOR);
     grp = DRW_shgroup_create(EEVEE_shaders_effect_downsample_sh_get(), psl->color_downsample_ps);
     DRW_shgroup_uniform_texture_ex(grp, "source", txl->filtered_radiance, GPU_SAMPLER_FILTER);
+    DRW_shgroup_uniform_vec2(grp, "texelSize", e_data.texel_size, 1);
     DRW_shgroup_call_procedural_triangles(grp, NULL, 1);
   }
 
@@ -275,7 +263,7 @@ void EEVEE_effects_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
     grp = DRW_shgroup_create(EEVEE_shaders_effect_downsample_cube_sh_get(),
                              psl->color_downsample_cube_ps);
     DRW_shgroup_uniform_texture_ref(grp, "source", &e_data.color_src);
-    DRW_shgroup_uniform_float(grp, "texelSize", &e_data.cube_texel_size, 1);
+    DRW_shgroup_uniform_float(grp, "texelSize", e_data.texel_size, 1);
     DRW_shgroup_uniform_int_copy(grp, "Layer", 0);
     DRW_shgroup_call_instances(grp, NULL, quad, 6);
   }
@@ -285,6 +273,7 @@ void EEVEE_effects_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
     DRW_PASS_CREATE(psl->maxz_downlevel_ps, downsample_write);
     grp = DRW_shgroup_create(EEVEE_shaders_effect_maxz_downlevel_sh_get(), psl->maxz_downlevel_ps);
     DRW_shgroup_uniform_texture_ref_ex(grp, "depthBuffer", &txl->maxzbuffer, GPU_SAMPLER_DEFAULT);
+    DRW_shgroup_uniform_vec2(grp, "texelSize", e_data.texel_size, 1);
     DRW_shgroup_call(grp, quad, NULL);
 
     /* Copy depth buffer to top level of HiZ */
@@ -353,16 +342,22 @@ static void min_downsample_cb(void *vedata, int UNUSED(level))
 }
 #endif
 
-static void max_downsample_cb(void *vedata, int UNUSED(level))
+static void max_downsample_cb(void *vedata, int level)
 {
   EEVEE_PassList *psl = ((EEVEE_Data *)vedata)->psl;
+  EEVEE_TextureList *txl = ((EEVEE_Data *)vedata)->txl;
+  int texture_size[3];
+  GPU_texture_get_mipmap_size(txl->maxzbuffer, level - 1, texture_size);
+  e_data.texel_size[0] = 1.0f / texture_size[0];
+  e_data.texel_size[1] = 1.0f / texture_size[1];
   DRW_draw_pass(psl->maxz_downlevel_ps);
 }
 
 static void simple_downsample_cube_cb(void *vedata, int level)
 {
   EEVEE_PassList *psl = ((EEVEE_Data *)vedata)->psl;
-  e_data.cube_texel_size = (float)(1 << level) / (float)GPU_texture_width(e_data.color_src);
+  e_data.texel_size[0] = (float)(1 << level) / (float)GPU_texture_width(e_data.color_src);
+  e_data.texel_size[1] = e_data.texel_size[0];
   DRW_draw_pass(psl->color_downsample_cube_ps);
 }
 
@@ -398,15 +393,17 @@ void EEVEE_create_minmax_buffer(EEVEE_Data *vedata, GPUTexture *depth_src, int l
   }
 }
 
-static void downsample_radiance_cb(void *vedata, int UNUSED(level))
+static void downsample_radiance_cb(void *vedata, int level)
 {
   EEVEE_PassList *psl = ((EEVEE_Data *)vedata)->psl;
+  EEVEE_TextureList *txl = ((EEVEE_Data *)vedata)->txl;
+  int texture_size[3];
+  GPU_texture_get_mipmap_size(txl->filtered_radiance, level - 1, texture_size);
+  e_data.texel_size[0] = 1.0f / texture_size[0];
+  e_data.texel_size[1] = 1.0f / texture_size[1];
   DRW_draw_pass(psl->color_downsample_ps);
 }
 
-/**
- * Simple down-sampling algorithm. Reconstruct mip chain up to mip level.
- */
 void EEVEE_effects_downsample_radiance_buffer(EEVEE_Data *vedata, GPUTexture *texture_src)
 {
   EEVEE_PassList *psl = vedata->psl;
@@ -423,9 +420,6 @@ void EEVEE_effects_downsample_radiance_buffer(EEVEE_Data *vedata, GPUTexture *te
   DRW_stats_group_end();
 }
 
-/**
- * Simple down-sampling algorithm for cube-map. Reconstruct mip chain up to mip level.
- */
 void EEVEE_downsample_cube_buffer(EEVEE_Data *vedata, GPUTexture *texture_src, int level)
 {
   EEVEE_FramebufferList *fbl = vedata->fbl;
@@ -481,7 +475,7 @@ void EEVEE_draw_effects(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
   EEVEE_depth_of_field_draw(vedata);
 
   /* NOTE: Lookdev drawing happens before TAA but after
-   * motion blur and dof to avoid distortions.
+   * motion blur and DOF to avoid distortions.
    * Velocity resolve use a hack to exclude lookdev
    * spheres from creating shimmering re-projection vectors. */
   EEVEE_lookdev_draw(vedata);
@@ -493,7 +487,7 @@ void EEVEE_draw_effects(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
    * the swapping of the buffers. */
   EEVEE_renderpasses_output_accumulate(sldata, vedata, true);
 
-  /* Save the final texture and framebuffer for final transformation or read. */
+  /* Save the final texture and frame-buffer for final transformation or read. */
   effects->final_tx = effects->source_buffer;
   effects->final_fb = (effects->target_buffer != fbl->main_color_fb) ? fbl->main_fb :
                                                                        fbl->effect_fb;

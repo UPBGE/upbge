@@ -27,10 +27,6 @@
 
 #include "BKE_cdderivedmesh.h"
 #include "BKE_context.h"
-#include "BKE_layer.h"
-#include "BKE_mesh_runtime.h"
-#include "BKE_object.h"
-#include "BKE_scene.h"
 #include "DEG_depsgraph_query.h"
 #include "DNA_mesh_types.h"
 
@@ -55,7 +51,7 @@ extern bool gDisableDeactivation;
 float gLinearSleepingTreshold;
 float gAngularSleepingTreshold;
 
-BlenderBulletCharacterController::BlenderBulletCharacterController(CcdPhysicsController *ctrl,
+CcdCharacter::CcdCharacter(CcdPhysicsController *ctrl,
                                                                    btMotionState *motionState,
                                                                    btPairCachingGhostObject *ghost,
                                                                    btConvexShape *shape,
@@ -68,7 +64,7 @@ BlenderBulletCharacterController::BlenderBulletCharacterController(CcdPhysicsCon
 {
 }
 
-void BlenderBulletCharacterController::updateAction(btCollisionWorld *collisionWorld, btScalar dt)
+void CcdCharacter::updateAction(btCollisionWorld *collisionWorld, btScalar dt)
 {
   if (onGround())
     m_jumps = 0;
@@ -77,27 +73,27 @@ void BlenderBulletCharacterController::updateAction(btCollisionWorld *collisionW
   m_motionState->setWorldTransform(getGhostObject()->getWorldTransform());
 }
 
-unsigned char BlenderBulletCharacterController::getMaxJumps() const
+unsigned char CcdCharacter::getMaxJumps() const
 {
   return m_maxJumps;
 }
 
-void BlenderBulletCharacterController::setMaxJumps(unsigned char maxJumps)
+void CcdCharacter::setMaxJumps(unsigned char maxJumps)
 {
   m_maxJumps = maxJumps;
 }
 
-unsigned char BlenderBulletCharacterController::getJumpCount() const
+unsigned char CcdCharacter::getJumpCount() const
 {
   return m_jumps;
 }
 
-bool BlenderBulletCharacterController::canJump() const
+bool CcdCharacter::canJump() const
 {
   return (onGround() && m_maxJumps > 0) || m_jumps < m_maxJumps;
 }
 
-void BlenderBulletCharacterController::jump()
+void CcdCharacter::jump()
 {
   if (!canJump())
     return;
@@ -107,42 +103,42 @@ void BlenderBulletCharacterController::jump()
   m_jumps++;
 }
 
-const btVector3 &BlenderBulletCharacterController::getWalkDirection()
+const btVector3 &CcdCharacter::getWalkDirection()
 {
   return m_walkDirection;
 }
 
-float BlenderBulletCharacterController::GetFallSpeed() const
+float CcdCharacter::GetFallSpeed() const
 {
   return m_fallSpeed;
 }
 
-void BlenderBulletCharacterController::SetFallSpeed(float fallSpeed)
+void CcdCharacter::SetFallSpeed(float fallSpeed)
 {
   setFallSpeed(fallSpeed);
 }
 
-float BlenderBulletCharacterController::GetMaxSlope() const
+float CcdCharacter::GetMaxSlope() const
 {
   return m_maxSlopeRadians;
 }
 
-void BlenderBulletCharacterController::SetMaxSlope(float maxSlope)
+void CcdCharacter::SetMaxSlope(float maxSlope)
 {
   setMaxSlope(maxSlope);
 }
 
-float BlenderBulletCharacterController::GetJumpSpeed() const
+float CcdCharacter::GetJumpSpeed() const
 {
   return m_jumpSpeed;
 }
 
-void BlenderBulletCharacterController::SetJumpSpeed(float jumpSpeed)
+void CcdCharacter::SetJumpSpeed(float jumpSpeed)
 {
   setJumpSpeed(jumpSpeed);
 }
 
-void BlenderBulletCharacterController::SetVelocity(const btVector3 &vel, float time, bool local)
+void CcdCharacter::SetVelocity(const btVector3 &vel, float time, bool local)
 {
   btVector3 v = vel;
   if (local) {
@@ -156,18 +152,18 @@ void BlenderBulletCharacterController::SetVelocity(const btVector3 &vel, float t
   setVelocityForTimeInterval(v, time);
 }
 
-void BlenderBulletCharacterController::ReplaceShape(btConvexShape *shape)
+void CcdCharacter::ReplaceShape(btConvexShape *shape)
 {
   m_convexShape = shape;
   m_ghostObject->setCollisionShape(m_convexShape);
 }
 
-void BlenderBulletCharacterController::SetVelocity(const MT_Vector3 &vel, float time, bool local)
+void CcdCharacter::SetVelocity(const MT_Vector3 &vel, float time, bool local)
 {
   SetVelocity(ToBullet(vel), time, local);
 }
 
-void BlenderBulletCharacterController::Reset()
+void CcdCharacter::Reset()
 {
   btCollisionWorld *world = m_ctrl->GetPhysicsEnvironment()->GetDynamicsWorld();
   reset(world);
@@ -564,7 +560,7 @@ bool CcdPhysicsController::CreateCharacterController()
   m_bulletMotionState->getWorldTransform(trans);
   m_object->setWorldTransform(trans);
 
-  m_characterController = new BlenderBulletCharacterController(
+  m_characterController = new CcdCharacter(
       this,
       m_bulletMotionState,
       (btPairCachingGhostObject *)m_object,
@@ -869,7 +865,8 @@ void CcdPhysicsController::UpdateSoftBody()
         btSoftBody::tNodeArray &nodes(sb->m_nodes);
         bContext *C = KX_GetActiveEngine()->GetContext();
         Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-        KX_GameObject *gameobj = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)GetNewClientInfo());
+        KX_GameObject *gameobj = KX_GameObject::GetClientObject(
+            (KX_ClientObjectInfo *)GetNewClientInfo());
         Object *ob = DEG_get_evaluated_object(depsgraph, gameobj->GetBlenderObject());
 
         for (int p2 = 0; p2 < numpolys; p2++) {
@@ -893,18 +890,10 @@ void CcdPhysicsController::UpdateSoftBody()
             MT_Vector3 p2 = ToMoto(nodes.at(i2).m_x - sb->m_pose.m_com);
             MT_Vector3 p3 = ToMoto(nodes.at(i3).m_x - sb->m_pose.m_com);
 
-            MT_Vector3 n1 = ToMoto(nodes.at(i1).m_n);
-            MT_Vector3 n2 = ToMoto(nodes.at(i2).m_n);
-            MT_Vector3 n3 = ToMoto(nodes.at(i3).m_n);
-
             // Do we need obmat? maybe
             copy_v3_v3(v1->co, p1.getValue());
             copy_v3_v3(v2->co, p2.getValue());
             copy_v3_v3(v3->co, p3.getValue());
-
-            normal_float_to_short_v3(v1->no, n1.getValue());
-            normal_float_to_short_v3(v2->no, n2.getValue());
-            normal_float_to_short_v3(v3->no, n3.getValue());
 
             if (mf->v4) {
               MVert *v4 = &mverts[mf->v4];
@@ -913,11 +902,8 @@ void CcdPhysicsController::UpdateSoftBody()
 
               MT_Vector3 p4 = ToMoto(nodes.at(i4).m_x - sb->m_pose.m_com);
 
-              MT_Vector3 n4 = ToMoto(nodes.at(i4).m_n);
-
               copy_v3_v3(v4->co, p4.getValue());
 
-              normal_float_to_short_v3(v4->no, n4.getValue());
             }
           }
         }
@@ -1317,7 +1303,7 @@ void CcdPhysicsController::SetMass(MT_Scalar newmass)
 MT_Scalar CcdPhysicsController::GetFriction()
 {
   if (GetSoftBody()) {
-    //std::cout << "friction is only available for rigid bodies and dynamic objects" << std::endl;
+    // std::cout << "friction is only available for rigid bodies and dynamic objects" << std::endl;
   }
 
   MT_Scalar friction = 0.0f;
@@ -1331,8 +1317,7 @@ MT_Scalar CcdPhysicsController::GetFriction()
 void CcdPhysicsController::SetFriction(MT_Scalar newfriction)
 {
   btRigidBody *body = GetRigidBody();
-  if (body && !m_suspended && !IsPhysicsSuspended() &&
-      newfriction >= 0.0) {
+  if (body && !m_suspended && !IsPhysicsSuspended() && newfriction >= 0.0) {
     btBroadphaseProxy *handle = body->getBroadphaseHandle();
     GetPhysicsEnvironment()->UpdateCcdPhysicsController(this,
                                                         GetMass(),
@@ -1341,6 +1326,11 @@ void CcdPhysicsController::SetFriction(MT_Scalar newfriction)
                                                         handle->m_collisionFilterGroup,
                                                         handle->m_collisionFilterMask);
   }
+}
+
+float CcdPhysicsController::GetInertiaFactor() const
+{
+  return m_cci.m_inertiaFactor;
 }
 
 // physics methods
@@ -1514,6 +1504,26 @@ void CcdPhysicsController::SetActive(bool active)
 {
 }
 
+unsigned short CcdPhysicsController::GetCollisionGroup() const
+{
+  return m_cci.m_collisionGroup;
+}
+
+unsigned short CcdPhysicsController::GetCollisionMask() const
+{
+  return m_cci.m_collisionMask;
+}
+
+void CcdPhysicsController::SetCollisionGroup(unsigned short group)
+{
+  m_cci.m_collisionGroup = group;
+}
+
+void CcdPhysicsController::SetCollisionMask(unsigned short mask)
+{
+  m_cci.m_collisionMask = mask;
+}
+
 float CcdPhysicsController::GetLinearDamping() const
 {
   const btRigidBody *body = GetRigidBody();
@@ -1677,7 +1687,7 @@ void CcdPhysicsController::AddCompoundChild(PHY_IPhysicsController *child)
     return;
   // other controller must be a bullet controller too
   // verify that body and shape exist and match
-  CcdPhysicsController *childCtrl = dynamic_cast<CcdPhysicsController *>(child);
+  CcdPhysicsController *childCtrl = static_cast<CcdPhysicsController *>(child);
   btRigidBody *rootBody = GetRigidBody();
   btRigidBody *childBody = childCtrl->GetRigidBody();
   if (!rootBody || !childBody)
@@ -1726,12 +1736,13 @@ void CcdPhysicsController::AddCompoundChild(PHY_IPhysicsController *child)
   proxyShapeInfo->Release();
   // remember we created this shape
   childCtrl->m_bulletChildShape = newChildShape;
-  // recompute inertia of parent
+
+  // Recalculate inertia for object owning compound shape.
   if (!rootBody->isStaticOrKinematicObject()) {
     btVector3 localInertia;
     float mass = 1.0f / rootBody->getInvMass();
     compoundShape->calculateLocalInertia(mass, localInertia);
-    rootBody->setMassProps(mass, localInertia);
+    rootBody->setMassProps(mass, localInertia * m_cci.m_inertiaFactor);
   }
   // must update the broadphase cache,
   GetPhysicsEnvironment()->RefreshCcdPhysicsController(this);
@@ -1748,7 +1759,7 @@ void CcdPhysicsController::RemoveCompoundChild(PHY_IPhysicsController *child)
     return;
   // other controller must be a bullet controller too
   // verify that body and shape exist and match
-  CcdPhysicsController *childCtrl = dynamic_cast<CcdPhysicsController *>(child);
+  CcdPhysicsController *childCtrl = static_cast<CcdPhysicsController *>(child);
   btRigidBody *rootBody = GetRigidBody();
   btRigidBody *childBody = childCtrl->GetRigidBody();
   if (!rootBody || !childBody)
@@ -1783,7 +1794,7 @@ void CcdPhysicsController::RemoveCompoundChild(PHY_IPhysicsController *child)
     btVector3 localInertia;
     float mass = 1.f / rootBody->getInvMass();
     compoundShape->calculateLocalInertia(mass, localInertia);
-    rootBody->setMassProps(mass, localInertia);
+    rootBody->setMassProps(mass, localInertia * m_cci.m_inertiaFactor);
   }
   // must update the broadphase cache,
   GetPhysicsEnvironment()->RefreshCcdPhysicsController(this);
@@ -2338,7 +2349,9 @@ cleanup_empty_mesh:
 /* Updates the arrays used by CreateBulletShape(),
  * take care that recalcLocalAabb() runs after CreateBulletShape is called.
  * */
-bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj, class RAS_MeshObject *from_meshobj, bool evaluatedMesh)
+bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
+                                          class RAS_MeshObject *from_meshobj,
+                                          bool evaluatedMesh)
 {
   int numpolys;
   int numverts;
@@ -2376,7 +2389,6 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj, cla
     std::cout << "A KX_GameObject is needed if we want to use evaluated data" << std::endl;
     return false;
   }
-
 
   Mesh *me = nullptr;
   if (from_meshobj) {

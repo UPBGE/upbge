@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2016, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2016 Blender Foundation. */
 
 /** \file
  * \ingroup draw_engine
@@ -122,10 +107,10 @@ void EEVEE_cache_populate(void *vedata, Object *ob)
   }
 
   if (DRW_object_is_renderable(ob) && (ob_visibility & OB_VISIBLE_SELF)) {
-    if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
+    if (ELEM(ob->type, OB_MESH, OB_SURF, OB_MBALL)) {
       EEVEE_materials_cache_populate(vedata, sldata, ob, &cast_shadow);
     }
-    else if (ob->type == OB_HAIR) {
+    else if (ob->type == OB_CURVES) {
       EEVEE_object_hair_cache_populate(vedata, sldata, ob, &cast_shadow);
     }
     else if (ob->type == OB_VOLUME) {
@@ -472,6 +457,9 @@ static void eevee_render_to_image(void *vedata,
   g_data->render_sample_count_per_timestep = EEVEE_temporal_sampling_sample_count_get(scene,
                                                                                       ved->stl);
 
+  /* Reset in case the same engine is used on multiple views. */
+  EEVEE_temporal_sampling_reset(vedata);
+
   /* Compute start time. The motion blur will cover `[time ...time + shuttertime]`. */
   float time = initial_frame + initial_subframe;
   switch (scene->eevee.motion_blur_position) {
@@ -630,6 +618,7 @@ DrawEngineType draw_engine_eevee_type = {
     &eevee_data_size,
     &eevee_engine_init,
     &eevee_engine_free,
+    NULL, /* instance_free */
     &eevee_cache_init,
     &EEVEE_cache_populate,
     &eevee_cache_finish,
@@ -648,6 +637,8 @@ RenderEngineType DRW_engine_viewport_eevee_type = {
     RE_INTERNAL | RE_USE_PREVIEW | RE_USE_STEREO_VIEWPORT | RE_USE_GPU_CONTEXT,
     NULL,
     &DRW_render_to_image,
+    NULL,
+    NULL,
     NULL,
     NULL,
     NULL,

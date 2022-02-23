@@ -33,11 +33,13 @@ class KX_PythonProxy : public EXP_Value {
 
   PythonProxy *m_pp;
 
+  #ifdef WITH_PYTHON
   PyObject *m_update;
 
   PyObject *m_dispose;
 
   PyObject *m_logger;
+  #endif
 
  public:
   KX_PythonProxy();
@@ -62,14 +64,17 @@ class KX_PythonProxy : public EXP_Value {
 
   virtual void ProcessReplica();
 
+  void LogError(const std::string &name);
+
   void Reset();
 
+#ifdef WITH_PYTHON
   PyObject *GetLogger();
-
-  void LogError(const std::string &name);
 
   static PyObject *pyattr_get_logger(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 
   static PyObject *pyattr_get_logger_name(EXP_PyObjectPlus *self_v,
                                           const EXP_PYATTRIBUTE_DEF *attrdef);
+#endif  // WITH_PYTHON
 };
+

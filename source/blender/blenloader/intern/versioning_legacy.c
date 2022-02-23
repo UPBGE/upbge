@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup blenloader
@@ -391,7 +375,6 @@ static void do_version_ntree_242_2(bNodeTree *ntree)
           iuser->sfra = nia->sfra;
           iuser->offset = nia->nr - 1;
           iuser->cycl = nia->cyclic;
-          iuser->ok = 1;
 
           node->storage = iuser;
           MEM_freeN(nia);
@@ -399,7 +382,6 @@ static void do_version_ntree_242_2(bNodeTree *ntree)
         else {
           ImageUser *iuser = node->storage = MEM_callocN(sizeof(ImageUser), "node image user");
           iuser->sfra = 1;
-          iuser->ok = 1;
         }
       }
     }
@@ -463,8 +445,6 @@ static void do_version_constraints_245(ListBase *lb)
   }
 }
 
-/* NOTE: this version patch is intended for versions < 2.52.2,
- * but was initially introduced in 2.27 already. */
 void blo_do_version_old_trackto_to_constraints(Object *ob)
 {
   /* create new trackto constraint from the relationship */
@@ -1376,7 +1356,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
           bFollowPathConstraint *data = con->data;
           Object *obc = blo_do_versions_newlibadr(fd, lib, data->tar);
 
-          if (obc && obc->type == OB_CURVE) {
+          if (obc && obc->type == OB_CURVES_LEGACY) {
             Curve *cu = blo_do_versions_newlibadr(fd, lib, obc->data);
             if (cu) {
               cu->flag |= CU_PATH;
@@ -1863,7 +1843,8 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
     if (bmain->subversionfile < 4) {
       for (sce = bmain->scenes.first; sce; sce = sce->id.next) {
         sce->r.bake_mode = 1; /* prevent to include render stuff here */
-        sce->r.bake_filter = 16;
+        sce->r.bake_margin = 16;
+        sce->r.bake_margin_type = R_BAKE_ADJACENT_FACES;
         sce->r.bake_flag = R_BAKE_CLEAR;
       }
     }

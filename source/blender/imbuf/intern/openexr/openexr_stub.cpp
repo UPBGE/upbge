@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright by Gernot Ziegler <gz@lysator.liu.se>.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright by Gernot Ziegler <gz@lysator.liu.se>. All rights reserved. */
 
 /** \file
  * \ingroup openexr
@@ -43,21 +27,22 @@ void IMB_exr_add_channel(void * /*handle*/,
 {
 }
 
-int IMB_exr_begin_read(void * /*handle*/,
-                       const char * /*filename*/,
-                       int * /*width*/,
-                       int * /*height*/)
-{
-  return 0;
-}
-int IMB_exr_begin_write(void * /*handle*/,
+bool IMB_exr_begin_read(void * /*handle*/,
                         const char * /*filename*/,
-                        int /*width*/,
-                        int /*height*/,
-                        int /*compress*/,
-                        const struct StampData * /*stamp*/)
+                        int * /*width*/,
+                        int * /*height*/,
+                        const bool /*add_channels*/)
 {
-  return 0;
+  return false;
+}
+bool IMB_exr_begin_write(void * /*handle*/,
+                         const char * /*filename*/,
+                         int /*width*/,
+                         int /*height*/,
+                         int /*compress*/,
+                         const struct StampData * /*stamp*/)
+{
+  return false;
 }
 void IMB_exrtile_begin_write(void * /*handle*/,
                              const char * /*filename*/,

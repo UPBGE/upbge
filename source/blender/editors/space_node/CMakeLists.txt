@@ -1,19 +1,4 @@
-# ***** BEGIN GPL LICENSE BLOCK *****
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-# ***** END GPL LICENSE BLOCK *****
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
   ../include
@@ -39,21 +24,22 @@ set(INC
 
 set(SRC
   drawnode.cc
+  link_drag_search.cc
   node_add.cc
+  node_context_path.cc
   node_draw.cc
   node_edit.cc
   node_geometry_attribute_search.cc
-  node_gizmo.c
+  node_gizmo.cc
   node_group.cc
-  node_ops.c
+  node_ops.cc
   node_relationships.cc
   node_select.cc
   node_templates.cc
-  node_toolbar.cc
   node_view.cc
-  space_node.c
+  space_node.cc
 
-  node_intern.h
+  node_intern.hh
 )
 
 set(LIB
@@ -61,10 +47,6 @@ set(LIB
   bf_blenlib
   bf_editor_screen
 )
-
-if(WITH_INTERNATIONAL)
-  add_definitions(-DWITH_INTERNATIONAL)
-endif()
 
 if(WITH_COMPOSITOR)
   add_definitions(-DWITH_COMPOSITOR)

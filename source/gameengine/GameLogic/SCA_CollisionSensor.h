@@ -36,7 +36,7 @@
 #include "KX_ClientObjectInfo.h"
 #include "SCA_ISensor.h"
 
-class PHY_CollData;
+class PHY_ICollData;
 
 #if defined(_WIN64)
 typedef unsigned __int64 uint_ptr;
@@ -92,16 +92,18 @@ class SCA_CollisionSensor : public SCA_ISensor {
   virtual void UnregisterSumo(KX_CollisionEventManager *collisionman);
   virtual void UnregisterToManager();
 
-  virtual bool NewHandleCollision(void *obj1, void *obj2, const PHY_CollData *colldata);
+  virtual bool NewHandleCollision(PHY_IPhysicsController *ctrl1,
+                                  PHY_IPhysicsController *ctrl2,
+                                  const PHY_ICollData *colldata);
 
   // Allows to do pre-filtering and save computation time
   // obj1 = sensor physical controller, obj2 = physical controller of second object
   // return value = true if collision should be checked on pair of object
-  virtual bool BroadPhaseFilterCollision(void *obj1, void *obj2)
+  virtual bool BroadPhaseFilterCollision(PHY_IPhysicsController *ctrl1, PHY_IPhysicsController *ctrl2)
   {
     return true;
   }
-  virtual bool BroadPhaseSensorFilterCollision(void *obj1, void *obj2);
+  virtual bool BroadPhaseSensorFilterCollision(PHY_IPhysicsController *ctrl1, PHY_IPhysicsController *ctrl2);
   virtual sensortype GetSensorType()
   {
     return ST_TOUCH;

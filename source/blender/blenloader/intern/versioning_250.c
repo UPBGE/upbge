@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup blenloader
@@ -71,6 +57,7 @@
 #include "BKE_main.h"
 #include "BKE_modifier.h"
 #include "BKE_multires.h"
+#include "BKE_node_tree_update.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_sca.h"
@@ -587,7 +574,6 @@ static bNodeSocket *do_versions_node_group_add_socket_2_56_2(bNodeTree *ngroup,
   gsock->type = type;
 
   gsock->next = gsock->prev = NULL;
-  gsock->new_sock = NULL;
   gsock->link = NULL;
   /* assign new unique index */
   gsock->own_index = ngroup->cur_index++;
@@ -598,7 +584,7 @@ static bNodeSocket *do_versions_node_group_add_socket_2_56_2(bNodeTree *ngroup,
 
   BLI_addtail(in_out == SOCK_IN ? &ngroup->inputs : &ngroup->outputs, gsock);
 
-  ngroup->update |= (in_out == SOCK_IN ? NTREE_UPDATE_GROUP_IN : NTREE_UPDATE_GROUP_OUT);
+  BKE_ntree_update_tag_interface(ngroup);
 
   return gsock;
 }
@@ -892,10 +878,9 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
       if (!ts->uv_selectmode || ts->vgroup_weight == 0.0f) {
         ts->selectmode = SCE_SELECT_VERTEX;
 
-        /* autokeying - setting should be taken from the user-prefs
-         * but the userprefs version may not have correct flags set
-         * (i.e. will result in blank box when enabled)
-         */
+        /* The auto-keying setting should be taken from the user-preferences
+         * but the user-preferences version may not have correct flags set
+         * (i.e. will result in blank box when enabled). */
         ts->autokey_mode = U.autokey_mode;
         if (ts->autokey_mode == 0) {
           ts->autokey_mode = 2; /* 'add/replace' but not on */
@@ -1064,7 +1049,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     int a, tot;
 
     /* shape keys are no longer applied to the mesh itself, but rather
-     * to the derivedmesh/displist, so here we ensure that the basis
+     * to the evaluated #Mesh / #DispList, so here we ensure that the basis
      * shape key is always set in the mesh coordinates. */
     for (me = bmain->meshes.first; me; me = me->id.next) {
       if ((key = blo_do_versions_newlibadr(fd, lib, me->key)) && key->refkey) {
@@ -1719,7 +1704,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
             BLI_addtail((ListBase *)&ob->modifiers, lmd);
             ob->partype = PAROBJECT;
           }
-          else if (parent->type == OB_CURVE && ob->partype == PARCURVE) {
+          else if (parent->type == OB_CURVES_LEGACY && ob->partype == PARCURVE) {
             CurveModifierData *cmd;
 
             cmd = (CurveModifierData *)BKE_modifier_new(eModifierType_Curve);
@@ -2079,7 +2064,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
             link->fromsock = gsock;
             link->tonode = node;
             link->tosock = sock;
-            ntree->update |= NTREE_UPDATE_LINKS;
+            BKE_ntree_update_tag_link_added(ntree, link);
 
             sock->link = link;
           }
@@ -2102,7 +2087,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
             link->fromsock = sock;
             link->tonode = NULL;
             link->tosock = gsock;
-            ntree->update |= NTREE_UPDATE_LINKS;
+            BKE_ntree_update_tag_link_added(ntree, link);
 
             gsock->link = link;
           }
@@ -2342,7 +2327,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
           do_versions_socket_default_value_259(sock);
         }
 
-        ntree->update |= NTREE_UPDATE;
+        BKE_ntree_update_tag_all(ntree);
       }
       FOREACH_NODETREE_END;
     }

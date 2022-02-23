@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup balembic
@@ -159,11 +145,25 @@ static bool gather_objects_paths(const IObject &object, ListBase *object_paths)
 
 CacheArchiveHandle *ABC_create_handle(struct Main *bmain,
                                       const char *filename,
+                                      const CacheFileLayer *layers,
                                       ListBase *object_paths)
 {
-  ArchiveReader *archive = new ArchiveReader(bmain, filename);
+  std::vector<const char *> filenames;
+  filenames.push_back(filename);
 
-  if (!archive->valid()) {
+  while (layers) {
+    if ((layers->flag & CACHEFILE_LAYER_HIDDEN) == 0) {
+      filenames.push_back(layers->filepath);
+    }
+    layers = layers->next;
+  }
+
+  /* We need to reverse the order as overriding archives should come first. */
+  std::reverse(filenames.begin(), filenames.end());
+
+  ArchiveReader *archive = ArchiveReader::get(bmain, filenames);
+
+  if (!archive || !archive->valid()) {
     delete archive;
     return nullptr;
   }
@@ -447,9 +447,9 @@ static void import_startjob(void *user_data, short *stop, short *do_update, floa
 
   WM_set_locked_interface(data->wm, true);
 
-  ArchiveReader *archive = new ArchiveReader(data->bmain, data->filename);
+  ArchiveReader *archive = ArchiveReader::get(data->bmain, {data->filename});
 
-  if (!archive->valid()) {
+  if (!archive || !archive->valid()) {
     data->error_code = ABC_ARCHIVE_FAIL;
     delete archive;
     return;
@@ -460,7 +460,7 @@ static void import_startjob(void *user_data, short *stop, short *do_update, floa
 
   /* Decrement the ID ref-count because it is going to be incremented for each
    * modifier and constraint that it will be attached to, so since currently
-   * it is not used by anyone, its use count will off by one. */
+   * it is not used by anyone, its use count will be off by one. */
   id_us_min(&cache_file->id);
 
   cache_file->is_sequence = data->settings.is_sequence;

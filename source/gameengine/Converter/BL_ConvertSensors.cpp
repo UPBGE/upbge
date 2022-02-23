@@ -48,13 +48,12 @@
 //#  include "BLI_winstuff.h"
 #endif
 
-#include "BL_BlenderDataConversion.h"
-#include "BL_BlenderSceneConverter.h"
+#include "BL_DataConversion.h"
+#include "BL_SceneConverter.h"
 #include "CM_Utils.h"
 #include "EXP_IntValue.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
-#include "KX_NetworkMessageSensor.h"
 #include "PHY_IPhysicsEnvironment.h"
 #include "RAS_ICanvas.h"
 #include "SCA_ActuatorSensor.h"
@@ -65,6 +64,7 @@
 #include "SCA_KeyboardSensor.h"
 #include "SCA_MouseFocusSensor.h"
 #include "SCA_MovementSensor.h"
+#include "SCA_NetworkMessageSensor.h"
 #include "SCA_PropertySensor.h"
 #include "SCA_RadarSensor.h"
 #include "SCA_RandomSensor.h"
@@ -78,7 +78,7 @@ void BL_ConvertSensors(struct Object *blenderobject,
                        int activeLayerBitInfo,
                        bool isInActiveLayer,
                        RAS_ICanvas *canvas,
-                       BL_BlenderSceneConverter *converter)
+                       BL_SceneConverter *converter)
 {
 
   int executePriority = 0;
@@ -175,10 +175,10 @@ void BL_ConvertSensors(struct Object *blenderobject,
           /* filter on the incoming subjects, might be empty */
           const std::string subject = msgSens->subject;
 
-          gamesensor = new KX_NetworkMessageSensor(eventmgr,      // our eventmanager
-                                                   NetworkScene,  // our NetworkScene
-                                                   gameobj,       // the sensor controlling object
-                                                   subject);      // subject to filter on
+          gamesensor = new SCA_NetworkMessageSensor(eventmgr,      // our eventmanager
+                                                    NetworkScene,  // our NetworkScene
+                                                    gameobj,       // the sensor controlling object
+                                                    subject);      // subject to filter on
           break;
         }
         case SENS_NEAR: {

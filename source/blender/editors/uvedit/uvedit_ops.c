@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup eduv
@@ -180,7 +164,7 @@ void ED_object_assign_active_image(Main *bmain, Object *ob, int mat_nr, Image *i
 
   if (node && is_image_texture_node(node)) {
     node->id = &ima->id;
-    ED_node_tag_update_nodetree(bmain, ma->nodetree, node);
+    ED_node_tree_propagate_change(NULL, bmain, ma->nodetree);
   }
 }
 
@@ -253,7 +237,6 @@ bool ED_uvedit_minmax(const Scene *scene, Object *obedit, float r_min[2], float 
   return ED_uvedit_minmax_multi(scene, &obedit, 1, r_min, r_max);
 }
 
-/* Be careful when using this, it bypasses all synchronization options */
 void ED_uvedit_select_all(BMesh *bm)
 {
   BMFace *efa;
@@ -1589,7 +1572,7 @@ static int uv_reveal_exec(bContext *C, wmOperator *op)
   const ToolSettings *ts = scene->toolsettings;
 
   const bool use_face_center = (ts->uv_selectmode == UV_SELECT_FACE);
-  const bool stickymode = sima ? (sima->sticky != SI_STICKY_DISABLE) : 1;
+  const bool stickymode = sima ? (ts->uv_sticky != SI_STICKY_DISABLE) : 1;
   const bool select = RNA_boolean_get(op->ptr, "select");
 
   uint objects_len = 0;
@@ -1765,11 +1748,9 @@ static int uv_set_2d_cursor_invoke(bContext *C, wmOperator *op, const wmEvent *e
   float location[2];
 
   if (region->regiontype == RGN_TYPE_WINDOW) {
-    if (event->mval[1] <= 16) {
-      SpaceImage *sima = CTX_wm_space_image(C);
-      if (sima && ED_space_image_show_cache(sima)) {
-        return OPERATOR_PASS_THROUGH;
-      }
+    SpaceImage *sima = CTX_wm_space_image(C);
+    if (sima && ED_space_image_show_cache_and_mval_over(sima, region, event->mval)) {
+      return OPERATOR_PASS_THROUGH;
     }
   }
 

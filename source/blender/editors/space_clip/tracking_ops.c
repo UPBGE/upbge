@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2011 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup spclip
@@ -181,8 +165,8 @@ static int add_marker_at_click_modal(bContext *C, wmOperator *UNUSED(op), const 
 
       ED_clip_point_stable_pos(sc,
                                region,
-                               event->x - region->winrct.xmin,
-                               event->y - region->winrct.ymin,
+                               event->xy[0] - region->winrct.xmin,
+                               event->xy[1] - region->winrct.ymin,
                                &pos[0],
                                &pos[1]);
 
@@ -417,7 +401,7 @@ static SlideMarkerData *create_slide_marker_data(SpaceClip *sc,
       data->pos = marker->pos;
       data->offset = track->offset;
       data->old_markers = MEM_callocN(sizeof(*data->old_markers) * track->markersnr,
-                                      "slide marekrs");
+                                      "slide markers");
       for (int a = 0; a < track->markersnr; a++) {
         copy_v2_v2(data->old_markers[a], track->markers[a].pos);
       }
@@ -1385,7 +1369,7 @@ static int frame_jump_exec(bContext *C, wmOperator *op)
 
   if (CFRA != sc->user.framenr) {
     CFRA = sc->user.framenr;
-    DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO_SEEK);
+    DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
 
     WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
   }

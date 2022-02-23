@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup wm
@@ -499,7 +483,6 @@ static void draw_display_buffer(PlayState *ps, ImBuf *ibuf)
   if (!glsl_used) {
     immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_COLOR);
     immUniformColor3f(1.0f, 1.0f, 1.0f);
-    immUniform1i("image", 0);
   }
 
   immBegin(GPU_PRIM_TRI_FAN, 4);
@@ -1570,7 +1553,7 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
   /* initialize the font */
   BLF_init();
   ps.fontid = BLF_load_mono_default(false);
-  BLF_size(ps.fontid, 11, 72);
+  BLF_size(ps.fontid, 11.0f, 72);
 
   ps.ibufx = ibuf->x;
   ps.ibufy = ibuf->y;
@@ -1845,7 +1828,6 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
   }
 
   IMB_exit();
-  BKE_images_exit();
   DEG_free_node_types();
 
   totblock = MEM_get_memory_blocks_in_use();

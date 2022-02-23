@@ -37,6 +37,8 @@
 
 #include "SCA_MouseManager.h"
 
+#include "BLI_compiler_attrs.h"
+
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
@@ -133,9 +135,10 @@ bool SCA_MouseSensor::Evaluate()
       const SCA_InputEvent &eventX = mousedev->GetInput(SCA_IInputDevice::MOUSEX);
       const SCA_InputEvent &eventY = mousedev->GetInput(SCA_IInputDevice::MOUSEY);
 
-      if (eventX.Find(SCA_InputEvent::ACTIVE) || eventY.Find(SCA_InputEvent::ACTIVE)) {
+      if (eventX.Find(SCA_InputEvent::ACTIVE) || eventY.Find(SCA_InputEvent::ACTIVE) ||
+          eventX.Find(SCA_InputEvent::JUSTACTIVATED) || eventY.Find(SCA_InputEvent::JUSTACTIVATED) ||
+          eventX.Find(SCA_InputEvent::JUSTRELEASED) || eventY.Find(SCA_InputEvent::JUSTRELEASED)) {
         m_val = 1;
-        result = true;
       }
       else {
         m_val = 0;

@@ -406,7 +406,7 @@ Image classes
 
       :type: bool
 
-.. class:: ImageMirror(scene, observer, mirror, material=0, width=None, height=None, samples=None)
+.. class:: ImageMirror(scene, observer, mirror, material=0, width=None, height=None, samples=1)
 
    Image source from mirror.
 
@@ -419,14 +419,16 @@ Image classes
    :type mirror: :class:`~bge.types.KX_GameObject`
    :arg material: ID of the mirror's material to be used for mirroring. (optional)
    :type material: int
-   :arg width: Off-screen render buffer width (optional).
+   :arg width: Off-screen render buffer width (optional) (unused since 0.3.0).
    :type width: integer
-   :arg height: Off-screen render buffer height (optional).
+   :arg height: Off-screen render buffer height (optional) (unused since 0.3.0).
    :type height: integer
    :arg samples: Number of times eevee render loop is called to have a fully antialiased pass or soft shadows support (optional).
    :type samples: integer
 
    .. attribute:: alpha
+
+   .. deprecated:: 0.3.0
 
       Use alpha in texture.
 
@@ -434,17 +436,23 @@ Image classes
 
    .. attribute:: horizon
 
+   .. deprecated:: 0.3.0
+
       Horizon color.
 
       :type: float list [r, g, b, a] in [0.0, 1.0]
 
    .. attribute:: zenith
 
+   .. deprecated:: 0.3.0
+
       Zenith color.
       
       :type: float list [r, g, b, a] in [0.0, 1.0]
 
    .. attribute:: background
+
+   .. deprecated:: 0.3.0
 
       :type: float list [r, g, b, a] in [0.0, 1.0]
 
@@ -453,6 +461,8 @@ Image classes
          Use :py:attr:`bge.texture.ImageMirror.horizon` or :py:attr:`bge.texture.ImageMirror.zenith` instead.
 
    .. attribute:: updateShadow
+
+   .. deprecated:: 0.3.0
 
       Choose to force shadow buffer update if there is a gap beetween image rendered and shadows.
 
@@ -655,7 +665,7 @@ Image classes
 
       :type: bool
 
-.. class:: ImageRender(scene, camera, width, height, samples)
+.. class:: ImageRender(scene, camera, width=None, height=None, samples=1)
 
    Image source from a render of a non active camera.
    The render is done on a custom framebuffer object if fbo is specified,
@@ -665,14 +675,16 @@ Image classes
    :type scene: :class:`~bge.types.KX_Scene`
    :arg camera: Camera from which the image has to be taken.
    :type camera: :class:`~bge.types.KX_Camera`
-   :arg width: Off-screen render buffer width (optional).
+   :arg width: Off-screen render buffer width (optional) (unused since 0.3.0).
    :type width: integer
-   :arg height: Off-screen render buffer height (optional).
+   :arg height: Off-screen render buffer height (optional) (unused since 0.3.0).
    :type height: integer
    :arg samples: Number of times eevee render loop is called to have a fully antialiased pass or soft shadows support (optional).
    :type samples: integer
 
    .. attribute:: alpha
+
+   .. deprecated:: 0.3.0
 
       Use alpha in texture.
 
@@ -680,17 +692,23 @@ Image classes
 
    .. attribute:: horizon
 
+   .. deprecated:: 0.3.0
+
       Horizon color.
       
       :type: float list [r, g, b, a] in [0.0, 1.0]
 
    .. attribute:: zenith
 
+   .. deprecated:: 0.3.0
+
       Zenith color.
       
       :type: float list [r, g, b, a] in [0.0, 1.0]
 
    .. attribute:: background
+
+   .. deprecated:: 0.3.0
 
       Background color.
 
@@ -701,6 +719,8 @@ Image classes
          Use :py:attr:`bge.texture.ImageRender.horizon` or :py:attr:`bge.texture.ImageRender.zenith` instead.
 
    .. attribute:: updateShadow
+
+   .. deprecated:: 0.3.0
 
       Choose to force shadow buffer update if there is a gap beetween image rendered and shadows.
 
@@ -885,6 +905,8 @@ Image classes
    To render from a non active camera see :class:`~bge.texture.ImageRender`.
 
    .. attribute:: alpha
+
+   .. deprecated:: 0.3.0
 
       Use alpha in texture.
 

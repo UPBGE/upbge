@@ -1,45 +1,29 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #include "COM_InvertNode.h"
 #include "BKE_node.h"
-#include "COM_ExecutionSystem.h"
 #include "COM_InvertOperation.h"
 
 namespace blender::compositor {
 
-InvertNode::InvertNode(bNode *editorNode) : Node(editorNode)
+InvertNode::InvertNode(bNode *editor_node) : Node(editor_node)
 {
   /* pass */
 }
 
-void InvertNode::convertToOperations(NodeConverter &converter,
-                                     const CompositorContext & /*context*/) const
+void InvertNode::convert_to_operations(NodeConverter &converter,
+                                       const CompositorContext & /*context*/) const
 {
   InvertOperation *operation = new InvertOperation();
-  bNode *node = this->getbNode();
-  operation->setColor(node->custom1 & CMP_CHAN_RGB);
-  operation->setAlpha(node->custom1 & CMP_CHAN_A);
-  converter.addOperation(operation);
+  bNode *node = this->get_bnode();
+  operation->set_color(node->custom1 & CMP_CHAN_RGB);
+  operation->set_alpha(node->custom1 & CMP_CHAN_A);
+  converter.add_operation(operation);
 
-  converter.mapInputSocket(getInputSocket(0), operation->getInputSocket(0));
-  converter.mapInputSocket(getInputSocket(1), operation->getInputSocket(1));
-  converter.mapOutputSocket(getOutputSocket(0), operation->getOutputSocket(0));
+  converter.map_input_socket(get_input_socket(0), operation->get_input_socket(0));
+  converter.map_input_socket(get_input_socket(1), operation->get_input_socket(1));
+  converter.map_output_socket(get_output_socket(0), operation->get_output_socket(0));
 }
 
 }  // namespace blender::compositor

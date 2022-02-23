@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2012 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2012 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup pybmesh
@@ -1950,7 +1934,7 @@ static PyObject *bpy_bmface_calc_tangent_edge_diagonal(BPy_BMFace *self)
 PyDoc_STRVAR(bpy_bmface_calc_tangent_vert_diagonal_doc,
              ".. method:: calc_tangent_vert_diagonal()\n"
              "\n"
-             "   Return face tangent based on the two most distent vertices.\n"
+             "   Return face tangent based on the two most distant vertices.\n"
              "\n"
              "   :return: a normalized vector.\n"
              "   :rtype: :class:`mathutils.Vector`\n");
@@ -3349,8 +3333,8 @@ static PyObject *bpy_bmiter_next(BPy_BMIter *self)
   return (PyObject *)BPy_BMElem_CreatePyObject(self->bm, ele);
 }
 
-/* Dealloc Functions
- * ================= */
+/* Deallocate Functions
+ * ==================== */
 
 static void bpy_bmesh_dealloc(BPy_BMesh *self)
 {
@@ -3464,7 +3448,7 @@ PyDoc_STRVAR(bpy_bmelemseq_doc,
              ":class:`BMVert`, :class:`BMEdge`, :class:`BMFace`, :class:`BMLoop`.\n"
              "\n"
              "When accessed via :class:`BMesh.verts`, :class:`BMesh.edges`, :class:`BMesh.faces`\n"
-             "there are also functions to create/remomove items.\n");
+             "there are also functions to create/remove items.\n");
 PyDoc_STRVAR(bpy_bmiter_doc,
              "Internal BMesh type for looping over verts/faces/edges,\n"
              "used for iterating over :class:`BMElemSeq` types.\n");
@@ -3954,7 +3938,6 @@ PyObject *BPy_BMIter_CreatePyObject(BMesh *bm)
   return (PyObject *)self;
 }
 
-/* this is just a helper func */
 PyObject *BPy_BMElem_CreatePyObject(BMesh *bm, BMHeader *ele)
 {
   switch (ele->htype) {
@@ -4036,11 +4019,6 @@ void bpy_bm_generic_invalidate(BPy_BMGeneric *self)
   self->bm = NULL;
 }
 
-/* generic python seq as BMVert/Edge/Face array,
- * return value must be freed with PyMem_FREE(...);
- *
- * The 'bm_r' value is assigned when empty, and used when set.
- */
 void *BPy_BMElem_PySeq_As_Array_FAST(BMesh **r_bm,
                                      PyObject *seq_fast,
                                      Py_ssize_t min,
@@ -4233,11 +4211,6 @@ int BPy_BMElem_CheckHType(PyTypeObject *type, const char htype)
           ((htype & BM_LOOP) && (type == &BPy_BMLoop_Type)));
 }
 
-/**
- * Use for error strings only, not thread safe,
- *
- * \return a string like '(BMVert/BMEdge/BMFace/BMLoop)'
- */
 char *BPy_BMElem_StringFromHType_ex(const char htype, char ret[32])
 {
   /* zero to ensure string is always NULL terminated */

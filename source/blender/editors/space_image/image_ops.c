@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup spimage
@@ -360,8 +344,8 @@ static void image_view_pan_init(bContext *C, wmOperator *op, const wmEvent *even
     WM_cursor_modal_set(win, WM_CURSOR_NSEW_SCROLL);
   }
 
-  vpd->x = event->x;
-  vpd->y = event->y;
+  vpd->x = event->xy[0];
+  vpd->y = event->xy[1];
   vpd->xof = sima->xof;
   vpd->yof = sima->yof;
   vpd->launch_event = WM_userdef_event_type_from_keymap_type(event->type);
@@ -406,8 +390,8 @@ static int image_view_pan_invoke(bContext *C, wmOperator *op, const wmEvent *eve
     SpaceImage *sima = CTX_wm_space_image(C);
     float offset[2];
 
-    offset[0] = (event->prevx - event->x) / sima->zoom;
-    offset[1] = (event->prevy - event->y) / sima->zoom;
+    offset[0] = (event->prev_xy[0] - event->xy[0]) / sima->zoom;
+    offset[1] = (event->prev_xy[1] - event->xy[1]) / sima->zoom;
     RNA_float_set_array(op->ptr, "offset", offset);
 
     image_view_pan_exec(C, op);
@@ -428,8 +412,8 @@ static int image_view_pan_modal(bContext *C, wmOperator *op, const wmEvent *even
     case MOUSEMOVE:
       sima->xof = vpd->xof;
       sima->yof = vpd->yof;
-      offset[0] = (vpd->x - event->x) / sima->zoom;
-      offset[1] = (vpd->y - event->y) / sima->zoom;
+      offset[0] = (vpd->x - event->xy[0]) / sima->zoom;
+      offset[1] = (vpd->y - event->xy[1]) / sima->zoom;
       RNA_float_set_array(op->ptr, "offset", offset);
       image_view_pan_exec(C, op);
       break;
@@ -516,8 +500,8 @@ static void image_view_zoom_init(bContext *C, wmOperator *op, const wmEvent *eve
     WM_cursor_modal_set(win, WM_CURSOR_NSEW_SCROLL);
   }
 
-  vpd->origx = event->x;
-  vpd->origy = event->y;
+  vpd->origx = event->xy[0];
+  vpd->origy = event->xy[1];
   vpd->zoom = sima->zoom;
   vpd->launch_event = WM_userdef_event_type_from_keymap_type(event->type);
 
@@ -584,7 +568,7 @@ static int image_view_zoom_invoke(bContext *C, wmOperator *op, const wmEvent *ev
     UI_view2d_region_to_view(
         &region->v2d, event->mval[0], event->mval[1], &location[0], &location[1]);
 
-    delta = event->prevx - event->x + event->prevy - event->y;
+    delta = event->prev_xy[0] - event->xy[0] + event->prev_xy[1] - event->xy[1];
 
     if (U.uiflag & USER_ZOOM_INVERT) {
       delta *= -1;
@@ -675,8 +659,8 @@ static int image_view_zoom_modal(bContext *C, wmOperator *op, const wmEvent *eve
     const bool use_cursor_init = RNA_boolean_get(op->ptr, "use_cursor_init");
     image_zoom_apply(vpd,
                      op,
-                     event->x,
-                     event->y,
+                     event->xy[0],
+                     event->xy[1],
                      U.viewzoom,
                      (U.uiflag & USER_ZOOM_INVERT) != 0,
                      (use_cursor_init && (U.uiflag & USER_ZOOM_TO_MOUSEPOS)));
@@ -728,9 +712,9 @@ void IMAGE_OT_view_zoom(wmOperatorType *ot)
   WM_operator_properties_use_cursor_init(ot);
 }
 
-#ifdef WITH_INPUT_NDOF
-
 /** \} */
+
+#ifdef WITH_INPUT_NDOF
 
 /* -------------------------------------------------------------------- */
 /** \name NDOF Operator
@@ -1499,7 +1483,13 @@ static void image_open_draw(bContext *UNUSED(C), wmOperator *op)
   }
 }
 
-/* called by other space types too */
+static void image_operator_prop_allow_tokens(wmOperatorType *ot)
+{
+  PropertyRNA *prop = RNA_def_boolean(
+      ot->srna, "allow_path_tokens", true, "", "Allow the path to contain substitution tokens");
+  RNA_def_property_flag(prop, PROP_HIDDEN);
+}
+
 void IMAGE_OT_open(wmOperatorType *ot)
 {
   /* identifiers */
@@ -1517,6 +1507,7 @@ void IMAGE_OT_open(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
+  image_operator_prop_allow_tokens(ot);
   WM_operator_properties_filesel(ot,
                                  FILE_TYPE_FOLDER | FILE_TYPE_IMAGE | FILE_TYPE_MOVIE,
                                  FILE_SPECIAL,
@@ -1574,7 +1565,6 @@ static int image_match_len_exec(bContext *C, wmOperator *UNUSED(op))
   return OPERATOR_FINISHED;
 }
 
-/* called by other space types too */
 void IMAGE_OT_match_movie_length(wmOperatorType *ot)
 {
   /* identifiers */
@@ -1769,7 +1759,13 @@ static int image_save_options_init(Main *bmain,
       opts->im_format.views_format = ima->views_format;
     }
 
-    BLI_strncpy(opts->filepath, ibuf->name, sizeof(opts->filepath));
+    if (ima->source == IMA_SRC_TILED) {
+      BLI_strncpy(opts->filepath, ima->filepath, sizeof(opts->filepath));
+      BLI_path_abs(opts->filepath, ID_BLEND_PATH_FROM_GLOBAL(&ima->id));
+    }
+    else {
+      BLI_strncpy(opts->filepath, ibuf->name, sizeof(opts->filepath));
+    }
 
     /* sanitize all settings */
 
@@ -1806,14 +1802,10 @@ static int image_save_options_init(Main *bmain,
         BLI_path_abs(opts->filepath, is_prev_save ? G.ima : BKE_main_blendfile_path(bmain));
       }
 
-      /* append UDIM numbering if not present */
-      if (ima->source == IMA_SRC_TILED) {
-        char udim[6];
-        ImageTile *tile = ima->tiles.first;
-        BLI_snprintf(udim, sizeof(udim), ".%d", tile->tile_number);
-
+      /* append UDIM marker if not present */
+      if (ima->source == IMA_SRC_TILED && strstr(opts->filepath, "<UDIM>") == NULL) {
         int len = strlen(opts->filepath);
-        STR_CONCAT(opts->filepath, len, udim);
+        STR_CONCAT(opts->filepath, len, ".<UDIM>");
       }
     }
 
@@ -2072,6 +2064,7 @@ void IMAGE_OT_save_as(wmOperatorType *ot)
                   "Copy",
                   "Create a new image file without modifying the current image in blender");
 
+  image_operator_prop_allow_tokens(ot);
   WM_operator_properties_filesel(ot,
                                  FILE_TYPE_FOLDER | FILE_TYPE_IMAGE | FILE_TYPE_MOVIE,
                                  FILE_SPECIAL,
@@ -2227,7 +2220,7 @@ static int image_save_sequence_exec(bContext *C, wmOperator *op)
     iter = IMB_moviecacheIter_new(image->cache);
     while (!IMB_moviecacheIter_done(iter)) {
       ibuf = IMB_moviecacheIter_getImBuf(iter);
-      if (ibuf->userflags & IB_BITMAPDIRTY) {
+      if (ibuf != NULL && ibuf->userflags & IB_BITMAPDIRTY) {
         if (first_ibuf == NULL) {
           first_ibuf = ibuf;
         }
@@ -2251,7 +2244,7 @@ static int image_save_sequence_exec(bContext *C, wmOperator *op)
   while (!IMB_moviecacheIter_done(iter)) {
     ibuf = IMB_moviecacheIter_getImBuf(iter);
 
-    if (ibuf->userflags & IB_BITMAPDIRTY) {
+    if (ibuf != NULL && ibuf->userflags & IB_BITMAPDIRTY) {
       char name[FILE_MAX];
       BLI_strncpy(name, ibuf->name, sizeof(name));
 
@@ -2585,6 +2578,11 @@ static int image_new_exec(bContext *C, wmOperator *op)
   }
   else if (sima) {
     ED_space_image_set(bmain, sima, ima, false);
+  }
+  else {
+    /* #BKE_image_add_generated creates one user by default, remove it if image is not linked to
+     * anything. ref. T94599. */
+    id_us_min(&ima->id);
   }
 
   BKE_image_signal(bmain, ima, (sima) ? &sima->iuser : NULL, IMA_SIGNAL_USER_NEW_IMAGE);
@@ -3190,8 +3188,10 @@ void IMAGE_OT_unpack(wmOperatorType *ot)
 /** \name Sample Image Operator
  * \{ */
 
-/* Returns mouse position in image space. */
-bool ED_space_image_get_position(SpaceImage *sima, struct ARegion *ar, int mval[2], float fpos[2])
+bool ED_space_image_get_position(SpaceImage *sima,
+                                 struct ARegion *region,
+                                 int mval[2],
+                                 float fpos[2])
 {
   void *lock;
   ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, 0);
@@ -3201,13 +3201,12 @@ bool ED_space_image_get_position(SpaceImage *sima, struct ARegion *ar, int mval[
     return false;
   }
 
-  UI_view2d_region_to_view(&ar->v2d, mval[0], mval[1], &fpos[0], &fpos[1]);
+  UI_view2d_region_to_view(&region->v2d, mval[0], mval[1], &fpos[0], &fpos[1]);
 
   ED_space_image_release_buffer(sima, ibuf, lock);
   return true;
 }
 
-/* Returns color in linear space, matching ED_space_node_color_sample(). */
 bool ED_space_image_color_sample(
     SpaceImage *sima, ARegion *region, int mval[2], float r_col[3], bool *r_is_data)
 {
@@ -3590,7 +3589,7 @@ static void change_frame_apply(bContext *C, wmOperator *op)
   SUBFRA = 0.0f;
 
   /* do updates */
-  DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO_SEEK);
+  DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
   WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
 }
 
@@ -3628,13 +3627,8 @@ static int change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event
   ARegion *region = CTX_wm_region(C);
 
   if (region->regiontype == RGN_TYPE_WINDOW) {
-    SpaceImage *sima = CTX_wm_space_image(C);
-
-    /* Local coordinate visible rect inside region, to accommodate overlapping ui. */
-    const rcti *rect_visible = ED_region_visible_rect(region);
-    const int region_bottom = rect_visible->ymin;
-
-    if (event->mval[1] > (region_bottom + 16 * UI_DPI_FAC) || !ED_space_image_show_cache(sima)) {
+    const SpaceImage *sima = CTX_wm_space_image(C);
+    if (!ED_space_image_show_cache_and_mval_over(sima, region, event->mval)) {
       return OPERATOR_PASS_THROUGH;
     }
   }
@@ -4142,3 +4136,5 @@ void IMAGE_OT_tile_fill(wmOperatorType *ot)
 
   def_fill_tile(ot->srna);
 }
+
+/** \} */

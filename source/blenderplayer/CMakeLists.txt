@@ -25,8 +25,6 @@
 
 # message(STATUS "Configuring blenderplayer")
 
-setup_libdirs()
-
 list(APPEND LIB
   ge_player
   bf_intern_guardedalloc

@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edobj
@@ -36,6 +22,7 @@
 #include "BKE_armature.h"
 #include "BKE_editmesh.h"
 #include "BKE_lattice.h"
+#include "BKE_object.h"
 #include "BKE_scene.h"
 
 #include "DEG_depsgraph_query.h"
@@ -77,7 +64,7 @@ bool ED_object_calc_active_center_for_editmode(Object *obedit,
 
       break;
     }
-    case OB_CURVE:
+    case OB_CURVES_LEGACY:
     case OB_SURF: {
       Curve *cu = obedit->data;
 
@@ -114,7 +101,7 @@ bool ED_object_calc_active_center_for_posemode(Object *ob,
                                                const bool select_only,
                                                float r_center[3])
 {
-  bPoseChannel *pchan = BKE_pose_channel_active(ob);
+  bPoseChannel *pchan = BKE_pose_channel_active_if_layer_visible(ob);
   if (pchan && (!select_only || (pchan->bone->flag & BONE_SELECTED))) {
     copy_v3_v3(r_center, pchan->pose_head);
     return true;
@@ -368,10 +355,6 @@ void ED_object_data_xform_container_item_ensure(struct XFormObjectData_Container
   }
 }
 
-/**
- * This may be called multiple times with the same data.
- * Each time, the original transformations are re-applied, instead of accumulating the changes.
- */
 void ED_object_data_xform_container_update_all(struct XFormObjectData_Container *xds,
                                                struct Main *bmain,
                                                Depsgraph *depsgraph)
@@ -427,6 +410,73 @@ void ED_object_data_xform_container_destroy(struct XFormObjectData_Container *xd
 {
   BLI_ghash_free(xds->obdata_in_obmode_map, NULL, trans_obdata_in_obmode_free_elem);
   MEM_freeN(xds);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Transform Object Array
+ *
+ * Low level object transform function, transforming objects by `matrix`.
+ * Simple alternative to full transform logic.
+ * \{ */
+
+static bool object_parent_in_set(GSet *objects_set, Object *ob)
+{
+  for (Object *parent = ob->parent; parent; parent = parent->parent) {
+    if (BLI_gset_lookup(objects_set, parent)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void ED_object_xform_array_m4(Object **objects, uint objects_len, const float matrix[4][4])
+{
+  /* Filter out objects that have parents in `objects_set`. */
+  {
+    GSet *objects_set = BLI_gset_ptr_new_ex(__func__, objects_len);
+    for (uint i = 0; i < objects_len; i++) {
+      BLI_gset_add(objects_set, objects[i]);
+    }
+    for (uint i = 0; i < objects_len;) {
+      if (object_parent_in_set(objects_set, objects[i])) {
+        objects[i] = objects[--objects_len];
+      }
+      else {
+        i++;
+      }
+    }
+    BLI_gset_free(objects_set, NULL);
+  }
+
+  /* Detect translation only matrix, prevent rotation/scale channels from being touched at all. */
+  bool is_translation_only;
+  {
+    float test_m4_a[4][4], test_m4_b[4][4];
+    unit_m4(test_m4_a);
+    copy_m4_m4(test_m4_b, matrix);
+    zero_v3(test_m4_b[3]);
+    is_translation_only = equals_m4m4(test_m4_a, test_m4_b);
+  }
+
+  if (is_translation_only) {
+    for (uint i = 0; i < objects_len; i++) {
+      Object *ob = objects[i];
+      add_v3_v3(ob->loc, matrix[3]);
+      DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+    }
+  }
+  else {
+    for (uint i = 0; i < objects_len; i++) {
+      float m4[4][4];
+      Object *ob = objects[i];
+      BKE_object_to_mat4(ob, m4);
+      mul_m4_m4m4(m4, matrix, m4);
+      BKE_object_apply_mat4(ob, m4, true, true);
+      DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+    }
+  }
 }
 
 /** \} */

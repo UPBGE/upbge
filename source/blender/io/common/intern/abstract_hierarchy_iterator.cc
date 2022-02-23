@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2019 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2019 Blender Foundation. All rights reserved. */
 #include "IO_abstract_hierarchy_iterator.h"
 #include "dupli_parent_finder.hh"
 
@@ -462,7 +446,6 @@ void AbstractHierarchyIterator::visit_dupli_object(DupliObject *dupli_object,
   context->weak_export = false;
   context->export_path = "";
   context->original_export_path = "";
-  context->export_path = "";
   context->animation_check_include_parent = false;
 
   copy_m4_m4(context->matrix_world, dupli_object->mat);
@@ -682,6 +665,15 @@ void AbstractHierarchyIterator::make_writers_particle_systems(
         writer = ensure_writer(&hair_context, &AbstractHierarchyIterator::create_hair_writer);
         break;
       case PART_EMITTER:
+      case PART_FLUID_FLIP:
+      case PART_FLUID_SPRAY:
+      case PART_FLUID_BUBBLE:
+      case PART_FLUID_FOAM:
+      case PART_FLUID_TRACER:
+      case PART_FLUID_SPRAYFOAM:
+      case PART_FLUID_SPRAYBUBBLE:
+      case PART_FLUID_FOAMBUBBLE:
+      case PART_FLUID_SPRAYFOAMBUBBLE:
         writer = ensure_writer(&hair_context, &AbstractHierarchyIterator::create_particle_writer);
         break;
     }

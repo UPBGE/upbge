@@ -137,8 +137,7 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
           ob->scaflag |= OB_SHOWSENS;
         }
       }
-
-      ED_undo_push(C, "Add sensor");
+      ED_undo_push_old(C, "sensor add");
       break;
 
     case B_CHANGE_SENS:
@@ -167,7 +166,7 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
           sens = sens->next;
         }
       }
-      ED_undo_push(C, "Delete sensor");
+      ED_undo_push_old(C, "sensor delete");
       break;
 
     case B_ADD_CONT:
@@ -197,7 +196,7 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
           }
         }
       }
-      ED_undo_push(C, "Add controller");
+      ED_undo_push_old(C, "controller add");
       break;
 
     case B_SET_STATE_BIT:
@@ -247,7 +246,7 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
           cont = cont->next;
         }
       }
-      ED_undo_push(C, "Delete controller");
+      ED_undo_push_old(C, "controller delete");
       break;
 
     case B_ADD_ACT:
@@ -265,7 +264,7 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
           ob->scaflag |= OB_SHOWACT;
         }
       }
-      ED_undo_push(C, "Add actuator");
+      ED_undo_push_old(C, "actuator add");
       break;
 
     case B_CHANGE_ACT:
@@ -295,7 +294,7 @@ static void do_logic_buts(bContext *C, void *UNUSED(arg), int event)
           act = act->next;
         }
       }
-      ED_undo_push(C, "Delete actuator");
+      ED_undo_push_old(C, "actuator delete");
       break;
 
     case B_SOUNDACT_BROWSE:
@@ -624,8 +623,8 @@ static ID **get_selected_and_linked_obs(bContext *C, short *count, short scavisf
 
   if (*count == 0)
     return NULL;
-  //if (*count > 24)
-    //*count = 24; /* temporal */
+  // if (*count > 24)
+  //*count = 24; /* temporal */
 
   idar = MEM_callocN((*count) * sizeof(void *), "idar");
 
@@ -643,8 +642,8 @@ static ID **get_selected_and_linked_obs(bContext *C, short *count, short scavisf
       idar[nr] = (ID *)ob;
       nr++;
     }
-    //if (nr >= 24)
-      //break;
+    // if (nr >= 24)
+    // break;
     ob = ob->id.next;
   }
 
@@ -1980,7 +1979,7 @@ static void draw_actuator_edit_object(uiLayout *layout, PointerRNA *ptr)
 
 static void draw_actuator_filter_2d(uiLayout *layout, PointerRNA *ptr)
 {
-  uiLayout *row, *split;
+  // uiLayout *row, *split;
 
   uiItemR(layout, ptr, "mode", 0, NULL, ICON_NONE);
   switch (RNA_enum_get(ptr, "mode")) {
@@ -1988,13 +1987,13 @@ static void draw_actuator_filter_2d(uiLayout *layout, PointerRNA *ptr)
       uiItemR(layout, ptr, "filter_pass", 0, NULL, ICON_NONE);
       uiItemR(layout, ptr, "glsl_shader", 0, NULL, ICON_NONE);
       break;
-    case ACT_2DFILTER_MOTIONBLUR:
+    /*case ACT_2DFILTER_MOTIONBLUR:
       split = uiLayoutSplit(layout, 0.75f, true);
       row = uiLayoutRow(split, false);
       uiLayoutSetActive(row, RNA_boolean_get(ptr, "use_motion_blur") == true);
       uiItemR(row, ptr, "motion_blur_factor", 0, NULL, ICON_NONE);
       uiItemR(split, ptr, "use_motion_blur", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
-      break;
+      break;*/
     default:  // all other 2D Filters
       uiItemR(layout, ptr, "filter_pass", 0, NULL, ICON_NONE);
       break;
@@ -2289,8 +2288,7 @@ static void draw_actuator_scene(uiLayout *layout, PointerRNA *ptr)
       break;
     case ACT_SCENE_RESTART:
       break;
-    default
-        :  // ACT_SCENE_SET|ACT_SCENE_ADD_FRONT|ACT_SCENE_ADD_BACK|ACT_SCENE_REMOVE|ACT_SCENE_SUSPEND|ACT_SCENE_RESUME
+    default:  // ACT_SCENE_SET|ACT_SCENE_ADD_FRONT|ACT_SCENE_ADD_BACK|ACT_SCENE_REMOVE|ACT_SCENE_SUSPEND|ACT_SCENE_RESUME
       uiItemR(layout, ptr, "scene", 0, NULL, ICON_NONE);
       break;
   }

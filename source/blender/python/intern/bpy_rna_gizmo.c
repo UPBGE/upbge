@@ -1,23 +1,9 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup pythonintern
  *
- * .
+ * This file defines utility methods for `bpy.types.Gizmo`.
  */
 
 #include <Python.h>
@@ -42,6 +28,104 @@
 #include "RNA_types.h"
 
 #include "bpy_rna.h"
+
+/* -------------------------------------------------------------------- */
+/** \name Parsing Utility Functions
+ *
+ * Functions used as callbacks for #PyArg_ParseTuple `O&` format string.
+ * \{ */
+
+struct BPyGizmoWithTarget {
+  wmGizmo *gz; /* Must be first. */
+  wmGizmoProperty *gz_prop;
+};
+
+struct BPyGizmoWithTargetType {
+  wmGizmo *gz; /* Must be first. */
+  const wmGizmoPropertyType *gz_prop_type;
+};
+
+static int py_rna_gizmo_parse(PyObject *o, void *p)
+{
+  /* No type checking (this is `self` not a user defined argument). */
+  BLI_assert(BPy_StructRNA_Check(o));
+  BLI_assert(RNA_struct_is_a(((const BPy_StructRNA *)o)->ptr.type, &RNA_Gizmo));
+
+  wmGizmo **gz_p = p;
+  *gz_p = ((const BPy_StructRNA *)o)->ptr.data;
+  return 1;
+}
+
+static int py_rna_gizmo_target_id_parse(PyObject *o, void *p)
+{
+  struct BPyGizmoWithTarget *gizmo_with_target = p;
+  /* Must be set by `py_rna_gizmo_parse`. */
+  wmGizmo *gz = gizmo_with_target->gz;
+  BLI_assert(gz != NULL);
+
+  if (!PyUnicode_Check(o)) {
+    PyErr_Format(PyExc_TypeError, "expected a string (got %.200s)", Py_TYPE(o)->tp_name);
+    return 0;
+  }
+  const char *gz_prop_id = PyUnicode_AsUTF8(o);
+  wmGizmoProperty *gz_prop = WM_gizmo_target_property_find(gz, gz_prop_id);
+  if (gz_prop == NULL) {
+    PyErr_Format(PyExc_ValueError,
+                 "Gizmo target property '%s.%s' not found!",
+                 gz->type->idname,
+                 gz_prop_id);
+    return 0;
+  }
+  gizmo_with_target->gz_prop = gz_prop;
+  return 1;
+}
+
+static int py_rna_gizmo_target_id_parse_and_ensure_is_valid(PyObject *o, void *p)
+{
+  if (py_rna_gizmo_target_id_parse(o, p) == 0) {
+    return 0;
+  }
+  struct BPyGizmoWithTarget *gizmo_with_target = p;
+  wmGizmo *gz = gizmo_with_target->gz;
+  wmGizmoProperty *gz_prop = gizmo_with_target->gz_prop;
+  if (!WM_gizmo_target_property_is_valid(gz_prop)) {
+    const char *gz_prop_id = PyUnicode_AsUTF8(o);
+    PyErr_Format(PyExc_ValueError,
+                 "Gizmo target property '%s.%s' has not been initialized, "
+                 "Call \"target_set_prop\" first!",
+                 gz->type->idname,
+                 gz_prop_id);
+    return 0;
+  }
+  return 1;
+}
+
+static int py_rna_gizmo_target_type_id_parse(PyObject *o, void *p)
+{
+  struct BPyGizmoWithTargetType *gizmo_with_target = p;
+  /* Must be set first. */
+  wmGizmo *gz = gizmo_with_target->gz;
+  BLI_assert(gz != NULL);
+
+  if (!PyUnicode_Check(o)) {
+    PyErr_Format(PyExc_TypeError, "expected a string (got %.200s)", Py_TYPE(o)->tp_name);
+    return 0;
+  }
+  const char *gz_prop_id = PyUnicode_AsUTF8(o);
+  const wmGizmoPropertyType *gz_prop_type = WM_gizmotype_target_property_find(gz->type,
+                                                                              gz_prop_id);
+  if (gz_prop_type == NULL) {
+    PyErr_Format(PyExc_ValueError,
+                 "Gizmo target property '%s.%s' not found!",
+                 gz->type->idname,
+                 gz_prop_id);
+    return 0;
+  }
+  gizmo_with_target->gz_prop_type = gz_prop_type;
+  return 1;
+}
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Gizmo Target Property Define API
@@ -103,7 +187,7 @@ fail:
   PyErr_Print();
   PyErr_Clear();
 
-  Py_DECREF(ret);
+  Py_XDECREF(ret);
 
   PyGILState_Release(gilstate);
 }
@@ -240,12 +324,10 @@ static PyObject *bpy_gizmo_target_set_handler(PyObject *UNUSED(self), PyObject *
   const PyGILState_STATE gilstate = PyGILState_Ensure();
 
   struct {
-    PyObject *self;
-    char *target;
+    struct BPyGizmoWithTargetType gz_with_target_type;
     PyObject *py_fn_slots[BPY_GIZMO_FN_SLOT_LEN];
   } params = {
-      .self = NULL,
-      .target = NULL,
+      .gz_with_target_type = {NULL, NULL},
       .py_fn_slots = {NULL},
   };
 
@@ -253,29 +335,25 @@ static PyObject *bpy_gizmo_target_set_handler(PyObject *UNUSED(self), PyObject *
    * 'Gizmo.target_set_prop & target_set_operator'
    * (see: rna_wm_gizmo_api.c). conventions should match. */
   static const char *const _keywords[] = {"self", "target", "get", "set", "range", NULL};
-  static _PyArg_Parser _parser = {"Os|$OOO:target_set_handler", _keywords, 0};
+  static _PyArg_Parser _parser = {"O&O&|$OOO:target_set_handler", _keywords, 0};
   if (!_PyArg_ParseTupleAndKeywordsFast(args,
                                         kw,
                                         &_parser,
-                                        &params.self,
-                                        &params.target,
+                                        /* `self` */
+                                        py_rna_gizmo_parse,
+                                        &params.gz_with_target_type.gz,
+                                        /* `target` */
+                                        py_rna_gizmo_target_type_id_parse,
+                                        &params.gz_with_target_type,
+                                        /* `get/set/range` */
                                         &params.py_fn_slots[BPY_GIZMO_FN_SLOT_GET],
                                         &params.py_fn_slots[BPY_GIZMO_FN_SLOT_SET],
                                         &params.py_fn_slots[BPY_GIZMO_FN_SLOT_RANGE_GET])) {
     goto fail;
   }
 
-  wmGizmo *gz = ((BPy_StructRNA *)params.self)->ptr.data;
-
-  const wmGizmoPropertyType *gz_prop_type = WM_gizmotype_target_property_find(gz->type,
-                                                                              params.target);
-  if (gz_prop_type == NULL) {
-    PyErr_Format(PyExc_ValueError,
-                 "Gizmo target property '%s.%s' not found",
-                 gz->type->idname,
-                 params.target);
-    goto fail;
-  }
+  wmGizmo *gz = params.gz_with_target_type.gz;
+  const wmGizmoPropertyType *gz_prop_type = params.gz_with_target_type.gz_prop_type;
 
   {
     const int slots_required = 2;
@@ -338,29 +416,27 @@ PyDoc_STRVAR(bpy_gizmo_target_get_value_doc,
 static PyObject *bpy_gizmo_target_get_value(PyObject *UNUSED(self), PyObject *args, PyObject *kw)
 {
   struct {
-    PyObject *self;
-    char *target;
+    struct BPyGizmoWithTarget gz_with_target;
   } params = {
-      .self = NULL,
-      .target = NULL,
+      .gz_with_target = {NULL, NULL},
   };
 
   static const char *const _keywords[] = {"self", "target", NULL};
-  static _PyArg_Parser _parser = {"Os:target_get_value", _keywords, 0};
-  if (!_PyArg_ParseTupleAndKeywordsFast(args, kw, &_parser, &params.self, &params.target)) {
+  static _PyArg_Parser _parser = {"O&O&:target_get_value", _keywords, 0};
+  if (!_PyArg_ParseTupleAndKeywordsFast(args,
+                                        kw,
+                                        &_parser,
+                                        /* `self` */
+                                        py_rna_gizmo_parse,
+                                        &params.gz_with_target.gz,
+                                        /* `target` */
+                                        py_rna_gizmo_target_id_parse_and_ensure_is_valid,
+                                        &params.gz_with_target)) {
     goto fail;
   }
 
-  wmGizmo *gz = ((BPy_StructRNA *)params.self)->ptr.data;
-
-  wmGizmoProperty *gz_prop = WM_gizmo_target_property_find(gz, params.target);
-  if (gz_prop == NULL) {
-    PyErr_Format(PyExc_ValueError,
-                 "Gizmo target property '%s.%s' not found",
-                 gz->type->idname,
-                 params.target);
-    goto fail;
-  }
+  wmGizmo *gz = params.gz_with_target.gz;
+  wmGizmoProperty *gz_prop = params.gz_with_target.gz_prop;
 
   const int array_len = WM_gizmo_target_property_array_length(gz, gz_prop);
   switch (gz_prop->type->data_type) {
@@ -396,32 +472,31 @@ PyDoc_STRVAR(bpy_gizmo_target_set_value_doc,
 static PyObject *bpy_gizmo_target_set_value(PyObject *UNUSED(self), PyObject *args, PyObject *kw)
 {
   struct {
-    PyObject *self;
-    char *target;
+    struct BPyGizmoWithTarget gz_with_target;
     PyObject *value;
   } params = {
-      .self = NULL,
-      .target = NULL,
+      .gz_with_target = {NULL, NULL},
       .value = NULL,
   };
 
   static const char *const _keywords[] = {"self", "target", "value", NULL};
-  static _PyArg_Parser _parser = {"OsO:target_set_value", _keywords, 0};
-  if (!_PyArg_ParseTupleAndKeywordsFast(
-          args, kw, &_parser, &params.self, &params.target, &params.value)) {
+  static _PyArg_Parser _parser = {"O&O&O:target_set_value", _keywords, 0};
+  if (!_PyArg_ParseTupleAndKeywordsFast(args,
+                                        kw,
+                                        &_parser,
+                                        /* `self` */
+                                        py_rna_gizmo_parse,
+                                        &params.gz_with_target.gz,
+                                        /* `target` */
+                                        py_rna_gizmo_target_id_parse_and_ensure_is_valid,
+                                        &params.gz_with_target,
+                                        /* `value` */
+                                        &params.value)) {
     goto fail;
   }
 
-  wmGizmo *gz = ((BPy_StructRNA *)params.self)->ptr.data;
-
-  wmGizmoProperty *gz_prop = WM_gizmo_target_property_find(gz, params.target);
-  if (gz_prop == NULL) {
-    PyErr_Format(PyExc_ValueError,
-                 "Gizmo target property '%s.%s' not found",
-                 gz->type->idname,
-                 params.target);
-    goto fail;
-  }
+  wmGizmo *gz = params.gz_with_target.gz;
+  wmGizmoProperty *gz_prop = params.gz_with_target.gz_prop;
 
   const int array_len = WM_gizmo_target_property_array_length(gz, gz_prop);
   switch (gz_prop->type->data_type) {
@@ -468,29 +543,27 @@ PyDoc_STRVAR(bpy_gizmo_target_get_range_doc,
 static PyObject *bpy_gizmo_target_get_range(PyObject *UNUSED(self), PyObject *args, PyObject *kw)
 {
   struct {
-    PyObject *self;
-    char *target;
+    struct BPyGizmoWithTarget gz_with_target;
   } params = {
-      .self = NULL,
-      .target = NULL,
+      .gz_with_target = {NULL, NULL},
   };
 
   static const char *const _keywords[] = {"self", "target", NULL};
-  static _PyArg_Parser _parser = {"Os:target_get_range", _keywords, 0};
-  if (!_PyArg_ParseTupleAndKeywordsFast(args, kw, &_parser, &params.self, &params.target)) {
+  static _PyArg_Parser _parser = {"O&O&:target_get_range", _keywords, 0};
+  if (!_PyArg_ParseTupleAndKeywordsFast(args,
+                                        kw,
+                                        &_parser,
+                                        /* `self` */
+                                        py_rna_gizmo_parse,
+                                        &params.gz_with_target.gz,
+                                        /* `target` */
+                                        py_rna_gizmo_target_id_parse_and_ensure_is_valid,
+                                        &params.gz_with_target)) {
     goto fail;
   }
 
-  wmGizmo *gz = ((BPy_StructRNA *)params.self)->ptr.data;
-
-  wmGizmoProperty *gz_prop = WM_gizmo_target_property_find(gz, params.target);
-  if (gz_prop == NULL) {
-    PyErr_Format(PyExc_ValueError,
-                 "Gizmo target property '%s.%s' not found",
-                 gz->type->idname,
-                 params.target);
-    goto fail;
-  }
+  wmGizmo *gz = params.gz_with_target.gz;
+  wmGizmoProperty *gz_prop = params.gz_with_target.gz_prop;
 
   switch (gz_prop->type->data_type) {
     case PROP_FLOAT: {
@@ -509,6 +582,10 @@ fail:
 }
 
 /** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Gizmo Module
+ * \{ */
 
 bool BPY_rna_gizmo_module(PyObject *mod_par)
 {
@@ -546,3 +623,5 @@ bool BPY_rna_gizmo_module(PyObject *mod_par)
 
   return false;
 }
+
+/** \} */

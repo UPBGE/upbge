@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- * Adaptive time step
- * Copyright 2011 AutoCRC
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 AutoCRC (adaptive time step). */
 
 /** \file
  * \ingroup RNA
@@ -249,7 +234,8 @@ static void rna_ParticleHairKey_location_object_get(PointerRNA *ptr, float *valu
  *
  * Such trickery is needed to allow modification of hair keys in the original object using
  * evaluated particle and object to access proper hair matrix. */
-static int hair_key_index_get(/*const*/ HairKey *hair_key,
+static int hair_key_index_get(const Object *object,
+                              /*const*/ HairKey *hair_key,
                               /*const*/ ParticleSystemModifierData *modifier,
                               /*const*/ ParticleData *particle)
 {
@@ -261,7 +247,7 @@ static int hair_key_index_get(/*const*/ HairKey *hair_key,
   const int particle_index = particle - particle_system->particles;
 
   const ParticleSystemModifierData *original_modifier = (ParticleSystemModifierData *)
-      BKE_modifier_get_original(&modifier->modifier);
+      BKE_modifier_get_original(object, &modifier->modifier);
   const ParticleSystem *original_particle_system = original_modifier->psys;
   const ParticleData *original_particle = &original_particle_system->particles[particle_index];
 
@@ -288,7 +274,7 @@ static void hair_key_location_object_set(HairKey *hair_key,
                                                                   NULL;
 
   if (hair_mesh != NULL) {
-    const int hair_key_index = hair_key_index_get(hair_key, modifier, particle);
+    const int hair_key_index = hair_key_index_get(object, hair_key, modifier, particle);
     if (hair_key_index == -1) {
       return;
     }
@@ -368,7 +354,7 @@ static void rna_ParticleHairKey_co_object_set(ID *id,
   /* Mark particle system as edited, so then particle_system_update() does not reset the hair
    * keys from path. This behavior is similar to how particle edit mode sets flags. */
   ParticleSystemModifierData *orig_modifier = (ParticleSystemModifierData *)
-                                                  modifier->modifier.orig_modifier_data;
+      BKE_modifier_get_original(object, &modifier->modifier);
   orig_modifier->psys->flag |= PSYS_EDITED;
 
   hair_key_location_object_set(hair_key, object, modifier, particle, co);
@@ -3498,6 +3484,7 @@ static void rna_def_particle_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "effector_weights", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "EffectorWeights");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Effector Weights", "");
 
   /* animation here? */
@@ -3507,12 +3494,14 @@ static void rna_def_particle_settings(BlenderRNA *brna)
   RNA_def_property_pointer_sdna(prop, NULL, "pd");
   RNA_def_property_struct_type(prop, "FieldSettings");
   RNA_def_property_pointer_funcs(prop, "rna_Particle_field1_get", NULL, NULL, NULL);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Force Field 1", "");
 
   prop = RNA_def_property(srna, "force_field_2", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, NULL, "pd2");
   RNA_def_property_struct_type(prop, "FieldSettings");
   RNA_def_property_pointer_funcs(prop, "rna_Particle_field2_get", NULL, NULL, NULL);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Force Field 2", "");
 
   /* twist */

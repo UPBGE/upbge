@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2005 by the Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2005 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup modifiers
@@ -192,7 +176,7 @@ static Mesh *uvprojectModifier_do(UVProjectModifierData *umd,
 
     mul_m4_m4m4(projectors[i].projmat, offsetmat, tmpmat);
 
-    /* calculate worldspace projector normal (for best projector test) */
+    /* Calculate world-space projector normal (for best projector test). */
     projectors[i].normal[0] = 0;
     projectors[i].normal[1] = 0;
     projectors[i].normal[2] = 1;
@@ -208,7 +192,7 @@ static Mesh *uvprojectModifier_do(UVProjectModifierData *umd,
 
   coords = BKE_mesh_vert_coords_alloc(mesh, &numVerts);
 
-  /* convert coords to world space */
+  /* Convert coords to world-space. */
   for (i = 0, co = coords; i < numVerts; i++, co++) {
     mul_m4_v3(ob->obmat, *co);
   }
@@ -383,7 +367,6 @@ ModifierTypeInfo modifierType_UVProject = {
     /* deformVertsEM */ NULL,
     /* deformMatricesEM */ NULL,
     /* modifyMesh */ modifyMesh,
-    /* modifyHair */ NULL,
     /* modifyGeometrySet */ NULL,
 
     /* initData */ initData,

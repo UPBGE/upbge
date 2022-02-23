@@ -40,13 +40,9 @@ set(INC_SYS
 set(SRC
   KX_NetworkMessageManager.cpp
   KX_NetworkMessageScene.cpp
-  KX_NetworkMessageActuator.cpp
-  KX_NetworkMessageSensor.cpp
 
   KX_NetworkMessageManager.h
   KX_NetworkMessageScene.h
-  KX_NetworkMessageActuator.h
-  KX_NetworkMessageSensor.h
 )
 
 set(LIB

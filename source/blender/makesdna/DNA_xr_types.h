@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -32,8 +18,8 @@ typedef struct XrSessionSettings {
   /** Shading settings, struct shared with 3D-View so settings are the same. */
   struct View3DShading shading;
 
-  char _pad[7];
-
+  float base_scale;
+  char _pad[3];
   char base_pose_type; /* #eXRSessionBasePoseType */
   /** Object to take the location and rotation as base position from. */
   Object *base_pose_object;
@@ -42,7 +28,9 @@ typedef struct XrSessionSettings {
 
   /** View3D draw flags (V3D_OFSDRAW_NONE, V3D_OFSDRAW_SHOW_ANNOTATION, ...). */
   char draw_flags;
-  char _pad2[3];
+  /** Draw style for controller visualization. */
+  char controller_draw_style;
+  char _pad2[2];
 
   /** Clipping distance. */
   float clip_start, clip_end;
@@ -60,6 +48,13 @@ typedef enum eXRSessionBasePoseType {
   XR_BASE_POSE_OBJECT = 1,
   XR_BASE_POSE_CUSTOM = 2,
 } eXRSessionBasePoseType;
+
+typedef enum eXrSessionControllerDrawStyle {
+  XR_CONTROLLER_DRAW_DARK = 0,
+  XR_CONTROLLER_DRAW_LIGHT = 1,
+  XR_CONTROLLER_DRAW_DARK_RAY = 2,
+  XR_CONTROLLER_DRAW_LIGHT_RAY = 3,
+} eXrSessionControllerDrawStyle;
 
 /** XR action type. Enum values match those in GHOST_XrActionType enum for consistency. */
 typedef enum eXrActionType {
@@ -111,7 +106,22 @@ typedef enum eXrPoseFlag {
   XR_POSE_AIM = (1 << 1),
 } eXrPoseFlag;
 
+/**
+ * The following user and component path lengths are dependent on OpenXR's XR_MAX_PATH_LENGTH
+ * (256). A user path will be combined with a component path to identify an action binding, and
+ * that combined path should also have a max of XR_MAX_PATH_LENGTH (e.g. user_path =
+ * /user/hand/left, component_path = /input/trigger/value, full_path =
+ * /user/hand/left/input/trigger/value).
+ */
+#define XR_MAX_USER_PATH_LENGTH 64
+#define XR_MAX_COMPONENT_PATH_LENGTH 192
+
 /* -------------------------------------------------------------------- */
+
+typedef struct XrComponentPath {
+  struct XrComponentPath *next, *prev;
+  char path[192]; /* XR_MAX_COMPONENT_PATH_LENGTH */
+} XrComponentPath;
 
 typedef struct XrActionMapBinding {
   struct XrActionMapBinding *next, *prev;
@@ -122,8 +132,7 @@ typedef struct XrActionMapBinding {
   /** OpenXR interaction profile path. */
   char profile[256];
   /** OpenXR component paths. */
-  char component_path0[192];
-  char component_path1[192];
+  ListBase component_paths; /* XrComponentPath */
 
   /** Input threshold/region. */
   float float_threshold;
@@ -137,6 +146,11 @@ typedef struct XrActionMapBinding {
 
 /* -------------------------------------------------------------------- */
 
+typedef struct XrUserPath {
+  struct XrUserPath *next, *prev;
+  char path[64]; /* XR_MAX_USER_PATH_LENGTH */
+} XrUserPath;
+
 typedef struct XrActionMapItem {
   struct XrActionMapItem *next, *prev;
 
@@ -147,8 +161,7 @@ typedef struct XrActionMapItem {
   char _pad[7];
 
   /** OpenXR user paths. */
-  char user_path0[64];
-  char user_path1[64];
+  ListBase user_paths; /* XrUserPath */
 
   /** Operator to be called on XR events. */
   char op[64]; /* OP_MAX_TYPENAME */

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2015 Blender Foundation
- * This is a new part of Blender
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2015 Blender Foundation. */
 
 /** \file
  * \ingroup spaction
@@ -70,8 +54,7 @@
 /* ************************************************************************** */
 /* ACTION CREATION */
 
-/* Helper function to find the active AnimData block from the Action Editor context */
-AnimData *ED_actedit_animdata_from_context(bContext *C)
+AnimData *ED_actedit_animdata_from_context(const bContext *C, ID **r_adt_id_owner)
 {
   SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
   Object *ob = CTX_data_active_object(C);
@@ -82,12 +65,18 @@ AnimData *ED_actedit_animdata_from_context(bContext *C)
     /* Currently, "Action Editor" means object-level only... */
     if (ob) {
       adt = ob->adt;
+      if (r_adt_id_owner) {
+        *r_adt_id_owner = &ob->id;
+      }
     }
   }
   else if (saction->mode == SACTCONT_SHAPEKEY) {
     Key *key = BKE_key_from_object(ob);
     if (key) {
       adt = key->adt;
+      if (r_adt_id_owner) {
+        *r_adt_id_owner = &key->id;
+      }
     }
   }
 
@@ -212,6 +201,7 @@ static int action_new_exec(bContext *C, wmOperator *UNUSED(op))
 
   bAction *oldact = NULL;
   AnimData *adt = NULL;
+  ID *adt_id_owner = NULL;
   /* hook into UI */
   UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
 
@@ -225,13 +215,14 @@ static int action_new_exec(bContext *C, wmOperator *UNUSED(op))
     /* stash the old action to prevent it from being lost */
     if (ptr.type == &RNA_AnimData) {
       adt = ptr.data;
+      adt_id_owner = ptr.owner_id;
     }
     else if (ptr.type == &RNA_SpaceDopeSheetEditor) {
-      adt = ED_actedit_animdata_from_context(C);
+      adt = ED_actedit_animdata_from_context(C, &adt_id_owner);
     }
   }
   else {
-    adt = ED_actedit_animdata_from_context(C);
+    adt = ED_actedit_animdata_from_context(C, &adt_id_owner);
     oldact = adt->action;
   }
   {
@@ -239,8 +230,9 @@ static int action_new_exec(bContext *C, wmOperator *UNUSED(op))
 
     /* Perform stashing operation - But only if there is an action */
     if (adt && oldact) {
+      BLI_assert(adt_id_owner != NULL);
       /* stash the action */
-      if (BKE_nla_action_stash(adt, ID_IS_OVERRIDE_LIBRARY(ptr.owner_id))) {
+      if (BKE_nla_action_stash(adt, ID_IS_OVERRIDE_LIBRARY(adt_id_owner))) {
         /* The stash operation will remove the user already
          * (and unlink the action from the AnimData action slot).
          * Hence, we must unset the ref to the action in the
@@ -306,7 +298,7 @@ static bool action_pushdown_poll(bContext *C)
 {
   if (ED_operator_action_active(C)) {
     SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
-    AnimData *adt = ED_actedit_animdata_from_context(C);
+    AnimData *adt = ED_actedit_animdata_from_context(C, NULL);
 
     /* Check for AnimData, Actions, and that tweak-mode is off. */
     if (adt && saction->action) {
@@ -326,7 +318,8 @@ static bool action_pushdown_poll(bContext *C)
 static int action_pushdown_exec(bContext *C, wmOperator *op)
 {
   SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
-  AnimData *adt = ED_actedit_animdata_from_context(C);
+  ID *adt_id_owner = NULL;
+  AnimData *adt = ED_actedit_animdata_from_context(C, &adt_id_owner);
 
   /* Do the deed... */
   if (adt) {
@@ -339,8 +332,7 @@ static int action_pushdown_exec(bContext *C, wmOperator *op)
     }
 
     /* action can be safely added */
-    const Object *ob = CTX_data_active_object(C);
-    BKE_nla_action_pushdown(adt, ID_IS_OVERRIDE_LIBRARY(ob));
+    BKE_nla_action_pushdown(adt, ID_IS_OVERRIDE_LIBRARY(adt_id_owner));
 
     /* Stop displaying this action in this editor
      * NOTE: The editor itself doesn't set a user...
@@ -373,7 +365,8 @@ void ACTION_OT_push_down(wmOperatorType *ot)
 static int action_stash_exec(bContext *C, wmOperator *op)
 {
   SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
-  AnimData *adt = ED_actedit_animdata_from_context(C);
+  ID *adt_id_owner = NULL;
+  AnimData *adt = ED_actedit_animdata_from_context(C, &adt_id_owner);
 
   /* Perform stashing operation */
   if (adt) {
@@ -385,8 +378,7 @@ static int action_stash_exec(bContext *C, wmOperator *op)
     }
 
     /* stash the action */
-    Object *ob = CTX_data_active_object(C);
-    if (BKE_nla_action_stash(adt, ID_IS_OVERRIDE_LIBRARY(ob))) {
+    if (BKE_nla_action_stash(adt, ID_IS_OVERRIDE_LIBRARY(adt_id_owner))) {
       /* The stash operation will remove the user already,
        * so the flushing step later shouldn't double up
        * the user-count fixes. Hence, we must unset this ref
@@ -439,7 +431,7 @@ void ACTION_OT_stash(wmOperatorType *ot)
 static bool action_stash_create_poll(bContext *C)
 {
   if (ED_operator_action_active(C)) {
-    AnimData *adt = ED_actedit_animdata_from_context(C);
+    AnimData *adt = ED_actedit_animdata_from_context(C, NULL);
 
     /* Check tweak-mode is off (as you don't want to be tampering with the action in that case) */
     /* NOTE: unlike for pushdown,
@@ -471,7 +463,8 @@ static bool action_stash_create_poll(bContext *C)
 static int action_stash_create_exec(bContext *C, wmOperator *op)
 {
   SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
-  AnimData *adt = ED_actedit_animdata_from_context(C);
+  ID *adt_id_owner = NULL;
+  AnimData *adt = ED_actedit_animdata_from_context(C, &adt_id_owner);
 
   /* Check for no action... */
   if (saction->action == NULL) {
@@ -488,8 +481,7 @@ static int action_stash_create_exec(bContext *C, wmOperator *op)
     }
 
     /* stash the action */
-    Object *ob = CTX_data_active_object(C);
-    if (BKE_nla_action_stash(adt, ID_IS_OVERRIDE_LIBRARY(ob))) {
+    if (BKE_nla_action_stash(adt, ID_IS_OVERRIDE_LIBRARY(adt_id_owner))) {
       bAction *new_action = NULL;
 
       /* Create new action not based on the old one
@@ -636,7 +628,7 @@ static bool action_unlink_poll(bContext *C)
 {
   if (ED_operator_action_active(C)) {
     SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
-    AnimData *adt = ED_actedit_animdata_from_context(C);
+    AnimData *adt = ED_actedit_animdata_from_context(C, NULL);
 
     /* Only when there's an active action, in the right modes... */
     if (saction->action && adt) {
@@ -650,7 +642,7 @@ static bool action_unlink_poll(bContext *C)
 
 static int action_unlink_exec(bContext *C, wmOperator *op)
 {
-  AnimData *adt = ED_actedit_animdata_from_context(C);
+  AnimData *adt = ED_actedit_animdata_from_context(C, NULL);
   bool force_delete = RNA_boolean_get(op->ptr, "force_delete");
 
   if (adt && adt->action) {
@@ -693,6 +685,9 @@ void ACTION_OT_unlink(wmOperatorType *ot)
                          "Clear Fake User and remove "
                          "copy stashed in this data-block's NLA stack");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 /* ************************************************************************** */
@@ -775,7 +770,7 @@ static bool action_layer_next_poll(bContext *C)
 {
   /* Action Editor's action editing modes only */
   if (ED_operator_action_active(C)) {
-    AnimData *adt = ED_actedit_animdata_from_context(C);
+    AnimData *adt = ED_actedit_animdata_from_context(C, NULL);
     if (adt) {
       /* only allow if we're in tweak-mode, and there's something above us... */
       if (adt->flag & ADT_NLA_EDIT_ON) {
@@ -809,7 +804,7 @@ static bool action_layer_next_poll(bContext *C)
 
 static int action_layer_next_exec(bContext *C, wmOperator *op)
 {
-  AnimData *adt = ED_actedit_animdata_from_context(C);
+  AnimData *adt = ED_actedit_animdata_from_context(C, NULL);
   NlaTrack *act_track;
 
   Scene *scene = CTX_data_scene(C);
@@ -886,7 +881,7 @@ static bool action_layer_prev_poll(bContext *C)
 {
   /* Action Editor's action editing modes only */
   if (ED_operator_action_active(C)) {
-    AnimData *adt = ED_actedit_animdata_from_context(C);
+    AnimData *adt = ED_actedit_animdata_from_context(C, NULL);
     if (adt) {
       if (adt->flag & ADT_NLA_EDIT_ON) {
         /* Tweak Mode: We need to check if there are any tracks below the active one
@@ -920,7 +915,7 @@ static bool action_layer_prev_poll(bContext *C)
 
 static int action_layer_prev_exec(bContext *C, wmOperator *op)
 {
-  AnimData *adt = ED_actedit_animdata_from_context(C);
+  AnimData *adt = ED_actedit_animdata_from_context(C, NULL);
   NlaTrack *act_track;
   NlaTrack *nlt;
 

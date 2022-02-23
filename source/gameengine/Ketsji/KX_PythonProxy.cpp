@@ -25,17 +25,18 @@
 #include "BKE_python_proxy.h"
 #include "CM_Message.h"
 #include "DNA_python_proxy_types.h"
-#include "EXP_Value.h"
 
 #include <boost/format.hpp>
 
-KX_PythonProxy::KX_PythonProxy():
-    EXP_Value(),
-    m_init(false),
-    m_pp(nullptr),
-    m_update(nullptr),
-    m_dispose(nullptr),
-    m_logger(nullptr)
+KX_PythonProxy::KX_PythonProxy()
+    : EXP_Value(),
+      m_init(false),
+      m_pp(nullptr),
+#ifdef WITH_PYTHON
+      m_update(nullptr),
+      m_dispose(nullptr),
+      m_logger(nullptr)
+#endif
 {
 }
 
@@ -63,15 +64,15 @@ void KX_PythonProxy::Start()
 {
   if (!m_pp || m_init) {
     return;
-  } else {
+  }
+  else {
     m_init = true;
   }
-
+#ifdef WITH_PYTHON
   PyObject *proxy = GetProxy();
   PyObject *arg_dict = (PyObject *)BKE_python_proxy_argument_dict_new(m_pp);
 
-  if (PyObject_CallMethod(proxy, "start", "O", arg_dict))
-  {
+  if (PyObject_CallMethod(proxy, "start", "O", arg_dict)) {
     if (PyObject_HasAttrString(proxy, "update")) {
       m_update = PyObject_GetAttrString(proxy, "update");
     }
@@ -87,6 +88,7 @@ void KX_PythonProxy::Start()
 
   Py_XDECREF(arg_dict);
   Py_XDECREF(proxy);
+#endif
 }
 
 void KX_PythonProxy::Update()
@@ -96,10 +98,13 @@ void KX_PythonProxy::Update()
   }
 
   if (m_init) {
+#ifdef WITH_PYTHON
     if (m_update && !PyObject_CallNoArgs(m_update) && PyErr_Occurred()) {
       LogError("Failed to invoke the update callback.");
     }
-  } else {
+#endif
+  }
+  else {
     Start();
   }
 }
@@ -110,7 +115,7 @@ KX_PythonProxy *KX_PythonProxy::GetReplica()
 
   // this will copy properties and so on...
   replica->ProcessReplica();
-
+#ifdef WITH_PYTHON
   PyTypeObject *type = Py_TYPE(GetProxy());
 
   if (!py_base_new(type, PyTuple_Pack(1, replica->GetProxy()), nullptr)) {
@@ -118,7 +123,7 @@ KX_PythonProxy *KX_PythonProxy::GetReplica()
     delete replica;
     return nullptr;
   }
-
+#endif
   return replica;
 }
 
@@ -127,14 +132,16 @@ void KX_PythonProxy::ProcessReplica()
   EXP_Value::ProcessReplica();
 
   m_init = false;
-
+#ifdef WITH_PYTHON
   m_update = nullptr;
   m_dispose = nullptr;
   m_logger = nullptr;
+#endif
 }
 
 void KX_PythonProxy::Dispose()
 {
+#ifdef WITH_PYTHON
   if (m_dispose && !PyObject_CallNoArgs(m_dispose)) {
     LogError("Failed to invoke the dispose callback.");
   }
@@ -146,34 +153,12 @@ void KX_PythonProxy::Dispose()
   m_update = nullptr;
   m_dispose = nullptr;
   m_logger = nullptr;
-}
-
-PyObject *KX_PythonProxy::GetLogger()
-{
-  if (!m_logger) {
-    PyObject *module = PyImport_GetModule(PyUnicode_FromStdString("logging"));
-
-    if (module) {
-      PyObject *proxy = GetProxy();
-      PyObject *name = PyObject_GetAttrString(proxy, "loggerName");
-
-      if (proxy && name) {
-        m_logger = PyObject_CallMethod(module, "getLogger", "O", name);
-      }
-
-      Py_XDECREF(module);
-    }
-
-    if (PyErr_Occurred()) {
-      PyErr_Print();
-    }
-  }
-
-  return m_logger;
+#endif
 }
 
 void KX_PythonProxy::LogError(const std::string &name)
 {
+#ifdef WITH_PYTHON
   PyObject *type, *value, *traceback;
 
   PyErr_Fetch(&type, &value, &traceback);
@@ -218,6 +203,32 @@ void KX_PythonProxy::LogError(const std::string &name)
     Py_DECREF(kwargs);
     Py_DECREF(reporter);
   }
+#endif
+}
+
+#ifdef WITH_PYTHON
+PyObject *KX_PythonProxy::GetLogger()
+{
+  if (!m_logger) {
+    PyObject *module = PyImport_GetModule(PyUnicode_FromStdString("logging"));
+
+    if (module) {
+      PyObject *proxy = GetProxy();
+      PyObject *name = PyObject_GetAttrString(proxy, "loggerName");
+
+      if (proxy && name) {
+        m_logger = PyObject_CallMethod(module, "getLogger", "O", name);
+      }
+
+      Py_XDECREF(module);
+    }
+
+    if (PyErr_Occurred()) {
+      PyErr_Print();
+    }
+  }
+
+  return m_logger;
 }
 
 PyObject *KX_PythonProxy::pyattr_get_logger_name(EXP_PyObjectPlus *self_v,
@@ -241,3 +252,4 @@ PyObject *KX_PythonProxy::pyattr_get_logger(EXP_PyObjectPlus *self_v,
 
   return logger;
 }
+#endif //WITH_PYTHON

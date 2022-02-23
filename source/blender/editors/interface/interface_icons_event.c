@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edinterface
@@ -77,7 +63,7 @@
 static void icon_draw_rect_input_text(const rctf *rect,
                                       const float color[4],
                                       const char *str,
-                                      int font_size)
+                                      float font_size)
 {
   BLF_batch_draw_flush();
   const int font_id = BLF_default();
@@ -97,7 +83,7 @@ static void icon_draw_rect_input_symbol(const rctf *rect, const float color[4], 
   BLF_batch_draw_flush();
   const int font_id = blf_mono_font;
   BLF_color4fv(font_id, color);
-  BLF_size(font_id, 19 * U.pixelsize, U.dpi);
+  BLF_size(font_id, 19.0f * U.pixelsize, U.dpi);
   const float x = rect->xmin + (2.0f * U.pixelsize);
   const float y = rect->ymin + (1.0f * U.pixelsize);
   BLF_position(font_id, x, y, 0.0f);
@@ -152,12 +138,12 @@ void icon_draw_rect_input(float x,
 
   if ((event_type >= EVT_AKEY) && (event_type <= EVT_ZKEY)) {
     const char str[2] = {'A' + (event_type - EVT_AKEY), '\0'};
-    icon_draw_rect_input_text(&rect, color, str, 13);
+    icon_draw_rect_input_text(&rect, color, str, 13.0f);
   }
   else if ((event_type >= EVT_F1KEY) && (event_type <= EVT_F12KEY)) {
     char str[4];
     SNPRINTF(str, "F%d", 1 + (event_type - EVT_F1KEY));
-    icon_draw_rect_input_text(&rect, color, str, event_type > EVT_F9KEY ? 8 : 10);
+    icon_draw_rect_input_text(&rect, color, str, event_type > EVT_F9KEY ? 8.0f : 10.0f);
   }
   else if (event_type == EVT_LEFTSHIFTKEY) {
     icon_draw_rect_input_symbol(&rect, color, (const char[]){0xe2, 0x87, 0xa7, 0x0});
@@ -167,7 +153,7 @@ void icon_draw_rect_input(float x,
       icon_draw_rect_input_symbol(&rect, color, (const char[]){0xe2, 0x8c, 0x83, 0x0});
     }
     else {
-      icon_draw_rect_input_text(&rect, color, "Ctrl", 9);
+      icon_draw_rect_input_text(&rect, color, "Ctrl", 9.0f);
     }
   }
   else if (event_type == EVT_LEFTALTKEY) {
@@ -175,7 +161,7 @@ void icon_draw_rect_input(float x,
       icon_draw_rect_input_symbol(&rect, color, (const char[]){0xe2, 0x8c, 0xa5, 0x0});
     }
     else {
-      icon_draw_rect_input_text(&rect, color, "Alt", 10);
+      icon_draw_rect_input_text(&rect, color, "Alt", 10.0f);
     }
   }
   else if (event_type == EVT_OSKEY) {
@@ -186,20 +172,20 @@ void icon_draw_rect_input(float x,
       icon_draw_rect_input_symbol(&rect, color, (const char[]){0xe2, 0x9d, 0x96, 0x0});
     }
     else {
-      icon_draw_rect_input_text(&rect, color, "OS", 10);
+      icon_draw_rect_input_text(&rect, color, "OS", 10.0f);
     }
   }
   else if (event_type == EVT_DELKEY) {
-    icon_draw_rect_input_text(&rect, color, "Del", 9);
+    icon_draw_rect_input_text(&rect, color, "Del", 9.0f);
   }
   else if (event_type == EVT_TABKEY) {
     icon_draw_rect_input_symbol(&rect, color, (const char[]){0xe2, 0xad, 0xbe, 0x0});
   }
   else if (event_type == EVT_HOMEKEY) {
-    icon_draw_rect_input_text(&rect, color, "Home", 6);
+    icon_draw_rect_input_text(&rect, color, "Home", 6.0f);
   }
   else if (event_type == EVT_ENDKEY) {
-    icon_draw_rect_input_text(&rect, color, "End", 8);
+    icon_draw_rect_input_text(&rect, color, "End", 8.0f);
   }
   else if (event_type == EVT_RETKEY) {
     icon_draw_rect_input_symbol(&rect, color, (const char[]){0xe2, 0x8f, 0x8e, 0x0});
@@ -209,14 +195,14 @@ void icon_draw_rect_input(float x,
       icon_draw_rect_input_symbol(&rect, color, (const char[]){0xe2, 0x8e, 0x8b, 0x0});
     }
     else {
-      icon_draw_rect_input_text(&rect, color, "Esc", 8);
+      icon_draw_rect_input_text(&rect, color, "Esc", 8.0f);
     }
   }
   else if (event_type == EVT_PAGEUPKEY) {
-    icon_draw_rect_input_text(&rect, color, (const char[]){'P', 0xe2, 0x86, 0x91, 0x0}, 8);
+    icon_draw_rect_input_text(&rect, color, (const char[]){'P', 0xe2, 0x86, 0x91, 0x0}, 8.0f);
   }
   else if (event_type == EVT_PAGEDOWNKEY) {
-    icon_draw_rect_input_text(&rect, color, (const char[]){'P', 0xe2, 0x86, 0x93, 0x0}, 8);
+    icon_draw_rect_input_text(&rect, color, (const char[]){'P', 0xe2, 0x86, 0x93, 0x0}, 8.0f);
   }
   else if (event_type == EVT_LEFTARROWKEY) {
     icon_draw_rect_input_symbol(&rect, color, (const char[]){0xe2, 0x86, 0x90, 0x0});

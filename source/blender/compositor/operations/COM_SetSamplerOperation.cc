@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #include "COM_SetSamplerOperation.h"
 
@@ -22,25 +7,25 @@ namespace blender::compositor {
 
 SetSamplerOperation::SetSamplerOperation()
 {
-  this->addInputSocket(DataType::Color);
-  this->addOutputSocket(DataType::Color);
+  this->add_input_socket(DataType::Color);
+  this->add_output_socket(DataType::Color);
 }
 
-void SetSamplerOperation::initExecution()
+void SetSamplerOperation::init_execution()
 {
-  this->m_reader = this->getInputSocketReader(0);
+  reader_ = this->get_input_socket_reader(0);
 }
-void SetSamplerOperation::deinitExecution()
+void SetSamplerOperation::deinit_execution()
 {
-  this->m_reader = nullptr;
+  reader_ = nullptr;
 }
 
-void SetSamplerOperation::executePixelSampled(float output[4],
-                                              float x,
-                                              float y,
-                                              PixelSampler /*sampler*/)
+void SetSamplerOperation::execute_pixel_sampled(float output[4],
+                                                float x,
+                                                float y,
+                                                PixelSampler /*sampler*/)
 {
-  this->m_reader->readSampled(output, x, y, this->m_sampler);
+  reader_->read_sampled(output, x, y, sampler_);
 }
 
 }  // namespace blender::compositor

@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -33,6 +19,7 @@
 
 #include "BLT_translation.h"
 
+#include "BKE_bpath.h"
 #include "BKE_brush.h"
 #include "BKE_colortools.h"
 #include "BKE_context.h"
@@ -148,37 +135,24 @@ static void brush_make_local(Main *bmain, ID *id, const int flags)
 
   Brush *brush = (Brush *)id;
   const bool lib_local = (flags & LIB_ID_MAKELOCAL_FULL_LIBRARY) != 0;
-  bool force_local = (flags & LIB_ID_MAKELOCAL_FORCE_LOCAL) != 0;
-  bool force_copy = (flags & LIB_ID_MAKELOCAL_FORCE_COPY) != 0;
-  BLI_assert(force_copy == false || force_copy != force_local);
 
-  bool is_local = false, is_lib = false;
-
-  /* - only lib users: do nothing (unless force_local is set)
-   * - only local users: set flag
-   * - mixed: make copy
-   */
+  bool force_local, force_copy;
+  BKE_lib_id_make_local_generic_action_define(bmain, id, flags, &force_local, &force_copy);
 
   if (brush->clone.image) {
     /* Special case: ima always local immediately. Clone image should only have one user anyway. */
-    BKE_lib_id_make_local(bmain, &brush->clone.image->id, false, 0);
-  }
-
-  if (!force_local && !force_copy) {
-    BKE_library_ID_test_usages(bmain, brush, &is_local, &is_lib);
-    if (lib_local || is_local) {
-      if (!is_lib) {
-        force_local = true;
-      }
-      else {
-        force_copy = true;
-      }
-    }
+    /* FIXME: Recursive calls affecting other non-embedded IDs are really bad and should be avoided
+     * in IDType callbacks. Higher-level ID management code usually does not expect such things and
+     * does not deal properly with it. */
+    /* NOTE: assert below ensures that the comment above is valid, and that that exception is
+     * acceptable for the time being. */
+    BKE_lib_id_make_local(bmain, &brush->clone.image->id, 0);
+    BLI_assert(!ID_IS_LINKED(brush->clone.image) && brush->clone.image->id.newid == NULL);
   }
 
   if (force_local) {
-    BKE_lib_id_clear_library_data(bmain, &brush->id);
-    BKE_lib_id_expand_local(bmain, &brush->id);
+    BKE_lib_id_clear_library_data(bmain, &brush->id, flags);
+    BKE_lib_id_expand_local(bmain, &brush->id, flags);
 
     /* enable fake user by default */
     id_fake_user_set(&brush->id);
@@ -201,14 +175,23 @@ static void brush_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Brush *brush = (Brush *)id;
 
-  BKE_LIB_FOREACHID_PROCESS(data, brush->toggle_brush, IDWALK_CB_NOP);
-  BKE_LIB_FOREACHID_PROCESS(data, brush->clone.image, IDWALK_CB_NOP);
-  BKE_LIB_FOREACHID_PROCESS(data, brush->paint_curve, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, brush->toggle_brush, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, brush->clone.image, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, brush->paint_curve, IDWALK_CB_USER);
   if (brush->gpencil_settings) {
-    BKE_LIB_FOREACHID_PROCESS(data, brush->gpencil_settings->material, IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, brush->gpencil_settings->material, IDWALK_CB_USER);
   }
-  BKE_texture_mtex_foreach_id(data, &brush->mtex);
-  BKE_texture_mtex_foreach_id(data, &brush->mask_mtex);
+  BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data, BKE_texture_mtex_foreach_id(data, &brush->mtex));
+  BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data,
+                                          BKE_texture_mtex_foreach_id(data, &brush->mask_mtex));
+}
+
+static void brush_foreach_path(ID *id, BPathForeachPathData *bpath_data)
+{
+  Brush *brush = (Brush *)id;
+  if (brush->icon_filepath[0] != '\0') {
+    BKE_bpath_foreach_path_fixed_process(bpath_data, brush->icon_filepath);
+  }
 }
 
 static void brush_blend_write(BlendWriter *writer, ID *id, const void *id_address)
@@ -407,6 +390,7 @@ IDTypeInfo IDType_ID_BR = {
     .name_plural = "brushes",
     .translation_context = BLT_I18NCONTEXT_ID_BRUSH,
     .flags = IDTYPE_FLAGS_NO_ANIMDATA,
+    .asset_type_info = NULL,
 
     .init_data = brush_init_data,
     .copy_data = brush_copy_data,
@@ -414,6 +398,7 @@ IDTypeInfo IDType_ID_BR = {
     .make_local = brush_make_local,
     .foreach_id = brush_foreach_id,
     .foreach_cache = NULL,
+    .foreach_path = brush_foreach_path,
     .owner_get = NULL,
 
     .blend_write = brush_blend_write,
@@ -496,10 +481,6 @@ static void brush_defaults(Brush *brush)
 
 /* Datablock add/copy/free/make_local */
 
-/**
- * \note Resulting brush will have two users: one as a fake user,
- * another is assumed to be used by the caller.
- */
 Brush *BKE_brush_add(Main *bmain, const char *name, const eObjectMode ob_mode)
 {
   Brush *brush;
@@ -511,7 +492,6 @@ Brush *BKE_brush_add(Main *bmain, const char *name, const eObjectMode ob_mode)
   return brush;
 }
 
-/* add grease pencil settings */
 void BKE_brush_init_gpencil_settings(Brush *brush)
 {
   if (brush->gpencil_settings == NULL) {
@@ -539,7 +519,6 @@ void BKE_brush_init_gpencil_settings(Brush *brush)
   brush->gpencil_settings->curve_rand_value = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
 }
 
-/* add a new gp-brush */
 Brush *BKE_brush_add_gpencil(Main *bmain, ToolSettings *ts, const char *name, eObjectMode mode)
 {
   Paint *paint = NULL;
@@ -579,7 +558,6 @@ Brush *BKE_brush_add_gpencil(Main *bmain, ToolSettings *ts, const char *name, eO
   return brush;
 }
 
-/* Delete a Brush. */
 bool BKE_brush_delete(Main *bmain, Brush *brush)
 {
   if (brush->id.tag & LIB_TAG_INDIRECT) {
@@ -1313,7 +1291,6 @@ static Brush *gpencil_brush_ensure(
   return brush;
 }
 
-/* Create a set of grease pencil Drawing presets. */
 void BKE_brush_gpencil_paint_presets(Main *bmain, ToolSettings *ts, const bool reset)
 {
   bool r_new = false;
@@ -1415,7 +1392,6 @@ void BKE_brush_gpencil_paint_presets(Main *bmain, ToolSettings *ts, const bool r
   }
 }
 
-/* Create a set of grease pencil Vertex Paint presets. */
 void BKE_brush_gpencil_vertex_presets(Main *bmain, ToolSettings *ts, const bool reset)
 {
   bool r_new = false;
@@ -1462,7 +1438,6 @@ void BKE_brush_gpencil_vertex_presets(Main *bmain, ToolSettings *ts, const bool 
   }
 }
 
-/* Create a set of grease pencil Sculpt Paint presets. */
 void BKE_brush_gpencil_sculpt_presets(Main *bmain, ToolSettings *ts, const bool reset)
 {
   bool r_new = false;
@@ -1537,7 +1512,6 @@ void BKE_brush_gpencil_sculpt_presets(Main *bmain, ToolSettings *ts, const bool 
   }
 }
 
-/* Create a set of grease pencil Weight Paint presets. */
 void BKE_brush_gpencil_weight_presets(Main *bmain, ToolSettings *ts, const bool reset)
 {
   bool r_new = false;
@@ -1939,9 +1913,6 @@ void BKE_brush_sculpt_reset(Brush *br)
   }
 }
 
-/**
- * Library Operations
- */
 void BKE_brush_curve_preset(Brush *b, eCurveMappingPreset preset)
 {
   CurveMapping *cumap = NULL;
@@ -1959,10 +1930,6 @@ void BKE_brush_curve_preset(Brush *b, eCurveMappingPreset preset)
   BKE_curvemapping_changed(cumap, false);
 }
 
-/* Generic texture sampler for 3D painting systems. point has to be either in
- * region space mouse coordinates, or 3d world coordinates for 3D mapping.
- *
- * rgba outputs straight alpha. */
 float BKE_brush_sample_tex_3d(const Scene *scene,
                               const Brush *br,
                               const float point[3],
@@ -2355,7 +2322,6 @@ void BKE_brush_weight_set(const Scene *scene, Brush *brush, float value)
   }
 }
 
-/* scale unprojected radius to reflect a change in the brush's 2D size */
 void BKE_brush_scale_unprojected_radius(float *unprojected_radius,
                                         int new_brush_size,
                                         int old_brush_size)
@@ -2368,7 +2334,6 @@ void BKE_brush_scale_unprojected_radius(float *unprojected_radius,
   (*unprojected_radius) *= scale;
 }
 
-/* scale brush size to reflect a change in the brush's unprojected radius */
 void BKE_brush_scale_size(int *r_brush_size,
                           float new_unprojected_radius,
                           float old_unprojected_radius)
@@ -2419,7 +2384,6 @@ void BKE_brush_randomize_texture_coords(UnifiedPaintSettings *ups, bool mask)
   }
 }
 
-/* Uses the brush curve control to find a strength value */
 float BKE_brush_curve_strength(const Brush *br, float p, const float len)
 {
   float strength = 1.0f;
@@ -2467,8 +2431,7 @@ float BKE_brush_curve_strength(const Brush *br, float p, const float len)
   return strength;
 }
 
-/* Uses the brush curve control to find a strength value between 0 and 1 */
-float BKE_brush_curve_strength_clamped(Brush *br, float p, const float len)
+float BKE_brush_curve_strength_clamped(const Brush *br, float p, const float len)
 {
   float strength = BKE_brush_curve_strength(br, p, len);
 
@@ -2510,7 +2473,6 @@ unsigned int *BKE_brush_gen_texture_cache(Brush *br, int half_side, bool use_sec
   return texcache;
 }
 
-/**** Radial Control ****/
 struct ImBuf *BKE_brush_gen_radial_control_imbuf(Brush *br, bool secondary, bool display_gradient)
 {
   ImBuf *im = MEM_callocN(sizeof(ImBuf), "radial control texture");

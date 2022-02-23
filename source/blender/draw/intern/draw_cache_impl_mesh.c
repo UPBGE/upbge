@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2017 by Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2017 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup draw
@@ -36,13 +20,14 @@
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
 
-#include "DEG_depsgraph_query.h" // UPBGE
+#include "DEG_depsgraph_query.h"  // UPBGE
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "BKE_attribute.h"
 #include "BKE_customdata.h"
 #include "BKE_deform.h"
 #include "BKE_editmesh.h"
@@ -55,6 +40,7 @@
 #include "BKE_object_deform.h"
 #include "BKE_paint.h"
 #include "BKE_pbvh.h"
+#include "BKE_subdiv_modifier.h"
 
 #include "atomic_ops.h"
 
@@ -70,6 +56,7 @@
 
 #include "draw_cache_extract.h"
 #include "draw_cache_inline.h"
+#include "draw_subdivision.h"
 
 #include "draw_cache_impl.h" /* own include */
 
@@ -123,6 +110,8 @@
 #  define _MDEPS_ASSERT6(b, n1, n2, n3, n4, n5) _MDEPS_ASSERT5(b, n1, n2, n3, n4); _MDEPS_ASSERT2(b, n5)
 #  define _MDEPS_ASSERT7(b, n1, n2, n3, n4, n5, n6) _MDEPS_ASSERT6(b, n1, n2, n3, n4, n5); _MDEPS_ASSERT2(b, n6)
 #  define _MDEPS_ASSERT8(b, n1, n2, n3, n4, n5, n6, n7) _MDEPS_ASSERT7(b, n1, n2, n3, n4, n5, n6); _MDEPS_ASSERT2(b, n7)
+#  define _MDEPS_ASSERT21(b, n1, n2, n3, n4, n5, n6, n7, n8, n9, n10, n11, n12, n13, n14, n15, n16, n17, n18, n19, n20) _MDEPS_ASSERT8(b, n1, n2, n3, n4, n5, n6, n7); _MDEPS_ASSERT8(b, n8, n9, n10, n11, n12, n13, n14); _MDEPS_ASSERT7(b, n15, n16, n17, n18, n19, n20)
+#  define _MDEPS_ASSERT22(b, n1, n2, n3, n4, n5, n6, n7, n8, n9, n10, n11, n12, n13, n14, n15, n16, n17, n18, n19, n20, n21) _MDEPS_ASSERT21(b, n1, n2, n3, n4, n5, n6, n7, n8, n9, n10, n11, n12, n13, n14, n15, n16, n17, n18, n19, n20); _MDEPS_ASSERT2(b, n21);
 
 #  define MDEPS_ASSERT_FLAG(...) VA_NARGS_CALL_OVERLOAD(_MDEPS_ASSERT, __VA_ARGS__)
 #  define MDEPS_ASSERT(batch_name, ...) MDEPS_ASSERT_FLAG(BATCH_FLAG(batch_name), __VA_ARGS__)
@@ -194,6 +183,21 @@ static const DRWBatchFlag g_buffer_deps[] = {
     [BUFFER_INDEX(vbo.edge_idx)] = BATCH_FLAG(edit_selection_edges),
     [BUFFER_INDEX(vbo.poly_idx)] = BATCH_FLAG(edit_selection_faces),
     [BUFFER_INDEX(vbo.fdot_idx)] = BATCH_FLAG(edit_selection_fdots),
+    [BUFFER_INDEX(vbo.attr) + 0] = BATCH_FLAG(surface) | SURFACE_PER_MAT_FLAG,
+    [BUFFER_INDEX(vbo.attr) + 1] = BATCH_FLAG(surface) | SURFACE_PER_MAT_FLAG,
+    [BUFFER_INDEX(vbo.attr) + 2] = BATCH_FLAG(surface) | SURFACE_PER_MAT_FLAG,
+    [BUFFER_INDEX(vbo.attr) + 3] = BATCH_FLAG(surface) | SURFACE_PER_MAT_FLAG,
+    [BUFFER_INDEX(vbo.attr) + 4] = BATCH_FLAG(surface) | SURFACE_PER_MAT_FLAG,
+    [BUFFER_INDEX(vbo.attr) + 5] = BATCH_FLAG(surface) | SURFACE_PER_MAT_FLAG,
+    [BUFFER_INDEX(vbo.attr) + 6] = BATCH_FLAG(surface) | SURFACE_PER_MAT_FLAG,
+    [BUFFER_INDEX(vbo.attr) + 7] = BATCH_FLAG(surface) | SURFACE_PER_MAT_FLAG,
+    [BUFFER_INDEX(vbo.attr) + 8] = BATCH_FLAG(surface) | SURFACE_PER_MAT_FLAG,
+    [BUFFER_INDEX(vbo.attr) + 9] = BATCH_FLAG(surface) | SURFACE_PER_MAT_FLAG,
+    [BUFFER_INDEX(vbo.attr) + 10] = BATCH_FLAG(surface) | SURFACE_PER_MAT_FLAG,
+    [BUFFER_INDEX(vbo.attr) + 11] = BATCH_FLAG(surface) | SURFACE_PER_MAT_FLAG,
+    [BUFFER_INDEX(vbo.attr) + 12] = BATCH_FLAG(surface) | SURFACE_PER_MAT_FLAG,
+    [BUFFER_INDEX(vbo.attr) + 13] = BATCH_FLAG(surface) | SURFACE_PER_MAT_FLAG,
+    [BUFFER_INDEX(vbo.attr) + 14] = BATCH_FLAG(surface) | SURFACE_PER_MAT_FLAG,
 
     [BUFFER_INDEX(ibo.tris)] = BATCH_FLAG(surface,
                                           surface_weights,
@@ -242,12 +246,12 @@ static void mesh_batch_cache_discard_batch(MeshBatchCache *cache, const DRWBatch
 /* Return true is all layers in _b_ are inside _a_. */
 BLI_INLINE bool mesh_cd_layers_type_overlap(DRW_MeshCDMask a, DRW_MeshCDMask b)
 {
-  return (*((uint64_t *)&a) & *((uint64_t *)&b)) == *((uint64_t *)&b);
+  return (*((uint32_t *)&a) & *((uint32_t *)&b)) == *((uint32_t *)&b);
 }
 
 BLI_INLINE bool mesh_cd_layers_type_equal(DRW_MeshCDMask a, DRW_MeshCDMask b)
 {
-  return *((uint64_t *)&a) == *((uint64_t *)&b);
+  return *((uint32_t *)&a) == *((uint32_t *)&b);
 }
 
 BLI_INLINE void mesh_cd_layers_type_merge(DRW_MeshCDMask *a, DRW_MeshCDMask b)
@@ -255,17 +259,23 @@ BLI_INLINE void mesh_cd_layers_type_merge(DRW_MeshCDMask *a, DRW_MeshCDMask b)
   uint32_t *a_p = (uint32_t *)a;
   uint32_t *b_p = (uint32_t *)&b;
   atomic_fetch_and_or_uint32(a_p, *b_p);
-  atomic_fetch_and_or_uint32(a_p + 1, *(b_p + 1));
 }
 
 BLI_INLINE void mesh_cd_layers_type_clear(DRW_MeshCDMask *a)
 {
-  *((uint64_t *)a) = 0;
+  *((uint32_t *)a) = 0;
 }
 
-BLI_INLINE const Mesh *editmesh_final_or_this(const Mesh *me)
+BLI_INLINE const Mesh *editmesh_final_or_this(const Object *object, const Mesh *me)
 {
-  return (me->edit_mesh && me->edit_mesh->mesh_eval_final) ? me->edit_mesh->mesh_eval_final : me;
+  if (me->edit_mesh != NULL) {
+    Mesh *editmesh_eval_final = BKE_object_get_editmesh_eval_final(object);
+    if (editmesh_eval_final != NULL) {
+      return editmesh_eval_final;
+    }
+  }
+
+  return me;
 }
 
 static void mesh_cd_calc_edit_uv_layer(const Mesh *UNUSED(me), DRW_MeshCDMask *cd_used)
@@ -273,9 +283,99 @@ static void mesh_cd_calc_edit_uv_layer(const Mesh *UNUSED(me), DRW_MeshCDMask *c
   cd_used->edit_uv = 1;
 }
 
+/** \name DRW_MeshAttributes
+ *
+ * Utilities for handling requested attributes.
+ * \{ */
+
+/* Return true if the given DRW_AttributeRequest is already in the requests. */
+static bool has_request(const DRW_MeshAttributes *requests, DRW_AttributeRequest req)
+{
+  for (int i = 0; i < requests->num_requests; i++) {
+    const DRW_AttributeRequest src_req = requests->requests[i];
+    if (src_req.domain != req.domain) {
+      continue;
+    }
+    if (src_req.layer_index != req.layer_index) {
+      continue;
+    }
+    if (src_req.cd_type != req.cd_type) {
+      continue;
+    }
+    return true;
+  }
+  return false;
+}
+
+static void mesh_attrs_merge_requests(const DRW_MeshAttributes *src_requests,
+                                      DRW_MeshAttributes *dst_requests)
+{
+  for (int i = 0; i < src_requests->num_requests; i++) {
+    if (dst_requests->num_requests == GPU_MAX_ATTR) {
+      return;
+    }
+
+    if (has_request(dst_requests, src_requests->requests[i])) {
+      continue;
+    }
+
+    dst_requests->requests[dst_requests->num_requests] = src_requests->requests[i];
+    dst_requests->num_requests += 1;
+  }
+}
+
+static void drw_mesh_attributes_clear(DRW_MeshAttributes *attributes)
+{
+  memset(attributes, 0, sizeof(DRW_MeshAttributes));
+}
+
+static void drw_mesh_attributes_merge(DRW_MeshAttributes *dst,
+                                      const DRW_MeshAttributes *src,
+                                      ThreadMutex *mesh_render_mutex)
+{
+  BLI_mutex_lock(mesh_render_mutex);
+  mesh_attrs_merge_requests(src, dst);
+  BLI_mutex_unlock(mesh_render_mutex);
+}
+
+/* Return true if all requests in b are in a. */
+static bool drw_mesh_attributes_overlap(DRW_MeshAttributes *a, DRW_MeshAttributes *b)
+{
+  if (a->num_requests != b->num_requests) {
+    return false;
+  }
+
+  for (int i = 0; i < a->num_requests; i++) {
+    if (!has_request(a, b->requests[i])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+static void drw_mesh_attributes_add_request(DRW_MeshAttributes *attrs,
+                                            CustomDataType type,
+                                            int layer,
+                                            AttributeDomain domain)
+{
+  if (attrs->num_requests >= GPU_MAX_ATTR) {
+    return;
+  }
+
+  DRW_AttributeRequest *req = &attrs->requests[attrs->num_requests];
+  req->cd_type = type;
+  req->layer_index = layer;
+  req->domain = domain;
+  attrs->num_requests += 1;
+}
+
+/** \} */
+
 BLI_INLINE const CustomData *mesh_cd_ldata_get_from_mesh(const Mesh *me)
 {
   switch ((eMeshWrapperType)me->runtime.wrapper_type) {
+    case ME_WRAPPER_TYPE_SUBD:
     case ME_WRAPPER_TYPE_MDATA:
       return &me->ldata;
       break;
@@ -288,9 +388,42 @@ BLI_INLINE const CustomData *mesh_cd_ldata_get_from_mesh(const Mesh *me)
   return &me->ldata;
 }
 
+BLI_INLINE const CustomData *mesh_cd_pdata_get_from_mesh(const Mesh *me)
+{
+  switch ((eMeshWrapperType)me->runtime.wrapper_type) {
+    case ME_WRAPPER_TYPE_SUBD:
+    case ME_WRAPPER_TYPE_MDATA:
+      return &me->pdata;
+      break;
+    case ME_WRAPPER_TYPE_BMESH:
+      return &me->edit_mesh->bm->pdata;
+      break;
+  }
+
+  BLI_assert(0);
+  return &me->pdata;
+}
+
+BLI_INLINE const CustomData *mesh_cd_edata_get_from_mesh(const Mesh *me)
+{
+  switch ((eMeshWrapperType)me->runtime.wrapper_type) {
+    case ME_WRAPPER_TYPE_SUBD:
+    case ME_WRAPPER_TYPE_MDATA:
+      return &me->edata;
+      break;
+    case ME_WRAPPER_TYPE_BMESH:
+      return &me->edit_mesh->bm->edata;
+      break;
+  }
+
+  BLI_assert(0);
+  return &me->edata;
+}
+
 BLI_INLINE const CustomData *mesh_cd_vdata_get_from_mesh(const Mesh *me)
 {
   switch ((eMeshWrapperType)me->runtime.wrapper_type) {
+    case ME_WRAPPER_TYPE_SUBD:
     case ME_WRAPPER_TYPE_MDATA:
       return &me->vdata;
       break;
@@ -303,9 +436,11 @@ BLI_INLINE const CustomData *mesh_cd_vdata_get_from_mesh(const Mesh *me)
   return &me->vdata;
 }
 
-static void mesh_cd_calc_active_uv_layer(const Mesh *me, DRW_MeshCDMask *cd_used)
+static void mesh_cd_calc_active_uv_layer(const Object *object,
+                                         const Mesh *me,
+                                         DRW_MeshCDMask *cd_used)
 {
-  const Mesh *me_final = editmesh_final_or_this(me);
+  const Mesh *me_final = editmesh_final_or_this(object, me);
   const CustomData *cd_ldata = mesh_cd_ldata_get_from_mesh(me_final);
   int layer = CustomData_get_active_layer(cd_ldata, CD_MLOOPUV);
   if (layer != -1) {
@@ -313,9 +448,11 @@ static void mesh_cd_calc_active_uv_layer(const Mesh *me, DRW_MeshCDMask *cd_used
   }
 }
 
-static void mesh_cd_calc_active_mask_uv_layer(const Mesh *me, DRW_MeshCDMask *cd_used)
+static void mesh_cd_calc_active_mask_uv_layer(const Object *object,
+                                              const Mesh *me,
+                                              DRW_MeshCDMask *cd_used)
 {
-  const Mesh *me_final = editmesh_final_or_this(me);
+  const Mesh *me_final = editmesh_final_or_this(object, me);
   const CustomData *cd_ldata = mesh_cd_ldata_get_from_mesh(me_final);
   int layer = CustomData_get_stencil_layer(cd_ldata, CD_MLOOPUV);
   if (layer != -1) {
@@ -323,20 +460,24 @@ static void mesh_cd_calc_active_mask_uv_layer(const Mesh *me, DRW_MeshCDMask *cd
   }
 }
 
-static void mesh_cd_calc_active_vcol_layer(const Mesh *me, DRW_MeshCDMask *cd_used)
+static void mesh_cd_calc_active_vcol_layer(const Object *object,
+                                           const Mesh *me,
+                                           DRW_MeshAttributes *attrs_used)
 {
-  const Mesh *me_final = editmesh_final_or_this(me);
+  const Mesh *me_final = editmesh_final_or_this(object, me);
   const CustomData *cd_vdata = mesh_cd_vdata_get_from_mesh(me_final);
 
   int layer = CustomData_get_active_layer(cd_vdata, CD_PROP_COLOR);
   if (layer != -1) {
-    cd_used->sculpt_vcol |= (1 << layer);
+    drw_mesh_attributes_add_request(attrs_used, CD_PROP_COLOR, layer, ATTR_DOMAIN_POINT);
   }
 }
 
-static void mesh_cd_calc_active_mloopcol_layer(const Mesh *me, DRW_MeshCDMask *cd_used)
+static void mesh_cd_calc_active_mloopcol_layer(const Object *object,
+                                               const Mesh *me,
+                                               DRW_MeshCDMask *cd_used)
 {
-  const Mesh *me_final = editmesh_final_or_this(me);
+  const Mesh *me_final = editmesh_final_or_this(object, me);
   const CustomData *cd_ldata = mesh_cd_ldata_get_from_mesh(me_final);
 
   int layer = CustomData_get_active_layer(cd_ldata, CD_MLOOPCOL);
@@ -345,13 +486,47 @@ static void mesh_cd_calc_active_mloopcol_layer(const Mesh *me, DRW_MeshCDMask *c
   }
 }
 
-static DRW_MeshCDMask mesh_cd_calc_used_gpu_layers(const Mesh *me,
-                                                   struct GPUMaterial **gpumat_array,
-                                                   int gpumat_array_len)
+static bool custom_data_match_attribute(const CustomData *custom_data,
+                                        const char *name,
+                                        int *r_layer_index,
+                                        int *r_type)
 {
-  const Mesh *me_final = editmesh_final_or_this(me);
+  const int possible_attribute_types[7] = {
+      CD_PROP_BOOL,
+      CD_PROP_INT8,
+      CD_PROP_INT32,
+      CD_PROP_FLOAT,
+      CD_PROP_FLOAT2,
+      CD_PROP_FLOAT3,
+      CD_PROP_COLOR,
+  };
+
+  for (int i = 0; i < ARRAY_SIZE(possible_attribute_types); i++) {
+    const int attr_type = possible_attribute_types[i];
+    int layer_index = CustomData_get_named_layer(custom_data, attr_type, name);
+    if (layer_index == -1) {
+      continue;
+    }
+
+    *r_layer_index = layer_index;
+    *r_type = attr_type;
+    return true;
+  }
+
+  return false;
+}
+
+static DRW_MeshCDMask mesh_cd_calc_used_gpu_layers(const Object *object,
+                                                   const Mesh *me,
+                                                   struct GPUMaterial **gpumat_array,
+                                                   int gpumat_array_len,
+                                                   DRW_MeshAttributes *attributes)
+{
+  const Mesh *me_final = editmesh_final_or_this(object, me);
   const CustomData *cd_ldata = mesh_cd_ldata_get_from_mesh(me_final);
+  const CustomData *cd_pdata = mesh_cd_pdata_get_from_mesh(me_final);
   const CustomData *cd_vdata = mesh_cd_vdata_get_from_mesh(me_final);
+  const CustomData *cd_edata = mesh_cd_edata_get_from_mesh(me_final);
 
   /* See: DM_vertex_attributes_from_gpu for similar logic */
   DRW_MeshCDMask cd_used;
@@ -365,22 +540,17 @@ static DRW_MeshCDMask mesh_cd_calc_used_gpu_layers(const Mesh *me,
         const char *name = gpu_attr->name;
         int type = gpu_attr->type;
         int layer = -1;
+        /* ATTR_DOMAIN_NUM is standard for "invalid value". */
+        AttributeDomain domain = ATTR_DOMAIN_NUM;
 
         if (type == CD_AUTO_FROM_NAME) {
-          /* We need to deduct what exact layer is used.
+          /* We need to deduce what exact layer is used.
            *
            * We do it based on the specified name.
            */
           if (name[0] != '\0') {
             layer = CustomData_get_named_layer(cd_ldata, CD_MLOOPUV, name);
             type = CD_MTFACE;
-
-            if (layer == -1) {
-              if (U.experimental.use_sculpt_vertex_colors) {
-                layer = CustomData_get_named_layer(cd_vdata, CD_PROP_COLOR, name);
-                type = CD_PROP_COLOR;
-              }
-            }
 
             if (layer == -1) {
               layer = CustomData_get_named_layer(cd_ldata, CD_MLOOPCOL, name);
@@ -393,6 +563,27 @@ static DRW_MeshCDMask mesh_cd_calc_used_gpu_layers(const Mesh *me,
               type = CD_TANGENT;
             }
 #endif
+            if (layer == -1) {
+              /* Try to match a generic attribute, we use the first attribute domain with a
+               * matching name. */
+              if (custom_data_match_attribute(cd_vdata, name, &layer, &type)) {
+                domain = ATTR_DOMAIN_POINT;
+              }
+              else if (custom_data_match_attribute(cd_ldata, name, &layer, &type)) {
+                domain = ATTR_DOMAIN_CORNER;
+              }
+              else if (custom_data_match_attribute(cd_pdata, name, &layer, &type)) {
+                domain = ATTR_DOMAIN_FACE;
+              }
+              else if (custom_data_match_attribute(cd_edata, name, &layer, &type)) {
+                domain = ATTR_DOMAIN_EDGE;
+              }
+              else {
+                layer = -1;
+                domain = ATTR_DOMAIN_NUM;
+              }
+            }
+
             if (layer == -1) {
               continue;
             }
@@ -434,31 +625,6 @@ static DRW_MeshCDMask mesh_cd_calc_used_gpu_layers(const Mesh *me,
             }
             break;
           }
-          case CD_PROP_COLOR: {
-            /* Sculpt Vertex Colors */
-            bool use_mloop_cols = false;
-            if (layer == -1) {
-              layer = (name[0] != '\0') ?
-                          CustomData_get_named_layer(cd_vdata, CD_PROP_COLOR, name) :
-                          CustomData_get_render_layer(cd_vdata, CD_PROP_COLOR);
-              /* Fallback to Vertex Color data */
-              if (layer == -1) {
-                layer = (name[0] != '\0') ?
-                            CustomData_get_named_layer(cd_ldata, CD_MLOOPCOL, name) :
-                            CustomData_get_render_layer(cd_ldata, CD_MLOOPCOL);
-                use_mloop_cols = true;
-              }
-            }
-            if (layer != -1) {
-              if (use_mloop_cols) {
-                cd_used.vcol |= (1 << layer);
-              }
-              else {
-                cd_used.sculpt_vcol |= (1 << layer);
-              }
-            }
-            break;
-          }
           case CD_MCOL: {
             /* Vertex Color Data */
             if (layer == -1) {
@@ -473,6 +639,18 @@ static DRW_MeshCDMask mesh_cd_calc_used_gpu_layers(const Mesh *me,
           }
           case CD_ORCO: {
             cd_used.orco = 1;
+            break;
+          }
+          case CD_PROP_BOOL:
+          case CD_PROP_INT8:
+          case CD_PROP_INT32:
+          case CD_PROP_FLOAT:
+          case CD_PROP_FLOAT2:
+          case CD_PROP_FLOAT3:
+          case CD_PROP_COLOR: {
+            if (layer != -1 && domain != ATTR_DOMAIN_NUM) {
+              drw_mesh_attributes_add_request(attributes, type, layer, domain);
+            }
             break;
           }
         }
@@ -619,7 +797,7 @@ BLI_INLINE void mesh_batch_cache_add_request(MeshBatchCache *cache, DRWBatchFlag
 
 /* GPUBatch cache management. */
 
-static bool mesh_batch_cache_valid(Mesh *me)
+static bool mesh_batch_cache_valid(Object *object, Mesh *me)
 {
   MeshBatchCache *cache = me->runtime.batch_cache;
 
@@ -635,14 +813,14 @@ static bool mesh_batch_cache_valid(Mesh *me)
     return false;
   }
 
-  if (cache->mat_len != mesh_render_mat_len_get(me)) {
+  if (cache->mat_len != mesh_render_mat_len_get(object, me)) {
     return false;
   }
 
   return true;
 }
 
-static void mesh_batch_cache_init(Mesh *me)
+static void mesh_batch_cache_init(Object *object, Mesh *me)
 {
   MeshBatchCache *cache = me->runtime.batch_cache;
 
@@ -662,7 +840,7 @@ static void mesh_batch_cache_init(Mesh *me)
     // cache->vert_len = mesh_render_verts_len_get(me);
   }
 
-  cache->mat_len = mesh_render_mat_len_get(me);
+  cache->mat_len = mesh_render_mat_len_get(object, me);
   cache->surface_per_mat = MEM_callocN(sizeof(*cache->surface_per_mat) * cache->mat_len, __func__);
   cache->tris_per_mat = MEM_callocN(sizeof(*cache->tris_per_mat) * cache->mat_len, __func__);
 
@@ -673,11 +851,11 @@ static void mesh_batch_cache_init(Mesh *me)
   drw_mesh_weight_state_clear(&cache->weight_state);
 }
 
-void DRW_mesh_batch_cache_validate(Mesh *me)
+void DRW_mesh_batch_cache_validate(Object *object, Mesh *me)
 {
-  if (!mesh_batch_cache_valid(me)) {
+  if (!mesh_batch_cache_valid(object, me)) {
     mesh_batch_cache_clear(me);
-    mesh_batch_cache_init(me);
+    mesh_batch_cache_init(object, me);
   }
 }
 
@@ -869,6 +1047,15 @@ static void mesh_buffer_cache_clear(MeshBufferCache *mbc)
   mbc->poly_sorted.visible_tri_len = 0;
 }
 
+static void mesh_batch_cache_free_subdiv_cache(MeshBatchCache *cache)
+{
+  if (cache->subdiv_cache) {
+    draw_subdiv_cache_free(cache->subdiv_cache);
+    MEM_freeN(cache->subdiv_cache);
+    cache->subdiv_cache = NULL;
+  }
+}
+
 static void mesh_batch_cache_clear(Mesh *me)
 {
   MeshBatchCache *cache = me->runtime.batch_cache;
@@ -896,6 +1083,8 @@ static void mesh_batch_cache_clear(Mesh *me)
 
   cache->batch_ready = 0;
   drw_mesh_weight_state_clear(&cache->weight_state);
+
+  mesh_batch_cache_free_subdiv_cache(cache);
 }
 
 void DRW_mesh_batch_cache_free(Mesh *me)
@@ -910,24 +1099,24 @@ void DRW_mesh_batch_cache_free(Mesh *me)
 /** \name Public API
  * \{ */
 
-static void texpaint_request_active_uv(MeshBatchCache *cache, Mesh *me)
+static void texpaint_request_active_uv(MeshBatchCache *cache, Object *object, Mesh *me)
 {
   DRW_MeshCDMask cd_needed;
   mesh_cd_layers_type_clear(&cd_needed);
-  mesh_cd_calc_active_uv_layer(me, &cd_needed);
+  mesh_cd_calc_active_uv_layer(object, me, &cd_needed);
 
   BLI_assert(cd_needed.uv != 0 &&
              "No uv layer available in texpaint, but batches requested anyway!");
 
-  mesh_cd_calc_active_mask_uv_layer(me, &cd_needed);
+  mesh_cd_calc_active_mask_uv_layer(object, me, &cd_needed);
   mesh_cd_layers_type_merge(&cache->cd_needed, cd_needed);
 }
 
-static void texpaint_request_active_vcol(MeshBatchCache *cache, Mesh *me)
+static void texpaint_request_active_vcol(MeshBatchCache *cache, Object *object, Mesh *me)
 {
   DRW_MeshCDMask cd_needed;
   mesh_cd_layers_type_clear(&cd_needed);
-  mesh_cd_calc_active_mloopcol_layer(me, &cd_needed);
+  mesh_cd_calc_active_mloopcol_layer(object, me, &cd_needed);
 
   BLI_assert(cd_needed.vcol != 0 &&
              "No MLOOPCOL layer available in vertpaint, but batches requested anyway!");
@@ -935,16 +1124,16 @@ static void texpaint_request_active_vcol(MeshBatchCache *cache, Mesh *me)
   mesh_cd_layers_type_merge(&cache->cd_needed, cd_needed);
 }
 
-static void sculpt_request_active_vcol(MeshBatchCache *cache, Mesh *me)
+static void sculpt_request_active_vcol(MeshBatchCache *cache, Object *object, Mesh *me)
 {
-  DRW_MeshCDMask cd_needed;
-  mesh_cd_layers_type_clear(&cd_needed);
-  mesh_cd_calc_active_vcol_layer(me, &cd_needed);
+  DRW_MeshAttributes attrs_needed;
+  drw_mesh_attributes_clear(&attrs_needed);
+  mesh_cd_calc_active_vcol_layer(object, me, &attrs_needed);
 
-  BLI_assert(cd_needed.sculpt_vcol != 0 &&
+  BLI_assert(attrs_needed.num_requests != 0 &&
              "No MPropCol layer available in Sculpt, but batches requested anyway!");
 
-  mesh_cd_layers_type_merge(&cache->cd_needed, cd_needed);
+  drw_mesh_attributes_merge(&cache->attr_needed, &attrs_needed, me->runtime.render_mutex);
 }
 
 GPUBatch *DRW_mesh_batch_cache_get_all_verts(Mesh *me)
@@ -1012,55 +1201,61 @@ GPUBatch *DRW_mesh_batch_cache_get_edit_mesh_analysis(Mesh *me)
   return DRW_batch_request(&cache->batch.edit_mesh_analysis);
 }
 
-GPUBatch **DRW_mesh_batch_cache_get_surface_shaded(Mesh *me,
+GPUBatch **DRW_mesh_batch_cache_get_surface_shaded(Object *object,
+                                                   Mesh *me,
                                                    struct GPUMaterial **gpumat_array,
                                                    uint gpumat_array_len)
 {
   MeshBatchCache *cache = mesh_batch_cache_get(me);
-  DRW_MeshCDMask cd_needed = mesh_cd_calc_used_gpu_layers(me, gpumat_array, gpumat_array_len);
+  DRW_MeshAttributes attrs_needed;
+  drw_mesh_attributes_clear(&attrs_needed);
+  DRW_MeshCDMask cd_needed = mesh_cd_calc_used_gpu_layers(
+      object, me, gpumat_array, gpumat_array_len, &attrs_needed);
 
   BLI_assert(gpumat_array_len == cache->mat_len);
 
   mesh_cd_layers_type_merge(&cache->cd_needed, cd_needed);
+  ThreadMutex *mesh_render_mutex = (ThreadMutex *)me->runtime.render_mutex;
+  drw_mesh_attributes_merge(&cache->attr_needed, &attrs_needed, mesh_render_mutex);
   mesh_batch_cache_request_surface_batches(cache);
   return cache->surface_per_mat;
 }
 
-GPUBatch **DRW_mesh_batch_cache_get_surface_texpaint(Mesh *me)
+GPUBatch **DRW_mesh_batch_cache_get_surface_texpaint(Object *object, Mesh *me)
 {
   MeshBatchCache *cache = mesh_batch_cache_get(me);
-  texpaint_request_active_uv(cache, me);
+  texpaint_request_active_uv(cache, object, me);
   mesh_batch_cache_request_surface_batches(cache);
   return cache->surface_per_mat;
 }
 
-GPUBatch *DRW_mesh_batch_cache_get_surface_texpaint_single(Mesh *me)
+GPUBatch *DRW_mesh_batch_cache_get_surface_texpaint_single(Object *object, Mesh *me)
 {
   MeshBatchCache *cache = mesh_batch_cache_get(me);
-  texpaint_request_active_uv(cache, me);
+  texpaint_request_active_uv(cache, object, me);
   mesh_batch_cache_request_surface_batches(cache);
   return cache->batch.surface;
 }
 
-GPUBatch *DRW_mesh_batch_cache_get_surface_vertpaint(Mesh *me)
+GPUBatch *DRW_mesh_batch_cache_get_surface_vertpaint(Object *object, Mesh *me)
 {
   MeshBatchCache *cache = mesh_batch_cache_get(me);
-  texpaint_request_active_vcol(cache, me);
+  texpaint_request_active_vcol(cache, object, me);
   mesh_batch_cache_request_surface_batches(cache);
   return cache->batch.surface;
 }
 
-GPUBatch *DRW_mesh_batch_cache_get_surface_sculpt(Mesh *me)
+GPUBatch *DRW_mesh_batch_cache_get_surface_sculpt(Object *object, Mesh *me)
 {
   MeshBatchCache *cache = mesh_batch_cache_get(me);
-  sculpt_request_active_vcol(cache, me);
+  sculpt_request_active_vcol(cache, object, me);
   mesh_batch_cache_request_surface_batches(cache);
   return cache->batch.surface;
 }
 
-int DRW_mesh_material_count_get(const Mesh *me)
+int DRW_mesh_material_count_get(const Object *object, const Mesh *me)
 {
-  return mesh_render_mat_len_get(me);
+  return mesh_render_mat_len_get(object, me);
 }
 
 GPUBatch *DRW_mesh_batch_cache_get_sculpt_overlays(Mesh *me)
@@ -1185,31 +1380,27 @@ GPUBatch *DRW_mesh_batch_cache_get_verts_with_select_id(Mesh *me)
 /** \name UV Image editor API
  * \{ */
 
-static void edituv_request_active_uv(MeshBatchCache *cache, Mesh *me)
+static void edituv_request_active_uv(MeshBatchCache *cache, Object *object, Mesh *me)
 {
   DRW_MeshCDMask cd_needed;
   mesh_cd_layers_type_clear(&cd_needed);
-  mesh_cd_calc_active_uv_layer(me, &cd_needed);
+  mesh_cd_calc_active_uv_layer(object, me, &cd_needed);
   mesh_cd_calc_edit_uv_layer(me, &cd_needed);
 
   BLI_assert(cd_needed.edit_uv != 0 &&
              "No uv layer available in edituv, but batches requested anyway!");
 
-  mesh_cd_calc_active_mask_uv_layer(me, &cd_needed);
+  mesh_cd_calc_active_mask_uv_layer(object, me, &cd_needed);
   mesh_cd_layers_type_merge(&cache->cd_needed, cd_needed);
 }
 
-/* Creates the GPUBatch for drawing the UV Stretching Area Overlay.
- * Optional retrieves the total area or total uv area of the mesh.
- *
- * The `cache->tot_area` and cache->tot_uv_area` update are calculation are
- * only valid after calling `DRW_mesh_batch_cache_create_requested`. */
-GPUBatch *DRW_mesh_batch_cache_get_edituv_faces_stretch_area(Mesh *me,
+GPUBatch *DRW_mesh_batch_cache_get_edituv_faces_stretch_area(Object *object,
+                                                             Mesh *me,
                                                              float **tot_area,
                                                              float **tot_uv_area)
 {
   MeshBatchCache *cache = mesh_batch_cache_get(me);
-  edituv_request_active_uv(cache, me);
+  edituv_request_active_uv(cache, object, me);
   mesh_batch_cache_add_request(cache, MBC_EDITUV_FACES_STRETCH_AREA);
 
   if (tot_area != NULL) {
@@ -1221,58 +1412,58 @@ GPUBatch *DRW_mesh_batch_cache_get_edituv_faces_stretch_area(Mesh *me,
   return DRW_batch_request(&cache->batch.edituv_faces_stretch_area);
 }
 
-GPUBatch *DRW_mesh_batch_cache_get_edituv_faces_stretch_angle(Mesh *me)
+GPUBatch *DRW_mesh_batch_cache_get_edituv_faces_stretch_angle(Object *object, Mesh *me)
 {
   MeshBatchCache *cache = mesh_batch_cache_get(me);
-  edituv_request_active_uv(cache, me);
+  edituv_request_active_uv(cache, object, me);
   mesh_batch_cache_add_request(cache, MBC_EDITUV_FACES_STRETCH_ANGLE);
   return DRW_batch_request(&cache->batch.edituv_faces_stretch_angle);
 }
 
-GPUBatch *DRW_mesh_batch_cache_get_edituv_faces(Mesh *me)
+GPUBatch *DRW_mesh_batch_cache_get_edituv_faces(Object *object, Mesh *me)
 {
   MeshBatchCache *cache = mesh_batch_cache_get(me);
-  edituv_request_active_uv(cache, me);
+  edituv_request_active_uv(cache, object, me);
   mesh_batch_cache_add_request(cache, MBC_EDITUV_FACES);
   return DRW_batch_request(&cache->batch.edituv_faces);
 }
 
-GPUBatch *DRW_mesh_batch_cache_get_edituv_edges(Mesh *me)
+GPUBatch *DRW_mesh_batch_cache_get_edituv_edges(Object *object, Mesh *me)
 {
   MeshBatchCache *cache = mesh_batch_cache_get(me);
-  edituv_request_active_uv(cache, me);
+  edituv_request_active_uv(cache, object, me);
   mesh_batch_cache_add_request(cache, MBC_EDITUV_EDGES);
   return DRW_batch_request(&cache->batch.edituv_edges);
 }
 
-GPUBatch *DRW_mesh_batch_cache_get_edituv_verts(Mesh *me)
+GPUBatch *DRW_mesh_batch_cache_get_edituv_verts(Object *object, Mesh *me)
 {
   MeshBatchCache *cache = mesh_batch_cache_get(me);
-  edituv_request_active_uv(cache, me);
+  edituv_request_active_uv(cache, object, me);
   mesh_batch_cache_add_request(cache, MBC_EDITUV_VERTS);
   return DRW_batch_request(&cache->batch.edituv_verts);
 }
 
-GPUBatch *DRW_mesh_batch_cache_get_edituv_facedots(Mesh *me)
+GPUBatch *DRW_mesh_batch_cache_get_edituv_facedots(Object *object, Mesh *me)
 {
   MeshBatchCache *cache = mesh_batch_cache_get(me);
-  edituv_request_active_uv(cache, me);
+  edituv_request_active_uv(cache, object, me);
   mesh_batch_cache_add_request(cache, MBC_EDITUV_FACEDOTS);
   return DRW_batch_request(&cache->batch.edituv_fdots);
 }
 
-GPUBatch *DRW_mesh_batch_cache_get_uv_edges(Mesh *me)
+GPUBatch *DRW_mesh_batch_cache_get_uv_edges(Object *object, Mesh *me)
 {
   MeshBatchCache *cache = mesh_batch_cache_get(me);
-  edituv_request_active_uv(cache, me);
+  edituv_request_active_uv(cache, object, me);
   mesh_batch_cache_add_request(cache, MBC_WIRE_LOOPS_UVS);
   return DRW_batch_request(&cache->batch.wire_loops_uvs);
 }
 
-GPUBatch *DRW_mesh_batch_cache_get_surface_edges(Mesh *me)
+GPUBatch *DRW_mesh_batch_cache_get_surface_edges(Object *object, Mesh *me)
 {
   MeshBatchCache *cache = mesh_batch_cache_get(me);
-  texpaint_request_active_uv(cache, me);
+  texpaint_request_active_uv(cache, object, me);
   mesh_batch_cache_add_request(cache, MBC_WIRE_LOOPS);
   return DRW_batch_request(&cache->batch.wire_loops);
 }
@@ -1283,9 +1474,6 @@ GPUBatch *DRW_mesh_batch_cache_get_surface_edges(Mesh *me)
 /** \name Grouped batch generation
  * \{ */
 
-/* Thread safety need to be assured by caller. Don't call this during drawing.
- * NOTE: For now this only free the shading batches / vbo if any cd layers is
- * not needed anymore. */
 void DRW_mesh_batch_cache_free_old(Mesh *me, int ctime)
 {
   MeshBatchCache *cache = me->runtime.batch_cache;
@@ -1298,11 +1486,25 @@ void DRW_mesh_batch_cache_free_old(Mesh *me, int ctime)
     cache->lastmatch = ctime;
   }
 
+  if (drw_mesh_attributes_overlap(&cache->attr_used_over_time, &cache->attr_used)) {
+    cache->lastmatch = ctime;
+  }
+
   if (ctime - cache->lastmatch > U.vbotimeout) {
     mesh_batch_cache_discard_shaded_tri(cache);
   }
 
   mesh_cd_layers_type_clear(&cache->cd_used_over_time);
+  drw_mesh_attributes_clear(&cache->attr_used_over_time);
+}
+
+static void drw_add_attributes_vbo(GPUBatch *batch,
+                                   MeshBufferList *mbuflist,
+                                   DRW_MeshAttributes *attr_used)
+{
+  for (int i = 0; i < attr_used->num_requests; i++) {
+    DRW_vbo_request(batch, &mbuflist->vbo.attr[i]);
+  }
 }
 
 #ifdef DEBUG
@@ -1339,7 +1541,6 @@ static void drw_mesh_batch_cache_check_available(struct TaskGraph *task_graph, M
 }
 #endif
 
-/* Can be called for any surface type. Mesh *me is the final mesh. */
 void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
                                            Object *ob,
                                            Mesh *me,
@@ -1365,20 +1566,12 @@ void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
 
   /* Sanity check. */
   if ((me->edit_mesh != NULL) && (ob->mode & OB_MODE_EDIT)) {
-    BLI_assert(me->edit_mesh->mesh_eval_final != NULL);
+    BLI_assert(BKE_object_get_editmesh_eval_final(ob) != NULL);
   }
 
-  /* Don't check `DRW_object_is_in_edit_mode(ob)` here because it means the same mesh
-   * may draw with edit-mesh data and regular mesh data.
-   * In this case the custom-data layers used won't always match in `me->runtime.batch_cache`.
-   * If we want to display regular mesh data, we should have a separate cache for the edit-mesh.
-   * See T77359. */
   const bool is_editmode = (me->edit_mesh != NULL) &&
-                           /* In rare cases we have the edit-mode data but not the generated cache.
-                            * This can happen when switching an objects data to a mesh which
-                            * happens to be in edit-mode in another scene, see: T82952. */
-                           (me->edit_mesh->mesh_eval_final !=
-                            NULL) /* && DRW_object_is_in_edit_mode(ob) */;
+                           (BKE_object_get_editmesh_eval_final(ob) != NULL) &&
+                           DRW_object_is_in_edit_mode(ob);
 
   /* This could be set for paint mode too, currently it's only used for edit-mode. */
   const bool is_mode_active = is_editmode && DRW_object_is_in_edit_mode(ob);
@@ -1404,19 +1597,22 @@ void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
     /* Modifiers will only generate an orco layer if the mesh is deformed. */
     if (cache->cd_needed.orco != 0) {
       /* Orco is always extracted from final mesh. */
-      Mesh *me_final = (me->edit_mesh) ? me->edit_mesh->mesh_eval_final : me;
+      Mesh *me_final = (me->edit_mesh) ? BKE_object_get_editmesh_eval_final(ob) : me;
       if (CustomData_get_layer(&me_final->vdata, CD_ORCO) == NULL) {
         /* Skip orco calculation */
         cache->cd_needed.orco = 0;
       }
     }
 
+    ThreadMutex *mesh_render_mutex = (ThreadMutex *)me->runtime.render_mutex;
+
     /* Verify that all surface batches have needed attribute layers.
      */
     /* TODO(fclem): We could be a bit smarter here and only do it per
      * material. */
     bool cd_overlap = mesh_cd_layers_type_overlap(cache->cd_used, cache->cd_needed);
-    if (cd_overlap == false) {
+    bool attr_overlap = drw_mesh_attributes_overlap(&cache->attr_used, &cache->attr_needed);
+    if (cd_overlap == false || attr_overlap == false) {
       FOREACH_MESH_BUFFER_CACHE (cache, mbc) {
         if ((cache->cd_used.uv & cache->cd_needed.uv) != cache->cd_needed.uv) {
           GPU_VERTBUF_DISCARD_SAFE(mbc->buff.vbo.uv);
@@ -1432,10 +1628,13 @@ void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
         if (cache->cd_used.sculpt_overlays != cache->cd_needed.sculpt_overlays) {
           GPU_VERTBUF_DISCARD_SAFE(mbc->buff.vbo.sculpt_data);
         }
-        if (((cache->cd_used.vcol & cache->cd_needed.vcol) != cache->cd_needed.vcol) ||
-            ((cache->cd_used.sculpt_vcol & cache->cd_needed.sculpt_vcol) !=
-             cache->cd_needed.sculpt_vcol)) {
+        if ((cache->cd_used.vcol & cache->cd_needed.vcol) != cache->cd_needed.vcol) {
           GPU_VERTBUF_DISCARD_SAFE(mbc->buff.vbo.vcol);
+        }
+        if (!drw_mesh_attributes_overlap(&cache->attr_used, &cache->attr_needed)) {
+          for (int i = 0; i < GPU_MAX_ATTR; i++) {
+            GPU_VERTBUF_DISCARD_SAFE(mbc->buff.vbo.attr[i]);
+          }
         }
       }
       /* We can't discard batches at this point as they have been
@@ -1447,9 +1646,13 @@ void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
       cache->batch_ready &= ~(MBC_SURFACE);
 
       mesh_cd_layers_type_merge(&cache->cd_used, cache->cd_needed);
+      drw_mesh_attributes_merge(&cache->attr_used, &cache->attr_needed, mesh_render_mutex);
     }
     mesh_cd_layers_type_merge(&cache->cd_used_over_time, cache->cd_needed);
     mesh_cd_layers_type_clear(&cache->cd_needed);
+
+    drw_mesh_attributes_merge(&cache->attr_used_over_time, &cache->attr_needed, mesh_render_mutex);
+    drw_mesh_attributes_clear(&cache->attr_needed);
   }
 
   if (batch_requested & MBC_EDITUV) {
@@ -1500,15 +1703,43 @@ void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
 
   cache->batch_ready |= batch_requested;
 
-  const bool do_cage = (is_editmode &&
-                        (me->edit_mesh->mesh_eval_final != me->edit_mesh->mesh_eval_cage));
+  bool do_cage = false, do_uvcage = false;
+  if (is_editmode) {
+    Mesh *editmesh_eval_final = BKE_object_get_editmesh_eval_final(ob);
+    Mesh *editmesh_eval_cage = BKE_object_get_editmesh_eval_cage(ob);
 
-  const bool do_uvcage = is_editmode && !me->edit_mesh->mesh_eval_final->runtime.is_original;
+    do_cage = editmesh_eval_final != editmesh_eval_cage;
+    do_uvcage = !editmesh_eval_final->runtime.is_original;
+  }
+
+  const int required_mode = BKE_subsurf_modifier_eval_required_mode(DRW_state_is_scene_render(),
+                                                                    is_editmode);
+  const bool do_subdivision = BKE_subsurf_modifier_can_do_gpu_subdiv(scene, ob, required_mode);
 
   MeshBufferList *mbuflist = &cache->final.buff;
 
   /* Initialize batches and request VBO's & IBO's. */
-  MDEPS_ASSERT(surface, ibo.tris, vbo.lnor, vbo.pos_nor, vbo.uv, vbo.vcol);
+  MDEPS_ASSERT(surface,
+               ibo.tris,
+               vbo.lnor,
+               vbo.pos_nor,
+               vbo.uv,
+               vbo.vcol,
+               vbo.attr[0],
+               vbo.attr[1],
+               vbo.attr[2],
+               vbo.attr[3],
+               vbo.attr[4],
+               vbo.attr[5],
+               vbo.attr[6],
+               vbo.attr[7],
+               vbo.attr[8],
+               vbo.attr[9],
+               vbo.attr[10],
+               vbo.attr[11],
+               vbo.attr[12],
+               vbo.attr[13],
+               vbo.attr[14]);
   if (DRW_batch_requested(cache->batch.surface, GPU_PRIM_TRIS)) {
     DRW_ibo_request(cache->batch.surface, &mbuflist->ibo.tris);
     /* Order matters. First ones override latest VBO's attributes. */
@@ -1517,9 +1748,10 @@ void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
     if (cache->cd_used.uv != 0) {
       DRW_vbo_request(cache->batch.surface, &mbuflist->vbo.uv);
     }
-    if (cache->cd_used.vcol != 0 || cache->cd_used.sculpt_vcol != 0) {
+    if (cache->cd_used.vcol != 0) {
       DRW_vbo_request(cache->batch.surface, &mbuflist->vbo.vcol);
     }
+    drw_add_attributes_vbo(cache->batch.surface, mbuflist, &cache->attr_used);
   }
   MDEPS_ASSERT(all_verts, vbo.pos_nor);
   if (DRW_batch_requested(cache->batch.all_verts, GPU_PRIM_POINTS)) {
@@ -1582,8 +1814,28 @@ void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
   }
 
   /* Per Material */
-  MDEPS_ASSERT_FLAG(
-      SURFACE_PER_MAT_FLAG, vbo.lnor, vbo.pos_nor, vbo.uv, vbo.tan, vbo.vcol, vbo.orco);
+  MDEPS_ASSERT_FLAG(SURFACE_PER_MAT_FLAG,
+                    vbo.lnor,
+                    vbo.pos_nor,
+                    vbo.uv,
+                    vbo.tan,
+                    vbo.vcol,
+                    vbo.orco,
+                    vbo.attr[0],
+                    vbo.attr[1],
+                    vbo.attr[2],
+                    vbo.attr[3],
+                    vbo.attr[4],
+                    vbo.attr[5],
+                    vbo.attr[6],
+                    vbo.attr[7],
+                    vbo.attr[8],
+                    vbo.attr[9],
+                    vbo.attr[10],
+                    vbo.attr[11],
+                    vbo.attr[12],
+                    vbo.attr[13],
+                    vbo.attr[14]);
   MDEPS_ASSERT_INDEX(TRIS_PER_MAT_INDEX, SURFACE_PER_MAT_FLAG);
   for (int i = 0; i < cache->mat_len; i++) {
     if (DRW_batch_requested(cache->surface_per_mat[i], GPU_PRIM_TRIS)) {
@@ -1597,12 +1849,13 @@ void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
       if ((cache->cd_used.tan != 0) || (cache->cd_used.tan_orco != 0)) {
         DRW_vbo_request(cache->surface_per_mat[i], &mbuflist->vbo.tan);
       }
-      if (cache->cd_used.vcol != 0 || cache->cd_used.sculpt_vcol != 0) {
+      if (cache->cd_used.vcol != 0) {
         DRW_vbo_request(cache->surface_per_mat[i], &mbuflist->vbo.vcol);
       }
       if (cache->cd_used.orco != 0) {
         DRW_vbo_request(cache->surface_per_mat[i], &mbuflist->vbo.orco);
       }
+      drw_add_attributes_vbo(cache->surface_per_mat[i], mbuflist, &cache->attr_used);
     }
   }
 
@@ -1753,6 +2006,9 @@ void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
   MDEPS_ASSERT_MAP(vbo.edituv_stretch_angle);
   MDEPS_ASSERT_MAP(vbo.fdots_uv);
   MDEPS_ASSERT_MAP(vbo.fdots_edituv_data);
+  for (int i = 0; i < GPU_MAX_ATTR; i++) {
+    MDEPS_ASSERT_MAP(vbo.attr[i]);
+  }
 
   MDEPS_ASSERT_MAP(ibo.tris);
   MDEPS_ASSERT_MAP(ibo.lines);
@@ -1775,6 +2031,7 @@ void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
     mesh_buffer_cache_create_requested(task_graph,
                                        cache,
                                        &cache->uv_cage,
+                                       ob,
                                        me,
                                        is_editmode,
                                        is_paint_mode,
@@ -1792,6 +2049,7 @@ void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
     mesh_buffer_cache_create_requested(task_graph,
                                        cache,
                                        &cache->cage,
+                                       ob,
                                        me,
                                        is_editmode,
                                        is_paint_mode,
@@ -1805,9 +2063,32 @@ void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
                                        true);
   }
 
+  if (do_subdivision) {
+    DRW_create_subdivision(scene,
+                           ob,
+                           me,
+                           cache,
+                           &cache->final,
+                           is_editmode,
+                           is_paint_mode,
+                           is_mode_active,
+                           ob->obmat,
+                           true,
+                           false,
+                           use_subsurf_fdots,
+                           ts,
+                           use_hide);
+  }
+  else {
+    /* The subsurf modifier may have been recently removed, or another modifier was added after it,
+     * so free any potential subdivision cache as it is not needed anymore. */
+    mesh_batch_cache_free_subdiv_cache(cache);
+  }
+
   mesh_buffer_cache_create_requested(task_graph,
                                      cache,
                                      &cache->final,
+                                     ob,
                                      me,
                                      is_editmode,
                                      is_paint_mode,
@@ -1820,21 +2101,9 @@ void DRW_mesh_batch_cache_create_requested(struct TaskGraph *task_graph,
                                      ts,
                                      use_hide);
 
-  /* Ensure that all requested batches have finished.
-   * Ideally we want to remove this sync, but there are cases where this doesn't work.
-   * See T79038 for example.
-   *
-   * An idea to improve this is to separate the Object mode from the edit mode draw caches. And
-   * based on the mode the correct one will be updated. Other option is to look into using
-   * drw_batch_cache_generate_requested_delayed. */
-  const Scene *sce_eval = scene;
-  if (sce_eval) {
-    Scene *sce_orig = (Scene *)DEG_get_original_id((ID *)&sce_eval->id);
-    if ((sce_orig->flag & SCE_INTERACTIVE) == 0 &&
-        (sce_orig->flag & SCE_INTERACTIVE_VIEWPORT) == 0) {  // UPBGE
-      BLI_task_graph_work_and_wait(task_graph);
-    }
-  }
+  /* Ensure that all requested batches have finished on GPU side */  // UPBGE
+  GPU_finish();
+
 #ifdef DEBUG
   drw_mesh_batch_cache_check_available(task_graph, me);
 #endif

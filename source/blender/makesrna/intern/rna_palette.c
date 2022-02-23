@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup RNA
@@ -37,12 +23,20 @@
 #  include "BKE_report.h"
 static PaletteColor *rna_Palette_color_new(Palette *palette)
 {
+  if (ID_IS_LINKED(palette) || ID_IS_OVERRIDE_LIBRARY(palette)) {
+    return NULL;
+  }
+
   PaletteColor *color = BKE_palette_color_add(palette);
   return color;
 }
 
 static void rna_Palette_color_remove(Palette *palette, ReportList *reports, PointerRNA *color_ptr)
 {
+  if (ID_IS_LINKED(palette) || ID_IS_OVERRIDE_LIBRARY(palette)) {
+    return;
+  }
+
   PaletteColor *color = color_ptr->data;
 
   if (BLI_findindex(&palette->colors, color) == -1) {
@@ -58,6 +52,10 @@ static void rna_Palette_color_remove(Palette *palette, ReportList *reports, Poin
 
 static void rna_Palette_color_clear(Palette *palette)
 {
+  if (ID_IS_LINKED(palette) || ID_IS_OVERRIDE_LIBRARY(palette)) {
+    return;
+  }
+
   BKE_palette_clear(palette);
 }
 
@@ -141,6 +139,7 @@ static void rna_def_palettecolor(BlenderRNA *brna)
   prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_range(prop, 0.0, 1.0);
   RNA_def_property_float_sdna(prop, NULL, "rgb");
+  RNA_def_property_flag(prop, PROP_LIB_EXCEPTION);
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Color", "");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);

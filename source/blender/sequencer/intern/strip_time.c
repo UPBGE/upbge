@@ -1,24 +1,7 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * - Blender Foundation, 2003-2009
- * - Peter Schlaile <peter [at] schlaile [dot] de> 2005/2006
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved.
+ *           2003-2009 Blender Foundation.
+ *           2005-2006 Peter Schlaile <peter [at] schlaile [dot] de> */
 
 /** \file
  * \ingroup bke
@@ -131,12 +114,17 @@ static void seq_update_sound_bounds_recursive_impl(Scene *scene,
           endofs = seq->start + seq->len - end;
         }
 
+        double offset_time = 0.0f;
+        if (seq->sound != NULL) {
+          offset_time = seq->sound->offset_time;
+        }
+
         BKE_sound_move_scene_sound(scene,
                                    seq->scene_sound,
                                    seq->start + startofs,
                                    seq->start + seq->len - endofs,
                                    startofs + seq->anim_startofs,
-                                   seq->sound->offset_time);
+                                   offset_time);
       }
     }
   }
@@ -148,7 +136,7 @@ void seq_update_sound_bounds_recursive(Scene *scene, Sequence *metaseq)
       scene, metaseq, metaseq_start(metaseq), metaseq_end(metaseq));
 }
 
-void SEQ_time_update_sequence_bounds(Scene *scene, Sequence *seq)
+static void seq_time_update_sequence_bounds(Scene *scene, Sequence *seq)
 {
   if (seq->startofs && seq->startstill) {
     seq->startstill = 0;
@@ -188,6 +176,10 @@ static void seq_time_update_meta_strip(Scene *scene, Sequence *seq_meta)
 
 void SEQ_time_update_meta_strip_range(Scene *scene, Sequence *seq_meta)
 {
+  if (seq_meta == NULL) {
+    return;
+  }
+
   seq_time_update_meta_strip(scene, seq_meta);
 
   /* Prevent meta-strip to move in timeline. */
@@ -195,7 +187,7 @@ void SEQ_time_update_meta_strip_range(Scene *scene, Sequence *seq_meta)
   SEQ_transform_set_right_handle_frame(seq_meta, seq_meta->enddisp);
 }
 
-void SEQ_time_update_sequence(Scene *scene, Sequence *seq)
+void SEQ_time_update_sequence(Scene *scene, ListBase *seqbase, Sequence *seq)
 {
   Sequence *seqm;
 
@@ -203,7 +195,7 @@ void SEQ_time_update_sequence(Scene *scene, Sequence *seq)
   seqm = seq->seqbase.first;
   while (seqm) {
     if (seqm->seqbase.first) {
-      SEQ_time_update_sequence(scene, seqm);
+      SEQ_time_update_sequence(scene, &seqm->seqbase, seqm);
     }
     seqm = seqm->next;
   }
@@ -241,21 +233,83 @@ void SEQ_time_update_sequence(Scene *scene, Sequence *seq)
       seq->len = seq->enddisp - seq->startdisp;
     }
     else {
-      SEQ_time_update_sequence_bounds(scene, seq);
+      seq_time_update_sequence_bounds(scene, seq);
     }
   }
+  else if (seq->type == SEQ_TYPE_META) {
+    seq_time_update_meta_strip(scene, seq);
+  }
   else {
-    if (seq->type == SEQ_TYPE_META) {
-      seq_time_update_meta_strip(scene, seq);
-    }
+    seq_time_update_sequence_bounds(scene, seq);
+  }
 
-    Editing *ed = SEQ_editing_get(scene);
-    MetaStack *ms = SEQ_meta_stack_active_get(ed);
-    if (ms != NULL) {
-      SEQ_time_update_meta_strip_range(scene, ms->parseq);
-    }
+  Editing *ed = SEQ_editing_get(scene);
 
-    SEQ_time_update_sequence_bounds(scene, seq);
+  /* Strip is inside meta strip */
+  if (seqbase != &ed->seqbase) {
+    Sequence *meta = SEQ_get_meta_by_seqbase(&ed->seqbase, seqbase);
+    SEQ_time_update_meta_strip_range(scene, meta);
+  }
+
+  seq_time_update_sequence_bounds(scene, seq);
+}
+
+static bool update_changed_seq_recurs(Scene *scene, Sequence *seq, Sequence *changed_seq)
+{
+  Sequence *subseq;
+  bool do_update = false;
+
+  /* recurse downwards to see if this seq depends on the changed seq */
+
+  if (seq == NULL) {
+    return false;
+  }
+
+  if (seq == changed_seq) {
+    do_update = true;
+  }
+
+  for (subseq = seq->seqbase.first; subseq; subseq = subseq->next) {
+    if (update_changed_seq_recurs(scene, subseq, changed_seq)) {
+      do_update = true;
+    }
+  }
+
+  if (seq->seq1) {
+    if (update_changed_seq_recurs(scene, seq->seq1, changed_seq)) {
+      do_update = true;
+    }
+  }
+  if (seq->seq2 && (seq->seq2 != seq->seq1)) {
+    if (update_changed_seq_recurs(scene, seq->seq2, changed_seq)) {
+      do_update = true;
+    }
+  }
+  if (seq->seq3 && (seq->seq3 != seq->seq1) && (seq->seq3 != seq->seq2)) {
+    if (update_changed_seq_recurs(scene, seq->seq3, changed_seq)) {
+      do_update = true;
+    }
+  }
+
+  if (do_update) {
+    ListBase *seqbase = SEQ_active_seqbase_get(SEQ_editing_get(scene));
+    SEQ_time_update_sequence(scene, seqbase, seq);
+  }
+
+  return do_update;
+}
+
+void SEQ_time_update_recursive(Scene *scene, Sequence *changed_seq)
+{
+  Editing *ed = SEQ_editing_get(scene);
+  Sequence *seq;
+
+  if (ed == NULL) {
+    return;
+  }
+
+  for (seq = ed->seqbase.first; seq; seq = seq->next) {
+    update_changed_seq_recurs(scene, seq, changed_seq);
   }
 }
 
@@ -367,20 +421,16 @@ float SEQ_time_sequence_get_fps(Scene *scene, Sequence *seq)
   return 0.0f;
 }
 
-/**
- * Define boundary rectangle of sequencer timeline and fill in rect data
- *
- * \param scene: Scene in which strips are located
- * \param seqbase: ListBase in which strips are located
- * \param rect: data structure describing rectangle, that will be filled in by this function
- */
-void SEQ_timeline_boundbox(const Scene *scene, const ListBase *seqbase, rctf *rect)
+void SEQ_timeline_init_boundbox(const Scene *scene, rctf *rect)
 {
   rect->xmin = scene->r.sfra;
   rect->xmax = scene->r.efra + 1;
   rect->ymin = 0.0f;
   rect->ymax = 8.0f;
+}
 
+void SEQ_timeline_expand_boundbox(const ListBase *seqbase, rctf *rect)
+{
   if (seqbase == NULL) {
     return;
   }
@@ -398,6 +448,12 @@ void SEQ_timeline_boundbox(const Scene *scene, const ListBase *seqbase, rctf *re
   }
 }
 
+void SEQ_timeline_boundbox(const Scene *scene, const ListBase *seqbase, rctf *rect)
+{
+  SEQ_timeline_init_boundbox(scene, rect);
+  SEQ_timeline_expand_boundbox(seqbase, rect);
+}
+
 static bool strip_exists_at_frame(SeqCollection *all_strips, const int timeline_frame)
 {
   Sequence *seq;
@@ -409,14 +465,6 @@ static bool strip_exists_at_frame(SeqCollection *all_strips, const int timeline_
   return false;
 }
 
-/**
- * Find first gap between strips after initial_frame and describe it by filling data of r_gap_info
- *
- * \param scene: Scene in which strips are located
- * \param seqbase: ListBase in which strips are located
- * \param initial_frame: frame on timeline from where gaps are searched for
- * \param r_gap_info: data structure describing gap, that will be filled in by this function
- */
 void seq_time_gap_info_get(const Scene *scene,
                            ListBase *seqbase,
                            const int initial_frame,
@@ -462,15 +510,6 @@ void seq_time_gap_info_get(const Scene *scene,
   }
 }
 
-/**
- * Test if strip intersects with timeline frame.
- * NOTE: This checks if strip would be rendered at this frame. For rendering it is assumed, that
- * timeline frame has width of 1 frame and therefore ends at timeline_frame + 1
- *
- * \param seq: Sequence to be checked
- * \param timeline_frame: absolute frame position
- * \return true if strip intersects with timeline frame.
- */
 bool SEQ_time_strip_intersects_frame(const Sequence *seq, const int timeline_frame)
 {
   return (seq->startdisp <= timeline_frame) && (seq->enddisp > timeline_frame);

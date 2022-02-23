@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2019, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2019 Blender Foundation. */
 
 /** \file
  * \ingroup draw_engine
@@ -340,34 +325,42 @@ void OVERLAY_edit_uv_cache_init(OVERLAY_Data *vedata)
 
   if (pd->edit_uv.do_stencil_overlay) {
     const Brush *brush = BKE_paint_brush(&ts->imapaint.paint);
-
-    DRW_PASS_CREATE(psl->edit_uv_stencil_ps,
-                    DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_ALWAYS | DRW_STATE_BLEND_ALPHA_PREMUL);
-    GPUShader *sh = OVERLAY_shader_edit_uv_stencil_image();
-    GPUBatch *geom = DRW_cache_quad_get();
-    DRWShadingGroup *grp = DRW_shgroup_create(sh, psl->edit_uv_stencil_ps);
     Image *stencil_image = brush->clone.image;
     ImBuf *stencil_ibuf = BKE_image_acquire_ibuf(stencil_image, NULL, &pd->edit_uv.stencil_lock);
-    pd->edit_uv.stencil_ibuf = stencil_ibuf;
-    pd->edit_uv.stencil_image = stencil_image;
-    GPUTexture *stencil_texture = BKE_image_get_gpu_texture(stencil_image, NULL, stencil_ibuf);
-    DRW_shgroup_uniform_texture(grp, "imgTexture", stencil_texture);
-    DRW_shgroup_uniform_bool_copy(grp, "imgPremultiplied", true);
-    DRW_shgroup_uniform_bool_copy(grp, "imgAlphaBlend", true);
-    DRW_shgroup_uniform_vec4_copy(grp, "color", (float[4]){1.0f, 1.0f, 1.0f, brush->clone.alpha});
 
-    float size_image[2];
-    BKE_image_get_size_fl(image, NULL, size_image);
-    float size_stencil_image[2] = {stencil_ibuf->x, stencil_ibuf->y};
+    if (stencil_ibuf == NULL) {
+      pd->edit_uv.stencil_ibuf = NULL;
+      pd->edit_uv.stencil_image = NULL;
+    }
+    else {
+      DRW_PASS_CREATE(psl->edit_uv_stencil_ps,
+                      DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_ALWAYS |
+                          DRW_STATE_BLEND_ALPHA_PREMUL);
+      GPUShader *sh = OVERLAY_shader_edit_uv_stencil_image();
+      GPUBatch *geom = DRW_cache_quad_get();
+      DRWShadingGroup *grp = DRW_shgroup_create(sh, psl->edit_uv_stencil_ps);
+      pd->edit_uv.stencil_ibuf = stencil_ibuf;
+      pd->edit_uv.stencil_image = stencil_image;
+      GPUTexture *stencil_texture = BKE_image_get_gpu_texture(stencil_image, NULL, stencil_ibuf);
+      DRW_shgroup_uniform_texture(grp, "imgTexture", stencil_texture);
+      DRW_shgroup_uniform_bool_copy(grp, "imgPremultiplied", true);
+      DRW_shgroup_uniform_bool_copy(grp, "imgAlphaBlend", true);
+      DRW_shgroup_uniform_vec4_copy(
+          grp, "color", (float[4]){1.0f, 1.0f, 1.0f, brush->clone.alpha});
 
-    float obmat[4][4];
-    unit_m4(obmat);
-    obmat[3][1] = brush->clone.offset[1];
-    obmat[3][0] = brush->clone.offset[0];
-    obmat[0][0] = size_stencil_image[0] / size_image[0];
-    obmat[1][1] = size_stencil_image[1] / size_image[1];
+      float size_image[2];
+      BKE_image_get_size_fl(image, NULL, size_image);
+      float size_stencil_image[2] = {stencil_ibuf->x, stencil_ibuf->y};
 
-    DRW_shgroup_call_obmat(grp, geom, obmat);
+      float obmat[4][4];
+      unit_m4(obmat);
+      obmat[3][1] = brush->clone.offset[1];
+      obmat[3][0] = brush->clone.offset[0];
+      obmat[0][0] = size_stencil_image[0] / size_image[0];
+      obmat[1][1] = size_stencil_image[1] / size_image[1];
+
+      DRW_shgroup_call_obmat(grp, geom, obmat);
+    }
   }
   else {
     pd->edit_uv.stencil_ibuf = NULL;
@@ -404,7 +397,7 @@ void OVERLAY_edit_uv_cache_init(OVERLAY_Data *vedata)
         draw_ctx->view_layer, NULL, &objects_len, draw_ctx->object_mode);
     for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
       Object *object_eval = DEG_get_evaluated_object(draw_ctx->depsgraph, objects[ob_index]);
-      DRW_mesh_batch_cache_validate((Mesh *)object_eval->data);
+      DRW_mesh_batch_cache_validate(object_eval, (Mesh *)object_eval->data);
       overlay_edit_uv_cache_populate(vedata, object_eval);
     }
     MEM_freeN(objects);
@@ -433,22 +426,22 @@ static void overlay_edit_uv_cache_populate(OVERLAY_Data *vedata, Object *ob)
 
   if (has_active_edit_uvmap) {
     if (pd->edit_uv.do_uv_overlay) {
-      geom = DRW_mesh_batch_cache_get_edituv_edges(ob->data);
+      geom = DRW_mesh_batch_cache_get_edituv_edges(ob, ob->data);
       if (geom) {
         DRW_shgroup_call_obmat(pd->edit_uv_edges_grp, geom, NULL);
       }
-      geom = DRW_mesh_batch_cache_get_edituv_verts(ob->data);
+      geom = DRW_mesh_batch_cache_get_edituv_verts(ob, ob->data);
       if (geom) {
         DRW_shgroup_call_obmat(pd->edit_uv_verts_grp, geom, NULL);
       }
       if (pd->edit_uv.do_faces) {
-        geom = DRW_mesh_batch_cache_get_edituv_faces(ob->data);
+        geom = DRW_mesh_batch_cache_get_edituv_faces(ob, ob->data);
         if (geom) {
           DRW_shgroup_call_obmat(pd->edit_uv_faces_grp, geom, NULL);
         }
       }
       if (pd->edit_uv.do_face_dots) {
-        geom = DRW_mesh_batch_cache_get_edituv_facedots(ob->data);
+        geom = DRW_mesh_batch_cache_get_edituv_facedots(ob, ob->data);
         if (geom) {
           DRW_shgroup_call_obmat(pd->edit_uv_face_dots_grp, geom, NULL);
         }
@@ -457,14 +450,14 @@ static void overlay_edit_uv_cache_populate(OVERLAY_Data *vedata, Object *ob)
 
     if (pd->edit_uv.do_uv_stretching_overlay) {
       if (pd->edit_uv.draw_type == SI_UVDT_STRETCH_ANGLE) {
-        geom = DRW_mesh_batch_cache_get_edituv_faces_stretch_angle(me);
+        geom = DRW_mesh_batch_cache_get_edituv_faces_stretch_angle(ob, me);
       }
       else /* SI_UVDT_STRETCH_AREA */ {
         OVERLAY_StretchingAreaTotals *totals = MEM_mallocN(sizeof(OVERLAY_StretchingAreaTotals),
                                                            __func__);
         BLI_addtail(&pd->edit_uv.totals, totals);
         geom = DRW_mesh_batch_cache_get_edituv_faces_stretch_area(
-            me, &totals->total_area, &totals->total_area_uv);
+            ob, me, &totals->total_area, &totals->total_area_uv);
       }
       if (geom) {
         DRW_shgroup_call_obmat(pd->edit_uv_stretching_grp, geom, NULL);
@@ -474,7 +467,7 @@ static void overlay_edit_uv_cache_populate(OVERLAY_Data *vedata, Object *ob)
 
   if (draw_shadows && (has_active_object_uvmap || has_active_edit_uvmap)) {
     if (pd->edit_uv.do_uv_shadow_overlay) {
-      geom = DRW_mesh_batch_cache_get_uv_edges(ob->data);
+      geom = DRW_mesh_batch_cache_get_uv_edges(ob, ob->data);
       if (geom) {
         DRW_shgroup_call_obmat(pd->edit_uv_shadow_edges_grp, geom, NULL);
       }

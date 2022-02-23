@@ -32,8 +32,6 @@
 
 #include "ImageRender.h"
 
-#include "DEG_depsgraph_query.h"
-#include "GPU_viewport.h"
 #include "eevee_private.h"
 
 #include "EXP_PythonCallBack.h"
@@ -140,7 +138,8 @@ void ImageRender::calcViewport(unsigned int texId, double ts, unsigned int forma
 
   GPU_framebuffer_texture_attach(
       m_targetfb, GPU_viewport_color_texture(m_camera->GetGPUViewport(), 0), 0, 0);
-  GPU_framebuffer_texture_attach(m_targetfb, DRW_viewport_texture_list_get()->depth, 0, 0);
+  GPU_framebuffer_texture_attach(
+      m_targetfb, GPU_viewport_depth_texture(m_camera->GetGPUViewport()), 0, 0);
   GPU_framebuffer_bind(m_targetfb);
 
   // get image from viewport (or FBO)
@@ -148,7 +147,8 @@ void ImageRender::calcViewport(unsigned int texId, double ts, unsigned int forma
 
   GPU_framebuffer_texture_detach(m_targetfb,
                                  GPU_viewport_color_texture(m_camera->GetGPUViewport(), 0));
-  GPU_framebuffer_texture_detach(m_targetfb, DRW_viewport_texture_list_get()->depth);
+  GPU_framebuffer_texture_detach(m_targetfb,
+                                 GPU_viewport_depth_texture(m_camera->GetGPUViewport()));
 
   GPU_framebuffer_restore();
 }
@@ -166,8 +166,7 @@ bool ImageRender::Render()
   /* Viewport render mode doesn't support ImageRender then exit here
    * if we are trying to use not supported features. */
   if (KX_GetActiveEngine()->UseViewportRender()) {
-    std::cout << "Warning: Viewport Render mode doesn't support ImageRender"
-              << std::endl;
+    std::cout << "Warning: Viewport Render mode doesn't support ImageRender" << std::endl;
     return false;
   }
 
@@ -256,7 +255,7 @@ bool ImageRender::Render()
   GPU_scissor(viewport[0], viewport[1], viewport[2], viewport[3]);
   GPU_apply_state();
 
-  //GPU_clear_depth(1.0f);
+  // GPU_clear_depth(1.0f);
 
   m_rasterizer->SetAuxilaryClientInfo(m_scene);
 
@@ -365,7 +364,7 @@ bool ImageRender::Render()
     DEG_id_tag_update(&m_camera->GetBlenderObject()->id, ID_RECALC_TRANSFORM);
   }
 
-  m_scene->TagForExtraObjectsUpdate(bmain, m_camera);
+  m_scene->TagForExtraIdsUpdate(bmain, m_camera);
   /* We need the changes to be flushed before each draw loop! */
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
@@ -454,16 +453,19 @@ static int ImageRender_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
   int width = canvas->GetWidth();
   int height = canvas->GetHeight();
   int samples = 1;
-
+  // parameter keywords
+  static const char *kwlist[] = {"sceneObj", "cameraObj", "width", "height", "samples", nullptr};
   // get parameters
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "OO|iii",
-                                     {"sceneObj", "cameraObj", "width", "height", "samples", nullptr},
-                                     &scene, &camera, &width, &height, &samples)) {
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   kwds,
+                                   "OO|iii",
+                                   const_cast<char **>(kwlist),
+                                   &scene,
+                                   &camera,
+                                   &width,
+                                   &height,
+                                   &samples))
     return -1;
-  }
-
   try {
     // get scene pointer
     KX_Scene *scenePtr(nullptr);
@@ -744,15 +746,22 @@ static int ImageMirror_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
   int height = canvas->GetHeight();
   int samples = 1;
 
+  // parameter keywords
+  static const char *kwlist[] = {
+      "scene", "observer", "mirror", "material", "width", "height", "samples", nullptr};
   // get parameters
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "OOO|hiii",
-                                     {"scene", "observer", "mirror", "material", "width", "height", "samples", 0},
-                                     &scene, &observer, &mirror, &materialID, &width, &height, &samples)) {
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   kwds,
+                                   "OOO|hiii",
+                                   const_cast<char **>(kwlist),
+                                   &scene,
+                                   &observer,
+                                   &mirror,
+                                   &materialID,
+                                   &width,
+                                   &height,
+                                   &samples))
     return -1;
-  }
-
   try {
     // get scene pointer
     KX_Scene *scenePtr(nullptr);

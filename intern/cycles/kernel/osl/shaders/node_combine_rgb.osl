@@ -1,0 +1,9 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
+
+#include "stdcycles.h"
+
+shader node_combine_rgb(float R = 0.0, float G = 0.0, float B = 0.0, output color Image = 0.8)
+{
+  Image = color(R, G, B);
+}

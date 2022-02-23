@@ -44,24 +44,17 @@
 #include "BKE_object.h"
 #include "DEG_depsgraph_query.h"
 #include "DRW_render.h"
-#include "eevee_private.h"
 #include "WM_api.h"
-#include "WM_types.h"
 
 #include "BL_Action.h"
 #include "BL_ActionManager.h"
-#include "BL_BlenderSceneConverter.h"
-#include "CM_Message.h"
-#include "KX_Camera.h"  // only for their ::Type
+#include "BL_SceneConverter.h"
 #include "KX_ClientObjectInfo.h"
 #include "KX_CollisionContactPoints.h"
-#include "KX_FontObject.h"  // only for their ::Type
 #include "KX_Globals.h"
-#include "KX_Light.h"  // only for their ::Type
 #include "KX_LodLevel.h"
 #include "KX_LodManager.h"
 #include "KX_MeshProxy.h"
-#include "KX_NavMeshObject.h"
 #include "KX_NetworkMessageScene.h"  //Needed for sendMessage()
 #include "KX_NodeRelationships.h"
 #include "KX_PolyProxy.h"
@@ -72,8 +65,8 @@
 #include "SG_Controller.h"
 
 #ifdef WITH_PYTHON
-#  include "bpy_rna.h"
 #  include "EXP_PythonCallBack.h"
+#  include "bpy_rna.h"
 #  include "python_utildefines.h"
 #endif
 
@@ -82,12 +75,17 @@ static MT_Vector3 dummy_scaling = MT_Vector3(1.0f, 1.0f, 1.0f);
 static MT_Matrix3x3 dummy_orientation = MT_Matrix3x3(
     1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
 
+KX_GameObject::ActivityCullingInfo::ActivityCullingInfo()
+    : m_flags(ACTIVITY_NONE), m_physicsRadius(0.0f), m_logicRadius(0.0f)
+{
+}
+
 KX_GameObject::KX_GameObject()
     : SCA_IObject(),
-      m_isReplica(false),              // eevee
-      m_visibleAtGameStart(false),     // eevee
-      m_forceIgnoreParentTx(false),    // eevee
-      m_previousLodLevel(-1),          // eevee
+      m_isReplica(false),            // eevee
+      m_visibleAtGameStart(false),   // eevee
+      m_forceIgnoreParentTx(false),  // eevee
+      m_previousLodLevel(-1),        // eevee
       m_layer(0),
       m_lodManager(nullptr),
       m_currentLodLevel(0),
@@ -99,12 +97,12 @@ KX_GameObject::KX_GameObject()
       m_bOccluder(false),
       m_pPhysicsController(nullptr),
       m_pSGNode(nullptr),
-      m_components(NULL),
       m_pInstanceObjects(nullptr),
       m_pDupliGroupObject(nullptr),
       m_actionManager(nullptr)
 #ifdef WITH_PYTHON
       ,
+      m_components(NULL),
       m_attr_dict(nullptr),
       m_collisionCallbacks(nullptr),
       m_removeCallbacks(nullptr)
@@ -252,14 +250,14 @@ void KX_GameObject::ForceIgnoreParentTx()
   m_forceIgnoreParentTx = true;
 }
 
-void KX_GameObject::TagForTransformUpdate(bool is_last_render_pass)
+void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_render_pass)
 {
   float obmat[4][4];
   NodeGetWorldTransform().getValue(&obmat[0][0]);
   bool staticObject = true;
   if (GetSGNode()->IsDirty(SG_Node::DIRTY_RENDER)) {
     staticObject = false;
-    /* Wait the end of all render passes (main + overlay)
+    /* Wait the end of all render passes (main + custom viewports)
      * to clear dirty render because we want the objects to
      * be tagged for transform update for each render pass.
      */
@@ -269,7 +267,7 @@ void KX_GameObject::TagForTransformUpdate(bool is_last_render_pass)
     }
     else if (multiple_render_passes && is_last_render_pass) {
       GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
-      copy_m4_m4(m_prevObmat, obmat); // This is used for ImageRender but could be changed...
+      copy_m4_m4(m_prevObmat, obmat);  // This is used for ImageRender but could be changed...
     }
     else {
       GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
@@ -284,6 +282,12 @@ void KX_GameObject::TagForTransformUpdate(bool is_last_render_pass)
   Object *ob_orig = GetBlenderObject();
 
   bool skip_transform = ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY;
+  /* Don't tag non overlay collection objects in overlay collection render pass */
+  skip_transform = skip_transform ||
+                   ((ob_orig->gameflag & OB_OVERLAY_COLLECTION) == 0 && is_overlay_pass);
+  /* Don't tag overlay collection objects in non overlay collection render pass */
+  skip_transform = skip_transform ||
+                   (ob_orig->gameflag & OB_OVERLAY_COLLECTION && !is_overlay_pass);
 
   if (ob_orig && !skip_transform) {
 
@@ -291,7 +295,8 @@ void KX_GameObject::TagForTransformUpdate(bool is_last_render_pass)
 
     if (applyTransformToOrig) {
       copy_m4_m4(ob_orig->obmat, obmat);
-      BKE_object_apply_mat4(ob_orig, ob_orig->obmat, false, ob_orig->parent && ob_orig->partype != PARVERT1);
+      BKE_object_apply_mat4(
+          ob_orig, ob_orig->obmat, false, ob_orig->parent && ob_orig->partype != PARVERT1);
     }
 
     if (!staticObject || m_forceIgnoreParentTx) {
@@ -431,12 +436,13 @@ void KX_GameObject::HideOriginalObject()
 
 void KX_GameObject::Dispose()
 {
+#ifdef WITH_PYTHON
   if (m_components) {
     for (KX_PythonComponent *comp : m_components) {
       comp->Dispose();
     }
   }
-
+#endif
   SCA_IObject::Dispose();
 }
 
@@ -910,6 +916,11 @@ void KX_GameObject::ProcessReplica()
   ReplicateBlenderObject();
   GetScene()->GetBlenderSceneConverter()->RegisterGameObject(this, m_pBlenderObject);
 
+  if (m_lodManager) {
+    m_lodManager->AddRef();
+    GetScene()->AddObjToLodObjList(this);
+  }
+
   m_pPhysicsController = nullptr;
   m_pSGNode = nullptr;
 
@@ -921,11 +932,6 @@ void KX_GameObject::ProcessReplica()
   m_pClient_info->m_gameobject = this;
   m_actionManager = nullptr;
   m_state = 0;
-
-  if (m_lodManager) {
-    m_lodManager->AddRef();
-    GetScene()->AddObjToLodObjList(this);
-  }
 
 #ifdef WITH_PYTHON
 
@@ -942,31 +948,29 @@ void KX_GameObject::ProcessReplica()
 #endif
 }
 
-void KX_GameObject::SetUserCollisionGroup(unsigned short group)
+void KX_GameObject::SetCollisionGroup(unsigned short group)
 {
-  m_userCollisionGroup = group;
-  if (m_pPhysicsController)
+  if (m_pPhysicsController) {
+    m_pPhysicsController->SetCollisionGroup(group);
     m_pPhysicsController->RefreshCollisions();
+  }
 }
-void KX_GameObject::SetUserCollisionMask(unsigned short mask)
+void KX_GameObject::SetCollisionMask(unsigned short mask)
 {
-  m_userCollisionMask = mask;
-  if (m_pPhysicsController)
+  if (m_pPhysicsController) {
+    m_pPhysicsController->SetCollisionMask(mask);
     m_pPhysicsController->RefreshCollisions();
+  }
 }
 
-unsigned short KX_GameObject::GetUserCollisionGroup()
+unsigned short KX_GameObject::GetCollisionGroup() const
 {
-  return m_userCollisionGroup;
-}
-unsigned short KX_GameObject::GetUserCollisionMask()
-{
-  return m_userCollisionMask;
+  return m_pPhysicsController ? m_pPhysicsController->GetCollisionGroup() : 0;
 }
 
-bool KX_GameObject::CheckCollision(KX_GameObject *other)
+unsigned short KX_GameObject::GetCollisionMask() const
 {
-  return this->m_userCollisionGroup & other->m_userCollisionMask;
+  return m_pPhysicsController ? m_pPhysicsController->GetCollisionMask() : 0;
 }
 
 KX_PythonProxy *KX_GameObject::NewInstance()
@@ -1086,7 +1090,7 @@ void KX_GameObject::UpdateBuckets()
 
 void KX_GameObject::RemoveMeshes()
 {
-  // note: meshes can be shared, and are deleted by BL_BlenderSceneConverter
+  // note: meshes can be shared, and are deleted by BL_SceneConverter
   m_meshes.clear();
 }
 
@@ -1278,7 +1282,12 @@ void KX_GameObject::SetVisible(bool v, bool recursive)
       }
 
       BKE_layer_collection_sync(scene, view_layer);
-      DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
+      if (ob->gameflag & OB_OVERLAY_COLLECTION) {
+        GetScene()->AppendToIdsToUpdateInOverlayPass(&scene->id, ID_RECALC_BASE_FLAGS);
+      }
+      else {
+        GetScene()->AppendToIdsToUpdateInAllRenderPasses(&scene->id, ID_RECALC_BASE_FLAGS);
+      }
     }
   }
 
@@ -1382,7 +1391,7 @@ void KX_GameObject::SetObjectColor(const MT_Vector4 &rgbavec)
   m_objectColor = rgbavec;
   Object *ob_orig = GetBlenderObject();
   if (ob_orig && GetScene()->OrigObCanBeTransformedInRealtime(ob_orig) &&
-      ELEM(ob_orig->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) {
+      ELEM(ob_orig->type, OB_MESH, OB_CURVES_LEGACY, OB_SURF, OB_FONT, OB_MBALL)) {
     copy_v4_v4(ob_orig->color, m_objectColor.getValue());
     DEG_id_tag_update(&ob_orig->id, ID_RECALC_SHADING | ID_RECALC_TRANSFORM);
     WM_main_add_notifier(NC_OBJECT | ND_DRAW, &ob_orig->id);
@@ -1764,13 +1773,13 @@ void KX_GameObject::RunCollisionCallbacks(KX_GameObject *collider,
     return;
   }
 
-  EXP_ListWrapper *listWrapper = contactPointList.GetListWrapper();
+  const PHY_ICollData *collData = contactPointList.GetCollData();
+  const bool isFirstObject = contactPointList.GetFirstObject();
+
   PyObject *args[] = {collider->GetProxy(),
-                      PyObjectFrom(contactPointList.GetCollData()->GetWorldPoint(
-                          0, contactPointList.GetFirstObject())),
-                      PyObjectFrom(contactPointList.GetCollData()->GetNormal(
-                          0, contactPointList.GetFirstObject())),
-                      listWrapper->GetProxy()};
+                      PyObjectFrom(collData->GetWorldPoint(0, isFirstObject)),
+                      PyObjectFrom(collData->GetNormal(0, isFirstObject)),
+                      contactPointList.GetProxy()};
   EXP_RunPythonCallBackList(m_collisionCallbacks, args, 1, ARRAY_SIZE(args));
 
   for (unsigned int i = 0; i < ARRAY_SIZE(args); ++i) {
@@ -1778,8 +1787,7 @@ void KX_GameObject::RunCollisionCallbacks(KX_GameObject *collider,
   }
 
   // Invalidate the collison contact point to avoid acces to it in next frame
-  listWrapper->InvalidateProxy();
-  delete listWrapper;
+  contactPointList.InvalidateProxy();
 #endif
 }
 
@@ -1803,7 +1811,7 @@ void KX_GameObject::RunOnRemoveCallbacks()
  * So far, only switch the physics and logic.
  * */
 
-//void KX_GameObject::ResumeDynamics(void)
+// void KX_GameObject::ResumeDynamics(void)
 //{
 //  if (m_logicSuspended) {
 //    SCA_IObject::ResumeLogic();
@@ -1815,7 +1823,7 @@ void KX_GameObject::RunOnRemoveCallbacks()
 //  }
 //}
 //
-//void KX_GameObject::SuspendDynamics()
+// void KX_GameObject::SuspendDynamics()
 //{
 //  if (!m_logicSuspended) {
 //    SCA_IObject::SuspendLogic();
@@ -1864,12 +1872,18 @@ std::vector<KX_GameObject *> KX_GameObject::GetChildrenRecursive() const
 
 EXP_ListValue<KX_PythonComponent> *KX_GameObject::GetComponents() const
 {
+#ifdef WITH_PYTHON
   return m_components;
+#else
+  return nullptr;
+#endif
 }
 
 void KX_GameObject::SetComponents(EXP_ListValue<KX_PythonComponent> *components)
 {
+#ifdef WITH_PYTHON
   m_components = components;
+#endif
 }
 
 void KX_GameObject::Update()
@@ -2178,6 +2192,7 @@ PyMethodDef KX_GameObject::Methods[] = {
     {"disableRigidBody", (PyCFunction)KX_GameObject::sPyDisableRigidBody, METH_NOARGS},
     {"applyImpulse", (PyCFunction)KX_GameObject::sPyApplyImpulse, METH_VARARGS},
     {"setCollisionMargin", (PyCFunction)KX_GameObject::sPySetCollisionMargin, METH_O},
+    {"collide", (PyCFunction) KX_GameObject::sPyCollide, METH_O},
     {"setParent", (PyCFunction)KX_GameObject::sPySetParent, METH_VARARGS | METH_KEYWORDS},
     {"setVisible", (PyCFunction)KX_GameObject::sPySetVisible, METH_VARARGS},
     {"setOcclusion", (PyCFunction)KX_GameObject::sPySetOcclusion, METH_VARARGS},
@@ -2356,11 +2371,14 @@ PyObject *KX_GameObject::PyReplaceMesh(PyObject *args, PyObject *kwds)
   int use_gfx = 1, use_phys = 0;
   RAS_MeshObject *new_mesh;
 
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "O|ii:replaceMesh",
-                                     {"mesh", "useDisplayMesh", "usePhysicsMesh", 0},
-                                     &value, &use_gfx, &use_phys)) {
+  static const char *kwlist[] = {"mesh", "useDisplayMesh", "usePhysicsMesh", nullptr};
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   kwds,
+                                   "O|ii:replaceMesh",
+                                   const_cast<char **>(kwlist),
+                                   &value,
+                                   &use_gfx,
+                                   &use_phys)) {
     return nullptr;
   }
 
@@ -2390,11 +2408,15 @@ PyObject *KX_GameObject::PyReinstancePhysicsMesh(PyObject *args, PyObject *kwds)
   PyObject *gameobj_py = nullptr;
   PyObject *mesh_py = nullptr;
 
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "|OOii:reinstancePhysicsMesh",
-                                     {"gameObject", "meshObject", "dupli", "evaluated", 0},
-                                     &gameobj_py, &mesh_py, &dupli, &evaluated) ||
+  static const char *kwlist[] = {"gameObject", "meshObject", "dupli", "evaluated", nullptr};
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   kwds,
+                                   "|OOii:reinstancePhysicsMesh",
+                                   const_cast<char **>(kwlist),
+                                   &gameobj_py,
+                                   &mesh_py,
+                                   &dupli,
+                                   &evaluated) ||
       (gameobj_py && !ConvertPythonToGameObject(
                          logicmgr,
                          gameobj_py,
@@ -2813,7 +2835,7 @@ PyObject *KX_GameObject::pyattr_get_collisionGroup(EXP_PyObjectPlus *self_v,
                                                    const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-  return PyLong_FromLong(self->GetUserCollisionGroup());
+  return PyLong_FromLong(self->GetCollisionGroup());
 }
 
 int KX_GameObject::pyattr_set_collisionGroup(EXP_PyObjectPlus *self_v,
@@ -2837,7 +2859,7 @@ int KX_GameObject::pyattr_set_collisionGroup(EXP_PyObjectPlus *self_v,
     return PY_SET_ATTR_FAIL;
   }
 
-  self->SetUserCollisionGroup(val);
+  self->SetCollisionGroup(val);
   return PY_SET_ATTR_SUCCESS;
 }
 
@@ -2845,7 +2867,7 @@ PyObject *KX_GameObject::pyattr_get_collisionMask(EXP_PyObjectPlus *self_v,
                                                   const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-  return PyLong_FromLong(self->GetUserCollisionMask());
+  return PyLong_FromLong(self->GetCollisionMask());
 }
 
 int KX_GameObject::pyattr_set_collisionMask(EXP_PyObjectPlus *self_v,
@@ -2869,7 +2891,7 @@ int KX_GameObject::pyattr_set_collisionMask(EXP_PyObjectPlus *self_v,
     return PY_SET_ATTR_FAIL;
   }
 
-  self->SetUserCollisionMask(val);
+  self->SetCollisionMask(val);
   return PY_SET_ATTR_SUCCESS;
 }
 
@@ -2902,9 +2924,9 @@ PyObject *KX_GameObject::pyattr_get_life(EXP_PyObjectPlus *self_v,
 
   EXP_Value *life = self->GetProperty("::timebomb");
   if (life)
-    // this convert the timebomb seconds to frames, hard coded 50.0f (assuming 50fps)
+    // this convert the timebomb seconds to frames, hard coded 60.0f (assuming 60fps)
     // value hardcoded in KX_Scene::AddReplicaObject()
-    return PyFloat_FromDouble(life->GetNumber() * 50.0);
+    return PyFloat_FromDouble(life->GetNumber() * 60.0);
   else
     Py_RETURN_NONE;
 }
@@ -2937,7 +2959,7 @@ int KX_GameObject::pyattr_set_mass(EXP_PyObjectPlus *self_v,
 }
 
 PyObject *KX_GameObject::pyattr_get_friction(EXP_PyObjectPlus *self_v,
-                                         const EXP_PYATTRIBUTE_DEF *attrdef)
+                                             const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
   PHY_IPhysicsController *spc = self->GetPhysicsController();
@@ -2945,8 +2967,8 @@ PyObject *KX_GameObject::pyattr_get_friction(EXP_PyObjectPlus *self_v,
 }
 
 int KX_GameObject::pyattr_set_friction(EXP_PyObjectPlus *self_v,
-                                   const EXP_PYATTRIBUTE_DEF *attrdef,
-                                   PyObject *value)
+                                       const EXP_PYATTRIBUTE_DEF *attrdef,
+                                       PyObject *value)
 {
   KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
   PHY_IPhysicsController *spc = self->GetPhysicsController();
@@ -3769,8 +3791,15 @@ PyObject *KX_GameObject::pyattr_get_meshes(EXP_PyObjectPlus *self_v,
 PyObject *KX_GameObject::pyattr_get_obcolor(EXP_PyObjectPlus *self_v,
                                             const EXP_PYATTRIBUTE_DEF *attrdef)
 {
+#  ifdef USE_MATHUTILS
+  return Vector_CreatePyObject_cb(EXP_PROXY_FROM_REF_BORROW(self_v),
+                                  4,
+                                  mathutils_kxgameob_vector_cb_index,
+                                  MATHUTILS_VEC_CB_OBJECT_COLOR);
+#  else
   KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-  return PyObjectFrom(self->m_objectColor);
+  return PyObjectFrom(self->GetObjectColor());
+#  endif
 }
 
 int KX_GameObject::pyattr_set_obcolor(EXP_PyObjectPlus *self_v,
@@ -4230,11 +4259,14 @@ PyObject *KX_GameObject::PySetParent(PyObject *args, PyObject *kwds)
   KX_GameObject *obj;
   int addToCompound = 1, ghost = 1;
 
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "O|ii:setParent",
-                                     {"parent", "compound", "ghost", 0},
-                                     &pyobj, &addToCompound, &ghost)) {
+  static const char *kwlist[] = {"parent", "compound", "ghost", nullptr};
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   kwds,
+                                   "O|ii:setParent",
+                                   const_cast<char **>(kwlist),
+                                   &pyobj,
+                                   &addToCompound,
+                                   &ghost)) {
     return nullptr;  // Python sets a simple error
   }
   if (!ConvertPythonToGameObject(
@@ -4265,6 +4297,47 @@ PyObject *KX_GameObject::PySetCollisionMargin(PyObject *value)
 
   m_pPhysicsController->SetMargin(collisionMargin);
   Py_RETURN_NONE;
+}
+
+PyObject *KX_GameObject::PyCollide(PyObject *value)
+{
+  KX_Scene *scene = GetScene();
+  KX_GameObject *other;
+
+  if (!ConvertPythonToGameObject(scene->GetLogicManager(), value, &other, false, "gameOb.collide(obj): KX_GameObject")) {
+    return nullptr;
+  }
+
+  if (!m_pPhysicsController || !other->GetPhysicsController()) {
+    PyErr_SetString(PyExc_TypeError, "expected objects with physics controller");
+    return nullptr;
+  }
+
+  PHY_IPhysicsEnvironment *env = scene->GetPhysicsEnvironment();
+  PHY_CollisionTestResult testResult = env->CheckCollision(m_pPhysicsController, other->GetPhysicsController());
+
+  PyObject *result = PyTuple_New(2);
+  if (!testResult.collide) {
+    PyTuple_SET_ITEM(result, 0, Py_False);
+    PyTuple_SET_ITEM(result, 1, Py_None);
+    Py_INCREF(Py_False);
+    Py_INCREF(Py_None);
+  }
+  else {
+    PyTuple_SET_ITEM(result, 0, Py_True);
+    Py_INCREF(Py_True);
+
+    if (testResult.collData) {
+      KX_CollisionContactPointList *contactPointList = new KX_CollisionContactPointList(testResult.collData, testResult.isFirst);
+      PyTuple_SET_ITEM(result, 1, contactPointList->NewProxy(true));
+    }
+    else {
+      PyTuple_SET_ITEM(result, 1, Py_None);
+      Py_INCREF(Py_None);
+    }
+  }
+
+  return result;
 }
 
 PyObject *KX_GameObject::PyApplyImpulse(PyObject *args)
@@ -4337,11 +4410,9 @@ PyObject *KX_GameObject::PyAlignAxisToVect(PyObject *args, PyObject *kwds)
   int axis = 2;  // z axis is the default
   float fac = 1.0f;
 
-  if (EXP_ParseTupleArgsAndKeywords(args,
-                                    kwds,
-                                    "O|if:alignAxisToVect",
-                                    {"vect", "axis", "factor", 0},
-                                    &pyvect, &axis, &fac)) {
+  static const char *kwlist[] = {"vect", "axis", "factor", nullptr};
+  if (PyArg_ParseTupleAndKeywords(
+          args, kwds, "O|if:alignAxisToVect", const_cast<char **>(kwlist), &pyvect, &axis, &fac)) {
     MT_Vector3 vect;
     if (PyVecTo(pyvect, vect)) {
       if (fac > 0.0f) {
@@ -4487,7 +4558,7 @@ static bool CheckRayCastObject(KX_GameObject *obj, KX_GameObject::RayCastData *r
   // Check if the object had a given property (if this one is non empty) and have the correct group
   // mask (if this one is different from 0xFFFF).
   return ((prop.empty() || obj->GetProperty(prop)) &&
-          (mask == ((1u << OB_MAX_COL_MASKS) - 1) || obj->GetUserCollisionGroup() & mask));
+          (mask == ((1u << OB_MAX_COL_MASKS) - 1) || obj->GetCollisionGroup() & mask));
 }
 
 bool KX_GameObject::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, RayCastData *rayData)
@@ -4532,11 +4603,9 @@ EXP_PYMETHODDEF_DOC(
   const char *propName = "";
   SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
 
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "O|fs:rayCastTo",
-                                     {"other", "dist", "prop", 0},
-                                     &pyarg, &dist, &propName)) {
+  static const char *kwlist[] = {"other", "dist", "prop", nullptr};
+  if (!PyArg_ParseTupleAndKeywords(
+          args, kwds, "O|fs:rayCastTo", const_cast<char **>(kwlist), &pyarg, &dist, &propName)) {
     return nullptr;  // python sets simple error
   }
 
@@ -4670,11 +4739,20 @@ EXP_PYMETHODDEF_DOC(
   int mask = (1 << OB_MAX_COL_MASKS) - 1;
   SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
 
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "O|Ofsiiii:rayCast",
-                                     {"objto", "objfrom", "dist", "prop", "face", "xray", "poly", "mask", 0},
-                                     &pyto, &pyfrom, &dist, &propName, &face, &xray, &poly, &mask)) {
+  static const char *kwlist[] = {
+      "objto", "objfrom", "dist", "prop", "face", "xray", "poly", "mask", nullptr};
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   kwds,
+                                   "O|Ofsiiii:rayCast",
+                                   const_cast<char **>(kwlist),
+                                   &pyto,
+                                   &pyfrom,
+                                   &dist,
+                                   &propName,
+                                   &face,
+                                   &xray,
+                                   &poly,
+                                   &mask)) {
     return nullptr;  // Python sets a simple error
   }
 
@@ -4746,7 +4824,8 @@ EXP_PYMETHODDEF_DOC(
 
   if (KX_RayCast::RayTest(pe, fromPoint, toPoint, callback) && rayData.m_hitObject) {
     PyObject *returnValue = (poly == 2) ? PyTuple_New(5) :
-                                          (poly) ? PyTuple_New(4) : PyTuple_New(3);
+                            (poly)      ? PyTuple_New(4) :
+                                          PyTuple_New(3);
     if (returnValue) {  // unlikely this would ever fail, if it does python sets an error
       PyTuple_SET_ITEM(returnValue, 0, rayData.m_hitObject->GetProxy());
       PyTuple_SET_ITEM(returnValue, 1, PyObjectFrom(callback.m_hitPoint));
@@ -4800,11 +4879,9 @@ EXP_PYMETHODDEF_DOC(KX_GameObject,
   char *body = (char *)"";
   char *to = (char *)"";
 
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "s|ss:sendMessage",
-                                     {"subject", "body", "to", 0},
-                                     &subject, &body, &to)) {
+  static const char *kwlist[] = {"subject", "body", "to", nullptr};
+  if (!PyArg_ParseTupleAndKeywords(
+          args, kwds, "s|ss:sendMessage", const_cast<char **>(kwlist), &subject, &body, &to)) {
     return nullptr;
   }
 
@@ -4836,11 +4913,34 @@ EXP_PYMETHODDEF_DOC(KX_GameObject,
   short play_mode = 0;
   short blend_mode = 0;
 
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "sff|hhfhfhfh:playAction",
-                                     {"name", "start_frame", "end_frame", "layer", "priority", "blendin", "play_mode", "layer_weight", "ipo_flags", "speed", "blend_mode", 0},
-                                     &name, &start, &end, &layer, &priority, &blendin, &play_mode, &layer_weight, &ipo_flags, &speed, &blend_mode)) {
+  static const char *kwlist[] = {"name",
+                                 "start_frame",
+                                 "end_frame",
+                                 "layer",
+                                 "priority",
+                                 "blendin",
+                                 "play_mode",
+                                 "layer_weight",
+                                 "ipo_flags",
+                                 "speed",
+                                 "blend_mode",
+                                 nullptr};
+
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   kwds,
+                                   "sff|hhfhfhfh:playAction",
+                                   const_cast<char **>(kwlist),
+                                   &name,
+                                   &start,
+                                   &end,
+                                   &layer,
+                                   &priority,
+                                   &blendin,
+                                   &play_mode,
+                                   &layer_weight,
+                                   &ipo_flags,
+                                   &speed,
+                                   &blend_mode)) {
     return nullptr;
   }
 

@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup wm
@@ -79,7 +65,7 @@ typedef struct wmMsg {
 } wmMsg;
 
 typedef struct wmMsgSubscribeKey {
-  /** Linked list for predicable ordering, otherwise we would depend on ghash bucketing. */
+  /** Linked list for predicable ordering, otherwise we would depend on #GHash bucketing. */
   struct wmMsgSubscribeKey *next, *prev;
   ListBase values;
   /* over-alloc, eg: wmMsgSubscribeKey_RNA */
@@ -124,6 +110,16 @@ void WM_msg_dump(struct wmMsgBus *mbus, const char *info);
 void WM_msgbus_handle(struct wmMsgBus *mbus, struct bContext *C);
 
 void WM_msg_publish_with_key(struct wmMsgBus *mbus, wmMsgSubscribeKey *msg_key);
+/**
+ * \param msg_key_test: Needs following #wmMsgSubscribeKey fields filled in:
+ * - `msg.params`
+ * - `msg.head.type`
+ * - `msg.head.id`
+ * .. other values should be zeroed.
+ *
+ * \return The key for this subscription.
+ * note that this is only needed in rare cases when the key needs further manipulation.
+ */
 wmMsgSubscribeKey *WM_msg_subscribe_with_key(struct wmMsgBus *mbus,
                                              const wmMsgSubscribeKey *msg_key_test,
                                              const wmMsgSubscribeValue *msg_val_params);
@@ -234,6 +230,17 @@ void WM_msg_subscribe_ID(struct wmMsgBus *mbus,
                          const char *id_repr);
 void WM_msg_publish_ID(struct wmMsgBus *mbus, struct ID *id);
 
+/* FIXME
+ *
+ * For C++ code, some of the following macros need to be called in functions wrapped in
+ * `extern "C"` blocks. That is, the ones doing `extern PropertyRNA` declarations (trips up the
+ * MSVC linker).
+ * Although this shouldn't cause problems normally, if it does, the bits calling the macros can be
+ * moved to a separate function wrapped in `extern "C"`.
+ *
+ * Obviously this should be fixed properly (by not relying on inline `extern` declarations).
+ */
+
 #define WM_msg_publish_rna_prop(mbus, id_, data_, type_, prop_) \
   { \
     wmMsgParams_RNA msg_key_params_ = {{0}}; \
@@ -260,16 +267,11 @@ void WM_msg_publish_ID(struct wmMsgBus *mbus, struct ID *id);
 /* Anonymous variants (for convenience) */
 #define WM_msg_subscribe_rna_anon_type(mbus, type_, value) \
   { \
-    WM_msg_subscribe_rna_params(mbus, \
-                                &(const wmMsgParams_RNA){ \
-                                    .ptr = \
-                                        (PointerRNA){ \
-                                            .type = &RNA_##type_, \
-                                        }, \
-                                    .prop = NULL, \
-                                }, \
-                                value, \
-                                __func__); \
+    PointerRNA msg_ptr_ = {0, &RNA_##type_}; \
+    wmMsgParams_RNA msg_key_params_ = {{0}}; \
+    msg_key_params_.ptr = msg_ptr_; \
+\
+    WM_msg_subscribe_rna_params(mbus, &msg_key_params_, value, __func__); \
   } \
   ((void)0)
 #define WM_msg_subscribe_rna_anon_prop(mbus, type_, prop_, value) \
@@ -277,16 +279,13 @@ void WM_msg_publish_ID(struct wmMsgBus *mbus, struct ID *id);
     _WM_MESSAGE_EXTERN_BEGIN; \
     extern PropertyRNA rna_##type_##_##prop_; \
     _WM_MESSAGE_EXTERN_END; \
-    WM_msg_subscribe_rna_params(mbus, \
-                                &(const wmMsgParams_RNA){ \
-                                    .ptr = \
-                                        (PointerRNA){ \
-                                            .type = &RNA_##type_, \
-                                        }, \
-                                    .prop = &rna_##type_##_##prop_, \
-                                }, \
-                                value, \
-                                __func__); \
+\
+    PointerRNA msg_ptr_ = {0, &RNA_##type_}; \
+    wmMsgParams_RNA msg_key_params_ = {{0}}; \
+    msg_key_params_.ptr = msg_ptr_; \
+    msg_key_params_.prop = &rna_##type_##_##prop_; \
+\
+    WM_msg_subscribe_rna_params(mbus, &msg_key_params_, value, __func__); \
   } \
   ((void)0)
 

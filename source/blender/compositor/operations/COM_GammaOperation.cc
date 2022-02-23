@@ -1,55 +1,39 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #include "COM_GammaOperation.h"
-#include "BLI_math.h"
 
 namespace blender::compositor {
 
 GammaOperation::GammaOperation()
 {
-  this->addInputSocket(DataType::Color);
-  this->addInputSocket(DataType::Value);
-  this->addOutputSocket(DataType::Color);
-  this->m_inputProgram = nullptr;
-  this->m_inputGammaProgram = nullptr;
-  flags.can_be_constant = true;
+  this->add_input_socket(DataType::Color);
+  this->add_input_socket(DataType::Value);
+  this->add_output_socket(DataType::Color);
+  input_program_ = nullptr;
+  input_gamma_program_ = nullptr;
+  flags_.can_be_constant = true;
 }
-void GammaOperation::initExecution()
+void GammaOperation::init_execution()
 {
-  this->m_inputProgram = this->getInputSocketReader(0);
-  this->m_inputGammaProgram = this->getInputSocketReader(1);
+  input_program_ = this->get_input_socket_reader(0);
+  input_gamma_program_ = this->get_input_socket_reader(1);
 }
 
-void GammaOperation::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
+void GammaOperation::execute_pixel_sampled(float output[4], float x, float y, PixelSampler sampler)
 {
-  float inputValue[4];
-  float inputGamma[4];
+  float input_value[4];
+  float input_gamma[4];
 
-  this->m_inputProgram->readSampled(inputValue, x, y, sampler);
-  this->m_inputGammaProgram->readSampled(inputGamma, x, y, sampler);
-  const float gamma = inputGamma[0];
+  input_program_->read_sampled(input_value, x, y, sampler);
+  input_gamma_program_->read_sampled(input_gamma, x, y, sampler);
+  const float gamma = input_gamma[0];
   /* check for negative to avoid nan's */
-  output[0] = inputValue[0] > 0.0f ? powf(inputValue[0], gamma) : inputValue[0];
-  output[1] = inputValue[1] > 0.0f ? powf(inputValue[1], gamma) : inputValue[1];
-  output[2] = inputValue[2] > 0.0f ? powf(inputValue[2], gamma) : inputValue[2];
+  output[0] = input_value[0] > 0.0f ? powf(input_value[0], gamma) : input_value[0];
+  output[1] = input_value[1] > 0.0f ? powf(input_value[1], gamma) : input_value[1];
+  output[2] = input_value[2] > 0.0f ? powf(input_value[2], gamma) : input_value[2];
 
-  output[3] = inputValue[3];
+  output[3] = input_value[3];
 }
 
 void GammaOperation::update_memory_buffer_row(PixelCursor &p)
@@ -66,10 +50,10 @@ void GammaOperation::update_memory_buffer_row(PixelCursor &p)
   }
 }
 
-void GammaOperation::deinitExecution()
+void GammaOperation::deinit_execution()
 {
-  this->m_inputProgram = nullptr;
-  this->m_inputGammaProgram = nullptr;
+  input_program_ = nullptr;
+  input_gamma_program_ = nullptr;
 }
 
 }  // namespace blender::compositor

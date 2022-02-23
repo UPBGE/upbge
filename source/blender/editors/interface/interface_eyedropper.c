@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2009 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2009 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup edinterface
@@ -23,6 +7,9 @@
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
+
+#include "BLI_math_color.h"
+#include "BLI_math_vector.h"
 
 #include "BKE_context.h"
 #include "BKE_screen.h"
@@ -101,16 +88,23 @@ wmKeyMap *eyedropper_colorband_modal_keymap(wmKeyConfig *keyconf)
 /* -------------------------------------------------------------------- */
 /* Utility Functions
  */
+
 /** \name Generic Shared Functions
  * \{ */
-static void eyedropper_draw_cursor_text_ex(const int x, const int y, const char *name)
+
+static void eyedropper_draw_cursor_text_ex(const int xy[2], const char *name)
 {
   const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
 
-  const float col_fg[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-  const float col_bg[4] = {0.0f, 0.0f, 0.0f, 0.2f};
+  /* Use the theme settings from tooltips. */
+  const bTheme *btheme = UI_GetTheme();
+  const uiWidgetColors *wcol = &btheme->tui.wcol_tooltip;
 
-  UI_fontstyle_draw_simple_backdrop(fstyle, x, y + U.widget_unit, name, col_fg, col_bg);
+  float col_fg[4], col_bg[4];
+  rgba_uchar_to_float(col_fg, wcol->text);
+  rgba_uchar_to_float(col_bg, wcol->inner);
+
+  UI_fontstyle_draw_simple_backdrop(fstyle, xy[0], xy[1] + U.widget_unit, name, col_fg, col_bg);
 }
 
 void eyedropper_draw_cursor_text_window(const struct wmWindow *window, const char *name)
@@ -119,35 +113,23 @@ void eyedropper_draw_cursor_text_window(const struct wmWindow *window, const cha
     return;
   }
 
-  const int x = window->eventstate->x;
-  const int y = window->eventstate->y;
-
-  eyedropper_draw_cursor_text_ex(x, y, name);
+  eyedropper_draw_cursor_text_ex(window->eventstate->xy, name);
 }
 
-void eyedropper_draw_cursor_text_region(const int x, const int y, const char *name)
+void eyedropper_draw_cursor_text_region(const int xy[2], const char *name)
 {
   if (name[0] == '\0') {
     return;
   }
 
-  eyedropper_draw_cursor_text_ex(x, y, name);
+  eyedropper_draw_cursor_text_ex(xy, name);
 }
 
-/**
- * Utility to retrieve a button representing a RNA property that is currently under the cursor.
- *
- * This is to be used by any eyedroppers which fetch properties (e.g. UI_OT_eyedropper_driver).
- * Especially during modal operations (e.g. as with the eyedroppers), context cannot be relied
- * upon to provide this information, as it is not updated until the operator finishes.
- *
- * \return A button under the mouse which relates to some RNA Property, or NULL
- */
 uiBut *eyedropper_get_property_button_under_mouse(bContext *C, const wmEvent *event)
 {
   bScreen *screen = CTX_wm_screen(C);
-  ScrArea *area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, event->x, event->y);
-  const ARegion *region = BKE_area_find_region_xy(area, RGN_TYPE_ANY, event->x, event->y);
+  ScrArea *area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, event->xy);
+  const ARegion *region = BKE_area_find_region_xy(area, RGN_TYPE_ANY, event->xy);
 
   uiBut *but = ui_but_find_mouse_over(region, event);
 
@@ -163,18 +145,17 @@ void datadropper_win_area_find(
   bScreen *screen = CTX_wm_screen(C);
 
   *r_win = CTX_wm_window(C);
-  *r_area = BKE_screen_find_area_xy(screen, -1, mval[0], mval[1]);
+  *r_area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, mval);
   if (*r_area == NULL) {
     wmWindowManager *wm = CTX_wm_manager(C);
     *r_win = WM_window_find_under_cursor(wm, NULL, *r_win, mval, r_mval);
     if (*r_win) {
       screen = WM_window_get_active_screen(*r_win);
-      *r_area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, r_mval[0], r_mval[1]);
+      *r_area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, r_mval);
     }
   }
   else if (mval != r_mval) {
-    r_mval[0] = mval[0];
-    r_mval[1] = mval[1];
+    copy_v2_v2_int(r_mval, mval);
   }
 }
 

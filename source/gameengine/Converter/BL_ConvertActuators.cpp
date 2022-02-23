@@ -42,7 +42,6 @@
 
 /* This little block needed for linking to Blender... */
 #include "BKE_context.h"
-#include "BKE_layer.h"
 #include "BKE_text.h"
 #include "DNA_scene_types.h"
 #include "DNA_sound_types.h"
@@ -51,15 +50,14 @@
 
 // Actuators
 // SCA logiclibrary native logicbricks
-#include "BL_ActionActuator.h"
 #include "BL_ArmatureActuator.h"
-#include "BL_BlenderSceneConverter.h"
+#include "BL_SceneConverter.h"
 #include "CM_Utils.h"
 #include "EXP_IntValue.h"
 #include "KX_Globals.h"
-#include "KX_NetworkMessageActuator.h"
 #include "RAS_2DFilterManager.h"  // for filter type.
 #include "SCA_2DFilterActuator.h"
+#include "SCA_ActionActuator.h"
 #include "SCA_AddObjectActuator.h"
 #include "SCA_CameraActuator.h"
 #include "SCA_CollectionActuator.h"
@@ -68,6 +66,7 @@
 #include "SCA_EndObjectActuator.h"
 #include "SCA_GameActuator.h"
 #include "SCA_MouseActuator.h"
+#include "SCA_NetworkMessageActuator.h"
 #include "SCA_ObjectActuator.h"
 #include "SCA_ParentActuator.h"
 #include "SCA_RandomActuator.h"
@@ -98,7 +97,7 @@ void BL_ConvertActuators(const char *maggiename,
                          KX_KetsjiEngine *ketsjiEngine,
                          int activeLayerBitInfo,
                          bool isInActiveLayer,
-                         BL_BlenderSceneConverter *converter)
+                         BL_SceneConverter *converter)
 {
 
   int uniqueint = 0;
@@ -187,7 +186,7 @@ void BL_ConvertActuators(const char *maggiename,
         if (actact->flag & ACT_IPOCHILD)
           ipo_flags |= BL_Action::ACT_IPOFLAG_CHILD;
 
-        BL_ActionActuator *tmpbaseact = new BL_ActionActuator(
+        SCA_ActionActuator *tmpbaseact = new SCA_ActionActuator(
             gameobj,
             propname,
             propframe,
@@ -247,7 +246,7 @@ void BL_ConvertActuators(const char *maggiename,
          */
         const std::string body = msgAct->body;
 
-        KX_NetworkMessageActuator *tmpmsgact = new KX_NetworkMessageActuator(
+        SCA_NetworkMessageActuator *tmpmsgact = new SCA_NetworkMessageActuator(
             gameobj,                          // actuator controlling object
             scene->GetNetworkMessageScene(),  // needed for replication
             toPropName,
@@ -857,9 +856,9 @@ void BL_ConvertActuators(const char *maggiename,
 
         RAS_2DFilterManager::FILTER_MODE filtermode;
         switch (_2dfilter->type) {
-          case ACT_2DFILTER_MOTIONBLUR:
+          /*case ACT_2DFILTER_MOTIONBLUR:
             filtermode = RAS_2DFilterManager::FILTER_MOTIONBLUR;
-            break;
+            break;*/
           case ACT_2DFILTER_BLUR:
             filtermode = RAS_2DFilterManager::FILTER_BLUR;
             break;

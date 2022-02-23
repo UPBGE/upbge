@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8 compliant>
 from bpy.types import Panel
@@ -70,7 +54,7 @@ class ConstraintButtonsPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_label = ""
-    bl_options = {'INSTANCED', 'HEADER_LAYOUT_EXPAND', 'DRAW_BOX'}
+    bl_options = {'INSTANCED', 'HEADER_LAYOUT_EXPAND'}
 
     @staticmethod
     def draw_influence(layout, con):
@@ -1095,7 +1079,6 @@ class ConstraintButtonsSubPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_label = ""
-    bl_options = {'DRAW_BOX'}
 
     def get_constraint(self, _context):
         con = self.custom_data
@@ -1266,6 +1249,35 @@ class ConstraintButtonsSubPanel:
         col.prop(con, "frame_start", text="Frame Start")
         col.prop(con, "frame_end", text="End")
 
+    def draw_transform_cache_velocity(self, context):
+        self.draw_transform_cache_subpanel(
+            context, self.layout.template_cache_file_velocity
+        )
+
+    def draw_transform_cache_procedural(self, context):
+        self.draw_transform_cache_subpanel(
+            context, self.layout.template_cache_file_procedural
+        )
+
+    def draw_transform_cache_time(self, context):
+        self.draw_transform_cache_subpanel(
+            context, self.layout.template_cache_file_time_settings
+        )
+
+    def draw_transform_cache_layers(self, context):
+        self.draw_transform_cache_subpanel(
+            context, self.layout.template_cache_file_layers
+        )
+
+    def draw_transform_cache_subpanel(self, context, template_func):
+        con = self.get_constraint(context)
+        if con.cache_file is None:
+            return
+
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = True
+        template_func(con, "cache_file")
 
 # Child Of Constraint
 
@@ -1455,7 +1467,7 @@ class BONE_PT_bLockTrackConstraint(BoneConstraintPanel, ConstraintButtonsPanel, 
         self.draw_lock_track(context)
 
 
-# Disance Limit Constraint
+# Distance Limit Constraint
 
 class OBJECT_PT_bDistLimitConstraint(ObjectConstraintPanel, ConstraintButtonsPanel, Panel):
     def draw(self, context):
@@ -1660,6 +1672,70 @@ class BONE_PT_bTransformCacheConstraint(BoneConstraintPanel, ConstraintButtonsPa
         self.draw_transform_cache(context)
 
 
+class OBJECT_PT_bTransformCacheConstraint_velocity(ObjectConstraintPanel, ConstraintButtonsSubPanel, Panel):
+    bl_parent_id = "OBJECT_PT_bTransformCacheConstraint"
+    bl_label = "Velocity"
+
+    def draw(self, context):
+        self.draw_transform_cache_velocity(context)
+
+
+class BONE_PT_bTransformCacheConstraint_velocity(BoneConstraintPanel, ConstraintButtonsSubPanel, Panel):
+    bl_parent_id = "BONE_PT_bTransformCacheConstraint"
+    bl_label = "Velocity"
+
+    def draw(self, context):
+        self.draw_transform_cache_velocity(context)
+
+
+class OBJECT_PT_bTransformCacheConstraint_layers(ObjectConstraintPanel, ConstraintButtonsSubPanel, Panel):
+    bl_parent_id = "OBJECT_PT_bTransformCacheConstraint"
+    bl_label = "Override Layers"
+
+    def draw(self, context):
+        self.draw_transform_cache_layers(context)
+
+
+class BONE_PT_bTransformCacheConstraint_layers(BoneConstraintPanel, ConstraintButtonsSubPanel, Panel):
+    bl_parent_id = "BONE_PT_bTransformCacheConstraint"
+    bl_label = "Override Layers"
+
+    def draw(self, context):
+        self.draw_transform_cache_layers(context)
+
+
+class OBJECT_PT_bTransformCacheConstraint_procedural(ObjectConstraintPanel, ConstraintButtonsSubPanel, Panel):
+    bl_parent_id = "OBJECT_PT_bTransformCacheConstraint"
+    bl_label = "Render Procedural"
+
+    def draw(self, context):
+        self.draw_transform_cache_procedural(context)
+
+
+class BONE_PT_bTransformCacheConstraint_procedural(BoneConstraintPanel, ConstraintButtonsSubPanel, Panel):
+    bl_parent_id = "BONE_PT_bTransformCacheConstraint"
+    bl_label = "Render Procedural"
+
+    def draw(self, context):
+        self.draw_transform_cache_procedural(context)
+
+
+class OBJECT_PT_bTransformCacheConstraint_time(ObjectConstraintPanel, ConstraintButtonsSubPanel, Panel):
+    bl_parent_id = "OBJECT_PT_bTransformCacheConstraint"
+    bl_label = "Time"
+
+    def draw(self, context):
+        self.draw_transform_cache_time(context)
+
+
+class BONE_PT_bTransformCacheConstraint_time(BoneConstraintPanel, ConstraintButtonsSubPanel, Panel):
+    bl_parent_id = "BONE_PT_bTransformCacheConstraint"
+    bl_label = "Time"
+
+    def draw(self, context):
+        self.draw_transform_cache_time(context)
+
+
 # Python Constraint
 
 class OBJECT_PT_bPythonConstraint(ObjectConstraintPanel, ConstraintButtonsPanel, Panel):
@@ -1747,6 +1823,10 @@ classes = (
     OBJECT_PT_bCameraSolverConstraint,
     OBJECT_PT_bObjectSolverConstraint,
     OBJECT_PT_bTransformCacheConstraint,
+    OBJECT_PT_bTransformCacheConstraint_time,
+    OBJECT_PT_bTransformCacheConstraint_procedural,
+    OBJECT_PT_bTransformCacheConstraint_velocity,
+    OBJECT_PT_bTransformCacheConstraint_layers,
     OBJECT_PT_bPythonConstraint,
     OBJECT_PT_bArmatureConstraint,
     OBJECT_PT_bArmatureConstraint_bones,
@@ -1784,6 +1864,10 @@ classes = (
     BONE_PT_bCameraSolverConstraint,
     BONE_PT_bObjectSolverConstraint,
     BONE_PT_bTransformCacheConstraint,
+    BONE_PT_bTransformCacheConstraint_time,
+    BONE_PT_bTransformCacheConstraint_procedural,
+    BONE_PT_bTransformCacheConstraint_velocity,
+    BONE_PT_bTransformCacheConstraint_layers,
     BONE_PT_bPythonConstraint,
     BONE_PT_bArmatureConstraint,
     BONE_PT_bArmatureConstraint_bones,

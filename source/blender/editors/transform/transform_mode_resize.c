@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edtransform
@@ -201,14 +185,45 @@ static void applyResize(TransInfo *t, const int UNUSED(mval[2]))
   ED_area_status_text(t->area, str);
 }
 
-void initResize(TransInfo *t)
+void initResize(TransInfo *t, float mouse_dir_constraint[3])
 {
   t->mode = TFM_RESIZE;
   t->transform = applyResize;
   t->tsnap.applySnap = ApplySnapResize;
   t->tsnap.distance = ResizeBetween;
 
-  initMouseInputMode(t, &t->mouse, INPUT_SPRING_FLIP);
+  if (is_zero_v3(mouse_dir_constraint)) {
+    initMouseInputMode(t, &t->mouse, INPUT_SPRING_FLIP);
+  }
+  else {
+    int mval_start[2], mval_end[2];
+    float mval_dir[3], t_mval[2];
+    float viewmat[3][3];
+
+    copy_m3_m4(viewmat, t->viewmat);
+    mul_v3_m3v3(mval_dir, viewmat, mouse_dir_constraint);
+    normalize_v2(mval_dir);
+    if (is_zero_v2(mval_dir)) {
+      /* The screen space direction is orthogonal to the view.
+       * Fall back to constraining on the Y axis. */
+      mval_dir[0] = 0;
+      mval_dir[1] = 1;
+    }
+
+    mval_start[0] = t->center2d[0];
+    mval_start[1] = t->center2d[1];
+
+    t_mval[0] = t->mval[0] - mval_start[0];
+    t_mval[1] = t->mval[1] - mval_start[1];
+    project_v2_v2v2(mval_dir, t_mval, mval_dir);
+
+    mval_end[0] = t->center2d[0] + mval_dir[0];
+    mval_end[1] = t->center2d[1] + mval_dir[1];
+
+    setCustomPoints(t, &t->mouse, mval_end, mval_start);
+
+    initMouseInputMode(t, &t->mouse, INPUT_CUSTOM_RATIO);
+  }
 
   t->flag |= T_NULL_ONE;
   t->num.val_flag[0] |= NUM_NULL_ONE;
@@ -236,4 +251,5 @@ void initResize(TransInfo *t)
 
   transform_mode_default_modal_orientation_set(t, V3D_ORIENT_GLOBAL);
 }
+
 /** \} */

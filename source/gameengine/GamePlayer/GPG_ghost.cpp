@@ -45,8 +45,6 @@
 #include "BKE_brush.h"
 #include "BKE_cachefile.h"
 #include "BKE_callbacks.h"
-#include "BKE_context.h"
-#include "BKE_font.h"
 #include "BKE_global.h"
 #include "BKE_gpencil_modifier.h"
 #include "BKE_icons.h"
@@ -68,6 +66,7 @@
 #include "BKE_studiolight.h"
 #include "BKE_subdiv.h"
 #include "BKE_tracking.h"
+#include "BKE_vfont.h"
 #include "BKE_volume.h"
 #include "BLF_api.h"
 #include "BLI_blenlib.h"
@@ -81,9 +80,7 @@
 #include "BPY_extern_python.h"
 #include "BPY_extern_run.h"
 #include "CLG_log.h"
-#include "DEG_depsgraph.h"
 #include "DNA_genfile.h"
-#include "DNA_space_types.h"
 #include "DRW_engine.h"
 #include "ED_asset.h"
 #include "ED_datafiles.h"
@@ -116,9 +113,6 @@
 #include "wm.h"
 #include "wm_event_system.h"
 
-#include "WM_gizmo_types.h"
-
-#include "WM_gizmo_api.h"
 #include "wm_message_bus.h"
 #include "wm_surface.h"
 #include "wm_window.h"
@@ -602,7 +596,7 @@ static BlendFileData *load_game_data(const char *progname,
     bfd = BLO_read_runtime(progname, &breports);
     if (bfd) {
       bfd->type = BLENFILETYPE_RUNTIME;
-      BLI_strncpy(bfd->main->name, progname, sizeof(bfd->main->name));
+      BLI_strncpy(bfd->main->filepath, progname, sizeof(bfd->main->filepath));
     }
   }
   else {
@@ -823,7 +817,6 @@ int main(int argc,
   BKE_appdir_program_path_init(argv[0]);
   BKE_tempdir_init(nullptr);
   BLI_threadapi_init();
-  BLI_thread_put_process_on_fast_node();
 
   DNA_sdna_current_init();
 
@@ -833,7 +826,6 @@ int main(int argc,
   BKE_cachefiles_init();
   BKE_idtype_init();
 
-  BKE_images_init();
   BKE_modifier_init();
   BKE_gpencil_modifier_init();
   BKE_shaderfx_init();
@@ -894,7 +886,7 @@ int main(int argc,
   BKE_region_callback_refresh_tag_gizmomap_set(WM_gizmomap_tag_refresh);
   BKE_library_callback_remap_editor_id_reference_set(
       WM_main_remap_editor_id_reference);                     /* lib_id.c */
-  BKE_spacedata_callback_id_remap_set(ED_spacedata_id_remap); /* screen.c */
+  BKE_spacedata_callback_id_remap_set(ED_spacedata_id_remap_single); /* screen.c */
   DEG_editors_set_update_cb(ED_render_id_flush_update, ED_render_scene_update);
 
   ED_spacetypes_init(); /* editors/space_api/spacetype.c */
@@ -954,10 +946,10 @@ int main(int argc,
 #if 0
     if (!G.background) {
 
-#ifdef WITH_INPUT_NDOF
+#  ifdef WITH_INPUT_NDOF
     /* sets 3D mouse deadzone */
     WM_ndof_deadzone_set(U.ndof_deadzone);
-#endif
+#  endif
     WM_init_opengl();
 
     if (!WM_platform_support_perform_checks()) {
@@ -985,13 +977,13 @@ int main(int argc,
    * before wm_homefile_read() or make py-drivers check if python is running.
    * Will try fix when the crash can be repeated. - campbell. */
 
-#ifdef WITH_PYTHON
+#  ifdef WITH_PYTHON
   BPY_python_start(C, argc, argv);
   BPY_python_reset(C);
-#else
+#  else
   (void)argc; /* unused */
   (void)argv; /* unused */
-#endif
+#  endif
 
   if (!G.background && !wm_start_with_console) {
     GHOST_toggleConsole(3);
@@ -1057,7 +1049,8 @@ int main(int argc,
 
   const char *const cfgdir = BKE_appdir_folder_id(BLENDER_USER_CONFIG, nullptr);
   if (cfgdir) {
-    BLI_path_join(filepath_userdef, sizeof(filepath_userdef), cfgdir, BLENDER_USERPREF_FILE, nullptr);
+    BLI_path_join(
+        filepath_userdef, sizeof(filepath_userdef), cfgdir, BLENDER_USERPREF_FILE, nullptr);
 
     /* load preferences */
     if (BLI_exists(filepath_userdef)) {
@@ -1408,6 +1401,9 @@ int main(int argc,
         int shadingTypeRuntime = 0;
         bool useViewportRender = false;
 
+        /* We don't want to use other windows than the one where is the 3D view */
+        std::vector<wmWindow *> unused_windows = {};
+
         do {
           // Read the Blender file
 
@@ -1462,7 +1458,7 @@ int main(int argc,
               // The file is valid and it's the original file name.
               if (bfd) {
                 remove(filename);
-                KX_SetOrigPath(bfd->main->name);
+                KX_SetOrigPath(bfd->main->filepath);
               }
             }
             else
@@ -1477,7 +1473,7 @@ int main(int argc,
                  * reported, we ensure the extension is ".blend"
                  * else this is causing issues with globalDict. (youle)
                  */
-                char *blend_name = bfd->main->name;
+                char *blend_name = bfd->main->filepath;
                 BLI_path_extension_ensure(blend_name, FILE_MAX, ".blend");
 
                 KX_SetOrigPath(blend_name);
@@ -1498,8 +1494,8 @@ int main(int argc,
             /* Setting options according to the blend file if not overriden in the command line */
 #ifdef WIN32
 #  if !defined(DEBUG)
-            if (closeConsole) {
-              system->toggleConsole(0);  // Close a console window
+            if (closeConsole && firstTimeRunning) {
+              system->setConsoleWindowState(GHOST_kConsoleWindowStateHide);  // Close a console window
             }
 #  endif  // !defined(DEBUG)
 #endif    // WIN32
@@ -1515,7 +1511,7 @@ int main(int argc,
               gs.glslflag = scene->gm.flag;
             }
 
-            titlename = maggie->name;
+            titlename = maggie->filepath;
 
             // Check whether the game should be displayed full-screen
             if ((!fullScreenParFound) && (!windowParFound)) {
@@ -1579,7 +1575,7 @@ int main(int argc,
             if (!samplesParFound)
               aasamples = scene->gm.aasamples;
 
-            BLI_strncpy(pathname, maggie->name, sizeof(pathname));
+            BLI_strncpy(pathname, maggie->filepath, sizeof(pathname));
             if (firstTimeRunning) {
               firstTimeRunning = false;
 
@@ -1676,6 +1672,15 @@ int main(int argc,
             InitBlenderContextVariables(C, wm, bfd->curscene);
             wm_window_ghostwindow_blenderplayer_ensure(wm, win, window, first_time_window);
 
+            /* Get rid of windows which are not the 3D view windows */
+            LISTBASE_FOREACH (wmWindow *, win_in_list, &wm->windows) {
+              if (win_in_list == win) {
+                continue;
+              }
+              unused_windows.push_back(win_in_list);
+              BLI_remlink(&wm->windows, win_in_list);
+            }
+
             /* The following is needed to run some bpy operators in blenderplayer */
             ED_screen_refresh_blenderplayer(win);
 
@@ -1741,6 +1746,13 @@ int main(int argc,
             ED_screen_exit(C, win, WM_window_get_active_screen(win));
           }
         } while (!quitGame(exitcode));
+
+        /* Restore the windows we disabled during standalone runtime to free it
+         * (normally) in standalone exit pipeline */
+        for (wmWindow *tmp_win : unused_windows) {
+          BLI_addtail(&CTX_wm_manager(C)->windows, tmp_win);
+        }
+
 #ifdef WITH_PYTHON
         // Free globalDict OUTSIDE runtime loop.
         if (globalDict) {
@@ -1758,8 +1770,9 @@ int main(int argc,
 
   /* wm_init_exit */
   const char *imports[] = {"addon_utils", NULL};
+#ifdef WITH_PYTHON
   BPY_run_string_eval(C, imports, "addon_utils.disable_all()");
-
+#endif
   BLI_timer_free();
 
   WM_paneltype_clear();
@@ -1788,6 +1801,7 @@ int main(int argc,
   RE_engines_exit();
 
   ED_preview_free_dbase(); /* frees a Main dbase, before BKE_blender_free! */
+  ED_preview_restart_queue_free();
   ED_assetlist_storage_exit();
 
   if (CTX_wm_manager(C)) {
@@ -1820,6 +1834,8 @@ int main(int argc,
   /* G_MAIN == bfd->main, it gets referenced in free_nodesystem so we can't have a dangling pointer
    */
   G_MAIN = nullptr;
+
+  DRW_subdiv_free();
 
   ANIM_fcurves_copybuf_free();
   ANIM_drivers_copybuf_free();

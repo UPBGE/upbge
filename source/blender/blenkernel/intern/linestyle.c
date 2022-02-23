@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2010 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2010 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup bke
@@ -50,6 +34,7 @@
 #include "BKE_linestyle.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
+#include "BKE_node_tree_update.h"
 #include "BKE_texture.h"
 
 #include "BLO_read_write.h"
@@ -155,12 +140,14 @@ static void linestyle_foreach_id(ID *id, LibraryForeachIDData *data)
 
   for (int i = 0; i < MAX_MTEX; i++) {
     if (linestyle->mtex[i]) {
-      BKE_texture_mtex_foreach_id(data, linestyle->mtex[i]);
+      BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+          data, BKE_texture_mtex_foreach_id(data, linestyle->mtex[i]));
     }
   }
   if (linestyle->nodetree) {
     /* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
-    BKE_library_foreach_ID_embedded(data, (ID **)&linestyle->nodetree);
+    BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+        data, BKE_library_foreach_ID_embedded(data, (ID **)&linestyle->nodetree));
   }
 
   LISTBASE_FOREACH (LineStyleModifier *, lsm, &linestyle->color_modifiers) {
@@ -168,7 +155,7 @@ static void linestyle_foreach_id(ID *id, LibraryForeachIDData *data)
       LineStyleColorModifier_DistanceFromObject *p = (LineStyleColorModifier_DistanceFromObject *)
           lsm;
       if (p->target) {
-        BKE_LIB_FOREACHID_PROCESS(data, p->target, IDWALK_CB_NOP);
+        BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, p->target, IDWALK_CB_NOP);
       }
     }
   }
@@ -177,7 +164,7 @@ static void linestyle_foreach_id(ID *id, LibraryForeachIDData *data)
       LineStyleAlphaModifier_DistanceFromObject *p = (LineStyleAlphaModifier_DistanceFromObject *)
           lsm;
       if (p->target) {
-        BKE_LIB_FOREACHID_PROCESS(data, p->target, IDWALK_CB_NOP);
+        BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, p->target, IDWALK_CB_NOP);
       }
     }
   }
@@ -186,7 +173,7 @@ static void linestyle_foreach_id(ID *id, LibraryForeachIDData *data)
       LineStyleThicknessModifier_DistanceFromObject *p =
           (LineStyleThicknessModifier_DistanceFromObject *)lsm;
       if (p->target) {
-        BKE_LIB_FOREACHID_PROCESS(data, p->target, IDWALK_CB_NOP);
+        BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, p->target, IDWALK_CB_NOP);
       }
     }
   }
@@ -751,7 +738,8 @@ IDTypeInfo IDType_ID_LS = {
     .name = "FreestyleLineStyle",
     .name_plural = "linestyles",
     .translation_context = BLT_I18NCONTEXT_ID_FREESTYLELINESTYLE,
-    .flags = 0,
+    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .asset_type_info = NULL,
 
     .init_data = linestyle_init_data,
     .copy_data = linestyle_copy_data,
@@ -759,6 +747,7 @@ IDTypeInfo IDType_ID_LS = {
     .make_local = NULL,
     .foreach_id = linestyle_foreach_id,
     .foreach_cache = NULL,
+    .foreach_path = NULL,
     .owner_get = NULL,
 
     .blend_write = linestyle_blend_write,
@@ -1908,10 +1897,6 @@ int BKE_linestyle_geometry_modifier_remove(FreestyleLineStyle *linestyle, LineSt
   return 0;
 }
 
-/**
- * Reinsert \a modifier in modifier list with an offset of \a direction.
- * \return if position of \a modifier has changed.
- */
 bool BKE_linestyle_color_modifier_move(FreestyleLineStyle *linestyle,
                                        LineStyleModifier *modifier,
                                        int direction)
@@ -2085,5 +2070,5 @@ void BKE_linestyle_default_shader(const bContext *C, FreestyleLineStyle *linesty
   tosock = BLI_findlink(&output_linestyle->inputs, 0); /* Color */
   nodeAddLink(ntree, input_texure, fromsock, output_linestyle, tosock);
 
-  ntreeUpdateTree(CTX_data_main(C), ntree);
+  BKE_ntree_update_main_tree(CTX_data_main(C), ntree, NULL);
 }

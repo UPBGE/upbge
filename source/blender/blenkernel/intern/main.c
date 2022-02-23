@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup bke
@@ -35,6 +19,7 @@
 #include "DNA_ID.h"
 
 #include "BKE_global.h"
+#include "BKE_idtype.h"
 #include "BKE_lib_id.h"
 #include "BKE_lib_query.h"
 #include "BKE_main.h"
@@ -204,6 +189,16 @@ void BKE_main_free(Main *mainvar)
   MEM_freeN(mainvar);
 }
 
+bool BKE_main_is_empty(struct Main *bmain)
+{
+  ID *id_iter;
+  FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
+    return false;
+  }
+  FOREACH_MAIN_ID_END;
+  return true;
+}
+
 void BKE_main_lock(struct Main *bmain)
 {
   BLI_spin_lock((SpinLock *)bmain->lock);
@@ -266,7 +261,6 @@ static int main_relations_create_idlink_cb(LibraryIDLinkCallbackData *cb_data)
   return IDWALK_RET_NOP;
 }
 
-/** Generate the mappings between used IDs and their users, and vice-versa. */
 void BKE_main_relations_create(Main *bmain, const short flag)
 {
   if (bmain->relations != NULL) {
@@ -314,9 +308,8 @@ void BKE_main_relations_free(Main *bmain)
   }
 }
 
-/** Set or clear given `tag` in all relation entries of given `bmain`. */
 void BKE_main_relations_tag_set(struct Main *bmain,
-                                const MainIDRelationsEntryTags tag,
+                                const eMainIDRelationsEntryTags tag,
                                 const bool value)
 {
   if (bmain->relations == NULL) {
@@ -338,12 +331,6 @@ void BKE_main_relations_tag_set(struct Main *bmain,
   BLI_ghashIterator_free(gh_iter);
 }
 
-/**
- * Create a GSet storing all IDs present in given \a bmain, by their pointers.
- *
- * \param gset: If not NULL, given GSet will be extended with IDs from given \a bmain,
- * instead of creating a new one.
- */
 GSet *BKE_main_gset_create(Main *bmain, GSet *gset)
 {
   if (gset == NULL) {
@@ -358,13 +345,154 @@ GSet *BKE_main_gset_create(Main *bmain, GSet *gset)
   return gset;
 }
 
-/**
- * Generates a raw .blend file thumbnail data from given image.
- *
- * \param bmain: If not NULL, also store generated data in this Main.
- * \param img: ImBuf image to generate thumbnail data from.
- * \return The generated .blend file raw thumbnail data.
- */
+/* Utils for ID's library weak reference API. */
+typedef struct LibWeakRefKey {
+  char filepath[FILE_MAX];
+  char id_name[MAX_ID_NAME];
+} LibWeakRefKey;
+
+static LibWeakRefKey *lib_weak_key_create(LibWeakRefKey *key,
+                                          const char *lib_path,
+                                          const char *id_name)
+{
+  if (key == NULL) {
+    key = MEM_mallocN(sizeof(*key), __func__);
+  }
+  BLI_strncpy(key->filepath, lib_path, sizeof(key->filepath));
+  BLI_strncpy(key->id_name, id_name, sizeof(key->id_name));
+  return key;
+}
+
+static uint lib_weak_key_hash(const void *ptr)
+{
+  const LibWeakRefKey *string_pair = ptr;
+  uint hash = BLI_ghashutil_strhash_p_murmur(string_pair->filepath);
+  return hash ^ BLI_ghashutil_strhash_p_murmur(string_pair->id_name);
+}
+
+static bool lib_weak_key_cmp(const void *a, const void *b)
+{
+  const LibWeakRefKey *string_pair_a = a;
+  const LibWeakRefKey *string_pair_b = b;
+
+  return !(STREQ(string_pair_a->filepath, string_pair_b->filepath) &&
+           STREQ(string_pair_a->id_name, string_pair_b->id_name));
+}
+
+GHash *BKE_main_library_weak_reference_create(Main *bmain)
+{
+  GHash *library_weak_reference_mapping = BLI_ghash_new(
+      lib_weak_key_hash, lib_weak_key_cmp, __func__);
+
+  ListBase *lb;
+  FOREACH_MAIN_LISTBASE_BEGIN (bmain, lb) {
+    ID *id_iter = lb->first;
+    if (id_iter == NULL) {
+      continue;
+    }
+    if (!BKE_idtype_idcode_append_is_reusable(GS(id_iter->name))) {
+      continue;
+    }
+    BLI_assert(BKE_idtype_idcode_is_linkable(GS(id_iter->name)));
+
+    FOREACH_MAIN_LISTBASE_ID_BEGIN (lb, id_iter) {
+      if (id_iter->library_weak_reference == NULL) {
+        continue;
+      }
+      LibWeakRefKey *key = lib_weak_key_create(NULL,
+                                               id_iter->library_weak_reference->library_filepath,
+                                               id_iter->library_weak_reference->library_id_name);
+      BLI_ghash_insert(library_weak_reference_mapping, key, id_iter);
+    }
+    FOREACH_MAIN_LISTBASE_ID_END;
+  }
+  FOREACH_MAIN_LISTBASE_END;
+
+  return library_weak_reference_mapping;
+}
+
+void BKE_main_library_weak_reference_destroy(GHash *library_weak_reference_mapping)
+{
+  BLI_ghash_free(library_weak_reference_mapping, MEM_freeN, NULL);
+}
+
+ID *BKE_main_library_weak_reference_search_item(GHash *library_weak_reference_mapping,
+                                                const char *library_filepath,
+                                                const char *library_id_name)
+{
+  LibWeakRefKey key;
+  lib_weak_key_create(&key, library_filepath, library_id_name);
+  return (ID *)BLI_ghash_lookup(library_weak_reference_mapping, &key);
+}
+
+void BKE_main_library_weak_reference_add_item(GHash *library_weak_reference_mapping,
+                                              const char *library_filepath,
+                                              const char *library_id_name,
+                                              ID *new_id)
+{
+  BLI_assert(GS(library_id_name) == GS(new_id->name));
+  BLI_assert(new_id->library_weak_reference == NULL);
+  BLI_assert(BKE_idtype_idcode_append_is_reusable(GS(new_id->name)));
+
+  new_id->library_weak_reference = MEM_mallocN(sizeof(*(new_id->library_weak_reference)),
+                                               __func__);
+
+  LibWeakRefKey *key = lib_weak_key_create(NULL, library_filepath, library_id_name);
+  void **id_p;
+  const bool already_exist_in_mapping = BLI_ghash_ensure_p(
+      library_weak_reference_mapping, key, &id_p);
+  BLI_assert(!already_exist_in_mapping);
+  UNUSED_VARS_NDEBUG(already_exist_in_mapping);
+
+  BLI_strncpy(new_id->library_weak_reference->library_filepath,
+              library_filepath,
+              sizeof(new_id->library_weak_reference->library_filepath));
+  BLI_strncpy(new_id->library_weak_reference->library_id_name,
+              library_id_name,
+              sizeof(new_id->library_weak_reference->library_id_name));
+  *id_p = new_id;
+}
+
+void BKE_main_library_weak_reference_update_item(GHash *library_weak_reference_mapping,
+                                                 const char *library_filepath,
+                                                 const char *library_id_name,
+                                                 ID *old_id,
+                                                 ID *new_id)
+{
+  BLI_assert(GS(library_id_name) == GS(old_id->name));
+  BLI_assert(GS(library_id_name) == GS(new_id->name));
+  BLI_assert(old_id->library_weak_reference != NULL);
+  BLI_assert(new_id->library_weak_reference == NULL);
+  BLI_assert(STREQ(old_id->library_weak_reference->library_filepath, library_filepath));
+  BLI_assert(STREQ(old_id->library_weak_reference->library_id_name, library_id_name));
+
+  LibWeakRefKey key;
+  lib_weak_key_create(&key, library_filepath, library_id_name);
+  void **id_p = BLI_ghash_lookup_p(library_weak_reference_mapping, &key);
+  BLI_assert(id_p != NULL && *id_p == old_id);
+
+  new_id->library_weak_reference = old_id->library_weak_reference;
+  old_id->library_weak_reference = NULL;
+  *id_p = new_id;
+}
+
+void BKE_main_library_weak_reference_remove_item(GHash *library_weak_reference_mapping,
+                                                 const char *library_filepath,
+                                                 const char *library_id_name,
+                                                 ID *old_id)
+{
+  BLI_assert(GS(library_id_name) == GS(old_id->name));
+  BLI_assert(old_id->library_weak_reference != NULL);
+
+  LibWeakRefKey key;
+  lib_weak_key_create(&key, library_filepath, library_id_name);
+
+  BLI_assert(BLI_ghash_lookup(library_weak_reference_mapping, &key) == old_id);
+  BLI_ghash_remove(library_weak_reference_mapping, &key, MEM_freeN, NULL);
+
+  MEM_SAFE_FREE(old_id->library_weak_reference);
+}
+
 BlendThumbnail *BKE_main_thumbnail_from_imbuf(Main *bmain, ImBuf *img)
 {
   BlendThumbnail *data = NULL;
@@ -389,13 +517,6 @@ BlendThumbnail *BKE_main_thumbnail_from_imbuf(Main *bmain, ImBuf *img)
   return data;
 }
 
-/**
- * Generates an image from raw .blend file thumbnail \a data.
- *
- * \param bmain: Use this bmain->blen_thumb data if given \a data is NULL.
- * \param data: Raw .blend file thumbnail data.
- * \return An ImBuf from given data, or NULL if invalid.
- */
 ImBuf *BKE_main_thumbnail_to_imbuf(Main *bmain, BlendThumbnail *data)
 {
   ImBuf *img = NULL;
@@ -412,9 +533,6 @@ ImBuf *BKE_main_thumbnail_to_imbuf(Main *bmain, BlendThumbnail *data)
   return img;
 }
 
-/**
- * Generates an empty (black) thumbnail for given Main.
- */
 void BKE_main_thumbnail_create(struct Main *bmain)
 {
   MEM_SAFE_FREE(bmain->blen_thumb);
@@ -424,28 +542,16 @@ void BKE_main_thumbnail_create(struct Main *bmain)
   bmain->blen_thumb->height = BLEN_THUMB_SIZE;
 }
 
-/**
- * Return filepath of given \a main.
- */
 const char *BKE_main_blendfile_path(const Main *bmain)
 {
-  return bmain->name;
+  return bmain->filepath;
 }
 
-/**
- * Return filepath of global main #G_MAIN.
- *
- * \warning Usage is not recommended,
- * you should always try to get a valid Main pointer from context...
- */
 const char *BKE_main_blendfile_path_from_global(void)
 {
   return BKE_main_blendfile_path(G_MAIN);
 }
 
-/**
- * \return A pointer to the \a ListBase of given \a bmain for requested \a type ID type.
- */
 ListBase *which_libbase(Main *bmain, short type)
 {
   switch ((ID_Type)type) {
@@ -457,7 +563,7 @@ ListBase *which_libbase(Main *bmain, short type)
       return &(bmain->objects);
     case ID_ME:
       return &(bmain->meshes);
-    case ID_CU:
+    case ID_CU_LEGACY:
       return &(bmain->curves);
     case ID_MB:
       return &(bmain->metaballs);
@@ -521,8 +627,8 @@ ListBase *which_libbase(Main *bmain, short type)
       return &(bmain->cachefiles);
     case ID_WS:
       return &(bmain->workspaces);
-    case ID_HA:
-      return &(bmain->hairs);
+    case ID_CV:
+      return &(bmain->hair_curves);
     case ID_PT:
       return &(bmain->pointclouds);
     case ID_VO:
@@ -533,18 +639,6 @@ ListBase *which_libbase(Main *bmain, short type)
   return NULL;
 }
 
-/**
- * Put the pointers to all the #ListBase structs in given `bmain` into the `*lb[INDEX_ID_MAX]`
- * array, and return the number of those for convenience.
- *
- * This is useful for generic traversal of all the blocks in a #Main (by traversing all the lists
- * in turn), without worrying about block types.
- *
- * \param lb: Array of lists #INDEX_ID_MAX in length.
- *
- * \note The order of each ID type #ListBase in the array is determined by the `INDEX_ID_<IDTYPE>`
- * enum definitions in `DNA_ID.h`. See also the #FOREACH_MAIN_ID_BEGIN macro in `BKE_main.h`
- */
 int set_listbasepointers(Main *bmain, ListBase *lb[/*INDEX_ID_MAX*/])
 {
   /* Libraries may be accessed from pretty much any other ID. */
@@ -576,9 +670,9 @@ int set_listbasepointers(Main *bmain, ListBase *lb[/*INDEX_ID_MAX*/])
 
   lb[INDEX_ID_CF] = &(bmain->cachefiles);
   lb[INDEX_ID_ME] = &(bmain->meshes);
-  lb[INDEX_ID_CU] = &(bmain->curves);
+  lb[INDEX_ID_CU_LEGACY] = &(bmain->curves);
   lb[INDEX_ID_MB] = &(bmain->metaballs);
-  lb[INDEX_ID_HA] = &(bmain->hairs);
+  lb[INDEX_ID_CV] = &(bmain->hair_curves);
   lb[INDEX_ID_PT] = &(bmain->pointclouds);
   lb[INDEX_ID_VO] = &(bmain->volumes);
 

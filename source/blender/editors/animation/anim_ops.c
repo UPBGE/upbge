@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2008 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2008 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup edanimation
@@ -74,8 +58,23 @@ static bool change_frame_poll(bContext *C)
    * this shouldn't show up in 3D editor (or others without 2D timeline view) via search
    */
   if (area) {
-    if (ELEM(area->spacetype, SPACE_ACTION, SPACE_NLA, SPACE_SEQ, SPACE_CLIP, SPACE_GRAPH)) {
+    if (ELEM(area->spacetype, SPACE_ACTION, SPACE_NLA, SPACE_CLIP)) {
       return true;
+    }
+    if (area->spacetype == SPACE_SEQ) {
+      /* Check the region type so tools (which are shared between preview/strip view)
+       * don't conflict with actions which can have the same key bound (2D cursor for example). */
+      const ARegion *region = CTX_wm_region(C);
+      if (region && region->regiontype == RGN_TYPE_WINDOW) {
+        return true;
+      }
+    }
+    if (area->spacetype == SPACE_GRAPH) {
+      const SpaceGraph *sipo = area->spacedata.first;
+      /* Driver Editor's X axis is not time. */
+      if (sipo->mode != SIPO_MODE_DRIVERS) {
+        return true;
+      }
     }
   }
 
@@ -134,7 +133,7 @@ static void change_frame_apply(bContext *C, wmOperator *op)
   bool do_snap = RNA_boolean_get(op->ptr, "snap");
 
   if (do_snap) {
-    if (CTX_wm_space_seq(C)) {
+    if (CTX_wm_space_seq(C) && SEQ_editing_get(scene) != NULL) {
       frame = seq_frame_apply_snap(C, scene, frame);
     }
     else {
@@ -154,7 +153,7 @@ static void change_frame_apply(bContext *C, wmOperator *op)
   FRAMENUMBER_MIN_CLAMP(CFRA);
 
   /* do updates */
-  DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO_SEEK);
+  DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
   WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
 }
 
@@ -241,6 +240,11 @@ static bool use_sequencer_snapping(bContext *C)
 /* Modal Operator init */
 static int change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+  ARegion *region = CTX_wm_region(C);
+  if (CTX_wm_space_seq(C) != NULL && region->regiontype == RGN_TYPE_PREVIEW) {
+    return OPERATOR_CANCELLED;
+  }
+
   /* Change to frame that mouse is over before adding modal handler,
    * as user could click on a single frame (jump to frame) as well as
    * click-dragging over a range (modal scrubbing).

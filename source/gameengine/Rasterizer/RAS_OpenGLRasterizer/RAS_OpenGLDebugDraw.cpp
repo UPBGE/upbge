@@ -27,18 +27,14 @@
 #include "RAS_DebugDraw.h"
 
 #include "BLF_api.h"
-#include "DNA_scene_types.h"
 #include "DRW_render.h"
 #include "GPU_immediate.h"
 #include "GPU_matrix.h"
 
-#include "EXP_ListValue.h"
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
 #include "RAS_ICanvas.h"
 #include "RAS_OpenGLDebugDraw.h"
-
-#include "draw_debug.h"
 
 RAS_OpenGLDebugDraw::RAS_OpenGLDebugDraw()
 {

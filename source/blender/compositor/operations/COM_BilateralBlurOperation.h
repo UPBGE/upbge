@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #pragma once
 
@@ -25,10 +10,10 @@ namespace blender::compositor {
 
 class BilateralBlurOperation : public MultiThreadedOperation, public QualityStepHelper {
  private:
-  SocketReader *m_inputColorProgram;
-  SocketReader *m_inputDeterminatorProgram;
-  NodeBilateralBlurData *m_data;
-  float m_space;
+  SocketReader *input_color_program_;
+  SocketReader *input_determinator_program_;
+  NodeBilateralBlurData *data_;
+  float space_;
 
  public:
   BilateralBlurOperation();
@@ -36,26 +21,26 @@ class BilateralBlurOperation : public MultiThreadedOperation, public QualityStep
   /**
    * The inner loop of this operation.
    */
-  void executePixel(float output[4], int x, int y, void *data) override;
+  void execute_pixel(float output[4], int x, int y, void *data) override;
 
   /**
    * Initialize the execution
    */
-  void initExecution() override;
+  void init_execution() override;
 
   /**
    * Deinitialize the execution
    */
-  void deinitExecution() override;
+  void deinit_execution() override;
 
-  bool determineDependingAreaOfInterest(rcti *input,
-                                        ReadBufferOperation *readOperation,
-                                        rcti *output) override;
+  bool determine_depending_area_of_interest(rcti *input,
+                                            ReadBufferOperation *read_operation,
+                                            rcti *output) override;
 
-  void setData(NodeBilateralBlurData *data)
+  void set_data(NodeBilateralBlurData *data)
   {
-    this->m_data = data;
-    this->m_space = data->sigma_space + data->iter;
+    data_ = data;
+    space_ = data->sigma_space + data->iter;
   }
 
   void get_area_of_interest(int input_idx, const rcti &output_area, rcti &r_input_area) override;

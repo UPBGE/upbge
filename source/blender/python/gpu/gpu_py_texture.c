@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bpygpu
@@ -527,6 +513,7 @@ PyTypeObject BPyGPUTexture_Type = {
 /* -------------------------------------------------------------------- */
 /** \name GPU Texture module
  * \{ */
+
 PyDoc_STRVAR(pygpu_texture_from_image_doc,
              ".. function:: from_image(image)\n"
              "\n"
@@ -536,7 +523,7 @@ PyDoc_STRVAR(pygpu_texture_from_image_doc,
              "premultiplied or straight alpha matching the image alpha mode.\n"
              "\n"
              "   :arg image: The Image datablock.\n"
-             "   :type image: `bpy.types.Image`\n"
+             "   :type image: :class:`bpy.types.Image`\n"
              "   :return: The GPUTexture used by the image.\n"
              "   :rtype: :class:`gpu.types.GPUTexture`\n");
 static PyObject *pygpu_texture_from_image(PyObject *UNUSED(self), PyObject *arg)

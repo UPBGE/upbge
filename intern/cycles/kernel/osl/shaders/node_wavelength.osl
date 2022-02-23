@@ -1,0 +1,9 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
+
+#include "stdcycles.h"
+
+shader node_wavelength(float Wavelength = 500.0, output color Color = 0.0)
+{
+  Color = wavelength_color(Wavelength);
+}

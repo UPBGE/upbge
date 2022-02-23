@@ -10,6 +10,6 @@ void main(void)
   for (int i = 0; i < 9; i++) {
     samples[i] = texture(bgl_RenderedTexture, bgl_TexCoord.xy + bgl_TextureCoordinateOffset[i]);
   }
-  fragColor = (samples[4] * 9.0) - (samples[0] + samples[1] + samples[2] + samples[3] + samples[5] +
-                                   samples[6] + samples[7] + samples[8]);
+  fragColor = (samples[4] * 9.0) - (samples[0] + samples[1] + samples[2] + samples[3] +
+                                    samples[5] + samples[6] + samples[7] + samples[8]);
 }

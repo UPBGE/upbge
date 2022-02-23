@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edcurve
@@ -42,11 +26,11 @@
 
 #include "BKE_context.h"
 #include "BKE_curve.h"
-#include "BKE_font.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
 #include "BKE_report.h"
+#include "BKE_vfont.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
@@ -70,8 +54,6 @@
 #define MAXTEXT 32766
 
 static int kill_selection(Object *obedit, int ins);
-
-/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Internal Utilities
@@ -2155,8 +2137,8 @@ void FONT_OT_open(wmOperatorType *ot)
                                  FILE_SPECIAL,
                                  FILE_OPENFILE,
                                  WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH,
-                                 FILE_DEFAULTDISPLAY,
-                                 FILE_SORT_DEFAULT);
+                                 FILE_IMGDISPLAY,
+                                 FILE_SORT_ALPHA);
 }
 
 /** \} */
@@ -2199,9 +2181,6 @@ void FONT_OT_unlink(wmOperatorType *ot)
   ot->exec = font_unlink_exec;
 }
 
-/**
- * TextBox selection
- */
 bool ED_curve_editfont_select_pick(
     bContext *C, const int mval[2], bool extend, bool deselect, bool toggle)
 {

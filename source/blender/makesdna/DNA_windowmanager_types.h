@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2007 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2007 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup DNA
@@ -33,7 +17,8 @@
 extern "C" {
 #endif
 
-/* defined here: */
+/* Defined here: */
+
 struct wmWindow;
 struct wmWindowManager;
 
@@ -45,7 +30,8 @@ struct wmMsgBus;
 struct wmOperator;
 struct wmOperatorType;
 
-/* forwards */
+/* Forward declarations: */
+
 struct PointerRNA;
 struct Report;
 struct ReportList;
@@ -58,8 +44,8 @@ struct wmTimer;
 #define OP_MAX_TYPENAME 64
 #define KMAP_MAX_NAME 64
 
-/* keep in sync with 'rna_enum_wm_report_items' in wm_rna.c */
-typedef enum ReportType {
+/** Keep in sync with 'rna_enum_wm_report_items' in `wm_rna.c`. */
+typedef enum eReportType {
   RPT_DEBUG = (1 << 0),
   RPT_INFO = (1 << 1),
   RPT_OPERATOR = (1 << 2),
@@ -69,7 +55,7 @@ typedef enum ReportType {
   RPT_ERROR_INVALID_INPUT = (1 << 6),
   RPT_ERROR_INVALID_CONTEXT = (1 << 7),
   RPT_ERROR_OUT_OF_MEMORY = (1 << 8),
-} ReportType;
+} eReportType;
 
 #define RPT_DEBUG_ALL (RPT_DEBUG)
 #define RPT_INFO_ALL (RPT_INFO)
@@ -91,7 +77,7 @@ enum ReportListFlags {
 #
 typedef struct Report {
   struct Report *next, *prev;
-  /** ReportType. */
+  /** eReportType. */
   short type;
   short flag;
   /** `strlen(message)`, saves some time calculating the word wrap. */
@@ -100,12 +86,14 @@ typedef struct Report {
   const char *message;
 } Report;
 
-/* saved in the wm, don't remove */
+/**
+ * \note Saved in the wm, don't remove.
+ */
 typedef struct ReportList {
   ListBase list;
-  /** ReportType. */
+  /** eReportType. */
   int printlevel;
-  /** ReportType. */
+  /** eReportType. */
   int storelevel;
   int flag;
   char _pad[4];
@@ -133,12 +121,19 @@ typedef struct wmXrData {
 
 /* reports need to be before wmWindowManager */
 
-/* windowmanager is saved, tag WMAN */
+/** Window-manager is saved, tag WMAN. */
 typedef struct wmWindowManager {
   ID id;
 
   /** Separate active from drawable. */
-  struct wmWindow *windrawable, *winactive;
+  struct wmWindow *windrawable;
+  /**
+   * \note `CTX_wm_window(C)` is usually preferred.
+   * Avoid relying on this where possible as this may become NULL during when handling
+   * events that close or replace windows (opening a file for e.g.).
+   * While this happens rarely in practice, it can cause difficult to reproduce bugs.
+   */
+  struct wmWindow *winactive;
   ListBase windows;
 
   /** Set on file read. */
@@ -197,13 +192,13 @@ typedef struct wmWindowManager {
   //#endif
 } wmWindowManager;
 
-/* wmWindowManager.initialized */
+/** #wmWindowManager.initialized */
 enum {
   WM_WINDOW_IS_INIT = (1 << 0),
   WM_KEYCONFIG_IS_INIT = (1 << 1),
 };
 
-/* wmWindowManager.outliner_sync_select_dirty */
+/** #wmWindowManager.outliner_sync_select_dirty */
 enum {
   WM_OUTLINER_SYNC_SELECT_FROM_OBJECT = (1 << 0),
   WM_OUTLINER_SYNC_SELECT_FROM_EDIT_BONE = (1 << 1),
@@ -224,7 +219,9 @@ enum {
 #  endif
 #endif
 
-/* the saveable part, rest of data is local in ghostwinlay */
+/**
+ * The saveable part, the rest of the data is local in GHOST.
+ */
 typedef struct wmWindow {
   struct wmWindow *next, *prev;
 
@@ -345,7 +342,9 @@ typedef struct wmOperatorTypeMacro {
   struct PointerRNA *ptr;
 } wmOperatorTypeMacro;
 
-/* Partial copy of the event, for matching by event handler. */
+/**
+ * Partial copy of the event, for matching by event handler.
+ */
 typedef struct wmKeyMapItem {
   struct wmKeyMapItem *next, *prev;
 
@@ -429,7 +428,9 @@ enum {
   KMI_TYPE_NDOF = 5,
 };
 
-/* stored in WM, the actively used keymaps */
+/**
+ * Stored in WM, the actively used key-maps.
+ */
 typedef struct wmKeyMap {
   struct wmKeyMap *next, *prev;
 

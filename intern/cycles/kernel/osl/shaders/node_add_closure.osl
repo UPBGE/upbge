@@ -1,0 +1,11 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
+
+#include "stdcycles.h"
+
+shader node_add_closure(closure color Closure1 = 0,
+                        closure color Closure2 = 0,
+                        output closure color Closure = 0)
+{
+  Closure = Closure1 + Closure2;
+}

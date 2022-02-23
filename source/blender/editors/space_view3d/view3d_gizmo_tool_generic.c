@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spview3d
@@ -140,12 +126,9 @@ static void WIDGETGROUP_tool_generic_refresh(const bContext *C, wmGizmoGroup *gz
 
   ToolSettings *ts = CTX_data_tool_settings(C);
   if (ts->workspace_tool_type != SCE_WORKSPACE_TOOL_FALLBACK) {
-    gzgroup->use_fallback_keymap = false;
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
     return;
   }
-
-  gzgroup->use_fallback_keymap = true;
 
   /* skip, we don't draw anything anyway */
   {

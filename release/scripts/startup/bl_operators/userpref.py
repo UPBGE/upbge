@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8 compliant>
 
@@ -99,14 +83,6 @@ class PREFERENCES_OT_copy_prev(Operator):
         version = bpy.app.version
         version_new = ((version[0] * 100) + version[1])
         version_old = ((version[0] * 100) + version[1]) - 1
-
-        # Special case, remove when the version is > 3.0.
-        if version_new == 300:
-            version_new = 294
-            version_old = 293
-        else:
-            print("TODO: remove exception!")
-        # End special case.
 
         # Ensure we only try to copy files from a point release.
         # The check below ensures the second numbers match.
@@ -268,7 +244,7 @@ class PREFERENCES_OT_keyconfig_export(Operator):
     )
     filepath: StringProperty(
         subtype='FILE_PATH',
-        default="keymap.py",
+        default="",
     )
     filter_folder: BoolProperty(
         name="Filter folders",
@@ -307,7 +283,13 @@ class PREFERENCES_OT_keyconfig_export(Operator):
         return {'FINISHED'}
 
     def invoke(self, context, _event):
+        import os
         wm = context.window_manager
+        if not self.filepath:
+            self.filepath = os.path.join(
+                os.path.expanduser("~"),
+                bpy.path.display_name_to_filepath(wm.keyconfigs.active.name) + ".py",
+            )
         wm.fileselect_add(self)
         return {'RUNNING_MODAL'}
 

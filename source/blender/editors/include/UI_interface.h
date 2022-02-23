@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup editorui
@@ -26,8 +10,9 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_sys_types.h" /* size_t */
 #include "BLI_utildefines.h"
-#include "RNA_types.h"     /* UPBGE */
+#include "RNA_types.h" /* UPBGE */
 #include "UI_interface_icons.h"
+#include "WM_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -38,6 +23,7 @@ extern "C" {
 struct ARegion;
 struct AssetFilterSettings;
 struct AssetHandle;
+struct AssetMetaData;
 struct AutoComplete;
 struct EnumPropertyItem;
 struct FileDirEntry;
@@ -83,14 +69,23 @@ struct wmWindow;
 
 typedef struct uiBlock uiBlock;
 typedef struct uiBut uiBut;
+typedef struct uiButExtraOpIcon uiButExtraOpIcon;
 typedef struct uiLayout uiLayout;
 typedef struct uiPopupBlockHandle uiPopupBlockHandle;
+/* C handle for C++ #ui::AbstractTreeView type. */
+typedef struct uiTreeViewHandle uiTreeViewHandle;
+/* C handle for C++ #ui::AbstractTreeViewItem type. */
+typedef struct uiTreeViewItemHandle uiTreeViewItemHandle;
 
 /* Defines */
 
 /* char for splitting strings, aligning shortcuts in menus, users never see */
 #define UI_SEP_CHAR '|'
 #define UI_SEP_CHAR_S "|"
+
+/* Separator for text in search menus (right pointing arrow).
+ * keep in sync with `string_search.cc`. */
+#define UI_MENU_ARROW_SEP "\xe2\x96\xb6"
 
 /* names */
 #define UI_MAX_DRAW_STR 400
@@ -236,10 +231,10 @@ enum {
 };
 
 /* Default font size for normal text. */
-#define UI_DEFAULT_TEXT_POINTS 11
+#define UI_DEFAULT_TEXT_POINTS 11.0f
 
 /* Larger size used for title text. */
-#define UI_DEFAULT_TITLE_POINTS 12
+#define UI_DEFAULT_TITLE_POINTS 11.0f
 
 #define UI_PANEL_WIDTH 340
 #define UI_COMPACT_PANEL_WIDTH 160
@@ -249,7 +244,10 @@ enum {
 
 #define UI_PANEL_CATEGORY_MARGIN_WIDTH (U.widget_unit * 1.0f)
 
-#define UI_PANEL_BOX_STYLE_MARGIN (U.widget_unit * 0.2f)
+/* Both these margins should be ignored if the panel doesn't show a background (check
+ * #UI_panel_should_show_background()). */
+#define UI_PANEL_MARGIN_X (U.widget_unit * 0.4f)
+#define UI_PANEL_MARGIN_Y (U.widget_unit * 0.1f)
 
 /* but->drawflag - these flags should only affect how the button is drawn. */
 /* NOTE: currently, these flags *are not passed* to the widget's state() or draw() functions
@@ -392,7 +390,8 @@ typedef enum {
   /** Resize handle (resize uilist). */
   UI_BTYPE_GRIP = 57 << 9,
   UI_BTYPE_DECORATOR = 58 << 9,
-  UI_BTYPE_DATASETROW = 59 << 9,
+  /* An item in a tree view. Parent items may be collapsible. */
+  UI_BTYPE_TREEROW = 59 << 9,
 } eButType;
 
 #define BUTTYPE (63 << 9)
@@ -415,10 +414,6 @@ typedef enum eButGradientType {
  * Functions to draw various shapes, taking theme settings into account.
  * Used for code that draws its own UI style elements. */
 
-void UI_draw_anti_tria(
-    float x1, float y1, float x2, float y2, float x3, float y3, const float color[4]);
-void UI_draw_anti_fan(float tri_array[][2], unsigned int length, const float color[4]);
-
 void UI_draw_roundbox_corner_set(int type);
 void UI_draw_roundbox_aa(const struct rctf *rect, bool filled, float rad, const float color[4]);
 void UI_draw_roundbox_4fv(const struct rctf *rect, bool filled, float rad, const float col[4]);
@@ -429,12 +424,6 @@ void UI_draw_roundbox_3ub_alpha(const struct rctf *rect,
                                 unsigned char alpha);
 void UI_draw_roundbox_3fv_alpha(
     const struct rctf *rect, bool filled, float rad, const float col[3], float alpha);
-void UI_draw_roundbox_shade_x(const struct rctf *rect,
-                              bool filled,
-                              float rad,
-                              float shadetop,
-                              float shadedown,
-                              const float col[4]);
 void UI_draw_roundbox_4fv_ex(const struct rctf *rect,
                              const float inner1[4],
                              const float inner2[4],
@@ -450,6 +439,14 @@ int UI_draw_roundbox_corner_get(void);
 void UI_draw_box_shadow(const struct rctf *rect, unsigned char alpha);
 void UI_draw_text_underline(int pos_x, int pos_y, int len, int height, const float color[4]);
 
+/**
+ * Draw title and text safe areas.
+ *
+ * \note This function is to be used with the 2D dashed shader enabled.
+ *
+ * \param pos: is a #PRIM_FLOAT, 2, #GPU_FETCH_FLOAT vertex attribute.
+ * \param rect: The offsets for the view, not the zones.
+ */
 void UI_draw_safe_areas(uint pos,
                         const struct rctf *rect,
                         const float title_aspect[2],
@@ -461,18 +458,33 @@ enum {
   UI_SCROLL_ARROWS = 1 << 1,
   UI_SCROLL_NO_OUTLINE = 1 << 2,
 };
+/**
+ * Function in use for buttons and for view2d sliders.
+ */
 void UI_draw_widget_scroll(struct uiWidgetColors *wcol,
                            const struct rcti *rect,
                            const struct rcti *slider,
                            int state);
 
-/* Shortening string helper. */
+/**
+ * Shortening string helper.
+ *
+ * Cut off the middle of the text to fit into the given width.
+ *
+ * \note in case this middle clipping would just remove a few chars,
+ * it rather clips right, which is more readable.
+ *
+ * If rpart_sep is not Null, the part of str starting to first occurrence of rpart_sep
+ * is preserved at all cost.
+ * Useful for strings with shortcuts
+ * (like 'AVeryLongFooBarLabelForMenuEntry|Ctrl O' -> 'AVeryLong...MenuEntry|Ctrl O').
+ */
 float UI_text_clip_middle_ex(const struct uiFontStyle *fstyle,
                              char *str,
                              float okwidth,
-                             const float minwidth,
-                             const size_t max_len,
-                             const char rpart_sep);
+                             float minwidth,
+                             size_t max_len,
+                             char rpart_sep);
 
 /**
  * Callbacks
@@ -502,14 +514,13 @@ typedef int (*uiButCompleteFunc)(struct bContext *C, char *str, void *arg);
 typedef struct ARegion *(*uiButSearchCreateFn)(struct bContext *C,
                                                struct ARegion *butregion,
                                                struct uiButSearch *search_but);
-/* `is_first` is typically used to ignore search filtering when the menu is first opened in order
+/**
+ * `is_first` is typically used to ignore search filtering when the menu is first opened in order
  * to display the full list of options. The value will be false after the button's text is edited
- * (for every call except the first). */
-typedef void (*uiButSearchUpdateFn)(const struct bContext *C,
-                                    void *arg,
-                                    const char *str,
-                                    uiSearchItems *items,
-                                    const bool is_first);
+ * (for every call except the first).
+ */
+typedef void (*uiButSearchUpdateFn)(
+    const struct bContext *C, void *arg, const char *str, uiSearchItems *items, bool is_first);
 typedef bool (*uiButSearchContextMenuFn)(struct bContext *C,
                                          void *arg,
                                          void *active,
@@ -591,10 +602,11 @@ typedef void (*uiFreeArgFunc)(void *arg);
 /* interface_query.c */
 bool UI_but_has_tooltip_label(const uiBut *but);
 bool UI_but_is_tool(const uiBut *but);
+/* file selectors are exempt from utf-8 checks */
 bool UI_but_is_utf8(const uiBut *but);
 #define UI_but_is_decorator(but) ((but)->type == UI_BTYPE_DECORATOR)
 
-bool UI_block_is_empty_ex(const uiBlock *block, const bool skip_title);
+bool UI_block_is_empty_ex(const uiBlock *block, bool skip_title);
 bool UI_block_is_empty(const uiBlock *block);
 bool UI_block_can_add_separator(const uiBlock *block);
 
@@ -612,10 +624,17 @@ struct uiList *UI_list_find_mouse_over(const struct ARegion *region, const struc
 typedef struct uiPopupMenu uiPopupMenu;
 
 uiPopupMenu *UI_popup_menu_begin(struct bContext *C, const char *title, int icon) ATTR_NONNULL();
+/**
+ * Only return handler, and set optional title.
+ * \param block_name: Assigned to uiBlock.name (useful info for debugging).
+ */
 uiPopupMenu *UI_popup_menu_begin_ex(struct bContext *C,
                                     const char *title,
                                     const char *block_name,
                                     int icon) ATTR_NONNULL();
+/**
+ * Set the whole structure to work.
+ */
 void UI_popup_menu_end(struct bContext *C, struct uiPopupMenu *pup);
 bool UI_popup_menu_end_or_cancel(struct bContext *C, struct uiPopupMenu *head);
 struct uiLayout *UI_popup_menu_layout(uiPopupMenu *pup);
@@ -624,7 +643,14 @@ void UI_popup_menu_reports(struct bContext *C, struct ReportList *reports) ATTR_
 int UI_popup_menu_invoke(struct bContext *C, const char *idname, struct ReportList *reports)
     ATTR_NONNULL(1, 2);
 
-void UI_popup_menu_retval_set(const uiBlock *block, const int retval, const bool enable);
+/**
+ * Allow setting menu return value from externals.
+ * E.g. WM might need to do this for exiting files correctly.
+ */
+void UI_popup_menu_retval_set(const uiBlock *block, int retval, bool enable);
+/**
+ * Setting the button makes the popup open from the button instead of the cursor.
+ */
 void UI_popup_menu_but_set(uiPopupMenu *pup, struct ARegion *butregion, uiBut *but);
 
 /* interface_region_popover.c */
@@ -636,8 +662,17 @@ int UI_popover_panel_invoke(struct bContext *C,
                             bool keep_open,
                             struct ReportList *reports);
 
+/**
+ * Only return handler, and set optional title.
+ *
+ * \param from_active_button: Use the active button for positioning,
+ * use when the popover is activated from an operator instead of directly from the button.
+ */
 uiPopover *UI_popover_begin(struct bContext *C, int menu_width, bool from_active_button)
     ATTR_NONNULL(1);
+/**
+ * Set the whole structure to work.
+ */
 void UI_popover_end(struct bContext *C, struct uiPopover *pup, struct wmKeyMap *keymap);
 struct uiLayout *UI_popover_layout(uiPopover *pup);
 void UI_popover_once_clear(uiPopover *pup);
@@ -692,7 +727,7 @@ void UI_popup_block_ex(struct bContext *C,
 void uiPupBlockOperator(struct bContext *C,
                         uiBlockCreateFunc func,
                         struct wmOperator *op,
-                        int opcontext);
+                        wmOperatorCallContext opcontext);
 #endif
 
 void UI_popup_block_close(struct bContext *C, struct wmWindow *win, uiBlock *block);
@@ -715,6 +750,9 @@ uiBlock *UI_block_begin(const struct bContext *C,
                         eUIEmbossType emboss);
 void UI_block_end_ex(const struct bContext *C, uiBlock *block, const int xy[2], int r_xy[2]);
 void UI_block_end(const struct bContext *C, uiBlock *block);
+/**
+ * Uses local copy of style, to scale things down, and allow widgets to change stuff.
+ */
 void UI_block_draw(const struct bContext *C, struct uiBlock *block);
 void UI_blocklist_update_window_matrix(const struct bContext *C, const struct ListBase *lb);
 void UI_blocklist_update_view_for_buttons(const struct bContext *C, const struct ListBase *lb);
@@ -729,19 +767,36 @@ void UI_block_theme_style_set(uiBlock *block, char theme_style);
 eUIEmbossType UI_block_emboss_get(uiBlock *block);
 void UI_block_emboss_set(uiBlock *block, eUIEmbossType emboss);
 bool UI_block_is_search_only(const uiBlock *block);
+/**
+ * Use when a block must be searched to give accurate results
+ * for the whole region but shouldn't be displayed.
+ */
 void UI_block_set_search_only(uiBlock *block, bool search_only);
 
+/**
+ * Can be called with C==NULL.
+ */
 void UI_block_free(const struct bContext *C, uiBlock *block);
-void UI_blocklist_free(const struct bContext *C, struct ListBase *lb);
-void UI_blocklist_free_inactive(const struct bContext *C, struct ListBase *lb);
-void UI_screen_free_active_but(const struct bContext *C, struct bScreen *screen);
+/**
+ * Can be called with C==NULL.
+ */
+void UI_blocklist_free(const struct bContext *C, struct ARegion *region);
+void UI_blocklist_free_inactive(const struct bContext *C, struct ARegion *region);
+
+/**
+ * Is called by notifier.
+ */
+void UI_screen_free_active_but_highlight(const struct bContext *C, struct bScreen *screen);
+void UI_region_free_active_but_all(struct bContext *context, struct ARegion *region);
 
 void UI_block_region_set(uiBlock *block, struct ARegion *region);
 
 void UI_block_lock_set(uiBlock *block, bool val, const char *lockstr);
 void UI_block_lock_clear(uiBlock *block);
 
-/* Automatic aligning, horizontal or vertical. */
+/**
+ * Automatic aligning, horizontal or vertical.
+ */
 void UI_block_align_begin(uiBlock *block);
 void UI_block_align_end(uiBlock *block);
 
@@ -756,16 +811,34 @@ typedef enum {
   UI_BLOCK_BOUNDS_PIE_CENTER,
 } eBlockBoundsCalc;
 
+/**
+ * Used for various cases.
+ */
 void UI_block_bounds_set_normal(struct uiBlock *block, int addval);
+/**
+ * Used for pull-downs.
+ */
 void UI_block_bounds_set_text(uiBlock *block, int addval);
+/**
+ * Used for block popups.
+ */
 void UI_block_bounds_set_popup(uiBlock *block, int addval, const int bounds_offset[2]);
+/**
+ * Used for menu popups.
+ */
 void UI_block_bounds_set_menu(uiBlock *block, int addval, const int bounds_offset[2]);
+/**
+ * Used for centered popups, i.e. splash.
+ */
 void UI_block_bounds_set_centered(uiBlock *block, int addval);
 void UI_block_bounds_set_explicit(uiBlock *block, int minx, int miny, int maxx, int maxy);
 
 int UI_blocklist_min_y_get(struct ListBase *lb);
 
 void UI_block_direction_set(uiBlock *block, char direction);
+/**
+ * This call escapes if there's alignment flags.
+ */
 void UI_block_order_flip(uiBlock *block);
 void UI_block_flag_enable(uiBlock *block, int flag);
 void UI_block_flag_disable(uiBlock *block, int flag);
@@ -774,21 +847,38 @@ void UI_block_translate(uiBlock *block, int x, int y);
 int UI_but_return_value_get(uiBut *but);
 
 void UI_but_drag_set_id(uiBut *but, struct ID *id);
+/**
+ * Set an image to display while dragging. This works for any drag type (`WM_DRAG_XXX`).
+ * Not to be confused with #UI_but_drag_set_image(), which sets up dragging of an image.
+ */
+void UI_but_drag_attach_image(uiBut *but, struct ImBuf *imb, float scale);
+/**
+ * \param asset: May be passed from a temporary variable, drag data only stores a copy of this.
+ */
 void UI_but_drag_set_asset(uiBut *but,
                            const struct AssetHandle *asset,
                            const char *path,
+                           struct AssetMetaData *metadata,
                            int import_type, /* eFileAssetImportType */
                            int icon,
                            struct ImBuf *imb,
                            float scale);
 void UI_but_drag_set_rna(uiBut *but, struct PointerRNA *ptr);
-void UI_but_drag_set_path(uiBut *but, const char *path, const bool use_free);
+void UI_but_drag_set_path(uiBut *but, const char *path, bool use_free);
 void UI_but_drag_set_name(uiBut *but, const char *name);
+/**
+ * Value from button itself.
+ */
 void UI_but_drag_set_value(uiBut *but);
 void UI_but_drag_set_image(
-    uiBut *but, const char *path, int icon, struct ImBuf *imb, float scale, const bool use_free);
+    uiBut *but, const char *path, int icon, struct ImBuf *imb, float scale, bool use_free);
 
-bool UI_but_active_drop_name(struct bContext *C);
+uiBut *UI_but_active_drop_name_button(const struct bContext *C);
+/**
+ * Returns true if highlighted button allows drop of names.
+ * called in region context.
+ */
+bool UI_but_active_drop_name(const struct bContext *C);
 bool UI_but_active_drop_color(struct bContext *C);
 
 void UI_but_flag_enable(uiBut *but, int flag);
@@ -802,20 +892,33 @@ void UI_but_disable(uiBut *but, const char *disabled_hint);
 
 void UI_but_type_set_menu_from_pulldown(uiBut *but);
 
-/* special button case, only draw it when used actively, for outliner etc */
+/**
+ * Special button case, only draw it when used actively, for outliner etc.
+ *
+ * Needed for temporarily rename buttons, such as in outliner or file-select,
+ * they should keep calling #uiDefBut to keep them alive.
+ * \return false when button removed.
+ */
 bool UI_but_active_only_ex(const struct bContext *C,
                            struct ARegion *region,
                            uiBlock *block,
                            uiBut *but,
-                           const bool remove_on_failure);
+                           bool remove_on_failure);
 bool UI_but_active_only(const struct bContext *C,
                         struct ARegion *region,
                         uiBlock *block,
                         uiBut *but);
+/**
+ * \warning This must run after other handlers have been added,
+ * otherwise the handler won't be removed, see: T71112.
+ */
 bool UI_block_active_only_flagged_buttons(const struct bContext *C,
                                           struct ARegion *region,
                                           struct uiBlock *block);
 
+/**
+ * Simulate button click.
+ */
 void UI_but_execute(const struct bContext *C, struct ARegion *region, uiBut *but);
 
 bool UI_but_online_manual_id(const uiBut *but,
@@ -864,21 +967,6 @@ uiBut *uiDefButF(uiBlock *block,
                  float a1,
                  float a2,
                  const char *tip);
-uiBut *uiDefButBitF(uiBlock *block,
-                    int type,
-                    int bit,
-                    int retval,
-                    const char *str,
-                    int x,
-                    int y,
-                    short width,
-                    short height,
-                    float *poin,
-                    float min,
-                    float max,
-                    float a1,
-                    float a2,
-                    const char *tip);
 uiBut *uiDefButI(uiBlock *block,
                  int type,
                  int retval,
@@ -1001,7 +1089,7 @@ uiBut *uiDefButR_prop(uiBlock *block,
 uiBut *uiDefButO(uiBlock *block,
                  int type,
                  const char *opname,
-                 int opcontext,
+                 wmOperatorCallContext opcontext,
                  const char *str,
                  int x,
                  int y,
@@ -1011,7 +1099,7 @@ uiBut *uiDefButO(uiBlock *block,
 uiBut *uiDefButO_ptr(uiBlock *block,
                      int type,
                      struct wmOperatorType *ot,
-                     int opcontext,
+                     wmOperatorCallContext opcontext,
                      const char *str,
                      int x,
                      int y,
@@ -1019,6 +1107,9 @@ uiBut *uiDefButO_ptr(uiBlock *block,
                      short height,
                      const char *tip);
 
+/**
+ * If a1==1.0 then a2 is an extra icon blending factor (alpha 0.0 - 1.0).
+ */
 uiBut *uiDefIconBut(uiBlock *block,
                     int type,
                     int retval,
@@ -1033,35 +1124,6 @@ uiBut *uiDefIconBut(uiBlock *block,
                     float a1,
                     float a2,
                     const char *tip);
-uiBut *uiDefIconButF(uiBlock *block,
-                     int type,
-                     int retval,
-                     int icon,
-                     int x,
-                     int y,
-                     short width,
-                     short height,
-                     float *poin,
-                     float min,
-                     float max,
-                     float a1,
-                     float a2,
-                     const char *tip);
-uiBut *uiDefIconButBitF(uiBlock *block,
-                        int type,
-                        int bit,
-                        int retval,
-                        int icon,
-                        int x,
-                        int y,
-                        short width,
-                        short height,
-                        float *poin,
-                        float min,
-                        float max,
-                        float a1,
-                        float a2,
-                        const char *tip);
 uiBut *uiDefIconButI(uiBlock *block,
                      int type,
                      int retval,
@@ -1120,20 +1182,6 @@ uiBut *uiDefIconButBitS(uiBlock *block,
                         float a1,
                         float a2,
                         const char *tip);
-uiBut *uiDefIconButC(uiBlock *block,
-                     int type,
-                     int retval,
-                     int icon,
-                     int x,
-                     int y,
-                     short width,
-                     short height,
-                     char *poin,
-                     float min,
-                     float max,
-                     float a1,
-                     float a2,
-                     const char *tip);
 uiBut *uiDefIconButBitC(uiBlock *block,
                         int type,
                         int bit,
@@ -1184,7 +1232,7 @@ uiBut *uiDefIconButR_prop(uiBlock *block,
 uiBut *uiDefIconButO(uiBlock *block,
                      int type,
                      const char *opname,
-                     int opcontext,
+                     wmOperatorCallContext opcontext,
                      int icon,
                      int x,
                      int y,
@@ -1194,7 +1242,7 @@ uiBut *uiDefIconButO(uiBlock *block,
 uiBut *uiDefIconButO_ptr(uiBlock *block,
                          int type,
                          struct wmOperatorType *ot,
-                         int opcontext,
+                         wmOperatorCallContext opcontext,
                          int icon,
                          int x,
                          int y,
@@ -1204,6 +1252,7 @@ uiBut *uiDefIconButO_ptr(uiBlock *block,
 uiBut *uiDefButImage(
     uiBlock *block, void *imbuf, int x, int y, short width, short height, const uchar color[4]);
 uiBut *uiDefButAlert(uiBlock *block, int icon, int x, int y, short width, short height);
+/* Button containing both string label and icon */
 uiBut *uiDefIconTextBut(uiBlock *block,
                         int type,
                         int retval,
@@ -1234,22 +1283,6 @@ uiBut *uiDefIconTextButF(uiBlock *block,
                          float a1,
                          float a2,
                          const char *tip);
-uiBut *uiDefIconTextButBitF(uiBlock *block,
-                            int type,
-                            int bit,
-                            int retval,
-                            int icon,
-                            const char *str,
-                            int x,
-                            int y,
-                            short width,
-                            short height,
-                            float *poin,
-                            float min,
-                            float max,
-                            float a1,
-                            float a2,
-                            const char *tip);
 uiBut *uiDefIconTextButI(uiBlock *block,
                          int type,
                          int retval,
@@ -1265,84 +1298,6 @@ uiBut *uiDefIconTextButI(uiBlock *block,
                          float a1,
                          float a2,
                          const char *tip);
-uiBut *uiDefIconTextButBitI(uiBlock *block,
-                            int type,
-                            int bit,
-                            int retval,
-                            int icon,
-                            const char *str,
-                            int x,
-                            int y,
-                            short width,
-                            short height,
-                            int *poin,
-                            float min,
-                            float max,
-                            float a1,
-                            float a2,
-                            const char *tip);
-uiBut *uiDefIconTextButS(uiBlock *block,
-                         int type,
-                         int retval,
-                         int icon,
-                         const char *str,
-                         int x,
-                         int y,
-                         short width,
-                         short height,
-                         short *poin,
-                         float min,
-                         float max,
-                         float a1,
-                         float a2,
-                         const char *tip);
-uiBut *uiDefIconTextButBitS(uiBlock *block,
-                            int type,
-                            int bit,
-                            int retval,
-                            int icon,
-                            const char *str,
-                            int x,
-                            int y,
-                            short width,
-                            short height,
-                            short *poin,
-                            float min,
-                            float max,
-                            float a1,
-                            float a2,
-                            const char *tip);
-uiBut *uiDefIconTextButC(uiBlock *block,
-                         int type,
-                         int retval,
-                         int icon,
-                         const char *str,
-                         int x,
-                         int y,
-                         short width,
-                         short height,
-                         char *poin,
-                         float min,
-                         float max,
-                         float a1,
-                         float a2,
-                         const char *tip);
-uiBut *uiDefIconTextButBitC(uiBlock *block,
-                            int type,
-                            int bit,
-                            int retval,
-                            int icon,
-                            const char *str,
-                            int x,
-                            int y,
-                            short width,
-                            short height,
-                            char *poin,
-                            float min,
-                            float max,
-                            float a1,
-                            float a2,
-                            const char *tip);
 uiBut *uiDefIconTextButR(uiBlock *block,
                          int type,
                          int retval,
@@ -1380,7 +1335,7 @@ uiBut *uiDefIconTextButR_prop(uiBlock *block,
 uiBut *uiDefIconTextButO(uiBlock *block,
                          int type,
                          const char *opname,
-                         int opcontext,
+                         wmOperatorCallContext opcontext,
                          int icon,
                          const char *str,
                          int x,
@@ -1391,7 +1346,7 @@ uiBut *uiDefIconTextButO(uiBlock *block,
 uiBut *uiDefIconTextButO_ptr(uiBlock *block,
                              int type,
                              struct wmOperatorType *ot,
-                             int opcontext,
+                             wmOperatorCallContext opcontext,
                              int icon,
                              const char *str,
                              int x,
@@ -1403,7 +1358,9 @@ uiBut *uiDefIconTextButO_ptr(uiBlock *block,
 /* for passing inputs to ButO buttons */
 struct PointerRNA *UI_but_operator_ptr_get(uiBut *but);
 
-void UI_but_unit_type_set(uiBut *but, const int unit_type);
+struct bContextStore *UI_but_context_get(const uiBut *but);
+
+void UI_but_unit_type_set(uiBut *but, int unit_type);
 int UI_but_unit_type_get(const uiBut *but);
 
 typedef enum uiStringInfoType {
@@ -1430,6 +1387,8 @@ typedef struct uiStringInfo {
  *       Will fill them with translated strings, when possible.
  *       Strings in uiStringInfo must be MEM_freeN'ed by caller. */
 void UI_but_string_info_get(struct bContext *C, uiBut *but, ...) ATTR_SENTINEL(0);
+void UI_but_extra_icon_string_info_get(struct bContext *C, uiButExtraOpIcon *extra_icon, ...)
+    ATTR_SENTINEL(0);
 
 /* Edit i18n stuff. */
 /* Name of the main py op from i18n addon. */
@@ -1472,7 +1431,10 @@ enum {
   UI_TEMPLATE_ID_FILTER_AVAILABLE = 1,
 };
 
+/***************************** ID Utilities *******************************/
+
 int UI_icon_from_id(const struct ID *id);
+/** See: #BKE_report_type_str */
 int UI_icon_from_report_type(int type);
 int UI_icon_colorid_from_report_type(int type);
 int UI_text_colorid_from_report_type(int type);
@@ -1537,6 +1499,9 @@ uiBut *uiDefBlockButN(uiBlock *block,
                       short height,
                       const char *tip);
 
+/**
+ * Block button containing icon.
+ */
 uiBut *uiDefIconBlockBut(uiBlock *block,
                          uiBlockCreateFunc func,
                          void *arg,
@@ -1547,6 +1512,9 @@ uiBut *uiDefIconBlockBut(uiBlock *block,
                          short width,
                          short height,
                          const char *tip);
+/**
+ * Block button containing both string label and icon.
+ */
 uiBut *uiDefIconTextBlockBut(uiBlock *block,
                              uiBlockCreateFunc func,
                              void *arg,
@@ -1567,6 +1535,11 @@ uiBut *uiDefKeyevtButS(uiBlock *block,
                        short height,
                        short *spoin,
                        const char *tip);
+
+/**
+ * Short pointers hard-coded.
+ * \param modkeypoin: will be set to #KM_SHIFT, #KM_ALT, #KM_CTRL, #KM_OSKEY bits.
+ */
 uiBut *uiDefHotKeyevtButS(uiBlock *block,
                           int retval,
                           const char *str,
@@ -1578,6 +1551,10 @@ uiBut *uiDefHotKeyevtButS(uiBlock *block,
                           const short *modkeypoin,
                           const char *tip);
 
+/**
+ * \param arg: A pointer to string/name, use #UI_but_func_search_set() below to make this work.
+ * here `a1` and `a2`, if set, control thumbnail preview rows/cols.
+ */
 uiBut *uiDefSearchBut(uiBlock *block,
                       void *arg,
                       int retval,
@@ -1590,6 +1567,10 @@ uiBut *uiDefSearchBut(uiBlock *block,
                       float a1,
                       float a2,
                       const char *tip);
+/**
+ * Same parameters as for #uiDefSearchBut, with additional operator type and properties,
+ * used by callback to call again the right op with the right options (properties values).
+ */
 uiBut *uiDefSearchButO_ptr(uiBlock *block,
                            struct wmOperatorType *ot,
                            struct IDProperty *properties,
@@ -1633,6 +1614,12 @@ uiBut *uiDefAutoButR(uiBlock *block,
                      int y,
                      int width,
                      int height);
+/**
+ * \a check_prop callback filters functions to avoid drawing certain properties,
+ * in cases where PROP_HIDDEN flag can't be used for a property.
+ *
+ * \param prop_activate_init: Property to activate on initial popup (#UI_BUT_ACTIVATE_ON_INIT).
+ */
 eAutoPropButsReturn uiDefAutoButsRNA(uiLayout *layout,
                                      struct PointerRNA *ptr,
                                      bool (*check_prop)(struct PointerRNA *ptr,
@@ -1641,7 +1628,7 @@ eAutoPropButsReturn uiDefAutoButsRNA(uiLayout *layout,
                                      void *user_data,
                                      struct PropertyRNA *prop_activate_init,
                                      eButLabelAlign label_align,
-                                     const bool compact);
+                                     bool compact);
 
 /* Links
  *
@@ -1653,39 +1640,74 @@ void UI_but_link_set(struct uiBut *but, void **poin, void ***ppoin, short *tot, 
 void UI_block_links_compose(uiBlock *block);
 uiBut *UI_block_links_find_inlink(uiBlock *block, void *poin);
 
-/* use inside searchfunc to add items */
+/**
+ * Public function exported for functions that use #UI_BTYPE_SEARCH_MENU.
+ *
+ * Use inside searchfunc to add items.
+ *
+ * \param items: Stores the items.
+ * \param name: Text to display for the item.
+ * \param poin: Opaque pointer (for use by the caller).
+ * \param iconid: The icon, #ICON_NONE for no icon.
+ * \param state: The buttons state flag, compatible with #uiBut.flag,
+ * typically #UI_BUT_DISABLED / #UI_BUT_INACTIVE.
+ * \return false if there is nothing to add.
+ */
 bool UI_search_item_add(uiSearchItems *items,
                         const char *name,
                         void *poin,
                         int iconid,
                         int state,
-                        const uint8_t name_prefix_offset);
+                        uint8_t name_prefix_offset);
 
+/**
+ * \note The item-pointer (referred to below) is a per search item user pointer
+ * passed to #UI_search_item_add (stored in  #uiSearchItems.pointers).
+ *
+ * \param search_create_fn: Function to create the menu.
+ * \param search_update_fn: Function to refresh search content after the search text has changed.
+ * \param arg: user value.
+ * \param free_arg: Set to true if the argument is newly allocated memory for every redraw and
+ * should be freed when the button is destroyed.
+ * \param search_arg_free_fn: When non-null, use this function to free \a arg.
+ * \param search_exec_fn: Function that executes the action, gets \a arg as the first argument.
+ * The second argument as the active item-pointer
+ * \param active: When non-null, this item-pointer item will be visible and selected,
+ * otherwise the first item will be selected.
+ */
 void UI_but_func_search_set(uiBut *but,
                             uiButSearchCreateFn search_create_fn,
                             uiButSearchUpdateFn search_update_fn,
                             void *arg,
-                            const bool free_arg,
+                            bool free_arg,
                             uiFreeArgFunc search_arg_free_fn,
                             uiButHandleFunc search_exec_fn,
                             void *active);
 void UI_but_func_search_set_context_menu(uiBut *but, uiButSearchContextMenuFn context_menu_fn);
 void UI_but_func_search_set_tooltip(uiBut *but, uiButSearchTooltipFn tooltip_fn);
+/**
+ * \param search_sep_string: when not NULL, this string is used as a separator,
+ * showing the icon and highlighted text after the last instance of this string.
+ */
 void UI_but_func_search_set_sep_string(uiBut *but, const char *search_sep_string);
-void UI_but_func_search_set_results_are_suggestions(uiBut *but, const bool value);
+void UI_but_func_search_set_results_are_suggestions(uiBut *but, bool value);
 
-/* height in pixels, it's using hardcoded values still */
+/**
+ * Height in pixels, it's using hard-coded values still.
+ */
 int UI_searchbox_size_y(void);
 int UI_searchbox_size_x(void);
-/* check if a string is in an existing search box */
+/**
+ * Check if a string is in an existing search box.
+ */
 int UI_search_items_find_index(uiSearchItems *items, const char *name);
 
+/**
+ * Adds a hint to the button which draws right aligned, grayed out and never clipped.
+ */
 void UI_but_hint_drawstr_set(uiBut *but, const char *string);
-void UI_but_datasetrow_indentation_set(uiBut *but, int indentation);
-void UI_but_datasetrow_component_set(uiBut *but, uint8_t geometry_component_type);
-void UI_but_datasetrow_domain_set(uiBut *but, uint8_t attribute_domain);
-uint8_t UI_but_datasetrow_component_get(uiBut *but);
-uint8_t UI_but_datasetrow_domain_get(uiBut *but);
+
+void UI_but_treerow_indentation_set(uiBut *but, int indentation);
 
 void UI_but_node_link_set(uiBut *but, struct bNodeSocket *socket, const float draw_color[4]);
 
@@ -1712,7 +1734,14 @@ void UI_but_func_drawextra_set(
 void UI_but_func_menu_step_set(uiBut *but, uiMenuStepFunc func);
 
 void UI_but_func_tooltip_set(uiBut *but, uiButToolTipFunc func, void *arg, uiFreeArgFunc free_arg);
+/**
+ * Recreate tool-tip (use to update dynamic tips)
+ */
 void UI_but_tooltip_refresh(struct bContext *C, uiBut *but);
+/**
+ * Removes tool-tip timer from active but
+ * (meaning tool-tip is disabled until it's re-enabled again).
+ */
 void UI_but_tooltip_timer_remove(struct bContext *C, uiBut *but);
 
 bool UI_textbutton_activate_rna(const struct bContext *C,
@@ -1721,6 +1750,10 @@ bool UI_textbutton_activate_rna(const struct bContext *C,
                                 const char *rna_prop_id);
 bool UI_textbutton_activate_but(const struct bContext *C, uiBut *but);
 
+/**
+ * push a new event onto event queue to activate the given button
+ * (usually a text-field) upon entering a popup
+ */
 void UI_but_focus_on_enter_event(struct wmWindow *win, uiBut *but);
 
 void UI_but_func_hold_set(uiBut *but, uiButHandleHoldFunc func, void *argN);
@@ -1729,8 +1762,10 @@ void UI_but_func_pushed_state_set(uiBut *but, uiButPushedStateFunc func, const v
 
 struct PointerRNA *UI_but_extra_operator_icon_add(uiBut *but,
                                                   const char *opname,
-                                                  short opcontext,
+                                                  wmOperatorCallContext opcontext,
                                                   int icon);
+struct wmOperatorType *UI_but_extra_operator_icon_optype_get(struct uiButExtraOpIcon *extra_icon);
+struct PointerRNA *UI_but_extra_operator_icon_opptr_get(struct uiButExtraOpIcon *extra_icon);
 
 /* Autocomplete
  *
@@ -1756,25 +1791,60 @@ int UI_autocomplete_end(AutoComplete *autocpl, char *autoname);
 
 void UI_panels_begin(const struct bContext *C, struct ARegion *region);
 void UI_panels_end(const struct bContext *C, struct ARegion *region, int *r_x, int *r_y);
+/**
+ * Draw panels, selected (panels currently being dragged) on top.
+ */
 void UI_panels_draw(const struct bContext *C, struct ARegion *region);
 
 struct Panel *UI_panel_find_by_type(struct ListBase *lb, const struct PanelType *pt);
+/**
+ * \note \a panel should be return value from #UI_panel_find_by_type and can be NULL.
+ */
 struct Panel *UI_panel_begin(struct ARegion *region,
                              struct ListBase *lb,
                              uiBlock *block,
                              struct PanelType *pt,
                              struct Panel *panel,
                              bool *r_open);
+/**
+ * Create the panel header button group, used to mark which buttons are part of
+ * panel headers for the panel search process that happens later. This Should be
+ * called before adding buttons for the panel's header layout.
+ */
 void UI_panel_header_buttons_begin(struct Panel *panel);
+/**
+ * Finish the button group for the panel header to avoid putting panel body buttons in it.
+ */
 void UI_panel_header_buttons_end(struct Panel *panel);
 void UI_panel_end(struct Panel *panel, int width, int height);
 
+/**
+ * Set a context for this entire panel and its current layout. This should be used whenever panel
+ * callbacks that are called outside of regular drawing might require context. Currently it affects
+ * the #PanelType.reorder callback only.
+ */
+void UI_panel_context_pointer_set(struct Panel *panel, const char *name, struct PointerRNA *ptr);
+
+/**
+ * Get the panel's expansion state, taking into account
+ * expansion set from property search if it applies.
+ */
 bool UI_panel_is_closed(const struct Panel *panel);
 bool UI_panel_is_active(const struct Panel *panel);
+/**
+ * For button layout next to label.
+ */
 void UI_panel_label_offset(const struct uiBlock *block, int *r_x, int *r_y);
+bool UI_panel_should_show_background(const struct ARegion *region,
+                                     const struct PanelType *panel_type);
 int UI_panel_size_y(const struct Panel *panel);
 bool UI_panel_is_dragging(const struct Panel *panel);
+/**
+ * Find whether a panel or any of its sub-panels contain a property that matches the search filter,
+ * depending on the search process running in #UI_block_apply_search_filter earlier.
+ */
 bool UI_panel_matches_search_filter(const struct Panel *panel);
+bool UI_panel_can_be_pinned(const struct Panel *panel);
 
 bool UI_panel_category_is_visible(const struct ARegion *region);
 void UI_panel_category_add(struct ARegion *region, const char *name);
@@ -1785,6 +1855,9 @@ const char *UI_panel_category_active_get(struct ARegion *region, bool set_fallba
 void UI_panel_category_active_set(struct ARegion *region, const char *idname);
 void UI_panel_category_active_set_default(struct ARegion *region, const char *idname);
 void UI_panel_category_clear_all(struct ARegion *region);
+/**
+ * Draw vertical tabs on the left side of the region, one tab per category.
+ */
 void UI_panel_category_draw_all(struct ARegion *region, const char *category_id_active);
 
 /* Panel custom data. */
@@ -1794,17 +1867,40 @@ struct PointerRNA *UI_region_panel_custom_data_under_cursor(const struct bContex
 void UI_panel_custom_data_set(struct Panel *panel, struct PointerRNA *custom_data);
 
 /* Polyinstantiated panels for representing a list of data. */
+/**
+ * Called in situations where panels need to be added dynamically rather than
+ * having only one panel corresponding to each #PanelType.
+ */
 struct Panel *UI_panel_add_instanced(const struct bContext *C,
                                      struct ARegion *region,
                                      struct ListBase *panels,
                                      const char *panel_idname,
                                      struct PointerRNA *custom_data);
+/**
+ * Remove instanced panels from the region's panel list.
+ *
+ * \note Can be called with NULL \a C, but it should be avoided because
+ * handlers might not be removed.
+ */
 void UI_panels_free_instanced(const struct bContext *C, struct ARegion *region);
 
 #define INSTANCED_PANEL_UNIQUE_STR_LEN 16
+/**
+ * Find a unique key to append to the #PanelType.idname for the lookup to the panel's #uiBlock.
+ * Needed for instanced panels, where there can be multiple with the same type and identifier.
+ */
 void UI_list_panel_unique_str(struct Panel *panel, char *r_name);
 
 typedef void (*uiListPanelIDFromDataFunc)(void *data_link, char *r_idname);
+/**
+ * Check if the instanced panels in the region's panels correspond to the list of data the panels
+ * represent. Returns false if the panels have been reordered or if the types from the list data
+ * don't match in any way.
+ *
+ * \param data: The list of data to check against the instanced panels.
+ * \param panel_idname_func: Function to find the #PanelType.idname for each item in the data list.
+ * For a readability and generality, this lookup happens separately for each type of panel list.
+ */
 bool UI_panel_list_matches_data(struct ARegion *region,
                                 struct ListBase *data,
                                 uiListPanelIDFromDataFunc panel_idname_func);
@@ -1819,7 +1915,7 @@ void UI_region_handlers_add(struct ListBase *handlers);
 void UI_popup_handlers_add(struct bContext *C,
                            struct ListBase *handlers,
                            uiPopupBlockHandle *popup,
-                           const char flag);
+                           char flag);
 void UI_popup_handlers_remove(struct ListBase *handlers, uiPopupBlockHandle *popup);
 void UI_popup_handlers_remove_all(struct bContext *C, struct ListBase *handlers);
 
@@ -1829,6 +1925,7 @@ void UI_popup_handlers_remove_all(struct bContext *C, struct ListBase *handlers)
  * be used to reinitialize some internal state if user preferences change. */
 
 void UI_init(void);
+/* after reading userdef file */
 void UI_init_userdef(void);
 void UI_reinit_font(void);
 void UI_exit(void);
@@ -1944,8 +2041,19 @@ uiLayout *UI_block_layout(uiBlock *block,
                           const struct uiStyle *style);
 void UI_block_layout_set_current(uiBlock *block, uiLayout *layout);
 void UI_block_layout_resolve(uiBlock *block, int *r_x, int *r_y);
+bool UI_block_layout_needs_resolving(const uiBlock *block);
+/**
+ * Used for property search when the layout process needs to be cancelled in order to avoid
+ * computing the locations for buttons, but the layout items created while adding the buttons
+ * must still be freed.
+ */
 void UI_block_layout_free(uiBlock *block);
 
+/**
+ * Apply property search behavior, setting panel flags and deactivating buttons that don't match.
+ *
+ * \note Must not be run after #UI_block_layout_resolve.
+ */
 bool UI_block_apply_search_filter(uiBlock *block, const char *search_filter);
 
 void UI_region_message_subscribe(struct ARegion *region, struct wmMsgBus *mbus);
@@ -1956,17 +2064,29 @@ void uiLayoutSetFunc(uiLayout *layout, uiMenuHandleFunc handlefunc, void *argv);
 void uiLayoutSetContextPointer(uiLayout *layout, const char *name, struct PointerRNA *ptr);
 struct bContextStore *uiLayoutGetContextStore(uiLayout *layout);
 void uiLayoutContextCopy(uiLayout *layout, struct bContextStore *context);
+/**
+ * This is a bit of a hack but best keep it in one place at least.
+ */
 struct wmOperatorType *UI_but_operatortype_get_from_enum_menu(struct uiBut *but,
                                                               struct PropertyRNA **r_prop);
+/**
+ * This is a bit of a hack but best keep it in one place at least.
+ */
 struct MenuType *UI_but_menutype_get(uiBut *but);
+/**
+ * This is a bit of a hack but best keep it in one place at least.
+ */
 struct PanelType *UI_but_paneltype_get(uiBut *but);
 void UI_menutype_draw(struct bContext *C, struct MenuType *mt, struct uiLayout *layout);
+/**
+ * Used for popup panels only.
+ */
 void UI_paneltype_draw(struct bContext *C, struct PanelType *pt, struct uiLayout *layout);
 
 /* Only for convenience. */
 void uiLayoutSetContextFromBut(uiLayout *layout, uiBut *but);
 
-void uiLayoutSetOperatorContext(uiLayout *layout, int opcontext);
+void uiLayoutSetOperatorContext(uiLayout *layout, wmOperatorCallContext opcontext);
 void uiLayoutSetActive(uiLayout *layout, bool active);
 void uiLayoutSetActiveDefault(uiLayout *layout, bool active_default);
 void uiLayoutSetActivateInit(uiLayout *layout, bool activate_init);
@@ -2002,10 +2122,20 @@ eUIEmbossType uiLayoutGetEmboss(uiLayout *layout);
 bool uiLayoutGetPropSep(uiLayout *layout);
 bool uiLayoutGetPropDecorate(uiLayout *layout);
 
-/* layout specifiers */
+/* Layout create functions. */
+
 uiLayout *uiLayoutRow(uiLayout *layout, bool align);
+/**
+ * See #uiLayoutColumnWithHeading().
+ */
 uiLayout *uiLayoutRowWithHeading(uiLayout *layout, bool align, const char *heading);
 uiLayout *uiLayoutColumn(uiLayout *layout, bool align);
+/**
+ * Variant of #uiLayoutColumn() that sets a heading label for the layout if the first item is
+ * added through #uiItemFullR(). If split layout is used and the item has no string to add to the
+ * first split-column, the heading is added there instead. Otherwise the heading inserted with a
+ * new row.
+ */
 uiLayout *uiLayoutColumnWithHeading(uiLayout *layout, bool align, const char *heading);
 uiLayout *uiLayoutColumnFlow(uiLayout *layout, int number, bool align);
 uiLayout *uiLayoutGridFlow(uiLayout *layout,
@@ -2035,7 +2165,7 @@ void uiTemplateID(uiLayout *layout,
                   const char *openop,
                   const char *unlinkop,
                   int filter,
-                  const bool live_icon,
+                  bool live_icon,
                   const char *text);
 void uiTemplateIDBrowse(uiLayout *layout,
                         struct bContext *C,
@@ -2056,7 +2186,10 @@ void uiTemplateIDPreview(uiLayout *layout,
                          int rows,
                          int cols,
                          int filter,
-                         const bool hide_buttons);
+                         bool hide_buttons);
+/**
+ * Version of #uiTemplateID using tabs.
+ */
 void uiTemplateIDTabs(uiLayout *layout,
                       struct bContext *C,
                       struct PointerRNA *ptr,
@@ -2064,11 +2197,23 @@ void uiTemplateIDTabs(uiLayout *layout,
                       const char *newop,
                       const char *menu,
                       int filter);
+/**
+ * This is for selecting the type of ID-block to use,
+ * and then from the relevant type choosing the block to use.
+ *
+ * \param propname: property identifier for property that ID-pointer gets stored to.
+ * \param proptypename: property identifier for property
+ * used to determine the type of ID-pointer that can be used.
+ */
 void uiTemplateAnyID(uiLayout *layout,
                      struct PointerRNA *ptr,
                      const char *propname,
                      const char *proptypename,
                      const char *text);
+/**
+ * Search menu to pick an item from a collection.
+ * A version of uiTemplateID that works for non-ID types.
+ */
 void uiTemplateSearch(uiLayout *layout,
                       struct bContext *C,
                       struct PointerRNA *ptr,
@@ -2085,8 +2230,15 @@ void uiTemplateSearchPreview(uiLayout *layout,
                              const char *searchpropname,
                              const char *newop,
                              const char *unlinkop,
-                             const int rows,
-                             const int cols);
+                             int rows,
+                             int cols);
+/**
+ * This is creating/editing RNA-Paths
+ *
+ * - ptr: struct which holds the path property
+ * - propname: property identifier for property that path gets stored to
+ * - root_ptr: struct that path gets built from
+ */
 void uiTemplatePathBuilder(uiLayout *layout,
                            struct PointerRNA *ptr,
                            const char *propname,
@@ -2094,7 +2246,13 @@ void uiTemplatePathBuilder(uiLayout *layout,
                            const char *text);
 void uiTemplateModifiers(uiLayout *layout, struct bContext *C);
 void uiTemplateGpencilModifiers(uiLayout *layout, struct bContext *C);
+/**
+ * Check if the shader effect panels don't match the data and rebuild the panels if so.
+ */
 void uiTemplateShaderFx(uiLayout *layout, struct bContext *C);
+/**
+ * Check if the constraint panels don't match the data and rebuild the panels if so.
+ */
 void uiTemplateConstraints(uiLayout *layout, struct bContext *C, bool use_bone_constraints);
 
 uiLayout *uiTemplateGpencilModifier(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr);
@@ -2121,7 +2279,13 @@ void uiTemplateColorRamp(uiLayout *layout,
                          struct PointerRNA *ptr,
                          const char *propname,
                          bool expand);
+/**
+ * \param icon_scale: Scale of the icon, 1x == button height.
+ */
 void uiTemplateIcon(uiLayout *layout, int icon_value, float icon_scale);
+/**
+ * \param icon_scale: Scale of the icon, 1x == button height.
+ */
 void uiTemplateIconView(uiLayout *layout,
                         struct PointerRNA *ptr,
                         const char *propname,
@@ -2139,7 +2303,14 @@ void uiTemplateCurveMapping(uiLayout *layout,
                             bool brush,
                             bool neg_slope,
                             bool tone);
+/**
+ * Template for a path creation widget intended for custom bevel profiles.
+ * This section is quite similar to #uiTemplateCurveMapping, but with reduced complexity.
+ */
 void uiTemplateCurveProfile(uiLayout *layout, struct PointerRNA *ptr, const char *propname);
+/**
+ * This template now follows User Preference for type - name is not correct anymore.
+ */
 void uiTemplateColorPicker(uiLayout *layout,
                            struct PointerRNA *ptr,
                            const char *propname,
@@ -2155,6 +2326,10 @@ void uiTemplateCryptoPicker(uiLayout *layout,
                             struct PointerRNA *ptr,
                             const char *propname,
                             int icon);
+/**
+ * \todo for now, grouping of layers is determined by dividing up the length of
+ * the array of layer bitflags
+ */
 void uiTemplateLayers(uiLayout *layout,
                       struct PointerRNA *ptr,
                       const char *propname,
@@ -2195,6 +2370,11 @@ void uiTemplateOperatorSearch(uiLayout *layout);
 void UI_but_func_menu_search(uiBut *but);
 void uiTemplateMenuSearch(uiLayout *layout);
 
+/**
+ * Draw Operator property buttons for redoing execution with different settings.
+ * This function does not initialize the layout,
+ * functions can be called on the layout before and after.
+ */
 void uiTemplateOperatorPropertyButs(const struct bContext *C,
                                     uiLayout *layout,
                                     struct wmOperator *op,
@@ -2216,10 +2396,48 @@ void uiTemplateComponentMenu(uiLayout *layout,
                              const char *propname,
                              const char *name);
 void uiTemplateNodeSocket(uiLayout *layout, struct bContext *C, float color[4]);
+
+/**
+ * Draw the main CacheFile properties and operators (file path, scale, etc.), that is those which
+ * do not have their own dedicated template functions.
+ */
 void uiTemplateCacheFile(uiLayout *layout,
                          const struct bContext *C,
                          struct PointerRNA *ptr,
                          const char *propname);
+
+/**
+ * Lookup the CacheFile PointerRNA of the given pointer and return it in the output parameter.
+ * Returns true if `ptr` has a RNACacheFile, false otherwise. If false, the output parameter is not
+ * initialized.
+ */
+bool uiTemplateCacheFilePointer(struct PointerRNA *ptr,
+                                const char *propname,
+                                struct PointerRNA *r_file_ptr);
+
+/**
+ * Draw the velocity related properties of the CacheFile.
+ */
+void uiTemplateCacheFileVelocity(uiLayout *layout, struct PointerRNA *fileptr);
+
+/**
+ * Draw the render procedural related properties of the CacheFile.
+ */
+void uiTemplateCacheFileProcedural(uiLayout *layout,
+                                   const struct bContext *C,
+                                   struct PointerRNA *fileptr);
+
+/**
+ * Draw the time related properties of the CacheFile.
+ */
+void uiTemplateCacheFileTimeSettings(uiLayout *layout, struct PointerRNA *fileptr);
+
+/**
+ * Draw the override layers related properties of the CacheFile.
+ */
+void uiTemplateCacheFileLayers(uiLayout *layout,
+                               const struct bContext *C,
+                               struct PointerRNA *fileptr);
 
 /* Default UIList class name, keep in sync with its declaration in bl_ui/__init__.py */
 #define UI_UL_DEFAULT_CLASS_NAME "UI_UL_list"
@@ -2280,6 +2498,9 @@ void uiTemplateNodeView(uiLayout *layout,
                         struct bNode *node,
                         struct bNodeSocket *input);
 void uiTemplateTextureUser(uiLayout *layout, struct bContext *C);
+/**
+ * Button to quickly show texture in Properties Editor texture tab.
+ */
 void uiTemplateTextureShow(uiLayout *layout,
                            const struct bContext *C,
                            struct PointerRNA *ptr,
@@ -2330,15 +2551,21 @@ void uiTemplateAssetView(struct uiLayout *layout,
                          struct PointerRNA *active_dataptr,
                          const char *active_propname,
                          const struct AssetFilterSettings *filter_settings,
-                         const int display_flags,
+                         int display_flags,
                          const char *activate_opname,
                          struct PointerRNA *r_activate_op_properties,
                          const char *drag_opname,
                          struct PointerRNA *r_drag_op_properties);
 
+/**
+ * \return: A RNA pointer for the operator properties.
+ */
 struct PointerRNA *UI_list_custom_activate_operator_set(struct uiList *ui_list,
                                                         const char *opname,
                                                         bool create_properties);
+/**
+ * \return: A RNA pointer for the operator properties.
+ */
 struct PointerRNA *UI_list_custom_drag_operator_set(struct uiList *ui_list,
                                                     const char *opname,
                                                     bool create_properties);
@@ -2357,6 +2584,9 @@ void uiItemEnumO(uiLayout *layout,
                  int icon,
                  const char *propname,
                  int value);
+/**
+ * For use in cases where we have.
+ */
 void uiItemEnumO_value(uiLayout *layout,
                        const char *name,
                        int icon,
@@ -2400,7 +2630,7 @@ void uiItemFullO_ptr(uiLayout *layout,
                      const char *name,
                      int icon,
                      struct IDProperty *properties,
-                     int context,
+                     wmOperatorCallContext context,
                      int flag,
                      struct PointerRNA *r_opptr);
 void uiItemFullO(uiLayout *layout,
@@ -2408,7 +2638,7 @@ void uiItemFullO(uiLayout *layout,
                  const char *name,
                  int icon,
                  struct IDProperty *properties,
-                 int context,
+                 wmOperatorCallContext context,
                  int flag,
                  struct PointerRNA *r_opptr);
 void uiItemFullOMenuHold_ptr(uiLayout *layout,
@@ -2416,7 +2646,7 @@ void uiItemFullOMenuHold_ptr(uiLayout *layout,
                              const char *name,
                              int icon,
                              struct IDProperty *properties,
-                             int context,
+                             wmOperatorCallContext context,
                              int flag,
                              const char *menu_id, /* extra menu arg. */
                              struct PointerRNA *r_opptr);
@@ -2435,6 +2665,9 @@ void uiItemFullR(uiLayout *layout,
                  int flag,
                  const char *name,
                  int icon);
+/**
+ * Use a wrapper function since re-implementing all the logic in this function would be messy.
+ */
 void uiItemFullR_with_popover(uiLayout *layout,
                               struct PointerRNA *ptr,
                               struct PropertyRNA *prop,
@@ -2496,14 +2729,19 @@ void uiItemsFullEnumO(uiLayout *layout,
                       const char *opname,
                       const char *propname,
                       struct IDProperty *properties,
-                      int context,
+                      wmOperatorCallContext context,
                       int flag);
+/**
+ * Create UI items for enum items in \a item_array.
+ *
+ * A version of #uiItemsFullEnumO that takes pre-calculated item array.
+ */
 void uiItemsFullEnumO_items(uiLayout *layout,
                             struct wmOperatorType *ot,
                             struct PointerRNA ptr,
                             struct PropertyRNA *prop,
                             struct IDProperty *properties,
-                            int context,
+                            wmOperatorCallContext context,
                             int flag,
                             const struct EnumPropertyItem *item_array,
                             int totitem);
@@ -2514,33 +2752,58 @@ typedef struct uiPropertySplitWrapper {
   uiLayout *decorate_column;
 } uiPropertySplitWrapper;
 
+/**
+ * Normally, we handle the split layout in #uiItemFullR(), but there are other cases where the
+ * logic is needed. Ideally, #uiItemFullR() could just call this, but it currently has too many
+ * special needs.
+ */
 uiPropertySplitWrapper uiItemPropertySplitWrapperCreate(uiLayout *parent_layout);
 
 void uiItemL(uiLayout *layout, const char *name, int icon); /* label */
-void uiItemL_ex(
-    uiLayout *layout, const char *name, int icon, const bool highlight, const bool redalert);
+void uiItemL_ex(uiLayout *layout, const char *name, int icon, bool highlight, bool redalert);
+/**
+ * Helper to add a label and creates a property split layout if needed.
+ */
 uiLayout *uiItemL_respect_property_split(uiLayout *layout, const char *text, int icon);
-/* label icon for dragging */
+/**
+ * Label icon for dragging.
+ */
 void uiItemLDrag(uiLayout *layout, struct PointerRNA *ptr, const char *name, int icon);
-/* menu */
+/**
+ * Menu.
+ */
 void uiItemM_ptr(uiLayout *layout, struct MenuType *mt, const char *name, int icon);
 void uiItemM(uiLayout *layout, const char *menuname, const char *name, int icon);
-/* menu contents */
+/**
+ * Menu contents.
+ */
 void uiItemMContents(uiLayout *layout, const char *menuname);
-/* Decorators */
+
+/* Decorators. */
+
+/**
+ * Insert a decorator item for a button with the same property as \a prop.
+ * To force inserting a blank dummy element, NULL can be passed for \a ptr and \a prop.
+ */
 void uiItemDecoratorR_prop(uiLayout *layout,
                            struct PointerRNA *ptr,
                            struct PropertyRNA *prop,
                            int index);
+/**
+ * Insert a decorator item for a button with the same property as \a prop.
+ * To force inserting a blank dummy element, NULL can be passed for \a ptr and \a propname.
+ */
 void uiItemDecoratorR(uiLayout *layout, struct PointerRNA *ptr, const char *propname, int index);
-/* value */
+/** Value item */
 void uiItemV(uiLayout *layout, const char *name, int icon, int argval);
-/* separator */
+/** Separator item */
 void uiItemS(uiLayout *layout);
+/** Separator item */
 void uiItemS_ex(uiLayout *layout, float factor);
-/* Special separator. */
+/** Flexible spacing. */
 void uiItemSpacer(uiLayout *layout);
 
+/* popover */
 void uiItemPopoverPanel_ptr(
     uiLayout *layout, const struct bContext *C, struct PanelType *pt, const char *name, int icon);
 void uiItemPopoverPanel(uiLayout *layout,
@@ -2555,7 +2818,13 @@ void uiItemPopoverPanelFromGroup(uiLayout *layout,
                                  const char *context,
                                  const char *category);
 
+/**
+ * Level items.
+ */
 void uiItemMenuF(uiLayout *layout, const char *name, int icon, uiMenuCreateFunc func, void *arg);
+/**
+ * Version of #uiItemMenuF that free's `argN`.
+ */
 void uiItemMenuFN(uiLayout *layout, const char *name, int icon, uiMenuCreateFunc func, void *argN);
 void uiItemMenuEnumFullO_ptr(uiLayout *layout,
                              struct bContext *C,
@@ -2593,10 +2862,16 @@ void uiItemTabsEnumR_prop(uiLayout *layout,
                           bool icon_only);
 
 /* Only for testing, inspecting layouts. */
+/**
+ * Evaluate layout items as a Python dictionary.
+ */
 const char *UI_layout_introspect(uiLayout *layout);
 
-/* Helper to add a big icon and create a split layout for alert boxes. */
-uiLayout *uiItemsAlertBox(uiBlock *block, const int size, const eAlertIcon icon);
+/**
+ * Helper to add a big icon and create a split layout for alert popups.
+ * Returns the layout to place further items into the alert box.
+ */
+uiLayout *uiItemsAlertBox(uiBlock *block, int size, eAlertIcon icon);
 
 /* UI Operators */
 typedef struct uiDragColorHandle {
@@ -2605,7 +2880,11 @@ typedef struct uiDragColorHandle {
 } uiDragColorHandle;
 
 void ED_operatortypes_ui(void);
+/**
+ * \brief User Interface Keymap
+ */
 void ED_keymap_ui(struct wmKeyConfig *keyconf);
+void ED_dropboxes_ui(void);
 void ED_uilisttypes_ui(void);
 
 void UI_drop_color_copy(struct wmDrag *drag, struct wmDropBox *drop);
@@ -2617,10 +2896,28 @@ bool UI_context_copy_to_selected_list(struct bContext *C,
                                       struct ListBase *r_lb,
                                       bool *r_use_path_from_id,
                                       char **r_path);
+bool UI_context_copy_to_selected_check(struct PointerRNA *ptr,
+                                       struct PointerRNA *ptr_link,
+                                       struct PropertyRNA *prop,
+                                       const char *path,
+                                       bool use_path_from_id,
+                                       struct PointerRNA *r_ptr,
+                                       struct PropertyRNA **r_prop);
 
 /* Helpers for Operators */
 uiBut *UI_context_active_but_get(const struct bContext *C);
+/**
+ * Version of #UI_context_active_get() that uses the result of #CTX_wm_menu()
+ * if set. Does not traverse into parent menus, which may be wanted in some
+ * cases.
+ */
 uiBut *UI_context_active_but_get_respect_menu(const struct bContext *C);
+/**
+ * Version of #UI_context_active_but_get that also returns RNA property info.
+ * Helper function for insert keyframe, reset to default, etc operators.
+ *
+ * \return active button, NULL if none found or if it doesn't contain valid RNA data.
+ */
 uiBut *UI_context_active_but_prop_get(const struct bContext *C,
                                       struct PointerRNA *r_ptr,
                                       struct PropertyRNA **r_prop,
@@ -2629,12 +2926,18 @@ void UI_context_active_but_prop_handle(struct bContext *C);
 void UI_context_active_but_clear(struct bContext *C, struct wmWindow *win, struct ARegion *region);
 
 struct wmOperator *UI_context_active_operator_get(const struct bContext *C);
+/**
+ * Helper function for insert keyframe, reset to default, etc operators.
+ */
 void UI_context_update_anim_flag(const struct bContext *C);
 void UI_context_active_but_prop_get_filebrowser(const struct bContext *C,
                                                 struct PointerRNA *r_ptr,
                                                 struct PropertyRNA **r_prop,
                                                 bool *r_is_undo,
                                                 bool *r_is_userdef);
+/**
+ * For new/open operators.
+ */
 void UI_context_active_but_prop_get_templateID(struct bContext *C,
                                                struct PointerRNA *r_ptr,
                                                struct PropertyRNA **r_prop);
@@ -2645,6 +2948,9 @@ uiBut *UI_region_but_find_rect_over(const struct ARegion *region, const struct r
 uiBlock *UI_region_block_find_mouse_over(const struct ARegion *region,
                                          const int xy[2],
                                          bool only_clip);
+/**
+ * Try to find a search-box region opened from a button in \a button_region.
+ */
 struct ARegion *UI_region_searchbox_region_get(const struct ARegion *button_region);
 
 /* uiFontStyle.align */
@@ -2664,23 +2970,37 @@ void UI_fontstyle_set(const struct uiFontStyle *fs);
 void UI_fontstyle_draw_ex(const struct uiFontStyle *fs,
                           const struct rcti *rect,
                           const char *str,
+                          size_t str_len,
                           const uchar col[4],
                           const struct uiFontStyleDraw_Params *fs_params,
-                          size_t len,
                           int *r_xofs,
                           int *r_yofs,
                           struct ResultBLF *r_info);
+
 void UI_fontstyle_draw(const struct uiFontStyle *fs,
                        const struct rcti *rect,
                        const char *str,
+                       size_t str_len,
                        const uchar col[4],
                        const struct uiFontStyleDraw_Params *fs_params);
+/**
+ * Drawn same as above, but at 90 degree angle.
+ */
 void UI_fontstyle_draw_rotated(const struct uiFontStyle *fs,
                                const struct rcti *rect,
                                const char *str,
                                const uchar col[4]);
+/**
+ * Similar to #UI_fontstyle_draw
+ * but ignore alignment, shadow & no clipping rect.
+ *
+ * For drawing on-screen labels.
+ */
 void UI_fontstyle_draw_simple(
     const struct uiFontStyle *fs, float x, float y, const char *str, const uchar col[4]);
+/**
+ * Same as #UI_fontstyle_draw but draw a colored backdrop.
+ */
 void UI_fontstyle_draw_simple_backdrop(const struct uiFontStyle *fs,
                                        float x,
                                        float y,
@@ -2688,12 +3008,32 @@ void UI_fontstyle_draw_simple_backdrop(const struct uiFontStyle *fs,
                                        const float col_fg[4],
                                        const float col_bg[4]);
 
-int UI_fontstyle_string_width(const struct uiFontStyle *fs, const char *str);
+int UI_fontstyle_string_width(const struct uiFontStyle *fs,
+                              const char *str) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1, 2);
+/**
+ * Return the width of `str` with the spacing & kerning of `fs` with `aspect`
+ * (representing #uiBlock.aspect) applied.
+ *
+ * When calculating text width, the UI layout logic calculate widths without scale,
+ * only applying scale when drawing. This causes problems for fonts since kerning at
+ * smaller sizes often makes them wider than a scaled down version of the larger text.
+ * Resolve this by calculating the text at the on-screen size,
+ * returning the result scaled back to 1:1. See T92361.
+ */
+int UI_fontstyle_string_width_with_block_aspect(const struct uiFontStyle *fs,
+                                                const char *str,
+                                                float aspect) ATTR_WARN_UNUSED_RESULT
+    ATTR_NONNULL(1, 2);
 int UI_fontstyle_height_max(const struct uiFontStyle *fs);
 
+/**
+ * Triangle 'icon' for panel header and other cases.
+ */
 void UI_draw_icon_tri(float x, float y, char dir, const float[4]);
 
-const struct uiStyle *UI_style_get(void);     /* use for fonts etc */
+/* XXX: read a style configure */
+const struct uiStyle *UI_style_get(void); /* use for fonts etc */
+/* for drawing, scaled with DPI setting */
 const struct uiStyle *UI_style_get_dpi(void); /* DPI scaled settings for drawing */
 
 /* linker workaround ack! */
@@ -2702,29 +3042,65 @@ void UI_template_fix_linking(void);
 /* UI_OT_editsource helpers */
 bool UI_editsource_enable_check(void);
 void UI_editsource_active_but_test(uiBut *but);
+/**
+ * Remove the editsource data for \a old_but and reinsert it for \a new_but. Use when the button
+ * was reallocated, e.g. to have a new type (#ui_but_change_type()).
+ */
 void UI_editsource_but_replace(const uiBut *old_but, uiBut *new_but);
 
+/**
+ * Adjust the view so the rectangle of \a but is in view, with some extra margin.
+ *
+ * It's important that this is only executed after buttons received their final #uiBut.rect. E.g.
+ * #UI_panels_end() modifies them, so if that is executed, this function must not be called before
+ * it.
+ *
+ * \param region: The region the button is placed in. Make sure this is actually the one the button
+ *                is placed in, not just the context region.
+ */
 void UI_but_ensure_in_view(const struct bContext *C, struct ARegion *region, const uiBut *but);
 
 /* UI_butstore_ helpers */
 typedef struct uiButStore uiButStore;
 typedef struct uiButStoreElem uiButStoreElem;
 
+/**
+ * Create a new button store, the caller must manage and run #UI_butstore_free
+ */
 uiButStore *UI_butstore_create(uiBlock *block);
+/**
+ * NULL all pointers, don't free since the owner needs to be able to inspect.
+ */
 void UI_butstore_clear(uiBlock *block);
+/**
+ * Map freed buttons from the old block and update pointers.
+ */
 void UI_butstore_update(uiBlock *block);
 void UI_butstore_free(uiBlock *block, uiButStore *bs);
 bool UI_butstore_is_valid(uiButStore *bs);
 bool UI_butstore_is_registered(uiBlock *block, uiBut *but);
 void UI_butstore_register(uiButStore *bs_handle, uiBut **but_p);
+/**
+ * Update the pointer for a registered button.
+ */
 bool UI_butstore_register_update(uiBlock *block, uiBut *but_dst, const uiBut *but_src);
 void UI_butstore_unregister(uiButStore *bs_handle, uiBut **but_p);
 
 /* ui_interface_region_tooltip.c */
+
+/**
+ * \param is_label: When true, show a small tip that only shows the name, otherwise show the full
+ *                  tooltip.
+ */
 struct ARegion *UI_tooltip_create_from_button(struct bContext *C,
                                               struct ARegion *butregion,
                                               uiBut *but,
                                               bool is_label);
+struct ARegion *UI_tooltip_create_from_button_or_extra_icon(struct bContext *C,
+                                                            struct ARegion *butregion,
+                                                            uiBut *but,
+                                                            uiButExtraOpIcon *extra_icon,
+                                                            bool is_label);
 struct ARegion *UI_tooltip_create_from_gizmo(struct bContext *C, struct wmGizmo *gz);
 void UI_tooltip_free(struct bContext *C, struct bScreen *screen, struct ARegion *region);
 
@@ -2737,6 +3113,13 @@ typedef struct {
   char hint[UI_MAX_DRAW_STR];
 } uiSearchItemTooltipData;
 
+/**
+ * Create a tooltip from search-item tooltip data \a item_tooltip data.
+ * To be called from a callback set with #UI_but_func_search_set_tooltip().
+ *
+ * \param item_rect: Rectangle of the search item in search region space (#ui_searchbox_butrect())
+ *                   which is passed to the tooltip callback.
+ */
 struct ARegion *UI_tooltip_create_from_search_item_generic(
     struct bContext *C,
     const struct ARegion *searchbox_region,
@@ -2755,6 +3138,10 @@ struct ARegion *UI_tooltip_create_from_search_item_generic(
 /* Typical UI text */
 #define UI_FSTYLE_WIDGET (const uiFontStyle *)&(UI_style_get()->widget)
 
+/**
+ * Returns the best "UI" precision for given floating value,
+ * so that e.g. 10.000001 rather gets drawn as '10'...
+ */
 int UI_calc_float_precision(int prec, double value);
 
 /* widget batched drawing */
@@ -2763,6 +3150,12 @@ void UI_widgetbase_draw_cache_flush(void);
 void UI_widgetbase_draw_cache_end(void);
 
 /* Use for resetting the theme. */
+/**
+ * Initialize default theme.
+ *
+ * \note When you add new colors, created & saved themes need initialized
+ * use function below, #init_userdef_do_versions.
+ */
 void UI_theme_init_default(void);
 void UI_style_init_default(void);
 
@@ -2773,6 +3166,44 @@ void UI_interface_tag_script_reload(void);
 
 /* Support click-drag motion which presses the button and closes a popover (like a menu). */
 #define USE_UI_POPOVER_ONCE
+
+bool UI_tree_view_item_is_active(const uiTreeViewItemHandle *item);
+bool UI_tree_view_item_matches(const uiTreeViewItemHandle *a, const uiTreeViewItemHandle *b);
+/**
+ * Attempt to start dragging the tree-item \a item_. This will not work if the tree item doesn't
+ * support dragging, i.e. it won't create a drag-controller upon request.
+ * \return True if dragging started successfully, otherwise false.
+ */
+bool UI_tree_view_item_drag_start(struct bContext *C, uiTreeViewItemHandle *item_);
+bool UI_tree_view_item_can_drop(const uiTreeViewItemHandle *item_,
+                                const struct wmDrag *drag,
+                                const char **r_disabled_hint);
+char *UI_tree_view_item_drop_tooltip(const uiTreeViewItemHandle *item, const struct wmDrag *drag);
+/**
+ * Let a tree-view item handle a drop event.
+ * \return True if the drop was handled by the tree-view item.
+ */
+bool UI_tree_view_item_drop_handle(struct bContext *C,
+                                   const uiTreeViewItemHandle *item_,
+                                   const struct ListBase *drags);
+/**
+ * Can \a item_handle be renamed right now? Not that this isn't just a mere wrapper around
+ * #AbstractTreeViewItem::can_rename(). This also checks if there is another item being renamed,
+ * and returns false if so.
+ */
+bool UI_tree_view_item_can_rename(const uiTreeViewItemHandle *item_handle);
+void UI_tree_view_item_begin_rename(uiTreeViewItemHandle *item_handle);
+
+void UI_tree_view_item_context_menu_build(struct bContext *C,
+                                          const uiTreeViewItemHandle *item,
+                                          uiLayout *column);
+
+/**
+ * \param xy: Coordinate to find a tree-row item at, in window space.
+ */
+uiTreeViewItemHandle *UI_block_tree_view_find_item_at(const struct ARegion *region,
+                                                      const int xy[2]) ATTR_NONNULL(1, 2);
+uiTreeViewItemHandle *UI_block_tree_view_find_active_item(const struct ARegion *region);
 
 #ifdef __cplusplus
 }

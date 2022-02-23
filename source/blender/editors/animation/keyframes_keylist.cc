@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2009 Blender Foundation, Joshua Leung. All rights reserved. */
 
 /** \file
  * \ingroup edanimation
@@ -80,7 +64,7 @@ struct AnimKeylist {
   ListBase /* ActKeyColumn */ key_columns;
   /* Last accessed column in the key_columns list base. Inserting columns are typically done in
    * order. The last accessed column is used as starting point to search for a location to add or
-   * update the next column.*/
+   * update the next column. */
   std::optional<ActKeyColumn *> last_accessed_column = std::nullopt;
 
   struct {
@@ -109,7 +93,7 @@ struct AnimKeylist {
 #endif
 };
 
-AnimKeylist *ED_keylist_create(void)
+AnimKeylist *ED_keylist_create()
 {
   AnimKeylist *keylist = new AnimKeylist();
   return keylist;
@@ -564,9 +548,9 @@ static void nupdate_ak_masklayshape(ActKeyColumn *ak, void *data)
 using KeylistCreateColumnFunction = std::function<ActKeyColumn *(void *userdata)>;
 using KeylistUpdateColumnFunction = std::function<void(ActKeyColumn *, void *)>;
 
-/* `ED_keylist_find_neighbour_front_to_back` is called before the runtime can be initialized so we
+/* `ED_keylist_find_neighbor_front_to_back` is called before the runtime can be initialized so we
  * cannot use bin searching. */
-static ActKeyColumn *ED_keylist_find_neighbour_front_to_back(ActKeyColumn *cursor, float cfra)
+static ActKeyColumn *ED_keylist_find_neighbor_front_to_back(ActKeyColumn *cursor, float cfra)
 {
   while (cursor->next && cursor->next->cfra <= cfra) {
     cursor = cursor->next;
@@ -574,9 +558,9 @@ static ActKeyColumn *ED_keylist_find_neighbour_front_to_back(ActKeyColumn *curso
   return cursor;
 }
 
-/* `ED_keylist_find_neighbour_back_to_front` is called before the runtime can be initialized so we
+/* `ED_keylist_find_neighbor_back_to_front` is called before the runtime can be initialized so we
  * cannot use bin searching. */
-static ActKeyColumn *ED_keylist_find_neighbour_back_to_front(ActKeyColumn *cursor, float cfra)
+static ActKeyColumn *ED_keylist_find_neighbor_back_to_front(ActKeyColumn *cursor, float cfra)
 {
   while (cursor->prev && cursor->prev->cfra >= cfra) {
     cursor = cursor->prev;
@@ -585,14 +569,14 @@ static ActKeyColumn *ED_keylist_find_neighbour_back_to_front(ActKeyColumn *curso
 }
 
 /*
- * `ED_keylist_find_exact_or_neighbour_column` is called before the runtime can be initialized so
+ * `ED_keylist_find_exact_or_neighbor_column` is called before the runtime can be initialized so
  * we cannot use bin searching.
  *
  * This function is called to add or update columns in the keylist.
  * Typically columns are sorted by frame number so keeping track of the last_accessed_column
  * reduces searching.
  */
-static ActKeyColumn *ED_keylist_find_exact_or_neighbour_column(AnimKeylist *keylist, float cfra)
+static ActKeyColumn *ED_keylist_find_exact_or_neighbor_column(AnimKeylist *keylist, float cfra)
 {
   BLI_assert(!keylist->is_runtime_initialized);
   if (ED_keylist_is_empty(keylist)) {
@@ -604,10 +588,10 @@ static ActKeyColumn *ED_keylist_find_exact_or_neighbour_column(AnimKeylist *keyl
   if (!is_cfra_eq(cursor->cfra, cfra)) {
     const bool walking_direction_front_to_back = cursor->cfra <= cfra;
     if (walking_direction_front_to_back) {
-      cursor = ED_keylist_find_neighbour_front_to_back(cursor, cfra);
+      cursor = ED_keylist_find_neighbor_front_to_back(cursor, cfra);
     }
     else {
-      cursor = ED_keylist_find_neighbour_back_to_front(cursor, cfra);
+      cursor = ED_keylist_find_neighbor_back_to_front(cursor, cfra);
     }
   }
 
@@ -633,7 +617,7 @@ static void ED_keylist_add_or_update_column(AnimKeylist *keylist,
     return;
   }
 
-  ActKeyColumn *nearest = ED_keylist_find_exact_or_neighbour_column(keylist, cfra);
+  ActKeyColumn *nearest = ED_keylist_find_exact_or_neighbor_column(keylist, cfra);
   if (is_cfra_eq(nearest->cfra, cfra)) {
     update_func(nearest, userdata);
   }
@@ -774,7 +758,7 @@ static void add_bezt_to_keyblocks_list(AnimKeylist *keylist, BezTriple *bezt, co
       if (is_cfra_lt(bezt[1].vec[1][0], bezt[0].vec[1][0])) {
         /* Backtrack to find the right location. */
         if (is_cfra_lt(bezt[1].vec[1][0], col->cfra)) {
-          ActKeyColumn *newcol = ED_keylist_find_exact_or_neighbour_column(keylist, col->cfra);
+          ActKeyColumn *newcol = ED_keylist_find_exact_or_neighbor_column(keylist, col->cfra);
 
           BLI_assert(newcol);
           BLI_assert(newcol->cfra == col->cfra);
@@ -850,7 +834,6 @@ bool actkeyblock_is_valid(const ActKeyColumn *ac)
   return ac != nullptr && ac->next != nullptr && ac->totblock > 0;
 }
 
-/* Checks if ActKeyBlock should exist... */
 int actkeyblock_get_valid_hold(const ActKeyColumn *ac)
 {
   /* check that block is valid */

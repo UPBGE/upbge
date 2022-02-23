@@ -35,7 +35,7 @@
 #include <set>
 #include <vector>
 
-#include "DNA_ID.h" // For IDRecalcFlag
+#include "DNA_ID.h"  // For IDRecalcFlag
 
 #include "EXP_PyObjectPlus.h"
 #include "EXP_Value.h"
@@ -52,8 +52,6 @@
 /**
  * \section Forward declarations
  */
-struct SM_MaterialProps;
-struct SM_ShapeProps;
 struct Scene;
 
 template<class T> class EXP_ListValue;
@@ -80,19 +78,15 @@ class RAS_IPolyMaterial;
 class RAS_Rasterizer;
 class RAS_DebugDraw;
 class RAS_FrameBuffer;
-class RAS_2DFilter;
 class RAS_2DFilterManager;
 class KX_2DFilterManager;
-class SCA_JoystickManager;
-class btCollisionShape;
-class BL_BlenderSceneConverter;
+class BL_SceneConverter;
 struct KX_ClientObjectInfo;
 class KX_ObstacleSimulation;
 struct TaskPool;
 
 /*********EEVEE INTEGRATION************/
 struct bNodeTree;
-struct GPUTexture;
 struct Mesh;
 struct Object;
 /**************************************/
@@ -139,12 +133,14 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   struct GPUViewport *m_initMaterialsGPUViewport;
   KX_Camera *m_overlayCamera;
   std::vector<KX_Camera *> m_imageRenderCameraList;
-  BL_BlenderSceneConverter *m_sceneConverter;
+  BL_SceneConverter *m_sceneConverter;
   bool m_isPythonMainLoop;
   std::vector<KX_GameObject *> m_kxobWithLod;
   std::map<Object *, char> m_obRestrictFlags;
   bool m_collectionRemap;
   std::vector<BackupObj *> m_backupObList;
+  int m_backupOverlayFlag;
+  int m_backupOverlayGameFlag;
 
   /* Objects to update at each render pass */
   /* Note: We could try to get the right render pass where
@@ -153,10 +149,8 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
    * because the other render pass can contain the same objects
    * which need to be notified + flushed again.
    */
-  std::vector<std::pair<Object *, IDRecalcFlag>> m_extraObjectsToUpdateInAllRenderPasses;
-  std::vector<std::pair<Mesh *, IDRecalcFlag>> m_meshesToUpdateInAllRenderPasses;
-  std::vector<std::pair<Object *, IDRecalcFlag>> m_extraObjectsToUpdateInOverlayPass;
-  std::vector<bNodeTree *> m_nodeTreesToUpdateInAllRenderPasses;
+  std::vector<std::pair<ID *, IDRecalcFlag>> m_idsToUpdateInAllRenderPasses;
+  std::vector<std::pair<ID *, IDRecalcFlag>> m_idsToUpdateInOverlayPass;
   /*************************************************/
 
   RAS_BucketManager *m_bucketmanager;
@@ -338,9 +332,11 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   bool m_isRuntime;  // Too lazy to put that in protected
   std::vector<Object *> m_hiddenObjectsDuringRuntime;
 
-  void RenderAfterCameraSetup(KX_Camera *cam, const RAS_Rect &viewport, bool is_overlay_pass, bool is_last_render_pass);
-  void RenderAfterCameraSetupImageRender(KX_Camera *cam,
-                                         const struct rcti *window);
+  void RenderAfterCameraSetup(KX_Camera *cam,
+                              const RAS_Rect &viewport,
+                              bool is_overlay_pass,
+                              bool is_last_render_pass);
+  void RenderAfterCameraSetupImageRender(KX_Camera *cam, const struct rcti *window);
 
   void SetLastReplicatedParentObject(Object *ob);
   Object *GetLastReplicatedParentObject();
@@ -375,12 +371,15 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
                          Object *ob,
                          std::vector<Object *> children);
   bool SomethingIsMoving();
-  void AppendToExtraObjectsToUpdateInAllRenderPasses(Object *ob, IDRecalcFlag flag);
-  void AppendToMeshesToUpdateInAllRenderPasses(Mesh *me, IDRecalcFlag flag);
-  void AppendToNodeTreesToUpdateInAllRenderPasses(bNodeTree *ntree);
-  void AppendToExtraObjectsToUpdateInOverlayPass(Object *ob, IDRecalcFlag flag);
-  void TagForExtraObjectsUpdate(Main *bmain, KX_Camera *cam);
-  KX_GameObject *AddDuplicaObject(KX_GameObject *gameobj, KX_GameObject *reference, float lifespan);
+  void AppendToIdsToUpdateInAllRenderPasses(ID *id, IDRecalcFlag flag);
+  void AppendToIdsToUpdateInOverlayPass(ID *id, IDRecalcFlag flag);
+  void TagForExtraIdsUpdate(Main *bmain, KX_Camera *cam);
+  KX_GameObject *AddDuplicaObject(KX_GameObject *gameobj,
+                                  KX_GameObject *reference,
+                                  float lifespan);
+  void OverlayPassDisableEffects(struct Depsgraph *depsgraph,
+                                 KX_Camera *kxcam,
+                                 bool isOverlayPass);
   /***************End of EEVEE INTEGRATION**********************/
 
   RAS_BucketManager *GetBucketManager() const;
@@ -526,8 +525,8 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
     return m_dbvt_occlusion_res;
   }
 
-  void SetBlenderSceneConverter(class BL_BlenderSceneConverter *sceneConverter);
-  class BL_BlenderSceneConverter *GetBlenderSceneConverter();
+  void SetBlenderSceneConverter(class BL_SceneConverter *sceneConverter);
+  class BL_SceneConverter *GetBlenderSceneConverter();
 
   class PHY_IPhysicsEnvironment *GetPhysicsEnvironment()
   {

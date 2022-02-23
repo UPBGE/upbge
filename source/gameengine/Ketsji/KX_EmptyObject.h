@@ -35,6 +35,6 @@
 
 class KX_EmptyObject : public KX_GameObject {
  public:
-  KX_EmptyObject() : KX_GameObject() {};
+  KX_EmptyObject() : KX_GameObject(){};
   virtual ~KX_EmptyObject();
 };

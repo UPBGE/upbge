@@ -1,17 +1,5 @@
-# Copyright 2011-2020 Blender Foundation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2011-2022 Blender Foundation
 
 ###########################################################################
 # Helper macros
@@ -287,9 +275,6 @@ if(CYCLES_STANDALONE_REPOSITORY)
   endif()
 
   set(__boost_packages filesystem regex system thread date_time)
-  if(WITH_CYCLES_NETWORK)
-    list(APPEND __boost_packages serialization)
-  endif()
   if(WITH_CYCLES_OSL)
     list(APPEND __boost_packages wave)
   endif()
@@ -494,26 +479,22 @@ else()
 endif()
 
 ###########################################################################
-# GLUT
+# SDL
 ###########################################################################
 
 if(WITH_CYCLES_STANDALONE AND WITH_CYCLES_STANDALONE_GUI)
-  if(MSVC AND EXISTS ${_cycles_lib_dir})
-    add_definitions(-DFREEGLUT_STATIC -DFREEGLUT_LIB_PRAGMAS=0)
-    set(GLUT_LIBRARIES "${_cycles_lib_dir}/opengl/lib/freeglut_static.lib")
-    set(GLUT_INCLUDE_DIR "${_cycles_lib_dir}/opengl/include")
-  else()
-    find_package(GLUT)
+  # We can't use the version from the Blender precompiled libraries because
+  # it does not include the video subsystem.
+  find_package(SDL2)
 
-    if(NOT GLUT_FOUND)
-      set(WITH_CYCLES_STANDALONE_GUI OFF)
-      message(STATUS "GLUT not found, disabling Cycles standalone GUI")
-    endif()
+  if(NOT SDL2_FOUND)
+    set(WITH_CYCLES_STANDALONE_GUI OFF)
+    message(STATUS "SDL not found, disabling Cycles standalone GUI")
   endif()
 
   include_directories(
     SYSTEM
-    ${GLUT_INCLUDE_DIR}
+    ${SDL2_INCLUDE_DIRS}
   )
 endif()
 
@@ -524,7 +505,7 @@ endif()
 if(WITH_CYCLES_CUDA_BINARIES OR NOT WITH_CUDA_DYNLOAD)
   find_package(CUDA) # Try to auto locate CUDA toolkit
   if(CUDA_FOUND)
-    message(STATUS "CUDA nvcc = ${CUDA_NVCC_EXECUTABLE}")
+    message(STATUS "Found CUDA ${CUDA_NVCC_EXECUTABLE} (${CUDA_VERSION})")
   else()
     message(STATUS "CUDA compiler not found, disabling WITH_CYCLES_CUDA_BINARIES")
     set(WITH_CYCLES_CUDA_BINARIES OFF)
@@ -532,6 +513,44 @@ if(WITH_CYCLES_CUDA_BINARIES OR NOT WITH_CUDA_DYNLOAD)
       message(STATUS "Additionally falling back to dynamic CUDA load")
       set(WITH_CUDA_DYNLOAD ON)
     endif()
+  endif()
+endif()
+
+
+###########################################################################
+# HIP
+###########################################################################
+
+if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIP)
+  find_package(HIP)
+  if(HIP_FOUND)
+    message(STATUS "Found HIP ${HIP_HIPCC_EXECUTABLE} (${HIP_VERSION})")
+  else()
+    message(STATUS "HIP compiler not found, disabling WITH_CYCLES_HIP_BINARIES")
+    set(WITH_CYCLES_HIP_BINARIES OFF)
+  endif()
+endif()
+
+if(NOT WITH_HIP_DYNLOAD)
+  set(WITH_HIP_DYNLOAD ON)
+endif()
+
+###########################################################################
+# Metal
+###########################################################################
+
+if(WITH_CYCLES_DEVICE_METAL)
+  find_library(METAL_LIBRARY Metal)
+
+  # This file was added in the 12.0 SDK, use it as a way to detect the version.
+  if(METAL_LIBRARY AND NOT EXISTS "${METAL_LIBRARY}/Headers/MTLFunctionStitching.h")
+    message(STATUS "Metal version too old, must be SDK 12.0 or newer, disabling WITH_CYCLES_DEVICE_METAL")
+    set(WITH_CYCLES_DEVICE_METAL OFF)
+  elseif(NOT METAL_LIBRARY)
+    message(STATUS "Metal not found, disabling WITH_CYCLES_DEVICE_METAL")
+    set(WITH_CYCLES_DEVICE_METAL OFF)
+  else()
+    message(STATUS "Found Metal: ${METAL_LIBRARY}")
   endif()
 endif()
 

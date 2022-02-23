@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 #!/usr/bin/env python3
 
 import argparse
@@ -51,7 +53,7 @@ class ReleaseLogLine:
 
         self.title = ""
         self.url = f"https://developer.blender.org/{self.ref}"
-    
+
     def __format_as_html(self)-> str:
         return f"  <li>{self.title} [<a href=\"{self.url}\">{self.ref}</a>]</li>"
 
@@ -97,7 +99,7 @@ def extract_release_notes(version: str, task_id: int):
 
     # Process
 
-    1. Retrieval of description of the gived `task_id`.
+    1. Retrieval of description of the given `task_id`.
     2. Find rows for the given `version` and convert to `ReleaseLogLine`.
     3. based on the associated task or commit retrieves the title of the log
        line.

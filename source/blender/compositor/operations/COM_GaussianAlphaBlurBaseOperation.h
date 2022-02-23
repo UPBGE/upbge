@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2021, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2021 Blender Foundation. */
 
 #pragma once
 
@@ -24,11 +9,11 @@ namespace blender::compositor {
 
 class GaussianAlphaBlurBaseOperation : public BlurBaseOperation {
  protected:
-  float *m_gausstab;
-  float *m_distbuf_inv;
-  int m_falloff; /* Falloff for #distbuf_inv. */
-  bool m_do_subtract;
-  int m_filtersize;
+  float *gausstab_;
+  float *distbuf_inv_;
+  int falloff_; /* Falloff for #distbuf_inv. */
+  bool do_subtract_;
+  int filtersize_;
   float rad_;
   eDimension dimension_;
 
@@ -36,12 +21,10 @@ class GaussianAlphaBlurBaseOperation : public BlurBaseOperation {
   GaussianAlphaBlurBaseOperation(eDimension dim);
 
   virtual void init_data() override;
-  virtual void initExecution() override;
-  virtual void deinitExecution() override;
+  virtual void init_execution() override;
+  virtual void deinit_execution() override;
 
-  void get_area_of_interest(const int input_idx,
-                            const rcti &output_area,
-                            rcti &r_input_area) final;
+  void get_area_of_interest(int input_idx, const rcti &output_area, rcti &r_input_area) final;
   void update_memory_buffer_partial(MemoryBuffer *output,
                                     const rcti &area,
                                     Span<MemoryBuffer *> inputs) final;
@@ -49,13 +32,18 @@ class GaussianAlphaBlurBaseOperation : public BlurBaseOperation {
   /**
    * Set subtract for Dilate/Erode functionality
    */
-  void setSubtract(bool subtract)
+  void set_subtract(bool subtract)
   {
-    this->m_do_subtract = subtract;
+    do_subtract_ = subtract;
   }
-  void setFalloff(int falloff)
+  void set_falloff(int falloff)
   {
-    this->m_falloff = falloff;
+    falloff_ = falloff;
+  }
+
+  BLI_INLINE float finv_test(const float f, const bool test)
+  {
+    return (LIKELY(test == false)) ? f : 1.0f - f;
   }
 };
 

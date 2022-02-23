@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup pythonintern
@@ -366,7 +352,7 @@ static PyObject *bpy_prop_deferred_call(BPy_PropDeferred *UNUSED(self),
 
 /**
  * Expose the function in case scripts need to introspect this information
- * (not currently used by Blender it's self).
+ * (not currently used by Blender itself).
  */
 static PyObject *bpy_prop_deferred_function_get(BPy_PropDeferred *self, void *UNUSED(closure))
 {
@@ -377,7 +363,7 @@ static PyObject *bpy_prop_deferred_function_get(BPy_PropDeferred *self, void *UN
 
 /**
  * Expose keywords in case scripts need to introspect this information
- * (not currently used by Blender it's self).
+ * (not currently used by Blender itself).
  */
 static PyObject *bpy_prop_deferred_keywords_get(BPy_PropDeferred *self, void *UNUSED(closure))
 {
@@ -433,6 +419,10 @@ static PyObject *bpy_prop_deferred_data_CreatePyObject(PyObject *fn, PyObject *k
 }
 
 /** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Shared Property Utilities
+ * \{ */
 
 /* PyObject's */
 static PyObject *pymeth_BoolProperty = NULL;
@@ -2605,7 +2595,9 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "   :type step: int\n"
 
 #define BPY_PROPDEF_FLOAT_PREC_DOC \
-  "   :arg precision: Maximum number of decimal digits to display, in [0, 6].\n" \
+  "   :arg precision: Maximum number of decimal digits to display, in [0, 6]. Fraction is " \
+  "automatically hidden for exact integer values of fields with unit 'NONE' or 'TIME' (frame " \
+  "count) and step divisible by 100.\n" \
   "   :type precision: int\n"
 
 #define BPY_PROPDEF_UPDATE_DOC \
@@ -2630,8 +2622,12 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "      This function must take 2 values (self, value) and return None.\n" \
   "   :type set: function\n"
 
-#define BPY_PROPDEF_TYPE_DOC \
+#define BPY_PROPDEF_POINTER_TYPE_DOC \
   "   :arg type: A subclass of :class:`bpy.types.PropertyGroup` or :class:`bpy.types.ID`.\n" \
+  "   :type type: class\n"
+
+#define BPY_PROPDEF_COLLECTION_TYPE_DOC \
+  "   :arg type: A subclass of :class:`bpy.types.PropertyGroup`.\n" \
   "   :type type: class\n"
 
 #define BPY_PROPDEF_TAGS_DOC \
@@ -3750,7 +3746,7 @@ PyDoc_STRVAR(
     "         (e.g. returned by :class:`bpy.types.UILayout.icon`)\n"
     "      :number: Unique value used as the identifier for this item (stored in file data).\n"
     "         Use when the identifier may need to change. If the *ENUM_FLAG* option is used,\n"
-    "         the values are bitmasks and should be powers of two.\n"
+    "         the values are bit-masks and should be powers of two.\n"
     "\n"
     "      When an item only contains 4 items they define ``(identifier, name, description, "
     "number)``.\n"
@@ -3981,7 +3977,7 @@ PyDoc_STRVAR(BPy_PointerProperty_doc,
              "update=None)\n"
              "\n"
              "   Returns a new pointer property definition.\n"
-             "\n" BPY_PROPDEF_TYPE_DOC BPY_PROPDEF_NAME_DOC BPY_PROPDEF_DESC_DOC
+             "\n" BPY_PROPDEF_POINTER_TYPE_DOC BPY_PROPDEF_NAME_DOC BPY_PROPDEF_DESC_DOC
                  BPY_PROPDEF_OPTIONS_DOC BPY_PROPDEF_OPTIONS_OVERRIDE_DOC BPY_PROPDEF_TAGS_DOC
                      BPY_PROPDEF_POLL_DOC BPY_PROPDEF_UPDATE_DOC);
 PyObject *BPy_PointerProperty(PyObject *self, PyObject *args, PyObject *kw)
@@ -4104,7 +4100,7 @@ PyDoc_STRVAR(BPy_CollectionProperty_doc,
              "tags=set())\n"
              "\n"
              "   Returns a new collection property definition.\n"
-             "\n" BPY_PROPDEF_TYPE_DOC BPY_PROPDEF_NAME_DOC BPY_PROPDEF_DESC_DOC
+             "\n" BPY_PROPDEF_COLLECTION_TYPE_DOC BPY_PROPDEF_NAME_DOC BPY_PROPDEF_DESC_DOC
                  BPY_PROPDEF_OPTIONS_DOC BPY_PROPDEF_OPTIONS_OVERRIDE_COLLECTION_DOC
                      BPY_PROPDEF_TAGS_DOC);
 PyObject *BPy_CollectionProperty(PyObject *self, PyObject *args, PyObject *kw)
@@ -4392,10 +4388,6 @@ PyObject *BPY_rna_props(void)
   return submodule;
 }
 
-/**
- * Run this on exit, clearing all Python callback users and disable the RNA callback,
- * as it would be called after Python has already finished.
- */
 void BPY_rna_props_clear_all(void)
 {
   /* Remove all user counts, so this isn't considered a leak from Python's perspective. */

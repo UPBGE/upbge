@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup RNA
@@ -438,12 +424,6 @@ static PropertyRNA *arraytypemap[IDP_NUMTYPES] = {
     (PropertyRNA *)&rna_PropertyGroupItem_double_array,
 };
 
-/* This function initializes a PropertyRNAOrID with all required info, from a given PropertyRNA
- * and PointerRNA data. It deals properly with the three cases (static RNA, runtime RNA, and
- * IDProperty).
- * WARNING: given `ptr` PointerRNA is assumed to be a valid data one here, calling code is
- * responsible to ensure that.
- */
 void rna_property_rna_or_id_get(PropertyRNA *prop,
                                 PointerRNA *ptr,
                                 PropertyRNAOrID *r_prop_rna_or_id)
@@ -515,8 +495,6 @@ void rna_property_rna_or_id_get(PropertyRNA *prop,
   }
 }
 
-/* This function only returns an IDProperty,
- * or NULL (in case IDProp could not be found, or prop is a real RNA property). */
 IDProperty *rna_idproperty_check(PropertyRNA **prop, PointerRNA *ptr)
 {
   PropertyRNAOrID prop_rna_or_id;
@@ -527,8 +505,6 @@ IDProperty *rna_idproperty_check(PropertyRNA **prop, PointerRNA *ptr)
   return prop_rna_or_id.idprop;
 }
 
-/* This function always return the valid, real data pointer, be it a regular RNA property one,
- * or an IDProperty one. */
 PropertyRNA *rna_ensure_property_realdata(PropertyRNA **prop, PointerRNA *ptr)
 {
   PropertyRNAOrID prop_rna_or_id;
@@ -661,11 +637,6 @@ StructRNA *RNA_struct_base(StructRNA *type)
   return type->base;
 }
 
-/**
- * Use to find the subtype directly below a base-type.
- *
- * So if type were `RNA_SpotLIght`, `RNA_struct_base_of(type, &RNA_ID)` would return `&RNA_Light`.
- */
 const StructRNA *RNA_struct_base_child_of(const StructRNA *type, const StructRNA *parent_type)
 {
   while (type) {
@@ -697,18 +668,11 @@ bool RNA_struct_idprops_datablock_allowed(const StructRNA *type)
   return (type->flag & (STRUCT_NO_DATABLOCK_IDPROPERTIES | STRUCT_NO_IDPROPERTIES)) == 0;
 }
 
-/**
- * Whether given type implies datablock usage by IDProperties.
- * This is used to prevent classes allowed to have IDProperties,
- * but not datablock ones, to indirectly use some
- * (e.g. by assigning an IDP_GROUP containing some IDP_ID pointers...).
- */
 bool RNA_struct_idprops_contains_datablock(const StructRNA *type)
 {
   return (type->flag & (STRUCT_CONTAINS_DATABLOCK_IDPROPERTIES | STRUCT_ID)) != 0;
 }
 
-/* remove an id-property */
 bool RNA_struct_idprops_unset(PointerRNA *ptr, const char *identifier)
 {
   IDProperty *group = RNA_struct_idprops(ptr, 0);
@@ -825,8 +789,6 @@ unsigned int RNA_struct_count_properties(StructRNA *srna)
   return counter;
 }
 
-/* Low level direct access to type->properties,
- * note this ignores parent classes so should be used with care. */
 const struct ListBase *RNA_struct_type_properties(StructRNA *srna)
 {
   return &srna->cont.properties;
@@ -837,10 +799,6 @@ PropertyRNA *RNA_struct_type_find_property_no_base(StructRNA *srna, const char *
   return BLI_findstring_ptr(&srna->cont.properties, identifier, offsetof(PropertyRNA, identifier));
 }
 
-/**
- * \note #RNA_struct_find_property is a higher level alternative to this function
- * which takes a #PointerRNA instead of a #StructRNA.
- */
 PropertyRNA *RNA_struct_type_find_property(StructRNA *srna, const char *identifier)
 {
   for (; srna; srna = srna->base) {
@@ -953,9 +911,6 @@ char *RNA_struct_name_get_alloc(PointerRNA *ptr, char *fixedbuf, int fixedlen, i
   return NULL;
 }
 
-/**
- * Use when registering structs with the #STRUCT_PUBLIC_NAMESPACE flag.
- */
 bool RNA_struct_available_or_report(ReportList *reports, const char *identifier)
 {
   const StructRNA *srna_exists = RNA_struct_find(identifier);
@@ -1098,12 +1053,6 @@ int RNA_property_flag(PropertyRNA *prop)
   return rna_ensure_property(prop)->flag;
 }
 
-/**
- * Get the tags set for \a prop as int bitfield.
- * \note Doesn't perform any validity check on the set bits. #RNA_def_property_tags does this
- *       in debug builds (to avoid performance issues in non-debug builds), which should be
- *       the only way to set tags. Hence, at this point we assume the tag bitfield to be valid.
- */
 int RNA_property_tags(PropertyRNA *prop)
 {
   return rna_ensure_property(prop)->tags;
@@ -1129,7 +1078,6 @@ bool RNA_property_array_check(PropertyRNA *prop)
   return rna_ensure_property_array_check(prop);
 }
 
-/* used by BPY to make an array from the python object */
 int RNA_property_array_dimension(PointerRNA *ptr, PropertyRNA *prop, int length[])
 {
   PropertyRNA *rprop = rna_ensure_property(prop);
@@ -1141,7 +1089,6 @@ int RNA_property_array_dimension(PointerRNA *ptr, PropertyRNA *prop, int length[
   return rprop->arraydimension;
 }
 
-/* Return the size of Nth dimension. */
 int RNA_property_multi_array_length(PointerRNA *ptr, PropertyRNA *prop, int dim)
 {
   int len[RNA_MAX_ARRAY_DIMENSION];
@@ -1445,8 +1392,6 @@ int RNA_property_int_clamp(PointerRNA *ptr, PropertyRNA *prop, int *value)
   return 0;
 }
 
-/* this is the max length including \0 terminator.
- * '0' used when their is no maximum */
 int RNA_property_string_maxlength(PropertyRNA *prop)
 {
   StringPropertyRNA *sprop = (StringPropertyRNA *)rna_ensure_property(prop);
@@ -1773,10 +1718,6 @@ int RNA_enum_from_identifier(const EnumPropertyItem *item, const char *identifie
   return -1;
 }
 
-/**
- * Take care using this with translated enums,
- * prefer #RNA_enum_from_identifier where possible.
- */
 int RNA_enum_from_name(const EnumPropertyItem *item, const char *name)
 {
   int i = 0;
@@ -1972,10 +1913,6 @@ bool RNA_property_editable(PointerRNA *ptr, PropertyRNA *prop_orig)
                (!ID_IS_OVERRIDE_LIBRARY(id) || RNA_property_overridable_get(ptr, prop_orig)))));
 }
 
-/**
- * Version of #RNA_property_editable that tries to return additional info in \a r_info
- * that can be exposed in UI.
- */
 bool RNA_property_editable_info(PointerRNA *ptr, PropertyRNA *prop, const char **r_info)
 {
   ID *id = ptr->owner_id;
@@ -2026,7 +1963,6 @@ bool RNA_property_editable_flag(PointerRNA *ptr, PropertyRNA *prop)
   return (flag & PROP_EDITABLE) != 0;
 }
 
-/* same as RNA_property_editable(), except this checks individual items in an array */
 bool RNA_property_editable_index(PointerRNA *ptr, PropertyRNA *prop, int index)
 {
   ID *id;
@@ -2089,8 +2025,6 @@ bool RNA_property_animated(PointerRNA *ptr, PropertyRNA *prop)
 
   return false;
 }
-/* this function is to check if its possible to create a valid path from the ID
- * its slow so don't call in a loop */
 bool RNA_property_path_from_ID_check(PointerRNA *ptr, PropertyRNA *prop)
 {
   char *path = RNA_path_from_ID_to_property(ptr, prop);
@@ -2193,11 +2127,9 @@ static void rna_property_update(
   }
 }
 
-/* must keep in sync with 'rna_property_update'
- * NOTE: its possible this returns a false positive in the case of #PROP_CONTEXT_UPDATE
- * but this isn't likely to be a performance problem. */
 bool RNA_property_update_check(PropertyRNA *prop)
 {
+  /* NOTE: must keep in sync with #rna_property_update. */
   return (prop->magic != RNA_MAGIC || prop->update || prop->noteflag);
 }
 
@@ -3275,7 +3207,6 @@ char *RNA_property_string_get_alloc(
   return buf;
 }
 
-/* this is the length without \0 terminator */
 int RNA_property_string_length(PointerRNA *ptr, PropertyRNA *prop)
 {
   StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
@@ -3315,10 +3246,10 @@ void RNA_property_string_set(PointerRNA *ptr, PropertyRNA *prop, const char *val
     rna_idproperty_touch(idprop);
   }
   else if (sprop->set) {
-    sprop->set(ptr, value); /* set function needs to clamp its self */
+    sprop->set(ptr, value); /* set function needs to clamp itself */
   }
   else if (sprop->set_ex) {
-    sprop->set_ex(ptr, prop, value); /* set function needs to clamp its self */
+    sprop->set_ex(ptr, prop, value); /* set function needs to clamp itself */
   }
   else if (prop->flag & PROP_EDITABLE) {
     IDProperty *group;
@@ -3347,11 +3278,11 @@ void RNA_property_string_set_bytes(PointerRNA *ptr, PropertyRNA *prop, const cha
   }
   else if (sprop->set) {
     /* XXX, should take length argument (currently not used). */
-    sprop->set(ptr, value); /* set function needs to clamp its self */
+    sprop->set(ptr, value); /* set function needs to clamp itself */
   }
   else if (sprop->set_ex) {
     /* XXX, should take length argument (currently not used). */
-    sprop->set_ex(ptr, prop, value); /* set function needs to clamp its self */
+    sprop->set_ex(ptr, prop, value); /* set function needs to clamp itself */
   }
   else if (prop->flag & PROP_EDITABLE) {
     IDProperty *group;
@@ -3415,7 +3346,6 @@ char *RNA_property_string_get_default_alloc(
   return buf;
 }
 
-/* this is the length without \0 terminator */
 int RNA_property_string_default_length(PointerRNA *UNUSED(ptr), PropertyRNA *prop)
 {
   StringPropertyRNA *sprop = (StringPropertyRNA *)rna_ensure_property(prop);
@@ -3496,13 +3426,6 @@ int RNA_property_enum_get_default(PointerRNA *UNUSED(ptr), PropertyRNA *prop)
   return eprop->defaultvalue;
 }
 
-/**
- * Get the value of the item that is \a step items away from \a from_value.
- *
- * \param from_value: Item value to start stepping from.
- * \param step: Absolute value defines step size, sign defines direction.
- *              E.g to get the next item, pass 1, for the previous -1.
- */
 int RNA_property_enum_step(
     const bContext *C, PointerRNA *ptr, PropertyRNA *prop, int from_value, int step)
 {
@@ -3828,6 +3751,16 @@ int RNA_property_collection_length(PointerRNA *ptr, PropertyRNA *prop)
   RNA_property_collection_end(&iter);
 
   return length;
+}
+
+bool RNA_property_collection_is_empty(PointerRNA *ptr, PropertyRNA *prop)
+{
+  BLI_assert(RNA_property_type(prop) == PROP_COLLECTION);
+  CollectionPropertyIterator iter;
+  RNA_property_collection_begin(ptr, prop, &iter);
+  bool test = iter.valid;
+  RNA_property_collection_end(&iter);
+  return !test;
 }
 
 /* This helper checks whether given collection property itself is editable (we only currently
@@ -4210,7 +4143,6 @@ int RNA_property_collection_lookup_string(PointerRNA *ptr,
   return RNA_property_collection_lookup_string_index(ptr, prop, key, r_ptr, &index);
 }
 
-/* zero return is an assignment error */
 int RNA_property_collection_assign_int(PointerRNA *ptr,
                                        PropertyRNA *prop,
                                        const int key,
@@ -4985,6 +4917,10 @@ static char *rna_path_token_in_brackets(const char **path,
   return buf;
 }
 
+/**
+ * \return true when when the key in the path is correctly parsed and found in the collection
+ * or when the path is empty.
+ */
 static bool rna_path_parse_collection_key(const char **path,
                                           PointerRNA *ptr,
                                           PropertyRNA *prop,
@@ -5000,6 +4936,7 @@ static bool rna_path_parse_collection_key(const char **path,
     return true;
   }
 
+  bool found = false;
   if (**path == '[') {
     bool quoted;
     char *token;
@@ -5014,7 +4951,7 @@ static bool rna_path_parse_collection_key(const char **path,
     /* check for "" to see if it is a string */
     if (quoted) {
       if (RNA_property_collection_lookup_string(ptr, prop, token, r_nextptr)) {
-        /* pass */
+        found = true;
       }
       else {
         r_nextptr->data = NULL;
@@ -5027,7 +4964,7 @@ static bool rna_path_parse_collection_key(const char **path,
         return false; /* we can be sure the fixedbuf was used in this case */
       }
       if (RNA_property_collection_lookup_int(ptr, prop, intkey, r_nextptr)) {
-        /* pass */
+        found = true;
       }
       else {
         r_nextptr->data = NULL;
@@ -5040,7 +4977,7 @@ static bool rna_path_parse_collection_key(const char **path,
   }
   else {
     if (RNA_property_collection_type_get(ptr, prop, r_nextptr)) {
-      /* pass */
+      found = true;
     }
     else {
       /* ensure we quit on invalid values */
@@ -5048,7 +4985,7 @@ static bool rna_path_parse_collection_key(const char **path,
     }
   }
 
-  return true;
+  return found;
 }
 
 static bool rna_path_parse_array_index(const char **path,
@@ -5324,17 +5261,6 @@ static bool rna_path_parse(PointerRNA *ptr,
   return true;
 }
 
-/**
- * Resolve the given RNA Path to find the pointer and/or property
- * indicated by fully resolving the path.
- *
- * \warning Unlike \a RNA_path_resolve_property(), that one *will* try to follow RNAPointers,
- * e.g. the path 'parent' applied to a RNAObject \a ptr will return the object.parent in \a r_ptr,
- * and a NULL \a r_prop...
- *
- * \note Assumes all pointers provided are valid
- * \return True if path can be resolved to a valid "pointer + property" OR "pointer only"
- */
 bool RNA_path_resolve(PointerRNA *ptr, const char *path, PointerRNA *r_ptr, PropertyRNA **r_prop)
 {
   if (!rna_path_parse(ptr, path, r_ptr, r_prop, NULL, NULL, NULL, true)) {
@@ -5344,13 +5270,6 @@ bool RNA_path_resolve(PointerRNA *ptr, const char *path, PointerRNA *r_ptr, Prop
   return r_ptr->data != NULL;
 }
 
-/**
- * Resolve the given RNA Path to find the pointer and/or property + array index
- * indicated by fully resolving the path.
- *
- * \note Assumes all pointers provided are valid.
- * \return True if path can be resolved to a valid "pointer + property" OR "pointer only"
- */
 bool RNA_path_resolve_full(
     PointerRNA *ptr, const char *path, PointerRNA *r_ptr, PropertyRNA **r_prop, int *r_index)
 {
@@ -5361,26 +5280,12 @@ bool RNA_path_resolve_full(
   return r_ptr->data != NULL;
 }
 
-/**
- * A version of #RNA_path_resolve_full doesn't check the value of #PointerRNA.data.
- *
- * \note While it's correct to ignore the value of #PointerRNA.data
- * most callers need to know if the resulting pointer was found and not null.
- */
 bool RNA_path_resolve_full_maybe_null(
     PointerRNA *ptr, const char *path, PointerRNA *r_ptr, PropertyRNA **r_prop, int *r_index)
 {
   return rna_path_parse(ptr, path, r_ptr, r_prop, r_index, NULL, NULL, true);
 }
 
-/**
- * Resolve the given RNA Path to find both the pointer AND property
- * indicated by fully resolving the path.
- *
- * This is a convenience method to avoid logic errors and ugly syntax.
- * \note Assumes all pointers provided are valid
- * \return True only if both a valid pointer and property are found after resolving the path
- */
 bool RNA_path_resolve_property(PointerRNA *ptr,
                                const char *path,
                                PointerRNA *r_ptr,
@@ -5393,14 +5298,6 @@ bool RNA_path_resolve_property(PointerRNA *ptr,
   return r_ptr->data != NULL && *r_prop != NULL;
 }
 
-/**
- * Resolve the given RNA Path to find the pointer AND property (as well as the array index)
- * indicated by fully resolving the path.
- *
- * This is a convenience method to avoid logic errors and ugly syntax.
- * \note Assumes all pointers provided are valid
- * \return True only if both a valid pointer and property are found after resolving the path
- */
 bool RNA_path_resolve_property_full(
     PointerRNA *ptr, const char *path, PointerRNA *r_ptr, PropertyRNA **r_prop, int *r_index)
 {
@@ -5411,18 +5308,6 @@ bool RNA_path_resolve_property_full(
   return r_ptr->data != NULL && *r_prop != NULL;
 }
 
-/**
- * Resolve the given RNA Path to find both the pointer AND property
- * indicated by fully resolving the path, and get the value of the Pointer property
- * (or item of the collection).
- *
- * This is a convenience method to avoid logic errors and ugly syntax,
- * it combines both \a RNA_path_resolve and #RNA_path_resolve_property in a single call.
- * \note Assumes all pointers provided are valid.
- * \param r_item_ptr: The final Pointer or Collection item value.
- * You must check for its validity before use!
- * \return True only if both a valid pointer and property are found after resolving the path
- */
 bool RNA_path_resolve_property_and_item_pointer(PointerRNA *ptr,
                                                 const char *path,
                                                 PointerRNA *r_ptr,
@@ -5436,19 +5321,6 @@ bool RNA_path_resolve_property_and_item_pointer(PointerRNA *ptr,
   return r_ptr->data != NULL && *r_prop != NULL;
 }
 
-/**
- * Resolve the given RNA Path to find both the pointer AND property (as well as the array index)
- * indicated by fully resolving the path,
- * and get the value of the Pointer property (or item of the collection).
- *
- * This is a convenience method to avoid logic errors and ugly syntax,
- * it combines both \a RNA_path_resolve_full and
- * \a RNA_path_resolve_property_full in a single call.
- * \note Assumes all pointers provided are valid.
- * \param r_item_ptr: The final Pointer or Collection item value.
- * You must check for its validity before use!
- * \return True only if both a valid pointer and property are found after resolving the path
- */
 bool RNA_path_resolve_property_and_item_pointer_full(PointerRNA *ptr,
                                                      const char *path,
                                                      PointerRNA *r_ptr,
@@ -5462,15 +5334,6 @@ bool RNA_path_resolve_property_and_item_pointer_full(PointerRNA *ptr,
 
   return r_ptr->data != NULL && *r_prop != NULL;
 }
-/**
- * Resolve the given RNA Path into a linked list of PropertyElemRNA's.
- *
- * To be used when complex operations over path are needed, like e.g. get relative paths,
- * to avoid too much string operations.
- *
- * \return True if there was no error while resolving the path
- * \note Assumes all pointers provided are valid
- */
 bool RNA_path_resolve_elements(PointerRNA *ptr, const char *path, ListBase *r_elements)
 {
   return rna_path_parse(ptr, path, NULL, NULL, NULL, NULL, r_elements, false);
@@ -5721,16 +5584,6 @@ static char *rna_idp_path(PointerRNA *ptr,
   return path;
 }
 
-/**
- * Find the path from the structure referenced by the pointer to the runtime RNA-defined
- * #IDProperty object.
- *
- * \note Does *not* handle pure user-defined IDProperties (a.k.a. custom properties).
- *
- * \param ptr: Reference to the object owning the custom property storage.
- * \param needle: Custom property object to find.
- * \return Relative path or NULL.
- */
 char *RNA_path_from_struct_to_idproperty(PointerRNA *ptr, IDProperty *needle)
 {
   IDProperty *haystack = RNA_struct_idprops(ptr, false);
@@ -5757,13 +5610,6 @@ static char *rna_path_from_ID_to_idpgroup(const PointerRNA *ptr)
   return RNA_path_from_struct_to_idproperty(&id_ptr, ptr->data);
 }
 
-/**
- * Find the actual ID pointer and path from it to the given ID.
- *
- * \param id: ID reference to search the global owner for.
- * \param[out] r_path: Path from the real ID to the initial ID.
- * \return The ID pointer, or NULL in case of failure.
- */
 ID *RNA_find_real_ID_and_path(Main *bmain, ID *id, const char **r_path)
 {
   if (r_path) {
@@ -5916,11 +5762,6 @@ static void rna_path_array_multi_string_from_flat_index(PointerRNA *ptr,
   }
 }
 
-/**
- * \param index_dim: The dimension to show, 0 disables. 1 for 1d array, 2 for 2d. etc.
- * \param index: The *flattened* index to use when \a `index_dim > 0`,
- * this is expanded when used with multi-dimensional arrays.
- */
 char *RNA_path_from_ID_to_property_index(PointerRNA *ptr,
                                          PropertyRNA *prop,
                                          int index_dim,
@@ -5992,10 +5833,6 @@ char *RNA_path_from_real_ID_to_property_index(
   return path != NULL ? rna_prepend_real_ID_path(bmain, ptr->owner_id, path, r_real_id) : NULL;
 }
 
-/**
- * \return the path to given ptr/prop from the closest ancestor of given type,
- * if any (else return NULL).
- */
 char *RNA_path_resolve_from_type_to_property(PointerRNA *ptr,
                                              PropertyRNA *prop,
                                              const StructRNA *type)
@@ -6034,10 +5871,6 @@ char *RNA_path_resolve_from_type_to_property(PointerRNA *ptr,
   return path;
 }
 
-/**
- * Get the ID as a python representation, eg:
- *   bpy.data.foo["bar"]
- */
 char *RNA_path_full_ID_py(Main *bmain, ID *id)
 {
   const char *path;
@@ -6073,10 +5906,6 @@ char *RNA_path_full_ID_py(Main *bmain, ID *id)
                       path);
 }
 
-/**
- * Get the ID.struct as a python representation, eg:
- *   bpy.data.foo["bar"].some_struct
- */
 char *RNA_path_full_struct_py(Main *bmain, struct PointerRNA *ptr)
 {
   char *id_path;
@@ -6105,10 +5934,6 @@ char *RNA_path_full_struct_py(Main *bmain, struct PointerRNA *ptr)
   return ret;
 }
 
-/**
- * Get the ID.struct.property as a python representation, eg:
- *   bpy.data.foo["bar"].some_struct.some_prop[10]
- */
 char *RNA_path_full_property_py_ex(
     Main *bmain, PointerRNA *ptr, PropertyRNA *prop, int index, bool use_fallback)
 {
@@ -6162,10 +5987,6 @@ char *RNA_path_full_property_py(Main *bmain, PointerRNA *ptr, PropertyRNA *prop,
   return RNA_path_full_property_py_ex(bmain, ptr, prop, index, false);
 }
 
-/**
- * Get the struct.property as a python representation, eg:
- *   some_struct.some_prop[10]
- */
 char *RNA_path_struct_property_py(PointerRNA *ptr, PropertyRNA *prop, int index)
 {
   char *data_path;
@@ -6203,10 +6024,6 @@ char *RNA_path_struct_property_py(PointerRNA *ptr, PropertyRNA *prop, int index)
   return ret;
 }
 
-/**
- * Get the struct.property as a python representation, eg:
- *   some_prop[10]
- */
 char *RNA_path_property_py(const PointerRNA *UNUSED(ptr), PropertyRNA *prop, int index)
 {
   char *ret;
@@ -6610,6 +6427,17 @@ int RNA_collection_length(PointerRNA *ptr, const char *name)
   return 0;
 }
 
+bool RNA_collection_is_empty(PointerRNA *ptr, const char *name)
+{
+  PropertyRNA *prop = RNA_struct_find_property(ptr, name);
+
+  if (prop) {
+    return RNA_property_collection_is_empty(ptr, prop);
+  }
+  printf("%s: %s.%s not found.\n", __func__, ptr->type->identifier, name);
+  return false;
+}
+
 bool RNA_property_is_set_ex(PointerRNA *ptr, PropertyRNA *prop, bool use_ghost)
 {
   prop = rna_ensure_property(prop);
@@ -6676,7 +6504,6 @@ bool RNA_property_is_idprop(const PropertyRNA *prop)
   return (prop->magic != RNA_MAGIC);
 }
 
-/* mainly for the UI */
 bool RNA_property_is_unlink(PropertyRNA *prop)
 {
   const int flag = RNA_property_flag(prop);
@@ -6686,9 +6513,6 @@ bool RNA_property_is_unlink(PropertyRNA *prop)
   return (flag & (PROP_NEVER_UNLINK | PROP_NEVER_NULL)) == 0;
 }
 
-/* string representation of a property, python
- * compatible but can be used for display too,
- * context may be NULL */
 char *RNA_pointer_as_string_id(bContext *C, PointerRNA *ptr)
 {
   DynStr *dynstr = BLI_dynstr_new();
@@ -6750,7 +6574,6 @@ char *RNA_pointer_as_string(bContext *C,
   return rna_pointer_as_string__bldata(CTX_data_main(C), ptr_prop);
 }
 
-/* context can be NULL */
 char *RNA_pointer_as_string_keywords_ex(bContext *C,
                                         PointerRNA *ptr,
                                         const bool as_function,
@@ -8113,7 +7936,6 @@ bool RNA_property_assign_default(PointerRNA *ptr, PropertyRNA *prop)
   }
 }
 
-/* use RNA_warning macro which includes __func__ suffix */
 void _RNA_warning(const char *format, ...)
 {
   va_list args;

@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8 compliant>
 
@@ -591,6 +575,31 @@ class IMAGE_MT_uvs_snap_pie(Menu):
         ).target = 'ADJACENT_UNSELECTED'
 
 
+class IMAGE_MT_view_pie(Menu):
+    bl_label = "View"
+
+    def draw(self, context):
+        layout = self.layout
+
+        sima = context.space_data
+        show_uvedit = sima.show_uvedit
+        show_maskedit = sima.show_maskedit
+
+        pie = layout.menu_pie()
+        pie.operator("image.view_all")
+
+        if show_uvedit or show_maskedit:
+            pie.operator("image.view_selected", text="Frame Selected", icon='ZOOM_SELECTED')
+            pie.operator("image.view_center_cursor", text="Center View to Cursor")
+        else:
+            # Add spaces so items stay in the same position through all modes.
+            pie.separator()
+            pie.separator()
+
+        pie.operator("image.view_zoom_ratio", text="Zoom 1:1").ratio = 1
+        pie.operator("image.view_all", text="Frame All Fit").fit_view = True
+
+
 class IMAGE_HT_tool_header(Header):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'TOOL_HEADER'
@@ -598,13 +607,7 @@ class IMAGE_HT_tool_header(Header):
     def draw(self, context):
         layout = self.layout
 
-        layout.template_header()
-
         self.draw_tool_settings(context)
-
-        layout.separator_spacer()
-
-        IMAGE_HT_header.draw_xform_template(layout, context)
 
         layout.separator_spacer()
 
@@ -762,8 +765,7 @@ class IMAGE_HT_header(Header):
         show_uvedit = sima.show_uvedit
         show_maskedit = sima.show_maskedit
 
-        if not show_region_tool_header:
-            layout.template_header()
+        layout.template_header()
 
         if sima.mode != 'UV':
             layout.prop(sima, "ui_mode", text="")
@@ -778,14 +780,13 @@ class IMAGE_HT_header(Header):
                 layout.template_edit_mode_selection()
             else:
                 layout.prop(tool_settings, "uv_select_mode", text="", expand=True)
-                layout.prop(uvedit, "sticky_select_mode", icon_only=True)
+                layout.prop(tool_settings, "uv_sticky_select_mode", icon_only=True)
 
         IMAGE_MT_editor_menus.draw_collapsible(context, layout)
 
         layout.separator_spacer()
 
-        if not show_region_tool_header:
-            IMAGE_HT_header.draw_xform_template(layout, context)
+        IMAGE_HT_header.draw_xform_template(layout, context)
 
         layout.template_ID(sima, "image", new="image.new", open="image.open")
 
@@ -933,6 +934,10 @@ class IMAGE_PT_snapping(Panel):
             col.label(text="Target")
             row = col.row(align=True)
             row.prop(tool_settings, "snap_target", expand=True)
+
+        col.separator()
+        if 'INCREMENT' in tool_settings.snap_uv_element:
+            col.prop(tool_settings, "use_snap_uv_grid_absolute")
 
         col.label(text="Affect")
         row = col.row(align=True)
@@ -1467,6 +1472,33 @@ class IMAGE_PT_udim_grid(Panel):
         col = layout.column()
         col.prop(uvedit, "tile_grid_shape", text="Grid Shape")
 
+class IMAGE_PT_custom_grid(Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "View"
+    bl_label = "Custom Grid"
+
+    @classmethod
+    def poll(cls, context):
+        sima = context.space_data
+        return sima.show_uvedit
+
+    def draw_header(self, context):
+        sima = context.space_data
+        uvedit = sima.uv_editor
+        self.layout.prop(uvedit, "use_custom_grid", text="")
+
+    def draw(self, context):
+        layout = self.layout
+
+        sima = context.space_data
+        uvedit = sima.uv_editor
+
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        col = layout.column()
+        col.prop(uvedit, "custom_grid_subdivisions", text="Subdivisions")
 
 class IMAGE_PT_overlay(Panel):
     bl_space_type = 'IMAGE_EDITOR'
@@ -1610,6 +1642,7 @@ classes = (
     IMAGE_MT_mask_context_menu,
     IMAGE_MT_pivot_pie,
     IMAGE_MT_uvs_snap_pie,
+    IMAGE_MT_view_pie,
     IMAGE_HT_tool_header,
     IMAGE_HT_header,
     IMAGE_MT_editor_menus,
@@ -1652,6 +1685,7 @@ classes = (
     IMAGE_PT_uv_cursor,
     IMAGE_PT_annotation,
     IMAGE_PT_udim_grid,
+    IMAGE_PT_custom_grid,
     IMAGE_PT_overlay,
     IMAGE_PT_overlay_uv_edit,
     IMAGE_PT_overlay_uv_edit_geometry,

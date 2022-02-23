@@ -1,89 +1,86 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "DNA_modifier_types.h"
+#include "BKE_mesh.h"
+#include "BKE_mesh_runtime.h"
+
+#include "bmesh.h"
+#include "bmesh_tools.h"
 
 #include "node_geometry_util.hh"
 
-extern "C" {
-Mesh *doEdgeSplit(const Mesh *mesh, EdgeSplitModifierData *emd);
-}
+namespace blender::nodes::node_geo_edge_split_cc {
 
-namespace blender::nodes {
-
-static void geo_node_edge_split_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Geometry");
-  b.add_input<decl::Bool>("Edge Angle").default_value(true);
-  b.add_input<decl::Float>("Angle")
-      .default_value(DEG2RADF(30.0f))
-      .min(0.0f)
-      .max(DEG2RADF(180.0f))
-      .subtype(PROP_ANGLE);
-  b.add_input<decl::Bool>("Sharp Edges");
-  b.add_output<decl::Geometry>("Geometry");
+  b.add_input<decl::Geometry>(N_("Mesh")).supported_type(GEO_COMPONENT_TYPE_MESH);
+  b.add_input<decl::Bool>(N_("Selection")).default_value(true).hide_value().supports_field();
+  b.add_output<decl::Geometry>(N_("Mesh"));
 }
 
-static void geo_node_edge_split_exec(GeoNodeExecParams params)
+static Mesh *mesh_edge_split(const Mesh &mesh, const IndexMask selection)
 {
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
+  BMeshCreateParams bmesh_create_params{};
+  bmesh_create_params.use_toolflags = true;
+  const BMAllocTemplate allocsize = {0, 0, 0, 0};
+  BMesh *bm = BM_mesh_create(&allocsize, &bmesh_create_params);
 
-  geometry_set = geometry_set_realize_instances(geometry_set);
+  BMeshFromMeshParams bmesh_from_mesh_params{};
+  bmesh_from_mesh_params.cd_mask_extra.vmask = CD_MASK_ORIGINDEX;
+  bmesh_from_mesh_params.cd_mask_extra.emask = CD_MASK_ORIGINDEX;
+  bmesh_from_mesh_params.cd_mask_extra.pmask = CD_MASK_ORIGINDEX;
+  BM_mesh_bm_from_me(bm, &mesh, &bmesh_from_mesh_params);
 
-  if (!geometry_set.has_mesh()) {
-    params.set_output("Geometry", std::move(geometry_set));
-    return;
+  BM_mesh_elem_table_ensure(bm, BM_EDGE);
+  for (const int i : selection) {
+    BMEdge *edge = BM_edge_at_index(bm, i);
+    BM_elem_flag_enable(edge, BM_ELEM_TAG);
   }
 
-  const bool use_sharp_flag = params.extract_input<bool>("Sharp Edges");
-  const bool use_edge_angle = params.extract_input<bool>("Edge Angle");
+  BM_mesh_edgesplit(bm, false, true, false);
 
-  if (!use_edge_angle && !use_sharp_flag) {
-    params.set_output("Geometry", std::move(geometry_set));
-    return;
-  }
+  Mesh *result = BKE_mesh_from_bmesh_for_eval_nomain(bm, nullptr, &mesh);
+  BM_mesh_free(bm);
 
-  const float split_angle = params.extract_input<float>("Angle");
-  const Mesh *mesh_in = geometry_set.get_mesh_for_read();
+  BKE_mesh_normals_tag_dirty(result);
 
-  /* Use modifier struct to pass arguments to the modifier code. */
-  EdgeSplitModifierData emd;
-  memset(&emd, 0, sizeof(EdgeSplitModifierData));
-  emd.split_angle = split_angle;
-  if (use_edge_angle) {
-    emd.flags = MOD_EDGESPLIT_FROMANGLE;
-  }
-  if (use_sharp_flag) {
-    emd.flags |= MOD_EDGESPLIT_FROMFLAG;
-  }
-
-  Mesh *mesh_out = doEdgeSplit(mesh_in, &emd);
-  geometry_set.replace_mesh(mesh_out);
-
-  params.set_output("Geometry", std::move(geometry_set));
+  return result;
 }
 
-}  // namespace blender::nodes
+static void node_geo_exec(GeoNodeExecParams params)
+{
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh");
+
+  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
+
+  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+    if (!geometry_set.has_mesh()) {
+      return;
+    }
+
+    const MeshComponent &mesh_component = *geometry_set.get_component_for_read<MeshComponent>();
+    GeometryComponentFieldContext field_context{mesh_component, ATTR_DOMAIN_EDGE};
+    const int domain_size = mesh_component.attribute_domain_size(ATTR_DOMAIN_EDGE);
+    fn::FieldEvaluator selection_evaluator{field_context, domain_size};
+    selection_evaluator.add(selection_field);
+    selection_evaluator.evaluate();
+    const IndexMask selection = selection_evaluator.get_evaluated_as_mask(0);
+
+    geometry_set.replace_mesh(mesh_edge_split(*mesh_component.get_for_read(), selection));
+  });
+
+  params.set_output("Mesh", std::move(geometry_set));
+}
+
+}  // namespace blender::nodes::node_geo_edge_split_cc
 
 void register_node_type_geo_edge_split()
 {
+  namespace file_ns = blender::nodes::node_geo_edge_split_cc;
+
   static bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_EDGE_SPLIT, "Edge Split", NODE_CLASS_GEOMETRY, 0);
-  ntype.geometry_node_execute = blender::nodes::geo_node_edge_split_exec;
-  ntype.declare = blender::nodes::geo_node_edge_split_declare;
+  geo_node_type_base(&ntype, GEO_NODE_SPLIT_EDGES, "Split Edges", NODE_CLASS_GEOMETRY);
+  ntype.geometry_node_execute = file_ns::node_geo_exec;
+  ntype.declare = file_ns::node_declare;
   nodeRegisterType(&ntype);
 }

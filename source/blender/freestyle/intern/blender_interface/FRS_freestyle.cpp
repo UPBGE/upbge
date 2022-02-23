@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -86,8 +72,8 @@ static void load_post_callback(struct Main * /*main*/,
 }
 
 static bCallbackFuncStore load_post_callback_funcstore = {
-    nullptr,
-    nullptr,            /* next, prev */
+    nullptr,            /* next */
+    nullptr,            /* prev */
     load_post_callback, /* func */
     nullptr,            /* arg */
     0                   /* alloc */
@@ -494,7 +480,7 @@ void FRS_composite_result(Render *re, ViewLayer *view_layer, Render *freestyle_r
     if (view_layer->freestyle_config.flags & FREESTYLE_AS_RENDER_PASS) {
       // Create a blank render pass output.
       RE_create_render_pass(
-          re->result, RE_PASSNAME_FREESTYLE, 4, "RGBA", view_layer->name, re->viewname);
+          re->result, RE_PASSNAME_FREESTYLE, 4, "RGBA", view_layer->name, re->viewname, true);
     }
     return;
   }
@@ -530,7 +516,7 @@ void FRS_composite_result(Render *re, ViewLayer *view_layer, Render *freestyle_r
 
   if (view_layer->freestyle_config.flags & FREESTYLE_AS_RENDER_PASS) {
     RE_create_render_pass(
-        re->result, RE_PASSNAME_FREESTYLE, 4, "RGBA", view_layer->name, re->viewname);
+        re->result, RE_PASSNAME_FREESTYLE, 4, "RGBA", view_layer->name, re->viewname, true);
     dest = RE_RenderLayerGetPass(rl, RE_PASSNAME_FREESTYLE, re->viewname);
   }
   else {
@@ -769,10 +755,6 @@ void FRS_delete_active_lineset(FreestyleConfig *config)
   }
 }
 
-/**
- * Reinsert the active lineset at an offset \a direction from current position.
- * \return if position of active lineset has changed.
- */
 bool FRS_move_active_lineset(FreestyleConfig *config, int direction)
 {
   FreestyleLineSet *lineset = BKE_freestyle_lineset_get_active(config);

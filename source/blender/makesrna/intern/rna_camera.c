@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup RNA
@@ -639,6 +625,23 @@ void RNA_def_camera(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Level of Detail Distance Factor", "The factor applied to distance computed in Lod");
   RNA_def_property_update(prop, NC_OBJECT | ND_LOD, NULL);
+
+  prop = RNA_def_property(srna, "overlay_disable_bloom", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "gameflag", GAME_CAM_OVERLAY_DISABLE_BLOOM);
+  RNA_def_property_ui_text(prop, "Disable Bloom", "Disable Bloom in Overlay Pass");
+
+  prop = RNA_def_property(srna, "overlay_disable_ao", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "gameflag", GAME_CAM_OVERLAY_DISABLE_AO);
+  RNA_def_property_ui_text(prop, "Disable AO", "Disable AO in Overlay Pass");
+
+  prop = RNA_def_property(srna, "overlay_disable_ssr", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "gameflag", GAME_CAM_OVERLAY_DISABLE_SSR);
+  RNA_def_property_ui_text(prop, "Disable SSR", "Disable SSR in Overlay Pass");
+
+  prop = RNA_def_property(srna, "overlay_disable_world_volumes", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "gameflag", GAME_CAM_OVERLAY_DISABLE_WORLD_VOLUMES);
+  RNA_def_property_ui_text(
+      prop, "Disable World Volumetrics", "Disable World Volumes in Overlay Pass");
   /*********/
 
   /* Stereo Settings */

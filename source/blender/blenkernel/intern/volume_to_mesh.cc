@@ -1,22 +1,8 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <vector>
 
-#include "BLI_float3.hh"
+#include "BLI_math_vec_types.hh"
 #include "BLI_span.hh"
 #include "BLI_utildefines.h"
 
@@ -121,46 +107,57 @@ struct VolumeToMeshOp {
   }
 };
 
-static Mesh *new_mesh_from_openvdb_data(Span<openvdb::Vec3s> verts,
-                                        Span<openvdb::Vec3I> tris,
-                                        Span<openvdb::Vec4I> quads)
+void fill_mesh_from_openvdb_data(const Span<openvdb::Vec3s> vdb_verts,
+                                 const Span<openvdb::Vec3I> vdb_tris,
+                                 const Span<openvdb::Vec4I> vdb_quads,
+                                 const int vert_offset,
+                                 const int poly_offset,
+                                 const int loop_offset,
+                                 MutableSpan<MVert> verts,
+                                 MutableSpan<MPoly> polys,
+                                 MutableSpan<MLoop> loops)
 {
-  const int tot_loops = 3 * tris.size() + 4 * quads.size();
-  const int tot_polys = tris.size() + quads.size();
-
-  Mesh *mesh = BKE_mesh_new_nomain(verts.size(), 0, 0, tot_loops, tot_polys);
-
   /* Write vertices. */
-  for (const int i : verts.index_range()) {
-    const blender::float3 co = blender::float3(verts[i].asV());
-    copy_v3_v3(mesh->mvert[i].co, co);
+  for (const int i : vdb_verts.index_range()) {
+    const blender::float3 co = blender::float3(vdb_verts[i].asV());
+    copy_v3_v3(verts[vert_offset + i].co, co);
   }
 
   /* Write triangles. */
-  for (const int i : tris.index_range()) {
-    mesh->mpoly[i].loopstart = 3 * i;
-    mesh->mpoly[i].totloop = 3;
+  for (const int i : vdb_tris.index_range()) {
+    polys[poly_offset + i].loopstart = loop_offset + 3 * i;
+    polys[poly_offset + i].totloop = 3;
     for (int j = 0; j < 3; j++) {
       /* Reverse vertex order to get correct normals. */
-      mesh->mloop[3 * i + j].v = tris[i][2 - j];
+      loops[loop_offset + 3 * i + j].v = vert_offset + vdb_tris[i][2 - j];
     }
   }
 
   /* Write quads. */
-  const int poly_offset = tris.size();
-  const int loop_offset = tris.size() * 3;
-  for (const int i : quads.index_range()) {
-    mesh->mpoly[poly_offset + i].loopstart = loop_offset + 4 * i;
-    mesh->mpoly[poly_offset + i].totloop = 4;
+  const int quad_offset = poly_offset + vdb_tris.size();
+  const int quad_loop_offset = loop_offset + vdb_tris.size() * 3;
+  for (const int i : vdb_quads.index_range()) {
+    polys[quad_offset + i].loopstart = quad_loop_offset + 4 * i;
+    polys[quad_offset + i].totloop = 4;
     for (int j = 0; j < 4; j++) {
       /* Reverse vertex order to get correct normals. */
-      mesh->mloop[loop_offset + 4 * i + j].v = quads[i][3 - j];
+      loops[quad_loop_offset + 4 * i + j].v = vert_offset + vdb_quads[i][3 - j];
     }
   }
+}
 
-  BKE_mesh_calc_edges(mesh, false, false);
-  BKE_mesh_normals_tag_dirty(mesh);
-  return mesh;
+bke::OpenVDBMeshData volume_to_mesh_data(const openvdb::GridBase &grid,
+                                         const VolumeToMeshResolution &resolution,
+                                         const float threshold,
+                                         const float adaptivity)
+{
+  const VolumeGridType grid_type = BKE_volume_grid_type_openvdb(grid);
+
+  VolumeToMeshOp to_mesh_op{grid, resolution, threshold, adaptivity};
+  if (!BKE_volume_grid_type_operation(grid_type, to_mesh_op)) {
+    return {};
+  }
+  return {std::move(to_mesh_op.verts), std::move(to_mesh_op.tris), std::move(to_mesh_op.quads)};
 }
 
 Mesh *volume_to_mesh(const openvdb::GridBase &grid,
@@ -168,14 +165,27 @@ Mesh *volume_to_mesh(const openvdb::GridBase &grid,
                      const float threshold,
                      const float adaptivity)
 {
-  const VolumeGridType grid_type = BKE_volume_grid_type_openvdb(grid);
+  const bke::OpenVDBMeshData mesh_data = volume_to_mesh_data(
+      grid, resolution, threshold, adaptivity);
 
-  VolumeToMeshOp to_mesh_op{grid, resolution, threshold, adaptivity};
-  if (!BKE_volume_grid_type_operation(grid_type, to_mesh_op)) {
-    return nullptr;
-  }
+  const int tot_loops = 3 * mesh_data.tris.size() + 4 * mesh_data.quads.size();
+  const int tot_polys = mesh_data.tris.size() + mesh_data.quads.size();
+  Mesh *mesh = BKE_mesh_new_nomain(mesh_data.verts.size(), 0, 0, tot_loops, tot_polys);
 
-  return new_mesh_from_openvdb_data(to_mesh_op.verts, to_mesh_op.tris, to_mesh_op.quads);
+  fill_mesh_from_openvdb_data(mesh_data.verts,
+                              mesh_data.tris,
+                              mesh_data.quads,
+                              0,
+                              0,
+                              0,
+                              {mesh->mvert, mesh->totvert},
+                              {mesh->mpoly, mesh->totpoly},
+                              {mesh->mloop, mesh->totloop});
+
+  BKE_mesh_calc_edges(mesh, false, false);
+  BKE_mesh_normals_tag_dirty(mesh);
+
+  return mesh;
 }
 
 #endif /* WITH_OPENVDB */

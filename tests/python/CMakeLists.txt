@@ -1,19 +1,4 @@
-# ***** BEGIN GPL LICENSE BLOCK *****
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-# ***** END GPL LICENSE BLOCK *****
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # Use '--write-blend=/tmp/test.blend' to view output
 
@@ -289,6 +274,13 @@ add_blender_test(
 add_blender_test(
   bl_animation_fcurves
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_fcurves.py
+  --
+  --testdir "${TEST_SRC_DIR}/animation"
+)
+
+add_blender_test(
+  bl_rigging_symmetrize
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_rigging_symmetrize.py
   --
   --testdir "${TEST_SRC_DIR}/animation"
 )
@@ -630,15 +622,17 @@ endif()
 
 if(WITH_CYCLES OR WITH_OPENGL_RENDER_TESTS)
   if(NOT OPENIMAGEIO_IDIFF)
-    MESSAGE(STATUS "Disabling render tests because OIIO idiff does not exist")
+    MESSAGE(STATUS "Disabling Cycles tests because OIIO idiff does not exist")
   elseif(NOT EXISTS "${TEST_SRC_DIR}/render/shader")
-    MESSAGE(STATUS "Disabling render tests because tests folder does not exist at ${TEST_SRC_DIR}")
+    MESSAGE(STATUS "Disabling Cycles tests because tests folder does not exist at ${TEST_SRC_DIR}")
+  elseif(NOT WITH_COMPOSITOR)
+    MESSAGE(STATUS "Disabling Cycles tests because WITH_COMPOSITOR is disabled")
+  elseif(NOT WITH_OPENCOLORIO)
+    MESSAGE(STATUS "Disabling Cycles tests because WITH_OPENCOLORIO is disabled")
   else()
     set(render_tests
+      camera
       bsdf
-      denoise
-      denoise_animation
-      displacement
       hair
       image_colorspace
       image_data_types
@@ -647,19 +641,37 @@ if(WITH_CYCLES OR WITH_OPENGL_RENDER_TESTS)
       integrator
       light
       mesh
-      motion_blur
-      openvdb
-      render_layer
-      reports
+      pointcloud
       shader
       shadow_catcher
       sss
-      volume
     )
+
+    if(WITH_OPENSUBDIV)
+      list(APPEND render_tests displacement)
+    endif()
+
+    if(WITH_FREESTYLE)
+      list(APPEND render_tests render_layer)
+    endif()
+
+    if(WITH_MOD_FLUID)
+      list(APPEND render_tests motion_blur reports volume)
+    endif()
+
+    if(WITH_OPENVDB)
+      list(APPEND render_tests openvdb)
+    endif()
+
+    if(WITH_OPENIMAGEDENOISE)
+      list(APPEND render_tests denoise)
+    endif()
 
     if(WITH_OPENGL_RENDER_TESTS)
       list(APPEND render_tests grease_pencil)
     endif()
+
+    list(SORT render_tests)
 
     # Cycles
     if(WITH_CYCLES)
@@ -717,15 +729,17 @@ if(WITH_COMPOSITOR)
   set(compositor_tests
     color
     converter
-    distort
     filter
     input
-    matte
     output
     vector
 
     multiple_node_setups
   )
+
+  if(WITH_LIBMV)
+    list(APPEND compositor_tests distort matte)
+  endif()
 
   foreach(comp_test ${compositor_tests})
     add_python_test(
@@ -747,12 +761,23 @@ set(geo_node_tests
   geometry
   mesh_primitives
   mesh
+  mesh/extrude
   points
   utilities
   vector
-  volume
-
 )
+
+if(WITH_GMP)
+  list(APPEND geo_node_tests mesh/boolean)
+endif()
+
+if(WITH_OPENVDB)
+  list(APPEND geo_node_tests volume)
+endif()
+
+if(WITH_OPENSUBDIV)
+  list(APPEND geo_node_tests mesh/subdivision_tests)
+endif()
 
 foreach(geo_node_test ${geo_node_tests})
   if(EXISTS "${TEST_SRC_DIR}/modeling/geometry_nodes/${geo_node_test}/")
@@ -820,6 +845,15 @@ if(WITH_ALEMBIC)
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_alembic_io_test.py
     --
     --testdir "${TEST_SRC_DIR}/alembic"
+  )
+endif()
+
+if(WITH_USD)
+  add_blender_test(
+    usd_import_test
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_usd_import_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/usd"
   )
 endif()
 

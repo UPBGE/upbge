@@ -1,30 +1,18 @@
-/*
- * Copyright 2011-2017 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
-#ifndef __BSDF_PRINCIPLED_SHEEN_H__
-#define __BSDF_PRINCIPLED_SHEEN_H__
+#pragma once
 
 /* DISNEY PRINCIPLED SHEEN BRDF
  *
  * Shading model by Brent Burley (Disney): "Physically Based Shading at Disney" (2012)
  */
 
+#include "kernel/closure/bsdf_util.h"
+
 CCL_NAMESPACE_BEGIN
 
-typedef ccl_addr_space struct PrincipledSheenBsdf {
+typedef struct PrincipledSheenBsdf {
   SHADER_CLOSURE_BASE;
   float avg_value;
 } PrincipledSheenBsdf;
@@ -45,7 +33,7 @@ ccl_device_inline float calculate_avg_principled_sheen_brdf(float3 N, float3 I)
 }
 
 ccl_device float3
-calculate_principled_sheen_brdf(float3 N, float3 V, float3 L, float3 H, float *pdf)
+calculate_principled_sheen_brdf(float3 N, float3 V, float3 L, float3 H, ccl_private float *pdf)
 {
   float NdotL = dot(N, L);
   float NdotV = dot(N, V);
@@ -62,7 +50,8 @@ calculate_principled_sheen_brdf(float3 N, float3 V, float3 L, float3 H, float *p
   return make_float3(value, value, value);
 }
 
-ccl_device int bsdf_principled_sheen_setup(const ShaderData *sd, PrincipledSheenBsdf *bsdf)
+ccl_device int bsdf_principled_sheen_setup(ccl_private const ShaderData *sd,
+                                           ccl_private PrincipledSheenBsdf *bsdf)
 {
   bsdf->type = CLOSURE_BSDF_PRINCIPLED_SHEEN_ID;
   bsdf->avg_value = calculate_avg_principled_sheen_brdf(bsdf->N, sd->I);
@@ -70,12 +59,12 @@ ccl_device int bsdf_principled_sheen_setup(const ShaderData *sd, PrincipledSheen
   return SD_BSDF | SD_BSDF_HAS_EVAL;
 }
 
-ccl_device float3 bsdf_principled_sheen_eval_reflect(const ShaderClosure *sc,
+ccl_device float3 bsdf_principled_sheen_eval_reflect(ccl_private const ShaderClosure *sc,
                                                      const float3 I,
                                                      const float3 omega_in,
-                                                     float *pdf)
+                                                     ccl_private float *pdf)
 {
-  const PrincipledSheenBsdf *bsdf = (const PrincipledSheenBsdf *)sc;
+  ccl_private const PrincipledSheenBsdf *bsdf = (ccl_private const PrincipledSheenBsdf *)sc;
 
   float3 N = bsdf->N;
   float3 V = I;         // outgoing
@@ -92,28 +81,28 @@ ccl_device float3 bsdf_principled_sheen_eval_reflect(const ShaderClosure *sc,
   }
 }
 
-ccl_device float3 bsdf_principled_sheen_eval_transmit(const ShaderClosure *sc,
+ccl_device float3 bsdf_principled_sheen_eval_transmit(ccl_private const ShaderClosure *sc,
                                                       const float3 I,
                                                       const float3 omega_in,
-                                                      float *pdf)
+                                                      ccl_private float *pdf)
 {
   return make_float3(0.0f, 0.0f, 0.0f);
 }
 
-ccl_device int bsdf_principled_sheen_sample(const ShaderClosure *sc,
+ccl_device int bsdf_principled_sheen_sample(ccl_private const ShaderClosure *sc,
                                             float3 Ng,
                                             float3 I,
                                             float3 dIdx,
                                             float3 dIdy,
                                             float randu,
                                             float randv,
-                                            float3 *eval,
-                                            float3 *omega_in,
-                                            float3 *domega_in_dx,
-                                            float3 *domega_in_dy,
-                                            float *pdf)
+                                            ccl_private float3 *eval,
+                                            ccl_private float3 *omega_in,
+                                            ccl_private float3 *domega_in_dx,
+                                            ccl_private float3 *domega_in_dy,
+                                            ccl_private float *pdf)
 {
-  const PrincipledSheenBsdf *bsdf = (const PrincipledSheenBsdf *)sc;
+  ccl_private const PrincipledSheenBsdf *bsdf = (ccl_private const PrincipledSheenBsdf *)sc;
 
   float3 N = bsdf->N;
 
@@ -137,5 +126,3 @@ ccl_device int bsdf_principled_sheen_sample(const ShaderClosure *sc,
 }
 
 CCL_NAMESPACE_END
-
-#endif /* __BSDF_PRINCIPLED_SHEEN_H__ */

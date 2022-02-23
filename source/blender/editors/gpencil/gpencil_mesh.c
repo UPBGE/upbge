@@ -1,25 +1,9 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2008, Blender Foundation
- * This is a new part of Blender
- * Operator for converting Grease Pencil data to geometry
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2008 Blender Foundation. */
 
 /** \file
  * \ingroup edgpencil
+ * Operator for converting Grease Pencil data to geometry.
  */
 
 #include "MEM_guardedalloc.h"
@@ -142,6 +126,9 @@ static bool gpencil_bake_ob_list(bContext *C, Depsgraph *depsgraph, Scene *scene
 
   /* Add active object. In some files this could not be in selected array. */
   Object *obact = CTX_data_active_object(C);
+  if (obact == NULL) {
+    return false;
+  }
 
   if (obact->type == OB_MESH) {
     elem = MEM_callocN(sizeof(GpBakeOb), __func__);
@@ -188,7 +175,6 @@ static int gpencil_bake_mesh_animation_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
-  ARegion *region = CTX_wm_region(C);
   View3D *v3d = CTX_wm_view3d(C);
 
   ListBase ob_selected_list = {NULL, NULL};
@@ -262,7 +248,7 @@ static int gpencil_bake_mesh_animation_exec(bContext *C, wmOperator *op)
     gsc.ob = ob_gpencil;
 
     /* Init snap context for geometry projection. */
-    sctx = ED_transform_snap_object_context_create_view3d(scene, 0, region, CTX_wm_view3d(C));
+    sctx = ED_transform_snap_object_context_create(scene, 0);
 
     /* Tag all existing strokes to avoid reprojections. */
     LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
@@ -345,7 +331,7 @@ static int gpencil_bake_mesh_animation_exec(bContext *C, wmOperator *op)
   /* Remove unused materials. */
   int actcol = ob_gpencil->actcol;
   for (int slot = 1; slot <= ob_gpencil->totcol; slot++) {
-    while (slot <= ob_gpencil->totcol && !BKE_object_material_slot_used(ob_gpencil->data, slot)) {
+    while (slot <= ob_gpencil->totcol && !BKE_object_material_slot_used(ob_gpencil, slot)) {
       ob_gpencil->actcol = slot;
       BKE_object_material_slot_remove(CTX_data_main(C), ob_gpencil);
 

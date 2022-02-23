@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8 compliant>
 import bpy
@@ -280,7 +264,7 @@ class VIEWLAYER_PT_freestyle_lineset(ViewLayerFreestyleEditorButtonsPanel, Panel
 
         col.separator()
 
-        col.menu("RENDER_MT_lineset_context_menu", icon="DOWNARROW_HLT", text="")
+        col.menu("RENDER_MT_lineset_context_menu", icon='DOWNARROW_HLT', text="")
 
         if is_sortable:
             col.separator()
@@ -526,7 +510,7 @@ class VIEWLAYER_PT_freestyle_linestyle_strokes(ViewLayerFreestyleLineStyle, Pane
         row = layout.row(align=True)
         row.alignment = 'LEFT'
         row.label(text=lineset.name, icon='LINE_DATA')
-        row.label(text="", icon='SMALL_TRI_RIGHT_VEC')
+        row.label(text="", icon='RIGHTARROW')
         row.label(text=linestyle.name)
 
         col = layout.column(align=True)
@@ -830,7 +814,7 @@ class VIEWLAYER_PT_freestyle_linestyle_color(ViewLayerFreestyleLineStyle, Panel)
         row = layout.row(align=True)
         row.alignment = 'LEFT'
         row.label(text=lineset.name, icon='LINE_DATA')
-        row.label(text="", icon='SMALL_TRI_RIGHT_VEC')
+        row.label(text="", icon='RIGHTARROW')
         row.label(text=linestyle.name)
 
         col = layout.column()
@@ -922,7 +906,7 @@ class VIEWLAYER_PT_freestyle_linestyle_alpha(ViewLayerFreestyleLineStyle, Panel)
         row = layout.row(align=True)
         row.alignment = 'LEFT'
         row.label(text=lineset.name, icon='LINE_DATA')
-        row.label(text="", icon='SMALL_TRI_RIGHT_VEC')
+        row.label(text="", icon='RIGHTARROW')
         row.label(text=linestyle.name)
 
         col = layout.column()
@@ -1036,7 +1020,7 @@ class VIEWLAYER_PT_freestyle_linestyle_thickness(ViewLayerFreestyleLineStyle, Pa
         row = layout.row(align=True)
         row.alignment = 'LEFT'
         row.label(text=lineset.name, icon='LINE_DATA')
-        row.label(text="", icon='SMALL_TRI_RIGHT_VEC')
+        row.label(text="", icon='RIGHTARROW')
         row.label(text=linestyle.name)
 
         col = layout.column()
@@ -1182,7 +1166,7 @@ class VIEWLAYER_PT_freestyle_linestyle_geometry(ViewLayerFreestyleLineStyle, Pan
         row = layout.row(align=True)
         row.alignment = 'LEFT'
         row.label(text=lineset.name, icon='LINE_DATA')
-        row.label(text="", icon='SMALL_TRI_RIGHT_VEC')
+        row.label(text="", icon='RIGHTARROW')
         row.label(text=linestyle.name)
 
         col = layout.column()
@@ -1215,7 +1199,7 @@ class VIEWLAYER_PT_freestyle_linestyle_texture(ViewLayerFreestyleLineStyle, Pane
         row = layout.row(align=True)
         row.alignment = 'LEFT'
         row.label(text=lineset.name, icon='LINE_DATA')
-        row.label(text="", icon='SMALL_TRI_RIGHT_VEC')
+        row.label(text="", icon='RIGHTARROW')
         row.label(text=linestyle.name)
 
         layout.prop(linestyle, "use_nodes")

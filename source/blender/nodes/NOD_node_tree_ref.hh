@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -182,6 +168,7 @@ class NodeRef : NonCopyable, NonMovable {
   Span<const InputSocketRef *> inputs() const;
   Span<const OutputSocketRef *> outputs() const;
   Span<const InternalLinkRef *> internal_links() const;
+  Span<const SocketRef *> sockets(eNodeSocketInOut in_out) const;
 
   const InputSocketRef &input(int index) const;
   const OutputSocketRef &output(int index) const;
@@ -189,13 +176,20 @@ class NodeRef : NonCopyable, NonMovable {
   const InputSocketRef &input_by_identifier(StringRef identifier) const;
   const OutputSocketRef &output_by_identifier(StringRef identifier) const;
 
+  bool any_input_is_directly_linked() const;
+  bool any_output_is_directly_linked() const;
+  bool any_socket_is_directly_linked(eNodeSocketInOut in_out) const;
+
   bNode *bnode() const;
   bNodeTree *btree() const;
 
   PointerRNA *rna() const;
   StringRefNull idname() const;
   StringRefNull name() const;
+  StringRefNull label() const;
+  StringRefNull label_or_name() const;
   bNodeType *typeinfo() const;
+  const NodeDeclaration *declaration() const;
 
   int id() const;
 
@@ -254,6 +248,7 @@ class NodeTreeRef : NonCopyable, NonMovable {
   Vector<LinkRef *> links_;
   MultiValueMap<const bNodeType *, NodeRef *> nodes_by_type_;
   Vector<std::unique_ptr<SocketIndexByIdentifierMap>> owned_identifier_maps_;
+  const NodeRef *group_output_node_ = nullptr;
 
  public:
   NodeTreeRef(bNodeTree *btree);
@@ -269,8 +264,39 @@ class NodeTreeRef : NonCopyable, NonMovable {
 
   Span<const LinkRef *> links() const;
 
+  const NodeRef *find_node(const bNode &bnode) const;
+
+  /**
+   * This is the active group output node if there are multiple.
+   */
+  const NodeRef *group_output_node() const;
+
+  /**
+   * \return True when there is a link cycle. Unavailable sockets are ignored.
+   */
   bool has_link_cycles() const;
   bool has_undefined_nodes_or_sockets() const;
+
+  enum class ToposortDirection {
+    LeftToRight,
+    RightToLeft,
+  };
+
+  struct ToposortResult {
+    Vector<const NodeRef *> sorted_nodes;
+    /**
+     * There can't be a correct topological sort of the nodes when there is a cycle. The nodes will
+     * still be sorted to some degree. The caller has to decide whether it can handle non-perfect
+     * sorts or not.
+     */
+    bool has_cycle = false;
+  };
+
+  /**
+   * Sort nodes topologically from left to right or right to left.
+   * In the future the result if this could be cached on #NodeTreeRef.
+   */
+  ToposortResult toposort(ToposortDirection direction) const;
 
   bNodeTree *btree() const;
   StringRefNull name() const;
@@ -303,9 +329,9 @@ using nodes::OutputSocketRef;
 using nodes::SocketRef;
 }  // namespace node_tree_ref_types
 
-/* --------------------------------------------------------------------
- * SocketRef inline methods.
- */
+/* -------------------------------------------------------------------- */
+/** \name #SocketRef Inline Methods
+ * \{ */
 
 inline Span<const SocketRef *> SocketRef::logically_linked_sockets() const
 {
@@ -444,9 +470,11 @@ template<typename T> inline T *SocketRef::default_value() const
   return (T *)bsocket_->default_value;
 }
 
-/* --------------------------------------------------------------------
- * InputSocketRef inline methods.
- */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name #InputSocketRef Inline Methods
+ * \{ */
 
 inline Span<const OutputSocketRef *> InputSocketRef::logically_linked_sockets() const
 {
@@ -463,9 +491,11 @@ inline bool InputSocketRef::is_multi_input_socket() const
   return bsocket_->flag & SOCK_MULTI_INPUT;
 }
 
-/* --------------------------------------------------------------------
- * OutputSocketRef inline methods.
- */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name #OutputSocketRef Inline Methods
+ * \{ */
 
 inline Span<const InputSocketRef *> OutputSocketRef::logically_linked_sockets() const
 {
@@ -477,9 +507,11 @@ inline Span<const InputSocketRef *> OutputSocketRef::directly_linked_sockets() c
   return directly_linked_sockets_.cast<const InputSocketRef *>();
 }
 
-/* --------------------------------------------------------------------
- * NodeRef inline methods.
- */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name #NodeRef Inline Methods
+ * \{ */
 
 inline const NodeTreeRef &NodeRef::tree() const
 {
@@ -494,6 +526,12 @@ inline Span<const InputSocketRef *> NodeRef::inputs() const
 inline Span<const OutputSocketRef *> NodeRef::outputs() const
 {
   return outputs_;
+}
+
+inline Span<const SocketRef *> NodeRef::sockets(const eNodeSocketInOut in_out) const
+{
+  return in_out == SOCK_IN ? inputs_.as_span().cast<const SocketRef *>() :
+                             outputs_.as_span().cast<const SocketRef *>();
 }
 
 inline Span<const InternalLinkRef *> NodeRef::internal_links() const
@@ -548,9 +586,30 @@ inline StringRefNull NodeRef::name() const
   return bnode_->name;
 }
 
+inline StringRefNull NodeRef::label() const
+{
+  return bnode_->label;
+}
+
+inline StringRefNull NodeRef::label_or_name() const
+{
+  const StringRefNull label = this->label();
+  if (!label.is_empty()) {
+    return label;
+  }
+  return this->name();
+}
+
 inline bNodeType *NodeRef::typeinfo() const
 {
   return bnode_->typeinfo;
+}
+
+/* Returns a pointer because not all nodes have declarations currently. */
+inline const NodeDeclaration *NodeRef::declaration() const
+{
+  nodeDeclarationEnsure(this->tree().btree(), bnode_);
+  return bnode_->declaration;
 }
 
 inline int NodeRef::id() const
@@ -603,9 +662,11 @@ template<typename T> inline T *NodeRef::storage() const
   return (T *)bnode_->storage;
 }
 
-/* --------------------------------------------------------------------
- * LinkRef inline methods.
- */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name #LinkRef Inline Methods
+ * \{ */
 
 inline const OutputSocketRef &LinkRef::from() const
 {
@@ -627,9 +688,11 @@ inline bool LinkRef::is_muted() const
   return blink_->flag & NODE_LINK_MUTED;
 }
 
-/* --------------------------------------------------------------------
- * InternalLinkRef inline methods.
- */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name #InternalLinkRef Inline Methods
+ * \{ */
 
 inline const InputSocketRef &InternalLinkRef::from() const
 {
@@ -646,9 +709,11 @@ inline bNodeLink *InternalLinkRef::blink() const
   return blink_;
 }
 
-/* --------------------------------------------------------------------
- * NodeTreeRef inline methods.
- */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name #NodeTreeRef Inline Methods
+ * \{ */
 
 inline Span<const NodeRef *> NodeTreeRef::nodes() const
 {
@@ -686,6 +751,11 @@ inline Span<const LinkRef *> NodeTreeRef::links() const
   return links_;
 }
 
+inline const NodeRef *NodeTreeRef::group_output_node() const
+{
+  return group_output_node_;
+}
+
 inline bNodeTree *NodeTreeRef::btree() const
 {
   return btree_;
@@ -695,5 +765,7 @@ inline StringRefNull NodeTreeRef::name() const
 {
   return btree_->id.name + 2;
 }
+
+/** \} */
 
 }  // namespace blender::nodes

@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2019, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2019 Blender Foundation. */
 
 /** \file
  * \ingroup draw_engine
@@ -56,7 +41,7 @@ static void OVERLAY_engine_init(void *vedata)
   OVERLAY_shader_library_ensure();
 
   if (!stl->pd) {
-    /* Alloc transient pointers */
+    /* Allocate transient pointers. */
     stl->pd = MEM_callocN(sizeof(*stl->pd), __func__);
   }
 
@@ -197,7 +182,9 @@ static void OVERLAY_cache_init(void *vedata)
     case CTX_MODE_WEIGHT_GPENCIL:
       OVERLAY_edit_gpencil_cache_init(vedata);
       break;
+    case CTX_MODE_SCULPT_CURVES:
     case CTX_MODE_OBJECT:
+    case CTX_MODE_EDIT_CURVES:
       break;
     default:
       BLI_assert_msg(0, "Draw mode invalid");
@@ -225,7 +212,7 @@ BLI_INLINE OVERLAY_DupliData *OVERLAY_duplidata_get(Object *ob, void *vedata, bo
 {
   OVERLAY_DupliData **dupli_data = (OVERLAY_DupliData **)DRW_duplidata_get(vedata);
   *do_init = false;
-  if (!ELEM(ob->type, OB_MESH, OB_SURF, OB_LATTICE, OB_CURVE, OB_FONT)) {
+  if (!ELEM(ob->type, OB_MESH, OB_SURF, OB_LATTICE, OB_CURVES_LEGACY, OB_FONT)) {
     return NULL;
   }
 
@@ -235,7 +222,7 @@ BLI_INLINE OVERLAY_DupliData *OVERLAY_duplidata_get(Object *ob, void *vedata, bo
       *do_init = true;
     }
     else if ((*dupli_data)->base_flag != ob->base_flag) {
-      /* Select state might have change, reinit. */
+      /* Select state might have change, reinitialize. */
       *do_init = true;
     }
     return *dupli_data;
@@ -252,7 +239,7 @@ static bool overlay_object_is_edit_mode(const OVERLAY_PrivateData *pd, const Obj
         return pd->ctx_mode == CTX_MODE_EDIT_MESH;
       case OB_ARMATURE:
         return pd->ctx_mode == CTX_MODE_EDIT_ARMATURE;
-      case OB_CURVE:
+      case OB_CURVES_LEGACY:
         return pd->ctx_mode == CTX_MODE_EDIT_CURVE;
       case OB_SURF:
         return pd->ctx_mode == CTX_MODE_EDIT_SURFACE;
@@ -262,7 +249,7 @@ static bool overlay_object_is_edit_mode(const OVERLAY_PrivateData *pd, const Obj
         return pd->ctx_mode == CTX_MODE_EDIT_METABALL;
       case OB_FONT:
         return pd->ctx_mode == CTX_MODE_EDIT_TEXT;
-      case OB_HAIR:
+      case OB_CURVES:
       case OB_POINTCLOUD:
       case OB_VOLUME:
         /* No edit mode yet. */
@@ -311,12 +298,12 @@ static void OVERLAY_cache_populate(void *vedata, Object *ob)
                               (ob->sculpt->mode_type == OB_MODE_SCULPT);
   const bool has_surface = ELEM(ob->type,
                                 OB_MESH,
-                                OB_CURVE,
+                                OB_CURVES_LEGACY,
                                 OB_SURF,
                                 OB_MBALL,
                                 OB_FONT,
                                 OB_GPENCIL,
-                                OB_HAIR,
+                                OB_CURVES,
                                 OB_POINTCLOUD,
                                 OB_VOLUME);
   const bool draw_surface = (ob->dt >= OB_WIRE) && (renderable || (ob->dt == OB_WIRE));
@@ -381,7 +368,7 @@ static void OVERLAY_cache_populate(void *vedata, Object *ob)
           OVERLAY_edit_armature_cache_populate(vedata, ob);
         }
         break;
-      case OB_CURVE:
+      case OB_CURVES_LEGACY:
         OVERLAY_edit_curve_cache_populate(vedata, ob);
         break;
       case OB_SURF:
@@ -463,9 +450,14 @@ static void OVERLAY_cache_populate(void *vedata, Object *ob)
       case OB_LIGHTPROBE:
         OVERLAY_lightprobe_cache_populate(vedata, ob);
         break;
-      case OB_LATTICE:
-        OVERLAY_lattice_cache_populate(vedata, ob);
+      case OB_LATTICE: {
+        /* Unlike the other types above, lattices actually have a bounding box defined, so hide the
+         * lattice wires if only the bounding-box is requested. */
+        if (ob->dt > OB_BOUNDBOX) {
+          OVERLAY_lattice_cache_populate(vedata, ob);
+        }
         break;
+      }
     }
   }
 
@@ -473,7 +465,7 @@ static void OVERLAY_cache_populate(void *vedata, Object *ob)
     OVERLAY_particle_cache_populate(vedata, ob);
   }
 
-  /* Relationship, object center, bounbox ... */
+  /* Relationship, object center, bounding-box... etc. */
   if (!pd->hide_overlays) {
     OVERLAY_extra_cache_populate(vedata, ob);
   }
@@ -576,7 +568,7 @@ static void OVERLAY_draw_scene(void *vedata)
   OVERLAY_extra_blend_draw(vedata);
   OVERLAY_volume_draw(vedata);
 
-  /* These overlays are drawn here to avoid artifacts with wireframe opacity. */
+  /* These overlays are drawn here to avoid artifacts with wire-frame opacity. */
   switch (pd->ctx_mode) {
     case CTX_MODE_SCULPT:
       OVERLAY_sculpt_draw(vedata);
@@ -671,6 +663,8 @@ static void OVERLAY_draw_scene(void *vedata)
     case CTX_MODE_WEIGHT_GPENCIL:
       OVERLAY_edit_gpencil_draw(vedata);
       break;
+    case CTX_MODE_SCULPT_CURVES:
+      break;
     default:
       break;
   }
@@ -698,6 +692,7 @@ DrawEngineType draw_engine_overlay_type = {
     &overlay_data_size,
     &OVERLAY_engine_init,
     &OVERLAY_engine_free,
+    NULL, /* instance_free */
     &OVERLAY_cache_init,
     &OVERLAY_cache_populate,
     &OVERLAY_cache_finish,

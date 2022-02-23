@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup GHOST
@@ -809,10 +793,10 @@ void GHOST_putClipboard(const char *buffer, bool selection)
   system->putClipboard(buffer, selection);
 }
 
-int GHOST_toggleConsole(int action)
+int setConsoleWindowState(GHOST_TConsoleWindowState action)
 {
   GHOST_ISystem *system = GHOST_ISystem::getSystem();
-  return system->toggleConsole(action);
+  return system->setConsoleWindowState(action);
 }
 
 int GHOST_UseNativePixels(void)
@@ -1067,6 +1051,41 @@ void GHOST_XrGetActionCustomdataArray(GHOST_XrContextHandle xr_contexthandle,
   GHOST_XrSession *xr_session = xr_context->getSession();
   GHOST_XR_CAPI_CALL(xr_session->getActionCustomdataArray(action_set_name, r_customdata_array),
                      xr_context);
+}
+
+int GHOST_XrLoadControllerModel(GHOST_XrContextHandle xr_contexthandle, const char *subaction_path)
+{
+  GHOST_IXrContext *xr_context = (GHOST_IXrContext *)xr_contexthandle;
+  GHOST_XrSession *xr_session = xr_context->getSession();
+  GHOST_XR_CAPI_CALL_RET(xr_session->loadControllerModel(subaction_path), xr_context);
+  return 0;
+}
+
+void GHOST_XrUnloadControllerModel(GHOST_XrContextHandle xr_contexthandle,
+                                   const char *subaction_path)
+{
+  GHOST_IXrContext *xr_context = (GHOST_IXrContext *)xr_contexthandle;
+  GHOST_XrSession *xr_session = xr_context->getSession();
+  GHOST_XR_CAPI_CALL(xr_session->unloadControllerModel(subaction_path), xr_context);
+}
+
+int GHOST_XrUpdateControllerModelComponents(GHOST_XrContextHandle xr_contexthandle,
+                                            const char *subaction_path)
+{
+  GHOST_IXrContext *xr_context = (GHOST_IXrContext *)xr_contexthandle;
+  GHOST_XrSession *xr_session = xr_context->getSession();
+  GHOST_XR_CAPI_CALL_RET(xr_session->updateControllerModelComponents(subaction_path), xr_context);
+  return 0;
+}
+
+int GHOST_XrGetControllerModelData(GHOST_XrContextHandle xr_contexthandle,
+                                   const char *subaction_path,
+                                   GHOST_XrControllerModelData *r_data)
+{
+  GHOST_IXrContext *xr_context = (GHOST_IXrContext *)xr_contexthandle;
+  GHOST_XrSession *xr_session = xr_context->getSession();
+  GHOST_XR_CAPI_CALL_RET(xr_session->getControllerModelData(subaction_path, *r_data), xr_context);
+  return 0;
 }
 
 #endif /* WITH_XR_OPENXR */

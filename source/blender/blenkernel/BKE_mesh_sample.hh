@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -22,7 +8,7 @@
 
 #include "FN_generic_virtual_array.hh"
 
-#include "BLI_float3.hh"
+#include "BLI_math_vec_types.hh"
 
 #include "BKE_attribute.h"
 
@@ -44,17 +30,20 @@ void sample_point_attribute(const Mesh &mesh,
                             Span<int> looptri_indices,
                             Span<float3> bary_coords,
                             const GVArray &data_in,
+                            const IndexMask mask,
                             GMutableSpan data_out);
 
 void sample_corner_attribute(const Mesh &mesh,
                              Span<int> looptri_indices,
                              Span<float3> bary_coords,
                              const GVArray &data_in,
+                             const IndexMask mask,
                              GMutableSpan data_out);
 
 void sample_face_attribute(const Mesh &mesh,
                            Span<int> looptri_indices,
                            const GVArray &data_in,
+                           const IndexMask mask,
                            GMutableSpan data_out);
 
 enum class eAttributeMapMode {
@@ -72,6 +61,7 @@ enum class eAttributeMapMode {
 class MeshAttributeInterpolator {
  private:
   const Mesh *mesh_;
+  const IndexMask mask_;
   const Span<float3> positions_;
   const Span<int> looptri_indices_;
 
@@ -80,8 +70,14 @@ class MeshAttributeInterpolator {
 
  public:
   MeshAttributeInterpolator(const Mesh *mesh,
+                            const IndexMask mask,
                             const Span<float3> positions,
                             const Span<int> looptri_indices);
+
+  void sample_data(const GVArray &src,
+                   AttributeDomain domain,
+                   eAttributeMapMode mode,
+                   const GMutableSpan dst);
 
   void sample_attribute(const ReadAttributeLookup &src_attribute,
                         OutputAttribute &dst_attribute,

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2008 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2008 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup edinterface
@@ -147,9 +131,9 @@ uiPieMenu *UI_pie_menu_begin(struct bContext *C, const char *title, int icon, co
   pie->layout = UI_block_layout(
       pie->block_radial, UI_LAYOUT_VERTICAL, UI_LAYOUT_PIEMENU, 0, 0, 200, 0, 0, style);
 
-  /* Note event->x/y is where we started dragging in case of KM_CLICK_DRAG. */
-  pie->mx = event->x;
-  pie->my = event->y;
+  /* NOTE: #wmEvent.xy is where we started dragging in case of #KM_CLICK_DRAG. */
+  pie->mx = event->xy[0];
+  pie->my = event->xy[1];
 
   /* create title button */
   if (title[0]) {
@@ -305,8 +289,7 @@ int UI_pie_menu_invoke_from_rna_enum(struct bContext *C,
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/**
- * \name Pie Menu Levels
+/** \name Pie Menu Levels
  *
  * Pie menus can't contain more than 8 items (yet).
  * When using #uiItemsFullEnumO, a "More" button is created that calls
@@ -318,7 +301,6 @@ int UI_pie_menu_invoke_from_rna_enum(struct bContext *C,
  * Ideally we'd have some way of handling this for all kinds of pie items, but that's tricky.
  *
  * - Julian (Feb 2016)
- *
  * \{ */
 
 typedef struct PieMenuLevelData {
@@ -330,7 +312,7 @@ typedef struct PieMenuLevelData {
   wmOperatorType *ot;
   const char *propname;
   IDProperty *properties;
-  int context, flag;
+  wmOperatorCallContext context, flag;
 } PieMenuLevelData;
 
 /**
@@ -372,16 +354,13 @@ static void ui_pie_menu_level_invoke(bContext *C, void *argN, void *arg2)
   UI_pie_menu_end(C, pie);
 }
 
-/**
- * Set up data for defining a new pie menu level and add button that invokes it.
- */
 void ui_pie_menu_level_create(uiBlock *block,
                               wmOperatorType *ot,
                               const char *propname,
                               IDProperty *properties,
                               const EnumPropertyItem *items,
                               int totitem,
-                              int context,
+                              wmOperatorCallContext context,
                               int flag)
 {
   const int totitem_parent = PIE_MAX_ITEMS - 1;

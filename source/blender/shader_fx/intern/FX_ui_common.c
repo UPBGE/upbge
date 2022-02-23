@@ -1,17 +1,4 @@
-/* This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup modifiers
@@ -93,21 +80,15 @@ static void set_shaderfx_expand_flag(const bContext *UNUSED(C), Panel *panel, sh
 /** \name ShaderFx Panel Layouts
  * \{ */
 
-/**
- * Draw shaderfx error message.
- */
 void shaderfx_panel_end(uiLayout *layout, PointerRNA *ptr)
 {
   ShaderFxData *fx = ptr->data;
   if (fx->error) {
     uiLayout *row = uiLayoutRow(layout, false);
-    uiItemL(row, IFACE_(fx->error), ICON_ERROR);
+    uiItemL(row, TIP_(fx->error), ICON_ERROR);
   }
 }
 
-/**
- * Gets RNA pointers for the active object and the panel's shaderfx data.
- */
 PointerRNA *shaderfx_panel_get_property_pointers(Panel *panel, PointerRNA *r_ob_ptr)
 {
   PointerRNA *ptr = UI_panel_custom_data_get(panel);
@@ -117,7 +98,7 @@ PointerRNA *shaderfx_panel_get_property_pointers(Panel *panel, PointerRNA *r_ob_
     RNA_pointer_create(ptr->owner_id, &RNA_Object, ptr->owner_id, r_ob_ptr);
   }
 
-  uiLayoutSetContextPointer(panel->layout, "shaderfx", ptr);
+  UI_panel_context_pointer_set(panel, "shaderfx", ptr);
 
   return ptr;
 }
@@ -236,9 +217,6 @@ static bool shaderfx_ui_poll(const bContext *C, PanelType *UNUSED(pt))
   return (ob != NULL) && (ob->type == OB_GPENCIL);
 }
 
-/**
- * Create a panel in the context's region
- */
 PanelType *shaderfx_panel_register(ARegionType *region_type, ShaderFxType type, PanelDrawFn draw)
 {
   PanelType *panel_type = MEM_callocN(sizeof(PanelType), __func__);
@@ -254,7 +232,7 @@ PanelType *shaderfx_panel_register(ARegionType *region_type, ShaderFxType type, 
 
   /* Give the panel the special flag that says it was built here and corresponds to a
    * shader effect rather than a PanelType. */
-  panel_type->flag = PANEL_TYPE_HEADER_EXPAND | PANEL_TYPE_DRAW_BOX | PANEL_TYPE_INSTANCED;
+  panel_type->flag = PANEL_TYPE_HEADER_EXPAND | PANEL_TYPE_INSTANCED;
   panel_type->reorder = shaderfx_reorder;
   panel_type->get_list_data_expand_flag = get_shaderfx_expand_flag;
   panel_type->set_list_data_expand_flag = set_shaderfx_expand_flag;
@@ -264,12 +242,6 @@ PanelType *shaderfx_panel_register(ARegionType *region_type, ShaderFxType type, 
   return panel_type;
 }
 
-/**
- * Add a child panel to the parent.
- *
- * \note To create the panel type's idname, it appends the \a name argument to the \a parent's
- * idname.
- */
 PanelType *shaderfx_subpanel_register(ARegionType *region_type,
                                       const char *name,
                                       const char *label,
@@ -287,7 +259,7 @@ PanelType *shaderfx_subpanel_register(ARegionType *region_type,
   panel_type->draw_header = draw_header;
   panel_type->draw = draw;
   panel_type->poll = shaderfx_ui_poll;
-  panel_type->flag = (PANEL_TYPE_DEFAULT_CLOSED | PANEL_TYPE_DRAW_BOX);
+  panel_type->flag = PANEL_TYPE_DEFAULT_CLOSED;
 
   BLI_assert(parent != NULL);
   BLI_strncpy(panel_type->parent_id, parent->idname, BKE_ST_MAXNAME);

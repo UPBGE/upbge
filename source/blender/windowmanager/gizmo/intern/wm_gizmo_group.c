@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2014 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2014 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup wm
@@ -63,9 +47,6 @@
 /** \name wmGizmoGroup
  * \{ */
 
-/**
- * Create a new gizmo-group from \a gzgt.
- */
 wmGizmoGroup *wm_gizmogroup_new_from_type(wmGizmoMap *gzmap, wmGizmoGroupType *gzgt)
 {
   wmGizmoGroup *gzgroup = MEM_callocN(sizeof(*gzgroup), "gizmo-group");
@@ -148,9 +129,6 @@ void WM_gizmo_group_tag_remove(wmGizmoGroup *gzgroup)
   }
 }
 
-/**
- * Add \a gizmo to \a gzgroup and make sure its name is unique within the group.
- */
 void wm_gizmogroup_gizmo_register(wmGizmoGroup *gzgroup, wmGizmo *gz)
 {
   BLI_assert(BLI_findindex(&gzgroup->gizmos, gz) == -1);
@@ -234,10 +212,6 @@ wmGizmo *wm_gizmogroup_find_intersected_gizmo(wmWindowManager *wm,
   return NULL;
 }
 
-/**
- * Adds all gizmos of \a gzgroup that can be selected to the head of \a listbase.
- * Added items need freeing!
- */
 void wm_gizmogroup_intersectable_gizmos_to_list(wmWindowManager *wm,
                                                 const wmGizmoGroup *gzgroup,
                                                 const int event_modifier,
@@ -265,6 +239,7 @@ void WM_gizmogroup_ensure_init(const bContext *C, wmGizmoGroup *gzgroup)
 {
   /* prepare for first draw */
   if (UNLIKELY((gzgroup->init_flag & WM_GIZMOGROUP_INIT_SETUP) == 0)) {
+
     gzgroup->type->setup(C, gzgroup);
 
     /* Not ideal, initialize keymap here, needed for RNA runtime generated gizmos. */
@@ -344,10 +319,9 @@ bool wm_gizmogroup_is_any_selected(const wmGizmoGroup *gzgroup)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Gizmo operators
+/** \name Gizmo Operators
  *
  * Basic operators for gizmo interaction with user configurable keymaps.
- *
  * \{ */
 
 static int gizmo_select_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
@@ -548,8 +522,8 @@ static int gizmo_tweak_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
     if (event->type == EVT_MODAL_MAP) {
       event_modal_val = evil_event->val;
-      evil_event->type = evil_event->prevtype;
-      evil_event->val = evil_event->prevval;
+      evil_event->type = evil_event->prev_type;
+      evil_event->val = evil_event->prev_val;
     }
 
     int modal_retval = modal_fn(C, gz, event, mtweak->flag);
@@ -640,8 +614,6 @@ void GIZMOGROUP_OT_gizmo_tweak(wmOperatorType *ot)
 #endif
 }
 
-/** \} */
-
 wmKeyMap *wm_gizmogroup_tweak_modal_keymap(wmKeyConfig *keyconf)
 {
   wmKeyMap *keymap;
@@ -718,7 +690,7 @@ wmKeyMap *WM_gizmogroup_setup_keymap_generic_maybe_drag(const wmGizmoGroupType *
 /**
  * Variation of #WM_gizmogroup_keymap_common but with keymap items for selection
  *
- * TODO(campbell): move to Python.
+ * TODO(@campbellbarton): move to Python.
  *
  * \param name: Typically #wmGizmoGroupType.name
  * \param params: Typically #wmGizmoGroupType.gzmap_params
@@ -731,7 +703,7 @@ static wmKeyMap *WM_gizmogroup_keymap_template_select_ex(
   wmKeyMap *km = WM_keymap_ensure(kc, name, params->spaceid, params->regionid);
   const bool do_init = BLI_listbase_is_empty(&km->items);
 
-  /* FIXME(campbell) */
+  /* FIXME(@campbellbarton): Currently hard coded. */
 #if 0
   const int select_mouse = (U.flag & USER_LMOUSESELECT) ? LEFTMOUSE : RIGHTMOUSE;
   const int select_tweak = (U.flag & USER_LMOUSESELECT) ? EVT_TWEAK_L : EVT_TWEAK_R;
@@ -773,11 +745,12 @@ wmKeyMap *WM_gizmogroup_setup_keymap_generic_select(const wmGizmoGroupType *UNUS
   return WM_gizmogroup_keymap_template_select_ex(kc, "Generic Gizmo Select", &params);
 }
 
+/** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name wmGizmo (Key-map access)
  *
  * Key config version so these can be called from #wmGizmoGroupFnSetupKeymap.
- *
  * \{ */
 
 struct wmKeyMap *WM_gizmo_keymap_generic_with_keyconfig(wmKeyConfig *kc)
@@ -820,7 +793,6 @@ struct wmKeyMap *WM_gizmo_keymap_generic_click_drag(wmWindowManager *wm)
   return WM_gizmo_keymap_generic_click_drag_with_keyconfig(wm->defaultconf);
 }
 
-/** Drag or press depending on preference. */
 struct wmKeyMap *WM_gizmo_keymap_generic_maybe_drag_with_keyconfig(wmKeyConfig *kc)
 {
   const char *idname = "Generic Gizmo Maybe Drag";
@@ -861,10 +833,6 @@ struct wmGizmoGroupTypeRef *WM_gizmomaptype_group_find(struct wmGizmoMapType *gz
   return NULL;
 }
 
-/**
- * Use this for registering gizmos on startup.
- * For runtime, use #WM_gizmomaptype_group_link_runtime.
- */
 wmGizmoGroupTypeRef *WM_gizmomaptype_group_link(wmGizmoMapType *gzmap_type, const char *idname)
 {
   wmGizmoGroupType *gzgt = WM_gizmogrouptype_find(idname, false);
@@ -938,9 +906,6 @@ wmGizmoGroup *WM_gizmomaptype_group_init_runtime_with_region(wmGizmoMapType *gzm
   return gzgroup;
 }
 
-/**
- * Unlike #WM_gizmomaptype_group_unlink this doesn't maintain correct state, simply free.
- */
 void WM_gizmomaptype_group_free(wmGizmoGroupTypeRef *gzgt_ref)
 {
   MEM_freeN(gzgt_ref);
@@ -1016,7 +981,6 @@ void wm_gizmogrouptype_setup_keymap(wmGizmoGroupType *gzgt, wmKeyConfig *keyconf
  * but for general purpose API this is too detailed & annoying.
  *
  * \note We may want to return a value if there is nothing to remove.
- *
  * \{ */
 
 void WM_gizmo_group_type_add_ptr_ex(wmGizmoGroupType *gzgt, wmGizmoMapType *gzmap_type)
@@ -1058,9 +1022,6 @@ bool WM_gizmo_group_type_ensure(const char *idname)
   return WM_gizmo_group_type_ensure_ptr(gzgt);
 }
 
-/**
- * Call #WM_gizmo_group_type_free_ptr after to remove & free.
- */
 void WM_gizmo_group_type_remove_ptr_ex(struct Main *bmain,
                                        wmGizmoGroupType *gzgt,
                                        wmGizmoMapType *gzmap_type)

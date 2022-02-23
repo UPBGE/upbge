@@ -1,24 +1,7 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * - Blender Foundation, 2003-2009
- * - Peter Schlaile <peter [at] schlaile [dot] de> 2005/2006
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved.
+ *           2003-2009 Blender Foundation.
+ *           2005-2006 Peter Schlaile <peter [at] schlaile [dot] de> */
 
 /** \file
  * \ingroup bke
@@ -33,6 +16,7 @@
 #include "BKE_scene.h"
 #include "BKE_sound.h"
 
+#include "SEQ_animation.h"
 #include "SEQ_effects.h"
 #include "SEQ_iterator.h"
 #include "SEQ_relations.h"
@@ -86,8 +70,6 @@ void SEQ_transform_set_right_handle_frame(Sequence *seq, int val)
   }
 }
 
-/* used so we can do a quick check for single image seq
- * since they work a bit differently to normal image seq's (during transform) */
 bool SEQ_transform_single_image_check(Sequence *seq)
 {
   return ((seq->len == 1) &&
@@ -95,7 +77,6 @@ bool SEQ_transform_single_image_check(Sequence *seq)
            ((seq->type & SEQ_TYPE_EFFECT) && SEQ_effect_get_num_inputs(seq->type) == 0)));
 }
 
-/* check if the selected seq's reference unselected seq's */
 bool SEQ_transform_seqbase_isolated_sel_check(ListBase *seqbase)
 {
   Sequence *seq;
@@ -137,10 +118,6 @@ bool SEQ_transform_seqbase_isolated_sel_check(ListBase *seqbase)
   return true;
 }
 
-/**
- * Use to impose limits when dragging/extending - so impossible situations don't happen.
- * Can't use the #SEQ_LEFTSEL and #SEQ_LEFTSEL directly because the strip may be in a meta-strip.
- */
 void SEQ_transform_handle_xlimits(Sequence *seq, int leftflag, int rightflag)
 {
   if (leftflag) {
@@ -253,10 +230,10 @@ void SEQ_transform_translate_sequence(Scene *evil_scene, Sequence *seq, int delt
     SEQ_transform_set_right_handle_frame(seq, seq->enddisp + delta);
   }
 
-  SEQ_time_update_sequence(evil_scene, seq);
+  ListBase *seqbase = SEQ_active_seqbase_get(SEQ_editing_get(evil_scene));
+  SEQ_time_update_sequence(evil_scene, seqbase, seq);
 }
 
-/* return 0 if there weren't enough space */
 bool SEQ_transform_seqbase_shuffle_ex(ListBase *seqbasep,
                                       Sequence *test,
                                       Scene *evil_scene,
@@ -266,7 +243,7 @@ bool SEQ_transform_seqbase_shuffle_ex(ListBase *seqbasep,
   BLI_assert(ELEM(channel_delta, -1, 1));
 
   test->machine += channel_delta;
-  SEQ_time_update_sequence(evil_scene, test);
+  SEQ_time_update_sequence(evil_scene, seqbasep, test);
   while (SEQ_transform_test_overlap(seqbasep, test)) {
     if ((channel_delta > 0) ? (test->machine >= MAXSEQ) : (test->machine < 1)) {
       break;
@@ -275,10 +252,10 @@ bool SEQ_transform_seqbase_shuffle_ex(ListBase *seqbasep,
     test->machine += channel_delta;
 
     /* XXX: I don't think this is needed since were only moving vertically, Campbell. */
-    SEQ_time_update_sequence(evil_scene, test);
+    SEQ_time_update_sequence(evil_scene, seqbasep, test);
   }
 
-  if ((test->machine < 1) || (test->machine > MAXSEQ)) {
+  if (!SEQ_valid_strip_channel(test)) {
     /* Blender 2.4x would remove the strip.
      * nicer to move it to the end */
 
@@ -295,7 +272,7 @@ bool SEQ_transform_seqbase_shuffle_ex(ListBase *seqbasep,
     new_frame = new_frame + (test->start - test->startdisp); /* adjust by the startdisp */
     SEQ_transform_translate_sequence(evil_scene, test, new_frame - test->start);
 
-    SEQ_time_update_sequence(evil_scene, test);
+    SEQ_time_update_sequence(evil_scene, seqbasep, test);
     return false;
   }
 
@@ -355,7 +332,7 @@ static int shuffle_seq_time_offset(SeqCollection *strips_to_shuffle,
   }
 
   SEQ_ITERATOR_FOREACH (seq, strips_to_shuffle) {
-    SEQ_time_update_sequence_bounds(scene, seq); /* corrects dummy startdisp/enddisp values */
+    SEQ_time_update_sequence(scene, seqbasep, seq); /* corrects dummy startdisp/enddisp values */
   }
 
   return tot_ofs;
@@ -392,14 +369,6 @@ bool SEQ_transform_seqbase_shuffle_time(SeqCollection *strips_to_shuffle,
   return offset ? false : true;
 }
 
-/**
- * Move strips and markers (if not locked) that start after timeline_frame by delta frames
- *
- * \param scene: Scene in which strips are located
- * \param seqbase: ListBase in which strips are located
- * \param delta: offset in frames to be applied
- * \param timeline_frame: frame on timeline from where strips are moved
- */
 void SEQ_transform_offset_after_frame(Scene *scene,
                                       ListBase *seqbase,
                                       const int delta,
@@ -408,7 +377,7 @@ void SEQ_transform_offset_after_frame(Scene *scene,
   LISTBASE_FOREACH (Sequence *, seq, seqbase) {
     if (seq->startdisp >= timeline_frame) {
       SEQ_transform_translate_sequence(scene, seq, delta);
-      SEQ_time_update_sequence(scene, seq);
+      SEQ_time_update_sequence(scene, seqbase, seq);
       SEQ_relations_invalidate_cache_preprocessed(scene, seq);
     }
   }
@@ -420,4 +389,123 @@ void SEQ_transform_offset_after_frame(Scene *scene,
       }
     }
   }
+}
+
+void SEQ_image_transform_mirror_factor_get(const Sequence *seq, float r_mirror[2])
+{
+  r_mirror[0] = 1.0f;
+  r_mirror[1] = 1.0f;
+
+  if ((seq->flag & SEQ_FLIPX) != 0) {
+    r_mirror[0] = -1.0f;
+  }
+  if ((seq->flag & SEQ_FLIPY) != 0) {
+    r_mirror[1] = -1.0f;
+  }
+}
+
+void SEQ_image_transform_origin_offset_pixelspace_get(const Scene *scene,
+                                                      const Sequence *seq,
+                                                      float r_origin[2])
+{
+  float image_size[2];
+  StripElem *strip_elem = seq->strip->stripdata;
+  if (strip_elem == NULL) {
+    image_size[0] = scene->r.xsch;
+    image_size[1] = scene->r.ysch;
+  }
+  else {
+    image_size[0] = strip_elem->orig_width;
+    image_size[1] = strip_elem->orig_height;
+  }
+
+  const StripTransform *transform = seq->strip->transform;
+  r_origin[0] = (image_size[0] * transform->origin[0]) - (image_size[0] * 0.5f) + transform->xofs;
+  r_origin[1] = (image_size[1] * transform->origin[1]) - (image_size[1] * 0.5f) + transform->yofs;
+
+  const float viewport_pixel_aspect[2] = {scene->r.xasp / scene->r.yasp, 1.0f};
+  float mirror[2];
+  SEQ_image_transform_mirror_factor_get(seq, mirror);
+  mul_v2_v2(r_origin, mirror);
+  mul_v2_v2(r_origin, viewport_pixel_aspect);
+}
+
+static void seq_image_transform_quad_get_ex(const Scene *scene,
+                                            const Sequence *seq,
+                                            bool apply_rotation,
+                                            float r_quad[4][2])
+{
+  StripTransform *transform = seq->strip->transform;
+  StripCrop *crop = seq->strip->crop;
+
+  int image_size[2] = {scene->r.xsch, scene->r.ysch};
+  if (ELEM(seq->type, SEQ_TYPE_MOVIE, SEQ_TYPE_IMAGE)) {
+    image_size[0] = seq->strip->stripdata->orig_width;
+    image_size[1] = seq->strip->stripdata->orig_height;
+  }
+
+  float transform_matrix[4][4];
+  float rotation_matrix[3][3];
+  axis_angle_to_mat3_single(rotation_matrix, 'Z', apply_rotation ? transform->rotation : 0.0f);
+  loc_rot_size_to_mat4(transform_matrix,
+                       (const float[]){transform->xofs, transform->yofs, 0.0f},
+                       rotation_matrix,
+                       (const float[]){transform->scale_x, transform->scale_y, 1.0f});
+  const float origin[2] = {image_size[0] * transform->origin[0],
+                           image_size[1] * transform->origin[1]};
+  const float pivot[3] = {origin[0] - (image_size[0] / 2), origin[1] - (image_size[1] / 2), 0.0f};
+  transform_pivot_set_m4(transform_matrix, pivot);
+
+  float quad_temp[4][3];
+  for (int i = 0; i < 4; i++) {
+    zero_v2(quad_temp[i]);
+  }
+
+  quad_temp[0][0] = (image_size[0] / 2) - crop->right;
+  quad_temp[0][1] = (image_size[1] / 2) - crop->top;
+  quad_temp[1][0] = (image_size[0] / 2) - crop->right;
+  quad_temp[1][1] = (-image_size[1] / 2) + crop->bottom;
+  quad_temp[2][0] = (-image_size[0] / 2) + crop->left;
+  quad_temp[2][1] = (-image_size[1] / 2) + crop->bottom;
+  quad_temp[3][0] = (-image_size[0] / 2) + crop->left;
+  quad_temp[3][1] = (image_size[1] / 2) - crop->top;
+
+  float mirror[2];
+  SEQ_image_transform_mirror_factor_get(seq, mirror);
+
+  const float viewport_pixel_aspect[2] = {scene->r.xasp / scene->r.yasp, 1.0f};
+
+  for (int i = 0; i < 4; i++) {
+    mul_m4_v3(transform_matrix, quad_temp[i]);
+    mul_v2_v2(quad_temp[i], mirror);
+    mul_v2_v2(quad_temp[i], viewport_pixel_aspect);
+    copy_v2_v2(r_quad[i], quad_temp[i]);
+  }
+}
+
+void SEQ_image_transform_quad_get(const Scene *scene,
+                                  const Sequence *seq,
+                                  bool apply_rotation,
+                                  float r_quad[4][2])
+{
+  seq_image_transform_quad_get_ex(scene, seq, apply_rotation, r_quad);
+}
+
+void SEQ_image_transform_final_quad_get(const Scene *scene,
+                                        const Sequence *seq,
+                                        float r_quad[4][2])
+{
+  seq_image_transform_quad_get_ex(scene, seq, true, r_quad);
+}
+
+void SEQ_image_preview_unit_to_px(const Scene *scene, const float co_src[2], float co_dst[2])
+{
+  co_dst[0] = co_src[0] * scene->r.xsch;
+  co_dst[1] = co_src[1] * scene->r.ysch;
+}
+
+void SEQ_image_preview_unit_from_px(const Scene *scene, const float co_src[2], float co_dst[2])
+{
+  co_dst[0] = co_src[0] / scene->r.xsch;
+  co_dst[1] = co_src[1] / scene->r.ysch;
 }

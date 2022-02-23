@@ -54,95 +54,95 @@
 #ifdef WITH_PYTHON
 
 #  define FAKE_TYPES \
-    FT_DEF(BL_ArmatureBone) \
-    FT_DEF(BL_ArmatureChannel) \
-    FT_DEF(BL_ArmatureConstraint) \
-    FT_DEF(BL_ArmatureObject) \
-    FT_DEF(BL_Shader) \
-    FT_DEF(BL_Texture) \
-    FT_DEF(KX_2DFilter) \
-    FT_DEF(KX_2DFilterManager) \
-    FT_DEF(KX_2DFilterOffScreen) \
-    FT_DEF(KX_BlenderMaterial) \
-    FT_DEF(KX_Camera) \
-    FT_DEF(KX_CharacterWrapper) \
-    FT_DEF(KX_CollisionContactPoint) \
-    FT_DEF(KX_ConstraintWrapper) \
-    FT_DEF(KX_FontObject) \
-    FT_DEF(KX_GameObject) \
-    FT_DEF(KX_LibLoadStatus) \
-    FT_DEF(KX_LightObject) \
-    FT_DEF(KX_LodLevel) \
-    FT_DEF(KX_LodManager) \
-    FT_DEF(KX_MeshProxy) \
-    FT_DEF(KX_NavMeshObject) \
-    FT_DEF(KX_PolyProxy) \
-    FT_DEF(KX_PythonComponent) \
-    FT_DEF(KX_Scene) \
-    FT_DEF(KX_VehicleWrapper) \
-    FT_DEF(KX_VertexProxy) \
-    FT_DEF(SCA_2DFilterActuator) \
-    FT_DEF(SCA_ANDController) \
-    FT_DEF(SCA_ActionActuator) \
-    FT_DEF(SCA_ActuatorSensor) \
-    FT_DEF(SCA_AddObjectActuator) \
-    FT_DEF(SCA_AlwaysSensor) \
-    FT_DEF(SCA_ArmatureActuator) \
-    FT_DEF(SCA_ArmatureSensor) \
-    FT_DEF(SCA_CameraActuator) \
-    FT_DEF(SCA_CollisionSensor) \
-    FT_DEF(SCA_ConstraintActuator) \
-    FT_DEF(SCA_DelaySensor) \
-    FT_DEF(SCA_DynamicActuator) \
-    FT_DEF(SCA_EndObjectActuator) \
-    FT_DEF(SCA_GameActuator) \
-    FT_DEF(SCA_IActuator) \
-    FT_DEF(SCA_IController) \
-    FT_DEF(SCA_ILogicBrick) \
-    FT_DEF(SCA_IObject) \
-    FT_DEF(SCA_ISensor) \
-    FT_DEF(SCA_InputEvent) \
-    FT_DEF(SCA_JoystickSensor) \
-    FT_DEF(SCA_KeyboardSensor) \
-    FT_DEF(SCA_MouseActuator) \
-    FT_DEF(SCA_MouseFocusSensor) \
-    FT_DEF(SCA_MouseSensor) \
-    FT_DEF(SCA_NANDController) \
-    FT_DEF(SCA_NORController) \
-    FT_DEF(SCA_NearSensor) \
-    FT_DEF(SCA_NetworkMessageActuator) \
-    FT_DEF(SCA_NetworkMessageSensor) \
-    FT_DEF(SCA_ORController) \
-    FT_DEF(SCA_ObjectActuator) \
-    FT_DEF(SCA_ParentActuator) \
-    FT_DEF(SCA_PropertyActuator) \
-    FT_DEF(SCA_PropertySensor) \
-    FT_DEF(SCA_PythonController) \
-    FT_DEF(SCA_PythonJoystick) \
-    FT_DEF(SCA_PythonKeyboard) \
-    FT_DEF(SCA_PythonMouse) \
-    FT_DEF(SCA_RadarSensor) \
-    FT_DEF(SCA_RandomActuator) \
-    FT_DEF(SCA_RandomSensor) \
-    FT_DEF(SCA_RaySensor) \
-    FT_DEF(SCA_ReplaceMeshActuator) \
-    FT_DEF(SCA_SceneActuator) \
-    FT_DEF(SCA_SoundActuator) \
-    FT_DEF(SCA_StateActuator) \
-    FT_DEF(SCA_SteeringActuator) \
-    FT_DEF(SCA_TrackToActuator) \
-    FT_DEF(SCA_VibrationActuator) \
-    FT_DEF(SCA_VisibilityActuator) \
-    FT_DEF(SCA_XNORController) \
-    FT_DEF(SCA_XORController)
+    FT_DEF(KX_2DFilter, NULL) \
+    FT_DEF(KX_2DFilterManager, NULL) \
+    FT_DEF(KX_2DFilterOffScreen, NULL) \
+    FT_DEF(KX_BlenderMaterial, NULL) \
+    FT_DEF(KX_CharacterWrapper, NULL) \
+    FT_DEF(KX_CollisionContactPoint, NULL) \
+    FT_DEF(KX_ConstraintWrapper, NULL) \
+    FT_DEF(KX_GameObject, NULL) \
+    FT_DEF(KX_FontObject, &FT_KX_GameObject) \
+    FT_DEF(KX_Camera, &FT_KX_GameObject) \
+    FT_DEF(KX_LibLoadStatus, NULL) \
+    FT_DEF(KX_LightObject, &FT_KX_GameObject) \
+    FT_DEF(KX_LodLevel, NULL) \
+    FT_DEF(KX_LodManager, NULL) \
+    FT_DEF(KX_MeshProxy, NULL) \
+    FT_DEF(KX_NavMeshObject, &FT_KX_GameObject) \
+    FT_DEF(KX_PolyProxy, NULL) \
+    FT_DEF(KX_PythonComponent, NULL) \
+    FT_DEF(KX_Scene, NULL) \
+    FT_DEF(KX_VehicleWrapper, NULL) \
+    FT_DEF(KX_VertexProxy, NULL) \
+    FT_DEF(BL_ArmatureBone, NULL) \
+    FT_DEF(BL_ArmatureChannel, NULL) \
+    FT_DEF(BL_ArmatureConstraint, NULL) \
+    FT_DEF(BL_ArmatureObject, &FT_KX_GameObject) \
+    FT_DEF(BL_Shader, NULL) \
+    FT_DEF(BL_Texture, NULL) \
+    FT_DEF(SCA_2DFilterActuator, NULL) \
+    FT_DEF(SCA_ANDController, NULL) \
+    FT_DEF(SCA_ActionActuator, NULL) \
+    FT_DEF(SCA_ActuatorSensor, NULL) \
+    FT_DEF(SCA_AddObjectActuator, NULL) \
+    FT_DEF(SCA_AlwaysSensor, NULL) \
+    FT_DEF(SCA_ArmatureActuator, NULL) \
+    FT_DEF(SCA_ArmatureSensor, NULL) \
+    FT_DEF(SCA_CameraActuator, NULL) \
+    FT_DEF(SCA_CollisionSensor, NULL) \
+    FT_DEF(SCA_ConstraintActuator, NULL) \
+    FT_DEF(SCA_DelaySensor, NULL) \
+    FT_DEF(SCA_DynamicActuator, NULL) \
+    FT_DEF(SCA_EndObjectActuator, NULL) \
+    FT_DEF(SCA_GameActuator, NULL) \
+    FT_DEF(SCA_IActuator, NULL) \
+    FT_DEF(SCA_IController, NULL) \
+    FT_DEF(SCA_ILogicBrick, NULL) \
+    FT_DEF(SCA_IObject, NULL) \
+    FT_DEF(SCA_ISensor, NULL) \
+    FT_DEF(SCA_InputEvent, NULL) \
+    FT_DEF(SCA_JoystickSensor, NULL) \
+    FT_DEF(SCA_KeyboardSensor, NULL) \
+    FT_DEF(SCA_MouseActuator, NULL) \
+    FT_DEF(SCA_MouseFocusSensor, NULL) \
+    FT_DEF(SCA_MouseSensor, NULL) \
+    FT_DEF(SCA_NANDController, NULL) \
+    FT_DEF(SCA_NORController, NULL) \
+    FT_DEF(SCA_NearSensor, NULL) \
+    FT_DEF(SCA_NetworkMessageActuator, NULL) \
+    FT_DEF(SCA_NetworkMessageSensor, NULL) \
+    FT_DEF(SCA_ORController, NULL) \
+    FT_DEF(SCA_ObjectActuator, NULL) \
+    FT_DEF(SCA_ParentActuator, NULL) \
+    FT_DEF(SCA_PropertyActuator, NULL) \
+    FT_DEF(SCA_PropertySensor, NULL) \
+    FT_DEF(SCA_PythonController, NULL) \
+    FT_DEF(SCA_PythonJoystick, NULL) \
+    FT_DEF(SCA_PythonKeyboard, NULL) \
+    FT_DEF(SCA_PythonMouse, NULL) \
+    FT_DEF(SCA_RadarSensor, NULL) \
+    FT_DEF(SCA_RandomActuator, NULL) \
+    FT_DEF(SCA_RandomSensor, NULL) \
+    FT_DEF(SCA_RaySensor, NULL) \
+    FT_DEF(SCA_ReplaceMeshActuator, NULL) \
+    FT_DEF(SCA_SceneActuator, NULL) \
+    FT_DEF(SCA_SoundActuator, NULL) \
+    FT_DEF(SCA_StateActuator, NULL) \
+    FT_DEF(SCA_SteeringActuator, NULL) \
+    FT_DEF(SCA_TrackToActuator, NULL) \
+    FT_DEF(SCA_VibrationActuator, NULL) \
+    FT_DEF(SCA_VisibilityActuator, NULL) \
+    FT_DEF(SCA_XNORController, NULL) \
+    FT_DEF(SCA_XORController, NULL)
 
-#  define FakeType(Type) \
+#  define FakeType(Type, Base) \
     static PyTypeObject FT_##Type = { \
         PyVarObject_HEAD_INIT(NULL, 0) STRINGIFY(Type), /* tp_name */ \
         sizeof(PyObject),                               /* tp_basicsize */ \
         0,                                              /* tp_itemsize */ \
         (destructor)NULL,                               /* tp_dealloc */ \
-        NULL,                                           /* tp_print */ \
+        0,                                              /* tp_vectorcall_offset */ \
         NULL,                                           /* tp_getattr */ \
         NULL,                                           /* tp_setattr */ \
         NULL,                                           /* tp_compare */ \
@@ -167,7 +167,7 @@
         NULL,                                           /* tp_methods */ \
         NULL,                                           /* tp_members */ \
         NULL,                                           /* tp_getset */ \
-        NULL,                                           /* tp_base */ \
+        Base,                                           /* tp_base */ \
         NULL,                                           /* tp_dict */ \
         NULL,                                           /* tp_descr_get */ \
         NULL,                                           /* tp_descr_set */ \
@@ -185,7 +185,7 @@
         NULL                                            /* tp_del */ \
     };
 
-#  define FT_DEF(Type) FakeType(Type)
+#  define FT_DEF(Type, Base) FakeType(Type, Base)
 FAKE_TYPES
 #  undef FT_DEF
 
@@ -468,14 +468,13 @@ static void create_properties(PythonProxy *pp, PyObject *cls)
   // Set the new property list.
   pp->properties = properties;
 }
-#endif /* WITH_PYTHON */
+
 
 static bool load_class(PythonProxy *pp,
                        int (*verifier)(PyObject *),
                        ReportList *reports,
                        Main *maggie)
 {
-#ifdef WITH_PYTHON
 
 /* Macro used to release all python variable if the convertion fail or succeed.
  * The "value" argument is false on failure and true on succes.
@@ -494,7 +493,7 @@ static bool load_class(PythonProxy *pp,
     Py_XDECREF(item); \
     PyDict_DelItemString(sys_modules, "bge"); \
     PyDict_DelItemString(sys_modules, "bge.types"); \
-    BLI_split_dir_part(maggie->name, path, sizeof(path)); \
+    BLI_split_dir_part(maggie->filepath, path, sizeof(path)); \
     pypath = PyC_UnicodeFromByte(path); \
     index = PySequence_Index(sys_path, pypath); \
     /* Safely remove the value by finding their index. */ \
@@ -536,7 +535,7 @@ static bool load_class(PythonProxy *pp,
     Py_DECREF(pypath);
   }
   /* Add default path */
-  BLI_split_dir_part(maggie->name, path, sizeof(path));
+  BLI_split_dir_part(maggie->filepath, path, sizeof(path));
   pypath = PyC_UnicodeFromByte(path);
   PyList_Insert(sys_path, 0, pypath);
   Py_DECREF(pypath);
@@ -549,7 +548,7 @@ static bool load_class(PythonProxy *pp,
   PyModule_AddObject(bgemod, "types", bgesubmod);
   PyType_Ready(&FT_KX_PythonComponent);
 
-#  define FT_DEF(Type) \
+#  define FT_DEF(Type, NULL) \
     PyType_Ready(&FT_##Type); \
     PyModule_AddObject(bgesubmod, STRINGIFY(Type), (PyObject *)&FT_##Type);
 
@@ -601,15 +600,6 @@ static bool load_class(PythonProxy *pp,
 
 #  undef ERROR
 
-#else
-
-  (void)pc;
-  (void)reports;
-  (void)maggie;
-
-  return true;
-
-#endif /* WITH_PYTHON */
 }
 
 PythonProxy *BKE_python_class_new(char *import,
@@ -657,17 +647,35 @@ PythonProxy *BKE_python_class_new(char *import,
 
   return pp;
 }
+#endif /* WITH_PYTHON */
 
 PythonProxy *BKE_custom_object_new(char *import, ReportList *reports, bContext *context)
 {
+#ifdef WITH_PYTHON
   return BKE_python_class_new(import, verify_custom_object_class, reports, context);
+#else
+(void)import;
+(void)reports;
+(void)context;
+
+return NULL;
+#endif /* WITH_PYTHON */
 }
 
 PythonProxy *BKE_python_component_new(char *import, ReportList *reports, bContext *context)
 {
+#ifdef WITH_PYTHON
   return BKE_python_class_new(import, verify_component_class, reports, context);
+#else
+(void)import;
+(void)reports;
+(void)context;
+
+return NULL;
+#endif /* WITH_PYTHON */
 }
 
+#ifdef WITH_PYTHON
 PythonProxy *BKE_python_class_create_file(char *import,
                                           const char *template_dir,
                                           const char *template_name,
@@ -711,9 +719,8 @@ PythonProxy *BKE_python_class_create_file(char *import,
 
   text = BKE_text_add(maggie, filename);
 
-  BLI_strncpy(respath,
-              BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS, template_dir),
-              sizeof(respath));
+  BLI_strncpy(
+      respath, BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS, template_dir), sizeof(respath));
   BLI_path_append(respath, sizeof(respath), template_name);
 
   orgfilecontent = BLI_file_read_text_as_mem(respath, 0, &filesize);
@@ -743,43 +750,69 @@ PythonProxy *BKE_python_class_create_file(char *import,
 
   return pp;
 }
+#endif /* WITH_PYTHON */
 
-PythonProxy *BKE_custom_object_create_file(char *import,
-                                           ReportList *reports,
-                                           bContext *context)
+PythonProxy *BKE_custom_object_create_file(char *import, ReportList *reports, bContext *context)
 {
+#ifdef WITH_PYTHON
   return BKE_python_class_create_file(import,
                                       "templates_custom_objects",
                                       "custom_object.py",
                                       verify_custom_object_class,
                                       reports,
                                       context);
+#else
+(void)import;
+(void)reports;
+(void)context;
+
+return NULL;
+#endif /* WITH_PYTHON */
 }
 
-PythonProxy *BKE_python_component_create_file(char *import,
-                                              ReportList *reports,
-                                              bContext *context)
+PythonProxy *BKE_python_component_create_file(char *import, ReportList *reports, bContext *context)
 {
+#ifdef WITH_PYTHON
   return BKE_python_class_create_file(import,
                                       "templates_py_components",
                                       "python_component.py",
                                       verify_component_class,
                                       reports,
                                       context);
+#else
+  (void)import;
+  (void)reports;
+  (void)context;
+
+  return NULL;
+#endif /* WITH_PYTHON */
 }
 
 void BKE_custom_object_reload(PythonProxy *pp, ReportList *reports, bContext *context)
 {
+#ifdef WITH_PYTHON
   load_class(pp, verify_custom_object_class, reports, CTX_data_main(context));
+#else
+  (void)pp;
+  (void)reports;
+  (void)context;
+#endif /* WITH_PYTHON */
 }
 
 void BKE_python_component_reload(PythonProxy *pp, ReportList *reports, bContext *context)
 {
+#ifdef WITH_PYTHON
   load_class(pp, verify_component_class, reports, CTX_data_main(context));
+#else
+  (void)pp;
+  (void)reports;
+  (void)context;
+#endif /* WITH_PYTHON */
 }
 
 PythonProxy *BKE_python_proxy_copy(PythonProxy *pp)
 {
+#ifdef WITH_PYTHON
   PythonProxy *proxyn;
   PythonProxyProperty *pprop, *ppropn;
 
@@ -794,10 +827,16 @@ PythonProxy *BKE_python_proxy_copy(PythonProxy *pp)
   }
 
   return proxyn;
+#else
+  (void)pp;
+
+  return NULL;
+#endif /* WITH_PYTHON */
 }
 
 void BKE_python_proxy_copy_list(ListBase *lbn, const ListBase *lbo)
 {
+#ifdef WITH_PYTHON
   PythonProxy *proxy, *proxyn;
 
   lbn->first = lbn->last = NULL;
@@ -807,23 +846,35 @@ void BKE_python_proxy_copy_list(ListBase *lbn, const ListBase *lbo)
     BLI_addtail(lbn, proxyn);
     proxy = proxy->next;
   }
+#else
+  (void)lbn;
+  (void)lbo;
+#endif /* WITH_PYTHON */
 }
 
 void BKE_python_proxy_free(PythonProxy *pp)
 {
+#ifdef WITH_PYTHON
   free_properties(&pp->properties);
 
   MEM_freeN(pp);
+#else
+  (void)pp;
+#endif /* WITH_PYTHON */
 }
 
 void BKE_python_proxy_free_list(ListBase *lb)
 {
+#ifdef WITH_PYTHON
   PythonProxy *pp;
 
   while ((pp = lb->first)) {
     BLI_remlink(lb, pp);
     BKE_python_proxy_free(pp);
   }
+#else
+  (void)lb;
+#endif /* WITH_PYTHON */
 }
 
 void *BKE_python_proxy_argument_dict_new(PythonProxy *pp)
@@ -901,16 +952,15 @@ void *BKE_python_proxy_argument_dict_new(PythonProxy *pp)
   return args;
 
 #else
-
   (void)pp;
 
   return NULL;
-
 #endif /* WITH_PYTHON */
 }
 
 void BKE_python_proxy_id_loop(PythonProxy *pp, BKEPyProxyIDFunc func, void *userdata)
 {
+#ifdef WITH_PYTHON
   ListBase *properties = &pp->properties;
   PythonProxyProperty *prop;
 
@@ -919,14 +969,25 @@ void BKE_python_proxy_id_loop(PythonProxy *pp, BKEPyProxyIDFunc func, void *user
     POINTER_TYPES
 #undef PT_DEF
   }
+
+#else
+  (void)pp;
+  (void)func;
+  (void)userdata;
+#endif /* WITH_PYTHON */
 }
 
 void BKE_python_proxies_id_loop(ListBase *list, BKEPyProxyIDFunc func, void *userdata)
 {
+#ifdef WITH_PYTHON
   PythonProxy *pp;
 
   for (pp = list->first; pp; pp = pp->next) {
     BKE_python_proxy_id_loop(pp, func, userdata);
   }
+#else
+  (void)list;
+  (void)func;
+  (void)userdata;
+#endif /* WITH_PYTHON */
 }
-

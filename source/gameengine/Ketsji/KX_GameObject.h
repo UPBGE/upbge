@@ -58,11 +58,9 @@ class KX_RayCast;
 class KX_LodManager;
 class KX_PythonComponent;
 class RAS_MeshObject;
-class PHY_IPhysicsEnvironment;
 class PHY_IPhysicsController;
 class BL_ActionManager;
 struct Object;
-class KX_ObstacleSimulation;
 class KX_CollisionContactPointList;
 struct bAction;
 
@@ -91,6 +89,8 @@ class KX_GameObject : public SCA_IObject {
 
   struct ActivityCullingInfo {
 
+    ActivityCullingInfo();
+
     enum Flag {
       ACTIVITY_NONE = 0,
       ACTIVITY_PHYSICS = (1 << 0),
@@ -103,8 +103,7 @@ class KX_GameObject : public SCA_IObject {
     float m_logicRadius;
   };
 
- protected :
-
+ protected:
   /* EEVEE INTEGRATION */
   float m_prevObmat[4][4];
   bool m_isReplica;
@@ -125,10 +124,6 @@ class KX_GameObject : public SCA_IObject {
   bool m_bIsNegativeScaling;
   MT_Vector4 m_objectColor;
 
-  // Bit fields for user control over physics collisions
-  unsigned short m_userCollisionGroup;
-  unsigned short m_userCollisionMask;
-
   // visible = user setting
   // culled = while rendering, depending on camera
   bool m_bVisible;
@@ -140,12 +135,6 @@ class KX_GameObject : public SCA_IObject {
   PHY_IPhysicsController *m_pPhysicsController;
   SG_Node *m_pSGNode;
 
-#ifdef WITH_PYTHON
-  EXP_ListValue<KX_PythonComponent> *m_components;
-#endif
-
-  std::vector<bRigidBodyJointConstraint *> m_constraints;
-
   EXP_ListValue<KX_GameObject> *m_pInstanceObjects;
   KX_GameObject *m_pDupliGroupObject;
 
@@ -154,10 +143,16 @@ class KX_GameObject : public SCA_IObject {
 
   BL_ActionManager *GetActionManager();
 
+#ifdef WITH_PYTHON
+  EXP_ListValue<KX_PythonComponent> *m_components;
+#endif
+
+  std::vector<bRigidBodyJointConstraint *> m_constraints;
+
  public:
   /* EEVEE INTEGRATION */
 
-  void TagForTransformUpdate(bool is_last_render_pass);
+  void TagForTransformUpdate(bool is_overlay_pass, bool is_last_render_pass);
   void TagForTransformUpdateEvaluated();
   void ReplicateBlenderObject();
   void HideOriginalObject();
@@ -452,18 +447,14 @@ class KX_GameObject : public SCA_IObject {
   /** Set the object's collison group
    * \param filter The group bitfield
    */
-  void SetUserCollisionGroup(unsigned short filter);
+  void SetCollisionGroup(unsigned short filter);
 
   /** Set the object's collison mask
    * \param filter The mask bitfield
    */
-  void SetUserCollisionMask(unsigned short mask);
-  unsigned short GetUserCollisionGroup();
-  unsigned short GetUserCollisionMask();
-  /**
-   * Extra broadphase check for user controllable collisions
-   */
-  bool CheckCollision(KX_GameObject *other);
+  void SetCollisionMask(unsigned short mask);
+  unsigned short GetCollisionGroup() const;
+  unsigned short GetCollisionMask() const;
 
   /**
    * \section Coordinate system manipulation functions
@@ -825,6 +816,7 @@ class KX_GameObject : public SCA_IObject {
   EXP_PYMETHOD_NOARGS(KX_GameObject, DisableRigidBody);
   EXP_PYMETHOD_VARARGS(KX_GameObject, ApplyImpulse);
   EXP_PYMETHOD_O(KX_GameObject, SetCollisionMargin);
+  EXP_PYMETHOD_O(KX_GameObject, Collide);
   EXP_PYMETHOD_NOARGS(KX_GameObject, GetParent);
   EXP_PYMETHOD(KX_GameObject, SetParent);
   EXP_PYMETHOD_NOARGS(KX_GameObject, RemoveParent);
@@ -872,10 +864,11 @@ class KX_GameObject : public SCA_IObject {
   static int pyattr_set_mass(EXP_PyObjectPlus *self_v,
                              const EXP_PYATTRIBUTE_DEF *attrdef,
                              PyObject *value);
-  static PyObject *pyattr_get_friction(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_friction(EXP_PyObjectPlus *self_v,
+                                       const EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_friction(EXP_PyObjectPlus *self_v,
-                             const EXP_PYATTRIBUTE_DEF *attrdef,
-                             PyObject *value);
+                                 const EXP_PYATTRIBUTE_DEF *attrdef,
+                                 PyObject *value);
   static PyObject *pyattr_get_is_suspend_dynamics(EXP_PyObjectPlus *self_v,
                                                   const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_lin_vel_min(EXP_PyObjectPlus *self_v,

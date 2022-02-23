@@ -1,19 +1,4 @@
-# ***** BEGIN GPL LICENSE BLOCK *****
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-# ***** END GPL LICENSE BLOCK *****
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
   ../include
@@ -44,6 +29,7 @@ set(SRC
   space_view3d.c
   view3d_buttons.c
   view3d_camera_control.c
+  view3d_cursor_snap.c
   view3d_draw.c
   view3d_edit.c
   view3d_gizmo_armature.c
@@ -59,8 +45,17 @@ set(SRC
   view3d_gizmo_tool_generic.c
   view3d_header.c
   view3d_iterators.c
+  view3d_navigate.c
+  view3d_navigate_dolly.c
   view3d_navigate_fly.c
+  view3d_navigate_move.c
+  view3d_navigate_ndof.c
+  view3d_navigate_roll.c
+  view3d_navigate_rotate.c
+  view3d_navigate_smoothview.c
   view3d_navigate_walk.c
+  view3d_navigate_zoom.c
+  view3d_navigate_zoom_border.c
   view3d_ops.c
   view3d_placement.c
   view3d_project.c
@@ -70,6 +65,7 @@ set(SRC
   view3d_view.c
 
   view3d_intern.h
+  view3d_navigate.h
 )
 
 set(LIB
@@ -94,10 +90,6 @@ if(WITH_GAMEENGINE)
   )
 
   add_definitions(-DWITH_GAMEENGINE)
-endif()
-
-if(WITH_INTERNATIONAL)
-  add_definitions(-DWITH_INTERNATIONAL)
 endif()
 
 if(WITH_FREESTYLE)

@@ -1,0 +1,29 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
+
+#include "node_color.h"
+#include "stdcycles.h"
+
+shader node_hsv(float Hue = 0.5,
+                float Saturation = 1.0,
+                float Value = 1.0,
+                float Fac = 0.5,
+                color ColorIn = 0.0,
+                output color ColorOut = 0.0)
+{
+  color Color = rgb_to_hsv(ColorIn);
+
+  // remember: fmod doesn't work for negative numbers
+  Color[0] = fmod(Color[0] + Hue + 0.5, 1.0);
+  Color[1] = clamp(Color[1] * Saturation, 0.0, 1.0);
+  Color[2] *= Value;
+
+  Color = hsv_to_rgb(Color);
+
+  // Clamp color to prevent negative values cauzed by oversaturation.
+  Color[0] = max(Color[0], 0.0);
+  Color[1] = max(Color[1], 0.0);
+  Color[2] = max(Color[2], 0.0);
+
+  ColorOut = mix(ColorIn, Color, Fac);
+}

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2021 by Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2021 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup draw
@@ -24,6 +8,8 @@
 #include "MEM_guardedalloc.h"
 
 #include "extract_mesh.h"
+
+#include "draw_subdivision.h"
 
 namespace blender::draw {
 
@@ -155,6 +141,33 @@ static void extract_lines_finish(const MeshRenderData *UNUSED(mr),
   GPU_indexbuf_build_in_place(elb, ibo);
 }
 
+static void extract_lines_init_subdiv(const DRWSubdivCache *subdiv_cache,
+                                      const MeshRenderData *mr,
+                                      struct MeshBatchCache *UNUSED(cache),
+                                      void *buffer,
+                                      void *UNUSED(data))
+{
+  GPUIndexBuf *ibo = static_cast<GPUIndexBuf *>(buffer);
+  GPU_indexbuf_init_build_on_device(ibo,
+                                    subdiv_cache->num_subdiv_loops * 2 + mr->edge_loose_len * 2);
+
+  draw_subdiv_build_lines_buffer(subdiv_cache, ibo);
+}
+
+static void extract_lines_loose_geom_subdiv(const DRWSubdivCache *subdiv_cache,
+                                            const MeshRenderData *UNUSED(mr),
+                                            const MeshExtractLooseGeom *loose_geom,
+                                            void *buffer,
+                                            void *UNUSED(data))
+{
+  if (loose_geom->edge_len == 0) {
+    return;
+  }
+
+  GPUIndexBuf *ibo = static_cast<GPUIndexBuf *>(buffer);
+  draw_subdiv_build_lines_loose_buffer(subdiv_cache, ibo, static_cast<uint>(loose_geom->edge_len));
+}
+
 constexpr MeshExtract create_extractor_lines()
 {
   MeshExtract extractor = {nullptr};
@@ -163,6 +176,8 @@ constexpr MeshExtract create_extractor_lines()
   extractor.iter_poly_mesh = extract_lines_iter_poly_mesh;
   extractor.iter_ledge_bm = extract_lines_iter_ledge_bm;
   extractor.iter_ledge_mesh = extract_lines_iter_ledge_mesh;
+  extractor.init_subdiv = extract_lines_init_subdiv;
+  extractor.iter_loose_geom_subdiv = extract_lines_loose_geom_subdiv;
   extractor.task_reduce = extract_lines_task_reduce;
   extractor.finish = extract_lines_finish;
   extractor.data_type = MR_DATA_NONE;

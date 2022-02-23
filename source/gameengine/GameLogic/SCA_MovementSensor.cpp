@@ -34,13 +34,8 @@
 
 #include "SCA_MovementSensor.h"
 
-#include <stdio.h>
-
 #include "DNA_sensor_types.h"
 #include "KX_GameObject.h"
-#include "SCA_EventManager.h"
-#include "SCA_IObject.h"
-#include "SCA_LogicManager.h"
 
 SCA_MovementSensor::SCA_MovementSensor(
     SCA_EventManager *eventmgr, SCA_IObject *gameobj, int axis, bool localflag, float threshold)

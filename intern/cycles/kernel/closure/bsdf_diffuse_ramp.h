@@ -1,46 +1,23 @@
-/*
- * Adapted from Open Shading Language with this license:
+/* SPDX-License-Identifier: BSD-3-Clause
  *
+ * Adapted from Open Shading Language
  * Copyright (c) 2009-2010 Sony Pictures Imageworks Inc., et al.
  * All Rights Reserved.
  *
- * Modifications Copyright 2012, Blender Foundation.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- * * Redistributions of source code must retain the above copyright
- *   notice, this list of conditions and the following disclaimer.
- * * Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in the
- *   documentation and/or other materials provided with the distribution.
- * * Neither the name of Sony Pictures Imageworks nor the names of its
- *   contributors may be used to endorse or promote products derived from
- *   this software without specific prior written permission.
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+ * Modifications Copyright 2011-2022 Blender Foundation. */
 
-#ifndef __BSDF_DIFFUSE_RAMP_H__
-#define __BSDF_DIFFUSE_RAMP_H__
+#pragma once
+
+#include "kernel/sample/mapping.h"
 
 CCL_NAMESPACE_BEGIN
 
 #ifdef __OSL__
 
-typedef ccl_addr_space struct DiffuseRampBsdf {
+typedef struct DiffuseRampBsdf {
   SHADER_CLOSURE_BASE;
 
-  float3 *colors;
+  ccl_private float3 *colors;
 } DiffuseRampBsdf;
 
 static_assert(sizeof(ShaderClosure) >= sizeof(DiffuseRampBsdf), "DiffuseRampBsdf is too large!");
@@ -65,14 +42,14 @@ ccl_device int bsdf_diffuse_ramp_setup(DiffuseRampBsdf *bsdf)
   return SD_BSDF | SD_BSDF_HAS_EVAL;
 }
 
-ccl_device void bsdf_diffuse_ramp_blur(ShaderClosure *sc, float roughness)
+ccl_device void bsdf_diffuse_ramp_blur(ccl_private ShaderClosure *sc, float roughness)
 {
 }
 
-ccl_device float3 bsdf_diffuse_ramp_eval_reflect(const ShaderClosure *sc,
+ccl_device float3 bsdf_diffuse_ramp_eval_reflect(ccl_private const ShaderClosure *sc,
                                                  const float3 I,
                                                  const float3 omega_in,
-                                                 float *pdf)
+                                                 ccl_private float *pdf)
 {
   const DiffuseRampBsdf *bsdf = (const DiffuseRampBsdf *)sc;
   float3 N = bsdf->N;
@@ -82,26 +59,26 @@ ccl_device float3 bsdf_diffuse_ramp_eval_reflect(const ShaderClosure *sc,
   return bsdf_diffuse_ramp_get_color(bsdf->colors, cos_pi) * M_1_PI_F;
 }
 
-ccl_device float3 bsdf_diffuse_ramp_eval_transmit(const ShaderClosure *sc,
+ccl_device float3 bsdf_diffuse_ramp_eval_transmit(ccl_private const ShaderClosure *sc,
                                                   const float3 I,
                                                   const float3 omega_in,
-                                                  float *pdf)
+                                                  ccl_private float *pdf)
 {
   return make_float3(0.0f, 0.0f, 0.0f);
 }
 
-ccl_device int bsdf_diffuse_ramp_sample(const ShaderClosure *sc,
+ccl_device int bsdf_diffuse_ramp_sample(ccl_private const ShaderClosure *sc,
                                         float3 Ng,
                                         float3 I,
                                         float3 dIdx,
                                         float3 dIdy,
                                         float randu,
                                         float randv,
-                                        float3 *eval,
-                                        float3 *omega_in,
-                                        float3 *domega_in_dx,
-                                        float3 *domega_in_dy,
-                                        float *pdf)
+                                        ccl_private float3 *eval,
+                                        ccl_private float3 *omega_in,
+                                        ccl_private float3 *domega_in_dx,
+                                        ccl_private float3 *domega_in_dy,
+                                        ccl_private float *pdf)
 {
   const DiffuseRampBsdf *bsdf = (const DiffuseRampBsdf *)sc;
   float3 N = bsdf->N;
@@ -125,5 +102,3 @@ ccl_device int bsdf_diffuse_ramp_sample(const ShaderClosure *sc,
 #endif /* __OSL__ */
 
 CCL_NAMESPACE_END
-
-#endif /* __BSDF_DIFFUSE_RAMP_H__ */

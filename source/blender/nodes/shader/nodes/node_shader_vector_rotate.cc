@@ -1,41 +1,33 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2013 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2013 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup shdnodes
  */
 
-#include "../node_shader_util.h"
+#include "node_shader_util.hh"
 
-/* **************** Vector Rotate ******************** */
-static bNodeSocketTemplate sh_node_vector_rotate_in[] = {
-    {SOCK_VECTOR, N_("Vector"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_NONE, SOCK_HIDE_VALUE},
-    {SOCK_VECTOR, N_("Center"), 0.0f, 0.0f, 0.0f, 1.0f, -FLT_MAX, FLT_MAX, PROP_NONE},
-    {SOCK_VECTOR, N_("Axis"), 0.0f, 0.0f, 1.0f, 0.0f, -1.0f, 1.0f, PROP_NONE, PROP_NONE},
-    {SOCK_FLOAT, N_("Angle"), 0.0f, 0.0f, 0.0f, 1.0f, -FLT_MAX, FLT_MAX, PROP_ANGLE, PROP_NONE},
-    {SOCK_VECTOR, N_("Rotation"), 0.0f, 0.0f, 0.0f, 1.0f, -FLT_MAX, FLT_MAX, PROP_EULER},
-    {-1, ""}};
+#include "UI_interface.h"
+#include "UI_resources.h"
 
-static bNodeSocketTemplate sh_node_vector_rotate_out[] = {
-    {SOCK_VECTOR, N_("Vector")},
-    {-1, ""},
-};
+namespace blender::nodes::node_shader_vector_rotate_cc {
+
+static void sh_node_vector_rotate_declare(NodeDeclarationBuilder &b)
+{
+  b.is_function_node();
+  b.add_input<decl::Vector>(N_("Vector")).min(0.0f).max(1.0f).hide_value();
+  b.add_input<decl::Vector>(N_("Center"));
+  b.add_input<decl::Vector>(N_("Axis")).min(-1.0f).max(1.0f).default_value({0.0f, 0.0f, 1.0f});
+  b.add_input<decl::Float>(N_("Angle")).subtype(PROP_ANGLE);
+  b.add_input<decl::Vector>(N_("Rotation")).subtype(PROP_EULER);
+  b.add_output<decl::Vector>(N_("Vector"));
+}
+
+static void node_shader_buts_vector_rotate(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+  uiItemR(layout, ptr, "rotation_type", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "invert", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, 0);
+}
 
 static const char *gpu_shader_get_name(int mode)
 {
@@ -192,25 +184,32 @@ static void sh_node_vector_rotate_build_multi_function(
   builder.set_matching_fn(fn);
 }
 
-static void node_shader_update_vector_rotate(bNodeTree *UNUSED(ntree), bNode *node)
+static void node_shader_update_vector_rotate(bNodeTree *ntree, bNode *node)
 {
   bNodeSocket *sock_rotation = nodeFindSocket(node, SOCK_IN, "Rotation");
-  nodeSetSocketAvailability(sock_rotation, ELEM(node->custom1, NODE_VECTOR_ROTATE_TYPE_EULER_XYZ));
+  nodeSetSocketAvailability(
+      ntree, sock_rotation, ELEM(node->custom1, NODE_VECTOR_ROTATE_TYPE_EULER_XYZ));
   bNodeSocket *sock_axis = nodeFindSocket(node, SOCK_IN, "Axis");
-  nodeSetSocketAvailability(sock_axis, ELEM(node->custom1, NODE_VECTOR_ROTATE_TYPE_AXIS));
+  nodeSetSocketAvailability(ntree, sock_axis, ELEM(node->custom1, NODE_VECTOR_ROTATE_TYPE_AXIS));
   bNodeSocket *sock_angle = nodeFindSocket(node, SOCK_IN, "Angle");
-  nodeSetSocketAvailability(sock_angle, !ELEM(node->custom1, NODE_VECTOR_ROTATE_TYPE_EULER_XYZ));
+  nodeSetSocketAvailability(
+      ntree, sock_angle, !ELEM(node->custom1, NODE_VECTOR_ROTATE_TYPE_EULER_XYZ));
 }
 
-void register_node_type_sh_vector_rotate(void)
+}  // namespace blender::nodes::node_shader_vector_rotate_cc
+
+void register_node_type_sh_vector_rotate()
 {
+  namespace file_ns = blender::nodes::node_shader_vector_rotate_cc;
+
   static bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, SH_NODE_VECTOR_ROTATE, "Vector Rotate", NODE_CLASS_OP_VECTOR, 0);
-  node_type_socket_templates(&ntype, sh_node_vector_rotate_in, sh_node_vector_rotate_out);
-  node_type_gpu(&ntype, gpu_shader_vector_rotate);
-  node_type_update(&ntype, node_shader_update_vector_rotate);
-  ntype.build_multi_function = sh_node_vector_rotate_build_multi_function;
+  sh_fn_node_type_base(&ntype, SH_NODE_VECTOR_ROTATE, "Vector Rotate", NODE_CLASS_OP_VECTOR);
+  ntype.declare = file_ns::sh_node_vector_rotate_declare;
+  ntype.draw_buttons = file_ns::node_shader_buts_vector_rotate;
+  node_type_gpu(&ntype, file_ns::gpu_shader_vector_rotate);
+  node_type_update(&ntype, file_ns::node_shader_update_vector_rotate);
+  ntype.build_multi_function = file_ns::sh_node_vector_rotate_build_multi_function;
 
   nodeRegisterType(&ntype);
 }

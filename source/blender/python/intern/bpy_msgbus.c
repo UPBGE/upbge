@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup pythonintern
@@ -208,6 +194,9 @@ static void bpy_msgbus_subscribe_value_free_data(struct wmMsgSubscribeKey *UNUSE
 PyDoc_STRVAR(
     bpy_msgbus_subscribe_rna_doc,
     ".. function:: subscribe_rna(key, owner, args, notify, options=set())\n"
+    "\n"
+    "   Register a message bus subscription. It will be cleared when another blend file is\n"
+    "   loaded, or can be cleared explicitly via :func:`bpy.msgbus.clear_by_owner`.\n"
     "\n" BPY_MSGBUS_RNA_MSGKEY_DOC
     "   :arg owner: Handle for this subscription (compared by identity).\n"
     "   :type owner: Any type.\n"
@@ -215,7 +204,12 @@ PyDoc_STRVAR(
     "\n"
     "      - ``PERSISTENT`` when set, the subscriber will be kept when remapping ID data.\n"
     "\n"
-    "   :type options: set of str.\n");
+    "   :type options: set of str.\n"
+    "\n"
+    ".. note::\n"
+    "\n"
+    "   All subscribers will be cleared on file-load. Subscribers can be re-registered on load,\n"
+    "   see :mod:`bpy.app.handlers.load_post`.\n");
 static PyObject *bpy_msgbus_subscribe_rna(PyObject *UNUSED(self), PyObject *args, PyObject *kw)
 {
   const char *error_prefix = "subscribe_rna";

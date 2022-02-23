@@ -56,7 +56,7 @@ vec2 get_ao_noise(void)
 {
   vec2 noise = texelfetch_noise_tex(gl_FragCoord.xy).xy;
   /* Decorrelate noise from AA. */
-  /* TODO(fclem) we should use a more general approach for more random number dimentions. */
+  /* TODO(@fclem): we should use a more general approach for more random number dimensions. */
   noise = fract(noise * 6.1803402007);
   return noise;
 }
@@ -283,7 +283,7 @@ void occlusion_eval(OcclusionData data,
     bent_normal = N;
   }
   else {
-    /* Note: using pow(visibility, 6.0) produces NaN (see T87369). */
+    /* NOTE: using pow(visibility, 6.0) produces NaN (see T87369). */
     float tmp = saturate(pow6(visibility));
     bent_normal = normalize(mix(bent_normal, N, tmp));
   }
@@ -337,7 +337,7 @@ float diffuse_occlusion(
  * radius1 : First cap’s radius (arc length in radians)
  * radius2 : Second caps’ radius (in radians)
  * dist : Distance between caps (radians between centers of caps)
- * Note: Result is divided by pi to save one multiply.
+ * NOTE: Result is divided by pi to save one multiply.
  */
 float spherical_cap_intersection(float radius1, float radius2, float dist)
 {
@@ -379,7 +379,7 @@ float specular_occlusion(
   /* Visibility to cone angle (eq. 18). */
   float vis_angle = fast_acos(sqrt(1 - visibility));
   /* Roughness to cone angle (eq. 26). */
-  float spec_angle = max(0.001, fast_acos(cone_cosine(roughness)));
+  float spec_angle = max(0.00990998744964599609375, fast_acos(cone_cosine(roughness)));
   /* Angle between cone axes. */
   float cone_cone_dist = fast_acos(saturate(dot(visibility_dir, specular_dir)));
   float cone_nor_dist = fast_acos(saturate(dot(N, specular_dir)));
@@ -399,7 +399,7 @@ float specular_occlusion(
 /* Use the right occlusion. */
 OcclusionData occlusion_load(vec3 vP, float custom_occlusion)
 {
-  /* Default to fully openned cone. */
+  /* Default to fully opened cone. */
   OcclusionData data = NO_OCCLUSION_DATA;
 
 #ifdef ENABLE_DEFERED_AO

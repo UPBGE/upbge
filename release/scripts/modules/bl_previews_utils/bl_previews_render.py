@@ -1,20 +1,4 @@
-# ***** BEGIN GPL LICENSE BLOCK *****
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ***** END GPL LICENSE BLOCK *****
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8 compliant>
 
@@ -140,8 +124,6 @@ def do_previews(do_objects, do_collections, do_scenes, do_data_intern):
         scene.render.use_overwrite = True
         scene.render.use_stamp = False
         scene.render.threads_mode = 'AUTO'
-        scene.render.tile_x = RENDER_PREVIEW_SIZE // 4
-        scene.render.tile_y = RENDER_PREVIEW_SIZE // 4
 
         image = bpy.data.images.new("TEMP_render_image", RENDER_PREVIEW_SIZE, RENDER_PREVIEW_SIZE, alpha=True)
         image.source = 'FILE'
@@ -485,19 +467,44 @@ def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 
     parser = argparse.ArgumentParser(
-        description="Use Blender to generate previews for currently open Blender file's items.")
-    parser.add_argument('--clear', default=False, action="store_true",
-                        help="Clear previews instead of generating them.")
-    parser.add_argument('--no_backups', default=False, action="store_true",
-                        help="Do not generate a backup .blend1 file when saving processed ones.")
-    parser.add_argument('--no_scenes', default=True, action="store_false",
-                        help="Do not generate/clear previews for scene IDs.")
-    parser.add_argument('--no_collections', default=True, action="store_false",
-                        help="Do not generate/clear previews for collection IDs.")
-    parser.add_argument('--no_objects', default=True, action="store_false",
-                        help="Do not generate/clear previews for object IDs.")
-    parser.add_argument('--no_data_intern', default=True, action="store_false",
-                        help="Do not generate/clear previews for mat/tex/image/etc. IDs (those handled by core Blender code).")
+        description="Use Blender to generate previews for currently open Blender file's items.",
+    )
+    parser.add_argument(
+        '--clear',
+        default=False,
+        action="store_true",
+        help="Clear previews instead of generating them.",
+    )
+    parser.add_argument(
+        '--no_backups',
+        default=False,
+        action="store_true",
+        help="Do not generate a backup .blend1 file when saving processed ones.",
+    )
+    parser.add_argument(
+        '--no_scenes',
+        default=True,
+        action="store_false",
+        help="Do not generate/clear previews for scene IDs.",
+    )
+    parser.add_argument(
+        '--no_collections',
+        default=True,
+        action="store_false",
+        help="Do not generate/clear previews for collection IDs.",
+    )
+    parser.add_argument(
+        '--no_objects',
+        default=True,
+        action="store_false",
+        help="Do not generate/clear previews for object IDs.",
+    )
+    parser.add_argument(
+        '--no_data_intern',
+        default=True,
+        action="store_false",
+        help="Do not generate/clear previews for mat/tex/image/etc. IDs (those handled by core Blender code).",
+    )
     args = parser.parse_args(argv)
 
     orig_save_version = bpy.context.preferences.filepaths.save_version

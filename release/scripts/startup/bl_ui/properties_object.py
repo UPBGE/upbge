@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8 compliant>
 from bl_ui.properties_animviz import (
@@ -193,7 +177,6 @@ class COLLECTION_MT_context_menu(Menu):
         layout.operator("object.collection_objects_select")
         layout.operator("object.instance_offset_from_cursor")
 
-
 class OBJECT_PT_collections(ObjectButtonsPanel, Panel):
     bl_label = "Collections"
     bl_options = {'DEFAULT_CLOSED'}
@@ -210,28 +193,21 @@ class OBJECT_PT_collections(ObjectButtonsPanel, Panel):
             row.operator("object.collection_add", text="Add to Collection")
         row.operator("object.collection_add", text="", icon='ADD')
 
-        obj_name = obj.name
-        for collection in bpy.data.collections:
-            # XXX this is slow and stupid!, we need 2 checks, one that's fast
-            # and another that we can be sure its not a name collision
-            # from linked library data
-            collection_objects = collection.objects
-            if obj_name in collection.objects and obj in collection_objects[:]:
-                col = layout.column(align=True)
+        for collection in obj.users_collection:
+            col = layout.column(align=True)
 
-                col.context_pointer_set("collection", collection)
+            col.context_pointer_set("collection", collection)
 
-                row = col.box().row()
-                row.prop(collection, "name", text="")
-                row.operator("object.collection_remove", text="", icon='X', emboss=False)
-                row.menu("COLLECTION_MT_context_menu", icon='DOWNARROW_HLT', text="")
+            row = col.box().row()
+            row.prop(collection, "name", text="")
+            row.operator("object.collection_remove", text="", icon='X', emboss=False)
+            row.menu("COLLECTION_MT_context_menu", icon='DOWNARROW_HLT', text="")
 
-                row = col.box().row()
-                row.prop(collection, "instance_offset", text="")
+            row = col.box().row()
+            row.prop(collection, "instance_offset", text="")
 
-                row = col.box().row()
-                row.prop(collection, "use_collection_spawn", text="Instance Spawn")
-
+            row = col.box().row()
+            row.prop(collection, "use_collection_spawn", text="Instance Spawn")
 
 class OBJECT_PT_display(ObjectButtonsPanel, Panel):
     bl_label = "Viewport Display"

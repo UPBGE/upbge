@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2019 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2019 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup editor/io
@@ -57,7 +41,7 @@
 #  include "io_usd.h"
 #  include "usd.h"
 
-#  include "stdio.h"
+#  include <stdio.h>
 
 const EnumPropertyItem rna_enum_usd_export_evaluation_mode_items[] = {
     {DAG_EVAL_RENDER,
@@ -131,6 +115,11 @@ static int wm_usd_export_exec(bContext *C, wmOperator *op)
   const bool use_instancing = RNA_boolean_get(op->ptr, "use_instancing");
   const bool evaluation_mode = RNA_enum_get(op->ptr, "evaluation_mode");
 
+  const bool generate_preview_surface = RNA_boolean_get(op->ptr, "generate_preview_surface");
+  const bool export_textures = RNA_boolean_get(op->ptr, "export_textures");
+  const bool overwrite_textures = RNA_boolean_get(op->ptr, "overwrite_textures");
+  const bool relative_texture_paths = RNA_boolean_get(op->ptr, "relative_texture_paths");
+
   struct USDExportParams params = {
       export_animation,
       export_hair,
@@ -141,6 +130,10 @@ static int wm_usd_export_exec(bContext *C, wmOperator *op)
       visible_objects_only,
       use_instancing,
       evaluation_mode,
+      generate_preview_surface,
+      export_textures,
+      overwrite_textures,
+      relative_texture_paths,
   };
 
   bool ok = USD_export(C, filename, &params, as_background_job);
@@ -171,6 +164,26 @@ static void wm_usd_export_draw(bContext *UNUSED(C), wmOperator *op)
 
   col = uiLayoutColumn(box, true);
   uiItemR(col, ptr, "evaluation_mode", 0, NULL, ICON_NONE);
+
+  box = uiLayoutBox(layout);
+  col = uiLayoutColumnWithHeading(box, true, IFACE_("Materials"));
+  uiItemR(col, ptr, "generate_preview_surface", 0, NULL, ICON_NONE);
+  const bool export_mtl = RNA_boolean_get(ptr, "export_materials");
+  uiLayoutSetActive(col, export_mtl);
+
+  uiLayout *row = uiLayoutRow(col, true);
+  uiItemR(row, ptr, "export_textures", 0, NULL, ICON_NONE);
+  const bool preview = RNA_boolean_get(ptr, "generate_preview_surface");
+  uiLayoutSetActive(row, export_mtl && preview);
+
+  row = uiLayoutRow(col, true);
+  uiItemR(row, ptr, "overwrite_textures", 0, NULL, ICON_NONE);
+  const bool export_tex = RNA_boolean_get(ptr, "export_textures");
+  uiLayoutSetActive(row, export_mtl && preview && export_tex);
+
+  row = uiLayoutRow(col, true);
+  uiItemR(row, ptr, "relative_texture_paths", 0, NULL, ICON_NONE);
+  uiLayoutSetActive(row, export_mtl && preview);
 
   box = uiLayoutBox(layout);
   uiItemL(box, IFACE_("Experimental"), ICON_NONE);
@@ -249,6 +262,32 @@ void WM_OT_usd_export(struct wmOperatorType *ot)
                "Use Settings for",
                "Determines visibility of objects, modifier settings, and other areas where there "
                "are different settings for viewport and rendering");
+
+  RNA_def_boolean(ot->srna,
+                  "generate_preview_surface",
+                  true,
+                  "To USD Preview Surface",
+                  "Generate an approximate USD Preview Surface shader "
+                  "representation of a Principled BSDF node network");
+
+  RNA_def_boolean(ot->srna,
+                  "export_textures",
+                  true,
+                  "Export Textures",
+                  "If exporting materials, export textures referenced by material nodes "
+                  "to a 'textures' directory in the same directory as the USD file");
+
+  RNA_def_boolean(ot->srna,
+                  "overwrite_textures",
+                  false,
+                  "Overwrite Textures",
+                  "Allow overwriting existing texture files when exporting textures");
+
+  RNA_def_boolean(ot->srna,
+                  "relative_texture_paths",
+                  true,
+                  "Relative Texture Paths",
+                  "Make texture asset paths relative to the USD file");
 }
 
 /* ====== USD Import ====== */

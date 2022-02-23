@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup RNA
@@ -751,14 +737,14 @@ static void rna_def_nlastrip(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Influence", "Amount the strip contributes to the current result");
   /* XXX: Update temporarily disabled so that the property can be edited at all!
-   * Even autokey only applies after the curves have been re-evaluated,
+   * Even auto-key only applies after the curves have been re-evaluated,
    * causing the unkeyed values to be lost. */
   RNA_def_property_update(prop, NC_ANIMATION | ND_NLA | NA_EDITED, /*"rna_NlaStrip_update"*/ NULL);
 
   prop = RNA_def_property(srna, "strip_time", PROP_FLOAT, PROP_TIME);
   RNA_def_property_ui_text(prop, "Strip Time", "Frame of referenced Action to evaluate");
   /* XXX: Update temporarily disabled so that the property can be edited at all!
-   * Even autokey only applies after the curves have been re-evaluated,
+   * Even auto-key only applies after the curves have been re-evaluated,
    * causing the unkeyed values to be lost. */
   RNA_def_property_update(prop, NC_ANIMATION | ND_NLA | NA_EDITED, /*"rna_NlaStrip_update"*/ NULL);
 
@@ -886,6 +872,15 @@ static void rna_def_nlatrack(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "NLA Strips", "NLA Strips on this NLA-track");
 
   rna_api_nlatrack_strips(brna, prop);
+
+  prop = RNA_def_boolean(srna,
+                         "is_override_data",
+                         false,
+                         "Override Track",
+                         "In a local override data, whether this NLA track comes from the linked "
+                         "reference data, or is local to the override");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", NLATRACK_OVERRIDELIBRARY_LOCAL);
 
   RNA_define_lib_overridable(true);
 

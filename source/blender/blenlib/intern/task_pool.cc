@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
@@ -121,7 +107,7 @@ class Task {
 #ifdef WITH_TBB
 class TBBTaskGroup : public tbb::task_group {
  public:
-  TBBTaskGroup(TaskPriority priority)
+  TBBTaskGroup(eTaskPriority priority)
   {
 #  if TBB_INTERFACE_VERSION_MAJOR >= 12
     /* TODO: support priorities in TBB 2021, where they are only available as
@@ -186,7 +172,7 @@ void Task::operator()() const
  * Tasks may be suspended until in all are created, to make it possible to
  * initialize data structures and create tasks in a single pass. */
 
-static void tbb_task_pool_create(TaskPool *pool, TaskPriority priority)
+static void tbb_task_pool_create(TaskPool *pool, eTaskPriority priority)
 {
   if (pool->type == TASK_POOL_TBB_SUSPENDED) {
     pool->is_suspended = true;
@@ -363,7 +349,7 @@ static void background_task_pool_free(TaskPool *pool)
 
 /* Task Pool */
 
-static TaskPool *task_pool_create_ex(void *userdata, TaskPoolType type, TaskPriority priority)
+static TaskPool *task_pool_create_ex(void *userdata, TaskPoolType type, eTaskPriority priority)
 {
   const bool use_threads = BLI_task_scheduler_num_threads() > 1 && type != TASK_POOL_NO_THREADS;
 
@@ -401,7 +387,7 @@ static TaskPool *task_pool_create_ex(void *userdata, TaskPoolType type, TaskPrio
 /**
  * Create a normal task pool. Tasks will be executed as soon as they are added.
  */
-TaskPool *BLI_task_pool_create(void *userdata, TaskPriority priority)
+TaskPool *BLI_task_pool_create(void *userdata, eTaskPriority priority)
 {
   return task_pool_create_ex(userdata, TASK_POOL_TBB, priority);
 }
@@ -418,7 +404,7 @@ TaskPool *BLI_task_pool_create(void *userdata, TaskPriority priority)
  * they could end never being executed, since the 'fallback' background thread is already
  * busy with parent task in single-threaded context).
  */
-TaskPool *BLI_task_pool_create_background(void *userdata, TaskPriority priority)
+TaskPool *BLI_task_pool_create_background(void *userdata, eTaskPriority priority)
 {
   return task_pool_create_ex(userdata, TASK_POOL_BACKGROUND, priority);
 }
@@ -428,7 +414,7 @@ TaskPool *BLI_task_pool_create_background(void *userdata, TaskPriority priority)
  * for until BLI_task_pool_work_and_wait() is called. This helps reducing threading
  * overhead when pushing huge amount of small initial tasks from the main thread.
  */
-TaskPool *BLI_task_pool_create_suspended(void *userdata, TaskPriority priority)
+TaskPool *BLI_task_pool_create_suspended(void *userdata, eTaskPriority priority)
 {
   return task_pool_create_ex(userdata, TASK_POOL_TBB_SUSPENDED, priority);
 }
@@ -446,7 +432,7 @@ TaskPool *BLI_task_pool_create_no_threads(void *userdata)
  * Task pool that executes one task after the other, possibly on different threads
  * but never in parallel.
  */
-TaskPool *BLI_task_pool_create_background_serial(void *userdata, TaskPriority priority)
+TaskPool *BLI_task_pool_create_background_serial(void *userdata, eTaskPriority priority)
 {
   return task_pool_create_ex(userdata, TASK_POOL_BACKGROUND_SERIAL, priority);
 }

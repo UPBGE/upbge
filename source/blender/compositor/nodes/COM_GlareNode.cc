@@ -1,23 +1,7 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #include "COM_GlareNode.h"
-#include "COM_FastGaussianBlurOperation.h"
 #include "COM_GlareFogGlowOperation.h"
 #include "COM_GlareGhostOperation.h"
 #include "COM_GlareSimpleStarOperation.h"
@@ -25,19 +9,18 @@
 #include "COM_GlareThresholdOperation.h"
 #include "COM_MixOperation.h"
 #include "COM_SetValueOperation.h"
-#include "DNA_node_types.h"
 
 namespace blender::compositor {
 
-GlareNode::GlareNode(bNode *editorNode) : Node(editorNode)
+GlareNode::GlareNode(bNode *editor_node) : Node(editor_node)
 {
   /* pass */
 }
 
-void GlareNode::convertToOperations(NodeConverter &converter,
-                                    const CompositorContext & /*context*/) const
+void GlareNode::convert_to_operations(NodeConverter &converter,
+                                      const CompositorContext & /*context*/) const
 {
-  bNode *node = this->getbNode();
+  bNode *node = this->get_bnode();
   NodeGlare *glare = (NodeGlare *)node->storage;
 
   GlareBaseOperation *glareoperation = nullptr;
@@ -57,30 +40,31 @@ void GlareNode::convertToOperations(NodeConverter &converter,
       break;
   }
   BLI_assert(glareoperation);
-  glareoperation->setGlareSettings(glare);
+  glareoperation->set_glare_settings(glare);
 
-  GlareThresholdOperation *thresholdOperation = new GlareThresholdOperation();
-  thresholdOperation->setGlareSettings(glare);
+  GlareThresholdOperation *threshold_operation = new GlareThresholdOperation();
+  threshold_operation->set_glare_settings(glare);
 
   SetValueOperation *mixvalueoperation = new SetValueOperation();
-  mixvalueoperation->setValue(glare->mix);
+  mixvalueoperation->set_value(glare->mix);
 
   MixGlareOperation *mixoperation = new MixGlareOperation();
-  mixoperation->setResolutionInputSocketIndex(1);
-  mixoperation->getInputSocket(2)->setResizeMode(ResizeMode::FitAny);
+  mixoperation->set_canvas_input_index(1);
+  mixoperation->get_input_socket(2)->set_resize_mode(ResizeMode::FitAny);
 
-  converter.addOperation(glareoperation);
-  converter.addOperation(thresholdOperation);
-  converter.addOperation(mixvalueoperation);
-  converter.addOperation(mixoperation);
+  converter.add_operation(glareoperation);
+  converter.add_operation(threshold_operation);
+  converter.add_operation(mixvalueoperation);
+  converter.add_operation(mixoperation);
 
-  converter.mapInputSocket(getInputSocket(0), thresholdOperation->getInputSocket(0));
-  converter.addLink(thresholdOperation->getOutputSocket(), glareoperation->getInputSocket(0));
+  converter.map_input_socket(get_input_socket(0), threshold_operation->get_input_socket(0));
+  converter.add_link(threshold_operation->get_output_socket(),
+                     glareoperation->get_input_socket(0));
 
-  converter.addLink(mixvalueoperation->getOutputSocket(), mixoperation->getInputSocket(0));
-  converter.mapInputSocket(getInputSocket(0), mixoperation->getInputSocket(1));
-  converter.addLink(glareoperation->getOutputSocket(), mixoperation->getInputSocket(2));
-  converter.mapOutputSocket(getOutputSocket(), mixoperation->getOutputSocket());
+  converter.add_link(mixvalueoperation->get_output_socket(), mixoperation->get_input_socket(0));
+  converter.map_input_socket(get_input_socket(0), mixoperation->get_input_socket(1));
+  converter.add_link(glareoperation->get_output_socket(), mixoperation->get_input_socket(2));
+  converter.map_output_socket(get_output_socket(), mixoperation->get_output_socket());
 }
 
 }  // namespace blender::compositor

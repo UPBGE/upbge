@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2021, Blender Foundation
- * This is a new part of Blender
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2021 Blender Foundation. */
 
 /** \file
  * \ingroup modifiers
@@ -170,6 +154,7 @@ static bool stroke_dash(const bGPDstroke *gps,
       stroke->points[is].z = p->z;
       stroke->points[is].pressure = p->pressure * ds->radius;
       stroke->points[is].strength = p->strength * ds->opacity;
+      copy_v4_v4(stroke->points[is].vert_color, p->vert_color);
     }
     BLI_addtail(r_strokes, stroke);
 
@@ -255,7 +240,7 @@ static void generateStrokes(GpencilModifierData *md, Depsgraph *depsgraph, Objec
     BKE_gpencil_frame_active_set(depsgraph, gpd);
     bGPDframe *gpf = gpl->actframe;
     if (gpf == NULL) {
-      return;
+      continue;
     }
     apply_dash_for_frame(ob, gpl, gpd, gpf, (DashGpencilModifierData *)md);
   }
@@ -312,8 +297,6 @@ static void panel_draw(const bContext *C, Panel *panel)
                  UI_TEMPLATE_LIST_FLAG_NONE);
 
   uiLayout *col = uiLayoutColumn(row, false);
-  uiLayoutSetContextPointer(col, "modifier", ptr);
-
   uiLayout *sub = uiLayoutColumn(col, true);
   uiItemO(sub, "", ICON_ADD, "GPENCIL_OT_segment_add");
   uiItemO(sub, "", ICON_REMOVE, "GPENCIL_OT_segment_remove");

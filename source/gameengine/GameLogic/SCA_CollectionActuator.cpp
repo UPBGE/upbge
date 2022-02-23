@@ -118,13 +118,13 @@ bool SCA_CollectionActuator::Update()
         Object *ob = gameobj->GetBlenderObject();
         if (ob && BKE_collection_has_object(m_collection, ob)) {
           if (m_useLogic) {
-            gameobj->SuspendLogicAndActions(true);
+            gameobj->SuspendLogicAndActions(false);
           }
           if (m_usePhysics) {
-            gameobj->SuspendPhysics(false, true);
+            gameobj->SuspendPhysics(false, false);
           }
           if (m_useVisibility) {
-            gameobj->SetVisible(false, true);
+            gameobj->SetVisible(false, false);
           }
         }
       }
@@ -134,13 +134,13 @@ bool SCA_CollectionActuator::Update()
         Object *ob = gameobj->GetBlenderObject();
         if (ob && BKE_collection_has_object(m_collection, ob)) {
           if (m_useLogic) {
-            gameobj->RestoreLogicAndActions(true);
+            gameobj->RestoreLogicAndActions(false);
           }
           if (m_usePhysics) {
-            gameobj->RestorePhysics(true);
+            gameobj->RestorePhysics(false);
           }
           if (m_useVisibility) {
-            gameobj->SetVisible(true, true);
+            gameobj->SetVisible(true, false);
           }
         }
       }

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2005-2007 Blender Foundation
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2005-2007 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup wm
@@ -222,7 +206,6 @@ void WM_cursor_modal_restore(wmWindow *win)
   win->lastcursor = 0;
 }
 
-/* to allow usage all over, we do entire WM */
 void WM_cursor_wait(bool val)
 {
   if (!G.background) {
@@ -240,9 +223,6 @@ void WM_cursor_wait(bool val)
   }
 }
 
-/**
- * \param bounds: can be NULL
- */
 void WM_cursor_grab_enable(wmWindow *win, int wrap, bool hide, int bounds[4])
 {
   /* Only grab cursor when not running debug.
@@ -307,9 +287,10 @@ static void wm_cursor_warp_relative(wmWindow *win, int x, int y)
   WM_cursor_warp(win, cx + x, cy + y);
 }
 
-/* give it a modal keymap one day? */
 bool wm_cursor_arrow_move(wmWindow *win, const wmEvent *event)
 {
+  /* TODO: give it a modal keymap? Hard coded for now */
+
   if (win && event->val == KM_PRESS) {
     /* Must move at least this much to avoid rounding in WM_cursor_warp. */
     float fac = GHOST_GetNativePixelSize(win->ghostwin);
@@ -334,7 +315,6 @@ bool wm_cursor_arrow_move(wmWindow *win, const wmEvent *event)
   return 0;
 }
 
-/* after this you can call restore too */
 void WM_cursor_time(wmWindow *win, int nr)
 {
   /* 10 8x8 digits */
@@ -1144,6 +1124,32 @@ void wm_init_cursor_data(void)
   };
 
   BlenderCursor[WM_CURSOR_ZOOM_OUT] = &ZoomOutCursor;
+  END_CURSOR_BLOCK;
+
+  /********************** Area Pick Cursor ***********************/
+  BEGIN_CURSOR_BLOCK;
+
+  static char pick_area_bitmap[] = {
+      0x00, 0x00, 0x10, 0x00, 0x10, 0x00, 0x10, 0x00, 0xfe, 0x00, 0x10,
+      0x00, 0x10, 0x00, 0x10, 0x00, 0x00, 0xbf, 0x00, 0x81, 0x00, 0x81,
+      0x00, 0x81, 0x00, 0x81, 0x00, 0x81, 0x00, 0x80, 0x00, 0xff,
+  };
+
+  static char pick_area_mask[] = {
+      0x38, 0x00, 0x38, 0x00, 0x38, 0x00, 0xff, 0x01, 0xff, 0x01, 0xff,
+      0x01, 0x38, 0x00, 0xb8, 0x7f, 0xb8, 0xff, 0x80, 0xc1, 0x80, 0xc1,
+      0x80, 0xc1, 0x80, 0xc1, 0x80, 0xc1, 0x80, 0xff, 0x00, 0xff,
+  };
+
+  static BCursor PickAreaCursor = {
+      pick_area_bitmap,
+      pick_area_mask,
+      4,
+      4,
+      false,
+  };
+
+  BlenderCursor[WM_CURSOR_PICK_AREA] = &PickAreaCursor;
   END_CURSOR_BLOCK;
 
   /********************** Put the cursors in the array ***********************/

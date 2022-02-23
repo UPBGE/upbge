@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2008 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2008 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup edobj
@@ -56,13 +40,13 @@ void ED_operatortypes_object(void)
   WM_operatortype_append(OBJECT_OT_mode_set_with_submode);
   WM_operatortype_append(OBJECT_OT_editmode_toggle);
   WM_operatortype_append(OBJECT_OT_posemode_toggle);
-  WM_operatortype_append(OBJECT_OT_proxy_make);
   WM_operatortype_append(OBJECT_OT_shade_smooth);
   WM_operatortype_append(OBJECT_OT_shade_flat);
   WM_operatortype_append(OBJECT_OT_paths_calculate);
   WM_operatortype_append(OBJECT_OT_paths_update);
   WM_operatortype_append(OBJECT_OT_paths_clear);
   WM_operatortype_append(OBJECT_OT_paths_range_update);
+  WM_operatortype_append(OBJECT_OT_paths_update_visible);
   WM_operatortype_append(OBJECT_OT_forcefield_toggle);
 
   WM_operatortype_append(OBJECT_OT_transfer_mode);
@@ -75,7 +59,6 @@ void ED_operatortypes_object(void)
   WM_operatortype_append(OBJECT_OT_track_clear);
   WM_operatortype_append(OBJECT_OT_make_local);
   WM_operatortype_append(OBJECT_OT_make_override_library);
-  WM_operatortype_append(OBJECT_OT_convert_proxy_to_override);
   WM_operatortype_append(OBJECT_OT_make_single_user);
   WM_operatortype_append(OBJECT_OT_make_links_scene);
   WM_operatortype_append(OBJECT_OT_make_links_data);
@@ -106,12 +89,13 @@ void ED_operatortypes_object(void)
   WM_operatortype_append(OBJECT_OT_light_add);
   WM_operatortype_append(OBJECT_OT_camera_add);
   WM_operatortype_append(OBJECT_OT_speaker_add);
-  WM_operatortype_append(OBJECT_OT_hair_add);
+  WM_operatortype_append(OBJECT_OT_hair_curves_add);
   WM_operatortype_append(OBJECT_OT_pointcloud_add);
   WM_operatortype_append(OBJECT_OT_volume_add);
   WM_operatortype_append(OBJECT_OT_volume_import);
   WM_operatortype_append(OBJECT_OT_add);
   WM_operatortype_append(OBJECT_OT_add_named);
+  WM_operatortype_append(OBJECT_OT_transform_to_mouse);
   WM_operatortype_append(OBJECT_OT_effector_add);
   WM_operatortype_append(OBJECT_OT_collection_instance_add);
   WM_operatortype_append(OBJECT_OT_data_instance_add);
@@ -145,6 +129,7 @@ void ED_operatortypes_object(void)
   WM_operatortype_append(OBJECT_OT_skin_loose_mark_clear);
   WM_operatortype_append(OBJECT_OT_skin_radii_equalize);
   WM_operatortype_append(OBJECT_OT_skin_armature_create);
+  WM_operatortype_append(OBJECT_OT_geometry_nodes_input_attribute_toggle);
 
   /* grease pencil modifiers */
   WM_operatortype_append(OBJECT_OT_gpencil_modifier_add);

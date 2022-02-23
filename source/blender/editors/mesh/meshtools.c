@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2004 by Blender Foundation
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2004 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup edmesh
@@ -755,10 +739,9 @@ int ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
 
 /* -------------------------------------------------------------------- */
 /** \name Join as Shapes
+ *
+ * Append selected meshes vertex locations as shapes of the active mesh.
  * \{ */
-
-/* Append selected meshes vertex locations as shapes of the active mesh,
- * return 0 if no join is made (error) and 1 of the join is done */
 
 int ED_mesh_shapes_join_objects_exec(bContext *C, wmOperator *op)
 {
@@ -876,12 +859,6 @@ BLI_INLINE void mesh_mirror_topo_table_get_meshes(Object *ob,
   *r_em_mirror = em_mirror;
 }
 
-/**
- * Mode is 's' start, or 'e' end, or 'u' use
- * if end, ob can be NULL.
- * \note This is supposed return -1 on error,
- * which callers are currently checking for, but is not used so far.
- */
 void ED_mesh_mirror_topo_table_begin(Object *ob, Mesh *me_eval)
 {
   Mesh *me_mirror;
@@ -1012,11 +989,6 @@ BMVert *editbmesh_get_x_mirror_vert(Object *ob,
   return editbmesh_get_x_mirror_vert_spatial(ob, em, co);
 }
 
-/**
- * Wrapper for object-mode/edit-mode.
- *
- * call #BM_mesh_elem_table_ensure first for editmesh.
- */
 int ED_mesh_mirror_get_vert(Object *ob, int index)
 {
   Mesh *me = ob->data;
@@ -1146,7 +1118,6 @@ static bool mirror_facecmp(const void *a, const void *b)
   return (mirror_facerotation((MFace *)a, (MFace *)b) == -1);
 }
 
-/* This is a Mesh-based copy of mesh_get_x_mirror_faces() */
 int *mesh_get_x_mirror_faces(Object *ob, BMEditMesh *em, Mesh *me_eval)
 {
   Mesh *me = ob->data;
@@ -1209,15 +1180,8 @@ int *mesh_get_x_mirror_faces(Object *ob, BMEditMesh *em, Mesh *me_eval)
   return mirrorfaces;
 }
 
-/* selection, vertex and face */
-/* returns 0 if not found, otherwise 1 */
+/* Selection (vertex and face). */
 
-/**
- * Face selection in object mode,
- * currently only weight-paint and vertex-paint use this.
- *
- * \return boolean true == Found
- */
 bool ED_mesh_pick_face(bContext *C, Object *ob, const int mval[2], uint dist_px, uint *r_index)
 {
   ViewContext vc;
@@ -1280,10 +1244,6 @@ static void ed_mesh_pick_face_vert__mpoly_find(
     }
   }
 }
-/**
- * Use when the back buffer stores face index values. but we want a vert.
- * This gets the face then finds the closest vertex to mval.
- */
 bool ED_mesh_pick_face_vert(
     bContext *C, Object *ob, const int mval[2], uint dist_px, uint *r_index)
 {
@@ -1387,8 +1347,7 @@ typedef struct VertPickData {
 static void ed_mesh_pick_vert__mapFunc(void *userData,
                                        int index,
                                        const float co[3],
-                                       const float UNUSED(no_f[3]),
-                                       const short UNUSED(no_s[3]))
+                                       const float UNUSED(no[3]))
 {
   VertPickData *data = userData;
   if ((data->mvert[index].flag & ME_HIDE) == 0) {

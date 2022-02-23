@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup wm
@@ -43,7 +29,6 @@
 /** \name Wrappers for #WM_keymap_add_item
  * \{ */
 
-/* menu wrapper for WM_keymap_add_item */
 wmKeyMapItem *WM_keymap_add_menu(
     wmKeyMap *keymap, const char *idname, int type, int val, int modifier, int keymodifier)
 {
@@ -73,7 +58,6 @@ wmKeyMapItem *WM_keymap_add_panel(
   return kmi;
 }
 
-/* tool wrapper for WM_keymap_add_item */
 wmKeyMapItem *WM_keymap_add_tool(
     wmKeyMap *keymap, const char *idname, int type, int val, int modifier, int keymodifier)
 {
@@ -83,7 +67,6 @@ wmKeyMapItem *WM_keymap_add_tool(
   return kmi;
 }
 
-/** Useful for mapping numbers to an enum. */
 void WM_keymap_add_context_enum_set_items(wmKeyMap *keymap,
                                           const EnumPropertyItem *items,
                                           const char *data_path,
@@ -122,6 +105,9 @@ wmKeyMap *WM_keymap_guess_from_context(const bContext *C)
         break;
       case CTX_MODE_EDIT_CURVE:
         km_id = "Curve";
+        break;
+      case CTX_MODE_EDIT_CURVES:
+        km_id = "Curves";
         break;
       case CTX_MODE_EDIT_SURFACE:
         km_id = "Curve";
@@ -174,6 +160,9 @@ wmKeyMap *WM_keymap_guess_from_context(const bContext *C)
       case CTX_MODE_VERTEX_GPENCIL:
         km_id = "Grease Pencil Stroke Vertex Mode";
         break;
+      case CTX_MODE_SCULPT_CURVES:
+        km_id = "Curves Sculpt";
+        break;
     }
   }
   else if (sl->spacetype == SPACE_IMAGE) {
@@ -203,8 +192,6 @@ wmKeyMap *WM_keymap_guess_from_context(const bContext *C)
   return km;
 }
 
-/* Guess an appropriate keymap from the operator name */
-/* Needs to be kept up to date with Keymap and Operator naming */
 wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
 {
   /* Op types purposely skipped for now:

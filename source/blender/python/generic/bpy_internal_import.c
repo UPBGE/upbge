@@ -48,8 +48,6 @@ static Main *bpy_import_main = NULL;
 static ListBase bpy_import_main_list;
 
 static PyMethodDef bpy_import_meth;
-static PyMethodDef bpy_reload_meth;
-static PyObject *imp_reload_orig = NULL;
 
 /* 'builtins' is most likely PyEval_GetBuiltins() */
 
@@ -68,28 +66,9 @@ static PyObject *imp_reload_orig = NULL;
 void bpy_import_init(PyObject *builtins)
 {
   PyObject *item;
-  PyObject *mod;
 
   PyDict_SetItemString(builtins, "__import__", item = PyCFunction_New(&bpy_import_meth, NULL));
   Py_DECREF(item);
-
-  /* move reload here
-   * XXX, use import hooks */
-  mod = PyImport_ImportModuleLevel("importlib", NULL, NULL, NULL, 0);
-  if (mod) {
-    PyObject *mod_dict = PyModule_GetDict(mod);
-
-    /* blender owns the function */
-    imp_reload_orig = PyDict_GetItemString(mod_dict, "reload");
-    Py_INCREF(imp_reload_orig);
-
-    PyDict_SetItemString(mod_dict, "reload", item = PyCFunction_New(&bpy_reload_meth, NULL));
-    Py_DECREF(item);
-    Py_DECREF(mod);
-  }
-  else {
-    BLI_assert(!"unable to load 'importlib' module.");
-  }
 }
 
 static void free_compiled_text(Text *text)
@@ -222,61 +201,6 @@ PyObject *bpy_text_import_name(const char *name, int *found)
   return bpy_text_import(text);
 }
 
-/*
- * find in-memory module and recompile
- */
-
-PyObject *bpy_text_reimport(PyObject *module, int *found)
-{
-  Text *text;
-  const char *name;
-  const char *filepath;
-  // XXX	Main *maggie = bpy_import_main ? bpy_import_main : G_MAIN;
-  Main *maggie = bpy_import_main;
-
-  if (!maggie) {
-    printf("ERROR: bpy_import_main_set() was not called before running python. this is a bug.\n");
-    return NULL;
-  }
-
-  *found = 0;
-
-  /* get name, filename from the module itself */
-  if ((name = PyModule_GetName(module)) == NULL) {
-    return NULL;
-  }
-
-  {
-    PyObject *module_file = PyModule_GetFilenameObject(module);
-    if (module_file == NULL) {
-      return NULL;
-    }
-    filepath = _PyUnicode_AsString(module_file);
-    Py_DECREF(module_file);
-    if (filepath == NULL) {
-      return NULL;
-    }
-  }
-
-  /* look up the text object */
-  text = BLI_findstring(&maggie->texts, BLI_path_basename(filepath), offsetof(ID, name) + 2);
-
-  /* uh-oh.... didn't find it */
-  if (!text) {
-    return NULL;
-  }
-  else {
-    *found = 1;
-  }
-
-  if (bpy_text_compile(text) == false) {
-    return NULL;
-  }
-
-  /* make into a module */
-  return PyImport_ExecCodeModule(name, text->compiled);
-}
-
 static PyObject *blender_import(PyObject *UNUSED(self), PyObject *args, PyObject *kw)
 {
   PyObject *exception, *err, *tb;
@@ -332,57 +256,8 @@ static PyObject *blender_import(PyObject *UNUSED(self), PyObject *args, PyObject
   return newmodule;
 }
 
-/*
- * our reload() module, to handle reloading in-memory scripts
- */
-
-static PyObject *blender_reload(PyObject *UNUSED(self), PyObject *module)
-{
-  PyObject *exception, *err, *tb;
-  PyObject *newmodule = NULL;
-  int found = 0;
-
-  /* try reimporting from file */
-
-  /* in Py3.3 this just calls imp.reload() which we overwrite, causing recursive calls */
-  // newmodule = PyImport_ReloadModule(module);
-
-  newmodule = PyObject_CallFunctionObjArgs(imp_reload_orig, module, NULL);
-
-  if (newmodule) {
-    return newmodule;
-  }
-
-  /* no file, try importing from memory */
-  PyErr_Fetch(&exception, &err, &tb); /*restore for probable later use */
-
-  newmodule = bpy_text_reimport(module, &found);
-  if (newmodule) { /* found module as blender text, ignore above exception */
-    PyErr_Clear();
-    Py_XDECREF(exception);
-    Py_XDECREF(err);
-    Py_XDECREF(tb);
-    /* printf("imported from text buffer...\n"); */
-  }
-  else if (found ==
-           1) { /* blender text module failed to execute but was found, use its error message */
-    Py_XDECREF(exception);
-    Py_XDECREF(err);
-    Py_XDECREF(tb);
-    return NULL;
-  }
-  else {
-    /* no blender text was found that could import the module
-     * reuse the original error from PyImport_ImportModuleEx */
-    PyErr_Restore(exception, err, tb);
-  }
-
-  return newmodule;
-}
 
 static PyMethodDef bpy_import_meth = {"bpy_import_meth",
                                       (PyCFunction)blender_import,
                                       METH_VARARGS | METH_KEYWORDS,
                                       "blenders import"};
-static PyMethodDef bpy_reload_meth = {
-    "bpy_reload_meth", (PyCFunction)blender_reload, METH_O, "blenders reload"};

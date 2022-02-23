@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2019, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2019 Blender Foundation. */
 
 /** \file
  * \ingroup draw_engine
@@ -344,7 +329,6 @@ void OVERLAY_image_camera_cache_populate(OVERLAY_Data *vedata, Object *ob)
     if (tex) {
       image_camera_background_matrix_get(cam, bgpic, draw_ctx, aspect, mat);
 
-      mul_m4_m4m4(mat, modelmat, mat);
       const bool is_foreground = (bgpic->flag & CAM_BGIMG_FLAG_FOREGROUND) != 0;
       /* Alpha is clamped just below 1.0 to fix background images to interfere with foreground
        * images. Without this a background image with 1.0 will be rendered on top of a transparent
@@ -361,6 +345,7 @@ void OVERLAY_image_camera_cache_populate(OVERLAY_Data *vedata, Object *ob)
       DRW_shgroup_uniform_texture(grp, "imgTexture", tex);
       DRW_shgroup_uniform_bool_copy(grp, "imgPremultiplied", use_alpha_premult);
       DRW_shgroup_uniform_bool_copy(grp, "imgAlphaBlend", true);
+      DRW_shgroup_uniform_bool_copy(grp, "isCameraBackground", true);
       DRW_shgroup_uniform_bool_copy(grp, "depthSet", true);
       DRW_shgroup_uniform_vec4_copy(grp, "color", color_premult_alpha);
       DRW_shgroup_call_obmat(grp, DRW_cache_quad_get(), mat);
@@ -446,6 +431,7 @@ void OVERLAY_image_empty_cache_populate(OVERLAY_Data *vedata, Object *ob)
     DRW_shgroup_uniform_texture(grp, "imgTexture", tex);
     DRW_shgroup_uniform_bool_copy(grp, "imgPremultiplied", use_alpha_premult);
     DRW_shgroup_uniform_bool_copy(grp, "imgAlphaBlend", use_alpha_blend);
+    DRW_shgroup_uniform_bool_copy(grp, "isCameraBackground", false);
     DRW_shgroup_uniform_bool_copy(grp, "depthSet", depth_mode != OB_EMPTY_IMAGE_DEPTH_DEFAULT);
     DRW_shgroup_uniform_vec4_copy(grp, "color", ob->color);
     DRW_shgroup_call_obmat(grp, DRW_cache_quad_get(), mat);
@@ -461,8 +447,6 @@ void OVERLAY_image_cache_finish(OVERLAY_Data *vedata)
   DRW_pass_sort_shgroup_z(psl->image_empties_back_ps);
 }
 
-/* This function draws images that needs the view transform applied.
- * It draws these images directly into the scene color buffer. */
 void OVERLAY_image_scene_background_draw(OVERLAY_Data *vedata)
 {
   OVERLAY_PassList *psl = vedata->psl;

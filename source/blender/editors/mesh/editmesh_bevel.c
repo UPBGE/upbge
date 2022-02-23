@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edmesh
@@ -705,7 +691,7 @@ static int edbm_bevel_modal(bContext *C, wmOperator *op, const wmEvent *event)
     }
   }
   else if (etype == MOUSEPAN) {
-    float delta = 0.02f * (event->y - event->prevy);
+    float delta = 0.02f * (event->xy[1] - event->prev_xy[1]);
     if (opdata->segments >= 1 && opdata->segments + delta < 1) {
       opdata->segments = 1;
     }
@@ -764,8 +750,7 @@ static int edbm_bevel_modal(bContext *C, wmOperator *op, const wmEvent *event)
         }
       }
         /* Update offset accordingly to new offset_type. */
-        if (!has_numinput &&
-            (opdata->value_mode == OFFSET_VALUE || opdata->value_mode == OFFSET_VALUE_PERCENT)) {
+        if (!has_numinput && (ELEM(opdata->value_mode, OFFSET_VALUE, OFFSET_VALUE_PERCENT))) {
           edbm_bevel_mouse_set_value(op, event);
         }
         edbm_bevel_calc(op);

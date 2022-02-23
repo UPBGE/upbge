@@ -144,7 +144,9 @@ class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo> {
     return m_meshObject;
   }
 
-  bool UpdateMesh(class KX_GameObject *from_gameobj, class RAS_MeshObject *from_meshobj, bool evaluatedMesh = false);
+  bool UpdateMesh(class KX_GameObject *from_gameobj,
+                  class RAS_MeshObject *from_meshobj,
+                  bool evaluatedMesh = false);
 
   CcdShapeConstructionInfo *GetReplica();
 
@@ -211,13 +213,13 @@ struct CcdConstructionInfo {
    * more advanced collision filtering should be done in btCollisionDispatcher::NeedsCollision
    */
   enum CollisionFilterGroups {
-    DefaultFilter = 1,
+    DynamicFilter = 1,
     StaticFilter = 2,
     KinematicFilter = 4,
     DebrisFilter = 8,
     SensorFilter = 16,
     CharacterFilter = 32,
-    AllFilter = DefaultFilter | StaticFilter | KinematicFilter | DebrisFilter | SensorFilter |
+    AllFilter = DynamicFilter | StaticFilter | KinematicFilter | DebrisFilter | SensorFilter |
                 CharacterFilter,
   };
 
@@ -272,8 +274,10 @@ struct CcdConstructionInfo {
         m_bSensor(false),
         m_bCharacter(false),
         m_bGimpact(false),
-        m_collisionFilterGroup(DefaultFilter),
+        m_collisionFilterGroup(DynamicFilter),
         m_collisionFilterMask(AllFilter),
+        m_collisionGroup(0xFFFF),
+        m_collisionMask(0xFFFF),
         m_collisionShape(nullptr),
         m_MotionState(nullptr),
         m_shapeInfo(nullptr),
@@ -398,6 +402,9 @@ struct CcdConstructionInfo {
   short int m_collisionFilterGroup;
   short int m_collisionFilterMask;
 
+  unsigned short m_collisionGroup;
+  unsigned short m_collisionMask;
+
   /** these pointers are used as argument passing for the CcdPhysicsController constructor
    * and not anymore after that
    */
@@ -447,7 +454,7 @@ class btCollisionObject;
 class btSoftBody;
 class btPairCachingGhostObject;
 
-class BlenderBulletCharacterController : public btKinematicCharacterController,
+class CcdCharacter : public btKinematicCharacterController,
                                          public PHY_ICharacter {
  private:
   CcdPhysicsController *m_ctrl;
@@ -456,7 +463,7 @@ class BlenderBulletCharacterController : public btKinematicCharacterController,
   unsigned char m_maxJumps;
 
  public:
-  BlenderBulletCharacterController(CcdPhysicsController *ctrl,
+  CcdCharacter(CcdPhysicsController *ctrl,
                                    btMotionState *motionState,
                                    btPairCachingGhostObject *ghost,
                                    btConvexShape *shape,
@@ -555,7 +562,7 @@ class CleanPairCallback : public btOverlapCallback {
 class CcdPhysicsController : public PHY_IPhysicsController {
  protected:
   btCollisionObject *m_object;
-  BlenderBulletCharacterController *m_characterController;
+  CcdCharacter *m_characterController;
 
   class PHY_IMotionState *m_MotionState;
   btMotionState *m_bulletMotionState;
@@ -700,6 +707,8 @@ class CcdPhysicsController : public PHY_IPhysicsController {
   virtual MT_Scalar GetMass();
   virtual void SetMass(MT_Scalar newmass);
 
+  float GetInertiaFactor() const;
+
   virtual MT_Scalar GetFriction();
   virtual void SetFriction(MT_Scalar newfriction);
 
@@ -711,6 +720,11 @@ class CcdPhysicsController : public PHY_IPhysicsController {
   virtual void SetLinearVelocity(const MT_Vector3 &lin_vel, bool local);
   virtual void Jump();
   virtual void SetActive(bool active);
+
+  virtual unsigned short GetCollisionGroup() const;
+  virtual unsigned short GetCollisionMask() const;
+  virtual void SetCollisionGroup(unsigned short group);
+  virtual void SetCollisionMask(unsigned short mask);
 
   virtual float GetLinearDamping() const;
   virtual float GetAngularDamping() const;
@@ -827,8 +841,6 @@ class CcdPhysicsController : public PHY_IPhysicsController {
   void SetCenterOfMassTransform(btTransform &xform);
 
   static btTransform GetTransformFromMotionState(PHY_IMotionState *motionState);
-
-  void setAabb(const btVector3 &aabbMin, const btVector3 &aabbMax);
 
   class PHY_IMotionState *GetMotionState()
   {

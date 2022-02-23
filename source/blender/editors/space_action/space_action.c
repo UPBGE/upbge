@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2008 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2008 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup spaction
@@ -25,6 +9,7 @@
 #include <string.h>
 
 #include "DNA_action_types.h"
+#include "DNA_anim_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -35,6 +20,8 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.h"
+#include "BKE_lib_remap.h"
+#include "BKE_nla.h"
 #include "BKE_screen.h"
 
 #include "RNA_access.h"
@@ -204,6 +191,13 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
   /* start and end frame */
   ANIM_draw_framerange(scene, v2d);
 
+  /* Draw the manually set intended playback frame range highlight in the Action editor. */
+  if (ELEM(saction->mode, SACTCONT_ACTION, SACTCONT_SHAPEKEY) && saction->action) {
+    AnimData *adt = ED_actedit_animdata_from_context(C, NULL);
+
+    ANIM_draw_action_framerange(adt, saction->action, v2d, -FLT_MAX, FLT_MAX);
+  }
+
   /* data */
   if (ANIM_animdata_get_context(C, &ac)) {
     draw_channel_strips(&ac, saction, region);
@@ -247,7 +241,7 @@ static void action_main_region_draw_overlay(const bContext *C, ARegion *region)
   View2D *v2d = &region->v2d;
 
   /* scrubbing region */
-  ED_time_scrub_draw_current_frame(region, scene, saction->flag & SACTION_DRAWTIME, true);
+  ED_time_scrub_draw_current_frame(region, scene, saction->flag & SACTION_DRAWTIME);
 
   /* scrollers */
   UI_view2d_scrollers_draw(v2d, NULL);
@@ -805,20 +799,15 @@ static void action_refresh(const bContext *C, ScrArea *area)
   /* XXX re-sizing y-extents of tot should go here? */
 }
 
-static void action_id_remap(ScrArea *UNUSED(area), SpaceLink *slink, ID *old_id, ID *new_id)
+static void action_id_remap(ScrArea *UNUSED(area),
+                            SpaceLink *slink,
+                            const struct IDRemapper *mappings)
 {
   SpaceAction *sact = (SpaceAction *)slink;
 
-  if ((ID *)sact->action == old_id) {
-    sact->action = (bAction *)new_id;
-  }
-
-  if ((ID *)sact->ads.filter_grp == old_id) {
-    sact->ads.filter_grp = (Collection *)new_id;
-  }
-  if ((ID *)sact->ads.source == old_id) {
-    sact->ads.source = new_id;
-  }
+  BKE_id_remapper_apply(mappings, (ID **)&sact->action, ID_REMAP_APPLY_DEFAULT);
+  BKE_id_remapper_apply(mappings, (ID **)&sact->ads.filter_grp, ID_REMAP_APPLY_DEFAULT);
+  BKE_id_remapper_apply(mappings, &sact->ads.source, ID_REMAP_APPLY_DEFAULT);
 }
 
 /**
@@ -853,7 +842,6 @@ static void action_space_subtype_item_extend(bContext *UNUSED(C),
   RNA_enum_items_add(item, totitem, rna_enum_space_action_mode_items);
 }
 
-/* only called once, from space/spacetypes.c */
 void ED_spacetype_action(void)
 {
   SpaceType *st = MEM_callocN(sizeof(SpaceType), "spacetype action");

@@ -48,13 +48,9 @@
 class RAS_OpenGLRasterizer;
 class RAS_FrameBuffer;
 class RAS_ICanvas;
-class RAS_IDisplayArray;
-class SCA_IScene;
 struct KX_ClientObjectInfo;
 class KX_RayCast;
-struct GPUShader;
 struct GPUTexture;
-struct GPUViewport;
 struct DRWShadingGroup;
 
 typedef struct ViewPortMatrices {

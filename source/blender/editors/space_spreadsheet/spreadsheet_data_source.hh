@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -36,8 +22,12 @@ class DataSource {
    * Calls the callback with all the column ids that should be displayed as long as the user does
    * not manually add or remove columns. The column id can be stack allocated. Therefore, the
    * callback should not keep a reference to it (and copy it instead).
+   *
+   * The `is_extra` argument indicates that this column is special and should be drawn as the first
+   * column. (This can be made a bit more generic in the future when necessary.)
    */
-  virtual void foreach_default_column_ids(FunctionRef<void(const SpreadsheetColumnID &)> fn) const
+  virtual void foreach_default_column_ids(
+      FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const
   {
     UNUSED_VARS(fn);
   }

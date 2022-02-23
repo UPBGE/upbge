@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -30,15 +16,23 @@
 
 static ListBase callback_slots[BKE_CB_EVT_TOT] = {{NULL}};
 
+static bool callbacks_initialized = false;
+
+#define ASSERT_CALLBACKS_INITIALIZED() \
+  BLI_assert_msg(callbacks_initialized, \
+                 "Callbacks should be initialized with BKE_callback_global_init() before using " \
+                 "the callback system.")
+
 void BKE_callback_exec(struct Main *bmain,
                        struct PointerRNA **pointers,
                        const int num_pointers,
                        eCbEvent evt)
 {
-  ListBase *lb = &callback_slots[evt];
-  bCallbackFuncStore *funcstore;
+  ASSERT_CALLBACKS_INITIALIZED();
 
-  for (funcstore = lb->first; funcstore; funcstore = funcstore->next) {
+  /* Use mutable iteration so handlers are able to remove themselves. */
+  ListBase *lb = &callback_slots[evt];
+  LISTBASE_FOREACH_MUTABLE (bCallbackFuncStore *, funcstore, lb) {
     funcstore->func(bmain, pointers, num_pointers, funcstore->arg);
   }
 }
@@ -76,16 +70,37 @@ void BKE_callback_exec_id_depsgraph(struct Main *bmain,
 
 void BKE_callback_add(bCallbackFuncStore *funcstore, eCbEvent evt)
 {
+  ASSERT_CALLBACKS_INITIALIZED();
   ListBase *lb = &callback_slots[evt];
   BLI_addtail(lb, funcstore);
 }
 
-void BKE_callback_global_init(void)
+void BKE_callback_remove(bCallbackFuncStore *funcstore, eCbEvent evt)
 {
-  /* do nothing */
+  /* The callback may have already been removed by BKE_callback_global_finalize(), for
+   * example when removing callbacks in response to a BKE_blender_atexit_register callback
+   * function. `BKE_blender_atexit()` runs after `BKE_callback_global_finalize()`. */
+  if (!callbacks_initialized) {
+    return;
+  }
+
+  ListBase *lb = &callback_slots[evt];
+
+  /* Be noisy about potential programming errors. */
+  BLI_assert_msg(BLI_findindex(lb, funcstore) != -1, "To-be-removed callback not found");
+
+  BLI_remlink(lb, funcstore);
+
+  if (funcstore->alloc) {
+    MEM_freeN(funcstore);
+  }
 }
 
-/* call on application exit */
+void BKE_callback_global_init(void)
+{
+  callbacks_initialized = true;
+}
+
 void BKE_callback_global_finalize(void)
 {
   eCbEvent evt;
@@ -95,10 +110,9 @@ void BKE_callback_global_finalize(void)
     bCallbackFuncStore *funcstore_next;
     for (funcstore = lb->first; funcstore; funcstore = funcstore_next) {
       funcstore_next = funcstore->next;
-      BLI_remlink(lb, funcstore);
-      if (funcstore->alloc) {
-        MEM_freeN(funcstore);
-      }
+      BKE_callback_remove(funcstore, evt);
     }
   }
+
+  callbacks_initialized = false;
 }

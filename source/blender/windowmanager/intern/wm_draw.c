@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2007 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2007 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup wm
@@ -108,6 +92,8 @@ static void wm_paintcursor_draw(bContext *C, ScrArea *area, ARegion *region)
     }
 
     if (pc->poll == NULL || pc->poll(C)) {
+      UI_SetTheme(area->spacetype, region->regiontype);
+
       /* Prevent drawing outside region. */
       GPU_scissor_test(true);
       GPU_scissor(region->winrct.xmin,
@@ -121,7 +107,7 @@ static void wm_paintcursor_draw(bContext *C, ScrArea *area, ARegion *region)
         pc->draw(C, x, y, pc->customdata);
       }
       else {
-        pc->draw(C, win->eventstate->x, win->eventstate->y, pc->customdata);
+        pc->draw(C, win->eventstate->xy[0], win->eventstate->xy[1], pc->customdata);
       }
 
       GPU_scissor_test(false);
@@ -146,6 +132,7 @@ static void wm_region_draw_overlay(bContext *C, ScrArea *area, ARegion *region)
 }
 
 /** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name Internal Utilities
  * \{ */
@@ -839,6 +826,7 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
   }
 
   /* After area regions so we can do area 'overlay' drawing. */
+  UI_SetTheme(0, 0);
   ED_screen_draw_edges(win);
   wm_draw_callbacks(win);
   wmWindowViewport(win);
@@ -856,9 +844,9 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
     wm_gesture_draw(win);
   }
 
-  /* needs pixel coords in screen */
+  /* Needs pixel coords in screen. */
   if (wm->drags.first) {
-    wm_drags_draw(C, win, NULL);
+    wm_drags_draw(C, win);
   }
 
   GPU_debug_group_end();
@@ -1136,7 +1124,7 @@ void WM_redraw_windows(bContext *C)
  * This is needed for viewport drawing for operator use
  * (where the viewport may not have drawn yet).
  *
- * Otherwise avoid using these sine they're exposing low level logic externally.
+ * Otherwise avoid using these since they're exposing low level logic externally.
  *
  * \{ */
 

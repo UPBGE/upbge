@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2009 Blender Foundation, Joshua Leung. All rights reserved. */
 
 /** \file
  * \ingroup edanimation
@@ -51,6 +35,7 @@
 #include "BKE_mask.h"
 #include "BKE_nla.h"
 #include "BKE_scene.h"
+#include "BKE_screen.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
@@ -73,8 +58,6 @@
 
 /* -------------------------- Selection ------------------------------------- */
 
-/* Set the given animation-channel as the active one for the active context */
-/* TODO: extend for animdata types... */
 void ANIM_set_active_channel(bAnimContext *ac,
                              void *data,
                              eAnimCont_Types datatype,
@@ -82,6 +65,8 @@ void ANIM_set_active_channel(bAnimContext *ac,
                              void *channel_data,
                              eAnim_ChannelType channel_type)
 {
+  /* TODO: extend for animdata types. */
+
   ListBase anim_data = {NULL, NULL};
   bAnimListElem *ale;
 
@@ -459,7 +444,6 @@ static void anim_channels_select_set(bAnimContext *ac,
   }
 }
 
-/* Set selection state of all animation channels in the context. */
 void ANIM_anim_channels_select_set(bAnimContext *ac, eAnimChannels_SetFlag sel)
 {
   ListBase anim_data = anim_channels_for_selection(ac);
@@ -467,7 +451,6 @@ void ANIM_anim_channels_select_set(bAnimContext *ac, eAnimChannels_SetFlag sel)
   ANIM_animdata_freelist(&anim_data);
 }
 
-/* Toggle selection state of all animation channels in the context. */
 void ANIM_anim_channels_select_toggle(bAnimContext *ac)
 {
   ListBase anim_data = anim_channels_for_selection(ac);
@@ -587,15 +570,6 @@ static void anim_flush_channel_setting_down(bAnimContext *ac,
   }
 }
 
-/* Flush visibility (for Graph Editor) changes up/down hierarchy for changes in the given setting
- * - anim_data: list of the all the anim channels that can be chosen
- *   -> filtered using ANIMFILTER_CHANNELS only, since if we took VISIBLE too,
- *      then the channels under closed expanders get ignored...
- * - ale_setting: the anim channel (not in the anim_data list directly, though occurring there)
- *   with the new state of the setting that we want flushed up/down the hierarchy
- * - setting: type of setting to set
- * - on: whether the visibility setting has been enabled or disabled
- */
 void ANIM_flush_setting_anim_channels(bAnimContext *ac,
                                       ListBase *anim_data,
                                       bAnimListElem *ale_setting,
@@ -651,7 +625,6 @@ void ANIM_flush_setting_anim_channels(bAnimContext *ac,
 
 /* -------------------------- F-Curves ------------------------------------- */
 
-/* Delete the given F-Curve from its AnimData block */
 void ANIM_fcurve_delete_from_animdata(bAnimContext *ac, AnimData *adt, FCurve *fcu)
 {
   /* - if no AnimData, we've got nowhere to remove the F-Curve from
@@ -707,8 +680,6 @@ void ANIM_fcurve_delete_from_animdata(bAnimContext *ac, AnimData *adt, FCurve *f
   BKE_fcurve_free(fcu);
 }
 
-/* If the action has no F-Curves, unlink it from AnimData if it did not
- * come from a NLA Strip being tweaked. */
 bool ANIM_remove_empty_action_from_animdata(struct AnimData *adt)
 {
   if (adt->action != NULL) {
@@ -2522,10 +2493,10 @@ static void ANIM_OT_channels_fcurves_enable(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-/* ****************** Find / Set Filter Operator ******************** */
+/* ****************** Select Filter Textbox Operator ******************** */
 
 /* XXX: make this generic? */
-static bool animchannels_find_poll(bContext *C)
+static bool animchannels_select_filter_poll(bContext *C)
 {
   ScrArea *area = CTX_wm_area(C);
 
@@ -2537,64 +2508,62 @@ static bool animchannels_find_poll(bContext *C)
   return ELEM(area->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA);
 }
 
-/* find_invoke() - Get initial channels */
-static int animchannels_find_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int animchannels_select_filter_invoke(struct bContext *C,
+                                             struct wmOperator *op,
+                                             const struct wmEvent *UNUSED(event))
 {
-  bAnimContext ac;
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region_ctx = CTX_wm_region(C);
+  ARegion *region_channels = BKE_area_find_region_type(area, RGN_TYPE_CHANNELS);
 
-  /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
-    return OPERATOR_CANCELLED;
+  CTX_wm_region_set(C, region_channels);
+
+  /* Show the channel region if it's hidden. This means that direct activation of the input field
+   * is impossible, as it may not exist yet. For that reason, the actual activation is deferred to
+   * the modal callback function; by the time it runs, the screen has been redrawn and the UI
+   * element is there to activate. */
+  if (region_channels->flag & RGN_FLAG_HIDDEN) {
+    ED_region_toggle_hidden(C, region_channels);
+    ED_region_tag_redraw(region_channels);
   }
 
-  /* set initial filter text, and enable filter */
-  RNA_string_set(op->ptr, "query", ac.ads->searchstr);
+  WM_event_add_modal_handler(C, op);
 
-  /* defer to popup */
-  return WM_operator_props_popup(C, op, event);
+  CTX_wm_region_set(C, region_ctx);
+  return OPERATOR_RUNNING_MODAL;
 }
 
-/* find_exec() -  Called to set the value */
-static int animchannels_find_exec(bContext *C, wmOperator *op)
+static int animchannels_select_filter_modal(bContext *C,
+                                            wmOperator *UNUSED(op),
+                                            const wmEvent *UNUSED(event))
 {
   bAnimContext ac;
-
-  /* get editor data */
   if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  /* update filter text */
-  RNA_string_get(op->ptr, "query", ac.ads->searchstr);
-
-  /* redraw */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, NULL);
+  ARegion *region = CTX_wm_region(C);
+  if (UI_textbutton_activate_rna(C, region, ac.ads, "filter_text")) {
+    /* Redraw to make sure it shows the cursor after activating */
+    WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, NULL);
+  }
 
   return OPERATOR_FINISHED;
 }
 
-static void ANIM_OT_channels_find(wmOperatorType *ot)
+static void ANIM_OT_channels_select_filter(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Find Channels";
-  ot->idname = "ANIM_OT_channels_find";
-  ot->description = "Filter the set of channels shown to only include those with matching names";
+  ot->name = "Filter Channels";
+  ot->idname = "ANIM_OT_channels_select_filter";
+  ot->description =
+      "Start entering text which filters the set of channels shown to only include those with "
+      "matching names";
 
   /* callbacks */
-  ot->invoke = animchannels_find_invoke;
-  ot->exec = animchannels_find_exec;
-  ot->poll = animchannels_find_poll;
-
-  /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-
-  /* properties */
-  ot->prop = RNA_def_string(ot->srna,
-                            "query",
-                            "Query",
-                            sizeof(((bDopeSheet *)NULL)->searchstr),
-                            "",
-                            "Text to search for in channel names");
+  ot->invoke = animchannels_select_filter_invoke;
+  ot->modal = animchannels_select_filter_modal;
+  ot->poll = animchannels_select_filter_poll;
 }
 
 /* ********************** Select All Operator *********************** */
@@ -3563,7 +3532,7 @@ void ED_operatortypes_animchannels(void)
   WM_operatortype_append(ANIM_OT_channel_select_keys);
   WM_operatortype_append(ANIM_OT_channels_rename);
 
-  WM_operatortype_append(ANIM_OT_channels_find);
+  WM_operatortype_append(ANIM_OT_channels_select_filter);
 
   WM_operatortype_append(ANIM_OT_channels_setting_enable);
   WM_operatortype_append(ANIM_OT_channels_setting_disable);

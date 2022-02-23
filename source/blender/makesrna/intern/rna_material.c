@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup RNA
@@ -604,8 +590,10 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
   RNA_def_property_float_default(prop, 0.0f);
   RNA_def_property_range(prop, -DEG2RADF(90.0f), DEG2RADF(90.0f));
   RNA_def_property_ui_range(prop, -DEG2RADF(90.0f), DEG2RADF(90.0f), 10, 3);
-  RNA_def_property_ui_text(
-      prop, "Rotation", "Additional rotation applied to dots and square strokes");
+  RNA_def_property_ui_text(prop,
+                           "Rotation",
+                           "Additional rotation applied to dots and square texture of strokes. "
+                           "Only applies in texture shading mode");
   RNA_def_property_update(prop, NC_GPENCIL | ND_SHADING, "rna_MaterialGpencil_update");
 
   /* pass index for future compositing and editing tools */
@@ -716,7 +704,7 @@ void RNA_def_material(BlenderRNA *brna)
       {MA_FLAT, "FLAT", ICON_MATPLANE, "Flat", "Flat XY plane"},
       {MA_SPHERE, "SPHERE", ICON_MATSPHERE, "Sphere", "Sphere"},
       {MA_CUBE, "CUBE", ICON_MATCUBE, "Cube", "Cube"},
-      {MA_HAIR, "HAIR", ICON_HAIR, "Hair", "Hair strands"},
+      {MA_HAIR, "HAIR", ICON_CURVES, "Hair", "Hair strands"},
       {MA_SHADERBALL, "SHADERBALL", ICON_MATSHADERBALL, "Shader Ball", "Shader ball"},
       {MA_CLOTH, "CLOTH", ICON_MATCLOTH, "Cloth", "Cloth"},
       {MA_FLUID, "FLUID", ICON_MATFLUID, "Fluid", "Fluid"},
@@ -789,8 +777,8 @@ void RNA_def_material(BlenderRNA *brna)
   RNA_def_property_boolean_negative_sdna(prop, NULL, "blend_flag", MA_BL_HIDE_BACKFACE);
   RNA_def_property_ui_text(prop,
                            "Show Backface",
-                           "Limit transparency to a single layer "
-                           "(avoids transparency sorting problems)");
+                           "Render multiple transparent layers "
+                           "(may introduce transparency sorting problems)");
   RNA_def_property_update(prop, 0, "rna_Material_draw_update");
 
   prop = RNA_def_property(srna, "use_backface_culling", PROP_BOOLEAN, PROP_NONE);
@@ -817,7 +805,7 @@ void RNA_def_material(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Refraction Depth",
                            "Approximate the thickness of the object to compute two refraction "
-                           "event (0 is disabled)");
+                           "events (0 is disabled)");
   RNA_def_property_update(prop, 0, "rna_Material_draw_update");
 
   /* For Preview Render */

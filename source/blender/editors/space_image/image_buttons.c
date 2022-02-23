@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup spimage
@@ -63,7 +47,6 @@
 #define B_NOP -1
 #define MAX_IMAGE_INFO_LEN 128
 
-/* gets active viewer user */
 struct ImageUser *ntree_get_active_iuser(bNodeTree *ntree)
 {
   bNode *node;
@@ -729,10 +712,6 @@ static void rna_update_cb(bContext *C, void *arg_cb, void *UNUSED(arg))
 {
   RNAUpdateCb *cb = (RNAUpdateCb *)arg_cb;
 
-  /* ideally this would be done by RNA itself, but there we have
-   * no image user available, so we just update this flag here */
-  cb->iuser->ok = 1;
-
   /* we call update here on the pointer property, this way the
    * owner of the image pointer can still define its own update
    * and notifier */
@@ -1060,7 +1039,7 @@ void uiTemplateImageSettings(uiLayout *layout, PointerRNA *imfptr, bool color_ma
 
   if (imf->imtype == R_IMF_IMTYPE_CINEON) {
 #if 1
-    uiItemL(col, IFACE_("Hard coded Non-Linear, Gamma:1.7"), ICON_NONE);
+    uiItemL(col, TIP_("Hard coded Non-Linear, Gamma:1.7"), ICON_NONE);
 #else
     uiItemR(col, imfptr, "use_cineon_log", 0, NULL, ICON_NONE);
     uiItemR(col, imfptr, "cineon_black", 0, NULL, ICON_NONE);

@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2019, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2019 Blender Foundation. */
 
 /** \file
  * \ingroup draw
@@ -22,7 +7,14 @@
 
 #pragma once
 
+struct DRWSubdivCache;
+struct MeshRenderData;
 struct TaskGraph;
+
+#include "DNA_customdata_types.h"
+
+#include "BKE_attribute.h"
+#include "BKE_object.h"
 
 #include "GPU_batch.h"
 #include "GPU_index_buffer.h"
@@ -56,7 +48,6 @@ typedef struct DRW_MeshCDMask {
   uint32_t uv : 8;
   uint32_t tan : 8;
   uint32_t vcol : 8;
-  uint32_t sculpt_vcol : 8;
   uint32_t orco : 1;
   uint32_t tan_orco : 1;
   uint32_t sculpt_overlays : 1;
@@ -64,10 +55,10 @@ typedef struct DRW_MeshCDMask {
    *  modifiers could remove it. (see T68857) */
   uint32_t edit_uv : 1;
 } DRW_MeshCDMask;
-/* Keep `DRW_MeshCDMask` struct within an `uint64_t`.
+/* Keep `DRW_MeshCDMask` struct within an `uint32_t`.
  * bit-wise and atomic operations are used to compare and update the struct.
  * See `mesh_cd_layers_type_*` functions. */
-BLI_STATIC_ASSERT(sizeof(DRW_MeshCDMask) <= sizeof(uint64_t), "DRW_MeshCDMask exceeds 64 bits")
+BLI_STATIC_ASSERT(sizeof(DRW_MeshCDMask) <= sizeof(uint32_t), "DRW_MeshCDMask exceeds 32 bits")
 typedef enum eMRIterType {
   MR_ITER_LOOPTRI = 1 << 0,
   MR_ITER_POLY = 1 << 1,
@@ -75,6 +66,17 @@ typedef enum eMRIterType {
   MR_ITER_LVERT = 1 << 3,
 } eMRIterType;
 ENUM_OPERATORS(eMRIterType, MR_ITER_LVERT)
+
+typedef struct DRW_AttributeRequest {
+  CustomDataType cd_type;
+  int layer_index;
+  AttributeDomain domain;
+} DRW_AttributeRequest;
+
+typedef struct DRW_MeshAttributes {
+  DRW_AttributeRequest requests[GPU_MAX_ATTR];
+  int num_requests;
+} DRW_MeshAttributes;
 
 typedef enum eMRDataType {
   MR_DATA_NONE = 0,
@@ -92,11 +94,13 @@ ENUM_OPERATORS(eMRDataType, MR_DATA_POLYS_SORTED)
 extern "C" {
 #endif
 
-BLI_INLINE int mesh_render_mat_len_get(const Mesh *me)
+BLI_INLINE int mesh_render_mat_len_get(const Object *object, const Mesh *me)
 {
-  /* In edit mode, the displayed mesh is stored in the edit-mesh. */
-  if (me->edit_mesh && me->edit_mesh->mesh_eval_final) {
-    return MAX2(1, me->edit_mesh->mesh_eval_final->totcol);
+  if (me->edit_mesh != NULL) {
+    const Mesh *editmesh_eval_final = BKE_object_get_editmesh_eval_final(object);
+    if (editmesh_eval_final != NULL) {
+      return MAX2(1, editmesh_eval_final->totcol);
+    }
   }
   return MAX2(1, me->totcol);
 }
@@ -133,6 +137,7 @@ typedef struct MeshBufferList {
     GPUVertBuf *edge_idx; /* extend */
     GPUVertBuf *poly_idx;
     GPUVertBuf *fdot_idx;
+    GPUVertBuf *attr[GPU_MAX_ATTR];
   } vbo;
   /* Index Buffers:
    * Only need to be updated when topology changes. */
@@ -229,6 +234,13 @@ typedef enum DRWBatchFlag {
 
 BLI_STATIC_ASSERT(MBC_BATCH_LEN < 32, "Number of batches exceeded the limit of bit fields");
 
+typedef struct MeshExtractLooseGeom {
+  int edge_len;
+  int vert_len;
+  int *verts;
+  int *edges;
+} MeshExtractLooseGeom;
+
 /**
  * Data that are kept around between extractions to reduce rebuilding time.
  *
@@ -237,12 +249,7 @@ BLI_STATIC_ASSERT(MBC_BATCH_LEN < 32, "Number of batches exceeded the limit of b
 typedef struct MeshBufferCache {
   MeshBufferList buff;
 
-  struct {
-    int edge_len;
-    int vert_len;
-    int *verts;
-    int *edges;
-  } loose_geom;
+  MeshExtractLooseGeom loose_geom;
 
   struct {
     int *tri_first_index;
@@ -268,6 +275,8 @@ typedef struct MeshBatchCache {
 
   GPUBatch **surface_per_mat;
 
+  struct DRWSubdivCache *subdiv_cache;
+
   DRWBatchFlag batch_requested; /* DRWBatchFlag */
   DRWBatchFlag batch_ready;     /* DRWBatchFlag */
 
@@ -284,6 +293,8 @@ typedef struct MeshBatchCache {
   struct DRW_MeshWeightState weight_state;
 
   DRW_MeshCDMask cd_used, cd_needed, cd_used_over_time;
+
+  DRW_MeshAttributes attr_used, attr_needed, attr_used_over_time;
 
   int lastmatch;
 
@@ -306,17 +317,23 @@ typedef struct MeshBatchCache {
 void mesh_buffer_cache_create_requested(struct TaskGraph *task_graph,
                                         MeshBatchCache *cache,
                                         MeshBufferCache *mbc,
+                                        Object *object,
                                         Mesh *me,
-                                        const bool is_editmode,
-                                        const bool is_paint_mode,
-                                        const bool is_mode_active,
+                                        bool is_editmode,
+                                        bool is_paint_mode,
+                                        bool is_mode_active,
                                         const float obmat[4][4],
-                                        const bool do_final,
-                                        const bool do_uvedit,
-                                        const bool use_subsurf_fdots,
+                                        bool do_final,
+                                        bool do_uvedit,
+                                        bool use_subsurf_fdots,
                                         const Scene *scene,
-                                        const ToolSettings *ts,
-                                        const bool use_hide);
+                                        const struct ToolSettings *ts,
+                                        bool use_hide);
+
+void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache *cache,
+                                               MeshBufferCache *mbc,
+                                               struct DRWSubdivCache *subdiv_cache,
+                                               struct MeshRenderData *mr);
 
 #ifdef __cplusplus
 }

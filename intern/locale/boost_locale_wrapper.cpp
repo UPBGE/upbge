@@ -1,20 +1,8 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2012, Blender Foundation
- * All rights reserved.
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2012 Blender Foundation. All rights reserved. */
+
+/** \file
+ * \ingroup intern_locale
  */
 
 #include <boost/locale.hpp>
@@ -26,8 +14,8 @@ static std::string messages_path;
 static std::string default_domain;
 static std::string locale_str;
 
-/* Note: We cannot use short stuff like boost::locale::gettext, because those return
- * std::basic_string objects, which c_ptr()-returned char* is no more valid
+/* NOTE: We cannot use short stuff like `boost::locale::gettext`, because those return
+ * `std::basic_string` objects, which c_ptr()-returned char* is no more valid
  * once deleted (which happens as soons they are out of scope of this func). */
 typedef boost::locale::message_format<char> char_message_facet;
 static std::locale locale_global;
@@ -63,7 +51,7 @@ static void bl_locale_global_cache()
 
 void bl_locale_init(const char *_messages_path, const char *_default_domain)
 {
-  // Avoid using ICU backend, we do not need its power and it's rather heavy!
+  /* Avoid using ICU backend, we do not need its power and it's rather heavy! */
   boost::locale::localization_backend_manager lman =
       boost::locale::localization_backend_manager::global();
 #if defined(_WIN32)
@@ -81,7 +69,7 @@ void bl_locale_set(const char *locale)
 {
   boost::locale::generator gen;
   std::locale _locale;
-  // Specify location of dictionaries.
+  /* Specify location of dictionaries. */
   gen.add_messages_path(messages_path);
   gen.add_messages_domain(default_domain);
   // gen.set_default_messages_domain(default_domain);
@@ -99,12 +87,12 @@ void bl_locale_set(const char *locale)
 #endif
     }
     std::locale::global(_locale);
-    // Note: boost always uses "C" LC_NUMERIC by default!
+    /* NOTE: boost always uses "C" LC_NUMERIC by default! */
 
     bl_locale_global_cache();
 
-    // Generate the locale string
-    // (useful to know which locale we are actually using in case of "default" one).
+    /* Generate the locale string
+     * (useful to know which locale we are actually using in case of "default" one). */
 #define LOCALE_INFO std::use_facet<boost::locale::info>(_locale)
 
     locale_str = LOCALE_INFO.language();
@@ -116,6 +104,12 @@ void bl_locale_set(const char *locale)
     }
 
 #undef LOCALE_INFO
+  }
+  /* Extra catch on `std::runtime_error` is needed for macOS/Clang as it seems that exceptions
+   * like `boost::locale::conv::conversion_error` (which inherit from `std::runtime_error`) are
+   * not caught by their ancestor `std::exception`. See T88877#1177108 */
+  catch (std::runtime_error const &e) {
+    std::cout << "bl_locale_set(" << locale << "): " << e.what() << " \n";
   }
   catch (std::exception const &e) {
     std::cout << "bl_locale_set(" << locale << "): " << e.what() << " \n";

@@ -1,25 +1,9 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- * .blend file reading entry point
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup blenloader
+ * `.blend` file reading entry point.
  */
 
 #include <stddef.h>
@@ -65,13 +49,6 @@ void BLO_blendhandle_print_sizes(BlendHandle *bh, void *fp);
 
 /* Access routines used by filesel. */
 
-/**
- * Open a blendhandle from a file path.
- *
- * \param filepath: The file path to open.
- * \param reports: Report errors in opening the file (can be NULL).
- * \return A handle on success, or NULL on failure.
- */
 BlendHandle *BLO_blendhandle_from_file(const char *filepath, BlendFileReadReport *reports)
 {
   BlendHandle *bh;
@@ -81,13 +58,6 @@ BlendHandle *BLO_blendhandle_from_file(const char *filepath, BlendFileReadReport
   return bh;
 }
 
-/**
- * Open a blendhandle from memory.
- *
- * \param mem: The data to load from.
- * \param memsize: The size of the data.
- * \return A handle on success, or NULL on failure.
- */
 BlendHandle *BLO_blendhandle_from_memory(const void *mem,
                                          int memsize,
                                          BlendFileReadReport *reports)
@@ -134,16 +104,6 @@ void BLO_blendhandle_print_sizes(BlendHandle *bh, void *fp)
   fprintf(fp, "]\n");
 }
 
-/**
- * Gets the names of all the data-blocks in a file of a certain type
- * (e.g. all the scene names in a file).
- *
- * \param bh: The blendhandle to access.
- * \param ofblocktype: The type of names to get.
- * \param tot_names: The length of the returned list.
- * \param use_assets_only: Only list IDs marked as assets.
- * \return A BLI_linklist of strings. The string links should be freed with #MEM_freeN().
- */
 LinkNode *BLO_blendhandle_get_datablock_names(BlendHandle *bh,
                                               int ofblocktype,
                                               const bool use_assets_only,
@@ -173,18 +133,9 @@ LinkNode *BLO_blendhandle_get_datablock_names(BlendHandle *bh,
   return names;
 }
 
-/**
- * Gets the names and asset-data (if ID is an asset) of all the data-blocks in a file of a certain
- * type (e.g. all the scene names in a file).
- *
- * \param bh: The blendhandle to access.
- * \param ofblocktype: The type of names to get.
- * \param tot_info_items: The length of the returned list.
- * \return A BLI_linklist of BLODataBlockInfo *. The links and #BLODataBlockInfo.asset_data should
- *         be freed with MEM_freeN.
- */
 LinkNode *BLO_blendhandle_get_datablock_info(BlendHandle *bh,
                                              int ofblocktype,
+                                             const bool use_assets_only,
                                              int *r_tot_info_items)
 {
   FileData *fd = (FileData *)bh;
@@ -193,26 +144,33 @@ LinkNode *BLO_blendhandle_get_datablock_info(BlendHandle *bh,
   int tot = 0;
 
   for (bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead)) {
+    if (bhead->code == ENDB) {
+      break;
+    }
     if (bhead->code == ofblocktype) {
-      struct BLODataBlockInfo *info = MEM_mallocN(sizeof(*info), __func__);
       const char *name = blo_bhead_id_name(fd, bhead) + 2;
+      AssetMetaData *asset_meta_data = blo_bhead_id_asset_data_address(fd, bhead);
 
-      STRNCPY(info->name, name);
+      const bool is_asset = asset_meta_data != NULL;
+      const bool skip_datablock = use_assets_only && !is_asset;
+      if (skip_datablock) {
+        continue;
+      }
+      struct BLODataBlockInfo *info = MEM_mallocN(sizeof(*info), __func__);
 
       /* Lastly, read asset data from the following blocks. */
-      info->asset_data = blo_bhead_id_asset_data_address(fd, bhead);
-      if (info->asset_data) {
-        bhead = blo_read_asset_data_block(fd, bhead, &info->asset_data);
-        /* blo_read_asset_data_block() reads all DATA heads and already advances bhead to the next
-         * non-DATA one. Go back, so the loop doesn't skip the non-DATA head. */
+      if (asset_meta_data) {
+        bhead = blo_read_asset_data_block(fd, bhead, &asset_meta_data);
+        /* blo_read_asset_data_block() reads all DATA heads and already advances bhead to the
+         * next non-DATA one. Go back, so the loop doesn't skip the non-DATA head. */
         bhead = blo_bhead_prev(fd, bhead);
       }
 
+      STRNCPY(info->name, name);
+      info->asset_data = asset_meta_data;
+
       BLI_linklist_prepend(&infos, info);
       tot++;
-    }
-    else if (bhead->code == ENDB) {
-      break;
     }
   }
 
@@ -262,15 +220,6 @@ static BHead *blo_blendhandle_read_preview_rects(FileData *fd,
   return bhead;
 }
 
-/**
- * Get the PreviewImage of a single data block in a file.
- * (e.g. all the scene previews in a file).
- *
- * \param bh: The blendhandle to access.
- * \param ofblocktype: The type of names to get.
- * \param name: Name of the block without the ID_ prefix, to read the preview image from.
- * \return PreviewImage or NULL when no preview Images have been found. Caller owns the returned
- */
 PreviewImage *BLO_blendhandle_get_preview_for_id(BlendHandle *bh,
                                                  int ofblocktype,
                                                  const char *name)
@@ -310,15 +259,6 @@ PreviewImage *BLO_blendhandle_get_preview_for_id(BlendHandle *bh,
   return NULL;
 }
 
-/**
- * Gets the previews of all the data-blocks in a file of a certain type
- * (e.g. all the scene previews in a file).
- *
- * \param bh: The blendhandle to access.
- * \param ofblocktype: The type of names to get.
- * \param r_tot_prev: The length of the returned list.
- * \return A BLI_linklist of PreviewImage. The PreviewImage links should be freed with malloc.
- */
 LinkNode *BLO_blendhandle_get_previews(BlendHandle *bh, int ofblocktype, int *r_tot_prev)
 {
   FileData *fd = (FileData *)bh;
@@ -342,6 +282,7 @@ LinkNode *BLO_blendhandle_get_previews(BlendHandle *bh, int ofblocktype, int *r_
         case ID_GR:  /* fall through */
         case ID_SCE: /* fall through */
         case ID_AC:  /* fall through */
+        case ID_NT:  /* fall through */
           new_prv = MEM_callocN(sizeof(PreviewImage), "newpreview");
           BLI_linklist_prepend(&previews, new_prv);
           tot++;
@@ -378,13 +319,6 @@ LinkNode *BLO_blendhandle_get_previews(BlendHandle *bh, int ofblocktype, int *r_
   return previews;
 }
 
-/**
- * Gets the names of all the linkable data-block types available in a file.
- * (e.g. "Scene", "Mesh", "Light", etc.).
- *
- * \param bh: The blendhandle to access.
- * \return A BLI_linklist of strings. The string links should be freed with #MEM_freeN().
- */
 LinkNode *BLO_blendhandle_get_linkable_groups(BlendHandle *bh)
 {
   FileData *fd = (FileData *)bh;
@@ -412,11 +346,6 @@ LinkNode *BLO_blendhandle_get_linkable_groups(BlendHandle *bh)
   return names;
 }
 
-/**
- * Close and free a blendhandle. The handle becomes invalid after this call.
- *
- * \param bh: The handle to close.
- */
 void BLO_blendhandle_close(BlendHandle *bh)
 {
   FileData *fd = (FileData *)bh;
@@ -426,14 +355,6 @@ void BLO_blendhandle_close(BlendHandle *bh)
 
 /**********/
 
-/**
- * Open a blender file from a pathname. The function returns NULL
- * and sets a report in the list if it cannot open the file.
- *
- * \param filepath: The path of the file to open.
- * \param reports: If the return value is NULL, errors indicating the cause of the failure.
- * \return The data of the file.
- */
 BlendFileData *BLO_read_from_file(const char *filepath,
                                   eBLOReadSkip skip_flags,
                                   BlendFileReadReport *reports)
@@ -451,15 +372,6 @@ BlendFileData *BLO_read_from_file(const char *filepath,
   return bfd;
 }
 
-/**
- * Open a blender file from memory. The function returns NULL
- * and sets a report in the list if it cannot open the file.
- *
- * \param mem: The file data.
- * \param memsize: The length of \a mem.
- * \param reports: If the return value is NULL, errors indicating the cause of the failure.
- * \return The data of the file.
- */
 BlendFileData *BLO_read_from_memory(const void *mem,
                                     int memsize,
                                     eBLOReadSkip skip_flags,
@@ -486,14 +398,6 @@ BlendFileData *BLO_read_from_memory(const void *mem,
   return bfd;
 }
 
-/**
- * Used for undo/redo, skips part of libraries reading
- * (assuming their data are already loaded & valid).
- *
- * \param oldmain: old main,
- * from which we will keep libraries and other data-blocks that should not have changed.
- * \param filename: current file, only for retrieving library data.
- */
 BlendFileData *BLO_read_from_memfile(Main *oldmain,
                                      const char *filename,
                                      MemFile *memfile,
@@ -509,9 +413,6 @@ BlendFileData *BLO_read_from_memfile(Main *oldmain,
   if (fd) {
     fd->skip_flags = params->skip_flags;
     BLI_strncpy(fd->relabase, filename, sizeof(fd->relabase));
-
-    /* clear ob->proxy_from pointers in old main */
-    blo_clear_proxy_pointers_from_lib(oldmain);
 
     /* separate libraries from old main */
     blo_split_main(&old_mainlist, oldmain);
@@ -549,12 +450,6 @@ BlendFileData *BLO_read_from_memfile(Main *oldmain,
   return bfd;
 }
 
-/**
- * Frees a BlendFileData structure and *all* the data associated with it
- * (the userdef data, and the main libblock data).
- *
- * \param bfd: The structure to free.
- */
 void BLO_blendfiledata_free(BlendFileData *bfd)
 {
   if (bfd->main) {

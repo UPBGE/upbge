@@ -49,10 +49,11 @@ class KX_CollisionEventManager : public SCA_EventManager {
    public:
     PHY_IPhysicsController *first;
     PHY_IPhysicsController *second;
-    const PHY_CollData *colldata;
+    const PHY_ICollData *colldata;
+    bool isFirst;
 
     /**
-     * Creates a copy of the given PHY_CollData; freeing that copy should be done by the owner of
+     * Creates a copy of the given PHY_ICollData; freeing that copy should be done by the owner of
      * the NewCollision object.
      *
      * This allows us to efficiently store NewCollision objects in a std::set without creating more
@@ -60,7 +61,8 @@ class KX_CollisionEventManager : public SCA_EventManager {
      * clone it again. */
     NewCollision(PHY_IPhysicsController *first,
                  PHY_IPhysicsController *second,
-                 const PHY_CollData *colldata);
+                 const PHY_ICollData *colldata,
+                 bool isFirst);
     NewCollision(const NewCollision &to_copy);
     bool operator<(const NewCollision &other) const;
   };
@@ -70,33 +72,33 @@ class KX_CollisionEventManager : public SCA_EventManager {
   std::set<NewCollision> m_newCollisions;
 
   static bool newCollisionResponse(void *client_data,
-                                   void *object1,
-                                   void *object2,
-                                   const PHY_CollData *coll_data);
+                                   PHY_IPhysicsController *ctrl1,
+                                   PHY_IPhysicsController *ctrl2,
+                                   const PHY_ICollData *coll_data,
+                                   bool first);
 
   static bool newBroadphaseResponse(void *client_data,
-                                    void *object1,
-                                    void *object2,
-                                    const PHY_CollData *coll_data);
+                                    PHY_IPhysicsController *ctrl1,
+                                    PHY_IPhysicsController *ctrl2,
+                                    const PHY_ICollData *coll_data,
+                                    bool first);
 
-  virtual bool NewHandleCollision(void *obj1, void *obj2, const PHY_CollData *coll_data);
+  virtual bool NewHandleCollision(PHY_IPhysicsController *ctrl1,
+                                  PHY_IPhysicsController *ctrl2,
+                                  const PHY_ICollData *coll_data,
+                                  bool first);
 
   void RemoveNewCollisions();
 
  public:
   KX_CollisionEventManager(class SCA_LogicManager *logicmgr, PHY_IPhysicsEnvironment *physEnv);
   virtual ~KX_CollisionEventManager();
+
   virtual void NextFrame();
   virtual void EndFrame();
   virtual bool RegisterSensor(SCA_ISensor *sensor);
   virtual bool RemoveSensor(SCA_ISensor *sensor);
 
-  SCA_LogicManager *GetLogicManager()
-  {
-    return m_logicmgr;
-  }
-  PHY_IPhysicsEnvironment *GetPhysicsEnvironment()
-  {
-    return m_physEnv;
-  }
+  SCA_LogicManager *GetLogicManager();
+  PHY_IPhysicsEnvironment *GetPhysicsEnvironment();
 };

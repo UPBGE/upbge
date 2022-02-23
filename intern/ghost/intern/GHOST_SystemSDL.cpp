@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup GHOST
@@ -374,8 +360,8 @@ void GHOST_SystemSDL::processEvent(SDL_Event *sdl_event)
         if (window->getCursorGrabBounds(bounds) == GHOST_kFailure)
           window->getClientBounds(bounds);
 
-        /* Could also clamp to screen bounds wrap with a window outside the view will fail atm.
-         * Use offset of 8 in case the window is at screen bounds. */
+        /* Could also clamp to screen bounds wrap with a window outside the view will
+         * fail at the moment. Use offset of 8 in case the window is at screen bounds. */
         bounds.wrapPoint(x_new, y_new, 8, window->getCursorGrabAxis());
         window->getCursorGrabAccum(x_accum, y_accum);
 

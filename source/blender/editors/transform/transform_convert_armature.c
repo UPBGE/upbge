@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edtransform
@@ -427,7 +411,7 @@ static short pose_grab_with_ik(Main *bmain, Object *ob)
   /* Rule: allow multiple Bones
    * (but they must be selected, and only one ik-solver per chain should get added) */
   for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
-    if (pchan->bone->layer & arm->layer) {
+    if (BKE_pose_is_layer_visible(arm, pchan)) {
       if (pchan->bone->flag & (BONE_SELECTED | BONE_TRANSFORM_MIRROR)) {
         /* Rule: no IK for solitary (unconnected) bones. */
         for (bonec = pchan->bone->childbase.first; bonec; bonec = bonec->next) {
@@ -662,6 +646,12 @@ static void add_pose_transdata(TransInfo *t, bPoseChannel *pchan, Object *ob, Tr
   mul_m3_m3m3(td->axismtx, omat, pmat);
   normalize_m3(td->axismtx);
 
+  if (t->orient_type_mask & (1 << V3D_ORIENT_GIMBAL)) {
+    if (!gimbal_axis_pose(ob, pchan, td->ext->axismtx_gimbal)) {
+      copy_m3_m3(td->ext->axismtx_gimbal, td->axismtx);
+    }
+  }
+
   if (t->mode == TFM_BONE_ENVELOPE_DIST) {
     td->loc = NULL;
     td->val = &bone->dist;
@@ -710,9 +700,6 @@ static void add_pose_transdata(TransInfo *t, bPoseChannel *pchan, Object *ob, Tr
   td->con = pchan->constraints.first;
 }
 
-/**
- * When objects array is NULL, use 't->data_container' as is.
- */
 void createTransPose(TransInfo *t)
 {
   Main *bmain = CTX_data_main(t->context);
@@ -736,9 +723,43 @@ void createTransPose(TransInfo *t)
 
     const bool mirror = ((pose->flag & POSE_MIRROR_EDIT) != 0);
 
-    /* set flags and count total */
-    tc->data_len = transform_convert_pose_transflags_update(
-        ob, t->mode, t->around, has_translate_rotate);
+    /* Set flags. */
+    transform_convert_pose_transflags_update(ob, t->mode, t->around);
+
+    /* Now count, and check if we have autoIK or have to switch from translate to rotate. */
+    LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
+      Bone *bone = pchan->bone;
+      if (!(bone->flag & BONE_TRANSFORM)) {
+        continue;
+      }
+
+      tc->data_len++;
+
+      if (has_translate_rotate != NULL) {
+        if (has_translate_rotate[0] && has_translate_rotate[1]) {
+          continue;
+        }
+
+        if (has_targetless_ik(pchan) == NULL) {
+          if (pchan->parent && (bone->flag & BONE_CONNECTED)) {
+            if (bone->flag & BONE_HINGE_CHILD_TRANSFORM) {
+              has_translate_rotate[0] = true;
+            }
+          }
+          else {
+            if ((pchan->protectflag & OB_LOCK_LOC) != OB_LOCK_LOC) {
+              has_translate_rotate[0] = true;
+            }
+          }
+          if ((pchan->protectflag & OB_LOCK_ROT) != OB_LOCK_ROT) {
+            has_translate_rotate[1] = true;
+          }
+        }
+        else {
+          has_translate_rotate[0] = true;
+        }
+      }
+    }
 
     if (tc->data_len == 0) {
       continue;
@@ -1496,17 +1517,11 @@ static void bone_children_clear_transflag(int mode, short around, ListBase *lb)
   }
 }
 
-/* Sets transform flags in the bones.
- * Returns total number of bones with `BONE_TRANSFORM`. */
-int transform_convert_pose_transflags_update(Object *ob,
-                                             const int mode,
-                                             const short around,
-                                             bool has_translate_rotate[2])
+void transform_convert_pose_transflags_update(Object *ob, const int mode, const short around)
 {
   bArmature *arm = ob->data;
   bPoseChannel *pchan;
   Bone *bone;
-  int total = 0;
 
   for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
     bone = pchan->bone;
@@ -1536,36 +1551,6 @@ int transform_convert_pose_transflags_update(Object *ob,
       }
     }
   }
-  /* now count, and check if we have autoIK or have to switch from translate to rotate */
-  for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
-    bone = pchan->bone;
-    if (bone->flag & BONE_TRANSFORM) {
-      total++;
-
-      if (has_translate_rotate != NULL) {
-        if (has_targetless_ik(pchan) == NULL) {
-          if (pchan->parent && (pchan->bone->flag & BONE_CONNECTED)) {
-            if (pchan->bone->flag & BONE_HINGE_CHILD_TRANSFORM) {
-              has_translate_rotate[0] = true;
-            }
-          }
-          else {
-            if ((pchan->protectflag & OB_LOCK_LOC) != OB_LOCK_LOC) {
-              has_translate_rotate[0] = true;
-            }
-          }
-          if ((pchan->protectflag & OB_LOCK_ROT) != OB_LOCK_ROT) {
-            has_translate_rotate[1] = true;
-          }
-        }
-        else {
-          has_translate_rotate[0] = true;
-        }
-      }
-    }
-  }
-
-  return total;
 }
 
 static short apply_targetless_ik(Object *ob)
@@ -1730,9 +1715,9 @@ void special_aftertrans_update__pose(bContext *C, TransInfo *t)
         BKE_pose_where_is(t->depsgraph, t->scene, pose_ob);
       }
 
-      /* set BONE_TRANSFORM flags for autokey, gizmo draw might have changed them */
+      /* Set BONE_TRANSFORM flags for auto-key, gizmo draw might have changed them. */
       if (!canceled && (t->mode != TFM_DUMMY)) {
-        transform_convert_pose_transflags_update(ob, t->mode, t->around, NULL);
+        transform_convert_pose_transflags_update(ob, t->mode, t->around);
       }
 
       /* if target-less IK grabbing, we calculate the pchan transforms and clear flag */

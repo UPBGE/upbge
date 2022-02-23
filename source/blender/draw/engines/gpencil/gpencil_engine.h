@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2017, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2017 Blender Foundation. */
 
 /** \file
  * \ingroup draw
@@ -106,9 +91,9 @@ typedef struct gpLight {
 BLI_STATIC_ASSERT_ALIGN(gpMaterial, 16)
 BLI_STATIC_ASSERT_ALIGN(gpLight, 16)
 
-/* *********** Draw Datas *********** */
+/* *********** Draw Data *********** */
 typedef struct GPENCIL_MaterialPool {
-  /* Linklist. */
+  /* Single linked-list. */
   struct GPENCIL_MaterialPool *next;
   /* GPU representation of materials. */
   gpMaterial mat_data[GP_MATERIAL_BUFFER_LEN];
@@ -148,7 +133,7 @@ typedef struct GPENCIL_ViewLayerData {
 /* *********** GPencil  *********** */
 
 typedef struct GPENCIL_tVfx {
-  /** Linklist */
+  /** Single linked-list. */
   struct GPENCIL_tVfx *next;
   DRWPass *vfx_ps;
   /* Frame-buffer reference since it may not be allocated yet. */
@@ -156,7 +141,7 @@ typedef struct GPENCIL_tVfx {
 } GPENCIL_tVfx;
 
 typedef struct GPENCIL_tLayer {
-  /** Linklist */
+  /** Single linked-list. */
   struct GPENCIL_tLayer *next;
   /** Geometry pass (draw all strokes). */
   DRWPass *geom_ps;
@@ -172,7 +157,7 @@ typedef struct GPENCIL_tLayer {
 } GPENCIL_tLayer;
 
 typedef struct GPENCIL_tObject {
-  /** Linklist */
+  /** Single linked-list. */
   struct GPENCIL_tObject *next;
 
   struct {
@@ -298,14 +283,14 @@ typedef struct GPENCIL_PrivateData {
   /* Current frame */
   int cfra;
   /* If we are rendering for final render (F12).
-   * NOTE: set to false for viewport and opengl rendering (including VSE scene rendering), but set
-   * to true when rendering in `OB_RENDER` shading mode (viewport or opengl rendering) */
+   * NOTE: set to false for viewport and opengl rendering (including sequencer scene rendering),
+   * but set to true when rendering in #OB_RENDER shading mode (viewport or opengl rendering). */
   bool is_render;
   /* If we are in viewport display (used for VFX). */
   bool is_viewport;
   /* True in selection and auto_depth drawing */
   bool draw_depth_only;
-  /* Is shading set to wireframe. */
+  /* Is shading set to wire-frame. */
   bool draw_wireframe;
   /* Used by the depth merge step. */
   int is_stroke_order_3d;
@@ -392,6 +377,11 @@ GPENCIL_tLayer *gpencil_layer_cache_add(GPENCIL_PrivateData *pd,
                                         GPENCIL_tObject *tgp_ob);
 GPENCIL_tLayer *gpencil_layer_cache_get(GPENCIL_tObject *tgp_ob, int number);
 
+/**
+ * Creates a linked list of material pool containing all materials assigned for a given object.
+ * We merge the material pools together if object does not contain a huge amount of materials.
+ * Also return an offset to the first material of the object in the UBO.
+ */
 GPENCIL_MaterialPool *gpencil_material_pool_create(GPENCIL_PrivateData *pd, Object *ob, int *ofs);
 void gpencil_material_resources_get(GPENCIL_MaterialPool *first_pool,
                                     int mat_id,
@@ -402,6 +392,9 @@ void gpencil_material_resources_get(GPENCIL_MaterialPool *first_pool,
 void gpencil_light_ambient_add(GPENCIL_LightPool *lightpool, const float color[3]);
 void gpencil_light_pool_populate(GPENCIL_LightPool *lightpool, Object *ob);
 GPENCIL_LightPool *gpencil_light_pool_add(GPENCIL_PrivateData *pd);
+/**
+ * Creates a single pool containing all lights assigned (light linked) for a given object.
+ */
 GPENCIL_LightPool *gpencil_light_pool_create(GPENCIL_PrivateData *pd, Object *ob);
 
 /* effects */
@@ -436,6 +429,10 @@ void GPENCIL_cache_finish(void *vedata);
 void GPENCIL_draw_scene(void *vedata);
 
 /* render */
+
+/**
+ * Initialize render data.
+ */
 void GPENCIL_render_init(struct GPENCIL_Data *ved,
                          struct RenderEngine *engine,
                          struct RenderLayer *render_layer,

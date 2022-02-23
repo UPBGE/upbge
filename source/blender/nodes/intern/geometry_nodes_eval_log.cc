@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "NOD_geometry_nodes_eval_log.hh"
 
@@ -21,11 +7,23 @@
 #include "DNA_modifier_types.h"
 #include "DNA_space_types.h"
 
+#include "FN_field_cpp_type.hh"
+
+#include "BLT_translation.h"
+
+#include <chrono>
+
 namespace blender::nodes::geometry_nodes_eval_log {
 
 using fn::CPPType;
+using fn::FieldCPPType;
+using fn::FieldInput;
+using fn::GField;
+using fn::ValueOrFieldCPPType;
 
 ModifierLog::ModifierLog(GeoLogger &logger)
+    : input_geometry_log_(std::move(logger.input_geometry_log_)),
+      output_geometry_log_(std::move(logger.output_geometry_log_))
 {
   root_tree_logs_ = allocator_.construct<TreeLog>();
 
@@ -53,6 +51,17 @@ ModifierLog::ModifierLog(GeoLogger &logger)
       NodeLog &node_log = this->lookup_or_add_node_log(log_by_tree_context,
                                                        node_with_warning.node);
       node_log.warnings_.append(node_with_warning.warning);
+    }
+
+    for (NodeWithExecutionTime &node_with_exec_time : local_logger.node_exec_times_) {
+      NodeLog &node_log = this->lookup_or_add_node_log(log_by_tree_context,
+                                                       node_with_exec_time.node);
+      node_log.exec_time_ = node_with_exec_time.exec_time;
+    }
+
+    for (NodeWithDebugMessage &debug_message : local_logger.node_debug_messages_) {
+      NodeLog &node_log = this->lookup_or_add_node_log(log_by_tree_context, debug_message.node);
+      node_log.debug_messages_.append(debug_message.message);
     }
   }
 }
@@ -106,6 +115,15 @@ void ModifierLog::foreach_node_log(FunctionRef<void(const NodeLog &)> fn) const
   }
 }
 
+const GeometryValueLog *ModifierLog::input_geometry_log() const
+{
+  return input_geometry_log_.get();
+}
+const GeometryValueLog *ModifierLog::output_geometry_log() const
+{
+  return output_geometry_log_.get();
+}
+
 const NodeLog *TreeLog::lookup_node_log(StringRef node_name) const
 {
   const destruct_ptr<NodeLog> *node_log = node_logs_.lookup_ptr_as(node_name);
@@ -157,17 +175,60 @@ const SocketLog *NodeLog::lookup_socket_log(const bNode &node, const bNodeSocket
   return this->lookup_socket_log((eNodeSocketInOut)socket.in_out, index);
 }
 
+GFieldValueLog::GFieldValueLog(fn::GField field, bool log_full_field) : type_(field.cpp_type())
+{
+  const std::shared_ptr<const fn::FieldInputs> &field_input_nodes = field.node().field_inputs();
+
+  /* Put the deduplicated field inputs into a vector so that they can be sorted below. */
+  Vector<std::reference_wrapper<const FieldInput>> field_inputs;
+  if (field_input_nodes) {
+    field_inputs.extend(field_input_nodes->deduplicated_nodes.begin(),
+                        field_input_nodes->deduplicated_nodes.end());
+  }
+
+  std::sort(
+      field_inputs.begin(), field_inputs.end(), [](const FieldInput &a, const FieldInput &b) {
+        const int index_a = (int)a.category();
+        const int index_b = (int)b.category();
+        if (index_a == index_b) {
+          return a.socket_inspection_name().size() < b.socket_inspection_name().size();
+        }
+        return index_a < index_b;
+      });
+
+  for (const FieldInput &field_input : field_inputs) {
+    input_tooltips_.append(field_input.socket_inspection_name());
+  }
+
+  if (log_full_field) {
+    field_ = std::move(field);
+  }
+}
+
 GeometryValueLog::GeometryValueLog(const GeometrySet &geometry_set, bool log_full_geometry)
 {
-  bke::geometry_set_instances_attribute_foreach(
-      geometry_set,
-      [&](const bke::AttributeIDRef &attribute_id, const AttributeMetaData &meta_data) {
-        if (attribute_id.is_named()) {
+  static std::array all_component_types = {GEO_COMPONENT_TYPE_CURVE,
+                                           GEO_COMPONENT_TYPE_INSTANCES,
+                                           GEO_COMPONENT_TYPE_MESH,
+                                           GEO_COMPONENT_TYPE_POINT_CLOUD,
+                                           GEO_COMPONENT_TYPE_VOLUME};
+
+  /* Keep track handled attribute names to make sure that we do not return the same name twice.
+   * Currently #GeometrySet::attribute_foreach does not do that. Note that this will merge
+   * attributes with the same name but different domains or data types on separate components. */
+  Set<StringRef> names;
+
+  geometry_set.attribute_foreach(
+      all_component_types,
+      true,
+      [&](const bke::AttributeIDRef &attribute_id,
+          const AttributeMetaData &meta_data,
+          const GeometryComponent &UNUSED(component)) {
+        if (attribute_id.is_named() && names.add(attribute_id.name())) {
           this->attributes_.append({attribute_id.name(), meta_data.domain, meta_data.data_type});
         }
-        return true;
-      },
-      8);
+      });
+
   for (const GeometryComponent *component : geometry_set.get_components_for_read()) {
     component_types_.append(component->type());
     switch (component->type()) {
@@ -347,7 +408,7 @@ void LocalGeoLogger::log_value_for_sockets(Span<DSocket> sockets, GPointer value
   if (type.is<GeometrySet>()) {
     bool log_full_geometry = false;
     for (const DSocket &socket : sockets) {
-      if (main_logger_->log_full_geometry_sockets_.contains(socket)) {
+      if (main_logger_->log_full_sockets_.contains(socket)) {
         log_full_geometry = true;
         break;
       }
@@ -357,6 +418,39 @@ void LocalGeoLogger::log_value_for_sockets(Span<DSocket> sockets, GPointer value
     destruct_ptr<GeometryValueLog> value_log = allocator_->construct<GeometryValueLog>(
         geometry_set, log_full_geometry);
     values_.append({copied_sockets, std::move(value_log)});
+  }
+  else if (const ValueOrFieldCPPType *value_or_field_type =
+               dynamic_cast<const ValueOrFieldCPPType *>(&type)) {
+    const void *value_or_field = value.get();
+    if (value_or_field_type->is_field(value_or_field)) {
+      GField field = *value_or_field_type->get_field_ptr(value_or_field);
+      bool log_full_field = false;
+      if (!field.node().depends_on_input()) {
+        /* Always log constant fields so that their value can be shown in socket inspection.
+         * In the future we can also evaluate the field here and only store the value. */
+        log_full_field = true;
+      }
+      if (!log_full_field) {
+        for (const DSocket &socket : sockets) {
+          if (main_logger_->log_full_sockets_.contains(socket)) {
+            log_full_field = true;
+            break;
+          }
+        }
+      }
+      destruct_ptr<GFieldValueLog> value_log = allocator_->construct<GFieldValueLog>(
+          std::move(field), log_full_field);
+      values_.append({copied_sockets, std::move(value_log)});
+    }
+    else {
+      const CPPType &base_type = value_or_field_type->base_type();
+      const void *value = value_or_field_type->get_value_ptr(value_or_field);
+      void *buffer = allocator_->allocate(base_type.size(), base_type.alignment());
+      base_type.copy_construct(value, buffer);
+      destruct_ptr<GenericValueLog> value_log = allocator_->construct<GenericValueLog>(
+          GMutablePointer{base_type, buffer});
+      values_.append({copied_sockets, std::move(value_log)});
+    }
   }
   else {
     void *buffer = allocator_->allocate(type.size(), type.alignment());
@@ -376,6 +470,16 @@ void LocalGeoLogger::log_multi_value_socket(DSocket socket, Span<GPointer> value
 void LocalGeoLogger::log_node_warning(DNode node, NodeWarningType type, std::string message)
 {
   node_warnings_.append({node, {type, std::move(message)}});
+}
+
+void LocalGeoLogger::log_execution_time(DNode node, std::chrono::microseconds exec_time)
+{
+  node_exec_times_.append({node, exec_time});
+}
+
+void LocalGeoLogger::log_debug_message(DNode node, std::string message)
+{
+  node_debug_messages_.append({node, std::move(message)});
 }
 
 }  // namespace blender::nodes::geometry_nodes_eval_log

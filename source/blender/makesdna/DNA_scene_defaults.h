@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -47,6 +33,7 @@
     .width = 512, \
     .height = 512, \
     .margin = 16, \
+    .margin_type = R_BAKE_ADJACENT_FACES, \
     .normal_space = R_BAKE_SPACE_TANGENT, \
     .normal_swizzle = {R_BAKE_POSX, R_BAKE_POSY, R_BAKE_POSZ}, \
   }
@@ -102,7 +89,8 @@
     .dither_intensity = 1.0f, \
  \
     .bake_mode = 0, \
-    .bake_filter = 16, \
+    .bake_margin = 16, \
+    .bake_margin_type = R_BAKE_ADJACENT_FACES, \
     .bake_flag = R_BAKE_CLEAR, \
     .bake_samples = 256, \
     .bake_biasdist = 0.001f, \
@@ -134,8 +122,6 @@
     .border.ymin = 0.0f, \
     .border.xmax = 1.0f, \
     .border.ymax = 1.0f, \
- \
-    .preview_start_resolution = 64, \
  \
     .line_thickness_mode = R_LINE_THICKNESS_ABSOLUTE, \
     .unit_line_thickness = 1.0f, \
@@ -292,8 +278,7 @@
                     SCE_EEVEE_SSR_HALF_RESOLUTION | SCE_EEVEE_SHADOW_SOFT, \
  \
     .smaa_quality = SCE_EEVEE_SMAA_PRESET_HIGH, \
-    .smaa_predication_threshold = 0.01, \
-    .smaa_predication_scale = 1.0, \
+    .smaa_predication_scale = 0.01, \
  \
   }
 
@@ -438,3 +423,5 @@
   }
 
 /* clang-format off */
+
+/** \} */

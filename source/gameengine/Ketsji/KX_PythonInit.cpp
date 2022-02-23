@@ -100,8 +100,7 @@
 
 // python physics binding
 #include "BL_Action.h"
-#include "BL_ActionActuator.h"
-#include "BL_BlenderConverter.h"
+#include "BL_Converter.h"
 #include "BL_Shader.h"
 #include "CM_Message.h"
 #include "KX_Globals.h"
@@ -114,8 +113,8 @@
 #include "KX_PythonInitTypes.h"
 #include "PHY_IPhysicsEnvironment.h"
 #include "RAS_2DFilterManager.h"
-#include "RAS_BucketManager.h"
 #include "RAS_ICanvas.h"
+#include "SCA_ActionActuator.h"
 #include "SCA_ArmatureSensor.h"
 #include "SCA_ConstraintActuator.h"
 #include "SCA_DynamicActuator.h"
@@ -223,7 +222,7 @@ PyDoc_STRVAR(gPyStartGame_doc,
              "Loads the blend file");
 static PyObject *gPyStartGame(PyObject *, PyObject *args)
 {
-  char *blendfile;
+  char *blendfile = (char *)"";
 
   if (!PyArg_ParseTuple(args, "s:startGame", &blendfile))
     return nullptr;
@@ -292,7 +291,7 @@ PyDoc_STRVAR(gPySendMessage_doc,
              " from = Name of object to send the string from");
 static PyObject *gPySendMessage(PyObject *, PyObject *args)
 {
-  char *subject;
+  char *subject = (char *)"";
   char *body = (char *)"";
   char *to = (char *)"";
   PyObject *pyfrom = Py_None;
@@ -406,7 +405,7 @@ static PyObject *gPySetPhysicsTicRate(PyObject *, PyObject *args)
   if (!PyArg_ParseTuple(args, "f:setPhysicsTicRate", &ticrate))
     return nullptr;
 
-  PHY_GetActiveEnvironment()->SetFixedTimeStep(true, ticrate);
+  KX_GetPhysicsEnvironment()->SetFixedTimeStep(true, ticrate);
   Py_RETURN_NONE;
 }
 #  if 0  // unused
@@ -416,14 +415,14 @@ static PyObject *gPySetPhysicsDebug(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args, "i:setPhysicsDebug", &debugMode))
 		return nullptr;
 	
-	PHY_GetActiveEnvironment()->setDebugMode(debugMode);
+  KX_GetPhysicsEnvironment()->setDebugMode(debugMode);
 	Py_RETURN_NONE;
 }
 #  endif
 
 static PyObject *gPyGetPhysicsTicRate(PyObject *)
 {
-  return PyFloat_FromDouble(PHY_GetActiveEnvironment()->GetFixedTimeStep());
+  return PyFloat_FromDouble(KX_GetPhysicsEnvironment()->GetFixedTimeStep());
 }
 
 static PyObject *gPyGetAverageFrameRate(PyObject *)
@@ -612,11 +611,18 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
                                  "scene",
                                  nullptr};
 
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "ss|y*iiIiO:LibLoad",
-                                     {"path", "group", "buffer", "load_actions", "verbose", "load_scripts", "asynchronous", "scene", 0},
-                                     &path, &group, &py_buffer, &load_actions, &verbose, &load_scripts, &asynchronous, &pyscene))
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   kwds,
+                                   "ss|y*iiIiO:LibLoad",
+                                   const_cast<char **>(kwlist),
+                                   &path,
+                                   &group,
+                                   &py_buffer,
+                                   &load_actions,
+                                   &verbose,
+                                   &load_scripts,
+                                   &asynchronous,
+                                   &pyscene))
     return nullptr;
 
   if (!ConvertPythonToScene(pyscene, &kx_scene, true, "invalid scene")) {
@@ -628,15 +634,15 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 
   /* setup options */
   if (load_actions != 0)
-    options |= BL_BlenderConverter::LIB_LOAD_LOAD_ACTIONS;
+    options |= BL_Converter::LIB_LOAD_LOAD_ACTIONS;
   if (verbose != 0)
-    options |= BL_BlenderConverter::LIB_LOAD_VERBOSE;
+    options |= BL_Converter::LIB_LOAD_VERBOSE;
   if (load_scripts != 0)
-    options |= BL_BlenderConverter::LIB_LOAD_LOAD_SCRIPTS;
+    options |= BL_Converter::LIB_LOAD_LOAD_SCRIPTS;
   if (asynchronous != 0)
-    options |= BL_BlenderConverter::LIB_LOAD_ASYNC;
+    options |= BL_Converter::LIB_LOAD_ASYNC;
 
-  BL_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
+  BL_Converter *converter = KX_GetActiveEngine()->GetConverter();
 
   if (!py_buffer.buf) {
     char abs_path[FILE_MAX];
@@ -670,7 +676,7 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 static PyObject *gLibNew(PyObject *, PyObject *args)
 {
   KX_Scene *kx_scene = KX_GetActiveScene();
-  char *path;
+  char *path = (char *)"";
   char *group;
   const char *name;
   PyObject *names;
@@ -679,7 +685,7 @@ static PyObject *gLibNew(PyObject *, PyObject *args)
   if (!PyArg_ParseTuple(args, "ssO!:LibNew", &path, &group, &PyList_Type, &names))
     return nullptr;
 
-  BL_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
+  BL_Converter *converter = KX_GetActiveEngine()->GetConverter();
 
   if (converter->GetMainDynamicPath(path)) {
     PyErr_SetString(PyExc_KeyError, "the name of the path given exists");
@@ -726,7 +732,7 @@ static PyObject *gLibNew(PyObject *, PyObject *args)
 
 static PyObject *gLibFree(PyObject *, PyObject *args)
 {
-  char *path;
+  char *path = (char *)"";
 
   if (!PyArg_ParseTuple(args, "s:LibFree", &path))
     return nullptr;
@@ -745,7 +751,7 @@ static PyObject *gLibList(PyObject *, PyObject *args)
   PyObject *list = PyList_New(dynMaggie.size());
 
   for (unsigned short i = 0, size = dynMaggie.size(); i < size; ++i) {
-    PyList_SET_ITEM(list, i, PyUnicode_FromString(dynMaggie[i]->name));
+    PyList_SET_ITEM(list, i, PyUnicode_FromString(dynMaggie[i]->filepath));
   }
 
   return list;
@@ -1050,7 +1056,7 @@ static PyObject *gPyGetStereoEye(PyObject *, PyObject *, PyObject *)
 
 static PyObject *gPyMakeScreenshot(PyObject *, PyObject *args)
 {
-  char *filename;
+  char *filename = (char *)"";
   if (!PyArg_ParseTuple(args, "s:makeScreenshot", &filename))
     return nullptr;
 
@@ -1435,6 +1441,7 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
     PyList_SET_ITEM(joylist, i, Py_None);
   }
   PyDict_SetItemString(d, "joysticks", joylist);
+  Py_DECREF(joylist);
 
   ErrorObject = PyUnicode_FromString("GameLogic.error");
   PyDict_SetItemString(d, "error", ErrorObject);
@@ -2298,10 +2305,12 @@ void initGamePythonScripting(Main *maggie, bContext *C, bool *audioDeviceIsIniti
    * somehow it remembers the sys.path - Campbell
    */
 
-/* #PyPreConfig (early-configuration).  */
+  /* #PyPreConfig (early-configuration).  */
   {
     PyPreConfig preconfig;
     PyStatus status;
+
+    backupPySysObjects();
 
     if (BPY_python_get_use_system_env()) {
       PyPreConfig_InitPythonConfig(&preconfig);
@@ -2357,8 +2366,8 @@ void initGamePythonScripting(Main *maggie, bContext *C, bool *audioDeviceIsIniti
 
     /* While `sys.argv` is set, we don't want Python to interpret it. */
     config.parse_argv = 0;
-    //status = PyConfig_SetBytesArgv(&config, argc, (char *const *)argv);
-    //pystatus_exit_on_error(status);
+    // status = PyConfig_SetBytesArgv(&config, argc, (char *const *)argv);
+    // pystatus_exit_on_error(status);
 
     /* Needed for Python's initialization for portable Python installations.
      * We could use #Py_SetPath, but this overrides Python's internal logic
@@ -2537,8 +2546,7 @@ void createPythonConsole()
   BLI_strncpy(filepath, BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS, "bge"), sizeof(filepath));
   BLI_path_append(filepath, sizeof(filepath), "interpreter.py");
 
-  // Use _Py_fopen to make sure we use the same fopen function as python use.
-  FILE *fp = _Py_fopen(filepath, "r+");
+  FILE *fp = fopen(filepath, "r+");
   // Execute the file in python.
   PyRun_SimpleFile(fp, filepath);
 }

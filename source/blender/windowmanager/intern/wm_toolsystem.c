@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup wm
@@ -251,7 +237,6 @@ void WM_toolsystem_reinit(bContext *C, WorkSpace *workspace, const bToolKey *tke
   }
 }
 
-/* Operate on all active tools. */
 void WM_toolsystem_unlink_all(struct bContext *C, struct WorkSpace *workspace)
 {
   LISTBASE_FOREACH (bToolRef *, tref, &workspace->tools) {
@@ -326,7 +311,10 @@ void WM_toolsystem_ref_set_from_runtime(struct bContext *C,
   bool use_fallback_keymap = false;
 
   if (tref->idname_fallback[0] || tref->runtime->keymap_fallback[0]) {
-    if (tref_rt->gizmo_group[0]) {
+    if (tref_rt->flag & TOOLREF_FLAG_FALLBACK_KEYMAP) {
+      use_fallback_keymap = true;
+    }
+    else if (tref_rt->gizmo_group[0]) {
       wmGizmoGroupType *gzgt = WM_gizmogrouptype_find(tref_rt->gizmo_group, false);
       if (gzgt) {
         if (gzgt->flag & WM_GIZMOGROUPTYPE_TOOL_FALLBACK_KEYMAP) {
@@ -359,12 +347,6 @@ void WM_toolsystem_ref_set_from_runtime(struct bContext *C,
   }
 }
 
-/**
- * Sync the internal active state of a tool back into the tool system,
- * this is needed for active brushes where the real active state is not stored in the tool system.
- *
- * \see #toolsystem_ref_link
- */
 void WM_toolsystem_ref_sync_from_context(Main *bmain, WorkSpace *workspace, bToolRef *tref)
 {
   bToolRef_Runtime *tref_rt = tref->runtime;
@@ -502,14 +484,6 @@ bool WM_toolsystem_key_from_context(ViewLayer *view_layer, ScrArea *area, bToolK
   return false;
 }
 
-/**
- * Use to update the active tool (shown in the top bar) in the least disruptive way.
- *
- * This is a little involved since there may be multiple valid active tools
- * depending on the mode and space type.
- *
- * Used when undoing since the active mode may have changed.
- */
 void WM_toolsystem_refresh_active(bContext *C)
 {
   Main *bmain = CTX_data_main(C);
@@ -569,25 +543,29 @@ void WM_toolsystem_refresh_screen_area(WorkSpace *workspace, ViewLayer *view_lay
   }
 }
 
+void WM_toolsystem_refresh_screen_window(wmWindow *win)
+{
+  WorkSpace *workspace = WM_window_get_active_workspace(win);
+  bool space_type_has_tools[SPACE_TYPE_LAST + 1] = {0};
+  LISTBASE_FOREACH (bToolRef *, tref, &workspace->tools) {
+    space_type_has_tools[tref->space_type] = true;
+  }
+  bScreen *screen = WM_window_get_active_screen(win);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+    area->runtime.tool = NULL;
+    area->runtime.is_tool_set = true;
+    if (space_type_has_tools[area->spacetype]) {
+      WM_toolsystem_refresh_screen_area(workspace, view_layer, area);
+    }
+  }
+}
+
 void WM_toolsystem_refresh_screen_all(Main *bmain)
 {
   /* Update all ScrArea's tools */
   for (wmWindowManager *wm = bmain->wm.first; wm; wm = wm->id.next) {
     LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-      WorkSpace *workspace = WM_window_get_active_workspace(win);
-      bool space_type_has_tools[SPACE_TYPE_LAST + 1] = {0};
-      LISTBASE_FOREACH (bToolRef *, tref, &workspace->tools) {
-        space_type_has_tools[tref->space_type] = true;
-      }
-      bScreen *screen = WM_window_get_active_screen(win);
-      ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        area->runtime.tool = NULL;
-        area->runtime.is_tool_set = true;
-        if (space_type_has_tools[area->spacetype]) {
-          WM_toolsystem_refresh_screen_area(workspace, view_layer, area);
-        }
-      }
     }
   }
 }
@@ -685,6 +663,8 @@ static const char *toolsystem_default_tool(const bToolKey *tkey)
           return "builtin_brush.Weight";
         case CTX_MODE_VERTEX_GPENCIL:
           return "builtin_brush.Draw";
+        case CTX_MODE_SCULPT_CURVES:
+          return "builtin_brush.Test 1";
           /* end temporary hack. */
 
         case CTX_MODE_PARTICLE:
@@ -793,16 +773,12 @@ void WM_toolsystem_update_from_context(bContext *C,
   }
 }
 
-/**
- * For paint modes to support non-brush tools.
- */
 bool WM_toolsystem_active_tool_is_brush(const bContext *C)
 {
   bToolRef_Runtime *tref_rt = WM_toolsystem_runtime_from_context((bContext *)C);
   return tref_rt && (tref_rt->data_block[0] != '\0');
 }
 
-/* Follow wmMsgNotifyFn spec */
 void WM_toolsystem_do_msg_notify_tag_refresh(bContext *C,
                                              wmMsgSubscribeKey *UNUSED(msg_key),
                                              wmMsgSubscribeValue *msg_val)

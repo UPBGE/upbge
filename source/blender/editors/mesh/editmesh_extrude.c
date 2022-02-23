@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2004 by Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2004 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup edmesh
@@ -144,7 +128,6 @@ static bool edbm_extrude_discrete_faces(BMEditMesh *em, wmOperator *op, const ch
   return true;
 }
 
-/* extrudes individual edges */
 bool edbm_extrude_edges_indiv(BMEditMesh *em,
                               wmOperator *op,
                               const char hflag,
@@ -821,8 +804,8 @@ static int edbm_dupli_extrude_cursor_invoke(bContext *C, wmOperator *op, const w
         float view_vec[3], cross[3];
 
         /* convert the 2D normal into 3D */
-        mul_mat3_m4_v3(vc.rv3d->viewinv, nor); /* worldspace */
-        mul_mat3_m4_v3(vc.obedit->imat, nor);  /* local space */
+        mul_mat3_m4_v3(vc.rv3d->viewinv, nor); /* World-space. */
+        mul_mat3_m4_v3(vc.obedit->imat, nor);  /* Local-space. */
 
         /* correct the normal to be aligned on the view plane */
         mul_v3_mat3_m4v3(view_vec, vc.obedit->imat, vc.rv3d->viewinv[2]);
@@ -925,7 +908,7 @@ static int edbm_dupli_extrude_cursor_invoke(bContext *C, wmOperator *op, const w
 void MESH_OT_dupli_extrude_cursor(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Duplicate or Extrude to Cursor";
+  ot->name = "Extrude to Cursor or Add";
   ot->idname = "MESH_OT_dupli_extrude_cursor";
   ot->description =
       "Duplicate and extrude selected vertices, edges or faces towards the mouse cursor";
@@ -935,7 +918,7 @@ void MESH_OT_dupli_extrude_cursor(wmOperatorType *ot)
   ot->poll = ED_operator_editmesh_region_view3d;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 
   RNA_def_boolean(ot->srna,
                   "rotate_source",

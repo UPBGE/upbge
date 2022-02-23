@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2019, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2019 Blender Foundation. */
 
 /** \file
  * \ingroup draw_engine
@@ -59,7 +44,6 @@ static struct GPUTexture *gpencil_image_texture_get(Image *image, bool *r_alpha_
   struct GPUTexture *gpu_tex = NULL;
   void *lock;
 
-  iuser.ok = true;
   ibuf = BKE_image_acquire_ibuf(image, &iuser, &lock);
 
   if (ibuf != NULL && ibuf->rect != NULL) {
@@ -177,11 +161,6 @@ static MaterialGPencilStyle *gpencil_viewport_material_overrides(
   return gp_style;
 }
 
-/**
- * Creates a linked list of material pool containing all materials assigned for a given object.
- * We merge the material pools together if object does not contain a huge amount of materials.
- * Also return an offset to the first material of the object in the ubo.
- */
 GPENCIL_MaterialPool *gpencil_material_pool_create(GPENCIL_PrivateData *pd, Object *ob, int *ofs)
 {
   GPENCIL_MaterialPool *matpool = pd->last_material_pool;
@@ -430,9 +409,6 @@ void gpencil_light_pool_populate(GPENCIL_LightPool *lightpool, Object *ob)
   }
 }
 
-/**
- * Creates a single pool containing all lights assigned (light linked) for a given object.
- */
 GPENCIL_LightPool *gpencil_light_pool_create(GPENCIL_PrivateData *pd, Object *UNUSED(ob))
 {
   GPENCIL_LightPool *lightpool = pd->last_light_pool;
@@ -481,7 +457,7 @@ GPENCIL_ViewLayerData *GPENCIL_view_layer_data_ensure(void)
   GPENCIL_ViewLayerData **vldata = (GPENCIL_ViewLayerData **)DRW_view_layer_engine_data_ensure(
       &draw_engine_gpencil_type, gpencil_view_layer_data_free);
 
-  /* NOTE(fclem) Putting this stuff in viewlayer means it is shared by all viewports.
+  /* NOTE(&fclem): Putting this stuff in viewlayer means it is shared by all viewports.
    * For now it is ok, but in the future, it could become a problem if we implement
    * the caching system. */
   if (*vldata == NULL) {

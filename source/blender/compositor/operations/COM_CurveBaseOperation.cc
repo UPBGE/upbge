@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #include "COM_CurveBaseOperation.h"
 
@@ -24,37 +9,37 @@ namespace blender::compositor {
 
 CurveBaseOperation::CurveBaseOperation()
 {
-  this->m_curveMapping = nullptr;
-  this->flags.can_be_constant = true;
+  curve_mapping_ = nullptr;
+  flags_.can_be_constant = true;
 }
 
 CurveBaseOperation::~CurveBaseOperation()
 {
-  if (this->m_curveMapping) {
-    BKE_curvemapping_free(this->m_curveMapping);
-    this->m_curveMapping = nullptr;
+  if (curve_mapping_) {
+    BKE_curvemapping_free(curve_mapping_);
+    curve_mapping_ = nullptr;
   }
 }
 
-void CurveBaseOperation::initExecution()
+void CurveBaseOperation::init_execution()
 {
-  BKE_curvemapping_init(this->m_curveMapping);
+  BKE_curvemapping_init(curve_mapping_);
 }
-void CurveBaseOperation::deinitExecution()
+void CurveBaseOperation::deinit_execution()
 {
-  if (this->m_curveMapping) {
-    BKE_curvemapping_free(this->m_curveMapping);
-    this->m_curveMapping = nullptr;
+  if (curve_mapping_) {
+    BKE_curvemapping_free(curve_mapping_);
+    curve_mapping_ = nullptr;
   }
 }
 
-void CurveBaseOperation::setCurveMapping(CurveMapping *mapping)
+void CurveBaseOperation::set_curve_mapping(CurveMapping *mapping)
 {
   /* duplicate the curve to avoid glitches while drawing, see bug T32374. */
-  if (this->m_curveMapping) {
-    BKE_curvemapping_free(this->m_curveMapping);
+  if (curve_mapping_) {
+    BKE_curvemapping_free(curve_mapping_);
   }
-  this->m_curveMapping = BKE_curvemapping_copy(mapping);
+  curve_mapping_ = BKE_curvemapping_copy(mapping);
 }
 
 }  // namespace blender::compositor

@@ -186,16 +186,14 @@ void SCA_CollisionSensor::UnregisterSumo(KX_CollisionEventManager *collisionman)
 
 // this function is called only for sensor objects
 // return true if the controller can collide with the object
-bool SCA_CollisionSensor::BroadPhaseSensorFilterCollision(void *obj1, void *obj2)
+bool SCA_CollisionSensor::BroadPhaseSensorFilterCollision(PHY_IPhysicsController *ctrl1, PHY_IPhysicsController *ctrl2)
 {
-  BLI_assert(obj1 == m_physCtrl && obj2);
+  BLI_assert(ctrl1 == m_physCtrl && ctrl2);
 
   KX_GameObject *myobj = (KX_GameObject *)GetParent();
   KX_GameObject *myparent = myobj->GetParent();
-  KX_ClientObjectInfo *client_info = static_cast<KX_ClientObjectInfo *>(
-      ((PHY_IPhysicsController *)obj2)->GetNewClientInfo());
-  KX_ClientObjectInfo *my_client_info = static_cast<KX_ClientObjectInfo *>(
-      m_physCtrl->GetNewClientInfo());
+  KX_ClientObjectInfo *client_info = static_cast<KX_ClientObjectInfo *>(ctrl2->GetNewClientInfo());
+  KX_ClientObjectInfo *my_client_info = static_cast<KX_ClientObjectInfo *>(m_physCtrl->GetNewClientInfo());
   KX_GameObject *otherobj = (client_info ? client_info->m_gameobject : nullptr);
 
   // we can only check on persistent characteristic: m_link and m_suspended are not
@@ -227,17 +225,16 @@ bool SCA_CollisionSensor::BroadPhaseSensorFilterCollision(void *obj1, void *obj2
   return found;
 }
 
-bool SCA_CollisionSensor::NewHandleCollision(void *object1,
-                                             void *object2,
-                                             const PHY_CollData *colldata)
+bool SCA_CollisionSensor::NewHandleCollision(PHY_IPhysicsController *ctrl1,
+                                             PHY_IPhysicsController *ctrl2,
+                                             const PHY_ICollData *colldata)
 {
   KX_GameObject *parent = (KX_GameObject *)GetParent();
 
   // need the mapping from PHY_IPhysicsController to gameobjects now
 
-  KX_ClientObjectInfo *client_info = static_cast<KX_ClientObjectInfo *>(
-      object1 == m_physCtrl ? ((PHY_IPhysicsController *)object2)->GetNewClientInfo() :
-                              ((PHY_IPhysicsController *)object1)->GetNewClientInfo());
+  KX_ClientObjectInfo *client_info = static_cast<KX_ClientObjectInfo *> (ctrl1 == m_physCtrl ?
+                                                                         ctrl2->GetNewClientInfo() : ctrl1->GetNewClientInfo());
 
   KX_GameObject *gameobj = (client_info ? client_info->m_gameobject : nullptr);
 

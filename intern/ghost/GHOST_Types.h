@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup GHOST
@@ -139,6 +123,13 @@ typedef enum {
   // GHOST_kWindowStateModified,
   // GHOST_kWindowStateUnModified,
 } GHOST_TWindowState;
+
+typedef enum {
+  GHOST_kConsoleWindowStateHide = 0,
+  GHOST_kConsoleWindowStateShow,
+  GHOST_kConsoleWindowStateToggle,
+  GHOST_kConsoleWindowStateHideForNonConsoleLaunch
+} GHOST_TConsoleWindowState;
 
 typedef enum { GHOST_kWindowOrderTop = 0, GHOST_kWindowOrderBottom } GHOST_TWindowOrder;
 
@@ -496,8 +487,6 @@ typedef struct {
   int target_start;
   /** Represents the position of the end of the selection */
   int target_end;
-  /** custom temporal data */
-  GHOST_TUserDataPtr tmp;
 } GHOST_TEventImeData;
 
 typedef struct {
@@ -569,6 +558,7 @@ typedef enum {
   GHOST_kUserSpecialDirMusic,
   GHOST_kUserSpecialDirPictures,
   GHOST_kUserSpecialDirVideos,
+  GHOST_kUserSpecialDirCaches,
   /* Can be extended as needed. */
 } GHOST_TUserSpecialDirTypes;
 
@@ -653,8 +643,8 @@ enum {
   GHOST_kXrContextDebug = (1 << 0),
   GHOST_kXrContextDebugTime = (1 << 1),
 #  ifdef WIN32
-  /* Needed to avoid issues with the SteamVR OpenGL graphics binding (use DirectX fallback
-     instead). */
+  /* Needed to avoid issues with the SteamVR OpenGL graphics binding
+   * (use DirectX fallback instead). */
   GHOST_kXrContextGpuNVIDIA = (1 << 2),
 #  endif
 };
@@ -753,8 +743,31 @@ typedef struct GHOST_XrActionProfileInfo {
   const char *profile_path;
   uint32_t count_subaction_paths;
   const char **subaction_paths;
-  /* Bindings for each subaction path. */
+  /** Bindings for each subaction path. */
   const GHOST_XrActionBindingInfo *bindings;
 } GHOST_XrActionProfileInfo;
+
+typedef struct GHOST_XrControllerModelVertex {
+  float position[3];
+  float normal[3];
+} GHOST_XrControllerModelVertex;
+
+typedef struct GHOST_XrControllerModelComponent {
+  /** World space transform. */
+  float transform[4][4];
+  uint32_t vertex_offset;
+  uint32_t vertex_count;
+  uint32_t index_offset;
+  uint32_t index_count;
+} GHOST_XrControllerModelComponent;
+
+typedef struct GHOST_XrControllerModelData {
+  uint32_t count_vertices;
+  const GHOST_XrControllerModelVertex *vertices;
+  uint32_t count_indices;
+  const uint32_t *indices;
+  uint32_t count_components;
+  const GHOST_XrControllerModelComponent *components;
+} GHOST_XrControllerModelData;
 
 #endif /* WITH_XR_OPENXR */

@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8 compliant>
 import bpy
@@ -67,9 +51,10 @@ class DATA_PT_context_camera(CameraButtonsPanel, Panel):
         elif cam:
             layout.template_ID(space, "pin_id")
 
-# Game engine transition
+# UPBGE
 class DATA_PT_game_camera_settings(CameraButtonsPanel, Panel):
     bl_label = "Game Camera Settings"
+    bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
 
     def draw(self, context):
@@ -81,6 +66,16 @@ class DATA_PT_game_camera_settings(CameraButtonsPanel, Panel):
         col.prop(cam, "use_overlay_mouse_control")
         col = layout.column()
         col.prop(cam, "use_object_activity_culling")
+        col = layout.column()
+        col.label(text="Overlay Pass Settings:")
+        col = layout.column()
+        col.prop(cam, "overlay_disable_bloom")
+        col = layout.column()
+        col.prop(cam, "overlay_disable_ao")
+        col = layout.column()
+        col.prop(cam, "overlay_disable_ssr")
+        col = layout.column()
+        col.prop(cam, "overlay_disable_world_volumes")
 
 
 class DATA_PT_lens(CameraButtonsPanel, Panel):
@@ -125,6 +120,14 @@ class DATA_PT_lens(CameraButtonsPanel, Panel):
                     sub = col.column(align=True)
                     sub.prop(ccam, "longitude_min", text="Longitude Min")
                     sub.prop(ccam, "longitude_max", text="Max")
+                elif ccam.panorama_type == 'FISHEYE_LENS_POLYNOMIAL':
+                    col.prop(ccam, "fisheye_fov")
+                    col.prop(ccam, "fisheye_polynomial_k0", text="K0")
+                    col.prop(ccam, "fisheye_polynomial_k1", text="K1")
+                    col.prop(ccam, "fisheye_polynomial_k2", text="K2")
+                    col.prop(ccam, "fisheye_polynomial_k3", text="K3")
+                    col.prop(ccam, "fisheye_polynomial_k4", text="K4")
+
             elif engine in {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}:
                 if cam.lens_unit == 'MILLIMETERS':
                     col.prop(cam, "lens")

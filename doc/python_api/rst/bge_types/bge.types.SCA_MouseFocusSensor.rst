@@ -75,7 +75,7 @@ base class --- :class:`~bge.types.SCA_MouseSensor`
       The collision mask (16 layers mapped to a 16-bit integer) combined with each object's collision group, to hit only a subset of the
       objects in the scene. Only those objects for which ``collisionGroup & mask`` is true can be hit.
 
-      :type: bitfield
+      :type: integer (bit mask)
 
    .. attribute:: propName
 

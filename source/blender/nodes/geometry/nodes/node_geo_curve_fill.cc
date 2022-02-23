@@ -1,22 +1,8 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array.hh"
 #include "BLI_delaunay_2d.h"
-#include "BLI_double2.hh"
+#include "BLI_math_vec_types.hh"
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -31,23 +17,24 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes {
+namespace blender::nodes::node_geo_curve_fill_cc {
 
-static void geo_node_curve_fill_declare(NodeDeclarationBuilder &b)
+NODE_STORAGE_FUNCS(NodeGeometryCurveFill)
+
+static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Curve");
-  b.add_output<decl::Geometry>("Mesh");
+  b.add_input<decl::Geometry>(N_("Curve")).supported_type(GEO_COMPONENT_TYPE_CURVE);
+  b.add_output<decl::Geometry>(N_("Mesh"));
 }
 
-static void geo_node_curve_fill_layout(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+static void node_layout(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "mode", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
 }
 
-static void geo_node_curve_fill_init(bNodeTree *UNUSED(ntree), bNode *node)
+static void node_init(bNodeTree *UNUSED(ntree), bNode *node)
 {
-  NodeGeometryCurveFill *data = (NodeGeometryCurveFill *)MEM_callocN(sizeof(NodeGeometryCurveFill),
-                                                                     __func__);
+  NodeGeometryCurveFill *data = MEM_cnew<NodeGeometryCurveFill>(__func__);
 
   data->mode = GEO_NODE_CURVE_FILL_MODE_TRIANGULATED;
   node->storage = data;
@@ -124,52 +111,57 @@ static Mesh *cdt_to_mesh(const blender::meshintersect::CDT_result<double> &resul
   return mesh;
 }
 
-static Mesh *curve_fill_calculate(GeoNodeExecParams &params, const CurveComponent &component)
+static void curve_fill_calculate(GeometrySet &geometry_set, const GeometryNodeCurveFillMode mode)
 {
-  const CurveEval &curve = *component.get_for_read();
-  if (curve.splines().size() == 0) {
-    return nullptr;
+  if (!geometry_set.has_curve()) {
+    return;
   }
 
-  const NodeGeometryCurveFill &storage = *(const NodeGeometryCurveFill *)params.node().storage;
-  const GeometryNodeCurveFillMode mode = (GeometryNodeCurveFillMode)storage.mode;
+  const CurveEval &curve = *geometry_set.get_curve_for_read();
+  if (curve.splines().is_empty()) {
+    geometry_set.replace_curve(nullptr);
+    return;
+  }
 
   const CDT_output_type output_type = (mode == GEO_NODE_CURVE_FILL_MODE_NGONS) ?
                                           CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES :
                                           CDT_INSIDE_WITH_HOLES;
 
   const blender::meshintersect::CDT_result<double> results = do_cdt(curve, output_type);
-  return cdt_to_mesh(results);
+  Mesh *mesh = cdt_to_mesh(results);
+
+  geometry_set.replace_mesh(mesh);
+  geometry_set.replace_curve(nullptr);
 }
 
-static void geo_node_curve_fill_exec(GeoNodeExecParams params)
+static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Curve");
-  geometry_set = bke::geometry_set_realize_instances(geometry_set);
 
-  if (!geometry_set.has_curve()) {
-    params.set_output("Mesh", GeometrySet());
-    return;
-  }
+  const NodeGeometryCurveFill &storage = node_storage(params.node());
+  const GeometryNodeCurveFillMode mode = (GeometryNodeCurveFillMode)storage.mode;
 
-  Mesh *mesh = curve_fill_calculate(params,
-                                    *geometry_set.get_component_for_read<CurveComponent>());
-  params.set_output("Mesh", GeometrySet::create_with_mesh(mesh));
+  geometry_set.modify_geometry_sets(
+      [&](GeometrySet &geometry_set) { curve_fill_calculate(geometry_set, mode); });
+
+  params.set_output("Mesh", std::move(geometry_set));
 }
 
-}  // namespace blender::nodes
+}  // namespace blender::nodes::node_geo_curve_fill_cc
 
 void register_node_type_geo_curve_fill()
 {
+  namespace file_ns = blender::nodes::node_geo_curve_fill_cc;
+
   static bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_CURVE_FILL, "Curve Fill", NODE_CLASS_GEOMETRY, 0);
+  geo_node_type_base(&ntype, GEO_NODE_FILL_CURVE, "Fill Curve", NODE_CLASS_GEOMETRY);
 
-  node_type_init(&ntype, blender::nodes::geo_node_curve_fill_init);
+  node_type_init(&ntype, file_ns::node_init);
   node_type_storage(
       &ntype, "NodeGeometryCurveFill", node_free_standard_storage, node_copy_standard_storage);
-  ntype.declare = blender::nodes::geo_node_curve_fill_declare;
-  ntype.geometry_node_execute = blender::nodes::geo_node_curve_fill_exec;
-  ntype.draw_buttons = blender::nodes::geo_node_curve_fill_layout;
+  ntype.declare = file_ns::node_declare;
+  ntype.geometry_node_execute = file_ns::node_geo_exec;
+  ntype.draw_buttons = file_ns::node_layout;
   nodeRegisterType(&ntype);
 }

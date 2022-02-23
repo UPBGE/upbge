@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # <pep8 compliant>
 import bpy
@@ -49,6 +33,7 @@ class NODE_HT_header(Header):
 
         scene = context.scene
         snode = context.space_data
+        overlay = snode.overlay
         snode_id = snode.id
         id_from = snode.id_from
         tool_settings = context.tool_settings
@@ -205,6 +190,13 @@ class NODE_HT_header(Header):
         if tool_settings.snap_node_element != 'GRID':
             row.prop(tool_settings, "snap_target", text="")
 
+        # Overlay toggle & popover
+        row = layout.row(align=True)
+        row.prop(overlay, "show_overlays", icon='OVERLAY', text="")
+        sub = row.row(align=True)
+        sub.active = overlay.show_overlays
+        sub.popover(panel="NODE_PT_overlay", text="")
+
 
 class NODE_MT_editor_menus(Menu):
     bl_idname = "NODE_MT_editor_menus"
@@ -289,6 +281,7 @@ class NODE_MT_select(Menu):
 
         layout.operator("node.select_box").tweak = False
         layout.operator("node.select_circle")
+        layout.operator_menu_enum("node.select_lasso", "mode")
 
         layout.separator()
         layout.operator("node.select_all").action = 'TOGGLE'
@@ -356,6 +349,17 @@ class NODE_MT_node(Menu):
         layout.separator()
 
         layout.operator("node.read_viewlayers")
+
+
+class NODE_MT_view_pie(Menu):
+    bl_label = "View"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        pie = layout.menu_pie()
+        pie.operator("node.view_all")
+        pie.operator("node.view_selected", icon='ZOOM_SELECTED')
 
 
 class NODE_PT_active_tool(ToolActivePanelHelper, Panel):
@@ -679,6 +683,34 @@ class NODE_PT_quality(bpy.types.Panel):
         col.prop(snode, "use_auto_render")
 
 
+class NODE_PT_overlay(Panel):
+    bl_space_type = 'NODE_EDITOR'
+    bl_region_type = 'HEADER'
+    bl_label = "Overlays"
+    bl_ui_units_x = 7
+
+    def draw(self, context):
+        layout = self.layout
+        layout.label(text="Node Editor Overlays")
+
+        snode = context.space_data
+        overlay = snode.overlay
+
+        layout.active = overlay.show_overlays
+
+        col = layout.column()
+        col.prop(overlay, "show_wire_color", text="Wire Colors")
+
+        col.separator()
+
+        col.prop(overlay, "show_context_path", text="Context Path")
+        col.prop(snode, "show_annotation", text="Annotations")
+
+        if snode.tree_type == 'GeometryNodeTree':
+            col.separator()
+            col.prop(overlay, "show_timing", text="Timings")
+
+
 class NODE_UL_interface_sockets(bpy.types.UIList):
     def draw_item(self, context, layout, _data, item, icon, _active_data, _active_propname, _index):
         socket = item
@@ -753,6 +785,19 @@ class NodeTreeInterfacePanel:
             # Display descriptions only for Geometry Nodes, since it's only used in the modifier panel.
             if tree.type == 'GEOMETRY':
                 layout.prop(active_socket, "description")
+                field_socket_prefixes = {
+                    "NodeSocketInt",
+                    "NodeSocketColor",
+                    "NodeSocketVector",
+                    "NodeSocketBool",
+                    "NodeSocketFloat",
+                }
+                is_field_type = any(
+                    active_socket.bl_socket_idname.startswith(prefix)
+                    for prefix in field_socket_prefixes
+                )
+                if in_out == 'OUT' and is_field_type:
+                    layout.prop(active_socket, "attribute_domain")
             active_socket.draw(context, layout)
 
 
@@ -832,6 +877,7 @@ classes = (
     NODE_MT_node,
     NODE_MT_node_color_context_menu,
     NODE_MT_context_menu,
+    NODE_MT_view_pie,
     NODE_PT_material_slots,
     NODE_PT_node_color_presets,
     NODE_PT_active_node_generic,
@@ -842,6 +888,7 @@ classes = (
     NODE_PT_backdrop,
     NODE_PT_quality,
     NODE_PT_annotation,
+    NODE_PT_overlay,
     NODE_UL_interface_sockets,
     NODE_PT_node_tree_interface_inputs,
     NODE_PT_node_tree_interface_outputs,

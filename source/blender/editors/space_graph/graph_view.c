@@ -1,20 +1,8 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2020 Blender Foundation.
- * All rights reserved.
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2020 Blender Foundation. All rights reserved. */
+
+/** \file
+ * \ingroup spgraph
  */
 
 #include <math.h>
@@ -48,10 +36,10 @@
 
 #include "graph_intern.h"
 
-/* *************************** Calculate Range ************************** */
+/* -------------------------------------------------------------------- */
+/** \name Calculate Range
+ * \{ */
 
-/* Get the min/max keyframes. */
-/* NOTE: it should return total boundbox, filter for selection only can be argument... */
 void get_graph_keyframe_extents(bAnimContext *ac,
                                 float *xmin,
                                 float *xmax,
@@ -194,7 +182,11 @@ void get_graph_keyframe_extents(bAnimContext *ac,
   }
 }
 
-/* ****************** Automatic Preview-Range Operator ****************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Automatic Preview-Range Operator
+ * \{ */
 
 static int graphkeys_previewrange_exec(bContext *C, wmOperator *UNUSED(op))
 {
@@ -213,7 +205,7 @@ static int graphkeys_previewrange_exec(bContext *C, wmOperator *UNUSED(op))
   scene = ac.scene;
 
   /* Set the range directly. */
-  get_graph_keyframe_extents(&ac, &min, &max, NULL, NULL, false, false);
+  get_graph_keyframe_extents(&ac, &min, &max, NULL, NULL, true, false);
   scene->r.flag |= SCER_PRV_RANGE;
   scene->r.psfra = round_fl_to_int(min);
   scene->r.pefra = round_fl_to_int(max);
@@ -228,9 +220,9 @@ static int graphkeys_previewrange_exec(bContext *C, wmOperator *UNUSED(op))
 void GRAPH_OT_previewrange_set(wmOperatorType *ot)
 {
   /* Identifiers */
-  ot->name = "Auto-Set Preview Range";
+  ot->name = "Set Preview Range to Selected";
   ot->idname = "GRAPH_OT_previewrange_set";
-  ot->description = "Automatically set Preview Range based on range of keyframes";
+  ot->description = "Set Preview Range based on range of selected keyframes";
 
   /* API callbacks */
   ot->exec = graphkeys_previewrange_exec;
@@ -241,7 +233,11 @@ void GRAPH_OT_previewrange_set(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-/* ****************** View-All Operator ****************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name View-All Operator
+ * \{ */
 
 static int graphkeys_viewall(bContext *C,
                              const bool do_sel_only,
@@ -347,7 +343,11 @@ void GRAPH_OT_view_selected(wmOperatorType *ot)
                              "Include handles of keyframes when calculating extents");
 }
 
-/* ********************** View Frame Operator ****************************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name View Frame Operator
+ * \{ */
 
 static int graphkeys_view_frame_exec(bContext *C, wmOperator *op)
 {
@@ -371,10 +371,14 @@ void GRAPH_OT_view_frame(wmOperatorType *ot)
   ot->flag = 0;
 }
 
-/* ******************** Create Ghost-Curves Operator *********************** */
-/* This operator samples the data of the selected F-Curves to F-Points, storing them
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Create Ghost-Curves Operator
+ *
+ * This operator samples the data of the selected F-Curves to F-Points, storing them
  * as 'ghost curves' in the active Graph Editor.
- */
+ * \{ */
 
 /* Bake each F-Curve into a set of samples, and store as a ghost curve. */
 static void create_ghost_curves(bAnimContext *ac, int start, int end)
@@ -493,8 +497,13 @@ void GRAPH_OT_ghost_curves_create(wmOperatorType *ot)
   /* TODO: add props for start/end frames */
 }
 
-/* ******************** Clear Ghost-Curves Operator *********************** */
-/* This operator clears the 'ghost curves' for the active Graph Editor */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Clear Ghost-Curves Operator
+ *
+ * This operator clears the 'ghost curves' for the active Graph Editor.
+ * \{ */
 
 static int graphkeys_clear_ghostcurves_exec(bContext *C, wmOperator *UNUSED(op))
 {
@@ -534,3 +543,5 @@ void GRAPH_OT_ghost_curves_clear(wmOperatorType *ot)
   /* Flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
+
+/** \} */

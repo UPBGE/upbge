@@ -36,8 +36,7 @@
 class KX_FontObject : public KX_GameObject {
   Py_Header
 
- public:
-  KX_FontObject();
+      public : KX_FontObject();
   virtual ~KX_FontObject();
 
   virtual KX_PythonProxy *NewInstance();

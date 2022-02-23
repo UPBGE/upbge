@@ -39,7 +39,6 @@
 #include "RAS_ICanvas.h"
 #include "RAS_Rasterizer.h"
 
-class RAS_FrameBuffer;
 struct GPUFrameBuffer;
 
 /// class for render 3d scene

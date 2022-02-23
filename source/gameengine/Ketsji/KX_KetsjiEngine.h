@@ -44,14 +44,12 @@
 #include "RAS_CameraData.h"
 #include "RAS_Rasterizer.h"
 
-struct TaskScheduler;
 class KX_ISystem;
-class BL_BlenderConverter;
+class BL_Converter;
 class KX_NetworkMessageManager;
 class RAS_ICanvas;
 class RAS_FrameBuffer;
 class SCA_IInputDevice;
-struct EEVEE_ViewLayerData;
 
 enum class KX_ExitRequest {
   NO_REQUEST = 0,
@@ -140,15 +138,14 @@ class KX_KetsjiEngine {
   /// 3D Rasterizer (3D Rendering)
   RAS_Rasterizer *m_rasterizer;
   KX_ISystem *m_kxsystem;
-  BL_BlenderConverter *m_converter;
+  BL_Converter *m_converter;
   KX_NetworkMessageManager *m_networkMessageManager;
 #ifdef WITH_PYTHON
   PyObject *m_pyprofiledict;
 #endif
   SCA_IInputDevice *m_inputDevice;
 
-  struct FrameTimes
-  {
+  struct FrameTimes {
     // Number of frames to proceed.
     int frames;
     // Real duration of a frame.
@@ -158,7 +155,6 @@ class KX_KetsjiEngine {
   };
 
   CM_Clock m_clock;
-
 
   /// Lists of scenes scheduled to be removed at the end of the frame.
   std::vector<std::string> m_removingScenes;
@@ -321,8 +317,8 @@ class KX_KetsjiEngine {
 #ifdef WITH_PYTHON
   PyObject *GetPyProfileDict();
 #endif
-  void SetConverter(BL_BlenderConverter *converter);
-  BL_BlenderConverter *GetConverter()
+  void SetConverter(BL_Converter *converter);
+  BL_Converter *GetConverter()
   {
     return m_converter;
   }

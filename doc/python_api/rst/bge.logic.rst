@@ -39,7 +39,7 @@ See the sensor's reference for available methods:
 
    * :class:`~bge.types.SCA_MouseFocusSensor`
    * :class:`~bge.types.SCA_NearSensor`
-   * :class:`~bge.types.KX_NetworkMessageSensor`
+   * :class:`~bge.types.SCA_NetworkMessageSensor`
    * :class:`~bge.types.SCA_RadarSensor`
    * :class:`~bge.types.SCA_RaySensor`
    * :class:`~bge.types.SCA_CollisionSensor`
@@ -68,12 +68,12 @@ See the actuator's reference for available methods
 .. hlist::
    :columns: 3
    
-   * :class:`~bge.types.BL_ActionActuator`
+   * :class:`~bge.types.SCA_ActionActuator`
    * :class:`~bge.types.SCA_CameraActuator`
    * :class:`~bge.types.SCA_ConstraintActuator`
    * :class:`~bge.types.SCA_GameActuator`
    * :class:`~bge.types.SCA_MouseActuator`
-   * :class:`~bge.types.KX_NetworkMessageActuator`
+   * :class:`~bge.types.SCA_NetworkMessageActuator`
    * :class:`~bge.types.SCA_ObjectActuator`
    * :class:`~bge.types.SCA_ParentActuator`
    * :class:`~bge.types.SCA_AddObjectActuator`
@@ -158,7 +158,7 @@ General functions
 
 .. function:: getSceneList()
 
-   Gets a list of the current scenes loaded in the game engine.
+   Gets a list of the current scenes loaded in the game engine. Since 0.3, it contains only the current KX_Scene.
    
    :rtype: list of :class:`bge.types.KX_Scene`
    
@@ -194,7 +194,9 @@ General functions
    Restarts the current game by reloading the .blend file (the last saved version, not what is currently running).
    
 .. function:: LibLoad(blend, type, data, load_actions=False, verbose=False, load_scripts=True, asynchronous=False, scene=None)
-   
+
+   .. deprecated:: 0.3.0
+
    Converts the all of the datablocks of the given type from the given blend.
    
    :arg blend: The path to the blend file (or the name to use for the library if data is supplied)
@@ -220,6 +222,8 @@ General functions
    
 .. function:: LibNew(name, type, data)
 
+   .. deprecated:: 0.3.0
+
    Uses existing datablock data and loads in as a new library.
    
    :arg name: A unique library name used for removal later
@@ -231,6 +235,8 @@ General functions
    
 .. function:: LibFree(name)
 
+   .. deprecated:: 0.3.0
+
    Frees a library, removing all objects and meshes from the currently active scenes.
 
    :arg name: The name of the library to free (the name used in LibNew)
@@ -238,11 +244,15 @@ General functions
    
 .. function:: LibList()
 
+   .. deprecated:: 0.3.0
+
    Returns a list of currently loaded libraries.
    
    :rtype: list [str]
 
 .. function:: addScene(name, overlay=1)
+
+   .. deprecated:: 0.3.0
 
    Loads a scene into the game engine.
 
@@ -279,12 +289,12 @@ General functions
 
 .. function:: getSpectrum()
 
+   .. deprecated:: 0.0.0
+
    Returns a 512 point list from the sound card.
    This only works if the fmod sound driver is being used.
    
    :rtype: list [float], len(getSpectrum()) == 512
-
-   .. deprecated:: 0.2.2
 
 .. function:: getMaxLogicFrame()
 
@@ -1054,6 +1064,8 @@ Various
    :value: 6
    
 .. data:: RAS_2DFILTER_MOTIONBLUR
+
+   .. deprecated:: 0.3.0
 
    Create and enable preset filters
 

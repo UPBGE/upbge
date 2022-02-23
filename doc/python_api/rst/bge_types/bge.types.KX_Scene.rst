@@ -100,11 +100,15 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
    .. attribute:: overrideCullingCamera
 
+   .. deprecated:: 0.3.0
+
       The override camera used for scene culling, if set to None the culling is proceeded with the camera used to render.
 
       :type: :class:`~bge.types.KX_Camera` or None
 
    .. attribute:: world
+
+   .. deprecated:: 0.3.0
 
       The current active world, (read-only).
 
@@ -118,6 +122,8 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
    .. attribute:: suspended
 
+   .. deprecated:: 0.3.0
+
       True if the scene is suspended, (read-only).
 
       :type: boolean
@@ -129,6 +135,8 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       :type: boolean
 
    .. attribute:: dbvt_culling
+
+   .. deprecated:: 0.3.0
 
       True when Dynamic Bounding box Volume Tree is set (read-only).
 
@@ -191,11 +199,11 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       :type object: :class:`~bge.types.KX_GameObject` or string
       :arg reference: The (name of the) object which position, orientation, and scale to copy (optional), if the object to add is a light and there is not reference the light's layer will be the same that the active layer in the blender scene.
       :type reference: :class:`~bge.types.KX_GameObject` or string
-      :arg time: The lifetime of the added object, in frames (assumes one frame is 1/50 second). A time of 0.0 means the object will last forever (optional).
+      :arg time: The lifetime of the added object, in frames (assumes one frame is 1/60 second). A time of 0.0 means the object will last forever (optional).
       :type time: float
       :return: The newly added object.
       :rtype: :class:`~bge.types.KX_GameObject`
-      :arg dupli: Full duplication of object data (materials...).
+      :arg dupli: Full duplication of object data (mesh, materials...).
       :type dupli: boolean
 
    .. method:: end()
@@ -217,9 +225,13 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
    .. method:: suspend()
 
+   .. deprecated:: 0.3.0
+
       Suspends this scene.
 
    .. method:: resume()
+
+   .. deprecated:: 0.3.0
 
       Resume this scene.
 
@@ -234,12 +246,15 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
    .. method:: convertBlenderObject(blenderObject)
 
-      Converts a bpy.types.Object into a :class:`~bge.types.KX_GameObject` during runtime.
+      Converts a :class:`~bpy.types.Object` into a :class:`~bge.types.KX_GameObject` during runtime.
       For example, you can append an Object from another .blend file during bge runtime
       using: bpy.ops.wm.append(...) then convert this Object into a KX_GameObject to have
       logic bricks, physics... converted. This is meant to replace libload.
+
+      :arg blenderObject: The Object to be converted.
+      :type blenderObject: :class:`~bpy.types.Object`
       :return: Returns the newly converted gameobject.
-      :rtype: :class:`bge.types.KX_GameObject`
+      :rtype: :class:`~bge.types.KX_GameObject`
 
    .. method:: convertBlenderObjectsList(blenderObjectsList, asynchronous)
 
@@ -249,7 +264,7 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       The conversion can be asynchronous or synchronous.
 
       :arg blenderObjectsList: The Object list to be converted.
-      :type blenderObjectsList: list of :class:`bpy.types.Object`
+      :type blenderObjectsList: list of :class:`~bpy.types.Object`
       :arg asynchronous: The Object list conversion can be asynchronous or not.
       :type asynchronous: boolean
 
@@ -262,7 +277,7 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       or synchronous.
 
       :arg blenderCollection: The collection to be converted.
-      :type blenderCollection: :class:`bpy.types.Collection`
+      :type blenderCollection: :class:`~bpy.types.Collection`
       :arg asynchronous: The collection conversion can be asynchronous or not.
       :type asynchronous: boolean
 
@@ -273,7 +288,7 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       using: bpy.ops.wm.append(...) then register this Action to be abled to play it.
 
       :arg Action: The Action to be converted.
-      :type Action: :class:`bpy.types.Action`
+      :type Action: :class:`~bpy.types.Action`
 
    .. method:: unregisterBlenderAction(Action)
 
@@ -284,7 +299,7 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       after you unregistered it from bge logic manager.
 
       :arg Action: The Action to be unregistered.
-      :type Action: :class:`bpy.types.Action`
+      :type Action: :class:`~bpy.types.Action`
 
    .. method:: addOverlayCollection(kxCamera, blenderCollection)
 
@@ -292,17 +307,17 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       during a second render pass in overlay using the KX_Camera passed as argument.
 
       :arg kxCamera: The camera used to render the overlay collection.
-      :type kxCamera: :class:`bge.types.KX_Camera`
+      :type kxCamera: :class:`~bge.types.KX_Camera`
 
       :arg blenderCollection: The overlay collection to add.
-      :type blenderCollection: :class:`bpy.types.Collection`
+      :type blenderCollection: :class:`~bpy.types.Collection`
 
    .. method:: removeOverlayCollection(blenderCollection)
 
       Removes an overlay collection (as with collection actuator).
 
       :arg blenderCollection: The overlay collection to remove.
-      :type blenderCollection: :class:`bpy.types.Collection`
+      :type blenderCollection: :class:`~bpy.types.Collection`
 
    .. method:: getGameObjectFromObject(blenderObject)
 
@@ -310,3 +325,5 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
       :arg blenderObject: the Object from which we want to get the KX_GameObject.
       :type blenderObject: :class:`bpy.types.Object`
+      :rtype: :class:`~bge.types.KX_GameObject`
+

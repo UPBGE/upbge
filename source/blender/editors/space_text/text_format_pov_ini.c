@@ -1,17 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup sptext
@@ -279,7 +266,7 @@ static int txtfmt_ini_find_reserved(const char *string)
   } else if (STR_LITERAL_STARTSWITH(string, "Dither",                       len)) { i = len;
   } else if (STR_LITERAL_STARTSWITH(string, "Flags",                        len)) { i = len;
   } else if (STR_LITERAL_STARTSWITH(string, "Font",                         len)) { i = len;
-  /* Filetypes */
+  /* File-types. */
   } else if (STR_LITERAL_STARTSWITH(string, "df3",                          len)) { i = len;
   } else if (STR_LITERAL_STARTSWITH(string, "exr",                          len)) { i = len;
   } else if (STR_LITERAL_STARTSWITH(string, "gif",                          len)) { i = len;
@@ -292,7 +279,7 @@ static int txtfmt_ini_find_reserved(const char *string)
   } else if (STR_LITERAL_STARTSWITH(string, "sys",                          len)) { i = len;
   } else if (STR_LITERAL_STARTSWITH(string, "tga",                          len)) { i = len;
   } else if (STR_LITERAL_STARTSWITH(string, "tiff",                         len)) { i = len;
-  /* Encodings */
+  /* Encodings. */
   } else if (STR_LITERAL_STARTSWITH(string, "ascii",                        len)) { i = len;
   } else if (STR_LITERAL_STARTSWITH(string, "utf8",                         len)) { i = len;
   } else if (STR_LITERAL_STARTSWITH(string, "uint8",                        len)) { i = len;
@@ -448,7 +435,7 @@ static void txtfmt_pov_ini_format_line(SpaceText *st, TextLine *line, const bool
         cont = (*str == '"') ? FMT_CONT_QUOTEDOUBLE : FMT_CONT_QUOTESINGLE;
         *fmt = FMT_TYPE_STRING;
       }
-      /* Whitespace (all ws. has been converted to spaces) */
+      /* White-space (all ws. has been converted to spaces). */
       else if (*str == ' ') {
         *fmt = FMT_TYPE_WHITESPACE;
       }

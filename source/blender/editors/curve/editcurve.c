@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edcurve
@@ -88,7 +72,7 @@ static bool curve_delete_vertices(Object *obedit, View3D *v3d);
 
 ListBase *object_editcurve_get(Object *ob)
 {
-  if (ob && ELEM(ob->type, OB_CURVE, OB_SURF)) {
+  if (ob && ELEM(ob->type, OB_CURVES_LEGACY, OB_SURF)) {
     Curve *cu = ob->data;
     return &cu->editnurb->nurbs;
   }
@@ -1074,7 +1058,6 @@ static void curve_rename_fcurves(Curve *cu, ListBase *orig_curves)
   }
 }
 
-/* return 0 if animation data wasn't changed, 1 otherwise */
 int ED_curve_updateAnimPaths(Main *bmain, Curve *cu)
 {
   AnimData *adt = BKE_animdata_from_id(&cu->id);
@@ -1247,7 +1230,6 @@ static void remap_hooks_and_vertex_parents(Main *bmain, Object *obedit)
   }
 }
 
-/* load editNurb in object */
 void ED_curve_editnurb_load(Main *bmain, Object *obedit)
 {
   ListBase *editnurb = object_editcurve_get(obedit);
@@ -1256,7 +1238,7 @@ void ED_curve_editnurb_load(Main *bmain, Object *obedit)
     return;
   }
 
-  if (ELEM(obedit->type, OB_CURVE, OB_SURF)) {
+  if (ELEM(obedit->type, OB_CURVES_LEGACY, OB_SURF)) {
     Curve *cu = obedit->data;
     ListBase newnurb = {NULL, NULL}, oldnurb = cu->nurb;
 
@@ -1285,14 +1267,13 @@ void ED_curve_editnurb_load(Main *bmain, Object *obedit)
   }
 }
 
-/* make copy in cu->editnurb */
 void ED_curve_editnurb_make(Object *obedit)
 {
   Curve *cu = (Curve *)obedit->data;
   EditNurb *editnurb = cu->editnurb;
   KeyBlock *actkey;
 
-  if (ELEM(obedit->type, OB_CURVE, OB_SURF)) {
+  if (ELEM(obedit->type, OB_CURVES_LEGACY, OB_SURF)) {
     actkey = BKE_keyblock_from_object(obedit);
 
     if (actkey) {
@@ -1437,20 +1418,13 @@ static int separate_exec(bContext *C, wmOperator *op)
 
     /* Some curves changed, but some curves failed: don't explain why it failed. */
     if (status.changed) {
-      BKE_reportf(op->reports,
-                  RPT_INFO,
-                  tot_errors == 1 ? "%d curve could not be separated" :
-                                    "%d curves could not be separated",
-                  tot_errors);
+      BKE_reportf(op->reports, RPT_INFO, "%d curve(s) could not be separated", tot_errors);
       return OPERATOR_FINISHED;
     }
 
     /* All curves failed: If there is more than one error give a generic error report. */
     if (((status.error_vertex_keys ? 1 : 0) + (status.error_generic ? 1 : 0)) > 1) {
-      BKE_report(op->reports,
-                 RPT_ERROR,
-                 tot_errors == 1 ? "Could not separate selected curves" :
-                                   "Could not separate selected curve");
+      BKE_report(op->reports, RPT_ERROR, "Could not separate selected curve(s)");
     }
 
     /* All curves failed due to the same error. */
@@ -1998,7 +1972,6 @@ static void ed_curve_delete_selected(Object *obedit, View3D *v3d)
   }
 }
 
-/* only for OB_SURF */
 bool ed_editnurb_extrude_flag(EditNurb *editnurb, const uint8_t flag)
 {
   BPoint *bp, *bpn, *newbp;
@@ -3866,11 +3839,6 @@ static int set_spline_type_exec(bContext *C, wmOperator *op)
     const bool use_handles = RNA_boolean_get(op->ptr, "use_handles");
     const int type = RNA_enum_get(op->ptr, "type");
 
-    if (ELEM(type, CU_CARDINAL, CU_BSPLINE)) {
-      BKE_report(op->reports, RPT_ERROR, "Not yet implemented");
-      continue;
-    }
-
     LISTBASE_FOREACH (Nurb *, nu, editnurb) {
       if (ED_curve_nurb_select_check(v3d, nu)) {
         const int pntsu_prev = nu->pntsu;
@@ -3914,8 +3882,6 @@ void CURVE_OT_spline_type_set(wmOperatorType *ot)
   static const EnumPropertyItem type_items[] = {
       {CU_POLY, "POLY", 0, "Poly", ""},
       {CU_BEZIER, "BEZIER", 0, "Bezier", ""},
-      //      {CU_CARDINAL, "CARDINAL", 0, "Cardinal", ""},
-      //      {CU_BSPLINE, "B_SPLINE", 0, "B-Spline", ""},
       {CU_NURBS, "NURBS", 0, "NURBS", ""},
       {0, NULL, 0, NULL, NULL},
   };
@@ -4708,11 +4674,7 @@ static int make_segment_exec(bContext *C, wmOperator *op)
   if (tot_errors > 0) {
     /* Some curves changed, but some curves failed: don't explain why it failed. */
     if (status.changed) {
-      BKE_reportf(op->reports,
-                  RPT_INFO,
-                  tot_errors == 1 ? "%d curve could not make segments" :
-                                    "%d curves could not make segments",
-                  tot_errors);
+      BKE_reportf(op->reports, RPT_INFO, "%d curves could not make segments", tot_errors);
       return OPERATOR_FINISHED;
     }
 
@@ -4920,8 +4882,6 @@ bool ED_curve_editnurb_select_pick(
 /** \name Spin Operator
  * \{ */
 
-/* 'cent' is in object space and 'dvec' in worldspace.
- */
 bool ed_editnurb_spin(
     float viewmat[4][4], View3D *v3d, Object *obedit, const float axis[3], const float cent[3])
 {
@@ -4977,19 +4937,22 @@ bool ed_editnurb_spin(
 
     if ((a & 1) == 0) {
       rotateflagNurb(editnurb, SELECT, cent, scalemat1);
-      weightflagNurb(editnurb, SELECT, 0.25 * M_SQRT2);
+      weightflagNurb(editnurb, SELECT, 0.5 * M_SQRT2);
     }
     else {
       rotateflagNurb(editnurb, SELECT, cent, scalemat2);
-      weightflagNurb(editnurb, SELECT, 4.0 / M_SQRT2);
+      weightflagNurb(editnurb, SELECT, 2.0 / M_SQRT2);
     }
   }
 
   if (ok) {
     LISTBASE_FOREACH (Nurb *, nu, editnurb) {
       if (ED_curve_nurb_select_check(v3d, nu)) {
-        nu->orderv = 4;
-        nu->flagv |= CU_NURB_CYCLIC;
+        nu->orderv = 3;
+        /* It is challenging to create a good approximation of a circle with uniform knots vector
+         * (which is forced in Blender for cyclic NURBS curves). Here a NURBS circle is constructed
+         * by connecting four Bezier arcs. */
+        nu->flagv |= CU_NURB_CYCLIC | CU_NURB_BEZIER;
         BKE_nurb_knot_calc_v(nu);
       }
     }
@@ -5409,7 +5372,7 @@ static int ed_editcurve_addvert(Curve *cu,
             add_v3_v3(bezt->vec[1], ofs);
             add_v3_v3(bezt->vec[2], ofs);
 
-            if (((nu->flagu & CU_NURB_CYCLIC) == 0) && (i == 0 || i == nu->pntsu - 1)) {
+            if (((nu->flagu & CU_NURB_CYCLIC) == 0) && ELEM(i, 0, nu->pntsu - 1)) {
               BKE_nurb_handle_calc_simple_auto(nu, bezt);
             }
           }
@@ -5561,12 +5524,14 @@ static int add_vertex_invoke(bContext *C, wmOperator *op, const wmEvent *event)
     if (use_proj) {
       const float mval[2] = {UNPACK2(event->mval)};
 
-      struct SnapObjectContext *snap_context = ED_transform_snap_object_context_create_view3d(
-          vc.scene, 0, vc.region, vc.v3d);
+      struct SnapObjectContext *snap_context = ED_transform_snap_object_context_create(vc.scene,
+                                                                                       0);
 
       ED_transform_snap_object_project_view3d(
           snap_context,
           vc.depsgraph,
+          vc.region,
+          vc.v3d,
           SCE_SNAP_MODE_FACE,
           &(const struct SnapObjectParams){
               .snap_select = (vc.obedit != NULL) ? SNAP_NOT_ACTIVE : SNAP_ALL,
@@ -5620,7 +5585,7 @@ static int add_vertex_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 void CURVE_OT_vertex_add(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Add Vertex";
+  ot->name = "Extrude to Cursor or Add";
   ot->idname = "CURVE_OT_vertex_add";
   ot->description = "Add a new control point (linked to only selected end-curve one, if any)";
 
@@ -5630,7 +5595,7 @@ void CURVE_OT_vertex_add(wmOperatorType *ot)
   ot->poll = ED_operator_editcurve;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 
   /* properties */
   RNA_def_float_vector_xyz(ot->srna,
@@ -5672,7 +5637,7 @@ static int curve_extrude_exec(bContext *C, wmOperator *UNUSED(op))
     }
 
     /* First test: curve? */
-    if (obedit->type != OB_CURVE) {
+    if (obedit->type != OB_CURVES_LEGACY) {
       LISTBASE_FOREACH (Nurb *, nu, &editnurb->nurbs) {
         if ((nu->pntsv == 1) && (ED_curve_nurb_select_count(v3d, nu) < nu->pntsu)) {
           as_curve = true;
@@ -5681,7 +5646,7 @@ static int curve_extrude_exec(bContext *C, wmOperator *UNUSED(op))
       }
     }
 
-    if (obedit->type == OB_CURVE || as_curve) {
+    if (obedit->type == OB_CURVES_LEGACY || as_curve) {
       changed = ed_editcurve_extrude(cu, editnurb, v3d);
     }
     else {
@@ -6750,7 +6715,7 @@ static int shade_smooth_exec(bContext *C, wmOperator *op)
     Object *obedit = objects[ob_index];
     ListBase *editnurb = object_editcurve_get(obedit);
 
-    if (obedit->type != OB_CURVE) {
+    if (obedit->type != OB_CURVES_LEGACY) {
       continue;
     }
 
@@ -6811,10 +6776,6 @@ void CURVE_OT_shade_flat(wmOperatorType *ot)
 /** \name Join Operator
  * \{ */
 
-/**
- * This is used externally, by #OBJECT_OT_join.
- * TODO: shape keys - as with meshes.
- */
 int ED_curve_join_objects_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
@@ -6863,9 +6824,9 @@ int ED_curve_join_objects_exec(bContext *C, wmOperator *op)
           /* Compensate for different bevel depth. */
           bool do_radius = false;
           float compensate_radius = 0.0f;
-          if (cu->ext2 != 0.0f && cu_active->ext2 != 0.0f) {
+          if (cu->bevel_radius != 0.0f && cu_active->bevel_radius != 0.0f) {
             float compensate_scale = mat4_to_scale(cmat);
-            compensate_radius = cu->ext2 / cu_active->ext2 * compensate_scale;
+            compensate_radius = cu->bevel_radius / cu_active->bevel_radius * compensate_scale;
             do_radius = true;
           }
 
@@ -6913,7 +6874,7 @@ int ED_curve_join_objects_exec(bContext *C, wmOperator *op)
   cu = ob_active->data;
   BLI_movelisttolist(&cu->nurb, &tempbase);
 
-  if (ob_active->type == OB_CURVE && CU_IS_2D(cu)) {
+  if (ob_active->type == OB_CURVES_LEGACY && CU_IS_2D(cu)) {
     /* Account for mixed 2D/3D curves when joining */
     BKE_curve_dimension_update(cu);
   }
@@ -7023,7 +6984,7 @@ static bool match_texture_space_poll(bContext *C)
 {
   Object *object = CTX_data_active_object(C);
 
-  return object && ELEM(object->type, OB_CURVE, OB_SURF, OB_FONT);
+  return object && ELEM(object->type, OB_CURVES_LEGACY, OB_SURF, OB_FONT);
 }
 
 static int match_texture_space_exec(bContext *C, wmOperator *UNUSED(op))

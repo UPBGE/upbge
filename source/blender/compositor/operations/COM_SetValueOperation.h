@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #pragma once
 
@@ -28,7 +13,7 @@ namespace blender::compositor {
  */
 class SetValueOperation : public ConstantOperation {
  private:
-  float m_value;
+  float value_;
 
  public:
   /**
@@ -38,24 +23,24 @@ class SetValueOperation : public ConstantOperation {
 
   const float *get_constant_elem() override
   {
-    return &m_value;
+    return &value_;
   }
 
-  float getValue()
+  float get_value()
   {
-    return this->m_value;
+    return value_;
   }
-  void setValue(float value)
+  void set_value(float value)
   {
-    this->m_value = value;
+    value_ = value;
   }
 
   /**
    * The inner loop of this operation.
    */
-  void executePixelSampled(float output[4], float x, float y, PixelSampler sampler) override;
-  void determineResolution(unsigned int resolution[2],
-                           unsigned int preferredResolution[2]) override;
+  void execute_pixel_sampled(float output[4], float x, float y, PixelSampler sampler) override;
+
+  void determine_canvas(const rcti &preferred_area, rcti &r_area) override;
 };
 
 }  // namespace blender::compositor

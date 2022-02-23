@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup RNA
@@ -59,17 +45,22 @@
 #  include "SEQ_relations.h"
 #  include "SEQ_render.h"
 #  include "SEQ_sequencer.h"
+#  include "SEQ_time.h"
 
 #  include "WM_api.h"
 
 static void rna_Sequence_update_rnafunc(ID *id, Sequence *self, bool do_data)
 {
+  Scene *scene = (Scene *)id;
+  Editing *ed = SEQ_editing_get(scene);
+  ListBase *seqbase = SEQ_get_seqbase_by_seq(&ed->seqbase, self);
+
   if (do_data) {
-    SEQ_relations_update_changed_seq_and_deps((Scene *)id, self, true, true);
+    SEQ_time_update_recursive(scene, self);
     // new_tstripdata(self); /* need 2.6x version of this. */
   }
-  SEQ_time_update_sequence((Scene *)id, self);
-  SEQ_time_update_sequence_bounds((Scene *)id, self);
+
+  SEQ_time_update_sequence(scene, seqbase, self);
 }
 
 static void rna_Sequence_swap_internal(Sequence *seq_self,
@@ -323,8 +314,7 @@ static Sequence *rna_Sequences_new_movie(ID *id,
   SEQ_add_load_data_init(&load_data, name, file, frame_start, channel);
   load_data.fit_method = fit_method;
   load_data.allow_invalid_file = true;
-  double video_start_offset;
-  Sequence *seq = SEQ_add_movie_strip(bmain, scene, seqbase, &load_data, &video_start_offset);
+  Sequence *seq = SEQ_add_movie_strip(bmain, scene, seqbase, &load_data);
 
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
@@ -373,7 +363,7 @@ static Sequence *rna_Sequences_new_sound(ID *id,
   SeqLoadData load_data;
   SEQ_add_load_data_init(&load_data, name, file, frame_start, channel);
   load_data.allow_invalid_file = true;
-  Sequence *seq = SEQ_add_sound_strip(bmain, scene, seqbase, &load_data, 0.0f);
+  Sequence *seq = SEQ_add_sound_strip(bmain, scene, seqbase, &load_data);
 
   if (seq == NULL) {
     BKE_report(reports, RPT_ERROR, "Sequences.new_sound: unable to open sound file");
@@ -586,6 +576,8 @@ static void rna_Sequences_meta_remove(
 static StripElem *rna_SequenceElements_append(ID *id, Sequence *seq, const char *filename)
 {
   Scene *scene = (Scene *)id;
+  Editing *ed = SEQ_editing_get(scene);
+  ListBase *seqbase = SEQ_get_seqbase_by_seq(&ed->seqbase, seq);
   StripElem *se;
 
   seq->strip->stripdata = se = MEM_reallocN(seq->strip->stripdata,
@@ -594,7 +586,7 @@ static StripElem *rna_SequenceElements_append(ID *id, Sequence *seq, const char 
   BLI_strncpy(se->name, filename, sizeof(se->name));
   seq->len++;
 
-  SEQ_time_update_sequence_bounds(scene, seq);
+  SEQ_time_update_sequence(scene, seqbase, seq);
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);
 
   return se;
@@ -603,6 +595,8 @@ static StripElem *rna_SequenceElements_append(ID *id, Sequence *seq, const char 
 static void rna_SequenceElements_pop(ID *id, Sequence *seq, ReportList *reports, int index)
 {
   Scene *scene = (Scene *)id;
+  Editing *ed = SEQ_editing_get(scene);
+  ListBase *seqbase = SEQ_get_seqbase_by_seq(&ed->seqbase, seq);
   StripElem *new_seq, *se;
 
   if (seq->len == 1) {
@@ -635,7 +629,7 @@ static void rna_SequenceElements_pop(ID *id, Sequence *seq, ReportList *reports,
   MEM_freeN(seq->strip->stripdata);
   seq->strip->stripdata = new_seq;
 
-  SEQ_time_update_sequence_bounds(scene, seq);
+  SEQ_time_update_sequence(scene, seqbase, seq);
 
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);
 }

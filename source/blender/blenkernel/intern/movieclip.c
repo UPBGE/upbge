@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2011 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup bke
@@ -60,6 +44,7 @@
 #include "BLT_translation.h"
 
 #include "BKE_anim_data.h"
+#include "BKE_bpath.h"
 #include "BKE_colortools.h"
 #include "BKE_global.h"
 #include "BKE_idtype.h"
@@ -69,6 +54,7 @@
 #include "BKE_main.h"
 #include "BKE_movieclip.h"
 #include "BKE_node.h"
+#include "BKE_node_tree_update.h"
 #include "BKE_tracking.h"
 
 #include "IMB_imbuf.h"
@@ -104,7 +90,7 @@ static void movie_clip_copy_data(Main *UNUSED(bmain), ID *id_dst, const ID *id_s
   MovieClip *movie_clip_dst = (MovieClip *)id_dst;
   const MovieClip *movie_clip_src = (const MovieClip *)id_src;
 
-  /* We never handle usercount here for own data. */
+  /* We never handle user-count here for own data. */
   const int flag_subdata = flag | LIB_ID_CREATE_NO_USER_REFCOUNT;
 
   movie_clip_dst->anim = NULL;
@@ -132,19 +118,19 @@ static void movie_clip_foreach_id(ID *id, LibraryForeachIDData *data)
   MovieClip *movie_clip = (MovieClip *)id;
   MovieTracking *tracking = &movie_clip->tracking;
 
-  BKE_LIB_FOREACHID_PROCESS(data, movie_clip->gpd, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, movie_clip->gpd, IDWALK_CB_USER);
 
   LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking->tracks) {
-    BKE_LIB_FOREACHID_PROCESS(data, track->gpd, IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, track->gpd, IDWALK_CB_USER);
   }
   LISTBASE_FOREACH (MovieTrackingObject *, object, &tracking->objects) {
     LISTBASE_FOREACH (MovieTrackingTrack *, track, &object->tracks) {
-      BKE_LIB_FOREACHID_PROCESS(data, track->gpd, IDWALK_CB_USER);
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, track->gpd, IDWALK_CB_USER);
     }
   }
 
   LISTBASE_FOREACH (MovieTrackingPlaneTrack *, plane_track, &tracking->plane_tracks) {
-    BKE_LIB_FOREACHID_PROCESS(data, plane_track->image, IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, plane_track->image, IDWALK_CB_USER);
   }
 }
 
@@ -163,6 +149,12 @@ static void movie_clip_foreach_cache(ID *id,
   key.offset_in_ID = offsetof(MovieClip, tracking.camera.intrinsics);
   key.cache_v = movie_clip->tracking.camera.intrinsics;
   function_callback(id, &key, (void **)&movie_clip->tracking.camera.intrinsics, 0, user_data);
+}
+
+static void movie_clip_foreach_path(ID *id, BPathForeachPathData *bpath_data)
+{
+  MovieClip *movie_clip = (MovieClip *)id;
+  BKE_bpath_foreach_path_fixed_process(bpath_data, movie_clip->filepath);
 }
 
 static void write_movieTracks(BlendWriter *writer, ListBase *tracks)
@@ -346,7 +338,8 @@ IDTypeInfo IDType_ID_MC = {
     .name = "MovieClip",
     .name_plural = "movieclips",
     .translation_context = BLT_I18NCONTEXT_ID_MOVIECLIP,
-    .flags = 0,
+    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .asset_type_info = NULL,
 
     .init_data = movie_clip_init_data,
     .copy_data = movie_clip_copy_data,
@@ -354,6 +347,7 @@ IDTypeInfo IDType_ID_MC = {
     .make_local = NULL,
     .foreach_id = movie_clip_foreach_id,
     .foreach_cache = movie_clip_foreach_cache,
+    .foreach_path = movie_clip_foreach_path,
     .owner_get = NULL,
 
     .blend_write = movieclip_blend_write,
@@ -535,10 +529,6 @@ static void movieclip_convert_multilayer_add_pass(void *UNUSED(layer),
 
 #endif /* WITH_OPENEXR */
 
-/* Will try to make image buffer usable when originating from the multi-layer
- * source.
- * Internally finds a first combined pass and uses that as a buffer. Not ideal,
- * but is better than a complete empty buffer. */
 void BKE_movieclip_convert_multilayer_ibuf(struct ImBuf *ibuf)
 {
   if (ibuf == NULL) {
@@ -842,7 +832,7 @@ static ImBuf *get_imbuf_cache(MovieClip *clip, const MovieClipUser *user, int fl
       key.render_flag = 0;
     }
 
-    return IMB_moviecache_get(clip->cache->moviecache, &key);
+    return IMB_moviecache_get(clip->cache->moviecache, &key, NULL);
   }
 
   return NULL;
@@ -947,7 +937,7 @@ static MovieClip *movieclip_alloc(Main *bmain, const char *name)
 static void movieclip_load_get_size(MovieClip *clip)
 {
   int width, height;
-  MovieClipUser user = {0};
+  MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
 
   user.framenr = BKE_movieclip_remap_clip_to_scene_frame(clip, 1);
   BKE_movieclip_get_size(clip, &user, &width, &height);
@@ -979,10 +969,6 @@ static void detect_clip_source(Main *bmain, MovieClip *clip)
   }
 }
 
-/* checks if image was already loaded, then returns same image
- * otherwise creates new.
- * does not load ibuf itself
- * pass on optional frame for #name images */
 MovieClip *BKE_movieclip_file_add(Main *bmain, const char *name)
 {
   MovieClip *clip;
@@ -1176,7 +1162,7 @@ static ImBuf *get_postprocessed_cached_frame(const MovieClip *clip,
     return NULL;
   }
 
-  /* postprocessing happened for other frame */
+  /* Postprocessing happened for other frame. */
   if (cache->postprocessed.framenr != framenr) {
     return NULL;
   }
@@ -1612,7 +1598,6 @@ void BKE_movieclip_get_aspect(MovieClip *clip, float *aspx, float *aspy)
   *aspy = clip->aspy / clip->aspx / clip->tracking.camera.pixel_aspect;
 }
 
-/* get segments of cached frames. useful for debugging cache policies */
 void BKE_movieclip_get_cache_segments(MovieClip *clip,
                                       MovieClipUser *user,
                                       int *r_totseg,
@@ -1695,17 +1680,7 @@ void BKE_movieclip_reload(Main *bmain, MovieClip *clip)
 
   movieclip_calc_length(clip);
 
-  /* same as for image update -- don't use notifiers because they are not 100% sure to succeeded
-   * (node trees which are not currently visible wouldn't be refreshed)
-   */
-  {
-    Scene *scene;
-    for (scene = bmain->scenes.first; scene; scene = scene->id.next) {
-      if (scene->nodetree) {
-        nodeUpdateID(scene->nodetree, &clip->id);
-      }
-    }
-  }
+  BKE_ntree_update_tag_id_changed(bmain, &clip->id);
 }
 
 void BKE_movieclip_update_scopes(MovieClip *clip, MovieClipUser *user, MovieClipScopes *scopes)
@@ -1848,9 +1823,6 @@ static void movieclip_build_proxy_ibuf(
   IMB_freeImBuf(scaleibuf);
 }
 
-/* NOTE: currently used by proxy job for movies, threading happens within single frame
- * (meaning scaling shall be threaded)
- */
 void BKE_movieclip_build_proxy_frame(MovieClip *clip,
                                      int clip_flag,
                                      struct MovieDistortion *distortion,
@@ -1892,9 +1864,6 @@ void BKE_movieclip_build_proxy_frame(MovieClip *clip,
   }
 }
 
-/* NOTE: currently used by proxy job for sequences, threading happens within sequence
- * (different threads handles different frames, no threading within frame is needed)
- */
 void BKE_movieclip_build_proxy_frame_for_ibuf(MovieClip *clip,
                                               ImBuf *ibuf,
                                               struct MovieDistortion *distortion,
@@ -1923,6 +1892,11 @@ void BKE_movieclip_build_proxy_frame_for_ibuf(MovieClip *clip,
       IMB_freeImBuf(tmpibuf);
     }
   }
+}
+
+bool BKE_movieclip_proxy_enabled(MovieClip *clip)
+{
+  return clip->flag & MCLIP_USE_PROXY;
 }
 
 float BKE_movieclip_remap_scene_to_clip_frame(const MovieClip *clip, float framenr)
@@ -2145,4 +2119,5 @@ void BKE_movieclip_free_gputexture(struct MovieClip *clip)
     MEM_freeN(tex);
   }
 }
+
 /** \} */

@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -423,6 +409,8 @@ class Set {
     int64_t total_slots_;
     int64_t current_slot_;
 
+    friend Set;
+
    public:
     Iterator(const Slot *slots, int64_t total_slots, int64_t current_slot)
         : slots_(slots), total_slots_(total_slots), current_slot_(current_slot)
@@ -467,6 +455,12 @@ class Set {
     {
       return !(a != b);
     }
+
+   protected:
+    const Slot &current_slot() const
+    {
+      return slots_[current_slot_];
+    }
   };
 
   Iterator begin() const
@@ -482,6 +476,20 @@ class Set {
   Iterator end() const
   {
     return Iterator(slots_.data(), slots_.size(), slots_.size());
+  }
+
+  /**
+   * Remove the key that the iterator is currently pointing at. It is valid to call this method
+   * while iterating over the set. However, after this method has been called, the removed element
+   * must not be accessed anymore.
+   */
+  void remove(const Iterator &iterator)
+  {
+    /* The const cast is valid because this method itself is not const. */
+    Slot &slot = const_cast<Slot &>(iterator.current_slot());
+    BLI_assert(slot.is_occupied());
+    slot.remove();
+    removed_slots_++;
   }
 
   /**

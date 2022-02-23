@@ -1,4 +1,4 @@
-/* Apache License, Version 2.0 */
+/* SPDX-License-Identifier: Apache-2.0 */
 
 #include "testing/testing.h"
 
@@ -10,8 +10,8 @@
 
 #include "BLI_array.hh"
 #include "BLI_math_mpq.hh"
+#include "BLI_math_vec_mpq_types.hh"
 #include "BLI_mesh_intersect.hh"
-#include "BLI_mpq3.hh"
 #include "BLI_task.h"
 #include "BLI_vector.hh"
 
@@ -457,8 +457,8 @@ TEST(mesh_intersect, TwoTris)
       {4, 11, 6, 4}, /* 9: T11 edge (-1,1,1)(0,1/2,1/2) inside T4 edge. */
       {4, 12, 6, 2}, /* 10: parallel planes, not intersecting. */
       {4, 13, 6, 2}, /* 11: non-parallel planes, not intersecting, all one side. */
-      {0, 14, 6, 2}, /* 12: non-paralel planes, not intersecting, alternate sides. */
-      /* Following are all coplanar cases. */
+      {0, 14, 6, 2}, /* 12: non-parallel planes, not intersecting, alternate sides. */
+      /* Following are all co-planar cases. */
       {15, 16, 6, 8},   /* 13: T16 inside T15. NOTE: dup'd tri is expected. */
       {15, 17, 8, 8},   /* 14: T17 intersects one edge of T15 at (1,1,0)(3,3,0). */
       {15, 18, 10, 12}, /* 15: T18 intersects T15 at (1,1,0)(3,3,0)(3,15/4,1/2)(0,3,2). */
@@ -970,7 +970,7 @@ static void fill_sphere_data(int nrings,
 
 static void spheresphere_test(int nrings, double y_offset, bool use_self)
 {
-  /* Make two uvspheres with nrings rings ad 2*nrings segments. */
+  /* Make two UV-spheres with nrings rings ad 2*nrings segments. */
   if (nrings < 2) {
     return;
   }

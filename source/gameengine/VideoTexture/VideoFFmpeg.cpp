@@ -68,7 +68,6 @@ const double defFrameRate = 25.0;
 // constructor
 VideoFFmpeg::VideoFFmpeg(HRESULT *hRslt)
     : VideoBase(),
-      m_codec(nullptr),
       m_formatCtx(nullptr),
       m_codecCtx(nullptr),
       m_frame(nullptr),
@@ -1103,6 +1102,8 @@ static int VideoFFmpeg_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
   short height = 0;
   // capture rate, only if capt is >= 0
   float rate = 25.f;
+
+  static const char *kwlist[] = {"file", "capture", "rate", "width", "height", nullptr};
 
   // get parameters
   if (!EXP_ParseTupleArgsAndKeywords(args,

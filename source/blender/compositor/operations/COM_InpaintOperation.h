@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #pragma once
 
@@ -25,50 +10,49 @@ namespace blender::compositor {
 class InpaintSimpleOperation : public NodeOperation {
  protected:
   /**
-   * Cached reference to the inputProgram
+   * Cached reference to the input_program
    */
-  SocketReader *m_inputImageProgram;
+  SocketReader *input_image_program_;
 
-  int m_iterations;
+  int iterations_;
 
-  float *m_cached_buffer;
-  bool m_cached_buffer_ready;
+  float *cached_buffer_;
+  bool cached_buffer_ready_;
 
-  int *m_pixelorder;
-  int m_area_size;
-  short *m_manhattan_distance;
+  int *pixelorder_;
+  int area_size_;
+  short *manhattan_distance_;
 
  public:
+  /** In-paint (simple convolve using average of known pixels). */
   InpaintSimpleOperation();
 
   /**
    * The inner loop of this operation.
    */
-  void executePixel(float output[4], int x, int y, void *data) override;
+  void execute_pixel(float output[4], int x, int y, void *data) override;
 
   /**
    * Initialize the execution
    */
-  void initExecution() override;
+  void init_execution() override;
 
-  void *initializeTileData(rcti *rect) override;
+  void *initialize_tile_data(rcti *rect) override;
   /**
    * Deinitialize the execution
    */
-  void deinitExecution() override;
+  void deinit_execution() override;
 
-  void setIterations(int iterations)
+  void set_iterations(int iterations)
   {
-    this->m_iterations = iterations;
+    iterations_ = iterations;
   }
 
-  bool determineDependingAreaOfInterest(rcti *input,
-                                        ReadBufferOperation *readOperation,
-                                        rcti *output) override;
+  bool determine_depending_area_of_interest(rcti *input,
+                                            ReadBufferOperation *read_operation,
+                                            rcti *output) override;
 
-  void get_area_of_interest(const int input_idx,
-                            const rcti &output_area,
-                            rcti &r_input_area) override;
+  void get_area_of_interest(int input_idx, const rcti &output_area, rcti &r_input_area) override;
   void update_memory_buffer(MemoryBuffer *output,
                             const rcti &area,
                             Span<MemoryBuffer *> inputs) override;

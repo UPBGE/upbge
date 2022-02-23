@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup datatoc
@@ -32,7 +18,7 @@
 #  include <dirent.h>
 #endif
 
-#include "png.h"
+#include <png.h>
 
 /* for Win32 DIR functions */
 #ifdef WIN32
@@ -245,7 +231,7 @@ static struct IconInfo *icon_merge_context_info_for_icon_head(struct IconMergeCo
 
 static void icon_merge_context_register_icon(struct IconMergeContext *context,
                                              const char *file_name,
-                                             struct IconHead *icon_head)
+                                             const struct IconHead *icon_head)
 {
   context->read_icons = realloc(context->read_icons,
                                 sizeof(struct IconInfo) * (context->num_read_icons + 1));

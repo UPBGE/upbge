@@ -52,7 +52,9 @@ void postInitGamePlayerPythonScripting(struct Main *maggie,
                                        char **argv,
                                        struct bContext *C,
                                        bool *audioDeviceIsInitialized);
-void initGamePythonScripting(struct Main *maggie, struct bContext *C, bool *audioDeviceIsInitialized);
+void initGamePythonScripting(struct Main *maggie,
+                             struct bContext *C,
+                             bool *audioDeviceIsInitialized);
 
 // Add a python include path.
 void appendPythonPath(const std::string &path);

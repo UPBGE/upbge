@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2021, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2021 Blender Foundation. */
 
 #include "testing/testing.h"
 
@@ -27,9 +12,9 @@ class NonHashedOperation : public NodeOperation {
   NonHashedOperation(int id)
   {
     set_id(id);
-    addOutputSocket(DataType::Value);
-    setWidth(2);
-    setHeight(3);
+    add_output_socket(DataType::Value);
+    set_width(2);
+    set_height(3);
   }
 };
 
@@ -40,9 +25,9 @@ class NonHashedConstantOperation : public ConstantOperation {
   NonHashedConstantOperation(int id)
   {
     set_id(id);
-    addOutputSocket(DataType::Value);
-    setWidth(2);
-    setHeight(3);
+    add_output_socket(DataType::Value);
+    set_width(2);
+    set_height(3);
     constant_ = 1.0f;
   }
 
@@ -65,14 +50,14 @@ class HashedOperation : public NodeOperation {
  public:
   HashedOperation(NodeOperation &input, int width, int height)
   {
-    addInputSocket(DataType::Value);
-    addOutputSocket(DataType::Color);
-    setWidth(width);
-    setHeight(height);
+    add_input_socket(DataType::Value);
+    add_output_socket(DataType::Color);
+    set_width(width);
+    set_height(height);
     param1 = 2;
     param2 = 7.0f;
 
-    getInputSocket(0)->setLink(input.getOutputSocket());
+    get_input_socket(0)->set_link(input.get_output_socket());
   }
 
   void set_param1(int value)

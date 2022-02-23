@@ -1,0 +1,17 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
+
+#include "stdcycles.h"
+
+shader node_subsurface_scattering(color Color = 0.8,
+                                  float Scale = 1.0,
+                                  vector Radius = vector(0.1, 0.1, 0.1),
+                                  float IOR = 1.4,
+                                  float Anisotropy = 0.0,
+                                  string method = "random_walk",
+                                  normal Normal = N,
+                                  output closure color BSSRDF = 0)
+{
+  BSSRDF = Color *
+           bssrdf(method, Normal, Scale * Radius, Color, "ior", IOR, "anisotropy", Anisotropy);
+}

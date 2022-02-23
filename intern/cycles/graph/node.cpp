@@ -1,26 +1,13 @@
-/*
- * Copyright 2011-2016 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include "graph/node.h"
 #include "graph/node_type.h"
 
-#include "util/util_foreach.h"
-#include "util/util_md5.h"
-#include "util/util_param.h"
-#include "util/util_transform.h"
+#include "util/foreach.h"
+#include "util/md5.h"
+#include "util/param.h"
+#include "util/transform.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -814,7 +801,7 @@ bool Node::socket_is_modified(const SocketType &input) const
   return (socket_modified & input.modified_flag_bit) != 0;
 }
 
-bool Node::is_modified()
+bool Node::is_modified() const
 {
   return socket_modified != 0;
 }

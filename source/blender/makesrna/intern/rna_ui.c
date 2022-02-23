@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup RNA
@@ -1373,7 +1359,6 @@ static void rna_def_panel(BlenderRNA *brna)
        0,
        "Expand Header Layout",
        "Allow buttons in the header to stretch and shrink to fill the entire layout width"},
-      {PANEL_TYPE_DRAW_BOX, "DRAW_BOX", 0, "Box Style", "Display panel with the box widget theme"},
       {0, NULL, 0, NULL, NULL},
   };
 
@@ -1452,6 +1437,11 @@ static void rna_def_panel(BlenderRNA *brna)
   RNA_def_property_string_sdna(prop, NULL, "type->translation_context");
   RNA_def_property_string_default(prop, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+  RNA_def_property_ui_text(prop,
+                           "",
+                           "Specific translation context, only define when the label needs to be "
+                           "disambiguated from others using the exact same label");
+
   RNA_define_verify_sdna(true);
 
   prop = RNA_def_property(srna, "bl_description", PROP_STRING, PROP_NONE);
@@ -1461,14 +1451,18 @@ static void rna_def_panel(BlenderRNA *brna)
   // RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
   RNA_def_property_clear_flag(prop, PROP_NEVER_NULL); /* check for NULL */
+  RNA_def_property_ui_text(prop, "", "The panel tooltip");
 
   prop = RNA_def_property(srna, "bl_category", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, NULL, "type->category");
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+  RNA_def_property_ui_text(
+      prop, "", "The category (tab) in which the panel will be displayed, when applicable");
 
   prop = RNA_def_property(srna, "bl_owner_id", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, NULL, "type->owner_id");
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+  RNA_def_property_ui_text(prop, "", "The ID owning the data displayed in the panel, if any");
 
   prop = RNA_def_property(srna, "bl_space_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, NULL, "type->space_type");

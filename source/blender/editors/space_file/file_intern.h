@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2008 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2008 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup spfile
@@ -23,29 +7,48 @@
 
 #pragma once
 
+#include "DNA_space_types.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* internal exports only */
 
 struct ARegion;
 struct ARegionType;
+struct AssetLibrary;
+struct FileAssetSelectParams;
 struct FileSelectParams;
 struct SpaceFile;
 struct View2D;
+struct uiLayout;
 
 /* file_draw.c */
+
 #define ATTRIBUTE_COLUMN_PADDING (0.5f * UI_UNIT_X)
 
-#define SMALL_SIZE_CHECK(_size) ((_size) < 64) /* Related to FileSelectParams.thumbnail_size. */
+/** Related to #FileSelectParams.thumbnail_size. */
+#define SMALL_SIZE_CHECK(_size) ((_size) < 64)
 
 void file_calc_previews(const bContext *C, ARegion *region);
 void file_draw_list(const bContext *C, ARegion *region);
-bool file_draw_hint_if_invalid(const SpaceFile *sfile, const ARegion *region);
+/**
+ * Draw a string hint if the file list is invalid.
+ * \return true if the list is invalid and a hint was drawn.
+ */
+bool file_draw_hint_if_invalid(const bContext *C, const SpaceFile *sfile, ARegion *region);
 
 void file_draw_check_ex(bContext *C, struct ScrArea *area);
 void file_draw_check(bContext *C);
+/**
+ * For use with; #UI_block_func_set.
+ */
 void file_draw_check_cb(bContext *C, void *arg1, void *arg2);
 bool file_draw_check_exists(SpaceFile *sfile);
 
 /* file_ops.h */
+
 struct wmOperator;
 struct wmOperatorType;
 
@@ -63,6 +66,10 @@ void FILE_OT_bookmark_move(struct wmOperatorType *ot);
 void FILE_OT_reset_recent(wmOperatorType *ot);
 void FILE_OT_hidedot(struct wmOperatorType *ot);
 void FILE_OT_execute(struct wmOperatorType *ot);
+/**
+ * Variation of #FILE_OT_execute that accounts for some mouse specific handling.
+ * Otherwise calls the same logic.
+ */
 void FILE_OT_mouse_execute(struct wmOperatorType *ot);
 void FILE_OT_cancel(struct wmOperatorType *ot);
 void FILE_OT_parent(struct wmOperatorType *ot);
@@ -83,6 +90,9 @@ void file_filename_enter_handle(bContext *C, void *arg_unused, void *arg_but);
 
 int file_highlight_set(struct SpaceFile *sfile, struct ARegion *region, int mx, int my);
 
+/**
+ * Use to set the file selector path from some arbitrary source.
+ */
 void file_sfile_filepath_set(struct SpaceFile *sfile, const char *filepath);
 void file_sfile_to_operator_ex(struct Main *bmain,
                                struct wmOperator *op,
@@ -93,17 +103,28 @@ void file_sfile_to_operator(struct Main *bmain, struct wmOperator *op, struct Sp
 void file_operator_to_sfile(struct Main *bmain, struct SpaceFile *sfile, struct wmOperator *op);
 
 /* space_file.c */
+
 extern const char *file_context_dir[]; /* doc access */
 
 /* filesel.c */
+
 void fileselect_refresh_params(struct SpaceFile *sfile);
-void fileselect_file_set(SpaceFile *sfile, const int index);
+/**
+ * Sets #FileSelectParams.file (name of selected file)
+ */
+void fileselect_file_set(SpaceFile *sfile, int index);
 bool file_attribute_column_type_enabled(const FileSelectParams *params,
                                         FileAttributeColumnType column);
+/**
+ * Check if the region coordinate defined by \a x and \a y are inside the column header.
+ */
 bool file_attribute_column_header_is_inside(const struct View2D *v2d,
                                             const FileLayout *layout,
                                             int x,
                                             int y);
+/**
+ * Find the column type at region coordinate given by \a x (y doesn't matter for this).
+ */
 FileAttributeColumnType file_attribute_column_type_find_isect(const View2D *v2d,
                                                               const FileSelectParams *params,
                                                               FileLayout *layout,
@@ -120,13 +141,26 @@ void file_params_smoothscroll_timer_clear(struct wmWindowManager *wm,
                                           struct wmWindow *win,
                                           SpaceFile *sfile);
 void file_params_renamefile_clear(struct FileSelectParams *params);
+/**
+ * Set the renaming-state to #FILE_PARAMS_RENAME_POSTSCROLL_PENDING and trigger the smooth-scroll
+ * timer. To be used right after a file was renamed.
+ * Note that the caller is responsible for setting the correct rename-file info
+ * (#FileSelectParams.renamefile or #FileSelectParams.rename_id).
+ */
 void file_params_invoke_rename_postscroll(struct wmWindowManager *wm,
                                           struct wmWindow *win,
                                           SpaceFile *sfile);
+/**
+ * To be executed whenever renaming ends (successfully or not).
+ */
 void file_params_rename_end(struct wmWindowManager *wm,
                             struct wmWindow *win,
                             SpaceFile *sfile,
                             struct FileDirEntry *rename_file);
+/**
+ * Helper used by both main update code, and smooth-scroll timer,
+ * to try to enable rename editing from #FileSelectParams.renamefile name.
+ */
 void file_params_renamefile_activate(struct SpaceFile *sfile, struct FileSelectParams *params);
 
 typedef void *onReloadFnData;
@@ -138,17 +172,57 @@ typedef struct SpaceFile_Runtime {
   onReloadFnData on_reload_custom_data;
 } SpaceFile_Runtime;
 
-/* Register an on-reload callback function. Note that there can only be one such function at a
- * time; registering a new one will overwrite the previous one. */
+/**
+ * Register an on-reload callback function. Note that there can only be one such function at a
+ * time; registering a new one will overwrite the previous one.
+ */
 void file_on_reload_callback_register(struct SpaceFile *sfile,
                                       onReloadFn callback,
                                       onReloadFnData custom_data);
 
 /* file_panels.c */
+
 void file_tool_props_region_panels_register(struct ARegionType *art);
 void file_execute_region_panels_register(struct ARegionType *art);
+void file_tools_region_panels_register(struct ARegionType *art);
 
 /* file_utils.c */
-void file_tile_boundbox(const ARegion *region, FileLayout *layout, const int file, rcti *r_bounds);
 
+void file_tile_boundbox(const ARegion *region, FileLayout *layout, int file, rcti *r_bounds);
+
+/**
+ * If \a path leads to a .blend, remove the trailing slash (if needed).
+ */
 void file_path_to_ui_path(const char *path, char *r_pathi, int max_size);
+
+/* asset_catalog_tree_view.cc */
+
+/* C-handle for #ed::asset_browser::AssetCatalogFilterSettings. */
+typedef struct FileAssetCatalogFilterSettingsHandle FileAssetCatalogFilterSettingsHandle;
+
+FileAssetCatalogFilterSettingsHandle *file_create_asset_catalog_filter_settings(void);
+void file_delete_asset_catalog_filter_settings(
+    FileAssetCatalogFilterSettingsHandle **filter_settings_handle);
+/**
+ * \return True if the file list should update its filtered results
+ * (e.g. because filtering parameters changed).
+ */
+bool file_set_asset_catalog_filter_settings(
+    FileAssetCatalogFilterSettingsHandle *filter_settings_handle,
+    eFileSel_Params_AssetCatalogVisibility catalog_visibility,
+    bUUID catalog_id);
+void file_ensure_updated_catalog_filter_data(
+    FileAssetCatalogFilterSettingsHandle *filter_settings_handle,
+    const struct AssetLibrary *asset_library);
+bool file_is_asset_visible_in_catalog_filter_settings(
+    const FileAssetCatalogFilterSettingsHandle *filter_settings_handle,
+    const AssetMetaData *asset_data);
+
+void file_create_asset_catalog_tree_view_in_layout(struct AssetLibrary *asset_library,
+                                                   struct uiLayout *layout,
+                                                   struct SpaceFile *space_file,
+                                                   struct FileAssetSelectParams *params);
+
+#ifdef __cplusplus
+}
+#endif

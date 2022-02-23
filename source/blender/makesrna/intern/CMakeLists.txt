@@ -1,22 +1,5 @@
-# ***** BEGIN GPL LICENSE BLOCK *****
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# The Original Code is Copyright (C) 2006, Blender Foundation
-# All rights reserved.
-# ***** END GPL LICENSE BLOCK *****
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright 2006 Blender Foundation. All rights reserved.
 
 if(CMAKE_COMPILER_IS_GNUCC)
   # add here so we fail early.
@@ -72,6 +55,7 @@ set(DEFSRC
   rna_packedfile.c
   rna_palette.c
   rna_particle.c
+  rna_pointcloud.c
   rna_pose.c
   rna_property.c
   rna_python_proxy.c
@@ -105,11 +89,9 @@ set(DEFSRC
 
 if(WITH_EXPERIMENTAL_FEATURES)
   add_definitions(-DWITH_SIMULATION_DATABLOCK)
-  add_definitions(-DWITH_POINT_CLOUD)
-  add_definitions(-DWITH_HAIR_NODES)
+  add_definitions(-DWITH_NEW_CURVES_TYPE)
   list(APPEND DEFSRC
-    rna_hair.c
-    rna_pointcloud.c
+    rna_curves.c
     rna_simulation.c
   )
 endif()
@@ -212,6 +194,9 @@ set(INC
   ../../blenloader
 
   ${CMAKE_BINARY_DIR}/source/blender/makesdna/intern
+
+  # dna_type_offsets.h
+  ${CMAKE_CURRENT_BINARY_DIR}/../../makesdna/intern
 )
 
 set(INC_SYS
@@ -456,6 +441,7 @@ set(LIB
   bf_editor_armature
   bf_editor_asset
   bf_editor_curve
+  bf_editor_curves
   bf_editor_gizmo_library
   bf_editor_gpencil
   bf_editor_io

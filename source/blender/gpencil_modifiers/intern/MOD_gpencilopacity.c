@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2017, Blender Foundation
- * This is a new part of Blender
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2017 Blender Foundation. */
 
 /** \file
  * \ingroup modifiers
@@ -240,10 +224,10 @@ static void panel_draw(const bContext *UNUSED(C), Panel *panel)
     uiItemR(layout, ptr, "hardness", 0, NULL, ICON_NONE);
   }
   else {
-    const bool is_normalized = RNA_boolean_get(ptr, "normalize_opacity");
+    const bool is_normalized = RNA_boolean_get(ptr, "use_normalized_opacity");
     const bool is_weighted = RNA_boolean_get(ptr, "use_weight_factor");
 
-    uiItemR(layout, ptr, "normalize_opacity", 0, NULL, ICON_NONE);
+    uiItemR(layout, ptr, "use_normalized_opacity", 0, NULL, ICON_NONE);
     const char *text = (is_normalized) ? IFACE_("Strength") : IFACE_("Opacity Factor");
 
     uiLayout *row = uiLayoutRow(layout, true);

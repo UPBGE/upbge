@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2019, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2019 Blender Foundation. */
 
 /** \file
  * \ingroup draw_engine
@@ -23,6 +8,7 @@
 #include "DRW_render.h"
 
 #include "DNA_camera_types.h"
+#include "DNA_screen_types.h"
 
 #include "DEG_depsgraph_query.h"
 
@@ -46,6 +32,7 @@ enum {
   GRID_BACK = (1 << 9),
   GRID_CAMERA = (1 << 10),
   PLANE_IMAGE = (1 << 11),
+  CUSTOM_GRID = (1 << 12),
 };
 
 void OVERLAY_grid_init(OVERLAY_Data *vedata)
@@ -61,11 +48,16 @@ void OVERLAY_grid_init(OVERLAY_Data *vedata)
 
   if (pd->space_type == SPACE_IMAGE) {
     SpaceImage *sima = (SpaceImage *)draw_ctx->space_data;
+    View2D *v2d = &draw_ctx->region->v2d;
     if (sima->mode == SI_MODE_UV || !ED_space_image_has_buffer(sima)) {
       shd->grid_flag = GRID_BACK | PLANE_IMAGE | SHOW_GRID;
     }
     else {
       shd->grid_flag = 0;
+    }
+
+    if (sima->flag & SI_CUSTOM_GRID) {
+      shd->grid_flag |= CUSTOM_GRID;
     }
 
     shd->grid_distance = 1.0f;
@@ -74,9 +66,11 @@ void OVERLAY_grid_init(OVERLAY_Data *vedata)
       shd->grid_size[0] = (float)sima->tile_grid_shape[0];
       shd->grid_size[1] = (float)sima->tile_grid_shape[1];
     }
-    for (int step = 0; step < 8; step++) {
-      shd->grid_steps[step] = powf(4, step) * (1.0f / 16.0f);
-    }
+
+    const int grid_size = SI_GRID_STEPS_LEN;
+    shd->zoom_factor = ED_space_image_zoom_level(v2d, grid_size);
+    ED_space_image_grid_steps(sima, shd->grid_steps, grid_size);
+
     return;
   }
 
@@ -191,6 +185,15 @@ void OVERLAY_grid_init(OVERLAY_Data *vedata)
   shd->grid_distance = dist / 2.0f;
 
   ED_view3d_grid_steps(scene, v3d, rv3d, shd->grid_steps);
+
+  if ((v3d->flag & (V3D_XR_SESSION_SURFACE | V3D_XR_SESSION_MIRROR)) != 0) {
+    /* The calculations for the grid parameters assume that the view matrix has no scale component,
+     * which may not be correct if the user is "shrunk" or "enlarged" by zooming in or out.
+     * Therefore, we need to compensate the values here. */
+    float viewinvscale = len_v3(
+        viewinv[0]); /* Assumption is uniform scaling (all column vectors are of same length). */
+    shd->grid_distance *= viewinvscale;
+  }
 }
 
 void OVERLAY_grid_cache_init(OVERLAY_Data *vedata)
@@ -248,6 +251,7 @@ void OVERLAY_grid_cache_init(OVERLAY_Data *vedata)
 
   grp = DRW_shgroup_create(sh, psl->grid_ps);
   DRW_shgroup_uniform_int(grp, "gridFlag", &shd->grid_flag, 1);
+  DRW_shgroup_uniform_float_copy(grp, "zoomFactor", shd->zoom_factor);
   DRW_shgroup_uniform_vec3(grp, "planeAxes", shd->grid_axes, 1);
   DRW_shgroup_uniform_block(grp, "globalsBlock", G_draw.block_ubo);
   DRW_shgroup_uniform_texture_ref(grp, "depthBuffer", &dtxl->depth);

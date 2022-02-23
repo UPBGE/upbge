@@ -38,15 +38,11 @@
 
 #include <boost/format.hpp>
 
-#include "DNA_scene_types.h"
 #include "DRW_render.h"
-#include "GPU_framebuffer.h"
 #include "GPU_matrix.h"
-#include "GPU_state.h"
 
-#include "BL_BlenderConverter.h"
-#include "BL_BlenderSceneConverter.h"
-#include "CM_Message.h"
+#include "BL_Converter.h"
+#include "BL_SceneConverter.h"
 #include "DEV_Joystick.h"  // for DEV_Joystick::HandleEvents
 #include "KX_Camera.h"
 #include "KX_Globals.h"
@@ -246,7 +242,7 @@ PyObject *KX_KetsjiEngine::GetPyProfileDict()
 }
 #endif
 
-void KX_KetsjiEngine::SetConverter(BL_BlenderConverter *converter)
+void KX_KetsjiEngine::SetConverter(BL_Converter *converter)
 {
   BLI_assert(converter);
   m_converter = converter;
@@ -431,7 +427,7 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
     m_previousRealTime = m_clockTime;
   }
   //// Else in case of fixed framerate, try to sleep until the next frame.
-  //else if (m_flags & FIXED_FRAMERATE) {
+  // else if (m_flags & FIXED_FRAMERATE) {
   //  const double sleeptime = timestep - dt - 1.0e-3;
   //  /* If the remaining time is greather than 1ms (sleep resolution) sleep this thread.
   //   * The other 1ms will be busy wait.
@@ -499,15 +495,13 @@ bool KX_KetsjiEngine::NextFrame()
        * update. */
       m_logger.StartLog(tc_logic);
 
-      if (i == 0) { // No need to UpdateObjectActivity several times
+      if (i == 0) {  // No need to UpdateObjectActivity several times
         scene->UpdateObjectActivity();
       }
 
       m_logger.StartLog(tc_physics);
+
       // set Python hooks for each scene
-#ifdef WITH_PYTHON
-      PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
-#endif
       KX_SetActiveScene(scene);
 
       // Process sensors, and controllers
@@ -1041,7 +1035,6 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene,
   m_logger.StartLog(tc_rasterizer);
 
 #ifdef WITH_PYTHON
-  PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
   // Run any pre-drawing python callbacks
   scene->RunDrawingCallbacks(KX_Scene::PRE_DRAW, rendercam);
 #endif
@@ -1086,7 +1079,6 @@ RAS_FrameBuffer *KX_KetsjiEngine::PostRenderScene(KX_Scene *scene,
   RAS_FrameBuffer *frameBuffer = scene->Render2DFilters(m_rasterizer, m_canvas, inputfb, targetfb);
 
 #ifdef WITH_PYTHON
-  PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
   /* We can't deduce what camera should be passed to the python callbacks
    * because the post draw callbacks are per scenes and not per cameras.
    */

@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup wm
@@ -39,6 +25,21 @@
 
 #include "ED_object.h"
 #include "ED_screen.h"
+
+/* -------------------------------------------------------------------- */
+/** \name Generic Utilities
+ * \{ */
+
+int WM_operator_flag_only_pass_through_on_press(int retval, const struct wmEvent *event)
+{
+  if ((event->val != KM_PRESS) &&
+      ((retval & OPERATOR_PASS_THROUGH) && (retval & OPERATOR_FINISHED))) {
+    retval &= ~OPERATOR_PASS_THROUGH;
+  }
+  return retval;
+}
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Value Interaction Helper
@@ -319,10 +320,6 @@ static int op_generic_value_modal(bContext *C, wmOperator *op, const wmEvent *ev
   return OPERATOR_RUNNING_MODAL;
 }
 
-/**
- * Allow an operator with only and execute function to run modally,
- * re-doing the action, using vertex coordinate store/restore instead of operator undo.
- */
 void WM_operator_type_modal_from_exec_for_object_edit_coords(wmOperatorType *ot)
 {
   PropertyRNA *prop;

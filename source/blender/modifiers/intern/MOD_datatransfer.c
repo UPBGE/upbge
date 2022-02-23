@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2014 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2014 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup modifiers
@@ -163,7 +147,6 @@ static bool isDisabled(const struct Scene *UNUSED(scene),
   return !dtmd->ob_source || dtmd->ob_source->type != OB_MESH;
 }
 
-#define HIGH_POLY_WARNING 10000
 #define DT_TYPES_AFFECT_MESH \
   (DT_TYPE_BWEIGHT_VERT | DT_TYPE_BWEIGHT_EDGE | DT_TYPE_CREASE | DT_TYPE_SHARP_EDGE | \
    DT_TYPE_LNOR | DT_TYPE_SHARP_FACE)
@@ -238,13 +221,6 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
   else if ((dtmd->data_types & DT_TYPE_LNOR) && !(me->flag & ME_AUTOSMOOTH)) {
     BKE_modifier_set_error(
         ctx->object, (ModifierData *)dtmd, "Enable 'Auto Smooth' in Object Data Properties");
-  }
-  else if (result->totvert > HIGH_POLY_WARNING ||
-           ((Mesh *)(ob_source->data))->totvert > HIGH_POLY_WARNING) {
-    BKE_modifier_set_error(
-        ctx->object,
-        md,
-        "Source or destination object has a high polygon count, computation might be slow");
   }
 
   return result;
@@ -473,7 +449,6 @@ static void panelRegister(ARegionType *region_type)
       region_type, "advanced", "Topology Mapping", NULL, advanced_panel_draw, panel_type);
 }
 
-#undef HIGH_POLY_WARNING
 #undef DT_TYPES_AFFECT_MESH
 
 ModifierTypeInfo modifierType_DataTransfer = {
@@ -493,7 +468,6 @@ ModifierTypeInfo modifierType_DataTransfer = {
     /* deformVertsEM */ NULL,
     /* deformMatricesEM */ NULL,
     /* modifyMesh */ modifyMesh,
-    /* modifyHair */ NULL,
     /* modifyGeometrySet */ NULL,
 
     /* initData */ initData,

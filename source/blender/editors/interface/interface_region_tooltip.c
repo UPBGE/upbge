@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2008 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2008 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup edinterface
@@ -73,6 +57,8 @@
 #define UI_TIP_PAD_FAC 1.3f
 #define UI_TIP_PADDING (int)(UI_TIP_PAD_FAC * UI_UNIT_Y)
 #define UI_TIP_MAXWIDTH 600
+
+#define UI_TIP_STR_MAX 1024
 
 typedef struct uiTooltipFormat {
   enum {
@@ -214,7 +200,7 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *region
       /* draw header and active data (is done here to be able to change color) */
       rgb_float_to_uchar(drawcol, tip_colors[UI_TIP_LC_MAIN]);
       UI_fontstyle_set(&data->fstyle);
-      UI_fontstyle_draw(&data->fstyle, &bbox, field->text, drawcol, &fs_params);
+      UI_fontstyle_draw(&data->fstyle, &bbox, field->text, UI_TIP_STR_MAX, drawcol, &fs_params);
 
       /* offset to the end of the last line */
       if (field->text_suffix) {
@@ -224,7 +210,8 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *region
         bbox.ymax -= yofs;
 
         rgb_float_to_uchar(drawcol, tip_colors[UI_TIP_LC_ACTIVE]);
-        UI_fontstyle_draw(&data->fstyle, &bbox, field->text_suffix, drawcol, &fs_params);
+        UI_fontstyle_draw(
+            &data->fstyle, &bbox, field->text_suffix, UI_TIP_STR_MAX, drawcol, &fs_params);
 
         /* undo offset */
         bbox.xmin -= xofs;
@@ -243,7 +230,7 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *region
       /* XXX, needed because we don't have mono in 'U.uifonts' */
       BLF_size(fstyle_mono.uifont_id, fstyle_mono.points * U.pixelsize, U.dpi);
       rgb_float_to_uchar(drawcol, tip_colors[field->format.color_id]);
-      UI_fontstyle_draw(&fstyle_mono, &bbox, field->text, drawcol, &fs_params);
+      UI_fontstyle_draw(&fstyle_mono, &bbox, field->text, UI_TIP_STR_MAX, drawcol, &fs_params);
     }
     else {
       BLI_assert(field->format.style == UI_TIP_STYLE_NORMAL);
@@ -255,7 +242,7 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *region
       /* draw remaining data */
       rgb_float_to_uchar(drawcol, tip_colors[field->format.color_id]);
       UI_fontstyle_set(&data->fstyle);
-      UI_fontstyle_draw(&data->fstyle, &bbox, field->text, drawcol, &fs_params);
+      UI_fontstyle_draw(&data->fstyle, &bbox, field->text, UI_TIP_STR_MAX, drawcol, &fs_params);
     }
 
     bbox.ymax -= data->lineh * field->geom.lines;
@@ -761,7 +748,9 @@ static uiTooltipData *ui_tooltip_data_from_tool(bContext *C, uiBut *but, bool is
   return data;
 }
 
-static uiTooltipData *ui_tooltip_data_from_button(bContext *C, uiBut *but)
+static uiTooltipData *ui_tooltip_data_from_button_or_extra_icon(bContext *C,
+                                                                uiBut *but,
+                                                                uiButExtraOpIcon *extra_icon)
 {
   uiStringInfo but_label = {BUT_GET_LABEL, NULL};
   uiStringInfo but_tip = {BUT_GET_TIP, NULL};
@@ -774,20 +763,29 @@ static uiTooltipData *ui_tooltip_data_from_button(bContext *C, uiBut *but)
 
   char buf[512];
 
+  wmOperatorType *optype = extra_icon ? UI_but_extra_operator_icon_optype_get(extra_icon) :
+                                        but->optype;
+  PropertyRNA *rnaprop = extra_icon ? NULL : but->rnaprop;
+
   /* create tooltip data */
   uiTooltipData *data = MEM_callocN(sizeof(uiTooltipData), "uiTooltipData");
 
-  UI_but_string_info_get(C,
-                         but,
-                         &but_label,
-                         &but_tip,
-                         &enum_label,
-                         &enum_tip,
-                         &op_keymap,
-                         &prop_keymap,
-                         &rna_struct,
-                         &rna_prop,
-                         NULL);
+  if (extra_icon) {
+    UI_but_extra_icon_string_info_get(C, extra_icon, &but_label, &but_tip, &op_keymap, NULL);
+  }
+  else {
+    UI_but_string_info_get(C,
+                           but,
+                           &but_label,
+                           &but_tip,
+                           &enum_label,
+                           &enum_tip,
+                           &op_keymap,
+                           &prop_keymap,
+                           &rna_struct,
+                           &rna_prop,
+                           NULL);
+  }
 
   /* Tip Label (only for buttons not already showing the label).
    * Check prefix instead of comparing because the button may include the shortcut. */
@@ -818,8 +816,7 @@ static uiTooltipData *ui_tooltip_data_from_button(bContext *C, uiBut *but)
     }
 
     /* special case enum rna buttons */
-    if ((but->type & UI_BTYPE_ROW) && but->rnaprop &&
-        RNA_property_flag(but->rnaprop) & PROP_ENUM_FLAG) {
+    if ((but->type & UI_BTYPE_ROW) && rnaprop && RNA_property_flag(rnaprop) & PROP_ENUM_FLAG) {
       uiTooltipField *field = text_field_add(data,
                                              &(uiTooltipFormat){
                                                  .style = UI_TIP_STYLE_NORMAL,
@@ -863,7 +860,7 @@ static uiTooltipData *ui_tooltip_data_from_button(bContext *C, uiBut *but)
 
   if (ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_SEARCH_MENU)) {
     /* better not show the value of a password */
-    if ((but->rnaprop && (RNA_property_subtype(but->rnaprop) == PROP_PASSWORD)) == 0) {
+    if ((rnaprop && (RNA_property_subtype(rnaprop) == PROP_PASSWORD)) == 0) {
       /* full string */
       ui_but_string_get(but, buf, sizeof(buf));
       if (buf[0]) {
@@ -878,15 +875,14 @@ static uiTooltipData *ui_tooltip_data_from_button(bContext *C, uiBut *but)
     }
   }
 
-  if (but->rnaprop) {
+  if (rnaprop) {
     const int unit_type = UI_but_unit_type_get(but);
 
     if (unit_type == PROP_UNIT_ROTATION) {
-      if (RNA_property_type(but->rnaprop) == PROP_FLOAT) {
-        float value = RNA_property_array_check(but->rnaprop) ?
-                          RNA_property_float_get_index(
-                              &but->rnapoin, but->rnaprop, but->rnaindex) :
-                          RNA_property_float_get(&but->rnapoin, but->rnaprop);
+      if (RNA_property_type(rnaprop) == PROP_FLOAT) {
+        float value = RNA_property_array_check(rnaprop) ?
+                          RNA_property_float_get_index(&but->rnapoin, rnaprop, but->rnaindex) :
+                          RNA_property_float_get(&but->rnapoin, rnaprop);
 
         uiTooltipField *field = text_field_add(data,
                                                &(uiTooltipFormat){
@@ -920,15 +916,15 @@ static uiTooltipData *ui_tooltip_data_from_button(bContext *C, uiBut *but)
       }
     }
   }
-  else if (but->optype) {
-    PointerRNA *opptr;
-    char *str;
-    opptr = UI_but_operator_ptr_get(but); /* allocated when needed, the button owns it */
+  else if (optype) {
+    PointerRNA *opptr = extra_icon ? UI_but_extra_operator_icon_opptr_get(extra_icon) :
+                                     /* allocated when needed, the button owns it */
+                                     UI_but_operator_ptr_get(but);
 
     /* so the context is passed to fieldf functions (some py fieldf functions use it) */
     WM_operator_properties_sanitize(opptr, false);
 
-    str = ui_tooltip_text_python_from_op(C, but->optype, opptr);
+    char *str = ui_tooltip_text_python_from_op(C, optype, opptr);
 
     /* operator info */
     if (U.flag & USER_TOOLTIPS_PYTHON) {
@@ -945,18 +941,21 @@ static uiTooltipData *ui_tooltip_data_from_button(bContext *C, uiBut *but)
   }
 
   /* button is disabled, we may be able to tell user why */
-  if (but->flag & UI_BUT_DISABLED) {
+  if ((but->flag & UI_BUT_DISABLED) || extra_icon) {
     const char *disabled_msg = NULL;
     bool disabled_msg_free = false;
 
     /* if operator poll check failed, it can give pretty precise info why */
-    if (but->optype) {
+    if (optype) {
+      const wmOperatorCallContext opcontext = extra_icon ? extra_icon->optype_params->opcontext :
+                                                           but->opcontext;
       CTX_wm_operator_poll_msg_clear(C);
-      WM_operator_poll_context(C, but->optype, but->opcontext);
+      ui_but_context_poll_operator_ex(
+          C, but, &(wmOperatorCallParams){.optype = optype, .opcontext = opcontext});
       disabled_msg = CTX_wm_operator_poll_msg_get(C, &disabled_msg_free);
     }
     /* alternatively, buttons can store some reasoning too */
-    else if (but->disabled_info) {
+    else if (!extra_icon && but->disabled_info) {
       disabled_msg = TIP_(but->disabled_info);
     }
 
@@ -973,7 +972,7 @@ static uiTooltipData *ui_tooltip_data_from_button(bContext *C, uiBut *but)
     }
   }
 
-  if ((U.flag & USER_TOOLTIPS_PYTHON) && !but->optype && rna_struct.strinfo) {
+  if ((U.flag & USER_TOOLTIPS_PYTHON) && !optype && rna_struct.strinfo) {
     {
       uiTooltipField *field = text_field_add(data,
                                              &(uiTooltipFormat){
@@ -1002,9 +1001,9 @@ static uiTooltipData *ui_tooltip_data_from_button(bContext *C, uiBut *but)
 
       /* never fails */
       /* move ownership (no need for re-alloc) */
-      if (but->rnaprop) {
+      if (rnaprop) {
         field->text = RNA_path_full_property_py_ex(
-            CTX_data_main(C), &but->rnapoin, but->rnaprop, but->rnaindex, true);
+            CTX_data_main(C), &but->rnapoin, rnaprop, but->rnaindex, true);
       }
       else {
         field->text = RNA_path_full_struct_py(CTX_data_main(C), &but->rnapoin);
@@ -1203,12 +1202,12 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
       BLI_assert(ELEM(field->format.style, UI_TIP_STYLE_NORMAL, UI_TIP_STYLE_HEADER));
       font_id = data->fstyle.uifont_id;
     }
-    w = BLF_width_ex(font_id, field->text, BLF_DRAW_STR_DUMMY_MAX, &info);
+    w = BLF_width_ex(font_id, field->text, UI_TIP_STR_MAX, &info);
 
     /* check for suffix (enum label) */
     if (field->text_suffix && field->text_suffix[0]) {
       x_pos = info.width;
-      w = max_ii(w, x_pos + BLF_width(font_id, field->text_suffix, BLF_DRAW_STR_DUMMY_MAX));
+      w = max_ii(w, x_pos + BLF_width(font_id, field->text_suffix, UI_TIP_STR_MAX));
     }
     fontw = max_ii(fontw, w);
 
@@ -1394,11 +1393,8 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
 /** \name ToolTip Public API
  * \{ */
 
-/**
- * \param is_label: When true, show a small tip that only shows the name,
- * otherwise show the full tooltip.
- */
-ARegion *UI_tooltip_create_from_button(bContext *C, ARegion *butregion, uiBut *but, bool is_label)
+ARegion *UI_tooltip_create_from_button_or_extra_icon(
+    bContext *C, ARegion *butregion, uiBut *but, uiButExtraOpIcon *extra_icon, bool is_label)
 {
   wmWindow *win = CTX_wm_window(C);
   /* aspect values that shrink text are likely unreadable */
@@ -1415,7 +1411,11 @@ ARegion *UI_tooltip_create_from_button(bContext *C, ARegion *butregion, uiBut *b
   }
 
   if (data == NULL) {
-    data = ui_tooltip_data_from_button(C, but);
+    data = ui_tooltip_data_from_button_or_extra_icon(C, but, extra_icon);
+  }
+
+  if (data == NULL) {
+    data = ui_tooltip_data_from_button_or_extra_icon(C, but, NULL);
   }
 
   if (data == NULL) {
@@ -1442,7 +1442,7 @@ ARegion *UI_tooltip_create_from_button(bContext *C, ARegion *butregion, uiBut *b
     init_position[1] = but->rect.ymin;
     if (butregion) {
       ui_block_to_window_fl(butregion, but->block, &init_position[0], &init_position[1]);
-      init_position[0] = win->eventstate->x;
+      init_position[0] = win->eventstate->xy[0];
     }
     init_position[1] -= (UI_POPUP_MARGIN / 2);
   }
@@ -1453,11 +1453,16 @@ ARegion *UI_tooltip_create_from_button(bContext *C, ARegion *butregion, uiBut *b
   return region;
 }
 
+ARegion *UI_tooltip_create_from_button(bContext *C, ARegion *butregion, uiBut *but, bool is_label)
+{
+  return UI_tooltip_create_from_button_or_extra_icon(C, butregion, but, NULL, is_label);
+}
+
 ARegion *UI_tooltip_create_from_gizmo(bContext *C, wmGizmo *gz)
 {
   wmWindow *win = CTX_wm_window(C);
   const float aspect = 1.0f;
-  float init_position[2] = {win->eventstate->x, win->eventstate->y};
+  float init_position[2] = {win->eventstate->xy[0], win->eventstate->xy[1]};
 
   uiTooltipData *data = ui_tooltip_data_from_gizmo(C, gz);
   if (data == NULL) {
@@ -1520,13 +1525,6 @@ static uiTooltipData *ui_tooltip_data_from_search_item_tooltip_data(
   return data;
 }
 
-/**
- * Create a tooltip from search-item tooltip data \a item_tooltip data.
- * To be called from a callback set with #UI_but_func_search_set_tooltip().
- *
- * \param item_rect: Rectangle of the search item in search region space (#ui_searchbox_butrect())
- *                   which is passed to the tooltip callback.
- */
 ARegion *UI_tooltip_create_from_search_item_generic(
     bContext *C,
     const ARegion *searchbox_region,
@@ -1541,7 +1539,7 @@ ARegion *UI_tooltip_create_from_search_item_generic(
   const float aspect = 1.0f;
   const wmWindow *win = CTX_wm_window(C);
   float init_position[2];
-  init_position[0] = win->eventstate->x;
+  init_position[0] = win->eventstate->xy[0];
   init_position[1] = item_rect->ymin + searchbox_region->winrct.ymin - (UI_POPUP_MARGIN / 2);
 
   return ui_tooltip_create_with_data(C, data, init_position, NULL, aspect);

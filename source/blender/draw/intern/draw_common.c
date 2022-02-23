@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2016, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2016 Blender Foundation. */
 
 /** \file
  * \ingroup draw
@@ -41,7 +26,9 @@
 #define UI_COLOR_RGBA_FROM_U8(r, g, b, a, v4) \
   ARRAY_SET_ITEMS(v4, (float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f, (float)a / 255.0f)
 
-/* Colors & Constant */
+/**
+ * Colors & Constant.
+ */
 struct DRW_Global G_draw = {{{0}}};
 
 static bool weight_ramp_custom = false;
@@ -100,11 +87,6 @@ void DRW_globals_update(void)
   copy_v3_fl(
       gb->colorEditMeshMiddle,
       dot_v3v3(gb->colorEditMeshMiddle, (float[3]){0.3333f, 0.3333f, 0.3333f})); /* Desaturate */
-
-  interp_v4_v4v4(gb->colorDupliSelect, gb->colorBackground, gb->colorSelect, 0.5f);
-  /* Was 50% in 2.7x since the background was lighter making it easier to tell the color from
-   * black, with a darker background we need a more faded color. */
-  interp_v4_v4v4(gb->colorDupli, gb->colorBackground, gb->colorWire, 0.3f);
 
 #ifdef WITH_FREESTYLE
   UI_GetThemeColor4fv(TH_FREESTYLE_EDGE_MARK, gb->colorEdgeFreestyle);
@@ -292,15 +274,15 @@ DRWView *DRW_view_create_with_zoffset(const DRWView *parent_view,
 /* ******************************************** COLOR UTILS ************************************ */
 
 /* TODO: FINISH. */
-/**
- * Get the wire color theme_id of an object based on its state
- * \a r_color is a way to get a pointer to the static color var associated
- */
 int DRW_object_wire_theme_get(Object *ob, ViewLayer *view_layer, float **r_color)
 {
   const DRWContextState *draw_ctx = DRW_context_state_get();
   const bool is_edit = (draw_ctx->object_mode & OB_MODE_EDIT) && (ob->mode & OB_MODE_EDIT);
-  const bool active = (view_layer->basact && view_layer->basact->object == ob);
+  const bool active = view_layer->basact &&
+                      ((ob->base_flag & BASE_FROM_DUPLI) ?
+                           (DRW_object_get_dupli_parent(ob) == view_layer->basact->object) :
+                           (view_layer->basact->object == ob));
+
   /* confusing logic here, there are 2 methods of setting the color
    * 'colortab[colindex]' and 'theme_id', colindex overrides theme_id.
    *
@@ -345,21 +327,7 @@ int DRW_object_wire_theme_get(Object *ob, ViewLayer *view_layer, float **r_color
 
   if (r_color != NULL) {
     if (UNLIKELY(ob->base_flag & BASE_FROM_SET)) {
-      *r_color = G_draw.block.colorDupli;
-    }
-    else if (UNLIKELY(ob->base_flag & BASE_FROM_DUPLI)) {
-      switch (theme_id) {
-        case TH_ACTIVE:
-        case TH_SELECT:
-          *r_color = G_draw.block.colorDupliSelect;
-          break;
-        case TH_TRANSFORM:
-          *r_color = G_draw.block.colorTransform;
-          break;
-        default:
-          *r_color = G_draw.block.colorDupli;
-          break;
-      }
+      *r_color = G_draw.block.colorWire;
     }
     else {
       switch (theme_id) {
@@ -444,11 +412,11 @@ bool DRW_object_is_flat(Object *ob, int *r_axis)
 
   if (!ELEM(ob->type,
             OB_MESH,
-            OB_CURVE,
+            OB_CURVES_LEGACY,
             OB_SURF,
             OB_FONT,
             OB_MBALL,
-            OB_HAIR,
+            OB_CURVES,
             OB_POINTCLOUD,
             OB_VOLUME)) {
     /* Non-meshes object cannot be considered as flat. */

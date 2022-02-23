@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup RNA
@@ -122,7 +108,8 @@ void RNA_api_space_filebrowser(StructRNA *srna)
   PropertyRNA *parm;
 
   func = RNA_def_function(srna, "activate_asset_by_id", "ED_fileselect_activate_by_id");
-  RNA_def_function_ui_description(func, "Activate the asset entry that represents the given ID");
+  RNA_def_function_ui_description(
+      func, "Activate and select the asset entry that represents the given ID");
 
   parm = RNA_def_property(func, "id_to_activate", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(parm, "ID");
@@ -134,6 +121,18 @@ void RNA_api_space_filebrowser(StructRNA *srna)
       0,
       "",
       "Whether to activate the ID immediately (false) or after the file browser refreshes (true)");
+
+  /* Select file by relative path. */
+  func = RNA_def_function(
+      srna, "activate_file_by_relative_path", "ED_fileselect_activate_by_relpath");
+  RNA_def_function_ui_description(func,
+                                  "Set active file and add to selection based on relative path to "
+                                  "current File Browser directory");
+  RNA_def_property(func, "relative_path", PROP_STRING, PROP_FILEPATH);
+
+  /* Deselect all files. */
+  func = RNA_def_function(srna, "deselect_all", "ED_fileselect_deselect_all");
+  RNA_def_function_ui_description(func, "Deselect all files");
 }
 
 #endif

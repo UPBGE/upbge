@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2021 by Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2021 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup draw
@@ -54,10 +38,17 @@ static void extract_tan_ex_init(const MeshRenderData *mr,
   uint32_t tan_layers = cache->cd_used.tan;
   float(*orco)[3] = (float(*)[3])CustomData_get_layer(cd_vdata, CD_ORCO);
   bool orco_allocated = false;
-  const bool use_orco_tan = cache->cd_used.tan_orco != 0;
+  bool use_orco_tan = cache->cd_used.tan_orco != 0;
 
   int tan_len = 0;
   char tangent_names[MAX_MTFACE][MAX_CUSTOMDATA_LAYER_NAME];
+
+  /* FIXME(T91838): This is to avoid a crash when orco tangent was requested but there are valid
+   * uv layers. It would be better to fix the root cause. */
+  if (tan_layers == 0 && use_orco_tan && CustomData_get_layer_index(cd_ldata, CD_MLOOPUV) != -1) {
+    tan_layers = 1;
+    use_orco_tan = false;
+  }
 
   for (int i = 0; i < MAX_MTFACE; i++) {
     if (tan_layers & (1 << i)) {
@@ -131,6 +122,7 @@ static void extract_tan_ex_init(const MeshRenderData *mr,
                                     calc_active_tangent,
                                     tangent_names,
                                     tan_len,
+                                    mr->vert_normals,
                                     mr->poly_normals,
                                     mr->loop_normals,
                                     orco,

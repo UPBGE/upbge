@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2005 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2005 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup gpu
@@ -190,7 +174,7 @@ using namespace blender::gpu;
 
 /* ------ Memory Management ------ */
 
-uint GPU_texture_memory_usage_get(void)
+uint GPU_texture_memory_usage_get()
 {
   /* TODO(fclem): Do that inside the new Texture class. */
   return 0;
@@ -298,7 +282,6 @@ GPUTexture *GPU_texture_create_cube_array(
       name, w, w, d, GPU_TEXTURE_CUBE_ARRAY, mip_len, format, GPU_DATA_FLOAT, data);
 }
 
-/* DDS texture loading. Return NULL if support is not available. */
 GPUTexture *GPU_texture_create_compressed_2d(
     const char *name, int w, int h, int miplen, eGPUTextureFormat tex_format, const void *data)
 {
@@ -337,7 +320,6 @@ GPUTexture *GPU_texture_create_from_vertbuf(const char *name, GPUVertBuf *vert)
   return reinterpret_cast<GPUTexture *>(tex);
 }
 
-/* Create an error texture that will bind an invalid texture (pink) at draw time. */
 GPUTexture *GPU_texture_create_error(int dimension, bool is_array)
 {
   float pixel[4] = {1.0f, 0.0f, 1.0f, 1.0f};
@@ -386,27 +368,17 @@ void *GPU_texture_read(GPUTexture *tex_, eGPUDataFormat data_format, int miplvl)
   return tex->read(miplvl, data_format);
 }
 
-/**
- * Fills the whole texture with the same data for all pixels.
- * \warning Only work for 2D texture for now.
- * \warning Only clears the mip 0 of the texture.
- * \param data_format: data format of the pixel data.
- * \param data: 1 pixel worth of data to fill the texture with.
- */
 void GPU_texture_clear(GPUTexture *tex, eGPUDataFormat data_format, const void *data)
 {
   BLI_assert(data != nullptr); /* Do not accept NULL as parameter. */
   reinterpret_cast<Texture *>(tex)->clear(data_format, data);
 }
 
-/* NOTE: Updates only mip 0. */
 void GPU_texture_update(GPUTexture *tex, eGPUDataFormat data_format, const void *data)
 {
   reinterpret_cast<Texture *>(tex)->update(data_format, data);
 }
 
-/* Makes data interpretation aware of the source layout.
- * Skipping pixels correctly when changing rows when doing partial update. */
 void GPU_unpack_row_length_set(uint len)
 {
   Context::get()->state_manager->texture_unpack_row_length_set(len);
@@ -436,7 +408,7 @@ void GPU_texture_unbind(GPUTexture *tex_)
   Context::get()->state_manager->texture_unbind(tex);
 }
 
-void GPU_texture_unbind_all(void)
+void GPU_texture_unbind_all()
 {
   Context::get()->state_manager->texture_unbind_all();
 }
@@ -451,7 +423,7 @@ void GPU_texture_image_unbind(GPUTexture *tex)
   Context::get()->state_manager->image_unbind(unwrap(tex));
 }
 
-void GPU_texture_image_unbind_all(void)
+void GPU_texture_image_unbind_all()
 {
   Context::get()->state_manager->image_unbind_all();
 }
@@ -461,7 +433,6 @@ void GPU_texture_generate_mipmap(GPUTexture *tex)
   reinterpret_cast<Texture *>(tex)->generate_mipmap();
 }
 
-/* Copy a texture content to a similar texture. Only Mip 0 is copied. */
 void GPU_texture_copy(GPUTexture *dst_, GPUTexture *src_)
 {
   Texture *src = reinterpret_cast<Texture *>(src_);
@@ -534,6 +505,25 @@ void GPU_texture_free(GPUTexture *tex_)
 void GPU_texture_ref(GPUTexture *tex)
 {
   reinterpret_cast<Texture *>(tex)->refcount++;
+}
+
+int GPU_texture_dimensions(const GPUTexture *tex_)
+{
+  eGPUTextureType type = reinterpret_cast<const Texture *>(tex_)->type_get();
+  if (type & GPU_TEXTURE_1D) {
+    return 1;
+  }
+  else if (type & GPU_TEXTURE_2D) {
+    return 2;
+  }
+  else if (type & GPU_TEXTURE_3D) {
+    return 3;
+  }
+  else if (type & GPU_TEXTURE_CUBE) {
+    return 2;
+  }
+  /* GPU_TEXTURE_BUFFER */
+  return 1;
 }
 
 int GPU_texture_width(const GPUTexture *tex)
@@ -626,8 +616,7 @@ void GPU_texture_get_mipmap_size(GPUTexture *tex, int lvl, int *r_size)
  * Override texture sampler state for one sampler unit only.
  * \{ */
 
-/* Update user defined sampler states. */
-void GPU_samplers_update(void)
+void GPU_samplers_update()
 {
   GPUBackend::get()->samplers_update();
 }

@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2016, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2016 Blender Foundation. */
 
 /** \file
  * \ingroup draw_engine
@@ -297,7 +282,6 @@ static void free_smaa_shaders(void)
 
 GPUShader *eevee_shader_antialiasing_get(int stage,
                                          int smaa_quality,
-                                         float smaa_predication_threshold,
                                          float smaa_predication_scale,
                                          bool recompile)
 {
@@ -310,38 +294,33 @@ GPUShader *eevee_shader_antialiasing_get(int stage,
   if (!e_data.smaa_sh[stage]) {
     char stage_define[32];
     char smaa_quality_define[32];
-    char smaa_predication_threshold_define[64];
     char smaa_predication_scale_define[64];
     BLI_snprintf(stage_define, sizeof(stage_define), "#define SMAA_STAGE %d\n", stage);
     switch (smaa_quality) {
-      case 0:
-      {
-        BLI_snprintf(smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_LOW\n");
+      case 0: {
+        BLI_snprintf(
+            smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_LOW\n");
         break;
       }
-      case 1:
-      {
-        BLI_snprintf(smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_MEDIUM\n");
+      case 1: {
+        BLI_snprintf(
+            smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_MEDIUM\n");
         break;
       }
-      case 2:
-      {
-        BLI_snprintf(smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_HIGH\n");
+      case 2: {
+        BLI_snprintf(
+            smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_HIGH\n");
         break;
       }
-      case 3:
-      {
-        BLI_snprintf(smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_ULTRA\n");
+      case 3: {
+        BLI_snprintf(
+            smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_ULTRA\n");
         break;
       }
       default:
         break;
     }
 
-    BLI_snprintf(smaa_predication_threshold_define,
-                 sizeof(smaa_predication_threshold_define),
-                 "#define SMAA_PREDICATION_THRESHOLD %.8f\n",
-                 smaa_predication_threshold);
     BLI_snprintf(smaa_predication_scale_define,
                  sizeof(smaa_predication_scale_define),
                  "#define SMAA_PREDICATION_SCALE %.8f\n",
@@ -373,7 +352,6 @@ GPUShader *eevee_shader_antialiasing_get(int stage,
                 "#define SMAA_NO_DISCARD\n",
                 smaa_quality_define,
                 "#define SMAA_PREDICATION 1\n",
-                smaa_predication_threshold_define,
                 smaa_predication_scale_define,
                 stage_define,
                 NULL,
@@ -937,6 +915,7 @@ struct GPUShader *EEVEE_shaders_subsurface_translucency_sh_get()
 }
 
 /** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name Volumes
  * \{ */
@@ -993,10 +972,7 @@ struct GPUShader *EEVEE_shaders_volumes_integration_sh_get()
         datatoc_volumetric_geom_glsl,
         datatoc_volumetric_integration_frag_glsl,
         e_data.lib,
-        USE_VOLUME_OPTI ? "#extension GL_ARB_shader_image_load_store: enable\n"
-                          "#extension GL_ARB_shading_language_420pack: enable\n"
-                          "#define USE_VOLUME_OPTI\n" SHADER_DEFINES :
-                          SHADER_DEFINES);
+        USE_VOLUME_OPTI ? "#define USE_VOLUME_OPTI\n" SHADER_DEFINES : SHADER_DEFINES);
   }
   return e_data.volumetric_integration_sh;
 }
@@ -1381,7 +1357,6 @@ Material *EEVEE_material_default_error_get(void)
   return e_data.error_mat;
 }
 
-/* Configure a default nodetree with the given material. */
 struct bNodeTree *EEVEE_shader_default_surface_nodetree(Material *ma)
 {
   /* WARNING: This function is not threadsafe. Which is not a problem for the moment. */
@@ -1409,7 +1384,6 @@ struct bNodeTree *EEVEE_shader_default_surface_nodetree(Material *ma)
   return e_data.surface.ntree;
 }
 
-/* Configure a default nodetree with the given world. */
 struct bNodeTree *EEVEE_shader_default_world_nodetree(World *wo)
 {
   /* WARNING: This function is not threadsafe. Which is not a problem for the moment. */
@@ -1464,6 +1438,9 @@ static char *eevee_get_defines(int options)
   }
   if ((options & VAR_MAT_HAIR) != 0) {
     BLI_dynstr_append(ds, "#define HAIR_SHADER\n");
+  }
+  if ((options & VAR_MAT_POINTCLOUD) != 0) {
+    BLI_dynstr_append(ds, "#define POINTCLOUD_SHADER\n");
   }
   if ((options & VAR_WORLD_PROBE) != 0) {
     BLI_dynstr_append(ds, "#define PROBE_CAPTURE\n");
@@ -1600,7 +1577,6 @@ static struct GPUMaterial *eevee_material_get_ex(
   return mat;
 }
 
-/* NOTE: Compilation is not deferred. */
 struct GPUMaterial *EEVEE_material_default_get(struct Scene *scene, Material *ma, int options)
 {
   Material *def_ma = (ma && (options & VAR_MAT_VOLUME)) ? BKE_material_default_volume() :

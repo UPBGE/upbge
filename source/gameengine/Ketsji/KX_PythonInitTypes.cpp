@@ -34,7 +34,6 @@
 #  include "KX_PythonInitTypes.h"
 
 /* Only for Class::Parents */
-#  include "BL_ActionActuator.h"
 #  include "BL_ArmatureActuator.h"
 #  include "BL_ArmatureChannel.h"
 #  include "BL_ArmatureConstraint.h"
@@ -46,11 +45,11 @@
 #  include "KX_2DFilterFrameBuffer.h"
 #  include "KX_2DFilterManager.h"
 #  include "KX_BlenderMaterial.h"
-#  include "KX_EmptyObject.h"
 #  include "KX_Camera.h"
 #  include "KX_CharacterWrapper.h"
 #  include "KX_CollisionContactPoints.h"
 #  include "KX_ConstraintWrapper.h"
+#  include "KX_EmptyObject.h"
 #  include "KX_FontObject.h"
 #  include "KX_LibLoadStatus.h"
 #  include "KX_Light.h"
@@ -58,14 +57,13 @@
 #  include "KX_LodManager.h"
 #  include "KX_MeshProxy.h"
 #  include "KX_NavMeshObject.h"
-#  include "KX_NetworkMessageActuator.h"
-#  include "KX_NetworkMessageSensor.h"
 #  include "KX_PolyProxy.h"
 #  include "KX_PythonComponent.h"
 #  include "KX_VehicleWrapper.h"
 #  include "KX_VertexProxy.h"
 #  include "SCA_2DFilterActuator.h"
 #  include "SCA_ANDController.h"
+#  include "SCA_ActionActuator.h"
 #  include "SCA_ActuatorSensor.h"
 #  include "SCA_AddObjectActuator.h"
 #  include "SCA_AlwaysSensor.h"
@@ -89,6 +87,8 @@
 #  include "SCA_NANDController.h"
 #  include "SCA_NORController.h"
 #  include "SCA_NearSensor.h"
+#  include "SCA_NetworkMessageActuator.h"
+#  include "SCA_NetworkMessageSensor.h"
 #  include "SCA_ORController.h"
 #  include "SCA_ObjectActuator.h"
 #  include "SCA_ParentActuator.h"
@@ -207,7 +207,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 
   for (int init_getset = 1; init_getset > -1;
        init_getset--) { /* run twice, once to init the getsets another to run PyType_Ready */
-    PyType_Ready_Attr(dict, BL_ActionActuator, init_getset);
+    PyType_Ready_Attr(dict, SCA_ActionActuator, init_getset);
     PyType_Ready_Attr(dict, BL_Shader, init_getset);
     PyType_Ready_Attr(dict, BL_ArmatureObject, init_getset);
     PyType_Ready_Attr(dict, BL_ArmatureActuator, init_getset);
@@ -242,8 +242,8 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
     PyType_Ready_Attr(dict, SCA_MouseFocusSensor, init_getset);
     PyType_Ready_Attr(dict, SCA_MovementSensor, init_getset);
     PyType_Ready_Attr(dict, SCA_NearSensor, init_getset);
-    PyType_Ready_Attr(dict, KX_NetworkMessageActuator, init_getset);
-    PyType_Ready_Attr(dict, KX_NetworkMessageSensor, init_getset);
+    PyType_Ready_Attr(dict, SCA_NetworkMessageActuator, init_getset);
+    PyType_Ready_Attr(dict, SCA_NetworkMessageSensor, init_getset);
     PyType_Ready_Attr(dict, SCA_ObjectActuator, init_getset);
     PyType_Ready_Attr(dict, SCA_ParentActuator, init_getset);
     PyType_Ready_Attr(dict, KX_PolyProxy, init_getset);

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup DNA
@@ -51,16 +35,13 @@ typedef struct ImageUser {
   /** Offset within movie, start frame in global time. */
   int offset, sfra;
   /** Cyclic flag. */
-  char _pad0, cycl;
-  char ok;
+  char cycl;
 
   /** Multiview current eye - for internal use of drawing routines. */
   char multiview_eye;
   short pass;
-  char _pad1[2];
 
   int tile;
-  int _pad2;
 
   /** Listbase indices, for menu browsing or retrieve buffer. */
   short multi_index, view, layer;
@@ -112,9 +93,7 @@ typedef struct ImageTile {
 
   struct ImageTile_Runtime runtime;
 
-  char ok;
-  char _pad[3];
-
+  char _pad[4];
   int tile_number;
   char label[64];
 } ImageTile;
@@ -147,6 +126,22 @@ typedef enum eImageTextureResolution {
   IMA_TEXTURE_RESOLUTION_LEN
 } eImageTextureResolution;
 
+/* Defined in BKE_image.h. */
+struct PartialUpdateRegister;
+struct PartialUpdateUser;
+
+typedef struct Image_Runtime {
+  /* Mutex used to guarantee thread-safe access to the cached ImBuf of the corresponding image ID.
+   */
+  void *cache_mutex;
+
+  /** \brief Register containing partial updates. */
+  struct PartialUpdateRegister *partial_update_register;
+  /** \brief Partial update user for GPUTextures stored inside the Image. */
+  struct PartialUpdateUser *partial_update_user;
+
+} Image_Runtime;
+
 typedef struct Image {
   ID id;
 
@@ -170,8 +165,6 @@ typedef struct Image {
   int lastframe;
 
   /* GPU texture flag. */
-  /* Contains `ImagePartialRefresh`. */
-  ListBase gpu_refresh_areas;
   int gpuframenr;
   short gpuflag;
   short gpu_pass;
@@ -213,6 +206,8 @@ typedef struct Image {
   /** ImageView. */
   ListBase views;
   struct Stereo3dFormat *stereo3d_format;
+
+  Image_Runtime runtime;
 } Image;
 
 /* **************** IMAGE ********************* */
@@ -242,17 +237,13 @@ enum {
 
 /* Image.gpuflag */
 enum {
-  /** GPU texture needs to be refreshed. */
-  IMA_GPU_REFRESH = (1 << 0),
-  /** GPU texture needs to be partially refreshed. */
-  IMA_GPU_PARTIAL_REFRESH = (1 << 1),
   /** All mipmap levels in OpenGL texture set? */
-  IMA_GPU_MIPMAP_COMPLETE = (1 << 2),
+  IMA_GPU_MIPMAP_COMPLETE = (1 << 0),
   /* Reuse the max resolution textures as they fit in the limited scale. */
-  IMA_GPU_REUSE_MAX_RESOLUTION = (1 << 3),
+  IMA_GPU_REUSE_MAX_RESOLUTION = (1 << 1),
   /* Has any limited scale textures been allocated.
    * Adds additional checks to reuse max resolution images when they fit inside limited scale. */
-  IMA_GPU_HAS_LIMITED_SCALE_TEXTURES = (1 << 4),
+  IMA_GPU_HAS_LIMITED_SCALE_TEXTURES = (1 << 2),
 };
 
 /* Image.source, where the image comes from */

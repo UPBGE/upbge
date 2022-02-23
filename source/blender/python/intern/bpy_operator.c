@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup pythonintern
@@ -81,7 +67,7 @@ static PyObject *pyop_poll(PyObject *UNUSED(self), PyObject *args)
   const char *context_str = NULL;
   PyObject *ret;
 
-  int context = WM_OP_EXEC_DEFAULT;
+  wmOperatorCallContext context = WM_OP_EXEC_DEFAULT;
 
   /* XXX TODO: work out a better solution for passing on context,
    * could make a tuple from self and pack the name and Context into it. */
@@ -107,7 +93,9 @@ static PyObject *pyop_poll(PyObject *UNUSED(self), PyObject *args)
   }
 
   if (context_str) {
-    if (RNA_enum_value_from_id(rna_enum_operator_context_items, context_str, &context) == 0) {
+    int context_int = context;
+
+    if (RNA_enum_value_from_id(rna_enum_operator_context_items, context_str, &context_int) == 0) {
       char *enum_str = pyrna_enum_repr(rna_enum_operator_context_items);
       PyErr_Format(PyExc_TypeError,
                    "Calling operator \"bpy.ops.%s.poll\" error, "
@@ -117,6 +105,8 @@ static PyObject *pyop_poll(PyObject *UNUSED(self), PyObject *args)
       MEM_freeN(enum_str);
       return NULL;
     }
+    /* Copy back to the properly typed enum. */
+    context = context_int;
   }
 
   if (ELEM(context_dict, NULL, Py_None)) {
@@ -166,8 +156,7 @@ static PyObject *pyop_call(PyObject *UNUSED(self), PyObject *args)
   PyObject *kw = NULL;           /* optional args */
   PyObject *context_dict = NULL; /* optional args */
 
-  /* note that context is an int, python does the conversion in this case */
-  int context = WM_OP_EXEC_DEFAULT;
+  wmOperatorCallContext context = WM_OP_EXEC_DEFAULT;
   int is_undo = false;
 
   /* XXX TODO: work out a better solution for passing on context,
@@ -209,7 +198,9 @@ static PyObject *pyop_call(PyObject *UNUSED(self), PyObject *args)
   }
 
   if (context_str) {
-    if (RNA_enum_value_from_id(rna_enum_operator_context_items, context_str, &context) == 0) {
+    int context_int = context;
+
+    if (RNA_enum_value_from_id(rna_enum_operator_context_items, context_str, &context_int) == 0) {
       char *enum_str = pyrna_enum_repr(rna_enum_operator_context_items);
       PyErr_Format(PyExc_TypeError,
                    "Calling operator \"bpy.ops.%s\" error, "
@@ -219,6 +210,8 @@ static PyObject *pyop_call(PyObject *UNUSED(self), PyObject *args)
       MEM_freeN(enum_str);
       return NULL;
     }
+    /* Copy back to the properly typed enum. */
+    context = context_int;
   }
 
   if (ELEM(context_dict, NULL, Py_None)) {
@@ -394,7 +387,7 @@ static PyObject *pyop_as_string(PyObject *UNUSED(self), PyObject *args)
     return NULL;
   }
 
-  /* WM_operator_properties_create(&ptr, opname); */
+  // WM_operator_properties_create(&ptr, opname);
   /* Save another lookup */
   RNA_pointer_create(NULL, ot->srna, NULL, &ptr);
 

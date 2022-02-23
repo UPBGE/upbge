@@ -126,6 +126,10 @@ class DummyPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   {
     return false;
   }
+  virtual PHY_CollisionTestResult CheckCollision(PHY_IPhysicsController *ctrl0, PHY_IPhysicsController *ctrl1)
+  {
+    return {false, false, nullptr};
+  }
   virtual PHY_IPhysicsController *CreateSphereController(float radius,
                                                          const class MT_Vector3 &position)
   {
@@ -141,7 +145,7 @@ class DummyPhysicsEnvironment : public PHY_IPhysicsEnvironment {
     // Dummy, nothing to do here
   }
 
-  virtual void ConvertObject(BL_BlenderSceneConverter *converter,
+  virtual void ConvertObject(BL_SceneConverter *converter,
                              KX_GameObject *gameobj,
                              RAS_MeshObject *meshobj,
                              DerivedMesh *dm,

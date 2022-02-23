@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2006 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2006 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup bke
@@ -56,9 +40,6 @@ struct DerivedMesh *cdDM_from_mesh_ex(struct Mesh *mesh,
                                       eCDAllocType alloctype,
                                       const struct CustomData_MeshMasks *mask);
 
-/* creates a CDDerivedMesh from the given BMEditMesh */
-DerivedMesh *CDDM_from_editbmesh(struct BMEditMesh *em, const bool use_mdisps);
-
 /* merge verts  */
 /* Enum for merge_mode of CDDM_merge_verts.
  * Refer to cdderivedmesh.c for details. */
@@ -66,10 +47,12 @@ enum {
   CDDM_MERGE_VERTS_DUMP_IF_MAPPED,
   CDDM_MERGE_VERTS_DUMP_IF_EQUAL,
 };
+#if 0
 DerivedMesh *CDDM_merge_verts(DerivedMesh *dm,
                               const int *vtargetmap,
                               const int tot_vtargetmap,
                               const int merge_mode);
+#endif
 
 /* creates a CDDerivedMesh from the given curve object */
 struct DerivedMesh *CDDM_from_curve(struct Object *ob);
@@ -86,13 +69,6 @@ struct DerivedMesh *CDDM_copy(struct DerivedMesh *source);
  * given DerivedMesh and containing the requested numbers of elements.
  * elements are initialized to all zeros
  */
-struct DerivedMesh *CDDM_from_template_ex(struct DerivedMesh *source,
-                                          int numVerts,
-                                          int numEdges,
-                                          int numFaces,
-                                          int numLoops,
-                                          int numPolys,
-                                          const struct CustomData_MeshMasks *mask);
 struct DerivedMesh *CDDM_from_template(struct DerivedMesh *source,
                                        int numVerts,
                                        int numEdges,
@@ -100,24 +76,9 @@ struct DerivedMesh *CDDM_from_template(struct DerivedMesh *source,
                                        int numLoops,
                                        int numPolys);
 
-/* converts mfaces to mpolys.  note things may break if there are not valid
- * medges surrounding each mface.
- */
-void CDDM_tessfaces_to_faces(struct DerivedMesh *dm);
-
-/* applies vertex coordinates or normals to a CDDerivedMesh. if the MVert
- * layer is a referenced layer, it will be duplicate to not overwrite the
- * original
- */
-void CDDM_apply_vert_coords(struct DerivedMesh *cddm, float (*vertCoords)[3]);
-void CDDM_apply_vert_normals(struct DerivedMesh *cddm, short (*vertNormals)[3]);
-
 /* recalculates vertex and face normals for a CDDerivedMesh
  */
-void CDDM_calc_normals_mapping_ex(struct DerivedMesh *dm, const bool only_face_normals);
-void CDDM_calc_normals_mapping(struct DerivedMesh *dm);
 void CDDM_calc_normals(struct DerivedMesh *dm);
-void CDDM_calc_normals_tessface(struct DerivedMesh *dm);
 
 void CDDM_calc_loop_normals(struct DerivedMesh *dm,
                             const bool use_split_normals,
@@ -140,8 +101,6 @@ void CDDM_calc_edges(struct DerivedMesh *dm);
 /* reconstitute face triangulation */
 void CDDM_recalc_tessellation(struct DerivedMesh *dm);
 void CDDM_recalc_tessellation_ex(struct DerivedMesh *dm, const bool do_face_nor_cpy);
-
-void cdDM_recalc_looptri(struct DerivedMesh *dm);
 
 /* lowers the number of vertices/edges/faces in a CDDerivedMesh
  * the layer data stays the same size
@@ -172,15 +131,6 @@ struct MEdge *CDDM_get_edges(struct DerivedMesh *dm);
 struct MFace *CDDM_get_tessfaces(struct DerivedMesh *dm);
 struct MLoop *CDDM_get_loops(struct DerivedMesh *dm);
 struct MPoly *CDDM_get_polys(struct DerivedMesh *dm);
-
-/* Assigns news m*** layers to the cddm.  Note that you must handle
- * freeing the old ones yourself.  Also you must ensure dm->num****Data
- * is correct.*/
-void CDDM_set_mvert(struct DerivedMesh *dm, struct MVert *mvert);
-void CDDM_set_medge(struct DerivedMesh *dm, struct MEdge *medge);
-void CDDM_set_mface(struct DerivedMesh *dm, struct MFace *mface);
-void CDDM_set_mloop(struct DerivedMesh *dm, struct MLoop *mloop);
-void CDDM_set_mpoly(struct DerivedMesh *dm, struct MPoly *mpoly);
 
 #ifdef __cplusplus
 }

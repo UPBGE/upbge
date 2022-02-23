@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edtransform
@@ -87,15 +71,16 @@ typedef enum {
   CTX_PAINT_CURVE = (1 << 7),
   CTX_POSE_BONE = (1 << 8),
   CTX_TEXTURE_SPACE = (1 << 9),
+  CTX_SEQUENCER_IMAGE = (1 << 10),
 
-  CTX_NO_PET = (1 << 10),
-  CTX_AUTOCONFIRM = (1 << 11),
+  CTX_NO_PET = (1 << 11),
+  CTX_AUTOCONFIRM = (1 << 12),
   /** When transforming object's, adjust the object data so it stays in the same place. */
-  CTX_OBMODE_XFORM_OBDATA = (1 << 12),
+  CTX_OBMODE_XFORM_OBDATA = (1 << 13),
   /** Transform object parents without moving their children. */
-  CTX_OBMODE_XFORM_SKIP_CHILDREN = (1 << 13),
+  CTX_OBMODE_XFORM_SKIP_CHILDREN = (1 << 14),
   /** Enable edge scrolling in 2D views */
-  CTX_VIEW2D_EDGE_PAN = (1 << 14),
+  CTX_VIEW2D_EDGE_PAN = (1 << 15),
 } eTContext;
 
 /** #TransInfo.flag */
@@ -221,6 +206,7 @@ typedef enum {
   TC_POSE,
   TC_ARMATURE_VERTS,
   TC_CURSOR_IMAGE,
+  TC_CURSOR_SEQUENCER,
   TC_CURSOR_VIEW3D,
   TC_CURVE_VERTS,
   TC_GRAPH_EDIT_DATA,
@@ -240,6 +226,7 @@ typedef enum {
   TC_PARTICLE_VERTS,
   TC_SCULPT,
   TC_SEQ_DATA,
+  TC_SEQ_IMAGE_DATA,
   TC_TRACKING_DATA,
 } eTConvertType;
 
@@ -295,6 +282,10 @@ enum {
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name Transform Types
+ * \{ */
+
 typedef struct TransSnapPoint {
   struct TransSnapPoint *next, *prev;
   float co[3];
@@ -314,9 +305,9 @@ typedef struct TransSnap {
   /* Snapped Element Type (currently for objects only). */
   char snapElem;
   /** snapping from this point (in global-space). */
-  float snapPoint[3];
-  /** to this point (in global-space). */
   float snapTarget[3];
+  /** to this point (in global-space). */
+  float snapPoint[3];
   float snapTargetGrid[3];
   float snapNormal[3];
   char snapNodeBorder;
@@ -363,18 +354,18 @@ typedef struct TransCon {
    * The last three parameters are pointers to the in/out/printable vectors. */
   void (*applyVec)(const struct TransInfo *t,
                    const struct TransDataContainer *tc,
-                   struct TransData *td,
+                   const struct TransData *td,
                    const float in[3],
                    float r_out[3]);
   /** Apply function pointer for size transformation. */
   void (*applySize)(const struct TransInfo *t,
                     const struct TransDataContainer *tc,
-                    struct TransData *td,
+                    const struct TransData *td,
                     float r_smat[3][3]);
   /** Apply function pointer for rotation transformation */
   void (*applyRot)(const struct TransInfo *t,
                    const struct TransDataContainer *tc,
-                   struct TransData *td,
+                   const struct TransData *td,
                    float r_axis[3],
                    float *r_angle);
 } TransCon;
@@ -573,11 +564,11 @@ typedef struct TransInfo {
   /** Mouse side of the current frame, 'L', 'R' or 'B' */
   char frame_side;
 
-  /** copy from G.vd, prevents feedback. */
+  /** copy from #RegionView3D, prevents feedback. */
   float viewmat[4][4];
   /** and to make sure we don't have to. */
   float viewinv[4][4];
-  /** access G.vd from other space types. */
+  /** Access #RegionView3D from other space types. */
   float persmat[4][4];
   float persinv[4][4];
   short persp;
@@ -605,7 +596,7 @@ typedef struct TransInfo {
    * mouse button then.) */
   bool is_launch_event_tweak;
 
-  bool is_orient_set;
+  bool is_orient_default_overwrite;
 
   struct {
     short type;
@@ -617,6 +608,12 @@ typedef struct TransInfo {
     O_SCENE,
     O_SET,
   } orient_curr;
+
+  /**
+   * All values from `TransInfo.orient[].type` converted into a flag
+   * to allow quickly checking which orientation types are used.
+   */
+  int orient_type_mask;
 
   short prop_mode;
 
@@ -678,11 +675,19 @@ typedef struct TransInfo {
 /** \name Public Transform API
  * \{ */
 
+/**
+ * \note  caller needs to free `t` on a 0 return
+ * \warning \a event might be NULL (when tweaking from redo panel)
+ * \see #saveTransform which writes these values back.
+ */
 bool initTransform(struct bContext *C,
                    struct TransInfo *t,
                    struct wmOperator *op,
                    const struct wmEvent *event,
                    int mode);
+/**
+ * \see #initTransform which reads values from the operator.
+ */
 void saveTransform(struct bContext *C, struct TransInfo *t, struct wmOperator *op);
 int transformEvent(TransInfo *t, const struct wmEvent *event);
 void transformApply(struct bContext *C, TransInfo *t);
@@ -691,14 +696,17 @@ int transformEnd(struct bContext *C, TransInfo *t);
 void setTransformViewMatrices(TransInfo *t);
 void setTransformViewAspect(TransInfo *t, float r_aspect[3]);
 void convertViewVec(TransInfo *t, float r_vec[3], double dx, double dy);
-void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DProjTest flag);
+void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], eV3DProjTest flag);
 void projectIntView(TransInfo *t, const float vec[3], int adr[2]);
-void projectFloatViewEx(TransInfo *t, const float vec[3], float adr[2], const eV3DProjTest flag);
+void projectFloatViewEx(TransInfo *t, const float vec[3], float adr[2], eV3DProjTest flag);
 void projectFloatView(TransInfo *t, const float vec[3], float adr[2]);
 
 void applyAspectRatio(TransInfo *t, float vec[2]);
 void removeAspectRatio(TransInfo *t, float vec[2]);
 
+/**
+ * Called in transform_ops.c, on each regeneration of key-maps.
+ */
 struct wmKeyMap *transform_modal_keymap(struct wmKeyConfig *keyconf);
 
 /** \} */
@@ -710,7 +718,8 @@ struct wmKeyMap *transform_modal_keymap(struct wmKeyConfig *keyconf);
 /* transform_gizmo.c */
 #define GIZMO_AXIS_LINE_WIDTH 2.0f
 
-bool gimbal_axis(struct Object *ob, float gmat[3][3]);
+bool gimbal_axis_pose(struct Object *ob, const struct bPoseChannel *pchan, float gmat[3][3]);
+bool gimbal_axis_object(struct Object *ob, float gmat[3][3]);
 void drawDial3d(const TransInfo *t);
 
 /** \} */
@@ -745,7 +754,7 @@ typedef enum {
 } MouseInputMode;
 
 void initMouseInput(
-    TransInfo *t, MouseInput *mi, const float center[2], const int mval[2], const bool precision);
+    TransInfo *t, MouseInput *mi, const float center[2], const int mval[2], bool precision);
 void initMouseInputMode(TransInfo *t, MouseInput *mi, MouseInputMode mode);
 void applyMouseInput(struct TransInfo *t,
                      struct MouseInput *mi,
@@ -762,12 +771,28 @@ void setInputPostFct(MouseInput *mi, void (*post)(struct TransInfo *t, float val
 /** \name Generics
  * \{ */
 
+/**
+ * Setup internal data, mouse, vectors
+ *
+ * \note \a op and \a event can be NULL
+ *
+ * \see #saveTransform does the reverse.
+ */
 void initTransInfo(struct bContext *C,
                    TransInfo *t,
                    struct wmOperator *op,
                    const struct wmEvent *event);
+/**
+ * Needed for mode switching.
+ */
 void freeTransCustomDataForMode(TransInfo *t);
+/**
+ * Here I would suggest only #TransInfo related issues, like free data & reset vars. Not redraws.
+ */
 void postTrans(struct bContext *C, TransInfo *t);
+/**
+ * Free data before switching to another mode.
+ */
 void resetTransModal(TransInfo *t);
 void resetTransRestrictions(TransInfo *t);
 
@@ -790,17 +815,25 @@ void calculateCenterMedian(TransInfo *t, float r_center[3]);
 void calculateCenterCursor(TransInfo *t, float r_center[3]);
 void calculateCenterCursor2D(TransInfo *t, float r_center[2]);
 void calculateCenterCursorGraph2D(TransInfo *t, float r_center[2]);
+/**
+ * \param select_only: only get active center from data being transformed.
+ */
 bool calculateCenterActive(TransInfo *t, bool select_only, float r_center[3]);
 
 void calculatePropRatio(TransInfo *t);
 
+/**
+ * Rotate an element, low level code, ignore protected channels.
+ * (use for objects or pose-bones)
+ * Similar to #ElementRotation.
+ */
 void transform_data_ext_rotate(TransData *td, float mat[3][3], bool use_drot);
 
 struct Object *transform_object_deform_pose_armature_get(const TransInfo *t, struct Object *ob);
 
 void freeCustomNormalArray(TransInfo *t, TransDataContainer *tc, TransCustomData *custom_data);
 
-/* TODO: `transform_query.c`. */
+/* TODO: move to: `transform_query.c`. */
 bool checkUseAxisMatrix(TransInfo *t);
 
 #define TRANSFORM_SNAP_MAX_PX 100.0f

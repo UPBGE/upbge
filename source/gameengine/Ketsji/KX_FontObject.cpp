@@ -35,8 +35,6 @@
 #include "DNA_curve_types.h"
 #include "MEM_guardedalloc.h"
 
-#include "EXP_StringValue.h"
-
 static std::vector<std::string> split_string(std::string str)
 {
   std::vector<std::string> text = std::vector<std::string>();
@@ -56,9 +54,7 @@ static std::vector<std::string> split_string(std::string str)
   return text;
 }
 
-KX_FontObject::KX_FontObject() : KX_GameObject(),
-    m_object(nullptr),
-    m_rasterizer(nullptr)
+KX_FontObject::KX_FontObject() : KX_GameObject(), m_object(nullptr), m_rasterizer(nullptr)
 {
 }
 
@@ -101,10 +97,10 @@ void KX_FontObject::UpdateCurveText(std::string newText)  // eevee
   BLI_strncpy(cu->str, newText.c_str(), FILE_MAX);
 
   if (ob->gameflag & OB_OVERLAY_COLLECTION) {
-    GetScene()->AppendToExtraObjectsToUpdateInOverlayPass(ob, ID_RECALC_GEOMETRY);
+    GetScene()->AppendToIdsToUpdateInOverlayPass(&ob->id, ID_RECALC_GEOMETRY);
   }
   else {
-    GetScene()->AppendToExtraObjectsToUpdateInAllRenderPasses(ob, ID_RECALC_GEOMETRY);
+    GetScene()->AppendToIdsToUpdateInAllRenderPasses(&ob->id, ID_RECALC_GEOMETRY);
   }
 }
 

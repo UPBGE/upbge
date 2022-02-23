@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #pragma once
 
@@ -24,27 +9,27 @@ namespace blender::compositor {
 
 class CropBaseOperation : public MultiThreadedOperation {
  protected:
-  SocketReader *m_inputOperation;
-  NodeTwoXYs *m_settings;
-  bool m_relative;
-  int m_xmax;
-  int m_xmin;
-  int m_ymax;
-  int m_ymin;
+  SocketReader *input_operation_;
+  NodeTwoXYs *settings_;
+  bool relative_;
+  int xmax_;
+  int xmin_;
+  int ymax_;
+  int ymin_;
 
-  void updateArea();
+  void update_area();
 
  public:
   CropBaseOperation();
-  void initExecution() override;
-  void deinitExecution() override;
-  void setCropSettings(NodeTwoXYs *settings)
+  void init_execution() override;
+  void deinit_execution() override;
+  void set_crop_settings(NodeTwoXYs *settings)
   {
-    this->m_settings = settings;
+    settings_ = settings;
   }
-  void setRelative(bool rel)
+  void set_relative(bool rel)
   {
-    this->m_relative = rel;
+    relative_ = rel;
   }
 };
 
@@ -52,7 +37,7 @@ class CropOperation : public CropBaseOperation {
  private:
  public:
   CropOperation();
-  void executePixelSampled(float output[4], float x, float y, PixelSampler sampler) override;
+  void execute_pixel_sampled(float output[4], float x, float y, PixelSampler sampler) override;
 
   void update_memory_buffer_partial(MemoryBuffer *output,
                                     const rcti &area,
@@ -63,12 +48,11 @@ class CropImageOperation : public CropBaseOperation {
  private:
  public:
   CropImageOperation();
-  bool determineDependingAreaOfInterest(rcti *input,
-                                        ReadBufferOperation *readOperation,
-                                        rcti *output) override;
-  void determineResolution(unsigned int resolution[2],
-                           unsigned int preferredResolution[2]) override;
-  void executePixelSampled(float output[4], float x, float y, PixelSampler sampler) override;
+  bool determine_depending_area_of_interest(rcti *input,
+                                            ReadBufferOperation *read_operation,
+                                            rcti *output) override;
+  void determine_canvas(const rcti &preferred_area, rcti &r_area) override;
+  void execute_pixel_sampled(float output[4], float x, float y, PixelSampler sampler) override;
 
   void get_area_of_interest(int input_idx, const rcti &output_area, rcti &r_input_area) override;
   void update_memory_buffer_partial(MemoryBuffer *output,

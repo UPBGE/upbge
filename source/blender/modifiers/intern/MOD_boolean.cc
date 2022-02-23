@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2005 by the Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2005 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup modifiers
@@ -245,12 +229,21 @@ static BMesh *BMD_mesh_bm_create(
 
   const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(mesh, mesh_operand_ob);
 
-  BMeshCreateParams bmcp = {false};
-  BMesh *bm = BM_mesh_create(&allocsize, &bmcp);
+  BMeshCreateParams bmesh_create_params{};
+  BMesh *bm = BM_mesh_create(&allocsize, &bmesh_create_params);
 
-  BMeshFromMeshParams params{};
-  params.calc_face_normal = true;
-  BM_mesh_bm_from_me(bm, mesh_operand_ob, &params);
+  /* Keep `mesh` first, needed so active layers are set based on `mesh` not `mesh_operand_ob`,
+   * otherwise the wrong active render layer is used, see T92384.
+   *
+   * NOTE: while initializing customer data layers the is not essential,
+   * it avoids the overhead of having to re-allocate #BMHeader.data when the 2nd mesh is added
+   * (if it contains additional custom-data layers). */
+  const Mesh *mesh_array[2] = {mesh, mesh_operand_ob};
+  BM_mesh_copy_init_customdata_from_mesh_array(bm, mesh_array, ARRAY_SIZE(mesh_array), &allocsize);
+
+  BMeshFromMeshParams bmesh_from_mesh_params{};
+  bmesh_from_mesh_params.calc_face_normal = true;
+  BM_mesh_bm_from_me(bm, mesh_operand_ob, &bmesh_from_mesh_params);
 
   if (UNLIKELY(*r_is_flip)) {
     const int cd_loop_mdisp_offset = CustomData_get_offset(&bm->ldata, CD_MDISPS);
@@ -261,7 +254,7 @@ static BMesh *BMD_mesh_bm_create(
     }
   }
 
-  BM_mesh_bm_from_me(bm, mesh, &params);
+  BM_mesh_bm_from_me(bm, mesh, &bmesh_from_mesh_params);
 
   return bm;
 }
@@ -386,7 +379,7 @@ static void BMD_mesh_intersection(BMesh *bm,
  * Caller owns the returned array. */
 static Array<short> get_material_remap(Object *dest_ob, Object *src_ob)
 {
-  int n = dest_ob->totcol;
+  int n = src_ob->totcol;
   if (n <= 0) {
     n = 1;
   }
@@ -535,9 +528,9 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
           BMD_mesh_intersection(bm, md, ctx, mesh_operand_ob, object, operand_ob, is_flip);
 
           /* Needed for multiple objects to work. */
-          BMeshToMeshParams params{};
-          params.calc_object_remap = false;
-          BM_mesh_bm_to_me(nullptr, bm, mesh, &params);
+          BMeshToMeshParams bmesh_to_mesh_params{};
+          bmesh_to_mesh_params.calc_object_remap = false;
+          BM_mesh_bm_to_me(nullptr, bm, mesh, &bmesh_to_mesh_params);
 
           result = BKE_mesh_from_bmesh_for_eval_nomain(bm, nullptr, mesh);
           BM_mesh_free(bm);
@@ -632,7 +625,6 @@ ModifierTypeInfo modifierType_Boolean = {
     /* deformVertsEM */ nullptr,
     /* deformMatricesEM */ nullptr,
     /* modifyMesh */ modifyMesh,
-    /* modifyHair */ nullptr,
     /* modifyGeometrySet */ nullptr,
 
     /* initData */ initData,

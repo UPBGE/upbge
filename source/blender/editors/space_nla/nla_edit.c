@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2009 Blender Foundation, Joshua Leung. All rights reserved. */
 
 /** \file
  * \ingroup spnla
@@ -71,7 +55,6 @@
 /** \name Public Utilities
  * \{ */
 
-/* Perform validation for blending/extend settings */
 void ED_nla_postop_refresh(bAnimContext *ac)
 {
   ListBase anim_data = {NULL, NULL};
@@ -205,7 +188,6 @@ void NLA_OT_tweakmode_enter(wmOperatorType *ot)
 /** \name Disable Tweak-Mode Operator
  * \{ */
 
-/* NLA Editor internal API function for exiting tweak-mode. */
 bool nlaedit_disable_tweakmode(bAnimContext *ac, bool do_solo)
 {
   ListBase anim_data = {NULL, NULL};
@@ -402,9 +384,9 @@ static int nlaedit_previewrange_exec(bContext *C, wmOperator *UNUSED(op))
 void NLA_OT_previewrange_set(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Auto-Set Preview Range";
+  ot->name = "Set Preview Range to Selected";
   ot->idname = "NLA_OT_previewrange_set";
-  ot->description = "Automatically set Preview Range based on range of keyframes";
+  ot->description = "Set Preview Range based on extends of selected strips";
 
   /* api callbacks */
   ot->exec = nlaedit_previewrange_exec;
@@ -1399,8 +1381,11 @@ static void nlaedit_split_strip_actclip(
     nstrip->actstart = splitaframe;
   }
 
-  /* clear the active flag from the copy */
-  nstrip->flag &= ~NLASTRIP_FLAG_ACTIVE;
+  /* Make sure Sync Length is off. With that setting on, entering and exiting tweak mode would
+   * effectively undo the split, because both the old and the new strip will be at the length of
+   * the Action again. */
+  strip->flag &= ~NLASTRIP_FLAG_SYNC_LENGTH;
+  nstrip->flag &= ~(NLASTRIP_FLAG_SYNC_LENGTH | NLASTRIP_FLAG_ACTIVE);
 
   /* auto-name the new strip */
   BKE_nlastrip_validate_name(adt, nstrip);
@@ -2193,8 +2178,19 @@ static int nlaedit_apply_scale_exec(bContext *C, wmOperator *UNUSED(op))
          * and recalculate the extents of the action now that it has been scaled
          * but leave everything else alone
          */
+        const float start = nlastrip_get_frame(strip, strip->actstart, NLATIME_CONVERT_MAP);
+        const float end = nlastrip_get_frame(strip, strip->actend, NLATIME_CONVERT_MAP);
+
+        if (strip->act->flag & ACT_FRAME_RANGE) {
+          strip->act->frame_start = nlastrip_get_frame(
+              strip, strip->act->frame_start, NLATIME_CONVERT_MAP);
+          strip->act->frame_end = nlastrip_get_frame(
+              strip, strip->act->frame_end, NLATIME_CONVERT_MAP);
+        }
+
         strip->scale = 1.0f;
-        calc_action_range(strip->act, &strip->actstart, &strip->actend, 0);
+        strip->actstart = start;
+        strip->actend = end;
 
         ale->update |= ANIM_UPDATE_DEPS;
       }

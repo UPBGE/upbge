@@ -13,21 +13,21 @@ base class --- :class:`~bge.types.SCA_ISensor`
 
    .. attribute:: key
 
-      The key code this sensor is looking for.
+      The key code this sensor is looking for. Expects a keycode from :mod:`bge.events` module.
 
-      :type: keycode from :mod:`bge.events` module
+      :type: integer
 
    .. attribute:: hold1
 
-      The key code for the first modifier this sensor is looking for.
+      The key code for the first modifier this sensor is looking for. Expects a keycode from :mod:`bge.events` module.
 
-      :type: keycode from :mod:`bge.events` module
+      :type: integer
 
    .. attribute:: hold2
 
-      The key code for the second modifier this sensor is looking for.
+      The key code for the second modifier this sensor is looking for. Expects a keycode from :mod:`bge.events` module.
 
-      :type: keycode from :mod:`bge.events` module
+      :type: integer
 
    .. attribute:: toggleProperty
 

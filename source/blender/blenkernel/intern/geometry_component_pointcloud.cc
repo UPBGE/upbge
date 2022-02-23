@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "DNA_pointcloud_types.h"
 
@@ -62,7 +48,6 @@ bool PointCloudComponent::has_pointcloud() const
   return pointcloud_ != nullptr;
 }
 
-/* Clear the component and replace it with the new point cloud. */
 void PointCloudComponent::replace(PointCloud *pointcloud, GeometryOwnershipType ownership)
 {
   BLI_assert(this->is_mutable());
@@ -71,8 +56,6 @@ void PointCloudComponent::replace(PointCloud *pointcloud, GeometryOwnershipType 
   ownership_ = ownership;
 }
 
-/* Return the point cloud and clear the component. The caller takes over responsibility for freeing
- * the point cloud (if the component was responsible before). */
 PointCloud *PointCloudComponent::release()
 {
   BLI_assert(this->is_mutable());
@@ -81,17 +64,11 @@ PointCloud *PointCloudComponent::release()
   return pointcloud;
 }
 
-/* Get the point cloud from this component. This method can be used by multiple threads at the same
- * time. Therefore, the returned point cloud should not be modified. No ownership is transferred.
- */
 const PointCloud *PointCloudComponent::get_for_read() const
 {
   return pointcloud_;
 }
 
-/* Get the point cloud from this component. This method can only be used when the component is
- * mutable, i.e. it is not shared. The returned point cloud can be modified. No ownership is
- * transferred. */
 PointCloud *PointCloudComponent::get_for_write()
 {
   BLI_assert(this->is_mutable());
@@ -139,19 +116,6 @@ int PointCloudComponent::attribute_domain_size(const AttributeDomain domain) con
 }
 
 namespace blender::bke {
-
-template<typename T>
-static GVArrayPtr make_array_read_attribute(const void *data, const int domain_size)
-{
-  return std::make_unique<fn::GVArray_For_Span<T>>(Span<T>((const T *)data, domain_size));
-}
-
-template<typename T>
-static GVMutableArrayPtr make_array_write_attribute(void *data, const int domain_size)
-{
-  return std::make_unique<fn::GVMutableArray_For_MutableSpan<T>>(
-      MutableSpan<T>((T *)data, domain_size));
-}
 
 /**
  * In this function all the attribute providers for a point cloud component are created. Most data
@@ -202,8 +166,19 @@ static ComponentAttributeProviders create_attribute_providers_for_point_cloud()
                                                make_array_read_attribute<float>,
                                                make_array_write_attribute<float>,
                                                nullptr);
+  static BuiltinCustomDataLayerProvider id("id",
+                                           ATTR_DOMAIN_POINT,
+                                           CD_PROP_INT32,
+                                           CD_PROP_INT32,
+                                           BuiltinAttributeProvider::Creatable,
+                                           BuiltinAttributeProvider::Writable,
+                                           BuiltinAttributeProvider::Deletable,
+                                           point_access,
+                                           make_array_read_attribute<int>,
+                                           make_array_write_attribute<int>,
+                                           nullptr);
   static CustomDataAttributeProvider point_custom_data(ATTR_DOMAIN_POINT, point_access);
-  return ComponentAttributeProviders({&position, &radius}, {&point_custom_data});
+  return ComponentAttributeProviders({&position, &radius, &id}, {&point_custom_data});
 }
 
 }  // namespace blender::bke

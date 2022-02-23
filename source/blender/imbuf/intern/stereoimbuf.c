@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2015 by Blender Foundation
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2015 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup imbuf
@@ -757,7 +741,6 @@ float *IMB_stereo3d_from_rectf(ImageFormatData *im_format,
   return r_rectf;
 }
 
-/* left/right are always float */
 ImBuf *IMB_stereo3d_ImBuf(ImageFormatData *im_format, ImBuf *ibuf_left, ImBuf *ibuf_right)
 {
   ImBuf *ibuf_stereo = NULL;
@@ -1275,7 +1258,6 @@ static void imb_stereo3d_read_topbottom(Stereo3DData *s3d)
 /** \name Preparing To Call The Read Functions
  * \{ */
 
-/* reading a stereo encoded ibuf (*left) and generating two ibufs from it (*left and *right) */
 void IMB_ImBufFromStereo3d(Stereo3dFormat *s3d,
                            ImBuf *ibuf_stereo3d,
                            ImBuf **r_ibuf_left,

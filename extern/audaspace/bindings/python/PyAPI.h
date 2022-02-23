@@ -16,13 +16,16 @@
 
 #pragma once
 
+#ifdef WITH_PYTHON
 #include <Python.h>
+#endif
 #include "Audaspace.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#ifdef WITH_PYTHON
 PyMODINIT_FUNC
 PyInit_aud();
 
@@ -40,6 +43,7 @@ extern AUD_API PyObject* AUD_getPythonSound(void* sound);
  */
 extern AUD_API void* AUD_getSoundFromPython(PyObject* object);
 
+#endif
 #ifdef __cplusplus
 }
 #endif
