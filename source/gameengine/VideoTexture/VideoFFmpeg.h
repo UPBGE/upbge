@@ -47,12 +47,6 @@ extern "C" {
 #  include <pthread.h>
 }
 
-#  if LIBAVFORMAT_VERSION_INT < (49 << 16)
-#    define FFMPEG_OLD_FRAME_RATE 1
-#  else
-#    define FFMPEG_CODEC_IS_POINTER 1
-#  endif
-
 #  include "VideoBase.h"
 
 #  define CACHE_FRAME_SIZE 10

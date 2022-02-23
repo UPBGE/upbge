@@ -68,6 +68,7 @@ const double defFrameRate = 25.0;
 // constructor
 VideoFFmpeg::VideoFFmpeg(HRESULT *hRslt)
     : VideoBase(),
+      m_codec(nullptr),
       m_formatCtx(nullptr),
       m_codecCtx(nullptr),
       m_frame(nullptr),
@@ -278,8 +279,9 @@ int VideoFFmpeg::openStream(const char *filename,
   }
   m_baseFrameRate = av_q2d(av_guess_frame_rate(pFormatCtx, video_stream, nullptr));
 
-  if (m_baseFrameRate <= 0.0)
+  if (m_baseFrameRate <= 0.0) {
     m_baseFrameRate = defFrameRate;
+  }
 
   m_codec = pCodec;
   m_codecCtx = pCodecCtx;
@@ -1106,15 +1108,15 @@ static int VideoFFmpeg_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
   static const char *kwlist[] = {"file", "capture", "rate", "width", "height", nullptr};
 
   // get parameters
-  if (!EXP_ParseTupleArgsAndKeywords(args,
-                                     kwds,
-                                     "s|hfhh",
-                                     {"file", "capture", "rate", "width", "height", 0},
-                                     &file,
-                                     &capt,
-                                     &rate,
-                                     &width,
-                                     &height)) {
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   kwds,
+                                   "s|hfhh",
+                                   const_cast<char **>(kwlist),
+                                   &file,
+                                   &capt,
+                                   &rate,
+                                   &width,
+                                   &height)) {
     return -1;
   }
 
