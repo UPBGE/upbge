@@ -142,7 +142,8 @@ jobs:
     - name: Prepare API Documentation
       working-directory: build
       run: | 
-        bin/blender --background -noaudio --factory-startup \
+        rm -Rf bin/3.2/python && \
+        bin/blender --python-use-system-env --background -noaudio --factory-startup \
                     --python ../upbge/doc/python_api/sphinx_doc_gen.py -- \
                     --output "${{ github.workspace }}/python_api"
 
