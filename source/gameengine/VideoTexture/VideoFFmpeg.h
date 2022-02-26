@@ -105,8 +105,6 @@ class VideoFFmpeg : public VideoBase {
   }
 
  protected:
-  // format and codec information
-  AVCodec *m_codec;
   AVFormatContext *m_formatCtx;
   AVCodecContext *m_codecCtx;
   // raw frame extracted from video file

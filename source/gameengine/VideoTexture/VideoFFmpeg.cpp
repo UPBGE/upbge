@@ -68,7 +68,6 @@ const double defFrameRate = 25.0;
 // constructor
 VideoFFmpeg::VideoFFmpeg(HRESULT *hRslt)
     : VideoBase(),
-      m_codec(nullptr),
       m_formatCtx(nullptr),
       m_codecCtx(nullptr),
       m_frame(nullptr),
@@ -152,7 +151,6 @@ bool VideoFFmpeg::release()
     sws_freeContext(m_imgConvertCtx);
     m_imgConvertCtx = nullptr;
   }
-  m_codec = nullptr;
   m_status = SourceStopped;
   m_lastFrame = -1;
   return true;
@@ -283,7 +281,6 @@ int VideoFFmpeg::openStream(const char *filename,
     m_baseFrameRate = defFrameRate;
   }
 
-  m_codec = pCodec;
   m_codecCtx = pCodecCtx;
   m_formatCtx = pFormatCtx;
   m_videoStream = video_stream_index;
