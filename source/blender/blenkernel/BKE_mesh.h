@@ -496,7 +496,7 @@ void BKE_mesh_calc_normals_poly(const struct MVert *mvert,
                                 int mpoly_len,
                                 float (*r_poly_normals)[3]);
 
-void BKE_mesh_calc_normals_poly_and_vertex(struct MVert *mvert,
+void BKE_mesh_calc_normals_poly_and_vertex(const struct MVert *mvert,
                                            int mvert_len,
                                            const struct MLoop *mloop,
                                            int mloop_len,

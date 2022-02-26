@@ -565,7 +565,7 @@ DerivedMesh *cdDM_from_mesh_ex(Mesh *mesh,
   dm->deformedOnly = 1;
   dm->cd_flag = mesh->cd_flag;
 
-  if (mesh->runtime.cd_dirty_vert & CD_MASK_NORMAL) {
+  if (mesh->runtime.vert_normals_dirty) {
     dm->dirty |= DM_DIRTY_NORMALS;
   }
 
