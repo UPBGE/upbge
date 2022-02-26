@@ -8,12 +8,12 @@
  * General operations for brushes.
  */
 
+#include "DNA_color_types.h"
+#include "DNA_object_enums.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "DNA_color_types.h"
-#include "DNA_object_enums.h"
 
 struct Brush;
 struct ImBuf;

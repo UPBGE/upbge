@@ -205,6 +205,7 @@ set(SRC
   BLI_heap.h
   BLI_heap_simple.h
   BLI_index_mask.hh
+  BLI_index_mask_ops.hh
   BLI_index_range.hh
   BLI_inplace_priority_queue.hh
   BLI_iterator.h
@@ -242,6 +243,7 @@ set(SRC
   BLI_math_vec_mpq_types.hh
   BLI_math_vec_types.hh
   BLI_math_vector.h
+  BLI_math_vector.hh
   BLI_memarena.h
   BLI_memblock.h
   BLI_memiter.h
@@ -312,6 +314,9 @@ set(SRC
   PIL_time_utildefines.h
 
   ../../../extern/wcwidth/wcwidth.h
+
+  # Without these files listed, they aren't known to CMake.
+  ../../../extern/json/include/json.hpp
 )
 
 set(LIB
