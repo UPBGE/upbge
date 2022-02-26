@@ -44,11 +44,7 @@
 
 extern "C" {
 #  include "ffmpeg_compat.h"
-}
-
-static inline AVCodecContext *get_codec_from_stream(AVStream *stream)
-{
-  return stream->codec;
+#  include <pthread.h>
 }
 
 #  include "VideoBase.h"
@@ -109,7 +105,6 @@ class VideoFFmpeg : public VideoBase {
   }
 
  protected:
-  // format and codec information
   AVFormatContext *m_formatCtx;
   AVCodecContext *m_codecCtx;
   // raw frame extracted from video file
