@@ -22,7 +22,7 @@ jobs:
         sudo apt install -y build-essential cmake libembree-dev \
           libxi-dev libxxf86vm-dev libboost-dev libboost-locale-dev libgl1-mesa-dev \
           libavformat-dev libtbb-dev libswscale-dev libavdevice-dev libblas3 \
-          libzstd-dev libopenal-dev libopenblas-dev
+          libzstd-dev libopenal-dev libopenblas-dev libopenimageio-dev
 
     - name: Install Python
       uses: actions/setup-python@v2.3.1
@@ -115,7 +115,7 @@ jobs:
       run: | 
         sudo apt update && \
         sudo apt install -y libtbb2 libxi6 libxxf86vm1 libxfixes3 libgl1 \
-          libavformat58 libavdevice58 libboost-locale1.71.0
+          libavformat58 libavdevice58 libboost-locale1.71.0 libopenimageio-dev
 
     - name: Install Python
       uses: actions/setup-python@v2.3.1
@@ -142,7 +142,8 @@ jobs:
     - name: Prepare API Documentation
       working-directory: build
       run: | 
-        bin/blender --background -noaudio --factory-startup \
+        rm -Rf bin/3.2/python && \
+        bin/blender --python-use-system-env --background -noaudio --factory-startup \
                     --python ../upbge/doc/python_api/sphinx_doc_gen.py -- \
                     --output "${{ github.workspace }}/python_api"
 
