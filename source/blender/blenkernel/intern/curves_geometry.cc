@@ -18,6 +18,7 @@ namespace blender::bke {
 static const std::string ATTR_POSITION = "position";
 static const std::string ATTR_RADIUS = "radius";
 static const std::string ATTR_CURVE_TYPE = "curve_type";
+static const std::string ATTR_CYCLIC = "cyclic";
 
 /* -------------------------------------------------------------------- */
 /** \name Constructors/Destructor
@@ -145,7 +146,6 @@ MutableSpan<int8_t> CurvesGeometry::curve_types()
                                                       nullptr,
                                                       this->curve_size,
                                                       ATTR_CURVE_TYPE.c_str());
-  BLI_assert(data != nullptr);
   return {data, this->curve_size};
 }
 
@@ -167,6 +167,23 @@ MutableSpan<int> CurvesGeometry::offsets()
 Span<int> CurvesGeometry::offsets() const
 {
   return {this->curve_offsets, this->curve_size + 1};
+}
+
+VArray<bool> CurvesGeometry::cyclic() const
+{
+  const bool *data = (const bool *)CustomData_get_layer_named(
+      &this->curve_data, CD_PROP_INT8, ATTR_CURVE_TYPE.c_str());
+  if (data != nullptr) {
+    return VArray<bool>::ForSpan(Span(data, this->curve_size));
+  }
+  return VArray<bool>::ForSingle(false, this->curve_size);
+}
+
+MutableSpan<bool> CurvesGeometry::cyclic()
+{
+  bool *data = (bool *)CustomData_add_layer_named(
+      &this->curve_data, CD_PROP_BOOL, CD_CALLOC, nullptr, this->curve_size, ATTR_CYCLIC.c_str());
+  return {data, this->curve_size};
 }
 
 void CurvesGeometry::resize(const int point_size, const int curve_size)
