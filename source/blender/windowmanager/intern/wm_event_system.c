@@ -145,7 +145,7 @@ wmEvent *WM_event_add_simulate(wmWindow *win, const wmEvent *event_to_add)
     copy_v2_v2_int(win->eventstate->prev_xy, win->eventstate->xy);
     copy_v2_v2_int(event->prev_xy, win->eventstate->xy);
   }
-  else if (ISMOUSE_BUTTON(event->type) || ISKEYBOARD(event->type)) {
+  else if (ISKEYBOARD_OR_BUTTON(event->type)) {
     win->eventstate->prev_val = event->prev_val = win->eventstate->val;
     win->eventstate->prev_type = event->prev_type = win->eventstate->type;
 
@@ -3205,7 +3205,7 @@ static int wm_handlers_do(bContext *C, wmEvent *event, ListBase *handlers)
       win->event_queue_check_drag = false;
     }
   }
-  else if (ISMOUSE_BUTTON(event->type) || ISKEYBOARD(event->type)) {
+  else if (ISKEYBOARD_OR_BUTTON(event->type)) {
     /* All events that don't set #wmEvent.prev_type must be ignored. */
 
     /* Test for CLICK events. */
@@ -4765,6 +4765,39 @@ static wmEvent *wm_event_add_trackpad(wmWindow *win, const wmEvent *event, int d
   return event_new;
 }
 
+/**
+ * Update the event-state for any kind of event that supports #KM_PRESS / #KM_RELEASE.
+ */
+static void wm_event_state_update_and_click_set(wmEvent *event, wmEvent *event_state)
+{
+  BLI_assert(ISKEYBOARD_OR_BUTTON(event->type));
+  BLI_assert(ELEM(event->val, KM_PRESS, KM_RELEASE));
+
+  /* Only copy these flags into the `event_state`. */
+  const eWM_EventFlag event_state_flag_mask = WM_EVENT_IS_REPEAT;
+
+  wm_event_prev_values_set(event, event_state);
+
+  /* Copy to event state. */
+  event_state->val = event->val;
+  event_state->type = event->type;
+  event_state->modifier = event->modifier;
+  event_state->flag = (event->flag & event_state_flag_mask);
+  /* NOTE: It's important that `keymodifier` is handled in the keyboard event handling logic
+   * since the `event_state` and the `event` are not kept in sync. */
+
+  /* Double click test. */
+  if (wm_event_is_double_click(event)) {
+    CLOG_INFO(WM_LOG_HANDLERS, 1, "Send double click");
+    event->val = KM_DBL_CLICK;
+  }
+  else if (event->val == KM_PRESS) {
+    if ((event->flag & WM_EVENT_IS_REPEAT) == 0) {
+      wm_event_prev_click_set(event, event_state);
+    }
+  }
+}
+
 void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, void *customdata)
 {
   if (UNLIKELY(G.f & G_FLAG_EVENT_SIMULATE)) {
@@ -4806,15 +4839,13 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, void 
    * while not common, avoid a false alarm. */
 #ifndef NDEBUG
   if ((event_state->type || event_state->val) && /* Ignore cleared event state. */
-      !(ISMOUSE_BUTTON(event_state->type) || ISKEYBOARD(event_state->type) ||
-        (event_state->type == EVENT_NONE))) {
+      !(ISKEYBOARD_OR_BUTTON(event_state->type) || (event_state->type == EVENT_NONE))) {
     CLOG_WARN(WM_LOG_HANDLERS,
               "Non-keyboard/mouse button found in 'win->eventstate->type = %d'",
               event_state->type);
   }
   if ((event_state->prev_type || event_state->prev_val) && /* Ignore cleared event state. */
-      !(ISMOUSE_BUTTON(event_state->prev_type) || ISKEYBOARD(event_state->prev_type) ||
-        (event_state->type == EVENT_NONE))) {
+      !(ISKEYBOARD_OR_BUTTON(event_state->prev_type) || (event_state->type == EVENT_NONE))) {
     CLOG_WARN(WM_LOG_HANDLERS,
               "Non-keyboard/mouse button found in 'win->eventstate->prev_type = %d'",
               event_state->prev_type);
@@ -4924,20 +4955,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, void 
       wm_tablet_data_from_ghost(&bd->tablet, &event.tablet);
 
       wm_eventemulation(&event, false);
-      wm_event_prev_values_set(&event, event_state);
-
-      /* Copy to event state. */
-      event_state->val = event.val;
-      event_state->type = event.type;
-
-      /* Double click test. */
-      if (wm_event_is_double_click(&event)) {
-        CLOG_INFO(WM_LOG_HANDLERS, 1, "Send double click");
-        event.val = KM_DBL_CLICK;
-      }
-      if (event.val == KM_PRESS) {
-        wm_event_prev_click_set(&event, event_state);
-      }
+      wm_event_state_update_and_click_set(&event, event_state);
 
       /* Add to other window if event is there (not to both!). */
       wmWindow *win_other = wm_event_cursor_other_windows(wm, win, &event);
@@ -4966,9 +4984,6 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, void 
     case GHOST_kEventKeyDown:
     case GHOST_kEventKeyUp: {
       GHOST_TEventKeyData *kd = customdata;
-      /* Only copy these flags into the `event_state`. */
-      const eWM_EventFlag event_state_flag_mask = WM_EVENT_IS_REPEAT;
-      bool keymodifier = 0;
       event.type = convert_key(kd->key);
       event.ascii = kd->ascii;
       /* Might be not NULL terminated. */
@@ -4979,12 +4994,6 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, void 
       event.val = (type == GHOST_kEventKeyDown) ? KM_PRESS : KM_RELEASE;
 
       wm_eventemulation(&event, false);
-      wm_event_prev_values_set(&event, event_state);
-
-      /* Copy to event state. */
-      event_state->val = event.val;
-      event_state->type = event.type;
-      event_state->flag = (event.flag & event_state_flag_mask);
 
       /* Exclude arrow keys, escape, etc from text input. */
       if (type == GHOST_kEventKeyUp) {
@@ -5017,106 +5026,66 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, void 
 
       switch (event.type) {
         case EVT_LEFTSHIFTKEY:
-        case EVT_RIGHTSHIFTKEY:
-          if (event.val == KM_PRESS) {
-            keymodifier = true;
-          }
-          if (keymodifier) {
-            event.modifier |= KM_SHIFT;
-            event_state->modifier |= KM_SHIFT;
-          }
-          else {
-            event.modifier &= ~KM_SHIFT;
-            event_state->modifier &= ~KM_SHIFT;
-          }
+        case EVT_RIGHTSHIFTKEY: {
+          SET_FLAG_FROM_TEST(event.modifier, (event.val == KM_PRESS), KM_SHIFT);
           break;
+        }
         case EVT_LEFTCTRLKEY:
-        case EVT_RIGHTCTRLKEY:
-          if (event.val == KM_PRESS) {
-            keymodifier = true;
-          }
-          if (keymodifier) {
-            event.modifier |= KM_CTRL;
-            event_state->modifier |= KM_CTRL;
-          }
-          else {
-            event.modifier &= ~KM_CTRL;
-            event_state->modifier &= ~KM_CTRL;
-          }
+        case EVT_RIGHTCTRLKEY: {
+          SET_FLAG_FROM_TEST(event.modifier, (event.val == KM_PRESS), KM_CTRL);
           break;
+        }
         case EVT_LEFTALTKEY:
-        case EVT_RIGHTALTKEY:
+        case EVT_RIGHTALTKEY: {
+          SET_FLAG_FROM_TEST(event.modifier, (event.val == KM_PRESS), KM_ALT);
+          break;
+        }
+        case EVT_OSKEY: {
+          SET_FLAG_FROM_TEST(event.modifier, (event.val == KM_PRESS), KM_OSKEY);
+          break;
+        }
+        default: {
           if (event.val == KM_PRESS) {
-            keymodifier = true;
-          }
-          if (keymodifier) {
-            event.modifier |= KM_ALT;
-            event_state->modifier |= KM_ALT;
+            if (event.keymodifier == 0) {
+              /* Only set in `eventstate`, for next event. */
+              event_state->keymodifier = event.type;
+            }
           }
           else {
-            event.modifier &= ~KM_ALT;
-            event_state->modifier &= ~KM_ALT;
+            BLI_assert(event.val == KM_RELEASE);
+            if (event.keymodifier == event.type) {
+              event.keymodifier = event_state->keymodifier = 0;
+            }
+          }
+
+          /* This case happens on holding a key pressed,
+           * it should not generate press events with the same key as modifier. */
+          if (event.keymodifier == event.type) {
+            event.keymodifier = 0;
+          }
+          else if (event.keymodifier == EVT_UNKNOWNKEY) {
+            /* This case happens with an external number-pad, and also when using 'dead keys'
+             * (to compose complex latin characters e.g.), it's not really clear why.
+             * Since it's impossible to map a key modifier to an unknown key,
+             * it shouldn't harm to clear it. */
+            event_state->keymodifier = event.keymodifier = 0;
           }
           break;
-        case EVT_OSKEY:
-          if (event.val == KM_PRESS) {
-            keymodifier = true;
-          }
-          if (keymodifier) {
-            event.modifier |= KM_OSKEY;
-            event_state->modifier |= KM_OSKEY;
-          }
-          else {
-            event.modifier &= ~KM_OSKEY;
-            event_state->modifier &= ~KM_OSKEY;
-          }
-          break;
-        default:
-          if (event.val == KM_PRESS && event.keymodifier == 0) {
-            /* Only set in `eventstate`, for next event. */
-            event_state->keymodifier = event.type;
-          }
-          else if (event.val == KM_RELEASE && event.keymodifier == event.type) {
-            event.keymodifier = event_state->keymodifier = 0;
-          }
-          break;
+        }
       }
 
-      /* Double click test. */
-      /* If previous event was same type, and previous was release, and now it presses... */
-      if (wm_event_is_double_click(&event)) {
-        CLOG_INFO(WM_LOG_HANDLERS, 1, "Send double click");
-        event.val = KM_DBL_CLICK;
-      }
-
-      /* This case happens on holding a key pressed,
-       * it should not generate press events with the same key as modifier. */
-      if (event.keymodifier == event.type) {
-        event.keymodifier = 0;
-      }
-
-      /* This case happens with an external number-pad, and also when using 'dead keys'
-       * (to compose complex latin characters e.g.), it's not really clear why.
-       * Since it's impossible to map a key modifier to an unknown key,
-       * it shouldn't harm to clear it. */
-      if (event.keymodifier == EVT_UNKNOWNKEY) {
-        event_state->keymodifier = event.keymodifier = 0;
-      }
+      /* It's important `event.modifier` has been initialized first. */
+      wm_event_state_update_and_click_set(&event, event_state);
 
       /* If test_break set, it catches this. Do not set with modifier presses.
-       * XXX Keep global for now? */
-      if ((event.type == EVT_ESCKEY && event.val == KM_PRESS) &&
-          /* Check other modifiers because ms-windows uses these to bring up the task manager. */
-          ((event.modifier & (KM_SHIFT | KM_CTRL | KM_ALT)) == 0)) {
+       * Exclude modifiers because MS-Windows uses these to bring up the task manager.
+       *
+       * NOTE: in general handling events here isn't great design as
+       * event handling should be managed by the event handling loop.
+       * Make an exception for `G.is_break` as it ensures we can always cancel operations
+       * such as rendering or baking no matter which operation is currently handling events. */
+      if ((event.type == EVT_ESCKEY) && (event.val == KM_PRESS) && (event.modifier == 0)) {
         G.is_break = true;
-      }
-
-      /* Double click test - only for press. */
-      if (event.val == KM_PRESS) {
-        /* Don't reset timer & location when holding the key generates repeat events. */
-        if ((event.flag & WM_EVENT_IS_REPEAT) == 0) {
-          wm_event_prev_click_set(&event, event_state);
-        }
       }
 
       wm_event_add(win, &event);
@@ -5173,10 +5142,14 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, void 
         case GHOST_kRelease:
           event.val = KM_RELEASE;
           break;
+        default:
+          BLI_assert_unreachable();
       }
 
       event.custom = 0;
       event.customdata = NULL;
+
+      wm_event_state_update_and_click_set(&event, event_state);
 
       wm_event_add(win, &event);
 

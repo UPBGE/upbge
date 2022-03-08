@@ -3409,7 +3409,8 @@ Base *ED_object_add_duplicate(
 
   BKE_sca_set_new_points_ob(ob);
 
-  /* DAG_relations_tag_update(bmain); */ /* caller must do */
+  /* Correct but the caller must do this. */
+  // DAG_relations_tag_update(bmain);
 
   if (ob->data != nullptr) {
     DEG_id_tag_update_ex(bmain, (ID *)ob->data, ID_RECALC_EDITORS);
