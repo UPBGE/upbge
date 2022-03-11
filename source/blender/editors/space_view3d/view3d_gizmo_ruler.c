@@ -1082,7 +1082,8 @@ static int gizmo_ruler_invoke(bContext *C, wmGizmo *gz, const wmEvent *event)
 
   ARegion *region = ruler_info->region;
 
-  const float mval_fl[2] = {UNPACK2(event->mval)};
+  float mval_fl[2];
+  WM_event_drag_start_mval_fl(event, region, mval_fl);
 
 #ifdef USE_AXIS_CONSTRAINTS
   ruler_info->constrain_axis = CONSTRAIN_AXIS_NONE;
@@ -1311,13 +1312,17 @@ static int view3d_ruler_add_invoke(bContext *C, wmOperator *op, const wmEvent *e
     return OPERATOR_CANCELLED;
   }
 
+  int mval[2];
+  WM_event_drag_start_mval(event, region, mval);
+
   /* Create new line */
   RulerItem *ruler_item;
   ruler_item = ruler_item_add(gzgroup);
 
   /* This is a little weak, but there is no real good way to tweak directly. */
   WM_gizmo_highlight_set(gzmap, &ruler_item->gz);
-  if (WM_operator_name_call(C, "GIZMOGROUP_OT_gizmo_tweak", WM_OP_INVOKE_REGION_WIN, NULL) ==
+  if (WM_operator_name_call(
+          C, "GIZMOGROUP_OT_gizmo_tweak", WM_OP_INVOKE_REGION_WIN, NULL, event) ==
       OPERATOR_RUNNING_MODAL) {
     RulerInfo *ruler_info = gzgroup->customdata;
     RulerInteraction *inter = ruler_item->gz.interaction_data;
@@ -1329,7 +1334,7 @@ static int view3d_ruler_add_invoke(bContext *C, wmOperator *op, const wmEvent *e
                                   depsgraph,
                                   ruler_info,
                                   ruler_item,
-                                  event->mval,
+                                  mval,
                                   false
 #ifndef USE_SNAP_DETECT_FROM_KEYMAP_HACK
                                   ,
@@ -1344,7 +1349,7 @@ static int view3d_ruler_add_invoke(bContext *C, wmOperator *op, const wmEvent *e
     else {
       negate_v3_v3(inter->drag_start_co, rv3d->ofs);
       copy_v3_v3(ruler_item->co[0], inter->drag_start_co);
-      view3d_ruler_item_project(ruler_info, ruler_item->co[0], event->mval);
+      view3d_ruler_item_project(ruler_info, ruler_item->co[0], mval);
     }
 
     copy_v3_v3(ruler_item->co[2], ruler_item->co[0]);

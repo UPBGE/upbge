@@ -155,6 +155,7 @@ static void window_manager_blend_read_data(BlendDataReader *reader, ID *id)
     win->ghostwin = NULL;
     win->gpuctx = NULL;
     win->eventstate = NULL;
+    win->event_last_handled = NULL;
     win->cursor_keymap_status = NULL;
 #if defined(WIN32) || defined(__APPLE__)
     win->ime_data = NULL;
@@ -484,7 +485,7 @@ void WM_check(bContext *C)
     /* Case: file-read. */
     if ((wm->initialized & WM_WINDOW_IS_INIT) == 0) {
       WM_keyconfig_init(C);
-      WM_autosave_init(wm);
+      WM_file_autosave_init(wm);
     }
 
     /* Case: no open windows at all, for old file reads. */

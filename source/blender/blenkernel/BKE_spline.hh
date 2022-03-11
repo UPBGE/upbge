@@ -449,12 +449,6 @@ class BezierSpline final : public Spline {
  */
 class NURBSpline final : public Spline {
  public:
-  enum class KnotsMode {
-    Normal,
-    EndPoint,
-    Bezier,
-  };
-
   /** Method used to recalculate the knots vector when points are added or removed. */
   KnotsMode knots_mode;
 

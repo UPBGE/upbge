@@ -7,6 +7,7 @@
 #include "BKE_bvhutils.h"
 #include "BKE_context.h"
 #include "BKE_curves.hh"
+#include "BKE_geometry_set.hh"
 #include "BKE_lib_id.h"
 #include "BKE_mesh.h"
 #include "BKE_mesh_runtime.h"
@@ -67,6 +68,7 @@ bool CURVES_SCULPT_mode_poll_view3d(bContext *C)
 namespace blender::ed::sculpt_paint {
 
 using blender::bke::CurvesGeometry;
+using blender::fn::CPPType;
 
 /* -------------------------------------------------------------------- */
 /** \name * SCULPT_CURVES_OT_brush_stroke
@@ -134,14 +136,7 @@ class DeleteOperation : public CurvesSculptStrokeOperation {
           return false;
         });
 
-    /* Just reset positions instead of actually removing the curves. This is just a prototype. */
-    threading::parallel_for(curves_to_remove.index_range(), 512, [&](const IndexRange range) {
-      for (const int curve_i : curves_to_remove.slice(range)) {
-        for (const int point_i : curves.range_for_curve(curve_i)) {
-          positions[point_i] = {0.0f, 0.0f, 0.0f};
-        }
-      }
-    });
+    curves.remove_curves(curves_to_remove);
 
     curves.tag_positions_changed();
     DEG_id_tag_update(&curves_id.id, ID_RECALC_GEOMETRY);
@@ -273,7 +268,7 @@ class CombOperation : public CurvesSculptStrokeOperation {
 /**
  * Drags the tip point of each curve and resamples the rest of the curve.
  */
-class GrowOperation : public CurvesSculptStrokeOperation {
+class SnakeHookOperation : public CurvesSculptStrokeOperation {
  private:
   float2 last_mouse_position_;
 
@@ -936,15 +931,15 @@ static std::unique_ptr<CurvesSculptStrokeOperation> start_brush_operation(bConte
   CurvesSculpt &curves_sculpt = *scene.toolsettings->curves_sculpt;
   Brush &brush = *BKE_paint_brush(&curves_sculpt.paint);
   switch (brush.curves_sculpt_tool) {
-    case CURVES_SCULPT_TOOL_TEST1:
+    case CURVES_SCULPT_TOOL_COMB:
       return std::make_unique<CombOperation>();
-    case CURVES_SCULPT_TOOL_TEST2:
+    case CURVES_SCULPT_TOOL_DELETE:
       return std::make_unique<DeleteOperation>();
-    case CURVES_SCULPT_TOOL_TEST3:
+    case CURVES_SCULPT_TOOL_SNAKE_HOOK:
+      return std::make_unique<SnakeHookOperation>();
+    case CURVES_SCULPT_TOOL_TEST1:
       return std::make_unique<AddOperation>();
-    case CURVES_SCULPT_TOOL_TEST4:
-      return std::make_unique<GrowOperation>();
-    case CURVES_SCULPT_TOOL_TEST5:
+    case CURVES_SCULPT_TOOL_TEST2:
       return std::make_unique<ShrinkOperation>();
   }
   BLI_assert_unreachable();

@@ -1016,7 +1016,7 @@ static void ui_apply_but_funcs_after(bContext *C)
 
     if (after.optype) {
       WM_operator_name_call_ptr_with_depends_on_cursor(
-          C, after.optype, after.opcontext, (after.opptr) ? &opptr : NULL, after.drawstr);
+          C, after.optype, after.opcontext, (after.opptr) ? &opptr : NULL, NULL, after.drawstr);
     }
 
     if (after.opptr) {
@@ -4173,7 +4173,7 @@ static void ui_do_but_textedit(
   }
 
 #ifdef WITH_INPUT_IME
-  if (event->type == WM_IME_COMPOSITE_START || event->type == WM_IME_COMPOSITE_EVENT) {
+  if (ELEM(event->type, WM_IME_COMPOSITE_START, WM_IME_COMPOSITE_EVENT)) {
     changed = true;
 
     if (event->type == WM_IME_COMPOSITE_START && but->selend > but->selsta) {
@@ -4433,6 +4433,7 @@ static void ui_but_extra_operator_icon_apply(bContext *C, uiBut *but, uiButExtra
                                                    op_icon->optype_params->optype,
                                                    op_icon->optype_params->opcontext,
                                                    op_icon->optype_params->opptr,
+                                                   NULL,
                                                    NULL);
 
   /* Force recreation of extra operator icons (pseudo update). */
@@ -9672,7 +9673,9 @@ static int ui_list_activate_hovered_row(bContext *C,
     }
   }
 
-  const int *mouse_xy = (event->val == KM_CLICK_DRAG) ? event->prev_click_xy : event->xy;
+  int mouse_xy[2];
+  WM_event_drag_start_xy(event, mouse_xy);
+
   uiBut *listrow = ui_list_row_find_mouse_over(region, mouse_xy);
   if (listrow) {
     wmOperatorType *custom_activate_optype = ui_list->dyn_data->custom_activate_optype;
@@ -9699,7 +9702,9 @@ static bool ui_list_is_hovering_draggable_but(bContext *C,
                                               const wmEvent *event)
 {
   /* On a tweak event, uses the coordinates from where tweaking was started. */
-  const int *mouse_xy = (event->val == KM_CLICK_DRAG) ? event->prev_click_xy : event->xy;
+  int mouse_xy[2];
+  WM_event_drag_start_xy(event, mouse_xy);
+
   const uiBut *hovered_but = ui_but_find_mouse_over_ex(region, mouse_xy, false, NULL, NULL);
 
   if (list->dyn_data->custom_drag_optype) {

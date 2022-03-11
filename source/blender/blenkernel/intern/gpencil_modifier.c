@@ -28,6 +28,7 @@
 #include "DNA_screen_types.h"
 
 #include "BKE_colortools.h"
+#include "BKE_deform.h"
 #include "BKE_gpencil.h"
 #include "BKE_gpencil_geom.h"
 #include "BKE_gpencil_modifier.h"
@@ -196,9 +197,11 @@ bool BKE_gpencil_has_transform_modifiers(Object *ob)
   LISTBASE_FOREACH (GpencilModifierData *, md, &ob->greasepencil_modifiers) {
     /* Only if enabled in edit mode. */
     if (!GPENCIL_MODIFIER_EDIT(md, true) && GPENCIL_MODIFIER_ACTIVE(md, false)) {
-      if ((md->type == eGpencilModifierType_Armature) || (md->type == eGpencilModifierType_Hook) ||
-          (md->type == eGpencilModifierType_Lattice) ||
-          (md->type == eGpencilModifierType_Offset)) {
+      if (ELEM(md->type,
+               eGpencilModifierType_Armature,
+               eGpencilModifierType_Hook,
+               eGpencilModifierType_Lattice,
+               eGpencilModifierType_Offset)) {
         return true;
       }
     }
@@ -629,6 +632,8 @@ static bGPdata *gpencil_copy_structure_for_eval(bGPdata *gpd)
   if (gpd->mat != NULL) {
     gpd_eval->mat = MEM_dupallocN(gpd->mat);
   }
+
+  BKE_defgroup_copy_list(&gpd_eval->vertex_group_names, &gpd->vertex_group_names);
 
   /* Duplicate structure: layers and frames without strokes. */
   LISTBASE_FOREACH (bGPDlayer *, gpl_orig, &gpd->layers) {
