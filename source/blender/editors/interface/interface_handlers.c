@@ -2283,7 +2283,7 @@ static void ui_but_smart_controller_add(bContext *C, uiBut *from, uiBut *to)
   RNA_string_set(&props_ptr, "object", ob->id.name + 2);
 
   /* (3) add a new controller */
-  if (WM_operator_name_call(C, "LOGIC_OT_controller_add", WM_OP_EXEC_DEFAULT, &props_ptr) &
+  if (WM_operator_name_call(C, "LOGIC_OT_controller_add", WM_OP_EXEC_DEFAULT, &props_ptr, NULL) &
       OPERATOR_FINISHED) {
     cont = (bController *)ob->controllers.last;
     /* Quick fix to make sure we always have an AND controller.
