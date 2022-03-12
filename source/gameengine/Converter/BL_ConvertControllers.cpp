@@ -131,7 +131,8 @@ void BL_ConvertControllers(struct Object *blenderobject,
           if (pycont->text) {
             char *buf;
             // this is some blender specific code
-            buf = txt_to_buf(pycont->text, nullptr);
+            int buf_len_dummy;
+            buf = txt_to_buf(pycont->text, &buf_len_dummy);
             if (buf) {
               pyctrl->SetScriptText(std::string(buf));
               pyctrl->SetScriptName(pycont->text->id.name + 2);

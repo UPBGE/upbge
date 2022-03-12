@@ -919,7 +919,8 @@ void BL_ConvertActuators(const char *maggiename,
         if (_2dfilter->text) {
           char *buf;
           // this is some blender specific code
-          buf = txt_to_buf(_2dfilter->text, nullptr);
+          int buf_len_dummy;
+          buf = txt_to_buf(_2dfilter->text, &buf_len_dummy);
           if (buf) {
             tmp->SetShaderText(buf);
             MEM_freeN(buf);

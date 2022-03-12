@@ -119,7 +119,8 @@ bool bpy_text_compile(Text *text)
 
   fn_dummy_py = PyC_UnicodeFromByte(fn_dummy);
 
-  buf = txt_to_buf(text, NULL);
+  int buf_len_dummy;
+  buf = txt_to_buf(text, &buf_len_dummy);
   text->compiled = Py_CompileStringObject(buf, fn_dummy_py, Py_file_input, NULL, -1);
   MEM_freeN(buf);
 
