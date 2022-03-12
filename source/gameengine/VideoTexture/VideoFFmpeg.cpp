@@ -49,6 +49,7 @@
 
 extern "C" {
 #  include "libswscale/swscale.h"
+#  include <libavcodec/avcodec.h>
 #  include <libavutil/imgutils.h>
 }
 
@@ -197,12 +198,12 @@ void VideoFFmpeg::initParams(short width, short height, float rate, bool image)
 }
 
 int VideoFFmpeg::openStream(const char *filename,
-                            AVInputFormat *inputFormat,
+                            const AVInputFormat *inputFormat,
                             AVDictionary **formatParams)
 {
   int i, video_stream_index;
 
-  AVCodec *pCodec;
+  const AVCodec *pCodec;
   AVFormatContext *pFormatCtx = nullptr;
   AVCodecContext *pCodecCtx;
   AVStream *video_stream;
@@ -619,7 +620,7 @@ void VideoFFmpeg::openFile(char *filename)
 void VideoFFmpeg::openCam(char *file, short camIdx)
 {
   // open camera source
-  AVInputFormat *inputFormat;
+  const AVInputFormat *inputFormat;
   AVDictionary *formatParams = nullptr;
   char filename[28], rateStr[20];
 
