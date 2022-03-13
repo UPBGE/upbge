@@ -51,6 +51,7 @@ extern "C" {
 #  include "libswscale/swscale.h"
 #  include <libavcodec/avcodec.h>
 #  include <libavutil/imgutils.h>
+#  include <libavformat/version.h>
 }
 
 // default framerate
@@ -208,8 +209,13 @@ int VideoFFmpeg::openStream(const char *filename,
   AVCodecContext *pCodecCtx;
   AVStream *video_stream;
 
+# ifdef FF_API_AVIOFORMAT  // To be removed after ffmpeg5 library update
+  if (avformat_open_input(&pFormatCtx, filename, (AVInputFormat *)inputFormat, formatParams) != 0) {
+    if (avformat_open_input(&pFormatCtx, filename, (AVInputFormat *)inputFormat, nullptr) != 0) {
+# else
   if (avformat_open_input(&pFormatCtx, filename, inputFormat, formatParams) != 0) {
     if (avformat_open_input(&pFormatCtx, filename, inputFormat, nullptr) != 0) {
+# endif
       return -1;
     }
     else {
