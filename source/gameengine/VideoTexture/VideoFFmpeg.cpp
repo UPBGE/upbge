@@ -49,7 +49,9 @@
 
 extern "C" {
 #  include "libswscale/swscale.h"
+#  include <libavcodec/avcodec.h>
 #  include <libavutil/imgutils.h>
+#  include <libavformat/version.h>
 }
 
 // default framerate
@@ -197,18 +199,23 @@ void VideoFFmpeg::initParams(short width, short height, float rate, bool image)
 }
 
 int VideoFFmpeg::openStream(const char *filename,
-                            AVInputFormat *inputFormat,
+                            const AVInputFormat *inputFormat,
                             AVDictionary **formatParams)
 {
   int i, video_stream_index;
 
-  AVCodec *pCodec;
+  const AVCodec *pCodec;
   AVFormatContext *pFormatCtx = nullptr;
   AVCodecContext *pCodecCtx;
   AVStream *video_stream;
 
+# ifdef FF_API_AVIOFORMAT  // To be removed after ffmpeg5 library update
+  if (avformat_open_input(&pFormatCtx, filename, (AVInputFormat *)inputFormat, formatParams) != 0) {
+    if (avformat_open_input(&pFormatCtx, filename, (AVInputFormat *)inputFormat, nullptr) != 0) {
+# else
   if (avformat_open_input(&pFormatCtx, filename, inputFormat, formatParams) != 0) {
     if (avformat_open_input(&pFormatCtx, filename, inputFormat, nullptr) != 0) {
+# endif
       return -1;
     }
     else {
@@ -619,7 +626,7 @@ void VideoFFmpeg::openFile(char *filename)
 void VideoFFmpeg::openCam(char *file, short camIdx)
 {
   // open camera source
-  AVInputFormat *inputFormat;
+  const AVInputFormat *inputFormat;
   AVDictionary *formatParams = nullptr;
   char filename[28], rateStr[20];
 

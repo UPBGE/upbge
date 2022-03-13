@@ -174,7 +174,7 @@ class VideoFFmpeg : public VideoBase {
   }
 
   /// common function to video file and capture
-  int openStream(const char *filename, AVInputFormat *inputFormat, AVDictionary **formatParams);
+  int openStream(const char *filename, const AVInputFormat *inputFormat, AVDictionary **formatParams);
 
   /// check if a frame is available and load it in pFrame, return true if a frame could be
   /// retrieved
