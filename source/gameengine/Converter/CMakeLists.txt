@@ -57,6 +57,8 @@ set(INC
   ../../blender/windowmanager
   ../../../intern/guardedalloc
   ../../../intern/termcolor
+  # RNA_prototypes.h
+  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
@@ -125,3 +127,6 @@ if(WITH_AUDASPACE)
 endif()
 
 blender_add_lib(ge_converter "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+
+# RNA_prototypes.h
+add_dependencies(ge_converter bf_rna)

@@ -64,6 +64,8 @@ set(INC
   ../../../intern/guardedalloc
   ../../../intern/string
   ../../../intern/memutil
+  # RNA_prototypes.h
+  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
@@ -134,3 +136,6 @@ if(WITH_GAMEENGINE_BPPLAYER)
 endif()
 
 blender_add_lib_nolist(ge_player "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+
+# RNA_prototypes.h
+add_dependencies(ge_player bf_rna)

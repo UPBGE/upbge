@@ -19,34 +19,36 @@
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	../include
-	../interface
-	../../blenkernel
-	../../blenlib
-	../../blentranslation
-	../../gpu
-	../../makesdna
-	../../makesrna
-	../../windowmanager
-	../../../../intern/guardedalloc
-	../../../../intern/glew-mx
+  ../include
+  ../interface
+  ../../blenkernel
+  ../../blenlib
+  ../../blentranslation
+  ../../gpu
+  ../../makesdna
+  ../../makesrna
+  ../../windowmanager
+  ../../../../intern/guardedalloc
+  ../../../../intern/glew-mx
+  # RNA_prototypes.h
+  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
-	${GLEW_INCLUDE_PATH}
+  ${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
-	logic_buttons.c
-	logic_ops.c
-	logic_window.c
-	space_logic.c
+  logic_buttons.c
+  logic_ops.c
+  logic_window.c
+  space_logic.c
 
-	logic_intern.h
+  logic_intern.h
 )
 
 if(WITH_GAMEENGINE)
-	add_definitions(-DWITH_GAMEENGINE)
+  add_definitions(-DWITH_GAMEENGINE)
 endif()
 
 add_definitions(${GL_DEFINITIONS})
@@ -56,3 +58,6 @@ if(WITH_INTERNATIONAL)
 endif()
 
 blender_add_lib(bf_editor_space_logic "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+
+# RNA_prototypes.h
+add_dependencies(bf_editor_space_logic bf_rna)

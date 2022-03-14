@@ -47,6 +47,7 @@
 #include "DNA_sound_types.h"
 #include "MEM_guardedalloc.h"
 #include "RNA_access.h"
+#include "RNA_prototypes.h"
 
 // Actuators
 // SCA logiclibrary native logicbricks
