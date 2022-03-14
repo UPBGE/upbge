@@ -49,7 +49,7 @@ std::string KX_GetPythonCode(Main *bmain, const std::string &python_main)
 {
   Text *text = (Text *)BLI_findstring(&bmain->texts, python_main.c_str(), offsetof(ID, name) + 2);
   if (text) {
-    int buf_len_dummy;
+    size_t buf_len_dummy;
     return txt_to_buf(text, &buf_len_dummy);
   }
 
