@@ -131,6 +131,7 @@ set(APISRC
 string(REGEX REPLACE "rna_([a-zA-Z0-9_-]*).c" "${CMAKE_CURRENT_BINARY_DIR}/rna_\\1_gen.c" GENSRC "${DEFSRC}")
 list(APPEND GENSRC
   "${CMAKE_CURRENT_BINARY_DIR}/rna_prototypes_gen.h"
+  "${CMAKE_CURRENT_BINARY_DIR}/../RNA_prototypes.h"
 )
 set_source_files_properties(${GENSRC} PROPERTIES GENERATED TRUE)
 
@@ -197,6 +198,8 @@ set(INC
 
   # dna_type_offsets.h
   ${CMAKE_CURRENT_BINARY_DIR}/../../makesdna/intern
+  # RNA_prototypes.h
+  ${CMAKE_CURRENT_BINARY_DIR}/../../makesrna/
 )
 
 set(INC_SYS
@@ -416,7 +419,7 @@ endif()
 # note (linux only): with crashes try add this after COMMAND: valgrind --leak-check=full --track-origins=yes
 add_custom_command(
   OUTPUT ${GENSRC}
-  COMMAND "$<TARGET_FILE:makesrna>" ${CMAKE_CURRENT_BINARY_DIR}/
+  COMMAND "$<TARGET_FILE:makesrna>" ${CMAKE_CURRENT_BINARY_DIR}/  ${CMAKE_CURRENT_BINARY_DIR}/../
   DEPENDS makesrna
 )
 

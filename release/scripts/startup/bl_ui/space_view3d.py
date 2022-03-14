@@ -2395,25 +2395,6 @@ class VIEW3D_MT_object_clear(Menu):
         layout.operator("object.origin_clear", text="Origin")
 
 
-class VIEW3D_MT_motion_path(Menu):
-    bl_label = "Motion Paths"
-
-    def draw(self, _context):
-        layout = self.layout
-        ob = _context.object
-        if ob.mode == 'OBJECT':
-            layout.operator("object.paths_calculate")
-            layout.operator("object.paths_update")
-            layout.operator("object.paths_update_visible")
-            layout.operator("object.paths_clear", text="Clear all").only_selected = False
-            layout.operator("object.paths_clear", text="Clear selected").only_selected = True
-        elif ob.mode == 'POSE':
-            layout.operator("pose.paths_calculate")
-            layout.operator("pose.paths_update")
-            layout.operator("pose.paths_clear", text="Clear all").only_selected = False
-            layout.operator("pose.paths_clear", text="Clear selected").only_selected = True
-
-
 class VIEW3D_MT_object_context_menu(Menu):
     bl_label = "Object Context Menu"
 
@@ -2615,7 +2596,6 @@ class VIEW3D_MT_object_context_menu(Menu):
         layout.menu("VIEW3D_MT_mirror")
         layout.menu("VIEW3D_MT_snap")
         layout.menu("VIEW3D_MT_object_parent")
-        layout.menu("VIEW3D_MT_motion_path")
         layout.operator_context = 'INVOKE_REGION_WIN'
 
         if view and view.local_view:
@@ -3683,10 +3663,10 @@ class VIEW3D_MT_pose_context_menu(Menu):
 
         layout.separator()
 
-        layout.operator("pose.paths_calculate")
-        layout.operator("pose.paths_update")
-        layout.operator("pose.paths_clear", text="Clear all").only_selected = False
-        layout.operator("pose.paths_clear", text="Clear selected").only_selected = True
+        layout.operator("pose.paths_calculate", text="Calculate Motion Paths")
+        layout.operator("pose.paths_clear", text="Clear Motion Paths")
+        layout.operator("pose.paths_update", text="Update Armature Motion Paths")
+        layout.operator("object.paths_update_visible", text="Update All Motion Paths")
 
         layout.separator()
 
@@ -7682,7 +7662,6 @@ classes = (
     VIEW3D_MT_object_quick_effects,
     VIEW3D_MT_object_showhide,
     VIEW3D_MT_object_cleanup,
-    VIEW3D_MT_motion_path,
     VIEW3D_MT_make_single_user,
     VIEW3D_MT_make_links,
     VIEW3D_MT_object_game,
