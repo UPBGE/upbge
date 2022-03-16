@@ -796,6 +796,24 @@ DerivedMesh *CDDM_from_template(DerivedMesh *source,
 void CDDM_calc_normals(DerivedMesh *dm)
 {
   CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
+  CustomData *vdata, *pdata;
+  float(*pnors)[3];
+  float(*vert_normals)[3];
+
+  const int numPolys = dm->getNumPolys(dm);
+  const int numVerts = dm->getNumVerts(dm);
+
+  vdata = dm->getVertDataLayout(dm);
+  vert_normals = CustomData_get_layer(vdata, CD_NORMAL);
+  if (!vert_normals) {
+    vert_normals = CustomData_add_layer(vdata, CD_NORMAL, CD_CALLOC, NULL, numVerts);
+  }
+
+  pdata = dm->getPolyDataLayout(dm);
+  pnors = CustomData_get_layer(pdata, CD_NORMAL);
+  if (!pnors) {
+    pnors = CustomData_add_layer(pdata, CD_NORMAL, CD_CALLOC, NULL, numPolys);
+  }
 
   /* we don't want to overwrite any referenced layers */
   cddm->mvert = CustomData_duplicate_referenced_layer(&dm->vertData, CD_MVERT, dm->numVertData);
@@ -806,8 +824,8 @@ void CDDM_calc_normals(DerivedMesh *dm)
                                         dm->numLoopData,
                                         CDDM_get_polys(dm),
                                         dm->numPolyData,
-                                        NULL,
-                                        NULL);
+                                        pnors,
+                                        vert_normals); /* UPBGE: What we do with vert_normal????, can we remove CDDM_calc_normals????, check later */
 
   cddm->dm.dirty &= ~DM_DIRTY_NORMALS;
 }
