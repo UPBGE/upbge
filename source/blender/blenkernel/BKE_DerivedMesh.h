@@ -142,9 +142,6 @@ struct DerivedMesh {
 
   short tangent_mask; /* which tangent layers are calculated */
 
-  /** Calculate vert and face normals */
-  void (*calcNormals)(DerivedMesh *dm);
-
   /** Calculate loop (split) normals */
   void (*calcLoopNormals)(DerivedMesh *dm, const bool use_split_normals, const float split_angle);
 
@@ -435,8 +432,6 @@ void DM_copy_vert_data(struct DerivedMesh *source,
  * Sets up mpolys for a DM based on face iterators in source.
  */
 void DM_DupPolys(DerivedMesh *source, DerivedMesh *target);
-
-void DM_ensure_normals(DerivedMesh *dm);
 
 /**
  * Ensure the array is large enough.

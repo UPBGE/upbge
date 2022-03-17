@@ -78,8 +78,6 @@ struct DerivedMesh *CDDM_from_template(struct DerivedMesh *source,
 
 /* recalculates vertex and face normals for a CDDerivedMesh
  */
-void CDDM_calc_normals(struct DerivedMesh *dm);
-
 void CDDM_calc_loop_normals(struct DerivedMesh *dm,
                             const bool use_split_normals,
                             const float split_angle);

@@ -432,14 +432,6 @@ void DM_DupPolys(DerivedMesh *source, DerivedMesh *target)
   }
 }
 
-void DM_ensure_normals(DerivedMesh *dm)
-{
-  if (dm->dirty & DM_DIRTY_NORMALS) {
-    dm->calcNormals(dm);
-  }
-  BLI_assert((dm->dirty & DM_DIRTY_NORMALS) == 0);
-}
-
 void DM_ensure_looptri_data(DerivedMesh *dm)
 {
   const unsigned int totpoly = dm->numPolyData;
@@ -2483,7 +2475,11 @@ void DM_to_mesh(
   CustomData_reset(&tmp.ldata);
   CustomData_reset(&tmp.pdata);
 
-  DM_ensure_normals(dm);
+  /* First ensure normals and after set the flags */
+  BKE_mesh_vertex_normals_ensure(&tmp);
+  if (dm->dirty & DM_DIRTY_NORMALS) {
+    dm->dirty &= ~DM_DIRTY_NORMALS;
+  }
 
   totvert = tmp.totvert = dm->getNumVerts(dm);
   totedge = tmp.totedge = dm->getNumEdges(dm);

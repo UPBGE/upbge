@@ -482,7 +482,6 @@ static CDDerivedMesh *cdDM_create(const char *desc)
   dm->getEdgeDataArray = DM_get_edge_data_layer;
   dm->getTessFaceDataArray = DM_get_tessface_data_layer;
 
-  dm->calcNormals = CDDM_calc_normals;
   dm->calcLoopNormals = CDDM_calc_loop_normals;
   dm->calcLoopNormalsSpaceArray = CDDM_calc_loop_normals_spacearr;
   dm->calcLoopTangents = DM_calc_loop_tangents;
@@ -790,44 +789,6 @@ DerivedMesh *CDDM_from_template(DerivedMesh *source,
   cddm->mpoly = CustomData_get_layer(&dm->polyData, CD_MPOLY);
 
   return dm;
-}
-
-/* poly normal layer is now only for final display */
-void CDDM_calc_normals(DerivedMesh *dm)
-{
-  CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
-  CustomData *vdata, *pdata;
-  float(*pnors)[3];
-  float(*vert_normals)[3];
-
-  const int numPolys = dm->getNumPolys(dm);
-  const int numVerts = dm->getNumVerts(dm);
-
-  vdata = dm->getVertDataLayout(dm);
-  vert_normals = CustomData_get_layer(vdata, CD_NORMAL);
-  if (!vert_normals) {
-    vert_normals = CustomData_add_layer(vdata, CD_NORMAL, CD_CALLOC, NULL, numVerts);
-  }
-
-  pdata = dm->getPolyDataLayout(dm);
-  pnors = CustomData_get_layer(pdata, CD_NORMAL);
-  if (!pnors) {
-    pnors = CustomData_add_layer(pdata, CD_NORMAL, CD_CALLOC, NULL, numPolys);
-  }
-
-  /* we don't want to overwrite any referenced layers */
-  cddm->mvert = CustomData_duplicate_referenced_layer(&dm->vertData, CD_MVERT, dm->numVertData);
-
-  BKE_mesh_calc_normals_poly_and_vertex(cddm->mvert,
-                                        dm->numVertData,
-                                        CDDM_get_loops(dm),
-                                        dm->numLoopData,
-                                        CDDM_get_polys(dm),
-                                        dm->numPolyData,
-                                        pnors,
-                                        vert_normals); /* UPBGE: What we do with vert_normal????, can we remove CDDM_calc_normals????, check later */
-
-  cddm->dm.dirty &= ~DM_DIRTY_NORMALS;
 }
 
 void CDDM_calc_loop_normals(DerivedMesh *dm, const bool use_split_normals, const float split_angle)
