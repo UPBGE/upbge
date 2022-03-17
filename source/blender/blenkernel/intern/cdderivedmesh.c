@@ -854,7 +854,7 @@ void CDDM_calc_loop_normals_spacearr(DerivedMesh *dm,
   }
   else {
     BKE_mesh_calc_normals_poly_and_vertex(
-        mverts, numVerts, mloops, numLoops, mpolys, numPolys, pnors, NULL);
+        mverts, numVerts, mloops, numLoops, mpolys, numPolys, pnors, vert_normal);
   }
 
   dm->dirty &= ~DM_DIRTY_NORMALS;
