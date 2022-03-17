@@ -352,9 +352,14 @@ static void node_area_listener(const wmSpaceTypeListenerParams *params)
         case ND_FRAME:
           ED_area_tag_refresh(area);
           break;
-        case ND_COMPO_RESULT:
+        case ND_COMPO_RESULT: {
           ED_area_tag_redraw(area);
+          /* Backdrop image offset is calculated during compositing so gizmos need to be updated
+           * afterwards. */
+          const ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+          WM_gizmomap_tag_refresh(region->gizmo_map);
           break;
+        }
         case ND_TRANSFORM_DONE:
           if (ED_node_is_compositor(snode)) {
             if (snode->flag & SNODE_AUTO_RENDER) {
@@ -622,11 +627,6 @@ static bool node_collection_drop_poll(bContext *UNUSED(C),
   return WM_drag_is_ID_type(drag, ID_GR);
 }
 
-static bool node_texture_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
-{
-  return WM_drag_is_ID_type(drag, ID_TE);
-}
-
 static bool node_ima_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
 {
   if (drag->type == WM_DRAG_PATH) {
@@ -683,12 +683,6 @@ static void node_dropboxes()
   WM_dropbox_add(lb,
                  "NODE_OT_add_collection",
                  node_collection_drop_poll,
-                 node_id_drop_copy,
-                 WM_drag_free_imported_drag_ID,
-                 nullptr);
-  WM_dropbox_add(lb,
-                 "NODE_OT_add_texture",
-                 node_texture_drop_poll,
                  node_id_drop_copy,
                  WM_drag_free_imported_drag_ID,
                  nullptr);

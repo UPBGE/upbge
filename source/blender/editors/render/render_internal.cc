@@ -101,7 +101,7 @@ struct RenderJob {
 /* called inside thread! */
 static bool image_buffer_calc_tile_rect(const RenderResult *rr,
                                         const ImBuf *ibuf,
-                                        volatile rcti *renrect,
+                                        rcti *renrect,
                                         rcti *r_ibuf_rect,
                                         int *r_offset_x,
                                         int *r_offset_y)
@@ -355,7 +355,14 @@ static int screen_render_exec(bContext *C, wmOperator *op)
                   scene->r.frame_step);
   }
   else {
-    RE_RenderFrame(re, mainp, scene, single_layer, camera_override, scene->r.cfra, is_write_still);
+    RE_RenderFrame(re,
+                   mainp,
+                   scene,
+                   single_layer,
+                   camera_override,
+                   scene->r.cfra,
+                   scene->r.subframe,
+                   is_write_still);
   }
 
   RE_SetReports(re, nullptr);
@@ -549,7 +556,7 @@ static void render_image_update_pass_and_layer(RenderJob *rj, RenderResult *rr, 
   }
 }
 
-static void image_rect_update(void *rjv, RenderResult *rr, volatile rcti *renrect)
+static void image_rect_update(void *rjv, RenderResult *rr, rcti *renrect)
 {
   RenderJob *rj = static_cast<RenderJob *>(rjv);
   Image *ima = rj->image;
@@ -655,6 +662,7 @@ static void render_startjob(void *rjv, short *stop, short *do_update, float *pro
                    rj->single_layer,
                    rj->camera_override,
                    rj->scene->r.cfra,
+                   rj->scene->r.subframe,
                    rj->write_still);
   }
 

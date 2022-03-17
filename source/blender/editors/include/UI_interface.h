@@ -1614,6 +1614,14 @@ uiBut *uiDefAutoButR(uiBlock *block,
                      int y,
                      int width,
                      int height);
+void uiDefAutoButsArrayR(uiBlock *block,
+                         PointerRNA *ptr,
+                         PropertyRNA *prop,
+                         const int icon,
+                         const int x,
+                         const int y,
+                         const int tot_width,
+                         const int height);
 /**
  * \a check_prop callback filters functions to avoid drawing certain properties,
  * in cases where PROP_HIDDEN flag can't be used for a property.

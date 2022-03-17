@@ -459,11 +459,11 @@ static Scene *preview_prepare_scene(
   if (sce) {
     ViewLayer *view_layer = static_cast<ViewLayer *>(sce->view_layers.first);
 
-    /* Only enable the combined renderpass */
+    /* Only enable the combined render-pass. */
     view_layer->passflag = SCE_PASS_COMBINED;
     view_layer->eevee.render_passes = 0;
 
-    /* this flag tells render to not execute depsgraph or ipos etc */
+    /* This flag tells render to not execute depsgraph or F-Curves etc. */
     sce->r.scemode |= R_BUTS_PREVIEW;
     BLI_strncpy(sce->r.engine, scene->r.engine, sizeof(sce->r.engine));
 
@@ -987,9 +987,7 @@ static void action_preview_render(IconPreview *preview, IconPreviewSize *preview
  * \{ */
 
 /* inside thread, called by renderer, sets job update value */
-static void shader_preview_update(void *spv,
-                                  RenderResult *UNUSED(rr),
-                                  volatile struct rcti *UNUSED(rect))
+static void shader_preview_update(void *spv, RenderResult *UNUSED(rr), struct rcti *UNUSED(rect))
 {
   ShaderPreview *sp = static_cast<ShaderPreview *>(spv);
 
