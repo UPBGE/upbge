@@ -191,6 +191,7 @@ typedef enum {
   /* Compute Commands. */
   DRW_CMD_COMPUTE = 8,
   DRW_CMD_COMPUTE_REF = 9,
+  DRW_CMD_COMPUTE_INDIRECT = 10,
 
   /* Other Commands */
   DRW_CMD_BARRIER = 11,
@@ -240,6 +241,10 @@ typedef struct DRWCommandComputeRef {
   int *groups_ref;
 } DRWCommandComputeRef;
 
+typedef struct DRWCommandComputeIndirect {
+  GPUStorageBuf *indirect_buf;
+} DRWCommandComputeIndirect;
+
 typedef struct DRWCommandBarrier {
   eGPUBarrier type;
 } DRWCommandBarrier;
@@ -282,6 +287,7 @@ typedef union DRWCommand {
   DRWCommandDrawProcedural procedural;
   DRWCommandCompute compute;
   DRWCommandComputeRef compute_ref;
+  DRWCommandComputeIndirect compute_indirect;
   DRWCommandBarrier barrier;
   DRWCommandSetMutableState state;
   DRWCommandSetStencil stencil;
@@ -309,6 +315,8 @@ typedef enum {
   DRW_UNIFORM_IMAGE_REF,
   DRW_UNIFORM_BLOCK,
   DRW_UNIFORM_BLOCK_REF,
+  DRW_UNIFORM_STORAGE_BLOCK,
+  DRW_UNIFORM_STORAGE_BLOCK_REF,
   DRW_UNIFORM_TFEEDBACK_TARGET,
   DRW_UNIFORM_VERTEX_BUFFER_AS_STORAGE,
   DRW_UNIFORM_VERTEX_BUFFER_AS_STORAGE_REF,
@@ -342,6 +350,11 @@ struct DRWUniform {
     union {
       GPUUniformBuf *block;
       GPUUniformBuf **block_ref;
+    };
+    /* DRW_UNIFORM_STORAGE_BLOCK */
+    union {
+      GPUStorageBuf *ssbo;
+      GPUStorageBuf **ssbo_ref;
     };
     /* DRW_UNIFORM_VERTEX_BUFFER_AS_STORAGE */
     union {

@@ -72,6 +72,11 @@ class GLShader : public Shader {
   /** DEPRECATED: Kept only because of BGL API. */
   int program_handle_get() const override;
 
+  bool is_compute() const
+  {
+    return compute_shader_ != 0;
+  }
+
   /******************************************UPBGE*****************************************/
   char *shader_validate() override;
   void shader_bind_attributes(int *locations, const char **names, int len) override;

@@ -174,6 +174,10 @@ static const char *to_string(const eGPUTextureFormat &type)
       return "r16f";
     case GPU_R16:
       return "r16";
+    case GPU_R11F_G11F_B10F:
+      return "r11f_g11f_b10f";
+    case GPU_RGB10_A2:
+      return "rgb10_a2";
     default:
       return "unknown";
   }
@@ -576,6 +580,9 @@ std::string GLShader::fragment_interface_declare(const ShaderCreateInfo &info) c
       pre_main += "  gpu_BaryCoordNoPersp = stable_bary_(gl_BaryCoordNoPerspAMD);\n";
     }
   }
+  if (info.early_fragment_test_) {
+    ss << "layout(early_fragment_tests) in;\n";
+  }
   ss << "\n/* Outputs. */\n";
   for (const ShaderCreateInfo::FragOut &output : info.fragment_outputs_) {
     ss << "layout(location = " << output.index;
@@ -667,7 +674,7 @@ std::string GLShader::compute_layout_declare(const ShaderCreateInfo &info) const
     ss << ", local_size_y = " << info.compute_layout_.local_size_y;
   }
   if (info.compute_layout_.local_size_z != -1) {
-    ss << ", local_size_y = " << info.compute_layout_.local_size_z;
+    ss << ", local_size_z = " << info.compute_layout_.local_size_z;
   }
   ss << ") in;\n";
   ss << "\n";
@@ -836,6 +843,10 @@ static char *glsl_patch_compute_get()
   /* Version need to go first. */
   STR_CONCAT(patch, slen, "#version 430\n");
   STR_CONCAT(patch, slen, "#extension GL_ARB_compute_shader :enable\n");
+
+  /* Array compat. */
+  STR_CONCAT(patch, slen, "#define array(_type) _type[]\n");
+
   BLI_assert(slen < sizeof(patch));
   return patch;
 }
