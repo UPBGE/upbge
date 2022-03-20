@@ -108,6 +108,12 @@ set(LIB
 
 )
 
+if(MSVC)
+  add_definitions(
+    /DNOMINMAX
+  )
+endif()
+
 if(WITH_BULLET)
   list(APPEND INC_SYS
     ${BULLET_INCLUDE_DIRS}
