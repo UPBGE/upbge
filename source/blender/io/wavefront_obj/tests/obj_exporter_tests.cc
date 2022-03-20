@@ -405,6 +405,16 @@ TEST_F(obj_exporter_regression_test, vertices)
       "io_tests/blend_geometry/vertices.blend", "io_tests/obj/vertices.obj", "", _export.params);
 }
 
+TEST_F(obj_exporter_regression_test, non_uniform_scale)
+{
+  OBJExportParamsDefault _export;
+  _export.params.export_materials = false;
+  compare_obj_export_to_golden("io_tests/blend_geometry/non_uniform_scale.blend",
+                               "io_tests/obj/non_uniform_scale.obj",
+                               "",
+                               _export.params);
+}
+
 TEST_F(obj_exporter_regression_test, nurbs_as_nurbs)
 {
   OBJExportParamsDefault _export;
@@ -461,6 +471,17 @@ TEST_F(obj_exporter_regression_test, cube_normal_edit)
   _export.params.export_materials = false;
   compare_obj_export_to_golden("io_tests/blend_geometry/cube_normal_edit.blend",
                                "io_tests/obj/cube_normal_edit.obj",
+                               "",
+                               _export.params);
+}
+
+TEST_F(obj_exporter_regression_test, cubes_positioned)
+{
+  OBJExportParamsDefault _export;
+  _export.params.export_materials = false;
+  _export.params.scaling_factor = 2.0f;
+  compare_obj_export_to_golden("io_tests/blend_geometry/cubes_positioned.blend",
+                               "io_tests/obj/cubes_positioned.obj",
                                "",
                                _export.params);
 }
