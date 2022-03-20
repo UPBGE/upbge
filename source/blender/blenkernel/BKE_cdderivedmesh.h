@@ -12,12 +12,12 @@
 
 #pragma once
 
+#include "BKE_DerivedMesh.h"
+#include "BKE_customdata.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "BKE_DerivedMesh.h"
-#include "BKE_customdata.h"
 
 struct BMEditMesh;
 struct CustomData_MeshMasks;
