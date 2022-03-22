@@ -33,6 +33,7 @@
 
 #include "BKE_context.h"
 #include "BKE_image.h"
+#include "BKE_image_format.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
 #include "DNA_scene_types.h"
@@ -185,7 +186,7 @@ void KX_BlenderCanvas::MakeScreenShot(const std::string &filename)
     *im_format = scene->r.im_format;
   }
   else {
-    BKE_imformat_defaults(im_format);
+    BKE_image_format_init(im_format, false);
   }
 
   // create file path

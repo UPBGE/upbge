@@ -32,6 +32,7 @@
 #include "GPG_Canvas.h"
 
 #include "BKE_image.h"
+#include "BKE_image_format.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
 #include "DNA_space_types.h"
@@ -87,7 +88,7 @@ void GPG_Canvas::MakeScreenShot(const std::string &filename)
   // initialize image file format data
   ImageFormatData *im_format = (ImageFormatData *)MEM_mallocN(sizeof(ImageFormatData),
                                                               "im_format");
-  BKE_imformat_defaults(im_format);
+  BKE_image_format_init(im_format, false);
 
   // create file path
   char path[FILE_MAX];
