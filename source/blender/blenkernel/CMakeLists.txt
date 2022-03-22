@@ -160,10 +160,11 @@ set(SRC
   intern/idprop_utils.c
   intern/idtype.c
   intern/image.cc
+  intern/image_format.cc
   intern/image_partial_update.cc
   intern/image_gen.c
   intern/image_gpu.cc
-  intern/image_save.c
+  intern/image_save.cc
   intern/ipo.c
   intern/kelvinlet.c
   intern/key.c
@@ -391,6 +392,7 @@ set(SRC
   BKE_idprop.hh
   BKE_idtype.h
   BKE_image.h
+  BKE_image_format.h
   BKE_image_partial_update.hh
   BKE_image_save.h
   BKE_ipo.h

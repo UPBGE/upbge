@@ -78,6 +78,7 @@ _CRTIMP void __cdecl _invalid_parameter_noinfo(void)
 }
 #include "BLI_blenlib.h"
 #include "BLI_math_color.h"
+#include "BLI_string_utils.h"
 #include "BLI_threads.h"
 
 #include "BKE_idprop.h"
@@ -89,8 +90,7 @@ _CRTIMP void __cdecl _invalid_parameter_noinfo(void)
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 #include "IMB_metadata.h"
-
-#include "openexr_multi.h"
+#include "IMB_openexr.h"
 
 using namespace Imf;
 using namespace Imath;

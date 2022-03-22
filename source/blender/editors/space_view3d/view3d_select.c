@@ -1557,7 +1557,7 @@ static Base *object_mouse_select_menu(bContext *C,
                                       const int mval[2],
                                       const struct SelectPick_Params *params)
 {
-  short baseCount = 0;
+  int base_count = 0;
   bool ok;
   LinkNodePair linklist = {NULL, NULL};
 
@@ -1586,20 +1586,20 @@ static Base *object_mouse_select_menu(bContext *C,
     }
 
     if (ok) {
-      baseCount++;
+      base_count++;
       BLI_linklist_append(&linklist, base);
 
-      if (baseCount == SEL_MENU_SIZE) {
+      if (base_count == SEL_MENU_SIZE) {
         break;
       }
     }
   }
   CTX_DATA_END;
 
-  if (baseCount == 0) {
+  if (base_count == 0) {
     return NULL;
   }
-  if (baseCount == 1) {
+  if (base_count == 1) {
     Base *base = (Base *)linklist.list->link;
     BLI_linklist_free(linklist.list, NULL);
     return base;
@@ -1656,7 +1656,7 @@ static int bone_select_menu_exec(bContext *C, wmOperator *op)
 
   BLI_assert(BASE_SELECTABLE(v3d, basact));
 
-  if (basact->object->mode == OB_MODE_EDIT) {
+  if (basact->object->mode & OB_MODE_EDIT) {
     EditBone *ebone = (EditBone *)object_mouse_select_menu_data[name_index].item_ptr;
     ED_armature_edit_select_pick_bone(C, basact, ebone, BONE_SELECTED, &params);
   }
@@ -1677,14 +1677,22 @@ static int bone_select_menu_exec(bContext *C, wmOperator *op)
 
   /* In weight-paint, we use selected bone to select vertex-group,
    * so don't switch to new active object. */
-  if (oldbasact && (oldbasact->object->mode & OB_MODE_ALL_WEIGHT_PAINT)) {
-    /* Prevent activating.
-     * Selection causes this to be considered the 'active' pose in weight-paint mode.
-     * Eventually this limitation may be removed.
-     * For now, de-select all other pose objects deforming this mesh. */
-    ED_armature_pose_select_in_wpaint_mode(view_layer, basact);
-
-    basact = NULL;
+  if (oldbasact) {
+    if (basact->object->mode & OB_MODE_EDIT) {
+      /* Pass. */
+    }
+    else if (oldbasact->object->mode & OB_MODE_ALL_WEIGHT_PAINT) {
+      /* Prevent activating.
+       * Selection causes this to be considered the 'active' pose in weight-paint mode.
+       * Eventually this limitation may be removed.
+       * For now, de-select all other pose objects deforming this mesh. */
+      ED_armature_pose_select_in_wpaint_mode(view_layer, basact);
+    }
+    else {
+      if (oldbasact != basact) {
+        ED_object_base_activate(C, basact);
+      }
+    }
   }
 
   /* Undo? */
@@ -1735,7 +1743,7 @@ static bool bone_mouse_select_menu(bContext *C,
 {
   BLI_assert(buffer);
 
-  short baseCount = 0;
+  int bone_count = 0;
   LinkNodePair base_list = {NULL, NULL};
   LinkNodePair bone_list = {NULL, NULL};
   GSet *added_bones = BLI_gset_ptr_new("Bone mouse select menu");
@@ -1794,12 +1802,12 @@ static bool bone_mouse_select_menu(bContext *C,
     const bool is_duplicate_bone = BLI_gset_haskey(added_bones, bone_ptr);
 
     if (!is_duplicate_bone) {
-      baseCount++;
+      bone_count++;
       BLI_linklist_append(&base_list, bone_base);
       BLI_linklist_append(&bone_list, bone_ptr);
       BLI_gset_insert(added_bones, bone_ptr);
 
-      if (baseCount == SEL_MENU_SIZE) {
+      if (bone_count == SEL_MENU_SIZE) {
         break;
       }
     }
@@ -1807,10 +1815,10 @@ static bool bone_mouse_select_menu(bContext *C,
 
   BLI_gset_free(added_bones, NULL);
 
-  if (baseCount == 0) {
+  if (bone_count == 0) {
     return false;
   }
-  if (baseCount == 1) {
+  if (bone_count == 1) {
     BLI_linklist_free(base_list.list, NULL);
     BLI_linklist_free(bone_list.list, NULL);
     return false;
@@ -2381,6 +2389,9 @@ static bool ed_object_select_pick(bContext *C,
   float dist = ED_view3d_select_dist_px() * 1.3333f;
   const float mval_fl[2] = {(float)mval[0], (float)mval[1]};
 
+  /* Handle setting the new base active */
+  bool use_activate_selected_base = false;
+
   /* When enabled, don't attempt any further selection. */
   bool handled = false;
   bool changed = false;
@@ -2477,7 +2488,7 @@ static bool ed_object_select_pick(bContext *C,
       /* NOTE: shift+alt goes to group-flush-selecting. */
       if (enumerate) {
         if (has_bones && bone_mouse_select_menu(C, buffer, hits, false, params)) {
-          basact = NULL;
+          handled = true;
         }
         else {
           basact = object_mouse_select_menu(C, &vc, buffer, hits, mval, params);
@@ -2489,9 +2500,10 @@ static bool ed_object_select_pick(bContext *C,
       }
     }
 
-    if (((hits > 0) && has_bones) ||
-        /* Special case, even when there are no hits, pose logic may de-select all bones. */
-        ((hits == 0) && is_pose_mode)) {
+    if ((handled == false) &&
+        (((hits > 0) && has_bones) ||
+         /* Special case, even when there are no hits, pose logic may de-select all bones. */
+         ((hits == 0) && is_pose_mode))) {
 
       if (basact && (has_bones && (basact->object->type == OB_CAMERA))) {
         MovieClip *clip = BKE_object_movieclip_get(scene, basact->object, false);
@@ -2525,34 +2537,39 @@ static bool ed_object_select_pick(bContext *C,
            * not-selected active object in pose-mode won't work well for tools */
           ED_object_base_select(basact, BA_SELECT);
 
-          if (is_pose_mode && (basact->object->mode & OB_MODE_POSE)) {
-            /* Within pose-mode, keep the current selection when switching pose bones,
-             * this is noticeable when in pose mode with multiple objects at once.
-             * Where selecting the bone of a different object would de-select this one.
-             * After that, exiting pose-mode would only have the active armature selected.
-             * This matches multi-object edit-mode behavior. */
-            handled = true;
-          }
-          else {
-            /* Don't set `handled` here as the object selection may be necessary
-             * when starting out in object-mode and moving into pose-mode,
-             * when moving from pose to object-mode using object selection also makes sense. */
-          }
-
           WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, basact->object);
           WM_event_add_notifier(C, NC_OBJECT | ND_BONE_ACTIVE, basact->object);
           DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
 
           /* In weight-paint, we use selected bone to select vertex-group,
            * so don't switch to new active object. */
-          if (oldbasact && (oldbasact->object->mode & OB_MODE_ALL_WEIGHT_PAINT)) {
-            /* Prevent activating.
-             * Selection causes this to be considered the 'active' pose in weight-paint mode.
-             * Eventually this limitation may be removed.
-             * For now, de-select all other pose objects deforming this mesh. */
-            ED_armature_pose_select_in_wpaint_mode(view_layer, basact);
+          if (oldbasact) {
+            if (oldbasact->object->mode & OB_MODE_ALL_WEIGHT_PAINT) {
+              /* Prevent activating.
+               * Selection causes this to be considered the 'active' pose in weight-paint mode.
+               * Eventually this limitation may be removed.
+               * For now, de-select all other pose objects deforming this mesh. */
+              ED_armature_pose_select_in_wpaint_mode(view_layer, basact);
 
-            handled = true;
+              handled = true;
+            }
+            else if (is_pose_mode && (basact->object->mode & OB_MODE_POSE)) {
+              /* Within pose-mode, keep the current selection when switching pose bones,
+               * this is noticeable when in pose mode with multiple objects at once.
+               * Where selecting the bone of a different object would de-select this one.
+               * After that, exiting pose-mode would only have the active armature selected.
+               * This matches multi-object edit-mode behavior. */
+              handled = true;
+
+              if (oldbasact != basact) {
+                use_activate_selected_base = true;
+              }
+            }
+            else {
+              /* Don't set `handled` here as the object selection may be necessary
+               * when starting out in object-mode and moving into pose-mode,
+               * when moving from pose to object-mode using object selection also makes sense. */
+            }
           }
         }
       }
@@ -2620,7 +2637,7 @@ static bool ed_object_select_pick(bContext *C,
     }
     /* Also prevent making it active on mouse selection. */
     else if (BASE_SELECTABLE(v3d, basact)) {
-      const bool use_activate_selected_base = (oldbasact != basact) && (is_obedit == false);
+      use_activate_selected_base |= (oldbasact != basact) && (is_obedit == false);
 
       switch (params->sel_op) {
         case SEL_OP_ADD: {
@@ -2656,14 +2673,22 @@ static bool ed_object_select_pick(bContext *C,
           break;
         }
       }
+    }
 
-      if (use_activate_selected_base) {
-        ED_object_base_activate(C, basact); /* adds notifier */
-        if ((scene->toolsettings->object_flag & SCE_OBJECT_MODE_LOCK) == 0) {
-          WM_toolsystem_update_from_context_view3d(C);
-        }
-      }
+    DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
+    WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+  }
 
+  if (use_activate_selected_base && (basact != NULL)) {
+    changed = true;
+    ED_object_base_activate(C, basact); /* adds notifier */
+    if ((scene->toolsettings->object_flag & SCE_OBJECT_MODE_LOCK) == 0) {
+      WM_toolsystem_update_from_context_view3d(C);
+    }
+  }
+
+  if (changed) {
+    if (use_activate_selected_base) {
       /* Set special modes for grease pencil
        * The grease pencil modes are not real modes, but a hack to make the interface
        * consistent, so need some tricks to keep UI synchronized */
@@ -2685,11 +2710,6 @@ static bool ed_object_select_pick(bContext *C,
       }
     }
 
-    DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
-  }
-
-  if (changed) {
     if (vc.obact && vc.obact->mode & OB_MODE_POSE) {
       ED_outliner_select_sync_from_pose_bone_tag(C);
     }

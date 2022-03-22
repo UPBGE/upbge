@@ -431,6 +431,7 @@ typedef struct ImageFormatData {
   /* color management */
   ColorManagedViewSettings view_settings;
   ColorManagedDisplaySettings display_settings;
+  ColorManagedColorspaceSettings linear_colorspace_settings;
 } ImageFormatData;
 
 /** #ImageFormatData.imtype */
@@ -466,8 +467,8 @@ typedef struct ImageFormatData {
 #define R_IMF_IMTYPE_INVALID 255
 
 /** #ImageFormatData.flag */
-#define R_IMF_FLAG_ZBUF (1 << 0)        /* was R_OPENEXR_ZBUF */
-#define R_IMF_FLAG_PREVIEW_JPG (1 << 1) /* was R_PREVIEW_JPG */
+#define R_IMF_FLAG_ZBUF (1 << 0)
+#define R_IMF_FLAG_PREVIEW_JPG (1 << 1)
 
 /* Return values from #BKE_imtype_valid_depths, note this is depths per channel. */
 /** #ImageFormatData.depth */
@@ -1154,11 +1155,23 @@ typedef struct Sculpt {
   struct Object *gravity_object;
 } Sculpt;
 
+typedef enum CurvesSculptFlag {
+  CURVES_SCULPT_FLAG_INTERPOLATE_LENGTH = (1 << 0),
+  CURVES_SCULPT_FLAG_INTERPOLATE_SHAPE = (1 << 1),
+} CurvesSculptFlag;
+
 typedef struct CurvesSculpt {
   Paint paint;
   /** Minimum distance between newly added curves on a surface. */
   float distance;
-  char _pad1[4];
+
+  /** CurvesSculptFlag. */
+  uint32_t flag;
+
+  /** Length of newly added curves when it is not interpolated from other curves. */
+  float curve_length;
+
+  char _pad[4];
 } CurvesSculpt;
 
 typedef struct UvSculpt {
