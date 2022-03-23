@@ -496,15 +496,6 @@ void BKE_mesh_calc_normals_poly(const struct MVert *mvert,
                                 int mpoly_len,
                                 float (*r_poly_normals)[3]);
 
-void BKE_mesh_calc_normals_poly_and_vertex(const struct MVert *mvert,
-                                           int mvert_len,
-                                           const struct MLoop *mloop,
-                                           int mloop_len,
-                                           const struct MPoly *mpolys,
-                                           int mpoly_len,
-                                           float (*r_poly_normals)[3],
-                                           float (*r_vert_normals)[3]);
-
 /**
  * Calculate face and vertex normals directly into result arrays.
  *
