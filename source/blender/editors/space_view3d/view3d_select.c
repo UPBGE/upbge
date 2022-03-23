@@ -1550,12 +1550,16 @@ void VIEW3D_OT_select_menu(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-static Base *object_mouse_select_menu(bContext *C,
-                                      ViewContext *vc,
-                                      const GPUSelectResult *buffer,
-                                      const int hits,
-                                      const int mval[2],
-                                      const struct SelectPick_Params *params)
+/**
+ * \return True when a menu was activated.
+ */
+static bool object_mouse_select_menu(bContext *C,
+                                     ViewContext *vc,
+                                     const GPUSelectResult *buffer,
+                                     const int hits,
+                                     const int mval[2],
+                                     const struct SelectPick_Params *params,
+                                     Base **r_basact)
 {
   int base_count = 0;
   bool ok;
@@ -1596,13 +1600,16 @@ static Base *object_mouse_select_menu(bContext *C,
   }
   CTX_DATA_END;
 
+  *r_basact = NULL;
+
   if (base_count == 0) {
-    return NULL;
+    return false;
   }
   if (base_count == 1) {
     Base *base = (Base *)linklist.list->link;
     BLI_linklist_free(linklist.list, NULL);
-    return base;
+    *r_basact = base;
+    return false;
   }
 
   /* UI, full in static array values that we later use in an enum function */
@@ -1631,7 +1638,7 @@ static Base *object_mouse_select_menu(bContext *C,
   WM_operator_properties_free(&ptr);
 
   BLI_linklist_free(linklist.list, NULL);
-  return NULL;
+  return true;
 }
 
 static int bone_select_menu_exec(bContext *C, wmOperator *op)
@@ -1735,6 +1742,10 @@ void VIEW3D_OT_bone_select_menu(wmOperatorType *ot)
   prop = RNA_def_boolean(ot->srna, "toggle", 0, "Toggle", "");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
+
+/**
+ * \return True when a menu was activated.
+ */
 static bool bone_mouse_select_menu(bContext *C,
                                    const GPUSelectResult *buffer,
                                    const int hits,
@@ -2189,6 +2200,49 @@ static Base *mouse_select_eval_buffer(ViewContext *vc,
   return basact;
 }
 
+static Base *mouse_select_object_center(ViewContext *vc, Base *startbase, const int mval[2])
+{
+  ARegion *region = vc->region;
+  ViewLayer *view_layer = vc->view_layer;
+  View3D *v3d = vc->v3d;
+
+  Base *oldbasact = BASACT(view_layer);
+
+  const float mval_fl[2] = {(float)mval[0], (float)mval[1]};
+  float dist = ED_view3d_select_dist_px() * 1.3333f;
+  Base *basact = NULL;
+
+  /* Put the active object at a disadvantage to cycle through other objects. */
+  const float penalty_dist = 10.0f * UI_DPI_FAC;
+  Base *base = startbase;
+  while (base) {
+    if (BASE_SELECTABLE(v3d, base)) {
+      float screen_co[2];
+      if (ED_view3d_project_float_global(
+              region, base->object->obmat[3], screen_co, V3D_PROJ_TEST_CLIP_DEFAULT) ==
+          V3D_PROJ_RET_OK) {
+        float dist_test = len_manhattan_v2v2(mval_fl, screen_co);
+        if (base == oldbasact) {
+          dist_test += penalty_dist;
+        }
+        if (dist_test < dist) {
+          dist = dist_test;
+          basact = base;
+        }
+      }
+    }
+    base = base->next;
+
+    if (base == NULL) {
+      base = FIRSTBASE(view_layer);
+    }
+    if (base == startbase) {
+      break;
+    }
+  }
+  return basact;
+}
+
 static Base *ed_view3d_give_base_under_cursor_ex(bContext *C,
                                                  const int mval[2],
                                                  int *r_material_slot)
@@ -2365,184 +2419,203 @@ static bool ed_object_select_pick_camera_track(bContext *C,
   return changed || found;
 }
 
+/**
+ * Cursor selection picking for object & pose-mode.
+ *
+ * \param mval: Region relative cursor coordinates.
+ * \param params: Selection parameters.
+ * \param center: Select by the cursors on-screen distances to the center/origin
+ * instead of the geometry any other contents of the item being selected.
+ * This could be used to select by bones by their origin too, currently it's only used for objects.
+ * \param enumerate: Show a menu for objects at the cursor location.
+ * Otherwise fall-through to non-menu selection.
+ * \param object_only: Only select objects (not bones / track markers).
+ */
 static bool ed_object_select_pick(bContext *C,
                                   const int mval[2],
                                   const struct SelectPick_Params *params,
-                                  bool obcenter,
-                                  bool enumerate,
-                                  bool object)
+                                  const bool center,
+                                  const bool enumerate,
+                                  const bool object_only)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   ViewContext vc;
   /* Setup view context for argument to callbacks. */
   ED_view3d_viewcontext_init(C, &vc, depsgraph);
 
-  const ARegion *region = CTX_wm_region(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  View3D *v3d = CTX_wm_view3d(C);
-  /* Don't set when the context has no active object (hidden), see: T60807. */
-  const Base *oldbasact = vc.obact ? BASACT(view_layer) : NULL;
-  Base *base, *startbase = NULL, *basact = NULL;
-  const eObjectMode object_mode = oldbasact ? oldbasact->object->mode : OB_MODE_OBJECT;
+  Scene *scene = vc.scene;
+  View3D *v3d = vc.v3d;
+
+  /* Menu activation may find a base to make active (if it only finds a single item to select). */
+  Base *basact_override = NULL;
+
   const bool is_obedit = (vc.obedit != NULL);
-  float dist = ED_view3d_select_dist_px() * 1.3333f;
-  const float mval_fl[2] = {(float)mval[0], (float)mval[1]};
-
-  /* Handle setting the new base active */
-  bool use_activate_selected_base = false;
-
-  /* When enabled, don't attempt any further selection. */
-  bool handled = false;
-  bool changed = false;
-
-  if (object) {
+  if (object_only) {
     /* Signal for #view3d_opengl_select to skip edit-mode objects. */
     vc.obedit = NULL;
   }
 
-  /* In pose-mode we don't want to change the object selection (unless exiting pose mode). */
-  const bool is_pose_mode = (vc.obact && vc.obact->mode & OB_MODE_POSE);
-
-  /* Always start list from `basact` when cycling the selection. */
-  startbase = FIRSTBASE(view_layer);
-  if (oldbasact && oldbasact->next) {
-    startbase = oldbasact->next;
-  }
-
-  /* This block uses the control key to make the object selected
-   * by its center point rather than its contents */
-
-  /* In edit-mode do not activate. */
-  if (obcenter) {
-
-    /* NOTE: shift+alt goes to group-flush-selecting. */
-    if (enumerate) {
-      basact = object_mouse_select_menu(C, &vc, NULL, 0, mval, params);
-    }
-    else {
-      /* Put the active object at a disadvantage to cycle through other objects. */
-      const float penalty_dist = 10.0f * U.dpi_fac;
-      base = startbase;
-      while (base) {
-        if (BASE_SELECTABLE(v3d, base)) {
-          float screen_co[2];
-          if (ED_view3d_project_float_global(
-                  region, base->object->obmat[3], screen_co, V3D_PROJ_TEST_CLIP_DEFAULT) ==
-              V3D_PROJ_RET_OK) {
-            float dist_test = len_manhattan_v2v2(mval_fl, screen_co);
-            if (base == oldbasact) {
-              dist_test += penalty_dist;
-            }
-            if (dist_test < dist) {
-              dist = dist_test;
-              basact = base;
-            }
-          }
-        }
-        base = base->next;
-
-        if (base == NULL) {
-          base = FIRSTBASE(view_layer);
-        }
-        if (base == startbase) {
-          break;
-        }
-      }
-    }
-    if (scene->toolsettings->object_flag & SCE_OBJECT_MODE_LOCK) {
-      if (is_obedit == false) {
-        if (basact && !BKE_object_is_mode_compat(basact->object, object_mode)) {
-          if (object_mode == OB_MODE_OBJECT) {
-            struct Main *bmain = CTX_data_main(C);
-            ED_object_mode_generic_exit(bmain, vc.depsgraph, scene, basact->object);
-          }
-          if (!BKE_object_is_mode_compat(basact->object, object_mode)) {
-            basact = NULL;
-          }
-        }
-      }
-    }
-  }
-  else {
+  /* Set for GPU depth buffer picking, leave NULL when selecting by center. */
+  struct {
     GPUSelectResult buffer[MAXPICKELEMS];
+    int hits;
     bool do_nearest;
+    bool has_bones;
+  } *gpu = NULL;
 
-    // TIMEIT_START(select_time);
+  /* First handle menu selection, early exit if a menu opens
+   * since this takes ownership of the selection action.
+   *
+   * Even when there is no menu `basact_override` may be set to avoid having to re-find
+   * the item under the cursor. */
 
-    /* if objects have pose-mode set, the bones are in the same selection buffer */
-    const eV3DSelectObjectFilter select_filter = ((object == false) ?
+  if (center == false) {
+    gpu = MEM_mallocN(sizeof(*gpu), __func__);
+    gpu->do_nearest = false;
+    gpu->has_bones = false;
+
+    /* If objects have pose-mode set, the bones are in the same selection buffer. */
+    const eV3DSelectObjectFilter select_filter = ((object_only == false) ?
                                                       ED_view3d_select_filter_from_mode(scene,
                                                                                         vc.obact) :
                                                       VIEW3D_SELECT_FILTER_NOP);
-    const int hits = mixed_bones_object_selectbuffer_extended(
-        &vc, buffer, ARRAY_SIZE(buffer), mval, select_filter, true, enumerate, &do_nearest);
+    gpu->hits = mixed_bones_object_selectbuffer_extended(&vc,
+                                                         gpu->buffer,
+                                                         ARRAY_SIZE(gpu->buffer),
+                                                         mval,
+                                                         select_filter,
+                                                         true,
+                                                         enumerate,
+                                                         &gpu->do_nearest);
+    gpu->has_bones = (object_only && gpu->hits > 0) ?
+                         false :
+                         selectbuffer_has_bones(gpu->buffer, gpu->hits);
+  }
 
-    // TIMEIT_END(select_time);
-
-    const bool has_bones = (object && hits > 0) ? false : selectbuffer_has_bones(buffer, hits);
-
-    if (hits > 0) {
-      /* NOTE: bundles are handling in the same way as bones. */
-
-      /* NOTE: shift+alt goes to group-flush-selecting. */
-      if (enumerate) {
-        if (has_bones && bone_mouse_select_menu(C, buffer, hits, false, params)) {
-          handled = true;
-        }
-        else {
-          basact = object_mouse_select_menu(C, &vc, buffer, hits, mval, params);
-        }
+  /* First handle menu selection, early exit when a menu was opened.
+   * Otherwise fall through to regular selection. */
+  if (enumerate) {
+    bool has_menu = false;
+    if (center) {
+      if (object_mouse_select_menu(C, &vc, NULL, 0, mval, params, &basact_override)) {
+        has_menu = true;
       }
-      else {
-        basact = mouse_select_eval_buffer(
-            &vc, buffer, hits, startbase, has_bones, do_nearest, NULL);
+    }
+    else {
+      if (gpu->hits != 0) {
+        if (gpu->has_bones && bone_mouse_select_menu(C, gpu->buffer, gpu->hits, false, params)) {
+          has_menu = true;
+        }
+        else if (object_mouse_select_menu(
+                     C, &vc, gpu->buffer, gpu->hits, mval, params, &basact_override)) {
+          has_menu = true;
+        }
       }
     }
 
-    if ((handled == false) &&
-        (((hits > 0) && has_bones) ||
-         /* Special case, even when there are no hits, pose logic may de-select all bones. */
-         ((hits == 0) && is_pose_mode))) {
+    /* Let the menu handle any further actions. */
+    if (has_menu) {
+      if (gpu != NULL) {
+        MEM_freeN(gpu);
+      }
+      return false;
+    }
+  }
 
-      if (basact && (has_bones && (basact->object->type == OB_CAMERA))) {
+  /* No menu, continue with selection. */
+
+  ViewLayer *view_layer = vc.view_layer;
+  /* Don't set when the context has no active object (hidden), see: T60807. */
+  const Base *oldbasact = vc.obact ? BASACT(view_layer) : NULL;
+  /* Always start list from `basact` when cycling the selection. */
+  Base *startbase = (oldbasact && oldbasact->next) ? oldbasact->next : FIRSTBASE(view_layer);
+
+  /* The next object's base to make active. */
+  Base *basact = NULL;
+  const eObjectMode object_mode = oldbasact ? oldbasact->object->mode : OB_MODE_OBJECT;
+
+  /* When enabled, don't attempt any further selection. */
+  bool handled = false;
+
+  /* Split `changed` into data-types so their associated updates can be properly performed.
+   * This is also needed as multiple changes may happen at once.
+   * Selecting a pose-bone or track can also select the object for e.g. */
+  bool changed_object = false;
+  bool changed_pose = false;
+  bool changed_track = false;
+
+  /* Handle setting the new base active (even when `handled == true`). */
+  bool use_activate_selected_base = false;
+
+  if (center) {
+    if (basact_override) {
+      basact = basact_override;
+    }
+    else {
+      basact = mouse_select_object_center(&vc, startbase, mval);
+    }
+  }
+  else {
+    if (basact_override) {
+      basact = basact_override;
+    }
+    else {
+      basact =
+          (gpu->hits > 0) ?
+              mouse_select_eval_buffer(
+                  &vc, gpu->buffer, gpu->hits, startbase, gpu->has_bones, gpu->do_nearest, NULL) :
+              NULL;
+    }
+
+    /* Select pose-bones or camera-tracks. */
+    if (((gpu->hits > 0) && gpu->has_bones) ||
+        /* Special case, even when there are no hits, pose logic may de-select all bones. */
+        ((gpu->hits == 0) && (object_mode & OB_MODE_POSE))) {
+
+      if (basact && (gpu->has_bones && (basact->object->type == OB_CAMERA))) {
         MovieClip *clip = BKE_object_movieclip_get(scene, basact->object, false);
         if (clip != NULL) {
-          if (ed_object_select_pick_camera_track(C, scene, basact, clip, buffer, hits, params)) {
+          if (ed_object_select_pick_camera_track(
+                  C, scene, basact, clip, gpu->buffer, gpu->hits, params)) {
             ED_object_base_select(basact, BA_SELECT);
-
             /* Don't set `handled` here as the object activation may be necessary. */
-            changed = true;
+            changed_object = true;
+
+            changed_track = true;
           }
           else {
             /* Fallback to regular object selection if no new bundles were selected,
              * allows to select object parented to reconstruction object. */
             basact = mouse_select_eval_buffer(
-                &vc, buffer, hits, startbase, false, do_nearest, NULL);
+                &vc, gpu->buffer, gpu->hits, startbase, false, gpu->do_nearest, NULL);
           }
         }
       }
       else if (ED_armature_pose_select_pick_with_buffer(view_layer,
                                                         v3d,
                                                         basact ? basact : (Base *)oldbasact,
-                                                        buffer,
-                                                        hits,
+                                                        gpu->buffer,
+                                                        gpu->hits,
                                                         params,
-                                                        do_nearest)) {
+                                                        gpu->do_nearest)) {
+
+        changed_pose = true;
+
         /* When there is no `baseact` this will have operated on `oldbasact`,
-         * no object operations are needed. */
+         * allowing #SelectPick_Params.deselect_all work in pose-mode.
+         * In this case no object operations are needed. */
         if (basact != NULL) {
-          /* then bone is found */
-          /* we make the armature selected:
-           * not-selected active object in pose-mode won't work well for tools */
+          /* By convention the armature-object is selected when in pose-mode.
+           * While leaving it unselected will work, leaving pose-mode would leave the object
+           * active + unselected which isn't ideal when performing other actions on the object. */
           ED_object_base_select(basact, BA_SELECT);
+          changed_object = true;
 
           WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, basact->object);
           WM_event_add_notifier(C, NC_OBJECT | ND_BONE_ACTIVE, basact->object);
-          DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
 
-          /* In weight-paint, we use selected bone to select vertex-group,
-           * so don't switch to new active object. */
+          /* In weight-paint, we use selected bone to select vertex-group.
+           * In this case the active object mustn't change as it would leave weight-paint mode. */
           if (oldbasact) {
             if (oldbasact->object->mode & OB_MODE_ALL_WEIGHT_PAINT) {
               /* Prevent activating.
@@ -2553,7 +2626,7 @@ static bool ed_object_select_pick(bContext *C,
 
               handled = true;
             }
-            else if (is_pose_mode && (basact->object->mode & OB_MODE_POSE)) {
+            else if ((object_mode & OB_MODE_POSE) && (basact->object->mode & OB_MODE_POSE)) {
               /* Within pose-mode, keep the current selection when switching pose bones,
                * this is noticeable when in pose mode with multiple objects at once.
                * Where selecting the bone of a different object would de-select this one.
@@ -2578,15 +2651,27 @@ static bool ed_object_select_pick(bContext *C,
         handled = true;
       }
     }
+  }
 
+  if (handled == false) {
     if (scene->toolsettings->object_flag & SCE_OBJECT_MODE_LOCK) {
-      if ((handled == false) && (is_obedit == false)) {
+      /* No special logic in edit-mode. */
+      if (is_obedit == false) {
         if (basact && !BKE_object_is_mode_compat(basact->object, object_mode)) {
           if (object_mode == OB_MODE_OBJECT) {
-            struct Main *bmain = CTX_data_main(C);
+            struct Main *bmain = vc.bmain;
             ED_object_mode_generic_exit(bmain, vc.depsgraph, scene, basact->object);
           }
           if (!BKE_object_is_mode_compat(basact->object, object_mode)) {
+            basact = NULL;
+          }
+        }
+
+        /* Disallow switching modes,
+         * special exception for edit-mode - vertex-parent operator. */
+        if (basact && oldbasact) {
+          if ((oldbasact->object->mode != basact->object->mode) &&
+              (oldbasact->object->mode & basact->object->mode) == 0) {
             basact = NULL;
           }
         }
@@ -2594,20 +2679,8 @@ static bool ed_object_select_pick(bContext *C,
     }
   }
 
-  if (scene->toolsettings->object_flag & SCE_OBJECT_MODE_LOCK) {
-    /* Disallow switching modes,
-     * special exception for edit-mode - vertex-parent operator. */
-    if ((handled == false) && (is_obedit == false)) {
-      if (oldbasact && basact) {
-        if ((oldbasact->object->mode != basact->object->mode) &&
-            (oldbasact->object->mode & basact->object->mode) == 0) {
-          basact = NULL;
-        }
-      }
-    }
-  }
-
-  /* Ensure code above doesn't change the active base. */
+  /* Ensure code above doesn't change the active base. This code is already fairly involved,
+   * it's best if changing the active object is localized to a single place. */
   BLI_assert(oldbasact == (vc.obact ? BASACT(view_layer) : NULL));
 
   bool found = (basact != NULL);
@@ -2620,20 +2693,22 @@ static bool ed_object_select_pick(bContext *C,
       else if (found || params->deselect_all) {
         /* Deselect everything. */
         /* `basact` may be NULL. */
-        changed |= object_deselect_all_except(view_layer, basact);
-        DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
+        if (object_deselect_all_except(view_layer, basact)) {
+          changed_object = true;
+        }
       }
     }
   }
 
-  /* so, do we have something selected? */
   if ((handled == false) && found) {
-    changed = true;
 
     if (vc.obedit) {
-      /* Only do the select (use for setting vertex parents & hooks). */
+      /* Only do the select (use for setting vertex parents & hooks).
+       * In edit-mode do not activate. */
       object_deselect_all_except(view_layer, basact);
       ED_object_base_select(basact, BA_SELECT);
+
+      changed_object = true;
     }
     /* Also prevent making it active on mouse selection. */
     else if (BASE_SELECTABLE(v3d, basact)) {
@@ -2661,11 +2736,8 @@ static bool ed_object_select_pick(bContext *C,
           break;
         }
         case SEL_OP_SET: {
-          /* When enabled, this puts other objects out of multi pose-mode. */
-          if (is_pose_mode == false || (basact->object->mode & OB_MODE_POSE) == 0) {
-            object_deselect_all_except(view_layer, basact);
-            ED_object_base_select(basact, BA_SELECT);
-          }
+          object_deselect_all_except(view_layer, basact);
+          ED_object_base_select(basact, BA_SELECT);
           break;
         }
         case SEL_OP_AND: {
@@ -2673,52 +2745,37 @@ static bool ed_object_select_pick(bContext *C,
           break;
         }
       }
-    }
 
-    DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+      changed_object = true;
+    }
   }
 
+  /* Perform the activation even when 'handled', since this is used to ensure
+   * the object from the pose-bone selected is also activated. */
   if (use_activate_selected_base && (basact != NULL)) {
-    changed = true;
+    changed_object = true;
     ED_object_base_activate(C, basact); /* adds notifier */
     if ((scene->toolsettings->object_flag & SCE_OBJECT_MODE_LOCK) == 0) {
       WM_toolsystem_update_from_context_view3d(C);
     }
   }
 
-  if (changed) {
-    if (use_activate_selected_base) {
-      /* Set special modes for grease pencil
-       * The grease pencil modes are not real modes, but a hack to make the interface
-       * consistent, so need some tricks to keep UI synchronized */
-      /* XXX(@aligorith): This stuff needs reviewing. */
-      if (false && (((oldbasact) && oldbasact->object->type == OB_GPENCIL) ||
-                    (basact->object->type == OB_GPENCIL))) {
-        /* set cursor */
-        if (ELEM(basact->object->mode,
-                 OB_MODE_PAINT_GPENCIL,
-                 OB_MODE_SCULPT_GPENCIL,
-                 OB_MODE_WEIGHT_GPENCIL,
-                 OB_MODE_VERTEX_GPENCIL)) {
-          ED_gpencil_toggle_brush_cursor(C, true, NULL);
-        }
-        else {
-          /* TODO: maybe is better use restore. */
-          ED_gpencil_toggle_brush_cursor(C, false, NULL);
-        }
-      }
-    }
+  if (changed_object) {
+    DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
+    WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
 
-    if (vc.obact && vc.obact->mode & OB_MODE_POSE) {
-      ED_outliner_select_sync_from_pose_bone_tag(C);
-    }
-    else {
-      ED_outliner_select_sync_from_object_tag(C);
-    }
+    ED_outliner_select_sync_from_object_tag(C);
   }
 
-  return changed;
+  if (changed_pose) {
+    ED_outliner_select_sync_from_pose_bone_tag(C);
+  }
+
+  if (gpu != NULL) {
+    MEM_freeN(gpu);
+  }
+
+  return (changed_object || changed_pose || changed_track);
 }
 
 /**
@@ -2815,11 +2872,11 @@ static int view3d_select_exec(bContext *C, wmOperator *op)
   bool enumerate = RNA_boolean_get(op->ptr, "enumerate");
   /* Only force object select for edit-mode to support vertex parenting,
    * or paint-select to allow pose bone select with vert/face select. */
-  bool object = (RNA_boolean_get(op->ptr, "object") &&
-                 (obedit || BKE_paint_select_elem_test(obact) ||
-                  /* so its possible to select bones in weight-paint mode (LMB select) */
-                  (obact && (obact->mode & OB_MODE_ALL_WEIGHT_PAINT) &&
-                   BKE_object_pose_armature_get(obact))));
+  bool object_only = (RNA_boolean_get(op->ptr, "object") &&
+                      (obedit || BKE_paint_select_elem_test(obact) ||
+                       /* so its possible to select bones in weight-paint mode (LMB select) */
+                       (obact && (obact->mode & OB_MODE_ALL_WEIGHT_PAINT) &&
+                        BKE_object_pose_armature_get(obact))));
 
   /* This could be called "changed_or_found" since this is true when there is an element
    * under the cursor to select, even if it happens that the selection & active state doesn't
@@ -2832,7 +2889,7 @@ static int view3d_select_exec(bContext *C, wmOperator *op)
   view3d_operator_needs_opengl(C);
   BKE_object_update_select_id(CTX_data_main(C));
 
-  if (object) {
+  if (object_only) {
     obedit = NULL;
     obact = NULL;
 
@@ -2842,7 +2899,7 @@ static int view3d_select_exec(bContext *C, wmOperator *op)
     center = false;
   }
 
-  if (obedit && object == false) {
+  if (obedit && object_only == false) {
     if (obedit->type == OB_MESH) {
       changed = EDBM_select_pick(C, mval, &params);
     }
@@ -2884,7 +2941,7 @@ static int view3d_select_exec(bContext *C, wmOperator *op)
     changed = ed_wpaint_vertex_select_pick(C, mval, &params, obact);
   }
   else {
-    changed = ed_object_select_pick(C, mval, &params, center, enumerate, object);
+    changed = ed_object_select_pick(C, mval, &params, center, enumerate, object_only);
   }
 
   /* Pass-through flag may be cleared, see #WM_operator_flag_only_pass_through_on_press. */
