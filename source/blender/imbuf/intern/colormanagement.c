@@ -504,7 +504,18 @@ static void colormanage_load_config(OCIO_ConstConfigRcPtr *config)
     is_invertible = OCIO_colorSpaceIsInvertible(ocio_colorspace);
     is_data = OCIO_colorSpaceIsData(ocio_colorspace);
 
-    colormanage_colorspace_add(name, description, is_invertible, is_data);
+    ColorSpace *colorspace = colormanage_colorspace_add(name, description, is_invertible, is_data);
+
+    colorspace->num_aliases = OCIO_colorSpaceGetNumAliases(ocio_colorspace);
+    if (colorspace->num_aliases > 0) {
+      colorspace->aliases = MEM_callocN(sizeof(*colorspace->aliases) * colorspace->num_aliases,
+                                        "ColorSpace aliases");
+      for (int i = 0; i < colorspace->num_aliases; i++) {
+        BLI_strncpy(colorspace->aliases[i],
+                    OCIO_colorSpaceGetAlias(ocio_colorspace, i),
+                    MAX_COLORSPACE_NAME);
+      }
+    }
 
     OCIO_colorSpaceRelease(ocio_colorspace);
   }
@@ -587,6 +598,7 @@ static void colormanage_free_config(void)
     }
 
     /* free color space itself */
+    MEM_SAFE_FREE(colorspace->aliases);
     MEM_freeN(colorspace);
 
     colorspace = colorspace_next;
@@ -1392,6 +1404,12 @@ bool IMB_colormanagement_space_name_is_data(const char *name)
 {
   ColorSpace *colorspace = colormanage_colorspace_get_named(name);
   return (colorspace && colorspace->is_data);
+}
+
+bool IMB_colormanagement_space_name_is_scene_linear(const char *name)
+{
+  ColorSpace *colorspace = colormanage_colorspace_get_named(name);
+  return (colorspace && IMB_colormanagement_space_is_scene_linear(colorspace));
 }
 
 const float *IMB_colormanagement_get_xyz_to_rgb()
@@ -2444,9 +2462,13 @@ ImBuf *IMB_colormanagement_imbuf_for_write(ImBuf *ibuf,
     ibuf->userflags &= ~(IB_RECT_INVALID | IB_DISPLAY_BUFFER_INVALID);
   }
 
-  const bool do_colormanagement = save_as_render && (is_movie || !requires_linear_float);
+  const bool do_colormanagement_display = save_as_render && (is_movie || !requires_linear_float);
+  const bool do_colormanagement_linear = save_as_render && requires_linear_float &&
+                                         imf->linear_colorspace_settings.name[0] &&
+                                         !IMB_colormanagement_space_name_is_scene_linear(
+                                             imf->linear_colorspace_settings.name);
 
-  if (do_colormanagement || do_alpha_under) {
+  if (do_colormanagement_display || do_colormanagement_linear || do_alpha_under) {
     if (allocate_result) {
       colormanaged_ibuf = IMB_dupImBuf(ibuf);
     }
@@ -2499,7 +2521,8 @@ ImBuf *IMB_colormanagement_imbuf_for_write(ImBuf *ibuf,
     }
   }
 
-  if (do_colormanagement) {
+  if (do_colormanagement_display) {
+    /* Color management with display and view transform. */
     bool make_byte = false;
 
     /* for proper check whether byte buffer is required by a format or not
@@ -2530,6 +2553,27 @@ ImBuf *IMB_colormanagement_imbuf_for_write(ImBuf *ibuf,
        */
       colormanaged_ibuf->float_colorspace = display_transform_get_colorspace(
           &imf->view_settings, &imf->display_settings);
+    }
+  }
+  else if (do_colormanagement_linear) {
+    /* Color management transform to another linear color space. */
+    if (!colormanaged_ibuf->rect_float) {
+      IMB_float_from_rect(colormanaged_ibuf);
+      imb_freerectImBuf(colormanaged_ibuf);
+    }
+
+    if (colormanaged_ibuf->rect_float) {
+      const char *from_colorspace = (ibuf->float_colorspace) ? ibuf->float_colorspace->name :
+                                                               global_role_scene_linear;
+      const char *to_colorspace = imf->linear_colorspace_settings.name;
+
+      IMB_colormanagement_transform(colormanaged_ibuf->rect_float,
+                                    colormanaged_ibuf->x,
+                                    colormanaged_ibuf->y,
+                                    colormanaged_ibuf->channels,
+                                    from_colorspace,
+                                    to_colorspace,
+                                    false);
     }
   }
 
@@ -3020,6 +3064,12 @@ ColorSpace *colormanage_colorspace_get_named(const char *name)
   for (colorspace = global_colorspaces.first; colorspace; colorspace = colorspace->next) {
     if (STREQ(colorspace->name, name)) {
       return colorspace;
+    }
+
+    for (int i = 0; i < colorspace->num_aliases; i++) {
+      if (STREQ(colorspace->aliases[i], name)) {
+        return colorspace;
+      }
     }
   }
 

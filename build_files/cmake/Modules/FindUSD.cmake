@@ -37,6 +37,7 @@ FIND_PATH(USD_INCLUDE_DIR
 FIND_LIBRARY(USD_LIBRARY
   NAMES
     usd_usd_m usd_usd_ms usd_m usd_ms
+    ${PXR_LIB_PREFIX}usd
   NAMES_PER_DIR
   HINTS
     ${_usd_SEARCH_DIRS}

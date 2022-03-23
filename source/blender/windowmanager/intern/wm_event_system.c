@@ -4428,6 +4428,9 @@ void WM_event_add_mousemove(wmWindow *win)
 /** \name Ghost Event Conversion
  * \{ */
 
+/**
+ * \return The WM enum for key or #EVENT_NONE (which should be ignored).
+ */
 static int convert_key(GHOST_TKey key)
 {
   if (key >= GHOST_kKeyA && key <= GHOST_kKeyZ) {
@@ -4451,7 +4454,7 @@ static int convert_key(GHOST_TKey key)
     case GHOST_kKeyLinefeed:
       return EVT_LINEFEEDKEY;
     case GHOST_kKeyClear:
-      return 0;
+      return EVENT_NONE;
     case GHOST_kKeyEnter:
       return EVT_RETKEY;
 
@@ -4506,9 +4509,9 @@ static int convert_key(GHOST_TKey key)
     case GHOST_kKeyCapsLock:
       return EVT_CAPSLOCKKEY;
     case GHOST_kKeyNumLock:
-      return 0;
+      return EVENT_NONE;
     case GHOST_kKeyScrollLock:
-      return 0;
+      return EVENT_NONE;
 
     case GHOST_kKeyLeftArrow:
       return EVT_LEFTARROWKEY;
@@ -4520,7 +4523,7 @@ static int convert_key(GHOST_TKey key)
       return EVT_DOWNARROWKEY;
 
     case GHOST_kKeyPrintScreen:
-      return 0;
+      return EVENT_NONE;
     case GHOST_kKeyPause:
       return EVT_PAUSEKEY;
 
@@ -4562,9 +4565,28 @@ static int convert_key(GHOST_TKey key)
     case GHOST_kKeyMediaLast:
       return EVT_MEDIALAST;
 
-    default:
-      return EVT_UNKNOWNKEY; /* #GHOST_kKeyUnknown (this could be asserted). */
+    case GHOST_kKeyUnknown:
+      return EVT_UNKNOWNKEY;
+
+#if defined(__GNUC__) || defined(__clang__)
+      /* Ensure all members of this enum are handled, otherwise generate a compiler warning.
+       * Note that these members have been handled, these ranges are to satisfy the compiler. */
+    case GHOST_kKeyF1 ... GHOST_kKeyF24:
+    case GHOST_kKeyA ... GHOST_kKeyZ:
+    case GHOST_kKeyNumpad0 ... GHOST_kKeyNumpad9:
+    case GHOST_kKey0 ... GHOST_kKey9: {
+      BLI_assert_unreachable();
+      break;
+    }
+#else
+    default: {
+      break;
+    }
+#endif
   }
+
+  CLOG_WARN(WM_LOG_EVENTS, "unknown event type %d from ghost", (int)key);
+  return EVENT_NONE;
 }
 
 static void wm_eventemulation(wmEvent *event, bool test_only)
@@ -5087,6 +5109,10 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, void 
     case GHOST_kEventKeyUp: {
       GHOST_TEventKeyData *kd = customdata;
       event.type = convert_key(kd->key);
+      if (UNLIKELY(event.type == EVENT_NONE)) {
+        break;
+      }
+
       event.ascii = kd->ascii;
       /* Might be not NULL terminated. */
       memcpy(event.utf8_buf, kd->utf8_buf, sizeof(event.utf8_buf));
