@@ -386,8 +386,8 @@ class USERPREF_PT_edit_objects_duplicate_data(EditingPanel, CenterAlignMixIn, Pa
         col.prop(edit, "use_duplicate_curve", text="Curve")
         # col.prop(edit, "use_duplicate_fcurve", text="F-Curve")  # Not implemented.
         col.prop(edit, "use_duplicate_grease_pencil", text="Grease Pencil")
-        if hasattr(edit, "use_duplicate_hair"):
-            col.prop(edit, "use_duplicate_hair", text="Hair")
+        if hasattr(edit, "use_duplicate_curves"):
+            col.prop(edit, "use_duplicate_curves", text="Curves")
 
         col = flow.column()
         col.prop(edit, "use_duplicate_lattice", text="Lattice")
@@ -2261,6 +2261,7 @@ class USERPREF_PT_experimental_new_features(ExperimentalPanel, Panel):
             context, (
                 ({"property": "use_sculpt_vertex_colors"}, "T71947"),
                 ({"property": "use_sculpt_tools_tilt"}, "T82877"),
+                ({"property": "use_select_nearest_on_first_click"}, "T96752"),
                 ({"property": "use_extended_asset_browser"}, ("project/view/130/", "Project Page")),
                 ({"property": "use_override_templates"}, ("T73318", "Milestone 4")),
                 ({"property": "use_named_attribute_nodes"}, ("T91742")),

@@ -391,6 +391,10 @@ static bool image_save_single(ReportList *reports,
     }
   }
 
+  if (rr) {
+    BKE_image_release_renderresult(opts->scene, ima);
+  }
+
   return ok;
 }
 
@@ -693,7 +697,7 @@ bool BKE_image_render_write(ReportList *reports,
                             RenderResult *rr,
                             const Scene *scene,
                             const bool stamp,
-                            const char *filename)
+                            const char *filepath_basis)
 {
   bool ok = true;
 
@@ -711,8 +715,8 @@ bool BKE_image_render_write(ReportList *reports,
   const float dither = scene->r.dither_intensity;
 
   if (image_format.views_format == R_IMF_VIEWS_MULTIVIEW && is_exr_rr) {
-    ok = BKE_image_render_write_exr(reports, rr, filename, &image_format, true, nullptr, -1);
-    image_render_print_save_message(reports, filename, ok, errno);
+    ok = BKE_image_render_write_exr(reports, rr, filepath_basis, &image_format, true, nullptr, -1);
+    image_render_print_save_message(reports, filepath_basis, ok, errno);
   }
 
   /* mono, legacy code */
@@ -722,10 +726,10 @@ bool BKE_image_render_write(ReportList *reports,
          rv = rv->next, view_id++) {
       char filepath[FILE_MAX];
       if (is_mono) {
-        STRNCPY(filepath, filename);
+        STRNCPY(filepath, filepath_basis);
       }
       else {
-        BKE_scene_multiview_view_filepath_get(&scene->r, filename, rv->name, filepath);
+        BKE_scene_multiview_view_filepath_get(&scene->r, filepath_basis, rv->name, filepath);
       }
 
       if (is_exr_rr) {
@@ -768,7 +772,7 @@ bool BKE_image_render_write(ReportList *reports,
     BLI_assert(image_format.views_format == R_IMF_VIEWS_STEREO_3D);
 
     char filepath[FILE_MAX];
-    STRNCPY(filepath, filename);
+    STRNCPY(filepath, filepath_basis);
 
     if (image_format.imtype == R_IMF_IMTYPE_MULTILAYER) {
       printf("Stereo 3D not supported for MultiLayer image: %s\n", filepath);

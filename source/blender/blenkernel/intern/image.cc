@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <ctime>
 #include <fcntl.h>
 #ifndef WIN32
 #  include <unistd.h>
@@ -16,7 +17,8 @@
 #  include <io.h>
 #endif
 
-#include <ctime>
+#include <regex>
+#include <string>
 
 #include "BLI_array.hh"
 
@@ -237,7 +239,7 @@ static void image_foreach_cache(ID *id,
 
   auto gputexture_offset = [image](int target, int eye, int resolution) {
     constexpr size_t base_offset = offsetof(Image, gputexture);
-    const auto first = &image->gputexture[0][0][0];
+    struct GPUTexture **first = &image->gputexture[0][0][0];
     const size_t array_offset = sizeof(*first) *
                                 (&image->gputexture[target][eye][resolution] - first);
     return base_offset + array_offset;
@@ -487,9 +489,9 @@ static void image_add_view(Image *ima, const char *viewname, const char *filepat
 /** \name Image Cache
  * \{ */
 
-typedef struct ImageCacheKey {
+struct ImageCacheKey {
   int index;
-} ImageCacheKey;
+};
 
 static unsigned int imagecache_hashhash(const void *key_v)
 {
@@ -3111,14 +3113,15 @@ bool BKE_image_get_tile_info(char *filepath, ListBase *tiles, int *tile_start, i
   int max_udim = 0;
   int id;
 
-  struct direntry *dir;
-  uint totfile = BLI_filelist_dir_contents(dirname, &dir);
-  for (int i = 0; i < totfile; i++) {
-    if (!(dir[i].type & S_IFREG)) {
+  struct direntry *dirs;
+  const uint dirs_num = BLI_filelist_dir_contents(dirname, &dirs);
+  for (int i = 0; i < dirs_num; i++) {
+    if (!(dirs[i].type & S_IFREG)) {
       continue;
     }
 
-    if (!BKE_image_get_tile_number_from_filepath(dir[i].relname, udim_pattern, tile_format, &id)) {
+    if (!BKE_image_get_tile_number_from_filepath(
+            dirs[i].relname, udim_pattern, tile_format, &id)) {
       continue;
     }
 
@@ -3131,7 +3134,7 @@ bool BKE_image_get_tile_info(char *filepath, ListBase *tiles, int *tile_start, i
     min_udim = min_ii(min_udim, id);
     max_udim = max_ii(max_udim, id);
   }
-  BLI_filelist_free(dir, totfile);
+  BLI_filelist_free(dirs, dirs_num);
   MEM_SAFE_FREE(udim_pattern);
 
   if (is_udim && min_udim <= IMA_UDIM_MAX) {
@@ -3316,69 +3319,24 @@ void BKE_image_ensure_tile_token(char *filename)
     return;
   }
 
-  /* Is there a sequence of digits in the filename? */
-  ushort digits;
-  char head[FILE_MAX], tail[FILE_MAX];
-  BLI_path_sequence_decode(filename, head, tail, &digits);
-  if (digits == 4) {
-    sprintf(filename, "%s<UDIM>%s", head, tail);
+  std::string path(filename);
+  std::smatch match;
+
+  /* General 4-digit "udim" pattern. As this format is susceptible to ambiguity
+   * with other digit sequences, we can leverage the supported range of roughly
+   * 1000 through 2000 to provide better detection.
+   */
+  std::regex pattern(R"((^|.*?\D)([12]\d{3})(\D.*))");
+  if (std::regex_search(path, match, pattern)) {
+    BLI_strncpy(filename, match.format("$1<UDIM>$3").c_str(), FILE_MAX);
     return;
   }
 
-  /* Is there a sequence like u##_v#### in the filename? */
-  uint cur = 0;
-  uint name_end = strlen(filename);
-  uint u_digits = 0;
-  uint v_digits = 0;
-  uint u_start = (uint)-1;
-  bool u_found = false;
-  bool v_found = false;
-  bool sep_found = false;
-  while (cur < name_end) {
-    if (filename[cur] == 'u') {
-      u_found = true;
-      u_digits = 0;
-      u_start = cur;
-    }
-    else if (filename[cur] == 'v') {
-      v_found = true;
-      v_digits = 0;
-    }
-    else if (u_found && !v_found) {
-      if (isdigit(filename[cur]) && u_digits < 2) {
-        u_digits++;
-      }
-      else if (filename[cur] == '_') {
-        sep_found = true;
-      }
-      else {
-        u_found = false;
-      }
-    }
-    else if (u_found && u_digits > 0 && v_found) {
-      if (isdigit(filename[cur])) {
-        if (v_digits < 4) {
-          v_digits++;
-        }
-        else {
-          u_found = false;
-          v_found = false;
-        }
-      }
-      else if (v_digits > 0) {
-        break;
-      }
-    }
-
-    cur++;
-  }
-
-  if (u_found && sep_found && v_found && (u_digits + v_digits > 1)) {
-    const char *token = "<UVTILE>";
-    const size_t token_length = strlen(token);
-    memmove(filename + u_start + token_length, filename + cur, name_end - cur);
-    memcpy(filename + u_start, token, token_length);
-    filename[u_start + token_length + (name_end - cur)] = '\0';
+  /* General `u##_v###` `uvtile` pattern. */
+  pattern = std::regex(R"((.*)(u\d{1,2}_v\d{1,3})(\D.*))");
+  if (std::regex_search(path, match, pattern)) {
+    BLI_strncpy(filename, match.format("$1<UVTILE>$3").c_str(), FILE_MAX);
+    return;
   }
 }
 
@@ -3393,15 +3351,15 @@ bool BKE_image_tile_filepath_exists(const char *filepath)
   char *udim_pattern = BKE_image_get_tile_strformat(filepath, &tile_format);
 
   bool found = false;
-  struct direntry *dir;
-  uint totfile = BLI_filelist_dir_contents(dirname, &dir);
-  for (int i = 0; i < totfile; i++) {
-    if (!(dir[i].type & S_IFREG)) {
+  struct direntry *dirs;
+  const uint dirs_num = BLI_filelist_dir_contents(dirname, &dirs);
+  for (int i = 0; i < dirs_num; i++) {
+    if (!(dirs[i].type & S_IFREG)) {
       continue;
     }
 
     int id;
-    if (!BKE_image_get_tile_number_from_filepath(dir[i].path, udim_pattern, tile_format, &id)) {
+    if (!BKE_image_get_tile_number_from_filepath(dirs[i].path, udim_pattern, tile_format, &id)) {
       continue;
     }
 
@@ -3412,7 +3370,7 @@ bool BKE_image_tile_filepath_exists(const char *filepath)
     found = true;
     break;
   }
-  BLI_filelist_free(dir, totfile);
+  BLI_filelist_free(dirs, dirs_num);
   MEM_SAFE_FREE(udim_pattern);
 
   return found;
@@ -5096,7 +5054,7 @@ void BKE_image_user_file_path_ex(ImageUser *iuser, Image *ima, char *filepath, b
 bool BKE_image_has_alpha(Image *image)
 {
   void *lock;
-  ImBuf *ibuf = BKE_image_acquire_ibuf(image, NULL, &lock);
+  ImBuf *ibuf = BKE_image_acquire_ibuf(image, nullptr, &lock);
   const int planes = (ibuf ? ibuf->planes : 0);
   BKE_image_release_ibuf(image, ibuf, lock);
 

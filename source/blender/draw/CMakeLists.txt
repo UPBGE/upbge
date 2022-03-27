@@ -25,10 +25,10 @@ set(INC
   ../windowmanager
 
   ../../../intern/atomic
+  ../../../intern/clog
   ../../../intern/glew-mx
   ../../../intern/guardedalloc
   ../../../intern/opensubdiv
-  ../../../intern/clog
 
   # dna_type_offsets.h
   ${CMAKE_CURRENT_BINARY_DIR}/../makesdna/intern
@@ -191,6 +191,7 @@ set(SRC
   intern/draw_cache_inline.h
   intern/draw_color_management.h
   intern/draw_common.h
+  intern/draw_common_shader_shared.h
   intern/draw_debug.h
   intern/draw_hair_private.h
   intern/draw_instance_data.h
@@ -222,9 +223,9 @@ set(SRC
   engines/image/image_partial_updater.hh
   engines/image/image_private.hh
   engines/image/image_shader_params.hh
+  engines/image/image_space.hh
   engines/image/image_space_image.hh
   engines/image/image_space_node.hh
-  engines/image/image_space.hh
   engines/image/image_texture_info.hh
   engines/image/image_usage.hh
   engines/image/image_wrappers.hh

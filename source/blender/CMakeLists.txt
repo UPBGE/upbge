@@ -21,6 +21,7 @@ set(SRC_DNA_INC
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_controller_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_curve_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_curveprofile_types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_curves_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_customdata_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_defs.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_documentation.h
@@ -33,7 +34,6 @@ set(SRC_DNA_INC
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_gpencil_modifier_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_gpencil_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_gpu_types.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_curves_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_image_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_ipo_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_key_types.h

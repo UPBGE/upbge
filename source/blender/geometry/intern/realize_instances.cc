@@ -1139,8 +1139,8 @@ static void execute_realize_curve_task(const RealizeInstancesOptions &options,
   const Curves &curves_id = *curves_info.curves;
   const bke::CurvesGeometry &curves = bke::CurvesGeometry::wrap(curves_id.geometry);
 
-  const IndexRange dst_point_range{task.start_indices.point, curves.points_size()};
-  const IndexRange dst_curve_range{task.start_indices.curve, curves.curves_size()};
+  const IndexRange dst_point_range{task.start_indices.point, curves.points_num()};
+  const IndexRange dst_curve_range{task.start_indices.curve, curves.curves_num()};
 
   copy_transformed_positions(
       curves.positions(), task.transform, dst_curves.positions().slice(dst_point_range));
@@ -1194,9 +1194,9 @@ static void execute_realize_curve_task(const RealizeInstancesOptions &options,
       [&](const AttributeDomain domain) {
         switch (domain) {
           case ATTR_DOMAIN_POINT:
-            return IndexRange(task.start_indices.point, curves.points_size());
+            return IndexRange(task.start_indices.point, curves.points_num());
           case ATTR_DOMAIN_CURVE:
-            return IndexRange(task.start_indices.curve, curves.curves_size());
+            return IndexRange(task.start_indices.curve, curves.curves_num());
           default:
             BLI_assert_unreachable();
             return IndexRange();

@@ -324,7 +324,6 @@ typedef enum eSpaceOutliner_Flag {
 typedef enum eSpaceOutliner_Filter {
   SO_FILTER_SEARCH = (1 << 0), /* Run-time flag. */
   SO_FILTER_CLEARED_1 = (1 << 1),
-  SO_FILTER_NO_LIB_OVERRIDE = SO_FILTER_CLEARED_1, /* re-use */
   SO_FILTER_NO_OBJECT = (1 << 2),
   SO_FILTER_NO_OB_CONTENT = (1 << 3), /* Not only mesh, but modifiers, constraints, ... */
   SO_FILTER_NO_CHILDREN = (1 << 4),
@@ -360,7 +359,7 @@ typedef enum eSpaceOutliner_Filter {
 
 #define SO_FILTER_ANY \
   (SO_FILTER_NO_OB_CONTENT | SO_FILTER_NO_CHILDREN | SO_FILTER_OB_TYPE | SO_FILTER_OB_STATE | \
-   SO_FILTER_NO_COLLECTION | SO_FILTER_NO_VIEW_LAYERS | SO_FILTER_NO_LIB_OVERRIDE)
+   SO_FILTER_NO_COLLECTION | SO_FILTER_NO_VIEW_LAYERS)
 
 /** #SpaceOutliner.filter_state */
 typedef enum eSpaceOutliner_StateFilter {
@@ -1005,12 +1004,6 @@ typedef enum eFileSelectType {
   FILE_SPECIAL = 9,
 } eFileSelectType;
 
-/** File-selector op property -> action. */
-typedef enum eFileSel_Action {
-  FILE_OPENFILE = 0,
-  FILE_SAVE = 1,
-} eFileSel_Action;
-
 /**
  * #FileSelectParams.flag / `sfile->params->flag`.
  * \note short flag, also used as 16 lower bits of flags in link/append code
@@ -1156,8 +1149,8 @@ typedef struct FileDirEntry {
 #
 typedef struct FileDirEntryArr {
   ListBase entries;
-  int nbr_entries;
-  int nbr_entries_filtered;
+  int entries_num;
+  int entries_filtered_num;
 
   /** FILE_MAX. */
   char root[1024];

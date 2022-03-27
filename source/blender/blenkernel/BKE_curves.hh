@@ -122,14 +122,14 @@ class CurvesGeometry : public ::CurvesGeometry {
    * Accessors.
    */
 
-  int points_size() const;
-  int curves_size() const;
+  int points_num() const;
+  int curves_num() const;
   IndexRange points_range() const;
   IndexRange curves_range() const;
 
   /**
    * The index of the first point in every curve. The size of this span is one larger than the
-   * number of curves. Consider using #range_for_curve rather than using the offsets directly.
+   * number of curves. Consider using #points_for_curve rather than using the offsets directly.
    */
   Span<int> offsets() const;
   MutableSpan<int> offsets();
@@ -137,8 +137,8 @@ class CurvesGeometry : public ::CurvesGeometry {
   /**
    * Access a range of indices of point data for a specific curve.
    */
-  IndexRange range_for_curve(int index) const;
-  IndexRange range_for_curves(IndexRange curves) const;
+  IndexRange points_for_curve(int index) const;
+  IndexRange points_for_curves(IndexRange curves) const;
 
   /** The type (#CurveType) of each curve, or potentially a single if all are the same type. */
   VArray<int8_t> curve_types() const;
@@ -146,6 +146,8 @@ class CurvesGeometry : public ::CurvesGeometry {
   MutableSpan<int8_t> curve_types();
 
   bool has_curve_with_type(const CurveType type) const;
+  /** Return the number of curves with each type. */
+  std::array<int, CURVE_TYPES_NUM> count_curve_types() const;
 
   MutableSpan<float3> positions();
   Span<float3> positions() const;
@@ -243,22 +245,35 @@ class CurvesGeometry : public ::CurvesGeometry {
    * The total number of points in the evaluated poly curve.
    * This can depend on the resolution attribute if it exists.
    */
-  int evaluated_points_size() const;
+  int evaluated_points_num() const;
 
   /**
    * Access a range of indices of point data for a specific curve.
    * Call #evaluated_offsets() first to ensure that the evaluated offsets cache is current.
    */
-  IndexRange evaluated_range_for_curve(int index) const;
+  IndexRange evaluated_points_for_curve(int index) const;
+  IndexRange evaluated_points_for_curves(IndexRange curves) const;
 
   /**
    * The index of the first evaluated point for every curve. The size of this span is one larger
-   * than the number of curves. Consider using #evaluated_range_for_curve rather than using the
+   * than the number of curves. Consider using #evaluated_points_for_curve rather than using the
    * offsets directly.
    */
   Span<int> evaluated_offsets() const;
 
+  /** Makes sure the data described by #evaluated_offsets if necessary. */
+  void ensure_evaluated_offsets() const;
+
   Span<float3> evaluated_positions() const;
+
+  /**
+   * Evaluate a generic data to the standard evaluated points of a specific curve,
+   * defined by the resolution attribute or other factors, depending on the curve type.
+   *
+   * \warning This function expects offsets to the evaluated points for each curve to be
+   * calculated. That can be ensured with #ensure_evaluated_offsets.
+   */
+  void interpolate_to_evaluated(int curve_index, GSpan src, GMutableSpan dst) const;
 
  private:
   /**
@@ -275,7 +290,7 @@ class CurvesGeometry : public ::CurvesGeometry {
    * Change the number of elements. New values for existing attributes should be properly
    * initialized afterwards.
    */
-  void resize(int point_size, int curve_size);
+  void resize(int points_num, int curves_num);
 
   /** Call after deforming the position attribute. */
   void tag_positions_changed();
@@ -314,9 +329,9 @@ namespace curves {
  * and the fact that curves with two points cannot be cyclic. The logic is simple, but this
  * function should be used to make intentions clearer.
  */
-inline int curve_segment_size(const int size, const bool cyclic)
+inline int curve_segment_size(const int points_num, const bool cyclic)
 {
-  return (cyclic && size > 2) ? size : size - 1;
+  return (cyclic && points_num > 2) ? points_num : points_num - 1;
 }
 
 namespace bezier {
@@ -375,16 +390,23 @@ void calculate_evaluated_positions(Span<float3> positions,
                                    Span<int> evaluated_offsets,
                                    MutableSpan<float3> evaluated_positions);
 
+/**
+ * Evaluate generic data to the evaluated points, with counts for each segment described by
+ * #evaluated_offsets. Unlike other curve types, for Bezier curves generic data and positions
+ * are treated separately, since attribute values aren't stored for the handle control points.
+ */
+void interpolate_to_evaluated(GSpan src, Span<int> evaluated_offsets, GMutableSpan dst);
+
 }  // namespace bezier
 
 namespace catmull_rom {
 
 /**
  * Calculate the number of evaluated points that #interpolate_to_evaluated is expected to produce.
- * \param size: The number of points in the curve.
+ * \param points_num: The number of points in the curve.
  * \param resolution: The resolution for each segment.
  */
-int calculate_evaluated_size(int size, bool cyclic, int resolution);
+int calculate_evaluated_size(int points_num, bool cyclic, int resolution);
 
 /**
  * Evaluate the Catmull Rom curve. The length of the #dst span should be calculated with
@@ -399,7 +421,7 @@ namespace nurbs {
 /**
  * Checks the conditions that a NURBS curve needs to evaluate.
  */
-bool check_valid_size_and_order(int size, int8_t order, bool cyclic, KnotsMode knots_mode);
+bool check_valid_size_and_order(int points_num, int8_t order, bool cyclic, KnotsMode knots_mode);
 
 /**
  * Calculate the standard evaluated size for a NURBS curve, using the standard that
@@ -410,14 +432,14 @@ bool check_valid_size_and_order(int size, int8_t order, bool cyclic, KnotsMode k
  * shared.
  */
 int calculate_evaluated_size(
-    int size, int8_t order, bool cyclic, int resolution, KnotsMode knots_mode);
+    int points_num, int8_t order, bool cyclic, int resolution, KnotsMode knots_mode);
 
 /**
  * Calculate the length of the knot vector for a NURBS curve with the given properties.
  * The knots must be longer for a cyclic curve, for example, in order to provide weights for the
  * last evaluated points that are also influenced by the first control points.
  */
-int knots_size(int size, int8_t order, bool cyclic);
+int knots_size(int points_num, int8_t order, bool cyclic);
 
 /**
  * Calculate the knots for a spline given its properties, based on built-in standards defined by
@@ -428,7 +450,7 @@ int knots_size(int size, int8_t order, bool cyclic);
  * changes, and is generally more intuitive than defining the knot vector manually.
  */
 void calculate_knots(
-    int size, KnotsMode mode, int8_t order, bool cyclic, MutableSpan<float> knots);
+    int points_num, KnotsMode mode, int8_t order, bool cyclic, MutableSpan<float> knots);
 
 /**
  * Based on the knots, the order, and other properties of a NURBS curve, calculate a cache that can
@@ -436,7 +458,7 @@ void calculate_knots(
  * two pieces of information for every evaluated point: the first control point that influences it,
  * and a weight for each control point.
  */
-void calculate_basis_cache(int size,
+void calculate_basis_cache(int points_num,
                            int evaluated_size,
                            int8_t order,
                            bool cyclic,
@@ -461,11 +483,11 @@ void interpolate_to_evaluated(const BasisCache &basis_cache,
 
 }  // namespace curves
 
-Curves *curves_new_nomain(int point_size, int curves_size);
+Curves *curves_new_nomain(int points_num, int curves_num);
 
 /**
  * Create a new curves data-block containing a single curve with the given length and type.
  */
-Curves *curves_new_nomain_single(int point_size, CurveType type);
+Curves *curves_new_nomain_single(int points_num, CurveType type);
 
 }  // namespace blender::bke

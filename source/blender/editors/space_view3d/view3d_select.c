@@ -2049,6 +2049,40 @@ static int mixed_bones_object_selectbuffer_extended(ViewContext *vc,
 }
 
 /**
+ * Compare result of 'GPU_select': 'GPUSelectResult',
+ * Needed for stable sorting, so cycling through all items near the cursor behaves predictably.
+ */
+static int gpu_select_buffer_depth_id_cmp(const void *sel_a_p, const void *sel_b_p)
+{
+  GPUSelectResult *a = (GPUSelectResult *)sel_a_p;
+  GPUSelectResult *b = (GPUSelectResult *)sel_b_p;
+
+  if (a->depth < b->depth) {
+    return -1;
+  }
+  if (a->depth > b->depth) {
+    return 1;
+  }
+
+  /* Depths match, sort by id. */
+  uint sel_a = a->id;
+  uint sel_b = b->id;
+
+#ifdef __BIG_ENDIAN__
+  BLI_endian_switch_uint32(&sel_a);
+  BLI_endian_switch_uint32(&sel_b);
+#endif
+
+  if (sel_a < sel_b) {
+    return -1;
+  }
+  if (sel_a > sel_b) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
  * \param has_bones: When true, skip non-bone hits, also allow bases to be used
  * that are visible but not select-able,
  * since you may be in pose mode with an un-selectable object.
@@ -2058,36 +2092,40 @@ static int mixed_bones_object_selectbuffer_extended(ViewContext *vc,
 static Base *mouse_select_eval_buffer(ViewContext *vc,
                                       const GPUSelectResult *buffer,
                                       int hits,
-                                      Base *startbase,
-                                      bool has_bones,
                                       bool do_nearest,
-                                      int *r_sub_selection)
+                                      bool has_bones,
+                                      bool do_bones_get_priotity,
+                                      int *r_select_id_subelem)
 {
   ViewLayer *view_layer = vc->view_layer;
   View3D *v3d = vc->v3d;
-  Base *base, *basact = NULL;
   int a;
-  int sub_selection_id = 0;
+
+  bool found = false;
+  int select_id = 0;
+  int select_id_subelem = 0;
 
   if (do_nearest) {
     uint min = 0xFFFFFFFF;
-    int selcol = 0;
+    int hit_index = -1;
 
-    if (has_bones) {
+    if (has_bones && do_bones_get_priotity) {
       /* we skip non-bone hits */
       for (a = 0; a < hits; a++) {
         if (min > buffer[a].depth && (buffer[a].id & 0xFFFF0000)) {
           min = buffer[a].depth;
-          selcol = buffer[a].id & 0xFFFF;
-          sub_selection_id = (buffer[a].id & 0xFFFF0000) >> 16;
+          hit_index = a;
         }
       }
     }
     else {
-      int select_id_exclude = 0;
-      /* Only exclude active object when it is selected. */
-      if (BASACT(view_layer) && (BASACT(view_layer)->flag & BASE_SELECTED) && hits > 1) {
-        select_id_exclude = BASACT(view_layer)->object->runtime.select_id;
+
+      for (a = 0; a < hits; a++) {
+        /* Any object. */
+        if (min > buffer[a].depth) {
+          min = buffer[a].depth;
+          hit_index = a;
+        }
       }
 
       /* Find the best active & non-active hits.
@@ -2099,102 +2137,111 @@ static Base *mouse_select_eval_buffer(ViewContext *vc,
        *
        * For this reason, keep track of the best hit as well as the best hit that
        * excludes the selected & active object, using this value when it's valid. */
+      if ((hit_index != -1) &&
+          /* Special case, cycling away from the active object should only be done when it
+           * doesn't have a bone selection, otherwise selecting sub-elements is difficult. */
+          ((buffer[hit_index].id & 0xFFFF0000) == 0) &&
+          /* Only exclude active object when it is selected. */
+          (BASACT(view_layer) && (BASACT(view_layer)->flag & BASE_SELECTED)) &&
+          /* Allow disabling this behavior entirely. */
+          (U.experimental.use_select_nearest_on_first_click == false)) {
 
-      uint min_not_active = min;
-      int hit_index = -1, hit_index_not_active = -1;
+        const int select_id_active = BASACT(view_layer)->object->runtime.select_id;
 
-      for (a = 0; a < hits; a++) {
-        /* Any object. */
-        if (min > buffer[a].depth) {
-          min = buffer[a].depth;
-          hit_index = a;
-        }
-        /* Any object other than the active-selected. */
-        if (select_id_exclude != 0) {
-          if (min_not_active > buffer[a].depth && select_id_exclude != (buffer[a].id & 0xFFFF)) {
-            min_not_active = buffer[a].depth;
-            hit_index_not_active = a;
+        /* Check if `hit_index` is the current active object. */
+        if ((buffer[hit_index].id & 0xFFFF) == select_id_active) {
+          uint min_not_active = 0xFFFFFFFF;
+          int hit_index_not_active = -1;
+          for (a = 0; a < hits; a++) {
+            /* Any object other than the active-selected. */
+            if (select_id_active == (buffer[a].id & 0xFFFF)) {
+              continue;
+            }
+            if (min_not_active > buffer[a].depth) {
+              min_not_active = buffer[a].depth;
+              hit_index_not_active = a;
+            }
+          }
+
+          /* When the active was selected, first try to use the index
+           * for the best non-active hit that was found. */
+          if (hit_index_not_active != -1) {
+            hit_index = hit_index_not_active;
           }
         }
       }
-
-      /* When the active was selected, first try to use the index
-       * for the best non-active hit that was found. */
-      if (hit_index_not_active != -1) {
-        hit_index = hit_index_not_active;
-      }
-
-      if (hit_index != -1) {
-        selcol = buffer[hit_index].id & 0xFFFF;
-        sub_selection_id = (buffer[hit_index].id & 0xFFFF0000) >> 16;
-        /* No need to set `min` to `buffer[hit_index].depth`, it's not used from now on. */
-      }
     }
 
-    base = FIRSTBASE(view_layer);
-    while (base) {
-      if (has_bones ? BASE_VISIBLE(v3d, base) : BASE_SELECTABLE(v3d, base)) {
-        if (base->object->runtime.select_id == selcol) {
-          break;
-        }
-      }
-      base = base->next;
-    }
-    if (base) {
-      basact = base;
+    if (hit_index != -1) {
+      select_id = buffer[hit_index].id & 0xFFFF;
+      select_id_subelem = (buffer[hit_index].id & 0xFFFF0000) >> 16;
+      found = true;
+      /* No need to set `min` to `buffer[hit_index].depth`, it's not used from now on. */
     }
   }
   else {
 
-    base = startbase;
-    while (base) {
-      /* skip objects with select restriction, to prevent prematurely ending this loop
-       * with an un-selectable choice */
-      if (has_bones ? (base->flag & BASE_VISIBLE_VIEWLAYER) == 0 :
-                      (base->flag & BASE_SELECTABLE) == 0) {
-        base = base->next;
-        if (base == NULL) {
-          base = FIRSTBASE(view_layer);
+    {
+      GPUSelectResult *buffer_sorted = MEM_mallocN(sizeof(*buffer_sorted) * hits, __func__);
+      memcpy(buffer_sorted, buffer, sizeof(*buffer_sorted) * hits);
+      /* Remove non-bone objects. */
+      if (has_bones && do_bones_get_priotity) {
+        /* Loop backwards to reduce re-ordering. */
+        for (a = hits - 1; a >= 0; a--) {
+          if ((buffer_sorted[a].id & 0xFFFF0000) == 0) {
+            buffer_sorted[a] = buffer_sorted[--hits];
+          }
         }
-        if (base == startbase) {
+      }
+      qsort(buffer_sorted, hits, sizeof(GPUSelectResult), gpu_select_buffer_depth_id_cmp);
+      buffer = buffer_sorted;
+    }
+
+    int hit_index = -1;
+
+    /* It's possible there are no hits (all objects contained bones). */
+    if (hits > 0) {
+      /* Only exclude active object when it is selected. */
+      if (BASACT(view_layer) && (BASACT(view_layer)->flag & BASE_SELECTED)) {
+        const int select_id_active = BASACT(view_layer)->object->runtime.select_id;
+        for (int i_next = 0, i_prev = hits - 1; i_next < hits; i_prev = i_next++) {
+          if ((select_id_active == (buffer[i_prev].id & 0xFFFF)) &&
+              (select_id_active != (buffer[i_next].id & 0xFFFF))) {
+            hit_index = i_next;
+            break;
+          }
+        }
+      }
+
+      /* When the active object is unselected or not in `buffer`, use the nearest. */
+      if (hit_index == -1) {
+        /* Just pick the nearest. */
+        hit_index = 0;
+      }
+    }
+
+    if (hit_index != -1) {
+      select_id = buffer[hit_index].id & 0xFFFF;
+      select_id_subelem = (buffer[hit_index].id & 0xFFFF0000) >> 16;
+      found = true;
+    }
+    MEM_freeN((void *)buffer);
+  }
+
+  Base *basact = NULL;
+  if (found) {
+    for (Base *base = FIRSTBASE(view_layer); base; base = base->next) {
+      if (has_bones ? BASE_VISIBLE(v3d, base) : BASE_SELECTABLE(v3d, base)) {
+        if (base->object->runtime.select_id == select_id) {
+          basact = base;
           break;
         }
       }
-
-      if (has_bones ? BASE_VISIBLE(v3d, base) : BASE_SELECTABLE(v3d, base)) {
-        for (a = 0; a < hits; a++) {
-          if (has_bones) {
-            /* skip non-bone objects */
-            if (buffer[a].id & 0xFFFF0000) {
-              if (base->object->runtime.select_id == (buffer[a].id & 0xFFFF)) {
-                basact = base;
-              }
-            }
-          }
-          else {
-            if (base->object->runtime.select_id == (buffer[a].id & 0xFFFF)) {
-              basact = base;
-            }
-          }
-        }
-      }
-
-      if (basact) {
-        break;
-      }
-
-      base = base->next;
-      if (base == NULL) {
-        base = FIRSTBASE(view_layer);
-      }
-      if (base == startbase) {
-        break;
-      }
     }
-  }
 
-  if (basact && r_sub_selection) {
-    *r_sub_selection = sub_selection_id;
+    if (basact && r_select_id_subelem) {
+      *r_select_id_subelem = select_id_subelem;
+    }
   }
 
   return basact;
@@ -2271,13 +2318,8 @@ static Base *ed_view3d_give_base_under_cursor_ex(bContext *C,
 
   if (hits > 0) {
     const bool has_bones = (r_material_slot == NULL) && selectbuffer_has_bones(buffer, hits);
-    basact = mouse_select_eval_buffer(&vc,
-                                      buffer,
-                                      hits,
-                                      vc.view_layer->object_bases.first,
-                                      has_bones,
-                                      do_nearest,
-                                      r_material_slot);
+    basact = mouse_select_eval_buffer(
+        &vc, buffer, hits, do_nearest, has_bones, true, r_material_slot);
   }
 
   return basact;
@@ -2560,11 +2602,27 @@ static bool ed_object_select_pick(bContext *C,
       basact = basact_override;
     }
     else {
-      basact =
-          (gpu->hits > 0) ?
-              mouse_select_eval_buffer(
-                  &vc, gpu->buffer, gpu->hits, startbase, gpu->has_bones, gpu->do_nearest, NULL) :
-              NULL;
+      /* Regarding bone priority.
+       *
+       * - When in pose-bone, it's useful that any selection containing a bone
+       *   gets priority over other geometry (background scenery for example).
+       *
+       * - When in object-mode, don't prioritize bones as it would cause
+       *   pose-objects behind other objects to get priority
+       *   (mainly noticeable when #SCE_OBJECT_MODE_LOCK is disabled).
+       *
+       * This way prioritizing based on pose-mode has a bias to stay in pose-mode
+       * without having to enforce this through locking the object mode. */
+      bool do_bones_get_priotity = (object_mode & OB_MODE_POSE) != 0;
+
+      basact = (gpu->hits > 0) ? mouse_select_eval_buffer(&vc,
+                                                          gpu->buffer,
+                                                          gpu->hits,
+                                                          gpu->do_nearest,
+                                                          gpu->has_bones,
+                                                          do_bones_get_priotity,
+                                                          NULL) :
+                                 NULL;
     }
 
     /* Select pose-bones or camera-tracks. */
@@ -2587,7 +2645,7 @@ static bool ed_object_select_pick(bContext *C,
             /* Fallback to regular object selection if no new bundles were selected,
              * allows to select object parented to reconstruction object. */
             basact = mouse_select_eval_buffer(
-                &vc, gpu->buffer, gpu->hits, startbase, false, gpu->do_nearest, NULL);
+                &vc, gpu->buffer, gpu->hits, gpu->do_nearest, false, false, NULL);
           }
         }
       }
@@ -2689,6 +2747,11 @@ static bool ed_object_select_pick(bContext *C,
     if (params->sel_op == SEL_OP_SET) {
       if ((found && params->select_passthrough) && (basact->flag & BASE_SELECTED)) {
         found = false;
+        /* NOTE(@campbellbarton): Experimental behavior to set active even keeping the selection
+         * without this it's inconvenient to set the active object. */
+        if (basact != oldbasact) {
+          use_activate_selected_base = true;
+        }
       }
       else if (found || params->deselect_all) {
         /* Deselect everything. */

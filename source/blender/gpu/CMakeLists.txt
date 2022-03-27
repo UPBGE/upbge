@@ -12,8 +12,8 @@ endif()
 set(INC
   .
   intern
-  opengl
   metal
+  opengl
   ../blenkernel
   ../blenlib
   ../blentranslation # UPBGE
@@ -106,12 +106,12 @@ set(SRC
   GPU_shader.h
   GPU_shader_shared.h
   GPU_state.h
+  GPU_storage_buffer.h
   GPU_texture.h
   GPU_uniform_buffer.h
   GPU_vertex_buffer.h
   GPU_vertex_format.h
   GPU_viewport.h
-  GPU_storage_buffer.h
 
   intern/gpu_backend.hh
   intern/gpu_batch_private.hh
@@ -435,9 +435,9 @@ set(SRC_SHADER_CREATE_INFOS
   ../draw/engines/workbench/shaders/infos/workbench_volume_info.hh
   ../draw/engines/image/shaders/infos/engine_image_info.hh
   ../draw/intern/shaders/draw_fullscreen_info.hh
+  ../draw/intern/shaders/draw_hair_refine_info.hh
   ../draw/intern/shaders/draw_object_infos_info.hh
   ../draw/intern/shaders/draw_view_info.hh
-  ../draw/intern/shaders/draw_hair_refine_info.hh
 
   shaders/infos/gpu_clip_planes_info.hh
   shaders/infos/gpu_shader_2D_area_borders_info.hh
@@ -516,16 +516,33 @@ endif()
 
 
 if(WITH_GPU_SHADER_BUILDER)
-  add_executable(shader_builder
-    intern/gpu_shader_builder.cc
-    intern/gpu_shader_builder_stubs.cc
-    ${shader_create_info_list_file}
-  )
+  # TODO(@fclem) Fix this mess.
+  if(APPLE)
+    add_executable(shader_builder
+      intern/gpu_shader_builder.cc
+      ${shader_create_info_list_file}
+    )
+  else()
+    add_executable(shader_builder
+      intern/gpu_shader_builder.cc
+      intern/gpu_shader_builder_stubs.cc
+      ${shader_create_info_list_file}
+    )
+  endif()
 
-  target_link_libraries(shader_builder PUBLIC
-    bf_blenkernel
-    ${PLATFORM_LINKLIBS}
-  )
+  setup_platform_linker_flags(shader_builder)
+
+  if(APPLE)
+    target_link_libraries(shader_builder PUBLIC
+      bf_blenkernel
+      buildinfoobj
+    )
+  else()
+    target_link_libraries(shader_builder PUBLIC
+      bf_blenkernel
+    )
+  endif()
+
   target_include_directories(shader_builder PRIVATE ${INC} ${CMAKE_CURRENT_BINARY_DIR})
 
   set(SRC_BAKED_CREATE_INFOS_FILE ${CMAKE_CURRENT_BINARY_DIR}/shader_baked.hh)

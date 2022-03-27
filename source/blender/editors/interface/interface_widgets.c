@@ -5049,6 +5049,9 @@ void ui_draw_but(const bContext *C, struct ARegion *region, uiStyle *style, uiBu
     }
   }
 #endif
+  if (but->block->flag & UI_BLOCK_NO_DRAW_OVERRIDDEN_STATE) {
+    state &= ~UI_BUT_OVERRIDDEN;
+  }
 
   const float zoom = 1.0f / but->block->aspect;
   wt->state(wt, state, drawflag, but->emboss);
