@@ -254,7 +254,7 @@ set(SRC
   intern/report.c
   intern/rigidbody.c
   intern/sca.c
-  intern/scene.c
+  intern/scene.cc
   intern/screen.c
   intern/shader_fx.c
   intern/shrinkwrap.c
@@ -608,10 +608,6 @@ endif()
 
 if(WITH_IMAGE_CINEON)
   add_definitions(-DWITH_CINEON)
-endif()
-
-if(WITH_IMAGE_FRAMESERVER)
-  add_definitions(-DWITH_FRAMESERVER)
 endif()
 
 if(WITH_IMAGE_HDR)
