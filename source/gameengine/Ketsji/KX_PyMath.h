@@ -84,12 +84,12 @@ template<class T> bool PyMatTo(PyObject *pymat, T &mat)
     if (BaseMath_ReadCallback(pymatrix) == -1)
       return false;
 
-    if (pymatrix->num_col != Size(mat) || pymatrix->num_row != Size(mat))
+    if (pymatrix->col_num != Size(mat) || pymatrix->row_num != Size(mat))
       return false;
 
     for (unsigned int row = 0; row < Size(mat); row++) {
       for (unsigned int col = 0; col < Size(mat); col++) {
-        mat[row][col] = *(pymatrix->matrix + col * pymatrix->num_row + row);
+        mat[row][col] = *(pymatrix->matrix + col * pymatrix->row_num + row);
       }
     }
   }
@@ -145,10 +145,10 @@ template<class T> bool PyVecTo(PyObject *pyval, T &vec)
     if (BaseMath_ReadCallback(pyvec) == -1) {
       return false; /* exception raised */
     }
-    if (pyvec->size != Size(vec)) {
+    if (pyvec->vec_num != Size(vec)) {
       PyErr_Format(PyExc_AttributeError,
                    "error setting vector, %d args, should be %d",
-                   pyvec->size,
+                   pyvec->vec_num,
                    Size(vec));
       return false;
     }
