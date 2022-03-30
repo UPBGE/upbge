@@ -1027,11 +1027,11 @@ bool BKE_gpencil_stroke_smooth_point(bGPDstroke *gps,
    * smooth. To solve that problem, choose a different n/2, which does not match the range and
    * normalize the weights on finish. This may cause some artifacts at low values.
    *
-   * keep_shape is a new option to stop the stroke from severly deforming.
+   * keep_shape is a new option to stop the stroke from severely deforming.
    * It uses different partially negative weights.
    * w = 2 * (nCr(n, j + n/2) / 2^n) - (nCr(3*n, j + n) / 2^(3*n))
    *   ~ 2 * sqrt(2/(pi*n)) * exp(-2*j*j/n) - sqrt(2/(pi*3*n)) * exp(-2*j*j/(3*n))
-   * All weigths still sum up to 1.
+   * All weights still sum up to 1.
    * Note these weights only work because the averaging is done in relative coordinates.
    */
   float sco[3] = {0.0f, 0.0f, 0.0f};
@@ -1302,7 +1302,7 @@ void BKE_gpencil_stroke_smooth(bGPDstroke *gps,
   }
 
   /* Make a copy of the point data to avoid directionality of the smooth operation. */
-  bGPDstroke gps_old = *gps;
+  bGPDstroke gps_old = blender::dna::shallow_copy(*gps);
   gps_old.points = (bGPDspoint *)MEM_dupallocN(gps->points);
 
   /* Smooth stroke. */
@@ -1930,7 +1930,7 @@ void BKE_gpencil_dissolve_points(bGPdata *gpd, bGPDframe *gpf, bGPDstroke *gps, 
     (gps->dvert != nullptr) ? dvert = gps->dvert : nullptr;
     for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
       if ((pt->flag & tag) == 0) {
-        *npt = *pt;
+        *npt = blender::dna::shallow_copy(*pt);
         npt++;
 
         if (gps->dvert != nullptr) {
@@ -3471,13 +3471,13 @@ void BKE_gpencil_stroke_join(bGPDstroke *gps_a,
   /* don't visibly link the first and last points? */
   if (leave_gaps) {
     /* 1st: add one tail point to start invisible area */
-    point = gps_a->points[gps_a->totpoints - 1];
+    point = blender::dna::shallow_copy(gps_a->points[gps_a->totpoints - 1]);
     deltatime = point.time;
 
     gpencil_stroke_copy_point(gps_a, nullptr, &point, delta, 0.0f, 0.0f, 0.0f);
 
     /* 2nd: add one head point to finish invisible area */
-    point = gps_b->points[0];
+    point = blender::dna::shallow_copy(gps_b->points[0]);
     gpencil_stroke_copy_point(gps_a, nullptr, &point, delta, 0.0f, 0.0f, deltatime);
   }
 

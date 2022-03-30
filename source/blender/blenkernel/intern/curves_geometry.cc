@@ -11,6 +11,7 @@
 
 #include "BLI_bounds.hh"
 #include "BLI_index_mask_ops.hh"
+#include "BLI_length_parameterize.hh"
 
 #include "DNA_curves_types.h"
 
@@ -547,6 +548,12 @@ Span<int> CurvesGeometry::evaluated_offsets() const
   return this->runtime->evaluated_offsets_cache;
 }
 
+Span<int> CurvesGeometry::bezier_evaluated_offsets_for_curve(const int curve_index) const
+{
+  const IndexRange points = this->points_for_curve(curve_index);
+  return this->runtime->bezier_evaluated_offsets.as_span().slice(points);
+}
+
 IndexMask CurvesGeometry::indices_for_curve_type(const CurveType type,
                                                  Vector<int64_t> &r_indices) const
 {
@@ -721,6 +728,69 @@ void CurvesGeometry::interpolate_to_evaluated(const int curve_index,
   BLI_assert_unreachable();
 }
 
+IndexRange CurvesGeometry::lengths_range_for_curve(const int curve_index, const bool cyclic) const
+{
+  BLI_assert(cyclic == this->cyclic()[curve_index]);
+  const IndexRange points = this->evaluated_points_for_curve(curve_index);
+  const int start = points.start() + curve_index;
+  const int size = curves::curve_segment_size(points.size(), cyclic);
+  return {start, size};
+}
+
+void CurvesGeometry::ensure_evaluated_lengths() const
+{
+  if (!this->runtime->length_cache_dirty) {
+    return;
+  }
+
+  /* A double checked lock. */
+  std::scoped_lock lock{this->runtime->length_cache_mutex};
+  if (!this->runtime->length_cache_dirty) {
+    return;
+  }
+
+  threading::isolate_task([&]() {
+    /* Use an extra length value for the final cyclic segment for a consistent size
+     * (see comment on #evaluated_length_cache). */
+    const int total_size = this->evaluated_points_num() + this->curves_num();
+    this->runtime->evaluated_length_cache.resize(total_size);
+    MutableSpan<float> evaluated_lengths = this->runtime->evaluated_length_cache;
+
+    Span<float3> evaluated_positions = this->evaluated_positions();
+    VArray<bool> curves_cyclic = this->cyclic();
+
+    threading::parallel_for(this->curves_range(), 128, [&](IndexRange curves_range) {
+      for (const int curve_index : curves_range) {
+        const bool cyclic = curves_cyclic[curve_index];
+        const IndexRange evaluated_points = this->evaluated_points_for_curve(curve_index);
+        if (UNLIKELY(evaluated_points.is_empty())) {
+          continue;
+        }
+        const IndexRange lengths_range = this->lengths_range_for_curve(curve_index, cyclic);
+        length_parameterize::accumulate_lengths(evaluated_positions.slice(evaluated_points),
+                                                cyclic,
+                                                evaluated_lengths.slice(lengths_range));
+      }
+    });
+  });
+
+  this->runtime->length_cache_dirty = false;
+}
+
+Span<float> CurvesGeometry::evaluated_lengths_for_curve(const int curve_index,
+                                                        const bool cyclic) const
+{
+  BLI_assert(!this->runtime->length_cache_dirty);
+  const IndexRange range = this->lengths_range_for_curve(curve_index, cyclic);
+  return this->runtime->evaluated_length_cache.as_span().slice(range);
+}
+
+float CurvesGeometry::evaluated_length_total_for_curve(const int curve_index,
+                                                       const bool cyclic) const
+{
+  return this->evaluated_lengths_for_curve(curve_index, cyclic).last();
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -747,6 +817,7 @@ void CurvesGeometry::tag_positions_changed()
   this->runtime->position_cache_dirty = true;
   this->runtime->tangent_cache_dirty = true;
   this->runtime->normal_cache_dirty = true;
+  this->runtime->length_cache_dirty = true;
 }
 void CurvesGeometry::tag_topology_changed()
 {
@@ -755,6 +826,7 @@ void CurvesGeometry::tag_topology_changed()
   this->runtime->normal_cache_dirty = true;
   this->runtime->offsets_cache_dirty = true;
   this->runtime->nurbs_basis_cache_dirty = true;
+  this->runtime->length_cache_dirty = true;
 }
 void CurvesGeometry::tag_normals_changed()
 {
