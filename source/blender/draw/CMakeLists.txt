@@ -396,6 +396,7 @@ set(GLSL_SRC
   intern/shaders/common_subdiv_vbo_sculpt_data_comp.glsl
 
   intern/draw_shader_shared.h
+  intern/draw_common_shader_shared.h
 
   engines/gpencil/shaders/gpencil_frag.glsl
   engines/gpencil/shaders/gpencil_vert.glsl

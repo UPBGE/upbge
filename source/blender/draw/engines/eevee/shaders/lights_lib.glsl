@@ -91,8 +91,8 @@ layout(std140) uniform light_block
   LightData lights_data[MAX_LIGHT];
 };
 
-uniform sampler2DArrayShadow shadowCubeTexture;
-uniform sampler2DArrayShadow shadowCascadeTexture;
+uniform depth2DArrayShadow shadowCubeTexture;
+uniform depth2DArrayShadow shadowCascadeTexture;
 
 /** \} */
 

@@ -2645,6 +2645,8 @@ class VIEW3D_MT_object_apply(Menu):
 
     def draw(self, _context):
         layout = self.layout
+        # Need invoke for the popup confirming the multi-user data operation
+        layout.operator_context = 'INVOKE_DEFAULT'
 
         props = layout.operator("object.transform_apply", text="Location", text_ctxt=i18n_contexts.default)
         props.location, props.rotation, props.scale = True, False, False
@@ -2867,6 +2869,9 @@ class VIEW3D_MT_object_convert(Menu):
         # Potrace lib dependency.
         if bpy.app.build_options.potrace:
             layout.operator("gpencil.trace_image", icon='OUTLINER_OB_GREASEPENCIL')
+
+        if ob and ob.type == 'CURVES':
+            layout.operator("curves.convert_to_particle_system", text="Particle System")
 
 
 class VIEW3D_MT_make_links(Menu):
