@@ -1605,7 +1605,7 @@ static void ccgdm_create_grids(DerivedMesh *dm)
   DMFlagMat *gridFlagMats;
   CCGFace **gridFaces;
   int *gridOffset;
-  int index, numFaces, numGrids, S, gIndex /*, gridSize*/;
+  int index, numFaces, numGrids, S, gIndex /*, gridSize */;
 
   if (ccgdm->gridData) {
     return;
