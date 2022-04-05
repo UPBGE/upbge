@@ -1,3 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2017 Tristan Porteries */
+
+/** \file gameengine/SceneGraph/SG_Frustum.cpp
+ *  \ingroup bgesg
+ */
+
 #include "SG_Frustum.h"
 
 #include "MT_Frustum.h"
