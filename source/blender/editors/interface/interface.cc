@@ -709,7 +709,7 @@ static void ui_draw_linkline(uiLinkLine *line, int highlightActiveLines, int das
   rcti rect;
   float color[4] = {1.0f};
 
-  if (line->from == NULL || line->to == NULL)
+  if (line->from == nullptr || line->to == nullptr)
     return;
 
   rect.xmin = BLI_rctf_cent_x(&line->from->rect);
@@ -741,9 +741,9 @@ static void ui_draw_links(uiBlock *block)
   bool found_selectline = false;
   bool found_activeline = false;
 
-  for (but = block->buttons.first; but; but = but->next) {
+  for (but = static_cast <uiBut *>(block->buttons.first); but; but = but->next) {
     if (but->type == UI_BTYPE_LINK && but->link) {
-      for (line = but->link->lines.first; line; line = line->next) {
+      for (line = static_cast <uiLinkLine *>(but->link->lines.first); line; line = line->next) {
         if (!(line->from->flag & UI_ACTIVE) && !(line->to->flag & UI_ACTIVE)) {
           if (line->deactive)
             ui_draw_linkline(line, 0, true);
@@ -758,9 +758,9 @@ static void ui_draw_links(uiBlock *block)
   }
 
   /* Draw the inactive lines (lines with neither button being hovered over) */
-  for (but = block->buttons.first; but; but = but->next) {
+  for (but = static_cast <uiBut *>(block->buttons.first); but; but = but->next) {
     if (but->type == UI_BTYPE_LINK && but->link) {
-      for (line = but->link->lines.first; line; line = line->next) {
+      for (line = static_cast <uiLinkLine *>(but->link->lines.first); line; line = line->next) {
         if (!(line->from->flag & UI_ACTIVE) && !(line->to->flag & UI_ACTIVE)) {
           if (!line->deactive)
             ui_draw_linkline(line, 0, false);
@@ -772,9 +772,9 @@ static void ui_draw_links(uiBlock *block)
   /* Draw any active lines (lines with either button being hovered over).
    * Do this last so they appear on top of inactive and gray out lines. */
   if (found_activeline) {
-    for (but = block->buttons.first; but; but = but->next) {
+    for (but = static_cast <uiBut *>(block->buttons.first); but; but = but->next) {
       if (but->type == UI_BTYPE_LINK && but->link) {
-        for (line = but->link->lines.first; line; line = line->next) {
+        for (line = static_cast <uiLinkLine *>(but->link->lines.first); line; line = line->next) {
           if ((line->from->flag & UI_ACTIVE) || (line->to->flag & UI_ACTIVE))
             ui_draw_linkline(line, !found_selectline, false);
         }
@@ -883,7 +883,7 @@ static void ui_but_update_linklines(uiBlock *block, uiBut *oldbut, uiBut *newbut
 
     SWAP(uiLink *, oldbut->link, newbut->link);
 
-    for (line = oldbut->link->lines.first; line; line = line->next) {
+    for (line = static_cast <uiLinkLine *>(oldbut->link->lines.first); line; line = line->next) {
       if (line->to == newbut)
         line->to = oldbut;
       if (line->from == newbut)
@@ -892,9 +892,9 @@ static void ui_but_update_linklines(uiBlock *block, uiBut *oldbut, uiBut *newbut
   }
 
   /* check all other button links */
-  for (but = block->buttons.first; but; but = but->next) {
+  for (but = static_cast <uiBut *>(block->buttons.first); but; but = but->next) {
     if (but != newbut && but->type == UI_BTYPE_LINK && but->link) {
-      for (line = but->link->lines.first; line; line = line->next) {
+      for (line = static_cast <uiLinkLine *>(but->link->lines.first); line; line = line->next) {
         if (line->to == newbut)
           line->to = oldbut;
         if (line->from == newbut)
@@ -2359,7 +2359,7 @@ static uiBut *ui_linkline_find_inlink(uiBlock *block, void *poin)
 {
   uiBut *but;
 
-  but = block->buttons.first;
+  but = static_cast <uiBut *>(block->buttons.first);
   while (but) {
     if (but->type == UI_BTYPE_INLINK) {
       if (but->poin == poin)
@@ -2367,14 +2367,14 @@ static uiBut *ui_linkline_find_inlink(uiBlock *block, void *poin)
     }
     but = but->next;
   }
-  return NULL;
+  return nullptr;
 }
 
 static void ui_linkline_add(ListBase *listb, uiBut *but, uiBut *bt, short deactive)
 {
   uiLinkLine *line;
 
-  line = MEM_callocN(sizeof(uiLinkLine), "linkline");
+  line = static_cast <uiLinkLine *>(MEM_callocN(sizeof(uiLinkLine), "linkline"));
   BLI_addtail(listb, line);
   line->from = but;
   line->to = bt;
@@ -2393,7 +2393,7 @@ void UI_block_links_compose(uiBlock *block)
   void ***ppoin;
   int a;
 
-  but = block->buttons.first;
+  but = static_cast <uiBut *>(block->buttons.first);
   while (but) {
     if (but->type == UI_BTYPE_LINK) {
       link = but->link;
@@ -2464,7 +2464,7 @@ void ui_linkline_remove(uiLinkLine *line, uiBut *but)
     if (*(link->totlink) == 1) {
       *(link->totlink) = 0;
       MEM_freeN(*(link->ppoin));
-      *(link->ppoin) = NULL;
+      *(link->ppoin) = nullptr;
     }
     else {
       b = 0;
@@ -2478,7 +2478,7 @@ void ui_linkline_remove(uiLinkLine *line, uiBut *but)
     }
   }
   else {
-    *(link->poin) = NULL;
+    *(link->poin) = nullptr;
   }
 
   MEM_freeN(line);
@@ -5978,7 +5978,7 @@ void UI_but_link_set(uiBut *but, void **poin, void ***ppoin, short *tot, int fro
 {
   uiLink *link;
 
-  link = but->link = MEM_callocN(sizeof(uiLink), "new uilink");
+  link = but->link = static_cast <uiLink *>(MEM_callocN(sizeof(uiLink), "new uilink"));
 
   link->poin = poin;
   link->ppoin = ppoin;
