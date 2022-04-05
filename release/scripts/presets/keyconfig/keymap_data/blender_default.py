@@ -2914,8 +2914,10 @@ def km_sequencer(params):
         ("sequencer.slip", {"type": 'S', "value": 'PRESS'}, None),
         ("wm.context_set_int", {"type": 'O', "value": 'PRESS'},
          {"properties": [("data_path", 'scene.sequence_editor.overlay_frame'), ("value", 0)]}),
-        ("transform.seq_slide", {"type": 'G', "value": 'PRESS'}, None),
-        ("transform.seq_slide", {"type": params.select_mouse, "value": 'CLICK_DRAG'}, None),
+        ("transform.seq_slide", {"type": 'G', "value": 'PRESS'},
+         {"properties": [("view2d_edge_pan", True)]}),
+        ("transform.seq_slide", {"type": params.select_mouse, "value": 'CLICK_DRAG'},
+         {"properties": [("view2d_edge_pan", True)]}),
         ("transform.transform", {"type": 'E', "value": 'PRESS'},
          {"properties": [("mode", 'TIME_EXTEND')]}),
         ("marker.add", {"type": 'M', "value": 'PRESS'}, None),
@@ -3016,6 +3018,22 @@ def km_sequencerpreview(params):
             ("sequencer.cursor_set", params.cursor_set_event, None),
         ])
 
+    return keymap
+
+
+def km_sequencer_channels(params):
+    items = []
+    keymap = (
+        "Sequencer Channels",
+        {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
+        {"items": items},
+    )
+
+    items.extend([
+        # Rename.
+        ("sequencer.rename_channel", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True}, None),
+        ("sequencer.rename_channel", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK'}, None),
+        ])
     return keymap
 
 
@@ -4466,10 +4484,6 @@ def km_pose(params):
         ("anim.keyframe_insert_menu", {"type": 'I', "value": 'PRESS'}, None),
         ("anim.keyframe_delete_v3d", {"type": 'I', "value": 'PRESS', "alt": True}, None),
         ("anim.keying_set_active_set", {"type": 'I', "value": 'PRESS', "shift": True, "ctrl": True, "alt": True}, None),
-        ("poselib.browse_interactive", {"type": 'L', "value": 'PRESS', "alt": True}, None),
-        ("poselib.pose_add", {"type": 'L', "value": 'PRESS', "shift": True}, None),
-        ("poselib.pose_remove", {"type": 'L', "value": 'PRESS', "shift": True, "alt": True}, None),
-        ("poselib.pose_rename", {"type": 'L', "value": 'PRESS', "shift": True, "ctrl": True}, None),
         ("pose.push", {"type": 'E', "value": 'PRESS', "ctrl": True}, None),
         ("pose.relax", {"type": 'E', "value": 'PRESS', "alt": True}, None),
         ("pose.breakdown", {"type": 'E', "value": 'PRESS', "shift": True}, None),
@@ -7866,6 +7880,7 @@ def generate_keymaps(params=None):
         km_sequencercommon(params),
         km_sequencer(params),
         km_sequencerpreview(params),
+        km_sequencer_channels(params),
         km_console(params),
         km_clip(params),
         km_clip_editor(params),

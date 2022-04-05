@@ -19,6 +19,7 @@ extern PyObject *bpy_package_py;
 extern PyObject *bpy_sys_module_backup;
 
 /* bpy_interface_atexit.c */
+
 void BPY_atexit_register(void);
 void BPY_atexit_unregister(void);
 

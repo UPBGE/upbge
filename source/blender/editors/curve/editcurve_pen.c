@@ -844,8 +844,9 @@ static bool insert_point_to_segment(const ViewContext *vc, const wmEvent *event)
   Curve *cu = vc->obedit->data;
   CutData cd = init_cut_data(event);
   float mval[2] = {UNPACK2(event->mval)};
+  const float threshold_dist_px = ED_view3d_select_dist_px() * SEL_DIST_FACTOR;
   const bool near_spline = update_cut_data_for_all_nurbs(
-      vc, BKE_curve_editNurbs_get(cu), mval, SEL_DIST_FACTOR * ED_view3d_select_dist_px(), &cd);
+      vc, BKE_curve_editNurbs_get(cu), mval, threshold_dist_px, &cd);
 
   if (near_spline && !cd.nurb->hide) {
     Nurb *nu = cd.nurb;
@@ -1161,16 +1162,14 @@ static void move_segment(ViewContext *vc, MoveSegmentData *seg_data, const wmEve
     if (bezt2->hide) {
       return;
     }
-    else {
-      /*
-       * Swap bezt1 and bezt2 in all calculations if only bezt2 is visible.
-       * (The first point needs to be visible for the calculations of the second point to be valid)
-       */
-      BezTriple *temp_bezt = bezt2;
-      bezt2 = bezt1;
-      bezt1 = temp_bezt;
-      h1 = 0, h2 = 2;
-    }
+    /*
+     * Swap bezt1 and bezt2 in all calculations if only bezt2 is visible.
+     * (The first point needs to be visible for the calculations of the second point to be valid)
+     */
+    BezTriple *temp_bezt = bezt2;
+    bezt2 = bezt1;
+    bezt1 = temp_bezt;
+    h1 = 0, h2 = 2;
   }
 
   const float t = max_ff(min_ff(seg_data->t, 0.9f), 0.1f);
@@ -1554,6 +1553,7 @@ static int curve_pen_modal(bContext *C, wmOperator *op, const wmEvent *event)
   ED_view3d_viewcontext_init(C, &vc, depsgraph);
   Curve *cu = vc.obedit->data;
   ListBase *nurbs = &cu->editnurb->nurbs;
+  const float threshold_dist_px = ED_view3d_select_dist_px() * SEL_DIST_FACTOR;
 
   BezTriple *bezt = NULL;
   BPoint *bp = NULL;
@@ -1655,7 +1655,7 @@ static int curve_pen_modal(bContext *C, wmOperator *op, const wmEvent *event)
   else if (ELEM(event->type, LEFTMOUSE)) {
     if (ELEM(event->val, KM_RELEASE, KM_DBL_CLICK)) {
       if (delete_point && !cpd->new_point && !cpd->dragging) {
-        if (ED_curve_editnurb_select_pick_ex(C, event->mval, SEL_DIST_FACTOR, &params)) {
+        if (ED_curve_editnurb_select_pick(C, event->mval, threshold_dist_px, &params)) {
           cpd->acted = delete_point_under_mouse(&vc, event);
         }
       }
@@ -1714,7 +1714,7 @@ static int curve_pen_modal(bContext *C, wmOperator *op, const wmEvent *event)
           }
         }
         else if (select_point) {
-          ED_curve_editnurb_select_pick_ex(C, event->mval, SEL_DIST_FACTOR, &params);
+          ED_curve_editnurb_select_pick(C, event->mval, threshold_dist_px, &params);
         }
       }
 
@@ -1749,6 +1749,7 @@ static int curve_pen_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
   /* Distance threshold for mouse clicks to affect the spline or its points */
   const float mval_fl[2] = {UNPACK2(event->mval)};
+  const float threshold_dist_px = ED_view3d_select_dist_px() * SEL_DIST_FACTOR;
 
   const bool extrude_point = RNA_boolean_get(op->ptr, "extrude_point");
   const bool insert_point = RNA_boolean_get(op->ptr, "insert_point");
@@ -1804,7 +1805,7 @@ static int curve_pen_invoke(bContext *C, wmOperator *op, const wmEvent *event)
       }
     }
     else if (!cpd->acted) {
-      if (is_spline_nearby(&vc, op, event, SEL_DIST_FACTOR * ED_view3d_select_dist_px())) {
+      if (is_spline_nearby(&vc, op, event, threshold_dist_px)) {
         cpd->spline_nearby = true;
 
         /* If move segment is disabled, then insert point on key press and set

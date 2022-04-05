@@ -602,6 +602,7 @@ typedef bool (*uiMenuStepFunc)(struct bContext *C, int direction, void *arg1);
 typedef void (*uiFreeArgFunc)(void *arg);
 
 /* interface_query.c */
+
 bool UI_but_has_tooltip_label(const uiBut *but);
 bool UI_but_is_tool(const uiBut *but);
 /* file selectors are exempt from utf-8 checks */
@@ -615,6 +616,7 @@ bool UI_block_can_add_separator(const uiBlock *block);
 struct uiList *UI_list_find_mouse_over(const struct ARegion *region, const struct wmEvent *event);
 
 /* interface_region_menu_popup.c */
+
 /**
  * Popup Menus
  *
@@ -680,6 +682,7 @@ struct uiLayout *UI_popover_layout(uiPopover *pup);
 void UI_popover_once_clear(uiPopover *pup);
 
 /* interface_region_menu_pie.c */
+
 /* Pie menus */
 typedef struct uiPieMenu uiPieMenu;
 
@@ -2965,7 +2968,7 @@ uiBlock *UI_region_block_find_mouse_over(const struct ARegion *region,
  */
 struct ARegion *UI_region_searchbox_region_get(const struct ARegion *button_region);
 
-/* uiFontStyle.align */
+/** #uiFontStyle.align */
 typedef enum eFontStyle_Align {
   UI_STYLE_TEXT_LEFT = 0,
   UI_STYLE_TEXT_CENTER = 1,
