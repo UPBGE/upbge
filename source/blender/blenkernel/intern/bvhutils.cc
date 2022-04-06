@@ -728,27 +728,6 @@ static BVHTree *bvhtree_from_mesh_verts_create_tree(float epsilon,
   return tree;
 }
 
-static void bvhtree_from_mesh_verts_setup_data(BVHTreeFromMesh *data,
-                                               BVHTree *tree,
-                                               const bool is_cached,
-                                               const MVert *vert,
-                                               const bool vert_allocated)
-{
-  memset(data, 0, sizeof(*data));
-
-  data->tree = tree;
-  data->cached = is_cached;
-
-  /* a nullptr nearest callback works fine
-   * remember the min distance to point is the same as the min distance to BV of point */
-  data->nearest_callback = nullptr;
-  data->raycast_callback = mesh_verts_spherecast;
-
-  data->vert = vert;
-  data->vert_allocated = vert_allocated;
-  // data->face = DM_get_tessface_array(dm, &data->face_allocated);  /* XXX WHY???? */
-}
-
 BVHTree *bvhtree_from_editmesh_verts_ex(BVHTreeFromEditMesh *data,
                                         BMEditMesh *em,
                                         const BLI_bitmap *verts_mask,
