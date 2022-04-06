@@ -125,7 +125,6 @@ set(SRC
   intern/data_transfer.c
   intern/deform.c
   intern/displist.cc
-  intern/displist_tangent.c
   intern/dynamicpaint.c
   intern/editlattice.c
   intern/editmesh.c
@@ -244,6 +243,7 @@ set(SRC
   intern/particle_child.c
   intern/particle_distribute.c
   intern/particle_system.c
+  intern/pbvh.cc
   intern/pbvh.c
   intern/pbvh_bmesh.c
   intern/pointcache.c
@@ -365,7 +365,6 @@ set(SRC
   BKE_data_transfer.h
   BKE_deform.h
   BKE_displist.h
-  BKE_displist_tangent.h
   BKE_duplilist.h
   BKE_dynamicpaint.h
   BKE_editlattice.h

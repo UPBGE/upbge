@@ -31,6 +31,12 @@ class Params:
         "context_menu_event",
         "cursor_set_event",
         "cursor_tweak_event",
+        # NOTE: this is intended to be used so pressing a button can then drag the current selection.
+        # This should not be used for button release values such as `CLICK` or `RELEASE` which should
+        # instead be bound to a binding that doesn't de-select all, this way:
+        # - Click-drag moves the current selection.
+        # - Click selects only the item at the cursor position.
+        # See: T97032.
         "use_tweak_select_passthrough",
         "use_tweak_tool_lmb_interaction",
         "use_mouse_emulate_3_button",
@@ -451,7 +457,36 @@ def _template_items_change_frame(params):
 
 # Tool System Templates
 
-def _template_items_tool_select(params, operator, cursor_operator, fallback):
+def _template_items_tool_select(
+        params, operator, cursor_operator, *,
+        # Always use the cursor operator where possible,
+        # needed for time-line views where we always want to be able to scrub time.
+        cursor_prioritize=False,
+        fallback=False,
+):
+    if not params.legacy and not fallback:
+        # Experimental support for LMB interaction for the tweak tool. see: T96544.
+        # NOTE: For RMB-select this is a much bigger change as it disables 3D cursor placement on LMB.
+        # For LMB-select this means an LMB -drag will not first de-select all (similar to node/graph editor).
+        select_passthrough = False
+        if params.select_mouse == 'LEFTMOUSE':
+            select_passthrough = params.use_tweak_select_passthrough
+        else:
+            if not cursor_prioritize:
+                select_passthrough = params.use_tweak_tool_lmb_interaction
+
+        if select_passthrough:
+            return [
+                (operator, {"type": 'LEFTMOUSE', "value": 'PRESS'},
+                 {"properties": [("deselect_all", True), ("select_passthrough", True)]}),
+                (operator, {"type": 'LEFTMOUSE', "value": 'CLICK'},
+                 {"properties": [("deselect_all", True)]}),
+                (operator, {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
+                 {"properties": [("deselect_all", False), ("toggle", True)]}),
+                ("transform.translate", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG'},
+                 {"properties": [("release_confirm", True)]}),
+            ]
+
     if params.select_mouse == 'LEFTMOUSE':
         # By default use 'PRESS' for immediate select without quick delay.
         # Fallback key-maps 'CLICK' since 'PRESS' events passes through (allowing either click or drag).
@@ -464,21 +499,15 @@ def _template_items_tool_select(params, operator, cursor_operator, fallback):
              {"properties": [("deselect_all", True)]}),
             (operator, {"type": 'LEFTMOUSE', "value": 'CLICK' if fallback else 'PRESS', "shift": True},
              {"properties": [("toggle", True)]}),
-        ]
-    else:
-        # Experimental support for LMB interaction for the tweak tool.
-        if params.use_tweak_tool_lmb_interaction and not fallback:
-            return [
-                (operator, {"type": 'LEFTMOUSE', "value": 'PRESS'},
-                 {"properties": [("deselect_all", True), ("select_passthrough", True)]}),
-                (operator, {"type": 'LEFTMOUSE', "value": 'CLICK'},
-                 {"properties": [("deselect_all", True)]}),
-                (operator, {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
-                 {"properties": [("deselect_all", False), ("toggle", True)]}),
+
+            # Fallback key-map must transform as the primary tool is expected
+            # to be accessed via gizmos in this case. See: T96885.
+            *(() if not fallback else (
                 ("transform.translate", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG'},
                  {"properties": [("release_confirm", True)]}),
-            ]
-
+            ))
+        ]
+    else:
         # For right mouse, set the cursor.
         return [
             (cursor_operator, {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
@@ -4726,6 +4755,11 @@ def _template_paint_radial_control(paint, rotation=False, secondary_rotation=Fal
 def _template_view3d_select(*, type, value, legacy, select_passthrough, exclude_mod=None):
     # NOTE: `exclude_mod` is needed since we don't want this tool to exclude Control-RMB actions when this is used
     # as a tool key-map with RMB-select and `use_fallback_tool_rmb` is enabled. See T92467.
+
+    # See: `use_tweak_select_passthrough` doc-string.
+    if select_passthrough and (value in {'CLICK', 'RELEASE'}):
+        select_passthrough = False
+
     items = [(
         "view3d.select",
         {"type": type, "value": value, **{m: True for m in mods}},
@@ -4742,7 +4776,7 @@ def _template_view3d_select(*, type, value, legacy, select_passthrough, exclude_
         (("toggle", "center", "enumerate"), ("shift", "ctrl", "alt")),
     ) if exclude_mod is None or exclude_mod not in mods]
 
-    if select_passthrough and (value == 'PRESS'):
+    if select_passthrough:
         # Add an additional click item to de-select all other items,
         # needed so pass-through is able to de-select other items.
         items.append((
@@ -4770,6 +4804,11 @@ def _template_view3d_gpencil_select(*, type, value, legacy, use_select_mouse=Tru
 
 
 def _template_uv_select(*, type, value, select_passthrough, legacy):
+
+    # See: `use_tweak_select_passthrough` doc-string.
+    if select_passthrough and (value in {'CLICK', 'RELEASE'}):
+        select_passthrough = False
+
     items = [
         ("uv.select", {"type": type, "value": value},
          {"properties": [
@@ -4780,7 +4819,7 @@ def _template_uv_select(*, type, value, select_passthrough, legacy):
          {"properties": [("toggle", True)]}),
     ]
 
-    if select_passthrough and (value == 'PRESS'):
+    if select_passthrough:
         # Add an additional click item to de-select all other items,
         # needed so pass-through is able to de-select other items.
         items.append((
@@ -5558,7 +5597,10 @@ def km_sculpt_curves(params):
     )
 
     items.extend([
-        ("sculpt_curves.brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
+        ("sculpt_curves.brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS'},
+         {"properties": [("mode", 'NORMAL')]}),
+        ("sculpt_curves.brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True},
+         {"properties": [("mode", 'INVERT')]}),
         *_template_paint_radial_control("curves_sculpt"),
     ])
 
@@ -6397,7 +6439,7 @@ def km_image_editor_tool_uv_select(params, *, fallback):
         {"space_type": 'IMAGE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
             *([] if (fallback and (params.select_mouse == 'RIGHTMOUSE')) else _template_items_tool_select(
-                params, "uv.select", "uv.cursor_set", fallback)),
+                params, "uv.select", "uv.cursor_set", fallback=fallback)),
             *([] if (not params.use_fallback_tool_rmb) else _template_uv_select(
                 type=params.select_mouse,
                 value=params.select_mouse_value,
@@ -6608,7 +6650,7 @@ def km_3d_view_tool_select(params, *, fallback):
         {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
         {"items": [
             *([] if (fallback and (params.select_mouse == 'RIGHTMOUSE')) else _template_items_tool_select(
-                params, "view3d.select", "view3d.cursor3d", fallback)),
+                params, "view3d.select", "view3d.cursor3d", fallback=fallback)),
             *([] if (not params.use_fallback_tool_rmb) else _template_view3d_select(
                 type=params.select_mouse,
                 value=params.select_mouse_value,
@@ -7351,8 +7393,7 @@ def km_3d_view_tool_sculpt_mask_by_color(params):
         "3D View Tool: Sculpt, Mask by Color",
         {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
         {"items": [
-            ("sculpt.mask_by_color", {"type": params.tool_mouse, "value": 'ANY'}, None),
-            ("sculpt.mask_by_color", params.tool_tweak_event, None),
+            ("sculpt.mask_by_color", {"type": params.tool_mouse, "value": 'CLICK'}, None)
         ]},
     )
 
@@ -7546,7 +7587,7 @@ def km_3d_view_tool_edit_gpencil_select(params, *, fallback):
         {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
         {"items": [
             *([] if (fallback and (params.select_mouse == 'RIGHTMOUSE')) else _template_items_tool_select(
-                params, "gpencil.select", "view3d.cursor3d", fallback)),
+                params, "gpencil.select", "view3d.cursor3d", fallback=fallback)),
             *([] if (not params.use_fallback_tool_rmb) else _template_view3d_gpencil_select(
                 type=params.select_mouse, value=params.select_mouse_value, legacy=params.legacy)),
         ]},
@@ -7684,7 +7725,7 @@ def km_3d_view_tool_sculpt_gpencil_select(params):
     return (
         "3D View Tool: Sculpt Gpencil, Tweak",
         {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
-        {"items": _template_items_tool_select(params, "gpencil.select", "view3d.cursor3d", False)},
+        {"items": _template_items_tool_select(params, "gpencil.select", "view3d.cursor3d")},
     )
 
 
@@ -7724,7 +7765,7 @@ def km_sequencer_editor_tool_generic_select(params, *, fallback):
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
             *([] if (fallback and (params.select_mouse == 'RIGHTMOUSE')) else _template_items_tool_select(
-                params, "sequencer.select", "sequencer.cursor_set", fallback)),
+                params, "sequencer.select", "sequencer.cursor_set", cursor_prioritize=True, fallback=fallback)),
 
             *([] if (not params.use_fallback_tool_rmb) else _template_sequencer_preview_select(
                 type=params.select_mouse, value=params.select_mouse_value, legacy=params.legacy)),
