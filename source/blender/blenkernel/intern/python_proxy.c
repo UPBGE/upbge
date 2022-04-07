@@ -728,7 +728,7 @@ PythonProxy *BKE_python_class_create_file(char *import,
 
   filecontent = BLI_str_replaceN((char *)orgfilecontent, "%Name%", classname);
 
-  BKE_text_write(text, filecontent);
+  BKE_text_write(text, filecontent, strlen(filecontent));
 
   MEM_freeN(filecontent);
 
