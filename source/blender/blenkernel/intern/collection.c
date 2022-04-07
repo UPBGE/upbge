@@ -1931,6 +1931,26 @@ void BKE_scene_objects_iterator_begin(BLI_Iterator *iter, void *data_in)
   scene_objects_iterator_begin(iter, scene, NULL);
 }
 
+static void scene_objects_iterator_skip_invalid_flag(BLI_Iterator *iter)
+{
+  if (!iter->valid) {
+    return;
+  }
+
+  /* Unpack the data. */
+  SceneObjectsIteratorExData *data = iter->data;
+  iter->data = data->iter_data;
+
+  Object *ob = iter->current;
+  if (ob && (ob->flag & data->flag) == 0) {
+    iter->skip = true;
+  }
+
+  /* Pack the data. */
+  data->iter_data = iter->data;
+  iter->data = data;
+}
+
 void BKE_scene_objects_iterator_begin_ex(BLI_Iterator *iter, void *data_in)
 {
   SceneObjectsIteratorExData *data = data_in;
@@ -1940,6 +1960,8 @@ void BKE_scene_objects_iterator_begin_ex(BLI_Iterator *iter, void *data_in)
   /* Pack the data. */
   data->iter_data = iter->data;
   iter->data = data_in;
+
+  scene_objects_iterator_skip_invalid_flag(iter);
 }
 
 void BKE_scene_objects_iterator_next_ex(struct BLI_Iterator *iter)
@@ -1950,14 +1972,11 @@ void BKE_scene_objects_iterator_next_ex(struct BLI_Iterator *iter)
 
   BKE_scene_objects_iterator_next(iter);
 
-  Object *ob = iter->current;
-  if (ob && (ob->flag & data->flag) == 0) {
-    iter->skip = true;
-  }
-
   /* Pack the data. */
   data->iter_data = iter->data;
   iter->data = data;
+
+  scene_objects_iterator_skip_invalid_flag(iter);
 }
 
 void BKE_scene_objects_iterator_end_ex(struct BLI_Iterator *iter)
