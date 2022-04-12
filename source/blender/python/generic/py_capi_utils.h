@@ -281,3 +281,7 @@ bool PyC_StructFmt_type_is_bool(char format);
 #endif
 
 #endif /* __PY_CAPI_UTILS_H__ */
+
+#ifdef __cplusplus
+}
+#endif

@@ -318,7 +318,8 @@ static void libblock_remap_data_preprocess(ID *id_owner,
  */
 static void libblock_remap_data_postprocess_object_update(Main *bmain,
                                                           Object *old_ob,
-                                                          Object *new_ob)
+                                                          Object *new_ob,
+                                                          const bool do_sync_collection)
 {
   if (new_ob == NULL) {
     /* In case we unlinked old_ob (new_ob is NULL), the object has already
@@ -332,7 +333,9 @@ static void libblock_remap_data_postprocess_object_update(Main *bmain,
     BKE_collections_object_remove_duplicates(bmain);
   }
 
-  BKE_main_collection_sync_remap(bmain);
+  if (do_sync_collection) {
+    BKE_main_collection_sync_remap(bmain);
+  }
 
   if (old_ob == NULL) {
     for (Object *ob = bmain->objects.first; ob != NULL; ob = ob->id.next) {
@@ -568,7 +571,8 @@ static void libblock_remap_foreach_idpair_cb(ID *old_id, ID *new_id, void *user_
    * Maybe we should do a per-ID callback for this instead? */
   switch (GS(old_id->name)) {
     case ID_OB:
-      libblock_remap_data_postprocess_object_update(bmain, (Object *)old_id, (Object *)new_id);
+      libblock_remap_data_postprocess_object_update(
+          bmain, (Object *)old_id, (Object *)new_id, true);
       BKE_sca_remap_data_postprocess_links_logicbricks_update(
           bmain, (Object *)old_id, (Object *)new_id);
       break;
@@ -722,7 +726,7 @@ static void libblock_relink_foreach_idpair_cb(ID *old_id, ID *new_id, void *user
           case ID_OB:
             if (!is_object_update_processed) {
               libblock_remap_data_postprocess_object_update(
-                  bmain, (Object *)old_id, (Object *)new_id);
+                  bmain, (Object *)old_id, (Object *)new_id, true);
               is_object_update_processed = true;
             }
             break;
@@ -784,11 +788,14 @@ void BKE_libblock_relink_multiple(Main *bmain,
                                                (Collection *)id_iter :
                                                ((Scene *)id_iter)->master_collection;
             /* No choice but to check whole objects once, and all children collections. */
-            libblock_remap_data_postprocess_collection_update(bmain, owner_collection, NULL, NULL);
             if (!is_object_update_processed) {
-              libblock_remap_data_postprocess_object_update(bmain, NULL, NULL);
+              /* We only want to affect Object pointers here, not Collection ones, LayerCollections
+               * will be resynced as part of the call to
+               * `libblock_remap_data_postprocess_collection_update` below. */
+              libblock_remap_data_postprocess_object_update(bmain, NULL, NULL, false);
               is_object_update_processed = true;
             }
+            libblock_remap_data_postprocess_collection_update(bmain, owner_collection, NULL, NULL);
             break;
           }
           default:

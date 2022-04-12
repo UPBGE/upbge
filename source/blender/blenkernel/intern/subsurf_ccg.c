@@ -2132,8 +2132,6 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
                    ccgSubSurf_getNumFinalFaces(ss) * 4,
                    ccgSubSurf_getNumFinalFaces(ss));
 
-  CustomData_free_layer_active(&ccgdm->dm.polyData, CD_NORMAL, ccgdm->dm.numPolyData);
-
   ccgdm->reverseFaceMap = MEM_callocN(sizeof(int) * ccgSubSurf_getNumFinalFaces(ss),
                                       "reverseFaceMap");
 
