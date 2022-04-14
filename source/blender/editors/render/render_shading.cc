@@ -1167,7 +1167,7 @@ void SCENE_OT_view_layer_add_lightgroup(wmOperatorType *ot)
   ot->prop = RNA_def_string(ot->srna,
                             "name",
                             nullptr,
-                            sizeof(((ViewLayerLightgroup *)NULL)->name),
+                            sizeof(((ViewLayerLightgroup *)nullptr)->name),
                             "Name",
                             "Name of newly created lightgroup");
 }
@@ -2613,7 +2613,7 @@ static void copy_mtex_copybuf(ID *id)
   }
 
   if (mtex && *mtex) {
-    memcpy(&mtexcopybuf, *mtex, sizeof(MTex));
+    mtexcopybuf = blender::dna::shallow_copy(**mtex);
     mtexcopied = 1;
   }
   else {
@@ -2649,7 +2649,7 @@ static void paste_mtex_copybuf(ID *id)
       id_us_min(&(*mtex)->tex->id);
     }
 
-    memcpy(*mtex, &mtexcopybuf, sizeof(MTex));
+    **mtex = blender::dna::shallow_copy(mtexcopybuf);
 
     id_us_plus((ID *)mtexcopybuf.tex);
   }

@@ -3418,11 +3418,11 @@ static void rna_def_object_modifiers(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_property_pointer_sdna(prop, NULL, "act_edbone");
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Active EditBone", "Armatures active edit bone");
-  /*RNA_def_property_update(prop, 0, "rna_Armature_act_editbone_update"); */
+  // RNA_def_property_update(prop, 0, "rna_Armature_act_editbone_update");
   RNA_def_property_pointer_funcs(prop, NULL, "rna_Armature_act_edit_bone_set", NULL, NULL);
 
   /* TODO: redraw. */
-/*      RNA_def_property_collection_active(prop, prop_act); */
+  // RNA_def_property_collection_active(prop, prop_act);
 #  endif
 
   /* add modifier */
@@ -4311,7 +4311,7 @@ static void rna_def_object(BlenderRNA *brna)
                            "Override logic transform with depsgraph autotransform");
   /* End of UPBGE */
 
-  /*parent_inverse*/
+  /* Parent_inverse. */
   prop = RNA_def_property(srna, "matrix_parent_inverse", PROP_FLOAT, PROP_MATRIX);
   RNA_def_property_float_sdna(prop, NULL, "parentinv");
   RNA_def_property_multi_array(prop, 2, rna_matrix_dimsize_4x4);

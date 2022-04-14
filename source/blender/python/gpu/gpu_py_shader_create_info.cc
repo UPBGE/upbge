@@ -32,9 +32,9 @@ using blender::gpu::shader::Type;
 using blender::gpu::shader::Qualifier;
 
 #  define PYDOC_QUALIFIERS \
-    "- ``NO_RESTRICT``\n" \
-    "- ``READ``\n" \
-    "- ``WRITE``\n"
+    "      - ``NO_RESTRICT``\n" \
+    "      - ``READ``\n" \
+    "      - ``WRITE``\n"
 static const struct PyC_FlagSet pygpu_qualifiers[] = {
     {(int)Qualifier::NO_RESTRICT, "NO_RESTRICT"},
     {(int)Qualifier::READ, "READ"},
@@ -44,21 +44,21 @@ static const struct PyC_FlagSet pygpu_qualifiers[] = {
 #endif
 
 #define PYDOC_TYPE_LIST \
-  "- ``FLOAT``\n" \
-  "- ``VEC2``\n" \
-  "- ``VEC3``\n" \
-  "- ``VEC4``\n" \
-  "- ``MAT3``\n" \
-  "- ``MAT4``\n" \
-  "- ``UINT``\n" \
-  "- ``UVEC2``\n" \
-  "- ``UVEC3``\n" \
-  "- ``UVEC4``\n" \
-  "- ``INT``\n" \
-  "- ``IVEC2``\n" \
-  "- ``IVEC3``\n" \
-  "- ``IVEC4``\n" \
-  "- ``BOOL``\n"
+  "      - ``FLOAT``\n" \
+  "      - ``VEC2``\n" \
+  "      - ``VEC3``\n" \
+  "      - ``VEC4``\n" \
+  "      - ``MAT3``\n" \
+  "      - ``MAT4``\n" \
+  "      - ``UINT``\n" \
+  "      - ``UVEC2``\n" \
+  "      - ``UVEC3``\n" \
+  "      - ``UVEC4``\n" \
+  "      - ``INT``\n" \
+  "      - ``IVEC2``\n" \
+  "      - ``IVEC3``\n" \
+  "      - ``IVEC4``\n" \
+  "      - ``BOOL``\n"
 static const struct PyC_StringEnumItems pygpu_attrtype_items[] = {
     {(int)Type::FLOAT, "FLOAT"},
     {(int)Type::VEC2, "VEC2"},
@@ -79,38 +79,38 @@ static const struct PyC_StringEnumItems pygpu_attrtype_items[] = {
 };
 
 #define PYDOC_IMAGE_TYPES \
-  "- ``FLOAT_BUFFER``\n" \
-  "- ``FLOAT_1D``\n" \
-  "- ``FLOAT_1D_ARRAY``\n" \
-  "- ``FLOAT_2D``\n" \
-  "- ``FLOAT_2D_ARRAY``\n" \
-  "- ``FLOAT_3D``\n" \
-  "- ``FLOAT_CUBE``\n" \
-  "- ``FLOAT_CUBE_ARRAY``\n" \
-  "- ``INT_BUFFER``\n" \
-  "- ``INT_1D``\n" \
-  "- ``INT_1D_ARRAY``\n" \
-  "- ``INT_2D``\n" \
-  "- ``INT_2D_ARRAY``\n" \
-  "- ``INT_3D``\n" \
-  "- ``INT_CUBE``\n" \
-  "- ``INT_CUBE_ARRAY``\n" \
-  "- ``UINT_BUFFER``\n" \
-  "- ``UINT_1D``\n" \
-  "- ``UINT_1D_ARRAY``\n" \
-  "- ``UINT_2D``\n" \
-  "- ``UINT_2D_ARRAY``\n" \
-  "- ``UINT_3D``\n" \
-  "- ``UINT_CUBE``\n" \
-  "- ``UINT_CUBE_ARRAY``\n" \
-  "- ``SHADOW_2D``\n" \
-  "- ``SHADOW_2D_ARRAY``\n" \
-  "- ``SHADOW_CUBE``\n" \
-  "- ``SHADOW_CUBE_ARRAY``\n" \
-  "- ``DEPTH_2D``\n" \
-  "- ``DEPTH_2D_ARRAY``\n" \
-  "- ``DEPTH_CUBE``\n" \
-  "- ``DEPTH_CUBE_ARRAY``\n"
+  "      - ``FLOAT_BUFFER``\n" \
+  "      - ``FLOAT_1D``\n" \
+  "      - ``FLOAT_1D_ARRAY``\n" \
+  "      - ``FLOAT_2D``\n" \
+  "      - ``FLOAT_2D_ARRAY``\n" \
+  "      - ``FLOAT_3D``\n" \
+  "      - ``FLOAT_CUBE``\n" \
+  "      - ``FLOAT_CUBE_ARRAY``\n" \
+  "      - ``INT_BUFFER``\n" \
+  "      - ``INT_1D``\n" \
+  "      - ``INT_1D_ARRAY``\n" \
+  "      - ``INT_2D``\n" \
+  "      - ``INT_2D_ARRAY``\n" \
+  "      - ``INT_3D``\n" \
+  "      - ``INT_CUBE``\n" \
+  "      - ``INT_CUBE_ARRAY``\n" \
+  "      - ``UINT_BUFFER``\n" \
+  "      - ``UINT_1D``\n" \
+  "      - ``UINT_1D_ARRAY``\n" \
+  "      - ``UINT_2D``\n" \
+  "      - ``UINT_2D_ARRAY``\n" \
+  "      - ``UINT_3D``\n" \
+  "      - ``UINT_CUBE``\n" \
+  "      - ``UINT_CUBE_ARRAY``\n" \
+  "      - ``SHADOW_2D``\n" \
+  "      - ``SHADOW_2D_ARRAY``\n" \
+  "      - ``SHADOW_CUBE``\n" \
+  "      - ``SHADOW_CUBE_ARRAY``\n" \
+  "      - ``DEPTH_2D``\n" \
+  "      - ``DEPTH_2D_ARRAY``\n" \
+  "      - ``DEPTH_CUBE``\n" \
+  "      - ``DEPTH_CUBE_ARRAY``\n"
 static const struct PyC_StringEnumItems pygpu_imagetype_items[] = {
     {(int)ImageType::FLOAT_BUFFER, "FLOAT_BUFFER"},
     {(int)ImageType::FLOAT_1D, "FLOAT_1D"},
@@ -192,6 +192,7 @@ PyDoc_STRVAR(pygpu_interface_info_smooth_doc,
              "\n"
              "   :param type: One of these types:\n"
              "\n" PYDOC_TYPE_LIST
+             "\n"
              "   :type type: str\n"
              "   :param name: name of the attribute.\n"
              "   :type name: str\n");
@@ -215,6 +216,7 @@ PyDoc_STRVAR(pygpu_interface_info_flat_doc,
              "\n"
              "   :param type: One of these types:\n"
              "\n" PYDOC_TYPE_LIST
+             "\n"
              "   :type type: str\n"
              "   :param name: name of the attribute.\n"
              "   :type name: str\n");
@@ -239,6 +241,7 @@ PyDoc_STRVAR(
     "\n"
     "   :param type: One of these types:\n"
     "\n" PYDOC_TYPE_LIST
+    "\n"
     "   :type type: str\n"
     "   :param name: name of the attribute.\n"
     "   :type name: str\n");
@@ -318,7 +321,7 @@ static PyObject *pygpu_interface_info__tp_new(PyTypeObject *UNUSED(type),
   StageInterfaceInfo *interface = new StageInterfaceInfo(name, "");
   GPUStageInterfaceInfo *interface_info = reinterpret_cast<GPUStageInterfaceInfo *>(interface);
 
-  auto self = BPyGPUStageInterfaceInfo_CreatePyObject(interface_info);
+  auto *self = BPyGPUStageInterfaceInfo_CreatePyObject(interface_info);
 
 #ifdef USE_GPU_PY_REFERENCES
   PyObject *py_name = PyTuple_GET_ITEM(args, 0);
@@ -405,6 +408,7 @@ PyDoc_STRVAR(pygpu_shader_info_vertex_in_doc,
              "   :type slot: int\n"
              "   :param type: One of these types:\n"
              "\n" PYDOC_TYPE_LIST
+             "\n"
              "   :type type: str\n"
              "   :param name: name of the attribute.\n"
              "   :type name: str\n");
@@ -463,6 +467,7 @@ PyDoc_STRVAR(pygpu_shader_info_fragment_out_doc,
              "   :type slot: int\n"
              "   :param type: One of these types:\n"
              "\n" PYDOC_TYPE_LIST
+             "\n"
              "   :type type: str\n"
              "   :param name: Name of the attribute.\n"
              "   :type name: str\n"
@@ -478,7 +483,16 @@ static PyObject *pygpu_shader_info_fragment_out(BPyGPUShaderCreateInfo *self,
   struct PyC_StringEnum blend_type = {pygpu_dualblend_items, (int)DualBlend::NONE};
 
   static const char *_keywords[] = {"slot", "type", "name", "blend", nullptr};
-  static _PyArg_Parser _parser = {"iO&s|$O&:fragment_out", _keywords, 0};
+  static _PyArg_Parser _parser = {
+      "i"  /* `slot` */
+      "O&" /* `type` */
+      "s"  /* `name` */
+      "|$" /* Optional keyword only arguments. */
+      "O&" /* `blend` */
+      ":fragment_out",
+      _keywords,
+      nullptr,
+  };
   if (!_PyArg_ParseTupleAndKeywordsFast(args,
                                         kwds,
                                         &_parser,
@@ -550,7 +564,8 @@ PyDoc_STRVAR(
     "   :type format: str\n"
     "   :param type: The data type describing how the image is to be read in the shader. "
     "Possible values are:\n"
-    "" PYDOC_IMAGE_TYPES
+    "\n" PYDOC_IMAGE_TYPES
+    "\n"
     "   :type type: str\n"
     "   :param name: The image resource name.\n"
     "   :type name: str\n"
@@ -571,7 +586,17 @@ static PyObject *pygpu_shader_info_image(BPyGPUShaderCreateInfo *self,
   Qualifier qualifier = Qualifier::NO_RESTRICT;
 
   static const char *_keywords[] = {"slot", "format", "type", "name", "qualifiers", nullptr};
-  static _PyArg_Parser _parser = {"iO&O&s|$O:image", _keywords, 0};
+  static _PyArg_Parser _parser = {
+      "i"  /* `slot` */
+      "O&" /* `format` */
+      "O&" /* `type` */
+      "s"  /* `name` */
+      "|$" /* Optional keyword only arguments. */
+      "O"  /* `qualifiers` */
+      ":image",
+      _keywords,
+      nullptr,
+  };
   if (!_PyArg_ParseTupleAndKeywordsFast(args,
                                         kwds,
                                         &_parser,
@@ -616,7 +641,8 @@ PyDoc_STRVAR(
     "   :type slot: int\n"
     "   :param type: The data type describing the format of each sampler unit. Possible values "
     "are:\n"
-    "" PYDOC_IMAGE_TYPES
+    "\n" PYDOC_IMAGE_TYPES
+    "\n"
     "   :type type: str\n"
     "   :param name: The image texture sampler name.\n"
     "   :type name: str\n");
@@ -666,9 +692,9 @@ static int constant_type_size(Type type)
       return 16;
       break;
     case Type::MAT3:
-      return 72 + 3 * 4;
+      return 36 + 3 * 4;
     case Type::MAT4:
-      return 128;
+      return 64;
       break;
   }
   BLI_assert(false);
@@ -710,6 +736,7 @@ PyDoc_STRVAR(pygpu_shader_info_push_constant_doc,
              "\n"
              "   :param type: One of these types:\n"
              "\n" PYDOC_TYPE_LIST
+             "\n"
              "   :type type: str\n"
              "   :param name: Name of the constant.\n"
              "   :type name: str\n"
@@ -725,7 +752,15 @@ static PyObject *pygpu_shader_info_push_constant(BPyGPUShaderCreateInfo *self,
   int array_size = 0;
 
   static const char *_keywords[] = {"type", "name", "size", nullptr};
-  static _PyArg_Parser _parser = {"O&s|I:push_constant", _keywords, 0};
+  static _PyArg_Parser _parser = {
+      "O&" /* `type` */
+      "s"  /* `name` */
+      "|"  /* Optional arguments. */
+      "I"  /* `size` */
+      ":push_constant",
+      _keywords,
+      nullptr,
+  };
   if (!_PyArg_ParseTupleAndKeywordsFast(
           args, kwds, &_parser, PyC_ParseStringEnum, &pygpu_type, &name, &array_size)) {
     return nullptr;
@@ -759,15 +794,15 @@ PyDoc_STRVAR(
     "\n"
     "   Example:\n"
     "\n"
-    ".. code-block:: python\n"
+    "   .. code-block:: python\n"
     "\n"
-    "   \"void main {gl_Position = vec4(pos, 1.0);}\"\n"
-    "\n"
-    ".. seealso:: `GLSL Cross Compilation "
-    "<https://wiki.blender.org/wiki/EEVEE_%26_Viewport/GPU_Module/GLSL_Cross_Compilation>`__"
+    "      \"void main {gl_Position = vec4(pos, 1.0);}\"\n"
     "\n"
     "   :param source: The vertex shader source code.\n"
-    "   :type source: str\n");
+    "   :type source: str\n"
+    "\n"
+    "   .. seealso:: `GLSL Cross Compilation "
+    "<https://wiki.blender.org/wiki/EEVEE_%26_Viewport/GPU_Module/GLSL_Cross_Compilation>`__\n");
 static PyObject *pygpu_shader_info_vertex_source(BPyGPUShaderCreateInfo *self, PyObject *o)
 {
   const char *vertex_source = PyUnicode_AsUTF8(o);
@@ -800,15 +835,15 @@ PyDoc_STRVAR(
     "\n"
     "   Example:\n"
     "\n"
-    ".. code-block:: python\n"
+    "   .. code-block:: python\n"
     "\n"
-    "   \"void main {fragColor = vec4(0.0, 0.0, 0.0, 1.0);}\"\n"
-    "\n"
-    ".. seealso:: `GLSL Cross Compilation "
-    "<https://wiki.blender.org/wiki/EEVEE_%26_Viewport/GPU_Module/GLSL_Cross_Compilation>`__"
+    "      \"void main {fragColor = vec4(0.0, 0.0, 0.0, 1.0);}\"\n"
     "\n"
     "   :param source: The fragment shader source code.\n"
-    "   :type source: str\n");
+    "   :type source: str\n"
+    "\n"
+    "   .. seealso:: `GLSL Cross Compilation "
+    "<https://wiki.blender.org/wiki/EEVEE_%26_Viewport/GPU_Module/GLSL_Cross_Compilation>`__\n");
 static PyObject *pygpu_shader_info_fragment_source(BPyGPUShaderCreateInfo *self, PyObject *o)
 {
   const char *fragment_source = PyUnicode_AsUTF8(o);
