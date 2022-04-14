@@ -2459,7 +2459,7 @@ void DM_to_mesh(
     DerivedMesh *dm, Mesh *me, Object *ob, const CustomData_MeshMasks *mask, bool take_ownership)
 {
   /* dm might depend on me, so we need to do everything with a local copy */
-  Mesh tmp = *me;
+  Mesh tmp = blender::dna::shallow_copy(*me);
   int totvert, totedge /*, totface */ /* UNUSED */, totloop, totpoly;
   int did_shapekeys = 0;
   eCDAllocType alloctype = CD_DUPLICATE;
