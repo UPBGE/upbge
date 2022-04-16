@@ -1295,6 +1295,10 @@ void DRW_notify_view_update(const DRWUpdateContext *update_ctx)
 
   const bool gpencil_engine_needed = drw_gpencil_engine_needed(depsgraph, v3d);
 
+  if (G.is_rendering) {
+    return;
+  }
+
   /* XXX Really nasty locking. But else this could
    * be executed by the material previews thread
    * while rendering a viewport. */
