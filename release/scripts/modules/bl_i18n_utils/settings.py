@@ -192,6 +192,8 @@ PYGETTEXT_CONTEXTS_DEFSRC = os.path.join("source", "blender", "blentranslation",
 # XXX Not full-proof, but should be enough here!
 PYGETTEXT_CONTEXTS = "#define\\s+(BLT_I18NCONTEXT_[A-Z_0-9]+)\\s+\"([^\"]*)\""
 
+# autopep8: off
+
 # Keywords' regex.
 # XXX Most unfortunately, we can't use named backreferences inside character sets,
 #     which makes the regexes even more twisty... :/
@@ -255,6 +257,9 @@ PYGETTEXT_KEYWORDS = (() +
            r"\s*,\s*)?(?:".join(_ctxt_re_gen(i) for i in range(PYGETTEXT_MAX_MULTI_CTXT)) + r")?\s*\)").format(it)
           for it in ("BLT_I18N_MSGID_MULTI_CTXT",))
 )
+
+# autopep8: on
+
 
 # Check printf mismatches between msgid and msgstr.
 CHECK_PRINTF_FORMAT = (
@@ -605,7 +610,10 @@ class I18nSettings:
     def to_json(self):
         # Only save the diff from default i18n_settings!
         glob = globals()
-        export_dict = {uid: val for uid, val in self.__dict__.items() if _check_valid_data(uid, val) and glob.get(uid) != val}
+        export_dict = {
+            uid: val for uid, val in self.__dict__.items()
+            if _check_valid_data(uid, val) and glob.get(uid) != val
+        }
         return json.dumps(export_dict)
 
     def load(self, fname, reset=False):
