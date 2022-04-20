@@ -687,7 +687,7 @@ static void loops_to_customdata_corners(
 
     for (j = 0; j < 3; j++) {
       l = l3[j];
-      mloopcol = CustomData_bmesh_get_n(&bm->ldata, l->head.data, CD_MLOOPCOL, i);
+      mloopcol = CustomData_bmesh_get_n(&bm->ldata, l->head.data, CD_PROP_BYTE_COLOR, i);
       MESH_MLOOPCOL_TO_MCOL(mloopcol, &mcol[j]);
     }
   }

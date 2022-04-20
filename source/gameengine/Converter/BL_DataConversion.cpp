@@ -381,14 +381,15 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   /* Extract available layers.
    * Get the active color and uv layer. */
   const short activeUv = CustomData_get_active_layer(&dm->loopData, CD_MLOOPUV);
-  const short activeColor = CustomData_get_active_layer(&dm->loopData, CD_MLOOPCOL);
+  const short activeColor = CustomData_get_active_layer(&dm->loopData, CD_PROP_BYTE_COLOR);
 
   RAS_MeshObject::LayersInfo layersInfo;
   layersInfo.activeUv = (activeUv == -1) ? 0 : activeUv;
   layersInfo.activeColor = (activeColor == -1) ? 0 : activeColor;
 
   const unsigned short uvLayers = CustomData_number_of_layers(&dm->loopData, CD_MLOOPUV);
-  const unsigned short colorLayers = CustomData_number_of_layers(&dm->loopData, CD_MLOOPCOL);
+  const unsigned short colorLayers = CustomData_number_of_layers(&dm->loopData,
+                                                                 CD_PROP_BYTE_COLOR);
 
   // Extract UV loops.
   for (unsigned short i = 0; i < uvLayers; ++i) {
@@ -398,8 +399,8 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   }
   // Extract color loops.
   for (unsigned short i = 0; i < colorLayers; ++i) {
-    const std::string name = CustomData_get_layer_name(&dm->loopData, CD_MLOOPCOL, i);
-    MLoopCol *col = (MLoopCol *)CustomData_get_layer_n(&dm->loopData, CD_MLOOPCOL, i);
+    const std::string name = CustomData_get_layer_name(&dm->loopData, CD_PROP_BYTE_COLOR, i);
+    MLoopCol *col = (MLoopCol *)CustomData_get_layer_n(&dm->loopData, CD_PROP_BYTE_COLOR, i);
     layersInfo.layers.push_back({nullptr, col, i, name});
   }
 
