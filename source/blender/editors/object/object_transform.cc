@@ -884,9 +884,6 @@ static int apply_objects_internal(bContext *C,
 
       /* adjust data */
       BKE_mesh_transform(me, mat, true);
-
-      /* If normal layers exist, they are now dirty. */
-      BKE_mesh_normals_tag_dirty(me);
     }
     else if (ob->type == OB_ARMATURE) {
       bArmature *arm = static_cast<bArmature *>(ob->data);
@@ -1194,7 +1191,7 @@ void OBJECT_OT_parent_inverse_apply(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Apply Parent Inverse";
-  ot->description = "Apply the object's parent inverse to the its data";
+  ot->description = "Apply the object's parent inverse to its data";
   ot->idname = "OBJECT_OT_parent_inverse_apply";
 
   /* api callbacks */

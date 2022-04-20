@@ -219,11 +219,6 @@ ListBase GPU_material_textures(GPUMaterial *material)
   return material->graph.textures;
 }
 
-ListBase GPU_material_volume_grids(GPUMaterial *material)
-{
-  return material->graph.volume_grids;
-}
-
 GPUUniformAttrList *GPU_material_uniform_attributes(GPUMaterial *material)
 {
   GPUUniformAttrList *attrs = &material->graph.uniform_attrs;
@@ -598,11 +593,6 @@ void GPU_material_status_set(GPUMaterial *mat, eGPUMaterialStatus status)
 }
 
 /* Code generation */
-
-bool GPU_material_is_volume_shader(GPUMaterial *mat)
-{
-  return mat->is_volume_shader;
-}
 
 bool GPU_material_has_surface_output(GPUMaterial *mat)
 {

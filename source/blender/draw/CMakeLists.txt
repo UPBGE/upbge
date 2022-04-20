@@ -98,6 +98,7 @@ set(SRC
   intern/draw_texture_pool.cc
   intern/draw_view.c
   intern/draw_view_data.cc
+  intern/draw_volume.cc
   intern/smaa_textures.c
   engines/basic/basic_engine.c
   engines/basic/basic_shader.c

@@ -178,13 +178,20 @@ static const Mesh *mesh_for_snap(Object *ob_eval, eSnapEditType edit_mode_type, 
 /**
  * Calculate the minimum and maximum coordinates of the box that encompasses this mesh.
  */
-static void bm_mesh_minmax(BMesh *bm, float r_min[3], float r_max[3])
+static void snap_editmesh_minmax(SnapObjectContext *sctx,
+                                 BMesh *bm,
+                                 float r_min[3],
+                                 float r_max[3])
 {
   INIT_MINMAX(r_min, r_max);
   BMIter iter;
   BMVert *v;
 
   BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+    if (sctx->callbacks.edit_mesh.test_vert_fn &&
+        !sctx->callbacks.edit_mesh.test_vert_fn(v, sctx->callbacks.edit_mesh.user_data)) {
+      continue;
+    }
     minmax_v3v3_v3(r_min, r_max, v->co);
   }
 }
@@ -312,10 +319,10 @@ static SnapObjectData *snap_object_data_mesh_get(SnapObjectContext *sctx,
                               use_hide ? BVHTREE_FROM_LOOPTRI_NO_HIDDEN : BVHTREE_FROM_LOOPTRI,
                               4);
 
-    BLI_assert(sod->treedata_mesh.vert != nullptr);
-    BLI_assert(sod->treedata_mesh.vert_normals != nullptr);
-    BLI_assert(sod->treedata_mesh.loop != nullptr);
-    BLI_assert(sod->treedata_mesh.looptri != nullptr);
+    BLI_assert(sod->treedata_mesh.vert == me_eval->mvert);
+    BLI_assert(!me_eval->mvert || sod->treedata_mesh.vert_normals);
+    BLI_assert(sod->treedata_mesh.loop == me_eval->mloop);
+    BLI_assert(!me_eval->mpoly || sod->treedata_mesh.looptri);
     BLI_assert(sod->has_looptris == false);
 
     sod->has_looptris = sod->treedata_mesh.tree != nullptr;
@@ -423,7 +430,7 @@ static SnapObjectData *snap_object_data_editmesh_get(SnapObjectContext *sctx,
     sod->type = SnapObjectData::Type::EditMesh;
     sod->treedata_editmesh.em = em;
     sod->mesh_runtime = snap_object_data_editmesh_runtime_get(ob_eval);
-    bm_mesh_minmax(em->bm, sod->min, sod->max);
+    snap_editmesh_minmax(sctx, em->bm, sod->min, sod->max);
   }
 
   return sod;
@@ -877,9 +884,6 @@ static bool raycastEditMesh(SnapObjectContext *sctx,
   BVHTreeFromEditMesh *treedata = &sod->treedata_editmesh;
 
   if (treedata->tree == nullptr) {
-    /* Operators only update the editmesh looptris of the original mesh. */
-    BLI_assert(sod->treedata_editmesh.em ==
-               BKE_editmesh_from_object(DEG_get_original_object(ob_eval)));
     em = sod->treedata_editmesh.em;
 
     if (sctx->callbacks.edit_mesh.test_face_fn) {
@@ -1031,14 +1035,15 @@ static void raycast_obj_fn(SnapObjectContext *sctx,
       bool use_hide = false;
       const Mesh *me_eval = mesh_for_snap(ob_eval, edit_mode_type, &use_hide);
       if (me_eval == nullptr) {
-        /* Operators only update the editmesh looptris of the original mesh. */
-        BMEditMesh *em_orig = BKE_editmesh_from_object(DEG_get_original_object(ob_eval));
+        BMEditMesh *em = BKE_editmesh_from_object(ob_eval);
+        BLI_assert_msg(em == BKE_editmesh_from_object(DEG_get_original_object(ob_eval)),
+                       "Make sure there is only one pointer for looptris");
         retval = raycastEditMesh(sctx,
                                  params,
                                  dt->ray_start,
                                  dt->ray_dir,
                                  ob_eval,
-                                 em_orig,
+                                 em,
                                  obmat,
                                  ob_index,
                                  ray_depth,
@@ -2701,10 +2706,11 @@ static void snap_obj_fn(SnapObjectContext *sctx,
       bool use_hide;
       const Mesh *me_eval = mesh_for_snap(ob_eval, edit_mode_type, &use_hide);
       if (me_eval == nullptr) {
-        /* Operators only update the editmesh looptris of the original mesh. */
-        BMEditMesh *em_orig = BKE_editmesh_from_object(DEG_get_original_object(ob_eval));
+        BMEditMesh *em = BKE_editmesh_from_object(ob_eval);
+        BLI_assert_msg(em == BKE_editmesh_from_object(DEG_get_original_object(ob_eval)),
+                       "Make sure there is only one pointer for looptris");
         retval = snapEditMesh(
-            sctx, params, ob_eval, em_orig, obmat, dt->dist_px, dt->r_loc, dt->r_no, dt->r_index);
+            sctx, params, ob_eval, em, obmat, dt->dist_px, dt->r_loc, dt->r_no, dt->r_index);
         break;
       }
       if (ob_eval->dt == OB_BOUNDBOX) {
