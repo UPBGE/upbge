@@ -219,7 +219,6 @@ typedef struct SculptThreadedTaskData {
   int totnode;
 
   struct VPaint *vp;
-  struct VPaintData *vpd;
   struct WPaintData *wpd;
   struct WeightPaintInfo *wpi;
   unsigned int *lcol;
@@ -493,6 +492,7 @@ typedef struct StrokeCache {
   float mouse_event[2];
 
   float (*prev_colors)[4];
+  void *prev_colors_vpaint;
 
   /* Multires Displacement Smear. */
   float (*prev_displacement)[3];
@@ -782,7 +782,17 @@ bool SCULPT_mode_poll_view3d(struct bContext *C);
 bool SCULPT_poll(struct bContext *C);
 bool SCULPT_poll_view3d(struct bContext *C);
 
-bool SCULPT_vertex_colors_poll(struct bContext *C);
+/**
+ * Returns true if sculpt session can handle color attributes
+ * (BKE_pbvh_type(ss->pbvh) == PBVH_FACES).  If false an error
+ * message will be shown to the user.  Operators should return
+ * OPERATOR_CANCELLED in this case.
+ *
+ * NOTE: Does not check if a color attribute actually exists.
+ * Calling code must handle this itself; in most cases a call to
+ * BKE_sculpt_color_layer_create_if_needed() is sufficient.
+ */
+bool SCULPT_handles_colors_report(struct SculptSession *ss, struct ReportList *reports);
 
 /** \} */
 

@@ -2002,8 +2002,7 @@ typedef struct SpreadsheetRowFilter {
   float value_float2[2];
   float value_float3[3];
   float value_color[4];
-
-  char _pad1[4];
+  uint8_t value_byte_color[4];
 } SpreadsheetRowFilter;
 
 typedef enum eSpaceSpreadsheet_RowFilterFlag {
@@ -2040,6 +2039,7 @@ typedef enum eSpreadsheetColumnValueType {
   SPREADSHEET_VALUE_TYPE_COLOR = 5,
   SPREADSHEET_VALUE_TYPE_INSTANCES = 6,
   SPREADSHEET_VALUE_TYPE_STRING = 7,
+  SPREADSHEET_VALUE_TYPE_BYTE_COLOR = 8,
 } eSpreadsheetColumnValueType;
 
 /**

@@ -119,6 +119,7 @@ using blender::threading::EnumerableThreadSpecific;
 using namespace blender::fn::multi_function_types;
 using namespace blender::nodes::derived_node_tree_types;
 using geo_log::GeometryAttributeInfo;
+using geo_log::NamedAttributeUsage;
 
 static void initData(ModifierData *md)
 {
@@ -997,30 +998,34 @@ static void store_computed_output_attributes(
     const CustomDataType data_type = blender::bke::cpp_type_to_custom_data_type(store.data.type());
     const std::optional<AttributeMetaData> meta_data = component.attribute_get_meta_data(
         store.name);
-    if (meta_data.has_value() && meta_data->domain == store.domain &&
-        meta_data->data_type == data_type) {
-      /* Copy the data into an existing attribute. */
-      blender::bke::WriteAttributeLookup write_attribute = component.attribute_try_get_for_write(
-          store.name);
-      if (write_attribute) {
-        write_attribute.varray.set_all(store.data.data());
-        if (write_attribute.tag_modified_fn) {
-          write_attribute.tag_modified_fn();
-        }
-      }
-      store.data.type().destruct_n(store.data.data(), store.data.size());
-      MEM_freeN(store.data.data());
+
+    /* Attempt to remove the attribute if it already exists but the domain and type don't match.
+     * Removing the attribute won't succeed if it is built in and non-removable. */
+    if (meta_data.has_value() &&
+        (meta_data->domain != store.domain || meta_data->data_type != data_type)) {
+      component.attribute_try_delete(store.name);
     }
-    else {
-      /* Replace the existing attribute with the new data. */
-      if (meta_data.has_value()) {
-        component.attribute_try_delete(store.name);
-      }
-      component.attribute_try_create(store.name,
-                                     store.domain,
-                                     blender::bke::cpp_type_to_custom_data_type(store.data.type()),
-                                     AttributeInitMove(store.data.data()));
+
+    /* Try to create the attribute reusing the stored buffer. This will only succeed if the
+     * attribute didn't exist before, or if it existed but was removed above. */
+    if (component.attribute_try_create(
+            store.name,
+            store.domain,
+            blender::bke::cpp_type_to_custom_data_type(store.data.type()),
+            AttributeInitMove(store.data.data()))) {
+      continue;
     }
+
+    OutputAttribute attribute = component.attribute_try_get_for_output_only(
+        store.name, store.domain, data_type);
+    if (attribute) {
+      attribute.varray().set_all(store.data.data());
+      attribute.save();
+    }
+
+    /* We were unable to reuse the data, so it must be destructed and freed. */
+    store.data.type().destruct_n(store.data.data(), store.data.size());
+    MEM_freeN(store.data.data());
   }
 }
 
@@ -1619,6 +1624,71 @@ static void output_attribute_panel_draw(const bContext *C, Panel *panel)
   }
 }
 
+static void used_attributes_panel_draw(const bContext *UNUSED(C), Panel *panel)
+{
+  uiLayout *layout = panel->layout;
+
+  PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
+  NodesModifierData *nmd = static_cast<NodesModifierData *>(ptr->data);
+
+  if (nmd->runtime_eval_log == nullptr) {
+    return;
+  }
+  const geo_log::ModifierLog &log = *static_cast<geo_log::ModifierLog *>(nmd->runtime_eval_log);
+  Map<std::string, NamedAttributeUsage> usage_by_attribute;
+  log.foreach_node_log([&](const geo_log::NodeLog &node_log) {
+    for (const geo_log::UsedNamedAttribute &used_attribute : node_log.used_named_attributes()) {
+      usage_by_attribute.lookup_or_add_as(used_attribute.name,
+                                          used_attribute.usage) |= used_attribute.usage;
+    }
+  });
+
+  if (usage_by_attribute.is_empty()) {
+    uiItemL(layout, IFACE_("No named attributes used"), ICON_INFO);
+    return;
+  }
+
+  Vector<std::pair<StringRefNull, NamedAttributeUsage>> sorted_used_attribute;
+  for (auto &&item : usage_by_attribute.items()) {
+    sorted_used_attribute.append({item.key, item.value});
+  }
+  std::sort(sorted_used_attribute.begin(), sorted_used_attribute.end());
+
+  for (const auto &pair : sorted_used_attribute) {
+    const StringRefNull attribute_name = pair.first;
+    const NamedAttributeUsage usage = pair.second;
+
+    /* #uiLayoutRowWithHeading doesn't seem to work in this case. */
+    uiLayout *split = uiLayoutSplit(layout, 0.4f, false);
+
+    std::stringstream ss;
+    Vector<std::string> usages;
+    if ((usage & NamedAttributeUsage::Read) != NamedAttributeUsage::None) {
+      usages.append(TIP_("Read"));
+    }
+    if ((usage & NamedAttributeUsage::Write) != NamedAttributeUsage::None) {
+      usages.append(TIP_("Write"));
+    }
+    if ((usage & NamedAttributeUsage::Remove) != NamedAttributeUsage::None) {
+      usages.append(TIP_("Remove"));
+    }
+    for (const int i : usages.index_range()) {
+      ss << usages[i];
+      if (i < usages.size() - 1) {
+        ss << ", ";
+      }
+    }
+
+    uiLayout *row = uiLayoutRow(split, false);
+    uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
+    uiLayoutSetActive(row, false);
+    uiItemL(row, ss.str().c_str(), ICON_NONE);
+
+    row = uiLayoutRow(split, false);
+    uiItemL(row, attribute_name.c_str(), ICON_NONE);
+  }
+}
+
 static void panelRegister(ARegionType *region_type)
 {
   PanelType *panel_type = modifier_panel_register(region_type, eModifierType_Nodes, panel_draw);
@@ -1627,6 +1697,12 @@ static void panelRegister(ARegionType *region_type)
                              N_("Output Attributes"),
                              nullptr,
                              output_attribute_panel_draw,
+                             panel_type);
+  modifier_subpanel_register(region_type,
+                             "used_attributes",
+                             N_("Used Attributes"),
+                             nullptr,
+                             used_attributes_panel_draw,
                              panel_type);
 }
 

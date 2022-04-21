@@ -1101,7 +1101,6 @@ bool BKE_paint_ensure(ToolSettings *ts, struct Paint **r_paint)
   }
   else if ((CurvesSculpt **)r_paint == &ts->curves_sculpt) {
     CurvesSculpt *data = MEM_callocN(sizeof(*data), __func__);
-    data->curve_length = 0.3f;
     paint = &data->paint;
   }
   else if (*r_paint == &ts->imapaint.paint) {
@@ -1341,8 +1340,6 @@ void BKE_sculptsession_free_vwpaint_data(struct SculptSession *ss)
   struct SculptVertexPaintGeomMap *gmap = NULL;
   if (ss->mode_type == OB_MODE_VERTEX_PAINT) {
     gmap = &ss->mode.vpaint.gmap;
-
-    MEM_SAFE_FREE(ss->mode.vpaint.previous_color);
   }
   else if (ss->mode_type == OB_MODE_WEIGHT_PAINT) {
     gmap = &ss->mode.wpaint.gmap;
