@@ -1354,7 +1354,6 @@ static void mesh_calc_modifiers_dm(struct Depsgraph *depsgraph,
                                    int useDeform,
                                    const bool need_mapping,
                                    const CustomData_MeshMasks *dataMask,
-                                   const int index,
                                    const bool useCache,
                                    const bool build_shapekey_layers,
                                    /* return args */
@@ -1369,7 +1368,6 @@ static void mesh_calc_modifiers_dm(struct Depsgraph *depsgraph,
                       useDeform,
                       need_mapping,
                       dataMask,
-                      index,
                       useCache,
                       true,
                       (r_deformdm ? &deform_mesh : nullptr),
@@ -2603,7 +2601,7 @@ DerivedMesh *mesh_create_derived_no_virtual(struct Depsgraph *depsgraph,
   DerivedMesh *result;
 
   mesh_calc_modifiers_dm(
-      depsgraph, scene, ob, vertCos, -1, false, dataMask, -1, false, false, nullptr, &result);
+      depsgraph, scene, ob, vertCos, -1, false, dataMask, false, false, nullptr, &result);
 
   return result;
 }
@@ -2617,7 +2615,7 @@ DerivedMesh *mesh_create_derived_physics(struct Depsgraph *depsgraph,
   DerivedMesh *result;
 
   mesh_calc_modifiers_dm(
-      depsgraph, scene, ob, vertCos, -1, true, dataMask, -1, false, false, nullptr, &result);
+      depsgraph, scene, ob, vertCos, -1, true, dataMask, false, false, nullptr, &result);
 
   return result;
 }
@@ -2877,7 +2875,6 @@ static void mesh_build_derived_data(struct Depsgraph *depsgraph,
                       1,
                       need_mapping,
                       dataMask,
-                      -1,
                       true,
                       true,
                       &mesh_deform_eval,
