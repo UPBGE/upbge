@@ -5,7 +5,7 @@ SCA_VibrationActuator(SCA_IActuator)
 
 base class --- :class:`~bge.types.SCA_IActuator`
 
-.. class:: SCA_VibrationActuator(SCA_IActuator)
+.. class:: SCA_VibrationActuator
 
    Vibration Actuator.
 

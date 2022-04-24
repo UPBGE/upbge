@@ -5,7 +5,7 @@ KX_2DFilter(BL_Shader)
 
 base class --- :class:`~bge.types.BL_Shader`
 
-.. class:: KX_2DFilter(BL_Shader)
+.. class:: KX_2DFilter
 
    2D filter shader object. Can be alterated with :class:`~bge.types.BL_Shader`'s functions.
 

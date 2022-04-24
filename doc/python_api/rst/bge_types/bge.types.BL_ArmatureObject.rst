@@ -5,7 +5,7 @@ BL_ArmatureObject(KX_GameObject)
 
 base class --- :class:`~bge.types.KX_GameObject`
 
-.. class:: BL_ArmatureObject(KX_GameObject)
+.. class:: BL_ArmatureObject
 
    An armature object.
 

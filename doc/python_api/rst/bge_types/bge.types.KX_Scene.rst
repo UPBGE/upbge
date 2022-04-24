@@ -5,7 +5,7 @@ KX_Scene(EXP_PyObjectPlus)
 
 base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
-.. class:: KX_Scene(EXP_PyObjectPlus)
+.. class:: KX_Scene
 
    An active scene that gives access to objects, cameras, lights and scene attributes.
 
@@ -259,8 +259,8 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
    .. method:: convertBlenderObjectsList(blenderObjectsList, asynchronous)
 
       Converts all bpy.types.Object inside a python List into its correspondent :class:`~bge.types.KX_GameObject` during runtime.
-      For example, you can append an Object List during bge runtime using: ob = object_data_add(...) and ML.append(ob) then convert the Objects 
-      inside the List into several KX_GameObject to have logic bricks, physics... converted. This is meant to replace libload. 
+      For example, you can append an Object List during bge runtime using: ob = object_data_add(...) and ML.append(ob) then convert the Objects
+      inside the List into several KX_GameObject to have logic bricks, physics... converted. This is meant to replace libload.
       The conversion can be asynchronous or synchronous.
 
       :arg blenderObjectsList: The Object list to be converted.

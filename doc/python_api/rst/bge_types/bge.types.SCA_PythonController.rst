@@ -5,9 +5,9 @@ SCA_PythonController(SCA_IController)
 
 base class --- :class:`~bge.types.SCA_IController`
 
-.. class:: SCA_PythonController(SCA_IController)
+.. class:: SCA_PythonController
 
-   A Python controller uses a Python script to activate it's actuators, 
+   A Python controller uses a Python script to activate it's actuators,
    based on it's sensors.
 
    .. attribute:: owner
@@ -24,9 +24,9 @@ base class --- :class:`~bge.types.SCA_IController`
       * When 'Module' execution mode is set this value will contain a single line string - module name and function "module.func" or "package.modile.func" where the module names are python textblocks or external scripts.
 
       :type: string
-      
+
       .. note::
-      
+
          Once this is set the script name given for warnings will remain unchanged.
 
    .. attribute:: mode

@@ -5,6 +5,6 @@ SCA_IActuator(SCA_ILogicBrick)
 
 base class --- :class:`~bge.types.SCA_ILogicBrick`
 
-.. class:: SCA_IActuator(SCA_ILogicBrick)
+.. class:: SCA_IActuator
 
    Base class for all actuator logic bricks.

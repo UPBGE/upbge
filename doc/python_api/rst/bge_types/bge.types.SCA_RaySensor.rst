@@ -5,7 +5,7 @@ SCA_RaySensor(SCA_ISensor)
 
 base class --- :class:`~bge.types.SCA_ISensor`
 
-.. class:: SCA_RaySensor(SCA_ISensor)
+.. class:: SCA_RaySensor
 
    A ray sensor detects the first object in a given direction.
 

@@ -5,7 +5,7 @@ KX_MeshProxy(EXP_Value)
 
 base class --- :class:`~bge.types.EXP_Value`
 
-.. class:: KX_MeshProxy(EXP_Value)
+.. class:: KX_MeshProxy
 
    A mesh object.
 
@@ -33,7 +33,7 @@ base class --- :class:`~bge.types.EXP_Value`
       #. They are the same color, for example: a cube has 24 vertices: 6 faces with 4 vertices per face.
 
    The correct method of iterating over every :class:`~bge.types.KX_VertexProxy` in a game object
-   
+
    .. code-block:: python
 
       from bge import logic

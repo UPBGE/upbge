@@ -5,7 +5,7 @@ SCA_RandomActuator(SCA_IActuator)
 
 base class --- :class:`~bge.types.SCA_IActuator`
 
-.. class:: SCA_RandomActuator(SCA_IActuator)
+.. class:: SCA_RandomActuator
 
    Random Actuator
 
@@ -23,7 +23,7 @@ base class --- :class:`~bge.types.SCA_IActuator`
 
       :type: float, read-only.
 
-      Refer to the documentation of the generator types for the meaning of this value. 
+      Refer to the documentation of the generator types for the meaning of this value.
 
    .. attribute:: para2
 
@@ -122,5 +122,5 @@ base class --- :class:`~bge.types.SCA_IActuator`
       Generate negative-exponentially distributed numbers.
 
       The half-life 'time' is characterized by half_life.
-      
+
       :type half_life: float

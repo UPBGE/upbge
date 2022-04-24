@@ -5,7 +5,7 @@ KX_ConstraintWrapper(EXP_PyObjectPlus)
 
 base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
-.. class:: KX_ConstraintWrapper(EXP_PyObjectPlus)
+.. class:: KX_ConstraintWrapper
 
    KX_ConstraintWrapper
 
@@ -114,7 +114,7 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       :return: position
       :rtype: float
 
-      axis = 3..5 are relative constraint (Euler) angles in radians 
+      axis = 3..5 are relative constraint (Euler) angles in radians
          * 3: X axis angle
          * 4: Y axis angle
          * 5: Z axis angle

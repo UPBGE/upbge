@@ -5,7 +5,7 @@ KX_LodLevel(EXP_PyObjectPlus)
 
 base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
-.. class:: KX_LodLevel(EXP_PyObjectPlus)
+.. class:: KX_LodLevel
 
    A single lod level for a game object lod manager.
 

@@ -5,7 +5,7 @@ SCA_DynamicActuator(SCA_IActuator)
 
 base class --- :class:`~bge.types.SCA_IActuator`
 
-.. class:: SCA_DynamicActuator(SCA_IActuator)
+.. class:: SCA_DynamicActuator
 
    Dynamic Actuator.
 

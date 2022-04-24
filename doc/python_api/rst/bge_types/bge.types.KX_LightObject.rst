@@ -5,7 +5,7 @@ KX_LightObject(KX_GameObject)
 
 base class --- :class:`~bge.types.KX_GameObject`
 
-.. class:: KX_LightObject(KX_GameObject)
+.. class:: KX_LightObject
 
    A Light game object.
 
@@ -19,7 +19,7 @@ base class --- :class:`~bge.types.KX_GameObject`
       kxlight = (bge.logic.getCurrentController()).owner
       kxlight["Text"] = "Text Example"
       kxlight.worldPosition = [-2.5, 1.0, 0.0]
-      
+
       # Use bpy.types.Light attributes to set other light settings
       lightData = kxlight.blenderObject.data
       lightData.energy = 1000.0

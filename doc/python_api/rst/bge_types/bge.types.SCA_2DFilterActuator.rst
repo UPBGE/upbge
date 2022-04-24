@@ -5,7 +5,7 @@ SCA_2DFilterActuator(SCA_IActuator)
 
 base class --- :class:`~bge.types.SCA_IActuator`
 
-.. class:: SCA_2DFilterActuator(SCA_IActuator)
+.. class:: SCA_2DFilterActuator
 
    Create, enable and disable 2D filters.
 

@@ -5,7 +5,7 @@ SCA_PropertyActuator(SCA_IActuator)
 
 base class --- :class:`~bge.types.SCA_IActuator`
 
-.. class:: SCA_PropertyActuator(SCA_IActuator)
+.. class:: SCA_PropertyActuator
 
    Property Actuator
 
