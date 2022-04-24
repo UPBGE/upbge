@@ -5,7 +5,7 @@ KX_PolyProxy(SCA_IObject)
 
 base class --- :class:`~bge.types.SCA_IObject`
 
-.. class:: KX_PolyProxy(SCA_IObject)
+.. class:: KX_PolyProxy
 
    A polygon holds the index of the vertex forming the poylgon.
 

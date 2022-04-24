@@ -5,7 +5,7 @@ SCA_NANDController(SCA_IController)
 
 base class --- :class:`~bge.types.SCA_IController`
 
-.. class:: SCA_NANDController(SCA_IController)
+.. class:: SCA_NANDController
 
    An NAND controller activates when all linked sensors are not active.
 

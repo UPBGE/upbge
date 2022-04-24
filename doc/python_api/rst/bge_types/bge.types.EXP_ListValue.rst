@@ -5,7 +5,7 @@ EXP_ListValue(EXP_PropValue)
 
 base class --- :class:`~bge.types.EXP_PropValue`
 
-.. class:: EXP_ListValue(EXP_PropValue)
+.. class:: EXP_ListValue
 
    This is a list like object used in the game engine internally that behaves similar to a python list in most ways.
 
@@ -18,7 +18,7 @@ base class --- :class:`~bge.types.EXP_PropValue`
       Add an item to the list (like pythons append)
 
       .. warning::
-      
+
          Appending values to the list can cause crashes when the list is used internally by the game engine.
 
    .. method:: count(val)
@@ -61,7 +61,7 @@ base class --- :class:`~bge.types.EXP_PropValue`
       Example:
 
       .. code-block:: python
-        
+
          myObID=id(gameObject)
          ob= scene.objects.from_id(myObID)
 

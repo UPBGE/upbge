@@ -5,7 +5,7 @@ SCA_PythonMouse(EXP_PyObjectPlus)
 
 base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
-.. class:: SCA_PythonMouse(EXP_PyObjectPlus)
+.. class:: SCA_PythonMouse
 
    The current mouse.
 
@@ -40,7 +40,7 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
          Use :data:`activeInputs`.
 
       :type: dict[:ref:`keycode<mouse-keys>`, :ref:`status<input-status>`]
-      
+
    .. attribute:: position
 
       The normalized x and y position of the mouse cursor.
@@ -50,5 +50,5 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
    .. attribute:: visible
 
       The visibility of the mouse cursor.
-      
+
       :type: boolean

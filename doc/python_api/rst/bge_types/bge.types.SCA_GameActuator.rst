@@ -5,7 +5,7 @@ SCA_GameActuator(SCA_IActuator)
 
 base class --- :class:`~bge.types.SCA_IActuator`
 
-.. class:: SCA_GameActuator(SCA_IActuator)
+.. class:: SCA_GameActuator
 
    The game actuator loads a new .blend file, restarts the current .blend file or quits the game.
 

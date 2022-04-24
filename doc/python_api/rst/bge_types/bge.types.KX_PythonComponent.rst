@@ -5,7 +5,7 @@ KX_PythonComponent(EXP_Value)
 
 base class --- :class:`~bge.types.EXP_Value`
 
-.. class:: KX_PythonComponent(EXP_Value)
+.. class:: KX_PythonComponent
 
    Python component can be compared to python logic bricks with parameters.
    The python component is a script loaded in the UI, this script defined a component class by inheriting from :class:`~bge.types.KX_PythonComponent`.
@@ -24,44 +24,44 @@ base class --- :class:`~bge.types.EXP_Value`
 
       import bge
       from collections import OrderedDict
-      
+
       class ThirdPerson(bge.types.KX_PythonComponent):
           """Basic third person controls
-      
+
           W: move forward
           A: turn left
           S: move backward
           D: turn right
-      
+
           """
-      
+
           #
-      
+
           args = OrderedDict([
               ("Move Speed", 0.1),
               ("Turn Speed", 0.04)
           ])
-      
+
           def start(self, args):
               self.move_speed = args['Move Speed']
               self.turn_speed = args['Turn Speed']
-      
+
           def update(self):
               keyboard = bge.logic.keyboard.events
-      
+
               move = 0
               rotate = 0
-      
+
               if keyboard[bge.events.WKEY]:
                   move += self.move_speed
               if keyboard[bge.events.SKEY]:
                   move -= self.move_speed
-      
+
               if keyboard[bge.events.AKEY]:
                   rotate += self.turn_speed
               if keyboard[bge.events.DKEY]:
                   rotate -= self.turn_speed
-      
+
               self.object.applyMovement((0, move, 0), True)
               self.object.applyRotation((0, 0, rotate), True)
 
@@ -78,7 +78,7 @@ base class --- :class:`~bge.types.EXP_Value`
    .. code-block:: python
 
       import bge
-      
+
       if not hasattr(bge, "__component__"):
           global scene
           scene = bge.logic.getCurrentScene()

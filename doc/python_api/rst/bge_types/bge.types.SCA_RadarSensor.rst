@@ -5,7 +5,7 @@ SCA_RadarSensor(SCA_NearSensor)
 
 base class --- :class:`~bge.types.SCA_NearSensor`
 
-.. class:: SCA_RadarSensor(SCA_NearSensor)
+.. class:: SCA_RadarSensor
 
    Radar sensor is a near sensor with a conical sensor object.
 
@@ -39,5 +39,5 @@ base class --- :class:`~bge.types.SCA_NearSensor`
 
       :type: integer from 0 to 5
 
-      KX_RADAR_AXIS_POS_X, KX_RADAR_AXIS_POS_Y, KX_RADAR_AXIS_POS_Z, 
+      KX_RADAR_AXIS_POS_X, KX_RADAR_AXIS_POS_Y, KX_RADAR_AXIS_POS_Z,
       KX_RADAR_AXIS_NEG_X, KX_RADAR_AXIS_NEG_Y, KX_RADAR_AXIS_NEG_Z

@@ -5,7 +5,7 @@ SCA_InputEvent(EXP_PyObjectPlus)
 
 base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
-.. class:: SCA_InputEvent(EXP_PyObjectPlus)
+.. class:: SCA_InputEvent
 
    Events for a keyboard or mouse input.
 
@@ -69,7 +69,7 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       True if the input was released from the last frame.
 
       :type: boolean
-      
+
       Example to execute some action when I click or release mouse left button:
 
       .. code-block:: python
@@ -78,13 +78,13 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
          mouse = bge.logic.mouse.inputs
          mouse_left_button = mouse[bge.events.LEFTMOUSE]
-         
+
          if mouse_left_button.activated:
             # ...
          elif mouse_left_button.active:
             # ...
          elif mouse_left_button.released:
-            # ... 
+            # ...
          elif mouse_left_button.inactive:
             # ...
 

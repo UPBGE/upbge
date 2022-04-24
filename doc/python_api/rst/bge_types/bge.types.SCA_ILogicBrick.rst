@@ -5,7 +5,7 @@ SCA_ILogicBrick(EXP_Value)
 
 base class --- :class:`~bge.types.EXP_Value`
 
-.. class:: SCA_ILogicBrick(EXP_Value)
+.. class:: SCA_ILogicBrick
 
    Base class for all logic bricks.
 
@@ -18,11 +18,11 @@ base class --- :class:`~bge.types.EXP_Value`
    .. attribute:: owner
 
       The game object this logic brick is attached to (read-only).
-      
+
       :type: :class:`~bge.types.KX_GameObject` or None in exceptional cases.
 
    .. attribute:: name
 
       The name of this logic brick (read-only).
-      
+
       :type: string

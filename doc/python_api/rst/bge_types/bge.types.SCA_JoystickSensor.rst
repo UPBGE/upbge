@@ -5,7 +5,7 @@ SCA_JoystickSensor(SCA_ISensor)
 
 base class --- :class:`~bge.types.SCA_ISensor`
 
-.. class:: SCA_JoystickSensor(SCA_ISensor)
+.. class:: SCA_JoystickSensor
 
    This sensor detects player joystick events.
 
@@ -30,7 +30,7 @@ base class --- :class:`~bge.types.SCA_ISensor`
       :type: integer
 
       .. note::
-         
+
          Only use this for "Single Axis" type sensors otherwise it will raise an error.
 
    .. attribute:: hatValues

@@ -5,7 +5,7 @@ SCA_KeyboardSensor(SCA_ISensor)
 
 base class --- :class:`~bge.types.SCA_ISensor`
 
-.. class:: SCA_KeyboardSensor(SCA_ISensor)
+.. class:: SCA_KeyboardSensor
 
    A keyboard sensor detects player key presses.
 

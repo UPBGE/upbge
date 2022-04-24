@@ -5,7 +5,7 @@ SCA_CameraActuator(SCA_IActuator)
 
 base class --- :class:`~bge.types.SCA_IActuator`
 
-.. class:: SCA_CameraActuator(SCA_IActuator)
+.. class:: SCA_CameraActuator
 
    Applies changes to a camera.
 

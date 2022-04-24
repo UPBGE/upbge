@@ -5,7 +5,7 @@ SCA_ParentActuator(SCA_IActuator)
 
 base class --- :class:`~bge.types.SCA_IActuator`
 
-.. class:: SCA_ParentActuator(SCA_IActuator)
+.. class:: SCA_ParentActuator
 
    The parent actuator can set or remove an objects parent object.
 

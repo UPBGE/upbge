@@ -5,7 +5,7 @@ KX_GameObject(SCA_IObject)
 
 base class --- :class:`~bge.types.SCA_IObject`
 
-.. class:: KX_GameObject(SCA_IObject)
+.. class:: KX_GameObject
 
    All game objects are derived from this class.
 

@@ -5,14 +5,14 @@ KX_CollisionContactPoint(EXP_Value)
 
 base class --- :class:`~bge.types.EXP_Value`
 
-.. class:: KX_CollisionContactPoint(EXP_Value)
+.. class:: KX_CollisionContactPoint
 
    A collision contact point passed to the collision callbacks.
 
    .. code-block:: python
 
       import bge
-      
+
       def oncollision(object, point, normal, points):
           print("Hit by", object)
           for point in points:
@@ -23,7 +23,7 @@ base class --- :class:`~bge.types.EXP_Value`
               print(point.combinedFriction)
               print(point.combinedRestitution)
               print(point.appliedImpulse)
-      
+
       cont = bge.logic.getCurrentController()
       own = cont.owner
       own.collisionCallbacks = [oncollision]
@@ -76,4 +76,4 @@ base class --- :class:`~bge.types.EXP_Value`
 
       :type: float
 
-      
+

@@ -5,7 +5,7 @@ SCA_AddObjectActuator(SCA_IActuator)
 
 base class --- :class:`~bge.types.SCA_IActuator`
 
-.. class:: SCA_AddObjectActuator(SCA_IActuator)
+.. class:: SCA_AddObjectActuator
 
    Edit Object Actuator (in Add Object Mode)
 
@@ -15,8 +15,8 @@ base class --- :class:`~bge.types.SCA_IActuator`
 
       .. code-block:: none
 
-         Error: GameObject 'Name' has a AddObjectActuator 'ActuatorName' without object (in 'nonactive' layer) 
-      
+         Error: GameObject 'Name' has a AddObjectActuator 'ActuatorName' without object (in 'nonactive' layer)
+
    .. attribute:: object
 
       the object this actuator adds.

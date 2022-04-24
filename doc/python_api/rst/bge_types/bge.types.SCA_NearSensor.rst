@@ -5,7 +5,7 @@ SCA_NearSensor(KX_CollisionSensor)
 
 base class --- :class:`~bge.types.SCA_CollisionSensor`
 
-.. class:: SCA_NearSensor(SCA_CollisionSensor)
+.. class:: SCA_NearSensor
 
    A near sensor is a specialised form of touch sensor.
 

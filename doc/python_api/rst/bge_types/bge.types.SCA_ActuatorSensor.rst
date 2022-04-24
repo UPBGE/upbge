@@ -5,7 +5,7 @@ SCA_ActuatorSensor(SCA_ISensor)
 
 base class --- :class:`~bge.types.SCA_ISensor`
 
-.. class:: SCA_ActuatorSensor(SCA_ISensor)
+.. class:: SCA_ActuatorSensor
 
    Actuator sensor detect change in actuator state of the parent object.
    It generates a positive pulse if the corresponding actuator is activated

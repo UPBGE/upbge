@@ -5,7 +5,7 @@ SCA_NetworkMessageSensor(SCA_ISensor)
 
 base class --- :class:`~bge.types.SCA_ISensor`
 
-.. class:: SCA_NetworkMessageSensor(SCA_ISensor)
+.. class:: SCA_NetworkMessageSensor
 
    The Message Sensor logic brick.
 

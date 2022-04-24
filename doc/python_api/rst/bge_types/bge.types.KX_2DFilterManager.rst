@@ -5,7 +5,7 @@ KX_2DFilterManager(EXP_PyObjectPlus)
 
 base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
-.. class:: KX_2DFilterManager(EXP_PyObjectPlus)
+.. class:: KX_2DFilterManager
 
    2D filter manager used to add, remove and find filters in a scene.
 

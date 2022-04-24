@@ -5,7 +5,7 @@ KX_2DFilterOffScreen(EXP_Value)
 
 base class --- :class:`~bge.types.EXP_Value`
 
-.. class:: KX_2DFilterFrameBuffer(EXP_Value)
+.. class:: KX_2DFilterFrameBuffer
 
    2D filter custom off screen (framebuffer in 0.3.0).
 

@@ -5,9 +5,9 @@ SCA_DelaySensor(SCA_ISensor)
 
 base class --- :class:`~bge.types.SCA_ISensor`
 
-.. class:: SCA_DelaySensor(SCA_ISensor)
+.. class:: SCA_DelaySensor
 
-   The Delay sensor generates positive and negative triggers at precise time, 
+   The Delay sensor generates positive and negative triggers at precise time,
    expressed in number of frames. The delay parameter defines the length of the initial OFF period. A positive trigger is generated at the end of this period.
 
    The duration parameter defines the length of the ON period following the OFF period.

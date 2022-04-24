@@ -5,7 +5,7 @@ SCA_VisibilityActuator(SCA_IActuator)
 
 base class --- :class:`~bge.types.SCA_IActuator`
 
-.. class:: SCA_VisibilityActuator(SCA_IActuator)
+.. class:: SCA_VisibilityActuator
 
    Visibility Actuator.
 

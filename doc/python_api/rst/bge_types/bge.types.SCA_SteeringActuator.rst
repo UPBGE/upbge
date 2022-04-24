@@ -5,7 +5,7 @@ SCA_SteeringActuator(SCA_IActuator)
 
 base class --- :class:`~bge.types.SCA_IActuator`
 
-.. class:: SCA_SteeringActuator(SCA_IActuator)
+.. class:: SCA_SteeringActuator
 
    Steering Actuator for navigation.
 

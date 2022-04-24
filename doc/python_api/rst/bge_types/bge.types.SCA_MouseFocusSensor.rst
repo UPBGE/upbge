@@ -5,7 +5,7 @@ SCA_MouseFocusSensor(SCA_MouseSensor)
 
 base class --- :class:`~bge.types.SCA_MouseSensor`
 
-.. class:: SCA_MouseFocusSensor(SCA_MouseSensor)
+.. class:: SCA_MouseFocusSensor
 
    The mouse focus sensor detects when the mouse is over the current game object.
 

@@ -5,7 +5,7 @@ SCA_ORController(SCA_IController)
 
 base class --- :class:`~bge.types.SCA_IController`
 
-.. class:: SCA_ORController(SCA_IController)
+.. class:: SCA_ORController
 
    An OR controller activates when any connected sensor activates.
 

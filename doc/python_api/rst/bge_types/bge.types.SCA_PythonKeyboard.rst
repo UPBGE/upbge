@@ -5,7 +5,7 @@ SCA_PythonKeyboard(EXP_PyObjectPlus)
 
 base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
-.. class:: SCA_PythonKeyboard(EXP_PyObjectPlus)
+.. class:: SCA_PythonKeyboard
 
    The current keyboard.
 

@@ -5,7 +5,7 @@ BL_Shader(EXP_PyObjectPlus)
 
 base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
-.. class:: BL_Shader(EXP_PyObjectPlus)
+.. class:: BL_Shader
 
    BL_Shader is a class used to compile and use custom shaders scripts.
    This header set the ``#version`` directive, so the user must not define his own `#version`.
@@ -269,10 +269,10 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
    .. deprecated:: 0.3.0
 
-      Set a uniform with a float value that reflects the eye being render in stereo mode: 
+      Set a uniform with a float value that reflects the eye being render in stereo mode:
       0.0 for the left eye, 0.5 for the right eye. In non stereo mode, the value of the uniform
       is fixed to 0.0. The typical use of this uniform is in stereo mode to sample stereo textures
-      containing the left and right eye images in a top-bottom order. 
+      containing the left and right eye images in a top-bottom order.
 
       :arg name: the uniform name
       :type name: string

@@ -5,14 +5,14 @@ SCA_StateActuator(SCA_IActuator)
 
 base class --- :class:`~bge.types.SCA_IActuator`
 
-.. class:: SCA_StateActuator(SCA_IActuator)
+.. class:: SCA_StateActuator
 
    State actuator changes the state mask of parent object.
 
    .. attribute:: operation
 
       Type of bit operation to be applied on object state mask.
-      
+
       You can use one of :ref:`these constants <state-actuator-operation>`
 
       :type: integer

@@ -5,7 +5,7 @@ SCA_SoundActuator(SCA_IActuator)
 
 base class --- :class:`~bge.types.SCA_IActuator`
 
-.. class:: SCA_SoundActuator(SCA_IActuator)
+.. class:: SCA_SoundActuator
 
    Sound Actuator.
 
