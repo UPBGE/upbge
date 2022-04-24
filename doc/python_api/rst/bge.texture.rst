@@ -428,7 +428,7 @@ Image classes
 
    .. attribute:: alpha
 
-   .. deprecated:: 0.3.0
+      .. deprecated:: 0.3.0
 
       Use alpha in texture.
 
@@ -436,7 +436,7 @@ Image classes
 
    .. attribute:: horizon
 
-   .. deprecated:: 0.3.0
+      .. deprecated:: 0.3.0
 
       Horizon color.
 
@@ -444,25 +444,25 @@ Image classes
 
    .. attribute:: zenith
 
-   .. deprecated:: 0.3.0
+      .. deprecated:: 0.3.0
 
       Zenith color.
-      
+
       :type: float list [r, g, b, a] in [0.0, 1.0]
 
    .. attribute:: background
 
-   .. deprecated:: 0.3.0
+      .. deprecated:: 0.3.0
 
       :type: float list [r, g, b, a] in [0.0, 1.0]
 
-      .. deprecated:: 0.2.2
+         .. deprecated:: 0.2.2
 
          Use :py:attr:`bge.texture.ImageMirror.horizon` or :py:attr:`bge.texture.ImageMirror.zenith` instead.
 
    .. attribute:: updateShadow
 
-   .. deprecated:: 0.3.0
+      .. deprecated:: 0.3.0
 
       Choose to force shadow buffer update if there is a gap beetween image rendered and shadows.
 
@@ -684,7 +684,7 @@ Image classes
 
    .. attribute:: alpha
 
-   .. deprecated:: 0.3.0
+      .. deprecated:: 0.3.0
 
       Use alpha in texture.
 
@@ -692,35 +692,35 @@ Image classes
 
    .. attribute:: horizon
 
-   .. deprecated:: 0.3.0
+      .. deprecated:: 0.3.0
 
       Horizon color.
-      
+
       :type: float list [r, g, b, a] in [0.0, 1.0]
 
    .. attribute:: zenith
 
-   .. deprecated:: 0.3.0
+      .. deprecated:: 0.3.0
 
       Zenith color.
-      
+
       :type: float list [r, g, b, a] in [0.0, 1.0]
 
    .. attribute:: background
 
-   .. deprecated:: 0.3.0
+      .. deprecated:: 0.3.0
 
       Background color.
 
       :type: float list [r, g, b, a] in [0.0, 1.0]
 
-      .. deprecated:: 0.2.2
+         .. deprecated:: 0.2.2
 
          Use :py:attr:`bge.texture.ImageRender.horizon` or :py:attr:`bge.texture.ImageRender.zenith` instead.
 
    .. attribute:: updateShadow
 
-   .. deprecated:: 0.3.0
+      .. deprecated:: 0.3.0
 
       Choose to force shadow buffer update if there is a gap beetween image rendered and shadows.
 
@@ -906,7 +906,7 @@ Image classes
 
    .. attribute:: alpha
 
-   .. deprecated:: 0.3.0
+      .. deprecated:: 0.3.0
 
       Use alpha in texture.
 
