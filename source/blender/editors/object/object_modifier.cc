@@ -38,9 +38,11 @@
 #include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_curves.h"
+#include "BKE_curves.hh"
 #include "BKE_displist.h"
 #include "BKE_editmesh.h"
 #include "BKE_effect.h"
+#include "BKE_geometry_set.hh"
 #include "BKE_global.h"
 #include "BKE_gpencil_modifier.h"
 #include "BKE_key.h"
@@ -700,7 +702,6 @@ static bool modifier_apply_shape(Main *bmain,
     BKE_id_free(nullptr, mesh_applied);
   }
   else {
-    /* TODO: implement for curves, point clouds and volumes. */
     BKE_report(reports, RPT_ERROR, "Cannot apply modifier for this object type");
     return false;
   }
@@ -750,7 +751,9 @@ static bool modifier_apply_obdata(
       BKE_mesh_nomain_to_mesh(mesh_applied, me, ob, &CD_MASK_MESH, true);
 
       /* Anonymous attributes shouldn't be available on the applied geometry. */
-      BKE_mesh_anonymous_attributes_remove(me);
+      MeshComponent component;
+      component.replace(me, GeometryOwnershipType::Editable);
+      component.attributes_remove_anonymous();
 
       if (md_eval->type == eModifierType_Multires) {
         multires_customdata_delete(me);
@@ -801,8 +804,41 @@ static bool modifier_apply_obdata(
 
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   }
+  else if (ob->type == OB_CURVES) {
+    Curves &curves = *static_cast<Curves *>(ob->data);
+    if (mti->modifyGeometrySet == nullptr) {
+      BLI_assert_unreachable();
+      return false;
+    }
+
+    /* Create a temporary geometry set and component. */
+    GeometrySet geometry_set;
+    geometry_set.get_component_for_write<CurveComponent>().replace(
+        &curves, GeometryOwnershipType::Editable);
+
+    ModifierEvalContext mectx = {depsgraph, ob, (ModifierApplyFlag)0};
+    mti->modifyGeometrySet(md_eval, &mectx, &geometry_set);
+    if (!geometry_set.has_curves()) {
+      BKE_report(reports, RPT_ERROR, "Evaluated geometry from modifier does not contain curves");
+      return false;
+    }
+    CurveComponent &component = geometry_set.get_component_for_write<CurveComponent>();
+    Curves &curves_eval = *geometry_set.get_curves_for_write();
+
+    /* Anonymous attributes shouldn't be available on the applied geometry. */
+    component.attributes_remove_anonymous();
+
+    /* If the modifier's output is a different curves data-block, copy the relevant information to
+     * the original. */
+    if (&curves_eval != &curves) {
+      blender::bke::CurvesGeometry::wrap(curves.geometry) = std::move(
+          blender::bke::CurvesGeometry::wrap(curves_eval.geometry));
+      Main *bmain = DEG_get_bmain(depsgraph);
+      BKE_object_material_from_eval_data(bmain, ob, &curves_eval.id);
+    }
+  }
   else {
-    /* TODO: implement for curves, point clouds and volumes. */
+    /* TODO: implement for point clouds and volumes. */
     BKE_report(reports, RPT_ERROR, "Cannot apply modifier for this object type");
     return false;
   }

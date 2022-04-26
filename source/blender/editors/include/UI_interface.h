@@ -512,6 +512,10 @@ typedef void (*uiButHandleNFunc)(struct bContext *C, void *argN, void *arg2);
 typedef void (*uiButHandleHoldFunc)(struct bContext *C, struct ARegion *butregion, uiBut *but);
 typedef int (*uiButCompleteFunc)(struct bContext *C, char *str, void *arg);
 
+/** Function to compare the identity of two buttons over redraws, to check if they represent the
+ * same data, and thus should be considered the same button over redraws. */
+typedef bool (*uiButIdentityCompareFunc)(const uiBut *a, const uiBut *b);
+
 /* Search types. */
 typedef struct ARegion *(*uiButSearchCreateFn)(struct bContext *C,
                                                struct ARegion *butregion,
@@ -1364,6 +1368,13 @@ uiBut *uiDefIconTextButO_ptr(uiBlock *block,
 /* for passing inputs to ButO buttons */
 struct PointerRNA *UI_but_operator_ptr_get(uiBut *but);
 
+void UI_but_context_ptr_set(uiBlock *block,
+                            uiBut *but,
+                            const char *name,
+                            const struct PointerRNA *ptr);
+const struct PointerRNA *UI_but_context_ptr_get(const uiBut *but,
+                                                const char *name,
+                                                const StructRNA *type CPP_ARG_DEFAULT(nullptr));
 struct bContextStore *UI_but_context_get(const uiBut *but);
 
 void UI_but_unit_type_set(uiBut *but, int unit_type);
@@ -1655,6 +1666,18 @@ void UI_but_link_set(struct uiBut *but, void **poin, void ***ppoin, short *tot, 
 
 void UI_block_links_compose(uiBlock *block);
 uiBut *UI_block_links_find_inlink(uiBlock *block, void *poin);
+
+/**
+ * Callback to compare the identity of two buttons, used to identify buttons over redraws. If the
+ * callback returns true, the given buttons are considered to be matching and relevant state is
+ * preserved (copied from the old to the new button). If it returns false, it's considered
+ * non-matching and no further checks are done.
+ *
+ * If this is set, it is always executed instead of the default comparisons. However it is only
+ * executed for buttons that have the same type and the same callback. So callbacks can assume the
+ * button types match.
+ */
+void UI_but_func_identity_compare_set(uiBut *but, uiButIdentityCompareFunc cmp_fn);
 
 /**
  * Public function exported for functions that use #UI_BTYPE_SEARCH_MENU.
