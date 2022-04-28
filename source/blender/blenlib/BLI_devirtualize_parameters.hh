@@ -12,7 +12,7 @@
  *
  * Using virtual arrays has the downside that individual elements are accessed through a virtual
  * method call, which has some overhead compared to normal array access. Whether this overhead is
- * negilible depends on the context. For very small functions (e.g. a single addition), the
+ * negligible depends on the context. For very small functions (e.g. a single addition), the
  * overhead can make the function many times slower. Furthermore, it prevents the compiler from
  * doing some optimizations (e.g. loop unrolling and inserting SIMD instructions).
  *
@@ -154,7 +154,8 @@ template<typename Fn, typename... SourceTypes> class Devirtualizer {
       /* Non-devirtualized parameter type. */
       using SourceType = type_at_index<I>;
       /* A bit flag indicating what devirtualizations are allowed in this step. */
-      constexpr DeviMode allowed_modes = DeviModeSequence<AllowedModes...>::template at_index<I>();
+      [[maybe_unused]] constexpr DeviMode allowed_modes =
+          DeviModeSequence<AllowedModes...>::template at_index<I>();
 
       /* Handle #VArray types. */
       if constexpr (is_VArray_v<SourceType>) {

@@ -849,16 +849,7 @@ GPUShader *OVERLAY_shader_grid(void)
 {
   OVERLAY_Shaders *sh_data = &e_data.sh_data[0];
   if (!sh_data->grid) {
-    sh_data->grid = GPU_shader_create_from_arrays({
-        .vert = (const char *[]){datatoc_common_globals_lib_glsl,
-                                 datatoc_common_view_lib_glsl,
-                                 datatoc_grid_vert_glsl,
-                                 NULL},
-        .frag = (const char *[]){datatoc_common_globals_lib_glsl,
-                                 datatoc_common_view_lib_glsl,
-                                 datatoc_grid_frag_glsl,
-                                 NULL},
-    });
+    sh_data->grid = GPU_shader_create_from_info_name("overlay_grid");
   }
   return sh_data->grid;
 }
@@ -867,12 +858,7 @@ GPUShader *OVERLAY_shader_grid_background(void)
 {
   OVERLAY_Shaders *sh_data = &e_data.sh_data[0];
   if (!sh_data->grid_background) {
-    sh_data->grid_background = GPU_shader_create_from_arrays({
-        .vert = (const char *[]){datatoc_common_view_lib_glsl,
-                                 datatoc_edit_uv_tiled_image_borders_vert_glsl,
-                                 NULL},
-        .frag = (const char *[]){datatoc_grid_background_frag_glsl, NULL},
-    });
+    sh_data->grid_background = GPU_shader_create_from_info_name("overlay_grid_background");
   }
   return sh_data->grid_background;
 }
@@ -881,12 +867,7 @@ GPUShader *OVERLAY_shader_grid_image(void)
 {
   OVERLAY_Shaders *sh_data = &e_data.sh_data[0];
   if (!sh_data->grid_image) {
-    sh_data->grid_image = DRW_shader_create_with_shaderlib(
-        datatoc_edit_uv_tiled_image_borders_vert_glsl,
-        NULL,
-        datatoc_gpu_shader_uniform_color_frag_glsl,
-        e_data.lib,
-        "#define blender_srgb_to_framebuffer_space(a) a\n");
+    sh_data->grid_image = GPU_shader_create_from_info_name("overlay_grid_image");
   }
   return sh_data->grid_image;
 }
