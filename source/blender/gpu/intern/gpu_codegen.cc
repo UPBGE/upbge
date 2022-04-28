@@ -47,8 +47,16 @@
 
 using namespace blender::gpu::shader;
 
+/**
+ * IMPORTANT: Never add external reference. The GPUMaterial used to create the GPUPass (and its
+ * GPUCodegenCreateInfo) can be free before actually compiling. This happens if there is an update
+ * before deferred compilation happens and the GPUPass gets picked up by another GPUMaterial
+ * (because of GPUPass reuse).
+ */
 struct GPUCodegenCreateInfo : ShaderCreateInfo {
   struct NameBuffer {
+    /** Duplicate attribute names to avoid reference the GPUNodeGraph directly. */
+    char attr_names[16][GPU_MAX_SAFE_ATTR_NAME + 1];
     char var_names[16][8];
   };
 
@@ -290,9 +298,14 @@ void GPUCodegen::generate_attribs()
 
   int slot = 15;
   LISTBASE_FOREACH (GPUMaterialAttribute *, attr, &graph.attributes) {
+    if (slot == -1) {
+      BLI_assert_msg(0, "Too many attributes");
+      break;
+    }
+    STRNCPY(info.name_buffer->attr_names[slot], attr->input_name);
     SNPRINTF(info.name_buffer->var_names[slot], "v%d", attr->id);
 
-    blender::StringRefNull attr_name = attr->input_name;
+    blender::StringRefNull attr_name = info.name_buffer->attr_names[slot];
     blender::StringRefNull var_name = info.name_buffer->var_names[slot];
 
     eGPUType input_type, iface_type;
@@ -571,7 +584,9 @@ GPUPass *GPU_generate_pass(GPUMaterial *material,
       return nullptr;
     }
     /* No collision, just return the pass. */
+    BLI_spin_lock(&pass_cache_spin);
     pass_hash->refcount += 1;
+    BLI_spin_unlock(&pass_cache_spin);
     return pass_hash;
   }
 
@@ -597,7 +612,9 @@ GPUPass *GPU_generate_pass(GPUMaterial *material,
       /* Shader has already been created but failed to compile. */
       return nullptr;
     }
+    BLI_spin_lock(&pass_cache_spin);
     pass->refcount += 1;
+    BLI_spin_unlock(&pass_cache_spin);
   }
   else {
     /* We still create a pass even if shader compilation
@@ -697,8 +714,10 @@ GPUShader *GPU_pass_shader_get(GPUPass *pass)
 
 void GPU_pass_release(GPUPass *pass)
 {
+  BLI_spin_lock(&pass_cache_spin);
   BLI_assert(pass->refcount > 0);
   pass->refcount--;
+  BLI_spin_unlock(&pass_cache_spin);
 }
 
 static void gpu_pass_free(GPUPass *pass)
