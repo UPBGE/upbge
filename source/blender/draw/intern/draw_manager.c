@@ -3438,13 +3438,14 @@ void DRW_game_render_loop(bContext *C,
   const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
 
   /* Update UBO's */
-  DRW_globals_update();  
+  DRW_globals_update();
 
-  /* Init engines */
-  drw_engines_init();
   DRW_curves_init();
   DRW_volume_init(DST.vmempool);
   DRW_smoke_init(DST.vmempool);
+
+  /* Init engines */
+  drw_engines_init();
 
   drw_engines_cache_init();
   drw_engines_world_update(DST.draw_ctx.scene);
@@ -3498,7 +3499,6 @@ void DRW_game_render_loop(bContext *C,
   drw_engines_cache_finish();
 
   drw_task_graph_deinit();
-
   DRW_render_instance_buffer_finish();
 
   GPU_framebuffer_bind(DST.default_framebuffer);
@@ -3514,7 +3514,9 @@ void DRW_game_render_loop(bContext *C,
   GPU_framebuffer_clear_stencil(DST.default_framebuffer, 0xFF);
 
   /* Fix 3D view being "laggy" on macos and win+nvidia. (See T56996, T61474) */
-  GPU_flush();
+  if (GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL)) {
+    GPU_flush();
+  }
 
   DRW_smoke_exit(DST.vmempool);
 
