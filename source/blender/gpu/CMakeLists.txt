@@ -450,12 +450,21 @@ list(APPEND SRC ${glsl_source_list_file})
 list(APPEND INC ${CMAKE_CURRENT_BINARY_DIR})
 
 set(SRC_SHADER_CREATE_INFOS
+  ../draw/engines/basic/shaders/infos/basic_depth_info.hh
   ../draw/engines/gpencil/shaders/infos/gpencil_info.hh
   ../draw/engines/gpencil/shaders/infos/gpencil_vfx_info.hh
+  ../draw/engines/overlay/shaders/infos/antialiasing_info.hh
   ../draw/engines/overlay/shaders/infos/armature_info.hh
-  ../draw/engines/overlay/shaders/infos/extra_info.hh
-  ../draw/engines/overlay/shaders/infos/grid_info.hh
+  ../draw/engines/overlay/shaders/infos/background_info.hh
   ../draw/engines/overlay/shaders/infos/edit_mode_info.hh
+  ../draw/engines/overlay/shaders/infos/extra_info.hh
+  ../draw/engines/overlay/shaders/infos/facing_info.hh
+  ../draw/engines/overlay/shaders/infos/grid_info.hh
+  ../draw/engines/overlay/shaders/infos/outline_info.hh
+  ../draw/engines/overlay/shaders/infos/paint_info.hh
+  ../draw/engines/overlay/shaders/infos/sculpt_info.hh
+  ../draw/engines/overlay/shaders/infos/volume_info.hh
+  ../draw/engines/overlay/shaders/infos/wireframe_info.hh
   ../draw/engines/select/shaders/infos/select_id_info.hh
   ../draw/engines/workbench/shaders/infos/workbench_composite_info.hh
   ../draw/engines/workbench/shaders/infos/workbench_effect_antialiasing_info.hh
@@ -492,15 +501,18 @@ set(SRC_SHADER_CREATE_INFOS
   shaders/infos/gpu_shader_2D_point_varying_size_varying_color_info.hh
   shaders/infos/gpu_shader_2D_smooth_color_info.hh
   shaders/infos/gpu_shader_2D_uniform_color_info.hh
+  shaders/infos/gpu_shader_2D_widget_info.hh
   shaders/infos/gpu_shader_3D_depth_only_info.hh
   shaders/infos/gpu_shader_3D_flat_color_info.hh
   shaders/infos/gpu_shader_3D_image_modulate_alpha_info.hh
   shaders/infos/gpu_shader_3D_point_info.hh
+  shaders/infos/gpu_shader_3D_polyline_info.hh
   shaders/infos/gpu_shader_3D_smooth_color_info.hh
   shaders/infos/gpu_shader_3D_uniform_color_info.hh
   shaders/infos/gpu_shader_gpencil_stroke_info.hh
   shaders/infos/gpu_shader_instance_varying_color_varying_size_info.hh
   shaders/infos/gpu_shader_keyframe_shape_info.hh
+  shaders/infos/gpu_shader_line_dashed_uniform_color_info.hh
   shaders/infos/gpu_shader_simple_lighting_info.hh
   shaders/infos/gpu_shader_text_info.hh
   shaders/infos/gpu_srgb_to_framebuffer_space_info.hh
