@@ -1747,7 +1747,7 @@ def write_sphinx_conf_py(basepath):
     fw("import sys, os\n\n")
     fw("extensions = ['sphinx.ext.intersphinx']\n\n")
     fw("intersphinx_mapping = {'blender_manual': ('https://docs.blender.org/manual/en/dev/', None)}\n\n")
-    fw("project = 'UPBGE 0.32 + Blender %s Python API'\n" % BLENDER_VERSION_STRING)
+    fw("project = 'UPBGE 0.33 + Blender %s Python API'\n" % BLENDER_VERSION_STRING)
     fw("master_doc = 'index'\n")
     fw("copyright = u'Blender Foundation'\n")
     fw("version = '%s'\n" % BLENDER_VERSION_DOTS)
