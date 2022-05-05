@@ -21,6 +21,7 @@
 #include "BKE_mesh.h"
 #include "BKE_mesh_runtime.h"
 #include "BKE_paint.h"
+#include "BKE_report.h"
 #include "BKE_spline.hh"
 
 #include "DNA_brush_enums.h"
@@ -107,7 +108,7 @@ struct AddOperationExecutor {
   bool use_interpolation_;
   float new_curve_length_;
   int add_amount_;
-  int points_per_curve_ = 8;
+  int points_per_curve_;
 
   /** Various matrices to convert between coordinate spaces. */
   float4x4 curves_to_world_mat_;
@@ -171,6 +172,7 @@ struct AddOperationExecutor {
     const eBrushFalloffShape falloff_shape = static_cast<eBrushFalloffShape>(
         brush_->falloff_shape);
     add_amount_ = std::max(0, brush_settings_->add_amount);
+    points_per_curve_ = std::max(2, brush_settings_->points_per_curve);
     interpolate_length_ = brush_settings_->flag & BRUSH_CURVES_SCULPT_FLAG_INTERPOLATE_LENGTH;
     interpolate_shape_ = brush_settings_->flag & BRUSH_CURVES_SCULPT_FLAG_INTERPOLATE_SHAPE;
     use_interpolation_ = interpolate_length_ || interpolate_shape_;
@@ -835,8 +837,16 @@ void AddOperation::on_stroke_extended(bContext *C, const StrokeExtension &stroke
   executor.execute(*this, C, stroke_extension);
 }
 
-std::unique_ptr<CurvesSculptStrokeOperation> new_add_operation()
+std::unique_ptr<CurvesSculptStrokeOperation> new_add_operation(bContext &C, ReportList *reports)
 {
+  Object &ob_active = *CTX_data_active_object(&C);
+  BLI_assert(ob_active.type == OB_CURVES);
+  Curves &curves_id = *static_cast<Curves *>(ob_active.data);
+  if (curves_id.surface == nullptr || curves_id.surface->type != OB_MESH) {
+    BKE_report(reports, RPT_WARNING, "Can not use Add brush when there is no surface mesh");
+    return {};
+  }
+
   return std::make_unique<AddOperation>();
 }
 
