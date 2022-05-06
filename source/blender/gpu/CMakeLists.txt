@@ -306,6 +306,14 @@ set(GLSL_SRC
 
   shaders/gpu_shader_geometry.glsl
 
+  shaders/common/gpu_shader_common_color_ramp.glsl
+  shaders/common/gpu_shader_common_color_utils.glsl
+  shaders/common/gpu_shader_common_curves.glsl
+  shaders/common/gpu_shader_common_hash.glsl
+  shaders/common/gpu_shader_common_math.glsl
+  shaders/common/gpu_shader_common_math_utils.glsl
+  shaders/common/gpu_shader_common_mix_rgb.glsl
+
   shaders/material/gpu_shader_material_add_shader.glsl
   shaders/material/gpu_shader_material_ambient_occlusion.glsl
   shaders/material/gpu_shader_material_anisotropic.glsl
@@ -318,8 +326,6 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_bump.glsl
   shaders/material/gpu_shader_material_camera.glsl
   shaders/material/gpu_shader_material_clamp.glsl
-  shaders/material/gpu_shader_material_color_ramp.glsl
-  shaders/material/gpu_shader_material_color_util.glsl
   shaders/material/gpu_shader_material_combine_color.glsl
   shaders/material/gpu_shader_material_combine_hsv.glsl
   shaders/material/gpu_shader_material_combine_rgb.glsl
@@ -328,7 +334,6 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_displacement.glsl
   shaders/material/gpu_shader_material_eevee_specular.glsl
   shaders/material/gpu_shader_material_emission.glsl
-  shaders/material/gpu_shader_material_float_curve.glsl
   shaders/material/gpu_shader_material_fractal_noise.glsl
   shaders/material/gpu_shader_material_fresnel.glsl
   shaders/material/gpu_shader_material_gamma.glsl
@@ -337,7 +342,6 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_glossy.glsl
   shaders/material/gpu_shader_material_hair_info.glsl
   shaders/material/gpu_shader_material_hair.glsl
-  shaders/material/gpu_shader_material_hash.glsl
   shaders/material/gpu_shader_material_holdout.glsl
   shaders/material/gpu_shader_material_hue_sat_val.glsl
   shaders/material/gpu_shader_material_invert.glsl
@@ -346,9 +350,6 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_light_path.glsl
   shaders/material/gpu_shader_material_mapping.glsl
   shaders/material/gpu_shader_material_map_range.glsl
-  shaders/material/gpu_shader_material_math.glsl
-  shaders/material/gpu_shader_material_math_util.glsl
-  shaders/material/gpu_shader_material_mix_rgb.glsl
   shaders/material/gpu_shader_material_mix_shader.glsl
   shaders/material/gpu_shader_material_noise.glsl
   shaders/material/gpu_shader_material_normal.glsl
@@ -361,7 +362,6 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_point_info.glsl
   shaders/material/gpu_shader_material_principled.glsl
   shaders/material/gpu_shader_material_refraction.glsl
-  shaders/material/gpu_shader_material_rgb_curves.glsl
   shaders/material/gpu_shader_material_rgb_to_bw.glsl
   shaders/material/gpu_shader_material_separate_color.glsl
   shaders/material/gpu_shader_material_separate_hsv.glsl
@@ -387,10 +387,10 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_tex_wave.glsl
   shaders/material/gpu_shader_material_tex_white_noise.glsl
   shaders/material/gpu_shader_material_toon.glsl
+  shaders/material/gpu_shader_material_transform_utils.glsl
   shaders/material/gpu_shader_material_translucent.glsl
   shaders/material/gpu_shader_material_transparent.glsl
   shaders/material/gpu_shader_material_uv_map.glsl
-  shaders/material/gpu_shader_material_vector_curves.glsl
   shaders/material/gpu_shader_material_vector_displacement.glsl
   shaders/material/gpu_shader_material_vector_math.glsl
   shaders/material/gpu_shader_material_vector_rotate.glsl
