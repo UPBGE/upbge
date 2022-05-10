@@ -1,8 +1,16 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2010-2011 Mitchell Stokes
+
+# <pep8 compliant>
+
 """
 ListBoxes make use of a ListBoxRenderer. The default ListBoxRenderer simply
 displays an item's string representation. To make your own ListBoxRenderer
 create a class that has a render_item() method that accepts the item to be rendered
 and returns a widget to render.
+
+ListBox Example
+---------------
 
 Here is an simple example of using the ListBox widget::
 

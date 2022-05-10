@@ -1,3 +1,9 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2010-2011 Mitchell Stokes
+
+# <pep8 compliant>
+
+
 from .widget import Widget, BGUI_OVERFLOW_HIDDEN, BGUI_OVERFLOW_REPLACE, BGUI_OVERFLOW_CALLBACK, BGUI_DEFAULT
 from .label import Label
 

@@ -217,6 +217,7 @@ else:
         "bge.texture",
         "bge.types",
         "bgl",
+        "bgui",
         "blf",
         "bl_math",
         "imbuf",
@@ -1899,6 +1900,7 @@ def write_rst_index(basepath):
         "bge.events",
         "bge.constraints",
         "bge.app",
+        "bgui",
     )
 
     for mod in game_engine_modules:
@@ -2162,6 +2164,17 @@ def copy_handwritten_rsts(basepath):
                 # Avoid things like .svn dir...
                 continue
             shutil.copy2(os.path.join(bge_types_dir, i), basepath)
+
+    if "bgui" not in EXCLUDE_MODULES:
+        shutil.copy2(os.path.join(RST_DIR, "bgui.rst"), basepath)
+
+        bgui_dir = os.path.join(RST_DIR, "bgui")
+
+        for i in os.listdir(bgui_dir):
+            if i.startswith("."):
+                # Avoid things like .svn dir...
+                continue
+            shutil.copy2(os.path.join(bgui_dir, i), basepath)
 
     # changelog
     shutil.copy2(os.path.join(RST_DIR, "change_log.rst"), basepath)

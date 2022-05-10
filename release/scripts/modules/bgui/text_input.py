@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2010-2011 Mitchell Stokes
+
+# <pep8 compliant>
+
 """
 
 This module defines the following constants:
@@ -8,6 +13,7 @@ This module defines the following constants:
 
   * BGUI_INPUT_DEFAULT = BGUI_INPUT_NONE
 """
+
 
 from .widget import Widget, WeakMethod, BGUI_DEFAULT, BGUI_CENTERY, \
   BGUI_NO_FOCUS, BGUI_MOUSE_ACTIVE, BGUI_MOUSE_CLICK, BGUI_MOUSE_RELEASE, \

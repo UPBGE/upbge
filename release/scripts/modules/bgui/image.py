@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2010-2011 Mitchell Stokes
+
+# <pep8 compliant>
+
 import bpy
 import gpu
 from gpu_extras.batch import batch_for_shader

@@ -1,3 +1,9 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2010-2011 Mitchell Stokes
+
+# <pep8 compliant>
+
+
 import gpu
 
 from .widget import Widget, BGUI_MOUSE_NONE, BGUI_NO_NORMALIZE, BGUI_NO_THEME

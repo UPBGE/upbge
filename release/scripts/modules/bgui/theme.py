@@ -1,3 +1,9 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2010-2011 Mitchell Stokes
+
+# <pep8 compliant>
+
+
 # Hack to make ReadTheDocs happy until they get Py3 support working again.
 try:
   import configparser
