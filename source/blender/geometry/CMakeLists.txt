@@ -16,6 +16,7 @@ set(INC
 
 set(SRC
   intern/mesh_merge_by_distance.cc
+  intern/mesh_primitive_cuboid.cc
   intern/mesh_to_curve_convert.cc
   intern/point_merge_by_distance.cc
   intern/realize_instances.cc
@@ -23,6 +24,7 @@ set(SRC
   intern/uv_parametrizer.c
 
   GEO_mesh_merge_by_distance.hh
+  GEO_mesh_primitive_cuboid.hh
   GEO_mesh_to_curve.hh
   GEO_point_merge_by_distance.hh
   GEO_realize_instances.hh
