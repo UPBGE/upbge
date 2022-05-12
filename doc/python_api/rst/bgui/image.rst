@@ -34,12 +34,12 @@ BGUI_LINEAR
 
    .. attribute:: image_size
 
-      The size (in pixels) of the currently loaded image, or [0, 0] if an image is not loaded
+      The size (in pixels) of the currently loaded image, or [0, 0] if an image is not loaded.
 
    .. method:: update_image(img)
 
-      Changes the image texture
+      Changes the image texture.
 
-   :arg img: The path to the new image.
+      :arg img: The path to the new image.
 
-   :return type: None.
+      :return type: None.
