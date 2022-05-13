@@ -257,10 +257,10 @@ typedef struct uiWidgetType {
   /* converted colors for state */
   uiWidgetColors wcol;
 
-  void (*state)(struct uiWidgetType *, uint64_t state, int drawflag, eUIEmbossType emboss);
-  void (*draw)(uiWidgetColors *, rcti *, uint64_t state, int roundboxalign, const float zoom);
+  void (*state)(struct uiWidgetType *, int state, int drawflag, eUIEmbossType emboss);
+  void (*draw)(uiWidgetColors *, rcti *, int state, int roundboxalign, const float zoom);
   void (*custom)(
-      uiBut *, uiWidgetColors *, rcti *, uint64_t state, int roundboxalign, const float zoom);
+      uiBut *, uiWidgetColors *, rcti *, int state, int roundboxalign, const float zoom);
   void (*text)(const uiFontStyle *, const uiWidgetColors *, uiBut *, rcti *);
 
 } uiWidgetType;
@@ -1290,7 +1290,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, const uiWidgetColors *wcol)
 
 #define PREVIEW_PAD 4
 
-static float widget_alpha_factor(const uint64_t state)
+static float widget_alpha_factor(const int state)
 {
   if (state & (UI_BUT_INACTIVE | UI_BUT_DISABLED)) {
     if (state & UI_SEARCH_FILTER_NO_MATCH) {
@@ -2447,7 +2447,7 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
  * \{ */
 
 /* put all widget colors on half alpha, use local storage */
-static void ui_widget_color_disabled(uiWidgetType *wt, const uint64_t state)
+static void ui_widget_color_disabled(uiWidgetType *wt, const int state)
 {
   static uiWidgetColors wcol_theme_s;
 
@@ -2474,7 +2474,7 @@ static void widget_active_color(uiWidgetColors *wcol)
 }
 
 static const uchar *widget_color_blend_from_flags(const uiWidgetStateColors *wcol_state,
-                                                  uint64_t state,
+                                                  int state,
                                                   int drawflag,
                                                   const eUIEmbossType emboss)
 {
@@ -2502,7 +2502,7 @@ static const uchar *widget_color_blend_from_flags(const uiWidgetStateColors *wco
 }
 
 /* copy colors from theme, and set changes in it based on state */
-static void widget_state(uiWidgetType *wt, uint64_t state, int drawflag, eUIEmbossType emboss)
+static void widget_state(uiWidgetType *wt, int state, int drawflag, eUIEmbossType emboss)
 {
   uiWidgetStateColors *wcol_state = wt->wcol_state;
 
@@ -2601,10 +2601,7 @@ static float widget_radius_from_rcti(const rcti *rect, const uiWidgetColors *wco
  * \{ */
 
 /* sliders use special hack which sets 'item' as inner when drawing filling */
-static void widget_state_numslider(uiWidgetType *wt,
-                                   uint64_t state,
-                                   int drawflag,
-                                   eUIEmbossType emboss)
+static void widget_state_numslider(uiWidgetType *wt, int state, int drawflag, eUIEmbossType emboss)
 {
   uiWidgetStateColors *wcol_state = wt->wcol_state;
 
@@ -2628,7 +2625,7 @@ static void widget_state_numslider(uiWidgetType *wt,
 
 /* labels use theme colors for text */
 static void widget_state_option_menu(uiWidgetType *wt,
-                                     uint64_t state,
+                                     int state,
                                      int drawflag,
                                      eUIEmbossType emboss)
 {
@@ -2648,7 +2645,7 @@ static void widget_state_option_menu(uiWidgetType *wt,
 }
 
 static void widget_state_nothing(uiWidgetType *wt,
-                                 uint64_t UNUSED(state),
+                                 int UNUSED(state),
                                  int UNUSED(drawflag),
                                  eUIEmbossType UNUSED(emboss))
 {
@@ -2657,7 +2654,7 @@ static void widget_state_nothing(uiWidgetType *wt,
 
 /* special case, button that calls pulldown */
 static void widget_state_pulldown(uiWidgetType *wt,
-                                  uint64_t UNUSED(state),
+                                  int UNUSED(state),
                                   int UNUSED(drawflag),
                                   eUIEmbossType UNUSED(emboss))
 {
@@ -2666,7 +2663,7 @@ static void widget_state_pulldown(uiWidgetType *wt,
 
 /* special case, pie menu items */
 static void widget_state_pie_menu_item(uiWidgetType *wt,
-                                       uint64_t state,
+                                       int state,
                                        int UNUSED(drawflag),
                                        eUIEmbossType UNUSED(emboss))
 {
@@ -2701,7 +2698,7 @@ static void widget_state_pie_menu_item(uiWidgetType *wt,
 
 /* special case, menu items */
 static void widget_state_menu_item(uiWidgetType *wt,
-                                   uint64_t state,
+                                   int state,
                                    int UNUSED(drawflag),
                                    eUIEmbossType UNUSED(emboss))
 {
@@ -2791,7 +2788,7 @@ static void widget_softshadow(const rcti *rect, int roundboxalign, const float r
 }
 
 static void widget_menu_back(
-    uiWidgetColors *wcol, rcti *rect, uint64_t flag, int direction, const float zoom)
+    uiWidgetColors *wcol, rcti *rect, int flag, int direction, const float zoom)
 {
   uiWidgetBase wtb;
   int roundboxalign = UI_CNR_ALL;
@@ -3325,12 +3322,8 @@ static void ui_draw_separator(const rcti *rect, const uiWidgetColors *wcol)
 
 #define NUM_BUT_PADDING_FACTOR 0.425f
 
-static void widget_numbut_draw(uiWidgetColors *wcol,
-                               rcti *rect,
-                               const float zoom,
-                               uint64_t state,
-                               int roundboxalign,
-                               bool emboss)
+static void widget_numbut_draw(
+    uiWidgetColors *wcol, rcti *rect, const float zoom, int state, int roundboxalign, bool emboss)
 {
   const float rad = widget_radius_from_zoom(zoom, wcol);
   const int handle_width = min_ii(BLI_rcti_size_x(rect) / 3, BLI_rcti_size_y(rect) * 0.7f);
@@ -3431,13 +3424,13 @@ static void widget_numbut_draw(uiWidgetColors *wcol,
 }
 
 static void widget_numbut(
-    uiWidgetColors *wcol, rcti *rect, uint64_t state, int roundboxalign, const float zoom)
+    uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign, const float zoom)
 {
   widget_numbut_draw(wcol, rect, zoom, state, roundboxalign, false);
 }
 
 static void widget_menubut(
-    uiWidgetColors *wcol, rcti *rect, uint64_t UNUSED(state), int roundboxalign, const float zoom)
+    uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign, const float zoom)
 {
   uiWidgetBase wtb;
   widget_init(&wtb);
@@ -3462,7 +3455,7 @@ static void widget_menubut(
 static void widget_menubut_embossn(const uiBut *UNUSED(but),
                                    uiWidgetColors *wcol,
                                    rcti *rect,
-                                   uint64_t UNUSED(state),
+                                   int UNUSED(state),
                                    int UNUSED(roundboxalign))
 {
   uiWidgetBase wtb;
@@ -3484,7 +3477,7 @@ static void widget_menubut_embossn(const uiBut *UNUSED(but),
 static void widget_numbut_embossn(const uiBut *UNUSED(but),
                                   uiWidgetColors *wcol,
                                   rcti *rect,
-                                  uint64_t state,
+                                  int state,
                                   int roundboxalign,
                                   const float zoom)
 {
@@ -3548,10 +3541,7 @@ void ui_draw_link_bezier(const rcti *rect, const float color[4])
   }
 }
 
-void UI_draw_widget_scroll(uiWidgetColors *wcol,
-                           const rcti *rect,
-                           const rcti *slider,
-                           uint64_t state)
+void UI_draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *slider, int state)
 {
   uiWidgetBase wtb;
   bool outline = false;
@@ -3641,7 +3631,7 @@ void UI_draw_widget_scroll(uiWidgetColors *wcol,
 static void widget_scroll(uiBut *but,
                           uiWidgetColors *wcol,
                           rcti *rect,
-                          uint64_t state,
+                          int state,
                           int UNUSED(roundboxalign),
                           const float UNUSED(zoom))
 {
@@ -3703,7 +3693,7 @@ static void widget_scroll(uiBut *but,
 static void widget_progressbar(uiBut *but,
                                uiWidgetColors *wcol,
                                rcti *rect,
-                               uint64_t UNUSED(state),
+                               int UNUSED(state),
                                int roundboxalign,
                                const float zoom)
 {
@@ -3759,7 +3749,7 @@ static void widget_link(uiBut *but,
 
 static void widget_treerow_exec(uiWidgetColors *wcol,
                                 rcti *rect,
-                                uint64_t state,
+                                int state,
                                 int UNUSED(roundboxalign),
                                 int indentation,
                                 const float zoom)
@@ -3780,12 +3770,8 @@ static void widget_treerow_exec(uiWidgetColors *wcol,
   BLI_rcti_translate(rect, 0.5f * UI_UNIT_X * indentation, 0);
 }
 
-static void widget_treerow(uiBut *but,
-                           uiWidgetColors *wcol,
-                           rcti *rect,
-                           uint64_t state,
-                           int roundboxalign,
-                           const float zoom)
+static void widget_treerow(
+    uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign, const float zoom)
 {
   uiButTreeRow *tree_row = (uiButTreeRow *)but;
   BLI_assert(but->type == UI_BTYPE_TREEROW);
@@ -3795,7 +3781,7 @@ static void widget_treerow(uiBut *but,
 static void widget_nodesocket(uiBut *but,
                               uiWidgetColors *wcol,
                               rcti *rect,
-                              uint64_t UNUSED(state),
+                              int UNUSED(state),
                               int UNUSED(roundboxalign),
                               const float UNUSED(zoom))
 {
@@ -3831,12 +3817,8 @@ static void widget_nodesocket(uiBut *but,
   copy_v3_v3_uchar(wcol->outline, old_outline);
 }
 
-static void widget_numslider(uiBut *but,
-                             uiWidgetColors *wcol,
-                             rcti *rect,
-                             uint64_t state,
-                             int roundboxalign,
-                             const float zoom)
+static void widget_numslider(
+    uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign, const float zoom)
 {
   uiWidgetBase wtb, wtb1;
   widget_init(&wtb);
@@ -3948,12 +3930,8 @@ static void widget_numslider(uiBut *but,
 /* I think 3 is sufficient border to indicate keyed status */
 #define SWATCH_KEYED_BORDER 3
 
-static void widget_swatch(uiBut *but,
-                          uiWidgetColors *wcol,
-                          rcti *rect,
-                          uint64_t state,
-                          int roundboxalign,
-                          const float zoom)
+static void widget_swatch(
+    uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign, const float zoom)
 {
   BLI_assert(but->type == UI_BTYPE_COLOR);
   uiButColor *color_but = (uiButColor *)but;
@@ -4040,7 +4018,7 @@ static void widget_swatch(uiBut *but,
 static void widget_unitvec(uiBut *but,
                            uiWidgetColors *wcol,
                            rcti *rect,
-                           uint64_t UNUSED(state),
+                           int UNUSED(state),
                            int UNUSED(roundboxalign),
                            const float zoom)
 {
@@ -4048,12 +4026,8 @@ static void widget_unitvec(uiBut *but,
   ui_draw_but_UNITVEC(but, wcol, rect, rad);
 }
 
-static void widget_icon_has_anim(uiBut *but,
-                                 uiWidgetColors *wcol,
-                                 rcti *rect,
-                                 uint64_t state,
-                                 int roundboxalign,
-                                 const float zoom)
+static void widget_icon_has_anim(
+    uiBut *but, uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign, const float zoom)
 {
   if (state & (UI_BUT_ANIMATED | UI_BUT_ANIMATED_KEY | UI_BUT_DRIVEN | UI_BUT_REDALERT) &&
       but->emboss != UI_EMBOSS_NONE) {
@@ -4077,7 +4051,7 @@ static void widget_icon_has_anim(uiBut *but,
 }
 
 static void widget_textbut(
-    uiWidgetColors *wcol, rcti *rect, uint64_t state, int roundboxalign, const float zoom)
+    uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign, const float zoom)
 {
   if (state & UI_SELECT) {
     SWAP(short, wcol->shadetop, wcol->shadedown);
@@ -4095,7 +4069,7 @@ static void widget_textbut(
 static void widget_preview_tile(uiBut *but,
                                 uiWidgetColors *wcol,
                                 rcti *rect,
-                                uint64_t UNUSED(state),
+                                int UNUSED(state),
                                 int UNUSED(roundboxalign),
                                 const float UNUSED(zoom))
 {
@@ -4105,7 +4079,7 @@ static void widget_preview_tile(uiBut *but,
 }
 
 static void widget_menuiconbut(
-    uiWidgetColors *wcol, rcti *rect, uint64_t UNUSED(state), int roundboxalign, const float zoom)
+    uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign, const float zoom)
 {
   uiWidgetBase wtb;
   widget_init(&wtb);
@@ -4118,7 +4092,7 @@ static void widget_menuiconbut(
 }
 
 static void widget_pulldownbut(
-    uiWidgetColors *wcol, rcti *rect, uint64_t state, int roundboxalign, const float zoom)
+    uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign, const float zoom)
 {
   float back[4];
   UI_GetThemeColor4fv(TH_BACK, back);
@@ -4148,7 +4122,7 @@ static void widget_pulldownbut(
 
 static void widget_menu_itembut(uiWidgetColors *wcol,
                                 rcti *rect,
-                                uint64_t UNUSED(state),
+                                int UNUSED(state),
                                 int UNUSED(roundboxalign),
                                 const float zoom)
 {
@@ -4172,7 +4146,7 @@ static void widget_menu_itembut(uiWidgetColors *wcol,
 
 static void widget_menu_itembut_unpadded(uiWidgetColors *wcol,
                                          rcti *rect,
-                                         uint64_t UNUSED(state),
+                                         int UNUSED(state),
                                          int UNUSED(roundboxalign),
                                          const float zoom)
 {
@@ -4194,7 +4168,7 @@ static void widget_menu_itembut_unpadded(uiWidgetColors *wcol,
 static void widget_menu_radial_itembut(uiBut *but,
                                        uiWidgetColors *wcol,
                                        rcti *rect,
-                                       uint64_t UNUSED(state),
+                                       int UNUSED(state),
                                        int UNUSED(roundboxalign),
                                        const float zoom)
 {
@@ -4220,7 +4194,7 @@ static void widget_menu_radial_itembut(uiBut *but,
 
 static void widget_list_itembut(uiWidgetColors *wcol,
                                 rcti *rect,
-                                uint64_t UNUSED(state),
+                                int UNUSED(state),
                                 int UNUSED(roundboxalign),
                                 const float zoom)
 {
@@ -4237,7 +4211,7 @@ static void widget_list_itembut(uiWidgetColors *wcol,
 
 static void widget_optionbut(uiWidgetColors *wcol,
                              rcti *rect,
-                             uint64_t state,
+                             int state,
                              int UNUSED(roundboxalign),
                              const float UNUSED(zoom))
 {
@@ -4283,10 +4257,7 @@ static void widget_optionbut(uiWidgetColors *wcol,
 }
 
 /* labels use Editor theme colors for text */
-static void widget_state_label(uiWidgetType *wt,
-                               uint64_t state,
-                               int drawflag,
-                               eUIEmbossType emboss)
+static void widget_state_label(uiWidgetType *wt, int state, int drawflag, eUIEmbossType emboss)
 {
   if (state & UI_BUT_LIST_ITEM) {
     /* Override default label theme's colors. */
@@ -4313,7 +4284,7 @@ static void widget_state_label(uiWidgetType *wt,
 }
 
 static void widget_radiobut(
-    uiWidgetColors *wcol, rcti *rect, uint64_t UNUSED(state), int roundboxalign, const float zoom)
+    uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign, const float zoom)
 {
   uiWidgetBase wtb;
   widget_init(&wtb);
@@ -4327,7 +4298,7 @@ static void widget_radiobut(
 static void widget_box(uiBut *but,
                        uiWidgetColors *wcol,
                        rcti *rect,
-                       uint64_t UNUSED(state),
+                       int UNUSED(state),
                        int roundboxalign,
                        const float zoom)
 {
@@ -4354,7 +4325,7 @@ static void widget_box(uiBut *but,
 }
 
 static void widget_but(
-    uiWidgetColors *wcol, rcti *rect, uint64_t UNUSED(state), int roundboxalign, const float zoom)
+    uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign, const float zoom)
 {
   uiWidgetBase wtb;
   widget_init(&wtb);
@@ -4381,7 +4352,7 @@ static void widget_roundbut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state),
 #endif
 
 static void widget_roundbut_exec(
-    uiWidgetColors *wcol, rcti *rect, uint64_t state, int roundboxalign, const float zoom)
+    uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign, const float zoom)
 {
   uiWidgetBase wtb;
   widget_init(&wtb);
@@ -4400,7 +4371,7 @@ static void widget_roundbut_exec(
 }
 
 static void widget_tab(
-    uiWidgetColors *wcol, rcti *rect, uint64_t state, int roundboxalign, const float zoom)
+    uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign, const float zoom)
 {
   const float rad = widget_radius_from_zoom(zoom, wcol);
   const bool is_active = (state & UI_SELECT);
@@ -5037,7 +5008,7 @@ void ui_draw_but(const bContext *C, struct ARegion *region, uiStyle *style, uiBu
   const int roundboxalign = widget_roundbox_set(but, rect);
 
   /* Mask out flags re-used for local state. */
-  uint64_t state = but->flag & ~UI_STATE_FLAGS_ALL;
+  int state = but->flag & ~UI_STATE_FLAGS_ALL;
   const int drawflag = but->drawflag;
 
   if (state & UI_SELECT_DRAW) {
@@ -5450,7 +5421,7 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
                        rcti *rect,
                        const char *name,
                        int iconid,
-                       uint64_t state,
+                       int state,
                        uiMenuItemSeparatorType separator_type,
                        int *r_xmax)
 {
@@ -5643,7 +5614,7 @@ void ui_draw_preview_item(const uiFontStyle *fstyle,
                           rcti *rect,
                           const char *name,
                           int iconid,
-                          uint64_t state,
+                          int state,
                           eFontStyle_Align text_align)
 {
   uiWidgetType *wt = widget_type(UI_WTYPE_MENU_ITEM_UNPADDED);

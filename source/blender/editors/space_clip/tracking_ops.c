@@ -336,15 +336,18 @@ void CLIP_OT_delete_marker(wmOperatorType *ot)
 /** \name Slide Marker Operator
  * \{ */
 
-enum {
-  SLIDE_ACTION_POS = 0,
+typedef enum eSlideAction {
+  SLIDE_ACTION_NONE,
+
+  SLIDE_ACTION_POS,
   SLIDE_ACTION_SIZE,
   SLIDE_ACTION_OFFSET,
   SLIDE_ACTION_TILT_SIZE,
-};
+} eSlideAction;
 
 typedef struct {
-  short area, action;
+  short area;
+  eSlideAction action;
   MovieTrackingTrack *track;
   MovieTrackingMarker *marker;
 
@@ -373,7 +376,7 @@ static SlideMarkerData *create_slide_marker_data(SpaceClip *sc,
                                                  const wmEvent *event,
                                                  int area,
                                                  int corner,
-                                                 int action,
+                                                 eSlideAction action,
                                                  int width,
                                                  int height)
 {
@@ -392,26 +395,32 @@ static SlideMarkerData *create_slide_marker_data(SpaceClip *sc,
     data->offset = track->offset;
   }
   else if (area == TRACK_AREA_PAT) {
-    if (action == SLIDE_ACTION_SIZE) {
-      data->corners = marker->pattern_corners;
-    }
-    else if (action == SLIDE_ACTION_OFFSET) {
-      data->pos = marker->pos;
-      data->offset = track->offset;
-      data->old_markers = MEM_callocN(sizeof(*data->old_markers) * track->markersnr,
-                                      "slide markers");
-      for (int a = 0; a < track->markersnr; a++) {
-        copy_v2_v2(data->old_markers[a], track->markers[a].pos);
-      }
-    }
-    else if (action == SLIDE_ACTION_POS) {
-      data->corners = marker->pattern_corners;
-      data->pos = marker->pattern_corners[corner];
-      copy_v2_v2(data->spos, data->pos);
-    }
-    else if (action == SLIDE_ACTION_TILT_SIZE) {
-      data->corners = marker->pattern_corners;
-      slide_marker_tilt_slider(marker, data->spos);
+    switch (action) {
+      case SLIDE_ACTION_NONE:
+        BLI_assert_msg(0, "Expected valid action");
+        break;
+
+      case SLIDE_ACTION_SIZE:
+        data->corners = marker->pattern_corners;
+        break;
+      case SLIDE_ACTION_OFFSET:
+        data->pos = marker->pos;
+        data->offset = track->offset;
+        data->old_markers = MEM_callocN(sizeof(*data->old_markers) * track->markersnr,
+                                        "slide markers");
+        for (int a = 0; a < track->markersnr; a++) {
+          copy_v2_v2(data->old_markers[a], track->markers[a].pos);
+        }
+        break;
+      case SLIDE_ACTION_POS:
+        data->corners = marker->pattern_corners;
+        data->pos = marker->pattern_corners[corner];
+        copy_v2_v2(data->spos, data->pos);
+        break;
+      case SLIDE_ACTION_TILT_SIZE:
+        data->corners = marker->pattern_corners;
+        slide_marker_tilt_slider(marker, data->spos);
+        break;
     }
   }
   else if (area == TRACK_AREA_SEARCH) {
@@ -534,117 +543,100 @@ static bool slide_check_corners(float (*corners)[2])
   return true;
 }
 
-MovieTrackingTrack *tracking_marker_check_slide(
-    bContext *C, const wmEvent *event, int *r_area, int *r_action, int *r_corner)
+static MovieTrackingTrack *tracking_marker_check_slide(
+    bContext *C, const wmEvent *event, int *r_area, eSlideAction *r_action, int *r_corner)
 {
   const float distance_clip_squared = 12.0f * 12.0f;
   SpaceClip *sc = CTX_wm_space_clip(C);
   ARegion *region = CTX_wm_region(C);
-
   MovieClip *clip = ED_space_clip_get_clip(sc);
-  MovieTrackingTrack *track;
-  int width, height;
-  float co[2];
   ListBase *tracksbase = BKE_tracking_get_active_tracks(&clip->tracking);
-  int framenr = ED_space_clip_get_clip_frame_number(sc);
+  const int framenr = ED_space_clip_get_clip_frame_number(sc);
   float global_min_distance_squared = FLT_MAX;
 
-  /* Sliding zone designator which is the closest to the mouse
-   * across all the tracks.
-   */
-  int min_action = -1, min_area = 0, min_corner = -1;
+  /* Sliding zone designator which is the closest to the mouse across all the tracks. */
+  eSlideAction min_action;
+  int min_area = 0, min_corner = -1;
   MovieTrackingTrack *min_track = NULL;
 
+  int width, height;
   ED_space_clip_get_size(sc, &width, &height);
-
   if (width == 0 || height == 0) {
     return NULL;
   }
 
+  float co[2];
   ED_clip_mouse_pos(sc, region, event->mval, co);
 
-  track = tracksbase->first;
-  while (track) {
-    if (TRACK_VIEW_SELECTED(sc, track) && (track->flag & TRACK_LOCKED) == 0) {
-      const MovieTrackingMarker *marker = BKE_tracking_marker_get(track, framenr);
-      /* Sliding zone designator which is the closest to the mouse for
-       * the current tracks.
-       */
-      float min_distance_squared = FLT_MAX;
-      int action = -1, area = 0, corner = -1;
+  LISTBASE_FOREACH (MovieTrackingTrack *, track, tracksbase) {
+    if (!TRACK_VIEW_SELECTED(sc, track) || (track->flag & TRACK_LOCKED)) {
+      continue;
+    }
 
-      if ((marker->flag & MARKER_DISABLED) == 0) {
-        float distance_squared;
+    const MovieTrackingMarker *marker = BKE_tracking_marker_get(track, framenr);
+    if (marker->flag & MARKER_DISABLED) {
+      continue;
+    }
 
-        /* We start checking with whether the mouse is close enough
-         * to the pattern offset area.
-         */
-        distance_squared = mouse_to_offset_distance_squared(track, marker, co, width, height);
-        area = TRACK_AREA_POINT;
-        action = SLIDE_ACTION_POS;
+    /* We start checking with whether the mouse is close enough to the pattern offset area. */
+    float distance_squared = mouse_to_offset_distance_squared(track, marker, co, width, height);
 
-        /* NOTE: All checks here are assuming there's no maximum distance
-         * limit, so checks are quite simple here.
-         * Actual distance clipping happens later once all the sliding
-         * zones are checked.
-         */
+    /* Sliding zone designator which is the closest to the mouse for the current tracks.
+     *
+     * NOTE: All checks here are assuming there's no maximum distance limit, so checks are quite
+     * simple here. Actual distance clipping happens later once all the sliding zones are checked.
+     */
+    float min_distance_squared = distance_squared;
+    int area = TRACK_AREA_POINT;
+    int action = SLIDE_ACTION_POS;
+    int corner = -1;
+
+    /* If search area is visible, check how close to its sliding zones mouse is. */
+    if (sc->flag & SC_SHOW_MARKER_SEARCH) {
+      distance_squared = mouse_to_search_corner_distance_squared(marker, co, 1, width, height);
+      if (distance_squared < min_distance_squared) {
+        area = TRACK_AREA_SEARCH;
+        action = SLIDE_ACTION_OFFSET;
         min_distance_squared = distance_squared;
+      }
 
-        /* If search area is visible, check how close to its sliding
-         * zones mouse is.
-         */
-        if (sc->flag & SC_SHOW_MARKER_SEARCH) {
-          distance_squared = mouse_to_search_corner_distance_squared(marker, co, 1, width, height);
-          if (distance_squared < min_distance_squared) {
-            area = TRACK_AREA_SEARCH;
-            action = SLIDE_ACTION_OFFSET;
-            min_distance_squared = distance_squared;
-          }
-
-          distance_squared = mouse_to_search_corner_distance_squared(marker, co, 0, width, height);
-          if (distance_squared < min_distance_squared) {
-            area = TRACK_AREA_SEARCH;
-            action = SLIDE_ACTION_SIZE;
-            min_distance_squared = distance_squared;
-          }
-        }
-
-        /* If pattern area is visible, check which corner is closest to
-         * the mouse.
-         */
-        if (sc->flag & SC_SHOW_MARKER_PATTERN) {
-          int current_corner = -1;
-          distance_squared = mouse_to_closest_pattern_corner_distance_squared(
-              marker, co, width, height, &current_corner);
-          if (distance_squared < min_distance_squared) {
-            area = TRACK_AREA_PAT;
-            action = SLIDE_ACTION_POS;
-            corner = current_corner;
-            min_distance_squared = distance_squared;
-          }
-
-          /* Here we also check whether the mouse is actually closer to
-           * the widget which controls scale and tilt.
-           */
-          distance_squared = mouse_to_tilt_distance_squared(marker, co, width, height);
-          if (distance_squared < min_distance_squared) {
-            area = TRACK_AREA_PAT;
-            action = SLIDE_ACTION_TILT_SIZE;
-            min_distance_squared = distance_squared;
-          }
-        }
-
-        if (min_distance_squared < global_min_distance_squared) {
-          min_area = area;
-          min_action = action;
-          min_corner = corner;
-          min_track = track;
-          global_min_distance_squared = min_distance_squared;
-        }
+      distance_squared = mouse_to_search_corner_distance_squared(marker, co, 0, width, height);
+      if (distance_squared < min_distance_squared) {
+        area = TRACK_AREA_SEARCH;
+        action = SLIDE_ACTION_SIZE;
+        min_distance_squared = distance_squared;
       }
     }
 
-    track = track->next;
+    /* If pattern area is visible, check which corner is closest to the mouse. */
+    if (sc->flag & SC_SHOW_MARKER_PATTERN) {
+      int current_corner = -1;
+      distance_squared = mouse_to_closest_pattern_corner_distance_squared(
+          marker, co, width, height, &current_corner);
+      if (distance_squared < min_distance_squared) {
+        area = TRACK_AREA_PAT;
+        action = SLIDE_ACTION_POS;
+        corner = current_corner;
+        min_distance_squared = distance_squared;
+      }
+
+      /* Here we also check whether the mouse is actually closer to the widget which controls scale
+       * and tilt. */
+      distance_squared = mouse_to_tilt_distance_squared(marker, co, width, height);
+      if (distance_squared < min_distance_squared) {
+        area = TRACK_AREA_PAT;
+        action = SLIDE_ACTION_TILT_SIZE;
+        min_distance_squared = distance_squared;
+      }
+    }
+
+    if (min_distance_squared < global_min_distance_squared) {
+      min_area = area;
+      min_action = action;
+      min_corner = corner;
+      min_track = track;
+      global_min_distance_squared = min_distance_squared;
+    }
   }
 
   if (global_min_distance_squared < distance_clip_squared / sc->zoom) {
@@ -659,7 +651,14 @@ MovieTrackingTrack *tracking_marker_check_slide(
     }
     return min_track;
   }
+
   return NULL;
+}
+
+struct MovieTrackingTrack *tracking_find_slidable_track_in_proximity(struct bContext *C,
+                                                                     const struct wmEvent *event)
+{
+  return tracking_marker_check_slide(C, event, NULL, NULL, NULL);
 }
 
 static void *slide_marker_customdata(bContext *C, const wmEvent *event)
@@ -672,7 +671,8 @@ static void *slide_marker_customdata(bContext *C, const wmEvent *event)
   float co[2];
   void *customdata = NULL;
   int framenr = ED_space_clip_get_clip_frame_number(sc);
-  int area, action, corner;
+  eSlideAction action;
+  int area, corner;
 
   ED_space_clip_get_size(sc, &width, &height);
 
@@ -849,7 +849,7 @@ static int slide_marker_modal(bContext *C, wmOperator *op, const wmEvent *event)
             }
           }
 
-          BKE_tracking_marker_clamp(data->marker, CLAMP_PAT_DIM);
+          BKE_tracking_marker_clamp_search_size(data->marker);
         }
         else if (data->action == SLIDE_ACTION_OFFSET) {
           const float d[2] = {dx, dy};
@@ -870,10 +870,8 @@ static int slide_marker_modal(bContext *C, wmOperator *op, const wmEvent *event)
             copy_v2_v2(data->pos, spos);
           }
 
-          /* Currently only patterns are allowed to have such
-           * combination of event and data.
-           */
-          BKE_tracking_marker_clamp(data->marker, CLAMP_PAT_DIM);
+          /* Currently only patterns are allowed to have such combination of event and data. */
+          BKE_tracking_marker_clamp_search_size(data->marker);
         }
         else if (data->action == SLIDE_ACTION_TILT_SIZE) {
           const float mouse_delta[2] = {dx, dy};
@@ -917,7 +915,7 @@ static int slide_marker_modal(bContext *C, wmOperator *op, const wmEvent *event)
             data->corners[a][1] = (vec[1] * cosf(angle) + vec[0] * sinf(angle)) / data->height;
           }
 
-          BKE_tracking_marker_clamp(data->marker, CLAMP_PAT_DIM);
+          BKE_tracking_marker_clamp_search_size(data->marker);
         }
       }
       else if (data->area == TRACK_AREA_SEARCH) {
@@ -928,7 +926,7 @@ static int slide_marker_modal(bContext *C, wmOperator *op, const wmEvent *event)
           data->min[1] = data->old_search_min[1] + dy;
           data->max[1] = data->old_search_max[1] - dy;
 
-          BKE_tracking_marker_clamp(data->marker, CLAMP_SEARCH_DIM);
+          BKE_tracking_marker_clamp_search_size(data->marker);
         }
         else if (data->area == TRACK_AREA_SEARCH) {
           const float d[2] = {dx, dy};
@@ -936,7 +934,7 @@ static int slide_marker_modal(bContext *C, wmOperator *op, const wmEvent *event)
           add_v2_v2v2(data->max, data->old_search_max, d);
         }
 
-        BKE_tracking_marker_clamp(data->marker, CLAMP_SEARCH_POS);
+        BKE_tracking_marker_clamp_search_position(data->marker);
       }
 
       data->marker->flag &= ~MARKER_TRACKED;
@@ -1012,9 +1010,9 @@ static int clear_track_path_exec(bContext *C, wmOperator *op)
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   ListBase *tracksbase = BKE_tracking_get_active_tracks(tracking);
-  int action = RNA_enum_get(op->ptr, "action");
+  const eTrackClearAction action = RNA_enum_get(op->ptr, "action");
   const bool clear_active = RNA_boolean_get(op->ptr, "clear_active");
-  int framenr = ED_space_clip_get_clip_frame_number(sc);
+  const int framenr = ED_space_clip_get_clip_frame_number(sc);
 
   if (clear_active) {
     MovieTrackingTrack *track = BKE_tracking_track_get_active(tracking);
