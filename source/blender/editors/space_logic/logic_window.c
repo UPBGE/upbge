@@ -2763,7 +2763,7 @@ void logic_buttons(bContext *C, ARegion *ar)
                          0,
                          "");  // CHOOSE BETTER ICON
       if (!RNA_boolean_get(&ptr, "active")) {
-        UI_but_flag_enable(but, UI_BUT_SCA_LINK_GREY);
+        but->upbgeflag |= UI_BUT_SCA_LINK_GREY;
       }
 
       // col = uiLayoutColumn(split, true);
@@ -2798,7 +2798,7 @@ void logic_buttons(bContext *C, ARegion *ar)
                          0,
                          "");  // CHOOSE BETTER ICON
       if (!RNA_boolean_get(&ptr, "active")) {
-        UI_but_flag_enable(but, UI_BUT_SCA_LINK_GREY);
+        but->upbgeflag |= UI_BUT_SCA_LINK_GREY;
       }
 
       UI_but_link_set(
@@ -2911,7 +2911,7 @@ void logic_buttons(bContext *C, ARegion *ar)
                            0,
                            "");  // CHOOSE BETTER ICON
         if (!RNA_boolean_get(&ptr, "active")) {
-          UI_but_flag_enable(but, UI_BUT_SCA_LINK_GREY);
+          but->upbgeflag |= UI_BUT_SCA_LINK_GREY;
         }
 
         /* use old-school uiButtons for links for now */
@@ -3021,7 +3021,7 @@ void logic_buttons(bContext *C, ARegion *ar)
                            0,
                            "");  // CHOOSE BETTER ICON
         if (!RNA_boolean_get(&ptr, "active")) {
-          UI_but_flag_enable(but, UI_BUT_SCA_LINK_GREY);
+          but->upbgeflag |= UI_BUT_SCA_LINK_GREY;
         }
 
         col = uiLayoutColumn(split, true);

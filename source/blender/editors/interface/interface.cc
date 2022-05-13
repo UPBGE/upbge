@@ -2418,7 +2418,7 @@ void UI_block_links_compose(uiBlock *block)
           for (a = 0; a < *(link->totlink); a++) {
             bt = ui_linkline_find_inlink(block, (*ppoin)[a]);
             if (bt) {
-              if ((but->flag & UI_BUT_SCA_LINK_GREY) || (bt->flag & UI_BUT_SCA_LINK_GREY)) {
+              if ((but->upbgeflag & UI_BUT_SCA_LINK_GREY) || (bt->upbgeflag & UI_BUT_SCA_LINK_GREY)) {
                 ui_linkline_add(&link->lines, but, bt, true);
               }
               else {
@@ -2430,7 +2430,7 @@ void UI_block_links_compose(uiBlock *block)
         else if (link->poin) {
           bt = ui_linkline_find_inlink(block, *link->poin);
           if (bt) {
-            if ((but->flag & UI_BUT_SCA_LINK_GREY) || (bt->flag & UI_BUT_SCA_LINK_GREY)) {
+            if ((but->upbgeflag & UI_BUT_SCA_LINK_GREY) || (bt->upbgeflag & UI_BUT_SCA_LINK_GREY)) {
               ui_linkline_add(&link->lines, but, bt, true);
             }
             else {

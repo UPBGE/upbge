@@ -164,7 +164,7 @@ struct uiBut {
 
   /** Pointer back to the layout item holding this button. */
   uiLayout *layout;
-  int flag, drawflag;
+  int flag, drawflag, upbgeflag;
   eButType type;
   eButPointerType pointype;
   short bit, bitnr, retval, strwidth, alignnr;

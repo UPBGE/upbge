@@ -227,11 +227,14 @@ enum {
   /** Show 'x' icon to clear/unlink value of text or search button. */
   UI_BUT_VALUE_CLEAR = 1 << 30,
 
-  /** used to flag if sca links shoud be gray out **/
-  UI_BUT_SCA_LINK_GREY = 1 << 31, /* UPBGE */
-
   /** RNA property of the button is overridden from linked reference data. */
   UI_BUT_OVERRIDDEN = 1u << 31u,
+};
+
+/** #uiBut.upbgeflag general state flags. */ /* UPBGE */
+enum {
+  /** used to flag if sca links shoud be gray out **/
+  UI_BUT_SCA_LINK_GREY = 1 << 0,
 };
 
 /* Default font size for normal text. */
