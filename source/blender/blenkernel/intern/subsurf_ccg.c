@@ -1832,7 +1832,6 @@ static void set_ccgdm_all_geometry(CCGDerivedMesh *ccgdm,
   int index;
   int i;
   int vertNum = 0, edgeNum = 0, faceNum = 0;
-  int *vertOrigIndex, *faceOrigIndex, *polyOrigIndex, *base_polyOrigIndex, *edgeOrigIndex;
   short *edgeFlags = ccgdm->edgeFlags;
   DMFlagMat *faceFlags = ccgdm->faceFlags;
   int *polyidx = NULL;
@@ -1849,7 +1848,6 @@ static void set_ccgdm_all_geometry(CCGDerivedMesh *ccgdm,
   int gridInternalEdges;
   WeightTable wtable = {NULL};
   MEdge *medge = NULL;
-  MPoly *mpoly = NULL;
   bool has_edge_cd;
 
   edgeSize = ccgSubSurf_getEdgeSize(ss);
@@ -1862,14 +1860,14 @@ static void set_ccgdm_all_geometry(CCGDerivedMesh *ccgdm,
 
   medge = dm->getEdgeArray(dm);
 
-  mpoly = CustomData_get_layer(&dm->polyData, CD_MPOLY);
-  base_polyOrigIndex = CustomData_get_layer(&dm->polyData, CD_ORIGINDEX);
+  const MPoly *mpoly = CustomData_get_layer(&dm->polyData, CD_MPOLY);
+  const int *base_polyOrigIndex = CustomData_get_layer(&dm->polyData, CD_ORIGINDEX);
 
-  vertOrigIndex = DM_get_vert_data_layer(&ccgdm->dm, CD_ORIGINDEX);
-  edgeOrigIndex = DM_get_edge_data_layer(&ccgdm->dm, CD_ORIGINDEX);
+  int *vertOrigIndex = DM_get_vert_data_layer(&ccgdm->dm, CD_ORIGINDEX);
+  int *edgeOrigIndex = DM_get_edge_data_layer(&ccgdm->dm, CD_ORIGINDEX);
 
-  faceOrigIndex = DM_get_tessface_data_layer(&ccgdm->dm, CD_ORIGINDEX);
-  polyOrigIndex = DM_get_poly_data_layer(&ccgdm->dm, CD_ORIGINDEX);
+  int *faceOrigIndex = DM_get_tessface_data_layer(&ccgdm->dm, CD_ORIGINDEX);
+  int *polyOrigIndex = DM_get_poly_data_layer(&ccgdm->dm, CD_ORIGINDEX);
 
   has_edge_cd = ((ccgdm->dm.edgeData.totlayer - (edgeOrigIndex ? 1 : 0)) != 0);
 

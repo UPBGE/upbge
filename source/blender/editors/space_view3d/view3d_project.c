@@ -30,7 +30,7 @@
 void ED_view3d_project_float_v2_m4(const ARegion *region,
                                    const float co[3],
                                    float r_co[2],
-                                   float mat[4][4])
+                                   const float mat[4][4])
 {
   float vec4[4];
 
@@ -52,7 +52,7 @@ void ED_view3d_project_float_v2_m4(const ARegion *region,
 void ED_view3d_project_float_v3_m4(const ARegion *region,
                                    const float co[3],
                                    float r_co[3],
-                                   float mat[4][4])
+                                   const float mat[4][4])
 {
   float vec4[4];
 
@@ -642,9 +642,9 @@ void ED_view3d_win_to_vector(const ARegion *region, const float mval[2], float r
   normalize_v3(r_out);
 }
 
-bool ED_view3d_win_to_segment_clipped(struct Depsgraph *depsgraph,
+bool ED_view3d_win_to_segment_clipped(const struct Depsgraph *depsgraph,
                                       const ARegion *region,
-                                      View3D *v3d,
+                                      const View3D *v3d,
                                       const float mval[2],
                                       float r_ray_start[3],
                                       float r_ray_end[3],
