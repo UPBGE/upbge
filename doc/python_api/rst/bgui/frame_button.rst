@@ -1,8 +1,7 @@
 frame_button
 ============
 
-.. class:: bgui.frame_button.FrameButton(parent, name=None, base_color=None, text='', font=None, pt_size=None, aspect=None, size=[1, 1],
-           pos=[0, 0], sub_theme='', options=0)
+.. class:: bgui.frame_button.FrameButton(parent, name=None, base_color=None, text='', font=None, pt_size=None, aspect=None, size=[1, 1], pos=[0, 0], sub_theme='', options=0)
 
    Bases: :class:`~bgui.widget.Widget`
 

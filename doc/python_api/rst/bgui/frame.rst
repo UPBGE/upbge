@@ -1,8 +1,7 @@
 frame
 =====
 
-.. class:: bgui.frame.Frame(parent, name=None, border=None, aspect=None, size=[1, 1],
-           pos=[0, 0], sub_theme='', options=0)
+.. class:: bgui.frame.Frame(parent, name=None, border=None, aspect=None, size=[1, 1], pos=[0, 0], sub_theme='', options=0)
 
    Bases: :class:`~bgui.widget.Widget`
 

@@ -3,10 +3,10 @@ text_input
 
 This module defines the following constants:
 
-InputText options
-BGUI_INPUT_NONE = 0
-BGUI_INPUT_SELECT_ALL = 1
-BGUI_INPUT_DEFAULT = BGUI_INPUT_NONE
+InputText options:
+* BGUI_INPUT_NONE = 0
+* BGUI_INPUT_SELECT_ALL = 1
+* BGUI_INPUT_DEFAULT = BGUI_INPUT_NONE
 
 .. class:: bgui.text_input.TextInput(parent, name=None, text='', prefix='', font=None, pt_size=None, color=None, aspect=None, size=[1, 1], pos=[0, 0], sub_theme='', input_options=0, options=0)
 

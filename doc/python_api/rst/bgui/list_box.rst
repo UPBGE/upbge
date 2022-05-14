@@ -6,21 +6,22 @@ To make your own ListBoxRenderer create a class that has a render_item() method 
 
 Here is an simple example of using the ListBox widget:
 
-```
-class MySys(bgui.System):
-    def lb_click(self, lb):
-        print(lb.selected)
+.. code-block:: python
 
-    def __init__(self):
-        bgui.System.__init__(self)
+   class MySys(bgui.System):
+      def lb_click(self, lb):
+         print(lb.selected)
 
-        items = ["One", "Two", 4, 4.6]
-        self.frame = bgui.Frame(self, 'window', border=2, size=[0.5, 0.5], options=bgui.BGUI_DEFAULT|bgui.BGUI_CENTERED)
-        self.lb = bgui.ListBox(self.frame, "lb", items=items, padding=0.05, size=[0.9, 0.9], pos=[0.05, 0.05])
-        self.lb.on_click = self.lb_click
+      def __init__(self):
+         bgui.System.__init__(self)
 
-        # ... rest of __init__
-```
+         items = ["One", "Two", 4, 4.6]
+         self.frame = bgui.Frame(self, 'window', border=2, size=[0.5, 0.5], options=bgui.BGUI_DEFAULT|bgui.BGUI_CENTERED)
+         self.lb = bgui.ListBox(self.frame, "lb", items=items, padding=0.05, size=[0.9, 0.9], pos=[0.05, 0.05])
+         self.lb.on_click = self.lb_click
+
+         # ... rest of __init__
+
 
 .. class:: bgui.list_box.ListBoxRenderer(listbox)
 
