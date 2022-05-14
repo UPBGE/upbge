@@ -27,7 +27,6 @@ API
    list_box
    progress_bar
    system
-   text
    text_block
    text_input
    theme

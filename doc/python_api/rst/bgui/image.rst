@@ -1,12 +1,6 @@
 image
 =====
 
-This module defines the following constants:
-
-Texture interpolation modes
-BGUI_NEAREST
-BGUI_LINEAR
-
 .. class:: bgui.image.Image(parent, img, name=None, aspect=None, size=[1, 1], pos=[0, 0], texco=[(0, 0), (1, 0), (1, 1), (0, 1)], sub_theme='', options=0)
 
    Bases: :class:`~bgui.widget.Widget`

@@ -5,7 +5,7 @@ bgui_utils
 
    Bases: :class:`~bgui.widget.Widget`
 
-   A base layout class to be used with the BGESystem
+   A base layout class to be used with the BGUI System
 
    :arg sys: The BGUI system.
    :arg data: User data.
