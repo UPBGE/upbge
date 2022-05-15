@@ -46,18 +46,13 @@
  *       as it is and stick with using BMesh and CDDM.
  */
 
-#include "DNA_customdata_types.h"
-#include "DNA_defs.h"
-#include "DNA_meshdata_types.h"
+#include "BKE_customdata.h" // UPBGE
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_utildefines.h" // UPBGE
 
-#include "BKE_bvhutils.h"
-#include "BKE_customdata.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "DNA_customdata_types.h"
+#include "DNA_meshdata_types.h" // UPBGE
 
 struct BMEditMesh;
 struct CCGElem;
@@ -112,6 +107,10 @@ typedef enum DMDirtyFlag {
 } DMDirtyFlag;
 
 ENUM_OPERATORS(DMDirtyFlag, DM_DIRTY_NORMALS)
+
+#ifdef __cplusplus
+extern "C" { // UPBGE (Moved after ENUM_OPERATORS macro)
+#endif
 
 typedef struct DerivedMesh DerivedMesh;
 struct DerivedMesh {

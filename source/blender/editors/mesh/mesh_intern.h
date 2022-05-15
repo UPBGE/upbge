@@ -9,6 +9,10 @@
 
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct BMEditMesh;
 struct BMElem;
 struct BMOperator;
@@ -301,7 +305,7 @@ void MESH_OT_mark_freestyle_edge(struct wmOperatorType *ot);
 void MESH_OT_mark_freestyle_face(struct wmOperatorType *ot);
 #endif
 
-/* *** mesh_data.c *** */
+/* *** mesh_data.cc *** */
 
 void MESH_OT_uv_texture_add(struct wmOperatorType *ot);
 void MESH_OT_uv_texture_remove(struct wmOperatorType *ot);
@@ -321,3 +325,7 @@ void MESH_OT_navmesh_face_copy(struct wmOperatorType *ot);
 void MESH_OT_navmesh_face_add(struct wmOperatorType *ot);
 void MESH_OT_navmesh_reset(struct wmOperatorType *ot);
 void MESH_OT_navmesh_clear(struct wmOperatorType *ot);
+
+#ifdef __cplusplus
+}
+#endif
