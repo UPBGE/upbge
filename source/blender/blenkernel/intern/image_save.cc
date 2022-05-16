@@ -78,14 +78,21 @@ bool BKE_image_save_options_init(ImageSaveOptions *opts,
                                  Scene *scene,
                                  Image *ima,
                                  ImageUser *iuser,
-                                 const bool guess_path,
-                                 const bool save_as_render)
+                                 const bool guess_path)
 {
+  /* For saving a tiled image we need an iuser, so use a local one if there isn't already one. */
+  ImageUser save_iuser;
+  if (iuser == nullptr) {
+    BKE_imageuser_default(&save_iuser);
+    iuser = &save_iuser;
+    iuser->scene = scene;
+  }
+
   memset(opts, 0, sizeof(*opts));
 
   opts->bmain = bmain;
   opts->scene = scene;
-  opts->save_as_render = save_as_render;
+  opts->save_as_render = ima->source == IMA_SRC_VIEWER;
 
   BKE_image_format_init(&opts->im_format, false);
 
@@ -95,6 +102,7 @@ bool BKE_image_save_options_init(ImageSaveOptions *opts,
   if (ibuf) {
     Scene *scene = opts->scene;
     bool is_depth_set = false;
+    const char *ima_colorspace = ima->colorspace_settings.name;
 
     if (ELEM(ima->type, IMA_TYPE_R_RESULT, IMA_TYPE_COMPOSITE)) {
       /* imtype */
@@ -112,6 +120,9 @@ bool BKE_image_save_options_init(ImageSaveOptions *opts,
         opts->im_format.imtype = R_IMF_IMTYPE_PNG;
         opts->im_format.compress = ibuf->foptions.quality;
         opts->im_format.planes = ibuf->planes;
+        if (!IMB_colormanagement_space_name_is_data(ima_colorspace)) {
+          ima_colorspace = IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DEFAULT_BYTE);
+        }
       }
       else {
         BKE_image_format_from_imbuf(&opts->im_format, ibuf);
@@ -126,9 +137,8 @@ bool BKE_image_save_options_init(ImageSaveOptions *opts,
     }
 
     /* Default to saving in the same colorspace as the image setting. */
-    if (!save_as_render) {
-      BKE_color_managed_colorspace_settings_copy(&opts->im_format.linear_colorspace_settings,
-                                                 &ima->colorspace_settings);
+    if (!opts->save_as_render) {
+      STRNCPY(opts->im_format.linear_colorspace_settings.name, ima_colorspace);
     }
 
     opts->im_format.color_management = R_IMF_COLOR_MANAGEMENT_FOLLOW_SCENE;
@@ -161,7 +171,7 @@ bool BKE_image_save_options_init(ImageSaveOptions *opts,
     /* check for empty path */
     if (guess_path && opts->filepath[0] == 0) {
       const bool is_prev_save = !STREQ(G.ima, "//");
-      if (save_as_render) {
+      if (opts->save_as_render) {
         if (is_prev_save) {
           BLI_strncpy(opts->filepath, G.ima, sizeof(opts->filepath));
         }
@@ -212,7 +222,9 @@ void BKE_image_save_options_update(ImageSaveOptions *opts, Image *image)
       BKE_color_managed_colorspace_settings_copy(&opts->im_format.linear_colorspace_settings,
                                                  &image->colorspace_settings);
     }
-    else if (opts->im_format.imtype != opts->prev_imtype) {
+    else if (opts->im_format.imtype != opts->prev_imtype &&
+             !IMB_colormanagement_space_name_is_data(
+                 opts->im_format.linear_colorspace_settings.name)) {
       const bool linear_float_output = BKE_imtype_requires_linear_float(opts->im_format.imtype);
 
       /* TODO: detect if the colorspace is linear, not just equal to scene linear. */
@@ -596,8 +608,13 @@ static bool image_save_single(ReportList *reports,
 bool BKE_image_save(
     ReportList *reports, Main *bmain, Image *ima, ImageUser *iuser, ImageSaveOptions *opts)
 {
+  /* For saving a tiled image we need an iuser, so use a local one if there isn't already one. */
   ImageUser save_iuser;
-  BKE_imageuser_default(&save_iuser);
+  if (iuser == nullptr) {
+    BKE_imageuser_default(&save_iuser);
+    iuser = &save_iuser;
+    iuser->scene = opts->scene;
+  }
 
   bool colorspace_changed = false;
 
@@ -613,12 +630,6 @@ bool BKE_image_save(
                   "When saving a tiled image, the path '%s' must contain a valid UDIM marker",
                   opts->filepath);
       return false;
-    }
-
-    /* For saving a tiled image we need an iuser, so use a local one if there isn't already one.
-     */
-    if (iuser == nullptr) {
-      iuser = &save_iuser;
     }
   }
 
@@ -795,10 +806,11 @@ bool BKE_image_render_write_exr(ReportList *reports,
       const bool pass_half_float = half_float && pass_RGBA;
 
       /* Colorspace conversion only happens on RGBA passes. */
-      float *output_rect = (save_as_render && pass_RGBA) ?
-                               image_exr_from_scene_linear_to_output(
-                                   rp->rect, rr->rectx, rr->recty, 4, imf, tmp_output_rects) :
-                               rp->rect;
+      float *output_rect =
+          (save_as_render && pass_RGBA) ?
+              image_exr_from_scene_linear_to_output(
+                  rp->rect, rr->rectx, rr->recty, rp->channels, imf, tmp_output_rects) :
+              rp->rect;
 
       for (int a = 0; a < rp->channels; a++) {
         /* Save Combined as RGBA if single layer save. */
