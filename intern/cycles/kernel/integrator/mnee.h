@@ -534,14 +534,8 @@ ccl_device_forceinline bool mnee_newton_solver(KernelGlobals kg,
       tv.dp_dv = mv.dp_dv;
 
       /* Setup corrected manifold vertex. */
-      mnee_setup_manifold_vertex(kg,
-                                 &tv,
-                                 mv.bsdf,
-                                 mv.eta,
-                                 mv.n_offset,
-                                 &projection_ray,
-                                 &projection_isect,
-                                 sd_vtx);
+      mnee_setup_manifold_vertex(
+          kg, &tv, mv.bsdf, mv.eta, mv.n_offset, &projection_ray, &projection_isect, sd_vtx);
 
       /* Fail newton solve if we are not making progress, probably stuck trying to move off the
        * edge of the mesh. */
@@ -813,6 +807,15 @@ ccl_device_forceinline bool mnee_path_contribution(KernelGlobals kg,
    * and keep pdf in vertex area measure */
   mnee_update_light_sample(kg, vertices[vertex_count - 1].p, ls);
 
+  /* Save state path bounce info in case a light path node is used in the refractive interface or
+   * light shader graph. */
+  const int transmission_bounce = INTEGRATOR_STATE(state, path, transmission_bounce);
+  const int diffuse_bounce = INTEGRATOR_STATE(state, path, diffuse_bounce);
+  const int bounce = INTEGRATOR_STATE(state, path, bounce);
+
+  /* Set diffuse bounce info . */
+  INTEGRATOR_STATE_WRITE(state, path, diffuse_bounce) = diffuse_bounce + 1;
+
   /* Evaluate light sample
    * in case the light has a node-based shader:
    * 1. sd_mnee will be used to store light data, which is why we need to do
@@ -820,6 +823,12 @@ ccl_device_forceinline bool mnee_path_contribution(KernelGlobals kg,
    *    interface data at the end of the call for the shadow ray setup to work.
    * 2. ls needs to contain the last interface data for the light shader to
    *    evaluate properly */
+
+  /* Set bounce info in case a light path node is used in the light shader graph. */
+  INTEGRATOR_STATE_WRITE(state, path, transmission_bounce) = transmission_bounce + vertex_count -
+                                                             1;
+  INTEGRATOR_STATE_WRITE(state, path, bounce) = bounce + vertex_count;
+
   float3 light_eval = light_sample_shader_eval(kg, state, sd_mnee, ls, sd->time);
   bsdf_eval_mul3(throughput, light_eval / ls->pdf);
 
@@ -891,6 +900,11 @@ ccl_device_forceinline bool mnee_path_contribution(KernelGlobals kg,
                              false,
                              LAMP_NONE);
 
+    /* Set bounce info in case a light path node is used in the refractive interface
+     * shader graph. */
+    INTEGRATOR_STATE_WRITE(state, path, transmission_bounce) = transmission_bounce + vi;
+    INTEGRATOR_STATE_WRITE(state, path, bounce) = bounce + 1 + vi;
+
     /* Evaluate shader nodes at solution vi. */
     shader_eval_surface<KERNEL_FEATURE_NODE_MASK_SURFACE_SHADOW>(
         kg, state, sd_mnee, NULL, PATH_RAY_DIFFUSE, true);
@@ -906,6 +920,11 @@ ccl_device_forceinline bool mnee_path_contribution(KernelGlobals kg,
     float3 bsdf_contribution = mnee_eval_bsdf_contribution(v.bsdf, wi, wo);
     bsdf_eval_mul3(throughput, bsdf_contribution);
   }
+
+  /* Restore original state path bounce info. */
+  INTEGRATOR_STATE_WRITE(state, path, transmission_bounce) = transmission_bounce;
+  INTEGRATOR_STATE_WRITE(state, path, diffuse_bounce) = diffuse_bounce;
+  INTEGRATOR_STATE_WRITE(state, path, bounce) = bounce;
 
   return true;
 }
@@ -1013,8 +1032,7 @@ ccl_device_forceinline int kernel_path_mnee_sample(KernelGlobals kg,
           }
 
           /* Setup differential geometry on vertex. */
-          mnee_setup_manifold_vertex(
-              kg, &mv, bsdf, eta, h, &probe_ray, &probe_isect, sd_mnee);
+          mnee_setup_manifold_vertex(kg, &mv, bsdf, eta, h, &probe_ray, &probe_isect, sd_mnee);
           break;
         }
       }
@@ -1036,18 +1054,17 @@ ccl_device_forceinline int kernel_path_mnee_sample(KernelGlobals kg,
     return 0;
 
   /* Check whether the transmission depth limit is reached before continuing. */
-  if (INTEGRATOR_STATE(state, path, transmission_bounce) + vertex_count >=
+  if ((INTEGRATOR_STATE(state, path, transmission_bounce) + vertex_count - 1) >=
       kernel_data.integrator.max_transmission_bounce)
     return 0;
 
   /* Check whether the diffuse depth limit is reached before continuing. */
-  if (INTEGRATOR_STATE(state, path, diffuse_bounce) + 1 >=
+  if ((INTEGRATOR_STATE(state, path, diffuse_bounce) + 1) >=
       kernel_data.integrator.max_diffuse_bounce)
     return 0;
 
   /* Check whether the overall depth limit is reached before continuing. */
-  if (INTEGRATOR_STATE(state, path, bounce) + 1 + vertex_count >=
-      kernel_data.integrator.max_bounce)
+  if ((INTEGRATOR_STATE(state, path, bounce) + vertex_count) >= kernel_data.integrator.max_bounce)
     return 0;
 
   /* Mark the manifold walk valid to turn off mollification regardless of how successful the walk

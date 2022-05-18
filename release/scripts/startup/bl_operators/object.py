@@ -849,10 +849,6 @@ class DupliOffsetFromCursor(Operator):
     bl_label = "Set Offset from Cursor"
     bl_options = {'INTERNAL', 'UNDO'}
 
-    @classmethod
-    def poll(cls, context):
-        return (context.active_object is not None)
-
     def execute(self, context):
         scene = context.scene
         collection = context.collection

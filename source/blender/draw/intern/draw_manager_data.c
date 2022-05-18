@@ -647,7 +647,7 @@ static void drw_call_obinfos_init(DRWObjectInfos *ob_infos, Object *ob)
   drw_call_calc_orco(ob, ob_infos->orcotexfac);
   /* Random float value. */
   uint random = (DST.dupli_source) ?
-                    DST.dupli_source->random_id :
+                     DST.dupli_source->random_id :
                      /* TODO(fclem): this is rather costly to do at runtime. Maybe we can
                       * put it in ob->runtime and make depsgraph ensure it is up to date. */
                      BLI_hash_int_2d(BLI_hash_string(ob->id.name + 2), 0);
@@ -2079,6 +2079,11 @@ void DRW_view_clip_planes_set(DRWView *view, float (*planes)[4], int plane_len)
 void DRW_view_camtexco_set(DRWView *view, float texco[4])
 {
   copy_v4_v4(view->storage.viewcamtexcofac, texco);
+}
+
+void DRW_view_camtexco_get(const DRWView *view, float r_texco[4])
+{
+  copy_v4_v4(r_texco, view->storage.viewcamtexcofac);
 }
 
 void DRW_view_frustum_corners_get(const DRWView *view, BoundBox *corners)

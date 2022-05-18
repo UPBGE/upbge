@@ -1218,12 +1218,11 @@ static ID *lib_override_root_find(Main *bmain, ID *id, const int curr_level, int
                "Levels of dependency relationships between library overrides IDs is way too high, "
                "skipping further processing loops (involves at least '%s')",
                id->name);
-    BLI_assert(0);
     return NULL;
   }
 
   if (!ID_IS_OVERRIDE_LIBRARY(id)) {
-    BLI_assert(0);
+    BLI_assert_unreachable();
     return NULL;
   }
 
@@ -2087,9 +2086,7 @@ static bool lib_override_resync_tagging_finalize_recurse(
 
     CLOG_INFO(&LOG, 4, "Found root ID '%s' for resync root ID '%s'", id_root->name, id->name);
 
-    if (id_root->override_library == NULL) {
-      BLI_assert(0);
-    }
+    BLI_assert(id_root->override_library != NULL);
 
     LinkNodePair **id_resync_roots_p;
     if (!BLI_ghash_ensure_p(id_roots, id_root, (void ***)&id_resync_roots_p)) {
@@ -2341,7 +2338,6 @@ static int lib_override_sort_libraries_func(LibraryIDLinkCallbackData *cb_data)
           "loops (Involves at least '%s' and '%s')",
           id_owner->lib->filepath,
           id->lib->filepath);
-      BLI_assert(0);
       return IDWALK_RET_NOP;
     }
 

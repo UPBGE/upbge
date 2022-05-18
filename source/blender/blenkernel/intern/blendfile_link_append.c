@@ -400,7 +400,7 @@ typedef struct LooseDataInstantiateContext {
 static bool object_in_any_scene(Main *bmain, Object *ob)
 {
   LISTBASE_FOREACH (Scene *, sce, &bmain->scenes) {
-    /* #BKE_scene_has_object checks bases cache of the scenes' viewlayer, not actual content of
+    /* #BKE_scene_has_object checks bases cache of the scenes' view-layer, not actual content of
      * their collections. */
     if (BKE_collection_has_object_recursive(sce->master_collection, ob)) {
       return true;
@@ -1125,7 +1125,7 @@ void BKE_blendfile_append(BlendfileLinkAppendContext *lapp_context, ReportList *
             &LOG, "Unexpected unset append action for '%s' ID, assuming 'keep link'", id->name);
         break;
       default:
-        BLI_assert(0);
+        BLI_assert_unreachable();
     }
 
     if (local_appended_new_id != NULL) {
