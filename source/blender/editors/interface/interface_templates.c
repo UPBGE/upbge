@@ -743,7 +743,7 @@ static void template_id_liboverride_hierarchy_create(bContext *C,
           object_active->id.tag |= LIB_TAG_DOIT;
         }
         BKE_lib_override_library_create(
-            bmain, scene, view_layer, NULL, id, &collection_active->id, NULL, &id_override);
+            bmain, scene, view_layer, NULL, id, &collection_active->id, NULL, &id_override, false);
       }
       else if (object_active != NULL && !ID_IS_LINKED(object_active) &&
                &object_active->instance_collection->id == id) {
@@ -755,7 +755,8 @@ static void template_id_liboverride_hierarchy_create(bContext *C,
                                         id,
                                         &object_active->id,
                                         &object_active->id,
-                                        &id_override);
+                                        &id_override,
+                                        false);
       }
       break;
     case ID_OB:
@@ -766,7 +767,7 @@ static void template_id_liboverride_hierarchy_create(bContext *C,
           object_active->id.tag |= LIB_TAG_DOIT;
         }
         BKE_lib_override_library_create(
-            bmain, scene, view_layer, NULL, id, &collection_active->id, NULL, &id_override);
+            bmain, scene, view_layer, NULL, id, &collection_active->id, NULL, &id_override, false);
       }
       break;
     case ID_ME:
@@ -788,13 +789,20 @@ static void template_id_liboverride_hierarchy_create(bContext *C,
           if (object_active != NULL) {
             object_active->id.tag |= LIB_TAG_DOIT;
           }
-          BKE_lib_override_library_create(
-              bmain, scene, view_layer, NULL, id, &collection_active->id, NULL, &id_override);
+          BKE_lib_override_library_create(bmain,
+                                          scene,
+                                          view_layer,
+                                          NULL,
+                                          id,
+                                          &collection_active->id,
+                                          NULL,
+                                          &id_override,
+                                          false);
         }
         else {
           object_active->id.tag |= LIB_TAG_DOIT;
           BKE_lib_override_library_create(
-              bmain, scene, view_layer, NULL, id, &object_active->id, NULL, &id_override);
+              bmain, scene, view_layer, NULL, id, &object_active->id, NULL, &id_override, false);
         }
       }
       break;
