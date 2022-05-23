@@ -87,7 +87,9 @@ RAS_FrameBuffer *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty,
 {
   if (m_filters.empty()) {
     // No filters, discard.
-    return inputfb;
+    GPU_framebuffer_bind(targetfb->GetFrameBuffer());
+    rasty->DrawFrameBuffer(inputfb, targetfb);
+    return targetfb;
   }
 
   /* Set ogl states */
