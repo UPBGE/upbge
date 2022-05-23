@@ -3732,7 +3732,7 @@ static void widget_progressbar(uiBut *but,
 static void widget_link(uiBut *but,
                         uiWidgetColors *UNUSED(wcol),
                         rcti *rect,
-                        int UNUSED(state),
+                        const uiWidgetStateInfo *UNUSED(state),
                         int UNUSED(roundboxalign),
                         const float UNUSED(zoom))
 {
