@@ -50,8 +50,6 @@ using blender::bke::CurvesGeometry;
 
 class DeleteOperation : public CurvesSculptStrokeOperation {
  private:
-  float2 brush_pos_prev_re_;
-
   CurvesBrush3D brush_3d_;
 
   friend struct DeleteOperationExecutor;
@@ -74,7 +72,8 @@ struct DeleteOperationExecutor {
 
   const CurvesSculpt *curves_sculpt_ = nullptr;
   const Brush *brush_ = nullptr;
-  float brush_radius_re_;
+  float brush_radius_base_re_;
+  float brush_radius_factor_;
 
   float2 brush_pos_re_;
 
@@ -97,7 +96,8 @@ struct DeleteOperationExecutor {
 
     curves_sculpt_ = scene_->toolsettings->curves_sculpt;
     brush_ = BKE_paint_brush_for_read(&curves_sculpt_->paint);
-    brush_radius_re_ = brush_radius_get(*scene_, *brush_, stroke_extension);
+    brush_radius_base_re_ = BKE_brush_size_get(scene_, brush_);
+    brush_radius_factor_ = brush_radius_factor(*brush_, stroke_extension);
 
     brush_pos_re_ = stroke_extension.mouse_position;
 
@@ -155,11 +155,23 @@ struct DeleteOperationExecutor {
 
     Span<float3> positions_cu = curves_->positions();
 
-    const float brush_radius_sq_re = pow2f(brush_radius_re_);
+    const float brush_radius_re = brush_radius_base_re_ * brush_radius_factor_;
+    const float brush_radius_sq_re = pow2f(brush_radius_re);
 
     threading::parallel_for(curves_->curves_range(), 512, [&](IndexRange curve_range) {
       for (const int curve_i : curve_range) {
         const IndexRange points = curves_->points_for_curve(curve_i);
+        if (points.size() == 1) {
+          const float3 pos_cu = brush_transform_inv * positions_cu[points.first()];
+          float2 pos_re;
+          ED_view3d_project_float_v2_m4(region_, pos_cu, pos_re, projection.values);
+
+          if (math::distance_squared(brush_pos_re_, pos_re) <= brush_radius_sq_re) {
+            curves_to_delete[curve_i] = true;
+          }
+          continue;
+        }
+
         for (const int segment_i : points.drop_back(1)) {
           const float3 pos1_cu = brush_transform_inv * positions_cu[segment_i];
           const float3 pos2_cu = brush_transform_inv * positions_cu[segment_i + 1];
@@ -204,12 +216,22 @@ struct DeleteOperationExecutor {
   {
     Span<float3> positions_cu = curves_->positions();
 
-    const float brush_radius_cu = self_->brush_3d_.radius_cu;
+    const float brush_radius_cu = self_->brush_3d_.radius_cu * brush_radius_factor_;
     const float brush_radius_sq_cu = pow2f(brush_radius_cu);
 
     threading::parallel_for(curves_->curves_range(), 512, [&](IndexRange curve_range) {
       for (const int curve_i : curve_range) {
         const IndexRange points = curves_->points_for_curve(curve_i);
+
+        if (points.size() == 1) {
+          const float3 &pos_cu = positions_cu[points.first()];
+          const float distance_sq_cu = math::distance_squared(pos_cu, brush_cu);
+          if (distance_sq_cu < brush_radius_sq_cu) {
+            curves_to_delete[curve_i] = true;
+          }
+          continue;
+        }
+
         for (const int segment_i : points.drop_back(1)) {
           const float3 &pos1_cu = positions_cu[segment_i];
           const float3 &pos2_cu = positions_cu[segment_i + 1];
@@ -228,7 +250,7 @@ struct DeleteOperationExecutor {
   void initialize_spherical_brush_reference_point()
   {
     std::optional<CurvesBrush3D> brush_3d = sample_curves_3d_brush(
-        *depsgraph_, *region_, *v3d_, *rv3d_, *object_, brush_pos_re_, brush_radius_re_);
+        *depsgraph_, *region_, *v3d_, *rv3d_, *object_, brush_pos_re_, brush_radius_base_re_);
     if (brush_3d.has_value()) {
       self_->brush_3d_ = *brush_3d;
     }
