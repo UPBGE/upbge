@@ -1274,9 +1274,9 @@ void OBJECT_OT_drop_named_image(wmOperatorType *ot)
                   "Relative Path",
                   "Select the file relative to the blend file");
   RNA_def_property_flag(prop, (PropertyFlag)(PROP_HIDDEN | PROP_SKIP_SAVE));
-  prop = RNA_def_string(
-      ot->srna, "name", nullptr, MAX_ID_NAME - 2, "Name", "Image name to assign");
-  RNA_def_property_flag(prop, (PropertyFlag)(PROP_HIDDEN | PROP_SKIP_SAVE));
+
+  WM_operator_properties_id_lookup(ot, true);
+
   ED_object_add_generic_props(ot, false);
 }
 
@@ -1660,19 +1660,12 @@ static std::optional<CollectionAddInfo> collection_add_info_get_from_op(bContext
   Main *bmain = CTX_data_main(C);
 
   PropertyRNA *prop_location = RNA_struct_find_property(op->ptr, "location");
-  PropertyRNA *prop_session_uuid = RNA_struct_find_property(op->ptr, "session_uuid");
-  PropertyRNA *prop_name = RNA_struct_find_property(op->ptr, "name");
+
+  add_info.collection = reinterpret_cast<Collection *>(
+      WM_operator_properties_id_lookup_from_name_or_session_uuid(bmain, op->ptr, ID_GR));
 
   bool update_location_if_necessary = false;
-  if (prop_name && RNA_property_is_set(op->ptr, prop_name)) {
-    char name[MAX_ID_NAME - 2];
-    RNA_property_string_get(op->ptr, prop_name, name);
-    add_info.collection = (Collection *)BKE_libblock_find_name(bmain, ID_GR, name);
-    update_location_if_necessary = true;
-  }
-  else if (RNA_property_is_set(op->ptr, prop_session_uuid)) {
-    const uint32_t session_uuid = (uint32_t)RNA_property_int_get(op->ptr, prop_session_uuid);
-    add_info.collection = (Collection *)BKE_libblock_find_session_uuid(bmain, ID_GR, session_uuid);
+  if (add_info.collection) {
     update_location_if_necessary = true;
   }
   else {
@@ -1745,8 +1738,7 @@ static int object_instance_add_invoke(bContext *C, wmOperator *op, const wmEvent
     RNA_int_set(op->ptr, "drop_y", event->xy[1]);
   }
 
-  if (!RNA_struct_property_is_set(op->ptr, "name") &&
-      !RNA_struct_property_is_set(op->ptr, "session_uuid")) {
+  if (!WM_operator_properties_id_lookup_is_set(op->ptr)) {
     return WM_enum_search_invoke(C, op, event);
   }
   return op->type->exec(C, op);
@@ -1778,16 +1770,7 @@ void OBJECT_OT_collection_instance_add(wmOperatorType *ot)
   ot->prop = prop;
   ED_object_add_generic_props(ot, false);
 
-  prop = RNA_def_int(ot->srna,
-                     "session_uuid",
-                     0,
-                     INT32_MIN,
-                     INT32_MAX,
-                     "Session UUID",
-                     "Session UUID of the collection to add",
-                     INT32_MIN,
-                     INT32_MAX);
-  RNA_def_property_flag(prop, (PropertyFlag)(PROP_SKIP_SAVE | PROP_HIDDEN));
+  WM_operator_properties_id_lookup(ot, false);
 
   object_add_drop_xy_props(ot);
 }
@@ -1884,16 +1867,7 @@ void OBJECT_OT_collection_external_asset_drop(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 
   /* properties */
-  prop = RNA_def_int(ot->srna,
-                     "session_uuid",
-                     0,
-                     INT32_MIN,
-                     INT32_MAX,
-                     "Session UUID",
-                     "Session UUID of the collection to add",
-                     INT32_MIN,
-                     INT32_MAX);
-  RNA_def_property_flag(prop, (PropertyFlag)(PROP_SKIP_SAVE | PROP_HIDDEN));
+  WM_operator_properties_id_lookup(ot, false);
 
   ED_object_add_generic_props(ot, false);
 
@@ -1929,18 +1903,12 @@ static int object_data_instance_add_exec(bContext *C, wmOperator *op)
   ushort local_view_bits;
   float loc[3], rot[3];
 
-  PropertyRNA *prop_name = RNA_struct_find_property(op->ptr, "name");
   PropertyRNA *prop_type = RNA_struct_find_property(op->ptr, "type");
   PropertyRNA *prop_location = RNA_struct_find_property(op->ptr, "location");
 
-  /* These shouldn't fail when created by outliner dropping as it checks the ID is valid. */
-  if (!RNA_property_is_set(op->ptr, prop_name) || !RNA_property_is_set(op->ptr, prop_type)) {
-    return OPERATOR_CANCELLED;
-  }
   const short id_type = RNA_property_enum_get(op->ptr, prop_type);
-  char name[MAX_ID_NAME - 2];
-  RNA_property_string_get(op->ptr, prop_name, name);
-  id = BKE_libblock_find_name(bmain, id_type, name);
+  id = WM_operator_properties_id_lookup_from_name_or_session_uuid(
+      bmain, op->ptr, (ID_Type)id_type);
   if (id == nullptr) {
     return OPERATOR_CANCELLED;
   }
@@ -1983,7 +1951,7 @@ void OBJECT_OT_data_instance_add(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
-  RNA_def_string(ot->srna, "name", "Name", MAX_ID_NAME - 2, "Name", "ID name to add");
+  WM_operator_properties_id_lookup(ot, true);
   PropertyRNA *prop = RNA_def_enum(ot->srna, "type", rna_enum_id_type_items, 0, "Type", "");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
   ED_object_add_generic_props(ot, false);
@@ -3828,15 +3796,13 @@ static int object_add_named_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  Base *basen;
-  Object *ob;
   const bool linked = RNA_boolean_get(op->ptr, "linked");
   const eDupli_ID_Flags dupflag = (linked) ? (eDupli_ID_Flags)0 : (eDupli_ID_Flags)U.dupflag;
-  char name[MAX_ID_NAME - 2];
 
-  /* find object, create fake base */
-  RNA_string_get(op->ptr, "name", name);
-  ob = (Object *)BKE_libblock_find_name(bmain, ID_OB, name);
+  /* Find object, create fake base. */
+
+  Object *ob = reinterpret_cast<Object *>(
+      WM_operator_properties_id_lookup_from_name_or_session_uuid(bmain, op->ptr, ID_OB));
 
   if (ob == nullptr) {
     BKE_report(op->reports, RPT_ERROR, "Object not found");
@@ -3846,7 +3812,7 @@ static int object_add_named_exec(bContext *C, wmOperator *op)
   BKE_sca_clear_new_points(); /* BGE logic */
 
   /* prepare dupli */
-  basen = object_add_duplicate_internal(
+  Base *basen = object_add_duplicate_internal(
       bmain,
       scene,
       view_layer,
@@ -3926,7 +3892,7 @@ void OBJECT_OT_add_named(wmOperatorType *ot)
                   "Linked",
                   "Duplicate object but not object data, linking to the original data");
 
-  RNA_def_string(ot->srna, "name", nullptr, MAX_ID_NAME - 2, "Name", "Object name to add");
+  WM_operator_properties_id_lookup(ot, true);
 
   prop = RNA_def_float_matrix(
       ot->srna, "matrix", 4, 4, nullptr, 0.0f, 0.0f, "Matrix", "", 0.0f, 0.0f);
@@ -3948,14 +3914,11 @@ static int object_transform_to_mouse_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  Object *ob;
 
-  if (RNA_struct_property_is_set(op->ptr, "name")) {
-    char name[MAX_ID_NAME - 2];
-    RNA_string_get(op->ptr, "name", name);
-    ob = (Object *)BKE_libblock_find_name(bmain, ID_OB, name);
-  }
-  else {
+  Object *ob = reinterpret_cast<Object *>(
+      WM_operator_properties_id_lookup_from_name_or_session_uuid(bmain, op->ptr, ID_OB));
+
+  if (!ob) {
     ob = OBACT(view_layer);
   }
 
@@ -4034,12 +3997,25 @@ void OBJECT_OT_transform_to_mouse(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   PropertyRNA *prop;
-  RNA_def_string(ot->srna,
-                 "name",
-                 nullptr,
-                 MAX_ID_NAME - 2,
-                 "Name",
-                 "Object name to place (when unset use the active object)");
+  prop = RNA_def_string(
+      ot->srna,
+      "name",
+      nullptr,
+      MAX_ID_NAME - 2,
+      "Name",
+      "Object name to place (uses the active object when this and 'session_uuid' are unset)");
+  RNA_def_property_flag(prop, (PropertyFlag)(PROP_SKIP_SAVE | PROP_HIDDEN));
+  prop = RNA_def_int(ot->srna,
+                     "session_uuid",
+                     0,
+                     INT32_MIN,
+                     INT32_MAX,
+                     "Session UUID",
+                     "Session UUID of the object to place (uses the active object when this and "
+                     "'name' are unset)",
+                     INT32_MIN,
+                     INT32_MAX);
+  RNA_def_property_flag(prop, (PropertyFlag)(PROP_SKIP_SAVE | PROP_HIDDEN));
 
   prop = RNA_def_float_matrix(
       ot->srna, "matrix", 4, 4, nullptr, 0.0f, 0.0f, "Matrix", "", 0.0f, 0.0f);
