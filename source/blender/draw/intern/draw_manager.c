@@ -3441,7 +3441,7 @@ void DRW_game_render_loop(bContext *C,
   /* Update UBO's */
   DRW_globals_update();
 
-  DRW_curves_init();
+  DRW_curves_init(DST.vmempool);
   DRW_volume_init(DST.vmempool);
   DRW_smoke_init(DST.vmempool);
 
