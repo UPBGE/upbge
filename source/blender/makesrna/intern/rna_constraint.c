@@ -442,7 +442,7 @@ static char *rna_Constraint_do_compute_path(Object *ob, bConstraint *con)
   }
 }
 
-static char *rna_Constraint_path(PointerRNA *ptr)
+static char *rna_Constraint_path(const PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->owner_id;
   bConstraint *con = ptr->data;
@@ -450,7 +450,7 @@ static char *rna_Constraint_path(PointerRNA *ptr)
   return rna_Constraint_do_compute_path(ob, con);
 }
 
-static bConstraint *rna_constraint_from_target(PointerRNA *ptr)
+static bConstraint *rna_constraint_from_target(const PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->owner_id;
   bConstraintTarget *tgt = ptr->data;
@@ -458,7 +458,7 @@ static bConstraint *rna_constraint_from_target(PointerRNA *ptr)
   return BKE_constraint_find_from_target(ob, tgt, NULL);
 }
 
-static char *rna_ConstraintTarget_path(PointerRNA *ptr)
+static char *rna_ConstraintTarget_path(const PointerRNA *ptr)
 {
   Object *ob = (Object *)ptr->owner_id;
   bConstraintTarget *tgt = ptr->data;
@@ -693,11 +693,11 @@ static void rna_ActionConstraint_minmax_range(
   }
 }
 
-static int rna_SplineIKConstraint_joint_bindings_get_length(PointerRNA *ptr,
+static int rna_SplineIKConstraint_joint_bindings_get_length(const PointerRNA *ptr,
                                                             int length[RNA_MAX_ARRAY_DIMENSION])
 {
-  bConstraint *con = (bConstraint *)ptr->data;
-  bSplineIKConstraint *ikData = (bSplineIKConstraint *)con->data;
+  const bConstraint *con = (bConstraint *)ptr->data;
+  const bSplineIKConstraint *ikData = (bSplineIKConstraint *)con->data;
 
   if (ikData) {
     length[0] = ikData->numpoints;

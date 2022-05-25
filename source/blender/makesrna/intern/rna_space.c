@@ -1569,7 +1569,7 @@ static int rna_SpaceView3D_icon_from_show_object_viewport_get(PointerRNA *ptr)
                                                     &v3d->object_type_exclude_select);
 }
 
-static char *rna_View3DShading_path(PointerRNA *UNUSED(ptr))
+static char *rna_View3DShading_path(const PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("shading");
 }
@@ -1579,7 +1579,7 @@ static PointerRNA rna_SpaceView3D_overlay_get(PointerRNA *ptr)
   return rna_pointer_inherit_refine(ptr, &RNA_View3DOverlay, ptr->data);
 }
 
-static char *rna_View3DOverlay_path(PointerRNA *UNUSED(ptr))
+static char *rna_View3DOverlay_path(const PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("overlay");
 }
@@ -1591,12 +1591,12 @@ static PointerRNA rna_SpaceImage_overlay_get(PointerRNA *ptr)
   return rna_pointer_inherit_refine(ptr, &RNA_SpaceImageOverlay, ptr->data);
 }
 
-static char *rna_SpaceImageOverlay_path(PointerRNA *UNUSED(ptr))
+static char *rna_SpaceImageOverlay_path(const PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("overlay");
 }
 
-static char *rna_SpaceUVEditor_path(PointerRNA *UNUSED(ptr))
+static char *rna_SpaceUVEditor_path(const PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("uv_editor");
 }
@@ -2028,7 +2028,7 @@ static void rna_SpaceProperties_context_update(Main *UNUSED(bmain),
   }
 }
 
-static int rna_SpaceProperties_tab_search_results_getlength(PointerRNA *ptr,
+static int rna_SpaceProperties_tab_search_results_getlength(const PointerRNA *ptr,
                                                             int length[RNA_MAX_ARRAY_DIMENSION])
 {
   SpaceProperties *sbuts = ptr->data;
@@ -2430,12 +2430,12 @@ static void rna_Sequencer_view_type_update(Main *UNUSED(bmain),
   ED_area_tag_refresh(area);
 }
 
-static char *rna_SpaceSequencerPreviewOverlay_path(PointerRNA *UNUSED(ptr))
+static char *rna_SpaceSequencerPreviewOverlay_path(const PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("preview_overlay");
 }
 
-static char *rna_SpaceSequencerTimelineOverlay_path(PointerRNA *UNUSED(ptr))
+static char *rna_SpaceSequencerTimelineOverlay_path(const PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("timeline_overlay");
 }
@@ -2446,7 +2446,7 @@ static PointerRNA rna_SpaceNode_overlay_get(PointerRNA *ptr)
   return rna_pointer_inherit_refine(ptr, &RNA_SpaceNodeOverlay, ptr->data);
 }
 
-static char *rna_SpaceNodeOverlay_path(PointerRNA *UNUSED(ptr))
+static char *rna_SpaceNodeOverlay_path(const PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("overlay");
 }
@@ -2639,7 +2639,7 @@ static void rna_SpaceClipEditor_view_type_update(Main *UNUSED(bmain),
 
 /* File browser. */
 
-static char *rna_FileSelectParams_path(PointerRNA *UNUSED(ptr))
+static char *rna_FileSelectParams_path(const PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("params");
 }

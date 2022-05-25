@@ -302,7 +302,8 @@ static int rna_ensure_property_array_length(PointerRNA *ptr, PropertyRNA *prop)
 {
   if (prop->magic == RNA_MAGIC) {
     int arraylen[RNA_MAX_ARRAY_DIMENSION];
-    return (prop->getlength && ptr->data) ? prop->getlength(ptr, arraylen) : prop->totarraylength;
+    return (prop->getlength && ptr->data) ? prop->getlength(ptr, arraylen) :
+                                            (int)prop->totarraylength;
   }
   IDProperty *idprop = (IDProperty *)prop;
 
@@ -322,7 +323,7 @@ static bool rna_ensure_property_array_check(PropertyRNA *prop)
   return (idprop->type == IDP_ARRAY);
 }
 
-static void rna_ensure_property_multi_array_length(PointerRNA *ptr,
+static void rna_ensure_property_multi_array_length(const PointerRNA *ptr,
                                                    PropertyRNA *prop,
                                                    int length[])
 {
@@ -1080,7 +1081,7 @@ bool RNA_property_array_check(PropertyRNA *prop)
   return rna_ensure_property_array_check(prop);
 }
 
-int RNA_property_array_dimension(PointerRNA *ptr, PropertyRNA *prop, int length[])
+int RNA_property_array_dimension(const PointerRNA *ptr, PropertyRNA *prop, int length[])
 {
   PropertyRNA *rprop = rna_ensure_property(prop);
 
@@ -4025,7 +4026,9 @@ void RNA_property_collection_clear(PointerRNA *ptr, PropertyRNA *prop)
   }
 }
 
-int RNA_property_collection_lookup_index(PointerRNA *ptr, PropertyRNA *prop, PointerRNA *t_ptr)
+int RNA_property_collection_lookup_index(PointerRNA *ptr,
+                                         PropertyRNA *prop,
+                                         const PointerRNA *t_ptr)
 {
   CollectionPropertyIterator iter;
   int index = 0;
@@ -5105,7 +5108,7 @@ static bool rna_path_parse_array_index(const char **path,
  *
  * \return \a true on success, \a false if the path is somehow invalid.
  */
-static bool rna_path_parse(PointerRNA *ptr,
+static bool rna_path_parse(const PointerRNA *ptr,
                            const char *path,
                            PointerRNA *r_ptr,
                            PropertyRNA **r_prop,
@@ -5262,7 +5265,10 @@ static bool rna_path_parse(PointerRNA *ptr,
   return true;
 }
 
-bool RNA_path_resolve(PointerRNA *ptr, const char *path, PointerRNA *r_ptr, PropertyRNA **r_prop)
+bool RNA_path_resolve(const PointerRNA *ptr,
+                      const char *path,
+                      PointerRNA *r_ptr,
+                      PropertyRNA **r_prop)
 {
   if (!rna_path_parse(ptr, path, r_ptr, r_prop, NULL, NULL, NULL, true)) {
     return false;
@@ -5272,7 +5278,7 @@ bool RNA_path_resolve(PointerRNA *ptr, const char *path, PointerRNA *r_ptr, Prop
 }
 
 bool RNA_path_resolve_full(
-    PointerRNA *ptr, const char *path, PointerRNA *r_ptr, PropertyRNA **r_prop, int *r_index)
+    const PointerRNA *ptr, const char *path, PointerRNA *r_ptr, PropertyRNA **r_prop, int *r_index)
 {
   if (!rna_path_parse(ptr, path, r_ptr, r_prop, r_index, NULL, NULL, true)) {
     return false;
@@ -5282,12 +5288,12 @@ bool RNA_path_resolve_full(
 }
 
 bool RNA_path_resolve_full_maybe_null(
-    PointerRNA *ptr, const char *path, PointerRNA *r_ptr, PropertyRNA **r_prop, int *r_index)
+    const PointerRNA *ptr, const char *path, PointerRNA *r_ptr, PropertyRNA **r_prop, int *r_index)
 {
   return rna_path_parse(ptr, path, r_ptr, r_prop, r_index, NULL, NULL, true);
 }
 
-bool RNA_path_resolve_property(PointerRNA *ptr,
+bool RNA_path_resolve_property(const PointerRNA *ptr,
                                const char *path,
                                PointerRNA *r_ptr,
                                PropertyRNA **r_prop)
@@ -5300,7 +5306,7 @@ bool RNA_path_resolve_property(PointerRNA *ptr,
 }
 
 bool RNA_path_resolve_property_full(
-    PointerRNA *ptr, const char *path, PointerRNA *r_ptr, PropertyRNA **r_prop, int *r_index)
+    const PointerRNA *ptr, const char *path, PointerRNA *r_ptr, PropertyRNA **r_prop, int *r_index)
 {
   if (!rna_path_parse(ptr, path, r_ptr, r_prop, r_index, NULL, NULL, false)) {
     return false;
@@ -5309,7 +5315,7 @@ bool RNA_path_resolve_property_full(
   return r_ptr->data != NULL && *r_prop != NULL;
 }
 
-bool RNA_path_resolve_property_and_item_pointer(PointerRNA *ptr,
+bool RNA_path_resolve_property_and_item_pointer(const PointerRNA *ptr,
                                                 const char *path,
                                                 PointerRNA *r_ptr,
                                                 PropertyRNA **r_prop,
@@ -5322,7 +5328,7 @@ bool RNA_path_resolve_property_and_item_pointer(PointerRNA *ptr,
   return r_ptr->data != NULL && *r_prop != NULL;
 }
 
-bool RNA_path_resolve_property_and_item_pointer_full(PointerRNA *ptr,
+bool RNA_path_resolve_property_and_item_pointer_full(const PointerRNA *ptr,
                                                      const char *path,
                                                      PointerRNA *r_ptr,
                                                      PropertyRNA **r_prop,
@@ -5340,8 +5346,11 @@ bool RNA_path_resolve_elements(PointerRNA *ptr, const char *path, ListBase *r_el
   return rna_path_parse(ptr, path, NULL, NULL, NULL, NULL, r_elements, false);
 }
 
-char *RNA_path_append(
-    const char *path, PointerRNA *UNUSED(ptr), PropertyRNA *prop, int intkey, const char *strkey)
+char *RNA_path_append(const char *path,
+                      const PointerRNA *UNUSED(ptr),
+                      PropertyRNA *prop,
+                      int intkey,
+                      const char *strkey)
 {
   DynStr *dynstr;
   char *result;
@@ -5724,7 +5733,7 @@ char *RNA_path_from_ID_to_struct(const PointerRNA *ptr)
   return ptrpath;
 }
 
-char *RNA_path_from_real_ID_to_struct(Main *bmain, PointerRNA *ptr, struct ID **r_real)
+char *RNA_path_from_real_ID_to_struct(Main *bmain, const PointerRNA *ptr, struct ID **r_real)
 {
   char *path = RNA_path_from_ID_to_struct(ptr);
 
@@ -5753,7 +5762,7 @@ static void rna_path_array_multi_from_flat_index(const int dimsize[RNA_MAX_ARRAY
   BLI_assert(index == 0);
 }
 
-static void rna_path_array_multi_string_from_flat_index(PointerRNA *ptr,
+static void rna_path_array_multi_string_from_flat_index(const PointerRNA *ptr,
                                                         PropertyRNA *prop,
                                                         int index_dim,
                                                         int index,
@@ -5772,7 +5781,7 @@ static void rna_path_array_multi_string_from_flat_index(PointerRNA *ptr,
   }
 }
 
-char *RNA_path_from_ID_to_property_index(PointerRNA *ptr,
+char *RNA_path_from_ID_to_property_index(const PointerRNA *ptr,
                                          PropertyRNA *prop,
                                          int index_dim,
                                          int index)
@@ -5828,13 +5837,17 @@ char *RNA_path_from_ID_to_property_index(PointerRNA *ptr,
   return path;
 }
 
-char *RNA_path_from_ID_to_property(PointerRNA *ptr, PropertyRNA *prop)
+char *RNA_path_from_ID_to_property(const PointerRNA *ptr, PropertyRNA *prop)
 {
   return RNA_path_from_ID_to_property_index(ptr, prop, 0, -1);
 }
 
-char *RNA_path_from_real_ID_to_property_index(
-    Main *bmain, PointerRNA *ptr, PropertyRNA *prop, int index_dim, int index, ID **r_real_id)
+char *RNA_path_from_real_ID_to_property_index(Main *bmain,
+                                              const PointerRNA *ptr,
+                                              PropertyRNA *prop,
+                                              int index_dim,
+                                              int index,
+                                              ID **r_real_id)
 {
   char *path = RNA_path_from_ID_to_property_index(ptr, prop, index_dim, index);
 
@@ -5843,7 +5856,7 @@ char *RNA_path_from_real_ID_to_property_index(
   return path != NULL ? rna_prepend_real_ID_path(bmain, ptr->owner_id, path, r_real_id) : NULL;
 }
 
-char *RNA_path_resolve_from_type_to_property(PointerRNA *ptr,
+char *RNA_path_resolve_from_type_to_property(const PointerRNA *ptr,
                                              PropertyRNA *prop,
                                              const StructRNA *type)
 {
@@ -5916,7 +5929,7 @@ char *RNA_path_full_ID_py(Main *bmain, ID *id)
                       path);
 }
 
-char *RNA_path_full_struct_py(Main *bmain, struct PointerRNA *ptr)
+char *RNA_path_full_struct_py(Main *bmain, const PointerRNA *ptr)
 {
   char *id_path;
   char *data_path;
@@ -5945,7 +5958,7 @@ char *RNA_path_full_struct_py(Main *bmain, struct PointerRNA *ptr)
 }
 
 char *RNA_path_full_property_py_ex(
-    Main *bmain, PointerRNA *ptr, PropertyRNA *prop, int index, bool use_fallback)
+    Main *bmain, const PointerRNA *ptr, PropertyRNA *prop, int index, bool use_fallback)
 {
   char *id_path;
   const char *data_delim;
@@ -5992,7 +6005,7 @@ char *RNA_path_full_property_py_ex(
   return ret;
 }
 
-char *RNA_path_full_property_py(Main *bmain, PointerRNA *ptr, PropertyRNA *prop, int index)
+char *RNA_path_full_property_py(Main *bmain, const PointerRNA *ptr, PropertyRNA *prop, int index)
 {
   return RNA_path_full_property_py_ex(bmain, ptr, prop, index, false);
 }

@@ -72,6 +72,7 @@
 #include "tree/tree_element_overrides.hh"
 #include "tree/tree_element_rna.hh"
 
+using namespace blender;
 using namespace blender::ed::outliner;
 
 /* -------------------------------------------------------------------- */
@@ -1920,91 +1921,6 @@ static void outliner_draw_overrides_restrictbuts(Main *bmain,
   }
 }
 
-static bool outliner_draw_overrides_warning_buts(uiBlock *block,
-                                                 ARegion *region,
-                                                 SpaceOutliner *space_outliner,
-                                                 ListBase *lb,
-                                                 const bool is_open)
-{
-  bool any_item_has_warnings = false;
-
-  LISTBASE_FOREACH (TreeElement *, te, lb) {
-    bool item_has_warnings = false;
-    const bool do_draw = outliner_is_element_in_view(te, &region->v2d);
-    int but_flag = UI_BUT_DRAG_LOCK;
-    const char *tip = nullptr;
-
-    TreeStoreElem *tselem = TREESTORE(te);
-    switch (tselem->type) {
-      case TSE_LIBRARY_OVERRIDE_BASE: {
-        ID *id = tselem->id;
-
-        if (id->flag & LIB_LIB_OVERRIDE_RESYNC_LEFTOVER) {
-          item_has_warnings = true;
-          if (do_draw) {
-            tip = TIP_(
-                "This override data-block is not needed anymore, but was detected as user-edited");
-          }
-        }
-        else if (ID_IS_OVERRIDE_LIBRARY_REAL(id) && ID_REAL_USERS(id) == 0) {
-          item_has_warnings = true;
-          if (do_draw) {
-            tip = TIP_("This override data-block is unused");
-          }
-        }
-        break;
-      }
-      case TSE_LIBRARY_OVERRIDE: {
-        TreeElementOverridesProperty &te_override_prop =
-            *tree_element_cast<TreeElementOverridesProperty>(te);
-        if (!te_override_prop.is_rna_path_valid) {
-          item_has_warnings = true;
-          if (do_draw) {
-            tip = TIP_(
-                "This override property does not exist in current data, it will be removed on "
-                "next .blend file save");
-          }
-        }
-        break;
-      }
-      default:
-        break;
-    }
-
-    const bool any_child_has_warnings = outliner_draw_overrides_warning_buts(
-        block,
-        region,
-        space_outliner,
-        &te->subtree,
-        is_open && TSELEM_OPEN(tselem, space_outliner));
-
-    if (do_draw &&
-        (item_has_warnings || (any_child_has_warnings && !TSELEM_OPEN(tselem, space_outliner)))) {
-      if (tip == nullptr) {
-        tip = TIP_("Some sub-items require attention");
-      }
-      uiBut *bt = uiDefIconBut(block,
-                               UI_BTYPE_BUT,
-                               1,
-                               ICON_ERROR,
-                               (int)(region->v2d.cur.xmax - OL_TOG_USER_BUTS_STATUS),
-                               te->ys,
-                               UI_UNIT_X,
-                               UI_UNIT_Y,
-                               nullptr,
-                               0.0,
-                               0.0,
-                               0.0,
-                               0.0,
-                               tip);
-      UI_but_flag_enable(bt, but_flag);
-    }
-    any_item_has_warnings = any_item_has_warnings || item_has_warnings || any_child_has_warnings;
-  }
-
-  return any_item_has_warnings;
-}
-
 static void outliner_draw_separator(ARegion *region, const int x)
 {
   View2D *v2d = &region->v2d;
@@ -2280,37 +2196,50 @@ static void outliner_draw_mode_column(const bContext *C,
   }
 }
 
-/* Returns `true` if some warning was drawn for that element or one of its sub-elements (if it is
- * not open). */
-static bool outliner_draw_warning_tree_element(uiBlock *block,
+static StringRefNull outliner_draw_get_warning_tree_element_subtree(const TreeElement *parent_te)
+{
+  LISTBASE_FOREACH (const TreeElement *, sub_te, &parent_te->subtree) {
+    const AbstractTreeElement *abstract_te = tree_element_cast<AbstractTreeElement>(sub_te);
+    StringRefNull warning_msg = abstract_te ? abstract_te->getWarning() : "";
+
+    if (!warning_msg.is_empty()) {
+      return warning_msg;
+    }
+
+    warning_msg = outliner_draw_get_warning_tree_element_subtree(sub_te);
+    if (!warning_msg.is_empty()) {
+      return warning_msg;
+    }
+  }
+
+  return "";
+}
+
+static StringRefNull outliner_draw_get_warning_tree_element(const SpaceOutliner &space_outliner,
+                                                            const TreeElement *te)
+{
+  const AbstractTreeElement *abstract_te = tree_element_cast<AbstractTreeElement>(te);
+  const StringRefNull warning_msg = abstract_te ? abstract_te->getWarning() : "";
+
+  if (!warning_msg.is_empty()) {
+    return warning_msg;
+  }
+
+  /* If given element has no warning, recursively try to display the first sub-element's warning.
+   */
+  if (!TSELEM_OPEN(te->store_elem, &space_outliner)) {
+    return outliner_draw_get_warning_tree_element_subtree(te);
+  }
+
+  return "";
+}
+
+static void outliner_draw_warning_tree_element(uiBlock *block,
                                                SpaceOutliner *space_outliner,
-                                               TreeElement *te,
-                                               TreeStoreElem *tselem,
+                                               StringRefNull warning_msg,
                                                const bool use_mode_column,
                                                const int te_ys)
 {
-  if ((te->flag & TE_HAS_WARNING) == 0) {
-    /* If given element has no warning, recursively try to display the first sub-elements' warning.
-     */
-    if (!TSELEM_OPEN(tselem, space_outliner)) {
-      LISTBASE_FOREACH (TreeElement *, sub_te, &te->subtree) {
-        TreeStoreElem *sub_tselem = TREESTORE(sub_te);
-
-        if (outliner_draw_warning_tree_element(
-                block, space_outliner, sub_te, sub_tselem, use_mode_column, te_ys)) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  int icon = ICON_NONE;
-  const char *tip = "";
-  const bool has_warning = tree_element_warnings_get(te, &icon, &tip);
-  BLI_assert(has_warning);
-  UNUSED_VARS_NDEBUG(has_warning);
-
   /* Move the warnings a unit left in view layer mode. */
   const short mode_column_offset = (use_mode_column && (space_outliner->outlinevis == SO_SCENES)) ?
                                        UI_UNIT_X :
@@ -2320,7 +2249,7 @@ static bool outliner_draw_warning_tree_element(uiBlock *block,
   uiBut *but = uiDefIconBut(block,
                             UI_BTYPE_ICON_TOGGLE,
                             0,
-                            icon,
+                            ICON_ERROR,
                             mode_column_offset,
                             te_ys,
                             UI_UNIT_X,
@@ -2330,11 +2259,9 @@ static bool outliner_draw_warning_tree_element(uiBlock *block,
                             0.0,
                             0.0,
                             0.0,
-                            tip);
+                            warning_msg.c_str());
   /* No need for undo here, this is a pure info widget. */
   UI_but_flag_disable(but, UI_BUT_UNDO);
-
-  return true;
 }
 
 static void outliner_draw_warning_column(const bContext *C,
@@ -2344,11 +2271,16 @@ static void outliner_draw_warning_column(const bContext *C,
                                          ListBase *tree)
 {
   LISTBASE_FOREACH (TreeElement *, te, tree) {
-    TreeStoreElem *tselem = TREESTORE(te);
+    /* Get warning for this element, or if there is none and the element is collapsed, the first
+     * warning in the collapsed sub-tree. */
+    StringRefNull warning_msg = outliner_draw_get_warning_tree_element(*space_outliner, te);
 
-    outliner_draw_warning_tree_element(block, space_outliner, te, tselem, use_mode_column, te->ys);
+    if (!warning_msg.is_empty()) {
+      outliner_draw_warning_tree_element(
+          block, space_outliner, warning_msg, use_mode_column, te->ys);
+    }
 
-    if (TSELEM_OPEN(tselem, space_outliner)) {
+    if (TSELEM_OPEN(te->store_elem, space_outliner)) {
       outliner_draw_warning_column(C, block, space_outliner, use_mode_column, &te->subtree);
     }
   }
@@ -3964,13 +3896,8 @@ void draw_outliner(const bContext *C)
   UI_view2d_view_ortho(v2d);
 
   /* Only show mode column in View Layers and Scenes view. */
-  const bool use_mode_column = (space_outliner->flag & SO_MODE_COLUMN) &&
-                               (ELEM(space_outliner->outlinevis, SO_VIEW_LAYER, SO_SCENES));
-
-  const bool use_warning_column = ELEM(space_outliner->outlinevis,
-                                       SO_LIBRARIES,
-                                       SO_OVERRIDES_LIBRARY) &&
-                                  space_outliner->runtime->tree_display->hasWarnings();
+  const bool use_mode_column = outliner_shows_mode_column(*space_outliner);
+  const bool use_warning_column = outliner_has_element_warnings(*space_outliner);
 
   /* Draw outliner stuff (background, hierarchy lines and names). */
   const float right_column_width = outliner_right_columns_width(space_outliner);
@@ -4008,10 +3935,6 @@ void draw_outliner(const bContext *C)
     outliner_draw_userbuts(block, region, space_outliner, &space_outliner->tree);
   }
   else if (space_outliner->outlinevis == SO_OVERRIDES_LIBRARY) {
-    /* Draw overrides status columns. */
-    outliner_draw_overrides_warning_buts(
-        block, region, space_outliner, &space_outliner->tree, true);
-
     const int x = region->v2d.cur.xmax - right_column_width;
     outliner_draw_separator(region, x);
     if (space_outliner->lib_override_view_mode == SO_LIB_OVERRIDE_VIEW_PROPERTIES) {
