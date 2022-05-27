@@ -759,7 +759,7 @@ static char *rna_FieldSettings_path(const PointerRNA *ptr)
   return NULL;
 }
 
-static char *rna_game_soft_body_settings_path(PointerRNA *UNUSED(ptr))
+static char *rna_game_soft_body_settings_path(const PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("game.soft_body");
 }
