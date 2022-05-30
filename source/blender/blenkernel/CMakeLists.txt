@@ -79,7 +79,7 @@ set(SRC
   intern/asset_catalog_path.cc
   intern/asset_library.cc
   intern/asset_library_service.cc
-  intern/attribute.c
+  intern/attribute.cc
   intern/attribute_access.cc
   intern/attribute_math.cc
   intern/autoexec.c
@@ -439,6 +439,7 @@ set(SRC
   BKE_multires.h
   BKE_nla.h
   BKE_node.h
+  BKE_node_runtime.hh
   BKE_node_tree_update.h
   BKE_object.h
   BKE_object_deform.h
