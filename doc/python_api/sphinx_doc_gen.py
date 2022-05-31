@@ -78,6 +78,27 @@ SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 # See: D6261 for reference.
 USE_ONLY_BUILTIN_RNA_TYPES = True
 
+# Write a page for each static enum defined in:
+# `source/blender/makesrna/RNA_enum_items.h` so the enums can be linked to instead of being expanded everywhere.
+USE_SHARED_RNA_ENUM_ITEMS_STATIC = True
+
+if USE_SHARED_RNA_ENUM_ITEMS_STATIC:
+    from _bpy import rna_enum_items_static
+    rna_enum_dict = rna_enum_items_static()
+    for key in ("DummyRNA_DEFAULT_items", "DummyRNA_NULL_items"):
+        del rna_enum_dict[key]
+    del key, rna_enum_items_static
+
+    # Build enum `{pointer: identifier}` map, so any enum property pointer can
+    # lookup an identifier using `InfoPropertyRNA.enum_pointer` as the key.
+    rna_enum_pointer_to_id_map = {
+        enum_prop.as_pointer(): key
+        for key, enum_items in rna_enum_dict.items()
+        # It's possible the first item is a heading (which has no identifier).
+        # skip these as the `EnumProperty.enum_items` does not expose them.
+        if (enum_prop := next(iter(enum_prop for enum_prop in enum_items if enum_prop.identifier), None))
+    }
+
 
 def handle_args():
     """
@@ -1229,15 +1250,23 @@ def pycontext2sphinx(basepath):
             # No need to check if there are duplicates yet as it's known there wont be.
             unique.add(prop.identifier)
 
+            enum_descr_override = None
+            if USE_SHARED_RNA_ENUM_ITEMS_STATIC:
+                enum_descr_override = pyrna_enum2sphinx_shared_link(prop)
+
             type_descr = prop.get_type_description(
-                class_fmt=":class:`bpy.types.%s`", collection_id=_BPY_PROP_COLLECTION_ID)
+                class_fmt=":class:`bpy.types.%s`",
+                collection_id=_BPY_PROP_COLLECTION_ID,
+                enum_descr_override=enum_descr_override,
+            )
             fw(".. data:: %s\n\n" % prop.identifier)
             if prop.description:
                 fw("   %s\n\n" % prop.description)
 
             # Special exception, can't use generic code here for enums.
             if prop.type == "enum":
-                enum_text = pyrna_enum2sphinx(prop)
+                # If the link has been written, no need to inline the enum items.
+                enum_text = "" if enum_descr_override else pyrna_enum2sphinx(prop)
                 if enum_text:
                     write_indented_lines("   ", fw, enum_text)
                     fw("\n")
@@ -1298,6 +1327,11 @@ def pyrna_enum2sphinx(prop, use_empty_descriptions=False):
     """
     Write a bullet point list of enum + descriptions.
     """
+
+    # Write a link to the enum if this is part of `rna_enum_pointer_map`.
+    if USE_SHARED_RNA_ENUM_ITEMS_STATIC:
+        if (result := pyrna_enum2sphinx_shared_link(prop)) is not None:
+            return result
 
     if use_empty_descriptions:
         ok = True
@@ -1377,10 +1411,15 @@ def pyrna2sphinx(basepath):
 
         kwargs["collection_id"] = _BPY_PROP_COLLECTION_ID
 
+        enum_descr_override = None
+        if USE_SHARED_RNA_ENUM_ITEMS_STATIC:
+            enum_descr_override = pyrna_enum2sphinx_shared_link(prop)
+            kwargs["enum_descr_override"] = enum_descr_override
+
         type_descr = prop.get_type_description(**kwargs)
 
-        enum_text = pyrna_enum2sphinx(prop)
-
+        # If the link has been written, no need to inline the enum items.
+        enum_text = "" if enum_descr_override else pyrna_enum2sphinx(prop)
         if prop.name or prop.description or enum_text:
             fw(ident + ":%s%s:\n\n" % (id_name, identifier))
 
@@ -1481,7 +1520,15 @@ def pyrna2sphinx(basepath):
             if identifier in struct_blacklist:
                 continue
 
-            type_descr = prop.get_type_description(class_fmt=":class:`%s`", collection_id=_BPY_PROP_COLLECTION_ID)
+            enum_descr_override = None
+            if USE_SHARED_RNA_ENUM_ITEMS_STATIC:
+                enum_descr_override = pyrna_enum2sphinx_shared_link(prop)
+
+            type_descr = prop.get_type_description(
+                class_fmt=":class:`%s`",
+                collection_id=_BPY_PROP_COLLECTION_ID,
+                enum_descr_override=enum_descr_override,
+            )
             # Read-only properties use "data" directive, variables properties use "attribute" directive.
             if "readonly" in type_descr:
                 fw("   .. data:: %s\n" % identifier)
@@ -1498,7 +1545,8 @@ def pyrna2sphinx(basepath):
 
             # Special exception, can't use generic code here for enums.
             if prop.type == "enum":
-                enum_text = pyrna_enum2sphinx(prop)
+                # If the link has been written, no need to inline the enum items.
+                enum_text = "" if enum_descr_override else pyrna_enum2sphinx(prop)
                 if enum_text:
                     write_indented_lines("      ", fw, enum_text)
                     fw("\n")
@@ -1537,8 +1585,16 @@ def pyrna2sphinx(basepath):
                 for prop in func.return_values:
                     # TODO: pyrna_enum2sphinx for multiple return values... actually don't
                     # think we even use this but still!
+
+                    enum_descr_override = None
+                    if USE_SHARED_RNA_ENUM_ITEMS_STATIC:
+                        enum_descr_override = pyrna_enum2sphinx_shared_link(prop)
+
                     type_descr = prop.get_type_description(
-                        as_ret=True, class_fmt=":class:`%s`", collection_id=_BPY_PROP_COLLECTION_ID)
+                        as_ret=True, class_fmt=":class:`%s`",
+                        collection_id=_BPY_PROP_COLLECTION_ID,
+                        enum_descr_override=enum_descr_override,
+                    )
                     descr = prop.description
                     if not descr:
                         descr = prop.name
@@ -2007,6 +2063,14 @@ def write_rst_types_index(basepath):
         fw(".. toctree::\n")
         fw("   :glob:\n\n")
         fw("   bpy.types.*\n\n")
+
+        # This needs to be included somewhere, while it's hidden, list to avoid warnings.
+        if USE_SHARED_RNA_ENUM_ITEMS_STATIC:
+            fw(".. toctree::\n")
+            fw("   :hidden:\n")
+            fw("   :maxdepth: 1\n\n")
+            fw("   Shared Enum Types <bpy_types_enum_items/index>\n\n")
+
         file.close()
 
 
@@ -2075,6 +2139,81 @@ def write_rst_data(basepath):
         file.close()
 
         EXAMPLE_SET_USED.add("bpy.data")
+
+
+def pyrna_enum2sphinx_shared_link(prop):
+    """
+    Return a reference to the enum used by ``prop`` or None when not found.
+    """
+    if (
+            (prop.type == "enum") and
+            (pointer := prop.enum_pointer) and
+            (identifier := rna_enum_pointer_to_id_map.get(pointer))
+    ):
+        return ":ref:`%s`" % identifier
+    return None
+
+
+def write_rst_enum_items(basepath, key, key_no_prefix, enum_items):
+    """
+    Write a single page for a static enum in RST.
+
+    This helps avoiding very large lists being in-lined in many places which is an issue
+    especially with icons in ``bpy.types.UILayout``. See T87008.
+    """
+    filepath = os.path.join(basepath, "%s.rst" % key_no_prefix)
+    with open(filepath, "w", encoding="utf-8") as fh:
+        fw = fh.write
+        # fw(".. noindex::\n\n")
+        fw(".. _%s:\n\n" % key)
+
+        fw(title_string(key_no_prefix.replace("_", " ").title(), "#"))
+        # fw(".. rubric:: %s\n\n" % key_no_prefix.replace("_", " ").title())
+
+        for item in enum_items:
+            identifier = item.identifier
+            name = item.name
+            description = item.description
+            if identifier:
+                fw(":%s: %s\n" % (item.identifier, (escape_rst(name) + ".") if name else ""))
+                if description:
+                    fw("\n")
+                    write_indented_lines("   ", fw, escape_rst(description) + ".")
+                else:
+                    fw("\n")
+            else:
+                if name:
+                    fw("\n\n**%s**\n\n" % name)
+                else:
+                    fw("\n\n----\n\n")
+
+                if description:
+                    fw(escape_rst(description) + ".")
+                    fw("\n\n")
+
+
+def write_rst_enum_items_and_index(basepath):
+    """
+    Write shared enum items.
+    """
+    subdir = "bpy_types_enum_items"
+    basepath_bpy_types_rna_enum = os.path.join(basepath, subdir)
+    os.makedirs(basepath_bpy_types_rna_enum, exist_ok=True)
+    with open(os.path.join(basepath_bpy_types_rna_enum, "index.rst"), "w", encoding="utf-8") as fh:
+        fw = fh.write
+        fw(title_string("Shared Enum Items", "#"))
+        fw(".. toctree::\n")
+        fw("\n")
+        for key, enum_items in rna_enum_dict.items():
+            if not key.startswith("rna_enum_"):
+                raise Exception("Found RNA enum identifier that doesn't use the 'rna_enum_' prefix, found %r!", key)
+            key_no_prefix = key.removeprefix("rna_enum_")
+            fw("   %s\n" % key_no_prefix)
+
+        for key, enum_items in rna_enum_dict.items():
+            key_no_prefix = key.removeprefix("rna_enum_")
+            write_rst_enum_items(basepath_bpy_types_rna_enum, key, key_no_prefix, enum_items)
+        fw("\n")
 
 
 def write_rst_importable_modules(basepath):
@@ -2268,6 +2407,10 @@ def rna2sphinx(basepath):
     pyrna2sphinx(basepath)                  # bpy.types.* and bpy.ops.*
     write_rst_data(basepath)                # bpy.data
     write_rst_importable_modules(basepath)
+
+    # `bpy_types_enum_items/*` (referenced from `bpy.types`).
+    if USE_SHARED_RNA_ENUM_ITEMS_STATIC:
+        write_rst_enum_items_and_index(basepath)
 
     # copy the other rsts
     copy_handwritten_rsts(basepath)

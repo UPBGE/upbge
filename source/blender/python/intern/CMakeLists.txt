@@ -236,7 +236,7 @@ if(WITH_IMAGE_TIFF)
 endif()
 
 if(WITH_WEBP)
-	add_definitions(-DWITH_WEBP)
+  add_definitions(-DWITH_WEBP)
 endif()
 
 if(WITH_INPUT_NDOF)
