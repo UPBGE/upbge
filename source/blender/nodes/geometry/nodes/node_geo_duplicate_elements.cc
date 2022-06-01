@@ -144,7 +144,7 @@ static void threaded_id_offset_copy(const Span<int> offsets,
 
 /** Create the copy indices for the duplication domain. */
 static void create_duplicate_index_attribute(GeometryComponent &component,
-                                             const AttributeDomain output_domain,
+                                             const eAttrDomain output_domain,
                                              const IndexMask selection,
                                              const IndexAttributes &attribute_outputs,
                                              const Span<int> offsets)
@@ -208,8 +208,8 @@ static void copy_point_attributes_without_id(GeometrySet &geometry_set,
     if (!src_attribute || src_attribute.domain != ATTR_DOMAIN_POINT) {
       continue;
     }
-    AttributeDomain out_domain = src_attribute.domain;
-    const CustomDataType data_type = bke::cpp_type_to_custom_data_type(
+    eAttrDomain out_domain = src_attribute.domain;
+    const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(
         src_attribute.varray.type());
     OutputAttribute dst_attribute = dst_component.attribute_try_get_for_output_only(
         attribute_id, out_domain, data_type);
@@ -254,8 +254,8 @@ static void copy_curve_attributes_without_id(const GeometrySet &geometry_set,
       continue;
     }
 
-    AttributeDomain out_domain = src_attribute.domain;
-    const CustomDataType data_type = bke::cpp_type_to_custom_data_type(
+    eAttrDomain out_domain = src_attribute.domain;
+    const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(
         src_attribute.varray.type());
     OutputAttribute dst_attribute = dst_component.attribute_try_get_for_output_only(
         attribute_id, out_domain, data_type);
@@ -435,8 +435,8 @@ static void copy_face_attributes_without_id(GeometrySet &geometry_set,
       continue;
     }
 
-    AttributeDomain out_domain = src_attribute.domain;
-    const CustomDataType data_type = bke::cpp_type_to_custom_data_type(
+    eAttrDomain out_domain = src_attribute.domain;
+    const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(
         src_attribute.varray.type());
     OutputAttribute dst_attribute = dst_component.attribute_try_get_for_output_only(
         attribute_id, out_domain, data_type);
@@ -648,8 +648,8 @@ static void copy_edge_attributes_without_id(GeometrySet &geometry_set,
       continue;
     }
 
-    const AttributeDomain out_domain = src_attribute.domain;
-    const CustomDataType data_type = bke::cpp_type_to_custom_data_type(
+    const eAttrDomain out_domain = src_attribute.domain;
+    const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(
         src_attribute.varray.type());
     OutputAttribute dst_attribute = dst_component.attribute_try_get_for_output_only(
         attribute_id, out_domain, data_type);
@@ -701,12 +701,12 @@ static void copy_stable_id_edges(const Mesh &mesh,
   VArray_Span<int> src{src_attribute.varray.typed<int>()};
   MutableSpan<int> dst = dst_attribute.as_span<int>();
   threading::parallel_for(IndexRange(selection.size()), 1024, [&](IndexRange range) {
-    for (const int i_edge : range) {
-      const IndexRange edge_range = range_for_offsets_index(edge_offsets, i_edge);
+    for (const int i_selection : range) {
+      const IndexRange edge_range = range_for_offsets_index(edge_offsets, i_selection);
       if (edge_range.size() == 0) {
         continue;
       }
-      const MEdge &edge = edges[i_edge];
+      const MEdge &edge = edges[selection[i_selection]];
       const IndexRange vert_range = {edge_range.start() * 2, edge_range.size() * 2};
 
       dst[vert_range[0]] = src[edge.v1];
@@ -750,9 +750,9 @@ static void duplicate_edges(GeometrySet &geometry_set,
 
   Array<int> vert_orig_indices(edge_offsets.last() * 2);
   threading::parallel_for(selection.index_range(), 1024, [&](IndexRange range) {
-    for (const int i_edge : range) {
-      const MEdge &edge = edges[i_edge];
-      const IndexRange edge_range = range_for_offsets_index(edge_offsets, i_edge);
+    for (const int i_selection : range) {
+      const MEdge &edge = edges[selection[i_selection]];
+      const IndexRange edge_range = range_for_offsets_index(edge_offsets, i_selection);
       const IndexRange vert_range(edge_range.start() * 2, edge_range.size() * 2);
 
       for (const int i_duplicate : IndexRange(edge_range.size())) {
@@ -763,8 +763,8 @@ static void duplicate_edges(GeometrySet &geometry_set,
   });
 
   threading::parallel_for(selection.index_range(), 1024, [&](IndexRange range) {
-    for (const int i_edge : range) {
-      const IndexRange edge_range = range_for_offsets_index(edge_offsets, i_edge);
+    for (const int i_selection : range) {
+      const IndexRange edge_range = range_for_offsets_index(edge_offsets, i_selection);
       const IndexRange vert_range(edge_range.start() * 2, edge_range.size() * 2);
       for (const int i_duplicate : IndexRange(edge_range.size())) {
         MEdge &new_edge = new_edges[edge_range[i_duplicate]];
@@ -849,8 +849,8 @@ static void duplicate_points_curve(GeometrySet &geometry_set,
       continue;
     }
 
-    AttributeDomain domain = src_attribute.domain;
-    const CustomDataType data_type = bke::cpp_type_to_custom_data_type(
+    eAttrDomain domain = src_attribute.domain;
+    const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(
         src_attribute.varray.type());
     OutputAttribute dst_attribute = dst_component.attribute_try_get_for_output_only(
         attribute_id, domain, data_type);
@@ -1103,7 +1103,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
 
   const NodeGeometryDuplicateElements &storage = node_storage(params.node());
-  const AttributeDomain duplicate_domain = AttributeDomain(storage.domain);
+  const eAttrDomain duplicate_domain = eAttrDomain(storage.domain);
 
   Field<int> count_field = params.extract_input<Field<int>>("Amount");
   Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");

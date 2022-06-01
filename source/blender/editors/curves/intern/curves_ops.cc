@@ -234,7 +234,7 @@ static void try_convert_single_object(Object &curves_ob,
   /* The old hair system still uses #MFace, so make sure those are available on the mesh. */
   BKE_mesh_tessface_calc(&surface_me);
 
-  /* Prepare utility data structure to map hair roots to mfaces. */
+  /* Prepare utility data structure to map hair roots to #MFace's. */
   const Span<int> mface_to_poly_map{
       static_cast<const int *>(CustomData_get_layer(&surface_me.fdata, CD_ORIGINDEX)),
       surface_me.totface};
@@ -705,14 +705,14 @@ namespace set_selection_domain {
 
 static int curves_set_selection_domain_exec(bContext *C, wmOperator *op)
 {
-  const AttributeDomain domain = AttributeDomain(RNA_enum_get(op->ptr, "domain"));
+  const eAttrDomain domain = eAttrDomain(RNA_enum_get(op->ptr, "domain"));
 
   for (Curves *curves_id : get_unique_editable_curves(*C)) {
     if (curves_id->selection_domain == domain && (curves_id->flag & CV_SCULPT_SELECTION_ENABLED)) {
       continue;
     }
 
-    const AttributeDomain old_domain = AttributeDomain(curves_id->selection_domain);
+    const eAttrDomain old_domain = eAttrDomain(curves_id->selection_domain);
     curves_id->selection_domain = domain;
     curves_id->flag |= CV_SCULPT_SELECTION_ENABLED;
 
@@ -848,10 +848,21 @@ static int select_all_exec(bContext *C, wmOperator *op)
 
   for (Curves *curves_id : unique_curves) {
     if (action == SEL_SELECT) {
+      /* The optimization to avoid storing the selection when everything is selected causes too
+       * many problems at the moment, since there is no proper visualization yet. Keep the code but
+       * disable it for now. */
+#if 0
       CurveComponent component;
       component.replace(curves_id, GeometryOwnershipType::Editable);
       component.attribute_try_delete(".selection_point_float");
       component.attribute_try_delete(".selection_curve_float");
+#else
+      CurvesGeometry &curves = CurvesGeometry::wrap(curves_id->geometry);
+      MutableSpan<float> selection = curves_id->selection_domain == ATTR_DOMAIN_POINT ?
+                                         curves.selection_point_float_for_write() :
+                                         curves.selection_curve_float_for_write();
+      selection.fill(1.0f);
+#endif
     }
     else {
       CurvesGeometry &curves = CurvesGeometry::wrap(curves_id->geometry);
