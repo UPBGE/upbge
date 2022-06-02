@@ -50,6 +50,7 @@ void bpy_text_filename_get(char *fn, size_t fn_len, struct Text *text);
 
 /* The game engine has its own Main struct, if this is set search this rather than G.main */
 struct Main *bpy_import_main_get(void);
+/* Also restores original blender reload method backed up in bpy_import_init at ge exit */
 void bpy_import_main_set(struct Main *maggie);
 
 /* This is used for importing text from dynamically loaded libraries in the game engine */

@@ -108,6 +108,18 @@ struct Main *bpy_import_main_get(void)
 void bpy_import_main_set(struct Main *maggie)
 {
   bpy_import_main = maggie;
+
+  /* Also restores original blender reload method backed up in bpy_import_init at ge exit */
+  if (maggie == NULL) {
+    if (imp_reload_orig) {
+      PyObject *mod = PyImport_ImportModuleLevel("importlib", NULL, NULL, NULL, 0);
+      PyObject *mod_dict = PyModule_GetDict(mod);
+      PyDict_SetItemString(mod_dict, "reload", imp_reload_orig);
+      Py_DECREF(mod);
+      Py_DECREF(imp_reload_orig);
+      imp_reload_orig = NULL;
+    }
+  }
 }
 
 void bpy_import_main_extra_add(struct Main *maggie)

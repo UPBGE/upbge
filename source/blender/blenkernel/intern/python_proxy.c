@@ -511,6 +511,7 @@ static bool load_class(PythonProxy *pp,
       } \
       Py_DECREF(pypath); \
     } \
+    bpy_import_main_set(NULL); \
     PyGILState_Release(state); \
     return value;
 
