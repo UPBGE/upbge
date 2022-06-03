@@ -720,6 +720,7 @@ static void lineart_triangle_post(LineartTriangle *tri, LineartTriangle *orig)
   /* Just re-assign normal and set cull flag. */
   copy_v3_v3_db(tri->gn, orig->gn);
   tri->flags = LRT_CULL_GENERATED;
+  tri->intersection_mask = orig->intersection_mask;
   tri->material_mask_bits = orig->material_mask_bits;
   tri->mat_occlusion = orig->mat_occlusion;
 }
@@ -2484,8 +2485,8 @@ static void lineart_main_load_geometries(
     flags |= DEG_ITER_OBJECT_FLAG_DUPLI;
   }
 
-  /* XXX(Yiming): Temporary solution, this iterator is technially unsafe to use *during* depsgraph
-   * evaluation, see https://developer.blender.org/D14997 for detailed explainations. */
+  /* XXX(@Yiming): Temporary solution, this iterator is technically unsafe to use *during*
+   * depsgraph evaluation, see D14997 for detailed explanations. */
   DEG_OBJECT_ITER_BEGIN (depsgraph, ob, flags) {
     Object *eval_ob = DEG_get_evaluated_object(depsgraph, ob);
 
@@ -3245,7 +3246,7 @@ static void lineart_triangle_intersect_in_bounding_area(LineartTriangle *tri,
 
   double *G0 = tri->v[0]->gloc, *G1 = tri->v[1]->gloc, *G2 = tri->v[2]->gloc;
 
-  /* If this _is_ the smallest subdiv bounding area, then do the intersections there. */
+  /* If this _is_ the smallest subdivision bounding area, then do the intersections there. */
   for (int i = 0; i < up_to; i++) {
     /* Testing_triangle->testing[0] is used to store pairing triangle reference.
      * See definition of LineartTriangleThread for more info. */
@@ -3792,7 +3793,7 @@ static void lineart_bounding_area_split(LineartRenderBuffer *rb,
     b[3] = MIN3(tri->v[0]->fbcoord[1], tri->v[1]->fbcoord[1], tri->v[2]->fbcoord[1]);
 
     /* Re-link triangles into child tiles, not doing intersection lines during this because this
-     * batch of triangles are all tested with each other for intersecctions. */
+     * batch of triangles are all tested with each other for intersections. */
     if (LRT_BOUND_AREA_CROSSES(b, &ba[0].l)) {
       lineart_bounding_area_link_triangle(rb, &ba[0], tri, b, 0, recursive_level + 1, false, NULL);
     }
@@ -3989,6 +3990,7 @@ static void lineart_bounding_area_link_triangle(LineartRenderBuffer *rb,
 
 static void lineart_free_bounding_area_memory(LineartBoundingArea *ba, bool recursive)
 {
+  BLI_spin_end(&ba->lock);
   if (ba->linked_lines) {
     MEM_freeN(ba->linked_lines);
   }
@@ -4284,8 +4286,8 @@ static void lineart_create_edges_from_isec_data(LineartIsecData *d)
     if (!th->current) {
       continue;
     }
-    /* We don't care about removing duplicated vert in this method, chaning can handle that, and it
-     * saves us from using locks and look up tables. */
+    /* We don't care about removing duplicated vert in this method, chaining can handle that,
+     * and it saves us from using locks and look up tables. */
     LineartVertIntersection *v = lineart_mem_acquire(
         &rb->render_data_pool, sizeof(LineartVertIntersection) * th->current * 2);
     LineartEdge *e = lineart_mem_acquire(&rb->render_data_pool, sizeof(LineartEdge) * th->current);
@@ -4712,7 +4714,7 @@ bool MOD_lineart_compute_feature_lines(Depsgraph *depsgraph,
   lineart_main_add_triangles(rb);
 
   /* Re-link bounding areas because they have been subdivided by worker threads and we need
-   * andjacent info. */
+   * adjacent info. */
   lineart_main_bounding_areas_connect_post(rb);
 
   /* Link lines to acceleration structure, this can only be done after perspective division, if
