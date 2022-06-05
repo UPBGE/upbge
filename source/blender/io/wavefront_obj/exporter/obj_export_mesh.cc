@@ -290,7 +290,7 @@ void OBJMesh::store_uv_coords_and_indices()
   const MLoop *mloop = export_mesh_eval_->mloop;
   const int totpoly = export_mesh_eval_->totpoly;
   const int totvert = export_mesh_eval_->totvert;
-  const MLoopUV *mloopuv = static_cast<MLoopUV *>(
+  const MLoopUV *mloopuv = static_cast<const MLoopUV *>(
       CustomData_get_layer(&export_mesh_eval_->ldata, CD_MLOOPUV));
   if (!mloopuv) {
     tot_uv_vertices_ = 0;
@@ -382,8 +382,8 @@ void OBJMesh::store_normal_coords_and_indices()
   normal_to_index.reserve(export_mesh_eval_->totpoly);
   loop_to_normal_index_.resize(export_mesh_eval_->totloop);
   loop_to_normal_index_.fill(-1);
-  const float(
-      *lnors)[3] = (const float(*)[3])(CustomData_get_layer(&export_mesh_eval_->ldata, CD_NORMAL));
+  const float(*lnors)[3] = static_cast<const float(*)[3]>(
+      CustomData_get_layer(&export_mesh_eval_->ldata, CD_NORMAL));
   for (int poly_index = 0; poly_index < export_mesh_eval_->totpoly; ++poly_index) {
     const MPoly &mpoly = export_mesh_eval_->mpoly[poly_index];
     bool need_per_loop_normals = lnors != nullptr || (mpoly.flag & ME_SMOOTH);
@@ -453,7 +453,7 @@ int16_t OBJMesh::get_poly_deform_group_index(const int poly_index,
   BLI_assert(poly_index < export_mesh_eval_->totpoly);
   BLI_assert(group_weights.size() == BKE_object_defgroup_count(&export_object_eval_));
 
-  const MDeformVert *dvert_layer = static_cast<MDeformVert *>(
+  const MDeformVert *dvert_layer = static_cast<const MDeformVert *>(
       CustomData_get_layer(&export_mesh_eval_->vdata, CD_MDEFORMVERT));
   if (!dvert_layer) {
     return NOT_FOUND;
