@@ -245,7 +245,7 @@ static PyObject *blender_import(PyObject *UNUSED(self), PyObject *args, PyObject
     Py_XDECREF(err);
     Py_XDECREF(tb);
 
-    PyErr_Format(PyExc_ImportError, "Failed to import module : '%s'", name);
+    //PyErr_Format(PyExc_ImportError, "Failed to import module : '%s'", name);
 
     return NULL;
   }
