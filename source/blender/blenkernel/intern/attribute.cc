@@ -105,7 +105,7 @@ static CustomData *attribute_customdata_find(ID *id, CustomDataLayer *layer)
   return nullptr;
 }
 
-bool BKE_id_attributes_supported(ID *id)
+bool BKE_id_attributes_supported(const ID *id)
 {
   DomainInfo info[ATTR_DOMAIN_NUM];
   get_domains(id, info);
@@ -138,8 +138,10 @@ bool BKE_id_attribute_rename(ID *id,
     return false;
   }
 
-  BLI_strncpy_utf8(layer->name, new_name, sizeof(layer->name));
-  CustomData_set_layer_unique_name(customdata, layer - customdata->layers);
+  char result_name[MAX_CUSTOMDATA_LAYER_NAME];
+  BKE_id_attribute_calc_unique_name(id, new_name, result_name);
+  BLI_strncpy_utf8(layer->name, result_name, sizeof(layer->name));
+
   return true;
 }
 
@@ -300,7 +302,7 @@ CustomDataLayer *BKE_id_attribute_search(const ID *id,
 
     CustomData *customdata = info[domain].customdata;
     if (customdata == NULL) {
-      return NULL;
+      continue;
     }
 
     for (int i = 0; i < customdata->totlayer; i++) {
@@ -380,14 +382,14 @@ int BKE_id_attribute_data_length(ID *id, CustomDataLayer *layer)
   return 0;
 }
 
-bool BKE_id_attribute_required(ID *id, CustomDataLayer *layer)
+bool BKE_id_attribute_required(const ID *id, CustomDataLayer *layer)
 {
   switch (GS(id->name)) {
     case ID_PT: {
-      return BKE_pointcloud_customdata_required((PointCloud *)id, layer);
+      return BKE_pointcloud_customdata_required((const PointCloud *)id, layer);
     }
     case ID_CV: {
-      return BKE_curves_customdata_required((Curves *)id, layer);
+      return BKE_curves_customdata_required((const Curves *)id, layer);
     }
     default:
       return false;

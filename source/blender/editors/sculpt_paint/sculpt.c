@@ -148,7 +148,7 @@ const float *SCULPT_vertex_co_get(SculptSession *ss, int index)
 bool SCULPT_has_loop_colors(const Object *ob)
 {
   Mesh *me = BKE_object_get_original_mesh(ob);
-  CustomDataLayer *layer = BKE_id_attributes_active_color_get(&me->id);
+  const CustomDataLayer *layer = BKE_id_attributes_active_color_get(&me->id);
 
   return layer && BKE_id_attribute_domain(&me->id, layer) == ATTR_DOMAIN_CORNER;
 }
@@ -3590,18 +3590,18 @@ static void sculpt_combine_proxies(Sculpt *sd, Object *ob)
     return;
   }
 
- /* First line is tools that don't support proxies. */
-    const bool use_orco = ELEM(brush->sculpt_tool,
-                               SCULPT_TOOL_GRAB,
-                               SCULPT_TOOL_ROTATE,
-                               SCULPT_TOOL_THUMB,
-                               SCULPT_TOOL_ELASTIC_DEFORM,
-                               SCULPT_TOOL_BOUNDARY,
-                               SCULPT_TOOL_POSE);
+  /* First line is tools that don't support proxies. */
+  const bool use_orco = ELEM(brush->sculpt_tool,
+                             SCULPT_TOOL_GRAB,
+                             SCULPT_TOOL_ROTATE,
+                             SCULPT_TOOL_THUMB,
+                             SCULPT_TOOL_ELASTIC_DEFORM,
+                             SCULPT_TOOL_BOUNDARY,
+                             SCULPT_TOOL_POSE);
 
-    BKE_pbvh_gather_proxies(ss->pbvh, &nodes, &totnode);
+  BKE_pbvh_gather_proxies(ss->pbvh, &nodes, &totnode);
 
-    SculptThreadedTaskData data = {
+  SculptThreadedTaskData data = {
       .sd = sd,
       .ob = ob,
       .brush = brush,
