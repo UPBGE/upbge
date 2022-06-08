@@ -23,6 +23,9 @@ struct DrawEngineType;
 struct GHash;
 struct GPUMaterial;
 struct GPUOffScreen;
+struct GPUVertFormat;
+struct CustomDataLayer;
+struct CustomData;
 struct GPUViewport;
 struct ID;
 struct Main;
@@ -217,6 +220,13 @@ void DRW_opengl_context_activate(bool drw_state);
  * \note This doesn't require the draw context to be in use.
  */
 void DRW_draw_cursor_2d_ex(const struct ARegion *region, const float cursor[2]);
+
+void DRW_cdlayer_attr_aliases_add(struct GPUVertFormat *format,
+                                  char *base_name,
+                                  const struct CustomData *data,
+                                  const struct CustomDataLayer *cl,
+                                  bool is_active_render,
+                                  bool is_active_layer);
 
 /* UPBGE */
 void DRW_opengl_context_create_blenderplayer(void *syshandle);
