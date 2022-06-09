@@ -7651,8 +7651,7 @@ static bool ui_numedit_but_CURVEPROFILE(uiBlock *block,
   const float zoomy = BLI_rctf_size_y(&but->rect) / BLI_rctf_size_y(&profile->view_rect);
 
   if (snap) {
-    float d[2] = {mx - data->dragstartx, data->dragstarty};
-
+    const float d[2] = {mx - data->dragstartx, data->dragstarty};
     if (len_squared_v2(d) < (9.0f * U.dpi_fac)) {
       snap = false;
     }
