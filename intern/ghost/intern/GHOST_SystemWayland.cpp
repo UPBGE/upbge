@@ -1634,24 +1634,27 @@ GHOST_TSuccess GHOST_SystemWayland::getModifierKeys(GHOST_ModifierKeys &keys) co
       XKB_STATE_MODS_DEPRESSED | XKB_STATE_MODS_LATCHED | XKB_STATE_MODS_LOCKED |
       XKB_STATE_MODS_EFFECTIVE);
 
-  keys.set(GHOST_kModifierKeyLeftShift,
-           xkb_state_mod_name_is_active(d->inputs[0]->xkb_state, XKB_MOD_NAME_SHIFT, mods_all) ==
-               1);
-  keys.set(GHOST_kModifierKeyRightShift,
-           xkb_state_mod_name_is_active(d->inputs[0]->xkb_state, XKB_MOD_NAME_SHIFT, mods_all) ==
-               1);
-  keys.set(GHOST_kModifierKeyLeftAlt,
-           xkb_state_mod_name_is_active(d->inputs[0]->xkb_state, "LAlt", mods_all) == 1);
-  keys.set(GHOST_kModifierKeyRightAlt,
-           xkb_state_mod_name_is_active(d->inputs[0]->xkb_state, "RAlt", mods_all) == 1);
-  keys.set(GHOST_kModifierKeyLeftControl,
-           xkb_state_mod_name_is_active(d->inputs[0]->xkb_state, "LControl", mods_all) == 1);
-  keys.set(GHOST_kModifierKeyRightControl,
-           xkb_state_mod_name_is_active(d->inputs[0]->xkb_state, "RControl", mods_all) == 1);
-  keys.set(GHOST_kModifierKeyOS,
-           xkb_state_mod_name_is_active(d->inputs[0]->xkb_state, "Super", mods_all) == 1);
-  keys.set(GHOST_kModifierKeyNumMasks,
-           xkb_state_mod_name_is_active(d->inputs[0]->xkb_state, "NumLock", mods_all) == 1);
+  bool val;
+
+  /* NOTE: XKB doesn't seem to differentiate between left/right modifiers. */
+
+  val = xkb_state_mod_name_is_active(d->inputs[0]->xkb_state, XKB_MOD_NAME_SHIFT, mods_all) == 1;
+  keys.set(GHOST_kModifierKeyLeftShift, val);
+  keys.set(GHOST_kModifierKeyRightShift, val);
+
+  val = xkb_state_mod_name_is_active(d->inputs[0]->xkb_state, XKB_MOD_NAME_ALT, mods_all) == 1;
+  keys.set(GHOST_kModifierKeyLeftAlt, val);
+  keys.set(GHOST_kModifierKeyRightAlt, val);
+
+  val = xkb_state_mod_name_is_active(d->inputs[0]->xkb_state, XKB_MOD_NAME_CTRL, mods_all) == 1;
+  keys.set(GHOST_kModifierKeyLeftControl, val);
+  keys.set(GHOST_kModifierKeyRightControl, val);
+
+  val = xkb_state_mod_name_is_active(d->inputs[0]->xkb_state, XKB_MOD_NAME_LOGO, mods_all) == 1;
+  keys.set(GHOST_kModifierKeyOS, val);
+
+  val = xkb_state_mod_name_is_active(d->inputs[0]->xkb_state, XKB_MOD_NAME_NUM, mods_all) == 1;
+  keys.set(GHOST_kModifierKeyNumMasks, val);
 
   return GHOST_kSuccess;
 }
@@ -2128,6 +2131,37 @@ GHOST_TSuccess GHOST_SystemWayland::setCursorGrab(const GHOST_TGrabCursorMode mo
       input->relative_pointer = nullptr;
     }
     if (input->locked_pointer) {
+      /* Request location to restore to. */
+      if (mode_current == GHOST_kGrabWrap) {
+        GHOST_WindowWayland *win = static_cast<GHOST_WindowWayland *>(get_window(surface));
+        GHOST_Rect bounds;
+        int x_new = input->x, y_new = input->y;
+
+        /* Fallback to window bounds. */
+        if (win->getCursorGrabBounds(bounds) == GHOST_kFailure) {
+          ((GHOST_Window *)win)->getClientBounds(bounds);
+        }
+        bounds.wrapPoint(x_new, y_new, 0, win->getCursorGrabAxis());
+
+        /* Push an event so the new location is registered. */
+        if ((x_new != input->x) || (y_new != input->y)) {
+          input->system->pushEvent(new GHOST_EventCursor(input->system->getMilliSeconds(),
+                                                         GHOST_kEventCursorMove,
+                                                         win,
+                                                         x_new,
+                                                         y_new,
+                                                         GHOST_TABLET_DATA_NONE));
+        }
+        input->x = x_new;
+        input->y = y_new;
+
+        const int scale = win->scale();
+        zwp_locked_pointer_v1_set_cursor_position_hint(input->locked_pointer,
+                                                       wl_fixed_from_int(x_new) / scale,
+                                                       wl_fixed_from_int(y_new) / scale);
+        wl_surface_commit(surface);
+      }
+
       zwp_locked_pointer_v1_destroy(input->locked_pointer);
       input->locked_pointer = nullptr;
     }
