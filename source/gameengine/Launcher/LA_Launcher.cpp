@@ -390,7 +390,7 @@ void LA_Launcher::HandlePythonConsole()
 
   // Pop the console window for windows.
 #    if defined(WIN32)
-  setConsoleWindowState(GHOST_kConsoleWindowStateShow);
+  GHOST_setConsoleWindowState(GHOST_kConsoleWindowStateShow);
 #    else
   m_system->setConsoleWindowState(GHOST_kConsoleWindowStateShow);
 #    endif
@@ -399,7 +399,7 @@ void LA_Launcher::HandlePythonConsole()
 
   // Hide the console window for windows.
 #    if defined(WIN32)
-  setConsoleWindowState(GHOST_kConsoleWindowStateHide);
+  GHOST_setConsoleWindowState(GHOST_kConsoleWindowStateHide);
 #    else
   m_system->setConsoleWindowState(GHOST_kConsoleWindowStateHide);
 #    endif
