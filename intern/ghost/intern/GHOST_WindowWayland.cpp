@@ -28,7 +28,7 @@ struct window_t {
    * This is an ordered set (whoever adds to this is responsible for keeping members unique).
    * In practice this is rarely manipulated and is limited by the number of physical displays.
    */
-  std::vector<const output_t *> outputs;
+  std::vector<output_t *> outputs;
 
   /** The scale value written to #wl_surface_set_buffer_scale. */
   int scale = 0;
@@ -58,28 +58,54 @@ struct window_t {
 /** \name Internal Utilities
  * \{ */
 
+/**
+ * Return -1 if `output_a` has a scale smaller than `output_b`, 0 when there equal, otherwise 1.
+ */
+static int output_scale_cmp(const output_t *output_a, const output_t *output_b)
+{
+  if (output_a->scale < output_b->scale) {
+    return -1;
+  }
+  if (output_a->scale > output_b->scale) {
+    return 1;
+  }
+  if (output_a->has_scale_fractional || output_b->has_scale_fractional) {
+    const wl_fixed_t scale_fractional_a = output_a->has_scale_fractional ?
+                                              output_a->scale_fractional :
+                                              wl_fixed_from_int(output_a->scale);
+    const wl_fixed_t scale_fractional_b = output_b->has_scale_fractional ?
+                                              output_b->scale_fractional :
+                                              wl_fixed_from_int(output_b->scale);
+    if (scale_fractional_a < scale_fractional_b) {
+      return -1;
+    }
+    if (scale_fractional_a > scale_fractional_b) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
 static int outputs_max_scale_or_default(const std::vector<output_t *> &outputs,
                                         const int32_t scale_default,
                                         uint32_t *r_dpi)
 {
-  int scale_max = 0;
   const output_t *output_max = nullptr;
   for (const output_t *reg_output : outputs) {
-    if (scale_max < reg_output->scale) {
-      scale_max = reg_output->scale;
+    if (!output_max || (output_scale_cmp(output_max, reg_output) == -1)) {
       output_max = reg_output;
     }
   }
 
-  if (scale_max != 0) {
+  if (output_max) {
     if (r_dpi) {
       *r_dpi = output_max->has_scale_fractional ?
                    /* Fractional DPI. */
                    wl_fixed_to_int(output_max->scale_fractional * base_dpi) :
                    /* Simple non-fractional DPI. */
-                   (scale_max * base_dpi);
+                   (output_max->scale * base_dpi);
     }
-    return scale_max;
+    return output_max->scale;
   }
 
   if (r_dpi) {
@@ -207,14 +233,10 @@ static void surface_handle_enter(void *data,
   if (reg_output == nullptr) {
     return;
   }
-  std::vector<const output_t *> &outputs = w->outputs();
-  auto it = std::find(outputs.begin(), outputs.end(), reg_output);
-  if (it != outputs.end()) {
-    return;
-  }
-  outputs.push_back(reg_output);
 
-  w->outputs_changed_update_scale();
+  if (w->outputs_enter(reg_output)) {
+    w->outputs_changed_update_scale();
+  }
 }
 
 static void surface_handle_leave(void *data,
@@ -226,14 +248,10 @@ static void surface_handle_leave(void *data,
   if (reg_output == nullptr) {
     return;
   }
-  std::vector<const output_t *> &outputs = w->outputs();
-  auto it = std::find(outputs.begin(), outputs.end(), reg_output);
-  if (it == outputs.end()) {
-    return;
-  }
-  outputs.erase(it);
 
-  w->outputs_changed_update_scale();
+  if (w->outputs_leave(reg_output)) {
+    w->outputs_changed_update_scale();
+  }
 }
 
 struct wl_surface_listener wl_surface_listener = {
@@ -382,7 +400,7 @@ wl_surface *GHOST_WindowWayland::surface() const
   return w->wl_surface;
 }
 
-std::vector<const output_t *> &GHOST_WindowWayland::outputs()
+const std::vector<output_t *> &GHOST_WindowWayland::outputs()
 {
   return w->outputs;
 }
@@ -400,7 +418,7 @@ output_t *GHOST_WindowWayland::output_find_by_wl(struct wl_output *output)
 bool GHOST_WindowWayland::outputs_changed_update_scale()
 {
   uint32_t dpi_next;
-  const int scale_next = outputs_max_scale_or_default(this->m_system->outputs(), 0, &dpi_next);
+  const int scale_next = outputs_max_scale_or_default(this->outputs(), 0, &dpi_next);
   if (scale_next == 0) {
     return false;
   }
@@ -428,6 +446,28 @@ bool GHOST_WindowWayland::outputs_changed_update_scale()
   }
 
   return changed;
+}
+
+bool GHOST_WindowWayland::outputs_enter(output_t *reg_output)
+{
+  std::vector<output_t *> &outputs = w->outputs;
+  auto it = std::find(outputs.begin(), outputs.end(), reg_output);
+  if (it != outputs.end()) {
+    return false;
+  }
+  outputs.push_back(reg_output);
+  return true;
+}
+
+bool GHOST_WindowWayland::outputs_leave(output_t *reg_output)
+{
+  std::vector<output_t *> &outputs = w->outputs;
+  auto it = std::find(outputs.begin(), outputs.end(), reg_output);
+  if (it == outputs.end()) {
+    return false;
+  }
+  outputs.erase(it);
+  return true;
 }
 
 uint16_t GHOST_WindowWayland::dpi()
