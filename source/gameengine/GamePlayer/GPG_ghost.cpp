@@ -737,7 +737,7 @@ int main(int argc,
   bool fullScreenParFound = false;
   bool windowParFound = false;
 #ifdef WIN32
-  bool closeConsole = true;
+  bool closeConsole = false; // Changed for testing (best to leave console opened for debugging)
 #endif
 
 #ifdef WITH_GAMEENGINE_BPPLAYER
