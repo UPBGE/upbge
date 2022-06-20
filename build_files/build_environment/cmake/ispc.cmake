@@ -6,6 +6,7 @@ if(WIN32)
     -DBISON_EXECUTABLE=${LIBDIR}/flexbison/win_bison.exe
     -DM4_EXECUTABLE=${DOWNLOAD_DIR}/mingw/mingw64/msys/1.0/bin/m4.exe
     -DARM_ENABLED=Off
+    -DPython3_FIND_REGISTRY=NEVER
   )
 elseif(APPLE)
   # Use bison and flex installed via Homebrew.
@@ -43,6 +44,8 @@ set(ISPC_EXTRA_ARGS
     -DISPC_INCLUDE_TESTS=Off
     -DCLANG_LIBRARY_DIR=${LIBDIR}/llvm/lib
     -DCLANG_INCLUDE_DIRS=${LIBDIR}/llvm/include
+    -DPython3_ROOT_DIR=${LIBDIR}/python/
+    -DPython3_EXECUTABLE=${PYTHON_BINARY}
     ${ISPC_EXTRA_ARGS_WIN}
     ${ISPC_EXTRA_ARGS_APPLE}
     ${ISPC_EXTRA_ARGS_UNIX}
@@ -61,6 +64,7 @@ ExternalProject_Add(external_ispc
 add_dependencies(
   external_ispc
   ll
+  external_python
 )
 
 if(WIN32)

@@ -6,6 +6,7 @@
 
 #include "BLI_map.hh"
 #include "BLI_math_color.h"
+#include "BLI_math_vector.h"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
@@ -129,6 +130,10 @@ static void geom_add_vertex_normal(Geometry *geom,
 {
   float3 normal;
   parse_floats(p, end, 0.0f, normal, 3);
+  /* Normals can be printed with only several digits in the file,
+   * making them ever-so-slightly non unit length. Make sure they are
+   * normalized. */
+  normalize_v3(normal);
   r_global_vertices.vertex_normals.append(normal);
   geom->has_vertex_normals_ = true;
 }
@@ -170,7 +175,7 @@ static void geom_add_polygon(Geometry *geom,
   curr_face.material_index = material_index;
   if (group_index >= 0) {
     curr_face.vertex_group_index = group_index;
-    geom->use_vertex_groups_ = true;
+    geom->has_vertex_groups_ = true;
   }
 
   const int orig_corners_size = geom->face_corners_.size();

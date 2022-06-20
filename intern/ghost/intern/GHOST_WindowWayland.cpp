@@ -492,10 +492,20 @@ GHOST_TSuccess GHOST_WindowWayland::setWindowCursorShape(GHOST_TStandardCursor s
   return ok;
 }
 
+bool GHOST_WindowWayland::getCursorGrabUseSoftwareDisplay()
+{
+  return m_system->getCursorGrabUseSoftwareDisplay(m_cursorGrab);
+}
+
 GHOST_TSuccess GHOST_WindowWayland::setWindowCustomCursorShape(
     uint8_t *bitmap, uint8_t *mask, int sizex, int sizey, int hotX, int hotY, bool canInvertColor)
 {
   return m_system->setCustomCursorShape(bitmap, mask, sizex, sizey, hotX, hotY, canInvertColor);
+}
+
+GHOST_TSuccess GHOST_WindowWayland::getCursorBitmap(GHOST_CursorBitmapRef *bitmap)
+{
+  return m_system->getCursorBitmap(bitmap);
 }
 
 void GHOST_WindowWayland::setTitle(const char *title)

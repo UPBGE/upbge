@@ -364,6 +364,9 @@ extern GHOST_TSuccess GHOST_SetCustomCursorShape(GHOST_WindowHandle windowhandle
                                                  int hotY,
                                                  bool canInvertColor);
 
+extern GHOST_TSuccess GHOST_GetCursorBitmap(GHOST_WindowHandle windowhandle,
+                                            GHOST_CursorBitmapRef *bitmap);
+
 /**
  * Returns the visibility state of the cursor.
  * \param windowhandle: The handle to the window.
@@ -404,8 +407,9 @@ extern GHOST_TSuccess GHOST_SetCursorPosition(GHOST_SystemHandle systemhandle,
 
 void GHOST_GetCursorGrabState(GHOST_WindowHandle windowhandle,
                               GHOST_TGrabCursorMode *r_mode,
-                              GHOST_TAxisFlag *r_wrap_axis,
-                              int r_bounds[4]);
+                              GHOST_TAxisFlag *r_axis_flag,
+                              int r_bounds[4],
+                              bool *r_use_software_cursor);
 
 /**
  * Grabs the cursor for a modal operation, to keep receiving

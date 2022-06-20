@@ -326,6 +326,14 @@ GHOST_TSuccess GHOST_SetCustomCursorShape(GHOST_WindowHandle windowhandle,
   return window->setCustomCursorShape(bitmap, mask, sizex, sizey, hotX, hotY, canInvertColor);
 }
 
+GHOST_TSuccess GHOST_GetCursorBitmap(GHOST_WindowHandle windowhandle,
+                                     GHOST_CursorBitmapRef *bitmap)
+{
+  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+
+  return window->getCursorBitmap(bitmap);
+}
+
 bool GHOST_GetCursorVisibility(GHOST_WindowHandle windowhandle)
 {
   GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
@@ -379,15 +387,18 @@ GHOST_TSuccess GHOST_SetCursorGrab(GHOST_WindowHandle windowhandle,
 void GHOST_GetCursorGrabState(GHOST_WindowHandle windowhandle,
                               GHOST_TGrabCursorMode *r_mode,
                               GHOST_TAxisFlag *r_axis_flag,
-                              int r_bounds[4])
+                              int r_bounds[4],
+                              bool *r_use_software_cursor)
 {
   GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
   GHOST_Rect bounds_rect;
-  window->getCursorGrabState(*r_mode, *r_axis_flag, bounds_rect);
+  bool use_software_cursor;
+  window->getCursorGrabState(*r_mode, *r_axis_flag, bounds_rect, use_software_cursor);
   r_bounds[0] = bounds_rect.m_l;
   r_bounds[1] = bounds_rect.m_t;
   r_bounds[2] = bounds_rect.m_r;
   r_bounds[3] = bounds_rect.m_b;
+  *r_use_software_cursor = use_software_cursor;
 }
 
 GHOST_TSuccess GHOST_GetModifierKeyState(GHOST_SystemHandle systemhandle,

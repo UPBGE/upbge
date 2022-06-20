@@ -32,6 +32,7 @@ struct output_t {
   int32_t size_logical[2] = {0, 0};
   bool has_size_logical = false;
 
+  /** Monitor position in pixels. */
   int32_t position_logical[2] = {0, 0};
   bool has_position_logical = false;
 
@@ -122,10 +123,14 @@ class GHOST_SystemWayland : public GHOST_System {
                                       int hotY,
                                       bool canInvertColor);
 
+  GHOST_TSuccess getCursorBitmap(GHOST_CursorBitmapRef *bitmap);
+
   GHOST_TSuccess setCursorVisibility(bool visible);
 
   bool supportsCursorWarp();
   bool supportsWindowPosition();
+
+  bool getCursorGrabUseSoftwareDisplay(const GHOST_TGrabCursorMode mode);
 
   GHOST_TSuccess setCursorGrab(const GHOST_TGrabCursorMode mode,
                                const GHOST_TGrabCursorMode mode_current,
