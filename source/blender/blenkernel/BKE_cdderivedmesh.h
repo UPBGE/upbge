@@ -100,6 +100,15 @@ void CDDM_calc_edges(struct DerivedMesh *dm);
 void CDDM_recalc_tessellation(struct DerivedMesh *dm);
 void CDDM_recalc_tessellation_ex(struct DerivedMesh *dm, const bool do_face_nor_cpy);
 
+/* UPBGE - Not static */
+int mesh_tessface_calc(CustomData *fdata,
+                       CustomData *ldata,
+                       CustomData *pdata,
+                       MVert *mvert,
+                       int totface,
+                       int totloop,
+                       int totpoly);
+
 /* lowers the number of vertices/edges/faces in a CDDerivedMesh
  * the layer data stays the same size
  */

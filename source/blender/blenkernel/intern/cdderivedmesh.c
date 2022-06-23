@@ -372,13 +372,13 @@ void CDDM_recalc_tessellation_ex(DerivedMesh *dm, const bool UNUSED(do_face_nor_
 {
   CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
 
-  dm->numTessFaceData = BKE_mesh_tessface_calc_ex(&dm->faceData,
-                                                  &dm->loopData,
-                                                  &dm->polyData,
-                                                  cddm->mvert,
-                                                  dm->numTessFaceData,
-                                                  dm->numLoopData,
-                                                  dm->numPolyData);
+  dm->numTessFaceData = mesh_tessface_calc(&dm->faceData,
+                                           &dm->loopData,
+                                           &dm->polyData,
+                                           cddm->mvert,
+                                           dm->numTessFaceData,
+                                           dm->numLoopData,
+                                           dm->numPolyData);
 
   cddm->mface = CustomData_get_layer(&dm->faceData, CD_MFACE);
 

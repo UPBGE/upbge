@@ -138,7 +138,7 @@ void mesh_loops_to_tessdata(CustomData *fdata,
   }
 }
 
-static int mesh_tessface_calc(CustomData *fdata,
+int mesh_tessface_calc(CustomData *fdata,  // UPBGE - not static
                               CustomData *ldata,
                               CustomData *pdata,
                               MVert *mvert,
