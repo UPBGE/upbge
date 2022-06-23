@@ -23,13 +23,12 @@ set(INC
   ../makesdna
   ../makesrna
   ../render # UPBGE
-  ../windowmanager
 
+  # For theme color access.
   ../editors/include
 
-  # For node muting stuff...
+  # For node muting stuff.
   ../nodes
-  ../nodes/intern
 
   ../../../intern/atomic
   ../../../intern/clog
