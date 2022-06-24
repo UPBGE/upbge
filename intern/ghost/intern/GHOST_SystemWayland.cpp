@@ -254,16 +254,19 @@ struct display_t {
 
   struct wl_display *display = nullptr;
   struct wl_compositor *compositor = nullptr;
+
+#ifdef WITH_GHOST_WAYLAND_LIBDECOR
+  struct libdecor *decor_context = nullptr;
+#else
   struct xdg_wm_base *xdg_shell = nullptr;
   struct zxdg_decoration_manager_v1 *xdg_decoration_manager = nullptr;
+#endif
+
   struct zxdg_output_manager_v1 *xdg_output_manager = nullptr;
   struct wl_shm *shm = nullptr;
   std::vector<output_t *> outputs;
   std::vector<input_t *> inputs;
-  struct {
-    std::string theme;
-    int size = 0;
-  } cursor;
+
   struct wl_data_device_manager *data_device_manager = nullptr;
   struct zwp_tablet_manager_v2 *tablet_manager = nullptr;
   struct zwp_relative_pointer_manager_v1 *relative_pointer_manager = nullptr;
@@ -405,6 +408,11 @@ static void display_destroy(display_t *d)
     wl_compositor_destroy(d->compositor);
   }
 
+#ifdef WITH_GHOST_WAYLAND_LIBDECOR
+  if (d->decor_context) {
+    libdecor_unref(d->decor_context);
+  }
+#else
   if (d->xdg_decoration_manager) {
     zxdg_decoration_manager_v1_destroy(d->xdg_decoration_manager);
   }
@@ -412,6 +420,7 @@ static void display_destroy(display_t *d)
   if (d->xdg_shell) {
     xdg_wm_base_destroy(d->xdg_shell);
   }
+#endif /* !WITH_GHOST_WAYLAND_LIBDECOR */
 
   if (eglGetDisplay) {
     ::eglTerminate(eglGetDisplay(EGLNativeDisplayType(d->display)));
@@ -623,24 +632,17 @@ static const std::vector<std::string> mime_send = {
  * an event is received from the compositor.
  * \{ */
 
-static void relative_pointer_handle_relative_motion(
-    void *data,
-    struct zwp_relative_pointer_v1 * /*zwp_relative_pointer_v1*/,
-    uint32_t /*utime_hi*/,
-    uint32_t /*utime_lo*/,
-    wl_fixed_t dx,
-    wl_fixed_t dy,
-    wl_fixed_t /*dx_unaccel*/,
-    wl_fixed_t /*dy_unaccel*/)
+/**
+ * The caller is responsible for setting the value of `input->xy`.
+ */
+static void relative_pointer_handle_relative_motion_impl(input_t *input,
+                                                         GHOST_WindowWayland *win,
+                                                         const wl_fixed_t xy[2])
 {
-  input_t *input = static_cast<input_t *>(data);
-  GHOST_WindowWayland *win = window_from_surface(input->focus_pointer);
-  if (!win) {
-    return;
-  }
   const wl_fixed_t scale = win->scale();
-  input->xy[0] += dx / scale;
-  input->xy[1] += dy / scale;
+
+  input->xy[0] = xy[0];
+  input->xy[1] = xy[1];
 
 #ifdef USE_GNOME_CONFINE_HACK
   if (input->xy_software_confine) {
@@ -663,6 +665,29 @@ static void relative_pointer_handle_relative_motion(
                                                  wl_fixed_to_int(scale * input->xy[0]),
                                                  wl_fixed_to_int(scale * input->xy[1]),
                                                  GHOST_TABLET_DATA_NONE));
+}
+
+static void relative_pointer_handle_relative_motion(
+    void *data,
+    struct zwp_relative_pointer_v1 * /*zwp_relative_pointer_v1*/,
+    const uint32_t /*utime_hi*/,
+    const uint32_t /*utime_lo*/,
+    const wl_fixed_t dx,
+    const wl_fixed_t dy,
+    const wl_fixed_t /*dx_unaccel*/,
+    const wl_fixed_t /*dy_unaccel*/)
+{
+  input_t *input = static_cast<input_t *>(data);
+  GHOST_WindowWayland *win = window_from_surface(input->focus_pointer);
+  if (!win) {
+    return;
+  }
+  const wl_fixed_t scale = win->scale();
+  const wl_fixed_t xy_next[2] = {
+      input->xy[0] + dx / scale,
+      input->xy[1] + dy / scale,
+  };
+  relative_pointer_handle_relative_motion_impl(input, win, xy_next);
 }
 
 static const zwp_relative_pointer_v1_listener relative_pointer_listener = {
@@ -741,7 +766,7 @@ static void data_source_handle_target(void * /*data*/,
 static void data_source_handle_send(void *data,
                                     struct wl_data_source * /*wl_data_source*/,
                                     const char * /*mime_type*/,
-                                    int32_t fd)
+                                    const int32_t fd)
 {
   input_t *input = static_cast<input_t *>(data);
   std::lock_guard lock{input->data_source_mutex};
@@ -793,7 +818,7 @@ static void data_source_handle_dnd_finished(void * /*data*/,
  */
 static void data_source_handle_action(void * /*data*/,
                                       struct wl_data_source * /*wl_data_source*/,
-                                      uint32_t /*dnd_action*/)
+                                      const uint32_t /*dnd_action*/)
 {
   /* pass */
 }
@@ -822,14 +847,14 @@ static void data_offer_handle_offer(void *data,
 
 static void data_offer_handle_source_actions(void *data,
                                              struct wl_data_offer * /*wl_data_offer*/,
-                                             uint32_t source_actions)
+                                             const uint32_t source_actions)
 {
   static_cast<data_offer_t *>(data)->source_actions = source_actions;
 }
 
 static void data_offer_handle_action(void *data,
                                      struct wl_data_offer * /*wl_data_offer*/,
-                                     uint32_t dnd_action)
+                                     const uint32_t dnd_action)
 {
   static_cast<data_offer_t *>(data)->dnd_action = dnd_action;
 }
@@ -857,10 +882,10 @@ static void data_device_handle_data_offer(void * /*data*/,
 
 static void data_device_handle_enter(void *data,
                                      struct wl_data_device * /*wl_data_device*/,
-                                     uint32_t serial,
+                                     const uint32_t serial,
                                      struct wl_surface *surface,
-                                     wl_fixed_t x,
-                                     wl_fixed_t y,
+                                     const wl_fixed_t x,
+                                     const wl_fixed_t y,
                                      struct wl_data_offer *id)
 {
   input_t *input = static_cast<input_t *>(data);
@@ -903,9 +928,9 @@ static void data_device_handle_leave(void *data, struct wl_data_device * /*wl_da
 
 static void data_device_handle_motion(void *data,
                                       struct wl_data_device * /*wl_data_device*/,
-                                      uint32_t /*time*/,
-                                      wl_fixed_t x,
-                                      wl_fixed_t y)
+                                      const uint32_t /*time*/,
+                                      const wl_fixed_t x,
+                                      const wl_fixed_t y)
 {
   input_t *input = static_cast<input_t *>(data);
   std::lock_guard lock{input->data_offer_dnd_mutex};
@@ -1157,10 +1182,10 @@ struct wl_surface_listener cursor_surface_listener = {
 
 static void pointer_handle_enter(void *data,
                                  struct wl_pointer * /*wl_pointer*/,
-                                 uint32_t serial,
+                                 const uint32_t serial,
                                  struct wl_surface *surface,
-                                 wl_fixed_t surface_x,
-                                 wl_fixed_t surface_y)
+                                 const wl_fixed_t surface_x,
+                                 const wl_fixed_t surface_y)
 {
   GHOST_WindowWayland *win = window_from_surface(surface);
   if (!win) {
@@ -1189,7 +1214,7 @@ static void pointer_handle_enter(void *data,
 
 static void pointer_handle_leave(void *data,
                                  struct wl_pointer * /*wl_pointer*/,
-                                 uint32_t /*serial*/,
+                                 const uint32_t /*serial*/,
                                  struct wl_surface *surface)
 {
   /* First clear the `focus_pointer`, since the window won't exist when closing the window. */
@@ -1204,9 +1229,9 @@ static void pointer_handle_leave(void *data,
 
 static void pointer_handle_motion(void *data,
                                   struct wl_pointer * /*wl_pointer*/,
-                                  uint32_t /*time*/,
-                                  wl_fixed_t surface_x,
-                                  wl_fixed_t surface_y)
+                                  const uint32_t /*time*/,
+                                  const wl_fixed_t surface_x,
+                                  const wl_fixed_t surface_y)
 {
   input_t *input = static_cast<input_t *>(data);
   GHOST_WindowWayland *win = window_from_surface(input->focus_pointer);
@@ -1228,10 +1253,10 @@ static void pointer_handle_motion(void *data,
 
 static void pointer_handle_button(void *data,
                                   struct wl_pointer * /*wl_pointer*/,
-                                  uint32_t serial,
-                                  uint32_t /*time*/,
-                                  uint32_t button,
-                                  uint32_t state)
+                                  const uint32_t serial,
+                                  const uint32_t /*time*/,
+                                  const uint32_t button,
+                                  const uint32_t state)
 {
   input_t *input = static_cast<input_t *>(data);
   GHOST_IWindow *win = window_from_surface(input->focus_pointer);
@@ -1282,9 +1307,9 @@ static void pointer_handle_button(void *data,
 
 static void pointer_handle_axis(void *data,
                                 struct wl_pointer * /*wl_pointer*/,
-                                uint32_t /*time*/,
-                                uint32_t axis,
-                                wl_fixed_t value)
+                                const uint32_t /*time*/,
+                                const uint32_t axis,
+                                const wl_fixed_t value)
 {
   input_t *input = static_cast<input_t *>(data);
   GHOST_IWindow *win = window_from_surface(input->focus_pointer);
@@ -1316,7 +1341,7 @@ static const struct wl_pointer_listener pointer_listener = {
 
 static void tablet_tool_handle_type(void *data,
                                     struct zwp_tablet_tool_v2 * /*zwp_tablet_tool_v2*/,
-                                    uint32_t tool_type)
+                                    const uint32_t tool_type)
 {
   tablet_tool_input_t *tool_input = static_cast<tablet_tool_input_t *>(data);
 
@@ -1325,22 +1350,22 @@ static void tablet_tool_handle_type(void *data,
 
 static void tablet_tool_handle_hardware_serial(void * /*data*/,
                                                struct zwp_tablet_tool_v2 * /*zwp_tablet_tool_v2*/,
-                                               uint32_t /*hardware_serial_hi*/,
-                                               uint32_t /*hardware_serial_lo*/)
+                                               const uint32_t /*hardware_serial_hi*/,
+                                               const uint32_t /*hardware_serial_lo*/)
 {
 }
 
 static void tablet_tool_handle_hardware_id_wacom(
     void * /*data*/,
     struct zwp_tablet_tool_v2 * /*zwp_tablet_tool_v2*/,
-    uint32_t /*hardware_id_hi*/,
-    uint32_t /*hardware_id_lo*/)
+    const uint32_t /*hardware_id_hi*/,
+    const uint32_t /*hardware_id_lo*/)
 {
 }
 
 static void tablet_tool_handle_capability(void * /*data*/,
                                           struct zwp_tablet_tool_v2 * /*zwp_tablet_tool_v2*/,
-                                          uint32_t /*capability*/)
+                                          const uint32_t /*capability*/)
 {
 }
 
@@ -1362,7 +1387,7 @@ static void tablet_tool_handle_removed(void *data, struct zwp_tablet_tool_v2 *zw
 }
 static void tablet_tool_handle_proximity_in(void *data,
                                             struct zwp_tablet_tool_v2 * /*zwp_tablet_tool_v2*/,
-                                            uint32_t serial,
+                                            const uint32_t serial,
                                             struct zwp_tablet_v2 * /*tablet*/,
                                             struct wl_surface *surface)
 {
@@ -1407,7 +1432,7 @@ static void tablet_tool_handle_proximity_out(void *data,
 
 static void tablet_tool_handle_down(void *data,
                                     struct zwp_tablet_tool_v2 * /*zwp_tablet_tool_v2*/,
-                                    uint32_t serial)
+                                    const uint32_t serial)
 {
   tablet_tool_input_t *tool_input = static_cast<tablet_tool_input_t *>(data);
   input_t *input = tool_input->input;
@@ -1442,31 +1467,21 @@ static void tablet_tool_handle_up(void *data, struct zwp_tablet_tool_v2 * /*zwp_
 
 static void tablet_tool_handle_motion(void *data,
                                       struct zwp_tablet_tool_v2 * /*zwp_tablet_tool_v2*/,
-                                      wl_fixed_t x,
-                                      wl_fixed_t y)
+                                      const wl_fixed_t x,
+                                      const wl_fixed_t y)
 {
   tablet_tool_input_t *tool_input = static_cast<tablet_tool_input_t *>(data);
   input_t *input = tool_input->input;
-  GHOST_WindowWayland *win = window_from_surface(input->focus_tablet);
-  if (!win) {
-    return;
-  }
 
   input->xy[0] = x;
   input->xy[1] = y;
 
-  const wl_fixed_t scale = win->scale();
-  input->system->pushEvent(new GHOST_EventCursor(input->system->getMilliSeconds(),
-                                                 GHOST_kEventCursorMove,
-                                                 win,
-                                                 wl_fixed_to_int(scale * input->xy[0]),
-                                                 wl_fixed_to_int(scale * input->xy[1]),
-                                                 tool_input->data));
+  /* NOTE: #tablet_tool_handle_frame generates the event (with updated pressure, tilt... etc). */
 }
 
 static void tablet_tool_handle_pressure(void *data,
                                         struct zwp_tablet_tool_v2 * /*zwp_tablet_tool_v2*/,
-                                        uint32_t pressure)
+                                        const uint32_t pressure)
 {
   tablet_tool_input_t *tool_input = static_cast<tablet_tool_input_t *>(data);
   input_t *input = tool_input->input;
@@ -1480,13 +1495,13 @@ static void tablet_tool_handle_pressure(void *data,
 }
 static void tablet_tool_handle_distance(void * /*data*/,
                                         struct zwp_tablet_tool_v2 * /*zwp_tablet_tool_v2*/,
-                                        uint32_t /*distance*/)
+                                        const uint32_t /*distance*/)
 {
 }
 static void tablet_tool_handle_tilt(void *data,
                                     struct zwp_tablet_tool_v2 * /*zwp_tablet_tool_v2*/,
-                                    wl_fixed_t tilt_x,
-                                    wl_fixed_t tilt_y)
+                                    const wl_fixed_t tilt_x,
+                                    const wl_fixed_t tilt_y)
 {
   tablet_tool_input_t *tool_input = static_cast<tablet_tool_input_t *>(data);
   input_t *input = tool_input->input;
@@ -1505,21 +1520,21 @@ static void tablet_tool_handle_tilt(void *data,
 
 static void tablet_tool_handle_rotation(void * /*data*/,
                                         struct zwp_tablet_tool_v2 * /*zwp_tablet_tool_v2*/,
-                                        wl_fixed_t /*degrees*/)
+                                        const wl_fixed_t /*degrees*/)
 {
   /* Pass. */
 }
 
 static void tablet_tool_handle_slider(void * /*data*/,
                                       struct zwp_tablet_tool_v2 * /*zwp_tablet_tool_v2*/,
-                                      int32_t /*position*/)
+                                      const int32_t /*position*/)
 {
   /* Pass. */
 }
 static void tablet_tool_handle_wheel(void *data,
                                      struct zwp_tablet_tool_v2 * /*zwp_tablet_tool_v2*/,
-                                     wl_fixed_t /*degrees*/,
-                                     int32_t clicks)
+                                     const wl_fixed_t /*degrees*/,
+                                     const int32_t clicks)
 {
   if (clicks == 0) {
     return;
@@ -1536,9 +1551,9 @@ static void tablet_tool_handle_wheel(void *data,
 }
 static void tablet_tool_handle_button(void *data,
                                       struct zwp_tablet_tool_v2 * /*zwp_tablet_tool_v2*/,
-                                      uint32_t serial,
-                                      uint32_t button,
-                                      uint32_t state)
+                                      const uint32_t serial,
+                                      const uint32_t button,
+                                      const uint32_t state)
 {
   tablet_tool_input_t *tool_input = static_cast<tablet_tool_input_t *>(data);
   input_t *input = tool_input->input;
@@ -1575,10 +1590,24 @@ static void tablet_tool_handle_button(void *data,
   input->system->pushEvent(new GHOST_EventButton(
       input->system->getMilliSeconds(), etype, win, ebutton, tool_input->data));
 }
-static void tablet_tool_handle_frame(void * /*data*/,
+static void tablet_tool_handle_frame(void *data,
                                      struct zwp_tablet_tool_v2 * /*zwp_tablet_tool_v2*/,
-                                     uint32_t /*time*/)
+                                     const uint32_t /*time*/)
 {
+  tablet_tool_input_t *tool_input = static_cast<tablet_tool_input_t *>(data);
+  input_t *input = tool_input->input;
+  GHOST_WindowWayland *win = window_from_surface(input->focus_tablet);
+  if (!win) {
+    return;
+  }
+
+  const wl_fixed_t scale = win->scale();
+  input->system->pushEvent(new GHOST_EventCursor(input->system->getMilliSeconds(),
+                                                 GHOST_kEventCursorMove,
+                                                 win,
+                                                 wl_fixed_to_int(scale * input->xy[0]),
+                                                 wl_fixed_to_int(scale * input->xy[1]),
+                                                 tool_input->data));
 }
 
 static const struct zwp_tablet_tool_v2_listener tablet_tool_listner = {
@@ -1652,8 +1681,11 @@ const struct zwp_tablet_seat_v2_listener tablet_seat_listener = {
 /** \name Listener (Keyboard), #wl_keyboard_listener
  * \{ */
 
-static void keyboard_handle_keymap(
-    void *data, struct wl_keyboard * /*wl_keyboard*/, uint32_t format, int32_t fd, uint32_t size)
+static void keyboard_handle_keymap(void *data,
+                                   struct wl_keyboard * /*wl_keyboard*/,
+                                   const uint32_t format,
+                                   const int32_t fd,
+                                   const uint32_t size)
 {
   input_t *input = static_cast<input_t *>(data);
 
@@ -1695,7 +1727,7 @@ static void keyboard_handle_keymap(
  */
 static void keyboard_handle_enter(void *data,
                                   struct wl_keyboard * /*wl_keyboard*/,
-                                  uint32_t /*serial*/,
+                                  const uint32_t /*serial*/,
                                   struct wl_surface *surface,
                                   struct wl_array * /*keys*/)
 {
@@ -1711,7 +1743,7 @@ static void keyboard_handle_enter(void *data,
  */
 static void keyboard_handle_leave(void *data,
                                   struct wl_keyboard * /*wl_keyboard*/,
-                                  uint32_t /*serial*/,
+                                  const uint32_t /*serial*/,
                                   struct wl_surface * /*surface*/)
 {
   input_t *input = static_cast<input_t *>(data);
@@ -1728,7 +1760,7 @@ static void keyboard_handle_leave(void *data,
  * Needed because #GHOST_TKey uses these values as key-codes.
  */
 static xkb_keysym_t xkb_state_key_get_one_sym_without_modifiers(struct xkb_state *xkb_state,
-                                                                xkb_keycode_t key)
+                                                                const xkb_keycode_t key)
 {
   /* Use an empty keyboard state to access key symbol without modifiers. */
   xkb_state_get_keymap(xkb_state);
@@ -1777,10 +1809,10 @@ static void keyboard_handle_key_repeat_reset(input_t *input, const bool use_dela
 
 static void keyboard_handle_key(void *data,
                                 struct wl_keyboard * /*wl_keyboard*/,
-                                uint32_t serial,
-                                uint32_t /*time*/,
-                                uint32_t key,
-                                uint32_t state)
+                                const uint32_t serial,
+                                const uint32_t /*time*/,
+                                const uint32_t key,
+                                const uint32_t state)
 {
   input_t *input = static_cast<input_t *>(data);
   const xkb_keycode_t key_code = key + 8;
@@ -1907,11 +1939,11 @@ static void keyboard_handle_key(void *data,
 
 static void keyboard_handle_modifiers(void *data,
                                       struct wl_keyboard * /*wl_keyboard*/,
-                                      uint32_t /*serial*/,
-                                      uint32_t mods_depressed,
-                                      uint32_t mods_latched,
-                                      uint32_t mods_locked,
-                                      uint32_t group)
+                                      const uint32_t /*serial*/,
+                                      const uint32_t mods_depressed,
+                                      const uint32_t mods_latched,
+                                      const uint32_t mods_locked,
+                                      const uint32_t group)
 {
   input_t *input = static_cast<input_t *>(data);
   xkb_state_update_mask(input->xkb_state, mods_depressed, mods_latched, mods_locked, 0, 0, group);
@@ -1925,8 +1957,8 @@ static void keyboard_handle_modifiers(void *data,
 
 static void keyboard_repeat_handle_info(void *data,
                                         struct wl_keyboard * /*wl_keyboard*/,
-                                        int32_t rate,
-                                        int32_t delay)
+                                        const int32_t rate,
+                                        const int32_t delay)
 {
   input_t *input = static_cast<input_t *>(data);
 
@@ -1954,7 +1986,9 @@ static const struct wl_keyboard_listener keyboard_listener = {
 /** \name Listener (Seat), #wl_seat_listener
  * \{ */
 
-static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat, uint32_t capabilities)
+static void seat_handle_capabilities(void *data,
+                                     struct wl_seat *wl_seat,
+                                     const uint32_t capabilities)
 {
   input_t *input = static_cast<input_t *>(data);
   input->wl_pointer = nullptr;
@@ -1998,8 +2032,8 @@ static const struct wl_seat_listener seat_listener = {
 
 static void xdg_output_handle_logical_position(void *data,
                                                struct zxdg_output_v1 * /*xdg_output*/,
-                                               int32_t x,
-                                               int32_t y)
+                                               const int32_t x,
+                                               const int32_t y)
 {
   output_t *output = static_cast<output_t *>(data);
   output->position_logical[0] = x;
@@ -2009,8 +2043,8 @@ static void xdg_output_handle_logical_position(void *data,
 
 static void xdg_output_handle_logical_size(void *data,
                                            struct zxdg_output_v1 * /*xdg_output*/,
-                                           int32_t width,
-                                           int32_t height)
+                                           const int32_t width,
+                                           const int32_t height)
 {
   output_t *output = static_cast<output_t *>(data);
 
@@ -2076,14 +2110,14 @@ static const struct zxdg_output_v1_listener xdg_output_listener = {
 
 static void output_handle_geometry(void *data,
                                    struct wl_output * /*wl_output*/,
-                                   int32_t /*x*/,
-                                   int32_t /*y*/,
-                                   int32_t physical_width,
-                                   int32_t physical_height,
-                                   int32_t /*subpixel*/,
+                                   const int32_t /*x*/,
+                                   const int32_t /*y*/,
+                                   const int32_t physical_width,
+                                   const int32_t physical_height,
+                                   const int32_t /*subpixel*/,
                                    const char *make,
                                    const char *model,
-                                   int32_t transform)
+                                   const int32_t transform)
 {
   output_t *output = static_cast<output_t *>(data);
   output->transform = transform;
@@ -2095,10 +2129,10 @@ static void output_handle_geometry(void *data,
 
 static void output_handle_mode(void *data,
                                struct wl_output * /*wl_output*/,
-                               uint32_t flags,
-                               int32_t width,
-                               int32_t height,
-                               int32_t /*refresh*/)
+                               const uint32_t flags,
+                               const int32_t width,
+                               const int32_t height,
+                               const int32_t /*refresh*/)
 {
   output_t *output = static_cast<output_t *>(data);
 
@@ -2150,7 +2184,7 @@ static void output_handle_done(void *data, struct wl_output * /*wl_output*/)
   }
 }
 
-static void output_handle_scale(void *data, struct wl_output * /*wl_output*/, int32_t factor)
+static void output_handle_scale(void *data, struct wl_output * /*wl_output*/, const int32_t factor)
 {
   static_cast<output_t *>(data)->scale = factor;
 }
@@ -2168,7 +2202,11 @@ static const struct wl_output_listener output_listener = {
 /** \name Listener (XDG WM Base), #xdg_wm_base_listener
  * \{ */
 
-static void shell_handle_ping(void * /*data*/, struct xdg_wm_base *xdg_wm_base, uint32_t serial)
+#ifndef WITH_GHOST_WAYLAND_LIBDECOR
+
+static void shell_handle_ping(void * /*data*/,
+                              struct xdg_wm_base *xdg_wm_base,
+                              const uint32_t serial)
 {
   xdg_wm_base_pong(xdg_wm_base, serial);
 }
@@ -2176,6 +2214,32 @@ static void shell_handle_ping(void * /*data*/, struct xdg_wm_base *xdg_wm_base, 
 static const struct xdg_wm_base_listener shell_listener = {
     shell_handle_ping,
 };
+
+#endif /* !WITH_GHOST_WAYLAND_LIBDECOR. */
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Listener (LibDecor), #libdecor_interface
+ * \{ */
+
+#ifdef WITH_GHOST_WAYLAND_LIBDECOR
+
+static void decor_handle_error(struct libdecor * /*context*/,
+                               enum libdecor_error error,
+                               const char *message)
+{
+  (void)(error);
+  (void)(message);
+  GHOST_PRINT("decoration error (" << error << "): " << message << std::endl);
+  exit(EXIT_FAILURE);
+}
+
+static struct libdecor_interface libdecor_interface = {
+    decor_handle_error,
+};
+
+#endif /* WITH_GHOST_WAYLAND_LIBDECOR. */
 
 /** \} */
 
@@ -2185,15 +2249,18 @@ static const struct xdg_wm_base_listener shell_listener = {
 
 static void global_handle_add(void *data,
                               struct wl_registry *wl_registry,
-                              uint32_t name,
+                              const uint32_t name,
                               const char *interface,
-                              uint32_t /*version*/)
+                              const uint32_t /*version*/)
 {
   struct display_t *display = static_cast<struct display_t *>(data);
   if (!strcmp(interface, wl_compositor_interface.name)) {
     display->compositor = static_cast<wl_compositor *>(
         wl_registry_bind(wl_registry, name, &wl_compositor_interface, 3));
   }
+#ifdef WITH_GHOST_WAYLAND_LIBDECOR
+  /* Pass. */
+#else
   else if (!strcmp(interface, xdg_wm_base_interface.name)) {
     display->xdg_shell = static_cast<xdg_wm_base *>(
         wl_registry_bind(wl_registry, name, &xdg_wm_base_interface, 1));
@@ -2203,6 +2270,7 @@ static void global_handle_add(void *data,
     display->xdg_decoration_manager = static_cast<zxdg_decoration_manager_v1 *>(
         wl_registry_bind(wl_registry, name, &zxdg_decoration_manager_v1_interface, 1));
   }
+#endif /* !WITH_GHOST_WAYLAND_LIBDECOR. */
   else if (!strcmp(interface, zxdg_output_manager_v1_interface.name)) {
     display->xdg_output_manager = static_cast<zxdg_output_manager_v1 *>(
         wl_registry_bind(wl_registry, name, &zxdg_output_manager_v1_interface, 3));
@@ -2268,7 +2336,7 @@ static void global_handle_add(void *data,
  */
 static void global_handle_remove(void * /*data*/,
                                  struct wl_registry * /*wl_registry*/,
-                                 uint32_t /*name*/)
+                                 const uint32_t /*name*/)
 {
 }
 
@@ -2306,10 +2374,18 @@ GHOST_SystemWayland::GHOST_SystemWayland() : GHOST_System(), d(new display_t)
   wl_display_roundtrip(d->display);
   wl_registry_destroy(registry);
 
+#ifdef WITH_GHOST_WAYLAND_LIBDECOR
+  d->decor_context = libdecor_new(d->display, &libdecor_interface);
+  if (!d->decor_context) {
+    display_destroy(d);
+    throw std::runtime_error("Wayland: unable to create window decorations!");
+  }
+#else
   if (!d->xdg_shell) {
     display_destroy(d);
     throw std::runtime_error("Wayland: unable to access xdg_shell!");
   }
+#endif
 
   /* Register data device per seat for IPC between Wayland clients. */
   if (d->data_device_manager) {
@@ -2471,9 +2547,33 @@ GHOST_TSuccess GHOST_SystemWayland::getCursorPosition(int32_t &x, int32_t &y) co
   return GHOST_kSuccess;
 }
 
-GHOST_TSuccess GHOST_SystemWayland::setCursorPosition(int32_t /*x*/, int32_t /*y*/)
+GHOST_TSuccess GHOST_SystemWayland::setCursorPosition(const int32_t x, const int32_t y)
 {
-  return GHOST_kFailure;
+  /* NOTE: WAYLAND doesn't support warping the cursor.
+   * However when grab is enabled, we already simulate a cursor location
+   * so that can be set to a new location. */
+  if (d->inputs.empty()) {
+    return GHOST_kFailure;
+  }
+  input_t *input = d->inputs[0];
+  if (!input->relative_pointer) {
+    return GHOST_kFailure;
+  }
+
+  GHOST_WindowWayland *win = window_from_surface(input->focus_pointer);
+  if (!win) {
+    return GHOST_kFailure;
+  }
+  const wl_fixed_t scale = win->scale();
+  const wl_fixed_t xy_next[2] = {
+      wl_fixed_from_int(x) / scale,
+      wl_fixed_from_int(y) / scale,
+  };
+
+  /* As the cursor was "warped" generate an event at the new location. */
+  relative_pointer_handle_relative_motion_impl(input, win, xy_next);
+
+  return GHOST_kSuccess;
 }
 
 void GHOST_SystemWayland::getMainDisplayDimensions(uint32_t &width, uint32_t &height) const
@@ -2564,13 +2664,13 @@ GHOST_TSuccess GHOST_SystemWayland::disposeContext(GHOST_IContext *context)
 }
 
 GHOST_IWindow *GHOST_SystemWayland::createWindow(const char *title,
-                                                 int32_t left,
-                                                 int32_t top,
-                                                 uint32_t width,
-                                                 uint32_t height,
-                                                 GHOST_TWindowState state,
-                                                 GHOST_TDrawingContextType type,
-                                                 GHOST_GLSettings glSettings,
+                                                 const int32_t left,
+                                                 const int32_t top,
+                                                 const uint32_t width,
+                                                 const uint32_t height,
+                                                 const GHOST_TWindowState state,
+                                                 const GHOST_TDrawingContextType type,
+                                                 const GHOST_GLSettings glSettings,
                                                  const bool exclusive,
                                                  const bool is_dialog,
                                                  const GHOST_IWindow *parentWindow)
@@ -2619,6 +2719,15 @@ wl_compositor *GHOST_SystemWayland::compositor()
   return d->compositor;
 }
 
+#ifdef WITH_GHOST_WAYLAND_LIBDECOR
+
+libdecor *GHOST_SystemWayland::decor_context()
+{
+  return d->decor_context;
+}
+
+#else /* WITH_GHOST_WAYLAND_LIBDECOR */
+
 xdg_wm_base *GHOST_SystemWayland::xdg_shell()
 {
   return d->xdg_shell;
@@ -2628,6 +2737,8 @@ zxdg_decoration_manager_v1 *GHOST_SystemWayland::xdg_decoration_manager()
 {
   return d->xdg_decoration_manager;
 }
+
+#endif /* !WITH_GHOST_WAYLAND_LIBDECOR */
 
 const std::vector<output_t *> &GHOST_SystemWayland::outputs() const
 {
@@ -2792,7 +2903,7 @@ static bool cursor_is_software(const GHOST_TGrabCursorMode mode, const bool use_
   return false;
 }
 
-GHOST_TSuccess GHOST_SystemWayland::setCursorShape(GHOST_TStandardCursor shape)
+GHOST_TSuccess GHOST_SystemWayland::setCursorShape(const GHOST_TStandardCursor shape)
 {
   if (d->inputs.empty()) {
     return GHOST_kFailure;
@@ -2834,7 +2945,7 @@ GHOST_TSuccess GHOST_SystemWayland::setCursorShape(GHOST_TStandardCursor shape)
   return GHOST_kSuccess;
 }
 
-GHOST_TSuccess GHOST_SystemWayland::hasCursorShape(GHOST_TStandardCursor cursorShape)
+GHOST_TSuccess GHOST_SystemWayland::hasCursorShape(const GHOST_TStandardCursor cursorShape)
 {
   auto cursor_find = cursors.find(cursorShape);
   if (cursor_find == cursors.end()) {
@@ -2849,11 +2960,11 @@ GHOST_TSuccess GHOST_SystemWayland::hasCursorShape(GHOST_TStandardCursor cursorS
 
 GHOST_TSuccess GHOST_SystemWayland::setCustomCursorShape(uint8_t *bitmap,
                                                          uint8_t *mask,
-                                                         int sizex,
-                                                         int sizey,
-                                                         int hotX,
-                                                         int hotY,
-                                                         bool /*canInvertColor*/)
+                                                         const int sizex,
+                                                         const int sizey,
+                                                         const int hotX,
+                                                         const int hotY,
+                                                         const bool /*canInvertColor*/)
 {
   if (d->inputs.empty()) {
     return GHOST_kFailure;
@@ -2977,7 +3088,7 @@ GHOST_TSuccess GHOST_SystemWayland::getCursorBitmap(GHOST_CursorBitmapRef *bitma
   return GHOST_kSuccess;
 }
 
-GHOST_TSuccess GHOST_SystemWayland::setCursorVisibility(bool visible)
+GHOST_TSuccess GHOST_SystemWayland::setCursorVisibility(const bool visible)
 {
   if (d->inputs.empty()) {
     return GHOST_kFailure;
