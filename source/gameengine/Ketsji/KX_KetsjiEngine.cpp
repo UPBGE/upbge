@@ -413,13 +413,10 @@ KX_KetsjiEngine::FrameTimes KX_KetsjiEngine::GetFrameTimes()
   }
 
   // Fix timestep to not exceed max physics and logic frames.
-  if (frames > m_maxPhysicsFrame) {
-    timestep = dt / m_maxPhysicsFrame;
-    frames = m_maxPhysicsFrame;
-  }
-  if (frames > m_maxLogicFrame) {
-    timestep = dt / m_maxLogicFrame;
-    frames = m_maxLogicFrame;
+  int maxFrames = max_ii(m_maxLogicFrame, m_maxPhysicsFrame);
+  if (frames > maxFrames) {
+    timestep = dt / maxFrames;
+    frames = maxFrames;
   }
 
   // If the number of frame is non-zero, update previous time.
