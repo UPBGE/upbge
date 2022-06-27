@@ -225,6 +225,7 @@ def point_node_items(context):
     if not space:
         return
     yield NodeItem("GeometryNodeDistributePointsOnFaces")
+    yield NodeItem("GeometryNodePoints")
     yield NodeItem("GeometryNodePointsToVertices")
     yield NodeItem("GeometryNodePointsToVolume")
     yield NodeItemCustom(draw=lambda self, layout, context: layout.separator())
@@ -697,6 +698,7 @@ geometry_node_categories = [
     GeometryNodeCategory("GEO_UTILITIES", "Utilities", items=[
         NodeItem("GeometryNodeAccumulateField"),
         NodeItem("GeometryNodeFieldAtIndex"),
+        NodeItem("GeometryNodeFieldOnDomain"),
         NodeItem("ShaderNodeMapRange"),
         NodeItem("ShaderNodeFloatCurve"),
         NodeItem("ShaderNodeClamp"),

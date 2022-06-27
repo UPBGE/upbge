@@ -4759,6 +4759,7 @@ static void registerGeometryNodes()
   register_node_type_geo_edge_split();
   register_node_type_geo_extrude_mesh();
   register_node_type_geo_field_at_index();
+  register_node_type_geo_field_on_domain();
   register_node_type_geo_flip_faces();
   register_node_type_geo_geometry_to_instance();
   register_node_type_geo_image_texture();
@@ -4807,6 +4808,7 @@ static void registerGeometryNodes()
   register_node_type_geo_mesh_to_curve();
   register_node_type_geo_mesh_to_points();
   register_node_type_geo_object_info();
+  register_node_type_geo_points();
   register_node_type_geo_points_to_vertices();
   register_node_type_geo_points_to_volume();
   register_node_type_geo_proximity();

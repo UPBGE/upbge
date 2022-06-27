@@ -309,7 +309,7 @@ static void wm_software_cursor_draw(wmWindow *win, const struct GrabState *grab_
       event_xy[0] = mod_i(event_xy[0] - min, max - min) + min;
     }
   }
-  if (grab_state->wrap_axis & GHOST_kGrabAxisY) {
+  if (grab_state->wrap_axis & GHOST_kAxisY) {
     const int height = WM_window_pixels_y(win);
     const int min = height - grab_state->bounds[1];
     const int max = height - grab_state->bounds[3];
@@ -1098,6 +1098,8 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
 
 static void wm_draw_window(bContext *C, wmWindow *win)
 {
+  GPU_context_begin_frame(win->gpuctx);
+
   bScreen *screen = WM_window_get_active_screen(win);
   bool stereo = WM_stereo3d_enabled(win, false);
 
@@ -1167,6 +1169,8 @@ static void wm_draw_window(bContext *C, wmWindow *win)
   }
 
   screen->do_draw = false;
+
+  GPU_context_end_frame(win->gpuctx);
 }
 
 /**
@@ -1177,7 +1181,11 @@ static void wm_draw_surface(bContext *C, wmSurface *surface)
   wm_window_clear_drawable(CTX_wm_manager(C));
   wm_surface_make_drawable(surface, C);
 
+  GPU_context_begin_frame(surface->gpu_ctx);
+
   surface->draw(C);
+
+  GPU_context_end_frame(surface->gpu_ctx);
 
   /* Avoid interference with window drawable */
   wm_surface_clear_drawable(C);

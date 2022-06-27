@@ -64,6 +64,7 @@ set(SRC
   nodes/node_geo_edge_split.cc
   nodes/node_geo_extrude_mesh.cc
   nodes/node_geo_field_at_index.cc
+  nodes/node_geo_field_on_domain.cc
   nodes/node_geo_flip_faces.cc
   nodes/node_geo_geometry_to_instance.cc
   nodes/node_geo_image_texture.cc
@@ -112,6 +113,7 @@ set(SRC
   nodes/node_geo_mesh_to_curve.cc
   nodes/node_geo_mesh_to_points.cc
   nodes/node_geo_object_info.cc
+  nodes/node_geo_points.cc
   nodes/node_geo_points_to_vertices.cc
   nodes/node_geo_points_to_volume.cc
   nodes/node_geo_proximity.cc

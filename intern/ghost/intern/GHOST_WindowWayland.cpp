@@ -232,7 +232,7 @@ static void frame_handle_close(struct libdecor_frame * /*frame*/, void *data)
 
 static void frame_handle_commit(struct libdecor_frame * /*frame*/, void *data)
 {
-  /* we have to swap twice to keep any pop-up menues alive */
+  /* We have to swap twice to keep any pop-up menus alive. */
   static_cast<window_t *>(data)->w->swapBuffers();
   static_cast<window_t *>(data)->w->swapBuffers();
 }
@@ -406,27 +406,29 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
 
   w->egl_window = wl_egl_window_create(w->wl_surface, int(w->size[0]), int(w->size[1]));
 
+  /* NOTE: The limit is in points (not pixels) so Hi-DPI will limit to larger number of pixels.
+   * This has the advantage that the size limit is the same when moving the window between monitors
+   * with different scales set. If it was important to limit in pixels it could be re-calculated
+   * when the `w->scale` changed. */
+  const int32_t size_min[2] = {320, 240};
+
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
   /* create window decorations */
   w->decor_frame = libdecor_decorate(
       m_system->decor_context(), w->wl_surface, &libdecor_frame_iface, w);
   libdecor_frame_map(w->decor_frame);
 
+  libdecor_frame_set_min_content_size(w->decor_frame, size_min[0], size_min[1]);
+
   if (parentWindow) {
     libdecor_frame_set_parent(
         w->decor_frame, dynamic_cast<const GHOST_WindowWayland *>(parentWindow)->w->decor_frame);
   }
-
 #else
-
   w->xdg_surface = xdg_wm_base_get_xdg_surface(m_system->xdg_shell(), w->wl_surface);
   w->xdg_toplevel = xdg_surface_get_toplevel(w->xdg_surface);
 
-  /* NOTE: The limit is in points (not pixels) so Hi-DPI will limit to larger number of pixels.
-   * This has the advantage that the size limit is the same when moving the window between monitors
-   * with different scales set. If it was important to limit in pixels it could be re-calculated
-   * when the `w->scale` changed. */
-  xdg_toplevel_set_min_size(w->xdg_toplevel, 320, 240);
+  xdg_toplevel_set_min_size(w->xdg_toplevel, size_min[0], size_min[1]);
 
   if (m_system->xdg_decoration_manager()) {
     w->xdg_toplevel_decoration = zxdg_decoration_manager_v1_get_toplevel_decoration(
@@ -467,7 +469,7 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
   setOpaque();
 #endif
 
-#ifndef WITH_GHOST_WAYLAND_LIBDECOR /* Causes a glicth with libdecor for some reason. */
+#ifndef WITH_GHOST_WAYLAND_LIBDECOR /* Causes a glitch with `libdecor` for some reason. */
   setState(state);
 #endif
 
@@ -478,7 +480,7 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
     GHOST_PRINT("Failed to create EGL context" << std::endl);
   }
 
-  /* set swap interval to 0 to prevent blocking */
+  /* Set swap interval to 0 to prevent blocking. */
   setSwapInterval(0);
 }
 
