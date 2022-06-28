@@ -312,14 +312,14 @@ static void rna_Sequence_frame_change_update(Main *UNUSED(bmain),
   do_sequence_frame_change_update(scene, (Sequence *)ptr->data);
 }
 
-static void rna_Sequence_start_frame_set(PointerRNA *ptr, int value)
+static int rna_Sequence_frame_final_start_get(PointerRNA *ptr)
 {
-  Sequence *seq = (Sequence *)ptr->data;
-  Scene *scene = (Scene *)ptr->owner_id;
+  return SEQ_time_left_handle_frame_get((Sequence *)ptr->data);
+}
 
-  SEQ_transform_translate_sequence(scene, seq, value - seq->start);
-  do_sequence_frame_change_update(scene, seq);
-  SEQ_relations_invalidate_cache_composite(scene, seq);
+static int rna_Sequence_frame_final_end_get(PointerRNA *ptr)
+{
+  return SEQ_time_right_handle_frame_get((Sequence *)ptr->data);
 }
 
 static void rna_Sequence_start_frame_final_set(PointerRNA *ptr, int value)
@@ -340,6 +340,16 @@ static void rna_Sequence_end_frame_final_set(PointerRNA *ptr, int value)
 
   SEQ_time_right_handle_frame_set(scene, seq, value);
   SEQ_transform_fix_single_image_seq_offsets(scene, seq);
+  do_sequence_frame_change_update(scene, seq);
+  SEQ_relations_invalidate_cache_composite(scene, seq);
+}
+
+static void rna_Sequence_start_frame_set(PointerRNA *ptr, int value)
+{
+  Sequence *seq = (Sequence *)ptr->data;
+  Scene *scene = (Scene *)ptr->owner_id;
+
+  SEQ_transform_translate_sequence(scene, seq, value - seq->start);
   do_sequence_frame_change_update(scene, seq);
   SEQ_relations_invalidate_cache_composite(scene, seq);
 }
@@ -1971,6 +1981,9 @@ static void rna_def_sequence(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "frame_final_start", PROP_INT, PROP_TIME);
   RNA_def_property_int_sdna(prop, NULL, "startdisp");
+  RNA_def_property_int_funcs(
+      prop, "rna_Sequence_frame_final_start_get", "rna_Sequence_start_frame_final_set", NULL);
+  RNA_def_property_editable_func(prop, "rna_Sequence_frame_editable");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(
       prop,
@@ -1978,19 +1991,18 @@ static void rna_def_sequence(BlenderRNA *brna)
       "Start frame displayed in the sequence editor after offsets are applied, setting this is "
       "equivalent to moving the handle, not the actual start frame");
   /* overlap tests and calc_seq_disp */
-  RNA_def_property_int_funcs(prop, NULL, "rna_Sequence_start_frame_final_set", NULL);
-  RNA_def_property_editable_func(prop, "rna_Sequence_frame_editable");
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
 
   prop = RNA_def_property(srna, "frame_final_end", PROP_INT, PROP_TIME);
   RNA_def_property_int_sdna(prop, NULL, "enddisp");
+  RNA_def_property_int_funcs(
+      prop, "rna_Sequence_frame_final_end_get", "rna_Sequence_end_frame_final_set", NULL);
+  RNA_def_property_editable_func(prop, "rna_Sequence_frame_editable");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(
       prop, "End Frame", "End frame displayed in the sequence editor after offsets are applied");
   /* overlap tests and calc_seq_disp */
-  RNA_def_property_int_funcs(prop, NULL, "rna_Sequence_end_frame_final_set", NULL);
-  RNA_def_property_editable_func(prop, "rna_Sequence_frame_editable");
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_invalidate_preprocessed_update");
 

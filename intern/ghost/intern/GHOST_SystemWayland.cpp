@@ -68,13 +68,15 @@ static bool use_gnome_confine_hack = false;
 #endif
 
 /* -------------------------------------------------------------------- */
-/** \name Private Types & Defines
+/** \name Inline Event Codes
+ *
+ * Selected input event code defines from `linux/input-event-codes.h`
+ * We include some of the button input event codes here, since the header is
+ * only available in more recent kernel versions.
  * \{ */
 
 /**
- * Selected input event code defines from `linux/input-event-codes.h`
- * We include some of the button input event codes here, since the header is
- * only available in more recent kernel versions. The event codes are used to
+ * The event codes are used to
  * to differentiate from which mouse button an event comes from.
  */
 #define BTN_LEFT 0x110
@@ -87,12 +89,29 @@ static bool use_gnome_confine_hack = false;
 // #define BTN_TASK 0x117 /* UNUSED. */
 
 /**
- * Tablet events, also from `linux/input-event-codes.h`.
+ * Tablet events.
  */
 #define BTN_STYLUS 0x14b  /* Use as right-mouse. */
 #define BTN_STYLUS2 0x14c /* Use as middle-mouse. */
 /* NOTE(@campbellbarton): Map to an additional button (not sure which hardware uses this). */
 #define BTN_STYLUS3 0x149
+
+/**
+ * Keyboard scan-codes.
+ */
+#define KEY_GRAVE 41
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Private Types & Defines
+ * \{ */
+
+/**
+ * From XKB internals, use for converting a scan-code from WAYLAND to a #xkb_keycode_t.
+ * Ideally this wouldn't need a local define.
+ */
+#define EVDEV_OFFSET 8
 
 struct buffer_t {
   void *data = nullptr;
@@ -252,7 +271,17 @@ struct input_t {
   struct zwp_confined_pointer_v1 *confined_pointer = nullptr;
 
   struct xkb_context *xkb_context = nullptr;
+
   struct xkb_state *xkb_state = nullptr;
+  /**
+   * Keep a state with no modifiers active, use for symbol lookups.
+   */
+  struct xkb_state *xkb_state_empty = nullptr;
+  /**
+   * Keep a state with num-lock enabled, use to access predictable key-pad symbols.
+   * If number-lock is not supported by the key-map, this is set to NULL.
+   */
+  struct xkb_state *xkb_state_empty_with_numlock = nullptr;
 
   struct {
     /** Key repetition in character per second. */
@@ -417,12 +446,14 @@ static void display_destroy(display_t *d)
       }
       wl_keyboard_destroy(input->wl_keyboard);
     }
-    if (input->xkb_state) {
-      xkb_state_unref(input->xkb_state);
-    }
-    if (input->xkb_context) {
-      xkb_context_unref(input->xkb_context);
-    }
+
+    /* Un-referencing checks for NULL case. */
+    xkb_state_unref(input->xkb_state);
+    xkb_state_unref(input->xkb_state_empty);
+    xkb_state_unref(input->xkb_state_empty_with_numlock);
+
+    xkb_context_unref(input->xkb_context);
+
     wl_seat_destroy(input->wl_seat);
     delete input;
   }
@@ -476,7 +507,7 @@ static void display_destroy(display_t *d)
   delete d;
 }
 
-static GHOST_TKey xkb_map_gkey(const xkb_keysym_t &sym)
+static GHOST_TKey xkb_map_gkey(const xkb_keysym_t sym)
 {
 
   GHOST_TKey gkey;
@@ -567,11 +598,45 @@ static GHOST_TKey xkb_map_gkey(const xkb_keysym_t &sym)
       GXMAP(gkey, XKB_KEY_XF86AudioPrev, GHOST_kKeyMediaFirst);
       GXMAP(gkey, XKB_KEY_XF86AudioNext, GHOST_kKeyMediaLast);
       default:
-        GHOST_PRINT("unhandled key: " << std::hex << std::showbase << sym << std::dec << " ("
-                                      << sym << ")" << std::endl);
+        /* Rely on #xkb_map_gkey_or_scan_code to report when no key can be found. */
         gkey = GHOST_kKeyUnknown;
     }
 #undef GXMAP
+  }
+
+  return gkey;
+}
+
+/**
+ * Map the keys using the users keyboard layout, if that fails fall back to physical locations.
+ * This is needed so users with keyboard layouts that don't expose #GHOST_kKeyAccentGrave
+ * (typically the key under escape) in the layout can still use this key in keyboard shortcuts.
+ *
+ * \param key: The key's scan-code, compatible with values in `linux/input-event-codes.h`.
+ */
+static GHOST_TKey xkb_map_gkey_or_scan_code(const xkb_keysym_t sym, const uint32_t key)
+{
+  GHOST_TKey gkey = xkb_map_gkey(sym);
+
+  if (gkey == GHOST_kKeyUnknown) {
+    /* Fall back to physical location for keys that would otherwise do nothing. */
+    switch (key) {
+      case KEY_GRAVE: {
+        gkey = GHOST_kKeyAccentGrave;
+        break;
+      }
+      default: {
+        GHOST_PRINT(
+            /* Key-code. */
+            "unhandled key: " << std::hex << std::showbase << sym << /* Hex. */
+            std::dec << " (" << sym << "), " <<                      /* Decimal. */
+            /* Scan-code. */
+            "scan-code: " << std::hex << std::showbase << key << /* Hex. */
+            std::dec << " (" << key << ")" <<                    /* Decimal. */
+            std::endl);
+        break;
+      }
+    }
   }
 
   return gkey;
@@ -1756,13 +1821,26 @@ static void keyboard_handle_keymap(void *data,
     return;
   }
 
-  struct xkb_state *xkb_state_next = xkb_state_new(keymap);
-  if (xkb_state_next) {
-    if (input->xkb_state) {
-      xkb_state_unref(input->xkb_state);
+  /* In practice we can assume `xkb_state_new` always succeeds. */
+  xkb_state_unref(input->xkb_state);
+  input->xkb_state = xkb_state_new(keymap);
+
+  xkb_state_unref(input->xkb_state_empty);
+  input->xkb_state_empty = xkb_state_new(keymap);
+
+  xkb_state_unref(input->xkb_state_empty_with_numlock);
+  input->xkb_state_empty_with_numlock = nullptr;
+
+  {
+    const xkb_mod_index_t mod2 = xkb_keymap_mod_get_index(keymap, XKB_MOD_NAME_NUM);
+    const xkb_mod_index_t num = xkb_keymap_mod_get_index(keymap, "NumLock");
+    if (num != XKB_MOD_INVALID && mod2 != XKB_MOD_INVALID) {
+      input->xkb_state_empty_with_numlock = xkb_state_new(keymap);
+      xkb_state_update_mask(
+          input->xkb_state_empty_with_numlock, (1 << mod2), 0, (1 << num), 0, 0, 0);
     }
-    input->xkb_state = xkb_state_next;
   }
+
   xkb_keymap_unref(keymap);
 }
 
@@ -1807,25 +1885,29 @@ static void keyboard_handle_leave(void *data,
  * A version of #xkb_state_key_get_one_sym which returns the key without any modifiers pressed.
  * Needed because #GHOST_TKey uses these values as key-codes.
  */
-static xkb_keysym_t xkb_state_key_get_one_sym_without_modifiers(struct xkb_state *xkb_state,
-                                                                const xkb_keycode_t key)
+static xkb_keysym_t xkb_state_key_get_one_sym_without_modifiers(
+    struct xkb_state *xkb_state_empty,
+    struct xkb_state *xkb_state_empty_with_numlock,
+    const xkb_keycode_t key)
 {
   /* Use an empty keyboard state to access key symbol without modifiers. */
-  xkb_state_get_keymap(xkb_state);
-  struct xkb_keymap *keymap = xkb_state_get_keymap(xkb_state);
-  struct xkb_state *xkb_state_empty = xkb_state_new(keymap);
+  xkb_keysym_t sym = xkb_state_key_get_one_sym(xkb_state_empty, key);
 
-  /* Enable number-lock. */
-  {
-    const xkb_mod_index_t mod2 = xkb_keymap_mod_get_index(keymap, XKB_MOD_NAME_NUM);
-    const xkb_mod_index_t num = xkb_keymap_mod_get_index(keymap, "NumLock");
-    if (num != XKB_MOD_INVALID && mod2 != XKB_MOD_INVALID) {
-      xkb_state_update_mask(xkb_state_empty, (1 << mod2), 0, (1 << num), 0, 0, 0);
+  /* NOTE(@campbellbarton): Only perform the number-locked lookup as a fallback
+   * when a number-pad key has been pressed. This is important as some key-maps use number lock
+   * for switching other layers (in particular `de(neo_qwertz)` turns on layer-4), see: T96170.
+   * Alternative solutions could be to inspect the layout however this could get involved
+   * and turning on the number-lock is only needed for a limited set of keys. */
+
+  /* Accounts for key-pad keys typically swapped for numbers when number-lock is enabled:
+   * `Home Left Up Right Down Prior Page_Up Next Page_Dow End Begin Insert Delete`. */
+  if (xkb_state_empty_with_numlock && (sym >= XKB_KEY_KP_Home && sym <= XKB_KEY_KP_Delete)) {
+    const xkb_keysym_t sym_test = xkb_state_key_get_one_sym(xkb_state_empty_with_numlock, key);
+    if (sym_test != XKB_KEY_NoSymbol) {
+      sym = sym_test;
     }
   }
 
-  const xkb_keysym_t sym = xkb_state_key_get_one_sym(xkb_state_empty, key);
-  xkb_state_unref(xkb_state_empty);
   return sym;
 }
 
@@ -1863,9 +1945,10 @@ static void keyboard_handle_key(void *data,
                                 const uint32_t state)
 {
   input_t *input = static_cast<input_t *>(data);
-  const xkb_keycode_t key_code = key + 8;
+  const xkb_keycode_t key_code = key + EVDEV_OFFSET;
 
-  const xkb_keysym_t sym = xkb_state_key_get_one_sym_without_modifiers(input->xkb_state, key_code);
+  const xkb_keysym_t sym = xkb_state_key_get_one_sym_without_modifiers(
+      input->xkb_state_empty, input->xkb_state_empty_with_numlock, key_code);
   if (sym == XKB_KEY_NoSymbol) {
     return;
   }
@@ -1934,7 +2017,7 @@ static void keyboard_handle_key(void *data,
     }
   }
 
-  const GHOST_TKey gkey = xkb_map_gkey(sym);
+  const GHOST_TKey gkey = xkb_map_gkey_or_scan_code(sym, key);
   char utf8_buf[sizeof(GHOST_TEventKeyData::utf8_buf)] = {'\0'};
   if (etype == GHOST_kEventKeyDown) {
     xkb_state_key_get_utf8(input->xkb_state, key_code, utf8_buf, sizeof(utf8_buf));

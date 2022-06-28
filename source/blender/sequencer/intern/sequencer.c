@@ -37,6 +37,7 @@
 #include "SEQ_select.h"
 #include "SEQ_sequencer.h"
 #include "SEQ_sound.h"
+#include "SEQ_time.h"
 #include "SEQ_utils.h"
 
 #include "BLO_read_write.h"
@@ -410,7 +411,8 @@ static MetaStack *seq_meta_stack_alloc(const Scene *scene, Sequence *seq_meta)
   ms->oldbasep = higher_level_meta ? &higher_level_meta->seqbase : &ed->seqbase;
   ms->old_channels = higher_level_meta ? &higher_level_meta->channels : &ed->channels;
 
-  copy_v2_v2_int(ms->disp_range, &ms->parseq->startdisp);
+  ms->disp_range[0] = SEQ_time_left_handle_frame_get(ms->parseq);
+  ms->disp_range[1] = SEQ_time_right_handle_frame_get(ms->parseq);
   return ms;
 }
 
@@ -433,7 +435,7 @@ void SEQ_meta_stack_set(const Scene *scene, Sequence *seqm)
     /* Allocate meta stack in a way, that represents meta hierarchy in timeline. */
     seq_meta_stack_alloc(scene, seqm);
     Sequence *meta_parent = seqm;
-    while (meta_parent = seq_sequence_lookup_meta_by_seq(scene, meta_parent)) {
+    while ((meta_parent = seq_sequence_lookup_meta_by_seq(scene, meta_parent))) {
       seq_meta_stack_alloc(scene, meta_parent);
     }
 
