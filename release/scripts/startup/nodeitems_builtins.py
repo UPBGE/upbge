@@ -113,6 +113,7 @@ def mesh_node_items(context):
     yield NodeItem("GeometryNodeMeshBoolean")
     yield NodeItem("GeometryNodeMeshToCurve")
     yield NodeItem("GeometryNodeMeshToPoints")
+    yield NodeItem("GeometryNodeMeshToVolume")
     yield NodeItem("GeometryNodeSplitEdges")
     yield NodeItem("GeometryNodeSubdivideMesh")
     yield NodeItem("GeometryNodeSubdivisionSurface")
@@ -154,6 +155,17 @@ def geometry_node_items(context):
     yield NodeItemCustom(draw=lambda self, layout, context: layout.separator())
     yield NodeItem("GeometryNodeSetID")
     yield NodeItem("GeometryNodeSetPosition")
+
+
+# Custom Menu for UV Nodes.
+def uv_node_items(context):
+    if context is None:
+        return
+    space = context.space_data
+    if not space:
+        return
+    yield NodeItem("GeometryNodeUVUnwrap")
+    yield NodeItem("GeometryNodeUVPackIslands")
 
 
 # Custom Menu for Geometry Node Input Nodes.
@@ -656,6 +668,7 @@ geometry_node_categories = [
         NodeItem("GeometryNodeCurvePrimitiveBezierSegment"),
     ]),
     GeometryNodeCategory("GEO_GEOMETRY", "Geometry", items=geometry_node_items),
+    GeometryNodeCategory("GEO_UV", "UV", items=uv_node_items),
     GeometryNodeCategory("GEO_INPUT", "Input", items=geometry_input_node_items),
     GeometryNodeCategory("GEO_INSTANCE", "Instances", items=geometry_instance_node_items),
     GeometryNodeCategory("GEO_MATERIAL", "Material", items=geometry_material_node_items),

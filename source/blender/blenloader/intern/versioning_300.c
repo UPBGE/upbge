@@ -408,7 +408,7 @@ static void do_versions_sequencer_speed_effect_recursive(Scene *scene, const Lis
           v->speed_control_type = SEQ_SPEED_MULTIPLY;
           v->speed_fader = globalSpeed *
                            ((float)seq->seq1->len /
-                            max_ff((float)(SEQ_time_right_handle_frame_get(seq->seq1) -
+                            max_ff((float)(SEQ_time_right_handle_frame_get(scene, seq->seq1) -
                                            seq->seq1->start),
                                    1.0f));
         }
@@ -1232,6 +1232,17 @@ static bool version_merge_still_offsets(Sequence *seq, void *UNUSED(user_data))
   seq->endofs -= seq->endstill;
   seq->startstill = 0;
   seq->endstill = 0;
+  return true;
+}
+
+static bool seq_speed_factor_set(Sequence *seq, void *UNUSED(user_data))
+{
+  if (seq->type == SEQ_TYPE_SOUND_RAM) {
+    seq->speed_factor = seq->pitch;
+  }
+  else {
+    seq->speed_factor = 1.0f;
+  }
   return true;
 }
 
@@ -3115,6 +3126,17 @@ void blo_do_versions_300(FileData *fd, Library *UNUSED(lib), Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+      LISTBASE_FOREACH (GpencilModifierData *, gpd, &ob->greasepencil_modifiers) {
+        if (gpd->type == eGpencilModifierType_Lineart) {
+          LineartGpencilModifierData *lmd = (LineartGpencilModifierData *)gpd;
+          lmd->shadow_camera_near = 0.1f;
+          lmd->shadow_camera_far = 200.0f;
+          lmd->shadow_camera_size = 200.0f;
+        }
+      }
+    }
   }
 
   if (!MAIN_VERSION_ATLEAST(bmain, 303, 2)) {
@@ -3140,6 +3162,17 @@ void blo_do_versions_300(FileData *fd, Library *UNUSED(lib), Main *bmain)
             ((SpaceImage *)sl)->mask_info.draw_flag |= MASK_DRAWFLAG_SPLINE;
           }
         }
+      }
+    }
+
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      ToolSettings *tool_settings = scene->toolsettings;
+      /* Zero isn't a valid value, use for versioning. */
+      if (tool_settings->snap_face_nearest_steps == 0) {
+        /* Minimum of snap steps for face nearest is 1. */
+        tool_settings->snap_face_nearest_steps = 1;
+        /* Set snap to edited and non-edited as default. */
+        tool_settings->snap_flag |= SCE_SNAP_TO_INCLUDE_EDITED | SCE_SNAP_TO_INCLUDE_NONEDITED;
       }
     }
   }
@@ -3171,18 +3204,7 @@ void blo_do_versions_300(FileData *fd, Library *UNUSED(lib), Main *bmain)
     }
   }
 
-  /**
-   * Versioning code until next subversion bump goes here.
-   *
-   * \note Be sure to check when bumping the version:
-   * - "versioning_userdef.c", #blo_do_versions_userdef
-   * - "versioning_userdef.c", #do_versions_theme
-   *
-   * \note Keep this message at the bottom of the function.
-   */
-  {
-    /* Keep this block, even when empty. */
-
+  if (!MAIN_VERSION_ATLEAST(bmain, 303, 5)) {
     /* Fix for T98925 - remove channels region, that was initialized in incorrect editor types. */
     for (bScreen *screen = bmain->screens.first; screen; screen = screen->id.next) {
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
@@ -3201,5 +3223,25 @@ void blo_do_versions_300(FileData *fd, Library *UNUSED(lib), Main *bmain)
         }
       }
     }
+
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      Editing *ed = SEQ_editing_get(scene);
+      if (ed == NULL) {
+        continue;
+      }
+      SEQ_for_each_callback(&ed->seqbase, seq_speed_factor_set, NULL);
+    }
+  }
+  /**
+   * Versioning code until next subversion bump goes here.
+   *
+   * \note Be sure to check when bumping the version:
+   * - "versioning_userdef.c", #blo_do_versions_userdef
+   * - "versioning_userdef.c", #do_versions_theme
+   *
+   * \note Keep this message at the bottom of the function.
+   */
+  {
+    /* Keep this block, even when empty. */
   }
 }

@@ -112,6 +112,7 @@ set(SRC
   nodes/node_geo_mesh_subdivide.cc
   nodes/node_geo_mesh_to_curve.cc
   nodes/node_geo_mesh_to_points.cc
+  nodes/node_geo_mesh_to_volume.cc
   nodes/node_geo_object_info.cc
   nodes/node_geo_points.cc
   nodes/node_geo_points_to_vertices.cc
@@ -145,6 +146,8 @@ set(SRC
   nodes/node_geo_transform.cc
   nodes/node_geo_translate_instances.cc
   nodes/node_geo_triangulate.cc
+  nodes/node_geo_uv_pack_islands.cc
+  nodes/node_geo_uv_unwrap.cc
   nodes/node_geo_viewer.cc
   nodes/node_geo_volume_cube.cc
   nodes/node_geo_volume_to_mesh.cc

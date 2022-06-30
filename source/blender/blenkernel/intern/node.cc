@@ -4807,6 +4807,7 @@ static void registerGeometryNodes()
   register_node_type_geo_mesh_subdivide();
   register_node_type_geo_mesh_to_curve();
   register_node_type_geo_mesh_to_points();
+  register_node_type_geo_mesh_to_volume();
   register_node_type_geo_object_info();
   register_node_type_geo_points();
   register_node_type_geo_points_to_vertices();
@@ -4843,6 +4844,8 @@ static void registerGeometryNodes()
   register_node_type_geo_viewer();
   register_node_type_geo_volume_cube();
   register_node_type_geo_volume_to_mesh();
+  register_node_type_geo_uv_pack_islands();
+  register_node_type_geo_uv_unwrap();
 }
 
 static void registerFunctionNodes()

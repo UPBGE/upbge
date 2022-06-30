@@ -562,6 +562,14 @@ MANTA::~MANTA()
   pythonCommands.push_back(finalString);
   result = runPythonString(pythonCommands);
 
+  /* WARNING: this causes crash on exit in the `cycles_volume_cpu/smoke_color` test,
+   * freeing a single modifier ends up clearing the shared module.
+   * For this to be handled properly there would need to be a initialize/free
+   * function for global data. */
+#if 0
+  MANTA::terminateMantaflow();
+#endif
+
   BLI_assert(result);
   UNUSED_VARS(result);
 }
@@ -692,7 +700,7 @@ void MANTA::initializeMantaflow()
 
   PyObject *manta_main_module = manta_python_main_module_ensure();
   PyObject *globals_dict = PyModule_GetDict(manta_main_module);
-  Pb::setup(filename, fill, globals_dict); /* Namespace from Mantaflow (registry). */
+  Pb::setup(false, filename, fill, globals_dict); /* Namespace from Mantaflow (registry). */
   PyGILState_Release(gilstate);
 }
 
@@ -702,7 +710,7 @@ void MANTA::terminateMantaflow()
     cout << "Fluid: Releasing Mantaflow framework" << endl;
 
   PyGILState_STATE gilstate = PyGILState_Ensure();
-  Pb::finalize(); /* Namespace from Mantaflow (registry). */
+  Pb::finalize(false); /* Namespace from Mantaflow (registry). */
   manta_python_main_module_clear();
   PyGILState_Release(gilstate);
 }

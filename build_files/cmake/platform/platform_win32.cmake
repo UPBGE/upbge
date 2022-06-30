@@ -955,3 +955,6 @@ set(ZSTD_LIBRARIES ${LIBDIR}/zstd/lib/zstd_static.lib)
 if(WITH_WINDOWS_7)
   set(BCOMPAT7_LIBRARIES ${LIBDIR}/bcompat7/lib/bcompat7.lib)
 endif()
+
+set(LEVEL_ZERO_ROOT_DIR ${LIBDIR}/level_zero)
+set(SYCL_ROOT_DIR ${LIBDIR}/dpcpp)

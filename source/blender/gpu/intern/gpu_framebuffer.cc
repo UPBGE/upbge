@@ -148,7 +148,7 @@ void FrameBuffer::load_store_config_array(const GPULoadStore *load_store_actions
   }
 }
 
-unsigned int FrameBuffer::get_bits_per_pixel(void)
+unsigned int FrameBuffer::get_bits_per_pixel()
 {
   unsigned int total_bits = 0;
   for (GPUAttachment &attachment : attachments_) {
@@ -191,7 +191,7 @@ void FrameBuffer::recursive_downsample(int max_lvl,
     dirty_attachments_ = true;
     this->bind(true);
 
-    /* Optimise load-store state. */
+    /* Optimize load-store state. */
     GPUAttachmentType type = GPU_FB_DEPTH_ATTACHMENT;
     for (GPUAttachment &attachment : attachments_) {
       Texture *tex = reinterpret_cast<Texture *>(attachment.tex);
