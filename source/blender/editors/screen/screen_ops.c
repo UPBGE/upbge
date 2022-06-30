@@ -2956,9 +2956,9 @@ static int frame_offset_exec(bContext *C, wmOperator *op)
 
   int delta = RNA_int_get(op->ptr, "delta");
 
-  CFRA += delta;
-  FRAMENUMBER_MIN_CLAMP(CFRA);
-  SUBFRA = 0.0f;
+  scene->r.cfra += delta;
+  FRAMENUMBER_MIN_CLAMP(scene->r.cfra);
+  scene->r.subframe = 0.0f;
 
   areas_do_frame_follow(C, false);
 
@@ -2997,7 +2997,7 @@ static int frame_jump_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
   wmTimer *animtimer = CTX_wm_screen(C)->animtimer;
 
-  /* Don't change CFRA directly if animtimer is running as this can cause
+  /* Don't change scene->r.cfra directly if animtimer is running as this can cause
    * first/last frame not to be actually shown (bad since for example physics
    * simulations aren't reset properly).
    */
@@ -3015,10 +3015,10 @@ static int frame_jump_exec(bContext *C, wmOperator *op)
   }
   else {
     if (RNA_boolean_get(op->ptr, "end")) {
-      CFRA = PEFRA;
+      scene->r.cfra = PEFRA;
     }
     else {
-      CFRA = PSFRA;
+      scene->r.cfra = PSFRA;
     }
 
     areas_do_frame_follow(C, true);
@@ -3067,7 +3067,7 @@ static int keyframe_jump_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  float cfra = (float)(CFRA);
+  float cfra = (float)(scene->r.cfra);
 
   /* Initialize binary-tree-list for getting keyframes. */
   struct AnimKeylist *keylist = ED_keylist_create();
@@ -3109,9 +3109,9 @@ static int keyframe_jump_exec(bContext *C, wmOperator *op)
   }
 
   while ((ak != NULL) && (done == false)) {
-    if (CFRA != (int)ak->cfra) {
+    if (scene->r.cfra != (int)ak->cfra) {
       /* this changes the frame, so set the frame and we're done */
-      CFRA = (int)ak->cfra;
+      scene->r.cfra = (int)ak->cfra;
       done = true;
     }
     else {
@@ -3170,20 +3170,20 @@ static void SCREEN_OT_keyframe_jump(wmOperatorType *ot)
 static int marker_jump_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
-  int closest = CFRA;
+  int closest = scene->r.cfra;
   const bool next = RNA_boolean_get(op->ptr, "next");
   bool found = false;
 
   /* find matching marker in the right direction */
   LISTBASE_FOREACH (TimeMarker *, marker, &scene->markers) {
     if (next) {
-      if ((marker->frame > CFRA) && (!found || closest > marker->frame)) {
+      if ((marker->frame > scene->r.cfra) && (!found || closest > marker->frame)) {
         closest = marker->frame;
         found = true;
       }
     }
     else {
-      if ((marker->frame < CFRA) && (!found || closest < marker->frame)) {
+      if ((marker->frame < scene->r.cfra) && (!found || closest < marker->frame)) {
         closest = marker->frame;
         found = true;
       }
@@ -3197,7 +3197,7 @@ static int marker_jump_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  CFRA = closest;
+  scene->r.cfra = closest;
 
   areas_do_frame_follow(C, true);
 
@@ -4719,7 +4719,7 @@ static int screen_animation_step_invoke(bContext *C, wmOperator *UNUSED(op), con
   if (sad->flag & ANIMPLAY_FLAG_JUMPED) {
     DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
 #ifdef PROFILE_AUDIO_SYNCH
-    old_frame = CFRA;
+    old_frame = scene->r.cfra;
 #endif
   }
 

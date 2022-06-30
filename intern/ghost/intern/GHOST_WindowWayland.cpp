@@ -14,6 +14,7 @@
 #include "GHOST_ContextEGL.h"
 #include "GHOST_ContextNone.h"
 
+#include <wayland-client-protocol.h>
 #include <wayland-egl.h>
 
 #include <algorithm> /* For `std::find`. */
@@ -23,6 +24,8 @@
 #endif
 
 static constexpr size_t base_dpi = 96;
+
+static GHOST_WindowManager *window_manager = nullptr;
 
 struct window_t {
   GHOST_WindowWayland *w = nullptr;
@@ -380,6 +383,11 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
       m_system(system),
       w(new window_t)
 {
+  /* Globally store pointer to window manager. */
+  if (!window_manager) {
+    window_manager = m_system->getWindowManager();
+  }
+
   w->w = this;
 
   w->size[0] = int32_t(width);
@@ -521,6 +529,40 @@ wl_surface *GHOST_WindowWayland::surface() const
   return w->wl_surface;
 }
 
+GHOST_WindowWayland *GHOST_WindowWayland::from_surface_find_mut(const wl_surface *surface)
+{
+  GHOST_ASSERT(surface, "argument must not be NULL");
+  for (GHOST_IWindow *iwin : window_manager->getWindows()) {
+    GHOST_WindowWayland *win = static_cast<GHOST_WindowWayland *>(iwin);
+    if (surface == win->surface()) {
+      return win;
+    }
+  }
+  return nullptr;
+}
+
+const GHOST_WindowWayland *GHOST_WindowWayland::from_surface_find(const wl_surface *surface)
+{
+  return GHOST_WindowWayland::from_surface_find_mut(surface);
+}
+
+GHOST_WindowWayland *GHOST_WindowWayland::from_surface_mut(wl_surface *surface)
+{
+  GHOST_WindowWayland *win = static_cast<GHOST_WindowWayland *>(wl_surface_get_user_data(surface));
+  GHOST_ASSERT(win == GHOST_WindowWayland::from_surface_find_mut(surface),
+               "Inconsistent window state, consider using \"from_surface_find_mut\"");
+  return win;
+}
+
+const GHOST_WindowWayland *GHOST_WindowWayland::from_surface(const wl_surface *surface)
+{
+  const GHOST_WindowWayland *win = static_cast<const GHOST_WindowWayland *>(
+      wl_surface_get_user_data(const_cast<wl_surface *>(surface)));
+  GHOST_ASSERT(win == GHOST_WindowWayland::from_surface_find(surface),
+               "Inconsistent window state, consider using \"from_surface_find\"");
+  return win;
+}
+
 const std::vector<output_t *> &GHOST_WindowWayland::outputs()
 {
   return w->outputs;
@@ -591,12 +633,12 @@ bool GHOST_WindowWayland::outputs_leave(output_t *reg_output)
   return true;
 }
 
-uint16_t GHOST_WindowWayland::dpi()
+uint16_t GHOST_WindowWayland::dpi() const
 {
   return w->dpi;
 }
 
-int GHOST_WindowWayland::scale()
+int GHOST_WindowWayland::scale() const
 {
   return w->scale;
 }
@@ -721,7 +763,7 @@ GHOST_WindowWayland::~GHOST_WindowWayland()
 
   /* NOTE(@campbellbarton): This is needed so the appropriate handlers event
    * (#wl_surface_listener.leave in particular) run to prevent access to the freed surfaces.
-   * Without this round-trip, calling #getCursorPosition immediately after closing a window
+   * Without flushing the display, calling #getCursorPosition immediately after closing a window
    * causes dangling #wl_surface pointers to be accessed
    * (since the window is used for scaling the cursor position).
    *
@@ -731,7 +773,7 @@ GHOST_WindowWayland::~GHOST_WindowWayland()
    * Any information requested in this state (such as the cursor position) won't be valid and
    * could cause difficult to reproduce bugs. So perform a round-trip as closing a window isn't
    * an action that runs continuously & isn't likely to cause unnecessary overhead. See: T99078. */
-  wl_display_roundtrip(m_system->display());
+  wl_display_flush(m_system->display());
 
   delete w;
 }

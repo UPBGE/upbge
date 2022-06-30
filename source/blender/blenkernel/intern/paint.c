@@ -1613,7 +1613,7 @@ static void sculpt_update_object(Depsgraph *depsgraph,
                                  Mesh *me_eval,
                                  bool need_pmap,
                                  bool need_mask,
-                                 bool UNUSED(need_colors))
+                                 bool is_paint_tool)
 {
   Scene *scene = DEG_get_input_scene(depsgraph);
   Sculpt *sd = scene->toolsettings->sculpt;
@@ -1773,28 +1773,31 @@ static void sculpt_update_object(Depsgraph *depsgraph,
     }
   }
 
-  /*
-   * We should rebuild the PBVH_pixels when painting canvas changes.
-   *
-   * The relevant changes are stored/encoded in the paint canvas key.
-   * These include the active uv map, and resolutions.
-   */
-  if (U.experimental.use_sculpt_texture_paint && ss->pbvh) {
-    char *paint_canvas_key = BKE_paint_canvas_key_get(&scene->toolsettings->paint_mode, ob);
-    if (ss->last_paint_canvas_key == NULL || !STREQ(paint_canvas_key, ss->last_paint_canvas_key)) {
-      MEM_SAFE_FREE(ss->last_paint_canvas_key);
-      ss->last_paint_canvas_key = paint_canvas_key;
-      BKE_pbvh_mark_rebuild_pixels(ss->pbvh);
+  if (is_paint_tool) {
+    /*
+     * We should rebuild the PBVH_pixels when painting canvas changes.
+     *
+     * The relevant changes are stored/encoded in the paint canvas key.
+     * These include the active uv map, and resolutions.
+     */
+    if (U.experimental.use_sculpt_texture_paint && ss->pbvh) {
+      char *paint_canvas_key = BKE_paint_canvas_key_get(&scene->toolsettings->paint_mode, ob);
+      if (ss->last_paint_canvas_key == NULL ||
+          !STREQ(paint_canvas_key, ss->last_paint_canvas_key)) {
+        MEM_SAFE_FREE(ss->last_paint_canvas_key);
+        ss->last_paint_canvas_key = paint_canvas_key;
+        BKE_pbvh_mark_rebuild_pixels(ss->pbvh);
+      }
+      else {
+        MEM_freeN(paint_canvas_key);
+      }
     }
-    else {
-      MEM_freeN(paint_canvas_key);
-    }
-  }
 
-  /* We could be more precise when we have access to the active tool. */
-  const bool use_paint_slots = (ob->mode & OB_MODE_SCULPT) != 0;
-  if (use_paint_slots) {
-    BKE_texpaint_slots_refresh_object(scene, ob);
+    /* We could be more precise when we have access to the active tool. */
+    const bool use_paint_slots = (ob->mode & OB_MODE_SCULPT) != 0;
+    if (use_paint_slots) {
+      BKE_texpaint_slots_refresh_object(scene, ob);
+    }
   }
 }
 
@@ -1903,7 +1906,7 @@ void BKE_sculpt_color_layer_create_if_needed(struct Object *object)
 }
 
 void BKE_sculpt_update_object_for_edit(
-    Depsgraph *depsgraph, Object *ob_orig, bool need_pmap, bool need_mask, bool need_colors)
+    Depsgraph *depsgraph, Object *ob_orig, bool need_pmap, bool need_mask, bool is_paint_tool)
 {
   BLI_assert(ob_orig == DEG_get_original_object(ob_orig));
 
@@ -1911,7 +1914,7 @@ void BKE_sculpt_update_object_for_edit(
   Mesh *me_eval = BKE_object_get_evaluated_mesh(ob_eval);
   BLI_assert(me_eval != NULL);
 
-  sculpt_update_object(depsgraph, ob_orig, me_eval, need_pmap, need_mask, need_colors);
+  sculpt_update_object(depsgraph, ob_orig, me_eval, need_pmap, need_mask, is_paint_tool);
 }
 
 int BKE_sculpt_mask_layers_ensure(Object *ob, MultiresModifierData *mmd)

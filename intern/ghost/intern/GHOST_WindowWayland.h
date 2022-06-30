@@ -105,6 +105,18 @@ class GHOST_WindowWayland : public GHOST_Window {
 
   struct wl_surface *surface() const;
 
+  /**
+   * Use window find function when the window may have been closed.
+   * Typically this is needed when accessing surfaces outside WAYLAND handlers.
+   */
+  static const GHOST_WindowWayland *from_surface_find(const wl_surface *surface);
+  static GHOST_WindowWayland *from_surface_find_mut(const wl_surface *surface);
+  /**
+   * Use direct access when from WAYLAND handlers.
+   */
+  static const GHOST_WindowWayland *from_surface(const wl_surface *surface);
+  static GHOST_WindowWayland *from_surface_mut(wl_surface *surface);
+
   output_t *output_find_by_wl(struct wl_output *output);
 
   const std::vector<output_t *> &outputs();
@@ -113,9 +125,9 @@ class GHOST_WindowWayland : public GHOST_Window {
   bool outputs_leave(output_t *reg_output);
   bool outputs_changed_update_scale();
 
-  uint16_t dpi();
+  uint16_t dpi() const;
 
-  int scale();
+  int scale() const;
 
  private:
   GHOST_SystemWayland *m_system;

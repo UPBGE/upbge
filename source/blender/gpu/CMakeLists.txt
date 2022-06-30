@@ -27,6 +27,9 @@ set(INC
   # For theme color access.
   ../editors/include
 
+  # For *_info.hh includes.
+  ../draw/engines/eevee_next
+
   # For node muting stuff.
   ../nodes
 
@@ -454,6 +457,7 @@ list(APPEND INC ${CMAKE_CURRENT_BINARY_DIR})
 
 set(SRC_SHADER_CREATE_INFOS
   ../draw/engines/basic/shaders/infos/basic_depth_info.hh
+  ../draw/engines/eevee_next/shaders/infos/eevee_film_info.hh
   ../draw/engines/eevee_next/shaders/infos/eevee_material_info.hh
   ../draw/engines/eevee_next/shaders/infos/eevee_velocity_info.hh
   ../draw/engines/gpencil/shaders/infos/gpencil_info.hh
