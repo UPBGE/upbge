@@ -323,14 +323,13 @@ static void surface_handle_enter(void *data,
                                  struct wl_surface * /*wl_surface*/,
                                  struct wl_output *output)
 {
-  GHOST_WindowWayland *w = static_cast<GHOST_WindowWayland *>(data);
-  output_t *reg_output = w->output_find_by_wl(output);
-  if (reg_output == nullptr) {
+  if (!ghost_wl_output_own(output)) {
     return;
   }
-
-  if (w->outputs_enter(reg_output)) {
-    w->outputs_changed_update_scale();
+  output_t *reg_output = ghost_wl_output_user_data(output);
+  GHOST_WindowWayland *win = static_cast<GHOST_WindowWayland *>(data);
+  if (win->outputs_enter(reg_output)) {
+    win->outputs_changed_update_scale();
   }
 }
 
@@ -338,14 +337,13 @@ static void surface_handle_leave(void *data,
                                  struct wl_surface * /*wl_surface*/,
                                  struct wl_output *output)
 {
-  GHOST_WindowWayland *w = static_cast<GHOST_WindowWayland *>(data);
-  output_t *reg_output = w->output_find_by_wl(output);
-  if (reg_output == nullptr) {
+  if (!ghost_wl_output_own(output)) {
     return;
   }
-
-  if (w->outputs_leave(reg_output)) {
-    w->outputs_changed_update_scale();
+  output_t *reg_output = ghost_wl_output_user_data(output);
+  GHOST_WindowWayland *win = static_cast<GHOST_WindowWayland *>(data);
+  if (win->outputs_leave(reg_output)) {
+    win->outputs_changed_update_scale();
   }
 }
 
@@ -357,9 +355,9 @@ struct wl_surface_listener wl_surface_listener = {
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Ghost Implementation
+/** \name GHOST Implementation
  *
- * Wayland specific implementation of the GHOST_Window interface.
+ * WAYLAND specific implementation of the #GHOST_Window interface.
  * \{ */
 
 GHOST_TSuccess GHOST_WindowWayland::hasCursorShape(GHOST_TStandardCursor cursorShape)
@@ -408,7 +406,9 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
 
   /* Window surfaces. */
   w->wl_surface = wl_compositor_create_surface(m_system->compositor());
-  wl_surface_set_buffer_scale(this->surface(), w->scale);
+  ghost_wl_surface_tag(w->wl_surface);
+
+  wl_surface_set_buffer_scale(w->wl_surface, w->scale);
 
   wl_surface_add_listener(w->wl_surface, &wl_surface_listener, this);
 
@@ -492,160 +492,12 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
   setSwapInterval(0);
 }
 
-GHOST_TSuccess GHOST_WindowWayland::close()
-{
-  return m_system->pushEvent(
-      new GHOST_Event(m_system->getMilliSeconds(), GHOST_kEventWindowClose, this));
-}
-
-GHOST_TSuccess GHOST_WindowWayland::activate()
-{
-  if (m_system->getWindowManager()->setActiveWindow(this) == GHOST_kFailure) {
-    return GHOST_kFailure;
-  }
-  return m_system->pushEvent(
-      new GHOST_Event(m_system->getMilliSeconds(), GHOST_kEventWindowActivate, this));
-}
-
-GHOST_TSuccess GHOST_WindowWayland::deactivate()
-{
-  m_system->getWindowManager()->setWindowInactive(this);
-  return m_system->pushEvent(
-      new GHOST_Event(m_system->getMilliSeconds(), GHOST_kEventWindowDeactivate, this));
-}
-
-GHOST_TSuccess GHOST_WindowWayland::notify_size()
-{
-#ifdef GHOST_OPENGL_ALPHA
-  setOpaque();
-#endif
-
-  return m_system->pushEvent(
-      new GHOST_Event(m_system->getMilliSeconds(), GHOST_kEventWindowSize, this));
-}
-
-wl_surface *GHOST_WindowWayland::surface() const
-{
-  return w->wl_surface;
-}
-
-GHOST_WindowWayland *GHOST_WindowWayland::from_surface_find_mut(const wl_surface *surface)
-{
-  GHOST_ASSERT(surface, "argument must not be NULL");
-  for (GHOST_IWindow *iwin : window_manager->getWindows()) {
-    GHOST_WindowWayland *win = static_cast<GHOST_WindowWayland *>(iwin);
-    if (surface == win->surface()) {
-      return win;
-    }
-  }
-  return nullptr;
-}
-
-const GHOST_WindowWayland *GHOST_WindowWayland::from_surface_find(const wl_surface *surface)
-{
-  return GHOST_WindowWayland::from_surface_find_mut(surface);
-}
-
-GHOST_WindowWayland *GHOST_WindowWayland::from_surface_mut(wl_surface *surface)
-{
-  GHOST_WindowWayland *win = static_cast<GHOST_WindowWayland *>(wl_surface_get_user_data(surface));
-  GHOST_ASSERT(win == GHOST_WindowWayland::from_surface_find_mut(surface),
-               "Inconsistent window state, consider using \"from_surface_find_mut\"");
-  return win;
-}
-
-const GHOST_WindowWayland *GHOST_WindowWayland::from_surface(const wl_surface *surface)
-{
-  const GHOST_WindowWayland *win = static_cast<const GHOST_WindowWayland *>(
-      wl_surface_get_user_data(const_cast<wl_surface *>(surface)));
-  GHOST_ASSERT(win == GHOST_WindowWayland::from_surface_find(surface),
-               "Inconsistent window state, consider using \"from_surface_find\"");
-  return win;
-}
-
-const std::vector<output_t *> &GHOST_WindowWayland::outputs()
-{
-  return w->outputs;
-}
-
-output_t *GHOST_WindowWayland::output_find_by_wl(struct wl_output *output)
-{
-  for (output_t *reg_output : this->m_system->outputs()) {
-    if (reg_output->wl_output == output) {
-      return reg_output;
-    }
-  }
-  return nullptr;
-}
-
-bool GHOST_WindowWayland::outputs_changed_update_scale()
-{
-  uint32_t dpi_next;
-  const int scale_next = outputs_max_scale_or_default(this->outputs(), 0, &dpi_next);
-  if (scale_next == 0) {
-    return false;
-  }
-
-  window_t *win = this->w;
-  const uint32_t dpi_curr = win->dpi;
-  const int scale_curr = win->scale;
-  bool changed = false;
-
-  if (scale_next != scale_curr) {
-    /* Unlikely but possible there is a pending size change is set. */
-    win->size_pending[0] = (win->size_pending[0] / scale_curr) * scale_next;
-    win->size_pending[1] = (win->size_pending[1] / scale_curr) * scale_next;
-
-    win->scale = scale_next;
-    wl_surface_set_buffer_scale(this->surface(), scale_next);
-    changed = true;
-  }
-
-  if (dpi_next != dpi_curr) {
-    /* Using the real DPI will cause wrong scaling of the UI
-     * use a multiplier for the default DPI as workaround. */
-    win->dpi = dpi_next;
-    changed = true;
-  }
-
-  return changed;
-}
-
-bool GHOST_WindowWayland::outputs_enter(output_t *reg_output)
-{
-  std::vector<output_t *> &outputs = w->outputs;
-  auto it = std::find(outputs.begin(), outputs.end(), reg_output);
-  if (it != outputs.end()) {
-    return false;
-  }
-  outputs.push_back(reg_output);
-  return true;
-}
-
-bool GHOST_WindowWayland::outputs_leave(output_t *reg_output)
-{
-  std::vector<output_t *> &outputs = w->outputs;
-  auto it = std::find(outputs.begin(), outputs.end(), reg_output);
-  if (it == outputs.end()) {
-    return false;
-  }
-  outputs.erase(it);
-  return true;
-}
-
-uint16_t GHOST_WindowWayland::dpi() const
-{
-  return w->dpi;
-}
-
-int GHOST_WindowWayland::scale() const
-{
-  return w->scale;
-}
-
 GHOST_TSuccess GHOST_WindowWayland::setWindowCursorGrab(GHOST_TGrabCursorMode mode)
 {
-  return m_system->setCursorGrab(mode, m_cursorGrab, w->wl_surface);
+  if (m_system->window_cursor_grab_set(mode, m_cursorGrab, m_cursorGrabInitPos, w->wl_surface)) {
+    return GHOST_kSuccess;
+  }
+  return GHOST_kFailure;
 }
 
 GHOST_TSuccess GHOST_WindowWayland::setWindowCursorShape(GHOST_TStandardCursor shape)
@@ -759,20 +611,15 @@ GHOST_WindowWayland::~GHOST_WindowWayland()
   xdg_surface_destroy(w->xdg_surface);
 #endif
 
+  /* Clear any pointers to this window. This is needed because there are no guarantees
+   * that flushing the display will the "leave" handlers before handling events. */
+  m_system->window_surface_unref(w->wl_surface);
+
   wl_surface_destroy(w->wl_surface);
 
-  /* NOTE(@campbellbarton): This is needed so the appropriate handlers event
-   * (#wl_surface_listener.leave in particular) run to prevent access to the freed surfaces.
-   * Without flushing the display, calling #getCursorPosition immediately after closing a window
-   * causes dangling #wl_surface pointers to be accessed
-   * (since the window is used for scaling the cursor position).
-   *
-   * An alternative solution would be to clear all internal pointers that reference this window.
-   * Even though this is reasonable it introduces a 3rd state that needs to be accounted for,
-   * where values are cleared before they have been set to their new values.
-   * Any information requested in this state (such as the cursor position) won't be valid and
-   * could cause difficult to reproduce bugs. So perform a round-trip as closing a window isn't
-   * an action that runs continuously & isn't likely to cause unnecessary overhead. See: T99078. */
+  /* NOTE(@campbellbarton): Flushing will often run the appropriate handlers event
+   * (#wl_surface_listener.leave in particular) to avoid attempted access to the freed surfaces.
+   * This is not fool-proof though, hence the call to #window_surface_unref, see: T99078. */
   wl_display_flush(m_system->display());
 
   delete w;
@@ -940,6 +787,137 @@ GHOST_Context *GHOST_WindowWayland::newDrawingContext(GHOST_TDrawingContextType 
   }
 
   return (context->initializeDrawingContext() == GHOST_kSuccess) ? context : nullptr;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Public WAYLAND Direct Data Access
+ *
+ * Expose some members via methods.
+ * \{ */
+
+uint16_t GHOST_WindowWayland::dpi() const
+{
+  return w->dpi;
+}
+
+int GHOST_WindowWayland::scale() const
+{
+  return w->scale;
+}
+
+wl_surface *GHOST_WindowWayland::surface() const
+{
+  return w->wl_surface;
+}
+
+const std::vector<output_t *> &GHOST_WindowWayland::outputs()
+{
+  return w->outputs;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Public WAYLAND Window Level Functions
+ *
+ * High Level Windowing Utilities.
+ * \{ */
+
+GHOST_TSuccess GHOST_WindowWayland::close()
+{
+  return m_system->pushEvent(
+      new GHOST_Event(m_system->getMilliSeconds(), GHOST_kEventWindowClose, this));
+}
+
+GHOST_TSuccess GHOST_WindowWayland::activate()
+{
+  if (m_system->getWindowManager()->setActiveWindow(this) == GHOST_kFailure) {
+    return GHOST_kFailure;
+  }
+  return m_system->pushEvent(
+      new GHOST_Event(m_system->getMilliSeconds(), GHOST_kEventWindowActivate, this));
+}
+
+GHOST_TSuccess GHOST_WindowWayland::deactivate()
+{
+  m_system->getWindowManager()->setWindowInactive(this);
+  return m_system->pushEvent(
+      new GHOST_Event(m_system->getMilliSeconds(), GHOST_kEventWindowDeactivate, this));
+}
+
+GHOST_TSuccess GHOST_WindowWayland::notify_size()
+{
+#ifdef GHOST_OPENGL_ALPHA
+  setOpaque();
+#endif
+
+  return m_system->pushEvent(
+      new GHOST_Event(m_system->getMilliSeconds(), GHOST_kEventWindowSize, this));
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Public WAYLAND Utility Functions
+ *
+ * Functionality only used for the WAYLAND implementation.
+ * \{ */
+
+bool GHOST_WindowWayland::outputs_changed_update_scale()
+{
+  uint32_t dpi_next;
+  const int scale_next = outputs_max_scale_or_default(this->outputs(), 0, &dpi_next);
+  if (scale_next == 0) {
+    return false;
+  }
+
+  window_t *win = this->w;
+  const uint32_t dpi_curr = win->dpi;
+  const int scale_curr = win->scale;
+  bool changed = false;
+
+  if (scale_next != scale_curr) {
+    /* Unlikely but possible there is a pending size change is set. */
+    win->size_pending[0] = (win->size_pending[0] / scale_curr) * scale_next;
+    win->size_pending[1] = (win->size_pending[1] / scale_curr) * scale_next;
+
+    win->scale = scale_next;
+    wl_surface_set_buffer_scale(w->wl_surface, scale_next);
+    changed = true;
+  }
+
+  if (dpi_next != dpi_curr) {
+    /* Using the real DPI will cause wrong scaling of the UI
+     * use a multiplier for the default DPI as workaround. */
+    win->dpi = dpi_next;
+    changed = true;
+  }
+
+  return changed;
+}
+
+bool GHOST_WindowWayland::outputs_enter(output_t *reg_output)
+{
+  std::vector<output_t *> &outputs = w->outputs;
+  auto it = std::find(outputs.begin(), outputs.end(), reg_output);
+  if (it != outputs.end()) {
+    return false;
+  }
+  outputs.push_back(reg_output);
+  return true;
+}
+
+bool GHOST_WindowWayland::outputs_leave(output_t *reg_output)
+{
+  std::vector<output_t *> &outputs = w->outputs;
+  auto it = std::find(outputs.begin(), outputs.end(), reg_output);
+  if (it == outputs.end()) {
+    return false;
+  }
+  outputs.erase(it);
+  return true;
 }
 
 /** \} */

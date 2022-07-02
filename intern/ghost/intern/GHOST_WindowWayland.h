@@ -36,9 +36,9 @@ class GHOST_WindowWayland : public GHOST_Window {
 
   ~GHOST_WindowWayland() override;
 
-  uint16_t getDPIHint() override;
-
   /* Ghost API */
+
+  uint16_t getDPIHint() override;
 
   GHOST_TSuccess setWindowCursorGrab(GHOST_TGrabCursorMode mode) override;
 
@@ -93,41 +93,26 @@ class GHOST_WindowWayland : public GHOST_Window {
   void setOpaque() const;
 #endif
 
-  /* WAYLAND utility functions. */
+  /* WAYLAND direct-data access. */
+
+  uint16_t dpi() const;
+  int scale() const;
+  struct wl_surface *surface() const;
+  const std::vector<output_t *> &outputs();
+
+  /* WAYLAND window-level functions. */
 
   GHOST_TSuccess close();
-
   GHOST_TSuccess activate();
-
   GHOST_TSuccess deactivate();
-
   GHOST_TSuccess notify_size();
 
-  struct wl_surface *surface() const;
-
-  /**
-   * Use window find function when the window may have been closed.
-   * Typically this is needed when accessing surfaces outside WAYLAND handlers.
-   */
-  static const GHOST_WindowWayland *from_surface_find(const wl_surface *surface);
-  static GHOST_WindowWayland *from_surface_find_mut(const wl_surface *surface);
-  /**
-   * Use direct access when from WAYLAND handlers.
-   */
-  static const GHOST_WindowWayland *from_surface(const wl_surface *surface);
-  static GHOST_WindowWayland *from_surface_mut(wl_surface *surface);
-
-  output_t *output_find_by_wl(struct wl_output *output);
-
-  const std::vector<output_t *> &outputs();
+  /* WAYLAND utility functions. */
 
   bool outputs_enter(output_t *reg_output);
   bool outputs_leave(output_t *reg_output);
+
   bool outputs_changed_update_scale();
-
-  uint16_t dpi() const;
-
-  int scale() const;
 
  private:
   GHOST_SystemWayland *m_system;

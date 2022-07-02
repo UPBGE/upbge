@@ -120,7 +120,7 @@ void Film::sync_mist()
   const ::World *world = inst_.scene->world;
   float mist_start = world ? world->miststa : cam.clip_near;
   float mist_distance = world ? world->mistdist : fabsf(cam.clip_far - cam.clip_near);
-  int mist_type = world ? world->mistype : WO_MIST_LINEAR;
+  int mist_type = world ? world->mistype : (int)WO_MIST_LINEAR;
 
   switch (mist_type) {
     case WO_MIST_QUADRATIC:
@@ -300,7 +300,7 @@ void Film::init(const int2 &extent, const rcti *output_rect)
     data_.value_len += data_.aov_value_len;
   }
   {
-    /* TODO(fclem): Overscans. */
+    /* TODO(@fclem): Over-scans. */
 
     render_extent_ = math::divide_ceil(extent, int2(data_.scaling_factor));
     int2 weight_extent = inst_.camera.is_panoramic() ? data_.extent : int2(data_.scaling_factor);
