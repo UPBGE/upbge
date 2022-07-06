@@ -483,6 +483,8 @@ namespace bezier {
  * Return true if the handles that make up a segment both have a vector type. Vector segments for
  * Bezier curves have special behavior because they aren't divided into many evaluated points.
  */
+bool segment_is_vector(const HandleType left, const HandleType right);
+bool segment_is_vector(const int8_t left, const int8_t right);
 bool segment_is_vector(Span<int8_t> handle_types_left,
                        Span<int8_t> handle_types_right,
                        int segment_index);
@@ -514,6 +516,35 @@ void calculate_evaluated_offsets(Span<int8_t> handle_types_left,
                                  bool cyclic,
                                  int resolution,
                                  MutableSpan<int> evaluated_offsets);
+
+/** See #insert. */
+struct Insertion {
+  float3 handle_prev;
+  float3 left_handle;
+  float3 position;
+  float3 right_handle;
+  float3 handle_next;
+};
+
+/**
+ * Compute the Bezier segment insertion for the given parameter on the segment, returning
+ * the position and handles of the new point and the updated existing handle positions.
+ * <pre>
+ *           handle_prev         handle_next
+ *                x-----------------x
+ *               /                   \
+ *              /      x---O---x      \
+ *             /        result         \
+ *            /                         \
+ *           O                           O
+ *       point_prev                   point_next
+ * </pre>
+ */
+Insertion insert(const float3 &point_prev,
+                 const float3 &handle_prev,
+                 const float3 &handle_next,
+                 const float3 &point_next,
+                 float parameter);
 
 /**
  * Calculate the automatically defined positions for a vector handle (#BEZIER_HANDLE_VECTOR). While
@@ -606,6 +637,15 @@ int calculate_evaluated_num(int points_num, bool cyclic, int resolution);
  * #calculate_evaluated_num and is expected to divide evenly by the #src span's segment size.
  */
 void interpolate_to_evaluated(GSpan src, bool cyclic, int resolution, GMutableSpan dst);
+
+/**
+ * Evaluate the Catmull Rom curve. The size of each segment and its offset in the #dst span
+ * is encoded in #evaluated_offsets, with the same method as #CurvesGeometry::offsets().
+ */
+void interpolate_to_evaluated(const GSpan src,
+                              const bool cyclic,
+                              const Span<int> evaluated_offsets,
+                              GMutableSpan dst);
 
 }  // namespace catmull_rom
 
@@ -827,6 +867,16 @@ inline bool point_is_sharp(const Span<int8_t> handle_types_left,
          ELEM(handle_types_right[index], BEZIER_HANDLE_VECTOR, BEZIER_HANDLE_FREE);
 }
 
+inline bool segment_is_vector(const HandleType left, const HandleType right)
+{
+  return left == BEZIER_HANDLE_VECTOR && right == BEZIER_HANDLE_VECTOR;
+}
+
+inline bool segment_is_vector(const int8_t left, const int8_t right)
+{
+  return segment_is_vector(HandleType(left), HandleType(right));
+}
+
 inline float3 calculate_vector_handle(const float3 &point, const float3 &next_point)
 {
   return math::interpolate(point, next_point, 1.0f / 3.0f);
@@ -835,5 +885,18 @@ inline float3 calculate_vector_handle(const float3 &point, const float3 &next_po
 /** \} */
 
 }  // namespace curves::bezier
+
+struct CurvesSurfaceTransforms {
+  float4x4 curves_to_world;
+  float4x4 curves_to_surface;
+  float4x4 world_to_curves;
+  float4x4 world_to_surface;
+  float4x4 surface_to_world;
+  float4x4 surface_to_curves;
+  float4x4 surface_to_curves_normal;
+
+  CurvesSurfaceTransforms() = default;
+  CurvesSurfaceTransforms(const Object &curves_ob, const Object *surface_ob);
+};
 
 }  // namespace blender::bke
