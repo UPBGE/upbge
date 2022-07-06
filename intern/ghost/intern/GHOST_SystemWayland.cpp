@@ -16,7 +16,15 @@
 
 #include "GHOST_ContextEGL.h"
 
+#ifdef WITH_GHOST_WAYLAND_DYNLOAD
+#  include <wayland_dynload_API.h> /* For `ghost_wl_dynload_libraries`. */
+#endif
+
 #include <EGL/egl.h>
+
+#ifdef WITH_GHOST_WAYLAND_DYNLOAD
+#  include <wayland_dynload_egl.h>
+#endif
 #include <wayland-egl.h>
 
 #include <algorithm>
@@ -26,6 +34,9 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#ifdef WITH_GHOST_WAYLAND_DYNLOAD
+#  include <wayland_dynload_cursor.h>
+#endif
 #include <wayland-cursor.h>
 
 #include "GHOST_WaylandCursorSettings.h"
@@ -1205,7 +1216,7 @@ static void cursor_buffer_handle_release(void *data, struct wl_buffer *wl_buffer
   }
 }
 
-const struct wl_buffer_listener cursor_buffer_listener = {
+static const struct wl_buffer_listener cursor_buffer_listener = {
     cursor_buffer_handle_release,
 };
 
@@ -1264,7 +1275,7 @@ static void cursor_surface_handle_leave(void *data,
   update_cursor_scale(input->cursor, input->system->shm());
 }
 
-struct wl_surface_listener cursor_surface_listener = {
+static const struct wl_surface_listener cursor_surface_listener = {
     cursor_surface_handle_enter,
     cursor_surface_handle_leave,
 };
@@ -1750,7 +1761,7 @@ static void tablet_seat_handle_pad_added(void * /*data*/,
   /* Pass. */
 }
 
-const struct zwp_tablet_seat_v2_listener tablet_seat_listener = {
+static const struct zwp_tablet_seat_v2_listener tablet_seat_listener = {
     tablet_seat_handle_tablet_added,
     tablet_seat_handle_tool_added,
     tablet_seat_handle_pad_added,
@@ -3613,5 +3624,36 @@ bool GHOST_SystemWayland::window_cursor_grab_set(const GHOST_TGrabCursorMode mod
 
   return GHOST_kSuccess;
 }
+
+#ifdef WITH_GHOST_WAYLAND_DYNLOAD
+bool ghost_wl_dynload_libraries()
+{
+  /* Only report when `libwayland-client` is not found when building without X11,
+   * which will be used as a fallback. */
+#  ifdef WITH_GHOST_X11
+  bool verbose = false;
+#  else
+  bool verbose = true;
+#  endif
+
+  if (wayland_dynload_client_init(verbose) && /* `libwayland-client`. */
+      wayland_dynload_cursor_init(verbose) && /* `libwayland-cursor`. */
+      wayland_dynload_egl_init(verbose) &&    /* `libwayland-egl`. */
+#  ifdef WITH_GHOST_WAYLAND_LIBDECOR
+      wayland_dynload_libdecor_init(verbose) && /* `libdecor-0`. */
+#  endif
+      true) {
+    return true;
+  }
+#  ifdef WITH_GHOST_WAYLAND_LIBDECOR
+  wayland_dynload_libdecor_exit();
+#  endif
+  wayland_dynload_client_exit();
+  wayland_dynload_cursor_exit();
+  wayland_dynload_egl_exit();
+
+  return false;
+}
+#endif /* WITH_GHOST_WAYLAND_DYNLOAD */
 
 /** \} */
