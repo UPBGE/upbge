@@ -360,11 +360,9 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   Object *ob_eval = DEG_get_evaluated_object(depsgraph, blenderobj);
   Mesh *final_me = (Mesh *)ob_eval->data;
 
-  /* Fix crash at conversion when using boolean modifier with exact solver
-  /* See https://github.com/UPBGE/upbge/issues/1713 */
-  if (BKE_modifiers_findby_type(blenderobj, eModifierType_Boolean)) {
-    BKE_mesh_validate_material_indices(final_me);
-  }
+  /* Fix crash at conversion when using boolean modifier (or after we applied boolean modifier)
+   * with exact solver. See https://github.com/UPBGE/upbge/issues/1713 */
+  BKE_mesh_validate_material_indices(final_me);
 
   DerivedMesh *dm = CDDM_from_mesh(final_me);
   DM_ensure_tessface(dm);
