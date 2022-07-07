@@ -77,9 +77,6 @@ void BKE_object_free_caches(struct Object *object);
 void BKE_object_modifier_hook_reset(struct Object *ob, struct HookModifierData *hmd);
 void BKE_object_modifier_gpencil_hook_reset(struct Object *ob,
                                             struct HookGpencilModifierData *hmd);
-bool BKE_object_modifier_gpencil_use_time(struct Object *ob, struct GpencilModifierData *md);
-
-bool BKE_object_shaderfx_use_time(struct Object *ob, struct ShaderFxData *fx);
 
 /**
  * \return True if the object's type supports regular modifiers (not grease pencil modifiers).
@@ -385,6 +382,9 @@ void BKE_object_empty_draw_type_set(struct Object *ob, int value);
 
 void BKE_object_boundbox_calc_from_mesh(struct Object *ob, const struct Mesh *me_eval);
 bool BKE_object_boundbox_calc_from_evaluated_geometry(struct Object *ob);
+/**
+ * Calculate visual bounds from an empty objects draw-type.
+ */
 void BKE_object_minmax(struct Object *ob, float r_min[3], float r_max[3], bool use_hidden);
 bool BKE_object_minmax_dupli(struct Depsgraph *depsgraph,
                              struct Scene *scene,
@@ -392,6 +392,7 @@ bool BKE_object_minmax_dupli(struct Depsgraph *depsgraph,
                              float r_min[3],
                              float r_max[3],
                              bool use_hidden);
+bool BKE_object_minmax_empty_drawtype(const struct Object *ob, float r_min[3], float r_max[3]);
 
 /**
  * Sometimes min-max isn't enough, we need to loop over each point.
@@ -644,8 +645,6 @@ void BKE_object_groups_clear(struct Main *bmain, struct Scene *scene, struct Obj
  * \return The KD-tree or nullptr if it can't be created.
  */
 struct KDTree_3d *BKE_object_as_kdtree(struct Object *ob, int *r_tot);
-
-bool BKE_object_modifier_use_time(struct Scene *scene, struct Object *ob, struct ModifierData *md);
 
 /**
  * \note this function should eventually be replaced by depsgraph functionality.

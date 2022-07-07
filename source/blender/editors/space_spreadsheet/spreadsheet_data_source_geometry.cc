@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_index_mask_ops.hh"
 #include "BLI_virtual_array.hh"
 
 #include "BKE_context.h"
@@ -235,20 +236,10 @@ bool GeometryDataSource::has_selection_filter() const
   return true;
 }
 
-static IndexMask index_mask_from_bool_array(const VArray<bool> &selection,
-                                            Vector<int64_t> &indices)
-{
-  for (const int i : selection.index_range()) {
-    if (selection[i]) {
-      indices.append(i);
-    }
-  }
-  return IndexMask(indices);
-}
-
 IndexMask GeometryDataSource::apply_selection_filter(Vector<int64_t> &indices) const
 {
   std::lock_guard lock{mutex_};
+  const IndexMask full_range(this->tot_rows());
 
   BLI_assert(object_eval_->mode == OB_MODE_EDIT);
   BLI_assert(component_->type() == GEO_COMPONENT_TYPE_MESH);
@@ -277,7 +268,7 @@ IndexMask GeometryDataSource::apply_selection_filter(Vector<int64_t> &indices) c
                               }),
         ATTR_DOMAIN_POINT,
         domain_);
-    return index_mask_from_bool_array(selection, indices);
+    return index_mask_ops::find_indices_from_virtual_array(full_range, selection, 1024, indices);
   }
 
   if (mesh_eval->totvert == bm->totvert) {
@@ -290,10 +281,10 @@ IndexMask GeometryDataSource::apply_selection_filter(Vector<int64_t> &indices) c
                               }),
         ATTR_DOMAIN_POINT,
         domain_);
-    return index_mask_from_bool_array(selection, indices);
+    return index_mask_ops::find_indices_from_virtual_array(full_range, selection, 2048, indices);
   }
 
-  return IndexMask(mesh_eval->totvert);
+  return full_range;
 }
 
 void VolumeDataSource::foreach_default_column_ids(
@@ -398,6 +389,11 @@ GeometrySet spreadsheet_get_display_geometry_set(const SpaceSpreadsheet *sspread
           geometry_set.get_component_for_write<PointCloudComponent>();
       pointcloud_component.replace(pointcloud, GeometryOwnershipType::ReadOnly);
     }
+    else if (object_orig->type == OB_CURVES) {
+      const Curves &curves_id = *(const Curves *)object_orig->data;
+      CurveComponent &curve_component = geometry_set.get_component_for_write<CurveComponent>();
+      curve_component.replace(&const_cast<Curves &>(curves_id), GeometryOwnershipType::ReadOnly);
+    }
   }
   else {
     if (object_eval->mode == OB_MODE_EDIT && object_eval->type == OB_MESH) {
@@ -472,18 +468,6 @@ static void find_fields_to_evaluate(const SpaceSpreadsheet *sspreadsheet,
   }
 }
 
-static GeometryComponentType get_display_component_type(const bContext *C, Object *object_eval)
-{
-  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
-  if (sspreadsheet->object_eval_state != SPREADSHEET_OBJECT_EVAL_STATE_ORIGINAL) {
-    return (GeometryComponentType)sspreadsheet->geometry_component_type;
-  }
-  if (object_eval->type == OB_POINTCLOUD) {
-    return GEO_COMPONENT_TYPE_POINT_CLOUD;
-  }
-  return GEO_COMPONENT_TYPE_MESH;
-}
-
 class GeometryComponentCacheKey : public SpreadsheetCache::Key {
  public:
   /* Use the pointer to the geometry component as a key to detect when the geometry changed. */
@@ -529,7 +513,7 @@ static void add_fields_as_extra_columns(SpaceSpreadsheet *sspreadsheet,
   const eAttrDomain domain = (eAttrDomain)sspreadsheet->attribute_domain;
   const int domain_num = component.attribute_domain_num(domain);
   for (const auto item : fields_to_show.items()) {
-    StringRef name = item.key;
+    const StringRef name = item.key;
     const GField &field = item.value;
 
     /* Use the cached evaluated array if it exists, otherwise evaluate the field now. */
@@ -543,7 +527,7 @@ static void add_fields_as_extra_columns(SpaceSpreadsheet *sspreadsheet,
       return evaluated_array;
     });
 
-    r_extra_columns.add(std::move(name), evaluated_array.as_span());
+    r_extra_columns.add(name, evaluated_array.as_span());
   }
 }
 
@@ -551,9 +535,9 @@ std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object 
 {
   SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
   const eAttrDomain domain = (eAttrDomain)sspreadsheet->attribute_domain;
-  const GeometryComponentType component_type = get_display_component_type(C, object_eval);
+  const GeometryComponentType component_type = GeometryComponentType(
+      sspreadsheet->geometry_component_type);
   GeometrySet geometry_set = spreadsheet_get_display_geometry_set(sspreadsheet, object_eval);
-
   if (!geometry_set.has(component_type)) {
     return {};
   }
@@ -563,10 +547,10 @@ std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object 
   add_fields_as_extra_columns(sspreadsheet, component, extra_columns);
 
   if (component_type == GEO_COMPONENT_TYPE_VOLUME) {
-    return std::make_unique<VolumeDataSource>(geometry_set);
+    return std::make_unique<VolumeDataSource>(std::move(geometry_set));
   }
   return std::make_unique<GeometryDataSource>(
-      object_eval, geometry_set, component_type, domain, std::move(extra_columns));
+      object_eval, std::move(geometry_set), component_type, domain, std::move(extra_columns));
 }
 
 }  // namespace blender::ed::spreadsheet

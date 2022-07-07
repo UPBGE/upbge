@@ -19,6 +19,7 @@
 #include "BKE_animsys.h"
 #include "BKE_fcurve_driver.h"
 #include "BKE_global.h"
+#include "BKE_idtype.h"
 
 #include "RNA_access.h"
 #include "RNA_prototypes.h"
@@ -233,15 +234,8 @@ static void bpy_pydriver_namespace_update_depsgraph(struct Depsgraph *depsgraph)
   }
 }
 
-void BPY_driver_reset(void)
+void BPY_driver_exit(void)
 {
-  PyGILState_STATE gilstate;
-  const bool use_gil = true; /* !PyC_IsInterpreterActive(); */
-
-  if (use_gil) {
-    gilstate = PyGILState_Ensure();
-  }
-
   if (bpy_pydriver_Dict) { /* Free the global dict used by python-drivers. */
     PyDict_Clear(bpy_pydriver_Dict);
     Py_DECREF(bpy_pydriver_Dict);
@@ -261,19 +255,46 @@ void BPY_driver_reset(void)
   /* Freed when clearing driver dictionary. */
   g_pydriver_state_prev.self = NULL;
   g_pydriver_state_prev.depsgraph = NULL;
+}
+
+void BPY_driver_reset(void)
+{
+  PyGILState_STATE gilstate;
+  const bool use_gil = true; /* !PyC_IsInterpreterActive(); */
+
+  if (use_gil) {
+    gilstate = PyGILState_Ensure();
+  }
+
+  /* Currently exit/reset are practically the same besides the GIL check. */
+  BPY_driver_exit();
 
   if (use_gil) {
     PyGILState_Release(gilstate);
   }
 }
 
-/** Error return function for #BPY_eval_pydriver. */
-static void pydriver_error(ChannelDriver *driver)
+/**
+ * Error return function for #BPY_eval_pydriver.
+ *
+ * \param anim_rna: Used to show the target when printing the error to give additional context.
+ */
+static void pydriver_error(ChannelDriver *driver, const struct PathResolvedRNA *anim_rna)
 {
   driver->flag |= DRIVER_FLAG_INVALID; /* Python expression failed. */
+
+  const char *null_str = "<null>";
+  const ID *id = anim_rna->ptr.owner_id;
   fprintf(stderr,
-          "\nError in Driver: The following Python expression failed:\n\t'%s'\n\n",
-          driver->expression);
+          "\n"
+          "Error in PyDriver: expression failed: %s\n"
+          "For target: (type=%s, name=\"%s\", property=%s, property_index=%d)\n"
+          "\n",
+          driver->expression,
+          id ? BKE_idtype_idcode_to_name(GS(id->name)) : null_str,
+          id ? id->name + 2 : null_str,
+          anim_rna->prop ? RNA_property_identifier(anim_rna->prop) : null_str,
+          anim_rna->prop_index);
 
   // BPy_errors_to_report(NULL); /* TODO: reports. */
   PyErr_Print();
@@ -282,9 +303,9 @@ static void pydriver_error(ChannelDriver *driver)
 
 #ifdef USE_BYTECODE_WHITELIST
 
-#  define OK_OP(op) [op] = 1
+#  define OK_OP(op) [op] = true
 
-static const char secure_opcodes[255] = {
+static const bool secure_opcodes[255] = {
 #  if PY_VERSION_HEX >= 0x030b0000 /* Python 3.11 & newer. */
 
     OK_OP(CACHE),
@@ -408,7 +429,9 @@ static const char secure_opcodes[255] = {
 
 #  undef OK_OP
 
-static bool bpy_driver_secure_bytecode_validate(PyObject *expr_code, PyObject *dict_arr[])
+static bool bpy_driver_secure_bytecode_validate(PyObject *expr_code,
+                                                PyObject *dict_arr[],
+                                                const char *error_prefix)
 {
   PyCodeObject *py_code = (PyCodeObject *)expr_code;
 
@@ -427,8 +450,9 @@ static bool bpy_driver_secure_bytecode_validate(PyObject *expr_code, PyObject *d
 
       if (contains_name == false) {
         fprintf(stderr,
-                "\tBPY_driver_eval() - restricted access disallows name '%s', "
+                "\t%s: restricted access disallows name '%s', "
                 "enable auto-execution to support\n",
+                error_prefix,
                 PyUnicode_AsUTF8(name));
         return false;
       }
@@ -443,26 +467,40 @@ static bool bpy_driver_secure_bytecode_validate(PyObject *expr_code, PyObject *d
     PyObject *co_code;
 
 #  if PY_VERSION_HEX >= 0x030b0000 /* Python 3.11 & newer. */
-    co_code = py_code->_co_code;
+    co_code = PyCode_GetCode(py_code);
+    if (UNLIKELY(!co_code)) {
+      PyErr_Print();
+      PyErr_Clear();
+      return false;
+    }
 #  else
     co_code = py_code->co_code;
 #  endif
 
     PyBytes_AsStringAndSize(co_code, (char **)&codestr, &code_len);
     code_len /= sizeof(*codestr);
+    bool ok = true;
 
+    /* Loop over op-code's, the op-code arguments are ignored. */
     for (Py_ssize_t i = 0; i < code_len; i++) {
       const int opcode = _Py_OPCODE(codestr[i]);
-      if (secure_opcodes[opcode] == 0) {
+      if (secure_opcodes[opcode] == false) {
         fprintf(stderr,
-                "\tBPY_driver_eval() - restricted access disallows opcode '%d', "
+                "\t%s: restricted access disallows opcode '%d', "
                 "enable auto-execution to support\n",
+                error_prefix,
                 opcode);
-        return false;
+        ok = false;
+        break;
       }
     }
 
-#  undef CODESIZE
+#  if PY_VERSION_HEX >= 0x030b0000 /* Python 3.11 & newer. */
+    Py_DECREF(co_code);
+#  endif
+    if (!ok) {
+      return false;
+    }
   }
 
   return true;
@@ -500,7 +538,7 @@ float BPY_driver_exec(struct PathResolvedRNA *anim_rna,
   DriverVar *dvar;
   double result = 0.0; /* Default return. */
   const char *expr;
-  short targets_ok = 1;
+  bool targets_ok = true;
   int i;
 
   /* Get the python expression to be evaluated. */
@@ -535,7 +573,7 @@ float BPY_driver_exec(struct PathResolvedRNA *anim_rna,
   /* Initialize global dictionary for Python driver evaluation settings. */
   if (!bpy_pydriver_Dict) {
     if (bpy_pydriver_create_dict() != 0) {
-      fprintf(stderr, "PyDriver error: couldn't create Python dictionary\n");
+      fprintf(stderr, "%s: couldn't create Python dictionary\n", __func__);
       if (use_gil) {
         PyGILState_Release(gilstate);
       }
@@ -644,12 +682,11 @@ float BPY_driver_exec(struct PathResolvedRNA *anim_rna,
       /* This target failed - bad name. */
       if (targets_ok) {
         /* First one, print some extra info for easier identification. */
-        fprintf(stderr, "\nBPY_driver_eval() - Error while evaluating PyDriver:\n");
-        targets_ok = 0;
+        fprintf(stderr, "\n%s: Error while evaluating PyDriver:\n", __func__);
+        targets_ok = false;
       }
 
-      fprintf(
-          stderr, "\tBPY_driver_eval() - couldn't add variable '%s' to namespace\n", dvar->name);
+      fprintf(stderr, "\t%s: couldn't add variable '%s' to namespace\n", __func__, dvar->name);
       // BPy_errors_to_report(NULL); /* TODO: reports. */
       PyErr_Print();
       PyErr_Clear();
@@ -666,7 +703,8 @@ float BPY_driver_exec(struct PathResolvedRNA *anim_rna,
                                                    bpy_pydriver_Dict__whitelist,
                                                    driver_vars,
                                                    NULL,
-                                               })) {
+                                               },
+                                               __func__)) {
         if (!(G.f & G_FLAG_SCRIPT_AUTOEXEC_FAIL_QUIET)) {
           G.f |= G_FLAG_SCRIPT_AUTOEXEC_FAIL;
           BLI_snprintf(G.autoexec_fail, sizeof(G.autoexec_fail), "Driver '%s'", expr);
@@ -695,11 +733,11 @@ float BPY_driver_exec(struct PathResolvedRNA *anim_rna,
 
   /* Process the result. */
   if (retval == NULL) {
-    pydriver_error(driver);
+    pydriver_error(driver, anim_rna);
   }
   else {
-    if ((result = PyFloat_AsDouble(retval)) == -1.0 && PyErr_Occurred()) {
-      pydriver_error(driver);
+    if (UNLIKELY((result = PyFloat_AsDouble(retval)) == -1.0 && PyErr_Occurred())) {
+      pydriver_error(driver, anim_rna);
       result = 0.0;
     }
     else {
@@ -713,11 +751,10 @@ float BPY_driver_exec(struct PathResolvedRNA *anim_rna,
     PyGILState_Release(gilstate);
   }
 
-  if (isfinite(result)) {
-    return (float)result;
+  if (UNLIKELY(!isfinite(result))) {
+    fprintf(stderr, "\t%s: driver '%s' evaluates to '%f'\n", __func__, driver->expression, result);
+    return 0.0f;
   }
 
-  fprintf(
-      stderr, "\tBPY_driver_eval() - driver '%s' evaluates to '%f'\n", driver->expression, result);
-  return 0.0f;
+  return (float)result;
 }
