@@ -2223,3 +2223,4 @@ void BKE_mesh_eval_geometry(Depsgraph *depsgraph, Mesh *mesh)
     }
   }
 }
+

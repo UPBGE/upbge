@@ -45,6 +45,7 @@
 #include "BKE_material.h"
 #include "BKE_mesh.h"
 #include "BKE_mesh_iterators.h"
+#include "BKE_mesh_legacy_convert.h" //UPBGE
 #include "BKE_mesh_mapping.h"
 #include "BKE_mesh_runtime.h"
 #include "BKE_mesh_tangent.h"

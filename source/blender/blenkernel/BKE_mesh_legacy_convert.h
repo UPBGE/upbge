@@ -68,6 +68,38 @@ BLI_INLINE int BKE_mesh_origindex_mface_mpoly(const int *index_mf_to_mpoly,
   return (j != -1) ? (index_mp_to_orig ? index_mp_to_orig[j] : j) : -1;
 }
 
+/* UPBGE */
+
+/* *** mesh_tessellate.c *** */
+
+#ifndef NDEBUG
+/**
+ * Debug check, used to assert when we expect layers to be in/out of sync.
+ *
+ * \param fallback: Use when there are no layers to handle,
+ * since callers may expect success or failure.
+ */
+bool CustomData_from_bmeshpoly_test(CustomData *fdata, CustomData *ldata, bool fallback);
+#endif
+
+void CustomData_from_bmeshpoly(struct CustomData *fdata, struct CustomData *ldata, int total);
+
+void mesh_loops_to_tessdata(struct CustomData *fdata,
+                            struct CustomData *ldata,
+                            struct MFace *mface,
+                            const int *polyindices,
+                            uint (*loopindices)[4],
+                            const int num_faces);
+
+int mesh_tessface_calc(struct CustomData *fdata,
+                       struct CustomData *ldata,
+                       struct CustomData *pdata,
+                       struct MVert *mvert,
+                       int totface,
+                       int totloop,
+                       int totpoly);
+/* End of UPBGE */
+
 #ifdef __cplusplus
 }
 #endif
