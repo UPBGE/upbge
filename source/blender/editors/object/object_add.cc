@@ -25,6 +25,7 @@
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_object_fluidsim_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
@@ -73,6 +74,7 @@
 #include "BKE_mesh.h"
 #include "BKE_mesh_runtime.h"
 #include "BKE_nla.h"
+#include "BKE_node.h"
 #include "BKE_object.h"
 #include "BKE_particle.h"
 #include "BKE_pointcloud.h"
@@ -115,6 +117,10 @@
 #include "UI_resources.h"
 
 #include "object_intern.h"
+
+using blender::float3;
+using blender::float4x4;
+using blender::Vector;
 
 /* -------------------------------------------------------------------- */
 /** \name Local Enum Declarations
@@ -2033,14 +2039,6 @@ void OBJECT_OT_speaker_add(wmOperatorType *ot)
 /** \name Add Curves Operator
  * \{ */
 
-static bool object_curves_add_poll(bContext *C)
-{
-  if (!U.experimental.use_new_curves_type) {
-    return false;
-  }
-  return ED_operator_objectmode(C);
-}
-
 static int object_curves_random_add_exec(bContext *C, wmOperator *op)
 {
   using namespace blender;
@@ -2053,7 +2051,6 @@ static int object_curves_random_add_exec(bContext *C, wmOperator *op)
   }
 
   Object *object = ED_object_add_type(C, OB_CURVES, nullptr, loc, rot, false, local_view_bits);
-  object->dtx |= OB_DRAWBOUNDOX; /* TODO: remove once there is actual drawing. */
 
   Curves *curves_id = static_cast<Curves *>(object->data);
   bke::CurvesGeometry::wrap(curves_id->geometry) = ed::curves::primitive_random_sphere(500, 8);
@@ -2070,7 +2067,7 @@ void OBJECT_OT_curves_random_add(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = object_curves_random_add_exec;
-  ot->poll = object_curves_add_poll;
+  ot->poll = ED_operator_objectmode;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -2080,38 +2077,47 @@ void OBJECT_OT_curves_random_add(wmOperatorType *ot)
 
 static int object_curves_empty_hair_add_exec(bContext *C, wmOperator *op)
 {
+  Scene *scene = CTX_data_scene(C);
+
   ushort local_view_bits;
-  float loc[3], rot[3];
+  blender::float3 loc, rot;
   if (!ED_object_add_generic_get_opts(
           C, op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr)) {
     return OPERATOR_CANCELLED;
   }
 
   Object *surface_ob = CTX_data_active_object(C);
+  BLI_assert(surface_ob != nullptr);
 
-  Object *object = ED_object_add_type(C, OB_CURVES, nullptr, loc, rot, false, local_view_bits);
-  object->dtx |= OB_DRAWBOUNDOX; /* TODO: remove once there is actual drawing. */
+  Object *curves_ob = ED_object_add_type(C, OB_CURVES, nullptr, loc, rot, false, local_view_bits);
 
-  if (surface_ob != nullptr && surface_ob->type == OB_MESH) {
-    Curves *curves_id = static_cast<Curves *>(object->data);
-    curves_id->surface = surface_ob;
-    id_us_plus(&surface_ob->id);
+  /* Set surface object. */
+  Curves *curves_id = static_cast<Curves *>(curves_ob->data);
+  curves_id->surface = surface_ob;
 
-    Mesh *surface_mesh = static_cast<Mesh *>(surface_ob->data);
-    const char *uv_name = CustomData_get_active_layer_name(&surface_mesh->ldata, CD_MLOOPUV);
-    if (uv_name != nullptr) {
-      curves_id->surface_uv_map = BLI_strdup(uv_name);
-    }
+  /* Parent to surface object. */
+  ED_object_parent_set(
+      op->reports, C, scene, curves_ob, surface_ob, PAR_OBJECT, false, true, nullptr);
+
+  /* Decide which UV map to use for attachment. */
+  Mesh *surface_mesh = static_cast<Mesh *>(surface_ob->data);
+  const char *uv_name = CustomData_get_active_layer_name(&surface_mesh->ldata, CD_MLOOPUV);
+  if (uv_name != nullptr) {
+    curves_id->surface_uv_map = BLI_strdup(uv_name);
   }
+
+  /* Add deformation modifier. */
+  blender::ed::curves::ensure_surface_deformation_node_exists(*C, *curves_ob);
+
+  /* Make sure the surface object has a rest position attribute which is necessary for
+   * deformations. */
+  surface_ob->modifier_flag |= OB_MODIFIER_FLAG_ADD_REST_POSITION;
 
   return OPERATOR_FINISHED;
 }
 
 static bool object_curves_empty_hair_add_poll(bContext *C)
 {
-  if (!U.experimental.use_new_curves_type) {
-    return false;
-  }
   if (!ED_operator_objectmode(C)) {
     return false;
   }
@@ -2777,28 +2783,6 @@ static const EnumPropertyItem convert_target_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static const EnumPropertyItem *convert_target_items_fn(bContext *UNUSED(C),
-                                                       PointerRNA *UNUSED(ptr),
-                                                       PropertyRNA *UNUSED(prop),
-                                                       bool *r_free)
-{
-  EnumPropertyItem *items = nullptr;
-  int items_num = 0;
-  for (const EnumPropertyItem *item = convert_target_items; item->identifier != nullptr; item++) {
-    if (item->value == OB_CURVES) {
-      if (U.experimental.use_new_curves_type) {
-        RNA_enum_item_add(&items, &items_num, item);
-      }
-    }
-    else {
-      RNA_enum_item_add(&items, &items_num, item);
-    }
-  }
-  RNA_enum_item_end(&items, &items_num);
-  *r_free = true;
-  return items;
-}
-
 static void object_data_convert_ensure_curve_cache(Depsgraph *depsgraph, Scene *scene, Object *ob)
 {
   if (ob->runtime.curve_cache == nullptr) {
@@ -3213,9 +3197,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
       }
 
       /* Anonymous attributes shouldn't be available on the applied geometry. */
-      MeshComponent component;
-      component.replace(new_mesh, GeometryOwnershipType::Editable);
-      component.attributes_remove_anonymous();
+      blender::bke::mesh_attributes_for_write(*new_mesh).remove_anonymous();
 
       BKE_object_free_modifiers(newob, 0); /* after derivedmesh calls! */
     }
@@ -3565,7 +3547,6 @@ void OBJECT_OT_convert(wmOperatorType *ot)
   /* properties */
   ot->prop = RNA_def_enum(
       ot->srna, "target", convert_target_items, OB_MESH, "Target", "Type of object to convert to");
-  RNA_def_enum_funcs(ot->prop, convert_target_items_fn);
   RNA_def_boolean(ot->srna,
                   "keep_original",
                   false,

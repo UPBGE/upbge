@@ -3,6 +3,7 @@
 
 set(INC
   .
+  ../clog
   ../glew-mx
   ../../source/blender/imbuf
   ../../source/blender/makesdna
@@ -65,6 +66,8 @@ set(SRC
   intern/GHOST_Util.h
   intern/GHOST_Window.h
   intern/GHOST_WindowManager.h
+  intern/GHOST_utildefines.h
+  intern/GHOST_utildefines_variadic.h
 )
 
 set(LIB

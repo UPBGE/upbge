@@ -645,8 +645,6 @@ typedef struct UserDef_Experimental {
   char SANITIZE_AFTER_HERE;
   /* The following options are automatically sanitized (set to 0)
    * when the release cycle is not alpha. */
-  char use_new_curves_type;
-  /** Only available when #use_new_curves_type is enabled. */
   char use_new_curves_tools;
   char use_new_point_cloud_type;
   char use_full_frame_compositor;
@@ -656,7 +654,6 @@ typedef struct UserDef_Experimental {
   char enable_eevee_next;
   char use_sculpt_texture_paint;
   char use_draw_manager_acquire_lock;
-  char _pad[7];
   /** `makesdna` does not allow empty structs. */
 } UserDef_Experimental;
 
