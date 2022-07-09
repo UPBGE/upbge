@@ -70,7 +70,7 @@ BLI_INLINE int BKE_mesh_origindex_mface_mpoly(const int *index_mf_to_mpoly,
 
 /* UPBGE */
 
-/* *** mesh_tessellate.c *** */
+/* *** mesh_legacy_convert.cc *** */
 
 #ifndef NDEBUG
 /**
@@ -84,14 +84,14 @@ bool CustomData_from_bmeshpoly_test(CustomData *fdata, CustomData *ldata, bool f
 
 void CustomData_from_bmeshpoly(struct CustomData *fdata, struct CustomData *ldata, int total);
 
-void mesh_loops_to_tessdata(struct CustomData *fdata,
+void mesh_loops_to_tessdata(struct CustomData *fdata, /* UPBGE (not static) */
                             struct CustomData *ldata,
                             struct MFace *mface,
                             const int *polyindices,
                             uint (*loopindices)[4],
                             const int num_faces);
 
-int mesh_tessface_calc(struct CustomData *fdata,
+int mesh_tessface_calc(struct CustomData *fdata, /* UPBGE (not static) */
                        struct CustomData *ldata,
                        struct CustomData *pdata,
                        struct MVert *mvert,
