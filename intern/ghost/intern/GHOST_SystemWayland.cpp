@@ -128,11 +128,6 @@ static bool use_gnome_confine_hack = false;
  */
 #define EVDEV_OFFSET 8
 
-struct buffer_t {
-  void *data = nullptr;
-  size_t size = 0;
-};
-
 struct cursor_t {
   bool visible = false;
   /**
@@ -147,13 +142,11 @@ struct cursor_t {
   struct wl_buffer *wl_buffer = nullptr;
   struct wl_cursor_image wl_image = {0};
   struct wl_cursor_theme *wl_theme = nullptr;
-  struct buffer_t *file_buffer = nullptr;
+  void *custom_data = nullptr;
+  size_t custom_data_size = 0;
   int size = 0;
   std::string theme_name;
-  /** Outputs on which the cursor is visible. */
-  std::unordered_set<const output_t *> outputs;
 
-  int theme_scale = 1;
   int custom_scale = 1;
 };
 
@@ -234,6 +227,11 @@ struct input_state_pointer_t {
    * \endcode
    */
   wl_fixed_t xy[2] = {0, 0};
+
+  /** Outputs on which the cursor is visible. */
+  std::unordered_set<const output_t *> outputs;
+
+  int theme_scale = 1;
 
   /** The serial of the last used pointer or tablet. */
   uint32_t serial = 0;
@@ -400,6 +398,19 @@ static input_state_pointer_t *input_state_pointer_active(input_t *input)
   return nullptr;
 }
 
+static input_state_pointer_t *input_state_pointer_from_cursor_surface(input_t *input,
+                                                                      const wl_surface *wl_surface)
+{
+  if (ghost_wl_surface_own_cursor_pointer(wl_surface)) {
+    return &input->pointer;
+  }
+  if (ghost_wl_surface_own_cursor_tablet(wl_surface)) {
+    return &input->tablet;
+  }
+  GHOST_ASSERT(0, "Surface found without pointer/tablet tag");
+  return nullptr;
+}
+
 static void display_destroy(display_t *d)
 {
   if (d->data_device_manager) {
@@ -449,11 +460,12 @@ static void display_destroy(display_t *d)
     if (input->data_device) {
       wl_data_device_release(input->data_device);
     }
+
+    if (input->cursor.custom_data) {
+      munmap(input->cursor.custom_data, input->cursor.custom_data_size);
+    }
+
     if (input->wl_pointer) {
-      if (input->cursor.file_buffer) {
-        munmap(input->cursor.file_buffer->data, input->cursor.file_buffer->size);
-        delete input->cursor.file_buffer;
-      }
       if (input->cursor.wl_surface) {
         wl_surface_destroy(input->cursor.wl_surface);
       }
@@ -747,7 +759,83 @@ static const std::vector<std::string> mime_send = {
     "text/plain",
 };
 
-#undef LOG
+static int memfd_create_sealed(const char *name)
+{
+#ifdef HAVE_MEMFD_CREATE
+  const int fd = memfd_create(name, MFD_CLOEXEC | MFD_ALLOW_SEALING);
+  if (fd >= 0) {
+    fcntl(fd, F_ADD_SEALS, F_SEAL_SHRINK | F_SEAL_SEAL);
+  }
+  return fd;
+#else  /* HAVE_MEMFD_CREATE */
+  char *path = getenv("XDG_RUNTIME_DIR");
+  if (!path) {
+    errno = ENOENT;
+    return -1;
+  }
+  char *tmpname;
+  asprintf(&tmpname, "%s/%s-XXXXXX", path, name);
+  const int fd = mkostemp(tmpname, O_CLOEXEC);
+  if (fd >= 0) {
+    unlink(tmpname);
+  }
+  free(tmpname);
+  return fd;
+#endif /* !HAVE_MEMFD_CREATE */
+}
+
+static size_t ghost_wl_shm_format_as_size(enum wl_shm_format format)
+{
+  switch (format) {
+    case WL_SHM_FORMAT_ARGB8888: {
+      return 4;
+    }
+    default: {
+      /* Support other formats as needed. */
+      GHOST_ASSERT(0, "Unexpected format passed in!");
+      return 4;
+    }
+  }
+}
+
+/**
+ * Return a #wl_buffer, ready to have it's data filled in or NULL in case of failure.
+ * The caller is responsible for calling `unmap(buffer_data, buffer_size)`.
+ *
+ * \param r_buffer_data: The buffer to be filled.
+ * \param r_buffer_data_size: The size of `r_buffer_data` in bytes.
+ */
+static wl_buffer *ghost_wl_buffer_create_for_image(struct wl_shm *shm,
+                                                   const int32_t size_xy[2],
+                                                   enum wl_shm_format format,
+                                                   void **r_buffer_data,
+                                                   size_t *r_buffer_data_size)
+{
+  const int fd = memfd_create_sealed("ghost-wl-buffer");
+  wl_buffer *buffer = nullptr;
+  if (fd >= 0) {
+    const int32_t buffer_stride = size_xy[0] * ghost_wl_shm_format_as_size(format);
+    const int32_t buffer_size = buffer_stride * size_xy[1];
+    if (posix_fallocate(fd, 0, buffer_size) == 0) {
+      void *buffer_data = mmap(nullptr, buffer_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+      if (buffer_data != MAP_FAILED) {
+        struct wl_shm_pool *pool = wl_shm_create_pool(shm, fd, buffer_size);
+        buffer = wl_shm_pool_create_buffer(pool, 0, UNPACK2(size_xy), buffer_stride, format);
+        wl_shm_pool_destroy(pool);
+        if (buffer) {
+          *r_buffer_data = buffer_data;
+          *r_buffer_data_size = (size_t)buffer_size;
+        }
+        else {
+          /* Highly unlikely. */
+          munmap(buffer_data, buffer_size);
+        }
+      }
+    }
+    close(fd);
+  }
+  return buffer;
+}
 
 /** \} */
 
@@ -1285,19 +1373,22 @@ static const struct wl_buffer_listener cursor_buffer_listener = {
 static CLG_LogRef LOG_WL_CURSOR_SURFACE = {"ghost.wl.handle.cursor_surface"};
 #define LOG (&LOG_WL_CURSOR_SURFACE)
 
-static bool update_cursor_scale(cursor_t &cursor, wl_shm *shm)
+static bool update_cursor_scale(cursor_t &cursor,
+                                wl_shm *shm,
+                                input_state_pointer_t *input_state,
+                                wl_surface *cursor_surface)
 {
   int scale = 0;
-  for (const output_t *output : cursor.outputs) {
+  for (const output_t *output : input_state->outputs) {
     if (output->scale > scale) {
       scale = output->scale;
     }
   }
 
-  if (scale > 0 && cursor.theme_scale != scale) {
-    cursor.theme_scale = scale;
+  if (scale > 0 && input_state->theme_scale != scale) {
+    input_state->theme_scale = scale;
     if (!cursor.is_custom) {
-      wl_surface_set_buffer_scale(cursor.wl_surface, scale);
+      wl_surface_set_buffer_scale(cursor_surface, scale);
     }
     wl_cursor_theme_destroy(cursor.wl_theme);
     cursor.wl_theme = wl_cursor_theme_load(cursor.theme_name.c_str(), scale * cursor.size, shm);
@@ -1307,7 +1398,7 @@ static bool update_cursor_scale(cursor_t &cursor, wl_shm *shm)
 }
 
 static void cursor_surface_handle_enter(void *data,
-                                        struct wl_surface * /*wl_surface*/,
+                                        struct wl_surface *wl_surface,
                                         struct wl_output *output)
 {
   if (!ghost_wl_output_own(output)) {
@@ -1317,13 +1408,14 @@ static void cursor_surface_handle_enter(void *data,
   CLOG_INFO(LOG, 2, "handle_enter");
 
   input_t *input = static_cast<input_t *>(data);
+  input_state_pointer_t *input_state = input_state_pointer_from_cursor_surface(input, wl_surface);
   const output_t *reg_output = ghost_wl_output_user_data(output);
-  input->cursor.outputs.insert(reg_output);
-  update_cursor_scale(input->cursor, input->system->shm());
+  input_state->outputs.insert(reg_output);
+  update_cursor_scale(input->cursor, input->system->shm(), input_state, wl_surface);
 }
 
 static void cursor_surface_handle_leave(void *data,
-                                        struct wl_surface * /*wl_surface*/,
+                                        struct wl_surface *wl_surface,
                                         struct wl_output *output)
 {
   if (!(output && ghost_wl_output_own(output))) {
@@ -1333,9 +1425,10 @@ static void cursor_surface_handle_leave(void *data,
   CLOG_INFO(LOG, 2, "handle_leave");
 
   input_t *input = static_cast<input_t *>(data);
+  input_state_pointer_t *input_state = input_state_pointer_from_cursor_surface(input, wl_surface);
   const output_t *reg_output = ghost_wl_output_user_data(output);
-  input->cursor.outputs.erase(reg_output);
-  update_cursor_scale(input->cursor, input->system->shm());
+  input_state->outputs.erase(reg_output);
+  update_cursor_scale(input->cursor, input->system->shm(), input_state, wl_surface);
 }
 
 static const struct wl_surface_listener cursor_surface_listener = {
@@ -1879,6 +1972,8 @@ static void tablet_seat_handle_tool_added(void *data,
 
   /* Every tool has it's own cursor surface. */
   tool_input->cursor_surface = wl_compositor_create_surface(input->system->compositor());
+  ghost_wl_surface_tag_cursor_tablet(tool_input->cursor_surface);
+
   wl_surface_add_listener(tool_input->cursor_surface, &cursor_surface_listener, (void *)input);
 
   zwp_tablet_tool_v2_add_listener(id, &tablet_tool_listner, tool_input);
@@ -2282,13 +2377,14 @@ static void seat_handle_capabilities(void *data,
     input->cursor.wl_surface = wl_compositor_create_surface(input->system->compositor());
     input->cursor.visible = true;
     input->cursor.wl_buffer = nullptr;
-    input->cursor.file_buffer = new buffer_t;
     if (!get_cursor_settings(input->cursor.theme_name, input->cursor.size)) {
       input->cursor.theme_name = std::string();
       input->cursor.size = default_cursor_size;
     }
     wl_pointer_add_listener(input->wl_pointer, &pointer_listener, data);
+
     wl_surface_add_listener(input->cursor.wl_surface, &cursor_surface_listener, data);
+    ghost_wl_surface_tag_cursor_pointer(input->cursor.wl_surface);
   }
 
   if (capabilities & WL_SEAT_CAPABILITY_KEYBOARD) {
@@ -3139,19 +3235,30 @@ GHOST_IWindow *GHOST_SystemWayland::createWindow(const char *title,
 static void cursor_buffer_show(const input_t *input)
 {
   const cursor_t *c = &input->cursor;
-  const int scale = c->is_custom ? c->custom_scale : c->theme_scale;
-  const int32_t hotspot_x = int32_t(c->wl_image.hotspot_x) / scale;
-  const int32_t hotspot_y = int32_t(c->wl_image.hotspot_y) / scale;
-  wl_pointer_set_cursor(
-      input->wl_pointer, input->pointer.serial, c->wl_surface, hotspot_x, hotspot_y);
-  for (struct zwp_tablet_tool_v2 *zwp_tablet_tool_v2 : input->tablet_tools) {
-    tablet_tool_input_t *tool_input = static_cast<tablet_tool_input_t *>(
-        zwp_tablet_tool_v2_get_user_data(zwp_tablet_tool_v2));
-    zwp_tablet_tool_v2_set_cursor(zwp_tablet_tool_v2,
-                                  input->tablet.serial,
-                                  tool_input->cursor_surface,
-                                  hotspot_x,
-                                  hotspot_y);
+
+  if (input->wl_pointer) {
+    const int scale = c->is_custom ? c->custom_scale : input->pointer.theme_scale;
+    const int32_t hotspot_x = int32_t(c->wl_image.hotspot_x) / scale;
+    const int32_t hotspot_y = int32_t(c->wl_image.hotspot_y) / scale;
+    if (input->wl_pointer) {
+      wl_pointer_set_cursor(
+          input->wl_pointer, input->pointer.serial, c->wl_surface, hotspot_x, hotspot_y);
+    }
+  }
+
+  if (!input->tablet_tools.empty()) {
+    const int scale = c->is_custom ? c->custom_scale : input->tablet.theme_scale;
+    const int32_t hotspot_x = int32_t(c->wl_image.hotspot_x) / scale;
+    const int32_t hotspot_y = int32_t(c->wl_image.hotspot_y) / scale;
+    for (struct zwp_tablet_tool_v2 *zwp_tablet_tool_v2 : input->tablet_tools) {
+      tablet_tool_input_t *tool_input = static_cast<tablet_tool_input_t *>(
+          zwp_tablet_tool_v2_get_user_data(zwp_tablet_tool_v2));
+      zwp_tablet_tool_v2_set_cursor(zwp_tablet_tool_v2,
+                                    input->tablet.serial,
+                                    tool_input->cursor_surface,
+                                    hotspot_x,
+                                    hotspot_y);
+    }
   }
 }
 
@@ -3169,52 +3276,58 @@ static void cursor_buffer_hide(const input_t *input)
   }
 }
 
-static void cursor_buffer_set(const input_t *input, wl_buffer *buffer)
+static void cursor_buffer_set_surface_impl(const input_t *input,
+                                           wl_buffer *buffer,
+                                           struct wl_surface *wl_surface,
+                                           const int scale)
 {
-  const cursor_t *c = &input->cursor;
-  const int scale = c->is_custom ? c->custom_scale : c->theme_scale;
-
-  const bool visible = (c->visible && c->is_hardware);
-
-  const int32_t image_size_x = int32_t(c->wl_image.width);
-  const int32_t image_size_y = int32_t(c->wl_image.height);
-
-  /* This is a requirement of WAYLAND, when this isn't the case,
-   * it causes Blender's window to close intermittently. */
+  const wl_cursor_image *wl_image = &input->cursor.wl_image;
+  const int32_t image_size_x = int32_t(wl_image->width);
+  const int32_t image_size_y = int32_t(wl_image->height);
   GHOST_ASSERT((image_size_x % scale) == 0 && (image_size_y % scale) == 0,
                "The size must be a multiple of the scale!");
 
-  const int32_t hotspot_x = int32_t(c->wl_image.hotspot_x) / scale;
-  const int32_t hotspot_y = int32_t(c->wl_image.hotspot_y) / scale;
+  wl_surface_set_buffer_scale(wl_surface, scale);
+  wl_surface_attach(wl_surface, buffer, 0, 0);
+  wl_surface_damage(wl_surface, 0, 0, image_size_x, image_size_y);
+  wl_surface_commit(wl_surface);
+}
 
-  wl_surface_set_buffer_scale(c->wl_surface, scale);
-  wl_surface_attach(c->wl_surface, buffer, 0, 0);
-  wl_surface_damage(c->wl_surface, 0, 0, image_size_x, image_size_y);
-  wl_surface_commit(c->wl_surface);
+static void cursor_buffer_set(const input_t *input, wl_buffer *buffer)
+{
+  const cursor_t *c = &input->cursor;
+  const wl_cursor_image *wl_image = &input->cursor.wl_image;
+  const bool visible = (c->visible && c->is_hardware);
 
-  wl_pointer_set_cursor(input->wl_pointer,
-                        input->pointer.serial,
-                        visible ? c->wl_surface : nullptr,
-                        hotspot_x,
-                        hotspot_y);
+  /* This is a requirement of WAYLAND, when this isn't the case,
+   * it causes Blender's window to close intermittently. */
+  if (input->wl_pointer) {
+    const int scale = c->is_custom ? c->custom_scale : input->pointer.theme_scale;
+    const int32_t hotspot_x = int32_t(wl_image->hotspot_x) / scale;
+    const int32_t hotspot_y = int32_t(wl_image->hotspot_y) / scale;
+    cursor_buffer_set_surface_impl(input, buffer, c->wl_surface, scale);
+    wl_pointer_set_cursor(input->wl_pointer,
+                          input->pointer.serial,
+                          visible ? c->wl_surface : nullptr,
+                          hotspot_x,
+                          hotspot_y);
+  }
 
   /* Set the cursor for all tablet tools as well. */
-  for (struct zwp_tablet_tool_v2 *zwp_tablet_tool_v2 : input->tablet_tools) {
-    tablet_tool_input_t *tool_input = static_cast<tablet_tool_input_t *>(
-        zwp_tablet_tool_v2_get_user_data(zwp_tablet_tool_v2));
-
-    /* FIXME: for some reason cursor scale is applied twice (when the scale isn't 1x),
-     * this happens both in gnome-shell & KDE. Setting the surface scale here doesn't help. */
-    wl_surface_set_buffer_scale(tool_input->cursor_surface, scale);
-    wl_surface_attach(tool_input->cursor_surface, buffer, 0, 0);
-    wl_surface_damage(tool_input->cursor_surface, 0, 0, image_size_x, image_size_y);
-    wl_surface_commit(tool_input->cursor_surface);
-
-    zwp_tablet_tool_v2_set_cursor(zwp_tablet_tool_v2,
-                                  input->tablet.serial,
-                                  visible ? tool_input->cursor_surface : nullptr,
-                                  hotspot_x,
-                                  hotspot_y);
+  if (!input->tablet_tools.empty()) {
+    const int scale = c->is_custom ? c->custom_scale : input->tablet.theme_scale;
+    const int32_t hotspot_x = int32_t(wl_image->hotspot_x) / scale;
+    const int32_t hotspot_y = int32_t(wl_image->hotspot_y) / scale;
+    for (struct zwp_tablet_tool_v2 *zwp_tablet_tool_v2 : input->tablet_tools) {
+      tablet_tool_input_t *tool_input = static_cast<tablet_tool_input_t *>(
+          zwp_tablet_tool_v2_get_user_data(zwp_tablet_tool_v2));
+      cursor_buffer_set_surface_impl(input, buffer, tool_input->cursor_surface, scale);
+      zwp_tablet_tool_v2_set_cursor(zwp_tablet_tool_v2,
+                                    input->tablet.serial,
+                                    visible ? tool_input->cursor_surface : nullptr,
+                                    hotspot_x,
+                                    hotspot_y);
+    }
   }
 }
 
@@ -3347,54 +3460,18 @@ GHOST_TSuccess GHOST_SystemWayland::setCustomCursorShape(uint8_t *bitmap,
 
   cursor_t *cursor = &d->inputs[0]->cursor;
 
-  static const int32_t stride = sizex * 4; /* ARGB */
-  cursor->file_buffer->size = (size_t)stride * sizey;
-
-#ifdef HAVE_MEMFD_CREATE
-  const int fd = memfd_create("blender-cursor-custom", MFD_CLOEXEC | MFD_ALLOW_SEALING);
-  if (fd >= 0) {
-    fcntl(fd, F_ADD_SEALS, F_SEAL_SHRINK | F_SEAL_SEAL);
+  if (cursor->custom_data) {
+    munmap(cursor->custom_data, cursor->custom_data_size);
+    cursor->custom_data = nullptr;
+    cursor->custom_data_size = 0; /* Not needed, but the value is no longer meaningful. */
   }
-#else
-  char *path = getenv("XDG_RUNTIME_DIR");
-  if (!path) {
-    errno = ENOENT;
+
+  const int32_t size_xy[2] = {sizex, sizey};
+  wl_buffer *buffer = ghost_wl_buffer_create_for_image(
+      d->shm, size_xy, WL_SHM_FORMAT_ARGB8888, &cursor->custom_data, &cursor->custom_data_size);
+  if (buffer == nullptr) {
     return GHOST_kFailure;
   }
-
-  char *tmpname;
-  asprintf(&tmpname, "%s/%s", path, "blender-XXXXXX");
-  const int fd = mkostemp(tmpname, O_CLOEXEC);
-  if (fd >= 0) {
-    unlink(tmpname);
-  }
-  free(tmpname);
-#endif
-
-  if (UNLIKELY(fd < 0)) {
-    return GHOST_kFailure;
-  }
-
-  if (UNLIKELY(posix_fallocate(fd, 0, int32_t(cursor->file_buffer->size)) != 0)) {
-    return GHOST_kFailure;
-  }
-
-  cursor->file_buffer->data = mmap(
-      nullptr, cursor->file_buffer->size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-
-  if (UNLIKELY(cursor->file_buffer->data == MAP_FAILED)) {
-    cursor->file_buffer->data = nullptr;
-    close(fd);
-    return GHOST_kFailure;
-  }
-
-  struct wl_shm_pool *pool = wl_shm_create_pool(d->shm, fd, int32_t(cursor->file_buffer->size));
-
-  wl_buffer *buffer = wl_shm_pool_create_buffer(
-      pool, 0, sizex, sizey, stride, WL_SHM_FORMAT_ARGB8888);
-
-  wl_shm_pool_destroy(pool);
-  close(fd);
 
   wl_buffer_add_listener(buffer, &cursor_buffer_listener, cursor);
 
@@ -3406,7 +3483,7 @@ GHOST_TSuccess GHOST_SystemWayland::setCustomCursorShape(uint8_t *bitmap,
   uint32_t *pixel;
 
   for (int y = 0; y < sizey; ++y) {
-    pixel = &static_cast<uint32_t *>(cursor->file_buffer->data)[y * sizex];
+    pixel = &static_cast<uint32_t *>(cursor->custom_data)[y * sizex];
     for (int x = 0; x < sizex; ++x) {
       if ((x % 8) == 0) {
         datab = *bitmap++;
@@ -3445,7 +3522,7 @@ GHOST_TSuccess GHOST_SystemWayland::setCustomCursorShape(uint8_t *bitmap,
 GHOST_TSuccess GHOST_SystemWayland::getCursorBitmap(GHOST_CursorBitmapRef *bitmap)
 {
   cursor_t *cursor = &d->inputs[0]->cursor;
-  if (cursor->file_buffer->data == nullptr) {
+  if (cursor->custom_data == nullptr) {
     return GHOST_kFailure;
   }
   if (!cursor->is_custom) {
@@ -3458,7 +3535,7 @@ GHOST_TSuccess GHOST_SystemWayland::getCursorBitmap(GHOST_CursorBitmapRef *bitma
   bitmap->hot_spot[0] = cursor->wl_image.hotspot_x;
   bitmap->hot_spot[1] = cursor->wl_image.hotspot_y;
 
-  bitmap->data = (uint8_t *)static_cast<void *>(cursor->file_buffer->data);
+  bitmap->data = (uint8_t *)static_cast<void *>(cursor->custom_data);
 
   return GHOST_kSuccess;
 }
@@ -3549,6 +3626,8 @@ static input_grab_state_t input_grab_state_from_mode(const GHOST_TGrabCursorMode
 
 static const char *ghost_wl_output_tag_id = "GHOST-output";
 static const char *ghost_wl_surface_tag_id = "GHOST-window";
+static const char *ghost_wl_surface_cursor_pointer_tag_id = "GHOST-cursor-pointer";
+static const char *ghost_wl_surface_cursor_tablet_tag_id = "GHOST-cursor-tablet";
 
 bool ghost_wl_output_own(const struct wl_output *output)
 {
@@ -3560,6 +3639,16 @@ bool ghost_wl_surface_own(const struct wl_surface *surface)
   return wl_proxy_get_tag((struct wl_proxy *)surface) == &ghost_wl_surface_tag_id;
 }
 
+bool ghost_wl_surface_own_cursor_pointer(const struct wl_surface *surface)
+{
+  return wl_proxy_get_tag((struct wl_proxy *)surface) == &ghost_wl_surface_cursor_pointer_tag_id;
+}
+
+bool ghost_wl_surface_own_cursor_tablet(const struct wl_surface *surface)
+{
+  return wl_proxy_get_tag((struct wl_proxy *)surface) == &ghost_wl_surface_cursor_tablet_tag_id;
+}
+
 void ghost_wl_output_tag(struct wl_output *output)
 {
   wl_proxy_set_tag((struct wl_proxy *)output, &ghost_wl_output_tag_id);
@@ -3568,6 +3657,16 @@ void ghost_wl_output_tag(struct wl_output *output)
 void ghost_wl_surface_tag(struct wl_surface *surface)
 {
   wl_proxy_set_tag((struct wl_proxy *)surface, &ghost_wl_surface_tag_id);
+}
+
+void ghost_wl_surface_tag_cursor_pointer(struct wl_surface *surface)
+{
+  wl_proxy_set_tag((struct wl_proxy *)surface, &ghost_wl_surface_cursor_pointer_tag_id);
+}
+
+void ghost_wl_surface_tag_cursor_tablet(struct wl_surface *surface)
+{
+  wl_proxy_set_tag((struct wl_proxy *)surface, &ghost_wl_surface_cursor_tablet_tag_id);
 }
 
 /** \} */
