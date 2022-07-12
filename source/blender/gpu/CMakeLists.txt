@@ -410,11 +410,6 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_wireframe.glsl
   shaders/material/gpu_shader_material_world_normals.glsl
 
-  shaders/gpu_shader_black_frag.glsl #UPBGE
-  shaders/gpu_shader_black_vert.glsl #UPBGE
-  shaders/gpu_shader_frame_buffer_frag.glsl #UPBGE
-  shaders/gpu_shader_frame_buffer_vert.glsl #UPBGE
-
   shaders/gpu_shader_gpencil_stroke_vert.glsl
   shaders/gpu_shader_gpencil_stroke_frag.glsl
   shaders/gpu_shader_gpencil_stroke_geom.glsl
