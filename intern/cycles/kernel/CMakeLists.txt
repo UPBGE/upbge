@@ -79,6 +79,7 @@ set(SRC_KERNEL_DEVICE_METAL_HEADERS
   device/metal/compat.h
   device/metal/context_begin.h
   device/metal/context_end.h
+  device/metal/function_constants.h
   device/metal/globals.h
 )
 
@@ -154,6 +155,7 @@ set(SRC_KERNEL_SVM_HEADERS
   svm/math_util.h
   svm/mix.h
   svm/musgrave.h
+  svm/node_types_template.h
   svm/noise.h
   svm/noisetex.h
   svm/normal.h
@@ -282,6 +284,7 @@ set(SRC_KERNEL_UTIL_HEADERS
 
 set(SRC_KERNEL_TYPES_HEADERS
   data_arrays.h
+  data_template.h
   tables.h
   types.h
 )

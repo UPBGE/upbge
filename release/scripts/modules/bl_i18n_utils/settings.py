@@ -248,8 +248,13 @@ PYGETTEXT_KEYWORDS = (() +
     tuple(("{}\\((?:[^\"',]+,){{3}}\\s*" + _msg_re + r"\s*\)").format(it)
           for it in ("BMO_error_raise",)) +
 
-    tuple(("{}\\((?:[^\"',]+,)\\s*" + _msg_re + r"\s*(?:\)|,)").format(it)
+    tuple(("{}\\((?:[^\"',]+,){{2}}\\s*" + _msg_re + r"\s*(?:\)|,)").format(it)
           for it in ("BKE_modifier_set_error",)) +
+
+    # This one is a tad more risky, but in practice would not expect a name/uid string parameter
+    # (the second one in those functions) to ever have a comma in it, so think this is fine.
+    tuple(("{}\\((?:[^,]+,){{2}}\\s*" + _msg_re + r"\s*(?:\)|,)").format(it)
+          for it in ("modifier_subpanel_register", "gpencil_modifier_subpanel_register")) +
 
     # bUnitDef unit names.
     # NOTE: regex is a bit more complex than it would need too. Since the actual

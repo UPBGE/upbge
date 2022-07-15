@@ -591,6 +591,10 @@ mark_as_advanced(
   WITH_GPU_BUILDTIME_SHADER_BUILDER
 )
 
+if(WITH_HEADLESS)
+  set(WITH_OPENGL OFF)
+endif()
+
 # Metal
 
 if (APPLE)
@@ -1447,12 +1451,6 @@ if(WITH_GL_PROFILE_ES20)
   list(APPEND GL_DEFINITIONS -DWITH_GL_PROFILE_ES20)
 else()
   list(APPEND GL_DEFINITIONS -DWITH_GL_PROFILE_CORE)
-endif()
-
-if (WITH_GPU_BUILDTIME_SHADER_BUILDER AND WITH_USD)
-  message(FATAL_ERROR
-    "Unable to compile WITH_GPU_BUILDTIME_SHADER_BUILDER and WITH_USD."
-  )
 endif()
 
 #-----------------------------------------------------------------------------
