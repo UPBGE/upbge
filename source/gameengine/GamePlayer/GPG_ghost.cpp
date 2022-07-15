@@ -1854,19 +1854,6 @@ int main(int argc,
 
   BLF_exit();
 
-  DRW_opengl_context_enable_ex(false);
-  GPU_pass_cache_free();
-  GPU_exit();
-  DRW_opengl_context_disable_ex(false);
-  DRW_opengl_context_destroy();
-
-  if (window) {
-    system->disposeWindow(window);
-  }
-
-  // Dispose the system
-  GHOST_ISystem::disposeSystem();
-
 #ifdef WITH_INTERNATIONAL
   BLT_lang_free();
 #endif
@@ -1879,14 +1866,25 @@ int main(int argc,
 
   ED_file_exit(); /* for fsmenu */
 
+  DRW_opengl_context_enable_ex(false);
   UI_exit();
+  GPU_pass_cache_free();
+  GPU_exit();
+  DRW_opengl_context_disable_ex(false);
+  DRW_opengl_context_destroy();
+
+  if (window) {
+    system->disposeWindow(window);
+  }
+
+  // Dispose the system
+  GHOST_ISystem::disposeSystem();
+
   BKE_blender_userdef_data_free(&U, false);
 
   RNA_exit(); /* should be after BPY_python_end so struct python slots are cleared */
 
   SYS_DeleteSystem(syshandle);
-
-  GPU_backend_exit();
 
   wm_ghost_exit();
 
