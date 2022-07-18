@@ -2027,9 +2027,7 @@ static PyObject *CCL_initPython(void)
 
 /* minimal required blender modules to run blenderplayer */
 static struct _inittab bge_internal_modules[] = {{"mathutils", PyInit_mathutils},
-#  ifdef WITH_OPENGL
                                                  {"bgl", BPyInit_bgl},
-#  endif
                                                  {"blf", BPyInit_blf},
 #  ifdef WITH_AUDASPACE
                                                  {"aud", AUD_initPython},
