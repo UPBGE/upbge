@@ -385,8 +385,6 @@ class CurvesGeometry : public ::CurvesGeometry {
 
   void calculate_bezier_auto_handles();
 
-  void update_customdata_pointers();
-
   void remove_points(IndexMask points_to_delete);
   void remove_curves(IndexMask curves_to_delete);
 
@@ -734,6 +732,12 @@ Curves *curves_new_nomain(CurvesGeometry curves);
  * Create a new curves data-block containing a single curve with the given length and type.
  */
 Curves *curves_new_nomain_single(int points_num, CurveType type);
+
+/**
+ * Copy data from #src to #dst, except the geometry data in #CurvesGeometry. Typically used to
+ * copy high-level parameters when a geometry-altering operation creates a new curves data-block.
+ */
+void curves_copy_parameters(const Curves &src, Curves &dst);
 
 std::array<int, CURVE_TYPES_NUM> calculate_type_counts(const VArray<int8_t> &types);
 

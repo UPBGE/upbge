@@ -197,9 +197,11 @@ set(METAL_SRC
   metal/mtl_debug.mm
   metal/mtl_framebuffer.mm
   metal/mtl_memory.mm
+  metal/mtl_query.mm
   metal/mtl_state.mm
   metal/mtl_texture.mm
   metal/mtl_texture_util.mm
+  metal/mtl_uniform_buffer.mm
 
   metal/mtl_backend.hh
   metal/mtl_capabilities.hh
@@ -208,8 +210,10 @@ set(METAL_SRC
   metal/mtl_debug.hh
   metal/mtl_framebuffer.hh
   metal/mtl_memory.hh
+  metal/mtl_query.hh
   metal/mtl_state.hh
   metal/mtl_texture.hh
+  metal/mtl_uniform_buffer.hh
 )
 
 # Select Backend source based on availability
