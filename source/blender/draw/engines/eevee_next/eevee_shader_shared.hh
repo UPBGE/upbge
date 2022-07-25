@@ -154,6 +154,8 @@ struct FilmData {
   int2 extent;
   /** Offset of the film in the full-res frame, in pixels. */
   int2 offset;
+  /** Extent used by the render buffers when rendering the main views. */
+  int2 render_extent;
   /** Sub-pixel offset applied to the window matrix.
    * NOTE: In final film pixel unit.
    * NOTE: Positive values makes the view translate in the negative axes direction.
@@ -172,6 +174,9 @@ struct FilmData {
   /** Is true if accumulation of filtered passes is needed. */
   bool1 any_render_pass_1;
   bool1 any_render_pass_2;
+  /** Controlled by user in lookdev mode or by render settings. */
+  float background_opacity;
+  float _pad0;
   /** Output counts per type. */
   int color_len, value_len;
   /** Index in color_accum_img or value_accum_img of each pass. -1 if pass is not enabled. */
@@ -206,7 +211,7 @@ struct FilmData {
   /** Scaling factor for scaled resolution rendering. */
   int scaling_factor;
   /** Film pixel filter radius. */
-  float filter_size;
+  float filter_radius;
   /** Precomputed samples. First in the table is the closest one. The rest is unordered. */
   int samples_len;
   /** Sum of the weights of all samples in the sample table. */
@@ -215,17 +220,17 @@ struct FilmData {
 };
 BLI_STATIC_ASSERT_ALIGN(FilmData, 16)
 
-static inline float film_filter_weight(float filter_size, float sample_distance_sqr)
+static inline float film_filter_weight(float filter_radius, float sample_distance_sqr)
 {
 #if 1 /* Faster */
   /* Gaussian fitted to Blackman-Harris. */
-  float r = sample_distance_sqr / (filter_size * filter_size);
+  float r = sample_distance_sqr / (filter_radius * filter_radius);
   const float sigma = 0.284;
   const float fac = -0.5 / (sigma * sigma);
   float weight = expf(fac * r);
 #else
   /* Blackman-Harris filter. */
-  float r = M_2PI * saturate(0.5 + sqrtf(sample_distance_sqr) / (2.0 * filter_size));
+  float r = M_2PI * saturate(0.5 + sqrtf(sample_distance_sqr) / (2.0 * filter_radius));
   float weight = 0.35875 - 0.48829 * cosf(r) + 0.14128 * cosf(2.0 * r) - 0.01168 * cosf(3.0 * r);
 #endif
   return weight;

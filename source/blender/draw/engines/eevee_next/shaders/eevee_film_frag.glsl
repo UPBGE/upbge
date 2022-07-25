@@ -4,7 +4,7 @@
 
 void main()
 {
-  ivec2 texel_film = ivec2(gl_FragCoord.xy);
+  ivec2 texel_film = ivec2(gl_FragCoord.xy) - film_buf.offset;
   float out_depth;
 
   if (film_buf.display_only) {
@@ -26,4 +26,6 @@ void main()
   }
 
   gl_FragDepth = get_depth_from_view_z(-out_depth);
+
+  gl_FragDepth = film_display_depth_ammend(texel_film, gl_FragDepth);
 }

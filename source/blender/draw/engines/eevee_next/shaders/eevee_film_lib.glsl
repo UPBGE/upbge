@@ -80,9 +80,9 @@ FilmSample film_sample_get(int sample_n, ivec2 texel_film)
 #  endif
 
   FilmSample film_sample = film_buf.samples[sample_n];
-  film_sample.texel += texel_film;
+  film_sample.texel += texel_film + film_buf.offset;
   /* Use extend on borders. */
-  film_sample.texel = clamp(film_sample.texel, ivec2(0, 0), film_buf.extent - 1);
+  film_sample.texel = clamp(film_sample.texel, ivec2(0, 0), film_buf.render_extent - 1);
 
   /* TODO(fclem): Panoramic projection will need to compute the sample weight in the shader
    * instead of precomputing it on CPU. */
@@ -192,7 +192,7 @@ float film_distance_load(ivec2 texel)
   /* Repeat texture coordinates as the weight can be optimized to a small portion of the film. */
   texel = texel % imageSize(in_weight_img).xy;
 
-  if (film_buf.use_history == false) {
+  if (!film_buf.use_history || film_buf.use_reprojection) {
     return 1.0e16;
   }
   return imageLoad(in_weight_img, ivec3(texel, WEIGHT_lAYER_DISTANCE)).x;
@@ -381,12 +381,9 @@ float film_aabb_clipping_dist_alpha(float origin, float direction, float aabb_mi
 }
 
 /* Modulate the history color to avoid ghosting artifact. */
-vec4 film_amend_combined_history(vec4 color_history, vec4 src_color, ivec2 src_texel)
+vec4 film_amend_combined_history(
+    vec4 min_color, vec4 max_color, vec4 color_history, vec4 src_color, ivec2 src_texel)
 {
-  /* Get local color bounding box of source neighboorhood. */
-  vec4 min_color, max_color;
-  film_combined_neighbor_boundbox(src_texel, min_color, max_color);
-
   /* Clip instead of clamping to avoid color accumulating in the AABB corners. */
   vec4 clip_dir = src_color - color_history;
 
@@ -402,6 +399,8 @@ vec4 film_amend_combined_history(vec4 color_history, vec4 src_color, ivec2 src_t
 
 float film_history_blend_factor(float velocity,
                                 vec2 texel,
+                                float luma_min,
+                                float luma_max,
                                 float luma_incoming,
                                 float luma_history)
 {
@@ -409,8 +408,15 @@ float film_history_blend_factor(float velocity,
   float blend = 0.05;
   /* Blend less history if the pixel has substential velocity. */
   blend = mix(blend, 0.20, saturate(velocity * 0.02));
-  /* Weight by luma. */
-  blend = max(blend, saturate(0.01 * luma_history / abs(luma_history - luma_incoming)));
+  /**
+   * "High Quality Temporal Supersampling" by Brian Karis at Siggraph 2014 (Slide 43)
+   * Bias towards history if incomming pixel is near clamping. Reduces flicker.
+   */
+  float distance_to_luma_clip = min_v2(vec2(luma_history - luma_min, luma_max - luma_history));
+  /* Divide by bbox size to get a factor. 2 factor to compensate the line above. */
+  distance_to_luma_clip *= 2.0 * safe_rcp(luma_max - luma_min);
+  /* Linearly blend when history gets bellow to 25% of the bbox size. */
+  blend *= saturate(distance_to_luma_clip * 4.0 + 0.1);
   /* Discard out of view history. */
   if (any(lessThan(texel, vec2(0))) || any(greaterThanEqual(texel, film_buf.extent))) {
     blend = 1.0;
@@ -440,7 +446,7 @@ void film_store_combined(
     /* Interactive accumulation. Do reprojection and Temporal Anti-Aliasing. */
 
     /* Reproject by finding where this pixel was in the previous frame. */
-    vec2 motion = film_pixel_history_motion_vector(dst.texel);
+    vec2 motion = film_pixel_history_motion_vector(src_texel);
     vec2 history_texel = vec2(dst.texel) + motion;
 
     float velocity = length(motion);
@@ -451,9 +457,14 @@ void film_store_combined(
     color_dst = film_sample_catmull_rom(in_combined_tx, history_texel);
     color_dst.rgb = film_YCoCg_from_scene_linear(color_dst.rgb);
 
-    float blend = film_history_blend_factor(velocity, history_texel, color_src.x, color_dst.x);
+    /* Get local color bounding box of source neighboorhood. */
+    vec4 min_color, max_color;
+    film_combined_neighbor_boundbox(src_texel, min_color, max_color);
 
-    color_dst = film_amend_combined_history(color_dst, color_src, src_texel);
+    float blend = film_history_blend_factor(
+        velocity, history_texel, min_color.x, max_color.x, color_src.x, color_dst.x);
+
+    color_dst = film_amend_combined_history(min_color, max_color, color_dst, color_src, src_texel);
 
     /* Luma weighted blend to avoid flickering. */
     weight_dst = film_luma_weight(color_dst.x) * (1.0 - blend);
@@ -566,6 +577,20 @@ void film_store_weight(ivec2 texel, float value)
   imageStore(out_weight_img, ivec3(texel, WEIGHT_lAYER_ACCUMULATION), vec4(value));
 }
 
+float film_display_depth_ammend(ivec2 texel, float depth)
+{
+  /* This effectively offsets the depth of the whole 2x2 region to the lowest value of the region
+   * twice. One for X and one for Y direction. */
+  /* TODO(fclem): This could be improved as it gives flickering result at depth discontinuity.
+   * But this is the quickest stable result I could come with for now. */
+#ifdef GPU_FRAGMENT_SHADER
+  depth += fwidth(depth);
+#endif
+  /* Small offset to avoid depth test lessEqual failing because of all the conversions loss. */
+  depth += 2.4e-7 * 4.0;
+  return saturate(depth);
+}
+
 /** \} */
 
 /** NOTE: out_depth is scene linear depth from the camera origin. */
@@ -592,11 +617,13 @@ void film_process_data(ivec2 texel_film, out vec4 out_color, out float out_depth
     float weight_accum = 0.0;
     vec4 combined_accum = vec4(0.0);
 
-    for (int i = 0; i < film_buf.samples_len; i++) {
-      FilmSample src = film_sample_get(i, texel_film);
+    FilmSample src;
+    for (int i = film_buf.samples_len - 1; i >= 0; i--) {
+      src = film_sample_get(i, texel_film);
       film_sample_accum_combined(src, combined_accum, weight_accum);
     }
-    film_store_combined(dst, texel_film, combined_accum, weight_accum, out_color);
+    /* NOTE: src.texel is center texel in incomming data buffer. */
+    film_store_combined(dst, src.texel, combined_accum, weight_accum, out_color);
   }
 
   if (film_buf.has_data) {

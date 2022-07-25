@@ -42,6 +42,7 @@ set(SRC_KERNEL_DEVICE_ONEAPI
 )
 
 set(SRC_KERNEL_DEVICE_CPU_HEADERS
+  device/cpu/bvh.h
   device/cpu/compat.h
   device/cpu/image.h
   device/cpu/globals.h
@@ -71,11 +72,13 @@ set(SRC_KERNEL_DEVICE_HIP_HEADERS
 )
 
 set(SRC_KERNEL_DEVICE_OPTIX_HEADERS
+  device/optix/bvh.h
   device/optix/compat.h
   device/optix/globals.h
 )
 
 set(SRC_KERNEL_DEVICE_METAL_HEADERS
+  device/metal/bvh.h
   device/metal/compat.h
   device/metal/context_begin.h
   device/metal/context_end.h
@@ -214,8 +217,6 @@ set(SRC_KERNEL_BVH_HEADERS
   bvh/util.h
   bvh/volume.h
   bvh/volume_all.h
-  bvh/embree.h
-  bvh/metal.h
 )
 
 set(SRC_KERNEL_CAMERA_HEADERS
@@ -316,6 +317,7 @@ set(SRC_UTIL_HEADERS
   ../util/math_float2.h
   ../util/math_float3.h
   ../util/math_float4.h
+  ../util/math_float8.h
   ../util/math_int2.h
   ../util/math_int3.h
   ../util/math_int4.h

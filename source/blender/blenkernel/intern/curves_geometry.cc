@@ -715,8 +715,9 @@ Span<float3> CurvesGeometry::evaluated_tangents() const
       }
     });
 
-    /* Correct the first and last tangents of Bezier curves so that they align with the inner
-     * handles. This is a separate loop to avoid the cost when Bezier type curves are not used. */
+    /* Correct the first and last tangents of non-cyclic Bezier curves so that they align with the
+     * inner handles. This is a separate loop to avoid the cost when Bezier type curves are not
+     * used. */
     Vector<int64_t> bezier_indices;
     const IndexMask bezier_mask = this->indices_for_curve_type(CURVE_TYPE_BEZIER, bezier_indices);
     if (!bezier_mask.is_empty()) {
@@ -726,6 +727,9 @@ Span<float3> CurvesGeometry::evaluated_tangents() const
 
       threading::parallel_for(bezier_mask.index_range(), 1024, [&](IndexRange range) {
         for (const int curve_index : bezier_mask.slice(range)) {
+          if (cyclic[curve_index]) {
+            continue;
+          }
           const IndexRange points = this->points_for_curve(curve_index);
           const IndexRange evaluated_points = this->evaluated_points_for_curve(curve_index);
 
@@ -1163,8 +1167,8 @@ static CurvesGeometry copy_with_removed_points(const CurvesGeometry &curves,
   threading::parallel_invoke(
       /* Initialize curve offsets. */
       [&]() { new_curves.offsets_for_write().copy_from(new_curve_offsets); },
-      /* Copy over point attributes. */
       [&]() {
+        /* Copy over point attributes. */
         for (auto &attribute : bke::retrieve_attributes_for_transfer(
                  curves.attributes(), new_curves.attributes_for_write(), ATTR_DOMAIN_MASK_POINT)) {
           threading::parallel_for(copy_point_ranges.index_range(), 128, [&](IndexRange range) {
@@ -1179,11 +1183,10 @@ static CurvesGeometry copy_with_removed_points(const CurvesGeometry &curves,
           });
           attribute.dst.finish();
         }
-      },
-      /* Copy over curve attributes.
-       * In some cases points are just dissolved, so the the number of
-       * curves will be the same. That could be optimized in the future. */
-      [&]() {
+
+        /* Copy over curve attributes.
+         * In some cases points are just dissolved, so the the number of
+         * curves will be the same. That could be optimized in the future. */
         for (auto &attribute : bke::retrieve_attributes_for_transfer(
                  curves.attributes(), new_curves.attributes_for_write(), ATTR_DOMAIN_MASK_CURVE)) {
           if (new_curves.curves_num() == curves.curves_num()) {
@@ -1260,8 +1263,8 @@ static CurvesGeometry copy_with_removed_curves(const CurvesGeometry &curves,
               }
             });
       },
-      /* Copy over point attributes. */
       [&]() {
+        /* Copy over point attributes. */
         for (auto &attribute : bke::retrieve_attributes_for_transfer(
                  curves.attributes(), new_curves.attributes_for_write(), ATTR_DOMAIN_MASK_POINT)) {
           threading::parallel_for(old_curve_ranges.index_range(), 128, [&](IndexRange range) {
@@ -1275,9 +1278,7 @@ static CurvesGeometry copy_with_removed_curves(const CurvesGeometry &curves,
           });
           attribute.dst.finish();
         }
-      },
-      /* Copy over curve attributes. */
-      [&]() {
+        /* Copy over curve attributes. */
         for (auto &attribute : bke::retrieve_attributes_for_transfer(
                  curves.attributes(), new_curves.attributes_for_write(), ATTR_DOMAIN_MASK_CURVE)) {
           threading::parallel_for(old_curve_ranges.index_range(), 128, [&](IndexRange range) {

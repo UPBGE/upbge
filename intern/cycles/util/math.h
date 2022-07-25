@@ -511,6 +511,11 @@ ccl_device_inline float4 float3_to_float4(const float3 a)
   return make_float4(a.x, a.y, a.z, 1.0f);
 }
 
+ccl_device_inline float4 float3_to_float4(const float3 a, const float w)
+{
+  return make_float4(a.x, a.y, a.z, w);
+}
+
 ccl_device_inline float inverse_lerp(float a, float b, float x)
 {
   return (x - a) / (b - a);
@@ -535,6 +540,7 @@ CCL_NAMESPACE_END
 #include "util/math_float2.h"
 #include "util/math_float3.h"
 #include "util/math_float4.h"
+#include "util/math_float8.h"
 
 #include "util/rect.h"
 
