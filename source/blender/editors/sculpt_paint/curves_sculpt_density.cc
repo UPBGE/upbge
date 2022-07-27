@@ -188,6 +188,7 @@ struct DensityAddOperationExecutor {
      * curves. */
     Array<bool> new_curve_skipped(new_positions_cu.size(), false);
     threading::parallel_invoke(
+        512 < already_added_curves + new_positions_cu.size(),
         /* Build kdtree from root points created by the current stroke. */
         [&]() {
           for (const int i : IndexRange(already_added_curves)) {
@@ -309,6 +310,7 @@ struct DensityAddOperationExecutor {
     };
 
     threading::parallel_invoke(
+        1024 < original_positions.size() + deformed_positions.size(),
         [&]() {
           self_->original_curve_roots_kdtree_ = roots_kdtree_from_positions(original_positions);
         },
@@ -595,7 +597,7 @@ struct DensitySubtractOperationExecutor {
           return curves_to_delete[curve_i];
         });
 
-    /* Remove deleted curves fromt he stored deformed root positions. */
+    /* Remove deleted curves from the stored deformed root positions. */
     const Vector<IndexRange> ranges_to_keep = mask_to_delete.extract_ranges_invert(
         curves_->curves_range());
     BLI_assert(curves_->curves_num() == self_->deformed_root_positions_.size());
