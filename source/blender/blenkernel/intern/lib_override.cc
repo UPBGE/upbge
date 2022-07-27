@@ -34,6 +34,7 @@
 #include "BKE_lib_query.h"
 #include "BKE_lib_remap.h"
 #include "BKE_main.h"
+#include "BKE_main_namemap.h"
 #include "BKE_node.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
@@ -2669,6 +2670,8 @@ void BKE_lib_override_library_main_resync(Main *bmain,
                 library->filepath);
     }
   }
+
+  BLI_assert(BKE_main_namemap_validate(bmain));
 }
 
 void BKE_lib_override_library_delete(Main *bmain, ID *id_root)
@@ -3637,6 +3640,9 @@ void BKE_lib_override_library_update(Main *bmain, ID *local)
     return;
   }
 
+  /* Remove the pair (idname, lib) of this temp id from the name map. */
+  BKE_main_namemap_remove_name(bmain, tmp_id, tmp_id->name + 2);
+
   tmp_id->lib = local->lib;
 
   /* This ID name is problematic, since it is an 'rna name property' it should not be editable or
@@ -3651,7 +3657,9 @@ void BKE_lib_override_library_update(Main *bmain, ID *local)
   Key *tmp_key = BKE_key_from_id(tmp_id);
   if (local_key != nullptr && tmp_key != nullptr) {
     tmp_key->id.flag |= (local_key->id.flag & LIB_EMBEDDED_DATA_LIB_OVERRIDE);
+    BKE_main_namemap_remove_name(bmain, &tmp_key->id, tmp_key->id.name + 2);
     tmp_key->id.lib = local_key->id.lib;
+    BLI_strncpy(tmp_key->id.name, local_key->id.name, sizeof(tmp_key->id.name));
   }
 
   PointerRNA rnaptr_src, rnaptr_dst, rnaptr_storage_stack, *rnaptr_storage = nullptr;
@@ -3688,8 +3696,10 @@ void BKE_lib_override_library_update(Main *bmain, ID *local)
   }
 
   /* Again, horribly inefficient in our case, we need something off-Main
-   * (aka more generic nolib copy/free stuff)! */
-  BKE_id_free_ex(bmain, tmp_id, LIB_ID_FREE_NO_UI_USER, true);
+   * (aka more generic nolib copy/free stuff).
+   * NOTE: Do not remove this tmp_id's name from the namemap here, since this name actually still
+   * exists in `bmain`. */
+  BKE_id_free_ex(bmain, tmp_id, LIB_ID_FREE_NO_UI_USER | LIB_ID_FREE_NO_NAMEMAP_REMOVE, true);
 
   if (GS(local->name) == ID_AR) {
     /* Fun times again, thanks to bone pointers in pose data of objects. We keep same ID addresses,
@@ -3733,12 +3743,16 @@ void BKE_lib_override_library_main_update(Main *bmain)
   Main *orig_gmain = G_MAIN;
   G_MAIN = bmain;
 
+  BLI_assert(BKE_main_namemap_validate(bmain));
+
   FOREACH_MAIN_ID_BEGIN (bmain, id) {
     if (id->override_library != nullptr) {
       BKE_lib_override_library_update(bmain, id);
     }
   }
   FOREACH_MAIN_ID_END;
+
+  BLI_assert(BKE_main_namemap_validate(bmain));
 
   G_MAIN = orig_gmain;
 }

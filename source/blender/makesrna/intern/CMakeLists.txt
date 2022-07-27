@@ -28,6 +28,7 @@ set(DEFSRC
   rna_controller.c
   rna_curve.c
   rna_curveprofile.c
+  rna_curves.c
   rna_depsgraph.c
   rna_dynamicpaint.c
   rna_fcurve.c
@@ -90,7 +91,6 @@ set(DEFSRC
 if(WITH_EXPERIMENTAL_FEATURES)
   add_definitions(-DWITH_SIMULATION_DATABLOCK)
   list(APPEND DEFSRC
-    rna_curves.c
     rna_simulation.c
   )
 endif()

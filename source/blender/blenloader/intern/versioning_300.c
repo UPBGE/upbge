@@ -57,6 +57,7 @@
 #include "BKE_lib_id.h"
 #include "BKE_lib_override.h"
 #include "BKE_main.h"
+#include "BKE_main_namemap.h"
 #include "BKE_modifier.h"
 #include "BKE_node.h"
 #include "BKE_screen.h"
@@ -863,6 +864,34 @@ void do_versions_after_linking_300(Main *bmain, ReportList *UNUSED(reports))
     }
   }
 
+  if (!MAIN_VERSION_ATLEAST(bmain, 303, 6)) {
+    /* In the Dope Sheet, for every mode other than Timeline, open the Properties panel. */
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (sl->spacetype != SPACE_ACTION) {
+            continue;
+          }
+
+          /* Skip the timeline, it shouldn't get its Properties panel opened. */
+          SpaceAction *saction = (SpaceAction *)sl;
+          if (saction->mode == SACTCONT_TIMELINE) {
+            continue;
+          }
+
+          const bool is_first_space = sl == area->spacedata.first;
+          ListBase *regionbase = is_first_space ? &area->regionbase : &sl->regionbase;
+          ARegion *region = BKE_region_find_in_listbase_by_type(regionbase, RGN_TYPE_UI);
+          if (region == NULL) {
+            continue;
+          }
+
+          region->flag &= ~RGN_FLAG_HIDDEN;
+        }
+      }
+    }
+  }
+
   /**
    * Versioning code until next subversion bump goes here.
    *
@@ -875,34 +904,6 @@ void do_versions_after_linking_300(Main *bmain, ReportList *UNUSED(reports))
    */
   {
     /* Keep this block, even when empty. */
-
-    {
-      /* In the Dope Sheet, for every mode other than Timeline, open the Properties panel. */
-      LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-        LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-          LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-            if (sl->spacetype != SPACE_ACTION) {
-              continue;
-            }
-
-            /* Skip the timeline, it shouldn't get its Properties panel opened. */
-            SpaceAction *saction = (SpaceAction *)sl;
-            if (saction->mode == SACTCONT_TIMELINE) {
-              continue;
-            }
-
-            const bool is_first_space = sl == area->spacedata.first;
-            ListBase *regionbase = is_first_space ? &area->regionbase : &sl->regionbase;
-            ARegion *region = BKE_region_find_in_listbase_by_type(regionbase, RGN_TYPE_UI);
-            if (region == NULL) {
-              continue;
-            }
-
-            region->flag &= ~RGN_FLAG_HIDDEN;
-          }
-        }
-      }
-    }
   }
 }
 
@@ -3285,18 +3286,8 @@ void blo_do_versions_300(FileData *fd, Library *UNUSED(lib), Main *bmain)
       }
     }
   }
-  /**
-   * Versioning code until next subversion bump goes here.
-   *
-   * \note Be sure to check when bumping the version:
-   * - "versioning_userdef.c", #blo_do_versions_userdef
-   * - "versioning_userdef.c", #do_versions_theme
-   *
-   * \note Keep this message at the bottom of the function.
-   */
-  {
-    /* Keep this block, even when empty. */
 
+  if (!MAIN_VERSION_ATLEAST(bmain, 303, 6)) {
     /* Initialize brush curves sculpt settings. */
     LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
       if (brush->ob_mode != OB_MODE_SCULPT_CURVES) {
@@ -3312,5 +3303,20 @@ void blo_do_versions_300(FileData *fd, Library *UNUSED(lib), Main *bmain)
         ob->dtx &= ~OB_DRAWBOUNDOX;
       }
     }
+
+    BKE_main_namemap_validate_and_fix(bmain);
+  }
+
+  /**
+   * Versioning code until next subversion bump goes here.
+   *
+   * \note Be sure to check when bumping the version:
+   * - "versioning_userdef.c", #blo_do_versions_userdef
+   * - "versioning_userdef.c", #do_versions_theme
+   *
+   * \note Keep this message at the bottom of the function.
+   */
+  {
+    /* Keep this block, even when empty. */
   }
 }
