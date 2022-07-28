@@ -183,20 +183,17 @@ void Film::init(const int2 &extent, const rcti *output_rect)
          * Using the render pass ensure we store the center depth. */
         render_passes |= EEVEE_RENDER_PASS_Z;
       }
-      /* TEST */
-      render_passes |= EEVEE_RENDER_PASS_VECTOR;
     }
     else {
       /* Render Case. */
       render_passes = eViewLayerEEVEEPassType(inst_.view_layer->eevee.render_passes);
-
-      render_passes |= EEVEE_RENDER_PASS_COMBINED;
 
 #define ENABLE_FROM_LEGACY(name_legacy, name_eevee) \
   SET_FLAG_FROM_TEST(render_passes, \
                      (inst_.view_layer->passflag & SCE_PASS_##name_legacy) != 0, \
                      EEVEE_RENDER_PASS_##name_eevee);
 
+      ENABLE_FROM_LEGACY(COMBINED, COMBINED)
       ENABLE_FROM_LEGACY(Z, Z)
       ENABLE_FROM_LEGACY(MIST, MIST)
       ENABLE_FROM_LEGACY(NORMAL, NORMAL)
@@ -209,12 +206,18 @@ void Film::init(const int2 &extent, const rcti *output_rect)
       ENABLE_FROM_LEGACY(DIFFUSE_DIRECT, DIFFUSE_LIGHT)
       ENABLE_FROM_LEGACY(GLOSSY_DIRECT, SPECULAR_LIGHT)
       ENABLE_FROM_LEGACY(ENVIRONMENT, ENVIRONMENT)
+      ENABLE_FROM_LEGACY(VECTOR, VECTOR)
 
 #undef ENABLE_FROM_LEGACY
     }
 
     /* Filter obsolete passes. */
     render_passes &= ~(EEVEE_RENDER_PASS_UNUSED_8 | EEVEE_RENDER_PASS_BLOOM);
+
+    if (scene_eevee.flag & SCE_EEVEE_MOTION_BLUR_ENABLED) {
+      /* Disable motion vector pass if motion blur is enabled. */
+      render_passes &= ~EEVEE_RENDER_PASS_VECTOR;
+    }
 
     /* TODO(@fclem): Can't we rely on depsgraph update notification? */
     if (assign_if_different(enabled_passes_, render_passes)) {
@@ -383,7 +386,7 @@ void Film::sync()
   DRW_shgroup_uniform_block_ref(grp, "camera_curr", &(*velocity.camera_steps[STEP_CURRENT]));
   DRW_shgroup_uniform_block_ref(grp, "camera_next", &(*velocity.camera_steps[step_next]));
   DRW_shgroup_uniform_texture_ref(grp, "depth_tx", &rbuffers.depth_tx);
-  DRW_shgroup_uniform_texture_ref(grp, "combined_tx", &rbuffers.combined_tx);
+  DRW_shgroup_uniform_texture_ref(grp, "combined_tx", &combined_final_tx_);
   DRW_shgroup_uniform_texture_ref(grp, "normal_tx", &rbuffers.normal_tx);
   DRW_shgroup_uniform_texture_ref(grp, "vector_tx", &rbuffers.vector_tx);
   DRW_shgroup_uniform_texture_ref(grp, "diffuse_light_tx", &rbuffers.diffuse_light_tx);
@@ -458,6 +461,10 @@ float2 Film::pixel_jitter_get() const
 
 eViewLayerEEVEEPassType Film::enabled_passes_get() const
 {
+  if (inst_.is_viewport() && data_.use_reprojection) {
+    /* Enable motion vector rendering but not the accumulation buffer. */
+    return enabled_passes_ | EEVEE_RENDER_PASS_VECTOR;
+  }
   return enabled_passes_;
 }
 
@@ -538,7 +545,7 @@ void Film::update_sample_table()
   }
 }
 
-void Film::accumulate(const DRWView *view)
+void Film::accumulate(const DRWView *view, GPUTexture *combined_final_tx)
 {
   if (inst_.is_viewport()) {
     DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
@@ -553,6 +560,8 @@ void Film::accumulate(const DRWView *view)
   }
 
   update_sample_table();
+
+  combined_final_tx_ = combined_final_tx;
 
   /* Need to update the static references as there could have change from a previous swap. */
   weight_src_tx_ = weight_tx_.current();
@@ -580,11 +589,13 @@ void Film::display()
   BLI_assert(inst_.is_viewport());
 
   /* Acquire dummy render buffers for correct binding. They will not be used. */
-  inst_.render_buffers.acquire(int2(1), (void *)this);
+  inst_.render_buffers.acquire(int2(1));
 
   DefaultFramebufferList *dfbl = DRW_viewport_framebuffer_list_get();
   GPU_framebuffer_bind(dfbl->default_fb);
   GPU_framebuffer_viewport_set(dfbl->default_fb, UNPACK2(data_.offset), UNPACK2(data_.extent));
+
+  combined_final_tx_ = inst_.render_buffers.combined_tx;
 
   /* Need to update the static references as there could have change from a previous swap. */
   weight_src_tx_ = weight_tx_.current();
