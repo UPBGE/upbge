@@ -1635,6 +1635,13 @@ void DRW_draw_render_loop_ex(struct Depsgraph *depsgraph,
   ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
   RegionView3D *rv3d = region->regiondata;
 
+  /* UPBGE */
+  Scene *sce_orig = (Scene *)DEG_get_original_id(&scene->id);
+  if (sce_orig && sce_orig->flag & SCE_INTERACTIVE) {
+    printf("Warning: DRW_draw_render_loop_ex called whereas SCE_INTERACTIVE!\n");
+  }
+  /*********/
+
   DST.draw_ctx.evil_C = evil_C;
   DST.draw_ctx = (DRWContextState){
       .region = region,
