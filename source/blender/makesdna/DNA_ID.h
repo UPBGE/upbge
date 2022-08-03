@@ -37,7 +37,7 @@ typedef struct DrawData {
   /* Only nested data, NOT the engine data itself. */
   DrawDataFreeCb free;
   /* Accumulated recalc flags, which corresponds to ID->recalc flags. */
-  int recalc;
+  unsigned int recalc;
 } DrawData;
 
 typedef struct DrawDataList {
@@ -387,7 +387,7 @@ typedef struct ID {
   int tag;
   int us;
   int icon_id;
-  int recalc;
+  unsigned int recalc;
   /**
    * Used by undo code. recalc_after_undo_push contains the changes between the
    * last undo push and the current state. This is accumulated as IDs are tagged
@@ -397,8 +397,8 @@ typedef struct ID {
    * recalc_after_undo_push at the time of the undo push. This means it can be
    * used to find the changes between undo states.
    */
-  int recalc_up_to_undo_push;
-  int recalc_after_undo_push;
+  unsigned int recalc_up_to_undo_push;
+  unsigned int recalc_after_undo_push;
 
   /**
    * A session-wide unique identifier for a given ID, that remain the same across potential
@@ -870,6 +870,17 @@ typedef enum IDRecalcFlag {
   /* The node tree has changed in a way that affects its output nodes. */
   ID_RECALC_NTREE_OUTPUT = (1 << 25),
 
+  /* Provisioned flags.
+   *
+   * Not for actual use. The idea of them is to have all bits of the `IDRecalcFlag` defined to a
+   * known value, silencing sanitizer warnings when checkign bits of the ID_RECALC_ALL. */
+  ID_RECALC_PROVISION_26 = (1 << 26),
+  ID_RECALC_PROVISION_27 = (1 << 27),
+  ID_RECALC_PROVISION_28 = (1 << 28),
+  ID_RECALC_PROVISION_29 = (1 << 29),
+  ID_RECALC_PROVISION_30 = (1 << 30),
+  ID_RECALC_PROVISION_31 = (1u << 31),
+
   /***************************************************************************
    * Pseudonyms, to have more semantic meaning in the actual code without
    * using too much low-level and implementation specific tags. */
@@ -888,7 +899,8 @@ typedef enum IDRecalcFlag {
    * Do NOT use those for tagging. */
 
   /* Identifies that SOMETHING has been changed in this ID. */
-  ID_RECALC_ALL = ~(0),
+  ID_RECALC_ALL = (0xffffffff),
+
   /* Identifies that something in particle system did change. */
   ID_RECALC_PSYS_ALL = (ID_RECALC_PSYS_REDO | ID_RECALC_PSYS_RESET | ID_RECALC_PSYS_CHILD |
                         ID_RECALC_PSYS_PHYS),

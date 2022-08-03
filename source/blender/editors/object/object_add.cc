@@ -3741,12 +3741,13 @@ static int duplicate_exec(bContext *C, wmOperator *op)
     }
   }
   CTX_DATA_END;
+  BKE_layer_collection_resync_allow();
 
   if (source_bases_new_objects.is_empty()) {
     return OPERATOR_CANCELLED;
   }
+
   /* Sync the collection now, after everything is duplicated. */
-  BKE_layer_collection_resync_allow();
   BKE_main_collection_sync(bmain);
 
   /* After sync we can get to the new Base data, process it here. */

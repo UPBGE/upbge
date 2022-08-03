@@ -1303,17 +1303,6 @@ static void pbvh_update_draw_buffer_cb(void *__restrict userdata,
   PBVH *pbvh = data->pbvh;
   PBVHNode *node = data->nodes[n];
 
-  CustomData *vdata, *ldata;
-
-  if (!pbvh->header.bm) {
-    vdata = pbvh->vdata;
-    ldata = pbvh->ldata;
-  }
-  else {
-    vdata = &pbvh->header.bm->vdata;
-    ldata = &pbvh->header.bm->ldata;
-  }
-
   if (node->flag & PBVH_RebuildDrawBuffers) {
     switch (pbvh->header.type) {
       case PBVH_GRIDS: {
@@ -1326,14 +1315,12 @@ static void pbvh_update_draw_buffer_cb(void *__restrict userdata,
       }
       case PBVH_FACES:
         node->draw_buffers = GPU_pbvh_mesh_buffers_build(
-            pbvh->mpoly,
-            pbvh->mloop,
-            pbvh->looptri,
+            pbvh->mesh,
             pbvh->verts,
-            node->prim_indices,
+            pbvh->looptri,
             CustomData_get_layer(pbvh->pdata, CD_SCULPT_FACE_SETS),
-            node->totprim,
-            pbvh->mesh);
+            node->prim_indices,
+            node->totprim);
         break;
       case PBVH_BMESH:
         node->draw_buffers = GPU_pbvh_bmesh_buffers_build(pbvh->flags &
@@ -1360,11 +1347,12 @@ static void pbvh_update_draw_buffer_cb(void *__restrict userdata,
                                      update_flags);
         break;
       case PBVH_FACES: {
+        /* Pass vertices separately because they may be not be the same as the mesh's vertices,
+         * and pass normals separately because they are managed by the PBVH. */
         GPU_pbvh_mesh_buffers_update(pbvh->vbo_id,
                                      node->draw_buffers,
+                                     pbvh->mesh,
                                      pbvh->verts,
-                                     vdata,
-                                     ldata,
                                      CustomData_get_layer(pbvh->vdata, CD_PAINT_MASK),
                                      CustomData_get_layer(pbvh->pdata, CD_SCULPT_FACE_SETS),
                                      pbvh->face_sets_color_seed,
@@ -1953,10 +1941,10 @@ bool BKE_pbvh_node_fully_unmasked_get(PBVHNode *node)
   return (node->flag & PBVH_Leaf) && (node->flag & PBVH_FullyUnmasked);
 }
 
-void BKE_pbvh_vert_mark_update(PBVH *pbvh, PBVHVertRef index)
+void BKE_pbvh_vert_tag_update_normal(PBVH *pbvh, PBVHVertRef vertex)
 {
   BLI_assert(pbvh->header.type == PBVH_FACES);
-  pbvh->vert_bitmap[index.i] = true;
+  pbvh->vert_bitmap[vertex.i] = true;
 }
 
 void BKE_pbvh_node_get_loops(PBVH *pbvh,
@@ -2112,7 +2100,7 @@ void BKE_pbvh_node_get_bm_orco_data(PBVHNode *node,
   *r_orco_coords = node->bm_orco;
 }
 
-bool BKE_pbvh_node_vert_update_check_any(PBVH *pbvh, PBVHNode *node)
+bool BKE_pbvh_node_has_vert_with_normal_update_tag(PBVH *pbvh, PBVHNode *node)
 {
   BLI_assert(pbvh->header.type == PBVH_FACES);
   const int *verts = node->vert_indices;
@@ -2980,7 +2968,7 @@ void BKE_pbvh_vert_coords_apply(PBVH *pbvh, const float (*vertCos)[3], const int
       /* no need for float comparison here (memory is exactly equal or not) */
       if (memcmp(mvert->co, vertCos[a], sizeof(float[3])) != 0) {
         copy_v3_v3(mvert->co, vertCos[a]);
-        BKE_pbvh_vert_mark_update(pbvh, BKE_pbvh_make_vref(a));
+        BKE_pbvh_vert_tag_update_normal(pbvh, BKE_pbvh_make_vref(a));
       }
     }
 

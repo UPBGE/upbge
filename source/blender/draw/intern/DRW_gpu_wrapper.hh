@@ -183,7 +183,7 @@ class UniformCommon : public DataBuffer<T, len, false>, NonMovable, NonCopyable 
     GPU_uniformbuf_free(ubo_);
   }
 
-  void push_update(void)
+  void push_update()
   {
     GPU_uniformbuf_update(ubo_, this->data_);
   }
@@ -228,10 +228,15 @@ class StorageCommon : public DataBuffer<T, len, false>, NonMovable, NonCopyable 
     GPU_storagebuf_free(ssbo_);
   }
 
-  void push_update(void)
+  void push_update()
   {
     BLI_assert(device_only == false);
     GPU_storagebuf_update(ssbo_, this->data_);
+  }
+
+  void clear_to_zero()
+  {
+    GPU_storagebuf_clear_to_zero(ssbo_);
   }
 
   operator GPUStorageBuf *() const
@@ -320,6 +325,7 @@ class StorageArrayBuffer : public detail::StorageCommon<T, len, device_only> {
     MEM_freeN(this->data_);
   }
 
+  /* Resize to \a new_size elements. */
   void resize(int64_t new_size)
   {
     BLI_assert(new_size > 0);
@@ -611,6 +617,11 @@ class Texture : NonCopyable {
     return GPU_texture_height(tx_);
   }
 
+  int pixel_count() const
+  {
+    return GPU_texture_width(tx_) * GPU_texture_height(tx_);
+  }
+
   bool depth(void) const
   {
     return GPU_texture_depth(tx_);
@@ -723,7 +734,7 @@ class Texture : NonCopyable {
       int3 size = this->size();
       if (size != int3(w, h, d) || GPU_texture_format(tx_) != format ||
           GPU_texture_cube(tx_) != cubemap || GPU_texture_array(tx_) != layered) {
-        GPU_TEXTURE_FREE_SAFE(tx_);
+        free();
       }
     }
     if (tx_ == nullptr) {
@@ -793,6 +804,15 @@ class TextureFromPool : public Texture, NonMovable {
     }
     DRW_texture_pool_texture_release(DST.vmempool->texture_pool, this->tx_);
     this->tx_ = nullptr;
+  }
+
+  /**
+   * Swap the GPUTexture pointers of the two texture.
+   */
+  static void swap(TextureFromPool &a, TextureFromPool &b)
+  {
+    SWAP(GPUTexture *, a.tx_, b.tx_);
+    SWAP(const char *, a.name_, b.name_);
   }
 
   /** Remove methods that are forbidden with this type of textures. */
@@ -879,45 +899,47 @@ class Framebuffer : NonCopyable {
 
 template<typename T, int64_t len> class SwapChain {
  private:
+  BLI_STATIC_ASSERT(len > 1, "A swap-chain needs more than 1 unit in length.");
   std::array<T, len> chain_;
-  int64_t index_ = 0;
 
  public:
   void swap()
   {
-    index_ = (index_ + 1) % len;
+    for (auto i : IndexRange(len - 1)) {
+      T::swap(chain_[i], chain_[(i + 1) % len]);
+    }
   }
 
   T &current()
   {
-    return chain_[index_];
+    return chain_[0];
   }
 
   T &previous()
   {
     /* Avoid modulo operation with negative numbers. */
-    return chain_[(index_ + len - 1) % len];
+    return chain_[(0 + len - 1) % len];
   }
 
   T &next()
   {
-    return chain_[(index_ + 1) % len];
+    return chain_[(0 + 1) % len];
   }
 
   const T &current() const
   {
-    return chain_[index_];
+    return chain_[0];
   }
 
   const T &previous() const
   {
     /* Avoid modulo operation with negative numbers. */
-    return chain_[(index_ + len - 1) % len];
+    return chain_[(0 + len - 1) % len];
   }
 
   const T &next() const
   {
-    return chain_[(index_ + 1) % len];
+    return chain_[(0 + 1) % len];
   }
 };
 
