@@ -1090,7 +1090,7 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
   const int header_height = BLI_rcti_size_y(header_rect);
   const int scaled_unit = round_fl_to_int(UI_UNIT_X / aspect);
 
-  /* Offset triangle and text to the right for subpanels. */
+  /* Offset triangle and text to the right for sub-panels. */
   rcti widget_rect;
   widget_rect.xmin = header_rect->xmin + (is_subpanel ? scaled_unit * 0.7f : 0);
   widget_rect.xmax = header_rect->xmax;
@@ -1285,7 +1285,7 @@ bool UI_panel_should_show_background(const ARegion *region, const PanelType *pan
 void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
 {
   // #define USE_FLAT_INACTIVE
-  const bool is_left = (bool)RGN_ALIGN_ENUM_FROM_MASK(region->alignment != RGN_ALIGN_RIGHT);
+  const bool is_left = RGN_ALIGN_ENUM_FROM_MASK(region->alignment) != RGN_ALIGN_RIGHT;
   View2D *v2d = &region->v2d;
   const uiStyle *style = UI_style_get();
   const uiFontStyle *fstyle = &style->widget;
@@ -2092,7 +2092,7 @@ static void ui_handle_panel_header(const bContext *C,
       ui_panel_drag_collapse_handler_add(C, UI_panel_is_closed(panel));
     }
 
-    /* Set panel custom data (modifier) active when expanding subpanels, but not top-level
+    /* Set panel custom data (modifier) active when expanding sub-panels, but not top-level
      * panels to allow collapsing and expanding without setting the active element. */
     if (is_subpanel) {
       panel_custom_data_active_set(panel);
