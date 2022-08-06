@@ -55,14 +55,11 @@ void DepthOfField::init()
   /* Reminder: These are parameters not interpolated by motion blur. */
   int update = 0;
   int sce_flag = sce_eevee.flag;
-  update += assign_if_different(do_hq_slight_focus_,
-                                (sce_flag & SCE_EEVEE_DOF_HQ_SLIGHT_FOCUS) != 0);
   update += assign_if_different(do_jitter_, (sce_flag & SCE_EEVEE_DOF_JITTER) != 0);
   update += assign_if_different(user_overblur_, sce_eevee.bokeh_overblur / 100.0f);
   update += assign_if_different(fx_max_coc_, sce_eevee.bokeh_max_size);
   update += assign_if_different(data_.scatter_color_threshold, sce_eevee.bokeh_threshold);
   update += assign_if_different(data_.scatter_neighbor_max_color, sce_eevee.bokeh_neighbor_max);
-  update += assign_if_different(data_.denoise_factor, sce_eevee.bokeh_denoise_fac);
   update += assign_if_different(data_.bokeh_blades, float(camera->dof.aperture_blades));
   if (update > 0) {
     inst_.sampling.reset();
@@ -145,7 +142,7 @@ void DepthOfField::sync()
   }
 
   /* Disable post fx if result wouldn't be noticeable. */
-  if (fx_max_coc_ < 0.5f) {
+  if (fx_max_coc_ <= 0.5f) {
     fx_radius = 0.0f;
   }
 
@@ -162,18 +159,15 @@ void DepthOfField::sync()
   /* TODO(fclem): Once we render into multiple view, we will need to use the maximum resolution. */
   int2 max_render_res = inst_.film.render_extent_get();
   int2 half_res = math::divide_ceil(max_render_res, int2(2));
-  int2 reduce_size = math::ceil_to_multiple(half_res, int2(1 < (DOF_MIP_MAX - 1)));
+  int2 reduce_size = math::ceil_to_multiple(half_res, int2(DOF_REDUCE_GROUP_SIZE));
 
   data_.gather_uv_fac = 1.0f / float2(reduce_size);
 
   /* Now that we know the maximum render resolution of every view, using depth of field, allocate
    * the reduced buffers. Color needs to be signed format here. See note in shader for
    * explanation. Do not use texture pool because of needs mipmaps. */
-  reduced_color_tx_.ensure_2d(GPU_RGBA16F, reduce_size, nullptr, DOF_MIP_MAX);
-  reduced_coc_tx_.ensure_2d(GPU_R16F, reduce_size, nullptr, DOF_MIP_MAX);
-  GPU_texture_wrap_mode(reduced_color_tx_, false, false);
-  GPU_texture_wrap_mode(reduced_coc_tx_, false, false);
-
+  reduced_color_tx_.ensure_2d(GPU_RGBA16F, reduce_size, nullptr, DOF_MIP_COUNT);
+  reduced_coc_tx_.ensure_2d(GPU_R16F, reduce_size, nullptr, DOF_MIP_COUNT);
   reduced_color_tx_.ensure_mip_views();
   reduced_coc_tx_.ensure_mip_views();
 
@@ -276,16 +270,28 @@ void DepthOfField::setup_pass_sync()
 
 void DepthOfField::stabilize_pass_sync()
 {
+  RenderBuffers &render_buffers = inst_.render_buffers;
+  VelocityModule &velocity = inst_.velocity;
+
   stabilize_ps_ = DRW_pass_create("Dof.stabilize_ps_", DRW_STATE_NO_DRAW);
   GPUShader *sh = inst_.shaders.static_shader_get(DOF_STABILIZE);
   DRWShadingGroup *grp = DRW_shgroup_create(sh, stabilize_ps_);
+  DRW_shgroup_uniform_block_ref(grp, "camera_prev", &(*velocity.camera_steps[STEP_PREVIOUS]));
+  DRW_shgroup_uniform_block_ref(grp, "camera_curr", &(*velocity.camera_steps[STEP_CURRENT]));
+  /* This is only for temporal stability. The next step is not needed. */
+  DRW_shgroup_uniform_block_ref(grp, "camera_next", &(*velocity.camera_steps[STEP_PREVIOUS]));
   DRW_shgroup_uniform_texture_ref_ex(grp, "coc_tx", &setup_coc_tx_, no_filter);
   DRW_shgroup_uniform_texture_ref_ex(grp, "color_tx", &setup_color_tx_, no_filter);
+  DRW_shgroup_uniform_texture_ref_ex(grp, "velocity_tx", &render_buffers.vector_tx, no_filter);
+  DRW_shgroup_uniform_texture_ref_ex(grp, "in_history_tx", &stabilize_input_, with_filter);
+  DRW_shgroup_uniform_texture_ref_ex(grp, "depth_tx", &render_buffers.depth_tx, no_filter);
+  DRW_shgroup_uniform_bool(grp, "use_history", &stabilize_valid_history_, 1);
   DRW_shgroup_uniform_block(grp, "dof_buf", data_);
   DRW_shgroup_uniform_image(grp, "out_coc_img", reduced_coc_tx_.mip_view(0));
   DRW_shgroup_uniform_image(grp, "out_color_img", reduced_color_tx_.mip_view(0));
+  DRW_shgroup_uniform_image_ref(grp, "out_history_img", &stabilize_output_tx_);
   DRW_shgroup_call_compute_ref(grp, dispatch_stabilize_size_);
-  DRW_shgroup_barrier(grp, GPU_BARRIER_TEXTURE_FETCH);
+  DRW_shgroup_barrier(grp, GPU_BARRIER_TEXTURE_FETCH | GPU_BARRIER_SHADER_IMAGE_ACCESS);
 }
 
 void DepthOfField::downsample_pass_sync()
@@ -319,8 +325,6 @@ void DepthOfField::reduce_pass_sync()
   DRW_shgroup_uniform_image(grp, "out_coc_lod1_img", reduced_coc_tx_.mip_view(1));
   DRW_shgroup_uniform_image(grp, "out_coc_lod2_img", reduced_coc_tx_.mip_view(2));
   DRW_shgroup_uniform_image(grp, "out_coc_lod3_img", reduced_coc_tx_.mip_view(3));
-  /* Sync writes to inout_color_lod0_img from stabilize_ps_. */
-  DRW_shgroup_barrier(grp, GPU_BARRIER_SHADER_IMAGE_ACCESS);
   DRW_shgroup_call_compute_ref(grp, dispatch_reduce_size_);
   /* NOTE: Command buffer barrier is done automatically by the GPU backend. */
   DRW_shgroup_barrier(grp, GPU_BARRIER_TEXTURE_FETCH | GPU_BARRIER_SHADER_STORAGE);
@@ -354,7 +358,6 @@ void DepthOfField::tiles_dilate_pass_sync()
     DRW_shgroup_uniform_image_ref(grp, "in_tiles_bg_img", &tiles_bg_tx_.previous());
     DRW_shgroup_uniform_image_ref(grp, "out_tiles_fg_img", &tiles_fg_tx_.current());
     DRW_shgroup_uniform_image_ref(grp, "out_tiles_bg_img", &tiles_bg_tx_.current());
-    DRW_shgroup_uniform_bool(grp, "dilate_slight_focus", &tiles_dilate_slight_focus_, 1);
     DRW_shgroup_uniform_int(grp, "ring_count", &tiles_dilate_ring_count_, 1);
     DRW_shgroup_uniform_int(grp, "ring_width_multiplier", &tiles_dilate_ring_width_mul_, 1);
     DRW_shgroup_call_compute_ref(grp, dispatch_tiles_dilate_size_);
@@ -425,6 +428,10 @@ void DepthOfField::scatter_pass_sync()
     DRW_shgroup_uniform_texture_ref(grp, "bokeh_lut_tx", &bokeh_scatter_lut_tx_);
     DRW_shgroup_uniform_texture_ref(grp, "occlusion_tx", &occlusion_tx_);
     DRW_shgroup_call_procedural_indirect(grp, GPU_PRIM_TRI_STRIP, nullptr, scatter_buf);
+    if (pass == 0) {
+      /* Avoid background gather pass writing to the occlusion_tx mid pass. */
+      DRW_shgroup_barrier(grp, GPU_BARRIER_SHADER_IMAGE_ACCESS);
+    }
   }
 }
 
@@ -453,14 +460,14 @@ void DepthOfField::resolve_pass_sync()
 
   resolve_ps_ = DRW_pass_create("Dof.resolve_ps_", DRW_STATE_NO_DRAW);
   bool use_lut = bokeh_lut_ps_ != nullptr;
-  eShaderType sh_type = do_hq_slight_focus_ ? (use_lut ? DOF_RESOLVE_LUT_HQ : DOF_RESOLVE_HQ) :
-                                              (use_lut ? DOF_RESOLVE_LUT : DOF_RESOLVE);
+  eShaderType sh_type = use_lut ? DOF_RESOLVE_LUT : DOF_RESOLVE;
   GPUShader *sh = inst_.shaders.static_shader_get(sh_type);
   DRWShadingGroup *grp = DRW_shgroup_create(sh, resolve_ps_);
   inst_.sampling.bind_resources(grp);
   DRW_shgroup_uniform_block(grp, "dof_buf", data_);
   DRW_shgroup_uniform_texture_ref_ex(grp, "depth_tx", &render_buffers.depth_tx, no_filter);
   DRW_shgroup_uniform_texture_ref_ex(grp, "color_tx", &input_color_tx_, no_filter);
+  DRW_shgroup_uniform_texture_ref_ex(grp, "stable_color_tx", &resolve_stable_color_tx_, no_filter);
   DRW_shgroup_uniform_texture_ref_ex(grp, "color_bg_tx", &color_bg_tx_.current(), with_filter);
   DRW_shgroup_uniform_texture_ref_ex(grp, "color_fg_tx", &color_fg_tx_.current(), with_filter);
   DRW_shgroup_uniform_image_ref(grp, "in_tiles_fg_img", &tiles_fg_tx_.current());
@@ -482,7 +489,29 @@ void DepthOfField::resolve_pass_sync()
 /** \name Post-FX Rendering.
  * \{ */
 
-void DepthOfField::render(GPUTexture **input_tx, GPUTexture **output_tx)
+/* Similar to Film::update_sample_table() but with constant filter radius and constant sample
+ * count. */
+void DepthOfField::update_sample_table()
+{
+  float2 subpixel_offset = inst_.film.pixel_jitter_get();
+  /* Since the film jitter is in full-screen res, divide by 2 to get the jitter in half res. */
+  subpixel_offset *= 0.5;
+
+  /* Same offsets as in dof_spatial_filtering(). */
+  const std::array<int2, 4> plus_offsets = {int2(-1, 0), int2(0, -1), int2(1, 0), int2(0, 1)};
+
+  const float radius = 1.5f;
+  int i = 0;
+  for (int2 offset : plus_offsets) {
+    float2 pixel_ofs = float2(offset) - subpixel_offset;
+    data_.filter_samples_weight[i++] = film_filter_weight(radius, math::length_squared(pixel_ofs));
+  }
+  data_.filter_center_weight = film_filter_weight(radius, math::length_squared(subpixel_offset));
+}
+
+void DepthOfField::render(GPUTexture **input_tx,
+                          GPUTexture **output_tx,
+                          DepthOfFieldBuffer &dof_buffer)
 {
   if (fx_radius_ == 0.0f) {
     return;
@@ -522,6 +551,8 @@ void DepthOfField::render(GPUTexture **input_tx, GPUTexture **output_tx)
     /* TODO(fclem): Make this dependent of the quality of the gather pass. */
     data_.scatter_coc_threshold = 4.0f;
 
+    update_sample_table();
+
     data_.push_update();
   }
 
@@ -530,7 +561,7 @@ void DepthOfField::render(GPUTexture **input_tx, GPUTexture **output_tx)
   int2 tile_res = math::divide_ceil(half_res, int2(DOF_TILES_SIZE));
 
   dispatch_setup_size_ = int3(math::divide_ceil(half_res, int2(DOF_DEFAULT_GROUP_SIZE)), 1);
-  dispatch_stabilize_size_ = int3(math::divide_ceil(half_res, int2(DOF_DEFAULT_GROUP_SIZE)), 1);
+  dispatch_stabilize_size_ = int3(math::divide_ceil(half_res, int2(DOF_STABILIZE_GROUP_SIZE)), 1);
   dispatch_downsample_size_ = int3(math::divide_ceil(quarter_res, int2(DOF_DEFAULT_GROUP_SIZE)),
                                    1);
   dispatch_reduce_size_ = int3(math::divide_ceil(half_res, int2(DOF_REDUCE_GROUP_SIZE)), 1);
@@ -551,31 +582,48 @@ void DepthOfField::render(GPUTexture **input_tx, GPUTexture **output_tx)
 
   {
     DRW_stats_group_start("Setup");
+    {
+      bokeh_gather_lut_tx_.acquire(int2(DOF_BOKEH_LUT_SIZE), GPU_RG16F);
+      bokeh_scatter_lut_tx_.acquire(int2(DOF_BOKEH_LUT_SIZE), GPU_R16F);
+      bokeh_resolve_lut_tx_.acquire(int2(DOF_MAX_SLIGHT_FOCUS_RADIUS * 2 + 1), GPU_R16F);
 
-    bokeh_gather_lut_tx_.acquire(int2(DOF_BOKEH_LUT_SIZE), GPU_RG16F);
-    bokeh_scatter_lut_tx_.acquire(int2(DOF_BOKEH_LUT_SIZE), GPU_R16F);
-    bokeh_resolve_lut_tx_.acquire(int2(DOF_MAX_SLIGHT_FOCUS_RADIUS * 2 + 1), GPU_R16F);
+      DRW_draw_pass(bokeh_lut_ps_);
+    }
+    {
+      setup_color_tx_.acquire(half_res, GPU_RGBA16F);
+      setup_coc_tx_.acquire(half_res, GPU_R16F);
 
-    DRW_draw_pass(bokeh_lut_ps_);
+      DRW_draw_pass(setup_ps_);
+    }
+    {
+      stabilize_output_tx_.acquire(half_res, GPU_RGBA16F);
+      stabilize_valid_history_ = !dof_buffer.stabilize_history_tx_.ensure_2d(GPU_RGBA16F,
+                                                                             half_res);
 
-    setup_color_tx_.acquire(half_res, GPU_RGBA16F);
-    setup_coc_tx_.acquire(half_res, GPU_RG16F);
+      if (stabilize_valid_history_ == false) {
+        /* Avoid uninitialized memory that can contain NaNs. */
+        dof_buffer.stabilize_history_tx_.clear(float4(0.0f));
+      }
 
-    DRW_draw_pass(setup_ps_);
+      stabilize_input_ = dof_buffer.stabilize_history_tx_;
+      /* Outputs to reduced_*_tx_ mip 0. */
+      DRW_draw_pass(stabilize_ps_);
 
-    /* Outputs to reduced_*_tx_ mip 0. */
-    DRW_draw_pass(stabilize_ps_);
+      /* WATCH(fclem): Swap Texture an TextureFromPool internal GPUTexture in order to reuse
+       * the one that we just consumed. */
+      TextureFromPool::swap(stabilize_output_tx_, dof_buffer.stabilize_history_tx_);
 
-    /* Used by stabilize pass. */
-    setup_color_tx_.release();
-
+      /* Used by stabilize pass. */
+      stabilize_output_tx_.release();
+      setup_color_tx_.release();
+    }
     {
       DRW_stats_group_start("Tile Prepare");
 
       /* WARNING: If format changes, make sure dof_tile_* GLSL constants are properly encoded. */
-      tiles_fg_tx_.previous().acquire(tile_res, GPU_RGBA16F);
+      tiles_fg_tx_.previous().acquire(tile_res, GPU_R11F_G11F_B10F);
       tiles_bg_tx_.previous().acquire(tile_res, GPU_R11F_G11F_B10F);
-      tiles_fg_tx_.current().acquire(tile_res, GPU_RGBA16F);
+      tiles_fg_tx_.current().acquire(tile_res, GPU_R11F_G11F_B10F);
       tiles_bg_tx_.current().acquire(tile_res, GPU_R11F_G11F_B10F);
 
       DRW_draw_pass(tiles_flatten_ps_);
@@ -592,9 +640,6 @@ void DepthOfField::render(GPUTexture **input_tx, GPUTexture **output_tx)
         /* This algorithm produce the exact dilation radius by dividing it in multiple passes. */
         int dilation_radius = 0;
         while (dilation_radius < dilation_end_radius) {
-          /* Dilate slight focus only on first iteration. */
-          tiles_dilate_slight_focus_ = (dilation_radius == 0) ? 1 : 0;
-
           int remainder = dilation_end_radius - dilation_radius;
           /* Do not step over any unvisited tile. */
           int max_multiplier = dilation_radius + 1;
@@ -640,6 +685,7 @@ void DepthOfField::render(GPUTexture **input_tx, GPUTexture **output_tx)
 
     SwapChain<TextureFromPool, 2> &color_tx = is_background ? color_bg_tx_ : color_fg_tx_;
     SwapChain<TextureFromPool, 2> &weight_tx = is_background ? weight_bg_tx_ : weight_fg_tx_;
+    Framebuffer &scatter_fb = is_background ? scatter_bg_fb_ : scatter_fg_fb_;
     DRWPass *gather_ps = is_background ? gather_bg_ps_ : gather_fg_ps_;
     DRWPass *filter_ps = is_background ? filter_bg_ps_ : filter_fg_ps_;
     DRWPass *scatter_ps = is_background ? scatter_bg_ps_ : scatter_fg_ps_;
@@ -666,9 +712,9 @@ void DepthOfField::render(GPUTexture **input_tx, GPUTexture **output_tx)
 
     GPU_memory_barrier(GPU_BARRIER_FRAMEBUFFER);
 
-    scatter_fb_.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(color_tx.current()));
+    scatter_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(color_tx.current()));
 
-    GPU_framebuffer_bind(scatter_fb_);
+    GPU_framebuffer_bind(scatter_fb);
     DRW_draw_pass(scatter_ps);
 
     /* Used by scatter pass. */
@@ -693,6 +739,8 @@ void DepthOfField::render(GPUTexture **input_tx, GPUTexture **output_tx)
   }
   {
     DRW_stats_group_start("Resolve");
+
+    resolve_stable_color_tx_ = dof_buffer.stabilize_history_tx_;
 
     DRW_draw_pass(resolve_ps_);
 

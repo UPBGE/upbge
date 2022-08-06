@@ -3479,6 +3479,16 @@ int CustomData_get_n_offset(const CustomData *data, const int type, const int n)
   return data->layers[layer_index].offset;
 }
 
+int CustomData_get_offset_named(const CustomData *data, int type, const char *name)
+{
+  int layer_index = CustomData_get_named_layer_index(data, type, name);
+  if (layer_index == -1) {
+    return -1;
+  }
+
+  return data->layers[layer_index].offset;
+}
+
 bool CustomData_set_layer_name(const CustomData *data,
                                const int type,
                                const int n,

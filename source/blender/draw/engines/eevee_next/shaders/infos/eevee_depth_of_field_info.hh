@@ -24,19 +24,23 @@ GPU_SHADER_CREATE_INFO(eevee_depth_of_field_setup)
     .sampler(0, ImageType::FLOAT_2D, "color_tx")
     .sampler(1, ImageType::DEPTH_2D, "depth_tx")
     .image(0, GPU_RGBA16F, Qualifier::WRITE, ImageType::FLOAT_2D, "out_color_img")
-    .image(1, GPU_RG16F, Qualifier::WRITE, ImageType::FLOAT_2D, "out_coc_img")
+    .image(1, GPU_R16F, Qualifier::WRITE, ImageType::FLOAT_2D, "out_coc_img")
     .compute_source("eevee_depth_of_field_setup_comp.glsl");
 
 GPU_SHADER_CREATE_INFO(eevee_depth_of_field_stabilize)
     .do_static_compilation(true)
-    .local_group_size(DOF_DEFAULT_GROUP_SIZE, DOF_DEFAULT_GROUP_SIZE)
-    .additional_info("eevee_shared", "draw_view")
-    .uniform_buf(1, "DepthOfFieldData", "dof_buf")
-    .sampler(0, ImageType::DEPTH_2D, "coc_tx")
+    .local_group_size(DOF_STABILIZE_GROUP_SIZE, DOF_STABILIZE_GROUP_SIZE)
+    .additional_info("eevee_shared", "draw_view", "eevee_velocity_camera")
+    .uniform_buf(4, "DepthOfFieldData", "dof_buf")
+    .sampler(0, ImageType::FLOAT_2D, "coc_tx")
     .sampler(1, ImageType::FLOAT_2D, "color_tx")
-    // .sampler(2, ImageType::FLOAT_2D, "velocity_tx") /* TODO: TAA with reprojection. */
+    .sampler(2, ImageType::FLOAT_2D, "velocity_tx")
+    .sampler(3, ImageType::FLOAT_2D, "in_history_tx")
+    .sampler(4, ImageType::DEPTH_2D, "depth_tx")
+    .push_constant(Type::BOOL, "use_history")
     .image(0, GPU_RGBA16F, Qualifier::WRITE, ImageType::FLOAT_2D, "out_color_img")
     .image(1, GPU_R16F, Qualifier::WRITE, ImageType::FLOAT_2D, "out_coc_img")
+    .image(2, GPU_RGBA16F, Qualifier::WRITE, ImageType::FLOAT_2D, "out_history_img")
     .compute_source("eevee_depth_of_field_stabilize_comp.glsl");
 
 GPU_SHADER_CREATE_INFO(eevee_depth_of_field_downsample)
@@ -79,18 +83,17 @@ GPU_SHADER_CREATE_INFO(eevee_depth_of_field_tiles_flatten)
     .local_group_size(DOF_TILES_FLATTEN_GROUP_SIZE, DOF_TILES_FLATTEN_GROUP_SIZE)
     .additional_info("eevee_shared", "draw_view")
     .sampler(0, ImageType::FLOAT_2D, "coc_tx")
-    .image(2, GPU_RGBA16F, Qualifier::WRITE, ImageType::FLOAT_2D, "out_tiles_fg_img")
+    .image(2, GPU_R11F_G11F_B10F, Qualifier::WRITE, ImageType::FLOAT_2D, "out_tiles_fg_img")
     .image(3, GPU_R11F_G11F_B10F, Qualifier::WRITE, ImageType::FLOAT_2D, "out_tiles_bg_img")
     .compute_source("eevee_depth_of_field_tiles_flatten_comp.glsl");
 
 GPU_SHADER_CREATE_INFO(eevee_depth_of_field_tiles_dilate)
     .additional_info("eevee_shared", "draw_view", "eevee_depth_of_field_tiles_common")
     .local_group_size(DOF_TILES_DILATE_GROUP_SIZE, DOF_TILES_DILATE_GROUP_SIZE)
-    .image(2, GPU_RGBA16F, Qualifier::WRITE, ImageType::FLOAT_2D, "out_tiles_fg_img")
+    .image(2, GPU_R11F_G11F_B10F, Qualifier::WRITE, ImageType::FLOAT_2D, "out_tiles_fg_img")
     .image(3, GPU_R11F_G11F_B10F, Qualifier::WRITE, ImageType::FLOAT_2D, "out_tiles_bg_img")
     .push_constant(Type::INT, "ring_count")
     .push_constant(Type::INT, "ring_width_multiplier")
-    .push_constant(Type::BOOL, "dilate_slight_focus")
     .compute_source("eevee_depth_of_field_tiles_dilate_comp.glsl");
 
 GPU_SHADER_CREATE_INFO(eevee_depth_of_field_tiles_dilate_minabs)
@@ -104,7 +107,7 @@ GPU_SHADER_CREATE_INFO(eevee_depth_of_field_tiles_dilate_minmax)
     .additional_info("eevee_depth_of_field_tiles_dilate");
 
 GPU_SHADER_CREATE_INFO(eevee_depth_of_field_tiles_common)
-    .image(0, GPU_RGBA16F, Qualifier::READ, ImageType::FLOAT_2D, "in_tiles_fg_img")
+    .image(0, GPU_R11F_G11F_B10F, Qualifier::READ, ImageType::FLOAT_2D, "in_tiles_fg_img")
     .image(1, GPU_R11F_G11F_B10F, Qualifier::READ, ImageType::FLOAT_2D, "in_tiles_bg_img");
 
 /** \} */
@@ -127,23 +130,17 @@ GPU_SHADER_CREATE_INFO(eevee_depth_of_field_lut)
 
 GPU_SHADER_CREATE_INFO(eevee_depth_of_field_background).define("DOF_FOREGROUND_PASS", "false");
 GPU_SHADER_CREATE_INFO(eevee_depth_of_field_foreground).define("DOF_FOREGROUND_PASS", "true");
-GPU_SHADER_CREATE_INFO(eevee_depth_of_field_hq).define("DOF_SLIGHT_FOCUS_DENSITY", "4");
-GPU_SHADER_CREATE_INFO(eevee_depth_of_field_lq).define("DOF_SLIGHT_FOCUS_DENSITY", "2");
 
 #define EEVEE_DOF_FINAL_VARIATION(name, ...) \
   GPU_SHADER_CREATE_INFO(name).additional_info(__VA_ARGS__).do_static_compilation(true);
 
 #define EEVEE_DOF_LUT_VARIATIONS(prefix, ...) \
   EEVEE_DOF_FINAL_VARIATION(prefix##_lut, "eevee_depth_of_field_lut", __VA_ARGS__) \
-  EEVEE_DOF_FINAL_VARIATION(prefix, "eevee_depth_of_field_no_lut", __VA_ARGS__)
+  EEVEE_DOF_FINAL_VARIATION(prefix##_no_lut, "eevee_depth_of_field_no_lut", __VA_ARGS__)
 
 #define EEVEE_DOF_GROUND_VARIATIONS(name, ...) \
   EEVEE_DOF_LUT_VARIATIONS(name##_background, "eevee_depth_of_field_background", __VA_ARGS__) \
   EEVEE_DOF_LUT_VARIATIONS(name##_foreground, "eevee_depth_of_field_foreground", __VA_ARGS__)
-
-#define EEVEE_DOF_HQ_VARIATIONS(name, ...) \
-  EEVEE_DOF_LUT_VARIATIONS(name##_hq, "eevee_depth_of_field_hq", __VA_ARGS__) \
-  EEVEE_DOF_LUT_VARIATIONS(name##_lq, "eevee_depth_of_field_lq", __VA_ARGS__)
 
 /** \} */
 
@@ -240,9 +237,10 @@ GPU_SHADER_CREATE_INFO(eevee_depth_of_field_resolve)
     .sampler(7, ImageType::FLOAT_2D, "weight_bg_tx")
     .sampler(8, ImageType::FLOAT_2D, "weight_fg_tx")
     .sampler(9, ImageType::FLOAT_2D, "weight_hole_fill_tx")
+    .sampler(10, ImageType::FLOAT_2D, "stable_color_tx")
     .image(2, GPU_RGBA16F, Qualifier::WRITE, ImageType::FLOAT_2D, "out_color_img")
     .compute_source("eevee_depth_of_field_resolve_comp.glsl");
 
-EEVEE_DOF_HQ_VARIATIONS(eevee_depth_of_field_resolve, "eevee_depth_of_field_resolve")
+EEVEE_DOF_LUT_VARIATIONS(eevee_depth_of_field_resolve, "eevee_depth_of_field_resolve")
 
 /** \} */

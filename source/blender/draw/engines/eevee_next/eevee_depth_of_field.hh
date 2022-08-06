@@ -29,6 +29,17 @@ class Instance;
 /** \name Depth of field
  * \{ */
 
+struct DepthOfFieldBuffer {
+  /**
+   * Per view history texture for stabilize pass.
+   * Swapped with stabilize_output_tx_ in order to reuse the previous history during DoF
+   * processing.
+   * Note this should be private as its inner working only concerns the Depth Of Field
+   * implementation. The view itself should not touch it.
+   */
+  Texture stabilize_history_tx_ = {"dof_taa"};
+};
+
 class DepthOfField {
  private:
   class Instance &inst_;
@@ -58,6 +69,9 @@ class DepthOfField {
   Texture reduced_color_tx_ = {"dof_reduced_color"};
 
   /** Stabilization (flicker attenuation) of Color and CoC output of the setup pass. */
+  TextureFromPool stabilize_output_tx_ = {"dof_taa"};
+  GPUTexture *stabilize_input_ = nullptr;
+  bool1 stabilize_valid_history_ = false;
   int3 dispatch_stabilize_size_ = int3(-1);
   DRWPass *stabilize_ps_ = nullptr;
 
@@ -81,7 +95,6 @@ class DepthOfField {
   DRWPass *tiles_flatten_ps_ = nullptr;
 
   /** Dilates the min & max CoCs to cover maximum COC values. */
-  bool1 tiles_dilate_slight_focus_ = false;
   int tiles_dilate_ring_count_ = -1;
   int tiles_dilate_ring_width_mul_ = -1;
   int3 dispatch_tiles_dilate_size_ = int3(-1);
@@ -109,11 +122,13 @@ class DepthOfField {
   DRWPass *filter_bg_ps_ = nullptr;
 
   /** Scatter convolution: A quad is emitted for every 4 bright enough half pixels. */
-  Framebuffer scatter_fb_ = {"dof_scatter"};
+  Framebuffer scatter_fg_fb_ = {"dof_scatter_fg"};
+  Framebuffer scatter_bg_fb_ = {"dof_scatter_bg"};
   DRWPass *scatter_fg_ps_ = nullptr;
   DRWPass *scatter_bg_ps_ = nullptr;
 
   /** Recombine the results and also perform a slight out of focus gather. */
+  GPUTexture *resolve_stable_color_tx_ = nullptr;
   int3 dispatch_resolve_size_ = int3(-1);
   DRWPass *resolve_ps_ = nullptr;
 
@@ -122,8 +137,6 @@ class DepthOfField {
   /** Scene settings that are immutable. */
   float user_overblur_;
   float fx_max_coc_;
-  /** Use High Quality (expensive) in-focus gather pass. */
-  bool do_hq_slight_focus_;
   /** Use jittered depth of field where we randomize camera location. */
   bool do_jitter_;
 
@@ -135,9 +148,6 @@ class DepthOfField {
   float focus_distance_;
   /** Extent of the input buffer. */
   int2 extent_;
-
-  /** Reduce pass info. */
-  int reduce_steps_;
 
  public:
   DepthOfField(Instance &inst) : inst_(inst){};
@@ -156,7 +166,7 @@ class DepthOfField {
    * Will swap input and output texture if rendering happens. The actual output of this function
    * is in input_tx.
    */
-  void render(GPUTexture **input_tx, GPUTexture **output_tx);
+  void render(GPUTexture **input_tx, GPUTexture **output_tx, DepthOfFieldBuffer &dof_buffer);
 
   bool postfx_enabled() const
   {
@@ -176,6 +186,8 @@ class DepthOfField {
   void scatter_pass_sync();
   void hole_fill_pass_sync();
   void resolve_pass_sync();
+
+  void update_sample_table();
 };
 
 /** \} */

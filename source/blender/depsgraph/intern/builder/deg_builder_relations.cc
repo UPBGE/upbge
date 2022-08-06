@@ -239,13 +239,8 @@ DepsgraphRelationBuilder::DepsgraphRelationBuilder(Main *bmain,
 {
 }
 
-TimeSourceNode *DepsgraphRelationBuilder::get_node(const TimeSourceKey &key) const
+TimeSourceNode *DepsgraphRelationBuilder::get_node(const TimeSourceKey & /*key*/) const
 {
-  if (key.id) {
-    /* XXX TODO */
-    return nullptr;
-  }
-
   return graph_->time_source;
 }
 
@@ -298,8 +293,8 @@ bool DepsgraphRelationBuilder::has_node(const OperationKey &key) const
   return find_node(key) != nullptr;
 }
 
-void DepsgraphRelationBuilder::add_modifier_to_transform_relation(const DepsNodeHandle *handle,
-                                                                  const char *description)
+void DepsgraphRelationBuilder::add_depends_on_transform_relation(const DepsNodeHandle *handle,
+                                                                 const char *description)
 {
   IDNode *id_node = handle->node->owner->owner;
   ID *id = id_node->id_orig;
@@ -1977,7 +1972,6 @@ void DepsgraphRelationBuilder::build_rigidbody(Scene *scene)
 
 void DepsgraphRelationBuilder::build_particle_systems(Object *object)
 {
-  TimeSourceKey time_src_key;
   OperationKey obdata_ubereval_key(&object->id, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL);
   OperationKey eval_init_key(
       &object->id, NodeType::PARTICLE_SYSTEM, OperationCode::PARTICLE_SYSTEM_INIT);
@@ -2263,12 +2257,7 @@ void DepsgraphRelationBuilder::build_object_data_geometry(Object *object)
     // add geometry collider relations
   }
   /* Make sure uber update is the last in the dependencies. */
-  if (object->type != OB_ARMATURE) {
-    /* Armatures does no longer require uber node. */
-    OperationKey obdata_ubereval_key(
-        &object->id, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL);
-    add_relation(geom_init_key, obdata_ubereval_key, "Object Geometry UberEval");
-  }
+  add_relation(geom_init_key, obdata_ubereval_key, "Object Geometry UberEval");
   if (object->type == OB_MBALL) {
     Object *mom = BKE_mball_basis_find(scene_, object);
     ComponentKey mom_geom_key(&mom->id, NodeType::GEOMETRY);
@@ -3097,7 +3086,6 @@ void DepsgraphRelationBuilder::build_copy_on_write_relations(IDNode *id_node)
     return;
   }
 
-  TimeSourceKey time_source_key;
   OperationKey copy_on_write_key(id_orig, NodeType::COPY_ON_WRITE, OperationCode::COPY_ON_WRITE);
   /* XXX: This is a quick hack to make Alt-A to work. */
   // add_relation(time_source_key, copy_on_write_key, "Fluxgate capacitor hack");

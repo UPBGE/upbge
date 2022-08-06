@@ -73,9 +73,10 @@ float fast_luma(vec3 color)
   return (2.0 * color.g) + color.r + color.b;
 }
 
-shared vec4 color_cache[8][8];
-shared float coc_cache[8][8];
-shared float do_scatter[8][8];
+const uint cache_size = gl_WorkGroupSize.x;
+shared vec4 color_cache[cache_size][cache_size];
+shared float coc_cache[cache_size][cache_size];
+shared float do_scatter[cache_size][cache_size];
 
 void main()
 {
@@ -83,7 +84,7 @@ void main()
   uvec2 texel_local = gl_LocalInvocationID.xy;
   /* Increase readablility. */
 #define LOCAL_INDEX texel_local.y][texel_local.x
-#define LOCAL_OFFSET(x_, y_) texel_local.y + y_][texel_local.x + x_
+#define LOCAL_OFFSET(x_, y_) texel_local.y + (y_)][texel_local.x + (x_)
 
   /* Load level 0 into cache. */
   color_cache[LOCAL_INDEX] = imageLoad(inout_color_lod0_img, texel);
@@ -200,22 +201,23 @@ void main()
   imageStore(inout_color_lod0_img, texel, color_cache[LOCAL_INDEX]);
 
   /* Recursive downsample. */
-  for (uint i = 1u; i < DOF_MIP_MAX; i++) {
+  for (uint i = 1u; i < DOF_MIP_COUNT; i++) {
     barrier();
-    if (all(lessThan(gl_LocalInvocationID.xy, uvec2(1u << (DOF_MIP_MAX - 1u - i))))) {
-      uvec2 texel_local = gl_LocalInvocationID.xy << i;
+    uint mask = ~(~0u << i);
+    if (all(equal(gl_LocalInvocationID.xy & mask, uvec2(0)))) {
+      uint ofs = 1u << (i - 1u);
 
       /* TODO(fclem): Could use wave shuffle intrinsics to avoid LDS as suggested by the paper. */
       vec4 coc4;
-      coc4.x = coc_cache[LOCAL_OFFSET(0, 1)];
-      coc4.y = coc_cache[LOCAL_OFFSET(1, 1)];
-      coc4.z = coc_cache[LOCAL_OFFSET(1, 0)];
+      coc4.x = coc_cache[LOCAL_OFFSET(0, ofs)];
+      coc4.y = coc_cache[LOCAL_OFFSET(ofs, ofs)];
+      coc4.z = coc_cache[LOCAL_OFFSET(ofs, 0)];
       coc4.w = coc_cache[LOCAL_OFFSET(0, 0)];
 
       vec4 colors[4];
-      colors[0] = color_cache[LOCAL_OFFSET(0, 1)];
-      colors[1] = color_cache[LOCAL_OFFSET(1, 1)];
-      colors[2] = color_cache[LOCAL_OFFSET(1, 0)];
+      colors[0] = color_cache[LOCAL_OFFSET(0, ofs)];
+      colors[1] = color_cache[LOCAL_OFFSET(ofs, ofs)];
+      colors[2] = color_cache[LOCAL_OFFSET(ofs, 0)];
       colors[3] = color_cache[LOCAL_OFFSET(0, 0)];
 
       vec4 weights = dof_bilateral_coc_weights(coc4);
@@ -226,8 +228,7 @@ void main()
       color_cache[LOCAL_INDEX] = weighted_sum_array(colors, weights);
       coc_cache[LOCAL_INDEX] = dot(coc4, weights);
 
-      ivec2 texel = ivec2(gl_WorkGroupID.xy * (gl_WorkGroupSize.xy >> i) +
-                          gl_LocalInvocationID.xy);
+      ivec2 texel = ivec2(gl_GlobalInvocationID.xy >> i);
 
       if (i == 1) {
         imageStore(out_color_lod1_img, texel, color_cache[LOCAL_INDEX]);
