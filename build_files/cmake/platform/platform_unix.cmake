@@ -597,7 +597,6 @@ endif()
 
 if(WITH_SYSTEM_FREETYPE)
   find_package_wrapper(Freetype)
-  find_package_wrapper(Brotli)
   if(NOT FREETYPE_FOUND)
     message(FATAL_ERROR "Failed finding system FreeType version!")
   endif()
