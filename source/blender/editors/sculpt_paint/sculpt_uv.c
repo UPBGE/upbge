@@ -414,9 +414,8 @@ static void uv_sculpt_stroke_exit(bContext *C, wmOperator *op)
   if (data->timer) {
     WM_event_remove_timer(CTX_wm_manager(C), CTX_wm_window(C), data->timer);
   }
-  if (data->elementMap) {
-    BM_uv_element_map_free(data->elementMap);
-  }
+  BM_uv_element_map_free(data->elementMap);
+  data->elementMap = NULL;
   MEM_SAFE_FREE(data->uv);
   MEM_SAFE_FREE(data->uvedges);
   if (data->initial_stroke) {
@@ -435,7 +434,7 @@ static int uv_element_offset_from_face_get(
   if (!element || (doIslands && element->island != island_index)) {
     return -1;
   }
-  return element - map->buf;
+  return element - map->storage;
 }
 
 static uint uv_edge_hash(const void *key)
@@ -469,7 +468,6 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
   BKE_curvemapping_init(ts->uvsculpt->paint.brush->curve);
 
   if (data) {
-    int counter = 0, i;
     ARegion *region = CTX_wm_region(C);
     float co[2];
     BMFace *efa;
@@ -518,20 +516,24 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
     }
 
     /* Count 'unique' UV's */
-    for (i = 0; i < data->elementMap->totalUVs; i++) {
-      if (data->elementMap->buf[i].separate &&
-          (!do_island_optimization || data->elementMap->buf[i].island == island_index)) {
-        counter++;
+    int unique_uvs = data->elementMap->total_unique_uvs;
+    if (do_island_optimization) {
+      unique_uvs = 0;
+      for (int i = 0; i < data->elementMap->total_uvs; i++) {
+        if (data->elementMap->storage[i].separate &&
+            (data->elementMap->storage[i].island == island_index)) {
+          unique_uvs++;
+        }
       }
     }
 
     /* Allocate the unique uv buffers */
-    data->uv = MEM_mallocN(sizeof(*data->uv) * counter, "uv_brush_unique_uvs");
-    uniqueUv = MEM_mallocN(sizeof(*uniqueUv) * data->elementMap->totalUVs,
+    data->uv = MEM_mallocN(sizeof(*data->uv) * unique_uvs, "uv_brush_unique_uvs");
+    uniqueUv = MEM_mallocN(sizeof(*uniqueUv) * data->elementMap->total_uvs,
                            "uv_brush_unique_uv_map");
     edgeHash = BLI_ghash_new(uv_edge_hash, uv_edge_compare, "uv_brush_edge_hash");
     /* we have at most totalUVs edges */
-    edges = MEM_mallocN(sizeof(*edges) * data->elementMap->totalUVs, "uv_brush_all_edges");
+    edges = MEM_mallocN(sizeof(*edges) * data->elementMap->total_uvs, "uv_brush_all_edges");
     if (!data->uv || !uniqueUv || !edgeHash || !edges) {
       MEM_SAFE_FREE(edges);
       MEM_SAFE_FREE(uniqueUv);
@@ -542,12 +544,12 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
       return NULL;
     }
 
-    data->totalUniqueUvs = counter;
-    /* So that we can use this as index for the UvElements */
-    counter = -1;
+    data->totalUniqueUvs = unique_uvs;
+    /* Index for the UvElements. */
+    int counter = -1;
     /* initialize the unique UVs */
-    for (i = 0; i < bm->totvert; i++) {
-      UvElement *element = data->elementMap->vert[i];
+    for (int i = 0; i < bm->totvert; i++) {
+      UvElement *element = data->elementMap->vertex[i];
       for (; element; element = element->next) {
         if (element->separate) {
           if (do_island_optimization && (element->island != island_index)) {
@@ -567,7 +569,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
           data->uv[counter].uv = luv->uv;
         }
         /* Pointer arithmetic to the rescue, as always :). */
-        uniqueUv[element - data->elementMap->buf] = counter;
+        uniqueUv[element - data->elementMap->storage] = counter;
       }
     }
 
@@ -627,11 +629,13 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
     }
 
     /* fill the edges with data */
-    i = 0;
-    GHASH_ITER (gh_iter, edgeHash) {
-      data->uvedges[i++] = *((UvEdge *)BLI_ghashIterator_getKey(&gh_iter));
+    {
+      int i = 0;
+      GHASH_ITER (gh_iter, edgeHash) {
+        data->uvedges[i++] = *((UvEdge *)BLI_ghashIterator_getKey(&gh_iter));
+      }
+      data->totalUvEdges = BLI_ghash_len(edgeHash);
     }
-    data->totalUvEdges = BLI_ghash_len(edgeHash);
 
     /* cleanup temporary stuff */
     BLI_ghash_free(edgeHash, NULL, NULL);
@@ -639,7 +643,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
 
     /* transfer boundary edge property to UV's */
     if (ts->uv_sculpt_settings & UV_SCULPT_LOCK_BORDERS) {
-      for (i = 0; i < data->totalUvEdges; i++) {
+      for (int i = 0; i < data->totalUvEdges; i++) {
         if (!data->uvedges[i].flag) {
           data->uv[data->uvedges[i].uv1].flag |= MARK_BOUNDARY;
           data->uv[data->uvedges[i].uv2].flag |= MARK_BOUNDARY;
@@ -686,7 +690,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
 
       counter = 0;
 
-      for (i = 0; i < data->totalUniqueUvs; i++) {
+      for (int i = 0; i < data->totalUniqueUvs; i++) {
         float dist, diff[2];
         if (data->uv[i].flag & MARK_BOUNDARY) {
           continue;

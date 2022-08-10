@@ -1279,7 +1279,7 @@ void ED_curve_editnurb_make(Object *obedit)
 
     if (actkey) {
       // XXX strcpy(G.editModeTitleExtra, "(Key) ");
-      /* TODO(campbell): undo_system: investigate why this was needed. */
+      /* TODO(@campbellbarton): undo_system: investigate why this was needed. */
 #if 0
       undo_editmode_clear();
 #endif
@@ -1975,7 +1975,7 @@ static int sel_to_copy_ints(const BPoint *bp,
     else if (not_full == -1) {
       not_full = selected_in_curr_leg;
     }
-    /* We have partialy selected leg in opposite dimension if condition is met. */
+    /* We have partially selected leg in opposite dimension if condition is met. */
     else if (not_full != selected_in_curr_leg) {
       return -1;
     }

@@ -210,6 +210,8 @@ static void sync_viewport_camera_smoothview(bContext *C,
                                               .quat = other_rv3d->viewquat,
                                               .dist = &other_rv3d->dist,
                                               .lens = &other_v3d->lens,
+                                              /* No undo because this switches cameras. */
+                                              .undo_str = NULL,
                                           });
                   }
                   else {
@@ -264,6 +266,8 @@ static int view3d_setobjectascamera_exec(bContext *C, wmOperator *op)
                                 .quat = rv3d->viewquat,
                                 .dist = &rv3d->dist,
                                 .lens = &v3d->lens,
+                                /* No undo because this switches cameras. */
+                                .undo_str = NULL,
                             });
     }
 
@@ -950,6 +954,8 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
                                      .quat = rv3d->viewquat,
                                      .dist = ok_dist ? &dist_new : NULL,
                                      .lens = &v3d->lens,
+                                     /* No undo because this doesn't move the camera. */
+                                     .undo_str = NULL,
                                  });
       }
     }
@@ -1019,6 +1025,8 @@ static void view3d_localview_exit(const Depsgraph *depsgraph,
                                      .ofs = rv3d->localvd->ofs,
                                      .quat = rv3d->localvd->viewquat,
                                      .dist = &rv3d->localvd->dist,
+                                     /* No undo because this doesn't move the camera. */
+                                     .undo_str = NULL,
                                  });
       }
 

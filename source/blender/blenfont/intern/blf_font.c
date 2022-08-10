@@ -17,7 +17,6 @@
 #include <ft2build.h>
 
 #include FT_FREETYPE_H
-#include FT_CACHE_H /* FreeType Cache. */
 #include FT_GLYPH_H
 #include FT_MULTIPLE_MASTERS_H /* Variable font support. */
 #include FT_TRUETYPE_IDS_H     /* Codepoint coverage constants. */
@@ -56,8 +55,6 @@ BatchBLF g_batch;
 
 /* freetype2 handle ONLY for this file! */
 static FT_Library ft_lib = NULL;
-static FTC_Manager ftc_manager = NULL;
-static FTC_CMapCache ftc_charmap_cache = NULL;
 
 static SpinLock ft_lib_mutex;
 static SpinLock blf_glyph_cache_mutex;
@@ -69,50 +66,11 @@ static ft_pix blf_font_height_max_ft_pix(struct FontBLF *font);
 static ft_pix blf_font_width_max_ft_pix(struct FontBLF *font);
 
 /* -------------------------------------------------------------------- */
-/** \name FreeType Caching
- * \{ */
 
-/* Called when a face is removed. FreeType will call FT_Done_Face itself. */
-static void blf_face_finalizer(void *object)
-{
-  FT_Face face = object;
-  FontBLF *font = (FontBLF *)face->generic.data;
-  font->face = NULL;
-}
-
-/* Called in response to FTC_Manager_LookupFace. Add a face to our font. */
-static FT_Error blf_cache_face_requester(FTC_FaceID faceID,
-                                         FT_Library lib,
-                                         FT_Pointer UNUSED(reqData),
-                                         FT_Face *face)
-{
-  FontBLF *font = (FontBLF *)faceID;
-  int err = FT_Err_Cannot_Open_Resource;
-
-  BLI_spin_lock(font->ft_lib_mutex);
-
-  if (font->filepath) {
-    err = FT_New_Face(lib, font->filepath, 0, face);
-  }
-  else if (font->mem) {
-    err = FT_New_Memory_Face(lib, font->mem, (FT_Long)font->mem_size, 0, face);
-  }
-
-  BLI_spin_unlock(font->ft_lib_mutex);
-
-  if (err == FT_Err_Ok) {
-    font->face = *face;
-    font->face->generic.data = font;
-    font->face->generic.finalizer = blf_face_finalizer;
-  }
-
-  return err;
-}
-
-/* Use cache, not blf_get_char_index, to return glyph id from charcode. */
+/* Return glyph id from charcode. */
 uint blf_get_char_index(struct FontBLF *font, uint charcode)
 {
-  return FTC_CMapCache_Lookup(ftc_charmap_cache, font, -1, charcode);
+  return FT_Get_Char_Index(font->face, charcode);
 }
 
 /* -------------------------------------------------------------------- */
@@ -1207,27 +1165,12 @@ int blf_font_init(void)
   BLI_spin_init(&ft_lib_mutex);
   BLI_spin_init(&blf_glyph_cache_mutex);
   int err = FT_Init_FreeType(&ft_lib);
-  if (err == FT_Err_Ok) {
-    err = FTC_Manager_New(ft_lib,
-                          BLF_CACHE_MAX_FACES,
-                          BLF_CACHE_MAX_SIZES,
-                          BLF_CACHE_BYTES,
-                          blf_cache_face_requester,
-                          NULL,
-                          &ftc_manager);
-    if (err == FT_Err_Ok) {
-      err = FTC_CMapCache_New(ftc_manager, &ftc_charmap_cache);
-    }
-  }
   return err;
 }
 
 void blf_font_exit(void)
 {
   BLI_spin_end(&ft_lib_mutex);
-  if (ftc_manager) {
-    FTC_Manager_Done(ftc_manager);
-  }
   if (ft_lib) {
     FT_Done_FreeType(ft_lib);
   }
@@ -1309,7 +1252,12 @@ bool blf_ensure_face(FontBLF *font)
 
   FT_Error err;
 
-  err = FTC_Manager_LookupFace(ftc_manager, font, &font->face);
+  if (font->filepath) {
+    err = FT_New_Face(ft_lib, font->filepath, 0, &font->face);
+  }
+  if (font->mem) {
+    err = FT_New_Memory_Face(ft_lib, font->mem, (FT_Long)font->mem_size, 0, &font->face);
+  }
 
   if (err) {
     if (ELEM(err, FT_Err_Unknown_File_Format, FT_Err_Unimplemented_Feature)) {
@@ -1349,6 +1297,7 @@ bool blf_ensure_face(FontBLF *font)
     }
   }
 
+  font->ft_size = font->face->size;
   font->face_flags = font->face->face_flags;
 
   if (FT_HAS_MULTIPLE_MASTERS(font)) {
@@ -1501,7 +1450,7 @@ void blf_font_free(FontBLF *font)
   }
 
   if (font->face) {
-    FTC_Manager_RemoveFaceID(ftc_manager, font);
+    FT_Done_Face(font->face);
     font->face = NULL;
   }
   if (font->filepath) {
@@ -1530,22 +1479,16 @@ bool blf_font_size(FontBLF *font, float size, unsigned int dpi)
   /* Adjust our new size to be on even 64ths. */
   size = (float)ft_size / 64.0f;
 
-  FTC_ScalerRec scaler = {0};
-  scaler.face_id = font;
-  scaler.width = 0;
-  scaler.height = ft_size;
-  scaler.pixel = 0;
-  scaler.x_res = dpi;
-  scaler.y_res = dpi;
-
-  if (FTC_Manager_LookupSize(ftc_manager, &scaler, &font->ft_size) != FT_Err_Ok) {
-    printf("The current font don't support the size, %f and dpi, %u\n", size, dpi);
-    return false;
+  if (font->size != size || font->dpi != dpi) {
+    if (FT_Set_Char_Size(font->face, 0, ft_size, dpi, dpi) == FT_Err_Ok) {
+      font->size = size;
+      font->dpi = dpi;
+    }
+    else {
+      printf("The current font does not support the size, %f and DPI, %u\n", size, dpi);
+      return false;
+    }
   }
-
-  font->size = size;
-  font->dpi = dpi;
-  font->ft_size->generic.data = (void *)font;
 
   return true;
 }

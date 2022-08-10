@@ -787,8 +787,8 @@ static bool blf_glyph_transform_weight(FT_GlyphSlot glyph, float factor, bool mo
 {
   if (glyph->format == FT_GLYPH_FORMAT_OUTLINE) {
     /* Fake bold if the font does not have this variable axis. */
-    const FontBLF *font = (FontBLF *)glyph->face->generic.data;
-    const FT_Pos average_width = font->ft_size->metrics.height;
+    const FT_Pos average_width = FT_MulFix(glyph->face->units_per_EM,
+                                           glyph->face->size->metrics.x_scale);
     FT_Pos change = (FT_Pos)((float)average_width * factor * 0.1f);
     FT_Outline_EmboldenXY(&glyph->outline, change, change / 2);
     if (monospaced) {
@@ -847,8 +847,7 @@ static bool blf_glyph_transform_width(FT_GlyphSlot glyph, float factor)
 static bool blf_glyph_transform_spacing(FT_GlyphSlot glyph, float factor)
 {
   if (glyph->advance.x > 0) {
-    const FontBLF *font = (FontBLF *)glyph->face->generic.data;
-    const long int size = font->ft_size->metrics.height;
+    const long int size = glyph->face->size->metrics.height;
     glyph->advance.x += (FT_Pos)(factor * (float)size / 6.0f);
     return true;
   }

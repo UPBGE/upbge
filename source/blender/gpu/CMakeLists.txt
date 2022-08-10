@@ -192,8 +192,8 @@ set(OPENGL_SRC
 
 set(METAL_SRC
   metal/mtl_backend.mm
-  metal/mtl_context.mm
   metal/mtl_command_buffer.mm
+  metal/mtl_context.mm
   metal/mtl_debug.mm
   metal/mtl_framebuffer.mm
   metal/mtl_memory.mm
@@ -325,6 +325,14 @@ set(GLSL_SRC
   shaders/common/gpu_shader_common_math.glsl
   shaders/common/gpu_shader_common_math_utils.glsl
   shaders/common/gpu_shader_common_mix_rgb.glsl
+
+  shaders/compositor/compositor_convert.glsl
+  shaders/compositor/compositor_realize_on_domain.glsl
+
+  shaders/compositor/library/gpu_shader_compositor_main.glsl
+  shaders/compositor/library/gpu_shader_compositor_store_output.glsl
+  shaders/compositor/library/gpu_shader_compositor_texture_utilities.glsl
+  shaders/compositor/library/gpu_shader_compositor_type_conversion.glsl
 
   shaders/material/gpu_shader_material_add_shader.glsl
   shaders/material/gpu_shader_material_ambient_occlusion.glsl
@@ -474,8 +482,8 @@ set(SRC_SHADER_CREATE_INFOS
   ../draw/engines/overlay/shaders/infos/overlay_grid_info.hh
   ../draw/engines/overlay/shaders/infos/overlay_outline_info.hh
   ../draw/engines/overlay/shaders/infos/overlay_paint_info.hh
-  ../draw/engines/overlay/shaders/infos/overlay_sculpt_info.hh
   ../draw/engines/overlay/shaders/infos/overlay_sculpt_curves_info.hh
+  ../draw/engines/overlay/shaders/infos/overlay_sculpt_info.hh
   ../draw/engines/overlay/shaders/infos/overlay_volume_info.hh
   ../draw/engines/overlay/shaders/infos/overlay_wireframe_info.hh
   ../draw/engines/select/shaders/infos/select_id_info.hh
@@ -490,6 +498,7 @@ set(SRC_SHADER_CREATE_INFOS
   ../draw/engines/workbench/shaders/infos/workbench_transparent_resolve_info.hh
   ../draw/engines/workbench/shaders/infos/workbench_volume_info.hh
   ../draw/engines/image/shaders/infos/engine_image_info.hh
+  ../draw/intern/shaders/draw_debug_info.hh
   ../draw/intern/shaders/draw_fullscreen_info.hh
   ../draw/intern/shaders/draw_hair_refine_info.hh
   ../draw/intern/shaders/draw_object_infos_info.hh
@@ -530,6 +539,9 @@ set(SRC_SHADER_CREATE_INFOS
   shaders/infos/gpu_shader_simple_lighting_info.hh
   shaders/infos/gpu_shader_text_info.hh
   shaders/infos/gpu_srgb_to_framebuffer_space_info.hh
+
+  shaders/compositor/infos/compositor_convert_info.hh
+  shaders/compositor/infos/compositor_realize_on_domain_info.hh
 )
 
 set(SHADER_CREATE_INFOS_CONTENT "")
@@ -601,9 +613,9 @@ if(WITH_GPU_BUILDTIME_SHADER_BUILDER)
 
   endif()
   target_link_libraries(shader_builder PUBLIC
+    bf_blenlib
     bf_gpu
     bf_intern_clog
-    bf_blenlib
     bf_intern_ghost
     ${PLATFORM_LINKLIBS}
   )

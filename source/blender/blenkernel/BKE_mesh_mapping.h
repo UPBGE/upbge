@@ -17,11 +17,10 @@ struct MLoopUV;
 struct MPoly;
 struct MVert;
 
-/* map from uv vertex to face (for select linked, stitch, uv suburf) */
-
 /* UvVertMap */
 #define STD_UV_CONNECT_LIMIT 0.0001f
 
+/* Map from uv vertex to face. Used by select linked, uv subdivision-surface and obj exporter. */
 typedef struct UvVertMap {
   struct UvMapVert **vert;
   struct UvMapVert *buf;
@@ -52,17 +51,26 @@ typedef struct UvElement {
   unsigned int island;
 } UvElement;
 
-/* UvElementMap is a container for UvElements of a mesh. It stores some UvElements belonging to the
- * same uv island in sequence and the number of uvs per island so it is possible to access all uvs
- * belonging to an island directly by iterating through the buffer.
+/** UvElementMap is a container for UvElements of a BMesh.
+ *
+ * It simplifies access to UV information and ensures the
+ * different UV selection modes are respected.
+ *
+ * If islands are calculated, it also stores UvElements
+ * belonging to the same uv island in sequence and
+ * the number of uvs per island.
  */
 typedef struct UvElementMap {
-  /* address UvElements by their vertex */
-  struct UvElement **vert;
-  /* UvElement Store */
-  struct UvElement *buf;
-  /* Total number of UVs in the layer. Useful to know */
-  int totalUVs;
+  /** UvElement Storage. */
+  struct UvElement *storage;
+  /** Total number of UVs. */
+  int total_uvs;
+  /** Total number of unique UVs. */
+  int total_unique_uvs;
+
+  /* If Non-NULL, address UvElements by `BM_elem_index_get(BMVert*)`. */
+  struct UvElement **vertex;
+
   /* Number of Islands in the mesh */
   int totalIslands;
   /* Stores the starting index in buf where each island begins */
