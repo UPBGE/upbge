@@ -1815,7 +1815,7 @@ int main(int argc,
   BKE_vfont_clipboard_free();
   BKE_node_clipboard_free();
 
-#ifdef WITH_COMPOSITOR
+#ifdef WITH_COMPOSITOR_CPU
   COM_deinitialize();
 #endif
 
