@@ -1474,7 +1474,7 @@ void DRW_draw_callbacks_post_scene(void)
     drw_debug_draw();
 
     /* UPBGE */
-    drw_debug_draw_bge();
+    //drw_debug_draw_bge();
     GPU_matrix_projection_set(rv3d->winmat);
     GPU_matrix_set(rv3d->viewmat);
     /**************************/
@@ -3569,7 +3569,7 @@ void DRW_game_render_loop_end()
 
 void DRW_game_viewport_render_loop_end()
 {
-  drw_debug_draw_bge();
+  //drw_debug_draw_bge();
 }
 
 void DRW_game_python_loop_end(ViewLayer *view_layer)

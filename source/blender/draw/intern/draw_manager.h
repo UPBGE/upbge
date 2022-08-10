@@ -501,25 +501,6 @@ typedef struct DRWCommandSmallChunk {
 BLI_STATIC_ASSERT_ALIGN(DRWCommandChunk, 16);
 #endif
 
-/* ------------- DRAW DEBUG ------------ */
-
-/* UPBGE */
-typedef struct DRWDebugText2D {
-  struct DRWDebugText2D *next; /* linked list */
-  char text[64];
-  float xco;
-  float yco;
-} DRWDebugText2D;
-
-typedef struct DRWDebugBox2D {
-  struct DRWDebugBox2D *next; /* linked list */
-  float xco;
-  float yco;
-  float xsize;
-  float ysize;
-} DRWDebugBox2D;
-/* End of UPBGE */
-
 /* ------------- Memory Pools ------------ */
 
 /* Contains memory pools information */
@@ -663,15 +644,8 @@ typedef struct DRWManager {
 
   DRWDebugModule *debug;
 
-
   /* UPBGE */
-  struct {
-    /* TODO(fclem) optimize: use chunks. */
-    DRWDebugLine *lines;
-    DRWDebugBox2D *boxes;
-    DRWDebugText2D *texts;
-  } debug_bge;
-  /* UPBGE */
+  DRWDebugModule *debug_bge;
 
 } DRWManager;
 
@@ -723,10 +697,6 @@ void *drw_engine_data_engine_data_get(GPUViewport *viewport, void *engine_handle
 bool drw_engine_data_engines_data_validate(GPUViewport *viewport, void **engine_handle_array);
 void drw_engine_data_cache_release(GPUViewport *viewport);
 void drw_engine_data_free(GPUViewport *viewport);
-
-/* UPBGE */
-void drw_debug_draw_bge(void);
-/**************************/
 
 #ifdef __cplusplus
 }
