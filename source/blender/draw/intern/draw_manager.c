@@ -3465,6 +3465,10 @@ void DRW_game_render_loop(bContext *C,
   if (gpencil_engine_needed) {
     use_drw_engine(&draw_engine_gpencil_type);
   }
+  /* Add realtime compositor for test in custom bge loop (not tested) */
+  if (is_compositor_enabled()) {
+    use_drw_engine(&draw_engine_compositor_type);
+  }
 
   const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
 
