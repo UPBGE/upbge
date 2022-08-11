@@ -84,6 +84,8 @@ const char *operationCodeAsString(OperationCode opcode)
     /* Geometry. */
     case OperationCode::GEOMETRY_EVAL_INIT:
       return "GEOMETRY_EVAL_INIT";
+    case OperationCode::MODIFIER:
+      return "MODIFIER";
     case OperationCode::GEOMETRY_EVAL:
       return "GEOMETRY_EVAL";
     case OperationCode::GEOMETRY_EVAL_DONE:
@@ -224,6 +226,16 @@ void OperationNode::tag_update(Depsgraph *graph, eUpdateSource source)
    * during previous dependency evaluation. Here the node gets re-tagged, so we need to give
    * the evaluated clues that evaluation needs to happen again. */
   graph->add_entry_tag(this);
+
+  /* Enforce dynamic visibility code-path update.
+   * This ensures visibility flags are consistently propagated throughout the dependency graph when
+   * there is no animated visibility in the graph.
+   *
+   * For example this ensures that graph is updated properly when manually toggling non-animated
+   * modifier visibility. */
+  if (opcode == OperationCode::VISIBILITY) {
+    graph->need_update_nodes_visibility = true;
+  }
 
   /* Tag for update, but also note that this was the source of an update. */
   flag |= (DEPSOP_FLAG_NEEDS_UPDATE | DEPSOP_FLAG_DIRECTLY_MODIFIED);

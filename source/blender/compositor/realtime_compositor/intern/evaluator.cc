@@ -62,28 +62,12 @@ bool Evaluator::validate_node_tree()
     return false;
   }
 
-  /* Find any of the unsupported nodes in the node tree. We only track one of them because we
-   * display a message for only one at a time to avoid long messages. */
-  DNode unsupported_node;
-  derived_node_tree_->foreach_node([&](DNode node) {
-    if (!is_node_supported(node)) {
-      unsupported_node = node;
-    }
-  });
-
-  /* unsupported_node is null if no unsupported node was found. */
-  if (unsupported_node) {
-    std::string message = "Compositor node tree has an unsupported node: ";
-    context_.set_info_message(message + unsupported_node->idname());
-    return false;
-  }
-
   return true;
 }
 
 void Evaluator::compile_and_evaluate()
 {
-  derived_node_tree_.reset(new DerivedNodeTree(node_tree_, node_tree_reference_map_));
+  derived_node_tree_ = std::make_unique<DerivedNodeTree>(node_tree_, node_tree_reference_map_);
 
   if (!validate_node_tree()) {
     return;

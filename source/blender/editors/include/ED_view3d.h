@@ -1171,7 +1171,7 @@ void ED_view3d_camera_lock_init(const struct Depsgraph *depsgraph,
  *
  * Apply the 3D Viewport transformation back to the camera object.
  *
- * \return true if the camera is moved.
+ * \return true if the camera (or one of it's parents) was moved.
  */
 bool ED_view3d_camera_lock_sync(const struct Depsgraph *depsgraph,
                                 struct View3D *v3d,
@@ -1211,8 +1211,8 @@ bool ED_view3d_camera_lock_undo_test(const View3D *v3d,
  * \return true when the call to push an undo step was made.
  */
 bool ED_view3d_camera_lock_undo_push(const char *str,
-                                     View3D *v3d,
-                                     struct RegionView3D *rv3d,
+                                     const View3D *v3d,
+                                     const struct RegionView3D *rv3d,
                                      struct bContext *C);
 
 /**
@@ -1222,8 +1222,8 @@ bool ED_view3d_camera_lock_undo_push(const char *str,
  * where adding a separate undo step each time isn't desirable.
  */
 bool ED_view3d_camera_lock_undo_grouped_push(const char *str,
-                                             View3D *v3d,
-                                             struct RegionView3D *rv3d,
+                                             const View3D *v3d,
+                                             const struct RegionView3D *rv3d,
                                              struct bContext *C);
 
 #define VIEW3D_MARGIN 1.4f
