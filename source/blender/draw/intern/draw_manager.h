@@ -698,6 +698,10 @@ bool drw_engine_data_engines_data_validate(GPUViewport *viewport, void **engine_
 void drw_engine_data_cache_release(GPUViewport *viewport);
 void drw_engine_data_free(GPUViewport *viewport);
 
+/* UPBGE */
+bool is_eevee_next(const struct Scene *scene);
+/*********/
+
 #ifdef __cplusplus
 }
 #endif

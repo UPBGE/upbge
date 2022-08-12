@@ -3461,7 +3461,13 @@ void DRW_game_render_loop(bContext *C,
 
   bool gpencil_engine_needed = drw_gpencil_engine_needed(depsgraph, v3d);
 
-  use_drw_engine(&draw_engine_eevee_type);
+  if (!is_eevee_next(scene)) {
+    use_drw_engine(&draw_engine_eevee_type);
+  }
+  else {
+    use_drw_engine(&draw_engine_eevee_next_type);
+  }
+
   if (gpencil_engine_needed) {
     use_drw_engine(&draw_engine_gpencil_type);
   }
@@ -3750,6 +3756,11 @@ void DRW_game_gpu_viewport_set(GPUViewport *viewport)
 GPUViewport *DRW_game_gpu_viewport_get()
 {
   return current_game_viewport;
+}
+
+bool is_eevee_next(const Scene *scene)
+{
+  return RE_engines_find(scene->r.engine) == &DRW_engine_viewport_eevee_next_type;
 }
 
 /***************************End of UPBGE***************************/
