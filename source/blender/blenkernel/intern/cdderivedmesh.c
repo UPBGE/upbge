@@ -600,67 +600,6 @@ DerivedMesh *cdDM_from_mesh_ex(Mesh *mesh,
   return dm;
 }
 
-DerivedMesh *CDDM_from_curve(Object *ob)
-{
-  ListBase disp = {NULL, NULL};
-
-  if (ob->runtime.curve_cache) {
-    disp = ob->runtime.curve_cache->disp;
-  }
-
-  return CDDM_from_curve_displist(ob, &disp);
-}
-
-DerivedMesh *CDDM_from_curve_displist(Object *ob, ListBase *dispbase)
-{
-  DerivedMesh *dm;
-  CDDerivedMesh *cddm;
-  MVert *allvert;
-  MEdge *alledge;
-  MLoop *allloop;
-  MPoly *allpoly;
-  MLoopUV *alluv = NULL;
-  int totvert, totedge, totloop, totpoly;
-
-  if (mesh_nurbs_displist_to_mdata((Curve *)ob->data,
-                                   dispbase,
-                                   &allvert,
-                                   &totvert,
-                                   &alledge,
-                                   &totedge,
-                                   &allloop,
-                                   &allpoly,
-                                   &alluv,
-                                   &totloop,
-                                   &totpoly) != 0) {
-    /* Error initializing mdata. This often happens when curve is empty */
-    return CDDM_new(0, 0, 0, 0, 0);
-  }
-
-  dm = CDDM_new(totvert, totedge, 0, totloop, totpoly);
-  dm->deformedOnly = 1;
-  dm->dirty |= DM_DIRTY_NORMALS;
-
-  cddm = (CDDerivedMesh *)dm;
-
-  memcpy(cddm->mvert, allvert, totvert * sizeof(MVert));
-  memcpy(cddm->medge, alledge, totedge * sizeof(MEdge));
-  memcpy(cddm->mloop, allloop, totloop * sizeof(MLoop));
-  memcpy(cddm->mpoly, allpoly, totpoly * sizeof(MPoly));
-
-  if (alluv) {
-    const char *uvname = "Orco";
-    CustomData_add_layer_named(&cddm->dm.loopData, CD_MLOOPUV, CD_ASSIGN, alluv, totloop, uvname);
-  }
-
-  MEM_freeN(allvert);
-  MEM_freeN(alledge);
-  MEM_freeN(allloop);
-  MEM_freeN(allpoly);
-
-  return dm;
-}
-
 static void loops_to_customdata_corners(
     BMesh *bm, CustomData *facedata, int cdindex, const BMLoop *l3[3], int numCol, int numUV)
 {
