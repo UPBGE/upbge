@@ -30,7 +30,7 @@ set(INC
 )
 
 set(INC_SYS
-	${GLEW_INCLUDE_PATH}
+  ${Epoxy_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -41,4 +41,4 @@ set(SRC
 set(LIB
 )
 
-#blender_add_lib(bf_intern_gpudirect "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+blender_add_lib(bf_intern_gpudirect "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

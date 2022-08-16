@@ -193,13 +193,11 @@ option(WITH_GAMEENGINE    "Enable Game Engine" ON)
 option(WITH_GAMEENGINE_SECURITY "Disable game engine python debugging tools" OFF)
 mark_as_advanced(WITH_GAMEENGINE_SECURITY)
 
-#VIDEO_DECKLINK is disabled since epoxy use instead of glew a296b8f694d1a93d40da78312758580f69b43be7
-#if(APPLE)
-#	set(WITH_GAMEENGINE_DECKLINK OFF)
-#else()
-#	option(WITH_GAMEENGINE_DECKLINK "Support BlackMagicDesign DeckLink cards in the Game Engine" ON)
-#endif()
-set(WITH_GAMEENGINE_DECKLINK OFF)
+if(APPLE)
+  set(WITH_GAMEENGINE_DECKLINK OFF)
+else()
+  option(WITH_GAMEENGINE_DECKLINK "Support BlackMagicDesign DeckLink cards in the Game Engine" ON)
+endif()
 
 option(WITH_GAMEENGINE_BPPLAYER "Enable Blend encrypted (from BPPlayer application) reading capabilities" ON)
 mark_as_advanced(WITH_GAMEENGINE_BPPLAYER)

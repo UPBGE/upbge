@@ -37,7 +37,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#include "GL/glew.h"
+#include <epoxy/gl.h>
 
 #if defined(__GNUC__) && __GNUC__>=4
 # define DVPAPI extern __attribute__ ((visibility("default")))

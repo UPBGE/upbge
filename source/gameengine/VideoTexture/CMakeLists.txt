@@ -30,7 +30,7 @@ set(INC
   ../../../intern/ffmpeg
   ../../../intern/guardedalloc
   ../../../intern/decklink
-  #../../../intern/gpudirect
+  ../../../intern/gpudirect
   ../../../intern/atomic
 )
 
@@ -56,10 +56,10 @@ set(SRC
   ImageViewport.cpp
   PyTypeList.cpp
   Texture.cpp
-  #DeckLink.cpp
+  DeckLink.cpp
   VideoBase.cpp
   VideoFFmpeg.cpp
-  #VideoDeckLink.cpp
+  VideoDeckLink.cpp
   blendVideoTex.cpp
 
   Common.h
@@ -76,10 +76,10 @@ set(SRC
   ImageViewport.h
   PyTypeList.h
   Texture.h
-  #DeckLink.h
+  DeckLink.h
   VideoBase.h
   VideoFFmpeg.h
-  #VideoDeckLink.h
+  VideoDeckLink.h
 )
 
 set(LIB
@@ -94,11 +94,11 @@ if(WITH_GAMEENGINE_DECKLINK)
   )
 endif()
 
-#if(WIN32)
-#    list(APPEND LIB
-#      bf_intern_gpudirect
-#    )
-#endif()
+if(WIN32)
+    list(APPEND LIB
+      bf_intern_gpudirect
+    )
+endif()
 
 if(WITH_CODEC_FFMPEG)
   list(APPEND INC_SYS

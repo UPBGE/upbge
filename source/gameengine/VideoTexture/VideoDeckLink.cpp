@@ -437,7 +437,7 @@ PinnedMemoryAllocator::PinnedMemoryAllocator(unsigned cacheSize, size_t memSize)
       }
     }
 #  endif
-    if (GLEW_AMD_pinned_memory)
+    if (epoxy_has_gl_extension("GL_AMD_pinned_memory"))
       mHasAMDPinnedMemory = true;
 
     mGPUDirectInitialized = true;
@@ -1125,7 +1125,7 @@ static int VideoDeckLink_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
   // capture device number, i.e. DeckLink card number, default first one
   short capt = 0;
 
-  if (!GLEW_VERSION_1_5) {
+  if ((!(epoxy_gl_version() >= 15))) {
     PyErr_SetString(PyExc_RuntimeError, "VideoDeckLink requires at least OpenGL 1.5");
     return -1;
   }

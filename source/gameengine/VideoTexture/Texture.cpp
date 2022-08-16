@@ -414,7 +414,7 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
           short *orgSize = m_source->m_image->getSize();
           // calc scaled sizes
           short size[2];
-          if (true /* GLEW_ARB_texture_non_power_of_two*/) {
+          if (epoxy_has_gl_extension("GL_ARB_texture_non_power_of_two")) {
             size[0] = orgSize[0];
             size[1] = orgSize[1];
           }

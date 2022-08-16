@@ -22,7 +22,7 @@
 #  include "DNA_listBase.h"
 #  include <pthread.h>
 
-#  include "GPU_glew.h"
+#  include <epoxy/gl.h>
 #  ifdef WIN32
 #    include "dvpapi.h"
 #  endif
