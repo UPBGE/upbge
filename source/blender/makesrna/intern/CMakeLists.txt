@@ -401,7 +401,6 @@ blender_include_dirs(
   ../../render
   ../../../../intern/cycles/blender
   ../../../../intern/atomic
-  ../../../../intern/glew-mx
   ../../../../intern/guardedalloc
   ../../../../intern/memutil
   ../../../../intern/mantaflow/extern
@@ -463,8 +462,6 @@ set(LIB
   bf_editor_transform
   bf_editor_undo
 )
-
-add_definitions(${GL_DEFINITIONS})
 
 blender_add_lib(bf_rna "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 

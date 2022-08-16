@@ -28,7 +28,6 @@ set(INC
 
   ../../../intern/atomic
   ../../../intern/clog
-  ../../../intern/glew-mx
   ../../../intern/guardedalloc
   ../../../intern/opensubdiv
 
@@ -141,7 +140,9 @@ set(SRC
   engines/eevee_next/eevee_engine.cc
   engines/eevee_next/eevee_film.cc
   engines/eevee_next/eevee_instance.cc
+  engines/eevee_next/eevee_light.cc
   engines/eevee_next/eevee_material.cc
+  engines/eevee_next/eevee_hizbuffer.cc
   engines/eevee_next/eevee_motion_blur.cc
   engines/eevee_next/eevee_pipeline.cc
   engines/eevee_next/eevee_renderbuffers.cc
@@ -394,6 +395,17 @@ set(GLSL_SRC
   engines/eevee_next/shaders/eevee_geom_gpencil_vert.glsl
   engines/eevee_next/shaders/eevee_geom_mesh_vert.glsl
   engines/eevee_next/shaders/eevee_geom_world_vert.glsl
+  engines/eevee_next/shaders/eevee_hiz_debug_frag.glsl
+  engines/eevee_next/shaders/eevee_hiz_update_comp.glsl
+  engines/eevee_next/shaders/eevee_light_culling_debug_frag.glsl
+  engines/eevee_next/shaders/eevee_light_culling_select_comp.glsl
+  engines/eevee_next/shaders/eevee_light_culling_sort_comp.glsl
+  engines/eevee_next/shaders/eevee_light_culling_tile_comp.glsl
+  engines/eevee_next/shaders/eevee_light_culling_zbin_comp.glsl
+  engines/eevee_next/shaders/eevee_light_eval_lib.glsl
+  engines/eevee_next/shaders/eevee_light_iter_lib.glsl
+  engines/eevee_next/shaders/eevee_light_lib.glsl
+  engines/eevee_next/shaders/eevee_ltc_lib.glsl
   engines/eevee_next/shaders/eevee_motion_blur_dilate_comp.glsl
   engines/eevee_next/shaders/eevee_motion_blur_flatten_comp.glsl
   engines/eevee_next/shaders/eevee_motion_blur_gather_comp.glsl
@@ -440,10 +452,12 @@ set(GLSL_SRC
 
   engines/workbench/workbench_shader_shared.h
 
+  intern/shaders/common_aabb_lib.glsl
   intern/shaders/common_attribute_lib.glsl
   intern/shaders/common_colormanagement_lib.glsl
   intern/shaders/common_debug_draw_lib.glsl
   intern/shaders/common_debug_print_lib.glsl
+  intern/shaders/common_debug_shape_lib.glsl
   intern/shaders/common_fullscreen_vert.glsl
   intern/shaders/common_fxaa_lib.glsl
   intern/shaders/common_globals_lib.glsl
@@ -451,9 +465,11 @@ set(GLSL_SRC
   intern/shaders/common_hair_lib.glsl
   intern/shaders/common_hair_refine_comp.glsl
   intern/shaders/common_hair_refine_vert.glsl
+  intern/shaders/common_intersect_lib.glsl
   intern/shaders/common_math_geom_lib.glsl
   intern/shaders/common_math_lib.glsl
   intern/shaders/common_pointcloud_lib.glsl
+  intern/shaders/common_shape_lib.glsl
   intern/shaders/common_smaa_lib.glsl
   intern/shaders/common_subdiv_custom_data_interp_comp.glsl
   intern/shaders/common_subdiv_ibo_lines_comp.glsl

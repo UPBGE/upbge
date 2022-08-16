@@ -22,6 +22,7 @@
 #include "BKE_context.h"
 #include "BKE_customdata.h"
 #include "BKE_editmesh.h"
+#include "BKE_image.h"
 #include "BKE_mesh_mapping.h"
 #include "BKE_paint.h"
 
@@ -42,23 +43,22 @@
 
 #include "UI_view2d.h"
 
-#define MARK_BOUNDARY 1
-
 typedef struct UvAdjacencyElement {
   /* pointer to original uvelement */
   UvElement *element;
   /* uv pointer for convenience. Caution, this points to the original UVs! */
   float *uv;
-  /* general use flag (Used to check if Element is boundary here) */
-  char flag;
+  /* Are we on locked in place? */
+  bool is_locked;
+  /* Are we on the boundary? */
+  bool is_boundary;
 } UvAdjacencyElement;
 
 typedef struct UvEdge {
   uint uv1;
   uint uv2;
-  /* general use flag
-   * (Used to check if edge is boundary here, and propagates to adjacency elements) */
-  char flag;
+  /* Are we in the interior? */
+  bool is_interior;
 } UvEdge;
 
 typedef struct UVInitialStrokeElement {
@@ -90,13 +90,13 @@ typedef struct UvSculptData {
    * to their coincident UV's */
   UvAdjacencyElement *uv;
 
-  /* ...Is what it says */
+  /* Total number of unique UVs. */
   int totalUniqueUvs;
 
   /* Edges used for adjacency info, used with laplacian smoothing */
   UvEdge *uvedges;
 
-  /* need I say more? */
+  /* Total number of #UvEdge. */
   int totalUvEdges;
 
   /* data for initial stroke, used by tools like grab */
@@ -116,7 +116,24 @@ typedef struct UvSculptData {
 
   /* store invert flag here */
   char invert;
+
+  /* Is constrain to image bounds active? */
+  bool constrain_to_bounds;
+
+  /* Base for constrain_to_bounds. */
+  float uv_base_offset[2];
 } UvSculptData;
+
+static void apply_sculpt_data_constraints(UvSculptData *sculptdata, float uv[2])
+{
+  if (!sculptdata->constrain_to_bounds) {
+    return;
+  }
+  float u = sculptdata->uv_base_offset[0];
+  float v = sculptdata->uv_base_offset[1];
+  uv[0] = clamp_f(uv[0], u, u + 1.0f);
+  uv[1] = clamp_f(uv[1], v, v + 1.0f);
+}
 
 /*********** Improved Laplacian Relaxation Operator ************************/
 /* original code by Raul Fernandez Hernandez "farsthary"                   *
@@ -170,17 +187,14 @@ static void HC_relaxation_iteration_uv(BMEditMesh *em,
   }
 
   for (i = 0; i < sculptdata->totalUniqueUvs; i++) {
-    float dist;
-    /* This is supposed to happen only if "Pin Edges" is on,
-     * since we have initialization on stroke start.
-     * If ever uv brushes get their own mode we should check for toolsettings option too. */
-    if (sculptdata->uv[i].flag & MARK_BOUNDARY) {
+    if (sculptdata->uv[i].is_locked) {
       continue;
     }
 
     sub_v2_v2v2(diff, sculptdata->uv[i].uv, mouse_coord);
     diff[1] /= aspectRatio;
-    if ((dist = dot_v2v2(diff, diff)) <= radius) {
+    float dist = dot_v2v2(diff, diff);
+    if (dist <= radius) {
       UvElement *element;
       float strength;
       strength = alpha * BKE_brush_curve_strength_clamped(brush, sqrtf(dist), radius_root);
@@ -195,6 +209,8 @@ static void HC_relaxation_iteration_uv(BMEditMesh *em,
                                     (tmp_uvdata[i].p[1] -
                                      0.5f * (tmp_uvdata[i].b[1] +
                                              tmp_uvdata[i].sum_b[1] / tmp_uvdata[i].ncounter));
+
+      apply_sculpt_data_constraints(sculptdata, sculptdata->uv[i].uv);
 
       for (element = sculptdata->uv[i].element; element; element = element->next) {
         MLoopUV *luv;
@@ -233,11 +249,16 @@ static void laplacian_relaxation_iteration_uv(BMEditMesh *em,
   /* counting neighbors */
   for (i = 0; i < sculptdata->totalUvEdges; i++) {
     UvEdge *tmpedge = sculptdata->uvedges + i;
-    tmp_uvdata[tmpedge->uv1].ncounter++;
-    tmp_uvdata[tmpedge->uv2].ncounter++;
-
-    add_v2_v2(tmp_uvdata[tmpedge->uv2].sum_co, sculptdata->uv[tmpedge->uv1].uv);
-    add_v2_v2(tmp_uvdata[tmpedge->uv1].sum_co, sculptdata->uv[tmpedge->uv2].uv);
+    bool code1 = sculptdata->uv[sculptdata->uvedges[i].uv1].is_boundary;
+    bool code2 = sculptdata->uv[sculptdata->uvedges[i].uv2].is_boundary;
+    if (code1 || (code1 == code2)) {
+      tmp_uvdata[tmpedge->uv2].ncounter++;
+      add_v2_v2(tmp_uvdata[tmpedge->uv2].sum_co, sculptdata->uv[tmpedge->uv1].uv);
+    }
+    if (code2 || (code1 == code2)) {
+      tmp_uvdata[tmpedge->uv1].ncounter++;
+      add_v2_v2(tmp_uvdata[tmpedge->uv1].sum_co, sculptdata->uv[tmpedge->uv2].uv);
+    }
   }
 
   /* Original Laplacian algorithm included removal of normal component of translation.
@@ -248,17 +269,14 @@ static void laplacian_relaxation_iteration_uv(BMEditMesh *em,
   }
 
   for (i = 0; i < sculptdata->totalUniqueUvs; i++) {
-    float dist;
-    /* This is supposed to happen only if "Pin Edges" is on,
-     * since we have initialization on stroke start.
-     * If ever uv brushes get their own mode we should check for toolsettings option too. */
-    if (sculptdata->uv[i].flag & MARK_BOUNDARY) {
+    if (sculptdata->uv[i].is_locked) {
       continue;
     }
 
     sub_v2_v2v2(diff, sculptdata->uv[i].uv, mouse_coord);
     diff[1] /= aspectRatio;
-    if ((dist = dot_v2v2(diff, diff)) <= radius) {
+    float dist = dot_v2v2(diff, diff);
+    if (dist <= radius) {
       UvElement *element;
       float strength;
       strength = alpha * BKE_brush_curve_strength_clamped(brush, sqrtf(dist), radius_root);
@@ -267,6 +285,8 @@ static void laplacian_relaxation_iteration_uv(BMEditMesh *em,
                                 strength * tmp_uvdata[i].p[0];
       sculptdata->uv[i].uv[1] = (1.0f - strength) * sculptdata->uv[i].uv[1] +
                                 strength * tmp_uvdata[i].p[1];
+
+      apply_sculpt_data_constraints(sculptdata, sculptdata->uv[i].uv);
 
       for (element = sculptdata->uv[i].element; element; element = element->next) {
         MLoopUV *luv;
@@ -327,17 +347,15 @@ static void uv_sculpt_stroke_apply(bContext *C,
     int i;
     alpha *= invert;
     for (i = 0; i < sculptdata->totalUniqueUvs; i++) {
-      float dist, diff[2];
-      /* This is supposed to happen only if "Lock Borders" is on,
-       * since we have initialization on stroke start.
-       * If ever uv brushes get their own mode we should check for toolsettings option too. */
-      if (sculptdata->uv[i].flag & MARK_BOUNDARY) {
+      if (sculptdata->uv[i].is_locked) {
         continue;
       }
 
+      float diff[2];
       sub_v2_v2v2(diff, sculptdata->uv[i].uv, co);
       diff[1] /= aspectRatio;
-      if ((dist = dot_v2v2(diff, diff)) <= radius) {
+      float dist = dot_v2v2(diff, diff);
+      if (dist <= radius) {
         UvElement *element;
         float strength;
         strength = alpha * BKE_brush_curve_strength_clamped(brush, sqrtf(dist), radius_root);
@@ -345,6 +363,8 @@ static void uv_sculpt_stroke_apply(bContext *C,
 
         sculptdata->uv[i].uv[0] -= strength * diff[0] * 0.001f;
         sculptdata->uv[i].uv[1] -= strength * diff[1] * 0.001f;
+
+        apply_sculpt_data_constraints(sculptdata, sculptdata->uv[i].uv);
 
         for (element = sculptdata->uv[i].element; element; element = element->next) {
           MLoopUV *luv;
@@ -391,6 +411,8 @@ static void uv_sculpt_stroke_apply(bContext *C,
           sculptdata->initial_stroke->initialSelection[i].initial_uv[0] + strength * diff[0];
       sculptdata->uv[uvindex].uv[1] =
           sculptdata->initial_stroke->initialSelection[i].initial_uv[1] + strength * diff[1];
+
+      apply_sculpt_data_constraints(sculptdata, sculptdata->uv[uvindex].uv);
 
       for (element = sculptdata->uv[uvindex].element; element; element = element->next) {
         MLoopUV *luv;
@@ -481,8 +503,6 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
 
     bool do_island_optimization = !(ts->uv_sculpt_settings & UV_SCULPT_ALL_ISLANDS);
     int island_index = 0;
-    /* Holds, for each UvElement in elementMap, an index of its unique UV. */
-    int *uniqueUv;
     data->tool = (RNA_enum_get(op->ptr, "mode") == BRUSH_STROKE_SMOOTH) ?
                      UV_SCULPT_TOOL_RELAX :
                      ts->uvsculpt->paint.brush->uv_sculpt_tool;
@@ -522,12 +542,13 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
     }
 
     /* Allocate the unique uv buffers */
-    data->uv = MEM_mallocN(sizeof(*data->uv) * unique_uvs, "uv_brush_unique_uvs");
-    uniqueUv = MEM_mallocN(sizeof(*uniqueUv) * data->elementMap->total_uvs,
-                           "uv_brush_unique_uv_map");
+    data->uv = MEM_callocN(sizeof(*data->uv) * unique_uvs, "uv_brush_unique_uvs");
+    /* Holds, for each UvElement in elementMap, an index of its unique UV. */
+    int *uniqueUv = MEM_mallocN(sizeof(*uniqueUv) * data->elementMap->total_uvs,
+                                "uv_brush_unique_uv_map");
     edgeHash = BLI_ghash_new(uv_edge_hash, uv_edge_compare, "uv_brush_edge_hash");
     /* we have at most totalUVs edges */
-    edges = MEM_mallocN(sizeof(*edges) * data->elementMap->total_uvs, "uv_brush_all_edges");
+    edges = MEM_callocN(sizeof(*edges) * data->elementMap->total_uvs, "uv_brush_all_edges");
     if (!data->uv || !uniqueUv || !edgeHash || !edges) {
       MEM_SAFE_FREE(edges);
       MEM_SAFE_FREE(uniqueUv);
@@ -559,8 +580,12 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
 
           counter++;
           data->uv[counter].element = element;
-          data->uv[counter].flag = 0;
           data->uv[counter].uv = luv->uv;
+          if (data->tool != UV_SCULPT_TOOL_GRAB) {
+            if (luv->flag & MLOOPUV_PINNED) {
+              data->uv[counter].is_locked = true;
+            }
+          }
         }
         /* Pointer arithmetic to the rescue, as always :). */
         uniqueUv[element - data->elementMap->storage] = counter;
@@ -576,7 +601,6 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
                          data->elementMap, efa, l, island_index, do_island_optimization);
         int offset2, itmp2 = uv_element_offset_from_face_get(
                          data->elementMap, efa, l->next, island_index, do_island_optimization);
-        char *flag;
 
         /* Skip edge if not found(unlikely) or not on valid island */
         if (itmp1 == -1 || itmp2 == -1) {
@@ -586,7 +610,6 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
         offset1 = uniqueUv[itmp1];
         offset2 = uniqueUv[itmp2];
 
-        edges[counter].flag = 0;
         /* Using an order policy, sort UV's according to address space.
          * This avoids having two different UvEdges with the same UV's on different positions. */
         if (offset1 < offset2) {
@@ -597,15 +620,13 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
           edges[counter].uv1 = offset2;
           edges[counter].uv2 = offset1;
         }
-        /* Hack! Set the value of the key to its flag.
-         * Now we can set the flag when an edge exists twice :) */
-        flag = BLI_ghash_lookup(edgeHash, &edges[counter]);
-        if (flag) {
-          *flag = 1;
+        UvEdge *prev_edge = BLI_ghash_lookup(edgeHash, &edges[counter]);
+        if (prev_edge) {
+          prev_edge->is_interior = true;
+          edges[counter].is_interior = true;
         }
         else {
-          /* Hack mentioned */
-          BLI_ghash_insert(edgeHash, &edges[counter], &edges[counter].flag);
+          BLI_ghash_insert(edgeHash, &edges[counter], &edges[counter]);
         }
         counter++;
       }
@@ -614,7 +635,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
     MEM_SAFE_FREE(uniqueUv);
 
     /* Allocate connectivity data, we allocate edges once */
-    data->uvedges = MEM_mallocN(sizeof(*data->uvedges) * BLI_ghash_len(edgeHash),
+    data->uvedges = MEM_callocN(sizeof(*data->uvedges) * BLI_ghash_len(edgeHash),
                                 "uv_brush_edge_connectivity_data");
     if (!data->uvedges) {
       BLI_ghash_free(edgeHash, NULL, NULL);
@@ -637,20 +658,25 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
     MEM_SAFE_FREE(edges);
 
     /* transfer boundary edge property to UV's */
-    if (ts->uv_sculpt_settings & UV_SCULPT_LOCK_BORDERS) {
-      for (int i = 0; i < data->totalUvEdges; i++) {
-        if (!data->uvedges[i].flag) {
-          data->uv[data->uvedges[i].uv1].flag |= MARK_BOUNDARY;
-          data->uv[data->uvedges[i].uv2].flag |= MARK_BOUNDARY;
+    for (int i = 0; i < data->totalUvEdges; i++) {
+      if (!data->uvedges[i].is_interior) {
+        data->uv[data->uvedges[i].uv1].is_boundary = true;
+        data->uv[data->uvedges[i].uv2].is_boundary = true;
+        if (ts->uv_sculpt_settings & UV_SCULPT_LOCK_BORDERS) {
+          data->uv[data->uvedges[i].uv1].is_locked = true;
+          data->uv[data->uvedges[i].uv2].is_locked = true;
         }
       }
     }
+
+    SpaceImage *sima = CTX_wm_space_image(C);
+    data->constrain_to_bounds = (sima->flag & SI_CLIP_UV);
+    BKE_image_find_nearest_tile_with_offset(sima->image, co, data->uv_base_offset);
 
     /* Allocate initial selection for grab tool */
     if (data->tool == UV_SCULPT_TOOL_GRAB) {
       float radius, radius_root;
       UvSculptData *sculptdata = (UvSculptData *)op->customdata;
-      SpaceImage *sima;
       int width, height;
       float aspectRatio;
       float alpha, zoomx, zoomy;
@@ -659,7 +685,6 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
       alpha = BKE_brush_alpha_get(scene, brush);
 
       radius = BKE_brush_size_get(scene, brush);
-      sima = CTX_wm_space_image(C);
       ED_space_image_get_size(sima, &width, &height);
       ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
 
@@ -684,16 +709,16 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
       copy_v2_v2(data->initial_stroke->init_coord, co);
 
       counter = 0;
-
       for (int i = 0; i < data->totalUniqueUvs; i++) {
-        float dist, diff[2];
-        if (data->uv[i].flag & MARK_BOUNDARY) {
+        if (data->uv[i].is_locked) {
           continue;
         }
 
+        float diff[2];
         sub_v2_v2v2(diff, data->uv[i].uv, co);
         diff[1] /= aspectRatio;
-        if ((dist = dot_v2v2(diff, diff)) <= radius) {
+        float dist = dot_v2v2(diff, diff);
+        if (dist <= radius) {
           float strength;
           strength = alpha * BKE_brush_curve_strength_clamped(brush, sqrtf(dist), radius_root);
 

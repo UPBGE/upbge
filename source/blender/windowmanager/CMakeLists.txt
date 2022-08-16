@@ -24,7 +24,6 @@ set(INC
   ../../gameengine/Launcher
   ../../../intern/clog
   ../../../intern/ghost
-  ../../../intern/glew-mx
   ../../../intern/guardedalloc
   ../../../intern/memutil
   ../bmesh
