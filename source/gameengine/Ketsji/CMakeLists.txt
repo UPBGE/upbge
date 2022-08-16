@@ -71,7 +71,7 @@ set(INC_SYS
   ../../../extern/recastnavigation/Recast/Include
   ../../../extern/recastnavigation/Detour/Include
   ${PTHREADS_INCLUDE_DIRS}
-  ${GLEW_INCLUDE_PATH}
+  ${Epoxy_INCLUDE_DIRS}
   ${BOOST_INCLUDE_DIR}
 )
 

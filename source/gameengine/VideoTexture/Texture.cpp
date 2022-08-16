@@ -14,7 +14,7 @@
 #include "BLI_listbase.h"
 #include "DEG_depsgraph_query.h"
 #include "DNA_material_types.h"
-#include "GPU_glew.h"
+#include <epoxy/gl.h>
 #include "GPU_texture.h"
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
@@ -414,7 +414,7 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
           short *orgSize = m_source->m_image->getSize();
           // calc scaled sizes
           short size[2];
-          if (GLEW_ARB_texture_non_power_of_two) {
+          if (true /* GLEW_ARB_texture_non_power_of_two*/) {
             size[0] = orgSize[0];
             size[1] = orgSize[1];
           }

@@ -7,7 +7,7 @@
 
 #include "ImageBase.h"
 
-#include "GPU_glew.h"
+#include <epoxy/gl.h>
 #include "MEM_guardedalloc.h"
 #include "bgl.h"
 

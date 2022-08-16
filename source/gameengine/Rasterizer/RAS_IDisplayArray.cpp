@@ -26,7 +26,7 @@
 
 #include "RAS_DisplayArray.h"
 
-#include "GPU_glew.h"
+#include <epoxy/gl.h>
 
 RAS_IDisplayArray::RAS_IDisplayArray(PrimitiveType type, const RAS_VertexFormat &format)
     : m_type(type), m_modifiedFlag(NONE_MODIFIED), m_format(format)

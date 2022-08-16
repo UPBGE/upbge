@@ -25,7 +25,7 @@
 #include "DRW_render.h"
 
 #include "GPU_immediate.h"
-#include "glew-mx.h"  // We'll remove that later (or skip 2D filters when there will be vulkan)
+#include <epoxy/gl.h>
 
 #include "EXP_Value.h"
 #include "RAS_2DFilterFrameBuffer.h"

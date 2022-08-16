@@ -12,7 +12,7 @@
 
 #include "VideoBase.h"
 
-#include "GPU_glew.h"
+#include <epoxy/gl.h>
 
 #include "FilterSource.h"
 

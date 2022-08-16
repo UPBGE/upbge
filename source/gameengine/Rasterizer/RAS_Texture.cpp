@@ -24,7 +24,7 @@
 
 #include "RAS_Texture.h"
 
-#include "GPU_glew.h"
+#include <epoxy/gl.h>
 
 RAS_Texture::RAS_Texture() : m_name("")
 {

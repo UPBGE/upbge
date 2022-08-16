@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "GPU_glew.h"
+#include <epoxy/gl.h>
 
 #include "Common.h"
 #include "ImageBase.h"

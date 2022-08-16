@@ -29,7 +29,7 @@
 
 #  include <memory.h>
 
-#  include "GPU_glew.h"
+#include <epoxy/gl.h>
 
 // macro for exception handling and logging
 #  define CATCH_EXCP \

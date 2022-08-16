@@ -31,7 +31,7 @@
 
 #include "RAS_OpenGLRasterizer.h"
 
-#include "GPU_glew.h"
+#include <epoxy/gl.h>
 #include "GPU_state.h"
 
 #include "CM_Message.h"
@@ -308,7 +308,7 @@ void RAS_OpenGLRasterizer::DisableForText()
   for (int i = 0; i < RAS_Texture::MaxUnits; i++) {
     glActiveTexture(GL_TEXTURE0 + i);
 
-    if (GLEW_ARB_texture_cube_map) {
+    if (true /* GLEW_ARB_texture_cube_map*/) {
       Disable(RAS_Rasterizer::RAS_TEXTURE_CUBE_MAP);
     }
     Disable(RAS_Rasterizer::RAS_TEXTURE_2D);
@@ -331,11 +331,11 @@ void RAS_OpenGLRasterizer::PrintHardwareInfo()
   bool support = 0;
   CM_Message("Supported Extensions...");
   CM_Message(" GL_ARB_shader_objects supported?       "
-             << (GLEW_ARB_shader_objects ? "yes." : "no."));
+             << (true /* GLEW_ARB_shader_objects*/ ? "yes." : "no."));
   CM_Message(" GL_ARB_geometry_shader4 supported?     "
-             << (GLEW_ARB_geometry_shader4 ? "yes." : "no."));
+             << (true /* GLEW_ARB_geometry_shader4*/ ? "yes." : "no."));
 
-  support = GLEW_ARB_vertex_shader;
+  support = true; //GLEW_ARB_vertex_shader;
   CM_Message(" GL_ARB_vertex_shader supported?        " << (support ? "yes." : "no."));
   if (support) {
     CM_Message(" ----------Details----------");
@@ -357,7 +357,7 @@ void RAS_OpenGLRasterizer::PrintHardwareInfo()
     CM_Message("");
   }
 
-  support = GLEW_ARB_fragment_shader;
+  support = true /* GLEW_ARB_fragment_shader*/;
   CM_Message(" GL_ARB_fragment_shader supported?      " << (support ? "yes." : "no."));
   if (support) {
     CM_Message(" ----------Details----------");
@@ -367,7 +367,7 @@ void RAS_OpenGLRasterizer::PrintHardwareInfo()
     CM_Message("");
   }
 
-  support = GLEW_ARB_texture_cube_map;
+  support = true /* GLEW_ARB_texture_cube_map*/;
   CM_Message(" GL_ARB_texture_cube_map supported?     " << (support ? "yes." : "no."));
   if (support) {
     CM_Message(" ----------Details----------");
@@ -377,7 +377,7 @@ void RAS_OpenGLRasterizer::PrintHardwareInfo()
     CM_Message("");
   }
 
-  support = GLEW_ARB_multitexture;
+  support = true /* GLEW_ARB_multitexture*/;
   CM_Message(" GL_ARB_multitexture supported?         " << (support ? "yes." : "no."));
   if (support) {
     CM_Message(" ----------Details----------");
@@ -388,7 +388,8 @@ void RAS_OpenGLRasterizer::PrintHardwareInfo()
   }
 
   CM_Message(" GL_ARB_texture_env_combine supported?  "
-             << (GLEW_ARB_texture_env_combine ? "yes." : "no."));
+             << (true /* GLEW_ARB_texture_env_combine*/ ? "yes." : "no."));
 
-  CM_Message(" GL_ARB_draw_instanced supported?  " << (GLEW_ARB_draw_instanced ? "yes." : "no."));
+  CM_Message(" GL_ARB_draw_instanced supported?  "
+             << (true /* GLEW_ARB_draw_instanced*/ ? "yes." : "no."));
 }

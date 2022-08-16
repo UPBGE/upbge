@@ -52,7 +52,7 @@ set(INC
 
 set(INC_SYS
   ../../../../intern/moto/include
-  ${GLEW_INCLUDE_PATH}
+  ${Epoxy_INCLUDE_DIRS}
   ${BOOST_INCLUDE_DIR}
 )
 

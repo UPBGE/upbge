@@ -339,7 +339,7 @@ static GHOST_IWindow *startFullScreen(GHOST_ISystem *system,
   setting.frequency = frequency;
 
   GHOST_IWindow *window = nullptr;
-  system->beginFullScreen(setting, &window, stereoVisual, alphaBackground);
+  system->beginFullScreen(setting, &window, stereoVisual);
   window->setCursorVisibility(false);
   /* note that X11 ignores this (it uses a window internally for fullscreen) */
   window->setState(GHOST_kWindowStateFullScreen);
@@ -385,8 +385,6 @@ static GHOST_IWindow *startWindow(GHOST_ISystem *system,
   // std::string title ("Blender Player - GHOST");
   if (stereoVisual)
     glSettings.flags |= GHOST_glStereoVisual;
-  if (alphaBackground)
-    glSettings.flags |= GHOST_glAlphaBackground;
 
   GHOST_IWindow *window = system->createWindow(title,
                                                windowLeft,
@@ -422,8 +420,6 @@ static GHOST_IWindow *startEmbeddedWindow(GHOST_ISystem *system,
 
   if (stereoVisual)
     glSettings.flags |= GHOST_glStereoVisual;
-  if (alphaBackground)
-    glSettings.flags |= GHOST_glAlphaBackground;
 
   if (parentWindow != 0)
     state = GHOST_kWindowStateEmbedded;

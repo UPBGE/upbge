@@ -32,7 +32,7 @@
 
 #include "KX_Camera.h"
 
-#include "GPU_glew.h"
+#include <epoxy/gl.h>
 #include "GPU_matrix.h"
 #include "GPU_viewport.h"
 

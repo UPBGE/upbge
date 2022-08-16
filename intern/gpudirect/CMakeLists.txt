@@ -41,4 +41,4 @@ set(SRC
 set(LIB
 )
 
-blender_add_lib(bf_intern_gpudirect "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+#blender_add_lib(bf_intern_gpudirect "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
