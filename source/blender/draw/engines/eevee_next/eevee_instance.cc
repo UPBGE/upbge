@@ -142,13 +142,8 @@ void Instance::object_sync(Object *ob)
         lights.sync_light(ob, ob_handle);
         break;
       case OB_MESH:
-      case OB_CURVES_LEGACY:
-      case OB_SURF:
-      case OB_FONT:
-      case OB_MBALL: {
         sync.sync_mesh(ob, ob_handle);
         break;
-      }
       case OB_VOLUME:
         break;
       case OB_CURVES:

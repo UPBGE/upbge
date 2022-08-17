@@ -194,7 +194,6 @@ void BKE_mesh_orco_ensure(struct Object *ob, struct Mesh *mesh);
 
 struct Mesh *BKE_mesh_from_object(struct Object *ob);
 void BKE_mesh_assign_object(struct Main *bmain, struct Object *ob, struct Mesh *me);
-void BKE_mesh_from_metaball(struct ListBase *lb, struct Mesh *me);
 
 /* UPBGE (not static) */
 int mesh_nurbs_displist_to_mdata(const struct Curve *cu,

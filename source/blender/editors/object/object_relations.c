@@ -2285,12 +2285,6 @@ static int make_override_library_exec(bContext *C, wmOperator *op)
   ID *id_root = NULL;
   bool is_override_instancing_object = false;
 
-  const bool do_fully_editable = U.experimental.use_override_new_fully_editable;
-
-  GSet *user_overrides_objects_uids = do_fully_editable ? NULL :
-                                                          BLI_gset_new(BLI_ghashutil_inthash_p,
-                                                                       BLI_ghashutil_intcmp,
-                                                                       __func__);
   bool user_overrides_from_selected_objects = false;
 
   if (!ID_IS_LINKED(obact) && obact->instance_collection != NULL &&
@@ -2329,6 +2323,21 @@ static int make_override_library_exec(bContext *C, wmOperator *op)
     id_root = &obact->id;
     user_overrides_from_selected_objects = true;
   }
+
+  const bool do_fully_editable = !user_overrides_from_selected_objects;
+
+  GSet *user_overrides_objects_uids = do_fully_editable ? NULL :
+                                                          BLI_gset_new(BLI_ghashutil_inthash_p,
+                                                                       BLI_ghashutil_intcmp,
+                                                                       __func__);
+
+  /* Make already existing selected liboverrides editable. */
+  FOREACH_SELECTED_OBJECT_BEGIN (view_layer, CTX_wm_view3d(C), ob_iter) {
+    if (ID_IS_OVERRIDE_LIBRARY_REAL(ob_iter) && !ID_IS_LINKED(ob_iter)) {
+      ob_iter->id.override_library->flag &= ~IDOVERRIDE_LIBRARY_FLAG_SYSTEM_DEFINED;
+    }
+  }
+  FOREACH_SELECTED_OBJECT_END;
 
   if (do_fully_editable) {
     /* Pass. */
@@ -2440,6 +2449,9 @@ static int make_override_library_invoke(bContext *C, wmOperator *op, const wmEve
   }
 
   if (!ID_IS_LINKED(obact)) {
+    if (ID_IS_OVERRIDE_LIBRARY_REAL(obact)) {
+      return make_override_library_exec(C, op);
+    }
     BKE_report(op->reports, RPT_ERROR, "Cannot make library override from a local object");
     return OPERATOR_CANCELLED;
   }
@@ -2478,17 +2490,20 @@ static bool make_override_library_poll(bContext *C)
   Object *obact = CTX_data_active_object(C);
 
   /* Object must be directly linked to be overridable. */
-  return (ED_operator_objectmode(C) && obact != NULL &&
-          (ID_IS_LINKED(obact) || (obact->instance_collection != NULL &&
-                                   ID_IS_OVERRIDABLE_LIBRARY(obact->instance_collection) &&
-                                   !ID_IS_OVERRIDE_LIBRARY(obact))));
+  return (
+      ED_operator_objectmode(C) && obact != NULL &&
+      (ID_IS_LINKED(obact) || ID_IS_OVERRIDE_LIBRARY(obact) ||
+       (obact->instance_collection != NULL &&
+        ID_IS_OVERRIDABLE_LIBRARY(obact->instance_collection) && !ID_IS_OVERRIDE_LIBRARY(obact))));
 }
 
 void OBJECT_OT_make_override_library(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Make Library Override";
-  ot->description = "Make a local override of this library linked data-block";
+  ot->description =
+      "Create a local override of the selected linked objects, and their hierarchy of "
+      "dependencies";
   ot->idname = "OBJECT_OT_make_override_library";
 
   /* api callbacks */
@@ -2513,6 +2528,105 @@ void OBJECT_OT_make_override_library(wmOperatorType *ot)
                      INT_MAX);
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   ot->prop = prop;
+}
+
+/** \} */
+
+/* ------------------------------------------------------------------- */
+/** \name Reset Library Override Operator
+ * \{ */
+
+static bool reset_clear_override_library_poll(bContext *C)
+{
+  Object *obact = CTX_data_active_object(C);
+
+  /* Object must be local and an override. */
+  return (ED_operator_objectmode(C) && obact != NULL && !ID_IS_LINKED(obact) &&
+          ID_IS_OVERRIDE_LIBRARY(obact));
+}
+
+static int reset_override_library_exec(bContext *C, wmOperator *UNUSED(op))
+{
+  Main *bmain = CTX_data_main(C);
+
+  /* Make already existing selected liboverrides editable. */
+  FOREACH_SELECTED_OBJECT_BEGIN (CTX_data_view_layer(C), CTX_wm_view3d(C), ob_iter) {
+    if (ID_IS_OVERRIDE_LIBRARY_REAL(ob_iter) && !ID_IS_LINKED(ob_iter)) {
+      BKE_lib_override_library_id_reset(bmain, &ob_iter->id, false);
+    }
+  }
+  FOREACH_SELECTED_OBJECT_END;
+
+  WM_event_add_notifier(C, NC_WM | ND_DATACHANGED, NULL);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
+  return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_reset_override_library(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Reset Library Override";
+  ot->description = "Reset the selected local overrides to their linked references values";
+  ot->idname = "OBJECT_OT_reset_override_library";
+
+  /* api callbacks */
+  ot->exec = reset_override_library_exec;
+  ot->poll = reset_clear_override_library_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/** \} */
+
+/* ------------------------------------------------------------------- */
+/** \name Clear Library Override Operator
+ * \{ */
+
+static int clear_override_library_exec(bContext *C, wmOperator *UNUSED(op))
+{
+  Main *bmain = CTX_data_main(C);
+
+  /* Make already existing selected liboverrides editable. */
+  FOREACH_SELECTED_OBJECT_BEGIN (CTX_data_view_layer(C), CTX_wm_view3d(C), ob_iter) {
+    if (ID_IS_LINKED(ob_iter)) {
+      continue;
+    }
+    if (BKE_lib_override_library_is_hierarchy_leaf(bmain, &ob_iter->id)) {
+      BKE_libblock_remap(bmain,
+                         &ob_iter->id,
+                         ob_iter->id.override_library->reference,
+                         ID_REMAP_SKIP_INDIRECT_USAGE);
+      BKE_id_delete(bmain, &ob_iter->id);
+    }
+    else {
+      BKE_lib_override_library_id_reset(bmain, &ob_iter->id, true);
+    }
+  }
+  FOREACH_SELECTED_OBJECT_END;
+
+  WM_event_add_notifier(C, NC_WM | ND_DATACHANGED, NULL);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
+  return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_clear_override_library(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Clear Library Override";
+  ot->description =
+      "Delete the selected local overrides and relink their usages to the linked data-blocks if "
+      "possible, else reset them and mark them as non editable";
+  ot->idname = "OBJECT_OT_clear_override_library";
+
+  /* api callbacks */
+  ot->exec = clear_override_library_exec;
+  ot->poll = reset_clear_override_library_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 /** \} */
