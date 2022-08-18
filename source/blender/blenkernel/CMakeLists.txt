@@ -241,7 +241,7 @@ set(SRC
   intern/object_update.c
   intern/ocean.c
   intern/ocean_spectrum.c
-  intern/outliner_treehash.c
+  intern/outliner_treehash.cc
   intern/packedFile.c
   intern/paint.c
   intern/paint_canvas.cc
@@ -286,7 +286,7 @@ set(SRC
   intern/subdiv_displacement_multires.c
   intern/subdiv_eval.c
   intern/subdiv_foreach.c
-  intern/subdiv_mesh.c
+  intern/subdiv_mesh.cc
   intern/subdiv_modifier.c
   intern/subdiv_stats.c
   intern/subdiv_topology.c
@@ -452,7 +452,7 @@ set(SRC
   BKE_object_deform.h
   BKE_object_facemap.h
   BKE_ocean.h
-  BKE_outliner_treehash.h
+  BKE_outliner_treehash.hh
   BKE_packedFile.h
   BKE_paint.h
   BKE_particle.h

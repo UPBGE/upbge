@@ -42,21 +42,25 @@ class AbstractTreeDisplay;
 class AbstractTreeElement;
 }  // namespace blender::ed::outliner
 
+namespace blender::bke::outliner::treehash {
+class TreeHash;
+}
+
 namespace outliner = blender::ed::outliner;
+namespace treehash = blender::bke::outliner::treehash;
 
 struct SpaceOutliner_Runtime {
   /** Object to create and manage the tree for a specific display type (View Layers, Scenes,
    * Blender File, etc.). */
   std::unique_ptr<outliner::AbstractTreeDisplay> tree_display;
 
-  /** Pointers to tree-store elements, grouped by `(id, type, nr)`
-   *  in hash-table for faster searching. */
-  struct GHash *treehash;
+  /* Hash table for tree-store elements, using `(id, type, index)` as key. */
+  std::unique_ptr<treehash::TreeHash> tree_hash;
 
   SpaceOutliner_Runtime() = default;
   /** Used for copying runtime data to a duplicated space. */
   SpaceOutliner_Runtime(const SpaceOutliner_Runtime &);
-  ~SpaceOutliner_Runtime();
+  ~SpaceOutliner_Runtime() = default;
 };
 
 typedef enum TreeElementInsertType {
@@ -611,10 +615,6 @@ TreeElement *outliner_find_item_at_x_in_row(const SpaceOutliner *space_outliner,
                                             float view_co_x,
                                             bool *r_is_merged_icon,
                                             bool *r_is_over_icon);
-/**
- * `tse` is not in the tree-store, we use its contents to find a match.
- */
-TreeElement *outliner_find_tse(struct SpaceOutliner *space_outliner, const TreeStoreElem *tse);
 /**
  * Find specific item from the trees-tore.
  */
