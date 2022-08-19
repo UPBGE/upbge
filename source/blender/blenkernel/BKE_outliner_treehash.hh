@@ -13,41 +13,63 @@
 
 #include <memory>
 
+#include "BLI_map.hh"
+
 struct BLI_mempool;
 struct ID;
-struct GHash;
 struct TreeStoreElem;
 
 namespace blender::bke::outliner::treehash {
 
+/* -------------------------------------------------------------------- */
+
+class TreeStoreElemKey {
+ public:
+  ID *id = nullptr;
+  short type = 0;
+  short nr = 0;
+
+  explicit TreeStoreElemKey(const TreeStoreElem &elem);
+  TreeStoreElemKey(ID *id, short type, short nr);
+
+  uint64_t hash() const;
+  friend bool operator==(const TreeStoreElemKey &a, const TreeStoreElemKey &b);
+};
+
+/* -------------------------------------------------------------------- */
+
 class TreeHash {
-  GHash *treehash_ = nullptr;
+  Map<TreeStoreElemKey, std::unique_ptr<class TseGroup>> elem_groups_;
 
  public:
   ~TreeHash();
 
-  /* create and fill hashtable with treestore elements */
+  /** Create and fill hash-table with treestore elements */
   static std::unique_ptr<TreeHash> create_from_treestore(BLI_mempool &treestore);
 
-  /* full rebuild for already allocated hashtable */
+  /** Full rebuild for already allocated hash-table. */
   void rebuild_from_treestore(BLI_mempool &treestore);
 
-  /* clear element usage flags */
+  /** Clear element usage flags. */
   void clear_used();
 
-  /* Add/remove hashtable elements */
+  /** Add hash-table element. */
   void add_element(TreeStoreElem &elem);
+  /** Remove hash-table element. */
   void remove_element(TreeStoreElem &elem);
 
-  /* find first unused element with specific type, nr and id */
+  /** Find first unused element with specific type, nr and id. */
   TreeStoreElem *lookup_unused(short type, short nr, ID *id) const;
 
-  /* find user or unused element with specific type, nr and id */
+  /** Find user or unused element with specific type, nr and id. */
   TreeStoreElem *lookup_any(short type, short nr, ID *id) const;
 
  private:
   TreeHash() = default;
 
+  TseGroup *lookup_group(const TreeStoreElemKey &key) const;
+  TseGroup *lookup_group(const TreeStoreElem &elem) const;
+  TseGroup *lookup_group(short type, short nr, ID *id) const;
   void fill_treehash(BLI_mempool &treestore);
 };
 
