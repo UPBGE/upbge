@@ -2240,6 +2240,32 @@ void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *bmain)
         scene->eevee.ssr_border_fade = 0.075f;
         scene->eevee.ssr_firefly_fac = 10.0f;
 
+        scene->eevee.ssr_diffuse_versioning = 1.15f;
+
+        scene->eevee.ssr_diffuse_intensity = 1.0f;
+        scene->eevee.ssr_diffuse_thickness = 1.0f;
+        scene->eevee.ssr_diffuse_resolve_bias = 0.1f;
+        scene->eevee.ssr_diffuse_quality = 0.25f;
+        scene->eevee.ssr_diffuse_clamp = 1.0f;
+        scene->eevee.ssr_diffuse_ao = 1.0f;
+        scene->eevee.ssr_diffuse_ao_limit = 0.5f;
+
+        scene->eevee.ssr_diffuse_probe_trace = 0;
+        scene->eevee.ssr_diffuse_probe_intensity = 1.0f;
+        scene->eevee.ssr_diffuse_probe_clamp = 1.0f;
+
+        scene->eevee.ssr_diffuse_filter = 1.0f;
+        scene->eevee.ssr_diffuse_fsize = 32.0f;
+        scene->eevee.ssr_diffuse_fsamples = 1;
+        scene->eevee.ssr_diffuse_fnweight = 1.0f;
+        scene->eevee.ssr_diffuse_fdweight = 1.0f;
+        scene->eevee.ssr_diffuse_faoweight = 0.75f;
+
+        scene->eevee.ssr_diffuse_debug_a = 1.0f;
+        scene->eevee.ssr_diffuse_debug_b = 1.0f;
+        scene->eevee.ssr_diffuse_debug_c = 1.0f;
+        scene->eevee.ssr_diffuse_debug_d = 1.0f;
+
         scene->eevee.volumetric_start = 0.1f;
         scene->eevee.volumetric_end = 100.0f;
         scene->eevee.volumetric_tile_size = 8;
@@ -2359,6 +2385,31 @@ void blo_do_versions_280(FileData *fd, Library *UNUSED(lib), Main *bmain)
         EEVEE_GET_FLOAT(props, ssr_thickness);
         EEVEE_GET_FLOAT(props, ssr_border_fade);
         EEVEE_GET_FLOAT(props, ssr_firefly_fac);
+
+        EEVEE_GET_FLOAT(props, ssr_diffuse_versioning);
+
+        EEVEE_GET_FLOAT(props, ssr_diffuse_intensity);
+        EEVEE_GET_FLOAT(props, ssr_diffuse_thickness);
+        EEVEE_GET_FLOAT(props, ssr_diffuse_resolve_bias);
+        EEVEE_GET_FLOAT(props, ssr_diffuse_quality);
+        EEVEE_GET_FLOAT(props, ssr_diffuse_clamp);
+        EEVEE_GET_FLOAT(props, ssr_diffuse_ao);
+
+        EEVEE_GET_INT(props, ssr_diffuse_probe_trace);
+        EEVEE_GET_FLOAT(props, ssr_diffuse_probe_intensity);
+        EEVEE_GET_FLOAT(props, ssr_diffuse_probe_clamp);
+
+        EEVEE_GET_FLOAT(props, ssr_diffuse_filter);
+        EEVEE_GET_FLOAT(props, ssr_diffuse_fsize);
+        EEVEE_GET_INT(props, ssr_diffuse_fsamples);
+        EEVEE_GET_FLOAT(props, ssr_diffuse_fnweight);
+        EEVEE_GET_FLOAT(props, ssr_diffuse_fdweight);
+        EEVEE_GET_FLOAT(props, ssr_diffuse_faoweight);
+
+        EEVEE_GET_FLOAT(props, ssr_diffuse_debug_a);
+        EEVEE_GET_FLOAT(props, ssr_diffuse_debug_b);
+        EEVEE_GET_FLOAT(props, ssr_diffuse_debug_c);
+        EEVEE_GET_FLOAT(props, ssr_diffuse_debug_d);
 
         EEVEE_GET_FLOAT(props, volumetric_start);
         EEVEE_GET_FLOAT(props, volumetric_end);

@@ -24,7 +24,7 @@ void node_bsdf_glossy(
   out_Glossy_0.radiance = render_pass_glossy_mask(vec3(1.0), out_Glossy_0.radiance);
   out_Glossy_0.radiance *= color.rgb;
   closure_load_ssr_data(
-      out_Glossy_0.radiance, in_Glossy_0.roughness, in_Glossy_0.N, ssr_id, result);
+      out_Glossy_0.radiance, in_Glossy_0.roughness, in_Glossy_0.N, ssr_id, result, vec3(0.0), 1.0);
 }
 
 #else

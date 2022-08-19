@@ -6,6 +6,7 @@
 #pragma BLENDER_REQUIRE(lightprobe_lib.glsl)
 #pragma BLENDER_REQUIRE(bsdf_sampling_lib.glsl)
 #pragma BLENDER_REQUIRE(effect_reflection_lib.glsl)
+#pragma BLENDER_REQUIRE(common_colorpacking_lib.glsl)
 
 /* Based on:
  * "Stochastic Screen Space Reflections"
@@ -65,6 +66,9 @@ void main()
 
   /* Retrieve pixel data */
   vec4 speccol_roughness = texture(specroughBuffer, uvs, 0).rgba;
+  /* unpack - 1 for Spec, 2 for Diffuse */ // TODO separate input buffers
+  vec4 difcol_roughness = vec4(0.0);
+  unpackVec4(speccol_roughness, speccol_roughness, difcol_roughness);
 
   /* Early out */
   if (dot(speccol_roughness.rgb, vec3(1.0)) == 0.0) {

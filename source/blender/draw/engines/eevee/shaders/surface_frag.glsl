@@ -13,6 +13,8 @@
 #pragma BLENDER_REQUIRE(surface_lib.glsl)
 #pragma BLENDER_REQUIRE(volumetric_lib.glsl)
 
+#pragma BLENDER_REQUIRE(common_colorpacking_lib.glsl)
+
 #ifdef USE_ALPHA_BLEND
 /* Use dual source blending to be able to make a whole range of effects. */
 layout(location = 0, index = 0) out vec4 outRadiance;
@@ -81,7 +83,12 @@ void main()
 #ifndef USE_ALPHA_BLEND
   float alpha_div = safe_rcp(alpha);
   outRadiance.rgb *= alpha_div;
-  ssrData.rgb *= alpha_div;
+  /* unpack TODO - clean up - Needs Vec3 only*/
+  vec4 spec = vec4(0.0);
+  vec4 diffuse = vec4(0.0);
+  unpackVec4(ssrData.rgba, spec, diffuse);
+
+  ssrData.rgb = packVec3(spec.rgb * alpha_div, diffuse.rgb * alpha_div);
 #  ifdef USE_SSS
   sssAlbedo.rgb *= alpha_div;
 #  endif

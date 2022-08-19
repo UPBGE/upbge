@@ -46,6 +46,28 @@ layout(std140) uniform common_block
   float pad7;
   float pad8;
   float pad9;
+  /* SSGI */
+  float ssrDiffuseVersioning;
+  float ssrDiffuseIntensity; /*trace*/
+  float ssrDiffuseThickness;
+  float ssrDiffuseResolveBias;
+  float ssrDiffuseQuality;
+  float ssrDiffuseClamp;
+  float ssrDiffuseAo;
+  float ssrDiffuseAoLimit;
+  int ssrDiffuseProbeTrace; /*probe*/
+  float ssrDiffuseProbeIntensity;
+  float ssrDiffuseProbeClamp;
+  float ssrDiffuseFilter; /*filter*/
+  float ssrDiffuseFsize;
+  int ssrDiffuseFsamples;
+  float ssrDiffuseFnweight;
+  float ssrDiffuseFdweight;
+  float ssrDiffuseFaoweight;
+  float ssrDiffuseDebugA; /*debug*/
+  float ssrDiffuseDebugB;
+  float ssrDiffuseDebugC;
+  float ssrDiffuseDebugD; /*float pad11;*/
 };
 
 /* rayType (keep in sync with ray_type) */
