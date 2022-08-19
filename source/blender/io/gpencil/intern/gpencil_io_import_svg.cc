@@ -1,28 +1,12 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2020 Blender Foundation
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2020 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup bgpencil
  */
 
-#include "BLI_float3.hh"
 #include "BLI_math.h"
+#include "BLI_math_vec_types.hh"
 #include "BLI_span.hh"
 
 #include "DNA_gpencil_types.h"
@@ -49,17 +33,17 @@ using blender::MutableSpan;
 namespace blender::io::gpencil {
 
 /* Constructor. */
-GpencilImporterSVG::GpencilImporterSVG(const char *filename, const GpencilIOParams *iparams)
+GpencilImporterSVG::GpencilImporterSVG(const char *filepath, const GpencilIOParams *iparams)
     : GpencilImporter(iparams)
 {
-  filename_set(filename);
+  filepath_set(filepath);
 }
 
 bool GpencilImporterSVG::read()
 {
   bool result = true;
   NSVGimage *svg_data = nullptr;
-  svg_data = nsvgParseFromFile(filename_, "mm", 96.0f);
+  svg_data = nsvgParseFromFile(filepath_, "mm", 96.0f);
   if (svg_data == nullptr) {
     std::cout << " Could not open SVG.\n ";
     return false;

@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup GHOST
@@ -22,17 +8,16 @@
 #include <list>
 #include <sstream>
 
-#if defined(WITH_GL_EGL)
+#if defined(WITH_GHOST_X11)
 #  include "GHOST_ContextEGL.h"
-#  if defined(WITH_GHOST_X11)
-#    include "GHOST_SystemX11.h"
-#  endif
-#  if defined(WITH_GHOST_WAYLAND)
-#    include "GHOST_SystemWayland.h"
-#  endif
-#elif defined(WITH_GHOST_X11)
 #  include "GHOST_ContextGLX.h"
-#elif defined(WIN32)
+#  include "GHOST_SystemX11.h"
+#endif
+#if defined(WITH_GHOST_WAYLAND)
+#  include "GHOST_ContextEGL.h"
+#  include "GHOST_SystemWayland.h"
+#endif
+#if defined(WIN32)
 #  include "GHOST_ContextD3D.h"
 #  include "GHOST_ContextWGL.h"
 #  include "GHOST_SystemWin32.h"
@@ -75,25 +60,46 @@ class GHOST_XrGraphicsBindingOpenGL : public GHOST_IXrGraphicsBinding {
                                 XrSystemId system_id,
                                 std::string *r_requirement_info) const override
   {
-#if defined(WITH_GL_EGL)
-    GHOST_ContextEGL &ctx_gl = static_cast<GHOST_ContextEGL &>(ghost_ctx);
-#elif defined(WITH_GHOST_X11)
-    GHOST_ContextGLX &ctx_gl = static_cast<GHOST_ContextGLX &>(ghost_ctx);
-#else
+    int gl_major_version, gl_minor_version;
+#if defined(WIN32)
     GHOST_ContextWGL &ctx_gl = static_cast<GHOST_ContextWGL &>(ghost_ctx);
+    gl_major_version = ctx_gl.m_contextMajorVersion;
+    gl_minor_version = ctx_gl.m_contextMinorVersion;
+#elif defined(WITH_GHOST_X11) || defined(WITH_GHOST_WAYLAND)
+    if (dynamic_cast<GHOST_ContextEGL *>(&ghost_ctx)) {
+      GHOST_ContextEGL &ctx_gl = static_cast<GHOST_ContextEGL &>(ghost_ctx);
+      gl_major_version = ctx_gl.m_contextMajorVersion;
+      gl_minor_version = ctx_gl.m_contextMinorVersion;
+    }
+#  if defined(WITH_GHOST_X11)
+    else {
+      GHOST_ContextGLX &ctx_gl = static_cast<GHOST_ContextGLX &>(ghost_ctx);
+      gl_major_version = ctx_gl.m_contextMajorVersion;
+      gl_minor_version = ctx_gl.m_contextMinorVersion;
+    }
+#  endif
 #endif
     static PFN_xrGetOpenGLGraphicsRequirementsKHR s_xrGetOpenGLGraphicsRequirementsKHR_fn =
         nullptr;
+    // static XrInstance s_instance = XR_NULL_HANDLE;
     XrGraphicsRequirementsOpenGLKHR gpu_requirements = {XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_KHR};
-    const XrVersion gl_version = XR_MAKE_VERSION(
-        ctx_gl.m_contextMajorVersion, ctx_gl.m_contextMinorVersion, 0);
+    const XrVersion gl_version = XR_MAKE_VERSION(gl_major_version, gl_minor_version, 0);
 
+    /* Although it would seem reasonable that the proc address would not change if the instance was
+     * the same, in testing, repeated calls to #xrGetInstanceProcAddress() with the same instance
+     * can still result in changes so the workaround is to simply set the function pointer every
+     * time (trivializing its 'static' designation). */
+    // if (instance != s_instance) {
+    // s_instance = instance;
+    s_xrGetOpenGLGraphicsRequirementsKHR_fn = nullptr;
+    //}
     if (!s_xrGetOpenGLGraphicsRequirementsKHR_fn &&
         XR_FAILED(xrGetInstanceProcAddr(
             instance,
             "xrGetOpenGLGraphicsRequirementsKHR",
             (PFN_xrVoidFunction *)&s_xrGetOpenGLGraphicsRequirementsKHR_fn))) {
       s_xrGetOpenGLGraphicsRequirementsKHR_fn = nullptr;
+      return false;
     }
 
     s_xrGetOpenGLGraphicsRequirementsKHR_fn(instance, system_id, &gpu_requirements);
@@ -116,44 +122,47 @@ class GHOST_XrGraphicsBindingOpenGL : public GHOST_IXrGraphicsBinding {
 
   void initFromGhostContext(GHOST_Context &ghost_ctx) override
   {
-#if defined(WITH_GHOST_X11)
-#  if defined(WITH_GL_EGL)
-    GHOST_ContextEGL &ctx_egl = static_cast<GHOST_ContextEGL &>(ghost_ctx);
+#if defined(WITH_GHOST_X11) || defined(WITH_GHOST_WAYLAND)
+    if (dynamic_cast<GHOST_ContextEGL *>(&ghost_ctx)) {
+      GHOST_ContextEGL &ctx_egl = static_cast<GHOST_ContextEGL &>(ghost_ctx);
 
-    if (dynamic_cast<const GHOST_SystemX11 *const>(ctx_egl.m_system)) {
-      oxr_binding.egl.type = XR_TYPE_GRAPHICS_BINDING_EGL_MNDX;
-      oxr_binding.egl.getProcAddress = eglGetProcAddress;
-      oxr_binding.egl.display = ctx_egl.getDisplay();
-      oxr_binding.egl.config = ctx_egl.getConfig();
-      oxr_binding.egl.context = ctx_egl.getContext();
-    }
-#  else
-    GHOST_ContextGLX &ctx_glx = static_cast<GHOST_ContextGLX &>(ghost_ctx);
-    XVisualInfo *visual_info = glXGetVisualFromFBConfig(ctx_glx.m_display, ctx_glx.m_fbconfig);
-
-    oxr_binding.glx.type = XR_TYPE_GRAPHICS_BINDING_OPENGL_XLIB_KHR;
-    oxr_binding.glx.xDisplay = ctx_glx.m_display;
-    oxr_binding.glx.glxFBConfig = ctx_glx.m_fbconfig;
-    oxr_binding.glx.glxDrawable = ctx_glx.m_window;
-    oxr_binding.glx.glxContext = ctx_glx.m_context;
-    oxr_binding.glx.visualid = visual_info->visualid;
-
-    XFree(visual_info);
+#  if defined(WITH_GHOST_WAYLAND)
+      if (dynamic_cast<const GHOST_SystemWayland *const>(ctx_egl.m_system)) {
+        oxr_binding.wl.type = XR_TYPE_GRAPHICS_BINDING_OPENGL_WAYLAND_KHR;
+        oxr_binding.wl.display = (struct wl_display *)ctx_egl.m_nativeDisplay;
+      }
+      else
 #  endif
+#  if defined(WITH_GHOST_X11)
+      {
+        /* SystemX11. */
+        oxr_binding.egl.type = XR_TYPE_GRAPHICS_BINDING_EGL_MNDX;
+        oxr_binding.egl.getProcAddress = eglGetProcAddress;
+        oxr_binding.egl.display = ctx_egl.getDisplay();
+        oxr_binding.egl.config = ctx_egl.getConfig();
+        oxr_binding.egl.context = ctx_egl.getContext();
+      }
+    }
+    else {
+      GHOST_ContextGLX &ctx_glx = static_cast<GHOST_ContextGLX &>(ghost_ctx);
+      XVisualInfo *visual_info = glXGetVisualFromFBConfig(ctx_glx.m_display, ctx_glx.m_fbconfig);
+
+      oxr_binding.glx.type = XR_TYPE_GRAPHICS_BINDING_OPENGL_XLIB_KHR;
+      oxr_binding.glx.xDisplay = ctx_glx.m_display;
+      oxr_binding.glx.glxFBConfig = ctx_glx.m_fbconfig;
+      oxr_binding.glx.glxDrawable = ctx_glx.m_window;
+      oxr_binding.glx.glxContext = ctx_glx.m_context;
+      oxr_binding.glx.visualid = visual_info->visualid;
+
+      XFree(visual_info);
+#  endif
+    }
 #elif defined(WIN32)
     GHOST_ContextWGL &ctx_wgl = static_cast<GHOST_ContextWGL &>(ghost_ctx);
 
     oxr_binding.wgl.type = XR_TYPE_GRAPHICS_BINDING_OPENGL_WIN32_KHR;
     oxr_binding.wgl.hDC = ctx_wgl.m_hDC;
     oxr_binding.wgl.hGLRC = ctx_wgl.m_hGLRC;
-#endif
-
-#if defined(WITH_GHOST_WAYLAND)
-    GHOST_ContextEGL &ctx_wl_egl = static_cast<GHOST_ContextEGL &>(ghost_ctx);
-    if (dynamic_cast<const GHOST_SystemWayland *const>(ctx_wl_egl.m_system)) {
-      oxr_binding.wl.type = XR_TYPE_GRAPHICS_BINDING_OPENGL_WAYLAND_KHR;
-      oxr_binding.wl.display = (struct wl_display *)ctx_wl_egl.m_nativeDisplay;
-    }
 #endif
 
     /* Generate a frame-buffer to use for blitting into the texture. */
@@ -165,11 +174,18 @@ class GHOST_XrGraphicsBindingOpenGL : public GHOST_IXrGraphicsBinding {
                                                bool &r_is_srgb_format) const override
   {
     std::vector<int64_t> gpu_binding_formats = {
+#if 0 /* RGB10A2, RGBA16 don't seem to work with Oculus head-sets, \
+       * so move them after RGBA16F for the time being. */
         GL_RGB10_A2,
         GL_RGBA16,
-        GL_RGBA16F,
-        GL_RGBA8,
-        GL_SRGB8_ALPHA8,
+#endif
+      GL_RGBA16F,
+#if 1
+      GL_RGB10_A2,
+      GL_RGBA16,
+#endif
+      GL_RGBA8,
+      GL_SRGB8_ALPHA8,
     };
 
     std::optional result = choose_swapchain_format_from_candidates(gpu_binding_formats,
@@ -305,14 +321,24 @@ class GHOST_XrGraphicsBindingD3D : public GHOST_IXrGraphicsBinding {
       std::string *r_requirement_info) const override
   {
     static PFN_xrGetD3D11GraphicsRequirementsKHR s_xrGetD3D11GraphicsRequirementsKHR_fn = nullptr;
+    // static XrInstance s_instance = XR_NULL_HANDLE;
     XrGraphicsRequirementsD3D11KHR gpu_requirements = {XR_TYPE_GRAPHICS_REQUIREMENTS_D3D11_KHR};
 
+    /* Although it would seem reasonable that the proc address would not change if the instance was
+     * the same, in testing, repeated calls to #xrGetInstanceProcAddress() with the same instance
+     * can still result in changes so the workaround is to simply set the function pointer every
+     * time (trivializing its 'static' designation). */
+    // if (instance != s_instance) {
+    // s_instance = instance;
+    s_xrGetD3D11GraphicsRequirementsKHR_fn = nullptr;
+    //}
     if (!s_xrGetD3D11GraphicsRequirementsKHR_fn &&
         XR_FAILED(xrGetInstanceProcAddr(
             instance,
             "xrGetD3D11GraphicsRequirementsKHR",
             (PFN_xrVoidFunction *)&s_xrGetD3D11GraphicsRequirementsKHR_fn))) {
       s_xrGetD3D11GraphicsRequirementsKHR_fn = nullptr;
+      return false;
     }
 
     s_xrGetD3D11GraphicsRequirementsKHR_fn(instance, system_id, &gpu_requirements);
@@ -341,14 +367,15 @@ class GHOST_XrGraphicsBindingD3D : public GHOST_IXrGraphicsBinding {
                                                bool &r_is_srgb_format) const override
   {
     std::vector<int64_t> gpu_binding_formats = {
-#  if 0 /* RGB10A2 doesn't seem to work with Oculus head-sets, \
-         * so move it after RGB16AF for the time being. */
+#  if 0 /* RGB10A2, RGBA16 don't seem to work with Oculus head-sets, \
+         * so move them after RGBA16F for the time being. */
         DXGI_FORMAT_R10G10B10A2_UNORM,
+        DXGI_FORMAT_R16G16B16A16_UNORM,
 #  endif
-      DXGI_FORMAT_R16G16B16A16_UNORM,
       DXGI_FORMAT_R16G16B16A16_FLOAT,
 #  if 1
       DXGI_FORMAT_R10G10B10A2_UNORM,
+      DXGI_FORMAT_R16G16B16A16_UNORM,
 #  endif
       DXGI_FORMAT_R8G8B8A8_UNORM,
       DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,

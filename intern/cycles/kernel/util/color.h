@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2018 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #pragma once
 
@@ -27,9 +14,38 @@ ccl_device float3 xyz_to_rgb(KernelGlobals kg, float3 xyz)
                      dot(float4_to_float3(kernel_data.film.xyz_to_b), xyz));
 }
 
+ccl_device float3 xyz_to_rgb_clamped(KernelGlobals kg, float3 xyz)
+{
+  return max(xyz_to_rgb(kg, xyz), zero_float3());
+}
+
+ccl_device float3 rec709_to_rgb(KernelGlobals kg, float3 rec709)
+{
+  return (kernel_data.film.is_rec709) ?
+             rec709 :
+             make_float3(dot(float4_to_float3(kernel_data.film.rec709_to_r), rec709),
+                         dot(float4_to_float3(kernel_data.film.rec709_to_g), rec709),
+                         dot(float4_to_float3(kernel_data.film.rec709_to_b), rec709));
+}
+
 ccl_device float linear_rgb_to_gray(KernelGlobals kg, float3 c)
 {
   return dot(c, float4_to_float3(kernel_data.film.rgb_to_y));
+}
+
+ccl_device_inline Spectrum rgb_to_spectrum(float3 rgb)
+{
+  return rgb;
+}
+
+ccl_device_inline float3 spectrum_to_rgb(Spectrum s)
+{
+  return s;
+}
+
+ccl_device float spectrum_to_gray(KernelGlobals kg, Spectrum c)
+{
+  return linear_rgb_to_gray(kg, spectrum_to_rgb(c));
 }
 
 CCL_NAMESPACE_END

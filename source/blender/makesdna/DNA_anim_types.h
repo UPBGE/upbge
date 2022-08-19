@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2009 Blender Foundation, Joshua Leung. All rights reserved. */
 
 /** \file
  * \ingroup DNA
@@ -320,7 +304,7 @@ typedef struct DriverTarget {
   char *rna_path;
 
   /**
-   * Name of the posebone to use
+   * Name of the pose-bone to use
    * (for vars where DTAR_FLAG_STRUCT_REF is used) - `MAX_ID_NAME - 2`.
    */
   char pchan_name[64];
@@ -348,7 +332,7 @@ typedef enum eDriverTarget_Flag {
   /** idtype can only be 'Object' */
   DTAR_FLAG_ID_OB_ONLY = (1 << 1),
 
-  /* "localspace" flags */
+  /* "local-space" flags. */
   /** base flag - basically "pre parent+constraints" */
   DTAR_FLAG_LOCALSPACE = (1 << 2),
   /** include constraints transformed to space including parents */
@@ -787,7 +771,7 @@ typedef enum eNlaStrip_Blend_Mode {
   NLASTRIP_MODE_COMBINE,
 } eNlaStrip_Blend_Mode;
 
-/** NLA Strip Extrpolation Mode. */
+/** NLA Strip Extrapolation Mode. */
 typedef enum eNlaStrip_Extrapolate_Mode {
   /* extend before first frame if no previous strips in track,
    * and always hold+extend last frame */
@@ -934,9 +918,9 @@ typedef struct KS_Path {
   /** Index that path affects. */
   int array_index;
 
-  /** (eInsertKeyFlags) settings to supply insertkey() with. */
+  /** (#eInsertKeyFlags) settings to supply insert-key() with. */
   short keyingflag;
-  /** (eInsertKeyFlags) for each flag set, the relevant keyingflag bit overrides the default. */
+  /** (#eInsertKeyFlags) for each flag set, the relevant keying-flag bit overrides the default. */
   short keyingoverride;
 } KS_Path;
 
@@ -1144,6 +1128,8 @@ typedef enum eAnimData_Flag {
   ADT_NLA_EDIT_NOMAP = (1 << 3),
   /** NLA-Strip F-Curves are expanded in UI. */
   ADT_NLA_SKEYS_COLLAPSED = (1 << 4),
+  /* Evaluate tracks above tweaked strip. Only relevant in tweak mode. */
+  ADT_NLA_EVAL_UPPER_TRACKS = (1 << 5),
 
   /** Drivers expanded in UI. */
   ADT_DRIVERS_COLLAPSED = (1 << 10),

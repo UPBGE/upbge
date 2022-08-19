@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup RNA
@@ -34,6 +20,7 @@
 #include "DNA_view3d_types.h"
 #include "DNA_world_types.h"
 
+#include "IMB_colormanagement.h"
 #include "IMB_imbuf_types.h"
 
 #include "BLI_listbase.h"
@@ -43,11 +30,13 @@
 
 #include "BKE_armature.h"
 #include "BKE_editmesh.h"
+#include "BKE_idtype.h"
 #include "BKE_paint.h"
 #include "BKE_volume.h"
 
 #include "ED_gpencil.h"
 #include "ED_object.h"
+#include "ED_uvedit.h"
 
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
@@ -86,8 +75,7 @@ const EnumPropertyItem rna_enum_exr_codec_items[] = {
     {R_IMF_EXR_CODEC_B44, "B44", 0, "B44 (lossy)", ""},
     {R_IMF_EXR_CODEC_B44A, "B44A", 0, "B44A (lossy)", ""},
     {R_IMF_EXR_CODEC_DWAA, "DWAA", 0, "DWAA (lossy)", ""},
-    /* NOTE: Commented out for until new OpenEXR is released, see T50673. */
-    /* {R_IMF_EXR_CODEC_DWAB, "DWAB", 0, "DWAB (lossy)", ""}, */
+    {R_IMF_EXR_CODEC_DWAB, "DWAB", 0, "DWAB (lossy)", ""},
     {0, NULL, 0, NULL, NULL},
 };
 #endif
@@ -100,15 +88,20 @@ static const EnumPropertyItem uv_sculpt_relaxation_items[] = {
      "Laplacian",
      "Use Laplacian method for relaxation"},
     {UV_SCULPT_TOOL_RELAX_HC, "HC", 0, "HC", "Use HC method for relaxation"},
+    {UV_SCULPT_TOOL_RELAX_COTAN,
+     "COTAN",
+     0,
+     "Geometry",
+     "Use Geometry (cotangent) relaxation, making UV's follow the underlying 3D geometry"},
     {0, NULL, 0, NULL, NULL},
 };
 #endif
 
-const EnumPropertyItem rna_enum_snap_target_items[] = {
-    {SCE_SNAP_TARGET_CLOSEST, "CLOSEST", 0, "Closest", "Snap closest point onto target"},
-    {SCE_SNAP_TARGET_CENTER, "CENTER", 0, "Center", "Snap transformation center onto target"},
-    {SCE_SNAP_TARGET_MEDIAN, "MEDIAN", 0, "Median", "Snap median onto target"},
-    {SCE_SNAP_TARGET_ACTIVE, "ACTIVE", 0, "Active", "Snap active onto target"},
+const EnumPropertyItem rna_enum_snap_source_items[] = {
+    {SCE_SNAP_SOURCE_CLOSEST, "CLOSEST", 0, "Closest", "Snap closest point onto target"},
+    {SCE_SNAP_SOURCE_CENTER, "CENTER", 0, "Center", "Snap transformation center onto target"},
+    {SCE_SNAP_SOURCE_MEDIAN, "MEDIAN", 0, "Median", "Snap median onto target"},
+    {SCE_SNAP_SOURCE_ACTIVE, "ACTIVE", 0, "Active", "Snap active onto target"},
     {0, NULL, 0, NULL, NULL},
 };
 
@@ -163,7 +156,16 @@ const EnumPropertyItem rna_enum_snap_element_items[] = {
      "Snap to increments of grid"},
     {SCE_SNAP_MODE_VERTEX, "VERTEX", ICON_SNAP_VERTEX, "Vertex", "Snap to vertices"},
     {SCE_SNAP_MODE_EDGE, "EDGE", ICON_SNAP_EDGE, "Edge", "Snap to edges"},
-    {SCE_SNAP_MODE_FACE, "FACE", ICON_SNAP_FACE, "Face", "Snap to faces"},
+    {SCE_SNAP_MODE_FACE_RAYCAST,
+     "FACE", /* TODO(@gfxcoder): replace with "FACE_RAYCAST" as "FACE" is not descriptive. */
+     ICON_SNAP_FACE,
+     "Face Project",
+     "Snap by projecting onto faces"},
+    {SCE_SNAP_MODE_FACE_NEAREST,
+     "FACE_NEAREST",
+     ICON_SNAP_FACE_NEAREST,
+     "Face Nearest",
+     "Snap to nearest point on faces"},
     {SCE_SNAP_MODE_VOLUME, "VOLUME", ICON_SNAP_VOLUME, "Volume", "Snap to volume"},
     {SCE_SNAP_MODE_EDGE_MIDPOINT,
      "EDGE_MIDPOINT",
@@ -342,6 +344,13 @@ const EnumPropertyItem rna_enum_curve_fit_method_items[] = {
 #  define R_IMF_ENUM_TIFF
 #endif
 
+#ifdef WITH_WEBP
+#  define R_IMF_ENUM_WEBP \
+    {R_IMF_IMTYPE_WEBP, "WEBP", ICON_FILE_IMAGE, "WebP", "Output image in WebP format"},
+#else
+#  define R_IMF_ENUM_WEBP
+#endif
+
 #define IMAGE_TYPE_ITEMS_IMAGE_ONLY \
   R_IMF_ENUM_BMP \
   /* DDS save not supported yet R_IMF_ENUM_DDS */ \
@@ -350,9 +359,9 @@ const EnumPropertyItem rna_enum_curve_fit_method_items[] = {
   R_IMF_ENUM_JPEG \
   R_IMF_ENUM_JPEG2K \
   R_IMF_ENUM_TAGA \
-  R_IMF_ENUM_TAGA_RAW{0, "", 0, " ", NULL}, \
-      R_IMF_ENUM_CINEON R_IMF_ENUM_DPX R_IMF_ENUM_EXR_MULTILAYER R_IMF_ENUM_EXR R_IMF_ENUM_HDR \
-          R_IMF_ENUM_TIFF
+  R_IMF_ENUM_TAGA_RAW \
+  RNA_ENUM_ITEM_SEPR_COLUMN, R_IMF_ENUM_CINEON R_IMF_ENUM_DPX R_IMF_ENUM_EXR_MULTILAYER \
+                                 R_IMF_ENUM_EXR R_IMF_ENUM_HDR R_IMF_ENUM_TIFF R_IMF_ENUM_WEBP
 
 #ifdef RNA_RUNTIME
 static const EnumPropertyItem image_only_type_items[] = {
@@ -364,11 +373,11 @@ static const EnumPropertyItem image_only_type_items[] = {
 #endif
 
 const EnumPropertyItem rna_enum_image_type_items[] = {
-    {0, "", 0, N_("Image"), NULL},
+    RNA_ENUM_ITEM_HEADING(N_("Image"), NULL),
 
     IMAGE_TYPE_ITEMS_IMAGE_ONLY
 
-    {0, "", 0, N_("Movie"), NULL},
+        RNA_ENUM_ITEM_HEADING(N_("Movie"), NULL),
     {R_IMF_IMTYPE_AVIJPEG,
      "AVI_JPEG",
      ICON_FILE_MOVIE,
@@ -433,6 +442,16 @@ const EnumPropertyItem rna_enum_normal_swizzle_items[] = {
     {0, NULL, 0, NULL, NULL},
 };
 
+const EnumPropertyItem rna_enum_bake_margin_type_items[] = {
+    {R_BAKE_ADJACENT_FACES,
+     "ADJACENT_FACES",
+     0,
+     "Adjacent Faces",
+     "Use pixels from adjacent faces across UV seams"},
+    {R_BAKE_EXTEND, "EXTEND", 0, "Extend", "Extend border pixels outwards"},
+    {0, NULL, 0, NULL, NULL},
+};
+
 const EnumPropertyItem rna_enum_bake_target_items[] = {
     {R_BAKE_TARGET_IMAGE_TEXTURES,
      "IMAGE_TEXTURES",
@@ -442,8 +461,8 @@ const EnumPropertyItem rna_enum_bake_target_items[] = {
     {R_BAKE_TARGET_VERTEX_COLORS,
      "VERTEX_COLORS",
      0,
-     "Vertex Colors",
-     "Bake to active vertex color layer on meshes"},
+     "Active Color Attribute",
+     "Bake to the active color attribute on meshes"},
     {0, NULL, 0, NULL, NULL},
 };
 
@@ -637,6 +656,7 @@ const EnumPropertyItem rna_enum_transform_orientation_items[] = {
 #  include "BKE_gpencil.h"
 #  include "BKE_idprop.h"
 #  include "BKE_image.h"
+#  include "BKE_image_format.h"
 #  include "BKE_layer.h"
 #  include "BKE_main.h"
 #  include "BKE_mesh.h"
@@ -645,6 +665,8 @@ const EnumPropertyItem rna_enum_transform_orientation_items[] = {
 #  include "BKE_scene.h"
 #  include "BKE_screen.h"
 #  include "BKE_unit.h"
+
+#  include "NOD_composite.h"
 
 #  include "ED_image.h"
 #  include "ED_info.h"
@@ -1017,7 +1039,7 @@ static void rna_Scene_frame_update(Main *UNUSED(bmain),
                                    PointerRNA *ptr)
 {
   Scene *scene = (Scene *)ptr->owner_id;
-  DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO_SEEK);
+  DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
   WM_main_add_notifier(NC_SCENE | ND_FRAME, scene);
 }
 
@@ -1092,12 +1114,12 @@ static void rna_Scene_all_keyingsets_next(CollectionPropertyIterator *iter)
   iter->valid = (internal->link != NULL);
 }
 
-static char *rna_SceneEEVEE_path(PointerRNA *UNUSED(ptr))
+static char *rna_SceneEEVEE_path(const PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("eevee");
 }
 
-static char *rna_SceneGpencil_path(PointerRNA *UNUSED(ptr))
+static char *rna_SceneGpencil_path(const PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("grease_pencil_settings");
 }
@@ -1121,17 +1143,17 @@ static void rna_RenderSettings_stereoViews_begin(CollectionPropertyIterator *ite
   rna_iterator_listbase_begin(iter, &rd->views, rna_RenderSettings_stereoViews_skip);
 }
 
-static char *rna_RenderSettings_path(PointerRNA *UNUSED(ptr))
+static char *rna_RenderSettings_path(const PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("render");
 }
 
-static char *rna_BakeSettings_path(PointerRNA *UNUSED(ptr))
+static char *rna_BakeSettings_path(const PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("render.bake");
 }
 
-static char *rna_ImageFormatSettings_path(PointerRNA *ptr)
+static char *rna_ImageFormatSettings_path(const PointerRNA *ptr)
 {
   ImageFormatData *imf = (ImageFormatData *)ptr->data;
   ID *id = ptr->owner_id;
@@ -1278,7 +1300,7 @@ static const EnumPropertyItem *rna_ImageFormatSettings_color_mode_itemf(bContext
   ID *id = ptr->owner_id;
   const bool is_render = (id && GS(id->name) == ID_SCE);
 
-  /* NOTE(campbell): we need to act differently for render
+  /* NOTE(@campbellbarton): we need to act differently for render
    * where 'BW' will force grayscale even if the output format writes
    * as RGBA, this is age old blender convention and not sure how useful
    * it really is but keep it for now. */
@@ -1427,7 +1449,7 @@ static const EnumPropertyItem *rna_ImageFormatSettings_exr_codec_itemf(bContext 
   }
 
   for (i = 0; i < R_IMF_EXR_CODEC_MAX; i++) {
-    if ((i == R_IMF_EXR_CODEC_B44 || i == R_IMF_EXR_CODEC_B44A)) {
+    if (ELEM(i, R_IMF_EXR_CODEC_B44, R_IMF_EXR_CODEC_B44A)) {
       continue; /* B44 and B44A are not defined for 32 bit floats */
     }
 
@@ -1441,6 +1463,35 @@ static const EnumPropertyItem *rna_ImageFormatSettings_exr_codec_itemf(bContext 
 }
 
 #  endif
+
+static bool rna_ImageFormatSettings_has_linear_colorspace_get(PointerRNA *ptr)
+{
+  ImageFormatData *imf = (ImageFormatData *)ptr->data;
+  return BKE_imtype_requires_linear_float(imf->imtype);
+}
+
+static void rna_ImageFormatSettings_color_management_set(PointerRNA *ptr, int value)
+{
+  ImageFormatData *imf = (ImageFormatData *)ptr->data;
+
+  if (imf->color_management != value) {
+    imf->color_management = value;
+
+    /* Copy from scene when enabling override. */
+    if (imf->color_management == R_IMF_COLOR_MANAGEMENT_OVERRIDE) {
+      ID *owner_id = ptr->owner_id;
+      if (owner_id && GS(owner_id->name) == ID_NT) {
+        /* For compositing nodes, find the corresponding scene. */
+        const IDTypeInfo *type_info = BKE_idtype_get_info_from_id(owner_id);
+        owner_id = type_info->owner_get(G_MAIN, owner_id, NULL);
+      }
+      if (owner_id && GS(owner_id->name) == ID_SCE) {
+        BKE_image_format_color_management_copy_from_scene(imf, (Scene *)owner_id);
+      }
+    }
+  }
+}
+
 static int rna_SceneRender_file_ext_length(PointerRNA *ptr)
 {
   RenderData *rd = (RenderData *)ptr->data;
@@ -1469,18 +1520,6 @@ static void rna_FFmpegSettings_lossless_output_set(PointerRNA *ptr, bool value)
   else {
     rd->ffcodecdata.flags &= ~FFMPEG_LOSSLESS_OUTPUT;
   }
-
-  BKE_ffmpeg_codec_settings_verify(rd);
-}
-
-static void rna_FFmpegSettings_codec_settings_update(Main *UNUSED(bmain),
-                                                     Scene *UNUSED(scene_unused),
-                                                     PointerRNA *ptr)
-{
-  Scene *scene = (Scene *)ptr->owner_id;
-  RenderData *rd = &scene->r;
-
-  BKE_ffmpeg_codec_settings_verify(rd);
 }
 #  endif
 
@@ -1662,7 +1701,7 @@ static void rna_Scene_mesh_quality_update(Main *bmain, Scene *UNUSED(scene), Poi
   Scene *scene = (Scene *)ptr->owner_id;
 
   FOREACH_SCENE_OBJECT_BEGIN (scene, ob) {
-    if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_VOLUME, OB_MBALL)) {
+    if (ELEM(ob->type, OB_MESH, OB_CURVES_LEGACY, OB_VOLUME, OB_MBALL)) {
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
     }
   }
@@ -1742,6 +1781,10 @@ void rna_ViewLayer_pass_update(Main *bmain, Scene *activescene, PointerRNA *ptr)
     ViewLayerAOV *aov = (ViewLayerAOV *)ptr->data;
     view_layer = BKE_view_layer_find_with_aov(scene, aov);
   }
+  else if (ptr->type == &RNA_Lightgroup) {
+    ViewLayerLightgroup *lightgroup = (ViewLayerLightgroup *)ptr->data;
+    view_layer = BKE_view_layer_find_with_lightgroup(scene, lightgroup);
+  }
 
   if (view_layer) {
     RenderEngineType *engine_type = RE_engines_find(scene->r.engine);
@@ -1758,9 +1801,24 @@ void rna_ViewLayer_pass_update(Main *bmain, Scene *activescene, PointerRNA *ptr)
   rna_Scene_glsl_update(bmain, activescene, ptr);
 }
 
-static char *rna_SceneRenderView_path(PointerRNA *ptr)
+static char *rna_ViewLayerEEVEE_path(const PointerRNA *ptr)
 {
-  SceneRenderView *srv = (SceneRenderView *)ptr->data;
+  const ViewLayerEEVEE *view_layer_eevee = (ViewLayerEEVEE *)ptr->data;
+  const ViewLayer *view_layer = (ViewLayer *)((uint8_t *)view_layer_eevee -
+                                              offsetof(ViewLayer, eevee));
+  char rna_path[sizeof(view_layer->name) * 3];
+
+  const size_t view_layer_path_len = rna_ViewLayer_path_buffer_get(
+      view_layer, rna_path, sizeof(rna_path));
+
+  BLI_strncpy(rna_path + view_layer_path_len, ".eevee", sizeof(rna_path) - view_layer_path_len);
+
+  return BLI_strdup(rna_path);
+}
+
+static char *rna_SceneRenderView_path(const PointerRNA *ptr)
+{
+  const SceneRenderView *srv = (SceneRenderView *)ptr->data;
   char srv_name_esc[sizeof(srv->name) * 2];
   BLI_str_escape(srv_name_esc, srv->name, sizeof(srv_name_esc));
   return BLI_sprintfN("render.views[\"%s\"]", srv_name_esc);
@@ -1834,6 +1892,13 @@ static void rna_Scene_editmesh_select_mode_update(bContext *C, PointerRNA *UNUSE
     DEG_id_tag_update(&me->id, ID_RECALC_SELECT);
     WM_main_add_notifier(NC_SCENE | ND_TOOLSETTINGS, NULL);
   }
+}
+
+static void rna_Scene_uv_select_mode_update(bContext *C, PointerRNA *UNUSED(ptr))
+{
+  /* Makes sure that the UV selection states are consistent with the current UV select mode and
+   * sticky mode. */
+  ED_uvedit_selectmode_clean_multi(C);
 }
 
 static void object_simplify_update(Object *ob)
@@ -2021,10 +2086,10 @@ static void rna_View3DCursor_matrix_set(PointerRNA *ptr, const float *values)
   BKE_scene_cursor_from_mat4(cursor, unit_mat, false);
 }
 
-static char *rna_TransformOrientationSlot_path(PointerRNA *ptr)
+static char *rna_TransformOrientationSlot_path(const PointerRNA *ptr)
 {
-  Scene *scene = (Scene *)ptr->owner_id;
-  TransformOrientationSlot *orientation_slot = ptr->data;
+  const Scene *scene = (Scene *)ptr->owner_id;
+  const TransformOrientationSlot *orientation_slot = ptr->data;
 
   if (!ELEM(NULL, scene, orientation_slot)) {
     for (int i = 0; i < ARRAY_SIZE(scene->orientation_slots); i++) {
@@ -2035,13 +2100,82 @@ static char *rna_TransformOrientationSlot_path(PointerRNA *ptr)
   }
 
   /* Should not happen, but in case, just return default path. */
-  BLI_assert(0);
+  BLI_assert_unreachable();
   return BLI_strdup("transform_orientation_slots[0]");
 }
 
-static char *rna_View3DCursor_path(PointerRNA *UNUSED(ptr))
+static char *rna_View3DCursor_path(const PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("cursor");
+}
+
+static int rna_GameSettings_auto_start_get(PointerRNA *UNUSED(ptr))
+{
+  return (G.fileflags & G_FILE_AUTOPLAY) != 0;
+}
+
+static void rna_GameSettings_auto_start_set(PointerRNA *UNUSED(ptr), int value)
+{
+  if (value)
+    G.fileflags |= G_FILE_AUTOPLAY;
+  else
+    G.fileflags &= ~G_FILE_AUTOPLAY;
+}
+
+static void rna_GameSettings_exit_key_set(PointerRNA *ptr, int value)
+{
+  GameData *gm = (GameData *)ptr->data;
+
+  if (ISKEYBOARD(value))
+    gm->exitkey = value;
+}
+
+static void rna_GameSettings_python_key1_set(PointerRNA *ptr, int value)
+{
+  GameData *gm = (GameData *)ptr->data;
+
+  if (ISKEYBOARD(value)) {
+    gm->pythonkeys[0] = value;
+  }
+  else {
+    gm->pythonkeys[0] = EVENT_NONE;
+  }
+}
+
+static void rna_GameSettings_python_key2_set(PointerRNA *ptr, int value)
+{
+  GameData *gm = (GameData *)ptr->data;
+
+  if (ISKEYBOARD(value)) {
+    gm->pythonkeys[1] = value;
+  }
+  else {
+    gm->pythonkeys[1] = EVENT_NONE;
+  }
+}
+
+static void rna_GameSettings_python_key3_set(PointerRNA *ptr, int value)
+{
+  GameData *gm = (GameData *)ptr->data;
+
+  if (ISKEYBOARD(value)) {
+    gm->pythonkeys[2] = value;
+  }
+  else {
+    gm->pythonkeys[2] = EVENT_NONE;
+  }
+}
+
+static void rna_GameSettings_python_key4_set(PointerRNA *ptr, int value)
+{
+  GameData *gm = (GameData *)ptr->data;
+
+  if (ISKEYBOARD(value)) {
+    gm->pythonkeys[3] = value;
+  }
+  else {
+    gm->pythonkeys[3] = EVENT_NONE;
+  }
 }
 
 static TimeMarker *rna_TimeLine_add(Scene *scene, const char name[], int frame)
@@ -2138,17 +2272,17 @@ static void rna_UnifiedPaintSettings_radius_update(bContext *C, PointerRNA *ptr)
   rna_UnifiedPaintSettings_update(C, ptr);
 }
 
-static char *rna_UnifiedPaintSettings_path(PointerRNA *UNUSED(ptr))
+static char *rna_UnifiedPaintSettings_path(const PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("tool_settings.unified_paint_settings");
 }
 
-static char *rna_CurvePaintSettings_path(PointerRNA *UNUSED(ptr))
+static char *rna_CurvePaintSettings_path(const PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("tool_settings.curve_paint_settings");
 }
 
-static char *rna_SequencerToolSettings_path(PointerRNA *UNUSED(ptr))
+static char *rna_SequencerToolSettings_path(const PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("tool_settings.sequencer_tool_settings");
 }
@@ -2172,7 +2306,7 @@ static void rna_EditMesh_update(bContext *C, PointerRNA *UNUSED(ptr))
   }
 }
 
-static char *rna_MeshStatVis_path(PointerRNA *UNUSED(ptr))
+static char *rna_MeshStatVis_path(const PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("tool_settings.statvis");
 }
@@ -2210,7 +2344,7 @@ static void rna_SceneSequencer_update(Main *UNUSED(bmain), Scene *UNUSED(scene),
   SEQ_cache_cleanup((Scene *)ptr->owner_id);
 }
 
-static char *rna_ToolSettings_path(PointerRNA *UNUSED(ptr))
+static char *rna_ToolSettings_path(const PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("tool_settings");
 }
@@ -2401,6 +2535,49 @@ void rna_ViewLayer_active_aov_index_set(PointerRNA *ptr, int value)
   view_layer->active_aov = aov;
 }
 
+void rna_ViewLayer_active_lightgroup_index_range(
+    PointerRNA *ptr, int *min, int *max, int *UNUSED(softmin), int *UNUSED(softmax))
+{
+  ViewLayer *view_layer = (ViewLayer *)ptr->data;
+
+  *min = 0;
+  *max = max_ii(0, BLI_listbase_count(&view_layer->lightgroups) - 1);
+}
+
+int rna_ViewLayer_active_lightgroup_index_get(PointerRNA *ptr)
+{
+  ViewLayer *view_layer = (ViewLayer *)ptr->data;
+  return BLI_findindex(&view_layer->lightgroups, view_layer->active_lightgroup);
+}
+
+void rna_ViewLayer_active_lightgroup_index_set(PointerRNA *ptr, int value)
+{
+  ViewLayer *view_layer = (ViewLayer *)ptr->data;
+  ViewLayerLightgroup *lightgroup = BLI_findlink(&view_layer->lightgroups, value);
+  view_layer->active_lightgroup = lightgroup;
+}
+
+static void rna_ViewLayerLightgroup_name_get(PointerRNA *ptr, char *value)
+{
+  ViewLayerLightgroup *lightgroup = (ViewLayerLightgroup *)ptr->data;
+  BLI_strncpy(value, lightgroup->name, sizeof(lightgroup->name));
+}
+
+static int rna_ViewLayerLightgroup_name_length(PointerRNA *ptr)
+{
+  ViewLayerLightgroup *lightgroup = (ViewLayerLightgroup *)ptr->data;
+  return strlen(lightgroup->name);
+}
+
+static void rna_ViewLayerLightgroup_name_set(PointerRNA *ptr, const char *value)
+{
+  ViewLayerLightgroup *lightgroup = (ViewLayerLightgroup *)ptr->data;
+  Scene *scene = (Scene *)ptr->owner_id;
+  ViewLayer *view_layer = BKE_view_layer_find_with_lightgroup(scene, lightgroup);
+
+  BKE_view_layer_rename_lightgroup(scene, view_layer, lightgroup, value);
+}
+
 /* Fake value, used internally (not saved to DNA). */
 #  define V3D_ORIENT_DEFAULT -1
 
@@ -2537,7 +2714,7 @@ static const EnumPropertyItem *rna_UnitSettings_itemf_wrapper(const int system,
 
   EnumPropertyItem adaptive = {0};
   adaptive.identifier = "ADAPTIVE";
-  adaptive.name = "Adaptive";
+  adaptive.name = N_("Adaptive");
   adaptive.value = USER_UNIT_ADAPTIVE;
   RNA_enum_item_add(&items, &totitem, &adaptive);
 
@@ -2608,15 +2785,36 @@ static void rna_UnitSettings_system_update(Main *UNUSED(bmain),
   }
 }
 
-static char *rna_UnitSettings_path(PointerRNA *UNUSED(ptr))
+static char *rna_UnitSettings_path(const PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("unit_settings");
 }
 
-static char *rna_FFmpegSettings_path(PointerRNA *UNUSED(ptr))
+static char *rna_FFmpegSettings_path(const PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("render.ffmpeg");
 }
+
+#  ifdef WITH_FFMPEG
+/* FFMpeg Codec setting update hook. */
+static void rna_FFmpegSettings_codec_update(Main *UNUSED(bmain),
+                                            Scene *UNUSED(scene),
+                                            PointerRNA *ptr)
+{
+  FFMpegCodecData *codec_data = (FFMpegCodecData *)ptr->data;
+  if (!ELEM(codec_data->codec,
+            AV_CODEC_ID_H264,
+            AV_CODEC_ID_MPEG4,
+            AV_CODEC_ID_VP9,
+            AV_CODEC_ID_DNXHD)) {
+    /* Constant Rate Factor (CRF) setting is only available for H264,
+     * MPEG4 and WEBM/VP9 codecs. So changing encoder quality mode to
+     * CBR as CRF is not supported.
+     */
+    codec_data->constant_rate_factor = FFM_CRF_NONE;
+  }
+}
+#  endif
 
 #else
 
@@ -2872,6 +3070,25 @@ static void rna_def_tool_settings(BlenderRNA *brna)
       {0, NULL, 0, NULL, NULL},
   };
 
+  static const EnumPropertyItem uv_sticky_mode_items[] = {
+      {SI_STICKY_DISABLE,
+       "DISABLED",
+       ICON_STICKY_UVS_DISABLE,
+       "Disabled",
+       "Sticky vertex selection disabled"},
+      {SI_STICKY_LOC,
+       "SHARED_LOCATION",
+       ICON_STICKY_UVS_LOC,
+       "Shared Location",
+       "Select UVs that are at the same location and share a mesh vertex"},
+      {SI_STICKY_VERTEX,
+       "SHARED_VERTEX",
+       ICON_STICKY_UVS_VERT,
+       "Shared Vertex",
+       "Select UVs that share a mesh vertex, whether or not they are at the same location"},
+      {0, NULL, 0, NULL, NULL},
+  };
+
   srna = RNA_def_struct(brna, "ToolSettings", NULL);
   RNA_def_struct_path_func(srna, "rna_ToolSettings_path");
   RNA_def_struct_ui_text(srna, "Tool Settings", "");
@@ -2879,6 +3096,10 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "sculpt", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Sculpt");
   RNA_def_property_ui_text(prop, "Sculpt", "");
+
+  prop = RNA_def_property(srna, "curves_sculpt", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "CurvesSculpt");
+  RNA_def_property_ui_text(prop, "Curves Sculpt", "");
 
   prop = RNA_def_property(srna, "use_auto_normalize", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
@@ -2933,6 +3154,10 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_pointer_sdna(prop, NULL, "imapaint");
   RNA_def_property_ui_text(prop, "Image Paint", "");
 
+  prop = RNA_def_property(srna, "paint_mode", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, NULL, "paint_mode");
+  RNA_def_property_ui_text(prop, "Paint Mode", "");
+
   prop = RNA_def_property(srna, "uv_sculpt", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, NULL, "uvsculpt");
   RNA_def_property_ui_text(prop, "UV Sculpt", "");
@@ -2972,7 +3197,10 @@ static void rna_def_tool_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "lock_object_mode", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "object_flag", SCE_OBJECT_MODE_LOCK);
-  RNA_def_property_ui_text(prop, "Lock Object Modes", "Restrict select to the current mode");
+  RNA_def_property_ui_text(prop,
+                           "Lock Object Modes",
+                           "Restrict selection to objects using the same mode as the active "
+                           "object, to prevent accidental mode switch when selecting");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 
   static const EnumPropertyItem workspace_tool_items[] = {
@@ -3042,7 +3270,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Proportional Editing Falloff", "Falloff type for proportional editing mode");
   /* Abusing id_curve :/ */
-  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_CURVE);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_CURVE_LEGACY);
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL); /* header redraw */
 
   prop = RNA_def_property(srna, "proportional_size", PROP_FLOAT, PROP_DISTANCE);
@@ -3088,7 +3316,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, NULL, "uvcalc_flag", UVCALC_TRANSFORM_CORRECT);
   RNA_def_property_ui_text(prop,
                            "Correct Face Attributes",
-                           "Correct data such as UV's and vertex colors when transforming");
+                           "Correct data such as UV's and color attributes when transforming");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 
   prop = RNA_def_property(srna, "use_transform_correct_keep_connected", PROP_BOOLEAN, PROP_NONE);
@@ -3119,6 +3347,25 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_ui_icon(prop, ICON_SNAP_OFF, 1);
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL); /* header redraw */
 
+  prop = RNA_def_property(srna, "use_snap_node", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "snap_flag_node", SCE_SNAP);
+  RNA_def_property_ui_text(prop, "Snap", "Snap Node during transform");
+  RNA_def_property_ui_icon(prop, ICON_SNAP_OFF, 1);
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL); /* header redraw */
+
+  prop = RNA_def_property(srna, "use_snap_sequencer", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "snap_flag_seq", SCE_SNAP);
+  RNA_def_property_ui_text(prop, "Use Snapping", "Snap to strip edges or current frame");
+  RNA_def_property_ui_icon(prop, ICON_SNAP_OFF, 1);
+  RNA_def_property_boolean_default(prop, true);
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL); /* Publish message-bus. */
+
+  prop = RNA_def_property(srna, "use_snap_uv", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "snap_uv_flag", SCE_SNAP);
+  RNA_def_property_ui_text(prop, "Snap", "Snap UV during transform");
+  RNA_def_property_ui_icon(prop, ICON_SNAP_OFF, 1);
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL); /* header redraw */
+
   prop = RNA_def_property(srna, "use_snap_align_rotation", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "snap_flag", SCE_SNAP_ROTATE);
   RNA_def_property_ui_text(
@@ -3133,13 +3380,6 @@ static void rna_def_tool_settings(BlenderRNA *brna)
       "Absolute grid alignment while translating (based on the pivot center)");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL); /* header redraw */
 
-  prop = RNA_def_property(srna, "use_snap_sequencer", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "snap_flag", SCE_SNAP_SEQ);
-  RNA_def_property_ui_text(prop, "Use Snapping", "Snap to strip edges or current frame");
-  RNA_def_property_ui_icon(prop, ICON_SNAP_OFF, 1);
-  RNA_def_property_boolean_default(prop, true);
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL); /* Publish message-bus. */
-
   prop = RNA_def_property(srna, "snap_elements", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_bitflag_sdna(prop, NULL, "snap_mode");
   RNA_def_property_enum_items(prop, rna_enum_snap_element_items);
@@ -3147,6 +3387,21 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_ENUM_FLAG);
   RNA_def_property_ui_text(prop, "Snap Element", "Type of element to snap to");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL); /* header redraw */
+
+  prop = RNA_def_property(srna, "snap_face_nearest_steps", PROP_INT, PROP_FACTOR);
+  RNA_def_property_int_sdna(prop, NULL, "snap_face_nearest_steps");
+  RNA_def_property_range(prop, 1, 100);
+  RNA_def_property_ui_text(
+      prop,
+      "Face Nearest Steps",
+      "Number of steps to break transformation into for face nearest snapping");
+
+  prop = RNA_def_property(srna, "use_snap_to_same_target", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "snap_flag", SCE_SNAP_KEEP_ON_SAME_OBJECT);
+  RNA_def_property_ui_text(
+      prop,
+      "Snap to Same Target",
+      "Snap only to target that source was initially near (Face Nearest Only)");
 
   /* node editor uses own set of snap modes */
   prop = RNA_def_property(srna, "snap_node_element", PROP_ENUM, PROP_NONE);
@@ -3170,9 +3425,12 @@ static void rna_def_tool_settings(BlenderRNA *brna)
       "Absolute grid alignment while translating (based on the pivot center)");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL); /* header redraw */
 
+  /* TODO(@gfxcoder): Rename `snap_target` to `snap_source` to avoid previous ambiguity of "target"
+   * (now, "source" is geometry to be moved and "target" is geometry to which moved geometry is
+   * snapped). */
   prop = RNA_def_property(srna, "snap_target", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, NULL, "snap_target");
-  RNA_def_property_enum_items(prop, rna_enum_snap_target_items);
+  RNA_def_property_enum_items(prop, rna_enum_snap_source_items);
   RNA_def_property_ui_text(prop, "Snap Target", "Which part to snap onto the target");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL); /* header redraw */
 
@@ -3194,9 +3452,30 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Backface Culling", "Exclude back facing geometry from snapping");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL); /* header redraw */
 
+  /* TODO(@gfxcoder): Rename `use_snap_self` to `use_snap_active`, because active is correct but
+   * self is not (breaks API). This only makes a difference when more than one mesh is edited. */
   prop = RNA_def_property(srna, "use_snap_self", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, NULL, "snap_flag", SCE_SNAP_NO_SELF);
-  RNA_def_property_ui_text(prop, "Project onto Self", "Snap onto itself (Edit Mode Only)");
+  RNA_def_property_boolean_negative_sdna(prop, NULL, "snap_flag", SCE_SNAP_NOT_TO_ACTIVE);
+  RNA_def_property_ui_text(
+      prop, "Snap onto Active", "Snap onto itself only if enabled (Edit Mode Only)");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL); /* header redraw */
+
+  prop = RNA_def_property(srna, "use_snap_edit", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "snap_flag", SCE_SNAP_TO_INCLUDE_EDITED);
+  RNA_def_property_ui_text(
+      prop, "Snap onto Edited", "Snap onto non-active objects in Edit Mode (Edit Mode Only)");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL); /* header redraw */
+
+  prop = RNA_def_property(srna, "use_snap_nonedit", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "snap_flag", SCE_SNAP_TO_INCLUDE_NONEDITED);
+  RNA_def_property_ui_text(
+      prop, "Snap onto Non-edited", "Snap onto objects not in Edit Mode (Edit Mode Only)");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL); /* header redraw */
+
+  prop = RNA_def_property(srna, "use_snap_selectable", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "snap_flag", SCE_SNAP_TO_ONLY_SELECTABLE);
+  RNA_def_property_ui_text(
+      prop, "Snap onto Selectable Only", "Snap only onto objects that are selectable");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL); /* header redraw */
 
   prop = RNA_def_property(srna, "use_snap_translate", PROP_BOOLEAN, PROP_NONE);
@@ -3262,6 +3541,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
       "Automerge",
       "Join by distance last drawn stroke with previous strokes in the active layer");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 
   prop = RNA_def_property(srna, "gpencil_sculpt", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, NULL, "gp_sculpt");
@@ -3425,7 +3705,8 @@ static void rna_def_tool_settings(BlenderRNA *brna)
       prop,
       "Cycle-Aware Keying",
       "For channels with cyclic extrapolation, keyframe insertion is automatically "
-      "remapped inside the cycle time range, and keeps ends in sync");
+      "remapped inside the cycle time range, and keeps ends in sync. Curves newly added to "
+      "actions with a Manual Frame Range and Cyclic Animation are automatically made cyclic");
 
   /* Keyframing */
   prop = RNA_def_property(srna, "keyframe_type", PROP_ENUM, PROP_NONE);
@@ -3439,6 +3720,14 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, NULL, "uv_selectmode");
   RNA_def_property_enum_items(prop, rna_enum_mesh_select_mode_uv_items);
   RNA_def_property_ui_text(prop, "UV Selection Mode", "UV selection and display mode");
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, "rna_Scene_uv_select_mode_update");
+
+  prop = RNA_def_property(srna, "uv_sticky_select_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "uv_sticky");
+  RNA_def_property_enum_items(prop, uv_sticky_mode_items);
+  RNA_def_property_ui_text(
+      prop, "Sticky Selection Mode", "Method for extending UV vertex selection");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, NULL);
 
   prop = RNA_def_property(srna, "use_uv_select_sync", PROP_BOOLEAN, PROP_NONE);
@@ -4006,6 +4295,7 @@ static void rna_def_view_layer_eevee(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
   srna = RNA_def_struct(brna, "ViewLayerEEVEE", NULL);
+  RNA_def_struct_path_func(srna, "rna_ViewLayerEEVEE_path");
   RNA_def_struct_ui_text(srna, "Eevee Settings", "View layer settings for Eevee");
 
   prop = RNA_def_property(srna, "use_pass_volume_direct", PROP_BOOLEAN, PROP_NONE);
@@ -4062,6 +4352,44 @@ static void rna_def_view_layer_aov(BlenderRNA *brna)
   RNA_def_property_enum_default(prop, AOV_TYPE_COLOR);
   RNA_def_property_ui_text(prop, "Type", "Data type of the AOV");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
+}
+
+static void rna_def_view_layer_lightgroups(BlenderRNA *brna, PropertyRNA *cprop)
+{
+  StructRNA *srna;
+  /*  PropertyRNA *prop; */
+
+  FunctionRNA *func;
+  PropertyRNA *parm;
+
+  RNA_def_property_srna(cprop, "Lightgroups");
+  srna = RNA_def_struct(brna, "Lightgroups", NULL);
+  RNA_def_struct_sdna(srna, "ViewLayer");
+  RNA_def_struct_ui_text(srna, "List of Lightgroups", "Collection of Lightgroups");
+
+  func = RNA_def_function(srna, "add", "BKE_view_layer_add_lightgroup");
+  parm = RNA_def_pointer(func, "lightgroup", "Lightgroup", "", "Newly created Lightgroup");
+  RNA_def_function_return(func, parm);
+  parm = RNA_def_string(func, "name", NULL, 0, "Name", "Name of newly created lightgroup");
+}
+
+static void rna_def_view_layer_lightgroup(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+  srna = RNA_def_struct(brna, "Lightgroup", NULL);
+  RNA_def_struct_sdna(srna, "ViewLayerLightgroup");
+  RNA_def_struct_ui_text(srna, "Light Group", "");
+
+  prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_string_funcs(prop,
+                                "rna_ViewLayerLightgroup_name_get",
+                                "rna_ViewLayerLightgroup_name_length",
+                                "rna_ViewLayerLightgroup_name_set");
+  RNA_def_property_ui_text(prop, "Name", "Name of the Lightgroup");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
+  RNA_def_struct_name_property(srna, prop);
 }
 
 void rna_def_view_layer_common(BlenderRNA *brna, StructRNA *srna, const bool scene)
@@ -4132,6 +4460,25 @@ void rna_def_view_layer_common(BlenderRNA *brna, StructRNA *srna, const bool sce
                                "rna_ViewLayer_active_aov_index_set",
                                "rna_ViewLayer_active_aov_index_range");
     RNA_def_property_ui_text(prop, "Active AOV Index", "Index of active aov");
+    RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+    prop = RNA_def_property(srna, "lightgroups", PROP_COLLECTION, PROP_NONE);
+    RNA_def_property_collection_sdna(prop, NULL, "lightgroups", NULL);
+    RNA_def_property_struct_type(prop, "Lightgroup");
+    RNA_def_property_ui_text(prop, "Light Groups", "");
+    rna_def_view_layer_lightgroups(brna, prop);
+
+    prop = RNA_def_property(srna, "active_lightgroup", PROP_POINTER, PROP_NONE);
+    RNA_def_property_struct_type(prop, "Lightgroup");
+    RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+    RNA_def_property_ui_text(prop, "Light Groups", "Active Lightgroup");
+
+    prop = RNA_def_property(srna, "active_lightgroup_index", PROP_INT, PROP_UNSIGNED);
+    RNA_def_property_int_funcs(prop,
+                               "rna_ViewLayer_active_lightgroup_index_get",
+                               "rna_ViewLayer_active_lightgroup_index_set",
+                               "rna_ViewLayer_active_lightgroup_index_range");
+    RNA_def_property_ui_text(prop, "Active Lightgroup Index", "Index of active lightgroup");
     RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
     prop = RNA_def_property(srna, "use_pass_cryptomatte_object", PROP_BOOLEAN, PROP_NONE);
@@ -5014,6 +5361,123 @@ void rna_def_freestyle_settings(BlenderRNA *brna)
   rna_def_freestyle_linesets(brna, prop);
 }
 
+static void rna_def_scene_game_recast_data(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  static const EnumPropertyItem rna_enum_partitioning_items[] = {
+      {RC_PARTITION_WATERSHED,
+       "WATERSHED",
+       0,
+       "Watershed",
+       "Classic Recast partitioning method generating the nicest tessellation"},
+      {RC_PARTITION_MONOTONE,
+       "MONOTONE",
+       0,
+       "Monotone",
+       "Fastest navmesh generation method, may create long thin polygons"},
+      {RC_PARTITION_LAYERS,
+       "LAYERS",
+       0,
+       "Layers",
+       "Reasonably fast method that produces better triangles than monotone partitioning"},
+      {0, NULL, 0, NULL, NULL}};
+
+  srna = RNA_def_struct(brna, "SceneGameRecastData", NULL);
+  RNA_def_struct_sdna(srna, "RecastData");
+  RNA_def_struct_nested(brna, srna, "Scene");
+  RNA_def_struct_ui_text(srna, "Recast Data", "Recast data for a Game data-block");
+
+  prop = RNA_def_property(srna, "cell_size", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "cellsize");
+  RNA_def_property_ui_range(prop, 0.1, 1, 1, 2);
+  RNA_def_property_ui_text(prop, "Cell Size", "Rasterized cell size");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "cell_height", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "cellheight");
+  RNA_def_property_ui_range(prop, 0.1, 1, 1, 2);
+  RNA_def_property_ui_text(prop, "Cell Height", "Rasterized cell height");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "agent_height", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "agentheight");
+  RNA_def_property_ui_range(prop, 0.1, 5, 1, 2);
+  RNA_def_property_ui_text(prop, "Agent Height", "Minimum height where the agent can still walk");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "agent_radius", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "agentradius");
+  RNA_def_property_ui_range(prop, 0.1, 5, 1, 2);
+  RNA_def_property_ui_text(prop, "Agent Radius", "Radius of the agent");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "climb_max", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "agentmaxclimb");
+  RNA_def_property_ui_range(prop, 0.1, 5, 1, 2);
+  RNA_def_property_ui_text(
+      prop, "Max Climb", "Maximum height between grid cells the agent can climb");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "slope_max", PROP_FLOAT, PROP_ANGLE);
+  RNA_def_property_float_sdna(prop, NULL, "agentmaxslope");
+  RNA_def_property_range(prop, 0, M_PI_2);
+  RNA_def_property_ui_text(prop, "Max Slope", "Maximum walkable slope angle");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "region_min_size", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "regionminsize");
+  RNA_def_property_ui_range(prop, 0, 150, 1, 2);
+  RNA_def_property_ui_text(
+      prop, "Min Region Size", "Minimum regions size (smaller regions will be deleted)");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "region_merge_size", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "regionmergesize");
+  RNA_def_property_ui_range(prop, 0, 150, 1, 2);
+  RNA_def_property_ui_text(
+      prop, "Merged Region Size", "Minimum regions size (smaller regions will be merged)");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "partitioning", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, NULL, "partitioning");
+  RNA_def_property_enum_items(prop, rna_enum_partitioning_items);
+  RNA_def_property_ui_text(prop, "Partitioning", "Choose partitioning method");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "edge_max_len", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "edgemaxlen");
+  RNA_def_property_ui_range(prop, 0, 50, 1, 2);
+  RNA_def_property_ui_text(prop, "Max Edge Length", "Maximum contour edge length");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "edge_max_error", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "edgemaxerror");
+  RNA_def_property_ui_range(prop, 0.1, 3.0, 1, 2);
+  RNA_def_property_ui_text(prop, "Max Edge Error", "Maximum distance error from contour to cells");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "verts_per_poly", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "vertsperpoly");
+  RNA_def_property_ui_range(prop, 3, 12, 1, -1);
+  RNA_def_property_ui_text(prop, "Verts Per Poly", "Max number of vertices per polygon");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "sample_dist", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "detailsampledist");
+  RNA_def_property_ui_range(prop, 0.0, 16.0, 1, 2);
+  RNA_def_property_ui_text(prop, "Sample Distance", "Detail mesh sample spacing");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "sample_max_error", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "detailsamplemaxerror");
+  RNA_def_property_ui_range(prop, 0.0, 16.0, 1, 2);
+  RNA_def_property_ui_text(
+      prop, "Max Sample Error", "Detail mesh simplification max sample error");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+}
+
 static void rna_def_bake_data(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -5052,6 +5516,11 @@ static void rna_def_bake_data(BlenderRNA *brna)
   RNA_def_property_range(prop, 0, SHRT_MAX);
   RNA_def_property_ui_range(prop, 0, 64, 1, 1);
   RNA_def_property_ui_text(prop, "Margin", "Extends the baked result as a post process filter");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+  prop = RNA_def_property(srna, "margin_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_bake_margin_type_items);
+  RNA_def_property_ui_text(prop, "Margin Type", "Algorithm to extend the baked result");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
   prop = RNA_def_property(srna, "max_ray_distance", PROP_FLOAT, PROP_DISTANCE);
@@ -5187,6 +5656,502 @@ static void rna_def_bake_data(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_ENUM_FLAG);
   RNA_def_property_ui_text(prop, "Pass Filter", "Passes to include in the active baking pass");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+}
+
+static void rna_def_scene_game_data(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  static const EnumPropertyItem aasamples_items[] = {{0, "SAMPLES_0", 0, "Off", ""},
+                                                     {2, "SAMPLES_2", 0, "2x", ""},
+                                                     {4, "SAMPLES_4", 0, "4x", ""},
+                                                     {8, "SAMPLES_8", 0, "8x", ""},
+                                                     {16, "SAMPLES_16", 0, "16x", ""},
+                                                     {0, NULL, 0, NULL, NULL}};
+
+  static EnumPropertyItem solver_items[] = {
+      {GAME_SOLVER_SEQUENTIAL,
+       "SOLVER_SEQUENTIAL",
+       0,
+       "Sequential",
+       "Sequential physics solver, default solver"},
+      {GAME_SOLVER_NNCG, "SOLVER_NNGC", 0, "NNGC", "NNGC physics solver"},
+      {0, NULL, 0, NULL, NULL}};
+
+  static const EnumPropertyItem framing_types_items[] = {
+      {SCE_GAMEFRAMING_BARS,
+       "LETTERBOX",
+       0,
+       "Letterbox",
+       "Show the entire viewport in the display window, using bar horizontally or vertically"},
+      {SCE_GAMEFRAMING_EXTEND,
+       "EXTEND",
+       0,
+       "Extend",
+       "Show the entire viewport in the display window, viewing more horizontally "
+       "or vertically"},
+      {SCE_GAMEFRAMING_SCALE,
+       "SCALE",
+       0,
+       "Scale",
+       "Stretch or squeeze the viewport to fill the display window"},
+      {0, NULL, 0, NULL, NULL}};
+
+  static const EnumPropertyItem stereo_modes_items[] = {
+      {STEREO_QUADBUFFERED, "QUADBUFFERED", 0, "Quad-Buffer", ""},
+      {STEREO_ABOVEBELOW, "ABOVEBELOW", 0, "Above-Below", ""},
+      {STEREO_INTERLACED, "INTERLACED", 0, "Interlaced", ""},
+      {STEREO_ANAGLYPH, "ANAGLYPH", 0, "Anaglyph", ""},
+      {STEREO_SIDEBYSIDE, "SIDEBYSIDE", 0, "Side-by-side", ""},
+      {STEREO_VINTERLACE, "VINTERLACE", 0, "Vinterlace", ""},
+      {STEREO_3DTVTOPBOTTOM, "3DTVTOPBOTTOM", 0, "3DTV Top-Bottom", ""},
+      {0, NULL, 0, NULL, NULL}};
+
+  static const EnumPropertyItem stereo_items[] = {
+      {STEREO_NOSTEREO, "NONE", 0, "None", "Disable Stereo environments"},
+      {STEREO_ENABLED, "STEREO", 0, "Stereo", "Enable Stereo environment"},
+      {0, NULL, 0, NULL, NULL}};
+
+  static const EnumPropertyItem physics_engine_items[] = {
+      {WOPHY_NONE, "NONE", 0, "None", "Don't use a physics engine"},
+      {WOPHY_BULLET, "BULLET", 0, "Bullet", "Use the Bullet physics engine"},
+      {0, NULL, 0, NULL, NULL}};
+
+  static const EnumPropertyItem obstacle_simulation_items[] = {
+      {OBSTSIMULATION_NONE, "NONE", 0, "None", ""},
+      {OBSTSIMULATION_TOI_rays, "RVO_RAYS", 0, "RVO (rays)", ""},
+      {OBSTSIMULATION_TOI_cells, "RVO_CELLS", 0, "RVO (cells)", ""},
+      {0, NULL, 0, NULL, NULL}};
+
+  static const EnumPropertyItem vsync_items[] = {
+      {VSYNC_OFF, "OFF", 0, "Off", "Disable vsync"},
+      {VSYNC_ON, "ON", 0, "On", "Enable vsync"},
+      {VSYNC_ADAPTIVE, "ADAPTIVE", 0, "Adaptive", "Enable adaptive vsync (if supported)"},
+      {0, NULL, 0, NULL, NULL}};
+
+  static const EnumPropertyItem log_levels[] = {
+      {GAME_LOG_LEVEL_NOTSET, "NOTSET", 0, "Not Set", "Disable logging"},
+      {GAME_LOG_LEVEL_DEBUG, "DEBUG", 0, "Debug", "Print debug level messages and above"},
+      {GAME_LOG_LEVEL_INFO, "INFO", 0, "Info", "Print info level messages and above"},
+      {GAME_LOG_LEVEL_WARNING, "WARNING", 0, "Warning", "Print warning level messages and above"},
+      {GAME_LOG_LEVEL_ERROR, "ERROR", 0, "Error", "Print error level messages and above"},
+      {GAME_LOG_LEVEL_CRITICAL, "CRITICAL", 0, "Critical", "Print critical level messages"},
+      {0, NULL, 0, NULL, NULL}};
+
+  srna = RNA_def_struct(brna, "SceneGameData", NULL);
+  RNA_def_struct_sdna(srna, "GameData");
+  RNA_def_struct_nested(brna, srna, "Scene");
+  RNA_def_struct_ui_text(srna, "Game Data", "Game data for a Scene data-block");
+
+  prop = RNA_def_property(srna, "resolution_x", PROP_INT, PROP_PIXEL);
+  RNA_def_property_int_sdna(prop, NULL, "xplay");
+  RNA_def_property_range(prop, 4, 10000);
+  RNA_def_property_ui_text(prop, "Resolution X", "Number of horizontal pixels in the screen");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "resolution_y", PROP_INT, PROP_PIXEL);
+  RNA_def_property_int_sdna(prop, NULL, "yplay");
+  RNA_def_property_range(prop, 4, 10000);
+  RNA_def_property_ui_text(prop, "Resolution Y", "Number of vertical pixels in the screen");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "samp_per_frame", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "samples_per_frame");
+  RNA_def_property_range(prop, 1, 10000);
+  RNA_def_property_ui_text(prop,
+                           "Samples per frame",
+                           "Number of eevee passes rendered in 1 frame "
+                           "(clamped between 1 and Viewport samples)");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "vsync", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "vsync");
+  RNA_def_property_enum_items(prop, vsync_items);
+  RNA_def_property_ui_text(prop, "Vsync", "Change vsync settings");
+
+  prop = RNA_def_property(srna, "samples", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "aasamples");
+  RNA_def_property_enum_items(prop, aasamples_items);
+  RNA_def_property_ui_text(prop, "AA Samples", "The number of AA Samples to use for MSAA");
+
+  prop = RNA_def_property(srna, "depth", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_sdna(prop, NULL, "depth");
+  RNA_def_property_range(prop, 8, 32);
+  RNA_def_property_ui_text(prop, "Bits", "Display bit depth of full screen display");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "exit_key", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "exitkey");
+  RNA_def_property_enum_items(prop, rna_enum_event_type_items);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
+  RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_exit_key_set", NULL);
+  RNA_def_property_ui_text(prop, "Exit Key", "The key that exits the Game Engine");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "log_level", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "logLevel");
+  RNA_def_property_enum_items(prop, log_levels);
+  RNA_def_property_ui_text(prop, "Log Level", "Log level for the root logger");
+
+  /* Do we need it here ? (since we already have it in World */
+  prop = RNA_def_property(srna, "frequency", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "freqplay");
+  RNA_def_property_range(prop, 4, 2000);
+  RNA_def_property_ui_text(prop, "Freq", "Display clock frequency of fullscreen display");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "show_fullscreen", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "playerflag", GAME_PLAYER_FULLSCREEN);
+  RNA_def_property_ui_text(prop, "Fullscreen", "Start player in a new fullscreen display");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "use_desktop", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "playerflag", GAME_PLAYER_DESKTOP_RESOLUTION);
+  RNA_def_property_ui_text(
+      prop, "Desktop", "Use the current desktop resolution in fullscreen mode");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  /* Framing */
+  prop = RNA_def_property(srna, "frame_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "framing.type");
+  RNA_def_property_enum_items(prop, framing_types_items);
+  RNA_def_property_ui_text(prop, "Framing Types", "Select the type of Framing you want");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "frame_color", PROP_FLOAT, PROP_COLOR);
+  RNA_def_property_float_sdna(prop, NULL, "framing.col");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "Framing Color", "Set color of the bars");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  /* Stereo */
+  prop = RNA_def_property(srna, "stereo", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "stereoflag");
+  RNA_def_property_enum_items(prop, stereo_items);
+  RNA_def_property_ui_text(prop, "Stereo Options", "");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "stereo_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "stereomode");
+  RNA_def_property_enum_items(prop, stereo_modes_items);
+  RNA_def_property_ui_text(prop, "Stereo Mode", "Stereographic techniques");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "stereo_eye_separation", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "eyeseparation");
+  RNA_def_property_range(prop, 0.01, 5.0);
+  RNA_def_property_ui_text(
+      prop,
+      "Eye Separation",
+      "Set the distance between the eyes - the camera focal distance/30 should be fine");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  /* physics */
+  prop = RNA_def_property(srna, "physics_engine", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "physicsEngine");
+  RNA_def_property_enum_items(prop, physics_engine_items);
+  RNA_def_property_ui_text(
+      prop, "Physics Engine", "Physics engine used for physics simulation in the game engine");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "physics_gravity", PROP_FLOAT, PROP_ACCELERATION);
+  RNA_def_property_float_sdna(prop, NULL, "gravity");
+  RNA_def_property_ui_range(prop, 0.0, 25.0, 1, 2);
+  RNA_def_property_range(prop, 0.0, 10000.0);
+  RNA_def_property_ui_text(
+      prop,
+      "Physics Gravity",
+      "Gravitational constant used for physics simulation in the game engine");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "physics_solver", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "solverType");
+  RNA_def_property_enum_items(prop, solver_items);
+  RNA_def_property_ui_text(prop, "Physics Solver", "Physics constraint solver");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "occlusion_culling_resolution", PROP_INT, PROP_PIXEL);
+  RNA_def_property_int_sdna(prop, NULL, "occlusionRes");
+  RNA_def_property_range(prop, 128.0, 1024.0);
+  RNA_def_property_ui_text(
+      prop,
+      "Occlusion Resolution",
+      "Size of the occlusion buffer, use higher value for better precision (slower)");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "fps", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "ticrate");
+  RNA_def_property_ui_range(prop, 1, 60, 1, 1);
+  RNA_def_property_range(prop, 1, 10000);
+  RNA_def_property_ui_text(prop,
+                           "Frames Per Second",
+                           "Nominal number of game frames per second "
+                           "(physics fixed timestep = 1/fps, independently of actual frame rate)");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "logic_step_max", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "maxlogicstep");
+  RNA_def_property_range(prop, 1, 10000);
+  RNA_def_property_ui_range(prop, 1, 50, 1, 1);
+  RNA_def_property_ui_text(
+      prop,
+      "Max Logic Steps",
+      "Maximum number of logic frame per game frame if graphics slows down the game, "
+      "higher value allows better synchronization with physics");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "physics_step_max", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "maxphystep");
+  RNA_def_property_range(prop, 1, 10000);
+  RNA_def_property_ui_range(prop, 1, 50, 1, 1);
+  RNA_def_property_ui_text(
+      prop,
+      "Max Physics Steps",
+      "Maximum number of physics step per game frame if graphics slows down the game, "
+      "higher value allows physics to keep up with realtime");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "physics_step_sub", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "physubstep");
+  RNA_def_property_range(prop, 1, 50);
+  RNA_def_property_ui_range(prop, 1, 5, 1, 1);
+  RNA_def_property_ui_text(prop,
+                           "Physics Sub Steps",
+                           "Number of simulation substep per physic timestep, "
+                           "higher value give better physics precision");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "time_scale", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "timeScale");
+  RNA_def_property_ui_range(prop, 0.001, 10000.0, 2, 3);
+  RNA_def_property_range(prop, 0.001, 10000.0);
+  RNA_def_property_ui_text(
+      prop, "Time Scale", "Time scale to slow down or speed up animations and physics in game");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "deactivation_linear_threshold", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "lineardeactthreshold");
+  RNA_def_property_ui_range(prop, 0.001, 10000.0, 2, 3);
+  RNA_def_property_range(prop, 0.001, 10000.0);
+  RNA_def_property_ui_text(
+      prop,
+      "Deactivation Linear Threshold",
+      "Linear velocity that an object must be below before the deactivation timer can start");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "deactivation_angular_threshold", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "angulardeactthreshold");
+  RNA_def_property_ui_range(prop, 0.001, 10000.0, 2, 3);
+  RNA_def_property_range(prop, 0.001, 10000.0);
+  RNA_def_property_ui_text(
+      prop,
+      "Deactivation Angular Threshold",
+      "Angular velocity that an object must be below before the deactivation timer can start");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "deactivation_time", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "deactivationtime");
+  RNA_def_property_ui_range(prop, 0.0, 60.0, 1, 1);
+  RNA_def_property_range(prop, 0.0, 60.0);
+  RNA_def_property_ui_text(
+      prop,
+      "Deactivation Time",
+      "Amount of time (in seconds) after which objects with a velocity less than the given "
+      "threshold will deactivate (0.0 means no deactivation)");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "erp_parameter", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "erp");
+  RNA_def_property_range(prop, 0.0, 1.0);
+  RNA_def_property_ui_text(
+      prop,
+      "Error Reduction Parameter (ERP) for non-contact constraints",
+      "The Error Reduction Parameter (ERP) specifies what proportion of the joint error "
+      "will be fixed during the next simulation step. If ERP = 0 then no correcting force "
+      "is applied and the bodies will eventually drift apart as the simulation proceeds. "
+      "If ERP = 1 then the simulation will attempt to fix all joint error during the next time "
+      "step. "
+      "However, setting ERP = 1 is not recommended, as the joint error will not be completely "
+      "fixed due "
+      "to various internal approximations. A value of ERP = 0.1 to 0.8 is recommended");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "erp2_parameter", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "erp2");
+  RNA_def_property_range(prop, 0.0, 1.0);
+  RNA_def_property_ui_text(
+      prop,
+      "Error Reduction Parameter (ERP) for contact constraints",
+      "The Error Reduction Parameter (ERP) specifies what proportion of the joint error "
+      "will be fixed during the next simulation step. If ERP = 0 then no correcting force "
+      "is applied and the bodies will eventually drift apart as the simulation proceeds. "
+      "If ERP = 1 then the simulation will attempt to fix all joint error during the next time "
+      "step. "
+      "However, setting ERP = 1 is not recommended, as the joint error will not be completely "
+      "fixed due "
+      "to various internal approximations. A value of ERP = 0.1 to 0.8 is recommended");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "cfm_parameter", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "cfm");
+  RNA_def_property_ui_range(prop, 0.0, 100.0, 2, 3);
+  RNA_def_property_range(prop, 0.0, 10000.0);
+  RNA_def_property_ui_text(
+      prop,
+      "Constraint Force Mixing (CFM)",
+      "If the Constraint Force Mixing (CFM) is set to zero, the constraint will be hard. "
+      "If CFM is set to a positive value, it will be possible to violate the constraint by "
+      "pushing on it "
+      "(for example, for contact constraints by forcing the two contacting objects together). "
+      "In other words the constraint will be soft, and the softness will increase as CFM "
+      "increases");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  /* booleans */
+  prop = RNA_def_property(srna, "use_viewport_render", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_USE_VIEWPORT_RENDER);
+  RNA_def_property_ui_text(
+      prop, "Use Viewport Render", "Use Blender Render Loop to render the scene");
+
+  prop = RNA_def_property(srna, "use_undo", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_USE_UNDO);
+  RNA_def_property_ui_text(prop, "Undo at Exit", "Undo bpy changes at game engine exit");
+
+  prop = RNA_def_property(srna, "use_activity_culling", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "mode", WO_ACTIVITY_CULLING);
+  RNA_def_property_ui_text(
+      prop, "Activity Culling", "Enable object activity culling in this scene");
+
+  prop = RNA_def_property(srna, "show_debug_properties", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_DEBUG_PROPS);
+  RNA_def_property_ui_text(
+      prop, "Show Debug Properties", "Show properties marked for debugging while the game runs");
+
+  prop = RNA_def_property(srna, "show_framerate_profile", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_FRAMERATE);
+  RNA_def_property_ui_text(prop,
+                           "Show Framerate and Profile",
+                           "Show framerate and profiling information while the game runs");
+
+  prop = RNA_def_property(srna, "show_physics_visualization", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_PHYSICS);
+  RNA_def_property_ui_text(prop,
+                           "Show Physics Visualization",
+                           "Show a visualization of physics bounds and interactions");
+
+  prop = RNA_def_property(srna, "show_mouse", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_MOUSE);
+  RNA_def_property_ui_text(prop, "Show Mouse", "Start player with a visible mouse cursor");
+
+  prop = RNA_def_property(srna, "use_frame_rate", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_ENABLE_ALL_FRAMES);
+  RNA_def_property_ui_text(prop,
+                           "Use Frame Rate",
+                           "Respect the frame rate from the Physics panel in the world properties "
+                           "rather than rendering as many frames as possible");
+
+  prop = RNA_def_property(srna, "use_deprecation_warnings", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_IGNORE_DEPRECATION_WARNINGS);
+  RNA_def_property_ui_text(prop,
+                           "Deprecation Warnings",
+                           "Print warnings when using deprecated features in the python API");
+
+  prop = RNA_def_property(srna, "use_animation_record", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_ENABLE_ANIMATION_RECORD);
+  RNA_def_property_ui_text(prop, "Record Animation", "Record animation to F-Curves");
+
+  prop = RNA_def_property(srna, "use_auto_start", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_funcs(
+      prop, "rna_GameSettings_auto_start_get", "rna_GameSettings_auto_start_set");
+  RNA_def_property_ui_text(prop, "Auto Start", "Automatically start game at load time");
+
+  prop = RNA_def_property(srna, "use_restrict_animation_updates", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_RESTRICT_ANIM_UPDATES);
+  RNA_def_property_ui_text(
+      prop,
+      "Restrict Animation Updates",
+      "Restrict the number of animation updates to the animation FPS (this is "
+      "better for performance, but can cause issues with smooth playback)");
+
+  prop = RNA_def_property(srna, "use_python_console", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_PYTHON_CONSOLE);
+  RNA_def_property_ui_text(prop, "Python Console", "Create a python interpreter console in game");
+
+  prop = RNA_def_property(srna, "python_console_key1", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "pythonkeys[0]");
+  RNA_def_property_enum_items(prop, rna_enum_event_type_items);
+  RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_python_key1_set", NULL);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
+  RNA_def_property_ui_text(prop, "Python Console Key", "First python console shortcut key");
+
+  prop = RNA_def_property(srna, "python_console_key2", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "pythonkeys[1]");
+  RNA_def_property_enum_items(prop, rna_enum_event_type_items);
+  RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_python_key2_set", NULL);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
+  RNA_def_property_ui_text(prop, "Python Console Key", "Second python console shortcut key");
+
+  prop = RNA_def_property(srna, "python_console_key3", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "pythonkeys[2]");
+  RNA_def_property_enum_items(prop, rna_enum_event_type_items);
+  RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_python_key3_set", NULL);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
+  RNA_def_property_ui_text(prop, "Python Console Key", "Third python console shortcut key");
+
+  prop = RNA_def_property(srna, "python_console_key4", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "pythonkeys[3]");
+  RNA_def_property_enum_items(prop, rna_enum_event_type_items);
+  RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_python_key4_set", NULL);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
+  RNA_def_property_ui_text(prop, "Python Console Key", "Fourth python console shortcut key");
+
+  /* obstacle simulation */
+  prop = RNA_def_property(srna, "obstacle_simulation", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "obstacleSimulation");
+  RNA_def_property_enum_items(prop, obstacle_simulation_items);
+  RNA_def_property_ui_text(
+      prop, "Obstacle simulation", "Simulation used for obstacle avoidance in the game engine");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "level_height", PROP_FLOAT, PROP_ACCELERATION);
+  RNA_def_property_float_sdna(prop, NULL, "levelHeight");
+  RNA_def_property_range(prop, 0.0f, 200.0f);
+  RNA_def_property_ui_text(
+      prop, "Level height", "Max difference in heights of obstacles to enable their interaction");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "show_obstacle_simulation", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_OBSTACLE_SIMULATION);
+  RNA_def_property_ui_text(
+      prop, "Visualization", "Enable debug visualization for obstacle simulation");
+
+  /* Recast Settings */
+  prop = RNA_def_property(srna, "recast_data", PROP_POINTER, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_NEVER_NULL);
+  RNA_def_property_pointer_sdna(prop, NULL, "recastData");
+  RNA_def_property_struct_type(prop, "SceneGameRecastData");
+  RNA_def_property_ui_text(prop, "Recast Data", "");
+
+  /* Nestled Data  */
+  rna_def_scene_game_recast_data(brna);
+
+  /* LoD */
+  prop = RNA_def_property(srna, "use_scene_hysteresis", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "lodflag", SCE_LOD_USE_HYST);
+  RNA_def_property_ui_text(prop, "Hysteresis", "Use LoD Hysteresis setting for the scene");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "scene_hysteresis_percentage", PROP_INT, PROP_PERCENTAGE);
+  RNA_def_property_int_sdna(prop, NULL, "scehysteresis");
+  RNA_def_property_range(prop, 0, 100);
+  RNA_def_property_ui_range(prop, 0, 100, 10, 1);
+  RNA_def_property_ui_text(
+      prop,
+      "Hysteresis %",
+      "Minimum distance change required to transition to the previous level of detail");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
 }
 
 static void rna_def_view_layers(BlenderRNA *brna, PropertyRNA *cprop)
@@ -5399,6 +6364,12 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
   };
 #  endif
 
+  static const EnumPropertyItem color_management_items[] = {
+      {R_IMF_COLOR_MANAGEMENT_FOLLOW_SCENE, "FOLLOW_SCENE", 0, "Follow Scene", ""},
+      {R_IMF_COLOR_MANAGEMENT_OVERRIDE, "OVERRIDE", 0, "Override", ""},
+      {0, NULL, 0, NULL, NULL},
+  };
+
   StructRNA *srna;
   PropertyRNA *prop;
 
@@ -5557,17 +6528,32 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Stereo 3D Format", "Settings for stereo 3D");
 
   /* color management */
+  prop = RNA_def_property(srna, "color_management", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, color_management_items);
+  RNA_def_property_ui_text(
+      prop, "Color Management", "Which color management settings to use for file saving");
+  RNA_def_property_enum_funcs(prop, NULL, "rna_ImageFormatSettings_color_management_set", NULL);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
   prop = RNA_def_property(srna, "view_settings", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, NULL, "view_settings");
   RNA_def_property_struct_type(prop, "ColorManagedViewSettings");
   RNA_def_property_ui_text(
       prop, "View Settings", "Color management settings applied on image before saving");
 
   prop = RNA_def_property(srna, "display_settings", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, NULL, "display_settings");
   RNA_def_property_struct_type(prop, "ColorManagedDisplaySettings");
   RNA_def_property_ui_text(
       prop, "Display Settings", "Settings of device saved image would be displayed on");
+
+  prop = RNA_def_property(srna, "linear_colorspace_settings", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "ColorManagedInputColorspaceSettings");
+  RNA_def_property_ui_text(prop, "Color Space Settings", "Output color space settings");
+
+  prop = RNA_def_property(srna, "has_linear_colorspace", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_funcs(prop, "rna_ImageFormatSettings_has_linear_colorspace_get", NULL);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(
+      prop, "Has Linear Color Space", "File format expects linear color space");
 }
 
 static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
@@ -5582,7 +6568,7 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
       {FFMPEG_MPEG2, "MPEG2", 0, "MPEG-2", ""},
       {FFMPEG_MPEG4, "MPEG4", 0, "MPEG-4", ""},
       {FFMPEG_AVI, "AVI", 0, "AVI", ""},
-      {FFMPEG_MOV, "QUICKTIME", 0, "Quicktime", ""},
+      {FFMPEG_MOV, "QUICKTIME", 0, "QuickTime", ""},
       {FFMPEG_DV, "DV", 0, "DV", ""},
       {FFMPEG_OGG, "OGG", 0, "Ogg", ""},
       {FFMPEG_MKV, "MKV", 0, "Matroska", ""},
@@ -5682,8 +6668,6 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, ffmpeg_format_items);
   RNA_def_property_enum_default(prop, FFMPEG_MKV);
   RNA_def_property_ui_text(prop, "Container", "Output file container");
-  RNA_def_property_update(
-      prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_FFmpegSettings_codec_settings_update");
 
   prop = RNA_def_property(srna, "codec", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_bitflag_sdna(prop, NULL, "codec");
@@ -5691,8 +6675,7 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, ffmpeg_codec_items);
   RNA_def_property_enum_default(prop, AV_CODEC_ID_H264);
   RNA_def_property_ui_text(prop, "Video Codec", "FFmpeg codec to use for video output");
-  RNA_def_property_update(
-      prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_FFmpegSettings_codec_settings_update");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_FFmpegSettings_codec_update");
 
   prop = RNA_def_property(srna, "video_bitrate", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, NULL, "video_bitrate");
@@ -5842,6 +6825,16 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
       //{RE_BAKE_AO, "AO", 0, "Ambient Occlusion", "Bake ambient occlusion"},
       {RE_BAKE_NORMALS, "NORMALS", 0, "Normals", "Bake normals"},
       {RE_BAKE_DISPLACEMENT, "DISPLACEMENT", 0, "Displacement", "Bake displacement"},
+      {0, NULL, 0, NULL, NULL},
+  };
+
+  static const EnumPropertyItem bake_margin_type_items[] = {
+      {R_BAKE_ADJACENT_FACES,
+       "ADJACENT_FACES",
+       0,
+       "Adjacent Faces",
+       "Use pixels from adjacent faces across UV seams"},
+      {R_BAKE_EXTEND, "EXTEND", 0, "Extend", "Extend border pixels outwards"},
       {0, NULL, 0, NULL, NULL},
   };
 
@@ -6091,12 +7084,13 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   /* Hairs */
   prop = RNA_def_property(srna, "hair_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, hair_shape_type_items);
-  RNA_def_property_ui_text(prop, "Hair Shape Type", "Hair shape type");
+  RNA_def_property_ui_text(prop, "Curves Shape Type", "Curves shape type");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_glsl_update");
 
   prop = RNA_def_property(srna, "hair_subdiv", PROP_INT, PROP_NONE);
   RNA_def_property_range(prop, 0, 3);
-  RNA_def_property_ui_text(prop, "Additional Subdiv", "Additional subdivision along the hair");
+  RNA_def_property_ui_text(
+      prop, "Additional Subdivision", "Additional subdivision along the curves");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_glsl_update");
 
   /* Performance */
@@ -6260,9 +7254,15 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
   prop = RNA_def_property(srna, "bake_margin", PROP_INT, PROP_PIXEL);
-  RNA_def_property_int_sdna(prop, NULL, "bake_filter");
+  RNA_def_property_int_sdna(prop, NULL, "bake_margin");
   RNA_def_property_range(prop, 0, 64);
   RNA_def_property_ui_text(prop, "Margin", "Extends the baked result as a post process filter");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+  prop = RNA_def_property(srna, "bake_margin_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "bake_margin_type");
+  RNA_def_property_enum_items(prop, bake_margin_type_items);
+  RNA_def_property_ui_text(prop, "Margin Type", "Algorithm to generate the margin");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
   prop = RNA_def_property(srna, "bake_bias", PROP_FLOAT, PROP_NONE);
@@ -6928,6 +7928,14 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
       {0, NULL, 0, NULL, NULL},
   };
 
+  static const EnumPropertyItem eevee_smaa_quality_items[] = {
+      {SCE_EEVEE_SMAA_PRESET_LOW, "LOW", 0, "Low", "%60 of the quality"},
+      {SCE_EEVEE_SMAA_PRESET_MEDIUM, "MEDIUM", 0, "Medium", "%80 of the quality"},
+      {SCE_EEVEE_SMAA_PRESET_HIGH, "HIGH", 0, "High", "%95 of the quality"},
+      {SCE_EEVEE_SMAA_PRESET_ULTRA, "ULTRA", 0, "Ultra", "%99 of the quality"},
+      {0, NULL, 0, NULL, NULL},
+  };
+
   srna = RNA_def_struct(brna, "SceneEEVEE", NULL);
   RNA_def_struct_path_func(srna, "rna_SceneEEVEE_path");
   RNA_def_struct_ui_text(srna, "Scene Display", "Scene display settings for 3D viewport");
@@ -7038,6 +8046,30 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
+  /* UPBGE */
+  prop = RNA_def_property(srna, "use_eevee_smaa", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "gameflag", SCE_EEVEE_SMAA);
+  RNA_def_property_ui_text(prop, "SMAA", "Enhanced Subpixel Morphological Antialiasing");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+  prop = RNA_def_property(srna, "smaa_quality", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, eevee_smaa_quality_items);
+  RNA_def_property_ui_text(prop, "SMAA Quality", "SMAA quality presets");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+  prop = RNA_def_property(srna, "smaa_predication_scale", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_ui_text(prop, "SMAA Scale", "SMAA Predication Scale");
+  RNA_def_property_range(
+      prop,
+      0.01f,
+      5.0f);  // normally in range [1 - 5] but sometimes best results noticed with 0.01
+  RNA_def_property_ui_range(prop, 0.01f, 5.0, 5, 3);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+  /* UPBGE */
+
   /* Screen Space Subsurface Scattering */
   prop = RNA_def_property(srna, "sss_samples", PROP_INT, PROP_NONE);
   RNA_def_property_ui_text(prop, "Samples", "Number of samples to compute the scattering effect");
@@ -7072,7 +8104,7 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
   prop = RNA_def_property(srna, "ssr_quality", PROP_FLOAT, PROP_FACTOR);
-  RNA_def_property_ui_text(prop, "Trace Precision", "Precision of the screen space raytracing");
+  RNA_def_property_ui_text(prop, "Trace Precision", "Precision of the screen space ray-tracing");
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
@@ -7145,6 +8177,15 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
       prop, "Volumetric Lighting", "Enable scene light interactions with volumetrics");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+  /* UPBGE */
+  prop = RNA_def_property(srna, "use_volumetric_blending", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "gameflag", SCE_EEVEE_VOLUMETRIC_BLENDING);
+  RNA_def_property_ui_text(
+      prop, "Volumetric Blending", "Enable volumes blending with previous frame");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+  /* End of UPBGE */
 
   prop = RNA_def_property(srna, "volumetric_light_clamp", PROP_FLOAT, PROP_NONE);
   RNA_def_property_range(prop, 0.0f, FLT_MAX);
@@ -7874,13 +8915,22 @@ void RNA_def_scene(BlenderRNA *brna)
       prop, "Annotations", "Grease Pencil data-block used for annotations in the 3D view");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
 
+  /* Game Settings */
+  prop = RNA_def_property(srna, "game_settings", PROP_POINTER, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_NEVER_NULL);
+  RNA_def_property_pointer_sdna(prop, NULL, "gm");
+  RNA_def_property_struct_type(prop, "SceneGameData");
+  RNA_def_property_ui_text(prop, "Game Data", "");
+
   /* active MovieClip */
   prop = RNA_def_property(srna, "active_clip", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, NULL, "clip");
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_struct_type(prop, "MovieClip");
-  RNA_def_property_ui_text(
-      prop, "Active Movie Clip", "Active movie clip used for constraints and viewport drawing");
+  RNA_def_property_ui_text(prop,
+                           "Active Movie Clip",
+                           "Active Movie Clip that can be used by motion tracking constraints "
+                           "or as a camera's background image");
   RNA_def_property_update(prop, NC_SCENE | ND_DRAW_RENDER_VIEWPORT, NULL);
 
   /* color management */
@@ -7949,12 +8999,14 @@ void RNA_def_scene(BlenderRNA *brna)
   rna_def_scene_image_format_data(brna);
   rna_def_transform_orientation(brna);
   rna_def_transform_orientation_slot(brna);
+  rna_def_scene_game_data(brna);
   rna_def_view3d_cursor(brna);
   rna_def_selected_uv_element(brna);
   rna_def_display_safe_areas(brna);
   rna_def_scene_display(brna);
   rna_def_scene_eevee(brna);
   rna_def_view_layer_aov(brna);
+  rna_def_view_layer_lightgroup(brna);
   rna_def_view_layer_eevee(brna);
   rna_def_scene_gpencil(brna);
   RNA_define_animate_sdna(true);

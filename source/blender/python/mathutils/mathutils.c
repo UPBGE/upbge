@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup pymathutils
@@ -77,11 +63,6 @@ static int mathutils_array_parse_fast(float *array,
   return size;
 }
 
-/**
- * helper function that returns a Python `__hash__`.
- *
- * \note consistent with the equivalent tuple of floats (CPython's 'tuplehash')
- */
 Py_hash_t mathutils_array_hash(const float *array, size_t array_len)
 {
   int i;
@@ -95,11 +76,7 @@ Py_hash_t mathutils_array_hash(const float *array, size_t array_len)
   x = 0x345678UL;
   i = 0;
   while (--len >= 0) {
-#if PY_VERSION_HEX >= 0x30a0000 /* Version: 3.10. */
     y = _Py_HashDouble(NULL, (double)(array[i++]));
-#else
-    y = _Py_HashDouble((double)(array[i++]));
-#endif
     if (y == -1) {
       return -1;
     }
@@ -114,49 +91,47 @@ Py_hash_t mathutils_array_hash(const float *array, size_t array_len)
   return x;
 }
 
-/* helper function returns length of the 'value', -1 on error */
 int mathutils_array_parse(
-    float *array, int array_min, int array_max, PyObject *value, const char *error_prefix)
+    float *array, int array_num_min, int array_num_max, PyObject *value, const char *error_prefix)
 {
-  const uint flag = array_max;
-  int size;
+  const uint flag = array_num_max;
+  int num;
 
-  array_max &= ~MU_ARRAY_FLAGS;
+  array_num_max &= ~MU_ARRAY_FLAGS;
 
 #if 1 /* approx 6x speedup for mathutils types */
 
-  if ((size = VectorObject_Check(value) ? ((VectorObject *)value)->size : 0) ||
-      (size = EulerObject_Check(value) ? 3 : 0) ||
-      (size = QuaternionObject_Check(value) ? 4 : 0) ||
-      (size = ColorObject_Check(value) ? 3 : 0)) {
+  if ((num = VectorObject_Check(value) ? ((VectorObject *)value)->vec_num : 0) ||
+      (num = EulerObject_Check(value) ? 3 : 0) || (num = QuaternionObject_Check(value) ? 4 : 0) ||
+      (num = ColorObject_Check(value) ? 3 : 0)) {
     if (BaseMath_ReadCallback((BaseMathObject *)value) == -1) {
       return -1;
     }
 
     if (flag & MU_ARRAY_SPILL) {
-      CLAMP_MAX(size, array_max);
+      CLAMP_MAX(num, array_num_max);
     }
 
-    if (size > array_max || size < array_min) {
-      if (array_max == array_min) {
+    if (num > array_num_max || num < array_num_min) {
+      if (array_num_max == array_num_min) {
         PyErr_Format(PyExc_ValueError,
-                     "%.200s: sequence size is %d, expected %d",
+                     "%.200s: sequence length is %d, expected %d",
                      error_prefix,
-                     size,
-                     array_max);
+                     num,
+                     array_num_max);
       }
       else {
         PyErr_Format(PyExc_ValueError,
-                     "%.200s: sequence size is %d, expected [%d - %d]",
+                     "%.200s: sequence length is %d, expected [%d - %d]",
                      error_prefix,
-                     size,
-                     array_min,
-                     array_max);
+                     num,
+                     array_num_min,
+                     array_num_max);
       }
       return -1;
     }
 
-    memcpy(array, ((const BaseMathObject *)value)->data, size * sizeof(float));
+    memcpy(array, ((const BaseMathObject *)value)->data, num * sizeof(float));
   }
   else
 #endif
@@ -169,78 +144,76 @@ int mathutils_array_parse(
       return -1;
     }
 
-    size = PySequence_Fast_GET_SIZE(value_fast);
+    num = PySequence_Fast_GET_SIZE(value_fast);
 
     if (flag & MU_ARRAY_SPILL) {
-      CLAMP_MAX(size, array_max);
+      CLAMP_MAX(num, array_num_max);
     }
 
-    if (size > array_max || size < array_min) {
-      if (array_max == array_min) {
+    if (num > array_num_max || num < array_num_min) {
+      if (array_num_max == array_num_min) {
         PyErr_Format(PyExc_ValueError,
-                     "%.200s: sequence size is %d, expected %d",
+                     "%.200s: sequence length is %d, expected %d",
                      error_prefix,
-                     size,
-                     array_max);
+                     num,
+                     array_num_max);
       }
       else {
         PyErr_Format(PyExc_ValueError,
-                     "%.200s: sequence size is %d, expected [%d - %d]",
+                     "%.200s: sequence length is %d, expected [%d - %d]",
                      error_prefix,
-                     size,
-                     array_min,
-                     array_max);
+                     num,
+                     array_num_min,
+                     array_num_max);
       }
       Py_DECREF(value_fast);
       return -1;
     }
 
-    size = mathutils_array_parse_fast(array, size, value_fast, error_prefix);
+    num = mathutils_array_parse_fast(array, num, value_fast, error_prefix);
     Py_DECREF(value_fast);
   }
 
-  if (size != -1) {
+  if (num != -1) {
     if (flag & MU_ARRAY_ZERO) {
-      const int size_left = array_max - size;
-      if (size_left) {
-        memset(&array[size], 0, sizeof(float) * size_left);
+      const int array_num_left = array_num_max - num;
+      if (array_num_left) {
+        memset(&array[num], 0, sizeof(float) * array_num_left);
       }
     }
   }
 
-  return size;
+  return num;
 }
 
-/* on error, -1 is returned and no allocation is made */
 int mathutils_array_parse_alloc(float **array,
-                                int array_min,
+                                int array_num,
                                 PyObject *value,
                                 const char *error_prefix)
 {
-  int size;
+  int num;
 
 #if 1 /* approx 6x speedup for mathutils types */
 
-  if ((size = VectorObject_Check(value) ? ((VectorObject *)value)->size : 0) ||
-      (size = EulerObject_Check(value) ? 3 : 0) ||
-      (size = QuaternionObject_Check(value) ? 4 : 0) ||
-      (size = ColorObject_Check(value) ? 3 : 0)) {
+  if ((num = VectorObject_Check(value) ? ((VectorObject *)value)->vec_num : 0) ||
+      (num = EulerObject_Check(value) ? 3 : 0) || (num = QuaternionObject_Check(value) ? 4 : 0) ||
+      (num = ColorObject_Check(value) ? 3 : 0)) {
     if (BaseMath_ReadCallback((BaseMathObject *)value) == -1) {
       return -1;
     }
 
-    if (size < array_min) {
+    if (num < array_num) {
       PyErr_Format(PyExc_ValueError,
                    "%.200s: sequence size is %d, expected > %d",
                    error_prefix,
-                   size,
-                   array_min);
+                   num,
+                   array_num);
       return -1;
     }
 
-    *array = PyMem_Malloc(size * sizeof(float));
-    memcpy(*array, ((const BaseMathObject *)value)->data, size * sizeof(float));
-    return size;
+    *array = PyMem_Malloc(num * sizeof(float));
+    memcpy(*array, ((const BaseMathObject *)value)->data, num * sizeof(float));
+    return num;
   }
 
 #endif
@@ -255,21 +228,21 @@ int mathutils_array_parse_alloc(float **array,
     return -1;
   }
 
-  size = PySequence_Fast_GET_SIZE(value_fast);
+  num = PySequence_Fast_GET_SIZE(value_fast);
 
-  if (size < array_min) {
+  if (num < array_num) {
     Py_DECREF(value_fast);
     PyErr_Format(PyExc_ValueError,
                  "%.200s: sequence size is %d, expected > %d",
                  error_prefix,
-                 size,
-                 array_min);
+                 num,
+                 array_num);
     return -1;
   }
 
-  *array = PyMem_Malloc(size * sizeof(float));
+  *array = PyMem_Malloc(num * sizeof(float));
 
-  ret = mathutils_array_parse_fast(*array, size, value_fast, error_prefix);
+  ret = mathutils_array_parse_fast(*array, num, value_fast, error_prefix);
   Py_DECREF(value_fast);
 
   if (ret == -1) {
@@ -279,7 +252,6 @@ int mathutils_array_parse_alloc(float **array,
   return ret;
 }
 
-/* parse an array of vectors */
 int mathutils_array_parse_alloc_v(float **array,
                                   int array_dim,
                                   PyObject *value,
@@ -287,7 +259,7 @@ int mathutils_array_parse_alloc_v(float **array,
 {
   PyObject *value_fast;
   const int array_dim_flag = array_dim;
-  int i, size;
+  int i, num;
 
   /* non list/tuple cases */
   if (!(value_fast = PySequence_Fast(value, error_prefix))) {
@@ -295,33 +267,32 @@ int mathutils_array_parse_alloc_v(float **array,
     return -1;
   }
 
-  size = PySequence_Fast_GET_SIZE(value_fast);
+  num = PySequence_Fast_GET_SIZE(value_fast);
 
-  if (size != 0) {
+  if (num != 0) {
     PyObject **value_fast_items = PySequence_Fast_ITEMS(value_fast);
     float *fp;
 
     array_dim &= ~MU_ARRAY_FLAGS;
 
-    fp = *array = PyMem_Malloc(size * array_dim * sizeof(float));
+    fp = *array = PyMem_Malloc(num * array_dim * sizeof(float));
 
-    for (i = 0; i < size; i++, fp += array_dim) {
+    for (i = 0; i < num; i++, fp += array_dim) {
       PyObject *item = value_fast_items[i];
 
       if (mathutils_array_parse(fp, array_dim, array_dim_flag, item, error_prefix) == -1) {
         PyMem_Free(*array);
         *array = NULL;
-        size = -1;
+        num = -1;
         break;
       }
     }
   }
 
   Py_DECREF(value_fast);
-  return size;
+  return num;
 }
 
-/* Parse an sequence array_dim integers into array. */
 int mathutils_int_array_parse(int *array, int array_dim, PyObject *value, const char *error_prefix)
 {
   int size, i;
@@ -357,7 +328,6 @@ int mathutils_int_array_parse(int *array, int array_dim, PyObject *value, const 
   return size;
 }
 
-/* Parse sequence of array_dim sequences of integers and return allocated result. */
 int mathutils_array_parse_alloc_vi(int **array,
                                    int array_dim,
                                    PyObject *value,
@@ -395,12 +365,6 @@ int mathutils_array_parse_alloc_vi(int **array,
   return size;
 }
 
-/* Parse sequence of variable-length sequences of int and return allocated
- * triple of arrays to represent the result:
- * The flattened sequences are put into *array.
- * The start index of each sequence goes into start_table.
- * The length of each index goes into len_table.
- */
 int mathutils_array_parse_alloc_viseq(
     int **array, int **start_table, int **len_table, PyObject *value, const char *error_prefix)
 {
@@ -492,7 +456,7 @@ int mathutils_any_to_rotmat(float rmat[3][3], PyObject *value, const char *error
     if (BaseMath_ReadCallback((BaseMathObject *)value) == -1) {
       return -1;
     }
-    if (((MatrixObject *)value)->num_row < 3 || ((MatrixObject *)value)->num_col < 3) {
+    if (((MatrixObject *)value)->row_num < 3 || ((MatrixObject *)value)->col_num < 3) {
       PyErr_Format(
           PyExc_ValueError, "%.200s: matrix must have minimum 3x3 dimensions", error_prefix);
       return -1;
@@ -560,7 +524,6 @@ int EXPP_VectorsAreEqual(const float *vecA, const float *vecB, int size, int flo
 }
 
 #ifndef MATH_STANDALONE
-/* dynstr as python string utility functions, frees 'ds'! */
 PyObject *mathutils_dynstr_to_py(struct DynStr *ds)
 {
   const int ds_len = BLI_dynstr_get_len(ds); /* space for \0 */

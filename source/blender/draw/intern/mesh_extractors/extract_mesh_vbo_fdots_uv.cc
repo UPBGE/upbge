@@ -1,27 +1,13 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2021 by Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2021 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup draw
  */
 
-#include "extract_mesh.h"
+#include "BLI_bitmap.h"
+
+#include "extract_mesh.hh"
 
 namespace blender::draw {
 
@@ -31,12 +17,12 @@ namespace blender::draw {
 
 struct MeshExtract_FdotUV_Data {
   float (*vbo_data)[2];
-  MLoopUV *uv_data;
+  const MLoopUV *uv_data;
   int cd_ofs;
 };
 
 static void extract_fdots_uv_init(const MeshRenderData *mr,
-                                  struct MeshBatchCache *UNUSED(cache),
+                                  MeshBatchCache *UNUSED(cache),
                                   void *buf,
                                   void *tls_data)
 {
@@ -63,7 +49,7 @@ static void extract_fdots_uv_init(const MeshRenderData *mr,
     data->cd_ofs = CustomData_get_offset(&mr->bm->ldata, CD_MLOOPUV);
   }
   else {
-    data->uv_data = (MLoopUV *)CustomData_get_layer(&mr->me->ldata, CD_MLOOPUV);
+    data->uv_data = (const MLoopUV *)CustomData_get_layer(&mr->me->ldata, CD_MLOOPUV);
   }
 }
 
@@ -88,13 +74,14 @@ static void extract_fdots_uv_iter_poly_mesh(const MeshRenderData *mr,
                                             void *_data)
 {
   MeshExtract_FdotUV_Data *data = static_cast<MeshExtract_FdotUV_Data *>(_data);
+  const BLI_bitmap *facedot_tags = mr->me->runtime.subsurf_face_dot_tags;
+
   const MLoop *mloop = mr->mloop;
   const int ml_index_end = mp->loopstart + mp->totloop;
   for (int ml_index = mp->loopstart; ml_index < ml_index_end; ml_index += 1) {
     const MLoop *ml = &mloop[ml_index];
     if (mr->use_subsurf_fdots) {
-      const MVert *mv = &mr->mvert[ml->v];
-      if (mv->flag & ME_VERT_FACEDOT) {
+      if (BLI_BITMAP_TEST(facedot_tags, ml->v)) {
         copy_v2_v2(data->vbo_data[mp_index], data->uv_data[ml_index].uv);
       }
     }
@@ -122,6 +109,4 @@ constexpr MeshExtract create_extractor_fdots_uv()
 
 }  // namespace blender::draw
 
-extern "C" {
 const MeshExtract extract_fdots_uv = blender::draw::create_extractor_fdots_uv();
-}

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2021 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2021 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup edtransform
@@ -31,6 +15,7 @@
 #include "BKE_context.h"
 #include "BKE_report.h"
 
+#include "SEQ_channels.h"
 #include "SEQ_iterator.h"
 #include "SEQ_relations.h"
 #include "SEQ_sequencer.h"
@@ -38,7 +23,12 @@
 #include "SEQ_transform.h"
 #include "SEQ_utils.h"
 
+#include "ED_keyframing.h"
+
 #include "UI_view2d.h"
+
+#include "RNA_access.h"
+#include "RNA_prototypes.h"
 
 #include "transform.h"
 #include "transform_convert.h"
@@ -115,7 +105,7 @@ static void freeSeqData(TransInfo *UNUSED(t),
   MEM_freeN(td->extra);
 }
 
-void createTransSeqImageData(TransInfo *t)
+static void createTransSeqImageData(bContext *UNUSED(C), TransInfo *t)
 {
   Editing *ed = SEQ_editing_get(t->scene);
   const SpaceSeq *sseq = t->area->spacedata.first;
@@ -132,7 +122,9 @@ void createTransSeqImageData(TransInfo *t)
   }
 
   ListBase *seqbase = SEQ_active_seqbase_get(ed);
-  SeqCollection *strips = SEQ_query_rendered_strips(seqbase, t->scene->r.cfra, 0);
+  ListBase *channels = SEQ_channels_displayed_get(ed);
+  SeqCollection *strips = SEQ_query_rendered_strips(
+      t->scene, channels, seqbase, t->scene->r.cfra, 0);
   SEQ_filter_selected_strips(strips);
 
   const int count = SEQ_collection_len(strips);
@@ -163,7 +155,43 @@ void createTransSeqImageData(TransInfo *t)
   SEQ_collection_free(strips);
 }
 
-void recalcData_sequencer_image(TransInfo *t)
+static bool autokeyframe_sequencer_image(bContext *C,
+                                         Scene *scene,
+                                         StripTransform *transform,
+                                         const int tmode)
+{
+  PointerRNA ptr;
+  PropertyRNA *prop;
+  RNA_pointer_create(&scene->id, &RNA_SequenceTransform, transform, &ptr);
+
+  const bool around_cursor = scene->toolsettings->sequencer_tool_settings->pivot_point ==
+                             V3D_AROUND_CURSOR;
+  const bool do_loc = tmode == TFM_TRANSLATION || around_cursor;
+  const bool do_rot = tmode == TFM_ROTATION;
+  const bool do_scale = tmode == TFM_RESIZE;
+
+  bool changed = false;
+  if (do_rot) {
+    prop = RNA_struct_find_property(&ptr, "rotation");
+    changed |= ED_autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, false);
+  }
+  if (do_loc) {
+    prop = RNA_struct_find_property(&ptr, "offset_x");
+    changed |= ED_autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, false);
+    prop = RNA_struct_find_property(&ptr, "offset_y");
+    changed |= ED_autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, false);
+  }
+  if (do_scale) {
+    prop = RNA_struct_find_property(&ptr, "scale_x");
+    changed |= ED_autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, false);
+    prop = RNA_struct_find_property(&ptr, "scale_y");
+    changed |= ED_autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, false);
+  }
+
+  return changed;
+}
+
+static void recalcData_sequencer_image(TransInfo *t)
 {
   TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
   TransData *td = NULL;
@@ -196,6 +224,7 @@ void recalcData_sequencer_image(TransInfo *t)
     copy_v2_v2(translation, tdseq->orig_origin_position);
     sub_v2_v2(translation, origin);
     mul_v2_v2(translation, mirror);
+    translation[0] *= t->scene->r.yasp / t->scene->r.xasp;
 
     transform->xofs = tdseq->orig_translation[0] - translation[0];
     transform->yofs = tdseq->orig_translation[1] - translation[1];
@@ -206,12 +235,46 @@ void recalcData_sequencer_image(TransInfo *t)
 
     /* Rotation. Scaling can cause negative rotation. */
     if (t->mode == TFM_ROTATION) {
-      const float orig_dir[2] = {cosf(tdseq->orig_rotation), sinf(tdseq->orig_rotation)};
-      float rotation = angle_signed_v2v2(handle_x, orig_dir) * mirror[0] * mirror[1];
-      transform->rotation = tdseq->orig_rotation + rotation;
-      transform->rotation += DEG2RAD(360.0);
-      transform->rotation = fmod(transform->rotation, DEG2RAD(360.0));
+      transform->rotation = tdseq->orig_rotation - t->values_final[0];
     }
+
+    if ((t->animtimer) && IS_AUTOKEY_ON(t->scene)) {
+      animrecord_check_state(t, &t->scene->id);
+      autokeyframe_sequencer_image(t->context, t->scene, transform, t->mode);
+    }
+
     SEQ_relations_invalidate_cache_preprocessed(t->scene, seq);
   }
 }
+
+static void special_aftertrans_update__sequencer_image(bContext *UNUSED(C), TransInfo *t)
+{
+
+  TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
+  TransData *td = NULL;
+  TransData2D *td2d = NULL;
+  int i;
+
+  for (i = 0, td = tc->data, td2d = tc->data_2d; i < tc->data_len; i++, td++, td2d++) {
+    TransDataSeq *tdseq = td->extra;
+    Sequence *seq = tdseq->seq;
+    StripTransform *transform = seq->strip->transform;
+    if (t->state == TRANS_CANCEL) {
+      if (t->mode == TFM_ROTATION) {
+        transform->rotation = tdseq->orig_rotation;
+      }
+      continue;
+    }
+
+    if (IS_AUTOKEY_ON(t->scene)) {
+      autokeyframe_sequencer_image(t->context, t->scene, transform, t->mode);
+    }
+  }
+}
+
+TransConvertTypeInfo TransConvertType_SequencerImage = {
+    /* flags */ (T_POINTS | T_2D_EDIT),
+    /* createTransData */ createTransSeqImageData,
+    /* recalcData */ recalcData_sequencer_image,
+    /* special_aftertrans_update */ special_aftertrans_update__sequencer_image,
+};

@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2016, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2016 Blender Foundation. */
 
 /** \file
  * \ingroup draw_engine
@@ -339,10 +324,6 @@ typedef struct WORKBENCH_PrivateData {
   /** Index of current material inside the material chunk. Only for material coloring mode. */
   int material_index;
 
-  /* Volumes */
-  /** List of smoke domain textures to free after drawing. */
-  ListBase smoke_domains;
-
   /* Depth of Field */
   /** Depth of field temp buffers. */
   struct GPUTexture *dof_blur_tx;
@@ -408,20 +389,28 @@ BLI_INLINE bool workbench_is_specular_highlight_enabled(WORKBENCH_PrivateData *w
 }
 
 /* workbench_opaque.c */
+
 void workbench_opaque_engine_init(WORKBENCH_Data *data);
 void workbench_opaque_cache_init(WORKBENCH_Data *data);
 
 /* workbench_transparent.c */
+
 void workbench_transparent_engine_init(WORKBENCH_Data *data);
 void workbench_transparent_cache_init(WORKBENCH_Data *data);
+/**
+ * Redraw the transparent passes but with depth test
+ * to output correct outline IDs and depth.
+ */
 void workbench_transparent_draw_depth_pass(WORKBENCH_Data *data);
 
 /* workbench_shadow.c */
+
 void workbench_shadow_data_update(WORKBENCH_PrivateData *wpd, WORKBENCH_UBO_World *wd);
 void workbench_shadow_cache_init(WORKBENCH_Data *data);
-void workbench_shadow_cache_populate(WORKBENCH_Data *data, Object *ob, const bool has_transp_mat);
+void workbench_shadow_cache_populate(WORKBENCH_Data *data, Object *ob, bool has_transp_mat);
 
 /* workbench_shader.c */
+
 GPUShader *workbench_shader_opaque_get(WORKBENCH_PrivateData *wpd, eWORKBENCH_DataType data);
 GPUShader *workbench_shader_opaque_image_get(WORKBENCH_PrivateData *wpd,
                                              eWORKBENCH_DataType data,
@@ -455,30 +444,37 @@ void workbench_shader_depth_of_field_get(GPUShader **prepare_sh,
                                          GPUShader **blur2_sh,
                                          GPUShader **resolve_sh);
 
-void workbench_shader_library_ensure(void);
 void workbench_shader_free(void);
 
 /* workbench_effect_antialiasing.c */
+
 int workbench_antialiasing_sample_count_get(WORKBENCH_PrivateData *wpd);
 void workbench_antialiasing_engine_init(WORKBENCH_Data *vedata);
 void workbench_antialiasing_cache_init(WORKBENCH_Data *vedata);
 void workbench_antialiasing_view_updated(WORKBENCH_Data *vedata);
+/**
+ * Return true if render is not cached.
+ */
 bool workbench_antialiasing_setup(WORKBENCH_Data *vedata);
 void workbench_antialiasing_draw_pass(WORKBENCH_Data *vedata);
 
 /* workbench_effect_cavity.c */
+
 void workbench_cavity_data_update(WORKBENCH_PrivateData *wpd, WORKBENCH_UBO_World *wd);
 void workbench_cavity_samples_ubo_ensure(WORKBENCH_PrivateData *wpd);
 void workbench_cavity_cache_init(WORKBENCH_Data *data);
 
 /* workbench_effect_outline.c */
+
 void workbench_outline_cache_init(WORKBENCH_Data *data);
 /* workbench_effect_dof.c */
+
 void workbench_dof_engine_init(WORKBENCH_Data *vedata);
 void workbench_dof_cache_init(WORKBENCH_Data *vedata);
 void workbench_dof_draw_pass(WORKBENCH_Data *vedata);
 
 /* workbench_materials.c */
+
 void workbench_material_ubo_data(WORKBENCH_PrivateData *wpd,
                                  Object *ob,
                                  Material *mat,
@@ -491,6 +487,9 @@ DRWShadingGroup *workbench_material_setup_ex(WORKBENCH_PrivateData *wpd,
                                              eV3DShadingColorType color_type,
                                              eWORKBENCH_DataType datatype,
                                              bool *r_transp);
+/**
+ * If `ima` is null, search appropriate image node but will fallback to purple texture otherwise.
+ */
 DRWShadingGroup *workbench_image_setup_ex(WORKBENCH_PrivateData *wpd,
                                           Object *ob,
                                           int mat_nr,
@@ -513,6 +512,7 @@ DRWShadingGroup *workbench_image_setup_ex(WORKBENCH_PrivateData *wpd,
   workbench_image_setup_ex(wpd, ob, mat_nr, ima, iuser, interp, WORKBENCH_DATATYPE_HAIR)
 
 /* workbench_data.c */
+
 void workbench_private_data_alloc(WORKBENCH_StorageList *stl);
 void workbench_private_data_init(WORKBENCH_PrivateData *wpd);
 void workbench_update_world_ubo(WORKBENCH_PrivateData *wpd);
@@ -520,6 +520,7 @@ void workbench_update_material_ubos(WORKBENCH_PrivateData *wpd);
 struct GPUUniformBuf *workbench_material_ubo_alloc(WORKBENCH_PrivateData *wpd);
 
 /* workbench_volume.c */
+
 void workbench_volume_engine_init(WORKBENCH_Data *vedata);
 void workbench_volume_cache_init(WORKBENCH_Data *vedata);
 void workbench_volume_cache_populate(WORKBENCH_Data *vedata,
@@ -528,17 +529,22 @@ void workbench_volume_cache_populate(WORKBENCH_Data *vedata,
                                      struct ModifierData *md,
                                      eV3DShadingColorType color_type);
 void workbench_volume_draw_pass(WORKBENCH_Data *vedata);
-void workbench_volume_draw_finish(WORKBENCH_Data *vedata);
 
 /* workbench_engine.c */
+
 void workbench_engine_init(void *ved);
 void workbench_cache_init(void *ved);
 void workbench_cache_populate(void *ved, Object *ob);
 void workbench_cache_finish(void *ved);
+/**
+ * Used by viewport rendering & final rendering.
+ * Do one render loop iteration (i.e: One TAA sample).
+ */
 void workbench_draw_sample(void *ved);
 void workbench_draw_finish(void *ved);
 
 /* workbench_render.c */
+
 void workbench_render(void *ved,
                       struct RenderEngine *engine,
                       struct RenderLayer *render_layer,

@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -36,21 +22,29 @@
 
 namespace blender::fn {
 
+enum class MFParamCategory {
+  SingleInput,
+  VectorInput,
+  SingleOutput,
+  VectorOutput,
+  SingleMutable,
+  VectorMutable,
+};
+
+template<MFParamCategory Category, typename T> struct MFParamTag {
+  static constexpr MFParamCategory category = Category;
+  using base_type = T;
+  /* TODO: Doesn't support all categories yet, this can be generalized when necessary. */
+  using array_type =
+      std::conditional_t<Category == MFParamCategory::SingleInput, VArray<T>, MutableSpan<T>>;
+};
+
 class MFParamType {
  public:
   enum InterfaceType {
     Input,
     Output,
     Mutable,
-  };
-
-  enum Category {
-    SingleInput,
-    VectorInput,
-    SingleOutput,
-    VectorOutput,
-    SingleMutable,
-    VectorMutable,
   };
 
  private:
@@ -103,34 +97,34 @@ class MFParamType {
     return interface_type_;
   }
 
-  Category category() const
+  MFParamCategory category() const
   {
     switch (data_type_.category()) {
       case MFDataType::Single: {
         switch (interface_type_) {
           case Input:
-            return SingleInput;
+            return MFParamCategory::SingleInput;
           case Output:
-            return SingleOutput;
+            return MFParamCategory::SingleOutput;
           case Mutable:
-            return SingleMutable;
+            return MFParamCategory::SingleMutable;
         }
         break;
       }
       case MFDataType::Vector: {
         switch (interface_type_) {
           case Input:
-            return VectorInput;
+            return MFParamCategory::VectorInput;
           case Output:
-            return VectorOutput;
+            return MFParamCategory::VectorOutput;
           case Mutable:
-            return VectorMutable;
+            return MFParamCategory::VectorMutable;
         }
         break;
       }
     }
-    BLI_assert(false);
-    return SingleInput;
+    BLI_assert_unreachable();
+    return MFParamCategory::SingleInput;
   }
 
   bool is_input_or_mutable() const

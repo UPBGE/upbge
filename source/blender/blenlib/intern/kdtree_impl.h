@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
@@ -594,7 +580,7 @@ int BLI_kdtree_nd_(find_nearest_n_with_len_squared_cb)(
 int BLI_kdtree_nd_(find_nearest_n)(const KDTree *tree,
                                    const float co[KD_DIMS],
                                    KDTreeNearest r_nearest[],
-                                   const uint nearest_len_capacity)
+                                   uint nearest_len_capacity)
 {
   return BLI_kdtree_nd_(find_nearest_n_with_len_squared_cb)(
       tree, co, r_nearest, nearest_len_capacity, NULL, NULL);
@@ -726,7 +712,7 @@ int BLI_kdtree_nd_(range_search_with_len_squared_cb)(
 int BLI_kdtree_nd_(range_search)(const KDTree *tree,
                                  const float co[KD_DIMS],
                                  KDTreeNearest **r_nearest,
-                                 const float range)
+                                 float range)
 {
   return BLI_kdtree_nd_(range_search_with_len_squared_cb)(tree, co, r_nearest, range, NULL, NULL);
 }
@@ -941,6 +927,14 @@ int BLI_kdtree_nd_(calc_duplicates_fast)(const KDTree *tree,
 /** \name BLI_kdtree_3d_deduplicate
  * \{ */
 
+static int kdtree_cmp_bool(const bool a, const bool b)
+{
+  if (a == b) {
+    return 0;
+  }
+  return b ? -1 : 1;
+}
+
 static int kdtree_node_cmp_deduplicate(const void *n0_p, const void *n1_p)
 {
   const KDTreeNode *n0 = n0_p;
@@ -953,17 +947,16 @@ static int kdtree_node_cmp_deduplicate(const void *n0_p, const void *n1_p)
       return 1;
     }
   }
-  /* Sort by pointer so the first added will be used.
-   * assignment below ignores const correctness,
-   * however the values aren't used for sorting and are to be discarded. */
-  if (n0 < n1) {
-    ((KDTreeNode *)n1)->d = KD_DIMS; /* tag invalid */
-    return -1;
+
+  if (n0->d != KD_DIMS && n1->d != KD_DIMS) {
+    /* Two nodes share identical `co`
+     * Both are still valid.
+     * Cast away `const` and tag one of them as invalid. */
+    ((KDTreeNode *)n1)->d = KD_DIMS;
   }
-  else {
-    ((KDTreeNode *)n0)->d = KD_DIMS; /* tag invalid */
-    return 1;
-  }
+
+  /* Keep sorting until each unique value has one and only one valid node. */
+  return kdtree_cmp_bool(n0->d == KD_DIMS, n1->d == KD_DIMS);
 }
 
 /**

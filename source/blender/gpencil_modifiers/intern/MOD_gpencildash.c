@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2021, Blender Foundation
- * This is a new part of Blender
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2021 Blender Foundation. */
 
 /** \file
  * \ingroup modifiers
@@ -25,10 +9,8 @@
 #include <string.h>
 
 #include "BLI_listbase.h"
-#include "BLI_math.h"
+#include "BLI_math_vector.h"
 #include "BLI_string.h"
-
-#include "BLT_translation.h"
 
 #include "DNA_defaults.h"
 #include "DNA_gpencil_modifier_types.h"
@@ -51,6 +33,7 @@
 #include "UI_resources.h"
 
 #include "RNA_access.h"
+#include "RNA_prototypes.h"
 
 #include "BLT_translation.h"
 
@@ -112,12 +95,13 @@ static bool stroke_dash(const bGPDstroke *gps,
   int new_stroke_offset = 0;
   int trim_start = 0;
 
+  int sequence_length = 0;
   for (int i = 0; i < dmd->segments_len; i++) {
-    if (dmd->segments[i].dash + real_gap(&dmd->segments[i]) < 1) {
-      BLI_assert_unreachable();
-      /* This means there's a part that doesn't have any length, can't do dot-dash. */
-      return false;
-    }
+    sequence_length += dmd->segments[i].dash + real_gap(&dmd->segments[i]);
+  }
+  if (sequence_length < 1) {
+    /* This means the whole segment has no length, can't do dot-dash. */
+    return false;
   }
 
   const DashGpencilModifierSegment *const first_segment = &dmd->segments[0];
@@ -162,6 +146,9 @@ static bool stroke_dash(const bGPDstroke *gps,
 
     bGPDstroke *stroke = BKE_gpencil_stroke_new(
         ds->mat_nr < 0 ? gps->mat_nr : ds->mat_nr, size, gps->thickness);
+    if (ds->flag & GP_DASH_USE_CYCLIC) {
+      stroke->flag |= GP_STROKE_CYCLIC;
+    }
 
     for (int is = 0; is < size; is++) {
       bGPDspoint *p = &gps->points[new_stroke_offset + is];
@@ -219,9 +206,10 @@ static void apply_dash_for_frame(
                                        dmd->flag & GP_LENGTH_INVERT_PASS,
                                        dmd->flag & GP_LENGTH_INVERT_LAYERPASS,
                                        dmd->flag & GP_LENGTH_INVERT_MATERIAL)) {
-      stroke_dash(gps, dmd, &result);
-      BLI_remlink(&gpf->strokes, gps);
-      BKE_gpencil_free_stroke(gps);
+      if (stroke_dash(gps, dmd, &result)) {
+        BLI_remlink(&gpf->strokes, gps);
+        BKE_gpencil_free_stroke(gps);
+      }
     }
   }
   bGPDstroke *gps_dash;
@@ -247,6 +235,18 @@ static void bakeModifier(Main *UNUSED(bmain),
 
 /* -------------------------------- */
 
+static bool isDisabled(GpencilModifierData *md, int UNUSED(userRenderParams))
+{
+  DashGpencilModifierData *dmd = (DashGpencilModifierData *)md;
+
+  int sequence_length = 0;
+  for (int i = 0; i < dmd->segments_len; i++) {
+    sequence_length += dmd->segments[i].dash + real_gap(&dmd->segments[i]);
+  }
+  /* This means the whole segment has no length, can't do dot-dash. */
+  return sequence_length < 1;
+}
+
 /* Generic "generateStrokes" callback */
 static void generateStrokes(GpencilModifierData *md, Depsgraph *depsgraph, Object *ob)
 {
@@ -270,7 +270,7 @@ static void foreachIDLink(GpencilModifierData *md, Object *ob, IDWalkFunc walk, 
 }
 
 static void segment_list_item(struct uiList *UNUSED(ui_list),
-                              struct bContext *UNUSED(C),
+                              const struct bContext *UNUSED(C),
                               struct uiLayout *layout,
                               struct PointerRNA *UNUSED(idataptr),
                               struct PointerRNA *itemptr,
@@ -338,6 +338,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     uiItemR(sub, &ds_ptr, "radius", 0, NULL, ICON_NONE);
     uiItemR(sub, &ds_ptr, "opacity", 0, NULL, ICON_NONE);
     uiItemR(sub, &ds_ptr, "material_index", 0, NULL, ICON_NONE);
+    uiItemR(sub, &ds_ptr, "use_cyclic", 0, NULL, ICON_NONE);
   }
 
   gpencil_modifier_panel_end(layout, ptr);
@@ -362,7 +363,7 @@ static void panelRegister(ARegionType *region_type)
 }
 
 GpencilModifierTypeInfo modifierType_Gpencil_Dash = {
-    /* name */ "Dot Dash",
+    /* name */ N_("Dot Dash"),
     /* structName */ "DashGpencilModifierData",
     /* structSize */ sizeof(DashGpencilModifierData),
     /* type */ eGpencilModifierTypeType_Gpencil,
@@ -377,7 +378,7 @@ GpencilModifierTypeInfo modifierType_Gpencil_Dash = {
 
     /* initData */ initData,
     /* freeData */ freeData,
-    /* isDisabled */ NULL,
+    /* isDisabled */ isDisabled,
     /* updateDepsgraph */ NULL,
     /* dependsOnTime */ NULL,
     /* foreachIDLink */ foreachIDLink,

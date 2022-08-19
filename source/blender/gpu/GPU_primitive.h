@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2016 by Mike Erwin.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2016 by Mike Erwin. All rights reserved. */
 
 /** \file
  * \ingroup gpu
@@ -36,10 +20,12 @@ typedef enum {
   GPU_PRIM_LINES,
   GPU_PRIM_TRIS,
   GPU_PRIM_LINE_STRIP,
-  GPU_PRIM_LINE_LOOP, /* GL has this, Vulkan does not */
+  GPU_PRIM_LINE_LOOP, /* GL has this, Vulkan and Metal do not */
   GPU_PRIM_TRI_STRIP,
-  GPU_PRIM_TRI_FAN,
+  GPU_PRIM_TRI_FAN, /* Metal API does not support this. */
 
+  /* Metal API does not support ADJ primitive types but
+   * handled via the geometry-shader-alternative path. */
   GPU_PRIM_LINES_ADJ,
   GPU_PRIM_TRIS_ADJ,
   GPU_PRIM_LINE_STRIP_ADJ,

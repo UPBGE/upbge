@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2013 Blender Foundation
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2013 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup editor_physics
@@ -46,6 +30,7 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
+#include "RNA_prototypes.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -59,12 +44,21 @@
 /* ********************************************** */
 /* Helper API's for RigidBody Objects Editing */
 
+static bool operator_rigidbody_editable_poll(Scene *scene)
+{
+  if (scene == NULL || ID_IS_LINKED(scene) || ID_IS_OVERRIDE_LIBRARY(scene) ||
+      (scene->rigidbody_world != NULL && scene->rigidbody_world->group != NULL &&
+       (ID_IS_LINKED(scene->rigidbody_world->group) ||
+        ID_IS_OVERRIDE_LIBRARY(scene->rigidbody_world->group)))) {
+    return false;
+  }
+  return true;
+}
+
 static bool ED_operator_rigidbody_active_poll(bContext *C)
 {
   Scene *scene = CTX_data_scene(C);
-  if (scene == NULL || ID_IS_LINKED(&scene->id) ||
-      (scene->rigidbody_world != NULL && scene->rigidbody_world->group != NULL &&
-       ID_IS_LINKED(&scene->rigidbody_world->group->id))) {
+  if (!operator_rigidbody_editable_poll(scene)) {
     return false;
   }
 
@@ -72,15 +66,14 @@ static bool ED_operator_rigidbody_active_poll(bContext *C)
     Object *ob = ED_object_active_context(C);
     return (ob && ob->rigidbody_object);
   }
-  return 0;
+
+  return false;
 }
 
 static bool ED_operator_rigidbody_add_poll(bContext *C)
 {
   Scene *scene = CTX_data_scene(C);
-  if (scene == NULL || ID_IS_LINKED(&scene->id) ||
-      (scene->rigidbody_world != NULL && scene->rigidbody_world->group != NULL &&
-       ID_IS_LINKED(&scene->rigidbody_world->group->id))) {
+  if (!operator_rigidbody_editable_poll(scene)) {
     return false;
   }
 
@@ -88,6 +81,7 @@ static bool ED_operator_rigidbody_add_poll(bContext *C)
     Object *ob = ED_object_active_context(C);
     return (ob && ob->type == OB_MESH);
   }
+
   return false;
 }
 

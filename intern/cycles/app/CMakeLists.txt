@@ -1,16 +1,5 @@
-# Copyright 2011-2020 Blender Foundation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2011-2022 Blender Foundation
 
 #####################################################################
 # Cycles standalone executable
@@ -22,7 +11,7 @@ set(INC
 set(INC_SYS
 )
 
-set(LIBRARIES
+set(LIB
   cycles_device
   cycles_kernel
   cycles_scene
@@ -33,27 +22,34 @@ set(LIBRARIES
   cycles_util
 )
 
+if(WITH_ALEMBIC)
+  add_definitions(-DWITH_ALEMBIC)
+  list(APPEND INC_SYS
+    ${ALEMBIC_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    ${ALEMBIC_LIBRARIES}
+  )
+endif()
+
 if(WITH_CYCLES_OSL)
-  list(APPEND LIBRARIES cycles_kernel_osl)
+  list(APPEND LIB cycles_kernel_osl)
 endif()
 
 if(CYCLES_STANDALONE_REPOSITORY)
-  list(APPEND LIBRARIES extern_sky)
+  list(APPEND LIB extern_sky)
 else()
-  list(APPEND LIBRARIES bf_intern_sky)
+  list(APPEND LIB bf_intern_sky)
 endif()
 
 if(WITH_CYCLES_STANDALONE AND WITH_CYCLES_STANDALONE_GUI)
-  list(APPEND LIBRARIES ${GLUT_LIBRARIES})
+  list(APPEND INC_SYS ${Epoxy_INCLUDE_DIRS} ${SDL2_INCLUDE_DIRS})
+  list(APPEND LIB ${Epoxy_LIBRARIES} ${SDL2_LIBRARIES})
 endif()
 
-list(APPEND LIBRARIES ${CYCLES_GL_LIBRARIES})
+cycles_external_libraries_append(LIB)
 
 # Common configuration.
-
-cycles_link_directories()
-
-add_definitions(${GL_DEFINITIONS})
 
 include_directories(${INC})
 include_directories(SYSTEM ${INC_SYS})
@@ -68,19 +64,27 @@ if(WITH_CYCLES_STANDALONE)
     oiio_output_driver.cpp
     oiio_output_driver.h
   )
+
+  if(WITH_CYCLES_STANDALONE_GUI)
+    list(APPEND SRC
+      opengl/display_driver.cpp
+      opengl/display_driver.h
+      opengl/shader.cpp
+      opengl/shader.h
+      opengl/window.cpp
+      opengl/window.h
+    )
+  endif()
+
   add_executable(cycles ${SRC} ${INC} ${INC_SYS})
   unset(SRC)
 
-  target_link_libraries(cycles ${LIBRARIES})
-  cycles_target_link_libraries(cycles)
+  target_link_libraries(cycles PRIVATE ${LIB})
 
   if(APPLE)
-    if(WITH_OPENCOLORIO)
-      set_property(TARGET cycles APPEND_STRING PROPERTY LINK_FLAGS " -framework IOKit -framework Carbon")
-    endif()
-    if(WITH_OPENIMAGEDENOISE AND "${CMAKE_OSX_ARCHITECTURES}" STREQUAL "arm64")
-      # OpenImageDenoise uses BNNS from the Accelerate framework.
-      set_property(TARGET cycles APPEND_STRING PROPERTY LINK_FLAGS " -framework Accelerate")
+    if(WITH_CYCLES_STANDALONE_GUI)
+      set_property(TARGET cycles APPEND_STRING PROPERTY LINK_FLAGS
+        " -framework Cocoa -framework CoreAudio -framework AudioUnit -framework AudioToolbox -framework ForceFeedback -framework CoreVideo")
     endif()
   endif()
 
@@ -91,6 +95,10 @@ if(WITH_CYCLES_STANDALONE)
   if(CYCLES_STANDALONE_REPOSITORY)
     cycles_install_libraries(cycles)
   endif()
+
+  install(PROGRAMS
+    $<TARGET_FILE:cycles>
+    DESTINATION ${CMAKE_INSTALL_PREFIX})
 endif()
 
 #####################################################################
@@ -111,9 +119,12 @@ if(WITH_CYCLES_CUBIN_COMPILER)
     set(INC
       ../../../extern/cuew/include
     )
+    set(LIB
+    )
+    cycles_external_libraries_append(LIB)
     add_executable(cycles_cubin_cc ${SRC})
     include_directories(${INC})
-    cycles_target_link_libraries(cycles_cubin_cc)
+    target_link_libraries(cycles_cubin_cc PRIVATE ${LIB})
     unset(SRC)
     unset(INC)
   endif()

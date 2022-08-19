@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup bke
@@ -45,6 +29,7 @@
 #include "DNA_view3d_types.h"
 #include "DNA_workspace_types.h"
 
+#include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_mempool.h"
@@ -73,7 +58,7 @@ static void screen_free_data(ID *id)
 {
   bScreen *screen = (bScreen *)id;
 
-  /* No animdata here. */
+  /* No animation-data here. */
 
   LISTBASE_FOREACH (ARegion *, region, &screen->regionbase) {
     BKE_area_region_free(NULL, region);
@@ -107,10 +92,8 @@ void BKE_screen_foreach_id_screen_area(LibraryForeachIDData *data, ScrArea *area
     switch (sl->spacetype) {
       case SPACE_VIEW3D: {
         View3D *v3d = (View3D *)sl;
-
         BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, v3d->camera, IDWALK_CB_NOP);
         BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, v3d->ob_center, IDWALK_CB_NOP);
-
         if (v3d->localvd) {
           BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, v3d->localvd->camera, IDWALK_CB_NOP);
         }
@@ -118,13 +101,12 @@ void BKE_screen_foreach_id_screen_area(LibraryForeachIDData *data, ScrArea *area
       }
       case SPACE_GRAPH: {
         SpaceGraph *sipo = (SpaceGraph *)sl;
-
-        screen_foreach_id_dopesheet(data, sipo->ads);
+        BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data,
+                                                screen_foreach_id_dopesheet(data, sipo->ads));
         break;
       }
       case SPACE_PROPERTIES: {
         SpaceProperties *sbuts = (SpaceProperties *)sl;
-
         BKE_LIB_FOREACHID_PROCESS_ID(data, sbuts->pinid, IDWALK_CB_NOP);
         break;
       }
@@ -132,14 +114,12 @@ void BKE_screen_foreach_id_screen_area(LibraryForeachIDData *data, ScrArea *area
         break;
       case SPACE_ACTION: {
         SpaceAction *saction = (SpaceAction *)sl;
-
         screen_foreach_id_dopesheet(data, &saction->ads);
         BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, saction->action, IDWALK_CB_NOP);
         break;
       }
       case SPACE_IMAGE: {
         SpaceImage *sima = (SpaceImage *)sl;
-
         BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, sima->image, IDWALK_CB_USER_ONE);
         BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, sima->mask_info.mask, IDWALK_CB_USER_ONE);
         BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, sima->gpd, IDWALK_CB_USER);
@@ -147,33 +127,27 @@ void BKE_screen_foreach_id_screen_area(LibraryForeachIDData *data, ScrArea *area
       }
       case SPACE_SEQ: {
         SpaceSeq *sseq = (SpaceSeq *)sl;
-
         BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, sseq->gpd, IDWALK_CB_USER);
         break;
       }
       case SPACE_NLA: {
         SpaceNla *snla = (SpaceNla *)sl;
-
-        screen_foreach_id_dopesheet(data, snla->ads);
+        BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data,
+                                                screen_foreach_id_dopesheet(data, snla->ads));
         break;
       }
       case SPACE_TEXT: {
         SpaceText *st = (SpaceText *)sl;
-
         BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, st->text, IDWALK_CB_NOP);
         break;
       }
       case SPACE_SCRIPT: {
         SpaceScript *scpt = (SpaceScript *)sl;
-
         BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scpt->script, IDWALK_CB_NOP);
         break;
       }
       case SPACE_OUTLINER: {
         SpaceOutliner *space_outliner = (SpaceOutliner *)sl;
-
-        BKE_LIB_FOREACHID_PROCESS_ID(data, space_outliner->search_tse.id, IDWALK_CB_NOP);
-
         if (space_outliner->treestore != NULL) {
           TreeStoreElem *tselem;
           BLI_mempool_iter iter;
@@ -187,13 +161,11 @@ void BKE_screen_foreach_id_screen_area(LibraryForeachIDData *data, ScrArea *area
       }
       case SPACE_NODE: {
         SpaceNode *snode = (SpaceNode *)sl;
-
         const bool is_private_nodetree = snode->id != NULL &&
                                          ntreeFromID(snode->id) == snode->nodetree;
 
         BKE_LIB_FOREACHID_PROCESS_ID(data, snode->id, IDWALK_CB_NOP);
         BKE_LIB_FOREACHID_PROCESS_ID(data, snode->from, IDWALK_CB_NOP);
-
         BKE_LIB_FOREACHID_PROCESS_IDSUPER(
             data, snode->nodetree, is_private_nodetree ? IDWALK_CB_EMBEDDED : IDWALK_CB_USER_ONE);
 
@@ -219,14 +191,12 @@ void BKE_screen_foreach_id_screen_area(LibraryForeachIDData *data, ScrArea *area
       }
       case SPACE_CLIP: {
         SpaceClip *sclip = (SpaceClip *)sl;
-
         BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, sclip->clip, IDWALK_CB_USER_ONE);
         BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, sclip->mask_info.mask, IDWALK_CB_USER_ONE);
         break;
       }
       case SPACE_SPREADSHEET: {
         SpaceSpreadsheet *sspreadsheet = (SpaceSpreadsheet *)sl;
-
         LISTBASE_FOREACH (SpreadsheetContext *, context, &sspreadsheet->context_path) {
           if (context->type == SPREADSHEET_CONTEXT_OBJECT) {
             BKE_LIB_FOREACHID_PROCESS_IDSUPER(
@@ -243,12 +213,13 @@ void BKE_screen_foreach_id_screen_area(LibraryForeachIDData *data, ScrArea *area
 
 static void screen_foreach_id(ID *id, LibraryForeachIDData *data)
 {
-  if (BKE_lib_query_foreachid_process_flags_get(data) & IDWALK_INCLUDE_UI) {
-    bScreen *screen = (bScreen *)id;
+  if ((BKE_lib_query_foreachid_process_flags_get(data) & IDWALK_INCLUDE_UI) == 0) {
+    return;
+  }
+  bScreen *screen = (bScreen *)id;
 
-    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      BKE_screen_foreach_id_screen_area(data, area);
-    }
+  LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+    BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data, BKE_screen_foreach_id_screen_area(data, area));
   }
 }
 
@@ -267,7 +238,6 @@ static void screen_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   BKE_screen_area_map_blend_write(writer, AREAMAP_FROM_SCREEN(screen));
 }
 
-/* Cannot use IDTypeInfo callback yet, because of the return value. */
 bool BKE_screen_blend_read_data(BlendDataReader *reader, bScreen *screen)
 {
   bool success = true;
@@ -306,13 +276,14 @@ static void screen_blend_read_lib(BlendLibReader *reader, ID *id)
 
 IDTypeInfo IDType_ID_SCR = {
     .id_code = ID_SCR,
-    .id_filter = 0,
+    .id_filter = FILTER_ID_SCR,
     .main_listbase_index = INDEX_ID_SCR,
     .struct_size = sizeof(bScreen),
     .name = "Screen",
     .name_plural = "screens",
     .translation_context = BLT_I18NCONTEXT_ID_SCREEN,
     .flags = IDTYPE_FLAGS_NO_COPY | IDTYPE_FLAGS_ONLY_APPEND | IDTYPE_FLAGS_NO_ANIMDATA,
+    .asset_type_info = NULL,
 
     .init_data = NULL,
     .copy_data = NULL,
@@ -320,6 +291,7 @@ IDTypeInfo IDType_ID_SCR = {
     .make_local = NULL,
     .foreach_id = screen_foreach_id,
     .foreach_cache = NULL,
+    .foreach_path = NULL,
     .owner_get = NULL,
 
     .blend_write = screen_blend_write,
@@ -511,39 +483,35 @@ ARegion *BKE_area_region_copy(const SpaceType *st, const ARegion *region)
   return newar;
 }
 
-/* from lb2 to lb1, lb1 is supposed to be freed */
-static void region_copylist(SpaceType *st, ListBase *lb1, ListBase *lb2)
+/* from lb_src to lb_dst, lb_dst is supposed to be freed */
+static void region_copylist(SpaceType *st, ListBase *lb_dst, ListBase *lb_src)
 {
   /* to be sure */
-  BLI_listbase_clear(lb1);
+  BLI_listbase_clear(lb_dst);
 
-  LISTBASE_FOREACH (ARegion *, region, lb2) {
+  LISTBASE_FOREACH (ARegion *, region, lb_src) {
     ARegion *region_new = BKE_area_region_copy(st, region);
-    BLI_addtail(lb1, region_new);
+    BLI_addtail(lb_dst, region_new);
   }
 }
 
-/* lb1 should be empty */
-void BKE_spacedata_copylist(ListBase *lb1, ListBase *lb2)
+void BKE_spacedata_copylist(ListBase *lb_dst, ListBase *lb_src)
 {
-  BLI_listbase_clear(lb1); /* to be sure */
+  BLI_listbase_clear(lb_dst); /* to be sure */
 
-  LISTBASE_FOREACH (SpaceLink *, sl, lb2) {
+  LISTBASE_FOREACH (SpaceLink *, sl, lb_src) {
     SpaceType *st = BKE_spacetype_from_id(sl->spacetype);
 
     if (st && st->duplicate) {
       SpaceLink *slnew = st->duplicate(sl);
 
-      BLI_addtail(lb1, slnew);
+      BLI_addtail(lb_dst, slnew);
 
       region_copylist(st, &slnew->regionbase, &sl->regionbase);
     }
   }
 }
 
-/* facility to set locks for drawing to survive (render) threads accessing drawing data */
-/* lock can become bitflag too */
-/* should be replaced in future by better local data handling for threads */
 void BKE_spacedata_draw_locks(bool set)
 {
   LISTBASE_FOREACH (SpaceType *, st, &spacetypes) {
@@ -558,10 +526,6 @@ void BKE_spacedata_draw_locks(bool set)
   }
 }
 
-/**
- * Version of #BKE_area_find_region_type that also works if \a slink
- * is not the active space of \a area.
- */
 ARegion *BKE_spacedata_find_region_type(const SpaceLink *slink,
                                         const ScrArea *area,
                                         int region_type)
@@ -595,7 +559,6 @@ void BKE_spacedata_callback_id_remap_set(void (*func)(ScrArea *area, SpaceLink *
   spacedata_id_remap_cb = func;
 }
 
-/* UNUSED!!! */
 void BKE_spacedata_id_unref(struct ScrArea *area, struct SpaceLink *sl, struct ID *id)
 {
   if (spacedata_id_remap_cb) {
@@ -659,7 +622,6 @@ void BKE_area_region_panels_free(ListBase *panels)
   BLI_listbase_clear(panels);
 }
 
-/* not region itself */
 void BKE_area_region_free(SpaceType *st, ARegion *region)
 {
   if (st) {
@@ -693,13 +655,17 @@ void BKE_area_region_free(SpaceType *st, ARegion *region)
     region_free_gizmomap_callback(region->gizmo_map);
   }
 
+  if (region->runtime.block_name_map != NULL) {
+    BLI_ghash_free(region->runtime.block_name_map, NULL, NULL);
+    region->runtime.block_name_map = NULL;
+  }
+
   BLI_freelistN(&region->ui_lists);
   BLI_freelistN(&region->ui_previews);
   BLI_freelistN(&region->panels_category);
   BLI_freelistN(&region->panels_category_active);
 }
 
-/* not area itself */
 void BKE_screen_area_free(ScrArea *area)
 {
   SpaceType *st = BKE_spacetype_from_id(area->spacetype);
@@ -727,7 +693,6 @@ void BKE_screen_area_map_free(ScrAreaMap *area_map)
   BLI_freelistN(&area_map->areabase);
 }
 
-/** Free (or release) any data used by this screen (does not free the screen itself). */
 void BKE_screen_free_data(bScreen *screen)
 {
   screen_free_data(&screen->id);
@@ -890,12 +855,17 @@ void BKE_screen_remove_unused_scrverts(bScreen *screen)
 
 /* ***************** Utilities ********************** */
 
-/**
- * Find a region of type \a region_type in the currently active space of \a area.
- *
- * \note This does _not_ work if the region to look up is not in the active
- *       space. Use #BKE_spacedata_find_region_type if that may be the case.
- */
+ARegion *BKE_region_find_in_listbase_by_type(const ListBase *regionbase, const int region_type)
+{
+  LISTBASE_FOREACH (ARegion *, region, regionbase) {
+    if (region->regiontype == region_type) {
+      return region;
+    }
+  }
+
+  return NULL;
+}
+
 ARegion *BKE_area_find_region_type(const ScrArea *area, int region_type)
 {
   if (area) {
@@ -924,7 +894,7 @@ ARegion *BKE_area_find_region_active_win(ScrArea *area)
   return BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 }
 
-ARegion *BKE_area_find_region_xy(ScrArea *area, const int regiontype, int x, int y)
+ARegion *BKE_area_find_region_xy(ScrArea *area, const int regiontype, const int xy[2])
 {
   if (area == NULL) {
     return NULL;
@@ -932,7 +902,7 @@ ARegion *BKE_area_find_region_xy(ScrArea *area, const int regiontype, int x, int
 
   LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
     if (ELEM(regiontype, RGN_TYPE_ANY, region->regiontype)) {
-      if (BLI_rcti_isect_pt(&region->winrct, x, y)) {
+      if (BLI_rcti_isect_pt_v(&region->winrct, xy)) {
         return region;
       }
     }
@@ -940,14 +910,11 @@ ARegion *BKE_area_find_region_xy(ScrArea *area, const int regiontype, int x, int
   return NULL;
 }
 
-/**
- * \note This is only for screen level regions (typically menus/popups).
- */
-ARegion *BKE_screen_find_region_xy(bScreen *screen, const int regiontype, int x, int y)
+ARegion *BKE_screen_find_region_xy(bScreen *screen, const int regiontype, const int xy[2])
 {
   LISTBASE_FOREACH (ARegion *, region, &screen->regionbase) {
     if (ELEM(regiontype, RGN_TYPE_ANY, region->regiontype)) {
-      if (BLI_rcti_isect_pt(&region->winrct, x, y)) {
+      if (BLI_rcti_isect_pt_v(&region->winrct, xy)) {
         return region;
       }
     }
@@ -955,10 +922,6 @@ ARegion *BKE_screen_find_region_xy(bScreen *screen, const int regiontype, int x,
   return NULL;
 }
 
-/**
- * \note Ideally we can get the area from the context,
- * there are a few places however where this isn't practical.
- */
 ScrArea *BKE_screen_find_area_from_space(struct bScreen *screen, SpaceLink *sl)
 {
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
@@ -970,10 +933,6 @@ ScrArea *BKE_screen_find_area_from_space(struct bScreen *screen, SpaceLink *sl)
   return NULL;
 }
 
-/**
- * \note Using this function is generally a last resort, you really want to be
- * using the context when you can - campbell
- */
 ScrArea *BKE_screen_find_big_area(bScreen *screen, const int spacetype, const short min)
 {
   ScrArea *big = NULL;
@@ -996,11 +955,10 @@ ScrArea *BKE_screen_find_big_area(bScreen *screen, const int spacetype, const sh
 
 ScrArea *BKE_screen_area_map_find_area_xy(const ScrAreaMap *areamap,
                                           const int spacetype,
-                                          int x,
-                                          int y)
+                                          const int xy[2])
 {
   LISTBASE_FOREACH (ScrArea *, area, &areamap->areabase) {
-    if (BLI_rcti_isect_pt(&area->totrct, x, y)) {
+    if (BLI_rcti_isect_pt_v(&area->totrct, xy)) {
       if (ELEM(spacetype, SPACE_TYPE_ANY, area->spacetype)) {
         return area;
       }
@@ -1009,9 +967,9 @@ ScrArea *BKE_screen_area_map_find_area_xy(const ScrAreaMap *areamap,
   }
   return NULL;
 }
-ScrArea *BKE_screen_find_area_xy(bScreen *screen, const int spacetype, int x, int y)
+ScrArea *BKE_screen_find_area_xy(bScreen *screen, const int spacetype, const int xy[2])
 {
-  return BKE_screen_area_map_find_area_xy(AREAMAP_FROM_SCREEN(screen), spacetype, x, y);
+  return BKE_screen_area_map_find_area_xy(AREAMAP_FROM_SCREEN(screen), spacetype, xy);
 }
 
 void BKE_screen_view3d_sync(View3D *v3d, struct Scene *scene)
@@ -1051,26 +1009,20 @@ void BKE_screen_view3d_shading_init(View3DShading *shading)
   memcpy(shading, shading_default, sizeof(*shading));
 }
 
-ARegion *BKE_screen_find_main_region_at_xy(bScreen *screen,
-                                           const int space_type,
-                                           const int x,
-                                           const int y)
+ARegion *BKE_screen_find_main_region_at_xy(bScreen *screen, const int space_type, const int xy[2])
 {
-  ScrArea *area = BKE_screen_find_area_xy(screen, space_type, x, y);
+  ScrArea *area = BKE_screen_find_area_xy(screen, space_type, xy);
   if (!area) {
     return NULL;
   }
-  return BKE_area_find_region_xy(area, RGN_TYPE_WINDOW, x, y);
+  return BKE_area_find_region_xy(area, RGN_TYPE_WINDOW, xy);
 }
 
-/* magic zoom calculation, no idea what
- * it signifies, if you find out, tell me! -zr
- */
+/* Magic zoom calculation, no idea what it signifies, if you find out, tell me! -zr
+ *
+ * Simple, its magic dude! Well, to be honest,
+ * this gives a natural feeling zooming with multiple keypad presses (ton). */
 
-/* simple, its magic dude!
- * well, to be honest, this gives a natural feeling zooming
- * with multiple keypad presses (ton)
- */
 float BKE_screen_view3d_zoom_to_fac(float camzoom)
 {
   return powf(((float)M_SQRT2 + camzoom / 50.0f), 2.0f) / 4.0f;
@@ -1171,33 +1123,42 @@ static void write_uilist(BlendWriter *writer, uiList *ui_list)
   }
 }
 
-static void write_space_outliner(BlendWriter *writer, SpaceOutliner *space_outliner)
+static void write_space_outliner(BlendWriter *writer, const SpaceOutliner *space_outliner)
 {
   BLI_mempool *ts = space_outliner->treestore;
 
   if (ts) {
-    SpaceOutliner space_outliner_flat = *space_outliner;
-
-    int elems = BLI_mempool_len(ts);
+    const int elems = BLI_mempool_len(ts);
     /* linearize mempool to array */
     TreeStoreElem *data = elems ? BLI_mempool_as_arrayN(ts, "TreeStoreElem") : NULL;
 
     if (data) {
-      /* In this block we use the memory location of the treestore
-       * but _not_ its data, the addresses in this case are UUID's,
-       * since we can't rely on malloc giving us different values each time.
+      BLO_write_struct(writer, SpaceOutliner, space_outliner);
+
+      /* To store #TreeStore (instead of the mempool), two unique memory addresses are needed,
+       * which can be used to identify the data on read:
+       * 1) One for the #TreeStore data itself.
+       * 2) One for the array of #TreeStoreElem's inside #TreeStore (#TreeStore.data).
+       *
+       * For 1) we just use the mempool's address (#SpaceOutliner::treestore).
+       * For 2) we don't have such a direct choice. We can't just use the array's address from
+       * above, since that may not be unique over all Outliners. So instead use an address relative
+       * to 1).
        */
-      TreeStore ts_flat = {0};
+      /* TODO the mempool could be moved to #SpaceOutliner_Runtime so that #SpaceOutliner could
+       * hold the #TreeStore directly. */
 
-      /* we know the treestore is at least as big as a pointer,
-       * so offsetting works to give us a UUID. */
+      /* Address relative to the tree-store, as noted above.  */
       void *data_addr = (void *)POINTER_OFFSET(ts, sizeof(void *));
+      /* There should be plenty of memory addresses within the mempool data that we can point into,
+       * just double-check we don't potentially end up with a memory address that another DNA
+       * struct might use. Assumes BLI_mempool uses the guarded allocator. */
+      BLI_assert(MEM_allocN_len(ts) >= sizeof(void *) * 2);
 
+      TreeStore ts_flat = {0};
       ts_flat.usedelem = elems;
       ts_flat.totelem = elems;
       ts_flat.data = data_addr;
-
-      BLO_write_struct(writer, SpaceOutliner, space_outliner);
 
       BLO_write_struct_at_address(writer, TreeStore, ts, &ts_flat);
       BLO_write_struct_array_at_address(writer, TreeStoreElem, elems, data_addr, data);
@@ -1205,6 +1166,7 @@ static void write_space_outliner(BlendWriter *writer, SpaceOutliner *space_outli
       MEM_freeN(data);
     }
     else {
+      SpaceOutliner space_outliner_flat = *space_outliner;
       space_outliner_flat.treestore = NULL;
       BLO_write_struct_at_address(writer, SpaceOutliner, space_outliner, &space_outliner_flat);
     }
@@ -1321,6 +1283,9 @@ static void write_area(BlendWriter *writer, ScrArea *area)
       LISTBASE_FOREACH (bNodeTreePath *, path, &snode->treepath) {
         BLO_write_struct(writer, bNodeTreePath, path);
       }
+    }
+    else if (sl->spacetype == SPACE_LOGIC) {
+      BLO_write_struct(writer, SpaceLogic, sl);
     }
     else if (sl->spacetype == SPACE_CONSOLE) {
       SpaceConsole *con = (SpaceConsole *)sl;
@@ -1485,7 +1450,6 @@ static void direct_link_region(BlendDataReader *reader, ARegion *region, int spa
 }
 
 /* for the saved 2.50 files without regiondata */
-/* and as patch for 2.48 and older */
 void BKE_screen_view3d_do_versions_250(View3D *v3d, ListBase *regions)
 {
   LISTBASE_FOREACH (ARegion *, region, regions) {
@@ -1652,6 +1616,15 @@ static void direct_link_area(BlendDataReader *reader, ScrArea *area)
       snode->edittree = NULL;
       snode->runtime = NULL;
     }
+    else if (sl->spacetype == SPACE_LOGIC) {
+      SpaceLogic *slogic = (SpaceLogic *)sl;
+
+      /* XXX: this is new stuff, which shouldn't be directly linking to gpd... */
+      if (slogic->gpd) {
+        BLO_read_data_address(reader, &slogic->gpd);
+        BKE_gpencil_blend_read_data(reader, slogic->gpd);
+      }
+    }
     else if (sl->spacetype == SPACE_TEXT) {
       SpaceText *st = (SpaceText *)sl;
       memset(&st->runtime, 0x0, sizeof(st->runtime));
@@ -1792,9 +1765,6 @@ static void direct_link_area(BlendDataReader *reader, ScrArea *area)
   BLO_read_data_address(reader, &area->v4);
 }
 
-/**
- * \return false on error.
- */
 bool BKE_screen_area_map_blend_read_data(BlendDataReader *reader, ScrAreaMap *area_map)
 {
   BLO_read_list(reader, &area_map->vertbase);
@@ -1924,7 +1894,6 @@ void BKE_screen_area_blend_read_lib(BlendLibReader *reader, ID *parent_id, ScrAr
       }
       case SPACE_OUTLINER: {
         SpaceOutliner *space_outliner = (SpaceOutliner *)sl;
-        BLO_read_id_address(reader, NULL, &space_outliner->search_tse.id);
 
         if (space_outliner->treestore) {
           TreeStoreElem *tselem;
@@ -1987,6 +1956,11 @@ void BKE_screen_area_blend_read_lib(BlendLibReader *reader, ID *parent_id, ScrAr
         else {
           snode->edittree = NULL;
         }
+        break;
+      }
+      case SPACE_LOGIC: {
+        SpaceLogic *slogic = (SpaceLogic *)sl;
+        BLO_read_id_address(reader, parent_id->lib, &slogic->gpd);
         break;
       }
       case SPACE_CLIP: {

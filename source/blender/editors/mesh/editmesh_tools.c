@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2004 by Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2004 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup edmesh
@@ -43,6 +27,7 @@
 #include "BLI_sort_utils.h"
 #include "BLI_string.h"
 
+#include "BKE_attribute.h"
 #include "BKE_context.h"
 #include "BKE_customdata.h"
 #include "BKE_deform.h"
@@ -53,6 +38,7 @@
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_mesh.h"
+#include "BKE_object.h"
 #include "BKE_report.h"
 #include "BKE_texture.h"
 
@@ -64,6 +50,7 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
+#include "RNA_prototypes.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -72,6 +59,7 @@
 #include "ED_object.h"
 #include "ED_outliner.h"
 #include "ED_screen.h"
+#include "ED_select_utils.h"
 #include "ED_transform.h"
 #include "ED_uvedit.h"
 #include "ED_view3d.h"
@@ -285,7 +273,8 @@ static void mesh_operator_edgering_props(wmOperatorType *ot,
   RNA_def_property_enum_items(prop, rna_enum_proportional_falloff_curve_only_items);
   RNA_def_property_enum_default(prop, PROP_SMOOTH);
   RNA_def_property_ui_text(prop, "Profile Shape", "Shape of the profile");
-  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_CURVE); /* Abusing id_curve :/ */
+  RNA_def_property_translation_context(prop,
+                                       BLT_I18NCONTEXT_ID_CURVE_LEGACY); /* Abusing id_curve :/ */
 }
 
 static void mesh_operator_edgering_props_get(wmOperator *op, struct EdgeRingOpSubdProps *op_props)
@@ -739,7 +728,7 @@ void MESH_OT_edge_collapse(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Collapse Edges & Faces";
   ot->description =
-      "Collapse isolated edge and face regions, merging data such as UV's and vertex colors. "
+      "Collapse isolated edge and face regions, merging data such as UV's and color attributes. "
       "This can collapse edge-rings as well as regions of connected faces into vertices";
   ot->idname = "MESH_OT_edge_collapse";
 
@@ -947,7 +936,7 @@ static int edbm_add_edge_face_exec(bContext *C, wmOperator *op)
     Object *obedit = objects[ob_index];
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
-    if ((em->bm->totvertsel == 0) && (em->bm->totedgesel == 0) && (em->bm->totvertsel == 0)) {
+    if ((em->bm->totvertsel == 0) && (em->bm->totedgesel == 0) && (em->bm->totfacesel == 0)) {
       continue;
     }
 
@@ -2027,6 +2016,7 @@ static int edbm_duplicate_exec(bContext *C, wmOperator *op)
   uint objects_len = 0;
   Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       view_layer, CTX_wm_view3d(C), &objects_len);
+  bool changed = false;
 
   for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
     Object *obedit = objects[ob_index];
@@ -2037,6 +2027,7 @@ static int edbm_duplicate_exec(bContext *C, wmOperator *op)
 
     BMOperator bmop;
     BMesh *bm = em->bm;
+    changed = true;
 
     EDBM_op_init(em,
                  &bmop,
@@ -2071,16 +2062,16 @@ static int edbm_duplicate_exec(bContext *C, wmOperator *op)
   }
   MEM_freeN(objects);
 
-  return OPERATOR_FINISHED;
+  return (changed) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
 static int edbm_duplicate_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
   WM_cursor_wait(true);
-  edbm_duplicate_exec(C, op);
+  const int retval = edbm_duplicate_exec(C, op);
   WM_cursor_wait(false);
 
-  return OPERATOR_FINISHED;
+  return retval;
 }
 
 void MESH_OT_duplicate(wmOperatorType *ot)
@@ -2315,7 +2306,7 @@ static int edbm_edge_rotate_selected_exec(bContext *C, wmOperator *op)
   BMIter iter;
   const bool use_ccw = RNA_boolean_get(op->ptr, "use_ccw");
 
-  int tot_rotate_all = 0, tot_failed_all = 0;
+  int tot_failed_all = 0;
   bool no_selected_edges = true, invalid_selected_edges = true;
 
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -2373,7 +2364,6 @@ static int edbm_edge_rotate_selected_exec(bContext *C, wmOperator *op)
     const int tot_rotate = BMO_slot_buffer_len(bmop.slots_out, "edges.out");
     const int tot_failed = tot - tot_rotate;
 
-    tot_rotate_all += tot_rotate;
     tot_failed_all += tot_failed;
 
     if (tot_failed != 0) {
@@ -3102,7 +3092,22 @@ static int edbm_rotate_colors_exec(bContext *C, wmOperator *op)
 
     BMOperator bmop;
 
-    EDBM_op_init(em, &bmop, op, "rotate_colors faces=%hf use_ccw=%b", BM_ELEM_SELECT, use_ccw);
+    const Mesh *me = BKE_object_get_original_mesh(ob);
+    const CustomDataLayer *layer = BKE_id_attributes_active_color_get(&me->id);
+
+    if (!layer || BKE_id_attribute_domain(&me->id, layer) != ATTR_DOMAIN_CORNER) {
+      continue;
+    }
+
+    int color_index = BKE_id_attribute_to_index(
+        &me->id, layer, ATTR_DOMAIN_MASK_COLOR, CD_MASK_COLOR_ALL);
+    EDBM_op_init(em,
+                 &bmop,
+                 op,
+                 "rotate_colors faces=%hf use_ccw=%b color_index=%i",
+                 BM_ELEM_SELECT,
+                 use_ccw,
+                 color_index);
 
     BMO_op_exec(em->bm, &bmop);
 
@@ -3139,9 +3144,19 @@ static int edbm_reverse_colors_exec(bContext *C, wmOperator *op)
       continue;
     }
 
+    const Mesh *me = BKE_object_get_original_mesh(obedit);
+    const CustomDataLayer *layer = BKE_id_attributes_active_color_get(&me->id);
+
+    if (!layer || BKE_id_attribute_domain(&me->id, layer) != ATTR_DOMAIN_CORNER) {
+      continue;
+    }
+
     BMOperator bmop;
 
-    EDBM_op_init(em, &bmop, op, "reverse_colors faces=%hf", BM_ELEM_SELECT);
+    int color_index = BKE_id_attribute_to_index(
+        &me->id, layer, ATTR_DOMAIN_MASK_COLOR, CD_MASK_COLOR_ALL);
+    EDBM_op_init(
+        em, &bmop, op, "reverse_colors faces=%hf color_index=%i", BM_ELEM_SELECT, color_index);
 
     BMO_op_exec(em->bm, &bmop);
 
@@ -3202,7 +3217,7 @@ void MESH_OT_colors_rotate(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Rotate Colors";
   ot->idname = "MESH_OT_colors_rotate";
-  ot->description = "Rotate vertex colors inside faces";
+  ot->description = "Rotate color attributes inside faces";
 
   /* api callbacks */
   ot->exec = edbm_rotate_colors_exec;
@@ -4364,7 +4379,7 @@ static Base *mesh_separate_tagged(
   Base *base_new = ED_object_add_duplicate(bmain, scene, view_layer, base_old, dupflag);
 
   /* normally would call directly after but in this case delay recalc */
-  /* DAG_relations_tag_update(bmain); */
+  // DAG_relations_tag_update(bmain);
 
   /* new in 2.5 */
   BKE_object_material_array_assign(bmain,
@@ -4438,7 +4453,7 @@ static Base *mesh_separate_arrays(Main *bmain,
   Base *base_new = ED_object_add_duplicate(bmain, scene, view_layer, base_old, dupflag);
 
   /* normally would call directly after but in this case delay recalc */
-  /* DAG_relations_tag_update(bmain); */
+  // DAG_relations_tag_update(bmain);
 
   /* new in 2.5 */
   BKE_object_material_array_assign(bmain,
@@ -4726,7 +4741,7 @@ static int edbm_separate_exec(bContext *C, wmOperator *op)
       Object *ob = base_iter->object;
       if (ob->type == OB_MESH) {
         Mesh *me = ob->data;
-        if (!ID_IS_LINKED(me)) {
+        if (BKE_id_is_editable(bmain, &me->id)) {
           BMesh *bm_old = NULL;
           bool changed = false;
 
@@ -7017,6 +7032,14 @@ static void sort_bmelem_flag(bContext *C,
   }
 
   BM_mesh_remap(em->bm, map[0], map[1], map[2]);
+
+  EDBM_update(ob->data,
+              &(const struct EDBMUpdate_Params){
+                  .calc_looptri = (totelem[2] != 0),
+                  .calc_normals = false,
+                  .is_destructive = true,
+              });
+
   DEG_id_tag_update(ob->data, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 
@@ -8226,7 +8249,6 @@ enum {
   EDBM_CLNOR_MODAL_POINTTO_SET_USE_SELECTED = 114,
 };
 
-/* Called in transform_ops.c, on each regeneration of key-maps. */
 wmKeyMap *point_normals_modal_keymap(wmKeyConfig *keyconf)
 {
   static const EnumPropertyItem modal_items[] = {
@@ -8555,7 +8577,10 @@ static int edbm_point_normals_modal(bContext *C, wmOperator *op, const wmEvent *
       case EDBM_CLNOR_MODAL_POINTTO_SET_USE_SELECTED:
         new_mode = EDBM_CLNOR_POINTTO_MODE_COORDINATES;
         view3d_operator_needs_opengl(C);
-        if (EDBM_select_pick(C, event->mval, false, false, false)) {
+        const struct SelectPick_Params params = {
+            .sel_op = SEL_OP_SET,
+        };
+        if (EDBM_select_pick(C, event->mval, &params)) {
           /* Point to newly selected active. */
           ED_object_calc_active_center_for_editmode(obedit, false, target);
 
@@ -8667,7 +8692,7 @@ static int edbm_point_normals_modal(bContext *C, wmOperator *op, const wmEvent *
    * Free the data here, then use #point_normals_ensure to add it back on demand. */
   if (ret == OPERATOR_PASS_THROUGH) {
     /* Don't free on mouse-move, causes creation/freeing of the loop data in an inefficient way. */
-    if (!ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE)) {
+    if (!ISMOUSE_MOTION(event->type)) {
       point_normals_free(op);
     }
   }
@@ -9657,13 +9682,13 @@ static int edbm_smooth_normals_exec(bContext *C, wmOperator *op)
     float(*smooth_normal)[3] = MEM_callocN(sizeof(*smooth_normal) * lnors_ed_arr->totloop,
                                            __func__);
 
-    /* This is weird choice of operation, taking all loops of faces of current vertex.
-     * Could lead to some rather far away loops weighting as much as very close ones
+    /* NOTE(@mont29): This is weird choice of operation, taking all loops of faces of current
+     * vertex. Could lead to some rather far away loops weighting as much as very close ones
      * (topologically speaking), with complex polygons.
      * Using topological distance here (rather than geometrical one)
-     * makes sense imho, but would rather go with a more consistent and flexible code,
-     * we could even add max topological distance to take into account, * and a weighting curve.
-     * Would do that later though, think for now we can live with that choice. --mont29. */
+     * makes sense IMHO, but would rather go with a more consistent and flexible code,
+     * we could even add max topological distance to take into account, and a weighting curve.
+     * Would do that later though, think for now we can live with that choice. */
     BMLoopNorEditData *lnor_ed = lnors_ed_arr->lnor_editdata;
     for (int i = 0; i < lnors_ed_arr->totloop; i++, lnor_ed++) {
       l = lnor_ed->loop;

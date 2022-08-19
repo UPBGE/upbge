@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2015 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2015 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup depsgraph
@@ -58,9 +42,7 @@ struct StackEntry {
 
 struct CyclesSolverState {
   CyclesSolverState(Depsgraph *graph)
-      : graph(graph),
-        traversal_stack(BLI_stack_new(sizeof(StackEntry), "DEG detect cycles stack")),
-        num_cycles(0)
+      : graph(graph), traversal_stack(BLI_stack_new(sizeof(StackEntry), "DEG detect cycles stack"))
   {
     /* pass */
   }
@@ -73,7 +55,7 @@ struct CyclesSolverState {
   }
   Depsgraph *graph;
   BLI_Stack *traversal_stack;
-  int num_cycles;
+  int num_cycles = 0;
 };
 
 inline void set_node_visited_state(Node *node, eCyclicCheckVisitedState state)

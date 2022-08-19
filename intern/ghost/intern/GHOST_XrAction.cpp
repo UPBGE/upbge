@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup GHOST
@@ -216,8 +202,9 @@ GHOST_XrAction::GHOST_XrAction(XrInstance instance,
 
   XrActionCreateInfo action_info{XR_TYPE_ACTION_CREATE_INFO};
   strcpy(action_info.actionName, info.name);
-  strcpy(action_info.localizedActionName, info.name); /* Just use same name for localized. This can
-                                                         be changed in the future if necessary. */
+
+  /* Just use same name for localized. This can be changed in the future if necessary. */
+  strcpy(action_info.localizedActionName, info.name);
 
   switch (info.type) {
     case GHOST_kXrActionTypeBooleanInput:
@@ -345,23 +332,26 @@ void GHOST_XrAction::updateState(XrSession session,
         break;
       }
       case GHOST_kXrActionTypePoseInput: {
-        XrActionStatePose state{XR_TYPE_ACTION_STATE_POSE};
-        CHECK_XR(
-            xrGetActionStatePose(session, &state_info, &state),
-            (std::string("Failed to get state for pose action \"") + action_name + "\".").data());
-        if (state.isActive) {
-          XrSpace pose_space = ((subaction != nullptr) && (subaction->space != nullptr)) ?
-                                   subaction->space->getSpace() :
-                                   XR_NULL_HANDLE;
-          if (pose_space != XR_NULL_HANDLE) {
-            XrSpaceLocation space_location{XR_TYPE_SPACE_LOCATION};
-            CHECK_XR(
-                xrLocateSpace(
-                    pose_space, reference_space, predicted_display_time, &space_location),
-                (std::string("Failed to query pose space for action \"") + action_name + "\".")
-                    .data());
-            copy_openxr_pose_to_ghost_pose(space_location.pose,
-                                           ((GHOST_XrPose *)m_states)[subaction_idx]);
+        /* Check for valid display time to avoid an error in #xrLocateSpace(). */
+        if (predicted_display_time > 0) {
+          XrActionStatePose state{XR_TYPE_ACTION_STATE_POSE};
+          CHECK_XR(xrGetActionStatePose(session, &state_info, &state),
+                   (std::string("Failed to get state for pose action \"") + action_name + "\".")
+                       .data());
+          if (state.isActive) {
+            XrSpace pose_space = ((subaction != nullptr) && (subaction->space != nullptr)) ?
+                                     subaction->space->getSpace() :
+                                     XR_NULL_HANDLE;
+            if (pose_space != XR_NULL_HANDLE) {
+              XrSpaceLocation space_location{XR_TYPE_SPACE_LOCATION};
+              CHECK_XR(
+                  xrLocateSpace(
+                      pose_space, reference_space, predicted_display_time, &space_location),
+                  (std::string("Failed to query pose space for action \"") + action_name + "\".")
+                      .data());
+              copy_openxr_pose_to_ghost_pose(space_location.pose,
+                                             ((GHOST_XrPose *)m_states)[subaction_idx]);
+            }
           }
         }
         break;

@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -149,6 +136,19 @@ void string_replace(string &haystack, const string &needle, const string &other)
   }
 }
 
+void string_replace_same_length(string &haystack, const string &needle, const string &other)
+{
+  assert(needle.size() == other.size());
+  size_t pos = 0;
+  while (pos != string::npos) {
+    pos = haystack.find(needle, pos);
+    if (pos != string::npos) {
+      memcpy(haystack.data() + pos, other.data(), other.size());
+      pos += other.size();
+    }
+  }
+}
+
 string string_remove_trademark(const string &s)
 {
   string result = s;
@@ -175,6 +175,11 @@ string string_from_bool(bool var)
 string to_string(const char *str)
 {
   return string(str);
+}
+
+string to_string(const float4 &v)
+{
+  return string_printf("%f,%f,%f,%f", v.x, v.y, v.z, v.w);
 }
 
 string string_to_lower(const string &s)

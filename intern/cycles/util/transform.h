@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #ifndef __UTIL_TRANSFORM_H__
 #define __UTIL_TRANSFORM_H__
@@ -23,6 +10,10 @@
 
 #include "util/math.h"
 #include "util/types.h"
+
+#ifndef __KERNEL_GPU__
+#  include "util/system.h"
+#endif
 
 CCL_NAMESPACE_BEGIN
 
@@ -51,7 +42,22 @@ typedef struct DecomposedTransform {
   float4 x, y, z, w;
 } DecomposedTransform;
 
+CCL_NAMESPACE_END
+
+#include "util/transform_inverse.h"
+
+CCL_NAMESPACE_BEGIN
+
 /* Functions */
+
+#ifdef __KERNEL_METAL__
+/* transform_point specialized for ccl_global */
+ccl_device_inline float3 transform_point(ccl_global const Transform *t, const float3 a)
+{
+  ccl_global const float3x3 &b(*(ccl_global const float3x3 *)t);
+  return (a * b).xyz + make_float3(t->x.w, t->y.w, t->z.w);
+}
+#endif
 
 ccl_device_inline float3 transform_point(ccl_private const Transform *t, const float3 a)
 {
@@ -67,12 +73,15 @@ ccl_device_inline float3 transform_point(ccl_private const Transform *t, const f
 
   _MM_TRANSPOSE4_PS(x, y, z, w);
 
-  ssef tmp = shuffle<0>(aa) * x;
-  tmp = madd(shuffle<1>(aa), y, tmp);
+  ssef tmp = w;
   tmp = madd(shuffle<2>(aa), z, tmp);
-  tmp += w;
+  tmp = madd(shuffle<1>(aa), y, tmp);
+  tmp = madd(shuffle<0>(aa), x, tmp);
 
   return float3(tmp.m128);
+#elif defined(__KERNEL_METAL__)
+  ccl_private const float3x3 &b(*(ccl_private const float3x3 *)t);
+  return (a * b).xyz + make_float3(t->x.w, t->y.w, t->z.w);
 #else
   float3 c = make_float3(a.x * t->x.x + a.y * t->x.y + a.z * t->x.z + t->x.w,
                          a.x * t->y.x + a.y * t->y.y + a.z * t->y.z + t->y.w,
@@ -94,11 +103,14 @@ ccl_device_inline float3 transform_direction(ccl_private const Transform *t, con
 
   _MM_TRANSPOSE4_PS(x, y, z, w);
 
-  ssef tmp = shuffle<0>(aa) * x;
+  ssef tmp = shuffle<2>(aa) * z;
   tmp = madd(shuffle<1>(aa), y, tmp);
-  tmp = madd(shuffle<2>(aa), z, tmp);
+  tmp = madd(shuffle<0>(aa), x, tmp);
 
   return float3(tmp.m128);
+#elif defined(__KERNEL_METAL__)
+  ccl_private const float3x3 &b(*(ccl_private const float3x3 *)t);
+  return (a * b).xyz;
 #else
   float3 c = make_float3(a.x * t->x.x + a.y * t->x.y + a.z * t->x.z,
                          a.x * t->y.x + a.y * t->y.y + a.z * t->y.z,
@@ -283,6 +295,21 @@ ccl_device_inline bool operator!=(const Transform &A, const Transform &B)
   return !(A == B);
 }
 
+ccl_device_inline bool transform_equal_threshold(const Transform &A,
+                                                 const Transform &B,
+                                                 const float threshold)
+{
+  for (int x = 0; x < 3; x++) {
+    for (int y = 0; y < 4; y++) {
+      if (fabsf(A[x][y] - B[x][y]) > threshold) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
 ccl_device_inline float3 transform_get_column(const Transform *t, int column)
 {
   return make_float3(t->x[column], t->y[column], t->z[column]);
@@ -295,7 +322,6 @@ ccl_device_inline void transform_set_column(Transform *t, int column, float3 val
   t->z[column] = value.z;
 }
 
-Transform transform_inverse(const Transform &a);
 Transform transform_transposed_inverse(const Transform &a);
 
 ccl_device_inline bool transform_uniform_scale(const Transform &tfm, float &scale)
@@ -351,11 +377,11 @@ ccl_device_inline Transform transform_empty()
 
 ccl_device_inline float4 quat_interpolate(float4 q1, float4 q2, float t)
 {
-  /* Optix is using lerp to interpolate motion transformations. */
-#ifdef __KERNEL_OPTIX__
+  /* Optix and MetalRT are using lerp to interpolate motion transformations. */
+#if defined(__KERNEL_GPU_RAYTRACING__)
   return normalize((1.0f - t) * q1 + t * q2);
-#else  /* __KERNEL_OPTIX__ */
-  /* note: this does not ensure rotation around shortest angle, q1 and q2
+#else  /* defined(__KERNEL_GPU_RAYTRACING__) */
+  /* NOTE: this does not ensure rotation around shortest angle, q1 and q2
    * are assumed to be matched already in transform_motion_decompose */
   float costheta = dot(q1, q2);
 
@@ -372,42 +398,31 @@ ccl_device_inline float4 quat_interpolate(float4 q1, float4 q2, float t)
     float thetap = theta * t;
     return q1 * cosf(thetap) + qperp * sinf(thetap);
   }
-#endif /* __KERNEL_OPTIX__ */
+#endif /* defined(__KERNEL_GPU_RAYTRACING__) */
 }
 
-ccl_device_inline Transform transform_quick_inverse(Transform M)
+#ifndef __KERNEL_GPU__
+void transform_inverse_cpu_sse41(const Transform &tfm, Transform &itfm);
+void transform_inverse_cpu_avx2(const Transform &tfm, Transform &itfm);
+#endif
+
+ccl_device_inline Transform transform_inverse(const Transform tfm)
 {
-  /* possible optimization: can we avoid doing this altogether and construct
-   * the inverse matrix directly from negated translation, transposed rotation,
-   * scale can be inverted but what about shearing? */
-  Transform R;
-  float det = M.x.x * (M.z.z * M.y.y - M.z.y * M.y.z) - M.y.x * (M.z.z * M.x.y - M.z.y * M.x.z) +
-              M.z.x * (M.y.z * M.x.y - M.y.y * M.x.z);
-  if (det == 0.0f) {
-    M.x.x += 1e-8f;
-    M.y.y += 1e-8f;
-    M.z.z += 1e-8f;
-    det = M.x.x * (M.z.z * M.y.y - M.z.y * M.y.z) - M.y.x * (M.z.z * M.x.y - M.z.y * M.x.z) +
-          M.z.x * (M.y.z * M.x.y - M.y.y * M.x.z);
+  /* Optimized transform implementations. */
+#ifndef __KERNEL_GPU__
+  if (system_cpu_support_avx2()) {
+    Transform itfm;
+    transform_inverse_cpu_avx2(tfm, itfm);
+    return itfm;
   }
-  det = (det != 0.0f) ? 1.0f / det : 0.0f;
+  else if (system_cpu_support_sse41()) {
+    Transform itfm;
+    transform_inverse_cpu_sse41(tfm, itfm);
+    return itfm;
+  }
+#endif
 
-  float3 Rx = det * make_float3(M.z.z * M.y.y - M.z.y * M.y.z,
-                                M.z.y * M.x.z - M.z.z * M.x.y,
-                                M.y.z * M.x.y - M.y.y * M.x.z);
-  float3 Ry = det * make_float3(M.z.x * M.y.z - M.z.z * M.y.x,
-                                M.z.z * M.x.x - M.z.x * M.x.z,
-                                M.y.x * M.x.z - M.y.z * M.x.x);
-  float3 Rz = det * make_float3(M.z.y * M.y.x - M.z.x * M.y.y,
-                                M.z.x * M.x.y - M.z.y * M.x.x,
-                                M.y.y * M.x.x - M.y.x * M.x.y);
-  float3 T = -make_float3(M.x.w, M.y.w, M.z.w);
-
-  R.x = make_float4(Rx.x, Rx.y, Rx.z, dot(Rx, T));
-  R.y = make_float4(Ry.x, Ry.y, Ry.z, dot(Ry, T));
-  R.z = make_float4(Rz.x, Rz.y, Rz.z, dot(Rz, T));
-
-  return R;
+  return transform_inverse_impl(tfm);
 }
 
 ccl_device_inline void transform_compose(ccl_private Transform *tfm,
@@ -450,8 +465,8 @@ ccl_device_inline void transform_compose(ccl_private Transform *tfm,
 }
 
 /* Interpolate from array of decomposed transforms. */
-ccl_device void transform_motion_array_interpolate(Transform *tfm,
-                                                   const DecomposedTransform *motion,
+ccl_device void transform_motion_array_interpolate(ccl_private Transform *tfm,
+                                                   ccl_global const DecomposedTransform *motion,
                                                    uint numsteps,
                                                    float time)
 {
@@ -460,8 +475,8 @@ ccl_device void transform_motion_array_interpolate(Transform *tfm,
   int step = min((int)(time * maxstep), maxstep - 1);
   float t = time * maxstep - step;
 
-  const DecomposedTransform *a = motion + step;
-  const DecomposedTransform *b = motion + step + 1;
+  ccl_global const DecomposedTransform *a = motion + step;
+  ccl_global const DecomposedTransform *b = motion + step + 1;
 
   /* Interpolate rotation, translation and scale. */
   DecomposedTransform decomp;
@@ -476,13 +491,13 @@ ccl_device void transform_motion_array_interpolate(Transform *tfm,
 
 ccl_device_inline bool transform_isfinite_safe(ccl_private Transform *tfm)
 {
-  return isfinite4_safe(tfm->x) && isfinite4_safe(tfm->y) && isfinite4_safe(tfm->z);
+  return isfinite_safe(tfm->x) && isfinite_safe(tfm->y) && isfinite_safe(tfm->z);
 }
 
 ccl_device_inline bool transform_decomposed_isfinite_safe(ccl_private DecomposedTransform *decomp)
 {
-  return isfinite4_safe(decomp->x) && isfinite4_safe(decomp->y) && isfinite4_safe(decomp->z) &&
-         isfinite4_safe(decomp->w);
+  return isfinite_safe(decomp->x) && isfinite_safe(decomp->y) && isfinite_safe(decomp->z) &&
+         isfinite_safe(decomp->w);
 }
 
 #ifndef __KERNEL_GPU__

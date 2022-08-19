@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edobj
@@ -57,6 +41,7 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
+#include "RNA_prototypes.h"
 
 #include "ED_curve.h"
 #include "ED_mesh.h"
@@ -69,23 +54,26 @@
 
 #include "object_intern.h"
 
-static int return_editmesh_indexar(BMEditMesh *em, int *r_tot, int **r_indexar, float r_cent[3])
+static int return_editmesh_indexar(BMEditMesh *em,
+                                   int *r_indexar_num,
+                                   int **r_indexar,
+                                   float r_cent[3])
 {
   BMVert *eve;
   BMIter iter;
-  int *index, nr, totvert = 0;
+  int *index, nr, indexar_num = 0;
 
   BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
     if (BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
-      totvert++;
+      indexar_num++;
     }
   }
-  if (totvert == 0) {
+  if (indexar_num == 0) {
     return 0;
   }
 
-  *r_indexar = index = MEM_mallocN(4 * totvert, "hook indexar");
-  *r_tot = totvert;
+  *r_indexar = index = MEM_mallocN(4 * indexar_num, "hook indexar");
+  *r_indexar_num = indexar_num;
   nr = 0;
   zero_v3(r_cent);
 
@@ -98,9 +86,9 @@ static int return_editmesh_indexar(BMEditMesh *em, int *r_tot, int **r_indexar, 
     nr++;
   }
 
-  mul_v3_fl(r_cent, 1.0f / (float)totvert);
+  mul_v3_fl(r_cent, 1.0f / (float)indexar_num);
 
-  return totvert;
+  return indexar_num;
 }
 
 static bool return_editmesh_vgroup(Object *obedit, BMEditMesh *em, char *r_name, float r_cent[3])
@@ -112,7 +100,7 @@ static bool return_editmesh_vgroup(Object *obedit, BMEditMesh *em, char *r_name,
 
   if (cd_dvert_offset != -1) {
     const int defgrp_index = active_index - 1;
-    int totvert = 0;
+    int indexar_num = 0;
 
     MDeformVert *dvert;
     BMVert *eve;
@@ -124,14 +112,14 @@ static bool return_editmesh_vgroup(Object *obedit, BMEditMesh *em, char *r_name,
 
       if (BKE_defvert_find_weight(dvert, defgrp_index) > 0.0f) {
         add_v3_v3(r_cent, eve->co);
-        totvert++;
+        indexar_num++;
       }
     }
-    if (totvert) {
+    if (indexar_num) {
       const ListBase *defbase = BKE_object_defgroup_list(obedit);
       bDeformGroup *dg = BLI_findlink(defbase, defgrp_index);
       BLI_strncpy(r_name, dg->name, sizeof(dg->name));
-      mul_v3_fl(r_cent, 1.0f / (float)totvert);
+      mul_v3_fl(r_cent, 1.0f / (float)indexar_num);
       return true;
     }
   }
@@ -154,7 +142,7 @@ static void select_editbmesh_hook(Object *ob, HookModifierData *hmd)
   BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
     if (nr == hmd->indexar[index]) {
       BM_vert_select_set(em->bm, eve, true);
-      if (index < hmd->totindex - 1) {
+      if (index < hmd->indexar_num - 1) {
         index++;
       }
     }
@@ -166,12 +154,12 @@ static void select_editbmesh_hook(Object *ob, HookModifierData *hmd)
 }
 
 static int return_editlattice_indexar(Lattice *editlatt,
-                                      int *r_tot,
                                       int **r_indexar,
+                                      int *r_indexar_num,
                                       float r_cent[3])
 {
   BPoint *bp;
-  int *index, nr, totvert = 0, a;
+  int *index, nr, indexar_num = 0, a;
 
   /* count */
   a = editlatt->pntsu * editlatt->pntsv * editlatt->pntsw;
@@ -179,18 +167,18 @@ static int return_editlattice_indexar(Lattice *editlatt,
   while (a--) {
     if (bp->f1 & SELECT) {
       if (bp->hide == 0) {
-        totvert++;
+        indexar_num++;
       }
     }
     bp++;
   }
 
-  if (totvert == 0) {
+  if (indexar_num == 0) {
     return 0;
   }
 
-  *r_indexar = index = MEM_mallocN(4 * totvert, "hook indexar");
-  *r_tot = totvert;
+  *r_indexar = index = MEM_mallocN(4 * indexar_num, "hook indexar");
+  *r_indexar_num = indexar_num;
   nr = 0;
   zero_v3(r_cent);
 
@@ -208,9 +196,9 @@ static int return_editlattice_indexar(Lattice *editlatt,
     nr++;
   }
 
-  mul_v3_fl(r_cent, 1.0f / (float)totvert);
+  mul_v3_fl(r_cent, 1.0f / (float)indexar_num);
 
-  return totvert;
+  return indexar_num;
 }
 
 static void select_editlattice_hook(Object *obedit, HookModifierData *hmd)
@@ -226,7 +214,7 @@ static void select_editlattice_hook(Object *obedit, HookModifierData *hmd)
   while (a--) {
     if (hmd->indexar[index] == nr) {
       bp->f1 |= SELECT;
-      if (index < hmd->totindex - 1) {
+      if (index < hmd->indexar_num - 1) {
         index++;
       }
     }
@@ -235,12 +223,15 @@ static void select_editlattice_hook(Object *obedit, HookModifierData *hmd)
   }
 }
 
-static int return_editcurve_indexar(Object *obedit, int *r_tot, int **r_indexar, float r_cent[3])
+static int return_editcurve_indexar(Object *obedit,
+                                    int **r_indexar,
+                                    int *r_indexar_num,
+                                    float r_cent[3])
 {
   ListBase *editnurb = object_editcurve_get(obedit);
   BPoint *bp;
   BezTriple *bezt;
-  int *index, a, nr, totvert = 0;
+  int *index, a, nr, indexar_num = 0;
 
   LISTBASE_FOREACH (Nurb *, nu, editnurb) {
     if (nu->type == CU_BEZIER) {
@@ -248,13 +239,13 @@ static int return_editcurve_indexar(Object *obedit, int *r_tot, int **r_indexar,
       a = nu->pntsu;
       while (a--) {
         if (bezt->f1 & SELECT) {
-          totvert++;
+          indexar_num++;
         }
         if (bezt->f2 & SELECT) {
-          totvert++;
+          indexar_num++;
         }
         if (bezt->f3 & SELECT) {
-          totvert++;
+          indexar_num++;
         }
         bezt++;
       }
@@ -264,18 +255,18 @@ static int return_editcurve_indexar(Object *obedit, int *r_tot, int **r_indexar,
       a = nu->pntsu * nu->pntsv;
       while (a--) {
         if (bp->f1 & SELECT) {
-          totvert++;
+          indexar_num++;
         }
         bp++;
       }
     }
   }
-  if (totvert == 0) {
+  if (indexar_num == 0) {
     return 0;
   }
 
-  *r_indexar = index = MEM_mallocN(sizeof(*index) * totvert, "hook indexar");
-  *r_tot = totvert;
+  *r_indexar = index = MEM_mallocN(sizeof(*index) * indexar_num, "hook indexar");
+  *r_indexar_num = indexar_num;
   nr = 0;
   zero_v3(r_cent);
 
@@ -320,21 +311,21 @@ static int return_editcurve_indexar(Object *obedit, int *r_tot, int **r_indexar,
     }
   }
 
-  mul_v3_fl(r_cent, 1.0f / (float)totvert);
+  mul_v3_fl(r_cent, 1.0f / (float)indexar_num);
 
-  return totvert;
+  return indexar_num;
 }
 
 static bool object_hook_index_array(Main *bmain,
                                     Scene *scene,
                                     Object *obedit,
-                                    int *r_tot,
                                     int **r_indexar,
+                                    int *r_indexar_num,
                                     char *r_name,
                                     float r_cent[3])
 {
   *r_indexar = NULL;
-  *r_tot = 0;
+  *r_indexar_num = 0;
   r_name[0] = 0;
 
   switch (obedit->type) {
@@ -353,19 +344,19 @@ static bool object_hook_index_array(Main *bmain,
       BKE_editmesh_looptri_and_normals_calc(em);
 
       /* check selected vertices first */
-      if (return_editmesh_indexar(em, r_tot, r_indexar, r_cent) == 0) {
+      if (return_editmesh_indexar(em, r_indexar_num, r_indexar, r_cent) == 0) {
         return return_editmesh_vgroup(obedit, em, r_name, r_cent);
       }
       return true;
     }
-    case OB_CURVE:
+    case OB_CURVES_LEGACY:
     case OB_SURF:
       ED_curve_editnurb_load(bmain, obedit);
       ED_curve_editnurb_make(obedit);
-      return return_editcurve_indexar(obedit, r_tot, r_indexar, r_cent);
+      return return_editcurve_indexar(obedit, r_indexar, r_indexar_num, r_cent);
     case OB_LATTICE: {
       Lattice *lt = obedit->data;
-      return return_editlattice_indexar(lt->editlatt->latt, r_tot, r_indexar, r_cent);
+      return return_editlattice_indexar(lt->editlatt->latt, r_indexar, r_indexar_num, r_cent);
     }
     default:
       return false;
@@ -386,21 +377,21 @@ static void select_editcurve_hook(Object *obedit, HookModifierData *hmd)
       while (a--) {
         if (nr == hmd->indexar[index]) {
           bezt->f1 |= SELECT;
-          if (index < hmd->totindex - 1) {
+          if (index < hmd->indexar_num - 1) {
             index++;
           }
         }
         nr++;
         if (nr == hmd->indexar[index]) {
           bezt->f2 |= SELECT;
-          if (index < hmd->totindex - 1) {
+          if (index < hmd->indexar_num - 1) {
             index++;
           }
         }
         nr++;
         if (nr == hmd->indexar[index]) {
           bezt->f3 |= SELECT;
-          if (index < hmd->totindex - 1) {
+          if (index < hmd->indexar_num - 1) {
             index++;
           }
         }
@@ -415,7 +406,7 @@ static void select_editcurve_hook(Object *obedit, HookModifierData *hmd)
       while (a--) {
         if (nr == hmd->indexar[index]) {
           bp->f1 |= SELECT;
-          if (index < hmd->totindex - 1) {
+          if (index < hmd->indexar_num - 1) {
             index++;
           }
         }
@@ -463,7 +454,7 @@ static void object_hook_select(Object *ob, HookModifierData *hmd)
   else if (ob->type == OB_LATTICE) {
     select_editlattice_hook(ob, hmd);
   }
-  else if (ob->type == OB_CURVE) {
+  else if (ob->type == OB_CURVES_LEGACY) {
     select_editcurve_hook(ob, hmd);
   }
   else if (ob->type == OB_SURF) {
@@ -529,10 +520,10 @@ static int add_hook_object(const bContext *C,
   HookModifierData *hmd = NULL;
   float cent[3];
   float pose_mat[4][4];
-  int tot, ok, *indexar;
+  int indexar_num, ok, *indexar;
   char name[MAX_NAME];
 
-  ok = object_hook_index_array(bmain, scene, obedit, &tot, &indexar, name, cent);
+  ok = object_hook_index_array(bmain, scene, obedit, &indexar, &indexar_num, name, cent);
 
   if (!ok) {
     BKE_report(reports, RPT_ERROR, "Requires selected vertices or active vertex group");
@@ -560,7 +551,7 @@ static int add_hook_object(const bContext *C,
   hmd->object = ob;
   hmd->indexar = indexar;
   copy_v3_v3(hmd->cent, cent);
-  hmd->totindex = tot;
+  hmd->indexar_num = indexar_num;
   BLI_strncpy(hmd->name, name, sizeof(hmd->name));
 
   unit_m4(pose_mat);
@@ -582,7 +573,7 @@ static int add_hook_object(const bContext *C,
 
       BLI_strncpy(hmd->subtarget, arm->act_bone->name, sizeof(hmd->subtarget));
 
-      pchan_act = BKE_pose_channel_active(ob);
+      pchan_act = BKE_pose_channel_active_if_layer_visible(ob);
       if (LIKELY(pchan_act)) {
         invert_m4_m4(pose_mat, pchan_act->pose_mat);
         mul_v3_m4v3(cent, ob->obmat, pchan_act->pose_mat[3]);
@@ -888,7 +879,7 @@ static int object_hook_assign_exec(bContext *C, wmOperator *op)
   HookModifierData *hmd = NULL;
   float cent[3];
   char name[MAX_NAME];
-  int *indexar, tot;
+  int *indexar, indexar_num;
 
   object_hook_from_context(C, &ptr, num, &ob, &hmd);
   if (hmd == NULL) {
@@ -898,7 +889,7 @@ static int object_hook_assign_exec(bContext *C, wmOperator *op)
 
   /* assign functionality */
 
-  if (!object_hook_index_array(bmain, scene, ob, &tot, &indexar, name, cent)) {
+  if (!object_hook_index_array(bmain, scene, ob, &indexar, &indexar_num, name, cent)) {
     BKE_report(op->reports, RPT_WARNING, "Requires selected vertices or active vertex group");
     return OPERATOR_CANCELLED;
   }
@@ -908,7 +899,7 @@ static int object_hook_assign_exec(bContext *C, wmOperator *op)
 
   copy_v3_v3(hmd->cent, cent);
   hmd->indexar = indexar;
-  hmd->totindex = tot;
+  hmd->indexar_num = indexar_num;
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);

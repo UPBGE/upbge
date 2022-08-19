@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bpygpu
@@ -24,7 +10,6 @@
 #include <Python.h>
 
 #include "../generic/py_capi_utils.h"
-#include "../generic/python_utildefines.h"
 
 #include "gpu_py_types.h" /* own include */
 
@@ -73,6 +58,12 @@ PyObject *bpygpu_types_init(void)
   if (PyType_Ready(&BPyGPUUniformBuf_Type) < 0) {
     return NULL;
   }
+  if (PyType_Ready(&BPyGPUShaderCreateInfo_Type) < 0) {
+    return NULL;
+  }
+  if (PyType_Ready(&BPyGPUStageInterfaceInfo_Type) < 0) {
+    return NULL;
+  }
 
   PyModule_AddType(submodule, &BPyGPU_BufferType);
   PyModule_AddType(submodule, &BPyGPUVertFormat_Type);
@@ -84,6 +75,8 @@ PyObject *bpygpu_types_init(void)
   PyModule_AddType(submodule, &BPyGPUTexture_Type);
   PyModule_AddType(submodule, &BPyGPUFrameBuffer_Type);
   PyModule_AddType(submodule, &BPyGPUUniformBuf_Type);
+  PyModule_AddType(submodule, &BPyGPUShaderCreateInfo_Type);
+  PyModule_AddType(submodule, &BPyGPUStageInterfaceInfo_Type);
 
   return submodule;
 }

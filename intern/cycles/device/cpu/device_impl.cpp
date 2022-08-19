@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2021 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include "device/cpu/device_impl.h"
 
@@ -64,15 +51,15 @@
 CCL_NAMESPACE_BEGIN
 
 CPUDevice::CPUDevice(const DeviceInfo &info_, Stats &stats_, Profiler &profiler_)
-    : Device(info_, stats_, profiler_), texture_info(this, "__texture_info", MEM_GLOBAL)
+    : Device(info_, stats_, profiler_), texture_info(this, "texture_info", MEM_GLOBAL)
 {
   /* Pick any kernel, all of them are supposed to have same level of microarchitecture
    * optimization. */
-  VLOG(1) << "Using " << get_cpu_kernels().integrator_init_from_camera.get_uarch_name()
-          << " CPU kernels.";
+  VLOG_INFO << "Using " << get_cpu_kernels().integrator_init_from_camera.get_uarch_name()
+            << " CPU kernels.";
 
   if (info.cpu_threads == 0) {
-    info.cpu_threads = TaskScheduler::num_threads();
+    info.cpu_threads = TaskScheduler::max_concurrency();
   }
 
 #ifdef WITH_OSL
@@ -91,11 +78,6 @@ CPUDevice::~CPUDevice()
 #endif
 
   texture_info.free();
-}
-
-bool CPUDevice::show_samples() const
-{
-  return (info.cpu_threads == 1);
 }
 
 BVHLayoutMask CPUDevice::get_bvh_layout_mask() const
@@ -129,13 +111,12 @@ void CPUDevice::mem_alloc(device_memory &mem)
   }
   else {
     if (mem.name) {
-      VLOG(1) << "Buffer allocate: " << mem.name << ", "
-              << string_human_readable_number(mem.memory_size()) << " bytes. ("
-              << string_human_readable_size(mem.memory_size()) << ")";
+      VLOG_WORK << "Buffer allocate: " << mem.name << ", "
+                << string_human_readable_number(mem.memory_size()) << " bytes. ("
+                << string_human_readable_size(mem.memory_size()) << ")";
     }
 
-    if (mem.type == MEM_DEVICE_ONLY) {
-      assert(!mem.host_pointer);
+    if (mem.type == MEM_DEVICE_ONLY || !mem.host_pointer) {
       size_t alignment = MIN_ALIGNMENT_CPU_DATA_TYPES;
       void *data = util_aligned_malloc(mem.memory_size(), alignment);
       mem.device_pointer = (device_ptr)data;
@@ -194,7 +175,7 @@ void CPUDevice::mem_free(device_memory &mem)
     tex_free((device_texture &)mem);
   }
   else if (mem.device_pointer) {
-    if (mem.type == MEM_DEVICE_ONLY) {
+    if (mem.type == MEM_DEVICE_ONLY || !mem.host_pointer) {
       util_aligned_free((void *)mem.device_pointer);
     }
     mem.device_pointer = 0;
@@ -210,13 +191,13 @@ device_ptr CPUDevice::mem_alloc_sub_ptr(device_memory &mem, size_t offset, size_
 
 void CPUDevice::const_copy_to(const char *name, void *host, size_t size)
 {
-#if WITH_EMBREE
-  if (strcmp(name, "__data") == 0) {
+#ifdef WITH_EMBREE
+  if (strcmp(name, "data") == 0) {
     assert(size <= sizeof(KernelData));
 
     // Update scene handle (since it is different for each device on multi devices)
     KernelData *const data = (KernelData *)host;
-    data->bvh.scene = embree_scene;
+    data->device_bvh = embree_scene;
   }
 #endif
   kernel_const_copy(&kernel_globals, name, host, size);
@@ -224,9 +205,9 @@ void CPUDevice::const_copy_to(const char *name, void *host, size_t size)
 
 void CPUDevice::global_alloc(device_memory &mem)
 {
-  VLOG(1) << "Global memory allocate: " << mem.name << ", "
-          << string_human_readable_number(mem.memory_size()) << " bytes. ("
-          << string_human_readable_size(mem.memory_size()) << ")";
+  VLOG_WORK << "Global memory allocate: " << mem.name << ", "
+            << string_human_readable_number(mem.memory_size()) << " bytes. ("
+            << string_human_readable_size(mem.memory_size()) << ")";
 
   kernel_global_memory_copy(&kernel_globals, mem.name, mem.host_pointer, mem.data_size);
 
@@ -246,9 +227,9 @@ void CPUDevice::global_free(device_memory &mem)
 
 void CPUDevice::tex_alloc(device_texture &mem)
 {
-  VLOG(1) << "Texture allocate: " << mem.name << ", "
-          << string_human_readable_number(mem.memory_size()) << " bytes. ("
-          << string_human_readable_size(mem.memory_size()) << ")";
+  VLOG_WORK << "Texture allocate: " << mem.name << ", "
+            << string_human_readable_number(mem.memory_size()) << " bytes. ("
+            << string_human_readable_size(mem.memory_size()) << ")";
 
   mem.device_pointer = (device_ptr)mem.host_pointer;
   mem.device_size = mem.memory_size();
@@ -279,7 +260,8 @@ void CPUDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
 {
 #ifdef WITH_EMBREE
   if (bvh->params.bvh_layout == BVH_LAYOUT_EMBREE ||
-      bvh->params.bvh_layout == BVH_LAYOUT_MULTI_OPTIX_EMBREE) {
+      bvh->params.bvh_layout == BVH_LAYOUT_MULTI_OPTIX_EMBREE ||
+      bvh->params.bvh_layout == BVH_LAYOUT_MULTI_METAL_EMBREE) {
     BVHEmbree *const bvh_embree = static_cast<BVHEmbree *>(bvh);
     if (refit) {
       bvh_embree->refit(progress);

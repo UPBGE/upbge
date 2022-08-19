@@ -1,38 +1,20 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_index_mask.hh"
+#include "BLI_index_mask_ops.hh"
 
 namespace blender {
 
-/**
- * Create a sub-mask that is also shifted to the beginning. The shifting to the beginning allows
- * code to work with smaller indices, which is more memory efficient.
- *
- * \return New index mask with the size of #slice. It is either empty or starts with 0. It might
- * reference indices that have been appended to #r_new_indices.
- *
- * Example:
- *  this:   [2, 3, 5, 7, 8, 9, 10]
- *  slice:      ^--------^
- *  output: [0, 2, 4, 5]
- *
- *  All the indices in the sub-mask are shifted by 3 towards zero, so that the first index in the
- *  output is zero.
- */
+IndexMask IndexMask::slice(int64_t start, int64_t size) const
+{
+  return this->slice(IndexRange(start, size));
+}
+
+IndexMask IndexMask::slice(IndexRange slice) const
+{
+  return IndexMask(indices_.slice(slice));
+}
+
 IndexMask IndexMask::slice_and_offset(const IndexRange slice, Vector<int64_t> &r_new_indices) const
 {
   const int slice_size = slice.size();
@@ -54,4 +36,209 @@ IndexMask IndexMask::slice_and_offset(const IndexRange slice, Vector<int64_t> &r
   return IndexMask(r_new_indices.as_span());
 }
 
+IndexMask IndexMask::invert(const IndexRange full_range, Vector<int64_t> &r_new_indices) const
+{
+  BLI_assert(this->contained_in(full_range));
+  if (full_range.size() == indices_.size()) {
+    return {};
+  }
+  if (indices_.is_empty()) {
+    return full_range;
+  }
+  r_new_indices.clear();
+
+  const Vector<IndexRange> ranges = this->extract_ranges_invert(full_range, nullptr);
+  for (const IndexRange &range : ranges) {
+    for (const int64_t index : range) {
+      r_new_indices.append(index);
+    }
+  }
+  return r_new_indices.as_span();
+}
+
+Vector<IndexRange> IndexMask::extract_ranges() const
+{
+  Vector<IndexRange> ranges;
+  int64_t range_start = 0;
+  while (range_start < indices_.size()) {
+    int64_t current_range_end = range_start + 1;
+    int64_t step_size = 1;
+
+    while (true) {
+      const int64_t possible_range_end = current_range_end + step_size;
+      if (possible_range_end > indices_.size()) {
+        break;
+      }
+      if (!this->slice(range_start, possible_range_end - range_start).is_range()) {
+        break;
+      }
+      current_range_end = possible_range_end;
+      step_size *= 2;
+    }
+
+    /* This step size was tried already, no need to try it again. */
+    step_size /= 2;
+
+    while (step_size > 0) {
+      const int64_t possible_range_end = current_range_end + step_size;
+      step_size /= 2;
+      if (possible_range_end > indices_.size()) {
+        continue;
+      }
+      if (!this->slice(range_start, possible_range_end - range_start).is_range()) {
+        continue;
+      }
+      current_range_end = possible_range_end;
+    }
+
+    ranges.append(IndexRange{indices_[range_start], current_range_end - range_start});
+    range_start = current_range_end;
+  }
+  return ranges;
+}
+
+Vector<IndexRange> IndexMask::extract_ranges_invert(const IndexRange full_range,
+                                                    Vector<int64_t> *r_skip_amounts) const
+{
+  BLI_assert(this->contained_in(full_range));
+  const Vector<IndexRange> ranges = this->extract_ranges();
+  Vector<IndexRange> inverted_ranges;
+
+  int64_t skip_amount = 0;
+  int64_t next_start = full_range.start();
+  for (const int64_t i : ranges.index_range()) {
+    const IndexRange range = ranges[i];
+    if (range.start() > next_start) {
+      inverted_ranges.append({next_start, range.start() - next_start});
+      if (r_skip_amounts != nullptr) {
+        r_skip_amounts->append(skip_amount);
+      }
+    }
+    next_start = range.one_after_last();
+    skip_amount += range.size();
+  }
+  if (next_start < full_range.one_after_last()) {
+    inverted_ranges.append({next_start, full_range.one_after_last() - next_start});
+    if (r_skip_amounts != nullptr) {
+      r_skip_amounts->append(skip_amount);
+    }
+  }
+  return inverted_ranges;
+}
+
 }  // namespace blender
+
+namespace blender::index_mask_ops {
+
+namespace detail {
+
+IndexMask find_indices_based_on_predicate__merge(
+    IndexMask indices_to_check,
+    threading::EnumerableThreadSpecific<Vector<Vector<int64_t>>> &sub_masks,
+    Vector<int64_t> &r_indices)
+{
+  /* Gather vectors that have been generated by possibly multiple threads. */
+  Vector<Vector<int64_t> *> all_vectors;
+  int64_t result_mask_size = 0;
+  for (Vector<Vector<int64_t>> &local_sub_masks : sub_masks) {
+    for (Vector<int64_t> &sub_mask : local_sub_masks) {
+      BLI_assert(!sub_mask.is_empty());
+      all_vectors.append(&sub_mask);
+      result_mask_size += sub_mask.size();
+    }
+  }
+
+  if (all_vectors.is_empty()) {
+    /* Special case when the predicate was false for all elements. */
+    return {};
+  }
+  if (result_mask_size == indices_to_check.size()) {
+    /* Special case when the predicate was true for all elements. */
+    return indices_to_check;
+  }
+  if (all_vectors.size() == 1) {
+    /* Special case when all indices for which the predicate is true happen to be in a single
+     * vector. */
+    r_indices = std::move(*all_vectors[0]);
+    return r_indices.as_span();
+  }
+
+  /* Indices in separate vectors don't overlap. So it is ok to sort the vectors just by looking at
+   * the first element. */
+  std::sort(all_vectors.begin(),
+            all_vectors.end(),
+            [](const Vector<int64_t> *a, const Vector<int64_t> *b) { return (*a)[0] < (*b)[0]; });
+
+  /* Precompute the offsets for the individual vectors, so that the indices can be copied into the
+   * final vector in parallel. */
+  Vector<int64_t> offsets;
+  offsets.reserve(all_vectors.size() + 1);
+  offsets.append(0);
+  for (Vector<int64_t> *vector : all_vectors) {
+    offsets.append(offsets.last() + vector->size());
+  }
+
+  r_indices.resize(result_mask_size);
+
+  /* Fill the final index mask in parallel again. */
+  threading::parallel_for(all_vectors.index_range(), 100, [&](const IndexRange all_vectors_range) {
+    for (const int64_t vector_index : all_vectors_range) {
+      Vector<int64_t> &vector = *all_vectors[vector_index];
+      const int64_t offset = offsets[vector_index];
+      threading::parallel_for(vector.index_range(), 1024, [&](const IndexRange range) {
+        initialized_copy_n(vector.data() + range.start(),
+                           range.size(),
+                           r_indices.data() + offset + range.start());
+      });
+    }
+  });
+
+  return r_indices.as_span();
+}
+
+}  // namespace detail
+
+IndexMask find_indices_from_virtual_array(const IndexMask indices_to_check,
+                                          const VArray<bool> &virtual_array,
+                                          const int64_t parallel_grain_size,
+                                          Vector<int64_t> &r_indices)
+{
+  if (virtual_array.is_single()) {
+    return virtual_array.get_internal_single() ? indices_to_check : IndexMask(0);
+  }
+  if (virtual_array.is_span()) {
+    const Span<bool> span = virtual_array.get_internal_span();
+    return find_indices_based_on_predicate(
+        indices_to_check, 4096, r_indices, [&](const int64_t i) { return span[i]; });
+  }
+
+  threading::EnumerableThreadSpecific<Vector<bool>> materialize_buffers;
+  threading::EnumerableThreadSpecific<Vector<Vector<int64_t>>> sub_masks;
+
+  threading::parallel_for(
+      indices_to_check.index_range(), parallel_grain_size, [&](const IndexRange range) {
+        const IndexMask sliced_mask = indices_to_check.slice(range);
+
+        /* To avoid virtual function call overhead from accessing the virtual array,
+         * materialize the necessary indices for this chunk into a reused buffer. */
+        Vector<bool> &buffer = materialize_buffers.local();
+        buffer.reinitialize(sliced_mask.size());
+        virtual_array.materialize_compressed(sliced_mask, buffer);
+
+        Vector<int64_t> masked_indices;
+        sliced_mask.to_best_mask_type([&](auto best_mask) {
+          for (const int64_t i : IndexRange(best_mask.size())) {
+            if (buffer[i]) {
+              masked_indices.append(best_mask[i]);
+            }
+          }
+        });
+        if (!masked_indices.is_empty()) {
+          sub_masks.local().append(std::move(masked_indices));
+        }
+      });
+
+  return detail::find_indices_based_on_predicate__merge(indices_to_check, sub_masks, r_indices);
+}
+
+}  // namespace blender::index_mask_ops

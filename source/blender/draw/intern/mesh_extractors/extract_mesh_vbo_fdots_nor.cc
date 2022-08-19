@@ -1,40 +1,25 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2021 by Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2021 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup draw
  */
 
-#include "extract_mesh.h"
+#include "extract_mesh.hh"
 
 namespace blender::draw {
 
 /* ---------------------------------------------------------------------- */
 /** \name Extract Face-dots Normal and edit flag
  * \{ */
+
 #define NOR_AND_FLAG_DEFAULT 0
 #define NOR_AND_FLAG_SELECT 1
 #define NOR_AND_FLAG_ACTIVE -1
 #define NOR_AND_FLAG_HIDDEN -2
 
 static void extract_fdots_nor_init(const MeshRenderData *mr,
-                                   struct MeshBatchCache *UNUSED(cache),
+                                   MeshBatchCache *UNUSED(cache),
                                    void *buf,
                                    void *UNUSED(tls_data))
 {
@@ -49,7 +34,7 @@ static void extract_fdots_nor_init(const MeshRenderData *mr,
 }
 
 static void extract_fdots_nor_finish(const MeshRenderData *mr,
-                                     struct MeshBatchCache *UNUSED(cache),
+                                     MeshBatchCache *UNUSED(cache),
                                      void *buf,
                                      void *UNUSED(data))
 {
@@ -63,8 +48,7 @@ static void extract_fdots_nor_finish(const MeshRenderData *mr,
     for (int f = 0; f < mr->poly_len; f++) {
       efa = BM_face_at_index(mr->bm, f);
       const bool is_face_hidden = BM_elem_flag_test(efa, BM_ELEM_HIDDEN);
-      if (is_face_hidden || (mr->extract_type == MR_EXTRACT_MAPPED && mr->p_origindex &&
-                             mr->p_origindex[f] == ORIGINDEX_NONE)) {
+      if (is_face_hidden || (mr->p_origindex && mr->p_origindex[f] == ORIGINDEX_NONE)) {
         nor[f] = GPU_normal_convert_i10_v3(invalid_normal);
         nor[f].w = NOR_AND_FLAG_HIDDEN;
       }
@@ -81,8 +65,7 @@ static void extract_fdots_nor_finish(const MeshRenderData *mr,
     for (int f = 0; f < mr->poly_len; f++) {
       efa = bm_original_face_get(mr, f);
       const bool is_face_hidden = efa && BM_elem_flag_test(efa, BM_ELEM_HIDDEN);
-      if (is_face_hidden || (mr->extract_type == MR_EXTRACT_MAPPED && mr->p_origindex &&
-                             mr->p_origindex[f] == ORIGINDEX_NONE)) {
+      if (is_face_hidden || (mr->p_origindex && mr->p_origindex[f] == ORIGINDEX_NONE)) {
         nor[f] = GPU_normal_convert_i10_v3(invalid_normal);
         nor[f].w = NOR_AND_FLAG_HIDDEN;
       }
@@ -114,8 +97,9 @@ constexpr MeshExtract create_extractor_fdots_nor()
 /* ---------------------------------------------------------------------- */
 /** \name Extract Face-dots High Quality Normal and edit flag
  * \{ */
+
 static void extract_fdots_nor_hq_init(const MeshRenderData *mr,
-                                      struct MeshBatchCache *UNUSED(cache),
+                                      MeshBatchCache *UNUSED(cache),
                                       void *buf,
                                       void *UNUSED(tls_data))
 {
@@ -130,7 +114,7 @@ static void extract_fdots_nor_hq_init(const MeshRenderData *mr,
 }
 
 static void extract_fdots_nor_hq_finish(const MeshRenderData *mr,
-                                        struct MeshBatchCache *UNUSED(cache),
+                                        MeshBatchCache *UNUSED(cache),
                                         void *buf,
                                         void *UNUSED(data))
 {
@@ -144,8 +128,7 @@ static void extract_fdots_nor_hq_finish(const MeshRenderData *mr,
     for (int f = 0; f < mr->poly_len; f++) {
       efa = BM_face_at_index(mr->bm, f);
       const bool is_face_hidden = BM_elem_flag_test(efa, BM_ELEM_HIDDEN);
-      if (is_face_hidden || (mr->extract_type == MR_EXTRACT_MAPPED && mr->p_origindex &&
-                             mr->p_origindex[f] == ORIGINDEX_NONE)) {
+      if (is_face_hidden || (mr->p_origindex && mr->p_origindex[f] == ORIGINDEX_NONE)) {
         normal_float_to_short_v3(&nor[f * 4], invalid_normal);
         nor[f * 4 + 3] = NOR_AND_FLAG_HIDDEN;
       }
@@ -162,8 +145,7 @@ static void extract_fdots_nor_hq_finish(const MeshRenderData *mr,
     for (int f = 0; f < mr->poly_len; f++) {
       efa = bm_original_face_get(mr, f);
       const bool is_face_hidden = efa && BM_elem_flag_test(efa, BM_ELEM_HIDDEN);
-      if (is_face_hidden || (mr->extract_type == MR_EXTRACT_MAPPED && mr->p_origindex &&
-                             mr->p_origindex[f] == ORIGINDEX_NONE)) {
+      if (is_face_hidden || (mr->p_origindex && mr->p_origindex[f] == ORIGINDEX_NONE)) {
         normal_float_to_short_v3(&nor[f * 4], invalid_normal);
         nor[f * 4 + 3] = NOR_AND_FLAG_HIDDEN;
       }
@@ -194,7 +176,5 @@ constexpr MeshExtract create_extractor_fdots_nor_hq()
 
 }  // namespace blender::draw
 
-extern "C" {
 const MeshExtract extract_fdots_nor = blender::draw::create_extractor_fdots_nor();
 const MeshExtract extract_fdots_nor_hq = blender::draw::create_extractor_fdots_nor_hq();
-}

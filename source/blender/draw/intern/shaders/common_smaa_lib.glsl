@@ -569,7 +569,7 @@ SamplerState PointSampler
 #    define SMAAGather(tex, coord) tex.Gather(LinearSampler, coord, 0)
 #  endif
 #endif
-#if defined(SMAA_GLSL_3) || defined(SMAA_GLSL_4)
+#if defined(SMAA_GLSL_3) || defined(SMAA_GLSL_4) || defined(GPU_METAL)
 #  define SMAATexture2D(tex) sampler2D tex
 #  define SMAATexturePass2D(tex) tex
 #  define SMAASampleLevelZero(tex, coord) textureLod(tex, coord, 0.0)
@@ -641,14 +641,14 @@ float2 SMAACalculatePredicatedThreshold(float2 texcoord,
  */
 void SMAAMovc(bool2 cond, inout float2 variable, float2 value)
 {
-  SMAA_FLATTEN if (cond.x) variable.x = value.x;
-  SMAA_FLATTEN if (cond.y) variable.y = value.y;
+  /* Use select function (select(genType A, genType B, genBType cond)). */
+  variable = select(variable, value, cond);
 }
 
 void SMAAMovc(bool4 cond, inout float4 variable, float4 value)
 {
-  SMAAMovc(cond.xy, variable.xy, value.xy);
-  SMAAMovc(cond.zw, variable.zw, value.zw);
+  /* Use select function (select(genType A, genType B, genBType cond)). */
+  variable = select(variable, value, cond);
 }
 
 #if SMAA_INCLUDE_VS
@@ -736,9 +736,11 @@ float2 SMAALumaEdgeDetectionPS(float2 texcoord,
   float2 edges = step(threshold, delta.xy);
 
 #  ifndef SMAA_NO_DISCARD
+#    ifdef GPU_FRAGMENT_SHADER
   // Then discard if there is no edge:
   if (dot(edges, float2(1.0, 1.0)) == 0.0)
     discard;
+#    endif
 #  endif
 
   // Calculate right and bottom deltas:
@@ -804,9 +806,11 @@ float2 SMAAColorEdgeDetectionPS(float2 texcoord,
   float2 edges = step(threshold, delta.xy);
 
 #  ifndef SMAA_NO_DISCARD
+#    ifdef GPU_FRAGMENT_SHADER
   // Then discard if there is no edge:
   if (dot(edges, float2(1.0, 1.0)) == 0.0)
     discard;
+#    endif
 #  endif
 
   // Calculate right and bottom deltas:
@@ -851,8 +855,10 @@ float2 SMAADepthEdgeDetectionPS(float2 texcoord, float4 offset[3], SMAATexture2D
   float2 delta = abs(neighbours.xx - float2(neighbours.y, neighbours.z));
   float2 edges = step(SMAA_DEPTH_THRESHOLD, delta);
 
+#  ifdef GPU_FRAGMENT_SHADER
   if (dot(edges, float2(1.0, 1.0)) == 0.0)
     discard;
+#  endif
 
   return edges;
 }
@@ -1275,7 +1281,15 @@ float4 SMAABlendingWeightCalculationPS(float2 texcoord,
 
       // Fix corners:
       coords.y = texcoord.y;
-      SMAADetectHorizontalCornerPattern(SMAATexturePass2D(edgesTex), weights.rg, coords.xyzy, d);
+
+#  ifdef GPU_METAL
+      /* Partial vector references are unsupported in MSL. */
+      vec2 _weights = weights.rg;
+      SMAADetectHorizontalCornerPattern(SMAATexturePass2D(edgesTex), _weights, coords.xyzy, d);
+      weights.rg = _weights;
+#  else
+    SMAADetectHorizontalCornerPattern(SMAATexturePass2D(edgesTex), weights.rg, coords.xyzy, d);
+#  endif
 
 #  if !defined(SMAA_DISABLE_DIAG_DETECTION)
     }
@@ -1318,7 +1332,15 @@ float4 SMAABlendingWeightCalculationPS(float2 texcoord,
 
     // Fix corners:
     coords.x = texcoord.x;
+
+#  ifdef GPU_METAL
+    /* Partial vector references are unsupported in MSL. */
+    vec2 _weights = weights.ba;
+    SMAADetectVerticalCornerPattern(SMAATexturePass2D(edgesTex), _weights, coords.xyxz, d);
+    weights.ba = _weights;
+#  else
     SMAADetectVerticalCornerPattern(SMAATexturePass2D(edgesTex), weights.ba, coords.xyxz, d);
+#  endif
   }
 
   return weights;

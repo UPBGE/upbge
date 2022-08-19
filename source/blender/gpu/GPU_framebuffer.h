@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2005 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2005 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup gpu
@@ -30,6 +14,7 @@
 
 #pragma once
 
+#include "GPU_common_types.h"
 #include "GPU_texture.h"
 
 typedef enum eGPUFrameBufferBits {
@@ -62,13 +47,57 @@ typedef struct GPUOffScreen GPUOffScreen;
 GPUFrameBuffer *GPU_framebuffer_create(const char *name);
 void GPU_framebuffer_free(GPUFrameBuffer *fb);
 void GPU_framebuffer_bind(GPUFrameBuffer *fb);
+/**
+ * Workaround for binding a SRGB frame-buffer without doing the SRGB transform.
+ */
 void GPU_framebuffer_bind_no_srgb(GPUFrameBuffer *fb);
 void GPU_framebuffer_restore(void);
+
+/* Advanced binding control. */
+typedef struct GPULoadStore {
+  eGPULoadOp load_action;
+  eGPUStoreOp store_action;
+} GPULoadStore;
+#define NULL_LOAD_STORE \
+  { \
+    GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_DONT_CARE \
+  }
+
+/* Load store config array (load_store_actions) matches attachment structure of
+ * GPU_framebuffer_config_array. This allows us to explicitly specify whether attachment data needs
+ * to be loaded and stored on a per-attachment basis. This enables a number of bandwidth
+ * optimizations:
+ *  - No need to load contents if subsequent work is over-writing every pixel.
+ *  - No need to store attachments whose contents are not used beyond this pass e.g. depth buffer.
+ *  - State can be customized at bind-time rather than applying to the frame-buffer object as a
+ * whole.
+ *
+ * Example:
+ * \code{.c}
+ * GPU_framebuffer_bind_loadstore(&fb, {
+ *         {GPU_LOADACTION_LOAD, GPU_STOREACTION_DONT_CARE} // must be depth buffer
+ *         {GPU_LOADACTION_LOAD, GPU_STOREACTION_STORE}, // Color attachment 0
+ *         {GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_STORE}, // Color attachment 1
+ *         {GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_STORE} // Color attachment 2
+ * })
+ * \encode
+ */
+void GPU_framebuffer_bind_loadstore(GPUFrameBuffer *fb,
+                                    const GPULoadStore *load_store_actions,
+                                    uint actions_len);
+#define GPU_framebuffer_bind_ex(_fb, ...) \
+  { \
+    GPULoadStore actions[] = __VA_ARGS__; \
+    GPU_framebuffer_bind_loadstore(_fb, actions, (sizeof(actions) / sizeof(GPULoadStore))); \
+  }
 
 bool GPU_framebuffer_bound(GPUFrameBuffer *fb);
 bool GPU_framebuffer_check_valid(GPUFrameBuffer *fb, char err_out[256]);
 
 GPUFrameBuffer *GPU_framebuffer_active_get(void);
+/**
+ * Returns the default frame-buffer. Will always exists even if it's just a dummy.
+ */
 GPUFrameBuffer *GPU_framebuffer_back_get(void);
 
 #define GPU_FRAMEBUFFER_FREE_SAFE(fb) \
@@ -113,6 +142,12 @@ void GPU_framebuffer_texture_detach(GPUFrameBuffer *fb, struct GPUTexture *tex);
     GPU_framebuffer_config_array(*(_fb), config, (sizeof(config) / sizeof(GPUAttachment))); \
   } while (0)
 
+/**
+ * First #GPUAttachment in *config is always the depth/depth_stencil buffer.
+ * Following #GPUAttachments are color buffers.
+ * Setting #GPUAttachment.mip to -1 will leave the texture in this slot.
+ * Setting #GPUAttachment.tex to NULL will detach the texture in this slot.
+ */
 void GPU_framebuffer_config_array(GPUFrameBuffer *fb, const GPUAttachment *config, int config_len);
 
 #define GPU_ATTACHMENT_NONE \
@@ -156,8 +191,16 @@ void GPU_framebuffer_texture_cubeface_attach(
 
 /* Frame-buffer operations. */
 
+/**
+ * Viewport and scissor size is stored per frame-buffer.
+ * It is only reset to its original dimensions explicitly OR when binding the frame-buffer after
+ * modifying its attachments.
+ */
 void GPU_framebuffer_viewport_set(GPUFrameBuffer *fb, int x, int y, int w, int h);
 void GPU_framebuffer_viewport_get(GPUFrameBuffer *fb, int r_viewport[4]);
+/**
+ * Reset to its attachment(s) size.
+ */
 void GPU_framebuffer_viewport_reset(GPUFrameBuffer *fb);
 
 void GPU_framebuffer_clear(GPUFrameBuffer *fb,
@@ -184,6 +227,9 @@ void GPU_framebuffer_clear(GPUFrameBuffer *fb,
 #define GPU_framebuffer_clear_color_depth_stencil(fb, col, depth, stencil) \
   GPU_framebuffer_clear(fb, GPU_COLOR_BIT | GPU_DEPTH_BIT | GPU_STENCIL_BIT, col, depth, stencil)
 
+/**
+ * Clear all textures attached to this frame-buffer with a different color.
+ */
 void GPU_framebuffer_multi_clear(GPUFrameBuffer *fb, const float (*clear_cols)[4]);
 
 void GPU_framebuffer_read_depth(
@@ -198,6 +244,9 @@ void GPU_framebuffer_read_color(GPUFrameBuffer *fb,
                                 eGPUDataFormat format,
                                 void *data);
 
+/**
+ * Read_slot and write_slot are only used for color buffers.
+ */
 void GPU_framebuffer_blit(GPUFrameBuffer *fb_read,
                           int read_slot,
                           GPUFrameBuffer *fb_write,
@@ -218,6 +267,15 @@ void GPU_framebuffer_push(GPUFrameBuffer *fb);
 GPUFrameBuffer *GPU_framebuffer_pop(void);
 uint GPU_framebuffer_stack_level_get(void);
 
+/********************UPBGE*******************/
+void GPU_framebuffer_bind_all_attachments(GPUFrameBuffer *fb);
+int GPU_framebuffer_color_bindcode(GPUFrameBuffer *fb);
+struct GPUTexture *GPU_framebuffer_color_texture(GPUFrameBuffer *fb);
+struct GPUTexture *GPU_framebuffer_depth_texture(GPUFrameBuffer *fb);
+void GPU_framebuffer_mipmap_texture(GPUFrameBuffer *fb);
+void GPU_framebuffer_unmipmap_texture(GPUFrameBuffer *fb);
+/****************End of UPBGE****************/
+
 /* GPU OffScreen
  * - wrapper around frame-buffer and texture for simple off-screen drawing
  */
@@ -233,6 +291,9 @@ int GPU_offscreen_width(const GPUOffScreen *ofs);
 int GPU_offscreen_height(const GPUOffScreen *ofs);
 struct GPUTexture *GPU_offscreen_color_texture(const GPUOffScreen *ofs);
 
+/**
+ * \note only to be used by viewport code!
+ */
 void GPU_offscreen_viewport_data_get(GPUOffScreen *ofs,
                                      GPUFrameBuffer **r_fb,
                                      struct GPUTexture **r_color,

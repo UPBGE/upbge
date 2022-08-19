@@ -1,27 +1,16 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
+#include <functional>
 #include <type_traits>
 
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
 #include "DNA_node_types.h"
+
+struct bNode;
 
 namespace blender::nodes {
 
@@ -84,15 +73,31 @@ class SocketDeclaration {
   std::string name_;
   std::string identifier_;
   std::string description_;
+  /** Defined by whether the socket is part of the node's input or
+   * output socket declaration list. Included here for convenience. */
+  eNodeSocketInOut in_out_;
   bool hide_label_ = false;
   bool hide_value_ = false;
+  bool compact_ = false;
   bool is_multi_input_ = false;
   bool no_mute_links_ = false;
+  bool is_unavailable_ = false;
   bool is_attribute_name_ = false;
   bool is_default_link_socket_ = false;
 
   InputSocketFieldType input_field_type_ = InputSocketFieldType::None;
   OutputFieldDependency output_field_dependency_;
+
+  /** The priority of the input for determining the domain of the node. See
+   * realtime_compositor::InputDescriptor for more information. */
+  int compositor_domain_priority_ = 0;
+
+  /** This input expects a single value and can't operate on non-single values. See
+   * realtime_compositor::InputDescriptor for more information. */
+  bool compositor_expects_single_value_ = false;
+
+  /** Utility method to make the socket available if there is a straightforward way to do so. */
+  std::function<void(bNode &)> make_available_fn_;
 
   friend NodeDeclarationBuilder;
   template<typename SocketDecl> friend class SocketDeclarationBuilder;
@@ -100,18 +105,35 @@ class SocketDeclaration {
  public:
   virtual ~SocketDeclaration() = default;
 
-  virtual bNodeSocket &build(bNodeTree &ntree, bNode &node, eNodeSocketInOut in_out) const = 0;
+  virtual bNodeSocket &build(bNodeTree &ntree, bNode &node) const = 0;
   virtual bool matches(const bNodeSocket &socket) const = 0;
   virtual bNodeSocket &update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &socket) const;
+
+  /**
+   * Determine if a new socket described by this declaration could have a valid connection
+   * the other socket.
+   */
+  virtual bool can_connect(const bNodeSocket &socket) const = 0;
+
+  /**
+   * Change the node such that the socket will become visible. The node type's update method
+   * should be called afterwards.
+   * \note this is not necessarily implemented for all node types.
+   */
+  void make_available(bNode &node) const;
 
   StringRefNull name() const;
   StringRefNull description() const;
   StringRefNull identifier() const;
+  eNodeSocketInOut in_out() const;
   bool is_attribute_name() const;
   bool is_default_link_socket() const;
 
   InputSocketFieldType input_field_type() const;
   const OutputFieldDependency &output_field_dependency() const;
+
+  int compositor_domain_priority() const;
+  bool compositor_expects_single_value() const;
 
  protected:
   void set_common_flags(bNodeSocket &socket) const;
@@ -161,9 +183,20 @@ class SocketDeclarationBuilder : public BaseSocketDeclarationBuilder {
     decl_->description_ = std::move(value);
     return *(Self *)this;
   }
+
   Self &no_muted_links(bool value = true)
   {
     decl_->no_mute_links_ = value;
+    return *(Self *)this;
+  }
+
+  /**
+   * Used for sockets that are always unavailable and should not be seen by the user.
+   * Ideally, no new calls to this method should be added over time.
+   */
+  Self &unavailable(bool value = true)
+  {
+    decl_->is_unavailable_ = value;
     return *(Self *)this;
   }
 
@@ -215,6 +248,34 @@ class SocketDeclarationBuilder : public BaseSocketDeclarationBuilder {
         std::move(input_dependencies));
     return *(Self *)this;
   }
+
+  /** The priority of the input for determining the domain of the node. See
+   * realtime_compositor::InputDescriptor for more information. */
+  Self &compositor_domain_priority(int priority)
+  {
+    decl_->compositor_domain_priority_ = priority;
+    return *(Self *)this;
+  }
+
+  /** This input expects a single value and can't operate on non-single values. See
+   * realtime_compositor::InputDescriptor for more information. */
+  Self &compositor_expects_single_value(bool value = true)
+  {
+    decl_->compositor_expects_single_value_ = value;
+    return *(Self *)this;
+  }
+
+  /**
+   * Pass a function that sets properties on the node required to make the corresponding socket
+   * available, if it is not available on the default state of the node. The function is allowed to
+   * make other sockets unavailable, since it is meant to be called when the node is first added.
+   * The node type's update function is called afterwards.
+   */
+  Self &make_available(std::function<void(bNode &)> fn)
+  {
+    decl_->make_available_fn_ = std::move(fn);
+    return *(Self *)this;
+  }
 };
 
 using SocketDeclarationPtr = std::unique_ptr<SocketDeclaration>;
@@ -228,11 +289,11 @@ class NodeDeclaration {
   friend NodeDeclarationBuilder;
 
  public:
-  void build(bNodeTree &ntree, bNode &node) const;
   bool matches(const bNode &node) const;
 
   Span<SocketDeclarationPtr> inputs() const;
   Span<SocketDeclarationPtr> outputs() const;
+  Span<SocketDeclarationPtr> sockets(eNodeSocketInOut in_out) const;
 
   bool is_function_node() const
   {
@@ -252,10 +313,13 @@ class NodeDeclarationBuilder {
 
   /**
    * All inputs support fields, and all outputs are fields if any of the inputs is a field.
-   * Calling field status definitions on each socket is unnecessary.
+   * Calling field status definitions on each socket is unnecessary. Must be called before adding
+   * any sockets.
    */
   void is_function_node(bool value = true)
   {
+    BLI_assert_msg(declaration_.inputs().is_empty() && declaration_.outputs().is_empty(),
+                   "is_function_node() must be called before any socket is created");
     declaration_.is_function_node_ = value;
   }
 
@@ -268,7 +332,7 @@ class NodeDeclarationBuilder {
   template<typename DeclType>
   typename DeclType::Builder &add_socket(StringRef name,
                                          StringRef identifier,
-                                         Vector<SocketDeclarationPtr> &r_decls);
+                                         eNodeSocketInOut in_out);
 };
 
 /* -------------------------------------------------------------------- */
@@ -361,6 +425,11 @@ inline StringRefNull SocketDeclaration::identifier() const
   return identifier_;
 }
 
+inline eNodeSocketInOut SocketDeclaration::in_out() const
+{
+  return in_out_;
+}
+
 inline StringRefNull SocketDeclaration::description() const
 {
   return description_;
@@ -386,6 +455,23 @@ inline const OutputFieldDependency &SocketDeclaration::output_field_dependency()
   return output_field_dependency_;
 }
 
+inline int SocketDeclaration::compositor_domain_priority() const
+{
+  return compositor_domain_priority_;
+}
+
+inline bool SocketDeclaration::compositor_expects_single_value() const
+{
+  return compositor_expects_single_value_;
+}
+
+inline void SocketDeclaration::make_available(bNode &node) const
+{
+  if (make_available_fn_) {
+    make_available_fn_(node);
+  }
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -401,28 +487,38 @@ template<typename DeclType>
 inline typename DeclType::Builder &NodeDeclarationBuilder::add_input(StringRef name,
                                                                      StringRef identifier)
 {
-  return this->add_socket<DeclType>(name, identifier, declaration_.inputs_);
+  return this->add_socket<DeclType>(name, identifier, SOCK_IN);
 }
 
 template<typename DeclType>
 inline typename DeclType::Builder &NodeDeclarationBuilder::add_output(StringRef name,
                                                                       StringRef identifier)
 {
-  return this->add_socket<DeclType>(name, identifier, declaration_.outputs_);
+  return this->add_socket<DeclType>(name, identifier, SOCK_OUT);
 }
 
 template<typename DeclType>
-inline typename DeclType::Builder &NodeDeclarationBuilder::add_socket(
-    StringRef name, StringRef identifier, Vector<SocketDeclarationPtr> &r_decls)
+inline typename DeclType::Builder &NodeDeclarationBuilder::add_socket(StringRef name,
+                                                                      StringRef identifier,
+                                                                      eNodeSocketInOut in_out)
 {
   static_assert(std::is_base_of_v<SocketDeclaration, DeclType>);
   using Builder = typename DeclType::Builder;
+
+  Vector<SocketDeclarationPtr> &declarations = in_out == SOCK_IN ? declaration_.inputs_ :
+                                                                   declaration_.outputs_;
+
   std::unique_ptr<DeclType> socket_decl = std::make_unique<DeclType>();
   std::unique_ptr<Builder> socket_decl_builder = std::make_unique<Builder>();
   socket_decl_builder->decl_ = &*socket_decl;
   socket_decl->name_ = name;
   socket_decl->identifier_ = identifier.is_empty() ? name : identifier;
-  r_decls.append(std::move(socket_decl));
+  socket_decl->in_out_ = in_out;
+  if (declaration_.is_function_node()) {
+    socket_decl->input_field_type_ = InputSocketFieldType::IsSupported;
+    socket_decl->output_field_dependency_ = OutputFieldDependency::ForDependentField();
+  }
+  declarations.append(std::move(socket_decl));
   Builder &socket_decl_builder_ref = *socket_decl_builder;
   builders_.append(std::move(socket_decl_builder));
   return socket_decl_builder_ref;
@@ -441,6 +537,14 @@ inline Span<SocketDeclarationPtr> NodeDeclaration::inputs() const
 
 inline Span<SocketDeclarationPtr> NodeDeclaration::outputs() const
 {
+  return outputs_;
+}
+
+inline Span<SocketDeclarationPtr> NodeDeclaration::sockets(eNodeSocketInOut in_out) const
+{
+  if (in_out == SOCK_IN) {
+    return inputs_;
+  }
   return outputs_;
 }
 

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2020 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2020 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup gpu
@@ -43,8 +27,9 @@ typedef enum GPUAttachmentType : int {
   GPU_FB_COLOR_ATTACHMENT3,
   GPU_FB_COLOR_ATTACHMENT4,
   GPU_FB_COLOR_ATTACHMENT5,
-  /* Number of maximum output slots.
-   * We support 6 outputs for now (usually we wouldn't need more to preserve fill rate). */
+  GPU_FB_COLOR_ATTACHMENT6,
+  GPU_FB_COLOR_ATTACHMENT7,
+  /* Number of maximum output slots. */
   /* Keep in mind that GL max is GL_MAX_DRAW_BUFFERS and is at least 8, corresponding to
    * the maximum number of COLOR attachments specified by glDrawBuffers. */
   GPU_FB_MAX_ATTACHMENT,
@@ -129,6 +114,10 @@ class FrameBuffer {
                                 eGPUDataFormat data_format,
                                 const void *clear_value) = 0;
 
+  virtual void attachment_set_loadstore_op(GPUAttachmentType type,
+                                           eGPULoadOp load_action,
+                                           eGPUStoreOp store_action) = 0;
+
   virtual void read(eGPUFrameBufferBits planes,
                     eGPUDataFormat format,
                     const int area[4],
@@ -143,12 +132,15 @@ class FrameBuffer {
                        int dst_offset_x,
                        int dst_offset_y) = 0;
 
+  void load_store_config_array(const GPULoadStore *load_store_actions, uint actions_len);
+
   void attachment_set(GPUAttachmentType type, const GPUAttachment &new_attachment);
   void attachment_remove(GPUAttachmentType type);
 
   void recursive_downsample(int max_lvl,
                             void (*callback)(void *userData, int level),
                             void *userData);
+  uint get_bits_per_pixel();
 
   inline void size_set(int width, int height)
   {
@@ -188,24 +180,24 @@ class FrameBuffer {
     copy_v4_v4_int(r_scissor, scissor_);
   }
 
-  inline bool scissor_test_get(void) const
+  inline bool scissor_test_get() const
   {
     return scissor_test_;
   }
 
-  inline void viewport_reset(void)
+  inline void viewport_reset()
   {
     int viewport_rect[4] = {0, 0, width_, height_};
     viewport_set(viewport_rect);
   }
 
-  inline void scissor_reset(void)
+  inline void scissor_reset()
   {
     int scissor_rect[4] = {0, 0, width_, height_};
     scissor_set(scissor_rect);
   }
 
-  inline GPUTexture *depth_tex(void) const
+  inline GPUTexture *depth_tex() const
   {
     if (attachments_[GPU_FB_DEPTH_ATTACHMENT].tex) {
       return attachments_[GPU_FB_DEPTH_ATTACHMENT].tex;
@@ -217,6 +209,8 @@ class FrameBuffer {
   {
     return attachments_[GPU_FB_COLOR_ATTACHMENT0 + slot].tex;
   };
+
+  virtual int get_bindcode() = 0;  // UPBGE
 };
 
 /* Syntactic sugar. */

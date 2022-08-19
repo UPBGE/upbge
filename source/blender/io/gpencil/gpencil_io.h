@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2020 Blender Foundation
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2020 Blender Foundation. All rights reserved. */
 #pragma once
 
 /** \file
@@ -51,6 +35,8 @@ typedef struct GpencilIOParams {
   /** Stroke sampling factor. */
   float stroke_sample;
   int32_t resolution;
+  /** Filename to be used in new objects. */
+  char filename[128];
 } GpencilIOParams;
 
 /* GpencilIOParams->flag. */
@@ -82,10 +68,17 @@ typedef enum eGpencilExportSelect {
 typedef enum eGpencilExportFrame {
   GP_EXPORT_FRAME_ACTIVE = 0,
   GP_EXPORT_FRAME_SELECTED = 1,
+  GP_EXPORT_FRAME_SCENE = 2,
 } eGpencilExportFrame;
 
-bool gpencil_io_export(const char *filename, struct GpencilIOParams *iparams);
-bool gpencil_io_import(const char *filename, struct GpencilIOParams *iparams);
+/**
+ * Main export entry point function.
+ */
+bool gpencil_io_export(const char *filepath, struct GpencilIOParams *iparams);
+/**
+ * Main import entry point function.
+ */
+bool gpencil_io_import(const char *filepath, struct GpencilIOParams *iparams);
 
 #ifdef __cplusplus
 }

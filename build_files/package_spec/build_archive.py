@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-
-# <pep8 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 import os
 import shutil

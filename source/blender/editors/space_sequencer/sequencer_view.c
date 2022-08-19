@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2012 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2012 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup spseq
@@ -28,6 +12,7 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_context.h"
+#include "BKE_scene.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -36,15 +21,16 @@
 
 #include "UI_view2d.h"
 
-#include "RNA_define.h"
-
+#include "SEQ_iterator.h"
 #include "SEQ_select.h"
 #include "SEQ_sequencer.h"
 #include "SEQ_time.h"
+#include "SEQ_transform.h"
 
 /* For menu, popup, icons, etc. */
 #include "ED_anim_api.h"
 #include "ED_screen.h"
+#include "ED_time_scrub_ui.h"
 #include "ED_util_imbuf.h"
 
 /* Own include. */
@@ -99,7 +85,17 @@ static int sequencer_view_all_exec(bContext *C, wmOperator *op)
     box.xmin = ms->disp_range[0] - 1;
     box.xmax = ms->disp_range[1] + 1;
   }
-  SEQ_timeline_expand_boundbox(SEQ_active_seqbase_get(ed), &box);
+  SEQ_timeline_expand_boundbox(scene, SEQ_active_seqbase_get(ed), &box);
+
+  View2D *v2d = &region->v2d;
+  rcti scrub_rect;
+  ED_time_scrub_region_rect_get(region, &scrub_rect);
+  const float pixel_view_size_y = BLI_rctf_size_y(&v2d->cur) / BLI_rcti_size_y(&v2d->mask);
+  const float scrub_bar_height = BLI_rcti_size_y(&scrub_rect) * pixel_view_size_y;
+
+  /* Channel n has range of <n, n+1>. */
+  box.ymax += 1.0f + scrub_bar_height;
+
   UI_view2d_smooth_view(C, region, &box, smooth_viewtx);
   return OPERATOR_FINISHED;
 }
@@ -179,8 +175,7 @@ static int sequencer_view_all_preview_exec(bContext *C, wmOperator *UNUSED(op))
 
   seq_reset_imageofs(sseq);
 
-  imgwidth = (scene->r.size * scene->r.xsch) / 100;
-  imgheight = (scene->r.size * scene->r.ysch) / 100;
+  BKE_render_resolution(&scene->r, false, &imgwidth, &imgheight);
 
   /* Apply aspect, doesn't need to be that accurate. */
   imgwidth = (int)(imgwidth * (scene->r.xasp / scene->r.yasp));
@@ -232,11 +227,11 @@ static int sequencer_view_zoom_ratio_exec(bContext *C, wmOperator *op)
 
   float ratio = RNA_float_get(op->ptr, "ratio");
 
-  float winx = (int)(rd->size * rd->xsch) / 100;
-  float winy = (int)(rd->size * rd->ysch) / 100;
+  int winx, winy;
+  BKE_render_resolution(rd, false, &winx, &winy);
 
-  float facx = BLI_rcti_size_x(&v2d->mask) / winx;
-  float facy = BLI_rcti_size_y(&v2d->mask) / winy;
+  float facx = BLI_rcti_size_x(&v2d->mask) / (float)winx;
+  float facy = BLI_rcti_size_y(&v2d->mask) / (float)winy;
 
   BLI_rctf_resize(&v2d->cur, ceilf(winx * facx / ratio + 0.5f), ceilf(winy * facy / ratio + 0.5f));
 
@@ -276,14 +271,30 @@ void SEQUENCER_OT_view_zoom_ratio(wmOperatorType *ot)
 /** \name Frame Selected Operator
  * \{ */
 
-static int sequencer_view_selected_exec(bContext *C, wmOperator *op)
+static void seq_view_collection_rect_preview(Scene *scene, SeqCollection *strips, rctf *rect)
 {
-  Scene *scene = CTX_data_scene(C);
-  View2D *v2d = UI_view2d_fromcontext(C);
-  ARegion *region = CTX_wm_region(C);
-  Editing *ed = SEQ_editing_get(scene);
+  float min[2], max[2];
+  SEQ_image_transform_bounding_box_from_collection(scene, strips, true, min, max);
+
+  rect->xmin = min[0];
+  rect->xmax = max[0];
+  rect->ymin = min[1];
+  rect->ymax = max[1];
+
+  float minsize = min_ff(BLI_rctf_size_x(rect), BLI_rctf_size_y(rect));
+
+  /* If the size of the strip is smaller than a pixel, add padding to prevent division by zero. */
+  if (minsize < 1.0f) {
+    BLI_rctf_pad(rect, 20.0f, 20.0f);
+  }
+
+  /* Add padding. */
+  BLI_rctf_scale(rect, 1.1f);
+}
+
+static void seq_view_collection_rect_timeline(Scene *scene, SeqCollection *strips, rctf *rect)
+{
   Sequence *seq;
-  rctf cur_new = v2d->cur;
 
   int xmin = MAXFRAME * 2;
   int xmax = -MAXFRAME * 2;
@@ -294,49 +305,63 @@ static int sequencer_view_selected_exec(bContext *C, wmOperator *op)
   int ymargin = 1;
   int xmargin = FPS;
 
-  if (ed == NULL) {
+  SEQ_ITERATOR_FOREACH (seq, strips) {
+    xmin = min_ii(xmin, SEQ_time_left_handle_frame_get(scene, seq));
+    xmax = max_ii(xmax, SEQ_time_right_handle_frame_get(scene, seq));
+
+    ymin = min_ii(ymin, seq->machine);
+    ymax = max_ii(ymax, seq->machine);
+  }
+
+  xmax += xmargin;
+  xmin -= xmargin;
+  ymax += ymargin;
+  ymin -= ymargin;
+
+  orig_height = BLI_rctf_size_y(rect);
+
+  rect->xmin = xmin;
+  rect->xmax = xmax;
+
+  rect->ymin = ymin;
+  rect->ymax = ymax;
+
+  /* Only zoom out vertically. */
+  if (orig_height > BLI_rctf_size_y(rect)) {
+    ymid = BLI_rctf_cent_y(rect);
+
+    rect->ymin = ymid - (orig_height / 2);
+    rect->ymax = ymid + (orig_height / 2);
+  }
+}
+
+static int sequencer_view_selected_exec(bContext *C, wmOperator *op)
+{
+  Scene *scene = CTX_data_scene(C);
+  ARegion *region = CTX_wm_region(C);
+  SeqCollection *strips = selected_strips_from_context(C);
+  View2D *v2d = UI_view2d_fromcontext(C);
+  rctf cur_new = v2d->cur;
+
+  if (SEQ_collection_len(strips) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  for (seq = ed->seqbasep->first; seq; seq = seq->next) {
-    if (seq->flag & SELECT) {
-      xmin = min_ii(xmin, seq->startdisp);
-      xmax = max_ii(xmax, seq->enddisp);
-
-      ymin = min_ii(ymin, seq->machine);
-      ymax = max_ii(ymax, seq->machine);
-    }
+  if (sequencer_view_has_preview_poll(C) && !sequencer_view_preview_only_poll(C)) {
+    return OPERATOR_CANCELLED;
   }
 
-  if (ymax != 0) {
-    const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
-
-    xmax += xmargin;
-    xmin -= xmargin;
-    ymax += ymargin;
-    ymin -= ymargin;
-
-    orig_height = BLI_rctf_size_y(&cur_new);
-
-    cur_new.xmin = xmin;
-    cur_new.xmax = xmax;
-
-    cur_new.ymin = ymin;
-    cur_new.ymax = ymax;
-
-    /* Only zoom out vertically. */
-    if (orig_height > BLI_rctf_size_y(&cur_new)) {
-      ymid = BLI_rctf_cent_y(&cur_new);
-
-      cur_new.ymin = ymid - (orig_height / 2);
-      cur_new.ymax = ymid + (orig_height / 2);
-    }
-
-    UI_view2d_smooth_view(C, region, &cur_new, smooth_viewtx);
-
-    return OPERATOR_FINISHED;
+  if (region && region->regiontype == RGN_TYPE_PREVIEW) {
+    seq_view_collection_rect_preview(scene, strips, &cur_new);
   }
-  return OPERATOR_CANCELLED;
+  else {
+    seq_view_collection_rect_timeline(scene, strips, &cur_new);
+  }
+
+  const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+  UI_view2d_smooth_view(C, region, &cur_new, smooth_viewtx);
+
+  return OPERATOR_FINISHED;
 }
 
 void SEQUENCER_OT_view_selected(wmOperatorType *ot)
@@ -348,7 +373,7 @@ void SEQUENCER_OT_view_selected(wmOperatorType *ot)
 
   /* Api callbacks. */
   ot->exec = sequencer_view_selected_exec;
-  ot->poll = ED_operator_sequencer_active;
+  ot->poll = sequencer_editing_initialized_and_active;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER;

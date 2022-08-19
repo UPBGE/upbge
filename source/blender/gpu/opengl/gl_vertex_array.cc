@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2016 by Mike Erwin.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2016 by Mike Erwin. All rights reserved. */
 
 /** \file
  * \ingroup gpu
@@ -23,7 +7,6 @@
 
 #include "gpu_shader_interface.hh"
 #include "gpu_vertex_buffer_private.hh"
-#include "gpu_vertex_format_private.h"
 
 #include "gl_batch.hh"
 #include "gl_context.hh"
@@ -38,7 +21,7 @@ namespace blender::gpu {
 /** \name Vertex Array Bindings
  * \{ */
 
-/* Returns enabled vertex pointers as a bitflag (one bit per attrib). */
+/** Returns enabled vertex pointers as a bit-flag (one bit per attribute). */
 static uint16_t vbo_bind(const ShaderInterface *interface,
                          const GPUVertFormat *format,
                          uint v_first,
@@ -55,8 +38,8 @@ static uint16_t vbo_bind(const ShaderInterface *interface,
     const GPUVertAttr *a = &format->attrs[a_idx];
 
     if (format->deinterleaved) {
-      offset += ((a_idx == 0) ? 0 : format->attrs[a_idx - 1].sz) * v_len;
-      stride = a->sz;
+      offset += ((a_idx == 0) ? 0 : format->attrs[a_idx - 1].size) * v_len;
+      stride = a->size;
     }
     else {
       offset = a->offset;
@@ -70,7 +53,7 @@ static uint16_t vbo_bind(const ShaderInterface *interface,
       const char *name = GPU_vertformat_attr_name_get(format, a, n_idx);
       const ShaderInput *input = interface->attr_get(name);
 
-      if (input == nullptr) {
+      if (input == nullptr || input->location == -1) {
         continue;
       }
 
@@ -108,7 +91,6 @@ static uint16_t vbo_bind(const ShaderInterface *interface,
   return enabled_attrib;
 }
 
-/* Update the Attribute Binding of the currently bound VAO. */
 void GLVertArray::update_bindings(const GLuint vao,
                                   const GPUBatch *batch_, /* Should be GLBatch. */
                                   const ShaderInterface *interface,
@@ -156,7 +138,6 @@ void GLVertArray::update_bindings(const GLuint vao,
   }
 }
 
-/* Another version of update_bindings for Immediate mode. */
 void GLVertArray::update_bindings(const GLuint vao,
                                   const uint v_first,
                                   const GPUVertFormat *format,

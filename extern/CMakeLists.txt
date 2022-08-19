@@ -1,22 +1,5 @@
-# ***** BEGIN GPL LICENSE BLOCK *****
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# The Original Code is Copyright (C) 2006, Blender Foundation
-# All rights reserved.
-# ***** END GPL LICENSE BLOCK *****
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright 2006 Blender Foundation. All rights reserved.
 
 # Libs that adhere to strict flags
 add_subdirectory(curve_fit_nd)
@@ -49,12 +32,8 @@ if(WITH_BINRELOC)
   add_subdirectory(binreloc)
 endif()
 
-if(NOT WITH_SYSTEM_GLEW)
-  if(WITH_GLEW_ES)
-    add_subdirectory(glew-es)
-  else()
-    add_subdirectory(glew)
-  endif()
+if(WITH_GAMEENGINE)
+	add_subdirectory(recastnavigation)
 endif()
 
 if(WITH_LZO AND NOT WITH_SYSTEM_LZO)
@@ -65,7 +44,7 @@ if(WITH_LZMA)
   add_subdirectory(lzma)
 endif()
 
-if(WITH_CYCLES OR WITH_COMPOSITOR OR WITH_OPENSUBDIV)
+if(WITH_CYCLES OR WITH_COMPOSITOR_CPU OR WITH_OPENSUBDIV)
   add_subdirectory(clew)
   if((WITH_CYCLES_DEVICE_CUDA OR WITH_CYCLES_DEVICE_OPTIX) AND WITH_CUDA_DYNLOAD)
     add_subdirectory(cuew)
@@ -113,6 +92,6 @@ if(WITH_MOD_FLUID)
   add_subdirectory(mantaflow)
 endif()
 
-if (WITH_COMPOSITOR)
+if(WITH_COMPOSITOR_CPU)
   add_subdirectory(smaa_areatex)
 endif()

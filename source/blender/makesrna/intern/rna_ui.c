@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup RNA
@@ -407,7 +393,14 @@ static StructRNA *rna_Panel_register(Main *bmain,
 
   if (parent) {
     pt->parent = parent;
-    BLI_addtail(&parent->children, BLI_genericNodeN(pt));
+    LinkData *pt_child_iter = parent->children.last;
+    for (; pt_child_iter; pt_child_iter = pt_child_iter->prev) {
+      PanelType *pt_child = pt_child_iter->data;
+      if (pt_child->order <= pt->order) {
+        break;
+      }
+    }
+    BLI_insertlinkafter(&parent->children, pt_child_iter, BLI_genericNodeN(pt));
   }
 
   {
@@ -480,7 +473,7 @@ static int rna_UIList_list_id_length(PointerRNA *ptr)
 }
 
 static void uilist_draw_item(uiList *ui_list,
-                             bContext *C,
+                             const bContext *C,
                              uiLayout *layout,
                              PointerRNA *dataptr,
                              PointerRNA *itemptr,
@@ -514,7 +507,7 @@ static void uilist_draw_item(uiList *ui_list,
   RNA_parameter_list_free(&list);
 }
 
-static void uilist_draw_filter(uiList *ui_list, bContext *C, uiLayout *layout)
+static void uilist_draw_filter(uiList *ui_list, const bContext *C, uiLayout *layout)
 {
   extern FunctionRNA rna_UIList_draw_filter_func;
 
@@ -534,7 +527,7 @@ static void uilist_draw_filter(uiList *ui_list, bContext *C, uiLayout *layout)
 }
 
 static void uilist_filter_items(uiList *ui_list,
-                                bContext *C,
+                                const bContext *C,
                                 PointerRNA *dataptr,
                                 const char *propname)
 {
@@ -563,7 +556,7 @@ static void uilist_filter_items(uiList *ui_list,
 
   parm = RNA_function_find_parameter(NULL, func, "filter_flags");
   ret_len = RNA_parameter_dynamic_length_get(&list, parm);
-  if (ret_len != len && ret_len != 0) {
+  if (!ELEM(ret_len, len, 0)) {
     printf("%s: Error, py func returned %d items in %s, %d or none were expected.\n",
            __func__,
            RNA_parameter_dynamic_length_get(&list, parm),
@@ -579,7 +572,7 @@ static void uilist_filter_items(uiList *ui_list,
 
   parm = RNA_function_find_parameter(NULL, func, "filter_neworder");
   ret_len = RNA_parameter_dynamic_length_get(&list, parm);
-  if (ret_len != len && ret_len != 0) {
+  if (!ELEM(ret_len, len, 0)) {
     printf("%s: Error, py func returned %d items in %s, %d or none were expected.\n",
            __func__,
            RNA_parameter_dynamic_length_get(&list, parm),
@@ -1471,15 +1464,12 @@ static void rna_def_panel(BlenderRNA *brna)
   RNA_def_property_string_sdna(prop, NULL, "type->category");
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
   RNA_def_property_ui_text(
-      prop,
-      "",
-      "The category (tab) in which the panel will be displayed, when applicable");
+      prop, "", "The category (tab) in which the panel will be displayed, when applicable");
 
   prop = RNA_def_property(srna, "bl_owner_id", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, NULL, "type->owner_id");
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
-  RNA_def_property_ui_text(
-      prop, "", "The ID owning the data displayed in the panel, if any");
+  RNA_def_property_ui_text(prop, "", "The ID owning the data displayed in the panel, if any");
 
   prop = RNA_def_property(srna, "bl_space_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, NULL, "type->space_type");

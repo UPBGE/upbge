@@ -1,21 +1,8 @@
-/*
+/* SPDX-License-Identifier: Apache-2.0
  * Adapted from code Copyright 2009-2010 NVIDIA Corporation,
  * and code copyright 2009-2012 Intel Corporation
  *
- * Modifications Copyright 2011-2014, Blender Foundation.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+ * Modifications Copyright 2011-2022 Blender Foundation. */
 
 #if BVH_FEATURE(BVH_HAIR)
 #  define NODE_INTERSECT bvh_node_intersect
@@ -57,21 +44,17 @@ ccl_device_inline
   int node_addr = kernel_data.bvh.root;
 
   /* ray parameters in registers */
-  const float tmax = ray->t;
   float3 P = ray->P;
   float3 dir = bvh_clamp_direction(ray->D);
   float3 idir = bvh_inverse_direction(dir);
+  const float tmin = ray->tmin;
   int object = OBJECT_NONE;
-  float isect_t = tmax;
-
-#if BVH_FEATURE(BVH_MOTION)
-  Transform ob_itfm;
-#endif
+  float isect_t = ray->tmax;
 
   int num_hits_in_instance = 0;
 
   uint num_hits = 0;
-  isect_array->t = tmax;
+  isect_array->t = ray->tmax;
 
   /* traversal loop */
   do {
@@ -80,7 +63,7 @@ ccl_device_inline
       while (node_addr >= 0 && node_addr != ENTRYPOINT_SENTINEL) {
         int node_addr_child1, traverse_mask;
         float dist[2];
-        float4 cnodes = kernel_tex_fetch(__bvh_nodes, node_addr + 0);
+        float4 cnodes = kernel_data_fetch(bvh_nodes, node_addr + 0);
 
         traverse_mask = NODE_INTERSECT(kg,
                                        P,
@@ -88,6 +71,7 @@ ccl_device_inline
                                        dir,
 #endif
                                        idir,
+                                       tmin,
                                        isect_t,
                                        node_addr,
                                        visibility,
@@ -124,7 +108,7 @@ ccl_device_inline
 
       /* if node is leaf, fetch triangle list */
       if (node_addr < 0) {
-        float4 leaf = kernel_tex_fetch(__bvh_leaf_nodes, (-node_addr - 1));
+        float4 leaf = kernel_data_fetch(bvh_leaf_nodes, (-node_addr - 1));
         int prim_addr = __float_as_int(leaf.x);
 
         if (prim_addr >= 0) {
@@ -141,17 +125,29 @@ ccl_device_inline
             case PRIMITIVE_TRIANGLE: {
               /* intersect ray against primitive */
               for (; prim_addr < prim_addr2; prim_addr++) {
-                kernel_assert(kernel_tex_fetch(__prim_type, prim_addr) == type);
+                kernel_assert(kernel_data_fetch(prim_type, prim_addr) == type);
                 /* only primitives from volume object */
-                uint tri_object = (object == OBJECT_NONE) ?
-                                      kernel_tex_fetch(__prim_object, prim_addr) :
-                                      object;
-                int object_flag = kernel_tex_fetch(__object_flag, tri_object);
+                const int prim_object = (object == OBJECT_NONE) ?
+                                            kernel_data_fetch(prim_object, prim_addr) :
+                                            object;
+                const int prim = kernel_data_fetch(prim_index, prim_addr);
+                if (intersection_skip_self(ray->self, prim_object, prim)) {
+                  continue;
+                }
+                int object_flag = kernel_data_fetch(object_flag, prim_object);
                 if ((object_flag & SD_OBJECT_HAS_VOLUME) == 0) {
                   continue;
                 }
-                hit = triangle_intersect(
-                    kg, isect_array, P, dir, isect_t, visibility, object, prim_addr);
+                hit = triangle_intersect(kg,
+                                         isect_array,
+                                         P,
+                                         dir,
+                                         tmin,
+                                         isect_t,
+                                         visibility,
+                                         prim_object,
+                                         prim,
+                                         prim_addr);
                 if (hit) {
                   /* Move on to next entry in intersections array. */
                   isect_array++;
@@ -159,18 +155,6 @@ ccl_device_inline
                   num_hits_in_instance++;
                   isect_array->t = isect_t;
                   if (num_hits == max_hits) {
-                    if (object != OBJECT_NONE) {
-#if BVH_FEATURE(BVH_MOTION)
-                      float t_fac = 1.0f / len(transform_direction(&ob_itfm, dir));
-#else
-                      Transform itfm = object_fetch_transform(
-                          kg, object, OBJECT_INVERSE_TRANSFORM);
-                      float t_fac = 1.0f / len(transform_direction(&itfm, dir));
-#endif
-                      for (int i = 0; i < num_hits_in_instance; i++) {
-                        (isect_array - i - 1)->t *= t_fac;
-                      }
-                    }
                     return num_hits;
                   }
                 }
@@ -181,17 +165,30 @@ ccl_device_inline
             case PRIMITIVE_MOTION_TRIANGLE: {
               /* intersect ray against primitive */
               for (; prim_addr < prim_addr2; prim_addr++) {
-                kernel_assert(kernel_tex_fetch(__prim_type, prim_addr) == type);
+                kernel_assert(kernel_data_fetch(prim_type, prim_addr) == type);
                 /* only primitives from volume object */
-                uint tri_object = (object == OBJECT_NONE) ?
-                                      kernel_tex_fetch(__prim_object, prim_addr) :
-                                      object;
-                int object_flag = kernel_tex_fetch(__object_flag, tri_object);
+                const int prim_object = (object == OBJECT_NONE) ?
+                                            kernel_data_fetch(prim_object, prim_addr) :
+                                            object;
+                const int prim = kernel_data_fetch(prim_index, prim_addr);
+                if (intersection_skip_self(ray->self, prim_object, prim)) {
+                  continue;
+                }
+                int object_flag = kernel_data_fetch(object_flag, prim_object);
                 if ((object_flag & SD_OBJECT_HAS_VOLUME) == 0) {
                   continue;
                 }
-                hit = motion_triangle_intersect(
-                    kg, isect_array, P, dir, isect_t, ray->time, visibility, object, prim_addr);
+                hit = motion_triangle_intersect(kg,
+                                                isect_array,
+                                                P,
+                                                dir,
+                                                tmin,
+                                                isect_t,
+                                                ray->time,
+                                                visibility,
+                                                prim_object,
+                                                prim,
+                                                prim_addr);
                 if (hit) {
                   /* Move on to next entry in intersections array. */
                   isect_array++;
@@ -199,18 +196,6 @@ ccl_device_inline
                   num_hits_in_instance++;
                   isect_array->t = isect_t;
                   if (num_hits == max_hits) {
-                    if (object != OBJECT_NONE) {
-#  if BVH_FEATURE(BVH_MOTION)
-                      float t_fac = 1.0f / len(transform_direction(&ob_itfm, dir));
-#  else
-                      Transform itfm = object_fetch_transform(
-                          kg, object, OBJECT_INVERSE_TRANSFORM);
-                      float t_fac = 1.0f / len(transform_direction(&itfm, dir));
-#  endif
-                      for (int i = 0; i < num_hits_in_instance; i++) {
-                        (isect_array - i - 1)->t *= t_fac;
-                      }
-                    }
                     return num_hits;
                   }
                 }
@@ -225,13 +210,13 @@ ccl_device_inline
         }
         else {
           /* instance push */
-          object = kernel_tex_fetch(__prim_object, -prim_addr - 1);
-          int object_flag = kernel_tex_fetch(__object_flag, object);
+          object = kernel_data_fetch(prim_object, -prim_addr - 1);
+          int object_flag = kernel_data_fetch(object_flag, object);
           if (object_flag & SD_OBJECT_HAS_VOLUME) {
 #if BVH_FEATURE(BVH_MOTION)
-            isect_t *= bvh_instance_motion_push(kg, object, ray, &P, &dir, &idir, &ob_itfm);
+            bvh_instance_motion_push(kg, object, ray, &P, &dir, &idir);
 #else
-            isect_t *= bvh_instance_push(kg, object, ray, &P, &dir, &idir);
+            bvh_instance_push(kg, object, ray, &P, &dir, &idir);
 #endif
 
             num_hits_in_instance = 0;
@@ -241,7 +226,7 @@ ccl_device_inline
             kernel_assert(stack_ptr < BVH_STACK_SIZE);
             traversal_stack[stack_ptr] = ENTRYPOINT_SENTINEL;
 
-            node_addr = kernel_tex_fetch(__object_node, object);
+            node_addr = kernel_data_fetch(object_node, object);
           }
           else {
             /* pop */
@@ -257,28 +242,7 @@ ccl_device_inline
       kernel_assert(object != OBJECT_NONE);
 
       /* Instance pop. */
-      if (num_hits_in_instance) {
-        float t_fac;
-#if BVH_FEATURE(BVH_MOTION)
-        bvh_instance_motion_pop_factor(kg, object, ray, &P, &dir, &idir, &t_fac, &ob_itfm);
-#else
-        bvh_instance_pop_factor(kg, object, ray, &P, &dir, &idir, &t_fac);
-#endif
-        /* Scale isect->t to adjust for instancing. */
-        for (int i = 0; i < num_hits_in_instance; i++) {
-          (isect_array - i - 1)->t *= t_fac;
-        }
-      }
-      else {
-#if BVH_FEATURE(BVH_MOTION)
-        bvh_instance_motion_pop(kg, object, ray, &P, &dir, &idir, FLT_MAX, &ob_itfm);
-#else
-        bvh_instance_pop(kg, object, ray, &P, &dir, &idir, FLT_MAX);
-#endif
-      }
-
-      isect_t = tmax;
-      isect_array->t = isect_t;
+      bvh_instance_pop(ray, &P, &dir, &idir);
 
       object = OBJECT_NONE;
       node_addr = traversal_stack[stack_ptr];

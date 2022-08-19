@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2021 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #pragma once
 
@@ -30,7 +17,8 @@ ccl_device_forceinline void integrator_state_write_ray(KernelGlobals kg,
 {
   INTEGRATOR_STATE_WRITE(state, ray, P) = ray->P;
   INTEGRATOR_STATE_WRITE(state, ray, D) = ray->D;
-  INTEGRATOR_STATE_WRITE(state, ray, t) = ray->t;
+  INTEGRATOR_STATE_WRITE(state, ray, tmin) = ray->tmin;
+  INTEGRATOR_STATE_WRITE(state, ray, tmax) = ray->tmax;
   INTEGRATOR_STATE_WRITE(state, ray, time) = ray->time;
   INTEGRATOR_STATE_WRITE(state, ray, dP) = ray->dP;
   INTEGRATOR_STATE_WRITE(state, ray, dD) = ray->dD;
@@ -42,7 +30,8 @@ ccl_device_forceinline void integrator_state_read_ray(KernelGlobals kg,
 {
   ray->P = INTEGRATOR_STATE(state, ray, P);
   ray->D = INTEGRATOR_STATE(state, ray, D);
-  ray->t = INTEGRATOR_STATE(state, ray, t);
+  ray->tmin = INTEGRATOR_STATE(state, ray, tmin);
+  ray->tmax = INTEGRATOR_STATE(state, ray, tmax);
   ray->time = INTEGRATOR_STATE(state, ray, time);
   ray->dP = INTEGRATOR_STATE(state, ray, dP);
   ray->dD = INTEGRATOR_STATE(state, ray, dD);
@@ -55,7 +44,8 @@ ccl_device_forceinline void integrator_state_write_shadow_ray(
 {
   INTEGRATOR_STATE_WRITE(state, shadow_ray, P) = ray->P;
   INTEGRATOR_STATE_WRITE(state, shadow_ray, D) = ray->D;
-  INTEGRATOR_STATE_WRITE(state, shadow_ray, t) = ray->t;
+  INTEGRATOR_STATE_WRITE(state, shadow_ray, tmin) = ray->tmin;
+  INTEGRATOR_STATE_WRITE(state, shadow_ray, tmax) = ray->tmax;
   INTEGRATOR_STATE_WRITE(state, shadow_ray, time) = ray->time;
   INTEGRATOR_STATE_WRITE(state, shadow_ray, dP) = ray->dP;
 }
@@ -66,7 +56,8 @@ ccl_device_forceinline void integrator_state_read_shadow_ray(KernelGlobals kg,
 {
   ray->P = INTEGRATOR_STATE(state, shadow_ray, P);
   ray->D = INTEGRATOR_STATE(state, shadow_ray, D);
-  ray->t = INTEGRATOR_STATE(state, shadow_ray, t);
+  ray->tmin = INTEGRATOR_STATE(state, shadow_ray, tmin);
+  ray->tmax = INTEGRATOR_STATE(state, shadow_ray, tmax);
   ray->time = INTEGRATOR_STATE(state, shadow_ray, time);
   ray->dP = INTEGRATOR_STATE(state, shadow_ray, dP);
   ray->dD = differential_zero_compact();
@@ -347,7 +338,7 @@ ccl_device_inline IntegratorState integrator_state_shadow_catcher_split(KernelGl
   return to_state;
 }
 
-#ifdef __KERNEL_CPU__
+#ifndef __KERNEL_GPU__
 ccl_device_inline int integrator_state_bounce(ConstIntegratorState state, const int)
 {
   return INTEGRATOR_STATE(state, path, bounce);

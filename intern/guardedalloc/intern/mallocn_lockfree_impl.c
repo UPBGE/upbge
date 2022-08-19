@@ -1,21 +1,7 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
- * \ingroup MEM
+ * \ingroup intern_mem
  *
  * Memory allocation which keeps track on allocated memory counters
  */
@@ -58,6 +44,7 @@ enum {
 #define PTR_FROM_MEMHEAD(memhead) (memhead + 1)
 #define MEMHEAD_ALIGNED_FROM_PTR(ptr) (((MemHeadAligned *)ptr) - 1)
 #define MEMHEAD_IS_ALIGNED(memhead) ((memhead)->len & (size_t)MEMHEAD_ALIGN_FLAG)
+#define MEMHEAD_LEN(memhead) ((memhead)->len & ~((size_t)(MEMHEAD_ALIGN_FLAG)))
 
 /* Uncomment this to have proper peak counter. */
 #define USE_ATOMIC_MAX
@@ -92,8 +79,8 @@ print_error(const char *str, ...)
 
 size_t MEM_lockfree_allocN_len(const void *vmemh)
 {
-  if (vmemh) {
-    return MEMHEAD_FROM_PTR(vmemh)->len & ~((size_t)(MEMHEAD_ALIGN_FLAG));
+  if (LIKELY(vmemh)) {
+    return MEMHEAD_LEN(MEMHEAD_FROM_PTR(vmemh));
   }
 
   return 0;
@@ -101,20 +88,20 @@ size_t MEM_lockfree_allocN_len(const void *vmemh)
 
 void MEM_lockfree_freeN(void *vmemh)
 {
-  if (leak_detector_has_run) {
+  if (UNLIKELY(leak_detector_has_run)) {
     print_error("%s\n", free_after_leak_detection_message);
   }
 
-  MemHead *memh = MEMHEAD_FROM_PTR(vmemh);
-  size_t len = MEM_lockfree_allocN_len(vmemh);
-
-  if (vmemh == NULL) {
+  if (UNLIKELY(vmemh == NULL)) {
     print_error("Attempt to free NULL pointer\n");
 #ifdef WITH_ASSERT_ABORT
     abort();
 #endif
     return;
   }
+
+  MemHead *memh = MEMHEAD_FROM_PTR(vmemh);
+  size_t len = MEMHEAD_LEN(memh);
 
   atomic_sub_and_fetch_u(&totblock, 1);
   atomic_sub_and_fetch_z(&mem_in_use, len);
@@ -438,5 +425,9 @@ const char *MEM_lockfree_name_ptr(void *vmemh)
   }
 
   return "MEM_lockfree_name_ptr(NULL)";
+}
+
+void MEM_lockfree_name_ptr_set(void *UNUSED(vmemh), const char *UNUSED(str))
+{
 }
 #endif /* NDEBUG */

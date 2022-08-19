@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup GHOST
@@ -32,9 +16,7 @@
 
 #include "GHOST_ContextWGL.h"
 
-#ifdef WIN32_COMPOSITING
-#  include <Dwmapi.h>
-#endif
+#include <Dwmapi.h>
 
 #include <assert.h>
 #include <math.h>
@@ -71,6 +53,8 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
       m_mousePresent(false),
       m_inLiveResize(false),
       m_system(system),
+      m_dropTarget(NULL),
+      m_hWnd(0),
       m_hDC(0),
       m_isDialog(dialog),
       m_hasMouseCaptured(false),
@@ -78,11 +62,13 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
       m_nPressedButtons(0),
       m_customCursor(0),
       m_wantAlphaBackground(alphaBackground),
+      m_Bar(NULL),
       m_wintab(NULL),
       m_lastPointerTabletData(GHOST_TABLET_DATA_NONE),
       m_normal_state(GHOST_kWindowStateNormal),
       m_user32(::LoadLibrary("user32.dll")),
       m_parentWindowHwnd(parentwindow ? parentwindow->m_hWnd : HWND_DESKTOP),
+      m_directManipulationHelper(NULL),
       m_debug_context(is_debug)
 {
   DWORD style = parentwindow ?
@@ -129,8 +115,24 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
   m_hDC = ::GetDC(m_hWnd);
 
   if (!setDrawingContextType(type)) {
+    const char *title = "Blender - Unsupported Graphics Card Configuration";
+    const char *text =
+        "A graphics card and driver with support for OpenGL 3.3 or higher is "
+        "required.\n\nInstalling the latest driver for your graphics card might resolve the "
+        "issue.";
+    if (GetSystemMetrics(SM_CMONITORS) > 1) {
+      text =
+          "A graphics card and driver with support for OpenGL 3.3 or higher is "
+          "required.\n\nPlugging all monitors into your primary graphics card might resolve "
+          "this issue. Installing the latest driver for your graphics card could also help.";
+    }
+    MessageBox(m_hWnd, text, title, MB_OK | MB_ICONERROR);
+    ::ReleaseDC(m_hWnd, m_hDC);
     ::DestroyWindow(m_hWnd);
     m_hWnd = NULL;
+    if (!parentwindow) {
+      exit(0);
+    }
     return;
   }
 
@@ -148,6 +150,12 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
     ::SetWindowPos(m_hWnd, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
   }
 
+  if (parentwindow) {
+    /* Release any parent capture to allow immediate interaction (T90110). */
+    ::ReleaseCapture();
+    parentwindow->lostMouseCapture();
+  }
+
   /* Show the window. */
   int nCmdShow;
   switch (state) {
@@ -162,6 +170,8 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
       nCmdShow = (m_system->m_windowFocus) ? SW_SHOWNORMAL : SW_SHOWNOACTIVATE;
       break;
   }
+
+  ThemeRefresh();
 
   ::ShowWindow(m_hWnd, nCmdShow);
 
@@ -195,6 +205,42 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
   /* Allow the showing of a progress bar on the taskbar. */
   CoCreateInstance(
       CLSID_TaskbarList, NULL, CLSCTX_INPROC_SERVER, IID_ITaskbarList3, (LPVOID *)&m_Bar);
+
+  /* Initialize Direct Manipulation. */
+  m_directManipulationHelper = GHOST_DirectManipulationHelper::create(m_hWnd, getDPIHint());
+}
+
+void GHOST_WindowWin32::updateDirectManipulation()
+{
+  if (!m_directManipulationHelper) {
+    return;
+  }
+
+  m_directManipulationHelper->update();
+}
+
+void GHOST_WindowWin32::onPointerHitTest(WPARAM wParam)
+{
+  /* Only DM_POINTERHITTEST can be the first message of input sequence of touchpad input. */
+
+  if (!m_directManipulationHelper) {
+    return;
+  }
+
+  UINT32 pointerId = GET_POINTERID_WPARAM(wParam);
+  POINTER_INPUT_TYPE pointerType;
+  if (GetPointerType(pointerId, &pointerType) && pointerType == PT_TOUCHPAD) {
+    m_directManipulationHelper->onPointerHitTest(pointerId);
+  }
+}
+
+GHOST_TTrackpadInfo GHOST_WindowWin32::getTrackpadInfo()
+{
+  if (!m_directManipulationHelper) {
+    return {0, 0, 0};
+  }
+
+  return m_directManipulationHelper->getTrackpadInfo();
 }
 
 GHOST_WindowWin32::~GHOST_WindowWin32()
@@ -244,6 +290,9 @@ GHOST_WindowWin32::~GHOST_WindowWin32()
     ::DestroyWindow(m_hWnd);
     m_hWnd = 0;
   }
+
+  delete m_directManipulationHelper;
+  m_directManipulationHelper = NULL;
 }
 
 void GHOST_WindowWin32::adjustWindowRectForClosestMonitor(LPRECT win_rect,
@@ -273,7 +322,7 @@ void GHOST_WindowWin32::adjustWindowRectForClosestMonitor(LPRECT win_rect,
   }
 
   /* Adjust to allow for caption, borders, shadows, scaling, etc. Resulting values can be
-   * correctly outside of monitor bounds. Note: You cannot specify WS_OVERLAPPED when calling. */
+   * correctly outside of monitor bounds. NOTE: You cannot specify #WS_OVERLAPPED when calling. */
   if (fpAdjustWindowRectExForDpi) {
     UINT dpiX, dpiY;
     GetDpiForMonitor(hmonitor, MDT_EFFECTIVE_DPI, &dpiX, &dpiY);
@@ -531,7 +580,6 @@ GHOST_Context *GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
   if (type == GHOST_kDrawingContextTypeOpenGL) {
     GHOST_Context *context;
 
-#if defined(WITH_GL_PROFILE_CORE)
     /* - AMD and Intel give us exactly this version
      * - NVIDIA gives at least this version <-- desired behavior
      * So we ask for 4.5, 4.4 ... 3.3 in descending order
@@ -564,43 +612,12 @@ GHOST_Context *GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
                                    (m_debug_context ? WGL_CONTEXT_DEBUG_BIT_ARB : 0),
                                    GHOST_OPENGL_WGL_RESET_NOTIFICATION_STRATEGY);
 
-    if (context->initializeDrawingContext()) {
-      return context;
-    }
-    else {
-      MessageBox(m_hWnd,
-                 "A graphics card and driver with support for OpenGL 3.3 or higher is required.\n"
-                 "Installing the latest driver for your graphics card may resolve the issue.\n\n"
-                 "The program will now close.",
-                 "Blender - Unsupported Graphics Card or Driver",
-                 MB_OK | MB_ICONERROR);
+    if (context && !context->initializeDrawingContext()) {
       delete context;
-      exit(0);
+      context = nullptr;
     }
 
-#elif defined(WITH_GL_PROFILE_COMPAT)
-    // ask for 2.1 context, driver gives any GL version >= 2.1
-    // (hopefully the latest compatibility profile)
-    // 2.1 ignores the profile bit & is incompatible with core profile
-    context = new GHOST_ContextWGL(m_wantStereoVisual,
-                                   m_wantAlphaBackground,
-                                   m_hWnd,
-                                   m_hDC,
-                                   0,  // no profile bit
-                                   2,
-                                   1,
-                                   (m_debug_context ? WGL_CONTEXT_DEBUG_BIT_ARB : 0),
-                                   GHOST_OPENGL_WGL_RESET_NOTIFICATION_STRATEGY);
-
-    if (context->initializeDrawingContext()) {
-      return context;
-    }
-    else {
-      delete context;
-    }
-#else
-#  error  // must specify either core or compat at build time
-#endif
+    return context;
   }
   else if (type == GHOST_kDrawingContextTypeD3D) {
     GHOST_Context *context;
@@ -958,6 +975,7 @@ GHOST_Wintab *GHOST_WindowWin32::getWintab() const
 void GHOST_WindowWin32::loadWintab(bool enable)
 {
   if (!m_wintab) {
+    WINTAB_PRINTF("Loading Wintab for window %p\n", m_hWnd);
     if (m_wintab = GHOST_Wintab::loadWintab(m_hWnd)) {
       if (enable) {
         m_wintab->enable();
@@ -980,6 +998,7 @@ void GHOST_WindowWin32::loadWintab(bool enable)
 
 void GHOST_WindowWin32::closeWintab()
 {
+  WINTAB_PRINTF("Closing Wintab for window %p\n", m_hWnd);
   delete m_wintab;
   m_wintab = NULL;
 }
@@ -1009,6 +1028,32 @@ GHOST_TabletData GHOST_WindowWin32::getTabletData()
   }
   else {
     return m_lastPointerTabletData;
+  }
+}
+
+void GHOST_WindowWin32::ThemeRefresh()
+{
+  DWORD lightMode;
+  DWORD pcbData = sizeof(lightMode);
+  if (RegGetValueW(HKEY_CURRENT_USER,
+                   L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize\\",
+                   L"AppsUseLightTheme",
+                   RRF_RT_REG_DWORD,
+                   NULL,
+                   &lightMode,
+                   &pcbData) == ERROR_SUCCESS) {
+    BOOL DarkMode = !lightMode;
+
+    /* 20 == DWMWA_USE_IMMERSIVE_DARK_MODE in Windows 11 SDK.  This value was undocumented for
+     * Windows 10 versions 2004 and later, supported for Windows 11 Build 22000 and later. */
+    DwmSetWindowAttribute(this->m_hWnd, 20, &DarkMode, sizeof(DarkMode));
+  }
+}
+
+void GHOST_WindowWin32::updateDPI()
+{
+  if (m_directManipulationHelper) {
+    m_directManipulationHelper->setDPI(getDPIHint());
   }
 }
 

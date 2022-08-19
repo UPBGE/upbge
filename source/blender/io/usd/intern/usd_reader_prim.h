@@ -1,30 +1,17 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
+/* SPDX-License-Identifier: GPL-2.0-or-later
  * Adapted from the Blender Alembic importer implementation.
- *
- * Modifications Copyright (C) 2021 Tangent Animation.
- * All rights reserved.
- */
+ * Modifications Copyright 2021 Tangent Animation. All rights reserved. */
 #pragma once
 
 #include "usd.h"
 
 #include <pxr/usd/usd/prim.h>
 
+#include <map>
+#include <string>
+
 struct Main;
+struct Material;
 struct Object;
 
 namespace blender::io::usd {
@@ -49,6 +36,17 @@ struct ImportSettings {
   bool validate_meshes;
 
   CacheFile *cache_file;
+
+  /* Map a USD material prim path to a Blender material name.
+   * This map is updated by readers during stage traversal.
+   * This field is mutable because it is used to keep track
+   * of what the importer is doing. This is necessary even
+   * when all the other import settings are to remain const. */
+  mutable std::map<std::string, std::string> usd_path_to_mat_name;
+  /* Map a material name to Blender material.
+   * This map is updated by readers during stage traversal,
+   * and is mutable similar to the map above. */
+  mutable std::map<std::string, Material *> mat_name_to_mat;
 
   ImportSettings()
       : do_convert_mat(false),

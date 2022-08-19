@@ -26,6 +26,10 @@
 #  endif
 #endif
 
+#ifndef GPU_FRAGMENT_SHADER
+#  define gl_FragCoord vec4(0.0)
+#endif
+
 uniform sampler2D horizonBuffer;
 
 /* aoSettings flags */
@@ -40,6 +44,15 @@ struct OcclusionData {
   vec4 horizons;
   /* Custom large scale occlusion. */
   float custom_occlusion;
+
+#ifdef GPU_METAL
+  /* Constructors required for OcclusionData(..) syntax. */
+  inline OcclusionData() = default;
+  inline OcclusionData(vec4 in_horizons, float in_custom_occlusion)
+      : horizons(in_horizons), custom_occlusion(in_custom_occlusion)
+  {
+  }
+#endif
 };
 
 vec4 pack_occlusion_data(OcclusionData data)
@@ -56,7 +69,7 @@ vec2 get_ao_noise(void)
 {
   vec2 noise = texelfetch_noise_tex(gl_FragCoord.xy).xy;
   /* Decorrelate noise from AA. */
-  /* TODO(fclem) we should use a more general approach for more random number dimentions. */
+  /* TODO(@fclem): we should use a more general approach for more random number dimensions. */
   noise = fract(noise * 6.1803402007);
   return noise;
 }
@@ -283,7 +296,7 @@ void occlusion_eval(OcclusionData data,
     bent_normal = N;
   }
   else {
-    /* Note: using pow(visibility, 6.0) produces NaN (see T87369). */
+    /* NOTE: using pow(visibility, 6.0) produces NaN (see T87369). */
     float tmp = saturate(pow6(visibility));
     bent_normal = normalize(mix(bent_normal, N, tmp));
   }
@@ -337,7 +350,7 @@ float diffuse_occlusion(
  * radius1 : First cap’s radius (arc length in radians)
  * radius2 : Second caps’ radius (in radians)
  * dist : Distance between caps (radians between centers of caps)
- * Note: Result is divided by pi to save one multiply.
+ * NOTE: Result is divided by pi to save one multiply.
  */
 float spherical_cap_intersection(float radius1, float radius2, float dist)
 {
@@ -399,7 +412,7 @@ float specular_occlusion(
 /* Use the right occlusion. */
 OcclusionData occlusion_load(vec3 vP, float custom_occlusion)
 {
-  /* Default to fully openned cone. */
+  /* Default to fully opened cone. */
   OcclusionData data = NO_OCCLUSION_DATA;
 
 #ifdef ENABLE_DEFERED_AO
@@ -414,4 +427,35 @@ OcclusionData occlusion_load(vec3 vP, float custom_occlusion)
   data.custom_occlusion = custom_occlusion;
 
   return data;
+}
+
+#ifndef GPU_FRAGMENT_SHADER
+#  undef gl_FragCoord
+#endif
+
+float ambient_occlusion_eval(vec3 normal,
+                             float max_distance,
+                             const float inverted,
+                             const float sample_count)
+{
+  /* Avoid multiline define causing compiler issues. */
+  /* clang-format off */
+#if defined(GPU_FRAGMENT_SHADER) && (defined(MESH_SHADER) || defined(HAIR_SHADER)) && !defined(DEPTH_SHADER) && !defined(VOLUMETRICS)
+  /* clang-format on */
+  vec3 bent_normal;
+  vec4 rand = texelfetch_noise_tex(gl_FragCoord.xy);
+  OcclusionData data = occlusion_search(
+      viewPosition, maxzBuffer, max_distance, inverted, sample_count);
+
+  vec3 V = cameraVec(worldPosition);
+  vec3 N = normalize(normal);
+  vec3 Ng = safe_normalize(cross(dFdx(worldPosition), dFdy(worldPosition)));
+
+  float unused_error, visibility;
+  vec3 unused;
+  occlusion_eval(data, V, N, Ng, inverted, visibility, unused_error, unused);
+  return visibility;
+#else
+  return 1.0;
+#endif
 }

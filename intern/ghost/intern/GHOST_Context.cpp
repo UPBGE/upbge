@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2013 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2013 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup GHOST
@@ -26,7 +10,7 @@
 #include "GHOST_Context.h"
 
 #ifdef _WIN32
-#  include <GL/wglew.h>  // only for symbolic constants, do not use API functions
+#  include <epoxy/wgl.h>
 #  include <tchar.h>
 #
 #  ifndef ERROR_PROFILE_DOES_NOT_MATCH_DEVICE
@@ -51,7 +35,7 @@ bool win32_silent_chk(bool result)
 bool win32_chk(bool result, const char *file, int line, const char *text)
 {
   if (!result) {
-    LPTSTR formattedMsg = NULL;
+    LPTSTR formattedMsg = nullptr;
 
     DWORD error = GetLastError();
 
@@ -103,12 +87,12 @@ bool win32_chk(bool result, const char *file, int line, const char *text)
       default: {
         count = FormatMessage((FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
                                FORMAT_MESSAGE_IGNORE_INSERTS),
-                              NULL,
+                              nullptr,
                               error,
                               MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
                               (LPTSTR)(&formattedMsg),
                               0,
-                              NULL);
+                              nullptr);
 
         msg = count > 0 ? formattedMsg : "<no system message>\n";
         break;
@@ -129,19 +113,15 @@ bool win32_chk(bool result, const char *file, int line, const char *text)
 
     SetLastError(NO_ERROR);
 
-    if (count != 0)
+    if (count != 0) {
       LocalFree(formattedMsg);
+    }
   }
 
   return result;
 }
 
 #endif  // _WIN32
-
-void GHOST_Context::initContextGLEW()
-{
-  GLEW_CHK(glewInit());
-}
 
 void GHOST_Context::initClearGL()
 {

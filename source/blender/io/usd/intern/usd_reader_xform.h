@@ -1,23 +1,6 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
+/* SPDX-License-Identifier: GPL-2.0-or-later
  * Adapted from the Blender Alembic importer implementation.
- *
- * Modifications Copyright (C) 2021 Tangent Animation.
- * All rights reserved.
- */
+ * Modifications Copyright 2021 Tangent Animation. All rights reserved. */
 #pragma once
 
 #include "usd.h"
@@ -46,7 +29,7 @@ class USDXformReader : public USDPrimReader {
   void create_object(Main *bmain, double motionSampleTime) override;
   void read_object_data(Main *bmain, double motionSampleTime) override;
 
-  void read_matrix(float r_mat[4][4], const float time, const float scale, bool *r_is_constant);
+  void read_matrix(float r_mat[4][4], float time, float scale, bool *r_is_constant);
 
   bool use_parent_xform() const
   {

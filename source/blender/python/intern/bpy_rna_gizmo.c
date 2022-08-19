@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup pythonintern
@@ -39,6 +25,7 @@
 
 #include "RNA_access.h"
 #include "RNA_enum_types.h"
+#include "RNA_prototypes.h"
 #include "RNA_types.h"
 
 #include "bpy_rna.h"
@@ -201,7 +188,7 @@ fail:
   PyErr_Print();
   PyErr_Clear();
 
-  Py_DECREF(ret);
+  Py_XDECREF(ret);
 
   PyGILState_Release(gilstate);
 }
@@ -327,6 +314,8 @@ PyDoc_STRVAR(
     "\n"
     "   Assigns callbacks to a gizmos property.\n"
     "\n"
+    "   :arg target: Target property name.\n"
+    "   :type target: string\n"
     "   :arg get: Function that returns the value for this property (single value or sequence).\n"
     "   :type get: callable\n"
     "   :arg set: Function that takes a single value argument and applies it.\n"
@@ -349,7 +338,17 @@ static PyObject *bpy_gizmo_target_set_handler(PyObject *UNUSED(self), PyObject *
    * 'Gizmo.target_set_prop & target_set_operator'
    * (see: rna_wm_gizmo_api.c). conventions should match. */
   static const char *const _keywords[] = {"self", "target", "get", "set", "range", NULL};
-  static _PyArg_Parser _parser = {"O&O&|$OOO:target_set_handler", _keywords, 0};
+  static _PyArg_Parser _parser = {
+      "O&" /* `self` */
+      "O&" /* `target` */
+      "|$" /* Optional keyword only arguments. */
+      "O"  /* `get` */
+      "O"  /* `set` */
+      "O"  /* `range` */
+      ":target_set_handler",
+      _keywords,
+      0,
+  };
   if (!_PyArg_ParseTupleAndKeywordsFast(args,
                                         kw,
                                         &_parser,
@@ -436,7 +435,13 @@ static PyObject *bpy_gizmo_target_get_value(PyObject *UNUSED(self), PyObject *ar
   };
 
   static const char *const _keywords[] = {"self", "target", NULL};
-  static _PyArg_Parser _parser = {"O&O&:target_get_value", _keywords, 0};
+  static _PyArg_Parser _parser = {
+      "O&" /* `self` */
+      "O&" /* `target` */
+      ":target_get_value",
+      _keywords,
+      0,
+  };
   if (!_PyArg_ParseTupleAndKeywordsFast(args,
                                         kw,
                                         &_parser,
@@ -494,7 +499,14 @@ static PyObject *bpy_gizmo_target_set_value(PyObject *UNUSED(self), PyObject *ar
   };
 
   static const char *const _keywords[] = {"self", "target", "value", NULL};
-  static _PyArg_Parser _parser = {"O&O&O:target_set_value", _keywords, 0};
+  static _PyArg_Parser _parser = {
+      "O&" /* `self` */
+      "O&" /* `target` */
+      "O"  /* `value` */
+      ":target_set_value",
+      _keywords,
+      0,
+  };
   if (!_PyArg_ParseTupleAndKeywordsFast(args,
                                         kw,
                                         &_parser,
@@ -563,7 +575,13 @@ static PyObject *bpy_gizmo_target_get_range(PyObject *UNUSED(self), PyObject *ar
   };
 
   static const char *const _keywords[] = {"self", "target", NULL};
-  static _PyArg_Parser _parser = {"O&O&:target_get_range", _keywords, 0};
+  static _PyArg_Parser _parser = {
+      "O&" /* `self` */
+      "O&" /* `target` */
+      ":target_get_range",
+      _keywords,
+      0,
+  };
   if (!_PyArg_ParseTupleAndKeywordsFast(args,
                                         kw,
                                         &_parser,

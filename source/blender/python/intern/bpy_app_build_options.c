@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup pythonintern
@@ -32,8 +18,9 @@ static PyStructSequence_Field app_builtopts_info_fields[] = {
     {"codec_avi", NULL},
     {"codec_ffmpeg", NULL},
     {"codec_sndfile", NULL},
-    {"compositor", NULL},
+    {"compositor_cpu", NULL},
     {"cycles", NULL},
+    {"gameengine", NULL},
     {"cycles_osl", NULL},
     {"freestyle", NULL},
     {"image_cineon", NULL},
@@ -56,7 +43,11 @@ static PyStructSequence_Field app_builtopts_info_fields[] = {
     {"libmv", NULL},
     {"mod_oceansim", NULL},
     {"mod_remesh", NULL},
+    {"player", NULL},
     {"collada", NULL},
+    {"io_wavefront_obj", NULL},
+    {"io_stl", NULL},
+    {"io_gpencil", NULL},
     {"opencolorio", NULL},
     {"openmp", NULL},
     {"openvdb", NULL},
@@ -115,7 +106,7 @@ static PyObject *make_builtopts_info(void)
   SetObjIncref(Py_False);
 #endif
 
-#ifdef WITH_COMPOSITOR
+#ifdef WITH_COMPOSITOR_CPU
   SetObjIncref(Py_True);
 #else
   SetObjIncref(Py_False);
@@ -134,6 +125,12 @@ static PyObject *make_builtopts_info(void)
 #endif
 
 #ifdef WITH_FREESTYLE
+  SetObjIncref(Py_True);
+#else
+  SetObjIncref(Py_False);
+#endif
+
+#ifdef WITH_GAMEENGINE
   SetObjIncref(Py_True);
 #else
   SetObjIncref(Py_False);
@@ -265,7 +262,31 @@ static PyObject *make_builtopts_info(void)
   SetObjIncref(Py_False);
 #endif
 
+#ifdef WITH_IO_WAVEFRONT_OBJ
+  SetObjIncref(Py_True);
+#else
+  SetObjIncref(Py_False);
+#endif
+
+#ifdef WITH_IO_STL
+  SetObjIncref(Py_True);
+#else
+  SetObjIncref(Py_False);
+#endif
+
+#ifdef WITH_IO_GPENCIL
+  SetObjIncref(Py_True);
+#else
+  SetObjIncref(Py_False);
+#endif
+
 #ifdef WITH_OCIO
+  SetObjIncref(Py_True);
+#else
+  SetObjIncref(Py_False);
+#endif
+
+#ifdef WITH_PLAYER
   SetObjIncref(Py_True);
 #else
   SetObjIncref(Py_False);

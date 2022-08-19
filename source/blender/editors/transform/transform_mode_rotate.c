@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edtransform
@@ -27,6 +11,7 @@
 #include "BLI_task.h"
 
 #include "BKE_context.h"
+#include "BKE_report.h"
 #include "BKE_unit.h"
 
 #include "ED_screen.h"
@@ -320,7 +305,7 @@ static void applyRotation(TransInfo *t, const int UNUSED(mval[2]))
     final = large_rotation_limit(final);
   }
   else {
-    applySnapping(t, &final);
+    applySnappingAsGroup(t, &final);
     if (!(activeSnap(t) && validSnap(t))) {
       transform_snap_increment(t, &final);
     }
@@ -338,10 +323,35 @@ static void applyRotation(TransInfo *t, const int UNUSED(mval[2]))
   ED_area_status_text(t->area, str);
 }
 
+static void applyRotationMatrix(TransInfo *t, float mat_xform[4][4])
+{
+  float axis_final[3];
+  const float angle_final = t->values_final[0];
+  if ((t->con.mode & CON_APPLY) && t->con.applyRot) {
+    t->con.applyRot(t, NULL, NULL, axis_final, NULL);
+  }
+  else {
+    negate_v3_v3(axis_final, t->spacemtx[t->orient_axis]);
+  }
+
+  float mat3[3][3];
+  float mat4[4][4];
+  axis_angle_normalized_to_mat3(mat3, axis_final, angle_final);
+  copy_m4_m3(mat4, mat3);
+  transform_pivot_set_m4(mat4, t->center_global);
+  mul_m4_m4m4(mat_xform, mat4, mat_xform);
+}
+
 void initRotation(TransInfo *t)
 {
+  if (t->spacetype == SPACE_ACTION) {
+    BKE_report(t->reports, RPT_ERROR, "Rotation is not supported in the Dope Sheet Editor");
+    t->state = TRANS_CANCEL;
+  }
+
   t->mode = TFM_ROTATION;
   t->transform = applyRotation;
+  t->transform_matrix = applyRotationMatrix;
   t->tsnap.applySnap = ApplySnapRotation;
   t->tsnap.distance = RotationBetween;
 
@@ -363,4 +373,5 @@ void initRotation(TransInfo *t)
 
   transform_mode_default_modal_orientation_set(t, V3D_ORIENT_VIEW);
 }
+
 /** \} */

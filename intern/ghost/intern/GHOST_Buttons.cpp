@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup GHOST
@@ -28,7 +12,7 @@ GHOST_Buttons::GHOST_Buttons()
   clear();
 }
 
-bool GHOST_Buttons::get(GHOST_TButtonMask mask) const
+bool GHOST_Buttons::get(GHOST_TButton mask) const
 {
   switch (mask) {
     case GHOST_kButtonMaskLeft:
@@ -37,12 +21,20 @@ bool GHOST_Buttons::get(GHOST_TButtonMask mask) const
       return m_ButtonMiddle;
     case GHOST_kButtonMaskRight:
       return m_ButtonRight;
+    case GHOST_kButtonMaskButton4:
+      return m_Button4;
+    case GHOST_kButtonMaskButton5:
+      return m_Button5;
+    case GHOST_kButtonMaskButton6:
+      return m_Button6;
+    case GHOST_kButtonMaskButton7:
+      return m_Button7;
     default:
       return false;
   }
 }
 
-void GHOST_Buttons::set(GHOST_TButtonMask mask, bool down)
+void GHOST_Buttons::set(GHOST_TButton mask, bool down)
 {
   switch (mask) {
     case GHOST_kButtonMaskLeft:
@@ -54,6 +46,18 @@ void GHOST_Buttons::set(GHOST_TButtonMask mask, bool down)
     case GHOST_kButtonMaskRight:
       m_ButtonRight = down;
       break;
+    case GHOST_kButtonMaskButton4:
+      m_Button4 = down;
+      break;
+    case GHOST_kButtonMaskButton5:
+      m_Button5 = down;
+      break;
+    case GHOST_kButtonMaskButton6:
+      m_Button6 = down;
+      break;
+    case GHOST_kButtonMaskButton7:
+      m_Button7 = down;
+      break;
     default:
       break;
   }
@@ -64,6 +68,10 @@ void GHOST_Buttons::clear()
   m_ButtonLeft = false;
   m_ButtonMiddle = false;
   m_ButtonRight = false;
+  m_Button4 = false;
+  m_Button5 = false;
+  m_Button6 = false;
+  m_Button7 = false;
 }
 
 GHOST_Buttons::~GHOST_Buttons()

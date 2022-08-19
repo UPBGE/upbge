@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edtransform
@@ -1000,11 +984,6 @@ static bool bmesh_test_loose_edge(BMEdge *edge)
   return true;
 }
 
-/**
- * \param mtx: Measure distance in this space.
- * \param dists: Store the closest connected distance to selected vertices.
- * \param index: Optionally store the original index we're measuring the distance to (can be NULL).
- */
 void transform_convert_mesh_connectivity_distance(struct BMesh *bm,
                                                   const float mtx[3][3],
                                                   float *dists,
@@ -1307,8 +1286,6 @@ void transform_convert_mesh_mirrordata_free(struct TransMirrorData *mirror_data)
 /** \name Crazy Space
  * \{ */
 
-/* Detect CrazySpace [tm].
- * Vertices with space affected by quats are marked with #BM_ELEM_TAG */
 void transform_convert_mesh_crazyspace_detect(TransInfo *t,
                                               struct TransDataContainer *tc,
                                               struct BMEditMesh *em,
@@ -1337,7 +1314,8 @@ void transform_convert_mesh_crazyspace_detect(TransInfo *t,
      * correction with \a quats, relative to the coordinates after
      * the modifiers that support deform matrices \a defcos. */
 
-#if 0 /* TODO(campbell): fix crazy-space & extrude so it can be enabled for general use. */
+#if 0 /* TODO(@campbellbarton): fix crazy-space & extrude so it can be enabled for general use. \
+       */
       if ((totleft > 0) || (totleft == -1))
 #else
     if (totleft > 0)
@@ -1431,7 +1409,6 @@ static void VertsToTransData(TransInfo *t,
                              TransDataExtension *tx,
                              BMEditMesh *em,
                              BMVert *eve,
-                             float *bweight,
                              const struct TransIslandData *island_data,
                              const int island_index)
 {
@@ -1472,17 +1449,13 @@ static void VertsToTransData(TransInfo *t,
   td->ext = NULL;
   td->val = NULL;
   td->extra = eve;
-  if (t->mode == TFM_BWEIGHT) {
-    td->val = bweight;
-    td->ival = *bweight;
-  }
-  else if (t->mode == TFM_SHRINKFATTEN) {
+  if (t->mode == TFM_SHRINKFATTEN) {
     td->ext = tx;
     tx->isize[0] = BM_vert_calc_shell_factor_ex(eve, no, BM_ELEM_SELECT);
   }
 }
 
-void createTransEditVerts(TransInfo *t)
+static void createTransEditVerts(bContext *UNUSED(C), TransInfo *t)
 {
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     TransDataExtension *tx = NULL;
@@ -1612,12 +1585,6 @@ void createTransEditVerts(TransInfo *t)
                                       "TransObData ext");
     }
 
-    int cd_vert_bweight_offset = -1;
-    if (t->mode == TFM_BWEIGHT) {
-      BM_mesh_cd_flag_ensure(bm, BKE_mesh_from_object(tc->obedit), ME_CDFLAG_VERT_BWEIGHT);
-      cd_vert_bweight_offset = CustomData_get_offset(&bm->vdata, CD_BWEIGHT);
-    }
-
     TransData *tob = tc->data;
     TransDataMirror *td_mirror = tc->data_mirror;
     BM_ITER_MESH_INDEX (eve, &iter, bm, BM_VERTS_OF_MESH, a) {
@@ -1650,13 +1617,9 @@ void createTransEditVerts(TransInfo *t)
         td_mirror++;
       }
       else if (prop_mode || BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
-        float *bweight = (cd_vert_bweight_offset != -1) ?
-                             BM_ELEM_CD_GET_VOID_P(eve, cd_vert_bweight_offset) :
-                             NULL;
-
         /* Do not use the island center in case we are using islands
          * only to get axis for snap/rotate to normal... */
-        VertsToTransData(t, tob, tx, em, eve, bweight, &island_data, island_index);
+        VertsToTransData(t, tob, tx, em, eve, &island_data, island_index);
         if (tx) {
           tx++;
         }
@@ -1956,7 +1919,7 @@ static void tc_mesh_partial_types_calc(TransInfo *t, struct PartialTypeState *r_
   }
 
   /* With projection, transform isn't affine. */
-  if (activeSnap_with_project(t)) {
+  if (activeSnap_SnappingIndividual(t)) {
     if (partial_for_looptri == PARTIAL_TYPE_GROUP) {
       partial_for_looptri = PARTIAL_TYPE_ALL;
     }
@@ -2067,12 +2030,12 @@ static void tc_mesh_transdata_mirror_apply(TransDataContainer *tc)
   }
 }
 
-void recalcData_mesh(TransInfo *t)
+static void recalcData_mesh(TransInfo *t)
 {
   bool is_canceling = t->state == TRANS_CANCEL;
   /* Apply corrections. */
   if (!is_canceling) {
-    applyProject(t);
+    applySnappingIndividual(t);
 
     bool do_mirror = !(t->flag & T_NO_MIRROR);
     FOREACH_TRANS_DATA_CONTAINER (t, tc) {
@@ -2099,6 +2062,7 @@ void recalcData_mesh(TransInfo *t)
     tc_mesh_partial_update(t, tc, &partial_state);
   }
 }
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -2160,8 +2124,16 @@ void special_aftertrans_update__mesh(bContext *UNUSED(C), TransInfo *t)
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     /* table needs to be created for each edit command, since vertices can move etc */
     ED_mesh_mirror_spatial_table_end(tc->obedit);
-    /* TODO(campbell): xform: We need support for many mirror objects at once! */
+    /* TODO(@campbellbarton): xform: We need support for many mirror objects at once! */
     break;
   }
 }
+
 /** \} */
+
+TransConvertTypeInfo TransConvertType_Mesh = {
+    /* flags */ (T_EDIT | T_POINTS),
+    /* createTransData */ createTransEditVerts,
+    /* recalcData */ recalcData_mesh,
+    /* special_aftertrans_update */ special_aftertrans_update__mesh,
+};

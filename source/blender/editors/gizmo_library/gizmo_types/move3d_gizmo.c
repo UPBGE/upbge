@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edgizmolib
@@ -112,7 +98,8 @@ static void move_geom_draw(const wmGizmo *gz,
                                                  ED_GIZMO_MOVE_DRAW_FLAG_FILL)));
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  /* NOTE(Metal): Prefer using 3D coordinates with 3D shader, even if rendering 2D gizmo's. */
+  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
 
   immBindBuiltinProgram(filled ? GPU_SHADER_3D_UNIFORM_COLOR :
                                  GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
@@ -129,20 +116,20 @@ static void move_geom_draw(const wmGizmo *gz,
 
   if (draw_style == ED_GIZMO_MOVE_STYLE_RING_2D) {
     if (filled) {
-      imm_draw_circle_fill_2d(pos, 0, 0, radius, DIAL_RESOLUTION);
+      imm_draw_circle_fill_3d(pos, 0.0f, 0.0f, radius, DIAL_RESOLUTION);
     }
     else {
-      imm_draw_circle_wire_2d(pos, 0, 0, radius, DIAL_RESOLUTION);
+      imm_draw_circle_wire_3d(pos, 0.0f, 0.0f, radius, DIAL_RESOLUTION);
     }
   }
   else if (draw_style == ED_GIZMO_MOVE_STYLE_CROSS_2D) {
     const float radius_diag = M_SQRT1_2 * radius;
     immBegin(GPU_PRIM_LINES, 4);
-    immVertex2f(pos, radius_diag, radius_diag);
-    immVertex2f(pos, -radius_diag, -radius_diag);
+    immVertex3f(pos, radius_diag, radius_diag, 0.0f);
+    immVertex3f(pos, -radius_diag, -radius_diag, 0.0f);
 
-    immVertex2f(pos, -radius_diag, radius_diag);
-    immVertex2f(pos, radius_diag, -radius_diag);
+    immVertex3f(pos, -radius_diag, radius_diag, 0.0f);
+    immVertex3f(pos, radius_diag, -radius_diag, 0.0f);
     immEnd();
   }
   else {
@@ -161,7 +148,7 @@ static void move3d_get_translate(const wmGizmo *gz,
                                  float co_delta[3])
 {
   MoveInteraction *inter = gz->interaction_data;
-  const float mval_delta[2] = {
+  const float xy_delta[2] = {
       event->mval[0] - inter->init.mval[0],
       event->mval[1] - inter->init.mval[1],
   };
@@ -169,9 +156,9 @@ static void move3d_get_translate(const wmGizmo *gz,
   RegionView3D *rv3d = region->regiondata;
   float co_ref[3];
   mul_v3_mat3_m4v3(co_ref, gz->matrix_space, inter->init.prop_co);
-  const float zfac = ED_view3d_calc_zfac(rv3d, co_ref, NULL);
+  const float zfac = ED_view3d_calc_zfac(rv3d, co_ref);
 
-  ED_view3d_win_to_delta(region, mval_delta, co_delta, zfac);
+  ED_view3d_win_to_delta(region, xy_delta, zfac, co_delta);
 
   float matrix_space_inv[3][3];
   copy_m3_m4(matrix_space_inv, gz->matrix_space);
@@ -291,12 +278,13 @@ static int gizmo_move_modal(bContext *C,
               CTX_data_ensure_evaluated_depsgraph(C),
               region,
               CTX_wm_view3d(C),
-              (SCE_SNAP_MODE_VERTEX | SCE_SNAP_MODE_EDGE | SCE_SNAP_MODE_FACE),
+              (SCE_SNAP_MODE_VERTEX | SCE_SNAP_MODE_EDGE | SCE_SNAP_MODE_FACE_RAYCAST),
               &(const struct SnapObjectParams){
-                  .snap_select = SNAP_ALL,
+                  .snap_target_select = SCE_SNAP_TARGET_ALL,
                   .edit_mode_type = SNAP_GEOM_EDIT,
                   .use_occlusion_test = true,
               },
+              NULL,
               mval_fl,
               NULL,
               &dist_px,

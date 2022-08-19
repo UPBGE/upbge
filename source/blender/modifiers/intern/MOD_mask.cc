@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2005 by the Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2005 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup modifiers
@@ -52,6 +36,7 @@
 #include "UI_resources.h"
 
 #include "RNA_access.h"
+#include "RNA_prototypes.h"
 
 #include "DEG_depsgraph_build.h"
 #include "DEG_depsgraph_query.h"
@@ -69,19 +54,6 @@ using blender::ListBaseWrapper;
 using blender::MutableSpan;
 using blender::Span;
 using blender::Vector;
-
-/* For delete geometry node. */
-void copy_masked_vertices_to_new_mesh(const Mesh &src_mesh, Mesh &dst_mesh, Span<int> vertex_map);
-void copy_masked_edges_to_new_mesh(const Mesh &src_mesh,
-                                   Mesh &dst_mesh,
-                                   Span<int> vertex_map,
-                                   Span<int> edge_map);
-void copy_masked_polys_to_new_mesh(const Mesh &src_mesh,
-                                   Mesh &dst_mesh,
-                                   Span<int> vertex_map,
-                                   Span<int> edge_map,
-                                   Span<int> masked_poly_indices,
-                                   Span<int> new_loop_starts);
 
 static void initData(ModifierData *md)
 {
@@ -114,12 +86,12 @@ static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphConte
     /* TODO(sergey): Is it a proper relation here? */
     DEG_add_object_relation(ctx->node, mmd->ob_arm, DEG_OB_COMP_TRANSFORM, "Mask Modifier");
     arm->flag |= ARM_HAS_VIZ_DEPS;
-    DEG_add_modifier_to_transform_relation(ctx->node, "Mask Modifier");
+    DEG_add_depends_on_transform_relation(ctx->node, "Mask Modifier");
   }
 }
 
 /* A vertex will be in the mask if a selected bone influences it more than a certain threshold. */
-static void compute_vertex_mask__armature_mode(MDeformVert *dvert,
+static void compute_vertex_mask__armature_mode(const MDeformVert *dvert,
                                                Mesh *mesh,
                                                Object *armature_ob,
                                                float threshold,
@@ -153,7 +125,7 @@ static void compute_vertex_mask__armature_mode(MDeformVert *dvert,
 }
 
 /* A vertex will be in the mask if the vertex group influences it more than a certain threshold. */
-static void compute_vertex_mask__vertex_group_mode(MDeformVert *dvert,
+static void compute_vertex_mask__vertex_group_mode(const MDeformVert *dvert,
                                                    int defgrp_index,
                                                    float threshold,
                                                    MutableSpan<bool> r_vertex_mask)
@@ -173,58 +145,58 @@ static void invert_boolean_array(MutableSpan<bool> array)
 
 static void compute_masked_vertices(Span<bool> vertex_mask,
                                     MutableSpan<int> r_vertex_map,
-                                    uint *r_num_masked_vertices)
+                                    uint *r_verts_masked_num)
 {
   BLI_assert(vertex_mask.size() == r_vertex_map.size());
 
-  uint num_masked_vertices = 0;
+  uint verts_masked_num = 0;
   for (uint i_src : r_vertex_map.index_range()) {
     if (vertex_mask[i_src]) {
-      r_vertex_map[i_src] = num_masked_vertices;
-      num_masked_vertices++;
+      r_vertex_map[i_src] = verts_masked_num;
+      verts_masked_num++;
     }
     else {
       r_vertex_map[i_src] = -1;
     }
   }
 
-  *r_num_masked_vertices = num_masked_vertices;
+  *r_verts_masked_num = verts_masked_num;
 }
 
 static void computed_masked_edges(const Mesh *mesh,
                                   Span<bool> vertex_mask,
                                   MutableSpan<int> r_edge_map,
-                                  uint *r_num_masked_edges)
+                                  uint *r_edges_masked_num)
 {
   BLI_assert(mesh->totedge == r_edge_map.size());
 
-  uint num_masked_edges = 0;
+  uint edges_masked_num = 0;
   for (int i : IndexRange(mesh->totedge)) {
     const MEdge &edge = mesh->medge[i];
 
     /* only add if both verts will be in new mesh */
     if (vertex_mask[edge.v1] && vertex_mask[edge.v2]) {
-      r_edge_map[i] = num_masked_edges;
-      num_masked_edges++;
+      r_edge_map[i] = edges_masked_num;
+      edges_masked_num++;
     }
     else {
       r_edge_map[i] = -1;
     }
   }
 
-  *r_num_masked_edges = num_masked_edges;
+  *r_edges_masked_num = edges_masked_num;
 }
 
 static void computed_masked_edges_smooth(const Mesh *mesh,
                                          Span<bool> vertex_mask,
                                          MutableSpan<int> r_edge_map,
-                                         uint *r_num_masked_edges,
-                                         uint *r_num_add_vertices)
+                                         uint *r_edges_masked_num,
+                                         uint *r_verts_add_num)
 {
   BLI_assert(mesh->totedge == r_edge_map.size());
 
-  uint num_masked_edges = 0;
-  uint num_add_vertices = 0;
+  uint edges_masked_num = 0;
+  uint verts_add_num = 0;
   for (int i : IndexRange(mesh->totedge)) {
     const MEdge &edge = mesh->medge[i];
 
@@ -232,36 +204,36 @@ static void computed_masked_edges_smooth(const Mesh *mesh,
     bool v1 = vertex_mask[edge.v1];
     bool v2 = vertex_mask[edge.v2];
     if (v1 && v2) {
-      r_edge_map[i] = num_masked_edges;
-      num_masked_edges++;
+      r_edge_map[i] = edges_masked_num;
+      edges_masked_num++;
     }
     else if (v1 != v2) {
       r_edge_map[i] = -2;
-      num_add_vertices++;
+      verts_add_num++;
     }
     else {
       r_edge_map[i] = -1;
     }
   }
 
-  num_masked_edges += num_add_vertices;
-  *r_num_masked_edges = num_masked_edges;
-  *r_num_add_vertices = num_add_vertices;
+  edges_masked_num += verts_add_num;
+  *r_edges_masked_num = edges_masked_num;
+  *r_verts_add_num = verts_add_num;
 }
 
 static void computed_masked_polygons(const Mesh *mesh,
                                      Span<bool> vertex_mask,
                                      Vector<int> &r_masked_poly_indices,
                                      Vector<int> &r_loop_starts,
-                                     uint *r_num_masked_polys,
-                                     uint *r_num_masked_loops)
+                                     uint *r_polys_masked_num,
+                                     uint *r_loops_masked_num)
 {
   BLI_assert(mesh->totvert == vertex_mask.size());
 
   r_masked_poly_indices.reserve(mesh->totpoly);
   r_loop_starts.reserve(mesh->totpoly);
 
-  uint num_masked_loops = 0;
+  uint loops_masked_num = 0;
   for (int i : IndexRange(mesh->totpoly)) {
     const MPoly &poly_src = mesh->mpoly[i];
 
@@ -276,35 +248,35 @@ static void computed_masked_polygons(const Mesh *mesh,
 
     if (all_verts_in_mask) {
       r_masked_poly_indices.append_unchecked(i);
-      r_loop_starts.append_unchecked(num_masked_loops);
-      num_masked_loops += poly_src.totloop;
+      r_loop_starts.append_unchecked(loops_masked_num);
+      loops_masked_num += poly_src.totloop;
     }
   }
 
-  *r_num_masked_polys = r_masked_poly_indices.size();
-  *r_num_masked_loops = num_masked_loops;
+  *r_polys_masked_num = r_masked_poly_indices.size();
+  *r_loops_masked_num = loops_masked_num;
 }
 
 static void compute_interpolated_polygons(const Mesh *mesh,
                                           Span<bool> vertex_mask,
-                                          uint num_add_vertices,
-                                          uint num_masked_loops,
+                                          uint verts_add_num,
+                                          uint loops_masked_num,
                                           Vector<int> &r_masked_poly_indices,
                                           Vector<int> &r_loop_starts,
-                                          uint *r_num_add_edges,
-                                          uint *r_num_add_polys,
-                                          uint *r_num_add_loops)
+                                          uint *r_edges_add_num,
+                                          uint *r_polys_add_num,
+                                          uint *r_loops_add_num)
 {
   BLI_assert(mesh->totvert == vertex_mask.size());
 
   /* Can't really know ahead of time how much space to use exactly. Estimate limit instead. */
   /* NOTE: this reserve can only lift the capacity if there are ngons, which get split. */
-  r_masked_poly_indices.reserve(r_masked_poly_indices.size() + num_add_vertices);
-  r_loop_starts.reserve(r_loop_starts.size() + num_add_vertices);
+  r_masked_poly_indices.reserve(r_masked_poly_indices.size() + verts_add_num);
+  r_loop_starts.reserve(r_loop_starts.size() + verts_add_num);
 
-  uint num_add_edges = 0;
-  uint num_add_polys = 0;
-  uint num_add_loops = 0;
+  uint edges_add_num = 0;
+  uint polys_add_num = 0;
+  uint loops_add_num = 0;
   for (int i : IndexRange(mesh->totpoly)) {
     const MPoly &poly_src = mesh->mpoly[i];
 
@@ -334,10 +306,10 @@ static void compute_interpolated_polygons(const Mesh *mesh,
         else if (!v_loop_in_mask && v_loop_in_mask_last) {
           BLI_assert(dst_totloop > 2);
           r_masked_poly_indices.append(i);
-          r_loop_starts.append(num_masked_loops + num_add_loops);
-          num_add_loops += dst_totloop;
-          num_add_polys++;
-          num_add_edges++;
+          r_loop_starts.append(loops_masked_num + loops_add_num);
+          loops_add_num += dst_totloop;
+          polys_add_num++;
+          edges_add_num++;
           dst_totloop = -1;
         }
         else if (v_loop_in_mask && v_loop_in_mask_last) {
@@ -350,12 +322,14 @@ static void compute_interpolated_polygons(const Mesh *mesh,
     }
   }
 
-  *r_num_add_edges = num_add_edges;
-  *r_num_add_polys = num_add_polys;
-  *r_num_add_loops = num_add_loops;
+  *r_edges_add_num = edges_add_num;
+  *r_polys_add_num = polys_add_num;
+  *r_loops_add_num = loops_add_num;
 }
 
-void copy_masked_vertices_to_new_mesh(const Mesh &src_mesh, Mesh &dst_mesh, Span<int> vertex_map)
+static void copy_masked_vertices_to_new_mesh(const Mesh &src_mesh,
+                                             Mesh &dst_mesh,
+                                             Span<int> vertex_map)
 {
   BLI_assert(src_mesh.totvert == vertex_map.size());
   for (const int i_src : vertex_map.index_range()) {
@@ -373,7 +347,7 @@ void copy_masked_vertices_to_new_mesh(const Mesh &src_mesh, Mesh &dst_mesh, Span
 }
 
 static float get_interp_factor_from_vgroup(
-    MDeformVert *dvert, int defgrp_index, float threshold, uint v1, uint v2)
+    const MDeformVert *dvert, int defgrp_index, float threshold, uint v1, uint v2)
 {
   /* NOTE: this calculation is done twice for every vertex,
    * instead of storing it the first time and then reusing it. */
@@ -386,18 +360,18 @@ static void add_interp_verts_copy_edges_to_new_mesh(const Mesh &src_mesh,
                                                     Mesh &dst_mesh,
                                                     Span<bool> vertex_mask,
                                                     Span<int> vertex_map,
-                                                    MDeformVert *dvert,
+                                                    const MDeformVert *dvert,
                                                     int defgrp_index,
                                                     float threshold,
-                                                    uint num_masked_edges,
-                                                    uint num_add_verts,
+                                                    uint edges_masked_num,
+                                                    uint verts_add_num,
                                                     MutableSpan<int> r_edge_map)
 {
   BLI_assert(src_mesh.totvert == vertex_mask.size());
   BLI_assert(src_mesh.totedge == r_edge_map.size());
 
-  uint vert_index = dst_mesh.totvert - num_add_verts;
-  uint edge_index = num_masked_edges - num_add_verts;
+  uint vert_index = dst_mesh.totvert - verts_add_num;
+  uint edge_index = edges_masked_num - verts_add_num;
   for (int i_src : IndexRange(src_mesh.totedge)) {
     if (r_edge_map[i_src] != -1) {
       int i_dst = r_edge_map[i_src];
@@ -438,27 +412,17 @@ static void add_interp_verts_copy_edges_to_new_mesh(const Mesh &src_mesh,
       MVert &v2 = src_mesh.mvert[e_src.v2];
 
       interp_v3_v3v3(v.co, v1.co, v2.co, fac);
-
-      float no1[3];
-      float no2[3];
-      normal_short_to_float_v3(no1, v1.no);
-      normal_short_to_float_v3(no2, v2.no);
-      mul_v3_fl(no1, weights[0]);
-      madd_v3_v3fl(no1, no2, weights[1]);
-      normalize_v3(no1);
-      normal_float_to_short_v3(v.no, no1);
-
       vert_index++;
     }
   }
   BLI_assert(vert_index == dst_mesh.totvert);
-  BLI_assert(edge_index == num_masked_edges);
+  BLI_assert(edge_index == edges_masked_num);
 }
 
-void copy_masked_edges_to_new_mesh(const Mesh &src_mesh,
-                                   Mesh &dst_mesh,
-                                   Span<int> vertex_map,
-                                   Span<int> edge_map)
+static void copy_masked_edges_to_new_mesh(const Mesh &src_mesh,
+                                          Mesh &dst_mesh,
+                                          Span<int> vertex_map,
+                                          Span<int> edge_map)
 {
   BLI_assert(src_mesh.totvert == vertex_map.size());
   BLI_assert(src_mesh.totedge == edge_map.size());
@@ -484,38 +448,9 @@ static void copy_masked_polys_to_new_mesh(const Mesh &src_mesh,
                                           Span<int> edge_map,
                                           Span<int> masked_poly_indices,
                                           Span<int> new_loop_starts,
-                                          int num_masked_polys)
+                                          int polys_masked_num)
 {
-  for (const int i_dst : IndexRange(num_masked_polys)) {
-    const int i_src = masked_poly_indices[i_dst];
-
-    const MPoly &mp_src = src_mesh.mpoly[i_src];
-    MPoly &mp_dst = dst_mesh.mpoly[i_dst];
-    const int i_ml_src = mp_src.loopstart;
-    const int i_ml_dst = new_loop_starts[i_dst];
-
-    CustomData_copy_data(&src_mesh.pdata, &dst_mesh.pdata, i_src, i_dst, 1);
-    CustomData_copy_data(&src_mesh.ldata, &dst_mesh.ldata, i_ml_src, i_ml_dst, mp_src.totloop);
-
-    const MLoop *ml_src = src_mesh.mloop + i_ml_src;
-    MLoop *ml_dst = dst_mesh.mloop + i_ml_dst;
-
-    mp_dst = mp_src;
-    mp_dst.loopstart = i_ml_dst;
-    for (int i : IndexRange(mp_src.totloop)) {
-      ml_dst[i].v = vertex_map[ml_src[i].v];
-      ml_dst[i].e = edge_map[ml_src[i].e];
-    }
-  }
-}
-void copy_masked_polys_to_new_mesh(const Mesh &src_mesh,
-                                   Mesh &dst_mesh,
-                                   Span<int> vertex_map,
-                                   Span<int> edge_map,
-                                   Span<int> masked_poly_indices,
-                                   Span<int> new_loop_starts)
-{
-  for (const int i_dst : masked_poly_indices.index_range()) {
+  for (const int i_dst : IndexRange(polys_masked_num)) {
     const int i_src = masked_poly_indices[i_dst];
 
     const MPoly &mp_src = src_mesh.mpoly[i_src];
@@ -543,19 +478,19 @@ static void add_interpolated_polys_to_new_mesh(const Mesh &src_mesh,
                                                Span<bool> vertex_mask,
                                                Span<int> vertex_map,
                                                Span<int> edge_map,
-                                               MDeformVert *dvert,
+                                               const MDeformVert *dvert,
                                                int defgrp_index,
                                                float threshold,
                                                Span<int> masked_poly_indices,
                                                Span<int> new_loop_starts,
-                                               int num_masked_polys,
-                                               int num_add_edges)
+                                               int polys_masked_num,
+                                               int edges_add_num)
 {
-  int edge_index = dst_mesh.totedge - num_add_edges;
+  int edge_index = dst_mesh.totedge - edges_add_num;
   int sub_poly_index = 0;
   int last_i_src = -1;
   for (const int i_dst :
-       IndexRange(num_masked_polys, masked_poly_indices.size() - num_masked_polys)) {
+       IndexRange(polys_masked_num, masked_poly_indices.size() - polys_masked_num)) {
     const int i_src = masked_poly_indices[i_dst];
     if (i_src == last_i_src) {
       sub_poly_index++;
@@ -684,7 +619,8 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *UNUSED(ctx)
                                  (mmd->flag & MOD_MASK_SMOOTH);
 
   /* Return empty or input mesh when there are no vertex groups. */
-  MDeformVert *dvert = (MDeformVert *)CustomData_get_layer(&mesh->vdata, CD_MDEFORMVERT);
+  const MDeformVert *dvert = (const MDeformVert *)CustomData_get_layer(&mesh->vdata,
+                                                                       CD_MDEFORMVERT);
   if (dvert == nullptr) {
     return invert_mask ? mesh : BKE_mesh_new_nomain_from_template(mesh, 0, 0, 0, 0, 0);
   }
@@ -702,7 +638,7 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *UNUSED(ctx)
     Object *armature_ob = mmd->ob_arm;
 
     /* Return input mesh if there is no armature with bones. */
-    if (ELEM(NULL, armature_ob, armature_ob->pose)) {
+    if (ELEM(nullptr, armature_ob, armature_ob->pose)) {
       return mesh;
     }
 
@@ -727,53 +663,52 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *UNUSED(ctx)
   }
 
   Array<int> vertex_map(mesh->totvert);
-  uint num_masked_vertices;
-  compute_masked_vertices(vertex_mask, vertex_map, &num_masked_vertices);
+  uint verts_masked_num;
+  compute_masked_vertices(vertex_mask, vertex_map, &verts_masked_num);
 
   Array<int> edge_map(mesh->totedge);
-  uint num_masked_edges;
-  uint num_add_vertices;
+  uint edges_masked_num;
+  uint verts_add_num;
   if (use_interpolation) {
-    computed_masked_edges_smooth(
-        mesh, vertex_mask, edge_map, &num_masked_edges, &num_add_vertices);
+    computed_masked_edges_smooth(mesh, vertex_mask, edge_map, &edges_masked_num, &verts_add_num);
   }
   else {
-    computed_masked_edges(mesh, vertex_mask, edge_map, &num_masked_edges);
-    num_add_vertices = 0;
+    computed_masked_edges(mesh, vertex_mask, edge_map, &edges_masked_num);
+    verts_add_num = 0;
   }
 
   Vector<int> masked_poly_indices;
   Vector<int> new_loop_starts;
-  uint num_masked_polys;
-  uint num_masked_loops;
+  uint polys_masked_num;
+  uint loops_masked_num;
   computed_masked_polygons(mesh,
                            vertex_mask,
                            masked_poly_indices,
                            new_loop_starts,
-                           &num_masked_polys,
-                           &num_masked_loops);
+                           &polys_masked_num,
+                           &loops_masked_num);
 
-  uint num_add_edges = 0;
-  uint num_add_polys = 0;
-  uint num_add_loops = 0;
+  uint edges_add_num = 0;
+  uint polys_add_num = 0;
+  uint loops_add_num = 0;
   if (use_interpolation) {
     compute_interpolated_polygons(mesh,
                                   vertex_mask,
-                                  num_add_vertices,
-                                  num_masked_loops,
+                                  verts_add_num,
+                                  loops_masked_num,
                                   masked_poly_indices,
                                   new_loop_starts,
-                                  &num_add_edges,
-                                  &num_add_polys,
-                                  &num_add_loops);
+                                  &edges_add_num,
+                                  &polys_add_num,
+                                  &loops_add_num);
   }
 
   Mesh *result = BKE_mesh_new_nomain_from_template(mesh,
-                                                   num_masked_vertices + num_add_vertices,
-                                                   num_masked_edges + num_add_edges,
+                                                   verts_masked_num + verts_add_num,
+                                                   edges_masked_num + edges_add_num,
                                                    0,
-                                                   num_masked_loops + num_add_loops,
-                                                   num_masked_polys + num_add_polys);
+                                                   loops_masked_num + loops_add_num,
+                                                   polys_masked_num + polys_add_num);
 
   copy_masked_vertices_to_new_mesh(*mesh, *result, vertex_map);
   if (use_interpolation) {
@@ -784,8 +719,8 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *UNUSED(ctx)
                                             dvert,
                                             defgrp_index,
                                             mmd->threshold,
-                                            num_masked_edges,
-                                            num_add_vertices,
+                                            edges_masked_num,
+                                            verts_add_num,
                                             edge_map);
   }
   else {
@@ -797,7 +732,7 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *UNUSED(ctx)
                                 edge_map,
                                 masked_poly_indices,
                                 new_loop_starts,
-                                num_masked_polys);
+                                polys_masked_num);
   if (use_interpolation) {
     add_interpolated_polys_to_new_mesh(*mesh,
                                        *result,
@@ -809,12 +744,11 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *UNUSED(ctx)
                                        mmd->threshold,
                                        masked_poly_indices,
                                        new_loop_starts,
-                                       num_masked_polys,
-                                       num_add_edges);
+                                       polys_masked_num,
+                                       edges_add_num);
   }
 
   BKE_mesh_calc_edges_loose(result);
-  BKE_mesh_normals_tag_dirty(result);
 
   return result;
 }
@@ -870,7 +804,7 @@ static void panelRegister(ARegionType *region_type)
 }
 
 ModifierTypeInfo modifierType_Mask = {
-    /* name */ "Mask",
+    /* name */ N_("Mask"),
     /* structName */ "MaskModifierData",
     /* structSize */ sizeof(MaskModifierData),
     /* srna */ &RNA_MaskModifier,
@@ -887,7 +821,6 @@ ModifierTypeInfo modifierType_Mask = {
     /* deformVertsEM */ nullptr,
     /* deformMatricesEM */ nullptr,
     /* modifyMesh */ modifyMesh,
-    /* modifyHair */ nullptr,
     /* modifyGeometrySet */ nullptr,
 
     /* initData */ initData,

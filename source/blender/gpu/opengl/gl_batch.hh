@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2020, Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2020 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup gpu
@@ -33,8 +17,6 @@
 #include "gl_index_buffer.hh"
 #include "gl_vertex_buffer.hh"
 
-#include "glew-mx.h"
-
 namespace blender {
 namespace gpu {
 
@@ -43,15 +25,17 @@ class GLShaderInterface;
 
 #define GPU_VAO_STATIC_LEN 3
 
-/* VAO management: remembers all geometry state (vertex attribute bindings & element buffer)
- * for each shader interface. Start with a static number of vaos and fallback to dynamic count
- * if necessary. Once a batch goes dynamic it does not go back. */
+/**
+ * VAO management: remembers all geometry state (vertex attribute bindings & element buffer)
+ * for each shader interface. Start with a static number of VAO's and fallback to dynamic count
+ * if necessary. Once a batch goes dynamic it does not go back.
+ */
 class GLVaoCache {
  private:
   /** Context for which the vao_cache_ was generated. */
-  GLContext *context_ = NULL;
+  GLContext *context_ = nullptr;
   /** Last interface this batch was drawn with. */
-  GLShaderInterface *interface_ = NULL;
+  GLShaderInterface *interface_ = nullptr;
   /** Cached VAO for the last interface. */
   GLuint vao_id_ = 0;
   /** Used when arb_base_instance is not supported. */
@@ -80,14 +64,24 @@ class GLVaoCache {
   GLuint vao_get(GPUBatch *batch);
   GLuint base_instance_vao_get(GPUBatch *batch, int i_first);
 
+  /**
+   * Return 0 on cache miss (invalid VAO).
+   */
   GLuint lookup(const GLShaderInterface *interface);
+  /**
+   * Create a new VAO object and store it in the cache.
+   */
   void insert(const GLShaderInterface *interface, GLuint vao_id);
   void remove(const GLShaderInterface *interface);
-  void clear(void);
+  void clear();
 
  private:
-  void init(void);
-  void context_check(void);
+  void init();
+  /**
+   * The #GLVaoCache object is only valid for one #GLContext.
+   * Reset the cache if trying to draw in another context;.
+   */
+  void context_check();
 };
 
 class GLBatch : public Batch {
@@ -97,10 +91,12 @@ class GLBatch : public Batch {
 
  public:
   void draw(int v_first, int v_count, int i_first, int i_count) override;
+  void draw_indirect(GPUStorageBuf *indirect_buf) override;
   void bind(int i_first);
 
   /* Convenience getters. */
-  GLIndexBuf *elem_(void) const
+
+  GLIndexBuf *elem_() const
   {
     return static_cast<GLIndexBuf *>(unwrap(elem));
   }

@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #ifndef __UTIL_COLOR_H__
 #define __UTIL_COLOR_H__
@@ -165,6 +152,56 @@ ccl_device float3 hsv_to_rgb(float3 hsv)
   return rgb;
 }
 
+ccl_device float3 rgb_to_hsl(float3 rgb)
+{
+  float cmax, cmin, h, s, l;
+
+  cmax = fmaxf(rgb.x, fmaxf(rgb.y, rgb.z));
+  cmin = min(rgb.x, min(rgb.y, rgb.z));
+  l = min(1.0f, (cmax + cmin) / 2.0f);
+
+  if (cmax == cmin) {
+    h = s = 0.0f; /* achromatic */
+  }
+  else {
+    float cdelta = cmax - cmin;
+    s = l > 0.5f ? cdelta / (2.0f - cmax - cmin) : cdelta / (cmax + cmin);
+    if (cmax == rgb.x) {
+      h = (rgb.y - rgb.z) / cdelta + (rgb.y < rgb.z ? 6.0f : 0.0f);
+    }
+    else if (cmax == rgb.y) {
+      h = (rgb.z - rgb.x) / cdelta + 2.0f;
+    }
+    else {
+      h = (rgb.x - rgb.y) / cdelta + 4.0f;
+    }
+  }
+  h /= 6.0f;
+
+  return make_float3(h, s, l);
+}
+
+ccl_device float3 hsl_to_rgb(float3 hsl)
+{
+  float nr, ng, nb, chroma, h, s, l;
+
+  h = hsl.x;
+  s = hsl.y;
+  l = hsl.z;
+
+  nr = fabsf(h * 6.0f - 3.0f) - 1.0f;
+  ng = 2.0f - fabsf(h * 6.0f - 2.0f);
+  nb = 2.0f - fabsf(h * 6.0f - 4.0f);
+
+  nr = clamp(nr, 0.0f, 1.0f);
+  nb = clamp(nb, 0.0f, 1.0f);
+  ng = clamp(ng, 0.0f, 1.0f);
+
+  chroma = (1.0f - fabsf(2.0f * l - 1.0f)) * s;
+
+  return make_float3((nr - 0.5f) * chroma + l, (ng - 0.5f) * chroma + l, (nb - 0.5f) * chroma + l);
+}
+
 ccl_device float3 xyY_to_xyz(float x, float y, float Y)
 {
   float X, Z;
@@ -281,14 +318,14 @@ ccl_device float3 color_highlight_compress(float3 color, ccl_private float3 *var
 {
   color += one_float3();
   if (variance) {
-    *variance *= sqr3(one_float3() / color);
+    *variance *= sqr(one_float3() / color);
   }
-  return log3(color);
+  return log(color);
 }
 
 ccl_device float3 color_highlight_uncompress(float3 color)
 {
-  return exp3(color) - one_float3();
+  return exp(color) - one_float3();
 }
 
 CCL_NAMESPACE_END

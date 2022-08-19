@@ -1,16 +1,5 @@
-# Copyright 2011-2020 Blender Foundation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2011-2022 Blender Foundation
 
 # OSL node shaders
 
@@ -27,6 +16,7 @@ set(SRC_OSL
   node_camera.osl
   node_checker_texture.osl
   node_clamp.osl
+  node_combine_color.osl
   node_combine_rgb.osl
   node_combine_hsv.osl
   node_combine_xyz.osl
@@ -49,6 +39,7 @@ set(SRC_OSL
   node_glossy_bsdf.osl
   node_gradient_texture.osl
   node_hair_info.osl
+  node_point_info.osl
   node_scatter_volume.osl
   node_absorption_volume.osl
   node_principled_volume.osl
@@ -78,6 +69,7 @@ set(SRC_OSL
   node_refraction_bsdf.osl
   node_rgb_curves.osl
   node_rgb_ramp.osl
+  node_separate_color.osl
   node_separate_rgb.osl
   node_separate_hsv.osl
   node_separate_xyz.osl
@@ -92,6 +84,7 @@ set(SRC_OSL
   node_value.osl
   node_vector_curves.osl
   node_vector_math.osl
+  node_vector_map_range.osl
   node_vector_rotate.osl
   node_vector_transform.osl
   node_velvet_bsdf.osl

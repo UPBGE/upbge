@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "FN_multi_function_procedure.hh"
 
@@ -187,7 +173,7 @@ MFVariable &MFProcedure::new_variable(MFDataType data_type, std::string name)
   MFVariable &variable = *allocator_.construct<MFVariable>().release();
   variable.name_ = std::move(name);
   variable.data_type_ = data_type;
-  variable.id_ = variables_.size();
+  variable.index_in_graph_ = variables_.size();
   variables_.append(&variable);
   return variable;
 }
@@ -328,7 +314,7 @@ bool MFProcedure::validate_all_params_provided() const
     const MultiFunction &fn = instruction->fn();
     for (const int param_index : fn.param_indices()) {
       const MFParamType param_type = fn.param_type(param_index);
-      if (param_type.category() == MFParamType::SingleOutput) {
+      if (param_type.category() == MFParamCategory::SingleOutput) {
         /* Single outputs are optional. */
         continue;
       }
@@ -767,7 +753,7 @@ class MFProcedureDotExport {
       ss << "null";
     }
     else {
-      ss << "$" << variable->id();
+      ss << "$" << variable->index_in_procedure();
       if (!variable->name().is_empty()) {
         ss << "(" << variable->name() << ")";
       }
@@ -782,7 +768,7 @@ class MFProcedureDotExport {
   void instruction_to_string(const MFCallInstruction &instruction, std::stringstream &ss)
   {
     const MultiFunction &fn = instruction.fn();
-    this->instruction_name_format(fn.name() + ": ", ss);
+    this->instruction_name_format(fn.debug_name() + ": ", ss);
     for (const int param_index : fn.param_indices()) {
       const MFParamType param_type = fn.param_type(param_index);
       const MFVariable *variable = instruction.params()[param_index];

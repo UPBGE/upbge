@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2017 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2017 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup depsgraph
@@ -70,20 +54,14 @@ void deg_invalidate_iterator_work_data(DEGObjectIterData *data)
 {
 #ifdef INVALIDATE_WORK_DATA
   BLI_assert(data != nullptr);
-  memset(&data->temp_dupli_object, 0xff, sizeof(data->temp_dupli_object));
+  memset((void *)&data->temp_dupli_object, 0xff, sizeof(data->temp_dupli_object));
 #else
   (void)data;
 #endif
 }
 
-void verify_id_properties_freed(DEGObjectIterData *data)
+void ensure_id_properties_freed(const Object *dupli_object, Object *temp_dupli_object)
 {
-  if (data->dupli_object_current == nullptr) {
-    /* We didn't enter duplication yet, so we can't have any dangling pointers. */
-    return;
-  }
-  const Object *dupli_object = data->dupli_object_current->ob;
-  Object *temp_dupli_object = &data->temp_dupli_object;
   if (temp_dupli_object->id.properties == nullptr) {
     /* No ID properties in temp data-block -- no leak is possible. */
     return;
@@ -95,6 +73,35 @@ void verify_id_properties_freed(DEGObjectIterData *data)
   /* Free memory which is owned by temporary storage which is about to get overwritten. */
   IDP_FreeProperty(temp_dupli_object->id.properties);
   temp_dupli_object->id.properties = nullptr;
+}
+
+void ensure_boundbox_freed(const Object *dupli_object, Object *temp_dupli_object)
+{
+  if (temp_dupli_object->runtime.bb == nullptr) {
+    /* No Bounding Box in temp data-block -- no leak is possible. */
+    return;
+  }
+  if (temp_dupli_object->runtime.bb == dupli_object->runtime.bb) {
+    /* Temp copy of object did not modify Bounding Box. */
+    return;
+  }
+  /* Free memory which is owned by temporary storage which is about to get overwritten. */
+  MEM_freeN(temp_dupli_object->runtime.bb);
+  temp_dupli_object->runtime.bb = nullptr;
+}
+
+void free_owned_memory(DEGObjectIterData *data)
+{
+  if (data->dupli_object_current == nullptr) {
+    /* We didn't enter duplication yet, so we can't have any dangling pointers. */
+    return;
+  }
+
+  const Object *dupli_object = data->dupli_object_current->ob;
+  Object *temp_dupli_object = &data->temp_dupli_object;
+
+  ensure_id_properties_freed(dupli_object, temp_dupli_object);
+  ensure_boundbox_freed(dupli_object, temp_dupli_object);
 }
 
 bool deg_object_hide_original(eEvaluationMode eval_mode, Object *ob, DupliObject *dob)
@@ -146,21 +153,21 @@ bool deg_iterator_duplis_step(DEGObjectIterData *data)
     if (dob->no_draw) {
       continue;
     }
-    if (obd->type == OB_MBALL) {
+    if (dob->ob_data && GS(dob->ob_data->name) == ID_MB) {
       continue;
     }
-    if (deg_object_hide_original(data->eval_mode, dob->ob, dob)) {
+    if (obd->type != OB_MBALL && deg_object_hide_original(data->eval_mode, dob->ob, dob)) {
       continue;
     }
 
-    verify_id_properties_freed(data);
+    free_owned_memory(data);
 
     data->dupli_object_current = dob;
 
     /* Temporary object to evaluate. */
     Object *dupli_parent = data->dupli_parent;
     Object *temp_dupli_object = &data->temp_dupli_object;
-    *temp_dupli_object = *dob->ob;
+    *temp_dupli_object = blender::dna::shallow_copy(*dob->ob);
     temp_dupli_object->base_flag = dupli_parent->base_flag | BASE_FROM_DUPLI;
     temp_dupli_object->base_local_view_bits = dupli_parent->base_local_view_bits;
     temp_dupli_object->runtime.local_collections_bits =
@@ -169,6 +176,8 @@ bool deg_iterator_duplis_step(DEGObjectIterData *data)
     copy_v4_v4(temp_dupli_object->color, dupli_parent->color);
     temp_dupli_object->runtime.select_id = dupli_parent->runtime.select_id;
     if (dob->ob->data != dob->ob_data) {
+      /* Do not modify the original boundbox. */
+      temp_dupli_object->runtime.bb = nullptr;
       BKE_object_replace_data_on_shallow_copy(temp_dupli_object, dob->ob_data);
     }
 
@@ -192,7 +201,7 @@ bool deg_iterator_duplis_step(DEGObjectIterData *data)
     return true;
   }
 
-  verify_id_properties_freed(data);
+  free_owned_memory(data);
   free_object_duplilist(data->dupli_list);
   data->dupli_parent = nullptr;
   data->dupli_list = nullptr;
@@ -210,7 +219,9 @@ bool deg_iterator_objects_step(DEGObjectIterData *data)
   for (; data->id_node_index < data->num_id_nodes; data->id_node_index++) {
     deg::IDNode *id_node = deg_graph->id_nodes[data->id_node_index];
 
-    if (!id_node->is_directly_visible) {
+    /* Use the build time visibility so that the ID is not appearing/disappearing throughout
+     * animation export. */
+    if (!id_node->is_visible_on_build) {
       continue;
     }
 
@@ -329,15 +340,21 @@ static void DEG_iterator_ids_step(BLI_Iterator *iter, deg::IDNode *id_node, bool
 {
   ID *id_cow = id_node->id_cow;
 
-  if (!id_node->is_directly_visible) {
+  /* Use the build time visibility so that the ID is not appearing/disappearing throughout
+   * animation export. */
+  if (!id_node->is_visible_on_build) {
     iter->skip = true;
     return;
   }
-  if (only_updated && !(id_cow->recalc & ID_RECALC_ALL)) {
-    bNodeTree *ntree = ntreeFromID(id_cow);
 
+  if (only_updated && !(id_cow->recalc & ID_RECALC_ALL)) {
     /* Node-tree is considered part of the data-block. */
-    if (!(ntree && (ntree->id.recalc & ID_RECALC_ALL))) {
+    bNodeTree *ntree = ntreeFromID(id_cow);
+    if (ntree == nullptr) {
+      iter->skip = true;
+      return;
+    }
+    if ((ntree->id.recalc & ID_RECALC_NTREE_OUTPUT) == 0) {
       iter->skip = true;
       return;
     }

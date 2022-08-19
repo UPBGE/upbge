@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2013, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2013 Blender Foundation. */
 
 #include <set>
 
@@ -119,7 +104,7 @@ void NodeOperationBuilder::convert_to_operations(ExecutionSystem *system)
   prune_operations();
 
   /* ensure topological (link-based) order of nodes */
-  /*sort_operations();*/ /* not needed yet */
+  // sort_operations(); /* not needed yet. */
 
   if (context_->get_execution_model() == eExecutionModel::Tiled) {
     /* create execution groups */
@@ -236,8 +221,9 @@ PreviewOperation *NodeOperationBuilder::make_preview_operation() const
 
   bNodeInstanceHash *previews = context_->get_preview_hash();
   if (previews) {
-    PreviewOperation *operation = new PreviewOperation(context_->get_view_settings(),
-                                                       context_->get_display_settings(),
+    Scene *scene = context_->get_scene();
+    PreviewOperation *operation = new PreviewOperation(&scene->view_settings,
+                                                       &scene->display_settings,
                                                        current_node_->get_bnode()->preview_xsize,
                                                        current_node_->get_bnode()->preview_ysize);
     operation->set_bnodetree(context_->get_bnodetree());
@@ -481,7 +467,6 @@ static Vector<NodeOperationHash> generate_hashes(Span<NodeOperation *> operation
   return hashes;
 }
 
-/** Merge operations with same type, inputs and parameters that produce the same result. */
 void NodeOperationBuilder::merge_equal_operations()
 {
   bool check_for_next_merge = true;
@@ -793,7 +778,6 @@ void NodeOperationBuilder::save_graphviz(StringRefNull name)
   }
 }
 
-/** Create a graphviz representation of the NodeOperationBuilder. */
 std::ostream &operator<<(std::ostream &os, const NodeOperationBuilder &builder)
 {
   os << "# Builder start\n";

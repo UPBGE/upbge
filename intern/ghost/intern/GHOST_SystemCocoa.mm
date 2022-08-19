@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 #include "GHOST_SystemCocoa.h"
 
@@ -53,7 +37,7 @@
 
 #pragma mark KeyMap, mouse converters
 
-static GHOST_TButtonMask convertButton(int button)
+static GHOST_TButton convertButton(int button)
 {
   switch (button) {
     case 0:
@@ -323,6 +307,7 @@ static GHOST_TKey convertKey(int rawCode, unichar recvChar, UInt16 keyAction)
           case ']':
             return GHOST_kKeyRightBracket;
           case '`':
+          case '<': /* The position of '`' is equivalent to this symbol in the French layout. */
             return GHOST_kKeyAccentGrave;
           default:
             return GHOST_kKeyUnknown;
@@ -787,8 +772,22 @@ GHOST_TSuccess GHOST_SystemCocoa::disposeContext(GHOST_IContext *context)
   return GHOST_kSuccess;
 }
 
+GHOST_IWindow *GHOST_SystemCocoa::getWindowUnderCursor(int32_t x, int32_t y)
+{
+  NSPoint scr_co = NSMakePoint(x, y);
+
+  int windowNumberAtPoint = [NSWindow windowNumberAtPoint:scr_co belowWindowWithWindowNumber:0];
+  NSWindow *nswindow = [NSApp windowWithWindowNumber:windowNumberAtPoint];
+
+  if (nswindow == nil) {
+    return nil;
+  }
+
+  return m_windowManager->getWindowAssociatedWithOSWindow((void *)nswindow);
+}
+
 /**
- * \note : returns coordinates in Cocoa screen coordinates
+ * \note returns coordinates in Cocoa screen coordinates.
  */
 GHOST_TSuccess GHOST_SystemCocoa::getCursorPosition(int32_t &x, int32_t &y) const
 {
@@ -801,7 +800,7 @@ GHOST_TSuccess GHOST_SystemCocoa::getCursorPosition(int32_t &x, int32_t &y) cons
 }
 
 /**
- * \note : expect Cocoa screen coordinates
+ * \note expect Cocoa screen coordinates.
  */
 GHOST_TSuccess GHOST_SystemCocoa::setCursorPosition(int32_t x, int32_t y)
 {
@@ -890,7 +889,7 @@ bool GHOST_SystemCocoa::processEvents(bool waitForEvent)
   bool anyProcessed = false;
   NSEvent *event;
 
-  // TODO : implement timer ??
+  /* TODO: implement timer? */
 #if 0
   do {
     GHOST_TimerManager* timerMgr = getTimerManager();
@@ -968,7 +967,7 @@ bool GHOST_SystemCocoa::processEvents(bool waitForEvent)
   return anyProcessed;
 }
 
-// Note: called from NSApplication delegate
+/* NOTE: called from #NSApplication delegate. */
 GHOST_TSuccess GHOST_SystemCocoa::handleApplicationBecomeActiveEvent()
 {
   for (GHOST_IWindow *iwindow : m_windowManager->getWindows()) {
@@ -1047,12 +1046,10 @@ void GHOST_SystemCocoa::notifyExternalEventProcessed()
   m_outsideLoopEventProcessed = true;
 }
 
-// Note: called from NSWindow delegate
+/* NOTE: called from #NSWindow delegate. */
 GHOST_TSuccess GHOST_SystemCocoa::handleWindowEvent(GHOST_TEventType eventType,
                                                     GHOST_WindowCocoa *window)
 {
-  NSArray *windowsList;
-  windowsList = [NSApp orderedWindows];
   if (!validWindow(window)) {
     return GHOST_kFailure;
   }
@@ -1111,7 +1108,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleWindowEvent(GHOST_TEventType eventType,
   return GHOST_kSuccess;
 }
 
-// Note: called from NSWindow subclass
+/* NOTE: called from #NSWindow subclass. */
 GHOST_TSuccess GHOST_SystemCocoa::handleDraggingEvent(GHOST_TEventType eventType,
                                                       GHOST_TDragnDropTypes draggedObjectType,
                                                       GHOST_WindowCocoa *window,
@@ -1245,7 +1242,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleDraggingEvent(GHOST_TEventType eventType
 
             /* Convert the image in a RGBA 32bit format */
             /* As Core Graphics does not support contexts with non premutliplied alpha,
-             we need to get alpha key values in a separate batch */
+             * we need to get alpha key values in a separate batch */
 
             /* First get RGB values w/o Alpha to avoid pre-multiplication,
              * 32bit but last byte is unused */
@@ -1479,8 +1476,8 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
   CocoaWindow *cocoawindow;
 
   /* [event window] returns other windows if mouse-over, that's OSX input standard
-     however, if mouse exits window(s), the windows become inactive, until you click.
-     We then fall back to the active window from ghost */
+   * however, if mouse exits window(s), the windows become inactive, until you click.
+   * We then fall back to the active window from ghost. */
   window = (GHOST_WindowCocoa *)m_windowManager->getWindowAssociatedWithOSWindow(
       (void *)[event window]);
   if (!window) {
@@ -1782,7 +1779,6 @@ GHOST_TSuccess GHOST_SystemCocoa::handleKeyEvent(void *eventPtr)
   NSString *characters;
   NSData *convertedCharacters;
   GHOST_TKey keyCode;
-  unsigned char ascii;
   NSString *charsIgnoringModifiers;
 
   window = m_windowManager->getWindowAssociatedWithOSWindow((void *)[event window]);
@@ -1792,7 +1788,6 @@ GHOST_TSuccess GHOST_SystemCocoa::handleKeyEvent(void *eventPtr)
   }
 
   char utf8_buf[6] = {'\0'};
-  ascii = 0;
 
   switch ([event type]) {
 
@@ -1812,7 +1807,6 @@ GHOST_TSuccess GHOST_SystemCocoa::handleKeyEvent(void *eventPtr)
                                                                   kUCKeyActionUp);
       }
 
-      /* handling both unicode or ascii */
       characters = [event characters];
       if ([characters length] > 0) {
         convertedCharacters = [characters dataUsingEncoding:NSUTF8StringEncoding];
@@ -1838,41 +1832,31 @@ GHOST_TSuccess GHOST_SystemCocoa::handleKeyEvent(void *eventPtr)
       if ((keyCode == GHOST_kKeyQ) && (m_modifierMask & NSEventModifierFlagCommand))
         break;  // Cmd-Q is directly handled by Cocoa
 
-      /* ascii is a subset of unicode */
-      if (utf8_buf[0] && !utf8_buf[1]) {
-        ascii = utf8_buf[0];
-      }
-
       if ([event type] == NSEventTypeKeyDown) {
         pushEvent(new GHOST_EventKey([event timestamp] * 1000,
                                      GHOST_kEventKeyDown,
                                      window,
                                      keyCode,
-                                     ascii,
-                                     utf8_buf,
-                                     [event isARepeat]));
+                                     [event isARepeat],
+                                     utf8_buf));
 #if 0
-        printf("Key down rawCode=0x%x charsIgnoringModifiers=%c keyCode=%u ascii=%i %c utf8=%s\n",
+        printf("Key down rawCode=0x%x charsIgnoringModifiers=%c keyCode=%u utf8=%s\n",
                [event keyCode],
                [charsIgnoringModifiers length] > 0 ? [charsIgnoringModifiers characterAtIndex:0] :
                                                      ' ',
                keyCode,
-               ascii,
-               ascii,
                utf8_buf);
 #endif
       }
       else {
         pushEvent(new GHOST_EventKey(
-            [event timestamp] * 1000, GHOST_kEventKeyUp, window, keyCode, 0, NULL, false));
+            [event timestamp] * 1000, GHOST_kEventKeyUp, window, keyCode, false, NULL));
 #if 0
-        printf("Key up rawCode=0x%x charsIgnoringModifiers=%c keyCode=%u ascii=%i %c utf8=%s\n",
+        printf("Key up rawCode=0x%x charsIgnoringModifiers=%c keyCode=%u utf8=%s\n",
                [event keyCode],
                [charsIgnoringModifiers length] > 0 ? [charsIgnoringModifiers characterAtIndex:0] :
                                                      ' ',
                keyCode,
-               ascii,
-               ascii,
                utf8_buf);
 #endif
       }

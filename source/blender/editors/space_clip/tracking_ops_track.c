@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2016 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2016 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup spclip
@@ -147,10 +131,10 @@ static bool track_markers_initjob(bContext *C, TrackMarkersJob *tmj, bool backwa
 
   if (sequence) {
     if (backwards) {
-      tmj->efra = SFRA;
+      tmj->efra = scene->r.sfra;
     }
     else {
-      tmj->efra = EFRA;
+      tmj->efra = scene->r.efra;
     }
     tmj->efra = BKE_movieclip_remap_scene_to_clip_frame(clip, tmj->efra);
   }
@@ -226,6 +210,8 @@ static void track_markers_startjob(
 {
   TrackMarkersJob *tmj = (TrackMarkersJob *)tmv;
   int framenr = tmj->sfra;
+
+  BKE_autotrack_context_start(tmj->context);
 
   while (framenr != tmj->efra) {
     if (tmj->delay > 0) {

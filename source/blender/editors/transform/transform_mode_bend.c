@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edtransform
@@ -122,7 +106,7 @@ static void transdata_elem_bend(const TransInfo *t,
   }
 
   if (t->options & CTX_GPENCIL_STROKES) {
-    /* grease pencil multiframe falloff */
+    /* Grease pencil multi-frame falloff. */
     bGPDstroke *gps = (bGPDstroke *)td->extra;
     if (gps != NULL) {
       fac_scaled = fac * td->factor * gps->runtime.multi_frame_falloff;
@@ -278,7 +262,7 @@ static void Bend(TransInfo *t, const int UNUSED(mval[2]))
                  +values.scale * shell_angle_to_dist((float)M_PI_2 + values.angle));
   }
 
-  /* TODO(campbell): xform, compensate object center. */
+  /* TODO(@campbellbarton): xform, compensate object center. */
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
 
     float warp_sta_local[3];
@@ -393,4 +377,5 @@ void initBend(TransInfo *t)
   t->custom.mode.data = data;
   t->custom.mode.use_free = true;
 }
+
 /** \} */

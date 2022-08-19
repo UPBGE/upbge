@@ -1,23 +1,11 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
-#include "BLI_float3.hh"
 #include "BLI_math_matrix.h"
+#include "BLI_math_vec_types.hh"
+#include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
 
 namespace blender {
 
@@ -63,7 +51,7 @@ struct float4x4 {
      * Without the negation, the result would be a so called improper rotation. That means it
      * contains a reflection. Such an improper rotation matrix could not be converted to another
      * representation of a rotation such as euler angles. */
-    const float3 cross = -float3::cross(forward, up);
+    const float3 cross = -math::cross(forward, up);
 
     float4x4 matrix;
     matrix.values[0][0] = forward.x;
@@ -106,6 +94,20 @@ struct float4x4 {
     return &values[0][0];
   }
 
+  float *operator[](const int64_t index)
+  {
+    BLI_assert(index >= 0);
+    BLI_assert(index < 4);
+    return &values[index][0];
+  }
+
+  const float *operator[](const int64_t index) const
+  {
+    BLI_assert(index >= 0);
+    BLI_assert(index < 4);
+    return &values[index][0];
+  }
+
   using c_style_float4x4 = float[4][4];
   c_style_float4x4 &ptr()
   {
@@ -143,6 +145,16 @@ struct float4x4 {
   friend float3 operator*(const float4x4 &m, const float (*v)[3])
   {
     return m * float3(v);
+  }
+
+  friend bool operator==(const float4x4 &a, const float4x4 &b)
+  {
+    return equals_m4m4(a.ptr(), b.ptr());
+  }
+
+  friend bool operator!=(const float4x4 &a, const float4x4 &b)
+  {
+    return !(a == b);
   }
 
   float3 translation() const
@@ -243,6 +255,25 @@ struct float4x4 {
       h = h * 33 + *reinterpret_cast<const uint32_t *>(&value);
     }
     return h;
+  }
+
+  friend std::ostream &operator<<(std::ostream &stream, const float4x4 &mat)
+  {
+    char fchar[16];
+    stream << "(\n";
+    for (int i = 0; i < 4; i++) {
+      stream << "(";
+      for (int j = 0; j < 4; j++) {
+        snprintf(fchar, sizeof(fchar), "%11.6f", mat[j][i]);
+        stream << fchar;
+        if (i != 3) {
+          stream << ", ";
+        }
+      }
+      stream << ")\n";
+    }
+    stream << ")\n";
+    return stream;
   }
 };
 

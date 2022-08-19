@@ -11,16 +11,6 @@
 #define GPU_KEYFRAME_SHAPE_SQUARE \
   (GPU_KEYFRAME_SHAPE_CLIPPED_VERTICAL | GPU_KEYFRAME_SHAPE_CLIPPED_HORIZONTAL)
 
-flat in vec4 radii;
-flat in vec4 thresholds;
-
-flat in vec4 finalColor;
-flat in vec4 finalOutlineColor;
-
-flat in int finalFlags;
-
-out vec4 fragColor;
-
 const float diagonal_scale = sqrt(0.5);
 
 const float minmax_bias = 0.7;

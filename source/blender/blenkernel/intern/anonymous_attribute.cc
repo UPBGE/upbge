@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_anonymous_attribute.hh"
 
@@ -55,7 +41,7 @@ static std::string get_new_internal_name()
 {
   static std::atomic<int> index = 0;
   const int next_index = index.fetch_add(1);
-  return "anonymous_attribute_" + std::to_string(next_index);
+  return ".a_" + std::to_string(next_index);
 }
 
 AnonymousAttributeID *BKE_anonymous_attribute_id_new_weak(const char *debug_name)

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2006 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2006 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup render
@@ -54,7 +38,7 @@ extern "C" {
 
 /* External Engine */
 
-/* RenderEngineType.flag */
+/** #RenderEngineType.flag */
 #define RE_INTERNAL 1
 /* #define RE_FLAG_DEPRECATED   2 */
 #define RE_USE_PREVIEW 4
@@ -69,7 +53,7 @@ extern "C" {
 #define RE_USE_NO_IMAGE_SAVE 2048
 #define RE_USE_ALEMBIC_PROCEDURAL 4096
 
-/* RenderEngine.flag */
+/** #RenderEngine.flag */
 #define RE_ENGINE_ANIMATION 1
 #define RE_ENGINE_PREVIEW 2
 #define RE_ENGINE_DO_DRAW 4
@@ -106,10 +90,10 @@ typedef struct RenderEngineType {
   void (*bake)(struct RenderEngine *engine,
                struct Depsgraph *depsgraph,
                struct Object *object,
-               const int pass_type,
-               const int pass_filter,
-               const int width,
-               const int height);
+               int pass_type,
+               int pass_filter,
+               int width,
+               int height);
 
   void (*view_update)(struct RenderEngine *engine,
                       const struct bContext *context,
@@ -180,11 +164,15 @@ typedef struct RenderEngine {
 RenderEngine *RE_engine_create(RenderEngineType *type);
 void RE_engine_free(RenderEngine *engine);
 
+/**
+ * Loads in image into a result, size must match
+ * x/y offsets are only used on a partial copy when dimensions don't match.
+ */
 void RE_layer_load_from_file(
-    struct RenderLayer *layer, struct ReportList *reports, const char *filename, int x, int y);
+    struct RenderLayer *layer, struct ReportList *reports, const char *filepath, int x, int y);
 void RE_result_load_from_file(struct RenderResult *result,
                               struct ReportList *reports,
-                              const char *filename);
+                              const char *filepath);
 
 struct RenderResult *RE_engine_begin_result(
     RenderEngine *engine, int x, int y, int w, int h, const char *layername, const char *viewname);
@@ -265,6 +253,7 @@ void RE_engine_render_context_disable(struct RenderEngine *engine);
 /* Engine Types */
 
 void RE_engines_init(void);
+void RE_engines_init_experimental(void);
 void RE_engines_exit(void);
 void RE_engines_register(RenderEngineType *render_type);
 

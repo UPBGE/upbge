@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup wm
@@ -27,6 +13,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include "DNA_scene_types.h"
 
 /* initialize gizmos */
 void ED_gizmotypes_arrow_3d(void);
@@ -53,6 +41,7 @@ struct wmWindowManager;
  */
 
 /* gizmo_library_presets.c */
+
 void ED_gizmo_draw_preset_box(const struct wmGizmo *gz, float mat[4][4], int select_id);
 void ED_gizmo_draw_preset_arrow(const struct wmGizmo *gz,
                                 float mat[4][4],
@@ -65,7 +54,7 @@ void ED_gizmo_draw_preset_circle(const struct wmGizmo *gz,
 void ED_gizmo_draw_preset_facemap(const struct bContext *C,
                                   const struct wmGizmo *gz,
                                   struct Object *ob,
-                                  const int facemap,
+                                  int facemap,
                                   int select_id);
 
 /* -------------------------------------------------------------------- */
@@ -92,8 +81,18 @@ enum {
   ED_GIZMO_ARROW_DRAW_FLAG_STEM = (1 << 0),
 };
 
-void ED_gizmo_arrow3d_set_ui_range(struct wmGizmo *gz, const float min, const float max);
-void ED_gizmo_arrow3d_set_range_fac(struct wmGizmo *gz, const float range_fac);
+/**
+ * Define a custom property UI range.
+ *
+ * \note Needs to be called before #WM_gizmo_target_property_def_rna!
+ */
+void ED_gizmo_arrow3d_set_ui_range(struct wmGizmo *gz, float min, float max);
+/**
+ * Define a custom factor for arrow min/max distance.
+ *
+ * \note Needs to be called before #WM_gizmo_target_property_def_rna!
+ */
+void ED_gizmo_arrow3d_set_range_fac(struct wmGizmo *gz, float range_fac);
 
 /* -------------------------------------------------------------------- */
 /* Cage Gizmo */
@@ -226,24 +225,8 @@ enum {
 /* -------------------------------------------------------------------- */
 /* Specific gizmos utils */
 
-/* dial3d_gizmo.c */
-struct Dial3dParams {
-  int draw_options;
-  float angle_ofs;
-  float angle_delta;
-  float angle_increment;
-  float arc_partial_angle;
-  float arc_inner_factor;
-  float *clip_plane;
-};
-void ED_gizmotypes_dial_3d_draw_util(const float matrix_basis[4][4],
-                                     const float matrix_final[4][4],
-                                     const float line_width,
-                                     const float color[4],
-                                     const bool select,
-                                     struct Dial3dParams *params);
-
 /* snap3d_gizmo.c */
+
 struct SnapObjectContext *ED_gizmotypes_snap_3d_context_ensure(struct Scene *scene,
                                                                struct wmGizmo *gz);
 
@@ -259,7 +242,7 @@ void ED_gizmotypes_snap_3d_data_get(const struct bContext *C,
                                     float r_loc[3],
                                     float r_nor[3],
                                     int r_elem_index[3],
-                                    int *r_snap_elem);
+                                    eSnapMode *r_snap_elem);
 
 #ifdef __cplusplus
 }

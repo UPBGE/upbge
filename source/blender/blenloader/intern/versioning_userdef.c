@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup blenloader
@@ -47,6 +33,7 @@
 
 #include "readfile.h" /* Own include. */
 
+#include "WM_types.h"
 #include "wm_event_types.h"
 
 /* Don't use translation strings in versioning!
@@ -68,265 +55,36 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
 #define USER_VERSION_ATLEAST(ver, subver) MAIN_VERSION_ATLEAST(userdef, ver, subver)
 #define FROM_DEFAULT_V4_UCHAR(member) copy_v4_v4_uchar(btheme->member, U_theme_default.member)
 
-  if (!USER_VERSION_ATLEAST(280, 25)) {
-    copy_v4_v4_uchar(btheme->space_action.anim_preview_range, btheme->space_action.anim_active);
-    copy_v4_v4_uchar(btheme->space_nla.anim_preview_range, btheme->space_nla.anim_active);
-    copy_v4_v4_uchar(btheme->space_graph.anim_preview_range, btheme->space_action.anim_active);
+  if (!USER_VERSION_ATLEAST(300, 41)) {
+    memcpy(btheme, &U_theme_default, sizeof(*btheme));
   }
 
-  if (!USER_VERSION_ATLEAST(280, 26)) {
-    FROM_DEFAULT_V4_UCHAR(tui.icon_collection);
-    FROM_DEFAULT_V4_UCHAR(tui.icon_object);
-    FROM_DEFAULT_V4_UCHAR(tui.icon_object_data);
-    FROM_DEFAULT_V4_UCHAR(tui.icon_modifier);
-    FROM_DEFAULT_V4_UCHAR(tui.icon_shading);
+  /* Again reset the theme, but only if stored with an early 3.1 alpha version. Some changes were
+   * done in the release branch and then merged into the 3.1 branch (master). So the previous reset
+   * wouldn't work for people who saved their preferences with a 3.1 build meanwhile. But we still
+   * don't want to reset theme changes stored in the eventual 3.0 release once opened in a 3.1
+   * build. */
+  if (userdef->versionfile > 300 && !USER_VERSION_ATLEAST(301, 1)) {
+    memcpy(btheme, &U_theme_default, sizeof(*btheme));
   }
 
-  if (!USER_VERSION_ATLEAST(280, 27)) {
-    FROM_DEFAULT_V4_UCHAR(space_action.shade2);
-    FROM_DEFAULT_V4_UCHAR(space_action.hilite);
-    FROM_DEFAULT_V4_UCHAR(space_action.group);
-    FROM_DEFAULT_V4_UCHAR(space_action.group_active);
-    FROM_DEFAULT_V4_UCHAR(space_action.strip_select);
-    FROM_DEFAULT_V4_UCHAR(space_action.ds_channel);
-    FROM_DEFAULT_V4_UCHAR(space_action.ds_subchannel);
-    FROM_DEFAULT_V4_UCHAR(space_action.keytype_movehold);
-    FROM_DEFAULT_V4_UCHAR(space_action.keytype_movehold_select);
-  }
-
-  if (!USER_VERSION_ATLEAST(280, 28)) {
-    FROM_DEFAULT_V4_UCHAR(space_action.ds_ipoline);
-  }
-
-  if (!USER_VERSION_ATLEAST(280, 29)) {
-    FROM_DEFAULT_V4_UCHAR(space_properties.navigation_bar);
-  }
-  if (!USER_VERSION_ATLEAST(280, 31)) {
-    FROM_DEFAULT_V4_UCHAR(space_clip.list_text);
-  }
-
-  if (!USER_VERSION_ATLEAST(280, 36)) {
-    FROM_DEFAULT_V4_UCHAR(tui.wcol_state.inner_changed);
-    FROM_DEFAULT_V4_UCHAR(tui.wcol_state.inner_changed_sel);
-  }
-
-  if (!USER_VERSION_ATLEAST(280, 39)) {
-    FROM_DEFAULT_V4_UCHAR(space_clip.metadatabg);
-    FROM_DEFAULT_V4_UCHAR(space_clip.metadatatext);
-  }
-
-  if (!USER_VERSION_ATLEAST(280, 40)) {
-    FROM_DEFAULT_V4_UCHAR(space_preferences.navigation_bar);
-    copy_v4_v4_uchar(btheme->space_preferences.execution_buts,
-                     btheme->space_preferences.navigation_bar);
-  }
-
-  if (!USER_VERSION_ATLEAST(280, 41)) {
-    FROM_DEFAULT_V4_UCHAR(space_view3d.back);
-  }
-
-  if (!USER_VERSION_ATLEAST(280, 52)) {
-    FROM_DEFAULT_V4_UCHAR(space_info.info_info);
-  }
-
-  if (!USER_VERSION_ATLEAST(280, 64)) {
-    FROM_DEFAULT_V4_UCHAR(tui.icon_scene);
-
-    if (btheme->space_view3d.obcenter_dia == 0) {
-      btheme->space_view3d.obcenter_dia = U_theme_default.space_view3d.obcenter_dia;
-    }
-
-    FROM_DEFAULT_V4_UCHAR(space_graph.text);
-    FROM_DEFAULT_V4_UCHAR(space_action.text);
-    FROM_DEFAULT_V4_UCHAR(space_nla.text);
-    FROM_DEFAULT_V4_UCHAR(space_sequencer.text);
-    FROM_DEFAULT_V4_UCHAR(space_clip.text);
-
-    FROM_DEFAULT_V4_UCHAR(space_graph.time_scrub_background);
-    FROM_DEFAULT_V4_UCHAR(space_action.time_scrub_background);
-    FROM_DEFAULT_V4_UCHAR(space_nla.time_scrub_background);
-    FROM_DEFAULT_V4_UCHAR(space_sequencer.time_scrub_background);
-    FROM_DEFAULT_V4_UCHAR(space_clip.time_scrub_background);
-  }
-
-  if (!USER_VERSION_ATLEAST(280, 67)) {
-    FROM_DEFAULT_V4_UCHAR(space_outliner.selected_object);
-    FROM_DEFAULT_V4_UCHAR(space_outliner.active_object);
-    FROM_DEFAULT_V4_UCHAR(space_outliner.edited_object);
-    FROM_DEFAULT_V4_UCHAR(space_outliner.row_alternate);
-  }
-
-  if (!USER_VERSION_ATLEAST(281, 3)) {
-    FROM_DEFAULT_V4_UCHAR(space_outliner.selected_highlight);
-    FROM_DEFAULT_V4_UCHAR(space_outliner.active);
-  }
-
-  if (!USER_VERSION_ATLEAST(281, 14)) {
-    FROM_DEFAULT_V4_UCHAR(space_file.execution_buts);
-    FROM_DEFAULT_V4_UCHAR(tui.icon_folder);
-    FROM_DEFAULT_V4_UCHAR(space_clip.path_keyframe_before);
-    FROM_DEFAULT_V4_UCHAR(space_clip.path_keyframe_after);
-    copy_v4_v4_uchar(btheme->space_nla.nla_track, btheme->space_nla.header);
-  }
-
-  if (!USER_VERSION_ATLEAST(282, 5)) {
-    FROM_DEFAULT_V4_UCHAR(space_sequencer.anim_preview_range);
-    FROM_DEFAULT_V4_UCHAR(space_text.line_numbers);
-    FROM_DEFAULT_V4_UCHAR(tui.widget_text_cursor);
-    FROM_DEFAULT_V4_UCHAR(space_view3d.face_back);
-    FROM_DEFAULT_V4_UCHAR(space_view3d.face_front);
-  }
-
-  if (!USER_VERSION_ATLEAST(283, 1)) {
-    FROM_DEFAULT_V4_UCHAR(space_view3d.bone_locked_weight);
-  }
-
-  if (!USER_VERSION_ATLEAST(283, 2)) {
-    FROM_DEFAULT_V4_UCHAR(space_info.info_property);
-    FROM_DEFAULT_V4_UCHAR(space_info.info_property_text);
-    FROM_DEFAULT_V4_UCHAR(space_info.info_operator);
-    FROM_DEFAULT_V4_UCHAR(space_info.info_operator_text);
-  }
-
-  if (!USER_VERSION_ATLEAST(283, 5)) {
-    FROM_DEFAULT_V4_UCHAR(space_graph.time_marker_line);
-    FROM_DEFAULT_V4_UCHAR(space_action.time_marker_line);
-    FROM_DEFAULT_V4_UCHAR(space_nla.time_marker_line);
-    FROM_DEFAULT_V4_UCHAR(space_sequencer.time_marker_line);
-    FROM_DEFAULT_V4_UCHAR(space_clip.time_marker_line);
-    FROM_DEFAULT_V4_UCHAR(space_graph.time_marker_line_selected);
-    FROM_DEFAULT_V4_UCHAR(space_action.time_marker_line_selected);
-    FROM_DEFAULT_V4_UCHAR(space_nla.time_marker_line_selected);
-    FROM_DEFAULT_V4_UCHAR(space_sequencer.time_marker_line_selected);
-    FROM_DEFAULT_V4_UCHAR(space_clip.time_marker_line_selected);
-  }
-
-  if (!USER_VERSION_ATLEAST(283, 6)) {
-    btheme->space_node.grid_levels = U_theme_default.space_node.grid_levels;
-  }
-
-  if (!USER_VERSION_ATLEAST(283, 9)) {
-    FROM_DEFAULT_V4_UCHAR(space_info.info_warning);
-  }
-
-  if (!USER_VERSION_ATLEAST(283, 10)) {
-    FROM_DEFAULT_V4_UCHAR(tui.gizmo_view_align);
-
-    FROM_DEFAULT_V4_UCHAR(space_sequencer.active_strip);
-    FROM_DEFAULT_V4_UCHAR(space_sequencer.selected_strip);
-    FROM_DEFAULT_V4_UCHAR(space_sequencer.color_strip);
+  if (!USER_VERSION_ATLEAST(301, 2)) {
     FROM_DEFAULT_V4_UCHAR(space_sequencer.mask);
   }
 
-  if (!USER_VERSION_ATLEAST(283, 11)) {
-    FROM_DEFAULT_V4_UCHAR(tui.transparent_checker_primary);
-    FROM_DEFAULT_V4_UCHAR(tui.transparent_checker_secondary);
-    btheme->tui.transparent_checker_size = U_theme_default.tui.transparent_checker_size;
-  }
-  if (!USER_VERSION_ATLEAST(291, 2)) {
-    /* The new defaults for the file browser theme are the same as
-     * the outliner's, and it's less disruptive to just copy them. */
-    copy_v4_v4_uchar(btheme->space_file.back, btheme->space_outliner.back);
-    copy_v4_v4_uchar(btheme->space_file.row_alternate, btheme->space_outliner.row_alternate);
-
-    FROM_DEFAULT_V4_UCHAR(space_image.grid);
+  if (!USER_VERSION_ATLEAST(302, 8)) {
+    btheme->space_node.grid_levels = U_theme_default.space_node.grid_levels;
   }
 
-  if (!USER_VERSION_ATLEAST(291, 3)) {
-    for (int i = 0; i < COLLECTION_COLOR_TOT; ++i) {
-      FROM_DEFAULT_V4_UCHAR(collection_color[i].color);
-    }
-
-    FROM_DEFAULT_V4_UCHAR(space_properties.match);
-
-    /* New grid theme color defaults are the same as the existing background colors,
-     * so they are copied to limit disruption. */
-    copy_v3_v3_uchar(btheme->space_clip.grid, btheme->space_clip.back);
-    btheme->space_clip.grid[3] = 255.0f;
-
-    copy_v3_v3_uchar(btheme->space_node.grid, btheme->space_node.back);
+  if (!USER_VERSION_ATLEAST(302, 9)) {
+    FROM_DEFAULT_V4_UCHAR(space_sequencer.list);
+    FROM_DEFAULT_V4_UCHAR(space_sequencer.list_title);
+    FROM_DEFAULT_V4_UCHAR(space_sequencer.list_text);
+    FROM_DEFAULT_V4_UCHAR(space_sequencer.list_text_hi);
   }
 
-  if (!USER_VERSION_ATLEAST(291, 9)) {
-    FROM_DEFAULT_V4_UCHAR(space_graph.vertex_active);
-  }
-
-  if (!USER_VERSION_ATLEAST(292, 5)) {
-    for (int i = 0; i < COLLECTION_COLOR_TOT; ++i) {
-      FROM_DEFAULT_V4_UCHAR(collection_color[i].color);
-    }
-    FROM_DEFAULT_V4_UCHAR(space_sequencer.row_alternate);
-    FROM_DEFAULT_V4_UCHAR(space_node.nodeclass_geometry);
-    FROM_DEFAULT_V4_UCHAR(space_node.nodeclass_attribute);
-  }
-
-  if (!USER_VERSION_ATLEAST(292, 12)) {
-    FROM_DEFAULT_V4_UCHAR(space_node.nodeclass_shader);
-  }
-
-  if (!USER_VERSION_ATLEAST(293, 15)) {
-    FROM_DEFAULT_V4_UCHAR(space_properties.active);
-
-    FROM_DEFAULT_V4_UCHAR(space_info.info_error);
-    FROM_DEFAULT_V4_UCHAR(space_info.info_warning);
-    FROM_DEFAULT_V4_UCHAR(space_info.info_info);
-    FROM_DEFAULT_V4_UCHAR(space_info.info_debug);
-    FROM_DEFAULT_V4_UCHAR(space_info.info_debug_text);
-    FROM_DEFAULT_V4_UCHAR(space_info.info_property);
-    FROM_DEFAULT_V4_UCHAR(space_info.info_error);
-    FROM_DEFAULT_V4_UCHAR(space_info.info_operator);
-
-    btheme->space_spreadsheet = btheme->space_outliner;
-  }
-
-  if (!USER_VERSION_ATLEAST(300, 5)) {
-    FROM_DEFAULT_V4_UCHAR(space_spreadsheet.active);
-    FROM_DEFAULT_V4_UCHAR(space_spreadsheet.list);
-    FROM_DEFAULT_V4_UCHAR(space_spreadsheet.list_text);
-    FROM_DEFAULT_V4_UCHAR(space_spreadsheet.list_text_hi);
-    FROM_DEFAULT_V4_UCHAR(space_spreadsheet.hilite);
-    FROM_DEFAULT_V4_UCHAR(space_spreadsheet.selected_highlight);
-  }
-
-  if (!USER_VERSION_ATLEAST(300, 15)) {
-    copy_v4_uchar(btheme->space_sequencer.grid, 33);
-    btheme->space_sequencer.grid[3] = 255;
-  }
-
-  if (!USER_VERSION_ATLEAST(300, 30)) {
-    FROM_DEFAULT_V4_UCHAR(space_node.wire);
-  }
-
-  if (!USER_VERSION_ATLEAST(300, 31)) {
-    for (int i = 0; i < SEQUENCE_COLOR_TOT; ++i) {
-      FROM_DEFAULT_V4_UCHAR(strip_color[i].color);
-    }
-  }
-
-  if (!USER_VERSION_ATLEAST(300, 33)) {
-    /* Adjust the frame node alpha now that it is used differently. */
-    btheme->space_node.movie[3] = U_theme_default.space_node.movie[3];
-  }
-
-  if (!USER_VERSION_ATLEAST(300, 34)) {
-    btheme->tui.panel_roundness = 0.4f;
-  }
-
-  if (!USER_VERSION_ATLEAST(300, 37)) {
-    btheme->space_node.dash_alpha = 0.5f;
-  }
-
-  if (!USER_VERSION_ATLEAST(300, 39)) {
-    FROM_DEFAULT_V4_UCHAR(space_node.grid);
-    btheme->space_node.grid_levels = 7;
-  }
-
-  if (!USER_VERSION_ATLEAST(300, 40)) {
-    memcpy(btheme, &U_theme_default, sizeof(*btheme));
-  }
-
-  if (!USER_VERSION_ATLEAST(300, 41)) {
-    memcpy(btheme, &U_theme_default, sizeof(*btheme));
+  if (!USER_VERSION_ATLEAST(303, 6)) {
+    btheme->tui.wcol_view_item = U_theme_default.tui.wcol_view_item;
   }
 
   /**
@@ -347,7 +105,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
 #undef USER_VERSION_ATLEAST
 }
 
-/* UserDef.flag */
+/** #UserDef.flag */
 #define USER_LMOUSESELECT (1 << 14) /* deprecated */
 
 static void do_version_select_mouse(UserDef *userdef, wmKeyMapItem *kmi)
@@ -369,10 +127,12 @@ static void do_version_select_mouse(UserDef *userdef, wmKeyMapItem *kmi)
       kmi->type = (left) ? RIGHTMOUSE : LEFTMOUSE;
       break;
     case EVT_TWEAK_S:
-      kmi->type = (left) ? EVT_TWEAK_L : EVT_TWEAK_R;
+      kmi->type = (left) ? LEFTMOUSE : RIGHTMOUSE;
+      kmi->val = KM_CLICK_DRAG;
       break;
     case EVT_TWEAK_A:
-      kmi->type = (left) ? EVT_TWEAK_R : EVT_TWEAK_L;
+      kmi->type = (left) ? RIGHTMOUSE : LEFTMOUSE;
+      kmi->val = KM_CLICK_DRAG;
       break;
     default:
       break;
@@ -391,7 +151,40 @@ static bool keymap_item_has_invalid_wm_context_data_path(wmKeyMapItem *kmi,
   return false;
 }
 
-/* patching UserDef struct and Themes */
+/** Tweak event types have been removed, replace with click-drag. */
+static bool keymap_item_update_tweak_event(wmKeyMapItem *kmi, void *UNUSED(user_data))
+{
+  /* Tweak events for L M R mouse-buttons. */
+  enum {
+    EVT_TWEAK_L = 0x5002,
+    EVT_TWEAK_M = 0x5003,
+    EVT_TWEAK_R = 0x5004,
+  };
+  switch (kmi->type) {
+    case EVT_TWEAK_L:
+      kmi->type = LEFTMOUSE;
+      break;
+    case EVT_TWEAK_M:
+      kmi->type = MIDDLEMOUSE;
+      break;
+    case EVT_TWEAK_R:
+      kmi->type = RIGHTMOUSE;
+      break;
+    default:
+      kmi->direction = KM_ANY;
+      return false;
+  }
+
+  if (kmi->val >= KM_DIRECTION_N && kmi->val <= KM_DIRECTION_NW) {
+    kmi->direction = kmi->val;
+  }
+  else {
+    kmi->direction = KM_ANY;
+  }
+  kmi->val = KM_CLICK_DRAG;
+  return false;
+}
+
 void blo_do_versions_userdef(UserDef *userdef)
 {
   /* #UserDef & #Main happen to have the same struct member. */
@@ -534,7 +327,7 @@ void blo_do_versions_userdef(UserDef *userdef)
         strcpy(km->idname, "Node Editor");
       }
       else if (STREQ(km->idname, "Logic Generic")) {
-        strcpy(km->idname, "Logic Editor");
+        strcpy(km->idname, "Logic Bricks Editor");
       }
       else if (STREQ(km->idname, "File")) {
         strcpy(km->idname, "File Browser");
@@ -562,8 +355,8 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_VERSION_ATLEAST(257, 0)) {
-    /* clear "AUTOKEY_FLAG_ONLYKEYINGSET" flag from userprefs,
-     * so that it doesn't linger around from old configs like a ghost */
+    /* Clear #AUTOKEY_FLAG_ONLYKEYINGSET flag from user-preferences,
+     * so that it doesn't linger around from old configurations like a ghost. */
     userdef->autokey_flag &= ~AUTOKEY_FLAG_ONLYKEYINGSET;
   }
 
@@ -704,8 +497,6 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_VERSION_ATLEAST(280, 38)) {
-
-    /* (keep this block even if it becomes empty). */
     copy_v4_fl4(userdef->light_param[0].vec, -0.580952, 0.228571, 0.781185, 0.0);
     copy_v4_fl4(userdef->light_param[0].col, 0.900000, 0.900000, 0.900000, 1.000000);
     copy_v4_fl4(userdef->light_param[0].spec, 0.318547, 0.318547, 0.318547, 1.000000);
@@ -738,8 +529,6 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_VERSION_ATLEAST(280, 41)) {
-    /* (keep this block even if it becomes empty). */
-
     if (userdef->pie_tap_timeout == 0) {
       userdef->pie_tap_timeout = 20;
     }
@@ -796,7 +585,6 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_VERSION_ATLEAST(280, 62)) {
-    /* (keep this block even if it becomes empty). */
     if (userdef->vbotimeout == 0) {
       userdef->vbocollectrate = 60;
       userdef->vbotimeout = 120;
@@ -958,6 +746,24 @@ void blo_do_versions_userdef(UserDef *userdef)
       style->paneltitle.points = default_title_points;
       style->grouplabel.points = default_title_points;
     }
+  }
+
+  if (!USER_VERSION_ATLEAST(300, 43)) {
+    userdef->ndof_flag |= NDOF_CAMERA_PAN_ZOOM;
+  }
+
+  if (!USER_VERSION_ATLEAST(302, 5)) {
+    BKE_keyconfig_pref_filter_items(userdef,
+                                    &((struct wmKeyConfigFilterItemParams){
+                                        .check_item = true,
+                                        .check_diff_item_add = true,
+                                    }),
+                                    keymap_item_update_tweak_event,
+                                    NULL);
+  }
+
+  if (!USER_VERSION_ATLEAST(302, 11)) {
+    userdef->dupflag |= USER_DUP_CURVES | USER_DUP_POINTCLOUD;
   }
 
   /**

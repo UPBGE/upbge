@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2009 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2009 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup spbuttons
@@ -47,6 +31,7 @@
 #include "ED_undo.h"
 
 #include "RNA_access.h"
+#include "RNA_prototypes.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -222,13 +207,13 @@ static int file_browse_exec(bContext *C, wmOperator *op)
       /* Do this first so '//' isn't converted to '//\' on windows. */
       BLI_path_slash_ensure(path);
       if (is_relative) {
-        const int path_len = BLI_strncpy_rlen(path, str, FILE_MAX);
         BLI_path_rel(path, BKE_main_blendfile_path(bmain));
-        str = MEM_reallocN(str, path_len + 2);
-        BLI_strncpy(str, path, FILE_MAX);
+        str_len = strlen(path);
+        str = MEM_reallocN(str, str_len + 1);
+        memcpy(str, path, str_len + 1);
       }
       else {
-        str = MEM_reallocN(str, str_len + 2);
+        str = MEM_reallocN(str, str_len + 1);
       }
     }
     else {
@@ -298,11 +283,11 @@ static int file_browse_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
   /* Useful yet irritating feature, Shift+Click to open the file
    * Alt+Click to browse a folder in the OS's browser. */
-  if (event->shift || event->alt) {
+  if (event->modifier & (KM_SHIFT | KM_ALT)) {
     wmOperatorType *ot = WM_operatortype_find("WM_OT_path_open", true);
     PointerRNA props_ptr;
 
-    if (event->alt) {
+    if (event->modifier & KM_ALT) {
       char *lslash = (char *)BLI_path_slash_rfind(str);
       if (lslash) {
         *lslash = '\0';
@@ -311,7 +296,7 @@ static int file_browse_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
     WM_operator_properties_create_ptr(&props_ptr, ot);
     RNA_string_set(&props_ptr, "filepath", str);
-    WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_DEFAULT, &props_ptr);
+    WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_DEFAULT, &props_ptr, NULL);
     WM_operator_properties_free(&props_ptr);
 
     MEM_freeN(str);
@@ -383,7 +368,6 @@ void BUTTONS_OT_file_browse(wmOperatorType *ot)
                                  FILE_SORT_DEFAULT);
 }
 
-/* Second operator, only difference from BUTTONS_OT_file_browse is WM_FILESEL_DIRECTORY. */
 void BUTTONS_OT_directory_browse(wmOperatorType *ot)
 {
   /* identifiers */

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edtransform
@@ -74,8 +58,6 @@
 /* Disabling, since when you type you know what you are doing,
  * and being able to set it to zero is handy. */
 /* #define USE_NUM_NO_ZERO */
-
-static void drawTransformApply(const struct bContext *C, ARegion *region, void *arg);
 
 static void initSnapSpatial(TransInfo *t, float r_snap[2]);
 
@@ -193,8 +175,8 @@ void convertViewVec(TransInfo *t, float r_vec[3], double dx, double dy)
       r_vec[1] = dy;
     }
     else {
-      const float mval_f[2] = {(float)dx, (float)dy};
-      ED_view3d_win_to_delta(t->region, mval_f, r_vec, t->zfac);
+      const float xy_delta[2] = {(float)dx, (float)dy};
+      ED_view3d_win_to_delta(t->region, xy_delta, t->zfac, r_vec);
     }
   }
   else if (t->spacetype == SPACE_IMAGE) {
@@ -543,7 +525,8 @@ static void viewRedrawPost(bContext *C, TransInfo *t)
                                          UVCALC_TRANSFORM_CORRECT_SLIDE :
                                          UVCALC_TRANSFORM_CORRECT;
 
-    if ((t->data_type == TC_MESH_VERTS) && (t->settings->uvcalc_flag & uvcalc_correct_flag)) {
+    if ((t->data_type == &TransConvertType_Mesh) &&
+        (t->settings->uvcalc_flag & uvcalc_correct_flag)) {
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, NULL);
     }
 
@@ -668,7 +651,6 @@ static bool transform_modal_item_poll(const wmOperator *op, int value)
   return true;
 }
 
-/* Called in transform_ops.c, on each regeneration of key-maps. */
 wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf)
 {
   static const EnumPropertyItem modal_items[] = {
@@ -723,17 +705,78 @@ wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf)
   /* Default modal map values:
    *
    * \code{.c}
-   * WM_modalkeymap_add_item(keymap, EVT_RETKEY, KM_PRESS, KM_ANY, 0, TFM_MODAL_CONFIRM);
-   * WM_modalkeymap_add_item(keymap, EVT_ESCKEY, KM_PRESS, KM_ANY, 0, TFM_MODAL_CANCEL);
-   * WM_modalkeymap_add_item(keymap, EVT_PAGEUPKEY, KM_PRESS, KM_ANY, 0, TFM_MODAL_AUTOIK_LEN_INC);
-   * WM_modalkeymap_add_item(
-   *     keymap, EVT_PAGEDOWNKEY, KM_PRESS, KM_ANY, 0, TFM_MODAL_AUTOIK_LEN_DEC);
-   * WM_modalkeymap_add_item(keymap, EVT_GKEY, KM_PRESS, KM_ANY, 0, TFM_MODAL_TRANSLATE);
-   * WM_modalkeymap_add_item(keymap, EVT_RKEY, KM_PRESS, KM_ANY, 0, TFM_MODAL_ROTATE);
-   * WM_modalkeymap_add_item(keymap, EVT_SKEY, KM_PRESS, KM_ANY, 0, TFM_MODAL_RESIZE);
-   * WM_modalkeymap_add_item(keymap, MIDDLEMOUSE, KM_PRESS, KM_ANY, 0, TFM_MODAL_AUTOCONSTRAINT);
-   * WM_modalkeymap_add_item(
-   *     keymap, MIDDLEMOUSE, KM_PRESS, KM_SHIFT, 0, TFM_MODAL_AUTOCONSTRAINTPLANE);
+   * WM_modalkeymap_add_item(keymap,
+   *                         &(const KeyMapItem_Params){
+   *                             .type = EVT_RETKEY,
+   *                             .value = KM_PRESS,
+   *                             .modifier = KM_ANY,
+   *                             .direction = KM_ANY,
+   *                         },
+   *                         TFM_MODAL_CONFIRM);
+   * WM_modalkeymap_add_item(keymap,
+   *                         &(const KeyMapItem_Params){
+   *                             .type = EVT_ESCKEY,
+   *                             .value = KM_PRESS,
+   *                             .modifier = KM_ANY,
+   *                             .direction = KM_ANY,
+   *                         },
+   *                         TFM_MODAL_CANCEL);
+   * WM_modalkeymap_add_item(keymap,
+   *                         &(const KeyMapItem_Params){
+   *                             .type = EVT_PAGEUPKEY,
+   *                             .value = KM_PRESS,
+   *                             .modifier = KM_ANY,
+   *                             .direction = KM_ANY,
+   *                         },
+   *                         TFM_MODAL_AUTOIK_LEN_INC);
+   * WM_modalkeymap_add_item(keymap,
+   *                         &(const KeyMapItem_Params){
+   *                             .type = EVT_PAGEDOWNKEY,
+   *                             .value = KM_PRESS,
+   *                             .modifier = KM_ANY,
+   *                             .direction = KM_ANY,
+   *                         },
+   *                         TFM_MODAL_AUTOIK_LEN_DEC);
+   * WM_modalkeymap_add_item(keymap,
+   *                         &(const KeyMapItem_Params){
+   *                             .type = EVT_GKEY,
+   *                             .value = KM_PRESS,
+   *                             .modifier = KM_ANY,
+   *                             .direction = KM_ANY,
+   *                         },
+   *                         TFM_MODAL_TRANSLATE);
+   * WM_modalkeymap_add_item(keymap,
+   *                         &(const KeyMapItem_Params){
+   *                             .type = EVT_RKEY,
+   *                             .value = KM_PRESS,
+   *                             .modifier = KM_ANY,
+   *                             .direction = KM_ANY,
+   *                         },
+   *                         TFM_MODAL_ROTATE);
+   * WM_modalkeymap_add_item(keymap,
+   *                         &(const KeyMapItem_Params){
+   *                             .type = EVT_SKEY,
+   *                             .value = KM_PRESS,
+   *                             .modifier = KM_ANY,
+   *                             .direction = KM_ANY,
+   *                         },
+   *                         TFM_MODAL_RESIZE);
+   * WM_modalkeymap_add_item(keymap,
+   *                         &(const KeyMapItem_Params){
+   *                             .type = MIDDLEMOUSE,
+   *                             .value = KM_PRESS,
+   *                             .modifier = KM_ANY,
+   *                             .direction = KM_ANY,
+   *                         },
+   *                         TFM_MODAL_AUTOCONSTRAINT);
+   * WM_modalkeymap_add_item(keymap,
+   *                         &(const KeyMapItem_Params){
+   *                             .type = MIDDLEMOUSE,
+   *                             .value = KM_PRESS,
+   *                             .modifier = KM_SHIFT,
+   *                             .direction = KM_ANY,
+   *                         },
+   *                         TFM_MODAL_AUTOCONSTRAINTPLANE);
    * \endcode
    */
 
@@ -805,7 +848,7 @@ static bool transform_event_modal_constraint(TransInfo *t, short modal_type)
       return false;
     }
 
-    if (t->data_type == TC_SEQ_IMAGE_DATA) {
+    if (t->data_type == &TransConvertType_SequencerImage) {
       /* Setup the 2d msg string so it writes out the transform space. */
       msg_2d = msg_3d;
 
@@ -862,10 +905,6 @@ int transformEvent(TransInfo *t, const wmEvent *event)
     handled = true;
   }
   else if (event->type == MOUSEMOVE) {
-    if (t->modifiers & (MOD_CONSTRAINT_SELECT_AXIS | MOD_CONSTRAINT_SELECT_PLANE)) {
-      t->con.mode |= CON_SELECT;
-    }
-
     copy_v2_v2_int(t->mval, event->mval);
 
     /* Use this for soft redraw. Might cause flicker in object mode */
@@ -1114,6 +1153,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
             /* Confirm. */
             postSelectConstraint(t);
             t->modifiers &= ~(MOD_CONSTRAINT_SELECT_AXIS | MOD_CONSTRAINT_SELECT_PLANE);
+            t->redraw = TREDRAW_HARD;
           }
           else {
             if (t->options & CTX_CAMERA) {
@@ -1125,6 +1165,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
                 restoreTransObjects(t);
                 transform_mode_init(t, NULL, TFM_TRACKBALL);
               }
+              t->redraw = TREDRAW_HARD;
             }
             else {
               t->modifiers |= (event->val == TFM_MODAL_AUTOCONSTRAINT) ?
@@ -1132,14 +1173,22 @@ int transformEvent(TransInfo *t, const wmEvent *event)
                                   MOD_CONSTRAINT_SELECT_PLANE;
               if (t->con.mode & CON_APPLY) {
                 stopConstraint(t);
+                initSelectConstraint(t);
+
+                /* In this case we might just want to remove the constraint,
+                 * so set #TREDRAW_SOFT to only select the constraint on the next mouse move event.
+                 * This way we can kind of "cancel" due to confirmation without constraint. */
+                t->redraw = TREDRAW_SOFT;
               }
               else {
                 initSelectConstraint(t);
-                postSelectConstraint(t);
+
+                /* When first called, set #TREDRAW_HARD to select constraint immediately in
+                 * #selectConstraint. */
+                BLI_assert(t->redraw == TREDRAW_HARD);
               }
             }
           }
-          t->redraw |= TREDRAW_HARD;
           handled = true;
         }
         break;
@@ -1167,10 +1216,10 @@ int transformEvent(TransInfo *t, const wmEvent *event)
   else if (event->val == KM_PRESS) {
     switch (event->type) {
       case EVT_CKEY:
-        if (event->is_repeat) {
+        if (event->flag & WM_EVENT_IS_REPEAT) {
           break;
         }
-        if (event->alt) {
+        if (event->modifier & KM_ALT) {
           if (!(t->options & CTX_NO_PET)) {
             t->flag ^= T_PROP_CONNECTED;
             sort_trans_data_dist(t);
@@ -1181,10 +1230,10 @@ int transformEvent(TransInfo *t, const wmEvent *event)
         }
         break;
       case EVT_OKEY:
-        if (event->is_repeat) {
+        if (event->flag & WM_EVENT_IS_REPEAT) {
           break;
         }
-        if (t->flag & T_PROP_EDIT && event->shift) {
+        if ((t->flag & T_PROP_EDIT) && (event->modifier & KM_SHIFT)) {
           t->prop_mode = (t->prop_mode + 1) % PROP_MODE_MAX;
           calculatePropRatio(t);
           t->redraw |= TREDRAW_HARD;
@@ -1192,7 +1241,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
         }
         break;
       case EVT_PADPLUSKEY:
-        if (event->alt && t->flag & T_PROP_EDIT) {
+        if ((event->modifier & KM_ALT) && (t->flag & T_PROP_EDIT)) {
           t->prop_size *= (t->modifiers & MOD_PRECISION) ? 1.01f : 1.1f;
           if (t->spacetype == SPACE_VIEW3D && t->persp != RV3D_ORTHO) {
             t->prop_size = min_ff(t->prop_size, ((View3D *)t->view)->clip_end);
@@ -1203,7 +1252,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
         }
         break;
       case EVT_PADMINUS:
-        if (event->alt && t->flag & T_PROP_EDIT) {
+        if ((event->modifier & KM_ALT) && (t->flag & T_PROP_EDIT)) {
           t->prop_size /= (t->modifiers & MOD_PRECISION) ? 1.01f : 1.1f;
           calculatePropRatio(t);
           t->redraw = TREDRAW_HARD;
@@ -1219,7 +1268,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
         }
         break;
       case EVT_NKEY:
-        if (event->is_repeat) {
+        if (event->flag & WM_EVENT_IS_REPEAT) {
           break;
         }
         if (ELEM(t->mode, TFM_ROTATION)) {
@@ -1279,7 +1328,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
     handled = true;
   }
 
-  if (t->redraw && !ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE)) {
+  if (t->redraw && !ISMOUSE_MOTION(event->type)) {
     WM_window_status_area_tag_redraw(CTX_wm_window(t->context));
   }
 
@@ -1377,9 +1426,6 @@ static void drawTransformView(const struct bContext *C, ARegion *region, void *a
     /* edge slide, vert slide */
     drawEdgeSlide(t);
     drawVertSlide(t);
-
-    /* Rotation */
-    drawDial3d(t);
   }
 }
 
@@ -1449,9 +1495,6 @@ static void drawTransformPixel(const struct bContext *C, ARegion *region, void *
   }
 }
 
-/**
- * \see #initTransform which reads values from the operator.
- */
 void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
 {
   ToolSettings *ts = CTX_data_tool_settings(C);
@@ -1533,14 +1576,37 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
   if (t->flag & T_MODAL) {
     /* do we check for parameter? */
     if (transformModeUseSnap(t)) {
-      if (!(t->modifiers & MOD_SNAP) != !(ts->snap_flag & SCE_SNAP)) {
-        if (t->modifiers & MOD_SNAP) {
-          ts->snap_flag |= SCE_SNAP;
+      if (!(t->modifiers & MOD_SNAP) != !(t->tsnap.flag & SCE_SNAP)) {
+        /* Type is #eSnapFlag, but type must match various snap attributes in #ToolSettings. */
+        short *snap_flag_ptr;
+
+        wmMsgParams_RNA msg_key_params = {{0}};
+        RNA_pointer_create(&t->scene->id, &RNA_ToolSettings, ts, &msg_key_params.ptr);
+
+        if (t->spacetype == SPACE_NODE) {
+          snap_flag_ptr = &ts->snap_flag_node;
+          msg_key_params.prop = &rna_ToolSettings_use_snap_node;
+        }
+        else if (t->spacetype == SPACE_IMAGE) {
+          snap_flag_ptr = &ts->snap_uv_flag;
+          msg_key_params.prop = &rna_ToolSettings_use_snap_uv;
+        }
+        else if (t->spacetype == SPACE_SEQ) {
+          snap_flag_ptr = &ts->snap_flag_seq;
+          msg_key_params.prop = &rna_ToolSettings_use_snap_sequencer;
         }
         else {
-          ts->snap_flag &= ~SCE_SNAP;
+          snap_flag_ptr = &ts->snap_flag;
+          msg_key_params.prop = &rna_ToolSettings_use_snap;
         }
-        WM_msg_publish_rna_prop(t->mbus, &t->scene->id, ts, ToolSettings, use_snap);
+
+        if (t->modifiers & MOD_SNAP) {
+          *snap_flag_ptr |= SCE_SNAP;
+        }
+        else {
+          *snap_flag_ptr &= ~SCE_SNAP;
+        }
+        WM_msg_publish_rna_params(t->mbus, &msg_key_params);
       }
     }
   }
@@ -1670,11 +1736,6 @@ static void initSnapSpatial(TransInfo *t, float r_snap[2])
   }
 }
 
-/**
- * \note  caller needs to free 't' on a 0 return
- * \warning \a event might be NULL (when tweaking from redo panel)
- * \see #saveTransform which writes these values back.
- */
 bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *event, int mode)
 {
   int options = 0;
@@ -1722,22 +1783,13 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
   /* Needed to translate tweak events to mouse buttons. */
   t->launch_event = event ? WM_userdef_event_type_from_keymap_type(event->type) : -1;
-  t->is_launch_event_tweak = event ? ISTWEAK(event->type) : false;
-
-  /* XXX Remove this when wm_operator_call_internal doesn't use window->eventstate
-   * (which can have type = 0) */
-  /* For gizmo only, so assume LEFTMOUSE. */
-  if (t->launch_event == 0) {
-    t->launch_event = LEFTMOUSE;
-  }
+  t->is_launch_event_drag = event ? (event->val == KM_CLICK_DRAG) : false;
 
   unit_m3(t->spacemtx);
 
   initTransInfo(C, t, op, event);
 
   if (t->spacetype == SPACE_VIEW3D) {
-    t->draw_handle_apply = ED_region_draw_cb_activate(
-        t->region->type, drawTransformApply, t, REGION_DRAW_PRE_VIEW);
     t->draw_handle_view = ED_region_draw_cb_activate(
         t->region->type, drawTransformView, t, REGION_DRAW_POST_VIEW);
     t->draw_handle_pixel = ED_region_draw_cb_activate(
@@ -1805,10 +1857,12 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
         }
 
         if (kmi->propvalue == TFM_MODAL_SNAP_INV_ON && kmi->val == KM_PRESS) {
-          if ((ELEM(kmi->type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY) && event->ctrl) ||
-              (ELEM(kmi->type, EVT_LEFTSHIFTKEY, EVT_RIGHTSHIFTKEY) && event->shift) ||
-              (ELEM(kmi->type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY) && event->alt) ||
-              ((kmi->type == EVT_OSKEY) && event->oskey)) {
+          if ((ELEM(kmi->type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY) &&
+               (event->modifier & KM_CTRL)) ||
+              (ELEM(kmi->type, EVT_LEFTSHIFTKEY, EVT_RIGHTSHIFTKEY) &&
+               (event->modifier & KM_SHIFT)) ||
+              (ELEM(kmi->type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY) && (event->modifier & KM_ALT)) ||
+              ((kmi->type == EVT_OSKEY) && (event->modifier & KM_OSKEY))) {
             t->modifiers |= MOD_SNAP_INVERT;
           }
           break;
@@ -1842,7 +1896,15 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
         use_accurate = true;
       }
     }
-    initMouseInput(t, &t->mouse, t->center2d, event->mval, use_accurate);
+
+    int mval[2];
+    if (t->flag & T_EVENT_DRAG_START) {
+      WM_event_drag_start_mval(event, t->region, mval);
+    }
+    else {
+      copy_v2_v2_int(mval, event->mval);
+    }
+    initMouseInput(t, &t->mouse, t->center2d, mval, use_accurate);
   }
 
   transform_mode_init(t, op, mode);
@@ -1918,17 +1980,18 @@ void transformApply(bContext *C, TransInfo *t)
 {
   t->context = C;
 
-  if ((t->redraw & TREDRAW_HARD) || (t->draw_handle_apply == NULL && (t->redraw & TREDRAW_SOFT))) {
+  if (t->redraw == TREDRAW_HARD) {
     selectConstraint(t);
     if (t->transform) {
       t->transform(t, t->mval); /* calls recalcData() */
-      viewRedrawForce(C, t);
     }
-    t->redraw = TREDRAW_NOTHING;
   }
-  else if (t->redraw & TREDRAW_SOFT) {
+
+  if (t->redraw & TREDRAW_SOFT) {
     viewRedrawForce(C, t);
   }
+
+  t->redraw = TREDRAW_NOTHING;
 
   /* If auto confirm is on, break after one pass */
   if (t->options & CTX_AUTOCONFIRM) {
@@ -1936,16 +1999,6 @@ void transformApply(bContext *C, TransInfo *t)
   }
 
   t->context = NULL;
-}
-
-static void drawTransformApply(const bContext *C, ARegion *UNUSED(region), void *arg)
-{
-  TransInfo *t = arg;
-
-  if (t->redraw & TREDRAW_SOFT) {
-    t->redraw |= TREDRAW_HARD;
-    transformApply((bContext *)C, t);
-  }
 }
 
 int transformEnd(bContext *C, TransInfo *t)
@@ -1987,17 +2040,30 @@ int transformEnd(bContext *C, TransInfo *t)
   return exit_code;
 }
 
-/* TODO: move to: `transform_query.c`. */
 bool checkUseAxisMatrix(TransInfo *t)
 {
   /* currently only checks for editmode */
   if (t->flag & T_EDIT) {
     if ((t->around == V3D_AROUND_LOCAL_ORIGINS) &&
-        (ELEM(t->obedit_type, OB_MESH, OB_CURVE, OB_MBALL, OB_ARMATURE))) {
+        (ELEM(t->obedit_type, OB_MESH, OB_CURVES_LEGACY, OB_MBALL, OB_ARMATURE))) {
       /* not all editmode supports axis-matrix */
       return true;
     }
   }
 
   return false;
+}
+
+bool transform_apply_matrix(TransInfo *t, float mat[4][4])
+{
+  if (t->transform_matrix != NULL) {
+    t->transform_matrix(t, mat);
+    return true;
+  }
+  return false;
+}
+
+void transform_final_value_get(const TransInfo *t, float *value, const int value_num)
+{
+  memcpy(value, t->values_final, sizeof(float) * value_num);
 }

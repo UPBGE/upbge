@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2016 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 /* Motion Triangle Primitive
  *
@@ -44,7 +31,7 @@ ccl_device_noinline void motion_triangle_shader_setup(KernelGlobals kg,
                                                       bool is_local)
 {
   /* Get shader. */
-  sd->shader = kernel_tex_fetch(__tri_shader, sd->prim);
+  sd->shader = kernel_data_fetch(tri_shader, sd->prim);
   /* Get motion info. */
   /* TODO(sergey): This logic is really similar to motion_triangle_vertices(),
    * can we de-duplicate something here?
@@ -60,7 +47,7 @@ ccl_device_noinline void motion_triangle_shader_setup(KernelGlobals kg,
   kernel_assert(offset != ATTR_STD_NOT_FOUND);
   /* Fetch vertex coordinates. */
   float3 verts[3], next_verts[3];
-  uint4 tri_vindex = kernel_tex_fetch(__tri_vindex, sd->prim);
+  uint4 tri_vindex = kernel_data_fetch(tri_vindex, sd->prim);
   motion_triangle_verts_for_step(kg, tri_vindex, offset, numverts, numsteps, step, verts);
   motion_triangle_verts_for_step(kg, tri_vindex, offset, numverts, numsteps, step + 1, next_verts);
   /* Interpolate between steps. */
@@ -68,15 +55,7 @@ ccl_device_noinline void motion_triangle_shader_setup(KernelGlobals kg,
   verts[1] = (1.0f - t) * verts[1] + t * next_verts[1];
   verts[2] = (1.0f - t) * verts[2] + t * next_verts[2];
   /* Compute refined position. */
-#ifdef __BVH_LOCAL__
-  if (is_local) {
-    sd->P = motion_triangle_refine_local(kg, sd, P, D, ray_t, isect_object, isect_prim, verts);
-  }
-  else
-#endif /* __BVH_LOCAL__*/
-  {
-    sd->P = motion_triangle_refine(kg, sd, P, D, ray_t, isect_object, isect_prim, verts);
-  }
+  sd->P = motion_triangle_point_from_uv(kg, sd, isect_object, isect_prim, sd->u, sd->v, verts);
   /* Compute face normal. */
   float3 Ng;
   if (sd->object_flag & SD_OBJECT_NEGATIVE_SCALE_APPLIED) {
@@ -89,8 +68,8 @@ ccl_device_noinline void motion_triangle_shader_setup(KernelGlobals kg,
   sd->N = Ng;
   /* Compute derivatives of P w.r.t. uv. */
 #ifdef __DPDU__
-  sd->dPdu = (verts[0] - verts[2]);
-  sd->dPdv = (verts[1] - verts[2]);
+  sd->dPdu = (verts[1] - verts[0]);
+  sd->dPdv = (verts[2] - verts[0]);
 #endif
   /* Compute smooth normal. */
   if (sd->shader & SHADER_SMOOTH_NORMAL) {
@@ -110,7 +89,7 @@ ccl_device_noinline void motion_triangle_shader_setup(KernelGlobals kg,
     float u = sd->u;
     float v = sd->v;
     float w = 1.0f - u - v;
-    sd->N = (u * normals[0] + v * normals[1] + w * normals[2]);
+    sd->N = (w * normals[0] + u * normals[1] + v * normals[2]);
   }
 }
 

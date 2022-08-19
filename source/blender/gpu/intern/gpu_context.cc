@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2016 by Mike Erwin.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2016 by Mike Erwin. All rights reserved. */
 
 /** \file
  * \ingroup gpu
@@ -29,7 +13,9 @@
  */
 
 /* TODO: Create cmake option. */
-#define WITH_OPENGL_BACKEND 1
+#if WITH_OPENGL
+#  define WITH_OPENGL_BACKEND 1
+#endif
 
 #include "BLI_assert.h"
 #include "BLI_utildefines.h"
@@ -37,16 +23,18 @@
 #include "GPU_context.h"
 #include "GPU_framebuffer.h"
 
-#include "GHOST_C-api.h"
-
 #include "gpu_backend.hh"
 #include "gpu_batch_private.hh"
 #include "gpu_context_private.hh"
 #include "gpu_matrix_private.h"
+#include "gpu_private.h"
 
 #ifdef WITH_OPENGL_BACKEND
 #  include "gl_backend.hh"
 #  include "gl_context.hh"
+#endif
+#ifdef WITH_METAL_BACKEND
+#  include "mtl_backend.hh"
 #endif
 
 #include <mutex>
@@ -55,6 +43,12 @@
 using namespace blender::gpu;
 
 static thread_local Context *active_ctx = nullptr;
+
+static std::mutex backend_users_mutex;
+static int num_backend_users = 0;
+
+static void gpu_backend_create();
+static void gpu_backend_discard();
 
 /* -------------------------------------------------------------------- */
 /** \name gpu::Context methods
@@ -98,9 +92,13 @@ Context *Context::get()
 
 GPUContext *GPU_context_create(void *ghost_window)
 {
-  if (GPUBackend::get() == nullptr) {
-    /* TODO: move where it make sense. */
-    GPU_backend_init(GPU_BACKEND_OPENGL);
+  {
+    std::scoped_lock lock(backend_users_mutex);
+    if (num_backend_users == 0) {
+      /* Automatically create backend when first context is created. */
+      gpu_backend_create();
+    }
+    num_backend_users++;
   }
 
   Context *ctx = GPUBackend::get()->context_alloc(ghost_window);
@@ -109,15 +107,23 @@ GPUContext *GPU_context_create(void *ghost_window)
   return wrap(ctx);
 }
 
-/* to be called after GPU_context_active_set(ctx_to_destroy) */
 void GPU_context_discard(GPUContext *ctx_)
 {
   Context *ctx = unwrap(ctx_);
   delete ctx;
   active_ctx = nullptr;
+
+  {
+    std::scoped_lock lock(backend_users_mutex);
+    num_backend_users--;
+    BLI_assert(num_backend_users >= 0);
+    if (num_backend_users == 0) {
+      /* Discard backend when last context is discarded. */
+      gpu_backend_discard();
+    }
+  }
 }
 
-/* ctx can be NULL */
 void GPU_context_active_set(GPUContext *ctx_)
 {
   Context *ctx = unwrap(ctx_);
@@ -133,9 +139,25 @@ void GPU_context_active_set(GPUContext *ctx_)
   }
 }
 
-GPUContext *GPU_context_active_get(void)
+GPUContext *GPU_context_active_get()
 {
   return wrap(Context::get());
+}
+
+void GPU_context_begin_frame(GPUContext *ctx)
+{
+  blender::gpu::Context *_ctx = unwrap(ctx);
+  if (_ctx) {
+    _ctx->begin_frame();
+  }
+}
+
+void GPU_context_end_frame(GPUContext *ctx)
+{
+  blender::gpu::Context *_ctx = unwrap(ctx);
+  if (_ctx) {
+    _ctx->end_frame();
+  }
 }
 
 /* -------------------------------------------------------------------- */
@@ -146,14 +168,42 @@ GPUContext *GPU_context_active_get(void)
 
 static std::mutex main_context_mutex;
 
-void GPU_context_main_lock(void)
+void GPU_context_main_lock()
 {
   main_context_mutex.lock();
 }
 
-void GPU_context_main_unlock(void)
+void GPU_context_main_unlock()
 {
   main_context_mutex.unlock();
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name  GPU Begin/end work blocks
+ *
+ * Used to explicitly define a per-frame block within which GPU work will happen.
+ * Used for global autoreleasepool flushing in Metal
+ * \{ */
+
+void GPU_render_begin()
+{
+  GPUBackend *backend = GPUBackend::get();
+  BLI_assert(backend);
+  backend->render_begin();
+}
+void GPU_render_end()
+{
+  GPUBackend *backend = GPUBackend::get();
+  BLI_assert(backend);
+  backend->render_end();
+}
+void GPU_render_step()
+{
+  GPUBackend *backend = GPUBackend::get();
+  BLI_assert(backend);
+  backend->render_step();
 }
 
 /** \} */
@@ -162,16 +212,44 @@ void GPU_context_main_unlock(void)
 /** \name Backend selection
  * \{ */
 
-static GPUBackend *g_backend;
+static const eGPUBackendType g_backend_type = GPU_BACKEND_OPENGL;
+static GPUBackend *g_backend = nullptr;
 
-void GPU_backend_init(eGPUBackendType backend_type)
+bool GPU_backend_supported(void)
+{
+  switch (g_backend_type) {
+    case GPU_BACKEND_OPENGL:
+#ifdef WITH_OPENGL_BACKEND
+      return true;
+#else
+      return false;
+#endif
+    case GPU_BACKEND_METAL:
+#ifdef WITH_METAL_BACKEND
+      return MTLBackend::metal_is_supported();
+#else
+      return false;
+#endif
+    default:
+      BLI_assert(false && "No backend specified");
+      return false;
+  }
+}
+
+static void gpu_backend_create()
 {
   BLI_assert(g_backend == nullptr);
+  BLI_assert(GPU_backend_supported());
 
-  switch (backend_type) {
-#if WITH_OPENGL_BACKEND
+  switch (g_backend_type) {
+#ifdef WITH_OPENGL_BACKEND
     case GPU_BACKEND_OPENGL:
       g_backend = new GLBackend;
+      break;
+#endif
+#ifdef WITH_METAL_BACKEND
+    case GPU_BACKEND_METAL:
+      g_backend = new MTLBackend;
       break;
 #endif
     default:
@@ -180,12 +258,35 @@ void GPU_backend_init(eGPUBackendType backend_type)
   }
 }
 
-void GPU_backend_exit(void)
+void gpu_backend_delete_resources()
 {
-  /* TODO: assert no resource left. Currently UI textures are still not freed in their context
-   * correctly. */
+  BLI_assert(g_backend);
+  g_backend->delete_resources();
+}
+
+void gpu_backend_discard()
+{
+  /* TODO: assert no resource left. */
   delete g_backend;
   g_backend = nullptr;
+}
+
+eGPUBackendType GPU_backend_get_type()
+{
+
+#ifdef WITH_OPENGL_BACKEND
+  if (g_backend && dynamic_cast<GLBackend *>(g_backend) != nullptr) {
+    return GPU_BACKEND_OPENGL;
+  }
+#endif
+
+#ifdef WITH_METAL_BACKEND
+  if (g_backend && dynamic_cast<MTLBackend *>(g_backend) != nullptr) {
+    return GPU_BACKEND_METAL;
+  }
+#endif
+
+  return GPU_BACKEND_NONE;
 }
 
 GPUBackend *GPUBackend::get()

@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2021 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 CCL_NAMESPACE_BEGIN
 
@@ -22,11 +9,11 @@ CCL_NAMESPACE_BEGIN
  * http://library.imageworks.com/pdfs/imageworks-library-BSSRDF-sampling.pdf
  */
 
-ccl_device_inline float3 subsurface_disk_eval(const float3 radius, float disk_r, float r)
+ccl_device_inline Spectrum subsurface_disk_eval(const Spectrum radius, float disk_r, float r)
 {
-  const float3 eval = bssrdf_eval(radius, r);
+  const Spectrum eval = bssrdf_eval(radius, r);
   const float pdf = bssrdf_pdf(radius, disk_r);
-  return (pdf > 0.0f) ? eval / pdf : zero_float3();
+  return (pdf > 0.0f) ? eval / pdf : zero_spectrum();
 }
 
 /* Subsurface scattering step, from a point on the surface to other
@@ -50,7 +37,7 @@ ccl_device_inline bool subsurface_disk(KernelGlobals kg,
   const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
 
   /* Read subsurface scattering parameters. */
-  const float3 radius = INTEGRATOR_STATE(state, subsurface, radius);
+  const Spectrum radius = INTEGRATOR_STATE(state, subsurface, radius);
 
   /* Pick random axis in local frame and point on disk. */
   float3 disk_N, disk_T, disk_B;
@@ -95,10 +82,15 @@ ccl_device_inline bool subsurface_disk(KernelGlobals kg,
   /* Create ray. */
   ray.P = P + disk_N * disk_height + disk_P;
   ray.D = -disk_N;
-  ray.t = 2.0f * disk_height;
+  ray.tmin = 0.0f;
+  ray.tmax = 2.0f * disk_height;
   ray.dP = ray_dP;
   ray.dD = differential_zero_compact();
   ray.time = time;
+  ray.self.object = OBJECT_NONE;
+  ray.self.prim = PRIM_NONE;
+  ray.self.light_object = OBJECT_NONE;
+  ray.self.light_prim = OBJECT_NONE;
 
   /* Intersect with the same object. if multiple intersections are found it
    * will use at most BSSRDF_MAX_HITS hits, a random subset of all hits. */
@@ -116,13 +108,13 @@ ccl_device_inline bool subsurface_disk(KernelGlobals kg,
    * traversal algorithm. */
   sort_intersections_and_normals(ss_isect.hits, ss_isect.Ng, num_eval_hits);
 
-  float3 weights[BSSRDF_MAX_HITS]; /* TODO: zero? */
+  Spectrum weights[BSSRDF_MAX_HITS]; /* TODO: zero? */
   float sum_weights = 0.0f;
 
   for (int hit = 0; hit < num_eval_hits; hit++) {
     /* Get geometric normal. */
     const int object = ss_isect.hits[hit].object;
-    const int object_flag = kernel_tex_fetch(__object_flag, object);
+    const int object_flag = kernel_data_fetch(object_flag, object);
     float3 hit_Ng = ss_isect.Ng[hit];
     if (path_flag & PATH_RAY_SUBSURFACE_BACKFACING) {
       hit_Ng = -hit_Ng;
@@ -134,17 +126,8 @@ ccl_device_inline bool subsurface_disk(KernelGlobals kg,
     if (!(object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
       /* Transform normal to world space. */
       Transform itfm;
-      Transform tfm = object_fetch_transform_motion_test(kg, object, time, &itfm);
+      object_fetch_transform_motion_test(kg, object, time, &itfm);
       hit_Ng = normalize(transform_direction_transposed(&itfm, hit_Ng));
-
-      /* Transform t to world space, except for OptiX where it already is. */
-#ifdef __KERNEL_OPTIX__
-      (void)tfm;
-#else
-      float3 D = transform_direction(&itfm, ray.D);
-      D = normalize(D) * ss_isect.hits[hit].t;
-      ss_isect.hits[hit].t = len(transform_direction(&tfm, D));
-#endif
     }
 
     /* Quickly retrieve P and Ng without setting up ShaderData. */
@@ -167,7 +150,7 @@ ccl_device_inline bool subsurface_disk(KernelGlobals kg,
     const float r = len(hit_P - P);
 
     /* Evaluate profiles. */
-    const float3 weight = subsurface_disk_eval(radius, disk_r, r) * w;
+    const Spectrum weight = subsurface_disk_eval(radius, disk_r, r) * w;
 
     /* Store result. */
     ss_isect.Ng[hit] = hit_Ng;
@@ -184,7 +167,7 @@ ccl_device_inline bool subsurface_disk(KernelGlobals kg,
   float partial_sum = 0.0f;
 
   for (int hit = 0; hit < num_eval_hits; hit++) {
-    const float3 weight = weights[hit];
+    const Spectrum weight = weights[hit];
     const float sample_weight = average(fabs(weight));
     float next_sum = partial_sum + sample_weight;
 
@@ -197,7 +180,8 @@ ccl_device_inline bool subsurface_disk(KernelGlobals kg,
 
       ray.P = ray.P + ray.D * ss_isect.hits[hit].t;
       ray.D = ss_isect.Ng[hit];
-      ray.t = 1.0f;
+      ray.tmin = 0.0f;
+      ray.tmax = 1.0f;
       return true;
     }
 

@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bmesh
@@ -159,7 +145,7 @@ static bool bm_edge_is_contiguous_loop_cd_all(const BMEdge *e,
 }
 
 static bool bm_edge_delimit_cdata(CustomData *ldata,
-                                  CustomDataType type,
+                                  eCustomDataType type,
                                   struct DelimitData_CD *r_delim_cd)
 {
   const int layer_len = CustomData_number_of_layers(ldata, type);
@@ -296,7 +282,7 @@ void bmo_join_triangles_exec(BMesh *bm, BMOperator *op)
   delimit_data.cdata[delimit_data.cdata_len].cd_offset = -1;
   if (BMO_slot_bool_get(op->slots_in, "cmp_vcols") &&
       bm_edge_delimit_cdata(
-          &bm->ldata, CD_MLOOPCOL, &delimit_data.cdata[delimit_data.cdata_len])) {
+          &bm->ldata, CD_PROP_BYTE_COLOR, &delimit_data.cdata[delimit_data.cdata_len])) {
     delimit_data.cdata_len += 1;
   }
 

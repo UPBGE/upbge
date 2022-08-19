@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup GHOST
@@ -29,7 +13,7 @@
 
 #include "GHOST_ContextNone.h"
 
-#include <assert.h>
+#include <cassert>
 
 GHOST_Window::GHOST_Window(uint32_t width,
                            uint32_t height,
@@ -39,6 +23,7 @@ GHOST_Window::GHOST_Window(uint32_t width,
     : m_drawingContextType(GHOST_kDrawingContextTypeNone),
       m_cursorVisible(true),
       m_cursorGrab(GHOST_kGrabDisable),
+      m_cursorGrabAxis(GHOST_kAxisNone),
       m_cursorShape(GHOST_kStandardCursorDefault),
       m_wantStereoVisual(wantStereoVisual),
       m_context(new GHOST_ContextNone(false))
@@ -67,19 +52,19 @@ GHOST_Window::~GHOST_Window()
 
 void *GHOST_Window::getOSWindow() const
 {
-  return NULL;
+  return nullptr;
 }
 
 GHOST_TSuccess GHOST_Window::setDrawingContextType(GHOST_TDrawingContextType type)
 {
   if (type != m_drawingContextType) {
     delete m_context;
-    m_context = NULL;
+    m_context = nullptr;
 
-    if (type != GHOST_kDrawingContextTypeNone)
+    if (type != GHOST_kDrawingContextTypeNone) {
       m_context = newDrawingContext(type);
-
-    if (m_context != NULL) {
+    }
+    if (m_context != nullptr) {
       m_drawingContextType = type;
     }
     else {
@@ -89,9 +74,7 @@ GHOST_TSuccess GHOST_Window::setDrawingContextType(GHOST_TDrawingContextType typ
 
     return (type == m_drawingContextType) ? GHOST_kSuccess : GHOST_kFailure;
   }
-  else {
-    return GHOST_kSuccess;
-  }
+  return GHOST_kSuccess;
 }
 
 GHOST_TSuccess GHOST_Window::swapBuffers()
@@ -135,9 +118,7 @@ GHOST_TSuccess GHOST_Window::setCursorVisibility(bool visible)
     m_cursorVisible = visible;
     return GHOST_kSuccess;
   }
-  else {
-    return GHOST_kFailure;
-  }
+  return GHOST_kFailure;
 }
 
 GHOST_TSuccess GHOST_Window::setCursorGrab(GHOST_TGrabCursorMode mode,
@@ -145,10 +126,10 @@ GHOST_TSuccess GHOST_Window::setCursorGrab(GHOST_TGrabCursorMode mode,
                                            GHOST_Rect *bounds,
                                            int32_t mouse_ungrab_xy[2])
 {
-  if (m_cursorGrab == mode)
+  if (m_cursorGrab == mode) {
     return GHOST_kSuccess;
-
-  /* override with new location */
+  }
+  /* Override with new location. */
   if (mouse_ungrab_xy) {
     assert(mode == GHOST_kGrabDisable);
     m_cursorGrabInitPos[0] = mouse_ungrab_xy[0];
@@ -170,15 +151,43 @@ GHOST_TSuccess GHOST_Window::setCursorGrab(GHOST_TGrabCursorMode mode,
     m_cursorGrabAxis = wrap_axis;
     return GHOST_kSuccess;
   }
-  else {
-    return GHOST_kFailure;
-  }
+  return GHOST_kFailure;
 }
 
 GHOST_TSuccess GHOST_Window::getCursorGrabBounds(GHOST_Rect &bounds)
 {
+  if (m_cursorGrab != GHOST_kGrabWrap) {
+    return GHOST_kFailure;
+  }
   bounds = m_cursorGrabBounds;
   return (bounds.m_l == -1 && bounds.m_r == -1) ? GHOST_kFailure : GHOST_kSuccess;
+}
+
+void GHOST_Window::getCursorGrabState(GHOST_TGrabCursorMode &mode,
+                                      GHOST_TAxisFlag &wrap_axis,
+                                      GHOST_Rect &bounds,
+                                      bool &use_software_cursor)
+{
+  mode = m_cursorGrab;
+  if (m_cursorGrab == GHOST_kGrabWrap) {
+    bounds = m_cursorGrabBounds;
+    wrap_axis = m_cursorGrabAxis;
+  }
+  else {
+    bounds.m_l = -1;
+    bounds.m_r = -1;
+    bounds.m_t = -1;
+    bounds.m_b = -1;
+    wrap_axis = GHOST_kAxisNone;
+  }
+  use_software_cursor = (m_cursorGrab != GHOST_kGrabDisable) ? getCursorGrabUseSoftwareDisplay() :
+                                                               false;
+}
+
+bool GHOST_Window::getCursorGrabUseSoftwareDisplay()
+{
+  /* Sub-classes may override, by default don't use software cursor. */
+  return false;
 }
 
 GHOST_TSuccess GHOST_Window::setCursorShape(GHOST_TStandardCursor cursorShape)
@@ -187,9 +196,7 @@ GHOST_TSuccess GHOST_Window::setCursorShape(GHOST_TStandardCursor cursorShape)
     m_cursorShape = cursorShape;
     return GHOST_kSuccess;
   }
-  else {
-    return GHOST_kFailure;
-  }
+  return GHOST_kFailure;
 }
 
 GHOST_TSuccess GHOST_Window::setCustomCursorShape(
@@ -199,9 +206,13 @@ GHOST_TSuccess GHOST_Window::setCustomCursorShape(
     m_cursorShape = GHOST_kStandardCursorCustom;
     return GHOST_kSuccess;
   }
-  else {
-    return GHOST_kFailure;
-  }
+  return GHOST_kFailure;
+}
+
+GHOST_TSuccess GHOST_Window::getCursorBitmap(GHOST_CursorBitmapRef * /*bitmap*/)
+{
+  /* Sub-classes may override. */
+  return GHOST_kFailure;
 }
 
 void GHOST_Window::setAcceptDragOperation(bool canAccept)

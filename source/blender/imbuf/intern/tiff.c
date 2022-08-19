@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup imbuf
@@ -22,15 +8,15 @@
  * Provides TIFF file loading and saving for Blender, via libtiff.
  *
  * The task of loading is complicated somewhat by the fact that Blender has
- * already loaded the file into a memory buffer.  libtiff is not well
+ * already loaded the file into a memory buffer. libtiff is not well
  * configured to handle files in memory, so a client wrapper is written to
- * surround the memory and turn it into a virtual file.  Currently, reading
- * of TIFF files is done using libtiff's RGBAImage support.  This is a
+ * surround the memory and turn it into a virtual file. Currently, reading
+ * of TIFF files is done using libtiff's RGBAImage support. This is a
  * high-level routine that loads all images as 32-bit RGBA, handling all the
  * required conversions between many different TIFF types internally.
  *
- * Saving supports RGB, RGBA and BW (grayscale) images correctly, with
- * 8 bits per channel in all cases.  The "deflate" compression algorithm is
+ * Saving supports RGB, RGBA and BW (gray-scale) images correctly, with
+ * 8 bits per channel in all cases. The "deflate" compression algorithm is
  * used to compress images.
  */
 
@@ -165,8 +151,8 @@ static tsize_t imb_tiff_ReadProc(thandle_t handle, tdata_t data, tsize_t n)
 /**
  * Writes data to an in-memory TIFF file.
  *
- * NOTE: The current Blender implementation should not need this function.  It
- *       is simply a stub.
+ * NOTE: The current Blender implementation should not need this function.
+ * It is simply a stub.
  */
 static tsize_t imb_tiff_WriteProc(thandle_t handle, tdata_t data, tsize_t n)
 {
@@ -190,7 +176,7 @@ static tsize_t imb_tiff_WriteProc(thandle_t handle, tdata_t data, tsize_t n)
  *             error).
  *
  * \return Resulting offset location within the file, measured in bytes from
- * the beginning of the file.  (-1) indicates an error.
+ * the beginning of the file. (-1) indicates an error.
  */
 static toff_t imb_tiff_SeekProc(thandle_t handle, toff_t ofs, int whence)
 {
@@ -229,8 +215,8 @@ static toff_t imb_tiff_SeekProc(thandle_t handle, toff_t ofs, int whence)
  * Closes (virtually) an in-memory TIFF file.
  *
  * NOTE: All this function actually does is sets the data pointer within the
- *       TIFF file to NULL.  That should trigger assertion errors if attempts
- *       are made to access the file after that point.  However, no such
+ *       TIFF file to NULL. That should trigger assertion errors if attempts
+ *       are made to access the file after that point. However, no such
  *       attempts should ever be made (in theory).
  *
  * \param handle: Handle of the TIFF file (pointer to #ImbTIFFMemFile).
@@ -488,7 +474,7 @@ static int imb_read_tiff_pixels(ImBuf *ibuf, TIFF *image)
           if (chan == 3 && spp == 3) { /* fill alpha if only RGB TIFF */
             copy_vn_fl(fbuf, ibuf->x, 1.0f);
           }
-          else if (chan >= spp) { /* for grayscale, duplicate first channel into G and B */
+          else if (chan >= spp) { /* For gray-scale, duplicate first channel into G and B. */
             success |= TIFFReadScanline(image, fbuf, row, 0);
           }
           else {
@@ -500,7 +486,7 @@ static int imb_read_tiff_pixels(ImBuf *ibuf, TIFF *image)
           if (chan == 3 && spp == 3) { /* fill alpha if only RGB TIFF */
             copy_vn_ushort(sbuf, ibuf->x, 65535);
           }
-          else if (chan >= spp) { /* for grayscale, duplicate first channel into G and B */
+          else if (chan >= spp) { /* For gray-scale, duplicate first channel into G and B. */
             success |= TIFFReadScanline(image, fbuf, row, 0);
           }
           else {
@@ -553,15 +539,6 @@ void imb_inittiff(void)
   }
 }
 
-/**
- * Loads a TIFF file.
- * \param mem: Memory containing the TIFF file.
- * \param size: Size of the mem buffer.
- * \param flags: If flags has IB_test set then the file is not actually loaded,
- * but all other operations take place.
- *
- * \return A newly allocated #ImBuf structure if successful, otherwise NULL.
- */
 ImBuf *imb_loadtiff(const unsigned char *mem,
                     size_t size,
                     int flags,
@@ -744,21 +721,6 @@ void imb_loadtiletiff(
 /** \name Save TIFF
  * \{ */
 
-/**
- * Saves a TIFF file.
- *
- * #ImBuf structures with 1, 3 or 4 bytes per pixel (GRAY, RGB, RGBA
- * respectively) are accepted, and interpreted correctly.  Note that the TIFF
- * convention is to use pre-multiplied alpha, which can be achieved within
- * Blender by setting "Premul" alpha handling.  Other alpha conventions are
- * not strictly correct, but are permitted anyhow.
- *
- * \param ibuf: Image buffer.
- * \param name: Name of the TIFF file to create.
- * \param flags: Currently largely ignored.
- *
- * \return 1 if the function is successful, 0 on failure.
- */
 bool imb_savetiff(ImBuf *ibuf, const char *filepath, int flags)
 {
   TIFF *image = NULL;
@@ -772,7 +734,7 @@ bool imb_savetiff(ImBuf *ibuf, const char *filepath, int flags)
   int x, y, from_i, to_i, i;
   int compress_mode = COMPRESSION_NONE;
 
-  /* check for a valid number of bytes per pixel.  Like the PNG writer,
+  /* check for a valid number of bytes per pixel. Like the PNG writer,
    * the TIFF writer supports 1, 3 or 4 bytes per pixel, corresponding
    * to gray, RGB, RGBA respectively. */
   samplesperpixel = (uint16_t)((ibuf->planes + 7) >> 3);
@@ -872,11 +834,11 @@ bool imb_savetiff(ImBuf *ibuf, const char *filepath, int flags)
     TIFFSetField(image, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_RGB);
   }
   else if (samplesperpixel == 1) {
-    /* grayscale images, 1 channel */
+    /* Gray-scale images, 1 channel */
     TIFFSetField(image, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_MINISBLACK);
   }
 
-  /* copy pixel data.  While copying, we flip the image vertically. */
+  /* copy pixel data. While copying, we flip the image vertically. */
   const int channels_in_float = ibuf->channels ? ibuf->channels : 4;
   for (x = 0; x < ibuf->x; x++) {
     for (y = 0; y < ibuf->y; y++) {

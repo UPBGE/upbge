@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2005 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2005 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup gpu
@@ -34,8 +18,6 @@
 #include "GPU_platform.h"
 
 #include "CLG_log.h"
-
-#include "glew-mx.h"
 
 #include "gl_context.hh"
 #include "gl_uniform_buffer.hh"
@@ -108,6 +90,11 @@ static void APIENTRY debug_callback(GLenum UNUSED(source),
     GPU_debug_get_groups_names(sizeof(debug_groups), debug_groups);
     CLG_Severity clog_severity;
 
+    if (GPU_debug_group_match(GPU_DEBUG_SHADER_COMPILATION_GROUP)) {
+      /** Do not duplicate shader compilation error/warnings. */
+      return;
+    }
+
     switch (type) {
       case GL_DEBUG_TYPE_ERROR:
       case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
@@ -123,7 +110,7 @@ static void APIENTRY debug_callback(GLenum UNUSED(source),
         break;
     }
 
-    if (((LOG.type->flag & CLG_FLAG_USE) && (LOG.type->level >= clog_severity))) {
+    if (((LOG.type->flag & CLG_FLAG_USE) && (LOG.type->level <= clog_severity))) {
       CLG_logf(LOG.type, clog_severity, debug_groups, "", "%s", message);
       if (severity == GL_DEBUG_SEVERITY_HIGH) {
         /* Focus on error message. */
@@ -142,7 +129,6 @@ static void APIENTRY debug_callback(GLenum UNUSED(source),
 
 #undef APIENTRY
 
-/* This function needs to be called once per context. */
 void init_gl_callbacks()
 {
   CLOG_ENSURE(&LOG);
@@ -150,8 +136,8 @@ void init_gl_callbacks()
   char msg[256] = "";
   const char format[] = "Successfully hooked OpenGL debug callback using %s";
 
-  if (GLEW_VERSION_4_3 || GLEW_KHR_debug) {
-    SNPRINTF(msg, format, GLEW_VERSION_4_3 ? "OpenGL 4.3" : "KHR_debug extension");
+  if (epoxy_gl_version() >= 43 || epoxy_has_gl_extension("GL_KHR_debug")) {
+    SNPRINTF(msg, format, epoxy_gl_version() >= 43 ? "OpenGL 4.3" : "KHR_debug extension");
     glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     glDebugMessageCallback((GLDEBUGPROC)debug_callback, nullptr);
@@ -163,7 +149,7 @@ void init_gl_callbacks()
                          -1,
                          msg);
   }
-  else if (GLEW_ARB_debug_output) {
+  else if (epoxy_has_gl_extension("GL_ARB_debug_output")) {
     SNPRINTF(msg, format, "ARB_debug_output");
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     glDebugMessageCallbackARB((GLDEBUGPROCARB)debug_callback, nullptr);
@@ -192,13 +178,16 @@ void init_gl_callbacks()
 
 void check_gl_error(const char *info)
 {
+  if (!(G.debug & G_DEBUG_GPU)) {
+    return;
+  }
   GLenum error = glGetError();
 
 #define ERROR_CASE(err) \
   case err: { \
     char msg[256]; \
     SNPRINTF(msg, "%s : %s", #err, info); \
-    debug_callback(0, GL_DEBUG_TYPE_ERROR, 0, GL_DEBUG_SEVERITY_HIGH, 0, msg, NULL); \
+    debug_callback(0, GL_DEBUG_TYPE_ERROR, 0, GL_DEBUG_SEVERITY_HIGH, 0, msg, nullptr); \
     break; \
   }
 
@@ -336,15 +325,26 @@ static const char *to_str_suffix(GLenum type)
 
 void object_label(GLenum type, GLuint object, const char *name)
 {
-  if ((G.debug & G_DEBUG_GPU) && (GLEW_VERSION_4_3 || GLEW_KHR_debug)) {
+  if ((G.debug & G_DEBUG_GPU) &&
+      (epoxy_gl_version() >= 43 || epoxy_has_gl_extension("GL_KHR_debug"))) {
     char label[64];
     SNPRINTF(label, "%s%s%s", to_str_prefix(type), name, to_str_suffix(type));
     /* Small convenience for caller. */
-    if (ELEM(type, GL_FRAGMENT_SHADER, GL_GEOMETRY_SHADER, GL_VERTEX_SHADER)) {
-      type = GL_SHADER;
-    }
-    if (ELEM(type, GL_UNIFORM_BUFFER)) {
-      type = GL_BUFFER;
+    switch (type) {
+      case GL_FRAGMENT_SHADER:
+      case GL_GEOMETRY_SHADER:
+      case GL_VERTEX_SHADER:
+      case GL_COMPUTE_SHADER:
+        type = GL_SHADER;
+        break;
+      case GL_UNIFORM_BUFFER:
+      case GL_SHADER_STORAGE_BUFFER:
+      case GL_ARRAY_BUFFER:
+      case GL_ELEMENT_ARRAY_BUFFER:
+        type = GL_BUFFER;
+        break;
+      default:
+        break;
     }
     glObjectLabel(type, object, -1, label);
   }
@@ -364,7 +364,8 @@ namespace blender::gpu {
 
 void GLContext::debug_group_begin(const char *name, int index)
 {
-  if ((G.debug & G_DEBUG_GPU) && (GLEW_VERSION_4_3 || GLEW_KHR_debug)) {
+  if ((G.debug & G_DEBUG_GPU) &&
+      (epoxy_gl_version() >= 43 || epoxy_has_gl_extension("GL_KHR_debug"))) {
     /* Add 10 to avoid collision with other indices from other possible callback layers. */
     index += 10;
     glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, index, -1, name);
@@ -373,7 +374,8 @@ void GLContext::debug_group_begin(const char *name, int index)
 
 void GLContext::debug_group_end()
 {
-  if ((G.debug & G_DEBUG_GPU) && (GLEW_VERSION_4_3 || GLEW_KHR_debug)) {
+  if ((G.debug & G_DEBUG_GPU) &&
+      (epoxy_gl_version() >= 43 || epoxy_has_gl_extension("GL_KHR_debug"))) {
     glPopDebugGroup();
   }
 }

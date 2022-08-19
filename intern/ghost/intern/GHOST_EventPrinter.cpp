@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup GHOST
@@ -28,7 +12,7 @@
 #include "GHOST_EventKey.h"
 #include <iostream>
 
-#include <stdio.h>
+#include <cstdio>
 
 bool GHOST_EventPrinter::processEvent(GHOST_IEvent *event)
 {
@@ -36,9 +20,9 @@ bool GHOST_EventPrinter::processEvent(GHOST_IEvent *event)
 
   GHOST_ASSERT(event, "event==0");
 
-  if (event->getType() == GHOST_kEventWindowUpdate)
+  if (event->getType() == GHOST_kEventWindowUpdate) {
     return false;
-
+  }
   std::cout << "GHOST_EventPrinter::processEvent, time: " << (int32_t)event->getTime()
             << ", type: ";
   switch (event->getType()) {
@@ -122,8 +106,9 @@ bool GHOST_EventPrinter::processEvent(GHOST_IEvent *event)
           std::cout << " type : GHOST_kDragnDropTypeFilenames,";
           std::cout << "\n  Received " << strArray->count << " filename"
                     << (strArray->count > 1 ? "s:" : ":");
-          for (i = 0; i < strArray->count; i++)
+          for (i = 0; i < strArray->count; i++) {
             std::cout << "\n    File[" << i << "] : " << strArray->strings[i];
+          }
         } break;
         default:
           break;
@@ -133,10 +118,12 @@ bool GHOST_EventPrinter::processEvent(GHOST_IEvent *event)
     case GHOST_kEventOpenMainFile: {
       GHOST_TEventDataPtr eventData = ((GHOST_IEvent *)event)->getData();
 
-      if (eventData)
+      if (eventData) {
         std::cout << "GHOST_kEventOpenMainFile for path : " << (char *)eventData;
-      else
+      }
+      else {
         std::cout << "GHOST_kEventOpenMainFile with no path specified!!";
+      }
     } break;
 
     case GHOST_kEventQuitRequest:
@@ -183,7 +170,7 @@ void GHOST_EventPrinter::getKeyString(GHOST_TKey key, char str[32]) const
     sprintf(str, "F%d", key - GHOST_kKeyF1 + 1);
   }
   else {
-    const char *tstr = NULL;
+    const char *tstr = nullptr;
     switch (key) {
       case GHOST_kKeyBackSpace:
         tstr = "BackSpace";

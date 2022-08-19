@@ -1,22 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
-# <pep8-80 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 from _bpy import types as bpy_types
 
@@ -24,11 +6,79 @@ StructRNA = bpy_types.bpy_struct
 StructMetaPropGroup = bpy_types.bpy_struct_meta_idprop
 # StructRNA = bpy_types.Struct
 
+# Private dummy object use for comparison only.
+_sentinel = object()
+
 # Note that methods extended in C are defined in: 'bpy_rna_types_capi.c'
 
 
 class Context(StructRNA):
     __slots__ = ()
+
+    def path_resolve(self, path, coerce=True):
+        """
+        Returns the property from the path, raise an exception when not found.
+
+        :arg path: patch which this property resolves.
+        :type path: string
+        :arg coerce: optional argument, when True, the property will be converted into its Python representation.
+        :type coerce: boolean
+        """
+        # This is a convenience wrapper around `StructRNA.path_resolve` which doesn't support accessing context members.
+        # Without this wrapper many users were writing `exec("context.%s" % data_path)` which is a security
+        # concern if the `data_path` comes from an unknown source.
+        # This function performs the initial lookup, after that the regular `path_resolve` function is used.
+
+        # Extract the initial attribute into `(attr, path_rest)`.
+        sep = len(path)
+        div = ""
+        for div_test in (".", "["):
+            sep_test = path.find(div_test, 0, sep)
+            if sep_test != -1 and sep_test < sep:
+                sep = sep_test
+                div = div_test
+        if div:
+            attr = path[:sep]
+            if div == ".":
+                sep += 1
+            path_rest = path[sep:]
+        else:
+            attr = path
+            path_rest = ""
+
+        # Retrieve the value for `attr`.
+        # Match the value error exception with that of "path_resolve"
+        # to simplify exception handling for the caller.
+        value = getattr(self, attr, _sentinel)
+        if value is _sentinel:
+            raise ValueError("Path could not be resolved: %r" % attr)
+
+        if value is None:
+            return value
+
+        # If the attribute is a list property, apply subscripting.
+        if isinstance(value, list) and path_rest.startswith("["):
+            index_str, div, index_tail = path_rest[1:].partition("]")
+            if not div:
+                raise ValueError("Path index is not terminated: %s%s" % (attr, path_rest))
+            try:
+                index = int(index_str)
+            except ValueError:
+                raise ValueError("Path index is invalid: %s[%s]" % (attr, index_str))
+            if 0 <= index < len(value):
+                path_rest = index_tail
+                value = value[index]
+            else:
+                raise IndexError("Path index out of range: %s[%s]" % (attr, index_str))
+
+        # Resolve the rest of the path if necessary.
+        if path_rest:
+            path_resolve_fn = getattr(value, "path_resolve", None)
+            if path_resolve_fn is None:
+                raise ValueError("Path %s resolves to a non RNA value" % attr)
+            return path_resolve_fn(path_rest, coerce)
+
+        return value
 
     def copy(self):
         from types import BuiltinMethodType
@@ -101,6 +151,19 @@ class Collection(bpy_types.ID):
     __slots__ = ()
 
     @property
+    def children_recursive(self):
+        """A list of all children from this collection."""
+        children_recursive = []
+
+        def recurse(parent):
+            for child in parent.children:
+                children_recursive.append(child)
+                recurse(child)
+
+        recurse(self)
+        return children_recursive
+
+    @property
     def users_dupli_group(self):
         """The collection instance objects this collection is used in"""
         import bpy
@@ -119,6 +182,27 @@ class Object(bpy_types.ID):
         import bpy
         return tuple(child for child in bpy.data.objects
                      if child.parent == self)
+
+    @property
+    def children_recursive(self):
+        """A list of all children from this object.
+
+        .. note:: Takes ``O(len(bpy.data.objects))`` time."""
+        import bpy
+        parent_child_map = {}
+        for child in bpy.data.objects:
+            if (parent := child.parent) is not None:
+                parent_child_map.setdefault(parent, []).append(child)
+
+        children_recursive = []
+
+        def recurse(parent):
+            for child in parent_child_map.get(parent, ()):
+                children_recursive.append(child)
+                recurse(child)
+
+        recurse(self)
+        return children_recursive
 
     @property
     def users_collection(self):
@@ -300,13 +384,8 @@ class _GenericBone:
         """
         return (self.tail - self.head)
 
-    @property
-    def children(self):
-        """A list of all the bones children.
-
-        .. note:: Takes ``O(len(bones))`` time."""
-        return [child for child in self._other_bones if child.parent == self]
-
+    # NOTE: each bone type is responsible for implementing `children`.
+    # This is done since `Bone` has direct access to this data in RNA.
     @property
     def children_recursive(self):
         """A list of all children from this bone.
@@ -386,9 +465,18 @@ class PoseBone(StructRNA, _GenericBone, metaclass=StructMetaPropGroup):
 class Bone(StructRNA, _GenericBone, metaclass=StructMetaPropGroup):
     __slots__ = ()
 
+    # NOTE: `children` is implemented in RNA.
+
 
 class EditBone(StructRNA, _GenericBone, metaclass=StructMetaPropGroup):
     __slots__ = ()
+
+    @property
+    def children(self):
+        """A list of all the bones children.
+
+        .. note:: Takes ``O(len(bones))`` time."""
+        return [child for child in self._other_bones if child.parent == self]
 
     def align_orientation(self, other):
         """
@@ -562,15 +650,6 @@ class MeshPolygon(StructRNA):
 class Text(bpy_types.ID):
     __slots__ = ()
 
-    def as_string(self):
-        """Return the text as a string."""
-        return "\n".join(line.body for line in self.lines)
-
-    def from_string(self, string):
-        """Replace text with this string."""
-        self.clear()
-        self.write(string)
-
     def as_module(self):
         import bpy
         from os.path import splitext, join
@@ -587,6 +666,15 @@ class Text(bpy_types.ID):
         # if this is called often it will be much faster.
         exec(self.as_string(), mod.__dict__)
         return mod
+
+    @property
+    def users_logic(self):
+        """Logic bricks that use this text"""
+        import bpy
+        return tuple(obj for obj in bpy.data.objects
+                     if self in [cont.text for cont in obj.game.controllers
+                                 if cont.type == 'PYTHON']
+                     )
 
 
 class Sound(bpy_types.ID):
@@ -720,7 +808,7 @@ class Gizmo(StructRNA):
 
 
 # Dummy class to keep the reference in `bpy_types_dict` and avoid
-# erros like: "TypeError: expected GizmoGroup subclass of class ..."
+# errors like: "TypeError: expected GizmoGroup subclass of class ..."
 class GizmoGroup(StructRNA):
     __slots__ = ()
 
@@ -995,6 +1083,7 @@ class Menu(StructRNA, _GenericUI, metaclass=RNAMeta):
         - preset_operator_defaults (dict of keyword args)
         """
         import bpy
+        from bpy.app.translations import pgettext_iface as iface_
         ext_valid = getattr(self, "preset_extensions", {".py", ".xml"})
         props_default = getattr(self, "preset_operator_defaults", None)
         add_operator = getattr(self, "preset_add_operator", None)
@@ -1004,7 +1093,8 @@ class Menu(StructRNA, _GenericUI, metaclass=RNAMeta):
             props_default=props_default,
             filter_ext=lambda ext: ext.lower() in ext_valid,
             add_operator=add_operator,
-            display_name=lambda name: bpy.path.display_name(name, title_case=False)
+            display_name=lambda name: iface_(
+                bpy.path.display_name(name, title_case=False))
         )
 
     @classmethod
@@ -1079,3 +1169,11 @@ class TextureNode(NodeInternal):
     @classmethod
     def poll(cls, ntree):
         return ntree.bl_idname == 'TextureNodeTree'
+
+
+class GeometryNode(NodeInternal):
+    __slots__ = ()
+
+    @classmethod
+    def poll(cls, ntree):
+        return ntree.bl_idname == 'GeometryNodeTree'

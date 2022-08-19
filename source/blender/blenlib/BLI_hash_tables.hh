@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -22,6 +8,7 @@
  * This file contains code that can be shared between different hash table implementations.
  */
 
+#include <algorithm>
 #include <cmath>
 
 #include "BLI_allocator.hh"
@@ -222,11 +209,11 @@ template<typename Key, Key EmptyValue, Key RemovedValue> struct TemplatedKeyInfo
 };
 
 /**
- * 0xffff...ffff indicates an empty slot.
- * 0xffff...fffe indicates a removed slot.
+ * `0xffff...ffff` indicates an empty slot.
+ * `0xffff...fffe` indicates a removed slot.
  *
  * Those specific values are used, because with them a single comparison is enough to check whether
- * a slot is occupied. The keys 0x0000...0000 and 0x0000...0001 also satisfy this constraint.
+ * a slot is occupied. The keys `0x0000...0000` and `0x0000...0001` also satisfy this constraint.
  * However, nullptr is much more likely to be used as valid key.
  */
 template<typename Pointer> struct PointerKeyInfo {

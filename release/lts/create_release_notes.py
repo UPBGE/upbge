@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 #!/usr/bin/env python3
 
 import argparse
@@ -28,8 +30,9 @@ class ReleaseLogLine:
             backend.
     * url: (str) url of the ticket task or commit.
     """
+
     def __init__(self, line: str):
-        self.line=line
+        self.line = line
         items = line.split("|")
         self.task_id = None
         self.commit_id = None
@@ -51,11 +54,11 @@ class ReleaseLogLine:
 
         self.title = ""
         self.url = f"https://developer.blender.org/{self.ref}"
-    
-    def __format_as_html(self)-> str:
+
+    def __format_as_html(self) -> str:
         return f"  <li>{self.title} [<a href=\"{self.url}\">{self.ref}</a>]</li>"
 
-    def __format_as_text(self) ->str:
+    def __format_as_text(self) -> str:
         return f"* {self.title} [{self.ref}]"
 
     def __format_as_steam(self) -> str:
@@ -97,7 +100,7 @@ def extract_release_notes(version: str, task_id: int):
 
     # Process
 
-    1. Retrieval of description of the gived `task_id`.
+    1. Retrieval of description of the given `task_id`.
     2. Find rows for the given `version` and convert to `ReleaseLogLine`.
     3. based on the associated task or commit retrieves the title of the log
        line.
@@ -108,7 +111,7 @@ def extract_release_notes(version: str, task_id: int):
     description = task["description"]
     lines = description.split("\n")
     start_index = lines.index(f"## Blender {version} ##")
-    lines = lines[start_index+1:]
+    lines = lines[start_index + 1:]
     for line in lines:
         if not line.strip():
             continue
@@ -123,7 +126,7 @@ def extract_release_notes(version: str, task_id: int):
             log_line.title = format_title(issue_task.title)
             yield log_line
         elif log_line.commit_id:
-            commits = phab.diffusion.commit.search(constraints={"identifiers":[log_line.commit_id]})
+            commits = phab.diffusion.commit.search(constraints={"identifiers": [log_line.commit_id]})
             commit = commits.data[0]
             commit_message = commit['fields']['message']
             commit_title = commit_message.split("\n")[0]

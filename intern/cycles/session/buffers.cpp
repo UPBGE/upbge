@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include <stdlib.h>
 
@@ -62,6 +49,7 @@ NODE_DEFINE(BufferPass)
   SOCKET_ENUM(mode, "Mode", *pass_mode_enum, static_cast<int>(PassMode::DENOISED));
   SOCKET_STRING(name, "Name", ustring());
   SOCKET_BOOLEAN(include_albedo, "Include Albedo", false);
+  SOCKET_STRING(lightgroup, "Light Group", ustring());
 
   SOCKET_INT(offset, "Offset", -1);
 
@@ -77,13 +65,14 @@ BufferPass::BufferPass(const Pass *scene_pass)
       type(scene_pass->get_type()),
       mode(scene_pass->get_mode()),
       name(scene_pass->get_name()),
-      include_albedo(scene_pass->get_include_albedo())
+      include_albedo(scene_pass->get_include_albedo()),
+      lightgroup(scene_pass->get_lightgroup())
 {
 }
 
 PassInfo BufferPass::get_info() const
 {
-  return Pass::get_info(type, include_albedo);
+  return Pass::get_info(type, include_albedo, !lightgroup.empty());
 }
 
 /* --------------------------------------------------------------------
@@ -178,7 +167,7 @@ void BufferParams::reset_pass_offset()
 
 int BufferParams::get_pass_offset(PassType pass_type, PassMode mode) const
 {
-  if (pass_type == PASS_NONE || pass_type == PASS_UNUSED) {
+  if (pass_type == PASS_NONE) {
     return PASS_UNUSED;
   }
 
@@ -220,7 +209,7 @@ const BufferPass *BufferParams::get_actual_display_pass(const BufferPass *pass) 
     return nullptr;
   }
 
-  if (pass->type == PASS_COMBINED) {
+  if (pass->type == PASS_COMBINED && pass->lightgroup.empty()) {
     const BufferPass *shadow_catcher_matte_pass = find_pass(PASS_SHADOW_CATCHER_MATTE, pass->mode);
     if (shadow_catcher_matte_pass) {
       pass = shadow_catcher_matte_pass;

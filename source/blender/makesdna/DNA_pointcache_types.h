@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -131,8 +117,8 @@ typedef struct PointCache {
   void (*free_edit)(struct PTCacheEdit *edit);
 } PointCache;
 
+/** #PointCache.flag */
 enum {
-  /* pointcache->flag */
   PTCACHE_BAKED = 1 << 0,
   PTCACHE_OUTDATED = 1 << 1,
   PTCACHE_SIMULATION_VALID = 1 << 2,
@@ -145,7 +131,7 @@ enum {
   PTCACHE_FRAMES_SKIPPED = 1 << 8,
   PTCACHE_EXTERNAL = 1 << 9,
   PTCACHE_READ_INFO = 1 << 10,
-  /** Don't use the filename of the blend-file the data is linked from (write a local cache). */
+  /** Don't use the file-path of the blend-file the data is linked from (write a local cache). */
   PTCACHE_IGNORE_LIBPATH = 1 << 11,
   /**
    * High resolution cache is saved for smoke for backwards compatibility,

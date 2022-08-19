@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2021 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include "scene/pass.h"
 
@@ -101,6 +88,7 @@ const NodeEnum *Pass::get_type_enum()
     pass_type_enum.insert("denoising_normal", PASS_DENOISING_NORMAL);
     pass_type_enum.insert("denoising_albedo", PASS_DENOISING_ALBEDO);
     pass_type_enum.insert("denoising_depth", PASS_DENOISING_DEPTH);
+    pass_type_enum.insert("denoising_previous", PASS_DENOISING_PREVIOUS);
 
     pass_type_enum.insert("shadow_catcher", PASS_SHADOW_CATCHER);
     pass_type_enum.insert("shadow_catcher_sample_count", PASS_SHADOW_CATCHER_SAMPLE_COUNT);
@@ -136,6 +124,7 @@ NODE_DEFINE(Pass)
   SOCKET_ENUM(mode, "Mode", *pass_mode_enum, static_cast<int>(PassMode::DENOISED));
   SOCKET_STRING(name, "Name", ustring());
   SOCKET_BOOLEAN(include_albedo, "Include Albedo", false);
+  SOCKET_STRING(lightgroup, "Light Group", ustring());
 
   return type;
 }
@@ -146,7 +135,7 @@ Pass::Pass() : Node(get_node_type()), is_auto_(false)
 
 PassInfo Pass::get_info() const
 {
-  return get_info(type, include_albedo);
+  return get_info(type, include_albedo, !lightgroup.empty());
 }
 
 bool Pass::is_written() const
@@ -154,7 +143,7 @@ bool Pass::is_written() const
   return get_info().is_written;
 }
 
-PassInfo Pass::get_info(const PassType type, const bool include_albedo)
+PassInfo Pass::get_info(const PassType type, const bool include_albedo, const bool is_lightgroup)
 {
   PassInfo pass_info;
 
@@ -169,9 +158,9 @@ PassInfo Pass::get_info(const PassType type, const bool include_albedo)
       pass_info.num_components = 0;
       break;
     case PASS_COMBINED:
-      pass_info.num_components = 4;
+      pass_info.num_components = is_lightgroup ? 3 : 4;
       pass_info.use_exposure = true;
-      pass_info.support_denoise = true;
+      pass_info.support_denoise = !is_lightgroup;
       break;
     case PASS_DEPTH:
       pass_info.num_components = 1;
@@ -299,6 +288,10 @@ PassInfo Pass::get_info(const PassType type, const bool include_albedo)
     case PASS_DENOISING_DEPTH:
       pass_info.num_components = 1;
       break;
+    case PASS_DENOISING_PREVIOUS:
+      pass_info.num_components = 3;
+      pass_info.use_exposure = true;
+      break;
 
     case PASS_SHADOW_CATCHER:
       pass_info.num_components = 3;
@@ -328,7 +321,7 @@ PassInfo Pass::get_info(const PassType type, const bool include_albedo)
       break;
 
     case PASS_AOV_COLOR:
-      pass_info.num_components = 3;
+      pass_info.num_components = 4;
       break;
     case PASS_AOV_VALUE:
       pass_info.num_components = 1;
@@ -377,13 +370,16 @@ const Pass *Pass::find(const vector<Pass *> &passes, const string &name)
   return nullptr;
 }
 
-const Pass *Pass::find(const vector<Pass *> &passes, PassType type, PassMode mode)
+const Pass *Pass::find(const vector<Pass *> &passes,
+                       PassType type,
+                       PassMode mode,
+                       const ustring &lightgroup)
 {
   for (const Pass *pass : passes) {
-    if (pass->get_type() != type || pass->get_mode() != mode) {
+    if (pass->get_type() != type || pass->get_mode() != mode ||
+        pass->get_lightgroup() != lightgroup) {
       continue;
     }
-
     return pass;
   }
 

@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2016 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include "util/debug.h"
 
@@ -26,7 +13,6 @@
 CCL_NAMESPACE_BEGIN
 
 DebugFlags::CPU::CPU()
-    : avx2(true), avx(true), sse41(true), sse3(true), sse2(true), bvh_layout(BVH_LAYOUT_AUTO)
 {
   reset();
 }
@@ -38,7 +24,7 @@ void DebugFlags::CPU::reset()
   do { \
     flag = (getenv(env) == NULL); \
     if (!flag) { \
-      VLOG(1) << "Disabling " << STRINGIFY(flag) << " instruction set."; \
+      VLOG_INFO << "Disabling " << STRINGIFY(flag) << " instruction set."; \
     } \
   } while (0)
 
@@ -54,12 +40,17 @@ void DebugFlags::CPU::reset()
   bvh_layout = BVH_LAYOUT_AUTO;
 }
 
-DebugFlags::CUDA::CUDA() : adaptive_compile(false)
+DebugFlags::CUDA::CUDA()
 {
   reset();
 }
 
-DebugFlags::HIP::HIP() : adaptive_compile(false)
+DebugFlags::HIP::HIP()
+{
+  reset();
+}
+
+DebugFlags::Metal::Metal()
 {
   reset();
 }
@@ -76,6 +67,12 @@ void DebugFlags::HIP::reset()
     adaptive_compile = true;
 }
 
+void DebugFlags::Metal::reset()
+{
+  if (getenv("CYCLES_METAL_ADAPTIVE_COMPILE") != NULL)
+    adaptive_compile = true;
+}
+
 DebugFlags::OptiX::OptiX()
 {
   reset();
@@ -86,17 +83,17 @@ void DebugFlags::OptiX::reset()
   use_debug = false;
 }
 
-DebugFlags::DebugFlags() : viewport_static_bvh(false), running_inside_blender(false)
+DebugFlags::DebugFlags()
 {
   /* Nothing for now. */
 }
 
 void DebugFlags::reset()
 {
-  viewport_static_bvh = false;
   cpu.reset();
   cuda.reset();
   optix.reset();
+  metal.reset();
 }
 
 CCL_NAMESPACE_END

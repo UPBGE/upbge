@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2018 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2018 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup edobj
@@ -42,6 +26,7 @@
 #include "BKE_context.h"
 #include "BKE_gpencil.h"
 #include "BKE_gpencil_modifier.h"
+#include "BKE_lib_id.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
 #include "BKE_report.h"
@@ -53,6 +38,7 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
+#include "RNA_prototypes.h"
 
 #include "ED_object.h"
 #include "ED_screen.h"
@@ -418,7 +404,7 @@ void OBJECT_OT_gpencil_modifier_add(wmOperatorType *ot)
   /* properties */
   prop = RNA_def_enum(ot->srna,
                       "type",
-                      rna_enum_object_modifier_type_items,
+                      rna_enum_object_greasepencil_modifier_type_items,
                       eGpencilModifierType_Thick,
                       "Type",
                       "");
@@ -433,17 +419,18 @@ static bool gpencil_edit_modifier_poll_generic(bContext *C,
                                                int obtype_flag,
                                                const bool is_liboverride_allowed)
 {
+  Main *bmain = CTX_data_main(C);
   PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", rna_type);
   Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id : ED_object_active_context(C);
   GpencilModifierData *mod = ptr.data; /* May be NULL. */
 
-  if (!ob || ID_IS_LINKED(ob)) {
+  if (!ob || !BKE_id_is_editable(bmain, &ob->id)) {
     return false;
   }
   if (obtype_flag && ((1 << ob->type) & obtype_flag) == 0) {
     return false;
   }
-  if (ptr.owner_id && ID_IS_LINKED(ptr.owner_id)) {
+  if (ptr.owner_id && !BKE_id_is_editable(bmain, ptr.owner_id)) {
     return false;
   }
 
@@ -533,6 +520,10 @@ static GpencilModifierData *gpencil_edit_modifier_property_get(wmOperator *op,
                                                                Object *ob,
                                                                int type)
 {
+  if (ob == NULL) {
+    return NULL;
+  }
+
   char modifier_name[MAX_NAME];
   GpencilModifierData *md;
   RNA_string_get(op->ptr, "modifier", modifier_name);
@@ -968,6 +959,9 @@ static int dash_segment_add_exec(bContext *C, wmOperator *op)
   DashGpencilModifierData *dmd = (DashGpencilModifierData *)gpencil_edit_modifier_property_get(
       op, ob, eGpencilModifierType_Dash);
 
+  if (dmd == NULL) {
+    return OPERATOR_CANCELLED;
+  }
   const int new_active_index = dmd->segment_active_index + 1;
   DashGpencilModifierSegment *new_segments = MEM_malloc_arrayN(
       dmd->segments_len + 1, sizeof(DashGpencilModifierSegment), __func__);
@@ -1031,6 +1025,10 @@ static int dash_segment_remove_exec(bContext *C, wmOperator *op)
 
   DashGpencilModifierData *dmd = (DashGpencilModifierData *)gpencil_edit_modifier_property_get(
       op, ob, eGpencilModifierType_Dash);
+
+  if (dmd == NULL) {
+    return OPERATOR_CANCELLED;
+  }
 
   if (dmd->segment_active_index < 0 || dmd->segment_active_index >= dmd->segments_len) {
     return OPERATOR_CANCELLED;
@@ -1107,6 +1105,10 @@ static int dash_segment_move_exec(bContext *C, wmOperator *op)
 
   DashGpencilModifierData *dmd = (DashGpencilModifierData *)gpencil_edit_modifier_property_get(
       op, ob, eGpencilModifierType_Dash);
+
+  if (dmd == NULL) {
+    return OPERATOR_CANCELLED;
+  }
 
   if (dmd->segments_len < 2) {
     return OPERATOR_CANCELLED;

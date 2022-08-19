@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include "device/device.h"
 
@@ -592,6 +579,10 @@ void ShaderManager::device_update_common(Device * /*device*/,
   kfilm->xyz_to_g = float3_to_float4(xyz_to_g);
   kfilm->xyz_to_b = float3_to_float4(xyz_to_b);
   kfilm->rgb_to_y = float3_to_float4(rgb_to_y);
+  kfilm->rec709_to_r = float3_to_float4(rec709_to_r);
+  kfilm->rec709_to_g = float3_to_float4(rec709_to_g);
+  kfilm->rec709_to_b = float3_to_float4(rec709_to_b);
+  kfilm->is_rec709 = is_rec709;
 }
 
 void ShaderManager::device_free_common(Device *, DeviceScene *dscene, Scene *scene)
@@ -753,6 +744,11 @@ float ShaderManager::linear_rgb_to_gray(float3 c)
   return dot(c, rgb_to_y);
 }
 
+float3 ShaderManager::rec709_to_scene_linear(float3 c)
+{
+  return make_float3(dot(rec709_to_r, c), dot(rec709_to_g, c), dot(rec709_to_b, c));
+}
+
 string ShaderManager::get_cryptomatte_materials(Scene *scene)
 {
   string manifest = "{";
@@ -815,10 +811,28 @@ void ShaderManager::init_xyz_transforms()
 {
   /* Default to ITU-BT.709 in case no appropriate transform found.
    * Note XYZ here is defined as having a D65 white point. */
-  xyz_to_r = make_float3(3.2404542f, -1.5371385f, -0.4985314f);
-  xyz_to_g = make_float3(-0.9692660f, 1.8760108f, 0.0415560f);
-  xyz_to_b = make_float3(0.0556434f, -0.2040259f, 1.0572252f);
+  const Transform xyz_to_rec709 = make_transform(3.2404542f,
+                                                 -1.5371385f,
+                                                 -0.4985314f,
+                                                 0.0f,
+                                                 -0.9692660f,
+                                                 1.8760108f,
+                                                 0.0415560f,
+                                                 0.0f,
+                                                 0.0556434f,
+                                                 -0.2040259f,
+                                                 1.0572252f,
+                                                 0.0f);
+
+  xyz_to_r = float4_to_float3(xyz_to_rec709.x);
+  xyz_to_g = float4_to_float3(xyz_to_rec709.y);
+  xyz_to_b = float4_to_float3(xyz_to_rec709.z);
   rgb_to_y = make_float3(0.2126729f, 0.7151522f, 0.0721750f);
+
+  rec709_to_r = make_float3(1.0f, 0.0f, 0.0f);
+  rec709_to_g = make_float3(0.0f, 1.0f, 0.0f);
+  rec709_to_b = make_float3(0.0f, 0.0f, 1.0f);
+  is_rec709 = true;
 
 #ifdef WITH_OCIO
   /* Get from OpenColorO config if it has the required roles. */
@@ -830,28 +844,28 @@ void ShaderManager::init_xyz_transforms()
   Transform xyz_to_rgb;
 
   if (config->hasRole("aces_interchange")) {
-    /* Standard OpenColorIO role, defined as ACES2065-1. */
-    const Transform xyz_E_to_aces = make_transform(1.0498110175f,
-                                                   0.0f,
-                                                   -0.0000974845f,
-                                                   0.0f,
-                                                   -0.4959030231f,
-                                                   1.3733130458f,
-                                                   0.0982400361f,
-                                                   0.0f,
-                                                   0.0f,
-                                                   0.0f,
-                                                   0.9912520182f,
-                                                   0.0f);
-    const Transform xyz_D65_to_E = make_transform(
-        1.0521111f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.9184170f, 0.0f);
-
+    /* Standard OpenColorIO role, defined as ACES AP0 (ACES2065-1). */
     Transform aces_to_rgb;
     if (!to_scene_linear_transform(config, "aces_interchange", aces_to_rgb)) {
       return;
     }
 
-    xyz_to_rgb = aces_to_rgb * xyz_E_to_aces * xyz_D65_to_E;
+    /* This is the OpenColorIO builtin transform:
+     * UTILITY - ACES-AP0_to_CIE-XYZ-D65_BFD. */
+    const Transform ACES_AP0_to_xyz_D65 = make_transform(0.938280f,
+                                                         -0.004451f,
+                                                         0.016628f,
+                                                         0.000000f,
+                                                         0.337369f,
+                                                         0.729522f,
+                                                         -0.066890f,
+                                                         0.000000f,
+                                                         0.001174f,
+                                                         -0.003711f,
+                                                         1.091595f,
+                                                         0.000000f);
+    const Transform xyz_to_aces = transform_inverse(ACES_AP0_to_xyz_D65);
+    xyz_to_rgb = aces_to_rgb * xyz_to_aces;
   }
   else if (config->hasRole("XYZ")) {
     /* Custom role used before the standard existed. */
@@ -870,6 +884,12 @@ void ShaderManager::init_xyz_transforms()
 
   const Transform rgb_to_xyz = transform_inverse(xyz_to_rgb);
   rgb_to_y = float4_to_float3(rgb_to_xyz.y);
+
+  const Transform rec709_to_rgb = xyz_to_rgb * transform_inverse(xyz_to_rec709);
+  rec709_to_r = float4_to_float3(rec709_to_rgb.x);
+  rec709_to_g = float4_to_float3(rec709_to_rgb.y);
+  rec709_to_b = float4_to_float3(rec709_to_rgb.z);
+  is_rec709 = transform_equal_threshold(xyz_to_rgb, xyz_to_rec709, 0.0001f);
 #endif
 }
 

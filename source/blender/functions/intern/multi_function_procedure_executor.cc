@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "FN_multi_function_procedure_executor.hh"
 
@@ -20,13 +6,12 @@
 
 namespace blender::fn {
 
-MFProcedureExecutor::MFProcedureExecutor(std::string name, const MFProcedure &procedure)
-    : procedure_(procedure)
+MFProcedureExecutor::MFProcedureExecutor(const MFProcedure &procedure) : procedure_(procedure)
 {
-  MFSignatureBuilder signature(std::move(name));
+  MFSignatureBuilder signature("Procedure Executor");
 
   for (const ConstMFParameter &param : procedure.params()) {
-    signature.add(param.variable->name(), MFParamType(param.type, param.variable->data_type()));
+    signature.add("Parameter", MFParamType(param.type, param.variable->data_type()));
   }
 
   signature_ = signature.build();
@@ -66,6 +51,7 @@ struct VariableValue_GVArray : public VariableValue {
 
   VariableValue_GVArray(const GVArray &data) : VariableValue(static_type), data(data)
   {
+    BLI_assert(data);
   }
 };
 
@@ -139,37 +125,38 @@ class VariableState;
  */
 class ValueAllocator : NonCopyable, NonMovable {
  private:
-  /* Allocate with 64 byte alignment for better reusability of buffers and improved cache
-   * performance. */
+  /**
+   * Allocate with 64 byte alignment for better reusability of buffers and improved cache
+   * performance.
+   */
   static constexpr inline int min_alignment = 64;
 
-  /* Use stacks so that the most recently used buffers are reused first. This improves cache
-   * efficiency. */
-  std::array<Stack<VariableValue *>, tot_variable_value_types> values_free_lists_;
-  /* The integer key is the size of one element (e.g. 4 for an integer buffer). All buffers are
-   * aligned to #min_alignment bytes. */
-  Map<int, Stack<void *>> span_buffers_free_list_;
+  /** All buffers in the free-lists below have been allocated with this allocator. */
+  LinearAllocator<> &linear_allocator_;
+
+  /**
+   * Use stacks so that the most recently used buffers are reused first. This improves cache
+   * efficiency.
+   */
+  std::array<Stack<VariableValue *>, tot_variable_value_types> variable_value_free_lists_;
+
+  /**
+   * The integer key is the size of one element (e.g. 4 for an integer buffer). All buffers are
+   * aligned to #min_alignment bytes.
+   */
+  Stack<void *> small_span_buffers_free_list_;
+  Map<int, Stack<void *>> span_buffers_free_lists_;
+
+  /** Cache buffers for single values of different types. */
+  static constexpr inline int small_value_max_size = 16;
+  static constexpr inline int small_value_max_alignment = 8;
+  Stack<void *> small_single_value_free_list_;
+  Map<const CPPType *, Stack<void *>> single_value_free_lists_;
 
  public:
-  ValueAllocator() = default;
-
-  ~ValueAllocator()
+  ValueAllocator(LinearAllocator<> &linear_allocator) : linear_allocator_(linear_allocator)
   {
-    for (Stack<VariableValue *> &stack : values_free_lists_) {
-      while (!stack.is_empty()) {
-        MEM_freeN(stack.pop());
-      }
-    }
-    for (Stack<void *> &stack : span_buffers_free_list_.values()) {
-      while (!stack.is_empty()) {
-        MEM_freeN(stack.pop());
-      }
-    }
   }
-
-  template<typename... Args> VariableState *obtain_variable_state(Args &&...args);
-
-  void release_variable_state(VariableState *state);
 
   VariableValue_GVArray *obtain_GVArray(const GVArray &varray)
   {
@@ -190,17 +177,21 @@ class ValueAllocator : NonCopyable, NonMovable {
   {
     void *buffer = nullptr;
 
-    const int element_size = type.size();
-    const int alignment = type.alignment();
+    const int64_t element_size = type.size();
+    const int64_t alignment = type.alignment();
 
     if (alignment > min_alignment) {
       /* In this rare case we fallback to not reusing existing buffers. */
-      buffer = MEM_mallocN_aligned(element_size * size, alignment, __func__);
+      buffer = linear_allocator_.allocate(element_size * size, alignment);
     }
     else {
-      Stack<void *> *stack = span_buffers_free_list_.lookup_ptr(element_size);
+      Stack<void *> *stack = type.can_exist_in_buffer(small_value_max_size,
+                                                      small_value_max_alignment) ?
+                                 &small_span_buffers_free_list_ :
+                                 span_buffers_free_lists_.lookup_ptr(element_size);
       if (stack == nullptr || stack->is_empty()) {
-        buffer = MEM_mallocN_aligned(element_size * size, min_alignment, __func__);
+        buffer = linear_allocator_.allocate(
+            std::max<int64_t>(element_size, small_value_max_size) * size, min_alignment);
       }
       else {
         /* Reuse existing buffer. */
@@ -224,7 +215,19 @@ class ValueAllocator : NonCopyable, NonMovable {
 
   VariableValue_OneSingle *obtain_OneSingle(const CPPType &type)
   {
-    void *buffer = MEM_mallocN_aligned(type.size(), type.alignment(), __func__);
+    const bool is_small = type.can_exist_in_buffer(small_value_max_size,
+                                                   small_value_max_alignment);
+    Stack<void *> &stack = is_small ? small_single_value_free_list_ :
+                                      single_value_free_lists_.lookup_or_add_default(&type);
+    void *buffer;
+    if (stack.is_empty()) {
+      buffer = linear_allocator_.allocate(
+          std::max<int>(small_value_max_size, type.size()),
+          std::max<int>(small_value_max_alignment, type.alignment()));
+    }
+    else {
+      buffer = stack.pop();
+    }
     return this->obtain<VariableValue_OneSingle>(buffer);
   }
 
@@ -245,7 +248,10 @@ class ValueAllocator : NonCopyable, NonMovable {
         if (value_typed->owned) {
           const CPPType &type = data_type.single_type();
           /* Assumes all values in the buffer are uninitialized already. */
-          Stack<void *> &buffers = span_buffers_free_list_.lookup_or_add_default(type.size());
+          Stack<void *> &buffers = type.can_exist_in_buffer(small_value_max_size,
+                                                            small_value_max_alignment) ?
+                                       small_span_buffers_free_list_ :
+                                       span_buffers_free_lists_.lookup_or_add_default(type.size());
           buffers.push(value_typed->data);
         }
         break;
@@ -262,11 +268,18 @@ class ValueAllocator : NonCopyable, NonMovable {
       }
       case ValueType::OneSingle: {
         auto *value_typed = static_cast<VariableValue_OneSingle *>(value);
+        const CPPType &type = data_type.single_type();
         if (value_typed->is_initialized) {
-          const CPPType &type = data_type.single_type();
           type.destruct(value_typed->data);
         }
-        MEM_freeN(value_typed->data);
+        const bool is_small = type.can_exist_in_buffer(small_value_max_size,
+                                                       small_value_max_alignment);
+        if (is_small) {
+          small_single_value_free_list_.push(value_typed->data);
+        }
+        else {
+          single_value_free_lists_.lookup_or_add_default(&type).push(value_typed->data);
+        }
         break;
       }
       case ValueType::OneVector: {
@@ -276,7 +289,7 @@ class ValueAllocator : NonCopyable, NonMovable {
       }
     }
 
-    Stack<VariableValue *> &stack = values_free_lists_[(int)value->type];
+    Stack<VariableValue *> &stack = variable_value_free_lists_[(int)value->type];
     stack.push(value);
   }
 
@@ -284,9 +297,9 @@ class ValueAllocator : NonCopyable, NonMovable {
   template<typename T, typename... Args> T *obtain(Args &&...args)
   {
     static_assert(std::is_base_of_v<VariableValue, T>);
-    Stack<VariableValue *> &stack = values_free_lists_[(int)T::static_type];
+    Stack<VariableValue *> &stack = variable_value_free_lists_[(int)T::static_type];
     if (stack.is_empty()) {
-      void *buffer = MEM_mallocN(sizeof(T), __func__);
+      void *buffer = linear_allocator_.allocate(sizeof(T), alignof(T));
       return new (buffer) T(std::forward<Args>(args)...);
     }
     return new (stack.pop()) T(std::forward<Args>(args)...);
@@ -297,32 +310,27 @@ class ValueAllocator : NonCopyable, NonMovable {
  * This class keeps track of a single variable during evaluation.
  */
 class VariableState : NonCopyable, NonMovable {
- private:
+ public:
   /** The current value of the variable. The storage format may change over time. */
-  VariableValue *value_;
+  VariableValue *value_ = nullptr;
   /** Number of indices that are currently initialized in this variable. */
-  int tot_initialized_;
+  int tot_initialized_ = 0;
   /* This a non-owning pointer to either span buffer or #GVectorArray or null. */
   void *caller_provided_storage_ = nullptr;
 
- public:
-  VariableState(VariableValue &value, int tot_initialized, void *caller_provided_storage = nullptr)
-      : value_(&value),
-        tot_initialized_(tot_initialized),
-        caller_provided_storage_(caller_provided_storage)
-  {
-  }
-
-  void destruct_self(ValueAllocator &value_allocator, const MFDataType &data_type)
+  void destruct_value(ValueAllocator &value_allocator, const MFDataType &data_type)
   {
     value_allocator.release_value(value_, data_type);
-    value_allocator.release_variable_state(this);
+    value_ = nullptr;
   }
 
   /* True if this contains only one value for all indices, i.e. the value for all indices is
    * the same. */
   bool is_one() const
   {
+    if (value_ == nullptr) {
+      return true;
+    }
     switch (value_->type) {
       case ValueType::GVArray:
         return this->value_as<VariableValue_GVArray>()->data.is_single();
@@ -356,6 +364,7 @@ class VariableState : NonCopyable, NonMovable {
   {
     /* Sanity check to make sure that enough values are initialized. */
     BLI_assert(mask.size() <= tot_initialized_);
+    BLI_assert(value_ != nullptr);
 
     switch (value_->type) {
       case ValueType::GVArray: {
@@ -394,7 +403,7 @@ class VariableState : NonCopyable, NonMovable {
                          const MFDataType &data_type,
                          ValueAllocator &value_allocator)
   {
-    if (ELEM(value_->type, ValueType::Span, ValueType::GVectorArray)) {
+    if (value_ != nullptr && ELEM(value_->type, ValueType::Span, ValueType::GVectorArray)) {
       return;
     }
 
@@ -411,22 +420,24 @@ class VariableState : NonCopyable, NonMovable {
           /* Reuse the storage provided caller when possible. */
           new_value = value_allocator.obtain_Span_not_owned(caller_provided_storage_);
         }
-        if (value_->type == ValueType::GVArray) {
-          /* Fill new buffer with data from virtual array. */
-          this->value_as<VariableValue_GVArray>()->data.materialize_to_uninitialized(
-              full_mask, new_value->data);
-        }
-        else if (value_->type == ValueType::OneSingle) {
-          auto *old_value_typed_ = this->value_as<VariableValue_OneSingle>();
-          if (old_value_typed_->is_initialized) {
-            /* Fill the buffer with a single value. */
-            type.fill_construct_indices(old_value_typed_->data, new_value->data, full_mask);
+        if (value_ != nullptr) {
+          if (value_->type == ValueType::GVArray) {
+            /* Fill new buffer with data from virtual array. */
+            this->value_as<VariableValue_GVArray>()->data.materialize_to_uninitialized(
+                full_mask, new_value->data);
           }
+          else if (value_->type == ValueType::OneSingle) {
+            auto *old_value_typed_ = this->value_as<VariableValue_OneSingle>();
+            if (old_value_typed_->is_initialized) {
+              /* Fill the buffer with a single value. */
+              type.fill_construct_indices(old_value_typed_->data, new_value->data, full_mask);
+            }
+          }
+          else {
+            BLI_assert_unreachable();
+          }
+          value_allocator.release_value(value_, data_type);
         }
-        else {
-          BLI_assert_unreachable();
-        }
-        value_allocator.release_value(value_, data_type);
         value_ = new_value;
         break;
       }
@@ -440,19 +451,21 @@ class VariableState : NonCopyable, NonMovable {
           new_value = value_allocator.obtain_GVectorArray_not_owned(
               *(GVectorArray *)caller_provided_storage_);
         }
-        if (value_->type == ValueType::GVVectorArray) {
-          /* Fill new vector array with data from virtual vector array. */
-          new_value->data.extend(full_mask, this->value_as<VariableValue_GVVectorArray>()->data);
+        if (value_ != nullptr) {
+          if (value_->type == ValueType::GVVectorArray) {
+            /* Fill new vector array with data from virtual vector array. */
+            new_value->data.extend(full_mask, this->value_as<VariableValue_GVVectorArray>()->data);
+          }
+          else if (value_->type == ValueType::OneVector) {
+            /* Fill all indices with the same value. */
+            const GSpan vector = this->value_as<VariableValue_OneVector>()->data[0];
+            new_value->data.extend(full_mask, GVVectorArray_For_SingleGSpan{vector, array_size});
+          }
+          else {
+            BLI_assert_unreachable();
+          }
+          value_allocator.release_value(value_, data_type);
         }
-        else if (value_->type == ValueType::OneVector) {
-          /* Fill all indices with the same value. */
-          const GSpan vector = this->value_as<VariableValue_OneVector>()->data[0];
-          new_value->data.extend(full_mask, GVVectorArray_For_SingleGSpan{vector, array_size});
-        }
-        else {
-          BLI_assert_unreachable();
-        }
-        value_allocator.release_value(value_, data_type);
         value_ = new_value;
         break;
       }
@@ -469,6 +482,7 @@ class VariableState : NonCopyable, NonMovable {
     BLI_assert(mask.size() <= tot_initialized_);
 
     this->ensure_is_mutable(full_mask, data_type, value_allocator);
+    BLI_assert(value_ != nullptr);
 
     switch (value_->type) {
       case ValueType::Span: {
@@ -500,6 +514,7 @@ class VariableState : NonCopyable, NonMovable {
     /* Sanity check to make sure that enough values are not initialized. */
     BLI_assert(mask.size() <= full_mask.size() - tot_initialized_);
     this->ensure_is_mutable(full_mask, data_type, value_allocator);
+    BLI_assert(value_ != nullptr);
 
     switch (value_->type) {
       case ValueType::Span: {
@@ -527,6 +542,7 @@ class VariableState : NonCopyable, NonMovable {
   void add_as_input__one(MFParamsBuilder &params, const MFDataType &data_type) const
   {
     BLI_assert(this->is_one());
+    BLI_assert(value_ != nullptr);
 
     switch (value_->type) {
       case ValueType::GVArray: {
@@ -559,7 +575,7 @@ class VariableState : NonCopyable, NonMovable {
   void ensure_is_mutable__one(const MFDataType &data_type, ValueAllocator &value_allocator)
   {
     BLI_assert(this->is_one());
-    if (ELEM(value_->type, ValueType::OneSingle, ValueType::OneVector)) {
+    if (value_ != nullptr && ELEM(value_->type, ValueType::OneSingle, ValueType::OneVector)) {
       return;
     }
 
@@ -567,38 +583,42 @@ class VariableState : NonCopyable, NonMovable {
       case MFDataType::Single: {
         const CPPType &type = data_type.single_type();
         VariableValue_OneSingle *new_value = value_allocator.obtain_OneSingle(type);
-        if (value_->type == ValueType::GVArray) {
-          this->value_as<VariableValue_GVArray>()->data.get_internal_single_to_uninitialized(
-              new_value->data);
-          new_value->is_initialized = true;
+        if (value_ != nullptr) {
+          if (value_->type == ValueType::GVArray) {
+            this->value_as<VariableValue_GVArray>()->data.get_internal_single_to_uninitialized(
+                new_value->data);
+            new_value->is_initialized = true;
+          }
+          else if (value_->type == ValueType::Span) {
+            BLI_assert(tot_initialized_ == 0);
+            /* Nothing to do, the single value is uninitialized already. */
+          }
+          else {
+            BLI_assert_unreachable();
+          }
+          value_allocator.release_value(value_, data_type);
         }
-        else if (value_->type == ValueType::Span) {
-          BLI_assert(tot_initialized_ == 0);
-          /* Nothing to do, the single value is uninitialized already. */
-        }
-        else {
-          BLI_assert_unreachable();
-        }
-        value_allocator.release_value(value_, data_type);
         value_ = new_value;
         break;
       }
       case MFDataType::Vector: {
         const CPPType &type = data_type.vector_base_type();
         VariableValue_OneVector *new_value = value_allocator.obtain_OneVector(type);
-        if (value_->type == ValueType::GVVectorArray) {
-          const GVVectorArray &old_vector_array =
-              this->value_as<VariableValue_GVVectorArray>()->data;
-          new_value->data.extend(IndexRange(1), old_vector_array);
+        if (value_ != nullptr) {
+          if (value_->type == ValueType::GVVectorArray) {
+            const GVVectorArray &old_vector_array =
+                this->value_as<VariableValue_GVVectorArray>()->data;
+            new_value->data.extend(IndexRange(1), old_vector_array);
+          }
+          else if (value_->type == ValueType::GVectorArray) {
+            BLI_assert(tot_initialized_ == 0);
+            /* Nothing to do. */
+          }
+          else {
+            BLI_assert_unreachable();
+          }
+          value_allocator.release_value(value_, data_type);
         }
-        else if (value_->type == ValueType::GVectorArray) {
-          BLI_assert(tot_initialized_ == 0);
-          /* Nothing to do. */
-        }
-        else {
-          BLI_assert_unreachable();
-        }
-        value_allocator.release_value(value_, data_type);
         value_ = new_value;
         break;
       }
@@ -611,6 +631,7 @@ class VariableState : NonCopyable, NonMovable {
   {
     BLI_assert(this->is_one());
     this->ensure_is_mutable__one(data_type, value_allocator);
+    BLI_assert(value_ != nullptr);
 
     switch (value_->type) {
       case ValueType::OneSingle: {
@@ -640,6 +661,7 @@ class VariableState : NonCopyable, NonMovable {
   {
     BLI_assert(this->is_one());
     this->ensure_is_mutable__one(data_type, value_allocator);
+    BLI_assert(value_ != nullptr);
 
     switch (value_->type) {
       case ValueType::OneSingle: {
@@ -669,11 +691,17 @@ class VariableState : NonCopyable, NonMovable {
     tot_initialized_ += mask.size();
   }
 
-  void destruct(IndexMask mask,
+  /**
+   * Destruct the masked elements in this variable.
+   * \return True when all elements of this variable are initialized and the variable state can be
+   *  released.
+   */
+  bool destruct(IndexMask mask,
                 IndexMask full_mask,
                 const MFDataType &data_type,
                 ValueAllocator &value_allocator)
   {
+    BLI_assert(value_ != nullptr);
     int new_tot_initialized = tot_initialized_ - mask.size();
 
     /* Sanity check to make sure that enough indices can be destructed. */
@@ -681,13 +709,7 @@ class VariableState : NonCopyable, NonMovable {
 
     switch (value_->type) {
       case ValueType::GVArray: {
-        if (mask.size() == full_mask.size()) {
-          /* All elements are destructed. The elements are owned by the caller, so we don't
-           * actually destruct them. */
-          value_allocator.release_value(value_, data_type);
-          value_ = value_allocator.obtain_OneSingle(data_type.single_type());
-        }
-        else {
+        if (mask.size() < full_mask.size()) {
           /* Not all elements are destructed. Since we can't work on the original array, we have to
            * create a copy first. */
           this->ensure_is_mutable(full_mask, data_type, value_allocator);
@@ -700,21 +722,10 @@ class VariableState : NonCopyable, NonMovable {
       case ValueType::Span: {
         const CPPType &type = data_type.single_type();
         type.destruct_indices(this->value_as<VariableValue_Span>()->data, mask);
-        if (new_tot_initialized == 0) {
-          /* Release span when all values are initialized. */
-          value_allocator.release_value(value_, data_type);
-          value_ = value_allocator.obtain_OneSingle(data_type.single_type());
-        }
         break;
       }
       case ValueType::GVVectorArray: {
-        if (mask.size() == full_mask.size()) {
-          /* All elements are cleared. The elements are owned by the caller, so don't actually
-           * destruct them. */
-          value_allocator.release_value(value_, data_type);
-          value_ = value_allocator.obtain_OneVector(data_type.vector_base_type());
-        }
-        else {
+        if (mask.size() < full_mask.size()) {
           /* Not all elements are cleared. Since we can't work on the original vector array, we
            * have to create a copy first. A possible future optimization is to create the partial
            * copy directly. */
@@ -731,6 +742,7 @@ class VariableState : NonCopyable, NonMovable {
       case ValueType::OneSingle: {
         auto *value_typed = this->value_as<VariableValue_OneSingle>();
         BLI_assert(value_typed->is_initialized);
+        UNUSED_VARS_NDEBUG(value_typed);
         if (mask.size() == tot_initialized_) {
           const CPPType &type = data_type.single_type();
           type.destruct(value_typed->data);
@@ -741,22 +753,27 @@ class VariableState : NonCopyable, NonMovable {
       case ValueType::OneVector: {
         auto *value_typed = this->value_as<VariableValue_OneVector>();
         if (mask.size() == tot_initialized_) {
-          value_typed->data.clear({0});
+          value_typed->data.clear(IndexRange(1));
         }
         break;
       }
     }
 
     tot_initialized_ = new_tot_initialized;
+
+    const bool should_self_destruct = new_tot_initialized == 0 &&
+                                      caller_provided_storage_ == nullptr;
+    return should_self_destruct;
   }
 
   void indices_split(IndexMask mask, IndicesSplitVectors &r_indices)
   {
     BLI_assert(mask.size() <= tot_initialized_);
+    BLI_assert(value_ != nullptr);
 
     switch (value_->type) {
       case ValueType::GVArray: {
-        const GVArray_Typed<bool> varray{this->value_as<VariableValue_GVArray>()->data};
+        const VArray<bool> varray = this->value_as<VariableValue_GVArray>()->data.typed<bool>();
         for (const int i : mask) {
           r_indices[varray[i]].append(i);
         }
@@ -788,45 +805,47 @@ class VariableState : NonCopyable, NonMovable {
 
   template<typename T> T *value_as()
   {
+    BLI_assert(value_ != nullptr);
     BLI_assert(value_->type == T::static_type);
     return static_cast<T *>(value_);
   }
 
   template<typename T> const T *value_as() const
   {
+    BLI_assert(value_ != nullptr);
     BLI_assert(value_->type == T::static_type);
     return static_cast<T *>(value_);
   }
 };
 
-template<typename... Args> VariableState *ValueAllocator::obtain_variable_state(Args &&...args)
-{
-  return new VariableState(std::forward<Args>(args)...);
-}
-
-void ValueAllocator::release_variable_state(VariableState *state)
-{
-  delete state;
-}
-
 /** Keeps track of the states of all variables during evaluation. */
 class VariableStates {
  private:
   ValueAllocator value_allocator_;
-  Map<const MFVariable *, VariableState *> variable_states_;
+  const MFProcedure &procedure_;
+  /** The state of every variable, indexed by #MFVariable::index_in_procedure(). */
+  Array<VariableState> variable_states_;
   IndexMask full_mask_;
 
  public:
-  VariableStates(IndexMask full_mask) : full_mask_(full_mask)
+  VariableStates(LinearAllocator<> &linear_allocator,
+                 const MFProcedure &procedure,
+                 IndexMask full_mask)
+      : value_allocator_(linear_allocator),
+        procedure_(procedure),
+        variable_states_(procedure.variables().size()),
+        full_mask_(full_mask)
   {
   }
 
   ~VariableStates()
   {
-    for (auto &&item : variable_states_.items()) {
-      const MFVariable *variable = item.key;
-      VariableState *state = item.value;
-      state->destruct_self(value_allocator_, variable->data_type());
+    for (const int variable_i : procedure_.variables().index_range()) {
+      VariableState &state = variable_states_[variable_i];
+      if (state.value_ != nullptr) {
+        const MFVariable *variable = procedure_.variables()[variable_i];
+        state.destruct_value(value_allocator_, variable->data_type());
+      }
     }
   }
 
@@ -852,38 +871,41 @@ class VariableStates {
                            bool input_is_initialized,
                            void *caller_provided_storage = nullptr) {
         const int tot_initialized = input_is_initialized ? full_mask_.size() : 0;
-        variable_states_.add_new(variable,
-                                 value_allocator_.obtain_variable_state(
-                                     *value, tot_initialized, caller_provided_storage));
+        const int variable_i = variable->index_in_procedure();
+        VariableState &variable_state = variable_states_[variable_i];
+        BLI_assert(variable_state.value_ == nullptr);
+        variable_state.value_ = value;
+        variable_state.tot_initialized_ = tot_initialized;
+        variable_state.caller_provided_storage_ = caller_provided_storage;
       };
 
       switch (param_type.category()) {
-        case MFParamType::SingleInput: {
+        case MFParamCategory::SingleInput: {
           const GVArray &data = params.readonly_single_input(param_index);
           add_state(value_allocator_.obtain_GVArray(data), true);
           break;
         }
-        case MFParamType::VectorInput: {
+        case MFParamCategory::VectorInput: {
           const GVVectorArray &data = params.readonly_vector_input(param_index);
           add_state(value_allocator_.obtain_GVVectorArray(data), true);
           break;
         }
-        case MFParamType::SingleOutput: {
+        case MFParamCategory::SingleOutput: {
           GMutableSpan data = params.uninitialized_single_output(param_index);
           add_state(value_allocator_.obtain_Span_not_owned(data.data()), false, data.data());
           break;
         }
-        case MFParamType::VectorOutput: {
+        case MFParamCategory::VectorOutput: {
           GVectorArray &data = params.vector_output(param_index);
           add_state(value_allocator_.obtain_GVectorArray_not_owned(data), false, &data);
           break;
         }
-        case MFParamType::SingleMutable: {
+        case MFParamCategory::SingleMutable: {
           GMutableSpan data = params.single_mutable(param_index);
           add_state(value_allocator_.obtain_Span_not_owned(data.data()), true, data.data());
           break;
         }
-        case MFParamType::VectorMutable: {
+        case MFParamCategory::VectorMutable: {
           GVectorArray &data = params.vector_mutable(param_index);
           add_state(value_allocator_.obtain_GVectorArray_not_owned(data), true, &data);
           break;
@@ -939,30 +961,16 @@ class VariableStates {
   void destruct(const MFVariable &variable, const IndexMask &mask)
   {
     VariableState &variable_state = this->get_variable_state(variable);
-    variable_state.destruct(mask, full_mask_, variable.data_type(), value_allocator_);
+    if (variable_state.destruct(mask, full_mask_, variable.data_type(), value_allocator_)) {
+      variable_state.destruct_value(value_allocator_, variable.data_type());
+    }
   }
 
   VariableState &get_variable_state(const MFVariable &variable)
   {
-    return *variable_states_.lookup_or_add_cb(
-        &variable, [&]() { return this->create_new_state_for_variable(variable); });
-  }
-
-  VariableState *create_new_state_for_variable(const MFVariable &variable)
-  {
-    MFDataType data_type = variable.data_type();
-    switch (data_type.category()) {
-      case MFDataType::Single: {
-        const CPPType &type = data_type.single_type();
-        return value_allocator_.obtain_variable_state(*value_allocator_.obtain_OneSingle(type), 0);
-      }
-      case MFDataType::Vector: {
-        const CPPType &type = data_type.vector_base_type();
-        return value_allocator_.obtain_variable_state(*value_allocator_.obtain_OneVector(type), 0);
-      }
-    }
-    BLI_assert_unreachable();
-    return nullptr;
+    const int variable_i = variable.index_in_procedure();
+    VariableState &variable_state = variable_states_[variable_i];
+    return variable_state;
   }
 };
 
@@ -978,15 +986,68 @@ static bool evaluate_as_one(const MultiFunction &fn,
     return false;
   }
   for (VariableState *state : param_variable_states) {
-    if (state != nullptr && !state->is_one()) {
+    if (state != nullptr && state->value_ != nullptr && !state->is_one()) {
       return false;
     }
   }
   return true;
 }
 
+static void gather_parameter_variable_states(const MultiFunction &fn,
+                                             const MFCallInstruction &instruction,
+                                             VariableStates &variable_states,
+                                             MutableSpan<VariableState *> r_param_variable_states)
+{
+  for (const int param_index : fn.param_indices()) {
+    const MFVariable *variable = instruction.params()[param_index];
+    if (variable == nullptr) {
+      r_param_variable_states[param_index] = nullptr;
+    }
+    else {
+      VariableState &variable_state = variable_states.get_variable_state(*variable);
+      r_param_variable_states[param_index] = &variable_state;
+    }
+  }
+}
+
+static void fill_params__one(const MultiFunction &fn,
+                             const IndexMask mask,
+                             MFParamsBuilder &params,
+                             VariableStates &variable_states,
+                             const Span<VariableState *> param_variable_states)
+{
+  for (const int param_index : fn.param_indices()) {
+    const MFParamType param_type = fn.param_type(param_index);
+    VariableState *variable_state = param_variable_states[param_index];
+    if (variable_state == nullptr) {
+      params.add_ignored_single_output();
+    }
+    else {
+      variable_states.add_as_param__one(*variable_state, params, param_type, mask);
+    }
+  }
+}
+
+static void fill_params(const MultiFunction &fn,
+                        const IndexMask mask,
+                        MFParamsBuilder &params,
+                        VariableStates &variable_states,
+                        const Span<VariableState *> param_variable_states)
+{
+  for (const int param_index : fn.param_indices()) {
+    const MFParamType param_type = fn.param_type(param_index);
+    VariableState *variable_state = param_variable_states[param_index];
+    if (variable_state == nullptr) {
+      params.add_ignored_single_output();
+    }
+    else {
+      variable_states.add_as_param(*variable_state, params, param_type, mask);
+    }
+  }
+}
+
 static void execute_call_instruction(const MFCallInstruction &instruction,
-                                     IndexMask mask,
+                                     const IndexMask mask,
                                      VariableStates &variable_states,
                                      const MFContext &context)
 {
@@ -994,33 +1055,13 @@ static void execute_call_instruction(const MFCallInstruction &instruction,
 
   Vector<VariableState *> param_variable_states;
   param_variable_states.resize(fn.param_amount());
-
-  for (const int param_index : fn.param_indices()) {
-    const MFVariable *variable = instruction.params()[param_index];
-    if (variable == nullptr) {
-      param_variable_states[param_index] = nullptr;
-    }
-    else {
-      VariableState &variable_state = variable_states.get_variable_state(*variable);
-      param_variable_states[param_index] = &variable_state;
-    }
-  }
+  gather_parameter_variable_states(fn, instruction, variable_states, param_variable_states);
 
   /* If all inputs to the function are constant, it's enough to call the function only once instead
    * of for every index. */
   if (evaluate_as_one(fn, param_variable_states, mask, variable_states.full_mask())) {
     MFParamsBuilder params(fn, 1);
-
-    for (const int param_index : fn.param_indices()) {
-      const MFParamType param_type = fn.param_type(param_index);
-      VariableState *variable_state = param_variable_states[param_index];
-      if (variable_state == nullptr) {
-        params.add_ignored_single_output();
-      }
-      else {
-        variable_states.add_as_param__one(*variable_state, params, param_type, mask);
-      }
-    }
+    fill_params__one(fn, mask, params, variable_states, param_variable_states);
 
     try {
       fn.call(IndexRange(1), params, context);
@@ -1032,20 +1073,10 @@ static void execute_call_instruction(const MFCallInstruction &instruction,
   }
   else {
     MFParamsBuilder params(fn, &mask);
-
-    for (const int param_index : fn.param_indices()) {
-      const MFParamType param_type = fn.param_type(param_index);
-      VariableState *variable_state = param_variable_states[param_index];
-      if (variable_state == nullptr) {
-        params.add_ignored_single_output();
-      }
-      else {
-        variable_states.add_as_param(*variable_state, params, param_type, mask);
-      }
-    }
+    fill_params(fn, mask, params, variable_states, param_variable_states);
 
     try {
-      fn.call(mask, params, context);
+      fn.call_auto(mask, params, context);
     }
     catch (...) {
       /* Multi-functions must not throw exceptions. */
@@ -1091,7 +1122,7 @@ struct NextInstructionInfo {
  */
 class InstructionScheduler {
  private:
-  Map<const MFInstruction *, Vector<InstructionIndices>> indices_by_instruction_;
+  Stack<NextInstructionInfo> next_instructions_;
 
  public:
   InstructionScheduler() = default;
@@ -1104,7 +1135,7 @@ class InstructionScheduler {
     InstructionIndices new_indices;
     new_indices.is_owned = false;
     new_indices.referenced_indices = mask;
-    indices_by_instruction_.lookup_or_add_default(&instruction).append(std::move(new_indices));
+    next_instructions_.push({&instruction, std::move(new_indices)});
   }
 
   void add_owned_indices(const MFInstruction &instruction, Vector<int64_t> indices)
@@ -1117,43 +1148,28 @@ class InstructionScheduler {
     InstructionIndices new_indices;
     new_indices.is_owned = true;
     new_indices.owned_indices = std::move(indices);
-    indices_by_instruction_.lookup_or_add_default(&instruction).append(std::move(new_indices));
+    next_instructions_.push({&instruction, std::move(new_indices)});
   }
 
-  void add_previous_instruction_indices(const MFInstruction &instruction,
-                                        NextInstructionInfo &instr_info)
+  bool is_done() const
   {
-    indices_by_instruction_.lookup_or_add_default(&instruction)
-        .append(std::move(instr_info.indices));
+    return next_instructions_.is_empty();
   }
 
-  NextInstructionInfo pop_next()
+  const NextInstructionInfo &peek() const
   {
-    if (indices_by_instruction_.is_empty()) {
-      return {};
-    }
-    /* TODO: Implement better mechanism to determine next instruction. */
-    const MFInstruction *instruction = *indices_by_instruction_.keys().begin();
-
-    NextInstructionInfo next_instruction_info;
-    next_instruction_info.instruction = instruction;
-    next_instruction_info.indices = this->pop_indices_array(instruction);
-    return next_instruction_info;
+    BLI_assert(!this->is_done());
+    return next_instructions_.peek();
   }
 
- private:
-  InstructionIndices pop_indices_array(const MFInstruction *instruction)
+  void update_instruction_pointer(const MFInstruction &instruction)
   {
-    Vector<InstructionIndices> *indices = indices_by_instruction_.lookup_ptr(instruction);
-    if (indices == nullptr) {
-      return {};
-    }
-    InstructionIndices r_indices = (*indices).pop_last();
-    BLI_assert(!r_indices.mask().is_empty());
-    if (indices->is_empty()) {
-      indices_by_instruction_.remove_contained(instruction);
-    }
-    return r_indices;
+    next_instructions_.peek().instruction = &instruction;
+  }
+
+  NextInstructionInfo pop()
+  {
+    return next_instructions_.pop();
   }
 };
 
@@ -1161,23 +1177,26 @@ void MFProcedureExecutor::call(IndexMask full_mask, MFParams params, MFContext c
 {
   BLI_assert(procedure_.validate());
 
-  LinearAllocator<> allocator;
+  AlignedBuffer<512, 64> local_buffer;
+  LinearAllocator<> linear_allocator;
+  linear_allocator.provide_buffer(local_buffer);
 
-  VariableStates variable_states{full_mask};
+  VariableStates variable_states{linear_allocator, procedure_, full_mask};
   variable_states.add_initial_variable_states(*this, procedure_, params);
 
   InstructionScheduler scheduler;
   scheduler.add_referenced_indices(*procedure_.entry(), full_mask);
 
   /* Loop until all indices got to a return instruction. */
-  while (NextInstructionInfo instr_info = scheduler.pop_next()) {
+  while (!scheduler.is_done()) {
+    const NextInstructionInfo &instr_info = scheduler.peek();
     const MFInstruction &instruction = *instr_info.instruction;
     switch (instruction.type()) {
       case MFInstructionType::Call: {
         const MFCallInstruction &call_instruction = static_cast<const MFCallInstruction &>(
             instruction);
         execute_call_instruction(call_instruction, instr_info.mask(), variable_states, context);
-        scheduler.add_previous_instruction_indices(*call_instruction.next(), instr_info);
+        scheduler.update_instruction_pointer(*call_instruction.next());
         break;
       }
       case MFInstructionType::Branch: {
@@ -1188,6 +1207,7 @@ void MFProcedureExecutor::call(IndexMask full_mask, MFParams params, MFContext c
 
         IndicesSplitVectors new_indices;
         variable_state.indices_split(instr_info.mask(), new_indices);
+        scheduler.pop();
         scheduler.add_owned_indices(*branch_instruction.branch_false(), new_indices[false]);
         scheduler.add_owned_indices(*branch_instruction.branch_true(), new_indices[true]);
         break;
@@ -1197,17 +1217,18 @@ void MFProcedureExecutor::call(IndexMask full_mask, MFParams params, MFContext c
             static_cast<const MFDestructInstruction &>(instruction);
         const MFVariable *variable = destruct_instruction.variable();
         variable_states.destruct(*variable, instr_info.mask());
-        scheduler.add_previous_instruction_indices(*destruct_instruction.next(), instr_info);
+        scheduler.update_instruction_pointer(*destruct_instruction.next());
         break;
       }
       case MFInstructionType::Dummy: {
         const MFDummyInstruction &dummy_instruction = static_cast<const MFDummyInstruction &>(
             instruction);
-        scheduler.add_previous_instruction_indices(*dummy_instruction.next(), instr_info);
+        scheduler.update_instruction_pointer(*dummy_instruction.next());
         break;
       }
       case MFInstructionType::Return: {
         /* Don't insert the indices back into the scheduler. */
+        scheduler.pop();
         break;
       }
     }
@@ -1234,6 +1255,14 @@ void MFProcedureExecutor::call(IndexMask full_mask, MFParams params, MFContext c
       }
     }
   }
+}
+
+MultiFunction::ExecutionHints MFProcedureExecutor::get_execution_hints() const
+{
+  ExecutionHints hints;
+  hints.allocates_array = true;
+  hints.min_grain_size = 10000;
+  return hints;
 }
 
 }  // namespace blender::fn

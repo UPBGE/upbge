@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup pythonintern
@@ -38,7 +24,7 @@
 
 void bpy_app_generic_callback(struct Main *main,
                               struct PointerRNA **pointers,
-                              const int num_pointers,
+                              const int pointers_num,
                               void *arg);
 
 static PyTypeObject BlenderAppCbType;
@@ -74,10 +60,20 @@ static PyStructSequence_Field app_cb_info_fields[] = {
     {"redo_post", "on loading a redo step (after)"},
     {"depsgraph_update_pre", "on depsgraph update (pre)"},
     {"depsgraph_update_post", "on depsgraph update (post)"},
+    {"game_pre", (char *)"on starting the game engine"},
+    {"game_post", (char *)"on ending the game engine"},
     {"version_update", "on ending the versioning code"},
     {"load_factory_preferences_post", "on loading factory preferences (after)"},
     {"load_factory_startup_post", "on loading factory startup (after)"},
     {"xr_session_start_pre", "on starting an xr session (before)"},
+    {"annotation_pre", "on drawing an annotation (before)"},
+    {"annotation_post", "on drawing an annotation (after)"},
+    {"object_bake_pre", "before starting a bake job"},
+    {"object_bake_complete", "on completing a bake job; will be called in the main thread"},
+    {"object_bake_cancel", "on canceling a bake job; will be called in the main thread"},
+    {"composite_pre", "on a compositing background job (before)"},
+    {"composite_post", "on a compositing background job (after)"},
+    {"composite_cancel", "on a compositing background job (cancel)"},
 
 /* sets the permanent tag */
 #define APP_CB_OTHER_FIELDS 1
@@ -151,41 +147,41 @@ static PyTypeObject BPyPersistent_Type = {
     0,                /* tp_basicsize */
     0,                /* tp_itemsize */
     /* methods */
-    0,                                                             /* tp_dealloc */
-    0,                                                             /* tp_print */
-    0,                                                             /* tp_getattr */
-    0,                                                             /* tp_setattr */
-    0,                                                             /* tp_reserved */
-    0,                                                             /* tp_repr */
-    0,                                                             /* tp_as_number */
-    0,                                                             /* tp_as_sequence */
-    0,                                                             /* tp_as_mapping */
-    0,                                                             /* tp_hash */
-    0,                                                             /* tp_call */
-    0,                                                             /* tp_str */
-    0,                                                             /* tp_getattro */
-    0,                                                             /* tp_setattro */
-    0,                                                             /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE, /* tp_flags */
-    0,                                                             /* tp_doc */
-    0,                                                             /* tp_traverse */
-    0,                                                             /* tp_clear */
-    0,                                                             /* tp_richcompare */
-    0,                                                             /* tp_weaklistoffset */
-    0,                                                             /* tp_iter */
-    0,                                                             /* tp_iternext */
-    0,                                                             /* tp_methods */
-    0,                                                             /* tp_members */
-    0,                                                             /* tp_getset */
-    0,                                                             /* tp_base */
-    0,                                                             /* tp_dict */
-    0,                                                             /* tp_descr_get */
-    0,                                                             /* tp_descr_set */
-    0,                                                             /* tp_dictoffset */
-    0,                                                             /* tp_init */
-    0,                                                             /* tp_alloc */
-    bpy_app_handlers_persistent_new,                               /* tp_new */
-    0,                                                             /* tp_free */
+    0,                                        /* tp_dealloc */
+    0,                                        /* tp_print */
+    0,                                        /* tp_getattr */
+    0,                                        /* tp_setattr */
+    0,                                        /* tp_reserved */
+    0,                                        /* tp_repr */
+    0,                                        /* tp_as_number */
+    0,                                        /* tp_as_sequence */
+    0,                                        /* tp_as_mapping */
+    0,                                        /* tp_hash */
+    0,                                        /* tp_call */
+    0,                                        /* tp_str */
+    0,                                        /* tp_getattro */
+    0,                                        /* tp_setattro */
+    0,                                        /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /* tp_flags */
+    0,                                        /* tp_doc */
+    0,                                        /* tp_traverse */
+    0,                                        /* tp_clear */
+    0,                                        /* tp_richcompare */
+    0,                                        /* tp_weaklistoffset */
+    0,                                        /* tp_iter */
+    0,                                        /* tp_iternext */
+    0,                                        /* tp_methods */
+    0,                                        /* tp_members */
+    0,                                        /* tp_getset */
+    0,                                        /* tp_base */
+    0,                                        /* tp_dict */
+    0,                                        /* tp_descr_get */
+    0,                                        /* tp_descr_set */
+    0,                                        /* tp_dictoffset */
+    0,                                        /* tp_init */
+    0,                                        /* tp_alloc */
+    bpy_app_handlers_persistent_new,          /* tp_new */
+    0,                                        /* tp_free */
 };
 
 static PyObject *py_cb_array[BKE_CB_EVT_TOT] = {NULL};
@@ -256,7 +252,7 @@ PyObject *BPY_app_handlers_struct(void)
   return ret;
 }
 
-void BPY_app_handlers_reset(const short do_all)
+void BPY_app_handlers_reset(const bool do_all)
 {
   PyGILState_STATE gilstate;
   int pos = 0;
@@ -278,19 +274,24 @@ void BPY_app_handlers_reset(const short do_all)
       PyObject *ls = py_cb_array[pos];
       Py_ssize_t i;
 
-      PyObject *item;
-      PyObject **dict_ptr;
-
       for (i = PyList_GET_SIZE(ls) - 1; i >= 0; i--) {
+        PyObject *item = PyList_GET_ITEM(ls, i);
 
-        if (PyFunction_Check((item = PyList_GET_ITEM(ls, i))) &&
-            (dict_ptr = _PyObject_GetDictPtr(item)) && (*dict_ptr) &&
+        if (PyMethod_Check(item)) {
+          PyObject *item_test = PyMethod_GET_FUNCTION(item);
+          if (item_test) {
+            item = item_test;
+          }
+        }
+
+        PyObject **dict_ptr;
+        if (PyFunction_Check(item) && (dict_ptr = _PyObject_GetDictPtr(item)) && (*dict_ptr) &&
             (PyDict_GetItem(*dict_ptr, perm_id_str) != NULL)) {
           /* keep */
         }
         else {
           /* remove */
-          /* PySequence_DelItem(ls, i); */ /* more obvious but slower */
+          // PySequence_DelItem(ls, i); /* more obvious but slower */
           PyList_SetSlice(ls, i, i + 1, NULL);
         }
       }
@@ -317,7 +318,7 @@ static PyObject *choose_arguments(PyObject *func, PyObject *args_all, PyObject *
 /* the actual callback - not necessarily called from py */
 void bpy_app_generic_callback(struct Main *UNUSED(main),
                               struct PointerRNA **pointers,
-                              const int num_pointers,
+                              const int pointers_num,
                               void *arg)
 {
   PyObject *cb_list = py_cb_array[POINTER_AS_INT(arg)];
@@ -332,14 +333,14 @@ void bpy_app_generic_callback(struct Main *UNUSED(main),
     Py_ssize_t pos;
 
     /* setup arguments */
-    for (int i = 0; i < num_pointers; ++i) {
+    for (int i = 0; i < pointers_num; ++i) {
       PyTuple_SET_ITEM(args_all, i, pyrna_struct_CreatePyObject(pointers[i]));
     }
-    for (int i = num_pointers; i < num_arguments; ++i) {
+    for (int i = pointers_num; i < num_arguments; ++i) {
       PyTuple_SET_ITEM(args_all, i, Py_INCREF_RET(Py_None));
     }
 
-    if (num_pointers == 0) {
+    if (pointers_num == 0) {
       PyTuple_SET_ITEM(args_single, 0, Py_INCREF_RET(Py_None));
     }
     else {

@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup sptext
@@ -281,7 +267,8 @@ static void confirm_suggestion(Text *text)
   //  for (i = 0; i < skipleft; i++)
   //      txt_move_left(text, 0);
   BLI_assert(memcmp(sel->name, &line[i], over) == 0);
-  txt_insert_buf(text, sel->name + over);
+  const char *buf = sel->name + over;
+  txt_insert_buf(text, buf, strlen(buf));
 
   //  for (i = 0; i < skipleft; i++)
   //      txt_move_right(text, 0);
@@ -327,7 +314,7 @@ static int doc_scroll = 0;
 
 static int text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  /* NOTE(campbell): this code could be refactored or rewritten. */
+  /* NOTE(@campbellbarton): this code could be refactored or rewritten. */
   SpaceText *st = CTX_wm_space_text(C);
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
@@ -422,7 +409,7 @@ static int text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *e
     case EVT_BACKSPACEKEY:
       if (event->val == KM_PRESS) {
         if (tools & TOOL_SUGG_LIST) {
-          if (event->ctrl) {
+          if (event->modifier & KM_CTRL) {
             texttool_suggest_clear();
             retval = OPERATOR_CANCELLED;
             draw = 1;
@@ -459,7 +446,7 @@ static int text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *e
     case EVT_RIGHTARROWKEY:
       if (event->val == KM_PRESS) {
         if (tools & TOOL_SUGG_LIST) {
-          if (event->ctrl) {
+          if (event->modifier & KM_CTRL) {
             texttool_suggest_clear();
             retval = OPERATOR_CANCELLED;
             draw = 1;

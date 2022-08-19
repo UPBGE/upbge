@@ -1,22 +1,4 @@
-# ***** BEGIN GPL LICENSE BLOCK *****
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ***** END GPL LICENSE BLOCK *****
-
-# <pep8 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 __all__ = (
     "build_info",
@@ -130,12 +112,11 @@ def makefile_log() -> List[str]:
         print("Can't execute process")
         sys.exit(1)
 
-
     while process.poll():
         time.sleep(1)
 
     # We know this is always true based on the input arguments to `Popen`.
-    stdout: IO[bytes] = process.stdout # type: ignore
+    stdout: IO[bytes] = process.stdout  # type: ignore
 
     out = stdout.read()
     stdout.close()
@@ -226,7 +207,7 @@ def build_defines_as_source() -> str:
     )
 
     # We know this is always true based on the input arguments to `Popen`.
-    stdout: IO[bytes] = process.stdout # type: ignore
+    stdout: IO[bytes] = process.stdout  # type: ignore
 
     return cast(str, stdout.read().strip().decode('ascii'))
 
@@ -244,7 +225,7 @@ def build_defines_as_args() -> List[str]:
 def queue_processes(
         process_funcs: Sequence[Tuple[Callable[..., subprocess.Popen[Any]], Tuple[Any, ...]]],
         *,
-        job_total: int =-1,
+        job_total: int = -1,
         sleep: float = 0.1,
 ) -> None:
     """ Takes a list of function arg pairs, each function must return a process

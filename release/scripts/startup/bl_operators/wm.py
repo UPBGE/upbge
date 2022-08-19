@@ -1,22 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
-# <pep8 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 from __future__ import annotations
 
 import bpy
@@ -36,11 +18,70 @@ from bpy.props import (
     FloatVectorProperty,
 )
 from bpy.app.translations import pgettext_iface as iface_
+from bpy.app.translations import pgettext_tip as tip_
+
+
+def _rna_path_prop_search_for_context_impl(context, edit_text, unique_attrs):
+    # Use the same logic as auto-completing in the Python console to expand the data-path.
+    from bl_console_utils.autocomplete import intellisense
+    context_prefix = "context."
+    line = context_prefix + edit_text
+    cursor = len(line)
+    namespace = {"context": context}
+    comp_prefix, _, comp_options = intellisense.expand(line=line, cursor=len(line), namespace=namespace, private=False)
+    prefix = comp_prefix[len(context_prefix):]  # Strip "context."
+    for attr in comp_options.split("\n"):
+        if attr.endswith((
+                # Exclude function calls because they are generally not part of data-paths.
+                "(", ")",
+                # RNA properties for introspection, not useful to expand.
+                ".bl_rna", ".rna_type",
+        )):
+            continue
+        attr_full = prefix + attr.lstrip()
+        if attr_full in unique_attrs:
+            continue
+        unique_attrs.add(attr_full)
+        yield attr_full
+
+
+def rna_path_prop_search_for_context(self, context, edit_text):
+    # NOTE(@campbellbarton): Limiting data-path expansion is rather arbitrary.
+    # It's possible for e.g. that someone would want to set a shortcut in the preferences or
+    # in other region types than those currently expanded. Unless there is a reasonable likelihood
+    # users might expand these space-type/region-type combinations - exclude them from this search.
+    # After all, this list is mainly intended as a hint, users are not prevented from constructing
+    # the data-paths themselves.
+    unique_attrs = set()
+
+    for window in context.window_manager.windows:
+        for area in window.screen.areas:
+            # Users are very unlikely to be setting shortcuts in the preferences, skip this.
+            if area.type == 'PREFERENCES':
+                continue
+            space = area.spaces.active
+            # Ignore the same region type multiple times in an area.
+            # Prevents the 3D-viewport quad-view from attempting to expand 3 extra times for e.g.
+            region_type_unique = set()
+            for region in area.regions:
+                if region.type not in {'WINDOW', 'PREVIEW'}:
+                    continue
+                if region.type in region_type_unique:
+                    continue
+                region_type_unique.add(region.type)
+                with context.temp_override(window=window, area=area, region=region):
+                    yield from _rna_path_prop_search_for_context_impl(context, edit_text, unique_attrs)
+
+    if not unique_attrs:
+        # Users *might* only have a preferences area shown, in that case just expand the current context.
+        yield from _rna_path_prop_search_for_context_impl(context, edit_text, unique_attrs)
+
 
 rna_path_prop = StringProperty(
     name="Context Attributes",
-    description="RNA context string",
+    description="Context data-path (expanded using visible windows in the current .blend file)",
     maxlen=1024,
+    search=rna_path_prop_search_for_context,
 )
 
 rna_reverse_prop = BoolProperty(
@@ -581,7 +622,7 @@ class WM_OT_context_cycle_enum(Operator):
 
         # Have the info we need, advance to the next item.
         #
-        # When wrap's disabled we may set the value to its self,
+        # When wrap's disabled we may set the value to itself,
         # this is done to ensure update callbacks run.
         if self.reverse:
             if orig_index == 0:
@@ -979,21 +1020,19 @@ class WM_OT_url_open(Operator):
         return {'FINISHED'}
 
 
-# NOTE: needed for Python 3.10 since there are name-space issues with annotations.
-# This can be moved into the class as a static-method once Python 3.9x is dropped.
-def _wm_url_open_preset_type_items(_self, _context):
-    return [item for (item, _) in WM_OT_url_open_preset.preset_items]
-
-
 class WM_OT_url_open_preset(Operator):
     """Open a preset website in the web browser"""
     bl_idname = "wm.url_open_preset"
     bl_label = "Open Preset Website"
     bl_options = {'INTERNAL'}
 
+    @staticmethod
+    def _wm_url_open_preset_type_items(_self, _context):
+        return [item for (item, _) in WM_OT_url_open_preset.preset_items]
+
     type: EnumProperty(
         name="Site",
-        items=_wm_url_open_preset_type_items,
+        items=WM_OT_url_open_preset._wm_url_open_preset_type_items,
     )
 
     id: StringProperty(
@@ -1013,38 +1052,40 @@ class WM_OT_url_open_preset(Operator):
         return "https://www.blender.org/download/releases/%d-%d/" % bpy.app.version[:2]
 
     def _url_from_manual(self, _context):
-        if bpy.app.version_cycle in {"rc", "release"}:
-            manual_version = "%d.%d" % bpy.app.version[:2]
-        else:
-            manual_version = "dev"
-        return "https://docs.blender.org/manual/en/" + manual_version + "/"
+        return "https://docs.blender.org/manual/en/%d.%d/" % bpy.app.version[:2]
+
+    def _url_from_api(self, _context):
+        return "https://docs.blender.org/api/%d.%d/" % bpy.app.version[:2]
 
     # This list is: (enum_item, url) pairs.
     # Allow dynamically extending.
     preset_items = [
         # Dynamic URL's.
-        (('BUG', "Bug",
-          "Report a bug with pre-filled version information"),
+        (('BUG', iface_("Bug"),
+          tip_("Report a bug with pre-filled version information")),
          _url_from_bug),
-        (('BUG_ADDON', "Add-on Bug",
-          "Report a bug in an add-on"),
+        (('BUG_ADDON', iface_("Add-on Bug"),
+          tip_("Report a bug in an add-on")),
          _url_from_bug_addon),
-        (('RELEASE_NOTES', "Release Notes",
-          "Read about whats new in this version of Blender"),
+        (('RELEASE_NOTES', iface_("Release Notes"),
+          tip_("Read about what's new in this version of Blender")),
          _url_from_release_notes),
-        (('MANUAL', "Manual",
-          "The reference manual for this version of Blender"),
+        (('MANUAL', iface_("User Manual"),
+          tip_("The reference manual for this version of Blender")),
          _url_from_manual),
+        (('API', iface_("Python API Reference"),
+          tip_("The API reference manual for this version of Blender")),
+         _url_from_api),
 
         # Static URL's.
-        (('FUND', "Development Fund",
-          "The donation program to support maintenance and improvements"),
+        (('FUND', iface_("Development Fund"),
+          tip_("The donation program to support maintenance and improvements")),
          "https://fund.blender.org"),
-        (('BLENDER', "blender.org",
-          "Blender's official web-site"),
+        (('BLENDER', iface_("blender.org"),
+          tip_("Blender's official web-site")),
          "https://www.blender.org"),
-        (('CREDITS', "Credits",
-          "Lists committers to Blender's source code"),
+        (('CREDITS', iface_("Credits"),
+          tip_("Lists committers to Blender's source code")),
          "https://www.blender.org/about/credits/"),
     ]
 
@@ -1249,11 +1290,7 @@ class WM_OT_doc_view(Operator):
     bl_label = "View Documentation"
 
     doc_id: doc_id
-    if bpy.app.version_cycle in {"release", "rc", "beta"}:
-        _prefix = ("https://docs.blender.org/api/%d.%d" %
-                   (bpy.app.version[0], bpy.app.version[1]))
-    else:
-        _prefix = ("https://docs.blender.org/api/master")
+    _prefix = "https://docs.blender.org/api/%d.%d" % bpy.app.version[:2]
 
     def execute(self, _context):
         url = _wm_doc_get_id(self.doc_id, do_url=True, url_prefix=self._prefix, report=self.report)
@@ -1299,12 +1336,6 @@ rna_vector_subtype_items = (
 )
 
 
-# NOTE: needed for Python 3.10 since there are name-space issues with annotations.
-# This can be moved into the class as a static-method once Python 3.9x is dropped.
-def _wm_properties_edit_subtype_items(_self, _context):
-    return WM_OT_properties_edit.subtype_items
-
-
 class WM_OT_properties_edit(Operator):
     """Change a custom property's type, or adjust how it is displayed in the interface"""
     bl_idname = "wm.properties_edit"
@@ -1322,7 +1353,7 @@ class WM_OT_properties_edit(Operator):
         items=rna_custom_property_type_items,
     )
     is_overridable_library: BoolProperty(
-        name="Is Library Overridable",
+        name="Library Overridable",
         description="Allow the property to be overridden when the data-block is linked",
         default=False,
     )
@@ -1333,7 +1364,7 @@ class WM_OT_properties_edit(Operator):
     # Shared for integer and string properties.
 
     use_soft_limits: BoolProperty(
-        name="Use Soft Limits",
+        name="Soft Limits",
         description=(
             "Limits the Property Value slider to a range, "
             "values outside the range must be inputted numerically"
@@ -1343,7 +1374,7 @@ class WM_OT_properties_edit(Operator):
         name="Array Length",
         default=3,
         min=1,
-        max=32, # 32 is the maximum size for RNA array properties.
+        max=32,  # 32 is the maximum size for RNA array properties.
     )
 
     # Integer properties.
@@ -1411,7 +1442,7 @@ class WM_OT_properties_edit(Operator):
     )
     subtype: EnumProperty(
         name="Subtype",
-        items=_wm_properties_edit_subtype_items,
+        items=WM_OT_properties_edit.subtype_items,
     )
 
     # String properties.
@@ -1430,7 +1461,7 @@ class WM_OT_properties_edit(Operator):
     type_items = rna_custom_property_type_items
     subtype_items = rna_vector_subtype_items
 
-    # Helper method to avoid repetative code to retrieve a single value from sequences and non-sequences.
+    # Helper method to avoid repetitive code to retrieve a single value from sequences and non-sequences.
     @staticmethod
     def _convert_new_value_single(old_value, new_type):
         if hasattr(old_value, "__len__") and len(old_value) > 0:
@@ -1537,7 +1568,7 @@ class WM_OT_properties_edit(Operator):
         elif self.property_type == 'STRING':
             self.default_string = rna_data["default"]
 
-        if self.property_type in { 'FLOAT_ARRAY', 'INT_ARRAY'}:
+        if self.property_type in {'FLOAT_ARRAY', 'INT_ARRAY'}:
             self.array_length = len(item[name])
 
         # The dictionary does not contain the description if it was empty.
@@ -2020,6 +2051,56 @@ class WM_OT_sysinfo(Operator):
         return {'RUNNING_MODAL'}
 
 
+class WM_OT_blenderplayer_start(Operator):
+    """Launch the blender-player with the current blend-file"""
+    bl_idname = "wm.blenderplayer_start"
+    bl_label = "Start Game In Player"
+
+    def execute(self, context):
+        import os
+        import sys
+        import subprocess
+
+        gs = context.scene.game_settings
+
+        # these remain the same every execution
+        blender_bin_path = bpy.app.binary_path
+        blender_bin_dir = os.path.dirname(blender_bin_path)
+        ext = os.path.splitext(blender_bin_path)[-1]
+        player_path = os.path.join(blender_bin_dir, "blenderplayer" + ext)
+        # done static vars
+
+        if sys.platform == "darwin":
+            player_path = os.path.join(blender_bin_dir, "../../../Blenderplayer.app/Contents/MacOS/Blenderplayer")
+            # If BlenderPlayer is not found then we try a harcoded install location
+            if not os.path.exists(player_path):
+                player_path = "/Applications/UPBGE-0.3-Alpha/Blenderplayer.app/Contents/MacOS/Blenderplayer"
+
+        if not os.path.exists(player_path):
+            self.report({'ERROR'}, "Player path: %r not found" % player_path)
+            return {'CANCELLED'}
+
+        filepath = bpy.data.filepath + '~' if bpy.data.is_saved else os.path.join(bpy.app.tempdir, "game.blend")
+        bpy.ops.wm.save_as_mainfile('EXEC_DEFAULT', filepath=filepath, copy=True)
+
+        # start the command line call with the player path
+        args = [player_path]
+
+        # handle some UI options as command line arguments
+        args.extend([
+            "-g", "show_framerate", "=", "%d" % gs.show_framerate_profile,
+            "-g", "show_profile", "=", "%d" % gs.show_framerate_profile,
+            "-g", "show_properties", "=", "%d" % gs.show_debug_properties,
+            "-g", "ignore_deprecation_warnings", "=", "%d" % (not gs.use_deprecation_warnings),
+        ])
+
+        # finish the call with the path to the blend file
+        args.append(filepath)
+
+        subprocess.call(args)
+        os.remove(filepath)
+        return {'FINISHED'}
+
 class WM_OT_operator_cheat_sheet(Operator):
     """List all the operators in a text-block, useful for scripting"""
     bl_idname = "wm.operator_cheat_sheet"
@@ -2452,8 +2533,8 @@ class BatchRenameAction(bpy.types.PropertyGroup):
     )
 
     # Weak, add/remove as properties.
-    op_add: BoolProperty()
-    op_remove: BoolProperty()
+    op_add: BoolProperty(name="Add")
+    op_remove: BoolProperty(name="Remove")
 
 
 class WM_OT_batch_rename(Operator):
@@ -2467,18 +2548,22 @@ class WM_OT_batch_rename(Operator):
         name="Type",
         items=(
             ('OBJECT', "Objects", ""),
+            ('COLLECTION', "Collections", ""),
             ('MATERIAL', "Materials", ""),
             None,
             # Enum identifiers are compared with 'object.type'.
+            # Follow order in "Add" menu.
             ('MESH', "Meshes", ""),
             ('CURVE', "Curves", ""),
             ('META', "Metaballs", ""),
+            ('VOLUME', "Volumes", ""),
+            ('GPENCIL', "Grease Pencils", ""),
             ('ARMATURE', "Armatures", ""),
             ('LATTICE', "Lattices", ""),
-            ('GPENCIL', "Grease Pencils", ""),
+            ('LIGHT', "Light", ""),
+            ('LIGHT_PROBE', "Light Probes", ""),
             ('CAMERA', "Cameras", ""),
             ('SPEAKER', "Speakers", ""),
-            ('LIGHT_PROBE', "Light Probes", ""),
             None,
             ('BONE', "Bones", ""),
             ('NODE', "Nodes", ""),
@@ -2498,7 +2583,26 @@ class WM_OT_batch_rename(Operator):
     actions: CollectionProperty(type=BatchRenameAction)
 
     @staticmethod
-    def _data_from_context(context, data_type, only_selected, *, check_context=False):
+    def _selected_ids_from_outliner_by_type(context, ty):
+        return [
+            id for id in context.selected_ids
+            if isinstance(id, ty)
+            if id.library is None
+        ]
+
+    @staticmethod
+    def _selected_ids_from_outliner_by_type_for_object_data(context, ty):
+        # Include selected object-data as well as the selected ID's.
+        from bpy.types import Object
+        # De-duplicate the result as object-data may cause duplicates.
+        return tuple(set([
+            id for id_base in context.selected_ids
+            if isinstance(id := id_base.data if isinstance(id_base, Object) else id_base, ty)
+            if id.library is None
+        ]))
+
+    @classmethod
+    def _data_from_context(cls, context, data_type, only_selected, *, check_context=False):
 
         mode = context.mode
         scene = context.scene
@@ -2512,12 +2616,11 @@ class WM_OT_batch_rename(Operator):
                 return data_type_test
             if data_type == data_type_test:
                 data = (
-                    # TODO, we don't have access to seqbasep, this won't work when inside metas.
-                    [seq for seq in context.scene.sequence_editor.sequences_all if seq.select]
+                    context.selected_sequences
                     if only_selected else
-                    context.scene.sequence_editor.sequences_all,
+                    scene.sequence_editor.sequences_all,
                     "name",
-                    "Strip(s)",
+                    iface_("Strip(s)"),
                 )
         elif space_type == 'NODE_EDITOR':
             data_type_test = 'NODE'
@@ -2529,7 +2632,19 @@ class WM_OT_batch_rename(Operator):
                     if only_selected else
                     list(space.node_tree.nodes),
                     "name",
-                    "Node(s)",
+                    iface_("Node(s)"),
+                )
+        elif space_type == 'OUTLINER':
+            data_type_test = 'COLLECTION'
+            if check_context:
+                return data_type_test
+            if data_type == data_type_test:
+                data = (
+                    cls._selected_ids_from_outliner_by_type(context, bpy.types.Collection)
+                    if only_selected else
+                    scene.collection.children_recursive,
+                    "name",
+                    iface_("Collection(s)"),
                 )
         else:
             if mode == 'POSE' or (mode == 'WEIGHT_PAINT' and context.pose_object):
@@ -2542,7 +2657,7 @@ class WM_OT_batch_rename(Operator):
                         if only_selected else
                         [pbone.bone for ob in context.objects_in_mode_unique_data for pbone in ob.pose.bones],
                         "name",
-                        "Bone(s)",
+                        iface_("Bone(s)"),
                     )
             elif mode == 'EDIT_ARMATURE':
                 data_type_test = 'BONE'
@@ -2554,22 +2669,24 @@ class WM_OT_batch_rename(Operator):
                         if only_selected else
                         [ebone for ob in context.objects_in_mode_unique_data for ebone in ob.data.edit_bones],
                         "name",
-                        "Edit Bone(s)",
+                        iface_("Edit Bone(s)"),
                     )
 
         if check_context:
             return 'OBJECT'
 
         object_data_type_attrs_map = {
-            'MESH': ("meshes", "Mesh(es)"),
-            'CURVE': ("curves", "Curve(s)"),
-            'META': ("metaballs", "Metaball(s)"),
-            'ARMATURE': ("armatures", "Armature(s)"),
-            'LATTICE': ("lattices", "Lattice(s)"),
-            'GPENCIL': ("grease_pencils", "Grease Pencil(s)"),
-            'CAMERA': ("cameras", "Camera(s)"),
-            'SPEAKER': ("speakers", "Speaker(s)"),
-            'LIGHT_PROBE': ("light_probes", "Light Probe(s)"),
+            'MESH': ("meshes", iface_("Mesh(es)"), bpy.types.Mesh),
+            'CURVE': ("curves", iface_("Curve(s)"), bpy.types.Curve),
+            'META': ("metaballs", iface_("Metaball(s)"), bpy.types.MetaBall),
+            'VOLUME': ("volumes", iface_("Volume(s)"), bpy.types.Volume),
+            'GPENCIL': ("grease_pencils", iface_("Grease Pencil(s)"), bpy.types.GreasePencil),
+            'ARMATURE': ("armatures", iface_("Armature(s)"), bpy.types.Armature),
+            'LATTICE': ("lattices", iface_("Lattice(s)"), bpy.types.Lattice),
+            'LIGHT': ("lights", iface_("Light(s)"), bpy.types.Light),
+            'LIGHT_PROBE': ("light_probes", iface_("Light Probe(s)"), bpy.types.LightProbe),
+            'CAMERA': ("cameras", iface_("Camera(s)"), bpy.types.Camera),
+            'SPEAKER': ("speakers", iface_("Speaker(s)"), bpy.types.Speaker),
         }
 
         # Finish with space types.
@@ -2577,34 +2694,67 @@ class WM_OT_batch_rename(Operator):
 
             if data_type == 'OBJECT':
                 data = (
-                    context.selected_editable_objects
+                    (
+                        # Outliner.
+                        cls._selected_ids_from_outliner_by_type(context, bpy.types.Object)
+                        if space_type == 'OUTLINER' else
+                        # 3D View (default).
+                        context.selected_editable_objects
+                    )
                     if only_selected else
                     [id for id in bpy.data.objects if id.library is None],
                     "name",
-                    "Object(s)",
+                    iface_("Object(s)"),
+                )
+            elif data_type == 'COLLECTION':
+                data = (
+                    # Outliner case is handled already.
+                    tuple(set(
+                        ob.instance_collection
+                        for ob in context.selected_objects
+                        if ((ob.instance_type == 'COLLECTION') and
+                            (collection := ob.instance_collection) is not None and
+                            (collection.library is None))
+                    ))
+                    if only_selected else
+                    [id for id in bpy.data.collections if id.library is None],
+                    "name",
+                    iface_("Collection(s)"),
                 )
             elif data_type == 'MATERIAL':
                 data = (
-                    tuple(set(
-                        slot.material
-                        for ob in context.selected_objects
-                        for slot in ob.material_slots
-                        if slot.material is not None
-                    ))
+                    (
+                        # Outliner.
+                        cls._selected_ids_from_outliner_by_type(context, bpy.types.Material)
+                        if space_type == 'OUTLINER' else
+                        # 3D View (default).
+                        tuple(set(
+                            id
+                            for ob in context.selected_objects
+                            for slot in ob.material_slots
+                            if (id := slot.material) is not None and id.library is None
+                        ))
+                    )
                     if only_selected else
                     [id for id in bpy.data.materials if id.library is None],
                     "name",
-                    "Material(s)",
+                    iface_("Material(s)"),
                 )
             elif data_type in object_data_type_attrs_map.keys():
-                attr, descr = object_data_type_attrs_map[data_type]
+                attr, descr, ty = object_data_type_attrs_map[data_type]
                 data = (
-                    tuple(set(
-                        id
-                        for ob in context.selected_objects
-                        if ob.type == data_type
-                        if (id := ob.data) is not None and id.library is None
-                    ))
+                    (
+                        # Outliner.
+                        cls._selected_ids_from_outliner_by_type_for_object_data(context, ty)
+                        if space_type == 'OUTLINER' else
+                        # 3D View (default).
+                        tuple(set(
+                            id
+                            for ob in context.selected_objects
+                            if ob.type == data_type
+                            if (id := ob.data) is not None and id.library is None
+                        ))
+                    )
                     if only_selected else
                     [id for id in getattr(bpy.data, attr) if id.library is None],
                     "name",
@@ -2813,7 +2963,7 @@ class WM_OT_batch_rename(Operator):
             row.prop(action, "op_remove", text="", icon='REMOVE')
             row.prop(action, "op_add", text="", icon='ADD')
 
-        layout.label(text="Rename %d %s" % (len(self._data[0]), self._data[2]))
+        layout.label(text=iface_("Rename %d %s") % (len(self._data[0]), self._data[2]))
 
     def check(self, context):
         changed = False
@@ -2874,7 +3024,7 @@ class WM_OT_batch_rename(Operator):
                 change_len += 1
             total_len += 1
 
-        self.report({'INFO'}, "Renamed %d of %d %s" % (change_len, total_len, descr))
+        self.report({'INFO'}, tip_("Renamed %d of %d %s") % (change_len, total_len, descr))
 
         return {'FINISHED'}
 
@@ -2892,82 +3042,65 @@ class WM_MT_splash_quick_setup(Menu):
     bl_label = "Quick Setup"
 
     def draw(self, context):
-        wm = context.window_manager
-        # prefs = context.preferences
-
         layout = self.layout
-
         layout.operator_context = 'EXEC_DEFAULT'
 
         layout.label(text="Quick Setup")
 
-        split = layout.split(factor=0.25)
+        split = layout.split(factor=0.14)  # Left margin.
         split.label()
-        split = split.split(factor=2.0 / 3.0)
+        split = split.split(factor=0.73)  # Content width.
 
         col = split.column()
 
+        col.use_property_split = True
+        col.use_property_decorate = False
+
+        # Languages.
         if bpy.app.build_options.international:
-            sub = col.split(factor=0.35)
-            row = sub.row()
-            row.alignment = 'RIGHT'
-            row.label(text="Language")
             prefs = context.preferences
-            sub.prop(prefs.view, "language", text="")
+            col.prop(prefs.view, "language")
+            col.separator()
 
-        col.separator()
+        # Shortcuts.
+        wm = context.window_manager
+        kc = wm.keyconfigs.active
+        kc_prefs = kc.preferences
 
-        sub = col.split(factor=0.35)
-        row = sub.row()
-        row.alignment = 'RIGHT'
-        row.label(text="Shortcuts")
-        text = bpy.path.display_name(wm.keyconfigs.active.name)
+        sub = col.column(heading="Shortcuts")
+        text = bpy.path.display_name(kc.name)
         if not text:
             text = "Blender"
         sub.menu("USERPREF_MT_keyconfigs", text=text)
 
-        kc = wm.keyconfigs.active
-        kc_prefs = kc.preferences
         has_select_mouse = hasattr(kc_prefs, "select_mouse")
         if has_select_mouse:
-            sub = col.split(factor=0.35)
-            row = sub.row()
-            row.alignment = 'RIGHT'
-            row.label(text="Select With")
-            sub.row().prop(kc_prefs, "select_mouse", expand=True)
-            has_select_mouse = True
+            col.row().prop(kc_prefs, "select_mouse", text="Select With", expand=True)
 
         has_spacebar_action = hasattr(kc_prefs, "spacebar_action")
         if has_spacebar_action:
-            sub = col.split(factor=0.35)
-            row = sub.row()
-            row.alignment = 'RIGHT'
-            row.label(text="Spacebar")
-            sub.row().prop(kc_prefs, "spacebar_action", expand=True)
-            has_select_mouse = True
+            col.row().prop(kc_prefs, "spacebar_action", text="Spacebar")
 
         col.separator()
 
-        sub = col.split(factor=0.35)
-        row = sub.row()
-        row.alignment = 'RIGHT'
-        row.label(text="Theme")
+        # Themes.
+        sub = col.column(heading="Theme")
         label = bpy.types.USERPREF_MT_interface_theme_presets.bl_label
         if label == "Presets":
             label = "Blender Dark"
         sub.menu("USERPREF_MT_interface_theme_presets", text=label)
 
-        # Keep height constant
+        # Keep height constant.
         if not has_select_mouse:
             col.label()
         if not has_spacebar_action:
             col.label()
 
-        layout.label()
+        layout.separator(factor=2.0)
 
-        row = layout.row()
+        # Save settings buttons.
+        sub = layout.row()
 
-        sub = row.row()
         old_version = bpy.types.PREFERENCES_OT_copy_prev.previous_version()
         if bpy.types.PREFERENCES_OT_copy_prev.poll(context) and old_version:
             sub.operator("preferences.copy_prev", text=iface_("Load %d.%d Settings", "Operator") % old_version)
@@ -2977,8 +3110,7 @@ class WM_MT_splash_quick_setup(Menu):
             sub.label()
             sub.operator("wm.save_userpref", text="Next")
 
-        layout.separator()
-        layout.separator()
+        layout.separator(factor=2.4)
 
 
 class WM_MT_splash(Menu):
@@ -3045,22 +3177,22 @@ class WM_MT_splash_about(Menu):
 
         col = split.column(align=True)
         col.scale_y = 0.8
-        col.label(text=bpy.app.version_string, translate=False)
+        ##col.label(text=bpy.app.version_string, translate=False) // UPBGE
         col.separator(factor=2.5)
         col.label(text=iface_("Date: %s %s") % (bpy.app.build_commit_date.decode('utf-8', 'replace'),
                                                 bpy.app.build_commit_time.decode('utf-8', 'replace')), translate=False)
         col.label(text=iface_("Hash: %s") % bpy.app.build_hash.decode('ascii'), translate=False)
         col.label(text=iface_("Branch: %s") % bpy.app.build_branch.decode('utf-8', 'replace'), translate=False)
         col.separator(factor=2.0)
-        col.label(text="Blender is free software")
+        col.label(text="UPBGE is free software")
         col.label(text="Licensed under the GNU General Public License")
 
         col = split.column(align=True)
         col.emboss = 'PULLDOWN_MENU'
-        col.operator("wm.url_open_preset", text="Release Notes", icon='URL').type = 'RELEASE_NOTES'
+        col.operator("wm.url_open", text="Release Notes", icon='URL').url = "https://github.com/UPBGE/upbge/wiki/Release-notes"
         col.operator("wm.url_open_preset", text="Credits", icon='URL').type = 'CREDITS'
         col.operator("wm.url_open", text="License", icon='URL').url = "https://www.blender.org/about/license/"
-        col.operator("wm.url_open_preset", text="Blender Website", icon='URL').type = 'BLENDER'
+        col.operator("wm.url_open", text="UPBGE Website", icon='URL').url = "https://upbge.org"
         col.operator("wm.url_open", text="Blender Store", icon='URL').url = "https://store.blender.org"
         col.operator("wm.url_open_preset", text="Development Fund", icon='FUND').type = 'FUND'
 
@@ -3070,7 +3202,10 @@ class WM_OT_drop_blend_file(Operator):
     bl_label = "Handle dropped .blend file"
     bl_options = {'INTERNAL'}
 
-    filepath: StringProperty()
+    filepath: StringProperty(
+        subtype='FILE_PATH',
+        options={'SKIP_SAVE'},
+    )
 
     def invoke(self, context, _event):
         context.window_manager.popup_menu(self.draw_menu, title=bpy.path.basename(self.filepath), icon='QUESTION')
@@ -3093,6 +3228,7 @@ class WM_OT_drop_blend_file(Operator):
 
 
 classes = (
+    WM_OT_blenderplayer_start,
     WM_OT_context_collection_boolean_set,
     WM_OT_context_cycle_array,
     WM_OT_context_cycle_enum,

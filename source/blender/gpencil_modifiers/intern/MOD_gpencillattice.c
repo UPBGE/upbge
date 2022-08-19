@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2017, Blender Foundation
- * This is a new part of Blender
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2017 Blender Foundation. */
 
 /** \file
  * \ingroup modifiers
@@ -145,7 +129,7 @@ static void bakeModifier(Main *UNUSED(bmain),
       /* Apply lattice effects on this frame
        * NOTE: this assumes that we don't want lattice animation on non-keyframed frames.
        */
-      CFRA = gpf->framenum;
+      scene->r.cfra = gpf->framenum;
       BKE_scene_graph_update_for_newframe(depsgraph);
 
       /* Recalculate lattice data. */
@@ -169,7 +153,7 @@ static void bakeModifier(Main *UNUSED(bmain),
   }
 
   /* Return frame state and DB to original state. */
-  CFRA = oldframe;
+  scene->r.cfra = oldframe;
   BKE_scene_graph_update_for_newframe(depsgraph);
 }
 
@@ -263,7 +247,7 @@ static void panelRegister(ARegionType *region_type)
 }
 
 GpencilModifierTypeInfo modifierType_Gpencil_Lattice = {
-    /* name */ "Lattice",
+    /* name */ N_("Lattice"),
     /* structName */ "LatticeGpencilModifierData",
     /* structSize */ sizeof(LatticeGpencilModifierData),
     /* type */ eGpencilModifierTypeType_Gpencil,

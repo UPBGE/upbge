@@ -1,22 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
-# <pep8 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # Generic Panels (Independent of DataType)
 
@@ -40,14 +22,9 @@ class MotionPathButtonsPanel:
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        row = layout.row(align=True)
-        row.prop(mps, "type")
-        if mps.type == 'RANGE':
-            if bones:
-                row.operator("pose.paths_range_update", text="", icon='TIME')
-            else:
-                row.operator("object.paths_range_update", text="", icon='TIME')
-
+        # Display Range
+        col = layout.column(align=True)
+        col.prop(mps, "type")
         if mps.type == 'CURRENT_FRAME':
             col = layout.column(align=True)
             col.prop(mps, "frame_before", text="Frame Range Before")
@@ -59,25 +36,28 @@ class MotionPathButtonsPanel:
             col.prop(mps, "frame_end", text="End")
             col.prop(mps, "frame_step", text="Step")
 
+        # Calculation Range
+        col = layout.column(align=True)
+        col.prop(mps, "range", text="Calculation Range")
+
         if mpath:
             col = layout.column(align=True)
-            col.enabled = False
-            if bones:
-                col.prop(mpath, "frame_start", text="Bone Cache From")
-            else:
-                col.prop(mpath, "frame_start", text="Cache From")
-            col.prop(mpath, "frame_end", text="To")
+            row = col.row(align=True)
+            row.enabled = False
+            row.prop(mpath, "frame_start", text="Cached Range")
+            row.prop(mpath, "frame_end", text="")
 
             col = layout.column(align=True)
-
-            row = col.row(align=True)
             if bones:
-                row.operator("pose.paths_update", text="Update Paths", icon='BONE_DATA')
+                col.operator("pose.paths_update", text="Update Path", icon='BONE_DATA')
+                row = col.row(align=True)
+                row.operator("object.paths_update_visible", text="Update All Paths", icon='WORLD')
                 row.operator("pose.paths_clear", text="", icon='X')
             else:
-                row.operator("object.paths_update", text="Update Paths", icon='OBJECT_DATA')
+                col.operator("object.paths_update", text="Update Path", icon='OBJECT_DATA')
+                row = col.row(align=True)
+                row.operator("object.paths_update_visible", text="Update All Paths", icon='WORLD')
                 row.operator("object.paths_clear", text="", icon='X')
-            col.operator("object.paths_update_visible", text="Update All Paths", icon='WORLD')
         else:
             col = layout.column(align=True)
             col.label(text="Nothing to show yet...", icon='ERROR')
@@ -86,7 +66,13 @@ class MotionPathButtonsPanel:
                 col.operator("pose.paths_calculate", text="Calculate...", icon='BONE_DATA')
             else:
                 col.operator("object.paths_calculate", text="Calculate...", icon='OBJECT_DATA')
-            col.operator("object.paths_update_visible", text="Update All Paths", icon='WORLD')
+
+            row = col.row(align=True)
+            row.operator("object.paths_update_visible", text="Update All Paths", icon='WORLD')
+            if bones:
+                row.operator("pose.paths_clear", text="", icon='X')
+            else:
+                row.operator("object.paths_clear", text="", icon='X')
 
 
 class MotionPathButtonsPanel_display:

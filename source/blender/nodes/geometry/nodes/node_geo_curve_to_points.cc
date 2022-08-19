@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array.hh"
 #include "BLI_task.hh"
@@ -26,43 +12,66 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes {
+namespace blender::nodes::node_geo_curve_to_points_cc {
 
-static void geo_node_curve_to_points_declare(NodeDeclarationBuilder &b)
+NODE_STORAGE_FUNCS(NodeGeometryCurveToPoints)
+
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>(N_("Curve")).supported_type(GEO_COMPONENT_TYPE_CURVE);
-  b.add_input<decl::Int>(N_("Count")).default_value(10).min(2).max(100000);
-  b.add_input<decl::Float>(N_("Length")).default_value(0.1f).min(0.001f).subtype(PROP_DISTANCE);
+  b.add_input<decl::Int>(N_("Count"))
+      .default_value(10)
+      .min(2)
+      .max(100000)
+      .make_available(
+          [](bNode &node) { node_storage(node).mode = GEO_NODE_CURVE_RESAMPLE_COUNT; });
+  b.add_input<decl::Float>(N_("Length"))
+      .default_value(0.1f)
+      .min(0.001f)
+      .subtype(PROP_DISTANCE)
+      .make_available(
+          [](bNode &node) { node_storage(node).mode = GEO_NODE_CURVE_RESAMPLE_LENGTH; });
   b.add_output<decl::Geometry>(N_("Points"));
   b.add_output<decl::Vector>(N_("Tangent")).field_source();
   b.add_output<decl::Vector>(N_("Normal")).field_source();
   b.add_output<decl::Vector>(N_("Rotation")).field_source();
 }
 
-static void geo_node_curve_to_points_layout(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+static void node_layout(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "mode", 0, "", ICON_NONE);
 }
 
-static void geo_node_curve_to_points_init(bNodeTree *UNUSED(tree), bNode *node)
+static void node_init(bNodeTree *UNUSED(tree), bNode *node)
 {
-  NodeGeometryCurveToPoints *data = (NodeGeometryCurveToPoints *)MEM_callocN(
-      sizeof(NodeGeometryCurveToPoints), __func__);
+  NodeGeometryCurveToPoints *data = MEM_cnew<NodeGeometryCurveToPoints>(__func__);
 
   data->mode = GEO_NODE_CURVE_RESAMPLE_COUNT;
   node->storage = data;
 }
 
-static void geo_node_curve_to_points_update(bNodeTree *UNUSED(ntree), bNode *node)
+static void node_update(bNodeTree *ntree, bNode *node)
 {
-  NodeGeometryCurveToPoints &node_storage = *(NodeGeometryCurveToPoints *)node->storage;
-  const GeometryNodeCurveResampleMode mode = (GeometryNodeCurveResampleMode)node_storage.mode;
+  const NodeGeometryCurveToPoints &storage = node_storage(*node);
+  const GeometryNodeCurveResampleMode mode = (GeometryNodeCurveResampleMode)storage.mode;
 
   bNodeSocket *count_socket = ((bNodeSocket *)node->inputs.first)->next;
   bNodeSocket *length_socket = count_socket->next;
 
-  nodeSetSocketAvailability(count_socket, mode == GEO_NODE_CURVE_RESAMPLE_COUNT);
-  nodeSetSocketAvailability(length_socket, mode == GEO_NODE_CURVE_RESAMPLE_LENGTH);
+  nodeSetSocketAvailability(ntree, count_socket, mode == GEO_NODE_CURVE_RESAMPLE_COUNT);
+  nodeSetSocketAvailability(ntree, length_socket, mode == GEO_NODE_CURVE_RESAMPLE_LENGTH);
+}
+
+static void curve_create_default_rotation_attribute(Span<float3> tangents,
+                                                    Span<float3> normals,
+                                                    MutableSpan<float3> rotations)
+{
+  threading::parallel_for(IndexRange(rotations.size()), 512, [&](IndexRange range) {
+    for (const int i : range) {
+      rotations[i] =
+          float4x4::from_normalized_axis_data({0, 0, 0}, normals[i], tangents[i]).to_euler();
+    }
+  });
 }
 
 static Array<int> calculate_spline_point_offsets(GeoNodeExecParams &params,
@@ -78,9 +87,14 @@ static Array<int> calculate_spline_point_offsets(GeoNodeExecParams &params,
         return {0};
       }
       Array<int> offsets(size + 1);
-      for (const int i : offsets.index_range()) {
-        offsets[i] = count * i;
+      int offset = 0;
+      for (const int i : IndexRange(size)) {
+        offsets[i] = offset;
+        if (splines[i]->evaluated_points_num() > 0) {
+          offset += count;
+        }
       }
+      offsets.last() = offset;
       return offsets;
     }
     case GEO_NODE_CURVE_RESAMPLE_LENGTH: {
@@ -90,7 +104,9 @@ static Array<int> calculate_spline_point_offsets(GeoNodeExecParams &params,
       int offset = 0;
       for (const int i : IndexRange(size)) {
         offsets[i] = offset;
-        offset += splines[i]->length() / resolution + 1;
+        if (splines[i]->evaluated_points_num() > 0) {
+          offset += splines[i]->length() / resolution + 1;
+        }
       }
       offsets.last() = offset;
       return offsets;
@@ -104,25 +120,28 @@ static Array<int> calculate_spline_point_offsets(GeoNodeExecParams &params,
 }
 
 /**
- * \note: Relies on the fact that all attributes on point clouds are stored contiguously.
+ * \note Relies on the fact that all attributes on point clouds are stored contiguously.
  */
 static GMutableSpan ensure_point_attribute(PointCloudComponent &points,
                                            const AttributeIDRef &attribute_id,
-                                           const CustomDataType data_type)
+                                           const eCustomDataType data_type)
 {
-  points.attribute_try_create(attribute_id, ATTR_DOMAIN_POINT, data_type, AttributeInitDefault());
-  WriteAttributeLookup attribute = points.attribute_try_get_for_write(attribute_id);
-  BLI_assert(attribute);
-  return attribute.varray->get_internal_span();
+  GAttributeWriter attribute = points.attributes_for_write()->lookup_or_add_for_write(
+      attribute_id, ATTR_DOMAIN_POINT, data_type);
+  GMutableSpan span = attribute.varray.get_internal_span();
+  attribute.finish();
+  return span;
 }
 
 template<typename T>
 static MutableSpan<T> ensure_point_attribute(PointCloudComponent &points,
                                              const AttributeIDRef &attribute_id)
 {
-  GMutableSpan attribute = ensure_point_attribute(
-      points, attribute_id, bke::cpp_type_to_custom_data_type(CPPType::get<T>()));
-  return attribute.typed<T>();
+  AttributeWriter<T> attribute = points.attributes_for_write()->lookup_or_add_for_write<T>(
+      attribute_id, ATTR_DOMAIN_POINT);
+  MutableSpan<T> span = attribute.varray.get_internal_span();
+  attribute.finish();
+  return span;
 }
 
 namespace {
@@ -194,7 +213,7 @@ static void copy_evaluated_point_attributes(const Span<SplinePtr> splines,
       const int size = offsets[i + 1] - offsets[i];
 
       data.positions.slice(offset, size).copy_from(spline.evaluated_positions());
-      spline.interpolate_to_evaluated(spline.radii())->materialize(data.radii.slice(offset, size));
+      spline.interpolate_to_evaluated(spline.radii()).materialize(data.radii.slice(offset, size));
 
       for (const Map<AttributeIDRef, GMutableSpan>::Item item : data.point_attributes.items()) {
         const AttributeIDRef attribute_id = item.key;
@@ -203,7 +222,7 @@ static void copy_evaluated_point_attributes(const Span<SplinePtr> splines,
         BLI_assert(spline.attributes.get_for_read(attribute_id));
         GSpan spline_span = *spline.attributes.get_for_read(attribute_id);
 
-        spline.interpolate_to_evaluated(spline_span)->materialize(dst.slice(offset, size).data());
+        spline.interpolate_to_evaluated(spline_span).materialize(dst.slice(offset, size).data());
       }
 
       if (!data.tangents.is_empty()) {
@@ -224,18 +243,18 @@ static void copy_uniform_sample_point_attributes(const Span<SplinePtr> splines,
     for (const int i : range) {
       const Spline &spline = *splines[i];
       const int offset = offsets[i];
-      const int size = offsets[i + 1] - offsets[i];
-      if (size == 0) {
+      const int num = offsets[i + 1] - offsets[i];
+      if (num == 0) {
         continue;
       }
 
-      const Array<float> uniform_samples = spline.sample_uniform_index_factors(size);
+      const Array<float> uniform_samples = spline.sample_uniform_index_factors(num);
 
       spline.sample_with_index_factors<float3>(
-          spline.evaluated_positions(), uniform_samples, data.positions.slice(offset, size));
-      spline.sample_with_index_factors<float>(*spline.interpolate_to_evaluated(spline.radii()),
+          spline.evaluated_positions(), uniform_samples, data.positions.slice(offset, num));
+      spline.sample_with_index_factors<float>(spline.interpolate_to_evaluated(spline.radii()),
                                               uniform_samples,
-                                              data.radii.slice(offset, size));
+                                              data.radii.slice(offset, num));
 
       for (const Map<AttributeIDRef, GMutableSpan>::Item item : data.point_attributes.items()) {
         const AttributeIDRef attribute_id = item.key;
@@ -244,24 +263,25 @@ static void copy_uniform_sample_point_attributes(const Span<SplinePtr> splines,
         BLI_assert(spline.attributes.get_for_read(attribute_id));
         GSpan spline_span = *spline.attributes.get_for_read(attribute_id);
 
-        spline.sample_with_index_factors(*spline.interpolate_to_evaluated(spline_span),
-                                         uniform_samples,
-                                         dst.slice(offset, size));
+        spline.sample_with_index_factors(
+            spline.interpolate_to_evaluated(spline_span), uniform_samples, dst.slice(offset, num));
       }
 
       if (!data.tangents.is_empty()) {
-        spline.sample_with_index_factors<float3>(
-            spline.evaluated_tangents(), uniform_samples, data.tangents.slice(offset, size));
-        for (float3 &tangent : data.tangents) {
-          tangent.normalize();
+        Span<float3> src_tangents = spline.evaluated_tangents();
+        MutableSpan<float3> sampled_tangents = data.tangents.slice(offset, num);
+        spline.sample_with_index_factors<float3>(src_tangents, uniform_samples, sampled_tangents);
+        for (float3 &vector : sampled_tangents) {
+          vector = math::normalize(vector);
         }
       }
 
       if (!data.normals.is_empty()) {
-        spline.sample_with_index_factors<float3>(
-            spline.evaluated_normals(), uniform_samples, data.normals.slice(offset, size));
-        for (float3 &normals : data.normals) {
-          normals.normalize();
+        Span<float3> src_normals = spline.evaluated_normals();
+        MutableSpan<float3> sampled_normals = data.normals.slice(offset, num);
+        spline.sample_with_index_factors<float3>(src_normals, uniform_samples, sampled_normals);
+        for (float3 &vector : sampled_normals) {
+          vector = math::normalize(vector);
         }
       }
     }
@@ -280,8 +300,8 @@ static void copy_spline_domain_attributes(const CurveEval &curve,
 
         for (const int i : curve.splines().index_range()) {
           const int offset = offsets[i];
-          const int size = offsets[i + 1] - offsets[i];
-          type.fill_assign_n(curve_attribute[i], dst[offset], size);
+          const int num = offsets[i + 1] - offsets[i];
+          type.fill_assign_n(curve_attribute[i], dst[offset], num);
         }
 
         return true;
@@ -289,22 +309,10 @@ static void copy_spline_domain_attributes(const CurveEval &curve,
       ATTR_DOMAIN_CURVE);
 }
 
-void curve_create_default_rotation_attribute(Span<float3> tangents,
-                                             Span<float3> normals,
-                                             MutableSpan<float3> rotations)
+static void node_geo_exec(GeoNodeExecParams params)
 {
-  threading::parallel_for(IndexRange(rotations.size()), 512, [&](IndexRange range) {
-    for (const int i : range) {
-      rotations[i] =
-          float4x4::from_normalized_axis_data({0, 0, 0}, normals[i], tangents[i]).to_euler();
-    }
-  });
-}
-
-static void geo_node_curve_to_points_exec(GeoNodeExecParams params)
-{
-  NodeGeometryCurveToPoints &node_storage = *(NodeGeometryCurveToPoints *)params.node().storage;
-  const GeometryNodeCurveResampleMode mode = (GeometryNodeCurveResampleMode)node_storage.mode;
+  const NodeGeometryCurveToPoints &storage = node_storage(params.node());
+  const GeometryNodeCurveResampleMode mode = (GeometryNodeCurveResampleMode)storage.mode;
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Curve");
 
   AnonymousAttributeIDs attribute_outputs;
@@ -312,26 +320,29 @@ static void geo_node_curve_to_points_exec(GeoNodeExecParams params)
   attribute_outputs.normal_id = StrongAnonymousAttributeID("Normal");
   attribute_outputs.rotation_id = StrongAnonymousAttributeID("Rotation");
 
+  GeometryComponentEditData::remember_deformed_curve_positions_if_necessary(geometry_set);
+
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
-    if (!geometry_set.has_curve()) {
-      geometry_set.keep_only({GEO_COMPONENT_TYPE_INSTANCES});
+    if (!geometry_set.has_curves()) {
+      geometry_set.remove_geometry_during_modify();
       return;
     }
-    const CurveEval &curve = *geometry_set.get_curve_for_read();
-    const Span<SplinePtr> splines = curve.splines();
-    curve.assert_valid_point_attributes();
+    const std::unique_ptr<CurveEval> curve = curves_to_curve_eval(
+        *geometry_set.get_curves_for_read());
+    const Span<SplinePtr> splines = curve->splines();
+    curve->assert_valid_point_attributes();
 
-    const Array<int> offsets = calculate_spline_point_offsets(params, mode, curve, splines);
-    const int total_size = offsets.last();
-    if (total_size == 0) {
-      geometry_set.keep_only({GEO_COMPONENT_TYPE_INSTANCES});
+    const Array<int> offsets = calculate_spline_point_offsets(params, mode, *curve, splines);
+    const int total_num = offsets.last();
+    if (total_num == 0) {
+      geometry_set.remove_geometry_during_modify();
       return;
     }
 
-    geometry_set.replace_pointcloud(BKE_pointcloud_new_nomain(total_size));
+    geometry_set.replace_pointcloud(BKE_pointcloud_new_nomain(total_num));
     PointCloudComponent &points = geometry_set.get_component_for_write<PointCloudComponent>();
     ResultAttributes point_attributes = create_attributes_for_transfer(
-        points, curve, attribute_outputs);
+        points, *curve, attribute_outputs);
 
     switch (mode) {
       case GEO_NODE_CURVE_RESAMPLE_COUNT:
@@ -343,14 +354,14 @@ static void geo_node_curve_to_points_exec(GeoNodeExecParams params)
         break;
     }
 
-    copy_spline_domain_attributes(curve, offsets, points);
+    copy_spline_domain_attributes(*curve, offsets, points);
 
     if (!point_attributes.rotations.is_empty()) {
       curve_create_default_rotation_attribute(
           point_attributes.tangents, point_attributes.normals, point_attributes.rotations);
     }
 
-    geometry_set.keep_only({GEO_COMPONENT_TYPE_INSTANCES, GEO_COMPONENT_TYPE_POINT_CLOUD});
+    geometry_set.keep_only_during_modify({GEO_COMPONENT_TYPE_POINT_CLOUD});
   });
 
   params.set_output("Points", std::move(geometry_set));
@@ -374,20 +385,21 @@ static void geo_node_curve_to_points_exec(GeoNodeExecParams params)
   }
 }
 
-}  // namespace blender::nodes
+}  // namespace blender::nodes::node_geo_curve_to_points_cc
 
 void register_node_type_geo_curve_to_points()
 {
+  namespace file_ns = blender::nodes::node_geo_curve_to_points_cc;
+
   static bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_CURVE_TO_POINTS, "Curve to Points", NODE_CLASS_GEOMETRY, 0);
-  ntype.declare = blender::nodes::geo_node_curve_to_points_declare;
-  ntype.geometry_node_execute = blender::nodes::geo_node_curve_to_points_exec;
-  ntype.draw_buttons = blender::nodes::geo_node_curve_to_points_layout;
+  geo_node_type_base(&ntype, GEO_NODE_CURVE_TO_POINTS, "Curve to Points", NODE_CLASS_GEOMETRY);
+  ntype.declare = file_ns::node_declare;
+  ntype.geometry_node_execute = file_ns::node_geo_exec;
+  ntype.draw_buttons = file_ns::node_layout;
   node_type_storage(
       &ntype, "NodeGeometryCurveToPoints", node_free_standard_storage, node_copy_standard_storage);
-  node_type_init(&ntype, blender::nodes::geo_node_curve_to_points_init);
-  node_type_update(&ntype, blender::nodes::geo_node_curve_to_points_update);
-
+  node_type_init(&ntype, file_ns::node_init);
+  node_type_update(&ntype, file_ns::node_update);
   nodeRegisterType(&ntype);
 }

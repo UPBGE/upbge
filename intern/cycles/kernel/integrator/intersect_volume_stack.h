@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2021 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #pragma once
 
@@ -37,8 +24,12 @@ ccl_device void integrator_volume_stack_update_for_subsurface(KernelGlobals kg,
 
   Ray volume_ray ccl_optional_struct_init;
   volume_ray.P = from_P;
-  volume_ray.D = normalize_len(to_P - from_P, &volume_ray.t);
-
+  volume_ray.D = normalize_len(to_P - from_P, &volume_ray.tmax);
+  volume_ray.tmin = 0.0f;
+  volume_ray.self.object = INTEGRATOR_STATE(state, isect, object);
+  volume_ray.self.prim = INTEGRATOR_STATE(state, isect, prim);
+  volume_ray.self.light_object = OBJECT_NONE;
+  volume_ray.self.light_prim = PRIM_NONE;
   /* Store to avoid global fetches on every intersection step. */
   const uint volume_stack_size = kernel_data.volume_stack_size;
 
@@ -47,8 +38,7 @@ ccl_device void integrator_volume_stack_update_for_subsurface(KernelGlobals kg,
 
 #ifdef __VOLUME_RECORD_ALL__
   Intersection hits[2 * MAX_VOLUME_STACK_SIZE + 1];
-  uint num_hits = scene_intersect_volume_all(
-      kg, &volume_ray, hits, 2 * volume_stack_size, visibility);
+  uint num_hits = scene_intersect_volume(kg, &volume_ray, hits, 2 * volume_stack_size, visibility);
   if (num_hits > 0) {
     Intersection *isect = hits;
 
@@ -68,10 +58,9 @@ ccl_device void integrator_volume_stack_update_for_subsurface(KernelGlobals kg,
     volume_stack_enter_exit(kg, state, stack_sd);
 
     /* Move ray forward. */
-    volume_ray.P = ray_offset(stack_sd->P, -stack_sd->Ng);
-    if (volume_ray.t != FLT_MAX) {
-      volume_ray.D = normalize_len(to_P - volume_ray.P, &volume_ray.t);
-    }
+    volume_ray.tmin = intersection_t_offset(isect.t);
+    volume_ray.self.object = isect.object;
+    volume_ray.self.prim = isect.prim;
     ++step;
   }
 #endif
@@ -90,7 +79,12 @@ ccl_device void integrator_volume_stack_init(KernelGlobals kg, IntegratorState s
   /* Trace ray in random direction. Any direction works, Z up is a guess to get the
    * fewest hits. */
   volume_ray.D = make_float3(0.0f, 0.0f, 1.0f);
-  volume_ray.t = FLT_MAX;
+  volume_ray.tmin = 0.0f;
+  volume_ray.tmax = FLT_MAX;
+  volume_ray.self.object = OBJECT_NONE;
+  volume_ray.self.prim = PRIM_NONE;
+  volume_ray.self.light_object = OBJECT_NONE;
+  volume_ray.self.light_prim = PRIM_NONE;
 
   int stack_index = 0, enclosed_index = 0;
 
@@ -113,8 +107,7 @@ ccl_device void integrator_volume_stack_init(KernelGlobals kg, IntegratorState s
 
 #ifdef __VOLUME_RECORD_ALL__
   Intersection hits[2 * MAX_VOLUME_STACK_SIZE + 1];
-  uint num_hits = scene_intersect_volume_all(
-      kg, &volume_ray, hits, 2 * volume_stack_size, visibility);
+  uint num_hits = scene_intersect_volume(kg, &volume_ray, hits, 2 * volume_stack_size, visibility);
   if (num_hits > 0) {
     int enclosed_volumes[MAX_VOLUME_STACK_SIZE];
     Intersection *isect = hits;
@@ -203,7 +196,9 @@ ccl_device void integrator_volume_stack_init(KernelGlobals kg, IntegratorState s
     }
 
     /* Move ray forward. */
-    volume_ray.P = ray_offset(stack_sd->P, -stack_sd->Ng);
+    volume_ray.tmin = intersection_t_offset(isect.t);
+    volume_ray.self.object = isect.object;
+    volume_ray.self.prim = isect.prim;
     ++step;
   }
 #endif
@@ -224,7 +219,9 @@ ccl_device void integrator_intersect_volume_stack(KernelGlobals kg, IntegratorSt
   }
   else {
     /* Volume stack init for camera rays, continue with intersection of camera ray. */
-    INTEGRATOR_PATH_NEXT(DEVICE_KERNEL_INTEGRATOR_INTERSECT_VOLUME_STACK,
+    integrator_path_next(kg,
+                         state,
+                         DEVICE_KERNEL_INTEGRATOR_INTERSECT_VOLUME_STACK,
                          DEVICE_KERNEL_INTEGRATOR_INTERSECT_CLOSEST);
   }
 }

@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 /* TODO(sergey): There is a bit of headers dependency hell going on
  * here, so for now we just put here. In the future it might be better
@@ -28,6 +15,7 @@
 #include "scene/colorspace.h"
 #include "scene/mesh.h"
 #include "scene/object.h"
+#include "scene/pointcloud.h"
 #include "scene/scene.h"
 
 #include "kernel/osl/closures.h"
@@ -88,6 +76,7 @@ ustring OSLRenderServices::u_raster("raster");
 ustring OSLRenderServices::u_ndc("NDC");
 ustring OSLRenderServices::u_object_location("object:location");
 ustring OSLRenderServices::u_object_color("object:color");
+ustring OSLRenderServices::u_object_alpha("object:alpha");
 ustring OSLRenderServices::u_object_index("object:index");
 ustring OSLRenderServices::u_geom_dupli_generated("geom:dupli_generated");
 ustring OSLRenderServices::u_geom_dupli_uv("geom:dupli_uv");
@@ -113,6 +102,10 @@ ustring OSLRenderServices::u_curve_thickness("geom:curve_thickness");
 ustring OSLRenderServices::u_curve_length("geom:curve_length");
 ustring OSLRenderServices::u_curve_tangent_normal("geom:curve_tangent_normal");
 ustring OSLRenderServices::u_curve_random("geom:curve_random");
+ustring OSLRenderServices::u_is_point("geom:is_point");
+ustring OSLRenderServices::u_point_radius("geom:point_radius");
+ustring OSLRenderServices::u_point_position("geom:point_position");
+ustring OSLRenderServices::u_point_random("geom:point_random");
 ustring OSLRenderServices::u_normal_map_normal("geom:normal_map_normal");
 ustring OSLRenderServices::u_path_ray_length("path:ray_length");
 ustring OSLRenderServices::u_path_ray_depth("path:ray_depth");
@@ -139,7 +132,7 @@ OSLRenderServices::OSLRenderServices(OSL::TextureSystem *texture_system)
 OSLRenderServices::~OSLRenderServices()
 {
   if (texture_system) {
-    VLOG(2) << "OSL texture system stats:\n" << texture_system->getstats();
+    VLOG_INFO << "OSL texture system stats:\n" << texture_system->getstats();
   }
 }
 
@@ -602,8 +595,8 @@ static bool set_attribute_float4(float4 f, TypeDesc type, bool derivatives, void
   float4 fv[3];
 
   fv[0] = f;
-  fv[1] = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
-  fv[2] = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+  fv[1] = zero_float4();
+  fv[2] = zero_float4();
 
   return set_attribute_float4(fv, type, derivatives, val);
 }
@@ -881,6 +874,10 @@ bool OSLRenderServices::get_object_standard_attribute(const KernelGlobalsCPU *kg
     float3 f = object_color(kg, sd->object);
     return set_attribute_float3(f, type, derivatives, val);
   }
+  else if (name == u_object_alpha) {
+    float f = object_alpha(kg, sd->object);
+    return set_attribute_float(f, type, derivatives, val);
+  }
   else if (name == u_object_index) {
     float f = object_pass_id(kg, sd->object);
     return set_attribute_float(f, type, derivatives, val);
@@ -957,13 +954,15 @@ bool OSLRenderServices::get_object_standard_attribute(const KernelGlobalsCPU *kg
     return set_attribute_int(3, type, derivatives, val);
   }
   else if ((name == u_geom_trianglevertices || name == u_geom_polyvertices) &&
-           sd->type & PRIMITIVE_ALL_TRIANGLE) {
+           sd->type & PRIMITIVE_TRIANGLE) {
     float3 P[3];
 
-    if (sd->type & PRIMITIVE_TRIANGLE)
-      triangle_vertices(kg, sd->prim, P);
-    else
+    if (sd->type & PRIMITIVE_MOTION) {
       motion_triangle_vertices(kg, sd->object, sd->prim, sd->time, P);
+    }
+    else {
+      triangle_vertices(kg, sd->prim, P);
+    }
 
     if (!(sd->object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
       object_position_transform(kg, sd, &P[0]);
@@ -983,7 +982,7 @@ bool OSLRenderServices::get_object_standard_attribute(const KernelGlobalsCPU *kg
   }
   /* Hair Attributes */
   else if (name == u_is_curve) {
-    float f = (sd->type & PRIMITIVE_ALL_CURVE) != 0;
+    float f = (sd->type & PRIMITIVE_CURVE) != 0;
     return set_attribute_float(f, type, derivatives, val);
   }
   else if (name == u_curve_thickness) {
@@ -994,8 +993,29 @@ bool OSLRenderServices::get_object_standard_attribute(const KernelGlobalsCPU *kg
     float3 f = curve_tangent_normal(kg, sd);
     return set_attribute_float3(f, type, derivatives, val);
   }
+  else if (name == u_curve_random) {
+    float f = curve_random(kg, sd);
+    return set_attribute_float(f, type, derivatives, val);
+  }
+  /* point attributes */
+  else if (name == u_is_point) {
+    float f = (sd->type & PRIMITIVE_POINT) != 0;
+    return set_attribute_float(f, type, derivatives, val);
+  }
+  else if (name == u_point_radius) {
+    float f = point_radius(kg, sd);
+    return set_attribute_float(f, type, derivatives, val);
+  }
+  else if (name == u_point_position) {
+    float3 f = point_position(kg, sd);
+    return set_attribute_float3(f, type, derivatives, val);
+  }
+  else if (name == u_point_random) {
+    float f = point_random(kg, sd);
+    return set_attribute_float(f, type, derivatives, val);
+  }
   else if (name == u_normal_map_normal) {
-    if (sd->type & PRIMITIVE_ALL_TRIANGLE) {
+    if (sd->type & PRIMITIVE_TRIANGLE) {
       float3 f = triangle_smooth_normal_unnormalized(kg, sd, sd->Ng, sd->prim, sd->u, sd->v);
       return set_attribute_float3(f, type, derivatives, val);
     }
@@ -1074,18 +1094,17 @@ bool OSLRenderServices::get_background_attribute(const KernelGlobalsCPU *kg,
       ndc[0] = camera_world_to_ndc(kg, sd, sd->ray_P);
 
       if (derivatives) {
-        ndc[1] = camera_world_to_ndc(kg, sd, sd->ray_P + make_float3(sd->ray_dP, 0.0f, 0.0f)) -
-                 ndc[0];
-        ndc[2] = camera_world_to_ndc(kg, sd, sd->ray_P + make_float3(0.0f, sd->ray_dP, 0.0f)) -
-                 ndc[0];
+        ndc[1] = zero_float3();
+        ndc[2] = zero_float3();
       }
     }
     else {
       ndc[0] = camera_world_to_ndc(kg, sd, sd->P);
 
       if (derivatives) {
-        ndc[1] = camera_world_to_ndc(kg, sd, sd->P + sd->dP.dx) - ndc[0];
-        ndc[2] = camera_world_to_ndc(kg, sd, sd->P + sd->dP.dy) - ndc[0];
+        const differential3 dP = differential_from_compact(sd->Ng, sd->dP);
+        ndc[1] = camera_world_to_ndc(kg, sd, sd->P + dP.dx) - ndc[0];
+        ndc[2] = camera_world_to_ndc(kg, sd, sd->P + dP.dy) - ndc[0];
       }
     }
 
@@ -1284,8 +1303,38 @@ bool OSLRenderServices::texture(ustring filename,
       break;
     }
     case OSLTextureHandle::SVM: {
-      /* Packed texture. */
-      float4 rgba = kernel_tex_image_interp(kernel_globals, handle->svm_slot, s, 1.0f - t);
+      int id = -1;
+      if (handle->svm_slots[0].w == -1) {
+        /* Packed single texture. */
+        id = handle->svm_slots[0].y;
+      }
+      else {
+        /* Packed tiled texture. */
+        int tx = (int)s;
+        int ty = (int)t;
+        int tile = 1001 + 10 * ty + tx;
+        for (int4 tile_node : handle->svm_slots) {
+          if (tile_node.x == tile) {
+            id = tile_node.y;
+            break;
+          }
+          if (tile_node.z == tile) {
+            id = tile_node.w;
+            break;
+          }
+        }
+        s -= tx;
+        t -= ty;
+      }
+
+      float4 rgba;
+      if (id == -1) {
+        rgba = make_float4(
+            TEX_IMAGE_MISSING_R, TEX_IMAGE_MISSING_G, TEX_IMAGE_MISSING_B, TEX_IMAGE_MISSING_A);
+      }
+      else {
+        rgba = kernel_tex_image_interp(kernel_globals, id, s, 1.0f - t);
+      }
 
       result[0] = rgba[0];
       if (nchannels > 1)
@@ -1299,7 +1348,7 @@ bool OSLRenderServices::texture(ustring filename,
     }
     case OSLTextureHandle::IES: {
       /* IES light. */
-      result[0] = kernel_ies_interp(kernel_globals, handle->svm_slot, s, t);
+      result[0] = kernel_ies_interp(kernel_globals, handle->svm_slots[0].y, s, t);
       status = true;
       break;
     }
@@ -1393,7 +1442,7 @@ bool OSLRenderServices::texture3d(ustring filename,
       /* Packed texture. */
       ShaderData *sd = (ShaderData *)(sg->renderstate);
       KernelGlobals kernel_globals = sd->osl_globals;
-      int slot = handle->svm_slot;
+      int slot = handle->svm_slots[0].y;
       float3 P_float3 = make_float3(P.x, P.y, P.z);
       float4 rgba = kernel_tex_image_interp_3d(kernel_globals, slot, P_float3, INTERPOLATION_NONE);
 
@@ -1621,14 +1670,19 @@ bool OSLRenderServices::trace(TraceOpt &options,
 
   ray.P = TO_FLOAT3(P);
   ray.D = TO_FLOAT3(R);
-  ray.t = (options.maxdist == 1.0e30f) ? FLT_MAX : options.maxdist - options.mindist;
+  ray.tmin = 0.0f;
+  ray.tmax = (options.maxdist == 1.0e30f) ? FLT_MAX : options.maxdist - options.mindist;
   ray.time = sd->time;
+  ray.self.object = OBJECT_NONE;
+  ray.self.prim = PRIM_NONE;
+  ray.self.light_object = OBJECT_NONE;
+  ray.self.light_prim = PRIM_NONE;
 
   if (options.mindist == 0.0f) {
     /* avoid self-intersections */
     if (ray.P == sd->P) {
-      bool transmit = (dot(sd->Ng, ray.D) < 0.0f);
-      ray.P = ray_offset(sd->P, (transmit) ? -sd->Ng : sd->Ng);
+      ray.self.object = sd->object;
+      ray.self.prim = sd->prim;
     }
   }
   else {
@@ -1656,12 +1710,12 @@ bool OSLRenderServices::trace(TraceOpt &options,
 
   const KernelGlobalsCPU *kg = sd->osl_globals;
 
-  /* Can't raytrace from shaders like displacement, before BVH exists. */
+  /* Can't ray-trace from shaders like displacement, before BVH exists. */
   if (kernel_data.bvh.bvh_layout == BVH_LAYOUT_NONE) {
     return false;
   }
 
-  /* Raytrace, leaving out shadow opaque to avoid early exit. */
+  /* Ray-trace, leaving out shadow opaque to avoid early exit. */
   uint visibility = PATH_RAY_ALL_VISIBILITY - PATH_RAY_SHADOW_OPAQUE;
   tracedata->hit = scene_intersect(kg, &ray, visibility, &tracedata->isect);
   return tracedata->hit;
@@ -1702,11 +1756,13 @@ bool OSLRenderServices::getmessage(OSL::ShaderGlobals *sg,
           return set_attribute_float3(sd->Ng, type, derivatives, val);
         }
         else if (name == u_P) {
-          float3 f[3] = {sd->P, sd->dP.dx, sd->dP.dy};
+          const differential3 dP = differential_from_compact(sd->Ng, sd->dP);
+          float3 f[3] = {sd->P, dP.dx, dP.dy};
           return set_attribute_float3(f, type, derivatives, val);
         }
         else if (name == u_I) {
-          float3 f[3] = {sd->I, sd->dI.dx, sd->dI.dy};
+          const differential3 dI = differential_from_compact(sd->I, sd->dI);
+          float3 f[3] = {sd->I, dI.dx, dI.dy};
           return set_attribute_float3(f, type, derivatives, val);
         }
         else if (name == u_u) {

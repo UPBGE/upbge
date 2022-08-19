@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -291,7 +277,7 @@ typedef enum eBrushSnakeHookDeformType {
   BRUSH_SNAKE_HOOK_DEFORM_ELASTIC = 1,
 } eBrushSnakeHookDeformType;
 
-/* Gpencilsettings.Vertex_mode */
+/** #Gpencilsettings.Vertex_mode */
 typedef enum eGp_Vertex_Mode {
   /* Affect to Stroke only. */
   GPPAINT_MODE_STROKE = 0,
@@ -319,6 +305,12 @@ typedef enum eGP_Sculpt_Mode_Flag {
   GP_SCULPT_FLAGMODE_APPLY_THICKNESS = (1 << 2),
   /* apply brush to uv data */
   GP_SCULPT_FLAGMODE_APPLY_UV = (1 << 3),
+  /* Stroke Auto-Masking for sculpt. */
+  GP_SCULPT_FLAGMODE_AUTOMASK_STROKE = (1 << 4),
+  /* Layer Auto-Masking for sculpt. */
+  GP_SCULPT_FLAGMODE_AUTOMASK_LAYER = (1 << 5),
+  /* Material Auto-Masking for sculpt. */
+  GP_SCULPT_FLAGMODE_AUTOMASK_MATERIAL = (1 << 6),
 } eGP_Sculpt_Mode_Flag;
 
 typedef enum eAutomasking_flag {
@@ -341,7 +333,7 @@ typedef enum ePaintBrush_flag {
   BRUSH_PAINT_DENSITY_PRESSURE_INVERT = (1 << 9),
 } ePaintBrush_flag;
 
-/* Brush.gradient_source */
+/** #Brush.gradient_source */
 typedef enum eBrushGradientSourceStroke {
   BRUSH_GRADIENT_PRESSURE = 0,       /* gradient from pressure */
   BRUSH_GRADIENT_SPACING_REPEAT = 1, /* gradient from spacing */
@@ -353,7 +345,7 @@ typedef enum eBrushGradientSourceFill {
   BRUSH_GRADIENT_RADIAL = 1, /* gradient from spacing */
 } eBrushGradientSourceFill;
 
-/* Brush.flag */
+/** #Brush.flag */
 typedef enum eBrushFlags {
   BRUSH_AIRBRUSH = (1 << 0),
   BRUSH_INVERT_TO_SCRAPE_FILL = (1 << 1),
@@ -389,12 +381,12 @@ typedef enum eBrushFlags {
   BRUSH_CURVE = (1u << 31),
 } eBrushFlags;
 
-/* Brush.sampling_flag */
+/** #Brush.sampling_flag */
 typedef enum eBrushSamplingFlags {
   BRUSH_PAINT_ANTIALIASING = (1 << 0),
 } eBrushSamplingFlags;
 
-/* Brush.flag2 */
+/** #Brush.flag2 */
 typedef enum eBrushFlags2 {
   BRUSH_MULTIPLANE_SCRAPE_DYNAMIC = (1 << 0),
   BRUSH_MULTIPLANE_SCRAPE_PLANES_PREVIEW = (1 << 1),
@@ -412,7 +404,7 @@ typedef enum {
   BRUSH_MASK_PRESSURE_CUTOFF = (1 << 2),
 } BrushMaskPressureFlags;
 
-/* Brush.overlay_flags */
+/** #Brush.overlay_flags */
 typedef enum eOverlayFlags {
   BRUSH_OVERLAY_CURSOR = (1),
   BRUSH_OVERLAY_PRIMARY = (1 << 1),
@@ -426,7 +418,7 @@ typedef enum eOverlayFlags {
   (BRUSH_OVERLAY_CURSOR_OVERRIDE_ON_STROKE | BRUSH_OVERLAY_PRIMARY_OVERRIDE_ON_STROKE | \
    BRUSH_OVERLAY_SECONDARY_OVERRIDE_ON_STROKE)
 
-/* Brush.sculpt_tool */
+/** #Brush.sculpt_tool */
 typedef enum eBrushSculptTool {
   SCULPT_TOOL_DRAW = 1,
   SCULPT_TOOL_SMOOTH = 2,
@@ -462,12 +454,27 @@ typedef enum eBrushSculptTool {
   SCULPT_TOOL_DISPLACEMENT_SMEAR = 32,
 } eBrushSculptTool;
 
-/* Brush.uv_sculpt_tool */
+/** #Brush.uv_sculpt_tool */
 typedef enum eBrushUVSculptTool {
   UV_SCULPT_TOOL_GRAB = 0,
   UV_SCULPT_TOOL_RELAX = 1,
   UV_SCULPT_TOOL_PINCH = 2,
 } eBrushUVSculptTool;
+
+/* Brush.curves_sculpt_tool. */
+typedef enum eBrushCurvesSculptTool {
+  CURVES_SCULPT_TOOL_COMB = 0,
+  CURVES_SCULPT_TOOL_DELETE = 1,
+  CURVES_SCULPT_TOOL_SNAKE_HOOK = 2,
+  CURVES_SCULPT_TOOL_ADD = 3,
+  CURVES_SCULPT_TOOL_GROW_SHRINK = 4,
+  CURVES_SCULPT_TOOL_SELECTION_PAINT = 5,
+  CURVES_SCULPT_TOOL_PINCH = 6,
+  CURVES_SCULPT_TOOL_SMOOTH = 7,
+  CURVES_SCULPT_TOOL_PUFF = 8,
+  CURVES_SCULPT_TOOL_DENSITY = 9,
+  CURVES_SCULPT_TOOL_SLIDE = 10,
+} eBrushCurvesSculptTool;
 
 /** When #BRUSH_ACCUMULATE is used */
 #define SCULPT_TOOL_HAS_ACCUMULATE(t) \
@@ -522,7 +529,7 @@ typedef enum eBrushUVSculptTool {
         SCULPT_TOOL_SLIDE_RELAX, \
         SCULPT_TOOL_MASK) == 0)
 
-/* ImagePaintSettings.tool */
+/** #ImagePaintSettings.tool */
 typedef enum eBrushImagePaintTool {
   PAINT_TOOL_DRAW = 0,
   PAINT_TOOL_SOFTEN = 1,
@@ -532,6 +539,9 @@ typedef enum eBrushImagePaintTool {
   PAINT_TOOL_MASK = 5,
 } eBrushImagePaintTool;
 
+/* The enums here should be kept in sync with the weight paint tool.
+ * This is because #smooth_brush_toggle_on and #smooth_brush_toggle_off
+ * assumes that the blur brush has the same enum value. */
 typedef enum eBrushVertexPaintTool {
   VPAINT_TOOL_DRAW = 0,
   VPAINT_TOOL_BLUR = 1,
@@ -539,6 +549,7 @@ typedef enum eBrushVertexPaintTool {
   VPAINT_TOOL_SMEAR = 3,
 } eBrushVertexPaintTool;
 
+/* See #eBrushVertexPaintTool when changing this definition. */
 typedef enum eBrushWeightPaintTool {
   WPAINT_TOOL_DRAW = 0,
   WPAINT_TOOL_BLUR = 1,
@@ -602,11 +613,25 @@ typedef enum eBlurKernelType {
   KERNEL_BOX = 1,
 } eBlurKernelType;
 
-/* Brush.falloff_shape */
-enum {
+/** #Brush.falloff_shape */
+typedef enum eBrushFalloffShape {
   PAINT_FALLOFF_SHAPE_SPHERE = 0,
   PAINT_FALLOFF_SHAPE_TUBE = 1,
-};
+} eBrushFalloffShape;
+
+typedef enum eBrushCurvesSculptFlag {
+  BRUSH_CURVES_SCULPT_FLAG_SCALE_UNIFORM = (1 << 0),
+  BRUSH_CURVES_SCULPT_FLAG_GROW_SHRINK_INVERT = (1 << 1),
+  BRUSH_CURVES_SCULPT_FLAG_INTERPOLATE_LENGTH = (1 << 2),
+  BRUSH_CURVES_SCULPT_FLAG_INTERPOLATE_SHAPE = (1 << 3),
+  BRUSH_CURVES_SCULPT_FLAG_INTERPOLATE_POINT_COUNT = (1 << 4),
+} eBrushCurvesSculptFlag;
+
+typedef enum eBrushCurvesSculptDensityMode {
+  BRUSH_CURVES_SCULPT_DENSITY_MODE_AUTO = 0,
+  BRUSH_CURVES_SCULPT_DENSITY_MODE_ADD = 1,
+  BRUSH_CURVES_SCULPT_DENSITY_MODE_REMOVE = 2,
+} eBrushCurvesSculptDensityMode;
 
 #define MAX_BRUSH_PIXEL_RADIUS 500
 #define GP_MAX_BRUSH_PIXEL_RADIUS 1000

@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -62,10 +48,6 @@ bUserAssetLibrary *BKE_preferences_asset_library_add(UserDef *userdef,
   return library;
 }
 
-/**
- * Unlink and free a library preference member.
- * \note Free's \a library itself.
- */
 void BKE_preferences_asset_library_remove(UserDef *userdef, bUserAssetLibrary *library)
 {
   BLI_freelinkN(&userdef->asset_libraries, library);
@@ -84,13 +66,9 @@ void BKE_preferences_asset_library_name_set(UserDef *userdef,
                  sizeof(library->name));
 }
 
-/* Set the library path, ensuring it is pointing to a directory.
- * Single blend files can only act as "Current File" library; libraries on disk
- * should always be directories. If the path does not exist, that's fine; it can
- * created as directory if necessary later. */
 void BKE_preferences_asset_library_path_set(bUserAssetLibrary *library, const char *path)
 {
-  BLI_strncpy_utf8(library->path, path, sizeof(library->path));
+  BLI_strncpy(library->path, path, sizeof(library->path));
   if (BLI_is_file(library->path)) {
     BLI_path_parent_dir(library->path);
   }

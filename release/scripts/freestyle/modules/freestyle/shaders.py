@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 #  Filename : shaders.py
 #  Authors  : Fredo Durand, Stephane Grabli, Francois Sillion, Emmanuel Turquin
@@ -87,7 +71,7 @@ __all__ = (
     "pyTimeColorShader",
     "pyTipRemoverShader",
     "pyZDependingThicknessShader",
-    )
+)
 
 
 # module members
@@ -110,7 +94,7 @@ from _freestyle import (
     StrokeTextureStepShader,
     ThicknessNoiseShader,
     TipRemoverShader,
-    )
+)
 
 # constructs for shader definition in Python
 from freestyle.types import (
@@ -121,7 +105,7 @@ from freestyle.types import (
     StrokeShader,
     StrokeVertexIterator,
     StrokeVertex,
-    )
+)
 from freestyle.functions import (
     Curvature2DAngleF0D,
     DensityF0D,
@@ -130,18 +114,18 @@ from freestyle.functions import (
     Normal2DF0D,
     Orientation2DF1D,
     ZDiscontinuityF0D,
-    )
+)
 from freestyle.predicates import (
     pyVertexNatureUP0D,
     pyUEqualsUP0D,
-    )
+)
 
 from freestyle.utils import (
     bound,
     BoundingBox,
     pairwise,
     phase_to_direction,
-    )
+)
 
 from freestyle.utils import ContextFunctions as CF
 
@@ -161,6 +145,7 @@ class pyDepthDiscontinuityThicknessShader(StrokeShader):
     Assigns a thickness to the stroke based on the stroke's distance
     to the camera (Z-value).
     """
+
     def __init__(self, min, max):
         StrokeShader.__init__(self)
         self.a = max - min
@@ -179,6 +164,7 @@ class pyConstantThicknessShader(StrokeShader):
     """
     Assigns a constant thickness along the stroke.
     """
+
     def __init__(self, thickness):
         StrokeShader.__init__(self)
         self._thickness = thickness / 2.0
@@ -192,6 +178,7 @@ class pyFXSVaryingThicknessWithDensityShader(StrokeShader):
     """
     Assigns thickness to a stroke based on the density of the diffuse map.
     """
+
     def __init__(self, wsize, threshold_min, threshold_max, thicknessMin, thicknessMax):
         StrokeShader.__init__(self)
         self._func = DensityF0D(wsize)
@@ -216,6 +203,7 @@ class pyIncreasingThicknessShader(StrokeShader):
     """
     Increasingly thickens the stroke.
     """
+
     def __init__(self, thicknessMin, thicknessMax):
         StrokeShader.__init__(self)
         self._thicknessMin = thicknessMin
@@ -237,6 +225,7 @@ class pyConstrainedIncreasingThicknessShader(StrokeShader):
     Increasingly thickens the stroke, constrained by a ratio of the
     stroke's length.
     """
+
     def __init__(self, thicknessMin, thicknessMax, ratio):
         StrokeShader.__init__(self)
         self._thicknessMin = thicknessMin
@@ -264,6 +253,7 @@ class pyDecreasingThicknessShader(StrokeShader):
     """
     Inverse of pyIncreasingThicknessShader, decreasingly thickens the stroke.
     """
+
     def __init__(self, thicknessMin, thicknessMax):
         StrokeShader.__init__(self)
         self._thicknessMin = thicknessMin
@@ -285,6 +275,7 @@ class pyNonLinearVaryingThicknessShader(StrokeShader):
     """
     Assigns thickness to a stroke based on an exponential function.
     """
+
     def __init__(self, thicknessExtremity, thicknessMiddle, exponent):
         self._thicknessMin = thicknessMiddle
         self._thicknessMax = thicknessExtremity
@@ -304,6 +295,7 @@ class pySLERPThicknessShader(StrokeShader):
     """
     Assigns thickness to a stroke based on spherical linear interpolation.
     """
+
     def __init__(self, thicknessMin, thicknessMax, omega=1.2):
         StrokeShader.__init__(self)
         self._thicknessMin = thicknessMin
@@ -318,9 +310,9 @@ class pySLERPThicknessShader(StrokeShader):
         for i, svert in enumerate(stroke):
             c = i / n
             if i < (n * 0.5):
-                t = sin((1-c) * omega) / sinhyp * self._thicknessMin + sin(c * omega) / sinhyp * maxT
+                t = sin((1 - c) * omega) / sinhyp * self._thicknessMin + sin(c * omega) / sinhyp * maxT
             else:
-                t = sin((1-c) * omega) / sinhyp * maxT + sin(c * omega) / sinhyp * self._thicknessMin
+                t = sin((1 - c) * omega) / sinhyp * maxT + sin(c * omega) / sinhyp * self._thicknessMin
             svert.attribute.thickness = (t / 2.0, t / 2.0)
 
 
@@ -328,6 +320,7 @@ class pyTVertexThickenerShader(StrokeShader):
     """
     Thickens TVertices (visual intersections between two edges).
     """
+
     def __init__(self, a=1.5, n=3):
         StrokeShader.__init__(self)
         self._a = a
@@ -358,6 +351,7 @@ class pyImportance2DThicknessShader(StrokeShader):
     the thickness is inverted, so the vertices closest to the
     specified point have the lowest thickness.
     """
+
     def __init__(self, x, y, w, kmin, kmax):
         StrokeShader.__init__(self)
         self._origin = Vector((x, y))
@@ -368,16 +362,17 @@ class pyImportance2DThicknessShader(StrokeShader):
         for svert in stroke:
             d = (svert.point_2d - self._origin).length
             k = (self._kmin if (d > self._w) else
-                (self._kmax * (self._w-d) + self._kmin * d) / self._w)
+                 (self._kmax * (self._w - d) + self._kmin * d) / self._w)
 
             (tr, tl) = svert.attribute.thickness
-            svert.attribute.thickness = (k*tr/2.0, k*tl/2.0)
+            svert.attribute.thickness = (k * tr / 2.0, k * tl / 2.0)
 
 
 class pyImportance3DThicknessShader(StrokeShader):
     """
     Assigns thickness based on distance to a given point in 3D space.
     """
+
     def __init__(self, x, y, z, w, kmin, kmax):
         StrokeShader.__init__(self)
         self._origin = Vector((x, y, z))
@@ -388,10 +383,10 @@ class pyImportance3DThicknessShader(StrokeShader):
         for svert in stroke:
             d = (svert.point_3d - self._origin).length
             k = (self._kmin if (d > self._w) else
-                (self._kmax * (self._w-d) + self._kmin * d) / self._w)
+                 (self._kmax * (self._w - d) + self._kmin * d) / self._w)
 
             (tr, tl) = svert.attribute.thickness
-            svert.attribute.thickness = (k*tr/2.0, k*tl/2.0)
+            svert.attribute.thickness = (k * tr / 2.0, k * tl / 2.0)
 
 
 class pyZDependingThicknessShader(StrokeShader):
@@ -399,6 +394,7 @@ class pyZDependingThicknessShader(StrokeShader):
     Assigns thickness based on an object's local Z depth (point
     closest to camera is 1, point furthest from camera is zero).
     """
+
     def __init__(self, min, max):
         StrokeShader.__init__(self)
         self.__min = min
@@ -424,10 +420,12 @@ class pyConstantColorShader(StrokeShader):
     """
     Assigns a constant color to the stroke.
     """
-    def __init__(self,r,g,b, a = 1):
+
+    def __init__(self, r, g, b, a=1):
         StrokeShader.__init__(self)
         self._color = (r, g, b)
         self._a = a
+
     def shade(self, stroke):
         for svert in stroke:
             svert.attribute.color = self._color
@@ -438,10 +436,11 @@ class pyIncreasingColorShader(StrokeShader):
     """
     Fades from one color to another along the stroke.
     """
-    def __init__(self,r1,g1,b1,a1, r2,g2,b2,a2):
+
+    def __init__(self, r1, g1, b1, a1, r2, g2, b2, a2):
         StrokeShader.__init__(self)
         # use 4d vector to simplify math
-        self._c1 = Vector((r1, g1 ,b1, a1))
+        self._c1 = Vector((r1, g1, b1, a1))
         self._c2 = Vector((r2, g2, b2, a2))
 
     def shade(self, stroke):
@@ -458,10 +457,11 @@ class pyInterpolateColorShader(StrokeShader):
     """
     Fades from one color to another and back.
     """
-    def __init__(self,r1,g1,b1,a1, r2,g2,b2,a2):
+
+    def __init__(self, r1, g1, b1, a1, r2, g2, b2, a2):
         StrokeShader.__init__(self)
         # use 4d vector to simplify math
-        self._c1 = Vector((r1, g1 ,b1, a1))
+        self._c1 = Vector((r1, g1, b1, a1))
         self._c2 = Vector((r2, g2, b2, a2))
 
     def shade(self, stroke):
@@ -477,10 +477,12 @@ class pyModulateAlphaShader(StrokeShader):
     """
     Limits the stroke's alpha between a min and max value.
     """
+
     def __init__(self, min=0, max=1):
         StrokeShader.__init__(self)
         self.__min = min
         self.__max = max
+
     def shade(self, stroke):
         for svert in stroke:
             alpha = svert.attribute.alpha
@@ -492,6 +494,7 @@ class pyMaterialColorShader(StrokeShader):
     """
     Assigns the color of the underlying material to the stroke.
     """
+
     def __init__(self, threshold=50):
         StrokeShader.__init__(self)
         self._threshold = threshold
@@ -520,7 +523,7 @@ class pyMaterialColorShader(StrokeShader):
             u = 4.0 * X / (X + 15.0 * Y + 3.0 * Z)
             v = 9.0 * Y / (X + 15.0 * Y + 3.0 * Z)
 
-            L= 116. * pow((Y/Yn),(1./3.)) - 16
+            L = 116. * pow((Y / Yn), (1. / 3.)) - 16
             U = 13. * L * (u - un)
             V = 13. * L * (v - vn)
 
@@ -528,16 +531,16 @@ class pyMaterialColorShader(StrokeShader):
                 L /= 1.3
                 U += 10.
             else:
-                L = L + 2.5 * (100-L) * 0.2
+                L = L + 2.5 * (100 - L) * 0.2
                 U /= 3.0
                 V /= 3.0
 
             u = U / (13.0 * L) + un
             v = V / (13.0 * L) + vn
 
-            Y = Yn * pow(((L+16.)/116.), 3.)
-            X = -9. * Y * u / ((u - 4.)* v - u * v)
-            Z = (9. * Y - 15*v*Y - v*X) /( 3. * v)
+            Y = Yn * pow(((L + 16.) / 116.), 3.)
+            X = -9. * Y * u / ((u - 4.) * v - u * v)
+            Z = (9. * Y - 15 * v * Y - v * X) / (3. * v)
 
             r = 3.240479 * X - 1.53715 * Y - 0.498535 * Z
             g = -0.969256 * X + 1.875991 * Y + 0.041556 * Z
@@ -554,6 +557,7 @@ class pyRandomColorShader(StrokeShader):
     """
     Assigns a color to the stroke based on given seed.
     """
+
     def __init__(self, s=1):
         StrokeShader.__init__(self)
         random.seed = s
@@ -571,6 +575,7 @@ class py2DCurvatureColorShader(StrokeShader):
     Assigns a color (grayscale) to the stroke based on the curvature.
     A higher curvature will yield a brighter color.
     """
+
     def shade(self, stroke):
         func = Curvature2DAngleF0D()
         it = Interface0DIterator(stroke)
@@ -587,9 +592,11 @@ class pyTimeColorShader(StrokeShader):
     Assigns a grayscale value that increases for every vertex.
     The brightness will increase along the stroke.
     """
+
     def __init__(self, step=0.01):
         StrokeShader.__init__(self)
         self._step = step
+
     def shade(self, stroke):
         for i, svert in enumerate(stroke):
             c = i * self._step
@@ -604,6 +611,7 @@ class pySamplingShader(StrokeShader):
     Resamples the stroke, which gives the stroke the amount of
     vertices specified.
     """
+
     def __init__(self, sampling):
         StrokeShader.__init__(self)
         self._sampling = sampling
@@ -617,6 +625,7 @@ class pyBackboneStretcherShader(StrokeShader):
     """
     Stretches the stroke's backbone by a given length (in pixels).
     """
+
     def __init__(self, l):
         StrokeShader.__init__(self)
         self._l = l
@@ -626,7 +635,7 @@ class pyBackboneStretcherShader(StrokeShader):
         v0, vn = stroke[0], stroke[-1]
         p0, pn = v0.point, vn.point
         # get the direction
-        d1 = (p0 - stroke[ 1].point).normalized()
+        d1 = (p0 - stroke[1].point).normalized()
         dn = (pn - stroke[-2].point).normalized()
         v0.point += d1 * self._l
         vn.point += dn * self._l
@@ -639,15 +648,17 @@ class pyLengthDependingBackboneStretcherShader(StrokeShader):
     NOTE: you'll probably want an l somewhere between (0.5 - 0). A value that
     is too high may yield unexpected results.
     """
+
     def __init__(self, l):
         StrokeShader.__init__(self)
         self._l = l
+
     def shade(self, stroke):
         # get start and end points
         v0, vn = stroke[0], stroke[-1]
         p0, pn = v0.point, vn.point
         # get the direction
-        d1 = (p0 - stroke[ 1].point).normalized()
+        d1 = (p0 - stroke[1].point).normalized()
         dn = (pn - stroke[-2].point).normalized()
         v0.point += d1 * self._l * stroke.length_2d
         vn.point += dn * self._l * stroke.length_2d
@@ -678,6 +689,7 @@ class pyBackboneStretcherNoCuspShader(StrokeShader):
     """
     Stretches the stroke's backbone, excluding cusp vertices (end junctions).
     """
+
     def __init__(self, l):
         StrokeShader.__init__(self)
         self._l = l
@@ -705,6 +717,7 @@ class pyDiffusion2Shader(StrokeShader):
     point. The offset is scaled by the 2D curvature (i.e. how quickly
     the stroke curve is) at the point.
     """
+
     def __init__(self, lambda1, nbIter):
         StrokeShader.__init__(self)
         self._lambda = lambda1
@@ -713,7 +726,7 @@ class pyDiffusion2Shader(StrokeShader):
         self._curvatureInfo = Curvature2DAngleF0D()
 
     def shade(self, stroke):
-        for i in range (1, self._nbIter):
+        for _i in range(1, self._nbIter):
             it = Interface0DIterator(stroke)
             for svert in it:
                 svert.point += self._normalInfo(it) * self._lambda * self._curvatureInfo(it)
@@ -724,6 +737,7 @@ class pyTipRemoverShader(StrokeShader):
     """
     Removes the tips of the stroke.
     """
+
     def __init__(self, l):
         StrokeShader.__init__(self)
         self._l = l
@@ -732,7 +746,7 @@ class pyTipRemoverShader(StrokeShader):
     def check_vertex(v, length):
         # Returns True if the given strokevertex is less than self._l away
         # from the stroke's tip and therefore should be removed.
-        return (v.curvilinear_abscissa < length or v.stroke_length-v.curvilinear_abscissa < length)
+        return (v.curvilinear_abscissa < length or v.stroke_length - v.curvilinear_abscissa < length)
 
     def shade(self, stroke):
         n = len(stroke)
@@ -763,6 +777,7 @@ class pyTVertexRemoverShader(StrokeShader):
     """
     Removes t-vertices from the stroke.
     """
+
     def shade(self, stroke):
         if len(stroke) < 4:
             return
@@ -780,6 +795,7 @@ class pyHLRShader(StrokeShader):
     Controls visibility based upon the quantitative invisibility (QI)
     based on hidden line removal (HLR).
     """
+
     def shade(self, stroke):
         if len(stroke) < 4:
             return
@@ -795,6 +811,7 @@ class pySinusDisplacementShader(StrokeShader):
     """
     Displaces the stroke in the shape of a sine wave.
     """
+
     def __init__(self, f, a):
         StrokeShader.__init__(self)
         self._f = f
@@ -817,6 +834,7 @@ class pyPerlinNoise1DShader(StrokeShader):
     that lines with the same length and sampling interval will be
     identically distorded.
     """
+
     def __init__(self, freq=10, amp=10, oct=4, seed=-1):
         StrokeShader.__init__(self)
         self.__noise = Noise(seed)
@@ -840,6 +858,7 @@ class pyPerlinNoise2DShader(StrokeShader):
     More information on the noise shaders can be found at:
     freestyleintegration.wordpress.com/2011/09/25/development-updates-on-september-25/
     """
+
     def __init__(self, freq=10, amp=10, oct=4, seed=-1):
         StrokeShader.__init__(self)
         self.__noise = Noise(seed)
@@ -858,6 +877,7 @@ class pyBluePrintCirclesShader(StrokeShader):
     """
     Draws the silhouette of the object as a circle.
     """
+
     def __init__(self, turns=1, random_radius=3, random_center=5):
         StrokeShader.__init__(self)
         self.__turns = turns
@@ -891,7 +911,7 @@ class pyBluePrintCirclesShader(StrokeShader):
 
         it = iter(stroke)
 
-        for j in range(self.__turns):
+        for _j in range(self.__turns):
             prev_radius = radius
             prev_center = center
             radius += randint(-R, R)
@@ -932,7 +952,7 @@ class pyBluePrintEllipsesShader(StrokeShader):
         # for description of the line below, see pyBluePrintCirclesShader
         directions = phase_to_direction(sv_nb)
         it = iter(stroke)
-        for j in range(self.__turns):
+        for _j in range(self.__turns):
             prev_radius = radius
             prev_center = center
             radius = radius + Vector((randint(-R, R), randint(-R, R)))
@@ -955,7 +975,7 @@ class pyBluePrintEllipsesShader(StrokeShader):
 class pyBluePrintSquaresShader(StrokeShader):
     def __init__(self, turns=1, bb_len=10, bb_rand=0):
         StrokeShader.__init__(self)
-        self.__turns = turns # does not have any effect atm
+        self.__turns = turns  # does not have any effect atm
         self.__bb_len = bb_len
         self.__bb_rand = bb_rand
 
@@ -984,7 +1004,7 @@ class pyBluePrintSquaresShader(StrokeShader):
             Vector((p_min.x - bb_len, p_max.y)),
             Vector((p_min.x, p_max.y + bb_len)),
             Vector((p_min.x, p_min.y - bb_len)),
-            )
+        )
 
         # add randomization to the points (if needed)
         if self.__bb_rand:
@@ -999,11 +1019,10 @@ class pyBluePrintSquaresShader(StrokeShader):
                 Vector((randint(-R, R), randint(-r, r))),
                 Vector((randint(-r, r), randint(-R, R))),
                 Vector((randint(-r, r), randint(-R, R))),
-                )
+            )
 
             # combine both tuples
             points = tuple(p + rand for (p, rand) in zip(points, randomization_mat))
-
 
         # subtract even from uneven; result is length four tuple of vectors
         it = iter(points)
@@ -1011,7 +1030,7 @@ class pyBluePrintSquaresShader(StrokeShader):
 
         it = iter(stroke)
         verticesToRemove = list()
-        for j in range(self.__turns):
+        for _j in range(self.__turns):
             for i, svert in zip(range(num_segments), it):
                 if i < first:
                     svert.point = points[0] + old_vecs[0] * i / (first - 1)
@@ -1042,6 +1061,7 @@ class pyBluePrintDirectedSquaresShader(StrokeShader):
     """
     Replaces the stroke with a directed square.
     """
+
     def __init__(self, turns=1, bb_len=10, mult=1):
         StrokeShader.__init__(self)
         self.__mult = mult
@@ -1071,12 +1091,15 @@ class pyBluePrintDirectedSquaresShader(StrokeShader):
         lambda1, lambda2 = max(1e-12, lambda1), max(1e-12, lambda2)
         theta = atan(2 * p_var_xy / (p_var.x - p_var.y)) / 2
 
+        # Keep alignment for readability.
+        # autopep8: off
         if p_var.y > p_var.x:
             e1 = Vector((cos(theta + pi / 2), sin(theta + pi / 2))) * sqrt(lambda1) * self.__mult
             e2 = Vector((cos(theta + pi    ), sin(theta + pi    ))) * sqrt(lambda2) * self.__mult
         else:
             e1 = Vector((cos(theta), sin(theta)))                   * sqrt(lambda1) * self.__mult
             e2 = Vector((cos(theta + pi / 2), sin(theta + pi / 2))) * sqrt(lambda2) * self.__mult
+        # autopep8: on
 
         # partition the stroke
         num_segments = len(stroke) // self.__turns
@@ -1091,18 +1114,18 @@ class pyBluePrintDirectedSquaresShader(StrokeShader):
             p_mean - e1 * bb_len1 + e2,
             p_mean + e1 + e2 * bb_len2,
             p_mean + e1 * bb_len1 - e2,
-            )
+        )
 
         old_vecs = (
             e2 * bb_len2 * 2,
             e1 * bb_len1 * 2,
-           -e2 * bb_len2 * 2,
-           -e1 * bb_len1 * 2,
-            )
+            -e2 * bb_len2 * 2,
+            -e1 * bb_len1 * 2,
+        )
 
         it = iter(stroke)
         verticesToRemove = list()
-        for j in range(self.__turns):
+        for _j in range(self.__turns):
             for i, svert in zip(range(num_segments), it):
                 if i < first:
                     svert.point = points[0] + old_vecs[0] * i / (first - 1)

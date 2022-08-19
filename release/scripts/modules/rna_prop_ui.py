@@ -1,22 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
-# <pep8 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 import bpy
 
@@ -59,7 +41,7 @@ def rna_idprop_context_value(context, context_member, property_type):
         rna_item = pin_id
         context_member = "space_data.pin_id"
     else:
-        rna_item = eval("context." + context_member)
+        rna_item = context.path_resolve(context_member)
 
     return rna_item, context_member
 
@@ -219,6 +201,7 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
         else:
             # Add some spacing, so the right side of the buttons line up with layouts with decorators.
             operator_row.label(text="", icon='BLANK1')
+
 
 class PropertyPanel:
     """

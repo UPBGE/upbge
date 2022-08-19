@@ -1,14 +1,4 @@
 
-in float colorGradient;
-in vec4 finalColor;
-in float lineU;
-flat in float lineLength;
-flat in float dashFactor;
-flat in float dashAlpha;
-flat in int isMainLine;
-
-out vec4 fragColor;
-
 #define DASH_WIDTH 10.0
 #define ANTIALIAS 1.0
 #define MINIMUM_ALPHA 0.5

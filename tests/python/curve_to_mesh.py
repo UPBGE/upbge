@@ -1,20 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # To run all tests, use
 # BLENDER_VERBOSE=1 ./bin/blender ../lib/tests/modeling/curve_to_mesh.blend --python ../blender/tests/python/bl_curve_to_mesh.py -- --run-all-tests
@@ -30,69 +14,69 @@ from modules.mesh_test import SpecMeshTest, OperatorSpecObjectMode, RunTest
 def main():
     tests = [
         SpecMeshTest('2D Non Cyclic', 'test2DNonCyclic', 'expected2DNonCyclic',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('2D NURBS With Tail', 'test2DNURBSWithTail', 'expected2DNURBSWithTail',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('2D Shape With Hole', 'test2DShapeWithHole', 'expected2DShapeWithHole',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('2D Simple Lower Res', 'test2DSimpleLowerRes', 'expected2DSimpleLowerRes',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('2D Simple Low Res', 'test2DSimpleLowRes', 'expected2DSimpleLowRes',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('2D Square', 'test2DSquare', 'expected2DSquare',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('2D Extrude', 'test2DExtrude', 'expected2DExtrude',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('Bevel Back', 'testBevelBack', 'expectedBevelBack',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('Bevel Back Low Res', 'testBevelBackLowRes', 'expectedBevelBackLowRes',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('Bevel Extrude Back', 'testBevelExtrudeBack', 'expectedBevelExtrudeBack',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('Bevel Extrude Front', 'testBevelExtrudeFront', 'expectedBevelExtrudeFront',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('Bevel Extrude Full', 'testBevelExtrudeFull', 'expectedBevelExtrudeFull',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('Bevel Extrude Half', 'testBevelExtrudeHalf', 'expectedBevelExtrudeHalf',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('Bevel Front', 'testBevelFront', 'expectedBevelFront',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('Bevel Front Low Res', 'testBevelFrontLowRes', 'expectedBevelFrontLowRes',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('Bevel Full', 'testBevelFull', 'expectedBevelFull',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('Bevel Full Low Res', 'testBevelFullLowRes', 'expectedBevelFullLowRes',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('Bevel Half', 'testBevelHalf', 'expectedBevelHalf',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('Bevel Half Low Res', 'testBevelHalfLowRes', 'expectedBevelHalfLowRes',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('Caps None', 'testCapsNone', 'expectedCapsNone',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('Caps Object Bevel', 'testCapsObjectBevel', 'expectedCapsObjectBevel',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('Caps Profile Bevel', 'testCapsProfileBevel', 'expectedCapsProfileBevel',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('Caps Profile Bevel Half', 'testCapsProfileBevelHalf', 'expectedCapsProfileBevelHalf',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('Caps Profile Bevel Quarter', 'testCapsProfileBevelQuarter', 'expectedCapsProfileBevelQuarter',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('Caps Round Bevel', 'testCapsRoundBevel', 'expectedCapsRoundBevel',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('Caps Round Bevel Extrude', 'testCapsRoundBevelExtrude', 'expectedCapsRoundBevelExtrude',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('Caps Round Bevel Half', 'testCapsRoundBevelHalf', 'expectedCapsRoundBevelHalf',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('Caps Round Bevel Quarter', 'testCapsRoundBevelQuarter', 'expectedCapsRoundBevelQuarter',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('Extrude Back', 'testExtrudeBack', 'expectedExtrudeBack',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('Extrude Front', 'testExtrudeFront', 'expectedExtrudeFront',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('Extrude Full', 'testExtrudeFull', 'expectedExtrudeFull',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
         SpecMeshTest('Extrude Half', 'testExtrudeHalf', 'expectedExtrudeHalf',
-                 [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
+                     [OperatorSpecObjectMode('convert', {'target': 'MESH'})]),
     ]
     operator_test = RunTest(tests)
 

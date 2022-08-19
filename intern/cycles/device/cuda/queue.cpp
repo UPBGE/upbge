@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #ifdef WITH_CUDA
 
@@ -52,12 +39,12 @@ int CUDADeviceQueue::num_concurrent_states(const size_t state_size) const
       num_states = max((int)(num_states * factor), 1024);
     }
     else {
-      VLOG(3) << "CYCLES_CONCURRENT_STATES_FACTOR evaluated to 0";
+      VLOG_DEVICE_STATS << "CYCLES_CONCURRENT_STATES_FACTOR evaluated to 0";
     }
   }
 
-  VLOG(3) << "GPU queue concurrent states: " << num_states << ", using up to "
-          << string_human_readable_size(num_states * state_size);
+  VLOG_DEVICE_STATS << "GPU queue concurrent states: " << num_states << ", using up to "
+                    << string_human_readable_size(num_states * state_size);
 
   return num_states;
 }
@@ -84,12 +71,9 @@ void CUDADeviceQueue::init_execution()
   debug_init_execution();
 }
 
-bool CUDADeviceQueue::kernel_available(DeviceKernel kernel) const
-{
-  return cuda_device_->kernels.available(kernel);
-}
-
-bool CUDADeviceQueue::enqueue(DeviceKernel kernel, const int work_size, void *args[])
+bool CUDADeviceQueue::enqueue(DeviceKernel kernel,
+                              const int work_size,
+                              DeviceKernelArguments const &args)
 {
   if (cuda_device_->have_error()) {
     return false;
@@ -133,7 +117,7 @@ bool CUDADeviceQueue::enqueue(DeviceKernel kernel, const int work_size, void *ar
                                 1,
                                 shared_mem_bytes,
                                 cuda_stream_,
-                                args,
+                                const_cast<void **>(args.values),
                                 0),
                  "enqueue");
 

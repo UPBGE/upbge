@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2014 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2014 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup modifiers
@@ -48,6 +32,7 @@
 #include "UI_resources.h"
 
 #include "RNA_access.h"
+#include "RNA_prototypes.h"
 
 #include "DEG_depsgraph_query.h"
 
@@ -144,7 +129,7 @@ static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphConte
     if (dtmd->flags & MOD_DATATRANSFER_OBSRC_TRANSFORM) {
       DEG_add_object_relation(
           ctx->node, dtmd->ob_source, DEG_OB_COMP_TRANSFORM, "DataTransfer Modifier");
-      DEG_add_modifier_to_transform_relation(ctx->node, "DataTransfer Modifier");
+      DEG_add_depends_on_transform_relation(ctx->node, "DataTransfer Modifier");
     }
   }
 }
@@ -226,7 +211,7 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
                                   dtmd->defgrp_name,
                                   invert_vgroup,
                                   &reports)) {
-    result->runtime.is_original = false;
+    result->runtime.is_original_bmesh = false;
   }
 
   if (BKE_reports_contain(&reports, RPT_ERROR)) {
@@ -361,6 +346,22 @@ static void face_corner_panel_draw(const bContext *UNUSED(C), Panel *panel)
   uiItemR(layout, ptr, "loop_mapping", 0, IFACE_("Mapping"), ICON_NONE);
 }
 
+static void vert_vcol_panel_draw(const bContext *UNUSED(C), Panel *panel)
+{
+  uiLayout *layout = panel->layout;
+
+  PointerRNA *ptr = modifier_panel_get_property_pointers(panel, NULL);
+
+  uiLayoutSetPropSep(layout, true);
+
+  uiLayoutSetActive(layout,
+                    RNA_enum_get(ptr, "data_types_verts") &
+                        (DT_TYPE_MPROPCOL_VERT | DT_TYPE_MLOOPCOL_VERT));
+
+  uiItemR(layout, ptr, "layers_vcol_vert_select_src", 0, IFACE_("Layer Selection"), ICON_NONE);
+  uiItemR(layout, ptr, "layers_vcol_vert_select_dst", 0, IFACE_("Layer Mapping"), ICON_NONE);
+}
+
 static void face_corner_vcol_panel_draw(const bContext *UNUSED(C), Panel *panel)
 {
   uiLayout *layout = panel->layout;
@@ -369,10 +370,12 @@ static void face_corner_vcol_panel_draw(const bContext *UNUSED(C), Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiLayoutSetActive(layout, RNA_enum_get(ptr, "data_types_loops") & DT_TYPE_VCOL);
+  uiLayoutSetActive(layout,
+                    RNA_enum_get(ptr, "data_types_loops") &
+                        (DT_TYPE_MPROPCOL_LOOP | DT_TYPE_MLOOPCOL_LOOP));
 
-  uiItemR(layout, ptr, "layers_vcol_select_src", 0, IFACE_("Layer Selection"), ICON_NONE);
-  uiItemR(layout, ptr, "layers_vcol_select_dst", 0, IFACE_("Layer Mapping"), ICON_NONE);
+  uiItemR(layout, ptr, "layers_vcol_loop_select_src", 0, IFACE_("Layer Selection"), ICON_NONE);
+  uiItemR(layout, ptr, "layers_vcol_loop_select_dst", 0, IFACE_("Layer Mapping"), ICON_NONE);
 }
 
 static void face_corner_uv_panel_draw(const bContext *UNUSED(C), Panel *panel)
@@ -442,6 +445,9 @@ static void panelRegister(ARegionType *region_type)
       region_type, "vertex_vgroup", "Vertex Groups", NULL, vertex_vgroup_panel_draw, vertex_panel);
 
   modifier_subpanel_register(
+      region_type, "vert_vcol", "Colors", NULL, vert_vcol_panel_draw, vertex_panel);
+
+  modifier_subpanel_register(
       region_type, "edge", "", edge_panel_draw_header, edge_panel_draw, panel_type);
 
   PanelType *face_corner_panel = modifier_subpanel_register(region_type,
@@ -452,7 +458,7 @@ static void panelRegister(ARegionType *region_type)
                                                             panel_type);
   modifier_subpanel_register(region_type,
                              "face_corner_vcol",
-                             "Vertex Colors",
+                             "Colors",
                              NULL,
                              face_corner_vcol_panel_draw,
                              face_corner_panel);
@@ -468,7 +474,7 @@ static void panelRegister(ARegionType *region_type)
 #undef DT_TYPES_AFFECT_MESH
 
 ModifierTypeInfo modifierType_DataTransfer = {
-    /* name */ "DataTransfer",
+    /* name */ N_("DataTransfer"),
     /* structName */ "DataTransferModifierData",
     /* structSize */ sizeof(DataTransferModifierData),
     /* srna */ &RNA_DataTransferModifier,
@@ -484,7 +490,6 @@ ModifierTypeInfo modifierType_DataTransfer = {
     /* deformVertsEM */ NULL,
     /* deformMatricesEM */ NULL,
     /* modifyMesh */ modifyMesh,
-    /* modifyHair */ NULL,
     /* modifyGeometrySet */ NULL,
 
     /* initData */ initData,

@@ -1,22 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
-# <pep8-80 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 """
 This module contains utility functions specific to blender but
@@ -26,6 +8,7 @@ not associated with blenders internal data.
 __all__ = (
     "blend_paths",
     "escape_identifier",
+    "flip_name",
     "unescape_identifier",
     "keyconfig_init",
     "keyconfig_set",
@@ -61,6 +44,7 @@ from _bpy import (
     _utils_units as units,
     blend_paths,
     escape_identifier,
+    flip_name,
     unescape_identifier,
     register_class,
     resource_path,
@@ -106,7 +90,7 @@ def execfile(filepath, *, mod=None):
     mod_orig = modules.get(mod_name, None)
     modules[mod_name] = mod
 
-    # No error supression, just ensure `sys.modules[mod_name]` is properly restored in the case of an error.
+    # No error suppression, just ensure `sys.modules[mod_name]` is properly restored in the case of an error.
     try:
         mod_spec.loader.exec_module(mod)
     finally:
@@ -503,7 +487,7 @@ def is_path_builtin(path):
     :type path: str
     :rtype: bool
     """
-    # Note that this function is is not optimized for speed,
+    # Note that this function isn't optimized for speed,
     # it's intended to be used to check if it's OK to remove presets.
     #
     # If this is used in a draw-loop for example, we could cache some of the values.

@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2021 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #pragma once
 
@@ -72,7 +59,9 @@ class PathTrace {
    * render result. */
   bool ready_to_reset();
 
-  void reset(const BufferParams &full_params, const BufferParams &big_tile_params);
+  void reset(const BufferParams &full_params,
+             const BufferParams &big_tile_params,
+             bool reset_rendering);
 
   void device_free();
 
@@ -111,6 +100,9 @@ class PathTrace {
 
   /* Perform drawing of the current state of the DisplayDriver. */
   void draw();
+
+  /* Flush outstanding display commands before ending the render loop. */
+  void flush_display();
 
   /* Cancel rendering process as soon as possible, without waiting for full tile to be sampled.
    * Used in cases like reset of render session.
@@ -234,6 +226,9 @@ class PathTrace {
 
   void progress_set_status(const string &status, const string &substatus = "");
 
+  /* Destroy GPU resources (such as graphics interop) used by work. */
+  void destroy_gpu_resources();
+
   /* Pointer to a device which is configured to be used for path tracing. If multiple devices
    * are configured this is a `MultiDevice`. */
   Device *device_ = nullptr;
@@ -241,6 +236,7 @@ class PathTrace {
   /* CPU device for creating temporary render buffers on the CPU side. */
   unique_ptr<Device> cpu_device_;
 
+  Film *film_;
   DeviceScene *device_scene_;
 
   RenderScheduler &render_scheduler_;
@@ -265,6 +261,9 @@ class PathTrace {
 
   /* Denoiser which takes care of denoising the big tile. */
   unique_ptr<Denoiser> denoiser_;
+
+  /* Denoiser device descriptor which holds the denoised big tile for multi-device workloads. */
+  unique_ptr<PathTraceWork> big_tile_denoise_work_;
 
   /* State which is common for all the steps of the render work.
    * Is brought up to date in the `render()` call and is accessed from all the steps involved into

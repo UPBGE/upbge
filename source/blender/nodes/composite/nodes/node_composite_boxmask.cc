@@ -1,40 +1,38 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2006 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2006 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup cmpnodes
  */
 
-#include "../node_composite_util.hh"
+#include <cmath>
+
+#include "BLI_math_vec_types.hh"
+
+#include "UI_interface.h"
+#include "UI_resources.h"
+
+#include "GPU_shader.h"
+
+#include "COM_node_operation.hh"
+#include "COM_utilities.hh"
+
+#include "node_composite_util.hh"
 
 /* **************** SCALAR MATH ******************** */
-static bNodeSocketTemplate cmp_node_boxmask_in[] = {
-    {SOCK_FLOAT, N_("Mask"), 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
-    {SOCK_FLOAT, N_("Value"), 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
-    {-1, ""}};
 
-static bNodeSocketTemplate cmp_node_boxmask_out[] = {
-    {SOCK_FLOAT, N_("Mask"), 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f}, {-1, ""}};
+namespace blender::nodes::node_composite_boxmask_cc {
+
+static void cmp_node_boxmask_declare(NodeDeclarationBuilder &b)
+{
+  b.add_input<decl::Float>(N_("Mask")).default_value(0.0f).min(0.0f).max(1.0f);
+  b.add_input<decl::Float>(N_("Value")).default_value(1.0f).min(0.0f).max(1.0f);
+  b.add_output<decl::Float>(N_("Mask"));
+}
 
 static void node_composit_init_boxmask(bNodeTree *UNUSED(ntree), bNode *node)
 {
-  NodeBoxMask *data = (NodeBoxMask *)MEM_callocN(sizeof(NodeBoxMask), "NodeBoxMask");
+  NodeBoxMask *data = MEM_cnew<NodeBoxMask>(__func__);
   data->x = 0.5;
   data->y = 0.5;
   data->width = 0.2;
@@ -43,14 +41,128 @@ static void node_composit_init_boxmask(bNodeTree *UNUSED(ntree), bNode *node)
   node->storage = data;
 }
 
-void register_node_type_cmp_boxmask(void)
+static void node_composit_buts_boxmask(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
+  uiLayout *row;
+
+  row = uiLayoutRow(layout, true);
+  uiItemR(row, ptr, "x", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  uiItemR(row, ptr, "y", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+
+  row = uiLayoutRow(layout, true);
+  uiItemR(row, ptr, "width", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
+  uiItemR(row, ptr, "height", UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
+
+  uiItemR(layout, ptr, "rotation", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  uiItemR(layout, ptr, "mask_type", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+}
+
+using namespace blender::realtime_compositor;
+
+class BoxMaskOperation : public NodeOperation {
+ public:
+  using NodeOperation::NodeOperation;
+
+  void execute() override
+  {
+    GPUShader *shader = shader_manager().get(get_shader_name());
+    GPU_shader_bind(shader);
+
+    const Domain domain = compute_domain();
+
+    GPU_shader_uniform_2iv(shader, "domain_size", domain.size);
+
+    GPU_shader_uniform_2fv(shader, "location", get_location());
+    GPU_shader_uniform_2fv(shader, "size", get_size() / 2.0f);
+    GPU_shader_uniform_1f(shader, "cos_angle", std::cos(get_angle()));
+    GPU_shader_uniform_1f(shader, "sin_angle", std::sin(get_angle()));
+
+    const Result &input_mask = get_input("Mask");
+    input_mask.bind_as_texture(shader, "base_mask_tx");
+
+    const Result &value = get_input("Value");
+    value.bind_as_texture(shader, "mask_value_tx");
+
+    Result &output_mask = get_result("Mask");
+    output_mask.allocate_texture(domain);
+    output_mask.bind_as_image(shader, "output_mask_img");
+
+    compute_dispatch_threads_at_least(shader, domain.size);
+
+    input_mask.unbind_as_texture();
+    value.unbind_as_texture();
+    output_mask.unbind_as_image();
+    GPU_shader_unbind();
+  }
+
+  Domain compute_domain() override
+  {
+    if (get_input("Mask").is_single_value()) {
+      return Domain(context().get_output_size());
+    }
+    return get_input("Mask").domain();
+  }
+
+  CMPNodeMaskType get_mask_type()
+  {
+    return (CMPNodeMaskType)bnode().custom1;
+  }
+
+  const char *get_shader_name()
+  {
+    switch (get_mask_type()) {
+      default:
+      case CMP_NODE_MASKTYPE_ADD:
+        return "compositor_box_mask_add";
+      case CMP_NODE_MASKTYPE_SUBTRACT:
+        return "compositor_box_mask_subtract";
+      case CMP_NODE_MASKTYPE_MULTIPLY:
+        return "compositor_box_mask_multiply";
+      case CMP_NODE_MASKTYPE_NOT:
+        return "compositor_box_mask_not";
+    }
+  }
+
+  NodeBoxMask &get_node_box_mask()
+  {
+    return *static_cast<NodeBoxMask *>(bnode().storage);
+  }
+
+  float2 get_location()
+  {
+    return float2(get_node_box_mask().x, get_node_box_mask().y);
+  }
+
+  float2 get_size()
+  {
+    return float2(get_node_box_mask().width, get_node_box_mask().height);
+  }
+
+  float get_angle()
+  {
+    return get_node_box_mask().rotation;
+  }
+};
+
+static NodeOperation *get_compositor_operation(Context &context, DNode node)
+{
+  return new BoxMaskOperation(context, node);
+}
+
+}  // namespace blender::nodes::node_composite_boxmask_cc
+
+void register_node_type_cmp_boxmask()
+{
+  namespace file_ns = blender::nodes::node_composite_boxmask_cc;
+
   static bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_MASK_BOX, "Box Mask", NODE_CLASS_MATTE, 0);
-  node_type_socket_templates(&ntype, cmp_node_boxmask_in, cmp_node_boxmask_out);
-  node_type_init(&ntype, node_composit_init_boxmask);
+  cmp_node_type_base(&ntype, CMP_NODE_MASK_BOX, "Box Mask", NODE_CLASS_MATTE);
+  ntype.declare = file_ns::cmp_node_boxmask_declare;
+  ntype.draw_buttons = file_ns::node_composit_buts_boxmask;
+  node_type_init(&ntype, file_ns::node_composit_init_boxmask);
   node_type_storage(&ntype, "NodeBoxMask", node_free_standard_storage, node_copy_standard_storage);
+  ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
   nodeRegisterType(&ntype);
 }

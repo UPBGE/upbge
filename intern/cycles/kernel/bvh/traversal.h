@@ -1,21 +1,8 @@
-/*
+/* SPDX-License-Identifier: Apache-2.0
  * Adapted from code Copyright 2009-2010 NVIDIA Corporation,
  * and code copyright 2009-2012 Intel Corporation
  *
- * Modifications Copyright 2011-2013, Blender Foundation.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+ * Modifications Copyright 2011-2022 Blender Foundation. */
 
 #if BVH_FEATURE(BVH_HAIR)
 #  define NODE_INTERSECT bvh_node_intersect
@@ -28,6 +15,7 @@
  * without new features slowing things down.
  *
  * BVH_HAIR: hair curve rendering
+ * BVH_POINTCLOUD: point cloud rendering
  * BVH_MOTION: motion blur rendering
  */
 
@@ -55,13 +43,10 @@ ccl_device_noinline bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals kg,
   float3 P = ray->P;
   float3 dir = bvh_clamp_direction(ray->D);
   float3 idir = bvh_inverse_direction(dir);
+  const float tmin = ray->tmin;
   int object = OBJECT_NONE;
 
-#if BVH_FEATURE(BVH_MOTION)
-  Transform ob_itfm;
-#endif
-
-  isect->t = ray->t;
+  isect->t = ray->tmax;
   isect->u = 0.0f;
   isect->v = 0.0f;
   isect->prim = PRIM_NONE;
@@ -74,7 +59,7 @@ ccl_device_noinline bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals kg,
       while (node_addr >= 0 && node_addr != ENTRYPOINT_SENTINEL) {
         int node_addr_child1, traverse_mask;
         float dist[2];
-        float4 cnodes = kernel_tex_fetch(__bvh_nodes, node_addr + 0);
+        float4 cnodes = kernel_data_fetch(bvh_nodes, node_addr + 0);
 
         {
           traverse_mask = NODE_INTERSECT(kg,
@@ -83,6 +68,7 @@ ccl_device_noinline bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals kg,
                                          dir,
 #endif
                                          idir,
+                                         tmin,
                                          isect->t,
                                          node_addr,
                                          visibility,
@@ -120,7 +106,7 @@ ccl_device_noinline bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals kg,
 
       /* if node is leaf, fetch triangle list */
       if (node_addr < 0) {
-        float4 leaf = kernel_tex_fetch(__bvh_leaf_nodes, (-node_addr - 1));
+        float4 leaf = kernel_data_fetch(bvh_leaf_nodes, (-node_addr - 1));
         int prim_addr = __float_as_int(leaf.x);
 
         if (prim_addr >= 0) {
@@ -132,79 +118,117 @@ ccl_device_noinline bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals kg,
           --stack_ptr;
 
           /* primitive intersection */
-          switch (type & PRIMITIVE_ALL) {
-            case PRIMITIVE_TRIANGLE: {
-              for (; prim_addr < prim_addr2; prim_addr++) {
-                kernel_assert(kernel_tex_fetch(__prim_type, prim_addr) == type);
-                if (triangle_intersect(
-                        kg, isect, P, dir, isect->t, visibility, object, prim_addr)) {
+          for (; prim_addr < prim_addr2; prim_addr++) {
+            kernel_assert(kernel_data_fetch(prim_type, prim_addr) == type);
+
+            const int prim_object = (object == OBJECT_NONE) ?
+                                        kernel_data_fetch(prim_object, prim_addr) :
+                                        object;
+            const int prim = kernel_data_fetch(prim_index, prim_addr);
+            if (intersection_skip_self_shadow(ray->self, prim_object, prim)) {
+              continue;
+            }
+
+            switch (type & PRIMITIVE_ALL) {
+              case PRIMITIVE_TRIANGLE: {
+                if (triangle_intersect(kg,
+                                       isect,
+                                       P,
+                                       dir,
+                                       tmin,
+                                       isect->t,
+                                       visibility,
+                                       prim_object,
+                                       prim,
+                                       prim_addr)) {
                   /* shadow ray early termination */
                   if (visibility & PATH_RAY_SHADOW_OPAQUE)
                     return true;
                 }
+                break;
               }
-              break;
-            }
 #if BVH_FEATURE(BVH_MOTION)
-            case PRIMITIVE_MOTION_TRIANGLE: {
-              for (; prim_addr < prim_addr2; prim_addr++) {
-                kernel_assert(kernel_tex_fetch(__prim_type, prim_addr) == type);
-                if (motion_triangle_intersect(
-                        kg, isect, P, dir, isect->t, ray->time, visibility, object, prim_addr)) {
+              case PRIMITIVE_MOTION_TRIANGLE: {
+                if (motion_triangle_intersect(kg,
+                                              isect,
+                                              P,
+                                              dir,
+                                              tmin,
+                                              isect->t,
+                                              ray->time,
+                                              visibility,
+                                              prim_object,
+                                              prim,
+                                              prim_addr)) {
                   /* shadow ray early termination */
                   if (visibility & PATH_RAY_SHADOW_OPAQUE)
                     return true;
                 }
+                break;
               }
-              break;
-            }
 #endif /* BVH_FEATURE(BVH_MOTION) */
 #if BVH_FEATURE(BVH_HAIR)
-            case PRIMITIVE_CURVE_THICK:
-            case PRIMITIVE_MOTION_CURVE_THICK:
-            case PRIMITIVE_CURVE_RIBBON:
-            case PRIMITIVE_MOTION_CURVE_RIBBON: {
-              for (; prim_addr < prim_addr2; prim_addr++) {
-                if ((type & PRIMITIVE_ALL_MOTION) && kernel_data.bvh.use_bvh_steps) {
-                  const float2 prim_time = kernel_tex_fetch(__prim_time, prim_addr);
+              case PRIMITIVE_CURVE_THICK:
+              case PRIMITIVE_MOTION_CURVE_THICK:
+              case PRIMITIVE_CURVE_RIBBON:
+              case PRIMITIVE_MOTION_CURVE_RIBBON: {
+                if ((type & PRIMITIVE_MOTION) && kernel_data.bvh.use_bvh_steps) {
+                  const float2 prim_time = kernel_data_fetch(prim_time, prim_addr);
                   if (ray->time < prim_time.x || ray->time > prim_time.y) {
-                    continue;
+                    break;
                   }
                 }
 
-                const int curve_object = (object == OBJECT_NONE) ?
-                                             kernel_tex_fetch(__prim_object, prim_addr) :
-                                             object;
-                const int curve_prim = kernel_tex_fetch(__prim_index, prim_addr);
-                const int curve_type = kernel_tex_fetch(__prim_type, prim_addr);
+                const int curve_type = kernel_data_fetch(prim_type, prim_addr);
                 const bool hit = curve_intersect(
-                    kg, isect, P, dir, isect->t, curve_object, curve_prim, ray->time, curve_type);
+                    kg, isect, P, dir, tmin, isect->t, prim_object, prim, ray->time, curve_type);
                 if (hit) {
                   /* shadow ray early termination */
                   if (visibility & PATH_RAY_SHADOW_OPAQUE)
                     return true;
                 }
+                break;
               }
-              break;
-            }
 #endif /* BVH_FEATURE(BVH_HAIR) */
+#if BVH_FEATURE(BVH_POINTCLOUD)
+              case PRIMITIVE_POINT:
+              case PRIMITIVE_MOTION_POINT: {
+                if ((type & PRIMITIVE_MOTION) && kernel_data.bvh.use_bvh_steps) {
+                  const float2 prim_time = kernel_data_fetch(prim_time, prim_addr);
+                  if (ray->time < prim_time.x || ray->time > prim_time.y) {
+                    break;
+                  }
+                }
+
+                const int point_type = kernel_data_fetch(prim_type, prim_addr);
+                const bool hit = point_intersect(
+                    kg, isect, P, dir, tmin, isect->t, prim_object, prim, ray->time, point_type);
+                if (hit) {
+                  /* shadow ray early termination */
+                  if (visibility & PATH_RAY_SHADOW_OPAQUE)
+                    return true;
+                }
+                break;
+              }
+#endif /* BVH_FEATURE(BVH_POINTCLOUD) */
+            }
           }
         }
         else {
           /* instance push */
-          object = kernel_tex_fetch(__prim_object, -prim_addr - 1);
+          object = kernel_data_fetch(prim_object, -prim_addr - 1);
 
 #if BVH_FEATURE(BVH_MOTION)
-          isect->t *= bvh_instance_motion_push(kg, object, ray, &P, &dir, &idir, &ob_itfm);
+          bvh_instance_motion_push(kg, object, ray, &P, &dir, &idir);
 #else
-          isect->t *= bvh_instance_push(kg, object, ray, &P, &dir, &idir);
+          bvh_instance_push(kg, object, ray, &P, &dir, &idir);
 #endif
 
           ++stack_ptr;
           kernel_assert(stack_ptr < BVH_STACK_SIZE);
           traversal_stack[stack_ptr] = ENTRYPOINT_SENTINEL;
 
-          node_addr = kernel_tex_fetch(__object_node, object);
+          node_addr = kernel_data_fetch(object_node, object);
         }
       }
     } while (node_addr != ENTRYPOINT_SENTINEL);
@@ -213,11 +237,7 @@ ccl_device_noinline bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals kg,
       kernel_assert(object != OBJECT_NONE);
 
       /* instance pop */
-#if BVH_FEATURE(BVH_MOTION)
-      isect->t = bvh_instance_motion_pop(kg, object, ray, &P, &dir, &idir, isect->t, &ob_itfm);
-#else
-      isect->t = bvh_instance_pop(kg, object, ray, &P, &dir, &idir, isect->t);
-#endif
+      bvh_instance_pop(ray, &P, &dir, &idir);
 
       object = OBJECT_NONE;
       node_addr = traversal_stack[stack_ptr];

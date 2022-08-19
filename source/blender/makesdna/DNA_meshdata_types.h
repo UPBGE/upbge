@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup DNA
@@ -41,23 +25,19 @@ extern "C" {
  */
 typedef struct MVert {
   float co[3];
-  /**
-   * Cache the normal, can always be recalculated from surrounding faces.
-   * See #CD_CUSTOMLOOPNORMAL for custom normals.
-   */
-  short no[3];
   char flag, bweight;
+  char _pad[2];
 } MVert;
 
 /** #MVert.flag */
+
+#ifdef DNA_DEPRECATED_ALLOW
 enum {
   /*  SELECT = (1 << 0), */
-  ME_VERT_TMP_TAG = (1 << 2),
+  /** Deprecated hide status. Now stored in ".hide_vert" attribute. */
   ME_HIDE = (1 << 4),
-  ME_VERT_FACEDOT = (1 << 5),
-  /*  ME_VERT_MERGED = (1 << 6), */
-  ME_VERT_PBVH_UPDATE = (1 << 7),
 };
+#endif
 
 /**
  * Mesh Edges.
@@ -76,10 +56,10 @@ enum {
   /*  SELECT = (1 << 0), */
   ME_EDGEDRAW = (1 << 1),
   ME_SEAM = (1 << 2),
+  /** Deprecated hide status. Now stored in ".hide_edge" attribute. */
   /*  ME_HIDE = (1 << 4), */
   ME_EDGERENDER = (1 << 5),
   ME_LOOSEEDGE = (1 << 7),
-  ME_EDGE_TMP_TAG = (1 << 8),
   ME_SHARP = (1 << 9), /* only reason this flag remains a 'short' */
 };
 
@@ -102,23 +82,20 @@ typedef struct MPoly {
 enum {
   ME_SMOOTH = (1 << 0),
   ME_FACE_SEL = (1 << 1),
+  /** Deprecated hide status. Now stored in ".hide_poly" attribute. */
   /* ME_HIDE = (1 << 4), */
 };
 
 /**
- * Mesh Loops.
- * Each loop represents the corner of a polygon (#MPoly).
+ * Mesh Face Corners.
+ * "Loop" is an internal name for the corner of a polygon (#MPoly).
  *
  * Typically accessed from #Mesh.mloop.
  */
 typedef struct MLoop {
-  /** Vertex index. */
+  /** Vertex index into an #MVert array. */
   unsigned int v;
-  /**
-   * Edge index.
-   *
-   * \note The e here is because we want to move away from relying on edge hashes.
-   */
+  /** Edge index into an #MEdge array. */
   unsigned int e;
 } MLoop;
 
@@ -274,6 +251,9 @@ typedef struct MStringProperty {
 typedef struct MBoolProperty {
   uint8_t b;
 } MBoolProperty;
+typedef struct MInt8Property {
+  int8_t i;
+} MInt8Property;
 
 /** \} */
 
@@ -291,8 +271,22 @@ typedef struct MDeformWeight {
   float weight;
 } MDeformWeight;
 
+/**
+ * Stores all of an element's vertex groups, and their weight values.
+ */
 typedef struct MDeformVert {
+  /**
+   * Array of weight indices and values.
+   * - There must not be any duplicate #def_nr indices.
+   * - Groups in the array are unordered.
+   * - Indices outside the usable range of groups are ignored.
+   */
   struct MDeformWeight *dw;
+  /**
+   * The length of the #dw array.
+   * \note This is not necessarily the same length as the total number of vertex groups.
+   * However, generally it isn't larger.
+   */
   int totweight;
   /** Flag is only in use as a run-time tag at the moment. */
   int flag;
@@ -337,7 +331,7 @@ typedef struct MLoopUV {
 
 /** #MLoopUV.flag */
 enum {
-  /* MLOOPUV_DEPRECATED = (1 << 0), MLOOPUV_EDGESEL removed */
+  MLOOPUV_EDGESEL = (1 << 0),
   MLOOPUV_VERTSEL = (1 << 1),
   MLOOPUV_PINNED = (1 << 2),
 };
@@ -363,7 +357,7 @@ typedef struct MDisps {
 
   /**
    * Used for hiding parts of a multires mesh.
-   * Essentially the multires equivalent of #MVert.flag's ME_HIDE bit.
+   * Essentially the multires equivalent of the mesh ".hide_vert" boolean layer.
    *
    * \note This is a bitmap, keep in sync with type used in BLI_bitmap.h
    */

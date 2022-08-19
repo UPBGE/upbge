@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2013 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2013 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup depsgraph
@@ -29,8 +13,7 @@
 
 struct Depsgraph;
 
-namespace blender {
-namespace deg {
+namespace blender::deg {
 
 struct ComponentNode;
 
@@ -50,6 +33,7 @@ enum class OperationCode {
   PARAMETERS_ENTRY,
   PARAMETERS_EVAL,
   PARAMETERS_EXIT,
+  VISIBILITY,
 
   /* Animation, Drivers, etc. --------------------------------------------- */
   /* NLA + Action */
@@ -100,6 +84,8 @@ enum class OperationCode {
   /* Initialize evaluation of the geometry. Is an entry operation of geometry
    * component. */
   GEOMETRY_EVAL_INIT,
+  /* Modifier. */
+  MODIFIER,
   /* Evaluate the whole geometry, including modifiers. */
   GEOMETRY_EVAL,
   /* Evaluation of geometry is completely done. */
@@ -177,6 +163,9 @@ enum class OperationCode {
   LIGHT_UPDATE,
   WORLD_UPDATE,
 
+  /* Node Tree. ----------------------------------------------------------- */
+  NTREE_OUTPUT,
+
   /* Batch caches. -------------------------------------------------------- */
   GEOMETRY_SELECT_UPDATE,
 
@@ -215,14 +204,23 @@ const char *operationCodeAsString(OperationCode opcode);
 enum OperationFlag {
   /* Node needs to be updated. */
   DEPSOP_FLAG_NEEDS_UPDATE = (1 << 0),
+
   /* Node was directly modified, causing need for update. */
   DEPSOP_FLAG_DIRECTLY_MODIFIED = (1 << 1),
+
   /* Node was updated due to user input. */
   DEPSOP_FLAG_USER_MODIFIED = (1 << 2),
-  /* Node may not be removed, even when it has no evaluation callback and no
-   * outgoing relations. This is for NO-OP nodes that are purely used to indicate a
-   * relation between components/IDs, and not for connecting to an operation. */
+
+  /* Node may not be removed, even when it has no evaluation callback and no outgoing relations.
+   * This is for NO-OP nodes that are purely used to indicate a relation between components/IDs,
+   * and not for connecting to an operation. */
   DEPSOP_FLAG_PINNED = (1 << 3),
+
+  /* The operation directly or indirectly affects ID node visibility. */
+  DEPSOP_FLAG_AFFECTS_VISIBILITY = (1 << 4),
+
+  /* Evaluation of the node is temporarily disabled. */
+  DEPSOP_FLAG_MUTE = (1 << 5),
 
   /* Set of flags which gets flushed along the relations. */
   DEPSOP_FLAG_FLUSH = (DEPSOP_FLAG_USER_MODIFIED),
@@ -233,6 +231,10 @@ struct OperationNode : public Node {
   OperationNode();
 
   virtual string identifier() const override;
+  /**
+   * Full node identifier, including owner name.
+   * used for logging and debug prints.
+   */
   string full_identifier() const;
 
   virtual void tag_update(Depsgraph *graph, eUpdateSource source) override;
@@ -277,5 +279,4 @@ struct OperationNode : public Node {
 
 void deg_register_operation_depsnodes();
 
-}  // namespace deg
-}  // namespace blender
+}  // namespace blender::deg

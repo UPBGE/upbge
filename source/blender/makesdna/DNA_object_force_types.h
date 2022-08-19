@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2004-2005 by Blender Foundation
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2004-2005 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup DNA
@@ -32,7 +16,7 @@ extern "C" {
 
 struct BodySpring;
 
-/* pd->forcefield:  Effector Fields types */
+/** #PartDeflect.forcefield: Effector Fields types. */
 typedef enum ePFieldType {
   /** (this is used for general effector weight). */
   PFIELD_NULL = 0,
@@ -203,6 +187,61 @@ typedef struct SoftBody_Shared {
   struct PointCache *pointcache;
   struct ListBase ptcaches;
 } SoftBody_Shared;
+
+typedef struct BulletSoftBody {
+  int flag;       /* various boolean options */
+  float linStiff; /* linear stiffness 0..1 */
+  float angStiff; /* angular stiffness 0..1 */
+  float volume;   /* volume preservation 0..1 */
+
+  int viterations; /* Velocities solver iterations */
+  int piterations; /* Positions solver iterations */
+  int diterations; /* Drift solver iterations */
+  int citerations; /* Cluster solver iterations */
+
+  float kSRHR_CL;    /* Soft vs rigid hardness [0,1] (cluster only) */
+  float kSKHR_CL;    /* Soft vs kinetic hardness [0,1] (cluster only) */
+  float kSSHR_CL;    /* Soft vs soft hardness [0,1] (cluster only) */
+  float kSR_SPLT_CL; /* Soft vs rigid impulse split [0,1] (cluster only) */
+
+  float kSK_SPLT_CL; /* Soft vs rigid impulse split [0,1] (cluster only) */
+  float kSS_SPLT_CL; /* Soft vs rigid impulse split [0,1] (cluster only) */
+  float kVCF;        /* Velocities correction factor (Baumgarte) */
+  float kDP;         /* Damping coefficient [0,1] */
+
+  float kDG; /* Drag coefficient [0,+inf] */
+  float kLF; /* Lift coefficient [0,+inf] */
+  float kPR; /* Pressure coefficient [-inf,+inf] */
+  float kVC; /* Volume conversation coefficient [0,+inf] */
+
+  float kDF;  /* Dynamic friction coefficient [0,1] */
+  float kMT;  /* Pose matching coefficient [0,1] */
+  float kCHR; /* Rigid contacts hardness [0,1] */
+  float kKHR; /* Kinetic contacts hardness [0,1] */
+
+  float kSHR;         /* Soft contacts hardness [0,1] */
+  float kAHR;         /* Anchors hardness [0,1] */
+  int collisionflags; /* Vertex/Face or Signed Distance Field(SDF) or Clusters, Soft versus Soft or
+                         Rigid */
+  int numclusteriterations; /* number of iterations to refine collision clusters*/
+  int bending_dist;         /* Bending constraint distance */
+  float welding;            /* welding limit to remove duplicate/nearby vertices, 0.0..0.01 */
+  float margin;             /* margin specific to softbody */
+  int _pad;
+} BulletSoftBody;
+
+/* BulletSoftBody.flag */
+#define OB_BSB_SHAPE_MATCHING 2
+// #define OB_BSB_UNUSED 4
+#define OB_BSB_BENDING_CONSTRAINTS 8
+#define OB_BSB_AERO_VPOINT 16 /* aero model, Vertex normals are oriented toward velocity*/
+// #define OB_BSB_AERO_VTWOSIDE 32 /* aero model, Vertex normals are flipped to match velocity */
+
+/* BulletSoftBody.collisionflags */
+#define OB_BSB_COL_SDF_RS 2 /* SDF based rigid vs soft */
+#define OB_BSB_COL_CL_RS 4  /* Cluster based rigid vs soft */
+#define OB_BSB_COL_CL_SS 8  /* Cluster based soft vs soft */
+#define OB_BSB_COL_VF_SS 16 /* Vertex/Face based soft vs soft */
 
 typedef struct SoftBody {
   /* dynamic data */

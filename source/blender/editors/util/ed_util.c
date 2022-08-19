@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2008 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2008 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup edutil
@@ -35,6 +19,9 @@
 
 #include "BKE_collection.h"
 #include "BKE_global.h"
+#include "BKE_layer.h"
+#include "BKE_lib_id.h"
+#include "BKE_lib_remap.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_multires.h"
@@ -46,12 +33,15 @@
 
 #include "DEG_depsgraph.h"
 
+#include "DNA_gpencil_types.h"
+
 #include "ED_armature.h"
 #include "ED_asset.h"
 #include "ED_image.h"
 #include "ED_mesh.h"
 #include "ED_object.h"
 #include "ED_paint.h"
+#include "ED_screen.h"
 #include "ED_space_api.h"
 #include "ED_util.h"
 
@@ -116,6 +106,10 @@ void ED_editors_init(bContext *C)
       /* For multi-edit mode we may already have mode data (grease pencil does not need it).
        * However we may have a non-active object stuck in a grease-pencil edit mode. */
       if (ob != obact) {
+        bGPdata *gpd = (bGPdata *)ob->data;
+        gpd->flag &= ~(GP_DATA_STROKE_PAINTMODE | GP_DATA_STROKE_EDITMODE |
+                       GP_DATA_STROKE_SCULPTMODE | GP_DATA_STROKE_WEIGHTMODE |
+                       GP_DATA_STROKE_VERTEXMODE);
         ob->mode = OB_MODE_OBJECT;
         DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
       }
@@ -133,8 +127,9 @@ void ED_editors_init(bContext *C)
     if (obact == NULL || ob->type != obact->type) {
       continue;
     }
-    /* Object mode is enforced for linked data (or their obdata). */
-    if (ID_IS_LINKED(ob) || (ob_data != NULL && ID_IS_LINKED(ob_data))) {
+    /* Object mode is enforced for non-editable data (or their obdata). */
+    if (!BKE_id_is_editable(bmain, &ob->id) ||
+        (ob_data != NULL && !BKE_id_is_editable(bmain, ob_data))) {
       continue;
     }
 
@@ -144,8 +139,12 @@ void ED_editors_init(bContext *C)
       ED_object_posemode_enter_ex(bmain, ob);
     }
 
-    /* Other edit/paint/etc. modes are only settable for objects in active scene currently. */
-    if (!BKE_collection_has_object_recursive(scene->master_collection, ob)) {
+    /* Other edit/paint/etc. modes are only settable for objects visible in active scene currently.
+     * Otherwise, they (and their obdata) may not be (fully) evaluated, which is mandatory for some
+     * modes like Sculpt.
+     * Ref. T98225. */
+    if (!BKE_collection_has_object_recursive(scene->master_collection, ob) ||
+        !BKE_scene_has_object(scene, ob) || (ob->visibility_flag & OB_HIDE_VIEWPORT) != 0) {
       continue;
     }
 
@@ -177,7 +176,7 @@ void ED_editors_init(bContext *C)
       }
     }
     else {
-      /* TODO(campbell): avoid operator calls. */
+      /* TODO(@campbellbarton): avoid operator calls. */
       if (obact == ob) {
         ED_object_mode_set(C, mode);
       }
@@ -189,13 +188,24 @@ void ED_editors_init(bContext *C)
     ED_space_image_paint_update(bmain, wm, scene);
   }
 
+  /* Enforce a full redraw for the first time areas/regions get drawn. Further region init/refresh
+   * just triggers non-rebuild redraws (#RGN_DRAW_NO_REBUILD). Usually a full redraw would be
+   * triggered by a `NC_WM | ND_FILEREAD` notifier, but if a startup script calls an operator that
+   * redraws the window, notifiers are not handled before the operator runs. See T98461. */
+  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
+    const bScreen *screen = WM_window_get_active_screen(win);
+
+    ED_screen_areas_iter (win, screen, area) {
+      ED_area_tag_redraw(area);
+    }
+  }
+
   ED_assetlist_storage_tag_main_data_dirty();
 
   SWAP(int, reports->flag, reports_flag_prev);
   wm->op_undo_depth--;
 }
 
-/* frees all editmode stuff */
 void ED_editors_exit(Main *bmain, bool do_undo_system)
 {
   if (!bmain) {
@@ -291,8 +301,6 @@ bool ED_editors_flush_edits_for_object(Main *bmain, Object *ob)
   return ED_editors_flush_edits_for_object_ex(bmain, ob, false, false);
 }
 
-/* flush any temp data from object editing to DNA before writing files,
- * rendering, copying, etc. */
 bool ED_editors_flush_edits_ex(Main *bmain, bool for_render, bool check_needs_flush)
 {
   bool has_edited = false;
@@ -317,13 +325,8 @@ bool ED_editors_flush_edits(Main *bmain)
 
 /* ***** XXX: functions are using old blender names, cleanup later ***** */
 
-/**
- * Now only used in 2D spaces, like time, f-curve, NLA, image, etc.
- *
- * \note Shift/Control are not configurable key-bindings.
- */
 void apply_keyb_grid(
-    int shift, int ctrl, float *val, float fac1, float fac2, float fac3, int invert)
+    bool shift, bool ctrl, float *val, float fac1, float fac2, float fac3, int invert)
 {
   /* fac1 is for 'nothing', fac2 for CTRL, fac3 for SHIFT */
   if (invert) {
@@ -360,6 +363,7 @@ void unpack_menu(bContext *C,
   uiLayout *layout;
   char line[FILE_MAX + 100];
   wmOperatorType *ot = WM_operatortype_find(opname, 1);
+  const char *blendfile_path = BKE_main_blendfile_path(bmain);
 
   pup = UI_popup_menu_begin(C, IFACE_("Unpack File"), ICON_NONE);
   layout = UI_popup_menu_layout(pup);
@@ -369,13 +373,13 @@ void unpack_menu(bContext *C,
   RNA_enum_set(&props_ptr, "method", PF_REMOVE);
   RNA_string_set(&props_ptr, "id", id_name);
 
-  if (G.relbase_valid) {
+  if (blendfile_path[0] != '\0') {
     char local_name[FILE_MAXDIR + FILE_MAX], fi[FILE_MAX];
 
     BLI_split_file_part(abs_name, fi, sizeof(fi));
     BLI_snprintf(local_name, sizeof(local_name), "//%s/%s", folder, fi);
     if (!STREQ(abs_name, local_name)) {
-      switch (BKE_packedfile_compare_to_file(BKE_main_blendfile_path(bmain), local_name, pf)) {
+      switch (BKE_packedfile_compare_to_file(blendfile_path, local_name, pf)) {
         case PF_CMP_NOFILE:
           BLI_snprintf(line, sizeof(line), TIP_("Create %s"), local_name);
           uiItemFullO_ptr(layout, ot, line, ICON_NONE, NULL, WM_OP_EXEC_DEFAULT, 0, &props_ptr);
@@ -408,7 +412,7 @@ void unpack_menu(bContext *C,
     }
   }
 
-  switch (BKE_packedfile_compare_to_file(BKE_main_blendfile_path(bmain), abs_name, pf)) {
+  switch (BKE_packedfile_compare_to_file(blendfile_path, abs_name, pf)) {
     case PF_CMP_NOFILE:
       BLI_snprintf(line, sizeof(line), TIP_("Create %s"), abs_name);
       // uiItemEnumO_ptr(layout, ot, line, 0, "method", PF_WRITE_ORIGINAL);
@@ -441,16 +445,27 @@ void unpack_menu(bContext *C,
   UI_popup_menu_end(C, pup);
 }
 
-/**
- * Use to free ID references within runtime data (stored outside of DNA)
- *
- * \param new_id: may be NULL to unlink \a old_id.
- */
-void ED_spacedata_id_remap(struct ScrArea *area, struct SpaceLink *sl, ID *old_id, ID *new_id)
+void ED_spacedata_id_remap(struct ScrArea *area,
+                           struct SpaceLink *sl,
+                           const struct IDRemapper *mappings)
+{
+  SpaceType *st = BKE_spacetype_from_id(sl->spacetype);
+  if (st && st->id_remap) {
+    st->id_remap(area, sl, mappings);
+  }
+}
+
+void ED_spacedata_id_remap_single(struct ScrArea *area,
+                                  struct SpaceLink *sl,
+                                  ID *old_id,
+                                  ID *new_id)
 {
   SpaceType *st = BKE_spacetype_from_id(sl->spacetype);
 
   if (st && st->id_remap) {
-    st->id_remap(area, sl, old_id, new_id);
+    struct IDRemapper *mappings = BKE_id_remapper_create();
+    BKE_id_remapper_add(mappings, old_id, new_id);
+    st->id_remap(area, sl, mappings);
+    BKE_id_remapper_free(mappings);
   }
 }

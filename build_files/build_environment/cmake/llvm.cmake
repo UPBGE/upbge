@@ -1,20 +1,4 @@
-# ***** BEGIN GPL LICENSE BLOCK *****
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ***** END GPL LICENSE BLOCK *****
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 if(BLENDER_PLATFORM_ARM)
   set(LLVM_TARGETS AArch64$<SEMICOLON>ARM)
@@ -41,11 +25,14 @@ set(LLVM_EXTRA_ARGS
   -DLLVM_BUILD_LLVM_C_DYLIB=OFF
   -DLLVM_ENABLE_UNWIND_TABLES=OFF
   -DLLVM_ENABLE_PROJECTS=clang${LLVM_BUILD_CLANG_TOOLS_EXTRA}
+  -DPython3_ROOT_DIR=${LIBDIR}/python/
+  -DPython3_EXECUTABLE=${PYTHON_BINARY}
   ${LLVM_XML2_ARGS}
 )
 
 if(WIN32)
   set(LLVM_GENERATOR "Ninja")
+  list(APPEND LLVM_EXTRA_ARGS -DPython3_FIND_REGISTRY=NEVER)
 else()
   set(LLVM_GENERATOR "Unix Makefiles")
 endif()
@@ -90,3 +77,8 @@ if(APPLE)
     external_xml2
   )
 endif()
+
+add_dependencies(
+  ll
+  external_python
+)

@@ -1,4 +1,4 @@
-/* Apache License, Version 2.0 */
+/* SPDX-License-Identifier: Apache-2.0 */
 
 #include "testing/testing.h"
 
@@ -8,6 +8,43 @@
 #include "FN_multi_function_test_common.hh"
 
 namespace blender::fn::tests {
+
+TEST(multi_function_procedure, ConstantOutput)
+{
+  /**
+   * procedure(int *var2) {
+   *   var1 = 5;
+   *   var2 = var1 + var1;
+   * }
+   */
+
+  CustomMF_Constant<int> constant_fn{5};
+  CustomMF_SI_SI_SO<int, int, int> add_fn{"Add", [](int a, int b) { return a + b; }};
+
+  MFProcedure procedure;
+  MFProcedureBuilder builder{procedure};
+
+  auto [var1] = builder.add_call<1>(constant_fn);
+  auto [var2] = builder.add_call<1>(add_fn, {var1, var1});
+  builder.add_destruct(*var1);
+  builder.add_return();
+  builder.add_output_parameter(*var2);
+
+  EXPECT_TRUE(procedure.validate());
+
+  MFProcedureExecutor executor{procedure};
+
+  MFParamsBuilder params{executor, 2};
+  MFContextBuilder context;
+
+  Array<int> output_array(2);
+  params.add_uninitialized_single_output(output_array.as_mutable_span());
+
+  executor.call(IndexRange(2), params, context);
+
+  EXPECT_EQ(output_array[0], 10);
+  EXPECT_EQ(output_array[1], 10);
+}
 
 TEST(multi_function_procedure, SimpleTest)
 {
@@ -36,7 +73,7 @@ TEST(multi_function_procedure, SimpleTest)
 
   EXPECT_TRUE(procedure.validate());
 
-  MFProcedureExecutor executor{"My Procedure", procedure};
+  MFProcedureExecutor executor{procedure};
 
   MFParamsBuilder params{executor, 3};
   MFContextBuilder context;
@@ -88,7 +125,7 @@ TEST(multi_function_procedure, BranchTest)
 
   EXPECT_TRUE(procedure.validate());
 
-  MFProcedureExecutor procedure_fn{"Condition Test", procedure};
+  MFProcedureExecutor procedure_fn{procedure};
   MFParamsBuilder params(procedure_fn, 5);
 
   Array<int> values_a = {1, 5, 3, 6, 2};
@@ -130,7 +167,7 @@ TEST(multi_function_procedure, EvaluateOne)
   builder.add_return();
   builder.add_output_parameter(*var2);
 
-  MFProcedureExecutor procedure_fn{"Evaluate One", procedure};
+  MFProcedureExecutor procedure_fn{procedure};
   MFParamsBuilder params{procedure_fn, 5};
 
   Array<int> values_out = {1, 2, 3, 4, 5};
@@ -202,7 +239,7 @@ TEST(multi_function_procedure, SimpleLoop)
 
   EXPECT_TRUE(procedure.validate());
 
-  MFProcedureExecutor procedure_fn{"Simple Loop", procedure};
+  MFProcedureExecutor procedure_fn{procedure};
   MFParamsBuilder params{procedure_fn, 5};
 
   Array<int> counts = {4, 3, 7, 6, 4};
@@ -258,7 +295,7 @@ TEST(multi_function_procedure, Vectors)
 
   EXPECT_TRUE(procedure.validate());
 
-  MFProcedureExecutor procedure_fn{"Vectors", procedure};
+  MFProcedureExecutor procedure_fn{procedure};
   MFParamsBuilder params{procedure_fn, 5};
 
   Array<int> v1 = {5, 2, 3};
@@ -322,7 +359,7 @@ TEST(multi_function_procedure, BufferReuse)
 
   EXPECT_TRUE(procedure.validate());
 
-  MFProcedureExecutor procedure_fn{"Buffer Reuse", procedure};
+  MFProcedureExecutor procedure_fn{procedure};
 
   Array<int> inputs = {4, 1, 6, 2, 3};
   Array<int> results(5, -1);
@@ -339,6 +376,36 @@ TEST(multi_function_procedure, BufferReuse)
   EXPECT_EQ(results[2], 56);
   EXPECT_EQ(results[3], 52);
   EXPECT_EQ(results[4], 53);
+}
+
+TEST(multi_function_procedure, OutputBufferReplaced)
+{
+  MFProcedure procedure;
+  MFProcedureBuilder builder{procedure};
+
+  const int output_value = 42;
+  CustomMF_GenericConstant constant_fn(CPPType::get<int>(), &output_value, false);
+  MFVariable &var_o = procedure.new_variable(MFDataType::ForSingle<int>());
+  builder.add_output_parameter(var_o);
+  builder.add_call_with_all_variables(constant_fn, {&var_o});
+  builder.add_destruct(var_o);
+  builder.add_call_with_all_variables(constant_fn, {&var_o});
+  builder.add_return();
+
+  EXPECT_TRUE(procedure.validate());
+
+  MFProcedureExecutor procedure_fn{procedure};
+
+  Array<int> output(3, 0);
+  fn::MFParamsBuilder params(procedure_fn, output.size());
+  params.add_uninitialized_single_output(output.as_mutable_span());
+
+  fn::MFContextBuilder context;
+  procedure_fn.call(IndexMask(output.size()), params, context);
+
+  EXPECT_EQ(output[0], output_value);
+  EXPECT_EQ(output[1], output_value);
+  EXPECT_EQ(output[2], output_value);
 }
 
 }  // namespace blender::fn::tests

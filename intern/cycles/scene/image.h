@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #ifndef __IMAGE_H__
 #define __IMAGE_H__
@@ -100,7 +87,6 @@ class ImageMetaData {
 /* Information about supported features that Image loaders can use. */
 class ImageDeviceFeatures {
  public:
-  bool has_half_float;
   bool has_nanovdb;
 };
 
@@ -125,6 +111,9 @@ class ImageLoader {
 
   /* Optional for OSL texture cache. */
   virtual ustring osl_filepath() const;
+
+  /* Optional for tiled textures loaded externally. */
+  virtual int get_tile_number() const;
 
   /* Free any memory used for loading metadata and pixels. */
   virtual void cleanup(){};
@@ -153,11 +142,12 @@ class ImageHandle {
 
   void clear();
 
-  bool empty();
-  int num_tiles();
+  bool empty() const;
+  int num_tiles() const;
 
   ImageMetaData metadata();
   int svm_slot(const int tile_index = 0) const;
+  vector<int4> get_svm_slots() const;
   device_texture *image_memory(const int tile_index = 0) const;
 
   VDBImageLoader *vdb_loader(const int tile_index = 0) const;
@@ -183,6 +173,7 @@ class ImageManager {
                         const ImageParams &params,
                         const array<int> &tiles);
   ImageHandle add_image(ImageLoader *loader, const ImageParams &params, const bool builtin = true);
+  ImageHandle add_image(const vector<ImageLoader *> &loaders, const ImageParams &params);
 
   void device_update(Device *device, Scene *scene, Progress &progress);
   void device_update_slot(Device *device, Scene *scene, int slot, Progress *progress);

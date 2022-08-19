@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "node_geometry_util.hh"
 
@@ -24,11 +10,15 @@
 
 #include "BKE_material.h"
 
+#include "NOD_socket_search_link.hh"
+
 #include "FN_multi_function_signature.hh"
 
-namespace blender::nodes {
+namespace blender::nodes::node_geo_switch_cc {
 
-static void geo_node_switch_declare(NodeDeclarationBuilder &b)
+NODE_STORAGE_FUNCS(NodeSwitch)
+
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Bool>(N_("Switch")).default_value(false).supports_field();
   b.add_input<decl::Bool>(N_("Switch"), "Switch_001").default_value(false);
@@ -83,78 +73,71 @@ static void geo_node_switch_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Image>(N_("Output"), "Output_011");
 }
 
-static void geo_node_switch_layout(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+static void node_layout(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "input_type", 0, "", ICON_NONE);
 }
 
-static void geo_node_switch_init(bNodeTree *UNUSED(tree), bNode *node)
+static void node_init(bNodeTree *UNUSED(tree), bNode *node)
 {
-  NodeSwitch *data = (NodeSwitch *)MEM_callocN(sizeof(NodeSwitch), __func__);
+  NodeSwitch *data = MEM_cnew<NodeSwitch>(__func__);
   data->input_type = SOCK_GEOMETRY;
   node->storage = data;
 }
 
-static void geo_node_switch_update(bNodeTree *UNUSED(ntree), bNode *node)
+static void node_update(bNodeTree *ntree, bNode *node)
 {
-  NodeSwitch *node_storage = (NodeSwitch *)node->storage;
+  const NodeSwitch &storage = node_storage(*node);
   int index = 0;
   bNodeSocket *field_switch = (bNodeSocket *)node->inputs.first;
   bNodeSocket *non_field_switch = (bNodeSocket *)field_switch->next;
 
-  const bool fields_type = ELEM((eNodeSocketDatatype)node_storage->input_type,
-                                SOCK_FLOAT,
-                                SOCK_INT,
-                                SOCK_BOOLEAN,
-                                SOCK_VECTOR,
-                                SOCK_RGBA,
-                                SOCK_STRING);
+  const bool fields_type = ELEM(
+      storage.input_type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN, SOCK_VECTOR, SOCK_RGBA, SOCK_STRING);
 
-  nodeSetSocketAvailability(field_switch, fields_type);
-  nodeSetSocketAvailability(non_field_switch, !fields_type);
+  nodeSetSocketAvailability(ntree, field_switch, fields_type);
+  nodeSetSocketAvailability(ntree, non_field_switch, !fields_type);
 
   LISTBASE_FOREACH_INDEX (bNodeSocket *, socket, &node->inputs, index) {
     if (index <= 1) {
       continue;
     }
-    nodeSetSocketAvailability(socket,
-                              socket->type == (eNodeSocketDatatype)node_storage->input_type);
+    nodeSetSocketAvailability(ntree, socket, socket->type == storage.input_type);
   }
 
   LISTBASE_FOREACH (bNodeSocket *, socket, &node->outputs) {
-    nodeSetSocketAvailability(socket,
-                              socket->type == (eNodeSocketDatatype)node_storage->input_type);
+    nodeSetSocketAvailability(ntree, socket, socket->type == storage.input_type);
   }
 }
 
-template<typename T> class SwitchFieldsFunction : public fn::MultiFunction {
- public:
-  SwitchFieldsFunction()
-  {
-    static fn::MFSignature signature = create_signature();
-    this->set_signature(&signature);
+static void node_gather_link_searches(GatherLinkSearchOpParams &params)
+{
+  if (params.in_out() == SOCK_OUT) {
+    params.add_item(IFACE_("Output"), [](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("GeometryNodeSwitch");
+      node_storage(node).input_type = params.socket.type;
+      params.update_and_connect_available_socket(node, "Output");
+    });
   }
-  static fn::MFSignature create_signature()
-  {
-    fn::MFSignatureBuilder signature{"Switch"};
-    signature.single_input<bool>("Switch");
-    signature.single_input<T>("False");
-    signature.single_input<T>("True");
-    signature.single_output<T>("Output");
-    return signature.build();
-  }
-
-  void call(IndexMask mask, fn::MFParams params, fn::MFContext UNUSED(context)) const override
-  {
-    const VArray<bool> &switches = params.readonly_single_input<bool>(0, "Switch");
-    const VArray<T> &falses = params.readonly_single_input<T>(1, "False");
-    const VArray<T> &trues = params.readonly_single_input<T>(2, "True");
-    MutableSpan<T> values = params.uninitialized_single_output_if_required<T>(3, "Output");
-    for (int64_t i : mask) {
-      new (&values[i]) T(switches[i] ? trues[i] : falses[i]);
+  else {
+    if (params.other_socket().type == SOCK_BOOLEAN) {
+      params.add_item(IFACE_("Switch"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeSwitch");
+        params.connect_available_socket(node, "Start");
+      });
     }
+    params.add_item(IFACE_("False"), [](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("GeometryNodeSwitch");
+      node_storage(node).input_type = params.socket.type;
+      params.update_and_connect_available_socket(node, "False");
+    });
+    params.add_item(IFACE_("True"), [](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("GeometryNodeSwitch");
+      node_storage(node).input_type = params.socket.type;
+      params.update_and_connect_available_socket(node, "True");
+    });
   }
-};
+}
 
 template<typename T> void switch_fields(GeoNodeExecParams &params, const StringRef suffix)
 {
@@ -178,7 +161,11 @@ template<typename T> void switch_fields(GeoNodeExecParams &params, const StringR
     Field<T> falses_field = params.extract_input<Field<T>>(name_false);
     Field<T> trues_field = params.extract_input<Field<T>>(name_true);
 
-    auto switch_fn = std::make_unique<SwitchFieldsFunction<T>>();
+    static fn::CustomMF_SI_SI_SI_SO<bool, T, T, T> switch_fn{
+        "Switch", [](bool condition, const T &false_value, const T &true_value) {
+          return condition ? true_value : false_value;
+        }};
+
     auto switch_op = std::make_shared<FieldOperation>(FieldOperation(
         std::move(switch_fn),
         {std::move(switches_field), std::move(falses_field), std::move(trues_field)}));
@@ -232,9 +219,9 @@ template<typename T> void switch_no_fields(GeoNodeExecParams &params, const Stri
   }
 }
 
-static void geo_node_switch_exec(GeoNodeExecParams params)
+static void node_geo_exec(GeoNodeExecParams params)
 {
-  const NodeSwitch &storage = *(const NodeSwitch *)params.node().storage;
+  const NodeSwitch &storage = node_storage(params.node());
   const eNodeSocketDatatype data_type = static_cast<eNodeSocketDatatype>(storage.input_type);
 
   switch (data_type) {
@@ -293,19 +280,22 @@ static void geo_node_switch_exec(GeoNodeExecParams params)
   }
 }
 
-}  // namespace blender::nodes
+}  // namespace blender::nodes::node_geo_switch_cc
 
 void register_node_type_geo_switch()
 {
+  namespace file_ns = blender::nodes::node_geo_switch_cc;
+
   static bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_SWITCH, "Switch", NODE_CLASS_CONVERTER, 0);
-  ntype.declare = blender::nodes::geo_node_switch_declare;
-  node_type_init(&ntype, blender::nodes::geo_node_switch_init);
-  node_type_update(&ntype, blender::nodes::geo_node_switch_update);
+  geo_node_type_base(&ntype, GEO_NODE_SWITCH, "Switch", NODE_CLASS_CONVERTER);
+  ntype.declare = file_ns::node_declare;
+  node_type_init(&ntype, file_ns::node_init);
+  node_type_update(&ntype, file_ns::node_update);
   node_type_storage(&ntype, "NodeSwitch", node_free_standard_storage, node_copy_standard_storage);
-  ntype.geometry_node_execute = blender::nodes::geo_node_switch_exec;
+  ntype.geometry_node_execute = file_ns::node_geo_exec;
   ntype.geometry_node_execute_supports_laziness = true;
-  ntype.draw_buttons = blender::nodes::geo_node_switch_layout;
+  ntype.gather_link_search_ops = file_ns::node_gather_link_searches;
+  ntype.draw_buttons = file_ns::node_layout;
   nodeRegisterType(&ntype);
 }

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2007, Blender Foundation
- * This is a new part of Blender
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2007 Blender Foundation. */
 
 /** \file
  * \ingroup edarmature
@@ -40,6 +24,7 @@
 #include "BKE_action.h"
 #include "BKE_animsys.h"
 #include "BKE_armature.h"
+#include "BKE_fcurve.h"
 #include "BKE_idprop.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
@@ -53,6 +38,7 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
+#include "RNA_prototypes.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -185,7 +171,7 @@ static bool has_poselib_pose_data_poll(bContext *C)
 static bool has_poselib_pose_data_for_editing_poll(bContext *C)
 {
   Object *ob = get_poselib_object(C);
-  return (ob && ob->poselib && !ID_IS_LINKED(ob->poselib));
+  return (ob && ob->poselib && BKE_id_is_editable(CTX_data_main(C), &ob->poselib->id));
 }
 
 /* ----------------------------------- */
@@ -246,9 +232,11 @@ static int poselib_new_exec(bContext *C, wmOperator *UNUSED(op))
 void POSELIB_OT_new(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "New Pose Library";
+  ot->name = "New Legacy Pose Library";
   ot->idname = "POSELIB_OT_new";
-  ot->description = "Add New Pose Library to active Object";
+  ot->description =
+      "Deprecated, will be removed in Blender 3.3. "
+      "Add New Legacy Pose Library to active Object";
 
   /* callbacks */
   ot->exec = poselib_new_exec;
@@ -282,9 +270,11 @@ static int poselib_unlink_exec(bContext *C, wmOperator *UNUSED(op))
 void POSELIB_OT_unlink(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Unlink Pose Library";
+  ot->name = "Unlink Legacy Pose Library";
   ot->idname = "POSELIB_OT_unlink";
-  ot->description = "Remove Pose Library from active Object";
+  ot->description =
+      "Deprecated, will be removed in Blender 3.3. "
+      "Remove Legacy Pose Library from active Object";
 
   /* callbacks */
   ot->exec = poselib_unlink_exec;
@@ -367,9 +357,11 @@ static int poselib_sanitize_exec(bContext *C, wmOperator *op)
 void POSELIB_OT_action_sanitize(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Sanitize Pose Library Action";
+  ot->name = "Sanitize Legacy Pose Library Action";
   ot->idname = "POSELIB_OT_action_sanitize";
-  ot->description = "Make action suitable for use as a Pose Library";
+  ot->description =
+      "Deprecated, will be removed in Blender 3.3. "
+      "Make action suitable for use as a Legacy Pose Library";
 
   /* callbacks */
   ot->exec = poselib_sanitize_exec;
@@ -392,7 +384,7 @@ static bool poselib_add_poll(bContext *C)
   if (ED_operator_posemode(C)) {
     Object *ob = get_poselib_object(C);
     if (ob) {
-      if ((ob->poselib == NULL) || !ID_IS_LINKED(ob->poselib)) {
+      if ((ob->poselib == NULL) || BKE_id_is_editable(CTX_data_main(C), &ob->poselib->id)) {
         return true;
       }
     }
@@ -457,9 +449,9 @@ static int poselib_add_menu_invoke(bContext *C, wmOperator *op, const wmEvent *U
                ICON_NONE,
                "POSELIB_OT_pose_add",
                "frame",
-               CFRA);
+               scene->r.cfra);
 
-    /* replace existing - submenu */
+    /* Replace existing - sub-menu. */
     uiItemMenuF(
         layout, IFACE_("Replace Existing..."), 0, poselib_add_menu_invoke__replacemenu, NULL);
   }
@@ -530,9 +522,11 @@ static int poselib_add_exec(bContext *C, wmOperator *op)
 void POSELIB_OT_pose_add(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "PoseLib Add Pose";
+  ot->name = "Legacy PoseLib Add Pose";
   ot->idname = "POSELIB_OT_pose_add";
-  ot->description = "Add the current Pose to the active Pose Library";
+  ot->description =
+      "Deprecated, will be removed in Blender 3.3. "
+      "Add the current Pose to the active Legacy Pose Library";
 
   /* api callbacks */
   ot->invoke = poselib_add_menu_invoke;
@@ -622,7 +616,8 @@ static int poselib_remove_exec(bContext *C, wmOperator *op)
       for (i = 0, bezt = fcu->bezt; i < fcu->totvert; i++, bezt++) {
         /* check if remove */
         if (IS_EQF(bezt->vec[1][0], (float)marker->frame)) {
-          delete_fcurve_key(fcu, i, 1);
+          BKE_fcurve_delete_key(fcu, i);
+          BKE_fcurve_handles_recalc(fcu);
           break;
         }
       }
@@ -650,9 +645,11 @@ void POSELIB_OT_pose_remove(wmOperatorType *ot)
   PropertyRNA *prop;
 
   /* identifiers */
-  ot->name = "PoseLib Remove Pose";
+  ot->name = "Legacy PoseLib Remove Pose";
   ot->idname = "POSELIB_OT_pose_remove";
-  ot->description = "Remove nth pose from the active Pose Library";
+  ot->description =
+      "Deprecated, will be removed in Blender 3.3. "
+      "Remove nth pose from the active Legacy Pose Library";
 
   /* api callbacks */
   ot->invoke = WM_menu_invoke;
@@ -739,9 +736,11 @@ void POSELIB_OT_pose_rename(wmOperatorType *ot)
   PropertyRNA *prop;
 
   /* identifiers */
-  ot->name = "PoseLib Rename Pose";
+  ot->name = "Legacy PoseLib Rename Pose";
   ot->idname = "POSELIB_OT_pose_rename";
-  ot->description = "Rename specified pose from the active Pose Library";
+  ot->description =
+      "Deprecated, will be removed in Blender 3.3. "
+      "Rename specified pose from the active Legacy Pose Library";
 
   /* api callbacks */
   ot->invoke = poselib_rename_invoke;
@@ -820,9 +819,11 @@ void POSELIB_OT_pose_move(wmOperatorType *ot)
   };
 
   /* identifiers */
-  ot->name = "PoseLib Move Pose";
+  ot->name = "Legacy PoseLib Move Pose";
   ot->idname = "POSELIB_OT_pose_move";
-  ot->description = "Move the pose up or down in the active Pose Library";
+  ot->description =
+      "Deprecated, will be removed in Blender 3.3. "
+      "Move the pose up or down in the active Legacy Pose Library";
 
   /* api callbacks */
   ot->invoke = WM_menu_invoke;
@@ -1070,7 +1071,7 @@ static void poselib_apply_pose(tPoseLib_PreviewData *pld,
         else if (pchan->bone) {
           /* only ok if bone is visible and selected */
           if ((pchan->bone->flag & BONE_SELECTED) && (pchan->bone->flag & BONE_HIDDEN_P) == 0 &&
-              (pchan->bone->layer & arm->layer)) {
+              BKE_pose_is_layer_visible(arm, pchan)) {
             ok = 1;
           }
         }
@@ -1114,7 +1115,7 @@ static void poselib_keytag_pose(bContext *C, Scene *scene, tPoseLib_PreviewData 
   /* perform actual auto-keying now */
   if (autokey) {
     /* insert keyframes for all relevant bones in one go */
-    ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, (float)CFRA);
+    ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, (float)scene->r.cfra);
     BLI_freelistN(&dsources);
   }
 
@@ -1432,7 +1433,7 @@ static int poselib_preview_handle_event(bContext *UNUSED(C), wmOperator *op, con
         ret = OPERATOR_PASS_THROUGH;
         break;
 
-      /* quicky compare to original */
+      /* Quickly compare to original. */
       case EVT_TABKEY:
         pld->flag &= ~PL_PREVIEW_SHOWORIGINAL;
         pld->redraw = PL_PREVIEW_REDRAWALL;
@@ -1579,7 +1580,7 @@ static int poselib_preview_handle_event(bContext *UNUSED(C), wmOperator *op, con
     case EVT_PADMINUS:
       if (pld->searchstr[0]) {
         /* searching... */
-        poselib_preview_handle_search(pld, event->type, event->ascii);
+        poselib_preview_handle_search(pld, event->type, WM_event_utf8_to_ascii(event));
       }
       else {
         /* view manipulation (see above) */
@@ -1590,7 +1591,7 @@ static int poselib_preview_handle_event(bContext *UNUSED(C), wmOperator *op, con
 
     /* otherwise, assume that searching might be able to handle it */
     default:
-      poselib_preview_handle_search(pld, event->type, event->ascii);
+      poselib_preview_handle_search(pld, event->type, WM_event_utf8_to_ascii(event));
       break;
   }
 
@@ -1828,9 +1829,11 @@ static int poselib_preview_exec(bContext *C, wmOperator *op)
 void POSELIB_OT_browse_interactive(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "PoseLib Browse Poses";
+  ot->name = "Legacy PoseLib Browse Poses";
   ot->idname = "POSELIB_OT_browse_interactive";
-  ot->description = "Interactively browse poses in 3D-View";
+  ot->description =
+      "Deprecated, will be removed in Blender 3.3. "
+      "Interactively browse Legacy Pose Library poses in 3D-View";
 
   /* callbacks */
   ot->invoke = poselib_preview_invoke;
@@ -1873,9 +1876,11 @@ void POSELIB_OT_browse_interactive(wmOperatorType *ot)
 void POSELIB_OT_apply_pose(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Apply Pose Library Pose";
+  ot->name = "Apply Legacy Pose Library Pose";
   ot->idname = "POSELIB_OT_apply_pose";
-  ot->description = "Apply specified Pose Library pose to the rig";
+  ot->description =
+      "Deprecated, will be removed in Blender 3.3. "
+      "Apply specified Legacy Pose Library pose to the rig";
 
   /* callbacks */
   ot->exec = poselib_preview_exec;

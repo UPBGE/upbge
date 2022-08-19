@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2021 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 /* Constant Globals */
 
@@ -33,18 +20,24 @@ struct KernelGlobalsGPU {
 };
 typedef ccl_global const KernelGlobalsGPU *ccl_restrict KernelGlobals;
 
-/* Global scene data and textures */
-__constant__ KernelData __data;
-#define KERNEL_TEX(type, name) __attribute__((used)) const __constant__ __device__ type *name;
-#include "kernel/textures.h"
+struct KernelParamsHIP {
+  /* Global scene data and textures */
+  KernelData data;
+#define KERNEL_DATA_ARRAY(type, name) const type *name;
+#include "kernel/data_arrays.h"
 
-/* Integrator state */
-__constant__ IntegratorStateGPU __integrator_state;
+  /* Integrator state */
+  IntegratorStateGPU integrator_state;
+};
+
+#ifdef __KERNEL_GPU__
+__constant__ KernelParamsHIP kernel_params;
+#endif
 
 /* Abstraction macros */
-#define kernel_data __data
-#define kernel_tex_fetch(t, index) t[(index)]
-#define kernel_tex_array(t) (t)
-#define kernel_integrator_state __integrator_state
+#define kernel_data kernel_params.data
+#define kernel_data_fetch(name, index) kernel_params.name[(index)]
+#define kernel_data_array(name) (kernel_params.name)
+#define kernel_integrator_state kernel_params.integrator_state
 
 CCL_NAMESPACE_END

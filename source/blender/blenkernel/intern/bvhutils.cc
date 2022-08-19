@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup bke
@@ -35,12 +19,15 @@
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_attribute.hh"
 #include "BKE_bvhutils.h"
 #include "BKE_editmesh.h"
 #include "BKE_mesh.h"
 #include "BKE_mesh_runtime.h"
 
 #include "MEM_guardedalloc.h"
+
+using blender::VArray;
 
 /* -------------------------------------------------------------------- */
 /** \name BVHCache
@@ -125,9 +112,9 @@ bool bvhcache_has_tree(const BVHCache *bvh_cache, const BVHTree *tree)
   return false;
 }
 
-BVHCache *bvhcache_init(void)
+BVHCache *bvhcache_init()
 {
-  BVHCache *cache = (BVHCache *)MEM_callocN(sizeof(BVHCache), __func__);
+  BVHCache *cache = MEM_cnew<BVHCache>(__func__);
   BLI_mutex_init(&cache->mutex);
   return cache;
 }
@@ -147,9 +134,6 @@ static void bvhcache_insert(BVHCache *bvh_cache, BVHTree *tree, BVHCacheType typ
   item->is_filled = true;
 }
 
-/**
- * frees a bvhcache
- */
 void bvhcache_free(BVHCache *bvh_cache)
 {
   for (int index = 0; index < BVHTREE_MAX_ITEM; index++) {
@@ -184,6 +168,7 @@ static void bvhtree_balance(BVHTree *tree, const bool isolate)
 }
 
 /** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name Local Callbacks
  * \{ */
@@ -580,6 +565,103 @@ static void mesh_edges_spherecast(void *userdata,
  */
 
 /* -------------------------------------------------------------------- */
+/** \name Common Utils
+ * \{ */
+
+static void bvhtree_from_mesh_setup_data(BVHTree *tree,
+                                         const BVHCacheType bvh_cache_type,
+                                         const MVert *vert,
+                                         const MEdge *edge,
+                                         const MFace *face,
+                                         const MLoop *loop,
+                                         const MLoopTri *looptri,
+                                         const float (*vert_normals)[3],
+                                         BVHTreeFromMesh *r_data)
+{
+  memset(r_data, 0, sizeof(*r_data));
+
+  r_data->tree = tree;
+
+  r_data->vert = vert;
+  r_data->edge = edge;
+  r_data->face = face;
+  r_data->loop = loop;
+  r_data->looptri = looptri;
+  r_data->vert_normals = vert_normals;
+
+  switch (bvh_cache_type) {
+    case BVHTREE_FROM_VERTS:
+    case BVHTREE_FROM_LOOSEVERTS:
+      /* a nullptr nearest callback works fine
+       * remember the min distance to point is the same as the min distance to BV of point */
+      r_data->nearest_callback = nullptr;
+      r_data->raycast_callback = mesh_verts_spherecast;
+      break;
+
+    case BVHTREE_FROM_EDGES:
+    case BVHTREE_FROM_LOOSEEDGES:
+      r_data->nearest_callback = mesh_edges_nearest_point;
+      r_data->raycast_callback = mesh_edges_spherecast;
+      break;
+    case BVHTREE_FROM_FACES:
+      r_data->nearest_callback = mesh_faces_nearest_point;
+      r_data->raycast_callback = mesh_faces_spherecast;
+      break;
+    case BVHTREE_FROM_LOOPTRI:
+    case BVHTREE_FROM_LOOPTRI_NO_HIDDEN:
+      r_data->nearest_callback = mesh_looptri_nearest_point;
+      r_data->raycast_callback = mesh_looptri_spherecast;
+      break;
+    case BVHTREE_FROM_EM_VERTS:
+    case BVHTREE_FROM_EM_EDGES:
+    case BVHTREE_FROM_EM_LOOPTRI:
+    case BVHTREE_MAX_ITEM:
+      BLI_assert(false);
+      break;
+  }
+}
+
+static void bvhtree_from_editmesh_setup_data(BVHTree *tree,
+                                             const BVHCacheType bvh_cache_type,
+                                             struct BMEditMesh *em,
+                                             BVHTreeFromEditMesh *r_data)
+{
+  memset(r_data, 0, sizeof(*r_data));
+
+  r_data->tree = tree;
+
+  r_data->em = em;
+
+  switch (bvh_cache_type) {
+    case BVHTREE_FROM_EM_VERTS:
+      r_data->nearest_callback = nullptr;
+      r_data->raycast_callback = editmesh_verts_spherecast;
+      break;
+    case BVHTREE_FROM_EM_EDGES:
+      r_data->nearest_callback = nullptr; /* TODO */
+      r_data->raycast_callback = nullptr; /* TODO */
+      break;
+    case BVHTREE_FROM_EM_LOOPTRI:
+      r_data->nearest_callback = editmesh_looptri_nearest_point;
+      r_data->raycast_callback = editmesh_looptri_spherecast;
+      break;
+
+    case BVHTREE_FROM_VERTS:
+    case BVHTREE_FROM_LOOSEVERTS:
+    case BVHTREE_FROM_EDGES:
+    case BVHTREE_FROM_LOOSEEDGES:
+    case BVHTREE_FROM_FACES:
+    case BVHTREE_FROM_LOOPTRI:
+    case BVHTREE_FROM_LOOPTRI_NO_HIDDEN:
+    case BVHTREE_MAX_ITEM:
+      BLI_assert(false);
+      break;
+  }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Vertex Builder
  * \{ */
 
@@ -649,72 +731,22 @@ static BVHTree *bvhtree_from_mesh_verts_create_tree(float epsilon,
   return tree;
 }
 
-static void bvhtree_from_mesh_verts_setup_data(BVHTreeFromMesh *data,
-                                               BVHTree *tree,
-                                               const bool is_cached,
-                                               const MVert *vert,
-                                               const bool vert_allocated)
-{
-  memset(data, 0, sizeof(*data));
-
-  data->tree = tree;
-  data->cached = is_cached;
-
-  /* a nullptr nearest callback works fine
-   * remember the min distance to point is the same as the min distance to BV of point */
-  data->nearest_callback = nullptr;
-  data->raycast_callback = mesh_verts_spherecast;
-
-  data->vert = vert;
-  data->vert_allocated = vert_allocated;
-}
-
-/**
- * Builds a BVH-tree where nodes are the vertices of the given `em`.
- */
 BVHTree *bvhtree_from_editmesh_verts_ex(BVHTreeFromEditMesh *data,
                                         BMEditMesh *em,
                                         const BLI_bitmap *verts_mask,
                                         int verts_num_active,
                                         float epsilon,
                                         int tree_type,
-                                        int axis,
-                                        const BVHCacheType bvh_cache_type,
-                                        BVHCache **bvh_cache_p,
-                                        ThreadMutex *mesh_eval_mutex)
+                                        int axis)
 {
   BVHTree *tree = nullptr;
+  tree = bvhtree_from_editmesh_verts_create_tree(
+      epsilon, tree_type, axis, em, verts_mask, verts_num_active);
 
-  if (bvh_cache_p) {
-    bool lock_started = false;
-    data->cached = bvhcache_find(
-        bvh_cache_p, bvh_cache_type, &data->tree, &lock_started, mesh_eval_mutex);
+  bvhtree_balance(tree, false);
 
-    if (data->cached == false) {
-      tree = bvhtree_from_editmesh_verts_create_tree(
-          epsilon, tree_type, axis, em, verts_mask, verts_num_active);
-      bvhtree_balance(tree, true);
-
-      /* Save on cache for later use */
-      // printf("BVHTree built and saved on cache\n");
-      bvhcache_insert(*bvh_cache_p, tree, bvh_cache_type);
-      data->cached = true;
-    }
-    bvhcache_unlock(*bvh_cache_p, lock_started);
-  }
-  else {
-    tree = bvhtree_from_editmesh_verts_create_tree(
-        epsilon, tree_type, axis, em, verts_mask, verts_num_active);
-    bvhtree_balance(tree, false);
-  }
-
-  if (tree) {
-    memset(data, 0, sizeof(*data));
-    data->tree = tree;
-    data->em = em;
-    data->nearest_callback = nullptr;
-    data->raycast_callback = editmesh_verts_spherecast;
-    data->cached = bvh_cache_p != nullptr;
+  if (data) {
+    bvhtree_from_editmesh_setup_data(tree, BVHTREE_FROM_EM_VERTS, em, data);
   }
 
   return tree;
@@ -723,57 +755,29 @@ BVHTree *bvhtree_from_editmesh_verts_ex(BVHTreeFromEditMesh *data,
 BVHTree *bvhtree_from_editmesh_verts(
     BVHTreeFromEditMesh *data, BMEditMesh *em, float epsilon, int tree_type, int axis)
 {
-  return bvhtree_from_editmesh_verts_ex(
-      data, em, nullptr, -1, epsilon, tree_type, axis, BVHTREE_FROM_VERTS, nullptr, nullptr);
+  return bvhtree_from_editmesh_verts_ex(data, em, nullptr, -1, epsilon, tree_type, axis);
 }
 
-/**
- * Builds a BVH-tree where nodes are the given vertices (NOTE: does not copy given `vert`!).
- * \param vert_allocated: if true, vert freeing will be done when freeing data.
- * \param verts_mask: if not null, true elements give which vert to add to BVH-tree.
- * \param verts_num_active: if >= 0, number of active verts to add to BVH-tree
- * (else will be computed from mask).
- */
 BVHTree *bvhtree_from_mesh_verts_ex(BVHTreeFromMesh *data,
                                     const MVert *vert,
                                     const int verts_num,
-                                    const bool vert_allocated,
                                     const BLI_bitmap *verts_mask,
                                     int verts_num_active,
                                     float epsilon,
                                     int tree_type,
-                                    int axis,
-                                    const BVHCacheType bvh_cache_type,
-                                    BVHCache **bvh_cache_p,
-                                    ThreadMutex *mesh_eval_mutex)
+                                    int axis)
 {
-  bool in_cache = false;
-  bool lock_started = false;
   BVHTree *tree = nullptr;
-  if (bvh_cache_p) {
-    in_cache = bvhcache_find(bvh_cache_p, bvh_cache_type, &tree, &lock_started, mesh_eval_mutex);
+  tree = bvhtree_from_mesh_verts_create_tree(
+      epsilon, tree_type, axis, vert, verts_num, verts_mask, verts_num_active);
+
+  bvhtree_balance(tree, false);
+
+  if (data) {
+    /* Setup BVHTreeFromMesh */
+    bvhtree_from_mesh_setup_data(
+        tree, BVHTREE_FROM_VERTS, vert, nullptr, nullptr, nullptr, nullptr, nullptr, data);
   }
-
-  if (in_cache == false) {
-    tree = bvhtree_from_mesh_verts_create_tree(
-        epsilon, tree_type, axis, vert, verts_num, verts_mask, verts_num_active);
-    bvhtree_balance(tree, bvh_cache_p != nullptr);
-
-    if (bvh_cache_p) {
-      /* Save on cache for later use */
-      // printf("BVHTree built and saved on cache\n");
-      BVHCache *bvh_cache = *bvh_cache_p;
-      bvhcache_insert(bvh_cache, tree, bvh_cache_type);
-      in_cache = true;
-    }
-  }
-
-  if (bvh_cache_p) {
-    bvhcache_unlock(*bvh_cache_p, lock_started);
-  }
-
-  /* Setup BVHTreeFromMesh */
-  bvhtree_from_mesh_verts_setup_data(data, tree, in_cache, vert, vert_allocated);
 
   return tree;
 }
@@ -861,74 +865,22 @@ static BVHTree *bvhtree_from_mesh_edges_create_tree(const MVert *vert,
   return tree;
 }
 
-static void bvhtree_from_mesh_edges_setup_data(BVHTreeFromMesh *data,
-                                               BVHTree *tree,
-                                               const bool is_cached,
-                                               const MVert *vert,
-                                               const bool vert_allocated,
-                                               const MEdge *edge,
-                                               const bool edge_allocated)
-{
-  memset(data, 0, sizeof(*data));
-
-  data->tree = tree;
-
-  data->cached = is_cached;
-
-  data->nearest_callback = mesh_edges_nearest_point;
-  data->raycast_callback = mesh_edges_spherecast;
-
-  data->vert = vert;
-  data->vert_allocated = vert_allocated;
-  data->edge = edge;
-  data->edge_allocated = edge_allocated;
-}
-
-/**
- * Builds a BVH-tree where nodes are the edges of the given `em`.
- */
 BVHTree *bvhtree_from_editmesh_edges_ex(BVHTreeFromEditMesh *data,
                                         BMEditMesh *em,
                                         const BLI_bitmap *edges_mask,
                                         int edges_num_active,
                                         float epsilon,
                                         int tree_type,
-                                        int axis,
-                                        const BVHCacheType bvh_cache_type,
-                                        BVHCache **bvh_cache_p,
-                                        ThreadMutex *mesh_eval_mutex)
+                                        int axis)
 {
   BVHTree *tree = nullptr;
+  tree = bvhtree_from_editmesh_edges_create_tree(
+      epsilon, tree_type, axis, em, edges_mask, edges_num_active);
 
-  if (bvh_cache_p) {
-    bool lock_started = false;
-    data->cached = bvhcache_find(
-        bvh_cache_p, bvh_cache_type, &data->tree, &lock_started, mesh_eval_mutex);
-    BVHCache *bvh_cache = *bvh_cache_p;
-    if (data->cached == false) {
-      tree = bvhtree_from_editmesh_edges_create_tree(
-          epsilon, tree_type, axis, em, edges_mask, edges_num_active);
-      bvhtree_balance(tree, true);
-      /* Save on cache for later use */
-      // printf("BVHTree built and saved on cache\n");
-      bvhcache_insert(bvh_cache, tree, bvh_cache_type);
-      data->cached = true;
-    }
-    bvhcache_unlock(bvh_cache, lock_started);
-  }
-  else {
-    tree = bvhtree_from_editmesh_edges_create_tree(
-        epsilon, tree_type, axis, em, edges_mask, edges_num_active);
-    bvhtree_balance(tree, false);
-  }
+  bvhtree_balance(tree, false);
 
-  if (tree) {
-    memset(data, 0, sizeof(*data));
-    data->tree = tree;
-    data->em = em;
-    data->nearest_callback = nullptr; /* TODO */
-    data->raycast_callback = nullptr; /* TODO */
-    data->cached = bvh_cache_p != nullptr;
+  if (data) {
+    bvhtree_from_editmesh_setup_data(tree, BVHTREE_FROM_EM_EDGES, em, data);
   }
 
   return tree;
@@ -937,65 +889,30 @@ BVHTree *bvhtree_from_editmesh_edges_ex(BVHTreeFromEditMesh *data,
 BVHTree *bvhtree_from_editmesh_edges(
     BVHTreeFromEditMesh *data, BMEditMesh *em, float epsilon, int tree_type, int axis)
 {
-  return bvhtree_from_editmesh_edges_ex(
-      data, em, nullptr, -1, epsilon, tree_type, axis, BVHTREE_FROM_VERTS, nullptr, nullptr);
+  return bvhtree_from_editmesh_edges_ex(data, em, nullptr, -1, epsilon, tree_type, axis);
 }
 
-/**
- * Builds a BVH-tree where nodes are the given edges.
- * \param vert, vert_allocated: if true, elem freeing will be done when freeing data.
- * \param edge, edge_allocated: if true, elem freeing will be done when freeing data.
- * \param edges_mask: if not null, true elements give which vert to add to BVH-tree.
- * \param edges_num_active: if >= 0, number of active edges to add to BVH-tree
- * (else will be computed from mask).
- */
 BVHTree *bvhtree_from_mesh_edges_ex(BVHTreeFromMesh *data,
                                     const MVert *vert,
-                                    const bool vert_allocated,
                                     const MEdge *edge,
                                     const int edges_num,
-                                    const bool edge_allocated,
                                     const BLI_bitmap *edges_mask,
                                     int edges_num_active,
                                     float epsilon,
                                     int tree_type,
-                                    int axis,
-                                    const BVHCacheType bvh_cache_type,
-                                    BVHCache **bvh_cache_p,
-                                    ThreadMutex *mesh_eval_mutex)
+                                    int axis)
 {
-  bool in_cache = false;
-  bool lock_started = false;
   BVHTree *tree = nullptr;
-  if (bvh_cache_p) {
-    in_cache = bvhcache_find(bvh_cache_p, bvh_cache_type, &tree, &lock_started, mesh_eval_mutex);
+  tree = bvhtree_from_mesh_edges_create_tree(
+      vert, edge, edges_num, edges_mask, edges_num_active, epsilon, tree_type, axis);
+
+  bvhtree_balance(tree, false);
+
+  if (data) {
+    /* Setup BVHTreeFromMesh */
+    bvhtree_from_mesh_setup_data(
+        tree, BVHTREE_FROM_EDGES, vert, edge, nullptr, nullptr, nullptr, nullptr, data);
   }
-
-  if (in_cache == false) {
-    tree = bvhtree_from_mesh_edges_create_tree(
-        vert, edge, edges_num, edges_mask, edges_num_active, epsilon, tree_type, axis);
-
-    if (bvh_cache_p) {
-      bvhtree_balance(tree, true);
-
-      BVHCache *bvh_cache = *bvh_cache_p;
-      /* Save on cache for later use */
-      // printf("BVHTree built and saved on cache\n");
-      bvhcache_insert(bvh_cache, tree, bvh_cache_type);
-      in_cache = true;
-    }
-    else {
-      bvhtree_balance(tree, false);
-    }
-  }
-
-  if (bvh_cache_p) {
-    bvhcache_unlock(*bvh_cache_p, lock_started);
-  }
-
-  /* Setup BVHTreeFromMesh */
-  bvhtree_from_mesh_edges_setup_data(
-      data, tree, in_cache, vert, vert_allocated, edge, edge_allocated);
 
   return tree;
 }
@@ -1049,84 +966,6 @@ static BVHTree *bvhtree_from_mesh_faces_create_tree(float epsilon,
       BLI_assert(BLI_bvhtree_get_len(tree) == faces_num_active);
     }
   }
-
-  return tree;
-}
-
-static void bvhtree_from_mesh_faces_setup_data(BVHTreeFromMesh *data,
-                                               BVHTree *tree,
-                                               const bool is_cached,
-                                               const MVert *vert,
-                                               const bool vert_allocated,
-                                               const MFace *face,
-                                               const bool face_allocated)
-{
-  memset(data, 0, sizeof(*data));
-
-  data->tree = tree;
-  data->cached = is_cached;
-
-  data->nearest_callback = mesh_faces_nearest_point;
-  data->raycast_callback = mesh_faces_spherecast;
-
-  data->vert = vert;
-  data->vert_allocated = vert_allocated;
-  data->face = face;
-  data->face_allocated = face_allocated;
-}
-
-/**
- * Builds a BVH-tree where nodes are the given tessellated faces
- * (NOTE: does not copy given mfaces!).
- * \param vert_allocated: if true, vert freeing will be done when freeing data.
- * \param face_allocated: if true, face freeing will be done when freeing data.
- * \param faces_mask: if not null, true elements give which faces to add to BVH-tree.
- * \param faces_num_active: if >= 0, number of active faces to add to BVH-tree
- * (else will be computed from mask).
- */
-BVHTree *bvhtree_from_mesh_faces_ex(BVHTreeFromMesh *data,
-                                    const MVert *vert,
-                                    const bool vert_allocated,
-                                    const MFace *face,
-                                    const int numFaces,
-                                    const bool face_allocated,
-                                    const BLI_bitmap *faces_mask,
-                                    int faces_num_active,
-                                    float epsilon,
-                                    int tree_type,
-                                    int axis,
-                                    const BVHCacheType bvh_cache_type,
-                                    BVHCache **bvh_cache_p,
-                                    ThreadMutex *mesh_eval_mutex)
-{
-  bool in_cache = false;
-  bool lock_started = false;
-  BVHTree *tree = nullptr;
-  if (bvh_cache_p) {
-    in_cache = bvhcache_find(bvh_cache_p, bvh_cache_type, &tree, &lock_started, mesh_eval_mutex);
-  }
-
-  if (in_cache == false) {
-    tree = bvhtree_from_mesh_faces_create_tree(
-        epsilon, tree_type, axis, vert, face, numFaces, faces_mask, faces_num_active);
-    bvhtree_balance(tree, bvh_cache_p != nullptr);
-
-    if (bvh_cache_p) {
-      /* Save on cache for later use */
-      // printf("BVHTree built and saved on cache\n");
-      BVHCache *bvh_cache = *bvh_cache_p;
-      bvhcache_insert(bvh_cache, tree, bvh_cache_type);
-      in_cache = true;
-    }
-  }
-
-  if (bvh_cache_p) {
-    bvhcache_unlock(*bvh_cache_p, lock_started);
-  }
-
-  /* Setup BVHTreeFromMesh */
-  bvhtree_from_mesh_faces_setup_data(
-      data, tree, in_cache, vert, vert_allocated, face, face_allocated);
 
   return tree;
 }
@@ -1231,78 +1070,25 @@ static BVHTree *bvhtree_from_mesh_looptri_create_tree(float epsilon,
   return tree;
 }
 
-static void bvhtree_from_mesh_looptri_setup_data(BVHTreeFromMesh *data,
-                                                 BVHTree *tree,
-                                                 const bool is_cached,
-                                                 const MVert *vert,
-                                                 const bool vert_allocated,
-                                                 const MLoop *mloop,
-                                                 const bool loop_allocated,
-                                                 const MLoopTri *looptri,
-                                                 const bool looptri_allocated)
-{
-  memset(data, 0, sizeof(*data));
-
-  data->tree = tree;
-  data->cached = is_cached;
-
-  data->nearest_callback = mesh_looptri_nearest_point;
-  data->raycast_callback = mesh_looptri_spherecast;
-
-  data->vert = vert;
-  data->vert_allocated = vert_allocated;
-  data->loop = mloop;
-  data->loop_allocated = loop_allocated;
-  data->looptri = looptri;
-  data->looptri_allocated = looptri_allocated;
-}
-
-/**
- * Builds a BVH-tree where nodes are the `looptri` faces of the given `bm`.
- */
 BVHTree *bvhtree_from_editmesh_looptri_ex(BVHTreeFromEditMesh *data,
                                           BMEditMesh *em,
                                           const BLI_bitmap *looptri_mask,
                                           int looptri_num_active,
                                           float epsilon,
                                           int tree_type,
-                                          int axis,
-                                          const BVHCacheType bvh_cache_type,
-                                          BVHCache **bvh_cache_p,
-                                          ThreadMutex *mesh_eval_mutex)
+                                          int axis)
 {
   /* BMESH specific check that we have tessfaces,
    * we _could_ tessellate here but rather not - campbell */
 
   BVHTree *tree = nullptr;
-  if (bvh_cache_p) {
-    bool lock_started = false;
-    bool in_cache = bvhcache_find(
-        bvh_cache_p, bvh_cache_type, &tree, &lock_started, mesh_eval_mutex);
-    BVHCache *bvh_cache = *bvh_cache_p;
-    if (in_cache == false) {
-      tree = bvhtree_from_editmesh_looptri_create_tree(
-          epsilon, tree_type, axis, em, looptri_mask, looptri_num_active);
-      bvhtree_balance(tree, true);
+  tree = bvhtree_from_editmesh_looptri_create_tree(
+      epsilon, tree_type, axis, em, looptri_mask, looptri_num_active);
 
-      /* Save on cache for later use */
-      // printf("BVHTree built and saved on cache\n");
-      bvhcache_insert(bvh_cache, tree, bvh_cache_type);
-    }
-    bvhcache_unlock(bvh_cache, lock_started);
-  }
-  else {
-    tree = bvhtree_from_editmesh_looptri_create_tree(
-        epsilon, tree_type, axis, em, looptri_mask, looptri_num_active);
-    bvhtree_balance(tree, false);
-  }
+  bvhtree_balance(tree, false);
 
-  if (tree) {
-    data->tree = tree;
-    data->nearest_callback = editmesh_looptri_nearest_point;
-    data->raycast_callback = editmesh_looptri_spherecast;
-    data->em = em;
-    data->cached = bvh_cache_p != nullptr;
+  if (data) {
+    bvhtree_from_editmesh_setup_data(tree, BVHTREE_FROM_EM_LOOPTRI, em, data);
   }
   return tree;
 }
@@ -1310,74 +1096,38 @@ BVHTree *bvhtree_from_editmesh_looptri_ex(BVHTreeFromEditMesh *data,
 BVHTree *bvhtree_from_editmesh_looptri(
     BVHTreeFromEditMesh *data, BMEditMesh *em, float epsilon, int tree_type, int axis)
 {
-  return bvhtree_from_editmesh_looptri_ex(
-      data, em, nullptr, -1, epsilon, tree_type, axis, BVHTREE_FROM_VERTS, nullptr, nullptr);
+  return bvhtree_from_editmesh_looptri_ex(data, em, nullptr, -1, epsilon, tree_type, axis);
 }
 
-/**
- * Builds a BVH-tree where nodes are the looptri faces of the given mesh.
- *
- * \note for edit-mesh this is currently a duplicate of #bvhtree_from_mesh_faces_ex
- */
 BVHTree *bvhtree_from_mesh_looptri_ex(BVHTreeFromMesh *data,
                                       const struct MVert *vert,
-                                      const bool vert_allocated,
                                       const struct MLoop *mloop,
-                                      const bool loop_allocated,
                                       const struct MLoopTri *looptri,
                                       const int looptri_num,
-                                      const bool looptri_allocated,
                                       const BLI_bitmap *looptri_mask,
                                       int looptri_num_active,
                                       float epsilon,
                                       int tree_type,
-                                      int axis,
-                                      const BVHCacheType bvh_cache_type,
-                                      BVHCache **bvh_cache_p,
-                                      ThreadMutex *mesh_eval_mutex)
+                                      int axis)
 {
-  bool in_cache = false;
-  bool lock_started = false;
   BVHTree *tree = nullptr;
-  if (bvh_cache_p) {
-    in_cache = bvhcache_find(bvh_cache_p, bvh_cache_type, &tree, &lock_started, mesh_eval_mutex);
-  }
+  tree = bvhtree_from_mesh_looptri_create_tree(epsilon,
+                                               tree_type,
+                                               axis,
+                                               vert,
+                                               mloop,
+                                               looptri,
+                                               looptri_num,
+                                               looptri_mask,
+                                               looptri_num_active);
 
-  if (in_cache == false) {
+  bvhtree_balance(tree, false);
+
+  if (data) {
     /* Setup BVHTreeFromMesh */
-    tree = bvhtree_from_mesh_looptri_create_tree(epsilon,
-                                                 tree_type,
-                                                 axis,
-                                                 vert,
-                                                 mloop,
-                                                 looptri,
-                                                 looptri_num,
-                                                 looptri_mask,
-                                                 looptri_num_active);
-
-    bvhtree_balance(tree, bvh_cache_p != nullptr);
-
-    if (bvh_cache_p) {
-      BVHCache *bvh_cache = *bvh_cache_p;
-      bvhcache_insert(bvh_cache, tree, bvh_cache_type);
-      in_cache = true;
-    }
+    bvhtree_from_mesh_setup_data(
+        tree, BVHTREE_FROM_LOOPTRI, vert, nullptr, nullptr, mloop, looptri, nullptr, data);
   }
-
-  if (bvh_cache_p) {
-    bvhcache_unlock(*bvh_cache_p, lock_started);
-  }
-
-  /* Setup BVHTreeFromMesh */
-  bvhtree_from_mesh_looptri_setup_data(data,
-                                       tree,
-                                       in_cache,
-                                       vert,
-                                       vert_allocated,
-                                       mloop,
-                                       loop_allocated,
-                                       looptri,
-                                       looptri_allocated);
 
   return tree;
 }
@@ -1433,17 +1183,21 @@ static BLI_bitmap *loose_edges_map_get(const MEdge *medge,
 }
 
 static BLI_bitmap *looptri_no_hidden_map_get(const MPoly *mpoly,
+                                             const VArray<bool> &hide_poly,
                                              const int looptri_len,
                                              int *r_looptri_active_len)
 {
+  if (hide_poly.is_single() && !hide_poly.get_internal_single()) {
+    return nullptr;
+  }
   BLI_bitmap *looptri_mask = BLI_BITMAP_NEW(looptri_len, __func__);
 
   int looptri_no_hidden_len = 0;
   int looptri_iter = 0;
-  const MPoly *mp = mpoly;
+  int i_poly = 0;
   while (looptri_iter != looptri_len) {
-    int mp_totlooptri = mp->totloop - 2;
-    if (mp->flag & ME_HIDE) {
+    int mp_totlooptri = mpoly[i_poly].totloop - 2;
+    if (hide_poly[i_poly]) {
       looptri_iter += mp_totlooptri;
     }
     else {
@@ -1453,7 +1207,7 @@ static BLI_bitmap *looptri_no_hidden_map_get(const MPoly *mpoly,
         looptri_no_hidden_len++;
       }
     }
-    mp++;
+    i_poly++;
   }
 
   *r_looptri_active_len = looptri_no_hidden_len;
@@ -1461,168 +1215,91 @@ static BLI_bitmap *looptri_no_hidden_map_get(const MPoly *mpoly,
   return looptri_mask;
 }
 
-/**
- * Builds or queries a bvhcache for the cache bvhtree of the request type.
- *
- * \note This function only fills a cache, and therefore the mesh argument can
- * be considered logically const. Concurrent access is protected by a mutex.
- */
 BVHTree *BKE_bvhtree_from_mesh_get(struct BVHTreeFromMesh *data,
                                    const struct Mesh *mesh,
                                    const BVHCacheType bvh_cache_type,
                                    const int tree_type)
 {
-  BVHTree *tree = nullptr;
   BVHCache **bvh_cache_p = (BVHCache **)&mesh->runtime.bvh_cache;
   ThreadMutex *mesh_eval_mutex = (ThreadMutex *)mesh->runtime.eval_mutex;
 
-  const bool is_cached = bvhcache_find(bvh_cache_p, bvh_cache_type, &tree, nullptr, nullptr);
-
-  if (is_cached && tree == nullptr) {
-    memset(data, 0, sizeof(*data));
-    return tree;
+  const MLoopTri *looptri = nullptr;
+  int looptri_len = 0;
+  if (ELEM(bvh_cache_type, BVHTREE_FROM_LOOPTRI, BVHTREE_FROM_LOOPTRI_NO_HIDDEN)) {
+    looptri = BKE_mesh_runtime_looptri_ensure(mesh);
+    looptri_len = BKE_mesh_runtime_looptri_len(mesh);
   }
 
+  /* Setup BVHTreeFromMesh */
+  bvhtree_from_mesh_setup_data(nullptr,
+                               bvh_cache_type,
+                               mesh->mvert,
+                               mesh->medge,
+                               mesh->mface,
+                               mesh->mloop,
+                               looptri,
+                               BKE_mesh_vertex_normals_ensure(mesh),
+                               data);
+
+  bool lock_started = false;
+  data->cached = bvhcache_find(
+      bvh_cache_p, bvh_cache_type, &data->tree, &lock_started, mesh_eval_mutex);
+
+  if (data->cached) {
+    BLI_assert(lock_started == false);
+
+    /* NOTE: #data->tree can be nullptr. */
+    return data->tree;
+  }
+
+  /* Create BVHTree. */
+
+  BLI_bitmap *mask = nullptr;
+  int mask_bits_act_len = -1;
+
   switch (bvh_cache_type) {
-    case BVHTREE_FROM_VERTS:
     case BVHTREE_FROM_LOOSEVERTS:
-      if (is_cached == false) {
-        BLI_bitmap *loose_verts_mask = nullptr;
-        int loose_vert_len = -1;
-        int verts_len = mesh->totvert;
-
-        if (bvh_cache_type == BVHTREE_FROM_LOOSEVERTS) {
-          loose_verts_mask = loose_verts_map_get(
-              mesh->medge, mesh->totedge, mesh->mvert, verts_len, &loose_vert_len);
-        }
-
-        tree = bvhtree_from_mesh_verts_ex(data,
-                                          mesh->mvert,
-                                          verts_len,
-                                          false,
-                                          loose_verts_mask,
-                                          loose_vert_len,
-                                          0.0f,
-                                          tree_type,
-                                          6,
-                                          bvh_cache_type,
-                                          bvh_cache_p,
-                                          mesh_eval_mutex);
-
-        if (loose_verts_mask != nullptr) {
-          MEM_freeN(loose_verts_mask);
-        }
-      }
-      else {
-        /* Setup BVHTreeFromMesh */
-        bvhtree_from_mesh_verts_setup_data(data, tree, true, mesh->mvert, false);
-      }
+      mask = loose_verts_map_get(
+          mesh->medge, mesh->totedge, mesh->mvert, mesh->totvert, &mask_bits_act_len);
+      ATTR_FALLTHROUGH;
+    case BVHTREE_FROM_VERTS:
+      data->tree = bvhtree_from_mesh_verts_create_tree(
+          0.0f, tree_type, 6, mesh->mvert, mesh->totvert, mask, mask_bits_act_len);
       break;
 
-    case BVHTREE_FROM_EDGES:
     case BVHTREE_FROM_LOOSEEDGES:
-      if (is_cached == false) {
-        BLI_bitmap *loose_edges_mask = nullptr;
-        int loose_edges_len = -1;
-        int edges_len = mesh->totedge;
-
-        if (bvh_cache_type == BVHTREE_FROM_LOOSEEDGES) {
-          loose_edges_mask = loose_edges_map_get(mesh->medge, edges_len, &loose_edges_len);
-        }
-
-        tree = bvhtree_from_mesh_edges_ex(data,
-                                          mesh->mvert,
-                                          false,
-                                          mesh->medge,
-                                          edges_len,
-                                          false,
-                                          loose_edges_mask,
-                                          loose_edges_len,
-                                          0.0,
-                                          tree_type,
-                                          6,
-                                          bvh_cache_type,
-                                          bvh_cache_p,
-                                          mesh_eval_mutex);
-
-        if (loose_edges_mask != nullptr) {
-          MEM_freeN(loose_edges_mask);
-        }
-      }
-      else {
-        /* Setup BVHTreeFromMesh */
-        bvhtree_from_mesh_edges_setup_data(
-            data, tree, true, mesh->mvert, false, mesh->medge, false);
-      }
+      mask = loose_edges_map_get(mesh->medge, mesh->totedge, &mask_bits_act_len);
+      ATTR_FALLTHROUGH;
+    case BVHTREE_FROM_EDGES:
+      data->tree = bvhtree_from_mesh_edges_create_tree(
+          mesh->mvert, mesh->medge, mesh->totedge, mask, mask_bits_act_len, 0.0f, tree_type, 6);
       break;
 
     case BVHTREE_FROM_FACES:
-      if (is_cached == false) {
-        int num_faces = mesh->totface;
-        BLI_assert(!(num_faces == 0 && mesh->totpoly != 0));
-
-        tree = bvhtree_from_mesh_faces_ex(data,
-                                          mesh->mvert,
-                                          false,
-                                          mesh->mface,
-                                          num_faces,
-                                          false,
-                                          nullptr,
-                                          -1,
-                                          0.0,
-                                          tree_type,
-                                          6,
-                                          bvh_cache_type,
-                                          bvh_cache_p,
-                                          mesh_eval_mutex);
-      }
-      else {
-        /* Setup BVHTreeFromMesh */
-        bvhtree_from_mesh_faces_setup_data(
-            data, tree, true, mesh->mvert, false, mesh->mface, false);
-      }
+      BLI_assert(!(mesh->totface == 0 && mesh->totpoly != 0));
+      data->tree = bvhtree_from_mesh_faces_create_tree(
+          0.0f, tree_type, 6, mesh->mvert, mesh->mface, mesh->totface, nullptr, -1);
       break;
 
+    case BVHTREE_FROM_LOOPTRI_NO_HIDDEN: {
+      blender::bke::AttributeAccessor attributes = blender::bke::mesh_attributes(*mesh);
+      mask = looptri_no_hidden_map_get(
+          mesh->mpoly,
+          attributes.lookup_or_default(".hide_poly", ATTR_DOMAIN_FACE, false),
+          looptri_len,
+          &mask_bits_act_len);
+      ATTR_FALLTHROUGH;
+    }
     case BVHTREE_FROM_LOOPTRI:
-    case BVHTREE_FROM_LOOPTRI_NO_HIDDEN:
-      if (is_cached == false) {
-        const MLoopTri *mlooptri = BKE_mesh_runtime_looptri_ensure(mesh);
-        int looptri_len = BKE_mesh_runtime_looptri_len(mesh);
-
-        int looptri_mask_active_len = -1;
-        BLI_bitmap *looptri_mask = nullptr;
-        if (bvh_cache_type == BVHTREE_FROM_LOOPTRI_NO_HIDDEN) {
-          looptri_mask = looptri_no_hidden_map_get(
-              mesh->mpoly, looptri_len, &looptri_mask_active_len);
-        }
-
-        tree = bvhtree_from_mesh_looptri_ex(data,
-                                            mesh->mvert,
-                                            false,
-                                            mesh->mloop,
-                                            false,
-                                            mlooptri,
-                                            looptri_len,
-                                            false,
-                                            looptri_mask,
-                                            looptri_mask_active_len,
-                                            0.0,
-                                            tree_type,
-                                            6,
-                                            bvh_cache_type,
-                                            bvh_cache_p,
-                                            mesh_eval_mutex);
-
-        if (looptri_mask != nullptr) {
-          MEM_freeN(looptri_mask);
-        }
-      }
-      else {
-        /* Setup BVHTreeFromMesh */
-        const MLoopTri *mlooptri = BKE_mesh_runtime_looptri_ensure(mesh);
-        bvhtree_from_mesh_looptri_setup_data(
-            data, tree, true, mesh->mvert, false, mesh->mloop, false, mlooptri, false);
-      }
+      data->tree = bvhtree_from_mesh_looptri_create_tree(0.0f,
+                                                         tree_type,
+                                                         6,
+                                                         mesh->mvert,
+                                                         mesh->mloop,
+                                                         looptri,
+                                                         looptri_len,
+                                                         mask,
+                                                         mask_bits_act_len);
       break;
     case BVHTREE_FROM_EM_VERTS:
     case BVHTREE_FROM_EM_EDGES:
@@ -1632,27 +1309,32 @@ BVHTree *BKE_bvhtree_from_mesh_get(struct BVHTreeFromMesh *data,
       break;
   }
 
-  if (data->tree != nullptr) {
+  if (mask != nullptr) {
+    MEM_freeN(mask);
+  }
+
+  bvhtree_balance(data->tree, lock_started);
+
+  /* Save on cache for later use */
+  // printf("BVHTree built and saved on cache\n");
+  BLI_assert(data->cached == false);
+  data->cached = true;
+  bvhcache_insert(*bvh_cache_p, data->tree, bvh_cache_type);
+  bvhcache_unlock(*bvh_cache_p, lock_started);
+
 #ifdef DEBUG
+  if (data->tree != nullptr) {
     if (BLI_bvhtree_get_tree_type(data->tree) != tree_type) {
       printf("tree_type %d obtained instead of %d\n",
              BLI_bvhtree_get_tree_type(data->tree),
              tree_type);
     }
+  }
 #endif
-    BLI_assert(data->cached);
-  }
-  else {
-    free_bvhtree_from_mesh(data);
-    memset(data, 0, sizeof(*data));
-  }
 
-  return tree;
+  return data->tree;
 }
 
-/**
- * Builds or queries a bvhcache for the cache bvhtree of the request type.
- */
 BVHTree *BKE_bvhtree_from_editmesh_get(BVHTreeFromEditMesh *data,
                                        struct BMEditMesh *em,
                                        const int tree_type,
@@ -1660,80 +1342,29 @@ BVHTree *BKE_bvhtree_from_editmesh_get(BVHTreeFromEditMesh *data,
                                        BVHCache **bvh_cache_p,
                                        ThreadMutex *mesh_eval_mutex)
 {
-  BVHTree *tree = nullptr;
-  bool is_cached = false;
+  bool lock_started = false;
 
-  memset(data, 0, sizeof(*data));
+  bvhtree_from_editmesh_setup_data(nullptr, bvh_cache_type, em, data);
 
   if (bvh_cache_p) {
-    is_cached = bvhcache_find(bvh_cache_p, bvh_cache_type, &tree, nullptr, nullptr);
+    data->cached = bvhcache_find(
+        bvh_cache_p, bvh_cache_type, &data->tree, &lock_started, mesh_eval_mutex);
 
-    if (is_cached && tree == nullptr) {
-      return tree;
+    if (data->cached) {
+      BLI_assert(lock_started == false);
+      return data->tree;
     }
   }
-  data->tree = tree;
-  data->em = em;
-  data->cached = is_cached;
 
   switch (bvh_cache_type) {
     case BVHTREE_FROM_EM_VERTS:
-      if (is_cached == false) {
-        tree = bvhtree_from_editmesh_verts_ex(data,
-                                              em,
-                                              nullptr,
-                                              -1,
-                                              0.0f,
-                                              tree_type,
-                                              6,
-                                              bvh_cache_type,
-                                              bvh_cache_p,
-                                              mesh_eval_mutex);
-      }
-      else {
-        data->nearest_callback = nullptr;
-        data->raycast_callback = editmesh_verts_spherecast;
-      }
+      data->tree = bvhtree_from_editmesh_verts_create_tree(0.0f, tree_type, 6, em, nullptr, -1);
       break;
-
     case BVHTREE_FROM_EM_EDGES:
-      if (is_cached == false) {
-        tree = bvhtree_from_editmesh_edges_ex(data,
-                                              em,
-                                              nullptr,
-                                              -1,
-                                              0.0f,
-                                              tree_type,
-                                              6,
-                                              bvh_cache_type,
-                                              bvh_cache_p,
-                                              mesh_eval_mutex);
-      }
-      else {
-        /* Setup #BVHTreeFromMesh */
-        data->nearest_callback = nullptr; /* TODO */
-        data->raycast_callback = nullptr; /* TODO */
-      }
+      data->tree = bvhtree_from_editmesh_edges_create_tree(0.0f, tree_type, 6, em, nullptr, -1);
       break;
-
     case BVHTREE_FROM_EM_LOOPTRI:
-      if (is_cached == false) {
-        tree = bvhtree_from_editmesh_looptri_ex(data,
-                                                em,
-                                                nullptr,
-                                                -1,
-                                                0.0f,
-                                                tree_type,
-                                                6,
-                                                bvh_cache_type,
-                                                bvh_cache_p,
-                                                mesh_eval_mutex);
-      }
-      else {
-        /* Setup #BVHTreeFromMesh */
-        data->nearest_callback = editmesh_looptri_nearest_point;
-        data->raycast_callback = editmesh_looptri_spherecast;
-      }
+      data->tree = bvhtree_from_editmesh_looptri_create_tree(0.0f, tree_type, 6, em, nullptr, -1);
       break;
     case BVHTREE_FROM_VERTS:
     case BVHTREE_FROM_EDGES:
@@ -1747,29 +1378,36 @@ BVHTree *BKE_bvhtree_from_editmesh_get(BVHTreeFromEditMesh *data,
       break;
   }
 
-  if (data->tree != nullptr) {
+  bvhtree_balance(data->tree, lock_started);
+
+  if (bvh_cache_p) {
+    /* Save on cache for later use */
+    // printf("BVHTree built and saved on cache\n");
+    BLI_assert(data->cached == false);
+    data->cached = true;
+    bvhcache_insert(*bvh_cache_p, data->tree, bvh_cache_type);
+    bvhcache_unlock(*bvh_cache_p, lock_started);
+  }
+
 #ifdef DEBUG
+  if (data->tree != nullptr) {
     if (BLI_bvhtree_get_tree_type(data->tree) != tree_type) {
       printf("tree_type %d obtained instead of %d\n",
              BLI_bvhtree_get_tree_type(data->tree),
              tree_type);
     }
+  }
 #endif
-    BLI_assert(data->cached);
-  }
-  else {
-    free_bvhtree_from_editmesh(data);
-    memset(data, 0, sizeof(*data));
-  }
 
-  return tree;
+  return data->tree;
 }
 
 /** \} */
 
-/**
- * Frees data allocated by a call to `bvhtree_from_editmesh_*`.
- */
+/* -------------------------------------------------------------------- */
+/** \name Free Functions
+ * \{ */
+
 void free_bvhtree_from_editmesh(struct BVHTreeFromEditMesh *data)
 {
   if (data->tree) {
@@ -1780,29 +1418,10 @@ void free_bvhtree_from_editmesh(struct BVHTreeFromEditMesh *data)
   }
 }
 
-/**
- * Frees data allocated by a call to `bvhtree_from_mesh_*`.
- */
 void free_bvhtree_from_mesh(struct BVHTreeFromMesh *data)
 {
   if (data->tree && !data->cached) {
     BLI_bvhtree_free(data->tree);
-  }
-
-  if (data->vert_allocated) {
-    MEM_freeN((void *)data->vert);
-  }
-  if (data->edge_allocated) {
-    MEM_freeN((void *)data->edge);
-  }
-  if (data->face_allocated) {
-    MEM_freeN((void *)data->face);
-  }
-  if (data->loop_allocated) {
-    MEM_freeN((void *)data->loop);
-  }
-  if (data->looptri_allocated) {
-    MEM_freeN((void *)data->looptri);
   }
 
   memset(data, 0, sizeof(*data));
@@ -1823,13 +1442,17 @@ BVHTree *BKE_bvhtree_from_pointcloud_get(BVHTreeFromPointCloud *data,
     return nullptr;
   }
 
-  for (int i = 0; i < pointcloud->totpoint; i++) {
-    BLI_bvhtree_insert(tree, i, pointcloud->co[i], 1);
+  blender::bke::AttributeAccessor attributes = blender::bke::pointcloud_attributes(*pointcloud);
+  blender::VArraySpan<blender::float3> positions = attributes.lookup_or_default<blender::float3>(
+      "position", ATTR_DOMAIN_POINT, blender::float3(0));
+
+  for (const int i : positions.index_range()) {
+    BLI_bvhtree_insert(tree, i, positions[i], 1);
   }
   BLI_assert(BLI_bvhtree_get_len(tree) == pointcloud->totpoint);
   bvhtree_balance(tree, false);
 
-  data->coords = pointcloud->co;
+  data->coords = (const float(*)[3])positions.data();
   data->tree = tree;
   data->nearest_callback = nullptr;
 

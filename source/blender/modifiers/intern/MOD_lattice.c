@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2005 by the Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2005 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup modifiers
@@ -45,6 +29,7 @@
 #include "UI_resources.h"
 
 #include "RNA_access.h"
+#include "RNA_prototypes.h"
 
 #include "DEG_depsgraph_query.h"
 
@@ -102,25 +87,25 @@ static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphConte
     DEG_add_object_relation(ctx->node, lmd->object, DEG_OB_COMP_GEOMETRY, "Lattice Modifier");
     DEG_add_object_relation(ctx->node, lmd->object, DEG_OB_COMP_TRANSFORM, "Lattice Modifier");
   }
-  DEG_add_modifier_to_transform_relation(ctx->node, "Lattice Modifier");
+  DEG_add_depends_on_transform_relation(ctx->node, "Lattice Modifier");
 }
 
 static void deformVerts(ModifierData *md,
                         const ModifierEvalContext *ctx,
                         struct Mesh *mesh,
                         float (*vertexCos)[3],
-                        int numVerts)
+                        int verts_num)
 {
   LatticeModifierData *lmd = (LatticeModifierData *)md;
   struct Mesh *mesh_src = MOD_deform_mesh_eval_get(
-      ctx->object, NULL, mesh, NULL, numVerts, false, false);
+      ctx->object, NULL, mesh, NULL, verts_num, false);
 
   MOD_previous_vcos_store(md, vertexCos); /* if next modifier needs original vertices */
 
   BKE_lattice_deform_coords_with_mesh(lmd->object,
                                       ctx->object,
                                       vertexCos,
-                                      numVerts,
+                                      verts_num,
                                       lmd->flag,
                                       lmd->name,
                                       lmd->strength,
@@ -136,10 +121,10 @@ static void deformVertsEM(ModifierData *md,
                           struct BMEditMesh *em,
                           struct Mesh *mesh,
                           float (*vertexCos)[3],
-                          int numVerts)
+                          int verts_num)
 {
   if (mesh != NULL) {
-    deformVerts(md, ctx, mesh, vertexCos, numVerts);
+    deformVerts(md, ctx, mesh, vertexCos, verts_num);
     return;
   }
 
@@ -148,7 +133,7 @@ static void deformVertsEM(ModifierData *md,
   MOD_previous_vcos_store(md, vertexCos); /* if next modifier needs original vertices */
 
   BKE_lattice_deform_coords_with_editmesh(
-      lmd->object, ctx->object, vertexCos, numVerts, lmd->flag, lmd->name, lmd->strength, em);
+      lmd->object, ctx->object, vertexCos, verts_num, lmd->flag, lmd->name, lmd->strength, em);
 }
 
 static void panel_draw(const bContext *UNUSED(C), Panel *panel)
@@ -175,7 +160,7 @@ static void panelRegister(ARegionType *region_type)
 }
 
 ModifierTypeInfo modifierType_Lattice = {
-    /* name */ "Lattice",
+    /* name */ N_("Lattice"),
     /* structName */ "LatticeModifierData",
     /* structSize */ sizeof(LatticeModifierData),
     /* srna */ &RNA_LatticeModifier,
@@ -191,7 +176,6 @@ ModifierTypeInfo modifierType_Lattice = {
     /* deformVertsEM */ deformVertsEM,
     /* deformMatricesEM */ NULL,
     /* modifyMesh */ NULL,
-    /* modifyHair */ NULL,
     /* modifyGeometrySet */ NULL,
 
     /* initData */ initData,

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup creator
@@ -57,7 +41,7 @@
 #include "BKE_global.h"
 #include "BKE_gpencil_modifier.h"
 #include "BKE_idtype.h"
-#include "BKE_image.h"
+#include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_modifier.h"
 #include "BKE_node.h"
@@ -83,6 +67,13 @@
 
 #ifdef WITH_FREESTYLE
 #  include "FRS_freestyle.h"
+#endif
+
+/* for passing information between creator and gameengine */
+#ifdef WITH_GAMEENGINE
+#  include "LA_SystemCommandLine.h"
+#else /* dummy */
+#  define SYS_SystemHandle int
 #endif
 
 #include <signal.h>
@@ -242,6 +233,7 @@ void gmp_blender_init_allocator()
   mp_set_memory_functions(gmp_alloc, gmp_realloc, gmp_free);
 }
 #endif
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -264,6 +256,7 @@ int main(int argc,
 )
 {
   bContext *C;
+  SYS_SystemHandle syshandle;
 
 #ifndef WITH_PYTHON_MODULE
   bArgs *ba;
@@ -406,7 +399,6 @@ int main(int argc,
   BKE_appdir_program_path_init(argv[0]);
 
   BLI_threadapi_init();
-  BLI_thread_put_process_on_fast_node();
 
   DNA_sdna_current_init();
 
@@ -414,7 +406,6 @@ int main(int argc,
 
   BKE_idtype_init();
   BKE_cachefiles_init();
-  BKE_images_init();
   BKE_modifier_init();
   BKE_gpencil_modifier_init();
   BKE_shaderfx_init();
@@ -426,6 +417,12 @@ int main(int argc,
 
   BKE_callback_global_init();
 
+#ifdef WITH_GAMEENGINE
+  syshandle = SYS_GetSystem();
+#else
+  syshandle = 0;
+#endif
+
   /* First test for background-mode (#Global.background) */
 #ifndef WITH_PYTHON_MODULE
   ba = BLI_args_create(argc, (const char **)argv); /* skip binary path */
@@ -433,7 +430,7 @@ int main(int argc,
   /* Ensure we free on early exit. */
   app_init_data.ba = ba;
 
-  main_args_setup(C, ba);
+  main_args_setup(C, ba, &syshandle);
 
   /* Begin argument parsing, ignore leaks so arguments that call #exit
    * (such as '--version' & '--help') don't report leaks. */
@@ -445,6 +442,7 @@ int main(int argc,
 #else
   /* Using preferences or user startup makes no sense for #WITH_PYTHON_MODULE. */
   G.factory_startup = true;
+  (void)syshandle;
 #endif
 
   /* After parsing #ARG_PASS_ENVIRONMENT such as `--env-*`,
@@ -504,6 +502,9 @@ int main(int argc,
 
   WM_init(C, argc, (const char **)argv);
 
+  /* Need to be after WM init so that userpref are loaded. */
+  RE_engines_init_experimental();
+
 #ifndef WITH_PYTHON
   printf(
       "\n* WARNING * - Blender compiled without Python!\n"
@@ -552,7 +553,23 @@ int main(int argc,
     WM_exit(C);
   }
   else {
-    if (!G.file_loaded) {
+    if (G.fileflags & G_FILE_AUTOPLAY) {
+      if (G.f & G_FLAG_SCRIPT_AUTOEXEC) {
+        if (WM_init_game(C)) {
+          return 0;
+        }
+      }
+      else {
+        if (!(G.f & G_FLAG_SCRIPT_AUTOEXEC_FAIL_QUIET)) {
+          G.f |= G_FLAG_SCRIPT_AUTOEXEC_FAIL;
+          BLI_snprintf(G.autoexec_fail, sizeof(G.autoexec_fail), "Game AutoStart");
+        }
+      }
+    }
+
+    /* When no file is loaded, show the splash screen. */
+    const char *blendfile_path = BKE_main_blendfile_path_from_global();
+    if (blendfile_path[0] == '\0') {
       WM_init_splash(C);
     }
     WM_main(C);

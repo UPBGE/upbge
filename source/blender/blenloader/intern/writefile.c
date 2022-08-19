@@ -1,28 +1,11 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup blenloader
  */
 
 /**
- *
  * FILE FORMAT
  * ===========
  *
@@ -50,7 +33,7 @@
  * Almost all data in Blender are structures. Each struct saved
  * gets a BHead header.  With BHead the struct can be linked again
  * and compared with #StructDNA.
-
+ *
  * WRITE
  * =====
  *
@@ -88,6 +71,8 @@
 #endif
 
 #include "BLI_utildefines.h"
+
+#include "CLG_log.h"
 
 /* allow writefile to use deprecated functionality (for forward compatibility code) */
 #define DNA_DEPRECATED_ALLOW
@@ -148,6 +133,8 @@
 #define ZSTD_CHUNK_SIZE (1 << 20)  /* 1mb */
 
 #define ZSTD_COMPRESSION_LEVEL 3
+
+static CLG_LogRef LOG = {"blo.writefile"};
 
 /** Use if we want to store how many bytes have been written to the file. */
 // #define USE_WRITE_DATA_LEN
@@ -596,7 +583,7 @@ static WriteData *mywrite_begin(WriteWrap *ww, MemFile *compare, MemFile *curren
 
 /**
  * END the mywrite wrapper
- * \return 1 if write failed
+ * \return True if write failed
  * \return unknown global variable otherwise
  * \warning Talks to other functions with global parameters
  */
@@ -627,11 +614,14 @@ static void mywrite_id_begin(WriteData *wd, ID *id)
   if (wd->use_memfile) {
     wd->mem.current_id_session_uuid = id->session_uuid;
 
-    /* If current next memchunk does not match the ID we are about to write, try to find the
-     * correct memchunk in the mapping using ID's session_uuid. */
+    /* If current next memchunk does not match the ID we are about to write, or is not the _first_
+     * one for said ID, try to find the correct memchunk in the mapping using ID's session_uuid. */
+    MemFileChunk *curr_memchunk = wd->mem.reference_current_chunk;
+    MemFileChunk *prev_memchunk = curr_memchunk != NULL ? curr_memchunk->prev : NULL;
     if (wd->mem.id_session_uuid_mapping != NULL &&
-        (wd->mem.reference_current_chunk == NULL ||
-         wd->mem.reference_current_chunk->id_session_uuid != id->session_uuid)) {
+        (curr_memchunk == NULL || curr_memchunk->id_session_uuid != id->session_uuid ||
+         (prev_memchunk != NULL &&
+          (prev_memchunk->id_session_uuid == curr_memchunk->id_session_uuid)))) {
       void *ref = BLI_ghash_lookup(wd->mem.id_session_uuid_mapping,
                                    POINTER_FROM_UINT(id->session_uuid));
       if (ref != NULL) {
@@ -979,14 +969,19 @@ static void write_libraries(WriteData *wd, Main *main)
     if (found_one) {
       /* Not overridable. */
 
+      void *runtime_name_data = main->curlib->runtime.name_map;
+      main->curlib->runtime.name_map = NULL;
+
       BlendWriter writer = {wd};
       writestruct(wd, ID_LI, Library, 1, main->curlib);
       BKE_id_blend_write(&writer, &main->curlib->id);
 
+      main->curlib->runtime.name_map = runtime_name_data;
+
       if (main->curlib->packedfile) {
         BKE_packedfile_blend_write(&writer, main->curlib->packedfile);
         if (wd->use_memfile == false) {
-          printf("write packed .blend: %s\n", main->curlib->filepath);
+          CLOG_INFO(&LOG, 2, "Write packed .blend: %s", main->curlib->filepath);
         }
       }
 
@@ -997,12 +992,11 @@ static void write_libraries(WriteData *wd, Main *main)
               ((id->tag & LIB_TAG_EXTERN) ||
                ((id->tag & LIB_TAG_INDIRECT) && (id->flag & LIB_INDIRECT_WEAK_LINK)))) {
             if (!BKE_idtype_idcode_is_linkable(GS(id->name))) {
-              printf(
-                  "ERROR: write file: data-block '%s' from lib '%s' is not linkable "
-                  "but is flagged as directly linked",
-                  id->name,
-                  main->curlib->filepath_abs);
-              BLI_assert(0);
+              CLOG_ERROR(&LOG,
+                         "Data-block '%s' from lib '%s' is not linkable, but is flagged as "
+                         "directly linked",
+                         id->name,
+                         main->curlib->filepath_abs);
             }
             writestruct(wd, ID_LINK_PLACEHOLDER, ID, 1, id);
           }
@@ -1028,7 +1022,7 @@ static void write_global(WriteData *wd, int fileflags, Main *mainvar)
 
   /* prevent mem checkers from complaining */
   memset(fg._pad, 0, sizeof(fg._pad));
-  memset(fg.filename, 0, sizeof(fg.filename));
+  memset(fg.filepath, 0, sizeof(fg.filepath));
   memset(fg.build_hash, 0, sizeof(fg.build_hash));
   fg._pad1 = NULL;
 
@@ -1045,7 +1039,7 @@ static void write_global(WriteData *wd, int fileflags, Main *mainvar)
   fg.globalf = G.f;
   /* Write information needed for recovery. */
   if (fileflags & G_FILE_RECOVER_WRITE) {
-    BLI_strncpy(fg.filename, mainvar->name, sizeof(fg.filename));
+    STRNCPY(fg.filepath, mainvar->filepath);
   }
   sprintf(subvstr, "%4d", BLENDER_FILE_SUBVERSION);
   memcpy(fg.subvstr, subvstr, 4);
@@ -1053,6 +1047,9 @@ static void write_global(WriteData *wd, int fileflags, Main *mainvar)
   fg.subversion = BLENDER_FILE_SUBVERSION;
   fg.minversion = BLENDER_FILE_MIN_VERSION;
   fg.minsubversion = BLENDER_FILE_MIN_SUBVERSION;
+  fg.upbgesubversion = UPBGE_FILE_SUBVERSION;
+  fg.upbgeversion = UPBGE_FILE_VERSION;
+
 #ifdef WITH_BUILDINFO
   {
     extern unsigned long build_commit_timestamp;
@@ -1142,9 +1139,15 @@ static bool write_file_handle(Main *mainvar,
 
       char id_buffer_static[ID_BUFFER_STATIC_SIZE];
       void *id_buffer = id_buffer_static;
-      const size_t idtype_struct_size = BKE_idtype_get_info_from_id(id)->struct_size;
+      const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(id);
+      const size_t idtype_struct_size = id_type->struct_size;
       if (idtype_struct_size > ID_BUFFER_STATIC_SIZE) {
-        BLI_assert(0);
+        CLOG_ERROR(&LOG,
+                   "ID maximum buffer size (%d bytes) is not big enough to fit IDs of type %s, "
+                   "which needs %lu bytes",
+                   ID_BUFFER_STATIC_SIZE,
+                   id_type->name,
+                   id_type->struct_size);
         id_buffer = MEM_mallocN(idtype_struct_size, __func__);
       }
 
@@ -1213,7 +1216,6 @@ static bool write_file_handle(Main *mainvar,
          * #direct_link_id_common in `readfile.c` anyway, */
         ((ID *)id_buffer)->py_instance = NULL;
 
-        const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(id);
         if (id_type->blend_write != NULL) {
           id_type->blend_write(&writer, (ID *)id_buffer, id);
         }
@@ -1272,12 +1274,12 @@ static bool do_history(const char *name, ReportList *reports)
   int hisnr = U.versions;
 
   if (U.versions == 0) {
-    return 0;
+    return false;
   }
 
   if (strlen(name) < 2) {
     BKE_report(reports, RPT_ERROR, "Unable to make version backup: filename too short");
-    return 1;
+    return true;
   }
 
   while (hisnr > 1) {
@@ -1303,7 +1305,7 @@ static bool do_history(const char *name, ReportList *reports)
     }
   }
 
-  return 0;
+  return false;
 }
 
 /** \} */
@@ -1312,15 +1314,15 @@ static bool do_history(const char *name, ReportList *reports)
 /** \name File Writing (Public)
  * \{ */
 
-/**
- * \return Success.
- */
 bool BLO_write_file(Main *mainvar,
                     const char *filepath,
                     const int write_flags,
                     const struct BlendFileWriteParams *params,
                     ReportList *reports)
 {
+  BLI_assert(!BLI_path_is_rel(filepath));
+  BLI_assert(BLI_path_is_abs_from_cwd(filepath));
+
   char tempname[FILE_MAX + 1];
   WriteWrap ww;
 
@@ -1329,10 +1331,12 @@ bool BLO_write_file(Main *mainvar,
   const bool use_save_as_copy = params->use_save_as_copy;
   const bool use_userdef = params->use_userdef;
   const BlendThumbnail *thumb = params->thumb;
+  const bool relbase_valid = (mainvar->filepath[0] != '\0');
 
   /* path backup/restore */
   void *path_list_backup = NULL;
-  const int path_list_flag = (BKE_BPATH_TRAVERSE_SKIP_LIBRARY | BKE_BPATH_TRAVERSE_SKIP_MULTIFILE);
+  const eBPathForeachFlag path_list_flag = (BKE_BPATH_FOREACH_PATH_SKIP_LINKED |
+                                            BKE_BPATH_FOREACH_PATH_SKIP_MULTIFILE);
 
   if (G.debug & G_DEBUG_IO && mainvar->lock != NULL) {
     BKE_report(reports, RPT_INFO, "Checking sanity of current .blend file *BEFORE* save to disk");
@@ -1348,38 +1352,49 @@ bool BLO_write_file(Main *mainvar,
   if (ww.open(&ww, tempname) == false) {
     BKE_reportf(
         reports, RPT_ERROR, "Cannot open file %s for writing: %s", tempname, strerror(errno));
-    return 0;
+    return false;
+  }
+
+  if (remap_mode == BLO_WRITE_PATH_REMAP_ABSOLUTE) {
+    /* Paths will already be absolute, no remapping to do. */
+    if (relbase_valid == false) {
+      remap_mode = BLO_WRITE_PATH_REMAP_NONE;
+    }
   }
 
   /* Remapping of relative paths to new file location. */
   if (remap_mode != BLO_WRITE_PATH_REMAP_NONE) {
-
     if (remap_mode == BLO_WRITE_PATH_REMAP_RELATIVE) {
-      /* Make all relative as none of the existing paths can be relative in an unsaved document.
-       */
-      if (G.relbase_valid == false) {
+      /* Make all relative as none of the existing paths can be relative in an unsaved document. */
+      if (relbase_valid == false) {
         remap_mode = BLO_WRITE_PATH_REMAP_RELATIVE_ALL;
       }
     }
 
+    /* The source path only makes sense to set if the file was saved (`relbase_valid`). */
     char dir_src[FILE_MAX];
     char dir_dst[FILE_MAX];
-    BLI_split_dir_part(mainvar->name, dir_src, sizeof(dir_src));
-    BLI_split_dir_part(filepath, dir_dst, sizeof(dir_dst));
 
-    /* Just in case there is some subtle difference. */
-    BLI_path_normalize(mainvar->name, dir_dst);
-    BLI_path_normalize(mainvar->name, dir_src);
+    /* Normalize the paths in case there is some subtle difference (so they can be compared). */
+    if (relbase_valid) {
+      BLI_split_dir_part(mainvar->filepath, dir_src, sizeof(dir_src));
+      BLI_path_normalize(NULL, dir_src);
+    }
+    else {
+      dir_src[0] = '\0';
+    }
+    BLI_split_dir_part(filepath, dir_dst, sizeof(dir_dst));
+    BLI_path_normalize(NULL, dir_dst);
 
     /* Only for relative, not relative-all, as this means making existing paths relative. */
     if (remap_mode == BLO_WRITE_PATH_REMAP_RELATIVE) {
-      if (G.relbase_valid && (BLI_path_cmp(dir_dst, dir_src) == 0)) {
+      if (relbase_valid && (BLI_path_cmp(dir_dst, dir_src) == 0)) {
         /* Saved to same path. Nothing to do. */
         remap_mode = BLO_WRITE_PATH_REMAP_NONE;
       }
     }
     else if (remap_mode == BLO_WRITE_PATH_REMAP_ABSOLUTE) {
-      if (G.relbase_valid == false) {
+      if (relbase_valid == false) {
         /* Unsaved, all paths are absolute.Even if the user manages to set a relative path,
          * there is no base-path that can be used to make it absolute. */
         remap_mode = BLO_WRITE_PATH_REMAP_NONE;
@@ -1387,6 +1402,13 @@ bool BLO_write_file(Main *mainvar,
     }
 
     if (remap_mode != BLO_WRITE_PATH_REMAP_NONE) {
+      /* Some path processing (e.g. with libraries) may use the current `main->filepath`, if this
+       * is not matching the path currently used for saving, unexpected paths corruptions can
+       * happen. See T98201. */
+      char mainvar_filepath_orig[FILE_MAX];
+      STRNCPY(mainvar_filepath_orig, mainvar->filepath);
+      STRNCPY(mainvar->filepath, filepath);
+
       /* Check if we need to backup and restore paths. */
       if (UNLIKELY(use_save_as_copy)) {
         path_list_backup = BKE_bpath_list_backup(mainvar, path_list_flag);
@@ -1395,6 +1417,7 @@ bool BLO_write_file(Main *mainvar,
       switch (remap_mode) {
         case BLO_WRITE_PATH_REMAP_RELATIVE:
           /* Saved, make relative paths relative to new location (if possible). */
+          BLI_assert(relbase_valid);
           BKE_bpath_relative_rebase(mainvar, dir_src, dir_dst, NULL);
           break;
         case BLO_WRITE_PATH_REMAP_RELATIVE_ALL:
@@ -1403,12 +1426,15 @@ bool BLO_write_file(Main *mainvar,
           break;
         case BLO_WRITE_PATH_REMAP_ABSOLUTE:
           /* Make all absolute (when requested or unsaved). */
+          BLI_assert(relbase_valid);
           BKE_bpath_absolute_convert(mainvar, dir_src, NULL);
           break;
         case BLO_WRITE_PATH_REMAP_NONE:
-          BLI_assert(0); /* Unreachable. */
+          BLI_assert_unreachable(); /* Unreachable. */
           break;
       }
+
+      STRNCPY(mainvar->filepath, mainvar_filepath_orig);
     }
   }
 
@@ -1426,7 +1452,7 @@ bool BLO_write_file(Main *mainvar,
     BKE_report(reports, RPT_ERROR, strerror(errno));
     remove(tempname);
 
-    return 0;
+    return false;
   }
 
   /* file save to temporary file was successful */
@@ -1435,13 +1461,13 @@ bool BLO_write_file(Main *mainvar,
     const bool err_hist = do_history(filepath, reports);
     if (err_hist) {
       BKE_report(reports, RPT_ERROR, "Version backup failed (file saved with @)");
-      return 0;
+      return false;
     }
   }
 
   if (BLI_rename(tempname, filepath) != 0) {
     BKE_report(reports, RPT_ERROR, "Cannot change old file (file saved with @)");
-    return 0;
+    return false;
   }
 
   if (G.debug & G_DEBUG_IO && mainvar->lock != NULL) {
@@ -1449,12 +1475,9 @@ bool BLO_write_file(Main *mainvar,
     BLO_main_validate_libraries(mainvar, reports);
   }
 
-  return 1;
+  return true;
 }
 
-/**
- * \return Success.
- */
 bool BLO_write_file_mem(Main *mainvar, MemFile *compare, MemFile *current, int write_flags)
 {
   bool use_userdef = false;
@@ -1482,7 +1505,7 @@ void BLO_write_struct_array_by_name(BlendWriter *writer,
 {
   int struct_id = BLO_get_struct_id_by_name(writer, struct_name);
   if (UNLIKELY(struct_id == -1)) {
-    printf("error: can't find SDNA code <%s>\n", struct_name);
+    CLOG_ERROR(&LOG, "Can't find SDNA code <%s>", struct_name);
     return;
   }
   BLO_write_struct_array_by_id(writer, struct_id, array_size, data_ptr);
@@ -1530,7 +1553,7 @@ void BLO_write_struct_list_by_name(BlendWriter *writer, const char *struct_name,
 {
   int struct_id = BLO_get_struct_id_by_name(writer, struct_name);
   if (UNLIKELY(struct_id == -1)) {
-    printf("error: can't find SDNA code <%s>\n", struct_name);
+    CLOG_ERROR(&LOG, "Can't find SDNA code <%s>", struct_name);
     return;
   }
   BLO_write_struct_list_by_id(writer, struct_id, list);
@@ -1577,9 +1600,6 @@ void BLO_write_float3_array(BlendWriter *writer, uint num, const float *data_ptr
   BLO_write_raw(writer, sizeof(float[3]) * (size_t)num, data_ptr);
 }
 
-/**
- * Write a null terminated string.
- */
 void BLO_write_string(BlendWriter *writer, const char *data_ptr)
 {
   if (data_ptr != NULL) {
@@ -1587,10 +1607,6 @@ void BLO_write_string(BlendWriter *writer, const char *data_ptr)
   }
 }
 
-/**
- * Sometimes different data is written depending on whether the file is saved to disk or used for
- * undo. This function returns true when the current file-writing is done for undo.
- */
 bool BLO_write_is_undo(BlendWriter *writer)
 {
   return writer->wd->use_memfile;

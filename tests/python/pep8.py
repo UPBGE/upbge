@@ -1,22 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
-# <pep8-80 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 import os
 import subprocess
@@ -38,7 +20,6 @@ import shutil
 
 # how many lines to read into the file, pep8 comment
 # should be directly after the license header, ~20 in most cases
-PEP8_SEEK_COMMENT = 40
 SKIP_PREFIX = "./tools", "./config", "./extern"
 SKIP_ADDONS = True
 FORCE_PEP8_ALL = False
@@ -55,22 +36,8 @@ def is_pep8(path):
     print(path)
     if open(path, 'rb').read(3) == b'\xef\xbb\xbf':
         print("\nfile contains BOM, remove first 3 bytes: %r\n" % path)
-
-    # templates don't have a header but should be pep8
-    for d in ("presets", "templates_py", "examples"):
-        if ("%s%s%s" % (os.sep, d, os.sep)) in path:
-            return 1
-
-    f = open(path, 'r', encoding="utf8")
-    for _ in range(PEP8_SEEK_COMMENT):
-        line = f.readline()
-        if line.startswith("# <pep8"):
-            if line.startswith("# <pep8 compliant>"):
-                return 1
-            elif line.startswith("# <pep8-80 compliant>"):
-                return 2
-    f.close()
-    return 0
+    # Currently all scripts assumed to be pep8.
+    return 1
 
 
 def check_files_flake8(files):

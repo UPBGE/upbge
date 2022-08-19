@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2012 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2012 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup pybmesh
@@ -249,8 +233,8 @@ static int bpy_slot_from_py(BMesh *bm,
       if (!Matrix_ParseAny(value, &pymat)) {
         return -1;
       }
-      const ushort size = pymat->num_col;
-      if ((size != pymat->num_row) || (!ELEM(size, 3, 4))) {
+      const ushort size = pymat->col_num;
+      if ((size != pymat->row_num) || (!ELEM(size, 3, 4))) {
         PyErr_Format(PyExc_TypeError,
                      "%.200s: keyword \"%.200s\" expected a 3x3 or 4x4 matrix",
                      opname,
@@ -745,9 +729,6 @@ static PyObject *bpy_slot_to_py(BMesh *bm, BMOpSlot *slot)
   return item;
 }
 
-/**
- * This is the __call__ for bmesh.ops.xxx()
- */
 PyObject *BPy_BMO_call(BPy_BMeshOpFunc *self, PyObject *args, PyObject *kw)
 {
   PyObject *ret;

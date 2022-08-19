@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2021 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 /* Device data taken from HIP occupancy calculator.
  *
@@ -35,11 +22,29 @@
 
 /* Compute number of threads per block and minimum blocks per multiprocessor
  * given the maximum number of registers per thread. */
-
 #define ccl_gpu_kernel(block_num_threads, thread_num_registers) \
   extern "C" __global__ void __launch_bounds__(block_num_threads, \
                                                GPU_MULTIPRESSOR_MAX_REGISTERS / \
                                                    (block_num_threads * thread_num_registers))
+
+#define ccl_gpu_kernel_threads(block_num_threads) \
+  extern "C" __global__ void __launch_bounds__(block_num_threads)
+
+#define ccl_gpu_kernel_signature(name, ...) kernel_gpu_##name(__VA_ARGS__)
+#define ccl_gpu_kernel_postfix
+
+#define ccl_gpu_kernel_call(x) x
+
+/* Define a function object where "func" is the lambda body, and additional parameters are used to
+ * specify captured state  */
+#define ccl_gpu_kernel_lambda(func, ...) \
+  struct KernelLambda { \
+    __VA_ARGS__; \
+    __device__ int operator()(const int state) \
+    { \
+      return (func); \
+    } \
+  } ccl_gpu_kernel_lambda_pass
 
 /* sanity checks */
 

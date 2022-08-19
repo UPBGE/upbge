@@ -5,19 +5,9 @@
 #define S3D_INTERLACE_COLUMN 1
 #define S3D_INTERLACE_CHECKERBOARD 2
 
-/* Composite stereo textures */
-
-uniform sampler2D imageTexture;
-uniform sampler2D overlayTexture;
-
-uniform int stereoDisplaySettings;
-
 #define stereo_display_mode (stereoDisplaySettings & ((1 << 3) - 1))
 #define stereo_interlace_mode ((stereoDisplaySettings >> 3) & ((1 << 3) - 1))
 #define stereo_interlace_swap bool(stereoDisplaySettings >> 6)
-
-layout(location = 0) out vec4 imageColor;
-layout(location = 1) out vec4 overlayColor;
 
 bool interlace(ivec2 texel)
 {

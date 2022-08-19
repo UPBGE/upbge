@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2021, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2021 Blender Foundation. */
 
 /** \file
  * \ingroup draw
@@ -38,8 +23,43 @@ extern "C" {
 DRWTexturePool *DRW_texture_pool_create(void);
 void DRW_texture_pool_free(DRWTexturePool *pool);
 
+/**
+ * Try to find a texture corresponding to params into the texture pool.
+ * If no texture was found, create one and add it to the pool.
+ * DEPRECATED: Use DRW_texture_pool_texture_acquire instead and do it just before rendering.
+ */
 GPUTexture *DRW_texture_pool_query(
     DRWTexturePool *pool, int width, int height, eGPUTextureFormat format, void *user);
+/**
+ * Returns a temporary texture that needs to be released after use. Texture content is undefined.
+ */
+GPUTexture *DRW_texture_pool_texture_acquire(DRWTexturePool *pool,
+                                             int width,
+                                             int height,
+                                             eGPUTextureFormat format);
+/**
+ * Releases a previously acquired texture.
+ */
+void DRW_texture_pool_texture_release(DRWTexturePool *pool, GPUTexture *tmp_tex);
+
+/**
+ * This effectively remove a texture from the texture pool, giving full ownership to the caller.
+ * The given texture needs to be been acquired through DRW_texture_pool_texture_acquire().
+ * IMPORTANT: This removes the need for a DRW_texture_pool_texture_release() call on this texture.
+ */
+void DRW_texture_pool_take_texture_ownership(DRWTexturePool *pool, GPUTexture *tex);
+/**
+ * This Inserts a texture into the texture pool, giving full ownership to the texture pool.
+ * The texture needs not to be in the pool already.
+ * The texture may be reused in a latter call to DRW_texture_pool_texture_acquire();
+ * IMPORTANT: DRW_texture_pool_texture_release() still needs to be called on this texture
+ * after usage.
+ */
+void DRW_texture_pool_give_texture_ownership(DRWTexturePool *pool, GPUTexture *tex);
+
+/**
+ * Resets the user bits for each texture in the pool and delete unused ones.
+ */
 void DRW_texture_pool_reset(DRWTexturePool *pool);
 
 #ifdef __cplusplus

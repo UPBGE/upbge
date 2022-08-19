@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -25,11 +11,16 @@
 #include "DNA_object_types.h"
 #include "DNA_pointcloud_types.h"
 
+#include "BLI_bounds.hh"
+#include "BLI_index_range.hh"
 #include "BLI_listbase.h"
-#include "BLI_math.h"
+#include "BLI_math_vec_types.hh"
 #include "BLI_rand.h"
+#include "BLI_span.hh"
 #include "BLI_string.h"
+#include "BLI_task.hh"
 #include "BLI_utildefines.h"
+#include "BLI_vector.hh"
 
 #include "BKE_anim_data.h"
 #include "BKE_customdata.h"
@@ -50,6 +41,11 @@
 #include "DEG_depsgraph_query.h"
 
 #include "BLO_read_write.h"
+
+using blender::float3;
+using blender::IndexRange;
+using blender::Span;
+using blender::Vector;
 
 /* PointCloud datablock */
 
@@ -72,14 +68,13 @@ static void pointcloud_init_data(ID *id)
                              nullptr,
                              pointcloud->totpoint,
                              POINTCLOUD_ATTR_POSITION);
-  BKE_pointcloud_update_customdata_pointers(pointcloud);
 }
 
 static void pointcloud_copy_data(Main *UNUSED(bmain), ID *id_dst, const ID *id_src, const int flag)
 {
   PointCloud *pointcloud_dst = (PointCloud *)id_dst;
   const PointCloud *pointcloud_src = (const PointCloud *)id_src;
-  pointcloud_dst->mat = static_cast<Material **>(MEM_dupallocN(pointcloud_dst->mat));
+  pointcloud_dst->mat = static_cast<Material **>(MEM_dupallocN(pointcloud_src->mat));
 
   const eCDAllocType alloc_type = (flag & LIB_ID_COPY_CD_REFERENCE) ? CD_REFERENCE : CD_DUPLICATE;
   CustomData_copy(&pointcloud_src->pdata,
@@ -87,7 +82,6 @@ static void pointcloud_copy_data(Main *UNUSED(bmain), ID *id_dst, const ID *id_s
                   CD_MASK_ALL,
                   alloc_type,
                   pointcloud_dst->totpoint);
-  BKE_pointcloud_update_customdata_pointers(pointcloud_dst);
 
   pointcloud_dst->batch_cache = nullptr;
 }
@@ -113,26 +107,24 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
 {
   PointCloud *pointcloud = (PointCloud *)id;
 
-  CustomDataLayer *players = nullptr, players_buff[CD_TEMP_CHUNK_SIZE];
-  CustomData_blend_write_prepare(
-      &pointcloud->pdata, &players, players_buff, ARRAY_SIZE(players_buff));
+  Vector<CustomDataLayer, 16> point_layers;
+  CustomData_blend_write_prepare(pointcloud->pdata, point_layers);
 
   /* Write LibData */
   BLO_write_id_struct(writer, PointCloud, id_address, &pointcloud->id);
   BKE_id_blend_write(writer, &pointcloud->id);
 
   /* Direct data */
-  CustomData_blend_write(
-      writer, &pointcloud->pdata, players, pointcloud->totpoint, CD_MASK_ALL, &pointcloud->id);
+  CustomData_blend_write(writer,
+                         &pointcloud->pdata,
+                         point_layers,
+                         pointcloud->totpoint,
+                         CD_MASK_ALL,
+                         &pointcloud->id);
 
   BLO_write_pointer_array(writer, pointcloud->totcol, pointcloud->mat);
   if (pointcloud->adt) {
     BKE_animdata_blend_write(writer, pointcloud->adt);
-  }
-
-  /* Remove temporary data. */
-  if (players && players != players_buff) {
-    MEM_freeN(players);
   }
 }
 
@@ -144,7 +136,6 @@ static void pointcloud_blend_read_data(BlendDataReader *reader, ID *id)
 
   /* Geometry */
   CustomData_blend_read(reader, &pointcloud->pdata, pointcloud->totpoint);
-  BKE_pointcloud_update_customdata_pointers(pointcloud);
 
   /* Materials */
   BLO_read_pointer_array(reader, (void **)&pointcloud->mat);
@@ -175,6 +166,7 @@ IDTypeInfo IDType_ID_PT = {
     /* name_plural */ "pointclouds",
     /* translation_context */ BLT_I18NCONTEXT_ID_POINTCLOUD,
     /* flags */ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    /* asset_type_info */ nullptr,
 
     /* init_data */ pointcloud_init_data,
     /* copy_data */ pointcloud_copy_data,
@@ -182,6 +174,7 @@ IDTypeInfo IDType_ID_PT = {
     /* make_local */ nullptr,
     /* foreach_id */ pointcloud_foreach_id,
     /* foreach_cache */ nullptr,
+    /* foreach_path */ nullptr,
     /* owner_get */ nullptr,
 
     /* blend_write */ pointcloud_blend_write,
@@ -198,16 +191,27 @@ static void pointcloud_random(PointCloud *pointcloud)
 {
   pointcloud->totpoint = 400;
   CustomData_realloc(&pointcloud->pdata, pointcloud->totpoint);
-  BKE_pointcloud_update_customdata_pointers(pointcloud);
 
   RNG *rng = BLI_rng_new(0);
 
-  for (int i = 0; i < pointcloud->totpoint; i++) {
-    pointcloud->co[i][0] = 2.0f * BLI_rng_get_float(rng) - 1.0f;
-    pointcloud->co[i][1] = 2.0f * BLI_rng_get_float(rng) - 1.0f;
-    pointcloud->co[i][2] = 2.0f * BLI_rng_get_float(rng) - 1.0f;
-    pointcloud->radius[i] = 0.05f * BLI_rng_get_float(rng);
+  blender::bke::MutableAttributeAccessor attributes =
+      blender::bke::pointcloud_attributes_for_write(*pointcloud);
+  blender::bke::SpanAttributeWriter positions =
+      attributes.lookup_or_add_for_write_only_span<float3>(POINTCLOUD_ATTR_POSITION,
+                                                           ATTR_DOMAIN_POINT);
+  blender::bke::SpanAttributeWriter<float> radii =
+      attributes.lookup_or_add_for_write_only_span<float>(POINTCLOUD_ATTR_RADIUS,
+                                                          ATTR_DOMAIN_POINT);
+
+  for (const int i : positions.span.index_range()) {
+    positions.span[i] =
+        float3(BLI_rng_get_float(rng), BLI_rng_get_float(rng), BLI_rng_get_float(rng)) * 2.0f -
+        1.0f;
+    radii.span[i] = 0.05f * BLI_rng_get_float(rng);
   }
+
+  positions.finish();
+  radii.finish();
 
   BLI_rng_free(rng);
 }
@@ -254,23 +258,38 @@ PointCloud *BKE_pointcloud_new_nomain(const int totpoint)
 
   pointcloud->totpoint = totpoint;
   CustomData_realloc(&pointcloud->pdata, pointcloud->totpoint);
-  BKE_pointcloud_update_customdata_pointers(pointcloud);
 
   return pointcloud;
 }
 
-void BKE_pointcloud_minmax(const struct PointCloud *pointcloud, float r_min[3], float r_max[3])
+static std::optional<blender::bounds::MinMaxResult<float3>> point_cloud_bounds(
+    const PointCloud &pointcloud)
 {
-  float(*pointcloud_co)[3] = pointcloud->co;
-  float *pointcloud_radius = pointcloud->radius;
-  for (int a = 0; a < pointcloud->totpoint; a++) {
-    float *co = pointcloud_co[a];
-    float radius = (pointcloud_radius) ? pointcloud_radius[a] : 0.0f;
-    const float co_min[3] = {co[0] - radius, co[1] - radius, co[2] - radius};
-    const float co_max[3] = {co[0] + radius, co[1] + radius, co[2] + radius};
-    DO_MIN(co_min, r_min);
-    DO_MAX(co_max, r_max);
+  blender::bke::AttributeAccessor attributes = blender::bke::pointcloud_attributes(pointcloud);
+  blender::VArraySpan<float3> positions = attributes.lookup_or_default<float3>(
+      POINTCLOUD_ATTR_POSITION, ATTR_DOMAIN_POINT, float3(0));
+  blender::VArray<float> radii = attributes.lookup_or_default<float>(
+      POINTCLOUD_ATTR_RADIUS, ATTR_DOMAIN_POINT, 0.0f);
+
+  if (!(radii.is_single() && radii.get_internal_single() == 0.0f)) {
+    return blender::bounds::min_max_with_radii(positions, radii.get_internal_span());
   }
+  return blender::bounds::min_max(positions);
+}
+
+bool BKE_pointcloud_minmax(const PointCloud *pointcloud, float r_min[3], float r_max[3])
+{
+  using namespace blender;
+
+  const std::optional<bounds::MinMaxResult<float3>> min_max = point_cloud_bounds(*pointcloud);
+  if (!min_max) {
+    return false;
+  }
+
+  copy_v3_v3(r_min, math::min(min_max->min, float3(r_min)));
+  copy_v3_v3(r_max, math::max(min_max->max, float3(r_max)));
+
+  return true;
 }
 
 BoundBox *BKE_pointcloud_boundbox_get(Object *ob)
@@ -285,7 +304,7 @@ BoundBox *BKE_pointcloud_boundbox_get(Object *ob)
     ob->runtime.bb = static_cast<BoundBox *>(MEM_callocN(sizeof(BoundBox), "pointcloud boundbox"));
   }
 
-  blender::float3 min, max;
+  float3 min, max;
   INIT_MINMAX(min, max);
   if (ob->runtime.geometry_set_eval != nullptr) {
     ob->runtime.geometry_set_eval->compute_boundbox_without_instances(&min, &max);
@@ -299,17 +318,9 @@ BoundBox *BKE_pointcloud_boundbox_get(Object *ob)
   return ob->runtime.bb;
 }
 
-void BKE_pointcloud_update_customdata_pointers(PointCloud *pointcloud)
+bool BKE_pointcloud_customdata_required(const PointCloud *UNUSED(pointcloud), const char *name)
 {
-  pointcloud->co = static_cast<float(*)[3]>(
-      CustomData_get_layer_named(&pointcloud->pdata, CD_PROP_FLOAT3, POINTCLOUD_ATTR_POSITION));
-  pointcloud->radius = static_cast<float *>(
-      CustomData_get_layer_named(&pointcloud->pdata, CD_PROP_FLOAT, POINTCLOUD_ATTR_RADIUS));
-}
-
-bool BKE_pointcloud_customdata_required(PointCloud *UNUSED(pointcloud), CustomDataLayer *layer)
-{
-  return layer->type == CD_PROP_FLOAT3 && STREQ(layer->name, POINTCLOUD_ATTR_POSITION);
+  return STREQ(name, POINTCLOUD_ATTR_POSITION);
 }
 
 /* Dependency Graph */
@@ -326,7 +337,6 @@ PointCloud *BKE_pointcloud_new_for_eval(const PointCloud *pointcloud_src, int to
   pointcloud_dst->totpoint = totpoint;
   CustomData_copy(
       &pointcloud_src->pdata, &pointcloud_dst->pdata, CD_MASK_ALL, CD_CALLOC, totpoint);
-  BKE_pointcloud_update_customdata_pointers(pointcloud_dst);
 
   return pointcloud_dst;
 }
@@ -353,6 +363,8 @@ static void pointcloud_evaluate_modifiers(struct Depsgraph *depsgraph,
   const int required_mode = use_render ? eModifierMode_Render : eModifierMode_Realtime;
   ModifierApplyFlag apply_flag = use_render ? MOD_APPLY_RENDER : MOD_APPLY_USECACHE;
   const ModifierEvalContext mectx = {depsgraph, object, apply_flag};
+
+  BKE_modifiers_clear_errors(object);
 
   /* Get effective list of modifiers to execute. Some effects like shape keys
    * are added as virtual modifiers before the user created modifiers. */
@@ -417,6 +429,7 @@ void BKE_pointcloud_data_update(struct Depsgraph *depsgraph, struct Scene *scene
 }
 
 /* Draw Cache */
+
 void (*BKE_pointcloud_batch_cache_dirty_tag_cb)(PointCloud *pointcloud, int mode) = nullptr;
 void (*BKE_pointcloud_batch_cache_free_cb)(PointCloud *pointcloud) = nullptr;
 

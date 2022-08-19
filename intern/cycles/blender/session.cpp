@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include <stdlib.h>
 
@@ -123,7 +110,8 @@ void BlenderSession::create_session()
 {
   const SessionParams session_params = BlenderSync::get_session_params(
       b_engine, b_userpref, b_scene, background);
-  const SceneParams scene_params = BlenderSync::get_scene_params(b_scene, background);
+  const SceneParams scene_params = BlenderSync::get_scene_params(
+      b_scene, background, use_developer_ui);
   const bool session_pause = BlenderSync::get_session_pause(b_scene, background);
 
   /* reset status/progress */
@@ -209,7 +197,8 @@ void BlenderSession::reset_session(BL::BlendData &b_data, BL::Depsgraph &b_depsg
 
   const SessionParams session_params = BlenderSync::get_session_params(
       b_engine, b_userpref, b_scene, background);
-  const SceneParams scene_params = BlenderSync::get_scene_params(b_scene, background);
+  const SceneParams scene_params = BlenderSync::get_scene_params(
+      b_scene, background, use_developer_ui);
 
   if (scene->params.modified(scene_params) || session->params.modified(session_params) ||
       !this->b_render.use_persistent_data()) {
@@ -396,6 +385,13 @@ void BlenderSession::render(BL::Depsgraph &b_depsgraph_)
     /* set the current view */
     b_engine.active_view_set(b_rview_name.c_str());
 
+    /* Force update in this case, since the camera transform on each frame changes
+     * in different views. This could be optimized by somehow storing the animated
+     * camera transforms separate from the fixed stereo transform. */
+    if ((scene->need_motion() != Scene::MOTION_NONE) && view_index > 0) {
+      sync->tag_update();
+    }
+
     /* update scene */
     BL::Object b_camera_override(b_engine.camera_override());
     sync->sync_camera(b_render, b_camera_override, width, height, b_rview_name.c_str());
@@ -464,8 +460,8 @@ void BlenderSession::render(BL::Depsgraph &b_depsgraph_)
 
   double total_time, render_time;
   session->progress.get_time(total_time, render_time);
-  VLOG(1) << "Total render time: " << total_time;
-  VLOG(1) << "Render time (without synchronization): " << render_time;
+  VLOG_INFO << "Total render time: " << total_time;
+  VLOG_INFO << "Render time (without synchronization): " << render_time;
 }
 
 void BlenderSession::render_frame_finish()
@@ -495,96 +491,158 @@ void BlenderSession::render_frame_finish()
     path_remove(filename);
   }
 
-  /* Clear driver. */
+  /* Clear output driver. */
   session->set_output_driver(nullptr);
   session->full_buffer_written_cb = function_null;
+
+  /* The display driver is the source of drawing context for both drawing and possible graphics
+   * interop objects in the path trace. Once the frame is finished the OpenGL context might be
+   * freed form Blender side. Need to ensure that all GPU resources are freed prior to that
+   * point.
+   * Ideally would only do this when OpenGL context is actually destroyed, but there is no way to
+   * know when this happens (at least in the code at the time when this comment was written).
+   * The penalty of re-creating resources on every frame is unlikely to be noticed. */
+  display_driver_ = nullptr;
+  session->set_display_driver(nullptr);
 
   /* All the files are handled.
    * Clear the list so that this session can be re-used by Persistent Data. */
   full_buffer_files_.clear();
 }
 
-static PassType bake_type_to_pass(const string &bake_type_str, const int bake_filter)
+static bool bake_setup_pass(Scene *scene, const string &bake_type_str, const int bake_filter)
 {
+  Integrator *integrator = scene->integrator;
   const char *bake_type = bake_type_str.c_str();
 
-  /* data passes */
+  PassType type = PASS_NONE;
+  bool use_direct_light = false;
+  bool use_indirect_light = false;
+  bool include_albedo = false;
+
+  /* Data passes. */
   if (strcmp(bake_type, "POSITION") == 0) {
-    return PASS_POSITION;
+    type = PASS_POSITION;
   }
   else if (strcmp(bake_type, "NORMAL") == 0) {
-    return PASS_NORMAL;
+    type = PASS_NORMAL;
   }
   else if (strcmp(bake_type, "UV") == 0) {
-    return PASS_UV;
+    type = PASS_UV;
   }
   else if (strcmp(bake_type, "ROUGHNESS") == 0) {
-    return PASS_ROUGHNESS;
+    type = PASS_ROUGHNESS;
   }
   else if (strcmp(bake_type, "EMIT") == 0) {
-    return PASS_EMISSION;
+    type = PASS_EMISSION;
   }
-  /* light passes */
+  /* Environment pass. */
+  else if (strcmp(bake_type, "ENVIRONMENT") == 0) {
+    type = PASS_BACKGROUND;
+  }
+  /* AO passes. */
   else if (strcmp(bake_type, "AO") == 0) {
-    return PASS_AO;
+    type = PASS_AO;
   }
+  /* Combined pass. */
   else if (strcmp(bake_type, "COMBINED") == 0) {
-    return PASS_COMBINED;
+    type = PASS_COMBINED;
+
+    use_direct_light = (bake_filter & BL::BakeSettings::pass_filter_DIRECT) != 0;
+    use_indirect_light = (bake_filter & BL::BakeSettings::pass_filter_INDIRECT) != 0;
+    include_albedo = (bake_filter & BL::BakeSettings::pass_filter_COLOR);
+
+    integrator->set_use_diffuse((bake_filter & BL::BakeSettings::pass_filter_DIFFUSE) != 0);
+    integrator->set_use_glossy((bake_filter & BL::BakeSettings::pass_filter_GLOSSY) != 0);
+    integrator->set_use_transmission((bake_filter & BL::BakeSettings::pass_filter_TRANSMISSION) !=
+                                     0);
+    integrator->set_use_emission((bake_filter & BL::BakeSettings::pass_filter_EMIT) != 0);
   }
+  /* Shadow pass. */
   else if (strcmp(bake_type, "SHADOW") == 0) {
-    return PASS_SHADOW;
+    type = PASS_SHADOW;
+    use_direct_light = true;
   }
+  /* Light component passes. */
   else if (strcmp(bake_type, "DIFFUSE") == 0) {
     if ((bake_filter & BL::BakeSettings::pass_filter_DIRECT) &&
         bake_filter & BL::BakeSettings::pass_filter_INDIRECT) {
-      return PASS_DIFFUSE;
+      type = PASS_DIFFUSE;
+      use_direct_light = true;
+      use_indirect_light = true;
     }
     else if (bake_filter & BL::BakeSettings::pass_filter_DIRECT) {
-      return PASS_DIFFUSE_DIRECT;
+      type = PASS_DIFFUSE_DIRECT;
+      use_direct_light = true;
     }
     else if (bake_filter & BL::BakeSettings::pass_filter_INDIRECT) {
-      return PASS_DIFFUSE_INDIRECT;
+      type = PASS_DIFFUSE_INDIRECT;
+      use_indirect_light = true;
     }
     else {
-      return PASS_DIFFUSE_COLOR;
+      type = PASS_DIFFUSE_COLOR;
     }
+
+    include_albedo = (bake_filter & BL::BakeSettings::pass_filter_COLOR);
   }
   else if (strcmp(bake_type, "GLOSSY") == 0) {
     if ((bake_filter & BL::BakeSettings::pass_filter_DIRECT) &&
         bake_filter & BL::BakeSettings::pass_filter_INDIRECT) {
-      return PASS_GLOSSY;
+      type = PASS_GLOSSY;
+      use_direct_light = true;
+      use_indirect_light = true;
     }
     else if (bake_filter & BL::BakeSettings::pass_filter_DIRECT) {
-      return PASS_GLOSSY_DIRECT;
+      type = PASS_GLOSSY_DIRECT;
+      use_direct_light = true;
     }
     else if (bake_filter & BL::BakeSettings::pass_filter_INDIRECT) {
-      return PASS_GLOSSY_INDIRECT;
+      type = PASS_GLOSSY_INDIRECT;
+      use_indirect_light = true;
     }
     else {
-      return PASS_GLOSSY_COLOR;
+      type = PASS_GLOSSY_COLOR;
     }
+
+    include_albedo = (bake_filter & BL::BakeSettings::pass_filter_COLOR);
   }
   else if (strcmp(bake_type, "TRANSMISSION") == 0) {
     if ((bake_filter & BL::BakeSettings::pass_filter_DIRECT) &&
         bake_filter & BL::BakeSettings::pass_filter_INDIRECT) {
-      return PASS_TRANSMISSION;
+      type = PASS_TRANSMISSION;
+      use_direct_light = true;
+      use_indirect_light = true;
     }
     else if (bake_filter & BL::BakeSettings::pass_filter_DIRECT) {
-      return PASS_TRANSMISSION_DIRECT;
+      type = PASS_TRANSMISSION_DIRECT;
+      use_direct_light = true;
     }
     else if (bake_filter & BL::BakeSettings::pass_filter_INDIRECT) {
-      return PASS_TRANSMISSION_INDIRECT;
+      type = PASS_TRANSMISSION_INDIRECT;
+      use_indirect_light = true;
     }
     else {
-      return PASS_TRANSMISSION_COLOR;
+      type = PASS_TRANSMISSION_COLOR;
     }
-  }
-  /* extra */
-  else if (strcmp(bake_type, "ENVIRONMENT") == 0) {
-    return PASS_BACKGROUND;
+
+    include_albedo = (bake_filter & BL::BakeSettings::pass_filter_COLOR);
   }
 
-  return PASS_COMBINED;
+  if (type == PASS_NONE) {
+    return false;
+  }
+
+  /* Create pass. */
+  Pass *pass = scene->create_node<Pass>();
+  pass->set_name(ustring("Combined"));
+  pass->set_type(type);
+  pass->set_include_albedo(include_albedo);
+
+  /* Disable direct indirect light for performance when not needed. */
+  integrator->set_use_direct_light(use_direct_light);
+  integrator->set_use_indirect_light(use_indirect_light);
+
+  return true;
 }
 
 void BlenderSession::bake(BL::Depsgraph &b_depsgraph_,
@@ -599,39 +657,25 @@ void BlenderSession::bake(BL::Depsgraph &b_depsgraph_,
   /* Initialize bake manager, before we load the baking kernels. */
   scene->bake_manager->set(scene, b_object.name());
 
-  /* Add render pass that we want to bake, and name it Combined so that it is
-   * used as that on the Blender side. */
-  Pass *pass = scene->create_node<Pass>();
-  pass->set_name(ustring("Combined"));
-  pass->set_type(bake_type_to_pass(bake_type, bake_filter));
-  pass->set_include_albedo((bake_filter & BL::BakeSettings::pass_filter_COLOR));
-
   session->set_display_driver(nullptr);
   session->set_output_driver(make_unique<BlenderOutputDriver>(b_engine));
 
+  /* Sync scene. */
+  BL::Object b_camera_override(b_engine.camera_override());
+  sync->sync_camera(b_render, b_camera_override, width, height, "");
+  sync->sync_data(
+      b_render, b_depsgraph, b_v3d, b_camera_override, width, height, &python_thread_state);
+
+  /* Add render pass that we want to bake, and name it Combined so that it is
+   * used as that on the Blender side. */
+  if (!bake_setup_pass(scene, bake_type, bake_filter)) {
+    session->cancel(true);
+  }
+
+  /* Always use transparent background for baking. */
+  scene->background->set_transparent(true);
+
   if (!session->progress.get_cancel()) {
-    /* Sync scene. */
-    BL::Object b_camera_override(b_engine.camera_override());
-    sync->sync_camera(b_render, b_camera_override, width, height, "");
-    sync->sync_data(
-        b_render, b_depsgraph, b_v3d, b_camera_override, width, height, &python_thread_state);
-
-    /* Filtering settings for combined pass. */
-    if (pass->get_type() == PASS_COMBINED) {
-      Integrator *integrator = scene->integrator;
-      integrator->set_use_direct_light((bake_filter & BL::BakeSettings::pass_filter_DIRECT) != 0);
-      integrator->set_use_indirect_light((bake_filter & BL::BakeSettings::pass_filter_INDIRECT) !=
-                                         0);
-      integrator->set_use_diffuse((bake_filter & BL::BakeSettings::pass_filter_DIFFUSE) != 0);
-      integrator->set_use_glossy((bake_filter & BL::BakeSettings::pass_filter_GLOSSY) != 0);
-      integrator->set_use_transmission(
-          (bake_filter & BL::BakeSettings::pass_filter_TRANSMISSION) != 0);
-      integrator->set_use_emission((bake_filter & BL::BakeSettings::pass_filter_EMIT) != 0);
-    }
-
-    /* Always use transpanent background for baking. */
-    scene->background->set_transparent(true);
-
     /* Load built-in images from Blender. */
     builtin_images_load();
   }
@@ -639,10 +683,12 @@ void BlenderSession::bake(BL::Depsgraph &b_depsgraph_,
   /* Object might have been disabled for rendering or excluded in some
    * other way, in that case Blender will report a warning afterwards. */
   bool object_found = false;
-  foreach (Object *ob, scene->objects) {
-    if (ob->name == b_object.name()) {
-      object_found = true;
-      break;
+  if (!session->progress.get_cancel()) {
+    foreach (Object *ob, scene->objects) {
+      if (ob->name == b_object.name()) {
+        object_found = true;
+        break;
+      }
     }
   }
 
@@ -680,7 +726,8 @@ void BlenderSession::synchronize(BL::Depsgraph &b_depsgraph_)
   /* on session/scene parameter changes, we recreate session entirely */
   const SessionParams session_params = BlenderSync::get_session_params(
       b_engine, b_userpref, b_scene, background);
-  const SceneParams scene_params = BlenderSync::get_scene_params(b_scene, background);
+  const SceneParams scene_params = BlenderSync::get_scene_params(
+      b_scene, background, use_developer_ui);
   const bool session_pause = BlenderSync::get_session_pause(b_scene, background);
 
   if (session->params.modified(session_params) || scene->params.modified(scene_params)) {

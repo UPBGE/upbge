@@ -1,4 +1,4 @@
-/* Apache License, Version 2.0 */
+/* SPDX-License-Identifier: Apache-2.0 */
 
 #include "testing/testing.h"
 
@@ -13,8 +13,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "gpu_testing.hh"
-
-#include "GPU_glew.h"
 
 namespace blender::gpu::tests {
 
@@ -48,7 +46,7 @@ void main() {
 
   /* Create texture to store result and attach to shader. */
   GPUTexture *texture = GPU_texture_create_2d(
-      "gpu_shader_compute_2d", SIZE, SIZE, 0, GPU_RGBA32F, nullptr);
+      "gpu_shader_compute_2d", SIZE, SIZE, 1, GPU_RGBA32F, nullptr);
   EXPECT_NE(texture, nullptr);
 
   GPU_shader_bind(shader);
@@ -109,7 +107,7 @@ void main() {
 
   /* Construct Texture. */
   GPUTexture *texture = GPU_texture_create_1d(
-      "gpu_shader_compute_1d", SIZE, 0, GPU_RGBA32F, nullptr);
+      "gpu_shader_compute_1d", SIZE, 1, GPU_RGBA32F, nullptr);
   EXPECT_NE(texture, nullptr);
 
   GPU_shader_bind(shader);

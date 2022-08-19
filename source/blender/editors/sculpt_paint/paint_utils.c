@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edsculpt
@@ -54,6 +38,7 @@
 
 #include "RNA_access.h"
 #include "RNA_define.h"
+#include "RNA_prototypes.h"
 
 #include "GPU_framebuffer.h"
 #include "GPU_matrix.h"
@@ -80,9 +65,6 @@
 
 #include "paint_intern.h"
 
-/* Convert the object-space axis-aligned bounding box (expressed as
- * its minimum and maximum corners) into a screen-space rectangle,
- * returns zero if the result is empty */
 bool paint_convert_bb_to_rect(rcti *rect,
                               const float bb_min[3],
                               const float bb_max[3],
@@ -127,9 +109,6 @@ bool paint_convert_bb_to_rect(rcti *rect,
   return rect->xmin < rect->xmax && rect->ymin < rect->ymax;
 }
 
-/* Get four planes in object-space that describe the projection of
- * screen_rect from screen into object-space (essentially converting a
- * 2D screens-space bounding box into four 3D planes) */
 void paint_calc_redraw_planes(float planes[4][4],
                               const ARegion *region,
                               Object *ob,
@@ -152,13 +131,12 @@ float paint_calc_object_space_radius(ViewContext *vc, const float center[3], flo
 {
   Object *ob = vc->obact;
   float delta[3], scale, loc[3];
-  const float mval_f[2] = {pixel_radius, 0.0f};
-  float zfac;
+  const float xy_delta[2] = {pixel_radius, 0.0f};
 
   mul_v3_m4v3(loc, ob->obmat, center);
 
-  zfac = ED_view3d_calc_zfac(vc->rv3d, loc, NULL);
-  ED_view3d_win_to_delta(vc->region, mval_f, delta, zfac);
+  const float zfac = ED_view3d_calc_zfac(vc->rv3d, loc);
+  ED_view3d_win_to_delta(vc->region, xy_delta, zfac, delta);
 
   scale = fabsf(mat4_to_scale(ob->obmat));
   scale = (scale == 0.0f) ? 1.0f : scale;
@@ -303,7 +281,7 @@ static void imapaint_pick_uv(
   float p[2], w[3], absw, minabsw;
   float matrix[4][4], proj[4][4];
   int view[4];
-  const eImagePaintMode mode = scene->toolsettings->imapaint.mode;
+  const ePaintCanvasSource mode = scene->toolsettings->imapaint.mode;
 
   const MLoopTri *lt = BKE_mesh_runtime_looptri_ensure(me_eval);
   const int tottri = me_eval->runtime.looptris.len;
@@ -339,7 +317,7 @@ static void imapaint_pick_uv(
         copy_v3_v3(tri_co[j], mvert[mloop[lt->tri[j]].v].co);
       }
 
-      if (mode == IMAGEPAINT_MODE_MATERIAL) {
+      if (mode == PAINT_CANVAS_SOURCE_MATERIAL) {
         const Material *ma;
         const TexPaintSlot *slot;
 
@@ -393,63 +371,6 @@ static int imapaint_pick_face(ViewContext *vc, const int mval[2], uint *r_index,
   return 1;
 }
 
-static Image *imapaint_face_image(Object *ob, Mesh *me, int face_index)
-{
-  Image *ima;
-  MPoly *mp = me->mpoly + face_index;
-  Material *ma = BKE_object_material_get(ob, mp->mat_nr + 1);
-  ima = ma && ma->texpaintslot ? ma->texpaintslot[ma->paint_active_slot].ima : NULL;
-
-  return ima;
-}
-
-/* Uses symm to selectively flip any axis of a coordinate. */
-void flip_v3_v3(float out[3], const float in[3], const ePaintSymmetryFlags symm)
-{
-  if (symm & PAINT_SYMM_X) {
-    out[0] = -in[0];
-  }
-  else {
-    out[0] = in[0];
-  }
-  if (symm & PAINT_SYMM_Y) {
-    out[1] = -in[1];
-  }
-  else {
-    out[1] = in[1];
-  }
-  if (symm & PAINT_SYMM_Z) {
-    out[2] = -in[2];
-  }
-  else {
-    out[2] = in[2];
-  }
-}
-
-void flip_qt_qt(float out[4], const float in[4], const ePaintSymmetryFlags symm)
-{
-  float axis[3], angle;
-
-  quat_to_axis_angle(axis, &angle, in);
-  normalize_v3(axis);
-
-  if (symm & PAINT_SYMM_X) {
-    axis[0] *= -1.0f;
-    angle *= -1.0f;
-  }
-  if (symm & PAINT_SYMM_Y) {
-    axis[1] *= -1.0f;
-    angle *= -1.0f;
-  }
-  if (symm & PAINT_SYMM_Z) {
-    axis[2] *= -1.0f;
-    angle *= -1.0f;
-  }
-
-  axis_angle_normalized_to_quat(out, axis, angle);
-}
-
-/* used for both 3d view and image window */
 void paint_sample_color(
     bContext *C, ARegion *region, int x, int y, bool texpaint_proj, bool use_palette)
 {
@@ -501,13 +422,26 @@ void paint_sample_color(
         view3d_operator_needs_opengl(C);
 
         if (imapaint_pick_face(&vc, mval, &faceindex, totpoly)) {
-          Image *image;
+          Image *image = NULL;
+          int interp = SHD_INTERP_LINEAR;
 
           if (use_material) {
-            image = imapaint_face_image(ob_eval, me_eval, faceindex);
+            /* Image and texture interpolation from material. */
+            MPoly *mp = me_eval->mpoly + faceindex;
+            Material *ma = BKE_object_material_get(ob_eval, mp->mat_nr + 1);
+
+            /* Force refresh since paint slots are not updated when changing interpolation. */
+            BKE_texpaint_slot_refresh_cache(scene, ma, ob);
+
+            if (ma && ma->texpaintslot) {
+              image = ma->texpaintslot[ma->paint_active_slot].ima;
+              interp = ma->texpaintslot[ma->paint_active_slot].interp;
+            }
           }
           else {
+            /* Image and texture interpolation from tool settings. */
             image = imapaint->canvas;
+            interp = imapaint->interp;
           }
 
           if (image) {
@@ -545,7 +479,12 @@ void paint_sample_color(
 
               if (ibuf->rect_float) {
                 float rgba_f[4];
-                bilinear_interpolation_color_wrap(ibuf, NULL, rgba_f, u, v);
+                if (interp == SHD_INTERP_CLOSEST) {
+                  nearest_interpolation_color_wrap(ibuf, NULL, rgba_f, u, v);
+                }
+                else {
+                  bilinear_interpolation_color_wrap(ibuf, NULL, rgba_f, u, v);
+                }
                 straight_to_premul_v4(rgba_f);
                 if (use_palette) {
                   linearrgb_to_srgb_v3_v3(color->rgb, rgba_f);
@@ -557,7 +496,12 @@ void paint_sample_color(
               }
               else {
                 uchar rgba[4];
-                bilinear_interpolation_color_wrap(ibuf, rgba, NULL, u, v);
+                if (interp == SHD_INTERP_CLOSEST) {
+                  nearest_interpolation_color_wrap(ibuf, rgba, NULL, u, v);
+                }
+                else {
+                  bilinear_interpolation_color_wrap(ibuf, rgba, NULL, u, v);
+                }
                 if (use_palette) {
                   rgb_uchar_to_float(color->rgb, rgba);
                 }
@@ -654,7 +598,8 @@ void BRUSH_OT_curve_preset(wmOperatorType *ot)
   ot->poll = brush_curve_preset_poll;
 
   prop = RNA_def_enum(ot->srna, "shape", prop_shape_items, CURVE_PRESET_SMOOTH, "Mode", "");
-  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_CURVE); /* Abusing id_curve :/ */
+  RNA_def_property_translation_context(prop,
+                                       BLT_I18NCONTEXT_ID_CURVE_LEGACY); /* Abusing id_curve :/ */
 }
 
 /* face-select ops */
@@ -804,25 +749,68 @@ void PAINT_OT_face_select_hide(wmOperatorType *ot)
       ot->srna, "unselected", 0, "Unselected", "Hide unselected rather than selected objects");
 }
 
-static int face_select_reveal_exec(bContext *C, wmOperator *op)
+static int vert_select_hide_exec(bContext *C, wmOperator *op)
 {
-  const bool select = RNA_boolean_get(op->ptr, "select");
+  const bool unselected = RNA_boolean_get(op->ptr, "unselected");
   Object *ob = CTX_data_active_object(C);
-  paintface_reveal(C, ob, select);
+  paintvert_hide(C, ob, unselected);
   ED_region_tag_redraw(CTX_wm_region(C));
   return OPERATOR_FINISHED;
 }
 
-void PAINT_OT_face_select_reveal(wmOperatorType *ot)
+void PAINT_OT_vert_select_hide(wmOperatorType *ot)
 {
-  ot->name = "Face Select Reveal";
-  ot->description = "Reveal hidden faces";
-  ot->idname = "PAINT_OT_face_select_reveal";
+  ot->name = "Vertex Select Hide";
+  ot->description = "Hide selected vertices";
+  ot->idname = "PAINT_OT_vert_select_hide";
 
-  ot->exec = face_select_reveal_exec;
-  ot->poll = facemask_paint_poll;
+  ot->exec = vert_select_hide_exec;
+  ot->poll = vert_paint_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_boolean(ot->srna, "select", true, "Select", "");
+  RNA_def_boolean(
+      ot->srna, "unselected", 0, "Unselected", "Hide unselected rather than selected vertices");
+}
+
+static int face_vert_reveal_exec(bContext *C, wmOperator *op)
+{
+  const bool select = RNA_boolean_get(op->ptr, "select");
+  Object *ob = CTX_data_active_object(C);
+
+  if (BKE_paint_select_vert_test(ob)) {
+    paintvert_reveal(C, ob, select);
+  }
+  else {
+    paintface_reveal(C, ob, select);
+  }
+
+  ED_region_tag_redraw(CTX_wm_region(C));
+  return OPERATOR_FINISHED;
+}
+
+static bool face_vert_reveal_poll(bContext *C)
+{
+  Object *ob = CTX_data_active_object(C);
+
+  /* Allow using this operator when no selection is enabled but hiding is applied. */
+  return BKE_paint_select_elem_test(ob) || BKE_paint_always_hide_test(ob);
+}
+
+void PAINT_OT_face_vert_reveal(wmOperatorType *ot)
+{
+  ot->name = "Reveal Faces/Vertices";
+  ot->description = "Reveal hidden faces and vertices";
+  ot->idname = "PAINT_OT_face_vert_reveal";
+
+  ot->exec = face_vert_reveal_exec;
+  ot->poll = face_vert_reveal_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_boolean(ot->srna,
+                  "select",
+                  true,
+                  "Select",
+                  "Specifies whether the newly revealed geometry should be selected");
 }

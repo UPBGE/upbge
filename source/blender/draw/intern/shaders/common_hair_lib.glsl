@@ -5,6 +5,11 @@
  * of data the CPU has to precompute and transfer for each update.
  */
 
+#define COMMON_HAIR_LIB
+
+/* TODO(fclem): Keep documentation but remove the uniform declaration. */
+#ifndef USE_GPU_SHADER_CREATE_INFO
+
 /**
  * hairStrandsRes: Number of points per hair strand.
  * 2 - no subdivision
@@ -26,15 +31,13 @@ uniform float hairRadTip = 0.0;
 uniform float hairRadShape = 0.5;
 uniform bool hairCloseTip = true;
 
-uniform vec4 hairDupliMatrix[4];
+uniform mat4 hairDupliMatrix;
 
 /* Strand batch offset when used in compute shaders. */
 uniform int hairStrandOffset = 0;
 
 /* -- Per control points -- */
 uniform samplerBuffer hairPointBuffer; /* RGBA32F */
-#define point_position xyz
-#define point_time w /* Position along the hair length */
 
 /* -- Per strands data -- */
 uniform usamplerBuffer hairStrandBuffer;    /* R32UI */
@@ -43,6 +46,10 @@ uniform usamplerBuffer hairStrandSegBuffer; /* R16UI */
 /* Not used, use one buffer per uv layer */
 // uniform samplerBuffer hairUVBuffer; /* RG32F */
 // uniform samplerBuffer hairColBuffer; /* RGBA16 linear color */
+#endif
+
+#define point_position xyz
+#define point_time w /* Position along the hair length */
 
 /* -- Subdivision stage -- */
 /**
@@ -153,27 +160,26 @@ float hair_shaperadius(float shape, float root, float tip, float time)
   return (radius * (root - tip)) + tip;
 }
 
-#  ifdef OS_MAC
+#  if defined(OS_MAC) && defined(GPU_OPENGL)
 in float dummy;
 #  endif
 
-void hair_get_pos_tan_binor_time(bool is_persp,
-                                 mat4 invmodel_mat,
-                                 vec3 camera_pos,
-                                 vec3 camera_z,
-                                 out vec3 wpos,
-                                 out vec3 wtan,
-                                 out vec3 wbinor,
-                                 out float time,
-                                 out float thickness,
-                                 out float thick_time)
+void hair_get_center_pos_tan_binor_time(bool is_persp,
+                                        mat4 invmodel_mat,
+                                        vec3 camera_pos,
+                                        vec3 camera_z,
+                                        out vec3 wpos,
+                                        out vec3 wtan,
+                                        out vec3 wbinor,
+                                        out float time,
+                                        out float thickness)
 {
   int id = hair_get_base_id();
   vec4 data = texelFetch(hairPointBuffer, id);
   wpos = data.point_position;
   time = data.point_time;
 
-#  ifdef OS_MAC
+#  if defined(OS_MAC) && defined(GPU_OPENGL)
   /* Generate a dummy read to avoid the driver bug with shaders having no
    * vertex reads on macOS (T60171) */
   wpos.y += dummy * 0.0;
@@ -187,9 +193,7 @@ void hair_get_pos_tan_binor_time(bool is_persp,
     wtan = wpos - texelFetch(hairPointBuffer, id - 1).point_position;
   }
 
-  mat4 obmat = mat4(
-      hairDupliMatrix[0], hairDupliMatrix[1], hairDupliMatrix[2], hairDupliMatrix[3]);
-
+  mat4 obmat = hairDupliMatrix;
   wpos = (obmat * vec4(wpos, 1.0)).xyz;
   wtan = -normalize(mat3(obmat) * wtan);
 
@@ -197,16 +201,33 @@ void hair_get_pos_tan_binor_time(bool is_persp,
   wbinor = normalize(cross(camera_vec, wtan));
 
   thickness = hair_shaperadius(hairRadShape, hairRadRoot, hairRadTip, time);
+}
 
+void hair_get_pos_tan_binor_time(bool is_persp,
+                                 mat4 invmodel_mat,
+                                 vec3 camera_pos,
+                                 vec3 camera_z,
+                                 out vec3 wpos,
+                                 out vec3 wtan,
+                                 out vec3 wbinor,
+                                 out float time,
+                                 out float thickness,
+                                 out float thick_time)
+{
+  hair_get_center_pos_tan_binor_time(
+      is_persp, invmodel_mat, camera_pos, camera_z, wpos, wtan, wbinor, time, thickness);
   if (hairThicknessRes > 1) {
     thick_time = float(gl_VertexID % hairThicknessRes) / float(hairThicknessRes - 1);
     thick_time = thickness * (thick_time * 2.0 - 1.0);
-
     /* Take object scale into account.
      * NOTE: This only works fine with uniform scaling. */
     float scale = 1.0 / length(mat3(invmodel_mat) * wbinor);
-
     wpos += wbinor * thick_time * scale;
+  }
+  else {
+    /* NOTE: Ensures 'hairThickTime' is initialized -
+     * avoids undefined behavior on certain macOS configurations. */
+    thick_time = 0.0;
   }
 }
 

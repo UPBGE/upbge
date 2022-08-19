@@ -1,35 +1,11 @@
-# ***** BEGIN GPL LICENSE BLOCK *****
-#
-# Script copyright (C) Campbell J Barton
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ***** END GPL LICENSE BLOCK *****
-# --------------------------------------------------------------------------
-
-# <pep8 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright Campbell Barton.
 
 
-def get_vcolor_layer_data(me):
-    for lay in me.vertex_colors:
-        if lay.active:
-            return lay.data
-
-    lay = me.vertex_colors.new()
-    lay.active = True
-    return lay.data
+def ensure_active_color_attribute(me):
+    if me.attributes.active_color:
+        return me.attributes.active_color
+    return me.color_attributes.new("Color", 'BYTE_COLOR', 'FACE_CORNER')
 
 
 def applyVertexDirt(me, blur_iterations, blur_strength, clamp_dirt, clamp_clean, dirt_only, normalize):
@@ -119,9 +95,13 @@ def applyVertexDirt(me, blur_iterations, blur_strength, clamp_dirt, clamp_clean,
     else:
         tone_range = 1.0 / tone_range
 
-    active_col_layer = get_vcolor_layer_data(me)
-    if not active_col_layer:
+    active_color_attribute = ensure_active_color_attribute(me)
+    if not active_color_attribute:
         return {'CANCELLED'}
+
+    point_domain = active_color_attribute.domain == 'POINT'
+
+    attribute_data = active_color_attribute.data
 
     use_paint_mask = me.use_paint_mask
     for i, p in enumerate(me.polygons):
@@ -129,7 +109,7 @@ def applyVertexDirt(me, blur_iterations, blur_strength, clamp_dirt, clamp_clean,
             for loop_index in p.loop_indices:
                 loop = me.loops[loop_index]
                 v = loop.vertex_index
-                col = active_col_layer[loop_index].color
+                col = attribute_data[v if point_domain else loop_index].color
                 tone = vert_tone[v]
                 tone = (tone - min_tone) * tone_range
 

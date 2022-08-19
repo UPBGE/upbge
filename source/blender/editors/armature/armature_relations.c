@@ -1,25 +1,9 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- * Operators for relations between bones and for transferring bones between armature objects
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edarmature
+ * Operators for relations between bones and for transferring bones between armature objects.
  */
 
 #include "MEM_guardedalloc.h"
@@ -84,14 +68,11 @@ static void joined_armature_fix_links_constraints(Main *bmain,
   bool changed = false;
 
   for (con = lb->first; con; con = con->next) {
-    const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
     ListBase targets = {NULL, NULL};
     bConstraintTarget *ct;
 
     /* constraint targets */
-    if (cti && cti->get_constraint_targets) {
-      cti->get_constraint_targets(con, &targets);
-
+    if (BKE_constraint_targets_get(con, &targets)) {
       for (ct = targets.first; ct; ct = ct->next) {
         if (ct->tar == srcArm) {
           if (ct->subtarget[0] == '\0') {
@@ -106,9 +87,7 @@ static void joined_armature_fix_links_constraints(Main *bmain,
         }
       }
 
-      if (cti->flush_constraint_targets) {
-        cti->flush_constraint_targets(con, &targets, 0);
-      }
+      BKE_constraint_targets_flush(con, &targets, 0);
     }
 
     /* action constraint? (pose constraints only) */
@@ -179,6 +158,11 @@ static void joined_armature_fix_animdata_cb(ID *id, FCurve *fcu, void *user_data
   if (fcu->driver) {
     ChannelDriver *driver = fcu->driver;
     DriverVar *dvar;
+
+    /* Ensure that invalid drivers gets re-evaluated in case they become valid once the join
+     * operation is finished. */
+    fcu->flag &= ~FCURVE_DISABLED;
+    driver->flag &= ~DRIVER_FLAG_INVALID;
 
     /* Fix driver references to invalid ID's */
     for (dvar = driver->variables.first; dvar; dvar = dvar->next) {
@@ -269,7 +253,6 @@ static void joined_armature_fix_links(
   }
 }
 
-/* join armature exec is exported for use in object->join objects operator... */
 int ED_armature_join_objects_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
@@ -394,6 +377,15 @@ int ED_armature_join_objects_exec(bContext *C, wmOperator *op)
         BKE_pose_channels_hash_free(pose);
       }
 
+      /* Armature ID itself is not freed below, however it has been modified (and is now completely
+       * empty). This needs to be told to the depsgraph, it will also ensure that the global
+       * memfile undo system properly detects the change.
+       *
+       * FIXME: Modifying an existing obdata because we are joining an object using it into another
+       * object is a very questionable behavior, which also does not match with other object types
+       * joining. */
+      DEG_id_tag_update_ex(bmain, &curarm->id, ID_RECALC_GEOMETRY);
+
       /* Fix all the drivers (and animation data) */
       BKE_fcurves_main_cb(bmain, joined_armature_fix_animdata_cb, &afd);
       BLI_ghash_free(afd.names_map, MEM_freeN, NULL);
@@ -467,14 +459,11 @@ static void separated_armature_fix_links(Main *bmain, Object *origArm, Object *n
     if (ob->type == OB_ARMATURE) {
       for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
         for (con = pchan->constraints.first; con; con = con->next) {
-          const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
           ListBase targets = {NULL, NULL};
           bConstraintTarget *ct;
 
           /* constraint targets */
-          if (cti && cti->get_constraint_targets) {
-            cti->get_constraint_targets(con, &targets);
-
+          if (BKE_constraint_targets_get(con, &targets)) {
             for (ct = targets.first; ct; ct = ct->next) {
               /* Any targets which point to original armature
                * are redirected to the new one only if:
@@ -495,9 +484,7 @@ static void separated_armature_fix_links(Main *bmain, Object *origArm, Object *n
               }
             }
 
-            if (cti->flush_constraint_targets) {
-              cti->flush_constraint_targets(con, &targets, 0);
-            }
+            BKE_constraint_targets_flush(con, &targets, 0);
           }
         }
       }
@@ -506,14 +493,11 @@ static void separated_armature_fix_links(Main *bmain, Object *origArm, Object *n
     /* fix object-level constraints */
     if (ob != origArm) {
       for (con = ob->constraints.first; con; con = con->next) {
-        const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
         ListBase targets = {NULL, NULL};
         bConstraintTarget *ct;
 
         /* constraint targets */
-        if (cti && cti->get_constraint_targets) {
-          cti->get_constraint_targets(con, &targets);
-
+        if (BKE_constraint_targets_get(con, &targets)) {
           for (ct = targets.first; ct; ct = ct->next) {
             /* any targets which point to original armature are redirected to the new one only if:
              * - the target isn't origArm/newArm itself
@@ -533,9 +517,7 @@ static void separated_armature_fix_links(Main *bmain, Object *origArm, Object *n
             }
           }
 
-          if (cti->flush_constraint_targets) {
-            cti->flush_constraint_targets(con, &targets, 0);
-          }
+          BKE_constraint_targets_flush(con, &targets, 0);
         }
       }
     }
@@ -745,6 +727,10 @@ void ARMATURE_OT_separate(wmOperatorType *ot)
 #define ARM_PAR_CONNECT 1
 #define ARM_PAR_OFFSET 2
 
+/* armature un-parenting options */
+#define ARM_PAR_CLEAR 1
+#define ARM_PAR_CLEAR_DISCONNECT 2
+
 /* check for null, before calling! */
 static void bone_connect_to_existing_parent(EditBone *bone)
 {
@@ -904,19 +890,29 @@ static int armature_parent_set_invoke(bContext *C,
                                       wmOperator *UNUSED(op),
                                       const wmEvent *UNUSED(event))
 {
-  bool all_childbones = false;
+  /* False when all selected bones are parented to the active bone. */
+  bool enable_offset = false;
+  /* False when all selected bones are connected to the active bone. */
+  bool enable_connect = false;
   {
     Object *ob = CTX_data_edit_object(C);
     bArmature *arm = ob->data;
     EditBone *actbone = arm->act_edbone;
     LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-      if (EBONE_EDITABLE(ebone) && (ebone->flag & BONE_SELECTED)) {
-        if (ebone != actbone) {
-          if (ebone->parent != actbone) {
-            all_childbones = true;
-            break;
-          }
-        }
+      if (!EBONE_EDITABLE(ebone) || !(ebone->flag & BONE_SELECTED)) {
+        continue;
+      }
+      if (ebone == actbone) {
+        continue;
+      }
+
+      if (ebone->parent != actbone) {
+        enable_offset = true;
+        enable_connect = true;
+        break;
+      }
+      if (!(ebone->flag & BONE_CONNECTED)) {
+        enable_connect = true;
       }
     }
   }
@@ -924,11 +920,14 @@ static int armature_parent_set_invoke(bContext *C,
   uiPopupMenu *pup = UI_popup_menu_begin(
       C, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Parent"), ICON_NONE);
   uiLayout *layout = UI_popup_menu_layout(pup);
-  uiItemEnumO(layout, "ARMATURE_OT_parent_set", NULL, 0, "type", ARM_PAR_CONNECT);
-  if (all_childbones) {
-    /* Object becomes parent, make the associated menus. */
-    uiItemEnumO(layout, "ARMATURE_OT_parent_set", NULL, 0, "type", ARM_PAR_OFFSET);
-  }
+
+  uiLayout *row_offset = uiLayoutRow(layout, false);
+  uiLayoutSetEnabled(row_offset, enable_offset);
+  uiItemEnumO(row_offset, "ARMATURE_OT_parent_set", NULL, 0, "type", ARM_PAR_OFFSET);
+
+  uiLayout *row_connect = uiLayoutRow(layout, false);
+  uiLayoutSetEnabled(row_connect, enable_connect);
+  uiItemEnumO(row_connect, "ARMATURE_OT_parent_set", NULL, 0, "type", ARM_PAR_CONNECT);
 
   UI_popup_menu_end(C, pup);
 
@@ -955,8 +954,8 @@ void ARMATURE_OT_parent_set(wmOperatorType *ot)
 }
 
 static const EnumPropertyItem prop_editarm_clear_parent_types[] = {
-    {1, "CLEAR", 0, "Clear Parent", ""},
-    {2, "DISCONNECT", 0, "Disconnect Bone", ""},
+    {ARM_PAR_CLEAR, "CLEAR", 0, "Clear Parent", ""},
+    {ARM_PAR_CLEAR_DISCONNECT, "DISCONNECT", 0, "Disconnect Bone", ""},
     {0, NULL, 0, NULL, NULL},
 };
 
@@ -1012,6 +1011,51 @@ static int armature_parent_clear_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static int armature_parent_clear_invoke(bContext *C,
+                                        wmOperator *UNUSED(op),
+                                        const wmEvent *UNUSED(event))
+{
+  /* False when no selected bones are connected to the active bone. */
+  bool enable_disconnect = false;
+  /* False when no selected bones are parented to the active bone. */
+  bool enable_clear = false;
+  {
+    Object *ob = CTX_data_edit_object(C);
+    bArmature *arm = ob->data;
+    LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
+      if (!EBONE_EDITABLE(ebone) || !(ebone->flag & BONE_SELECTED)) {
+        continue;
+      }
+      if (ebone->parent == NULL) {
+        continue;
+      }
+      enable_clear = true;
+
+      if (ebone->flag & BONE_CONNECTED) {
+        enable_disconnect = true;
+        break;
+      }
+    }
+  }
+
+  uiPopupMenu *pup = UI_popup_menu_begin(
+      C, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Clear Parent"), ICON_NONE);
+  uiLayout *layout = UI_popup_menu_layout(pup);
+
+  uiLayout *row_clear = uiLayoutRow(layout, false);
+  uiLayoutSetEnabled(row_clear, enable_clear);
+  uiItemEnumO(row_clear, "ARMATURE_OT_parent_clear", NULL, 0, "type", ARM_PAR_CLEAR);
+
+  uiLayout *row_disconnect = uiLayoutRow(layout, false);
+  uiLayoutSetEnabled(row_disconnect, enable_disconnect);
+  uiItemEnumO(
+      row_disconnect, "ARMATURE_OT_parent_clear", NULL, 0, "type", ARM_PAR_CLEAR_DISCONNECT);
+
+  UI_popup_menu_end(C, pup);
+
+  return OPERATOR_INTERFACE;
+}
+
 void ARMATURE_OT_parent_clear(wmOperatorType *ot)
 {
   /* identifiers */
@@ -1021,7 +1065,7 @@ void ARMATURE_OT_parent_clear(wmOperatorType *ot)
       "Remove the parent-child relationship between selected bones and their parents";
 
   /* api callbacks */
-  ot->invoke = WM_menu_invoke;
+  ot->invoke = armature_parent_clear_invoke;
   ot->exec = armature_parent_clear_exec;
   ot->poll = ED_operator_editarmature;
 

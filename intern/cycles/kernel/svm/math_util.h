@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2014 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #pragma once
 
@@ -37,7 +24,7 @@ ccl_device void svm_vector_math(ccl_private float *value,
       *vector = a * b;
       break;
     case NODE_VECTOR_MATH_DIVIDE:
-      *vector = safe_divide_float3_float3(a, b);
+      *vector = safe_divide(a, b);
       break;
     case NODE_VECTOR_MATH_CROSS_PRODUCT:
       *vector = cross(a, b);
@@ -73,7 +60,7 @@ ccl_device void svm_vector_math(ccl_private float *value,
       *vector = safe_normalize(a);
       break;
     case NODE_VECTOR_MATH_SNAP:
-      *vector = floor(safe_divide_float3_float3(a, b)) * b;
+      *vector = floor(safe_divide(a, b)) * b;
       break;
     case NODE_VECTOR_MATH_FLOOR:
       *vector = floor(a);
@@ -202,60 +189,29 @@ ccl_device float svm_math(NodeMathType type, float a, float b, float c)
   }
 }
 
-ccl_device float3 svm_math_blackbody_color(float t)
+ccl_device float3 svm_math_blackbody_color_rec709(float t)
 {
-  /* TODO(lukas): Reimplement in XYZ. */
-
   /* Calculate color in range 800..12000 using an approximation
-   * a/x+bx+c for R and G and ((at + b)t + c)t + d) for B
-   * Max absolute error for RGB is (0.00095, 0.00077, 0.00057),
-   * which is enough to get the same 8 bit/channel color.
-   */
-
-  const float blackbody_table_r[6][3] = {
-      {2.52432244e+03f, -1.06185848e-03f, 3.11067539e+00f},
-      {3.37763626e+03f, -4.34581697e-04f, 1.64843306e+00f},
-      {4.10671449e+03f, -8.61949938e-05f, 6.41423749e-01f},
-      {4.66849800e+03f, 2.85655028e-05f, 1.29075375e-01f},
-      {4.60124770e+03f, 2.89727618e-05f, 1.48001316e-01f},
-      {3.78765709e+03f, 9.36026367e-06f, 3.98995841e-01f},
-  };
-
-  const float blackbody_table_g[6][3] = {
-      {-7.50343014e+02f, 3.15679613e-04f, 4.73464526e-01f},
-      {-1.00402363e+03f, 1.29189794e-04f, 9.08181524e-01f},
-      {-1.22075471e+03f, 2.56245413e-05f, 1.20753416e+00f},
-      {-1.42546105e+03f, -4.01730887e-05f, 1.44002695e+00f},
-      {-1.18134453e+03f, -2.18913373e-05f, 1.30656109e+00f},
-      {-5.00279505e+02f, -4.59745390e-06f, 1.09090465e+00f},
-  };
-
-  const float blackbody_table_b[6][4] = {
-      {0.0f, 0.0f, 0.0f, 0.0f}, /* zeros should be optimized by compiler */
-      {0.0f, 0.0f, 0.0f, 0.0f},
-      {0.0f, 0.0f, 0.0f, 0.0f},
-      {-2.02524603e-11f, 1.79435860e-07f, -2.60561875e-04f, -1.41761141e-02f},
-      {-2.22463426e-13f, -1.55078698e-08f, 3.81675160e-04f, -7.30646033e-01f},
-      {6.72595954e-13f, -2.73059993e-08f, 4.24068546e-04f, -7.52204323e-01f},
-  };
+   * a/x+bx+c for R and G and ((at + b)t + c)t + d) for B.
+   *
+   * The result of this can be negative to support gamut wider than
+   * than rec.709, just needs to be clamped. */
 
   if (t >= 12000.0f) {
-    return make_float3(0.826270103f, 0.994478524f, 1.56626022f);
+    return make_float3(0.8262954810464208f, 0.9945080501520986f, 1.566307710274283f);
   }
-  else if (t < 965.0f) {
-    /* For 800 <= t < 965 color does not change in OSL implementation, so keep color the same */
-    return make_float3(4.70366907f, 0.0f, 0.0f);
+  else if (t < 800.0f) {
+    /* Arbitrary lower limit where light is very dim, matching OSL. */
+    return make_float3(5.413294490189271f, -0.20319390035873933f, -0.0822535242887164f);
   }
 
-  /* Manually align for readability. */
-  /* clang-format off */
-  int i = (t >= 6365.0f) ? 5 :
-          (t >= 3315.0f) ? 4 :
-          (t >= 1902.0f) ? 3 :
-          (t >= 1449.0f) ? 2 :
-          (t >= 1167.0f) ? 1 :
+  int i = (t >= 6365.0f) ? 6 :
+          (t >= 3315.0f) ? 5 :
+          (t >= 1902.0f) ? 4 :
+          (t >= 1449.0f) ? 3 :
+          (t >= 1167.0f) ? 2 :
+          (t >= 965.0f)  ? 1 :
                            0;
-  /* clang-format on */
 
   ccl_constant float *r = blackbody_table_r[i];
   ccl_constant float *g = blackbody_table_g[i];

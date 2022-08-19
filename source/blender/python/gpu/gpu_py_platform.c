@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bpygpu
@@ -27,7 +13,7 @@
 
 #include "GPU_platform.h"
 
-#include "gpu_py_platform.h" /* own include */
+#include "gpu_py_platform.h" /* Own include. */
 
 /* -------------------------------------------------------------------- */
 /** \name Functions
@@ -69,6 +55,34 @@ static PyObject *pygpu_platform_version_get(PyObject *UNUSED(self))
   return PyUnicode_FromString(GPU_platform_version());
 }
 
+PyDoc_STRVAR(
+    pygpu_platform_device_type_get_doc,
+    ".. function:: device_type_get()\n"
+    "\n"
+    "   Get GPU device type.\n"
+    "\n"
+    "   :return: Device type ('APPLE', 'NVIDIA', 'AMD', 'INTEL', 'SOFTWARE', 'UNKNOWN').\n"
+    "   :rtype: str\n");
+static PyObject *pygpu_platform_device_type_get(PyObject *UNUSED(self))
+{
+  if (GPU_type_matches(GPU_DEVICE_APPLE, GPU_OS_ANY, GPU_DRIVER_ANY)) {
+    return PyUnicode_FromString("APPLE");
+  }
+  if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_ANY)) {
+    return PyUnicode_FromString("NVIDIA");
+  }
+  if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY)) {
+    return PyUnicode_FromString("AMD");
+  }
+  if (GPU_type_matches(GPU_DEVICE_INTEL | GPU_DEVICE_INTEL_UHD, GPU_OS_ANY, GPU_DRIVER_ANY)) {
+    return PyUnicode_FromString("INTEL");
+  }
+  if (GPU_type_matches(GPU_DEVICE_SOFTWARE, GPU_OS_ANY, GPU_DRIVER_ANY)) {
+    return PyUnicode_FromString("SOFTWARE");
+  }
+  return PyUnicode_FromString("UNKNOWN");
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -88,6 +102,10 @@ static struct PyMethodDef pygpu_platform__tp_methods[] = {
      (PyCFunction)pygpu_platform_version_get,
      METH_NOARGS,
      pygpu_platform_version_get_doc},
+    {"device_type_get",
+     (PyCFunction)pygpu_platform_device_type_get,
+     METH_NOARGS,
+     pygpu_platform_device_type_get_doc},
     {NULL, NULL, 0, NULL},
 };
 

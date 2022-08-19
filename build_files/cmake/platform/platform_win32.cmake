@@ -1,22 +1,5 @@
-# ***** BEGIN GPL LICENSE BLOCK *****
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# The Original Code is Copyright (C) 2016, Blender Foundation
-# All rights reserved.
-# ***** END GPL LICENSE BLOCK *****
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright 2016 Blender Foundation. All rights reserved.
 
 # Libraries configuration for Windows.
 
@@ -55,9 +38,13 @@ if(CMAKE_C_COMPILER_ID MATCHES "Clang")
     message(WARNING "stripped pdb not supported with clang, disabling..")
     set(WITH_WINDOWS_STRIPPED_PDB OFF)
   endif()
+else()
+  if(WITH_BLENDER AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.28.29921) # MSVC 2019 16.9.16
+    message(FATAL_ERROR "Compiler is unsupported, MSVC 2019 16.9.16 or newer is required for building blender.")
+  endif()
 endif()
 
-if(NOT WITH_PYTHON_MODULE)
+if(WITH_BLENDER AND NOT WITH_PYTHON_MODULE)
   set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT blender)
 endif()
 
@@ -117,7 +104,7 @@ string(APPEND CMAKE_MODULE_LINKER_FLAGS " /SAFESEH:NO /ignore:4099")
 list(APPEND PLATFORM_LINKLIBS
   ws2_32 vfw32 winmm kernel32 user32 gdi32 comdlg32 Comctl32 version
   advapi32 shfolder shell32 ole32 oleaut32 uuid psapi Dbghelp Shlwapi
-  pathcch Shcore
+  pathcch Shcore Dwmapi
 )
 
 if(WITH_INPUT_IME)
@@ -159,7 +146,7 @@ endif()
 if(WITH_COMPILER_ASAN AND MSVC AND NOT MSVC_CLANG)
   if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.28.29828)
     #set a flag so we don't have to do this comparison all the time
-    SET(MSVC_ASAN ON)
+    set(MSVC_ASAN ON)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /fsanitize=address")
     set(CMAKE_C_FLAGS     "${CMAKE_C_FLAGS} /fsanitize=address")
     string(APPEND CMAKE_EXE_LINKER_FLAGS_DEBUG " /INCREMENTAL:NO")
@@ -198,20 +185,20 @@ endif()
 
 
 if(WITH_WINDOWS_SCCACHE)
-    set(CMAKE_C_COMPILER_LAUNCHER sccache)
-    set(CMAKE_CXX_COMPILER_LAUNCHER sccache)
+  set(CMAKE_C_COMPILER_LAUNCHER sccache)
+  set(CMAKE_CXX_COMPILER_LAUNCHER sccache)
+  set(SYMBOL_FORMAT /Z7)
+  set(SYMBOL_FORMAT_RELEASE /Z7)
+else()
+  unset(CMAKE_C_COMPILER_LAUNCHER)
+  unset(CMAKE_CXX_COMPILER_LAUNCHER)
+  if(MSVC_ASAN)
     set(SYMBOL_FORMAT /Z7)
     set(SYMBOL_FORMAT_RELEASE /Z7)
-else()
-    unset(CMAKE_C_COMPILER_LAUNCHER)
-    unset(CMAKE_CXX_COMPILER_LAUNCHER)
-    if(MSVC_ASAN)
-      set(SYMBOL_FORMAT /Z7)
-      set(SYMBOL_FORMAT_RELEASE /Z7)
-    else()
-      set(SYMBOL_FORMAT /ZI)
-      set(SYMBOL_FORMAT_RELEASE /Zi)
-    endif()
+  else()
+    set(SYMBOL_FORMAT /ZI)
+    set(SYMBOL_FORMAT_RELEASE /Zi)
+  endif()
 endif()
 
 if(WITH_WINDOWS_PDB)
@@ -251,7 +238,6 @@ else()
 endif()
 
 if(NOT DEFINED LIBDIR)
-
   # Setup 64bit and 64bit windows systems
   if(CMAKE_CL_64)
     message(STATUS "64 bit compiler detected.")
@@ -268,9 +254,6 @@ if(NOT DEFINED LIBDIR)
   elseif(MSVC_VERSION GREATER 1909)
     message(STATUS "Visual Studio 2017 detected.")
     set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/${LIBDIR_BASE}_vc15)
-  elseif(MSVC_VERSION EQUAL 1900)
-    message(STATUS "Visual Studio 2015 detected.")
-    set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/${LIBDIR_BASE}_vc15)
   endif()
 else()
   message(STATUS "Using pre-compiled LIBDIR: ${LIBDIR}")
@@ -278,6 +261,8 @@ endif()
 if(NOT EXISTS "${LIBDIR}/")
   message(FATAL_ERROR "\n\nWindows requires pre-compiled libs at: '${LIBDIR}'. Please run `make update` in the blender source folder to obtain them.")
 endif()
+
+include(platform_old_libs_update)
 
 if(CMAKE_GENERATOR MATCHES "^Visual Studio.+" AND # Only supported in the VS IDE
    MSVC_VERSION GREATER_EQUAL 1924            AND # Supported for 16.4+
@@ -319,9 +304,8 @@ set(ZLIB_INCLUDE_DIR ${LIBDIR}/zlib/include)
 set(ZLIB_LIBRARY ${LIBDIR}/zlib/lib/libz_st.lib)
 set(ZLIB_DIR ${LIBDIR}/zlib)
 
-windows_find_package(zlib) # we want to find before finding things that depend on it like png
-windows_find_package(png)
-
+windows_find_package(ZLIB) # we want to find before finding things that depend on it like png
+windows_find_package(PNG)
 if(NOT PNG_FOUND)
   warn_hardcoded_paths(libpng)
   set(PNG_PNG_INCLUDE_DIR ${LIBDIR}/png/include)
@@ -332,11 +316,18 @@ if(NOT PNG_FOUND)
 endif()
 
 set(JPEG_NAMES ${JPEG_NAMES} libjpeg)
-windows_find_package(jpeg REQUIRED)
+windows_find_package(JPEG REQUIRED)
 if(NOT JPEG_FOUND)
-  warn_hardcoded_paths(jpeg)
+  warn_hardcoded_paths(libjpeg)
   set(JPEG_INCLUDE_DIR ${LIBDIR}/jpeg/include)
   set(JPEG_LIBRARIES ${LIBDIR}/jpeg/lib/libjpeg.lib)
+endif()
+
+set(EPOXY_ROOT_DIR ${LIBDIR}/epoxy)
+windows_find_package(Epoxy REQUIRED)
+if(NOT EPOXY_FOUND)
+  set(Epoxy_INCLUDE_DIRS ${LIBDIR}/epoxy/include)
+  set(Epoxy_LIBRARIES ${LIBDIR}/epoxy/lib/epoxy.lib)
 endif()
 
 set(PTHREADS_INCLUDE_DIRS ${LIBDIR}/pthreads/include)
@@ -347,14 +338,33 @@ set(FREETYPE_INCLUDE_DIRS
   ${LIBDIR}/freetype/include
   ${LIBDIR}/freetype/include/freetype2
 )
-set(FREETYPE_LIBRARY ${LIBDIR}/freetype/lib/freetype2ST.lib)
-windows_find_package(freetype REQUIRED)
+set(FREETYPE_LIBRARIES
+  ${LIBDIR}/freetype/lib/freetype2ST.lib
+  ${LIBDIR}/brotli/lib/brotlidec-static.lib
+  ${LIBDIR}/brotli/lib/brotlicommon-static.lib
+)
+windows_find_package(Freetype REQUIRED)
 
 if(WITH_FFTW3)
   set(FFTW3 ${LIBDIR}/fftw3)
   set(FFTW3_LIBRARIES ${FFTW3}/lib/libfftw.lib)
   set(FFTW3_INCLUDE_DIRS ${FFTW3}/include)
   set(FFTW3_LIBPATH ${FFTW3}/lib)
+endif()
+
+if(WITH_IMAGE_WEBP)
+  windows_find_package(WebP)
+  if(NOT WEBP_FOUND)
+    if(EXISTS ${LIBDIR}/webp)
+      set(WEBP_INCLUDE_DIRS ${LIBDIR}/webp/include)
+      set(WEBP_ROOT_DIR ${LIBDIR}/webp)
+      set(WEBP_LIBRARIES ${LIBDIR}/webp/lib/webp.lib ${LIBDIR}/webp/lib/webpdemux.lib ${LIBDIR}/webp/lib/webpmux.lib)
+      set(WEBP_FOUND ON)
+    else()
+      message(STATUS "WITH_IMAGE_WEBP is ON but WEBP libraries are not found, setting WITH_IMAGE_WEBP=OFF")
+      set(WITH_IMAGE_WEBP OFF)
+    endif()
+  endif()
 endif()
 
 if(WITH_OPENCOLLADA)
@@ -404,41 +414,74 @@ if(WITH_CODEC_FFMPEG)
     ${LIBDIR}/ffmpeg/include
     ${LIBDIR}/ffmpeg/include/msvc
   )
-  windows_find_package(FFMPEG)
-  if(NOT FFMPEG_FOUND)
-    warn_hardcoded_paths(ffmpeg)
+  windows_find_package(FFmpeg)
+  if(NOT FFmpeg_FOUND)
+    warn_hardcoded_paths(FFmpeg)
     set(FFMPEG_LIBRARIES
       ${LIBDIR}/ffmpeg/lib/avcodec.lib
       ${LIBDIR}/ffmpeg/lib/avformat.lib
       ${LIBDIR}/ffmpeg/lib/avdevice.lib
       ${LIBDIR}/ffmpeg/lib/avutil.lib
       ${LIBDIR}/ffmpeg/lib/swscale.lib
-      )
+    )
   endif()
 endif()
 
 if(WITH_IMAGE_OPENEXR)
+  # Imath and OpenEXR have a single combined build option and include and library variables
+  # used by the rest of the build system.
+  set(IMATH_ROOT_DIR ${LIBDIR}/imath)
+  set(IMATH_VERSION "3.14")
+  windows_find_package(IMATH REQUIRED)
+  if(NOT IMATH_FOUND)
+    set(IMATH ${LIBDIR}/imath)
+    set(IMATH_INCLUDE_DIR ${IMATH}/include)
+    set(IMATH_INCLUDE_DIRS ${IMATH_INCLUDE_DIR} ${IMATH}/include/Imath)
+    set(IMATH_LIBPATH ${IMATH}/lib)
+    set(IMATH_LIBRARIES
+      optimized ${IMATH_LIBPATH}/Imath_s.lib
+      debug ${IMATH_LIBPATH}/Imath_s_d.lib
+    )
+  endif()
   set(OPENEXR_ROOT_DIR ${LIBDIR}/openexr)
-  set(OPENEXR_VERSION "2.1")
+  set(OPENEXR_VERSION "3.14")
   windows_find_package(OPENEXR REQUIRED)
-  if(NOT OPENEXR_FOUND)
+  if(NOT OpenEXR_FOUND)
     warn_hardcoded_paths(OpenEXR)
     set(OPENEXR ${LIBDIR}/openexr)
     set(OPENEXR_INCLUDE_DIR ${OPENEXR}/include)
-    set(OPENEXR_INCLUDE_DIRS ${OPENEXR_INCLUDE_DIR} ${OPENEXR}/include/OpenEXR)
+    set(OPENEXR_INCLUDE_DIRS ${OPENEXR_INCLUDE_DIR} ${IMATH_INCLUDE_DIRS} ${OPENEXR}/include/OpenEXR)
     set(OPENEXR_LIBPATH ${OPENEXR}/lib)
-    set(OPENEXR_LIBRARIES
-      optimized ${OPENEXR_LIBPATH}/Iex_s.lib
-      optimized ${OPENEXR_LIBPATH}/Half_s.lib
-      optimized ${OPENEXR_LIBPATH}/IlmImf_s.lib
-      optimized ${OPENEXR_LIBPATH}/Imath_s.lib
-      optimized ${OPENEXR_LIBPATH}/IlmThread_s.lib
-      debug ${OPENEXR_LIBPATH}/Iex_s_d.lib
-      debug ${OPENEXR_LIBPATH}/Half_s_d.lib
-      debug ${OPENEXR_LIBPATH}/IlmImf_s_d.lib
-      debug ${OPENEXR_LIBPATH}/Imath_s_d.lib
-      debug ${OPENEXR_LIBPATH}/IlmThread_s_d.lib
-    )
+    # Check if the 3.x library name exists
+    # if not assume this is a 2.x library folder
+    if(EXISTS "${OPENEXR_LIBPATH}/OpenEXR_s.lib")
+      set(OPENEXR_LIBRARIES
+        optimized ${OPENEXR_LIBPATH}/Iex_s.lib
+        optimized ${OPENEXR_LIBPATH}/IlmThread_s.lib
+        optimized ${OPENEXR_LIBPATH}/OpenEXR_s.lib
+        optimized ${OPENEXR_LIBPATH}/OpenEXRCore_s.lib
+        optimized ${OPENEXR_LIBPATH}/OpenEXRUtil_s.lib
+        debug ${OPENEXR_LIBPATH}/Iex_s_d.lib
+        debug ${OPENEXR_LIBPATH}/IlmThread_s_d.lib
+        debug ${OPENEXR_LIBPATH}/OpenEXR_s_d.lib
+        debug ${OPENEXR_LIBPATH}/OpenEXRCore_s_d.lib
+        debug ${OPENEXR_LIBPATH}/OpenEXRUtil_s_d.lib
+        ${IMATH_LIBRARIES}
+      )
+    else()
+      set(OPENEXR_LIBRARIES
+        optimized ${OPENEXR_LIBPATH}/Iex_s.lib
+        optimized ${OPENEXR_LIBPATH}/Half_s.lib
+        optimized ${OPENEXR_LIBPATH}/IlmImf_s.lib
+        optimized ${OPENEXR_LIBPATH}/Imath_s.lib
+        optimized ${OPENEXR_LIBPATH}/IlmThread_s.lib
+        debug ${OPENEXR_LIBPATH}/Iex_s_d.lib
+        debug ${OPENEXR_LIBPATH}/Half_s_d.lib
+        debug ${OPENEXR_LIBPATH}/IlmImf_s_d.lib
+        debug ${OPENEXR_LIBPATH}/Imath_s_d.lib
+        debug ${OPENEXR_LIBPATH}/IlmThread_s_d.lib
+      )
+    endif()
   endif()
 endif()
 
@@ -461,7 +504,7 @@ if(WITH_JACK)
 endif()
 
 if(WITH_PYTHON)
-  set(PYTHON_VERSION 3.9) # CACHE STRING)
+  set(PYTHON_VERSION 3.10) # CACHE STRING)
 
   string(REPLACE "." "" _PYTHON_VERSION_NO_DOTS ${PYTHON_VERSION})
   set(PYTHON_LIBRARY ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/libs/python${_PYTHON_VERSION_NO_DOTS}.lib)
@@ -477,7 +520,7 @@ if(WITH_PYTHON)
 endif()
 
 if(WITH_BOOST)
-  if(WITH_CYCLES_OSL)
+  if(WITH_CYCLES AND WITH_CYCLES_OSL)
     set(boost_extra_libs wave)
   endif()
   if(WITH_INTERNATIONAL)
@@ -504,8 +547,14 @@ if(WITH_BOOST)
     if(NOT BOOST_VERSION)
       message(FATAL_ERROR "Unable to determine Boost version")
     endif()
-    set(BOOST_POSTFIX "vc141-mt-x64-${BOOST_VERSION}.lib")
-    set(BOOST_DEBUG_POSTFIX "vc141-mt-gd-x64-${BOOST_VERSION}.lib")
+    set(BOOST_POSTFIX "vc142-mt-x64-${BOOST_VERSION}.lib")
+    set(BOOST_DEBUG_POSTFIX "vc142-mt-gd-x64-${BOOST_VERSION}.lib")
+    if(NOT EXISTS ${BOOST_LIBPATH}/libboost_date_time-${BOOST_POSTFIX})
+      # If the new library names do not exist fall back to the old ones
+      # to ease the transition period between the libs.
+      set(BOOST_POSTFIX "vc141-mt-x64-${BOOST_VERSION}.lib")
+      set(BOOST_DEBUG_POSTFIX "vc141-mt-gd-x64-${BOOST_VERSION}.lib")
+    endif()
     set(BOOST_LIBRARIES
       optimized ${BOOST_LIBPATH}/libboost_date_time-${BOOST_POSTFIX}
       optimized ${BOOST_LIBPATH}/libboost_filesystem-${BOOST_POSTFIX}
@@ -520,33 +569,37 @@ if(WITH_BOOST)
       debug ${BOOST_LIBPATH}/libboost_thread-${BOOST_DEBUG_POSTFIX}
       debug ${BOOST_LIBPATH}/libboost_chrono-${BOOST_DEBUG_POSTFIX}
     )
-    if(WITH_CYCLES_OSL)
+    if(WITH_CYCLES AND WITH_CYCLES_OSL)
       set(BOOST_LIBRARIES ${BOOST_LIBRARIES}
         optimized ${BOOST_LIBPATH}/libboost_wave-${BOOST_POSTFIX}
-        debug ${BOOST_LIBPATH}/libboost_wave-${BOOST_DEBUG_POSTFIX})
+        debug ${BOOST_LIBPATH}/libboost_wave-${BOOST_DEBUG_POSTFIX}
+      )
     endif()
     if(WITH_INTERNATIONAL)
       set(BOOST_LIBRARIES ${BOOST_LIBRARIES}
         optimized ${BOOST_LIBPATH}/libboost_locale-${BOOST_POSTFIX}
-        debug ${BOOST_LIBPATH}/libboost_locale-${BOOST_DEBUG_POSTFIX})
+        debug ${BOOST_LIBPATH}/libboost_locale-${BOOST_DEBUG_POSTFIX}
+      )
     endif()
   else() # we found boost using find_package
     set(BOOST_INCLUDE_DIR ${Boost_INCLUDE_DIRS})
     set(BOOST_LIBRARIES ${Boost_LIBRARIES})
     set(BOOST_LIBPATH ${Boost_LIBRARY_DIRS})
   endif()
+
   set(BOOST_DEFINITIONS "-DBOOST_ALL_NO_LIB")
 endif()
 
 if(WITH_OPENIMAGEIO)
   windows_find_package(OpenImageIO)
-  set(OPENIMAGEIO ${LIBDIR}/OpenImageIO)
-  set(OPENIMAGEIO_LIBPATH ${OPENIMAGEIO}/lib)
-  set(OPENIMAGEIO_INCLUDE_DIRS ${OPENIMAGEIO}/include)
-  set(OIIO_OPTIMIZED optimized ${OPENIMAGEIO_LIBPATH}/OpenImageIO.lib optimized ${OPENIMAGEIO_LIBPATH}/OpenImageIO_Util.lib)
-  set(OIIO_DEBUG debug ${OPENIMAGEIO_LIBPATH}/OpenImageIO_d.lib debug ${OPENIMAGEIO_LIBPATH}/OpenImageIO_Util_d.lib)
-  set(OPENIMAGEIO_LIBRARIES ${OIIO_OPTIMIZED} ${OIIO_DEBUG})
-
+  if(NOT OpenImageIO_FOUND)
+    set(OPENIMAGEIO ${LIBDIR}/OpenImageIO)
+    set(OPENIMAGEIO_LIBPATH ${OPENIMAGEIO}/lib)
+    set(OPENIMAGEIO_INCLUDE_DIRS ${OPENIMAGEIO}/include)
+    set(OIIO_OPTIMIZED optimized ${OPENIMAGEIO_LIBPATH}/OpenImageIO.lib optimized ${OPENIMAGEIO_LIBPATH}/OpenImageIO_Util.lib)
+    set(OIIO_DEBUG debug ${OPENIMAGEIO_LIBPATH}/OpenImageIO_d.lib debug ${OPENIMAGEIO_LIBPATH}/OpenImageIO_Util_d.lib)
+    set(OPENIMAGEIO_LIBRARIES ${OIIO_OPTIMIZED} ${OIIO_DEBUG})
+  endif()
   set(OPENIMAGEIO_DEFINITIONS "-DUSE_TBB=0")
   set(OPENIMAGEIO_IDIFF "${OPENIMAGEIO}/bin/idiff.exe")
   add_definitions(-DOIIO_STATIC_DEFINE)
@@ -580,34 +633,48 @@ if(WITH_LLVM)
 endif()
 
 if(WITH_OPENCOLORIO)
-  set(OPENCOLORIO ${LIBDIR}/OpenColorIO)
-  set(OPENCOLORIO_INCLUDE_DIRS ${OPENCOLORIO}/include)
-  set(OPENCOLORIO_LIBPATH ${OPENCOLORIO}/lib)
-  set(OPENCOLORIO_LIBRARIES
-    optimized ${OPENCOLORIO_LIBPATH}/OpenColorIO.lib
-    optimized ${OPENCOLORIO_LIBPATH}/libyaml-cpp.lib
-    optimized ${OPENCOLORIO_LIBPATH}/libexpatMD.lib
-    optimized ${OPENCOLORIO_LIBPATH}/pystring.lib
-    debug ${OPENCOLORIO_LIBPATH}/OpencolorIO_d.lib
-    debug ${OPENCOLORIO_LIBPATH}/libyaml-cpp_d.lib
-    debug ${OPENCOLORIO_LIBPATH}/libexpatdMD.lib
-    debug ${OPENCOLORIO_LIBPATH}/pystring_d.lib
-  )
+  windows_find_package(OpenColorIO)
+  if(NOT OpenColorIO_FOUND)
+    set(OPENCOLORIO ${LIBDIR}/OpenColorIO)
+    set(OPENCOLORIO_INCLUDE_DIRS ${OPENCOLORIO}/include)
+    set(OPENCOLORIO_LIBPATH ${OPENCOLORIO}/lib)
+    set(OPENCOLORIO_LIBRARIES
+      optimized ${OPENCOLORIO_LIBPATH}/OpenColorIO.lib
+      optimized ${OPENCOLORIO_LIBPATH}/libyaml-cpp.lib
+      optimized ${OPENCOLORIO_LIBPATH}/libexpatMD.lib
+      optimized ${OPENCOLORIO_LIBPATH}/pystring.lib
+      debug ${OPENCOLORIO_LIBPATH}/OpencolorIO_d.lib
+      debug ${OPENCOLORIO_LIBPATH}/libyaml-cpp_d.lib
+      debug ${OPENCOLORIO_LIBPATH}/libexpatdMD.lib
+      debug ${OPENCOLORIO_LIBPATH}/pystring_d.lib
+    )
+  endif()
   set(OPENCOLORIO_DEFINITIONS "-DOpenColorIO_SKIP_IMPORTS")
 endif()
 
 if(WITH_OPENVDB)
-  set(OPENVDB ${LIBDIR}/openVDB)
-  set(OPENVDB_LIBPATH ${OPENVDB}/lib)
-  set(OPENVDB_INCLUDE_DIRS ${OPENVDB}/include)
-  set(OPENVDB_LIBRARIES optimized ${OPENVDB_LIBPATH}/openvdb.lib debug ${OPENVDB_LIBPATH}/openvdb_d.lib )
+  windows_find_package(OpenVDB)
+  if(NOT OpenVDB_FOUND)
+    set(OPENVDB ${LIBDIR}/openVDB)
+    set(OPENVDB_LIBPATH ${OPENVDB}/lib)
+    set(OPENVDB_INCLUDE_DIRS ${OPENVDB}/include)
+    set(OPENVDB_LIBRARIES optimized ${OPENVDB_LIBPATH}/openvdb.lib debug ${OPENVDB_LIBPATH}/openvdb_d.lib )
+  endif()
   set(OPENVDB_DEFINITIONS -DNOMINMAX -D_USE_MATH_DEFINES)
 endif()
 
 if(WITH_NANOVDB)
-  set(NANOVDB ${LIBDIR}/nanoVDB)
+  set(NANOVDB ${LIBDIR}/openvdb)
   set(NANOVDB_INCLUDE_DIR ${NANOVDB}/include)
+  if(NOT EXISTS "${NANOVDB_INCLUDE_DIR}/nanovdb")
+    # When not found, could be an older lib folder with where nanovdb
+    # had its own lib folder, to ease the transition period, fall back
+    # to that copy if the copy in openvdb is not found.
+    set(NANOVDB ${LIBDIR}/nanoVDB)
+    set(NANOVDB_INCLUDE_DIR ${NANOVDB}/include)
+  endif()
 endif()
+
 
 if(WITH_OPENIMAGEDENOISE)
   set(OPENIMAGEDENOISE ${LIBDIR}/OpenImageDenoise)
@@ -619,7 +686,8 @@ if(WITH_OPENIMAGEDENOISE)
     optimized ${OPENIMAGEDENOISE_LIBPATH}/dnnl.lib
     debug ${OPENIMAGEDENOISE_LIBPATH}/OpenImageDenoise_d.lib
     debug ${OPENIMAGEDENOISE_LIBPATH}/common_d.lib
-    debug ${OPENIMAGEDENOISE_LIBPATH}/dnnl_d.lib)
+    debug ${OPENIMAGEDENOISE_LIBPATH}/dnnl_d.lib
+  )
   set(OPENIMAGEDENOISE_DEFINITIONS)
 endif()
 
@@ -634,26 +702,34 @@ endif()
 
 if(WITH_IMAGE_OPENJPEG)
   set(OPENJPEG ${LIBDIR}/openjpeg)
-  set(OPENJPEG_INCLUDE_DIRS ${OPENJPEG}/include/openjpeg-2.3)
+  set(OPENJPEG_INCLUDE_DIRS ${OPENJPEG}/include/openjpeg-2.4)
+  if(NOT EXISTS "${OPENJPEG_INCLUDE_DIRS}")
+    # when not found, could be an older lib folder with openjpeg 2.3
+    # to ease the transition period, fall back if 2.4 is not found.
+    set(OPENJPEG_INCLUDE_DIRS ${OPENJPEG}/include/openjpeg-2.3)
+  endif()
   set(OPENJPEG_LIBRARIES ${OPENJPEG}/lib/openjp2.lib)
 endif()
 
 if(WITH_OPENSUBDIV)
-  set(OPENSUBDIV_INCLUDE_DIRS ${LIBDIR}/opensubdiv/include)
-  set(OPENSUBDIV_LIBPATH ${LIBDIR}/opensubdiv/lib)
-  set(OPENSUBDIV_LIBRARIES
-    optimized ${OPENSUBDIV_LIBPATH}/osdCPU.lib
-    optimized ${OPENSUBDIV_LIBPATH}/osdGPU.lib
-    debug ${OPENSUBDIV_LIBPATH}/osdCPU_d.lib
-    debug ${OPENSUBDIV_LIBPATH}/osdGPU_d.lib
-  )
-  set(OPENSUBDIV_HAS_OPENMP TRUE)
-  set(OPENSUBDIV_HAS_TBB FALSE)
-  set(OPENSUBDIV_HAS_OPENCL TRUE)
-  set(OPENSUBDIV_HAS_CUDA FALSE)
-  set(OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK TRUE)
-  set(OPENSUBDIV_HAS_GLSL_COMPUTE TRUE)
   windows_find_package(OpenSubdiv)
+  if(NOT OpenSubdiv_FOUND)
+    set(OPENSUBDIV ${LIBDIR}/opensubdiv)
+    set(OPENSUBDIV_INCLUDE_DIRS ${OPENSUBDIV}/include)
+    set(OPENSUBDIV_LIBPATH ${OPENSUBDIV}/lib)
+    set(OPENSUBDIV_LIBRARIES
+      optimized ${OPENSUBDIV_LIBPATH}/osdCPU.lib
+      optimized ${OPENSUBDIV_LIBPATH}/osdGPU.lib
+      debug ${OPENSUBDIV_LIBPATH}/osdCPU_d.lib
+      debug ${OPENSUBDIV_LIBPATH}/osdGPU_d.lib
+    )
+    set(OPENSUBDIV_HAS_OPENMP TRUE)
+    set(OPENSUBDIV_HAS_TBB FALSE)
+    set(OPENSUBDIV_HAS_OPENCL TRUE)
+    set(OPENSUBDIV_HAS_CUDA FALSE)
+    set(OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK TRUE)
+    set(OPENSUBDIV_HAS_GLSL_COMPUTE TRUE)
+  endif()
 endif()
 
 if(WITH_SDL)
@@ -674,12 +750,15 @@ if(WITH_SYSTEM_AUDASPACE)
 endif()
 
 if(WITH_TBB)
-  set(TBB_LIBRARIES optimized ${LIBDIR}/tbb/lib/tbb.lib debug ${LIBDIR}/tbb/lib/tbb_debug.lib)
-  set(TBB_INCLUDE_DIR ${LIBDIR}/tbb/include)
-  set(TBB_INCLUDE_DIRS ${TBB_INCLUDE_DIR})
-  if(WITH_TBB_MALLOC_PROXY)
-    set(TBB_MALLOC_LIBRARIES optimized ${LIBDIR}/tbb/lib/tbbmalloc.lib debug ${LIBDIR}/tbb/lib/tbbmalloc_debug.lib)
-    add_definitions(-DWITH_TBB_MALLOC)
+  windows_find_package(TBB)
+  if(NOT TBB_FOUND)
+    set(TBB_LIBRARIES optimized ${LIBDIR}/tbb/lib/tbb.lib debug ${LIBDIR}/tbb/lib/tbb_debug.lib)
+    set(TBB_INCLUDE_DIR ${LIBDIR}/tbb/include)
+    set(TBB_INCLUDE_DIRS ${TBB_INCLUDE_DIR})
+    if(WITH_TBB_MALLOC_PROXY)
+      set(TBB_MALLOC_LIBRARIES optimized ${LIBDIR}/tbb/lib/tbbmalloc.lib debug ${LIBDIR}/tbb/lib/tbbmalloc_debug.lib)
+      add_definitions(-DWITH_TBB_MALLOC)
+    endif()
   endif()
 endif()
 
@@ -698,7 +777,6 @@ if(WITH_OPENAL)
   else()
     set(OPENAL_LIBRARY ${OPENAL_LIBPATH}/wrap_oal.lib)
   endif()
-
 endif()
 
 if(WITH_CODEC_SNDFILE)
@@ -708,7 +786,7 @@ if(WITH_CODEC_SNDFILE)
   set(LIBSNDFILE_LIBRARIES ${LIBSNDFILE_LIBPATH}/libsndfile-1.lib)
 endif()
 
-if(WITH_CYCLES_OSL)
+if(WITH_CYCLES AND WITH_CYCLES_OSL)
   set(CYCLES_OSL ${LIBDIR}/osl CACHE PATH "Path to OpenShadingLanguage installation")
   set(OSL_SHADER_DIR ${CYCLES_OSL}/shaders)
   # Shaders have moved around a bit between OSL versions, check multiple locations
@@ -741,9 +819,9 @@ if(WITH_CYCLES_OSL)
   endif()
 endif()
 
-if(WITH_CYCLES_EMBREE)
+if(WITH_CYCLES AND WITH_CYCLES_EMBREE)
   windows_find_package(Embree)
-  if(NOT EMBREE_FOUND)
+  if(NOT Embree_FOUND)
     set(EMBREE_INCLUDE_DIRS ${LIBDIR}/embree/include)
     set(EMBREE_LIBRARIES
       optimized ${LIBDIR}/embree/lib/embree3.lib
@@ -764,18 +842,25 @@ if(WITH_CYCLES_EMBREE)
       debug ${LIBDIR}/embree/lib/math_d.lib
       debug ${LIBDIR}/embree/lib/simd_d.lib
       debug ${LIBDIR}/embree/lib/sys_d.lib
-      debug ${LIBDIR}/embree/lib/tasking_d.lib)
+      debug ${LIBDIR}/embree/lib/tasking_d.lib
+    )
   endif()
 endif()
 
 if(WITH_USD)
   windows_find_package(USD)
   if(NOT USD_FOUND)
-    set(USD_FOUND ON)
     set(USD_INCLUDE_DIRS ${LIBDIR}/usd/include)
-    set(USD_RELEASE_LIB ${LIBDIR}/usd/lib/libusd_m.lib)
-    set(USD_DEBUG_LIB ${LIBDIR}/usd/lib/libusd_m_d.lib)
+    set(USD_RELEASE_LIB ${LIBDIR}/usd/lib/usd_usd_m.lib)
+    set(USD_DEBUG_LIB ${LIBDIR}/usd/lib/usd_usd_m_d.lib)
     set(USD_LIBRARY_DIR ${LIBDIR}/usd/lib)
+    # Older USD had different filenames, if the new ones are
+    # not found see if the older ones exist, to ease the
+    # transition period while landing libs.
+    if(NOT EXISTS "${USD_RELEASE_LIB}")
+      set(USD_RELEASE_LIB ${LIBDIR}/usd/lib/libusd_m.lib)
+      set(USD_DEBUG_LIB ${LIBDIR}/usd/lib/libusd_m_d.lib)
+    endif()
     set(USD_LIBRARIES
       debug ${USD_DEBUG_LIB}
       optimized ${USD_RELEASE_LIB}
@@ -876,3 +961,11 @@ endif()
 
 set(ZSTD_INCLUDE_DIRS ${LIBDIR}/zstd/include)
 set(ZSTD_LIBRARIES ${LIBDIR}/zstd/lib/zstd_static.lib)
+
+# Compatibility with Windows 7
+if(WITH_WINDOWS_7)
+  set(BCOMPAT7_LIBRARIES ${LIBDIR}/bcompat7/lib/bcompat7.lib)
+endif()
+
+set(LEVEL_ZERO_ROOT_DIR ${LIBDIR}/level_zero)
+set(SYCL_ROOT_DIR ${LIBDIR}/dpcpp)

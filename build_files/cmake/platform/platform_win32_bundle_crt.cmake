@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 # First generate the manifest for tests since it will not need the dependency on the CRT.
 configure_file(${CMAKE_SOURCE_DIR}/release/windows/manifest/blender.exe.manifest.in ${CMAKE_CURRENT_BINARY_DIR}/tests.exe.manifest @ONLY)
 
@@ -27,7 +29,7 @@ if(WITH_WINDOWS_BUNDLE_CRT)
   # Install the CRT to the blender.crt Sub folder.
   install(FILES ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS} DESTINATION ./blender.crt COMPONENT Libraries)
 
-  # Generating the manifest is a relativly expensive operation since
+  # Generating the manifest is a relatively expensive operation since
   # it is collecting an sha1 hash for every file required. so only do
   # this work when the libs have either changed or the manifest does
   # not exist yet.

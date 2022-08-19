@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2019, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2019 Blender Foundation. */
 
 /** \file
  * \ingroup draw_engine
@@ -209,23 +194,23 @@ void OVERLAY_extra_cache_init(OVERLAY_Data *vedata)
       DRW_shgroup_uniform_block(grp, "globalsBlock", G_draw.block_ubo);
 
       grp_sub = DRW_shgroup_create_sub(grp);
-      DRW_shgroup_uniform_vec4_copy(grp_sub, "color", G_draw.block.colorActive);
+      DRW_shgroup_uniform_vec4_copy(grp_sub, "color", G_draw.block.color_active);
       cb->center_active = BUF_POINT(grp_sub, format);
 
       grp_sub = DRW_shgroup_create_sub(grp);
-      DRW_shgroup_uniform_vec4_copy(grp_sub, "color", G_draw.block.colorSelect);
+      DRW_shgroup_uniform_vec4_copy(grp_sub, "color", G_draw.block.color_select);
       cb->center_selected = BUF_POINT(grp_sub, format);
 
       grp_sub = DRW_shgroup_create_sub(grp);
-      DRW_shgroup_uniform_vec4_copy(grp_sub, "color", G_draw.block.colorDeselect);
+      DRW_shgroup_uniform_vec4_copy(grp_sub, "color", G_draw.block.color_deselect);
       cb->center_deselected = BUF_POINT(grp_sub, format);
 
       grp_sub = DRW_shgroup_create_sub(grp);
-      DRW_shgroup_uniform_vec4_copy(grp_sub, "color", G_draw.block.colorLibrarySelect);
+      DRW_shgroup_uniform_vec4_copy(grp_sub, "color", G_draw.block.color_library_select);
       cb->center_selected_lib = BUF_POINT(grp_sub, format);
 
       grp_sub = DRW_shgroup_create_sub(grp);
-      DRW_shgroup_uniform_vec4_copy(grp_sub, "color", G_draw.block.colorLibrary);
+      DRW_shgroup_uniform_vec4_copy(grp_sub, "color", G_draw.block.color_library);
       cb->center_deselected_lib = BUF_POINT(grp_sub, format);
     }
   }
@@ -360,18 +345,17 @@ static void OVERLAY_bounds(OVERLAY_ExtraCallBuffers *cb,
                            bool around_origin)
 {
   float center[3], size[3], tmp[4][4], final_mat[4][4];
-  BoundBox bb_local;
 
   if (ob->type == OB_MBALL && !BKE_mball_is_basis(ob)) {
     return;
   }
 
-  BoundBox *bb = BKE_object_boundbox_get(ob);
-
+  const BoundBox *bb = BKE_object_boundbox_get(ob);
+  BoundBox bb_local;
   if (bb == NULL) {
     const float min[3] = {-1.0f, -1.0f, -1.0f}, max[3] = {1.0f, 1.0f, 1.0f};
+    BKE_boundbox_init_from_minmax(&bb_local, min, max);
     bb = &bb_local;
-    BKE_boundbox_init_from_minmax(bb, min, max);
   }
 
   BKE_boundbox_calc_size_aabb(bb, size);
@@ -436,6 +420,30 @@ static void OVERLAY_bounds(OVERLAY_ExtraCallBuffers *cb,
   }
 }
 
+/* UPBGE */
+static void OVERLAY_pivot(OVERLAY_ExtraCallBuffers *cb, Object *ob, int theme_id)
+{
+  float color[4], tmp[4][4];
+  UI_GetThemeColor4fv(theme_id, color);
+
+  for (bConstraint *con = ob->constraints.first; con; con = con->next) {
+    bRigidBodyJointConstraint *rcon = (bRigidBodyJointConstraint *)con->data;
+    if (rcon && rcon->flag & CONSTRAINT_DRAW_PIVOT) {
+      float xyz[3] = {rcon->pivX, rcon->pivY, rcon->pivZ};
+      float axis[3] = {rcon->axX, rcon->axY, rcon->axZ};
+      float scale[3];
+      float rotmat[3][3];
+      copy_v3_v3(scale, ob->scale);
+      mul_v3_fl(scale, 0.2f);
+      axis_angle_to_mat3(rotmat, axis, len_v3(axis));
+      loc_rot_size_to_mat4(tmp, xyz, rotmat, scale);
+      mul_m4_m4m4(tmp, ob->obmat, tmp);
+      DRW_buffer_add_entry(cb->origin_xform, color, tmp);
+    }
+  }
+}
+/* End of UPBGE */
+
 static void OVERLAY_collision(OVERLAY_ExtraCallBuffers *cb, Object *ob, const float *color)
 {
   switch (ob->rigidbody_object->shape) {
@@ -471,7 +479,7 @@ static void OVERLAY_texture_space(OVERLAY_ExtraCallBuffers *cb, Object *ob, cons
     case ID_ME:
       BKE_mesh_texspace_get_reference((Mesh *)ob_data, NULL, &texcoloc, &texcosize);
       break;
-    case ID_CU: {
+    case ID_CU_LEGACY: {
       Curve *cu = (Curve *)ob_data;
       BKE_curve_texspace_ensure(cu);
       texcoloc = cu->loc;
@@ -484,7 +492,7 @@ static void OVERLAY_texture_space(OVERLAY_ExtraCallBuffers *cb, Object *ob, cons
       texcosize = mb->size;
       break;
     }
-    case ID_HA:
+    case ID_CV:
     case ID_PT:
     case ID_VO: {
       /* No user defined texture space support. */
@@ -514,7 +522,7 @@ static void OVERLAY_forcefield(OVERLAY_ExtraCallBuffers *cb, Object *ob, ViewLay
   int theme_id = DRW_object_wire_theme_get(ob, view_layer, NULL);
   float *color = DRW_color_background_blend_get(theme_id);
   PartDeflect *pd = ob->pd;
-  Curve *cu = (ob->type == OB_CURVE) ? ob->data : NULL;
+  Curve *cu = (ob->type == OB_CURVES_LEGACY) ? ob->data : NULL;
 
   union {
     float mat[4][4];
@@ -544,13 +552,13 @@ static void OVERLAY_forcefield(OVERLAY_ExtraCallBuffers *cb, Object *ob, ViewLay
     case PFIELD_GUIDE:
       if (cu && (cu->flag & CU_PATH) && ob->runtime.curve_cache->anim_path_accum_length) {
         instdata.size_x = instdata.size_y = instdata.size_z = pd->f_strength;
-        float pos[4], tmp[3];
-        BKE_where_on_path(ob, 0.0f, pos, tmp, NULL, NULL, NULL);
+        float pos[4];
+        BKE_where_on_path(ob, 0.0f, pos, NULL, NULL, NULL, NULL);
         copy_v3_v3(instdata.pos, ob->obmat[3]);
         translate_m4(instdata.mat, pos[0], pos[1], pos[2]);
         DRW_buffer_add_entry(cb->field_curve, color, &instdata);
 
-        BKE_where_on_path(ob, 1.0f, pos, tmp, NULL, NULL, NULL);
+        BKE_where_on_path(ob, 1.0f, pos, NULL, NULL, NULL, NULL);
         copy_v3_v3(instdata.pos, ob->obmat[3]);
         translate_m4(instdata.mat, pos[0], pos[1], pos[2]);
         DRW_buffer_add_entry(cb->field_sphere_limit, color, &instdata);
@@ -771,7 +779,7 @@ void OVERLAY_lightprobe_cache_populate(OVERLAY_Data *vedata, Object *ob)
 
         uint cell_count = prb->grid_resolution_x * prb->grid_resolution_y * prb->grid_resolution_z;
         DRWShadingGroup *grp = DRW_shgroup_create_sub(vedata->stl->pd->extra_grid_grp);
-        DRW_shgroup_uniform_vec4_array_copy(grp, "gridModelMatrix", instdata.mat, 4);
+        DRW_shgroup_uniform_mat4_copy(grp, "gridModelMatrix", instdata.mat);
         DRW_shgroup_call_procedural_points(grp, NULL, cell_count);
       }
       break;
@@ -877,8 +885,8 @@ static void camera_view3d_reconstruction(
   int track_index = 1;
 
   float bundle_color_custom[3];
-  float *bundle_color_solid = G_draw.block.colorBundleSolid;
-  float *bundle_color_unselected = G_draw.block.colorWire;
+  float *bundle_color_solid = G_draw.block.color_bundle_solid;
+  float *bundle_color_unselected = G_draw.block.color_wire;
   uchar text_color_selected[4], text_color_unselected[4];
   /* Color Management: Exception here as texts are drawn in sRGB space directly. */
   UI_GetThemeColor4ubv(TH_SELECT, text_color_selected);
@@ -1050,7 +1058,7 @@ static void camera_stereoscopy_extra(OVERLAY_ExtraCallBuffers *cb,
       DRW_buffer_add_entry_struct(cb->camera_frame, &stereodata);
 
       /* Connecting line between cameras. */
-      OVERLAY_extra_line_dashed(cb, stereodata.pos, instdata->pos, G_draw.block.colorWire);
+      OVERLAY_extra_line_dashed(cb, stereodata.pos, instdata->pos, G_draw.block.color_wire);
     }
 
     if (is_stereo3d_volume && !is_select) {
@@ -1264,8 +1272,8 @@ static void OVERLAY_relationship_lines(OVERLAY_ExtraCallBuffers *cb,
                                        Scene *scene,
                                        Object *ob)
 {
-  float *relation_color = G_draw.block.colorWire;
-  float *constraint_color = G_draw.block.colorGridAxisZ; /* ? */
+  float *relation_color = G_draw.block.color_wire;
+  float *constraint_color = G_draw.block.color_grid_axis_z; /* ? */
 
   if (ob->parent && (DRW_object_visibility_in_active_context(ob->parent) & OB_VISIBLE_SELF)) {
     float *parent_pos = ob->runtime.parent_display_origin;
@@ -1326,16 +1334,19 @@ static void OVERLAY_relationship_lines(OVERLAY_ExtraCallBuffers *cb,
       }
       else {
         const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(curcon);
+        ListBase targets = {NULL, NULL};
 
-        if ((cti && cti->get_constraint_targets) && (curcon->ui_expand_flag & (1 << 0))) {
-          ListBase targets = {NULL, NULL};
+        if ((curcon->ui_expand_flag & (1 << 0)) && BKE_constraint_targets_get(curcon, &targets)) {
           bConstraintTarget *ct;
 
-          cti->get_constraint_targets(curcon, &targets);
+          BKE_constraint_custom_object_space_init(cob, curcon);
 
           for (ct = targets.first; ct; ct = ct->next) {
             /* calculate target's matrix */
-            if (cti->get_target_matrix) {
+            if (ct->flag & CONSTRAINT_TAR_CUSTOM_SPACE) {
+              copy_m4_m4(ct->matrix, cob->space_obj_world_matrix);
+            }
+            else if (cti->get_target_matrix) {
               cti->get_target_matrix(depsgraph, curcon, cob, ct, DEG_get_ctime(depsgraph));
             }
             else {
@@ -1344,9 +1355,7 @@ static void OVERLAY_relationship_lines(OVERLAY_ExtraCallBuffers *cb,
             OVERLAY_extra_line_dashed(cb, ct->matrix[3], ob->obmat[3], constraint_color);
           }
 
-          if (cti->flush_constraint_targets) {
-            cti->flush_constraint_targets(curcon, &targets, 1);
-          }
+          BKE_constraint_targets_flush(curcon, &targets, 1);
         }
       }
     }
@@ -1373,7 +1382,7 @@ static void OVERLAY_volume_extra(OVERLAY_ExtraCallBuffers *cb,
 
   /* Don't show smoke before simulation starts, this could be made an option in the future. */
   const bool draw_velocity = (fds->draw_velocity && fds->fluid &&
-                              CFRA >= fds->point_cache[0]->startframe);
+                              scene->r.cfra >= fds->point_cache[0]->startframe);
 
   /* Show gridlines only for slices with no interpolation. */
   const bool show_gridlines = (fds->show_gridlines && fds->fluid &&
@@ -1490,23 +1499,6 @@ static void OVERLAY_volume_extra(OVERLAY_ExtraCallBuffers *cb,
   }
 
   if (draw_velocity || show_gridlines) {
-    BLI_addtail(&data->stl->pd->smoke_domains, BLI_genericNodeN(fmd));
-  }
-}
-
-static void OVERLAY_volume_free_smoke_textures(OVERLAY_Data *data)
-{
-  /* Free Smoke Textures after rendering */
-  /* XXX This is a waste of processing and GPU bandwidth if nothing
-   * is updated. But the problem is since Textures are stored in the
-   * modifier we don't want them to take precious VRAM if the
-   * modifier is not used for display. We should share them for
-   * all viewport in a redraw at least. */
-  LinkData *link;
-  while ((link = BLI_pophead(&data->stl->pd->smoke_domains))) {
-    FluidModifierData *fmd = (FluidModifierData *)link->data;
-    DRW_smoke_free_velocity(fmd);
-    MEM_freeN(link);
   }
 }
 
@@ -1583,8 +1575,9 @@ void OVERLAY_extra_cache_populate(OVERLAY_Data *vedata, Object *ob)
                            (md = BKE_modifiers_findby_type(ob, eModifierType_Fluid)) &&
                            (BKE_modifier_is_enabled(scene, md, eModifierMode_Realtime)) &&
                            (((FluidModifierData *)md)->domain != NULL) &&
-                           (CFRA >= (((FluidModifierData *)md)->domain->cache_frame_start)) &&
-                           (CFRA <= (((FluidModifierData *)md)->domain->cache_frame_end));
+                           (scene->r.cfra >=
+                            (((FluidModifierData *)md)->domain->cache_frame_start)) &&
+                           (scene->r.cfra <= (((FluidModifierData *)md)->domain->cache_frame_end));
 
   float *color;
   int theme_id = DRW_object_wire_theme_get(ob, view_layer, &color);
@@ -1618,6 +1611,9 @@ void OVERLAY_extra_cache_populate(OVERLAY_Data *vedata, Object *ob)
     if (ob->rigidbody_object != NULL) {
       OVERLAY_collision(cb, ob, color);
     }
+    if (ob->constraints.first) { /* UPBGE */
+      OVERLAY_pivot(cb, ob, theme_id);
+    }
     if (ob->dtx & OB_AXIS) {
       DRW_buffer_add_entry(cb->empty_axes, color, ob->obmat);
     }
@@ -1640,8 +1636,6 @@ void OVERLAY_extra_draw(OVERLAY_Data *vedata)
 void OVERLAY_extra_in_front_draw(OVERLAY_Data *vedata)
 {
   DRW_draw_pass(vedata->psl->extra_ps[1]);
-
-  OVERLAY_volume_free_smoke_textures(vedata);
 }
 
 void OVERLAY_extra_centers_draw(OVERLAY_Data *vedata)

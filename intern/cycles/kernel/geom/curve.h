@@ -1,16 +1,5 @@
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #pragma once
 
@@ -34,12 +23,12 @@ ccl_device float curve_attribute_float(KernelGlobals kg,
                                        ccl_private float *dy)
 {
   if (desc.element & (ATTR_ELEMENT_CURVE_KEY | ATTR_ELEMENT_CURVE_KEY_MOTION)) {
-    KernelCurve curve = kernel_tex_fetch(__curves, sd->prim);
+    KernelCurve curve = kernel_data_fetch(curves, sd->prim);
     int k0 = curve.first_key + PRIMITIVE_UNPACK_SEGMENT(sd->type);
     int k1 = k0 + 1;
 
-    float f0 = kernel_tex_fetch(__attributes_float, desc.offset + k0);
-    float f1 = kernel_tex_fetch(__attributes_float, desc.offset + k1);
+    float f0 = kernel_data_fetch(attributes_float, desc.offset + k0);
+    float f1 = kernel_data_fetch(attributes_float, desc.offset + k1);
 
 #  ifdef __RAY_DIFFERENTIALS__
     if (dx)
@@ -61,7 +50,7 @@ ccl_device float curve_attribute_float(KernelGlobals kg,
     if (desc.element & (ATTR_ELEMENT_CURVE | ATTR_ELEMENT_OBJECT | ATTR_ELEMENT_MESH)) {
       const int offset = (desc.element == ATTR_ELEMENT_CURVE) ? desc.offset + sd->prim :
                                                                 desc.offset;
-      return kernel_tex_fetch(__attributes_float, offset);
+      return kernel_data_fetch(attributes_float, offset);
     }
     else {
       return 0.0f;
@@ -76,12 +65,12 @@ ccl_device float2 curve_attribute_float2(KernelGlobals kg,
                                          ccl_private float2 *dy)
 {
   if (desc.element & (ATTR_ELEMENT_CURVE_KEY | ATTR_ELEMENT_CURVE_KEY_MOTION)) {
-    KernelCurve curve = kernel_tex_fetch(__curves, sd->prim);
+    KernelCurve curve = kernel_data_fetch(curves, sd->prim);
     int k0 = curve.first_key + PRIMITIVE_UNPACK_SEGMENT(sd->type);
     int k1 = k0 + 1;
 
-    float2 f0 = kernel_tex_fetch(__attributes_float2, desc.offset + k0);
-    float2 f1 = kernel_tex_fetch(__attributes_float2, desc.offset + k1);
+    float2 f0 = kernel_data_fetch(attributes_float2, desc.offset + k0);
+    float2 f1 = kernel_data_fetch(attributes_float2, desc.offset + k1);
 
 #  ifdef __RAY_DIFFERENTIALS__
     if (dx)
@@ -107,7 +96,7 @@ ccl_device float2 curve_attribute_float2(KernelGlobals kg,
     if (desc.element & (ATTR_ELEMENT_CURVE | ATTR_ELEMENT_OBJECT | ATTR_ELEMENT_MESH)) {
       const int offset = (desc.element == ATTR_ELEMENT_CURVE) ? desc.offset + sd->prim :
                                                                 desc.offset;
-      return kernel_tex_fetch(__attributes_float2, offset);
+      return kernel_data_fetch(attributes_float2, offset);
     }
     else {
       return make_float2(0.0f, 0.0f);
@@ -122,12 +111,12 @@ ccl_device float3 curve_attribute_float3(KernelGlobals kg,
                                          ccl_private float3 *dy)
 {
   if (desc.element & (ATTR_ELEMENT_CURVE_KEY | ATTR_ELEMENT_CURVE_KEY_MOTION)) {
-    KernelCurve curve = kernel_tex_fetch(__curves, sd->prim);
+    KernelCurve curve = kernel_data_fetch(curves, sd->prim);
     int k0 = curve.first_key + PRIMITIVE_UNPACK_SEGMENT(sd->type);
     int k1 = k0 + 1;
 
-    float3 f0 = float4_to_float3(kernel_tex_fetch(__attributes_float3, desc.offset + k0));
-    float3 f1 = float4_to_float3(kernel_tex_fetch(__attributes_float3, desc.offset + k1));
+    float3 f0 = kernel_data_fetch(attributes_float3, desc.offset + k0);
+    float3 f1 = kernel_data_fetch(attributes_float3, desc.offset + k1);
 
 #  ifdef __RAY_DIFFERENTIALS__
     if (dx)
@@ -149,7 +138,7 @@ ccl_device float3 curve_attribute_float3(KernelGlobals kg,
     if (desc.element & (ATTR_ELEMENT_CURVE | ATTR_ELEMENT_OBJECT | ATTR_ELEMENT_MESH)) {
       const int offset = (desc.element == ATTR_ELEMENT_CURVE) ? desc.offset + sd->prim :
                                                                 desc.offset;
-      return float4_to_float3(kernel_tex_fetch(__attributes_float3, offset));
+      return kernel_data_fetch(attributes_float3, offset);
     }
     else {
       return make_float3(0.0f, 0.0f, 0.0f);
@@ -164,18 +153,18 @@ ccl_device float4 curve_attribute_float4(KernelGlobals kg,
                                          ccl_private float4 *dy)
 {
   if (desc.element & (ATTR_ELEMENT_CURVE_KEY | ATTR_ELEMENT_CURVE_KEY_MOTION)) {
-    KernelCurve curve = kernel_tex_fetch(__curves, sd->prim);
+    KernelCurve curve = kernel_data_fetch(curves, sd->prim);
     int k0 = curve.first_key + PRIMITIVE_UNPACK_SEGMENT(sd->type);
     int k1 = k0 + 1;
 
-    float4 f0 = kernel_tex_fetch(__attributes_float3, desc.offset + k0);
-    float4 f1 = kernel_tex_fetch(__attributes_float3, desc.offset + k1);
+    float4 f0 = kernel_data_fetch(attributes_float4, desc.offset + k0);
+    float4 f1 = kernel_data_fetch(attributes_float4, desc.offset + k1);
 
 #  ifdef __RAY_DIFFERENTIALS__
     if (dx)
       *dx = sd->du.dx * (f1 - f0);
     if (dy)
-      *dy = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+      *dy = zero_float4();
 #  endif
 
     return (1.0f - sd->u) * f0 + sd->u * f1;
@@ -183,18 +172,18 @@ ccl_device float4 curve_attribute_float4(KernelGlobals kg,
   else {
 #  ifdef __RAY_DIFFERENTIALS__
     if (dx)
-      *dx = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+      *dx = zero_float4();
     if (dy)
-      *dy = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+      *dy = zero_float4();
 #  endif
 
     if (desc.element & (ATTR_ELEMENT_CURVE | ATTR_ELEMENT_OBJECT | ATTR_ELEMENT_MESH)) {
       const int offset = (desc.element == ATTR_ELEMENT_CURVE) ? desc.offset + sd->prim :
                                                                 desc.offset;
-      return kernel_tex_fetch(__attributes_float3, offset);
+      return kernel_data_fetch(attributes_float4, offset);
     }
     else {
-      return make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+      return zero_float4();
     }
   }
 }
@@ -205,16 +194,16 @@ ccl_device float curve_thickness(KernelGlobals kg, ccl_private const ShaderData 
 {
   float r = 0.0f;
 
-  if (sd->type & PRIMITIVE_ALL_CURVE) {
-    KernelCurve curve = kernel_tex_fetch(__curves, sd->prim);
+  if (sd->type & PRIMITIVE_CURVE) {
+    KernelCurve curve = kernel_data_fetch(curves, sd->prim);
     int k0 = curve.first_key + PRIMITIVE_UNPACK_SEGMENT(sd->type);
     int k1 = k0 + 1;
 
     float4 P_curve[2];
 
-    if (!(sd->type & PRIMITIVE_ALL_MOTION)) {
-      P_curve[0] = kernel_tex_fetch(__curve_keys, k0);
-      P_curve[1] = kernel_tex_fetch(__curve_keys, k1);
+    if (!(sd->type & PRIMITIVE_MOTION)) {
+      P_curve[0] = kernel_data_fetch(curve_keys, k0);
+      P_curve[1] = kernel_data_fetch(curve_keys, k1);
     }
     else {
       motion_curve_keys_linear(kg, sd->object, sd->prim, sd->time, k0, k1, P_curve);
@@ -226,19 +215,31 @@ ccl_device float curve_thickness(KernelGlobals kg, ccl_private const ShaderData 
   return r * 2.0f;
 }
 
+/* Curve random */
+
+ccl_device float curve_random(KernelGlobals kg, ccl_private const ShaderData *sd)
+{
+  if (sd->type & PRIMITIVE_CURVE) {
+    const AttributeDescriptor desc = find_attribute(kg, sd, ATTR_STD_CURVE_RANDOM);
+    return (desc.offset != ATTR_STD_NOT_FOUND) ? curve_attribute_float(kg, sd, desc, NULL, NULL) :
+                                                 0.0f;
+  }
+  return 0.0f;
+}
+
 /* Curve location for motion pass, linear interpolation between keys and
  * ignoring radius because we do the same for the motion keys */
 
 ccl_device float3 curve_motion_center_location(KernelGlobals kg, ccl_private const ShaderData *sd)
 {
-  KernelCurve curve = kernel_tex_fetch(__curves, sd->prim);
+  KernelCurve curve = kernel_data_fetch(curves, sd->prim);
   int k0 = curve.first_key + PRIMITIVE_UNPACK_SEGMENT(sd->type);
   int k1 = k0 + 1;
 
   float4 P_curve[2];
 
-  P_curve[0] = kernel_tex_fetch(__curve_keys, k0);
-  P_curve[1] = kernel_tex_fetch(__curve_keys, k1);
+  P_curve[0] = kernel_data_fetch(curve_keys, k0);
+  P_curve[1] = kernel_data_fetch(curve_keys, k1);
 
   return float4_to_float3(P_curve[1]) * sd->u + float4_to_float3(P_curve[0]) * (1.0f - sd->u);
 }
@@ -249,7 +250,7 @@ ccl_device float3 curve_tangent_normal(KernelGlobals kg, ccl_private const Shade
 {
   float3 tgN = make_float3(0.0f, 0.0f, 0.0f);
 
-  if (sd->type & PRIMITIVE_ALL_CURVE) {
+  if (sd->type & PRIMITIVE_CURVE) {
 
     tgN = -(-sd->I - sd->dPdu * (dot(sd->dPdu, -sd->I) / len_squared(sd->dPdu)));
     tgN = normalize(tgN);

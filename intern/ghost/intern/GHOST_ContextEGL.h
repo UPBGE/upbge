@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2013 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2013 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup GHOST
@@ -26,7 +10,8 @@
 #include "GHOST_Context.h"
 #include "GHOST_System.h"
 
-#include <GL/eglew.h>
+#include <epoxy/egl.h>
+#include <epoxy/gl.h>
 
 #ifndef GHOST_OPENGL_EGL_CONTEXT_FLAGS
 #  define GHOST_OPENGL_EGL_CONTEXT_FLAGS 0
@@ -112,7 +97,7 @@ class GHOST_ContextEGL : public GHOST_Context {
   EGLContext getContext() const;
 
  private:
-  bool initContextEGLEW();
+  bool bindAPI(EGLenum api);
 
   const GHOST_System *const m_system;
 
@@ -145,8 +130,4 @@ class GHOST_ContextEGL : public GHOST_Context {
 
   static EGLContext s_vg_sharedContext;
   static EGLint s_vg_sharedCount;
-
-#ifdef WITH_GL_ANGLE
-  static HMODULE s_d3dcompiler;
-#endif
 };

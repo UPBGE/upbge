@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2011 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup spclip
@@ -34,6 +18,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_defaults.h"
 #include "DNA_mask_types.h"
 
 #include "BLI_fileops.h"
@@ -117,6 +102,16 @@ bool ED_space_clip_maskedit_poll(bContext *C)
   return false;
 }
 
+bool ED_space_clip_maskedit_visible_splines_poll(bContext *C)
+{
+  if (!ED_space_clip_maskedit_poll(C)) {
+    return false;
+  }
+
+  const SpaceClip *space_clip = CTX_wm_space_clip(C);
+  return space_clip->mask_info.draw_flag & MASK_DRAWFLAG_SPLINE;
+}
+
 bool ED_space_clip_maskedit_mask_poll(bContext *C)
 {
   if (ED_space_clip_maskedit_poll(C)) {
@@ -130,6 +125,16 @@ bool ED_space_clip_maskedit_mask_poll(bContext *C)
   }
 
   return false;
+}
+
+bool ED_space_clip_maskedit_mask_visible_splines_poll(bContext *C)
+{
+  if (!ED_space_clip_maskedit_mask_poll(C)) {
+    return false;
+  }
+
+  const SpaceClip *space_clip = CTX_wm_space_clip(C);
+  return space_clip->mask_info.draw_flag & MASK_DRAWFLAG_SPLINE;
 }
 
 /** \} */
@@ -223,7 +228,6 @@ void ED_space_clip_get_aspect_dimension_aware(SpaceClip *sc, float *aspx, float 
   }
 }
 
-/* return current frame number in clip space */
 int ED_space_clip_get_clip_frame_number(SpaceClip *sc)
 {
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -272,7 +276,7 @@ ImBuf *ED_space_clip_get_stable_buffer(SpaceClip *sc, float loc[2], float *scale
 }
 
 bool ED_space_clip_get_position(struct SpaceClip *sc,
-                                struct ARegion *ar,
+                                struct ARegion *region,
                                 int mval[2],
                                 float fpos[2])
 {
@@ -282,14 +286,13 @@ bool ED_space_clip_get_position(struct SpaceClip *sc,
   }
 
   /* map the mouse coords to the backdrop image space */
-  ED_clip_mouse_pos(sc, ar, mval, fpos);
+  ED_clip_mouse_pos(sc, region, mval, fpos);
 
   IMB_freeImBuf(ibuf);
   return true;
 }
 
-/* Returns color in linear space, matching ED_space_image_color_sample(). */
-bool ED_space_clip_color_sample(SpaceClip *sc, ARegion *region, int mval[2], float r_col[3])
+bool ED_space_clip_color_sample(SpaceClip *sc, ARegion *region, const int mval[2], float r_col[3])
 {
   ImBuf *ibuf;
   float fx, fy, co[2];
@@ -511,10 +514,6 @@ void ED_clip_point_stable_pos(
   }
 }
 
-/**
- * \brief the reverse of #ED_clip_point_stable_pos(), gets the marker region coords.
- * better name here? view_to_track / track_to_view or so?
- */
 void ED_clip_point_stable_pos__reverse(SpaceClip *sc,
                                        ARegion *region,
                                        const float co[2],
@@ -539,7 +538,6 @@ void ED_clip_point_stable_pos__reverse(SpaceClip *sc,
   r_co[1] = (pos[1] * height * zoomy) + (float)sy;
 }
 
-/* takes event->mval */
 void ED_clip_mouse_pos(SpaceClip *sc, ARegion *region, const int mval[2], float co[2])
 {
   ED_clip_point_stable_pos(sc, region, mval[0], mval[1], &co[0], &co[1]);
@@ -653,7 +651,7 @@ void ED_space_clip_set_mask(bContext *C, SpaceClip *sc, Mask *mask)
  * \{ */
 
 typedef struct PrefetchJob {
-  /* Clip into which cache the frames will be prefetched into. */
+  /** Clip into which cache the frames will be pre-fetched into. */
   MovieClip *clip;
 
   /* Local copy of the clip which is used to decouple reading in a way which does not require
@@ -693,7 +691,7 @@ static bool check_prefetch_break(void)
 static uchar *prefetch_read_file_to_memory(
     MovieClip *clip, int current_frame, short render_size, short render_flag, size_t *r_size)
 {
-  MovieClipUser user = {0};
+  MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
   user.framenr = current_frame;
   user.render_size = render_size;
   user.render_flag = render_flag;
@@ -740,7 +738,7 @@ static int prefetch_find_uncached_frame(MovieClip *clip,
                                         short direction)
 {
   int current_frame;
-  MovieClipUser user = {0};
+  MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
 
   user.render_size = render_size;
   user.render_flag = render_flag;
@@ -840,7 +838,7 @@ static void prefetch_task_func(TaskPool *__restrict pool, void *task_data)
 
   while ((mem = prefetch_thread_next_frame(queue, clip, &size, &current_frame))) {
     ImBuf *ibuf;
-    MovieClipUser user = {0};
+    MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
     int flag = IB_rect | IB_multilayer | IB_alphamode_detect | IB_metadata;
     int result;
     char *colorspace_name = NULL;
@@ -922,7 +920,7 @@ static bool prefetch_movie_frame(MovieClip *clip,
                                  short render_flag,
                                  short *stop)
 {
-  MovieClipUser user = {0};
+  MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
 
   if (check_prefetch_break() || *stop) {
     return false;
@@ -1048,7 +1046,7 @@ static int prefetch_get_start_frame(const bContext *C)
 {
   Scene *scene = CTX_data_scene(C);
 
-  return SFRA;
+  return scene->r.sfra;
 }
 
 static int prefetch_get_final_frame(const bContext *C)
@@ -1059,10 +1057,10 @@ static int prefetch_get_final_frame(const bContext *C)
   int end_frame;
 
   /* check whether all the frames from prefetch range are cached */
-  end_frame = EFRA;
+  end_frame = scene->r.efra;
 
   if (clip->len) {
-    end_frame = min_ii(end_frame, SFRA + clip->len - 1);
+    end_frame = min_ii(end_frame, scene->r.sfra + clip->len - 1);
   }
 
   return end_frame;

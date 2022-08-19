@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 #pragma once
 
 #include "DNA_scene_types.h"
@@ -29,9 +13,13 @@ extern "C" {
 #endif
 
 struct Image;
+struct ImageUser;
 struct Main;
+struct RenderResult;
 struct ReportList;
 struct Scene;
+
+/* Image datablock saving. */
 
 typedef struct ImageSaveOptions {
   /* Context within which image is saved. */
@@ -47,16 +35,50 @@ typedef struct ImageSaveOptions {
   bool save_copy;
   bool save_as_render;
   bool do_newpath;
+
+  /* Keep track of previous values for auto updates in UI. */
+  bool prev_save_as_render;
+  int prev_imtype;
 } ImageSaveOptions;
 
-void BKE_image_save_options_init(struct ImageSaveOptions *opts,
+bool BKE_image_save_options_init(ImageSaveOptions *opts,
                                  struct Main *bmain,
-                                 struct Scene *scene);
+                                 struct Scene *scene,
+                                 struct Image *ima,
+                                 struct ImageUser *iuser,
+                                 const bool guess_path,
+                                 const bool save_as_render);
+void BKE_image_save_options_update(struct ImageSaveOptions *opts, const struct Image *ima);
+void BKE_image_save_options_free(struct ImageSaveOptions *opts);
+
 bool BKE_image_save(struct ReportList *reports,
                     struct Main *bmain,
                     struct Image *ima,
                     struct ImageUser *iuser,
-                    struct ImageSaveOptions *opts);
+                    const struct ImageSaveOptions *opts);
+
+/* Render saving. */
+
+/**
+ * Save single or multi-layer OpenEXR files from the render result.
+ * Optionally saves only a specific view or layer.
+ */
+bool BKE_image_render_write_exr(struct ReportList *reports,
+                                const struct RenderResult *rr,
+                                const char *filepath,
+                                const struct ImageFormatData *imf,
+                                const bool save_as_render,
+                                const char *view,
+                                int layer);
+
+/**
+ * \param filepath_basis: May be used as-is, or used as a basis for multi-view images.
+ */
+bool BKE_image_render_write(struct ReportList *reports,
+                            struct RenderResult *rr,
+                            const struct Scene *scene,
+                            const bool stamp,
+                            const char *filepath_basis);
 
 #ifdef __cplusplus
 }

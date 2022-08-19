@@ -1,27 +1,11 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2021 by Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2021 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup draw
  */
 
-#include "extract_mesh.h"
+#include "extract_mesh.hh"
 
 namespace blender::draw {
 
@@ -31,11 +15,11 @@ namespace blender::draw {
 
 struct MeshExtract_Orco_Data {
   float (*vbo_data)[4];
-  float (*orco)[3];
+  const float (*orco)[3];
 };
 
 static void extract_orco_init(const MeshRenderData *mr,
-                              struct MeshBatchCache *UNUSED(cache),
+                              MeshBatchCache *UNUSED(cache),
                               void *buf,
                               void *tls_data)
 {
@@ -56,7 +40,7 @@ static void extract_orco_init(const MeshRenderData *mr,
 
   MeshExtract_Orco_Data *data = static_cast<MeshExtract_Orco_Data *>(tls_data);
   data->vbo_data = (float(*)[4])GPU_vertbuf_get_data(vbo);
-  data->orco = static_cast<float(*)[3]>(CustomData_get_layer(cd_vdata, CD_ORCO));
+  data->orco = static_cast<const float(*)[3]>(CustomData_get_layer(cd_vdata, CD_ORCO));
   /* Make sure `orco` layer was requested only if needed! */
   BLI_assert(data->orco);
 }
@@ -110,6 +94,4 @@ constexpr MeshExtract create_extractor_orco()
 
 }  // namespace blender::draw
 
-extern "C" {
 const MeshExtract extract_orco = blender::draw::create_extractor_orco();
-}

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2014 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2014 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup GHOST
@@ -31,7 +15,7 @@
 #include <cstdio>
 #include <cstring>
 
-SDL_GLContext GHOST_ContextSDL::s_sharedContext = NULL;
+SDL_GLContext GHOST_ContextSDL::s_sharedContext = nullptr;
 int GHOST_ContextSDL::s_sharedCount = 0;
 
 GHOST_ContextSDL::GHOST_ContextSDL(bool stereoVisual,
@@ -43,36 +27,39 @@ GHOST_ContextSDL::GHOST_ContextSDL(bool stereoVisual,
                                    int contextResetNotificationStrategy)
     : GHOST_Context(stereoVisual),
       m_window(window),
-      m_hidden_window(NULL),
+      m_hidden_window(nullptr),
       m_contextProfileMask(contextProfileMask),
       m_contextMajorVersion(contextMajorVersion),
       m_contextMinorVersion(contextMinorVersion),
       m_contextFlags(contextFlags),
       m_contextResetNotificationStrategy(contextResetNotificationStrategy),
-      m_context(NULL)
+      m_context(nullptr)
 {
-  // assert(m_window  != NULL);
+  // assert(m_window  != nullptr);
 }
 
 GHOST_ContextSDL::~GHOST_ContextSDL()
 {
-  if (m_context != NULL) {
-    if (m_window != NULL && m_context == SDL_GL_GetCurrentContext())
-      SDL_GL_MakeCurrent(m_window, NULL);
+  if (m_context == nullptr) {
+    return;
+  }
 
-    if (m_context != s_sharedContext || s_sharedCount == 1) {
-      assert(s_sharedCount > 0);
+  if (m_window != nullptr && m_context == SDL_GL_GetCurrentContext()) {
+    SDL_GL_MakeCurrent(m_window, nullptr);
+  }
+  if (m_context != s_sharedContext || s_sharedCount == 1) {
+    assert(s_sharedCount > 0);
 
-      s_sharedCount--;
+    s_sharedCount--;
 
-      if (s_sharedCount == 0)
-        s_sharedContext = NULL;
-
-      SDL_GL_DeleteContext(m_context);
+    if (s_sharedCount == 0) {
+      s_sharedContext = nullptr;
     }
+    SDL_GL_DeleteContext(m_context);
+  }
 
-    if (m_hidden_window != NULL)
-      SDL_DestroyWindow(m_hidden_window);
+  if (m_hidden_window != nullptr) {
+    SDL_DestroyWindow(m_hidden_window);
   }
 }
 
@@ -85,23 +72,19 @@ GHOST_TSuccess GHOST_ContextSDL::swapBuffers()
 
 GHOST_TSuccess GHOST_ContextSDL::activateDrawingContext()
 {
-  if (m_context) {
-    return SDL_GL_MakeCurrent(m_window, m_context) ? GHOST_kSuccess : GHOST_kFailure;
-  }
-  else {
+  if (m_context == nullptr) {
     return GHOST_kFailure;
   }
+  return SDL_GL_MakeCurrent(m_window, m_context) ? GHOST_kSuccess : GHOST_kFailure;
 }
 
 GHOST_TSuccess GHOST_ContextSDL::releaseDrawingContext()
 {
-  if (m_context) {
-    /* Untested, may not work */
-    return SDL_GL_MakeCurrent(NULL, NULL) ? GHOST_kSuccess : GHOST_kFailure;
-  }
-  else {
+  if (m_context == nullptr) {
     return GHOST_kFailure;
   }
+  /* Untested, may not work. */
+  return SDL_GL_MakeCurrent(nullptr, nullptr) ? GHOST_kSuccess : GHOST_kFailure;
 }
 
 GHOST_TSuccess GHOST_ContextSDL::initializeDrawingContext()
@@ -131,7 +114,7 @@ GHOST_TSuccess GHOST_ContextSDL::initializeDrawingContext()
     SDL_GL_SetAttribute(SDL_GL_STEREO, 1);
   }
 
-  if (m_window == NULL) {
+  if (m_window == nullptr) {
     m_hidden_window = SDL_CreateWindow("Offscreen Context Windows",
                                        SDL_WINDOWPOS_UNDEFINED,
                                        SDL_WINDOWPOS_UNDEFINED,
@@ -147,15 +130,13 @@ GHOST_TSuccess GHOST_ContextSDL::initializeDrawingContext()
 
   GHOST_TSuccess success;
 
-  if (m_context != NULL) {
-    if (!s_sharedContext)
+  if (m_context != nullptr) {
+    if (!s_sharedContext) {
       s_sharedContext = m_context;
-
+    }
     s_sharedCount++;
 
     success = (SDL_GL_MakeCurrent(m_window, m_context) < 0) ? GHOST_kFailure : GHOST_kSuccess;
-
-    initContextGLEW();
 
     initClearGL();
     SDL_GL_SwapWindow(m_window);
@@ -171,19 +152,17 @@ GHOST_TSuccess GHOST_ContextSDL::initializeDrawingContext()
 
 GHOST_TSuccess GHOST_ContextSDL::releaseNativeHandles()
 {
-  m_window = NULL;
+  m_window = nullptr;
 
   return GHOST_kSuccess;
 }
 
 GHOST_TSuccess GHOST_ContextSDL::setSwapInterval(int interval)
 {
-  if (SDL_GL_SetSwapInterval(interval) != -1) {
-    return GHOST_kSuccess;
-  }
-  else {
+  if (SDL_GL_SetSwapInterval(interval) == -1) {
     return GHOST_kFailure;
   }
+  return GHOST_kSuccess;
 }
 
 GHOST_TSuccess GHOST_ContextSDL::getSwapInterval(int &intervalOut)

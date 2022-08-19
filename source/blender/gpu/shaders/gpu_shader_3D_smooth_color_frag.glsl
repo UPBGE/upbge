@@ -1,6 +1,4 @@
-
-in vec4 finalColor;
-out vec4 fragColor;
+#pragma BLENDER_REQUIRE(gpu_shader_colorspace_lib.glsl)
 
 void main()
 {

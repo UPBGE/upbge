@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #ifndef __OBJECT_H__
 #define __OBJECT_H__
@@ -57,6 +44,7 @@ class Object : public Node {
   NODE_SOCKET_API(uint, random_id)
   NODE_SOCKET_API(int, pass_id)
   NODE_SOCKET_API(float3, color)
+  NODE_SOCKET_API(float, alpha)
   NODE_SOCKET_API(ustring, asset_name)
   vector<ParamValue> attributes;
   NODE_SOCKET_API(uint, visibility)
@@ -67,6 +55,9 @@ class Object : public Node {
   NODE_SOCKET_API(float, shadow_terminator_shading_offset)
   NODE_SOCKET_API(float, shadow_terminator_geometry_offset)
 
+  NODE_SOCKET_API(bool, is_caustics_caster)
+  NODE_SOCKET_API(bool, is_caustics_receiver)
+
   NODE_SOCKET_API(float3, dupli_generated)
   NODE_SOCKET_API(float2, dupli_uv)
 
@@ -74,6 +65,8 @@ class Object : public Node {
   NODE_SOCKET_API(int, particle_index);
 
   NODE_SOCKET_API(float, ao_distance)
+
+  NODE_SOCKET_API(ustring, lightgroup)
 
   /* Set during device update. */
   bool intersects_volume;
@@ -155,13 +148,14 @@ class ObjectManager {
 
   void device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress &progress);
   void device_update_transforms(DeviceScene *dscene, Scene *scene, Progress &progress);
+  void device_update_prim_offsets(Device *device, DeviceScene *dscene, Scene *scene);
 
   void device_update_flags(Device *device,
                            DeviceScene *dscene,
                            Scene *scene,
                            Progress &progress,
                            bool bounds_valid = true);
-  void device_update_mesh_offsets(Device *device, DeviceScene *dscene, Scene *scene);
+  void device_update_geom_offsets(Device *device, DeviceScene *dscene, Scene *scene);
 
   void device_free(Device *device, DeviceScene *dscene, bool force_free);
 
@@ -177,7 +171,8 @@ class ObjectManager {
  protected:
   void device_update_object_transform(UpdateObjectTransformState *state,
                                       Object *ob,
-                                      bool update_all);
+                                      bool update_all,
+                                      const Scene *scene);
   void device_update_object_transform_task(UpdateObjectTransformState *state);
   bool device_update_object_transform_pop_work(UpdateObjectTransformState *state,
                                                int *start_index,

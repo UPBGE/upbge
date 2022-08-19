@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include "scene/background.h"
 #include "device/device.h"
@@ -44,6 +31,8 @@ NODE_DEFINE(Background)
   SOCKET_FLOAT(volume_step_size, "Volume Step Size", 0.1f);
 
   SOCKET_NODE(shader, "Shader", Shader::get_node_type());
+
+  SOCKET_STRING(lightgroup, "Light Group", ustring());
 
   return type;
 }
@@ -112,6 +101,15 @@ void Background::device_update(Device *device, DeviceScene *dscene, Scene *scene
       kbackground->surface_shader |= SHADER_EXCLUDE_SCATTER;
     if (!(visibility & PATH_RAY_CAMERA))
       kbackground->surface_shader |= SHADER_EXCLUDE_CAMERA;
+  }
+
+  /* Light group. */
+  auto it = scene->lightgroups.find(lightgroup);
+  if (it != scene->lightgroups.end()) {
+    kbackground->lightgroup = it->second;
+  }
+  else {
+    kbackground->lightgroup = LIGHTGROUP_NONE;
   }
 
   clear_modified();

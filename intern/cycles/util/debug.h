@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #ifndef __UTIL_DEBUG_H__
 #define __UTIL_DEBUG_H__
@@ -30,11 +17,6 @@ CCL_NAMESPACE_BEGIN
  */
 class DebugFlags {
  public:
-  /* Use static BVH in viewport, to match final render exactly. */
-  bool viewport_static_bvh;
-
-  bool running_inside_blender;
-
   /* Descriptor of CPU feature-set to be used. */
   struct CPU {
     CPU();
@@ -43,11 +25,11 @@ class DebugFlags {
     void reset();
 
     /* Flags describing which instructions sets are allowed for use. */
-    bool avx2;
-    bool avx;
-    bool sse41;
-    bool sse3;
-    bool sse2;
+    bool avx2 = true;
+    bool avx = true;
+    bool sse41 = true;
+    bool sse3 = true;
+    bool sse2 = true;
 
     /* Check functions to see whether instructions up to the given one
      * are allowed for use.
@@ -78,7 +60,7 @@ class DebugFlags {
      * By default the fastest will be used. For debugging the BVH used by other
      * CPUs and GPUs can be selected here instead.
      */
-    BVHLayout bvh_layout;
+    BVHLayout bvh_layout = BVH_LAYOUT_AUTO;
   };
 
   /* Descriptor of CUDA feature-set to be used. */
@@ -90,7 +72,7 @@ class DebugFlags {
 
     /* Whether adaptive feature based runtime compile is enabled or not.
      * Requires the CUDA Toolkit and only works on Linux at the moment. */
-    bool adaptive_compile;
+    bool adaptive_compile = false;
   };
 
   /* Descriptor of HIP feature-set to be used. */
@@ -100,8 +82,8 @@ class DebugFlags {
     /* Reset flags to their defaults. */
     void reset();
 
-    /* Whether adaptive feature based runtime compile is enabled or not.*/
-    bool adaptive_compile;
+    /* Whether adaptive feature based runtime compile is enabled or not. */
+    bool adaptive_compile = false;
   };
 
   /* Descriptor of OptiX feature-set to be used. */
@@ -113,7 +95,18 @@ class DebugFlags {
 
     /* Load OptiX module with debug capabilities. Will lower logging verbosity level, enable
      * validations, and lower optimization level. */
-    bool use_debug;
+    bool use_debug = false;
+  };
+
+  /* Descriptor of Metal feature-set to be used. */
+  struct Metal {
+    Metal();
+
+    /* Reset flags to their defaults. */
+    void reset();
+
+    /* Whether adaptive feature based runtime compile is enabled or not. */
+    bool adaptive_compile = false;
   };
 
   /* Get instance of debug flags registry. */
@@ -138,18 +131,15 @@ class DebugFlags {
   /* Requested HIP flags. */
   HIP hip;
 
+  /* Requested Metal flags. */
+  Metal metal;
+
  private:
   DebugFlags();
 
-#if (__cplusplus > 199711L)
  public:
   explicit DebugFlags(DebugFlags const & /*other*/) = delete;
   void operator=(DebugFlags const & /*other*/) = delete;
-#else
- private:
-  explicit DebugFlags(DebugFlags const & /*other*/);
-  void operator=(DebugFlags const & /*other*/);
-#endif
 };
 
 typedef DebugFlags &DebugFlagsRef;

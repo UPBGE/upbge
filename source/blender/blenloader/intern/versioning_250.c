@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup blenloader
@@ -29,6 +15,7 @@
 /* allow readfile to use deprecated functionality */
 #define DNA_DEPRECATED_ALLOW
 
+#include "DNA_actuator_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_brush_types.h"
@@ -70,8 +57,10 @@
 #include "BKE_main.h"
 #include "BKE_modifier.h"
 #include "BKE_multires.h"
+#include "BKE_node_tree_update.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
+#include "BKE_sca.h"
 #include "BKE_screen.h"
 #include "BKE_sound.h"
 #include "BKE_texture.h"
@@ -438,14 +427,14 @@ static void do_versions_windowmanager_2_50(bScreen *screen)
   }
 }
 
-static void versions_gpencil_add_main(ListBase *lb, ID *id, const char *name)
+static void versions_gpencil_add_main(Main *bmain, ListBase *lb, ID *id, const char *name)
 {
   BLI_addtail(lb, id);
   id->us = 1;
   id->flag = LIB_FAKEUSER;
   *((short *)id->name) = ID_GD;
 
-  BKE_id_new_name_validate(lb, id, name, false);
+  BKE_id_new_name_validate(bmain, lb, id, name, false);
   /* alphabetic insertion: is in BKE_id_new_name_validate */
 
   if ((id->tag & LIB_TAG_TEMP_MAIN) == 0) {
@@ -468,21 +457,21 @@ static void do_versions_gpencil_2_50(Main *main, bScreen *screen)
       if (sl->spacetype == SPACE_VIEW3D) {
         View3D *v3d = (View3D *)sl;
         if (v3d->gpd) {
-          versions_gpencil_add_main(&main->gpencils, (ID *)v3d->gpd, "GPencil View3D");
+          versions_gpencil_add_main(main, &main->gpencils, (ID *)v3d->gpd, "GPencil View3D");
           v3d->gpd = NULL;
         }
       }
       else if (sl->spacetype == SPACE_NODE) {
         SpaceNode *snode = (SpaceNode *)sl;
         if (snode->gpd) {
-          versions_gpencil_add_main(&main->gpencils, (ID *)snode->gpd, "GPencil Node");
+          versions_gpencil_add_main(main, &main->gpencils, (ID *)snode->gpd, "GPencil Node");
           snode->gpd = NULL;
         }
       }
       else if (sl->spacetype == SPACE_SEQ) {
         SpaceSeq *sseq = (SpaceSeq *)sl;
         if (sseq->gpd) {
-          versions_gpencil_add_main(&main->gpencils, (ID *)sseq->gpd, "GPencil Node");
+          versions_gpencil_add_main(main, &main->gpencils, (ID *)sseq->gpd, "GPencil Node");
           sseq->gpd = NULL;
         }
       }
@@ -490,7 +479,7 @@ static void do_versions_gpencil_2_50(Main *main, bScreen *screen)
         SpaceImage *sima = (SpaceImage *)sl;
 #if 0 /* see comment on r28002 */
         if (sima->gpd) {
-          versions_gpencil_add_main(&main->gpencil, (ID *)sima->gpd, "GPencil Image");
+          versions_gpencil_add_main(main, &main->gpencil, (ID *)sima->gpd, "GPencil Image");
           sima->gpd = NULL;
         }
 #else
@@ -530,7 +519,13 @@ static void do_version_constraints_radians_degrees_250(ListBase *lb)
   bConstraint *con;
 
   for (con = lb->first; con; con = con->next) {
-    if (con->type == CONSTRAINT_TYPE_KINEMATIC) {
+    if (con->type == CONSTRAINT_TYPE_RIGIDBODYJOINT) {
+      bRigidBodyJointConstraint *data = con->data;
+      data->axX *= (float)(M_PI / 180.0);
+      data->axY *= (float)(M_PI / 180.0);
+      data->axZ *= (float)(M_PI / 180.0);
+    }
+    else if (con->type == CONSTRAINT_TYPE_KINEMATIC) {
       bKinematicConstraint *data = con->data;
       data->poleangle *= (float)(M_PI / 180.0);
     }
@@ -579,7 +574,6 @@ static bNodeSocket *do_versions_node_group_add_socket_2_56_2(bNodeTree *ngroup,
   gsock->type = type;
 
   gsock->next = gsock->prev = NULL;
-  gsock->new_sock = NULL;
   gsock->link = NULL;
   /* assign new unique index */
   gsock->own_index = ngroup->cur_index++;
@@ -590,7 +584,7 @@ static bNodeSocket *do_versions_node_group_add_socket_2_56_2(bNodeTree *ngroup,
 
   BLI_addtail(in_out == SOCK_IN ? &ngroup->inputs : &ngroup->outputs, gsock);
 
-  ngroup->update |= (in_out == SOCK_IN ? NTREE_UPDATE_GROUP_IN : NTREE_UPDATE_GROUP_OUT);
+  BKE_ntree_update_tag_interface(ngroup);
 
   return gsock;
 }
@@ -700,11 +694,39 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
 #endif
 
     bSound *sound;
+    bActuator *act;
 
     for (sound = bmain->sounds.first; sound; sound = sound->id.next) {
       if (sound->newpackedfile) {
         sound->packedfile = sound->newpackedfile;
         sound->newpackedfile = NULL;
+      }
+    }
+
+    for (ob = bmain->objects.first; ob; ob = ob->id.next) {
+      for (act = ob->actuators.first; act; act = act->next) {
+        if (act->type == ACT_SOUND) {
+          bSoundActuator *sAct = (bSoundActuator *)act->data;
+          if (sAct->sound) {
+            sound = blo_do_versions_newlibadr(fd, lib, sAct->sound);
+            sAct->flag = (sound->flags & SOUND_FLAGS_3D) ? ACT_SND_3D_SOUND : 0;
+            sAct->pitch = sound->pitch;
+            sAct->volume = sound->volume;
+            sAct->sound3D.reference_distance = sound->distance;
+            sAct->sound3D.max_gain = sound->max_gain;
+            sAct->sound3D.min_gain = sound->min_gain;
+            sAct->sound3D.rolloff_factor = sound->attenuation;
+          }
+          else {
+            sAct->sound3D.reference_distance = 1.0f;
+            sAct->volume = 1.0f;
+            sAct->sound3D.max_gain = 1.0f;
+            sAct->sound3D.rolloff_factor = 1.0f;
+          }
+          sAct->sound3D.cone_inner_angle = 360.0f;
+          sAct->sound3D.cone_outer_angle = 360.0f;
+          sAct->sound3D.max_distance = FLT_MAX;
+        }
       }
     }
 
@@ -856,10 +878,9 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
       if (!ts->uv_selectmode || ts->vgroup_weight == 0.0f) {
         ts->selectmode = SCE_SELECT_VERTEX;
 
-        /* autokeying - setting should be taken from the user-prefs
-         * but the userprefs version may not have correct flags set
-         * (i.e. will result in blank box when enabled)
-         */
+        /* The auto-keying setting should be taken from the user-preferences
+         * but the user-preferences version may not have correct flags set
+         * (i.e. will result in blank box when enabled). */
         ts->autokey_mode = U.autokey_mode;
         if (ts->autokey_mode == 0) {
           ts->autokey_mode = 2; /* 'add/replace' but not on */
@@ -877,6 +898,30 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
       if (ob->flag & 8192) { /* OB_POSEMODE = 8192. */
         ob->mode |= OB_MODE_POSE;
       }
+    }
+    for (Scene *sce = bmain->scenes.first; sce; sce = sce->id.next) {
+      /* Stereo */
+      sce->gm.stereomode = sce->r.stereomode;
+      /* reassigning stereomode NO_STEREO to a separeted flag*/
+      if (sce->gm.stereomode == 1) {  // 1 = STEREO_NOSTEREO
+        sce->gm.stereoflag = STEREO_NOSTEREO;
+        sce->gm.stereomode = STEREO_ANAGLYPH;
+      }
+      else {
+        sce->gm.stereoflag = STEREO_ENABLED;
+      }
+
+      /* Framing */
+      // sce->gm.framing = sce->framing;
+
+      /* Physic (previously stored in world) */
+      sce->gm.gravity = 9.8f;
+      sce->gm.physicsEngine = WOPHY_BULLET; /* Bullet by default */
+      sce->gm.occlusionRes = 128;
+      sce->gm.ticrate = 60;
+      sce->gm.maxlogicstep = 5;
+      sce->gm.physubstep = 1;
+      sce->gm.maxphystep = 5;
     }
   }
 
@@ -1004,7 +1049,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
     int a, tot;
 
     /* shape keys are no longer applied to the mesh itself, but rather
-     * to the derivedmesh/displist, so here we ensure that the basis
+     * to the evaluated #Mesh, so here we ensure that the basis
      * shape key is always set in the mesh coordinates. */
     for (me = bmain->meshes.first; me; me = me->id.next) {
       if ((key = blo_do_versions_newlibadr(fd, lib, me->key)) && key->refkey) {
@@ -1659,7 +1704,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
             BLI_addtail((ListBase *)&ob->modifiers, lmd);
             ob->partype = PAROBJECT;
           }
-          else if (parent->type == OB_CURVE && ob->partype == PARCURVE) {
+          else if (parent->type == OB_CURVES_LEGACY && ob->partype == PARCURVE) {
             CurveModifierData *cmd;
 
             cmd = (CurveModifierData *)BKE_modifier_new(eModifierType_Curve);
@@ -1738,7 +1783,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
         brush->crease_pinch_factor = 0.5f;
       }
 
-      /* will sculpt no vertexes */
+      /* will sculpt no vertices */
       if (brush->plane_trim == 0) {
         brush->plane_trim = 0.5f;
       }
@@ -2019,7 +2064,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
             link->fromsock = gsock;
             link->tonode = node;
             link->tosock = sock;
-            ntree->update |= NTREE_UPDATE_LINKS;
+            BKE_ntree_update_tag_link_added(ntree, link);
 
             sock->link = link;
           }
@@ -2042,7 +2087,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
             link->fromsock = sock;
             link->tonode = NULL;
             link->tosock = gsock;
-            ntree->update |= NTREE_UPDATE_LINKS;
+            BKE_ntree_update_tag_link_added(ntree, link);
 
             gsock->link = link;
           }
@@ -2282,7 +2327,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *bmain)
           do_versions_socket_default_value_259(sock);
         }
 
-        ntree->update |= NTREE_UPDATE;
+        BKE_ntree_update_tag_all(ntree);
       }
       FOREACH_NODETREE_END;
     }

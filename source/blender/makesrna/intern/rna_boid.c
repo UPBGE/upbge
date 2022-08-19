@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2009 by Janne Karhu.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2009 by Janne Karhu. All rights reserved. */
 
 /** \file
  * \ingroup RNA
@@ -178,9 +162,9 @@ static StructRNA *rna_BoidRule_refine(struct PointerRNA *ptr)
   }
 }
 
-static char *rna_BoidRule_path(PointerRNA *ptr)
+static char *rna_BoidRule_path(const PointerRNA *ptr)
 {
-  BoidRule *rule = (BoidRule *)ptr->data;
+  const BoidRule *rule = (BoidRule *)ptr->data;
   char name_esc[sizeof(rule->name) * 2];
 
   BLI_str_escape(name_esc, rule->name, sizeof(name_esc));
@@ -238,16 +222,16 @@ static void rna_BoidState_active_boid_rule_index_set(struct PointerRNA *ptr, int
   }
 }
 
-static int particle_id_check(PointerRNA *ptr)
+static int particle_id_check(const PointerRNA *ptr)
 {
-  ID *id = ptr->owner_id;
+  const ID *id = ptr->owner_id;
 
   return (GS(id->name) == ID_PA);
 }
 
-static char *rna_BoidSettings_path(PointerRNA *ptr)
+static char *rna_BoidSettings_path(const PointerRNA *ptr)
 {
-  BoidSettings *boids = (BoidSettings *)ptr->data;
+  const BoidSettings *boids = (BoidSettings *)ptr->data;
 
   if (particle_id_check(ptr)) {
     ParticleSettings *part = (ParticleSettings *)ptr->owner_id;

@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_kdtree.h"
 #include "BLI_noise.hh"
@@ -36,23 +22,39 @@
 
 #include "node_geometry_util.hh"
 
-using blender::bke::GeometryInstanceGroup;
+namespace blender::nodes::node_geo_distribute_points_on_faces_cc {
 
-namespace blender::nodes {
-
-static void geo_node_point_distribute_points_on_faces_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
+  auto enable_random = [](bNode &node) {
+    node.custom1 = GEO_NODE_POINT_DISTRIBUTE_POINTS_ON_FACES_RANDOM;
+  };
+  auto enable_poisson = [](bNode &node) {
+    node.custom1 = GEO_NODE_POINT_DISTRIBUTE_POINTS_ON_FACES_POISSON;
+  };
+
   b.add_input<decl::Geometry>(N_("Mesh")).supported_type(GEO_COMPONENT_TYPE_MESH);
   b.add_input<decl::Bool>(N_("Selection")).default_value(true).hide_value().supports_field();
-  b.add_input<decl::Float>(N_("Distance Min")).min(0.0f).subtype(PROP_DISTANCE);
-  b.add_input<decl::Float>(N_("Density Max")).default_value(10.0f).min(0.0f);
-  b.add_input<decl::Float>(N_("Density")).default_value(10.0f).supports_field();
+  b.add_input<decl::Float>(N_("Distance Min"))
+      .min(0.0f)
+      .subtype(PROP_DISTANCE)
+      .make_available(enable_poisson);
+  b.add_input<decl::Float>(N_("Density Max"))
+      .default_value(10.0f)
+      .min(0.0f)
+      .make_available(enable_poisson);
+  b.add_input<decl::Float>(N_("Density"))
+      .default_value(10.0f)
+      .min(0.0f)
+      .supports_field()
+      .make_available(enable_random);
   b.add_input<decl::Float>(N_("Density Factor"))
       .default_value(1.0f)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
-      .supports_field();
+      .supports_field()
+      .make_available(enable_poisson);
   b.add_input<decl::Int>(N_("Seed"));
 
   b.add_output<decl::Geometry>(N_("Points"));
@@ -60,26 +62,26 @@ static void geo_node_point_distribute_points_on_faces_declare(NodeDeclarationBui
   b.add_output<decl::Vector>(N_("Rotation")).subtype(PROP_EULER).field_source();
 }
 
-static void geo_node_point_distribute_points_on_faces_layout(uiLayout *layout,
-                                                             bContext *UNUSED(C),
-                                                             PointerRNA *ptr)
+static void node_layout(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
   uiItemR(layout, ptr, "distribute_method", 0, "", ICON_NONE);
 }
 
-static void node_point_distribute_points_on_faces_update(bNodeTree *UNUSED(ntree), bNode *node)
+static void node_point_distribute_points_on_faces_update(bNodeTree *ntree, bNode *node)
 {
   bNodeSocket *sock_distance_min = (bNodeSocket *)BLI_findlink(&node->inputs, 2);
   bNodeSocket *sock_density_max = (bNodeSocket *)sock_distance_min->next;
   bNodeSocket *sock_density = sock_density_max->next;
   bNodeSocket *sock_density_factor = sock_density->next;
-  nodeSetSocketAvailability(sock_distance_min,
+  nodeSetSocketAvailability(ntree,
+                            sock_distance_min,
                             node->custom1 == GEO_NODE_POINT_DISTRIBUTE_POINTS_ON_FACES_POISSON);
-  nodeSetSocketAvailability(sock_density_max,
-                            node->custom1 == GEO_NODE_POINT_DISTRIBUTE_POINTS_ON_FACES_POISSON);
-  nodeSetSocketAvailability(sock_density,
-                            node->custom1 == GEO_NODE_POINT_DISTRIBUTE_POINTS_ON_FACES_RANDOM);
-  nodeSetSocketAvailability(sock_density_factor,
+  nodeSetSocketAvailability(
+      ntree, sock_density_max, node->custom1 == GEO_NODE_POINT_DISTRIBUTE_POINTS_ON_FACES_POISSON);
+  nodeSetSocketAvailability(
+      ntree, sock_density, node->custom1 == GEO_NODE_POINT_DISTRIBUTE_POINTS_ON_FACES_RANDOM);
+  nodeSetSocketAvailability(ntree,
+                            sock_density_factor,
                             node->custom1 == GEO_NODE_POINT_DISTRIBUTE_POINTS_ON_FACES_POISSON);
 }
 
@@ -130,10 +132,8 @@ static void sample_mesh_surface(const Mesh &mesh,
     const int looptri_seed = noise::hash(looptri_index, seed);
     RandomNumberGenerator looptri_rng(looptri_seed);
 
-    const float points_amount_fl = area * base_density * looptri_density_factor;
-    const float add_point_probability = fractf(points_amount_fl);
-    const bool add_point = add_point_probability > looptri_rng.get_float();
-    const int point_amount = (int)points_amount_fl + (int)add_point;
+    const int point_amount = looptri_rng.round_probabilistic(area * base_density *
+                                                             looptri_density_factor);
 
     for (int i = 0; i < point_amount; i++) {
       const float3 bary_coord = looptri_rng.get_barycentric_coordinates();
@@ -168,6 +168,7 @@ BLI_NOINLINE static void update_elimination_mask_for_close_points(
   }
 
   KDTree_3d *kdtree = build_kdtree(positions);
+  BLI_SCOPED_DEFER([&]() { BLI_kdtree_3d_free(kdtree); });
 
   for (const int i : positions.index_range()) {
     if (elimination_mask[i]) {
@@ -192,8 +193,6 @@ BLI_NOINLINE static void update_elimination_mask_for_close_points(
         },
         &callback_data);
   }
-
-  BLI_kdtree_3d_free(kdtree);
 }
 
 BLI_NOINLINE static void update_elimination_mask_based_on_density_factors(
@@ -221,11 +220,11 @@ BLI_NOINLINE static void update_elimination_mask_based_on_density_factors(
     const float v1_density_factor = std::max(0.0f, density_factors[v1_loop]);
     const float v2_density_factor = std::max(0.0f, density_factors[v2_loop]);
 
-    const float probablity = v0_density_factor * bary_coord.x + v1_density_factor * bary_coord.y +
-                             v2_density_factor * bary_coord.z;
+    const float probability = v0_density_factor * bary_coord.x + v1_density_factor * bary_coord.y +
+                              v2_density_factor * bary_coord.z;
 
     const float hash = noise::hash_float_to_float(bary_coord);
-    if (hash > probablity) {
+    if (hash > probability) {
       elimination_mask[i] = true;
     }
   }
@@ -248,7 +247,7 @@ BLI_NOINLINE static void eliminate_points_based_on_mask(const Span<bool> elimina
 BLI_NOINLINE static void interpolate_attribute(const Mesh &mesh,
                                                const Span<float3> bary_coords,
                                                const Span<int> looptri_indices,
-                                               const AttributeDomain source_domain,
+                                               const eAttrDomain source_domain,
                                                const GVArray &source_data,
                                                GMutableSpan output_data)
 {
@@ -291,31 +290,32 @@ BLI_NOINLINE static void propagate_existing_attributes(
     const Span<int> looptri_indices)
 {
   const Mesh &mesh = *mesh_component.get_for_read();
+  const AttributeAccessor mesh_attributes = *mesh_component.attributes();
+  MutableAttributeAccessor point_attributes = *point_component.attributes_for_write();
 
   for (Map<AttributeIDRef, AttributeKind>::Item entry : attributes.items()) {
     const AttributeIDRef attribute_id = entry.key;
-    const CustomDataType output_data_type = entry.value.data_type;
+    const eCustomDataType output_data_type = entry.value.data_type;
 
-    ReadAttributeLookup source_attribute = mesh_component.attribute_try_get_for_read(attribute_id);
+    GAttributeReader source_attribute = mesh_attributes.lookup(attribute_id);
     if (!source_attribute) {
       continue;
     }
 
     /* The output domain is always #ATTR_DOMAIN_POINT, since we are creating a point cloud. */
-    OutputAttribute attribute_out = point_component.attribute_try_get_for_output_only(
+    GSpanAttributeWriter attribute_out = point_attributes.lookup_or_add_for_write_only_span(
         attribute_id, ATTR_DOMAIN_POINT, output_data_type);
     if (!attribute_out) {
       continue;
     }
 
-    GMutableSpan out_span = attribute_out.as_span();
     interpolate_attribute(mesh,
                           bary_coords,
                           looptri_indices,
                           source_attribute.domain,
-                          *source_attribute.varray,
-                          out_span);
-    attribute_out.save();
+                          source_attribute.varray,
+                          attribute_out.span);
+    attribute_out.finish();
   }
 }
 
@@ -332,25 +332,21 @@ BLI_NOINLINE static void compute_attribute_outputs(const MeshComponent &mesh_com
                                                    const Span<int> looptri_indices,
                                                    const AttributeOutputs &attribute_outputs)
 {
-  OutputAttribute_Typed<int> id_attribute = point_component.attribute_try_get_for_output_only<int>(
+  MutableAttributeAccessor pointcloud_attributes = *point_component.attributes_for_write();
+
+  SpanAttributeWriter<int> ids = pointcloud_attributes.lookup_or_add_for_write_only_span<int>(
       "id", ATTR_DOMAIN_POINT);
-  MutableSpan<int> ids = id_attribute.as_span();
 
-  OutputAttribute_Typed<float3> normal_attribute;
-  OutputAttribute_Typed<float3> rotation_attribute;
-
-  MutableSpan<float3> normals;
-  MutableSpan<float3> rotations;
+  SpanAttributeWriter<float3> normals;
+  SpanAttributeWriter<float3> rotations;
 
   if (attribute_outputs.normal_id) {
-    normal_attribute = point_component.attribute_try_get_for_output_only<float3>(
+    normals = pointcloud_attributes.lookup_or_add_for_write_only_span<float3>(
         attribute_outputs.normal_id.get(), ATTR_DOMAIN_POINT);
-    normals = normal_attribute.as_span();
   }
   if (attribute_outputs.rotation_id) {
-    rotation_attribute = point_component.attribute_try_get_for_output_only<float3>(
+    rotations = pointcloud_attributes.lookup_or_add_for_write_only_span<float3>(
         attribute_outputs.rotation_id.get(), ATTR_DOMAIN_POINT);
-    rotations = rotation_attribute.as_span();
   }
 
   const Mesh &mesh = *mesh_component.get_for_read();
@@ -369,27 +365,27 @@ BLI_NOINLINE static void compute_attribute_outputs(const MeshComponent &mesh_com
     const float3 v1_pos = float3(mesh.mvert[v1_index].co);
     const float3 v2_pos = float3(mesh.mvert[v2_index].co);
 
-    ids[i] = noise::hash(noise::hash_float(bary_coord), looptri_index);
+    ids.span[i] = noise::hash(noise::hash_float(bary_coord), looptri_index);
 
     float3 normal;
-    if (!normals.is_empty() || !rotations.is_empty()) {
+    if (!normals.span.is_empty() || !rotations.span.is_empty()) {
       normal_tri_v3(normal, v0_pos, v1_pos, v2_pos);
     }
-    if (!normals.is_empty()) {
-      normals[i] = normal;
+    if (!normals.span.is_empty()) {
+      normals.span[i] = normal;
     }
-    if (!rotations.is_empty()) {
-      rotations[i] = normal_to_euler_rotation(normal);
+    if (!rotations.span.is_empty()) {
+      rotations.span[i] = normal_to_euler_rotation(normal);
     }
   }
 
-  id_attribute.save();
+  ids.finish();
 
-  if (normal_attribute) {
-    normal_attribute.save();
+  if (normals) {
+    normals.finish();
   }
-  if (rotation_attribute) {
-    rotation_attribute.save();
+  if (rotations) {
+    rotations.finish();
   }
 }
 
@@ -397,20 +393,16 @@ static Array<float> calc_full_density_factors_with_selection(const MeshComponent
                                                              const Field<float> &density_field,
                                                              const Field<bool> &selection_field)
 {
-  const AttributeDomain attribute_domain = ATTR_DOMAIN_CORNER;
+  const eAttrDomain attribute_domain = ATTR_DOMAIN_CORNER;
   GeometryComponentFieldContext field_context{component, attribute_domain};
   const int domain_size = component.attribute_domain_size(attribute_domain);
 
-  fn::FieldEvaluator selection_evaluator{field_context, domain_size};
-  selection_evaluator.add(selection_field);
-  selection_evaluator.evaluate();
-  const IndexMask selection_mask = selection_evaluator.get_evaluated_as_mask(0);
-
   Array<float> densities(domain_size, 0.0f);
 
-  fn::FieldEvaluator density_evaluator{field_context, &selection_mask};
-  density_evaluator.add_with_destination(density_field, densities.as_mutable_span());
-  density_evaluator.evaluate();
+  fn::FieldEvaluator evaluator{field_context, domain_size};
+  evaluator.set_selection(selection_field);
+  evaluator.add_with_destination(density_field, densities.as_mutable_span());
+  evaluator.evaluate();
   return densities;
 }
 
@@ -505,8 +497,17 @@ static void point_distribution_calculate(GeometrySet &geometry_set,
   }
 
   PointCloud *pointcloud = BKE_pointcloud_new_nomain(positions.size());
-  memcpy(pointcloud->co, positions.data(), sizeof(float3) * positions.size());
-  uninitialized_fill_n(pointcloud->radius, pointcloud->totpoint, 0.05f);
+  bke::MutableAttributeAccessor point_attributes = bke::pointcloud_attributes_for_write(
+      *pointcloud);
+  bke::SpanAttributeWriter<float3> point_positions =
+      point_attributes.lookup_or_add_for_write_only_span<float3>("position", ATTR_DOMAIN_POINT);
+  bke::SpanAttributeWriter<float> point_radii =
+      point_attributes.lookup_or_add_for_write_only_span<float>("radius", ATTR_DOMAIN_POINT);
+  point_positions.span.copy_from(positions);
+  point_radii.span.fill(0.05f);
+  point_positions.finish();
+  point_radii.finish();
+
   geometry_set.replace_pointcloud(pointcloud);
 
   PointCloudComponent &point_component =
@@ -526,7 +527,7 @@ static void point_distribution_calculate(GeometrySet &geometry_set,
       mesh_component, point_component, bary_coords, looptri_indices, attribute_outputs);
 }
 
-static void geo_node_point_distribute_points_on_faces_exec(GeoNodeExecParams params)
+static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh");
 
@@ -549,7 +550,7 @@ static void geo_node_point_distribute_points_on_faces_exec(GeoNodeExecParams par
         geometry_set, selection_field, method, seed, attribute_outputs, params);
     /* Keep instances because the original geometry set may contain instances that are processed as
      * well. */
-    geometry_set.keep_only({GEO_COMPONENT_TYPE_POINT_CLOUD, GEO_COMPONENT_TYPE_INSTANCES});
+    geometry_set.keep_only_during_modify({GEO_COMPONENT_TYPE_POINT_CLOUD});
   });
 
   params.set_output("Points", std::move(geometry_set));
@@ -568,21 +569,22 @@ static void geo_node_point_distribute_points_on_faces_exec(GeoNodeExecParams par
   }
 }
 
-}  // namespace blender::nodes
+}  // namespace blender::nodes::node_geo_distribute_points_on_faces_cc
 
 void register_node_type_geo_distribute_points_on_faces()
 {
+  namespace file_ns = blender::nodes::node_geo_distribute_points_on_faces_cc;
+
   static bNodeType ntype;
 
   geo_node_type_base(&ntype,
                      GEO_NODE_DISTRIBUTE_POINTS_ON_FACES,
                      "Distribute Points on Faces",
-                     NODE_CLASS_GEOMETRY,
-                     0);
-  node_type_update(&ntype, blender::nodes::node_point_distribute_points_on_faces_update);
+                     NODE_CLASS_GEOMETRY);
+  node_type_update(&ntype, file_ns::node_point_distribute_points_on_faces_update);
   node_type_size(&ntype, 170, 100, 320);
-  ntype.declare = blender::nodes::geo_node_point_distribute_points_on_faces_declare;
-  ntype.geometry_node_execute = blender::nodes::geo_node_point_distribute_points_on_faces_exec;
-  ntype.draw_buttons = blender::nodes::geo_node_point_distribute_points_on_faces_layout;
+  ntype.declare = file_ns::node_declare;
+  ntype.geometry_node_execute = file_ns::node_geo_exec;
+  ntype.draw_buttons = file_ns::node_layout;
   nodeRegisterType(&ntype);
 }

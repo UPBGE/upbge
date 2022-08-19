@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include "session/tile.h"
 
@@ -23,6 +10,7 @@
 #include "scene/film.h"
 #include "scene/integrator.h"
 #include "scene/scene.h"
+#include "session/session.h"
 #include "util/algorithm.h"
 #include "util/foreach.h"
 #include "util/log.h"
@@ -55,7 +43,6 @@ static std::vector<std::string> exr_channel_names_for_passes(const BufferParams 
   static const char *component_suffixes[] = {"R", "G", "B", "A"};
 
   int pass_index = 0;
-  int num_channels = 0;
   std::vector<std::string> channel_names;
   for (const BufferPass &pass : buffer_params.passes) {
     if (pass.offset == PASS_UNUSED) {
@@ -63,7 +50,6 @@ static std::vector<std::string> exr_channel_names_for_passes(const BufferParams 
     }
 
     const PassInfo pass_info = pass.get_info();
-    num_channels += pass_info.num_components;
 
     /* EXR canonically expects first part of channel names to be sorted alphabetically, which is
      * not guaranteed to be the case with passes names. Assign a prefix based on the pass index
@@ -341,13 +327,15 @@ int TileManager::compute_render_tile_size(const int suggested_tile_size) const
   /* Must be a multiple of IMAGE_TILE_SIZE so that we can write render tiles into the image file
    * aligned on image tile boundaries. We can't set IMAGE_TILE_SIZE equal to the render tile size
    * because too big tile size leads to integer overflow inside OpenEXR. */
-  return (suggested_tile_size <= IMAGE_TILE_SIZE) ? suggested_tile_size :
-                                                    align_up(suggested_tile_size, IMAGE_TILE_SIZE);
+  const int computed_tile_size = (suggested_tile_size <= IMAGE_TILE_SIZE) ?
+                                     suggested_tile_size :
+                                     align_up(suggested_tile_size, IMAGE_TILE_SIZE);
+  return min(computed_tile_size, MAX_TILE_SIZE);
 }
 
 void TileManager::reset_scheduling(const BufferParams &params, int2 tile_size)
 {
-  VLOG(3) << "Using tile size of " << tile_size;
+  VLOG_WORK << "Using tile size of " << tile_size;
 
   close_tile_output();
 
@@ -390,6 +378,11 @@ void TileManager::update(const BufferParams &params, const Scene *scene)
     write_state_.image_spec = ImageSpec();
     overscan_ = 0;
   }
+}
+
+void TileManager::set_temp_dir(const string &temp_dir)
+{
+  temp_dir_ = temp_dir;
 }
 
 bool TileManager::done()
@@ -450,7 +443,8 @@ const int2 TileManager::get_size() const
 
 bool TileManager::open_tile_output()
 {
-  write_state_.filename = path_temp_get("cycles-tile-buffer-" + tile_file_unique_part_ + "-" +
+  write_state_.filename = path_join(temp_dir_,
+                                    "cycles-tile-buffer-" + tile_file_unique_part_ + "-" +
                                         to_string(write_state_.tile_file_index) + ".exr");
 
   write_state_.tile_out = ImageOutput::create(write_state_.filename);
@@ -472,7 +466,7 @@ bool TileManager::open_tile_output()
 
   write_state_.num_tiles_written = 0;
 
-  VLOG(3) << "Opened tile file " << write_state_.filename;
+  VLOG_WORK << "Opened tile file " << write_state_.filename;
 
   return true;
 }
@@ -491,7 +485,7 @@ bool TileManager::close_tile_output()
     return false;
   }
 
-  VLOG(3) << "Tile output is closed.";
+  VLOG_WORK << "Tile output is closed.";
 
   return true;
 }
@@ -542,7 +536,7 @@ bool TileManager::write_tile(const RenderBuffers &tile_buffers)
     pixels = pixel_storage.data();
   }
 
-  VLOG(3) << "Write tile at " << tile_x << ", " << tile_y;
+  VLOG_WORK << "Write tile at " << tile_x << ", " << tile_y;
 
   /* The image tile sizes in the OpenEXR file are different from the size of our big tiles. The
    * write_tiles() method expects a contiguous image region that will be split into tiles
@@ -573,7 +567,7 @@ bool TileManager::write_tile(const RenderBuffers &tile_buffers)
 
   ++write_state_.num_tiles_written;
 
-  VLOG(3) << "Tile written in " << time_dt() - time_start << " seconds.";
+  VLOG_WORK << "Tile written in " << time_dt() - time_start << " seconds.";
 
   return true;
 }
@@ -597,7 +591,7 @@ void TileManager::finish_write_tiles()
       const int tile_x = tile.x + tile.window_x;
       const int tile_y = tile.y + tile.window_y;
 
-      VLOG(3) << "Write dummy tile at " << tile_x << ", " << tile_y;
+      VLOG_WORK << "Write dummy tile at " << tile_x << ", " << tile_y;
 
       write_state_.tile_out->write_tiles(tile_x,
                                          tile_x + tile.window_width,
@@ -616,8 +610,8 @@ void TileManager::finish_write_tiles()
     full_buffer_written_cb(write_state_.filename);
   }
 
-  VLOG(3) << "Tile file size is "
-          << string_human_readable_number(path_file_size(write_state_.filename)) << " bytes.";
+  VLOG_WORK << "Tile file size is "
+            << string_human_readable_number(path_file_size(write_state_.filename)) << " bytes.";
 
   /* Advance the counter upon explicit finish of the file.
    * Makes it possible to re-use tile manager for another scene, and avoids unnecessary increments

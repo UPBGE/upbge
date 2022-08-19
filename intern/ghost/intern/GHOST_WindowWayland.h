@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup GHOST
@@ -24,14 +10,12 @@
 
 #include "GHOST_Window.h"
 
-#include <unordered_set>
 #include <vector>
 
 class GHOST_SystemWayland;
 
 struct output_t;
 struct window_t;
-struct wl_surface;
 
 class GHOST_WindowWayland : public GHOST_Window {
  public:
@@ -52,27 +36,10 @@ class GHOST_WindowWayland : public GHOST_Window {
 
   ~GHOST_WindowWayland() override;
 
+  /* Ghost API */
+
   uint16_t getDPIHint() override;
 
-  GHOST_TSuccess close();
-
-  GHOST_TSuccess activate();
-
-  GHOST_TSuccess deactivate();
-
-  GHOST_TSuccess notify_size();
-
-  wl_surface *surface() const;
-
-  const std::vector<output_t *> &outputs() const;
-
-  std::unordered_set<const output_t *> &outputs_active();
-
-  uint16_t &dpi();
-
-  int &scale();
-
- protected:
   GHOST_TSuccess setWindowCursorGrab(GHOST_TGrabCursorMode mode) override;
 
   GHOST_TSuccess setWindowCursorShape(GHOST_TStandardCursor shape) override;
@@ -84,6 +51,9 @@ class GHOST_WindowWayland : public GHOST_Window {
                                             int hotX,
                                             int hotY,
                                             bool canInvertColor) override;
+  bool getCursorGrabUseSoftwareDisplay() override;
+
+  GHOST_TSuccess getCursorBitmap(GHOST_CursorBitmapRef *bitmap) override;
 
   void setTitle(const char *title) override;
 
@@ -122,6 +92,27 @@ class GHOST_WindowWayland : public GHOST_Window {
 #ifdef GHOST_OPENGL_ALPHA
   void setOpaque() const;
 #endif
+
+  /* WAYLAND direct-data access. */
+
+  uint16_t dpi() const;
+  int scale() const;
+  struct wl_surface *surface() const;
+  const std::vector<output_t *> &outputs();
+
+  /* WAYLAND window-level functions. */
+
+  GHOST_TSuccess close();
+  GHOST_TSuccess activate();
+  GHOST_TSuccess deactivate();
+  GHOST_TSuccess notify_size();
+
+  /* WAYLAND utility functions. */
+
+  bool outputs_enter(output_t *reg_output);
+  bool outputs_leave(output_t *reg_output);
+
+  bool outputs_changed_update_scale();
 
  private:
   GHOST_SystemWayland *m_system;

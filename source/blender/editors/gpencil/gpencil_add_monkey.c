@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2017 Blender Foundation
- * This is a new part of Blender
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2017 Blender Foundation. */
 
 /** \file
  * \ingroup edgpencil
@@ -35,17 +19,12 @@
 #include "BKE_main.h"
 #include "BKE_material.h"
 
+#include "BLT_translation.h"
+
 #include "DEG_depsgraph.h"
 
 #include "ED_gpencil.h"
 
-/**
- * Populate stroke with point data from data buffers.
- * \param gps: Grease pencil stroke
- * \param array: Flat array of point data values. Each entry has #GP_PRIM_DATABUF_SIZE values.
- * \param totpoints: Total of points
- * \param mat: 4x4 transform matrix to transform points into the right coordinate space.
- */
 void ED_gpencil_stroke_init_data(bGPDstroke *gps,
                                  const float *array,
                                  const int totpoints,
@@ -77,7 +56,7 @@ static int gpencil_monkey_color(
     Main *bmain, Object *ob, const ColorTemplate *pct, bool stroke, bool fill)
 {
   int index;
-  Material *ma = BKE_gpencil_object_material_ensure_by_name(bmain, ob, pct->name, &index);
+  Material *ma = BKE_gpencil_object_material_ensure_by_name(bmain, ob, DATA_(pct->name), &index);
 
   copy_v4_v4(ma->gp_style->stroke_rgba, pct->line);
   srgb_to_linearrgb_v4(ma->gp_style->stroke_rgba, ma->gp_style->stroke_rgba);
@@ -804,37 +783,37 @@ static const float data27[33 * GP_PRIM_DATABUF_SIZE] = {
 /* Monkey Color Data */
 
 static const ColorTemplate gp_monkey_pct_black = {
-    "Black",
+    N_("Black"),
     {0.0f, 0.0f, 0.0f, 1.0f},
     {0.0f, 0.0f, 0.0f, 0.0f},
 };
 
 static const ColorTemplate gp_monkey_pct_skin = {
-    "Skin",
+    N_("Skin"),
     {0.733f, 0.569f, 0.361f, 1.0f},
     {0.745f, 0.502f, 0.278f, 1.0f},
 };
 
 static const ColorTemplate gp_monkey_pct_skin_light = {
-    "Skin_Light",
+    N_("Skin_Light"),
     {0.914f, 0.827f, 0.635f, 1.0f},
     {0.913f, 0.828f, 0.637f, 0.0f},
 };
 
 static const ColorTemplate gp_monkey_pct_skin_shadow = {
-    "Skin_Shadow",
+    N_("Skin_Shadow"),
     {0.322f, 0.29f, 0.224f, 0.5f},
     {0.32f, 0.29f, 0.223f, 0.3f},
 };
 
 static const ColorTemplate gp_monkey_pct_eyes = {
-    "Eyes",
+    N_("Eyes"),
     {0.553f, 0.39f, 0.266f, 0.0f},
     {0.847f, 0.723f, 0.599f, 1.0f},
 };
 
 static const ColorTemplate gp_monkey_pct_pupils = {
-    "Pupils",
+    N_("Pupils"),
     {0.0f, 0.0f, 0.0f, 0.0f},
     {0.0f, 0.0f, 0.0f, 1.0f},
 };
@@ -842,7 +821,6 @@ static const ColorTemplate gp_monkey_pct_pupils = {
 /* ***************************************************************** */
 /* Monkey API */
 
-/* add a 2D Suzanne (original model created by Matias Mendiola) */
 void ED_gpencil_create_monkey(bContext *C, Object *ob, float mat[4][4])
 {
   Main *bmain = CTX_data_main(C);
@@ -868,8 +846,8 @@ void ED_gpencil_create_monkey(bContext *C, Object *ob, float mat[4][4])
 
   /* frames */
   /* NOTE: No need to check for existing, as this will take care of it for us */
-  bGPDframe *frameFills = BKE_gpencil_frame_addnew(Fills, CFRA);
-  bGPDframe *frameLines = BKE_gpencil_frame_addnew(Lines, CFRA);
+  bGPDframe *frameFills = BKE_gpencil_frame_addnew(Fills, scene->r.cfra);
+  bGPDframe *frameLines = BKE_gpencil_frame_addnew(Lines, scene->r.cfra);
 
   /* generate strokes */
   gps = BKE_gpencil_stroke_add(frameFills, color_Skin, 270, 75, false);

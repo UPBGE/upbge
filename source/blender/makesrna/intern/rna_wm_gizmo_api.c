@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup RNA
@@ -225,7 +211,15 @@ void RNA_api_gizmo(StructRNA *srna)
   RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
   RNA_def_property_multi_array(parm, 2, rna_matrix_dimsize_4x4);
   RNA_def_property_ui_text(parm, "", "The matrix to transform");
-  RNA_def_int(func, "select_id", -1, -1, INT_MAX, "Zero when not selecting", "", -1, INT_MAX);
+  RNA_def_int(func,
+              "select_id",
+              -1,
+              -1,
+              INT_MAX,
+              "ID to use when gizmo is selectable.  Use -1 when not selecting",
+              "",
+              -1,
+              INT_MAX);
 
   /* draw_preset_box */
   func = RNA_def_function(srna, "draw_preset_arrow", "rna_gizmo_draw_preset_arrow");
@@ -235,7 +229,15 @@ void RNA_api_gizmo(StructRNA *srna)
   RNA_def_property_multi_array(parm, 2, rna_matrix_dimsize_4x4);
   RNA_def_property_ui_text(parm, "", "The matrix to transform");
   RNA_def_enum(func, "axis", rna_enum_object_axis_items, 2, "", "Arrow Orientation");
-  RNA_def_int(func, "select_id", -1, -1, INT_MAX, "Zero when not selecting", "", -1, INT_MAX);
+  RNA_def_int(func,
+              "select_id",
+              -1,
+              -1,
+              INT_MAX,
+              "ID to use when gizmo is selectable.  Use -1 when not selecting",
+              "",
+              -1,
+              INT_MAX);
 
   func = RNA_def_function(srna, "draw_preset_circle", "rna_gizmo_draw_preset_circle");
   RNA_def_function_ui_description(func, "Draw a box");
@@ -244,7 +246,15 @@ void RNA_api_gizmo(StructRNA *srna)
   RNA_def_property_multi_array(parm, 2, rna_matrix_dimsize_4x4);
   RNA_def_property_ui_text(parm, "", "The matrix to transform");
   RNA_def_enum(func, "axis", rna_enum_object_axis_items, 2, "", "Arrow Orientation");
-  RNA_def_int(func, "select_id", -1, -1, INT_MAX, "Zero when not selecting", "", -1, INT_MAX);
+  RNA_def_int(func,
+              "select_id",
+              -1,
+              -1,
+              INT_MAX,
+              "ID to use when gizmo is selectable.  Use -1 when not selecting",
+              "",
+              -1,
+              INT_MAX);
 
   /* -------------------------------------------------------------------- */
   /* Other Shapes */
@@ -257,7 +267,15 @@ void RNA_api_gizmo(StructRNA *srna)
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
   parm = RNA_def_int(func, "face_map", 0, 0, INT_MAX, "Face map index", "", 0, INT_MAX);
   RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
-  RNA_def_int(func, "select_id", -1, -1, INT_MAX, "Zero when not selecting", "", -1, INT_MAX);
+  RNA_def_int(func,
+              "select_id",
+              -1,
+              -1,
+              INT_MAX,
+              "ID to use when gizmo is selectable.  Use -1 when not selecting",
+              "",
+              -1,
+              INT_MAX);
 
   /* -------------------------------------------------------------------- */
   /* Property API */

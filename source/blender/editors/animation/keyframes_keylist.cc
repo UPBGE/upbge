@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2009 Blender Foundation, Joshua Leung. All rights reserved. */
 
 /** \file
  * \ingroup edanimation
@@ -80,7 +64,7 @@ struct AnimKeylist {
   ListBase /* ActKeyColumn */ key_columns;
   /* Last accessed column in the key_columns list base. Inserting columns are typically done in
    * order. The last accessed column is used as starting point to search for a location to add or
-   * update the next column.*/
+   * update the next column. */
   std::optional<ActKeyColumn *> last_accessed_column = std::nullopt;
 
   struct {
@@ -109,7 +93,7 @@ struct AnimKeylist {
 #endif
 };
 
-AnimKeylist *ED_keylist_create(void)
+AnimKeylist *ED_keylist_create()
 {
   AnimKeylist *keylist = new AnimKeylist();
   return keylist;
@@ -148,7 +132,7 @@ static void ED_keylist_runtime_init_listbase(AnimKeylist *keylist)
     return;
   }
 
-  keylist->runtime.list_wrapper.first = &keylist->runtime.key_columns[0];
+  keylist->runtime.list_wrapper.first = keylist->runtime.key_columns.data();
   keylist->runtime.list_wrapper.last = &keylist->runtime.key_columns[keylist->column_len - 1];
 }
 
@@ -320,7 +304,21 @@ const struct ListBase *ED_keylist_listbase(const AnimKeylist *keylist)
   return &keylist->key_columns;
 }
 
-bool ED_keylist_frame_range(const struct AnimKeylist *keylist, Range2f *r_frame_range)
+static void keylist_first_last(const struct AnimKeylist *keylist,
+                               const struct ActKeyColumn **first_column,
+                               const struct ActKeyColumn **last_column)
+{
+  if (keylist->is_runtime_initialized) {
+    *first_column = keylist->runtime.key_columns.data();
+    *last_column = &keylist->runtime.key_columns[keylist->column_len - 1];
+  }
+  else {
+    *first_column = static_cast<const ActKeyColumn *>(keylist->key_columns.first);
+    *last_column = static_cast<const ActKeyColumn *>(keylist->key_columns.last);
+  }
+}
+
+bool ED_keylist_all_keys_frame_range(const struct AnimKeylist *keylist, Range2f *r_frame_range)
 {
   BLI_assert(r_frame_range);
 
@@ -330,13 +328,33 @@ bool ED_keylist_frame_range(const struct AnimKeylist *keylist, Range2f *r_frame_
 
   const ActKeyColumn *first_column;
   const ActKeyColumn *last_column;
-  if (keylist->is_runtime_initialized) {
-    first_column = &keylist->runtime.key_columns[0];
-    last_column = &keylist->runtime.key_columns[keylist->column_len - 1];
+  keylist_first_last(keylist, &first_column, &last_column);
+  r_frame_range->min = first_column->cfra;
+  r_frame_range->max = last_column->cfra;
+
+  return true;
+}
+
+bool ED_keylist_selected_keys_frame_range(const struct AnimKeylist *keylist,
+                                          Range2f *r_frame_range)
+{
+  BLI_assert(r_frame_range);
+
+  if (ED_keylist_is_empty(keylist)) {
+    return false;
   }
-  else {
-    first_column = static_cast<const ActKeyColumn *>(keylist->key_columns.first);
-    last_column = static_cast<const ActKeyColumn *>(keylist->key_columns.last);
+
+  const ActKeyColumn *first_column;
+  const ActKeyColumn *last_column;
+  keylist_first_last(keylist, &first_column, &last_column);
+  while (first_column && !(first_column->sel & SELECT)) {
+    first_column = first_column->next;
+  }
+  while (last_column && !(last_column->sel & SELECT)) {
+    last_column = last_column->prev;
+  }
+  if (!first_column || !last_column || first_column == last_column) {
+    return false;
   }
   r_frame_range->min = first_column->cfra;
   r_frame_range->max = last_column->cfra;
@@ -789,8 +807,11 @@ static void add_bezt_to_keyblocks_list(AnimKeylist *keylist, BezTriple *bezt, co
         continue;
       }
 
-      /* Normal sequence */
-      BLI_assert(is_cfra_eq(col->cfra, bezt[0].vec[1][0]));
+      /* In normal situations all keyframes are sorted. However, while keys are transformed, they
+       * may change order and then this assertion no longer holds. The effect is that the drawing
+       * isn't perfect during the transform; the "constant value" bars aren't updated until the
+       * transformation is confirmed. */
+      // BLI_assert(is_cfra_eq(col->cfra, bezt[0].vec[1][0]));
 
       compute_keyblock_data(&block, bezt, bezt + 1);
 
@@ -850,7 +871,6 @@ bool actkeyblock_is_valid(const ActKeyColumn *ac)
   return ac != nullptr && ac->next != nullptr && ac->totblock > 0;
 }
 
-/* Checks if ActKeyBlock should exist... */
 int actkeyblock_get_valid_hold(const ActKeyColumn *ac)
 {
   /* check that block is valid */
@@ -923,7 +943,8 @@ void scene_to_keylist(bDopeSheet *ads, Scene *sce, AnimKeylist *keylist, const i
   ac.datatype = ANIMCONT_CHANNEL;
 
   /* get F-Curves to take keyframes from */
-  const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE; /* curves only */
+  const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FCURVESONLY;
+
   ANIM_animdata_filter(
       &ac, &anim_data, filter, ac.data, static_cast<eAnimCont_Types>(ac.datatype));
 
@@ -960,7 +981,7 @@ void ob_to_keylist(bDopeSheet *ads, Object *ob, AnimKeylist *keylist, const int 
   ac.datatype = ANIMCONT_CHANNEL;
 
   /* get F-Curves to take keyframes from */
-  const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE; /* curves only */
+  const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FCURVESONLY;
   ANIM_animdata_filter(
       &ac, &anim_data, filter, ac.data, static_cast<eAnimCont_Types>(ac.datatype));
 
@@ -995,7 +1016,7 @@ void cachefile_to_keylist(bDopeSheet *ads,
 
   /* get F-Curves to take keyframes from */
   ListBase anim_data = {nullptr, nullptr};
-  const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE; /* curves only */
+  const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FCURVESONLY;
   ANIM_animdata_filter(
       &ac, &anim_data, filter, ac.data, static_cast<eAnimCont_Types>(ac.datatype));
 

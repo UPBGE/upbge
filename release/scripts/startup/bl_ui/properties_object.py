@@ -1,22 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
-# <pep8 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 from bl_ui.properties_animviz import (
     MotionPathButtonsPanel,
     MotionPathButtonsPanel_display,
@@ -97,6 +79,18 @@ class OBJECT_PT_transform(ObjectButtonsPanel, Panel):
         row.prop(ob, "lock_scale", text="", emboss=False, icon='DECORATE_UNLOCKED')
 
 
+# Game engine transition
+class OBJECT_PT_transform_game(ObjectButtonsPanel, Panel):
+    bl_label = "Transform Game"
+
+    def draw(self, context):
+        layout = self.layout
+        ob = context.object
+
+        col = layout.column()
+        col.prop(ob, "override_game_transform_priority", text="Override logic transform priority")
+
+
 class OBJECT_PT_delta_transform(ObjectButtonsPanel, Panel):
     bl_label = "Delta Transform"
     bl_parent_id = "OBJECT_PT_transform"
@@ -154,6 +148,20 @@ class OBJECT_PT_relations(ObjectButtonsPanel, Panel):
 
         col = flow.column()
 
+        col.label(text="Tracking Axes:")
+        col.prop(ob, "track_axis", text="Axis")
+        col.prop(ob, "up_axis", text="Up Axis")
+
+        col = flow.column()
+        col.prop(ob, "use_slow_parent")
+        row = col.row()
+        row.active = ((ob.parent is not None) and (ob.use_slow_parent))
+        row.prop(ob, "slow_parent_offset", text="Offset")
+
+        col.separator()
+
+        col = flow.column()
+
         col.prop(ob, "pass_index")
 
 
@@ -166,7 +174,6 @@ class COLLECTION_MT_context_menu(Menu):
         layout.operator("object.collection_unlink", icon='X')
         layout.operator("object.collection_objects_select")
         layout.operator("object.instance_offset_from_cursor")
-
 
 class OBJECT_PT_collections(ObjectButtonsPanel, Panel):
     bl_label = "Collections"
@@ -184,25 +191,21 @@ class OBJECT_PT_collections(ObjectButtonsPanel, Panel):
             row.operator("object.collection_add", text="Add to Collection")
         row.operator("object.collection_add", text="", icon='ADD')
 
-        obj_name = obj.name
-        for collection in bpy.data.collections:
-            # XXX this is slow and stupid!, we need 2 checks, one that's fast
-            # and another that we can be sure its not a name collision
-            # from linked library data
-            collection_objects = collection.objects
-            if obj_name in collection.objects and obj in collection_objects[:]:
-                col = layout.column(align=True)
+        for collection in obj.users_collection:
+            col = layout.column(align=True)
 
-                col.context_pointer_set("collection", collection)
+            col.context_pointer_set("collection", collection)
 
-                row = col.box().row()
-                row.prop(collection, "name", text="")
-                row.operator("object.collection_remove", text="", icon='X', emboss=False)
-                row.menu("COLLECTION_MT_context_menu", icon='DOWNARROW_HLT', text="")
+            row = col.box().row()
+            row.prop(collection, "name", text="")
+            row.operator("object.collection_remove", text="", icon='X', emboss=False)
+            row.menu("COLLECTION_MT_context_menu", icon='DOWNARROW_HLT', text="")
 
-                row = col.box().row()
-                row.prop(collection, "instance_offset", text="")
+            row = col.box().row()
+            row.prop(collection, "instance_offset", text="")
 
+            row = col.box().row()
+            row.prop(collection, "use_collection_spawn", text="Instance Spawn")
 
 class OBJECT_PT_display(ObjectButtonsPanel, Panel):
     bl_label = "Viewport Display"
@@ -215,7 +218,7 @@ class OBJECT_PT_display(ObjectButtonsPanel, Panel):
 
         obj = context.object
         obj_type = obj.type
-        is_geometry = (obj_type in {'MESH', 'CURVE', 'SURFACE', 'META', 'FONT', 'VOLUME', 'HAIR', 'POINTCLOUD'})
+        is_geometry = (obj_type in {'MESH', 'CURVE', 'SURFACE', 'META', 'FONT', 'VOLUME', 'CURVES', 'POINTCLOUD'})
         has_bounds = (is_geometry or obj_type in {'LATTICE', 'ARMATURE'})
         is_wire = (obj_type in {'CAMERA', 'EMPTY'})
         is_empty_image = (obj_type == 'EMPTY' and obj.empty_display_type == 'IMAGE')
@@ -268,7 +271,7 @@ class OBJECT_PT_instancing(ObjectButtonsPanel, Panel):
     def poll(cls, context):
         ob = context.object
         # FONT objects need (vertex) instancing for the 'Object Font' feature
-        return (ob.type in {'MESH', 'EMPTY', 'POINTCLOUD', 'FONT'})
+        return (ob.type in {'MESH', 'EMPTY', 'FONT'})
 
     def draw(self, context):
         layout = self.layout
@@ -340,6 +343,12 @@ class OBJECT_PT_lineart(ObjectButtonsPanel, Panel):
         subrow = row.row()
         subrow.active = lineart.use_crease_override
         subrow.prop(lineart, "crease_threshold", slider=True, text="")
+
+        row = layout.row(heading="Intersection Priority")
+        row.prop(lineart, "use_intersection_priority_override", text="")
+        subrow = row.row()
+        subrow.active = lineart.use_intersection_priority_override
+        subrow.prop(lineart, "intersection_priority", text="")
 
 
 class OBJECT_PT_motion_paths(MotionPathButtonsPanel, Panel):
@@ -421,6 +430,7 @@ class OBJECT_PT_custom_props(ObjectButtonsPanel, PropertyPanel, Panel):
 classes = (
     OBJECT_PT_context_object,
     OBJECT_PT_transform,
+    OBJECT_PT_transform_game, # Game engine transition
     OBJECT_PT_delta_transform,
     OBJECT_PT_relations,
     COLLECTION_MT_context_menu,

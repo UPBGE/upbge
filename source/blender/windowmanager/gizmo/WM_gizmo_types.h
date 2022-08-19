@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2016 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2016 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup wm
@@ -29,6 +13,7 @@
 #pragma once
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_utildefines.h"
 
 struct wmGizmo;
 struct wmGizmoGroup;
@@ -99,6 +84,8 @@ typedef enum eWM_GizmoFlag {
   WM_GIZMO_NO_TOOLTIP = (1 << 12),
 } eWM_GizmoFlag;
 
+ENUM_OPERATORS(eWM_GizmoFlag, WM_GIZMO_NO_TOOLTIP);
+
 /**
  * #wmGizmoGroupType.flag
  * Flags that influence the behavior of all gizmos in the group.
@@ -151,7 +138,7 @@ typedef enum eWM_GizmoFlagGroupTypeFlag {
    *
    * The result for the user is tweak events delay the gizmo from flashing under the users cursor,
    * for selection operations. This means gizmos that use this check don't interfere
-   * with click drag events by popping up under the cursor and catching the tweak event.
+   * with click-drag events by popping up under the cursor and catching the drag-drag event.
    */
   WM_GIZMOGROUPTYPE_DELAY_REFRESH_FOR_TWEAK = (1 << 9),
 
@@ -162,6 +149,8 @@ typedef enum eWM_GizmoFlagGroupTypeFlag {
    */
   WM_GIZMOGROUPTYPE_VR_REDRAWS = (1 << 10),
 } eWM_GizmoFlagGroupTypeFlag;
+
+ENUM_OPERATORS(eWM_GizmoFlagGroupTypeFlag, WM_GIZMOGROUPTYPE_VR_REDRAWS);
 
 /**
  * #wmGizmoGroup.init_flag
@@ -191,7 +180,7 @@ typedef enum eWM_GizmoFlagMapTypeUpdateFlag {
 
 /**
  * \brief Gizmo tweak flag.
- * Bitflag passed to gizmo while tweaking.
+ * Bit-flag passed to gizmo while tweaking.
  *
  * \note Gizmos are responsible for handling this #wmGizmo.modal callback.
  */

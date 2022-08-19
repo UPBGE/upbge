@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -55,6 +41,7 @@
 #include "RE_engine.h"
 
 #include "RNA_access.h"
+#include "RNA_prototypes.h"
 
 #include "CLG_log.h"
 
@@ -203,6 +190,22 @@ void CTX_store_set(bContext *C, bContextStore *store)
   C->wm.store = store;
 }
 
+const PointerRNA *CTX_store_ptr_lookup(const bContextStore *store,
+                                       const char *name,
+                                       const StructRNA *type)
+{
+  bContextStoreEntry *entry = BLI_rfindstring(
+      &store->entries, name, offsetof(bContextStoreEntry, name));
+  if (!entry) {
+    return NULL;
+  }
+
+  if (type && !RNA_struct_is_a(entry->ptr.type, type)) {
+    return NULL;
+  }
+  return &entry->ptr;
+}
+
 bContextStore *CTX_store_copy(bContextStore *store)
 {
   bContextStore *ctx = MEM_dupallocN(store);
@@ -337,11 +340,10 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
   if (done != 1 && recursion < 1 && C->wm.store) {
     C->data.recursion = 1;
 
-    bContextStoreEntry *entry = BLI_rfindstring(
-        &C->wm.store->entries, member, offsetof(bContextStoreEntry, name));
+    const PointerRNA *ptr = CTX_store_ptr_lookup(C->wm.store, member, NULL);
 
-    if (entry) {
-      result->ptr = entry->ptr;
+    if (ptr) {
+      result->ptr = *ptr;
       done = 1;
     }
   }
@@ -547,12 +549,6 @@ static void data_dir_add(ListBase *lb, const char *member, const bool use_all)
   BLI_addtail(lb, link);
 }
 
-/**
- * \param C: Context
- * \param use_store: Use 'C->wm.store'
- * \param use_rna: Use Include the properties from 'RNA_Context'
- * \param use_all: Don't skip values (currently only "scene")
- */
 ListBase CTX_data_dir_get_ex(const bContext *C,
                              const bool use_store,
                              const bool use_rna,
@@ -888,6 +884,14 @@ struct SpaceNode *CTX_wm_space_node(const bContext *C)
   return NULL;
 }
 
+struct SpaceLogic *CTX_wm_space_logic(const bContext *C)
+{
+  ScrArea *sa = CTX_wm_area(C);
+  if (sa && sa->spacetype == SPACE_LOGIC)
+    return sa->spacedata.first;
+  return NULL;
+}
+
 struct SpaceGraph *CTX_wm_space_graph(const bContext *C)
 {
   ScrArea *area = CTX_wm_area(C);
@@ -1127,13 +1131,6 @@ RenderEngineType *CTX_data_engine_type(const bContext *C)
   return RE_engines_find(scene->r.engine);
 }
 
-/**
- * This is tricky. Sometimes the user overrides the render_layer
- * but not the scene_collection. In this case what to do?
- *
- * If the scene_collection is linked to the ViewLayer we use it.
- * Otherwise we fallback to the active one of the ViewLayer.
- */
 LayerCollection *CTX_data_layer_collection(const bContext *C)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -1175,7 +1172,7 @@ enum eContextObjectMode CTX_data_mode_enum_ex(const Object *obedit,
     switch (obedit->type) {
       case OB_MESH:
         return CTX_MODE_EDIT_MESH;
-      case OB_CURVE:
+      case OB_CURVES_LEGACY:
         return CTX_MODE_EDIT_CURVE;
       case OB_SURF:
         return CTX_MODE_EDIT_SURFACE;
@@ -1187,6 +1184,8 @@ enum eContextObjectMode CTX_data_mode_enum_ex(const Object *obedit,
         return CTX_MODE_EDIT_METABALL;
       case OB_LATTICE:
         return CTX_MODE_EDIT_LATTICE;
+      case OB_CURVES:
+        return CTX_MODE_EDIT_CURVES;
     }
   }
   else {
@@ -1225,6 +1224,9 @@ enum eContextObjectMode CTX_data_mode_enum_ex(const Object *obedit,
       if (object_mode & OB_MODE_VERTEX_GPENCIL) {
         return CTX_MODE_VERTEX_GPENCIL;
       }
+      if (object_mode & OB_MODE_SCULPT_CURVES) {
+        return CTX_MODE_SCULPT_CURVES;
+      }
     }
   }
 
@@ -1244,11 +1246,28 @@ enum eContextObjectMode CTX_data_mode_enum(const bContext *C)
  * \note Must be aligned with above enum.
  */
 static const char *data_mode_strings[] = {
-    "mesh_edit",           "curve_edit",          "surface_edit",        "text_edit",
-    "armature_edit",       "mball_edit",          "lattice_edit",        "posemode",
-    "sculpt_mode",         "weightpaint",         "vertexpaint",         "imagepaint",
-    "particlemode",        "objectmode",          "greasepencil_paint",  "greasepencil_edit",
-    "greasepencil_sculpt", "greasepencil_weight", "greasepencil_vertex", NULL,
+    "mesh_edit",
+    "curve_edit",
+    "surface_edit",
+    "text_edit",
+    "armature_edit",
+    "mball_edit",
+    "lattice_edit",
+    "curves_edit",
+    "posemode",
+    "sculpt_mode",
+    "weightpaint",
+    "vertexpaint",
+    "imagepaint",
+    "particlemode",
+    "objectmode",
+    "greasepencil_paint",
+    "greasepencil_edit",
+    "greasepencil_sculpt",
+    "greasepencil_weight",
+    "greasepencil_vertex",
+    "curves_sculpt",
+    NULL,
 };
 BLI_STATIC_ASSERT(ARRAY_SIZE(data_mode_strings) == CTX_MODE_NUM + 1,
                   "Must have a string for each context mode")

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2008 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2008 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup blendthumb
@@ -137,6 +121,9 @@ static eThumbStatus blendthumb_extract_from_file_impl(FileReader *file,
   while (file_read(file, bhead_data, bhead_size)) {
     /* Parse type and size from `BHead`. */
     const int32_t block_size = bytes_to_native_i32(&bhead_data[4], endian_switch);
+    if (UNLIKELY(block_size < 0)) {
+      return BT_INVALID_THUMB;
+    }
 
     /* We're looking for the thumbnail, so skip any other block. */
     switch (*((int32_t *)bhead_data)) {
@@ -149,8 +136,9 @@ static eThumbStatus blendthumb_extract_from_file_impl(FileReader *file,
         thumb->height = bytes_to_native_i32(&shape[4], endian_switch);
 
         /* Verify that image dimensions and data size make sense. */
-        size_t data_size = block_size - 8;
-        const size_t expected_size = thumb->width * thumb->height * 4;
+        size_t data_size = block_size - sizeof(shape);
+        const uint64_t expected_size = static_cast<uint64_t>(thumb->width) *
+                                       static_cast<uint64_t>(thumb->height) * 4;
         if (thumb->width < 0 || thumb->height < 0 || data_size != expected_size) {
           return BT_INVALID_THUMB;
         }
@@ -179,10 +167,6 @@ static eThumbStatus blendthumb_extract_from_file_impl(FileReader *file,
   return BT_INVALID_THUMB;
 }
 
-/**
- * This function extracts the thumbnail from the .blend file into thumb.
- * Returns #BT_OK for success and the relevant error code otherwise.
- */
 eThumbStatus blendthumb_create_thumb_from_file(FileReader *rawfile, Thumbnail *thumb)
 {
   /* Read header in order to identify file type. */

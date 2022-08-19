@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2016 by Mike Erwin.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2016 by Mike Erwin. All rights reserved. */
 
 /** \file
  * \ingroup gpu
@@ -27,27 +11,39 @@
 
 #include "GPU_batch.h"
 #include "GPU_common.h"
+#include "GPU_platform.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef enum eGPUBackendType {
-  GPU_BACKEND_NONE = 0,
-  GPU_BACKEND_OPENGL,
-} eGPUBackendType;
-
-void GPU_backend_init(eGPUBackendType backend);
-void GPU_backend_exit(void);
+/* GPU back-ends abstract the differences between different APIs. #GPU_context_create
+ * automatically initializes the back-end, and #GPU_context_discard frees it when there
+ * are no more contexts. */
+bool GPU_backend_supported(void);
+eGPUBackendType GPU_backend_get_type(void);
 
 /** Opaque type hiding blender::gpu::Context. */
 typedef struct GPUContext GPUContext;
 
 GPUContext *GPU_context_create(void *ghost_window);
+/**
+ * To be called after #GPU_context_active_set(ctx_to_destroy).
+ */
 void GPU_context_discard(GPUContext *);
 
+/**
+ * Ctx can be NULL.
+ */
 void GPU_context_active_set(GPUContext *);
 GPUContext *GPU_context_active_get(void);
+
+/* Begin and end frame are used to mark the singular boundary representing the lifetime of a whole
+ * frame. This also acts as a divisor for ensuring workload submission and flushing, especially for
+ * background rendering when there is no call to present.
+ * This is required by explicit-API's where there is no implicit workload flushing. */
+void GPU_context_begin_frame(GPUContext *ctx);
+void GPU_context_end_frame(GPUContext *ctx);
 
 /* Legacy GPU (Intel HD4000 series) do not support sharing GPU objects between GPU
  * contexts. EEVEE/Workbench can create different contexts for image/preview rendering, baking or
@@ -56,6 +52,14 @@ GPUContext *GPU_context_active_get(void);
  * using it by locking the main context using these two functions. */
 void GPU_context_main_lock(void);
 void GPU_context_main_unlock(void);
+
+/* GPU Begin/end work blocks */
+void GPU_render_begin(void);
+void GPU_render_end(void);
+
+/* For operations which need to run exactly once per frame -- even if there are no render updates.
+ */
+void GPU_render_step(void);
 
 #ifdef __cplusplus
 }

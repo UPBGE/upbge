@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2005 by the Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2005 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup modifiers
@@ -47,6 +31,7 @@
 #include "UI_resources.h"
 
 #include "RNA_access.h"
+#include "RNA_prototypes.h"
 
 #include "DEG_depsgraph_query.h"
 
@@ -102,7 +87,7 @@ static void updateDepsgraph(ModifierData *md, const ModifierUpdateDepsgraphConte
   CastModifierData *cmd = (CastModifierData *)md;
   if (cmd->object != NULL) {
     DEG_add_object_relation(ctx->node, cmd->object, DEG_OB_COMP_TRANSFORM, "Cast Modifier");
-    DEG_add_modifier_to_transform_relation(ctx->node, "Cast Modifier");
+    DEG_add_depends_on_transform_relation(ctx->node, "Cast Modifier");
   }
 }
 
@@ -111,7 +96,7 @@ static void sphere_do(CastModifierData *cmd,
                       Object *ob,
                       Mesh *mesh,
                       float (*vertexCos)[3],
-                      int numVerts)
+                      int verts_num)
 {
   MDeformVert *dvert = NULL;
   const bool invert_vgroup = (cmd->flag & MOD_CAST_INVERT_VGROUP) != 0;
@@ -174,17 +159,17 @@ static void sphere_do(CastModifierData *cmd,
   }
 
   if (len <= 0) {
-    for (i = 0; i < numVerts; i++) {
+    for (i = 0; i < verts_num; i++) {
       len += len_v3v3(center, vertexCos[i]);
     }
-    len /= numVerts;
+    len /= verts_num;
 
     if (len == 0.0f) {
       len = 10.0f;
     }
   }
 
-  for (i = 0; i < numVerts; i++) {
+  for (i = 0; i < verts_num; i++) {
     float tmp_co[3];
 
     copy_v3_v3(tmp_co, vertexCos[i]);
@@ -252,7 +237,7 @@ static void cuboid_do(CastModifierData *cmd,
                       Object *ob,
                       Mesh *mesh,
                       float (*vertexCos)[3],
-                      int numVerts)
+                      int verts_num)
 {
   MDeformVert *dvert = NULL;
   int defgrp_index;
@@ -327,13 +312,13 @@ static void cuboid_do(CastModifierData *cmd,
       /* let the center of the ctrl_ob be part of the bound box: */
       minmax_v3v3_v3(min, max, center);
 
-      for (i = 0; i < numVerts; i++) {
+      for (i = 0; i < verts_num; i++) {
         sub_v3_v3v3(vec, vertexCos[i], center);
         minmax_v3v3_v3(min, max, vec);
       }
     }
     else {
-      for (i = 0; i < numVerts; i++) {
+      for (i = 0; i < verts_num; i++) {
         minmax_v3v3_v3(min, max, vertexCos[i]);
       }
     }
@@ -362,7 +347,7 @@ static void cuboid_do(CastModifierData *cmd,
   bb[4][2] = bb[5][2] = bb[6][2] = bb[7][2] = max[2];
 
   /* ready to apply the effect, one vertex at a time */
-  for (i = 0; i < numVerts; i++) {
+  for (i = 0; i < verts_num; i++) {
     int octant, coord;
     float d[3], dmax, apex[3], fbb;
     float tmp_co[3];
@@ -475,21 +460,21 @@ static void deformVerts(ModifierData *md,
                         const ModifierEvalContext *ctx,
                         Mesh *mesh,
                         float (*vertexCos)[3],
-                        int numVerts)
+                        int verts_num)
 {
   CastModifierData *cmd = (CastModifierData *)md;
   Mesh *mesh_src = NULL;
 
   if (ctx->object->type == OB_MESH && cmd->defgrp_name[0] != '\0') {
     /* mesh_src is only needed for vgroups. */
-    mesh_src = MOD_deform_mesh_eval_get(ctx->object, NULL, mesh, NULL, numVerts, false, false);
+    mesh_src = MOD_deform_mesh_eval_get(ctx->object, NULL, mesh, NULL, verts_num, false);
   }
 
   if (cmd->type == MOD_CAST_TYPE_CUBOID) {
-    cuboid_do(cmd, ctx, ctx->object, mesh_src, vertexCos, numVerts);
+    cuboid_do(cmd, ctx, ctx->object, mesh_src, vertexCos, verts_num);
   }
   else { /* MOD_CAST_TYPE_SPHERE or MOD_CAST_TYPE_CYLINDER */
-    sphere_do(cmd, ctx, ctx->object, mesh_src, vertexCos, numVerts);
+    sphere_do(cmd, ctx, ctx->object, mesh_src, vertexCos, verts_num);
   }
 
   if (!ELEM(mesh_src, NULL, mesh)) {
@@ -502,29 +487,29 @@ static void deformVertsEM(ModifierData *md,
                           struct BMEditMesh *editData,
                           Mesh *mesh,
                           float (*vertexCos)[3],
-                          int numVerts)
+                          int verts_num)
 {
   CastModifierData *cmd = (CastModifierData *)md;
   Mesh *mesh_src = NULL;
 
   if (cmd->defgrp_name[0] != '\0') {
-    mesh_src = MOD_deform_mesh_eval_get(ctx->object, editData, mesh, NULL, numVerts, false, false);
+    mesh_src = MOD_deform_mesh_eval_get(ctx->object, editData, mesh, NULL, verts_num, false);
   }
 
   if (mesh && mesh->runtime.wrapper_type == ME_WRAPPER_TYPE_MDATA) {
-    BLI_assert(mesh->totvert == numVerts);
+    BLI_assert(mesh->totvert == verts_num);
   }
 
-  /* TODO(Campbell): use edit-mode data only (remove this line). */
+  /* TODO(@campbellbarton): use edit-mode data only (remove this line). */
   if (mesh_src != NULL) {
     BKE_mesh_wrapper_ensure_mdata(mesh_src);
   }
 
   if (cmd->type == MOD_CAST_TYPE_CUBOID) {
-    cuboid_do(cmd, ctx, ctx->object, mesh_src, vertexCos, numVerts);
+    cuboid_do(cmd, ctx, ctx->object, mesh_src, vertexCos, verts_num);
   }
   else { /* MOD_CAST_TYPE_SPHERE or MOD_CAST_TYPE_CYLINDER */
-    sphere_do(cmd, ctx, ctx->object, mesh_src, vertexCos, numVerts);
+    sphere_do(cmd, ctx, ctx->object, mesh_src, vertexCos, verts_num);
   }
 
   if (!ELEM(mesh_src, NULL, mesh)) {
@@ -573,7 +558,7 @@ static void panelRegister(ARegionType *region_type)
 }
 
 ModifierTypeInfo modifierType_Cast = {
-    /* name */ "Cast",
+    /* name */ N_("Cast"),
     /* structName */ "CastModifierData",
     /* structSize */ sizeof(CastModifierData),
     /* srna */ &RNA_CastModifier,
@@ -589,7 +574,6 @@ ModifierTypeInfo modifierType_Cast = {
     /* deformVertsEM */ deformVertsEM,
     /* deformMatricesEM */ NULL,
     /* modifyMesh */ NULL,
-    /* modifyHair */ NULL,
     /* modifyGeometrySet */ NULL,
 
     /* initData */ initData,

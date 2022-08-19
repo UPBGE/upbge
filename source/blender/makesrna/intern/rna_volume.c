@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup RNA
@@ -33,6 +19,25 @@
 
 #include "BLI_math_base.h"
 
+const EnumPropertyItem rna_enum_volume_grid_data_type_items[] = {
+    {VOLUME_GRID_BOOLEAN, "BOOLEAN", 0, "Boolean", "Boolean"},
+    {VOLUME_GRID_FLOAT, "FLOAT", 0, "Float", "Single precision float"},
+    {VOLUME_GRID_DOUBLE, "DOUBLE", 0, "Double", "Double precision"},
+    {VOLUME_GRID_INT, "INT", 0, "Integer", "32-bit integer"},
+    {VOLUME_GRID_INT64, "INT64", 0, "Integer 64-bit", "64-bit integer"},
+    {VOLUME_GRID_MASK, "MASK", 0, "Mask", "No data, boolean mask of active voxels"},
+    {VOLUME_GRID_VECTOR_FLOAT, "VECTOR_FLOAT", 0, "Float Vector", "3D float vector"},
+    {VOLUME_GRID_VECTOR_DOUBLE, "VECTOR_DOUBLE", 0, "Double Vector", "3D double vector"},
+    {VOLUME_GRID_VECTOR_INT, "VECTOR_INT", 0, "Integer Vector", "3D integer vector"},
+    {VOLUME_GRID_POINTS,
+     "POINTS",
+     0,
+     "Points (Unsupported)",
+     "Points grid, currently unsupported by volume objects"},
+    {VOLUME_GRID_UNKNOWN, "UNKNOWN", 0, "Unknown", "Unsupported data type"},
+    {0, NULL, 0, NULL, NULL},
+};
+
 #ifdef RNA_RUNTIME
 
 #  include "DEG_depsgraph.h"
@@ -41,12 +46,12 @@
 #  include "WM_api.h"
 #  include "WM_types.h"
 
-static char *rna_VolumeRender_path(PointerRNA *UNUSED(ptr))
+static char *rna_VolumeRender_path(const PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("render");
 }
 
-static char *rna_VolumeDisplay_path(PointerRNA *UNUSED(ptr))
+static char *rna_VolumeDisplay_path(const PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("display");
 }
@@ -71,6 +76,15 @@ static void rna_Volume_update_is_sequence(Main *bmain, Scene *scene, PointerRNA 
 {
   rna_Volume_update_filepath(bmain, scene, ptr);
   DEG_relations_tag_update(bmain);
+}
+
+static void rna_Volume_velocity_grid_set(PointerRNA *ptr, const char *value)
+{
+  Volume *volume = (Volume *)ptr->data;
+  if (!BKE_volume_set_velocity_grid_by_name(volume, value)) {
+    WM_reportf(RPT_ERROR, "Could not find grid with name %s", value);
+  }
+  WM_main_add_notifier(NC_GEOM | ND_DATA, volume);
 }
 
 /* Grid */
@@ -243,31 +257,12 @@ static void rna_def_volume_grid(BlenderRNA *brna)
   RNA_def_property_string_funcs(
       prop, "rna_VolumeGrid_name_get", "rna_VolumeGrid_name_length", NULL);
   RNA_def_property_ui_text(prop, "Name", "Volume grid name");
-
-  static const EnumPropertyItem data_type_items[] = {
-      {VOLUME_GRID_BOOLEAN, "BOOLEAN", 0, "Boolean", "Boolean"},
-      {VOLUME_GRID_FLOAT, "FLOAT", 0, "Float", "Single precision float"},
-      {VOLUME_GRID_DOUBLE, "DOUBLE", 0, "Double", "Double precision"},
-      {VOLUME_GRID_INT, "INT", 0, "Integer", "32-bit integer"},
-      {VOLUME_GRID_INT64, "INT64", 0, "Integer 64-bit", "64-bit integer"},
-      {VOLUME_GRID_MASK, "MASK", 0, "Mask", "No data, boolean mask of active voxels"},
-      {VOLUME_GRID_STRING, "STRING", 0, "String", "Text string"},
-      {VOLUME_GRID_VECTOR_FLOAT, "VECTOR_FLOAT", 0, "Float Vector", "3D float vector"},
-      {VOLUME_GRID_VECTOR_DOUBLE, "VECTOR_DOUBLE", 0, "Double Vector", "3D double vector"},
-      {VOLUME_GRID_VECTOR_INT, "VECTOR_INT", 0, "Integer Vector", "3D integer vector"},
-      {VOLUME_GRID_POINTS,
-       "POINTS",
-       0,
-       "Points (Unsupported)",
-       "Points grid, currently unsupported by volume objects"},
-      {VOLUME_GRID_UNKNOWN, "UNKNOWN", 0, "Unknown", "Unsupported data type"},
-      {0, NULL, 0, NULL, NULL},
-  };
+  RNA_def_struct_name_property(srna, prop);
 
   prop = RNA_def_property(srna, "data_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_enum_funcs(prop, "rna_VolumeGrid_data_type_get", NULL, NULL);
-  RNA_def_property_enum_items(prop, data_type_items);
+  RNA_def_property_enum_items(prop, rna_enum_volume_grid_data_type_items);
   RNA_def_property_ui_text(prop, "Data Type", "Data type of voxel values");
 
   prop = RNA_def_property(srna, "channels", PROP_INT, PROP_UNSIGNED);
@@ -490,6 +485,21 @@ static void rna_def_volume_render(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "VolumeRender");
   RNA_def_struct_path_func(srna, "rna_VolumeRender_path");
 
+  static const EnumPropertyItem precision_items[] = {
+      {VOLUME_PRECISION_FULL, "FULL", 0, "Full", "Full float (Use 32 bit for all data)"},
+      {VOLUME_PRECISION_HALF, "HALF", 0, "Half", "Half float (Use 16 bit for all data)"},
+      {VOLUME_PRECISION_VARIABLE, "VARIABLE", 0, "Variable", "Use variable bit quantization"},
+      {0, NULL, 0, NULL, NULL},
+  };
+
+  prop = RNA_def_property(srna, "precision", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, precision_items);
+  RNA_def_property_ui_text(prop,
+                           "Precision",
+                           "Specify volume data precision. Lower values reduce memory consumption "
+                           "at the cost of detail");
+  RNA_def_property_update(prop, 0, "rna_Volume_update_display");
+
   static const EnumPropertyItem space_items[] = {
       {VOLUME_SPACE_OBJECT,
        "OBJECT",
@@ -633,6 +643,55 @@ static void rna_def_volume(BlenderRNA *brna)
   RNA_def_property_pointer_sdna(prop, NULL, "render");
   RNA_def_property_struct_type(prop, "VolumeRender");
   RNA_def_property_ui_text(prop, "Render", "Volume render settings for 3D viewport");
+
+  /* Velocity. */
+  prop = RNA_def_property(srna, "velocity_grid", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, NULL, "velocity_grid");
+  RNA_def_property_string_funcs(prop, NULL, NULL, "rna_Volume_velocity_grid_set");
+  RNA_def_property_ui_text(
+      prop,
+      "Velocity Grid",
+      "Name of the velocity field, or the base name if the velocity is split into multiple grids");
+
+  prop = RNA_def_property(srna, "velocity_unit", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "velocity_unit");
+  RNA_def_property_enum_items(prop, rna_enum_velocity_unit_items);
+  RNA_def_property_ui_text(
+      prop,
+      "Velocity Unit",
+      "Define how the velocity vectors are interpreted with regard to time, 'frame' means "
+      "the delta time is 1 frame, 'second' means the delta time is 1 / FPS");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "velocity_scale", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "velocity_scale");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_text(prop, "Velocity Scale", "Factor to control the amount of motion blur");
+
+  /* Scalar grids for velocity. */
+  prop = RNA_def_property(srna, "velocity_x_grid", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, NULL, "runtime.velocity_x_grid");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop,
+                           "Velocity X Grid",
+                           "Name of the grid for the X axis component of the velocity field if it "
+                           "was split into multiple grids");
+
+  prop = RNA_def_property(srna, "velocity_y_grid", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, NULL, "runtime.velocity_y_grid");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop,
+                           "Velocity Y Grid",
+                           "Name of the grid for the Y axis component of the velocity field if it "
+                           "was split into multiple grids");
+
+  prop = RNA_def_property(srna, "velocity_z_grid", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, NULL, "runtime.velocity_z_grid");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop,
+                           "Velocity Z Grid",
+                           "Name of the grid for the Z axis component of the velocity field if it "
+                           "was split into multiple grids");
 
   /* Common */
   rna_def_animdata_common(srna);

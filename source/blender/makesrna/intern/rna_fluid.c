@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup RNA
@@ -232,16 +218,22 @@ static void rna_Fluid_parts_create(Main *bmain,
 #  else
   Object *ob = (Object *)ptr->owner_id;
   BKE_fluid_particle_system_create(bmain, ob, pset_name, parts_name, psys_name, psys_type);
+
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_relations_tag_update(bmain);
 #  endif
 }
 
-static void rna_Fluid_parts_delete(PointerRNA *ptr, int ptype)
+static void rna_Fluid_parts_delete(Main *bmain, PointerRNA *ptr, int ptype)
 {
 #  ifndef WITH_FLUID
   UNUSED_VARS(ptr, ptype);
 #  else
   Object *ob = (Object *)ptr->owner_id;
   BKE_fluid_particle_system_destroy(ob, ptype);
+
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  DEG_relations_tag_update(bmain);
 #  endif
 }
 
@@ -268,7 +260,7 @@ static void rna_Fluid_flip_parts_update(Main *bmain, Scene *scene, PointerRNA *p
   /* Only create a particle system in liquid domain mode.
    * Remove any remaining data from a liquid sim when switching to gas. */
   if (fmd->domain->type != FLUID_DOMAIN_TYPE_LIQUID) {
-    rna_Fluid_parts_delete(ptr, PART_FLUID_FLIP);
+    rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_FLIP);
     fmd->domain->particle_type &= ~FLUID_DOMAIN_PARTICLE_FLIP;
     rna_Fluid_domain_data_reset(bmain, scene, ptr);
     return;
@@ -280,7 +272,7 @@ static void rna_Fluid_flip_parts_update(Main *bmain, Scene *scene, PointerRNA *p
     fmd->domain->particle_type |= FLUID_DOMAIN_PARTICLE_FLIP;
   }
   else {
-    rna_Fluid_parts_delete(ptr, PART_FLUID_FLIP);
+    rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_FLIP);
     fmd->domain->particle_type &= ~FLUID_DOMAIN_PARTICLE_FLIP;
   }
   rna_Fluid_update(bmain, scene, ptr);
@@ -299,7 +291,7 @@ static void rna_Fluid_spray_parts_update(Main *bmain, Scene *UNUSED(scene), Poin
     fmd->domain->particle_type |= FLUID_DOMAIN_PARTICLE_SPRAY;
   }
   else {
-    rna_Fluid_parts_delete(ptr, PART_FLUID_SPRAY);
+    rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_SPRAY);
     fmd->domain->particle_type &= ~FLUID_DOMAIN_PARTICLE_SPRAY;
   }
 }
@@ -321,7 +313,7 @@ static void rna_Fluid_bubble_parts_update(Main *bmain, Scene *UNUSED(scene), Poi
     fmd->domain->particle_type |= FLUID_DOMAIN_PARTICLE_BUBBLE;
   }
   else {
-    rna_Fluid_parts_delete(ptr, PART_FLUID_BUBBLE);
+    rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_BUBBLE);
     fmd->domain->particle_type &= ~FLUID_DOMAIN_PARTICLE_BUBBLE;
   }
 }
@@ -339,7 +331,7 @@ static void rna_Fluid_foam_parts_update(Main *bmain, Scene *UNUSED(scene), Point
     fmd->domain->particle_type |= FLUID_DOMAIN_PARTICLE_FOAM;
   }
   else {
-    rna_Fluid_parts_delete(ptr, PART_FLUID_FOAM);
+    rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_FOAM);
     fmd->domain->particle_type &= ~FLUID_DOMAIN_PARTICLE_FOAM;
   }
 }
@@ -361,7 +353,7 @@ static void rna_Fluid_tracer_parts_update(Main *bmain, Scene *UNUSED(scene), Poi
     fmd->domain->particle_type |= FLUID_DOMAIN_PARTICLE_TRACER;
   }
   else {
-    rna_Fluid_parts_delete(ptr, PART_FLUID_TRACER);
+    rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_TRACER);
     fmd->domain->particle_type &= ~FLUID_DOMAIN_PARTICLE_TRACER;
   }
 }
@@ -373,10 +365,10 @@ static void rna_Fluid_combined_export_update(Main *bmain, Scene *scene, PointerR
   fmd = (FluidModifierData *)BKE_modifiers_findby_type(ob, eModifierType_Fluid);
 
   if (fmd->domain->sndparticle_combined_export == SNDPARTICLE_COMBINED_EXPORT_OFF) {
-    rna_Fluid_parts_delete(ptr, PART_FLUID_SPRAYFOAM);
-    rna_Fluid_parts_delete(ptr, PART_FLUID_SPRAYBUBBLE);
-    rna_Fluid_parts_delete(ptr, PART_FLUID_FOAMBUBBLE);
-    rna_Fluid_parts_delete(ptr, PART_FLUID_SPRAYFOAMBUBBLE);
+    rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_SPRAYFOAM);
+    rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_SPRAYBUBBLE);
+    rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_FOAMBUBBLE);
+    rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_SPRAYFOAMBUBBLE);
 
     bool exists_spray = rna_Fluid_parts_exists(ptr, PART_FLUID_SPRAY);
     bool exists_foam = rna_Fluid_parts_exists(ptr, PART_FLUID_FOAM);
@@ -406,11 +398,11 @@ static void rna_Fluid_combined_export_update(Main *bmain, Scene *scene, PointerR
       fmd->domain->particle_type |= FLUID_DOMAIN_PARTICLE_SPRAY;
       fmd->domain->particle_type |= FLUID_DOMAIN_PARTICLE_FOAM;
 
-      rna_Fluid_parts_delete(ptr, PART_FLUID_SPRAY);
-      rna_Fluid_parts_delete(ptr, PART_FLUID_FOAM);
-      rna_Fluid_parts_delete(ptr, PART_FLUID_SPRAYBUBBLE);
-      rna_Fluid_parts_delete(ptr, PART_FLUID_FOAMBUBBLE);
-      rna_Fluid_parts_delete(ptr, PART_FLUID_SPRAYFOAMBUBBLE);
+      rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_SPRAY);
+      rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_FOAM);
+      rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_SPRAYBUBBLE);
+      rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_FOAMBUBBLE);
+      rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_SPRAYFOAMBUBBLE);
 
       /* Re-add spray if enabled and no particle system exists for it anymore. */
       bool exists_bubble = rna_Fluid_parts_exists(ptr, PART_FLUID_BUBBLE);
@@ -432,11 +424,11 @@ static void rna_Fluid_combined_export_update(Main *bmain, Scene *scene, PointerR
       fmd->domain->particle_type |= FLUID_DOMAIN_PARTICLE_SPRAY;
       fmd->domain->particle_type |= FLUID_DOMAIN_PARTICLE_BUBBLE;
 
-      rna_Fluid_parts_delete(ptr, PART_FLUID_SPRAY);
-      rna_Fluid_parts_delete(ptr, PART_FLUID_BUBBLE);
-      rna_Fluid_parts_delete(ptr, PART_FLUID_SPRAYFOAM);
-      rna_Fluid_parts_delete(ptr, PART_FLUID_FOAMBUBBLE);
-      rna_Fluid_parts_delete(ptr, PART_FLUID_SPRAYFOAMBUBBLE);
+      rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_SPRAY);
+      rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_BUBBLE);
+      rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_SPRAYFOAM);
+      rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_FOAMBUBBLE);
+      rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_SPRAYFOAMBUBBLE);
 
       /* Re-add foam if enabled and no particle system exists for it anymore. */
       bool exists_foam = rna_Fluid_parts_exists(ptr, PART_FLUID_FOAM);
@@ -458,11 +450,11 @@ static void rna_Fluid_combined_export_update(Main *bmain, Scene *scene, PointerR
       fmd->domain->particle_type |= FLUID_DOMAIN_PARTICLE_FOAM;
       fmd->domain->particle_type |= FLUID_DOMAIN_PARTICLE_BUBBLE;
 
-      rna_Fluid_parts_delete(ptr, PART_FLUID_FOAM);
-      rna_Fluid_parts_delete(ptr, PART_FLUID_BUBBLE);
-      rna_Fluid_parts_delete(ptr, PART_FLUID_SPRAYFOAM);
-      rna_Fluid_parts_delete(ptr, PART_FLUID_SPRAYBUBBLE);
-      rna_Fluid_parts_delete(ptr, PART_FLUID_SPRAYFOAMBUBBLE);
+      rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_FOAM);
+      rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_BUBBLE);
+      rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_SPRAYFOAM);
+      rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_SPRAYBUBBLE);
+      rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_SPRAYFOAMBUBBLE);
 
       /* Re-add foam if enabled and no particle system exists for it anymore. */
       bool exists_spray = rna_Fluid_parts_exists(ptr, PART_FLUID_SPRAY);
@@ -486,12 +478,12 @@ static void rna_Fluid_combined_export_update(Main *bmain, Scene *scene, PointerR
       fmd->domain->particle_type |= FLUID_DOMAIN_PARTICLE_FOAM;
       fmd->domain->particle_type |= FLUID_DOMAIN_PARTICLE_BUBBLE;
 
-      rna_Fluid_parts_delete(ptr, PART_FLUID_SPRAY);
-      rna_Fluid_parts_delete(ptr, PART_FLUID_FOAM);
-      rna_Fluid_parts_delete(ptr, PART_FLUID_BUBBLE);
-      rna_Fluid_parts_delete(ptr, PART_FLUID_SPRAYFOAM);
-      rna_Fluid_parts_delete(ptr, PART_FLUID_SPRAYBUBBLE);
-      rna_Fluid_parts_delete(ptr, PART_FLUID_FOAMBUBBLE);
+      rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_SPRAY);
+      rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_FOAM);
+      rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_BUBBLE);
+      rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_SPRAYFOAM);
+      rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_SPRAYBUBBLE);
+      rna_Fluid_parts_delete(bmain, ptr, PART_FLUID_FOAMBUBBLE);
     }
   }
   else {
@@ -871,30 +863,30 @@ static void rna_Fluid_domaintype_set(struct PointerRNA *ptr, int value)
   BKE_fluid_fields_sanitize(settings);
 }
 
-static char *rna_FluidDomainSettings_path(PointerRNA *ptr)
+static char *rna_FluidDomainSettings_path(const PointerRNA *ptr)
 {
-  FluidDomainSettings *settings = (FluidDomainSettings *)ptr->data;
-  ModifierData *md = (ModifierData *)settings->fmd;
+  const FluidDomainSettings *settings = (FluidDomainSettings *)ptr->data;
+  const ModifierData *md = (ModifierData *)settings->fmd;
   char name_esc[sizeof(md->name) * 2];
 
   BLI_str_escape(name_esc, md->name, sizeof(name_esc));
   return BLI_sprintfN("modifiers[\"%s\"].domain_settings", name_esc);
 }
 
-static char *rna_FluidFlowSettings_path(PointerRNA *ptr)
+static char *rna_FluidFlowSettings_path(const PointerRNA *ptr)
 {
-  FluidFlowSettings *settings = (FluidFlowSettings *)ptr->data;
-  ModifierData *md = (ModifierData *)settings->fmd;
+  const FluidFlowSettings *settings = (FluidFlowSettings *)ptr->data;
+  const ModifierData *md = (ModifierData *)settings->fmd;
   char name_esc[sizeof(md->name) * 2];
 
   BLI_str_escape(name_esc, md->name, sizeof(name_esc));
   return BLI_sprintfN("modifiers[\"%s\"].flow_settings", name_esc);
 }
 
-static char *rna_FluidEffectorSettings_path(PointerRNA *ptr)
+static char *rna_FluidEffectorSettings_path(const PointerRNA *ptr)
 {
-  FluidEffectorSettings *settings = (FluidEffectorSettings *)ptr->data;
-  ModifierData *md = (ModifierData *)settings->fmd;
+  const FluidEffectorSettings *settings = (FluidEffectorSettings *)ptr->data;
+  const ModifierData *md = (ModifierData *)settings->fmd;
   char name_esc[sizeof(md->name) * 2];
 
   BLI_str_escape(name_esc, md->name, sizeof(name_esc));
@@ -907,9 +899,10 @@ static char *rna_FluidEffectorSettings_path(PointerRNA *ptr)
 
 #  ifdef WITH_FLUID
 
-static int rna_FluidModifier_grid_get_length(PointerRNA *ptr, int length[RNA_MAX_ARRAY_DIMENSION])
+static int rna_FluidModifier_grid_get_length(const PointerRNA *ptr,
+                                             int length[RNA_MAX_ARRAY_DIMENSION])
 {
-  FluidDomainSettings *fds = (FluidDomainSettings *)ptr->data;
+  const FluidDomainSettings *fds = (FluidDomainSettings *)ptr->data;
   float *density = NULL;
   int size = 0;
 
@@ -932,7 +925,7 @@ static int rna_FluidModifier_grid_get_length(PointerRNA *ptr, int length[RNA_MAX
   return length[0];
 }
 
-static int rna_FluidModifier_color_grid_get_length(PointerRNA *ptr,
+static int rna_FluidModifier_color_grid_get_length(const PointerRNA *ptr,
                                                    int length[RNA_MAX_ARRAY_DIMENSION])
 {
   rna_FluidModifier_grid_get_length(ptr, length);
@@ -941,10 +934,10 @@ static int rna_FluidModifier_color_grid_get_length(PointerRNA *ptr,
   return length[0];
 }
 
-static int rna_FluidModifier_velocity_grid_get_length(PointerRNA *ptr,
+static int rna_FluidModifier_velocity_grid_get_length(const PointerRNA *ptr,
                                                       int length[RNA_MAX_ARRAY_DIMENSION])
 {
-  FluidDomainSettings *fds = (FluidDomainSettings *)ptr->data;
+  const FluidDomainSettings *fds = (FluidDomainSettings *)ptr->data;
   float *vx = NULL;
   float *vy = NULL;
   float *vz = NULL;
@@ -962,10 +955,10 @@ static int rna_FluidModifier_velocity_grid_get_length(PointerRNA *ptr,
   return length[0];
 }
 
-static int rna_FluidModifier_heat_grid_get_length(PointerRNA *ptr,
+static int rna_FluidModifier_heat_grid_get_length(const PointerRNA *ptr,
                                                   int length[RNA_MAX_ARRAY_DIMENSION])
 {
-  FluidDomainSettings *fds = (FluidDomainSettings *)ptr->data;
+  const FluidDomainSettings *fds = (FluidDomainSettings *)ptr->data;
   float *heat = NULL;
   int size = 0;
 
@@ -1461,6 +1454,7 @@ static void rna_def_fluid_domain_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "effector_weights", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "EffectorWeights");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Effector Weights", "");
 
   /* object collections */
@@ -2459,8 +2453,10 @@ static void rna_def_fluid_domain_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "cfl_condition", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "cfl_condition");
   RNA_def_property_range(prop, 0.0, 10.0);
-  RNA_def_property_ui_text(
-      prop, "CFL", "Maximal velocity per cell (higher value results in greater timesteps)");
+  RNA_def_property_ui_text(prop,
+                           "CFL",
+                           "Maximal velocity per cell (greater CFL numbers will minimize the "
+                           "number of simulation steps and the computation time.)");
   RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Fluid_datacache_reset");
 
   prop = RNA_def_property(srna, "use_adaptive_timesteps", PROP_BOOLEAN, PROP_NONE);
@@ -2655,6 +2651,12 @@ static void rna_def_fluid_domain_settings(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, gridlines_cell_filter_items);
   RNA_def_property_ui_text(prop, "Cell Type", "Cell type to be highlighted");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
+
+  prop = RNA_def_property(srna, "velocity_scale", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "velocity_scale");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_text(prop, "Velocity Scale", "Factor to control the amount of motion blur");
+  RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Fluid_update");
 }
 
 static void rna_def_fluid_flow_settings(BlenderRNA *brna)

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edtransform
@@ -98,13 +82,13 @@ static void recalcData_cursor_2D_impl(TransInfo *t)
 /** \name Image Cursor
  * \{ */
 
-void createTransCursor_image(TransInfo *t)
+static void createTransCursor_image(bContext *UNUSED(C), TransInfo *t)
 {
   SpaceImage *sima = t->area->spacedata.first;
   createTransCursor_2D_impl(t, sima->cursor);
 }
 
-void recalcData_cursor_image(TransInfo *t)
+static void recalcData_cursor_image(TransInfo *t)
 {
   recalcData_cursor_2D_impl(t);
 }
@@ -115,7 +99,7 @@ void recalcData_cursor_image(TransInfo *t)
 /** \name Sequencer Cursor
  * \{ */
 
-void createTransCursor_sequencer(TransInfo *t)
+static void createTransCursor_sequencer(bContext *UNUSED(C), TransInfo *t)
 {
   SpaceSeq *sseq = t->area->spacedata.first;
   if (sseq->mainb != SEQ_DRAW_IMG_IMBUF) {
@@ -124,7 +108,7 @@ void createTransCursor_sequencer(TransInfo *t)
   createTransCursor_2D_impl(t, sseq->cursor);
 }
 
-void recalcData_cursor_sequencer(TransInfo *t)
+static void recalcData_cursor_sequencer(TransInfo *t)
 {
   recalcData_cursor_2D_impl(t);
 }
@@ -135,7 +119,7 @@ void recalcData_cursor_sequencer(TransInfo *t)
 /** \name View 3D Cursor
  * \{ */
 
-void createTransCursor_view3d(TransInfo *t)
+static void createTransCursor_view3d(bContext *UNUSED(C), TransInfo *t)
 {
   TransData *td;
 
@@ -194,9 +178,30 @@ void createTransCursor_view3d(TransInfo *t)
   td->ext->rotOrder = cursor->rotation_mode;
 }
 
-void recalcData_cursor_view3d(TransInfo *t)
+static void recalcData_cursor_view3d(TransInfo *t)
 {
   DEG_id_tag_update(&t->scene->id, ID_RECALC_COPY_ON_WRITE);
 }
 
 /** \} */
+
+TransConvertTypeInfo TransConvertType_CursorImage = {
+    /* flags */ T_2D_EDIT,
+    /* createTransData */ createTransCursor_image,
+    /* recalcData */ recalcData_cursor_image,
+    /* special_aftertrans_update */ NULL,
+};
+
+TransConvertTypeInfo TransConvertType_CursorSequencer = {
+    /* flags */ T_2D_EDIT,
+    /* createTransData */ createTransCursor_sequencer,
+    /* recalcData */ recalcData_cursor_sequencer,
+    /* special_aftertrans_update */ NULL,
+};
+
+TransConvertTypeInfo TransConvertType_Cursor3D = {
+    /* flags */ 0,
+    /* createTransData */ createTransCursor_view3d,
+    /* recalcData */ recalcData_cursor_view3d,
+    /* special_aftertrans_update */ NULL,
+};

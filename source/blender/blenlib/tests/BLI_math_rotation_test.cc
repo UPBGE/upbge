@@ -1,9 +1,13 @@
-/* Apache License, Version 2.0 */
+/* SPDX-License-Identifier: Apache-2.0 */
 
 #include "testing/testing.h"
 
 #include "BLI_math_base.h"
 #include "BLI_math_rotation.h"
+#include "BLI_math_rotation.hh"
+#include "BLI_math_vector.hh"
+
+#include "BLI_vector.hh"
 
 #include <cmath>
 
@@ -147,3 +151,124 @@ TEST(math_rotation, quat_split_swing_and_twist_negative)
   EXPECT_V4_NEAR(swing, expected_swing, FLT_EPSILON);
   EXPECT_V4_NEAR(twist, expected_twist, FLT_EPSILON);
 }
+
+/* -------------------------------------------------------------------- */
+/** \name Test `sin_cos_from_fraction` Accuracy & Exact Symmetry
+ * \{ */
+
+static void test_sin_cos_from_fraction_accuracy(const int range, const float expected_eps)
+{
+  for (int i = 0; i < range; i++) {
+    float sin_cos_fl[2];
+    sin_cos_from_fraction(i, range, &sin_cos_fl[0], &sin_cos_fl[1]);
+    const float phi = (float)(2.0 * M_PI) * ((float)i / (float)range);
+    const float sin_cos_test_fl[2] = {sinf(phi), cosf(phi)};
+    EXPECT_V2_NEAR(sin_cos_fl, sin_cos_test_fl, expected_eps);
+  }
+}
+
+/** Ensure the result of #sin_cos_from_fraction match #sinf & #cosf. */
+TEST(math_rotation, sin_cos_from_fraction_accuracy)
+{
+  for (int range = 1; range <= 64; range++) {
+    test_sin_cos_from_fraction_accuracy(range, 1e-6f);
+  }
+}
+
+/** Ensure values are exactly symmetrical where possible. */
+static void test_sin_cos_from_fraction_symmetry(const int range)
+{
+  /* The expected number of unique numbers depends on the range being a multiple of 4/2/1. */
+  const enum {
+    MULTIPLE_OF_1 = 1,
+    MULTIPLE_OF_2 = 2,
+    MULTIPLE_OF_4 = 3,
+  } multiple_of = (range & 1) ? MULTIPLE_OF_1 : ((range & 3) ? MULTIPLE_OF_2 : MULTIPLE_OF_4);
+
+  blender::Vector<blender::float2> coords;
+  coords.reserve(range);
+  for (int i = 0; i < range; i++) {
+    float sin_cos_fl[2];
+    sin_cos_from_fraction(i, range, &sin_cos_fl[0], &sin_cos_fl[1]);
+    switch (multiple_of) {
+      case MULTIPLE_OF_1: {
+        sin_cos_fl[0] = fabsf(sin_cos_fl[0]);
+        break;
+      }
+      case MULTIPLE_OF_2: {
+        sin_cos_fl[0] = fabsf(sin_cos_fl[0]);
+        sin_cos_fl[1] = fabsf(sin_cos_fl[1]);
+        break;
+      }
+      case MULTIPLE_OF_4: {
+        sin_cos_fl[0] = fabsf(sin_cos_fl[0]);
+        sin_cos_fl[1] = fabsf(sin_cos_fl[1]);
+        if (sin_cos_fl[0] > sin_cos_fl[1]) {
+          SWAP(float, sin_cos_fl[0], sin_cos_fl[1]);
+        }
+        break;
+      }
+    }
+    coords.append_unchecked(sin_cos_fl);
+  }
+  /* Sort, then count unique items. */
+  std::sort(coords.begin(), coords.end(), [](const blender::float2 &a, const blender::float2 &b) {
+    float delta = b[0] - a[0];
+    if (delta == 0.0f) {
+      delta = b[1] - a[1];
+    }
+    return delta > 0.0f;
+  });
+  int unique_coords_count = 1;
+  if (range > 1) {
+    int i_prev = 0;
+    for (int i = 1; i < range; i_prev = i++) {
+      if (coords[i_prev] != coords[i]) {
+        unique_coords_count += 1;
+      }
+    }
+  }
+  switch (multiple_of) {
+    case MULTIPLE_OF_1: {
+      EXPECT_EQ(unique_coords_count, (range / 2) + 1);
+      break;
+    }
+    case MULTIPLE_OF_2: {
+      EXPECT_EQ(unique_coords_count, (range / 4) + 1);
+      break;
+    }
+    case MULTIPLE_OF_4: {
+      EXPECT_EQ(unique_coords_count, (range / 8) + 1);
+      break;
+    }
+  }
+}
+
+TEST(math_rotation, sin_cos_from_fraction_symmetry)
+{
+  for (int range = 1; range <= 64; range++) {
+    test_sin_cos_from_fraction_symmetry(range);
+  }
+}
+
+/** \} */
+
+namespace blender::math::tests {
+
+TEST(math_rotation, RotateDirectionAroundAxis)
+{
+  const float3 a = rotate_direction_around_axis({1, 0, 0}, {0, 0, 1}, M_PI_2);
+  EXPECT_NEAR(a.x, 0.0f, FLT_EPSILON);
+  EXPECT_NEAR(a.y, 1.0f, FLT_EPSILON);
+  EXPECT_NEAR(a.z, 0.0f, FLT_EPSILON);
+  const float3 b = rotate_direction_around_axis({1, 0, 0}, {0, 0, 1}, M_PI);
+  EXPECT_NEAR(b.x, -1.0f, FLT_EPSILON);
+  EXPECT_NEAR(b.y, 0.0f, FLT_EPSILON);
+  EXPECT_NEAR(b.z, 0.0f, FLT_EPSILON);
+  const float3 c = rotate_direction_around_axis({0, 0, 1}, {0, 0, 1}, 0.0f);
+  EXPECT_NEAR(c.x, 0.0f, FLT_EPSILON);
+  EXPECT_NEAR(c.y, 0.0f, FLT_EPSILON);
+  EXPECT_NEAR(c.z, 1.0f, FLT_EPSILON);
+}
+
+}  // namespace blender::math::tests

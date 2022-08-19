@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2019 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2019 Blender Foundation. All rights reserved. */
 
 #include "usd.h"
 #include "usd_common.h"
@@ -43,6 +27,7 @@
 #include "BLI_fileops.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
+#include "BLI_timeit.hh"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -54,11 +39,20 @@ struct ExportJobData {
   Depsgraph *depsgraph;
   wmWindowManager *wm;
 
-  char filename[FILE_MAX];
+  char filepath[FILE_MAX];
   USDExportParams params;
 
   bool export_ok;
+  timeit::TimePoint start_time;
 };
+
+static void report_job_duration(const ExportJobData *data)
+{
+  timeit::Nanoseconds duration = timeit::Clock::now() - data->start_time;
+  std::cout << "USD export of '" << data->filepath << "' took ";
+  timeit::print_duration(duration);
+  std::cout << '\n';
+}
 
 static void export_startjob(void *customdata,
                             /* Cannot be const, this function implements wm_jobs_start_callback.
@@ -69,6 +63,7 @@ static void export_startjob(void *customdata,
 {
   ExportJobData *data = static_cast<ExportJobData *>(customdata);
   data->export_ok = false;
+  data->start_time = timeit::Clock::now();
 
   G.is_rendering = true;
   WM_set_locked_interface(data->wm, true);
@@ -88,15 +83,15 @@ static void export_startjob(void *customdata,
   *do_update = true;
 
   /* For restoring the current frame after exporting animation is done. */
-  const int orig_frame = CFRA;
+  const int orig_frame = scene->r.cfra;
 
-  pxr::UsdStageRefPtr usd_stage = pxr::UsdStage::CreateNew(data->filename);
+  pxr::UsdStageRefPtr usd_stage = pxr::UsdStage::CreateNew(data->filepath);
   if (!usd_stage) {
     /* This happens when the USD JSON files cannot be found. When that happens,
      * the USD library doesn't know it has the functionality to write USDA and
      * USDC files, and creating a new UsdStage fails. */
     WM_reportf(
-        RPT_ERROR, "USD Export: unable to find suitable USD plugin to write %s", data->filename);
+        RPT_ERROR, "USD Export: unable to find suitable USD plugin to write %s", data->filepath);
     return;
   }
 
@@ -113,7 +108,7 @@ static void export_startjob(void *customdata,
     usd_stage->SetEndTimeCode(scene->r.efra);
   }
 
-  USDHierarchyIterator iter(data->depsgraph, usd_stage, data->params);
+  USDHierarchyIterator iter(data->bmain, data->depsgraph, usd_stage, data->params);
 
   if (data->params.export_animation) {
     /* Writing the animated frames is not 100% of the work, but it's our best guess. */
@@ -145,8 +140,8 @@ static void export_startjob(void *customdata,
   usd_stage->GetRootLayer()->Save();
 
   /* Finish up by going back to the keyframe that was current before we started. */
-  if (CFRA != orig_frame) {
-    CFRA = orig_frame;
+  if (scene->r.cfra != orig_frame) {
+    scene->r.cfra = orig_frame;
     BKE_scene_graph_update_for_newframe(data->depsgraph);
   }
 
@@ -161,12 +156,13 @@ static void export_endjob(void *customdata)
 
   DEG_graph_free(data->depsgraph);
 
-  if (!data->export_ok && BLI_exists(data->filename)) {
-    BLI_delete(data->filename, false, false);
+  if (!data->export_ok && BLI_exists(data->filepath)) {
+    BLI_delete(data->filepath, false, false);
   }
 
   G.is_rendering = false;
   WM_set_locked_interface(data->wm, false);
+  report_job_duration(data);
 }
 
 }  // namespace blender::io::usd
@@ -187,7 +183,7 @@ bool USD_export(bContext *C,
   job->bmain = CTX_data_main(C);
   job->wm = CTX_wm_manager(C);
   job->export_ok = false;
-  BLI_strncpy(job->filename, filepath, sizeof(job->filename));
+  BLI_strncpy(job->filepath, filepath, sizeof(job->filepath));
 
   job->depsgraph = DEG_graph_new(job->bmain, scene, view_layer, params->evaluation_mode);
   job->params = *params;
@@ -223,7 +219,7 @@ bool USD_export(bContext *C,
   return export_ok;
 }
 
-int USD_get_version(void)
+int USD_get_version()
 {
   /* USD 19.11 defines:
    *

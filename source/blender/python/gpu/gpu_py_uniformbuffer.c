@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bpygpu
@@ -28,13 +14,11 @@
 #include "BLI_string.h"
 
 #include "GPU_context.h"
-#include "GPU_texture.h"
 #include "GPU_uniform_buffer.h"
 
 #include "../generic/py_capi_utils.h"
 
 #include "gpu_py.h"
-#include "gpu_py_buffer.h"
 
 #include "gpu_py_uniformbuffer.h" /* own include */
 
@@ -78,21 +62,37 @@ static PyObject *pygpu_uniformbuffer__tp_new(PyTypeObject *UNUSED(self),
   BPYGPU_IS_INIT_OR_ERROR_OBJ;
 
   GPUUniformBuf *ubo = NULL;
-  BPyGPUBuffer *pybuffer_obj;
+  PyObject *pybuffer_obj;
   char err_out[256] = "unknown error. See console";
 
   static const char *_keywords[] = {"data", NULL};
-  static _PyArg_Parser _parser = {"O!:GPUUniformBuf.__new__", _keywords, 0};
-  if (!_PyArg_ParseTupleAndKeywordsFast(args, kwds, &_parser, &BPyGPU_BufferType, &pybuffer_obj)) {
+  static _PyArg_Parser _parser = {
+      "O" /* `data` */
+      ":GPUUniformBuf.__new__",
+      _keywords,
+      0,
+  };
+  if (!_PyArg_ParseTupleAndKeywordsFast(args, kwds, &_parser, &pybuffer_obj)) {
     return NULL;
   }
 
-  if (GPU_context_active_get()) {
-    ubo = GPU_uniformbuf_create_ex(
-        bpygpu_Buffer_size(pybuffer_obj), pybuffer_obj->buf.as_void, "python_uniformbuffer");
+  if (!GPU_context_active_get()) {
+    STRNCPY(err_out, "No active GPU context found");
   }
   else {
-    STRNCPY(err_out, "No active GPU context found");
+    Py_buffer pybuffer;
+    if (PyObject_GetBuffer(pybuffer_obj, &pybuffer, PyBUF_SIMPLE) == -1) {
+      /* PyObject_GetBuffer raise a PyExc_BufferError */
+      return NULL;
+    }
+
+    if ((pybuffer.len % 16) != 0) {
+      STRNCPY(err_out, "UBO is not padded to size of vec4");
+    }
+    else {
+      ubo = GPU_uniformbuf_create_ex(pybuffer.len, pybuffer.buf, "python_uniformbuffer");
+    }
+    PyBuffer_Release(&pybuffer);
   }
 
   if (ubo == NULL) {
@@ -111,11 +111,14 @@ static PyObject *pygpu_uniformbuffer_update(BPyGPUUniformBuf *self, PyObject *ob
 {
   BPYGPU_UNIFORMBUF_CHECK_OBJ(self);
 
-  if (!BPyGPU_Buffer_Check(obj)) {
+  Py_buffer pybuffer;
+  if (PyObject_GetBuffer(obj, &pybuffer, PyBUF_SIMPLE) == -1) {
+    /* PyObject_GetBuffer raise a PyExc_BufferError */
     return NULL;
   }
 
-  GPU_uniformbuf_update(self->ubo, ((BPyGPUBuffer *)obj)->buf.as_void);
+  GPU_uniformbuf_update(self->ubo, pybuffer.buf);
+  PyBuffer_Release(&pybuffer);
   Py_RETURN_NONE;
 }
 
@@ -160,8 +163,8 @@ PyDoc_STRVAR(pygpu_uniformbuffer__tp_doc,
              "\n"
              "   This object gives access to off uniform buffers.\n"
              "\n"
-             "   :arg data: Buffer object.\n"
-             "   :type data: :class:`gpu.types.Buffer`\n");
+             "   :arg data: Data to fill the buffer.\n"
+             "   :type data: object exposing buffer interface\n");
 PyTypeObject BPyGPUUniformBuf_Type = {
     PyVarObject_HEAD_INIT(NULL, 0).tp_name = "GPUUniformBuf",
     .tp_basicsize = sizeof(BPyGPUUniformBuf),

@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #include "COM_SplitViewerNode.h"
 
@@ -39,6 +24,7 @@ void SplitViewerNode::convert_to_operations(NodeConverter &converter,
   NodeInput *image2Socket = this->get_input_socket(1);
   Image *image = (Image *)this->get_bnode()->id;
   ImageUser *image_user = (ImageUser *)this->get_bnode()->storage;
+  Scene *scene = context.get_scene();
 
   SplitOperation *split_viewer_operation = new SplitOperation();
   split_viewer_operation->set_split_percentage(this->get_bnode()->custom1);
@@ -51,8 +37,8 @@ void SplitViewerNode::convert_to_operations(NodeConverter &converter,
   ViewerOperation *viewer_operation = new ViewerOperation();
   viewer_operation->set_image(image);
   viewer_operation->set_image_user(image_user);
-  viewer_operation->set_view_settings(context.get_view_settings());
-  viewer_operation->set_display_settings(context.get_display_settings());
+  viewer_operation->set_view_settings(&scene->view_settings);
+  viewer_operation->set_display_settings(&scene->display_settings);
   viewer_operation->set_render_data(context.get_render_data());
   viewer_operation->set_view_name(context.get_view_name());
 

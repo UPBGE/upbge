@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edutil
@@ -24,9 +10,14 @@
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
+#include "DNA_windowmanager_types.h"
+
+#include "RNA_access.h"
+
+#include "WM_types.h"
+
 #include "ED_select_utils.h"
 
-/** 1: select, 0: deselect, -1: pass. */
 int ED_select_op_action(const eSelectOp sel_op, const bool is_select, const bool is_inside)
 {
   switch (sel_op) {
@@ -44,12 +35,6 @@ int ED_select_op_action(const eSelectOp sel_op, const bool is_select, const bool
   BLI_assert_msg(0, "invalid sel_op");
   return -1;
 }
-/**
- * Use when we've de-selected all items first (for modes that need it).
- *
- * \note In some cases changing selection needs to perform other checks,
- * so it's more straightforward to deselect all, then select.
- */
 int ED_select_op_action_deselected(const eSelectOp sel_op,
                                    const bool is_select,
                                    const bool is_inside)
@@ -71,9 +56,6 @@ int ED_select_op_action_deselected(const eSelectOp sel_op,
   return -1;
 }
 
-/**
- * Utility to use for selection operations that run multiple times (circle select).
- */
 eSelectOp ED_select_op_modal(const eSelectOp sel_op, const bool is_first)
 {
   if (sel_op == SEL_OP_SET) {
@@ -84,15 +66,18 @@ eSelectOp ED_select_op_modal(const eSelectOp sel_op, const bool is_first)
   return sel_op;
 }
 
-int ED_select_similar_compare_float(const float delta, const float thresh, const int compare)
+bool ED_select_similar_compare_float(const float delta,
+                                     const float thresh,
+                                     const eSimilarCmp compare)
 {
+  BLI_assert(thresh >= 0.0f);
   switch (compare) {
     case SIM_CMP_EQ:
       return (fabsf(delta) <= thresh);
     case SIM_CMP_GT:
-      return ((delta + thresh) >= 0.0);
+      return ((delta + thresh) >= 0.0f);
     case SIM_CMP_LT:
-      return ((delta - thresh) <= 0.0);
+      return ((delta - thresh) <= 0.0f);
     default:
       BLI_assert_unreachable();
       return 0;
@@ -102,8 +87,10 @@ int ED_select_similar_compare_float(const float delta, const float thresh, const
 bool ED_select_similar_compare_float_tree(const KDTree_1d *tree,
                                           const float length,
                                           const float thresh,
-                                          const int compare)
+                                          const eSimilarCmp compare)
 {
+  BLI_assert(compare == SIM_CMP_EQ || length >= 0.0f); /* See precision note below. */
+
   /* Length of the edge we want to compare against. */
   float nearest_edge_length;
 
@@ -130,9 +117,82 @@ bool ED_select_similar_compare_float_tree(const KDTree_1d *tree,
 
   KDTreeNearest_1d nearest;
   if (BLI_kdtree_1d_find_nearest(tree, &nearest_edge_length, &nearest) != -1) {
+    BLI_assert(compare == SIM_CMP_EQ || nearest.co[0] >= 0.0f); /* See precision note above. */
     float delta = length - nearest.co[0];
     return ED_select_similar_compare_float(delta, thresh, compare);
   }
 
   return false;
 }
+
+eSelectOp ED_select_op_from_operator(PointerRNA *ptr)
+{
+  const bool extend = RNA_boolean_get(ptr, "extend");
+  const bool deselect = RNA_boolean_get(ptr, "deselect");
+  const bool toggle = RNA_boolean_get(ptr, "toggle");
+
+  if (extend) {
+    return SEL_OP_ADD;
+  }
+  if (deselect) {
+    return SEL_OP_SUB;
+  }
+  if (toggle) {
+    return SEL_OP_XOR;
+  }
+  return SEL_OP_SET;
+}
+
+void ED_select_pick_params_from_operator(PointerRNA *ptr, struct SelectPick_Params *params)
+{
+  memset(params, 0x0, sizeof(*params));
+  params->sel_op = ED_select_op_from_operator(ptr);
+  params->deselect_all = RNA_boolean_get(ptr, "deselect_all");
+  params->select_passthrough = RNA_boolean_get(ptr, "select_passthrough");
+}
+
+/* -------------------------------------------------------------------- */
+/** \name Operator Naming Callbacks
+ * \{ */
+
+const char *ED_select_pick_get_name(wmOperatorType *UNUSED(ot), PointerRNA *ptr)
+{
+  struct SelectPick_Params params = {0};
+  ED_select_pick_params_from_operator(ptr, &params);
+  switch (params.sel_op) {
+    case SEL_OP_ADD:
+      return "Select (Extend)";
+    case SEL_OP_SUB:
+      return "Select (Deselect)";
+    case SEL_OP_XOR:
+      return "Select (Toggle)";
+    case SEL_OP_AND:
+      BLI_assert_unreachable();
+      ATTR_FALLTHROUGH;
+    case SEL_OP_SET:
+      break;
+  }
+  return "Select";
+}
+
+const char *ED_select_circle_get_name(wmOperatorType *UNUSED(ot), PointerRNA *ptr)
+{
+  /* Matches options in #WM_operator_properties_select_operation_simple */
+  const eSelectOp sel_op = RNA_enum_get(ptr, "mode");
+  switch (sel_op) {
+    case SEL_OP_ADD:
+      return "Circle Select (Extend)";
+    case SEL_OP_SUB:
+      return "Circle Select (Deselect)";
+    case SEL_OP_XOR:
+      ATTR_FALLTHROUGH;
+    case SEL_OP_AND:
+      BLI_assert_unreachable();
+      ATTR_FALLTHROUGH;
+    case SEL_OP_SET:
+      break;
+  }
+  return "Circle Select";
+}
+
+/** \} */

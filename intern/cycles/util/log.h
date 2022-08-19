@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2014 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #ifndef __UTIL_LOGGING_H__
 #define __UTIL_LOGGING_H__
@@ -82,9 +69,22 @@ class LogMessageVoidify {
 #  define LOG_ASSERT(expression) LOG_SUPPRESS()
 #endif
 
-#define VLOG_ONCE(level, flag) \
-  if (!flag) \
-  flag = true, VLOG(level)
+/* Verbose logging categories. */
+
+/* Warnings. */
+#define VLOG_WARNING VLOG(1)
+/* Info about devices, scene contents and features used. */
+#define VLOG_INFO VLOG(2)
+#define VLOG_INFO_IS_ON VLOG_IS_ON(2)
+/* Work being performed and timing/memory stats about that work. */
+#define VLOG_WORK VLOG(3)
+#define VLOG_WORK_IS_ON VLOG_IS_ON(3)
+/* Detailed device timing stats. */
+#define VLOG_DEVICE_STATS VLOG(4)
+#define VLOG_DEVICE_STATS_IS_ON VLOG_IS_ON(4)
+/* Verbose debug messages. */
+#define VLOG_DEBUG VLOG(5)
+#define VLOG_DEBUG_IS_ON VLOG_IS_ON(5)
 
 struct int2;
 struct float3;

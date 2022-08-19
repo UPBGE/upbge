@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup GHOST
@@ -28,15 +12,15 @@
 #include "GHOST_DisplayManager.h"
 #include "GHOST_Debug.h"
 
-GHOST_DisplayManager::GHOST_DisplayManager(void) : m_settingsInitialized(false)
+GHOST_DisplayManager::GHOST_DisplayManager() : m_settingsInitialized(false)
 {
 }
 
-GHOST_DisplayManager::~GHOST_DisplayManager(void)
+GHOST_DisplayManager::~GHOST_DisplayManager()
 {
 }
 
-GHOST_TSuccess GHOST_DisplayManager::initialize(void)
+GHOST_TSuccess GHOST_DisplayManager::initialize()
 {
   GHOST_TSuccess success;
   if (!m_settingsInitialized) {
@@ -155,7 +139,7 @@ GHOST_TSuccess GHOST_DisplayManager::findMatch(uint8_t display,
   return success;
 }
 
-GHOST_TSuccess GHOST_DisplayManager::initializeSettings(void)
+GHOST_TSuccess GHOST_DisplayManager::initializeSettings()
 {
   uint8_t numDisplays;
   GHOST_TSuccess success = getNumDisplays(numDisplays);

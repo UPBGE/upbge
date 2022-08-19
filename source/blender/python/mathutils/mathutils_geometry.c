@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup pymathutils
@@ -172,24 +158,30 @@ static PyObject *M_Geometry_intersect_line_line(PyObject *UNUSED(self), PyObject
   PyObject *tuple;
   PyObject *py_lines[4];
   float lines[4][3], i1[3], i2[3];
-  int len;
+  int ix_vec_num;
   int result;
 
   if (!PyArg_ParseTuple(args, "OOOO:intersect_line_line", UNPACK4_EX(&, py_lines, ))) {
     return NULL;
   }
 
-  if ((((len = mathutils_array_parse(
+  if ((((ix_vec_num = mathutils_array_parse(
              lines[0], 2, 3 | MU_ARRAY_SPILL | MU_ARRAY_ZERO, py_lines[0], error_prefix)) != -1) &&
-       (mathutils_array_parse(
-            lines[1], len, len | MU_ARRAY_SPILL | MU_ARRAY_ZERO, py_lines[1], error_prefix) !=
-        -1) &&
-       (mathutils_array_parse(
-            lines[2], len, len | MU_ARRAY_SPILL | MU_ARRAY_ZERO, py_lines[2], error_prefix) !=
-        -1) &&
-       (mathutils_array_parse(
-            lines[3], len, len | MU_ARRAY_SPILL | MU_ARRAY_ZERO, py_lines[3], error_prefix) !=
-        -1)) == 0) {
+       (mathutils_array_parse(lines[1],
+                              ix_vec_num,
+                              ix_vec_num | MU_ARRAY_SPILL | MU_ARRAY_ZERO,
+                              py_lines[1],
+                              error_prefix) != -1) &&
+       (mathutils_array_parse(lines[2],
+                              ix_vec_num,
+                              ix_vec_num | MU_ARRAY_SPILL | MU_ARRAY_ZERO,
+                              py_lines[2],
+                              error_prefix) != -1) &&
+       (mathutils_array_parse(lines[3],
+                              ix_vec_num,
+                              ix_vec_num | MU_ARRAY_SPILL | MU_ARRAY_ZERO,
+                              py_lines[3],
+                              error_prefix) != -1)) == 0) {
     return NULL;
   }
 
@@ -206,8 +198,9 @@ static PyObject *M_Geometry_intersect_line_line(PyObject *UNUSED(self), PyObject
   }
 
   tuple = PyTuple_New(2);
-  PyTuple_SET_ITEMS(
-      tuple, Vector_CreatePyObject(i1, len, NULL), Vector_CreatePyObject(i2, len, NULL));
+  PyTuple_SET_ITEMS(tuple,
+                    Vector_CreatePyObject(i1, ix_vec_num, NULL),
+                    Vector_CreatePyObject(i2, ix_vec_num, NULL));
   return tuple;
 }
 
@@ -778,14 +771,14 @@ static PyObject *M_Geometry_intersect_point_line(PyObject *UNUSED(self), PyObjec
   float pt[3], pt_out[3], line_a[3], line_b[3];
   float lambda;
   PyObject *ret;
-  int size = 2;
+  int pt_num = 2;
 
   if (!PyArg_ParseTuple(args, "OOO:intersect_point_line", &py_pt, &py_line_a, &py_line_b)) {
     return NULL;
   }
 
   /* accept 2d verts */
-  if ((((size = mathutils_array_parse(
+  if ((((pt_num = mathutils_array_parse(
              pt, 2, 3 | MU_ARRAY_SPILL | MU_ARRAY_ZERO, py_pt, error_prefix)) != -1) &&
        (mathutils_array_parse(
             line_a, 2, 3 | MU_ARRAY_SPILL | MU_ARRAY_ZERO, py_line_a, error_prefix) != -1) &&
@@ -798,7 +791,7 @@ static PyObject *M_Geometry_intersect_point_line(PyObject *UNUSED(self), PyObjec
   lambda = closest_to_line_v3(pt_out, pt, line_a, line_b);
 
   ret = PyTuple_New(2);
-  PyTuple_SET_ITEMS(ret, Vector_CreatePyObject(pt_out, size, NULL), PyFloat_FromDouble(lambda));
+  PyTuple_SET_ITEMS(ret, Vector_CreatePyObject(pt_out, pt_num, NULL), PyFloat_FromDouble(lambda));
   return ret;
 }
 
@@ -1236,7 +1229,7 @@ static PyObject *M_Geometry_tessellate_polygon(PyObject *UNUSED(self), PyObject 
     polyLine = PySequence_GetItem(polyLineSeq, i);
     if (!PySequence_Check(polyLine)) {
       BKE_displist_free(&dispbase);
-      Py_XDECREF(polyLine); /* may be null so use Py_XDECREF*/
+      Py_XDECREF(polyLine); /* May be null so use #Py_XDECREF. */
       PyErr_SetString(PyExc_TypeError,
                       "One or more of the polylines is not a sequence of mathutils.Vector's");
       return NULL;

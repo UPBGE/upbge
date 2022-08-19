@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- * Adaptive time step
- * Copyright 2011 AutoCRC
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 AutoCRC (adaptive time step). */
 
 /** \file
  * \ingroup RNA
@@ -40,6 +25,7 @@
 #include "RNA_enum_types.h"
 
 #include "BKE_mesh.h"
+#include "BKE_mesh_legacy_convert.h"
 
 #include "BLI_listbase.h"
 
@@ -249,7 +235,8 @@ static void rna_ParticleHairKey_location_object_get(PointerRNA *ptr, float *valu
  *
  * Such trickery is needed to allow modification of hair keys in the original object using
  * evaluated particle and object to access proper hair matrix. */
-static int hair_key_index_get(/*const*/ HairKey *hair_key,
+static int hair_key_index_get(const Object *object,
+                              /*const*/ HairKey *hair_key,
                               /*const*/ ParticleSystemModifierData *modifier,
                               /*const*/ ParticleData *particle)
 {
@@ -261,7 +248,7 @@ static int hair_key_index_get(/*const*/ HairKey *hair_key,
   const int particle_index = particle - particle_system->particles;
 
   const ParticleSystemModifierData *original_modifier = (ParticleSystemModifierData *)
-      BKE_modifier_get_original(&modifier->modifier);
+      BKE_modifier_get_original(object, &modifier->modifier);
   const ParticleSystem *original_particle_system = original_modifier->psys;
   const ParticleData *original_particle = &original_particle_system->particles[particle_index];
 
@@ -288,7 +275,7 @@ static void hair_key_location_object_set(HairKey *hair_key,
                                                                   NULL;
 
   if (hair_mesh != NULL) {
-    const int hair_key_index = hair_key_index_get(hair_key, modifier, particle);
+    const int hair_key_index = hair_key_index_get(object, hair_key, modifier, particle);
     if (hair_key_index == -1) {
       return;
     }
@@ -368,7 +355,7 @@ static void rna_ParticleHairKey_co_object_set(ID *id,
   /* Mark particle system as edited, so then particle_system_update() does not reset the hair
    * keys from path. This behavior is similar to how particle edit mode sets flags. */
   ParticleSystemModifierData *orig_modifier = (ParticleSystemModifierData *)
-                                                  modifier->modifier.orig_modifier_data;
+      BKE_modifier_get_original(object, &modifier->modifier);
   orig_modifier->psys->flag |= PSYS_EDITED;
 
   hair_key_location_object_set(hair_key, object, modifier, particle, co);
@@ -452,8 +439,7 @@ static void rna_ParticleSystem_co_hair(
     return;
   }
 
-  if (part->ren_as == PART_DRAW_OB || part->ren_as == PART_DRAW_GR ||
-      part->ren_as == PART_DRAW_NOT) {
+  if (ELEM(part->ren_as, PART_DRAW_OB, PART_DRAW_GR, PART_DRAW_NOT)) {
     return;
   }
 
@@ -675,7 +661,7 @@ static void rna_ParticleSystem_uv_on_emitter(ParticleSystem *particlesystem,
     }
     else {
       MFace *mface = &modifier->mesh_final->mface[num];
-      MTFace *mtface = (MTFace *)CustomData_get_layer_n(
+      const MTFace *mtface = (const MTFace *)CustomData_get_layer_n(
           &modifier->mesh_final->fdata, CD_MTFACE, uv_no);
 
       psys_interpolate_uvs(&mtface[num], mface->v4, *fuv, r_uv);
@@ -691,7 +677,7 @@ static void rna_ParticleSystem_mcol_on_emitter(ParticleSystem *particlesystem,
                                                int vcol_no,
                                                float r_mcol[3])
 {
-  if (!CustomData_has_layer(&modifier->mesh_final->ldata, CD_MLOOPCOL)) {
+  if (!CustomData_has_layer(&modifier->mesh_final->ldata, CD_PROP_BYTE_COLOR)) {
     BKE_report(reports, RPT_ERROR, "Mesh has no VCol data");
     zero_v3(r_mcol);
     return;
@@ -709,7 +695,8 @@ static void rna_ParticleSystem_mcol_on_emitter(ParticleSystem *particlesystem,
     }
     else {
       MFace *mface = &modifier->mesh_final->mface[num];
-      MCol *mc = (MCol *)CustomData_get_layer_n(&modifier->mesh_final->fdata, CD_MCOL, vcol_no);
+      const MCol *mc = (const MCol *)CustomData_get_layer_n(
+          &modifier->mesh_final->fdata, CD_MCOL, vcol_no);
       MCol mcol;
 
       psys_interpolate_mcol(&mc[num * 4], mface->v4, *fuv, &mcol);
@@ -850,7 +837,7 @@ static void rna_Particle_target_reset(Main *bmain, Scene *UNUSED(scene), Pointer
     ParticleTarget *pt = (ParticleTarget *)ptr->data;
     ParticleSystem *kpsys = NULL, *psys = rna_particle_system_for_target(ob, pt);
 
-    if (pt->ob == ob || pt->ob == NULL) {
+    if (ELEM(pt->ob, ob, NULL)) {
       kpsys = BLI_findlink(&ob->particlesystem, pt->psys - 1);
 
       if (kpsys) {
@@ -1222,19 +1209,19 @@ static int rna_ParticleTarget_name_length(PointerRNA *ptr)
   return strlen(tstr);
 }
 
-static int particle_id_check(PointerRNA *ptr)
+static int particle_id_check(const PointerRNA *ptr)
 {
-  ID *id = ptr->owner_id;
+  const ID *id = ptr->owner_id;
 
   return (GS(id->name) == ID_PA);
 }
 
-static char *rna_SPHFluidSettings_path(PointerRNA *ptr)
+static char *rna_SPHFluidSettings_path(const PointerRNA *ptr)
 {
-  SPHFluidSettings *fluid = (SPHFluidSettings *)ptr->data;
+  const SPHFluidSettings *fluid = (SPHFluidSettings *)ptr->data;
 
   if (particle_id_check(ptr)) {
-    ParticleSettings *part = (ParticleSettings *)ptr->owner_id;
+    const ParticleSettings *part = (ParticleSettings *)ptr->owner_id;
 
     if (part->fluid == fluid) {
       return BLI_strdup("fluid");
@@ -1348,7 +1335,7 @@ static const EnumPropertyItem *rna_Particle_type_itemf(bContext *UNUSED(C),
 {
   ParticleSettings *part = (ParticleSettings *)ptr->owner_id;
 
-  if (part->type == PART_HAIR || part->type == PART_EMITTER) {
+  if (ELEM(part->type, PART_HAIR, PART_EMITTER)) {
     return part_type_items;
   }
   else {
@@ -1477,9 +1464,9 @@ static void psys_vg_name_set__internal(PointerRNA *ptr, const char *value, int i
   }
 }
 
-static char *rna_ParticleSystem_path(PointerRNA *ptr)
+static char *rna_ParticleSystem_path(const PointerRNA *ptr)
 {
-  ParticleSystem *psys = (ParticleSystem *)ptr->data;
+  const ParticleSystem *psys = (ParticleSystem *)ptr->data;
   char name_esc[sizeof(psys->name) * 2];
 
   BLI_str_escape(name_esc, psys->name, sizeof(name_esc));
@@ -3154,15 +3141,19 @@ static void rna_def_particle_settings(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_Particle_redo");
 
   /* children */
+
+  /* NOTE(@campbellbarton): name is not following conventions: `nbr`.
+   * Could be changed next major version. */
   prop = RNA_def_property(srna, "child_nbr", PROP_INT, PROP_NONE);
-  RNA_def_property_int_sdna(prop, NULL, "child_nbr"); /* Optional if prop names are the same. */
+  RNA_def_property_int_sdna(
+      prop, NULL, "child_percent"); /* Optional if prop names are the same. */
   RNA_def_property_range(prop, 0, 100000);
   RNA_def_property_ui_range(prop, 0, 1000, 1, -1);
   RNA_def_property_ui_text(prop, "Children Per Parent", "Number of children per parent");
   RNA_def_property_update(prop, 0, "rna_Particle_redo_child");
 
   prop = RNA_def_property(srna, "rendered_child_count", PROP_INT, PROP_NONE);
-  RNA_def_property_int_sdna(prop, NULL, "ren_child_nbr");
+  RNA_def_property_int_sdna(prop, NULL, "child_render_percent");
   RNA_def_property_range(prop, 0, 100000);
   RNA_def_property_ui_range(prop, 0, 10000, 1, -1);
   RNA_def_property_ui_text(
@@ -3498,6 +3489,7 @@ static void rna_def_particle_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "effector_weights", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "EffectorWeights");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Effector Weights", "");
 
   /* animation here? */
@@ -3507,12 +3499,14 @@ static void rna_def_particle_settings(BlenderRNA *brna)
   RNA_def_property_pointer_sdna(prop, NULL, "pd");
   RNA_def_property_struct_type(prop, "FieldSettings");
   RNA_def_property_pointer_funcs(prop, "rna_Particle_field1_get", NULL, NULL, NULL);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Force Field 1", "");
 
   prop = RNA_def_property(srna, "force_field_2", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, NULL, "pd2");
   RNA_def_property_struct_type(prop, "FieldSettings");
   RNA_def_property_pointer_funcs(prop, "rna_Particle_field2_get", NULL, NULL, NULL);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Force Field 2", "");
 
   /* twist */

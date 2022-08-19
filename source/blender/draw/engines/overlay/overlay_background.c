@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2020, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2020 Blender Foundation. */
 
 /** \file
  * \ingroup draw_engine
@@ -26,13 +11,6 @@
 
 #include "draw_manager_text.h"
 #include "overlay_private.h"
-
-#define BG_SOLID 0
-#define BG_GRADIENT 1
-#define BG_CHECKER 2
-#define BG_RADIAL 3
-#define BG_SOLID_CHECKER 4
-#define BG_MASK 5
 
 void OVERLAY_background_cache_init(OVERLAY_Data *vedata)
 {
@@ -111,7 +89,7 @@ void OVERLAY_background_cache_init(OVERLAY_Data *vedata)
 
     GPUShader *sh = OVERLAY_shader_clipbound();
     DRWShadingGroup *grp = DRW_shgroup_create(sh, psl->clipping_frustum_ps);
-    DRW_shgroup_uniform_vec4_copy(grp, "color", G_draw.block.colorClippingBorder);
+    DRW_shgroup_uniform_vec4_copy(grp, "color", G_draw.block.color_clipping_border);
     DRW_shgroup_uniform_vec3(grp, "boundbox", &bb->vec[0][0], 8);
 
     struct GPUBatch *cube = DRW_cache_cube_get();

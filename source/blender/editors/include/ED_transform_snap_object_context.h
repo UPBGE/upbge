@@ -1,24 +1,12 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup editors
  */
 
 #pragma once
+
+#include "DNA_scene_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,19 +23,11 @@ struct Object;
 struct Scene;
 struct View3D;
 
-/* transform_snap_object.c */
+/* transform_snap_object.cc */
 
 /* ED_transform_snap_object_*** API */
 
-typedef enum {
-  SNAP_ALL = 0,
-  SNAP_NOT_SELECTED = 1,
-  SNAP_NOT_ACTIVE = 2,
-  SNAP_ONLY_ACTIVE = 3,
-  SNAP_SELECTABLE = 4,
-} eSnapSelect;
-
-typedef enum {
+typedef enum eSnapEditType {
   SNAP_GEOM_FINAL = 0,
   SNAP_GEOM_CAGE = 1,
   SNAP_GEOM_EDIT = 2, /* Bmesh for mesh-type. */
@@ -73,13 +53,17 @@ struct SnapObjectHitDepth {
 /** parameters that define which objects will be used to snap. */
 struct SnapObjectParams {
   /* Special context sensitive handling for the active or selected object. */
-  char snap_select;
+  eSnapTargetSelect snap_target_select;
   /* Geometry for snapping in edit mode. */
-  char edit_mode_type;
+  eSnapEditType edit_mode_type;
   /* snap to the closest element, use when using more than one snap type */
-  unsigned int use_occlusion_test : 1;
+  bool use_occlusion_test : 1;
   /* exclude back facing geometry from snapping */
-  unsigned int use_backface_culling : 1;
+  bool use_backface_culling : 1;
+  /* Break nearest face snapping into steps to improve transformations across U-shaped targets. */
+  short face_nearest_steps;
+  /* Enable to force nearest face snapping to snap to target the source was initially near. */
+  bool keep_on_same_target : 1;
 };
 
 typedef struct SnapObjectContext SnapObjectContext;
@@ -117,6 +101,13 @@ bool ED_transform_snap_object_project_ray(SnapObjectContext *sctx,
                                           float r_co[3],
                                           float r_no[3]);
 
+/**
+ * Fill in a list of all hits.
+ *
+ * \param ray_depth: Only depths in this range are considered, -1.0 for maximum.
+ * \param sort: Optionally sort the hits by depth.
+ * \param r_hit_list: List of #SnapObjectHitDepth (caller must free).
+ */
 bool ED_transform_snap_object_project_ray_all(SnapObjectContext *sctx,
                                               struct Depsgraph *depsgraph,
                                               const View3D *v3d,
@@ -127,34 +118,75 @@ bool ED_transform_snap_object_project_ray_all(SnapObjectContext *sctx,
                                               bool sort,
                                               struct ListBase *r_hit_list);
 
-short ED_transform_snap_object_project_view3d_ex(struct SnapObjectContext *sctx,
-                                                 struct Depsgraph *depsgraph,
-                                                 const ARegion *region,
-                                                 const View3D *v3d,
-                                                 const unsigned short snap_to,
-                                                 const struct SnapObjectParams *params,
-                                                 const float mval[2],
-                                                 const float prev_co[3],
-                                                 float *dist_px,
-                                                 float r_loc[3],
-                                                 float r_no[3],
-                                                 int *r_index,
-                                                 struct Object **r_ob,
-                                                 float r_obmat[4][4],
-                                                 float r_face_nor[3]);
-short ED_transform_snap_object_project_view3d(struct SnapObjectContext *sctx,
-                                              struct Depsgraph *depsgraph,
-                                              const ARegion *region,
-                                              const View3D *v3d,
-                                              const unsigned short snap_to,
-                                              const struct SnapObjectParams *params,
-                                              const float mval[2],
-                                              const float prev_co[3],
-                                              float *dist_px,
-                                              /* return args */
-                                              float r_loc[3],
-                                              float r_no[3]);
+/**
+ * Perform snapping.
+ *
+ * Given a 2D region value, snap to vert/edge/face/grid.
+ *
+ * \param sctx: Snap context.
+ * \param snap_to: Target elements to snap source to.
+ * \param params: Addition snapping options.
+ * \param init_co: Initial world-space coordinate of source (optional).
+ * \param mval: Current transformed screen-space coordinate or mouse position (optional).
+ * \param prev_co: Current transformed world-space coordinate of source (optional).
+ * \param dist_px: Maximum distance to snap (in pixels).
+ * \param r_loc: Snapped world-space coordinate.
+ * \param r_no: Snapped world-space normal (optional).
+ * \param r_index: Index of snapped-to target element (optional).
+ * \param r_ob: Snapped-to target object (optional).
+ * \param r_obmat: Matrix of snapped-to target object (optional).
+ * \param r_face_nor: World-space normal of snapped-to target face (optional).
+ * \return Snapped-to element, #eSnapMode.
+ */
+eSnapMode ED_transform_snap_object_project_view3d_ex(struct SnapObjectContext *sctx,
+                                                     struct Depsgraph *depsgraph,
+                                                     const ARegion *region,
+                                                     const View3D *v3d,
+                                                     const eSnapMode snap_to,
+                                                     const struct SnapObjectParams *params,
+                                                     const float init_co[3],
+                                                     const float mval[2],
+                                                     const float prev_co[3],
+                                                     float *dist_px,
+                                                     float r_loc[3],
+                                                     float r_no[3],
+                                                     int *r_index,
+                                                     struct Object **r_ob,
+                                                     float r_obmat[4][4],
+                                                     float r_face_nor[3]);
+/**
+ * Convenience function for performing snapping.
+ *
+ * Given a 2D region value, snap to vert/edge/face.
+ *
+ * \param sctx: Snap context.
+ * \param snap_to: Target elements to snap source to.
+ * \param params: Addition snapping options.
+ * \param init_co: Initial world-space coordinate of source (optional).
+ * \param mval: Current transformed screen-space coordinate or mouse position (optional).
+ * \param prev_co: Current transformed world-space coordinate of source (optional).
+ * \param dist_px: Maximum distance to snap (in pixels).
+ * \param r_loc: Snapped world-space coordinate.
+ * \param r_no: Snapped world-space normal (optional).
+ * \return Snapped-to element, #eSnapMode.
+ */
+eSnapMode ED_transform_snap_object_project_view3d(struct SnapObjectContext *sctx,
+                                                  struct Depsgraph *depsgraph,
+                                                  const ARegion *region,
+                                                  const View3D *v3d,
+                                                  const eSnapMode snap_to,
+                                                  const struct SnapObjectParams *params,
+                                                  const float init_co[3],
+                                                  const float mval[2],
+                                                  const float prev_co[3],
+                                                  float *dist_px,
+                                                  /* return args */
+                                                  float r_loc[3],
+                                                  float r_no[3]);
 
+/**
+ * see: #ED_transform_snap_object_project_ray_all
+ */
 bool ED_transform_snap_object_project_all_view3d_ex(SnapObjectContext *sctx,
                                                     struct Depsgraph *depsgraph,
                                                     const ARegion *region,

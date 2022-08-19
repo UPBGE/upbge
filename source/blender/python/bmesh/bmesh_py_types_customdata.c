@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2012 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2012 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup pybmesh
@@ -106,7 +90,7 @@ PyDoc_STRVAR(
 PyDoc_STRVAR(bpy_bmlayeraccess_collection__bevel_weight_doc,
              "Bevel weight float in [0 - 1].\n\n:type: :class:`BMLayerCollection`");
 PyDoc_STRVAR(bpy_bmlayeraccess_collection__crease_doc,
-             "Edge crease for subdivision surface - float in [0 - 1].\n\n:type: "
+             "Crease for subdivision surface - float in [0 - 1].\n\n:type: "
              ":class:`BMLayerCollection`");
 PyDoc_STRVAR(
     bpy_bmlayeraccess_collection__uv_doc,
@@ -209,7 +193,7 @@ static PyGetSetDef bpy_bmlayeraccess_vert_getseters[] = {
      (getter)bpy_bmlayeraccess_collection_get,
      (setter)NULL,
      bpy_bmlayeraccess_collection__color_doc,
-     (void *)CD_MLOOPCOL},
+     (void *)CD_PROP_BYTE_COLOR},
     {"string",
      (getter)bpy_bmlayeraccess_collection_get,
      (setter)NULL,
@@ -226,6 +210,11 @@ static PyGetSetDef bpy_bmlayeraccess_vert_getseters[] = {
      (setter)NULL,
      bpy_bmlayeraccess_collection__bevel_weight_doc,
      (void *)CD_BWEIGHT},
+    {"crease",
+     (getter)bpy_bmlayeraccess_collection_get,
+     (setter)NULL,
+     bpy_bmlayeraccess_collection__crease_doc,
+     (void *)CD_CREASE},
     {"skin",
      (getter)bpy_bmlayeraccess_collection_get,
      (setter)NULL,
@@ -265,7 +254,7 @@ static PyGetSetDef bpy_bmlayeraccess_edge_getseters[] = {
      (getter)bpy_bmlayeraccess_collection_get,
      (setter)NULL,
      bpy_bmlayeraccess_collection__color_doc,
-     (void *)CD_MLOOPCOL},
+     (void *)CD_PROP_BYTE_COLOR},
     {"string",
      (getter)bpy_bmlayeraccess_collection_get,
      (setter)NULL,
@@ -318,7 +307,7 @@ static PyGetSetDef bpy_bmlayeraccess_face_getseters[] = {
      (getter)bpy_bmlayeraccess_collection_get,
      (setter)NULL,
      bpy_bmlayeraccess_collection__color_doc,
-     (void *)CD_MLOOPCOL},
+     (void *)CD_PROP_BYTE_COLOR},
     {"string",
      (getter)bpy_bmlayeraccess_collection_get,
      (setter)NULL,
@@ -376,7 +365,7 @@ static PyGetSetDef bpy_bmlayeraccess_loop_getseters[] = {
      (getter)bpy_bmlayeraccess_collection_get,
      (setter)NULL,
      bpy_bmlayeraccess_collection__color_doc,
-     (void *)CD_MLOOPCOL},
+     (void *)CD_PROP_BYTE_COLOR},
 
     {NULL, NULL, NULL, NULL, NULL} /* Sentinel */
 };
@@ -1104,13 +1093,6 @@ static void *bpy_bmlayeritem_ptr_get(BPy_BMElem *py_ele, BPy_BMLayerItem *py_lay
   return value;
 }
 
-/**
- *\brief BMElem.__getitem__()
- *
- * assume all error checks are done, eg:
- *
- *     uv = vert[uv_layer]
- */
 PyObject *BPy_BMLayerItem_GetItem(BPy_BMElem *py_ele, BPy_BMLayerItem *py_layer)
 {
   void *value = bpy_bmlayeritem_ptr_get(py_ele, py_layer);
@@ -1152,7 +1134,7 @@ PyObject *BPy_BMLayerItem_GetItem(BPy_BMElem *py_ele, BPy_BMLayerItem *py_layer)
       ret = BPy_BMLoopUV_CreatePyObject(value);
       break;
     }
-    case CD_MLOOPCOL: {
+    case CD_PROP_BYTE_COLOR: {
       ret = BPy_BMLoopColor_CreatePyObject(value);
       break;
     }
@@ -1254,7 +1236,7 @@ int BPy_BMLayerItem_SetItem(BPy_BMElem *py_ele, BPy_BMLayerItem *py_layer, PyObj
       ret = BPy_BMLoopUV_AssignPyObject(value, py_value);
       break;
     }
-    case CD_MLOOPCOL: {
+    case CD_PROP_BYTE_COLOR: {
       ret = BPy_BMLoopColor_AssignPyObject(value, py_value);
       break;
     }

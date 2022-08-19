@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2013 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2013 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup depsgraph
@@ -25,12 +9,13 @@
 
 #include "intern/node/deg_node_id.h"
 
+#include <iostream>
+
 #include "DNA_ID.h"
 #include "DNA_object_types.h"
 #include "DNA_rigidbody_types.h"
 
-namespace blender {
-namespace deg {
+namespace blender::deg {
 
 template<typename KeyType>
 OperationNode *DepsgraphRelationBuilder::find_operation_node(const KeyType &key)
@@ -49,37 +34,30 @@ Relation *DepsgraphRelationBuilder::add_relation(const KeyFrom &key_from,
   Node *node_to = get_node(key_to);
   OperationNode *op_from = node_from ? node_from->get_exit_operation() : nullptr;
   OperationNode *op_to = node_to ? node_to->get_entry_operation() : nullptr;
+
   if (op_from && op_to) {
     return add_operation_relation(op_from, op_to, description, flags);
   }
-  else {
-    if (!op_from) {
-      /* XXX TODO: handle as error or report if needed. */
-      fprintf(stderr,
-              "add_relation(%s) - Could not find op_from (%s)\n",
-              description,
-              key_from.identifier().c_str());
-    }
-    else {
-      fprintf(stderr,
-              "add_relation(%s) - Failed, but op_from (%s) was ok\n",
-              description,
-              key_from.identifier().c_str());
-    }
-    if (!op_to) {
-      /* XXX TODO: handle as error or report if needed. */
-      fprintf(stderr,
-              "add_relation(%s) - Could not find op_to (%s)\n",
-              description,
-              key_to.identifier().c_str());
-    }
-    else {
-      fprintf(stderr,
-              "add_relation(%s) - Failed, but op_to (%s) was ok\n",
-              description,
-              key_to.identifier().c_str());
-    }
+
+  /* TODO(sergey): Report error in the interface. */
+
+  std::cerr << "--------------------------------------------------------------------\n";
+  std::cerr << "Failed to add relation \"" << description << "\"\n";
+
+  if (!op_from) {
+    std::cerr << "Could not find op_from: " << key_from.identifier() << "\n";
   }
+
+  if (!op_to) {
+    std::cerr << "Could not find op_to: " << key_to.identifier() << "\n";
+  }
+
+  if (!stack_.is_empty()) {
+    std::cerr << "\nTrace:\n\n";
+    stack_.print_backtrace(std::cerr);
+    std::cerr << "\n";
+  }
+
   return nullptr;
 }
 
@@ -230,5 +208,4 @@ bool DepsgraphRelationBuilder::is_same_nodetree_node_dependency(const KeyFrom &k
   return true;
 }
 
-}  // namespace deg
-}  // namespace blender
+}  // namespace blender::deg

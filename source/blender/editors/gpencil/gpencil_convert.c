@@ -1,25 +1,9 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2008, Blender Foundation
- * This is a new part of Blender
- * Operator for converting Grease Pencil data to geometry
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2008 Blender Foundation. */
 
 /** \file
  * \ingroup edgpencil
+ * Operator for converting Grease Pencil data to geometry.
  */
 
 #include <math.h>
@@ -223,7 +207,7 @@ typedef struct tGpTimingData {
   int seed;
 
   /* Data set from points, used to compute final timing FCurve */
-  int num_points, cur_point;
+  int points_num, cur_point;
 
   /* Distances */
   float *dists;
@@ -245,29 +229,29 @@ typedef struct tGpTimingData {
 /* Init point buffers for timing data.
  * Note this assumes we only grow those arrays!
  */
-static void gpencil_timing_data_set_nbr(tGpTimingData *gtd, const int nbr)
+static void gpencil_timing_data_set_num(tGpTimingData *gtd, const int num)
 {
   float *tmp;
 
-  BLI_assert(nbr > gtd->num_points);
+  BLI_assert(num > gtd->points_num);
 
   /* distances */
   tmp = gtd->dists;
-  gtd->dists = MEM_callocN(sizeof(float) * nbr, __func__);
+  gtd->dists = MEM_callocN(sizeof(float) * num, __func__);
   if (tmp) {
-    memcpy(gtd->dists, tmp, sizeof(float) * gtd->num_points);
+    memcpy(gtd->dists, tmp, sizeof(float) * gtd->points_num);
     MEM_freeN(tmp);
   }
 
   /* times */
   tmp = gtd->times;
-  gtd->times = MEM_callocN(sizeof(float) * nbr, __func__);
+  gtd->times = MEM_callocN(sizeof(float) * num, __func__);
   if (tmp) {
-    memcpy(gtd->times, tmp, sizeof(float) * gtd->num_points);
+    memcpy(gtd->times, tmp, sizeof(float) * gtd->points_num);
     MEM_freeN(tmp);
   }
 
-  gtd->num_points = nbr;
+  gtd->points_num = num;
 }
 
 /* add stroke point to timing buffers */
@@ -313,15 +297,15 @@ static void gpencil_timing_data_add_point(tGpTimingData *gtd,
 static int gpencil_find_end_of_stroke_idx(tGpTimingData *gtd,
                                           RNG *rng,
                                           const int idx,
-                                          const int nbr_gaps,
-                                          int *nbr_done_gaps,
+                                          const int gaps_count,
+                                          int *gaps_done_count,
                                           const float tot_gaps_time,
                                           const float delta_time,
                                           float *next_delta_time)
 {
   int j;
 
-  for (j = idx + 1; j < gtd->num_points; j++) {
+  for (j = idx + 1; j < gtd->points_num; j++) {
     if (gtd->times[j] < 0) {
       gtd->times[j] = -gtd->times[j];
       if (gtd->mode == GP_STROKECONVERT_TIMING_CUSTOMGAP) {
@@ -332,7 +316,7 @@ static int gpencil_find_end_of_stroke_idx(tGpTimingData *gtd,
           /* We want gaps that are in gtd->gap_duration +/- gtd->gap_randomness range,
            * and which sum to exactly tot_gaps_time...
            */
-          int rem_gaps = nbr_gaps - (*nbr_done_gaps);
+          int rem_gaps = gaps_count - (*gaps_done_count);
           if (rem_gaps < 2) {
             /* Last gap, just give remaining time! */
             *next_delta_time = tot_gaps_time;
@@ -343,7 +327,7 @@ static int gpencil_find_end_of_stroke_idx(tGpTimingData *gtd,
             /* This code ensures that if the first gaps
              * have been shorter than average gap_duration, next gaps
              * will tend to be longer (i.e. try to recover the lateness), and vice-versa! */
-            delta = delta_time - (gtd->gap_duration * (*nbr_done_gaps));
+            delta = delta_time - (gtd->gap_duration * (*gaps_done_count));
 
             /* Clamp min between [-gap_randomness, 0.0], with lower delta giving higher min */
             min = -gtd->gap_randomness - delta;
@@ -359,7 +343,7 @@ static int gpencil_find_end_of_stroke_idx(tGpTimingData *gtd,
           *next_delta_time += gtd->gap_duration;
         }
       }
-      (*nbr_done_gaps)++;
+      (*gaps_done_count)++;
       break;
     }
   }
@@ -369,14 +353,14 @@ static int gpencil_find_end_of_stroke_idx(tGpTimingData *gtd,
 
 static void gpencil_stroke_path_animation_preprocess_gaps(tGpTimingData *gtd,
                                                           RNG *rng,
-                                                          int *nbr_gaps,
+                                                          int *gaps_count,
                                                           float *r_tot_gaps_time)
 {
   float delta_time = 0.0f;
 
-  for (int i = 0; i < gtd->num_points; i++) {
+  for (int i = 0; i < gtd->points_num; i++) {
     if (gtd->times[i] < 0 && i) {
-      (*nbr_gaps)++;
+      (*gaps_count)++;
       gtd->times[i] = -gtd->times[i] - delta_time;
       delta_time += gtd->times[i] - gtd->times[i - 1];
       gtd->times[i] = -gtd->times[i - 1]; /* Temp marker, values *have* to be different! */
@@ -387,7 +371,7 @@ static void gpencil_stroke_path_animation_preprocess_gaps(tGpTimingData *gtd,
   }
   gtd->tot_time -= delta_time;
 
-  *r_tot_gaps_time = (float)(*nbr_gaps) * gtd->gap_duration;
+  *r_tot_gaps_time = (float)(*gaps_count) * gtd->gap_duration;
   gtd->tot_time += *r_tot_gaps_time;
   if (gtd->gap_randomness > 0.0f) {
     BLI_rng_srandom(rng, gtd->seed);
@@ -403,7 +387,7 @@ static void gpencil_stroke_path_animation_add_keyframes(ReportList *reports,
                                                         tGpTimingData *gtd,
                                                         RNG *rng,
                                                         const float time_range,
-                                                        const int nbr_gaps,
+                                                        const int gaps_count,
                                                         const float tot_gaps_time)
 {
   /* Use actual recorded timing! */
@@ -415,20 +399,20 @@ static void gpencil_stroke_path_animation_add_keyframes(ReportList *reports,
 
   /* CustomGaps specific */
   float delta_time = 0.0f, next_delta_time = 0.0f;
-  int nbr_done_gaps = 0;
+  int gaps_done_count = 0;
 
   /* This is a bit tricky, as:
    * - We can't add arbitrarily close points on FCurve (in time).
    * - We *must* have all "caps" points of all strokes in FCurve, as much as possible!
    */
-  for (int i = 0; i < gtd->num_points; i++) {
+  for (int i = 0; i < gtd->points_num; i++) {
     /* If new stroke... */
     if (i > end_stroke_idx) {
       start_stroke_idx = i;
       delta_time = next_delta_time;
       /* find end of that new stroke */
       end_stroke_idx = gpencil_find_end_of_stroke_idx(
-          gtd, rng, i, nbr_gaps, &nbr_done_gaps, tot_gaps_time, delta_time, &next_delta_time);
+          gtd, rng, i, gaps_count, &gaps_done_count, tot_gaps_time, delta_time, &next_delta_time);
       /* This one should *never* be negative! */
       end_stroke_time = time_start +
                         ((gtd->times[end_stroke_idx] + delta_time) / gtd->tot_time * time_range);
@@ -518,7 +502,7 @@ static void gpencil_stroke_path_animation(bContext *C,
   FCurve *fcu;
   PointerRNA ptr;
   PropertyRNA *prop = NULL;
-  int nbr_gaps = 0;
+  int gaps_count = 0;
 
   if (gtd->mode == GP_STROKECONVERT_TIMING_NONE) {
     return;
@@ -587,7 +571,7 @@ static void gpencil_stroke_path_animation(bContext *C,
 
     /* Pre-process gaps, in case we don't want to keep their original timing */
     if (gtd->mode == GP_STROKECONVERT_TIMING_CUSTOMGAP) {
-      gpencil_stroke_path_animation_preprocess_gaps(gtd, rng, &nbr_gaps, &tot_gaps_time);
+      gpencil_stroke_path_animation_preprocess_gaps(gtd, rng, &gaps_count, &tot_gaps_time);
     }
 
     if (gtd->realtime) {
@@ -598,13 +582,13 @@ static void gpencil_stroke_path_animation(bContext *C,
     }
 
     gpencil_stroke_path_animation_add_keyframes(
-        reports, ptr, prop, depsgraph, fcu, cu, gtd, rng, time_range, nbr_gaps, tot_gaps_time);
+        reports, ptr, prop, depsgraph, fcu, cu, gtd, rng, time_range, gaps_count, tot_gaps_time);
 
     BLI_rng_free(rng);
   }
 
   /* As we used INSERTKEY_FAST mode, we need to recompute all curve's handles now */
-  calchandles_fcurve(fcu);
+  BKE_fcurve_handles_recalc(fcu);
 
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
 
@@ -700,7 +684,7 @@ static void gpencil_stroke_to_path(bContext *C,
   }
 
   if (do_gtd) {
-    gpencil_timing_data_set_nbr(gtd, nu->pntsu);
+    gpencil_timing_data_set_num(gtd, nu->pntsu);
   }
 
   /* If needed, make the link between both strokes with two zero-radius additional points */
@@ -945,7 +929,7 @@ static void gpencil_stroke_to_bezier(bContext *C,
   }
 
   if (do_gtd) {
-    gpencil_timing_data_set_nbr(gtd, nu->pntsu);
+    gpencil_timing_data_set_num(gtd, nu->pntsu);
   }
 
   tot = gps->totpoints;
@@ -1120,7 +1104,7 @@ static void gpencil_stroke_to_bezier(bContext *C,
                                        rad_fac,
                                        minmax_weights);
 
-    /* shift coord vects */
+    /* Shift coord vectors. */
     copy_v3_v3(p3d_prev, p3d_cur);
     copy_v3_v3(p3d_cur, p3d_next);
 
@@ -1287,7 +1271,7 @@ static void gpencil_layer_to_curve(bContext *C,
   Collection *collection = CTX_data_collection(C);
   Scene *scene = CTX_data_scene(C);
 
-  bGPDframe *gpf = BKE_gpencil_layer_frame_get(gpl, CFRA, GP_GETFRAME_USE_PREV);
+  bGPDframe *gpf = BKE_gpencil_layer_frame_get(gpl, scene->r.cfra, GP_GETFRAME_USE_PREV);
   bGPDstroke *prev_gps = NULL;
   Object *ob;
   Curve *cu;
@@ -1316,15 +1300,15 @@ static void gpencil_layer_to_curve(bContext *C,
   /* init the curve object (remove rotation and get curve data from it)
    * - must clear transforms set on object, as those skew our results
    */
-  ob = BKE_object_add_only_object(bmain, OB_CURVE, gpl->info);
-  cu = ob->data = BKE_curve_add(bmain, gpl->info, OB_CURVE);
+  ob = BKE_object_add_only_object(bmain, OB_CURVES_LEGACY, gpl->info);
+  cu = ob->data = BKE_curve_add(bmain, gpl->info, OB_CURVES_LEGACY);
   BKE_collection_object_add(bmain, collection, ob);
   base_new = BKE_view_layer_base_find(view_layer, ob);
   DEG_relations_tag_update(bmain); /* added object */
 
   cu->flag |= CU_3D;
   cu->bevresol = gtd->bevel_resolution;
-  cu->ext2 = gtd->bevel_depth;
+  cu->bevel_radius = gtd->bevel_depth;
 
   gtd->inittime = ((bGPDstroke *)gpf->strokes.first)->inittime;
 
@@ -1430,7 +1414,7 @@ static bool gpencil_convert_check_has_valid_timing(bContext *C, bGPDlayer *gpl, 
   int i;
   bool valid = true;
 
-  if (!gpl || !(gpf = BKE_gpencil_layer_frame_get(gpl, CFRA, GP_GETFRAME_USE_PREV)) ||
+  if (!gpl || !(gpf = BKE_gpencil_layer_frame_get(gpl, scene->r.cfra, GP_GETFRAME_USE_PREV)) ||
       !(gps = gpf->strokes.first)) {
     return false;
   }
@@ -1497,7 +1481,7 @@ static bool gpencil_convert_poll(bContext *C)
    * and if we are not in edit mode!
    */
   return ((area && area->spacetype == SPACE_VIEW3D) && (gpl = BKE_gpencil_layer_active_get(gpd)) &&
-          (gpf = BKE_gpencil_layer_frame_get(gpl, CFRA, GP_GETFRAME_USE_PREV)) &&
+          (gpf = BKE_gpencil_layer_frame_get(gpl, scene->r.cfra, GP_GETFRAME_USE_PREV)) &&
           (gpf->strokes.first) && (!GPENCIL_ANY_EDIT_MODE(gpd)));
 }
 
@@ -1552,7 +1536,7 @@ static int gpencil_convert_layer_exec(bContext *C, wmOperator *op)
   gtd.gap_randomness = RNA_float_get(op->ptr, "gap_randomness");
   gtd.gap_randomness = min_ff(gtd.gap_randomness, gtd.gap_duration);
   gtd.seed = RNA_int_get(op->ptr, "seed");
-  gtd.num_points = gtd.cur_point = 0;
+  gtd.points_num = gtd.cur_point = 0;
   gtd.dists = gtd.times = NULL;
   gtd.tot_dist = gtd.tot_time = gtd.gap_tot_time = 0.0f;
   gtd.inittime = 0.0;
@@ -1827,14 +1811,14 @@ static int image_to_gpencil_exec(bContext *C, wmOperator *op)
   /* Add layer and frame. */
   bGPdata *gpd = (bGPdata *)ob->data;
   bGPDlayer *gpl = BKE_gpencil_layer_addnew(gpd, "Image Layer", true, false);
-  bGPDframe *gpf = BKE_gpencil_frame_addnew(gpl, CFRA);
+  bGPDframe *gpf = BKE_gpencil_frame_addnew(gpl, scene->r.cfra);
   done = BKE_gpencil_from_image(sima, gpd, gpf, size, is_mask);
 
   if (done) {
     /* Delete any selected point. */
     LISTBASE_FOREACH_MUTABLE (bGPDstroke *, gps, &gpf->strokes) {
       BKE_gpencil_stroke_delete_tagged_points(
-          gpd, gpf, gps, gps->next, GP_SPOINT_SELECT, false, 0);
+          gpd, gpf, gps, gps->next, GP_SPOINT_SELECT, false, false, 0);
     }
 
     BKE_reportf(op->reports, RPT_INFO, "Object created");

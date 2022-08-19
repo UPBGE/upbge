@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2015 by Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2015 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup imbuf
@@ -27,23 +11,16 @@
 #include "BLI_math_vector.h"
 #include "IMB_colormanagement_intern.h"
 
-/* Convert a float RGB triplet to the correct luminance weighted average.
- *
- * Grayscale, or Luma is a distillation of RGB data values down to a weighted average
- * based on the luminance positions of the red, green, and blue primaries.
- * Given that the internal reference space may be arbitrarily set, any
- * effort to glean the luminance coefficients must be aware of the reference
- * space primaries.
- *
- * See http://wiki.blender.org/index.php/User:Nazg-gul/ColorManagement#Luminance
- */
+void IMB_colormanagement_get_luminance_coefficients(float r_rgb[3])
+{
+  copy_v3_v3(r_rgb, imbuf_luma_coefficients);
+}
 
 float IMB_colormanagement_get_luminance(const float rgb[3])
 {
   return dot_v3v3(imbuf_luma_coefficients, rgb);
 }
 
-/* Byte equivalent of IMB_colormanagement_get_luminance(). */
 unsigned char IMB_colormanagement_get_luminance_byte(const unsigned char rgb[3])
 {
   float rgbf[3];
@@ -55,14 +32,46 @@ unsigned char IMB_colormanagement_get_luminance_byte(const unsigned char rgb[3])
   return unit_float_to_uchar_clamp(val);
 }
 
-void IMB_colormanagement_xyz_to_rgb(float rgb[3], const float xyz[3])
+void IMB_colormanagement_xyz_to_scene_linear(float scene_linear[3], const float xyz[3])
 {
-  mul_v3_m3v3(rgb, imbuf_xyz_to_rgb, xyz);
+  mul_v3_m3v3(scene_linear, imbuf_xyz_to_scene_linear, xyz);
 }
 
-void IMB_colormanagement_rgb_to_xyz(float xyz[3], const float rgb[3])
+void IMB_colormanagement_scene_linear_to_xyz(float xyz[3], const float scene_linear[3])
 {
-  mul_v3_m3v3(xyz, imbuf_rgb_to_xyz, rgb);
+  mul_v3_m3v3(xyz, imbuf_scene_linear_to_xyz, scene_linear);
+}
+
+void IMB_colormanagement_rec709_to_scene_linear(float scene_linear[3], const float rec709[3])
+{
+  mul_v3_m3v3(scene_linear, imbuf_rec709_to_scene_linear, rec709);
+}
+
+void IMB_colormanagement_scene_linear_to_rec709(float rec709[3], const float scene_linear[3])
+{
+  mul_v3_m3v3(rec709, imbuf_scene_linear_to_rec709, scene_linear);
+}
+
+void IMB_colormanagement_scene_linear_to_srgb_v3(float srgb[3], const float scene_linear[3])
+{
+  mul_v3_m3v3(srgb, imbuf_scene_linear_to_rec709, scene_linear);
+  linearrgb_to_srgb_v3_v3(srgb, srgb);
+}
+
+void IMB_colormanagement_srgb_to_scene_linear_v3(float scene_linear[3], const float srgb[3])
+{
+  srgb_to_linearrgb_v3_v3(scene_linear, srgb);
+  mul_m3_v3(imbuf_rec709_to_scene_linear, scene_linear);
+}
+
+void IMB_colormanagement_aces_to_scene_linear(float scene_linear[3], const float aces[3])
+{
+  mul_v3_m3v3(scene_linear, imbuf_aces_to_scene_linear, aces);
+}
+
+void IMB_colormanagement_scene_linear_to_aces(float aces[3], const float scene_linear[3])
+{
+  mul_v3_m3v3(aces, imbuf_scene_linear_to_aces, scene_linear);
 }
 
 #endif /* __IMB_COLORMANAGEMENT_INLINE_H__ */

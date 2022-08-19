@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edtransform
@@ -45,13 +29,13 @@
  *
  * \{ */
 
-void createTransTexspace(TransInfo *t)
+static void createTransTexspace(bContext *UNUSED(C), TransInfo *t)
 {
   ViewLayer *view_layer = t->view_layer;
   TransData *td;
   Object *ob;
   ID *id;
-  short *texflag;
+  char *texflag;
 
   ob = OBACT(view_layer);
 
@@ -60,7 +44,7 @@ void createTransTexspace(TransInfo *t)
   }
 
   id = ob->data;
-  if (id == NULL || !ELEM(GS(id->name), ID_ME, ID_CU, ID_MB)) {
+  if (id == NULL || !ELEM(GS(id->name), ID_ME, ID_CU_LEGACY, ID_MB)) {
     BKE_report(t->reports, RPT_ERROR, "Unsupported object type for text-space transform");
     return;
   }
@@ -79,7 +63,6 @@ void createTransTexspace(TransInfo *t)
   }
 
   td->flag = TD_SELECTED;
-  copy_v3_v3(td->center, ob->obmat[3]);
   td->ob = ob;
 
   copy_m3_m4(td->mtx, ob->obmat);
@@ -93,6 +76,7 @@ void createTransTexspace(TransInfo *t)
   }
 
   copy_v3_v3(td->iloc, td->loc);
+  copy_v3_v3(td->center, td->loc);
   copy_v3_v3(td->ext->isize, td->ext->size);
 }
 
@@ -102,12 +86,11 @@ void createTransTexspace(TransInfo *t)
 /** \name Recalc Data object
  * \{ */
 
-/* helper for recalcData() - for object transforms, typically in the 3D view */
-void recalcData_texspace(TransInfo *t)
+static void recalcData_texspace(TransInfo *t)
 {
 
   if (t->state != TRANS_CANCEL) {
-    applyProject(t);
+    applySnappingIndividual(t);
   }
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
@@ -123,3 +106,10 @@ void recalcData_texspace(TransInfo *t)
 }
 
 /** \} */
+
+TransConvertTypeInfo TransConvertType_ObjectTexSpace = {
+    /* flags */ 0,
+    /* createTransData */ createTransTexspace,
+    /* recalcData */ recalcData_texspace,
+    /* special_aftertrans_update */ NULL,
+};

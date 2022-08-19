@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edtransform
@@ -50,6 +36,7 @@
 #include "ED_screen.h"
 #include "ED_uvedit.h"
 
+#include "SEQ_channels.h"
 #include "SEQ_iterator.h"
 #include "SEQ_sequencer.h"
 #include "SEQ_time.h"
@@ -130,8 +117,6 @@ static void gizmo2d_pivot_point_message_subscribe(struct wmGizmoGroup *gzgroup,
       PointerRNA ptr;
       RNA_pointer_create(&screen->id, &RNA_SpaceImageEditor, sima, &ptr);
       {
-        extern PropertyRNA rna_SpaceImageEditor_pivot_point;
-        extern PropertyRNA rna_SpaceImageEditor_cursor_location;
         const PropertyRNA *props[] = {
             &rna_SpaceImageEditor_pivot_point,
             (sima->around == V3D_AROUND_CURSOR) ? &rna_SpaceImageEditor_cursor_location : NULL,
@@ -259,22 +244,16 @@ static bool gizmo2d_calc_bounds(const bContext *C, float *r_center, float *r_min
   }
   else if (area->spacetype == SPACE_SEQ) {
     Scene *scene = CTX_data_scene(C);
-    ListBase *seqbase = SEQ_active_seqbase_get(SEQ_editing_get(scene));
-    SeqCollection *strips = SEQ_query_rendered_strips(seqbase, scene->r.cfra, 0);
+    Editing *ed = SEQ_editing_get(scene);
+    ListBase *seqbase = SEQ_active_seqbase_get(ed);
+    ListBase *channels = SEQ_channels_displayed_get(ed);
+    SeqCollection *strips = SEQ_query_rendered_strips(scene, channels, seqbase, scene->r.cfra, 0);
     SEQ_filter_selected_strips(strips);
     int selected_strips = SEQ_collection_len(strips);
     if (selected_strips > 0) {
-      INIT_MINMAX2(r_min, r_max);
       has_select = true;
-
-      Sequence *seq;
-      SEQ_ITERATOR_FOREACH (seq, strips) {
-        float quad[4][2];
-        SEQ_image_transform_quad_get(scene, seq, selected_strips != 1, quad);
-        for (int i = 0; i < 4; i++) {
-          minmax_v2v2_v2(r_min, r_max, quad[i]);
-        }
-      }
+      SEQ_image_transform_bounding_box_from_collection(
+          scene, strips, selected_strips != 1, r_min, r_max);
     }
     SEQ_collection_free(strips);
     if (selected_strips > 1) {
@@ -319,7 +298,8 @@ static int gizmo2d_calc_transform_orientation(const bContext *C)
   Scene *scene = CTX_data_scene(C);
   Editing *ed = SEQ_editing_get(scene);
   ListBase *seqbase = SEQ_active_seqbase_get(ed);
-  SeqCollection *strips = SEQ_query_rendered_strips(seqbase, scene->r.cfra, 0);
+  ListBase *channels = SEQ_channels_displayed_get(ed);
+  SeqCollection *strips = SEQ_query_rendered_strips(scene, channels, seqbase, scene->r.cfra, 0);
   SEQ_filter_selected_strips(strips);
 
   bool use_local_orient = SEQ_collection_len(strips) == 1;
@@ -341,7 +321,8 @@ static float gizmo2d_calc_rotation(const bContext *C)
   Scene *scene = CTX_data_scene(C);
   Editing *ed = SEQ_editing_get(scene);
   ListBase *seqbase = SEQ_active_seqbase_get(ed);
-  SeqCollection *strips = SEQ_query_rendered_strips(seqbase, scene->r.cfra, 0);
+  ListBase *channels = SEQ_channels_displayed_get(ed);
+  SeqCollection *strips = SEQ_query_rendered_strips(scene, channels, seqbase, scene->r.cfra, 0);
   SEQ_filter_selected_strips(strips);
 
   if (SEQ_collection_len(strips) == 1) {
@@ -364,8 +345,10 @@ static bool seq_get_strip_pivot_median(const Scene *scene, float r_pivot[2])
 {
   zero_v2(r_pivot);
 
-  ListBase *seqbase = SEQ_active_seqbase_get(SEQ_editing_get(scene));
-  SeqCollection *strips = SEQ_query_rendered_strips(seqbase, scene->r.cfra, 0);
+  Editing *ed = SEQ_editing_get(scene);
+  ListBase *seqbase = SEQ_active_seqbase_get(ed);
+  ListBase *channels = SEQ_channels_displayed_get(ed);
+  SeqCollection *strips = SEQ_query_rendered_strips(scene, channels, seqbase, scene->r.cfra, 0);
   SEQ_filter_selected_strips(strips);
   bool has_select = SEQ_collection_len(strips) != 0;
 
@@ -401,8 +384,11 @@ static bool gizmo2d_calc_transform_pivot(const bContext *C, float r_pivot[2])
     if (pivot_point == V3D_AROUND_CURSOR) {
       SEQ_image_preview_unit_to_px(scene, sseq->cursor, r_pivot);
 
-      ListBase *seqbase = SEQ_active_seqbase_get(SEQ_editing_get(scene));
-      SeqCollection *strips = SEQ_query_rendered_strips(seqbase, scene->r.cfra, 0);
+      Editing *ed = SEQ_editing_get(scene);
+      ListBase *seqbase = SEQ_active_seqbase_get(ed);
+      ListBase *channels = SEQ_channels_displayed_get(ed);
+      SeqCollection *strips = SEQ_query_rendered_strips(
+          scene, channels, seqbase, scene->r.cfra, 0);
       SEQ_filter_selected_strips(strips);
       has_select = SEQ_collection_len(strips) != 0;
       SEQ_collection_free(strips);
@@ -683,6 +669,7 @@ static void gizmo2d_xform_invoke_prepare(const bContext *C,
   float c[3] = {mid[0], mid[1], 0.0f};
 
   float orient_matrix[3][3];
+  unit_m3(orient_matrix);
 
   ScrArea *area = CTX_wm_area(C);
 

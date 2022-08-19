@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2019 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2019 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup editors
@@ -148,6 +132,8 @@ static bool bake_strokes(Object *ob,
       lmd->intersection_mask,
       lmd->thickness,
       lmd->opacity,
+      lmd->shadow_selection,
+      lmd->silhouette_selection,
       lmd->source_vertex_group,
       lmd->vgname,
       lmd->flags);
@@ -157,8 +143,8 @@ static bool bake_strokes(Object *ob,
     if (!is_first) {
       MOD_lineart_clear_cache(&local_lc);
     }
-    /* Restore the original cache pointer so the modifiers below still have access to the
-     * "global" cache. */
+    /* Restore the original cache pointer so the modifiers below still have access to the "global"
+     * cache. */
     lmd->cache = gpd->runtime.lineart_cache;
   }
 
@@ -444,7 +430,6 @@ static int lineart_gpencil_clear_strokes_all_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-/* Bake all line art modifiers on the current object. */
 void OBJECT_OT_lineart_bake_strokes(wmOperatorType *ot)
 {
   ot->name = "Bake Line Art";
@@ -456,7 +441,6 @@ void OBJECT_OT_lineart_bake_strokes(wmOperatorType *ot)
   ot->modal = lineart_gpencil_bake_strokes_commom_modal;
 }
 
-/* Bake all lineart objects in the scene. */
 void OBJECT_OT_lineart_bake_strokes_all(wmOperatorType *ot)
 {
   ot->name = "Bake Line Art (All)";
@@ -468,7 +452,6 @@ void OBJECT_OT_lineart_bake_strokes_all(wmOperatorType *ot)
   ot->modal = lineart_gpencil_bake_strokes_commom_modal;
 }
 
-/* clear all line art modifiers on the current object. */
 void OBJECT_OT_lineart_clear(wmOperatorType *ot)
 {
   ot->name = "Clear Baked Line Art";
@@ -478,7 +461,6 @@ void OBJECT_OT_lineart_clear(wmOperatorType *ot)
   ot->exec = lineart_gpencil_clear_strokes_exec;
 }
 
-/* clear all lineart objects in the scene. */
 void OBJECT_OT_lineart_clear_all(wmOperatorType *ot)
 {
   ot->name = "Clear Baked Line Art (All)";

@@ -1,34 +1,10 @@
-/*
- * Adapted from Open Shading Language with this license:
+/* SPDX-License-Identifier: BSD-3-Clause
  *
+ * Adapted from Open Shading Language
  * Copyright (c) 2009-2010 Sony Pictures Imageworks Inc., et al.
  * All Rights Reserved.
  *
- * Modifications Copyright 2011, Blender Foundation.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- * * Redistributions of source code must retain the above copyright
- *   notice, this list of conditions and the following disclaimer.
- * * Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in the
- *   documentation and/or other materials provided with the distribution.
- * * Neither the name of Sony Pictures Imageworks nor the names of its
- *   contributors may be used to endorse or promote products derived from
- *   this software without specific prior written permission.
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+ * Modifications Copyright 2011-2022 Blender Foundation. */
 
 #pragma once
 
@@ -55,10 +31,10 @@ ccl_device int bsdf_ashikhmin_velvet_setup(ccl_private VelvetBsdf *bsdf)
   return SD_BSDF | SD_BSDF_HAS_EVAL;
 }
 
-ccl_device float3 bsdf_ashikhmin_velvet_eval_reflect(ccl_private const ShaderClosure *sc,
-                                                     const float3 I,
-                                                     const float3 omega_in,
-                                                     ccl_private float *pdf)
+ccl_device Spectrum bsdf_ashikhmin_velvet_eval_reflect(ccl_private const ShaderClosure *sc,
+                                                       const float3 I,
+                                                       const float3 omega_in,
+                                                       ccl_private float *pdf)
 {
   ccl_private const VelvetBsdf *bsdf = (ccl_private const VelvetBsdf *)sc;
   float m_invsigma2 = bsdf->invsigma2;
@@ -72,9 +48,10 @@ ccl_device float3 bsdf_ashikhmin_velvet_eval_reflect(ccl_private const ShaderClo
     float cosNH = dot(N, H);
     float cosHO = fabsf(dot(I, H));
 
-    if (!(fabsf(cosNH) < 1.0f - 1e-5f && cosHO > 1e-5f))
-      return make_float3(0.0f, 0.0f, 0.0f);
-
+    if (!(fabsf(cosNH) < 1.0f - 1e-5f && cosHO > 1e-5f)) {
+      *pdf = 0.0f;
+      return zero_spectrum();
+    }
     float cosNHdivHO = cosNH / cosHO;
     cosNHdivHO = fmaxf(cosNHdivHO, 1e-5f);
 
@@ -86,36 +63,34 @@ ccl_device float3 bsdf_ashikhmin_velvet_eval_reflect(ccl_private const ShaderClo
     float cotangent2 = (cosNH * cosNH) / sinNH2;
 
     float D = expf(-cotangent2 * m_invsigma2) * m_invsigma2 * M_1_PI_F / sinNH4;
-    float G = min(1.0f, min(fac1, fac2));  // TODO: derive G from D analytically
+    float G = fminf(1.0f, fminf(fac1, fac2));  // TODO: derive G from D analytically
 
     float out = 0.25f * (D * G) / cosNO;
 
     *pdf = 0.5f * M_1_PI_F;
-    return make_float3(out, out, out);
+    return make_spectrum(out);
   }
 
-  return make_float3(0.0f, 0.0f, 0.0f);
+  *pdf = 0.0f;
+  return zero_spectrum();
 }
 
-ccl_device float3 bsdf_ashikhmin_velvet_eval_transmit(ccl_private const ShaderClosure *sc,
-                                                      const float3 I,
-                                                      const float3 omega_in,
-                                                      ccl_private float *pdf)
+ccl_device Spectrum bsdf_ashikhmin_velvet_eval_transmit(ccl_private const ShaderClosure *sc,
+                                                        const float3 I,
+                                                        const float3 omega_in,
+                                                        ccl_private float *pdf)
 {
-  return make_float3(0.0f, 0.0f, 0.0f);
+  *pdf = 0.0f;
+  return zero_spectrum();
 }
 
 ccl_device int bsdf_ashikhmin_velvet_sample(ccl_private const ShaderClosure *sc,
                                             float3 Ng,
                                             float3 I,
-                                            float3 dIdx,
-                                            float3 dIdy,
                                             float randu,
                                             float randv,
-                                            ccl_private float3 *eval,
+                                            ccl_private Spectrum *eval,
                                             ccl_private float3 *omega_in,
-                                            ccl_private float3 *domega_in_dx,
-                                            ccl_private float3 *domega_in_dy,
                                             ccl_private float *pdf)
 {
   ccl_private const VelvetBsdf *bsdf = (ccl_private const VelvetBsdf *)sc;
@@ -146,24 +121,21 @@ ccl_device int bsdf_ashikhmin_velvet_sample(ccl_private const ShaderClosure *sc,
       float cotangent2 = (cosNH * cosNH) / sinNH2;
 
       float D = expf(-cotangent2 * m_invsigma2) * m_invsigma2 * M_1_PI_F / sinNH4;
-      float G = min(1.0f, min(fac1, fac2));  // TODO: derive G from D analytically
+      float G = fminf(1.0f, fminf(fac1, fac2));  // TODO: derive G from D analytically
 
       float power = 0.25f * (D * G) / cosNO;
 
-      *eval = make_float3(power, power, power);
-
-#ifdef __RAY_DIFFERENTIALS__
-      // TODO: find a better approximation for the retroreflective bounce
-      *domega_in_dx = (2 * dot(N, dIdx)) * N - dIdx;
-      *domega_in_dy = (2 * dot(N, dIdy)) * N - dIdy;
-#endif
+      *eval = make_spectrum(power);
     }
-    else
+    else {
       *pdf = 0.0f;
+      *eval = zero_spectrum();
+    }
   }
-  else
+  else {
     *pdf = 0.0f;
-
+    *eval = zero_spectrum();
+  }
   return LABEL_REFLECT | LABEL_DIFFUSE;
 }
 

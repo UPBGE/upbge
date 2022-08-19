@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edobj
@@ -35,6 +19,7 @@
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
 #include "DNA_modifier_types.h"
+#include "DNA_property_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_workspace_types.h"
 
@@ -59,6 +44,7 @@
 #include "BKE_object.h"
 #include "BKE_paint.h"
 #include "BKE_particle.h"
+#include "BKE_property.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_workspace.h"
@@ -89,14 +75,6 @@
 /** \name Public Object Selection API
  * \{ */
 
-/**
- * Simple API for object selection, rather than just using the flag
- * this takes into account the 'restrict selection in 3d view' flag.
- * deselect works always, the restriction just prevents selection
- *
- * \note Caller must send a `NC_SCENE | ND_OB_SELECT` notifier
- * (or a `NC_SCENE | ND_OB_VISIBLE` in case of visibility toggling).
- */
 void ED_object_base_select(Base *base, eObjectSelect_Mode mode)
 {
   if (mode == BA_INVERT) {
@@ -121,9 +99,6 @@ void ED_object_base_select(Base *base, eObjectSelect_Mode mode)
   }
 }
 
-/**
- * Call when the active base has changed.
- */
 void ED_object_base_active_refresh(Main *bmain, Scene *scene, ViewLayer *view_layer)
 {
   WM_main_add_notifier(NC_SCENE | ND_OB_ACTIVE, scene);
@@ -134,9 +109,6 @@ void ED_object_base_active_refresh(Main *bmain, Scene *scene, ViewLayer *view_la
   }
 }
 
-/**
- * Change active base, it includes the notifier
- */
 void ED_object_base_activate(bContext *C, Base *base)
 {
   Scene *scene = CTX_data_scene(C);
@@ -242,10 +214,6 @@ static int get_base_select_priority(Base *base)
   return 1;
 }
 
-/**
- * If id is not already an Object, try to find an object that uses it as data.
- * Prefers active, then selected, then visible/selectable.
- */
 Base *ED_object_find_first_by_data_id(ViewLayer *view_layer, ID *id)
 {
   BLI_assert(OB_DATA_SUPPORT_ID(GS(id->name)));
@@ -279,12 +247,6 @@ Base *ED_object_find_first_by_data_id(ViewLayer *view_layer, ID *id)
   return base_best;
 }
 
-/**
- * Select and make the target object active in the view layer.
- * If already selected, selection isn't changed.
- *
- * \returns false if not found in current view layer
- */
 bool ED_object_jump_to_object(bContext *C, Object *ob, const bool UNUSED(reveal_hidden))
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -316,13 +278,6 @@ bool ED_object_jump_to_object(bContext *C, Object *ob, const bool UNUSED(reveal_
   return true;
 }
 
-/**
- * Select and make the target object and bone active.
- * Switches to Pose mode if in Object mode so the selection is visible.
- * Un-hides the target bone and bone layer if necessary.
- *
- * \returns false if object not in layer, bone not found, or other error
- */
 bool ED_object_jump_to_bone(bContext *C,
                             Object *ob,
                             const char *bone_name,
@@ -783,6 +738,7 @@ enum {
   OBJECT_GRPSEL_COLOR = 9,
   OBJECT_GRPSEL_KEYINGSET = 10,
   OBJECT_GRPSEL_LIGHT_TYPE = 11,
+  OBJECT_GRPSEL_PROPERTIES = 12,
 };
 
 static const EnumPropertyItem prop_select_grouped_types[] = {
@@ -795,6 +751,7 @@ static const EnumPropertyItem prop_select_grouped_types[] = {
     {OBJECT_GRPSEL_HOOK, "HOOK", 0, "Hook", ""},
     {OBJECT_GRPSEL_PASS, "PASS", 0, "Pass", "Render pass index"},
     {OBJECT_GRPSEL_COLOR, "COLOR", 0, "Color", "Object color"},
+    {OBJECT_GRPSEL_PROPERTIES, "PROPERTIES", 0, "Properties", "Game Properties"},
     {OBJECT_GRPSEL_KEYINGSET,
      "KEYINGSET",
      0,
@@ -1002,6 +959,32 @@ static bool select_grouped_color(bContext *C, Object *ob)
   return changed;
 }
 
+static bool objects_share_gameprop(Object *a, Object *b)
+{
+  bProperty *prop;
+
+  for (prop = a->prop.first; prop; prop = prop->next) {
+    if (BKE_bproperty_object_get(b, prop->name)) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static bool select_grouped_gameprops(bContext *C, Object *ob)
+{
+  bool changed = false;
+
+  CTX_DATA_BEGIN (C, Base *, base, selectable_bases) {
+    if (((base->flag & BASE_SELECTED) == 0) && (objects_share_gameprop(base->object, ob))) {
+      ED_object_base_select(base, BA_SELECT);
+      changed = true;
+    }
+  }
+  CTX_DATA_END;
+  return changed;
+}
+
 static bool select_grouped_keyingset(bContext *C, Object *UNUSED(ob), ReportList *reports)
 {
   KeyingSet *ks = ANIM_scene_get_active_keyingset(CTX_data_scene(C));
@@ -1102,6 +1085,9 @@ static int object_select_grouped_exec(bContext *C, wmOperator *op)
     case OBJECT_GRPSEL_COLOR:
       changed |= select_grouped_color(C, ob);
       break;
+    case OBJECT_GRPSEL_PROPERTIES:
+      changed |= select_grouped_gameprops(C, ob);
+      break;
     case OBJECT_GRPSEL_KEYINGSET:
       changed |= select_grouped_keyingset(C, ob, op->reports);
       break;
@@ -1175,7 +1161,7 @@ static int object_select_all_exec(bContext *C, wmOperator *op)
     return OPERATOR_FINISHED;
   }
   if (any_visible == false) {
-    /* TODO(campbell): Looks like we could remove this,
+    /* TODO(@campbellbarton): Looks like we could remove this,
      * if not comment should say why its needed. */
     return OPERATOR_PASS_THROUGH;
   }
@@ -1496,7 +1482,7 @@ void OBJECT_OT_select_random(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_select_random";
 
   /* api callbacks */
-  /*ot->invoke = object_select_random_invoke XXX: need a number popup ;*/
+  // ot->invoke = object_select_random_invoke; /* TODO: need a number popup. */
   ot->exec = object_select_random_exec;
   ot->poll = objects_selectable_poll;
 

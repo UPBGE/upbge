@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2021 by Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2021 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup draw
@@ -25,7 +9,9 @@
 
 #include "BKE_mesh.h"
 
-#include "extract_mesh.h"
+#include "extract_mesh.hh"
+
+#include "draw_subdivision.h"
 
 namespace blender::draw {
 
@@ -40,7 +26,7 @@ struct UVStretchAngle {
 
 struct MeshExtract_StretchAngle_Data {
   UVStretchAngle *vbo_data;
-  MLoopUV *luv;
+  const MLoopUV *luv;
   float auv[2][2], last_auv[2];
   float av[2][3], last_av[3];
   int cd_ofs;
@@ -88,7 +74,7 @@ static void edituv_get_edituv_stretch_angle(float auv[2][2],
 }
 
 static void extract_edituv_stretch_angle_init(const MeshRenderData *mr,
-                                              struct MeshBatchCache *UNUSED(cache),
+                                              MeshBatchCache *UNUSED(cache),
                                               void *buf,
                                               void *tls_data)
 {
@@ -111,8 +97,8 @@ static void extract_edituv_stretch_angle_init(const MeshRenderData *mr,
     data->cd_ofs = CustomData_get_offset(&mr->bm->ldata, CD_MLOOPUV);
   }
   else {
-    BLI_assert(ELEM(mr->extract_type, MR_EXTRACT_MAPPED, MR_EXTRACT_MESH));
-    data->luv = (MLoopUV *)CustomData_get_layer(&mr->me->ldata, CD_MLOOPUV);
+    BLI_assert(mr->extract_type == MR_EXTRACT_MESH);
+    data->luv = (const MLoopUV *)CustomData_get_layer(&mr->me->ldata, CD_MLOOPUV);
   }
 }
 
@@ -213,12 +199,88 @@ static void extract_edituv_stretch_angle_iter_poly_mesh(const MeshRenderData *mr
   }
 }
 
+static GPUVertFormat *get_edituv_stretch_angle_format_subdiv()
+{
+  static GPUVertFormat format = {0};
+  if (format.attr_len == 0) {
+    /* Waning: adjust #UVStretchAngle struct accordingly. */
+    GPU_vertformat_attr_add(&format, "angle", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+    GPU_vertformat_attr_add(&format, "uv_angles", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  }
+  return &format;
+}
+
+static void extract_edituv_stretch_angle_init_subdiv(const DRWSubdivCache *subdiv_cache,
+                                                     const MeshRenderData *mr,
+                                                     MeshBatchCache *cache,
+                                                     void *buffer,
+                                                     void *UNUSED(tls_data))
+{
+  GPUVertBuf *refined_vbo = static_cast<GPUVertBuf *>(buffer);
+
+  GPU_vertbuf_init_build_on_device(
+      refined_vbo, get_edituv_stretch_angle_format_subdiv(), subdiv_cache->num_subdiv_loops);
+
+  GPUVertBuf *pos_nor = cache->final.buff.vbo.pos_nor;
+  GPUVertBuf *uvs = cache->final.buff.vbo.uv;
+
+  /* It may happen that the data for the UV editor is requested before (as a separate draw update)
+   * the data for the mesh when switching to the `UV Editing` workspace, and therefore the position
+   * buffer might not be created yet. In this case, create a buffer it locally, the subdivision
+   * data should already be evaluated if we are here. This can happen if the subsurf modifier is
+   * only enabled in edit-mode. See T96338. */
+  if (!pos_nor) {
+    const DRWSubdivLooseGeom &loose_geom = subdiv_cache->loose_geom;
+    pos_nor = GPU_vertbuf_calloc();
+    GPU_vertbuf_init_build_on_device(pos_nor,
+                                     draw_subdiv_get_pos_nor_format(),
+                                     subdiv_cache->num_subdiv_loops + loose_geom.loop_len);
+
+    draw_subdiv_extract_pos_nor(subdiv_cache, pos_nor, nullptr);
+  }
+
+  /* UVs are stored contiguously so we need to compute the offset in the UVs buffer for the active
+   * UV layer. */
+  CustomData *cd_ldata = (mr->extract_type == MR_EXTRACT_MESH) ? &mr->me->ldata : &mr->bm->ldata;
+
+  uint32_t uv_layers = cache->cd_used.uv;
+  /* HACK to fix T68857 */
+  if (mr->extract_type == MR_EXTRACT_BMESH && cache->cd_used.edit_uv == 1) {
+    int layer = CustomData_get_active_layer(cd_ldata, CD_MLOOPUV);
+    if (layer != -1) {
+      uv_layers |= (1 << layer);
+    }
+  }
+
+  int uvs_offset = 0;
+  for (int i = 0; i < MAX_MTFACE; i++) {
+    if (uv_layers & (1 << i)) {
+      if (i == CustomData_get_active_layer(cd_ldata, CD_MLOOPUV)) {
+        break;
+      }
+
+      uvs_offset += 1;
+    }
+  }
+
+  /* The data is at `offset * num loops`, and we have 2 values per index. */
+  uvs_offset *= subdiv_cache->num_subdiv_loops * 2;
+
+  draw_subdiv_build_edituv_stretch_angle_buffer(
+      subdiv_cache, pos_nor, uvs, uvs_offset, refined_vbo);
+
+  if (!cache->final.buff.vbo.pos_nor) {
+    GPU_vertbuf_discard(pos_nor);
+  }
+}
+
 constexpr MeshExtract create_extractor_edituv_edituv_stretch_angle()
 {
   MeshExtract extractor = {nullptr};
   extractor.init = extract_edituv_stretch_angle_init;
   extractor.iter_poly_bm = extract_edituv_stretch_angle_iter_poly_bm;
   extractor.iter_poly_mesh = extract_edituv_stretch_angle_iter_poly_mesh;
+  extractor.init_subdiv = extract_edituv_stretch_angle_init_subdiv;
   extractor.data_type = MR_DATA_NONE;
   extractor.data_size = sizeof(MeshExtract_StretchAngle_Data);
   extractor.use_threading = false;
@@ -230,7 +292,5 @@ constexpr MeshExtract create_extractor_edituv_edituv_stretch_angle()
 
 }  // namespace blender::draw
 
-extern "C" {
 const MeshExtract extract_edituv_stretch_angle =
     blender::draw::create_extractor_edituv_edituv_stretch_angle();
-}

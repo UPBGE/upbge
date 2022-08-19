@@ -9,7 +9,7 @@
 	#define BLEN_VER_RC_STR STRINGIFY(BLEN_VER_RC_STR_M)
 #endif
 
-APPICON ICON DISCARDABLE "winblender.ico"
+APPICON ICON DISCARDABLE "winupbge.ico"
 BLENDERFILE ICON DISCARDABLE "winblenderfile.ico"
 
 pointer_cursor CURSOR "cursors/pointer.cur"
@@ -49,11 +49,11 @@ BEGIN
     BEGIN
       VALUE "FileVersion", BLEN_VER_RC_STR
       VALUE "ProductVersion", BLEN_VER_RC_STR
-      VALUE "CompanyName", "Blender Foundation"
-      VALUE "FileDescription", "Blender"
-      VALUE "LegalCopyright", "GPLv3 (Blender Foundation)"
+      VALUE "CompanyName", "UPBGE"
+      VALUE "FileDescription", "UPBGE"
+      VALUE "LegalCopyright", "GPLv3"
       VALUE "OriginalFilename", "blender.exe"
-      VALUE "ProductName", "Blender"
+      VALUE "ProductName", "UPBGE"
     END
   END
   BLOCK "VarFileInfo"

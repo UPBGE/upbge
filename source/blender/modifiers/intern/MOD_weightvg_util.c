@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2011 by Bastien Montagne.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 by Bastien Montagne. All rights reserved. */
 
 /** \file
  * \ingroup modifiers
@@ -57,12 +41,6 @@
 #include "MOD_weightvg_util.h"
 #include "RE_texture.h" /* Texture masking. */
 
-/* Maps new_w weights in place, using either one of the predefined functions, or a custom curve.
- * Return values are in new_w.
- * If indices is not NULL, it must be a table of same length as org_w and new_w,
- * mapping to the real vertex index (in case the weight tables do not cover the whole vertices...).
- * cmap might be NULL, in which case curve mapping mode will return unmodified data.
- */
 void weightvg_do_map(
     int num, float *new_w, short falloff_type, const bool do_invert, CurveMapping *cmap, RNG *rng)
 {
@@ -118,20 +96,13 @@ void weightvg_do_map(
         BLI_assert(do_invert);
         break;
       default:
-        BLI_assert(0);
+        BLI_assert_unreachable();
     }
 
     new_w[i] = do_invert ? 1.0f - fac : fac;
   }
 }
 
-/* Applies new_w weights to org_w ones, using either a texture, vgroup or constant value as factor.
- * Return values are in org_w.
- * If indices is not NULL, it must be a table of same length as org_w and new_w,
- * mapping to the real vertex index (in case the weight tables do not cover the whole vertices...).
- * XXX The standard "factor" value is assumed in [0.0, 1.0] range.
- * Else, weird results might appear.
- */
 void weightvg_do_mask(const ModifierEvalContext *ctx,
                       const int num,
                       const int *indices,
@@ -164,7 +135,7 @@ void weightvg_do_mask(const ModifierEvalContext *ctx,
     float(*tex_co)[3];
     /* See mapping note below... */
     MappingInfoModifierData t_map;
-    const int numVerts = mesh->totvert;
+    const int verts_num = mesh->totvert;
 
     /* Use new generic get_texture_coords, but do not modify our DNA struct for it...
      * XXX Why use a ModifierData stuff here ? Why not a simple, generic struct for parameters?
@@ -177,7 +148,7 @@ void weightvg_do_mask(const ModifierEvalContext *ctx,
     BLI_strncpy(t_map.uvlayer_name, tex_uvlayer_name, sizeof(t_map.uvlayer_name));
     t_map.texmapping = tex_mapping;
 
-    tex_co = MEM_calloc_arrayN(numVerts, sizeof(*tex_co), "WeightVG Modifier, TEX mode, tex_co");
+    tex_co = MEM_calloc_arrayN(verts_num, sizeof(*tex_co), "WeightVG Modifier, TEX mode, tex_co");
     MOD_get_texture_coords(&t_map, ctx, ob, mesh, NULL, tex_co);
 
     MOD_init_texture(&t_map, ctx);
@@ -191,7 +162,6 @@ void weightvg_do_mask(const ModifierEvalContext *ctx,
 
       do_color_manage = tex_use_channel != MOD_WVG_MASK_TEX_USE_INT;
 
-      texres.nor = NULL;
       BKE_texture_get_value(scene, texture, tex_co[idx], &texres, do_color_manage);
       /* Get the good channel value... */
       switch (tex_use_channel) {
@@ -199,28 +169,32 @@ void weightvg_do_mask(const ModifierEvalContext *ctx,
           org_w[i] = (new_w[i] * texres.tin * fact) + (org_w[i] * (1.0f - (texres.tin * fact)));
           break;
         case MOD_WVG_MASK_TEX_USE_RED:
-          org_w[i] = (new_w[i] * texres.tr * fact) + (org_w[i] * (1.0f - (texres.tr * fact)));
+          org_w[i] = (new_w[i] * texres.trgba[0] * fact) +
+                     (org_w[i] * (1.0f - (texres.trgba[0] * fact)));
           break;
         case MOD_WVG_MASK_TEX_USE_GREEN:
-          org_w[i] = (new_w[i] * texres.tg * fact) + (org_w[i] * (1.0f - (texres.tg * fact)));
+          org_w[i] = (new_w[i] * texres.trgba[1] * fact) +
+                     (org_w[i] * (1.0f - (texres.trgba[1] * fact)));
           break;
         case MOD_WVG_MASK_TEX_USE_BLUE:
-          org_w[i] = (new_w[i] * texres.tb * fact) + (org_w[i] * (1.0f - (texres.tb * fact)));
+          org_w[i] = (new_w[i] * texres.trgba[2] * fact) +
+                     (org_w[i] * (1.0f - (texres.trgba[2] * fact)));
           break;
         case MOD_WVG_MASK_TEX_USE_HUE:
-          rgb_to_hsv_v(&texres.tr, hsv);
+          rgb_to_hsv_v(texres.trgba, hsv);
           org_w[i] = (new_w[i] * hsv[0] * fact) + (org_w[i] * (1.0f - (hsv[0] * fact)));
           break;
         case MOD_WVG_MASK_TEX_USE_SAT:
-          rgb_to_hsv_v(&texres.tr, hsv);
+          rgb_to_hsv_v(texres.trgba, hsv);
           org_w[i] = (new_w[i] * hsv[1] * fact) + (org_w[i] * (1.0f - (hsv[1] * fact)));
           break;
         case MOD_WVG_MASK_TEX_USE_VAL:
-          rgb_to_hsv_v(&texres.tr, hsv);
+          rgb_to_hsv_v(texres.trgba, hsv);
           org_w[i] = (new_w[i] * hsv[2] * fact) + (org_w[i] * (1.0f - (hsv[2] * fact)));
           break;
         case MOD_WVG_MASK_TEX_USE_ALPHA:
-          org_w[i] = (new_w[i] * texres.ta * fact) + (org_w[i] * (1.0f - (texres.ta * fact)));
+          org_w[i] = (new_w[i] * texres.trgba[3] * fact) +
+                     (org_w[i] * (1.0f - (texres.trgba[3] * fact)));
           break;
         default:
           org_w[i] = (new_w[i] * texres.tin * fact) + (org_w[i] * (1.0f - (texres.tin * fact)));
@@ -231,8 +205,6 @@ void weightvg_do_mask(const ModifierEvalContext *ctx,
     MEM_freeN(tex_co);
   }
   else if ((ref_didx = BKE_id_defgroup_name_index(&mesh->id, defgrp_name)) != -1) {
-    MDeformVert *dvert = NULL;
-
     /* Check whether we want to set vgroup weights from a constant weight factor or a vertex
      * group.
      */
@@ -240,7 +212,7 @@ void weightvg_do_mask(const ModifierEvalContext *ctx,
 
     /* Proceed only if vgroup is valid, else use constant factor. */
     /* Get actual dverts (ie vertex group data). */
-    dvert = CustomData_get_layer(&mesh->vdata, CD_MDEFORMVERT);
+    const MDeformVert *dvert = CustomData_get_layer(&mesh->vdata, CD_MDEFORMVERT);
     /* Proceed only if vgroup is valid, else assume factor = O. */
     if (dvert == NULL) {
       return;
@@ -267,12 +239,6 @@ void weightvg_do_mask(const ModifierEvalContext *ctx,
   }
 }
 
-/* Applies weights to given vgroup (defgroup), and optionally add/remove vertices from the group.
- * If dws is not NULL, it must be an array of MDeformWeight pointers of same length as weights (and
- * defgrp_idx can then have any value).
- * If indices is not NULL, it must be an array of same length as weights, mapping to the real
- * vertex index (in case the weight array does not cover the whole vertices...).
- */
 void weightvg_update_vg(MDeformVert *dvert,
                         int defgrp_idx,
                         MDeformWeight **dws,
@@ -340,8 +306,6 @@ void weightvg_update_vg(MDeformVert *dvert,
   }
 }
 
-/* Common vertex weight mask interface elements for the modifier panels.
- */
 void weightvg_ui_common(const bContext *C, PointerRNA *ob_ptr, PointerRNA *ptr, uiLayout *layout)
 {
   PointerRNA mask_texture_ptr = RNA_pointer_get(ptr, "mask_texture");

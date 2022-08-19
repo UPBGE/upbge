@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2017 Blender Foundation
- * This is a new part of Blender
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2017 Blender Foundation. */
 
 /** \file
  * \ingroup edgpencil
@@ -35,6 +19,8 @@
 #include "BKE_main.h"
 #include "BKE_material.h"
 
+#include "BLT_translation.h"
+
 #include "DEG_depsgraph.h"
 
 #include "ED_gpencil.h"
@@ -53,7 +39,7 @@ static int gpencil_stroke_material(Main *bmain,
                                    const bool fill)
 {
   int index;
-  Material *ma = BKE_gpencil_object_material_ensure_by_name(bmain, ob, pct->name, &index);
+  Material *ma = BKE_gpencil_object_material_ensure_by_name(bmain, ob, DATA_(pct->name), &index);
 
   copy_v4_v4(ma->gp_style->stroke_rgba, pct->line);
   srgb_to_linearrgb_v4(ma->gp_style->stroke_rgba, ma->gp_style->stroke_rgba);
@@ -166,37 +152,37 @@ static const float data0[175 * GP_PRIM_DATABUF_SIZE] = {
 /* Color Data */
 
 static const ColorTemplate gp_stroke_material_black = {
-    "Black",
+    N_("Black"),
     {0.0f, 0.0f, 0.0f, 1.0f},
     {0.0f, 0.0f, 0.0f, 0.0f},
 };
 
 static const ColorTemplate gp_stroke_material_white = {
-    "White",
+    N_("White"),
     {1.0f, 1.0f, 1.0f, 1.0f},
     {0.0f, 0.0f, 0.0f, 0.0f},
 };
 
 static const ColorTemplate gp_stroke_material_red = {
-    "Red",
+    N_("Red"),
     {1.0f, 0.0f, 0.0f, 1.0f},
     {0.0f, 0.0f, 0.0f, 0.0f},
 };
 
 static const ColorTemplate gp_stroke_material_green = {
-    "Green",
+    N_("Green"),
     {0.0f, 1.0f, 0.0f, 1.0f},
     {0.0f, 0.0f, 0.0f, 0.0f},
 };
 
 static const ColorTemplate gp_stroke_material_blue = {
-    "Blue",
+    N_("Blue"),
     {0.0f, 0.0f, 1.0f, 1.0f},
     {0.0f, 0.0f, 0.0f, 0.0f},
 };
 
 static const ColorTemplate gp_stroke_material_grey = {
-    "Grey",
+    N_("Grey"),
     {0.358f, 0.358f, 0.358f, 1.0f},
     {0.5f, 0.5f, 0.5f, 1.0f},
 };
@@ -204,8 +190,6 @@ static const ColorTemplate gp_stroke_material_grey = {
 /* ***************************************************************** */
 /* Stroke API */
 
-/* Add a Simple stroke with colors
- * (original design created by Daniel M. Lara and Matias Mendiola). */
 void ED_gpencil_create_stroke(bContext *C, Object *ob, float mat[4][4])
 {
   Main *bmain = CTX_data_main(C);
@@ -229,8 +213,8 @@ void ED_gpencil_create_stroke(bContext *C, Object *ob, float mat[4][4])
   bGPDlayer *lines = BKE_gpencil_layer_addnew(gpd, "Lines", true, false);
 
   /* frames */
-  bGPDframe *frame_color = BKE_gpencil_frame_addnew(colors, CFRA);
-  bGPDframe *frame_lines = BKE_gpencil_frame_addnew(lines, CFRA);
+  bGPDframe *frame_color = BKE_gpencil_frame_addnew(colors, scene->r.cfra);
+  bGPDframe *frame_lines = BKE_gpencil_frame_addnew(lines, scene->r.cfra);
   UNUSED_VARS(frame_color);
 
   /* generate stroke */

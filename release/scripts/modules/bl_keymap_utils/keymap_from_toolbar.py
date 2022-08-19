@@ -1,22 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
-# <pep8 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # Dynamically create a keymap which is used by the popup toolbar
 # for accelerator key access.
@@ -205,6 +187,7 @@ def generate(context, space_type, *, use_fallback_keys=True, use_reset=True):
                             'VERTEX_GPENCIL': "gpencil_vertex_tool",
                             'SCULPT_GPENCIL': "gpencil_sculpt_tool",
                             'WEIGHT_GPENCIL': "gpencil_weight_tool",
+                            'SCULPT_CURVES': "curves_sculpt_tool",
                         }.get(mode, None)
                     else:
                         attr = None
@@ -406,7 +389,7 @@ def generate(context, space_type, *, use_fallback_keys=True, use_reset=True):
                 if key is not None:
                     kmi_args["type"] = key
                     kmi_tuple = dict_as_tuple(kmi_args)
-                    if not kmi_tuple in kmi_unique_args:
+                    if kmi_tuple not in kmi_unique_args:
                         kmi = keymap.keymap_items.new(idname="wm.tool_set_by_id", value='PRESS', **kmi_args)
                         kmi.properties.name = item.idname
                         kmi_unique_args.add(kmi_tuple)

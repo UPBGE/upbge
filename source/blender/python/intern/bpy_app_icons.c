@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup pythonintern
@@ -54,7 +40,14 @@ static PyObject *bpy_app_icons_new_triangles(PyObject *UNUSED(self), PyObject *a
   PyObject *py_coords, *py_colors;
 
   static const char *_keywords[] = {"range", "coords", "colors", NULL};
-  static _PyArg_Parser _parser = {"(BB)SS:new_triangles", _keywords, 0};
+  static _PyArg_Parser _parser = {
+      "(BB)" /* `range` */
+      "S"    /* `coords` */
+      "S"    /* `colors` */
+      ":new_triangles",
+      _keywords,
+      0,
+  };
   if (!_PyArg_ParseTupleAndKeywordsFast(
           args, kw, &_parser, &coords_range[0], &coords_range[1], &py_coords, &py_colors)) {
     return NULL;
@@ -107,7 +100,12 @@ static PyObject *bpy_app_icons_new_triangles_from_file(PyObject *UNUSED(self),
   char *filename;
 
   static const char *_keywords[] = {"filename", NULL};
-  static _PyArg_Parser _parser = {"s:new_triangles_from_file", _keywords, 0};
+  static _PyArg_Parser _parser = {
+      "s" /* `filename` */
+      ":new_triangles_from_file",
+      _keywords,
+      0,
+  };
   if (!_PyArg_ParseTupleAndKeywordsFast(args, kw, &_parser, &filename)) {
     return NULL;
   }
@@ -129,7 +127,12 @@ static PyObject *bpy_app_icons_release(PyObject *UNUSED(self), PyObject *args, P
 {
   int icon_id;
   static const char *_keywords[] = {"icon_id", NULL};
-  static _PyArg_Parser _parser = {"i:release", _keywords, 0};
+  static _PyArg_Parser _parser = {
+      "i" /* `icon_id` */
+      ":release",
+      _keywords,
+      0,
+  };
   if (!_PyArg_ParseTupleAndKeywordsFast(args, kw, &_parser, &icon_id)) {
     return NULL;
   }

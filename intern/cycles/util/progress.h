@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #ifndef __UTIL_PROGRESS_H__
 #define __UTIL_PROGRESS_H__
@@ -41,6 +28,7 @@ class Progress {
     denoised_tiles = 0;
     start_time = time_dt();
     render_start_time = time_dt();
+    time_limit = 0.0;
     end_time = 0.0;
     status = "Initializing";
     substatus = "";
@@ -81,6 +69,7 @@ class Progress {
     denoised_tiles = 0;
     start_time = time_dt();
     render_start_time = time_dt();
+    time_limit = 0.0;
     end_time = 0.0;
     status = "Initializing";
     substatus = "";
@@ -158,6 +147,13 @@ class Progress {
     render_start_time = time_dt();
   }
 
+  void set_time_limit(double time_limit_)
+  {
+    thread_scoped_lock lock(progress_mutex);
+
+    time_limit = time_limit_;
+  }
+
   void add_skip_time(const scoped_timer &start_timer, bool only_render)
   {
     double skip_time = time_dt() - start_timer.get_start();
@@ -204,10 +200,15 @@ class Progress {
   {
     thread_scoped_lock lock(progress_mutex);
 
-    if (total_pixel_samples > 0) {
-      return ((double)pixel_samples) / (double)total_pixel_samples;
+    if (pixel_samples > 0) {
+      double progress_percent = (double)pixel_samples / (double)total_pixel_samples;
+      if (time_limit != 0.0) {
+        double time_since_render_start = time_dt() - render_start_time;
+        progress_percent = max(progress_percent, time_since_render_start / time_limit);
+      }
+      return min(1.0, progress_percent);
     }
-    return 0.0f;
+    return 0.0;
   }
 
   void add_samples(uint64_t pixel_samples_, int tile_sample)
@@ -348,7 +349,7 @@ class Progress {
    * in which case the current_tile_sample is displayed. */
   int rendered_tiles, denoised_tiles;
 
-  double start_time, render_start_time;
+  double start_time, render_start_time, time_limit;
   /* End time written when render is done, so it doesn't keep increasing on redraws. */
   double end_time;
 

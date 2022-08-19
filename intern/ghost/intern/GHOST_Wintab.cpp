@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup GHOST
@@ -25,7 +11,6 @@
 GHOST_Wintab *GHOST_Wintab::loadWintab(HWND hwnd)
 {
   /* Load Wintab library if available. */
-
   auto handle = unique_hmodule(::LoadLibrary("Wintab32.dll"), &::FreeLibrary);
   if (!handle) {
     return nullptr;
@@ -130,8 +115,16 @@ GHOST_Wintab *GHOST_Wintab::loadWintab(HWND hwnd)
     }
   }
 
-  return new GHOST_Wintab(hwnd,
-                          std::move(handle),
+  int sanityQueueSize = queueSizeGet(hctx.get());
+  WINTAB_PRINTF("HCTX %p %s queueSize: %d, queueSizeGet: %d\n",
+                hctx.get(),
+                __func__,
+                queueSize,
+                sanityQueueSize);
+
+  WINTAB_PRINTF("Loaded Wintab context %p\n", hctx.get());
+
+  return new GHOST_Wintab(std::move(handle),
                           info,
                           get,
                           set,
@@ -174,8 +167,7 @@ void GHOST_Wintab::extractCoordinates(LOGCONTEXT &lc, Coord &tablet, Coord &syst
   system.y.ext = -lc.lcSysExtY;
 }
 
-GHOST_Wintab::GHOST_Wintab(HWND hwnd,
-                           unique_hmodule handle,
+GHOST_Wintab::GHOST_Wintab(unique_hmodule handle,
                            GHOST_WIN32_WTInfo info,
                            GHOST_WIN32_WTGet get,
                            GHOST_WIN32_WTSet set,
@@ -199,7 +191,17 @@ GHOST_Wintab::GHOST_Wintab(HWND hwnd,
       m_pkts{queueSize}
 {
   m_fpInfo(WTI_INTERFACE, IFC_NDEVICES, &m_numDevices);
+  WINTAB_PRINTF("Wintab Devices: %d\n", m_numDevices);
+
   updateCursorInfo();
+
+  /* Debug info. */
+  printContextDebugInfo();
+}
+
+GHOST_Wintab::~GHOST_Wintab()
+{
+  WINTAB_PRINTF("Closing Wintab context %p\n", m_context.get());
 }
 
 void GHOST_Wintab::enable()
@@ -265,6 +267,7 @@ void GHOST_Wintab::updateCursorInfo()
 
   BOOL pressureSupport = m_fpInfo(WTI_DEVICES, DVC_NPRESSURE, &Pressure);
   m_maxPressure = pressureSupport ? Pressure.axMax : 0;
+  WINTAB_PRINTF("HCTX %p %s maxPressure: %d\n", m_context.get(), __func__, m_maxPressure);
 
   BOOL tiltSupport = m_fpInfo(WTI_DEVICES, DVC_ORIENTATION, &Orientation);
   /* Check if tablet supports azimuth [0] and altitude [1], encoded in axResolution. */
@@ -275,6 +278,11 @@ void GHOST_Wintab::updateCursorInfo()
   else {
     m_maxAzimuth = m_maxAltitude = 0;
   }
+  WINTAB_PRINTF("HCTX %p %s maxAzimuth: %d, maxAltitude: %d\n",
+                m_context.get(),
+                __func__,
+                m_maxAzimuth,
+                m_maxAltitude);
 }
 
 void GHOST_Wintab::processInfoChange(LPARAM lParam)
@@ -282,6 +290,7 @@ void GHOST_Wintab::processInfoChange(LPARAM lParam)
   /* Update number of connected Wintab digitizers. */
   if (LOWORD(lParam) == WTI_INTERFACE && HIWORD(lParam) == IFC_NDEVICES) {
     m_fpInfo(WTI_INTERFACE, IFC_NDEVICES, &m_numDevices);
+    WINTAB_PRINTF("HCTX %p %s numDevices: %d\n", m_context.get(), __func__, m_numDevices);
   }
 }
 
@@ -298,14 +307,12 @@ GHOST_TabletData GHOST_Wintab::getLastTabletData()
 void GHOST_Wintab::getInput(std::vector<GHOST_WintabInfoWin32> &outWintabInfo)
 {
   const int numPackets = m_fpPacketsGet(m_context.get(), m_pkts.size(), m_pkts.data());
-  outWintabInfo.resize(numPackets);
-  size_t outExtent = 0;
+  outWintabInfo.reserve(numPackets);
 
   for (int i = 0; i < numPackets; i++) {
-    PACKET pkt = m_pkts[i];
-    GHOST_WintabInfoWin32 &out = outWintabInfo[i + outExtent];
+    const PACKET pkt = m_pkts[i];
+    GHOST_WintabInfoWin32 out;
 
-    out.tabletData = GHOST_TABLET_DATA_NONE;
     /* % 3 for multiple devices ("DualTrack"). */
     switch (pkt.pkCursor % 3) {
       case 0:
@@ -328,12 +335,7 @@ void GHOST_Wintab::getInput(std::vector<GHOST_WintabInfoWin32> &outWintabInfo)
     }
 
     if ((m_maxAzimuth > 0) && (m_maxAltitude > 0)) {
-      ORIENTATION ort = pkt.pkOrientation;
-      float vecLen;
-      float altRad, azmRad; /* In radians. */
-
-      /*
-       * From the wintab spec:
+      /* From the wintab spec:
        * orAzimuth: Specifies the clockwise rotation of the cursor about the z axis through a
        * full circular range.
        * orAltitude: Specifies the angle with the x-y plane through a signed, semicircular range.
@@ -346,61 +348,48 @@ void GHOST_Wintab::getInput(std::vector<GHOST_WintabInfoWin32> &outWintabInfo)
        * value.
        */
 
+      ORIENTATION ort = pkt.pkOrientation;
+
       /* Convert raw fixed point data to radians. */
-      altRad = (float)((fabs((float)ort.orAltitude) / (float)m_maxAltitude) * M_PI / 2.0);
-      azmRad = (float)(((float)ort.orAzimuth / (float)m_maxAzimuth) * M_PI * 2.0);
+      float altRad = (float)((fabs((float)ort.orAltitude) / (float)m_maxAltitude) * M_PI_2);
+      float azmRad = (float)(((float)ort.orAzimuth / (float)m_maxAzimuth) * M_PI * 2.0);
 
       /* Find length of the stylus' projected vector on the XY plane. */
-      vecLen = cos(altRad);
+      float vecLen = cos(altRad);
 
       /* From there calculate X and Y components based on azimuth. */
       out.tabletData.Xtilt = sin(azmRad) * vecLen;
-      out.tabletData.Ytilt = (float)(sin(M_PI / 2.0 - azmRad) * vecLen);
+      out.tabletData.Ytilt = (float)(sin(M_PI_2 - azmRad) * vecLen);
     }
 
     out.time = pkt.pkTime;
 
     /* Some Wintab libraries don't handle relative button input, so we track button presses
      * manually. */
-    out.button = GHOST_kButtonMaskNone;
-    out.type = GHOST_kEventCursorMove;
-
     DWORD buttonsChanged = m_buttons ^ pkt.pkButtons;
-    WORD buttonIndex = 0;
-    GHOST_WintabInfoWin32 buttonRef = out;
-    int buttons = 0;
+    /* We only needed the prior button state to compare to current, so we can overwrite it now. */
+    m_buttons = pkt.pkButtons;
 
-    while (buttonsChanged) {
+    /* Iterate over button flag indices until all flags are clear. */
+    for (WORD buttonIndex = 0; buttonsChanged; buttonIndex++, buttonsChanged >>= 1) {
       if (buttonsChanged & 1) {
-        /* Find the index for the changed button from the button map. */
-        GHOST_TButtonMask button = mapWintabToGhostButton(pkt.pkCursor, buttonIndex);
+        GHOST_TButton button = mapWintabToGhostButton(pkt.pkCursor, buttonIndex);
 
         if (button != GHOST_kButtonMaskNone) {
-          /* Extend output if multiple buttons are pressed. We don't extend input until we confirm
-           * a Wintab buttons maps to a system button. */
-          if (buttons > 0) {
-            outWintabInfo.resize(outWintabInfo.size() + 1);
-            outExtent++;
-            GHOST_WintabInfoWin32 &out = outWintabInfo[i + outExtent];
-            out = buttonRef;
+          /* If this is not the first button found, push info for the prior Wintab button. */
+          if (out.button != GHOST_kButtonMaskNone) {
+            outWintabInfo.push_back(out);
           }
-          buttons++;
 
           out.button = button;
-          if (buttonsChanged & pkt.pkButtons) {
-            out.type = GHOST_kEventButtonDown;
-          }
-          else {
-            out.type = GHOST_kEventButtonUp;
-          }
+
+          DWORD buttonFlag = 1 << buttonIndex;
+          out.type = pkt.pkButtons & buttonFlag ? GHOST_kEventButtonDown : GHOST_kEventButtonUp;
         }
-
-        m_buttons ^= 1 << buttonIndex;
       }
-
-      buttonsChanged >>= 1;
-      buttonIndex++;
     }
+
+    outWintabInfo.push_back(out);
   }
 
   if (!outWintabInfo.empty()) {
@@ -408,7 +397,7 @@ void GHOST_Wintab::getInput(std::vector<GHOST_WintabInfoWin32> &outWintabInfo)
   }
 }
 
-GHOST_TButtonMask GHOST_Wintab::mapWintabToGhostButton(UINT cursor, WORD physicalButton)
+GHOST_TButton GHOST_Wintab::mapWintabToGhostButton(UINT cursor, WORD physicalButton)
 {
   const WORD numButtons = 32;
   BYTE logicalButtons[numButtons] = {0};
@@ -488,4 +477,145 @@ bool GHOST_Wintab::testCoordinates(int sysX, int sysY, int wtX, int wtY)
     m_coordTrusted = false;
     return false;
   }
+}
+
+bool GHOST_Wintab::m_debug = false;
+
+void GHOST_Wintab::setDebug(bool debug)
+{
+  m_debug = debug;
+}
+
+bool GHOST_Wintab::getDebug()
+{
+  return m_debug;
+}
+
+void GHOST_Wintab::printContextDebugInfo()
+{
+  if (!m_debug) {
+    return;
+  }
+
+  /* Print button maps. */
+  BYTE logicalButtons[32] = {0};
+  BYTE systemButtons[32] = {0};
+  for (int i = 0; i < 3; i++) {
+    printf("initializeWintab cursor %d buttons\n", i);
+    UINT lbut = m_fpInfo(WTI_CURSORS + i, CSR_BUTTONMAP, &logicalButtons);
+    if (lbut) {
+      printf("%d", logicalButtons[0]);
+      for (int j = 1; j < lbut; j++) {
+        printf(", %d", logicalButtons[j]);
+      }
+      printf("\n");
+    }
+    else {
+      printf("logical button error\n");
+    }
+    UINT sbut = m_fpInfo(WTI_CURSORS + i, CSR_SYSBTNMAP, &systemButtons);
+    if (sbut) {
+      printf("%d", systemButtons[0]);
+      for (int j = 1; j < sbut; j++) {
+        printf(", %d", systemButtons[j]);
+      }
+      printf("\n");
+    }
+    else {
+      printf("system button error\n");
+    }
+  }
+
+  /* Print context information. */
+
+  /* Print open context constraints. */
+  UINT maxcontexts, opencontexts;
+  m_fpInfo(WTI_INTERFACE, IFC_NCONTEXTS, &maxcontexts);
+  m_fpInfo(WTI_STATUS, STA_CONTEXTS, &opencontexts);
+  printf("%u max contexts, %u open contexts\n", maxcontexts, opencontexts);
+
+  /* Print system information. */
+  printf("left: %d, top: %d, width: %d, height: %d\n",
+         ::GetSystemMetrics(SM_XVIRTUALSCREEN),
+         ::GetSystemMetrics(SM_YVIRTUALSCREEN),
+         ::GetSystemMetrics(SM_CXVIRTUALSCREEN),
+         ::GetSystemMetrics(SM_CYVIRTUALSCREEN));
+
+  auto printContextRanges = [](LOGCONTEXT &lc) {
+    printf("lcInOrgX: %d, lcInOrgY: %d, lcInExtX: %d, lcInExtY: %d\n",
+           lc.lcInOrgX,
+           lc.lcInOrgY,
+           lc.lcInExtX,
+           lc.lcInExtY);
+    printf("lcOutOrgX: %d, lcOutOrgY: %d, lcOutExtX: %d, lcOutExtY: %d\n",
+           lc.lcOutOrgX,
+           lc.lcOutOrgY,
+           lc.lcOutExtX,
+           lc.lcOutExtY);
+    printf("lcSysOrgX: %d, lcSysOrgY: %d, lcSysExtX: %d, lcSysExtY: %d\n",
+           lc.lcSysOrgX,
+           lc.lcSysOrgY,
+           lc.lcSysExtX,
+           lc.lcSysExtY);
+  };
+
+  LOGCONTEXT lc;
+
+  /* Print system context. */
+  m_fpInfo(WTI_DEFSYSCTX, 0, &lc);
+  printf("WTI_DEFSYSCTX\n");
+  printContextRanges(lc);
+
+  /* Print system context, manually populated. */
+  m_fpInfo(WTI_DEFSYSCTX, CTX_INORGX, &lc.lcInOrgX);
+  m_fpInfo(WTI_DEFSYSCTX, CTX_INORGY, &lc.lcInOrgY);
+  m_fpInfo(WTI_DEFSYSCTX, CTX_INEXTX, &lc.lcInExtX);
+  m_fpInfo(WTI_DEFSYSCTX, CTX_INEXTY, &lc.lcInExtY);
+  m_fpInfo(WTI_DEFSYSCTX, CTX_OUTORGX, &lc.lcOutOrgX);
+  m_fpInfo(WTI_DEFSYSCTX, CTX_OUTORGY, &lc.lcOutOrgY);
+  m_fpInfo(WTI_DEFSYSCTX, CTX_OUTEXTX, &lc.lcOutExtX);
+  m_fpInfo(WTI_DEFSYSCTX, CTX_OUTEXTY, &lc.lcOutExtY);
+  m_fpInfo(WTI_DEFSYSCTX, CTX_SYSORGX, &lc.lcSysOrgX);
+  m_fpInfo(WTI_DEFSYSCTX, CTX_SYSORGY, &lc.lcSysOrgY);
+  m_fpInfo(WTI_DEFSYSCTX, CTX_SYSEXTX, &lc.lcSysExtX);
+  m_fpInfo(WTI_DEFSYSCTX, CTX_SYSEXTY, &lc.lcSysExtY);
+  printf("WTI_DEFSYSCTX CTX_*\n");
+  printContextRanges(lc);
+
+  for (unsigned int i = 0; i < m_numDevices; i++) {
+    /* Print individual device system context. */
+    m_fpInfo(WTI_DSCTXS + i, 0, &lc);
+    printf("WTI_DSCTXS %u\n", i);
+    printContextRanges(lc);
+
+    /* Print individual device system context, manually populated. */
+    m_fpInfo(WTI_DSCTXS + i, CTX_INORGX, &lc.lcInOrgX);
+    m_fpInfo(WTI_DSCTXS + i, CTX_INORGY, &lc.lcInOrgY);
+    m_fpInfo(WTI_DSCTXS + i, CTX_INEXTX, &lc.lcInExtX);
+    m_fpInfo(WTI_DSCTXS + i, CTX_INEXTY, &lc.lcInExtY);
+    m_fpInfo(WTI_DSCTXS + i, CTX_OUTORGX, &lc.lcOutOrgX);
+    m_fpInfo(WTI_DSCTXS + i, CTX_OUTORGY, &lc.lcOutOrgY);
+    m_fpInfo(WTI_DSCTXS + i, CTX_OUTEXTX, &lc.lcOutExtX);
+    m_fpInfo(WTI_DSCTXS + i, CTX_OUTEXTY, &lc.lcOutExtY);
+    m_fpInfo(WTI_DSCTXS + i, CTX_SYSORGX, &lc.lcSysOrgX);
+    m_fpInfo(WTI_DSCTXS + i, CTX_SYSORGY, &lc.lcSysOrgY);
+    m_fpInfo(WTI_DSCTXS + i, CTX_SYSEXTX, &lc.lcSysExtX);
+    m_fpInfo(WTI_DSCTXS + i, CTX_SYSEXTY, &lc.lcSysExtY);
+    printf("WTI_DSCTX %u CTX_*\n", i);
+    printContextRanges(lc);
+
+    /* Print device axis. */
+    AXIS axis_x, axis_y;
+    m_fpInfo(WTI_DEVICES + i, DVC_X, &axis_x);
+    m_fpInfo(WTI_DEVICES + i, DVC_Y, &axis_y);
+    printf("WTI_DEVICES %u axis_x org: %d, axis_y org: %d axis_x ext: %d, axis_y ext: %d\n",
+           i,
+           axis_x.axMin,
+           axis_y.axMin,
+           axis_x.axMax - axis_x.axMin + 1,
+           axis_y.axMax - axis_y.axMin + 1);
+  }
+
+  /* Other stuff while we have a log-context. */
+  printf("sysmode %d\n", lc.lcSysMode);
 }

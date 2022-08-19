@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup pygen
@@ -470,10 +456,6 @@ PyObject *PyC_Tuple_PackArray_Multi_Bool(const bool *array, const int dims[], co
 /** \name Tuple/List Filling
  * \{ */
 
-/**
- * Caller needs to ensure tuple is uninitialized.
- * Handy for filling a tuple with None for eg.
- */
 void PyC_Tuple_Fill(PyObject *tuple, PyObject *value)
 {
   const uint tot = PyTuple_GET_SIZE(tuple);
@@ -502,11 +484,6 @@ void PyC_List_Fill(PyObject *list, PyObject *value)
 /** \name Bool/Enum Argument Parsing
  * \{ */
 
-/**
- * Use with PyArg_ParseTuple's "O&" formatting.
- *
- * \see #PyC_Long_AsBool for a similar function to use outside of argument parsing.
- */
 int PyC_ParseBool(PyObject *o, void *p)
 {
   bool *bool_p = p;
@@ -520,9 +497,6 @@ int PyC_ParseBool(PyObject *o, void *p)
   return 1;
 }
 
-/**
- * Use with PyArg_ParseTuple's "O&" formatting.
- */
 int PyC_ParseStringEnum(PyObject *o, void *p)
 {
   struct PyC_StringEnum *e = p;
@@ -598,10 +572,6 @@ void PyC_ObSpit(const char *name, PyObject *var)
   }
 }
 
-/**
- * A version of #PyC_ObSpit that writes into a string (and doesn't take a name argument).
- * Use for logging.
- */
 void PyC_ObSpitStr(char *result, size_t result_len, PyObject *var)
 {
   /* No name, creator of string can manage that. */
@@ -671,6 +641,7 @@ void PyC_StackSpit(void)
 void PyC_FileAndNum(const char **r_filename, int *r_lineno)
 {
   PyFrameObject *frame;
+  PyCodeObject *code;
 
   if (r_filename) {
     *r_filename = NULL;
@@ -679,13 +650,16 @@ void PyC_FileAndNum(const char **r_filename, int *r_lineno)
     *r_lineno = -1;
   }
 
-  if (!(frame = PyThreadState_GET()->frame)) {
+  if (!(frame = PyEval_GetFrame())) {
+    return;
+  }
+  if (!(code = PyFrame_GetCode(frame))) {
     return;
   }
 
   /* when executing a script */
   if (r_filename) {
-    *r_filename = PyUnicode_AsUTF8(frame->f_code->co_filename);
+    *r_filename = PyUnicode_AsUTF8(code->co_filename);
   }
 
   /* when executing a module */
@@ -789,13 +763,6 @@ PyObject *PyC_FrozenSetFromStrings(const char **strings)
 /** \name Exception Utilities
  * \{ */
 
-/**
- * Similar to #PyErr_Format(),
- *
- * Implementation - we can't actually prepend the existing exception,
- * because it could have _any_ arguments given to it, so instead we get its
- * `__str__` output and raise our own exception including it.
- */
 PyObject *PyC_Err_Format_Prefix(PyObject *exception_type_prefix, const char *format, ...)
 {
   PyObject *error_value_prefix;
@@ -835,10 +802,6 @@ PyObject *PyC_Err_SetString_Prefix(PyObject *exception_type_prefix, const char *
   return PyC_Err_Format_Prefix(exception_type_prefix, "%s", str);
 }
 
-/**
- * Use for Python callbacks run directly from C,
- * when we can't use normal methods of raising exceptions.
- */
 void PyC_Err_PrintWithFunc(PyObject *py_func)
 {
   /* since we return to C code we can't leave the error */
@@ -859,6 +822,36 @@ void PyC_Err_PrintWithFunc(PyObject *py_func)
 /* -------------------------------------------------------------------- */
 /** \name Exception Buffer Access
  * \{ */
+
+static void pyc_exception_buffer_handle_system_exit(PyObject *error_type,
+                                                    PyObject *error_value,
+                                                    PyObject *error_traceback)
+{
+  if (!PyErr_GivenExceptionMatches(error_type, PyExc_SystemExit)) {
+    return;
+  }
+  /* Inspecting, follow Python's logic in #_Py_HandleSystemExit & treat as a regular exception. */
+  if (_Py_GetConfig()->inspect) {
+    return;
+  }
+
+  /* NOTE(@campbellbarton): A `SystemExit` exception will exit immediately (unless inspecting).
+   * So print the error and exit now. This is necessary as the call to #PyErr_Print exits,
+   * the temporary `sys.stderr` assignment causes the output to be suppressed, failing silently.
+   * Instead, restore the error and print it. If Python changes it's behavior and doesn't exit in
+   * the future - continue to create the exception buffer, see: T99966.
+   *
+   * Arguably accessing a `SystemExit` exception as a buffer should be supported without exiting.
+   * (by temporarily enabling inspection for example) however - it's not obvious exactly when this
+   * should be enabled and complicates the Python API by introducing different kinds of execution.
+   * Since the rule of thumb is for Blender's embedded Python to match stand-alone Python,
+   * favor exiting when a `SystemExit` is raised.
+   * Especially since this exception more likely to be used for background/batch-processing
+   * utilities where exiting immediately makes sense, the possibility of this being called
+   * indirectly from python-drivers or modal-operators is less of a concern. */
+  PyErr_Restore(error_type, error_value, error_traceback);
+  PyErr_Print();
+}
 
 /* returns the exception string as a new PyUnicode object, depends on external traceback module */
 #  if 0
@@ -910,7 +903,7 @@ PyObject *PyC_ExceptionBuffer(void)
 
   PyErr_Fetch(&error_type, &error_value, &error_traceback);
 
-  PyErr_Clear();
+  pyc_exception_buffer_handle_system_exit(error_type, error_value, error_traceback);
 
   /* import io
    * string_io = io.StringIO()
@@ -935,6 +928,10 @@ PyObject *PyC_ExceptionBuffer(void)
   PySys_SetObject("stderr", string_io);
 
   PyErr_Restore(error_type, error_value, error_traceback);
+  /* Printing clears (call #PyErr_Clear as well to ensure it's cleared).  */
+  Py_XINCREF(error_type);
+  Py_XINCREF(error_value);
+  Py_XINCREF(error_traceback);
   PyErr_Print(); /* print the error */
   PyErr_Clear();
 
@@ -950,17 +947,18 @@ PyObject *PyC_ExceptionBuffer(void)
   Py_DECREF(string_io_getvalue);
   Py_DECREF(string_io); /* free the original reference */
 
-  PyErr_Clear();
+  PyErr_Restore(error_type, error_value, error_traceback);
+
   return string_io_buf;
 
 error_cleanup:
-  /* could not import the module so print the error and close */
+  /* Could not import the module so print the error and close. */
   Py_XDECREF(string_io_mod);
   Py_XDECREF(string_io);
 
   PyErr_Restore(error_type, error_value, error_traceback);
   PyErr_Print(); /* print the error */
-  PyErr_Clear();
+  PyErr_Restore(error_type, error_value, error_traceback);
 
   return NULL;
 }
@@ -968,19 +966,20 @@ error_cleanup:
 
 PyObject *PyC_ExceptionBuffer_Simple(void)
 {
-  PyObject *string_io_buf = NULL;
-
-  PyObject *error_type, *error_value, *error_traceback;
-
   if (!PyErr_Occurred()) {
     return NULL;
   }
 
+  PyObject *string_io_buf = NULL;
+
+  PyObject *error_type, *error_value, *error_traceback;
+
   PyErr_Fetch(&error_type, &error_value, &error_traceback);
 
-  if (error_value == NULL) {
-    return NULL;
-  }
+  /* Since #PyErr_Print is not called it's not essential that `SystemExit` exceptions are handled.
+   * Do this to match the behavior of #PyC_ExceptionBuffer since requesting a brief exception
+   * shouldn't result in completely different behavior. */
+  pyc_exception_buffer_handle_system_exit(error_type, error_value, error_traceback);
 
   if (PyErr_GivenExceptionMatches(error_type, PyExc_SyntaxError)) {
     /* Special exception for syntax errors,
@@ -1002,7 +1001,6 @@ PyObject *PyC_ExceptionBuffer_Simple(void)
 
   PyErr_Restore(error_type, error_value, error_traceback);
 
-  PyErr_Clear();
   return string_io_buf;
 }
 
@@ -1014,7 +1012,6 @@ PyObject *PyC_ExceptionBuffer_Simple(void)
  * In some cases we need to coerce strings, avoid doing this inline.
  * \{ */
 
-/* string conversion, escape non-unicode chars, coerce must be set to NULL */
 const char *PyC_UnicodeAsByteAndSize(PyObject *py_str, Py_ssize_t *size, PyObject **coerce)
 {
   const char *result;
@@ -1093,18 +1090,6 @@ PyObject *PyC_UnicodeFromByte(const char *str)
 /** \name Name Space Creation/Manipulation
  * \{ */
 
-/*****************************************************************************
- * Description: This function creates a new Python dictionary object.
- * NOTE: dict is owned by sys.modules["__main__"] module, reference is borrowed
- * NOTE: important we use the dict from __main__, this is what python expects
- * for 'pickle' to work as well as strings like this...
- * >> foo = 10
- * >> print(__import__("__main__").foo)
- *
- * NOTE: this overwrites __main__ which gives problems with nested calls.
- * be sure to run PyC_MainModule_Backup & PyC_MainModule_Restore if there is
- * any chance that python is in the call stack.
- ****************************************************************************/
 PyObject *PyC_DefaultNameSpace(const char *filename)
 {
   PyObject *modules = PyImport_GetModuleDict();
@@ -1143,7 +1128,6 @@ bool PyC_NameSpace_ImportArray(PyObject *py_dict, const char *imports[])
   return true;
 }
 
-/* restore MUST be called after this */
 void PyC_MainModule_Backup(PyObject **r_main_mod)
 {
   PyObject *modules = PyImport_GetModuleDict();
@@ -1468,11 +1452,6 @@ PyObject *PyC_FlagSet_FromBitfield(PyC_FlagSet *items, int flag)
 /** \name Run String (Evaluate to Primitive Types)
  * \{ */
 
-/**
- * \return success
- *
- * \note it is caller's responsibility to acquire & release GIL!
- */
 bool PyC_RunString_AsNumber(const char *imports[],
                             const char *expr,
                             const char *filename,
@@ -1648,32 +1627,6 @@ bool PyC_RunString_AsString(const char *imports[],
 #  pragma GCC diagnostic ignored "-Wtype-limits"
 #endif
 
-/**
- *
- * Comparison with #PyObject_IsTrue
- * ================================
- *
- * Even though Python provides a way to retrieve the boolean value for an object,
- * in many cases it's far too relaxed, with the following examples coercing values.
- *
- * \code{.py}
- * data.value = "Text"    # True.
- * data.value = ""        # False.
- * data.value = {1, 2}    # True
- * data.value = {}        # False.
- * data.value = None      # False.
- * \endcode
- *
- * In practice this is often a mistake by the script author that doesn't behave as they expect.
- * So it's better to be more strict for attribute assignment and function arguments,
- * only accepting True/False 0/1.
- *
- * If coercing a value is desired, it can be done explicitly: `data.value = bool(value)`
- *
- * \see #PyC_ParseBool for use with #PyArg_ParseTuple and related functions.
- *
- * \note Don't use `bool` return type, so -1 can be used as an error value.
- */
 int PyC_Long_AsBool(PyObject *value)
 {
   const int test = _PyLong_AsInt(value);

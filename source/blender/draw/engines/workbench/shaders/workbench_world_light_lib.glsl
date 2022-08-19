@@ -1,6 +1,4 @@
 
-#pragma BLENDER_REQUIRE(workbench_data_lib.glsl)
-
 /* [Drobot2014a] Low Level Optimizations for GCN */
 vec4 fast_rcp(vec4 v)
 {
@@ -66,22 +64,35 @@ vec3 get_world_lighting(vec3 base_color, float roughness, float metallic, vec3 N
   if (world_data.use_specular) {
     /* Prepare Specular computation. Eval 4 lights at once. */
     vec3 R = -reflect(I, N);
+
+#ifdef GPU_METAL
+    /* Split vectors into arrays of floats. Partial vector references are unsupported by MSL. */
+    float spec_angle[4], spec_NL[4], wrap_NL[4];
+#  define AS_VEC4(a) vec4(a[0], a[1], a[2], a[3])
+#else
     vec4 spec_angle, spec_NL, wrap_NL;
-    prep_specular(world_data.lights[0].direction.xyz, I, N, R, spec_NL.x, wrap_NL.x, spec_angle.x);
-    prep_specular(world_data.lights[1].direction.xyz, I, N, R, spec_NL.y, wrap_NL.y, spec_angle.y);
-    prep_specular(world_data.lights[2].direction.xyz, I, N, R, spec_NL.z, wrap_NL.z, spec_angle.z);
-    prep_specular(world_data.lights[3].direction.xyz, I, N, R, spec_NL.w, wrap_NL.w, spec_angle.w);
+#  define AS_VEC4(a) a
+#endif
+    prep_specular(
+        world_data.lights[0].direction.xyz, I, N, R, spec_NL[0], wrap_NL[0], spec_angle[0]);
+    prep_specular(
+        world_data.lights[1].direction.xyz, I, N, R, spec_NL[1], wrap_NL[1], spec_angle[1]);
+    prep_specular(
+        world_data.lights[2].direction.xyz, I, N, R, spec_NL[2], wrap_NL[2], spec_angle[2]);
+    prep_specular(
+        world_data.lights[3].direction.xyz, I, N, R, spec_NL[3], wrap_NL[3], spec_angle[3]);
 
     vec4 gloss = vec4(1.0 - roughness);
     /* Reduce gloss for smooth light. (simulate bigger light) */
     gloss *= 1.0 - wrap;
     vec4 shininess = exp2(10.0 * gloss + 1.0);
 
-    vec4 spec_light = blinn_specular(shininess, spec_angle, spec_NL);
+    vec4 spec_light = blinn_specular(shininess, AS_VEC4(spec_angle), AS_VEC4(spec_NL));
 
     /* Simulate Env. light. */
     vec4 w = mix(wrap, vec4(1.0), roughness);
-    vec4 spec_env = wrapped_lighting(wrap_NL, w);
+    vec4 spec_env = wrapped_lighting(AS_VEC4(wrap_NL), w);
+#undef AS_VEC4
 
     spec_light = mix(spec_light, spec_env, wrap * wrap);
 
@@ -120,12 +131,10 @@ vec3 get_world_lighting(vec3 base_color, float roughness, float metallic, vec3 N
   return diffuse_light + specular_light;
 }
 
-uniform bool forceShadowing = false;
-
-float get_shadow(vec3 N)
+float get_shadow(vec3 N, bool force_shadowing)
 {
   float light_factor = -dot(N, world_data.shadow_direction_vs.xyz);
   float shadow_mix = smoothstep(world_data.shadow_shift, world_data.shadow_focus, light_factor);
-  shadow_mix *= forceShadowing ? 0.0 : world_data.shadow_mul;
+  shadow_mix *= force_shadowing ? 0.0 : world_data.shadow_mul;
   return shadow_mix + world_data.shadow_add;
 }

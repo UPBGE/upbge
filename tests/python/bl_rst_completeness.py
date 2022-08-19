@@ -1,26 +1,10 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
-# <pep8 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # run this script in the game engine.
 # or on the command line with...
 #  ./blender.bin --background -noaudio --python tests/python/bl_rst_completeness.py
+
+# Paste this into the bge and run on an always actuator.
 '''
 filepath = "/src/blender/tests/python/bl_rst_completeness.py"
 exec(compile(open(filepath).read(), filepath, 'exec'))
@@ -36,9 +20,20 @@ sys.path.append(THIS_DIR)
 
 import rst_to_doctree_mini
 
+try:
+    import bge
+except:
+    bge = None
 
 # (file, module)
 modules = (
+    ("bge.constraints.rst", "bge.constraints", False),
+    ("bge.events.rst", "bge.events", False),
+    ("bge.logic.rst", "bge.logic", False),
+    ("bge.render.rst", "bge.render", False),
+    ("bge.texture.rst", "bge.texture", False),
+    ("bge.types.rst", "bge.types", False),
+
     ("bgl.rst", "bgl", True),
     ("gpu.rst", "gpu", False),
 )
@@ -124,7 +119,13 @@ def module_validate(filepath, mod, mod_name, doctree, partial_ok):
 
 def main():
 
+    if bge is None:
+        print("Skipping BGE modules!")
+
     for filename, modname, partial_ok in modules:
+        if bge is None and modname.startswith("bge"):
+            continue
+
         filepath = os.path.join(RST_DIR, filename)
         if not os.path.exists(filepath):
             raise Exception("%r not found" % filepath)

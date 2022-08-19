@@ -1,23 +1,5 @@
-# ***** BEGIN LGPL LICENSE BLOCK *****
-#
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Copyright 2009 Jrg Hermann Mller
-#
-# This file is part of AudaSpace.
-#
-# AudaSpace is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Lesser General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# AudaSpace is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Lesser General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
-# along with AudaSpace.  If not, see <http://www.gnu.org/licenses/>.
-#
-# ***** END LGPL LICENSE BLOCK *****
 
 remove_strict_flags()
 
@@ -53,11 +35,15 @@ if(NOT WITH_SYSTEM_AUDASPACE)
 else()
   list(APPEND LIB
     ${AUDASPACE_C_LIBRARIES}
-    ${AUDASPACE_PY_LIBRARIES}
   )
+  if(WITH_PYTHON AND WITH_PYTHON_NUMPY)
+    list(APPEND LIB
+      ${AUDASPACE_PY_LIBRARIES}
+    )
+  endif()
 endif()
 
-if(WITH_PYTHON)
+if(WITH_PYTHON AND WITH_PYTHON_NUMPY)
   list(APPEND INC_SYS
     ${PYTHON_INCLUDE_DIRS}
   )

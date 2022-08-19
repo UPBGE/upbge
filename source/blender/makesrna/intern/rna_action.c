@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup RNA
@@ -182,10 +168,16 @@ static void rna_Action_fcurve_remove(bAction *act, ReportList *reports, PointerR
   WM_main_add_notifier(NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
 }
 
+static void rna_Action_fcurve_clear(bAction *act)
+{
+  BKE_action_fcurves_clear(act);
+  WM_main_add_notifier(NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
+}
+
 static TimeMarker *rna_Action_pose_markers_new(bAction *act, const char name[])
 {
   TimeMarker *marker = MEM_callocN(sizeof(TimeMarker), "TimeMarker");
-  marker->flag = 1;
+  marker->flag = SELECT;
   marker->frame = 1;
   BLI_strncpy_utf8(marker->name, name, sizeof(marker->name));
   BLI_addtail(&act->markers, marker);
@@ -246,10 +238,58 @@ static void rna_Action_active_pose_marker_index_range(
   *max = max_ii(0, BLI_listbase_count(&act->markers) - 1);
 }
 
-static void rna_Action_frame_range_get(PointerRNA *ptr, float *values)
+static void rna_Action_frame_range_get(PointerRNA *ptr, float *r_values)
+{
+  BKE_action_get_frame_range((bAction *)ptr->owner_id, &r_values[0], &r_values[1]);
+}
+
+static void rna_Action_frame_range_set(PointerRNA *ptr, const float *values)
+{
+  bAction *data = (bAction *)ptr->owner_id;
+
+  data->flag |= ACT_FRAME_RANGE;
+  data->frame_start = values[0];
+  data->frame_end = values[1];
+  CLAMP_MIN(data->frame_end, data->frame_start);
+}
+
+static void rna_Action_curve_frame_range_get(PointerRNA *ptr, float *values)
 { /* don't include modifiers because they too easily can have very large
    * ranges: MINAFRAMEF to MAXFRAMEF. */
   calc_action_range((bAction *)ptr->owner_id, values, values + 1, false);
+}
+
+static void rna_Action_use_frame_range_set(PointerRNA *ptr, bool value)
+{
+  bAction *data = (bAction *)ptr->owner_id;
+
+  if (value) {
+    /* If the frame range is blank, initialize it by scanning F-Curves. */
+    if ((data->frame_start == data->frame_end) && (data->frame_start == 0)) {
+      calc_action_range(data, &data->frame_start, &data->frame_end, false);
+    }
+
+    data->flag |= ACT_FRAME_RANGE;
+  }
+  else {
+    data->flag &= ~ACT_FRAME_RANGE;
+  }
+}
+
+static void rna_Action_start_frame_set(PointerRNA *ptr, float value)
+{
+  bAction *data = (bAction *)ptr->owner_id;
+
+  data->frame_start = value;
+  CLAMP_MIN(data->frame_end, data->frame_start);
+}
+
+static void rna_Action_end_frame_set(PointerRNA *ptr, float value)
+{
+  bAction *data = (bAction *)ptr->owner_id;
+
+  data->frame_end = value;
+  CLAMP_MAX(data->frame_start, data->frame_end);
 }
 
 /* Used to check if an action (value pointer)
@@ -306,7 +346,7 @@ bool rna_Action_actedit_assign_poll(PointerRNA *ptr, PointerRNA value)
   return 0;
 }
 
-static char *rna_DopeSheet_path(PointerRNA *UNUSED(ptr))
+static char *rna_DopeSheet_path(const PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("dopesheet");
 }
@@ -577,11 +617,11 @@ static void rna_def_dopesheet(BlenderRNA *brna)
   RNA_def_property_ui_icon(prop, ICON_FILE, 0);
   RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, NULL);
 
-  prop = RNA_def_property(srna, "show_hairs", PROP_BOOLEAN, PROP_NONE);
+  prop = RNA_def_property(srna, "show_hair_curves", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, NULL, "filterflag2", ADS_FILTER_NOHAIR);
   RNA_def_property_ui_text(
       prop, "Display Hair", "Include visualization of hair related animation data");
-  RNA_def_property_ui_icon(prop, ICON_OUTLINER_OB_HAIR, 0);
+  RNA_def_property_ui_icon(prop, ICON_OUTLINER_OB_CURVES, 0);
   RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, NULL);
 
   prop = RNA_def_property(srna, "show_pointclouds", PROP_BOOLEAN, PROP_NONE);
@@ -654,6 +694,11 @@ static void rna_def_action_group(BlenderRNA *brna)
   prop = RNA_def_property(srna, "lock", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", AGRP_PROTECTED);
   RNA_def_property_ui_text(prop, "Lock", "Action group is locked");
+  RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, NULL);
+
+  prop = RNA_def_property(srna, "mute", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", AGRP_MUTED);
+  RNA_def_property_ui_text(prop, "Mute", "Action group is muted");
   RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, NULL);
 
   prop = RNA_def_property(srna, "show_expanded", PROP_BOOLEAN, PROP_NONE);
@@ -749,11 +794,15 @@ static void rna_def_action_fcurves(BlenderRNA *brna, PropertyRNA *cprop)
 
   /* Action.fcurves.remove(...) */
   func = RNA_def_function(srna, "remove", "rna_Action_fcurve_remove");
-  RNA_def_function_ui_description(func, "Remove action group");
+  RNA_def_function_ui_description(func, "Remove F-Curve");
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
   parm = RNA_def_pointer(func, "fcurve", "FCurve", "", "F-Curve to remove");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
   RNA_def_parameter_clear_flags(parm, PROP_THICK_WRAP, 0);
+
+  /* Action.fcurves.clear() */
+  func = RNA_def_function(srna, "clear", "rna_Action_fcurve_clear");
+  RNA_def_function_ui_description(func, "Remove all F-Curves");
 }
 
 static void rna_def_action_pose_markers(BlenderRNA *brna, PropertyRNA *cprop)
@@ -834,17 +883,73 @@ static void rna_def_action(BlenderRNA *brna)
   rna_def_action_pose_markers(brna, prop);
 
   /* properties */
+  prop = RNA_def_property(srna, "use_frame_range", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", ACT_FRAME_RANGE);
+  RNA_def_property_boolean_funcs(prop, NULL, "rna_Action_use_frame_range_set");
+  RNA_def_property_ui_text(
+      prop,
+      "Manual Frame Range",
+      "Manually specify the intended playback frame range for the action "
+      "(this range is used by some tools, but does not affect animation evaluation)");
+  RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, NULL);
+
+  prop = RNA_def_property(srna, "use_cyclic", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flag", ACT_CYCLIC);
+  RNA_def_property_ui_text(
+      prop,
+      "Cyclic Animation",
+      "The action is intended to be used as a cycle looping over its manually set "
+      "playback frame range (enabling this doesn't automatically make it loop)");
+  RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, NULL);
+
+  prop = RNA_def_property(srna, "frame_start", PROP_FLOAT, PROP_TIME);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_float_sdna(prop, NULL, "frame_start");
+  RNA_def_property_float_funcs(prop, NULL, "rna_Action_start_frame_set", NULL);
+  RNA_def_property_ui_range(prop, MINFRAME, MAXFRAME, 100, 2);
+  RNA_def_property_ui_text(
+      prop, "Start Frame", "The start frame of the manually set intended playback range");
+  RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, NULL);
+
+  prop = RNA_def_property(srna, "frame_end", PROP_FLOAT, PROP_TIME);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_float_sdna(prop, NULL, "frame_end");
+  RNA_def_property_float_funcs(prop, NULL, "rna_Action_end_frame_set", NULL);
+  RNA_def_property_ui_range(prop, MINFRAME, MAXFRAME, 100, 2);
+  RNA_def_property_ui_text(
+      prop, "End Frame", "The end frame of the manually set intended playback range");
+  RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, NULL);
+
+  prop = RNA_def_float_vector(
+      srna,
+      "frame_range",
+      2,
+      NULL,
+      0,
+      0,
+      "Frame Range",
+      "The intended playback frame range of this action, using the manually set range "
+      "if available, or the combined frame range of all F-Curves within this action "
+      "if not (assigning sets the manual frame range)",
+      0,
+      0);
+  RNA_def_property_float_funcs(
+      prop, "rna_Action_frame_range_get", "rna_Action_frame_range_set", NULL);
+  RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, NULL);
+
   prop = RNA_def_float_vector(srna,
-                              "frame_range",
+                              "curve_frame_range",
                               2,
                               NULL,
                               0,
                               0,
-                              "Frame Range",
-                              "The final frame range of all F-Curves within this action",
+                              "Curve Frame Range",
+                              "The combined frame range of all F-Curves within this action",
                               0,
                               0);
-  RNA_def_property_float_funcs(prop, "rna_Action_frame_range_get", NULL, NULL);
+  RNA_def_property_float_funcs(prop, "rna_Action_curve_frame_range_get", NULL, NULL);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
   /* special "type" limiter - should not really be edited in general,

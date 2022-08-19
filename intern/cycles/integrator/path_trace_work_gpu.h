@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2021 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #pragma once
 
@@ -46,7 +33,8 @@ class PathTraceWorkGPU : public PathTraceWork {
 
   virtual void render_samples(RenderStatistics &statistics,
                               int start_sample,
-                              int samples_num) override;
+                              int samples_num,
+                              int sample_offset) override;
 
   virtual void copy_to_display(PathTraceDisplay *display,
                                PassMode pass_mode,
@@ -145,6 +133,7 @@ class PathTraceWorkGPU : public PathTraceWork {
   /* Shader sorting. */
   device_vector<int> integrator_shader_sort_counter_;
   device_vector<int> integrator_shader_raytrace_sort_counter_;
+  device_vector<int> integrator_shader_mnee_sort_counter_;
   device_vector<int> integrator_shader_sort_prefix_sum_;
   /* Path split. */
   device_vector<int> integrator_next_main_path_index_;
@@ -166,6 +155,9 @@ class PathTraceWorkGPU : public PathTraceWork {
   /* Cached result of device->should_use_graphics_interop(). */
   bool interop_use_checked_ = false;
   bool interop_use_ = false;
+
+  /* Number of partitions to sort state indices into prior to material sort. */
+  int num_sort_partitions_;
 
   /* Maximum number of concurrent integrator states. */
   int max_num_paths_;

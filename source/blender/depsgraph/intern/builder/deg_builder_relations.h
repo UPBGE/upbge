@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2013 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2013 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup depsgraph
@@ -31,6 +15,7 @@
 #include "DNA_ID.h"
 
 #include "RNA_access.h"
+#include "RNA_path.h"
 #include "RNA_types.h"
 
 #include "BLI_string.h"
@@ -39,6 +24,7 @@
 #include "intern/builder/deg_builder.h"
 #include "intern/builder/deg_builder_map.h"
 #include "intern/builder/deg_builder_rna.h"
+#include "intern/builder/deg_builder_stack.h"
 #include "intern/depsgraph.h"
 #include "intern/node/deg_node.h"
 #include "intern/node/deg_node_component.h"
@@ -71,8 +57,8 @@ struct Scene;
 struct Simulation;
 struct Speaker;
 struct Tex;
-struct ViewLayer;
 struct VFont;
+struct ViewLayer;
 struct World;
 struct bAction;
 struct bArmature;
@@ -85,8 +71,7 @@ struct bSound;
 
 struct PropertyRNA;
 
-namespace blender {
-namespace deg {
+namespace blender::deg {
 
 struct ComponentNode;
 struct DepsNodeHandle;
@@ -100,51 +85,113 @@ struct RootPChanMap;
 struct TimeSourceNode;
 
 struct TimeSourceKey {
-  TimeSourceKey();
-  TimeSourceKey(ID *id);
+  TimeSourceKey() = default;
 
   string identifier() const;
-
-  ID *id;
 };
 
 struct ComponentKey {
-  ComponentKey();
-  ComponentKey(ID *id, NodeType type, const char *name = "");
+  ComponentKey() = default;
+
+  inline ComponentKey(const ID *id, NodeType type, const char *name = "")
+      : id(id), type(type), name(name)
+  {
+  }
 
   string identifier() const;
 
-  ID *id;
-  NodeType type;
-  const char *name;
+  const ID *id = nullptr;
+  NodeType type = NodeType::UNDEFINED;
+  const char *name = "";
 };
 
 struct OperationKey {
-  OperationKey();
-  OperationKey(ID *id, NodeType component_type, const char *name, int name_tag = -1);
-  OperationKey(
-      ID *id, NodeType component_type, const char *component_name, const char *name, int name_tag);
+  OperationKey() = default;
 
-  OperationKey(ID *id, NodeType component_type, OperationCode opcode);
-  OperationKey(ID *id, NodeType component_type, const char *component_name, OperationCode opcode);
+  inline OperationKey(const ID *id, NodeType component_type, const char *name, int name_tag = -1)
+      : id(id),
+        component_type(component_type),
+        component_name(""),
+        opcode(OperationCode::OPERATION),
+        name(name),
+        name_tag(name_tag)
+  {
+  }
 
-  OperationKey(
-      ID *id, NodeType component_type, OperationCode opcode, const char *name, int name_tag = -1);
-  OperationKey(ID *id,
+  OperationKey(const ID *id,
+               NodeType component_type,
+               const char *component_name,
+               const char *name,
+               int name_tag)
+      : id(id),
+        component_type(component_type),
+        component_name(component_name),
+        opcode(OperationCode::OPERATION),
+        name(name),
+        name_tag(name_tag)
+  {
+  }
+
+  OperationKey(const ID *id, NodeType component_type, OperationCode opcode)
+      : id(id),
+        component_type(component_type),
+        component_name(""),
+        opcode(opcode),
+        name(""),
+        name_tag(-1)
+  {
+  }
+
+  OperationKey(const ID *id,
+               NodeType component_type,
+               const char *component_name,
+               OperationCode opcode)
+      : id(id),
+        component_type(component_type),
+        component_name(component_name),
+        opcode(opcode),
+        name(""),
+        name_tag(-1)
+  {
+  }
+
+  OperationKey(const ID *id,
+               NodeType component_type,
+               OperationCode opcode,
+               const char *name,
+               int name_tag = -1)
+      : id(id),
+        component_type(component_type),
+        component_name(""),
+        opcode(opcode),
+        name(name),
+        name_tag(name_tag)
+  {
+  }
+
+  OperationKey(const ID *id,
                NodeType component_type,
                const char *component_name,
                OperationCode opcode,
                const char *name,
-               int name_tag = -1);
+               int name_tag = -1)
+      : id(id),
+        component_type(component_type),
+        component_name(component_name),
+        opcode(opcode),
+        name(name),
+        name_tag(name_tag)
+  {
+  }
 
   string identifier() const;
 
-  ID *id;
-  NodeType component_type;
-  const char *component_name;
-  OperationCode opcode;
-  const char *name;
-  int name_tag;
+  const ID *id = nullptr;
+  NodeType component_type = NodeType::UNDEFINED;
+  const char *component_name = "";
+  OperationCode opcode = OperationCode::OPERATION;
+  const char *name = "";
+  int name_tag = -1;
 };
 
 struct RNAPathKey {
@@ -192,7 +239,7 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   /* Adds relation from proper transformation operation to the modifier.
    * Takes care of checking for possible physics solvers modifying position
    * of this object. */
-  void add_modifier_to_transform_relation(const DepsNodeHandle *handle, const char *description);
+  void add_depends_on_transform_relation(const DepsNodeHandle *handle, const char *description);
 
   void add_customdata_mask(Object *object, const DEGCustomDataMeshMasks &customdata_masks);
   void add_special_eval_flag(ID *id, uint32_t flag);
@@ -216,9 +263,9 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
                                 Object *object,
                                 Collection *collection);
   virtual void build_object(Object *object);
-  virtual void build_object_proxy_from(Object *object);
-  virtual void build_object_proxy_group(Object *object);
-  virtual void build_object_from_layer_relations(Object *object);
+  virtual void build_object_from_view_layer_base(Object *object);
+  virtual void build_object_layer_component_relations(Object *object);
+  virtual void build_object_modifiers(Object *object);
   virtual void build_object_data(Object *object);
   virtual void build_object_data_camera(Object *object);
   virtual void build_object_data_geometry(Object *object);
@@ -273,7 +320,6 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
                                      const bPoseChannel *rootchan,
                                      const RootPChanMap *root_map);
   virtual void build_rig(Object *object);
-  virtual void build_proxy_rig(Object *object);
   virtual void build_shapekeys(Key *key);
   virtual void build_armature(bArmature *armature);
   virtual void build_armature_bones(ListBase *bones);
@@ -299,7 +345,7 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   virtual void build_scene_speakers(Scene *scene, ViewLayer *view_layer);
   virtual void build_vfont(VFont *vfont);
 
-  virtual void build_nested_datablock(ID *owner, ID *id);
+  virtual void build_nested_datablock(ID *owner, ID *id, bool flush_cow_changes);
   virtual void build_nested_nodetree(ID *owner, bNodeTree *ntree);
   virtual void build_nested_shapekey(ID *owner, Key *key);
 
@@ -381,6 +427,7 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
 
   BuilderMap built_map_;
   RNANodeQuery rna_node_query_;
+  BuilderStack stack_;
 };
 
 struct DepsNodeHandle {
@@ -397,7 +444,6 @@ struct DepsNodeHandle {
   const char *default_name;
 };
 
-}  // namespace deg
-}  // namespace blender
+}  // namespace blender::deg
 
 #include "intern/builder/deg_builder_relations_impl.h"

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /* Developers Note:
  *
@@ -195,37 +179,44 @@ static void mainwindow_do_key(MainWindow *mw, GHOST_TKey key, int press)
 {
   switch (key) {
     case GHOST_kKeyC:
-      if (press)
+      if (press) {
         GHOST_SetCursorShape(mw->win,
                              (GHOST_TStandardCursor)(rand() % (GHOST_kStandardCursorNumCursors)));
+      }
       break;
     case GHOST_kKeyLeftBracket:
-      if (press)
+      if (press) {
         GHOST_SetCursorVisibility(mw->win, 0);
+      }
       break;
     case GHOST_kKeyRightBracket:
-      if (press)
+      if (press) {
         GHOST_SetCursorVisibility(mw->win, 1);
+      }
       break;
     case GHOST_kKeyE:
-      if (press)
+      if (press) {
         multitestapp_toggle_extra_window(mw->app);
+      }
       break;
     case GHOST_kKeyQ:
-      if (press)
+      if (press) {
         multitestapp_exit(mw->app);
+      }
       break;
     case GHOST_kKeyT:
-      if (press)
+      if (press) {
         mainwindow_log(mw, "TextTest~|`hello`\"world\",<>/");
+      }
       break;
     case GHOST_kKeyR:
       if (press) {
         int i;
 
         mainwindow_log(mw, "Invalidating window 10 times");
-        for (i = 0; i < 10; i++)
+        for (i = 0; i < 10; i++) {
           GHOST_InvalidateWindow(mw->win);
+        }
       }
       break;
     case GHOST_kKeyF11:
@@ -344,9 +335,7 @@ MainWindow *mainwindow_new(MultiTestApp *app)
 
     return mw;
   }
-  else {
-    return NULL;
-  }
+  return NULL;
 }
 
 void mainwindow_free(MainWindow *mw)
@@ -828,7 +817,7 @@ struct _MultiTestApp {
   int exit;
 };
 
-static int multitest_event_handler(GHOST_EventHandle evt, GHOST_TUserDataPtr data)
+static bool multitest_event_handler(GHOST_EventHandle evt, GHOST_TUserDataPtr data)
 {
   MultiTestApp *app = data;
   GHOST_WindowHandle win;
@@ -836,7 +825,7 @@ static int multitest_event_handler(GHOST_EventHandle evt, GHOST_TUserDataPtr dat
   win = GHOST_GetEventWindow(evt);
   if (win && !GHOST_ValidWindow(app->sys, win)) {
     loggerwindow_log(app->logger, "WARNING: bad event, non-valid window\n");
-    return 1;
+    return true;
   }
 
   if (win) {
@@ -861,7 +850,7 @@ static int multitest_event_handler(GHOST_EventHandle evt, GHOST_TUserDataPtr dat
     }
   }
 
-  return 1;
+  return true;
 }
 
 /**/

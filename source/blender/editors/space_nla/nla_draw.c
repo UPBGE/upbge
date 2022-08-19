@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2009 Blender Foundation, Joshua Leung. All rights reserved. */
 
 /** \file
  * \ingroup spnla
@@ -65,9 +49,6 @@
 
 /* Action-Line ---------------------- */
 
-/* get colors for drawing Action-Line
- * NOTE: color returned includes fine-tuned alpha!
- */
 void nla_action_get_color(AnimData *adt, bAction *act, float color[4])
 {
   if (adt && (adt->flag & ADT_NLA_EDIT_ON)) {
@@ -111,11 +92,11 @@ static void nla_action_draw_keyframes(
 
   /* draw a darkened region behind the strips
    * - get and reset the background color, this time without the alpha to stand out better
-   *   (amplified alpha is used instead)
+   *   (amplified alpha is used instead, but clamped to avoid 100% opacity)
    */
   float color[4];
   nla_action_get_color(adt, act, color);
-  color[3] *= 2.5f;
+  color[3] = min_ff(0.7f, color[3] * 2.5f);
 
   GPUVertFormat *format = immVertexFormat();
   uint pos_id = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
@@ -129,7 +110,7 @@ static void nla_action_draw_keyframes(
    */
 
   Range2f frame_range;
-  ED_keylist_frame_range(keylist, &frame_range);
+  ED_keylist_all_keys_frame_range(keylist, &frame_range);
   immRectf(pos_id, frame_range.min, ymin + 2, frame_range.max, ymax - 2);
   immUnbindProgram();
 
@@ -327,7 +308,7 @@ static void nla_draw_strip_curves(NlaStrip *strip, float yminc, float ymaxc, uin
   GPU_line_smooth(true);
   GPU_blend(GPU_BLEND_ALPHA);
 
-  /* Fully opaque line on selected strips.  */
+  /* Fully opaque line on selected strips. */
   if (strip->flag & NLASTRIP_FLAG_SELECT) {
     /* TODO: Use theme setting. */
     immUniformColor3f(1.0f, 1.0f, 1.0f);
@@ -636,11 +617,10 @@ static void nla_draw_strip(SpaceNla *snla,
   immUnbindProgram();
 }
 
-/* add the relevant text to the cache of text-strings to draw in pixelspace */
+/** Add the relevant text to the cache of text-strings to draw in pixel-space. */
 static void nla_draw_strip_text(AnimData *adt,
                                 NlaTrack *nlt,
                                 NlaStrip *strip,
-                                int index,
                                 View2D *v2d,
                                 float xminc,
                                 float xmaxc,
@@ -655,7 +635,7 @@ static void nla_draw_strip_text(AnimData *adt,
 
   /* just print the name and the range */
   if (strip->flag & NLASTRIP_FLAG_TEMP_META) {
-    str_len = BLI_snprintf_rlen(str, sizeof(str), "%d) Temp-Meta", index);
+    str_len = BLI_snprintf_rlen(str, sizeof(str), "Temp-Meta");
   }
   else {
     str_len = BLI_strncpy_rlen(str, strip->name, sizeof(str));
@@ -721,6 +701,89 @@ static void nla_draw_strip_frames_text(
 
 /* ---------------------- */
 
+/**
+ * Gets the first and last visible NLA strips on a track.
+ * Note that this also includes tracks that might only be
+ * visible because of their extendmode.
+ */
+static ListBase get_visible_nla_strips(NlaTrack *nlt, View2D *v2d)
+{
+  if (BLI_listbase_is_empty(&nlt->strips)) {
+    ListBase empty = {NULL, NULL};
+    return empty;
+  }
+
+  NlaStrip *first = NULL;
+  NlaStrip *last = NULL;
+
+  /* Find the first strip that is within the bounds of the view. */
+  LISTBASE_FOREACH (NlaStrip *, strip, &nlt->strips) {
+    if (BKE_nlastrip_within_bounds(strip, v2d->cur.xmin, v2d->cur.xmax)) {
+      first = last = strip;
+      break;
+    }
+  }
+
+  const bool has_strips_within_bounds = first != NULL;
+
+  if (has_strips_within_bounds) {
+    /* Find the last visible strip. */
+    for (NlaStrip *strip = first->next; strip; strip = strip->next) {
+      if (!BKE_nlastrip_within_bounds(strip, v2d->cur.xmin, v2d->cur.xmax)) {
+        break;
+      }
+      last = strip;
+    }
+    /* Check if the first strip is adjacent to a strip outside the view to the left
+     * that has an extendmode region that should be drawn.
+     * If so, adjust the first strip to include drawing that strip as well.
+     */
+    NlaStrip *prev = first->prev;
+    if (prev && prev->extendmode != NLASTRIP_EXTEND_NOTHING) {
+      first = prev;
+    }
+  }
+  else {
+    /* No immediately visible strips.
+     * Figure out where our view is relative to the strips, then determine
+     * if the view is adjacent to a strip that should have its extendmode
+     * rendered.
+     */
+    NlaStrip *first_strip = nlt->strips.first;
+    NlaStrip *last_strip = nlt->strips.last;
+    if (first_strip && v2d->cur.xmax < first_strip->start &&
+        first_strip->extendmode == NLASTRIP_EXTEND_HOLD) {
+      /* The view is to the left of all strips and the first strip has an
+       * extendmode that should be drawn.
+       */
+      first = last = first_strip;
+    }
+    else if (last_strip && v2d->cur.xmin > last_strip->end &&
+             last_strip->extendmode != NLASTRIP_EXTEND_NOTHING) {
+      /* The view is to the right of all strips and the last strip has an
+       * extendmode that should be drawn.
+       */
+      first = last = last_strip;
+    }
+    else {
+      /* The view is in the middle of two strips. */
+      LISTBASE_FOREACH (NlaStrip *, strip, &nlt->strips) {
+        /* Find the strip to the left by finding the strip to the right and getting its prev. */
+        if (v2d->cur.xmax < strip->start) {
+          /* If the strip to the left has an extendmode, set that as the only visible strip. */
+          if (strip->prev && strip->prev->extendmode != NLASTRIP_EXTEND_NOTHING) {
+            first = last = strip->prev;
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  ListBase visible_strips = {first, last};
+  return visible_strips;
+}
+
 void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *region)
 {
   View2D *v2d = &region->v2d;
@@ -729,7 +792,8 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *region)
 
   /* build list of channels to draw */
   ListBase anim_data = {NULL, NULL};
-  int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS);
+  int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS |
+                ANIMFILTER_FCURVESONLY);
   size_t items = ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 
   /* Update max-extent of channels here (taking into account scrollers):
@@ -756,35 +820,37 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *region)
         case ANIMTYPE_NLATRACK: {
           AnimData *adt = ale->adt;
           NlaTrack *nlt = (NlaTrack *)ale->data;
-          NlaStrip *strip;
-          int index;
+          ListBase visible_nla_strips = get_visible_nla_strips(nlt, v2d);
 
-          /* draw each strip in the track (if visible) */
-          for (strip = nlt->strips.first, index = 1; strip; strip = strip->next, index++) {
-            if (BKE_nlastrip_within_bounds(strip, v2d->cur.xmin, v2d->cur.xmax)) {
-              const float xminc = strip->start + text_margin_x;
-              const float xmaxc = strip->end + text_margin_x;
+          /* Draw each visible strip in the track. */
+          LISTBASE_FOREACH (NlaStrip *, strip, &visible_nla_strips) {
+            const float xminc = strip->start + text_margin_x;
+            const float xmaxc = strip->end - text_margin_x;
 
-              /* draw the visualization of the strip */
-              nla_draw_strip(snla, adt, nlt, strip, v2d, ymin, ymax);
+            /* draw the visualization of the strip */
+            nla_draw_strip(snla, adt, nlt, strip, v2d, ymin, ymax);
 
-              /* add the text for this strip to the cache */
-              if (xminc < xmaxc) {
-                nla_draw_strip_text(adt, nlt, strip, index, v2d, xminc, xmaxc, ymin, ymax);
-              }
+            /* add the text for this strip to the cache */
+            if (xminc < xmaxc) {
+              nla_draw_strip_text(adt, nlt, strip, v2d, xminc, xmaxc, ymin, ymax);
+            }
 
-              /* if transforming strips (only real reason for temp-metas currently),
-               * add to the cache the frame numbers of the strip's extents
-               */
-              if (strip->flag & NLASTRIP_FLAG_TEMP_META) {
-                nla_draw_strip_frames_text(nlt, strip, v2d, ymin, ymax);
-              }
+            /* if transforming strips (only real reason for temp-metas currently),
+             * add to the cache the frame numbers of the strip's extents
+             */
+            if (strip->flag & NLASTRIP_FLAG_TEMP_META) {
+              nla_draw_strip_frames_text(nlt, strip, v2d, ymin, ymax);
             }
           }
           break;
         }
         case ANIMTYPE_NLAACTION: {
           AnimData *adt = ale->adt;
+
+          /* Draw the manually set intended playback frame range highlight. */
+          if (ale->data) {
+            ANIM_draw_action_framerange(adt, ale->data, v2d, ymin, ymax);
+          }
 
           uint pos = GPU_vertformat_attr_add(
               immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
@@ -837,7 +903,8 @@ void draw_nla_channel_list(const bContext *C, bAnimContext *ac, ARegion *region)
   size_t items;
 
   /* build list of channels to draw */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS);
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS |
+            ANIMFILTER_FCURVESONLY);
   items = ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 
   /* Update max-extent of channels here (taking into account scrollers):

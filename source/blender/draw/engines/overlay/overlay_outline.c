@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2019, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2019 Blender Foundation. */
 
 /** \file
  * \ingroup draw_engine
@@ -47,7 +32,7 @@ static void gpencil_depth_plane(Object *ob, float r_plane[4])
    * strokes not aligned with the object axes. Maybe we could try to
    * compute the minimum axis of all strokes. But this would be more
    * computationally heavy and should go into the GPData evaluation. */
-  BoundBox *bbox = BKE_object_boundbox_get(ob);
+  const BoundBox *bbox = BKE_object_boundbox_get(ob);
   /* Convert bbox to matrix */
   float mat[4][4], size[3], center[3];
   BKE_boundbox_calc_size_aabb(bbox, size);
@@ -147,6 +132,11 @@ void OVERLAY_outline_cache_init(OVERLAY_Data *vedata)
 
     pd->outlines_gpencil_grp = grp = DRW_shgroup_create(sh_gpencil, psl->outlines_prepass_ps);
     DRW_shgroup_uniform_bool_copy(grp, "isTransform", (G.moving & G_TRANSFORM_OBJ) != 0);
+    DRW_shgroup_uniform_float_copy(grp, "gpStrokeIndexOffset", 0.0);
+
+    GPUShader *sh_curves = OVERLAY_shader_outline_prepass_curves();
+    pd->outlines_curves_grp = grp = DRW_shgroup_create(sh_curves, psl->outlines_prepass_ps);
+    DRW_shgroup_uniform_bool_copy(grp, "isTransform", (G.moving & G_TRANSFORM_OBJ) != 0);
   }
 
   /* outlines_prepass_ps is still needed for selection of probes. */
@@ -200,12 +190,10 @@ static void gpencil_layer_cache_populate(bGPDlayer *gpl,
   float thickness_scale = (is_screenspace) ? -1.0f : (gpd->pixfactor / 2000.0f);
 
   DRWShadingGroup *grp = iter->stroke_grp = DRW_shgroup_create_sub(iter->stroke_grp);
-  DRW_shgroup_uniform_bool_copy(grp, "strokeOrder3d", is_stroke_order_3d);
-  DRW_shgroup_uniform_vec2_copy(grp, "sizeViewportInv", DRW_viewport_invert_size_get());
-  DRW_shgroup_uniform_vec2_copy(grp, "sizeViewport", DRW_viewport_size_get());
-  DRW_shgroup_uniform_float_copy(grp, "thicknessScale", object_scale);
-  DRW_shgroup_uniform_float_copy(grp, "thicknessOffset", (float)gpl->line_change);
-  DRW_shgroup_uniform_float_copy(grp, "thicknessWorldScale", thickness_scale);
+  DRW_shgroup_uniform_bool_copy(grp, "gpStrokeOrder3d", is_stroke_order_3d);
+  DRW_shgroup_uniform_float_copy(grp, "gpThicknessScale", object_scale);
+  DRW_shgroup_uniform_float_copy(grp, "gpThicknessOffset", (float)gpl->line_change);
+  DRW_shgroup_uniform_float_copy(grp, "gpThicknessWorldScale", thickness_scale);
   DRW_shgroup_uniform_vec4_copy(grp, "gpDepthPlane", iter->plane);
 }
 
@@ -283,6 +271,12 @@ static void OVERLAY_outline_volume(OVERLAY_PrivateData *pd, Object *ob)
   DRW_shgroup_call(shgroup, geom, ob);
 }
 
+static void OVERLAY_outline_curves(OVERLAY_PrivateData *pd, Object *ob)
+{
+  DRWShadingGroup *shgroup = pd->outlines_curves_grp;
+  DRW_shgroup_curves_create_sub(ob, shgroup, NULL);
+}
+
 void OVERLAY_outline_cache_populate(OVERLAY_Data *vedata,
                                     Object *ob,
                                     OVERLAY_DupliData *dupli,
@@ -306,6 +300,11 @@ void OVERLAY_outline_cache_populate(OVERLAY_Data *vedata,
 
   if (ob->type == OB_VOLUME) {
     OVERLAY_outline_volume(pd, ob);
+    return;
+  }
+
+  if (ob->type == OB_CURVES) {
+    OVERLAY_outline_curves(pd, ob);
     return;
   }
 

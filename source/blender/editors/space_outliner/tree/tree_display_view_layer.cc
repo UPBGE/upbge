@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spoutliner
@@ -22,6 +8,7 @@
 
 #include "DNA_collection_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_space_types.h"
 
 #include "BKE_layer.h"
 
@@ -32,12 +19,13 @@
 
 #include "BLT_translation.h"
 
-#include "../outliner_intern.h"
+#include "../outliner_intern.hh"
+#include "common.hh"
 #include "tree_display.hh"
+#include "tree_element.hh"
 
 namespace blender::ed::outliner {
 
-/* Convenience/readability. */
 template<typename T> using List = ListBaseWrapper<T>;
 
 class ObjectsChildrenBuilder {
@@ -65,6 +53,11 @@ class ObjectsChildrenBuilder {
 TreeDisplayViewLayer::TreeDisplayViewLayer(SpaceOutliner &space_outliner)
     : AbstractTreeDisplay(space_outliner)
 {
+}
+
+bool TreeDisplayViewLayer::supportsModeColumn() const
+{
+  return true;
 }
 
 ListBase TreeDisplayViewLayer::buildTree(const TreeSourceData &source_data)
@@ -165,15 +158,6 @@ void TreeDisplayViewLayer::add_layer_collections_recursive(ListBase &tree,
     add_layer_collections_recursive(ten->subtree, lc->layer_collections, *ten);
     if (!exclude && show_objects_) {
       add_layer_collection_objects(ten->subtree, *lc, *ten);
-    }
-
-    const bool lib_overrides_visible = !exclude && (!SUPPORT_FILTER_OUTLINER(&space_outliner_) ||
-                                                    ((space_outliner_.filter &
-                                                      SO_FILTER_NO_LIB_OVERRIDE) == 0));
-
-    if (lib_overrides_visible && ID_IS_OVERRIDE_LIBRARY_REAL(&lc->collection->id)) {
-      outliner_add_element(
-          &space_outliner_, &ten->subtree, &lc->collection->id, ten, TSE_LIBRARY_OVERRIDE_BASE, 0);
     }
   }
 }
@@ -287,14 +271,14 @@ void ObjectsChildrenBuilder::make_object_parent_hierarchy_collections()
 
       if (!found) {
         /* We add the child in the tree even if it is not in the collection.
-         * We deliberately clear its sub-tree though, to make it less prominent. */
+         * We don't expand its sub-tree though, to make it less prominent. */
         TreeElement *child_ob_tree_element = outliner_add_element(&outliner_,
                                                                   &parent_ob_tree_element->subtree,
                                                                   child,
                                                                   parent_ob_tree_element,
                                                                   TSE_SOME_ID,
-                                                                  0);
-        outliner_free_tree(&child_ob_tree_element->subtree);
+                                                                  0,
+                                                                  false);
         child_ob_tree_element->flag |= TE_CHILD_NOT_IN_COLLECTION;
         child_ob_tree_elements.append(child_ob_tree_element);
       }

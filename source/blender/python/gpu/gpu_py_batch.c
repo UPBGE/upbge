@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2015, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2015 Blender Foundation. */
 
 /** \file
  * \ingroup bpygpu
@@ -28,13 +13,9 @@
 
 #include <Python.h>
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_utildefines.h"
 
 #include "GPU_batch.h"
-
-#include "../mathutils/mathutils.h"
 
 #include "../generic/py_capi_utils.h"
 
@@ -75,7 +56,15 @@ static PyObject *pygpu_batch__tp_new(PyTypeObject *UNUSED(type), PyObject *args,
   BPyGPUIndexBuf *py_indexbuf = NULL;
 
   static const char *_keywords[] = {"type", "buf", "elem", NULL};
-  static _PyArg_Parser _parser = {"|$O&O!O!:GPUBatch.__new__", _keywords, 0};
+  static _PyArg_Parser _parser = {
+      "|$" /* Optional keyword only arguments. */
+      "O&" /* `type` */
+      "O!" /* `buf` */
+      "O!" /* `elem` */
+      ":GPUBatch.__new__",
+      _keywords,
+      0,
+  };
   if (!_PyArg_ParseTupleAndKeywordsFast(args,
                                         kwds,
                                         &_parser,
@@ -89,6 +78,18 @@ static PyObject *pygpu_batch__tp_new(PyTypeObject *UNUSED(type), PyObject *args,
   }
 
   BLI_assert(prim_type.value_found != GPU_PRIM_NONE);
+  if (prim_type.value_found == GPU_PRIM_LINE_LOOP) {
+    PyErr_WarnEx(PyExc_DeprecationWarning,
+                 "'LINE_LOOP' is deprecated. Please use 'LINE_STRIP' and close the segment.",
+                 1);
+  }
+  else if (prim_type.value_found == GPU_PRIM_TRI_FAN) {
+    PyErr_WarnEx(
+        PyExc_DeprecationWarning,
+        "'TRI_FAN' is deprecated. Please use 'TRI_STRIP' or 'TRIS' and try modifying your "
+        "vertices or indices to match the topology.",
+        1);
+  }
 
   if (py_vertbuf == NULL) {
     PyErr_Format(PyExc_TypeError, exc_str_missing_arg, _keywords[1], 2);

@@ -1,27 +1,17 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2013 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2013 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup GHOST
  *
  * Definition of GHOST_ContextCGL class.
  */
+
+/* Don't generate OpenGL deprecation warning. This is a known thing, and is not something easily
+ * solvable in a short term. */
+#ifdef __clang__
+#  pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
 
 #include "GHOST_ContextCGL.h"
 
@@ -68,12 +58,6 @@ GHOST_ContextCGL::GHOST_ContextCGL(bool stereoVisual,
       m_defaultFramebufferMetalTexture(nil),
       m_debug(false)
 {
-#if defined(WITH_GL_PROFILE_CORE)
-  m_coreProfile = true;
-#else
-  m_coreProfile = false;
-#endif
-
   if (m_metalView) {
     metalInit();
   }
@@ -207,7 +191,6 @@ GHOST_TSuccess GHOST_ContextCGL::updateDrawingContext()
 }
 
 static void makeAttribList(std::vector<NSOpenGLPixelFormatAttribute> &attribs,
-                           bool coreProfile,
                            bool stereoVisual,
                            bool needAlpha,
                            bool softwareGL)
@@ -215,7 +198,7 @@ static void makeAttribList(std::vector<NSOpenGLPixelFormatAttribute> &attribs,
   attribs.clear();
 
   attribs.push_back(NSOpenGLPFAOpenGLProfile);
-  attribs.push_back(coreProfile ? NSOpenGLProfileVersion3_2Core : NSOpenGLProfileVersionLegacy);
+  attribs.push_back(NSOpenGLProfileVersion3_2Core);
 
   /* Pixel Format Attributes for the windowed NSOpenGLContext. */
   attribs.push_back(NSOpenGLPFADoubleBuffer);
@@ -255,7 +238,7 @@ GHOST_TSuccess GHOST_ContextCGL::initializeDrawingContext()
 
   std::vector<NSOpenGLPixelFormatAttribute> attribs;
   attribs.reserve(40);
-  makeAttribList(attribs, m_coreProfile, m_stereoVisual, needAlpha, softwareGL);
+  makeAttribList(attribs, m_stereoVisual, needAlpha, softwareGL);
 
   NSOpenGLPixelFormat *pixelFormat = [[NSOpenGLPixelFormat alloc] initWithAttributes:&attribs[0]];
   if (pixelFormat == nil) {
@@ -283,8 +266,6 @@ GHOST_TSuccess GHOST_ContextCGL::initializeDrawingContext()
     [m_openGLContext setValues:&swapInt forParameter:NSOpenGLCPSwapInterval];
   }
 #endif
-
-  initContextGLEW();
 
   if (m_metalView) {
     if (m_defaultFramebuffer == 0) {

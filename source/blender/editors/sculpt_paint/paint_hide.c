@@ -1,25 +1,9 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2010 by Nicholas Bishop
- * All rights reserved.
- * Implements the PBVH node hiding operator
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2010 by Nicholas Bishop. All rights reserved. */
 
 /** \file
  * \ingroup edsculpt
+ * Implements the PBVH node hiding operator.
  */
 
 #include "MEM_guardedalloc.h"
@@ -94,6 +78,12 @@ static void partialvis_update_mesh(Object *ob,
   BKE_pbvh_node_get_verts(pbvh, node, &vert_indices, &mvert);
   paint_mask = CustomData_get_layer(&me->vdata, CD_PAINT_MASK);
 
+  bool *hide_vert = CustomData_get_layer_named(&me->vdata, CD_PROP_BOOL, ".hide_vert");
+  if (hide_vert == NULL) {
+    hide_vert = CustomData_add_layer_named(
+        &me->vdata, CD_PROP_BOOL, CD_CALLOC, NULL, me->totvert, ".hide_vert");
+  }
+
   SCULPT_undo_push_node(ob, node, SCULPT_UNDO_HIDDEN);
 
   for (i = 0; i < totvert; i++) {
@@ -102,16 +92,11 @@ static void partialvis_update_mesh(Object *ob,
 
     /* Hide vertex if in the hide volume. */
     if (is_effected(area, planes, v->co, vmask)) {
-      if (action == PARTIALVIS_HIDE) {
-        v->flag |= ME_HIDE;
-      }
-      else {
-        v->flag &= ~ME_HIDE;
-      }
+      hide_vert[vert_indices[i]] = (action == PARTIALVIS_HIDE);
       any_changed = true;
     }
 
-    if (!(v->flag & ME_HIDE)) {
+    if (!hide_vert[vert_indices[i]]) {
       any_visible = true;
     }
   }
@@ -366,10 +351,10 @@ static int hide_show_exec(bContext *C, wmOperator *op)
   /* Start undo. */
   switch (action) {
     case PARTIALVIS_HIDE:
-      SCULPT_undo_push_begin(ob, "Hide area");
+      SCULPT_undo_push_begin_ex(ob, "Hide area");
       break;
     case PARTIALVIS_SHOW:
-      SCULPT_undo_push_begin(ob, "Show area");
+      SCULPT_undo_push_begin_ex(ob, "Show area");
       break;
   }
 
@@ -392,7 +377,7 @@ static int hide_show_exec(bContext *C, wmOperator *op)
   }
 
   /* End undo. */
-  SCULPT_undo_push_end();
+  SCULPT_undo_push_end(ob);
 
   /* Ensure that edges and faces get hidden as well (not used by
    * sculpt but it looks wrong when entering editmode otherwise). */

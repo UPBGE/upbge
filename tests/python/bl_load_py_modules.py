@@ -1,22 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
-# <pep8 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # simple script to enable all addons, and disable
 
@@ -151,6 +133,7 @@ def load_modules():
         os.sep + "presets" + os.sep,
         os.sep + "templates_osl" + os.sep,
         os.sep + "templates_py" + os.sep,
+        os.sep + "templates_py_components" + os.sep,
         os.sep + "bl_app_templates_system" + os.sep,
     ] + ([(os.sep + f + os.sep) for f in BLACKLIST] +
          [(os.sep + f + ".py") for f in BLACKLIST])

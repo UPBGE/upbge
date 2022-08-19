@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2016, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2016 Blender Foundation. */
 
 /** \file
  * \ingroup draw
@@ -273,7 +258,6 @@ static void drw_stencil_state_set(uint write_mask, uint reference, uint compare_
   GPU_stencil_compare_mask_set(compare_mask);
 }
 
-/* Reset state to not interfere with other UI draw-call. */
 void DRW_state_reset_ex(DRWState state)
 {
   DST.state = ~state;
@@ -292,12 +276,6 @@ static void drw_state_validate(void)
   }
 }
 
-/**
- * Use with care, intended so selection code can override passes depth settings,
- * which is important for selection to work properly.
- *
- * Should be set in main draw loop, cleared afterwards
- */
 void DRW_state_lock(DRWState state)
 {
   DST.state_lock = state;
@@ -340,7 +318,9 @@ void DRW_state_reset(void)
   DRW_state_reset_ex(DRW_STATE_DEFAULT);
 
   GPU_texture_unbind_all();
+  GPU_texture_image_unbind_all();
   GPU_uniformbuf_unbind_all();
+  GPU_storagebuf_unbind_all();
 
   /* Should stay constant during the whole rendering. */
   GPU_point_size(5);
@@ -361,10 +341,9 @@ static bool draw_call_is_culled(const DRWResourceHandle *handle, DRWView *view)
   return (culling->mask & view->culling_mask) != 0;
 }
 
-/* Set active view for rendering. */
-void DRW_view_set_active(DRWView *view)
+void DRW_view_set_active(const DRWView *view)
 {
-  DST.view_active = (view) ? view : DST.view_default;
+  DST.view_active = (view != NULL) ? ((DRWView *)view) : DST.view_default;
 }
 
 const DRWView *DRW_view_get_active(void)
@@ -435,32 +414,24 @@ static bool draw_culling_plane_test(const BoundBox *corners, const float plane[4
   return false;
 }
 
-/* Return True if the given BoundSphere intersect the current view frustum.
- * bsphere must be in world space. */
 bool DRW_culling_sphere_test(const DRWView *view, const BoundSphere *bsphere)
 {
   view = view ? view : DST.view_default;
   return draw_culling_sphere_test(&view->frustum_bsphere, view->frustum_planes, bsphere);
 }
 
-/* Return True if the given BoundBox intersect the current view frustum.
- * bbox must be in world space. */
 bool DRW_culling_box_test(const DRWView *view, const BoundBox *bbox)
 {
   view = view ? view : DST.view_default;
   return draw_culling_box_test(view->frustum_planes, bbox);
 }
 
-/* Return True if the view frustum is inside or intersect the given plane.
- * plane must be in world space. */
 bool DRW_culling_plane_test(const DRWView *view, const float plane[4])
 {
   view = view ? view : DST.view_default;
   return draw_culling_plane_test(&view->frustum_corners, plane);
 }
 
-/* Return True if the given box intersect the current view frustum.
- * This function will have to be replaced when world space bb per objects is implemented. */
 bool DRW_culling_min_max_test(const DRWView *view, float obmat[4][4], float min[3], float max[3])
 {
   view = view ? view : DST.view_default;
@@ -614,21 +585,60 @@ static void draw_update_uniforms(DRWShadingGroup *shgroup,
                                  DRWCommandsState *state,
                                  bool *use_tfeedback)
 {
+#define MAX_UNIFORM_STACK_SIZE 64
+
+  /* Uniform array elements stored as separate entries. We need to batch these together */
+  int array_uniform_loc = -1;
+  int array_index = 0;
+  float mat4_stack[4 * 4];
+
+  /* Loop through uniforms in reverse order. */
   for (DRWUniformChunk *unichunk = shgroup->uniforms; unichunk; unichunk = unichunk->next) {
-    DRWUniform *uni = unichunk->uniforms;
-    for (int i = 0; i < unichunk->uniform_used; i++, uni++) {
+    DRWUniform *uni = unichunk->uniforms + unichunk->uniform_used - 1;
+
+    for (int i = 0; i < unichunk->uniform_used; i++, uni--) {
+      /* For uniform array copies, copy per-array-element data into local buffer before upload. */
+      if (uni->arraysize > 1 && uni->type == DRW_UNIFORM_FLOAT_COPY) {
+        /* Only written for mat4 copy for now and is not meant to become generalized. */
+        /* TODO(@fclem): Use UBOs/SSBOs instead of inline mat4 copies. */
+        BLI_assert(uni->arraysize == 4 && uni->length == 4);
+        /* Begin copying uniform array. */
+        if (array_uniform_loc == -1) {
+          array_uniform_loc = uni->location;
+          array_index = uni->arraysize * uni->length;
+        }
+        /* Debug check same array loc. */
+        BLI_assert(array_uniform_loc > -1 && array_uniform_loc == uni->location);
+        /* Copy array element data to local buffer. */
+        array_index -= uni->length;
+        memcpy(&mat4_stack[array_index], uni->fvalue, sizeof(float) * uni->length);
+        /* Flush array data to shader. */
+        if (array_index <= 0) {
+          GPU_shader_uniform_vector(shgroup->shader, uni->location, 16, 1, mat4_stack);
+          array_uniform_loc = -1;
+        }
+        continue;
+      }
+
+      /* Handle standard cases. */
       switch (uni->type) {
         case DRW_UNIFORM_INT_COPY:
-          GPU_shader_uniform_vector_int(
-              shgroup->shader, uni->location, uni->length, uni->arraysize, uni->ivalue);
+          BLI_assert(uni->arraysize == 1);
+          if (uni->arraysize == 1) {
+            GPU_shader_uniform_vector_int(
+                shgroup->shader, uni->location, uni->length, uni->arraysize, uni->ivalue);
+          }
           break;
         case DRW_UNIFORM_INT:
           GPU_shader_uniform_vector_int(
               shgroup->shader, uni->location, uni->length, uni->arraysize, uni->pvalue);
           break;
         case DRW_UNIFORM_FLOAT_COPY:
-          GPU_shader_uniform_vector(
-              shgroup->shader, uni->location, uni->length, uni->arraysize, uni->fvalue);
+          BLI_assert(uni->arraysize == 1);
+          if (uni->arraysize == 1) {
+            GPU_shader_uniform_vector(
+                shgroup->shader, uni->location, uni->length, uni->arraysize, uni->fvalue);
+          }
           break;
         case DRW_UNIFORM_FLOAT:
           GPU_shader_uniform_vector(
@@ -651,6 +661,12 @@ static void draw_update_uniforms(DRWShadingGroup *shgroup,
           break;
         case DRW_UNIFORM_BLOCK_REF:
           GPU_uniformbuf_bind(*uni->block_ref, uni->location);
+          break;
+        case DRW_UNIFORM_STORAGE_BLOCK:
+          GPU_storagebuf_bind(uni->ssbo, uni->location);
+          break;
+        case DRW_UNIFORM_STORAGE_BLOCK_REF:
+          GPU_storagebuf_bind(*uni->ssbo_ref, uni->location);
           break;
         case DRW_UNIFORM_BLOCK_OBMATS:
           state->obmats_loc = uni->location;
@@ -678,8 +694,17 @@ static void draw_update_uniforms(DRWShadingGroup *shgroup,
           *use_tfeedback = GPU_shader_transform_feedback_enable(shgroup->shader,
                                                                 ((GPUVertBuf *)uni->pvalue));
           break;
+        case DRW_UNIFORM_VERTEX_BUFFER_AS_TEXTURE_REF:
+          GPU_vertbuf_bind_as_texture(*uni->vertbuf_ref, uni->location);
+          break;
+        case DRW_UNIFORM_VERTEX_BUFFER_AS_TEXTURE:
+          GPU_vertbuf_bind_as_texture(uni->vertbuf, uni->location);
+          break;
+        case DRW_UNIFORM_VERTEX_BUFFER_AS_STORAGE_REF:
+          GPU_vertbuf_bind_as_ssbo(*uni->vertbuf_ref, uni->location);
+          break;
         case DRW_UNIFORM_VERTEX_BUFFER_AS_STORAGE:
-          GPU_vertbuf_bind_as_ssbo((GPUVertBuf *)uni->pvalue, uni->location);
+          GPU_vertbuf_bind_as_ssbo(uni->vertbuf, uni->location);
           break;
           /* Legacy/Fallback support. */
         case DRW_UNIFORM_BASE_INSTANCE:
@@ -694,6 +719,10 @@ static void draw_update_uniforms(DRWShadingGroup *shgroup,
       }
     }
   }
+  /* Ensure uniform arrays copied. */
+  BLI_assert(array_index == 0);
+  BLI_assert(array_uniform_loc == -1);
+  UNUSED_VARS_NDEBUG(array_uniform_loc);
 }
 
 BLI_INLINE void draw_select_buffer(DRWShadingGroup *shgroup,
@@ -846,6 +875,25 @@ static void draw_call_single_do(DRWShadingGroup *shgroup,
                         state->baseinst_loc);
 }
 
+/* Not to be mistaken with draw_indirect_call which does batch many drawcalls together. This one
+ * only execute an indirect drawcall with user indirect buffer. */
+static void draw_call_indirect(DRWShadingGroup *shgroup,
+                               DRWCommandsState *state,
+                               GPUBatch *batch,
+                               DRWResourceHandle handle,
+                               GPUStorageBuf *indirect_buf)
+{
+  draw_call_batching_flush(shgroup, state);
+  draw_call_resource_bind(state, &handle);
+
+  if (G.f & G_FLAG_PICKSEL) {
+    GPU_select_load_id(state->select_id);
+  }
+
+  GPU_batch_set_shader(batch, shgroup->shader);
+  GPU_batch_draw_indirect(batch, indirect_buf);
+}
+
 static void draw_call_batching_start(DRWCommandsState *state)
 {
   state->neg_scale = false;
@@ -942,7 +990,9 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
       /* Unbinding can be costly. Skip in normal condition. */
       if (G.debug & G_DEBUG_GPU) {
         GPU_texture_unbind_all();
+        GPU_texture_image_unbind_all();
         GPU_uniformbuf_unbind_all();
+        GPU_storagebuf_unbind_all();
       }
     }
     GPU_shader_bind(shgroup->shader);
@@ -967,12 +1017,13 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
     while ((cmd = draw_command_iter_step(&iter, &cmd_type))) {
 
       switch (cmd_type) {
+        case DRW_CMD_DRAW_PROCEDURAL:
         case DRW_CMD_DRWSTATE:
         case DRW_CMD_STENCIL:
           draw_call_batching_flush(shgroup, &state);
           break;
         case DRW_CMD_DRAW:
-        case DRW_CMD_DRAW_PROCEDURAL:
+        case DRW_CMD_DRAW_INDIRECT:
         case DRW_CMD_DRAW_INSTANCE:
           if (draw_call_is_culled(&cmd->instance.handle, DST.view_active)) {
             continue;
@@ -1026,6 +1077,13 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
                               1,
                               true);
           break;
+        case DRW_CMD_DRAW_INDIRECT:
+          draw_call_indirect(shgroup,
+                             &state,
+                             cmd->draw_indirect.batch,
+                             cmd->draw_indirect.handle,
+                             cmd->draw_indirect.indirect_buf);
+          break;
         case DRW_CMD_DRAW_INSTANCE:
           draw_call_single_do(shgroup,
                               &state,
@@ -1065,6 +1123,18 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
                                cmd->compute.groups_y_len,
                                cmd->compute.groups_z_len);
           break;
+        case DRW_CMD_COMPUTE_REF:
+          GPU_compute_dispatch(shgroup->shader,
+                               cmd->compute_ref.groups_ref[0],
+                               cmd->compute_ref.groups_ref[1],
+                               cmd->compute_ref.groups_ref[2]);
+          break;
+        case DRW_CMD_COMPUTE_INDIRECT:
+          GPU_compute_dispatch_indirect(shgroup->shader, cmd->compute_indirect.indirect_buf);
+          break;
+        case DRW_CMD_BARRIER:
+          GPU_memory_barrier(cmd->barrier.type);
+          break;
       }
     }
 
@@ -1076,8 +1146,13 @@ static void draw_shgroup(DRWShadingGroup *shgroup, DRWState pass_state)
   }
 }
 
-static void drw_update_view(void)
+static void drw_update_view(const float viewport_size[2])
 {
+  ViewInfos *storage = &DST.view_active->storage;
+  copy_v2_v2(storage->viewport_size, viewport_size);
+  copy_v2_v2(storage->viewport_size_inverse, viewport_size);
+  invert_v2(storage->viewport_size_inverse);
+
   /* TODO(fclem): update a big UBO and only bind ranges here. */
   GPU_uniformbuf_update(G_draw.view_ubo, &DST.view_active->storage);
 
@@ -1105,8 +1180,11 @@ static void drw_draw_pass_ex(DRWPass *pass,
   BLI_assert(DST.buffer_finish_called &&
              "DRW_render_instance_buffer_finish had not been called before drawing");
 
-  if (DST.view_previous != DST.view_active || DST.view_active->is_dirty) {
-    drw_update_view();
+  float viewport[4];
+  GPU_viewport_size_get_f(viewport);
+  if (DST.view_previous != DST.view_active || DST.view_active->is_dirty ||
+      !equals_v2v2(DST.view_active->storage.viewport_size, &viewport[2])) {
+    drw_update_view(&viewport[2]);
     DST.view_active->is_dirty = false;
     DST.view_previous = DST.view_active;
   }
@@ -1169,7 +1247,6 @@ void DRW_draw_pass(DRWPass *pass)
   }
 }
 
-/* Draw only a subset of shgroups. Used in special situations as grease pencil strokes */
 void DRW_draw_pass_subset(DRWPass *pass, DRWShadingGroup *start_group, DRWShadingGroup *end_group)
 {
   drw_draw_pass_ex(pass, start_group, end_group);

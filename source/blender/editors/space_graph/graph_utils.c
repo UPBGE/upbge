@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2009 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2009 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup spgraph
@@ -43,15 +27,14 @@
 #include "UI_interface.h"
 
 #include "RNA_access.h"
+#include "RNA_prototypes.h"
 
 #include "graph_intern.h" /* own include */
 
-/* ************************************************************** */
-/* Set Up Drivers Editor */
+/* -------------------------------------------------------------------- */
+/** \name Set Up Drivers Editor
+ * \{ */
 
-/* Set up UI configuration for Drivers Editor */
-/* NOTE: Currently called from window-manager
- * (new drivers editor window) and RNA (mode switching) */
 void ED_drivers_editor_init(bContext *C, ScrArea *area)
 {
   SpaceGraph *sipo = (SpaceGraph *)area->spacedata.first;
@@ -89,22 +72,17 @@ void ED_drivers_editor_init(bContext *C, ScrArea *area)
   }
 }
 
-/* ************************************************************** */
-/* Active F-Curve */
+/** \} */
 
-/**
- * Find 'active' F-Curve.
- * It must be editable, since that's the purpose of these buttons (subject to change).
- * We return the 'wrapper' since it contains valuable context info (about hierarchy),
- * which will need to be freed when the caller is done with it.
- *
- * \note curve-visible flag isn't included,
- * otherwise selecting a curve via list to edit is too cumbersome.
- */
+/* -------------------------------------------------------------------- */
+/** \name Active F-Curve
+ * \{ */
+
 bAnimListElem *get_active_fcurve_channel(bAnimContext *ac)
 {
   ListBase anim_data = {NULL, NULL};
-  int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_ACTIVE);
+  int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_ACTIVE |
+                ANIMFILTER_FCURVESONLY);
   size_t items = ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 
   /* We take the first F-Curve only, since some other ones may have had 'active' flag set
@@ -124,10 +102,12 @@ bAnimListElem *get_active_fcurve_channel(bAnimContext *ac)
   return NULL;
 }
 
-/* ************************************************************** */
-/* Operator Polling Callbacks */
+/** \} */
 
-/* Check if there are any visible keyframes (for selection tools) */
+/* -------------------------------------------------------------------- */
+/** \name Operator Polling Callbacks
+ * \{ */
+
 bool graphop_visible_keyframes_poll(bContext *C)
 {
   bAnimContext ac;
@@ -152,7 +132,7 @@ bool graphop_visible_keyframes_poll(bContext *C)
   /* loop over the visible (selection doesn't matter) F-Curves, and see if they're suitable
    * stopping on the first successful match
    */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_CURVE_VISIBLE);
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_CURVE_VISIBLE | ANIMFILTER_FCURVESONLY);
   items = ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
   if (items == 0) {
     return found;
@@ -180,7 +160,6 @@ bool graphop_visible_keyframes_poll(bContext *C)
   return found;
 }
 
-/* Check if there are any visible + editable keyframes (for editing tools) */
 bool graphop_editable_keyframes_poll(bContext *C)
 {
   bAnimContext ac;
@@ -191,9 +170,9 @@ bool graphop_editable_keyframes_poll(bContext *C)
   int filter;
   bool found = false;
 
-  /* firstly, check if in Graph Editor */
+  /* firstly, check if in Graph Editor or Dopesheet */
   /* TODO: also check for region? */
-  if ((area == NULL) || (area->spacetype != SPACE_GRAPH)) {
+  if (area == NULL || !ELEM(area->spacetype, SPACE_GRAPH, SPACE_ACTION)) {
     return found;
   }
 
@@ -205,9 +184,11 @@ bool graphop_editable_keyframes_poll(bContext *C)
   /* loop over the editable F-Curves, and see if they're suitable
    * stopping on the first successful match
    */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_CURVE_VISIBLE);
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_CURVE_VISIBLE |
+            ANIMFILTER_FCURVESONLY);
   items = ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
   if (items == 0) {
+    CTX_wm_operator_poll_msg_set(C, "There is no animation data to operate on");
     return found;
   }
 
@@ -235,7 +216,6 @@ bool graphop_editable_keyframes_poll(bContext *C)
   return found;
 }
 
-/* has active F-Curve that's editable */
 bool graphop_active_fcurve_poll(bContext *C)
 {
   bAnimContext ac;
@@ -279,7 +259,6 @@ bool graphop_active_fcurve_poll(bContext *C)
   return has_fcurve;
 }
 
-/* has active F-Curve in the context that's editable */
 bool graphop_active_editable_fcurve_ctx_poll(bContext *C)
 {
   PointerRNA ptr = CTX_data_pointer_get_type(C, "active_editable_fcurve", &RNA_FCurve);
@@ -287,7 +266,6 @@ bool graphop_active_editable_fcurve_ctx_poll(bContext *C)
   return ptr.data != NULL;
 }
 
-/* has selected F-Curve that's editable */
 bool graphop_selected_fcurve_poll(bContext *C)
 {
   bAnimContext ac;
@@ -310,7 +288,8 @@ bool graphop_selected_fcurve_poll(bContext *C)
   /* Get the editable + selected F-Curves, and as long as we got some, we can return.
    * NOTE: curve-visible flag isn't included,
    * otherwise selecting a curve via list to edit is too cumbersome. */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_SEL | ANIMFILTER_FOREDIT);
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_SEL | ANIMFILTER_FOREDIT |
+            ANIMFILTER_FCURVESONLY);
   items = ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
   if (items == 0) {
     return false;
@@ -321,4 +300,4 @@ bool graphop_selected_fcurve_poll(bContext *C)
   return true;
 }
 
-/* ************************************************************** */
+/** \} */

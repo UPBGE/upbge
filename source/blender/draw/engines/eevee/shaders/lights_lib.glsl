@@ -20,6 +20,7 @@ struct LightData {
   vec4 upvec_sizey;            /* xyz: Normalized right vector, w: area size Y or spot scale Y */
   vec4 forwardvec_type;        /* xyz: Normalized forward vector, w: Light Type */
   vec4 diff_spec_volume;       /* xyz: Diffuse/Spec/Volume power, w: radius for volumetric. */
+  vec4 usesoftshd;             /* x : Use soft shadow (per light) -- UPBGE */
 };
 
 /* convenience aliases */
@@ -41,6 +42,7 @@ struct LightData {
 #define l_spot_blend spotdata_radius_shadow.y
 #define l_radius spotdata_radius_shadow.z
 #define l_shadowid spotdata_radius_shadow.w
+#define l_use_soft_shd usesoftshd.x
 
 struct ShadowData {
   vec4 near_far_bias_id;
@@ -89,8 +91,8 @@ layout(std140) uniform light_block
   LightData lights_data[MAX_LIGHT];
 };
 
-uniform sampler2DArrayShadow shadowCubeTexture;
-uniform sampler2DArrayShadow shadowCascadeTexture;
+uniform depth2DArrayShadow shadowCubeTexture;
+uniform depth2DArrayShadow shadowCascadeTexture;
 
 /** \} */
 

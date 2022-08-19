@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-# Apache License, Version 2.0
+# SPDX-License-Identifier: Apache-2.0
 
 import argparse
 import os
+import pathlib
 import shlex
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 
 def setup():
@@ -63,7 +65,7 @@ def setup():
         collection = bpy.data.collections.new("Reflection")
         collection.objects.link(plane)
         # Add all lights to light the plane
-        if invert == False:
+        if not invert:
             for light in bpy.data.objects:
                 if light.type == 'LIGHT':
                     collection.objects.link(light)
@@ -96,6 +98,26 @@ if inside_blender:
     except Exception as e:
         print(e)
         sys.exit(1)
+
+
+def get_gpu_device_type(blender):
+    command = [
+        blender,
+        "-noaudio",
+        "--background"
+        "--factory-startup",
+        "--python",
+        str(pathlib.Path(__file__).parent / "gpu_info.py")
+    ]
+    try:
+        completed_process = subprocess.run(command, stdout=subprocess.PIPE)
+        for line in completed_process.stdout.read_text():
+            if line.startswith("GPU_DEVICE_TYPE:"):
+                vendor = line.split(':')[1]
+                return vendor
+    except BaseException as e:
+        return None
+    return None
 
 
 def get_arguments(filepath, output_filepath):
@@ -133,11 +155,22 @@ def main():
     idiff = args.idiff[0]
     output_dir = args.outdir[0]
 
+    gpu_device_type = get_gpu_device_type(blender)
+    reference_override_dir = None
+    if gpu_device_type == "AMD":
+        reference_override_dir = "eevee_renders/amd"
+
     from modules import render_report
     report = render_report.Report("Eevee", output_dir, idiff)
     report.set_pixelated(True)
     report.set_reference_dir("eevee_renders")
+    report.set_reference_override_dir(reference_override_dir)
     report.set_compare_engine('cycles', 'CPU')
+
+    test_dir_name = Path(test_dir).name
+    if test_dir_name.startswith('image'):
+        report.set_fail_threshold(0.051)
+
     ok = report.run(test_dir, blender, get_arguments, batch=True)
 
     sys.exit(not ok)

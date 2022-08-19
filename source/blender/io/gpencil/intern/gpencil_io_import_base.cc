@@ -1,23 +1,5 @@
-
-
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2020 Blender Foundation
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2020 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup bgpencil
@@ -32,6 +14,7 @@
 #include "BKE_material.h"
 
 #include "ED_gpencil.h"
+#include "ED_object.h"
 
 #include "gpencil_io_import_base.hh"
 
@@ -45,10 +28,22 @@ GpencilImporter::GpencilImporter(const GpencilIOParams *iparams) : GpencilIO(ipa
 
 Object *GpencilImporter::create_object()
 {
-  const float *cur = scene_->cursor.location;
+  const float *cur_loc = scene_->cursor.location;
+  const float rot[3] = {0.0f};
   ushort local_view_bits = (params_.v3d && params_.v3d->localvd) ? params_.v3d->local_view_uuid :
                                                                    (ushort)0;
-  Object *ob_gpencil = ED_gpencil_add_object(params_.C, cur, local_view_bits);
+
+  Object *ob_gpencil = ED_object_add_type(params_.C,
+                                          OB_GPENCIL,
+                                          (params_.filename[0] != '\0') ? params_.filename :
+                                                                          nullptr,
+                                          cur_loc,
+                                          rot,
+                                          false,
+                                          local_view_bits);
+
+  /* Set object defaults. */
+  ED_gpencil_add_defaults(params_.C, ob_gpencil);
 
   return ob_gpencil;
 }

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edtransform
@@ -133,7 +117,7 @@ static void MaskPointToTransData(Scene *scene,
   const bool is_sel_any = MASKPOINT_ISSEL_ANY(point);
   float parent_matrix[3][3], parent_inverse_matrix[3][3];
 
-  BKE_mask_point_parent_matrix_get(point, CFRA, parent_matrix);
+  BKE_mask_point_parent_matrix_get(point, scene->r.cfra, parent_matrix);
   invert_m3_m3(parent_inverse_matrix, parent_matrix);
 
   if (is_prop_edit || is_sel_point) {
@@ -261,7 +245,7 @@ static void MaskPointToTransData(Scene *scene,
   }
 }
 
-void createTransMaskingData(bContext *C, TransInfo *t)
+static void createTransMaskingData(bContext *C, TransInfo *t)
 {
   Scene *scene = CTX_data_scene(C);
   Mask *mask = CTX_data_edit_mask(C);
@@ -277,16 +261,8 @@ void createTransMaskingData(bContext *C, TransInfo *t)
 
   tc->data_len = 0;
 
-  if (!mask) {
+  if (!ED_maskedit_mask_visible_splines_poll(C)) {
     return;
-  }
-
-  if (t->spacetype == SPACE_CLIP) {
-    SpaceClip *sc = t->area->spacedata.first;
-    MovieClip *clip = ED_space_clip_get_clip(sc);
-    if (!clip) {
-      return;
-    }
   }
 
   /* count */
@@ -440,7 +416,7 @@ static void flushTransMasking(TransInfo *t)
   }
 }
 
-void recalcData_mask_common(TransInfo *t)
+static void recalcData_mask_common(TransInfo *t)
 {
   Mask *mask = CTX_data_edit_mask(t->context);
 
@@ -455,7 +431,7 @@ void recalcData_mask_common(TransInfo *t)
 /** \name Special After Transform Mask
  * \{ */
 
-void special_aftertrans_update__mask(bContext *C, TransInfo *t)
+static void special_aftertrans_update__mask(bContext *C, TransInfo *t)
 {
   Mask *mask = NULL;
 
@@ -472,19 +448,14 @@ void special_aftertrans_update__mask(bContext *C, TransInfo *t)
   }
 
   if (t->scene->nodetree) {
-    /* tracks can be used for stabilization nodes,
-     * flush update for such nodes */
-    // if (nodeUpdateID(t->scene->nodetree, &mask->id))
-    {
-      WM_event_add_notifier(C, NC_MASK | ND_DATA, &mask->id);
-    }
+    WM_event_add_notifier(C, NC_MASK | ND_DATA, &mask->id);
   }
 
   /* TODO: don't key all masks. */
   if (IS_AUTOKEY_ON(t->scene)) {
     Scene *scene = t->scene;
 
-    if (ED_mask_layer_shape_auto_key_select(mask, CFRA)) {
+    if (ED_mask_layer_shape_auto_key_select(mask, scene->r.cfra)) {
       WM_event_add_notifier(C, NC_MASK | ND_DATA, &mask->id);
       DEG_id_tag_update(&mask->id, 0);
     }
@@ -492,3 +463,10 @@ void special_aftertrans_update__mask(bContext *C, TransInfo *t)
 }
 
 /** \} */
+
+TransConvertTypeInfo TransConvertType_Mask = {
+    /* flags */ (T_POINTS | T_2D_EDIT),
+    /* createTransData */ createTransMaskingData,
+    /* recalcData */ recalcData_mask_common,
+    /* special_aftertrans_update */ special_aftertrans_update__mask,
+};

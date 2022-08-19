@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 string(TIMESTAMP CURRENT_YEAR "%Y")
 
 set(PROJECT_DESCRIPTION  "Blender is the free and open source 3D creation suite software.")
@@ -104,8 +106,8 @@ if(WIN32)
   set(CPACK_WIX_LIGHT_EXTRA_FLAGS -dcl:medium)
 endif()
 
-set(CPACK_PACKAGE_EXECUTABLES "blender-launcher" "blender")
-set(CPACK_CREATE_DESKTOP_LINKS "blender-launcher" "blender")
+set(CPACK_PACKAGE_EXECUTABLES "blender-launcher" "Blender")
+set(CPACK_CREATE_DESKTOP_LINKS "blender-launcher" "Blender")
 
 include(CPack)
 

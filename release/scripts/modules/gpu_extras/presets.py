@@ -1,22 +1,6 @@
-# ***** BEGIN GPL LICENSE BLOCK *****
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ***** END GPL LICENSE BLOCK *****
+# SPDX-License-Identifier: GPL-2.0-or-later
 
-def draw_circle_2d(position, color, radius, *, segments=32):
+def draw_circle_2d(position, color, radius, *, segments=None):
     """
     Draw a circle.
 
@@ -27,16 +11,23 @@ def draw_circle_2d(position, color, radius, *, segments=32):
     :arg radius: Radius of the circle.
     :type radius: float
     :arg segments: How many segments will be used to draw the circle.
-        Higher values give besser results but the drawing will take longer.
-    :type segments: int
+        Higher values give better results but the drawing will take longer.
+        If None or not specified, an automatic value will be calculated.
+    :type segments: int or None
     """
-    from math import sin, cos, pi
+    from math import sin, cos, pi, ceil, acos
     import gpu
     from gpu.types import (
         GPUBatch,
         GPUVertBuf,
         GPUVertFormat,
     )
+
+    if segments is None:
+        max_pixel_error = 0.25  # TODO: multiply 0.5 by display dpi
+        segments = int(ceil(pi / acos(1.0 - max_pixel_error / radius)))
+        segments = max(segments, 8)
+        segments = min(segments, 1000)
 
     if segments <= 0:
         raise ValueError("Amount of segments must be greater than 0.")

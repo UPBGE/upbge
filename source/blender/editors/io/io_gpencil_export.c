@@ -1,56 +1,42 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2020 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2020 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup editor/io
  */
 
-#include "BLI_path_util.h"
-#include "BLI_string.h"
+#ifdef WITH_IO_GPENCIL
 
-#include "DNA_gpencil_types.h"
-#include "DNA_space_types.h"
+#  include "BLI_path_util.h"
+#  include "BLI_string.h"
 
-#include "BKE_gpencil.h"
-#include "BKE_main.h"
-#include "BKE_report.h"
-#include "BKE_screen.h"
+#  include "DNA_gpencil_types.h"
+#  include "DNA_space_types.h"
 
-#include "BLT_translation.h"
+#  include "BKE_gpencil.h"
+#  include "BKE_main.h"
+#  include "BKE_report.h"
+#  include "BKE_screen.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
+#  include "BLT_translation.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#  include "RNA_access.h"
+#  include "RNA_define.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#  include "UI_interface.h"
+#  include "UI_resources.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_query.h"
+#  include "WM_api.h"
+#  include "WM_types.h"
 
-#include "io_gpencil.h"
+#  include "DEG_depsgraph.h"
+#  include "DEG_depsgraph_query.h"
 
-#include "gpencil_io.h"
+#  include "io_gpencil.h"
 
-#if defined(WITH_PUGIXML) || defined(WITH_HARU)
+#  include "gpencil_io.h"
+
+#  if defined(WITH_PUGIXML) || defined(WITH_HARU)
 /* Definition of enum elements to export. */
 /* Common props for exporting. */
 static void gpencil_export_common_props_definition(wmOperatorType *ot)
@@ -103,10 +89,10 @@ static void set_export_filepath(bContext *C, wmOperator *op, const char *extensi
     RNA_string_set(op->ptr, "filepath", filepath);
   }
 }
-#endif
+#  endif
 
 /* <-------- SVG single frame export. --------> */
-#ifdef WITH_PUGIXML
+#  ifdef WITH_PUGIXML
 static bool wm_gpencil_export_svg_common_check(bContext *UNUSED(C), wmOperator *op)
 {
   char filepath[FILE_MAX];
@@ -167,9 +153,9 @@ static int wm_gpencil_export_svg_exec(bContext *C, wmOperator *op)
                             .v3d = v3d,
                             .ob = ob,
                             .mode = GP_EXPORT_TO_SVG,
-                            .frame_start = CFRA,
-                            .frame_end = CFRA,
-                            .frame_cur = CFRA,
+                            .frame_start = scene->r.cfra,
+                            .frame_end = scene->r.cfra,
+                            .frame_cur = scene->r.cfra,
                             .flag = flag,
                             .scale = 1.0f,
                             .select_mode = select_mode,
@@ -242,7 +228,7 @@ void WM_OT_gpencil_export_svg(wmOperatorType *ot)
   ot->check = wm_gpencil_export_svg_common_check;
 
   WM_operator_properties_filesel(ot,
-                                 FILE_TYPE_OBJECT_IO,
+                                 FILE_TYPE_FOLDER | FILE_TYPE_OBJECT_IO,
                                  FILE_BLENDER,
                                  FILE_SAVE,
                                  WM_FILESEL_FILEPATH | WM_FILESEL_SHOW_PROPS,
@@ -257,10 +243,10 @@ void WM_OT_gpencil_export_svg(wmOperatorType *ot)
                   "Clip Camera",
                   "Clip drawings to camera size when export in camera view");
 }
-#endif
+#  endif
 
 /* <-------- PDF single frame export. --------> */
-#ifdef WITH_HARU
+#  ifdef WITH_HARU
 static bool wm_gpencil_export_pdf_common_check(bContext *UNUSED(C), wmOperator *op)
 {
 
@@ -320,9 +306,9 @@ static int wm_gpencil_export_pdf_exec(bContext *C, wmOperator *op)
                             .v3d = v3d,
                             .ob = ob,
                             .mode = GP_EXPORT_TO_PDF,
-                            .frame_start = SFRA,
-                            .frame_end = EFRA,
-                            .frame_cur = CFRA,
+                            .frame_start = scene->r.sfra,
+                            .frame_end = scene->r.efra,
+                            .frame_cur = scene->r.cfra,
                             .flag = flag,
                             .scale = 1.0f,
                             .select_mode = select_mode,
@@ -400,7 +386,7 @@ void WM_OT_gpencil_export_pdf(wmOperatorType *ot)
   ot->check = wm_gpencil_export_pdf_common_check;
 
   WM_operator_properties_filesel(ot,
-                                 FILE_TYPE_OBJECT_IO,
+                                 FILE_TYPE_FOLDER | FILE_TYPE_OBJECT_IO,
                                  FILE_BLENDER,
                                  FILE_SAVE,
                                  WM_FILESEL_FILEPATH | WM_FILESEL_SHOW_PROPS,
@@ -410,6 +396,7 @@ void WM_OT_gpencil_export_pdf(wmOperatorType *ot)
   static const EnumPropertyItem gpencil_export_frame_items[] = {
       {GP_EXPORT_FRAME_ACTIVE, "ACTIVE", 0, "Active", "Include only active frame"},
       {GP_EXPORT_FRAME_SELECTED, "SELECTED", 0, "Selected", "Include selected frames"},
+      {GP_EXPORT_FRAME_SCENE, "SCENE", 0, "Scene", "Include all scene frames"},
       {0, NULL, 0, NULL, NULL},
   };
 
@@ -421,4 +408,6 @@ void WM_OT_gpencil_export_pdf(wmOperatorType *ot)
                           "Frames",
                           "Which frames to include in the export");
 }
-#endif
+#  endif /* WITH_HARU */
+
+#endif /* WITH_IO_GPENCIL */

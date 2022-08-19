@@ -116,7 +116,7 @@ void blend_mode_output(
       color.a *= opacity;
       frag_revealage = frag_color = clamp(1.0 / max(vec4(1e-6), 1.0 - color * color.a), 0.0, 1e18);
       break;
-    case MODE_HARDLIGHT:
+    case MODE_HARDLIGHT: {
       /* Reminder: Blending func is multiply blend (dst.rgba * src.rgba). */
       /**
        * We need to separate the overlay equation into 2 term (one mul and one add).
@@ -134,6 +134,7 @@ void blend_mode_output(
       frag_revealage = frag_color = 2.0 * s + 2.0 * color * (1.0 - s * 2.0);
       frag_revealage = max(vec4(0.0), frag_revealage);
       break;
+    }
     case MODE_HARDLIGHT_SECOND_PASS:
       /* Reminder: Blending func is additive blend (dst.rgba + src.rgba). */
       color = mix(vec4(0.5), color, color.a * opacity);
@@ -148,6 +149,8 @@ void blend_mode_output(
       break;
   }
 }
+
+#ifndef USE_GPU_SHADER_CREATE_INFO
 
 IN_OUT ShaderStageInterface
 {
@@ -164,6 +167,8 @@ IN_OUT ShaderStageInterface
   flat int matFlag;
   flat float depth;
 };
+
+#endif
 
 #ifdef GPU_FRAGMENT_SHADER
 
@@ -339,7 +344,7 @@ float stroke_thickness_modulate(float thickness)
   }
   else {
     /* World space point size. */
-    thickness *= thicknessWorldScale * ProjectionMatrix[1][1] * sizeViewport.y;
+    thickness *= thicknessWorldScale * drw_view.winmat[1][1] * sizeViewport.y;
   }
   return thickness;
 }
@@ -442,7 +447,7 @@ void stroke_vertex()
   if (is_dot) {
 #  ifdef GP_MATERIAL_BUFFER_LEN
     int alignement = GP_FLAG(m) & GP_STROKE_ALIGNMENT;
-    /* For one point strokes use object aligment. */
+    /* For one point strokes use object alignment. */
     if (ma.x == -1 && ma2.x == -1 && alignement == GP_STROKE_ALIGNMENT_STROKE) {
       alignement = GP_STROKE_ALIGNMENT_OBJECT;
     }

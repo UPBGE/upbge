@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup GHOST
@@ -136,6 +120,7 @@ class GHOST_ISystem {
    * \return An indication of success.
    */
   static GHOST_TSuccess createSystem();
+  static GHOST_TSuccess createSystemBackground();
 
   /**
    * Disposes the one and only system.
@@ -148,6 +133,9 @@ class GHOST_ISystem {
    * \return A pointer to the system.
    */
   static GHOST_ISystem *getSystem();
+
+  static GHOST_TBacktraceFn getBacktraceFn();
+  static void setBacktraceFn(GHOST_TBacktraceFn backtrace_fn);
 
  protected:
   /**
@@ -290,8 +278,7 @@ class GHOST_ISystem {
    */
   virtual GHOST_TSuccess beginFullScreen(const GHOST_DisplaySetting &setting,
                                          GHOST_IWindow **window,
-                                         const bool stereoVisual,
-                                         const bool alphaBackground = 0) = 0;
+                                         const bool stereoVisual) = 0;
 
   /**
    * Updates the resolution while in fullscreen mode.
@@ -321,9 +308,27 @@ class GHOST_ISystem {
   virtual bool useNativePixel(void) = 0;
 
   /**
+   * Return true when warping the cursor is supported.
+   */
+  virtual bool supportsCursorWarp() = 0;
+
+  /**
+   * Return true getting/setting the window position is supported.
+   */
+  virtual bool supportsWindowPosition() = 0;
+
+  /**
    * Focus window after opening, or put them in the background.
    */
   virtual void useWindowFocus(const bool use_focus) = 0;
+
+  /**
+   * Get the Window under the cursor.
+   * \param x: The x-coordinate of the cursor.
+   * \param y: The y-coordinate of the cursor.
+   * \return The window under the cursor or nullptr if none.
+   */
+  virtual GHOST_IWindow *getWindowUnderCursor(int32_t x, int32_t y) = 0;
 
   /***************************************************************************************
    * Event management functionality
@@ -360,6 +365,25 @@ class GHOST_ISystem {
    ***************************************************************************************/
 
   /**
+   * Returns the current location of the cursor (location in window coordinates)
+   * \param x: The x-coordinate of the cursor.
+   * \param y: The y-coordinate of the cursor.
+   * \return Indication of success.
+   */
+  virtual GHOST_TSuccess getCursorPositionClientRelative(const GHOST_IWindow *window,
+                                                         int32_t &x,
+                                                         int32_t &y) const = 0;
+  /**
+   * Updates the location of the cursor (location in window coordinates).
+   * \param x: The x-coordinate of the cursor.
+   * \param y: The y-coordinate of the cursor.
+   * \return Indication of success.
+   */
+  virtual GHOST_TSuccess setCursorPositionClientRelative(GHOST_IWindow *window,
+                                                         int32_t x,
+                                                         int32_t y) = 0;
+
+  /**
    * Returns the current location of the cursor (location in screen coordinates)
    * \param x: The x-coordinate of the cursor.
    * \param y: The y-coordinate of the cursor.
@@ -386,7 +410,7 @@ class GHOST_ISystem {
    * \param isDown: The state of a modifier key (true == pressed).
    * \return Indication of success.
    */
-  virtual GHOST_TSuccess getModifierKeyState(GHOST_TModifierKeyMask mask, bool &isDown) const = 0;
+  virtual GHOST_TSuccess getModifierKeyState(GHOST_TModifierKey mask, bool &isDown) const = 0;
 
   /**
    * Returns the state of a mouse button (outside the message queue).
@@ -394,7 +418,7 @@ class GHOST_ISystem {
    * \param isDown: Button state.
    * \return Indication of success.
    */
-  virtual GHOST_TSuccess getButtonState(GHOST_TButtonMask mask, bool &isDown) const = 0;
+  virtual GHOST_TSuccess getButtonState(GHOST_TButton mask, bool &isDown) const = 0;
 
   /**
    * Set which tablet API to use. Only affects Windows, other platforms have a single API.
@@ -411,16 +435,11 @@ class GHOST_ISystem {
 #endif
 
   /**
-   * Toggles console
-   * \param action:
-   * - 0: Hides.
-   * - 1: Shows
-   * - 2: Toggles
-   * - 3: Hides if it runs not from  command line
-   * - *: Does nothing
+   * Set the Console State
+   * \param action: console state
    * \return current status (1 -visible, 0 - hidden)
    */
-  virtual int toggleConsole(int action) = 0;
+  virtual int setConsoleWindowState(GHOST_TConsoleWindowState action) = 0;
 
   /***************************************************************************************
    * Access to clipboard.
@@ -465,8 +484,9 @@ class GHOST_ISystem {
 
   /**
    * Specify whether debug messages are to be shown.
+   * \param debug: Flag for systems to debug.
    */
-  virtual void initDebug(bool is_debug_enabled) = 0;
+  virtual void initDebug(GHOST_Debug debug) = 0;
 
   /**
    * Check whether debug messages are to be shown.
@@ -488,6 +508,9 @@ class GHOST_ISystem {
 
   /** The one and only system */
   static GHOST_ISystem *m_system;
+
+  /** Function to call that sets the back-trace. */
+  static GHOST_TBacktraceFn m_backtrace_fn;
 
 #ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_ISystem")

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2011 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup bke
@@ -37,12 +21,12 @@
 typedef double Vec2[2];
 
 static int point_markers_correspondences_on_both_image(
-    MovieTrackingPlaneTrack *plane_track, int frame1, int frame2, Vec2 **x1_r, Vec2 **x2_r)
+    MovieTrackingPlaneTrack *plane_track, int frame1, int frame2, Vec2 **r_x1, Vec2 **r_x2)
 {
   Vec2 *x1, *x2;
 
-  *x1_r = x1 = MEM_mallocN(sizeof(*x1) * plane_track->point_tracksnr, "point correspondences x1");
-  *x2_r = x2 = MEM_mallocN(sizeof(*x1) * plane_track->point_tracksnr, "point correspondences x2");
+  *r_x1 = x1 = MEM_mallocN(sizeof(*x1) * plane_track->point_tracksnr, "point correspondences x1");
+  *r_x2 = x2 = MEM_mallocN(sizeof(*x1) * plane_track->point_tracksnr, "point correspondences x2");
 
   int correspondence_index = 0;
   for (int i = 0; i < plane_track->point_tracksnr; i++) {
@@ -167,7 +151,6 @@ static void track_plane_from_existing_motion(MovieTrackingPlaneTrack *plane_trac
   }
 }
 
-/* NOTE: frame number should be in clip space, not scene space */
 void BKE_tracking_track_plane_from_existing_motion(MovieTrackingPlaneTrack *plane_track,
                                                    int start_frame)
 {

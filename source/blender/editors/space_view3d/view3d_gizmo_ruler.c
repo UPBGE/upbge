@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spview3d
@@ -115,8 +101,10 @@ enum {
   CONSTRAIN_AXIS_Z = 2,
 };
 
-/* Constraining modes.
-   Off / Scene orientation / Global (or Local if Scene orientation is Global) */
+/**
+ * Constraining modes.
+ * Off / Scene orientation / Global (or Local if Scene orientation is Global).
+ */
 enum {
   CONSTRAIN_MODE_OFF = 0,
   CONSTRAIN_MODE_1 = 1,
@@ -163,7 +151,7 @@ typedef struct RulerInfo {
 typedef struct RulerItem {
   wmGizmo gz;
 
-  /* worldspace coords, middle being optional */
+  /** World-space coords, middle being optional. */
   float co[3][3];
 
   int flag;
@@ -369,11 +357,12 @@ static bool view3d_ruler_item_mousemove(const bContext *C,
                                                   depsgraph,
                                                   ruler_info->region,
                                                   v3d,
-                                                  SCE_SNAP_MODE_FACE,
+                                                  SCE_SNAP_MODE_FACE_RAYCAST,
                                                   &(const struct SnapObjectParams){
-                                                      .snap_select = SNAP_ALL,
+                                                      .snap_target_select = SCE_SNAP_TARGET_ALL,
                                                       .edit_mode_type = SNAP_GEOM_CAGE,
                                                   },
+                                                  NULL,
                                                   mval_fl,
                                                   NULL,
                                                   &dist_px,
@@ -386,7 +375,7 @@ static bool view3d_ruler_item_mousemove(const bContext *C,
                                              depsgraph,
                                              v3d,
                                              &(const struct SnapObjectParams){
-                                                 .snap_select = SNAP_ALL,
+                                                 .snap_target_select = SCE_SNAP_TARGET_ALL,
                                                  .edit_mode_type = SNAP_GEOM_CAGE,
                                              },
                                              ray_start,
@@ -467,6 +456,19 @@ static bool view3d_ruler_item_mousemove(const bContext *C,
   return false;
 }
 
+/**
+ * When the gizmo-group has been created immediately before running an operator
+ * to manipulate rulers, it's possible the new gizmo-group has not yet been initialized.
+ * in 3.0 this happened because left-click drag would both select and add a new ruler,
+ * significantly increasing the likelihood of this happening.
+ * Workaround this crash by checking the gizmo's custom-data has not been cleared.
+ * The key-map has also been modified not to trigger this bug, see T95591.
+ */
+static bool gizmo_ruler_check_for_operator(const wmGizmoGroup *gzgroup)
+{
+  return gzgroup->customdata != NULL;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -521,7 +523,7 @@ static bool view3d_ruler_to_gpencil(bContext *C, wmGizmoGroup *gzgroup)
     gpl->flag |= GP_LAYER_HIDE | GP_LAYER_IS_RULER;
   }
 
-  gpf = BKE_gpencil_layer_frame_get(gpl, CFRA, GP_GETFRAME_ADD_NEW);
+  gpf = BKE_gpencil_layer_frame_get(gpl, scene->r.cfra, GP_GETFRAME_ADD_NEW);
   BKE_gpencil_free_strokes(gpf);
 
   for (ruler_item = gzgroup_ruler_item_first_get(gzgroup); ruler_item;
@@ -575,7 +577,7 @@ static bool view3d_ruler_from_gpencil(const bContext *C, wmGizmoGroup *gzgroup)
     gpl = view3d_ruler_layer_get(scene->gpd);
     if (gpl) {
       bGPDframe *gpf;
-      gpf = BKE_gpencil_layer_frame_get(gpl, CFRA, GP_GETFRAME_USE_PREV);
+      gpf = BKE_gpencil_layer_frame_get(gpl, scene->r.cfra, GP_GETFRAME_USE_PREV);
       if (gpf) {
         bGPDstroke *gps;
         for (gps = gpf->strokes.first; gps; gps = gps->next) {
@@ -643,7 +645,7 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
   GPU_line_width(1.0f);
 
   BLF_enable(blf_mono_font, BLF_ROTATION);
-  BLF_size(blf_mono_font, 14 * U.pixelsize, U.dpi);
+  BLF_size(blf_mono_font, 14.0f * U.pixelsize, U.dpi);
   BLF_rotation(blf_mono_font, 0.0f);
 
   UI_GetThemeColor3ubv(TH_TEXT, color_text);
@@ -688,10 +690,8 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
 
     immUniform1i("colors_len", 2); /* "advanced" mode */
     const float *col = is_act ? color_act : color_base;
-    immUniformArray4fv(
-        "colors",
-        (float *)(float[][4]){{0.67f, 0.67f, 0.67f, 1.0f}, {col[0], col[1], col[2], col[3]}},
-        2);
+    immUniform4f("color", 0.67f, 0.67f, 0.67f, 1.0f);
+    immUniform4f("color2", col[0], col[1], col[2], col[3]);
     immUniform1f("dash_width", 6.0f);
     immUniform1f("dash_factor", 0.5f);
 
@@ -759,10 +759,8 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
 
     immUniform1i("colors_len", 2); /* "advanced" mode */
     const float *col = is_act ? color_act : color_base;
-    immUniformArray4fv(
-        "colors",
-        (float *)(float[][4]){{0.67f, 0.67f, 0.67f, 1.0f}, {col[0], col[1], col[2], col[3]}},
-        2);
+    immUniform4f("color", 0.67f, 0.67f, 0.67f, 1.0f);
+    immUniform4f("color2", col[0], col[1], col[2], col[3]);
     immUniform1f("dash_width", 6.0f);
     immUniform1f("dash_factor", 0.5f);
 
@@ -1081,7 +1079,8 @@ static int gizmo_ruler_invoke(bContext *C, wmGizmo *gz, const wmEvent *event)
 
   ARegion *region = ruler_info->region;
 
-  const float mval_fl[2] = {UNPACK2(event->mval)};
+  float mval_fl[2];
+  WM_event_drag_start_mval_fl(event, region, mval_fl);
 
 #ifdef USE_AXIS_CONSTRAINTS
   ruler_info->constrain_axis = CONSTRAIN_AXIS_NONE;
@@ -1230,11 +1229,7 @@ static void WIDGETGROUP_ruler_setup(const bContext *C, wmGizmoGroup *gzgroup)
     gzt_snap = WM_gizmotype_find("GIZMO_GT_snap_3d", true);
     gizmo = WM_gizmo_new_ptr(gzt_snap, gzgroup, NULL);
 
-    RNA_enum_set(gizmo->ptr,
-                 "snap_elements_force",
-                 (SCE_SNAP_MODE_VERTEX | SCE_SNAP_MODE_EDGE | SCE_SNAP_MODE_FACE |
-                  /* SCE_SNAP_MODE_VOLUME | SCE_SNAP_MODE_GRID | SCE_SNAP_MODE_INCREMENT | */
-                  SCE_SNAP_MODE_EDGE_PERPENDICULAR | SCE_SNAP_MODE_EDGE_MIDPOINT));
+    RNA_enum_set(gizmo->ptr, "snap_elements_force", SCE_SNAP_MODE_GEOM);
     ED_gizmotypes_snap_3d_flag_set(gizmo, V3D_SNAPCURSOR_SNAP_EDIT_GEOM_CAGE);
     WM_gizmo_set_color(gizmo, (float[4]){1.0f, 1.0f, 1.0f, 1.0f});
 
@@ -1306,13 +1301,21 @@ static int view3d_ruler_add_invoke(bContext *C, wmOperator *op, const wmEvent *e
   wmGizmoGroup *gzgroup = WM_gizmomap_group_find(gzmap, view3d_gzgt_ruler_id);
   const bool use_depth = (v3d->shading.type >= OB_SOLID);
 
+  if (!gizmo_ruler_check_for_operator(gzgroup)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  int mval[2];
+  WM_event_drag_start_mval(event, region, mval);
+
   /* Create new line */
   RulerItem *ruler_item;
   ruler_item = ruler_item_add(gzgroup);
 
   /* This is a little weak, but there is no real good way to tweak directly. */
   WM_gizmo_highlight_set(gzmap, &ruler_item->gz);
-  if (WM_operator_name_call(C, "GIZMOGROUP_OT_gizmo_tweak", WM_OP_INVOKE_REGION_WIN, NULL) ==
+  if (WM_operator_name_call(
+          C, "GIZMOGROUP_OT_gizmo_tweak", WM_OP_INVOKE_REGION_WIN, NULL, event) ==
       OPERATOR_RUNNING_MODAL) {
     RulerInfo *ruler_info = gzgroup->customdata;
     RulerInteraction *inter = ruler_item->gz.interaction_data;
@@ -1324,7 +1327,7 @@ static int view3d_ruler_add_invoke(bContext *C, wmOperator *op, const wmEvent *e
                                   depsgraph,
                                   ruler_info,
                                   ruler_item,
-                                  event->mval,
+                                  mval,
                                   false
 #ifndef USE_SNAP_DETECT_FROM_KEYMAP_HACK
                                   ,
@@ -1339,7 +1342,7 @@ static int view3d_ruler_add_invoke(bContext *C, wmOperator *op, const wmEvent *e
     else {
       negate_v3_v3(inter->drag_start_co, rv3d->ofs);
       copy_v3_v3(ruler_item->co[0], inter->drag_start_co);
-      view3d_ruler_item_project(ruler_info, ruler_item->co[0], event->mval);
+      view3d_ruler_item_project(ruler_info, ruler_item->co[0], mval);
     }
 
     copy_v3_v3(ruler_item->co[2], ruler_item->co[0]);
@@ -1381,6 +1384,9 @@ static int view3d_ruler_remove_invoke(bContext *C, wmOperator *op, const wmEvent
   wmGizmoMap *gzmap = region->gizmo_map;
   wmGizmoGroup *gzgroup = WM_gizmomap_group_find(gzmap, view3d_gzgt_ruler_id);
   if (gzgroup) {
+    if (!gizmo_ruler_check_for_operator(gzgroup)) {
+      return OPERATOR_CANCELLED;
+    }
     RulerInfo *ruler_info = gzgroup->customdata;
     if (ruler_info->item_active) {
       RulerItem *ruler_item = ruler_info->item_active;

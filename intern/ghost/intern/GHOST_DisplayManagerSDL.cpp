@@ -1,22 +1,8 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+/* SPDX-License-Identifier: GPL-2.0-or-later
  * Mode switching
- * Copyright (C) 1997-2001 Id Software, Inc.
- * Copyright (c) 1993-2011 Tim Riker
- * Copyright (C) 2012 Alex Fraser
- */
+ * Copyright 1997-2001 Id Software, Inc.
+ * Copyright 1993-2011 Tim Riker
+ * Copyright 2012 Alex Fraser */
 
 /** \file
  * \ingroup GHOST
@@ -123,7 +109,7 @@ GHOST_TSuccess GHOST_DisplayManagerSDL::setCurrentDisplaySetting(
 
       SDL_GetDisplayMode(display, i, &mode);
 
-      if (setting.xPixels > mode.w || setting.yPixels > mode.h) {
+      if ((int)setting.xPixels > mode.w || (int)setting.yPixels > mode.h) {
         continue;
       }
 
@@ -136,9 +122,9 @@ GHOST_TSuccess GHOST_DisplayManagerSDL::setCurrentDisplaySetting(
       }
     }
 
-    if (best_fit == -1)
+    if (best_fit == -1) {
       return GHOST_kFailure;
-
+    }
     SDL_GetDisplayMode(display, best_fit, &mode);
   }
 
@@ -156,12 +142,10 @@ GHOST_TSuccess GHOST_DisplayManagerSDL::setCurrentDisplaySetting(
 
     return GHOST_kSuccess;
   }
-  else {
-    /* this is a problem for the BGE player :S, perhaps SDL2 will resolve at some point.
-     * we really need SDL_SetDisplayModeForDisplay() to become an API func! - campbell */
-    printf("no windows available, can't fullscreen\n");
+  /* This is a problem for the BGE player :S, perhaps SDL2 will resolve at some point.
+   * we really need SDL_SetDisplayModeForDisplay() to become an API func! - campbell. */
+  printf("no windows available, can't fullscreen\n");
 
-    /* do not fail, we will try again later when the window is created - wander */
-    return GHOST_kSuccess;
-  }
+  /* do not fail, we will try again later when the window is created - wander */
+  return GHOST_kSuccess;
 }

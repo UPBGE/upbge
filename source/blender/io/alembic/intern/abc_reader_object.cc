@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup balembic
@@ -67,7 +53,6 @@ AbcObjectReader::AbcObjectReader(const IObject &object, ImportSettings &settings
   determine_inherits_xform();
 }
 
-/* Determine whether we can inherit our parent's XForm */
 void AbcObjectReader::determine_inherits_xform()
 {
   m_inherits_xform = false;
@@ -112,7 +97,9 @@ void AbcObjectReader::object(Object *ob)
   m_object = ob;
 }
 
-static Imath::M44d blend_matrices(const Imath::M44d &m0, const Imath::M44d &m1, const float weight)
+static Imath::M44d blend_matrices(const Imath::M44d &m0,
+                                  const Imath::M44d &m1,
+                                  const double weight)
 {
   float mat0[4][4], mat1[4][4], ret[4][4];
 
@@ -121,37 +108,18 @@ static Imath::M44d blend_matrices(const Imath::M44d &m0, const Imath::M44d &m1, 
    * the matrices manually.
    */
 
-  for (int i = 0; i < 4; i++) {
-    for (int j = 0; j < 4; j++) {
-      mat0[i][j] = static_cast<float>(m0[i][j]);
-    }
-  }
-
-  for (int i = 0; i < 4; i++) {
-    for (int j = 0; j < 4; j++) {
-      mat1[i][j] = static_cast<float>(m1[i][j]);
-    }
-  }
-
-  interp_m4_m4m4(ret, mat0, mat1, weight);
-
-  Imath::M44d m;
-
-  for (int i = 0; i < 4; i++) {
-    for (int j = 0; j < 4; j++) {
-      m[i][j] = ret[i][j];
-    }
-  }
-
-  return m;
+  convert_matrix_datatype(m0, mat0);
+  convert_matrix_datatype(m1, mat1);
+  interp_m4_m4m4(ret, mat0, mat1, static_cast<float>(weight));
+  return convert_matrix_datatype(ret);
 }
 
-Imath::M44d get_matrix(const IXformSchema &schema, const float time)
+Imath::M44d get_matrix(const IXformSchema &schema, const chrono_t time)
 {
   Alembic::AbcGeom::index_t i0, i1;
   Alembic::AbcGeom::XformSample s0, s1;
 
-  const float weight = get_weight_and_index(
+  const double weight = get_weight_and_index(
       time, schema.getTimeSampling(), schema.getNumSamples(), i0, i1);
 
   schema.get(s0, Alembic::AbcGeom::ISampleSelector(i0));
@@ -174,7 +142,7 @@ struct Mesh *AbcObjectReader::read_mesh(struct Mesh *existing_mesh,
   return existing_mesh;
 }
 
-bool AbcObjectReader::topology_changed(Mesh * /*existing_mesh*/,
+bool AbcObjectReader::topology_changed(const Mesh * /*existing_mesh*/,
                                        const Alembic::Abc::ISampleSelector & /*sample_sel*/)
 {
   /* The default implementation of read_mesh() just returns the original mesh, so never changes the
@@ -182,7 +150,7 @@ bool AbcObjectReader::topology_changed(Mesh * /*existing_mesh*/,
   return false;
 }
 
-void AbcObjectReader::setupObjectTransform(const float time)
+void AbcObjectReader::setupObjectTransform(const chrono_t time)
 {
   bool is_constant = false;
   float transform_from_alembic[4][4];
@@ -248,14 +216,14 @@ Alembic::AbcGeom::IXform AbcObjectReader::xform()
 }
 
 void AbcObjectReader::read_matrix(float r_mat[4][4] /* local matrix */,
-                                  const float time,
+                                  const chrono_t time,
                                   const float scale,
-                                  bool &is_constant)
+                                  bool &r_is_constant)
 {
   IXform ixform = xform();
   if (!ixform) {
     unit_m4(r_mat);
-    is_constant = true;
+    r_is_constant = true;
     return;
   }
 
@@ -286,7 +254,7 @@ void AbcObjectReader::read_matrix(float r_mat[4][4] /* local matrix */,
     mul_m4_m4m4(r_mat, scale_mat, r_mat);
   }
 
-  is_constant = schema.isConstant();
+  r_is_constant = schema.isConstant();
 }
 
 void AbcObjectReader::addCacheModifier()

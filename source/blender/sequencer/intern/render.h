@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2004 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2004 Blender Foundation. All rights reserved. */
 
 #pragma once
 
@@ -49,18 +33,20 @@ void seq_render_state_init(SeqRenderState *state);
 struct ImBuf *seq_render_give_ibuf_seqbase(const struct SeqRenderData *context,
                                            float timeline_frame,
                                            int chan_shown,
+                                           struct ListBase *channels,
                                            struct ListBase *seqbasep);
 struct ImBuf *seq_render_effect_execute_threaded(struct SeqEffectHandle *sh,
                                                  const struct SeqRenderData *context,
                                                  struct Sequence *seq,
                                                  float timeline_frame,
-                                                 float facf0,
-                                                 float facf1,
+                                                 float fac,
                                                  struct ImBuf *ibuf1,
                                                  struct ImBuf *ibuf2,
                                                  struct ImBuf *ibuf3);
 void seq_imbuf_to_sequencer_space(struct Scene *scene, struct ImBuf *ibuf, bool make_float);
-int seq_get_shown_sequences(struct ListBase *seqbase,
+int seq_get_shown_sequences(const struct Scene *scene,
+                            struct ListBase *channels,
+                            struct ListBase *seqbase,
                             int timeline_frame,
                             int chanshown,
                             struct Sequence **r_seq_arr);

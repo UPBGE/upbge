@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \defgroup render Rendering
  *  \ingroup blender
@@ -5,7 +6,8 @@
 /** \defgroup bmesh BMesh
  *  \ingroup blender
  */
-/** \defgroup compositor Compositing */
+/** \defgroup compositor Compositing
+ *  \ingroup blender */
 
 /** \defgroup python Python
  *  \ingroup blender
@@ -21,6 +23,62 @@
 
 /** \defgroup pythonintern Python RNA and Operators
  *  \ingroup python
+ */
+
+/* ================================ */
+
+/** \defgroup bge Game Engine */
+/** \defgroup gamelogic Game Logic
+ *  \ingroup bge
+ */
+/** \defgroup bgeconv Converter
+ *  \ingroup bge
+ */
+/** \defgroup blroutines Blender Routines
+ *  \ingroup bge
+ */
+/** \defgroup expressions Expressions
+ *  \ingroup bge
+ */
+/** \defgroup player Game Player
+ *  \ingroup bge
+ */
+/** \defgroup ketsji Ketsji
+ *  \ingroup bge
+ *  \todo check all headers and code files for proper licenses
+ */
+/** \defgroup ketsjinet Ketsji Network
+ *  \ingroup ketsji
+ */
+/** \defgroup bgenet Network
+ *  \ingroup bge
+ */
+/** \defgroup bgenetlb Loopback Network
+ *  \ingroup bgenet
+ */
+/** \defgroup phys Physics
+ *  \ingroup bge
+ */
+/** \defgroup physbullet Bullet Physics
+ *  \ingroup phys
+ */
+/** \defgroup physdummy Dummy Physics (none)
+ *  \ingroup phys
+ */
+/** \defgroup bgerast Rasterizer
+ *  \ingroup bge
+ */
+/** \defgroup bgerastoglfilters OpenGL Filters
+ *  \ingroup bgerast
+ */
+/** \defgroup bgerastogl OpenGL Rasterizer
+ *  \ingroup bgerast
+ */
+/** \defgroup bgesg BGE SceneGraph
+ *  \ingroup bge
+ */
+/** \defgroup bgevideotex BGE Video Texture
+ *  \ingroup bge
  */
 
 /* ================================ */
@@ -78,7 +136,8 @@
  *  \ingroup blender
  */
 
-/** \defgroup data DNA, RNA and .blend access*/
+/** \defgroup data DNA, RNA and .blend access
+ *  \ingroup blender */
 
 /** \defgroup gpu GPU
  *  \ingroup blender
@@ -101,11 +160,12 @@
  *   merged in docs.
  */
 
-/** \defgroup gui GUI */
+/**
+ * \defgroup gui GUI
+ * \ingroup blender */
 
 /** \defgroup wm Window Manager
- *  \ingroup blender gui
- */
+ *  \ingroup gui */
 
 /* ================================ */
 
@@ -217,6 +277,10 @@
  *  \ingroup editors
  */
 
+/** \defgroup splogic game logic editor
+ *  \ingroup editors
+ */
+
 /** \defgroup spnla NLA editor
  *  \ingroup editors
  */
@@ -279,7 +343,8 @@
  *  \ingroup gui
  */
 
-/** \defgroup externformats External Formats */
+/** \defgroup externformats External Formats
+ *  \ingroup blender */
 
 /** \defgroup collada COLLADA
  *  \ingroup externformats
@@ -308,4 +373,7 @@
 /* ================================ */
 
 /** \defgroup undoc Undocumented
- *  \brief Modules and libraries that are still undocumented, or lacking proper integration into the doxygen system, are marked in this group. */
+ *
+ * \brief Modules and libraries that are still undocumented,
+ * or lacking proper integration into the doxygen system, are marked in this group.
+ */

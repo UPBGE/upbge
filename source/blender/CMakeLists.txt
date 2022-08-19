@@ -1,27 +1,11 @@
-# ***** BEGIN GPL LICENSE BLOCK *****
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# The Original Code is Copyright (C) 2006, Blender Foundation
-# All rights reserved.
-# ***** END GPL LICENSE BLOCK *****
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright 2006 Blender Foundation. All rights reserved.
 
 set(SRC_DNA_INC
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_ID.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_ID_enums.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_action_types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_actuator_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_anim_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_armature_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_asset_types.h
@@ -34,8 +18,10 @@ set(SRC_DNA_INC
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_collection_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_color_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_constraint_types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_controller_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_curve_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_curveprofile_types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_curves_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_customdata_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_defs.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_documentation.h
@@ -48,7 +34,6 @@ set(SRC_DNA_INC
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_gpencil_modifier_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_gpencil_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_gpu_types.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_hair_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_image_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_ipo_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_key_types.h
@@ -77,7 +62,10 @@ set(SRC_DNA_INC
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_particle_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_pointcache_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_pointcloud_types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_property_types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_python_proxy_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_rigidbody_types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_sensor_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_scene_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_screen_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_sdna_types.h
@@ -91,6 +79,7 @@ set(SRC_DNA_INC
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_text_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_texture_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_tracking_types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_userdef_enums.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_userdef_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_uuid_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_vec_types.h
@@ -103,6 +92,42 @@ set(SRC_DNA_INC
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_workspace_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_world_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_xr_types.h
+)
+
+set(SRC_DNA_DEFAULTS_INC
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_armature_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_asset_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_brush_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_cachefile_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_camera_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_collection_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_curve_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_curves_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_fluid_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_gpencil_modifier_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_image_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_lattice_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_light_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_lightprobe_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_linestyle_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_material_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_mesh_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_meta_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_modifier_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_movieclip_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_object_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_particle_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_pointcloud_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_scene_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_simulation_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_space_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_speaker_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_texture_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_vec_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_view3d_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_volume_defaults.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_world_defaults.h
 )
 
 add_subdirectory(datatoc)
@@ -131,14 +156,12 @@ add_subdirectory(io)
 add_subdirectory(functions)
 add_subdirectory(makesdna)
 add_subdirectory(makesrna)
+add_subdirectory(compositor)
 
 if(WITH_BLENDER_THUMBNAILER)
   add_subdirectory(blendthumb)
 endif()
 
-if(WITH_COMPOSITOR)
-  add_subdirectory(compositor)
-endif()
 
 if(WITH_IMAGE_OPENEXR)
   add_subdirectory(imbuf/intern/openexr)

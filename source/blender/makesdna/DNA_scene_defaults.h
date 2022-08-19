@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -47,6 +33,7 @@
     .width = 512, \
     .height = 512, \
     .margin = 16, \
+    .margin_type = R_BAKE_ADJACENT_FACES, \
     .normal_space = R_BAKE_SPACE_TANGENT, \
     .normal_swizzle = {R_BAKE_POSX, R_BAKE_POSY, R_BAKE_POSZ}, \
   }
@@ -102,7 +89,8 @@
     .dither_intensity = 1.0f, \
  \
     .bake_mode = 0, \
-    .bake_filter = 16, \
+    .bake_margin = 16, \
+    .bake_margin_type = R_BAKE_ADJACENT_FACES, \
     .bake_flag = R_BAKE_CLEAR, \
     .bake_samples = 256, \
     .bake_biasdist = 0.001f, \
@@ -172,6 +160,59 @@
     .flag = PHYS_GLOBAL_GRAVITY, \
   }
 
+#define _DNA_DEFAULT_RecastData \
+  { \
+    .cellsize = 0.3f, \
+    .cellheight = 0.2f, \
+    .agentmaxslope = M_PI_4, \
+    .agentmaxclimb = 0.9f, \
+    .agentheight = 2.0f, \
+    .agentradius = 0.6f, \
+    .edgemaxlen = 12.0f, \
+    .edgemaxerror = 1.3f, \
+    .regionminsize = 8.0f, \
+    .regionmergesize = 20.0f, \
+    .vertsperpoly = 6, \
+    .detailsampledist = 6.0f, \
+    .detailsamplemaxerror = 1.0f, \
+    .partitioning = RC_PARTITION_WATERSHED, \
+  }
+
+#define _DNA_DEFAULT_GameData \
+  { \
+    .stereoflag = STEREO_NOSTEREO, \
+    .stereomode = STEREO_ANAGLYPH, \
+    .eyeseparation = 0.10, \
+    .xplay = 1280, \
+    .yplay = 720, \
+    .samples_per_frame = 1, \
+    .freqplay = 60, \
+    .depth = 32, \
+    .gravity = 9.8f, \
+    .physicsEngine = WOPHY_BULLET, \
+    .mode = WO_ACTIVITY_CULLING, \
+    .occlusionRes = 128, \
+    .ticrate = 60, \
+    .maxlogicstep = 5, \
+    .physubstep = 1, \
+    .maxphystep = 5, \
+    .timeScale = 1.0f, \
+    .lineardeactthreshold = 0.8f, \
+    .angulardeactthreshold = 1.0f, \
+    .deactivationtime = 2.0f, \
+    .erp = 0.2f, \
+    .erp2 = 0.8f, \
+    .cfm = 0.0f, \
+    .obstacleSimulation = OBSTSIMULATION_NONE, \
+    .levelHeight = 2.0f, \
+    .exitkey = 218, \
+    .flag = GAME_USE_UNDO, \
+    .lodflag = SCE_LOD_USE_HYST, \
+    .scehysteresis = 10, \
+    .pythonkeys = {212, 217, 213, 116}, \
+    .recastData = _DNA_DEFAULT_RecastData, \
+  }
+
 #define _DNA_DEFAULT_SceneEEVEE \
   { \
     .gi_diffuse_bounces = 3, \
@@ -235,6 +276,10 @@
     .flag = SCE_EEVEE_VOLUMETRIC_LIGHTS | SCE_EEVEE_GTAO_BENT_NORMALS | \
                     SCE_EEVEE_GTAO_BOUNCE | SCE_EEVEE_TAA_REPROJECTION | \
                     SCE_EEVEE_SSR_HALF_RESOLUTION | SCE_EEVEE_SHADOW_SOFT, \
+ \
+    .smaa_quality = SCE_EEVEE_SMAA_PRESET_HIGH, \
+    .smaa_predication_scale = 0.01, \
+ \
   }
 
 #define _DNA_DEFAULT_Scene \
@@ -250,6 +295,9 @@
     .safe_areas = _DNA_DEFAULT_DisplaySafeAreas, \
  \
     .eevee = _DNA_DEFAULT_SceneEEVEE, \
+ \
+    .gm = _DNA_DEFAULT_GameData, \
+ \
   }
 
 /** \} */
@@ -349,7 +397,9 @@
     .snap_mode = SCE_SNAP_MODE_INCREMENT, \
     .snap_node_mode = SCE_SNAP_MODE_GRID, \
     .snap_uv_mode = SCE_SNAP_MODE_INCREMENT, \
+    .snap_flag = SCE_SNAP_TO_INCLUDE_EDITED | SCE_SNAP_TO_INCLUDE_NONEDITED, \
     .snap_transform_mode_flag = SCE_SNAP_TRANSFORM_MODE_TRANSLATE, \
+    .snap_face_nearest_steps = 1, \
  \
     .curve_paint_settings = _DNA_DEFAULTS_CurvePaintSettings, \
  \
@@ -372,6 +422,12 @@
     /* GP Stroke Placement */ \
     .gpencil_v3d_align = GP_PROJECT_VIEWSPACE, \
     .gpencil_v2d_align = GP_PROJECT_VIEWSPACE, \
+ \
+    /* UV painting */ \
+    .uv_sculpt_settings = 0, \
+    .uv_relax_method = UV_SCULPT_TOOL_RELAX_LAPLACIAN, \
   }
 
 /* clang-format off */
+
+/** \} */

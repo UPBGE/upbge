@@ -1,22 +1,9 @@
-# ***** BEGIN GPL LICENSE BLOCK *****
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# The Original Code is Copyright (C) 2006, Blender Foundation
-# All rights reserved.
-# ***** END GPL LICENSE BLOCK *****
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright 2006 Blender Foundation. All rights reserved.
+
+if(HAVE_EXECINFO_H)
+  add_definitions(-DHAVE_EXECINFO_H)
+endif()
 
 set(INC
   .
@@ -25,7 +12,6 @@ set(INC
   ../../../intern/atomic
   ../../../intern/eigen
   ../../../intern/guardedalloc
-  ../../../intern/numaapi/include
   ../../../extern/wcwidth
   ../../../extern/json/include
 )
@@ -68,6 +54,7 @@ set(SRC
   intern/boxpack_2d.c
   intern/buffer.c
   intern/convexhull_2d.c
+  intern/cpp_type.cc
   intern/delaunay_2d.cc
   intern/dot_export.cc
   intern/dynlib.c
@@ -76,11 +63,15 @@ set(SRC
   intern/endian_switch.c
   intern/expr_pylike_eval.c
   intern/fileops.c
+  intern/fileops.cc
   intern/filereader_file.c
   intern/filereader_gzip.c
   intern/filereader_memory.c
   intern/filereader_zstd.c
   intern/fnmatch.c
+  intern/generic_vector_array.cc
+  intern/generic_virtual_array.cc
+  intern/generic_virtual_vector_array.cc
   intern/gsqueue.c
   intern/hash_md5.c
   intern/hash_mm2a.c
@@ -92,6 +83,7 @@ set(SRC
   intern/kdtree_3d.c
   intern/kdtree_4d.c
   intern/lasso_2d.c
+  intern/length_parameterize.cc
   intern/listbase.c
   intern/math_base.c
   intern/math_base_inline.c
@@ -106,6 +98,7 @@ set(SRC
   intern/math_interp.c
   intern/math_matrix.c
   intern/math_rotation.c
+  intern/math_rotation.cc
   intern/math_solvers.c
   intern/math_statistics.c
   intern/math_time.c
@@ -126,8 +119,8 @@ set(SRC
   intern/resource_scope.cc
   intern/scanfill.c
   intern/scanfill_utils.c
-  intern/session_uuid.c
   intern/serialize.cc
+  intern/session_uuid.c
   intern/smallhash.c
   intern/sort.c
   intern/sort_utils.c
@@ -158,6 +151,8 @@ set(SRC
   # Private headers.
   intern/BLI_mempool_private.h
 
+  ../../../extern/wcwidth/wcwidth.c
+
   # Header as source (included in C files above).
   intern/kdtree_impl.h
   intern/list_sort_impl.h
@@ -165,6 +160,7 @@ set(SRC
 
   BLI_alloca.h
   BLI_allocator.hh
+  BLI_any.hh
   BLI_args.h
   BLI_array.h
   BLI_array.hh
@@ -177,22 +173,25 @@ set(SRC
   BLI_bitmap.h
   BLI_bitmap_draw_2d.h
   BLI_blenlib.h
+  BLI_bounds.hh
   BLI_boxpack_2d.h
   BLI_buffer.h
   BLI_color.hh
+  BLI_color_mix.hh
   BLI_compiler_attrs.h
   BLI_compiler_compat.h
   BLI_compiler_typecheck.h
   BLI_console.h
   BLI_convexhull_2d.h
+  BLI_cpp_type.hh
+  BLI_cpp_type_make.hh
   BLI_delaunay_2d.h
+  BLI_devirtualize_parameters.hh
   BLI_dial_2d.h
   BLI_disjoint_set.hh
   BLI_dlrbTree.h
   BLI_dot_export.hh
   BLI_dot_export_attribute_enums.hh
-  BLI_double2.hh
-  BLI_double3.hh
   BLI_dynlib.h
   BLI_dynstr.h
   BLI_easing.h
@@ -203,14 +202,20 @@ set(SRC
   BLI_enumerable_thread_specific.hh
   BLI_expr_pylike_eval.h
   BLI_fileops.h
+  BLI_fileops.hh
   BLI_fileops_types.h
   BLI_filereader.h
-  BLI_float2.hh
-  BLI_float3.hh
-  BLI_float4.hh
+  BLI_float3x3.hh
   BLI_float4x4.hh
   BLI_fnmatch.h
   BLI_function_ref.hh
+  BLI_generic_array.hh
+  BLI_generic_pointer.hh
+  BLI_generic_span.hh
+  BLI_generic_value_map.hh
+  BLI_generic_vector_array.hh
+  BLI_generic_virtual_array.hh
+  BLI_generic_virtual_vector_array.hh
   BLI_ghash.h
   BLI_gsqueue.h
   BLI_hash.h
@@ -222,6 +227,7 @@ set(SRC
   BLI_heap.h
   BLI_heap_simple.h
   BLI_index_mask.hh
+  BLI_index_mask_ops.hh
   BLI_index_range.hh
   BLI_inplace_priority_queue.hh
   BLI_iterator.h
@@ -230,6 +236,7 @@ set(SRC
   BLI_kdtree.h
   BLI_kdtree_impl.h
   BLI_lasso_2d.h
+  BLI_length_parameterize.hh
   BLI_linear_allocator.hh
   BLI_link_utils.h
   BLI_linklist.h
@@ -241,10 +248,12 @@ set(SRC
   BLI_map_slots.hh
   BLI_math.h
   BLI_math_base.h
+  BLI_math_base.hh
   BLI_math_base_safe.h
   BLI_math_bits.h
   BLI_math_boolean.hh
   BLI_math_color.h
+  BLI_math_color.hh
   BLI_math_color_blend.h
   BLI_math_geom.h
   BLI_math_inline.h
@@ -252,10 +261,14 @@ set(SRC
   BLI_math_matrix.h
   BLI_math_mpq.hh
   BLI_math_rotation.h
+  BLI_math_rotation.hh
   BLI_math_solvers.h
   BLI_math_statistics.h
   BLI_math_time.h
+  BLI_math_vec_mpq_types.hh
+  BLI_math_vec_types.hh
   BLI_math_vector.h
+  BLI_math_vector.hh
   BLI_memarena.h
   BLI_memblock.h
   BLI_memiter.h
@@ -265,11 +278,10 @@ set(SRC
   BLI_mesh_boolean.hh
   BLI_mesh_intersect.hh
   BLI_mmap.h
-  BLI_mpq2.hh
-  BLI_mpq3.hh
   BLI_multi_value_map.hh
   BLI_noise.h
   BLI_noise.hh
+  BLI_parameter_pack_utils.hh
   BLI_path_util.h
   BLI_polyfill_2d.h
   BLI_polyfill_2d_beautify.h
@@ -281,13 +293,14 @@ set(SRC
   BLI_rect.h
   BLI_resource_scope.hh
   BLI_scanfill.h
+  BLI_serialize.hh
   BLI_session_uuid.h
   BLI_set.hh
   BLI_set_slots.hh
-  BLI_serialize.hh
   BLI_simd.h
   BLI_smallhash.h
   BLI_sort.h
+  BLI_sort.hh
   BLI_sort_utils.h
   BLI_span.hh
   BLI_stack.h
@@ -326,12 +339,16 @@ set(SRC
   BLI_winstuff.h
   PIL_time.h
   PIL_time_utildefines.h
+
+  ../../../extern/wcwidth/wcwidth.h
+
+  # Without these files listed, they aren't known to CMake.
+  ../../../extern/json/include/json.hpp
 )
 
 set(LIB
   bf_intern_eigen
   bf_intern_guardedalloc
-  bf_intern_numaapi
   extern_wcwidth
 
   ${ZLIB_LIBRARIES}
@@ -367,8 +384,8 @@ if(WITH_GMP)
 endif()
 
 if(WIN32)
-  if (WITH_BLENDER_THUMBNAILER)
-    # Needed for querying the thumbnailer .dll in winstuff.c
+  if(WITH_BLENDER_THUMBNAILER)
+    # Needed for querying the `thumbnailer .dll` in `winstuff.c`.
     add_definitions(-DWITH_BLENDER_THUMBNAILER)
   endif()
   list(APPEND INC
@@ -411,15 +428,24 @@ blender_add_lib(bf_blenlib "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
 if(WITH_GTESTS)
   set(TEST_SRC
+    tests/BLI_any_test.cc
     tests/BLI_array_store_test.cc
     tests/BLI_array_test.cc
     tests/BLI_array_utils_test.cc
+    tests/BLI_bitmap_test.cc
+    tests/BLI_bounds_test.cc
     tests/BLI_color_test.cc
+    tests/BLI_cpp_type_test.cc
     tests/BLI_delaunay_2d_test.cc
     tests/BLI_disjoint_set_test.cc
     tests/BLI_edgehash_test.cc
     tests/BLI_expr_pylike_eval_test.cc
+    tests/BLI_fileops_test.cc
+    tests/BLI_float3x3_test.cc
     tests/BLI_function_ref_test.cc
+    tests/BLI_generic_array_test.cc
+    tests/BLI_generic_span_test.cc
+    tests/BLI_generic_vector_array_test.cc
     tests/BLI_ghash_test.cc
     tests/BLI_hash_mm2a_test.cc
     tests/BLI_heap_simple_test.cc
@@ -428,6 +454,8 @@ if(WITH_GTESTS)
     tests/BLI_index_range_test.cc
     tests/BLI_inplace_priority_queue_test.cc
     tests/BLI_kdopbvh_test.cc
+    tests/BLI_kdtree_test.cc
+    tests/BLI_length_parameterize_test.cc
     tests/BLI_linear_allocator_test.cc
     tests/BLI_linklist_lockfree_test.cc
     tests/BLI_listbase_test.cc
@@ -441,6 +469,7 @@ if(WITH_GTESTS)
     tests/BLI_math_rotation_test.cc
     tests/BLI_math_solvers_test.cc
     tests/BLI_math_time_test.cc
+    tests/BLI_math_vec_types_test.cc
     tests/BLI_math_vector_test.cc
     tests/BLI_memiter_test.cc
     tests/BLI_memory_utils_test.cc
@@ -450,12 +479,12 @@ if(WITH_GTESTS)
     tests/BLI_path_util_test.cc
     tests/BLI_polyfill_2d_test.cc
     tests/BLI_ressource_strings.h
+    tests/BLI_serialize_test.cc
     tests/BLI_session_uuid_test.cc
     tests/BLI_set_test.cc
     tests/BLI_span_test.cc
     tests/BLI_stack_cxx_test.cc
     tests/BLI_stack_test.cc
-    tests/BLI_serialize_test.cc
     tests/BLI_string_ref_test.cc
     tests/BLI_string_search_test.cc
     tests/BLI_string_test.cc

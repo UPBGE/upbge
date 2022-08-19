@@ -1,7 +1,9 @@
-# Apache License, Version 2.0
-#
-# Compare renders or screenshots against reference versions and generate
-# a HTML report showing the differences, for regression testing.
+# SPDX-License-Identifier: Apache-2.0
+
+"""
+Compare renders or screenshots against reference versions and generate
+a HTML report showing the differences, for regression testing.
+"""
 
 import glob
 import os
@@ -76,12 +78,18 @@ def test_get_name(filepath):
     return os.path.splitext(filename)[0]
 
 
-def test_get_images(output_dir, filepath, reference_dir):
+def test_get_images(output_dir, filepath, reference_dir, reference_override_dir):
     testname = test_get_name(filepath)
     dirpath = os.path.dirname(filepath)
 
     old_dirpath = os.path.join(dirpath, reference_dir)
     old_img = os.path.join(old_dirpath, testname + ".png")
+    if reference_override_dir:
+        override_dirpath = os.path.join(dirpath, reference_override_dir)
+        override_img = os.path.join(override_dirpath, testname + ".png")
+        if os.path.exists(override_img):
+            old_dirpath = override_dirpath
+            old_img = override_img
 
     ref_dirpath = os.path.join(output_dir, os.path.basename(dirpath), "ref")
     ref_img = os.path.join(ref_dirpath, testname + ".png")
@@ -106,6 +114,7 @@ class Report:
         'output_dir',
         'global_dir',
         'reference_dir',
+        'reference_override_dir',
         'idiff',
         'pixelated',
         'fail_threshold',
@@ -125,6 +134,7 @@ class Report:
         self.output_dir = output_dir
         self.global_dir = os.path.dirname(output_dir)
         self.reference_dir = 'reference_renders'
+        self.reference_override_dir = None
         self.idiff = idiff
         self.compare_engine = None
         self.fail_threshold = 0.016
@@ -158,6 +168,9 @@ class Report:
 
     def set_reference_dir(self, reference_dir):
         self.reference_dir = reference_dir
+
+    def set_reference_override_dir(self, reference_override_dir):
+        self.reference_override_dir = reference_override_dir
 
     def set_compare_engine(self, other_engine, other_device=None):
         self.compare_engine = (other_engine, other_device)
@@ -251,8 +264,11 @@ class Report:
         failed = len(failed_tests) > 0
         if failed:
             message = """<div class="alert alert-danger" role="alert">"""
-            message += """Run this command to update reference images for failed tests, or create images for new tests:<br>"""
-            message += """<tt>BLENDER_TEST_UPDATE=1 ctest -R %s</tt>""" % self.title.lower()
+            message += """<p>Run this command to regenerate reference (ground truth) images:</p>"""
+            message += """<p><tt>BLENDER_TEST_UPDATE=1 ctest -R %s</tt></p>""" % self.title.lower()
+            message += """<p>This then happens for new and failing tests; reference images of """ \
+                       """passing test cases will not be updated. Be sure to commit the new reference """ \
+                       """images to the SVN repository afterwards.</p>"""
             message += """</div>"""
         else:
             message = ""
@@ -292,6 +308,7 @@ class Report:
             background-position:0 0, 25px 0, 25px -25px, 0px 25px;
         }}
         table td:first-child {{ width: 256px; }}
+        p {{ margin-bottom: 0.5rem; }}
     </style>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
 </head>
@@ -337,7 +354,8 @@ class Report:
         name = test_get_name(filepath)
         name = name.replace('_', ' ')
 
-        old_img, ref_img, new_img, diff_img = test_get_images(self.output_dir, filepath, self.reference_dir)
+        old_img, ref_img, new_img, diff_img = test_get_images(
+            self.output_dir, filepath, self.reference_dir, self.reference_override_dir)
 
         status = error if error else ""
         tr_style = """ class="table-danger" """ if error else ""
@@ -384,7 +402,8 @@ class Report:
             self.compare_tests += test_html
 
     def _diff_output(self, filepath, tmp_filepath):
-        old_img, ref_img, new_img, diff_img = test_get_images(self.output_dir, filepath, self.reference_dir)
+        old_img, ref_img, new_img, diff_img = test_get_images(
+            self.output_dir, filepath, self.reference_dir, self.reference_override_dir)
 
         # Create reference render directory.
         old_dirpath = os.path.dirname(old_img)

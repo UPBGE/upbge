@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2006-2007 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2006-2007 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup bke
@@ -41,12 +25,11 @@
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
+#include "IMB_openexr.h"
 
 #include "GPU_texture.h"
 
 #include "MEM_guardedalloc.h"
-
-#include "intern/openexr/openexr_multi.h"
 
 /* Statics */
 static ListBase studiolights;
@@ -1183,18 +1166,18 @@ static void studiolight_add_files_from_datafolder(const int folder_id,
                                                   const char *subfolder,
                                                   int flag)
 {
-  struct direntry *dir;
+  struct direntry *dirs;
   const char *folder = BKE_appdir_folder_id(folder_id, subfolder);
   if (folder) {
-    uint totfile = BLI_filelist_dir_contents(folder, &dir);
+    const uint dirs_num = BLI_filelist_dir_contents(folder, &dirs);
     int i;
-    for (i = 0; i < totfile; i++) {
-      if (dir[i].type & S_IFREG) {
-        studiolight_add_file(dir[i].path, flag);
+    for (i = 0; i < dirs_num; i++) {
+      if (dirs[i].type & S_IFREG) {
+        studiolight_add_file(dirs[i].path, flag);
       }
     }
-    BLI_filelist_free(dir, totfile);
-    dir = NULL;
+    BLI_filelist_free(dirs, dirs_num);
+    dirs = NULL;
   }
 }
 
@@ -1402,7 +1385,6 @@ void BKE_studiolight_default(SolidLight lights[4], float light_ambient[3])
   lights[3].vec[2] = -0.542269f;
 }
 
-/* API */
 void BKE_studiolight_init(void)
 {
   /* Add default studio light */
@@ -1532,7 +1514,6 @@ void BKE_studiolight_preview(uint *icon_buffer, StudioLight *sl, int icon_id_typ
   }
 }
 
-/* Ensure state of Studiolights */
 void BKE_studiolight_ensure_flag(StudioLight *sl, int flag)
 {
   if ((sl->flag & flag) == flag) {
@@ -1570,8 +1551,9 @@ void BKE_studiolight_ensure_flag(StudioLight *sl, int flag)
 }
 
 /*
- * Python API Functions
+ * Python API Functions.
  */
+
 void BKE_studiolight_remove(StudioLight *sl)
 {
   if (sl->flag & STUDIOLIGHT_USER_DEFINED) {
@@ -1608,7 +1590,6 @@ StudioLight *BKE_studiolight_create(const char *path,
   return sl;
 }
 
-/* Only useful for workbench while editing the userprefs. */
 StudioLight *BKE_studiolight_studio_edit_get(void)
 {
   static StudioLight sl = {0};

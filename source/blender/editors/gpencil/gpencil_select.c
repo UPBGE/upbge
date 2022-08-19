@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2014, Blender Foundation
- * This is a new part of Blender
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2014 Blender Foundation. */
 
 /** \file
  * \ingroup edgpencil
@@ -248,6 +232,7 @@ static void select_all_curve_points(bGPdata *gpd, bGPDstroke *gps, bGPDcurve *gp
 /* -------------------------------------------------------------------- */
 /** \name Select All Operator
  * \{ */
+
 static bool gpencil_select_all_poll(bContext *C)
 {
   bGPdata *gpd = ED_gpencil_data_get_active(C);
@@ -774,7 +759,7 @@ static bool gpencil_select_same_layer(bContext *C)
 
   bool changed = false;
   CTX_DATA_BEGIN (C, bGPDlayer *, gpl, editable_gpencil_layers) {
-    bGPDframe *gpf = BKE_gpencil_layer_frame_get(gpl, CFRA, GP_GETFRAME_USE_PREV);
+    bGPDframe *gpf = BKE_gpencil_layer_frame_get(gpl, scene->r.cfra, GP_GETFRAME_USE_PREV);
     bGPDstroke *gps;
     bool found = false;
 
@@ -841,7 +826,7 @@ static bool gpencil_select_same_material(bContext *C)
   bGPdata *gpd = ED_gpencil_data_get_active(C);
   const bool is_curve_edit = (bool)GPENCIL_CURVE_EDIT_SESSIONS_ON(gpd);
   /* First, build set containing all the colors of selected strokes */
-  GSet *selected_colors = BLI_gset_str_new("GP Selected Colors");
+  GSet *selected_colors = BLI_gset_int_new("GP Selected Colors");
 
   bool changed = false;
 
@@ -850,7 +835,7 @@ static bool gpencil_select_same_material(bContext *C)
       /* add instead of insert here, otherwise the uniqueness check gets skipped,
        * and we get many duplicate entries...
        */
-      BLI_gset_add(selected_colors, &gps->mat_nr);
+      BLI_gset_add(selected_colors, POINTER_FROM_INT(gps->mat_nr));
     }
   }
   CTX_DATA_END;
@@ -858,7 +843,8 @@ static bool gpencil_select_same_material(bContext *C)
   /* Second, select any visible stroke that uses these colors */
   if (is_curve_edit) {
     CTX_DATA_BEGIN (C, bGPDstroke *, gps, editable_gpencil_strokes) {
-      if (gps->editcurve != NULL && BLI_gset_haskey(selected_colors, &gps->mat_nr)) {
+      if (gps->editcurve != NULL &&
+          BLI_gset_haskey(selected_colors, POINTER_FROM_INT(gps->mat_nr))) {
         bGPDcurve *gpc = gps->editcurve;
         for (int i = 0; i < gpc->tot_curve_points; i++) {
           bGPDcurve_point *gpc_pt = &gpc->curve_points[i];
@@ -876,7 +862,7 @@ static bool gpencil_select_same_material(bContext *C)
   }
   else {
     CTX_DATA_BEGIN (C, bGPDstroke *, gps, editable_gpencil_strokes) {
-      if (BLI_gset_haskey(selected_colors, &gps->mat_nr)) {
+      if (BLI_gset_haskey(selected_colors, POINTER_FROM_INT(gps->mat_nr))) {
         /* select this stroke */
         bGPDspoint *pt;
         int i;
@@ -1715,7 +1701,7 @@ static int gpencil_circle_select_exec(bContext *C, wmOperator *op)
   const bool select = (sel_op != SEL_OP_SUB);
 
   bool changed = false;
-  /* for bounding rect around circle (for quicky intersection testing) */
+  /* For bounding `rect` around circle (for quickly intersection testing). */
   rcti rect = {0};
   rect.xmin = mx - radius;
   rect.ymin = my - radius;
@@ -2666,7 +2652,7 @@ static int gpencil_select_exec(bContext *C, wmOperator *op)
     WM_event_add_notifier(C, NC_GEOM | ND_SELECT, NULL);
   }
 
-  return OPERATOR_FINISHED;
+  return OPERATOR_PASS_THROUGH | OPERATOR_FINISHED;
 }
 
 static int gpencil_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -2674,10 +2660,12 @@ static int gpencil_select_invoke(bContext *C, wmOperator *op, const wmEvent *eve
   RNA_int_set_array(op->ptr, "location", event->mval);
 
   if (!RNA_struct_property_is_set(op->ptr, "use_shift_extend")) {
-    RNA_boolean_set(op->ptr, "use_shift_extend", event->shift);
+    RNA_boolean_set(op->ptr, "use_shift_extend", event->modifier & KM_SHIFT);
   }
 
-  return gpencil_select_exec(C, op);
+  const int retval = gpencil_select_exec(C, op);
+
+  return WM_operator_flag_only_pass_through_on_press(retval, event);
 }
 
 void GPENCIL_OT_select(wmOperatorType *ot)
@@ -2693,6 +2681,7 @@ void GPENCIL_OT_select(wmOperatorType *ot)
   ot->invoke = gpencil_select_invoke;
   ot->exec = gpencil_select_exec;
   ot->poll = gpencil_select_poll;
+  ot->get_name = ED_select_pick_get_name;
 
   /* flag */
   ot->flag = OPTYPE_UNDO;

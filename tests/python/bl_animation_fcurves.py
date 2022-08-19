@@ -1,22 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
-# <pep8 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 """
 blender -b -noaudio --factory-startup --python tests/python/bl_animation_fcurves.py -- --testdir /path/to/lib/tests/animation
@@ -88,7 +70,7 @@ class EulerFilterTest(AbstractAnimationTest, unittest.TestCase):
         self.activate_object('Three-Channel-Jump')
         fcu_rot = self.active_object_rotation_channels()
 
-        ## Check some pre-filter values to make sure the file is as we expect.
+        # # Check some pre-filter values to make sure the file is as we expect.
         # Keyframes before the "jump". These shouldn't be touched by the filter.
         self.assertEqualAngle(-87.5742, fcu_rot[0], 22)
         self.assertEqualAngle(69.1701, fcu_rot[1], 22)
@@ -115,7 +97,7 @@ class EulerFilterTest(AbstractAnimationTest, unittest.TestCase):
         self.activate_object('One-Channel-Jumps')
         fcu_rot = self.active_object_rotation_channels()
 
-        ## Check some pre-filter values to make sure the file is as we expect.
+        # # Check some pre-filter values to make sure the file is as we expect.
         # Keyframes before the "jump". These shouldn't be touched by the filter.
         self.assertEqualAngle(360, fcu_rot[0], 15)
         self.assertEqualAngle(396, fcu_rot[1], 21)  # X and Y are keyed on different frames.

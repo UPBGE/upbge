@@ -1,18 +1,5 @@
-/*
- * Copyright 2021 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2021-2022 Blender Foundation */
 
 #include "integrator/path_trace_tile.h"
 #include "integrator/pass_accessor_cpu.h"
@@ -46,7 +33,7 @@ bool PathTraceTile::get_pass_pixels(const string_view pass_name,
   if (!copied_from_device_) {
     /* Copy from device on demand. */
     path_trace_.copy_render_tile_from_device();
-    const_cast<PathTraceTile *>(this)->copied_from_device_ = true;
+    copied_from_device_ = true;
   }
 
   const BufferParams &buffer_params = path_trace_.get_render_tile_params();

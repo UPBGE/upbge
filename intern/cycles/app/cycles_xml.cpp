@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include <stdio.h>
 
@@ -22,6 +9,7 @@
 
 #include "graph/node_xml.h"
 
+#include "scene/alembic.h"
 #include "scene/background.h"
 #include "scene/camera.h"
 #include "scene/film.h"
@@ -204,6 +192,31 @@ static void xml_read_camera(XMLReadState &state, xml_node node)
   cam->need_flags_update = true;
   cam->update(state.scene);
 }
+
+/* Alembic */
+
+#ifdef WITH_ALEMBIC
+static void xml_read_alembic(XMLReadState &state, xml_node graph_node)
+{
+  AlembicProcedural *proc = state.scene->create_node<AlembicProcedural>();
+  xml_read_node(state, proc, graph_node);
+
+  for (xml_node node = graph_node.first_child(); node; node = node.next_sibling()) {
+    if (string_iequals(node.name(), "object")) {
+      string path;
+      if (xml_read_string(&path, node, "path")) {
+        ustring object_path(path, 0);
+        AlembicObject *object = static_cast<AlembicObject *>(
+            proc->get_or_create_object(object_path));
+
+        array<Node *> used_shaders = object->get_used_shaders();
+        used_shaders.push_back_slow(state.shader);
+        object->set_used_shaders(used_shaders);
+      }
+    }
+  }
+}
+#endif
 
 /* Shader */
 
@@ -660,6 +673,11 @@ static void xml_read_scene(XMLReadState &state, xml_node scene_node)
       if (xml_read_string(&src, node, "src"))
         xml_read_include(state, src);
     }
+#ifdef WITH_ALEMBIC
+    else if (string_iequals(node.name(), "alembic")) {
+      xml_read_alembic(state, node);
+    }
+#endif
     else
       fprintf(stderr, "Unknown node \"%s\".\n", node.name());
   }

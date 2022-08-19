@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2004 by Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2004 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup edmesh
@@ -25,6 +9,7 @@
 
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 
 #include "BLI_alloca.h"
@@ -35,6 +20,7 @@
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_context.h"
+#include "BKE_customdata.h"
 #include "BKE_editmesh.h"
 #include "BKE_editmesh_bvh.h"
 #include "BKE_global.h"
@@ -68,9 +54,6 @@
  * just as the undo stack would.
  * So leaving this as an interface for further work */
 
-/**
- * Save a copy of the #BMesh for restoring later.
- */
 BMBackup EDBM_redo_state_store(BMEditMesh *em)
 {
   BMBackup backup;
@@ -93,9 +76,6 @@ void EDBM_redo_state_restore(BMBackup *backup, BMEditMesh *em, bool recalc_loopt
   }
 }
 
-/**
- * Delete the backup, flushing it to an edit-mesh.
- */
 void EDBM_redo_state_restore_and_free(BMBackup *backup, BMEditMesh *em, bool recalc_looptri)
 {
   BM_mesh_data_free(em->bm);
@@ -139,11 +119,6 @@ bool EDBM_op_init(BMEditMesh *em, BMOperator *bmop, wmOperator *op, const char *
   return true;
 }
 
-/**
- * The return value:
- * - False on error (the mesh must not be changed).
- * - True on success, executes and finishes a #BMesh operator.
- */
 bool EDBM_op_finish(BMEditMesh *em, BMOperator *bmop, wmOperator *op, const bool do_report)
 {
   const char *errmsg;
@@ -320,11 +295,6 @@ void EDBM_mesh_make(Object *ob, const int select_mode, const bool add_key_index)
   EDBM_selectmode_flush(me->edit_mesh);
 }
 
-/**
- * \warning This can invalidate the #Mesh runtime cache of other objects (for linked duplicates).
- * Most callers should run #DEG_id_tag_update on `ob->data`, see: T46738, T46913.
- * This ensures #BKE_object_free_derived_caches runs on all objects that use this mesh.
- */
 void EDBM_mesh_load_ex(Main *bmain, Object *ob, bool free_data)
 {
   Mesh *me = ob->data;
@@ -350,9 +320,6 @@ void EDBM_mesh_clear(BMEditMesh *em)
   /* clear bmesh */
   BM_mesh_clear(em->bm);
 
-  /* Free evaluated meshes & cache. */
-  BKE_editmesh_free_derived_caches(em);
-
   /* free tessellation data */
   em->tottri = 0;
   MEM_SAFE_FREE(em->looptris);
@@ -363,9 +330,6 @@ void EDBM_mesh_load(Main *bmain, Object *ob)
   EDBM_mesh_load_ex(bmain, ob, true);
 }
 
-/**
- * Should only be called on the active edit-mesh, otherwise call #BKE_editmesh_free_data.
- */
 void EDBM_mesh_free_data(BMEditMesh *em)
 {
   /* These tables aren't used yet, so it's not strictly necessary
@@ -486,9 +450,6 @@ void EDBM_flag_enable_all(BMEditMesh *em, const char hflag)
 /** \name UV Vertex Map API
  * \{ */
 
-/**
- * Return a new #UvVertMap from the edit-mesh.
- */
 UvVertMap *BM_uv_vert_map_create(BMesh *bm, const bool use_select, const bool use_winding)
 {
   BMVert *ev;
@@ -632,46 +593,304 @@ UvMapVert *BM_uv_vert_map_at_index(UvVertMap *vmap, uint v)
   return vmap->vert[v];
 }
 
-/* A specialized vert map used by stitch operator */
+struct UvElement **BM_uv_element_map_ensure_head_table(struct UvElementMap *element_map)
+{
+  if (element_map->head_table) {
+    return element_map->head_table;
+  }
+
+  /* For each UvElement, locate the "separate" UvElement that precedes it in the linked list. */
+  element_map->head_table = MEM_mallocN(sizeof(*element_map->head_table) * element_map->total_uvs,
+                                        "uv_element_map_head_table");
+  UvElement **head_table = element_map->head_table;
+  for (int i = 0; i < element_map->total_uvs; i++) {
+    UvElement *head = element_map->storage + i;
+    if (head->separate) {
+      UvElement *element = head;
+      while (element) {
+        head_table[element - element_map->storage] = head;
+        element = element->next;
+        if (element && element->separate) {
+          break;
+        }
+      }
+    }
+  }
+  return element_map->head_table;
+}
+
+#define INVALID_ISLAND ((unsigned int)-1)
+
+static void bm_uv_assign_island(UvElementMap *element_map,
+                                UvElement *element,
+                                int nisland,
+                                uint *map,
+                                UvElement *islandbuf,
+                                int islandbufsize)
+{
+  element->island = nisland;
+  map[element - element_map->storage] = islandbufsize;
+
+  /* Copy *element to islandbuf[islandbufsize]. */
+  islandbuf[islandbufsize].l = element->l;
+  islandbuf[islandbufsize].separate = element->separate;
+  islandbuf[islandbufsize].loop_of_poly_index = element->loop_of_poly_index;
+  islandbuf[islandbufsize].island = element->island;
+  islandbuf[islandbufsize].flag = element->flag;
+}
+
+static int bm_uv_edge_select_build_islands(UvElementMap *element_map,
+                                           const Scene *scene,
+                                           UvElement *islandbuf,
+                                           uint *map,
+                                           bool uv_selected,
+                                           int cd_loop_uv_offset)
+{
+  BM_uv_element_map_ensure_head_table(element_map);
+
+  int total_uvs = element_map->total_uvs;
+
+  /* Depth first search the graph, building islands as we go. */
+  int nislands = 0;
+  int islandbufsize = 0;
+  int stack_upper_bound = total_uvs;
+  UvElement **stack_uv = MEM_mallocN(sizeof(*stack_uv) * stack_upper_bound,
+                                     "uv_island_element_stack");
+  int stacksize_uv = 0;
+  for (int i = 0; i < total_uvs; i++) {
+    UvElement *element = element_map->storage + i;
+    if (element->island != INVALID_ISLAND) {
+      /* Unique UV (element and all it's children) are already part of an island. */
+      continue;
+    }
+
+    /* Create a new island, i.e. nislands++. */
+
+    BLI_assert(element->separate); /* Ensure we're the head of this unique UV. */
+
+    /* Seed the graph search. */
+    stack_uv[stacksize_uv++] = element;
+    while (element) {
+      bm_uv_assign_island(element_map, element, nislands, map, islandbuf, islandbufsize++);
+      element = element->next;
+      if (element && element->separate) {
+        break;
+      }
+    }
+
+    /* Traverse the graph. */
+    while (stacksize_uv) {
+      BLI_assert(stacksize_uv < stack_upper_bound);
+      element = stack_uv[--stacksize_uv];
+      while (element) {
+
+        /* Scan forwards around the BMFace that contains element->l. */
+        if (!uv_selected || uvedit_edge_select_test(scene, element->l, cd_loop_uv_offset)) {
+          UvElement *next = BM_uv_element_get(element_map, element->l->next->f, element->l->next);
+          if (next->island == INVALID_ISLAND) {
+            UvElement *tail = element_map->head_table[next - element_map->storage];
+            stack_uv[stacksize_uv++] = tail;
+            while (tail) {
+              bm_uv_assign_island(element_map, tail, nislands, map, islandbuf, islandbufsize++);
+              tail = tail->next;
+              if (tail && tail->separate) {
+                break;
+              }
+            }
+          }
+        }
+
+        /* Scan backwards around the BMFace that contains element->l. */
+        if (!uv_selected || uvedit_edge_select_test(scene, element->l->prev, cd_loop_uv_offset)) {
+          UvElement *prev = BM_uv_element_get(element_map, element->l->prev->f, element->l->prev);
+          if (prev->island == INVALID_ISLAND) {
+            UvElement *tail = element_map->head_table[prev - element_map->storage];
+            stack_uv[stacksize_uv++] = tail;
+            while (tail) {
+              bm_uv_assign_island(element_map, tail, nislands, map, islandbuf, islandbufsize++);
+              tail = tail->next;
+              if (tail && tail->separate) {
+                break;
+              }
+            }
+          }
+        }
+
+        /* The same for all the UvElements in this unique UV. */
+        element = element->next;
+        if (element && element->separate) {
+          break;
+        }
+      }
+    }
+    nislands++;
+  }
+  BLI_assert(islandbufsize == total_uvs);
+
+  MEM_SAFE_FREE(stack_uv);
+  MEM_SAFE_FREE(element_map->head_table);
+
+  return nislands;
+}
+
+static void bm_uv_build_islands(UvElementMap *element_map,
+                                BMesh *bm,
+                                const Scene *scene,
+                                bool uv_selected)
+{
+  int totuv = element_map->total_uvs;
+  int nislands = 0;
+  int islandbufsize = 0;
+
+  /* map holds the map from current vmap->buf to the new, sorted map */
+  uint *map = MEM_mallocN(sizeof(*map) * totuv, "uvelement_remap");
+  BMFace **stack = MEM_mallocN(sizeof(*stack) * bm->totface, "uv_island_face_stack");
+  UvElement *islandbuf = MEM_callocN(sizeof(*islandbuf) * totuv, "uvelement_island_buffer");
+  /* Island number for BMFaces. */
+  int *island_number = MEM_callocN(sizeof(*island_number) * bm->totface, "uv_island_number_face");
+  copy_vn_i(island_number, bm->totface, INVALID_ISLAND);
+
+  const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_MLOOPUV);
+
+  const bool use_uv_edge_connectivity = scene->toolsettings->uv_flag & UV_SYNC_SELECTION ?
+                                            scene->toolsettings->selectmode & SCE_SELECT_EDGE :
+                                            scene->toolsettings->uv_selectmode & UV_SELECT_EDGE;
+  if (use_uv_edge_connectivity) {
+    nislands = bm_uv_edge_select_build_islands(
+        element_map, scene, islandbuf, map, uv_selected, cd_loop_uv_offset);
+    islandbufsize = totuv;
+  }
+
+  for (int i = 0; i < totuv; i++) {
+    if (element_map->storage[i].island == INVALID_ISLAND) {
+      int stacksize = 0;
+      element_map->storage[i].island = nislands;
+      stack[0] = element_map->storage[i].l->f;
+      island_number[BM_elem_index_get(stack[0])] = nislands;
+      stacksize = 1;
+
+      while (stacksize > 0) {
+        BMFace *efa = stack[--stacksize];
+
+        BMLoop *l;
+        BMIter liter;
+        BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
+          if (uv_selected && !uvedit_uv_select_test(scene, l, cd_loop_uv_offset)) {
+            continue;
+          }
+
+          UvElement *initelement = element_map->vertex[BM_elem_index_get(l->v)];
+
+          for (UvElement *element = initelement; element; element = element->next) {
+            if (element->separate) {
+              initelement = element;
+            }
+
+            if (element->l->f == efa) {
+              /* found the uv corresponding to our face and vertex.
+               * Now fill it to the buffer */
+              bm_uv_assign_island(element_map, element, nislands, map, islandbuf, islandbufsize++);
+
+              for (element = initelement; element; element = element->next) {
+                if (element->separate && element != initelement) {
+                  break;
+                }
+
+                if (island_number[BM_elem_index_get(element->l->f)] == INVALID_ISLAND) {
+                  stack[stacksize++] = element->l->f;
+                  island_number[BM_elem_index_get(element->l->f)] = nislands;
+                }
+              }
+              break;
+            }
+          }
+        }
+      }
+
+      nislands++;
+    }
+  }
+
+  MEM_SAFE_FREE(island_number);
+
+  /* remap */
+  for (int i = 0; i < bm->totvert; i++) {
+    /* important since we may do selection only. Some of these may be NULL */
+    if (element_map->vertex[i]) {
+      element_map->vertex[i] = &islandbuf[map[element_map->vertex[i] - element_map->storage]];
+    }
+  }
+
+  element_map->island_indices = MEM_callocN(sizeof(*element_map->island_indices) * nislands,
+                                            __func__);
+  element_map->island_total_uvs = MEM_callocN(sizeof(*element_map->island_total_uvs) * nislands,
+                                              __func__);
+  element_map->island_total_unique_uvs = MEM_callocN(
+      sizeof(*element_map->island_total_unique_uvs) * nislands, __func__);
+  int j = 0;
+  for (int i = 0; i < totuv; i++) {
+    UvElement *next = element_map->storage[i].next;
+    islandbuf[map[i]].next = next ? &islandbuf[map[next - element_map->storage]] : NULL;
+
+    if (islandbuf[i].island != j) {
+      j++;
+      element_map->island_indices[j] = i;
+    }
+    BLI_assert(islandbuf[i].island == j);
+    element_map->island_total_uvs[j]++;
+    if (islandbuf[i].separate) {
+      element_map->island_total_unique_uvs[j]++;
+    }
+  }
+
+  MEM_SAFE_FREE(element_map->storage);
+  element_map->storage = islandbuf;
+  islandbuf = NULL;
+  element_map->total_islands = nislands;
+  MEM_SAFE_FREE(stack);
+  MEM_SAFE_FREE(map);
+}
+
 UvElementMap *BM_uv_element_map_create(BMesh *bm,
                                        const Scene *scene,
-                                       const bool face_selected,
                                        const bool uv_selected,
                                        const bool use_winding,
                                        const bool do_islands)
 {
+  /* In uv sync selection, all UVs are visible. */
+  const bool face_selected = !(scene->toolsettings->uv_flag & UV_SYNC_SELECTION);
+
   BMVert *ev;
   BMFace *efa;
-  BMLoop *l;
   BMIter iter, liter;
-  /* vars from original func */
-  UvElementMap *element_map;
-  UvElement *buf;
-  bool *winding = NULL;
   BLI_buffer_declare_static(vec2f, tf_uv_buf, BLI_BUFFER_NOP, BM_DEFAULT_NGON_STACK_SIZE);
-
   MLoopUV *luv;
-  int totverts, totfaces, i, totuv, j;
-
   const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_MLOOPUV);
+  if (cd_loop_uv_offset < 0) {
+    return NULL;
+  }
 
   BM_mesh_elem_index_ensure(bm, BM_VERT | BM_FACE);
 
-  totfaces = bm->totface;
-  totverts = bm->totvert;
-  totuv = 0;
-
-  /* generate UvElement array */
+  /* Count total uvs. */
+  int totuv = 0;
   BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
-    if (!face_selected || BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
-      if (!uv_selected) {
-        totuv += efa->len;
-      }
-      else {
-        BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-          if (uvedit_uv_select_test(scene, l, cd_loop_uv_offset)) {
-            totuv++;
-          }
+    if (BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
+      continue;
+    }
+
+    if (face_selected && !BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
+      continue;
+    }
+
+    if (!uv_selected) {
+      totuv += efa->len;
+    }
+    else {
+      BMLoop *l;
+      BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
+        if (uvedit_uv_select_test(scene, l, cd_loop_uv_offset)) {
+          totuv++;
         }
       }
     }
@@ -681,93 +900,108 @@ UvElementMap *BM_uv_element_map_create(BMesh *bm,
     return NULL;
   }
 
-  element_map = (UvElementMap *)MEM_callocN(sizeof(*element_map), "UvElementMap");
-  element_map->totalUVs = totuv;
-  element_map->vert = (UvElement **)MEM_callocN(sizeof(*element_map->vert) * totverts,
-                                                "UvElementVerts");
-  buf = element_map->buf = (UvElement *)MEM_callocN(sizeof(*element_map->buf) * totuv,
-                                                    "UvElement");
+  UvElementMap *element_map = (UvElementMap *)MEM_callocN(sizeof(*element_map), "UvElementMap");
+  element_map->total_uvs = totuv;
+  element_map->vertex = (UvElement **)MEM_callocN(sizeof(*element_map->vertex) * bm->totvert,
+                                                  "UvElementVerts");
+  element_map->storage = (UvElement *)MEM_callocN(sizeof(*element_map->storage) * totuv,
+                                                  "UvElement");
 
-  if (use_winding) {
-    winding = MEM_mallocN(sizeof(*winding) * totfaces, "winding");
-  }
+  bool *winding = use_winding ? MEM_callocN(sizeof(*winding) * bm->totface, "winding") : NULL;
 
+  UvElement *buf = element_map->storage;
+  int j;
   BM_ITER_MESH_INDEX (efa, &iter, bm, BM_FACES_OF_MESH, j) {
 
-    if (use_winding) {
-      winding[j] = false;
+    if (BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
+      continue;
     }
 
-    if (!face_selected || BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
-      float(*tf_uv)[2] = NULL;
+    if (face_selected && !BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
+      continue;
+    }
+
+    float(*tf_uv)[2] = NULL;
+
+    if (use_winding) {
+      tf_uv = (float(*)[2])BLI_buffer_reinit_data(&tf_uv_buf, vec2f, efa->len);
+    }
+
+    int i;
+    BMLoop *l;
+    BM_ITER_ELEM_INDEX (l, &liter, efa, BM_LOOPS_OF_FACE, i) {
+      if (uv_selected && !uvedit_uv_select_test(scene, l, cd_loop_uv_offset)) {
+        continue;
+      }
+
+      buf->l = l;
+      buf->island = INVALID_ISLAND;
+      buf->loop_of_poly_index = i;
+
+      /* Insert to head of linked list associated with BMVert. */
+      buf->next = element_map->vertex[BM_elem_index_get(l->v)];
+      element_map->vertex[BM_elem_index_get(l->v)] = buf;
 
       if (use_winding) {
-        tf_uv = (float(*)[2])BLI_buffer_reinit_data(&tf_uv_buf, vec2f, efa->len);
+        luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
+        copy_v2_v2(tf_uv[i], luv->uv);
       }
 
-      BM_ITER_ELEM_INDEX (l, &liter, efa, BM_LOOPS_OF_FACE, i) {
-        if (uv_selected && !uvedit_uv_select_test(scene, l, cd_loop_uv_offset)) {
-          continue;
-        }
+      buf++;
+    }
 
-        buf->l = l;
-        buf->separate = 0;
-        buf->island = INVALID_ISLAND;
-        buf->loop_of_poly_index = i;
-
-        buf->next = element_map->vert[BM_elem_index_get(l->v)];
-        element_map->vert[BM_elem_index_get(l->v)] = buf;
-
-        if (use_winding) {
-          luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-          copy_v2_v2(tf_uv[i], luv->uv);
-        }
-
-        buf++;
-      }
-
-      if (use_winding) {
-        winding[j] = cross_poly_v2(tf_uv, efa->len) > 0;
-      }
+    if (winding) {
+      winding[j] = cross_poly_v2(tf_uv, efa->len) > 0;
     }
   }
+  BLI_buffer_free(&tf_uv_buf);
 
-  /* sort individual uvs for each vert */
-  BM_ITER_MESH_INDEX (ev, &iter, bm, BM_VERTS_OF_MESH, i) {
-    UvElement *newvlist = NULL, *vlist = element_map->vert[i];
-    UvElement *iterv, *v, *lastv, *next;
-    const float *uv, *uv2;
-    bool uv_vert_sel, uv2_vert_sel;
-
+  /* For each BMVert, sort associated linked list into unique uvs. */
+  int ev_index;
+  BM_ITER_MESH_INDEX (ev, &iter, bm, BM_VERTS_OF_MESH, ev_index) {
+    UvElement *newvlist = NULL;
+    UvElement *vlist = element_map->vertex[ev_index];
     while (vlist) {
-      v = vlist;
+
+      /* Detach head from unsorted list. */
+      UvElement *v = vlist;
       vlist = vlist->next;
       v->next = newvlist;
       newvlist = v;
 
-      l = v->l;
-      luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-      uv = luv->uv;
-      uv_vert_sel = uvedit_uv_select_test(scene, l, cd_loop_uv_offset);
+      luv = BM_ELEM_CD_GET_VOID_P(v->l, cd_loop_uv_offset);
+      const float *uv = luv->uv;
+      bool uv_vert_sel = uvedit_uv_select_test(scene, v->l, cd_loop_uv_offset);
 
-      lastv = NULL;
-      iterv = vlist;
+      UvElement *lastv = NULL;
+      UvElement *iterv = vlist;
 
+      /* Scan through unsorted list, finding UvElements which are connected to `v`. */
       while (iterv) {
-        next = iterv->next;
+        UvElement *next = iterv->next;
+        luv = BM_ELEM_CD_GET_VOID_P(iterv->l, cd_loop_uv_offset);
 
-        l = iterv->l;
-        luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-        uv2 = luv->uv;
-        uv2_vert_sel = uvedit_uv_select_test(scene, l, cd_loop_uv_offset);
+        bool connected = true; /* Assume connected unless we can prove otherwise. */
 
-        /* Check if the uv loops share the same selection state (if not, they are not connected as
-         * they have been ripped or other edit commands have separated them). */
-        const bool connected = (uv_vert_sel == uv2_vert_sel) &&
-                               compare_v2v2(uv2, uv, STD_UV_CONNECT_LIMIT);
+        if (connected) {
+          /* Are the two UVs close together? */
+          const float *uv2 = luv->uv;
+          connected = compare_v2v2(uv2, uv, STD_UV_CONNECT_LIMIT);
+        }
 
-        if (connected && (!use_winding || winding[BM_elem_index_get(iterv->l->f)] ==
-                                              winding[BM_elem_index_get(v->l->f)])) {
+        if (connected) {
+          /* Check if the uv loops share the same selection state (if not, they are not connected
+           * as they have been ripped or other edit commands have separated them). */
+          const bool uv2_vert_sel = uvedit_uv_select_test(scene, iterv->l, cd_loop_uv_offset);
+          connected = (uv_vert_sel == uv2_vert_sel);
+        }
+
+        if (connected && use_winding) {
+          connected = winding[BM_elem_index_get(iterv->l->f)] ==
+                      winding[BM_elem_index_get(v->l->f)];
+        }
+
+        if (connected) {
           if (lastv) {
             lastv->next = next;
           }
@@ -784,125 +1018,29 @@ UvElementMap *BM_uv_element_map_create(BMesh *bm,
         iterv = next;
       }
 
-      newvlist->separate = 1;
+      element_map->total_unique_uvs++;
+      newvlist->separate = true;
     }
 
-    element_map->vert[i] = newvlist;
+    /* Write back sorted list. */
+    element_map->vertex[ev_index] = newvlist;
   }
 
-  if (use_winding) {
-    MEM_freeN(winding);
-  }
+  MEM_SAFE_FREE(winding);
 
+  /* at this point, every UvElement in vert points to a UvElement sharing the same vertex.
+   * Now we should sort uv's in islands. */
   if (do_islands) {
-    uint *map;
-    BMFace **stack;
-    int stacksize = 0;
-    UvElement *islandbuf;
-    /* island number for faces */
-    int *island_number = NULL;
-
-    int nislands = 0, islandbufsize = 0;
-
-    /* map holds the map from current vmap->buf to the new, sorted map */
-    map = MEM_mallocN(sizeof(*map) * totuv, "uvelement_remap");
-    stack = MEM_mallocN(sizeof(*stack) * bm->totface, "uv_island_face_stack");
-    islandbuf = MEM_callocN(sizeof(*islandbuf) * totuv, "uvelement_island_buffer");
-    island_number = MEM_mallocN(sizeof(*island_number) * totfaces, "uv_island_number_face");
-    copy_vn_i(island_number, totfaces, INVALID_ISLAND);
-
-    /* at this point, every UvElement in vert points to a UvElement sharing the same vertex.
-     * Now we should sort uv's in islands. */
-    for (i = 0; i < totuv; i++) {
-      if (element_map->buf[i].island == INVALID_ISLAND) {
-        element_map->buf[i].island = nislands;
-        stack[0] = element_map->buf[i].l->f;
-        island_number[BM_elem_index_get(stack[0])] = nislands;
-        stacksize = 1;
-
-        while (stacksize > 0) {
-          efa = stack[--stacksize];
-
-          BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-            if (uv_selected && !uvedit_uv_select_test(scene, l, cd_loop_uv_offset)) {
-              continue;
-            }
-
-            UvElement *element, *initelement = element_map->vert[BM_elem_index_get(l->v)];
-
-            for (element = initelement; element; element = element->next) {
-              if (element->separate) {
-                initelement = element;
-              }
-
-              if (element->l->f == efa) {
-                /* found the uv corresponding to our face and vertex.
-                 * Now fill it to the buffer */
-                element->island = nislands;
-                map[element - element_map->buf] = islandbufsize;
-                islandbuf[islandbufsize].l = element->l;
-                islandbuf[islandbufsize].separate = element->separate;
-                islandbuf[islandbufsize].loop_of_poly_index = element->loop_of_poly_index;
-                islandbuf[islandbufsize].island = nislands;
-                islandbufsize++;
-
-                for (element = initelement; element; element = element->next) {
-                  if (element->separate && element != initelement) {
-                    break;
-                  }
-
-                  if (island_number[BM_elem_index_get(element->l->f)] == INVALID_ISLAND) {
-                    stack[stacksize++] = element->l->f;
-                    island_number[BM_elem_index_get(element->l->f)] = nislands;
-                  }
-                }
-                break;
-              }
-            }
-          }
-        }
-
-        nislands++;
-      }
-    }
-
-    MEM_freeN(island_number);
-
-    /* remap */
-    for (i = 0; i < bm->totvert; i++) {
-      /* important since we may do selection only. Some of these may be NULL */
-      if (element_map->vert[i]) {
-        element_map->vert[i] = &islandbuf[map[element_map->vert[i] - element_map->buf]];
-      }
-    }
-
-    element_map->islandIndices = MEM_callocN(sizeof(*element_map->islandIndices) * nislands,
-                                             "UvElementMap_island_indices");
-    j = 0;
-    for (i = 0; i < totuv; i++) {
-      UvElement *element = element_map->buf[i].next;
-      if (element == NULL) {
-        islandbuf[map[i]].next = NULL;
-      }
-      else {
-        islandbuf[map[i]].next = &islandbuf[map[element - element_map->buf]];
-      }
-
-      if (islandbuf[i].island != j) {
-        j++;
-        element_map->islandIndices[j] = i;
-      }
-    }
-
-    MEM_freeN(element_map->buf);
-
-    element_map->buf = islandbuf;
-    element_map->totalIslands = nislands;
-    MEM_freeN(stack);
-    MEM_freeN(map);
+    bm_uv_build_islands(element_map, bm, scene, uv_selected);
   }
 
-  BLI_buffer_free(&tf_uv_buf);
+  /* TODO: Confirm element_map->total_unique_uvs doesn't require recalculating. */
+  element_map->total_unique_uvs = 0;
+  for (int i = 0; i < element_map->total_uvs; i++) {
+    if (element_map->storage[i].separate) {
+      element_map->total_unique_uvs++;
+    }
+  }
 
   return element_map;
 }
@@ -923,28 +1061,36 @@ void BM_uv_vert_map_free(UvVertMap *vmap)
 void BM_uv_element_map_free(UvElementMap *element_map)
 {
   if (element_map) {
-    if (element_map->vert) {
-      MEM_freeN(element_map->vert);
-    }
-    if (element_map->buf) {
-      MEM_freeN(element_map->buf);
-    }
-    if (element_map->islandIndices) {
-      MEM_freeN(element_map->islandIndices);
-    }
-    MEM_freeN(element_map);
+    MEM_SAFE_FREE(element_map->storage);
+    MEM_SAFE_FREE(element_map->vertex);
+    MEM_SAFE_FREE(element_map->head_table);
+    MEM_SAFE_FREE(element_map->island_indices);
+    MEM_SAFE_FREE(element_map->island_total_uvs);
+    MEM_SAFE_FREE(element_map->island_total_unique_uvs);
+    MEM_SAFE_FREE(element_map);
   }
 }
 
-UvElement *BM_uv_element_get(UvElementMap *map, BMFace *efa, BMLoop *l)
+UvElement *BM_uv_element_get(const UvElementMap *element_map, const BMFace *efa, const BMLoop *l)
 {
-  for (UvElement *element = map->vert[BM_elem_index_get(l->v)]; element; element = element->next) {
+  UvElement *element = element_map->vertex[BM_elem_index_get(l->v)];
+  while (element) {
     if (element->l->f == efa) {
       return element;
     }
+    element = element->next;
   }
 
   return NULL;
+}
+
+UvElement *BM_uv_element_get_head(UvElementMap *element_map, UvElement *child)
+{
+  if (!child) {
+    return NULL;
+  }
+
+  return element_map->vertex[BM_elem_index_get(child->l->v)];
 }
 
 /** \} */
@@ -953,10 +1099,6 @@ UvElement *BM_uv_element_get(UvElementMap *map, BMFace *efa, BMLoop *l)
 /** \name Data Layer Checks
  * \{ */
 
-/**
- * last_sel, use em->act_face otherwise get the last selected face in the editselections
- * at the moment, last_sel is mainly useful for making sure the space image doesn't flicker.
- */
 BMFace *EDBM_uv_active_face_get(BMEditMesh *em, const bool sloppy, const bool selected)
 {
   BMFace *efa = NULL;
@@ -974,7 +1116,6 @@ BMFace *EDBM_uv_active_face_get(BMEditMesh *em, const bool sloppy, const bool se
   return NULL;
 }
 
-/* Can we edit UV's for this mesh? */
 bool EDBM_uv_check(BMEditMesh *em)
 {
   /* some of these checks could be a touch overkill */
@@ -984,7 +1125,7 @@ bool EDBM_uv_check(BMEditMesh *em)
 bool EDBM_vert_color_check(BMEditMesh *em)
 {
   /* some of these checks could be a touch overkill */
-  return em && em->bm->totface && CustomData_has_layer(&em->bm->ldata, CD_MLOOPCOL);
+  return em && em->bm->totface && CustomData_has_layer(&em->bm->ldata, CD_PROP_BYTE_COLOR);
 }
 
 /** \} */
@@ -1015,20 +1156,10 @@ static BMVert *cache_mirr_intptr_as_bmvert(const intptr_t *index_lookup, int ind
  * \endcode
  */
 
-/* BM_SEARCH_MAXDIST is too big, copied from 2.6x MOC_THRESH, should become a
- * preference */
+/* BM_SEARCH_MAXDIST is too big, copied from 2.6x MOC_THRESH, should become a preference. */
 #define BM_SEARCH_MAXDIST_MIRR 0.00002f
 #define BM_CD_LAYER_ID "__mirror_index"
-/**
- * \param em: Editmesh.
- * \param use_self: Allow a vertex to point to its self (middle verts).
- * \param use_select: Restrict to selected verts.
- * \param respecthide: Skip hidden vertices.
- * \param use_topology: Use topology mirror.
- * \param maxdist: Distance for close point test.
- * \param r_index: Optional array to write into, as an alternative to a customdata layer
- * (length of total verts).
- */
+
 void EDBM_verts_mirror_cache_begin_ex(BMEditMesh *em,
                                       const int axis,
                                       const bool use_self,
@@ -1255,7 +1386,6 @@ void EDBM_verts_mirror_apply(BMEditMesh *em, const int sel_from, const int sel_t
 /** \name Hide/Reveal API
  * \{ */
 
-/* swap is 0 or 1, if 1 it hides not selected */
 bool EDBM_mesh_hide(BMEditMesh *em, bool swap)
 {
   BMIter iter;
@@ -1410,9 +1540,6 @@ void EDBM_stats_update(BMEditMesh *em)
   }
 }
 
-/**
- * So many tools call these that we better make it a generic function.
- */
 void EDBM_update(Mesh *mesh, const struct EDBMUpdate_Params *params)
 {
   BMEditMesh *em = mesh->edit_mesh;
@@ -1435,7 +1562,7 @@ void EDBM_update(Mesh *mesh, const struct EDBMUpdate_Params *params)
   }
 
   if (params->is_destructive) {
-    /* TODO(campbell): we may be able to remove this now! */
+    /* TODO(@campbellbarton): we may be able to remove this now! */
     // BM_mesh_elem_table_free(em->bm, BM_ALL_NOLOOP);
   }
   else {
@@ -1446,8 +1573,6 @@ void EDBM_update(Mesh *mesh, const struct EDBMUpdate_Params *params)
     BM_lnorspace_invalidate(em->bm, false);
     em->bm->spacearr_dirty &= ~BM_SPACEARR_BMO_SET;
   }
-  /* Don't keep stale evaluated mesh data around, see: T38872. */
-  BKE_editmesh_free_derived_caches(em);
 
 #ifdef DEBUG
   {
@@ -1459,7 +1584,6 @@ void EDBM_update(Mesh *mesh, const struct EDBMUpdate_Params *params)
 #endif
 }
 
-/* Bad level call from Python API. */
 void EDBM_update_extern(struct Mesh *me, const bool do_tessellation, const bool is_destructive)
 {
   EDBM_update(me,
@@ -1476,7 +1600,6 @@ void EDBM_update_extern(struct Mesh *me, const bool do_tessellation, const bool 
 /** \name Operator Helpers
  * \{ */
 
-/* poll call for mesh operators requiring a view3d context */
 bool EDBM_view3d_poll(bContext *C)
 {
   if (ED_operator_editmesh(C) && ED_operator_view3d_active(C)) {
@@ -1509,11 +1632,6 @@ BMElem *EDBM_elem_from_selectmode(BMEditMesh *em, BMVert *eve, BMEdge *eed, BMFa
   return ele;
 }
 
-/**
- * Used when we want to store a single index for any vert/edge/face.
- *
- * Intended for use with operators.
- */
 int EDBM_elem_to_index_any(BMEditMesh *em, BMElem *ele)
 {
   BMesh *bm = em->bm;
@@ -1709,21 +1827,23 @@ void EDBM_project_snap_verts(
       float mval[2], co_proj[3];
       if (ED_view3d_project_float_object(region, eve->co, mval, V3D_PROJ_TEST_NOP) ==
           V3D_PROJ_RET_OK) {
-        if (ED_transform_snap_object_project_view3d(snap_context,
-                                                    depsgraph,
-                                                    region,
-                                                    CTX_wm_view3d(C),
-                                                    SCE_SNAP_MODE_FACE,
-                                                    &(const struct SnapObjectParams){
-                                                        .snap_select = SNAP_NOT_ACTIVE,
-                                                        .edit_mode_type = SNAP_GEOM_FINAL,
-                                                        .use_occlusion_test = true,
-                                                    },
-                                                    mval,
-                                                    NULL,
-                                                    NULL,
-                                                    co_proj,
-                                                    NULL)) {
+        if (ED_transform_snap_object_project_view3d(
+                snap_context,
+                depsgraph,
+                region,
+                CTX_wm_view3d(C),
+                SCE_SNAP_MODE_FACE_RAYCAST,
+                &(const struct SnapObjectParams){
+                    .snap_target_select = SCE_SNAP_TARGET_NOT_ACTIVE,
+                    .edit_mode_type = SNAP_GEOM_FINAL,
+                    .use_occlusion_test = true,
+                },
+                NULL,
+                mval,
+                NULL,
+                NULL,
+                co_proj,
+                NULL)) {
           mul_v3_m4v3(eve->co, obedit->imat, co_proj);
         }
       }

@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #ifdef WITH_CUDA
 
@@ -36,6 +23,8 @@
 #  include "util/types.h"
 #  include "util/windows.h"
 
+#  include "kernel/device/cuda/globals.h"
+
 CCL_NAMESPACE_BEGIN
 
 class CUDADevice;
@@ -44,12 +33,6 @@ bool CUDADevice::have_precompiled_kernels()
 {
   string cubins_path = path_get("lib");
   return path_exists(cubins_path);
-}
-
-bool CUDADevice::show_samples() const
-{
-  /* The CUDADevice only processes one tile at a time, so showing samples is fine. */
-  return true;
 }
 
 BVHLayoutMask CUDADevice::get_bvh_layout_mask() const
@@ -70,7 +53,7 @@ void CUDADevice::set_error(const string &error)
 }
 
 CUDADevice::CUDADevice(const DeviceInfo &info, Stats &stats, Profiler &profiler)
-    : Device(info, stats, profiler), texture_info(this, "__texture_info", MEM_GLOBAL)
+    : Device(info, stats, profiler), texture_info(this, "texture_info", MEM_GLOBAL)
 {
   first_error = true;
 
@@ -242,6 +225,10 @@ string CUDADevice::compile_kernel_get_common_cflags(const uint kernel_features)
   cflags += " -DWITH_NANOVDB";
 #  endif
 
+#  ifdef WITH_CYCLES_DEBUG
+  cflags += " -DWITH_CYCLES_DEBUG";
+#  endif
+
   return cflags;
 }
 
@@ -259,9 +246,9 @@ string CUDADevice::compile_kernel(const uint kernel_features,
   if (!use_adaptive_compilation()) {
     if (!force_ptx) {
       const string cubin = path_get(string_printf("lib/%s_sm_%d%d.cubin", name, major, minor));
-      VLOG(1) << "Testing for pre-compiled kernel " << cubin << ".";
+      VLOG_INFO << "Testing for pre-compiled kernel " << cubin << ".";
       if (path_exists(cubin)) {
-        VLOG(1) << "Using precompiled kernel.";
+        VLOG_INFO << "Using precompiled kernel.";
         return cubin;
       }
     }
@@ -271,9 +258,9 @@ string CUDADevice::compile_kernel(const uint kernel_features,
     while (ptx_major >= 3) {
       const string ptx = path_get(
           string_printf("lib/%s_compute_%d%d.ptx", name, ptx_major, ptx_minor));
-      VLOG(1) << "Testing for pre-compiled kernel " << ptx << ".";
+      VLOG_INFO << "Testing for pre-compiled kernel " << ptx << ".";
       if (path_exists(ptx)) {
-        VLOG(1) << "Using precompiled kernel.";
+        VLOG_INFO << "Using precompiled kernel.";
         return ptx;
       }
 
@@ -302,9 +289,9 @@ string CUDADevice::compile_kernel(const uint kernel_features,
   const string cubin_file = string_printf(
       "cycles_%s_%s_%d%d_%s.%s", name, kernel_arch, major, minor, kernel_md5.c_str(), kernel_ext);
   const string cubin = path_cache_get(path_join("kernels", cubin_file));
-  VLOG(1) << "Testing for locally compiled kernel " << cubin << ".";
+  VLOG_INFO << "Testing for locally compiled kernel " << cubin << ".";
   if (path_exists(cubin)) {
-    VLOG(1) << "Using locally compiled kernel.";
+    VLOG_INFO << "Using locally compiled kernel.";
     return cubin;
   }
 
@@ -338,7 +325,7 @@ string CUDADevice::compile_kernel(const uint kernel_features,
   }
 
   const int nvcc_cuda_version = cuewCompilerVersion();
-  VLOG(1) << "Found nvcc " << nvcc << ", CUDA version " << nvcc_cuda_version << ".";
+  VLOG_INFO << "Found nvcc " << nvcc << ", CUDA version " << nvcc_cuda_version << ".";
   if (nvcc_cuda_version < 101) {
     printf(
         "Unsupported CUDA version %d.%d detected, "
@@ -414,7 +401,8 @@ bool CUDADevice::load_kernels(const uint kernel_features)
    */
   if (cuModule) {
     if (use_adaptive_compilation()) {
-      VLOG(1) << "Skipping CUDA kernel reload for adaptive compilation, not currently supported.";
+      VLOG_INFO
+          << "Skipping CUDA kernel reload for adaptive compilation, not currently supported.";
     }
     return true;
   }
@@ -472,6 +460,8 @@ void CUDADevice::reserve_local_memory(const uint kernel_features)
     /* Use the biggest kernel for estimation. */
     const DeviceKernel test_kernel = (kernel_features & KERNEL_FEATURE_NODE_RAYTRACE) ?
                                          DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE :
+                                     (kernel_features & KERNEL_FEATURE_MNEE) ?
+                                         DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE :
                                          DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE;
 
     /* Launch kernel, using just 1 block appears sufficient to reserve memory for all
@@ -479,10 +469,10 @@ void CUDADevice::reserve_local_memory(const uint kernel_features)
      * still to make it faster. */
     CUDADeviceQueue queue(this);
 
-    void *d_path_index = nullptr;
-    void *d_render_buffer = nullptr;
+    device_ptr d_path_index = 0;
+    device_ptr d_render_buffer = 0;
     int d_work_size = 0;
-    void *args[] = {&d_path_index, &d_render_buffer, &d_work_size};
+    DeviceKernelArguments args(&d_path_index, &d_render_buffer, &d_work_size);
 
     queue.init_execution();
     queue.enqueue(test_kernel, 1, args);
@@ -494,8 +484,8 @@ void CUDADevice::reserve_local_memory(const uint kernel_features)
     cuMemGetInfo(&free_after, &total);
   }
 
-  VLOG(1) << "Local memory reserved " << string_human_readable_number(free_before - free_after)
-          << " bytes. (" << string_human_readable_size(free_before - free_after) << ")";
+  VLOG_INFO << "Local memory reserved " << string_human_readable_number(free_before - free_after)
+            << " bytes. (" << string_human_readable_size(free_before - free_after) << ")";
 
 #  if 0
   /* For testing mapped host memory, fill up device memory. */
@@ -526,7 +516,7 @@ void CUDADevice::init_host_memory()
     }
   }
   else {
-    VLOG(1) << "Mapped host memory disabled, failed to get system RAM";
+    VLOG_WARNING << "Mapped host memory disabled, failed to get system RAM";
     map_host_limit = 0;
   }
 
@@ -537,8 +527,8 @@ void CUDADevice::init_host_memory()
   device_working_headroom = 32 * 1024 * 1024LL;   // 32MB
   device_texture_headroom = 128 * 1024 * 1024LL;  // 128MB
 
-  VLOG(1) << "Mapped host memory limit set to " << string_human_readable_number(map_host_limit)
-          << " bytes. (" << string_human_readable_size(map_host_limit) << ")";
+  VLOG_INFO << "Mapped host memory limit set to " << string_human_readable_number(map_host_limit)
+            << " bytes. (" << string_human_readable_size(map_host_limit) << ")";
 }
 
 void CUDADevice::load_texture_info()
@@ -606,7 +596,7 @@ void CUDADevice::move_textures_to_host(size_t size, bool for_texture)
      * multiple CUDA devices could be moving the memory. The
      * first one will do it, and the rest will adopt the pointer. */
     if (max_mem) {
-      VLOG(1) << "Move memory from device to host: " << max_mem->name;
+      VLOG_WORK << "Move memory from device to host: " << max_mem->name;
 
       static thread_mutex move_mutex;
       thread_scoped_lock lock(move_mutex);
@@ -680,7 +670,7 @@ CUDADevice::CUDAMem *CUDADevice::generic_alloc(device_memory &mem, size_t pitch_
 
   void *shared_pointer = 0;
 
-  if (mem_alloc_result != CUDA_SUCCESS && can_map_host) {
+  if (mem_alloc_result != CUDA_SUCCESS && can_map_host && mem.type != MEM_DEVICE_ONLY) {
     if (mem.shared_pointer) {
       /* Another device already allocated host memory. */
       mem_alloc_result = CUDA_SUCCESS;
@@ -703,14 +693,20 @@ CUDADevice::CUDAMem *CUDADevice::generic_alloc(device_memory &mem, size_t pitch_
   }
 
   if (mem_alloc_result != CUDA_SUCCESS) {
-    status = " failed, out of device and host memory";
-    set_error("System is out of GPU and shared host memory");
+    if (mem.type == MEM_DEVICE_ONLY) {
+      status = " failed, out of device memory";
+      set_error("System is out of GPU memory");
+    }
+    else {
+      status = " failed, out of device and host memory";
+      set_error("System is out of GPU and shared host memory");
+    }
   }
 
   if (mem.name) {
-    VLOG(1) << "Buffer allocate: " << mem.name << ", "
-            << string_human_readable_number(mem.memory_size()) << " bytes. ("
-            << string_human_readable_size(mem.memory_size()) << ")" << status;
+    VLOG_WORK << "Buffer allocate: " << mem.name << ", "
+              << string_human_readable_number(mem.memory_size()) << " bytes. ("
+              << string_human_readable_size(mem.memory_size()) << ")" << status;
   }
 
   mem.device_pointer = (device_ptr)device_pointer;
@@ -906,9 +902,19 @@ void CUDADevice::const_copy_to(const char *name, void *host, size_t size)
   CUdeviceptr mem;
   size_t bytes;
 
-  cuda_assert(cuModuleGetGlobal(&mem, &bytes, cuModule, name));
-  // assert(bytes == size);
-  cuda_assert(cuMemcpyHtoD(mem, host, size));
+  cuda_assert(cuModuleGetGlobal(&mem, &bytes, cuModule, "kernel_params"));
+  assert(bytes == sizeof(KernelParamsCUDA));
+
+  /* Update data storage pointers in launch parameters. */
+#  define KERNEL_DATA_ARRAY(data_type, data_name) \
+    if (strcmp(name, #data_name) == 0) { \
+      cuda_assert(cuMemcpyHtoD(mem + offsetof(KernelParamsCUDA, data_name), host, size)); \
+      return; \
+    }
+  KERNEL_DATA_ARRAY(KernelData, data)
+  KERNEL_DATA_ARRAY(IntegratorStateGPU, integrator_state)
+#  include "kernel/data_arrays.h"
+#  undef KERNEL_DATA_ARRAY
 }
 
 void CUDADevice::global_alloc(device_memory &mem)
@@ -932,8 +938,6 @@ void CUDADevice::tex_alloc(device_texture &mem)
 {
   CUDAContextScope scope(this);
 
-  /* General variables for both architectures */
-  string bind_name = mem.name;
   size_t dsize = datatype_size(mem.data_type);
   size_t size = mem.memory_size();
 
@@ -1016,9 +1020,9 @@ void CUDADevice::tex_alloc(device_texture &mem)
     desc.NumChannels = mem.data_elements;
     desc.Flags = 0;
 
-    VLOG(1) << "Array 3D allocate: " << mem.name << ", "
-            << string_human_readable_number(mem.memory_size()) << " bytes. ("
-            << string_human_readable_size(mem.memory_size()) << ")";
+    VLOG_WORK << "Array 3D allocate: " << mem.name << ", "
+              << string_human_readable_number(mem.memory_size()) << " bytes. ("
+              << string_human_readable_size(mem.memory_size()) << ")";
 
     cuda_assert(cuArray3DCreate(&array_3d, &desc));
 
@@ -1094,8 +1098,9 @@ void CUDADevice::tex_alloc(device_texture &mem)
   need_texture_info = true;
 
   if (mem.info.data_type != IMAGE_DATA_TYPE_NANOVDB_FLOAT &&
-      mem.info.data_type != IMAGE_DATA_TYPE_NANOVDB_FLOAT3) {
-    /* Kepler+, bindless textures. */
+      mem.info.data_type != IMAGE_DATA_TYPE_NANOVDB_FLOAT3 &&
+      mem.info.data_type != IMAGE_DATA_TYPE_NANOVDB_FPN &&
+      mem.info.data_type != IMAGE_DATA_TYPE_NANOVDB_FP16) {
     CUDA_RESOURCE_DESC resDesc;
     memset(&resDesc, 0, sizeof(resDesc));
 
@@ -1197,11 +1202,11 @@ bool CUDADevice::should_use_graphics_interop()
   }
 
   vector<CUdevice> gl_devices(num_all_devices);
-  uint num_gl_devices;
+  uint num_gl_devices = 0;
   cuGLGetDevices(&num_gl_devices, gl_devices.data(), num_all_devices, CU_GL_DEVICE_LIST_ALL);
 
-  for (CUdevice gl_device : gl_devices) {
-    if (gl_device == cuDevice) {
+  for (uint i = 0; i < num_gl_devices; ++i) {
+    if (gl_devices[i] == cuDevice) {
       return true;
     }
   }

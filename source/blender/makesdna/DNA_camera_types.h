@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup DNA
@@ -70,6 +54,7 @@ typedef struct CameraBGImage {
 typedef struct CameraDOFSettings {
   /** Focal distance for depth of field. */
   struct Object *focus_object;
+  char focus_subtarget[64];
   float focus_distance;
   float aperture_fstop;
   float aperture_rotation;
@@ -103,6 +88,8 @@ typedef struct Camera {
   float lens, ortho_scale, drawsize;
   float sensor_x, sensor_y;
   float shiftx, shifty;
+  float lodfactor; /* UPBGE */
+  int gameflag;    /* UPBGE */
   float dof_distance DNA_DEPRECATED;
 
   /** Old animation system, deprecated for 2.5. */
@@ -161,6 +148,18 @@ enum {
   CAM_SHOWSENSOR = (1 << 8),
   CAM_SHOW_SAFE_CENTER = (1 << 9),
   CAM_SHOW_BG_IMAGE = (1 << 10),
+  //(1 << 11) was CAM_GAME_OVERLAY_MOUSE_CONTROL
+};
+
+/* gameflag */
+enum {
+  GAME_CAM_OVERLAY_MOUSE_CONTROL = (1 << 1),
+  GAME_CAM_OBJECT_ACTIVITY_CULLING = (1 << 2),
+
+  GAME_CAM_OVERLAY_DISABLE_BLOOM = (1 << 3),
+  GAME_CAM_OVERLAY_DISABLE_AO = (1 << 4),
+  GAME_CAM_OVERLAY_DISABLE_SSR = (1 << 5),
+  GAME_CAM_OVERLAY_DISABLE_WORLD_VOLUMES = (1 << 6),
 };
 
 /* Sensor fit */
@@ -210,6 +209,9 @@ enum {
   /* Axis flip options */
   CAM_BGIMG_FLAG_FLIP_X = (1 << 7),
   CAM_BGIMG_FLAG_FLIP_Y = (1 << 8),
+
+  /* That background image has been inserted in local override (i.e. it can be fully edited!). */
+  CAM_BGIMG_FLAG_OVERRIDE_LIBRARY_LOCAL = (1 << 9),
 };
 
 /* CameraBGImage->source */

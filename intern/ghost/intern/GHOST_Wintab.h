@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup GHOST
@@ -27,6 +13,7 @@
 #pragma once
 
 #include <memory>
+#include <stdio.h>
 #include <vector>
 #include <wtypes.h>
 
@@ -38,6 +25,14 @@
   (PK_BUTTONS | PK_NORMAL_PRESSURE | PK_ORIENTATION | PK_CURSOR | PK_X | PK_Y | PK_TIME)
 #define PACKETMODE 0
 #include <pktdef.h>
+
+#define WINTAB_PRINTF(x, ...) \
+  { \
+    if (GHOST_Wintab::getDebug()) { \
+      printf(x, __VA_ARGS__); \
+    } \
+  } \
+  (void)0
 
 /* Typedefs for Wintab functions to allow dynamic loading. */
 typedef UINT(API *GHOST_WIN32_WTInfo)(UINT, UINT, LPVOID);
@@ -56,11 +51,12 @@ typedef std::unique_ptr<std::remove_pointer_t<HMODULE>, decltype(&::FreeLibrary)
 typedef std::unique_ptr<std::remove_pointer_t<HCTX>, GHOST_WIN32_WTClose> unique_hctx;
 
 struct GHOST_WintabInfoWin32 {
-  int32_t x, y;
-  GHOST_TEventType type;
-  GHOST_TButtonMask button;
-  uint64_t time;
-  GHOST_TabletData tabletData;
+  int32_t x = 0;
+  int32_t y = 0;
+  GHOST_TEventType type = GHOST_kEventCursorMove;
+  GHOST_TButton button = GHOST_kButtonMaskNone;
+  uint64_t time = 0;
+  GHOST_TabletData tabletData = GHOST_TABLET_DATA_NONE;
 };
 
 class GHOST_Wintab {
@@ -68,8 +64,11 @@ class GHOST_Wintab {
   /**
    * Loads Wintab if available.
    * \param hwnd: Window to attach Wintab context to.
+   * \return Pointer to the initialized GHOST_Wintab object, or null if initialization failed.
    */
   static GHOST_Wintab *loadWintab(HWND hwnd);
+
+  ~GHOST_Wintab();
 
   /**
    * Enables Wintab context.
@@ -148,7 +147,7 @@ class GHOST_Wintab {
    * \param wtY: Wintab cursor y position.
    * \return True if Win32 and Wintab cursor positions match within tolerance.
    *
-   * Note: Only test coordinates on button press, not release. This prevents issues when async
+   * NOTE: Only test coordinates on button press, not release. This prevents issues when async
    * mismatch causes mouse movement to replay and snap back, which is only an issue while drawing.
    */
   bool testCoordinates(int sysX, int sysY, int wtX, int wtY);
@@ -158,6 +157,16 @@ class GHOST_Wintab {
    * \return Most recent tablet data, or none if pen is not in range.
    */
   GHOST_TabletData getLastTabletData();
+
+  /* Sets Wintab debugging.
+   * \param debug: True to enable Wintab debugging.
+   */
+  static void setDebug(bool debug);
+
+  /* Returns whether Wintab logging should occur.
+   * \return True if Wintab logging should occur.
+   */
+  static bool getDebug();
 
  private:
   /** Wintab DLL handle. */
@@ -178,7 +187,7 @@ class GHOST_Wintab {
   bool m_focused = false;
 
   /** Pressed button map. */
-  uint8_t m_buttons = 0;
+  DWORD m_buttons = 0;
 
   /** Range of a coordinate space. */
   struct Range {
@@ -213,8 +222,10 @@ class GHOST_Wintab {
   /** Most recently received tablet data, or none if pen is not in range. */
   GHOST_TabletData m_lastTabletData = GHOST_TABLET_DATA_NONE;
 
-  GHOST_Wintab(HWND hwnd,
-               unique_hmodule handle,
+  /** Whether Wintab logging is enabled. */
+  static bool m_debug;
+
+  GHOST_Wintab(unique_hmodule handle,
                GHOST_WIN32_WTInfo info,
                GHOST_WIN32_WTGet get,
                GHOST_WIN32_WTSet set,
@@ -232,7 +243,7 @@ class GHOST_Wintab {
    * \param physicalButton: The physical button ID to inspect.
    * \return The system mapped button.
    */
-  GHOST_TButtonMask mapWintabToGhostButton(UINT cursor, WORD physicalButton);
+  GHOST_TButton mapWintabToGhostButton(UINT cursor, WORD physicalButton);
 
   /**
    * Applies common modifications to Wintab context.
@@ -247,4 +258,7 @@ class GHOST_Wintab {
    * \param system: System coordinates.
    */
   static void extractCoordinates(LOGCONTEXT &lc, Coord &tablet, Coord &system);
+
+  /* Prints Wintab Context information. */
+  void printContextDebugInfo();
 };

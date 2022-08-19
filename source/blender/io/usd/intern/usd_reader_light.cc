@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2021 Tangent Animation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2021 Tangent Animation. All rights reserved. */
 
 #include "usd_reader_light.h"
 
@@ -24,8 +8,6 @@
 
 #include "DNA_light_types.h"
 #include "DNA_object_types.h"
-
-#include <pxr/usd/usdLux/light.h>
 
 #include <pxr/usd/usdLux/diskLight.h>
 #include <pxr/usd/usdLux/distantLight.h>
@@ -56,14 +38,17 @@ void USDLightReader::read_object_data(Main *bmain, const double motionSampleTime
   if (!prim_) {
     return;
   }
+#if PXR_VERSION >= 2111
+  pxr::UsdLuxLightAPI light_api(prim_);
+#else
+  pxr::UsdLuxLight light_api(prim_);
+#endif
 
-  pxr::UsdLuxLight light_prim(prim_);
-
-  if (!light_prim) {
+  if (!light_api) {
     return;
   }
 
-  pxr::UsdLuxShapingAPI shaping_api(light_prim);
+  pxr::UsdLuxShapingAPI shaping_api;
 
   /* Set light type. */
 
@@ -79,6 +64,8 @@ void USDLightReader::read_object_data(Main *bmain, const double motionSampleTime
   else if (prim_.IsA<pxr::UsdLuxSphereLight>()) {
     blight->type = LA_LOCAL;
 
+    shaping_api = pxr::UsdLuxShapingAPI(prim_);
+
     if (shaping_api && shaping_api.GetShapingConeAngleAttr().IsAuthored()) {
       blight->type = LA_SPOT;
     }
@@ -89,7 +76,7 @@ void USDLightReader::read_object_data(Main *bmain, const double motionSampleTime
 
   /* Set light values. */
 
-  if (pxr::UsdAttribute intensity_attr = light_prim.GetIntensityAttr()) {
+  if (pxr::UsdAttribute intensity_attr = light_api.GetIntensityAttr()) {
     float intensity = 0.0f;
     if (intensity_attr.Get(&intensity, motionSampleTime)) {
       blight->energy = intensity * this->import_params_.light_intensity_scale;
@@ -108,14 +95,14 @@ void USDLightReader::read_object_data(Main *bmain, const double motionSampleTime
   light_prim.GetDiffuseAttr().Get(&diffuse, motionSampleTime);
 #endif
 
-  if (pxr::UsdAttribute spec_attr = light_prim.GetSpecularAttr()) {
+  if (pxr::UsdAttribute spec_attr = light_api.GetSpecularAttr()) {
     float spec = 0.0f;
     if (spec_attr.Get(&spec, motionSampleTime)) {
       blight->spec_fac = spec;
     }
   }
 
-  if (pxr::UsdAttribute color_attr = light_prim.GetColorAttr()) {
+  if (pxr::UsdAttribute color_attr = light_api.GetColorAttr()) {
     pxr::GfVec3f color;
     if (color_attr.Get(&color, motionSampleTime)) {
       blight->r = color[0];

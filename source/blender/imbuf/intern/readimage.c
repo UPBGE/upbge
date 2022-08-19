@@ -1,22 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- * allocimbuf.c
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup imbuf
@@ -39,6 +22,8 @@
 #include "IMB_filetype.h"
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
+#include "IMB_metadata.h"
+#include "IMB_thumbs.h"
 #include "imbuf.h"
 
 #include "IMB_colormanagement.h"
@@ -204,21 +189,21 @@ ImBuf *IMB_loadifffile(
   return ibuf;
 }
 
-static void imb_cache_filename(char *filename, const char *name, int flags)
+static void imb_cache_filename(char *filepath, const char *name, int flags)
 {
   /* read .tx instead if it exists and is not older */
   if (flags & IB_tilecache) {
-    BLI_strncpy(filename, name, IMB_FILENAME_SIZE);
-    if (!BLI_path_extension_replace(filename, IMB_FILENAME_SIZE, ".tx")) {
+    BLI_strncpy(filepath, name, IMB_FILENAME_SIZE);
+    if (!BLI_path_extension_replace(filepath, IMB_FILENAME_SIZE, ".tx")) {
       return;
     }
 
-    if (BLI_file_older(name, filename)) {
+    if (BLI_file_older(name, filepath)) {
       return;
     }
   }
 
-  BLI_strncpy(filename, name, IMB_FILENAME_SIZE);
+  BLI_strncpy(filepath, name, IMB_FILENAME_SIZE);
 }
 
 ImBuf *IMB_loadiffname(const char *filepath, int flags, char colorspace[IM_MAX_SPACE])
@@ -247,6 +232,61 @@ ImBuf *IMB_loadiffname(const char *filepath, int flags, char colorspace[IM_MAX_S
   }
 
   close(file);
+
+  return ibuf;
+}
+
+struct ImBuf *IMB_thumb_load_image(const char *filepath,
+                                   size_t max_thumb_size,
+                                   char colorspace[IM_MAX_SPACE])
+{
+  const ImFileType *type = IMB_file_type_from_ftype(IMB_ispic_type(filepath));
+  if (type == NULL) {
+    return NULL;
+  }
+
+  ImBuf *ibuf = NULL;
+  int flags = IB_rect | IB_metadata;
+  /* Size of the original image. */
+  size_t width = 0;
+  size_t height = 0;
+
+  char effective_colorspace[IM_MAX_SPACE] = "";
+  if (colorspace) {
+    BLI_strncpy(effective_colorspace, colorspace, sizeof(effective_colorspace));
+  }
+
+  if (type->load_filepath_thumbnail) {
+    ibuf = type->load_filepath_thumbnail(
+        filepath, flags, max_thumb_size, colorspace, &width, &height);
+  }
+  else {
+    /* Skip images of other types if over 100MB. */
+    const size_t file_size = BLI_file_size(filepath);
+    if (file_size != -1 && file_size > THUMB_SIZE_MAX) {
+      return NULL;
+    }
+    ibuf = IMB_loadiffname(filepath, flags, colorspace);
+    if (ibuf) {
+      width = ibuf->x;
+      height = ibuf->y;
+    }
+  }
+
+  if (ibuf) {
+    imb_handle_alpha(ibuf, flags, colorspace, effective_colorspace);
+
+    if (width > 0 && height > 0) {
+      /* Save dimensions of original image into the thumbnail metadata. */
+      char cwidth[40];
+      char cheight[40];
+      SNPRINTF(cwidth, "%zu", width);
+      SNPRINTF(cheight, "%zu", height);
+      IMB_metadata_ensure(&ibuf->metadata);
+      IMB_metadata_set_field(ibuf->metadata, "Thumb::Image::Width", cwidth);
+      IMB_metadata_set_field(ibuf->metadata, "Thumb::Image::Height", cheight);
+    }
+  }
 
   return ibuf;
 }

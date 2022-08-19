@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2013 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2013 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup depsgraph
@@ -39,6 +23,8 @@
 #include "DNA_scene_types.h"
 
 #include "RNA_access.h"
+#include "RNA_path.h"
+#include "RNA_prototypes.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
@@ -46,6 +32,49 @@
 #include "intern/depsgraph.h"
 #include "intern/eval/deg_eval_copy_on_write.h"
 #include "intern/node/deg_node_id.h"
+
+namespace blender::deg {
+
+static const ID *get_original_id(const ID *id)
+{
+  if (id == nullptr) {
+    return nullptr;
+  }
+  if (id->orig_id == nullptr) {
+    return id;
+  }
+  BLI_assert((id->tag & LIB_TAG_COPIED_ON_WRITE) != 0);
+  return (ID *)id->orig_id;
+}
+
+static ID *get_original_id(ID *id)
+{
+  const ID *const_id = id;
+  return const_cast<ID *>(get_original_id(const_id));
+}
+
+static const ID *get_evaluated_id(const Depsgraph *deg_graph, const ID *id)
+{
+  if (id == nullptr) {
+    return nullptr;
+  }
+  /* TODO(sergey): This is a duplicate of Depsgraph::get_cow_id(),
+   * but here we never do assert, since we don't know nature of the
+   * incoming ID data-block. */
+  const IDNode *id_node = deg_graph->find_id_node(id);
+  if (id_node == nullptr) {
+    return id;
+  }
+  return id_node->id_cow;
+}
+
+static ID *get_evaluated_id(const Depsgraph *deg_graph, ID *id)
+{
+  const ID *const_id = id;
+  return const_cast<ID *>(get_evaluated_id(deg_graph, const_id));
+}
+
+}  // namespace blender::deg
 
 namespace deg = blender::deg;
 
@@ -105,7 +134,7 @@ bool DEG_id_type_any_exists(const Depsgraph *depsgraph, short id_type)
   return deg_graph->id_type_exist[BKE_idtype_idcode_to_index(id_type)] != 0;
 }
 
-uint32_t DEG_get_eval_flags_for_id(const Depsgraph *graph, ID *id)
+uint32_t DEG_get_eval_flags_for_id(const Depsgraph *graph, const ID *id)
 {
   if (graph == nullptr) {
     /* Happens when converting objects to mesh from a python script
@@ -117,7 +146,7 @@ uint32_t DEG_get_eval_flags_for_id(const Depsgraph *graph, ID *id)
   }
 
   const deg::Depsgraph *deg_graph = reinterpret_cast<const deg::Depsgraph *>(graph);
-  const deg::IDNode *id_node = deg_graph->find_id_node(DEG_get_original_id(id));
+  const deg::IDNode *id_node = deg_graph->find_id_node(deg::get_original_id(id));
   if (id_node == nullptr) {
     /* TODO(sergey): Does it mean we need to check set scene? */
     return 0;
@@ -186,21 +215,9 @@ Object *DEG_get_evaluated_object(const Depsgraph *depsgraph, Object *object)
 
 ID *DEG_get_evaluated_id(const Depsgraph *depsgraph, ID *id)
 {
-  if (id == nullptr) {
-    return nullptr;
-  }
-  /* TODO(sergey): This is a duplicate of Depsgraph::get_cow_id(),
-   * but here we never do assert, since we don't know nature of the
-   * incoming ID data-block. */
-  const deg::Depsgraph *deg_graph = (const deg::Depsgraph *)depsgraph;
-  const deg::IDNode *id_node = deg_graph->find_id_node(id);
-  if (id_node == nullptr) {
-    return id;
-  }
-  return id_node->id_cow;
+  return deg::get_evaluated_id(reinterpret_cast<const deg::Depsgraph *>(depsgraph), id);
 }
 
-/* Get evaluated version of data pointed to by RNA pointer */
 void DEG_get_evaluated_rna_pointer(const Depsgraph *depsgraph,
                                    PointerRNA *ptr,
                                    PointerRNA *r_ptr_eval)
@@ -265,14 +282,7 @@ Object *DEG_get_original_object(Object *object)
 
 ID *DEG_get_original_id(ID *id)
 {
-  if (id == nullptr) {
-    return nullptr;
-  }
-  if (id->orig_id == nullptr) {
-    return id;
-  }
-  BLI_assert((id->tag & LIB_TAG_COPIED_ON_WRITE) != 0);
-  return (ID *)id->orig_id;
+  return deg::get_original_id(id);
 }
 
 bool DEG_is_original_id(const ID *id)
@@ -319,7 +329,7 @@ bool DEG_is_fully_evaluated(const struct Depsgraph *depsgraph)
 {
   const deg::Depsgraph *deg_graph = (const deg::Depsgraph *)depsgraph;
   /* Check whether relations are up to date. */
-  if (deg_graph->need_update) {
+  if (deg_graph->need_update_relations) {
     return false;
   }
   /* Check whether IDs are up to date. */

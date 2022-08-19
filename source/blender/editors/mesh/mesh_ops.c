@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2009 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2009 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup edmesh
@@ -150,10 +134,6 @@ void ED_operatortypes_mesh(void)
 
   WM_operatortype_append(MESH_OT_uv_texture_add);
   WM_operatortype_append(MESH_OT_uv_texture_remove);
-  WM_operatortype_append(MESH_OT_vertex_color_add);
-  WM_operatortype_append(MESH_OT_vertex_color_remove);
-  WM_operatortype_append(MESH_OT_sculpt_vertex_color_add);
-  WM_operatortype_append(MESH_OT_sculpt_vertex_color_remove);
   WM_operatortype_append(MESH_OT_customdata_mask_clear);
   WM_operatortype_append(MESH_OT_customdata_skin_add);
   WM_operatortype_append(MESH_OT_customdata_skin_clear);
@@ -205,6 +185,14 @@ void ED_operatortypes_mesh(void)
   WM_operatortype_append(MESH_OT_average_normals);
   WM_operatortype_append(MESH_OT_smooth_normals);
   WM_operatortype_append(MESH_OT_mod_weighted_strength);
+
+#ifdef WITH_GAMEENGINE
+  WM_operatortype_append(MESH_OT_navmesh_make);
+  WM_operatortype_append(MESH_OT_navmesh_face_copy);
+  WM_operatortype_append(MESH_OT_navmesh_face_add);
+  WM_operatortype_append(MESH_OT_navmesh_reset);
+  WM_operatortype_append(MESH_OT_navmesh_clear);
+#endif
 }
 
 #if 0 /* UNUSED, remove? */
@@ -372,7 +360,6 @@ void ED_operatormacros_mesh(void)
   RNA_boolean_set(otmacro->ptr, "mirror", false);
 }
 
-/* note mesh keymap also for other space? */
 void ED_keymap_mesh(wmKeyConfig *keyconf)
 {
   wmKeyMap *keymap = WM_keymap_ensure(keyconf, "Mesh", 0, 0);

@@ -1,20 +1,4 @@
-# ***** BEGIN GPL LICENSE BLOCK *****
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ***** END GPL LICENSE BLOCK *****
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 
 set(OIDN_EXTRA_ARGS
@@ -24,6 +8,8 @@ set(OIDN_EXTRA_ARGS
   -DOIDN_STATIC_LIB=ON
   -DOIDN_STATIC_RUNTIME=OFF
   -DISPC_EXECUTABLE=${LIBDIR}/ispc/bin/ispc
+  -DOIDN_FILTER_RTLIGHTMAP=OFF
+  -DPYTHON_EXECUTABLE=${PYTHON_BINARY}
 )
 
 if(WIN32)
@@ -53,6 +39,7 @@ add_dependencies(
   external_openimagedenoise
   external_tbb
   external_ispc
+  external_python
 )
 
 if(WIN32)

@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edinterface
@@ -38,14 +24,14 @@ using blender::nodes::geometry_nodes_eval_log::GeometryAttributeInfo;
 
 namespace blender::ui {
 
-static StringRef attribute_data_type_string(const CustomDataType type)
+static StringRef attribute_data_type_string(const eCustomDataType type)
 {
   const char *name = nullptr;
   RNA_enum_name_from_value(rna_enum_attribute_type_items, type, &name);
   return StringRef(IFACE_(name));
 }
 
-static StringRef attribute_domain_string(const AttributeDomain domain)
+static StringRef attribute_domain_string(const eAttrDomain domain)
 {
   const char *name = nullptr;
   RNA_enum_name_from_value(rna_enum_attribute_domain_items, domain, &name);
@@ -54,8 +40,8 @@ static StringRef attribute_domain_string(const AttributeDomain domain)
 
 static bool attribute_search_item_add(uiSearchItems *items, const GeometryAttributeInfo &item)
 {
-  const StringRef data_type_name = attribute_data_type_string(item.data_type);
-  const StringRef domain_name = attribute_domain_string(item.domain);
+  const StringRef data_type_name = attribute_data_type_string(*item.data_type);
+  const StringRef domain_name = attribute_domain_string(*item.domain);
   std::string search_item_text = domain_name + " " + UI_MENU_ARROW_SEP + item.name + UI_SEP_CHAR +
                                  data_type_name;
 
@@ -64,7 +50,7 @@ static bool attribute_search_item_add(uiSearchItems *items, const GeometryAttrib
 }
 
 void attribute_search_add_items(StringRefNull str,
-                                const bool is_output,
+                                const bool can_create_attribute,
                                 Span<const GeometryAttributeInfo *> infos,
                                 uiSearchItems *seach_items,
                                 const bool is_first)
@@ -82,8 +68,12 @@ void attribute_search_add_items(StringRefNull str,
     }
     if (!contained) {
       dummy_info.name = str;
-      UI_search_item_add(
-          seach_items, str.c_str(), &dummy_info, is_output ? ICON_ADD : ICON_NONE, 0, 0);
+      UI_search_item_add(seach_items,
+                         str.c_str(),
+                         &dummy_info,
+                         can_create_attribute ? ICON_ADD : ICON_NONE,
+                         0,
+                         0);
     }
   }
 
@@ -105,8 +95,11 @@ void attribute_search_add_items(StringRefNull str,
     if (item->name == "normal" && item->domain == ATTR_DOMAIN_FACE) {
       continue;
     }
+    if (!bke::allow_procedural_attribute_access(item->name)) {
+      continue;
+    }
 
-    BLI_string_search_add(search, item->name.c_str(), (void *)item);
+    BLI_string_search_add(search, item->name.c_str(), (void *)item, 0);
   }
 
   GeometryAttributeInfo **filtered_items;

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2020 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2020 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup edsculpt
@@ -119,7 +103,7 @@ static void mask_filter_task_cb(void *__restrict userdata,
     switch (mode) {
       case MASK_FILTER_SMOOTH:
       case MASK_FILTER_SHARPEN: {
-        float val = SCULPT_neighbor_mask_average(ss, vd.index);
+        float val = SCULPT_neighbor_mask_average(ss, vd.vertex);
 
         val -= *vd.mask;
 
@@ -139,7 +123,7 @@ static void mask_filter_task_cb(void *__restrict userdata,
       }
       case MASK_FILTER_GROW:
         max = 0.0f;
-        SCULPT_VERTEX_NEIGHBORS_ITER_BEGIN (ss, vd.index, ni) {
+        SCULPT_VERTEX_NEIGHBORS_ITER_BEGIN (ss, vd.vertex, ni) {
           float vmask_f = data->prev_mask[ni.index];
           if (vmask_f > max) {
             max = vmask_f;
@@ -150,7 +134,7 @@ static void mask_filter_task_cb(void *__restrict userdata,
         break;
       case MASK_FILTER_SHRINK:
         min = 1.0f;
-        SCULPT_VERTEX_NEIGHBORS_ITER_BEGIN (ss, vd.index, ni) {
+        SCULPT_VERTEX_NEIGHBORS_ITER_BEGIN (ss, vd.vertex, ni) {
           float vmask_f = data->prev_mask[ni.index];
           if (vmask_f < min) {
             min = vmask_f;
@@ -178,9 +162,6 @@ static void mask_filter_task_cb(void *__restrict userdata,
     if (*vd.mask != prev_val) {
       update = true;
     }
-    if (vd.mvert) {
-      vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
-    }
   }
   BKE_pbvh_vertex_iter_end;
 
@@ -192,15 +173,16 @@ static void mask_filter_task_cb(void *__restrict userdata,
 static int sculpt_mask_filter_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
-  SculptSession *ss = ob->sculpt;
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-  PBVH *pbvh = ob->sculpt->pbvh;
   PBVHNode **nodes;
   Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
   int totnode;
   int filter_type = RNA_enum_get(op->ptr, "filter_type");
 
   BKE_sculpt_update_object_for_edit(depsgraph, ob, true, true, false);
+
+  SculptSession *ss = ob->sculpt;
+  PBVH *pbvh = ob->sculpt->pbvh;
 
   SCULPT_vertex_random_access_ensure(ss);
 
@@ -211,7 +193,7 @@ static int sculpt_mask_filter_exec(bContext *C, wmOperator *op)
   int num_verts = SCULPT_vertex_count_get(ss);
 
   BKE_pbvh_search_gather(pbvh, NULL, NULL, &nodes, &totnode);
-  SCULPT_undo_push_begin(ob, "Mask filter");
+  SCULPT_undo_push_begin(ob, op);
 
   for (int i = 0; i < totnode; i++) {
     SCULPT_undo_push_node(ob, nodes[i], SCULPT_UNDO_MASK);
@@ -232,7 +214,8 @@ static int sculpt_mask_filter_exec(bContext *C, wmOperator *op)
     if (ELEM(filter_type, MASK_FILTER_GROW, MASK_FILTER_SHRINK)) {
       prev_mask = MEM_mallocN(num_verts * sizeof(float), "prevmask");
       for (int j = 0; j < num_verts; j++) {
-        prev_mask[j] = SCULPT_vertex_mask_get(ss, j);
+        PBVHVertRef vertex = BKE_pbvh_index_to_vertex(ss->pbvh, j);
+        prev_mask[j] = SCULPT_vertex_mask_get(ss, vertex);
       }
     }
 
@@ -255,7 +238,7 @@ static int sculpt_mask_filter_exec(bContext *C, wmOperator *op)
 
   MEM_SAFE_FREE(nodes);
 
-  SCULPT_undo_push_end();
+  SCULPT_undo_push_end(ob);
 
   SCULPT_tag_update_overlays(C);
 
@@ -290,7 +273,7 @@ void SCULPT_OT_mask_filter(struct wmOperatorType *ot)
   ot->exec = sculpt_mask_filter_exec;
   ot->poll = SCULPT_mode_poll;
 
-  ot->flag = OPTYPE_REGISTER;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* RNA. */
   RNA_def_enum(ot->srna,
@@ -311,7 +294,7 @@ void SCULPT_OT_mask_filter(struct wmOperatorType *ot)
   RNA_def_boolean(
       ot->srna,
       "auto_iteration_count",
-      false,
+      true,
       "Auto Iteration Count",
       "Use a automatic number of iterations based on the number of vertices of the sculpt");
 }
@@ -323,9 +306,9 @@ static float neighbor_dirty_mask(SculptSession *ss, PBVHVertexIter *vd)
   zero_v3(avg);
 
   SculptVertexNeighborIter ni;
-  SCULPT_VERTEX_NEIGHBORS_ITER_BEGIN (ss, vd->index, ni) {
+  SCULPT_VERTEX_NEIGHBORS_ITER_BEGIN (ss, vd->vertex, ni) {
     float normalized[3];
-    sub_v3_v3v3(normalized, SCULPT_vertex_co_get(ss, ni.index), vd->co);
+    sub_v3_v3v3(normalized, SCULPT_vertex_co_get(ss, ni.vertex), vd->co);
     normalize_v3(normalized);
     add_v3_v3(avg, normalized);
     total++;
@@ -334,14 +317,7 @@ static float neighbor_dirty_mask(SculptSession *ss, PBVHVertexIter *vd)
 
   if (total > 0) {
     mul_v3_fl(avg, 1.0f / total);
-    float normal[3];
-    if (vd->no) {
-      normal_short_to_float_v3(normal, vd->no);
-    }
-    else {
-      copy_v3_v3(normal, vd->fno);
-    }
-    float dot = dot_v3v3(avg, normal);
+    float dot = dot_v3v3(avg, vd->no ? vd->no : vd->fno);
     float angle = max_ff(saacosf(dot), 0.0f);
     return angle;
   }
@@ -408,10 +384,6 @@ static void dirty_mask_apply_task_cb(void *__restrict userdata,
       mask = fminf(mask, 0.5f) * 2.0f;
     }
     *vd.mask = CLAMPIS(mask, 0.0f, 1.0f);
-
-    if (vd.mvert) {
-      vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
-    }
   }
   BKE_pbvh_vertex_iter_end;
   BKE_pbvh_node_mark_update_mask(node);
@@ -437,7 +409,7 @@ static int sculpt_dirty_mask_exec(bContext *C, wmOperator *op)
   }
 
   BKE_pbvh_search_gather(pbvh, NULL, NULL, &nodes, &totnode);
-  SCULPT_undo_push_begin(ob, "Dirty Mask");
+  SCULPT_undo_push_begin(ob, op);
 
   for (int i = 0; i < totnode; i++) {
     SCULPT_undo_push_node(ob, nodes[i], SCULPT_UNDO_MASK);
@@ -470,7 +442,7 @@ static int sculpt_dirty_mask_exec(bContext *C, wmOperator *op)
 
   BKE_pbvh_update_vertex_data(pbvh, PBVH_UpdateMask);
 
-  SCULPT_undo_push_end();
+  SCULPT_undo_push_end(ob);
 
   ED_region_tag_redraw(region);
 

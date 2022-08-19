@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2009 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2009 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup RNA
@@ -91,7 +75,7 @@ static void rna_Scene_frame_set(Scene *scene, Main *bmain, int frame, float subf
   if (!G.is_rendering) {
     /* can't use NC_SCENE|ND_FRAME because this causes wm_event_do_notifiers to call
      * BKE_scene_graph_update_for_newframe which will lose any un-keyed changes T24690. */
-    /* WM_main_add_notifier(NC_SCENE|ND_FRAME, scene); */
+    // WM_main_add_notifier(NC_SCENE|ND_FRAME, scene);
 
     /* instead just redraw the views */
     WM_main_add_notifier(NC_WINDOW, NULL);
@@ -156,7 +140,7 @@ static void rna_Scene_ray_cast(Scene *scene,
                                                      depsgraph,
                                                      NULL,
                                                      &(const struct SnapObjectParams){
-                                                         .snap_select = SNAP_ALL,
+                                                         .snap_target_select = SCE_SNAP_TARGET_ALL,
                                                      },
                                                      origin,
                                                      direction,
@@ -373,7 +357,7 @@ void RNA_api_scene(StructRNA *srna)
   RNA_def_boolean(func, "selected_only", 0, "Selected only", "Export only selected objects");
   RNA_def_boolean(func, "uvs", 1, "UVs", "Export UVs");
   RNA_def_boolean(func, "normals", 1, "Normals", "Export normals");
-  RNA_def_boolean(func, "vcolors", 0, "Vertex colors", "Export vertex colors");
+  RNA_def_boolean(func, "vcolors", 0, "Color Attributes", "Export color attributes");
   RNA_def_boolean(
       func, "apply_subdiv", 1, "Subsurfs as meshes", "Export subdivision surfaces as meshes");
   RNA_def_boolean(func, "flatten", 0, "Flatten hierarchy", "Flatten hierarchy");

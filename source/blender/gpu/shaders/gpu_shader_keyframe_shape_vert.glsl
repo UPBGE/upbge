@@ -11,28 +11,10 @@
 #define GPU_KEYFRAME_SHAPE_SQUARE \
   (GPU_KEYFRAME_SHAPE_CLIPPED_VERTICAL | GPU_KEYFRAME_SHAPE_CLIPPED_HORIZONTAL)
 
-uniform mat4 ModelViewProjectionMatrix;
-uniform vec2 ViewportSize = vec2(-1, -1);
-uniform float outline_scale = 1.0;
-
 const float line_falloff = 1.0;
 const float circle_scale = sqrt(2.0 / 3.1416);
 const float square_scale = sqrt(0.5);
 const float diagonal_scale = sqrt(0.5);
-
-in vec2 pos;
-in float size;
-in vec4 color;
-in vec4 outlineColor;
-in int flags;
-
-flat out vec4 finalColor;
-flat out vec4 finalOutlineColor;
-
-flat out int finalFlags;
-
-flat out vec4 radii;
-flat out vec4 thresholds;
 
 bool test(int bit)
 {
@@ -41,7 +23,7 @@ bool test(int bit)
 
 vec2 line_thresholds(float width)
 {
-  return vec2(max(0, width - line_falloff), width);
+  return vec2(max(0.0, width - line_falloff), width);
 }
 
 void main()

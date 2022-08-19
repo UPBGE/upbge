@@ -1,11 +1,4 @@
 
-uniform vec4 color;
-uniform float scale;
-
-in vec2 uv;
-
-out vec4 fragColor;
-
 void main()
 {
   /* Should be 0.8 but minimize the AA on the edges. */

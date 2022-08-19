@@ -1,29 +1,11 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2020 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2020 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup gpu
  */
 
 #include "BKE_global.h"
-
-#include "GPU_capabilities.h"
 
 #include "gl_backend.hh"
 #include "gl_debug.hh"
@@ -110,7 +92,6 @@ void GLFrameBuffer::init()
 /** \name Config
  * \{ */
 
-/* This is a rather slow operation. Don't check in normal cases. */
 bool GLFrameBuffer::check(char err_out[256])
 {
   this->bind(true);
@@ -430,8 +411,15 @@ void GLFrameBuffer::read(eGPUFrameBufferBits plane,
   switch (plane) {
     case GPU_DEPTH_BIT:
       format = GL_DEPTH_COMPONENT;
+      BLI_assert_msg(
+          this->attachments_[GPU_FB_DEPTH_ATTACHMENT].tex != nullptr ||
+              this->attachments_[GPU_FB_DEPTH_STENCIL_ATTACHMENT].tex != nullptr,
+          "GPUFramebuffer: Error: Trying to read depth without a depth buffer attached.");
       break;
     case GPU_COLOR_BIT:
+      BLI_assert_msg(
+          mode != GL_NONE,
+          "GPUFramebuffer: Error: Trying to read a color slot without valid attachment.");
       format = channel_len_to_gl(channel_len);
       /* TODO: needed for selection buffers to work properly, this should be handled better. */
       if (format == GL_RED && type == GL_UNSIGNED_INT) {
@@ -451,9 +439,6 @@ void GLFrameBuffer::read(eGPUFrameBufferBits plane,
   glReadPixels(UNPACK4(area), format, type, r_data);
 }
 
-/**
- * Copy \a src at the give offset inside \a dst.
- */
 void GLFrameBuffer::blit_to(
     eGPUFrameBufferBits planes, int src_slot, FrameBuffer *dst_, int dst_slot, int x, int y)
 {
@@ -493,6 +478,12 @@ void GLFrameBuffer::blit_to(
   }
   /* Ensure previous buffer is restored. */
   context_->active_fb = dst;
+}
+
+/* UPBGE */
+int GLFrameBuffer::get_bindcode()
+{
+  return fbo_id_;
 }
 
 /** \} */

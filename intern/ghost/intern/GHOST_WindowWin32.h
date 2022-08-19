@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup GHOST
@@ -29,6 +13,7 @@
 #endif  // WIN32
 
 #include "GHOST_TaskbarWin32.h"
+#include "GHOST_TrackpadWin32.h"
 #include "GHOST_Window.h"
 #include "GHOST_Wintab.h"
 #ifdef WITH_INPUT_IME
@@ -49,7 +34,7 @@ typedef BOOL(API *GHOST_WIN32_AdjustWindowRectExForDpi)(
 struct GHOST_PointerInfoWin32 {
   int32_t pointerId;
   int32_t isPrimary;
-  GHOST_TButtonMask buttonMask;
+  GHOST_TButton buttonMask;
   POINT pixelLocation;
   uint64_t time;
   GHOST_TabletData tabletData;
@@ -222,9 +207,7 @@ class GHOST_WindowWin32 : public GHOST_Window {
   GHOST_TSuccess endProgressBar();
 
   /**
-   * Register a mouse capture state (should be called
-   * for any real button press, controls mouse
-   * capturing).
+   * Set or Release mouse capture (should be called for any real button press).
    *
    * \param event: Whether mouse was pressed and released,
    * or an operator grabbed or ungrabbed the mouse.
@@ -232,8 +215,9 @@ class GHOST_WindowWin32 : public GHOST_Window {
   void updateMouseCapture(GHOST_MouseCaptureEventWin32 event);
 
   /**
-   * Inform the window that it has lost mouse capture,
-   * called in response to native window system messages.
+   * Inform the window that it has lost mouse capture, called in response to native window system
+   * messages (WA_INACTIVE, WM_CAPTURECHANGED) or if ReleaseCapture() is explicitly called (for new
+   * window creation).
    */
   void lostMouseCapture();
 
@@ -303,6 +287,8 @@ class GHOST_WindowWin32 : public GHOST_Window {
     return GHOST_kFailure;
   }
 
+  void updateDPI();
+
   uint16_t getDPIHint() override;
 
   /** True if the mouse is either over or captured by the window. */
@@ -310,6 +296,9 @@ class GHOST_WindowWin32 : public GHOST_Window {
 
   /** True if the window currently resizing. */
   bool m_inLiveResize;
+
+  /** Called when OS colors change and when the window is created. */
+  void ThemeRefresh();
 
 #ifdef WITH_INPUT_IME
   GHOST_ImeWin32 *getImeInput()
@@ -321,6 +310,19 @@ class GHOST_WindowWin32 : public GHOST_Window {
 
   void endIME();
 #endif /* WITH_INPUT_IME */
+
+  /*
+   * Drive DirectManipulation context.
+   */
+  void updateDirectManipulation();
+
+  /*
+   * Handle DM_POINTERHITTEST events.
+   * \param wParam: wParam from the event.
+   */
+  void onPointerHitTest(WPARAM wParam);
+
+  GHOST_TTrackpadInfo getTrackpadInfo();
 
  private:
   /**
@@ -404,6 +406,8 @@ class GHOST_WindowWin32 : public GHOST_Window {
   HMODULE m_user32;
 
   HWND m_parentWindowHwnd;
+
+  GHOST_DirectManipulationHelper *m_directManipulationHelper;
 
 #ifdef WITH_INPUT_IME
   /** Handle input method editors event */

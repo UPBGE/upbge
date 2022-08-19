@@ -1,18 +1,4 @@
-/*
- * This program is free software you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup RNA
@@ -35,7 +21,7 @@ DEF_ENUM(rna_enum_metaelem_type_items)
 
 DEF_ENUM(rna_enum_proportional_falloff_items)
 DEF_ENUM(rna_enum_proportional_falloff_curve_only_items)
-DEF_ENUM(rna_enum_snap_target_items)
+DEF_ENUM(rna_enum_snap_source_items)
 DEF_ENUM(rna_enum_snap_element_items)
 DEF_ENUM(rna_enum_snap_node_element_items)
 DEF_ENUM(rna_enum_curve_fit_method_items)
@@ -61,6 +47,8 @@ DEF_ENUM(rna_enum_object_shaderfx_type_items)
 DEF_ENUM(rna_enum_modifier_triangulate_quad_method_items)
 DEF_ENUM(rna_enum_modifier_triangulate_ngon_method_items)
 DEF_ENUM(rna_enum_modifier_shrinkwrap_mode_items)
+DEF_ENUM(rna_enum_shrinkwrap_type_items)
+DEF_ENUM(rna_enum_shrinkwrap_face_cull_items)
 
 DEF_ENUM(rna_enum_image_type_items)
 DEF_ENUM(rna_enum_image_color_mode_items)
@@ -70,6 +58,7 @@ DEF_ENUM(rna_enum_image_generated_type_items)
 DEF_ENUM(rna_enum_normal_space_items)
 DEF_ENUM(rna_enum_normal_swizzle_items)
 DEF_ENUM(rna_enum_bake_save_mode_items)
+DEF_ENUM(rna_enum_bake_margin_type_items)
 DEF_ENUM(rna_enum_bake_target_items)
 
 DEF_ENUM(rna_enum_views_format_items)
@@ -98,10 +87,11 @@ DEF_ENUM(rna_enum_keying_flag_items_api)
 DEF_ENUM(rna_enum_fmodifier_type_items)
 
 DEF_ENUM(rna_enum_motionpath_bake_location_items)
+DEF_ENUM(rna_enum_motionpath_display_type_items)
+DEF_ENUM(rna_enum_motionpath_range_items)
 
-DEF_ENUM(rna_enum_event_value_all_items)
-DEF_ENUM(rna_enum_event_value_keymouse_items)
-DEF_ENUM(rna_enum_event_value_tweak_items)
+DEF_ENUM(rna_enum_event_value_items)
+DEF_ENUM(rna_enum_event_direction_items)
 
 DEF_ENUM(rna_enum_event_type_items)
 DEF_ENUM(rna_enum_event_type_mask_items)
@@ -118,6 +108,7 @@ DEF_ENUM(rna_enum_brush_gpencil_types_items)
 DEF_ENUM(rna_enum_brush_gpencil_vertex_types_items)
 DEF_ENUM(rna_enum_brush_gpencil_sculpt_types_items)
 DEF_ENUM(rna_enum_brush_gpencil_weight_types_items)
+DEF_ENUM(rna_enum_brush_curves_sculpt_tool_items)
 DEF_ENUM(rna_enum_brush_image_tool_items)
 
 DEF_ENUM(rna_enum_axis_xy_items)
@@ -156,10 +147,19 @@ DEF_ENUM(rna_enum_keymap_propvalue_items)
 DEF_ENUM(rna_enum_operator_context_items)
 
 DEF_ENUM(rna_enum_wm_report_items)
+DEF_ENUM(rna_enum_wm_job_type_items)
 
 DEF_ENUM(rna_enum_property_type_items)
 DEF_ENUM(rna_enum_property_subtype_items)
+DEF_ENUM(rna_enum_property_subtype_string_items)
+DEF_ENUM(rna_enum_property_subtype_number_items)
+DEF_ENUM(rna_enum_property_subtype_number_array_items)
 DEF_ENUM(rna_enum_property_unit_items)
+DEF_ENUM(rna_enum_property_flag_items)
+DEF_ENUM(rna_enum_property_flag_enum_items)
+DEF_ENUM(rna_enum_property_override_flag_items)
+DEF_ENUM(rna_enum_property_override_flag_collection_items)
+DEF_ENUM(rna_enum_property_string_search_flag_items)
 
 DEF_ENUM(rna_enum_shading_type_items)
 
@@ -172,6 +172,7 @@ DEF_ENUM(rna_enum_mapping_type_items)
 DEF_ENUM(rna_enum_node_vec_math_items)
 DEF_ENUM(rna_enum_node_boolean_math_items)
 DEF_ENUM(rna_enum_node_float_compare_items)
+DEF_ENUM(rna_enum_node_compare_operation_items)
 DEF_ENUM(rna_enum_node_filter_items)
 DEF_ENUM(rna_enum_node_float_to_int_items)
 DEF_ENUM(rna_enum_node_map_range_items)
@@ -206,10 +207,16 @@ DEF_ENUM(rna_enum_context_mode_items)
 DEF_ENUM(rna_enum_preference_section_items)
 
 DEF_ENUM(rna_enum_attribute_type_items)
+DEF_ENUM(rna_enum_color_attribute_type_items)
 DEF_ENUM(rna_enum_attribute_type_with_auto_items)
 DEF_ENUM(rna_enum_attribute_domain_items)
+DEF_ENUM(rna_enum_attribute_curves_domain_items)
+DEF_ENUM(rna_enum_color_attribute_domain_items)
 DEF_ENUM(rna_enum_attribute_domain_without_corner_items)
 DEF_ENUM(rna_enum_attribute_domain_with_auto_items)
+DEF_ENUM(rna_enum_geometry_component_type_items)
+
+DEF_ENUM(rna_enum_volume_grid_data_type_items)
 
 DEF_ENUM(rna_enum_collection_color_items)
 DEF_ENUM(rna_enum_strip_color_items)
@@ -219,7 +226,11 @@ DEF_ENUM(rna_enum_subdivision_boundary_smooth_items)
 
 DEF_ENUM(rna_enum_transform_orientation_items)
 
-/* Not available to RNA pre-processing (`makrsrna`).
+DEF_ENUM(rna_enum_velocity_unit_items)
+
+DEF_ENUM(rna_enum_curves_types)
+
+/* Not available to RNA pre-processing (`makesrna`).
  * Defined in editors for example. */
 #ifndef RNA_MAKESRNA
 
@@ -238,5 +249,10 @@ DEF_ENUM(rna_enum_nla_mode_blend_items)
 DEF_ENUM(rna_enum_keyblock_type_items)
 
 #endif
+
+/*********UPBGE**********/
+DEF_ENUM(rna_enum_gameproperty_type_items)
+DEF_ENUM(rna_enum_controller_type_items)
+/************************/
 
 #undef DEF_ENUM

@@ -1,22 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
-# <pep8 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 import bpy
 from bpy.types import (
@@ -32,6 +14,8 @@ from bl_ui.properties_grease_pencil_common import (
     GreasePencilLayerRelationsPanel,
     GreasePencilLayerDisplayPanel,
 )
+
+from rna_prop_ui import PropertyPanel
 
 #######################################
 # DopeSheet Filtering - Header Buttons
@@ -127,8 +111,8 @@ class DopesheetFilterPopoverBase:
             flow.prop(dopesheet, "show_lattices", text="Lattices")
         if bpy.data.metaballs:
             flow.prop(dopesheet, "show_metaballs", text="Metaballs")
-        if hasattr(bpy.data, "hairs") and bpy.data.hairs:
-            flow.prop(dopesheet, "show_hairs", text="Hairs")
+        if hasattr(bpy.data, "hair_curves") and bpy.data.hair_curves:
+            flow.prop(dopesheet, "show_hair_curves", text="Hair Curves")
         if hasattr(bpy.data, "pointclouds") and bpy.data.pointclouds:
             flow.prop(dopesheet, "show_pointclouds", text="Point Clouds")
         if bpy.data.volumes:
@@ -379,6 +363,18 @@ class DOPESHEET_MT_view(Menu):
         layout.menu("INFO_MT_area")
 
 
+class DOPESHEET_MT_view_pie(Menu):
+    bl_label = "View"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        pie = layout.menu_pie()
+        pie.operator("action.view_all")
+        pie.operator("action.view_selected", icon='ZOOM_SELECTED')
+        pie.operator("action.view_frame")
+
+
 class DOPESHEET_MT_select(Menu):
     bl_label = "Select"
 
@@ -514,6 +510,9 @@ class DOPESHEET_MT_key(Menu):
         layout.operator("action.clean", text="Clean Channels").channels = True
         layout.operator("action.sample")
 
+        layout.separator()
+        layout.operator("graph.euler_filter", text="Discontinuity (Euler) Filter")
+
 
 class DOPESHEET_MT_key_transform(Menu):
     bl_label = "Transform"
@@ -525,6 +524,52 @@ class DOPESHEET_MT_key_transform(Menu):
         layout.operator("transform.transform", text="Extend").mode = 'TIME_EXTEND'
         layout.operator("transform.transform", text="Slide").mode = 'TIME_SLIDE'
         layout.operator("transform.transform", text="Scale").mode = 'TIME_SCALE'
+
+
+class DopesheetActionPanelBase:
+    bl_region_type = 'UI'
+    bl_label = "Action"
+
+    @classmethod
+    def draw_generic_panel(cls, _context, layout, action):
+        layout.label(text=action.name, icon='ACTION')
+
+        layout.prop(action, "use_frame_range")
+
+        col = layout.column()
+        col.active = action.use_frame_range
+
+        row = col.row(align=True)
+        row.prop(action, "frame_start", text="Start")
+        row.prop(action, "frame_end", text="End")
+
+        col.prop(action, "use_cyclic")
+
+
+class DOPESHEET_PT_custom_props_action(PropertyPanel, Panel):
+    bl_space_type = 'DOPESHEET_EDITOR'
+    bl_category = "Action"
+    bl_region_type = 'UI'
+    bl_context = 'data'
+    _context_path = "active_action"
+    _property_type = bpy.types.Action
+
+    @classmethod
+    def poll(cls, context):
+        return bool(context.active_action)
+
+
+class DOPESHEET_PT_action(DopesheetActionPanelBase, Panel):
+    bl_space_type = 'DOPESHEET_EDITOR'
+    bl_category = "Action"
+
+    @classmethod
+    def poll(cls, context):
+        return bool(context.active_action)
+
+    def draw(self, context):
+        action = context.active_action
+        self.draw_generic_panel(context, self.layout, action)
 
 
 #######################################
@@ -778,13 +823,16 @@ classes = (
     DOPESHEET_MT_context_menu,
     DOPESHEET_MT_channel_context_menu,
     DOPESHEET_MT_snap_pie,
+    DOPESHEET_MT_view_pie,
     DOPESHEET_PT_filters,
+    DOPESHEET_PT_action,
     DOPESHEET_PT_gpencil_mode,
     DOPESHEET_PT_gpencil_layer_masks,
     DOPESHEET_PT_gpencil_layer_transform,
     DOPESHEET_PT_gpencil_layer_adjustments,
     DOPESHEET_PT_gpencil_layer_relations,
     DOPESHEET_PT_gpencil_layer_display,
+    DOPESHEET_PT_custom_props_action,
 )
 
 if __name__ == "__main__":  # only for live edit.

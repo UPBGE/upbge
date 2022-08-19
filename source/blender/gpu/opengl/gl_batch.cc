@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2016 by Mike Erwin.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2016 by Mike Erwin. All rights reserved. */
 
 /** \file
  * \ingroup gpu
@@ -27,16 +11,14 @@
 
 #include "BLI_assert.h"
 
-#include "glew-mx.h"
-
 #include "gpu_batch_private.hh"
 #include "gpu_shader_private.hh"
 
-#include "gl_backend.hh"
 #include "gl_context.hh"
 #include "gl_debug.hh"
 #include "gl_index_buffer.hh"
 #include "gl_primitive.hh"
+#include "gl_storage_buffer.hh"
 #include "gl_vertex_array.hh"
 
 #include "gl_batch.hh"
@@ -74,7 +56,6 @@ void GLVaoCache::init()
   vao_id_ = 0;
 }
 
-/* Create a new VAO object and store it in the cache. */
 void GLVaoCache::insert(const GLShaderInterface *interface, GLuint vao)
 {
   /* Now insert the cache. */
@@ -191,7 +172,6 @@ void GLVaoCache::clear()
   this->init();
 }
 
-/* Return 0 on cache miss (invalid VAO) */
 GLuint GLVaoCache::lookup(const GLShaderInterface *interface)
 {
   const int count = (is_dynamic_vao_count) ? dynamic_vaos.count : GPU_VAO_STATIC_LEN;
@@ -205,8 +185,6 @@ GLuint GLVaoCache::lookup(const GLShaderInterface *interface)
   return 0;
 }
 
-/* The GLVaoCache object is only valid for one GLContext.
- * Reset the cache if trying to draw in another context; */
 void GLVaoCache::context_check()
 {
   GLContext *ctx = GLContext::get();
@@ -276,6 +254,7 @@ GLuint GLVaoCache::vao_get(GPUBatch *batch)
 
   return vao_id_;
 }
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -346,6 +325,29 @@ void GLBatch::draw(int v_first, int v_count, int i_first, int i_count)
     glEnable(GL_PRIMITIVE_RESTART);
 #endif
   }
+}
+
+void GLBatch::draw_indirect(GPUStorageBuf *indirect_buf)
+{
+  GL_CHECK_RESOURCES("Batch");
+
+  this->bind(0);
+
+  dynamic_cast<GLStorageBuf *>(unwrap(indirect_buf))->bind_as(GL_DRAW_INDIRECT_BUFFER);
+  /* This barrier needs to be here as it only work on the currently bound indirect buffer. */
+  glMemoryBarrier(GL_COMMAND_BARRIER_BIT);
+
+  GLenum gl_type = to_gl(prim_type);
+  if (elem) {
+    const GLIndexBuf *el = this->elem_();
+    GLenum index_type = to_gl(el->index_type_);
+    glDrawElementsIndirect(gl_type, index_type, (GLvoid *)nullptr);
+  }
+  else {
+    glDrawArraysIndirect(gl_type, (GLvoid *)nullptr);
+  }
+  /* Unbind. */
+  glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 }
 
 /** \} */

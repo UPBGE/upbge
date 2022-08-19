@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -20,6 +6,7 @@
 
 #pragma once
 
+#include "DNA_object_force_types.h"  // UPBGE
 #include "DNA_vec_defaults.h"
 
 /* Struct members on own line. */
@@ -67,6 +54,71 @@
     .duplicator_visibility_flag = OB_DUPLI_FLAG_VIEWPORT | OB_DUPLI_FLAG_RENDER, \
     .pc_ids = {NULL, NULL}, \
     .lineart = { .crease_threshold = DEG2RAD(140.0f) }, \
+ \
+    .mass = 1.0f, \
+    .inertia = 1.0f, \
+    .formfactor = 0.4f, \
+    .damping = 0.04f, \
+    .rdamping = 0.1f, \
+    .anisotropicFriction = {1.0f, 1.0f, 1.0f}, \
+    .gameflag = OB_PROP | OB_COLLISION, \
+    .gameflag2 = 0, \
+    .margin = 0.04f, \
+    .friction = 0.5f, \
+    .init_state = 1, \
+    .state = 1, \
+    .obstacleRad = 1.0f, \
+    .step_height = 0.15f, \
+    .jump_speed = 10.0f, \
+    .fall_speed = 55.0f, \
+    .max_jumps = 1, \
+    .max_slope = M_PI_2, \
+    .col_group = 0x01, \
+    .col_mask = 0xffff, \
+    .ccd_motion_threshold = 1.0f, \
+    .ccd_swept_sphere_radius = 0.9f, \
+    .lodfactor = 1.0f, \
+  }
+
+#define _DNA_DEFAULT_BulletSoftBody \
+  { \
+    .flag = OB_BSB_BENDING_CONSTRAINTS | OB_BSB_SHAPE_MATCHING | OB_BSB_AERO_VPOINT, \
+    .linStiff = 0.5f, \
+    .angStiff = 1.0f, \
+    .volume = 1.0f, \
+ \
+    .viterations = 0, \
+    .piterations = 2, \
+    .diterations = 0, \
+    .citerations = 4, \
+ \
+    .kSRHR_CL = 0.1f, \
+    .kSKHR_CL = 1.f, \
+    .kSSHR_CL = 0.5f, \
+    .kSR_SPLT_CL = 0.5f, \
+ \
+    .kSK_SPLT_CL = 0.5f, \
+    .kSS_SPLT_CL = 0.5f, \
+    .kVCF = 1, \
+    .kDP = 0, \
+ \
+    .kDG = 0, \
+    .kLF = 0, \
+    .kPR = 0, \
+    .kVC = 0, \
+ \
+    .kDF = 0.2f, \
+    .kMT = 0.05, \
+    .kCHR = 1.0f, \
+    .kKHR = 0.1f, \
+ \
+    .kSHR = 1.0f, \
+    .kAHR = 0.7f, \
+ \
+    .collisionflags = OB_BSB_COL_CL_RS, \
+    .numclusteriterations = 64, \
+    .bending_dist = 2, \
+    .welding = 0.f, \
   }
 
 /** \} */

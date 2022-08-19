@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 if [ "x$1" = "x--i-really-know-what-im-doing" ] ; then
   echo Proceeding as requested by command line ...
@@ -118,14 +119,11 @@ set(LIB
 )
 
 if(WITH_LIBMV)
-  setup_libdirs()
-
   if(WIN32)
     add_definitions(-D_USE_MATH_DEFINES)
   endif()
   add_definitions(\${GFLAGS_DEFINES})
   add_definitions(\${GLOG_DEFINES})
-  add_definitions(\${CERES_DEFINES})
   add_definitions(-DLIBMV_GFLAGS_NAMESPACE=\${GFLAGS_NAMESPACE})
 
   list(APPEND INC

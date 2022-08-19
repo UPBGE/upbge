@@ -1,9 +1,3 @@
-#ifdef USE_WORLD_CLIP_PLANES
-uniform mat4 ModelMatrix;
-#endif
-
-/* Does Nothing */
-in vec3 pos;
 
 void main()
 {

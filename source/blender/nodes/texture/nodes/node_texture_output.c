@@ -1,25 +1,11 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2006 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2006 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup texnodes
  */
+
+#include "BLI_string.h"
 
 #include "NOD_texture.h"
 #include "node_texture_util.h"
@@ -27,7 +13,6 @@
 /* **************** COMPOSITE ******************** */
 static bNodeSocketTemplate inputs[] = {
     {SOCK_RGBA, N_("Color"), 0.0f, 0.0f, 0.0f, 1.0f},
-    {SOCK_VECTOR, N_("Normal"), 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, PROP_DIRECTION},
     {-1, ""},
 };
 
@@ -35,7 +20,7 @@ static bNodeSocketTemplate inputs[] = {
 static void exec(void *data,
                  int UNUSED(thread),
                  bNode *node,
-                 bNodeExecData *execdata,
+                 bNodeExecData *UNUSED(execdata),
                  bNodeStack **in,
                  bNodeStack **UNUSED(out))
 {
@@ -46,13 +31,7 @@ static void exec(void *data,
     TexParams params;
     params_from_cdata(&params, cdata);
 
-    if (in[1] && in[1]->hasinput && !in[0]->hasinput) {
-      tex_input_rgba(&target->tr, in[1], &params, cdata->thread);
-    }
-    else {
-      tex_input_rgba(&target->tr, in[0], &params, cdata->thread);
-    }
-    tex_do_preview(execdata->preview, params.co, &target->tr, cdata->do_manage);
+    tex_input_rgba(target->trgba, in[0], &params, cdata->thread);
   }
   else {
     /* 0 means don't care, so just use first */
@@ -60,19 +39,10 @@ static void exec(void *data,
       TexParams params;
       params_from_cdata(&params, cdata);
 
-      tex_input_rgba(&target->tr, in[0], &params, cdata->thread);
+      tex_input_rgba(target->trgba, in[0], &params, cdata->thread);
 
-      target->tin = (target->tr + target->tg + target->tb) / 3.0f;
+      target->tin = (target->trgba[0] + target->trgba[1] + target->trgba[2]) / 3.0f;
       target->talpha = true;
-
-      if (target->nor) {
-        if (in[1] && in[1]->hasinput) {
-          tex_input_vec(target->nor, in[1], &params, cdata->thread);
-        }
-        else {
-          target->nor = NULL;
-        }
-      }
     }
   }
 }
@@ -165,15 +135,15 @@ void register_node_type_tex_output(void)
 {
   static bNodeType ntype;
 
-  tex_node_type_base(&ntype, TEX_NODE_OUTPUT, "Output", NODE_CLASS_OUTPUT, NODE_PREVIEW);
+  tex_node_type_base(&ntype, TEX_NODE_OUTPUT, "Output", NODE_CLASS_OUTPUT);
   node_type_socket_templates(&ntype, inputs, NULL);
   node_type_size_preset(&ntype, NODE_SIZE_MIDDLE);
   node_type_init(&ntype, init);
   node_type_storage(&ntype, "TexNodeOutput", node_free_standard_storage, copy);
   node_type_exec(&ntype, NULL, NULL, exec);
 
-  /* Do not allow muting output. */
-  node_type_internal_links(&ntype, NULL);
+  ntype.flag |= NODE_PREVIEW;
+  ntype.no_muting = true;
 
   nodeRegisterType(&ntype);
 }

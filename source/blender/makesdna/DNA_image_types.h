@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup DNA
@@ -80,6 +64,11 @@ typedef struct ImageView {
 typedef struct ImagePackedFile {
   struct ImagePackedFile *next, *prev;
   struct PackedFile *packedfile;
+
+  /* Which view and tile this ImagePackedFile represents. Normal images will use 0 and 1001
+   * respectively when creating their ImagePackedFile. Must be provided for each packed image. */
+  int view;
+  int tile_number;
   /** 1024 = FILE_MAX. */
   char filepath[1024];
 } ImagePackedFile;
@@ -91,17 +80,11 @@ typedef struct RenderSlot {
   struct RenderResult *render;
 } RenderSlot;
 
-typedef struct ImageTile_RuntimeTextureSlot {
+typedef struct ImageTile_Runtime {
   int tilearray_layer;
   int _pad;
   int tilearray_offset[2];
   int tilearray_size[2];
-} ImageTile_RuntimeTextureSlot;
-
-typedef struct ImageTile_Runtime {
-  /* Data per `eImageTextureResolution`.
-   * Should match `IMA_TEXTURE_RESOLUTION_LEN` */
-  ImageTile_RuntimeTextureSlot slots[2];
 } ImageTile_Runtime;
 
 typedef struct ImageTile {
@@ -109,8 +92,14 @@ typedef struct ImageTile {
 
   struct ImageTile_Runtime runtime;
 
-  char _pad[4];
   int tile_number;
+
+  /* for generated images */
+  int gen_x, gen_y;
+  char gen_type, gen_flag;
+  short gen_depth;
+  float gen_color[4];
+
   char label[64];
 } ImageTile;
 
@@ -120,10 +109,7 @@ typedef struct ImageTile {
 /* #define IMA_UNUSED_2         (1 << 2) */
 #define IMA_NEED_FRAME_RECALC (1 << 3)
 #define IMA_SHOW_STEREO (1 << 4)
-/* Do not limit the resolution by the limit texture size option in the user preferences.
- * Images in the image editor or used as a backdrop are always shown using the maximum
- * possible resolution. */
-#define IMA_SHOW_MAX_RESOLUTION (1 << 5)
+/* #define IMA_UNUSED_5         (1 << 5) */
 
 /* Used to get the correct gpu texture from an Image datablock. */
 typedef enum eGPUTextureTarget {
@@ -133,14 +119,21 @@ typedef enum eGPUTextureTarget {
   TEXTARGET_COUNT,
 } eGPUTextureTarget;
 
-/* Resolution variations that can be cached for an image. */
-typedef enum eImageTextureResolution {
-  IMA_TEXTURE_RESOLUTION_FULL = 0,
-  IMA_TEXTURE_RESOLUTION_LIMITED,
+/* Defined in BKE_image.h. */
+struct PartialUpdateRegister;
+struct PartialUpdateUser;
 
-  /* Not an option, but holds the number of options defined for this struct. */
-  IMA_TEXTURE_RESOLUTION_LEN
-} eImageTextureResolution;
+typedef struct Image_Runtime {
+  /* Mutex used to guarantee thread-safe access to the cached ImBuf of the corresponding image ID.
+   */
+  void *cache_mutex;
+
+  /** \brief Register containing partial updates. */
+  struct PartialUpdateRegister *partial_update_register;
+  /** \brief Partial update user for GPUTextures stored inside the Image. */
+  struct PartialUpdateUser *partial_update_user;
+
+} Image_Runtime;
 
 typedef struct Image {
   ID id;
@@ -150,8 +143,8 @@ typedef struct Image {
 
   /** Not written in file. */
   struct MovieCache *cache;
-  /** Not written in file 3 = TEXTARGET_COUNT, 2 = stereo eyes, 2 = IMA_TEXTURE_RESOLUTION_LEN. */
-  struct GPUTexture *gputexture[3][2][2];
+  /** Not written in file 3 = TEXTARGET_COUNT, 2 = stereo eyes. */
+  struct GPUTexture *gputexture[3][2];
 
   /* sources from: */
   ListBase anims;
@@ -165,8 +158,6 @@ typedef struct Image {
   int lastframe;
 
   /* GPU texture flag. */
-  /* Contains `ImagePartialRefresh`. */
-  ListBase gpu_refresh_areas;
   int gpuframenr;
   short gpuflag;
   short gpu_pass;
@@ -182,10 +173,10 @@ typedef struct Image {
   int lastused;
 
   /* for generated images */
-  int gen_x, gen_y;
-  char gen_type, gen_flag;
-  short gen_depth;
-  float gen_color[4];
+  int gen_x DNA_DEPRECATED, gen_y DNA_DEPRECATED;
+  char gen_type DNA_DEPRECATED, gen_flag DNA_DEPRECATED;
+  short gen_depth DNA_DEPRECATED;
+  float gen_color[4] DNA_DEPRECATED;
 
   /* display aspect - for UV editing images resized for faster openGL display */
   float aspx, aspy;
@@ -208,11 +199,13 @@ typedef struct Image {
   /** ImageView. */
   ListBase views;
   struct Stereo3dFormat *stereo3d_format;
+
+  Image_Runtime runtime;
 } Image;
 
 /* **************** IMAGE ********************* */
 
-/* Image.flag */
+/** #Image.flag */
 enum {
   IMA_HIGH_BITDEPTH = (1 << 0),
   IMA_FLAG_UNUSED_1 = (1 << 1), /* cleared */
@@ -235,19 +228,10 @@ enum {
   IMA_FLAG_UNUSED_16 = (1 << 16), /* cleared */
 };
 
-/* Image.gpuflag */
+/** #Image.gpuflag */
 enum {
-  /** GPU texture needs to be refreshed. */
-  IMA_GPU_REFRESH = (1 << 0),
-  /** GPU texture needs to be partially refreshed. */
-  IMA_GPU_PARTIAL_REFRESH = (1 << 1),
   /** All mipmap levels in OpenGL texture set? */
-  IMA_GPU_MIPMAP_COMPLETE = (1 << 2),
-  /* Reuse the max resolution textures as they fit in the limited scale. */
-  IMA_GPU_REUSE_MAX_RESOLUTION = (1 << 3),
-  /* Has any limited scale textures been allocated.
-   * Adds additional checks to reuse max resolution images when they fit inside limited scale. */
-  IMA_GPU_HAS_LIMITED_SCALE_TEXTURES = (1 << 4),
+  IMA_GPU_MIPMAP_COMPLETE = (1 << 0),
 };
 
 /* Image.source, where the image comes from */
@@ -272,7 +256,7 @@ typedef enum eImageType {
   IMA_TYPE_COMPOSITE = 5,
 } eImageType;
 
-/* Image.gen_type */
+/** #Image.gen_type */
 enum {
   IMA_GENTYPE_BLANK = 0,
   IMA_GENTYPE_GRID = 1,
@@ -282,12 +266,13 @@ enum {
 /* render */
 #define IMA_MAX_RENDER_TEXT (1 << 9)
 
-/* Image.gen_flag */
+/** #Image.gen_flag */
 enum {
-  IMA_GEN_FLOAT = 1,
+  IMA_GEN_FLOAT = (1 << 0),
+  IMA_GEN_TILE = (1 << 1),
 };
 
-/* Image.alpha_mode */
+/** #Image.alpha_mode */
 enum {
   IMA_ALPHA_STRAIGHT = 0,
   IMA_ALPHA_PREMUL = 1,

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2007 by Janne Karhu.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2007 by Janne Karhu. All rights reserved. */
 
 /** \file
  * \ingroup bke
@@ -44,6 +28,7 @@
 #include "BKE_global.h"
 #include "BKE_lib_id.h"
 #include "BKE_mesh.h"
+#include "BKE_mesh_legacy_convert.h"
 #include "BKE_object.h"
 #include "BKE_particle.h"
 
@@ -80,14 +65,14 @@ static void distribute_simple_children(Scene *scene,
 {
   ChildParticle *cpa = NULL;
   int i, p;
-  int child_nbr = psys_get_child_number(scene, psys, use_render_params);
-  int totpart = psys_get_tot_child(scene, psys, use_render_params);
+  const int child_num = psys_get_child_number(scene, psys, use_render_params);
+  const int totpart = psys_get_tot_child(scene, psys, use_render_params);
   RNG *rng = BLI_rng_new_srandom(31415926 + psys->seed + psys->child_seed);
 
   alloc_child_particles(psys, totpart);
 
   cpa = psys->child;
-  for (i = 0; i < child_nbr; i++) {
+  for (i = 0; i < child_num; i++) {
     for (p = 0; p < psys->totpart; p++, cpa++) {
       float length = 2.0;
       cpa->parent = p;
@@ -626,7 +611,8 @@ static void distribute_from_volume_exec(ParticleTask *thread, ParticleData *pa, 
   /* experimental */
   tot = mesh->totface;
 
-  psys_interpolate_face(mvert, mface, 0, 0, pa->fuv, co, nor, 0, 0, 0);
+  psys_interpolate_face(
+      mesh, mvert, BKE_mesh_vertex_normals_ensure(mesh), mface, 0, 0, pa->fuv, co, nor, 0, 0, 0);
 
   normalize_v3(nor);
   negate_v3(nor);
@@ -823,7 +809,7 @@ static void exec_distribute_child(TaskPool *__restrict UNUSED(pool), void *taskd
 
 static int distribute_compare_orig_index(const void *p1, const void *p2, void *user_data)
 {
-  int *orig_index = (int *)user_data;
+  const int *orig_index = (const int *)user_data;
   int index1 = orig_index[*(const int *)p1];
   int index2 = orig_index[*(const int *)p2];
 
@@ -957,6 +943,9 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
     }
   }
 
+  /* After this #BKE_mesh_orco_verts_transform can be used safely from multiple threads. */
+  BKE_mesh_texspace_ensure(final_mesh);
+
   /* Create trees and original coordinates if needed */
   if (from == PART_FROM_CHILD) {
     distr = PART_DISTR_RAND;
@@ -997,16 +986,11 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
     BKE_mesh_tessface_ensure(mesh);
 
     /* we need orco for consistent distributions */
-    if (!CustomData_has_layer(&mesh->vdata, CD_ORCO)) {
-      /* Orcos are stored in normalized 0..1 range by convention. */
-      float(*orcodata)[3] = BKE_mesh_orco_verts_get(ob);
-      BKE_mesh_orco_verts_transform(mesh, orcodata, mesh->totvert, false);
-      CustomData_add_layer(&mesh->vdata, CD_ORCO, CD_ASSIGN, orcodata, mesh->totvert);
-    }
+    BKE_mesh_orco_ensure(ob, mesh);
 
     if (from == PART_FROM_VERT) {
       MVert *mv = mesh->mvert;
-      float(*orcodata)[3] = CustomData_get_layer(&mesh->vdata, CD_ORCO);
+      const float(*orcodata)[3] = CustomData_get_layer(&mesh->vdata, CD_ORCO);
       int totvert = mesh->totvert;
 
       tree = BLI_kdtree_3d_new(totvert);
@@ -1054,7 +1038,7 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
   if ((part->flag & PART_EDISTR || children) && from != PART_FROM_VERT) {
     MVert *v1, *v2, *v3, *v4;
     float totarea = 0.0f, co1[3], co2[3], co3[3], co4[3];
-    float(*orcodata)[3];
+    const float(*orcodata)[3];
 
     orcodata = CustomData_get_layer(&mesh->vdata, CD_ORCO);
 
@@ -1233,10 +1217,10 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
   MEM_freeN(element_sum);
   MEM_freeN(element_map);
 
-  /* For hair, sort by origindex (allows optimization's in rendering), */
-  /* however with virtual parents the children need to be in random order. */
+  /* For hair, sort by #CD_ORIGINDEX (allows optimization's in rendering),
+   * however with virtual parents the children need to be in random order. */
   if (part->type == PART_HAIR && !(part->childtype == PART_CHILD_FACES && part->parents != 0.0f)) {
-    int *orig_index = NULL;
+    const int *orig_index = NULL;
 
     if (from == PART_FROM_VERT) {
       if (mesh->totvert) {
@@ -1250,8 +1234,11 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
     }
 
     if (orig_index) {
-      BLI_qsort_r(
-          particle_element, totpart, sizeof(int), distribute_compare_orig_index, orig_index);
+      BLI_qsort_r(particle_element,
+                  totpart,
+                  sizeof(int),
+                  distribute_compare_orig_index,
+                  (void *)orig_index);
     }
   }
 
@@ -1330,7 +1317,7 @@ static void distribute_particles_on_dm(ParticleSimulationData *sim, int from)
     return;
   }
 
-  task_pool = BLI_task_pool_create(&ctx, TASK_PRIORITY_LOW);
+  task_pool = BLI_task_pool_create(&ctx, TASK_PRIORITY_HIGH);
 
   totpart = (from == PART_FROM_CHILD ? sim->psys->totchild : sim->psys->totpart);
   psys_tasks_create(&ctx, 0, totpart, &tasks, &numtasks);

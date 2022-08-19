@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2021 NVIDIA Corporation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2021 NVIDIA Corporation. All rights reserved. */
 
 #include "usd_reader_material.h"
 
@@ -23,9 +7,13 @@
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_node.h"
+#include "BKE_node_tree_update.h"
 
+#include "BLI_fileops.h"
 #include "BLI_math_vector.h"
+#include "BLI_path_util.h"
 #include "BLI_string.h"
+#include "BLI_vector.hh"
 
 #include "DNA_material_types.h"
 
@@ -107,6 +95,60 @@ static void link_nodes(
   }
 
   nodeAddLink(ntree, source, source_socket, dest, dest_socket);
+}
+
+/* Returns a layer handle retrieved from the given attribute's property specs.
+ * Note that the returned handle may be invalid if no layer could be found. */
+static pxr::SdfLayerHandle get_layer_handle(const pxr::UsdAttribute &attribute)
+{
+  for (auto PropertySpec : attribute.GetPropertyStack(pxr::UsdTimeCode::EarliestTime())) {
+    if (PropertySpec->HasDefaultValue() ||
+        PropertySpec->GetLayer()->GetNumTimeSamplesForPath(PropertySpec->GetPath()) > 0) {
+      return PropertySpec->GetLayer();
+    }
+  }
+
+  return pxr::SdfLayerHandle();
+}
+
+static bool is_udim_path(const std::string &path)
+{
+  return path.find("<UDIM>") != std::string::npos;
+}
+
+/* For the given UDIM path (assumed to contain the UDIM token), returns an array
+ * containing valid tile indices. */
+static blender::Vector<int> get_udim_tiles(const std::string &file_path)
+{
+  char base_udim_path[FILE_MAX];
+  BLI_strncpy(base_udim_path, file_path.c_str(), sizeof(base_udim_path));
+
+  blender::Vector<int> udim_tiles;
+
+  /* Extract the tile numbers from all files on disk. */
+  ListBase tiles = {nullptr, nullptr};
+  int tile_start, tile_range;
+  bool result = BKE_image_get_tile_info(base_udim_path, &tiles, &tile_start, &tile_range);
+  if (result) {
+    LISTBASE_FOREACH (LinkData *, tile, &tiles) {
+      int tile_number = POINTER_AS_INT(tile->data);
+      udim_tiles.append(tile_number);
+    }
+  }
+
+  BLI_freelistN(&tiles);
+
+  return udim_tiles;
+}
+
+/* Add tiles with the given indices to the given image. */
+static void add_udim_tiles(Image *image, const blender::Vector<int> &indices)
+{
+  image->source = IMA_SRC_TILED;
+
+  for (int tile_number : indices) {
+    BKE_image_add_tile(image, tile_number, nullptr);
+  }
 }
 
 /* Returns true if the given shader may have opacity < 1.0, based
@@ -298,7 +340,6 @@ Material *USDMaterialReader::add_material(const pxr::UsdShadeMaterial &usd_mater
   return mtl;
 }
 
-/* Create the Principled BSDF shader node network. */
 void USDMaterialReader::import_usd_preview(Material *mtl,
                                            const pxr::UsdShadeShader &usd_shader) const
 {
@@ -340,7 +381,7 @@ void USDMaterialReader::import_usd_preview(Material *mtl,
 
   nodeSetActive(ntree, output);
 
-  ntreeUpdateTree(bmain_, ntree);
+  BKE_ntree_update_main_tree(bmain_, ntree, nullptr);
 
   /* Optionally, set the material blend mode. */
 
@@ -416,7 +457,6 @@ void USDMaterialReader::set_principled_node_inputs(bNode *principled,
   }
 }
 
-/* Convert the given USD shader input to an input on the given Blender node. */
 void USDMaterialReader::set_node_input(const pxr::UsdShadeInput &usd_input,
                                        bNode *dest_node,
                                        const char *dest_socket_name,
@@ -484,8 +524,6 @@ void USDMaterialReader::set_node_input(const pxr::UsdShadeInput &usd_input,
   }
 }
 
-/* Follow the connected source of the USD input to create corresponding inputs
- * for the given Blender node. */
 void USDMaterialReader::follow_connection(const pxr::UsdShadeInput &usd_input,
                                           bNode *dest_node,
                                           const char *dest_socket_name,
@@ -594,8 +632,6 @@ void USDMaterialReader::convert_usd_uv_texture(const pxr::UsdShadeShader &usd_sh
   }
 }
 
-/* Load the texture image node's texture from the path given by the USD shader's
- * file input value. */
 void USDMaterialReader::load_tex_image(const pxr::UsdShadeShader &usd_shader,
                                        bNode *tex_image) const
 {
@@ -622,9 +658,29 @@ void USDMaterialReader::load_tex_image(const pxr::UsdShadeShader &usd_shader,
   const pxr::SdfAssetPath &asset_path = file_val.Get<pxr::SdfAssetPath>();
   std::string file_path = asset_path.GetResolvedPath();
   if (file_path.empty()) {
+    /* No resolved path, so use the asset path (usually
+     * necessary for UDIM paths). */
+    file_path = asset_path.GetAssetPath();
+
+    /* Texture paths are frequently relative to the USD, so get
+     * the absolute path. */
+    if (pxr::SdfLayerHandle layer_handle = get_layer_handle(file_input.GetAttr())) {
+      file_path = layer_handle->ComputeAbsolutePath(file_path);
+    }
+  }
+
+  if (file_path.empty()) {
     std::cerr << "WARNING: Couldn't resolve image asset '" << asset_path
               << "' for Texture Image node." << std::endl;
     return;
+  }
+
+  /* If this is a UDIM texture, this will store the
+   * UDIM tile indices. */
+  blender::Vector<int> udim_tiles;
+
+  if (is_udim_path(file_path)) {
+    udim_tiles = get_udim_tiles(file_path);
   }
 
   const char *im_file = file_path.c_str();
@@ -633,6 +689,10 @@ void USDMaterialReader::load_tex_image(const pxr::UsdShadeShader &usd_shader,
     std::cerr << "WARNING: Couldn't open image file '" << im_file << "' for Texture Image node."
               << std::endl;
     return;
+  }
+
+  if (udim_tiles.size() > 0) {
+    add_udim_tiles(image, udim_tiles);
   }
 
   tex_image->id = &image->id;
@@ -653,10 +713,6 @@ void USDMaterialReader::load_tex_image(const pxr::UsdShadeShader &usd_shader,
   }
 }
 
-/* This function creates a Blender UV Map node, under the simplifying assumption that
- * UsdPrimvarReader_float2 shaders output UV coordinates.
- * TODO(makowalski): investigate supporting conversion to other Blender node types
- * (e.g., Attribute Nodes) if needed. */
 void USDMaterialReader::convert_usd_primvar_reader_float2(
     const pxr::UsdShadeShader &usd_shader,
     const pxr::TfToken & /* usd_source_name */,

@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2018, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2018 Blender Foundation. */
 
 /** \file
  * \ingroup draw_engine
@@ -114,7 +99,7 @@ static void workbench_studiolight_data_update(WORKBENCH_PrivateData *wpd, WORKBE
     if (sl && sl->flag) {
       copy_v3_v3(light->light_direction, sl->vec);
       mul_mat3_m4_v3(rot_matrix, light->light_direction);
-      /* We should predivide the power by PI but that makes the lights really dim. */
+      /* We should pre-divide the power by PI but that makes the lights really dim. */
       copy_v3_v3(light->specular_color, sl->spec);
       copy_v3_v3(light->diffuse_color, sl->col);
       light->wrapped = sl->smooth;
@@ -178,7 +163,6 @@ void workbench_private_data_init(WORKBENCH_PrivateData *wpd)
   wpd->taa_sample_len = workbench_antialiasing_sample_count_get(wpd);
 
   wpd->volumes_do = false;
-  BLI_listbase_clear(&wpd->smoke_domains);
 
   /* FIXME: This reproduce old behavior when workbench was separated in 2 engines.
    * But this is a workaround for a missing update tagging. */
@@ -290,7 +274,7 @@ void workbench_update_world_ubo(WORKBENCH_PrivateData *wpd)
   copy_v2_v2(wd.viewport_size_inv, DRW_viewport_invert_size_get());
   copy_v3_v3(wd.object_outline_color, wpd->shading.object_outline_color);
   wd.object_outline_color[3] = 1.0f;
-  wd.ui_scale = G_draw.block.sizePixel;
+  wd.ui_scale = DRW_state_is_image_render() ? 1.0f : G_draw.block.size_pixel;
   wd.matcap_orientation = (wpd->shading.flag & V3D_SHADING_MATCAP_FLIP_X) != 0;
 
   workbench_studiolight_data_update(wpd, &wd);

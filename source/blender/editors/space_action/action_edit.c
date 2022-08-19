@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup spaction
@@ -174,8 +158,7 @@ static bool get_keyframe_extents(bAnimContext *ac, float *min, float *max, const
   /* get data to filter, from Action or Dopesheet */
   /* XXX: what is sel doing here?!
    *      Commented it, was breaking things (eg. the "auto preview range" tool). */
-  filter = (ANIMFILTER_DATA_VISIBLE |
-            ANIMFILTER_LIST_VISIBLE /*| ANIMFILTER_SEL */ /*| ANIMFILTER_CURVESONLY*/ |
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE /*| ANIMFILTER_SEL */ |
             ANIMFILTER_NODUPLIS);
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 
@@ -194,10 +177,12 @@ static bool get_keyframe_extents(bAnimContext *ac, float *min, float *max, const
 
         /* Find gp-frame which is less than or equal to current-frame. */
         for (gpf = gpl->frames.first; gpf; gpf = gpf->next) {
-          const float framenum = (float)gpf->framenum;
-          *min = min_ff(*min, framenum);
-          *max = max_ff(*max, framenum);
-          found = true;
+          if (!onlySel || (gpf->flag & GP_FRAME_SELECT)) {
+            const float framenum = (float)gpf->framenum;
+            *min = min_ff(*min, framenum);
+            *max = max_ff(*max, framenum);
+            found = true;
+          }
         }
       }
       else if (ale->datatype == ALE_MASKLAY) {
@@ -514,7 +499,7 @@ static short copy_action_keys(bAnimContext *ac)
   ANIM_fcurves_copybuf_free();
 
   /* filter data */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE /*| ANIMFILTER_CURVESONLY*/ |
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FCURVESONLY |
             ANIMFILTER_NODUPLIS);
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 
@@ -527,13 +512,13 @@ static short copy_action_keys(bAnimContext *ac)
   return ok;
 }
 
-static short paste_action_keys(bAnimContext *ac,
-                               const eKeyPasteOffset offset_mode,
-                               const eKeyMergeMode merge_mode,
-                               bool flip)
+static eKeyPasteError paste_action_keys(bAnimContext *ac,
+                                        const eKeyPasteOffset offset_mode,
+                                        const eKeyMergeMode merge_mode,
+                                        bool flip)
 {
   ListBase anim_data = {NULL, NULL};
-  int filter, ok = 0;
+  int filter;
 
   /* filter data
    * - First time we try to filter more strictly, allowing only selected channels
@@ -541,15 +526,15 @@ static short paste_action_keys(bAnimContext *ac,
    * - Second time, we loosen things up if nothing was found the first time, allowing
    *   users to just paste keyframes back into the original curve again T31670.
    */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
-            ANIMFILTER_FOREDIT /*| ANIMFILTER_CURVESONLY*/ | ANIMFILTER_NODUPLIS);
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT |
+            ANIMFILTER_FCURVESONLY | ANIMFILTER_NODUPLIS);
 
   if (ANIM_animdata_filter(ac, &anim_data, filter | ANIMFILTER_SEL, ac->data, ac->datatype) == 0) {
     ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
   }
 
   /* paste keyframes */
-  ok = paste_animedit_keys(ac, &anim_data, offset_mode, merge_mode, flip);
+  const eKeyPasteError ok = paste_animedit_keys(ac, &anim_data, offset_mode, merge_mode, flip);
 
   /* clean up */
   ANIM_animdata_freelist(&anim_data);
@@ -571,7 +556,8 @@ static int actkeys_copy_exec(bContext *C, wmOperator *op)
   /* copy keyframes */
   if (ac.datatype == ANIMCONT_GPENCIL) {
     if (ED_gpencil_anim_copybuf_copy(&ac) == false) {
-      /* Nothing got copied - An error about this should be been logged already */
+      /* check if anything ended up in the buffer */
+      BKE_report(op->reports, RPT_ERROR, "No keyframes copied to keyframes copy/paste buffer");
       return OPERATOR_CANCELLED;
     }
   }
@@ -581,7 +567,11 @@ static int actkeys_copy_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   else {
-    if (copy_action_keys(&ac)) {
+    /* Both copy function needs to be evaluated to account for mixed selection */
+    const short kf_empty = copy_action_keys(&ac);
+    const bool gpf_ok = ED_gpencil_anim_copybuf_copy(&ac);
+
+    if (kf_empty && !gpf_ok) {
       BKE_report(op->reports, RPT_ERROR, "No keyframes copied to keyframes copy/paste buffer");
       return OPERATOR_CANCELLED;
     }
@@ -613,6 +603,8 @@ static int actkeys_paste_exec(bContext *C, wmOperator *op)
   const eKeyMergeMode merge_mode = RNA_enum_get(op->ptr, "merge");
   const bool flipped = RNA_boolean_get(op->ptr, "flipped");
 
+  bool gpframes_inbuf = false;
+
   /* get editor data */
   if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
@@ -624,7 +616,7 @@ static int actkeys_paste_exec(bContext *C, wmOperator *op)
   /* paste keyframes */
   if (ac.datatype == ANIMCONT_GPENCIL) {
     if (ED_gpencil_anim_copybuf_paste(&ac, offset_mode) == false) {
-      /* An error occurred - Reports should have been fired already */
+      BKE_report(op->reports, RPT_ERROR, "No data in buffer to paste");
       return OPERATOR_CANCELLED;
     }
   }
@@ -636,12 +628,33 @@ static int actkeys_paste_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   else {
+    /* Both paste function needs to be evaluated to account for mixed selection */
+    const eKeyPasteError kf_empty = paste_action_keys(&ac, offset_mode, merge_mode, flipped);
     /* non-zero return means an error occurred while trying to paste */
-    if (paste_action_keys(&ac, offset_mode, merge_mode, flipped)) {
-      return OPERATOR_CANCELLED;
+    gpframes_inbuf = ED_gpencil_anim_copybuf_paste(&ac, offset_mode);
+
+    /* Only report an error if nothing was pasted, i.e. when both FCurve and GPencil failed. */
+    if (!gpframes_inbuf) {
+      switch (kf_empty) {
+        case KEYFRAME_PASTE_OK:
+          /* FCurve paste was ok, so it's all good. */
+          break;
+
+        case KEYFRAME_PASTE_NOWHERE_TO_PASTE:
+          BKE_report(op->reports, RPT_ERROR, "No selected F-Curves to paste into");
+          return OPERATOR_CANCELLED;
+
+        case KEYFRAME_PASTE_NOTHING_TO_PASTE:
+          BKE_report(op->reports, RPT_ERROR, "No data in buffer to paste");
+          return OPERATOR_CANCELLED;
+      }
     }
   }
 
+  /* Grease Pencil needs extra update to refresh the added keyframes. */
+  if (ac.datatype == ANIMCONT_GPENCIL || gpframes_inbuf) {
+    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA, NULL);
+  }
   /* set notifier that keyframes have changed */
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
 
@@ -654,7 +667,7 @@ static char *actkeys_paste_description(bContext *UNUSED(C),
 {
   /* Custom description if the 'flipped' option is used. */
   if (RNA_boolean_get(ptr, "flipped")) {
-    return BLI_strdup("Paste keyframes from mirrored bones if they exist");
+    return BLI_strdup(TIP_("Paste keyframes from mirrored bones if they exist"));
   }
 
   /* Use the default description in the other cases. */
@@ -709,6 +722,72 @@ static const EnumPropertyItem prop_actkeys_insertkey_types[] = {
     {0, NULL, 0, NULL, NULL},
 };
 
+static void insert_gpencil_key(bAnimContext *ac,
+                               bAnimListElem *ale,
+                               const eGP_GetFrame_Mode add_frame_mode,
+                               bGPdata **gpd_old)
+{
+  Scene *scene = ac->scene;
+  bGPdata *gpd = (bGPdata *)ale->id;
+  bGPDlayer *gpl = (bGPDlayer *)ale->data;
+  BKE_gpencil_layer_frame_get(gpl, scene->r.cfra, add_frame_mode);
+  /* Check if the gpd changes to tag only once. */
+  if (gpd != *gpd_old) {
+    BKE_gpencil_tag(gpd);
+    *gpd_old = gpd;
+  }
+}
+
+static void insert_fcurve_key(bAnimContext *ac,
+                              bAnimListElem *ale,
+                              const AnimationEvalContext anim_eval_context,
+                              eInsertKeyFlags flag,
+                              ListBase *nla_cache)
+{
+  FCurve *fcu = (FCurve *)ale->key_data;
+
+  ReportList *reports = ac->reports;
+  Scene *scene = ac->scene;
+  ToolSettings *ts = scene->toolsettings;
+
+  /* Read value from property the F-Curve represents, or from the curve only?
+   * - ale->id != NULL:
+   *   Typically, this means that we have enough info to try resolving the path.
+   *
+   * - ale->owner != NULL:
+   *   If this is set, then the path may not be resolvable from the ID alone,
+   *   so it's easier for now to just read the F-Curve directly.
+   *   (TODO: add the full-blown PointerRNA relative parsing case here...)
+   */
+  if (ale->id && !ale->owner) {
+    insert_keyframe(ac->bmain,
+                    reports,
+                    ale->id,
+                    NULL,
+                    ((fcu->grp) ? (fcu->grp->name) : (NULL)),
+                    fcu->rna_path,
+                    fcu->array_index,
+                    &anim_eval_context,
+                    ts->keyframe_type,
+                    nla_cache,
+                    flag);
+  }
+  else {
+    AnimData *adt = ANIM_nla_mapping_get(ac, ale);
+
+    /* adjust current frame for NLA-scaling */
+    float cfra = anim_eval_context.eval_time;
+    if (adt) {
+      cfra = BKE_nla_tweakedit_remap(adt, cfra, NLATIME_CONVERT_UNMAP);
+    }
+
+    const float curval = evaluate_fcurve(fcu, cfra);
+    insert_vert_fcurve(fcu, cfra, curval, ts->keyframe_type, 0);
+  }
+
+  ale->update |= ANIM_UPDATE_DEFAULT;
+}
+
 /* this function is responsible for inserting new keyframes */
 static void insert_action_keys(bAnimContext *ac, short mode)
 {
@@ -717,14 +796,16 @@ static void insert_action_keys(bAnimContext *ac, short mode)
   bAnimListElem *ale;
   int filter;
 
-  ReportList *reports = ac->reports;
   Scene *scene = ac->scene;
   ToolSettings *ts = scene->toolsettings;
   eInsertKeyFlags flag;
 
+  eGP_GetFrame_Mode add_frame_mode;
+  bGPdata *gpd_old = NULL;
+
   /* filter data */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
-            ANIMFILTER_FOREDIT /*| ANIMFILTER_CURVESONLY*/ | ANIMFILTER_NODUPLIS);
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT |
+            ANIMFILTER_NODUPLIS);
   if (mode == 2) {
     filter |= ANIMFILTER_SEL;
   }
@@ -737,96 +818,33 @@ static void insert_action_keys(bAnimContext *ac, short mode)
   /* Init keyframing flag. */
   flag = ANIM_get_keyframing_flags(scene, true);
 
-  /* insert keyframes */
-  const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(ac->depsgraph,
-                                                                                    (float)CFRA);
-  for (ale = anim_data.first; ale; ale = ale->next) {
-    FCurve *fcu = (FCurve *)ale->key_data;
-
-    /* Read value from property the F-Curve represents, or from the curve only?
-     * - ale->id != NULL:
-     *   Typically, this means that we have enough info to try resolving the path.
-     *
-     * - ale->owner != NULL:
-     *   If this is set, then the path may not be resolvable from the ID alone,
-     *   so it's easier for now to just read the F-Curve directly.
-     *   (TODO: add the full-blown PointerRNA relative parsing case here...)
-     */
-    if (ale->id && !ale->owner) {
-      insert_keyframe(ac->bmain,
-                      reports,
-                      ale->id,
-                      NULL,
-                      ((fcu->grp) ? (fcu->grp->name) : (NULL)),
-                      fcu->rna_path,
-                      fcu->array_index,
-                      &anim_eval_context,
-                      ts->keyframe_type,
-                      &nla_cache,
-                      flag);
-    }
-    else {
-      AnimData *adt = ANIM_nla_mapping_get(ac, ale);
-
-      /* adjust current frame for NLA-scaling */
-      float cfra = anim_eval_context.eval_time;
-      if (adt) {
-        cfra = BKE_nla_tweakedit_remap(adt, cfra, NLATIME_CONVERT_UNMAP);
-      }
-
-      const float curval = evaluate_fcurve(fcu, cfra);
-      insert_vert_fcurve(fcu, cfra, curval, ts->keyframe_type, 0);
-    }
-
-    ale->update |= ANIM_UPDATE_DEFAULT;
-  }
-
-  BKE_animsys_free_nla_keyframing_context_cache(&nla_cache);
-
-  ANIM_animdata_update(ac, &anim_data);
-  ANIM_animdata_freelist(&anim_data);
-}
-
-/* this function is for inserting new grease pencil frames */
-static void insert_gpencil_keys(bAnimContext *ac, short mode)
-{
-  ListBase anim_data = {NULL, NULL};
-  bAnimListElem *ale;
-  int filter;
-
-  Scene *scene = ac->scene;
-  ToolSettings *ts = scene->toolsettings;
-  eGP_GetFrame_Mode add_frame_mode;
-
-  /* filter data */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT |
-            ANIMFILTER_NODUPLIS);
-  if (mode == 2) {
-    filter |= ANIMFILTER_SEL;
-  }
-
-  ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
-
-  /* add a copy or a blank frame? */
+  /* GPLayers specific flags */
   if (ts->gpencil_flags & GP_TOOL_FLAG_RETAIN_LAST) {
-    add_frame_mode = GP_GETFRAME_ADD_COPY; /* XXX: actframe may not be what we want? */
+    add_frame_mode = GP_GETFRAME_ADD_COPY;
   }
   else {
     add_frame_mode = GP_GETFRAME_ADD_NEW;
   }
 
-  /* Insert gp frames. */
-  bGPdata *gpd_old = NULL;
+  /* insert keyframes */
+  const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
+      ac->depsgraph, (float)scene->r.cfra);
   for (ale = anim_data.first; ale; ale = ale->next) {
-    bGPdata *gpd = (bGPdata *)ale->id;
-    bGPDlayer *gpl = (bGPDlayer *)ale->data;
-    BKE_gpencil_layer_frame_get(gpl, CFRA, add_frame_mode);
-    /* Check if the gpd changes to tag only once. */
-    if (gpd != gpd_old) {
-      BKE_gpencil_tag(gpd);
-      gpd_old = gpd;
+    switch (ale->type) {
+      case ANIMTYPE_GPLAYER:
+        insert_gpencil_key(ac, ale, add_frame_mode, &gpd_old);
+        break;
+
+      case ANIMTYPE_FCURVE:
+        insert_fcurve_key(ac, ale, anim_eval_context, flag, &nla_cache);
+        break;
+
+      default:
+        BLI_assert_msg(false, "Keys cannot be inserted into this animation type.");
     }
   }
+
+  BKE_animsys_free_nla_keyframing_context_cache(&nla_cache);
 
   ANIM_animdata_update(ac, &anim_data);
   ANIM_animdata_freelist(&anim_data);
@@ -853,12 +871,7 @@ static int actkeys_insertkey_exec(bContext *C, wmOperator *op)
   mode = RNA_enum_get(op->ptr, "type");
 
   /* insert keyframes */
-  if (ac.datatype == ANIMCONT_GPENCIL) {
-    insert_gpencil_keys(&ac, mode);
-  }
-  else {
-    insert_action_keys(&ac, mode);
-  }
+  insert_action_keys(&ac, mode);
 
   /* set notifier that keyframes have changed */
   if (ac.datatype == ANIMCONT_GPENCIL) {
@@ -890,30 +903,26 @@ void ACTION_OT_keyframe_insert(wmOperatorType *ot)
 
 /* ******************** Duplicate Keyframes Operator ************************* */
 
-static void duplicate_action_keys(bAnimContext *ac)
+static bool duplicate_action_keys(bAnimContext *ac)
 {
   ListBase anim_data = {NULL, NULL};
   bAnimListElem *ale;
   int filter;
+  bool changed = false;
 
   /* filter data */
-  if (ELEM(ac->datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK)) {
-    filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT |
-              ANIMFILTER_NODUPLIS);
-  }
-  else {
-    filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
-              ANIMFILTER_FOREDIT /*| ANIMFILTER_CURVESONLY*/ | ANIMFILTER_NODUPLIS);
-  }
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT |
+            ANIMFILTER_NODUPLIS);
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 
   /* loop through filtered data and delete selected keys */
   for (ale = anim_data.first; ale; ale = ale->next) {
     if (ELEM(ale->type, ANIMTYPE_FCURVE, ANIMTYPE_NLACURVE)) {
-      duplicate_fcurve_keys((FCurve *)ale->key_data);
+      changed |= duplicate_fcurve_keys((FCurve *)ale->key_data);
     }
     else if (ale->type == ANIMTYPE_GPLAYER) {
       ED_gpencil_layer_frames_duplicate((bGPDlayer *)ale->data);
+      changed |= ED_gpencil_layer_frame_select_check((bGPDlayer *)ale->data);
     }
     else if (ale->type == ANIMTYPE_MASKLAYER) {
       ED_masklayer_frames_duplicate((MaskLayer *)ale->data);
@@ -927,6 +936,8 @@ static void duplicate_action_keys(bAnimContext *ac)
 
   ANIM_animdata_update(ac, &anim_data);
   ANIM_animdata_freelist(&anim_data);
+
+  return changed;
 }
 
 /* ------------------- */
@@ -941,7 +952,9 @@ static int actkeys_duplicate_exec(bContext *C, wmOperator *UNUSED(op))
   }
 
   /* duplicate keyframes */
-  duplicate_action_keys(&ac);
+  if (!duplicate_action_keys(&ac)) {
+    return OPERATOR_CANCELLED;
+  }
 
   /* set notifier that keyframes have changed */
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, NULL);
@@ -974,14 +987,8 @@ static bool delete_action_keys(bAnimContext *ac)
   bool changed_final = false;
 
   /* filter data */
-  if (ELEM(ac->datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK)) {
-    filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT |
-              ANIMFILTER_NODUPLIS);
-  }
-  else {
-    filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
-              ANIMFILTER_FOREDIT /*| ANIMFILTER_CURVESONLY*/ | ANIMFILTER_NODUPLIS);
-  }
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT |
+            ANIMFILTER_NODUPLIS);
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 
   /* loop through filtered data and delete selected keys */
@@ -999,7 +1006,7 @@ static bool delete_action_keys(bAnimContext *ac)
       AnimData *adt = ale->adt;
 
       /* delete selected keyframes only */
-      changed = delete_fcurve_keys(fcu);
+      changed = BKE_fcurve_delete_keys_selected(fcu);
 
       /* Only delete curve too if it won't be doing anything anymore */
       if (BKE_fcurve_is_empty(fcu)) {
@@ -1069,7 +1076,7 @@ static void clean_action_keys(bAnimContext *ac, float thresh, bool clean_chan)
 
   /* filter data */
   filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT |
-            ANIMFILTER_SEL /*| ANIMFILTER_CURVESONLY*/ | ANIMFILTER_NODUPLIS);
+            ANIMFILTER_SEL | ANIMFILTER_FCURVESONLY | ANIMFILTER_NODUPLIS);
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 
   /* loop through filtered data and clean curves */
@@ -1145,8 +1152,8 @@ static void sample_action_keys(bAnimContext *ac)
   int filter;
 
   /* filter data */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
-            ANIMFILTER_FOREDIT /*| ANIMFILTER_CURVESONLY*/ | ANIMFILTER_NODUPLIS);
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT |
+            ANIMFILTER_FCURVESONLY | ANIMFILTER_NODUPLIS);
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 
   /* Loop through filtered data and add keys between selected keyframes on every frame. */
@@ -1244,7 +1251,7 @@ static void setexpo_action_keys(bAnimContext *ac, short mode)
 
   /* filter data */
   filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT |
-            ANIMFILTER_SEL /*| ANIMFILTER_CURVESONLY*/ | ANIMFILTER_NODUPLIS);
+            ANIMFILTER_SEL | ANIMFILTER_FCURVESONLY | ANIMFILTER_NODUPLIS);
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 
   /* loop through setting mode per F-Curve */
@@ -1358,7 +1365,8 @@ static int actkeys_ipo_exec(bContext *C, wmOperator *op)
   /* set handle type */
   ANIM_animdata_keyframe_callback(&ac,
                                   (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_CURVE_VISIBLE |
-                                   ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS),
+                                   ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS |
+                                   ANIMFILTER_FCURVESONLY),
                                   ANIM_editkeyframes_ipo(mode));
 
   /* set notifier that keyframe properties have changed */
@@ -1386,6 +1394,7 @@ void ACTION_OT_interpolation_type(wmOperatorType *ot)
   /* id-props */
   ot->prop = RNA_def_enum(
       ot->srna, "type", rna_enum_beztriple_interpolation_mode_items, 0, "Type", "");
+  RNA_def_property_translation_context(ot->prop, BLT_I18NCONTEXT_ID_ACTION);
 }
 
 /* ******************** Set Easing Operator *********************** */
@@ -1406,7 +1415,8 @@ static int actkeys_easing_exec(bContext *C, wmOperator *op)
   /* set handle type */
   ANIM_animdata_keyframe_callback(&ac,
                                   (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_CURVE_VISIBLE |
-                                   ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS),
+                                   ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS |
+                                   ANIMFILTER_FCURVESONLY),
                                   ANIM_editkeyframes_easing(mode));
 
   /* set notifier that keyframe properties have changed */
@@ -1449,8 +1459,8 @@ static void sethandles_action_keys(bAnimContext *ac, short mode)
   KeyframeEditFunc sel_cb = ANIM_editkeyframes_ok(BEZT_OK_SELECTED);
 
   /* filter data */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
-            ANIMFILTER_FOREDIT /*| ANIMFILTER_CURVESONLY*/ | ANIMFILTER_NODUPLIS);
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT |
+            ANIMFILTER_FCURVESONLY | ANIMFILTER_NODUPLIS);
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 
   /* Loop through setting flags for handles
@@ -1463,7 +1473,7 @@ static void sethandles_action_keys(bAnimContext *ac, short mode)
     /* any selected keyframes for editing? */
     if (ANIM_fcurve_keyframes_loop(NULL, fcu, NULL, sel_cb, NULL)) {
       /* change type of selected handles */
-      ANIM_fcurve_keyframes_loop(NULL, fcu, NULL, edit_cb, calchandles_fcurve);
+      ANIM_fcurve_keyframes_loop(NULL, fcu, NULL, edit_cb, BKE_fcurve_handles_recalc);
 
       ale->update |= ANIM_UPDATE_DEFAULT;
     }
@@ -1532,8 +1542,8 @@ static void setkeytype_action_keys(bAnimContext *ac, short mode)
   KeyframeEditFunc set_cb = ANIM_editkeyframes_keytype(mode);
 
   /* filter data */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
-            ANIMFILTER_FOREDIT /*| ANIMFILTER_CURVESONLY*/ | ANIMFILTER_NODUPLIS);
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT |
+            ANIMFILTER_NODUPLIS);
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 
   /* Loop through setting BezTriple interpolation
@@ -1541,32 +1551,19 @@ static void setkeytype_action_keys(bAnimContext *ac, short mode)
    * Currently that's not necessary here.
    */
   for (ale = anim_data.first; ale; ale = ale->next) {
-    ANIM_fcurve_keyframes_loop(NULL, ale->key_data, NULL, set_cb, NULL);
+    switch (ale->type) {
+      case ANIMTYPE_GPLAYER:
+        ED_gpencil_layer_frames_keytype_set(ale->data, mode);
+        ale->update |= ANIM_UPDATE_DEPS;
+        break;
 
-    ale->update |= ANIM_UPDATE_DEPS | ANIM_UPDATE_HANDLES;
-  }
+      case ANIMTYPE_FCURVE:
+        ANIM_fcurve_keyframes_loop(NULL, ale->key_data, NULL, set_cb, NULL);
+        ale->update |= ANIM_UPDATE_DEPS | ANIM_UPDATE_HANDLES;
+        break;
 
-  ANIM_animdata_update(ac, &anim_data);
-  ANIM_animdata_freelist(&anim_data);
-}
-
-/* this function is responsible for setting the keyframe type for Grease Pencil frames */
-static void setkeytype_gpencil_keys(bAnimContext *ac, short mode)
-{
-  ListBase anim_data = {NULL, NULL};
-  bAnimListElem *ale;
-  int filter;
-
-  /* filter data */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT |
-            ANIMFILTER_NODUPLIS);
-  ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
-
-  /* loop through each layer */
-  for (ale = anim_data.first; ale; ale = ale->next) {
-    if (ale->type == ANIMTYPE_GPLAYER) {
-      ED_gpencil_layer_frames_keytype_set(ale->data, mode);
-      ale->update |= ANIM_UPDATE_DEPS;
+      default:
+        BLI_assert_msg(false, "Keytype cannot be set into this animation type.");
     }
   }
 
@@ -1595,12 +1592,7 @@ static int actkeys_keytype_exec(bContext *C, wmOperator *op)
   mode = RNA_enum_get(op->ptr, "type");
 
   /* set handle type */
-  if (ac.datatype == ANIMCONT_GPENCIL) {
-    setkeytype_gpencil_keys(&ac, mode);
-  }
-  else {
-    setkeytype_action_keys(&ac, mode);
-  }
+  setkeytype_action_keys(&ac, mode);
 
   /* set notifier that keyframe properties have changed */
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, NULL);
@@ -1658,19 +1650,44 @@ static int actkeys_framejump_exec(bContext *C, wmOperator *UNUSED(op))
 
   /* init edit data */
   /* loop over action data, averaging values */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE /*| ANIMFILTER_CURVESONLY */ |
-            ANIMFILTER_NODUPLIS);
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_NODUPLIS);
   ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 
   for (ale = anim_data.first; ale; ale = ale->next) {
-    AnimData *adt = ANIM_nla_mapping_get(&ac, ale);
-    if (adt) {
-      ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 0, 1);
-      ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, bezt_calc_average, NULL);
-      ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 1, 1);
-    }
-    else {
-      ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, bezt_calc_average, NULL);
+    switch (ale->datatype) {
+      case ALE_GPFRAME: {
+        bGPDlayer *gpl = ale->data;
+        bGPDframe *gpf;
+
+        for (gpf = gpl->frames.first; gpf; gpf = gpf->next) {
+          /* only if selected */
+          if (!(gpf->flag & GP_FRAME_SELECT)) {
+            continue;
+          }
+          /* store average time in float 1 (only do rounding at last step) */
+          ked.f1 += gpf->framenum;
+
+          /* increment number of items */
+          ked.i1++;
+        }
+        break;
+      }
+
+      case ALE_FCURVE: {
+        AnimData *adt = ANIM_nla_mapping_get(&ac, ale);
+        if (adt) {
+          ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 0, 1);
+          ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, bezt_calc_average, NULL);
+          ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 1, 1);
+        }
+        else {
+          ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, bezt_calc_average, NULL);
+        }
+        break;
+      }
+
+      default:
+        BLI_assert_msg(false, "Cannot jump to keyframe into this animation type.");
     }
   }
 
@@ -1679,8 +1696,8 @@ static int actkeys_framejump_exec(bContext *C, wmOperator *UNUSED(op))
   /* set the new current frame value, based on the average time */
   if (ked.i1) {
     Scene *scene = ac.scene;
-    CFRA = round_fl_to_int(ked.f1 / ked.i1);
-    SUBFRA = 0.0f;
+    scene->r.cfra = round_fl_to_int(ked.f1 / ked.i1);
+    scene->r.subframe = 0.0f;
   }
 
   /* set notifier that things have changed */
@@ -1717,8 +1734,8 @@ static const EnumPropertyItem prop_actkeys_snap_types[] = {
      "NEAREST_FRAME",
      0,
      "Selection to Nearest Frame",
-     "Snap selected keyframes to the nearest (whole) frame (use to fix accidental subframe "
-     "offsets)"},
+     "Snap selected keyframes to the nearest (whole) frame "
+     "(use to fix accidental sub-frame offsets)"},
     {ACTKEYS_SNAP_NEAREST_SECOND,
      "NEAREST_SECOND",
      0,
@@ -1747,8 +1764,8 @@ static void snap_action_keys(bAnimContext *ac, short mode)
     filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT);
   }
   else {
-    filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
-              ANIMFILTER_FOREDIT /*| ANIMFILTER_CURVESONLY*/ | ANIMFILTER_NODUPLIS);
+    filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT |
+              ANIMFILTER_NODUPLIS);
   }
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 
@@ -1773,11 +1790,11 @@ static void snap_action_keys(bAnimContext *ac, short mode)
     }
     else if (adt) {
       ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 0, 0);
-      ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, edit_cb, calchandles_fcurve);
+      ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, edit_cb, BKE_fcurve_handles_recalc);
       ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 1, 0);
     }
     else {
-      ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, edit_cb, calchandles_fcurve);
+      ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, edit_cb, BKE_fcurve_handles_recalc);
     }
 
     ale->update |= ANIM_UPDATE_DEFAULT;
@@ -1881,14 +1898,8 @@ static void mirror_action_keys(bAnimContext *ac, short mode)
   }
 
   /* filter data */
-  if (ELEM(ac->datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK)) {
-    filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT |
-              ANIMFILTER_NODUPLIS);
-  }
-  else {
-    filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
-              ANIMFILTER_FOREDIT /*| ANIMFILTER_CURVESONLY*/ | ANIMFILTER_NODUPLIS);
-  }
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT |
+            ANIMFILTER_NODUPLIS);
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 
   /* mirror keyframes */
@@ -1903,11 +1914,11 @@ static void mirror_action_keys(bAnimContext *ac, short mode)
     }
     else if (adt) {
       ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 0, 0);
-      ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, edit_cb, calchandles_fcurve);
+      ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, edit_cb, BKE_fcurve_handles_recalc);
       ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 1, 0);
     }
     else {
-      ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, edit_cb, calchandles_fcurve);
+      ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, edit_cb, BKE_fcurve_handles_recalc);
     }
 
     ale->update |= ANIM_UPDATE_DEFAULT;

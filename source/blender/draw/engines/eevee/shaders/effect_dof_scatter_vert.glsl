@@ -25,7 +25,8 @@ flat out float spritesize;
 /* Load 4 Circle of confusion values. texel_co is centered around the 4 taps. */
 vec4 fetch_cocs(vec2 texel_co)
 {
-  /* TODO(fclem) The textureGather(sampler, co, comp) variant isn't here on some implementations.
+  /* TODO(@fclem): The `textureGather(sampler, co, comp)` variant isn't here on some
+   * implementations.
    */
 #if 0  // GPU_ARB_texture_gather
   vec2 uvs = texel_co / vec2(textureSize(cocBuffer, 0));
@@ -94,7 +95,7 @@ void main()
 
   weights = dof_layer_weight(cocs) * dof_sample_weight(cocs);
   /* Filter NaNs. */
-  weights = mix(weights, vec4(0.0), equal(cocs, vec4(0.0)));
+  weights = select(weights, vec4(0.0), equal(cocs, vec4(0.0)));
 
   color1 = colors[0] * weights[0];
   color2 = colors[1] * weights[1];
@@ -102,7 +103,7 @@ void main()
   color4 = colors[3] * weights[3];
 
   /* Extend to cover at least the unit circle */
-  const float extend = (cos(M_PI / 4.0) + 1.0) * 2.0;
+  const float extend = (cos(M_PI_4) + 1.0) * 2.0;
   /* Crappy diagram
    * ex 1
    *    | \

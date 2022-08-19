@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup blenloader
@@ -461,8 +445,6 @@ static void do_version_constraints_245(ListBase *lb)
   }
 }
 
-/* NOTE: this version patch is intended for versions < 2.52.2,
- * but was initially introduced in 2.27 already. */
 void blo_do_version_old_trackto_to_constraints(Object *ob)
 {
   /* create new trackto constraint from the relationship */
@@ -1093,11 +1075,10 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
     }
   }
 
-  /* ton: made this 230 instead of 229,
-   * to be sure (tuho files) and this is a reliable check anyway
+  /* NOTE(@ton): made this 230 instead of 229,
+   * to be sure (files from the `tuhopuu` branch) and this is a reliable check anyway
    * nevertheless, we might need to think over a fitness (initialize)
-   * check apart from the do_versions()
-   */
+   * check apart from the do_versions(). */
 
   if (bmain->versionfile <= 230) {
     bScreen *screen;
@@ -1273,7 +1254,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
       }
       cam = cam->id.next;
     }
-    /* Force oops draw if depgraph was set. */
+    /* Force oops draw if depsgraph was set. */
     /* Set time line var. */
 
     /* softbody init new vars */
@@ -1374,7 +1355,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
           bFollowPathConstraint *data = con->data;
           Object *obc = blo_do_versions_newlibadr(fd, lib, data->tar);
 
-          if (obc && obc->type == OB_CURVE) {
+          if (obc && obc->type == OB_CURVES_LEGACY) {
             Curve *cu = blo_do_versions_newlibadr(fd, lib, obc->data);
             if (cu) {
               cu->flag |= CU_PATH;
@@ -1487,7 +1468,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 
     for (me = bmain->meshes.first; me; me = me->id.next) {
       if (!me->medge) {
-        BKE_mesh_calc_edges_legacy(me, true); /* true = use mface->edcode */
+        BKE_mesh_calc_edges_legacy(me, true); /* true = use #MFace.edcode. */
       }
       else {
         BKE_mesh_strip_loose_faces(me);
@@ -1861,7 +1842,8 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
     if (bmain->subversionfile < 4) {
       for (sce = bmain->scenes.first; sce; sce = sce->id.next) {
         sce->r.bake_mode = 1; /* prevent to include render stuff here */
-        sce->r.bake_filter = 16;
+        sce->r.bake_margin = 16;
+        sce->r.bake_margin_type = R_BAKE_ADJACENT_FACES;
         sce->r.bake_flag = R_BAKE_CLEAR;
       }
     }
@@ -2082,8 +2064,8 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
     }
 
     for (part = bmain->particles.first; part; part = part->id.next) {
-      if (part->ren_child_nbr == 0) {
-        part->ren_child_nbr = part->child_nbr;
+      if (part->child_render_percent == 0) {
+        part->child_render_percent = part->child_percent;
       }
     }
 
@@ -2314,7 +2296,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
         psys->vgroup[PSYS_VG_VEL] = paf->vertgroup_v;
         psys->vgroup[PSYS_VG_LENGTH] = paf->vertgroup_v;
 
-        /* dupliobjects */
+        /* Dupli-objects. */
         if (ob->transflag & OB_DUPLIVERTS) {
           Object *dup = bmain->objects.first;
 

@@ -21,56 +21,16 @@
 #endif
 
 #include "internal/base/util.h"
-#include "internal/device/device_context_cuda.h"
-#include "internal/device/device_context_glsl_compute.h"
-#include "internal/device/device_context_glsl_transform_feedback.h"
-#include "internal/device/device_context_opencl.h"
-#include "internal/device/device_context_openmp.h"
 
-using blender::opensubdiv::CUDADeviceContext;
-using blender::opensubdiv::GLSLComputeDeviceContext;
-using blender::opensubdiv::GLSLTransformFeedbackDeviceContext;
-using blender::opensubdiv::OpenCLDeviceContext;
-using blender::opensubdiv::OpenMPDeviceContext;
-
-void openSubdiv_init(void)
-{
-  // Ensure all OpenGL strings are cached.
-  openSubdiv_getAvailableEvaluators();
-}
-
-void openSubdiv_cleanup(void)
+void openSubdiv_init()
 {
 }
 
-int openSubdiv_getAvailableEvaluators(void)
+void openSubdiv_cleanup()
 {
-  int flags = OPENSUBDIV_EVALUATOR_CPU;
-
-  if (OpenMPDeviceContext::isSupported()) {
-    flags |= OPENSUBDIV_EVALUATOR_OPENMP;
-  }
-
-  if (OpenCLDeviceContext::isSupported()) {
-    flags |= OPENSUBDIV_EVALUATOR_OPENCL;
-  }
-
-  if (CUDADeviceContext::isSupported()) {
-    flags |= OPENSUBDIV_EVALUATOR_CUDA;
-  }
-
-  if (GLSLTransformFeedbackDeviceContext::isSupported()) {
-    flags |= OPENSUBDIV_EVALUATOR_GLSL_TRANSFORM_FEEDBACK;
-  }
-
-  if (GLSLComputeDeviceContext::isSupported()) {
-    flags |= OPENSUBDIV_EVALUATOR_GLSL_COMPUTE;
-  }
-
-  return flags;
 }
 
-int openSubdiv_getVersionHex(void)
+int openSubdiv_getVersionHex()
 {
 #if defined(OPENSUBDIV_VERSION_NUMBER)
   return OPENSUBDIV_VERSION_NUMBER;

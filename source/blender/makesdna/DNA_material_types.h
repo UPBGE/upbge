@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup DNA
@@ -42,18 +26,37 @@ struct bNodeTree;
 
 /* WATCH IT: change type? also make changes in ipo.h */
 
+/* Game Engine Options (old Texface mode, transp and flag) */
+typedef struct GameSettings {
+  int flag;
+  int alpha_blend;
+  int face_orientation;
+  int _pad1;
+} GameSettings;
+
 typedef struct TexPaintSlot {
-  /** Image to be painted on. */
+  DNA_DEFINE_CXX_METHODS(TexPaintSlot)
+
+  /** Image to be painted on. Mutual exclusive with attribute_name. */
   struct Image *ima;
+  struct ImageUser *image_user;
+
   /** Custom-data index for uv layer, #MAX_NAME. */
   char *uvname;
-  /** Do we have a valid image and UV map. */
+  /**
+   * Color attribute name when painting using color attributes. Mutual exclusive with ima.
+   * Points to the name of a CustomDataLayer.
+   */
+  char *attribute_name;
+  /** Do we have a valid image and UV map or attribute. */
   int valid;
   /** Copy of node interpolation setting. */
   int interp;
 } TexPaintSlot;
 
 typedef struct MaterialGPencilStyle {
+  DNA_DEFINE_CXX_METHODS(MaterialGPencilStyle)
+
   /** Texture image for strokes. */
   struct Image *sima;
   /** Texture image for filling. */
@@ -155,17 +158,20 @@ typedef struct MaterialLineArt {
   /** Maximum 255 levels of equivalent occlusion. */
   unsigned char mat_occlusion;
 
-  unsigned char _pad[2];
+  unsigned char intersection_priority;
+
+  char _pad;
 } MaterialLineArt;
 
 typedef enum eMaterialLineArtFlags {
   LRT_MATERIAL_MASK_ENABLED = (1 << 0),
-
-  /* Deprecated, kept for versioning code. */
   LRT_MATERIAL_CUSTOM_OCCLUSION_EFFECTIVENESS = (1 << 1),
+  LRT_MATERIAL_CUSTOM_INTERSECTION_PRIORITY = (1 << 2),
 } eMaterialLineArtFlags;
 
 typedef struct Material {
+  DNA_DEFINE_CXX_METHODS(Material)
+
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;
@@ -200,7 +206,13 @@ typedef struct Material {
   struct Ipo *ipo DNA_DEPRECATED;
   struct PreviewImage *preview;
 
-  /* Freestyle line settings. */
+  /* dynamic properties */
+  float friction DNA_DEPRECATED, fh DNA_DEPRECATED, reflect DNA_DEPRECATED;
+  float fhdist DNA_DEPRECATED, xyfrict DNA_DEPRECATED;
+  short dynamode DNA_DEPRECATED, _pad50[5];
+  struct GameSettings game;
+
+  /* Freestyle line settings */
   float line_col[4];
   short line_priority;
   short vcol_alpha;
@@ -232,6 +244,31 @@ typedef struct Material {
   struct MaterialGPencilStyle *gp_style;
   struct MaterialLineArt lineart;
 } Material;
+
+/* **************** GAME PROPERTIES ********************* */
+// Blend Transparency Options - alpha_blend /* match GPU_material::GPUBlendMode */
+#define GEMAT_SOLID 0              /* GPU_BLEND_SOLID */
+#define GEMAT_ADD 1                /* GPU_BLEND_ADD */
+#define GEMAT_ALPHA 2              /* GPU_BLEND_ALPHA */
+#define GEMAT_CLIP 4               /* GPU_BLEND_CLIP */
+#define GEMAT_ALPHA_SORT 8         /* GPU_BLEND_ALPHA_SORT */
+#define GEMAT_ALPHA_TO_COVERAGE 16 /* GPU_BLEND_ALPHA_TO_COVERAGE */
+
+// Game Options - flag
+#define GEMAT_BACKCULL 16 /* KX_BACKCULL */
+#define GEMAT_SHADED 32   /* KX_LIGHT */
+#define GEMAT_TEXT 64     /* RAS_RENDER_3DPOLYGON_TEXT */
+#define GEMAT_NOPHYSICS 128
+#define GEMAT_INVISIBLE 256
+
+// Face Orientation Options - face_orientation
+#define GEMAT_NORMAL 0
+#define GEMAT_HALO 512       /* BILLBOARD_SCREENALIGNED  */
+#define GEMAT_BILLBOARD 1024 /* BILLBOARD_AXISALIGNED */
+#define GEMAT_SHADOW 2048    /* SHADOW */
+
+// Use Textures - not defined directly in the UI
+#define GEMAT_TEX 4096 /* KX_TEX */
 
 /* **************** MATERIAL ********************* */
 
@@ -293,7 +330,7 @@ typedef struct Material {
 /* #define TEXCO_STRESS    (1 << 14) */ /* deprecated */
 /* #define TEXCO_SPEED     (1 << 15) */ /* deprecated */
 
-/* mapto */
+/** #MTex.mapto */
 #define MAP_COL (1 << 0)
 #define MAP_ALPHA (1 << 7)
 

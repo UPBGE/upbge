@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2016 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 /* Evaluate the BSDF from wi to wo.
  * Evaluation is split into the analytical single-scattering BSDF and the multi-scattering BSDF,
@@ -25,16 +12,16 @@
  * multi-scattered energy is used. In combination with MIS, that is enough to produce an unbiased
  * result, although the balance heuristic isn't necessarily optimal anymore.
  */
-ccl_device_forceinline float3 MF_FUNCTION_FULL_NAME(mf_eval)(float3 wi,
-                                                             float3 wo,
-                                                             const bool wo_outside,
-                                                             const float3 color,
-                                                             const float alpha_x,
-                                                             const float alpha_y,
-                                                             ccl_private uint *lcg_state,
-                                                             const float eta,
-                                                             bool use_fresnel,
-                                                             const float3 cspec0)
+ccl_device_forceinline Spectrum MF_FUNCTION_FULL_NAME(mf_eval)(float3 wi,
+                                                               float3 wo,
+                                                               const bool wo_outside,
+                                                               const Spectrum color,
+                                                               const float alpha_x,
+                                                               const float alpha_y,
+                                                               ccl_private uint *lcg_state,
+                                                               const float eta,
+                                                               bool use_fresnel,
+                                                               const Spectrum cspec0)
 {
   /* Evaluating for a shallower incoming direction produces less noise, and the properties of the
    * BSDF guarantee reciprocity. */
@@ -59,7 +46,7 @@ ccl_device_forceinline float3 MF_FUNCTION_FULL_NAME(mf_eval)(float3 wi,
   }
 
   if (wi.z < 1e-5f || (wo.z < 1e-5f && wo_outside) || (wo.z > -1e-5f && !wo_outside))
-    return make_float3(0.0f, 0.0f, 0.0f);
+    return zero_spectrum();
 
   const float2 alpha = make_float2(alpha_x, alpha_y);
 
@@ -67,8 +54,8 @@ ccl_device_forceinline float3 MF_FUNCTION_FULL_NAME(mf_eval)(float3 wi,
   float shadowing_lambda = mf_lambda(wo_outside ? wo : -wo, alpha);
 
   /* Analytically compute single scattering for lower noise. */
-  float3 eval;
-  float3 throughput = make_float3(1.0f, 1.0f, 1.0f);
+  Spectrum eval;
+  Spectrum throughput = one_spectrum();
   const float3 wh = normalize(wi + wo);
 #ifdef MF_MULTI_GLASS
   eval = mf_eval_phase_glass(-wi, lambda_r, wo, wo_outside, alpha, eta);
@@ -83,7 +70,7 @@ ccl_device_forceinline float3 MF_FUNCTION_FULL_NAME(mf_eval)(float3 wi,
     val *= D_ggx(wh, alpha.x);
   else
     val *= D_ggx_aniso(wh, alpha);
-  eval = make_float3(val, val, val);
+  eval = make_spectrum(val);
 #endif
 
   float F0 = fresnel_dielectric_cos(1.0f, eta);
@@ -112,7 +99,7 @@ ccl_device_forceinline float3 MF_FUNCTION_FULL_NAME(mf_eval)(float3 wi,
 #ifdef MF_MULTI_GLASS
     if (order == 0 && use_fresnel) {
       /* Evaluate amount of scattering towards wo on this microfacet. */
-      float3 phase;
+      Spectrum phase;
       if (outside)
         phase = mf_eval_phase_glass(wr, lambda_r, wo, wo_outside, alpha, eta);
       else
@@ -126,7 +113,7 @@ ccl_device_forceinline float3 MF_FUNCTION_FULL_NAME(mf_eval)(float3 wi,
 #endif
     if (order > 0) {
       /* Evaluate amount of scattering towards wo on this microfacet. */
-      float3 phase;
+      Spectrum phase;
 #ifdef MF_MULTI_GLASS
       if (outside)
         phase = mf_eval_phase_glass(wr, lambda_r, wo, wo_outside, alpha, eta);
@@ -185,19 +172,19 @@ ccl_device_forceinline float3 MF_FUNCTION_FULL_NAME(mf_eval)(float3 wi,
  * walk escaped the surface in wo. The function returns the throughput between wi and wo. Without
  * reflection losses due to coloring or fresnel absorption in conductors, the sampling is optimal.
  */
-ccl_device_forceinline float3 MF_FUNCTION_FULL_NAME(mf_sample)(float3 wi,
-                                                               ccl_private float3 *wo,
-                                                               const float3 color,
-                                                               const float alpha_x,
-                                                               const float alpha_y,
-                                                               ccl_private uint *lcg_state,
-                                                               const float eta,
-                                                               bool use_fresnel,
-                                                               const float3 cspec0)
+ccl_device_forceinline Spectrum MF_FUNCTION_FULL_NAME(mf_sample)(float3 wi,
+                                                                 ccl_private float3 *wo,
+                                                                 const Spectrum color,
+                                                                 const float alpha_x,
+                                                                 const float alpha_y,
+                                                                 ccl_private uint *lcg_state,
+                                                                 const float eta,
+                                                                 bool use_fresnel,
+                                                                 const Spectrum cspec0)
 {
   const float2 alpha = make_float2(alpha_x, alpha_y);
 
-  float3 throughput = make_float3(1.0f, 1.0f, 1.0f);
+  Spectrum throughput = one_spectrum();
   float3 wr = -wi;
   float lambda_r = mf_lambda(wr, alpha);
   float hr = 1.0f;
@@ -206,9 +193,6 @@ ccl_device_forceinline float3 MF_FUNCTION_FULL_NAME(mf_sample)(float3 wi,
   bool outside = true;
 
   float F0 = fresnel_dielectric_cos(1.0f, eta);
-  if (use_fresnel) {
-    throughput = interpolate_fresnel_color(wi, normalize(wi + wr), eta, F0, cspec0);
-  }
 
   int order;
   for (order = 0; order < 10; order++) {
@@ -245,7 +229,7 @@ ccl_device_forceinline float3 MF_FUNCTION_FULL_NAME(mf_sample)(float3 wi,
         throughput *= color;
       }
       else {
-        float3 t_color = interpolate_fresnel_color(wi_prev, wm, eta, F0, cspec0);
+        Spectrum t_color = interpolate_fresnel_color(wi_prev, wm, eta, F0, cspec0);
 
         if (order == 0)
           throughput = t_color;
@@ -255,7 +239,7 @@ ccl_device_forceinline float3 MF_FUNCTION_FULL_NAME(mf_sample)(float3 wi,
     }
 #else /* MF_MULTI_GLOSSY */
     if (use_fresnel) {
-      float3 t_color = interpolate_fresnel_color(-wr, wm, eta, F0, cspec0);
+      Spectrum t_color = interpolate_fresnel_color(-wr, wm, eta, F0, cspec0);
 
       if (order == 0)
         throughput = t_color;
@@ -270,7 +254,7 @@ ccl_device_forceinline float3 MF_FUNCTION_FULL_NAME(mf_sample)(float3 wi,
     G1_r = mf_G1(wr, C1_r, lambda_r);
   }
   *wo = make_float3(0.0f, 0.0f, 1.0f);
-  return make_float3(0.0f, 0.0f, 0.0f);
+  return zero_spectrum();
 }
 
 #undef MF_MULTI_GLASS

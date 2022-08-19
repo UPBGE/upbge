@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edtransform
@@ -39,7 +23,7 @@
 /** \name Edge (for crease) Transform Creation
  * \{ */
 
-void createTransEdge(TransInfo *t)
+static void createTransEdge(bContext *UNUSED(C), TransInfo *t)
 {
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
 
@@ -86,8 +70,8 @@ void createTransEdge(TransInfo *t)
       BM_mesh_cd_flag_ensure(em->bm, BKE_mesh_from_object(tc->obedit), ME_CDFLAG_EDGE_BWEIGHT);
       cd_edge_float_offset = CustomData_get_offset(&em->bm->edata, CD_BWEIGHT);
     }
-    else { /* if (t->mode == TFM_CREASE) { */
-      BLI_assert(t->mode == TFM_CREASE);
+    else { /* if (t->mode == TFM_EDGE_CREASE) { */
+      BLI_assert(t->mode == TFM_EDGE_CREASE);
       BM_mesh_cd_flag_ensure(em->bm, BKE_mesh_from_object(tc->obedit), ME_CDFLAG_EDGE_CREASE);
       cd_edge_float_offset = CustomData_get_offset(&em->bm->edata, CD_CREASE);
     }
@@ -115,8 +99,8 @@ void createTransEdge(TransInfo *t)
         td->ext = NULL;
 
         fl_ptr = BM_ELEM_CD_GET_VOID_P(eed, cd_edge_float_offset);
-        td->val = fl_ptr;
-        td->ival = *fl_ptr;
+        td->loc = fl_ptr;
+        td->iloc[0] = *fl_ptr;
 
         td++;
       }
@@ -124,7 +108,7 @@ void createTransEdge(TransInfo *t)
   }
 }
 
-void recalcData_mesh_edge(TransInfo *t)
+static void recalcData_mesh_edge(TransInfo *t)
 {
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     DEG_id_tag_update(tc->obedit->data, ID_RECALC_GEOMETRY);
@@ -132,3 +116,10 @@ void recalcData_mesh_edge(TransInfo *t)
 }
 
 /** \} */
+
+TransConvertTypeInfo TransConvertType_MeshEdge = {
+    /* flags */ T_EDIT,
+    /* createTransData */ createTransEdge,
+    /* recalcData */ recalcData_mesh_edge,
+    /* special_aftertrans_update */ special_aftertrans_update__mesh,
+};

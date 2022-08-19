@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup bli
@@ -142,7 +126,7 @@ void BLI_jitterate2(float (*jit1)[2], float (*jit2)[2], int num, float radius2)
 void BLI_jitter_init(float (*jitarr)[2], int num)
 {
   float(*jit2)[2];
-  float num_fl, num_fl_sqrt;
+  float number_fl, number_fl_sqrt;
   float x, rad1, rad2, rad3;
   RNG *rng;
   int i;
@@ -151,20 +135,20 @@ void BLI_jitter_init(float (*jitarr)[2], int num)
     return;
   }
 
-  num_fl = (float)num;
-  num_fl_sqrt = sqrtf(num_fl);
+  number_fl = (float)num;
+  number_fl_sqrt = sqrtf(number_fl);
 
   jit2 = MEM_mallocN(12 + (unsigned int)num * sizeof(float[2]), "initjit");
-  rad1 = 1.0f / num_fl_sqrt;
-  rad2 = 1.0f / num_fl;
-  rad3 = num_fl_sqrt / num_fl;
+  rad1 = 1.0f / number_fl_sqrt;
+  rad2 = 1.0f / number_fl;
+  rad3 = number_fl_sqrt / number_fl;
 
   rng = BLI_rng_new(31415926 + (unsigned int)num);
 
   x = 0;
   for (i = 0; i < num; i++) {
     jitarr[i][0] = x + rad1 * (float)(0.5 - BLI_rng_get_double(rng));
-    jitarr[i][1] = (float)i / num_fl + rad1 * (float)(0.5 - BLI_rng_get_double(rng));
+    jitarr[i][1] = (float)i / number_fl + rad1 * (float)(0.5 - BLI_rng_get_double(rng));
     x += rad3;
     x -= floorf(x);
   }

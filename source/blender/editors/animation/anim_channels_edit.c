@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2009 Blender Foundation, Joshua Leung. All rights reserved. */
 
 /** \file
  * \ingroup edanimation
@@ -74,8 +58,6 @@
 
 /* -------------------------- Selection ------------------------------------- */
 
-/* Set the given animation-channel as the active one for the active context */
-/* TODO: extend for animdata types... */
 void ANIM_set_active_channel(bAnimContext *ac,
                              void *data,
                              eAnimCont_Types datatype,
@@ -83,6 +65,8 @@ void ANIM_set_active_channel(bAnimContext *ac,
                              void *channel_data,
                              eAnim_ChannelType channel_type)
 {
+  /* TODO: extend for animdata types. */
+
   ListBase anim_data = {NULL, NULL};
   bAnimListElem *ale;
 
@@ -141,6 +125,7 @@ void ANIM_set_active_channel(bAnimContext *ac,
       case ANIMTYPE_DSHAIR:
       case ANIMTYPE_DSPOINTCLOUD:
       case ANIMTYPE_DSVOLUME:
+      case ANIMTYPE_NLAACTION:
       case ANIMTYPE_DSSIMULATION: {
         /* need to verify that this data is valid for now */
         if (ale->adt) {
@@ -198,6 +183,7 @@ void ANIM_set_active_channel(bAnimContext *ac,
       case ANIMTYPE_DSHAIR:
       case ANIMTYPE_DSPOINTCLOUD:
       case ANIMTYPE_DSVOLUME:
+      case ANIMTYPE_NLAACTION:
       case ANIMTYPE_DSSIMULATION: {
         /* need to verify that this data is valid for now */
         if (ale && ale->adt) {
@@ -215,7 +201,6 @@ void ANIM_set_active_channel(bAnimContext *ac,
       /* unhandled currently, but may be interesting */
       case ANIMTYPE_MASKLAYER:
       case ANIMTYPE_SHAPEKEY:
-      case ANIMTYPE_NLAACTION:
         break;
 
       /* other types */
@@ -328,6 +313,7 @@ static eAnimChannels_SetFlag anim_channels_selection_flag_for_toggle(const ListB
       case ANIMTYPE_DSHAIR:
       case ANIMTYPE_DSPOINTCLOUD:
       case ANIMTYPE_DSVOLUME:
+      case ANIMTYPE_NLAACTION:
       case ANIMTYPE_DSSIMULATION: {
         if ((ale->adt) && (ale->adt->flag & ADT_UI_SELECTED)) {
           return ACHANNEL_SETFLAG_CLEAR;
@@ -436,6 +422,7 @@ static void anim_channels_select_set(bAnimContext *ac,
       case ANIMTYPE_DSHAIR:
       case ANIMTYPE_DSPOINTCLOUD:
       case ANIMTYPE_DSVOLUME:
+      case ANIMTYPE_NLAACTION:
       case ANIMTYPE_DSSIMULATION: {
         /* need to verify that this data is valid for now */
         if (ale->adt) {
@@ -460,7 +447,6 @@ static void anim_channels_select_set(bAnimContext *ac,
   }
 }
 
-/* Set selection state of all animation channels in the context. */
 void ANIM_anim_channels_select_set(bAnimContext *ac, eAnimChannels_SetFlag sel)
 {
   ListBase anim_data = anim_channels_for_selection(ac);
@@ -468,7 +454,6 @@ void ANIM_anim_channels_select_set(bAnimContext *ac, eAnimChannels_SetFlag sel)
   ANIM_animdata_freelist(&anim_data);
 }
 
-/* Toggle selection state of all animation channels in the context. */
 void ANIM_anim_channels_select_toggle(bAnimContext *ac)
 {
   ListBase anim_data = anim_channels_for_selection(ac);
@@ -508,7 +493,7 @@ static void anim_flush_channel_setting_up(bAnimContext *ac,
   }
 
   /* Go backwards in the list, until the highest-ranking element
-   * (by indention has been covered). */
+   * (by indentation has been covered). */
   int prevLevel = matchLevel;
   for (bAnimListElem *ale = match->prev; ale; ale = ale->prev) {
     const bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale);
@@ -557,7 +542,7 @@ static void anim_flush_channel_setting_down(bAnimContext *ac,
                                             bAnimListElem *const match,
                                             const int matchLevel)
 {
-  /* go forwards in the list, until the lowest-ranking element (by indention has been covered) */
+  /* go forwards in the list, until the lowest-ranking element (by indentation has been covered) */
   for (bAnimListElem *ale = match->next; ale; ale = ale->next) {
     const bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale);
 
@@ -588,15 +573,6 @@ static void anim_flush_channel_setting_down(bAnimContext *ac,
   }
 }
 
-/* Flush visibility (for Graph Editor) changes up/down hierarchy for changes in the given setting
- * - anim_data: list of the all the anim channels that can be chosen
- *   -> filtered using ANIMFILTER_CHANNELS only, since if we took VISIBLE too,
- *      then the channels under closed expanders get ignored...
- * - ale_setting: the anim channel (not in the anim_data list directly, though occurring there)
- *   with the new state of the setting that we want flushed up/down the hierarchy
- * - setting: type of setting to set
- * - on: whether the visibility setting has been enabled or disabled
- */
 void ANIM_flush_setting_anim_channels(bAnimContext *ac,
                                       ListBase *anim_data,
                                       bAnimListElem *ale_setting,
@@ -652,7 +628,6 @@ void ANIM_flush_setting_anim_channels(bAnimContext *ac,
 
 /* -------------------------- F-Curves ------------------------------------- */
 
-/* Delete the given F-Curve from its AnimData block */
 void ANIM_fcurve_delete_from_animdata(bAnimContext *ac, AnimData *adt, FCurve *fcu)
 {
   /* - if no AnimData, we've got nowhere to remove the F-Curve from
@@ -708,8 +683,6 @@ void ANIM_fcurve_delete_from_animdata(bAnimContext *ac, AnimData *adt, FCurve *f
   BKE_fcurve_free(fcu);
 }
 
-/* If the action has no F-Curves, unlink it from AnimData if it did not
- * come from a NLA Strip being tweaked. */
 bool ANIM_remove_empty_action_from_animdata(struct AnimData *adt)
 {
   if (adt->action != NULL) {
@@ -738,14 +711,14 @@ static bool animedit_poll_channels_active(bContext *C)
   /* channels region test */
   /* TODO: could enhance with actually testing if channels region? */
   if (ELEM(NULL, area, CTX_wm_region(C))) {
-    return 0;
+    return false;
   }
   /* animation editor test */
   if (ELEM(area->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA) == 0) {
-    return 0;
+    return false;
   }
 
-  return 1;
+  return true;
 }
 
 /* Poll callback for Animation Editor channels list region + not in NLA-tweak-mode for NLA. */
@@ -757,21 +730,21 @@ static bool animedit_poll_channels_nla_tweakmode_off(bContext *C)
   /* channels region test */
   /* TODO: could enhance with actually testing if channels region? */
   if (ELEM(NULL, area, CTX_wm_region(C))) {
-    return 0;
+    return false;
   }
   /* animation editor test */
   if (ELEM(area->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA) == 0) {
-    return 0;
+    return false;
   }
 
   /* NLA tweak-mode test. */
   if (area->spacetype == SPACE_NLA) {
     if ((scene == NULL) || (scene->flag & SCE_NLA_EDIT_ON)) {
-      return 0;
+      return false;
     }
   }
 
-  return 1;
+  return true;
 }
 
 /* ****************** Rearrange Channels Operator ******************* */
@@ -818,7 +791,7 @@ static bool rearrange_island_ok(tReorderChannelIsland *island)
 {
   /* island must not be untouchable */
   if (island->flag & REORDER_ISLAND_UNTOUCHABLE) {
-    return 0;
+    return false;
   }
 
   /* island should be selected to be moved */
@@ -836,10 +809,10 @@ static bool rearrange_island_top(ListBase *list, tReorderChannelIsland *island)
     /* make it first element */
     BLI_insertlinkbefore(list, list->first, island);
 
-    return 1;
+    return true;
   }
 
-  return 0;
+  return false;
 }
 
 static bool rearrange_island_up(ListBase *list, tReorderChannelIsland *island)
@@ -860,11 +833,11 @@ static bool rearrange_island_up(ListBase *list, tReorderChannelIsland *island)
       /* push it up */
       BLI_insertlinkbefore(list, prev, island);
 
-      return 1;
+      return true;
     }
   }
 
-  return 0;
+  return false;
 }
 
 static bool rearrange_island_down(ListBase *list, tReorderChannelIsland *island)
@@ -1110,7 +1083,7 @@ static bool rearrange_animchannel_islands(ListBase *list,
 
   /* don't waste effort on an empty list */
   if (BLI_listbase_is_empty(list)) {
-    return 0;
+    return false;
   }
 
   /* group channels into islands */
@@ -1161,7 +1134,7 @@ static void rearrange_nla_channels(bAnimContext *ac, AnimData *adt, eRearrangeAn
 {
   AnimChanRearrangeFp rearrange_func;
   ListBase anim_data_visible = {NULL, NULL};
-  const bool is_liboverride = ID_IS_OVERRIDE_LIBRARY(ac->obact);
+  const bool is_liboverride = (ac->obact != NULL) ? ID_IS_OVERRIDE_LIBRARY(ac->obact) : false;
 
   /* hack: invert mode so that functions will work in right order */
   mode *= -1;
@@ -1525,7 +1498,8 @@ static int animchannels_rearrange_exec(bContext *C, wmOperator *op)
     int filter;
 
     /* get animdata blocks */
-    filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_ANIMDATA);
+    filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_ANIMDATA |
+              ANIMFILTER_FCURVESONLY);
     ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 
     for (ale = anim_data.first; ale; ale = ale->next) {
@@ -1616,7 +1590,7 @@ static bool animchannels_grouping_poll(bContext *C)
   /* channels region test */
   /* TODO: could enhance with actually testing if channels region? */
   if (ELEM(NULL, area, CTX_wm_region(C))) {
-    return 0;
+    return false;
   }
 
   /* animation editor test - must be suitable modes only */
@@ -1629,7 +1603,7 @@ static bool animchannels_grouping_poll(bContext *C)
 
       /* dopesheet and action only - all others are for other datatypes or have no groups */
       if (ELEM(saction->mode, SACTCONT_ACTION, SACTCONT_DOPESHEET) == 0) {
-        return 0;
+        return false;
       }
 
       break;
@@ -1639,17 +1613,17 @@ static bool animchannels_grouping_poll(bContext *C)
 
       /* drivers can't have groups... */
       if (sipo->mode != SIPO_MODE_ANIMATION) {
-        return 0;
+        return false;
       }
 
       break;
     }
     /* unsupported... */
     default:
-      return 0;
+      return false;
   }
 
-  return 1;
+  return true;
 }
 
 /* ----------------------------------------------------------- */
@@ -1666,7 +1640,8 @@ static void animchannels_group_channels(bAnimContext *ac,
     int filter;
 
     /* find selected F-Curves to re-group */
-    filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_SEL);
+    filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_SEL |
+              ANIMFILTER_FCURVESONLY);
     ANIM_animdata_filter(ac, &anim_data, filter, adt_ref, ANIMCONT_CHANNEL);
 
     if (anim_data.first) {
@@ -1720,7 +1695,7 @@ static int animchannels_group_exec(bContext *C, wmOperator *op)
 
     /* Handle each animdata block separately, so that the regrouping doesn't flow into blocks. */
     filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_ANIMDATA |
-              ANIMFILTER_NODUPLIS);
+              ANIMFILTER_NODUPLIS | ANIMFILTER_FCURVESONLY);
     ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 
     for (ale = anim_data.first; ale; ale = ale->next) {
@@ -1780,7 +1755,7 @@ static int animchannels_ungroup_exec(bContext *C, wmOperator *UNUSED(op))
 
   /* just selected F-Curves... */
   filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_SEL |
-            ANIMFILTER_NODUPLIS);
+            ANIMFILTER_NODUPLIS | ANIMFILTER_FCURVESONLY);
   ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 
   for (ale = anim_data.first; ale; ale = ale->next) {
@@ -2060,7 +2035,7 @@ static void setflag_anim_channels(bAnimContext *ac,
   if ((ac->spacetype == SPACE_GRAPH) && (ac->regiontype != RGN_TYPE_CHANNELS)) {
     /* graph editor (case 2) */
     filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_CHANNELS | ANIMFILTER_CURVE_VISIBLE |
-              ANIMFILTER_NODUPLIS);
+              ANIMFILTER_FCURVESONLY | ANIMFILTER_NODUPLIS);
   }
   else {
     /* standard case */
@@ -2455,15 +2430,15 @@ static bool animchannels_enable_poll(bContext *C)
   /* channels region test */
   /* TODO: could enhance with actually testing if channels region? */
   if (ELEM(NULL, area, CTX_wm_region(C))) {
-    return 0;
+    return false;
   }
 
   /* animation editor test - Action/Dopesheet/etc. and Graph only */
   if (ELEM(area->spacetype, SPACE_ACTION, SPACE_GRAPH) == 0) {
-    return 0;
+    return false;
   }
 
-  return 1;
+  return true;
 }
 
 static int animchannels_enable_exec(bContext *C, wmOperator *UNUSED(op))
@@ -2480,7 +2455,7 @@ static int animchannels_enable_exec(bContext *C, wmOperator *UNUSED(op))
   }
 
   /* filter data */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_NODUPLIS);
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_NODUPLIS | ANIMFILTER_FCURVESONLY);
   ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 
   /* loop through filtered data and clean curves */
@@ -2531,7 +2506,7 @@ static bool animchannels_select_filter_poll(bContext *C)
   ScrArea *area = CTX_wm_area(C);
 
   if (area == NULL) {
-    return 0;
+    return false;
   }
 
   /* animation editor with dopesheet */
@@ -2818,11 +2793,34 @@ static bool rename_anim_channels(bAnimContext *ac, int channel_index)
     return false;
   }
 
-  /* don't allow renaming linked channels */
-  if ((ale->fcurve_owner_id != NULL && ID_IS_LINKED(ale->fcurve_owner_id)) ||
-      (ale->id != NULL && ID_IS_LINKED(ale->id))) {
+  /* Don't allow renaming linked/liboverride channels. */
+  if (ale->fcurve_owner_id != NULL &&
+      (ID_IS_LINKED(ale->fcurve_owner_id) || ID_IS_OVERRIDE_LIBRARY(ale->fcurve_owner_id))) {
     ANIM_animdata_freelist(&anim_data);
     return false;
+  }
+  if (ale->id != NULL) {
+    if (ID_IS_LINKED(ale->id)) {
+      ANIM_animdata_freelist(&anim_data);
+      return false;
+    }
+    /* There is one exception to not allowing renaming on liboverride channels: locally-inserted
+     * NLA tracks. */
+    if (ID_IS_OVERRIDE_LIBRARY(ale->id)) {
+      switch (ale->type) {
+        case ANIMTYPE_NLATRACK: {
+          NlaTrack *nlt = (NlaTrack *)ale->data;
+          if ((nlt->flag & NLATRACK_OVERRIDELIBRARY_LOCAL) == 0) {
+            ANIM_animdata_freelist(&anim_data);
+            return false;
+          }
+          break;
+        }
+        default:
+          ANIM_animdata_freelist(&anim_data);
+          return false;
+      }
+    }
   }
 
   /* check that channel can be renamed */
@@ -3262,10 +3260,14 @@ static int mouse_anim_channels(bContext *C,
   bAnimListElem *ale;
   int filter;
   int notifierFlags = 0;
+  ScrArea *area = CTX_wm_area(C);
 
   /* get the channel that was clicked on */
   /* filter channels */
   filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS);
+  if (ELEM(area->spacetype, SPACE_NLA, SPACE_GRAPH)) {
+    filter |= ANIMFILTER_FCURVESONLY;
+  }
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 
   /* get channel from index */
@@ -3457,7 +3459,8 @@ static bool select_anim_channel_keys(bAnimContext *ac, int channel_index, bool e
 
   /* get the channel that was clicked on */
   /* filter channels */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS);
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS |
+            ANIMFILTER_FCURVESONLY);
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 
   /* get channel from index */

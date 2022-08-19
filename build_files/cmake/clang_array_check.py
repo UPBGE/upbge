@@ -1,11 +1,4 @@
-# ---
-# * Licensed under the Apache License, Version 2.0 (the "License");
-# * you may not use this file except in compliance with the License.
-# * You may obtain a copy of the License at
-# *
-# * http://www.apache.org/licenses/LICENSE-2.0
-# ---
-# by Campbell Barton
+# SPDX-License-Identifier: Apache-2.0
 
 """
 Invocation:
@@ -209,9 +202,9 @@ def parm_size(node_child):
 
     # NOT PERFECT CODE, EXTRACT SIZE FROM TOKENS
     if len(tokens) >= 3:  # foo [ 1 ]
-        if      ((tokens[-3].kind == TokenKind.PUNCTUATION and tokens[-3].spelling == "[") and
-                 (tokens[-2].kind == TokenKind.LITERAL and tokens[-2].spelling.isdigit()) and
-                 (tokens[-1].kind == TokenKind.PUNCTUATION and tokens[-1].spelling == "]")):
+        if ((tokens[-3].kind == TokenKind.PUNCTUATION and tokens[-3].spelling == "[") and
+            (tokens[-2].kind == TokenKind.LITERAL and tokens[-2].spelling.isdigit()) and
+                (tokens[-1].kind == TokenKind.PUNCTUATION and tokens[-1].spelling == "]")):
             # ---
             return int(tokens[-2].spelling)
     return -1

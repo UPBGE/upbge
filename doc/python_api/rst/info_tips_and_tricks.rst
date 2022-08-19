@@ -81,7 +81,7 @@ but reference an external file rather than including it directly.
 Executing External Scripts
 --------------------------
 
-This is the equivalent to running the script directly, referencing a scripts path from a two line code block.
+This is the equivalent to running the script directly, referencing a script's path from a two line code block.
 
 .. code-block:: python
 
@@ -124,7 +124,7 @@ small script which is often useful for testing different settings quickly.
 
 The other issue with this is the script has to be in Python's module search path.
 While this is not best practice -- for testing purposes you can extend the search path,
-this following example adds the current blend-files directory to the search path
+this following example adds the current blend-file's directory to the search path
 and then loads the script as a module.
 
 .. code-block:: python
@@ -226,7 +226,7 @@ There are two ways to work around this:
   you can also copy the entire Python installation into Blender's subdirectory,
   replacing the one Blender comes with.
   This works as long as the Python versions match and the paths are created in the same relative locations.
-  Doing this has the advantage that you can redistribute this bundle to others with Blender
+  Doing this has the advantage that you can redistribute this bundle to others with Blender and/or the game player,
   including any extensions you rely on.
 
 
@@ -277,6 +277,11 @@ Admittedly this highlights the lack of any Python debugging support built into B
 but its still a handy thing to know.
 
 
+.. note::
+
+   This works in the game engine as well, it can be handy to inspect the state of a running game.
+
+
 Advanced
 ========
 
@@ -302,7 +307,7 @@ Python Safety (Build Option)
 ----------------------------
 
 Since it's possible to access data which has been removed (see :doc:`Gotchas <info_gotcha>`),
-can make it hard to track down the cause of crashes.
+it can be hard to track down the cause of crashes.
 To raise Python exceptions on accessing freed data (rather than crashing),
 enable the CMake build option ``WITH_PYTHON_SAFETY``.
 This enables data tracking which makes data access about two times slower

@@ -1,44 +1,45 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spoutliner
  */
 
+#include <string>
+#include <string_view>
+
 #include "DNA_anim_types.h"
 #include "DNA_listBase.h"
+#include "DNA_space_types.h"
+
+#include "UI_resources.h"
+
+#include "BLT_translation.h"
 
 #include "tree_element_anim_data.hh"
 #include "tree_element_collection.hh"
 #include "tree_element_driver.hh"
 #include "tree_element_gpencil_layer.hh"
 #include "tree_element_id.hh"
+#include "tree_element_label.hh"
 #include "tree_element_nla.hh"
 #include "tree_element_overrides.hh"
+#include "tree_element_rna.hh"
 #include "tree_element_scene_objects.hh"
+#include "tree_element_seq.hh"
 #include "tree_element_view_layer.hh"
 
-#include "tree_element.h"
+#include "../outliner_intern.hh"
 #include "tree_element.hh"
 
 namespace blender::ed::outliner {
 
-static AbstractTreeElement *tree_element_create(int type, TreeElement &legacy_te, void *idv)
+std::unique_ptr<AbstractTreeElement> AbstractTreeElement::createFromType(const int type,
+                                                                         TreeElement &legacy_te,
+                                                                         void *idv)
 {
-  ID &id = *static_cast<ID *>(idv);
+  if (idv == nullptr) {
+    return nullptr;
+  }
 
   /*
    * The following calls make an implicit assumption about what data was passed to the `idv`
@@ -54,30 +55,51 @@ static AbstractTreeElement *tree_element_create(int type, TreeElement &legacy_te
 
   switch (type) {
     case TSE_SOME_ID:
-      return TreeElementID::createFromID(legacy_te, id);
+      return TreeElementID::createFromID(legacy_te, *static_cast<ID *>(idv));
+    case TSE_GENERIC_LABEL:
+      return std::make_unique<TreeElementLabel>(legacy_te, static_cast<const char *>(idv));
     case TSE_ANIM_DATA:
-      return new TreeElementAnimData(legacy_te, *reinterpret_cast<IdAdtTemplate &>(id).adt);
+      return std::make_unique<TreeElementAnimData>(legacy_te,
+                                                   *static_cast<IdAdtTemplate *>(idv)->adt);
     case TSE_DRIVER_BASE:
-      return new TreeElementDriverBase(legacy_te, *static_cast<AnimData *>(idv));
+      return std::make_unique<TreeElementDriverBase>(legacy_te, *static_cast<AnimData *>(idv));
     case TSE_NLA:
-      return new TreeElementNLA(legacy_te, *static_cast<AnimData *>(idv));
+      return std::make_unique<TreeElementNLA>(legacy_te, *static_cast<AnimData *>(idv));
     case TSE_NLA_TRACK:
-      return new TreeElementNLATrack(legacy_te, *static_cast<NlaTrack *>(idv));
+      return std::make_unique<TreeElementNLATrack>(legacy_te, *static_cast<NlaTrack *>(idv));
     case TSE_NLA_ACTION:
-      return new TreeElementNLAAction(legacy_te, *static_cast<bAction *>(idv));
+      return std::make_unique<TreeElementNLAAction>(legacy_te, *static_cast<bAction *>(idv));
     case TSE_GP_LAYER:
-      return new TreeElementGPencilLayer(legacy_te, *static_cast<bGPDlayer *>(idv));
+      return std::make_unique<TreeElementGPencilLayer>(legacy_te, *static_cast<bGPDlayer *>(idv));
     case TSE_R_LAYER_BASE:
-      return new TreeElementViewLayerBase(legacy_te, *static_cast<Scene *>(idv));
+      return std::make_unique<TreeElementViewLayerBase>(legacy_te, *static_cast<Scene *>(idv));
     case TSE_SCENE_COLLECTION_BASE:
-      return new TreeElementCollectionBase(legacy_te, *static_cast<Scene *>(idv));
+      return std::make_unique<TreeElementCollectionBase>(legacy_te, *static_cast<Scene *>(idv));
     case TSE_SCENE_OBJECTS_BASE:
-      return new TreeElementSceneObjectsBase(legacy_te, *static_cast<Scene *>(idv));
+      return std::make_unique<TreeElementSceneObjectsBase>(legacy_te, *static_cast<Scene *>(idv));
     case TSE_LIBRARY_OVERRIDE_BASE:
-      return new TreeElementOverridesBase(legacy_te, id);
+      return std::make_unique<TreeElementOverridesBase>(legacy_te, *static_cast<ID *>(idv));
     case TSE_LIBRARY_OVERRIDE:
-      return new TreeElementOverridesProperty(legacy_te,
-                                              *static_cast<TreeElementOverridesData *>(idv));
+      return std::make_unique<TreeElementOverridesProperty>(
+          legacy_te, *static_cast<TreeElementOverridesData *>(idv));
+    case TSE_LIBRARY_OVERRIDE_OPERATION:
+      return std::make_unique<TreeElementOverridesPropertyOperation>(
+          legacy_te, *static_cast<TreeElementOverridesData *>(idv));
+    case TSE_RNA_STRUCT:
+      return std::make_unique<TreeElementRNAStruct>(legacy_te, *static_cast<PointerRNA *>(idv));
+    case TSE_RNA_PROPERTY:
+      return std::make_unique<TreeElementRNAProperty>(
+          legacy_te, *static_cast<PointerRNA *>(idv), legacy_te.index);
+    case TSE_RNA_ARRAY_ELEM:
+      return std::make_unique<TreeElementRNAArrayElement>(
+          legacy_te, *static_cast<PointerRNA *>(idv), legacy_te.index);
+    case TSE_SEQUENCE:
+      return std::make_unique<TreeElementSequence>(legacy_te, *static_cast<Sequence *>(idv));
+    case TSE_SEQ_STRIP:
+      return std::make_unique<TreeElementSequenceStrip>(legacy_te, *static_cast<Strip *>(idv));
+    case TSE_SEQUENCE_DUP:
+      return std::make_unique<TreeElementSequenceStripDuplicate>(legacy_te,
+                                                                 *static_cast<Sequence *>(idv));
     default:
       break;
   }
@@ -85,14 +107,35 @@ static AbstractTreeElement *tree_element_create(int type, TreeElement &legacy_te
   return nullptr;
 }
 
-static void tree_element_free(AbstractTreeElement **tree_element)
+StringRefNull AbstractTreeElement::getWarning() const
 {
-  delete *tree_element;
-  *tree_element = nullptr;
+  return "";
 }
 
-static void tree_element_expand(const AbstractTreeElement &tree_element,
-                                SpaceOutliner &space_outliner)
+std::optional<BIFIconID> AbstractTreeElement::getIcon() const
+{
+  return {};
+}
+
+void AbstractTreeElement::print_path()
+{
+  std::string path = legacy_te_.name;
+
+  for (TreeElement *parent = legacy_te_.parent; parent; parent = parent->parent) {
+    path = parent->name + std::string_view("/") + path;
+  }
+
+  std::cout << path << std::endl;
+}
+
+void AbstractTreeElement::uncollapse_by_default(TreeElement *legacy_te)
+{
+  if (!TREESTORE(legacy_te)->used) {
+    TREESTORE(legacy_te)->flag &= ~TSE_CLOSED;
+  }
+}
+
+void tree_element_expand(const AbstractTreeElement &tree_element, SpaceOutliner &space_outliner)
 {
   /* Most types can just expand. IDs optionally expand (hence the poll) and do additional, common
    * expanding. Could be done nicer, we could request a small "expander" helper object from the
@@ -101,61 +144,6 @@ static void tree_element_expand(const AbstractTreeElement &tree_element,
     return;
   }
   tree_element.expand(space_outliner);
-  tree_element.postExpand(space_outliner);
-}
-
-/**
- * Needed for types that still expand in C, but need to execute the same post-expand logic. Can be
- * removed once all ID types expand entirely using the new design.
- */
-static void tree_element_post_expand_only(const AbstractTreeElement &tree_element,
-                                          SpaceOutliner &space_outliner)
-{
-  tree_element.postExpand(space_outliner);
-}
-/**
- * Needed for types that still expand in C, to poll if they should expand in current context. Can
- * be removed once all ID types expand entirely using the new design.
- */
-static bool tree_element_expand_poll(const AbstractTreeElement &tree_element,
-                                     const SpaceOutliner &space_outliner)
-{
-  return tree_element.expandPoll(space_outliner);
 }
 
 }  // namespace blender::ed::outliner
-
-namespace outliner = blender::ed::outliner;
-
-TreeElementType *outliner_tree_element_type_create(int type, TreeElement *legacy_te, void *idv)
-{
-  outliner::AbstractTreeElement *element = outliner::tree_element_create(type, *legacy_te, idv);
-  return reinterpret_cast<TreeElementType *>(element);
-}
-
-void outliner_tree_element_type_expand(TreeElementType *type, SpaceOutliner *space_outliner)
-{
-  outliner::tree_element_expand(reinterpret_cast<outliner::AbstractTreeElement &>(*type),
-                                *space_outliner);
-}
-bool outliner_tree_element_type_is_expand_valid(TreeElementType *type)
-{
-  outliner::AbstractTreeElement &element = reinterpret_cast<outliner::AbstractTreeElement &>(
-      *type);
-  return element.isExpandValid();
-}
-bool outliner_tree_element_type_expand_poll(TreeElementType *type, SpaceOutliner *space_outliner)
-{
-  return outliner::tree_element_expand_poll(
-      reinterpret_cast<outliner::AbstractTreeElement &>(*type), *space_outliner);
-}
-void outliner_tree_element_type_post_expand(TreeElementType *type, SpaceOutliner *space_outliner)
-{
-  outliner::tree_element_post_expand_only(reinterpret_cast<outliner::AbstractTreeElement &>(*type),
-                                          *space_outliner);
-}
-
-void outliner_tree_element_type_free(TreeElementType **type)
-{
-  outliner::tree_element_free(reinterpret_cast<outliner::AbstractTreeElement **>(type));
-}

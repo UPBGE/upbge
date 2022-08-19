@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bmesh
@@ -247,11 +233,6 @@ static void bm_face_calc_normals_cb(void *UNUSED(userdata),
   BM_face_calc_normal(f, f->no);
 }
 
-/**
- * \brief BMesh Compute Normals
- *
- * Updates the normals of a mesh.
- */
 void BM_mesh_normals_update_ex(BMesh *bm, const struct BMeshNormalsUpdate_Params *params)
 {
   if (params->face_normals) {
@@ -295,10 +276,6 @@ static void bm_partial_verts_parallel_range_calc_normal_cb(
   bm_vert_calc_normals_impl(v);
 }
 
-/**
- * A version of #BM_mesh_normals_update that updates a subset of geometry,
- * used to avoid the overhead of updating everything.
- */
 void BM_mesh_normals_update_with_partial_ex(BMesh *UNUSED(bm),
                                             const BMPartialUpdate *bmpinfo,
                                             const struct BMeshNormalsUpdate_Params *params)
@@ -343,12 +320,6 @@ void BM_mesh_normals_update_with_partial(BMesh *bm, const BMPartialUpdate *bmpin
 /** \name Update Vertex & Face Normals (Custom Coords)
  * \{ */
 
-/**
- * \brief BMesh Compute Normals from/to external data.
- *
- * Computes the vertex normals of a mesh into vnos,
- * using given vertex coordinates (vcos) and polygon normals (fnos).
- */
 void BM_verts_calc_normal_vcos(BMesh *bm,
                                const float (*fnos)[3],
                                const float (*vcos)[3],
@@ -435,12 +406,6 @@ static void bm_mesh_edges_sharp_tag(BMesh *bm,
   bm->elem_index_dirty &= ~BM_EDGE;
 }
 
-/**
- * Define sharp edges as needed to mimic 'autosmooth' from angle threshold.
- *
- * Used when defining an empty custom loop normals data layer,
- * to keep same shading as with auto-smooth!
- */
 void BM_edges_sharp_from_angle_set(BMesh *bm, const float split_angle)
 {
   if (split_angle >= (float)M_PI) {
@@ -457,11 +422,6 @@ void BM_edges_sharp_from_angle_set(BMesh *bm, const float split_angle)
 /** \name Loop Normals Calculation API
  * \{ */
 
-/**
- * Check whether given loop is part of an unknown-so-far cyclic smooth fan, or not.
- * Needed because cyclic smooth fans have no obvious 'entry point',
- * and yet we need to walk them once, and only once.
- */
 bool BM_loop_check_cyclic_smooth_fan(BMLoop *l_curr)
 {
   BMLoop *lfan_pivot_next = l_curr;
@@ -520,7 +480,8 @@ static int bm_mesh_loops_calc_normals_for_loop(BMesh *bm,
                                                float (*r_lnos)[3],
                                                MLoopNorSpaceArray *r_lnors_spacearr)
 {
-  BLI_assert((bm->elem_index_dirty & (BM_FACE | BM_LOOP)) == 0);
+  BLI_assert((bm->elem_index_dirty & BM_LOOP) == 0);
+  BLI_assert((fnos == NULL) || ((bm->elem_index_dirty & BM_FACE) == 0));
   BLI_assert((vcos == NULL) || ((bm->elem_index_dirty & BM_VERT) == 0));
   UNUSED_VARS_NDEBUG(bm);
 
@@ -619,7 +580,7 @@ static int bm_mesh_loops_calc_normals_for_loop(BMesh *bm,
     /* We validate clnors data on the fly - cheapest way to do! */
     int clnors_avg[2] = {0, 0};
     const short(*clnor_ref)[2] = NULL;
-    int clnors_nbr = 0;
+    int clnors_count = 0;
     bool clnors_invalid = false;
 
     const float *co_pivot = vcos ? vcos[BM_elem_index_get(v_pivot)] : v_pivot->co;
@@ -688,7 +649,7 @@ static int bm_mesh_loops_calc_normals_for_loop(BMesh *bm,
           const short(*clnor)[2] = clnors_data ? &clnors_data[lfan_pivot_index] :
                                                  (const void *)BM_ELEM_CD_GET_VOID_P(
                                                      lfan_pivot, cd_loop_clnors_offset);
-          if (clnors_nbr) {
+          if (clnors_count) {
             clnors_invalid |= ((*clnor_ref)[0] != (*clnor)[0] || (*clnor_ref)[1] != (*clnor)[1]);
           }
           else {
@@ -696,7 +657,7 @@ static int bm_mesh_loops_calc_normals_for_loop(BMesh *bm,
           }
           clnors_avg[0] += (*clnor)[0];
           clnors_avg[1] += (*clnor)[1];
-          clnors_nbr++;
+          clnors_count++;
           /* We store here a pointer to all custom lnors processed. */
           BLI_SMALLSTACK_PUSH(clnors, (short *)*clnor);
         }
@@ -745,8 +706,8 @@ static int bm_mesh_loops_calc_normals_for_loop(BMesh *bm,
           if (clnors_invalid) {
             short *clnor;
 
-            clnors_avg[0] /= clnors_nbr;
-            clnors_avg[1] /= clnors_nbr;
+            clnors_avg[0] /= clnors_count;
+            clnors_avg[1] /= clnors_count;
             /* Fix/update all clnors of this fan with computed average value. */
 
             /* Prints continuously when merge custom normals, so commenting. */
@@ -1556,7 +1517,7 @@ static void bm_mesh_loops_assign_normal_data(BMesh *bm,
         BLI_BITMAP_ENABLE(done_loops, i);
       }
       else {
-        int nbr_nors = 0;
+        int avg_nor_count = 0;
         float avg_nor[3];
         short clnor_data_tmp[2], *clnor_data;
 
@@ -1569,7 +1530,7 @@ static void bm_mesh_loops_assign_normal_data(BMesh *bm,
           short *clnor = r_clnors_data ? &r_clnors_data[lidx] :
                                          BM_ELEM_CD_GET_VOID_P(ml, cd_loop_clnors_offset);
 
-          nbr_nors++;
+          avg_nor_count++;
           add_v3_v3(avg_nor, nor);
           BLI_SMALLSTACK_PUSH(clnors_data, clnor);
 
@@ -1577,7 +1538,7 @@ static void bm_mesh_loops_assign_normal_data(BMesh *bm,
           BLI_BITMAP_ENABLE(done_loops, lidx);
         }
 
-        mul_v3_fl(avg_nor, 1.0f / (float)nbr_nors);
+        mul_v3_fl(avg_nor, 1.0f / (float)avg_nor_count);
         BKE_lnor_space_custom_normal_to_data(
             lnors_spacearr->lspacearr[i], avg_nor, clnor_data_tmp);
 
@@ -1719,13 +1680,6 @@ static void bm_mesh_loops_calc_normals_no_autosmooth(BMesh *bm,
   }
 }
 
-/**
- * \brief BMesh Compute Loop Normals from/to external data.
- *
- * Compute split normals, i.e. vertex normals associated with each poly (hence 'loop normals').
- * Useful to materialize sharp edges (or non-smooth faces) without actually modifying the geometry
- * (splitting edges).
- */
 void BM_loops_calc_normal_vcos(BMesh *bm,
                                const float (*vcos)[3],
                                const float (*vnos)[3],
@@ -1932,10 +1886,6 @@ void BM_lnorspace_rebuild(BMesh *bm, bool preserve_clnor)
 #endif
 }
 
-/**
- * \warning This function sets #BM_ELEM_TAG on loops & edges via #bm_mesh_loops_calc_normals,
- * take care to run this before setting up tags.
- */
 void BM_lnorspace_update(BMesh *bm)
 {
   if (bm->lnor_spacearr == NULL) {
@@ -2249,10 +2199,6 @@ void BM_loop_normal_editdata_array_free(BMLoopNorEditDataArray *lnors_ed_arr)
 /** \name Custom Normals / Vector Layer Conversion
  * \{ */
 
-/**
- * \warning This function sets #BM_ELEM_TAG on loops & edges via #bm_mesh_loops_calc_normals,
- * take care to run this before setting up tags.
- */
 bool BM_custom_loop_normals_to_vector_layer(BMesh *bm)
 {
   BMFace *f;

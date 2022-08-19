@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2009 by Nicholas Bishop
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2009 by Nicholas Bishop. All rights reserved. */
 
 #pragma once
 
@@ -27,6 +11,9 @@
 #include "BLI_utildefines.h"
 #include "DNA_brush_enums.h"
 #include "DNA_object_enums.h"
+
+#include "BKE_attribute.h"
+#include "BKE_pbvh.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -44,7 +31,9 @@ struct EdgeSet;
 struct EnumPropertyItem;
 struct GHash;
 struct GridPaintMask;
+struct Image;
 struct ImagePool;
+struct ImageUser;
 struct ListBase;
 struct MLoop;
 struct MLoopTri;
@@ -56,6 +45,7 @@ struct Object;
 struct PBVH;
 struct Paint;
 struct PaintCurve;
+struct PaintModeSettings;
 struct Palette;
 struct PaletteColor;
 struct Scene;
@@ -90,9 +80,11 @@ typedef enum ePaintMode {
   PAINT_MODE_VERTEX_GPENCIL = 7,
   PAINT_MODE_SCULPT_GPENCIL = 8,
   PAINT_MODE_WEIGHT_GPENCIL = 9,
+  /** Curves. */
+  PAINT_MODE_SCULPT_CURVES = 10,
 
   /** Keep last. */
-  PAINT_MODE_INVALID = 10,
+  PAINT_MODE_INVALID = 11,
 } ePaintMode;
 
 #define PAINT_MODE_HAS_BRUSH(mode) !ELEM(mode, PAINT_MODE_SCULPT_UV)
@@ -111,10 +103,11 @@ typedef enum ePaintOverlayControlFlags {
   (PAINT_OVERLAY_OVERRIDE_SECONDARY | PAINT_OVERLAY_OVERRIDE_PRIMARY | \
    PAINT_OVERLAY_OVERRIDE_CURSOR)
 
-/* Defines 8 areas resulting of splitting the object space by the XYZ axis planes. This is used to
+/**
+ * Defines 8 areas resulting of splitting the object space by the XYZ axis planes. This is used to
  * flip or mirror transform values depending on where the vertex is and where the transform
- * operation started to support XYZ symmetry on those operations in a predictable way. */
-
+ * operation started to support XYZ symmetry on those operations in a predictable way.
+ */
 #define PAINT_SYMM_AREA_DEFAULT 0
 
 typedef enum ePaintSymmetryAreas {
@@ -136,29 +129,42 @@ ePaintOverlayControlFlags BKE_paint_get_overlay_flags(void);
 void BKE_paint_reset_overlay_invalid(ePaintOverlayControlFlags flag);
 void BKE_paint_set_overlay_override(enum eOverlayFlags flag);
 
-/* palettes */
+/* Palettes. */
+
 struct Palette *BKE_palette_add(struct Main *bmain, const char *name);
 struct PaletteColor *BKE_palette_color_add(struct Palette *palette);
 bool BKE_palette_is_empty(const struct Palette *palette);
+/**
+ * Remove color from palette. Must be certain color is inside the palette!
+ */
 void BKE_palette_color_remove(struct Palette *palette, struct PaletteColor *color);
 void BKE_palette_clear(struct Palette *palette);
 
-void BKE_palette_sort_hsv(struct tPaletteColorHSV *color_array, const int totcol);
-void BKE_palette_sort_svh(struct tPaletteColorHSV *color_array, const int totcol);
-void BKE_palette_sort_vhs(struct tPaletteColorHSV *color_array, const int totcol);
-void BKE_palette_sort_luminance(struct tPaletteColorHSV *color_array, const int totcol);
+void BKE_palette_sort_hsv(struct tPaletteColorHSV *color_array, int totcol);
+void BKE_palette_sort_svh(struct tPaletteColorHSV *color_array, int totcol);
+void BKE_palette_sort_vhs(struct tPaletteColorHSV *color_array, int totcol);
+void BKE_palette_sort_luminance(struct tPaletteColorHSV *color_array, int totcol);
 bool BKE_palette_from_hash(struct Main *bmain,
                            struct GHash *color_table,
                            const char *name,
-                           const bool linear);
+                           bool linear);
 
-/* paint curves */
+/* Paint curves. */
+
 struct PaintCurve *BKE_paint_curve_add(struct Main *bmain, const char *name);
 
+/**
+ * Call when entering each respective paint mode.
+ */
 bool BKE_paint_ensure(struct ToolSettings *ts, struct Paint **r_paint);
 void BKE_paint_init(struct Main *bmain, struct Scene *sce, ePaintMode mode, const char col[3]);
 void BKE_paint_free(struct Paint *p);
-void BKE_paint_copy(struct Paint *src, struct Paint *tar, const int flag);
+/**
+ * Called when copying scene settings, so even if 'src' and 'tar' are the same still do a
+ * #id_us_plus(), rather than if we were copying between 2 existing scenes where a matching
+ * value should decrease the existing user count as with #paint_brush_set()
+ */
+void BKE_paint_copy(struct Paint *src, struct Paint *tar, int flag);
 
 void BKE_paint_runtime_init(const struct ToolSettings *ts, struct Paint *paint);
 
@@ -169,38 +175,64 @@ bool BKE_paint_ensure_from_paintmode(struct Scene *sce, ePaintMode mode);
 struct Paint *BKE_paint_get_active_from_paintmode(struct Scene *sce, ePaintMode mode);
 const struct EnumPropertyItem *BKE_paint_get_tool_enum_from_paintmode(ePaintMode mode);
 const char *BKE_paint_get_tool_prop_id_from_paintmode(ePaintMode mode);
-uint BKE_paint_get_brush_tool_offset_from_paintmode(const ePaintMode mode);
+uint BKE_paint_get_brush_tool_offset_from_paintmode(ePaintMode mode);
 struct Paint *BKE_paint_get_active(struct Scene *sce, struct ViewLayer *view_layer);
 struct Paint *BKE_paint_get_active_from_context(const struct bContext *C);
 ePaintMode BKE_paintmode_get_active_from_context(const struct bContext *C);
 ePaintMode BKE_paintmode_get_from_tool(const struct bToolRef *tref);
 struct Brush *BKE_paint_brush(struct Paint *paint);
+const struct Brush *BKE_paint_brush_for_read(const struct Paint *p);
 void BKE_paint_brush_set(struct Paint *paint, struct Brush *br);
 struct Palette *BKE_paint_palette(struct Paint *paint);
 void BKE_paint_palette_set(struct Paint *p, struct Palette *palette);
 void BKE_paint_curve_set(struct Brush *br, struct PaintCurve *pc);
-void BKE_paint_curve_clamp_endpoint_add_index(struct PaintCurve *pc, const int add_index);
+void BKE_paint_curve_clamp_endpoint_add_index(struct PaintCurve *pc, int add_index);
 
-/* testing face select mode
- * Texture paint could be removed since selected faces are not used
- * however hiding faces is useful */
+/**
+ * Return true when in vertex/weight/texture paint + face-select mode?
+ */
 bool BKE_paint_select_face_test(struct Object *ob);
+/**
+ * Return true when in vertex/weight paint + vertex-select mode?
+ */
 bool BKE_paint_select_vert_test(struct Object *ob);
+/**
+ * used to check if selection is possible
+ * (when we don't care if its face or vert)
+ */
 bool BKE_paint_select_elem_test(struct Object *ob);
+/**
+ * Checks if face/vertex hiding is always applied in the current mode.
+ * Returns true in vertex/weight paint.
+ */
+bool BKE_paint_always_hide_test(struct Object *ob);
 
-/* partial visibility */
+/* Partial visibility. */
+
+/**
+ * Returns non-zero if any of the face's vertices are hidden, zero otherwise.
+ */
 bool paint_is_face_hidden(const struct MLoopTri *lt,
-                          const struct MVert *mvert,
+                          const bool *hide_vert,
                           const struct MLoop *mloop);
+/**
+ * Returns non-zero if any of the corners of the grid
+ * face whose inner corner is at (x, y) are hidden, zero otherwise.
+ */
 bool paint_is_grid_face_hidden(const unsigned int *grid_hidden, int gridsize, int x, int y);
+/**
+ * Return true if all vertices in the face are visible, false otherwise.
+ */
 bool paint_is_bmesh_face_hidden(struct BMFace *f);
 
-/* paint masks */
+/* Paint masks. */
+
 float paint_grid_paint_mask(const struct GridPaintMask *gpm, uint level, uint x, uint y);
 
-void BKE_paint_face_set_overlay_color_get(const int face_set, const int seed, uchar r_color[4]);
+void BKE_paint_face_set_overlay_color_get(int face_set, int seed, uchar r_color[4]);
 
-/* stroke related */
+/* Stroke related. */
+
 bool paint_calculate_rake_rotation(struct UnifiedPaintSettings *ups,
                                    struct Brush *brush,
                                    const float mouse_pos[2]);
@@ -211,14 +243,20 @@ void paint_update_brush_rake_rotation(struct UnifiedPaintSettings *ups,
 void BKE_paint_stroke_get_average(struct Scene *scene, struct Object *ob, float stroke[3]);
 
 /* Tool slot API. */
+
 void BKE_paint_toolslots_init_from_main(struct Main *bmain);
 void BKE_paint_toolslots_len_ensure(struct Paint *paint, int len);
 void BKE_paint_toolslots_brush_update_ex(struct Paint *paint, struct Brush *brush);
 void BKE_paint_toolslots_brush_update(struct Paint *paint);
+/**
+ * Run this to ensure brush types are set for each slot on entering modes
+ * (for new scenes for example).
+ */
 void BKE_paint_toolslots_brush_validate(struct Main *bmain, struct Paint *paint);
 struct Brush *BKE_paint_toolslots_brush_get(struct Paint *paint, int slot_index);
 
 /* .blend I/O */
+
 void BKE_paint_blend_write(struct BlendWriter *writer, struct Paint *paint);
 void BKE_paint_blend_read_data(struct BlendDataReader *reader,
                                const struct Scene *scene,
@@ -229,7 +267,7 @@ void BKE_paint_blend_read_lib(struct BlendLibReader *reader,
 
 #define SCULPT_FACE_SET_NONE 0
 
-/* Used for both vertex color and weight paint */
+/** Used for both vertex color and weight paint. */
 struct SculptVertexPaintGeomMap {
   int *vert_map_mem;
   struct MeshElemMap *vert_to_loop;
@@ -237,7 +275,7 @@ struct SculptVertexPaintGeomMap {
   struct MeshElemMap *vert_to_poly;
 };
 
-/* Pose Brush IK Chain */
+/** Pose Brush IK Chain. */
 typedef struct SculptPoseIKChainSegment {
   float orig[3];
   float head[3];
@@ -360,7 +398,7 @@ typedef struct SculptVertexInfo {
 
 typedef struct SculptBoundaryEditInfo {
   /* Vertex index from where the topology propagation reached this vertex. */
-  int original_vertex;
+  int original_vertex_i;
 
   /* How many steps were needed to reach this vertex from the boundary. */
   int num_propagation_steps;
@@ -371,13 +409,14 @@ typedef struct SculptBoundaryEditInfo {
 
 /* Edge for drawing the boundary preview in the cursor. */
 typedef struct SculptBoundaryPreviewEdge {
-  int v1;
-  int v2;
+  PBVHVertRef v1;
+  PBVHVertRef v2;
 } SculptBoundaryPreviewEdge;
 
 typedef struct SculptBoundary {
   /* Vertex indices of the active boundary. */
-  int *vertices;
+  PBVHVertRef *vertices;
+  int *vertices_i;
   int vertices_capacity;
   int num_vertices;
 
@@ -395,12 +434,13 @@ typedef struct SculptBoundary {
   bool forms_loop;
 
   /* Initial vertex in the boundary which is closest to the current sculpt active vertex. */
-  int initial_vertex;
+  PBVHVertRef initial_vertex;
+  int initial_vertex_i;
 
   /* Vertex that at max_propagation_steps from the boundary and closest to the original active
    * vertex that was used to initialize the boundary. This is used as a reference to check how much
    * the deformation will go into the mesh and to calculate the strength of the brushes. */
-  int pivot_vertex;
+  PBVHVertRef pivot_vertex;
 
   /* Stores the initial positions of the pivot and boundary initial vertex as they may be deformed
    * during the brush action. This allows to use them as a reference positions and vectors for some
@@ -467,6 +507,11 @@ typedef struct SculptSession {
 
   struct KeyBlock *shapekey_active;
   struct MPropCol *vcol;
+  struct MLoopCol *mcol;
+
+  eAttrDomain vcol_domain;
+  eCustomDataType vcol_type;
+
   float *vmask;
 
   /* Mesh connectivity maps. */
@@ -515,8 +560,7 @@ typedef struct SculptSession {
   float (*deform_cos)[3];       /* Coords of deformed mesh but without stroke displacement. */
   float (*deform_imats)[3][3];  /* Crazy-space deformation matrices. */
 
-  /* Used to cache the render of the active texture */
-  unsigned int texcache_side, *texcache, texcache_actual;
+  /* Pool for texture evaluations. */
   struct ImagePool *tex_pool;
 
   struct StrokeCache *cache;
@@ -524,7 +568,7 @@ typedef struct SculptSession {
   struct ExpandCache *expand_cache;
 
   /* Cursor data and active vertex for tools */
-  int active_vertex_index;
+  PBVHVertRef active_vertex;
 
   int active_face_index;
   int active_grid_index;
@@ -550,8 +594,8 @@ typedef struct SculptSession {
   struct Scene *scene;
 
   /* Dynamic mesh preview */
-  int *preview_vert_index_list;
-  int preview_vert_index_count;
+  PBVHVertRef *preview_vert_list;
+  int preview_vert_count;
 
   /* Pose Brush Preview */
   float pose_origin[3];
@@ -583,9 +627,6 @@ typedef struct SculptSession {
   union {
     struct {
       struct SculptVertexPaintGeomMap gmap;
-
-      /* For non-airbrush painting to re-apply from the original (MLoop aligned). */
-      unsigned int *previous_color;
     } vpaint;
 
     struct {
@@ -612,6 +653,19 @@ typedef struct SculptSession {
    */
   char needs_flush_to_id;
 
+  /**
+   * Some tools follows the shading chosen by the last used tool canvas.
+   * When not set the viewport shading color would be used.
+   *
+   * NOTE: This setting is temporarily until paint mode is added.
+   */
+  bool sticky_shading_color;
+
+  /**
+   * Last used painting canvas key.
+   */
+  char *last_paint_canvas_key;
+
 } SculptSession;
 
 void BKE_sculptsession_free(struct Object *ob);
@@ -620,19 +674,29 @@ void BKE_sculptsession_free_vwpaint_data(struct SculptSession *ss);
 void BKE_sculptsession_bm_to_me(struct Object *ob, bool reorder);
 void BKE_sculptsession_bm_to_me_for_render(struct Object *object);
 
-/* Create new color layer on object if it doesn't have one and if experimental feature set has
- * sculpt vertex color enabled. Returns truth if new layer has been added, false otherwise. */
+/**
+ * Create new color layer on object if it doesn't have one and if experimental feature set has
+ * sculpt vertex color enabled. Returns truth if new layer has been added, false otherwise.
+ */
 void BKE_sculpt_color_layer_create_if_needed(struct Object *object);
 
+/**
+ * \warning Expects a fully evaluated depsgraph.
+ */
 void BKE_sculpt_update_object_for_edit(struct Depsgraph *depsgraph,
                                        struct Object *ob_orig,
                                        bool need_pmap,
                                        bool need_mask,
-                                       bool need_colors);
-void BKE_sculpt_update_object_before_eval(struct Object *ob_eval);
+                                       bool is_paint_tool);
+void BKE_sculpt_update_object_before_eval(const struct Scene *scene, struct Object *ob_eval);
 void BKE_sculpt_update_object_after_eval(struct Depsgraph *depsgraph, struct Object *ob_eval);
 
-struct MultiresModifierData *BKE_sculpt_multires_active(struct Scene *scene, struct Object *ob);
+/**
+ * Sculpt mode handles multi-res differently from regular meshes, but only if
+ * it's the last modifier on the stack and it is not on the first level.
+ */
+struct MultiresModifierData *BKE_sculpt_multires_active(const struct Scene *scene,
+                                                        struct Object *ob);
 int BKE_sculpt_mask_layers_ensure(struct Object *ob, struct MultiresModifierData *mmd);
 void BKE_sculpt_toolsettings_data_ensure(struct Scene *scene);
 
@@ -640,25 +704,73 @@ struct PBVH *BKE_sculpt_object_pbvh_ensure(struct Depsgraph *depsgraph, struct O
 
 void BKE_sculpt_bvh_update_from_ccg(struct PBVH *pbvh, struct SubdivCCG *subdiv_ccg);
 
-/* This ensure that all elements in the mesh (both vertices and grids) have their visibility
- * updated according to the face sets. */
+/**
+ * This ensure that all elements in the mesh (both vertices and grids) have their visibility
+ * updated according to the face sets.
+ */
 void BKE_sculpt_sync_face_set_visibility(struct Mesh *mesh, struct SubdivCCG *subdiv_ccg);
 
-/* Individual function to sync the Face Set visibility to mesh and grids. */
+/**
+ * Individual function to sync the Face Set visibility to mesh and grids.
+ */
 void BKE_sculpt_sync_face_sets_visibility_to_base_mesh(struct Mesh *mesh);
 void BKE_sculpt_sync_face_sets_visibility_to_grids(struct Mesh *mesh,
                                                    struct SubdivCCG *subdiv_ccg);
 
+/**
+ * Ensures that a Face Set data-layers exists. If it does not, it creates one respecting the
+ * visibility stored in the vertices of the mesh. If it does, it copies the visibility from the
+ * mesh to the Face Sets. */
 void BKE_sculpt_face_sets_ensure_from_base_mesh_visibility(struct Mesh *mesh);
 
+/**
+ * Ensures we do have expected mesh data in original mesh for the sculpt mode.
+ *
+ * \note IDs are expected to be original ones here, and calling code should ensure it updates its
+ * depsgraph properly after calling this function if it needs up-to-date evaluated data.
+ */
 void BKE_sculpt_ensure_orig_mesh_data(struct Scene *scene, struct Object *object);
 
+/**
+ * Test if PBVH can be used directly for drawing, which is faster than
+ * drawing the mesh and all updates that come with it.
+ */
 bool BKE_sculptsession_use_pbvh_draw(const struct Object *ob, const struct View3D *v3d);
 
 enum {
   SCULPT_MASK_LAYER_CALC_VERT = (1 << 0),
   SCULPT_MASK_LAYER_CALC_LOOP = (1 << 1),
 };
+
+/* paint_vertex.cc */
+
+/**
+ * Fills the object's active color attribute layer with the fill color.
+ *
+ * \param[in] ob: The object.
+ * \param[in] fill_color: The fill color.
+ * \param[in] only_selected: Limit the fill to selected faces or vertices.
+ *
+ * \return #true if successful.
+ */
+bool BKE_object_attributes_active_color_fill(struct Object *ob,
+                                             const float fill_color[4],
+                                             bool only_selected);
+
+/* paint_canvas.cc */
+
+/**
+ * Create a key that can be used to compare with previous ones to identify changes.
+ * The resulting 'string' is owned by the caller.
+ */
+char *BKE_paint_canvas_key_get(struct PaintModeSettings *settings, struct Object *ob);
+
+bool BKE_paint_canvas_image_get(struct PaintModeSettings *settings,
+                                struct Object *ob,
+                                struct Image **r_image,
+                                struct ImageUser **r_image_user);
+int BKE_paint_canvas_uvmap_layer_index_get(const struct PaintModeSettings *settings,
+                                           struct Object *ob);
 
 #ifdef __cplusplus
 }

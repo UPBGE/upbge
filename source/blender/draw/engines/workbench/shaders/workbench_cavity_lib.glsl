@@ -1,17 +1,11 @@
 
 #pragma BLENDER_REQUIRE(common_view_lib.glsl)
-#pragma BLENDER_REQUIRE(workbench_data_lib.glsl)
 #pragma BLENDER_REQUIRE(workbench_common_lib.glsl)
-
-layout(std140) uniform samples_block
-{
-  vec4 samples_coords[512];
-};
-
-uniform sampler2D cavityJitter;
 
 /*  From The Alchemy screen-space ambient obscurance algorithm
  * http://graphics.cs.williams.edu/papers/AlchemyHPG11/VV11AlchemyAO.pdf */
+
+#ifdef USE_CAVITY
 
 void cavity_compute(vec2 screenco,
                     sampler2D depthBuffer,
@@ -37,9 +31,9 @@ void cavity_compute(vec2 screenco,
   /* find the offset in screen space by multiplying a point
    * in camera space at the depth of the point by the projection matrix. */
   vec2 offset;
-  float homcoord = ProjectionMatrix[2][3] * position.z + ProjectionMatrix[3][3];
-  offset.x = ProjectionMatrix[0][0] * world_data.cavity_distance / homcoord;
-  offset.y = ProjectionMatrix[1][1] * world_data.cavity_distance / homcoord;
+  float homcoord = drw_view.winmat[2][3] * position.z + drw_view.winmat[3][3];
+  offset.x = drw_view.winmat[0][0] * world_data.cavity_distance / homcoord;
+  offset.y = drw_view.winmat[1][1] * world_data.cavity_distance / homcoord;
   /* convert from -1.0...1.0 range to 0.0..1.0 for easy use with texture coordinates */
   offset *= 0.5;
 
@@ -98,3 +92,5 @@ void cavity_compute(vec2 screenco,
   cavities = clamp(cavities * world_data.cavity_valley_factor, 0.0, 1.0);
   edges = edges * world_data.cavity_ridge_factor;
 }
+
+#endif /* USE_CAVITY */

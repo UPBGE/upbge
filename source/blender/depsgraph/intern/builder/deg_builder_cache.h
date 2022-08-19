@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2018 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2018 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup depsgraph
@@ -33,8 +17,7 @@ struct ID;
 struct PointerRNA;
 struct PropertyRNA;
 
-namespace blender {
-namespace deg {
+namespace blender::deg {
 
 class DepsgraphBuilderCache;
 
@@ -44,14 +27,14 @@ class AnimatedPropertyID {
   AnimatedPropertyID();
   AnimatedPropertyID(const PointerRNA *pointer_rna, const PropertyRNA *property_rna);
   AnimatedPropertyID(const PointerRNA &pointer_rna, const PropertyRNA *property_rna);
-  AnimatedPropertyID(ID *id, StructRNA *type, const char *property_name);
-  AnimatedPropertyID(ID *id, StructRNA *type, void *data, const char *property_name);
+  AnimatedPropertyID(const ID *id, StructRNA *type, const char *property_name);
+  AnimatedPropertyID(const ID *id, StructRNA *type, void *data, const char *property_name);
 
   uint64_t hash() const;
   friend bool operator==(const AnimatedPropertyID &a, const AnimatedPropertyID &b);
 
   /* Corresponds to PointerRNA.data. */
-  void *data;
+  const void *data;
   const PropertyRNA *property_rna;
 
   MEM_CXX_CLASS_ALLOC_FUNCS("AnimatedPropertyID");
@@ -61,7 +44,7 @@ class AnimatedPropertyStorage {
  public:
   AnimatedPropertyStorage();
 
-  void initializeFromID(DepsgraphBuilderCache *builder_cache, ID *id);
+  void initializeFromID(DepsgraphBuilderCache *builder_cache, const ID *id);
 
   void tagPropertyAsAnimated(const AnimatedPropertyID &property_id);
   void tagPropertyAsAnimated(const PointerRNA *pointer_rna, const PropertyRNA *property_rna);
@@ -69,10 +52,13 @@ class AnimatedPropertyStorage {
   bool isPropertyAnimated(const AnimatedPropertyID &property_id);
   bool isPropertyAnimated(const PointerRNA *pointer_rna, const PropertyRNA *property_rna);
 
+  bool isAnyPropertyAnimated(const PointerRNA *pointer_rna);
+
   /* The storage is fully initialized from all F-Curves from corresponding ID. */
   bool is_fully_initialized;
 
   /* indexed by PointerRNA.data. */
+  Set<const void *> animated_objects_set;
   Set<AnimatedPropertyID> animated_properties_set;
 
   MEM_CXX_CLASS_ALLOC_FUNCS("AnimatedPropertyStorage");
@@ -84,8 +70,8 @@ class DepsgraphBuilderCache {
   ~DepsgraphBuilderCache();
 
   /* Makes sure storage for animated properties exists and initialized for the given ID. */
-  AnimatedPropertyStorage *ensureAnimatedPropertyStorage(ID *id);
-  AnimatedPropertyStorage *ensureInitializedAnimatedPropertyStorage(ID *id);
+  AnimatedPropertyStorage *ensureAnimatedPropertyStorage(const ID *id);
+  AnimatedPropertyStorage *ensureInitializedAnimatedPropertyStorage(const ID *id);
 
   /* Shortcuts to go through ensureInitializedAnimatedPropertyStorage and its
    * isPropertyAnimated.
@@ -95,17 +81,23 @@ class DepsgraphBuilderCache {
    *
    * TODO(sergey): Technically, this makes this class something else than just a cache, but what is
    * the better name? */
-  template<typename... Args> bool isPropertyAnimated(ID *id, Args... args)
+  template<typename... Args> bool isPropertyAnimated(const ID *id, Args... args)
   {
     AnimatedPropertyStorage *animated_property_storage = ensureInitializedAnimatedPropertyStorage(
         id);
     return animated_property_storage->isPropertyAnimated(args...);
   }
 
-  Map<ID *, AnimatedPropertyStorage *> animated_property_storage_map_;
+  bool isAnyPropertyAnimated(const PointerRNA *ptr)
+  {
+    AnimatedPropertyStorage *animated_property_storage = ensureInitializedAnimatedPropertyStorage(
+        ptr->owner_id);
+    return animated_property_storage->isAnyPropertyAnimated(ptr);
+  }
+
+  Map<const ID *, AnimatedPropertyStorage *> animated_property_storage_map_;
 
   MEM_CXX_CLASS_ALLOC_FUNCS("DepsgraphBuilderCache");
 };
 
-}  // namespace deg
-}  // namespace blender
+}  // namespace blender::deg

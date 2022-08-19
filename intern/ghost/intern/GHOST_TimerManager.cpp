@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup GHOST
@@ -87,10 +71,11 @@ uint64_t GHOST_TimerManager::nextFireTime()
   TTimerVector::iterator iter;
 
   for (iter = m_timers.begin(); iter != m_timers.end(); ++iter) {
-    uint64_t next = (*iter)->getNext();
+    const uint64_t next = (*iter)->getNext();
 
-    if (next < smallest)
+    if (next < smallest) {
       smallest = next;
+    }
   }
 
   return smallest;
@@ -102,8 +87,9 @@ bool GHOST_TimerManager::fireTimers(uint64_t time)
   bool anyProcessed = false;
 
   for (iter = m_timers.begin(); iter != m_timers.end(); ++iter) {
-    if (fireTimer(time, *iter))
+    if (fireTimer(time, *iter)) {
       anyProcessed = true;
+    }
   }
 
   return anyProcessed;
@@ -129,9 +115,7 @@ bool GHOST_TimerManager::fireTimer(uint64_t time, GHOST_TimerTask *task)
 
     return true;
   }
-  else {
-    return false;
-  }
+  return false;
 }
 
 void GHOST_TimerManager::disposeTimers()

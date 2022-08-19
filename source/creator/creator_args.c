@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup creator
@@ -49,7 +35,7 @@
 #  include "BKE_context.h"
 
 #  include "BKE_global.h"
-#  include "BKE_image.h"
+#  include "BKE_image_format.h"
 #  include "BKE_lib_id.h"
 #  include "BKE_main.h"
 #  include "BKE_report.h"
@@ -71,6 +57,13 @@
 #  include "ED_datafiles.h"
 
 #  include "WM_api.h"
+
+/* for passing information between creator and gameengine */
+#  ifdef WITH_GAMEENGINE
+#    include "LA_SystemCommandLine.h"
+#  else /* dummy */
+#    define SYS_SystemHandle int
+#  endif
 
 #  ifdef WITH_LIBMV
 #    include "libmv-capi.h"
@@ -276,7 +269,7 @@ static int *parse_int_relative_clamp_n(
   int i = 0;
   while (true) {
     const char *str_end = strchr(str, sep);
-    if ((*str == sep) || (*str == '\0')) {
+    if (ELEM(*str, sep, '\0')) {
       static const char *msg = "incorrect comma use";
       *r_err_msg = msg;
       goto fail;
@@ -543,6 +536,10 @@ static int arg_handle_print_help(int UNUSED(argc), const char **UNUSED(argv), vo
   BLI_args_print_arg_doc(ba, "--disable-autoexec");
 
   printf("\n");
+  printf("Game Engine Specific Options:\n");
+  BLI_args_print_arg_doc(ba, "-g");
+
+  printf("\n");
 
   BLI_args_print_arg_doc(ba, "--python");
   BLI_args_print_arg_doc(ba, "--python-text");
@@ -590,6 +587,7 @@ static int arg_handle_print_help(int UNUSED(argc), const char **UNUSED(argv), vo
   BLI_args_print_arg_doc(ba, "--debug-depsgraph-pretty");
   BLI_args_print_arg_doc(ba, "--debug-depsgraph-uuid");
   BLI_args_print_arg_doc(ba, "--debug-ghost");
+  BLI_args_print_arg_doc(ba, "--debug-wintab");
   BLI_args_print_arg_doc(ba, "--debug-gpu");
   BLI_args_print_arg_doc(ba, "--debug-gpu-force-workarounds");
   BLI_args_print_arg_doc(ba, "--debug-wm");
@@ -842,7 +840,7 @@ static int arg_handle_log_show_timestamp_set(int UNUSED(argc),
 }
 
 static const char arg_handle_log_file_set_doc[] =
-    "<filename>\n"
+    "<filepath>\n"
     "\tSet a file to output the log to.";
 static int arg_handle_log_file_set(int argc, const char **argv, void *UNUSED(data))
 {
@@ -957,6 +955,12 @@ static const char arg_handle_debug_mode_generic_set_doc_wm[] =
     "\n\t"
     "Enable debug messages for the window manager, shows all operators in search, shows "
     "keymap errors.";
+static const char arg_handle_debug_mode_generic_set_doc_ghost[] =
+    "\n\t"
+    "Enable debug messages for Ghost (Linux only).";
+static const char arg_handle_debug_mode_generic_set_doc_wintab[] =
+    "\n\t"
+    "Enable debug messages for Wintab.";
 #  ifdef WITH_XR_OPENXR
 static const char arg_handle_debug_mode_generic_set_doc_xr[] =
     "\n\t"
@@ -970,9 +974,6 @@ static const char arg_handle_debug_mode_generic_set_doc_xr_time[] =
 static const char arg_handle_debug_mode_generic_set_doc_jobs[] =
     "\n\t"
     "Enable time profiling for background jobs.";
-static const char arg_handle_debug_mode_generic_set_doc_gpu[] =
-    "\n\t"
-    "Enable GPU debug context and information for OpenGL 4.3+.";
 static const char arg_handle_debug_mode_generic_set_doc_depsgraph[] =
     "\n\t"
     "Enable all debug messages from dependency graph.";
@@ -1094,6 +1095,20 @@ static int arg_handle_debug_value_set(int argc, const char **argv, void *UNUSED(
     return 1;
   }
   printf("\nError: you must specify debug value to set.\n");
+  return 0;
+}
+
+static const char arg_handle_debug_gpu_set_doc[] =
+    "\n"
+    "\tEnable GPU debug context and information for OpenGL 4.3+.";
+static int arg_handle_debug_gpu_set(int UNUSED(argc),
+                                    const char **UNUSED(argv),
+                                    void *UNUSED(data))
+{
+  /* Also enable logging because that how gl errors are reported. */
+  const char *gpu_filter = "gpu.*";
+  CLG_type_filter_include(gpu_filter, strlen(gpu_filter));
+  G.debug |= G_DEBUG_GPU;
   return 0;
 }
 
@@ -1327,6 +1342,26 @@ static int arg_handle_register_extension(int UNUSED(argc), const char **UNUSED(a
   return 0;
 }
 
+static const char arg_handle_joystick_disable_doc[] = "\n\tDisable joystick support.";
+static int arg_handle_joystick_disable(int UNUSED(argc), const char **UNUSED(argv), void *data)
+{
+#  ifndef WITH_GAMEENGINE
+  (void)data;
+#  else
+  SYS_SystemHandle *syshandle = data;
+
+  /**
+   * don't initialize joysticks if user doesn't want to use joysticks
+   * failed joystick initialization delays over 5 seconds, before game engine start
+   */
+  SYS_WriteCommandLineInt(*syshandle, "nojoystick", 1);
+  if (G.debug & G_DEBUG)
+    printf("disabling nojoystick\n");
+#  endif
+
+  return 0;
+}
+
 static const char arg_handle_audio_disable_doc[] =
     "\n\t"
     "Force sound system to None.";
@@ -1435,7 +1470,7 @@ static const char arg_handle_image_type_set_doc[] =
     "\t'TGA' 'RAWTGA' 'JPEG' 'IRIS' 'IRIZ' 'AVIRAW' 'AVIJPEG' 'PNG' 'BMP'\n"
     "\n"
     "\tFormats that can be compiled into Blender, not available on all systems:\n"
-    "\t'HDR' 'TIFF' 'OPEN_EXR' 'OPEN_EXR_MULTILAYER' 'MPEG' 'CINEON' 'DPX' 'DDS' 'JP2'";
+    "\t'HDR' 'TIFF' 'OPEN_EXR' 'OPEN_EXR_MULTILAYER' 'MPEG' 'CINEON' 'DPX' 'DDS' 'JP2' 'WEBP'";
 static int arg_handle_image_type_set(int argc, const char **argv, void *data)
 {
   bContext *C = data;
@@ -1553,6 +1588,61 @@ static int arg_handle_extension_set(int argc, const char **argv, void *data)
   return 0;
 }
 
+static const char arg_handle_ge_parameters_set_doc[] =
+    "Game Engine specific options\n"
+    "\n"
+    "\t'fixedtime'\n"
+    "\t\tRun on 50 hertz without dropping frames.\n"
+    "\t'vertexarrays'\n"
+    "\t\tUse Vertex Arrays for rendering (usually faster).\n"
+    "\t\tNo Texture Mipmapping.\n"
+    "\t'linearmipmap'\n"
+    "\t\tLinear Texture Mipmapping instead of Nearest (default).";
+static int arg_handle_ge_parameters_set(int argc, const char **argv, void *data)
+{
+  int a = 0;
+#  ifdef WITH_GAMEENGINE
+  SYS_SystemHandle syshandle = *(SYS_SystemHandle *)data;
+#  else
+  (void)data;
+#  endif
+
+  /**
+   * gameengine parameters are automatically put into system
+   * -g [paramname = value]
+   * -g [boolparamname]
+   * example:
+   * -g novertexarrays
+   * -g maxvertexarraysize = 512
+   */
+
+  if (argc >= 1) {
+    const char *paramname = argv[a];
+    /* check for single value versus assignment */
+    if (a + 1 < argc && (*(argv[a + 1]) == '=')) {
+      a++;
+      if (a + 1 < argc) {
+        a++;
+        /* assignment */
+#  ifdef WITH_GAMEENGINE
+        SYS_WriteCommandLineString(syshandle, paramname, argv[a]);
+#  endif
+      }
+      else {
+        printf("Error: argument assignment (%s) without value.\n", paramname);
+        return 0;
+      }
+      /* name arg eaten */
+    }
+    else {
+#  ifdef WITH_GAMEENGINE
+      SYS_WriteCommandLineInt(syshandle, argv[a], 1);
+#  endif
+    } /* if (*(argv[a + 1]) == '=') */
+  }
+  return a;
+}
+
 static const char arg_handle_render_frame_doc[] =
     "<frame>\n"
     "\tRender frame <frame> and save it.\n"
@@ -1647,7 +1737,7 @@ static int arg_handle_scene_set(int argc, const char **argv, void *data)
       CTX_data_scene_set(C, scene);
 
       /* Set the scene of the first window, see: T55991,
-       * otherwise scrips that run later won't get this scene back from the context. */
+       * otherwise scripts that run later won't get this scene back from the context. */
       wmWindow *win = CTX_wm_window(C);
       if (win == NULL) {
         win = CTX_wm_manager(C)->windows.first;
@@ -1755,7 +1845,7 @@ static int arg_handle_frame_skip_set(int argc, const char **argv, void *data)
 }
 
 static const char arg_handle_python_file_run_doc[] =
-    "<filename>\n"
+    "<filepath>\n"
     "\tRun the given Python script file.";
 static int arg_handle_python_file_run(int argc, const char **argv, void *data)
 {
@@ -1765,12 +1855,12 @@ static int arg_handle_python_file_run(int argc, const char **argv, void *data)
   /* workaround for scripts not getting a bpy.context.scene, causes internal errors elsewhere */
   if (argc > 1) {
     /* Make the path absolute because its needed for relative linked blends to be found */
-    char filename[FILE_MAX];
-    BLI_strncpy(filename, argv[1], sizeof(filename));
-    BLI_path_abs_from_cwd(filename, sizeof(filename));
+    char filepath[FILE_MAX];
+    BLI_strncpy(filepath, argv[1], sizeof(filepath));
+    BLI_path_abs_from_cwd(filepath, sizeof(filepath));
 
     bool ok;
-    BPY_CTX_SETUP(ok = BPY_run_filepath(C, filename, NULL));
+    BPY_CTX_SETUP(ok = BPY_run_filepath(C, filepath, NULL));
     if (!ok && app_state.exit_code_on_error.python) {
       printf("\nError: script failed, file: '%s', exiting.\n", argv[1]);
       BPY_python_end();
@@ -1955,22 +2045,22 @@ static int arg_handle_load_file(int UNUSED(argc), const char **argv, void *data)
   bool success;
 
   /* Make the path absolute because its needed for relative linked blends to be found */
-  char filename[FILE_MAX];
+  char filepath[FILE_MAX];
 
   /* NOTE: we could skip these, but so far we always tried to load these files. */
   if (argv[0][0] == '-') {
     fprintf(stderr, "unknown argument, loading as file: %s\n", argv[0]);
   }
 
-  BLI_strncpy(filename, argv[0], sizeof(filename));
-  BLI_path_slash_native(filename);
-  BLI_path_abs_from_cwd(filename, sizeof(filename));
-  BLI_path_normalize(NULL, filename);
+  BLI_strncpy(filepath, argv[0], sizeof(filepath));
+  BLI_path_slash_native(filepath);
+  BLI_path_abs_from_cwd(filepath, sizeof(filepath));
+  BLI_path_normalize(NULL, filepath);
 
   /* load the file */
   BKE_reports_init(&reports, RPT_PRINT);
-  WM_file_autoexec_init(filename);
-  success = WM_file_read(C, filename, &reports);
+  WM_file_autoexec_init(filepath);
+  success = WM_file_read(C, filepath, &reports);
   BKE_reports_clear(&reports);
 
   if (success) {
@@ -1991,24 +2081,20 @@ static int arg_handle_load_file(int UNUSED(argc), const char **argv, void *data)
       return -1;
     }
 
-    if (BLO_has_bfile_extension(filename)) {
+    if (BLO_has_bfile_extension(filepath)) {
       /* Just pretend a file was loaded, so the user can press Save and it'll
-       * save at the filename from the CLI. */
-      BLI_strncpy(G_MAIN->name, filename, FILE_MAX);
-      G.relbase_valid = true;
-      G.save_over = true;
-      printf("... opened default scene instead; saving will write to: %s\n", filename);
+       * save at the filepath from the CLI. */
+      STRNCPY(G_MAIN->filepath, filepath);
+      printf("... opened default scene instead; saving will write to: %s\n", filepath);
     }
     else {
       printf(
           "Error: argument has no '.blend' file extension, not using as new file, exiting! %s\n",
-          filename);
+          filepath);
       G.is_break = true;
       WM_exit(C);
     }
   }
-
-  G.file_loaded = 1;
 
   return 0;
 }
@@ -2028,7 +2114,7 @@ static int arg_handle_load_last_file(int UNUSED(argc), const char **UNUSED(argv)
   return arg_handle_load_file(ARRAY_SIZE(fake_argv), fake_argv, data);
 }
 
-void main_args_setup(bContext *C, bArgs *ba)
+void main_args_setup(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 {
 
 #  define CB(a) a##_doc, a
@@ -2137,8 +2223,13 @@ void main_args_setup(bContext *C, bArgs *ba)
   BLI_args_add(ba,
                NULL,
                "--debug-ghost",
-               CB_EX(arg_handle_debug_mode_generic_set, handlers),
+               CB_EX(arg_handle_debug_mode_generic_set, ghost),
                (void *)G_DEBUG_GHOST);
+  BLI_args_add(ba,
+               NULL,
+               "--debug-wintab",
+               CB_EX(arg_handle_debug_mode_generic_set, wintab),
+               (void *)G_DEBUG_WINTAB);
   BLI_args_add(ba, NULL, "--debug-all", CB(arg_handle_debug_mode_all), NULL);
 
   BLI_args_add(ba, NULL, "--debug-io", CB(arg_handle_debug_mode_io), NULL);
@@ -2159,8 +2250,8 @@ void main_args_setup(bContext *C, bArgs *ba)
                "--debug-jobs",
                CB_EX(arg_handle_debug_mode_generic_set, jobs),
                (void *)G_DEBUG_JOBS);
-  BLI_args_add(
-      ba, NULL, "--debug-gpu", CB_EX(arg_handle_debug_mode_generic_set, gpu), (void *)G_DEBUG_GPU);
+  BLI_args_add(ba, NULL, "--debug-gpu", CB(arg_handle_debug_gpu_set), NULL);
+
   BLI_args_add(ba,
                NULL,
                "--debug-depsgraph",
@@ -2231,9 +2322,11 @@ void main_args_setup(bContext *C, bArgs *ba)
   BLI_args_pass_set(ba, ARG_PASS_SETTINGS_FORCE);
   BLI_args_add_case(ba, "-noaudio", 1, NULL, 0, CB(arg_handle_audio_disable), NULL);
   BLI_args_add_case(ba, "-setaudio", 1, NULL, 0, CB(arg_handle_audio_set), NULL);
+  BLI_args_add_case(ba, "-nojoystick", 1, NULL, 0, CB(arg_handle_joystick_disable), syshandle);
 
   /* Pass: Processing Arguments. */
   BLI_args_pass_set(ba, ARG_PASS_FINAL);
+  BLI_args_add(ba, "-g", NULL, CB(arg_handle_ge_parameters_set), syshandle);
   BLI_args_add(ba, "-f", "--render-frame", CB(arg_handle_render_frame), C);
   BLI_args_add(ba, "-a", "--render-anim", CB(arg_handle_render_animation), C);
   BLI_args_add(ba, "-S", "--scene", CB(arg_handle_scene_set), C);
@@ -2251,6 +2344,7 @@ void main_args_setup(bContext *C, bArgs *ba)
   BLI_args_add(ba, "-E", "--engine", CB(arg_handle_engine_set), C);
 
   BLI_args_add(ba, "-F", "--render-format", CB(arg_handle_image_type_set), C);
+  BLI_args_add(ba, "-t", "--threads", CB(arg_handle_threads_set), NULL);
   BLI_args_add(ba, "-x", "--use-extension", CB(arg_handle_extension_set), C);
 
   BLI_args_add(ba, NULL, "--open-last", CB(arg_handle_load_last_file), C);

@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2021 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include "kernel/camera/projection.h"
 
@@ -78,19 +65,20 @@ ccl_device void subsurface_random_walk_remap(const float albedo,
   *sigma_t = sigma_t_prime / (1.0f - g);
 }
 
-ccl_device void subsurface_random_walk_coefficients(const float3 albedo,
-                                                    const float3 radius,
+ccl_device void subsurface_random_walk_coefficients(const Spectrum albedo,
+                                                    const Spectrum radius,
                                                     const float anisotropy,
-                                                    ccl_private float3 *sigma_t,
-                                                    ccl_private float3 *alpha,
-                                                    ccl_private float3 *throughput)
+                                                    ccl_private Spectrum *sigma_t,
+                                                    ccl_private Spectrum *alpha,
+                                                    ccl_private Spectrum *throughput)
 {
-  float sigma_t_x, sigma_t_y, sigma_t_z;
-  float alpha_x, alpha_y, alpha_z;
-
-  subsurface_random_walk_remap(albedo.x, radius.x, anisotropy, &sigma_t_x, &alpha_x);
-  subsurface_random_walk_remap(albedo.y, radius.y, anisotropy, &sigma_t_y, &alpha_y);
-  subsurface_random_walk_remap(albedo.z, radius.z, anisotropy, &sigma_t_z, &alpha_z);
+  FOREACH_SPECTRUM_CHANNEL (i) {
+    subsurface_random_walk_remap(GET_SPECTRUM_CHANNEL(albedo, i),
+                                 GET_SPECTRUM_CHANNEL(radius, i),
+                                 anisotropy,
+                                 &GET_SPECTRUM_CHANNEL(*sigma_t, i),
+                                 &GET_SPECTRUM_CHANNEL(*alpha, i));
+  }
 
   /* Throughput already contains closure weight at this point, which includes the
    * albedo, as well as closure mixing and Fresnel weights. Divide out the albedo
@@ -101,21 +89,12 @@ ccl_device void subsurface_random_walk_coefficients(const float3 albedo,
    * infinite phase functions. To avoid a sharp discontinuity as we go from
    * such values to 0.0, increase alpha and reduce the throughput to compensate. */
   const float min_alpha = 0.2f;
-  if (alpha_x < min_alpha) {
-    (*throughput).x *= alpha_x / min_alpha;
-    alpha_x = min_alpha;
+  FOREACH_SPECTRUM_CHANNEL (i) {
+    if (GET_SPECTRUM_CHANNEL(*alpha, i) < min_alpha) {
+      GET_SPECTRUM_CHANNEL(*throughput, i) *= GET_SPECTRUM_CHANNEL(*alpha, i) / min_alpha;
+      GET_SPECTRUM_CHANNEL(*alpha, i) = min_alpha;
+    }
   }
-  if (alpha_y < min_alpha) {
-    (*throughput).y *= alpha_y / min_alpha;
-    alpha_y = min_alpha;
-  }
-  if (alpha_z < min_alpha) {
-    (*throughput).z *= alpha_z / min_alpha;
-    alpha_z = min_alpha;
-  }
-
-  *sigma_t = make_float3(sigma_t_x, sigma_t_y, sigma_t_z);
-  *alpha = make_float3(alpha_x, alpha_y, alpha_z);
 }
 
 /* References for Dwivedi sampling:
@@ -164,12 +143,12 @@ ccl_device_forceinline float3 direction_from_cosine(float3 D, float cos_theta, f
   return dir.x * T + dir.y * B + dir.z * D;
 }
 
-ccl_device_forceinline float3 subsurface_random_walk_pdf(float3 sigma_t,
-                                                         float t,
-                                                         bool hit,
-                                                         ccl_private float3 *transmittance)
+ccl_device_forceinline Spectrum subsurface_random_walk_pdf(Spectrum sigma_t,
+                                                           float t,
+                                                           bool hit,
+                                                           ccl_private Spectrum *transmittance)
 {
-  float3 T = volume_color_transmittance(sigma_t, t);
+  Spectrum T = volume_color_transmittance(sigma_t, t);
   if (transmittance) {
     *transmittance = T;
   }
@@ -195,6 +174,7 @@ ccl_device_inline bool subsurface_random_walk(KernelGlobals kg,
   const float time = INTEGRATOR_STATE(state, ray, time);
   const float3 Ng = INTEGRATOR_STATE(state, subsurface, Ng);
   const int object = INTEGRATOR_STATE(state, isect, object);
+  const int prim = INTEGRATOR_STATE(state, isect, prim);
 
   /* Sample diffuse surface scatter into the object. */
   float3 D;
@@ -205,29 +185,28 @@ ccl_device_inline bool subsurface_random_walk(KernelGlobals kg,
   }
 
   /* Setup ray. */
-  ray.P = ray_offset(P, -Ng);
+  ray.P = P;
   ray.D = D;
-  ray.t = FLT_MAX;
+  ray.tmin = 0.0f;
+  ray.tmax = FLT_MAX;
   ray.time = time;
   ray.dP = ray_dP;
   ray.dD = differential_zero_compact();
-
-#ifndef __KERNEL_OPTIX__
-  /* Compute or fetch object transforms. */
-  Transform ob_itfm ccl_optional_struct_init;
-  Transform ob_tfm = object_fetch_transform_motion_test(kg, object, time, &ob_itfm);
-#endif
+  ray.self.object = object;
+  ray.self.prim = prim;
+  ray.self.light_object = OBJECT_NONE;
+  ray.self.light_prim = PRIM_NONE;
 
   /* Convert subsurface to volume coefficients.
    * The single-scattering albedo is named alpha to avoid confusion with the surface albedo. */
-  const float3 albedo = INTEGRATOR_STATE(state, subsurface, albedo);
-  const float3 radius = INTEGRATOR_STATE(state, subsurface, radius);
+  const Spectrum albedo = INTEGRATOR_STATE(state, subsurface, albedo);
+  const Spectrum radius = INTEGRATOR_STATE(state, subsurface, radius);
   const float anisotropy = INTEGRATOR_STATE(state, subsurface, anisotropy);
 
-  float3 sigma_t, alpha;
-  float3 throughput = INTEGRATOR_STATE_WRITE(state, path, throughput);
+  Spectrum sigma_t, alpha;
+  Spectrum throughput = INTEGRATOR_STATE_WRITE(state, path, throughput);
   subsurface_random_walk_coefficients(albedo, radius, anisotropy, &sigma_t, &alpha, &throughput);
-  float3 sigma_s = sigma_t * alpha;
+  Spectrum sigma_s = sigma_t * alpha;
 
   /* Theoretically it should be better to use the exact alpha for the channel we're sampling at
    * each bounce, but in practice there doesn't seem to be a noticeable difference in exchange
@@ -237,7 +216,7 @@ ccl_device_inline bool subsurface_random_walk(KernelGlobals kg,
    * Since the strength of the guided sampling increases as alpha gets lower, using a value that
    * is too low results in fireflies while one that's too high just gives a bit more noise.
    * Therefore, the code here uses the highest of the three albedos to be safe. */
-  const float diffusion_length = diffusion_length_dwivedi(max3(alpha));
+  const float diffusion_length = diffusion_length_dwivedi(reduce_max(alpha));
 
   if (diffusion_length == 1.0f) {
     /* With specific values of alpha the length might become 1, which in asymptotic makes phase to
@@ -262,10 +241,10 @@ ccl_device_inline bool subsurface_random_walk(KernelGlobals kg,
   const float guided_fraction = 1.0f - fmaxf(0.5f, powf(fabsf(anisotropy), 0.125f));
 
 #ifdef SUBSURFACE_RANDOM_WALK_SIMILARITY_LEVEL
-  float3 sigma_s_star = sigma_s * (1.0f - anisotropy);
-  float3 sigma_t_star = sigma_t - sigma_s + sigma_s_star;
-  float3 sigma_t_org = sigma_t;
-  float3 sigma_s_org = sigma_s;
+  Spectrum sigma_s_star = sigma_s * (1.0f - anisotropy);
+  Spectrum sigma_t_star = sigma_t - sigma_s + sigma_s_star;
+  Spectrum sigma_t_org = sigma_t;
+  Spectrum sigma_s_org = sigma_s;
   const float anisotropy_org = anisotropy;
   const float guided_fraction_org = guided_fraction;
 #endif
@@ -277,7 +256,7 @@ ccl_device_inline bool subsurface_random_walk(KernelGlobals kg,
 #ifdef SUBSURFACE_RANDOM_WALK_SIMILARITY_LEVEL
     // shadow with local variables according to depth
     float anisotropy, guided_fraction;
-    float3 sigma_s, sigma_t;
+    Spectrum sigma_s, sigma_t;
     if (bounce <= SUBSURFACE_RANDOM_WALK_SIMILARITY_LEVEL) {
       anisotropy = anisotropy_org;
       guided_fraction = guided_fraction_org;
@@ -294,7 +273,7 @@ ccl_device_inline bool subsurface_random_walk(KernelGlobals kg,
 
     /* Sample color channel, use MIS with balance heuristic. */
     float rphase = path_state_rng_1D(kg, &rng_state, PRNG_PHASE_CHANNEL);
-    float3 channel_pdf;
+    Spectrum channel_pdf;
     int channel = volume_sample_channel(alpha, throughput, rphase, &channel_pdf);
     float sample_sigma_t = volume_channel_get(sigma_t, channel);
     float randt = path_state_rng_1D(kg, &rng_state, PRNG_SCATTER_DISTANCE);
@@ -377,58 +356,52 @@ ccl_device_inline bool subsurface_random_walk(KernelGlobals kg,
      * If yes, we will later use backwards guided sampling in order to have a decent
      * chance of connecting to it.
      * TODO: Maybe use less than 10 times the mean free path? */
-    ray.t = (bounce == 0) ? max(t, 10.0f / (min3(sigma_t))) : t;
+    if (bounce == 0) {
+      ray.tmax = max(t, 10.0f / (reduce_min(sigma_t)));
+    }
+    else {
+      ray.tmax = t;
+      /* After the first bounce the object can intersect the same surface again */
+      ray.self.object = OBJECT_NONE;
+      ray.self.prim = PRIM_NONE;
+    }
     scene_intersect_local(kg, &ray, &ss_isect, object, NULL, 1);
     hit = (ss_isect.num_hits > 0);
 
     if (hit) {
-#ifdef __KERNEL_OPTIX__
-      /* t is always in world space with OptiX. */
-      ray.t = ss_isect.hits[0].t;
-#else
-      /* Compute world space distance to surface hit. */
-      float3 D = transform_direction(&ob_itfm, ray.D);
-      D = normalize(D) * ss_isect.hits[0].t;
-      ray.t = len(transform_direction(&ob_tfm, D));
-#endif
+      ray.tmax = ss_isect.hits[0].t;
     }
 
     if (bounce == 0) {
       /* Check if we hit the opposite side. */
       if (hit) {
         have_opposite_interface = true;
-        opposite_distance = dot(ray.P + ray.t * ray.D - P, -N);
+        opposite_distance = dot(ray.P + ray.tmax * ray.D - P, -N);
       }
       /* Apart from the opposite side check, we were supposed to only trace up to distance t,
        * so check if there would have been a hit in that case. */
-      hit = ray.t < t;
+      hit = ray.tmax < t;
     }
 
     /* Use the distance to the exit point for the throughput update if we found one. */
     if (hit) {
-      t = ray.t;
-    }
-    else if (bounce == 0) {
-      /* Restore original position if nothing was hit after the first bounce,
-       * without the ray_offset() that was added to avoid self-intersection.
-       * Otherwise if that offset is relatively large compared to the scattering
-       * radius, we never go back up high enough to exit the surface. */
-      ray.P = P;
+      t = ray.tmax;
     }
 
     /* Advance to new scatter location. */
     ray.P += t * ray.D;
 
-    float3 transmittance;
-    float3 pdf = subsurface_random_walk_pdf(sigma_t, t, hit, &transmittance);
+    Spectrum transmittance;
+    Spectrum pdf = subsurface_random_walk_pdf(sigma_t, t, hit, &transmittance);
     if (bounce > 0) {
       /* Compute PDF just like we do for classic sampling, but with the stretched sigma_t. */
-      float3 guided_pdf = subsurface_random_walk_pdf(forward_stretching * sigma_t, t, hit, NULL);
+      Spectrum guided_pdf = subsurface_random_walk_pdf(forward_stretching * sigma_t, t, hit, NULL);
 
       if (have_opposite_interface) {
         /* First step of MIS: Depending on geometry we might have two methods for guided
          * sampling, so perform MIS between them. */
-        float3 back_pdf = subsurface_random_walk_pdf(backward_stretching * sigma_t, t, hit, NULL);
+        Spectrum back_pdf = subsurface_random_walk_pdf(
+            backward_stretching * sigma_t, t, hit, NULL);
         guided_pdf = mix(
             guided_pdf * forward_pdf_factor, back_pdf * backward_pdf_factor, backward_fraction);
       }
@@ -450,16 +423,14 @@ ccl_device_inline bool subsurface_random_walk(KernelGlobals kg,
       /* If we hit the surface, we are done. */
       break;
     }
-    else if (throughput.x < VOLUME_THROUGHPUT_EPSILON &&
-             throughput.y < VOLUME_THROUGHPUT_EPSILON &&
-             throughput.z < VOLUME_THROUGHPUT_EPSILON) {
+    else if (reduce_max(throughput) < VOLUME_THROUGHPUT_EPSILON) {
       /* Avoid unnecessary work and precision issue when throughput gets really small. */
       break;
     }
   }
 
   if (hit) {
-    kernel_assert(isfinite3_safe(throughput));
+    kernel_assert(isfinite_safe(throughput));
     INTEGRATOR_STATE_WRITE(state, path, throughput) = throughput;
   }
 

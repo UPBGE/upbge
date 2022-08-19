@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup imbuf
@@ -55,7 +41,7 @@ void IMB_thumb_ensure_translations(void)
   }
 }
 
-struct ImBuf *IMB_thumb_load_font(const char *filename, unsigned int x, unsigned int y)
+struct ImBuf *IMB_thumb_load_font(const char *filepath, unsigned int x, unsigned int y)
 {
   const int font_size = y / 4;
 
@@ -74,7 +60,7 @@ struct ImBuf *IMB_thumb_load_font(const char *filename, unsigned int x, unsigned
   /* draw with full alpha */
   font_color[3] = 1.0f;
 
-  BLF_thumb_preview(filename,
+  BLF_thumb_preview(filepath,
                     thumb_str,
                     i18n_thumb_str,
                     ARRAY_SIZE(thumb_str),

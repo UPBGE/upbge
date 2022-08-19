@@ -1,11 +1,4 @@
 
-uniform mat4 ModelViewProjectionMatrix;
-uniform float size;
-uniform float outlineWidth;
-
-in vec2 pos;
-out vec4 radii;
-
 void main()
 {
   gl_Position = ModelViewProjectionMatrix * vec4(pos, 0.0, 1.0);

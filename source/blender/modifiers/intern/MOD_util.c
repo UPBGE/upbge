@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2005 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2005 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup modifiers
@@ -72,7 +56,6 @@ void MOD_init_texture(MappingInfoModifierData *dmd, const ModifierEvalContext *c
 }
 
 /* TODO: to be renamed to get_texture_coords once we are done with moving modifiers to Mesh. */
-/** \param cos: may be NULL, in which case we use directly mesh vertices' coordinates. */
 void MOD_get_texture_coords(MappingInfoModifierData *dmd,
                             const ModifierEvalContext *UNUSED(ctx),
                             Object *ob,
@@ -80,7 +63,7 @@ void MOD_get_texture_coords(MappingInfoModifierData *dmd,
                             float (*cos)[3],
                             float (*r_texco)[3])
 {
-  const int numVerts = mesh->totvert;
+  const int verts_num = mesh->totvert;
   int i;
   int texmapping = dmd->texmapping;
   float mapref_imat[4][4];
@@ -114,16 +97,15 @@ void MOD_get_texture_coords(MappingInfoModifierData *dmd,
       MPoly *mpoly = mesh->mpoly;
       MPoly *mp;
       MLoop *mloop = mesh->mloop;
-      BLI_bitmap *done = BLI_BITMAP_NEW(numVerts, __func__);
-      const int numPolys = mesh->totpoly;
+      BLI_bitmap *done = BLI_BITMAP_NEW(verts_num, __func__);
+      const int polys_num = mesh->totpoly;
       char uvname[MAX_CUSTOMDATA_LAYER_NAME];
-      MLoopUV *mloop_uv;
 
       CustomData_validate_layer_name(&mesh->ldata, CD_MLOOPUV, dmd->uvlayer_name, uvname);
-      mloop_uv = CustomData_get_layer_named(&mesh->ldata, CD_MLOOPUV, uvname);
+      const MLoopUV *mloop_uv = CustomData_get_layer_named(&mesh->ldata, CD_MLOOPUV, uvname);
 
       /* verts are given the UV from the first face that uses them */
-      for (i = 0, mp = mpoly; i < numPolys; i++, mp++) {
+      for (i = 0, mp = mpoly; i < polys_num; i++, mp++) {
         uint fidx = mp->totloop - 1;
 
         do {
@@ -149,7 +131,7 @@ void MOD_get_texture_coords(MappingInfoModifierData *dmd,
   }
 
   MVert *mv = mesh->mvert;
-  for (i = 0; i < numVerts; i++, mv++, r_texco++) {
+  for (i = 0; i < verts_num; i++, mv++, r_texco++) {
     switch (texmapping) {
       case MOD_DISP_MAP_LOCAL:
         copy_v3_v3(*r_texco, cos != NULL ? *cos : mv->co);
@@ -182,13 +164,11 @@ void MOD_previous_vcos_store(ModifierData *md, const float (*vert_coords)[3])
   /* lattice/mesh modifier too */
 }
 
-/* returns a mesh if mesh == NULL, for deforming modifiers that need it */
 Mesh *MOD_deform_mesh_eval_get(Object *ob,
                                struct BMEditMesh *em,
                                Mesh *mesh,
                                const float (*vertexCos)[3],
-                               const int num_verts,
-                               const bool use_normals,
+                               const int verts_num,
                                const bool use_orco)
 {
   if (mesh != NULL) {
@@ -219,11 +199,10 @@ Mesh *MOD_deform_mesh_eval_get(Object *ob,
     }
 
     if (use_orco) {
-      CustomData_add_layer(
-          &mesh->vdata, CD_ORCO, CD_ASSIGN, BKE_mesh_orco_verts_get(ob), mesh->totvert);
+      BKE_mesh_orco_ensure(ob, mesh);
     }
   }
-  else if (ELEM(ob->type, OB_FONT, OB_CURVE, OB_SURF)) {
+  else if (ELEM(ob->type, OB_FONT, OB_CURVES_LEGACY, OB_SURF)) {
     /* TODO(sybren): get evaluated mesh from depsgraph once
      * that's properly generated for curves. */
     mesh = BKE_mesh_new_nomain_from_curve(ob);
@@ -231,20 +210,14 @@ Mesh *MOD_deform_mesh_eval_get(Object *ob,
     /* Currently, that may not be the case every time
      * (texts e.g. tend to give issues,
      * also when deforming curve points instead of generated curve geometry... ). */
-    if (mesh != NULL && mesh->totvert != num_verts) {
+    if (mesh != NULL && mesh->totvert != verts_num) {
       BKE_id_free(NULL, mesh);
       mesh = NULL;
     }
   }
 
-  if (use_normals) {
-    if (LIKELY(mesh)) {
-      BKE_mesh_ensure_normals(mesh);
-    }
-  }
-
   if (mesh && mesh->runtime.wrapper_type == ME_WRAPPER_TYPE_MDATA) {
-    BLI_assert(mesh->totvert == num_verts);
+    BLI_assert(mesh->totvert == verts_num);
   }
 
   return mesh;
@@ -289,7 +262,6 @@ void MOD_depsgraph_update_object_bone_relation(struct DepsNodeHandle *node,
   }
 }
 
-/* only called by BKE_modifier.h/modifier.c */
 void modifier_type_init(ModifierTypeInfo *types[])
 {
 #define INIT_TYPE(typeName) (types[eModifierType_##typeName] = &modifierType_##typeName)

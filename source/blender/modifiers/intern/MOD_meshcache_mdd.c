@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup modifiers
@@ -110,22 +96,22 @@ static bool meshcache_read_mdd_range_from_time(FILE *fp,
     return false;
   }
 
-  size_t num_frames_read = 0;
-  size_t num_frames_expect = mdd_head.frame_tot;
+  size_t frames_num_read = 0;
+  size_t frames_num_expect = mdd_head.frame_tot;
   errno = 0;
   for (i = 0; i < mdd_head.frame_tot; i++) {
-    num_frames_read += fread(&f_time, sizeof(float), 1, fp);
+    frames_num_read += fread(&f_time, sizeof(float), 1, fp);
 #ifdef __LITTLE_ENDIAN__
     BLI_endian_switch_float(&f_time);
 #endif
     if (f_time >= time) {
-      num_frames_expect = i + 1;
+      frames_num_expect = i + 1;
       break;
     }
     f_time_prev = f_time;
   }
 
-  if (num_frames_read != num_frames_expect) {
+  if (frames_num_read != frames_num_expect) {
     *err_str = errno ? strerror(errno) : "Timestamp read failed";
     return false;
   }
@@ -174,14 +160,14 @@ bool MOD_meshcache_read_mdd_index(FILE *fp,
     return false;
   }
 
-  size_t num_verts_read = 0;
+  size_t verts_read_num = 0;
   errno = 0;
   if (factor >= 1.0f) {
 #if 1
     float *vco = *vertexCos;
     uint i;
     for (i = mdd_head.verts_tot; i != 0; i--, vco += 3) {
-      num_verts_read += fread(vco, sizeof(float[3]), 1, fp);
+      verts_read_num += fread(vco, sizeof(float[3]), 1, fp);
 
 #  ifdef __LITTLE_ENDIAN__
       BLI_endian_switch_float(vco + 0);
@@ -206,7 +192,7 @@ bool MOD_meshcache_read_mdd_index(FILE *fp,
     uint i;
     for (i = mdd_head.verts_tot; i != 0; i--, vco += 3) {
       float tvec[3];
-      num_verts_read += fread(tvec, sizeof(float[3]), 1, fp);
+      verts_read_num += fread(tvec, sizeof(float[3]), 1, fp);
 
 #ifdef __LITTLE_ENDIAN__
       BLI_endian_switch_float(tvec + 0);
@@ -220,7 +206,7 @@ bool MOD_meshcache_read_mdd_index(FILE *fp,
     }
   }
 
-  if (num_verts_read != mdd_head.verts_tot) {
+  if (verts_read_num != mdd_head.verts_tot) {
     *err_str = errno ? strerror(errno) : "Vertex coordinate read failed";
     return false;
   }

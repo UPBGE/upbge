@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2008 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2008 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup edanimation
@@ -54,7 +38,6 @@
 #include "SEQ_iterator.h"
 #include "SEQ_sequencer.h"
 #include "SEQ_time.h"
-#include "SEQ_transform.h"
 
 #include "anim_intern.h"
 
@@ -128,9 +111,9 @@ static int seq_frame_apply_snap(bContext *C, Scene *scene, const int timeline_fr
   Sequence *seq;
   SEQ_ITERATOR_FOREACH (seq, strips) {
     seq_frame_snap_update_best(
-        SEQ_transform_get_left_handle_frame(seq), timeline_frame, &best_frame, &best_distance);
+        SEQ_time_left_handle_frame_get(scene, seq), timeline_frame, &best_frame, &best_distance);
     seq_frame_snap_update_best(
-        SEQ_transform_get_right_handle_frame(seq), timeline_frame, &best_frame, &best_distance);
+        SEQ_time_right_handle_frame_get(scene, seq), timeline_frame, &best_frame, &best_distance);
   }
   SEQ_collection_free(strips);
 
@@ -159,17 +142,17 @@ static void change_frame_apply(bContext *C, wmOperator *op)
 
   /* set the new frame number */
   if (scene->r.flag & SCER_SHOW_SUBFRAME) {
-    CFRA = (int)frame;
-    SUBFRA = frame - (int)frame;
+    scene->r.cfra = (int)frame;
+    scene->r.subframe = frame - (int)frame;
   }
   else {
-    CFRA = round_fl_to_int(frame);
-    SUBFRA = 0.0f;
+    scene->r.cfra = round_fl_to_int(frame);
+    scene->r.subframe = 0.0f;
   }
-  FRAMENUMBER_MIN_CLAMP(CFRA);
+  FRAMENUMBER_MIN_CLAMP(scene->r.cfra);
 
   /* do updates */
-  DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO_SEEK);
+  DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
   WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
 }
 
@@ -249,7 +232,7 @@ static bool use_sequencer_snapping(bContext *C)
 
   Scene *scene = CTX_data_scene(C);
   short snap_flag = SEQ_tool_settings_snap_flag_get(scene);
-  return (scene->toolsettings->snap_flag & SCE_SNAP_SEQ) &&
+  return (scene->toolsettings->snap_flag_seq & SCE_SNAP) &&
          (snap_flag & SEQ_SNAP_CURRENT_FRAME_TO_STRIPS);
 }
 
@@ -399,7 +382,7 @@ static int anim_set_sfra_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  frame = CFRA;
+  frame = scene->r.cfra;
 
   /* if Preview Range is defined, set the 'start' frame for that */
   if (PRVRANGEON) {
@@ -454,7 +437,7 @@ static int anim_set_efra_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  frame = CFRA;
+  frame = scene->r.cfra;
 
   /* if Preview Range is defined, set the 'end' frame for that */
   if (PRVRANGEON) {

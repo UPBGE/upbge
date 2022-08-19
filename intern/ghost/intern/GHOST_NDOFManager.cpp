@@ -1,29 +1,16 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "GHOST_NDOFManager.h"
 #include "GHOST_Debug.h"
 #include "GHOST_EventKey.h"
 #include "GHOST_EventNDOF.h"
 #include "GHOST_WindowManager.h"
+#include "GHOST_utildefines.h"
 
-#include <limits.h>
-#include <math.h>
-#include <stdio.h>  /* For error/info reporting. */
-#include <string.h> /* For memory functions. */
+#include <climits>
+#include <cmath>
+#include <cstdio>  /* For error/info reporting. */
+#include <cstring> /* For memory functions. */
 
 #ifdef DEBUG_NDOF_MOTION
 /* Printable version of each GHOST_TProgress value. */
@@ -142,7 +129,7 @@ static const NDOF_ButtonT Generic_HID_map[] = {
     NDOF_BUTTON_C,
 };
 
-static const int genericButtonCount = sizeof(Generic_HID_map) / sizeof(NDOF_ButtonT);
+static const int genericButtonCount = ARRAY_SIZE(Generic_HID_map);
 
 GHOST_NDOFManager::GHOST_NDOFManager(GHOST_System &sys)
     : m_system(sys),
@@ -269,8 +256,9 @@ bool GHOST_NDOFManager::setDevice(unsigned short vendor_id, unsigned short produ
       printf("ndof: unknown device %04hx:%04hx\n", vendor_id, product_id);
   }
 
-  if (m_buttonMask == 0)
+  if (m_buttonMask == 0) {
     m_buttonMask = (int)~(UINT_MAX << m_buttonCount);
+  }
 
 #ifdef DEBUG_NDOF_BUTTONS
   printf("ndof: %d buttons -> hex:%X\n", m_buttonCount, m_buttonMask);
@@ -423,8 +411,9 @@ static bool nearHomePosition(GHOST_TEventNDOFMotionData *ndof, float threshold)
 
 bool GHOST_NDOFManager::sendMotionEvent()
 {
-  if (!m_motionEventPending)
+  if (!m_motionEventPending) {
     return false;
+  }
 
   m_motionEventPending = false; /* Any pending motion is handled right now. */
 

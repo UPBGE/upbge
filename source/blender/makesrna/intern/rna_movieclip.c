@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup RNA
@@ -130,6 +116,22 @@ static PointerRNA rna_MovieClip_metadata_get(MovieClip *clip)
   PointerRNA ptr;
   RNA_pointer_create(NULL, &RNA_IDPropertyWrapPtr, metadata, &ptr);
   return ptr;
+}
+
+static char *rna_MovieClipUser_path(const PointerRNA *ptr)
+{
+  if (ptr->owner_id) {
+    /* MovieClipUser *mc_user = ptr->data; */
+
+    switch (GS(ptr->owner_id->name)) {
+      case ID_CA:
+        return rna_CameraBackgroundImage_image_or_movieclip_user_path(ptr);
+      default:
+        break;
+    }
+  }
+
+  return BLI_strdup("");
 }
 
 #else
@@ -258,7 +260,7 @@ static void rna_def_movieclip_proxy(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_MOVIECLIP | ND_DISPLAY, "rna_MovieClip_reload_update");
 }
 
-static void rna_def_moviecliUser(BlenderRNA *brna)
+static void rna_def_movieclipUser(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
@@ -277,6 +279,9 @@ static void rna_def_moviecliUser(BlenderRNA *brna)
       srna,
       "Movie Clip User",
       "Parameters defining how a MovieClip data-block is used by another data-block");
+  RNA_def_struct_path_func(srna, "rna_MovieClipUser_path");
+
+  RNA_define_lib_overridable(true);
 
   prop = RNA_def_property(srna, "frame_current", PROP_INT, PROP_TIME);
   RNA_def_property_int_sdna(prop, NULL, "framenr");
@@ -300,6 +305,8 @@ static void rna_def_moviecliUser(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Render Undistorted", "Render preview using undistorted proxy");
   RNA_def_property_update(
       prop, NC_MOVIECLIP | ND_DISPLAY, "rna_MovieClipUser_proxy_render_settings_update");
+
+  RNA_define_lib_overridable(false);
 }
 
 static void rna_def_movieClipScopes(BlenderRNA *brna)
@@ -449,7 +456,7 @@ void RNA_def_movieclip(BlenderRNA *brna)
 {
   rna_def_movieclip(brna);
   rna_def_movieclip_proxy(brna);
-  rna_def_moviecliUser(brna);
+  rna_def_movieclipUser(brna);
   rna_def_movieClipScopes(brna);
 }
 

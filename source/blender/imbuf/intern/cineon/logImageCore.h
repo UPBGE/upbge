@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 1999,2000,2001 David Hodson <hodsond@acm.org>
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 1999-2001 David Hodson <hodsond@acm.org>. */
 
 /** \file
  * \ingroup imbcineon
@@ -33,6 +18,12 @@
 
 #include "BLI_sys_types.h"
 #include "BLI_utildefines.h"
+
+#ifdef _WIN32
+#  define PATHSEP_CHAR '\\'
+#else
+#  define PATHSEP_CHAR '/'
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -184,9 +175,9 @@ void logImageSetVerbose(int verbosity);
 int logImageIsDpx(const void *buffer, unsigned int size);
 int logImageIsCineon(const void *buffer, unsigned int size);
 LogImageFile *logImageOpenFromMemory(const unsigned char *buffer, unsigned int size);
-LogImageFile *logImageOpenFromFile(const char *filename, int cineon);
+LogImageFile *logImageOpenFromFile(const char *filepath, int cineon);
 void logImageGetSize(LogImageFile *logImage, int *width, int *height, int *depth);
-LogImageFile *logImageCreate(const char *filename,
+LogImageFile *logImageCreate(const char *filepath,
                              int cineon,
                              int width,
                              int height,

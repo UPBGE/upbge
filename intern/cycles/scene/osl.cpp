@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include "device/device.h"
 
@@ -105,7 +92,7 @@ void OSLShaderManager::device_update_specific(Device *device,
     }
   });
 
-  VLOG(1) << "Total " << scene->shaders.size() << " shaders.";
+  VLOG_INFO << "Total " << scene->shaders.size() << " shaders.";
 
   device_free(device, dscene, scene);
 
@@ -253,7 +240,7 @@ void OSLShaderManager::shading_system_init()
     ss_shared->attribute("searchpath:shader", shader_path);
     ss_shared->attribute("greedyjit", 1);
 
-    VLOG(1) << "Using shader search path: " << shader_path;
+    VLOG_INFO << "Using shader search path: " << shader_path;
 
     /* our own ray types */
     static const char *raytypes[] = {
@@ -1224,14 +1211,15 @@ void OSLCompiler::parameter_texture(const char *name, ustring filename, ustring 
   parameter(name, filename);
 }
 
-void OSLCompiler::parameter_texture(const char *name, int svm_slot)
+void OSLCompiler::parameter_texture(const char *name, const ImageHandle &handle)
 {
   /* Texture loaded through SVM image texture system. We generate a unique
    * name, which ends up being used in OSLRenderServices::get_texture_handle
    * to get handle again. Note that this name must be unique between multiple
    * render sessions as the render services are shared. */
   ustring filename(string_printf("@svm%d", texture_shared_unique_id++).c_str());
-  services->textures.insert(filename, new OSLTextureHandle(OSLTextureHandle::SVM, svm_slot));
+  services->textures.insert(filename,
+                            new OSLTextureHandle(OSLTextureHandle::SVM, handle.get_svm_slots()));
   parameter(name, filename);
 }
 
@@ -1303,7 +1291,7 @@ void OSLCompiler::parameter_texture(const char * /* name */,
 {
 }
 
-void OSLCompiler::parameter_texture(const char * /* name */, int /* svm_slot */)
+void OSLCompiler::parameter_texture(const char * /* name */, const ImageHandle & /*handle*/)
 {
 }
 

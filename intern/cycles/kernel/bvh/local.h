@@ -1,21 +1,6 @@
-/*
+/* SPDX-License-Identifier: Apache-2.0
  * Adapted from code Copyright 2009-2010 NVIDIA Corporation,
- * and code copyright 2009-2012 Intel Corporation
- *
- * Modifications Copyright 2011-2013, Blender Foundation.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+ * and code copyright 2009-2012 Intel Corporation */
 
 #if BVH_FEATURE(BVH_HAIR)
 #  define NODE_INTERSECT bvh_node_intersect
@@ -56,27 +41,27 @@ ccl_device_inline
 
   /* traversal variables in registers */
   int stack_ptr = 0;
-  int node_addr = kernel_tex_fetch(__object_node, local_object);
+  int node_addr = kernel_data_fetch(object_node, local_object);
 
   /* ray parameters in registers */
   float3 P = ray->P;
   float3 dir = bvh_clamp_direction(ray->D);
   float3 idir = bvh_inverse_direction(dir);
+  float tmin = ray->tmin;
   int object = OBJECT_NONE;
-  float isect_t = ray->t;
+  float isect_t = ray->tmax;
 
   if (local_isect != NULL) {
     local_isect->num_hits = 0;
   }
   kernel_assert((local_isect == NULL) == (max_hits == 0));
 
-  const int object_flag = kernel_tex_fetch(__object_flag, local_object);
+  const int object_flag = kernel_data_fetch(object_flag, local_object);
   if (!(object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
 #if BVH_FEATURE(BVH_MOTION)
-    Transform ob_itfm;
-    isect_t *= bvh_instance_motion_push(kg, local_object, ray, &P, &dir, &idir, &ob_itfm);
+    bvh_instance_motion_push(kg, local_object, ray, &P, &dir, &idir);
 #else
-    isect_t *= bvh_instance_push(kg, local_object, ray, &P, &dir, &idir);
+    bvh_instance_push(kg, local_object, ray, &P, &dir, &idir);
 #endif
     object = local_object;
   }
@@ -88,7 +73,7 @@ ccl_device_inline
       while (node_addr >= 0 && node_addr != ENTRYPOINT_SENTINEL) {
         int node_addr_child1, traverse_mask;
         float dist[2];
-        float4 cnodes = kernel_tex_fetch(__bvh_nodes, node_addr + 0);
+        float4 cnodes = kernel_data_fetch(bvh_nodes, node_addr + 0);
 
         traverse_mask = NODE_INTERSECT(kg,
                                        P,
@@ -96,6 +81,7 @@ ccl_device_inline
                                        dir,
 #endif
                                        idir,
+                                       tmin,
                                        isect_t,
                                        node_addr,
                                        PATH_RAY_ALL_VISIBILITY,
@@ -132,7 +118,7 @@ ccl_device_inline
 
       /* if node is leaf, fetch triangle list */
       if (node_addr < 0) {
-        float4 leaf = kernel_tex_fetch(__bvh_leaf_nodes, (-node_addr - 1));
+        float4 leaf = kernel_data_fetch(bvh_leaf_nodes, (-node_addr - 1));
         int prim_addr = __float_as_int(leaf.x);
 
         const int prim_addr2 = __float_as_int(leaf.y);
@@ -147,14 +133,30 @@ ccl_device_inline
           case PRIMITIVE_TRIANGLE: {
             /* intersect ray against primitive */
             for (; prim_addr < prim_addr2; prim_addr++) {
-              kernel_assert(kernel_tex_fetch(__prim_type, prim_addr) == type);
+              kernel_assert(kernel_data_fetch(prim_type, prim_addr) == type);
+
+              /* Only intersect with matching object, for instanced objects we
+               * already know we are only intersecting the right object. */
+              if (object == OBJECT_NONE) {
+                if (kernel_data_fetch(prim_object, prim_addr) != local_object) {
+                  continue;
+                }
+              }
+
+              /* Skip self intersection. */
+              const int prim = kernel_data_fetch(prim_index, prim_addr);
+              if (intersection_skip_self_local(ray->self, prim)) {
+                continue;
+              }
+
               if (triangle_intersect_local(kg,
                                            local_isect,
                                            P,
                                            dir,
-                                           object,
                                            local_object,
+                                           prim,
                                            prim_addr,
+                                           tmin,
                                            isect_t,
                                            lcg_state,
                                            max_hits)) {
@@ -167,15 +169,31 @@ ccl_device_inline
           case PRIMITIVE_MOTION_TRIANGLE: {
             /* intersect ray against primitive */
             for (; prim_addr < prim_addr2; prim_addr++) {
-              kernel_assert(kernel_tex_fetch(__prim_type, prim_addr) == type);
+              kernel_assert(kernel_data_fetch(prim_type, prim_addr) == type);
+
+              /* Only intersect with matching object, for instanced objects we
+               * already know we are only intersecting the right object. */
+              if (object == OBJECT_NONE) {
+                if (kernel_data_fetch(prim_object, prim_addr) != local_object) {
+                  continue;
+                }
+              }
+
+              /* Skip self intersection. */
+              const int prim = kernel_data_fetch(prim_index, prim_addr);
+              if (intersection_skip_self_local(ray->self, prim)) {
+                continue;
+              }
+
               if (motion_triangle_intersect_local(kg,
                                                   local_isect,
                                                   P,
                                                   dir,
                                                   ray->time,
-                                                  object,
                                                   local_object,
+                                                  prim,
                                                   prim_addr,
+                                                  tmin,
                                                   isect_t,
                                                   lcg_state,
                                                   max_hits)) {

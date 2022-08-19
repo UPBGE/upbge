@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2019 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2019 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup editor/io
@@ -70,6 +54,20 @@ const EnumPropertyItem rna_enum_usd_export_evaluation_mode_items[] = {
      0,
      "Viewport",
      "Use Viewport settings for object visibility, modifier settings, etc"},
+    {0, NULL, 0, NULL, NULL},
+};
+
+const EnumPropertyItem rna_enum_usd_mtl_name_collision_mode_items[] = {
+    {USD_MTL_NAME_COLLISION_MAKE_UNIQUE,
+     "MAKE_UNIQUE",
+     0,
+     "Make Unique",
+     "Import each USD material as a unique Blender material"},
+    {USD_MTL_NAME_COLLISION_REFERENCE_EXISTING,
+     "REFERENCE_EXISTING",
+     0,
+     "Reference Existing",
+     "If a material with the same name already exists, reference that instead of importing"},
     {0, NULL, 0, NULL, NULL},
 };
 
@@ -131,6 +129,11 @@ static int wm_usd_export_exec(bContext *C, wmOperator *op)
   const bool use_instancing = RNA_boolean_get(op->ptr, "use_instancing");
   const bool evaluation_mode = RNA_enum_get(op->ptr, "evaluation_mode");
 
+  const bool generate_preview_surface = RNA_boolean_get(op->ptr, "generate_preview_surface");
+  const bool export_textures = RNA_boolean_get(op->ptr, "export_textures");
+  const bool overwrite_textures = RNA_boolean_get(op->ptr, "overwrite_textures");
+  const bool relative_paths = RNA_boolean_get(op->ptr, "relative_paths");
+
   struct USDExportParams params = {
       export_animation,
       export_hair,
@@ -141,6 +144,10 @@ static int wm_usd_export_exec(bContext *C, wmOperator *op)
       visible_objects_only,
       use_instancing,
       evaluation_mode,
+      generate_preview_surface,
+      export_textures,
+      overwrite_textures,
+      relative_paths,
   };
 
   bool ok = USD_export(C, filename, &params, as_background_job);
@@ -173,8 +180,42 @@ static void wm_usd_export_draw(bContext *UNUSED(C), wmOperator *op)
   uiItemR(col, ptr, "evaluation_mode", 0, NULL, ICON_NONE);
 
   box = uiLayoutBox(layout);
+  col = uiLayoutColumnWithHeading(box, true, IFACE_("Materials"));
+  uiItemR(col, ptr, "generate_preview_surface", 0, NULL, ICON_NONE);
+  const bool export_mtl = RNA_boolean_get(ptr, "export_materials");
+  uiLayoutSetActive(col, export_mtl);
+
+  uiLayout *row = uiLayoutRow(col, true);
+  uiItemR(row, ptr, "export_textures", 0, NULL, ICON_NONE);
+  const bool preview = RNA_boolean_get(ptr, "generate_preview_surface");
+  uiLayoutSetActive(row, export_mtl && preview);
+
+  row = uiLayoutRow(col, true);
+  uiItemR(row, ptr, "overwrite_textures", 0, NULL, ICON_NONE);
+  const bool export_tex = RNA_boolean_get(ptr, "export_textures");
+  uiLayoutSetActive(row, export_mtl && preview && export_tex);
+
+  box = uiLayoutBox(layout);
+  col = uiLayoutColumnWithHeading(box, true, IFACE_("File References"));
+  uiItemR(col, ptr, "relative_paths", 0, NULL, ICON_NONE);
+
+  box = uiLayoutBox(layout);
   uiItemL(box, IFACE_("Experimental"), ICON_NONE);
   uiItemR(box, ptr, "use_instancing", 0, NULL, ICON_NONE);
+}
+
+static bool wm_usd_export_check(bContext *UNUSED(C), wmOperator *op)
+{
+  char filepath[FILE_MAX];
+  RNA_string_get(op->ptr, "filepath", filepath);
+
+  if (!BLI_path_extension_check_n(filepath, ".usd", ".usda", ".usdc", NULL)) {
+    BLI_path_extension_ensure(filepath, FILE_MAX, ".usdc");
+    RNA_string_set(op->ptr, "filepath", filepath);
+    return true;
+  }
+
+  return false;
 }
 
 void WM_OT_usd_export(struct wmOperatorType *ot)
@@ -187,6 +228,9 @@ void WM_OT_usd_export(struct wmOperatorType *ot)
   ot->exec = wm_usd_export_exec;
   ot->poll = WM_operator_winactive;
   ot->ui = wm_usd_export_draw;
+  ot->check = wm_usd_export_check;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_PRESET; /* No UNDO possible. */
 
   WM_operator_properties_filesel(ot,
                                  FILE_TYPE_FOLDER | FILE_TYPE_USD,
@@ -200,47 +244,43 @@ void WM_OT_usd_export(struct wmOperatorType *ot)
                   "selected_objects_only",
                   false,
                   "Selection Only",
-                  "Only selected objects are exported. Unselected parents of selected objects are "
+                  "Only export selected objects. Unselected parents of selected objects are "
                   "exported as empty transform");
 
   RNA_def_boolean(ot->srna,
                   "visible_objects_only",
                   true,
                   "Visible Only",
-                  "Only visible objects are exported. Invisible parents of exported objects are "
-                  "exported as empty transform");
+                  "Only export visible objects. Invisible parents of exported objects are "
+                  "exported as empty transforms");
 
-  RNA_def_boolean(ot->srna,
-                  "export_animation",
-                  false,
-                  "Animation",
-                  "When checked, the render frame range is exported. When false, only the current "
-                  "frame is exported");
   RNA_def_boolean(
-      ot->srna, "export_hair", false, "Hair", "When checked, hair is exported as USD curves");
-  RNA_def_boolean(ot->srna,
-                  "export_uvmaps",
-                  true,
-                  "UV Maps",
-                  "When checked, all UV maps of exported meshes are included in the export");
+      ot->srna,
+      "export_animation",
+      false,
+      "Animation",
+      "Export all frames in the render frame range, rather than only the current frame");
+  RNA_def_boolean(
+      ot->srna, "export_hair", false, "Hair", "Export hair particle systems as USD curves");
+  RNA_def_boolean(
+      ot->srna, "export_uvmaps", true, "UV Maps", "Include all mesh UV maps in the export");
   RNA_def_boolean(ot->srna,
                   "export_normals",
                   true,
                   "Normals",
-                  "When checked, normals of exported meshes are included in the export");
+                  "Include normals of exported meshes in the export");
   RNA_def_boolean(ot->srna,
                   "export_materials",
                   true,
                   "Materials",
-                  "When checked, the viewport settings of materials are exported as USD preview "
-                  "materials, and material assignments are exported as geometry subsets");
+                  "Export viewport settings of materials as USD preview materials, and export "
+                  "material assignments as geometry subsets");
 
   RNA_def_boolean(ot->srna,
                   "use_instancing",
                   false,
                   "Instancing",
-                  "When checked, instanced objects are exported as references in USD. "
-                  "When unchecked, instanced objects are exported as real objects");
+                  "Export instanced objects as references in USD rather than real objects");
 
   RNA_def_enum(ot->srna,
                "evaluation_mode",
@@ -249,6 +289,33 @@ void WM_OT_usd_export(struct wmOperatorType *ot)
                "Use Settings for",
                "Determines visibility of objects, modifier settings, and other areas where there "
                "are different settings for viewport and rendering");
+
+  RNA_def_boolean(ot->srna,
+                  "generate_preview_surface",
+                  true,
+                  "To USD Preview Surface",
+                  "Generate an approximate USD Preview Surface shader "
+                  "representation of a Principled BSDF node network");
+
+  RNA_def_boolean(ot->srna,
+                  "export_textures",
+                  true,
+                  "Export Textures",
+                  "If exporting materials, export textures referenced by material nodes "
+                  "to a 'textures' directory in the same directory as the USD file");
+
+  RNA_def_boolean(ot->srna,
+                  "overwrite_textures",
+                  false,
+                  "Overwrite Textures",
+                  "Allow overwriting existing texture files when exporting textures");
+
+  RNA_def_boolean(ot->srna,
+                  "relative_paths",
+                  true,
+                  "Relative Paths",
+                  "Use relative paths to reference external files (i.e. textures, volumes) in "
+                  "USD, otherwise use absolute paths");
 }
 
 /* ====== USD Import ====== */
@@ -318,6 +385,9 @@ static int wm_usd_import_exec(bContext *C, wmOperator *op)
 
   const float light_intensity_scale = RNA_float_get(op->ptr, "light_intensity_scale");
 
+  const eUSDMtlNameCollisionMode mtl_name_collision_mode = RNA_enum_get(op->ptr,
+                                                                        "mtl_name_collision_mode");
+
   /* TODO(makowalski): Add support for sequences. */
   const bool is_sequence = false;
   int offset = 0;
@@ -356,7 +426,8 @@ static int wm_usd_import_exec(bContext *C, wmOperator *op)
                                    .use_instancing = use_instancing,
                                    .import_usd_preview = import_usd_preview,
                                    .set_material_blend = set_material_blend,
-                                   .light_intensity_scale = light_intensity_scale};
+                                   .light_intensity_scale = light_intensity_scale,
+                                   .mtl_name_collision_mode = mtl_name_collision_mode};
 
   const bool ok = USD_import(C, filename, &params, as_background_job);
 
@@ -399,6 +470,7 @@ static void wm_usd_import_draw(bContext *UNUSED(C), wmOperator *op)
   uiItemR(col, ptr, "relative_path", 0, NULL, ICON_NONE);
   uiItemR(col, ptr, "create_collection", 0, NULL, ICON_NONE);
   uiItemR(box, ptr, "light_intensity_scale", 0, NULL, ICON_NONE);
+  uiItemR(box, ptr, "mtl_name_collision_mode", 0, NULL, ICON_NONE);
 
   box = uiLayoutBox(layout);
   col = uiLayoutColumnWithHeading(box, true, IFACE_("Experimental"));
@@ -419,6 +491,8 @@ void WM_OT_usd_import(struct wmOperatorType *ot)
   ot->exec = wm_usd_import_exec;
   ot->poll = WM_operator_winactive;
   ot->ui = wm_usd_import_draw;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   WM_operator_properties_filesel(ot,
                                  FILE_TYPE_FOLDER | FILE_TYPE_USD,
@@ -481,7 +555,8 @@ void WM_OT_usd_import(struct wmOperatorType *ot)
 
   RNA_def_boolean(ot->srna, "read_mesh_uvs", true, "UV Coordinates", "Read mesh UV coordinates");
 
-  RNA_def_boolean(ot->srna, "read_mesh_colors", false, "Vertex Colors", "Read mesh vertex colors");
+  RNA_def_boolean(
+      ot->srna, "read_mesh_colors", false, "Color Attributes", "Read mesh color attributes");
 
   RNA_def_string(ot->srna,
                  "prim_path_mask",
@@ -519,6 +594,14 @@ void WM_OT_usd_import(struct wmOperatorType *ot)
                 "Scale for the intensity of imported lights",
                 0.0001f,
                 1000.0f);
+
+  RNA_def_enum(
+      ot->srna,
+      "mtl_name_collision_mode",
+      rna_enum_usd_mtl_name_collision_mode_items,
+      USD_MTL_NAME_COLLISION_MAKE_UNIQUE,
+      "Material Name Collision",
+      "Behavior when the name of an imported material conflicts with an existing material");
 }
 
 #endif /* WITH_USD */

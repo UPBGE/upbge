@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2006 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2006 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup cmpnodes
@@ -24,17 +8,33 @@
 #include "node_composite_util.hh"
 
 #include "BLI_linklist.h"
+#include "BLI_math_vec_types.hh"
 #include "BLI_utildefines.h"
+
+#include "BKE_context.h"
+#include "BKE_global.h"
+#include "BKE_image.h"
+#include "BKE_lib_id.h"
+#include "BKE_main.h"
+#include "BKE_scene.h"
+
+#include "DEG_depsgraph_query.h"
 
 #include "DNA_scene_types.h"
 
 #include "RE_engine.h"
+#include "RE_pipeline.h"
 
-#include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
-#include "BKE_scene.h"
+#include "RNA_access.h"
+
+#include "UI_interface.h"
+#include "UI_resources.h"
+
+#include "GPU_shader.h"
+#include "GPU_texture.h"
+
+#include "COM_node_operation.hh"
+#include "COM_utilities.hh"
 
 /* **************** IMAGE (and RenderResult, multilayer image) ******************** */
 
@@ -103,8 +103,7 @@ static void cmp_node_image_add_pass_output(bNodeTree *ntree,
       sock = nodeAddStaticSocket(ntree, node, SOCK_OUT, type, PROP_NONE, name, name);
     }
     /* extra socket info */
-    NodeImageLayer *sockdata = (NodeImageLayer *)MEM_callocN(sizeof(NodeImageLayer),
-                                                             "node image layer");
+    NodeImageLayer *sockdata = MEM_cnew<NodeImageLayer>(__func__);
     sock->storage = sockdata;
   }
 
@@ -265,7 +264,12 @@ void node_cmp_rlayers_register_pass(bNodeTree *ntree,
   }
 }
 
-static void cmp_node_rlayer_create_outputs_cb(void *UNUSED(userdata),
+struct CreateOutputUserData {
+  bNodeTree &ntree;
+  bNode &node;
+};
+
+static void cmp_node_rlayer_create_outputs_cb(void *userdata,
                                               Scene *scene,
                                               ViewLayer *view_layer,
                                               const char *name,
@@ -273,18 +277,8 @@ static void cmp_node_rlayer_create_outputs_cb(void *UNUSED(userdata),
                                               const char *UNUSED(chanid),
                                               eNodeSocketDatatype type)
 {
-  /* Register the pass in all scenes that have a render layer node for this layer.
-   * Since multiple scenes can be used in the compositor, the code must loop over all scenes
-   * and check whether their nodetree has a node that needs to be updated. */
-  /* NOTE: using G_MAIN seems valid here,
-   * unless we want to register that for every other temp Main we could generate??? */
-  ntreeCompositRegisterPass(scene->nodetree, scene, view_layer, name, type);
-
-  for (Scene *sce = (Scene *)G_MAIN->scenes.first; sce; sce = (Scene *)sce->id.next) {
-    if (sce->nodetree && sce != scene) {
-      ntreeCompositRegisterPass(sce->nodetree, scene, view_layer, name, type);
-    }
-  }
+  CreateOutputUserData &data = *(CreateOutputUserData *)userdata;
+  node_cmp_rlayers_register_pass(&data.ntree, &data.node, scene, view_layer, name, type);
 }
 
 static void cmp_node_rlayer_create_outputs(bNodeTree *ntree,
@@ -304,14 +298,17 @@ static void cmp_node_rlayer_create_outputs(bNodeTree *ntree,
         data->prev_index = -1;
         node->storage = data;
 
+        CreateOutputUserData userdata = {*ntree, *node};
+
         RenderEngine *engine = RE_engine_create(engine_type);
         RE_engine_update_render_passes(
-            engine, scene, view_layer, cmp_node_rlayer_create_outputs_cb, nullptr);
+            engine, scene, view_layer, cmp_node_rlayer_create_outputs_cb, &userdata);
         RE_engine_free(engine);
 
         if ((scene->r.mode & R_EDGE_FRS) &&
             (view_layer->freestyle_config.flags & FREESTYLE_AS_RENDER_PASS)) {
-          ntreeCompositRegisterPass(ntree, scene, view_layer, RE_PASSNAME_FREESTYLE, SOCK_RGBA);
+          node_cmp_rlayers_register_pass(
+              ntree, node, scene, view_layer, RE_PASSNAME_FREESTYLE, SOCK_RGBA);
         }
 
         MEM_freeN(data);
@@ -372,7 +369,8 @@ static void cmp_node_image_verify_outputs(bNodeTree *ntree, bNode *node, bool rl
   for (sock = (bNodeSocket *)node->outputs.first; sock; sock = sock_next, sock_index++) {
     sock_next = sock->next;
     if (BLI_linklist_index(available_sockets.list, sock) >= 0) {
-      sock->flag &= ~(SOCK_UNAVAIL | SOCK_HIDDEN);
+      sock->flag &= ~SOCK_HIDDEN;
+      nodeSetSocketAvailability(ntree, sock, true);
     }
     else {
       bNodeLink *link;
@@ -386,13 +384,15 @@ static void cmp_node_image_verify_outputs(bNodeTree *ntree, bNode *node, bool rl
         nodeRemoveSocket(ntree, node, sock);
       }
       else {
-        sock->flag |= SOCK_UNAVAIL;
+        nodeSetSocketAvailability(ntree, sock, false);
       }
     }
   }
 
   BLI_linklist_free(available_sockets.list, nullptr);
 }
+
+namespace blender::nodes::node_composite_image_cc {
 
 static void cmp_node_image_update(bNodeTree *ntree, bNode *node)
 {
@@ -406,7 +406,7 @@ static void cmp_node_image_update(bNodeTree *ntree, bNode *node)
 
 static void node_composit_init_image(bNodeTree *ntree, bNode *node)
 {
-  ImageUser *iuser = (ImageUser *)MEM_callocN(sizeof(ImageUser), "node image user");
+  ImageUser *iuser = MEM_cnew<ImageUser>(__func__);
   node->storage = iuser;
   iuser->frames = 1;
   iuser->sfra = 1;
@@ -442,15 +442,231 @@ static void node_composit_copy_image(bNodeTree *UNUSED(dest_ntree),
   }
 }
 
-void register_node_type_cmp_image(void)
+using namespace blender::realtime_compositor;
+
+class ImageOperation : public NodeOperation {
+ public:
+  using NodeOperation::NodeOperation;
+
+  void execute() override
+  {
+    if (!is_valid()) {
+      allocate_invalid();
+      return;
+    }
+
+    update_image_frame_number();
+
+    for (const OutputSocketRef *output : node()->outputs()) {
+      compute_output(output->identifier());
+    }
+  }
+
+  /* Returns true if the node results can be computed, otherwise, returns false. */
+  bool is_valid()
+  {
+    Image *image = get_image();
+    ImageUser *image_user = get_image_user();
+    if (!image || !image_user) {
+      return false;
+    }
+
+    if (BKE_image_is_multilayer(image)) {
+      if (!image->rr) {
+        return false;
+      }
+
+      RenderLayer *render_layer = get_render_layer();
+      if (!render_layer) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /* Allocate all needed outputs as invalid. This should be called when is_valid returns false. */
+  void allocate_invalid()
+  {
+    for (const OutputSocketRef *output : node()->outputs()) {
+      if (!should_compute_output(output->identifier())) {
+        continue;
+      }
+
+      Result &result = get_result(output->identifier());
+      result.allocate_invalid();
+    }
+  }
+
+  /* Compute the effective frame number of the image if it was animated and invalidate the cached
+   * GPU texture if the computed frame number is different. */
+  void update_image_frame_number()
+  {
+    BKE_image_user_frame_calc(get_image(), get_image_user(), context().get_frame_number());
+  }
+
+  void compute_output(StringRef identifier)
+  {
+    if (!should_compute_output(identifier)) {
+      return;
+    }
+
+    ImageUser image_user = compute_image_user_for_output(identifier);
+    GPUTexture *image_texture = BKE_image_get_gpu_texture(get_image(), &image_user, nullptr);
+
+    const int2 size = int2(GPU_texture_width(image_texture), GPU_texture_height(image_texture));
+    Result &result = get_result(identifier);
+    result.allocate_texture(Domain(size));
+
+    GPUShader *shader = shader_manager().get(get_shader_name(identifier));
+    GPU_shader_bind(shader);
+
+    const int input_unit = GPU_shader_get_texture_binding(shader, "input_tx");
+    GPU_texture_bind(image_texture, input_unit);
+
+    result.bind_as_image(shader, "output_img");
+
+    compute_dispatch_threads_at_least(shader, size);
+
+    GPU_shader_unbind();
+    GPU_texture_unbind(image_texture);
+    result.unbind_as_image();
+  }
+
+  /* Get a copy of the image user that is appropriate to retrieve the image buffer for the output
+   * with the given identifier. This essentially sets the appropriate pass and view indices that
+   * corresponds to the output.  */
+  ImageUser compute_image_user_for_output(StringRef identifier)
+  {
+    ImageUser image_user = *get_image_user();
+
+    /* Set the needed view. */
+    image_user.view = get_view_index();
+
+    /* Set the needed pass. */
+    if (BKE_image_is_multilayer(get_image())) {
+      image_user.pass = get_pass_index(get_pass_name(identifier));
+      BKE_image_multilayer_index(get_image()->rr, &image_user);
+    }
+    else {
+      BKE_image_multiview_index(get_image(), &image_user);
+    }
+
+    return image_user;
+  }
+
+  /* Get the shader that should be used to compute the output with the given identifier. The
+   * shaders just copy the retrieved image textures into the results except for the alpha output,
+   * which extracts the alpha and writes it to the result instead. Note that a call to a host
+   * texture copy doesn't work because results are stored in a different half float formats. */
+  const char *get_shader_name(StringRef identifier)
+  {
+    if (identifier == "Alpha") {
+      return "compositor_extract_alpha_from_color";
+    }
+    else if (get_result(identifier).type() == ResultType::Color) {
+      return "compositor_convert_color_to_half_color";
+    }
+    else {
+      return "compositor_convert_float_to_half_float";
+    }
+  }
+
+  Image *get_image()
+  {
+    return (Image *)bnode().id;
+  }
+
+  ImageUser *get_image_user()
+  {
+    return static_cast<ImageUser *>(bnode().storage);
+  }
+
+  /* Get the render layer selected in the node assuming the image is a multilayer image. */
+  RenderLayer *get_render_layer()
+  {
+    const ListBase *layers = &get_image()->rr->layers;
+    return static_cast<RenderLayer *>(BLI_findlink(layers, get_image_user()->layer));
+  }
+
+  /* Get the name of the pass corresponding to the output with the given identifier assuming the
+   * image is a multilayer image. */
+  const char *get_pass_name(StringRef identifier)
+  {
+    DOutputSocket output = node().output_by_identifier(identifier);
+    return static_cast<NodeImageLayer *>(output->bsocket()->storage)->pass_name;
+  }
+
+  /* Get the index of the pass with the given name in the selected render layer's passes list
+   * assuming the image is a multilayer image. */
+  int get_pass_index(const char *name)
+  {
+    return BLI_findstringindex(&get_render_layer()->passes, name, offsetof(RenderPass, name));
+  }
+
+  /* Get the index of the view selected in the node. If the image is not a multi-view image or only
+   * has a single view, then zero is returned. Otherwise, if the image is a multi-view image, the
+   * index of the selected view is returned. However, note that the value of the view member of the
+   * image user is not the actual index of the view. More specifically, the index 0 is reserved to
+   * denote the special mode of operation "All", which dynamically selects the view whose name
+   * matches the view currently being rendered. It follows that the views are then indexed starting
+   * from 1. So for non zero view values, the actual index of the view is the value of the view
+   * member of the image user minus 1. */
+  int get_view_index()
+  {
+    /* The image is not a multi-view image, so just return zero. */
+    if (!BKE_image_is_multiview(get_image())) {
+      return 0;
+    }
+
+    const ListBase *views = &get_image()->rr->views;
+    /* There is only one view and its index is 0. */
+    if (BLI_listbase_count_at_most(views, 2) < 2) {
+      return 0;
+    }
+
+    const int view = get_image_user()->view;
+    /* The view is not zero, which means it is manually specified and the actual index is then the
+     * view value minus 1. */
+    if (view != 0) {
+      return view - 1;
+    }
+
+    /* Otherwise, the view value is zero, denoting the special mode of operation "All", which finds
+     * the index of the view whose name matches the view currently being rendered. */
+    const char *view_name = context().get_view_name().data();
+    const int matched_view = BLI_findstringindex(views, view_name, offsetof(RenderView, name));
+
+    /* No view matches the view currently being rendered, so fallback to the first view. */
+    if (matched_view == -1) {
+      return 0;
+    }
+
+    return matched_view;
+  }
+};
+
+static NodeOperation *get_compositor_operation(Context &context, DNode node)
 {
+  return new ImageOperation(context, node);
+}
+
+}  // namespace blender::nodes::node_composite_image_cc
+
+void register_node_type_cmp_image()
+{
+  namespace file_ns = blender::nodes::node_composite_image_cc;
+
   static bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_IMAGE, "Image", NODE_CLASS_INPUT, NODE_PREVIEW);
-  node_type_init(&ntype, node_composit_init_image);
-  node_type_storage(&ntype, "ImageUser", node_composit_free_image, node_composit_copy_image);
-  node_type_update(&ntype, cmp_node_image_update);
-  node_type_label(&ntype, node_image_label);
+  cmp_node_type_base(&ntype, CMP_NODE_IMAGE, "Image", NODE_CLASS_INPUT);
+  node_type_init(&ntype, file_ns::node_composit_init_image);
+  node_type_storage(
+      &ntype, "ImageUser", file_ns::node_composit_free_image, file_ns::node_composit_copy_image);
+  node_type_update(&ntype, file_ns::cmp_node_image_update);
+  ntype.get_compositor_operation = file_ns::get_compositor_operation;
+  ntype.labelfunc = node_image_label;
+  ntype.flag |= NODE_PREVIEW;
 
   nodeRegisterType(&ntype);
 }
@@ -472,6 +688,8 @@ const char *node_cmp_rlayers_sock_to_pass(int sock_index)
   return (STREQ(name, "Alpha")) ? RE_PASSNAME_COMBINED : name;
 }
 
+namespace blender::nodes::node_composite_render_layer_cc {
+
 static void node_composit_init_rlayers(const bContext *C, PointerRNA *ptr)
 {
   Scene *scene = CTX_data_scene(C);
@@ -483,8 +701,7 @@ static void node_composit_init_rlayers(const bContext *C, PointerRNA *ptr)
 
   for (bNodeSocket *sock = (bNodeSocket *)node->outputs.first; sock;
        sock = sock->next, sock_index++) {
-    NodeImageLayer *sockdata = (NodeImageLayer *)MEM_callocN(sizeof(NodeImageLayer),
-                                                             "node image layer");
+    NodeImageLayer *sockdata = MEM_cnew<NodeImageLayer>(__func__);
     sock->storage = sockdata;
 
     BLI_strncpy(sockdata->pass_name,
@@ -498,7 +715,7 @@ static bool node_composit_poll_rlayers(bNodeType *UNUSED(ntype),
                                        const char **r_disabled_hint)
 {
   if (!STREQ(ntree->idname, "CompositorNodeTree")) {
-    *r_disabled_hint = "Not a compositor node tree";
+    *r_disabled_hint = TIP_("Not a compositor node tree");
     return false;
   }
 
@@ -515,7 +732,8 @@ static bool node_composit_poll_rlayers(bNodeType *UNUSED(ntype),
   }
 
   if (scene == nullptr) {
-    *r_disabled_hint = "The node tree must be the compositing node tree of any scene in the file";
+    *r_disabled_hint = TIP_(
+        "The node tree must be the compositing node tree of any scene in the file");
     return false;
   }
   return true;
@@ -553,16 +771,116 @@ static void cmp_node_rlayers_update(bNodeTree *ntree, bNode *node)
   cmp_node_update_default(ntree, node);
 }
 
-void register_node_type_cmp_rlayers(void)
+static void node_composit_buts_viewlayers(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
+  bNode *node = (bNode *)ptr->data;
+  uiLayout *col, *row;
+
+  uiTemplateID(layout,
+               C,
+               ptr,
+               "scene",
+               nullptr,
+               nullptr,
+               nullptr,
+               UI_TEMPLATE_ID_FILTER_ALL,
+               false,
+               nullptr);
+
+  if (!node->id) {
+    return;
+  }
+
+  col = uiLayoutColumn(layout, false);
+  row = uiLayoutRow(col, true);
+  uiItemR(row, ptr, "layer", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+
+  PropertyRNA *prop = RNA_struct_find_property(ptr, "layer");
+  const char *layer_name;
+  if (!(RNA_property_enum_identifier(
+          C, ptr, prop, RNA_property_enum_get(ptr, prop), &layer_name))) {
+    return;
+  }
+
+  PointerRNA scn_ptr;
+  char scene_name[MAX_ID_NAME - 2];
+  scn_ptr = RNA_pointer_get(ptr, "scene");
+  RNA_string_get(&scn_ptr, "name", scene_name);
+
+  PointerRNA op_ptr;
+  uiItemFullO(
+      row, "RENDER_OT_render", "", ICON_RENDER_STILL, nullptr, WM_OP_INVOKE_DEFAULT, 0, &op_ptr);
+  RNA_string_set(&op_ptr, "layer", layer_name);
+  RNA_string_set(&op_ptr, "scene", scene_name);
+}
+
+using namespace blender::realtime_compositor;
+
+class RenderLayerOperation : public NodeOperation {
+ public:
+  using NodeOperation::NodeOperation;
+
+  void execute() override
+  {
+    const int view_layer = bnode().custom1;
+    GPUTexture *pass_texture = context().get_input_texture(view_layer, SCE_PASS_COMBINED);
+    const int2 size = int2(GPU_texture_width(pass_texture), GPU_texture_height(pass_texture));
+
+    /* Compute image output. */
+    Result &image_result = get_result("Image");
+    image_result.allocate_texture(Domain(size));
+    GPU_texture_copy(image_result.texture(), pass_texture);
+
+    /* Compute alpha output. */
+    Result &alpha_result = get_result("Alpha");
+    alpha_result.allocate_texture(Domain(size));
+
+    GPUShader *shader = shader_manager().get("compositor_extract_alpha_from_color");
+    GPU_shader_bind(shader);
+
+    const int input_unit = GPU_shader_get_texture_binding(shader, "input_tx");
+    GPU_texture_bind(pass_texture, input_unit);
+
+    alpha_result.bind_as_image(shader, "output_img");
+
+    compute_dispatch_threads_at_least(shader, size);
+
+    GPU_shader_unbind();
+    GPU_texture_unbind(pass_texture);
+    alpha_result.unbind_as_image();
+
+    /* Other output passes are not supported for now, so allocate them as invalid. */
+    for (const OutputSocketRef *output : node()->outputs()) {
+      if (output->identifier() != "Image" && output->identifier() != "Alpha") {
+        get_result(output->identifier()).allocate_invalid();
+      }
+    }
+  }
+};
+
+static NodeOperation *get_compositor_operation(Context &context, DNode node)
+{
+  return new RenderLayerOperation(context, node);
+}
+
+}  // namespace blender::nodes::node_composite_render_layer_cc
+
+void register_node_type_cmp_rlayers()
+{
+  namespace file_ns = blender::nodes::node_composite_render_layer_cc;
+
   static bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_R_LAYERS, "Render Layers", NODE_CLASS_INPUT, NODE_PREVIEW);
+  cmp_node_type_base(&ntype, CMP_NODE_R_LAYERS, "Render Layers", NODE_CLASS_INPUT);
   node_type_socket_templates(&ntype, nullptr, cmp_node_rlayers_out);
-  ntype.initfunc_api = node_composit_init_rlayers;
-  ntype.poll = node_composit_poll_rlayers;
-  node_type_storage(&ntype, nullptr, node_composit_free_rlayers, node_composit_copy_rlayers);
-  node_type_update(&ntype, cmp_node_rlayers_update);
+  ntype.draw_buttons = file_ns::node_composit_buts_viewlayers;
+  ntype.initfunc_api = file_ns::node_composit_init_rlayers;
+  ntype.poll = file_ns::node_composit_poll_rlayers;
+  ntype.get_compositor_operation = file_ns::get_compositor_operation;
+  ntype.flag |= NODE_PREVIEW;
+  node_type_storage(
+      &ntype, nullptr, file_ns::node_composit_free_rlayers, file_ns::node_composit_copy_rlayers);
+  node_type_update(&ntype, file_ns::cmp_node_rlayers_update);
   node_type_init(&ntype, node_cmp_rlayers_outputs);
   node_type_size_preset(&ntype, NODE_SIZE_LARGE);
 

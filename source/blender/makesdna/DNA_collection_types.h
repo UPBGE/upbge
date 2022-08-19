@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup DNA
@@ -56,6 +40,7 @@ enum eCollectionLineArt_Usage {
 
 enum eCollectionLineArt_Flags {
   COLLECTION_LRT_USE_INTERSECTION_MASK = (1 << 0),
+  COLLECTION_LRT_USE_INTERSECTION_PRIORITY = (1 << 1),
 };
 
 typedef struct Collection {
@@ -78,7 +63,8 @@ typedef struct Collection {
   short lineart_usage;         /* eCollectionLineArt_Usage */
   unsigned char lineart_flags; /* eCollectionLineArt_Flags */
   unsigned char lineart_intersection_mask;
-  char _pad[6];
+  unsigned char lineart_intersection_priority;
+  char _pad[5];
 
   int16_t color_tag;
 
@@ -109,6 +95,7 @@ enum {
   COLLECTION_HAS_OBJECT_CACHE = (1 << 4),          /* Runtime: object_cache is populated. */
   COLLECTION_IS_MASTER = (1 << 5), /* Is master collection embedded in the scene. */
   COLLECTION_HAS_OBJECT_CACHE_INSTANCED = (1 << 6), /* for object_cache_instanced. */
+  COLLECTION_IS_SPAWNED = (1 << 14), /* UPBGE to alternate between old spawn method */
 };
 
 /* Collection->tag */

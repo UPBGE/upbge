@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #include <climits>
 
@@ -127,7 +112,7 @@ void FastGaussianBlurOperation::IIR_gauss(MemoryBuffer *src,
   double *X, *Y, *W;
   const unsigned int src_width = src->get_width();
   const unsigned int src_height = src->get_height();
-  unsigned int x, y, sz;
+  unsigned int x, y, src_dim_max;
   unsigned int i;
   float *buffer = src->get_buffer();
   const uint8_t num_channels = src->get_num_channels();
@@ -217,10 +202,10 @@ void FastGaussianBlurOperation::IIR_gauss(MemoryBuffer *src,
   (void)0
 
   /* Intermediate buffers. */
-  sz = MAX2(src_width, src_height);
-  X = (double *)MEM_callocN(sz * sizeof(double), "IIR_gauss X buf");
-  Y = (double *)MEM_callocN(sz * sizeof(double), "IIR_gauss Y buf");
-  W = (double *)MEM_callocN(sz * sizeof(double), "IIR_gauss W buf");
+  src_dim_max = MAX2(src_width, src_height);
+  X = (double *)MEM_callocN(src_dim_max * sizeof(double), "IIR_gauss X buf");
+  Y = (double *)MEM_callocN(src_dim_max * sizeof(double), "IIR_gauss Y buf");
+  W = (double *)MEM_callocN(src_dim_max * sizeof(double), "IIR_gauss W buf");
   if (xy & 1) { /* H. */
     int offset;
     for (y = 0; y < src_height; y++) {

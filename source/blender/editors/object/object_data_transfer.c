@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2014 by Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2014 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup edobj
@@ -43,9 +27,12 @@
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
 
+#include "BLT_translation.h"
+
 #include "RNA_access.h"
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
+#include "RNA_prototypes.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -58,7 +45,7 @@
  * Note some are 'fake' ones, i.e. they are not hold by real CDLayers. */
 /* Not shared with modifier, since we use a usual enum here, not a multi-choice one. */
 static const EnumPropertyItem DT_layer_items[] = {
-    {0, "", 0, "Vertex Data", ""},
+    RNA_ENUM_ITEM_HEADING("Vertex Data", NULL),
     {DT_TYPE_MDEFORMVERT,
      "VGROUP_WEIGHTS",
      0,
@@ -73,7 +60,8 @@ static const EnumPropertyItem DT_layer_items[] = {
     {DT_TYPE_SKIN, "SKIN", 0, "Skin Weight", "Transfer skin weights"},
 #endif
     {DT_TYPE_BWEIGHT_VERT, "BEVEL_WEIGHT_VERT", 0, "Bevel Weight", "Transfer bevel weights"},
-    {0, "", 0, "Edge Data", ""},
+
+    RNA_ENUM_ITEM_HEADING("Edge Data", NULL),
     {DT_TYPE_SHARP_EDGE, "SHARP_EDGE", 0, "Sharp", "Transfer sharp mark"},
     {DT_TYPE_SEAM, "SEAM", 0, "UV Seam", "Transfer UV seam mark"},
     {DT_TYPE_CREASE, "CREASE", 0, "Subdivision Crease", "Transfer crease values"},
@@ -83,11 +71,13 @@ static const EnumPropertyItem DT_layer_items[] = {
      0,
      "Freestyle Mark",
      "Transfer Freestyle edge mark"},
-    {0, "", 0, "Face Corner Data", ""},
+
+    RNA_ENUM_ITEM_HEADING("Face Corner Data", NULL),
     {DT_TYPE_LNOR, "CUSTOM_NORMAL", 0, "Custom Normals", "Transfer custom normals"},
-    {DT_TYPE_VCOL, "VCOL", 0, "Vertex Colors", "Vertex (face corners) colors"},
+    {DT_TYPE_MPROPCOL_LOOP | DT_TYPE_MLOOPCOL_LOOP, "VCOL", 0, "Colors", "Color Attributes"},
     {DT_TYPE_UV, "UV", 0, "UVs", "Transfer UV layers"},
-    {0, "", 0, "Face Data", ""},
+
+    RNA_ENUM_ITEM_HEADING("Face Data", NULL),
     {DT_TYPE_SHARP_FACE, "SMOOTH", 0, "Smooth", "Transfer flat/smooth mark"},
     {DT_TYPE_FREESTYLE_FACE,
      "FREESTYLE_FACE",
@@ -97,6 +87,33 @@ static const EnumPropertyItem DT_layer_items[] = {
     {0, NULL, 0, NULL, NULL},
 };
 
+static void dt_add_vcol_layers(CustomData *cdata,
+                               eCustomDataMask mask,
+                               EnumPropertyItem **r_item,
+                               int *r_totitem)
+{
+  int types[2] = {CD_PROP_COLOR, CD_PROP_BYTE_COLOR};
+
+  for (int i = 0; i < 2; i++) {
+    eCustomDataType type = types[i];
+
+    if (!(mask & CD_TYPE_AS_MASK(type))) {
+      continue;
+    }
+
+    int num_data = CustomData_number_of_layers(cdata, type);
+
+    RNA_enum_item_add_separator(r_item, r_totitem);
+
+    for (int j = 0; j < num_data; j++) {
+      EnumPropertyItem tmp_item;
+
+      tmp_item.value = j;
+      tmp_item.identifier = tmp_item.name = CustomData_get_layer_name(cdata, type, j);
+      RNA_enum_item_add(r_item, r_totitem, &tmp_item);
+    }
+  }
+}
 /* NOTE: #rna_enum_dt_layers_select_src_items enum is from rna_modifier.c. */
 static const EnumPropertyItem *dt_layers_select_src_itemf(bContext *C,
                                                           PointerRNA *ptr,
@@ -123,7 +140,7 @@ static const EnumPropertyItem *dt_layers_select_src_itemf(bContext *C,
   RNA_enum_items_add_value(
       &item, &totitem, rna_enum_dt_layers_select_src_items, DT_LAYERS_ALL_SRC);
 
-  Object *ob_src = CTX_data_active_object(C);
+  Object *ob_src = ED_object_active_context(C);
   if (ob_src == NULL) {
     RNA_enum_item_end(&item, &totitem);
     *r_free = true;
@@ -172,23 +189,33 @@ static const EnumPropertyItem *dt_layers_select_src_itemf(bContext *C,
       RNA_enum_item_add(&item, &totitem, &tmp_item);
     }
   }
-  else if (data_type == DT_TYPE_VCOL) {
+  else if (data_type & DT_TYPE_VCOL_ALL) {
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
     Object *ob_src_eval = DEG_get_evaluated_object(depsgraph, ob_src);
 
     CustomData_MeshMasks cddata_masks = CD_MASK_BAREMESH;
-    cddata_masks.lmask |= CD_MASK_MLOOPCOL;
+    if (data_type & (DT_TYPE_MPROPCOL_VERT)) {
+      cddata_masks.vmask |= CD_MASK_PROP_COLOR;
+    }
+    if (data_type & (DT_TYPE_MLOOPCOL_VERT)) {
+      cddata_masks.vmask |= CD_MASK_PROP_BYTE_COLOR;
+    }
+
+    if (data_type & (DT_TYPE_MPROPCOL_LOOP)) {
+      cddata_masks.lmask |= CD_MASK_PROP_COLOR;
+    }
+    if (data_type & (DT_TYPE_MLOOPCOL_LOOP)) {
+      cddata_masks.lmask |= CD_MASK_PROP_BYTE_COLOR;
+    }
+
     Mesh *me_eval = mesh_get_eval_final(depsgraph, scene_eval, ob_src_eval, &cddata_masks);
-    int num_data = CustomData_number_of_layers(&me_eval->ldata, CD_MLOOPCOL);
 
-    RNA_enum_item_add_separator(&item, &totitem);
-
-    for (int i = 0; i < num_data; i++) {
-      tmp_item.value = i;
-      tmp_item.identifier = tmp_item.name = CustomData_get_layer_name(
-          &me_eval->ldata, CD_MLOOPCOL, i);
-      RNA_enum_item_add(&item, &totitem, &tmp_item);
+    if (data_type & (DT_TYPE_MLOOPCOL_VERT | DT_TYPE_MPROPCOL_VERT)) {
+      dt_add_vcol_layers(&me_eval->vdata, cddata_masks.vmask, &item, &totitem);
+    }
+    if (data_type & (DT_TYPE_MLOOPCOL_LOOP | DT_TYPE_MPROPCOL_LOOP)) {
+      dt_add_vcol_layers(&me_eval->ldata, cddata_masks.lmask, &item, &totitem);
     }
   }
 
@@ -332,11 +359,11 @@ static void data_transfer_exec_preprocess_objects(bContext *C,
     }
 
     me = ob->data;
-    if (ID_IS_LINKED(me)) {
-      /* Do not transfer to linked data, not supported. */
+    if (ID_IS_LINKED(me) || ID_IS_OVERRIDE_LIBRARY(me)) {
+      /* Do not transfer to linked/override data, not supported. */
       BKE_reportf(op->reports,
                   RPT_WARNING,
-                  "Skipping object '%s', linked data '%s' cannot be modified",
+                  "Skipping object '%s', linked or override data '%s' cannot be modified",
                   ob->id.name + 2,
                   me->id.name + 2);
       me->id.tag &= ~LIB_TAG_DOIT;
@@ -603,7 +630,20 @@ static bool data_transfer_poll_property(const bContext *UNUSED(C),
   return true;
 }
 
-/* Transfer mesh data from active to selected objects. */
+static char *data_transfer_get_description(bContext *UNUSED(C),
+                                           wmOperatorType *UNUSED(ot),
+                                           PointerRNA *ptr)
+{
+  const bool reverse_transfer = RNA_boolean_get(ptr, "use_reverse_transfer");
+
+  if (reverse_transfer) {
+    return BLI_strdup(TIP_(
+        "Transfer data layer(s) (weights, edge sharp, etc.) from selected meshes to active one"));
+  }
+
+  return NULL;
+}
+
 void OBJECT_OT_data_transfer(wmOperatorType *ot)
 {
   PropertyRNA *prop;
@@ -620,6 +660,7 @@ void OBJECT_OT_data_transfer(wmOperatorType *ot)
   ot->invoke = WM_menu_invoke;
   ot->exec = data_transfer_exec;
   ot->check = data_transfer_check;
+  ot->get_description = data_transfer_get_description;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

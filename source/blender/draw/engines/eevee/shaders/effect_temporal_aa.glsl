@@ -3,7 +3,7 @@
 #pragma BLENDER_REQUIRE(common_view_lib.glsl)
 
 uniform sampler2D colorBuffer;
-uniform sampler2D depthBuffer;
+uniform depth2D depthBuffer;
 uniform sampler2D colorHistoryBuffer;
 
 uniform mat4 prevViewProjectionMatrix;
@@ -24,7 +24,7 @@ out vec4 FragColor;
  */
 vec3 clip_to_aabb(vec3 color, vec3 minimum, vec3 maximum, vec3 average)
 {
-  /* note: only clips towards aabb center (but fast!) */
+  /* NOTE: only clips towards aabb center (but fast!) */
   vec3 center = 0.5 * (maximum + minimum);
   vec3 extents = 0.5 * (maximum - minimum);
   vec3 dist = color - center;

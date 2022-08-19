@@ -1,22 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
-# <pep8 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 import bpy
 from bpy.types import Panel
 from rna_prop_ui import PropertyPanel
@@ -134,7 +116,7 @@ class DATA_PT_shape_curve(CurveButtonsPanel, Panel):
 class DATA_PT_curve_texture_space(CurveButtonsPanel, Panel):
     bl_label = "Texture Space"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
 
     def draw(self, context):
         layout = self.layout
@@ -219,7 +201,7 @@ class DATA_PT_geometry_curve_start_end(CurveButtonsPanelCurve, Panel):
     @classmethod
     def poll(cls, context):
         # Text objects don't support these properties
-        return (type(context.curve) in {Curve})
+        return (type(context.curve) == Curve)
 
     def draw(self, context):
         layout = self.layout
@@ -305,7 +287,6 @@ class DATA_PT_active_spline(CurveButtonsPanelActive, Panel):
 
                 if is_surf:
                     subsub = sub.column()
-                    subsub.active = (not act_spline.use_cyclic_v)
                     subsub.prop(act_spline, "use_bezier_v", text="V")
 
                 sub = col.column(heading="Endpoint", align=True)
@@ -313,7 +294,6 @@ class DATA_PT_active_spline(CurveButtonsPanelActive, Panel):
 
                 if is_surf:
                     subsub = sub.column()
-                    subsub.active = (not act_spline.use_cyclic_v)
                     subsub.prop(act_spline, "use_endpoint_v", text="V")
 
                 sub = col.column(align=True)
@@ -338,6 +318,17 @@ class DATA_PT_active_spline(CurveButtonsPanelActive, Panel):
                 col.prop(act_spline, "radius_interpolation", text="Radius")
 
             layout.prop(act_spline, "use_smooth")
+            if act_spline.type == 'NURBS':
+                col = None
+                for direction in range(2):
+                    message = act_spline.valid_message(direction)
+                    if not message:
+                        continue
+                    if col is None:
+                        layout.separator()
+                        col = layout.column(align=True)
+                    col.label(text=message, icon='INFO')
+                del col
 
 
 class DATA_PT_font(CurveButtonsPanelText, Panel):
@@ -484,7 +475,7 @@ class DATA_PT_text_boxes(CurveButtonsPanelText, Panel):
 
 
 class DATA_PT_custom_props_curve(CurveButtonsPanel, PropertyPanel, Panel):
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
     _context_path = "object.data"
     _property_type = bpy.types.Curve
 

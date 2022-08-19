@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2012 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2012 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup edmask
@@ -58,6 +42,22 @@ bool ED_maskedit_poll(bContext *C)
   return false;
 }
 
+bool ED_maskedit_visible_splines_poll(bContext *C)
+{
+  ScrArea *area = CTX_wm_area(C);
+  if (area) {
+    switch (area->spacetype) {
+      case SPACE_CLIP:
+        return ED_space_clip_maskedit_visible_splines_poll(C);
+      case SPACE_SEQ:
+        return ED_space_sequencer_maskedit_poll(C);
+      case SPACE_IMAGE:
+        return ED_space_image_maskedit_visible_splines_poll(C);
+    }
+  }
+  return false;
+}
+
 bool ED_maskedit_mask_poll(bContext *C)
 {
   ScrArea *area = CTX_wm_area(C);
@@ -69,6 +69,22 @@ bool ED_maskedit_mask_poll(bContext *C)
         return ED_space_sequencer_maskedit_mask_poll(C);
       case SPACE_IMAGE:
         return ED_space_image_maskedit_mask_poll(C);
+    }
+  }
+  return false;
+}
+
+bool ED_maskedit_mask_visible_splines_poll(bContext *C)
+{
+  const ScrArea *area = CTX_wm_area(C);
+  if (area) {
+    switch (area->spacetype) {
+      case SPACE_CLIP:
+        return ED_space_clip_maskedit_mask_visible_splines_poll(C);
+      case SPACE_SEQ:
+        return ED_space_sequencer_maskedit_mask_poll(C);
+      case SPACE_IMAGE:
+        return ED_space_image_maskedit_mask_visible_splines_poll(C);
     }
   }
   return false;
@@ -127,7 +143,7 @@ void ED_operatortypes_mask(void)
   WM_operatortype_append(MASK_OT_parent_set);
   WM_operatortype_append(MASK_OT_parent_clear);
 
-  /* shapekeys */
+  /* Shape-keys. */
   WM_operatortype_append(MASK_OT_shape_key_insert);
   WM_operatortype_append(MASK_OT_shape_key_clear);
   WM_operatortype_append(MASK_OT_shape_key_feather_reset);

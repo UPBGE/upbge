@@ -1,20 +1,4 @@
-# ***** BEGIN GPL LICENSE BLOCK *****
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ***** END GPL LICENSE BLOCK *****
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # Note the utility apps may use png/tiff/gif system libraries, but the
 # library itself does not depend on them, so should give no problems.
@@ -26,53 +10,33 @@ set(EMBREE_EXTRA_ARGS
   -DEMBREE_RAY_MASK=ON
   -DEMBREE_FILTER_FUNCTION=ON
   -DEMBREE_BACKFACE_CULLING=OFF
-  -DEMBREE_MAX_ISA=AVX2
   -DEMBREE_TASKING_SYSTEM=TBB
   -DEMBREE_TBB_ROOT=${LIBDIR}/tbb
   -DTBB_ROOT=${LIBDIR}/tbb
-  -DTBB_STATIC_LIB=${TBB_STATIC_LIBRARY}
 )
+
+if (NOT BLENDER_PLATFORM_ARM)
+  set(EMBREE_EXTRA_ARGS
+    ${EMBREE_EXTRA_ARGS}
+    -DEMBREE_MAX_ISA=AVX2)
+endif()
 
 if(TBB_STATIC_LIBRARY)
   set(EMBREE_EXTRA_ARGS
     ${EMBREE_EXTRA_ARGS}
-    -DEMBREE_TBB_LIBRARY_NAME=tbb_static
-    -DEMBREE_TBBMALLOC_LIBRARY_NAME=tbbmalloc_static
+    -DEMBREE_TBB_COMPONENT=tbb_static
   )
 endif()
 
-if(WIN32)
-  set(EMBREE_BUILD_DIR ${BUILD_MODE}/)
-  if(BUILD_MODE STREQUAL Debug)
-    list(APPEND EMBREE_EXTRA_ARGS
-     -DEMBREE_TBBMALLOC_LIBRARY_NAME=tbbmalloc_debug
-     -DEMBREE_TBB_LIBRARY_NAME=tbb_debug
-    )
-  endif()
-else()
-  set(EMBREE_BUILD_DIR)
-endif()
-
-if(BLENDER_PLATFORM_ARM)
-  ExternalProject_Add(external_embree
-    GIT_REPOSITORY ${EMBREE_ARM_GIT}
-    GIT_TAG "blender-arm"
-    DOWNLOAD_DIR ${DOWNLOAD_DIR}
-    PREFIX ${BUILD_DIR}/embree
-    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${LIBDIR}/embree ${DEFAULT_CMAKE_FLAGS} ${EMBREE_EXTRA_ARGS}
-    INSTALL_DIR ${LIBDIR}/embree
-  )
-else()
-  ExternalProject_Add(external_embree
-    URL file://${PACKAGE_DIR}/${EMBREE_FILE}
-    DOWNLOAD_DIR ${DOWNLOAD_DIR}
-    URL_HASH ${EMBREE_HASH_TYPE}=${EMBREE_HASH}
-    PREFIX ${BUILD_DIR}/embree
-    PATCH_COMMAND ${PATCH_CMD} -p 1 -d ${BUILD_DIR}/embree/src/external_embree < ${PATCH_DIR}/embree.diff
-    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${LIBDIR}/embree ${DEFAULT_CMAKE_FLAGS} ${EMBREE_EXTRA_ARGS}
-    INSTALL_DIR ${LIBDIR}/embree
-  )
-endif()
+ExternalProject_Add(external_embree
+  URL file://${PACKAGE_DIR}/${EMBREE_FILE}
+  DOWNLOAD_DIR ${DOWNLOAD_DIR}
+  URL_HASH ${EMBREE_HASH_TYPE}=${EMBREE_HASH}
+  PREFIX ${BUILD_DIR}/embree
+  PATCH_COMMAND ${PATCH_CMD} -p 1 -d ${BUILD_DIR}/embree/src/external_embree < ${PATCH_DIR}/embree.diff
+  CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${LIBDIR}/embree ${DEFAULT_CMAKE_FLAGS} ${EMBREE_EXTRA_ARGS}
+  INSTALL_DIR ${LIBDIR}/embree
+)
 
 add_dependencies(
   external_embree

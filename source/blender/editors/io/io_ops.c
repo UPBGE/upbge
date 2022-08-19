@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2008 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2008 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup collada
@@ -39,6 +23,8 @@
 
 #include "io_cache.h"
 #include "io_gpencil.h"
+#include "io_obj.h"
+#include "io_stl_ops.h"
 
 void ED_operatortypes_io(void)
 {
@@ -56,16 +42,29 @@ void ED_operatortypes_io(void)
   WM_operatortype_append(WM_OT_usd_export);
 #endif
 
+#ifdef WITH_IO_GPENCIL
   WM_operatortype_append(WM_OT_gpencil_import_svg);
-
-#ifdef WITH_PUGIXML
+#  ifdef WITH_PUGIXML
   WM_operatortype_append(WM_OT_gpencil_export_svg);
-#endif
-
-#ifdef WITH_HARU
+#  endif
+#  ifdef WITH_HARU
   WM_operatortype_append(WM_OT_gpencil_export_pdf);
+#  endif
 #endif
 
   WM_operatortype_append(CACHEFILE_OT_open);
   WM_operatortype_append(CACHEFILE_OT_reload);
+
+  WM_operatortype_append(CACHEFILE_OT_layer_add);
+  WM_operatortype_append(CACHEFILE_OT_layer_remove);
+  WM_operatortype_append(CACHEFILE_OT_layer_move);
+
+#ifdef WITH_IO_WAVEFRONT_OBJ
+  WM_operatortype_append(WM_OT_obj_export);
+  WM_operatortype_append(WM_OT_obj_import);
+#endif
+
+#ifdef WITH_IO_STL
+  WM_operatortype_append(WM_OT_stl_import);
+#endif
 }

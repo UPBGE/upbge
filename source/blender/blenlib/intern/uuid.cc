@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
@@ -81,7 +67,7 @@ bUUID BLI_uuid_generate_random()
   return uuid;
 }
 
-bUUID BLI_uuid_nil(void)
+bUUID BLI_uuid_nil()
 {
   const bUUID nil = {0, 0, 0, 0, 0, {0}};
   return nil;
@@ -116,7 +102,7 @@ void BLI_uuid_format(char *buffer, const bUUID uuid)
 
 bool BLI_uuid_parse_string(bUUID *uuid, const char *buffer)
 {
-  const int num_fields_parsed = std::sscanf(
+  const int fields_parsed_num = std::sscanf(
       buffer,
       "%8x-%4hx-%4hx-%2hhx%2hhx-%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx",
       &uuid->time_low,
@@ -130,7 +116,7 @@ bool BLI_uuid_parse_string(bUUID *uuid, const char *buffer)
       &uuid->node[3],
       &uuid->node[4],
       &uuid->node[5]);
-  return num_fields_parsed == 11;
+  return fields_parsed_num == 11;
 }
 
 std::ostream &operator<<(std::ostream &stream, bUUID uuid)

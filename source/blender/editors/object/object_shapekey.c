@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edobj
@@ -36,6 +20,8 @@
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
+#include "BLT_translation.h"
+
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_mesh_types.h"
@@ -43,13 +29,16 @@
 #include "DNA_object_types.h"
 
 #include "BKE_context.h"
+#include "BKE_crazyspace.h"
 #include "BKE_key.h"
 #include "BKE_lattice.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
+#include "BKE_report.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph_query.h"
 
 #include "BLI_sys_types.h" /* for intptr_t support */
 
@@ -312,6 +301,10 @@ static int shape_key_remove_exec(bContext *C, wmOperator *op)
   bool changed = false;
 
   if (RNA_boolean_get(op->ptr, "all")) {
+    if (RNA_boolean_get(op->ptr, "apply_mix")) {
+      float *arr = BKE_key_evaluate_object_ex(ob, NULL, NULL, 0, ob->data);
+      MEM_freeN(arr);
+    }
     changed = BKE_object_shapekey_free(bmain, ob);
   }
   else {
@@ -328,6 +321,34 @@ static int shape_key_remove_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
+static bool shape_key_remove_poll_property(const bContext *UNUSED(C),
+                                           wmOperator *op,
+                                           const PropertyRNA *prop)
+{
+  const char *prop_id = RNA_property_identifier(prop);
+  const bool do_all = RNA_enum_get(op->ptr, "all");
+
+  /* Only show seed for randomize action! */
+  if (STREQ(prop_id, "apply_mix") && !do_all) {
+    return false;
+  }
+  return true;
+}
+
+static char *shape_key_remove_get_description(bContext *UNUSED(C),
+                                              wmOperatorType *UNUSED(ot),
+                                              PointerRNA *ptr)
+{
+  const bool do_apply_mix = RNA_boolean_get(ptr, "apply_mix");
+
+  if (do_apply_mix) {
+    return BLI_strdup(
+        TIP_("Apply current visible shape to the object data, and delete all shape keys"));
+  }
+
+  return NULL;
+}
+
 void OBJECT_OT_shape_key_remove(wmOperatorType *ot)
 {
   /* identifiers */
@@ -338,12 +359,19 @@ void OBJECT_OT_shape_key_remove(wmOperatorType *ot)
   /* api callbacks */
   ot->poll = shape_key_mode_exists_poll;
   ot->exec = shape_key_remove_exec;
+  ot->poll_property = shape_key_remove_poll_property;
+  ot->get_description = shape_key_remove_get_description;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
-  RNA_def_boolean(ot->srna, "all", 0, "All", "Remove all shape keys");
+  RNA_def_boolean(ot->srna, "all", false, "All", "Remove all shape keys");
+  RNA_def_boolean(ot->srna,
+                  "apply_mix",
+                  false,
+                  "Apply Mix",
+                  "Apply current mix of shape keys to the geometry before removing them");
 }
 
 /** \} */

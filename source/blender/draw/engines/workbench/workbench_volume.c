@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2018, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2018 Blender Foundation. */
 
 /** \file
  * \ingroup draw_engine
@@ -129,7 +114,7 @@ static void workbench_volume_modifier_cache_populate(WORKBENCH_Data *vedata,
     float step_length = max_ff(1e-16f, dim[axis] * 0.05f);
 
     grp = DRW_shgroup_create(sh, vedata->psl->volume_ps);
-    DRW_shgroup_uniform_block(grp, "world_block", wpd->world_ubo);
+    DRW_shgroup_uniform_block(grp, "world_data", wpd->world_ubo);
     DRW_shgroup_uniform_float_copy(grp, "slicePosition", fds->slice_depth);
     DRW_shgroup_uniform_int_copy(grp, "sliceAxis", axis);
     DRW_shgroup_uniform_float_copy(grp, "stepLength", step_length);
@@ -139,16 +124,16 @@ static void workbench_volume_modifier_cache_populate(WORKBENCH_Data *vedata,
     double noise_ofs;
     BLI_halton_1d(3, 0.0, wpd->taa_sample, &noise_ofs);
     float dim[3], step_length, max_slice;
-    float slice_ct[3] = {fds->res[0], fds->res[1], fds->res[2]};
-    mul_v3_fl(slice_ct, max_ff(0.001f, fds->slice_per_voxel));
-    max_slice = max_fff(slice_ct[0], slice_ct[1], slice_ct[2]);
+    float slice_count[3] = {fds->res[0], fds->res[1], fds->res[2]};
+    mul_v3_fl(slice_count, max_ff(0.001f, fds->slice_per_voxel));
+    max_slice = max_fff(slice_count[0], slice_count[1], slice_count[2]);
     BKE_object_dimensions_get(ob, dim);
-    invert_v3(slice_ct);
-    mul_v3_v3(dim, slice_ct);
+    invert_v3(slice_count);
+    mul_v3_v3(dim, slice_count);
     step_length = len_v3(dim);
 
     grp = DRW_shgroup_create(sh, vedata->psl->volume_ps);
-    DRW_shgroup_uniform_block(grp, "world_block", wpd->world_ubo);
+    DRW_shgroup_uniform_block(grp, "world_data", wpd->world_ubo);
     DRW_shgroup_uniform_int_copy(grp, "samplesLen", max_slice);
     DRW_shgroup_uniform_float_copy(grp, "stepLength", step_length);
     DRW_shgroup_uniform_float_copy(grp, "noiseOfs", noise_ofs);
@@ -193,8 +178,6 @@ static void workbench_volume_modifier_cache_populate(WORKBENCH_Data *vedata,
   else {
     DRW_shgroup_call(grp, DRW_cache_cube_get(), ob);
   }
-
-  BLI_addtail(&wpd->smoke_domains, BLI_genericNodeN(fmd));
 }
 
 static void workbench_volume_material_color(WORKBENCH_PrivateData *wpd,
@@ -272,7 +255,7 @@ static void workbench_volume_object_cache_populate(WORKBENCH_Data *vedata,
     const float slice_position = volume->display.slice_depth;
 
     grp = DRW_shgroup_create(sh, vedata->psl->volume_ps);
-    DRW_shgroup_uniform_block(grp, "world_block", wpd->world_ubo);
+    DRW_shgroup_uniform_block(grp, "world_data", wpd->world_ubo);
     DRW_shgroup_uniform_float_copy(grp, "slicePosition", slice_position);
     DRW_shgroup_uniform_int_copy(grp, "sliceAxis", axis);
     DRW_shgroup_uniform_float_copy(grp, "stepLength", step_length);
@@ -290,16 +273,16 @@ static void workbench_volume_object_cache_populate(WORKBENCH_Data *vedata,
     float step_length, max_slice;
     int resolution[3];
     GPU_texture_get_mipmap_size(grid->texture, 0, resolution);
-    float slice_ct[3] = {resolution[0], resolution[1], resolution[2]};
-    mul_v3_fl(slice_ct, max_ff(0.001f, 5.0f));
-    max_slice = max_fff(slice_ct[0], slice_ct[1], slice_ct[2]);
-    invert_v3(slice_ct);
-    mul_v3_v3(slice_ct, world_size);
-    step_length = len_v3(slice_ct);
+    float slice_count[3] = {resolution[0], resolution[1], resolution[2]};
+    mul_v3_fl(slice_count, max_ff(0.001f, 5.0f));
+    max_slice = max_fff(slice_count[0], slice_count[1], slice_count[2]);
+    invert_v3(slice_count);
+    mul_v3_v3(slice_count, world_size);
+    step_length = len_v3(slice_count);
 
     /* Set uniforms. */
     grp = DRW_shgroup_create(sh, vedata->psl->volume_ps);
-    DRW_shgroup_uniform_block(grp, "world_block", wpd->world_ubo);
+    DRW_shgroup_uniform_block(grp, "world_data", wpd->world_ubo);
     DRW_shgroup_uniform_int_copy(grp, "samplesLen", max_slice);
     DRW_shgroup_uniform_float_copy(grp, "stepLength", step_length);
     DRW_shgroup_uniform_float_copy(grp, "noiseOfs", noise_ofs);
@@ -348,21 +331,4 @@ void workbench_volume_draw_pass(WORKBENCH_Data *vedata)
     GPU_framebuffer_bind(dfbl->color_only_fb);
     DRW_draw_pass(psl->volume_ps);
   }
-}
-
-void workbench_volume_draw_finish(WORKBENCH_Data *vedata)
-{
-  WORKBENCH_PrivateData *wpd = vedata->stl->wpd;
-
-  /* Free Smoke Textures after rendering */
-  /* XXX This is a waste of processing and GPU bandwidth if nothing
-   * is updated. But the problem is since Textures are stored in the
-   * modifier we don't want them to take precious VRAM if the
-   * modifier is not used for display. We should share them for
-   * all viewport in a redraw at least. */
-  LISTBASE_FOREACH (LinkData *, link, &wpd->smoke_domains) {
-    FluidModifierData *fmd = (FluidModifierData *)link->data;
-    DRW_smoke_free(fmd);
-  }
-  BLI_freelistN(&wpd->smoke_domains);
 }

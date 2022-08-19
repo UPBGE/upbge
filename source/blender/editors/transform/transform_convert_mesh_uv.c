@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edtransform
@@ -250,11 +234,10 @@ static void uv_set_connectivity_distance(BMesh *bm, float *dists, const float as
   MEM_freeN(dists_prev);
 }
 
-void createTransUVs(bContext *C, TransInfo *t)
+static void createTransUVs(bContext *C, TransInfo *t)
 {
   SpaceImage *sima = CTX_wm_space_image(C);
   Scene *scene = t->scene;
-  ToolSettings *ts = CTX_data_tool_settings(C);
 
   const bool is_prop_edit = (t->flag & T_PROP_EDIT) != 0;
   const bool is_prop_connected = (t->flag & T_PROP_CONNECTED) != 0;
@@ -282,13 +265,12 @@ void createTransUVs(bContext *C, TransInfo *t)
     /* count */
     if (is_island_center) {
       /* create element map with island information */
-      const bool use_facesel = (ts->uv_flag & UV_SYNC_SELECTION) == 0;
-      elementmap = BM_uv_element_map_create(em->bm, scene, use_facesel, true, false, true);
+      elementmap = BM_uv_element_map_create(em->bm, scene, true, false, true);
       if (elementmap == NULL) {
         continue;
       }
 
-      island_center = MEM_callocN(sizeof(*island_center) * elementmap->totalIslands, __func__);
+      island_center = MEM_callocN(sizeof(*island_center) * elementmap->total_islands, __func__);
     }
 
     BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
@@ -333,9 +315,7 @@ void createTransUVs(bContext *C, TransInfo *t)
     }
 
     if (is_island_center) {
-      int i;
-
-      for (i = 0; i < elementmap->totalIslands; i++) {
+      for (int i = 0; i < elementmap->total_islands; i++) {
         mul_v2_fl(island_center[i].co, 1.0f / island_center[i].co_num);
         mul_v2_v2(island_center[i].co, t->aspect);
       }
@@ -464,8 +444,7 @@ static void flushTransUVs(TransInfo *t)
   }
 }
 
-/* helper for recalcData() - for Image Editor transforms */
-void recalcData_uv(TransInfo *t)
+static void recalcData_uv(TransInfo *t)
 {
   SpaceImage *sima = t->area->spacedata.first;
 
@@ -482,3 +461,10 @@ void recalcData_uv(TransInfo *t)
 }
 
 /** \} */
+
+TransConvertTypeInfo TransConvertType_MeshUV = {
+    /* flags */ (T_EDIT | T_POINTS | T_2D_EDIT),
+    /* createTransData */ createTransUVs,
+    /* recalcData */ recalcData_uv,
+    /* special_aftertrans_update */ NULL,
+};

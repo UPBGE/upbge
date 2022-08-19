@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 # defaults for building blender as a python module 'bpy'
 #
 # Example usage:
@@ -11,6 +13,9 @@ set(WITH_INSTALL_PORTABLE    OFF CACHE BOOL "" FORCE)
 
 # no point int copying python into python
 set(WITH_PYTHON_INSTALL      OFF CACHE BOOL "" FORCE)
+
+# dont build the game engine
+set(WITH_GAMEENGINE          OFF CACHE BOOL "" FORCE)
 
 # disable audio, its possible some devs may want this but for now disable
 # so the python module doesn't hold the audio device and loads quickly.

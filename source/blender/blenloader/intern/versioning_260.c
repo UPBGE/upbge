@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup blenloader
@@ -23,6 +9,7 @@
 /* allow readfile to use deprecated functionality */
 #define DNA_DEPRECATED_ALLOW
 
+#include "DNA_actuator_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_brush_types.h"
 #include "DNA_camera_types.h"
@@ -39,8 +26,10 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_object_fluidsim_types.h"
 #include "DNA_object_types.h"
+#include "DNA_property_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sdna_types.h"
+#include "DNA_sensor_types.h"
 #include "DNA_space_types.h"
 #include "DNA_text_types.h"
 #include "DNA_view3d_types.h"
@@ -61,6 +50,7 @@
 #include "BKE_modifier.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
+#include "BKE_property.h"  // for BKE_bproperty_object_get
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 #include "BKE_text.h" /* for txt_extended_ascii_as_utf8 */
@@ -78,6 +68,7 @@
 #include "IMB_imbuf.h" /* for proxy / time-code versioning stuff. */
 
 #include "NOD_common.h"
+#include "NOD_composite.h"
 #include "NOD_texture.h"
 
 #include "BLO_readfile.h"
@@ -370,7 +361,7 @@ static void do_versions_mesh_mloopcol_swap_2_62_1(Mesh *me)
   for (a = 0; a < me->ldata.totlayer; a++) {
     layer = &me->ldata.layers[a];
 
-    if (layer->type == CD_MLOOPCOL) {
+    if (layer->type == CD_PROP_BYTE_COLOR) {
       mloopcol = (MLoopCol *)layer->data;
       for (i = 0; i < me->totloop; i++, mloopcol++) {
         SWAP(uchar, mloopcol->r, mloopcol->b);
@@ -458,6 +449,25 @@ static void do_versions_nodetree_frame_2_64_6(bNodeTree *ntree)
 
     /* initialize custom node color */
     node->color[0] = node->color[1] = node->color[2] = 0.608f; /* default theme color */
+  }
+}
+
+static void do_version_logic_264(ListBase *regionbase)
+{
+  ARegion *ar;
+
+  /* view settings for logic changed */
+  for (ar = regionbase->first; ar; ar = ar->next) {
+    if (ar->regiontype == RGN_TYPE_WINDOW) {
+      if (ar->v2d.keeptot == 0) {
+        ar->v2d.maxzoom = 1.5f;
+
+        ar->v2d.keepzoom = V2D_KEEPZOOM | V2D_LIMITZOOM | V2D_KEEPASPECT;
+        ar->v2d.keeptot = V2D_KEEPTOT_BOUNDS;
+        ar->v2d.align = V2D_ALIGN_NO_POS_Y | V2D_ALIGN_NO_NEG_X;
+        ar->v2d.keepofs = V2D_KEEPOFS_Y;
+      }
+    }
   }
 }
 
@@ -1851,7 +1861,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
         Image *image = blo_do_versions_newlibadr(fd, tex->id.lib, tex->ima);
 
         if (image && (image->flag & IMA_DO_PREMUL) == 0) {
-          const int IMA_IGNORE_ALPHA = (1 << 12);
+          enum { IMA_IGNORE_ALPHA = (1 << 12) };
           image->flag |= IMA_IGNORE_ALPHA;
         }
       }
@@ -1892,7 +1902,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *bmain)
 
     for (cu = bmain->curves.first; cu; cu = cu->id.next) {
       if (cu->flag & (CU_FRONT | CU_BACK)) {
-        if (cu->ext1 != 0.0f || cu->ext2 != 0.0f) {
+        if (cu->extrude != 0.0f || cu->bevel_radius != 0.0f) {
           Nurb *nu;
 
           for (nu = cu->nurb.first; nu; nu = nu->next) {

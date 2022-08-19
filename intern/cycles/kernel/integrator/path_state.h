@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #pragma once
 
@@ -26,7 +13,7 @@ CCL_NAMESPACE_BEGIN
 ccl_device_inline void path_state_init_queues(IntegratorState state)
 {
   INTEGRATOR_STATE_WRITE(state, path, queued_kernel) = 0;
-#ifdef __KERNEL_CPU__
+#ifndef __KERNEL_GPU__
   INTEGRATOR_STATE_WRITE(&state->shadow, shadow_path, queued_kernel) = 0;
   INTEGRATOR_STATE_WRITE(&state->ao, shadow_path, queued_kernel) = 0;
 #endif
@@ -65,10 +52,16 @@ ccl_device_inline void path_state_init_integrator(KernelGlobals kg,
   INTEGRATOR_STATE_WRITE(state, path, flag) = PATH_RAY_CAMERA | PATH_RAY_MIS_SKIP |
                                               PATH_RAY_TRANSPARENT_BACKGROUND;
   INTEGRATOR_STATE_WRITE(state, path, mis_ray_pdf) = 0.0f;
-  INTEGRATOR_STATE_WRITE(state, path, mis_ray_t) = 0.0f;
   INTEGRATOR_STATE_WRITE(state, path, min_ray_pdf) = FLT_MAX;
   INTEGRATOR_STATE_WRITE(state, path, continuation_probability) = 1.0f;
-  INTEGRATOR_STATE_WRITE(state, path, throughput) = make_float3(1.0f, 1.0f, 1.0f);
+  INTEGRATOR_STATE_WRITE(state, path, throughput) = one_spectrum();
+
+#ifdef __MNEE__
+  INTEGRATOR_STATE_WRITE(state, path, mnee) = 0;
+#endif
+
+  INTEGRATOR_STATE_WRITE(state, isect, object) = OBJECT_NONE;
+  INTEGRATOR_STATE_WRITE(state, isect, prim) = PRIM_NONE;
 
   if (kernel_data.kernel_features & KERNEL_FEATURE_VOLUME) {
     INTEGRATOR_STATE_ARRAY_WRITE(state, volume_stack, 0, object) = OBJECT_NONE;
@@ -81,7 +74,7 @@ ccl_device_inline void path_state_init_integrator(KernelGlobals kg,
 #ifdef __DENOISING_FEATURES__
   if (kernel_data.kernel_features & KERNEL_FEATURE_DENOISING) {
     INTEGRATOR_STATE_WRITE(state, path, flag) |= PATH_RAY_DENOISING_FEATURES;
-    INTEGRATOR_STATE_WRITE(state, path, denoising_feature_throughput) = one_float3();
+    INTEGRATOR_STATE_WRITE(state, path, denoising_feature_throughput) = one_spectrum();
   }
 #endif
 }
@@ -256,7 +249,7 @@ ccl_device_inline float path_state_continuation_probability(KernelGlobals kg,
 
   /* Probabilistic termination: use sqrt() to roughly match typical view
    * transform and do path termination a bit later on average. */
-  return min(sqrtf(max3(fabs(INTEGRATOR_STATE(state, path, throughput)))), 1.0f);
+  return min(sqrtf(reduce_max(fabs(INTEGRATOR_STATE(state, path, throughput)))), 1.0f);
 }
 
 ccl_device_inline bool path_state_ao_bounce(KernelGlobals kg, ConstIntegratorState state)

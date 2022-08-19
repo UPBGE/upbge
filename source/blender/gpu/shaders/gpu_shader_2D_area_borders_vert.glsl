@@ -1,14 +1,4 @@
 
-uniform mat4 ModelViewProjectionMatrix;
-
-uniform vec4 rect;
-uniform int cornerLen;
-uniform float scale;
-
-in vec2 pos;
-
-out vec2 uv;
-
 void main()
 {
   int corner_id = (gl_VertexID / cornerLen) % 4;

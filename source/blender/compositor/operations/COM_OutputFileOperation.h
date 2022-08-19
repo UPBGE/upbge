@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #pragma once
 
@@ -25,7 +10,7 @@
 
 #include "DNA_color_types.h"
 
-#include "intern/openexr/openexr_multi.h"
+#include "IMB_openexr.h"
 
 namespace blender::compositor {
 
@@ -35,29 +20,26 @@ class OutputSingleLayerOperation : public MultiThreadedOperation {
   const RenderData *rd_;
   const bNodeTree *tree_;
 
-  ImageFormatData *format_;
+  ImageFormatData format_;
   char path_[FILE_MAX];
 
   float *output_buffer_;
   DataType datatype_;
   SocketReader *image_input_;
 
-  const ColorManagedViewSettings *view_settings_;
-  const ColorManagedDisplaySettings *display_settings_;
-
   const char *view_name_;
   bool save_as_render_;
 
  public:
-  OutputSingleLayerOperation(const RenderData *rd,
+  OutputSingleLayerOperation(const Scene *scene,
+                             const RenderData *rd,
                              const bNodeTree *tree,
                              DataType datatype,
-                             ImageFormatData *format,
+                             const ImageFormatData *format,
                              const char *path,
-                             const ColorManagedViewSettings *view_settings,
-                             const ColorManagedDisplaySettings *display_settings,
                              const char *view_name,
-                             const bool save_as_render);
+                             bool save_as_render);
+  ~OutputSingleLayerOperation();
 
   void execute_region(rcti *rect, unsigned int tile_number) override;
   bool is_output_operation(bool /*rendering*/) const override
@@ -136,7 +118,7 @@ void add_exr_channels(void *exrhandle,
                       const char *layer_name,
                       const DataType datatype,
                       const char *view_name,
-                      const size_t width,
+                      size_t width,
                       bool use_half_float,
                       float *buf);
 void free_exr_channels(void *exrhandle,

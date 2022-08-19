@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2017, Blender Foundation
- * This is a new part of Blender
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2017 Blender Foundation. */
 
 /** \file
  * \ingroup modifiers
@@ -23,11 +7,10 @@
 
 #include <stdio.h>
 
-#include "BLI_listbase.h"
-#include "BLI_utildefines.h"
-
 #include "BLI_hash.h"
+#include "BLI_listbase.h"
 #include "BLI_math_vector.h"
+#include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
 
@@ -138,6 +121,8 @@ static void deformStroke(GpencilModifierData *md,
   const int def_nr = BKE_object_defgroup_name_index(ob, mmd->vgname);
   const bool invert_group = (mmd->flag & GP_NOISE_INVERT_VGROUP) != 0;
   const bool use_curve = (mmd->flag & GP_NOISE_CUSTOM_CURVE) != 0 && mmd->curve_intensity;
+  const int cfra = (int)DEG_get_ctime(depsgraph);
+  const bool is_keyframe = (mmd->noise_mode == GP_NOISE_RANDOM_KEYFRAME);
 
   if (!is_stroke_affected_by_modifier(ob,
                                       mmd->layername,
@@ -164,7 +149,13 @@ static void deformStroke(GpencilModifierData *md,
   seed += BLI_hash_string(md->name);
 
   if (mmd->flag & GP_NOISE_USE_RANDOM) {
-    seed += ((int)DEG_get_ctime(depsgraph)) / mmd->step;
+    if (!is_keyframe) {
+      seed += cfra / mmd->step;
+    }
+    else {
+      /* If change every keyframe, use the last keyframe. */
+      seed += gpf->framenum;
+    }
   }
 
   /* Sanitize as it can create out of bound reads. */
@@ -268,15 +259,7 @@ static void bakeModifier(struct Main *UNUSED(bmain),
                          GpencilModifierData *md,
                          Object *ob)
 {
-  bGPdata *gpd = ob->data;
-
-  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-    LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
-      LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
-        deformStroke(md, depsgraph, ob, gpl, gpf, gps);
-      }
-    }
-  }
+  generic_bake_deform_stroke(depsgraph, md, ob, false, deformStroke);
 }
 
 static void foreachIDLink(GpencilModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
@@ -326,7 +309,12 @@ static void random_panel_draw(const bContext *UNUSED(C), Panel *panel)
 
   uiLayoutSetActive(layout, RNA_boolean_get(ptr, "use_random"));
 
-  uiItemR(layout, ptr, "step", 0, NULL, ICON_NONE);
+  uiItemR(layout, ptr, "random_mode", 0, NULL, ICON_NONE);
+
+  const int mode = RNA_enum_get(ptr, "random_mode");
+  if (mode != GP_NOISE_RANDOM_KEYFRAME) {
+    uiItemR(layout, ptr, "step", 0, NULL, ICON_NONE);
+  }
 }
 
 static void mask_panel_draw(const bContext *UNUSED(C), Panel *panel)
@@ -351,7 +339,7 @@ static void panelRegister(ARegionType *region_type)
 }
 
 GpencilModifierTypeInfo modifierType_Gpencil_Noise = {
-    /* name */ "Noise",
+    /* name */ N_("Noise"),
     /* structName */ "NoiseGpencilModifierData",
     /* structSize */ sizeof(NoiseGpencilModifierData),
     /* type */ eGpencilModifierTypeType_Gpencil,

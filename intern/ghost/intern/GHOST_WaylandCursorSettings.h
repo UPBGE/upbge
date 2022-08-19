@@ -1,27 +1,17 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup GHOST
  */
 
 #pragma once
-#include <dbus/dbus.h>
 #include <string>
 
+#ifdef WITH_GHOST_WAYLAND_DBUS
+#  include <dbus/dbus.h>
+#endif
+
+#ifdef WITH_GHOST_WAYLAND_DBUS
 static DBusMessage *get_setting_sync(DBusConnection *const connection,
                                      const char *key,
                                      const char *value)
@@ -42,7 +32,7 @@ static DBusMessage *get_setting_sync(DBusConnection *const connection,
       message, DBUS_TYPE_STRING, &key, DBUS_TYPE_STRING, &value, DBUS_TYPE_INVALID);
 
   if (!success) {
-    return NULL;
+    return nullptr;
   }
 
   reply = dbus_connection_send_with_reply_and_block(
@@ -51,7 +41,7 @@ static DBusMessage *get_setting_sync(DBusConnection *const connection,
   dbus_message_unref(message);
 
   if (dbus_error_is_set(&error)) {
-    return NULL;
+    return nullptr;
   }
 
   return reply;
@@ -80,9 +70,11 @@ static bool parse_type(DBusMessage *const reply, const int type, void *value)
 
   return true;
 }
+#endif /* WITH_GHOST_WAYLAND_DBUS */
 
 static bool get_cursor_settings(std::string &theme, int &size)
 {
+#ifdef WITH_GHOST_WAYLAND_DBUS
   static const char name[] = "org.gnome.desktop.interface";
   static const char key_theme[] = "cursor-theme";
   static const char key_size[] = "cursor-size";
@@ -90,7 +82,7 @@ static bool get_cursor_settings(std::string &theme, int &size)
   DBusError error;
   DBusConnection *connection;
   DBusMessage *reply;
-  const char *value_theme = NULL;
+  const char *value_theme = nullptr;
 
   dbus_error_init(&error);
 
@@ -127,4 +119,11 @@ static bool get_cursor_settings(std::string &theme, int &size)
   dbus_message_unref(reply);
 
   return true;
+#else
+  /* NOTE: eventually we could have alternative ways to access the theme,
+   * this uses the "default" theme which is functional (instead of a user-defined theme). */
+  (void)theme;
+  (void)size;
+  return false;
+#endif /* !WITH_GHOST_WAYLAND_DBUS */
 }

@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edinterface
@@ -37,6 +23,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "RNA_access.h"
+#include "RNA_prototypes.h"
 
 #include "UI_interface.h"
 #include "UI_view2d.h"
@@ -96,7 +83,7 @@ struct TemplateListVisualInfo {
 };
 
 static void uilist_draw_item_default(struct uiList *ui_list,
-                                     struct bContext *UNUSED(C),
+                                     const struct bContext *UNUSED(C),
                                      struct uiLayout *layout,
                                      struct PointerRNA *UNUSED(dataptr),
                                      struct PointerRNA *itemptr,
@@ -127,7 +114,7 @@ static void uilist_draw_item_default(struct uiList *ui_list,
 }
 
 static void uilist_draw_filter_default(struct uiList *ui_list,
-                                       struct bContext *UNUSED(C),
+                                       const struct bContext *UNUSED(C),
                                        struct uiLayout *layout)
 {
   PointerRNA listptr;
@@ -173,7 +160,7 @@ static int cmpstringp(const void *p1, const void *p2)
 }
 
 static void uilist_filter_items_default(struct uiList *ui_list,
-                                        struct bContext *UNUSED(C),
+                                        const struct bContext *UNUSED(C),
                                         struct PointerRNA *dataptr,
                                         const char *propname)
 {
@@ -447,7 +434,7 @@ static void ui_template_list_collect_items(PointerRNA *list_ptr,
 /**
  * Create the UI-list representation of the list items, sorted and filtered if needed.
  */
-static void ui_template_list_collect_display_items(bContext *C,
+static void ui_template_list_collect_display_items(const bContext *C,
                                                    uiList *ui_list,
                                                    TemplateListInputData *input_data,
                                                    const uiListFilterItemsFunc filter_items_fn,
@@ -612,9 +599,9 @@ static char *uilist_item_tooltip_func(bContext *UNUSED(C), void *argN, const cha
 }
 
 /**
- * \note Note that \a layout_type may be null.
+ * \note that \a layout_type may be null.
  */
-static uiList *ui_list_ensure(bContext *C,
+static uiList *ui_list_ensure(const bContext *C,
                               uiListType *ui_list_type,
                               const char *list_id,
                               int layout_type,
@@ -669,7 +656,7 @@ static uiList *ui_list_ensure(bContext *C,
   return ui_list;
 }
 
-static void ui_template_list_layout_draw(bContext *C,
+static void ui_template_list_layout_draw(const bContext *C,
                                          uiList *ui_list,
                                          uiLayout *layout,
                                          TemplateListInputData *input_data,
@@ -958,13 +945,8 @@ static void ui_template_list_layout_draw(bContext *C,
 
       const bool show_names = (flags & UI_TEMPLATE_LIST_NO_NAMES) == 0;
 
-      /* TODO ED_fileselect_init_layout(). Share somehow? */
-      float size_x = (96.0f / 20.0f) * UI_UNIT_X;
-      float size_y = (96.0f / 20.0f) * UI_UNIT_Y;
-
-      if (!show_names) {
-        size_y -= UI_UNIT_Y;
-      }
+      const int size_x = UI_preview_tile_size_x();
+      const int size_y = show_names ? UI_preview_tile_size_y() : UI_preview_tile_size_y_no_label();
 
       const int cols_per_row = MAX2((uiLayoutGetWidth(box) - V2D_SCROLL_WIDTH) / size_x, 1);
       uiLayout *grid = uiLayoutGridFlow(row, true, cols_per_row, true, true, true);
@@ -1174,7 +1156,7 @@ static void ui_template_list_layout_draw(bContext *C,
 }
 
 uiList *uiTemplateList_ex(uiLayout *layout,
-                          bContext *C,
+                          const bContext *C,
                           const char *listtype_name,
                           const char *list_id,
                           PointerRNA *dataptr,
@@ -1245,7 +1227,7 @@ uiList *uiTemplateList_ex(uiLayout *layout,
 }
 
 void uiTemplateList(uiLayout *layout,
-                    bContext *C,
+                    const bContext *C,
                     const char *listtype_name,
                     const char *list_id,
                     PointerRNA *dataptr,
@@ -1276,9 +1258,6 @@ void uiTemplateList(uiLayout *layout,
                     nullptr);
 }
 
-/**
- * \return: A RNA pointer for the operator properties.
- */
 PointerRNA *UI_list_custom_activate_operator_set(uiList *ui_list,
                                                  const char *opname,
                                                  bool create_properties)
@@ -1298,9 +1277,6 @@ PointerRNA *UI_list_custom_activate_operator_set(uiList *ui_list,
   return dyn_data->custom_activate_opptr;
 }
 
-/**
- * \return: A RNA pointer for the operator properties.
- */
 PointerRNA *UI_list_custom_drag_operator_set(uiList *ui_list,
                                              const char *opname,
                                              bool create_properties)
@@ -1325,9 +1301,10 @@ PointerRNA *UI_list_custom_drag_operator_set(uiList *ui_list,
 /** \name List-types Registration
  * \{ */
 
-void ED_uilisttypes_ui(void)
+void ED_uilisttypes_ui()
 {
   WM_uilisttype_add(UI_UL_asset_view());
+  WM_uilisttype_add(UI_UL_cache_file_layers());
 }
 
 /** \} */

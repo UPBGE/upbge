@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edtransform
@@ -29,8 +13,10 @@
 #include "BLI_math.h"
 
 #include "BKE_context.h"
+#include "BKE_main.h"
 #include "BKE_movieclip.h"
 #include "BKE_node.h"
+#include "BKE_node_tree_update.h"
 #include "BKE_tracking.h"
 
 #include "ED_clip.h"
@@ -532,7 +518,7 @@ static void createTransTrackingCurvesData(bContext *C, TransInfo *t)
   }
 }
 
-void createTransTrackingData(bContext *C, TransInfo *t)
+static void createTransTrackingData(bContext *C, TransInfo *t)
 {
   ARegion *region = CTX_wm_region(C);
   SpaceClip *sc = CTX_wm_space_clip(C);
@@ -635,7 +621,7 @@ static void flushTransTracking(TransInfo *t)
   TransData *td;
   TransData2D *td2d;
   TransDataTracking *tdt;
-  int a;
+  int td_index;
 
   if (t->state == TRANS_CANCEL) {
     cancelTransTracking(t);
@@ -644,8 +630,9 @@ static void flushTransTracking(TransInfo *t)
   TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
 
   /* flush to 2d vector from internally used 3d vector */
-  for (a = 0, td = tc->data, td2d = tc->data_2d, tdt = tc->custom.type.data; a < tc->data_len;
-       a++, td2d++, td++, tdt++) {
+  for (td_index = 0, td = tc->data, td2d = tc->data_2d, tdt = tc->custom.type.data;
+       td_index < tc->data_len;
+       td_index++, td2d++, td++, tdt++) {
     if (tdt->mode == transDataTracking_ModeTracks) {
       float loc2d[2];
 
@@ -669,7 +656,7 @@ static void flushTransTracking(TransInfo *t)
             if (!tdt->smarkers) {
               tdt->smarkers = MEM_callocN(sizeof(*tdt->smarkers) * tdt->markersnr,
                                           "flushTransTracking markers");
-              for (a = 0; a < tdt->markersnr; a++) {
+              for (int a = 0; a < tdt->markersnr; a++) {
                 copy_v2_v2(tdt->smarkers[a], tdt->markers[a].pos);
               }
             }
@@ -679,7 +666,7 @@ static void flushTransTracking(TransInfo *t)
 
             sub_v2_v2v2(d2, loc2d, tdt->srelative);
 
-            for (a = 0; a < tdt->markersnr; a++) {
+            for (int a = 0; a < tdt->markersnr; a++) {
               add_v2_v2v2(tdt->markers[a].pos, tdt->smarkers[a], d2);
             }
 
@@ -707,8 +694,7 @@ static void flushTransTracking(TransInfo *t)
   }
 }
 
-/* helper for recalcData() - for Movie Clip transforms */
-void recalcData_tracking(TransInfo *t)
+static void recalcData_tracking(TransInfo *t)
 {
   SpaceClip *sc = t->area->spacedata.first;
 
@@ -727,23 +713,23 @@ void recalcData_tracking(TransInfo *t)
 
         if (t->mode == TFM_TRANSLATION) {
           if (TRACK_AREA_SELECTED(track, TRACK_AREA_PAT)) {
-            BKE_tracking_marker_clamp(marker, CLAMP_PAT_POS);
+            BKE_tracking_marker_clamp_pattern_position(marker);
           }
           if (TRACK_AREA_SELECTED(track, TRACK_AREA_SEARCH)) {
-            BKE_tracking_marker_clamp(marker, CLAMP_SEARCH_POS);
+            BKE_tracking_marker_clamp_search_position(marker);
           }
         }
         else if (t->mode == TFM_RESIZE) {
           if (TRACK_AREA_SELECTED(track, TRACK_AREA_PAT)) {
-            BKE_tracking_marker_clamp(marker, CLAMP_PAT_DIM);
+            BKE_tracking_marker_clamp_search_size(marker);
           }
           if (TRACK_AREA_SELECTED(track, TRACK_AREA_SEARCH)) {
-            BKE_tracking_marker_clamp(marker, CLAMP_SEARCH_DIM);
+            BKE_tracking_marker_clamp_search_size(marker);
           }
         }
         else if (t->mode == TFM_ROTATION) {
           if (TRACK_AREA_SELECTED(track, TRACK_AREA_PAT)) {
-            BKE_tracking_marker_clamp(marker, CLAMP_PAT_POS);
+            BKE_tracking_marker_clamp_pattern_position(marker);
           }
         }
       }
@@ -761,7 +747,7 @@ void recalcData_tracking(TransInfo *t)
 /** \name Special After Transform Tracking
  * \{ */
 
-void special_aftertrans_update__movieclip(bContext *C, TransInfo *t)
+static void special_aftertrans_update__movieclip(bContext *C, TransInfo *t)
 {
   SpaceClip *sc = t->area->spacedata.first;
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -794,9 +780,20 @@ void special_aftertrans_update__movieclip(bContext *C, TransInfo *t)
     /* Tracks can be used for stabilization nodes,
      * flush update for such nodes.
      */
-    nodeUpdateID(t->scene->nodetree, &clip->id);
-    WM_event_add_notifier(C, NC_SCENE | ND_NODES, NULL);
+    if (t->context != NULL) {
+      Main *bmain = CTX_data_main(C);
+      BKE_ntree_update_tag_id_changed(bmain, &clip->id);
+      BKE_ntree_update_main(bmain, NULL);
+      WM_event_add_notifier(C, NC_SCENE | ND_NODES, NULL);
+    }
   }
 }
 
 /** \} */
+
+TransConvertTypeInfo TransConvertType_Tracking = {
+    /* flags */ (T_POINTS | T_2D_EDIT),
+    /* createTransData */ createTransTrackingData,
+    /* recalcData */ recalcData_tracking,
+    /* special_aftertrans_update */ special_aftertrans_update__movieclip,
+};

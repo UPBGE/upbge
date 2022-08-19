@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup wm
@@ -68,9 +54,11 @@ typedef struct wmXrSessionState {
   ListBase controllers; /* #wmXrController */
 
   /** The currently active action set that will be updated on calls to
-   * wm_xr_session_actions_update(). If NULL, all action sets will be treated as active and
+   * #wm_xr_session_actions_update(). If NULL, all action sets will be treated as active and
    * updated. */
   struct wmXrActionSet *active_action_set;
+  /* Name of the action set (if any) to activate before the next actions sync. */
+  char active_action_set_next[64]; /* MAX_NAME */
 } wmXrSessionState;
 
 typedef struct wmXrRuntimeData {
@@ -121,19 +109,15 @@ typedef struct wmXrDrawData {
   GHOST_XrPose base_pose;
   /** Base scale (uniform, world space). */
   float base_scale;
-  /** Offset to _substract_ from the OpenXR eye and viewer pose to get the wanted effective pose
+  /** Offset to _subtract_ from the OpenXR eye and viewer pose to get the wanted effective pose
    * (e.g. a pose exactly at the landmark position). */
   float eye_position_ofs[3]; /* Local/view space. */
 } wmXrDrawData;
 
 typedef struct wmXrController {
   struct wmXrController *next, *prev;
-  /** OpenXR path identifier. Length is dependent on OpenXR's XR_MAX_PATH_LENGTH (256).
-  This subaction path will later be combined with a component path, and that combined path should
-  also have a max of XR_MAX_PATH_LENGTH (e.g. subaction_path = /user/hand/left, component_path =
-  /input/trigger/value, interaction_path = /user/hand/left/input/trigger/value).
-  */
-  char subaction_path[64];
+  /** OpenXR user path identifier. */
+  char subaction_path[64]; /* XR_MAX_USER_PATH_LENGTH */
 
   /** Pose (in world space) that represents the user's hand when holding the controller. */
   GHOST_XrPose grip_pose;
@@ -202,10 +186,12 @@ typedef struct wmXrActionSet {
 } wmXrActionSet;
 
 /* wm_xr.c */
+
 wmXrRuntimeData *wm_xr_runtime_data_create(void);
 void wm_xr_runtime_data_free(wmXrRuntimeData **runtime);
 
 /* wm_xr_session.c */
+
 void wm_xr_session_data_free(wmXrSessionState *state);
 wmWindow *wm_xr_session_root_window_or_fallback_get(const wmWindowManager *wm,
                                                     const wmXrRuntimeData *runtime_data);
@@ -213,6 +199,11 @@ void wm_xr_session_draw_data_update(wmXrSessionState *state,
                                     const XrSessionSettings *settings,
                                     const GHOST_XrDrawViewInfo *draw_view,
                                     wmXrDrawData *draw_data);
+/**
+ * Update information that is only stored for external state queries. E.g. for Python API to
+ * request the current (as in, last known) viewer pose.
+ * Controller data and action sets will be updated separately via wm_xr_session_actions_update().
+ */
 void wm_xr_session_state_update(const XrSessionSettings *settings,
                                 const wmXrDrawData *draw_data,
                                 const GHOST_XrDrawViewInfo *draw_view,
@@ -230,9 +221,16 @@ void wm_xr_session_controller_data_populate(const wmXrAction *grip_action,
 void wm_xr_session_controller_data_clear(wmXrSessionState *state);
 
 /* wm_xr_draw.c */
+
 void wm_xr_pose_to_mat(const GHOST_XrPose *pose, float r_mat[4][4]);
 void wm_xr_pose_scale_to_mat(const GHOST_XrPose *pose, float scale, float r_mat[4][4]);
 void wm_xr_pose_to_imat(const GHOST_XrPose *pose, float r_imat[4][4]);
 void wm_xr_pose_scale_to_imat(const GHOST_XrPose *pose, float scale, float r_imat[4][4]);
+/**
+ * \brief Draw a viewport for a single eye.
+ *
+ * This is the main viewport drawing function for VR sessions. It's assigned to Ghost-XR as a
+ * callback (see GHOST_XrDrawViewFunc()) and executed for each view (read: eye).
+ */
 void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata);
 void wm_xr_draw_controllers(const struct bContext *C, struct ARegion *region, void *customdata);

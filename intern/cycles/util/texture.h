@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2016 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #ifndef __UTIL_TEXTURE_H__
 #define __UTIL_TEXTURE_H__
@@ -28,7 +15,7 @@ CCL_NAMESPACE_BEGIN
 #define TEX_IMAGE_MISSING_A 1
 
 /* Interpolation types for textures
- * cuda also use texture space to store other objects */
+ * CUDA also use texture space to store other objects. */
 typedef enum InterpolationType {
   INTERPOLATION_NONE = -1,
   INTERPOLATION_LINEAR = 0,
@@ -50,6 +37,8 @@ typedef enum ImageDataType {
   IMAGE_DATA_TYPE_USHORT = 7,
   IMAGE_DATA_TYPE_NANOVDB_FLOAT = 8,
   IMAGE_DATA_TYPE_NANOVDB_FLOAT3 = 9,
+  IMAGE_DATA_TYPE_NANOVDB_FPN = 10,
+  IMAGE_DATA_TYPE_NANOVDB_FP16 = 11,
 
   IMAGE_DATA_NUM_TYPES
 } ImageDataType;

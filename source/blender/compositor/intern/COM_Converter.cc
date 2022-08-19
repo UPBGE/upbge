@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #include <cstring>
 
@@ -44,8 +29,11 @@
 #include "COM_ColorSpillNode.h"
 #include "COM_ColorToBWNode.h"
 #include "COM_CombineColorNode.h"
+#include "COM_CombineColorNodeLegacy.h"
+#include "COM_CombineXYZNode.h"
 #include "COM_CompositorNode.h"
 #include "COM_ConvertAlphaNode.h"
+#include "COM_ConvertColorSpaceNode.h"
 #include "COM_ConvertOperation.h"
 #include "COM_Converter.h"
 #include "COM_CornerPinNode.h"
@@ -93,7 +81,10 @@
 #include "COM_RotateNode.h"
 #include "COM_ScaleNode.h"
 #include "COM_ScaleOperation.h"
+#include "COM_SceneTimeNode.h"
 #include "COM_SeparateColorNode.h"
+#include "COM_SeparateColorNodeLegacy.h"
+#include "COM_SeparateXYZNode.h"
 #include "COM_SetAlphaNode.h"
 #include "COM_SetValueOperation.h"
 #include "COM_SplitViewerNode.h"
@@ -180,28 +171,34 @@ Node *COM_convert_bnode(bNode *b_node)
     case CMP_NODE_BRIGHTCONTRAST:
       node = new BrightnessNode(b_node);
       break;
-    case CMP_NODE_SEPRGBA:
+    case CMP_NODE_SEPARATE_COLOR:
+      node = new SeparateColorNode(b_node);
+      break;
+    case CMP_NODE_COMBINE_COLOR:
+      node = new CombineColorNode(b_node);
+      break;
+    case CMP_NODE_SEPRGBA_LEGACY:
       node = new SeparateRGBANode(b_node);
       break;
-    case CMP_NODE_COMBRGBA:
+    case CMP_NODE_COMBRGBA_LEGACY:
       node = new CombineRGBANode(b_node);
       break;
-    case CMP_NODE_SEPHSVA:
+    case CMP_NODE_SEPHSVA_LEGACY:
       node = new SeparateHSVANode(b_node);
       break;
-    case CMP_NODE_COMBHSVA:
+    case CMP_NODE_COMBHSVA_LEGACY:
       node = new CombineHSVANode(b_node);
       break;
-    case CMP_NODE_SEPYUVA:
+    case CMP_NODE_SEPYUVA_LEGACY:
       node = new SeparateYUVANode(b_node);
       break;
-    case CMP_NODE_COMBYUVA:
+    case CMP_NODE_COMBYUVA_LEGACY:
       node = new CombineYUVANode(b_node);
       break;
-    case CMP_NODE_SEPYCCA:
+    case CMP_NODE_SEPYCCA_LEGACY:
       node = new SeparateYCCANode(b_node);
       break;
-    case CMP_NODE_COMBYCCA:
+    case CMP_NODE_COMBYCCA_LEGACY:
       node = new CombineYCCANode(b_node);
       break;
     case CMP_NODE_ALPHAOVER:
@@ -359,6 +356,9 @@ Node *COM_convert_bnode(bNode *b_node)
     case CMP_NODE_TRANSFORM:
       node = new TransformNode(b_node);
       break;
+    case CMP_NODE_SCENE_TIME:
+      node = new SceneTimeNode(b_node);
+      break;
     case CMP_NODE_STABILIZE2D:
       node = new Stabilize2dNode(b_node);
       break;
@@ -425,6 +425,15 @@ Node *COM_convert_bnode(bNode *b_node)
       break;
     case CMP_NODE_POSTERIZE:
       node = new PosterizeNode(b_node);
+      break;
+    case CMP_NODE_CONVERT_COLOR_SPACE:
+      node = new ConvertColorSpaceNode(b_node);
+      break;
+    case CMP_NODE_SEPARATE_XYZ:
+      node = new SeparateXYZNode(b_node);
+      break;
+    case CMP_NODE_COMBINE_XYZ:
+      node = new CombineXYZNode(b_node);
       break;
   }
   return node;

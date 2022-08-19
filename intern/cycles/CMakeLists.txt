@@ -1,19 +1,8 @@
-# Copyright 2011-2020 Blender Foundation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2011-2022 Blender Foundation
 
 # Standalone or with Blender
-if(NOT WITH_BLENDER AND WITH_CYCLES_STANDALONE)
+if(NOT WITH_BLENDER)
   set(CYCLES_INSTALL_PATH ${CMAKE_INSTALL_PREFIX})
 else()
   set(WITH_CYCLES_BLENDER ON)
@@ -29,8 +18,10 @@ endif()
 
 # External Libraries
 
-include(cmake/external_libs.cmake)
-include(cmake/macros.cmake)
+if(NOT CYCLES_STANDALONE_REPOSITORY)
+  include(cmake/external_libs.cmake)
+  include(cmake/macros.cmake)
+endif()
 
 # Build Flags
 # todo: this code could be refactored a bit to avoid duplication
@@ -45,8 +36,13 @@ if(WITH_CYCLES_NATIVE_ONLY)
   )
 
   if(NOT MSVC)
-    string(APPEND CMAKE_CXX_FLAGS " -march=native")
-    set(CYCLES_KERNEL_FLAGS "-march=native")
+    ADD_CHECK_CXX_COMPILER_FLAG(CMAKE_CXX_FLAGS _has_march_native "-march=native")
+    if(_has_march_native)
+      set(CYCLES_KERNEL_FLAGS "-march=native")
+    else()
+      set(CYCLES_KERNEL_FLAGS "")
+    endif()
+    unset(_has_march_native)
   else()
     if(NOT MSVC_NATIVE_ARCH_FLAGS)
         TRY_RUN(
@@ -226,6 +222,17 @@ add_definitions(
   -DCCL_NAMESPACE_END=}
 )
 
+include_directories(
+  SYSTEM
+  ${BOOST_INCLUDE_DIR}
+  ${OPENIMAGEIO_INCLUDE_DIRS}
+  ${OPENEXR_INCLUDE_DIRS}
+  ${PUGIXML_INCLUDE_DIR}
+)
+
+if(WITH_CYCLES_DEBUG)
+  add_definitions(-DWITH_CYCLES_DEBUG)
+endif()
 if(WITH_CYCLES_STANDALONE_GUI)
   add_definitions(-DWITH_CYCLES_STANDALONE_GUI)
 endif()
@@ -261,12 +268,58 @@ if(WITH_CYCLES_DEVICE_OPTIX)
   endif()
 endif()
 
+if (WITH_CYCLES_DEVICE_ONEAPI)
+  add_definitions(-DWITH_ONEAPI)
+endif()
+
 if(WITH_CYCLES_EMBREE)
   add_definitions(-DWITH_EMBREE)
-  add_definitions(-DEMBREE_STATIC_LIB)
   include_directories(
     SYSTEM
     ${EMBREE_INCLUDE_DIRS}
+  )
+endif()
+
+if(WITH_OPENIMAGEDENOISE)
+  add_definitions(-DWITH_OPENIMAGEDENOISE)
+  include_directories(
+    SYSTEM
+    ${OPENIMAGEDENOISE_INCLUDE_DIRS}
+  )
+endif()
+
+# Logging capabilities using GLog library.
+if(WITH_CYCLES_LOGGING)
+  add_definitions(-DWITH_CYCLES_LOGGING)
+  add_definitions(${GLOG_DEFINES})
+  add_definitions(-DCYCLES_GFLAGS_NAMESPACE=${GFLAGS_NAMESPACE})
+  include_directories(
+    SYSTEM
+    ${GLOG_INCLUDE_DIRS}
+    ${GFLAGS_INCLUDE_DIRS}
+  )
+endif()
+
+if(WITH_ALEMBIC)
+  add_definitions(-DWITH_ALEMBIC)
+  include_directories(
+    SYSTEM
+    ${ALEMBIC_INCLUDE_DIRS}
+  )
+endif()
+
+# Includes that might be overrides by USD last, to avoid compiling
+# against the wrong versions of other libraries.
+include_directories(
+  SYSTEM
+  ${TBB_INCLUDE_DIRS}
+)
+
+if(WITH_OPENVDB)
+  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
+  include_directories(
+    SYSTEM
+    ${OPENVDB_INCLUDE_DIRS}
   )
 endif()
 
@@ -286,24 +339,11 @@ if(WITH_OPENSUBDIV)
   )
 endif()
 
-if(WITH_OPENIMAGEDENOISE)
-  add_definitions(-DWITH_OPENIMAGEDENOISE)
-  add_definitions(-DOIDN_STATIC_LIB)
+if(WITH_OPENCOLORIO)
+  add_definitions(-DWITH_OCIO)
   include_directories(
     SYSTEM
-    ${OPENIMAGEDENOISE_INCLUDE_DIRS}
-  )
-endif()
-
-# Logging capabilities using GLog library.
-if(WITH_CYCLES_LOGGING)
-  add_definitions(-DWITH_CYCLES_LOGGING)
-  add_definitions(${GLOG_DEFINES})
-  add_definitions(-DCYCLES_GFLAGS_NAMESPACE=${GFLAGS_NAMESPACE})
-  include_directories(
-    SYSTEM
-    ${GLOG_INCLUDE_DIRS}
-    ${GFLAGS_INCLUDE_DIRS}
+    ${OPENCOLORIO_INCLUDE_DIRS}
   )
 endif()
 
@@ -316,17 +356,6 @@ if(NOT OPENIMAGEIO_PUGIXML_FOUND)
   add_definitions(-DWITH_SYSTEM_PUGIXML)
 endif()
 
-include_directories(
-  SYSTEM
-  ${BOOST_INCLUDE_DIR}
-  ${OPENIMAGEIO_INCLUDE_DIRS}
-  ${OPENIMAGEIO_INCLUDE_DIRS}/OpenImageIO
-  ${OPENEXR_INCLUDE_DIR}
-  ${OPENEXR_INCLUDE_DIRS}
-  ${PUGIXML_INCLUDE_DIR}
-  ${TBB_INCLUDE_DIRS}
-)
-
 if(CYCLES_STANDALONE_REPOSITORY)
   include_directories(../third_party/atomic)
 else()
@@ -334,13 +363,17 @@ else()
 endif()
 
 # Warnings
-if(CMAKE_COMPILER_IS_GNUCXX)
-  ADD_CHECK_CXX_COMPILER_FLAG(CMAKE_CXX_FLAGS _has_cxxflag_float_conversion "-Werror=float-conversion")
-  ADD_CHECK_CXX_COMPILER_FLAG(CMAKE_CXX_FLAGS _has_cxxflag_double_promotion "-Werror=double-promotion")
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_C_COMPILER_ID MATCHES "Clang")
   ADD_CHECK_CXX_COMPILER_FLAG(CMAKE_CXX_FLAGS _has_no_error_unused_macros "-Wno-error=unused-macros")
-  unset(_has_cxxflag_float_conversion)
-  unset(_has_cxxflag_double_promotion)
   unset(_has_no_error_unused_macros)
+endif()
+
+if(WITH_CYCLES_HYDRA_RENDER_DELEGATE AND (NOT WITH_USD))
+  message(STATUS "USD not found, disabling WITH_CYCLES_HYDRA_RENDER_DELEGATE")
+  set(WITH_CYCLES_HYDRA_RENDER_DELEGATE OFF)
+endif()
+if(WITH_CYCLES_HYDRA_RENDER_DELEGATE AND (NOT WITH_BLENDER) AND (NOT WITH_CYCLES_STANDALONE))
+  set(CYCLES_INSTALL_PATH ${CYCLES_INSTALL_PATH}/hdCycles/resources)
 endif()
 
 if(WITH_CYCLES_CUDA_BINARIES AND (NOT WITH_CYCLES_CUBIN_COMPILER))
@@ -403,6 +436,10 @@ if(WITH_GTESTS)
   add_subdirectory(test)
 endif()
 
-if(NOT WITH_BLENDER AND WITH_CYCLES_STANDALONE)
+if(WITH_CYCLES_HYDRA_RENDER_DELEGATE OR (WITH_CYCLES_STANDALONE AND WITH_USD))
+  add_subdirectory(hydra)
+endif()
+
+if(NOT WITH_BLENDER)
   delayed_do_install(${CMAKE_BINARY_DIR}/bin)
 endif()

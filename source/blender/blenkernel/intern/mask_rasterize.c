@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2012 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2012 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup bke
@@ -148,6 +132,14 @@ BLI_INLINE unsigned int clampis_uint(const unsigned int v,
                                      const unsigned int max)
 {
   return v < min ? min : (v > max ? max : v);
+}
+
+static ScanFillVert *scanfill_vert_add_v2_with_depth(ScanFillContext *sf_ctx,
+                                                     const float co_xy[2],
+                                                     const float co_z)
+{
+  const float co[3] = {co_xy[0], co_xy[1], co_z};
+  return BLI_scanfill_vert_add(sf_ctx, co);
 }
 
 /* --------------------------------------------------------------------- */
@@ -662,9 +654,6 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
         ScanFillVert *sf_vert_prev;
         unsigned int j;
 
-        float co[3];
-        co[2] = 0.0f;
-
         sf_ctx.poly_nr++;
 
         if (do_aspect_correct) {
@@ -720,8 +709,7 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
                 spline, diff_feather_points, tot_diff_feather_points);
           }
 
-          copy_v2_v2(co, diff_points[0]);
-          sf_vert_prev = BLI_scanfill_vert_add(&sf_ctx, co);
+          sf_vert_prev = scanfill_vert_add_v2_with_depth(&sf_ctx, diff_points[0], 0.0f);
           sf_vert_prev->tmp.u = sf_vert_tot;
 
           /* Absolute index of feather vert. */
@@ -729,10 +717,8 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
 
           sf_vert_tot++;
 
-          /* TODO: an alternate functions so we can avoid double vector copy! */
           for (j = 1; j < tot_diff_point; j++) {
-            copy_v2_v2(co, diff_points[j]);
-            sf_vert = BLI_scanfill_vert_add(&sf_ctx, co);
+            sf_vert = scanfill_vert_add_v2_with_depth(&sf_ctx, diff_points[j], 0.0f);
             sf_vert->tmp.u = sf_vert_tot;
             sf_vert->keyindex = sf_vert_tot + tot_diff_point; /* absolute index of feather vert */
             sf_vert_tot++;
@@ -757,16 +743,12 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
           }
 
           if (diff_feather_points) {
-            float co_feather[3];
-            co_feather[2] = 1.0f;
-
             BLI_assert(tot_diff_feather_points == tot_diff_point);
 
             /* NOTE: only added for convenience, we don't in fact use these to scan-fill,
              * only to create feather faces after scan-fill. */
             for (j = 0; j < tot_diff_feather_points; j++) {
-              copy_v2_v2(co_feather, diff_feather_points[j]);
-              sf_vert = BLI_scanfill_vert_add(&sf_ctx, co_feather);
+              sf_vert = scanfill_vert_add_v2_with_depth(&sf_ctx, diff_feather_points[j], 1.0f);
               sf_vert->keyindex = SF_KEYINDEX_TEMP_ID;
               sf_vert_tot++;
             }
@@ -778,15 +760,11 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
           /* unfilled spline */
           if (diff_feather_points) {
 
-            float co_diff[2];
-
-            float co_feather[3];
-            co_feather[2] = 1.0f;
-
             if (spline->flag & MASK_SPLINE_NOINTERSECT) {
               diff_feather_points_flip = MEM_mallocN(sizeof(float[2]) * tot_diff_feather_points,
                                                      "diff_feather_points_flip");
 
+              float co_diff[2];
               for (j = 0; j < tot_diff_point; j++) {
                 sub_v2_v2v2(co_diff, diff_points[j], diff_feather_points[j]);
                 add_v2_v2v2(diff_feather_points_flip[j], diff_points[j], co_diff);
@@ -808,29 +786,29 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
             for (j = 0; j < tot_diff_point; j++) {
 
               /* center vert */
-              copy_v2_v2(co, diff_points[j]);
-              sf_vert = BLI_scanfill_vert_add(&sf_ctx, co);
+              sf_vert = scanfill_vert_add_v2_with_depth(&sf_ctx, diff_points[j], 0.0f);
               sf_vert->tmp.u = sf_vert_tot;
               sf_vert->keyindex = SF_KEYINDEX_TEMP_ID;
               sf_vert_tot++;
 
               /* feather vert A */
-              copy_v2_v2(co_feather, diff_feather_points[j]);
-              sf_vert = BLI_scanfill_vert_add(&sf_ctx, co_feather);
+              sf_vert = scanfill_vert_add_v2_with_depth(&sf_ctx, diff_feather_points[j], 1.0f);
               sf_vert->tmp.u = sf_vert_tot;
               sf_vert->keyindex = SF_KEYINDEX_TEMP_ID;
               sf_vert_tot++;
 
               /* feather vert B */
               if (diff_feather_points_flip) {
-                copy_v2_v2(co_feather, diff_feather_points_flip[j]);
+                sf_vert = scanfill_vert_add_v2_with_depth(
+                    &sf_ctx, diff_feather_points_flip[j], 1.0f);
               }
               else {
-                sub_v2_v2v2(co_diff, co, co_feather);
-                add_v2_v2v2(co_feather, co, co_diff);
+                float co_diff[2];
+                sub_v2_v2v2(co_diff, diff_points[j], diff_feather_points[j]);
+                add_v2_v2v2(co_diff, diff_points[j], co_diff);
+                sf_vert = scanfill_vert_add_v2_with_depth(&sf_ctx, co_diff, 1.0f);
               }
 
-              sf_vert = BLI_scanfill_vert_add(&sf_ctx, co_feather);
               sf_vert->tmp.u = sf_vert_tot;
               sf_vert->keyindex = SF_KEYINDEX_TEMP_ID;
               sf_vert_tot++;
@@ -873,9 +851,10 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
 
                 for (k = 1; k < vertex_total_cap; k++) {
                   const float angle = (float)k * (1.0f / (float)vertex_total_cap) * (float)M_PI;
+                  float co_feather[2];
                   rotate_point_v2(co_feather, fp_turn, fp_cent, angle, asp_xy);
 
-                  sf_vert = BLI_scanfill_vert_add(&sf_ctx, co_feather);
+                  sf_vert = scanfill_vert_add_v2_with_depth(&sf_ctx, co_feather, 1.0f);
                   sf_vert->tmp.u = sf_vert_tot;
                   sf_vert->keyindex = SF_KEYINDEX_TEMP_ID;
                   sf_vert_tot++;
@@ -893,9 +872,10 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
 
                 for (k = 1; k < vertex_total_cap; k++) {
                   const float angle = (float)k * (1.0f / (float)vertex_total_cap) * (float)M_PI;
+                  float co_feather[2];
                   rotate_point_v2(co_feather, fp_turn, fp_cent, -angle, asp_xy);
 
-                  sf_vert = BLI_scanfill_vert_add(&sf_ctx, co_feather);
+                  sf_vert = scanfill_vert_add_v2_with_depth(&sf_ctx, co_feather, 1.0f);
                   sf_vert->tmp.u = sf_vert_tot;
                   sf_vert->keyindex = SF_KEYINDEX_TEMP_ID;
                   sf_vert_tot++;
@@ -1474,9 +1454,6 @@ static void maskrasterize_buffer_cb(void *__restrict userdata,
   }
 }
 
-/**
- * \brief Rasterize a buffer from a single mask (threaded execution).
- */
 void BKE_maskrasterize_buffer(MaskRasterHandle *mr_handle,
                               const unsigned int width,
                               const unsigned int height,

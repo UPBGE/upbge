@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2008 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2008 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup sptext
@@ -32,6 +16,7 @@
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_lib_id.h"
+#include "BKE_lib_remap.h"
 #include "BKE_screen.h"
 
 #include "ED_screen.h"
@@ -45,6 +30,7 @@
 #include "UI_view2d.h"
 
 #include "RNA_access.h"
+#include "RNA_path.h"
 
 #include "text_format.h"
 #include "text_intern.h" /* own include */
@@ -323,7 +309,7 @@ static bool text_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNU
   return false;
 }
 
-static void text_drop_copy(wmDrag *drag, wmDropBox *drop)
+static void text_drop_copy(bContext *UNUSED(C), wmDrag *drag, wmDropBox *drop)
 {
   /* copy drag path to properties */
   RNA_string_set(drop->ptr, "filepath", drag->path);
@@ -334,7 +320,7 @@ static bool text_drop_paste_poll(bContext *UNUSED(C), wmDrag *drag, const wmEven
   return (drag->type == WM_DRAG_ID);
 }
 
-static void text_drop_paste(wmDrag *drag, wmDropBox *drop)
+static void text_drop_paste(bContext *UNUSED(C), wmDrag *drag, wmDropBox *drop)
 {
   char *text;
   ID *id = WM_drag_get_local_ID(drag, 0);
@@ -401,23 +387,16 @@ static void text_properties_region_draw(const bContext *C, ARegion *region)
   }
 }
 
-static void text_id_remap(ScrArea *UNUSED(area), SpaceLink *slink, ID *old_id, ID *new_id)
+static void text_id_remap(ScrArea *UNUSED(area),
+                          SpaceLink *slink,
+                          const struct IDRemapper *mappings)
 {
   SpaceText *stext = (SpaceText *)slink;
-
-  if (!ELEM(GS(old_id->name), ID_TXT)) {
-    return;
-  }
-
-  if ((ID *)stext->text == old_id) {
-    stext->text = (Text *)new_id;
-    id_us_ensure_real(new_id);
-  }
+  BKE_id_remapper_apply(mappings, (ID **)&stext->text, ID_REMAP_APPLY_ENSURE_REAL);
 }
 
 /********************* registration ********************/
 
-/* only called once, from space/spacetypes.c */
 void ED_spacetype_text(void)
 {
   SpaceType *st = MEM_callocN(sizeof(SpaceType), "spacetype text");
@@ -484,4 +463,5 @@ void ED_spacetype_text(void)
   ED_text_format_register_lua();
   ED_text_format_register_pov();
   ED_text_format_register_pov_ini();
+  ED_text_format_register_glsl();
 }

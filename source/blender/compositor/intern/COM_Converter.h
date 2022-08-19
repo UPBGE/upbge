@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #pragma once
 
@@ -52,8 +37,8 @@ Node *COM_convert_bnode(bNode *b_node);
 bool COM_bnode_is_fast_node(const bNode &b_node);
 
 /**
- * \brief This function will add a datetype conversion rule when the to-socket does not support the
- * from-socket actual data type.
+ * \brief This function will add a date-type conversion rule when the to-socket does not support
+ * the from-socket actual data type.
  */
 NodeOperation *COM_convert_data_type(const NodeOperationOutput &from,
                                      const NodeOperationInput &to);

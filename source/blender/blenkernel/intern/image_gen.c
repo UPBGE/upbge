@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -369,7 +355,7 @@ static void checker_board_text(
   char text[3] = {'A', '1', '\0'};
   const int mono = blf_mono_font_render;
 
-  BLF_size(mono, 54, 72); /* hard coded size! */
+  BLF_size(mono, 54.0f, 72); /* hard coded size! */
 
   /* OCIO_TODO: using NULL as display will assume using sRGB display
    *            this is correct since currently generated images are assumed to be in sRGB space,

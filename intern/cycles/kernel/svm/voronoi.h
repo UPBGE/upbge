@@ -1,25 +1,13 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #pragma once
 
 CCL_NAMESPACE_BEGIN
 
 /*
- * Original code is under the MIT License, Copyright (c) 2013 Inigo Quilez.
+ * SPDX-License-Identifier: MIT
+ * Original code is copyright (c) 2013 Inigo Quilez.
  *
  * Smooth Voronoi:
  *
@@ -696,8 +684,8 @@ ccl_device void voronoi_f1_4d(float4 coord,
   float4 localPosition = coord - cellPosition;
 
   float minDistance = 8.0f;
-  float4 targetOffset = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
-  float4 targetPosition = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+  float4 targetOffset = zero_float4();
+  float4 targetPosition = zero_float4();
   for (int u = -1; u <= 1; u++) {
     for (int k = -1; k <= 1; k++) {
       ccl_loop_no_unroll for (int j = -1; j <= 1; j++)
@@ -736,7 +724,7 @@ ccl_device void voronoi_smooth_f1_4d(float4 coord,
 
   float smoothDistance = 8.0f;
   float3 smoothColor = make_float3(0.0f, 0.0f, 0.0f);
-  float4 smoothPosition = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+  float4 smoothPosition = zero_float4();
   for (int u = -2; u <= 2; u++) {
     for (int k = -2; k <= 2; k++) {
       ccl_loop_no_unroll for (int j = -2; j <= 2; j++)
@@ -777,10 +765,10 @@ ccl_device void voronoi_f2_4d(float4 coord,
 
   float distanceF1 = 8.0f;
   float distanceF2 = 8.0f;
-  float4 offsetF1 = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
-  float4 positionF1 = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
-  float4 offsetF2 = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
-  float4 positionF2 = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+  float4 offsetF1 = zero_float4();
+  float4 positionF1 = zero_float4();
+  float4 offsetF2 = zero_float4();
+  float4 positionF2 = zero_float4();
   for (int u = -1; u <= 1; u++) {
     for (int k = -1; k <= 1; k++) {
       ccl_loop_no_unroll for (int j = -1; j <= 1; j++)
@@ -820,7 +808,7 @@ ccl_device void voronoi_distance_to_edge_4d(float4 coord,
   float4 cellPosition = floor(coord);
   float4 localPosition = coord - cellPosition;
 
-  float4 vectorToClosest = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+  float4 vectorToClosest = zero_float4();
   float minDistance = 8.0f;
   for (int u = -1; u <= 1; u++) {
     for (int k = -1; k <= 1; k++) {
@@ -871,8 +859,8 @@ ccl_device void voronoi_n_sphere_radius_4d(float4 coord,
   float4 cellPosition = floor(coord);
   float4 localPosition = coord - cellPosition;
 
-  float4 closestPoint = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
-  float4 closestPointOffset = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+  float4 closestPoint = zero_float4();
+  float4 closestPointOffset = zero_float4();
   float minDistance = 8.0f;
   for (int u = -1; u <= 1; u++) {
     for (int k = -1; k <= 1; k++) {
@@ -894,7 +882,7 @@ ccl_device void voronoi_n_sphere_radius_4d(float4 coord,
   }
 
   minDistance = 8.0f;
-  float4 closestPointToClosestPoint = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+  float4 closestPointToClosestPoint = zero_float4();
   for (int u = -1; u <= 1; u++) {
     for (int k = -1; k <= 1; k++) {
       ccl_loop_no_unroll for (int j = -1; j <= 1; j++)
@@ -1091,7 +1079,7 @@ ccl_device_noinline int svm_node_tex_voronoi(KernelGlobals kg,
         default:
           kernel_assert(0);
       }
-      position_out = safe_divide_float3_float(position_out, scale);
+      position_out = safe_divide(position_out, scale);
       break;
     }
 
@@ -1138,7 +1126,7 @@ ccl_device_noinline int svm_node_tex_voronoi(KernelGlobals kg,
           default:
             kernel_assert(0);
         }
-        position_out_4d = safe_divide_float4_float(position_out_4d, scale);
+        position_out_4d = safe_divide(position_out_4d, scale);
         position_out = make_float3(position_out_4d.x, position_out_4d.y, position_out_4d.z);
         w_out = position_out_4d.w;
       }

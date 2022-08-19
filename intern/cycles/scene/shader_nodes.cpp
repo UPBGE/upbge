@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include "scene/shader_nodes.h"
 #include "scene/colorspace.h"
@@ -33,6 +20,8 @@
 #include "util/foreach.h"
 #include "util/log.h"
 #include "util/transform.h"
+
+#include "kernel/tables.h"
 
 #include "kernel/svm/color_util.h"
 #include "kernel/svm/mapping_util.h"
@@ -464,13 +453,15 @@ void ImageTextureNode::compile(OSLCompiler &compiler)
         "filename", filename, compress_as_srgb ? u_colorspace_raw : known_colorspace);
   }
   else {
-    compiler.parameter_texture("filename", handle.svm_slot());
+    compiler.parameter_texture("filename", handle);
   }
 
   const bool unassociate_alpha = !(ColorSpaceManager::colorspace_is_data(colorspace) ||
                                    alpha_type == IMAGE_ALPHA_CHANNEL_PACKED ||
                                    alpha_type == IMAGE_ALPHA_IGNORE);
-  const bool is_tiled = (filename.find("<UDIM>") != string::npos);
+  const bool is_tiled = (filename.find("<UDIM>") != string::npos ||
+                         filename.find("<UVTILE>") != string::npos) ||
+                        handle.num_tiles() > 1;
 
   compiler.parameter(this, "projection");
   compiler.parameter(this, "projection_blend");
@@ -615,7 +606,7 @@ void EnvironmentTextureNode::compile(OSLCompiler &compiler)
         "filename", filename, compress_as_srgb ? u_colorspace_raw : known_colorspace);
   }
   else {
-    compiler.parameter_texture("filename", handle.svm_slot());
+    compiler.parameter_texture("filename", handle);
   }
 
   compiler.parameter(this, "projection");
@@ -970,7 +961,7 @@ void SkyTextureNode::compile(OSLCompiler &compiler)
   compiler.parameter_array("nishita_data", sunsky.nishita_data, 10);
   /* nishita texture */
   if (sky_type == NODE_SKY_NISHITA) {
-    compiler.parameter_texture("filename", handle.svm_slot());
+    compiler.parameter_texture("filename", handle);
   }
   compiler.add(this, "node_sky_texture");
 }
@@ -1865,7 +1856,7 @@ void PointDensityTextureNode::compile(OSLCompiler &compiler)
       handle = image_manager->add_image(filename.string(), image_params());
     }
 
-    compiler.parameter_texture("filename", handle.svm_slot());
+    compiler.parameter_texture("filename", handle);
     if (space == NODE_TEX_VOXEL_SPACE_WORLD) {
       compiler.parameter("mapping", tfm);
       compiler.parameter("use_mapping", 1);
@@ -2397,10 +2388,10 @@ void GlossyBsdfNode::simplify_settings(Scene *scene)
   ShaderInput *roughness_input = input("Roughness");
   if (integrator->get_filter_glossy() == 0.0f) {
     /* Fallback to Sharp closure for Roughness close to 0.
-     * Note: Keep the epsilon in sync with kernel!
+     * NOTE: Keep the epsilon in sync with kernel!
      */
     if (!roughness_input->link && roughness <= 1e-4f) {
-      VLOG(3) << "Using sharp glossy BSDF.";
+      VLOG_DEBUG << "Using sharp glossy BSDF.";
       distribution = CLOSURE_BSDF_REFLECTION_ID;
     }
   }
@@ -2409,7 +2400,7 @@ void GlossyBsdfNode::simplify_settings(Scene *scene)
      * benefit from closure blur to remove unwanted noise.
      */
     if (roughness_input->link == NULL && distribution == CLOSURE_BSDF_REFLECTION_ID) {
-      VLOG(3) << "Using GGX glossy with filter glossy.";
+      VLOG_DEBUG << "Using GGX glossy with filter glossy.";
       distribution = CLOSURE_BSDF_MICROFACET_GGX_ID;
       roughness = 0.0f;
     }
@@ -2490,10 +2481,10 @@ void GlassBsdfNode::simplify_settings(Scene *scene)
   ShaderInput *roughness_input = input("Roughness");
   if (integrator->get_filter_glossy() == 0.0f) {
     /* Fallback to Sharp closure for Roughness close to 0.
-     * Note: Keep the epsilon in sync with kernel!
+     * NOTE: Keep the epsilon in sync with kernel!
      */
     if (!roughness_input->link && roughness <= 1e-4f) {
-      VLOG(3) << "Using sharp glass BSDF.";
+      VLOG_DEBUG << "Using sharp glass BSDF.";
       distribution = CLOSURE_BSDF_SHARP_GLASS_ID;
     }
   }
@@ -2502,7 +2493,7 @@ void GlassBsdfNode::simplify_settings(Scene *scene)
      * benefit from closure blur to remove unwanted noise.
      */
     if (roughness_input->link == NULL && distribution == CLOSURE_BSDF_SHARP_GLASS_ID) {
-      VLOG(3) << "Using GGX glass with filter glossy.";
+      VLOG_DEBUG << "Using GGX glass with filter glossy.";
       distribution = CLOSURE_BSDF_MICROFACET_GGX_GLASS_ID;
       roughness = 0.0f;
     }
@@ -2583,10 +2574,10 @@ void RefractionBsdfNode::simplify_settings(Scene *scene)
   ShaderInput *roughness_input = input("Roughness");
   if (integrator->get_filter_glossy() == 0.0f) {
     /* Fallback to Sharp closure for Roughness close to 0.
-     * Note: Keep the epsilon in sync with kernel!
+     * NOTE: Keep the epsilon in sync with kernel!
      */
     if (!roughness_input->link && roughness <= 1e-4f) {
-      VLOG(3) << "Using sharp refraction BSDF.";
+      VLOG_DEBUG << "Using sharp refraction BSDF.";
       distribution = CLOSURE_BSDF_REFRACTION_ID;
     }
   }
@@ -2595,7 +2586,7 @@ void RefractionBsdfNode::simplify_settings(Scene *scene)
      * benefit from closure blur to remove unwanted noise.
      */
     if (roughness_input->link == NULL && distribution == CLOSURE_BSDF_REFRACTION_ID) {
-      VLOG(3) << "Using GGX refraction with filter glossy.";
+      VLOG_DEBUG << "Using GGX refraction with filter glossy.";
       distribution = CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID;
       roughness = 0.0f;
     }
@@ -4221,6 +4212,7 @@ NODE_DEFINE(ObjectInfoNode)
 
   SOCKET_OUT_VECTOR(location, "Location");
   SOCKET_OUT_COLOR(color, "Color");
+  SOCKET_OUT_FLOAT(alpha, "Alpha");
   SOCKET_OUT_FLOAT(object_index, "Object Index");
   SOCKET_OUT_FLOAT(material_index, "Material Index");
   SOCKET_OUT_FLOAT(random, "Random");
@@ -4242,6 +4234,11 @@ void ObjectInfoNode::compile(SVMCompiler &compiler)
   out = output("Color");
   if (!out->links.empty()) {
     compiler.add_node(NODE_OBJECT_INFO, NODE_INFO_OB_COLOR, compiler.stack_assign(out));
+  }
+
+  out = output("Alpha");
+  if (!out->links.empty()) {
+    compiler.add_node(NODE_OBJECT_INFO, NODE_INFO_OB_ALPHA, compiler.stack_assign(out));
   }
 
   out = output("Object Index");
@@ -4386,9 +4383,6 @@ NODE_DEFINE(HairInfoNode)
   SOCKET_OUT_FLOAT(size, "Length");
   SOCKET_OUT_FLOAT(thickness, "Thickness");
   SOCKET_OUT_NORMAL(tangent_normal, "Tangent Normal");
-#if 0 /* Output for minimum hair width transparency - deactivated. */
-  SOCKET_OUT_FLOAT(fade, "Fade");
-#endif
   SOCKET_OUT_FLOAT(index, "Random");
 
   return type;
@@ -4446,12 +4440,7 @@ void HairInfoNode::compile(SVMCompiler &compiler)
   if (!out->links.empty()) {
     compiler.add_node(NODE_HAIR_INFO, NODE_INFO_CURVE_TANGENT_NORMAL, compiler.stack_assign(out));
   }
-#if 0
-  out = output("Fade");
-  if(!out->links.empty()) {
-    compiler.add_node(NODE_HAIR_INFO, NODE_INFO_CURVE_FADE, compiler.stack_assign(out));
-  }
-#endif
+
   out = output("Random");
   if (!out->links.empty()) {
     int attr = compiler.attribute(ATTR_STD_CURVE_RANDOM);
@@ -4462,6 +4451,59 @@ void HairInfoNode::compile(SVMCompiler &compiler)
 void HairInfoNode::compile(OSLCompiler &compiler)
 {
   compiler.add(this, "node_hair_info");
+}
+
+/* Point Info */
+
+NODE_DEFINE(PointInfoNode)
+{
+  NodeType *type = NodeType::add("point_info", create, NodeType::SHADER);
+
+  SOCKET_OUT_POINT(position, "Position");
+  SOCKET_OUT_FLOAT(radius, "Radius");
+  SOCKET_OUT_FLOAT(random, "Random");
+
+  return type;
+}
+
+PointInfoNode::PointInfoNode() : ShaderNode(get_node_type())
+{
+}
+
+void PointInfoNode::attributes(Shader *shader, AttributeRequestSet *attributes)
+{
+  if (shader->has_surface_link()) {
+    if (!output("Random")->links.empty())
+      attributes->add(ATTR_STD_POINT_RANDOM);
+  }
+
+  ShaderNode::attributes(shader, attributes);
+}
+
+void PointInfoNode::compile(SVMCompiler &compiler)
+{
+  ShaderOutput *out;
+
+  out = output("Position");
+  if (!out->links.empty()) {
+    compiler.add_node(NODE_POINT_INFO, NODE_INFO_POINT_POSITION, compiler.stack_assign(out));
+  }
+
+  out = output("Radius");
+  if (!out->links.empty()) {
+    compiler.add_node(NODE_POINT_INFO, NODE_INFO_POINT_RADIUS, compiler.stack_assign(out));
+  }
+
+  out = output("Random");
+  if (!out->links.empty()) {
+    int attr = compiler.attribute(ATTR_STD_POINT_RANDOM);
+    compiler.add_node(NODE_ATTR, attr, compiler.stack_assign(out), NODE_ATTR_OUTPUT_FLOAT);
+  }
+}
+
+void PointInfoNode::compile(OSLCompiler &compiler)
+{
+  compiler.add(this, "node_point_info");
 }
 
 /* Volume Info */
@@ -4964,6 +5006,63 @@ void MixNode::constant_fold(const ConstantFolder &folder)
   }
 }
 
+/* Combine Color */
+
+NODE_DEFINE(CombineColorNode)
+{
+  NodeType *type = NodeType::add("combine_color", create, NodeType::SHADER);
+
+  static NodeEnum type_enum;
+  type_enum.insert("rgb", NODE_COMBSEP_COLOR_RGB);
+  type_enum.insert("hsv", NODE_COMBSEP_COLOR_HSV);
+  type_enum.insert("hsl", NODE_COMBSEP_COLOR_HSL);
+  SOCKET_ENUM(color_type, "Type", type_enum, NODE_COMBSEP_COLOR_RGB);
+
+  SOCKET_IN_FLOAT(r, "Red", 0.0f);
+  SOCKET_IN_FLOAT(g, "Green", 0.0f);
+  SOCKET_IN_FLOAT(b, "Blue", 0.0f);
+
+  SOCKET_OUT_COLOR(color, "Color");
+
+  return type;
+}
+
+CombineColorNode::CombineColorNode() : ShaderNode(get_node_type())
+{
+}
+
+void CombineColorNode::constant_fold(const ConstantFolder &folder)
+{
+  if (folder.all_inputs_constant()) {
+    folder.make_constant(svm_combine_color(color_type, make_float3(r, g, b)));
+  }
+}
+
+void CombineColorNode::compile(SVMCompiler &compiler)
+{
+  ShaderInput *red_in = input("Red");
+  ShaderInput *green_in = input("Green");
+  ShaderInput *blue_in = input("Blue");
+  ShaderOutput *color_out = output("Color");
+
+  int red_stack_offset = compiler.stack_assign(red_in);
+  int green_stack_offset = compiler.stack_assign(green_in);
+  int blue_stack_offset = compiler.stack_assign(blue_in);
+  int color_stack_offset = compiler.stack_assign(color_out);
+
+  compiler.add_node(
+      NODE_COMBINE_COLOR,
+      color_type,
+      compiler.encode_uchar4(red_stack_offset, green_stack_offset, blue_stack_offset),
+      color_stack_offset);
+}
+
+void CombineColorNode::compile(OSLCompiler &compiler)
+{
+  compiler.parameter(this, "color_type");
+  compiler.add(this, "node_combine_color");
+}
+
 /* Combine RGB */
 
 NODE_DEFINE(CombineRGBNode)
@@ -5202,6 +5301,70 @@ void BrightContrastNode::compile(SVMCompiler &compiler)
 void BrightContrastNode::compile(OSLCompiler &compiler)
 {
   compiler.add(this, "node_brightness");
+}
+
+/* Separate Color */
+
+NODE_DEFINE(SeparateColorNode)
+{
+  NodeType *type = NodeType::add("separate_color", create, NodeType::SHADER);
+
+  static NodeEnum type_enum;
+  type_enum.insert("rgb", NODE_COMBSEP_COLOR_RGB);
+  type_enum.insert("hsv", NODE_COMBSEP_COLOR_HSV);
+  type_enum.insert("hsl", NODE_COMBSEP_COLOR_HSL);
+  SOCKET_ENUM(color_type, "Type", type_enum, NODE_COMBSEP_COLOR_RGB);
+
+  SOCKET_IN_COLOR(color, "Color", zero_float3());
+
+  SOCKET_OUT_FLOAT(r, "Red");
+  SOCKET_OUT_FLOAT(g, "Green");
+  SOCKET_OUT_FLOAT(b, "Blue");
+
+  return type;
+}
+
+SeparateColorNode::SeparateColorNode() : ShaderNode(get_node_type())
+{
+}
+
+void SeparateColorNode::constant_fold(const ConstantFolder &folder)
+{
+  if (folder.all_inputs_constant()) {
+    float3 col = svm_separate_color(color_type, color);
+
+    for (int channel = 0; channel < 3; channel++) {
+      if (outputs[channel] == folder.output) {
+        folder.make_constant(col[channel]);
+        return;
+      }
+    }
+  }
+}
+
+void SeparateColorNode::compile(SVMCompiler &compiler)
+{
+  ShaderInput *color_in = input("Color");
+  ShaderOutput *red_out = output("Red");
+  ShaderOutput *green_out = output("Green");
+  ShaderOutput *blue_out = output("Blue");
+
+  int color_stack_offset = compiler.stack_assign(color_in);
+  int red_stack_offset = compiler.stack_assign(red_out);
+  int green_stack_offset = compiler.stack_assign(green_out);
+  int blue_stack_offset = compiler.stack_assign(blue_out);
+
+  compiler.add_node(
+      NODE_SEPARATE_COLOR,
+      color_type,
+      color_stack_offset,
+      compiler.encode_uchar4(red_stack_offset, green_stack_offset, blue_stack_offset));
+}
+
+void SeparateColorNode::compile(OSLCompiler &compiler)
+{
+  compiler.parameter(this, "color_type");
+  compiler.add(this, "node_separate_color");
 }
 
 /* Separate RGB */
@@ -5717,7 +5880,9 @@ BlackbodyNode::BlackbodyNode() : ShaderNode(get_node_type())
 void BlackbodyNode::constant_fold(const ConstantFolder &folder)
 {
   if (folder.all_inputs_constant()) {
-    folder.make_constant(svm_math_blackbody_color(temperature));
+    const float3 rgb_rec709 = svm_math_blackbody_color_rec709(temperature);
+    const float3 rgb = folder.scene->shader_manager->rec709_to_scene_linear(rgb_rec709);
+    folder.make_constant(max(rgb, zero_float3()));
   }
 }
 
@@ -5867,6 +6032,73 @@ void MapRangeNode::compile(OSLCompiler &compiler)
 {
   compiler.parameter(this, "range_type");
   compiler.add(this, "node_map_range");
+}
+
+/* Vector Map Range Node */
+
+NODE_DEFINE(VectorMapRangeNode)
+{
+  NodeType *type = NodeType::add("vector_map_range", create, NodeType::SHADER);
+
+  static NodeEnum type_enum;
+  type_enum.insert("linear", NODE_MAP_RANGE_LINEAR);
+  type_enum.insert("stepped", NODE_MAP_RANGE_STEPPED);
+  type_enum.insert("smoothstep", NODE_MAP_RANGE_SMOOTHSTEP);
+  type_enum.insert("smootherstep", NODE_MAP_RANGE_SMOOTHERSTEP);
+  SOCKET_ENUM(range_type, "Type", type_enum, NODE_MAP_RANGE_LINEAR);
+
+  SOCKET_IN_VECTOR(vector, "Vector", zero_float3());
+  SOCKET_IN_VECTOR(from_min, "From_Min_FLOAT3", zero_float3());
+  SOCKET_IN_VECTOR(from_max, "From_Max_FLOAT3", one_float3());
+  SOCKET_IN_VECTOR(to_min, "To_Min_FLOAT3", zero_float3());
+  SOCKET_IN_VECTOR(to_max, "To_Max_FLOAT3", one_float3());
+  SOCKET_IN_VECTOR(steps, "Steps_FLOAT3", make_float3(4.0f));
+  SOCKET_BOOLEAN(use_clamp, "Use Clamp", false);
+
+  SOCKET_OUT_VECTOR(vector, "Vector");
+
+  return type;
+}
+
+VectorMapRangeNode::VectorMapRangeNode() : ShaderNode(get_node_type())
+{
+}
+
+void VectorMapRangeNode::expand(ShaderGraph * /*graph*/)
+{
+}
+
+void VectorMapRangeNode::compile(SVMCompiler &compiler)
+{
+  ShaderInput *vector_in = input("Vector");
+  ShaderInput *from_min_in = input("From_Min_FLOAT3");
+  ShaderInput *from_max_in = input("From_Max_FLOAT3");
+  ShaderInput *to_min_in = input("To_Min_FLOAT3");
+  ShaderInput *to_max_in = input("To_Max_FLOAT3");
+  ShaderInput *steps_in = input("Steps_FLOAT3");
+  ShaderOutput *vector_out = output("Vector");
+
+  int value_stack_offset = compiler.stack_assign(vector_in);
+  int from_min_stack_offset = compiler.stack_assign(from_min_in);
+  int from_max_stack_offset = compiler.stack_assign(from_max_in);
+  int to_min_stack_offset = compiler.stack_assign(to_min_in);
+  int to_max_stack_offset = compiler.stack_assign(to_max_in);
+  int steps_stack_offset = compiler.stack_assign(steps_in);
+  int result_stack_offset = compiler.stack_assign(vector_out);
+
+  compiler.add_node(
+      NODE_VECTOR_MAP_RANGE,
+      value_stack_offset,
+      compiler.encode_uchar4(
+          from_min_stack_offset, from_max_stack_offset, to_min_stack_offset, to_max_stack_offset),
+      compiler.encode_uchar4(steps_stack_offset, use_clamp, range_type, result_stack_offset));
+}
+
+void VectorMapRangeNode::compile(OSLCompiler &compiler)
+{
+  compiler.parameter(this, "range_type");
+  compiler.parameter(this, "use_clamp");
+  compiler.add(this, "node_vector_map_range");
 }
 
 /* Clamp Node */
@@ -6416,9 +6648,9 @@ void CurvesNode::constant_fold(const ConstantFolder &folder, ShaderInput *value_
     float3 pos = (value - make_float3(min_x, min_x, min_x)) / (max_x - min_x);
     float3 result;
 
-    result[0] = rgb_ramp_lookup(curves.data(), pos[0], true, true, curves.size()).x;
-    result[1] = rgb_ramp_lookup(curves.data(), pos[1], true, true, curves.size()).y;
-    result[2] = rgb_ramp_lookup(curves.data(), pos[2], true, true, curves.size()).z;
+    result[0] = rgb_ramp_lookup(curves.data(), pos[0], true, extrapolate, curves.size()).x;
+    result[1] = rgb_ramp_lookup(curves.data(), pos[1], true, extrapolate, curves.size()).y;
+    result[2] = rgb_ramp_lookup(curves.data(), pos[2], true, extrapolate, curves.size()).z;
 
     folder.make_constant(interp(value, result, fac));
   }
@@ -6439,10 +6671,11 @@ void CurvesNode::compile(SVMCompiler &compiler,
 
   ShaderInput *fac_in = input("Fac");
 
-  compiler.add_node(type,
+  compiler.add_node(ShaderNodeType(type),
                     compiler.encode_uchar4(compiler.stack_assign(fac_in),
                                            compiler.stack_assign(value_in),
-                                           compiler.stack_assign(value_out)),
+                                           compiler.stack_assign(value_out),
+                                           extrapolate),
                     __float_as_int(min_x),
                     __float_as_int(max_x));
 
@@ -6459,6 +6692,7 @@ void CurvesNode::compile(OSLCompiler &compiler, const char *name)
   compiler.parameter_color_array("ramp", curves);
   compiler.parameter(this, "min_x");
   compiler.parameter(this, "max_x");
+  compiler.parameter(this, "extrapolate");
   compiler.add(this, name);
 }
 
@@ -6481,6 +6715,7 @@ NODE_DEFINE(RGBCurvesNode)
   SOCKET_COLOR_ARRAY(curves, "Curves", array<float3>());
   SOCKET_FLOAT(min_x, "Min X", 0.0f);
   SOCKET_FLOAT(max_x, "Max X", 1.0f);
+  SOCKET_BOOLEAN(extrapolate, "Extrapolate", true);
 
   SOCKET_IN_FLOAT(fac, "Fac", 0.0f);
   SOCKET_IN_COLOR(value, "Color", zero_float3());
@@ -6501,7 +6736,7 @@ void RGBCurvesNode::constant_fold(const ConstantFolder &folder)
 
 void RGBCurvesNode::compile(SVMCompiler &compiler)
 {
-  CurvesNode::compile(compiler, NODE_RGB_CURVES, input("Color"), output("Color"));
+  CurvesNode::compile(compiler, NODE_CURVES, input("Color"), output("Color"));
 }
 
 void RGBCurvesNode::compile(OSLCompiler &compiler)
@@ -6518,6 +6753,7 @@ NODE_DEFINE(VectorCurvesNode)
   SOCKET_VECTOR_ARRAY(curves, "Curves", array<float3>());
   SOCKET_FLOAT(min_x, "Min X", 0.0f);
   SOCKET_FLOAT(max_x, "Max X", 1.0f);
+  SOCKET_BOOLEAN(extrapolate, "Extrapolate", true);
 
   SOCKET_IN_FLOAT(fac, "Fac", 0.0f);
   SOCKET_IN_VECTOR(value, "Vector", zero_float3());
@@ -6538,7 +6774,7 @@ void VectorCurvesNode::constant_fold(const ConstantFolder &folder)
 
 void VectorCurvesNode::compile(SVMCompiler &compiler)
 {
-  CurvesNode::compile(compiler, NODE_VECTOR_CURVES, input("Vector"), output("Vector"));
+  CurvesNode::compile(compiler, NODE_CURVES, input("Vector"), output("Vector"));
 }
 
 void VectorCurvesNode::compile(OSLCompiler &compiler)
@@ -6555,6 +6791,7 @@ NODE_DEFINE(FloatCurveNode)
   SOCKET_FLOAT_ARRAY(curve, "Curve", array<float>());
   SOCKET_FLOAT(min_x, "Min X", 0.0f);
   SOCKET_FLOAT(max_x, "Max X", 1.0f);
+  SOCKET_BOOLEAN(extrapolate, "Extrapolate", true);
 
   SOCKET_IN_FLOAT(fac, "Factor", 0.0f);
   SOCKET_IN_FLOAT(value, "Value", 0.0f);
@@ -6580,7 +6817,7 @@ void FloatCurveNode::constant_fold(const ConstantFolder &folder)
     }
 
     float pos = (value - min_x) / (max_x - min_x);
-    float result = float_ramp_lookup(curve.data(), pos, true, true, curve.size());
+    float result = float_ramp_lookup(curve.data(), pos, true, extrapolate, curve.size());
 
     folder.make_constant(value + fac * (result - value));
   }
@@ -6603,7 +6840,8 @@ void FloatCurveNode::compile(SVMCompiler &compiler)
   compiler.add_node(NODE_FLOAT_CURVE,
                     compiler.encode_uchar4(compiler.stack_assign(fac_in),
                                            compiler.stack_assign(value_in),
-                                           compiler.stack_assign(value_out)),
+                                           compiler.stack_assign(value_out),
+                                           extrapolate),
                     __float_as_int(min_x),
                     __float_as_int(max_x));
 
@@ -6620,6 +6858,7 @@ void FloatCurveNode::compile(OSLCompiler &compiler)
   compiler.parameter_array("ramp", curve.data(), curve.size());
   compiler.parameter(this, "min_x");
   compiler.parameter(this, "max_x");
+  compiler.parameter(this, "extrapolate");
   compiler.add(this, "node_float_curve");
 }
 

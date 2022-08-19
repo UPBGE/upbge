@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include "device/device.h"
 
@@ -86,16 +73,16 @@ static int fill_shader_input(const Scene *scene,
 
       switch (j) {
         case 0:
-          u = 1.0f;
+          u = 0.0f;
           v = 0.0f;
           break;
         case 1:
-          u = 0.0f;
-          v = 1.0f;
+          u = 1.0f;
+          v = 0.0f;
           break;
         default:
           u = 0.0f;
-          v = 0.0f;
+          v = 1.0f;
           break;
       }
 
@@ -150,7 +137,7 @@ static void read_shader_output(const Scene *scene,
         d_output_index += 3;
 
         /* Avoid illegal vertex coordinates. */
-        off = ensure_finite3(off);
+        off = ensure_finite(off);
         mesh_verts[t.v[j]] += off;
         if (attr_mP != NULL) {
           for (int step = 0; step < num_motion_steps - 1; step++) {

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup DNA
@@ -41,13 +25,13 @@ typedef struct TreeStoreElem {
 
 /** Used only to store data in blend files. */
 typedef struct TreeStore {
-  /** Was previously used for memory preallocation. */
+  /** Was previously used for memory pre-allocation. */
   int totelem DNA_DEPRECATED;
   /** Number of elements in data array. */
   int usedelem;
   /**
-   * Elements to be packed from mempool in writefile.c
-   * or extracted to mempool in readfile.c
+   * Elements to be packed from mempool in `writefile.c`
+   * or extracted to mempool in `readfile.c`.
    */
   TreeStoreElem *data;
 } TreeStore;
@@ -101,7 +85,7 @@ typedef enum eTreeStoreElemType {
   TSE_DRIVER_BASE = 16,           /* NO ID */
   /* TSE_DRIVER          = 17, */ /* UNUSED */
 
-  TSE_PROXY = 18,
+  /* TSE_PROXY = 18,           */ /* UNUSED */
   TSE_R_LAYER_BASE = 19,
   TSE_R_LAYER = 20,
   /* TSE_R_PASS          = 21, */ /* UNUSED */
@@ -129,7 +113,9 @@ typedef enum eTreeStoreElemType {
   TSE_GPENCIL_EFFECT_BASE = 42,
   TSE_GPENCIL_EFFECT = 43,
   TSE_LIBRARY_OVERRIDE_BASE = 44,
-  TSE_LIBRARY_OVERRIDE = 45,
+  TSE_LIBRARY_OVERRIDE = 45,           /* No ID */
+  TSE_LIBRARY_OVERRIDE_OPERATION = 46, /* No ID */
+  TSE_GENERIC_LABEL = 47,              /* No ID */
 } eTreeStoreElemType;
 
 /** Check whether given #TreeStoreElem should have a real ID in #TreeStoreElem.id member. */
@@ -145,7 +131,8 @@ typedef enum eTreeStoreElemType {
          TSE_RNA_PROPERTY, \
          TSE_RNA_ARRAY_ELEM, \
          TSE_ID_BASE, \
-         TSE_GP_LAYER))
+         TSE_GP_LAYER, \
+         TSE_GENERIC_LABEL))
 
 #ifdef __cplusplus
 }

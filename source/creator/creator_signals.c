@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup creator
@@ -56,6 +42,13 @@
 #  include "BKE_global.h"
 #  include "BKE_main.h"
 #  include "BKE_report.h"
+
+/* for passing information between creator and gameengine */
+#  ifdef WITH_GAMEENGINE
+#    include "LA_SystemCommandLine.h"
+#  else /* dummy */
+#    define SYS_SystemHandle int
+#  endif
 
 #  include <signal.h>
 
@@ -117,11 +110,11 @@ static void sig_handle_crash(int signum)
     if (memfile) {
       char fname[FILE_MAX];
 
-      if (!(G_MAIN && G_MAIN->name[0])) {
+      if (!(G_MAIN && G_MAIN->filepath[0])) {
         BLI_join_dirfile(fname, sizeof(fname), BKE_tempdir_base(), "crash.blend");
       }
       else {
-        BLI_strncpy(fname, G_MAIN->name, sizeof(fname));
+        STRNCPY(fname, G_MAIN->filepath);
         BLI_path_extension_replace(fname, sizeof(fname), ".crash.blend");
       }
 
@@ -138,11 +131,12 @@ static void sig_handle_crash(int signum)
 
   char fname[FILE_MAX];
 
-  if (!(G_MAIN && G_MAIN->name[0])) {
+  if (!(G_MAIN && G_MAIN->filepath[0])) {
     BLI_join_dirfile(fname, sizeof(fname), BKE_tempdir_base(), "blender.crash.txt");
   }
   else {
-    BLI_join_dirfile(fname, sizeof(fname), BKE_tempdir_base(), BLI_path_basename(G_MAIN->name));
+    BLI_join_dirfile(
+        fname, sizeof(fname), BKE_tempdir_base(), BLI_path_basename(G_MAIN->filepath));
     BLI_path_extension_replace(fname, sizeof(fname), ".crash.txt");
   }
 
@@ -257,11 +251,9 @@ void main_signal_setup_background(void)
   /* for all platforms, even windows has it! */
   BLI_assert(G.background);
 
-#  if !defined(WITH_HEADLESS)
   /* Support pressing `Ctrl-C` to close Blender in background-mode.
    * Useful to be able to cancel a render operation. */
   signal(SIGINT, sig_handle_blender_esc);
-#  endif
 }
 
 void main_signal_setup_fpe(void)
@@ -271,7 +263,7 @@ void main_signal_setup_fpe(void)
    * set breakpoints on sig_handle_fpe */
   signal(SIGFPE, sig_handle_fpe);
 
-#    if defined(__linux__) && defined(__GNUC__)
+#    if defined(__linux__) && defined(__GNUC__) && defined(HAVE_FEENABLEEXCEPT)
   feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
 #    endif /* defined(__linux__) && defined(__GNUC__) */
 #    if defined(OSX_SSE_FPE)

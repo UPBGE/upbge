@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup wm
@@ -77,7 +63,6 @@ void WM_menutype_freelink(MenuType *mt)
   UNUSED_VARS_NDEBUG(ok);
 }
 
-/* called on initialize WM_init() */
 void WM_menutype_init(void)
 {
   /* reserve size is set based on blender default setup */
@@ -113,4 +98,22 @@ bool WM_menutype_poll(bContext *C, MenuType *mt)
     return mt->poll(C, mt);
   }
   return true;
+}
+
+void WM_menutype_idname_visit_for_search(const bContext *UNUSED(C),
+                                         PointerRNA *UNUSED(ptr),
+                                         PropertyRNA *UNUSED(prop),
+                                         const char *UNUSED(edit_text),
+                                         StringPropertySearchVisitFunc visit_fn,
+                                         void *visit_user_data)
+{
+  GHashIterator gh_iter;
+  GHASH_ITER (gh_iter, menutypes_hash) {
+    MenuType *mt = BLI_ghashIterator_getValue(&gh_iter);
+
+    StringPropertySearchVisitParams visit_params = {NULL};
+    visit_params.text = mt->idname;
+    visit_params.info = mt->label;
+    visit_fn(visit_user_data, &visit_params);
+  }
 }

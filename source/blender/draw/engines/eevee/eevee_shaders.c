@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2016, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2016 Blender Foundation. */
 
 /** \file
  * \ingroup draw_engine
@@ -178,13 +163,17 @@ static struct {
     bNodeTree *ntree;
     bNodeSocketValueRGBA *color_socket;
   } world;
+
+  /* UPBGE */
+  struct GPUShader *smaa_sh[3];
+  /* End of UPBGE */
 } e_data = {NULL}; /* Engine data */
 
 extern char datatoc_common_hair_lib_glsl[];
 extern char datatoc_common_math_lib_glsl[];
 extern char datatoc_common_math_geom_lib_glsl[];
 extern char datatoc_common_view_lib_glsl[];
-extern char datatoc_gpu_shader_common_obinfos_lib_glsl[];
+extern char datatoc_gpu_shader_codegen_lib_glsl[];
 
 extern char datatoc_ambient_occlusion_lib_glsl[];
 extern char datatoc_background_vert_glsl[];
@@ -193,9 +182,12 @@ extern char datatoc_bsdf_lut_frag_glsl[];
 extern char datatoc_bsdf_sampling_lib_glsl[];
 extern char datatoc_btdf_lut_frag_glsl[];
 extern char datatoc_closure_type_lib_glsl[];
+extern char datatoc_closure_eval_volume_lib_glsl[];
 extern char datatoc_common_uniforms_lib_glsl[];
 extern char datatoc_common_utiltex_lib_glsl[];
+extern char datatoc_cryptomatte_lib_glsl[];
 extern char datatoc_cryptomatte_frag_glsl[];
+extern char datatoc_cryptomatte_vert_glsl[];
 extern char datatoc_cubemap_lib_glsl[];
 extern char datatoc_default_frag_glsl[];
 extern char datatoc_lookdev_world_frag_glsl[];
@@ -245,6 +237,7 @@ extern char datatoc_lightprobe_planar_downsample_vert_glsl[];
 extern char datatoc_lightprobe_vert_glsl[];
 extern char datatoc_lights_lib_glsl[];
 extern char datatoc_closure_eval_lib_glsl[];
+extern char datatoc_closure_eval_surface_lib_glsl[];
 extern char datatoc_closure_eval_diffuse_lib_glsl[];
 extern char datatoc_closure_eval_glossy_lib_glsl[];
 extern char datatoc_closure_eval_refraction_lib_glsl[];
@@ -254,7 +247,6 @@ extern char datatoc_object_motion_frag_glsl[];
 extern char datatoc_object_motion_vert_glsl[];
 extern char datatoc_octahedron_lib_glsl[];
 extern char datatoc_prepass_frag_glsl[];
-extern char datatoc_prepass_vert_glsl[];
 extern char datatoc_random_lib_glsl[];
 extern char datatoc_raytrace_lib_glsl[];
 extern char datatoc_renderpass_lib_glsl[];
@@ -276,7 +268,104 @@ extern char datatoc_volumetric_lib_glsl[];
 extern char datatoc_volumetric_resolve_frag_glsl[];
 extern char datatoc_volumetric_scatter_frag_glsl[];
 extern char datatoc_volumetric_vert_glsl[];
+extern char datatoc_world_vert_glsl[];
 
+/* UPBGE */
+extern char datatoc_common_smaa_lib_glsl[];
+extern char datatoc_effect_smaa_frag_glsl[];
+extern char datatoc_effect_smaa_vert_glsl[];
+
+static void free_smaa_shaders(void)
+{
+  for (int j = 0; j < sizeof(e_data.smaa_sh) / sizeof(void *); j++) {
+    struct GPUShader **sh_array = &e_data.smaa_sh[0];
+    DRW_SHADER_FREE_SAFE(sh_array[j]);
+    sh_array[j] = NULL;
+  }
+}
+
+GPUShader *eevee_shader_antialiasing_get(int stage,
+                                         int smaa_quality,
+                                         float smaa_predication_scale,
+                                         bool recompile)
+{
+  BLI_assert(stage < 3);
+
+  if (recompile) {
+    free_smaa_shaders();
+  }
+
+  if (!e_data.smaa_sh[stage]) {
+    char stage_define[32];
+    char smaa_quality_define[32];
+    char smaa_predication_scale_define[64];
+    BLI_snprintf(stage_define, sizeof(stage_define), "#define SMAA_STAGE %d\n", stage);
+    switch (smaa_quality) {
+      case 0: {
+        BLI_snprintf(
+            smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_LOW\n");
+        break;
+      }
+      case 1: {
+        BLI_snprintf(
+            smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_MEDIUM\n");
+        break;
+      }
+      case 2: {
+        BLI_snprintf(
+            smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_HIGH\n");
+        break;
+      }
+      case 3: {
+        BLI_snprintf(
+            smaa_quality_define, sizeof(smaa_quality_define), "#define SMAA_PRESET_ULTRA\n");
+        break;
+      }
+      default:
+        break;
+    }
+
+    BLI_snprintf(smaa_predication_scale_define,
+                 sizeof(smaa_predication_scale_define),
+                 "#define SMAA_PREDICATION_SCALE %.8f\n",
+                 smaa_predication_scale);
+
+    e_data.smaa_sh[stage] = GPU_shader_create_from_arrays({
+        .vert =
+            (const char *[]){
+                "#define SMAA_INCLUDE_VS 1\n",
+                "#define SMAA_INCLUDE_PS 0\n",
+                "uniform vec4 viewportMetrics;\n",
+                datatoc_common_smaa_lib_glsl,
+                datatoc_effect_smaa_vert_glsl,
+                NULL,
+            },
+        .frag =
+            (const char *[]){
+                "#define SMAA_INCLUDE_VS 0\n",
+                "#define SMAA_INCLUDE_PS 1\n",
+                "uniform vec4 viewportMetrics;\n",
+                datatoc_common_smaa_lib_glsl,
+                datatoc_effect_smaa_frag_glsl,
+                NULL,
+            },
+        .defs =
+            (const char *[]){
+                "#define SMAA_GLSL_3\n",
+                "#define SMAA_RT_METRICS viewportMetrics\n",
+                "#define SMAA_NO_DISCARD\n",
+                smaa_quality_define,
+                "#define SMAA_PREDICATION 1\n",
+                smaa_predication_scale_define,
+                stage_define,
+                NULL,
+            },
+    });
+  }
+  return e_data.smaa_sh[stage];
+}
+
+/* End of UPBGE */
 /* *********** FUNCTIONS *********** */
 
 static void eevee_shader_library_ensure(void)
@@ -289,7 +378,7 @@ static void eevee_shader_library_ensure(void)
     DRW_SHADER_LIB_ADD(e_data.lib, common_hair_lib);
     DRW_SHADER_LIB_ADD(e_data.lib, common_view_lib);
     DRW_SHADER_LIB_ADD(e_data.lib, common_uniforms_lib);
-    DRW_SHADER_LIB_ADD(e_data.lib, gpu_shader_common_obinfos_lib);
+    DRW_SHADER_LIB_ADD(e_data.lib, gpu_shader_codegen_lib);
     DRW_SHADER_LIB_ADD(e_data.lib, random_lib);
     DRW_SHADER_LIB_ADD(e_data.lib, renderpass_lib);
     DRW_SHADER_LIB_ADD(e_data.lib, bsdf_common_lib);
@@ -314,6 +403,10 @@ static void eevee_shader_library_ensure(void)
     DRW_SHADER_LIB_ADD(e_data.lib, closure_eval_glossy_lib);
     DRW_SHADER_LIB_ADD(e_data.lib, closure_eval_translucent_lib);
     DRW_SHADER_LIB_ADD(e_data.lib, closure_eval_refraction_lib);
+    DRW_SHADER_LIB_ADD(e_data.lib, closure_eval_surface_lib);
+    DRW_SHADER_LIB_ADD(e_data.lib, closure_eval_volume_lib);
+    DRW_SHADER_LIB_ADD(e_data.lib, cryptomatte_lib);
+    DRW_SHADER_LIB_ADD(e_data.lib, surface_vert);
 
     e_data.surface_lit_frag = DRW_shader_library_create_shader_string(e_data.lib,
                                                                       datatoc_surface_frag_glsl);
@@ -328,6 +421,7 @@ static void eevee_shader_library_ensure(void)
 
 void EEVEE_shaders_material_shaders_init(void)
 {
+  eevee_shader_extra_init();
   eevee_shader_library_ensure();
 }
 
@@ -726,7 +820,7 @@ GPUShader *EEVEE_shaders_cryptomatte_sh_get(bool is_hair)
   if (e_data.cryptomatte_sh[index] == NULL) {
     DynStr *ds = BLI_dynstr_new();
     BLI_dynstr_append(ds, SHADER_DEFINES);
-
+    BLI_dynstr_append(ds, "#define attrib_load() \n");
     if (is_hair) {
       BLI_dynstr_append(ds, "#define HAIR_SHADER\n");
     }
@@ -735,7 +829,7 @@ GPUShader *EEVEE_shaders_cryptomatte_sh_get(bool is_hair)
     }
     char *defines = BLI_dynstr_get_cstring(ds);
     e_data.cryptomatte_sh[index] = DRW_shader_create_with_shaderlib(
-        datatoc_surface_vert_glsl, NULL, datatoc_cryptomatte_frag_glsl, e_data.lib, defines);
+        datatoc_cryptomatte_vert_glsl, NULL, datatoc_cryptomatte_frag_glsl, e_data.lib, defines);
     BLI_dynstr_free(ds);
     MEM_freeN(defines);
   }
@@ -830,6 +924,7 @@ struct GPUShader *EEVEE_shaders_subsurface_translucency_sh_get()
 }
 
 /** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name Volumes
  * \{ */
@@ -842,6 +937,7 @@ struct GPUShader *EEVEE_shaders_volumes_clear_sh_get()
                                                                   datatoc_volumetric_frag_glsl,
                                                                   e_data.lib,
                                                                   SHADER_DEFINES
+                                                                  "#define STANDALONE\n"
                                                                   "#define VOLUMETRICS\n"
                                                                   "#define CLEAR\n");
   }
@@ -856,6 +952,7 @@ struct GPUShader *EEVEE_shaders_volumes_scatter_sh_get()
                                                          datatoc_volumetric_scatter_frag_glsl,
                                                          e_data.lib,
                                                          SHADER_DEFINES
+                                                         "#define STANDALONE\n"
                                                          "#define VOLUMETRICS\n"
                                                          "#define VOLUME_SHADOW\n");
   }
@@ -871,6 +968,7 @@ struct GPUShader *EEVEE_shaders_volumes_scatter_with_lights_sh_get()
         datatoc_volumetric_scatter_frag_glsl,
         e_data.lib,
         SHADER_DEFINES
+        "#define STANDALONE\n"
         "#define VOLUMETRICS\n"
         "#define VOLUME_LIGHTING\n"
         "#define VOLUME_SHADOW\n");
@@ -886,10 +984,9 @@ struct GPUShader *EEVEE_shaders_volumes_integration_sh_get()
         datatoc_volumetric_geom_glsl,
         datatoc_volumetric_integration_frag_glsl,
         e_data.lib,
-        USE_VOLUME_OPTI ? "#extension GL_ARB_shader_image_load_store: enable\n"
-                          "#extension GL_ARB_shading_language_420pack: enable\n"
-                          "#define USE_VOLUME_OPTI\n" SHADER_DEFINES :
-                          SHADER_DEFINES);
+        USE_VOLUME_OPTI ? "#define USE_VOLUME_OPTI\n"
+                          "#define STANDALONE\n" SHADER_DEFINES :
+                          "#define STANDALONE\n" SHADER_DEFINES);
   }
   return e_data.volumetric_integration_sh;
 }
@@ -1249,7 +1346,7 @@ Material *EEVEE_material_default_glossy_get(void)
 Material *EEVEE_material_default_error_get(void)
 {
   if (!e_data.error_mat) {
-    Material *ma = BKE_id_new_nomain(ID_MA, "EEVEEE default metal");
+    Material *ma = BKE_id_new_nomain(ID_MA, "EEVEEE default error");
 
     bNodeTree *ntree = ntreeAddTree(NULL, "Shader Nodetree", ntreeType_Shader->idname);
     ma->nodetree = ntree;
@@ -1274,7 +1371,6 @@ Material *EEVEE_material_default_error_get(void)
   return e_data.error_mat;
 }
 
-/* Configure a default nodetree with the given material. */
 struct bNodeTree *EEVEE_shader_default_surface_nodetree(Material *ma)
 {
   /* WARNING: This function is not threadsafe. Which is not a problem for the moment. */
@@ -1302,7 +1398,6 @@ struct bNodeTree *EEVEE_shader_default_surface_nodetree(Material *ma)
   return e_data.surface.ntree;
 }
 
-/* Configure a default nodetree with the given world. */
 struct bNodeTree *EEVEE_shader_default_world_nodetree(World *wo)
 {
   /* WARNING: This function is not threadsafe. Which is not a problem for the moment. */
@@ -1358,6 +1453,9 @@ static char *eevee_get_defines(int options)
   if ((options & VAR_MAT_HAIR) != 0) {
     BLI_dynstr_append(ds, "#define HAIR_SHADER\n");
   }
+  if ((options & VAR_MAT_POINTCLOUD) != 0) {
+    BLI_dynstr_append(ds, "#define POINTCLOUD_SHADER\n");
+  }
   if ((options & VAR_WORLD_PROBE) != 0) {
     BLI_dynstr_append(ds, "#define PROBE_CAPTURE\n");
   }
@@ -1391,7 +1489,7 @@ static char *eevee_get_vert(int options)
     str = DRW_shader_library_create_shader_string(e_data.lib, datatoc_volumetric_vert_glsl);
   }
   else if ((options & (VAR_WORLD_PROBE | VAR_WORLD_BACKGROUND)) != 0) {
-    str = DRW_shader_library_create_shader_string(e_data.lib, datatoc_background_vert_glsl);
+    str = DRW_shader_library_create_shader_string(e_data.lib, datatoc_world_vert_glsl);
   }
   else {
     str = DRW_shader_library_create_shader_string(e_data.lib, datatoc_surface_vert_glsl);
@@ -1428,72 +1526,46 @@ static char *eevee_get_frag(int options)
   return str;
 }
 
-static void eevee_material_post_eval(GPUMaterial *mat,
-                                     int options,
-                                     const char **UNUSED(vert_code),
-                                     const char **geom_code,
-                                     const char **UNUSED(frag_lib),
-                                     const char **UNUSED(defines))
+static void eevee_material_post_eval(void *UNUSED(thunk),
+                                     GPUMaterial *mat,
+                                     GPUCodegenOutput *codegen)
 {
-  const bool is_hair = (options & VAR_MAT_HAIR) != 0;
-  const bool is_mesh = (options & VAR_MAT_MESH) != 0;
+  uint64_t options = GPU_material_uuid_get(mat);
 
-  /* Force geometry usage if GPU_BARYCENTRIC_DIST or GPU_BARYCENTRIC_TEXCO are used.
-   * NOTE: GPU_BARYCENTRIC_TEXCO only requires it if the shader is not drawing hairs. */
-  if (!is_hair && is_mesh && GPU_material_flag_get(mat, GPU_MATFLAG_BARYCENTRIC) &&
-      *geom_code == NULL) {
-    *geom_code = e_data.surface_geom_barycentric;
-  }
-}
-
-static struct GPUMaterial *eevee_material_get_ex(
-    struct Scene *scene, Material *ma, World *wo, int options, bool deferred)
-{
-  BLI_assert(ma || wo);
-  const bool is_volume = (options & VAR_MAT_VOLUME) != 0;
-  const bool is_default = (options & VAR_DEFAULT) != 0;
-  const void *engine = &DRW_engine_viewport_eevee_type;
-
-  GPUMaterial *mat = NULL;
-
-  if (ma) {
-    mat = DRW_shader_find_from_material(ma, engine, options, deferred);
-  }
-  else {
-    mat = DRW_shader_find_from_world(wo, engine, options, deferred);
-  }
-
-  if (mat) {
-    return mat;
-  }
-
-  char *defines = eevee_get_defines(options);
   char *vert = eevee_get_vert(options);
   char *geom = eevee_get_geom(options);
   char *frag = eevee_get_frag(options);
+  char *defines = eevee_get_defines(options);
 
-  if (ma) {
-    GPUMaterialEvalCallbackFn cbfn = &eevee_material_post_eval;
-
-    bNodeTree *ntree = !is_default ? ma->nodetree : EEVEE_shader_default_surface_nodetree(ma);
-    mat = DRW_shader_create_from_material(
-        scene, ma, ntree, engine, options, is_volume, vert, geom, frag, defines, deferred, cbfn);
-  }
-  else {
-    bNodeTree *ntree = !is_default ? wo->nodetree : EEVEE_shader_default_world_nodetree(wo);
-    mat = DRW_shader_create_from_world(
-        scene, wo, ntree, engine, options, is_volume, vert, geom, frag, defines, deferred, NULL);
-  }
+  eevee_shader_material_create_info_amend(mat, codegen, frag, vert, geom, defines);
 
   MEM_SAFE_FREE(defines);
   MEM_SAFE_FREE(vert);
   MEM_SAFE_FREE(geom);
   MEM_SAFE_FREE(frag);
+}
 
+static struct GPUMaterial *eevee_material_get_ex(
+    struct Scene *UNUSED(scene), Material *ma, World *wo, int options, bool deferred)
+{
+  BLI_assert(ma || wo);
+  const bool is_volume = (options & VAR_MAT_VOLUME) != 0;
+  const bool is_default = (options & VAR_DEFAULT) != 0;
+
+  GPUMaterial *mat = NULL;
+  GPUCodegenCallbackFn cbfn = &eevee_material_post_eval;
+
+  if (ma) {
+    bNodeTree *ntree = !is_default ? ma->nodetree : EEVEE_shader_default_surface_nodetree(ma);
+    mat = DRW_shader_from_material(ma, ntree, options, is_volume, deferred, cbfn, NULL);
+  }
+  else {
+    bNodeTree *ntree = !is_default ? wo->nodetree : EEVEE_shader_default_world_nodetree(wo);
+    mat = DRW_shader_from_world(wo, ntree, options, is_volume, deferred, cbfn, NULL);
+  }
   return mat;
 }
 
-/* NOTE: Compilation is not deferred. */
 struct GPUMaterial *EEVEE_material_default_get(struct Scene *scene, Material *ma, int options)
 {
   Material *def_ma = (ma && (options & VAR_MAT_VOLUME)) ? BKE_material_default_volume() :
@@ -1517,6 +1589,10 @@ struct GPUMaterial *EEVEE_material_get(
   GPUMaterial *mat = eevee_material_get_ex(scene, ma, wo, options, deferred);
 
   int status = GPU_material_status(mat);
+  /* Return null material and bypass drawing for volume shaders. */
+  if ((options & VAR_MAT_VOLUME) && status != GPU_MAT_SUCCESS) {
+    return NULL;
+  }
   switch (status) {
     case GPU_MAT_SUCCESS:
       break;
@@ -1537,6 +1613,7 @@ struct GPUMaterial *EEVEE_material_get(
 
 void EEVEE_shaders_free(void)
 {
+  eevee_shader_extra_exit();
   MEM_SAFE_FREE(e_data.surface_prepass_frag);
   MEM_SAFE_FREE(e_data.surface_lit_frag);
   MEM_SAFE_FREE(e_data.surface_geom_barycentric);
@@ -1651,4 +1728,11 @@ void EEVEE_shaders_free(void)
     MEM_freeN(e_data.world.ntree);
     e_data.world.ntree = NULL;
   }
+
+  /* UPBGE */
+  for (int j = 0; j < sizeof(e_data.smaa_sh) / sizeof(void *); j++) {
+    struct GPUShader **sh_array = &e_data.smaa_sh[0];
+    DRW_SHADER_FREE_SAFE(sh_array[j]);
+  }
+  /* End of UPBGE */
 }

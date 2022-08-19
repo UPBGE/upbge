@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) Blender Foundation
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup modifiers
@@ -49,6 +33,7 @@
 #include "UI_resources.h"
 
 #include "RNA_access.h"
+#include "RNA_prototypes.h"
 
 #include "BLO_read_write.h"
 
@@ -264,8 +249,8 @@ static Mesh *generate_ocean_geometry(OceanModifierData *omd, Mesh *mesh_orig, co
 
   GenerateOceanGeometryData gogd;
 
-  int num_verts;
-  int num_polys;
+  int verts_num;
+  int polys_num;
 
   const bool use_threading = resolution > 4;
 
@@ -274,8 +259,8 @@ static Mesh *generate_ocean_geometry(OceanModifierData *omd, Mesh *mesh_orig, co
   gogd.res_x = gogd.rx * omd->repeat_x;
   gogd.res_y = gogd.ry * omd->repeat_y;
 
-  num_verts = (gogd.res_x + 1) * (gogd.res_y + 1);
-  num_polys = gogd.res_x * gogd.res_y;
+  verts_num = (gogd.res_x + 1) * (gogd.res_y + 1);
+  polys_num = gogd.res_x * gogd.res_y;
 
   gogd.sx = omd->size * omd->spatial_size;
   gogd.sy = omd->size * omd->spatial_size;
@@ -285,7 +270,7 @@ static Mesh *generate_ocean_geometry(OceanModifierData *omd, Mesh *mesh_orig, co
   gogd.sx /= gogd.rx;
   gogd.sy /= gogd.ry;
 
-  result = BKE_mesh_new_nomain(num_verts, 0, 0, num_polys * 4, num_polys);
+  result = BKE_mesh_new_nomain(verts_num, 0, 0, polys_num * 4, polys_num);
   BKE_mesh_copy_parameters_for_eval(result, mesh_orig);
 
   gogd.mverts = result->mvert;
@@ -307,7 +292,7 @@ static Mesh *generate_ocean_geometry(OceanModifierData *omd, Mesh *mesh_orig, co
   /* add uvs */
   if (CustomData_number_of_layers(&result->ldata, CD_MLOOPUV) < MAX_MTFACE) {
     gogd.mloopuvs = CustomData_add_layer(
-        &result->ldata, CD_MLOOPUV, CD_CALLOC, NULL, num_polys * 4);
+        &result->ldata, CD_MLOOPUV, CD_CALLOC, NULL, polys_num * 4);
 
     if (gogd.mloopuvs) { /* unlikely to fail */
       gogd.ix = 1.0 / gogd.rx;
@@ -316,8 +301,6 @@ static Mesh *generate_ocean_geometry(OceanModifierData *omd, Mesh *mesh_orig, co
       BLI_task_parallel_range(0, gogd.res_y, &gogd, generate_ocean_geometry_uvs, &settings);
     }
   }
-
-  BKE_mesh_normals_tag_dirty(result);
 
   return result;
 }
@@ -376,7 +359,6 @@ static Mesh *doOcean(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mes
 
   if (omd->geometry_mode == MOD_OCEAN_GEOM_GENERATE) {
     result = generate_ocean_geometry(omd, mesh, resolution);
-    BKE_mesh_ensure_normals(result);
   }
   else if (omd->geometry_mode == MOD_OCEAN_GEOM_DISPLACE) {
     result = (Mesh *)BKE_id_copy_ex(NULL, &mesh->id, NULL, LIB_ID_COPY_LOCALIZE);
@@ -391,24 +373,24 @@ static Mesh *doOcean(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mes
   /* add vcols before displacement - allows lookup based on position */
 
   if (omd->flag & MOD_OCEAN_GENERATE_FOAM) {
-    if (CustomData_number_of_layers(&result->ldata, CD_MLOOPCOL) < MAX_MCOL) {
-      const int num_polys = result->totpoly;
-      const int num_loops = result->totloop;
+    if (CustomData_number_of_layers(&result->ldata, CD_PROP_BYTE_COLOR) < MAX_MCOL) {
+      const int polys_num = result->totpoly;
+      const int loops_num = result->totloop;
       MLoop *mloops = result->mloop;
       MLoopCol *mloopcols = CustomData_add_layer_named(
-          &result->ldata, CD_MLOOPCOL, CD_CALLOC, NULL, num_loops, omd->foamlayername);
+          &result->ldata, CD_PROP_BYTE_COLOR, CD_CALLOC, NULL, loops_num, omd->foamlayername);
 
       MLoopCol *mloopcols_spray = NULL;
       if (omd->flag & MOD_OCEAN_GENERATE_SPRAY) {
         mloopcols_spray = CustomData_add_layer_named(
-            &result->ldata, CD_MLOOPCOL, CD_CALLOC, NULL, num_loops, omd->spraylayername);
+            &result->ldata, CD_PROP_BYTE_COLOR, CD_CALLOC, NULL, loops_num, omd->spraylayername);
       }
 
       if (mloopcols) { /* unlikely to fail */
         MPoly *mpolys = result->mpoly;
         MPoly *mp;
 
-        for (i = 0, mp = mpolys; i < num_polys; i++, mp++) {
+        for (i = 0, mp = mpolys; i < polys_num; i++, mp++) {
           MLoop *ml = &mloops[mp->loopstart];
           MLoopCol *mlcol = &mloopcols[mp->loopstart];
 
@@ -464,9 +446,9 @@ static Mesh *doOcean(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mes
   /* NOTE: tried to parallelized that one and previous foam loop,
    * but gives 20% slower results... odd. */
   {
-    const int num_verts = result->totvert;
+    const int verts_num = result->totvert;
 
-    for (i = 0; i < num_verts; i++) {
+    for (i = 0; i < verts_num; i++) {
       float *vco = mverts[i].co;
       const float u = OCEAN_CO(size_co_inv, vco[0]);
       const float v = OCEAN_CO(size_co_inv, vco[1]);
@@ -487,6 +469,8 @@ static Mesh *doOcean(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mes
     }
   }
 
+  BKE_mesh_tag_coords_changed(mesh);
+
   if (allocated_ocean) {
     BKE_ocean_free(omd->ocean);
     omd->ocean = NULL;
@@ -505,15 +489,7 @@ static Mesh *doOcean(ModifierData *UNUSED(md), const ModifierEvalContext *UNUSED
 
 static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
 {
-  Mesh *result;
-
-  result = doOcean(md, ctx, mesh);
-
-  if (result != mesh) {
-    BKE_mesh_normals_tag_dirty(result);
-  }
-
-  return result;
+  return doOcean(md, ctx, mesh);
 }
 // #define WITH_OCEANSIM
 static void panel_draw(const bContext *UNUSED(C), Panel *panel)
@@ -725,7 +701,7 @@ static void blendRead(BlendDataReader *UNUSED(reader), ModifierData *md)
 }
 
 ModifierTypeInfo modifierType_Ocean = {
-    /* name */ "Ocean",
+    /* name */ N_("Ocean"),
     /* structName */ "OceanModifierData",
     /* structSize */ sizeof(OceanModifierData),
     /* srna */ &RNA_OceanModifier,
@@ -741,7 +717,6 @@ ModifierTypeInfo modifierType_Ocean = {
     /* deformVertsEM */ NULL,
     /* deformMatricesEM */ NULL,
     /* modifyMesh */ modifyMesh,
-    /* modifyHair */ NULL,
     /* modifyGeometrySet */ NULL,
 
     /* initData */ initData,

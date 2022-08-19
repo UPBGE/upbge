@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup GHOST
@@ -117,6 +101,12 @@ class GHOST_Rect {
    * \param y: The y-coordinate of the point.
    */
   virtual inline void wrapPoint(int32_t &x, int32_t &y, int32_t ofs, GHOST_TAxisFlag axis);
+  /**
+   * Confine x & y within the rectangle (inclusive).
+   * \param x: The x-coordinate of the point.
+   * \param y: The y-coordinate of the point.
+   */
+  virtual inline void clampPoint(int32_t &x, int32_t &y);
 
   /**
    * Returns whether the point is inside this rectangle.
@@ -206,26 +196,34 @@ inline bool GHOST_Rect::isValid() const
 
 inline void GHOST_Rect::unionRect(const GHOST_Rect &r)
 {
-  if (r.m_l < m_l)
+  if (r.m_l < m_l) {
     m_l = r.m_l;
-  if (r.m_r > m_r)
+  }
+  if (r.m_r > m_r) {
     m_r = r.m_r;
-  if (r.m_t < m_t)
+  }
+  if (r.m_t < m_t) {
     m_t = r.m_t;
-  if (r.m_b > m_b)
+  }
+  if (r.m_b > m_b) {
     m_b = r.m_b;
+  }
 }
 
 inline void GHOST_Rect::unionPoint(int32_t x, int32_t y)
 {
-  if (x < m_l)
+  if (x < m_l) {
     m_l = x;
-  if (x > m_r)
+  }
+  if (x > m_r) {
     m_r = x;
-  if (y < m_t)
+  }
+  if (y < m_t) {
     m_t = y;
-  if (y > m_b)
+  }
+  if (y > m_b) {
     m_b = y;
+  }
 }
 
 inline void GHOST_Rect::wrapPoint(int32_t &x, int32_t &y, int32_t ofs, GHOST_TAxisFlag axis)
@@ -239,16 +237,37 @@ inline void GHOST_Rect::wrapPoint(int32_t &x, int32_t &y, int32_t ofs, GHOST_TAx
   }
 
   if (axis & GHOST_kAxisX) {
-    while (x - ofs < m_l)
+    while (x - ofs < m_l) {
       x += w - (ofs * 2);
-    while (x + ofs > m_r)
+    }
+    while (x + ofs > m_r) {
       x -= w - (ofs * 2);
+    }
   }
-  if (axis & GHOST_kGrabAxisY) {
-    while (y - ofs < m_t)
+  if (axis & GHOST_kAxisY) {
+    while (y - ofs < m_t) {
       y += h - (ofs * 2);
-    while (y + ofs > m_b)
+    }
+    while (y + ofs > m_b) {
       y -= h - (ofs * 2);
+    }
+  }
+}
+
+inline void GHOST_Rect::clampPoint(int32_t &x, int32_t &y)
+{
+  if (x < m_l) {
+    x = m_l;
+  }
+  else if (x > m_r) {
+    x = m_r;
+  }
+
+  if (y < m_t) {
+    y = m_t;
+  }
+  else if (y > m_b) {
+    y = m_b;
   }
 }
 

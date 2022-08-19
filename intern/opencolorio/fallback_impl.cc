@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2012 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2012 Blender Foundation. All rights reserved. */
 
 #include <algorithm>
 #include <cstring>
@@ -123,7 +107,7 @@ struct FallbackProcessor {
   MEM_CXX_CLASS_ALLOC_FUNCS("FallbackProcessor");
 };
 
-OCIO_ConstConfigRcPtr *FallbackImpl::getCurrentConfig(void)
+OCIO_ConstConfigRcPtr *FallbackImpl::getCurrentConfig()
 {
   return CONFIG_DEFAULT;
 }
@@ -132,7 +116,7 @@ void FallbackImpl::setCurrentConfig(const OCIO_ConstConfigRcPtr * /*config*/)
 {
 }
 
-OCIO_ConstConfigRcPtr *FallbackImpl::configCreateFromEnv(void)
+OCIO_ConstConfigRcPtr *FallbackImpl::configCreateFromEnv()
 {
   return NULL;
 }
@@ -257,10 +241,11 @@ void FallbackImpl::configGetDefaultLumaCoefs(OCIO_ConstConfigRcPtr * /*config*/,
   rgb[2] = 0.0722f;
 }
 
-void FallbackImpl::configGetXYZtoRGB(OCIO_ConstConfigRcPtr * /*config*/, float xyz_to_rgb[3][3])
+void FallbackImpl::configGetXYZtoSceneLinear(OCIO_ConstConfigRcPtr * /*config*/,
+                                             float xyz_to_scene_linear[3][3])
 {
   /* Default to ITU-BT.709. */
-  memcpy(xyz_to_rgb, OCIO_XYZ_TO_LINEAR_SRGB, sizeof(OCIO_XYZ_TO_LINEAR_SRGB));
+  memcpy(xyz_to_scene_linear, OCIO_XYZ_TO_REC709, sizeof(OCIO_XYZ_TO_REC709));
 }
 
 int FallbackImpl::configGetNumLooks(OCIO_ConstConfigRcPtr * /*config*/)
@@ -461,18 +446,29 @@ const char *FallbackImpl::colorSpaceGetFamily(OCIO_ConstColorSpaceRcPtr * /*cs*/
   return "";
 }
 
+int FallbackImpl::colorSpaceGetNumAliases(OCIO_ConstColorSpaceRcPtr * /*cs*/)
+{
+  return 0;
+}
+const char *FallbackImpl::colorSpaceGetAlias(OCIO_ConstColorSpaceRcPtr * /*cs*/,
+                                             const int /*index*/)
+{
+  return "";
+}
+
 OCIO_ConstProcessorRcPtr *FallbackImpl::createDisplayProcessor(OCIO_ConstConfigRcPtr * /*config*/,
                                                                const char * /*input*/,
                                                                const char * /*view*/,
                                                                const char * /*display*/,
                                                                const char * /*look*/,
                                                                const float scale,
-                                                               const float exponent)
+                                                               const float exponent,
+                                                               const bool inverse)
 {
   FallbackTransform transform;
-  transform.type = TRANSFORM_LINEAR_TO_SRGB;
-  transform.scale = scale;
-  transform.exponent = exponent;
+  transform.type = (inverse) ? TRANSFORM_SRGB_TO_LINEAR : TRANSFORM_LINEAR_TO_SRGB;
+  transform.scale = (inverse && scale != 0.0f) ? 1.0f / scale : scale;
+  transform.exponent = (inverse && exponent != 0.0f) ? 1.0f / exponent : exponent;
 
   return (OCIO_ConstProcessorRcPtr *)new FallbackProcessor(transform);
 }
@@ -485,8 +481,8 @@ OCIO_PackedImageDesc *FallbackImpl::createOCIO_PackedImageDesc(float *data,
                                                                long xStrideBytes,
                                                                long yStrideBytes)
 {
-  OCIO_PackedImageDescription *desc = (OCIO_PackedImageDescription *)MEM_callocN(
-      sizeof(OCIO_PackedImageDescription), "OCIO_PackedImageDescription");
+  OCIO_PackedImageDescription *desc = MEM_cnew<OCIO_PackedImageDescription>(
+      "OCIO_PackedImageDescription");
   desc->data = data;
   desc->width = width;
   desc->height = height;
@@ -502,12 +498,12 @@ void FallbackImpl::OCIO_PackedImageDescRelease(OCIO_PackedImageDesc *id)
   MEM_freeN(id);
 }
 
-const char *FallbackImpl::getVersionString(void)
+const char *FallbackImpl::getVersionString()
 {
   return "fallback";
 }
 
-int FallbackImpl::getVersionHex(void)
+int FallbackImpl::getVersionHex()
 {
   return 0;
 }

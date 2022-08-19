@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup collada
@@ -159,6 +145,27 @@ VCOLDataWrapper::VCOLDataWrapper(COLLADAFW::MeshVertexData &vdata) : mVData(&vda
 {
 }
 
+template<typename T>
+static void colladaAddColor(T values, MLoopCol *mloopcol, int v_index, int stride)
+{
+  if (values->empty() || values->getCount() < (v_index + 1) * stride) {
+    fprintf(stderr,
+            "VCOLDataWrapper.getvcol(): Out of Bounds error: index %d points outside value "
+            "list of length %zd (with stride=%d) \n",
+            v_index,
+            values->getCount(),
+            stride);
+    return;
+  }
+
+  mloopcol->r = unit_float_to_uchar_clamp((*values)[v_index * stride]);
+  mloopcol->g = unit_float_to_uchar_clamp((*values)[v_index * stride + 1]);
+  mloopcol->b = unit_float_to_uchar_clamp((*values)[v_index * stride + 2]);
+  if (stride == 4) {
+    mloopcol->a = unit_float_to_uchar_clamp((*values)[v_index * stride + 3]);
+  }
+}
+
 void VCOLDataWrapper::get_vcol(int v_index, MLoopCol *mloopcol)
 {
   int stride = mVData->getStride(0);
@@ -169,25 +176,14 @@ void VCOLDataWrapper::get_vcol(int v_index, MLoopCol *mloopcol)
   switch (mVData->getType()) {
     case COLLADAFW::MeshVertexData::DATA_TYPE_FLOAT: {
       COLLADAFW::ArrayPrimitiveType<float> *values = mVData->getFloatValues();
-      if (values->empty() || values->getCount() <= (v_index * stride + 2)) {
-        return; /* XXX: need to create an error instead. */
-      }
-
-      mloopcol->r = unit_float_to_uchar_clamp((*values)[v_index * stride]);
-      mloopcol->g = unit_float_to_uchar_clamp((*values)[v_index * stride + 1]);
-      mloopcol->b = unit_float_to_uchar_clamp((*values)[v_index * stride + 2]);
+      colladaAddColor<COLLADAFW::ArrayPrimitiveType<float> *>(values, mloopcol, v_index, stride);
     } break;
 
     case COLLADAFW::MeshVertexData::DATA_TYPE_DOUBLE: {
       COLLADAFW::ArrayPrimitiveType<double> *values = mVData->getDoubleValues();
-      if (values->empty() || values->getCount() <= (v_index * stride + 2)) {
-        return; /* XXX: need to create an error instead. */
-      }
-
-      mloopcol->r = unit_float_to_uchar_clamp((*values)[v_index * stride]);
-      mloopcol->g = unit_float_to_uchar_clamp((*values)[v_index * stride + 1]);
-      mloopcol->b = unit_float_to_uchar_clamp((*values)[v_index * stride + 2]);
+      colladaAddColor<COLLADAFW::ArrayPrimitiveType<double> *>(values, mloopcol, v_index, stride);
     } break;
+
     default:
       fprintf(stderr, "VCOLDataWrapper.getvcol(): unknown data type\n");
   }
@@ -267,7 +263,6 @@ void MeshImporter::print_index_list(COLLADAFW::IndexList &index_list)
 }
 #endif
 
-/* checks if mesh has supported primitive types: lines, polylist, triangles, triangle_fans */
 bool MeshImporter::is_nice_mesh(COLLADAFW::Mesh *mesh)
 {
   COLLADAFW::MeshPrimitiveArray &prim_arr = mesh->getMeshPrimitives();
@@ -356,12 +351,6 @@ void MeshImporter::read_vertices(COLLADAFW::Mesh *mesh, Mesh *me)
   }
 }
 
-/* =====================================================================
- * condition 1: The Primitive has normals
- * condition 2: The number of normals equals the number of faces.
- * return true if both conditions apply.
- * return false otherwise.
- * ===================================================================== */
 bool MeshImporter::primitive_has_useable_normals(COLLADAFW::MeshPrimitive *mp)
 {
 
@@ -385,10 +374,6 @@ bool MeshImporter::primitive_has_useable_normals(COLLADAFW::MeshPrimitive *mp)
   return has_useable_normals;
 }
 
-/* =====================================================================
- * Assume that only TRIANGLES, TRIANGLE_FANS, POLYLIST and POLYGONS
- * have faces. (to be verified)
- * ===================================================================== */
 bool MeshImporter::primitive_has_faces(COLLADAFW::MeshPrimitive *mp)
 {
 
@@ -420,12 +405,6 @@ static std::string extract_vcolname(const COLLADAFW::String &collada_id)
   return colname;
 }
 
-/* =================================================================
- * Return the number of faces by summing up
- * the face-counts of the parts.
- * hint: This is done because `mesh->getFacesCount()` does
- * count loose edges as extra faces, which is not what we want here.
- * ================================================================= */
 void MeshImporter::allocate_poly_data(COLLADAFW::Mesh *collada_mesh, Mesh *me)
 {
   COLLADAFW::MeshPrimitiveArray &prim_arr = collada_mesh->getMeshPrimitives();
@@ -502,9 +481,9 @@ void MeshImporter::allocate_poly_data(COLLADAFW::Mesh *collada_mesh, Mesh *me)
             collada_mesh->getColors().getInputInfosArray()[i];
         COLLADAFW::String colname = extract_vcolname(info->mName);
         CustomData_add_layer_named(
-            &me->ldata, CD_MLOOPCOL, CD_DEFAULT, nullptr, me->totloop, colname.c_str());
+            &me->ldata, CD_PROP_BYTE_COLOR, CD_DEFAULT, nullptr, me->totloop, colname.c_str());
       }
-      me->mloopcol = (MLoopCol *)CustomData_get_layer_n(&me->ldata, CD_MLOOPCOL, 0);
+      me->mloopcol = (MLoopCol *)CustomData_get_layer_n(&me->ldata, CD_PROP_BYTE_COLOR, 0);
     }
   }
 }
@@ -554,13 +533,6 @@ unsigned int MeshImporter::get_loose_edge_count(COLLADAFW::Mesh *mesh)
   return loose_edge_count;
 }
 
-/* =================================================================
- * This function is copied from source/blender/editors/mesh/mesh_data.c
- *
- * TODO: (As discussed with sergey-) :
- * Maybe move this function to blenderkernel/intern/mesh.c
- * and add definition to BKE_mesh.c
- * ================================================================= */
 void MeshImporter::mesh_add_edges(Mesh *mesh, int len)
 {
   CustomData edata;
@@ -594,12 +566,6 @@ void MeshImporter::mesh_add_edges(Mesh *mesh, int len)
   mesh->totedge = totedge;
 }
 
-/* =================================================================
- * Read all loose edges.
- * Important: This function assumes that all edges from existing
- * faces have already been generated and added to me->medge
- * So this function MUST be called after read_faces() (see below)
- * ================================================================= */
 void MeshImporter::read_lines(COLLADAFW::Mesh *mesh, Mesh *me)
 {
   unsigned int loose_edge_count = get_loose_edge_count(mesh);
@@ -633,13 +599,6 @@ void MeshImporter::read_lines(COLLADAFW::Mesh *mesh, Mesh *me)
   }
 }
 
-/* =======================================================================
- * Read all faces from TRIANGLES, TRIANGLE_FANS, POLYLIST, POLYGON
- * Important: This function MUST be called before read_lines()
- * Otherwise we will lose all edges from faces (see read_lines() above)
- *
- * TODO: import uv set names
- * ======================================================================== */
 void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh, Mesh *me)
 {
   unsigned int i;
@@ -775,7 +734,7 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh, Mesh *me)
             COLLADAFW::IndexList &color_index_list = *mp->getColorIndices(vcolor_index);
             COLLADAFW::String colname = extract_vcolname(color_index_list.getName());
             MLoopCol *mloopcol = (MLoopCol *)CustomData_get_layer_named(
-                &me->ldata, CD_MLOOPCOL, colname.c_str());
+                &me->ldata, CD_PROP_BYTE_COLOR, colname.c_str());
             if (mloopcol == nullptr) {
               fprintf(stderr,
                       "Collada import: Mesh [%s] : Unknown reference to VCOLOR [#%s].\n",
@@ -938,11 +897,9 @@ static bool bc_has_same_material_configuration(Object *ob1, Object *ob2)
 }
 
 /**
- *
  * Caution here: This code assumes that all materials are assigned to Object
  * and no material is assigned to Data.
  * That is true right after the objects have been imported.
- *
  */
 static void bc_copy_materials_to_data(Object *ob, Mesh *me)
 {
@@ -953,9 +910,7 @@ static void bc_copy_materials_to_data(Object *ob, Mesh *me)
 }
 
 /**
- *
- * Remove all references to materials from the object
- *
+ * Remove all references to materials from the object.
  */
 static void bc_remove_materials_from_object(Object *ob, Mesh *me)
 {
@@ -965,11 +920,6 @@ static void bc_remove_materials_from_object(Object *ob, Mesh *me)
   }
 }
 
-/**
- * Returns the list of Users of the given Mesh object.
- * NOTE: This function uses the object user flag to control
- * which objects have already been processed.
- */
 std::vector<Object *> MeshImporter::get_all_users_of(Mesh *reference_mesh)
 {
   std::vector<Object *> mesh_users;
@@ -985,24 +935,6 @@ std::vector<Object *> MeshImporter::get_all_users_of(Mesh *reference_mesh)
   return mesh_users;
 }
 
-/**
- *
- * During import all materials have been assigned to Object.
- * Now we iterate over the imported objects and optimize
- * the assignments as follows:
- *
- * for each imported geometry:
- *     if number of users is 1:
- *         get the user (object)
- *         move the materials from Object to Data
- *     else:
- *         determine which materials are assigned to the first user
- *         check if all other users have the same materials in the same order
- *         if the check is positive:
- *             Add the materials of the first user to the geometry
- *             adjust all other users accordingly.
- *
- */
 void MeshImporter::optimize_material_assignements()
 {
   for (Object *ob : imported_objects) {
@@ -1035,14 +967,6 @@ void MeshImporter::optimize_material_assignements()
   }
 }
 
-/**
- * We do not know in advance which objects will share geometries.
- * And we do not know either if the objects which share geometries
- * come along with different materials. So we first create the objects
- * and assign the materials to Object, then in a later cleanup we decide
- * which materials shall be moved to the created geometries. Also see
- * optimize_material_assignements() above.
- */
 void MeshImporter::assign_material_to_geom(
     COLLADAFW::MaterialBinding cmaterial,
     std::map<COLLADAFW::UniqueId, Material *> &uid_material_map,
@@ -1139,7 +1063,6 @@ Object *MeshImporter::create_mesh_object(
   Mesh *new_mesh = uid_mesh_map[*geom_uid];
 
   BKE_mesh_assign_object(m_bmain, ob, new_mesh);
-  BKE_mesh_calc_normals(new_mesh);
 
   /* Because BKE_mesh_assign_object would have already decreased it... */
   id_us_plus(&old_mesh->id);
@@ -1165,7 +1088,6 @@ Object *MeshImporter::create_mesh_object(
   return ob;
 }
 
-/* create a mesh storing a pointer in a map so it can be retrieved later by geometry UID */
 bool MeshImporter::write_geometry(const COLLADAFW::Geometry *geom)
 {
 

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2020 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2020 Blender Foundation. All rights reserved. */
 
 #include "abc_archive.h"
 
@@ -51,7 +35,7 @@ static MetaData create_abc_metadata(const Main *bmain, double scene_fps)
 {
   MetaData abc_metadata;
 
-  std::string abc_user_description(bmain->name);
+  std::string abc_user_description(bmain->filepath);
   if (abc_user_description.empty()) {
     abc_user_description = "unknown";
   }
@@ -119,7 +103,7 @@ static void get_shutter_samples(double scene_fps,
                                 bool time_relative,
                                 std::vector<double> &r_samples)
 {
-  int frame_offset = time_relative ? params.frame_start : 0;
+  double frame_offset = time_relative ? params.frame_start : 0.0;
   double time_factor = time_relative ? scene_fps : 1.0;
   double shutter_open = params.shutter_open;
   double shutter_close = params.shutter_close;

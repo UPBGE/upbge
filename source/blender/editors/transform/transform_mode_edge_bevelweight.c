@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edtransform
@@ -60,16 +44,11 @@ static void transdata_elem_bevel_weight(const TransInfo *UNUSED(t),
                                         TransData *td,
                                         const float weight)
 {
-  if (td->val == NULL) {
+  if (td->loc == NULL) {
     return;
   }
-  *td->val = td->ival + weight * td->factor;
-  if (*td->val < 0.0f) {
-    *td->val = 0.0f;
-  }
-  if (*td->val > 1.0f) {
-    *td->val = 1.0f;
-  }
+  *td->loc = td->iloc[0] + weight * td->factor;
+  CLAMP(*td->loc, 0.0f, 1.0f);
 }
 
 static void transdata_elem_bevel_weight_fn(void *__restrict iter_data_v,
@@ -96,7 +75,7 @@ static void applyBevelWeight(TransInfo *t, const int UNUSED(mval[2]))
   int i;
   char str[UI_MAX_DRAW_STR];
 
-  weight = t->values[0];
+  weight = t->values[0] + t->values_modal_offset[0];
 
   CLAMP_MAX(weight, 1.0f);
 
@@ -174,4 +153,5 @@ void initBevelWeight(TransInfo *t)
 
   t->flag |= T_NO_CONSTRAINT | T_NO_PROJECT;
 }
+
 /** \} */

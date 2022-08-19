@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2021 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include "integrator/path_trace_work_cpu.h"
 
@@ -71,7 +58,8 @@ void PathTraceWorkCPU::init_execution()
 
 void PathTraceWorkCPU::render_samples(RenderStatistics &statistics,
                                       int start_sample,
-                                      int samples_num)
+                                      int samples_num,
+                                      int sample_offset)
 {
   const int64_t image_width = effective_buffer_params_.width;
   const int64_t image_height = effective_buffer_params_.height;
@@ -85,7 +73,7 @@ void PathTraceWorkCPU::render_samples(RenderStatistics &statistics,
 
   tbb::task_arena local_arena = local_tbb_arena_create(device_);
   local_arena.execute([&]() {
-    tbb::parallel_for(int64_t(0), total_pixels_num, [&](int64_t work_index) {
+    parallel_for(int64_t(0), total_pixels_num, [&](int64_t work_index) {
       if (is_cancel_requested()) {
         return;
       }
@@ -99,6 +87,7 @@ void PathTraceWorkCPU::render_samples(RenderStatistics &statistics,
       work_tile.w = 1;
       work_tile.h = 1;
       work_tile.start_sample = start_sample;
+      work_tile.sample_offset = sample_offset;
       work_tile.num_samples = 1;
       work_tile.offset = effective_buffer_params_.offset;
       work_tile.stride = effective_buffer_params_.stride;
@@ -230,7 +219,7 @@ int PathTraceWorkCPU::adaptive_sampling_converge_filter_count_active(float thres
 
   /* Check convergency and do x-filter in a single `parallel_for`, to reduce threading overhead. */
   local_arena.execute([&]() {
-    tbb::parallel_for(full_y, full_y + height, [&](int y) {
+    parallel_for(full_y, full_y + height, [&](int y) {
       CPUKernelThreadGlobals *kernel_globals = &kernel_thread_globals_[0];
 
       bool row_converged = true;
@@ -254,7 +243,7 @@ int PathTraceWorkCPU::adaptive_sampling_converge_filter_count_active(float thres
 
   if (num_active_pixels) {
     local_arena.execute([&]() {
-      tbb::parallel_for(full_x, full_x + width, [&](int x) {
+      parallel_for(full_x, full_x + width, [&](int x) {
         CPUKernelThreadGlobals *kernel_globals = &kernel_thread_globals_[0];
         kernels_.adaptive_sampling_filter_y(
             kernel_globals, render_buffer, x, full_y, height, offset, stride);
@@ -276,7 +265,7 @@ void PathTraceWorkCPU::cryptomatte_postproces()
 
   /* Check convergency and do x-filter in a single `parallel_for`, to reduce threading overhead. */
   local_arena.execute([&]() {
-    tbb::parallel_for(0, height, [&](int y) {
+    parallel_for(0, height, [&](int y) {
       CPUKernelThreadGlobals *kernel_globals = &kernel_thread_globals_[0];
       int pixel_index = y * width;
 

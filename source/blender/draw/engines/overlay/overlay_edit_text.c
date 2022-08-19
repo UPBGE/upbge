@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2019, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2019 Blender Foundation. */
 
 /** \file
  * \ingroup draw_engine
@@ -50,7 +35,7 @@ void OVERLAY_edit_text_cache_init(OVERLAY_Data *vedata)
 
     sh = OVERLAY_shader_uniform_color();
     pd->edit_text_wire_grp[i] = grp = DRW_shgroup_create(sh, psl->edit_text_wire_ps[i]);
-    DRW_shgroup_uniform_vec4_copy(grp, "color", G_draw.block.colorWire);
+    DRW_shgroup_uniform_vec4_copy(grp, "color", G_draw.block.color_wire);
   }
   {
     state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA;
@@ -154,7 +139,7 @@ static void edit_text_cache_populate_boxes(OVERLAY_Data *vedata, Object *ob)
   for (int i = 0; i < cu->totbox; i++) {
     TextBox *tb = &cu->tb[i];
     const bool is_active = (i == (cu->actbox - 1));
-    float *color = is_active ? G_draw.block.colorActive : G_draw.block.colorWire;
+    float *color = is_active ? G_draw.block.color_active : G_draw.block.color_wire;
 
     if ((tb->w != 0.0f) || (tb->h != 0.0f)) {
       float vecs[4][3];

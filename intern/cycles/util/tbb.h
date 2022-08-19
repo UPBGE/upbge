@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2020 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #ifndef __UTIL_TBB_H__
 #define __UTIL_TBB_H__
@@ -29,6 +16,7 @@
 
 #if TBB_INTERFACE_VERSION_MAJOR >= 10
 #  define WITH_TBB_GLOBAL_CONTROL
+#  define TBB_PREVIEW_GLOBAL_CONTROL 1
 #  include <tbb/global_control.h>
 #endif
 
@@ -37,6 +25,19 @@ CCL_NAMESPACE_BEGIN
 using tbb::blocked_range;
 using tbb::enumerable_thread_specific;
 using tbb::parallel_for;
+using tbb::parallel_for_each;
+
+static inline void thread_capture_fp_settings()
+{
+#if TBB_INTERFACE_VERSION_MAJOR >= 12
+  tbb::task_group_context *ctx = tbb::task::current_context();
+#else
+  tbb::task_group_context *ctx = tbb::task::self().group();
+#endif
+  if (ctx) {
+    ctx->capture_fp_settings();
+  }
+}
 
 static inline void parallel_for_cancel()
 {

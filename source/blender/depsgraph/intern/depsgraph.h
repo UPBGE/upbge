@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2013 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2013 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup depsgraph
@@ -47,8 +31,7 @@ struct ID;
 struct Scene;
 struct ViewLayer;
 
-namespace blender {
-namespace deg {
+namespace blender::deg {
 
 struct IDNode;
 struct Node;
@@ -72,7 +55,7 @@ struct Depsgraph {
   IDNode *add_id_node(ID *id, ID *id_cow_hint = nullptr);
   void clear_id_nodes();
 
-  /* Add new relationship between two nodes. */
+  /** Add new relationship between two nodes. */
   Relation *add_new_relation(Node *from, Node *to, const char *description, int flags = 0);
 
   /* Check whether two nodes are connected by relation with given
@@ -105,13 +88,19 @@ struct Depsgraph {
   /* Top-level time source node. */
   TimeSourceNode *time_source;
 
+  /* The graph contains data-blocks whose visibility depends on evaluation (driven or animated). */
+  bool has_animated_visibility;
+
   /* Indicates whether relations needs to be updated. */
-  bool need_update;
+  bool need_update_relations;
+
+  /* Indicates whether indirect effect of nodes on a directly visible ones needs to be updated. */
+  bool need_update_nodes_visibility;
 
   /* Indicated whether IDs in this graph are to be tagged as if they first appear visible, with
    * an optional tag for their animation (time) update. */
-  bool need_visibility_update;
-  bool need_visibility_time_update;
+  bool need_tag_id_on_graph_visibility_update;
+  bool need_tag_id_on_graph_visibility_time_update;
 
   /* Indicates which ID types were updated. */
   char id_type_updated[INDEX_ID_MAX];
@@ -178,5 +167,4 @@ struct Depsgraph {
   MEM_CXX_CLASS_ALLOC_FUNCS("Depsgraph");
 };
 
-}  // namespace deg
-}  // namespace blender
+}  // namespace blender::deg

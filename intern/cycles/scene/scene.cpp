@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include <stdlib.h>
 
@@ -30,6 +17,7 @@
 #include "scene/object.h"
 #include "scene/osl.h"
 #include "scene/particles.h"
+#include "scene/pointcloud.h"
 #include "scene/procedural.h"
 #include "scene/scene.h"
 #include "scene/shader.h"
@@ -46,45 +34,49 @@
 CCL_NAMESPACE_BEGIN
 
 DeviceScene::DeviceScene(Device *device)
-    : bvh_nodes(device, "__bvh_nodes", MEM_GLOBAL),
-      bvh_leaf_nodes(device, "__bvh_leaf_nodes", MEM_GLOBAL),
-      object_node(device, "__object_node", MEM_GLOBAL),
-      prim_type(device, "__prim_type", MEM_GLOBAL),
-      prim_visibility(device, "__prim_visibility", MEM_GLOBAL),
-      prim_index(device, "__prim_index", MEM_GLOBAL),
-      prim_object(device, "__prim_object", MEM_GLOBAL),
-      prim_time(device, "__prim_time", MEM_GLOBAL),
-      tri_verts(device, "__tri_verts", MEM_GLOBAL),
-      tri_shader(device, "__tri_shader", MEM_GLOBAL),
-      tri_vnormal(device, "__tri_vnormal", MEM_GLOBAL),
-      tri_vindex(device, "__tri_vindex", MEM_GLOBAL),
-      tri_patch(device, "__tri_patch", MEM_GLOBAL),
-      tri_patch_uv(device, "__tri_patch_uv", MEM_GLOBAL),
-      curves(device, "__curves", MEM_GLOBAL),
-      curve_keys(device, "__curve_keys", MEM_GLOBAL),
-      curve_segments(device, "__curve_segments", MEM_GLOBAL),
-      patches(device, "__patches", MEM_GLOBAL),
-      objects(device, "__objects", MEM_GLOBAL),
-      object_motion_pass(device, "__object_motion_pass", MEM_GLOBAL),
-      object_motion(device, "__object_motion", MEM_GLOBAL),
-      object_flag(device, "__object_flag", MEM_GLOBAL),
-      object_volume_step(device, "__object_volume_step", MEM_GLOBAL),
-      camera_motion(device, "__camera_motion", MEM_GLOBAL),
-      attributes_map(device, "__attributes_map", MEM_GLOBAL),
-      attributes_float(device, "__attributes_float", MEM_GLOBAL),
-      attributes_float2(device, "__attributes_float2", MEM_GLOBAL),
-      attributes_float3(device, "__attributes_float3", MEM_GLOBAL),
-      attributes_uchar4(device, "__attributes_uchar4", MEM_GLOBAL),
-      light_distribution(device, "__light_distribution", MEM_GLOBAL),
-      lights(device, "__lights", MEM_GLOBAL),
-      light_background_marginal_cdf(device, "__light_background_marginal_cdf", MEM_GLOBAL),
-      light_background_conditional_cdf(device, "__light_background_conditional_cdf", MEM_GLOBAL),
-      particles(device, "__particles", MEM_GLOBAL),
-      svm_nodes(device, "__svm_nodes", MEM_GLOBAL),
-      shaders(device, "__shaders", MEM_GLOBAL),
-      lookup_table(device, "__lookup_table", MEM_GLOBAL),
-      sample_pattern_lut(device, "__sample_pattern_lut", MEM_GLOBAL),
-      ies_lights(device, "__ies", MEM_GLOBAL)
+    : bvh_nodes(device, "bvh_nodes", MEM_GLOBAL),
+      bvh_leaf_nodes(device, "bvh_leaf_nodes", MEM_GLOBAL),
+      object_node(device, "object_node", MEM_GLOBAL),
+      prim_type(device, "prim_type", MEM_GLOBAL),
+      prim_visibility(device, "prim_visibility", MEM_GLOBAL),
+      prim_index(device, "prim_index", MEM_GLOBAL),
+      prim_object(device, "prim_object", MEM_GLOBAL),
+      prim_time(device, "prim_time", MEM_GLOBAL),
+      tri_verts(device, "tri_verts", MEM_GLOBAL),
+      tri_shader(device, "tri_shader", MEM_GLOBAL),
+      tri_vnormal(device, "tri_vnormal", MEM_GLOBAL),
+      tri_vindex(device, "tri_vindex", MEM_GLOBAL),
+      tri_patch(device, "tri_patch", MEM_GLOBAL),
+      tri_patch_uv(device, "tri_patch_uv", MEM_GLOBAL),
+      curves(device, "curves", MEM_GLOBAL),
+      curve_keys(device, "curve_keys", MEM_GLOBAL),
+      curve_segments(device, "curve_segments", MEM_GLOBAL),
+      patches(device, "patches", MEM_GLOBAL),
+      points(device, "points", MEM_GLOBAL),
+      points_shader(device, "points_shader", MEM_GLOBAL),
+      objects(device, "objects", MEM_GLOBAL),
+      object_motion_pass(device, "object_motion_pass", MEM_GLOBAL),
+      object_motion(device, "object_motion", MEM_GLOBAL),
+      object_flag(device, "object_flag", MEM_GLOBAL),
+      object_volume_step(device, "object_volume_step", MEM_GLOBAL),
+      object_prim_offset(device, "object_prim_offset", MEM_GLOBAL),
+      camera_motion(device, "camera_motion", MEM_GLOBAL),
+      attributes_map(device, "attributes_map", MEM_GLOBAL),
+      attributes_float(device, "attributes_float", MEM_GLOBAL),
+      attributes_float2(device, "attributes_float2", MEM_GLOBAL),
+      attributes_float3(device, "attributes_float3", MEM_GLOBAL),
+      attributes_float4(device, "attributes_float4", MEM_GLOBAL),
+      attributes_uchar4(device, "attributes_uchar4", MEM_GLOBAL),
+      light_distribution(device, "light_distribution", MEM_GLOBAL),
+      lights(device, "lights", MEM_GLOBAL),
+      light_background_marginal_cdf(device, "light_background_marginal_cdf", MEM_GLOBAL),
+      light_background_conditional_cdf(device, "light_background_conditional_cdf", MEM_GLOBAL),
+      particles(device, "particles", MEM_GLOBAL),
+      svm_nodes(device, "svm_nodes", MEM_GLOBAL),
+      shaders(device, "shaders", MEM_GLOBAL),
+      lookup_table(device, "lookup_table", MEM_GLOBAL),
+      sample_pattern_lut(device, "sample_pattern_lut", MEM_GLOBAL),
+      ies_lights(device, "ies", MEM_GLOBAL)
 {
   memset((void *)&data, 0, sizeof(data));
 }
@@ -259,6 +251,11 @@ void Scene::device_update(Device *device_, Progress &progress)
    * - Lookup tables are done a second time to handle film tables
    */
 
+  if (film->update_lightgroups(this)) {
+    light_manager->tag_update(this, ccl::LightManager::LIGHT_MODIFIED);
+    object_manager->tag_update(this, ccl::ObjectManager::OBJECT_MODIFIED);
+  }
+
   progress.set_status("Updating Shaders");
   shader_manager->device_update(device, &dscene, this, progress);
 
@@ -307,6 +304,12 @@ void Scene::device_update(Device *device_, Progress &progress)
 
   progress.set_status("Updating Objects Flags");
   object_manager->device_update_flags(device, &dscene, this, progress);
+
+  if (progress.get_cancel() || device->have_error())
+    return;
+
+  progress.set_status("Updating Primitive Offsets");
+  object_manager->device_update_prim_offsets(device, &dscene, this);
 
   if (progress.get_cancel() || device->have_error())
     return;
@@ -363,22 +366,24 @@ void Scene::device_update(Device *device_, Progress &progress)
     dscene.data.volume_stack_size = get_volume_stack_size();
 
     progress.set_status("Updating Device", "Writing constant memory");
-    device->const_copy_to("__data", &dscene.data, sizeof(dscene.data));
+    device->const_copy_to("data", &dscene.data, sizeof(dscene.data));
   }
+
+  device->optimize_for_scene(this);
 
   if (print_stats) {
     size_t mem_used = util_guarded_get_mem_used();
     size_t mem_peak = util_guarded_get_mem_peak();
 
-    VLOG(1) << "System memory statistics after full device sync:\n"
-            << "  Usage: " << string_human_readable_number(mem_used) << " ("
-            << string_human_readable_size(mem_used) << ")\n"
-            << "  Peak: " << string_human_readable_number(mem_peak) << " ("
-            << string_human_readable_size(mem_peak) << ")";
+    VLOG_INFO << "System memory statistics after full device sync:\n"
+              << "  Usage: " << string_human_readable_number(mem_used) << " ("
+              << string_human_readable_size(mem_used) << ")\n"
+              << "  Peak: " << string_human_readable_number(mem_peak) << " ("
+              << string_human_readable_size(mem_peak) << ")";
   }
 }
 
-Scene::MotionType Scene::need_motion()
+Scene::MotionType Scene::need_motion() const
 {
   if (integrator->get_motion_blur())
     return MOTION_BLUR;
@@ -404,6 +409,10 @@ bool Scene::need_global_attribute(AttributeStandard std)
     return need_motion() != MOTION_NONE;
   else if (std == ATTR_STD_MOTION_VERTEX_NORMAL)
     return need_motion() == MOTION_BLUR;
+  else if (std == ATTR_STD_VOLUME_VELOCITY || std == ATTR_STD_VOLUME_VELOCITY_X ||
+           std == ATTR_STD_VOLUME_VELOCITY_Y || std == ATTR_STD_VOLUME_VELOCITY_Z) {
+    return need_motion() != MOTION_NONE;
+  }
 
   return false;
 }
@@ -491,7 +500,21 @@ void Scene::update_kernel_features()
   if (use_motion && camera->use_motion()) {
     kernel_features |= KERNEL_FEATURE_CAMERA_MOTION;
   }
+
+  /* Figure out whether the scene will use shader ray-trace we need at least
+   * one caustic light, one caustic caster and one caustic receiver to use
+   * and enable the MNEE code path. */
+  bool has_caustics_receiver = false;
+  bool has_caustics_caster = false;
+  bool has_caustics_light = false;
+
   foreach (Object *object, objects) {
+    if (object->get_is_caustics_caster()) {
+      has_caustics_caster = true;
+    }
+    else if (object->get_is_caustics_receiver()) {
+      has_caustics_receiver = true;
+    }
     Geometry *geom = object->get_geometry();
     if (use_motion) {
       if (object->use_motion() || geom->get_use_motion_blur()) {
@@ -515,6 +538,21 @@ void Scene::update_kernel_features()
     else if (geom->is_hair()) {
       kernel_features |= KERNEL_FEATURE_HAIR;
     }
+    else if (geom->is_pointcloud()) {
+      kernel_features |= KERNEL_FEATURE_POINTCLOUD;
+    }
+  }
+
+  foreach (Light *light, lights) {
+    if (light->get_use_caustics()) {
+      has_caustics_light = true;
+    }
+  }
+
+  dscene.data.integrator.use_caustics = false;
+  if (has_caustics_caster && has_caustics_receiver && has_caustics_light) {
+    dscene.data.integrator.use_caustics = true;
+    kernel_features |= KERNEL_FEATURE_MNEE;
   }
 
   if (bake_manager->get_baking()) {
@@ -550,34 +588,38 @@ bool Scene::update(Progress &progress)
 
 static void log_kernel_features(const uint features)
 {
-  VLOG(2) << "Requested features:\n";
-  VLOG(2) << "Use BSDF " << string_from_bool(features & KERNEL_FEATURE_NODE_BSDF) << "\n";
-  VLOG(2) << "Use Principled BSDF " << string_from_bool(features & KERNEL_FEATURE_PRINCIPLED)
-          << "\n";
-  VLOG(2) << "Use Emission " << string_from_bool(features & KERNEL_FEATURE_NODE_EMISSION) << "\n";
-  VLOG(2) << "Use Volume " << string_from_bool(features & KERNEL_FEATURE_NODE_VOLUME) << "\n";
-  VLOG(2) << "Use Hair " << string_from_bool(features & KERNEL_FEATURE_NODE_HAIR) << "\n";
-  VLOG(2) << "Use Bump " << string_from_bool(features & KERNEL_FEATURE_NODE_BUMP) << "\n";
-  VLOG(2) << "Use Voronoi " << string_from_bool(features & KERNEL_FEATURE_NODE_VORONOI_EXTRA)
-          << "\n";
-  VLOG(2) << "Use Shader Raytrace " << string_from_bool(features & KERNEL_FEATURE_NODE_RAYTRACE)
-          << "\n";
-  VLOG(2) << "Use Transparent " << string_from_bool(features & KERNEL_FEATURE_TRANSPARENT) << "\n";
-  VLOG(2) << "Use Denoising " << string_from_bool(features & KERNEL_FEATURE_DENOISING) << "\n";
-  VLOG(2) << "Use Path Tracing " << string_from_bool(features & KERNEL_FEATURE_PATH_TRACING)
-          << "\n";
-  VLOG(2) << "Use Hair " << string_from_bool(features & KERNEL_FEATURE_HAIR) << "\n";
-  VLOG(2) << "Use Object Motion " << string_from_bool(features & KERNEL_FEATURE_OBJECT_MOTION)
-          << "\n";
-  VLOG(2) << "Use Camera Motion " << string_from_bool(features & KERNEL_FEATURE_CAMERA_MOTION)
-          << "\n";
-  VLOG(2) << "Use Baking " << string_from_bool(features & KERNEL_FEATURE_BAKING) << "\n";
-  VLOG(2) << "Use Subsurface " << string_from_bool(features & KERNEL_FEATURE_SUBSURFACE) << "\n";
-  VLOG(2) << "Use Volume " << string_from_bool(features & KERNEL_FEATURE_VOLUME) << "\n";
-  VLOG(2) << "Use Patch Evaluation "
-          << string_from_bool(features & KERNEL_FEATURE_PATCH_EVALUATION) << "\n";
-  VLOG(2) << "Use Shadow Catcher " << string_from_bool(features & KERNEL_FEATURE_SHADOW_CATCHER)
-          << "\n";
+  VLOG_INFO << "Requested features:\n";
+  VLOG_INFO << "Use BSDF " << string_from_bool(features & KERNEL_FEATURE_NODE_BSDF) << "\n";
+  VLOG_INFO << "Use Principled BSDF " << string_from_bool(features & KERNEL_FEATURE_PRINCIPLED)
+            << "\n";
+  VLOG_INFO << "Use Emission " << string_from_bool(features & KERNEL_FEATURE_NODE_EMISSION)
+            << "\n";
+  VLOG_INFO << "Use Volume " << string_from_bool(features & KERNEL_FEATURE_NODE_VOLUME) << "\n";
+  VLOG_INFO << "Use Bump " << string_from_bool(features & KERNEL_FEATURE_NODE_BUMP) << "\n";
+  VLOG_INFO << "Use Voronoi " << string_from_bool(features & KERNEL_FEATURE_NODE_VORONOI_EXTRA)
+            << "\n";
+  VLOG_INFO << "Use Shader Raytrace " << string_from_bool(features & KERNEL_FEATURE_NODE_RAYTRACE)
+            << "\n";
+  VLOG_INFO << "Use MNEE" << string_from_bool(features & KERNEL_FEATURE_MNEE) << "\n";
+  VLOG_INFO << "Use Transparent " << string_from_bool(features & KERNEL_FEATURE_TRANSPARENT)
+            << "\n";
+  VLOG_INFO << "Use Denoising " << string_from_bool(features & KERNEL_FEATURE_DENOISING) << "\n";
+  VLOG_INFO << "Use Path Tracing " << string_from_bool(features & KERNEL_FEATURE_PATH_TRACING)
+            << "\n";
+  VLOG_INFO << "Use Hair " << string_from_bool(features & KERNEL_FEATURE_HAIR) << "\n";
+  VLOG_INFO << "Use Pointclouds " << string_from_bool(features & KERNEL_FEATURE_POINTCLOUD)
+            << "\n";
+  VLOG_INFO << "Use Object Motion " << string_from_bool(features & KERNEL_FEATURE_OBJECT_MOTION)
+            << "\n";
+  VLOG_INFO << "Use Camera Motion " << string_from_bool(features & KERNEL_FEATURE_CAMERA_MOTION)
+            << "\n";
+  VLOG_INFO << "Use Baking " << string_from_bool(features & KERNEL_FEATURE_BAKING) << "\n";
+  VLOG_INFO << "Use Subsurface " << string_from_bool(features & KERNEL_FEATURE_SUBSURFACE) << "\n";
+  VLOG_INFO << "Use Volume " << string_from_bool(features & KERNEL_FEATURE_VOLUME) << "\n";
+  VLOG_INFO << "Use Patch Evaluation "
+            << string_from_bool(features & KERNEL_FEATURE_PATCH_EVALUATION) << "\n";
+  VLOG_INFO << "Use Shadow Catcher " << string_from_bool(features & KERNEL_FEATURE_SHADOW_CATCHER)
+            << "\n";
 }
 
 bool Scene::load_kernels(Progress &progress, bool lock_scene)
@@ -638,8 +680,8 @@ int Scene::get_max_closure_count()
      * closures discarded due to mixing or low weights. We need to limit
      * to MAX_CLOSURE as this is hardcoded in CPU/mega kernels, and it
      * avoids excessive memory usage for split kernels. */
-    VLOG(2) << "Maximum number of closures exceeded: " << max_closure_global << " > "
-            << MAX_CLOSURE;
+    VLOG_WARNING << "Maximum number of closures exceeded: " << max_closure_global << " > "
+                 << MAX_CLOSURE;
 
     max_closure_global = MAX_CLOSURE;
   }
@@ -686,7 +728,7 @@ int Scene::get_volume_stack_size() const
 
   volume_stack_size = min(volume_stack_size, MAX_VOLUME_STACK_SIZE);
 
-  VLOG(3) << "Detected required volume stack size " << volume_stack_size;
+  VLOG_WORK << "Detected required volume stack size " << volume_stack_size;
 
   return volume_stack_size;
 }
@@ -746,6 +788,15 @@ template<> Volume *Scene::create_node<Volume>()
   node->set_owner(this);
   geometry.push_back(node);
   geometry_manager->tag_update(this, GeometryManager::MESH_ADDED);
+  return node;
+}
+
+template<> PointCloud *Scene::create_node<PointCloud>()
+{
+  PointCloud *node = new PointCloud();
+  node->set_owner(this);
+  geometry.push_back(node);
+  geometry_manager->tag_update(this, GeometryManager::POINT_ADDED);
   return node;
 }
 
@@ -834,6 +885,12 @@ template<> void Scene::delete_node_impl(Volume *node)
 {
   delete_node_from_array(geometry, static_cast<Geometry *>(node));
   geometry_manager->tag_update(this, GeometryManager::MESH_REMOVED);
+}
+
+template<> void Scene::delete_node_impl(PointCloud *node)
+{
+  delete_node_from_array(geometry, static_cast<Geometry *>(node));
+  geometry_manager->tag_update(this, GeometryManager::POINT_REMOVED);
 }
 
 template<> void Scene::delete_node_impl(Geometry *node)

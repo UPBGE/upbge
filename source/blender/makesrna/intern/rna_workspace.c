@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup RNA
@@ -46,6 +32,7 @@
 #  include "DNA_space_types.h"
 
 #  include "ED_asset.h"
+#  include "ED_paint.h"
 
 #  include "RNA_access.h"
 
@@ -194,6 +181,12 @@ const EnumPropertyItem *rna_WorkSpace_tools_mode_itemf(bContext *UNUSED(C),
   return DummyRNA_DEFAULT_items;
 }
 
+static bool rna_WorkSpaceTool_use_paint_canvas_get(PointerRNA *ptr)
+{
+  bToolRef *tref = ptr->data;
+  return ED_paint_tool_use_canvas(NULL, tref);
+}
+
 static int rna_WorkSpaceTool_index_get(PointerRNA *ptr)
 {
   bToolRef *tref = ptr->data;
@@ -305,6 +298,12 @@ static void rna_def_workspace_tool(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Tool Mode", "");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
+  prop = RNA_def_property(srna, "use_paint_canvas", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Index", "");
+  RNA_def_property_boolean_funcs(prop, "rna_WorkSpaceTool_use_paint_canvas_get", NULL);
+  RNA_def_property_ui_text(prop, "Use Paint Canvas", "Does this tool use an painting canvas");
+
   RNA_define_verify_sdna(0);
   prop = RNA_def_property(srna, "has_datablock", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
@@ -413,6 +412,14 @@ static void rna_def_workspace(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, rna_enum_workspace_object_mode_items);
   RNA_def_property_ui_text(
       prop, "Object Mode", "Switch to this object mode when activating the workspace");
+
+  prop = RNA_def_property(srna, "use_pin_scene", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "flags", WORKSPACE_USE_PIN_SCENE);
+  RNA_def_property_ui_text(prop,
+                           "Pin Scene",
+                           "Remember the last used scene for the workspace and switch to it "
+                           "whenever this workspace is activated again");
+  RNA_def_property_update(prop, NC_WORKSPACE, NULL);
 
   /* Flags */
   prop = RNA_def_property(srna, "use_filter_by_owner", PROP_BOOLEAN, PROP_NONE);

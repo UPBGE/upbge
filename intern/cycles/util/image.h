@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #ifndef __UTIL_IMAGE_H__
 #  define __UTIL_IMAGE_H__
@@ -89,6 +76,26 @@ template<> inline uint16_t util_image_cast_from_float(float value)
 template<> inline half util_image_cast_from_float(float value)
 {
   return float_to_half_image(value);
+}
+
+/* Multiply image pixels in native data format. */
+template<typename T> inline T util_image_multiply_native(T a, T b);
+
+template<> inline float util_image_multiply_native(float a, float b)
+{
+  return a * b;
+}
+template<> inline uchar util_image_multiply_native(uchar a, uchar b)
+{
+  return ((uint32_t)a * (uint32_t)b) / 255;
+}
+template<> inline uint16_t util_image_multiply_native(uint16_t a, uint16_t b)
+{
+  return ((uint32_t)a * (uint32_t)b) / 65535;
+}
+template<> inline half util_image_multiply_native(half a, half b)
+{
+  return float_to_half_image(half_to_float_image(a) * half_to_float_image(b));
 }
 
 CCL_NAMESPACE_END

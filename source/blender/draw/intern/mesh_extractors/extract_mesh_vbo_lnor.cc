@@ -1,27 +1,13 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2021 by Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2021 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup draw
  */
 
-#include "extract_mesh.h"
+#include "extract_mesh.hh"
+
+#include "draw_subdivision.h"
 
 namespace blender::draw {
 
@@ -30,7 +16,7 @@ namespace blender::draw {
  * \{ */
 
 static void extract_lnor_init(const MeshRenderData *mr,
-                              struct MeshBatchCache *UNUSED(cache),
+                              MeshBatchCache *UNUSED(cache),
                               void *buf,
                               void *tls_data)
 {
@@ -76,6 +62,8 @@ static void extract_lnor_iter_poly_mesh(const MeshRenderData *mr,
                                         const int mp_index,
                                         void *data)
 {
+  const bool hidden = mr->hide_poly && mr->hide_poly[mp_index];
+
   const MLoop *mloop = mr->mloop;
   const int ml_index_end = mp->loopstart + mp->totloop;
   for (int ml_index = mp->loopstart; ml_index < ml_index_end; ml_index += 1) {
@@ -85,17 +73,17 @@ static void extract_lnor_iter_poly_mesh(const MeshRenderData *mr,
       *lnor_data = GPU_normal_convert_i10_v3(mr->loop_normals[ml_index]);
     }
     else if (mp->flag & ME_SMOOTH) {
-      *lnor_data = GPU_normal_convert_i10_s3(mr->mvert[ml->v].no);
+      *lnor_data = GPU_normal_convert_i10_v3(mr->vert_normals[ml->v]);
     }
     else {
       *lnor_data = GPU_normal_convert_i10_v3(mr->poly_normals[mp_index]);
     }
 
     /* Flag for paint mode overlay.
-     * Only use MR_EXTRACT_MAPPED in edit mode where it is used to display the edge-normals.
+     * Only use origindex in edit mode where it is used to display the edge-normals.
      * In paint mode it will use the un-mapped data to draw the wire-frame. */
-    if (mp->flag & ME_HIDE || (mr->edit_bmesh && mr->extract_type == MR_EXTRACT_MAPPED &&
-                               (mr->v_origindex) && mr->v_origindex[ml->v] == ORIGINDEX_NONE)) {
+    if (hidden ||
+        (mr->edit_bmesh && (mr->v_origindex) && mr->v_origindex[ml->v] == ORIGINDEX_NONE)) {
       lnor_data->w = -1;
     }
     else if (mp->flag & ME_FACE_SEL) {
@@ -107,10 +95,34 @@ static void extract_lnor_iter_poly_mesh(const MeshRenderData *mr,
   }
 }
 
+static GPUVertFormat *get_subdiv_lnor_format()
+{
+  static GPUVertFormat format = {0};
+  if (format.attr_len == 0) {
+    GPU_vertformat_attr_add(&format, "nor", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+    GPU_vertformat_alias_add(&format, "lnor");
+  }
+  return &format;
+}
+
+static void extract_lnor_init_subdiv(const DRWSubdivCache *subdiv_cache,
+                                     const MeshRenderData *UNUSED(mr),
+                                     MeshBatchCache *cache,
+                                     void *buffer,
+                                     void *UNUSED(data))
+{
+  GPUVertBuf *vbo = static_cast<GPUVertBuf *>(buffer);
+  GPUVertBuf *pos_nor = cache->final.buff.vbo.pos_nor;
+  BLI_assert(pos_nor);
+  GPU_vertbuf_init_build_on_device(vbo, get_subdiv_lnor_format(), subdiv_cache->num_subdiv_loops);
+  draw_subdiv_build_lnor_buffer(subdiv_cache, pos_nor, vbo);
+}
+
 constexpr MeshExtract create_extractor_lnor()
 {
   MeshExtract extractor = {nullptr};
   extractor.init = extract_lnor_init;
+  extractor.init_subdiv = extract_lnor_init_subdiv;
   extractor.iter_poly_bm = extract_lnor_iter_poly_bm;
   extractor.iter_poly_mesh = extract_lnor_iter_poly_mesh;
   extractor.data_type = MR_DATA_LOOP_NOR;
@@ -121,6 +133,7 @@ constexpr MeshExtract create_extractor_lnor()
 }
 
 /** \} */
+
 /* ---------------------------------------------------------------------- */
 /** \name Extract HQ Loop Normal
  * \{ */
@@ -130,7 +143,7 @@ struct gpuHQNor {
 };
 
 static void extract_lnor_hq_init(const MeshRenderData *mr,
-                                 struct MeshBatchCache *UNUSED(cache),
+                                 MeshBatchCache *UNUSED(cache),
                                  void *buf,
                                  void *tls_data)
 {
@@ -174,6 +187,8 @@ static void extract_lnor_hq_iter_poly_mesh(const MeshRenderData *mr,
                                            const int mp_index,
                                            void *data)
 {
+  const bool hidden = mr->hide_poly && mr->hide_poly[mp_index];
+
   const MLoop *mloop = mr->mloop;
   const int ml_index_end = mp->loopstart + mp->totloop;
   for (int ml_index = mp->loopstart; ml_index < ml_index_end; ml_index += 1) {
@@ -183,17 +198,17 @@ static void extract_lnor_hq_iter_poly_mesh(const MeshRenderData *mr,
       normal_float_to_short_v3(&lnor_data->x, mr->loop_normals[ml_index]);
     }
     else if (mp->flag & ME_SMOOTH) {
-      copy_v3_v3_short(&lnor_data->x, mr->mvert[ml->v].no);
+      normal_float_to_short_v3(&lnor_data->x, mr->vert_normals[ml->v]);
     }
     else {
       normal_float_to_short_v3(&lnor_data->x, mr->poly_normals[mp_index]);
     }
 
     /* Flag for paint mode overlay.
-     * Only use #MR_EXTRACT_MAPPED in edit mode where it is used to display the edge-normals.
+     * Only use origindex in edit mode where it is used to display the edge-normals.
      * In paint mode it will use the un-mapped data to draw the wire-frame. */
-    if (mp->flag & ME_HIDE || (mr->edit_bmesh && mr->extract_type == MR_EXTRACT_MAPPED &&
-                               (mr->v_origindex) && mr->v_origindex[ml->v] == ORIGINDEX_NONE)) {
+    if (hidden ||
+        (mr->edit_bmesh && (mr->v_origindex) && mr->v_origindex[ml->v] == ORIGINDEX_NONE)) {
       lnor_data->w = -1;
     }
     else if (mp->flag & ME_FACE_SEL) {
@@ -209,6 +224,7 @@ constexpr MeshExtract create_extractor_lnor_hq()
 {
   MeshExtract extractor = {nullptr};
   extractor.init = extract_lnor_hq_init;
+  extractor.init_subdiv = extract_lnor_init_subdiv;
   extractor.iter_poly_bm = extract_lnor_hq_iter_poly_bm;
   extractor.iter_poly_mesh = extract_lnor_hq_iter_poly_mesh;
   extractor.data_type = MR_DATA_LOOP_NOR;
@@ -222,7 +238,5 @@ constexpr MeshExtract create_extractor_lnor_hq()
 
 }  // namespace blender::draw
 
-extern "C" {
 const MeshExtract extract_lnor = blender::draw::create_extractor_lnor();
 const MeshExtract extract_lnor_hq = blender::draw::create_extractor_lnor_hq();
-}

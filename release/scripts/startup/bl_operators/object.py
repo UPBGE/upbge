@@ -1,28 +1,11 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
-# <pep8-80 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 import bpy
 from bpy.types import Operator
 from bpy.props import (
     BoolProperty,
     EnumProperty,
+    FloatProperty,
     IntProperty,
     StringProperty,
 )
@@ -614,6 +597,8 @@ class MakeDupliFace(Operator):
         for obj in context.selected_objects:
             if obj.type == 'MESH':
                 linked[obj.data].append(obj)
+            elif obj.type == 'EMPTY' and obj.instance_type == 'COLLECTION' and obj.instance_collection:
+                linked[obj.instance_collection].append(obj)
 
         for data, objects in linked.items():
             face_verts = [axis for obj in objects
@@ -639,7 +624,12 @@ class MakeDupliFace(Operator):
             ob_new = bpy.data.objects.new(mesh.name, mesh)
             context.collection.objects.link(ob_new)
 
-            ob_inst = bpy.data.objects.new(data.name, data)
+            if type(data) is bpy.types.Collection:
+                ob_inst = bpy.data.objects.new(data.name, None)
+                ob_inst.instance_type = 'COLLECTION'
+                ob_inst.instance_collection = data
+            else:
+                ob_inst = bpy.data.objects.new(data.name, data)
             context.collection.objects.link(ob_inst)
 
             ob_new.instance_type = 'FACES'
@@ -864,16 +854,199 @@ class DupliOffsetFromCursor(Operator):
     bl_label = "Set Offset from Cursor"
     bl_options = {'INTERNAL', 'UNDO'}
 
-    @classmethod
-    def poll(cls, context):
-        return (context.active_object is not None)
-
     def execute(self, context):
         scene = context.scene
         collection = context.collection
 
         collection.instance_offset = scene.cursor.location
 
+        return {'FINISHED'}
+
+class LodByName(Operator):
+    """Add levels of detail to this object based on object names"""
+    bl_idname = "object.lod_by_name"
+    bl_label = "Setup Levels of Detail By Name"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return (context.active_object is not None)
+
+    def execute(self, context):
+        ob = context.active_object
+
+        prefix = ""
+        suffix = ""
+        name = ""
+        if ob.name.lower().startswith("lod0"):
+            prefix = ob.name[:4]
+            name = ob.name[4:]
+        elif ob.name.lower().endswith("lod0"):
+            name = ob.name[:-4]
+            suffix = ob.name[-4:]
+        else:
+            return {'CANCELLED'}
+
+        level = 0
+        while True:
+            level += 1
+
+            if prefix:
+                prefix = prefix[:3] + str(level)
+            if suffix:
+                suffix = suffix[:3] + str(level)
+
+            lod = None
+            try:
+                lod = bpy.data.objects[prefix + name + suffix]
+            except KeyError:
+                break
+
+            try:
+                ob.lod_levels[level]
+            except IndexError:
+                bpy.ops.object.lod_add()
+
+            ob.lod_levels[level].object = lod
+
+        return {'FINISHED'}
+
+
+class LodClearAll(Operator):
+    """Remove all levels of detail from this object"""
+    bl_idname = "object.lod_clear_all"
+    bl_label = "Clear All Levels of Detail"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return (context.active_object is not None)
+
+    def execute(self, context):
+        ob = context.active_object
+
+        if ob.lod_levels:
+            while 'CANCELLED' not in bpy.ops.object.lod_remove():
+                pass
+
+        return {'FINISHED'}
+
+
+class LodGenerate(Operator):
+    """Generate levels of detail using the decimate modifier"""
+    bl_idname = "object.lod_generate"
+    bl_label = "Generate Levels of Detail"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    count: IntProperty(
+        name="Count",
+        default=3,
+    )
+    target: FloatProperty(
+        name="Target Size",
+        min=0.0, max=1.0,
+        default=0.1,
+    )
+    package: BoolProperty(
+        name="Package into Group",
+        default=False,
+    )
+
+    @classmethod
+    def poll(cls, context):
+        return (context.active_object is not None)
+
+    def execute(self, context):
+        scene = context.scene
+        ob = context.active_object
+
+        lod_name = ob.name
+        lod_suffix = "lod"
+        lod_prefix = ""
+        if lod_name.lower().endswith("lod0"):
+            lod_suffix = lod_name[-3:-1]
+            lod_name = lod_name[:-3]
+        elif lod_name.lower().startswith("lod0"):
+            lod_suffix = ""
+            lod_prefix = lod_name[:3]
+            lod_name = lod_name[4:]
+
+        group_name = lod_name.strip(' ._')
+        if self.package:
+            try:
+                bpy.ops.object.group_link(group=group_name)
+            except TypeError:
+                bpy.ops.group.create(name=group_name)
+
+        step = (1.0 - self.target) / (self.count - 1)
+        for i in range(1, self.count):
+            context.view_layer.objects.active = ob
+            bpy.ops.object.duplicate()
+            lod = context.selected_objects[0]
+
+            context.view_layer.objects.active = ob
+            bpy.ops.object.lod_add()
+            context.view_layer.objects.active = lod
+
+            if lod_prefix:
+                lod.name = lod_prefix + str(i) + lod_name
+            else:
+                lod.name = lod_name + lod_suffix + str(i)
+
+            lod.location.y = ob.location.y + 3.0 * i
+
+            if i == 1:
+                modifier = lod.modifiers.new("lod_decimate", 'DECIMATE')
+            else:
+                modifier = lod.modifiers[-1]
+
+            modifier.ratio = 1.0 - step * i
+
+            ob.lod_levels[i].object = lod
+
+            if self.package:
+                bpy.ops.object.group_link(group=group_name)
+                lod.parent = ob
+
+        if self.package:
+            for level in ob.lod_levels[1:]:
+                level.object.hide = level.object.hide_render = True
+
+        lod.select_set(False)
+        ob.select_set(True)
+        context.view_layer.objects.active = ob
+
+        return {'FINISHED'}
+
+
+class DupliOffsetToCursor(Operator):
+    """Set cursor position to the offset used for collection instances"""
+    bl_idname = "object.instance_offset_to_cursor"
+    bl_label = "Set Cursor to Offset"
+    bl_options = {'INTERNAL', 'UNDO'}
+
+    def execute(self, context):
+        scene = context.scene
+        collection = context.collection
+        scene.cursor.location = collection.instance_offset
+        return {'FINISHED'}
+
+
+class DupliOffsetFromObject(Operator):
+    """Set offset used for collection instances based on the active object position"""
+    bl_idname = "object.instance_offset_from_object"
+    bl_label = "Set Offset from Object"
+    bl_options = {'INTERNAL', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return (context.active_object is not None)
+
+    def execute(self, context):
+        ob_eval = context.active_object.evaluated_get(context.view_layer.depsgraph)
+        world_loc = ob_eval.matrix_world.to_translation()
+        collection = context.collection
+        collection.instance_offset = world_loc
         return {'FINISHED'}
 
 
@@ -953,7 +1126,7 @@ class LoadReferenceImage(LoadImageAsEmpty, Operator):
 
 class OBJECT_OT_assign_property_defaults(Operator):
     """Assign the current values of custom properties as their defaults, """ \
-    """for use as part of the rest pose state in NLA track mixing"""
+        """for use as part of the rest pose state in NLA track mixing"""
     bl_idname = "object.assign_property_defaults"
     bl_label = "Assign Custom Property Values as Default"
     bl_options = {'UNDO', 'REGISTER'}
@@ -994,14 +1167,88 @@ class OBJECT_OT_assign_property_defaults(Operator):
 
         return {'FINISHED'}
 
+class LodByName(Operator):
+    """Add levels of detail to this object based on object names"""
+    bl_idname = "object.lod_by_name"
+    bl_label = "Setup Levels of Detail By Name"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return (context.active_object is not None)
+
+    def execute(self, context):
+        ob = context.active_object
+
+        prefix = ""
+        suffix = ""
+        name = ""
+        if ob.name.lower().startswith("lod0"):
+            prefix = ob.name[:4]
+            name = ob.name[4:]
+        elif ob.name.lower().endswith("lod0"):
+            name = ob.name[:-4]
+            suffix = ob.name[-4:]
+        else:
+            return {'CANCELLED'}
+
+        level = 0
+        while True:
+            level += 1
+
+            if prefix:
+                prefix = prefix[:3] + str(level)
+            if suffix:
+                suffix = suffix[:3] + str(level)
+
+            lod = None
+            try:
+                lod = bpy.data.objects[prefix + name + suffix]
+            except KeyError:
+                break
+
+            try:
+                ob.lod_levels[level]
+            except IndexError:
+                bpy.ops.object.lod_add()
+
+            ob.lod_levels[level].object = lod
+
+        return {'FINISHED'}
+
+
+class LodClearAll(Operator):
+    """Remove all levels of detail from this object"""
+    bl_idname = "object.lod_clear_all"
+    bl_label = "Clear All Levels of Detail"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return (context.active_object is not None)
+
+    def execute(self, context):
+        ob = context.active_object
+
+        if ob.lod_levels:
+            while 'CANCELLED' not in bpy.ops.object.lod_remove():
+                pass
+
+        return {'FINISHED'}
+
 
 classes = (
     ClearAllRestrictRender,
     DupliOffsetFromCursor,
+    DupliOffsetToCursor,
+    DupliOffsetFromObject,
     IsolateTypeRender,
     JoinUVs,
     LoadBackgroundImage,
     LoadReferenceImage,
+    LodByName,
+    LodClearAll,
+    LodGenerate,
     MakeDupliFace,
     SelectCamera,
     SelectHierarchy,

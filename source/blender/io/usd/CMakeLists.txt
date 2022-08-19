@@ -1,22 +1,5 @@
-# ***** BEGIN GPL LICENSE BLOCK *****
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# The Original Code is Copyright (C) 2019, Blender Foundation
-# All rights reserved.
-# ***** END GPL LICENSE BLOCK *****
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright 2019 Blender Foundation. All rights reserved.
 
 # This suppresses the warning "This file includes at least one deprecated or antiquated
 # header which may be removed without further notice at a future date", which is caused
@@ -33,6 +16,24 @@ add_definitions(-DPXR_STATIC)
 # USD headers use deprecated TBB headers, silence warning.
 add_definitions(-DTBB_SUPPRESS_DEPRECATED_MESSAGES=1)
 
+# Check if USD has the imaging headers available, if they are
+# add a USD_HAS_IMAGING define so code can dynamically detect this.
+# Cleanup of this variable is done at the end of the file since
+# test code further down uses it to add imaging tests.
+FIND_FILE(USD_IMAGING_HEADERS
+  NAMES
+    capsuleAdapter.h
+  PATHS
+     ${USD_INCLUDE_DIRS}
+  PATH_SUFFIXES
+      pxr/usdImaging/usdImaging/
+  NO_DEFAULT_PATH
+)
+
+if(USD_IMAGING_HEADERS)
+  add_definitions(-DUSD_HAS_IMAGING)
+endif()
+
 set(INC
   .
   ../common
@@ -42,6 +43,7 @@ set(INC
   ../../bmesh
   ../../depsgraph
   ../../editors/include
+  ../../imbuf
   ../../makesdna
   ../../makesrna
   ../../windowmanager
@@ -64,9 +66,11 @@ set(SRC
   intern/usd_writer_camera.cc
   intern/usd_writer_hair.cc
   intern/usd_writer_light.cc
+  intern/usd_writer_material.cc
   intern/usd_writer_mesh.cc
   intern/usd_writer_metaball.cc
   intern/usd_writer_transform.cc
+  intern/usd_writer_volume.cc
 
   intern/usd_reader_camera.cc
   intern/usd_reader_curve.cc
@@ -89,9 +93,11 @@ set(SRC
   intern/usd_writer_camera.h
   intern/usd_writer_hair.h
   intern/usd_writer_light.h
+  intern/usd_writer_material.h
   intern/usd_writer_mesh.h
   intern/usd_writer_metaball.h
   intern/usd_writer_transform.h
+  intern/usd_writer_volume.h
 
   intern/usd_reader_camera.h
   intern/usd_reader_curve.h
@@ -109,6 +115,7 @@ set(SRC
 set(LIB
   bf_blenkernel
   bf_blenlib
+  bf_imbuf
   bf_io_common
 )
 
@@ -116,16 +123,23 @@ list(APPEND LIB
   ${BOOST_LIBRARIES}
 )
 
-list(APPEND LIB
-)
+if(WITH_OPENVDB)
+  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
+  list(APPEND INC_SYS
+    ${OPENVDB_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    ${OPENVDB_LIBRARIES}
+  )
+endif()
 
 blender_add_lib(bf_usd "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
 if(WIN32)
-  set_property(TARGET bf_usd APPEND_STRING PROPERTY LINK_FLAGS_DEBUG " /WHOLEARCHIVE:${USD_DEBUG_LIB}")
-  set_property(TARGET bf_usd APPEND_STRING PROPERTY LINK_FLAGS_RELEASE " /WHOLEARCHIVE:${USD_RELEASE_LIB}")
-  set_property(TARGET bf_usd APPEND_STRING PROPERTY LINK_FLAGS_RELWITHDEBINFO " /WHOLEARCHIVE:${USD_RELEASE_LIB}")
-  set_property(TARGET bf_usd APPEND_STRING PROPERTY LINK_FLAGS_MINSIZEREL " /WHOLEARCHIVE:${USD_RELEASE_LIB}")
+  set_property(TARGET bf_usd APPEND_STRING PROPERTY INTERFACE_LINK_OPTIONS "$<$<CONFIG:Debug>:/WHOLEARCHIVE:${USD_DEBUG_LIB}>")
+  set_property(TARGET bf_usd APPEND_STRING PROPERTY INTERFACE_LINK_OPTIONS "$<$<CONFIG:Release>:/WHOLEARCHIVE:${USD_RELEASE_LIB}>")
+  set_property(TARGET bf_usd APPEND_STRING PROPERTY INTERFACE_LINK_OPTIONS "$<$<CONFIG:RelWithDebInfo>:/WHOLEARCHIVE:${USD_RELEASE_LIB}>")
+  set_property(TARGET bf_usd APPEND_STRING PROPERTY INTERFACE_LINK_OPTIONS "$<$<CONFIG:MinSizeRel>:/WHOLEARCHIVE:${USD_RELEASE_LIB}>")
 endif()
 
 # Source: https://github.com/PixarAnimationStudios/USD/blob/master/BUILDING.md#linking-whole-archives
@@ -144,7 +158,13 @@ target_link_libraries(bf_usd INTERFACE ${TBB_LIBRARIES})
 if(WITH_GTESTS)
   set(TEST_SRC
     tests/usd_stage_creation_test.cc
+    tests/usd_tests_common.cc
+    tests/usd_tests_common.h
   )
+  if(USD_IMAGING_HEADERS)
+    LIST(APPEND TEST_SRC tests/usd_imaging_test.cc)
+  endif()
+
   set(TEST_INC
   )
   set(TEST_LIB
@@ -152,3 +172,7 @@ if(WITH_GTESTS)
   include(GTestTesting)
   blender_add_test_lib(bf_io_usd_tests "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")
 endif()
+
+# In cmake version 3.21 and up, we can instead use the NO_CACHE option for
+# find_file so we don't need to clear it from the cache here.
+unset(USD_IMAGING_HEADERS CACHE)

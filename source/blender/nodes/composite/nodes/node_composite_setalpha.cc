@@ -1,57 +1,93 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2006 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2006 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup cmpnodes
  */
 
+#include "UI_interface.h"
+#include "UI_resources.h"
+
+#include "GPU_material.h"
+
+#include "COM_shader_node.hh"
+
 #include "node_composite_util.hh"
 
 /* **************** SET ALPHA ******************** */
 
-namespace blender::nodes {
+namespace blender::nodes::node_composite_setalpha_cc {
 
 static void cmp_node_setalpha_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>(N_("Image")).default_value({1.0f, 1.0f, 1.0f, 1.0f});
-  b.add_input<decl::Float>(N_("Alpha")).default_value(1.0f).min(0.0f).max(1.0f);
+  b.add_input<decl::Color>(N_("Image"))
+      .default_value({1.0f, 1.0f, 1.0f, 1.0f})
+      .compositor_domain_priority(0);
+  b.add_input<decl::Float>(N_("Alpha"))
+      .default_value(1.0f)
+      .min(0.0f)
+      .max(1.0f)
+      .compositor_domain_priority(1);
   b.add_output<decl::Color>(N_("Image"));
 }
 
-}  // namespace blender::nodes
-
 static void node_composit_init_setalpha(bNodeTree *UNUSED(ntree), bNode *node)
 {
-  NodeSetAlpha *settings = (NodeSetAlpha *)MEM_callocN(sizeof(NodeSetAlpha), __func__);
+  NodeSetAlpha *settings = MEM_cnew<NodeSetAlpha>(__func__);
   node->storage = settings;
   settings->mode = CMP_NODE_SETALPHA_MODE_APPLY;
 }
 
-void register_node_type_cmp_setalpha(void)
+static void node_composit_buts_set_alpha(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
+  uiItemR(layout, ptr, "mode", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+}
+
+using namespace blender::realtime_compositor;
+
+class SetAlphaShaderNode : public ShaderNode {
+ public:
+  using ShaderNode::ShaderNode;
+
+  void compile(GPUMaterial *material) override
+  {
+    GPUNodeStack *inputs = get_inputs_array();
+    GPUNodeStack *outputs = get_outputs_array();
+
+    if (get_node_set_alpha()->mode == CMP_NODE_SETALPHA_MODE_APPLY) {
+      GPU_stack_link(material, &bnode(), "node_composite_set_alpha_apply", inputs, outputs);
+      return;
+    }
+
+    GPU_stack_link(material, &bnode(), "node_composite_set_alpha_replace", inputs, outputs);
+  }
+
+  NodeSetAlpha *get_node_set_alpha()
+  {
+    return static_cast<NodeSetAlpha *>(bnode().storage);
+  }
+};
+
+static ShaderNode *get_compositor_shader_node(DNode node)
+{
+  return new SetAlphaShaderNode(node);
+}
+
+}  // namespace blender::nodes::node_composite_setalpha_cc
+
+void register_node_type_cmp_setalpha()
+{
+  namespace file_ns = blender::nodes::node_composite_setalpha_cc;
+
   static bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_SETALPHA, "Set Alpha", NODE_CLASS_CONVERTER, 0);
-  ntype.declare = blender::nodes::cmp_node_setalpha_declare;
-  node_type_init(&ntype, node_composit_init_setalpha);
+  cmp_node_type_base(&ntype, CMP_NODE_SETALPHA, "Set Alpha", NODE_CLASS_CONVERTER);
+  ntype.declare = file_ns::cmp_node_setalpha_declare;
+  ntype.draw_buttons = file_ns::node_composit_buts_set_alpha;
+  node_type_init(&ntype, file_ns::node_composit_init_setalpha);
   node_type_storage(
       &ntype, "NodeSetAlpha", node_free_standard_storage, node_copy_standard_storage);
+  ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;
 
   nodeRegisterType(&ntype);
 }

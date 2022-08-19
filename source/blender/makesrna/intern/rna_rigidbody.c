@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup RNA
@@ -162,7 +148,7 @@ static void rna_RigidBodyWorld_reset(Main *UNUSED(bmain), Scene *UNUSED(scene), 
   BKE_rigidbody_cache_reset(rbw);
 }
 
-static char *rna_RigidBodyWorld_path(PointerRNA *UNUSED(ptr))
+static char *rna_RigidBodyWorld_path(const PointerRNA *UNUSED(ptr))
 {
   return BLI_strdup("rigidbody_world");
 }
@@ -254,7 +240,7 @@ static void rna_RigidBodyOb_mesh_source_update(Main *bmain, Scene *scene, Pointe
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, ob);
 }
 
-static char *rna_RigidBodyOb_path(PointerRNA *UNUSED(ptr))
+static char *rna_RigidBodyOb_path(const PointerRNA *UNUSED(ptr))
 {
   /* NOTE: this hardcoded path should work as long as only Objects have this */
   return BLI_strdup("rigid_body");
@@ -446,7 +432,7 @@ static void rna_RigidBodyOb_angular_damping_set(PointerRNA *ptr, float value)
 #  endif
 }
 
-static char *rna_RigidBodyCon_path(PointerRNA *UNUSED(ptr))
+static char *rna_RigidBodyCon_path(const PointerRNA *UNUSED(ptr))
 {
   /* NOTE: this hardcoded path should work as long as only Objects have this */
   return BLI_strdup("rigid_body_constraint");
@@ -957,6 +943,7 @@ static void rna_def_rigidbody_world(BlenderRNA *brna)
   prop = RNA_def_property(srna, "effector_weights", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "EffectorWeights");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Effector Weights", "");
 
   /* Sweep test */

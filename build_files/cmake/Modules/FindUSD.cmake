@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright 2019 Blender Foundation.
+
 # - Find Universal Scene Description (USD) library
 # Find the native USD includes and libraries
 # This module defines
@@ -8,13 +11,6 @@
 #                    This can also be an environment variable.
 #  USD_FOUND, If false, do not try to use USD.
 #
-
-#=============================================================================
-# Copyright 2019 Blender Foundation.
-#
-# Distributed under the OSI-approved BSD 3-Clause License,
-# see accompanying file BSD-3-Clause-license.txt for details.
-#=============================================================================
 
 # If USD_ROOT_DIR was defined in the environment, use it.
 IF(NOT USD_ROOT_DIR AND NOT $ENV{USD_ROOT_DIR} STREQUAL "")
@@ -36,9 +32,12 @@ FIND_PATH(USD_INCLUDE_DIR
   DOC "Universal Scene Description (USD) header files"
 )
 
+# Since USD 21.11 the libraries are prefixed with "usd_", i.e. "libusd_m.a" became "libusd_usd_m.a".
+# See https://github.com/PixarAnimationStudios/USD/blob/release/CHANGELOG.md#2111---2021-11-01
 FIND_LIBRARY(USD_LIBRARY
   NAMES
-    usd_m usd_ms
+    usd_usd_m usd_usd_ms usd_m usd_ms
+    ${PXR_LIB_PREFIX}usd
   NAMES_PER_DIR
   HINTS
     ${_usd_SEARCH_DIRS}
@@ -65,6 +64,7 @@ ENDIF()
 MARK_AS_ADVANCED(
   USD_INCLUDE_DIR
   USD_LIBRARY_DIR
+  USD_LIBRARY
 )
 
 UNSET(_usd_SEARCH_DIRS)

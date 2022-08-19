@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #pragma once
 
@@ -103,7 +90,7 @@ ccl_device void camera_sample_perspective(KernelGlobals kg,
 #ifdef __CAMERA_MOTION__
   if (kernel_data.cam.num_motion_steps) {
     transform_motion_array_interpolate(&cameratoworld,
-                                       kernel_tex_array(__camera_motion),
+                                       kernel_data_array(camera_motion),
                                        kernel_data.cam.num_motion_steps,
                                        ray->time);
   }
@@ -178,9 +165,11 @@ ccl_device void camera_sample_perspective(KernelGlobals kg,
   float nearclip = kernel_data.cam.nearclip * z_inv;
   ray->P += nearclip * ray->D;
   ray->dP += nearclip * ray->dD;
-  ray->t = kernel_data.cam.cliplength * z_inv;
+  ray->tmin = 0.0f;
+  ray->tmax = kernel_data.cam.cliplength * z_inv;
 #else
-  ray->t = FLT_MAX;
+  ray->tmin = 0.0f;
+  ray->tmax = FLT_MAX;
 #endif
 }
 
@@ -223,7 +212,7 @@ ccl_device void camera_sample_orthographic(KernelGlobals kg,
 #ifdef __CAMERA_MOTION__
   if (kernel_data.cam.num_motion_steps) {
     transform_motion_array_interpolate(&cameratoworld,
-                                       kernel_tex_array(__camera_motion),
+                                       kernel_data_array(camera_motion),
                                        kernel_data.cam.num_motion_steps,
                                        ray->time);
   }
@@ -244,9 +233,11 @@ ccl_device void camera_sample_orthographic(KernelGlobals kg,
 
 #ifdef __CAMERA_CLIPPING__
   /* clipping */
-  ray->t = kernel_data.cam.cliplength;
+  ray->tmin = 0.0f;
+  ray->tmax = kernel_data.cam.cliplength;
 #else
-  ray->t = FLT_MAX;
+  ray->tmin = 0.0f;
+  ray->tmax = FLT_MAX;
 #endif
 }
 
@@ -271,7 +262,7 @@ ccl_device_inline void camera_sample_panorama(ccl_constant KernelCamera *cam,
 
   /* indicates ray should not receive any light, outside of the lens */
   if (is_zero(D)) {
-    ray->t = 0.0f;
+    ray->tmax = 0.0f;
     return;
   }
 
@@ -362,9 +353,11 @@ ccl_device_inline void camera_sample_panorama(ccl_constant KernelCamera *cam,
   float nearclip = cam->nearclip;
   ray->P += nearclip * ray->D;
   ray->dP += nearclip * ray->dD;
-  ray->t = cam->cliplength;
+  ray->tmin = 0.0f;
+  ray->tmax = cam->cliplength;
 #else
-  ray->t = FLT_MAX;
+  ray->tmin = 0.0f;
+  ray->tmax = FLT_MAX;
 #endif
 }
 
@@ -381,7 +374,7 @@ ccl_device_inline void camera_sample(KernelGlobals kg,
                                      ccl_private Ray *ray)
 {
   /* pixel filter */
-  int filter_table_offset = kernel_data.film.filter_table_offset;
+  int filter_table_offset = kernel_data.tables.filter_table_offset;
   float raster_x = x + lookup_table_read(kg, filter_u, filter_table_offset, FILTER_TABLE_SIZE);
   float raster_y = y + lookup_table_read(kg, filter_v, filter_table_offset, FILTER_TABLE_SIZE);
 
@@ -434,7 +427,7 @@ ccl_device_inline void camera_sample(KernelGlobals kg,
   }
   else {
 #ifdef __CAMERA_MOTION__
-    ccl_global const DecomposedTransform *cam_motion = kernel_tex_array(__camera_motion);
+    ccl_global const DecomposedTransform *cam_motion = kernel_data_array(camera_motion);
     camera_sample_panorama(&kernel_data.cam, cam_motion, raster_x, raster_y, lens_u, lens_v, ray);
 #else
     camera_sample_panorama(&kernel_data.cam, raster_x, raster_y, lens_u, lens_v, ray);

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2008 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2008 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup spgraph
@@ -52,11 +36,13 @@
 /* ************************** view-based operators **********************************/
 /* XXX should these really be here? */
 
-/* Set Cursor --------------------------------------------------------------------- */
-/* The 'cursor' in the Graph Editor consists of two parts:
+/* -------------------------------------------------------------------- */
+/** \name Set Cursor
+ *
+ * The 'cursor' in the Graph Editor consists of two parts:
  * 1) Current Frame Indicator (as per ANIM_OT_change_frame)
  * 2) Value Indicator (stored per Graph Editor instance)
- */
+ * \{ */
 
 static bool graphview_cursor_poll(bContext *C)
 {
@@ -86,22 +72,22 @@ static void graphview_cursor_apply(bContext *C, wmOperator *op)
      * NOTE: sync this part of the code with ANIM_OT_change_frame
      */
     /* 1) frame is rounded to the nearest int, since frames are ints */
-    CFRA = round_fl_to_int(frame);
+    scene->r.cfra = round_fl_to_int(frame);
 
     if (scene->r.flag & SCER_LOCK_FRAME_SELECTION) {
       /* Clip to preview range
        * NOTE: Preview range won't go into negative values,
        *       so only clamping once should be fine.
        */
-      CLAMP(CFRA, PSFRA, PEFRA);
+      CLAMP(scene->r.cfra, PSFRA, PEFRA);
     }
     else {
       /* Prevent negative frames */
-      FRAMENUMBER_MIN_CLAMP(CFRA);
+      FRAMENUMBER_MIN_CLAMP(scene->r.cfra);
     }
 
-    SUBFRA = 0.0f;
-    DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO_SEEK);
+    scene->r.subframe = 0.0f;
+    DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
   }
 
   /* set the cursor value */
@@ -225,7 +211,11 @@ static void GRAPH_OT_cursor_set(wmOperatorType *ot)
   RNA_def_float(ot->srna, "value", 0, -FLT_MAX, FLT_MAX, "Value", "", -100.0f, 100.0f);
 }
 
-/* Hide/Reveal ------------------------------------------------------------ */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Hide/Reveal
+ * \{ */
 
 static int graphview_curves_hide_exec(bContext *C, wmOperator *op)
 {
@@ -244,14 +234,16 @@ static int graphview_curves_hide_exec(bContext *C, wmOperator *op)
   /* get list of all channels that selection may need to be flushed to
    * - hierarchy must not affect what we have access to here...
    */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_CHANNELS | ANIMFILTER_NODUPLIS);
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FCURVESONLY | ANIMFILTER_LIST_CHANNELS |
+            ANIMFILTER_NODUPLIS);
   ANIM_animdata_filter(&ac, &all_data, filter, ac.data, ac.datatype);
 
   /* filter data
    * - of the remaining visible curves, we want to hide the ones that are
    *   selected/unselected (depending on "unselected" prop)
    */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_CURVE_VISIBLE | ANIMFILTER_NODUPLIS);
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FCURVESONLY | ANIMFILTER_CURVE_VISIBLE |
+            ANIMFILTER_NODUPLIS);
   if (unselected) {
     filter |= ANIMFILTER_UNSEL;
   }
@@ -285,7 +277,8 @@ static int graphview_curves_hide_exec(bContext *C, wmOperator *op)
   /* unhide selected */
   if (unselected) {
     /* turn off requirement for visible */
-    filter = ANIMFILTER_SEL | ANIMFILTER_NODUPLIS | ANIMFILTER_LIST_CHANNELS;
+    filter = ANIMFILTER_SEL | ANIMFILTER_NODUPLIS | ANIMFILTER_LIST_CHANNELS |
+             ANIMFILTER_FCURVESONLY;
 
     /* flushing has been done */
     ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
@@ -354,13 +347,15 @@ static int graphview_curves_reveal_exec(bContext *C, wmOperator *op)
   /* get list of all channels that selection may need to be flushed to
    * - hierarchy must not affect what we have access to here...
    */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_CHANNELS | ANIMFILTER_NODUPLIS);
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_CHANNELS | ANIMFILTER_NODUPLIS |
+            ANIMFILTER_FCURVESONLY);
   ANIM_animdata_filter(&ac, &all_data, filter, ac.data, ac.datatype);
 
   /* filter data
    * - just go through all visible channels, ensuring that everything is set to be curve-visible
    */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_NODUPLIS);
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_NODUPLIS |
+            ANIMFILTER_FCURVESONLY);
   ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 
   for (ale = anim_data.first; ale; ale = ale->next) {
@@ -413,7 +408,11 @@ static void GRAPH_OT_reveal(wmOperatorType *ot)
   RNA_def_boolean(ot->srna, "select", true, "Select", "");
 }
 
-/* ************************** registration - operator types **********************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Registration: operator types
+ * \{ */
 
 void graphedit_operatortypes(void)
 {
@@ -446,6 +445,7 @@ void graphedit_operatortypes(void)
 
   /* editing */
   WM_operatortype_append(GRAPH_OT_snap);
+  WM_operatortype_append(GRAPH_OT_equalize_handles);
   WM_operatortype_append(GRAPH_OT_mirror);
   WM_operatortype_append(GRAPH_OT_frame_jump);
   WM_operatortype_append(GRAPH_OT_snap_cursor_value);
@@ -460,6 +460,9 @@ void graphedit_operatortypes(void)
   WM_operatortype_append(GRAPH_OT_smooth);
   WM_operatortype_append(GRAPH_OT_clean);
   WM_operatortype_append(GRAPH_OT_decimate);
+  WM_operatortype_append(GRAPH_OT_blend_to_neighbor);
+  WM_operatortype_append(GRAPH_OT_breakdown);
+  WM_operatortype_append(GRAPH_OT_blend_to_default);
   WM_operatortype_append(GRAPH_OT_euler_filter);
   WM_operatortype_append(GRAPH_OT_delete);
   WM_operatortype_append(GRAPH_OT_duplicate);
@@ -496,7 +499,11 @@ void ED_operatormacros_graph(void)
   RNA_boolean_set(otmacro->ptr, "use_proportional_edit", false);
 }
 
-/* ************************** registration - keymaps **********************************/
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Registration: Key-Maps
+ * \{ */
 
 void graphedit_keymap(wmKeyConfig *keyconf)
 {
@@ -514,3 +521,5 @@ void graphedit_keymap(wmKeyConfig *keyconf)
   /* keyframes */
   WM_keymap_ensure(keyconf, "Graph Editor", SPACE_GRAPH, 0);
 }
+
+/** \} */

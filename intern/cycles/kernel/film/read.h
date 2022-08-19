@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #pragma once
 
@@ -214,6 +201,21 @@ ccl_device_inline void film_get_pass_pixel_light_path(
   pixel[0] = f.x;
   pixel[1] = f.y;
   pixel[2] = f.z;
+
+  /* Optional alpha channel. */
+  if (kfilm_convert->num_components >= 4) {
+    if (kfilm_convert->pass_combined != PASS_UNUSED) {
+      float scale, scale_exposure;
+      film_get_scale_and_scale_exposure(kfilm_convert, buffer, &scale, &scale_exposure);
+
+      ccl_global const float *in_combined = buffer + kfilm_convert->pass_combined;
+      const float alpha = in_combined[3] * scale;
+      pixel[3] = film_transparency_to_alpha(alpha);
+    }
+    else {
+      pixel[3] = 1.0f;
+    }
+  }
 }
 
 ccl_device_inline void film_get_pass_pixel_float3(ccl_global const KernelFilmConvert *ccl_restrict
@@ -449,7 +451,7 @@ ccl_device_inline float4 film_calculate_shadow_catcher_matte_with_shadow(
 
   float scale, scale_exposure;
   if (!film_get_scale_and_scale_exposure(kfilm_convert, buffer, &scale, &scale_exposure)) {
-    return make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+    return zero_float4();
   }
 
   ccl_global const float *in_matte = buffer + kfilm_convert->pass_shadow_catcher_matte;

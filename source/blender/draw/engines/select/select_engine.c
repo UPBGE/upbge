@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2019, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2019 Blender Foundation. */
 
 /** \file
  * \ingroup draw_engine
@@ -47,11 +32,6 @@ static struct {
   struct SELECTID_Context context;
   uint runtime_new_objects;
 } e_data = {NULL}; /* Engine data */
-
-/* Shaders */
-extern char datatoc_common_view_lib_glsl[];
-extern char datatoc_selection_id_3D_vert_glsl[];
-extern char datatoc_selection_id_frag_glsl[];
 
 /* -------------------------------------------------------------------- */
 /** \name Utils
@@ -103,26 +83,12 @@ static void select_engine_init(void *vedata)
 
   /* Prepass */
   if (!sh_data->select_id_flat) {
-    const GPUShaderConfigData *sh_cfg_data = &GPU_shader_cfg_data[sh_cfg];
-    sh_data->select_id_flat = GPU_shader_create_from_arrays({
-        .vert = (const char *[]){sh_cfg_data->lib,
-                                 datatoc_common_view_lib_glsl,
-                                 datatoc_selection_id_3D_vert_glsl,
-                                 NULL},
-        .frag = (const char *[]){datatoc_selection_id_frag_glsl, NULL},
-        .defs = (const char *[]){sh_cfg_data->def, NULL},
-    });
+    sh_data->select_id_flat = GPU_shader_create_from_info_name(
+        sh_cfg == GPU_SHADER_CFG_CLIPPED ? "select_id_flat_clipped" : "select_id_flat");
   }
   if (!sh_data->select_id_uniform) {
-    const GPUShaderConfigData *sh_cfg_data = &GPU_shader_cfg_data[sh_cfg];
-    sh_data->select_id_uniform = GPU_shader_create_from_arrays({
-        .vert = (const char *[]){sh_cfg_data->lib,
-                                 datatoc_common_view_lib_glsl,
-                                 datatoc_selection_id_3D_vert_glsl,
-                                 NULL},
-        .frag = (const char *[]){datatoc_selection_id_frag_glsl, NULL},
-        .defs = (const char *[]){sh_cfg_data->def, "#define UNIFORM_ID\n", NULL},
-    });
+    sh_data->select_id_uniform = GPU_shader_create_from_info_name(
+        sh_cfg == GPU_SHADER_CFG_CLIPPED ? "select_id_uniform_clipped" : "select_id_uniform");
   }
 
   if (!stl->g_data) {
@@ -193,7 +159,7 @@ static void select_cache_init(void *vedata)
     if (e_data.context.select_mode & SCE_SELECT_VERTEX) {
       DRW_PASS_CREATE(psl->select_id_vert_pass, state);
       pd->shgrp_vert = DRW_shgroup_create(sh->select_id_flat, psl->select_id_vert_pass);
-      DRW_shgroup_uniform_float_copy(pd->shgrp_vert, "sizeVertex", 2 * G_draw.block.sizeVertex);
+      DRW_shgroup_uniform_float_copy(pd->shgrp_vert, "sizeVertex", 2 * G_draw.block.size_vertex);
     }
   }
 
@@ -235,7 +201,7 @@ static void select_cache_populate(void *vedata, Object *ob)
 
   if (!e_data.context.is_dirty && sel_data && sel_data->is_drawn) {
     /* The object indices have already been drawn. Fill depth pass.
-     * Opti: Most of the time this depth pass is not used. */
+     * Optimization: Most of the time this depth pass is not used. */
     struct Mesh *me = ob->data;
     if (e_data.context.select_mode & SCE_SELECT_FACE) {
       struct GPUBatch *geom_faces = DRW_mesh_batch_cache_get_triangles_with_select_id(me);
@@ -363,6 +329,7 @@ DrawEngineType draw_engine_select_type = {
     &select_data_size,
     &select_engine_init,
     &select_engine_free,
+    NULL, /* instance_free */
     &select_cache_init,
     &select_cache_populate,
     NULL,

@@ -1,22 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
-# <pep8 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 import enchant
 import os
@@ -76,10 +58,12 @@ class SpellChecker:
         "tangency",
         "vertices",
         "wasn",  # wasn't
+        "zig", "zag",
 
         # Brands etc.
         "htc",
         "huawei",
+        "radeon",
         "vive",
         "xbox",
 
@@ -118,6 +102,7 @@ class SpellChecker:
         "builtin", "builtins",
         "bytecode",
         "chunksize",
+        "codebase",
         "customdata",
         "dataset", "datasets",
         "de",
@@ -136,6 +121,8 @@ class SpellChecker:
         "filename", "filenames",
         "filepath", "filepaths",
         "forcefield", "forcefields",
+        "framerange",
+        "frontmost",
         "fulldome", "fulldomes",
         "fullscreen",
         "gamepad",
@@ -147,6 +134,7 @@ class SpellChecker:
         "inscatter", "inscattering",
         "libdata",
         "lightcache",
+        "lightgroup", "lightgroups",
         "lightprobe", "lightprobes",
         "lightless",
         "lineset",
@@ -405,9 +393,11 @@ class SpellChecker:
         "bitangent",
         "boid", "boids",
         "ceil",
+        "centum",  # From 'centum weight'
         "compressibility",
         "coplanar",
         "curvilinear",
+        "dekameter", "dekameters",
         "equiangular",
         "equisolid",
         "euler", "eulers",
@@ -425,8 +415,11 @@ class SpellChecker:
         "lambertian",
         "laplacian",
         "metadata",
+        "microwatt", "microwatts",
+        "milliwatt", "milliwatts",
         "msgfmt",
         "nand", "xnor",
+        "nanowatt", "nanowatts",
         "normals",
         "numpad",
         "octahedral",
@@ -440,6 +433,7 @@ class SpellChecker:
         "polyline", "polylines",
         "probabilistically",
         "pulldown", "pulldowns",
+        "quadratically",
         "quantized",
         "quartic",
         "quaternion", "quaternions",
@@ -498,6 +492,7 @@ class SpellChecker:
         "framerate",
         "gimbal",
         "grayscale",
+        "icosahedron",
         "icosphere",
         "inpaint",
         "kerning",
@@ -507,6 +502,7 @@ class SpellChecker:
         "luminance",
         "mantaflow",
         "matcap",
+        "microfacet",
         "midtones",
         "mipmap", "mipmaps", "mip",
         "ngon", "ngons",
@@ -514,6 +510,7 @@ class SpellChecker:
         "nurb", "nurbs",
         "perlin",
         "phong",
+        "photorealistic",
         "pinlight",
         "posterize",
         "qi",
@@ -536,6 +533,7 @@ class SpellChecker:
         "tonemap",
         "toon",
         "transmissive",
+        "uvproject",
         "vividlight",
         "volumetrics",
         "voronoi",
@@ -556,6 +554,7 @@ class SpellChecker:
         "bspline",
         "bweight",
         "colorband",
+        "crazyspace",
         "datablock", "datablocks",
         "despeckle",
         "depsgraph",
@@ -671,6 +670,7 @@ class SpellChecker:
 
         # Acronyms
         "aa", "msaa",
+        "acescg",  # ACEScg color space.
         "ao",
         "aov", "aovs",
         "api",
@@ -679,7 +679,7 @@ class SpellChecker:
         "ascii",
         "atrac",
         "avx",
-        "bsdf",
+        "bsdf", "bsdfs",
         "bssrdf",
         "bw",
         "ccd",
@@ -712,14 +712,17 @@ class SpellChecker:
         "hdc",
         "hdr", "hdri", "hdris",
         "hh", "mm", "ss", "ff",  # hh:mm:ss:ff timecode
+        "hpg",  # Intel Xe-HPG architecture
         "hsv", "hsva", "hsl",
         "id",
         "ies",
         "ior",
         "itu",
         "jonswap",
+        "lfe",
         "lhs",
         "lmb", "mmb", "rmb",
+        "lscm",
         "kb",
         "mocap",
         "msgid", "msgids",
@@ -730,6 +733,7 @@ class SpellChecker:
         "precisa",
         "px",
         "qmc",
+        "rdna",
         "rdp",
         "rgb", "rgba",
         "rhs",
@@ -754,6 +758,7 @@ class SpellChecker:
         "yuv", "yuva",
 
         # Blender acronyms
+        "bge",
         "bli",
         "bpy",
         "bvh",

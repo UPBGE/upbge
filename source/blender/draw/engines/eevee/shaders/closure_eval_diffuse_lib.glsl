@@ -1,13 +1,23 @@
 #pragma BLENDER_REQUIRE(lights_lib.glsl)
 #pragma BLENDER_REQUIRE(lightprobe_lib.glsl)
 #pragma BLENDER_REQUIRE(ambient_occlusion_lib.glsl)
+#pragma BLENDER_REQUIRE(closure_eval_lib.glsl)
+#pragma BLENDER_REQUIRE(renderpass_lib.glsl)
 
 struct ClosureInputDiffuse {
   vec3 N;      /** Shading normal. */
   vec3 albedo; /** Used for multibounce GTAO approximation. Not applied to final radiance. */
 };
 
-#define CLOSURE_INPUT_Diffuse_DEFAULT ClosureInputDiffuse(vec3(0.0), vec3(0.0))
+#ifdef GPU_METAL
+/* C++ struct initialization. */
+#  define CLOSURE_INPUT_Diffuse_DEFAULT \
+    { \
+      vec3(0.0), vec3(0.0) \
+    }
+#else
+#  define CLOSURE_INPUT_Diffuse_DEFAULT ClosureInputDiffuse(vec3(0.0), vec3(0.0))
+#endif
 
 struct ClosureEvalDiffuse {
   vec3 probe_sampling_dir; /** Direction to sample probes from. */
@@ -43,7 +53,7 @@ void closure_Diffuse_light_eval(ClosureInputDiffuse cl_in,
                                 inout ClosureOutputDiffuse cl_out)
 {
   float radiance = light_diffuse(light.data, cl_in.N, cl_common.V, light.L);
-  /* TODO(fclem) We could try to shadow lights that are shadowless with the ambient_occlusion
+  /* TODO(@fclem): We could try to shadow lights that are shadowless with the ambient_occlusion
    * factor here. */
   cl_out.radiance += light.data.l_color *
                      (light.data.l_diff * light.vis * light.contact_shadow * radiance);
@@ -80,6 +90,7 @@ void closure_Diffuse_eval_end(ClosureInputDiffuse cl_in,
                               ClosureEvalCommon cl_common,
                               inout ClosureOutputDiffuse cl_out)
 {
+  cl_out.radiance = render_pass_diffuse_mask(cl_out.radiance);
 #if defined(DEPTH_SHADER) || defined(WORLD_BACKGROUND)
   /* This makes shader resources become unused and avoid issues with samplers. (see T59747) */
   cl_out.radiance = vec3(0.0);

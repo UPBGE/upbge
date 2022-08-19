@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2008 by Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2008 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup bli
@@ -126,7 +110,7 @@ struct BLI_mempool {
   uint flag;
   /* keeps aligned to 16 bits */
 
-  /** Free element list. Interleaved into chunk datas. */
+  /** Free element list. Interleaved into chunk data. */
   BLI_freenode *free;
   /** Use to know how many chunks to keep for #BLI_mempool_clear. */
   uint maxchunks;
@@ -175,9 +159,9 @@ BLI_INLINE BLI_mempool_chunk *mempool_chunk_find(BLI_mempool_chunk *head, uint i
  * \note for small pools 1 is a good default, the elements need to be initialized,
  * adding overhead on creation which is redundant if they aren't used.
  */
-BLI_INLINE uint mempool_maxchunks(const uint totelem, const uint pchunk)
+BLI_INLINE uint mempool_maxchunks(const uint elem_num, const uint pchunk)
 {
-  return (totelem <= pchunk) ? 1 : ((totelem / pchunk) + 1);
+  return (elem_num <= pchunk) ? 1 : ((elem_num / pchunk) + 1);
 }
 
 static BLI_mempool_chunk *mempool_chunk_alloc(BLI_mempool *pool)
@@ -266,7 +250,7 @@ static void mempool_chunk_free_all(BLI_mempool_chunk *mpchunk)
   }
 }
 
-BLI_mempool *BLI_mempool_create(uint esize, uint totelem, uint pchunk, uint flag)
+BLI_mempool *BLI_mempool_create(uint esize, uint elem_num, uint pchunk, uint flag)
 {
   BLI_mempool *pool;
   BLI_freenode *last_tail = NULL;
@@ -284,7 +268,7 @@ BLI_mempool *BLI_mempool_create(uint esize, uint totelem, uint pchunk, uint flag
     esize = MAX2(esize, (uint)sizeof(BLI_freenode));
   }
 
-  maxchunks = mempool_maxchunks(totelem, pchunk);
+  maxchunks = mempool_maxchunks(elem_num, pchunk);
 
   pool->chunks = NULL;
   pool->chunk_tail = NULL;
@@ -317,7 +301,7 @@ BLI_mempool *BLI_mempool_create(uint esize, uint totelem, uint pchunk, uint flag
 #endif
   pool->totused = 0;
 
-  if (totelem) {
+  if (elem_num) {
     /* Allocate the actual chunks. */
     for (i = 0; i < maxchunks; i++) {
       BLI_mempool_chunk *mpchunk = mempool_chunk_alloc(pool);
@@ -367,11 +351,6 @@ void *BLI_mempool_calloc(BLI_mempool *pool)
   return retval;
 }
 
-/**
- * Free an element from the mempool.
- *
- * \note doesn't protect against double frees, take care!
- */
 void BLI_mempool_free(BLI_mempool *pool, void *addr)
 {
   BLI_freenode *newhead = addr;
@@ -475,13 +454,6 @@ void *BLI_mempool_findelem(BLI_mempool *pool, uint index)
   return NULL;
 }
 
-/**
- * Fill in \a data with pointers to each element of the mempool,
- * to create lookup table.
- *
- * \param pool: Pool to create a table from.
- * \param data: array of pointers at least the size of 'pool->totused'
- */
 void BLI_mempool_as_table(BLI_mempool *pool, void **data)
 {
   BLI_mempool_iter iter;
@@ -495,9 +467,6 @@ void BLI_mempool_as_table(BLI_mempool *pool, void **data)
   BLI_assert((uint)(p - data) == pool->totused);
 }
 
-/**
- * A version of #BLI_mempool_as_table that allocates and returns the data.
- */
 void **BLI_mempool_as_tableN(BLI_mempool *pool, const char *allocstr)
 {
   void **data = MEM_mallocN((size_t)pool->totused * sizeof(void *), allocstr);
@@ -505,9 +474,6 @@ void **BLI_mempool_as_tableN(BLI_mempool *pool, const char *allocstr)
   return data;
 }
 
-/**
- * Fill in \a data with the contents of the mempool.
- */
 void BLI_mempool_as_array(BLI_mempool *pool, void *data)
 {
   const uint esize = pool->esize;
@@ -522,9 +488,6 @@ void BLI_mempool_as_array(BLI_mempool *pool, void *data)
   BLI_assert((uint)(p - (char *)data) == pool->totused * esize);
 }
 
-/**
- * A version of #BLI_mempool_as_array that allocates and returns the data.
- */
 void *BLI_mempool_as_arrayN(BLI_mempool *pool, const char *allocstr)
 {
   char *data = MEM_malloc_arrayN(pool->totused, pool->esize, allocstr);
@@ -532,9 +495,6 @@ void *BLI_mempool_as_arrayN(BLI_mempool *pool, const char *allocstr)
   return data;
 }
 
-/**
- * Initialize a new mempool iterator, #BLI_MEMPOOL_ALLOW_ITER flag must be set.
- */
 void BLI_mempool_iternew(BLI_mempool *pool, BLI_mempool_iter *iter)
 {
   BLI_assert(pool->flag & BLI_MEMPOOL_ALLOW_ITER);
@@ -550,31 +510,18 @@ static void mempool_threadsafe_iternew(BLI_mempool *pool, BLI_mempool_threadsafe
   ts_iter->curchunk_threaded_shared = NULL;
 }
 
-/**
- * Initialize an array of mempool iterators, #BLI_MEMPOOL_ALLOW_ITER flag must be set.
- *
- * This is used in threaded code, to generate as much iterators as needed
- * (each task should have its own),
- * such that each iterator goes over its own single chunk,
- * and only getting the next chunk to iterate over has to be
- * protected against concurrency (which can be done in a lockless way).
- *
- * To be used when creating a task for each single item in the pool is totally overkill.
- *
- * See BLI_task_parallel_mempool implementation for detailed usage example.
- */
-ParallelMempoolTaskData *mempool_iter_threadsafe_create(BLI_mempool *pool, const size_t num_iter)
+ParallelMempoolTaskData *mempool_iter_threadsafe_create(BLI_mempool *pool, const size_t iter_num)
 {
   BLI_assert(pool->flag & BLI_MEMPOOL_ALLOW_ITER);
 
-  ParallelMempoolTaskData *iter_arr = MEM_mallocN(sizeof(*iter_arr) * num_iter, __func__);
+  ParallelMempoolTaskData *iter_arr = MEM_mallocN(sizeof(*iter_arr) * iter_num, __func__);
   BLI_mempool_chunk **curchunk_threaded_shared = MEM_mallocN(sizeof(void *), __func__);
 
   mempool_threadsafe_iternew(pool, &iter_arr->ts_iter);
 
   *curchunk_threaded_shared = iter_arr->ts_iter.iter.curchunk;
   iter_arr->ts_iter.curchunk_threaded_shared = curchunk_threaded_shared;
-  for (size_t i = 1; i < num_iter; i++) {
+  for (size_t i = 1; i < iter_num; i++) {
     iter_arr[i].ts_iter = iter_arr[0].ts_iter;
     *curchunk_threaded_shared = iter_arr[i].ts_iter.iter.curchunk =
         ((*curchunk_threaded_shared) ? (*curchunk_threaded_shared)->next : NULL);
@@ -625,13 +572,8 @@ void *BLI_mempool_iterstep(BLI_mempool_iter *iter)
   return ret;
 }
 
-#else
+#else /* Optimized version of code above. */
 
-/* optimized version of code above */
-
-/**
- * Step over the iterator, returning the mempool item or NULL.
- */
 void *BLI_mempool_iterstep(BLI_mempool_iter *iter)
 {
   if (UNLIKELY(iter->curchunk == NULL)) {
@@ -660,11 +602,6 @@ void *BLI_mempool_iterstep(BLI_mempool_iter *iter)
   return ret;
 }
 
-/**
- * A version of #BLI_mempool_iterstep that uses
- * #BLI_mempool_threadsafe_iter.curchunk_threaded_shared for threaded iteration support.
- * (threaded section noted in comments).
- */
 void *mempool_iter_threadsafe_step(BLI_mempool_threadsafe_iter *ts_iter)
 {
   BLI_mempool_iter *iter = &ts_iter->iter;
@@ -710,12 +647,6 @@ void *mempool_iter_threadsafe_step(BLI_mempool_threadsafe_iter *ts_iter)
 
 #endif
 
-/**
- * Empty the pool, as if it were just created.
- *
- * \param pool: The pool to clear.
- * \param totelem_reserve: Optionally reserve how many items should be kept from clearing.
- */
 void BLI_mempool_clear_ex(BLI_mempool *pool, const int totelem_reserve)
 {
   BLI_mempool_chunk *mpchunk;
@@ -768,17 +699,11 @@ void BLI_mempool_clear_ex(BLI_mempool *pool, const int totelem_reserve)
   }
 }
 
-/**
- * Wrap #BLI_mempool_clear_ex with no reserve set.
- */
 void BLI_mempool_clear(BLI_mempool *pool)
 {
   BLI_mempool_clear_ex(pool, -1);
 }
 
-/**
- * Free the mempool its self (and all elements).
- */
 void BLI_mempool_destroy(BLI_mempool *pool)
 {
   mempool_chunk_free_all(pool->chunks);

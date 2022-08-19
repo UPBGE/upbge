@@ -1,22 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
-# <pep8-80 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 import bpy
 from bpy.types import Header, Menu, Panel
 from bpy.app.translations import pgettext_iface as iface_
@@ -287,6 +269,17 @@ class TEXT_MT_templates_py(Menu):
             filter_ext=lambda ext: (ext.lower() == ".py")
         )
 
+class TEXT_MT_templates_py_components(Menu):
+    bl_label = "Python Component"
+
+    def draw(self, _context):
+        self.path_menu(
+            bpy.utils.script_paths(subdir="templates_py_components"),
+            "text.open",
+            props_default={"internal": True},
+            filter_ext=lambda ext: (ext.lower() == ".py")
+        )
+
 
 class TEXT_MT_templates_osl(Menu):
     bl_label = "Open Shading Language"
@@ -300,13 +293,27 @@ class TEXT_MT_templates_osl(Menu):
         )
 
 
+class TEXT_MT_templates_glsl(Menu):
+    bl_label = "OpenGL Shading Language"
+
+    def draw(self, _context):
+        self.path_menu(
+            bpy.utils.script_paths(subdir="templates_glsl"),
+            "text.open",
+            props_default={"internal": True},
+            filter_ext=lambda ext: (ext.lower() == ".glsl")
+        )
+
+
 class TEXT_MT_templates(Menu):
     bl_label = "Templates"
 
     def draw(self, _context):
         layout = self.layout
         layout.menu("TEXT_MT_templates_py")
+        layout.menu("TEXT_MT_templates_py_components")
         layout.menu("TEXT_MT_templates_osl")
+        layout.menu("TEXT_MT_templates_glsl")
 
 
 class TEXT_MT_select(Menu):
@@ -456,7 +463,9 @@ classes = (
     TEXT_MT_text,
     TEXT_MT_templates,
     TEXT_MT_templates_py,
+    TEXT_MT_templates_py_components,
     TEXT_MT_templates_osl,
+    TEXT_MT_templates_glsl,
     TEXT_MT_select,
     TEXT_MT_format,
     TEXT_MT_edit_to3d,

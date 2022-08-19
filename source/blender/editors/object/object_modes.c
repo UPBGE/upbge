@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edobj
@@ -108,13 +94,12 @@ static const char *object_mode_op_string(eObjectMode mode)
   if (mode == OB_MODE_VERTEX_GPENCIL) {
     return "GPENCIL_OT_vertexmode_toggle";
   }
+  if (mode == OB_MODE_SCULPT_CURVES) {
+    return "CURVES_OT_sculptmode_toggle";
+  }
   return NULL;
 }
 
-/**
- * Checks the mode to be set is compatible with the object
- * should be made into a generic function
- */
 bool ED_object_mode_compat_test(const Object *ob, eObjectMode mode)
 {
   if (mode == OB_MODE_OBJECT) {
@@ -133,7 +118,7 @@ bool ED_object_mode_compat_test(const Object *ob, eObjectMode mode)
         }
       }
       break;
-    case OB_CURVE:
+    case OB_CURVES_LEGACY:
     case OB_SURF:
     case OB_FONT:
     case OB_MBALL:
@@ -157,23 +142,28 @@ bool ED_object_mode_compat_test(const Object *ob, eObjectMode mode)
         return true;
       }
       break;
+    case OB_CURVES:
+      if (U.experimental.use_new_curves_tools) {
+        if (mode & OB_MODE_EDIT) {
+          return true;
+        }
+      }
+      if (mode & OB_MODE_SCULPT_CURVES) {
+        return true;
+      }
+      break;
   }
 
   return false;
 }
 
-/**
- * Sets the mode to a compatible state (use before entering the mode).
- *
- * This is so each mode's exec function can call
- */
 bool ED_object_mode_compat_set(bContext *C, Object *ob, eObjectMode mode, ReportList *reports)
 {
   bool ok;
   if (!ELEM(ob->mode, mode, OB_MODE_OBJECT)) {
     const char *opstring = object_mode_op_string(ob->mode);
 
-    WM_operator_name_call(C, opstring, WM_OP_EXEC_REGION_WIN, NULL);
+    WM_operator_name_call(C, opstring, WM_OP_EXEC_REGION_WIN, NULL, NULL);
     ok = ELEM(ob->mode, mode, OB_MODE_OBJECT);
     if (!ok) {
       wmOperatorType *ot = WM_operatortype_find(opstring, false);
@@ -224,7 +214,7 @@ bool ED_object_mode_set_ex(bContext *C, eObjectMode mode, bool use_undo, ReportL
   if (!use_undo) {
     wm->op_undo_depth++;
   }
-  WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_REGION_WIN, NULL);
+  WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_REGION_WIN, NULL, NULL);
   if (!use_undo) {
     wm->op_undo_depth--;
   }
@@ -468,7 +458,7 @@ static bool object_transfer_mode_to_base(bContext *C, wmOperator *op, Base *base
     return false;
   }
 
-  bool mode_transfered = false;
+  bool mode_transferred = false;
 
   ED_undo_group_begin(C);
 
@@ -490,11 +480,11 @@ static bool object_transfer_mode_to_base(bContext *C, wmOperator *op, Base *base
 
     WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
     WM_toolsystem_update_from_context_view3d(C);
-    mode_transfered = true;
+    mode_transferred = true;
   }
 
   ED_undo_group_end(C);
-  return mode_transfered;
+  return mode_transferred;
 }
 
 static int object_transfer_mode_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -503,8 +493,8 @@ static int object_transfer_mode_invoke(bContext *C, wmOperator *op, const wmEven
   const eObjectMode src_mode = (eObjectMode)ob_src->mode;
 
   Base *base_dst = ED_view3d_give_base_under_cursor(C, event->mval);
-  const bool mode_transfered = object_transfer_mode_to_base(C, op, base_dst);
-  if (!mode_transfered) {
+  const bool mode_transferred = object_transfer_mode_to_base(C, op, base_dst);
+  if (!mode_transferred) {
     return OPERATOR_CANCELLED;
   }
 

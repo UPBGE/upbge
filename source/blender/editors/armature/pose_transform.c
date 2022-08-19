@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edarmature
@@ -51,6 +35,7 @@
 
 #include "RNA_access.h"
 #include "RNA_define.h"
+#include "RNA_prototypes.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -787,7 +772,7 @@ static int pose_copy_exec(bContext *C, wmOperator *op)
    * any datablock expansion?
    */
   Main *temp_bmain = BKE_main_new();
-  STRNCPY(temp_bmain->name, BKE_main_blendfile_path_from_global());
+  STRNCPY(temp_bmain->filepath, BKE_main_blendfile_path_from_global());
 
   Object ob_copy = *ob;
   ob_copy.adt = NULL;
@@ -797,13 +782,13 @@ static int pose_copy_exec(bContext *C, wmOperator *op)
   BLI_addtail(&temp_bmain->objects, &ob_copy);
   BLI_addtail(&temp_bmain->armatures, &arm_copy);
   /* begin copy buffer on a temp bmain. */
-  BKE_copybuffer_begin(temp_bmain);
+  BKE_copybuffer_copy_begin(temp_bmain);
   /* Store the whole object to the copy buffer because pose can't be
    * existing on its own.
    */
-  BKE_copybuffer_tag_ID(&ob_copy.id);
+  BKE_copybuffer_copy_tag_ID(&ob_copy.id);
   BLI_join_dirfile(str, sizeof(str), BKE_tempdir_base(), "copybuffer_pose.blend");
-  BKE_copybuffer_save(temp_bmain, str, op->reports);
+  BKE_copybuffer_copy_end(temp_bmain, str, op->reports);
   /* We clear the lists so no datablocks gets freed,
    * This is required because objects in temp bmain shares same pointers
    * as the real ones.
@@ -856,7 +841,7 @@ static int pose_paste_exec(bContext *C, wmOperator *op)
   /* Read copy buffer .blend file. */
   char str[FILE_MAX];
   Main *tmp_bmain = BKE_main_new();
-  STRNCPY(tmp_bmain->name, BKE_main_blendfile_path_from_global());
+  STRNCPY(tmp_bmain->filepath, BKE_main_blendfile_path_from_global());
 
   BLI_join_dirfile(str, sizeof(str), BKE_tempdir_base(), "copybuffer_pose.blend");
   if (!BKE_copybuffer_read(tmp_bmain, str, op->reports, FILTER_ID_OB)) {
@@ -1115,7 +1100,7 @@ static void pchan_clear_rot(bPoseChannel *pchan)
         copy_v3_v3(pchan->eul, eul);
       }
     }
-  } /* Duplicated in source/blender/editors/object/object_transform.c */
+  } /* Duplicated in source/blender/editors/object/object_transform.cc */
   else {
     if (pchan->rotmode == ROT_MODE_QUAT) {
       unit_qt(pchan->quat);
@@ -1216,7 +1201,7 @@ static int pose_clear_transform_generic_exec(bContext *C,
         KeyingSet *ks = ANIM_get_keyingset_for_autokeying(scene, default_ksName);
 
         /* insert keyframes */
-        ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, (float)CFRA);
+        ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, (float)scene->r.cfra);
 
         /* now recalculate paths */
         if (ob_iter->pose->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS) {
@@ -1358,8 +1343,8 @@ static int pose_clear_user_transforms_exec(bContext *C, wmOperator *op)
   View3D *v3d = CTX_wm_view3d(C);
   Scene *scene = CTX_data_scene(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-  const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(depsgraph,
-                                                                                    (float)CFRA);
+  const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
+      depsgraph, (float)scene->r.cfra);
   const bool only_select = RNA_boolean_get(op->ptr, "only_selected");
 
   FOREACH_OBJECT_IN_MODE_BEGIN (view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob) {

@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup freestyle
@@ -26,6 +12,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "RNA_access.h"
+#include "RNA_prototypes.h"
 #include "RNA_types.h"
 
 #include "DNA_camera_types.h"
@@ -48,6 +35,7 @@
 #include "BKE_material.h"
 #include "BKE_mesh.h"
 #include "BKE_node.h"
+#include "BKE_node_tree_update.h"
 #include "BKE_object.h"
 #include "BKE_scene.h"
 
@@ -415,7 +403,7 @@ Material *BlenderStrokeRenderer::GetStrokeShader(Main *bmain,
   }
 
   nodeSetActive(ntree, output_material);
-  ntreeUpdateTree(bmain, ntree);
+  BKE_ntree_update_main_tree(bmain, ntree, nullptr);
 
   return ma;
 }
@@ -511,9 +499,9 @@ void BlenderStrokeRenderer::test_strip_visibility(Strip::vertex_container &strip
   StrokeVertexRep *svRep[3];
   bool visible;
 
-  // iterate over all vertices and count visible faces and strip segments
-  // (note: a strip segment is a series of visible faces, while two strip
-  // segments are separated by one or more invisible faces)
+  /* Iterate over all vertices and count visible faces and strip segments
+   * (NOTE: a strip segment is a series of visible faces, while two strip
+   * segments are separated by one or more invisible faces). */
   v[0] = strip_vertices.begin();
   v[1] = v[0] + 1;
   v[2] = v[0] + 2;
@@ -620,9 +608,9 @@ void BlenderStrokeRenderer::GenerateStrokeMesh(StrokeGroup *group, bool hasTex)
 
   // colors and transparency (the latter represented by grayscale colors)
   MLoopCol *colors = (MLoopCol *)CustomData_add_layer_named(
-      &mesh->ldata, CD_MLOOPCOL, CD_CALLOC, nullptr, mesh->totloop, "Color");
+      &mesh->ldata, CD_PROP_BYTE_COLOR, CD_CALLOC, nullptr, mesh->totloop, "Color");
   MLoopCol *transp = (MLoopCol *)CustomData_add_layer_named(
-      &mesh->ldata, CD_MLOOPCOL, CD_CALLOC, nullptr, mesh->totloop, "Alpha");
+      &mesh->ldata, CD_PROP_BYTE_COLOR, CD_CALLOC, nullptr, mesh->totloop, "Alpha");
   mesh->mloopcol = colors;
 
   mesh->mat = (Material **)MEM_mallocN(sizeof(Material *) * mesh->totcol, "MaterialList");
@@ -684,9 +672,7 @@ void BlenderStrokeRenderer::GenerateStrokeMesh(StrokeGroup *group, bool hasTex)
             vertices->co[0] = svRep[0]->point2d()[0];
             vertices->co[1] = svRep[0]->point2d()[1];
             vertices->co[2] = get_stroke_vertex_z();
-            vertices->no[0] = 0;
-            vertices->no[1] = 0;
-            vertices->no[2] = SHRT_MAX;
+
             ++vertices;
             ++vertex_index;
 
@@ -694,9 +680,7 @@ void BlenderStrokeRenderer::GenerateStrokeMesh(StrokeGroup *group, bool hasTex)
             vertices->co[0] = svRep[1]->point2d()[0];
             vertices->co[1] = svRep[1]->point2d()[1];
             vertices->co[2] = get_stroke_vertex_z();
-            vertices->no[0] = 0;
-            vertices->no[1] = 0;
-            vertices->no[2] = SHRT_MAX;
+
             ++vertices;
             ++vertex_index;
 
@@ -712,9 +696,6 @@ void BlenderStrokeRenderer::GenerateStrokeMesh(StrokeGroup *group, bool hasTex)
           vertices->co[0] = svRep[2]->point2d()[0];
           vertices->co[1] = svRep[2]->point2d()[1];
           vertices->co[2] = get_stroke_vertex_z();
-          vertices->no[0] = 0;
-          vertices->no[1] = 0;
-          vertices->no[2] = SHRT_MAX;
           ++vertices;
           ++vertex_index;
 
@@ -820,6 +801,7 @@ void BlenderStrokeRenderer::GenerateStrokeMesh(StrokeGroup *group, bool hasTex)
   }      // loop over strokes
 
   BKE_object_materials_test(freestyle_bmain, object_mesh, (ID *)mesh);
+  BKE_mesh_normals_tag_dirty(mesh);
 
 #if 0  // XXX
   BLI_assert(mesh->totvert == vertex_index);

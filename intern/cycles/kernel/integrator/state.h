@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2021 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 /* Integrator State
  *
@@ -140,6 +127,9 @@ typedef struct IntegratorStateGPU {
 
   /* Index of main path which will be used by a next shadow catcher split.  */
   ccl_global int *next_main_path_index;
+
+  /* Divisor used to partition active indices by locality when sorting by material.  */
+  uint sort_partition_divisor;
 } IntegratorStateGPU;
 
 /* Abstraction
@@ -150,7 +140,7 @@ typedef struct IntegratorStateGPU {
  * happen from a kernel which operates on a "main" path. Attempt to use shadow catcher accessors
  * from a kernel which operates on a shadow catcher state will cause bad memory access. */
 
-#ifdef __KERNEL_CPU__
+#ifndef __KERNEL_GPU__
 
 /* Scalar access on CPU. */
 
@@ -169,7 +159,7 @@ typedef const IntegratorShadowStateCPU *ccl_restrict ConstIntegratorShadowState;
 #  define INTEGRATOR_STATE_ARRAY_WRITE(state, nested_struct, array_index, member) \
     ((state)->nested_struct[array_index].member)
 
-#else /* __KERNEL_CPU__ */
+#else /* !__KERNEL_GPU__ */
 
 /* Array access on GPU with Structure-of-Arrays. */
 
@@ -190,6 +180,6 @@ typedef int ConstIntegratorShadowState;
 #  define INTEGRATOR_STATE_ARRAY_WRITE(state, nested_struct, array_index, member) \
     INTEGRATOR_STATE_ARRAY(state, nested_struct, array_index, member)
 
-#endif /* __KERNEL_CPU__ */
+#endif /* !__KERNEL_GPU__ */
 
 CCL_NAMESPACE_END

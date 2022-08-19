@@ -1,6 +1,8 @@
-void camera(vec3 co, out vec3 outview, out float outdepth, out float outdist)
+void camera(out vec3 outview, out float outdepth, out float outdist)
 {
-  outdepth = abs(co.z);
-  outdist = length(co);
-  outview = normalize(co);
+  vec3 vP = transform_point(ViewMatrix, g_data.P);
+  vP.z = -vP.z;
+  outdepth = abs(vP.z);
+  outdist = length(vP);
+  outview = normalize(vP);
 }

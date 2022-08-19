@@ -1,26 +1,11 @@
-# Copyright 2011-2020 Blender Foundation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2011-2022 Blender Foundation
 
 set(INC
   ..
-  ../../glew-mx
 )
 
-set(INC_SYS
-  ${GLEW_INCLUDE_DIR}
-  ../../../extern/clew/include
-)
+set(INC_SYS )
 
 if(WITH_CYCLES_DEVICE_OPTIX OR WITH_CYCLES_DEVICE_CUDA)
   if(WITH_CUDA_DYNLOAD)
@@ -43,7 +28,7 @@ if(WITH_CYCLES_DEVICE_HIP AND WITH_HIP_DYNLOAD)
   add_definitions(-DWITH_HIP_DYNLOAD)
 endif()
 
-set(SRC
+set(SRC_BASE
   device.cpp
   denoise.cpp
   graphics_interop.cpp
@@ -94,6 +79,15 @@ set(SRC_HIP
   hip/util.h
 )
 
+set(SRC_ONEAPI
+  oneapi/device_impl.cpp
+  oneapi/device_impl.h
+  oneapi/device.cpp
+  oneapi/device.h
+  oneapi/queue.cpp
+  oneapi/queue.h
+)
+
 set(SRC_DUMMY
   dummy/device.cpp
   dummy/device.h
@@ -102,6 +96,21 @@ set(SRC_DUMMY
 set(SRC_MULTI
   multi/device.cpp
   multi/device.h
+)
+
+set(SRC_METAL
+  metal/bvh.mm
+  metal/bvh.h
+  metal/device.mm
+  metal/device.h
+  metal/device_impl.mm
+  metal/device_impl.h
+  metal/kernel.mm
+  metal/kernel.h
+  metal/queue.mm
+  metal/queue.h
+  metal/util.mm
+  metal/util.h
 )
 
 set(SRC_OPTIX
@@ -123,10 +132,21 @@ set(SRC_HEADERS
   queue.h
 )
 
+set(SRC
+  ${SRC_BASE}
+  ${SRC_CPU}
+  ${SRC_CUDA}
+  ${SRC_HIP}
+  ${SRC_DUMMY}
+  ${SRC_MULTI}
+  ${SRC_OPTIX}
+  ${SRC_ONEAPI}
+  ${SRC_HEADERS}
+)
+
 set(LIB
   cycles_kernel
   cycles_util
-  ${CYCLES_GL_LIBRARIES}
 )
 
 if(WITH_CYCLES_DEVICE_OPTIX OR WITH_CYCLES_DEVICE_CUDA)
@@ -147,8 +167,6 @@ if(WITH_CYCLES_DEVICE_HIP AND WITH_HIP_DYNLOAD)
   )
 endif()
 
-add_definitions(${GL_DEFINITIONS})
-
 if(WITH_CYCLES_DEVICE_CUDA)
   add_definitions(-DWITH_CUDA)
 endif()
@@ -157,6 +175,18 @@ if(WITH_CYCLES_DEVICE_HIP)
 endif()
 if(WITH_CYCLES_DEVICE_OPTIX)
   add_definitions(-DWITH_OPTIX)
+endif()
+if(WITH_CYCLES_DEVICE_METAL)
+  list(APPEND LIB
+    ${METAL_LIBRARY}
+  )
+  add_definitions(-DWITH_METAL)
+  list(APPEND SRC
+    ${SRC_METAL}
+  )
+endif()
+if (WITH_CYCLES_DEVICE_ONEAPI)
+  add_definitions(-DWITH_ONEAPI)
 endif()
 
 if(WITH_OPENIMAGEDENOISE)
@@ -168,20 +198,19 @@ endif()
 include_directories(${INC})
 include_directories(SYSTEM ${INC_SYS})
 
-cycles_add_library(cycles_device "${LIB}"
-  ${SRC}
-  ${SRC_CPU}
-  ${SRC_CUDA}
-  ${SRC_HIP}
-  ${SRC_DUMMY}
-  ${SRC_MULTI}
-  ${SRC_OPTIX}
-  ${SRC_HEADERS}
-)
+cycles_add_library(cycles_device "${LIB}" ${SRC})
+
+if(WITH_CYCLES_DEVICE_ONEAPI)
+  # Need to have proper rebuilding in case of changes in cycles_kernel_oneapi due external project behaviour
+  add_dependencies(cycles_device cycles_kernel_oneapi)
+endif()
 
 source_group("cpu" FILES ${SRC_CPU})
 source_group("cuda" FILES ${SRC_CUDA})
 source_group("dummy" FILES ${SRC_DUMMY})
+source_group("hip" FILES ${SRC_HIP})
 source_group("multi" FILES ${SRC_MULTI})
+source_group("metal" FILES ${SRC_METAL})
 source_group("optix" FILES ${SRC_OPTIX})
-source_group("common" FILES ${SRC} ${SRC_HEADERS})
+source_group("oneapi" FILES ${SRC_ONEAPI})
+source_group("common" FILES ${SRC_BASE} ${SRC_HEADERS})

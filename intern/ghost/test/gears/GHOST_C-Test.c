@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /**
  * Copyright (C) 2001 NaN Technologies B.V.
@@ -47,7 +31,7 @@
 #endif /* defined(WIN32) || defined(__APPLE__) */
 
 static void gearsTimerProc(GHOST_TimerTaskHandle task, uint64_t time);
-int processEvent(GHOST_EventHandle hEvent, GHOST_TUserDataPtr userData);
+bool processEvent(GHOST_EventHandle hEvent, GHOST_TUserDataPtr userData);
 
 static GLfloat view_rotx = 20.0, view_roty = 30.0, view_rotz = 0.0;
 static GLfloat fAngle = 0.0;
@@ -285,9 +269,9 @@ static void setViewPortGL(GHOST_WindowHandle hWindow)
   GHOST_DisposeRectangle(hRect);
 }
 
-int processEvent(GHOST_EventHandle hEvent, GHOST_TUserDataPtr userData)
+bool processEvent(GHOST_EventHandle hEvent, GHOST_TUserDataPtr userData)
 {
-  int handled = 1;
+  bool handled = true;
   int cursor;
   int visibility;
   GHOST_TEventKeyData *keyData = NULL;
@@ -405,10 +389,10 @@ int processEvent(GHOST_EventHandle hEvent, GHOST_TUserDataPtr userData)
     } break;
 
     case GHOST_kEventWindowActivate:
-      handled = 0;
+      handled = false;
       break;
     case GHOST_kEventWindowDeactivate:
-      handled = 0;
+      handled = false;
       break;
     case GHOST_kEventWindowUpdate: {
       GHOST_WindowHandle window2 = GHOST_GetEventWindow(hEvent);
@@ -420,7 +404,7 @@ int processEvent(GHOST_EventHandle hEvent, GHOST_TUserDataPtr userData)
     } break;
 
     default:
-      handled = 0;
+      handled = false;
       break;
   }
   return handled;

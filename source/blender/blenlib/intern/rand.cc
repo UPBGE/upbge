@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup bli
@@ -59,9 +43,6 @@ RNG *BLI_rng_new(unsigned int seed)
   return rng;
 }
 
-/**
- * A version of #BLI_rng_new that hashes the seed.
- */
 RNG *BLI_rng_new_srandom(unsigned int seed)
 {
   RNG *rng = new RNG();
@@ -84,9 +65,6 @@ void BLI_rng_seed(RNG *rng, unsigned int seed)
   rng->rng.seed(seed);
 }
 
-/**
- * Use a hash table to create better seed.
- */
 void BLI_rng_srandom(RNG *rng, unsigned int seed)
 {
   rng->rng.seed_random(seed);
@@ -107,17 +85,11 @@ unsigned int BLI_rng_get_uint(RNG *rng)
   return rng->rng.get_uint32();
 }
 
-/**
- * \return Random value (0..1), but never 1.0.
- */
 double BLI_rng_get_double(RNG *rng)
 {
   return rng->rng.get_double();
 }
 
-/**
- * \return Random value (0..1), but never 1.0.
- */
 float BLI_rng_get_float(RNG *rng)
 {
   return rng->rng.get_float();
@@ -133,9 +105,6 @@ void BLI_rng_get_float_unit_v3(RNG *rng, float v[3])
   copy_v3_v3(v, rng->rng.get_unit_float3());
 }
 
-/**
- * Generate a random point inside given tri.
- */
 void BLI_rng_get_tri_sample_float_v2(
     RNG *rng, const float v1[2], const float v2[2], const float v3[2], float r_pt[2])
 {
@@ -148,18 +117,18 @@ void BLI_rng_get_tri_sample_float_v3(
   copy_v3_v3(r_pt, rng->rng.get_triangle_sample_3d(v1, v2, v3));
 }
 
-void BLI_rng_shuffle_array(RNG *rng, void *data, unsigned int elem_size_i, unsigned int elem_tot)
+void BLI_rng_shuffle_array(RNG *rng, void *data, unsigned int elem_size_i, unsigned int elem_num)
 {
-  if (elem_tot <= 1) {
+  if (elem_num <= 1) {
     return;
   }
 
   const uint elem_size = elem_size_i;
-  unsigned int i = elem_tot;
+  unsigned int i = elem_num;
   void *temp = malloc(elem_size);
 
   while (i--) {
-    const unsigned int j = BLI_rng_get_uint(rng) % elem_tot;
+    const unsigned int j = BLI_rng_get_uint(rng) % elem_num;
     if (i != j) {
       void *iElem = (unsigned char *)data + i * elem_size_i;
       void *jElem = (unsigned char *)data + j * elem_size_i;
@@ -172,15 +141,15 @@ void BLI_rng_shuffle_array(RNG *rng, void *data, unsigned int elem_size_i, unsig
   free(temp);
 }
 
-void BLI_rng_shuffle_bitmap(struct RNG *rng, BLI_bitmap *bitmap, unsigned int bits_tot)
+void BLI_rng_shuffle_bitmap(struct RNG *rng, BLI_bitmap *bitmap, unsigned int bits_num)
 {
-  if (bits_tot <= 1) {
+  if (bits_num <= 1) {
     return;
   }
 
-  unsigned int i = bits_tot;
+  unsigned int i = bits_num;
   while (i--) {
-    const unsigned int j = BLI_rng_get_uint(rng) % bits_tot;
+    const unsigned int j = BLI_rng_get_uint(rng) % bits_num;
     if (i != j) {
       const bool i_bit = BLI_BITMAP_TEST(bitmap, i);
       const bool j_bit = BLI_BITMAP_TEST(bitmap, j);
@@ -190,11 +159,6 @@ void BLI_rng_shuffle_bitmap(struct RNG *rng, BLI_bitmap *bitmap, unsigned int bi
   }
 }
 
-/**
- * Simulate getting \a n random values.
- *
- * \note Useful when threaded code needs consistent values, independent of task division.
- */
 void BLI_rng_skip(RNG *rng, int n)
 {
   rng->rng.skip((uint)n);
@@ -202,7 +166,6 @@ void BLI_rng_skip(RNG *rng, int n)
 
 /***/
 
-/* fill an array with random numbers */
 void BLI_array_frand(float *ar, int count, unsigned int seed)
 {
   RNG rng;
@@ -224,21 +187,21 @@ float BLI_hash_frand(unsigned int seed)
 
 void BLI_array_randomize(void *data,
                          unsigned int elem_size,
-                         unsigned int elem_tot,
+                         unsigned int elem_num,
                          unsigned int seed)
 {
   RNG rng;
 
   BLI_rng_seed(&rng, seed);
-  BLI_rng_shuffle_array(&rng, data, elem_size, elem_tot);
+  BLI_rng_shuffle_array(&rng, data, elem_size, elem_num);
 }
 
-void BLI_bitmap_randomize(BLI_bitmap *bitmap, unsigned int bits_tot, unsigned int seed)
+void BLI_bitmap_randomize(BLI_bitmap *bitmap, unsigned int bits_num, unsigned int seed)
 {
   RNG rng;
 
   BLI_rng_seed(&rng, seed);
-  BLI_rng_shuffle_bitmap(&rng, bitmap, bits_tot);
+  BLI_rng_shuffle_bitmap(&rng, bitmap, bits_num);
 }
 
 /* ********* for threaded random ************** */
@@ -272,7 +235,7 @@ struct RNG_THREAD_ARRAY {
   RNG rng_tab[BLENDER_MAX_THREADS];
 };
 
-RNG_THREAD_ARRAY *BLI_rng_threaded_new(void)
+RNG_THREAD_ARRAY *BLI_rng_threaded_new()
 {
   unsigned int i;
   RNG_THREAD_ARRAY *rngarr = (RNG_THREAD_ARRAY *)MEM_mallocN(sizeof(RNG_THREAD_ARRAY),
@@ -402,9 +365,6 @@ void BLI_hammersley_2d_sequence(unsigned int n, double *r)
 
 namespace blender {
 
-/**
- * Set a randomized hash of the value as seed.
- */
 void RandomNumberGenerator::seed_random(uint32_t seed)
 {
   this->seed(seed + hash[seed & 255]);
@@ -412,6 +372,15 @@ void RandomNumberGenerator::seed_random(uint32_t seed)
   this->seed(seed + hash[seed & 255]);
   seed = this->get_uint32();
   this->seed(seed + hash[seed & 255]);
+}
+
+int RandomNumberGenerator::round_probabilistic(float x)
+{
+  /* Support for negative values can be added when necessary. */
+  BLI_assert(x >= 0.0f);
+  const float round_up_probability = fractf(x);
+  const bool round_up = round_up_probability > this->get_float();
+  return (int)x + (int)round_up;
 }
 
 float2 RandomNumberGenerator::get_unit_float2()
@@ -434,9 +403,6 @@ float3 RandomNumberGenerator::get_unit_float3()
   return {0.0f, 0.0f, 1.0f};
 }
 
-/**
- * Generate a random point inside the given triangle.
- */
 float2 RandomNumberGenerator::get_triangle_sample(float2 v1, float2 v2, float2 v3)
 {
   float u = this->get_float();

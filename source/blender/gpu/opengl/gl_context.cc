@@ -1,28 +1,11 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2020, Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2020 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup gpu
  */
 
 #include "BLI_assert.h"
-#include "BLI_system.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_global.h"
@@ -164,6 +147,16 @@ void GLContext::deactivate()
 {
   immDeactivate();
   is_active_ = false;
+}
+
+void GLContext::begin_frame()
+{
+  /* No-op. */
+}
+
+void GLContext::end_frame()
+{
+  /* No-op. */
 }
 
 /** \} */
@@ -311,12 +304,12 @@ void GLContext::vao_cache_unregister(GLVaoCache *cache)
 void GLContext::memory_statistics_get(int *r_total_mem, int *r_free_mem)
 {
   /* TODO(merwin): use Apple's platform API to get this info. */
-  if (GLEW_NVX_gpu_memory_info) {
+  if (epoxy_has_gl_extension("GL_NVX_gpu_memory_info")) {
     /* Returned value in Kb. */
     glGetIntegerv(GL_GPU_MEMORY_INFO_TOTAL_AVAILABLE_MEMORY_NVX, r_total_mem);
     glGetIntegerv(GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX, r_free_mem);
   }
-  else if (GLEW_ATI_meminfo) {
+  else if (epoxy_has_gl_extension("GL_ATI_meminfo")) {
     int stats[4];
     glGetIntegerv(GL_TEXTURE_FREE_MEMORY_ATI, stats);
 

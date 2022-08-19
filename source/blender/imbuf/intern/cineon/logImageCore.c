@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 1999,2000,2001 David Hodson <hodsond@acm.org>
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 1999-2001 David Hodson <hodsond@acm.org>. */
 
 /** \file
  * \ingroup imbcineon
@@ -116,10 +101,10 @@ int logImageIsCineon(const void *buffer, const unsigned int size)
   return (magicNum == CINEON_FILE_MAGIC || magicNum == swap_uint(CINEON_FILE_MAGIC, 1));
 }
 
-LogImageFile *logImageOpenFromFile(const char *filename, int cineon)
+LogImageFile *logImageOpenFromFile(const char *filepath, int cineon)
 {
   unsigned int magicNum;
-  FILE *f = BLI_fopen(filename, "rb");
+  FILE *f = BLI_fopen(filepath, "rb");
 
   (void)cineon;
 
@@ -135,10 +120,10 @@ LogImageFile *logImageOpenFromFile(const char *filename, int cineon)
   fclose(f);
 
   if (logImageIsDpx(&magicNum, sizeof(magicNum))) {
-    return dpxOpen((const unsigned char *)filename, 0, 0);
+    return dpxOpen((const unsigned char *)filepath, 0, 0);
   }
   if (logImageIsCineon(&magicNum, sizeof(magicNum))) {
-    return cineonOpen((const unsigned char *)filename, 0, 0);
+    return cineonOpen((const unsigned char *)filepath, 0, 0);
   }
 
   return NULL;
@@ -156,7 +141,7 @@ LogImageFile *logImageOpenFromMemory(const unsigned char *buffer, unsigned int s
   return NULL;
 }
 
-LogImageFile *logImageCreate(const char *filename,
+LogImageFile *logImageCreate(const char *filepath,
                              int cineon,
                              int width,
                              int height,
@@ -170,10 +155,10 @@ LogImageFile *logImageCreate(const char *filename,
 {
   /* referenceWhite, referenceBlack and gamma values are only supported for DPX file */
   if (cineon) {
-    return cineonCreate(filename, width, height, bitsPerSample, creator);
+    return cineonCreate(filepath, width, height, bitsPerSample, creator);
   }
 
-  return dpxCreate(filename,
+  return dpxCreate(filepath,
                    width,
                    height,
                    bitsPerSample,

@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include "scene/camera.h"
 #include "scene/scene.h"
@@ -36,7 +23,7 @@ struct BlenderCamera {
 
   float lens;
   float shuttertime;
-  Camera::MotionPosition motion_position;
+  MotionPosition motion_position;
   array<float> shutter_curve;
 
   Camera::RollingShutterType rolling_shutter_type;
@@ -68,6 +55,12 @@ struct BlenderCamera {
   bool use_pole_merge;
   float pole_merge_angle_from;
   float pole_merge_angle_to;
+
+  float fisheye_polynomial_k0;
+  float fisheye_polynomial_k1;
+  float fisheye_polynomial_k2;
+  float fisheye_polynomial_k3;
+  float fisheye_polynomial_k4;
 
   enum { AUTO, HORIZONTAL, VERTICAL } sensor_fit;
   float sensor_width;
@@ -121,7 +114,7 @@ static void blender_camera_init(BlenderCamera *bcam, BL::RenderSettings &b_rende
   bcam->sensor_width = 36.0f;
   bcam->sensor_height = 24.0f;
   bcam->sensor_fit = BlenderCamera::AUTO;
-  bcam->motion_position = Camera::MOTION_POSITION_CENTER;
+  bcam->motion_position = MOTION_POSITION_CENTER;
   bcam->border.right = 1.0f;
   bcam->border.top = 1.0f;
   bcam->viewport_camera_border.right = 1.0f;
@@ -150,11 +143,20 @@ static float blender_camera_focal_distance(BL::RenderEngine &b_engine,
   if (!b_dof_object)
     return b_camera.dof().focus_distance();
 
+  Transform dofmat = get_transform(b_dof_object.matrix_world());
+
+  string focus_subtarget = b_camera.dof().focus_subtarget();
+  if (b_dof_object.pose() && !focus_subtarget.empty()) {
+    BL::PoseBone b_bone = b_dof_object.pose().bones[focus_subtarget];
+    if (b_bone) {
+      dofmat = dofmat * get_transform(b_bone.matrix());
+    }
+  }
+
   /* for dof object, return distance along camera Z direction */
   BL::Array<float, 16> b_ob_matrix;
   b_engine.camera_model_matrix(b_ob, bcam->use_spherical_stereo, b_ob_matrix);
   Transform obmat = transform_clear_scale(get_transform(b_ob_matrix));
-  Transform dofmat = get_transform(b_dof_object.matrix_world());
   float3 view_dir = normalize(transform_get_column(&obmat, 2));
   float3 dof_dir = transform_get_column(&obmat, 3) - transform_get_column(&dofmat, 3);
   return fabsf(dot(view_dir, dof_dir));
@@ -199,6 +201,12 @@ static void blender_camera_from_object(BlenderCamera *bcam,
     bcam->latitude_max = RNA_float_get(&ccamera, "latitude_max");
     bcam->longitude_min = RNA_float_get(&ccamera, "longitude_min");
     bcam->longitude_max = RNA_float_get(&ccamera, "longitude_max");
+
+    bcam->fisheye_polynomial_k0 = RNA_float_get(&ccamera, "fisheye_polynomial_k0");
+    bcam->fisheye_polynomial_k1 = RNA_float_get(&ccamera, "fisheye_polynomial_k1");
+    bcam->fisheye_polynomial_k2 = RNA_float_get(&ccamera, "fisheye_polynomial_k2");
+    bcam->fisheye_polynomial_k3 = RNA_float_get(&ccamera, "fisheye_polynomial_k3");
+    bcam->fisheye_polynomial_k4 = RNA_float_get(&ccamera, "fisheye_polynomial_k4");
 
     bcam->interocular_distance = b_camera.stereo().interocular_distance();
     if (b_camera.stereo().convergence_mode() == BL::CameraStereoData::convergence_mode_PARALLEL) {
@@ -422,7 +430,8 @@ static void blender_camera_sync(Camera *cam,
   cam->set_full_height(height);
 
   /* panorama sensor */
-  if (bcam->type == CAMERA_PANORAMA && bcam->panorama_type == PANORAMA_FISHEYE_EQUISOLID) {
+  if (bcam->type == CAMERA_PANORAMA && (bcam->panorama_type == PANORAMA_FISHEYE_EQUISOLID ||
+                                        bcam->panorama_type == PANORAMA_FISHEYE_LENS_POLYNOMIAL)) {
     float fit_xratio = (float)bcam->render_width * bcam->pixelaspect.x;
     float fit_yratio = (float)bcam->render_height * bcam->pixelaspect.y;
     bool horizontal_fit;
@@ -464,6 +473,12 @@ static void blender_camera_sync(Camera *cam,
   cam->set_fisheye_lens(bcam->fisheye_lens);
   cam->set_latitude_min(bcam->latitude_min);
   cam->set_latitude_max(bcam->latitude_max);
+
+  cam->set_fisheye_polynomial_k0(bcam->fisheye_polynomial_k0);
+  cam->set_fisheye_polynomial_k1(bcam->fisheye_polynomial_k1);
+  cam->set_fisheye_polynomial_k2(bcam->fisheye_polynomial_k2);
+  cam->set_fisheye_polynomial_k3(bcam->fisheye_polynomial_k3);
+  cam->set_fisheye_polynomial_k4(bcam->fisheye_polynomial_k4);
 
   cam->set_longitude_min(bcam->longitude_min);
   cam->set_longitude_max(bcam->longitude_max);
@@ -549,10 +564,8 @@ void BlenderSync::sync_camera(BL::RenderSettings &b_render,
   curvemapping_to_array(b_shutter_curve, bcam.shutter_curve, RAMP_TABLE_SIZE);
 
   PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
-  bcam.motion_position = (Camera::MotionPosition)get_enum(cscene,
-                                                          "motion_blur_position",
-                                                          Camera::MOTION_NUM_POSITIONS,
-                                                          Camera::MOTION_POSITION_CENTER);
+  bcam.motion_position = (MotionPosition)get_enum(
+      cscene, "motion_blur_position", MOTION_NUM_POSITIONS, MOTION_POSITION_CENTER);
   bcam.rolling_shutter_type = (Camera::RollingShutterType)get_enum(
       cscene,
       "rolling_shutter_type",
@@ -639,7 +652,7 @@ void BlenderSync::sync_camera_motion(
     /* TODO(sergey): De-duplicate calculation with camera sync. */
     float fov = 2.0f * atanf((0.5f * sensor_size) / bcam.lens / aspectratio);
     if (fov != cam->get_fov()) {
-      VLOG(3) << "Camera " << b_ob.name() << " FOV change detected.";
+      VLOG_WORK << "Camera " << b_ob.name() << " FOV change detected.";
       if (motion_time == 0.0f) {
         cam->set_fov(fov);
       }

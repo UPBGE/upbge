@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2011, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. */
 
 #include "COM_ExecutionSystem.h"
 
@@ -38,8 +23,6 @@ ExecutionSystem::ExecutionSystem(RenderData *rd,
                                  bNodeTree *editingtree,
                                  bool rendering,
                                  bool fastcalculation,
-                                 const ColorManagedViewSettings *view_settings,
-                                 const ColorManagedDisplaySettings *display_settings,
                                  const char *view_name)
 {
   num_work_threads_ = WorkScheduler::get_num_cpu_threads();
@@ -60,8 +43,6 @@ ExecutionSystem::ExecutionSystem(RenderData *rd,
                                      (editingtree->flag & NTREE_COM_OPENCL));
 
   context_.set_render_data(rd);
-  context_.set_view_settings(view_settings);
-  context_.set_display_settings(display_settings);
 
   BLI_mutex_init(&work_mutex_);
   BLI_condition_init(&work_finished_cond_);
@@ -118,9 +99,6 @@ void ExecutionSystem::execute()
   execution_model_->execute(*this);
 }
 
-/**
- * Multi-threadedly execute given work function passing work_rect splits as argument.
- */
 void ExecutionSystem::execute_work(const rcti &work_rect,
                                    std::function<void(const rcti &split_rect)> work_func)
 {

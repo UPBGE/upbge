@@ -1,20 +1,4 @@
-# ***** BEGIN GPL LICENSE BLOCK *****
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ***** END GPL LICENSE BLOCK *****
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 if(WIN32)
   set(ISPC_EXTRA_ARGS_WIN
@@ -22,6 +6,7 @@ if(WIN32)
     -DBISON_EXECUTABLE=${LIBDIR}/flexbison/win_bison.exe
     -DM4_EXECUTABLE=${DOWNLOAD_DIR}/mingw/mingw64/msys/1.0/bin/m4.exe
     -DARM_ENABLED=Off
+    -DPython3_FIND_REGISTRY=NEVER
   )
 elseif(APPLE)
   # Use bison and flex installed via Homebrew.
@@ -43,7 +28,7 @@ elseif(UNIX)
   set(ISPC_EXTRA_ARGS_UNIX
     -DCMAKE_C_COMPILER=${LIBDIR}/llvm/bin/clang
     -DCMAKE_CXX_COMPILER=${LIBDIR}/llvm/bin/clang++
-    -DARM_ENABLED=Off
+    -DARM_ENABLED=${BLENDER_PLATFORM_ARM}
     -DFLEX_EXECUTABLE=${LIBDIR}/flex/bin/flex
   )
 endif()
@@ -59,6 +44,8 @@ set(ISPC_EXTRA_ARGS
     -DISPC_INCLUDE_TESTS=Off
     -DCLANG_LIBRARY_DIR=${LIBDIR}/llvm/lib
     -DCLANG_INCLUDE_DIRS=${LIBDIR}/llvm/include
+    -DPython3_ROOT_DIR=${LIBDIR}/python/
+    -DPython3_EXECUTABLE=${PYTHON_BINARY}
     ${ISPC_EXTRA_ARGS_WIN}
     ${ISPC_EXTRA_ARGS_APPLE}
     ${ISPC_EXTRA_ARGS_UNIX}
@@ -77,6 +64,7 @@ ExternalProject_Add(external_ispc
 add_dependencies(
   external_ispc
   ll
+  external_python
 )
 
 if(WIN32)

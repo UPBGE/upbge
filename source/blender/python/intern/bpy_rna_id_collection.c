@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup pythonintern
@@ -94,7 +80,7 @@ static int foreach_libblock_id_user_map_callback(LibraryIDLinkCallbackData *cb_d
     }
 
     if (cb_flag & IDWALK_CB_LOOPBACK) {
-      /* We skip loop-back pointers like Object.proxy_from or Key.from here,
+      /* We skip loop-back pointers like Key.from here,
        * since it's some internal pointer which is not relevant info for py/API level. */
       return IDWALK_RET_NOP;
     }
@@ -172,7 +158,15 @@ static PyObject *bpy_user_map(PyObject *UNUSED(self), PyObject *args, PyObject *
   IDUserMapData data_cb = {NULL};
 
   static const char *_keywords[] = {"subset", "key_types", "value_types", NULL};
-  static _PyArg_Parser _parser = {"|$OO!O!:user_map", _keywords, 0};
+  static _PyArg_Parser _parser = {
+      "|$" /* Optional keyword only arguments. */
+      "O"  /* `subset` */
+      "O!" /* `key_types` */
+      "O!" /* `value_types` */
+      ":user_map",
+      _keywords,
+      0,
+  };
   if (!_PyArg_ParseTupleAndKeywordsFast(
           args, kwds, &_parser, &subset, &PySet_Type, &key_types, &PySet_Type, &val_types)) {
     return NULL;
@@ -305,7 +299,12 @@ static PyObject *bpy_batch_remove(PyObject *UNUSED(self), PyObject *args, PyObje
   PyObject *ret = NULL;
 
   static const char *_keywords[] = {"ids", NULL};
-  static _PyArg_Parser _parser = {"O:batch_remove", _keywords, 0};
+  static _PyArg_Parser _parser = {
+      "O" /* `ids` */
+      ":batch_remove",
+      _keywords,
+      0,
+  };
   if (!_PyArg_ParseTupleAndKeywordsFast(args, kwds, &_parser, &ids)) {
     return ret;
   }
@@ -378,7 +377,15 @@ static PyObject *bpy_orphans_purge(PyObject *UNUSED(self), PyObject *args, PyObj
   bool do_recursive_cleanup = false;
 
   static const char *_keywords[] = {"do_local_ids", "do_linked_ids", "do_recursive", NULL};
-  static _PyArg_Parser _parser = {"|O&O&O&:orphans_purge", _keywords, 0};
+  static _PyArg_Parser _parser = {
+      "|"  /* Optional arguments. */
+      "O&" /* `do_local_ids` */
+      "O&" /* `do_linked_ids` */
+      "O&" /* `do_recursive` */
+      ":orphans_purge",
+      _keywords,
+      0,
+  };
   if (!_PyArg_ParseTupleAndKeywordsFast(args,
                                         kwds,
                                         &_parser,

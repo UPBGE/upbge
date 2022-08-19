@@ -1,4 +1,4 @@
-/* Apache License, Version 2.0 */
+/* SPDX-License-Identifier: Apache-2.0 */
 
 #include "testing/testing.h"
 
@@ -264,7 +264,6 @@ TEST(multi_function, CustomMF_GenericConstant)
 {
   int value = 42;
   CustomMF_GenericConstant fn{CPPType::get<int32_t>(), (const void *)&value, false};
-  EXPECT_EQ(fn.param_name(0), "42");
 
   Array<int> outputs(4, 0);
 
@@ -285,7 +284,6 @@ TEST(multi_function, CustomMF_GenericConstantArray)
 {
   std::array<int, 4> values = {3, 4, 5, 6};
   CustomMF_GenericConstantArray fn{GSpan(Span(values))};
-  EXPECT_EQ(fn.param_name(0), "[3, 4, 5, 6, ]");
 
   GVectorArray vector_array{CPPType::get<int32_t>(), 4};
   GVectorArray_TypedMutableRef<int> vector_array_ref{vector_array};
@@ -307,25 +305,6 @@ TEST(multi_function, CustomMF_GenericConstantArray)
     EXPECT_EQ(vector_array_ref[i][2], 5);
     EXPECT_EQ(vector_array_ref[i][3], 6);
   }
-}
-
-TEST(multi_function, CustomMF_Convert)
-{
-  CustomMF_Convert<float, int> fn;
-
-  Array<float> inputs = {5.4f, 7.1f, 9.0f};
-  Array<int> outputs(inputs.size(), 0);
-
-  MFParamsBuilder params(fn, inputs.size());
-  params.add_readonly_single_input(inputs.as_span());
-  params.add_uninitialized_single_output(outputs.as_mutable_span());
-
-  MFContextBuilder context;
-  fn.call({0, 2}, params, context);
-
-  EXPECT_EQ(outputs[0], 5);
-  EXPECT_EQ(outputs[1], 0);
-  EXPECT_EQ(outputs[2], 9);
 }
 
 TEST(multi_function, IgnoredOutputs)

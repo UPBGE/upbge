@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spview3d
@@ -38,6 +24,7 @@
 #include "BLI_math.h"
 
 #include "BKE_context.h"
+#include "BKE_lib_id.h"
 #include "BKE_report.h"
 
 #include "BLT_translation.h"
@@ -58,6 +45,7 @@
 #include "DEG_depsgraph.h"
 
 #include "view3d_intern.h" /* own include */
+#include "view3d_navigate.h"
 
 /* -------------------------------------------------------------------- */
 /** \name Modal Key-map
@@ -101,7 +89,6 @@ typedef enum eFlyPanState {
   FLY_AXISLOCK_STATE_ACTIVE = 2,
 } eFlyPanState;
 
-/* Called in transform_ops.c, on each regeneration of key-maps. */
 void fly_modal_keymap(wmKeyConfig *keyconf)
 {
   static const EnumPropertyItem modal_items[] = {
@@ -335,8 +322,12 @@ static bool initFlyInfo(bContext *C, FlyInfo *fly, wmOperator *op, const wmEvent
     fly->rv3d->persp = RV3D_PERSP;
   }
 
-  if (fly->rv3d->persp == RV3D_CAMOB && ID_IS_LINKED(fly->v3d->camera)) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot fly a camera from an external library");
+  if (fly->rv3d->persp == RV3D_CAMOB &&
+      !BKE_id_is_editable(CTX_data_main(C), &fly->v3d->camera->id)) {
+    BKE_report(op->reports,
+               RPT_ERROR,
+               "Cannot navigate a camera from an external library or non-editable override");
+
     return false;
   }
 
@@ -1088,6 +1079,7 @@ static int fly_modal(bContext *C, wmOperator *op, const wmEvent *event)
   int exit_code;
   bool do_draw = false;
   FlyInfo *fly = op->customdata;
+  View3D *v3d = fly->v3d;
   RegionView3D *rv3d = fly->rv3d;
   Object *fly_object = ED_view3d_cameracontrol_object_get(fly->v3d_camera_control);
 
@@ -1111,6 +1103,9 @@ static int fly_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
   exit_code = flyEnd(C, fly);
 
+  if (exit_code == OPERATOR_FINISHED) {
+    ED_view3d_camera_lock_undo_push(op->type->name, v3d, rv3d, C);
+  }
   if (exit_code != OPERATOR_RUNNING_MODAL) {
     do_draw = true;
   }

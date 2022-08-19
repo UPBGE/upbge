@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include "blender/object_cull.h"
 #include "blender/sync.h"
@@ -29,6 +16,7 @@
 #include "scene/shader.h"
 #include "scene/shader_graph.h"
 #include "scene/shader_nodes.h"
+#include "scene/volume.h"
 
 #include "util/foreach.h"
 #include "util/hash.h"
@@ -72,15 +60,9 @@ bool BlenderSync::object_is_geometry(BObjectInfo &b_ob_info)
 
   BL::Object::type_enum type = b_ob_info.iter_object.type();
 
-  if (type == BL::Object::type_VOLUME || type == BL::Object::type_HAIR) {
+  if (type == BL::Object::type_VOLUME || type == BL::Object::type_CURVES ||
+      type == BL::Object::type_POINTCLOUD) {
     /* Will be exported attached to mesh. */
-    return true;
-  }
-
-  /* Other object types that are not meshes but evaluate to meshes are presented to render engines
-   * as separate instance objects. Metaballs and surface objects have not been affected by that
-   * change yet. */
-  if (type == BL::Object::type_SURFACE || type == BL::Object::type_META) {
     return true;
   }
 
@@ -96,7 +78,7 @@ bool BlenderSync::object_can_have_geometry(BL::Object &b_ob)
     case BL::Object::type_SURFACE:
     case BL::Object::type_META:
     case BL::Object::type_FONT:
-    case BL::Object::type_HAIR:
+    case BL::Object::type_CURVES:
     case BL::Object::type_POINTCLOUD:
     case BL::Object::type_VOLUME:
       return true;
@@ -206,7 +188,7 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
     return NULL;
   }
 
-  /* only interested in object that we can create meshes from */
+  /* only interested in object that we can create geometry from */
   if (!object_is_geometry(b_ob_info)) {
     return NULL;
   }
@@ -310,6 +292,12 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
   }
   object->set_ao_distance(ao_distance);
 
+  bool is_caustics_caster = get_boolean(cobject, "is_caustics_caster");
+  object->set_is_caustics_caster(is_caustics_caster);
+
+  bool is_caustics_receiver = get_boolean(cobject, "is_caustics_receiver");
+  object->set_is_caustics_receiver(is_caustics_receiver);
+
   /* sync the asset name for Cryptomatte */
   BL::Object parent = b_ob.parent();
   ustring parent_name;
@@ -331,7 +319,9 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
       (object->get_geometry() && object->get_geometry()->is_modified())) {
     object->name = b_ob.name().c_str();
     object->set_pass_id(b_ob.pass_index());
-    object->set_color(get_float3(b_ob.color()));
+    const BL::Array<float, 4> object_color = b_ob.color();
+    object->set_color(get_float3(object_color));
+    object->set_alpha(object_color[3]);
     object->set_tfm(tfm);
 
     /* dupli texture coordinates and random_id */
@@ -346,6 +336,9 @@ Object *BlenderSync::sync_object(BL::Depsgraph &b_depsgraph,
       object->set_dupli_uv(zero_float2());
       object->set_random_id(hash_uint2(hash_string(object->name.c_str()), 0));
     }
+
+    /* lightgroup */
+    object->set_lightgroup(ustring(b_ob.lightgroup()));
 
     object->tag_update(scene);
   }
@@ -432,7 +425,7 @@ static float4 lookup_instance_property(BL::DepsgraphObjectInstance &b_instance,
     return value;
   }
 
-  return make_float4(0.0f);
+  return zero_float4();
 }
 
 bool BlenderSync::sync_object_attributes(BL::DepsgraphObjectInstance &b_instance, Object *object)
@@ -528,6 +521,17 @@ void BlenderSync::sync_procedural(BL::Object &b_ob,
   string absolute_path = blender_absolute_path(b_data, b_ob, b_mesh_cache.cache_file().filepath());
   procedural->set_filepath(ustring(absolute_path));
 
+  array<ustring> layers;
+  for (BL::CacheFileLayer &layer : cache_file.layers) {
+    if (layer.hide_layer()) {
+      continue;
+    }
+
+    absolute_path = blender_absolute_path(b_data, b_ob, layer.filepath());
+    layers.push_back_slow(ustring(absolute_path));
+  }
+  procedural->set_layers(layers);
+
   procedural->set_scale(cache_file.scale());
 
   procedural->set_use_prefetch(cache_file.use_prefetch());
@@ -620,10 +624,8 @@ void BlenderSync::sync_objects(BL::Depsgraph &b_depsgraph,
       bool has_subdivision_modifier = false;
       BL::MeshSequenceCacheModifier b_mesh_cache(PointerRNA_NULL);
 
-      /* Experimental as Blender does not have good support for procedurals at the moment, also
-       * only available in preview renders since currently do not have a good cache policy, the
-       * data being loaded at once for all the frames. */
-      if (experimental && b_v3d) {
+      /* Experimental as Blender does not have good support for procedurals at the moment. */
+      if (experimental) {
         b_mesh_cache = object_mesh_cache_find(b_ob, &has_subdivision_modifier);
         use_procedural = b_mesh_cache && b_mesh_cache.cache_file().use_render_procedural();
       }
@@ -708,13 +710,13 @@ void BlenderSync::sync_motion(BL::RenderSettings &b_render,
   float frame_center_delta = 0.0f;
 
   if (scene->need_motion() != Scene::MOTION_PASS &&
-      scene->camera->get_motion_position() != Camera::MOTION_POSITION_CENTER) {
+      scene->camera->get_motion_position() != MOTION_POSITION_CENTER) {
     float shuttertime = scene->camera->get_shuttertime();
-    if (scene->camera->get_motion_position() == Camera::MOTION_POSITION_END) {
+    if (scene->camera->get_motion_position() == MOTION_POSITION_END) {
       frame_center_delta = -shuttertime * 0.5f;
     }
     else {
-      assert(scene->camera->get_motion_position() == Camera::MOTION_POSITION_START);
+      assert(scene->camera->get_motion_position() == MOTION_POSITION_START);
       frame_center_delta = shuttertime * 0.5f;
     }
 
@@ -754,7 +756,7 @@ void BlenderSync::sync_motion(BL::RenderSettings &b_render,
       continue;
     }
 
-    VLOG(1) << "Synchronizing motion for the relative time " << relative_time << ".";
+    VLOG_WORK << "Synchronizing motion for the relative time " << relative_time << ".";
 
     /* fixed shutter time to get previous and next frame for motion pass */
     float shuttertime = scene->motion_shutter_time();

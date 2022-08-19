@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 #pragma once
 
 /** \file
@@ -40,28 +24,71 @@ struct MetaBall *BKE_mball_add(struct Main *bmain, const char *name);
 bool BKE_mball_is_any_selected(const struct MetaBall *mb);
 bool BKE_mball_is_any_selected_multi(struct Base **bases, int bases_len);
 bool BKE_mball_is_any_unselected(const struct MetaBall *mb);
-bool BKE_mball_is_basis_for(struct Object *ob1, struct Object *ob2);
-bool BKE_mball_is_basis(struct Object *ob);
+
+/**
+ * Return `true` if `ob1` and `ob2` are part of the same metaBall group.
+ *
+ * \note Currently checks whether their two base names (without numerical suffix) is the same.
+ */
+bool BKE_mball_is_same_group(const struct Object *ob1, const struct Object *ob2);
+/**
+ * Return `true` if `ob1` and `ob2` are part of the same metaBall group, and `ob1` is its
+ * basis.
+ */
+bool BKE_mball_is_basis_for(const struct Object *ob1, const struct Object *ob2);
+/**
+ * Test, if \a ob is a basis meta-ball.
+ *
+ * It test last character of Object ID name.
+ * If last character is digit it return 0, else it return 1.
+ */
+bool BKE_mball_is_basis(const struct Object *ob);
+/**
+ * This function finds the basis meta-ball.
+ *
+ * Basis meta-ball doesn't include any number at the end of
+ * its name. All meta-balls with same base of name can be
+ * blended. meta-balls with different basic name can't be blended.
+ *
+ * \warning #BKE_mball_is_basis() can fail on returned object, see function docs for details.
+ */
 struct Object *BKE_mball_basis_find(struct Scene *scene, struct Object *ob);
 
-void BKE_mball_texspace_calc(struct Object *ob);
+/**
+ * Return or compute bounding-box for given meta-ball object.
+ */
 struct BoundBox *BKE_mball_boundbox_get(struct Object *ob);
-float *BKE_mball_make_orco(struct Object *ob, struct ListBase *dispbase);
 
-void BKE_mball_properties_copy(struct Scene *scene, struct Object *active_object);
+/**
+ * Copy some properties from a meta-ball obdata to all other meta-ball obdata belonging to the same
+ * family (i.e. object sharing the same name basis).
+ *
+ * When some properties (wire-size, threshold, update flags) of meta-ball are changed, then this
+ * properties are copied to all meta-balls in same "group" (meta-balls with same base name:
+ * `MBall`, `MBall.001`, `MBall.002`, etc). The most important is to copy properties to the base
+ * meta-ball, because this meta-ball influences polygonization of meta-balls.
+ */
+void BKE_mball_properties_copy(struct Main *bmain, struct MetaBall *active_metaball);
 
-bool BKE_mball_minmax_ex(const struct MetaBall *mb,
-                         float min[3],
-                         float max[3],
-                         const float obmat[4][4],
-                         const short flag);
+bool BKE_mball_minmax_ex(
+    const struct MetaBall *mb, float min[3], float max[3], const float obmat[4][4], short flag);
+
+/* Basic vertex data functions. */
+
 bool BKE_mball_minmax(const struct MetaBall *mb, float min[3], float max[3]);
 bool BKE_mball_center_median(const struct MetaBall *mb, float r_cent[3]);
 bool BKE_mball_center_bounds(const struct MetaBall *mb, float r_cent[3]);
-void BKE_mball_transform(struct MetaBall *mb, const float mat[4][4], const bool do_props);
+void BKE_mball_transform(struct MetaBall *mb, const float mat[4][4], bool do_props);
 void BKE_mball_translate(struct MetaBall *mb, const float offset[3]);
 
-struct MetaElem *BKE_mball_element_add(struct MetaBall *mb, const int type);
+/**
+ * Most simple meta-element adding function.
+ *
+ * \note don't do context manipulation here (rna uses).
+ */
+struct MetaElem *BKE_mball_element_add(struct MetaBall *mb, int type);
+
+/* *** select funcs *** */
 
 int BKE_mball_select_count(const struct MetaBall *mb);
 int BKE_mball_select_count_multi(struct Base **bases, int bases_len);
@@ -74,18 +101,7 @@ bool BKE_mball_select_swap_multi_ex(struct Base **bases, int bases_len);
 
 /* **** Depsgraph evaluation **** */
 
-struct Depsgraph;
-
-/* Draw Cache */
-
-enum {
-  BKE_MBALL_BATCH_DIRTY_ALL = 0,
-};
-void BKE_mball_batch_cache_dirty_tag(struct MetaBall *mb, int mode);
-void BKE_mball_batch_cache_free(struct MetaBall *mb);
-
-extern void (*BKE_mball_batch_cache_dirty_tag_cb)(struct MetaBall *mb, int mode);
-extern void (*BKE_mball_batch_cache_free_cb)(struct MetaBall *mb);
+void BKE_mball_data_update(struct Depsgraph *depsgraph, struct Scene *scene, struct Object *ob);
 
 #ifdef __cplusplus
 }

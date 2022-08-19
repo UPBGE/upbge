@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2012 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2012 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup edmask
@@ -49,7 +33,7 @@
 static int mask_shape_key_insert_exec(bContext *C, wmOperator *UNUSED(op))
 {
   Scene *scene = CTX_data_scene(C);
-  const int frame = CFRA;
+  const int frame = scene->r.cfra;
   Mask *mask = CTX_data_edit_mask(C);
   bool changed = false;
 
@@ -83,7 +67,7 @@ void MASK_OT_shape_key_insert(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = mask_shape_key_insert_exec;
-  ot->poll = ED_maskedit_mask_poll;
+  ot->poll = ED_maskedit_mask_visible_splines_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -92,7 +76,7 @@ void MASK_OT_shape_key_insert(wmOperatorType *ot)
 static int mask_shape_key_clear_exec(bContext *C, wmOperator *UNUSED(op))
 {
   Scene *scene = CTX_data_scene(C);
-  const int frame = CFRA;
+  const int frame = scene->r.cfra;
   Mask *mask = CTX_data_edit_mask(C);
   bool changed = false;
 
@@ -129,7 +113,7 @@ void MASK_OT_shape_key_clear(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = mask_shape_key_clear_exec;
-  ot->poll = ED_maskedit_mask_poll;
+  ot->poll = ED_maskedit_mask_visible_splines_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -138,7 +122,7 @@ void MASK_OT_shape_key_clear(wmOperatorType *ot)
 static int mask_shape_key_feather_reset_exec(bContext *C, wmOperator *UNUSED(op))
 {
   Scene *scene = CTX_data_scene(C);
-  const int frame = CFRA;
+  const int frame = scene->r.cfra;
   Mask *mask = CTX_data_edit_mask(C);
   bool changed = false;
 
@@ -213,7 +197,7 @@ void MASK_OT_shape_key_feather_reset(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = mask_shape_key_feather_reset_exec;
-  ot->poll = ED_maskedit_mask_poll;
+  ot->poll = ED_maskedit_mask_visible_splines_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -230,7 +214,7 @@ void MASK_OT_shape_key_feather_reset(wmOperatorType *ot)
 static int mask_shape_key_rekey_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
-  const int frame = CFRA;
+  const int frame = scene->r.cfra;
   Mask *mask = CTX_data_edit_mask(C);
   bool changed = false;
 
@@ -372,7 +356,7 @@ void MASK_OT_shape_key_rekey(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = mask_shape_key_rekey_exec;
-  ot->poll = ED_maskedit_mask_poll;
+  ot->poll = ED_maskedit_mask_visible_splines_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

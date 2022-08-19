@@ -1,27 +1,9 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
-# <pep8 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 import bpy
 from bpy.types import Panel
 from bl_ui.utils import PresetPanel
-from .properties_physics_common import (
+from bl_ui.properties_physics_common import (
     effector_weights_ui,
 )
 
@@ -71,7 +53,7 @@ class PhysicButtonsPanel:
         md = context.fluid
         if md and (md.fluid_type == 'DOMAIN'):
             domain = md.domain_settings
-            return domain.domain_type in {'GAS'}
+            return domain.domain_type == 'GAS'
         return False
 
     @staticmethod
@@ -82,7 +64,7 @@ class PhysicButtonsPanel:
         md = context.fluid
         if md and (md.fluid_type == 'DOMAIN'):
             domain = md.domain_settings
-            return domain.domain_type in {'LIQUID'}
+            return domain.domain_type == 'LIQUID'
         return False
 
     @staticmethod
@@ -116,7 +98,7 @@ class PhysicButtonsPanel:
 
 class PHYSICS_PT_fluid(PhysicButtonsPanel, Panel):
     bl_label = "Fluid"
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
 
     @classmethod
     def poll(cls, context):
@@ -140,7 +122,7 @@ class PHYSICS_PT_fluid(PhysicButtonsPanel, Panel):
 class PHYSICS_PT_settings(PhysicButtonsPanel, Panel):
     bl_label = "Settings"
     bl_parent_id = 'PHYSICS_PT_fluid'
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
 
     @classmethod
     def poll(cls, context):
@@ -303,7 +285,7 @@ class PHYSICS_PT_settings(PhysicButtonsPanel, Panel):
 class PHYSICS_PT_borders(PhysicButtonsPanel, Panel):
     bl_label = "Border Collisions"
     bl_parent_id = 'PHYSICS_PT_settings'
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
 
     @classmethod
     def poll(cls, context):
@@ -322,27 +304,21 @@ class PHYSICS_PT_borders(PhysicButtonsPanel, Panel):
         is_baking_any = domain.is_cache_baking_any
         has_baked_data = domain.has_cache_baked_data
 
-        flow = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
-        flow.enabled = not is_baking_any and not has_baked_data
+        col = layout.column(align=True)
+        col.enabled = not is_baking_any and not has_baked_data
 
-        col = flow.column()
-        col.prop(domain, "use_collision_border_front", text="Front")
-        col = flow.column()
-        col.prop(domain, "use_collision_border_back", text="Back")
-        col = flow.column()
-        col.prop(domain, "use_collision_border_right", text="Right")
-        col = flow.column()
-        col.prop(domain, "use_collision_border_left", text="Left")
-        col = flow.column()
-        col.prop(domain, "use_collision_border_top", text="Top")
-        col = flow.column()
-        col.prop(domain, "use_collision_border_bottom", text="Bottom")
+        col.prop(domain, "use_collision_border_front")
+        col.prop(domain, "use_collision_border_back")
+        col.prop(domain, "use_collision_border_right")
+        col.prop(domain, "use_collision_border_left")
+        col.prop(domain, "use_collision_border_top")
+        col.prop(domain, "use_collision_border_bottom")
 
 
 class PHYSICS_PT_smoke(PhysicButtonsPanel, Panel):
     bl_label = "Gas"
     bl_parent_id = 'PHYSICS_PT_fluid'
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
 
     @classmethod
     def poll(cls, context):
@@ -375,7 +351,7 @@ class PHYSICS_PT_smoke_dissolve(PhysicButtonsPanel, Panel):
     bl_label = "Dissolve"
     bl_parent_id = 'PHYSICS_PT_smoke'
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
 
     @classmethod
     def poll(cls, context):
@@ -419,7 +395,7 @@ class PHYSICS_PT_fire(PhysicButtonsPanel, Panel):
     bl_label = "Fire"
     bl_parent_id = 'PHYSICS_PT_smoke'
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
 
     @classmethod
     def poll(cls, context):
@@ -458,7 +434,7 @@ class PHYSICS_PT_fire(PhysicButtonsPanel, Panel):
 class PHYSICS_PT_liquid(PhysicButtonsPanel, Panel):
     bl_label = "Liquid"
     bl_parent_id = 'PHYSICS_PT_fluid'
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
 
     @classmethod
     def poll(cls, context):
@@ -521,7 +497,7 @@ class PHYSICS_PT_flow_source(PhysicButtonsPanel, Panel):
     bl_label = "Flow Source"
     bl_parent_id = 'PHYSICS_PT_settings'
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
 
     @classmethod
     def poll(cls, context):
@@ -562,7 +538,7 @@ class PHYSICS_PT_flow_source(PhysicButtonsPanel, Panel):
 class PHYSICS_PT_flow_initial_velocity(PhysicButtonsPanel, Panel):
     bl_label = "Initial Velocity"
     bl_parent_id = 'PHYSICS_PT_settings'
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
 
     @classmethod
     def poll(cls, context):
@@ -604,7 +580,7 @@ class PHYSICS_PT_flow_texture(PhysicButtonsPanel, Panel):
     bl_label = "Texture"
     bl_parent_id = 'PHYSICS_PT_settings'
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
 
     @classmethod
     def poll(cls, context):
@@ -655,7 +631,7 @@ class PHYSICS_PT_adaptive_domain(PhysicButtonsPanel, Panel):
     bl_label = "Adaptive Domain"
     bl_parent_id = 'PHYSICS_PT_settings'
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
 
     @classmethod
     def poll(cls, context):
@@ -707,7 +683,7 @@ class PHYSICS_PT_noise(PhysicButtonsPanel, Panel):
     bl_label = "Noise"
     bl_parent_id = 'PHYSICS_PT_smoke'
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
 
     @classmethod
     def poll(cls, context):
@@ -787,7 +763,7 @@ class PHYSICS_PT_mesh(PhysicButtonsPanel, Panel):
     bl_label = "Mesh"
     bl_parent_id = 'PHYSICS_PT_liquid'
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
 
     @classmethod
     def poll(cls, context):
@@ -828,7 +804,7 @@ class PHYSICS_PT_mesh(PhysicButtonsPanel, Panel):
         col.separator()
         col.prop(domain, "mesh_generator", text="Mesh Generator")
 
-        if domain.mesh_generator in {'IMPROVED'}:
+        if domain.mesh_generator == 'IMPROVED':
             col = flow.column(align=True)
             col.prop(domain, "mesh_smoothen_pos", text="Smoothing Positive")
             col.prop(domain, "mesh_smoothen_neg", text="Negative")
@@ -882,7 +858,7 @@ class PHYSICS_PT_particles(PhysicButtonsPanel, Panel):
     bl_label = "Particles"
     bl_parent_id = 'PHYSICS_PT_liquid'
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
 
     @classmethod
     def poll(cls, context):
@@ -1013,7 +989,7 @@ class PHYSICS_PT_viscosity(PhysicButtonsPanel, Panel):
     bl_label = "Viscosity"
     bl_parent_id = 'PHYSICS_PT_liquid'
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
 
     @classmethod
     def poll(cls, context):
@@ -1053,7 +1029,7 @@ class PHYSICS_PT_diffusion(PhysicButtonsPanel, Panel):
     bl_label = "Diffusion"
     bl_parent_id = 'PHYSICS_PT_liquid'
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
 
     @classmethod
     def poll(cls, context):
@@ -1100,7 +1076,7 @@ class PHYSICS_PT_guide(PhysicButtonsPanel, Panel):
     bl_label = "Guides"
     bl_parent_id = 'PHYSICS_PT_fluid'
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
 
     @classmethod
     def poll(cls, context):
@@ -1166,7 +1142,7 @@ class PHYSICS_PT_collections(PhysicButtonsPanel, Panel):
     bl_label = "Collections"
     bl_parent_id = 'PHYSICS_PT_fluid'
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
 
     @classmethod
     def poll(cls, context):
@@ -1193,7 +1169,7 @@ class PHYSICS_PT_collections(PhysicButtonsPanel, Panel):
 class PHYSICS_PT_cache(PhysicButtonsPanel, Panel):
     bl_label = "Cache"
     bl_parent_id = 'PHYSICS_PT_fluid'
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
 
     @classmethod
     def poll(cls, context):
@@ -1243,7 +1219,7 @@ class PHYSICS_PT_cache(PhysicButtonsPanel, Panel):
         row.enabled = not is_baking_any and not has_baked_data
         row.prop(domain, "cache_data_format", text="Format Volumes")
 
-        if md.domain_settings.domain_type in {'LIQUID'} and domain.use_mesh:
+        if md.domain_settings.domain_type == 'LIQUID' and domain.use_mesh:
             row = col.row()
             row.enabled = not is_baking_any and not has_baked_mesh
             row.prop(domain, "cache_mesh_format", text="Meshes")
@@ -1277,7 +1253,7 @@ class PHYSICS_PT_export(PhysicButtonsPanel, Panel):
     bl_label = "Advanced"
     bl_parent_id = 'PHYSICS_PT_cache'
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
 
     @classmethod
     def poll(cls, context):
@@ -1322,7 +1298,7 @@ class PHYSICS_PT_field_weights(PhysicButtonsPanel, Panel):
     bl_label = "Field Weights"
     bl_parent_id = 'PHYSICS_PT_fluid'
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
 
     @classmethod
     def poll(cls, context):
@@ -1507,6 +1483,27 @@ class PHYSICS_PT_viewport_display_advanced(PhysicButtonsPanel, Panel):
                     note.label(icon='INFO', text="Range highlighting for flags is not available!")
 
 
+class PHYSICS_PT_fluid_domain_render(PhysicButtonsPanel, Panel):
+    bl_label = "Render"
+    bl_parent_id = 'PHYSICS_PT_fluid'
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
+
+    @classmethod
+    def poll(cls, context):
+        if not PhysicButtonsPanel.poll_gas_domain(context):
+            return False
+
+        return (context.engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+
+        domain = context.fluid.domain_settings
+        layout.prop(domain, "velocity_scale")
+
+
 classes = (
     FLUID_PT_presets,
     PHYSICS_PT_fluid,
@@ -1535,6 +1532,7 @@ classes = (
     PHYSICS_PT_viewport_display_color,
     PHYSICS_PT_viewport_display_debug,
     PHYSICS_PT_viewport_display_advanced,
+    PHYSICS_PT_fluid_domain_render,
 )
 
 

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2011 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup spclip
@@ -319,7 +303,7 @@ static void marker_block_handler(bContext *C, void *arg_cb, int event)
       cb->marker->pattern_corners[a][1] *= scale_y;
     }
 
-    BKE_tracking_marker_clamp(cb->marker, CLAMP_PAT_DIM);
+    BKE_tracking_marker_clamp_search_size(cb->marker);
 
     ok = true;
   }
@@ -335,7 +319,7 @@ static void marker_block_handler(bContext *C, void *arg_cb, int event)
     sub_v2_v2v2(cb->marker->search_min, delta, side);
     add_v2_v2v2(cb->marker->search_max, delta, side);
 
-    BKE_tracking_marker_clamp(cb->marker, CLAMP_SEARCH_POS);
+    BKE_tracking_marker_clamp_search_position(cb->marker);
 
     ok = true;
   }
@@ -356,7 +340,7 @@ static void marker_block_handler(bContext *C, void *arg_cb, int event)
     cb->marker->search_max[0] += dim[0];
     cb->marker->search_max[1] += dim[1];
 
-    BKE_tracking_marker_clamp(cb->marker, CLAMP_SEARCH_DIM);
+    BKE_tracking_marker_clamp_search_size(cb->marker);
 
     ok = true;
   }

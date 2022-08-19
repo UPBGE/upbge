@@ -1,9 +1,4 @@
 
-in vec4 radii;
-in vec4 fillColor;
-in vec4 outlineColor;
-out vec4 fragColor;
-
 void main()
 {
   float dist = length(gl_PointCoord - vec2(0.5));

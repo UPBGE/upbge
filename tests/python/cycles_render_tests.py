@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Apache License, Version 2.0
+# SPDX-License-Identifier: Apache-2.0
 
 import argparse
 import os
@@ -11,6 +11,15 @@ from pathlib import Path
 
 # List of .blend files that are known to be failing and are not ready to be
 # tested, or that only make sense on some devices. Accepts regular expressions.
+BLACKLIST_ALL = [
+    # Blacklisted due overlapping object differences between platforms.
+    "hair_geom_reflection.blend",
+    "hair_geom_transmission.blend",
+    "hair_instancer_uv.blend",
+    "principled_hair_directcoloring.blend",
+    "visibility_particles.blend",
+]
+
 BLACKLIST_OSL = [
     # OSL only supported on CPU.
     '.*_osl.blend',
@@ -21,6 +30,11 @@ BLACKLIST_OPTIX = [
     # Ray intersection precision issues
     'T50164.blend',
     'T43865.blend',
+]
+
+BLACKLIST_METAL = [
+    # No MNEE for Metal currently
+    "underwater_caustics.blend",
 ]
 
 BLACKLIST_GPU = [
@@ -36,8 +50,12 @@ BLACKLIST_GPU = [
     'hair_instancer_uv.blend',
     'hair_length_info.blend',
     'hair_particle_random.blend',
+    "hair_transmission.blend",
     'principled_hair_.*.blend',
     'transparent_shadow_hair.*.blend',
+    # Inconsistent handling of overlapping objects.
+    "T41143.blend",
+    "visibility_particles.blend",
 ]
 
 
@@ -96,13 +114,15 @@ def main():
     output_dir = args.outdir[0]
     device = args.device[0]
 
-    blacklist = []
+    blacklist = BLACKLIST_ALL
     if device != 'CPU':
         blacklist += BLACKLIST_GPU
     if device != 'CPU' or 'OSL' in args.blacklist:
         blacklist += BLACKLIST_OSL
     if device == 'OPTIX':
         blacklist += BLACKLIST_OPTIX
+    if device == 'METAL':
+        blacklist += BLACKLIST_METAL
 
     from modules import render_report
     report = render_report.Report('Cycles', output_dir, idiff, device, blacklist)

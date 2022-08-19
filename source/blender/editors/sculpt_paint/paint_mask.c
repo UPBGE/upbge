@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2012 by Nicholas Bishop
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2012 by Nicholas Bishop. All rights reserved. */
 
 /** \file
  * \ingroup edsculpt
@@ -168,7 +152,7 @@ static int mask_flood_fill_exec(bContext *C, wmOperator *op)
 
   BKE_pbvh_search_gather(pbvh, NULL, NULL, &nodes, &totnode);
 
-  SCULPT_undo_push_begin(ob, "Mask flood fill");
+  SCULPT_undo_push_begin(ob, op);
 
   MaskTaskData data = {
       .ob = ob,
@@ -189,7 +173,7 @@ static int mask_flood_fill_exec(bContext *C, wmOperator *op)
 
   BKE_pbvh_update_vertex_data(pbvh, PBVH_UpdateMask);
 
-  SCULPT_undo_push_end();
+  SCULPT_undo_push_end(ob);
 
   if (nodes) {
     MEM_freeN(nodes);
@@ -679,7 +663,7 @@ static bool sculpt_gesture_is_effected_lasso(SculptGestureContext *sgcontext, co
 static bool sculpt_gesture_is_vertex_effected(SculptGestureContext *sgcontext, PBVHVertexIter *vd)
 {
   float vertex_normal[3];
-  SCULPT_vertex_normal_get(sgcontext->ss, vd->index, vertex_normal);
+  SCULPT_vertex_normal_get(sgcontext->ss, vd->vertex, vertex_normal);
   float dot = dot_v3v3(sgcontext->view_normal, vertex_normal);
   const bool is_effected_front_face = !(sgcontext->front_faces_only && dot < 0.0f);
 
@@ -703,10 +687,10 @@ static bool sculpt_gesture_is_vertex_effected(SculptGestureContext *sgcontext, P
   return false;
 }
 
-static void sculpt_gesture_apply(bContext *C, SculptGestureContext *sgcontext)
+static void sculpt_gesture_apply(bContext *C, SculptGestureContext *sgcontext, wmOperator *op)
 {
   SculptGestureOperation *operation = sgcontext->operation;
-  SCULPT_undo_push_begin(CTX_data_active_object(C), "Sculpt Gesture Apply");
+  SCULPT_undo_push_begin(CTX_data_active_object(C), op);
 
   operation->sculpt_gesture_begin(C, sgcontext);
 
@@ -723,7 +707,8 @@ static void sculpt_gesture_apply(bContext *C, SculptGestureContext *sgcontext)
 
   operation->sculpt_gesture_end(C, sgcontext);
 
-  SCULPT_undo_push_end();
+  Object *ob = CTX_data_active_object(C);
+  SCULPT_undo_push_end(ob);
 
   SCULPT_tag_update_overlays(C);
 }
@@ -758,7 +743,7 @@ static void face_set_gesture_apply_task_cb(void *__restrict userdata,
 
   BKE_pbvh_vertex_iter_begin (sgcontext->ss->pbvh, node, vd, PBVH_ITER_UNIQUE) {
     if (sculpt_gesture_is_vertex_effected(sgcontext, &vd)) {
-      SCULPT_vertex_face_set_set(sgcontext->ss, vd.index, face_set_operation->new_face_set_id);
+      SCULPT_vertex_face_set_set(sgcontext->ss, vd.vertex, face_set_operation->new_face_set_id);
       any_updated = true;
     }
   }
@@ -965,7 +950,6 @@ static void sculpt_gesture_trim_normals_update(SculptGestureContext *sgcontext)
 {
   SculptGestureTrimOperation *trim_operation = (SculptGestureTrimOperation *)sgcontext->operation;
   Mesh *trim_mesh = trim_operation->mesh;
-  BKE_mesh_calc_normals(trim_mesh);
 
   const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(trim_mesh);
   BMesh *bm;
@@ -978,6 +962,7 @@ static void sculpt_gesture_trim_normals_update(SculptGestureContext *sgcontext)
                      trim_mesh,
                      (&(struct BMeshFromMeshParams){
                          .calc_face_normal = true,
+                         .calc_vert_normal = true,
                      }));
   BM_mesh_elem_hflag_enable_all(bm, BM_FACE, BM_ELEM_TAG, false);
   BMO_op_callf(bm,
@@ -1040,7 +1025,9 @@ static void sculpt_gesture_trim_calculate_depth(SculptGestureContext *sgcontext)
   trim_operation->depth_back = -FLT_MAX;
 
   for (int i = 0; i < totvert; i++) {
-    const float *vco = SCULPT_vertex_co_get(ss, i);
+    PBVHVertRef vertex = BKE_pbvh_index_to_vertex(ss->pbvh, i);
+
+    const float *vco = SCULPT_vertex_co_get(ss, vertex);
     /* Convert the coordinates to world space to calculate the depth. When generating the trimming
      * mesh, coordinates are first calculated in world space, then converted to object space to
      * store them. */
@@ -1072,7 +1059,30 @@ static void sculpt_gesture_trim_calculate_depth(SculptGestureContext *sgcontext)
                             (trim_operation->depth_back + trim_operation->depth_front) * 0.5f;
     }
 
-    const float depth_radius = ss->cursor_radius;
+    float depth_radius;
+
+    if (ss->gesture_initial_hit) {
+      depth_radius = ss->cursor_radius;
+    }
+    else {
+      /* ss->cursor_radius is only valid if the stroke started
+       * over the sculpt mesh.  If it's not we must
+       * compute the radius ourselves.  See T81452.
+       */
+
+      Sculpt *sd = CTX_data_tool_settings(vc->C)->sculpt;
+      Brush *brush = BKE_paint_brush(&sd->paint);
+      Scene *scene = CTX_data_scene(vc->C);
+
+      if (!BKE_brush_use_locked_size(scene, brush)) {
+        depth_radius = paint_calc_object_space_radius(
+            vc, ss->gesture_initial_location, BKE_brush_size_get(scene, brush));
+      }
+      else {
+        depth_radius = BKE_brush_unprojected_radius_get(scene, brush);
+      }
+    }
+
     trim_operation->depth_front = mid_point_depth - depth_radius;
     trim_operation->depth_back = mid_point_depth + depth_radius;
   }
@@ -1091,7 +1101,7 @@ static void sculpt_gesture_trim_geometry_generate(SculptGestureContext *sgcontex
   const int trim_totpolys = (2 * (tot_screen_points - 2)) + (2 * tot_screen_points);
   trim_operation->mesh = BKE_mesh_new_nomain(
       trim_totverts, 0, 0, trim_totpolys * 3, trim_totpolys);
-  trim_operation->true_mesh_co = MEM_malloc_arrayN(trim_totverts, 3 * sizeof(float), "mesh orco");
+  trim_operation->true_mesh_co = MEM_malloc_arrayN(trim_totverts, sizeof(float[3]), "mesh orco");
 
   float depth_front = trim_operation->depth_front;
   float depth_back = trim_operation->depth_back;
@@ -1145,7 +1155,7 @@ static void sculpt_gesture_trim_geometry_generate(SculptGestureContext *sgcontex
 
   /* Get the triangulation for the front/back poly. */
   const int tot_tris_face = tot_screen_points - 2;
-  uint(*r_tris)[3] = MEM_malloc_arrayN(tot_tris_face, 3 * sizeof(uint), "tris");
+  uint(*r_tris)[3] = MEM_malloc_arrayN(tot_tris_face, sizeof(uint[3]), "tris");
   BLI_polyfill_calc(screen_points, tot_screen_points, 0, r_tris);
 
   /* Write the front face triangle indices. */
@@ -1230,12 +1240,14 @@ static void sculpt_gesture_apply_trim(SculptGestureContext *sgcontext)
                      trim_mesh,
                      &((struct BMeshFromMeshParams){
                          .calc_face_normal = true,
+                         .calc_vert_normal = true,
                      }));
 
   BM_mesh_bm_from_me(bm,
                      sculpt_mesh,
                      &((struct BMeshFromMeshParams){
                          .calc_face_normal = true,
+                         .calc_vert_normal = true,
                      }));
 
   const int looptris_tot = poly_to_tri_count(bm->totface, bm->totloop);
@@ -1300,7 +1312,6 @@ static void sculpt_gesture_apply_trim(SculptGestureContext *sgcontext)
                                             }),
                                             sculpt_mesh);
   BM_mesh_free(bm);
-  BKE_mesh_normals_tag_dirty(result);
   BKE_mesh_nomain_to_mesh(
       result, sgcontext->vc.obact->data, sgcontext->vc.obact, &CD_MASK_MESH, true);
 }
@@ -1428,7 +1439,7 @@ static void project_line_gesture_apply_task_cb(void *__restrict userdata,
     }
     add_v3_v3(vd.co, disp);
     if (vd.mvert) {
-      vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+      BKE_pbvh_vert_tag_update_normal(sgcontext->ss->pbvh, vd.vertex);
     }
     any_updated = true;
   }
@@ -1491,7 +1502,7 @@ static int paint_mask_gesture_box_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   sculpt_gesture_init_mask_properties(sgcontext, op);
-  sculpt_gesture_apply(C, sgcontext);
+  sculpt_gesture_apply(C, sgcontext, op);
   sculpt_gesture_context_free(sgcontext);
   return OPERATOR_FINISHED;
 }
@@ -1503,7 +1514,7 @@ static int paint_mask_gesture_lasso_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   sculpt_gesture_init_mask_properties(sgcontext, op);
-  sculpt_gesture_apply(C, sgcontext);
+  sculpt_gesture_apply(C, sgcontext, op);
   sculpt_gesture_context_free(sgcontext);
   return OPERATOR_FINISHED;
 }
@@ -1515,7 +1526,7 @@ static int paint_mask_gesture_line_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   sculpt_gesture_init_mask_properties(sgcontext, op);
-  sculpt_gesture_apply(C, sgcontext);
+  sculpt_gesture_apply(C, sgcontext, op);
   sculpt_gesture_context_free(sgcontext);
   return OPERATOR_FINISHED;
 }
@@ -1527,7 +1538,7 @@ static int face_set_gesture_box_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   sculpt_gesture_init_face_set_properties(sgcontext, op);
-  sculpt_gesture_apply(C, sgcontext);
+  sculpt_gesture_apply(C, sgcontext, op);
   sculpt_gesture_context_free(sgcontext);
   return OPERATOR_FINISHED;
 }
@@ -1539,7 +1550,7 @@ static int face_set_gesture_lasso_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   sculpt_gesture_init_face_set_properties(sgcontext, op);
-  sculpt_gesture_apply(C, sgcontext);
+  sculpt_gesture_apply(C, sgcontext, op);
   sculpt_gesture_context_free(sgcontext);
   return OPERATOR_FINISHED;
 }
@@ -1564,7 +1575,7 @@ static int sculpt_trim_gesture_box_exec(bContext *C, wmOperator *op)
   }
 
   sculpt_gesture_init_trim_properties(sgcontext, op);
-  sculpt_gesture_apply(C, sgcontext);
+  sculpt_gesture_apply(C, sgcontext, op);
   sculpt_gesture_context_free(sgcontext);
   return OPERATOR_FINISHED;
 }
@@ -1575,9 +1586,9 @@ static int sculpt_trim_gesture_box_invoke(bContext *C, wmOperator *op, const wmE
   SculptSession *ss = ob->sculpt;
 
   SculptCursorGeometryInfo sgi;
-  float mouse[2] = {event->mval[0], event->mval[1]};
+  const float mval_fl[2] = {UNPACK2(event->mval)};
   SCULPT_vertex_random_access_ensure(ss);
-  ss->gesture_initial_hit = SCULPT_cursor_geometry_info_update(C, &sgi, mouse, false);
+  ss->gesture_initial_hit = SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false);
   if (ss->gesture_initial_hit) {
     copy_v3_v3(ss->gesture_initial_location, sgi.location);
     copy_v3_v3(ss->gesture_initial_normal, sgi.normal);
@@ -1605,7 +1616,7 @@ static int sculpt_trim_gesture_lasso_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   sculpt_gesture_init_trim_properties(sgcontext, op);
-  sculpt_gesture_apply(C, sgcontext);
+  sculpt_gesture_apply(C, sgcontext, op);
   sculpt_gesture_context_free(sgcontext);
   return OPERATOR_FINISHED;
 }
@@ -1616,9 +1627,9 @@ static int sculpt_trim_gesture_lasso_invoke(bContext *C, wmOperator *op, const w
   SculptSession *ss = ob->sculpt;
 
   SculptCursorGeometryInfo sgi;
-  float mouse[2] = {event->mval[0], event->mval[1]};
+  const float mval_fl[2] = {UNPACK2(event->mval)};
   SCULPT_vertex_random_access_ensure(ss);
-  ss->gesture_initial_hit = SCULPT_cursor_geometry_info_update(C, &sgi, mouse, false);
+  ss->gesture_initial_hit = SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false);
   if (ss->gesture_initial_hit) {
     copy_v3_v3(ss->gesture_initial_location, sgi.location);
     copy_v3_v3(ss->gesture_initial_normal, sgi.normal);
@@ -1634,7 +1645,7 @@ static int project_gesture_line_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   sculpt_gesture_init_project_properties(sgcontext, op);
-  sculpt_gesture_apply(C, sgcontext);
+  sculpt_gesture_apply(C, sgcontext, op);
   sculpt_gesture_context_free(sgcontext);
   return OPERATOR_FINISHED;
 }

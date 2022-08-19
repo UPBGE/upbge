@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2020 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2020 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup edsculpt
@@ -295,9 +279,12 @@ static float *SCULPT_geodesic_fallback_create(Object *ob, GSet *initial_vertices
     return dists;
   }
 
-  const float *first_affected_co = SCULPT_vertex_co_get(ss, first_affected);
+  const float *first_affected_co = SCULPT_vertex_co_get(
+      ss, BKE_pbvh_index_to_vertex(ss->pbvh, first_affected));
   for (int i = 0; i < totvert; i++) {
-    dists[i] = len_v3v3(first_affected_co, SCULPT_vertex_co_get(ss, i));
+    PBVHVertRef vertex = BKE_pbvh_index_to_vertex(ss->pbvh, i);
+
+    dists[i] = len_v3v3(first_affected_co, SCULPT_vertex_co_get(ss, vertex));
   }
 
   return dists;
@@ -321,7 +308,7 @@ float *SCULPT_geodesic_distances_create(Object *ob,
 
 float *SCULPT_geodesic_from_vertex_and_symm(Sculpt *sd,
                                             Object *ob,
-                                            const int vertex,
+                                            const PBVHVertRef vertex,
                                             const float limit_radius)
 {
   SculptSession *ss = ob->sculpt;
@@ -330,7 +317,8 @@ float *SCULPT_geodesic_from_vertex_and_symm(Sculpt *sd,
   const char symm = SCULPT_mesh_symmetry_xyz_get(ob);
   for (char i = 0; i <= symm; ++i) {
     if (SCULPT_is_symmetry_iteration_valid(i, symm)) {
-      int v = -1;
+      PBVHVertRef v = {PBVH_REF_NONE};
+
       if (i == 0) {
         v = vertex;
       }
@@ -339,8 +327,8 @@ float *SCULPT_geodesic_from_vertex_and_symm(Sculpt *sd,
         flip_v3_v3(location, SCULPT_vertex_co_get(ss, vertex), i);
         v = SCULPT_nearest_vertex_get(sd, ob, location, FLT_MAX, false);
       }
-      if (v != -1) {
-        BLI_gset_add(initial_vertices, POINTER_FROM_INT(v));
+      if (v.i != PBVH_REF_NONE) {
+        BLI_gset_add(initial_vertices, POINTER_FROM_INT(BKE_pbvh_vertex_to_index(ss->pbvh, v)));
       }
     }
   }
@@ -350,10 +338,11 @@ float *SCULPT_geodesic_from_vertex_and_symm(Sculpt *sd,
   return dists;
 }
 
-float *SCULPT_geodesic_from_vertex(Object *ob, const int vertex, const float limit_radius)
+float *SCULPT_geodesic_from_vertex(Object *ob, const PBVHVertRef vertex, const float limit_radius)
 {
   GSet *initial_vertices = BLI_gset_int_new("initial_vertices");
-  BLI_gset_add(initial_vertices, POINTER_FROM_INT(vertex));
+  BLI_gset_add(initial_vertices,
+               POINTER_FROM_INT(BKE_pbvh_vertex_to_index(ob->sculpt->pbvh, vertex)));
   float *dists = SCULPT_geodesic_distances_create(ob, initial_vertices, limit_radius);
   BLI_gset_free(initial_vertices, NULL);
   return dists;

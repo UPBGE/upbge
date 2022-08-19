@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup blenloader
@@ -37,9 +23,11 @@
 #include "DNA_curveprofile_types.h"
 #include "DNA_gpencil_types.h"
 #include "DNA_light_types.h"
+#include "DNA_mask_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
@@ -47,6 +35,7 @@
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_workspace_types.h"
+#include "DNA_world_types.h"  // UPBGE
 
 #include "BKE_appdir.h"
 #include "BKE_brush.h"
@@ -58,14 +47,18 @@
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
+#include "BKE_main_namemap.h"
 #include "BKE_material.h"
 #include "BKE_mesh.h"
 #include "BKE_node.h"
+#include "BKE_node_tree_update.h"
 #include "BKE_paint.h"
 #include "BKE_screen.h"
 #include "BKE_workspace.h"
 
 #include "BLO_readfile.h"
+
+#include "BLT_translation.h"
 
 #include "versioning_common.h"
 
@@ -75,8 +68,9 @@
 static bool blo_is_builtin_template(const char *app_template)
 {
   /* For all builtin templates shipped with Blender. */
-  return (!app_template ||
-          STR_ELEM(app_template, "2D_Animation", "Sculpting", "VFX", "Video_Editing"));
+  return (
+      !app_template ||
+      STR_ELEM(app_template, N_("2D_Animation"), N_("Sculpting"), N_("VFX"), N_("Video_Editing")));
 }
 
 static void blo_update_defaults_screen(bScreen *screen,
@@ -146,6 +140,14 @@ static void blo_update_defaults_screen(bScreen *screen,
           }
         }
       }
+      else {
+        /* Open properties panel by default. */
+        LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+          if (region->regiontype == RGN_TYPE_UI) {
+            region->flag &= ~RGN_FLAG_HIDDEN;
+          }
+        }
+      }
     }
     else if (area->spacetype == SPACE_GRAPH) {
       SpaceGraph *sipo = area->spacedata.first;
@@ -197,6 +199,8 @@ static void blo_update_defaults_screen(bScreen *screen,
     else if (area->spacetype == SPACE_CLIP) {
       SpaceClip *sclip = area->spacedata.first;
       sclip->around = V3D_AROUND_CENTER_MEDIAN;
+      sclip->mask_info.blend_factor = 0.7f;
+      sclip->mask_info.draw_flag = MASK_DRAWFLAG_SPLINE;
     }
   }
 
@@ -367,17 +371,87 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   }
 }
 
-/**
- * Update defaults in startup.blend, without having to save and embed the file.
- * This function can be emptied each time the startup.blend is updated.
- *
- * \note Screen data may be cleared at this point, this will happen in the case
- * an app-template's data needs to be versioned when read-file is called with "Load UI" disabled.
- * Versioning the screen data can be safely skipped without "Load UI" since the screen data
- * will have been versioned when it was first loaded.
- */
 void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 {
+  /*********************UPBGE*********************/
+  // WARNING: ALWAYS KEEP THIS IN BLO_update_defaults_startup_blend
+  for (Scene *sce = bmain->scenes.first; sce; sce = sce->id.next) {
+    /* game data */
+    sce->gm.stereoflag = STEREO_NOSTEREO;
+    sce->gm.stereomode = STEREO_ANAGLYPH;
+    sce->gm.eyeseparation = 0.10;
+    sce->gm.xplay = 1280;
+    sce->gm.yplay = 720;
+    sce->gm.samples_per_frame = 1;
+    sce->gm.freqplay = 60;
+    sce->gm.depth = 32;
+    sce->gm.gravity = 9.8f;
+    sce->gm.physicsEngine = WOPHY_BULLET;
+    sce->gm.mode = WO_ACTIVITY_CULLING;
+    sce->gm.occlusionRes = 128;
+    sce->gm.ticrate = 60;
+    sce->gm.maxlogicstep = 5;
+    sce->gm.physubstep = 1;
+    sce->gm.maxphystep = 5;
+    sce->gm.lineardeactthreshold = 0.8f;
+    sce->gm.angulardeactthreshold = 1.0f;
+    sce->gm.deactivationtime = 2.0f;
+
+    sce->gm.obstacleSimulation = OBSTSIMULATION_NONE;
+    sce->gm.levelHeight = 2.f;
+
+    sce->gm.recastData.cellsize = 0.3f;
+    sce->gm.recastData.cellheight = 0.2f;
+    sce->gm.recastData.agentmaxslope = M_PI_4;
+    sce->gm.recastData.agentmaxclimb = 0.9f;
+    sce->gm.recastData.agentheight = 2.0f;
+    sce->gm.recastData.agentradius = 0.6f;
+    sce->gm.recastData.edgemaxlen = 12.0f;
+    sce->gm.recastData.edgemaxerror = 1.3f;
+    sce->gm.recastData.regionminsize = 8.f;
+    sce->gm.recastData.regionmergesize = 20.f;
+    sce->gm.recastData.vertsperpoly = 6;
+    sce->gm.recastData.detailsampledist = 6.0f;
+    sce->gm.recastData.detailsamplemaxerror = 1.0f;
+    sce->gm.recastData.partitioning = RC_PARTITION_WATERSHED;
+
+    sce->gm.exitkey = 218;  // Blender key code for ESC
+
+    sce->gm.flag |= GAME_USE_UNDO;
+
+    sce->gm.lodflag = SCE_LOD_USE_HYST;
+    sce->gm.scehysteresis = 10;
+  }
+  for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
+    /* UPBGE defaults*/
+    ob->mass = ob->inertia = 1.0f;
+    ob->formfactor = 0.4f;
+    ob->damping = 0.04f;
+    ob->rdamping = 0.1f;
+    ob->anisotropicFriction[0] = 1.0f;
+    ob->anisotropicFriction[1] = 1.0f;
+    ob->anisotropicFriction[2] = 1.0f;
+    ob->gameflag = OB_PROP | OB_COLLISION;
+    ob->gameflag2 = 0;
+    ob->margin = 0.04f;
+    ob->friction = 0.5f;
+    ob->init_state = 1;
+    ob->state = 1;
+    ob->obstacleRad = 1.0f;
+    ob->step_height = 0.15f;
+    ob->jump_speed = 10.0f;
+    ob->fall_speed = 55.0f;
+    ob->max_jumps = 1;
+    ob->max_slope = M_PI_2;
+    ob->col_group = 0x01;
+    ob->col_mask = 0xffff;
+    if (ob->type == OB_CAMERA) {
+      Camera *cam = ob->data;
+      cam->gameflag |= GAME_CAM_OBJECT_ACTIVITY_CULLING;
+    }
+  }
+  /***********************End of UPBGE**********************/
+
   /* For all app templates. */
   for (WorkSpace *workspace = bmain->workspaces.first; workspace; workspace = workspace->id.next) {
     BLO_update_defaults_workspace(workspace, app_template);
@@ -498,8 +572,11 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
         /* Default only has one window. */
         if (layout->screen) {
           bScreen *screen = layout->screen;
-          BLI_strncpy(screen->id.name + 2, workspace->id.name + 2, sizeof(screen->id.name) - 2);
-          BLI_libblock_ensure_unique_name(bmain, screen->id.name);
+          if (!STREQ(screen->id.name + 2, workspace->id.name + 2)) {
+            BKE_main_namemap_remove_name(bmain, &screen->id, screen->id.name + 2);
+            BLI_strncpy(screen->id.name + 2, workspace->id.name + 2, sizeof(screen->id.name) - 2);
+            BLI_libblock_ensure_unique_name(bmain, screen->id.name);
+          }
         }
 
         /* For some reason we have unused screens, needed until re-saving.
@@ -554,11 +631,13 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
   for (Mesh *mesh = bmain->meshes.first; mesh; mesh = mesh->id.next) {
     /* Match default for new meshes. */
     mesh->smoothresh = DEG2RADF(30);
+    /* Match voxel remesher options for all existing meshes in templates. */
+    mesh->flag |= ME_REMESH_REPROJECT_VOLUME | ME_REMESH_REPROJECT_PAINT_MASK |
+                  ME_REMESH_REPROJECT_SCULPT_FACE_SETS | ME_REMESH_REPROJECT_VERTEX_COLORS;
 
     /* For Sculpting template. */
     if (app_template && STREQ(app_template, "Sculpting")) {
       mesh->remesh_voxel_size = 0.035f;
-      mesh->flag |= ME_REMESH_FIX_POLES | ME_REMESH_REPROJECT_VOLUME;
       BKE_mesh_smooth_flag_set(mesh, false);
     }
     else {
@@ -583,20 +662,20 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
   /* Materials */
   for (Material *ma = bmain->materials.first; ma; ma = ma->id.next) {
     /* Update default material to be a bit more rough. */
-    ma->roughness = 0.4f;
+    ma->roughness = 0.5f;
 
     if (ma->nodetree) {
       LISTBASE_FOREACH (bNode *, node, &ma->nodetree->nodes) {
         if (node->type == SH_NODE_BSDF_PRINCIPLED) {
           bNodeSocket *roughness_socket = nodeFindSocket(node, SOCK_IN, "Roughness");
           bNodeSocketValueFloat *roughness_data = roughness_socket->default_value;
-          roughness_data->value = 0.4f;
+          roughness_data->value = 0.5f;
           node->custom2 = SHD_SUBSURFACE_RANDOM_WALK;
-          nodeUpdate(ma->nodetree, node);
+          BKE_ntree_update_tag_node_property(ma->nodetree, node);
         }
         else if (node->type == SH_NODE_SUBSURFACE_SCATTERING) {
           node->custom1 = SHD_SUBSURFACE_RANDOM_WALK;
-          nodeUpdate(ma->nodetree, node);
+          BKE_ntree_update_tag_node_property(ma->nodetree, node);
         }
       }
     }

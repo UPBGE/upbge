@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -85,7 +71,7 @@ struct FCurvePathCache *BKE_fcurve_pathcache_create(ListBase *list)
   }
   qsort(fcurve_array, fcurve_array_len, sizeof(FCurve *), fcurve_cmp_for_cache);
 
-  /* Allow for the case no F-curves share an RNA-path, otherwise this is over-allocated.
+  /* Allow for the case no F-Curves share an RNA-path, otherwise this is over-allocated.
    * Although in practice it's likely to only be 3-4x as large as is needed
    * (with transform channels for e.g.). */
   struct FCurvePathCache_Span *span_table = MEM_mallocN(sizeof(*span_table) * fcurve_array_len,
@@ -155,11 +141,6 @@ FCurve *BKE_fcurve_pathcache_find(struct FCurvePathCache *fcache,
   return NULL;
 }
 
-/**
- * Fill in an array of F-Curve, leave NULL when not found.
- *
- * \return The number of F-Curves found.
- */
 int BKE_fcurve_pathcache_find_array(struct FCurvePathCache *fcache,
                                     const char *rna_path,
                                     FCurve **fcurve_result,

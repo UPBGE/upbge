@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -90,7 +76,7 @@ ImBuf *BKE_icon_geom_rasterize(const struct Icon_Geom *geom,
   const uchar(*pos)[2] = geom->coords;
   const uint *col = (void *)geom->colors;
 
-  /* TODO(campbell): Currently rasterizes to fixed size, then scales.
+  /* TODO(@campbellbarton): Currently rasterizes to fixed size, then scales.
    * Should rasterize to double size for eg instead. */
   const int rect_size[2] = {max_ii(256, (int)size_x * 2), max_ii(256, (int)size_y * 2)};
 

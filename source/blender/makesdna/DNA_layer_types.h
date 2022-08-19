@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -49,8 +35,9 @@ typedef enum eViewLayerEEVEEPassType {
   EEVEE_RENDER_PASS_BLOOM = (1 << 14),
   EEVEE_RENDER_PASS_AOV = (1 << 15),
   EEVEE_RENDER_PASS_CRYPTOMATTE = (1 << 16),
+  EEVEE_RENDER_PASS_VECTOR = (1 << 17),
 } eViewLayerEEVEEPassType;
-#define EEVEE_RENDER_PASS_MAX_BIT 17
+#define EEVEE_RENDER_PASS_MAX_BIT 18
 
 /* #ViewLayerAOV.type */
 typedef enum eViewLayerAOVType {
@@ -127,7 +114,7 @@ typedef struct ViewLayerEEVEE {
   int _pad[1];
 } ViewLayerEEVEE;
 
-/* AOV Renderpass definition. */
+/** AOV Render-pass definition. */
 typedef struct ViewLayerAOV {
   struct ViewLayerAOV *next, *prev;
 
@@ -138,6 +125,21 @@ typedef struct ViewLayerAOV {
    * matches `eViewLayerAOVType` */
   int type;
 } ViewLayerAOV;
+
+/** Light-group Render-pass definition. */
+typedef struct ViewLayerLightgroup {
+  struct ViewLayerLightgroup *next, *prev;
+
+  /* Name of the Lightgroup */
+  char name[64];
+} ViewLayerLightgroup;
+
+/* Lightgroup membership information. */
+typedef struct LightgroupMembership {
+  /* Name of the Lightgroup */
+  char name[64];
+} LightgroupMembership;
+
 typedef struct ViewLayer {
   struct ViewLayer *next, *prev;
   /** MAX_NAME. */
@@ -177,6 +179,10 @@ typedef struct ViewLayer {
   /* List containing the `ViewLayerAOV`s */
   ListBase aovs;
   ViewLayerAOV *active_aov;
+
+  /* List containing the 'ViewLayerLightgroup`s */
+  ListBase lightgroups;
+  ViewLayerLightgroup *active_lightgroup;
 
   /* Runtime data */
   /** ViewLayerEngineData. */

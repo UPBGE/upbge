@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2019, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2019 Blender Foundation. */
 
 /** \file
  * \ingroup EEVEE
@@ -95,7 +80,6 @@ start:
   add_v3_v3(ws_sample_pos, jitter);
 }
 
-/* Return true if sample has changed and light needs to be updated. */
 bool EEVEE_shadows_cube_setup(EEVEE_LightsInfo *linfo, const EEVEE_Light *evli, int sample_ofs)
 {
   EEVEE_Shadow *shdw_data = linfo->shadow_data + (int)evli->shadow_id;
@@ -108,7 +92,7 @@ bool EEVEE_shadows_cube_setup(EEVEE_LightsInfo *linfo, const EEVEE_Light *evli, 
 
   bool update = false;
 
-  if (linfo->soft_shadows) {
+  if (linfo->soft_shadows && evli->use_soft_shd) {  // UPBGE
     shadow_cube_random_position_set(evli, sample_ofs, cube_data->shadowmat[3]);
     /* Update if position changes (avoid infinite update if soft shadows does not move).
      * Other changes are caught by depsgraph tagging. This one is for update between samples. */

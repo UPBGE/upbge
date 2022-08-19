@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bpygpu
@@ -291,7 +277,10 @@ static int pygpu_buffer__tp_traverse(BPyGPUBuffer *self, visitproc visit, void *
 
 static int pygpu_buffer__tp_clear(BPyGPUBuffer *self)
 {
-  Py_CLEAR(self->parent);
+  if (self->parent) {
+    Py_CLEAR(self->parent);
+    self->buf.as_void = NULL;
+  }
   return 0;
 }
 
@@ -301,7 +290,7 @@ static void pygpu_buffer__tp_dealloc(BPyGPUBuffer *self)
     PyObject_GC_UnTrack(self);
     Py_CLEAR(self->parent);
   }
-  else {
+  else if (self->buf.as_void) {
     MEM_freeN(self->buf.as_void);
   }
 
@@ -408,9 +397,16 @@ static PyObject *pygpu_buffer__tp_new(PyTypeObject *UNUSED(type), PyObject *args
       return NULL;
     }
 
-    if (pygpu_buffer_dimensions_tot_len_compare(shape, shape_len, pybuffer.shape, pybuffer.ndim)) {
+    Py_ssize_t *pybuffer_shape = pybuffer.shape;
+    Py_ssize_t pybuffer_ndim = pybuffer.ndim;
+    if (!pybuffer_shape) {
+      pybuffer_shape = &pybuffer.len;
+      pybuffer_ndim = 1;
+    }
+
+    if (pygpu_buffer_dimensions_tot_len_compare(shape, shape_len, pybuffer_shape, pybuffer_ndim)) {
       buffer = pygpu_buffer_make_from_data(
-          init, pygpu_dataformat.value_found, pybuffer.ndim, shape, pybuffer.buf);
+          init, pygpu_dataformat.value_found, shape_len, shape, pybuffer.buf);
     }
 
     PyBuffer_Release(&pybuffer);
@@ -608,23 +604,31 @@ static void pygpu_buffer_strides_calc(const eGPUDataFormat format,
 }
 
 /* Here is the buffer interface function */
-static int pygpu_buffer__bf_getbuffer(BPyGPUBuffer *self, Py_buffer *view, int UNUSED(flags))
+static int pygpu_buffer__bf_getbuffer(BPyGPUBuffer *self, Py_buffer *view, int flags)
 {
   if (view == NULL) {
     PyErr_SetString(PyExc_ValueError, "NULL view in getbuffer");
     return -1;
   }
 
+  memset(view, 0, sizeof(*view));
+
   view->obj = (PyObject *)self;
   view->buf = (void *)self->buf.as_void;
   view->len = bpygpu_Buffer_size(self);
   view->readonly = 0;
   view->itemsize = GPU_texture_dataformat_size(self->format);
-  view->format = (char *)pygpu_buffer_formatstr(self->format);
-  view->ndim = self->shape_len;
-  view->shape = self->shape;
-  view->strides = MEM_mallocN(view->ndim * sizeof(*view->strides), "BPyGPUBuffer strides");
-  pygpu_buffer_strides_calc(self->format, view->ndim, view->shape, view->strides);
+  if (flags & PyBUF_FORMAT) {
+    view->format = (char *)pygpu_buffer_formatstr(self->format);
+  }
+  if (flags & PyBUF_ND) {
+    view->ndim = self->shape_len;
+    view->shape = self->shape;
+  }
+  if (flags & PyBUF_STRIDES) {
+    view->strides = MEM_mallocN(view->ndim * sizeof(*view->strides), "BPyGPUBuffer strides");
+    pygpu_buffer_strides_calc(self->format, view->ndim, view->shape, view->strides);
+  }
   view->suboffsets = NULL;
   view->internal = NULL;
 
@@ -687,13 +691,6 @@ size_t bpygpu_Buffer_size(BPyGPUBuffer *buffer)
   return pygpu_buffer_calc_size(buffer->format, buffer->shape_len, buffer->shape);
 }
 
-/**
- * Create a buffer object
- *
- * \param shape: An array of `shape_len` integers representing the size of each dimension.
- * \param buffer: When not NULL holds a contiguous buffer
- * with the correct format from which the buffer will be initialized
- */
 BPyGPUBuffer *BPyGPU_Buffer_CreatePyObject(const int format,
                                            const Py_ssize_t *shape,
                                            const int shape_len,

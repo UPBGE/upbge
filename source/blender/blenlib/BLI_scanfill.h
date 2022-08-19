@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 #pragma once
 
@@ -67,7 +51,7 @@ typedef struct ScanFillVert {
   unsigned int keyindex;
   unsigned short poly_nr;
   /** number of edges using this vertex */
-  unsigned char edge_tot;
+  unsigned char edge_count;
   /** vert status */
   unsigned int f : 4;
   /** flag callers can use as they like */
@@ -91,13 +75,14 @@ typedef struct ScanFillFace {
 } ScanFillFace;
 
 /* scanfill.c */
+
 struct ScanFillVert *BLI_scanfill_vert_add(ScanFillContext *sf_ctx, const float vec[3]);
 struct ScanFillEdge *BLI_scanfill_edge_add(ScanFillContext *sf_ctx,
                                            struct ScanFillVert *v1,
                                            struct ScanFillVert *v2);
 
 enum {
-  /* NOTE(campbell): using BLI_SCANFILL_CALC_REMOVE_DOUBLES
+  /* NOTE(@campbellbarton): using #BLI_SCANFILL_CALC_REMOVE_DOUBLES
    * Assumes ordered edges, otherwise we risk an eternal loop
    * removing double verts. */
   BLI_SCANFILL_CALC_REMOVE_DOUBLES = (1 << 1),
@@ -113,16 +98,20 @@ enum {
   BLI_SCANFILL_CALC_LOOSE = (1 << 4),
 };
 void BLI_scanfill_begin(ScanFillContext *sf_ctx);
-unsigned int BLI_scanfill_calc(ScanFillContext *sf_ctx, const int flag);
-unsigned int BLI_scanfill_calc_ex(ScanFillContext *sf_ctx,
-                                  const int flag,
-                                  const float nor_proj[3]);
+unsigned int BLI_scanfill_calc(ScanFillContext *sf_ctx, int flag);
+unsigned int BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, int flag, const float nor_proj[3]);
 void BLI_scanfill_end(ScanFillContext *sf_ctx);
 
 void BLI_scanfill_begin_arena(ScanFillContext *sf_ctx, struct MemArena *arena);
 void BLI_scanfill_end_arena(ScanFillContext *sf_ctx, struct MemArena *arena);
 
 /* scanfill_utils.c */
+
+/**
+ * Call before scan-fill to remove self intersections.
+ *
+ * \return false if no changes were made.
+ */
 bool BLI_scanfill_calc_self_isect(ScanFillContext *sf_ctx,
                                   ListBase *fillvertbase,
                                   ListBase *filledgebase);

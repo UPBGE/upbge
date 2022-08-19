@@ -1,26 +1,10 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
-# <pep8 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 import bpy
 from bpy.types import Header, Menu, Panel
-from bpy.app.translations import pgettext_iface as iface_
-from bpy.app.translations import contexts as i18n_contexts
+from bpy.app.translations import (
+    pgettext_iface as iface_,
+    contexts as i18n_contexts,
+)
 from bl_ui.utils import PresetPanel
 from bl_ui.properties_grease_pencil_common import (
     AnnotationDataPanel,
@@ -77,7 +61,7 @@ class NODE_HT_header(Header):
                 layout.separator_spacer()
 
                 types_that_support_material = {'MESH', 'CURVE', 'SURFACE', 'FONT', 'META',
-                                               'GPENCIL', 'VOLUME', 'HAIR', 'POINTCLOUD'}
+                                               'GPENCIL', 'VOLUME', 'CURVES', 'POINTCLOUD'}
                 # disable material slot buttons when pinned, cannot find correct slot within id_from (T36589)
                 # disable also when the selected object does not support materials
                 has_material_slots = not snode.pin and ob_type in types_that_support_material
@@ -165,7 +149,7 @@ class NODE_HT_header(Header):
                 active_modifier = ob.modifiers.active
                 if active_modifier and active_modifier.type == 'NODES':
                     if active_modifier.node_group:
-                        row.template_ID(active_modifier, "node_group", new="node.copy_geometry_node_group_assign")
+                        row.template_ID(active_modifier, "node_group", new="object.geometry_node_tree_copy_assign")
                     else:
                         row.template_ID(active_modifier, "node_group", new="node.new_geometry_node_group_assign")
                 else:
@@ -201,7 +185,7 @@ class NODE_HT_header(Header):
 
         # Snap
         row = layout.row(align=True)
-        row.prop(tool_settings, "use_snap", text="")
+        row.prop(tool_settings, "use_snap_node", text="")
         row.prop(tool_settings, "snap_node_element", icon_only=True)
         if tool_settings.snap_node_element != 'GRID':
             row.prop(tool_settings, "snap_target", text="")
@@ -367,6 +351,17 @@ class NODE_MT_node(Menu):
         layout.operator("node.read_viewlayers")
 
 
+class NODE_MT_view_pie(Menu):
+    bl_label = "View"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        pie = layout.menu_pie()
+        pie.operator("node.view_all")
+        pie.operator("node.view_selected", icon='ZOOM_SELECTED')
+
+
 class NODE_PT_active_tool(ToolActivePanelHelper, Panel):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'UI'
@@ -382,8 +377,8 @@ class NODE_PT_material_slots(Panel):
     def draw_header(self, context):
         ob = context.object
         self.bl_label = (
-            "Slot " + str(ob.active_material_index + 1) if ob.material_slots else
-            "Slot"
+            iface_("Slot %d") % (ob.active_material_index + 1) if ob.material_slots else
+            iface_("Slot")
         )
 
     # Duplicate part of 'EEVEE_MATERIAL_PT_context_material'.
@@ -708,7 +703,13 @@ class NODE_PT_overlay(Panel):
 
         col.separator()
 
+        col.prop(overlay, "show_context_path", text="Context Path")
         col.prop(snode, "show_annotation", text="Annotations")
+
+        if snode.tree_type == 'GeometryNodeTree':
+            col.separator()
+            col.prop(overlay, "show_timing", text="Timings")
+            col.prop(overlay, "show_named_attributes", text="Named Attributes")
 
 
 class NODE_UL_interface_sockets(bpy.types.UIList):
@@ -726,7 +727,20 @@ class NODE_UL_interface_sockets(bpy.types.UIList):
             layout.template_node_socket(color=color)
 
 
-class NodeTreeInterfacePanel:
+class NodeTreeInterfacePanel(Panel):
+
+    @classmethod
+    def poll(cls, context):
+        snode = context.space_data
+        if snode is None:
+            return False
+        tree = snode.edit_tree
+        if tree is None:
+            return False
+        if tree.is_embedded_data:
+            return False
+        return True
+
     def draw_socket_list(self, context, in_out, sockets_propname, active_socket_propname):
         layout = self.layout
 
@@ -775,7 +789,7 @@ class NodeTreeInterfacePanel:
                 "node.tree_socket_change_type",
                 "socket_type",
                 text=active_socket.bl_label if active_socket.bl_label else active_socket.bl_idname
-                )
+            )
             props.in_out = in_out
 
             layout.use_property_split = True
@@ -796,35 +810,28 @@ class NodeTreeInterfacePanel:
                     active_socket.bl_socket_idname.startswith(prefix)
                     for prefix in field_socket_prefixes
                 )
-                if in_out == 'OUT' and is_field_type:
-                    layout.prop(active_socket, "attribute_domain")
+                if is_field_type:
+                    if in_out == 'OUT':
+                        layout.prop(active_socket, "attribute_domain")
+                    layout.prop(active_socket, "default_attribute_name")
             active_socket.draw(context, layout)
 
 
-class NODE_PT_node_tree_interface_inputs(NodeTreeInterfacePanel, Panel):
+class NODE_PT_node_tree_interface_inputs(NodeTreeInterfacePanel):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'UI'
     bl_category = "Group"
     bl_label = "Inputs"
 
-    @classmethod
-    def poll(cls, context):
-        snode = context.space_data
-        return snode.edit_tree is not None
-
     def draw(self, context):
         self.draw_socket_list(context, "IN", "inputs", "active_input")
 
-class NODE_PT_node_tree_interface_outputs(NodeTreeInterfacePanel, Panel):
+
+class NODE_PT_node_tree_interface_outputs(NodeTreeInterfacePanel):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'UI'
     bl_category = "Group"
     bl_label = "Outputs"
-
-    @classmethod
-    def poll(cls, context):
-        snode = context.space_data
-        return snode.edit_tree is not None
 
     def draw(self, context):
         self.draw_socket_list(context, "OUT", "outputs", "active_output")
@@ -877,6 +884,7 @@ classes = (
     NODE_MT_node,
     NODE_MT_node_color_context_menu,
     NODE_MT_context_menu,
+    NODE_MT_view_pie,
     NODE_PT_material_slots,
     NODE_PT_node_color_presets,
     NODE_PT_active_node_generic,

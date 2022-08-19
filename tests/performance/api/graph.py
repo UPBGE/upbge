@@ -1,4 +1,4 @@
-# Apache License, Version 2.0
+# SPDX-License-Identifier: Apache-2.0
 
 from . import TestQueue
 
@@ -74,8 +74,8 @@ class TestGraph:
                 revisions[revision] = len(revisions)
                 revision_dates[revision] = int(entry.date)
 
-        # Google Charts JSON data layout is like a spreadsheat table, with
-        # colums, rows and cells. We create one column for revision labels,
+        # Google Charts JSON data layout is like a spreadsheet table, with
+        # columns, rows, and cells. We create one column for revision labels,
         # and one column for each test.
         cols = []
         if chart_type == 'line':
@@ -98,8 +98,15 @@ class TestGraph:
         for entry in entries:
             test_index = tests[entry.test]
             revision_index = revisions[entry.revision]
-            time = entry.output[output] if output in entry.output else -1.0
-            rows[revision_index]['c'][test_index + 1] = {'f': None, 'v': time}
+            output_value = entry.output[output] if output in entry.output else -1.0
+
+            if output.find("memory") != -1:
+                formatted_value = '%.2f MB' % (output_value / (1024 * 1024))
+            else:
+                formatted_value = "%.4f" % output_value
+
+            cell = {'f': formatted_value, 'v': output_value}
+            rows[revision_index]['c'][test_index + 1] = cell
 
         data = {'cols': cols, 'rows': rows}
         return {'device': device_name, 'name': chart_name, 'data': data, 'chart_type': chart_type}

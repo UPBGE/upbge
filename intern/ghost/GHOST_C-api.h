@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 /** \file
  * \ingroup GHOST
  * \brief GHOST C-API function and type declarations.
@@ -36,18 +20,21 @@ extern "C" {
  * \param event: The event received.
  * \param userdata: The callback's user data, supplied to #GHOST_CreateSystem.
  */
-typedef int (*GHOST_EventCallbackProcPtr)(GHOST_EventHandle event, GHOST_TUserDataPtr userdata);
+typedef bool (*GHOST_EventCallbackProcPtr)(GHOST_EventHandle event, GHOST_TUserDataPtr userdata);
 
 /**
  * Creates the one and only system.
  * \return a handle to the system.
  */
 extern GHOST_SystemHandle GHOST_CreateSystem(void);
+extern GHOST_SystemHandle GHOST_CreateSystemBackground(void);
 
 /**
  * Specifies whether debug messages are to be enabled for the specific system handle.
+ * \param systemhandle: The handle to the system.
+ * \param debug: Flag for systems to debug.
  */
-extern void GHOST_SystemInitDebug(GHOST_SystemHandle systemhandle, int is_debug_enabled);
+extern void GHOST_SystemInitDebug(GHOST_SystemHandle systemhandle, GHOST_Debug debug);
 
 /**
  * Disposes the one and only system.
@@ -162,7 +149,7 @@ extern void GHOST_GetAllDisplayDimensions(GHOST_SystemHandle systemhandle,
  * The new window is added to the list of windows managed.
  * Never explicitly delete the window, use disposeWindow() instead.
  * \param systemhandle: The handle to the system.
- * \param parentWindow: Handle of parent (or owner) window, or NULL
+ * \param parent_windowhandle: Handle of parent (or owner) window, or NULL
  * \param title: The name of the window.
  * (displayed in the title bar of the window if the OS supports it).
  * \param left: The coordinate of the left edge of the window.
@@ -191,7 +178,7 @@ extern GHOST_WindowHandle GHOST_CreateWindow(GHOST_SystemHandle systemhandle,
  * Create a new off-screen context.
  * Never explicitly delete the context, use #disposeContext() instead.
  * \param systemhandle: The handle to the system.
- * \param platform_support_callback: An optional callback to check platform support.
+ * \param glSettings: Misc OpenGL options.
  * \return A handle to the new context ( == NULL if creation failed).
  */
 extern GHOST_ContextHandle GHOST_CreateOpenGLContext(GHOST_SystemHandle systemhandle,
@@ -220,7 +207,7 @@ extern GHOST_TUserDataPtr GHOST_GetWindowUserData(GHOST_WindowHandle windowhandl
  */
 extern void GHOST_SetWindowUserData(GHOST_WindowHandle windowhandle, GHOST_TUserDataPtr userdata);
 
-extern int GHOST_IsDialogWindow(GHOST_WindowHandle windowhandle);
+extern bool GHOST_IsDialogWindow(GHOST_WindowHandle windowhandle);
 
 /**
  * Dispose a window.
@@ -237,7 +224,7 @@ extern GHOST_TSuccess GHOST_DisposeWindow(GHOST_SystemHandle systemhandle,
  * \param windowhandle: Handle to the window to be checked.
  * \return Indication of validity.
  */
-extern int GHOST_ValidWindow(GHOST_SystemHandle systemhandle, GHOST_WindowHandle windowhandle);
+extern bool GHOST_ValidWindow(GHOST_SystemHandle systemhandle, GHOST_WindowHandle windowhandle);
 
 /**
  * Begins full screen mode.
@@ -249,7 +236,7 @@ extern int GHOST_ValidWindow(GHOST_SystemHandle systemhandle, GHOST_WindowHandle
  */
 extern GHOST_WindowHandle GHOST_BeginFullScreen(GHOST_SystemHandle systemhandle,
                                                 GHOST_DisplaySetting *setting,
-                                                const int stereoVisual);
+                                                const bool stereoVisual);
 
 /**
  * Ends full screen mode.
@@ -263,7 +250,17 @@ extern GHOST_TSuccess GHOST_EndFullScreen(GHOST_SystemHandle systemhandle);
  * \param systemhandle: The handle to the system.
  * \return The current status.
  */
-extern int GHOST_GetFullScreen(GHOST_SystemHandle systemhandle);
+extern bool GHOST_GetFullScreen(GHOST_SystemHandle systemhandle);
+
+/**
+ * Get the Window under the cursor.
+ * \param x: The x-coordinate of the cursor.
+ * \param y: The y-coordinate of the cursor.
+ * \return The window under the cursor or nullptr in none.
+ */
+extern GHOST_WindowHandle GHOST_GetWindowUnderCursor(GHOST_SystemHandle systemhandle,
+                                                     int32_t x,
+                                                     int32_t y);
 
 /***************************************************************************************
  * Event management functionality
@@ -368,12 +365,15 @@ extern GHOST_TSuccess GHOST_SetCustomCursorShape(GHOST_WindowHandle windowhandle
                                                  int hotY,
                                                  bool canInvertColor);
 
+extern GHOST_TSuccess GHOST_GetCursorBitmap(GHOST_WindowHandle windowhandle,
+                                            GHOST_CursorBitmapRef *bitmap);
+
 /**
  * Returns the visibility state of the cursor.
  * \param windowhandle: The handle to the window.
  * \return The visibility state of the cursor.
  */
-extern int GHOST_GetCursorVisibility(GHOST_WindowHandle windowhandle);
+extern bool GHOST_GetCursorVisibility(GHOST_WindowHandle windowhandle);
 
 /**
  * Shows or hides the cursor.
@@ -381,30 +381,37 @@ extern int GHOST_GetCursorVisibility(GHOST_WindowHandle windowhandle);
  * \param visible: The new visibility state of the cursor.
  * \return Indication of success.
  */
-extern GHOST_TSuccess GHOST_SetCursorVisibility(GHOST_WindowHandle windowhandle, int visible);
+extern GHOST_TSuccess GHOST_SetCursorVisibility(GHOST_WindowHandle windowhandle, bool visible);
 
 /**
- * Returns the current location of the cursor (location in screen coordinates)
+ * Returns the current location of the cursor (location in client relative coordinates)
  * \param systemhandle: The handle to the system.
  * \param x: The x-coordinate of the cursor.
  * \param y: The y-coordinate of the cursor.
  * \return Indication of success.
  */
-extern GHOST_TSuccess GHOST_GetCursorPosition(GHOST_SystemHandle systemhandle,
-                                              int32_t *x,
-                                              int32_t *y);
-
+GHOST_TSuccess GHOST_GetCursorPosition(const GHOST_SystemHandle systemhandle,
+                                       const GHOST_WindowHandle windowhandle,
+                                       int32_t *x,
+                                       int32_t *y);
 /**
- * Updates the location of the cursor (location in screen coordinates).
+ * Updates the location of the cursor (location in client relative coordinates).
  * Not all operating systems allow the cursor to be moved (without the input device being moved).
  * \param systemhandle: The handle to the system.
  * \param x: The x-coordinate of the cursor.
  * \param y: The y-coordinate of the cursor.
  * \return Indication of success.
  */
-extern GHOST_TSuccess GHOST_SetCursorPosition(GHOST_SystemHandle systemhandle,
-                                              int32_t x,
-                                              int32_t y);
+GHOST_TSuccess GHOST_SetCursorPosition(GHOST_SystemHandle systemhandle,
+                                       GHOST_WindowHandle windowhandle,
+                                       int32_t x,
+                                       int32_t y);
+
+void GHOST_GetCursorGrabState(GHOST_WindowHandle windowhandle,
+                              GHOST_TGrabCursorMode *r_mode,
+                              GHOST_TAxisFlag *r_axis_flag,
+                              int r_bounds[4],
+                              bool *r_use_software_cursor);
 
 /**
  * Grabs the cursor for a modal operation, to keep receiving
@@ -418,7 +425,7 @@ extern GHOST_TSuccess GHOST_SetCursorPosition(GHOST_SystemHandle systemhandle,
  */
 extern GHOST_TSuccess GHOST_SetCursorGrab(GHOST_WindowHandle windowhandle,
                                           GHOST_TGrabCursorMode mode,
-                                          GHOST_TAxisFlag warp_axis,
+                                          GHOST_TAxisFlag wrap_axis,
                                           int bounds[4],
                                           const int mouse_ungrab_xy[2]);
 
@@ -434,8 +441,8 @@ extern GHOST_TSuccess GHOST_SetCursorGrab(GHOST_WindowHandle windowhandle,
  * \return Indication of success.
  */
 extern GHOST_TSuccess GHOST_GetModifierKeyState(GHOST_SystemHandle systemhandle,
-                                                GHOST_TModifierKeyMask mask,
-                                                int *isDown);
+                                                GHOST_TModifierKey mask,
+                                                bool *r_is_down);
 
 /**
  * Returns the state of a mouse button (outside the message queue).
@@ -445,8 +452,8 @@ extern GHOST_TSuccess GHOST_GetModifierKeyState(GHOST_SystemHandle systemhandle,
  * \return Indication of success.
  */
 extern GHOST_TSuccess GHOST_GetButtonState(GHOST_SystemHandle systemhandle,
-                                           GHOST_TButtonMask mask,
-                                           int *isDown);
+                                           GHOST_TButton mask,
+                                           bool *r_is_down);
 
 #ifdef WITH_INPUT_NDOF
 /***************************************************************************************
@@ -467,7 +474,7 @@ extern void GHOST_setNDOFDeadZone(float deadzone);
 /**
  * Tells if the ongoing drag'n'drop object can be accepted upon mouse drop
  */
-extern void GHOST_setAcceptDragOperation(GHOST_WindowHandle windowhandle, bool canAccept);
+extern void GHOST_setAcceptDragOperation(GHOST_WindowHandle windowhandle, bool can_accept);
 
 /**
  * Returns the event type.
@@ -533,7 +540,7 @@ extern void GHOST_SetTimerTaskUserData(GHOST_TimerTaskHandle timertaskhandle,
  * \param windowhandle: The handle to the window.
  * \return The validity of the window.
  */
-extern int GHOST_GetValid(GHOST_WindowHandle windowhandle);
+extern bool GHOST_GetValid(GHOST_WindowHandle windowhandle);
 
 /**
  * Returns the type of drawing context used in this window.
@@ -729,16 +736,9 @@ extern GHOST_TSuccess GHOST_ReleaseOpenGLContext(GHOST_ContextHandle contexthand
 extern unsigned int GHOST_GetContextDefaultOpenGLFramebuffer(GHOST_ContextHandle contexthandle);
 
 /**
- * Returns whether a context is rendered upside down compared to OpenGL. This only needs to be
- * called if there's a non-OpenGL context, which is really the exception.
- * So generally, this does not need to be called.
- */
-extern int GHOST_isUpsideDownContext(GHOST_ContextHandle contexthandle);
-
-/**
  * Get the OpenGL frame-buffer handle that serves as a default frame-buffer.
  */
-extern unsigned int GHOST_GetDefaultOpenGLFramebuffer(GHOST_WindowHandle windwHandle);
+extern unsigned int GHOST_GetDefaultOpenGLFramebuffer(GHOST_WindowHandle windowhandle);
 
 /**
  * Set which tablet API to use. Only affects Windows, other platforms have a single API.
@@ -896,26 +896,36 @@ extern char *GHOST_getClipboard(bool selection);
 extern void GHOST_putClipboard(const char *buffer, bool selection);
 
 /**
- * Toggles console
- * \param action:
- * - 0: Hides
- * - 1: Shows
- * - 2: Toggles
- * - 3: Hides if it runs not from  command line
- * - *: Does nothing
+ * Set the Console State
+ * \param action: console state
  * \return current status (1 -visible, 0 - hidden)
  */
-extern int GHOST_toggleConsole(int action);
+extern bool GHOST_setConsoleWindowState(GHOST_TConsoleWindowState action);
 
 /**
  * Use native pixel size (MacBook pro 'retina'), if supported.
  */
-extern int GHOST_UseNativePixels(void);
+extern bool GHOST_UseNativePixels(void);
+
+/**
+ * Warp the cursor, if supported.
+ */
+extern bool GHOST_SupportsCursorWarp(void);
+
+/**
+ * Support positioning windows (when false `wmWindow.x,y` are meaningless).
+ */
+extern bool GHOST_SupportsWindowPosition(void);
+
+/**
+ * Assign the callback which generates a back-trace (may be NULL).
+ */
+extern void GHOST_SetBacktraceHandler(GHOST_TBacktraceFn backtrace_fn);
 
 /**
  * Focus window after opening, or put them in the background.
  */
-extern void GHOST_UseWindowFocus(int use_focus);
+extern void GHOST_UseWindowFocus(bool use_focus);
 
 /**
  * If window was opened using native pixel size, it returns scaling factor.

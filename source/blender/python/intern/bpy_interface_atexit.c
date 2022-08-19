@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup pythonintern
@@ -46,7 +32,7 @@ static PyObject *func_bpy_atregister = NULL; /* borrowed reference, `atexit` hol
 
 static void atexit_func_call(const char *func_name, PyObject *atexit_func_arg)
 {
-  /* NOTE(campbell): no error checking, if any of these fail we'll get a crash
+  /* NOTE(@campbellbarton): no error checking, if any of these fail we'll get a crash
    * this is intended, but if its problematic it could be changed. */
 
   PyObject *atexit_mod = PyImport_ImportModuleLevel("atexit", NULL, NULL, NULL, 0);

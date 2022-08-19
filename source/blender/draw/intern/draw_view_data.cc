@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2021, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2021 Blender Foundation. */
 
 /** \file
  * \ingroup draw
@@ -50,14 +35,12 @@ struct DRWViewData {
   Vector<ViewportEngineData *> enabled_engines;
 };
 
-/**
- * Creates a view data with all possible engines type for this view.
- *
- * `engine_types` contains `DRWRegisteredDrawEngine`.
- * */
 DRWViewData *DRW_view_data_create(ListBase *engine_types)
 {
+  const int engine_types_len = BLI_listbase_count(engine_types);
+
   DRWViewData *view_data = new DRWViewData();
+  view_data->engines.reserve(engine_types_len);
   LISTBASE_FOREACH (DRWRegisteredDrawEngine *, type, engine_types) {
     ViewportEngineData engine = {};
     engine.engine_type = type;
@@ -105,7 +88,7 @@ void DRW_view_data_default_lists_from_viewport(DRWViewData *view_data, GPUViewpo
                                 });
 }
 
-static void draw_viewport_engines_data_clear(ViewportEngineData *data)
+static void draw_viewport_engines_data_clear(ViewportEngineData *data, bool clear_instance_data)
 {
   DrawEngineType *engine_type = data->engine_type->draw_engine;
   const DrawEngineDataSize *data_size = engine_type->vedata_size;
@@ -120,6 +103,12 @@ static void draw_viewport_engines_data_clear(ViewportEngineData *data)
     MEM_SAFE_FREE(data->stl->storage[i]);
   }
 
+  if (clear_instance_data && data->instance_data) {
+    BLI_assert(engine_type->instance_free != nullptr);
+    engine_type->instance_free(data->instance_data);
+    data->instance_data = nullptr;
+  }
+
   MEM_SAFE_FREE(data->fbl);
   MEM_SAFE_FREE(data->txl);
   MEM_SAFE_FREE(data->psl);
@@ -131,7 +120,7 @@ static void draw_viewport_engines_data_clear(ViewportEngineData *data)
   }
 }
 
-static void draw_view_data_clear(DRWViewData *view_data)
+static void draw_view_data_clear(DRWViewData *view_data, bool free_instance_data)
 {
   GPU_FRAMEBUFFER_FREE_SAFE(view_data->dfbl.default_fb);
   GPU_FRAMEBUFFER_FREE_SAFE(view_data->dfbl.overlay_fb);
@@ -148,23 +137,20 @@ static void draw_view_data_clear(DRWViewData *view_data)
   GPU_TEXTURE_FREE_SAFE(view_data->dtxl.depth_in_front);
 
   for (ViewportEngineData &engine : view_data->engines) {
-    draw_viewport_engines_data_clear(&engine);
+    draw_viewport_engines_data_clear(&engine, free_instance_data);
   }
-
-  view_data->texture_list_size[0] = view_data->texture_list_size[1] = 0;
-  view_data->cache_time = 0.0f;
 }
 
 void DRW_view_data_free(DRWViewData *view_data)
 {
-  draw_view_data_clear(view_data);
+  draw_view_data_clear(view_data, true);
   delete view_data;
 }
 
 void DRW_view_data_texture_list_size_validate(DRWViewData *view_data, const int size[2])
 {
   if (!equals_v2v2_int(view_data->texture_list_size, size)) {
-    draw_view_data_clear(view_data);
+    draw_view_data_clear(view_data, false);
     copy_v2_v2_int(view_data->texture_list_size, size);
   }
 }
@@ -206,7 +192,7 @@ void DRW_view_data_free_unused(DRWViewData *view_data)
 {
   for (ViewportEngineData &engine : view_data->engines) {
     if (view_data->enabled_engines.first_index_of_try(&engine) == -1) {
-      draw_viewport_engines_data_clear(&engine);
+      draw_viewport_engines_data_clear(&engine, false);
     }
   }
 }

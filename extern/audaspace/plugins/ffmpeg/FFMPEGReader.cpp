@@ -177,7 +177,7 @@ void FFMPEGReader::init(int stream)
 
 	// get a decoder and open it
 #ifndef FFMPEG_OLD_CODE
-	AVCodec* aCodec = avcodec_find_decoder(m_formatCtx->streams[m_stream]->codecpar->codec_id);
+	const AVCodec* aCodec = avcodec_find_decoder(m_formatCtx->streams[m_stream]->codecpar->codec_id);
 
 	if(!aCodec)
 		AUD_THROW(FileException, "File couldn't be read, no decoder found with ffmpeg.");
@@ -361,10 +361,10 @@ int FFMPEGReader::read_packet(void* opaque, uint8_t* buf, int buf_size)
 {
 	FFMPEGReader* reader = reinterpret_cast<FFMPEGReader*>(opaque);
 
-	int size = std::min(buf_size, reader->m_membuffer->getSize() - reader->m_membufferpos);
+	long long size = std::min(static_cast<long long>(buf_size), reader->m_membuffer->getSize() - reader->m_membufferpos);
 
-	if(size < 0)
-		return -1;
+	if(size <= 0)
+		return AVERROR_EOF;
 
 	std::memcpy(buf, ((data_t*)reader->m_membuffer->getBuffer()) + reader->m_membufferpos, size);
 	reader->m_membufferpos += size;

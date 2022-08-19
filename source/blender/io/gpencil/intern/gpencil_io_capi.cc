@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2020 Blender Foundation
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2020 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup bgpencil
@@ -112,32 +96,39 @@ static bool gpencil_io_export_pdf(Depsgraph *depsgraph,
   exporter->frame_number_set(iparams->frame_cur);
   result |= exporter->new_document();
 
-  const bool use_frame_selected = (iparams->frame_mode == GP_EXPORT_FRAME_SELECTED);
-  if (use_frame_selected) {
-    for (int32_t i = iparams->frame_start; i < iparams->frame_end + 1; i++) {
-      if (!is_keyframe_included(gpd_eval, i, use_frame_selected)) {
-        continue;
-      }
-
-      CFRA = i;
-      BKE_scene_graph_update_for_newframe(depsgraph);
+  switch (iparams->frame_mode) {
+    case GP_EXPORT_FRAME_ACTIVE: {
       exporter->prepare_camera_params(scene, iparams);
-      exporter->frame_number_set(i);
       exporter->add_newpage();
       exporter->add_body();
+      result = exporter->write();
+      break;
     }
-    result = exporter->write();
-    /* Back to original frame. */
-    exporter->frame_number_set(iparams->frame_cur);
-    CFRA = iparams->frame_cur;
-    BKE_scene_camera_switch_update(scene);
-    BKE_scene_graph_update_for_newframe(depsgraph);
-  }
-  else {
-    exporter->prepare_camera_params(scene, iparams);
-    exporter->add_newpage();
-    exporter->add_body();
-    result = exporter->write();
+    case GP_EXPORT_FRAME_SELECTED:
+    case GP_EXPORT_FRAME_SCENE: {
+      for (int32_t i = iparams->frame_start; i < iparams->frame_end + 1; i++) {
+        if ((iparams->frame_mode == GP_EXPORT_FRAME_SELECTED) &&
+            (!is_keyframe_included(gpd_eval, i, true))) {
+          continue;
+        }
+
+        scene->r.cfra = i;
+        BKE_scene_graph_update_for_newframe(depsgraph);
+        exporter->prepare_camera_params(scene, iparams);
+        exporter->frame_number_set(i);
+        exporter->add_newpage();
+        exporter->add_body();
+      }
+      result = exporter->write();
+      /* Back to original frame. */
+      exporter->frame_number_set(iparams->frame_cur);
+      scene->r.cfra = iparams->frame_cur;
+      BKE_scene_camera_switch_update(scene);
+      BKE_scene_graph_update_for_newframe(depsgraph);
+      break;
+    }
+    default:
+      break;
   }
 
   return result;
@@ -170,34 +161,32 @@ static bool gpencil_io_export_frame_svg(GpencilExporterSVG *exporter,
 }
 #endif
 
-/* Main import entry point function. */
-bool gpencil_io_import(const char *filename, GpencilIOParams *iparams)
+bool gpencil_io_import(const char *filepath, GpencilIOParams *iparams)
 {
-  GpencilImporterSVG importer = GpencilImporterSVG(filename, iparams);
+  GpencilImporterSVG importer = GpencilImporterSVG(filepath, iparams);
 
   return gpencil_io_import_frame(&importer, *iparams);
 }
 
-/* Main export entry point function. */
-bool gpencil_io_export(const char *filename, GpencilIOParams *iparams)
+bool gpencil_io_export(const char *filepath, GpencilIOParams *iparams)
 {
   Depsgraph *depsgraph_ = CTX_data_depsgraph_pointer(iparams->C);
   Scene *scene_ = CTX_data_scene(iparams->C);
   Object *ob = CTX_data_active_object(iparams->C);
 
-  UNUSED_VARS(filename, depsgraph_, scene_, ob);
+  UNUSED_VARS(filepath, depsgraph_, scene_, ob);
 
   switch (iparams->mode) {
 #ifdef WITH_PUGIXML
     case GP_EXPORT_TO_SVG: {
-      GpencilExporterSVG exporter = GpencilExporterSVG(filename, iparams);
+      GpencilExporterSVG exporter = GpencilExporterSVG(filepath, iparams);
       return gpencil_io_export_frame_svg(&exporter, scene_, iparams, true, true, true);
       break;
     }
 #endif
 #ifdef WITH_HARU
     case GP_EXPORT_TO_PDF: {
-      GpencilExporterPDF exporter = GpencilExporterPDF(filename, iparams);
+      GpencilExporterPDF exporter = GpencilExporterPDF(filepath, iparams);
       return gpencil_io_export_pdf(depsgraph_, scene_, ob, &exporter, iparams);
       break;
     }

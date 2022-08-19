@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2016, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2016 Blender Foundation. */
 
 /** \file
  * \ingroup draw_engine
@@ -67,6 +52,8 @@ static void eevee_engine_init(void *ved)
   stl->g_data->valid_taa_history = (txl->taa_history != NULL);
   stl->g_data->queued_shaders_count = 0;
   stl->g_data->render_timesteps = 1;
+  stl->g_data->disable_ligthprobes = v3d &&
+                                     (v3d->object_type_exclude_viewport & (1 << OB_LIGHTPROBE));
 
   /* Main Buffer */
   DRW_texture_ensure_fullscreen_2d(&txl->color, GPU_RGBA16F, DRW_TEX_FILTER);
@@ -122,11 +109,11 @@ void EEVEE_cache_populate(void *vedata, Object *ob)
   }
 
   if (DRW_object_is_renderable(ob) && (ob_visibility & OB_VISIBLE_SELF)) {
-    if (ELEM(ob->type, OB_MESH, OB_SURF, OB_MBALL)) {
+    if (ob->type == OB_MESH) {
       EEVEE_materials_cache_populate(vedata, sldata, ob, &cast_shadow);
     }
-    else if (ob->type == OB_HAIR) {
-      EEVEE_object_hair_cache_populate(vedata, sldata, ob, &cast_shadow);
+    else if (ob->type == OB_CURVES) {
+      EEVEE_object_curves_cache_populate(vedata, sldata, ob, &cast_shadow);
     }
     else if (ob->type == OB_VOLUME) {
       EEVEE_volumes_cache_object_add(sldata, vedata, draw_ctx->scene, ob);
@@ -154,8 +141,9 @@ void EEVEE_cache_populate(void *vedata, Object *ob)
 
 static void eevee_cache_finish(void *vedata)
 {
+  EEVEE_Data *ved = (EEVEE_Data *)vedata;
   EEVEE_ViewLayerData *sldata = EEVEE_view_layer_data_ensure();
-  EEVEE_StorageList *stl = ((EEVEE_Data *)vedata)->stl;
+  EEVEE_StorageList *stl = ved->stl;
   EEVEE_PrivateData *g_data = stl->g_data;
   const DRWContextState *draw_ctx = DRW_context_state_get();
   const Scene *scene_eval = DEG_get_evaluated_scene(draw_ctx->depsgraph);
@@ -183,6 +171,10 @@ static void eevee_cache_finish(void *vedata)
   if (g_data->queued_shaders_count != g_data->queued_shaders_count_prev) {
     g_data->queued_shaders_count_prev = g_data->queued_shaders_count;
     EEVEE_temporal_sampling_reset(vedata);
+  }
+
+  if (g_data->queued_shaders_count > 0) {
+    SNPRINTF(ved->info, "Compiling Shaders %d", g_data->queued_shaders_count);
   }
 }
 
@@ -268,6 +260,10 @@ static void eevee_draw_scene(void *vedata)
     /* Set ray type. */
     sldata->common_data.ray_type = EEVEE_RAY_CAMERA;
     sldata->common_data.ray_depth = 0.0f;
+    if (stl->g_data->disable_ligthprobes) {
+      sldata->common_data.prb_num_render_cube = 1;
+      sldata->common_data.prb_num_render_grid = 1;
+    }
     GPU_uniformbuf_update(sldata->common_ubo, &sldata->common_data);
 
     GPU_framebuffer_bind(fbl->main_fb);
@@ -316,12 +312,12 @@ static void eevee_draw_scene(void *vedata)
     /* Volumetrics Resolve Opaque */
     EEVEE_volumes_resolve(sldata, vedata);
 
-    /* Renderpasses */
+    /* Render-passes. */
     EEVEE_renderpasses_output_accumulate(sldata, vedata, false);
 
     /* Transparent */
-    /* TODO(fclem): should be its own Frame-buffer.
-     * This is needed because dualsource blending only works with 1 color buffer. */
+    /* TODO(@fclem): should be its own Frame-buffer.
+     * This is needed because dual-source blending only works with 1 color buffer. */
     GPU_framebuffer_texture_attach(fbl->main_color_fb, dtxl->depth, 0, 0);
     GPU_framebuffer_bind(fbl->main_color_fb);
     DRW_draw_pass(psl->transparent_pass);
@@ -360,9 +356,11 @@ static void eevee_draw_scene(void *vedata)
     GPU_framebuffer_blit(fbl->double_buffer_depth_fb, 0, dfbl->default_fb, 0, GPU_DEPTH_BIT);
   }
 
-  EEVEE_renderpasses_draw_debug(vedata);
+  /* UPBGE */
+  EEVEE_antialiasing_draw_pass(vedata);
+  /* End of UPBGE */
 
-  EEVEE_volumes_free_smoke_textures();
+  EEVEE_renderpasses_draw_debug(vedata);
 
   stl->g_data->view_updated = false;
 
@@ -457,8 +455,8 @@ static void eevee_render_to_image(void *vedata,
   }
   EEVEE_PrivateData *g_data = ved->stl->g_data;
 
-  int initial_frame = CFRA;
-  float initial_subframe = SUBFRA;
+  int initial_frame = scene->r.cfra;
+  float initial_subframe = scene->r.subframe;
   float shuttertime = (do_motion_blur) ? scene->eevee.motion_blur_shutter : 0.0f;
   int time_steps_tot = (do_motion_blur) ? max_ii(1, scene->eevee.motion_blur_steps) : 1;
   g_data->render_timesteps = time_steps_tot;
@@ -583,7 +581,6 @@ static void eevee_render_to_image(void *vedata,
     }
   }
 
-  EEVEE_volumes_free_smoke_textures();
   EEVEE_motion_blur_data_free(&ved->stl->effects->motion_blur);
 
   if (RE_engine_test_break(engine)) {
@@ -595,7 +592,7 @@ static void eevee_render_to_image(void *vedata,
   /* Restore original viewport size. */
   DRW_render_viewport_size_set((int[2]){g_data->size_orig[0], g_data->size_orig[1]});
 
-  if (CFRA != initial_frame || SUBFRA != initial_subframe) {
+  if (scene->r.cfra != initial_frame || scene->r.subframe != initial_subframe) {
     /* Restore original frame number. This is because the render pipeline expects it. */
     RE_engine_frame_set(engine, initial_frame, initial_subframe);
   }
@@ -629,6 +626,7 @@ DrawEngineType draw_engine_eevee_type = {
     &eevee_data_size,
     &eevee_engine_init,
     &eevee_engine_free,
+    NULL, /* instance_free */
     &eevee_cache_init,
     &EEVEE_cache_populate,
     &eevee_cache_finish,

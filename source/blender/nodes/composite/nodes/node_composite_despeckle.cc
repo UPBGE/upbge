@@ -1,38 +1,30 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2006 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2006 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup cmpnodes
  */
 
+#include "UI_interface.h"
+#include "UI_resources.h"
+
+#include "GPU_shader.h"
+
+#include "COM_node_operation.hh"
+#include "COM_utilities.hh"
+
 #include "node_composite_util.hh"
 
 /* **************** FILTER  ******************** */
-static bNodeSocketTemplate cmp_node_despeckle_in[] = {
-    {SOCK_FLOAT, N_("Fac"), 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, PROP_FACTOR},
-    {SOCK_RGBA, N_("Image"), 1.0f, 1.0f, 1.0f, 1.0f},
-    {-1, ""},
-};
-static bNodeSocketTemplate cmp_node_despeckle_out[] = {
-    {SOCK_RGBA, N_("Image")},
-    {-1, ""},
-};
+
+namespace blender::nodes::node_composite_despeckle_cc {
+
+static void cmp_node_despeckle_declare(NodeDeclarationBuilder &b)
+{
+  b.add_input<decl::Float>(N_("Fac")).default_value(1.0f).min(0.0f).max(1.0f).subtype(PROP_FACTOR);
+  b.add_input<decl::Color>(N_("Image")).default_value({1.0f, 1.0f, 1.0f, 1.0f});
+  b.add_output<decl::Color>(N_("Image"));
+}
 
 static void node_composit_init_despeckle(bNodeTree *UNUSED(ntree), bNode *node)
 {
@@ -40,13 +32,84 @@ static void node_composit_init_despeckle(bNodeTree *UNUSED(ntree), bNode *node)
   node->custom4 = 0.5f;
 }
 
-void register_node_type_cmp_despeckle(void)
+static void node_composit_buts_despeckle(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
+  uiLayout *col;
+
+  col = uiLayoutColumn(layout, false);
+  uiItemR(col, ptr, "threshold", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  uiItemR(col, ptr, "threshold_neighbor", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+}
+
+using namespace blender::realtime_compositor;
+
+class DespeckleOperation : public NodeOperation {
+ public:
+  using NodeOperation::NodeOperation;
+
+  void execute() override
+  {
+    const Result &input_image = get_input("Image");
+    /* Single value inputs can't be despeckled and are returned as is. */
+    if (input_image.is_single_value()) {
+      get_input("Image").pass_through(get_result("Image"));
+      return;
+    }
+
+    GPUShader *shader = shader_manager().get("compositor_despeckle");
+    GPU_shader_bind(shader);
+
+    GPU_shader_uniform_1f(shader, "threshold", get_threshold());
+    GPU_shader_uniform_1f(shader, "neighbor_threshold", get_neighbor_threshold());
+
+    input_image.bind_as_texture(shader, "input_tx");
+
+    const Result &factor_image = get_input("Fac");
+    factor_image.bind_as_texture(shader, "factor_tx");
+
+    const Domain domain = compute_domain();
+    Result &output_image = get_result("Image");
+    output_image.allocate_texture(domain);
+    output_image.bind_as_image(shader, "output_img");
+
+    compute_dispatch_threads_at_least(shader, domain.size);
+
+    GPU_shader_unbind();
+    output_image.unbind_as_image();
+    input_image.unbind_as_texture();
+    factor_image.unbind_as_texture();
+  }
+
+  float get_threshold()
+  {
+    return bnode().custom3;
+  }
+
+  float get_neighbor_threshold()
+  {
+    return bnode().custom4;
+  }
+};
+
+static NodeOperation *get_compositor_operation(Context &context, DNode node)
+{
+  return new DespeckleOperation(context, node);
+}
+
+}  // namespace blender::nodes::node_composite_despeckle_cc
+
+void register_node_type_cmp_despeckle()
+{
+  namespace file_ns = blender::nodes::node_composite_despeckle_cc;
+
   static bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_DESPECKLE, "Despeckle", NODE_CLASS_OP_FILTER, NODE_PREVIEW);
-  node_type_socket_templates(&ntype, cmp_node_despeckle_in, cmp_node_despeckle_out);
-  node_type_init(&ntype, node_composit_init_despeckle);
+  cmp_node_type_base(&ntype, CMP_NODE_DESPECKLE, "Despeckle", NODE_CLASS_OP_FILTER);
+  ntype.declare = file_ns::cmp_node_despeckle_declare;
+  ntype.draw_buttons = file_ns::node_composit_buts_despeckle;
+  ntype.flag |= NODE_PREVIEW;
+  node_type_init(&ntype, file_ns::node_composit_init_despeckle);
+  ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
   nodeRegisterType(&ntype);
 }

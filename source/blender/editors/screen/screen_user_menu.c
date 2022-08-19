@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2009 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2009 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup spview3d
@@ -50,6 +34,8 @@
 #include "UI_resources.h"
 
 #include "RNA_access.h"
+#include "RNA_path.h"
+#include "RNA_prototypes.h"
 
 /* -------------------------------------------------------------------- */
 /** \name Internal Utilities
@@ -111,7 +97,7 @@ bUserMenu *ED_screen_user_menu_ensure(bContext *C)
 bUserMenuItem_Op *ED_screen_user_menu_item_find_operator(ListBase *lb,
                                                          const wmOperatorType *ot,
                                                          IDProperty *prop,
-                                                         short opcontext)
+                                                         wmOperatorCallContext opcontext)
 {
   LISTBASE_FOREACH (bUserMenuItem *, umi, lb) {
     if (umi->type == USER_MENU_TYPE_OPERATOR) {
@@ -160,7 +146,7 @@ void ED_screen_user_menu_item_add_operator(ListBase *lb,
                                            const char *ui_name,
                                            const wmOperatorType *ot,
                                            const IDProperty *prop,
-                                           short opcontext)
+                                           wmOperatorCallContext opcontext)
 {
   bUserMenuItem_Op *umi_op = (bUserMenuItem_Op *)BKE_blender_user_menu_item_add(
       lb, USER_MENU_TYPE_OPERATOR);
@@ -229,7 +215,14 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
         wmOperatorType *ot = WM_operatortype_find(umi_op->op_idname, false);
         if (ot != NULL) {
           IDProperty *prop = umi_op->prop ? IDP_CopyProperty(umi_op->prop) : NULL;
-          uiItemFullO_ptr(menu->layout, ot, ui_name, ICON_NONE, prop, umi_op->opcontext, 0, NULL);
+          uiItemFullO_ptr(menu->layout,
+                          ot,
+                          CTX_IFACE_(ot->translation_context, ui_name),
+                          ICON_NONE,
+                          prop,
+                          umi_op->opcontext,
+                          0,
+                          NULL);
           is_empty = false;
         }
         else {

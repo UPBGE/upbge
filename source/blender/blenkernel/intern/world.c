@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup bke
@@ -75,6 +59,8 @@ static void world_free_data(ID *id)
 
   BKE_icon_id_delete((struct ID *)wrld);
   BKE_previewimg_free(&wrld->preview);
+
+  MEM_SAFE_FREE(wrld->lightgroup);
 }
 
 static void world_init_data(ID *id)
@@ -123,6 +109,10 @@ static void world_copy_data(Main *bmain, ID *id_dst, const ID *id_src, const int
   else {
     wrld_dst->preview = NULL;
   }
+
+  if (wrld_src->lightgroup) {
+    wrld_dst->lightgroup = (LightgroupMembership *)MEM_dupallocN(wrld_src->lightgroup);
+  }
 }
 
 static void world_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -131,7 +121,8 @@ static void world_foreach_id(ID *id, LibraryForeachIDData *data)
 
   if (world->nodetree) {
     /* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
-    BKE_library_foreach_ID_embedded(data, (ID **)&world->nodetree);
+    BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+        data, BKE_library_foreach_ID_embedded(data, (ID **)&world->nodetree));
   }
 }
 
@@ -157,6 +148,10 @@ static void world_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   }
 
   BKE_previewimg_blend_write(writer, wrld->preview);
+
+  if (wrld->lightgroup) {
+    BLO_write_struct(writer, LightgroupMembership, wrld->lightgroup);
+  }
 }
 
 static void world_blend_read_data(BlendDataReader *reader, ID *id)
@@ -168,6 +163,8 @@ static void world_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_data_address(reader, &wrld->preview);
   BKE_previewimg_blend_read(reader, wrld->preview);
   BLI_listbase_clear(&wrld->gpumaterial);
+
+  BLO_read_data_address(reader, &wrld->lightgroup);
 }
 
 static void world_blend_read_lib(BlendLibReader *reader, ID *id)
@@ -191,6 +188,7 @@ IDTypeInfo IDType_ID_WO = {
     .name_plural = "worlds",
     .translation_context = BLT_I18NCONTEXT_ID_WORLD,
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .asset_type_info = NULL,
 
     .init_data = world_init_data,
     .copy_data = world_copy_data,
@@ -198,6 +196,7 @@ IDTypeInfo IDType_ID_WO = {
     .make_local = NULL,
     .foreach_id = world_foreach_id,
     .foreach_cache = NULL,
+    .foreach_path = NULL,
     .owner_get = NULL,
 
     .blend_write = world_blend_write,

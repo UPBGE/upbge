@@ -1,28 +1,8 @@
-# ***** BEGIN GPL LICENSE BLOCK *****
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# The Original Code is Copyright (C) 2006, Blender Foundation
-# All rights reserved.
-# ***** END GPL LICENSE BLOCK *****
-
-setup_libdirs()
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright 2006 Blender Foundation. All rights reserved.
 
 blender_include_dirs(
   ../../intern/clog
-  ../../intern/glew-mx
   ../../intern/guardedalloc
   ../blender/blenkernel
   ../blender/blenlib
@@ -41,6 +21,10 @@ set(LIB
   bf_windowmanager
 )
 
+if(HAVE_FEENABLEEXCEPT)
+  add_definitions(-DHAVE_FEENABLEEXCEPT)
+endif()
+
 if(WITH_TBB)
   # Force TBB libraries to be in front of MKL (part of OpenImageDenoise), so
   # that it is initialized before MKL and static library initialization order
@@ -49,6 +33,11 @@ if(WITH_TBB)
   # This isn't fully robust but seems to work.
   list(INSERT LIB 0 ${TBB_LIBRARIES})
   list(INSERT LIB 0 bf_blenkernel)
+endif()
+
+# Compatibility with Windows 7
+if(WIN32 AND WITH_WINDOWS_7)
+  list(INSERT LIB 0 ${BCOMPAT7_LIBRARIES})
 endif()
 
 if(WIN32)
@@ -73,8 +62,8 @@ endif()
 
 if(WITH_TBB)
   blender_include_dirs(${TBB_INCLUDE_DIRS})
-  if(NOT APPLE)
-    # APPLE platform uses full paths for linking libraries.
+  if(WIN32)
+    # For pragma that links tbbmalloc_proxy.lib
     link_directories(${LIBDIR}/tbb/lib)
   endif()
 endif()
@@ -91,6 +80,20 @@ endif()
 
 if(WITH_HEADLESS)
   add_definitions(-DWITH_HEADLESS)
+endif()
+
+if(WITH_GAMEENGINE)
+  blender_include_dirs(../gameengine/BlenderRoutines)
+  blender_include_dirs(../gameengine/Converter)
+  blender_include_dirs(../gameengine/Launcher)
+
+  add_definitions(-DWITH_GAMEENGINE)
+
+  list(APPEND LIB
+    ge_blender_routines
+    ge_launcher
+    ge_converter
+  )
 endif()
 
 if(WITH_SDL)
@@ -219,8 +222,10 @@ if(WITH_BUILDINFO)
   SET_SOURCE_FILES_PROPERTIES(${buildinfo_h_fake} PROPERTIES SYMBOLIC TRUE)
 
   # a custom target that is always built
-  add_custom_target(buildinfo ALL
-    DEPENDS ${buildinfo_h_fake})
+  add_custom_target(
+    buildinfo ALL
+    DEPENDS ${buildinfo_h_fake}
+  )
 
   # creates buildinfo.h using cmake script
   add_custom_command(
@@ -291,13 +296,13 @@ if(WITH_PYTHON_MODULE)
 else()
   add_executable(blender ${EXETYPE} ${SRC})
   if(WIN32)
-      add_executable(blender-launcher WIN32
-        blender_launcher_win32.c
-        ${CMAKE_SOURCE_DIR}/release/windows/icons/winblender.rc
-        ${CMAKE_BINARY_DIR}/blender.exe.manifest
-      )
-      target_compile_definitions (blender-launcher PRIVATE -D_UNICODE -DUNICODE)
-      target_link_libraries(blender-launcher Pathcch.lib)
+    add_executable(blender-launcher WIN32
+      blender_launcher_win32.c
+      ${CMAKE_SOURCE_DIR}/release/windows/icons/winblender.rc
+      ${CMAKE_BINARY_DIR}/blender.exe.manifest
+    )
+    target_compile_definitions (blender-launcher PRIVATE -D_UNICODE -DUNICODE)
+    target_link_libraries(blender-launcher Pathcch.lib)
   endif()
 endif()
 
@@ -328,7 +333,7 @@ if(UNIX AND NOT APPLE)
     if(WITH_INSTALL_PORTABLE)
       set(TARGETDIR_VER ${BLENDER_VERSION})
     else()
-      set(TARGETDIR_VER share/blender/${BLENDER_VERSION})
+      set(TARGETDIR_VER share/upbge/${BLENDER_VERSION})
     endif()
   endif()
 
@@ -338,16 +343,23 @@ elseif(WIN32)
 elseif(APPLE)
   if(WITH_PYTHON_MODULE)
     if(WITH_INSTALL_PORTABLE)
+      set(BPY_INSTALL_DIR)
       set(TARGETDIR_VER $<TARGET_FILE_DIR:blender>/../Resources/${BLENDER_VERSION})
       # Keep the `BLENDER_VERSION` folder and bpy.so in the build folder.
       set(INSTALL_BPY_TO_SITE_PACKAGES OFF)
     else()
-      set(TARGETDIR_VER "${PYTHON_LIBPATH}/Resources/${BLENDER_VERSION}")
+      # Parent directory of bpy.so for installation.
+      set(BPY_INSTALL_DIR ${PYTHON_LIBPATH}/site-packages)
+      # Defined in terms of site-packages since the site-packages
+      # directory can be a symlink (brew for example).
+      set(TARGETDIR_VER "${BPY_INSTALL_DIR}/../Resources/${BLENDER_VERSION}")
       set(INSTALL_BPY_TO_SITE_PACKAGES ON)
     endif()
   else()
     set(TARGETDIR_VER Blender.app/Contents/Resources/${BLENDER_VERSION})
   endif()
+  # License, copyright, readme files.
+  set(BLENDER_TEXT_FILES_DESTINATION "${TARGETDIR_VER}/../text")
   set(MAC_BLENDER_TARGET_DYLIBS_DIR "${TARGETDIR_VER}/lib")
   # Skip relinking on cpack / install
   set_target_properties(blender PROPERTIES BUILD_WITH_INSTALL_RPATH true)
@@ -417,8 +429,8 @@ if(WITH_INTERNATIONAL)
   # Create a custom target which will compile all po to mo
   add_custom_target(
     locales
-    DEPENDS ${_all_mo_files})
-
+    DEPENDS ${_all_mo_files}
+  )
   add_dependencies(blender locales)
 
   # Generate INSTALL rules
@@ -454,6 +466,14 @@ if(WITH_OPENCOLORIO)
   )
 endif()
 
+# game controller data base
+if(WITH_GAMEENGINE AND WITH_SDL)
+	install(
+		DIRECTORY ${CMAKE_SOURCE_DIR}/release/datafiles/gamecontroller
+		DESTINATION ${TARGETDIR_VER}/datafiles
+	)
+endif()
+
 # helpful tip when using make
 if("${CMAKE_GENERATOR}" MATCHES ".*Makefiles.*")
   # message after building.
@@ -476,7 +496,8 @@ if(UNIX AND NOT APPLE)
         blender_man_page ALL
         COMMAND ${CMAKE_SOURCE_DIR}/doc/manpage/blender.1.py
                 --blender ${EXECUTABLE_OUTPUT_PATH}/blender
-                --output ${CMAKE_CURRENT_BINARY_DIR}/blender.1)
+                --output ${CMAKE_CURRENT_BINARY_DIR}/blender.1
+      )
       add_dependencies(blender_man_page blender)
     endif()
   endif()
@@ -509,9 +530,9 @@ if(UNIX AND NOT APPLE)
     endif()
     install(
       FILES
-        ${CMAKE_SOURCE_DIR}/release/freedesktop/blender.desktop
-        ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/scalable/apps/blender.svg
-        ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/symbolic/apps/blender-symbolic.svg
+        ${CMAKE_SOURCE_DIR}/release/freedesktop/upbge.desktop
+        ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/scalable/apps/upbge.svg
+        ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/symbolic/apps/upbge-symbolic.svg
       DESTINATION "."
     )
 
@@ -523,7 +544,7 @@ if(UNIX AND NOT APPLE)
     endif()
 
     if(EXISTS ${LIBDIR}/mesa)
-      install(DIRECTORY ${LIBDIR}/mesa/lib DESTINATION ".")
+      install(DIRECTORY ${LIBDIR}/mesa/lib/ DESTINATION "lib/mesa/")
 
       install(
         PROGRAMS
@@ -549,15 +570,15 @@ if(UNIX AND NOT APPLE)
 
     # misc files
     install(
-      FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/blender.desktop
+      FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/upbge.desktop
       DESTINATION share/applications
     )
     install(
-      FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/scalable/apps/blender.svg
+      FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/scalable/apps/upbge.svg
       DESTINATION share/icons/hicolor/scalable/apps
     )
     install(
-      FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/symbolic/apps/blender-symbolic.svg
+      FILES ${CMAKE_SOURCE_DIR}/release/freedesktop/icons/symbolic/apps/upbge-symbolic.svg
       DESTINATION share/icons/hicolor/symbolic/apps
     )
     if(WITH_BLENDER_THUMBNAILER)
@@ -566,7 +587,7 @@ if(UNIX AND NOT APPLE)
         DESTINATION bin
       )
     endif()
-    set(BLENDER_TEXT_FILES_DESTINATION share/doc/blender)
+    set(BLENDER_TEXT_FILES_DESTINATION share/doc/upbge)
   endif()
 
   if(WITH_PYTHON)
@@ -658,11 +679,11 @@ if(UNIX AND NOT APPLE)
         # Install to the same directory as the source, so debian-like
         # distros are happy with their policy.
         set(_suffix "site-packages")
-        if(${PYTHON_NUMPY_PATH} MATCHES "dist-packages")
+        if(${PYTHON_ZSTANDARD_PATH} MATCHES "dist-packages")
           set(_suffix "dist-packages")
         endif()
         install(
-          DIRECTORY ${PYTHON_NUMPY_PATH}/zstandard
+          DIRECTORY ${PYTHON_ZSTANDARD_PATH}/zstandard
           DESTINATION ${TARGETDIR_VER}/python/${_target_LIB}/python${PYTHON_VERSION}/${_suffix}
           PATTERN ".svn" EXCLUDE
           PATTERN "__pycache__" EXCLUDE           # * any cache *
@@ -687,7 +708,11 @@ if(UNIX AND NOT APPLE)
           PATTERN "*.pyo" EXCLUDE                 # * any cache *
         )
         # On some platforms requests does have extra dependencies.
-        set(_requests_deps "certifi" "chardet" "idna" "urllib3")
+        #
+        # Either 'chardet' or 'charset_normalizer" is used, depending on the
+        # version of Python. The code below silently skips the one that's not
+        # available, so we can just list both here.
+        set(_requests_deps "certifi" "chardet" "charset_normalizer" "idna" "urllib3")
         foreach(_requests_dep ${_requests_deps})
           if(EXISTS ${PYTHON_REQUESTS_PATH}/${_requests_dep})
             install(
@@ -725,17 +750,22 @@ elseif(WIN32)
 
   set(BLENDER_TEXT_FILES_DESTINATION ".")
 
+  install(
+    FILES ${LIBDIR}/epoxy/bin/epoxy-0.dll
+    DESTINATION "."
+  )
+
   if(WITH_OPENMP AND MSVC_CLANG)
     install(
-          FILES ${CLANG_OPENMP_DLL}
-          DESTINATION "."
+      FILES ${CLANG_OPENMP_DLL}
+      DESTINATION "."
     )
   endif()
 
   if(WITH_FFTW3)
     install(
-          FILES ${LIBDIR}/fftw3/lib/libfftw3-3.dll
-          DESTINATION "."
+      FILES ${LIBDIR}/fftw3/lib/libfftw3-3.dll
+      DESTINATION "."
     )
   endif()
   if(MSVC_ASAN)
@@ -746,14 +776,14 @@ elseif(WIN32)
       message(FATAL_ERROR "Asan is enabled, but the ASAN runtime is not detected, this is an optional component during the MSVC install, please install it")
     endif()
     install(
-          FILES ${ASAN_DLL}
-          DESTINATION "."
-          CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
+      FILES ${ASAN_DLL}
+      DESTINATION "."
+      CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
     )
     install(
-          FILES ${ASAN_DEBUG_DLL}
-          DESTINATION "."
-          CONFIGURATIONS Debug
+      FILES ${ASAN_DEBUG_DLL}
+      DESTINATION "."
+      CONFIGURATIONS Debug
     )
     unset(ASAN_DLL)
     unset(ASAN_DEBUG_DLL)
@@ -761,18 +791,18 @@ elseif(WIN32)
 
   if(WITH_GMP)
     install(
-          FILES ${LIBDIR}/gmp/lib/libgmp-10.dll
-          DESTINATION "."
+      FILES ${LIBDIR}/gmp/lib/libgmp-10.dll
+      DESTINATION "."
     )
     install(
-          FILES ${LIBDIR}/gmp/lib/libgmpxx.dll
-          DESTINATION "."
-          CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
+      FILES ${LIBDIR}/gmp/lib/libgmpxx.dll
+      DESTINATION "."
+      CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
     )
     install(
-          FILES ${LIBDIR}/gmp/lib/libgmpxx_d.dll
-          DESTINATION "."
-          CONFIGURATIONS Debug
+      FILES ${LIBDIR}/gmp/lib/libgmpxx_d.dll
+      DESTINATION "."
+      CONFIGURATIONS Debug
     )
   endif()
 
@@ -788,16 +818,16 @@ elseif(WIN32)
   endif()
 
   if(WITH_OPENVDB)
-      install(
-        FILES ${LIBDIR}/openvdb/bin/openvdb.dll
-        DESTINATION "."
-        CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
-      )
-      install(
-        FILES ${LIBDIR}/openvdb/bin/openvdb_d.dll
-        DESTINATION "."
-        CONFIGURATIONS Debug
-      )
+    install(
+      FILES ${LIBDIR}/openvdb/bin/openvdb.dll
+      DESTINATION "."
+      CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
+    )
+    install(
+      FILES ${LIBDIR}/openvdb/bin/openvdb_d.dll
+      DESTINATION "."
+      CONFIGURATIONS Debug
+    )
   endif()
 
   if(WITH_PYTHON)
@@ -891,29 +921,33 @@ elseif(WIN32)
     unset(_PYTHON_VERSION_NO_DOTS)
   endif()
 
-  # EGL Runtime Components
-  if(WITH_GL_EGL)
-    if(WIN32)
-      install(FILES "${OPENGLES_DLL}"     DESTINATION ".")
-      install(FILES "${OPENGLES_EGL_DLL}" DESTINATION ".")
-
-      if(WITH_GL_ANGLE)
-        install(FILES "${D3DCOMPILER_DLL}" DESTINATION ".")
-      endif()
-    endif()
-  endif()
-
   if(WITH_CODEC_FFMPEG)
-    install(
-      FILES
-        ${LIBDIR}/ffmpeg/lib/avcodec-58.dll
-        ${LIBDIR}/ffmpeg/lib/avformat-58.dll
-        ${LIBDIR}/ffmpeg/lib/avdevice-58.dll
-        ${LIBDIR}/ffmpeg/lib/avutil-56.dll
-        ${LIBDIR}/ffmpeg/lib/swscale-5.dll
-        ${LIBDIR}/ffmpeg/lib/swresample-3.dll
-      DESTINATION "."
-    )
+    # Filenames change slightly between ffmpeg versions
+    # check both 5.0 and fallback to 4.4 to ease the transition
+    # between versions.
+    if(EXISTS "${LIBDIR}/ffmpeg/lib/avcodec-59.dll")
+      install(
+        FILES
+          ${LIBDIR}/ffmpeg/lib/avcodec-59.dll
+          ${LIBDIR}/ffmpeg/lib/avformat-59.dll
+          ${LIBDIR}/ffmpeg/lib/avdevice-59.dll
+          ${LIBDIR}/ffmpeg/lib/avutil-57.dll
+          ${LIBDIR}/ffmpeg/lib/swscale-6.dll
+          ${LIBDIR}/ffmpeg/lib/swresample-4.dll
+        DESTINATION "."
+      )
+    else()
+      install(
+        FILES
+          ${LIBDIR}/ffmpeg/lib/avcodec-58.dll
+          ${LIBDIR}/ffmpeg/lib/avformat-58.dll
+          ${LIBDIR}/ffmpeg/lib/avdevice-58.dll
+          ${LIBDIR}/ffmpeg/lib/avutil-56.dll
+          ${LIBDIR}/ffmpeg/lib/swscale-5.dll
+          ${LIBDIR}/ffmpeg/lib/swresample-3.dll
+        DESTINATION "."
+      )
+    endif()
   endif()
   if(WITH_TBB)
     install(
@@ -1003,6 +1037,25 @@ elseif(WIN32)
       DESTINATION ${TARGETDIR_VER}/python/lib/site-packages
     )
   endif()
+
+  # Custom game icon for windows deployment
+  if(WITH_GAMEENGINE)
+    install(
+      DIRECTORY ${CMAKE_SOURCE_DIR}/release/windows/icons/rceditcustom/
+      DESTINATION ${TARGETDIR_VER}/rceditcustom
+    )
+  endif()
+
+  # Compatibility with Windows 7
+  if(WITH_WINDOWS_7)
+    install(
+      FILES ${LIBDIR}/bcompat7/bin/bcompat7.dll
+            ${LIBDIR}/bcompat7/bin/api-ms-win-core-path-l1-1-0.dll
+      DESTINATION "."
+      CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel;Debug
+    )
+  endif()
+
 elseif(APPLE)
   if(NOT WITH_PYTHON_MODULE)
     # Uppercase name for app bundle
@@ -1046,7 +1099,8 @@ elseif(APPLE)
   set_target_properties(blender PROPERTIES
     MACOSX_BUNDLE_INFO_PLIST ${OSX_APP_SOURCEDIR}/Contents/Info.plist
     MACOSX_BUNDLE_SHORT_VERSION_STRING "${BLENDER_VERSION}.${BLENDER_VERSION_PATCH}"
-    MACOSX_BUNDLE_LONG_VERSION_STRING "${BLENDER_VERSION}.${BLENDER_VERSION_PATCH} ${BLENDER_DATE}")
+    MACOSX_BUNDLE_LONG_VERSION_STRING "${BLENDER_VERSION}.${BLENDER_VERSION_PATCH} ${BLENDER_DATE}"
+  )
 
   # Gather the date in finder-style
   execute_process(COMMAND date "+%m/%d/%Y/%H:%M"
@@ -1067,9 +1121,6 @@ elseif(APPLE)
     DESTINATION "."
   )
 
-  # install release and app files
-  set(BLENDER_TEXT_FILES_DESTINATION Blender.app/Contents/Resources/text)
-
   install(
     FILES ${OSX_APP_SOURCEDIR}/Contents/PkgInfo
     DESTINATION Blender.app/Contents
@@ -1079,6 +1130,13 @@ elseif(APPLE)
     ${OSX_APP_SOURCEDIR}/Contents/Resources
     Blender.app/Contents/
   )
+
+  if(WITH_BLENDER_THUMBNAILER)
+      install(
+        TARGETS blender-thumbnailer
+        DESTINATION Blender.app/Contents/MacOS/
+      )
+  endif()
 
   if(WITH_OPENMP AND OPENMP_CUSTOM)
     install(
@@ -1102,9 +1160,9 @@ elseif(APPLE)
       ${TARGETDIR_VER}/python/lib
     )
 
-    install(DIRECTORY ${LIBDIR}/python/bin
-      DESTINATION ${TARGETDIR_VER}/python
-      USE_SOURCE_PERMISSIONS
+    install(
+      PROGRAMS ${PYTHON_EXECUTABLE}
+      DESTINATION ${TARGETDIR_VER}/python/bin
     )
 
     # Needed for distutils/pip
@@ -1116,11 +1174,12 @@ elseif(APPLE)
     )
     unset(_py_inc_suffix)
   endif()
+
   if(WITH_PYTHON_MODULE)
     if(INSTALL_BPY_TO_SITE_PACKAGES)
       install(
         TARGETS blender
-        LIBRARY DESTINATION ${PYTHON_LIBPATH}/site-packages
+        LIBRARY DESTINATION ${BPY_INSTALL_DIR}
       )
     endif()
   endif()
@@ -1138,15 +1197,10 @@ endif()
 
 if(DEFINED BLENDER_TEXT_FILES_DESTINATION)
 
-  install(
-    CODE
-    "
-    file(READ \"${CMAKE_SOURCE_DIR}/release/text/readme.html\" DATA_SRC)
-    string(REGEX REPLACE \"BLENDER_VERSION\" \"${BLENDER_VERSION}\" DATA_DST \"\${DATA_SRC}\")
-    file(WRITE \"${CMAKE_BINARY_DIR}/release/text/readme.html\" \"\${DATA_DST}\")
-    unset(DATA_SRC)
-    unset(DATA_DST)
-    "
+  configure_file(
+    ${CMAKE_SOURCE_DIR}/release/text/readme.html
+    ${CMAKE_BINARY_DIR}/release/text/readme.html
+    @ONLY
   )
   list(APPEND BLENDER_TEXT_FILES
     ${CMAKE_BINARY_DIR}/release/text/readme.html
@@ -1209,10 +1263,8 @@ unset(LIB)
 setup_platform_linker_flags(blender)
 setup_platform_linker_libs(blender)
 
-if(APPLE)
-  set_target_properties(blender PROPERTIES LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/osx_locals.map)
-elseif(UNIX)
-  set_target_properties(blender PROPERTIES LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/blender.map)
+if(DEFINED PLATFORM_SYMBOLS_MAP)
+  set_target_properties(blender PROPERTIES LINK_DEPENDS ${PLATFORM_SYMBOLS_MAP})
 endif()
 
 # -----------------------------------------------------------------------------
@@ -1235,17 +1287,18 @@ if(WIN32)
   set_target_properties(blender PROPERTIES VS_GLOBAL_VcpkgEnabled "false")
   set_target_properties(blender PROPERTIES
     PDB_NAME "blender_private"
-    PDB_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>")
-    if(WITH_WINDOWS_PDB AND WITH_WINDOWS_STRIPPED_PDB)
-      # This is slightly messy, but single target generators like ninja will not have the
-      # CMAKE_CFG_INTDIR variable and multitarget generators like msbuild will not have
-      # CMAKE_BUILD_TYPE. This can be simplified by target_link_options and the $<CONFIG>
-      # generator expression in newer cmake (2.13+) but until that time this fill have suffice.
-      if(CMAKE_BUILD_TYPE)
-        set_property(TARGET blender APPEND_STRING PROPERTY LINK_FLAGS  " /PDBSTRIPPED:${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/blender_public.pdb")
-      else()
-        set_property(TARGET blender APPEND_STRING PROPERTY LINK_FLAGS  " /PDBSTRIPPED:${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/blender_public.pdb")
-      endif()
+    PDB_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>"
+  )
+  if(WITH_WINDOWS_PDB AND WITH_WINDOWS_STRIPPED_PDB)
+    # This is slightly messy, but single target generators like ninja will not have the
+    # `CMAKE_CFG_INTDIR` variable and multi-target generators like `msbuild` will not have
+    # `CMAKE_BUILD_TYPE`. This can be simplified by target_link_options and the `$<CONFIG>`
+    # generator expression in newer CMAKE (2.13+) but until that time this fill have suffice.
+    if(CMAKE_BUILD_TYPE)
+      set_property(TARGET blender APPEND_STRING PROPERTY LINK_FLAGS  " /PDBSTRIPPED:${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/blender_public.pdb")
+    else()
+      set_property(TARGET blender APPEND_STRING PROPERTY LINK_FLAGS  " /PDBSTRIPPED:${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/blender_public.pdb")
+    endif()
   endif()
 endif()
 

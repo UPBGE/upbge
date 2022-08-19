@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup imbuf
@@ -57,6 +41,8 @@
 #include "BLI_string.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
+
+#include "DNA_scene_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -437,7 +423,7 @@ static int startavi(struct anim *anim)
   anim->cur_position = 0;
 
 #  if 0
-  printf("x:%d y:%d size:%d interl:%d dur:%d\n",
+  printf("x:%d y:%d size:%d interlace:%d dur:%d\n",
          anim->x,
          anim->y,
          anim->framesize,
@@ -502,16 +488,11 @@ static ImBuf *avi_fetchibuf(struct anim *anim, int position)
 
 #ifdef WITH_FFMPEG
 
-BLI_INLINE bool need_aligned_ffmpeg_buffer(struct anim *anim)
-{
-  return (anim->x & 31) != 0;
-}
-
 static int startffmpeg(struct anim *anim)
 {
   int i, video_stream_index;
 
-  AVCodec *pCodec;
+  const AVCodec *pCodec;
   AVFormatContext *pFormatCtx = NULL;
   AVCodecContext *pCodecCtx;
   AVRational frame_rate;
@@ -694,7 +675,7 @@ static int startffmpeg(struct anim *anim)
   anim->orientation = 0;
   anim->framesize = anim->x * anim->y * 4;
 
-  anim->cur_position = -1;
+  anim->cur_position = 0;
   anim->cur_frame_final = 0;
   anim->cur_pts = -1;
   anim->cur_key_frame_pts = -1;
@@ -702,26 +683,26 @@ static int startffmpeg(struct anim *anim)
   anim->cur_packet->stream_index = -1;
 
   anim->pFrame = av_frame_alloc();
-  anim->pFrameComplete = false;
+  anim->pFrame_backup = av_frame_alloc();
+  anim->pFrame_backup_complete = false;
+  anim->pFrame_complete = false;
   anim->pFrameDeinterlaced = av_frame_alloc();
   anim->pFrameRGB = av_frame_alloc();
+  anim->pFrameRGB->format = AV_PIX_FMT_RGBA;
+  anim->pFrameRGB->width = anim->x;
+  anim->pFrameRGB->height = anim->y;
 
-  if (need_aligned_ffmpeg_buffer(anim)) {
-    anim->pFrameRGB->format = AV_PIX_FMT_RGBA;
-    anim->pFrameRGB->width = anim->x;
-    anim->pFrameRGB->height = anim->y;
-
-    if (av_frame_get_buffer(anim->pFrameRGB, 32) < 0) {
-      fprintf(stderr, "Could not allocate frame data.\n");
-      avcodec_free_context(&anim->pCodecCtx);
-      avformat_close_input(&anim->pFormatCtx);
-      av_packet_free(&anim->cur_packet);
-      av_frame_free(&anim->pFrameRGB);
-      av_frame_free(&anim->pFrameDeinterlaced);
-      av_frame_free(&anim->pFrame);
-      anim->pCodecCtx = NULL;
-      return -1;
-    }
+  if (av_frame_get_buffer(anim->pFrameRGB, 0) < 0) {
+    fprintf(stderr, "Could not allocate frame data.\n");
+    avcodec_free_context(&anim->pCodecCtx);
+    avformat_close_input(&anim->pFormatCtx);
+    av_packet_free(&anim->cur_packet);
+    av_frame_free(&anim->pFrameRGB);
+    av_frame_free(&anim->pFrameDeinterlaced);
+    av_frame_free(&anim->pFrame);
+    av_frame_free(&anim->pFrame_backup);
+    anim->pCodecCtx = NULL;
+    return -1;
   }
 
   if (av_image_get_buffer_size(AV_PIX_FMT_RGBA, anim->x, anim->y, 1) != anim->x * anim->y * 4) {
@@ -732,6 +713,7 @@ static int startffmpeg(struct anim *anim)
     av_frame_free(&anim->pFrameRGB);
     av_frame_free(&anim->pFrameDeinterlaced);
     av_frame_free(&anim->pFrame);
+    av_frame_free(&anim->pFrame_backup);
     anim->pCodecCtx = NULL;
     return -1;
   }
@@ -769,6 +751,7 @@ static int startffmpeg(struct anim *anim)
     av_frame_free(&anim->pFrameRGB);
     av_frame_free(&anim->pFrameDeinterlaced);
     av_frame_free(&anim->pFrame);
+    av_frame_free(&anim->pFrame_backup);
     anim->pCodecCtx = NULL;
     return -1;
   }
@@ -803,21 +786,70 @@ static int startffmpeg(struct anim *anim)
   return 0;
 }
 
+static double ffmpeg_steps_per_frame_get(struct anim *anim)
+{
+  AVStream *v_st = anim->pFormatCtx->streams[anim->videoStream];
+  AVRational time_base = v_st->time_base;
+  AVRational frame_rate = av_guess_frame_rate(anim->pFormatCtx, v_st, NULL);
+  return av_q2d(av_inv_q(av_mul_q(frame_rate, time_base)));
+}
+
+/* Store backup frame.
+ * With VFR movies, if PTS is not matched perfectly, scanning continues to look for next PTS.
+ * It is likely to overshoot and scanning stops. Having previous frame backed up, it is possible
+ * to use it when overshoot happens.
+ */
+static void ffmpeg_double_buffer_backup_frame_store(struct anim *anim, int64_t pts_to_search)
+{
+  /* `anim->pFrame` is beyond `pts_to_search`. Don't store it. */
+  if (anim->pFrame_backup_complete && anim->cur_pts >= pts_to_search) {
+    return;
+  }
+  if (!anim->pFrame_complete) {
+    return;
+  }
+
+  if (anim->pFrame_backup_complete) {
+    av_frame_unref(anim->pFrame_backup);
+  }
+
+  av_frame_move_ref(anim->pFrame_backup, anim->pFrame);
+  anim->pFrame_backup_complete = true;
+}
+
+/* Free stored backup frame. */
+static void ffmpeg_double_buffer_backup_frame_clear(struct anim *anim)
+{
+  if (anim->pFrame_backup_complete) {
+    av_frame_unref(anim->pFrame_backup);
+  }
+  anim->pFrame_backup_complete = false;
+}
+
+/* Return recently decoded frame. If it does not exist, return frame from backup buffer. */
+static AVFrame *ffmpeg_double_buffer_frame_fallback_get(struct anim *anim)
+{
+  av_log(anim->pFormatCtx, AV_LOG_ERROR, "DECODE UNHAPPY: PTS not matched!\n");
+
+  if (anim->pFrame_complete) {
+    return anim->pFrame;
+  }
+  if (anim->pFrame_backup_complete) {
+    return anim->pFrame_backup;
+  }
+  return NULL;
+}
+
 /* postprocess the image in anim->pFrame and do color conversion
  * and deinterlacing stuff.
  *
  * Output is anim->cur_frame_final
  */
 
-static void ffmpeg_postprocess(struct anim *anim)
+static void ffmpeg_postprocess(struct anim *anim, AVFrame *input)
 {
-  AVFrame *input = anim->pFrame;
   ImBuf *ibuf = anim->cur_frame_final;
   int filter_y = 0;
-
-  if (!anim->pFrameComplete) {
-    return;
-  }
 
   /* This means the data wasn't read properly,
    * this check stops crashing */
@@ -830,7 +862,7 @@ static void ffmpeg_postprocess(struct anim *anim)
 
   av_log(anim->pFormatCtx,
          AV_LOG_DEBUG,
-         "  POSTPROC: anim->pFrame planes: %p %p %p %p\n",
+         "  POSTPROC: AVFrame planes: %p %p %p %p\n",
          input->data[0],
          input->data[1],
          input->data[2],
@@ -849,94 +881,75 @@ static void ffmpeg_postprocess(struct anim *anim)
     }
   }
 
-  if (!need_aligned_ffmpeg_buffer(anim)) {
-    av_image_fill_arrays(anim->pFrameRGB->data,
-                         anim->pFrameRGB->linesize,
-                         (unsigned char *)ibuf->rect,
-                         AV_PIX_FMT_RGBA,
-                         anim->x,
-                         anim->y,
-                         1);
-  }
-
-#  if defined(__x86_64__) || defined(_M_X64)
-  /* Scale and flip image over Y axis in one go, using negative strides.
-   * This doesn't work with ARM/PowerPC though and may be misusing the API.
-   * Limit it x86_64 where it appears to work.
-   * http://trac.ffmpeg.org/ticket/9060 */
-  int *dstStride = anim->pFrameRGB->linesize;
-  uint8_t **dst = anim->pFrameRGB->data;
-  const int dstStride2[4] = {-dstStride[0], 0, 0, 0};
-  uint8_t *dst2[4] = {dst[0] + (anim->y - 1) * dstStride[0], 0, 0, 0};
-
   sws_scale(anim->img_convert_ctx,
             (const uint8_t *const *)input->data,
             input->linesize,
             0,
             anim->y,
-            dst2,
-            dstStride2);
-#  else
-  /* Scale with swscale then flip image over Y axis. */
-  int *dstStride = anim->pFrameRGB->linesize;
-  uint8_t **dst = anim->pFrameRGB->data;
-  const int dstStride2[4] = {dstStride[0], 0, 0, 0};
-  uint8_t *dst2[4] = {dst[0], 0, 0, 0};
-  int x, y, h, w;
-  unsigned char *bottom;
-  unsigned char *top;
+            anim->pFrameRGB->data,
+            anim->pFrameRGB->linesize);
 
-  sws_scale(anim->img_convert_ctx,
-            (const uint8_t *const *)input->data,
-            input->linesize,
-            0,
-            anim->y,
-            dst2,
-            dstStride2);
-
-  bottom = (unsigned char *)ibuf->rect;
-  top = bottom + ibuf->x * (ibuf->y - 1) * 4;
-
-  h = (ibuf->y + 1) / 2;
-  w = ibuf->x;
-
-  for (y = 0; y < h; y++) {
-    unsigned char tmp[4];
-    unsigned int *tmp_l = (unsigned int *)tmp;
-
-    for (x = 0; x < w; x++) {
-      tmp[0] = bottom[0];
-      tmp[1] = bottom[1];
-      tmp[2] = bottom[2];
-      tmp[3] = bottom[3];
-
-      bottom[0] = top[0];
-      bottom[1] = top[1];
-      bottom[2] = top[2];
-      bottom[3] = top[3];
-
-      *(unsigned int *)top = *tmp_l;
-
-      bottom += 4;
-      top += 4;
-    }
-    top -= 8 * w;
-  }
-#  endif
-
-  if (need_aligned_ffmpeg_buffer(anim)) {
-    uint8_t *buf_src = anim->pFrameRGB->data[0];
-    uint8_t *buf_dst = (uint8_t *)ibuf->rect;
-    for (int y = 0; y < anim->y; y++) {
-      memcpy(buf_dst, buf_src, anim->x * 4);
-      buf_dst += anim->x * 4;
-      buf_src += anim->pFrameRGB->linesize[0];
-    }
-  }
-
+  /* Copy the valid bytes from the aligned buffer vertically flipped into ImBuf */
+  int aligned_stride = anim->pFrameRGB->linesize[0];
+  const uint8_t *const src[4] = {
+      anim->pFrameRGB->data[0] + (anim->y - 1) * aligned_stride, 0, 0, 0};
+  /* NOTE: Negative linesize is used to copy and flip image at once with function
+   * `av_image_copy_to_buffer`. This could cause issues in future and image may need to be flipped
+   * explicitly. */
+  const int src_linesize[4] = {-anim->pFrameRGB->linesize[0], 0, 0, 0};
+  int dst_size = av_image_get_buffer_size(
+      anim->pFrameRGB->format, anim->pFrameRGB->width, anim->pFrameRGB->height, 1);
+  av_image_copy_to_buffer(
+      (uint8_t *)ibuf->rect, dst_size, src, src_linesize, AV_PIX_FMT_RGBA, anim->x, anim->y, 1);
   if (filter_y) {
     IMB_filtery(ibuf);
   }
+}
+
+static void final_frame_log(struct anim *anim,
+                            int64_t frame_pts_start,
+                            int64_t frame_pts_end,
+                            const char *str)
+{
+  av_log(anim->pFormatCtx,
+         AV_LOG_INFO,
+         "DECODE HAPPY: %s frame PTS range %" PRId64 " - %" PRId64 ".\n",
+         str,
+         frame_pts_start,
+         frame_pts_end);
+}
+
+static bool ffmpeg_pts_isect(int64_t pts_start, int64_t pts_end, int64_t pts_to_search)
+{
+  return pts_start <= pts_to_search && pts_to_search < pts_end;
+}
+
+/* Return frame that matches `pts_to_search`, NULL if matching frame does not exist. */
+static AVFrame *ffmpeg_frame_by_pts_get(struct anim *anim, int64_t pts_to_search)
+{
+  /* NOTE: `frame->pts + frame->pkt_duration` does not always match pts of next frame.
+   * See footage from T86361. Here it is OK to use, because PTS must match current or backup frame.
+   * If there is no current frame, return NULL.
+   */
+  if (!anim->pFrame_complete) {
+    return NULL;
+  }
+
+  const bool backup_frame_ready = anim->pFrame_backup_complete;
+  const int64_t recent_start = av_get_pts_from_frame(anim->pFrame);
+  const int64_t recent_end = recent_start + anim->pFrame->pkt_duration;
+  const int64_t backup_start = backup_frame_ready ? av_get_pts_from_frame(anim->pFrame_backup) : 0;
+
+  AVFrame *best_frame = NULL;
+  if (ffmpeg_pts_isect(recent_start, recent_end, pts_to_search)) {
+    final_frame_log(anim, recent_start, recent_end, "Recent");
+    best_frame = anim->pFrame;
+  }
+  else if (backup_frame_ready && ffmpeg_pts_isect(backup_start, recent_start, pts_to_search)) {
+    final_frame_log(anim, backup_start, recent_start, "Backup");
+    best_frame = anim->pFrame_backup;
+  }
+  return best_frame;
 }
 
 static void ffmpeg_decode_store_frame_pts(struct anim *anim)
@@ -950,8 +963,22 @@ static void ffmpeg_decode_store_frame_pts(struct anim *anim)
   av_log(anim->pFormatCtx,
          AV_LOG_DEBUG,
          "  FRAME DONE: cur_pts=%" PRId64 ", guessed_pts=%" PRId64 "\n",
-         (anim->pFrame->pts == AV_NOPTS_VALUE) ? -1 : (int64_t)anim->pFrame->pts,
+         av_get_pts_from_frame(anim->pFrame),
          (int64_t)anim->cur_pts);
+}
+
+static int ffmpeg_read_video_frame(struct anim *anim, AVPacket *packet)
+{
+  int ret = 0;
+  while ((ret = av_read_frame(anim->pFormatCtx, packet)) >= 0) {
+    if (packet->stream_index == anim->videoStream) {
+      break;
+    }
+    av_packet_unref(packet);
+    packet->stream_index = -1;
+  }
+
+  return ret;
 }
 
 /* decode one video frame also considering the packet read into cur_packet */
@@ -961,8 +988,8 @@ static int ffmpeg_decode_video_frame(struct anim *anim)
 
   /* Sometimes, decoder returns more than one frame per sent packet. Check if frames are available.
    * This frames must be read, otherwise decoding will fail. See T91405. */
-  anim->pFrameComplete = avcodec_receive_frame(anim->pCodecCtx, anim->pFrame) == 0;
-  if (anim->pFrameComplete) {
+  anim->pFrame_complete = avcodec_receive_frame(anim->pCodecCtx, anim->pFrame) == 0;
+  if (anim->pFrame_complete) {
     av_log(anim->pFormatCtx, AV_LOG_DEBUG, "  DECODE FROM CODEC BUFFER\n");
     ffmpeg_decode_store_frame_pts(anim);
     return 1;
@@ -974,24 +1001,25 @@ static int ffmpeg_decode_video_frame(struct anim *anim)
     anim->cur_packet->stream_index = -1;
   }
 
-  while ((rval = av_read_frame(anim->pFormatCtx, anim->cur_packet)) >= 0) {
+  while ((rval = ffmpeg_read_video_frame(anim, anim->cur_packet)) >= 0) {
+    if (anim->cur_packet->stream_index != anim->videoStream) {
+      continue;
+    }
+
     av_log(anim->pFormatCtx,
            AV_LOG_DEBUG,
-           "%sREAD: strID=%d (VID: %d) dts=%" PRId64 " pts=%" PRId64 " %s\n",
-           (anim->cur_packet->stream_index == anim->videoStream) ? "->" : "  ",
+           "READ: strID=%d dts=%" PRId64 " pts=%" PRId64 " %s\n",
            anim->cur_packet->stream_index,
-           anim->videoStream,
            (anim->cur_packet->dts == AV_NOPTS_VALUE) ? -1 : (int64_t)anim->cur_packet->dts,
            (anim->cur_packet->pts == AV_NOPTS_VALUE) ? -1 : (int64_t)anim->cur_packet->pts,
            (anim->cur_packet->flags & AV_PKT_FLAG_KEY) ? " KEY" : "");
-    if (anim->cur_packet->stream_index == anim->videoStream) {
-      avcodec_send_packet(anim->pCodecCtx, anim->cur_packet);
-      anim->pFrameComplete = avcodec_receive_frame(anim->pCodecCtx, anim->pFrame) == 0;
 
-      if (anim->pFrameComplete) {
-        ffmpeg_decode_store_frame_pts(anim);
-        break;
-      }
+    avcodec_send_packet(anim->pCodecCtx, anim->cur_packet);
+    anim->pFrame_complete = avcodec_receive_frame(anim->pCodecCtx, anim->pFrame) == 0;
+
+    if (anim->pFrame_complete) {
+      ffmpeg_decode_store_frame_pts(anim);
+      break;
     }
     av_packet_unref(anim->cur_packet);
     anim->cur_packet->stream_index = -1;
@@ -1000,9 +1028,9 @@ static int ffmpeg_decode_video_frame(struct anim *anim)
   if (rval == AVERROR_EOF) {
     /* Flush any remaining frames out of the decoder. */
     avcodec_send_packet(anim->pCodecCtx, NULL);
-    anim->pFrameComplete = avcodec_receive_frame(anim->pCodecCtx, anim->pFrame) == 0;
+    anim->pFrame_complete = avcodec_receive_frame(anim->pCodecCtx, anim->pFrame) == 0;
 
-    if (anim->pFrameComplete) {
+    if (anim->pFrame_complete) {
       ffmpeg_decode_store_frame_pts(anim);
       rval = 0;
     }
@@ -1066,19 +1094,12 @@ static int ffmpeg_seek_by_byte(AVFormatContext *pFormatCtx)
 
 static int64_t ffmpeg_get_seek_pts(struct anim *anim, int64_t pts_to_search)
 {
-  AVStream *v_st = anim->pFormatCtx->streams[anim->videoStream];
-  AVRational frame_rate = v_st->r_frame_rate;
-  AVRational time_base = v_st->time_base;
-  double steps_per_frame = (double)(frame_rate.den * time_base.den) /
-                           (double)(frame_rate.num * time_base.num);
   /* Step back half a frame position to make sure that we get the requested
    * frame and not the one after it. This is a workaround as ffmpeg will
    * sometimes not seek to a frame after the requested pts even if
    * AVSEEK_FLAG_BACKWARD is specified.
    */
-  int64_t pts = pts_to_search - (steps_per_frame / 2);
-
-  return pts;
+  return pts_to_search - (ffmpeg_steps_per_frame_get(anim) / 2);
 }
 
 /* This gives us an estimate of which pts our requested frame will have.
@@ -1097,13 +1118,8 @@ static int64_t ffmpeg_get_pts_to_search(struct anim *anim,
   else {
     AVStream *v_st = anim->pFormatCtx->streams[anim->videoStream];
     int64_t start_pts = v_st->start_time;
-    AVRational frame_rate = v_st->r_frame_rate;
-    AVRational time_base = v_st->time_base;
 
-    double steps_per_frame = (double)(frame_rate.den * time_base.den) /
-                             (double)(frame_rate.num * time_base.num);
-
-    pts_to_search = round(position * steps_per_frame);
+    pts_to_search = round(position * ffmpeg_steps_per_frame_get(anim));
 
     if (start_pts != AV_NOPTS_VALUE) {
       pts_to_search += start_pts;
@@ -1112,75 +1128,41 @@ static int64_t ffmpeg_get_pts_to_search(struct anim *anim,
   return pts_to_search;
 }
 
-/* Check if the pts will get us the same frame that we already have in memory from last decode. */
-static bool ffmpeg_pts_matches_last_frame(struct anim *anim, int64_t pts_to_search)
+static bool ffmpeg_is_first_frame_decode(struct anim *anim)
 {
-  if (anim->pFrame && anim->cur_frame_final) {
-    int64_t diff = pts_to_search - anim->cur_pts;
-    return diff >= 0 && diff < anim->pFrame->pkt_duration;
-  }
-
-  return false;
+  return anim->pFrame_complete == false;
 }
 
-static bool ffmpeg_is_first_frame_decode(struct anim *anim, int position)
+static void ffmpeg_scan_log(struct anim *anim, int64_t pts_to_search)
 {
-  return position == 0 && anim->cur_position == -1;
+  int64_t frame_pts_start = av_get_pts_from_frame(anim->pFrame);
+  int64_t frame_pts_end = frame_pts_start + anim->pFrame->pkt_duration;
+  av_log(anim->pFormatCtx,
+         AV_LOG_DEBUG,
+         "  SCAN WHILE: PTS range %" PRId64 " - %" PRId64 " in search of %" PRId64 "\n",
+         frame_pts_start,
+         frame_pts_end,
+         pts_to_search);
 }
 
 /* Decode frames one by one until its PTS matches pts_to_search. */
 static void ffmpeg_decode_video_frame_scan(struct anim *anim, int64_t pts_to_search)
 {
-  av_log(anim->pFormatCtx, AV_LOG_DEBUG, "FETCH: within current GOP\n");
+  const int64_t start_gop_frame = anim->cur_key_frame_pts;
+  bool decode_error = false;
 
-  av_log(anim->pFormatCtx,
-         AV_LOG_DEBUG,
-         "SCAN start: considering pts=%" PRId64 " in search of %" PRId64 "\n",
-         (int64_t)anim->cur_pts,
-         (int64_t)pts_to_search);
+  while (!decode_error && anim->cur_pts < pts_to_search) {
+    ffmpeg_scan_log(anim, pts_to_search);
+    ffmpeg_double_buffer_backup_frame_store(anim, pts_to_search);
+    decode_error = ffmpeg_decode_video_frame(anim) < 1;
 
-  int64_t start_gop_frame = anim->cur_key_frame_pts;
-  bool scan_fuzzy = false;
-
-  while (anim->cur_pts < pts_to_search) {
-    av_log(anim->pFormatCtx,
-           AV_LOG_DEBUG,
-           "  WHILE: pts=%" PRId64 " in search of %" PRId64 "\n",
-           (int64_t)anim->cur_pts,
-           (int64_t)pts_to_search);
-    if (!ffmpeg_decode_video_frame(anim)) {
-      break;
+    /* We should not get a new GOP keyframe while scanning if seeking is working as intended.
+     * If this condition triggers, there may be and error in our seeking code.
+     * NOTE: This seems to happen if DTS value is used for seeking in ffmpeg internally. There
+     * seems to be no good way to handle such case. */
+    if (anim->seek_before_decode && start_gop_frame != anim->cur_key_frame_pts) {
+      av_log(anim->pFormatCtx, AV_LOG_ERROR, "SCAN: Frame belongs to an unexpected GOP!\n");
     }
-
-    if (start_gop_frame != anim->cur_key_frame_pts) {
-      break;
-    }
-
-    if (anim->cur_pts < pts_to_search &&
-        anim->cur_pts + anim->pFrame->pkt_duration > pts_to_search) {
-      /* Our estimate of the pts was a bit off, but we have the frame we want. */
-      av_log(anim->pFormatCtx, AV_LOG_DEBUG, "SCAN fuzzy frame match\n");
-      scan_fuzzy = true;
-      break;
-    }
-  }
-
-  if (start_gop_frame != anim->cur_key_frame_pts) {
-    /* We went into an other GOP frame. This should never happen as we should have positioned us
-     * correctly by seeking into the GOP frame that contains the frame we want. */
-    av_log(anim->pFormatCtx,
-           AV_LOG_ERROR,
-           "SCAN failed: completely lost in stream, "
-           "bailing out at PTS=%" PRId64 ", searching for PTS=%" PRId64 "\n",
-           (int64_t)anim->cur_pts,
-           (int64_t)pts_to_search);
-  }
-
-  if (scan_fuzzy || anim->cur_pts == pts_to_search) {
-    av_log(anim->pFormatCtx, AV_LOG_DEBUG, "SCAN HAPPY: we found our PTS!\n");
-  }
-  else {
-    av_log(anim->pFormatCtx, AV_LOG_ERROR, "SCAN UNHAPPY: PTS not matched!\n");
   }
 }
 
@@ -1193,13 +1175,6 @@ static int ffmpeg_generic_seek_workaround(struct anim *anim,
                                           int64_t *requested_pts,
                                           int64_t pts_to_search)
 {
-  AVStream *v_st = anim->pFormatCtx->streams[anim->videoStream];
-  AVRational frame_rate = v_st->r_frame_rate;
-  AVRational time_base = v_st->time_base;
-
-  double steps_per_frame = (double)(frame_rate.den * time_base.den) /
-                           (double)(frame_rate.num * time_base.num);
-
   int64_t current_pts = *requested_pts;
   int64_t offset = 0;
 
@@ -1207,7 +1182,7 @@ static int ffmpeg_generic_seek_workaround(struct anim *anim,
 
   /* Step backward frame by frame until we find the key frame we are looking for. */
   while (current_pts != 0) {
-    current_pts = *requested_pts - (int64_t)round(offset * steps_per_frame);
+    current_pts = *requested_pts - (int64_t)round(offset * ffmpeg_steps_per_frame_get(anim));
     current_pts = MAX2(current_pts, 0);
 
     /* Seek to timestamp. */
@@ -1256,13 +1231,59 @@ static int ffmpeg_generic_seek_workaround(struct anim *anim,
   return av_seek_frame(anim->pFormatCtx, anim->videoStream, current_pts, AVSEEK_FLAG_BACKWARD);
 }
 
+/* Read packet until timestamp matches `anim->cur_packet`, thus recovering internal `anim` stream
+ * position state. */
+static void ffmpeg_seek_recover_stream_position(struct anim *anim)
+{
+  AVPacket *temp_packet = av_packet_alloc();
+  while (ffmpeg_read_video_frame(anim, temp_packet) >= 0) {
+    int64_t current_pts = timestamp_from_pts_or_dts(anim->cur_packet->pts, anim->cur_packet->dts);
+    int64_t temp_pts = timestamp_from_pts_or_dts(temp_packet->pts, temp_packet->dts);
+    av_packet_unref(temp_packet);
+
+    if (current_pts == temp_pts) {
+      break;
+    }
+  }
+  av_packet_free(&temp_packet);
+}
+
+/* Check if seeking and mainly flushing codec buffers is needed. */
+static bool ffmpeg_seek_buffers_need_flushing(struct anim *anim, int position, int64_t seek_pos)
+{
+  /* Get timestamp of packet read after seeking. */
+  AVPacket *temp_packet = av_packet_alloc();
+  ffmpeg_read_video_frame(anim, temp_packet);
+  int64_t gop_pts = timestamp_from_pts_or_dts(temp_packet->pts, temp_packet->dts);
+  av_packet_unref(temp_packet);
+  av_packet_free(&temp_packet);
+
+  /* Seeking gives packet, that is currently read. No seeking was necessary, so buffers don't have
+   * to be flushed. */
+  if (gop_pts == timestamp_from_pts_or_dts(anim->cur_packet->pts, anim->cur_packet->dts)) {
+    return false;
+  }
+
+  /* Packet after seeking is same key frame as current, and further in time. No seeking was
+   * necessary, so buffers don't have to be flushed. But stream position has to be recovered. */
+  if (gop_pts == anim->cur_key_frame_pts && position > anim->cur_position) {
+    ffmpeg_seek_recover_stream_position(anim);
+    return false;
+  }
+
+  /* Seeking was necessary, but we have read packets. Therefore we must seek again. */
+  av_seek_frame(anim->pFormatCtx, anim->videoStream, seek_pos, AVSEEK_FLAG_BACKWARD);
+  anim->cur_key_frame_pts = gop_pts;
+  return true;
+}
+
 /* Seek to last necessary key frame. */
 static int ffmpeg_seek_to_key_frame(struct anim *anim,
                                     int position,
                                     struct anim_index *tc_index,
                                     int64_t pts_to_search)
 {
-  int64_t pos;
+  int64_t seek_pos;
   int ret;
 
   if (tc_index) {
@@ -1277,23 +1298,23 @@ static int ffmpeg_seek_to_key_frame(struct anim *anim,
     uint64_t pts;
     uint64_t dts;
 
-    pos = IMB_indexer_get_seek_pos(tc_index, new_frame_index);
+    seek_pos = IMB_indexer_get_seek_pos(tc_index, new_frame_index);
     pts = IMB_indexer_get_seek_pos_pts(tc_index, new_frame_index);
     dts = IMB_indexer_get_seek_pos_dts(tc_index, new_frame_index);
 
     anim->cur_key_frame_pts = timestamp_from_pts_or_dts(pts, dts);
 
-    av_log(anim->pFormatCtx, AV_LOG_DEBUG, "TC INDEX seek pos = %" PRId64 "\n", pos);
+    av_log(anim->pFormatCtx, AV_LOG_DEBUG, "TC INDEX seek seek_pos = %" PRId64 "\n", seek_pos);
     av_log(anim->pFormatCtx, AV_LOG_DEBUG, "TC INDEX seek pts = %" PRIu64 "\n", pts);
     av_log(anim->pFormatCtx, AV_LOG_DEBUG, "TC INDEX seek dts = %" PRIu64 "\n", dts);
 
     if (ffmpeg_seek_by_byte(anim->pFormatCtx)) {
-      av_log(anim->pFormatCtx, AV_LOG_DEBUG, "... using BYTE pos\n");
+      av_log(anim->pFormatCtx, AV_LOG_DEBUG, "... using BYTE seek_pos\n");
 
-      ret = av_seek_frame(anim->pFormatCtx, -1, pos, AVSEEK_FLAG_BYTE);
+      ret = av_seek_frame(anim->pFormatCtx, -1, seek_pos, AVSEEK_FLAG_BYTE);
     }
     else {
-      av_log(anim->pFormatCtx, AV_LOG_DEBUG, "... using PTS pos\n");
+      av_log(anim->pFormatCtx, AV_LOG_DEBUG, "... using PTS seek_pos\n");
       ret = av_seek_frame(
           anim->pFormatCtx, anim->videoStream, anim->cur_key_frame_pts, AVSEEK_FLAG_BACKWARD);
     }
@@ -1301,58 +1322,25 @@ static int ffmpeg_seek_to_key_frame(struct anim *anim,
   else {
     /* We have to manually seek with ffmpeg to get to the key frame we want to start decoding from.
      */
-    pos = ffmpeg_get_seek_pts(anim, pts_to_search);
-    av_log(anim->pFormatCtx, AV_LOG_DEBUG, "NO INDEX final seek pos = %" PRId64 "\n", pos);
+    seek_pos = ffmpeg_get_seek_pts(anim, pts_to_search);
+    av_log(
+        anim->pFormatCtx, AV_LOG_DEBUG, "NO INDEX final seek seek_pos = %" PRId64 "\n", seek_pos);
 
     AVFormatContext *format_ctx = anim->pFormatCtx;
 
     if (format_ctx->iformat->read_seek2 || format_ctx->iformat->read_seek) {
-      ret = av_seek_frame(anim->pFormatCtx, anim->videoStream, pos, AVSEEK_FLAG_BACKWARD);
+      ret = av_seek_frame(anim->pFormatCtx, anim->videoStream, seek_pos, AVSEEK_FLAG_BACKWARD);
     }
     else {
-      ret = ffmpeg_generic_seek_workaround(anim, &pos, pts_to_search);
-      av_log(anim->pFormatCtx, AV_LOG_DEBUG, "Adjusted final seek pos = %" PRId64 "\n", pos);
+      ret = ffmpeg_generic_seek_workaround(anim, &seek_pos, pts_to_search);
+      av_log(anim->pFormatCtx,
+             AV_LOG_DEBUG,
+             "Adjusted final seek seek_pos = %" PRId64 "\n",
+             seek_pos);
     }
 
-    if (ret >= 0) {
-      /* Double check if we need to seek and decode all packets. */
-      AVPacket *current_gop_start_packet = av_packet_alloc();
-      while (av_read_frame(anim->pFormatCtx, current_gop_start_packet) >= 0) {
-        if (current_gop_start_packet->stream_index == anim->videoStream) {
-          break;
-        }
-        av_packet_unref(current_gop_start_packet);
-      }
-      int64_t gop_pts = timestamp_from_pts_or_dts(current_gop_start_packet->pts,
-                                                  current_gop_start_packet->dts);
-
-      av_packet_free(&current_gop_start_packet);
-      bool same_gop = gop_pts == anim->cur_key_frame_pts;
-
-      if (same_gop && position > anim->cur_position) {
-        /* Change back to our old frame position so we can simply continue decoding from there. */
-        int64_t cur_pts = timestamp_from_pts_or_dts(anim->cur_packet->pts, anim->cur_packet->dts);
-
-        if (cur_pts == gop_pts) {
-          /* We are already at the correct position. */
-          return 0;
-        }
-        AVPacket *temp = av_packet_alloc();
-
-        while (av_read_frame(anim->pFormatCtx, temp) >= 0) {
-          int64_t temp_pts = timestamp_from_pts_or_dts(temp->pts, temp->dts);
-          if (temp->stream_index == anim->videoStream && temp_pts == cur_pts) {
-            break;
-          }
-          av_packet_unref(temp);
-        }
-        av_packet_free(&temp);
-        return 0;
-      }
-
-      anim->cur_key_frame_pts = gop_pts;
-      /* Seek back so we are at the correct position after we decoded a frame. */
-      av_seek_frame(anim->pFormatCtx, anim->videoStream, pos, AVSEEK_FLAG_BACKWARD);
+    if (ret <= 0 && !ffmpeg_seek_buffers_need_flushing(anim, position, seek_pos)) {
+      return 0;
     }
   }
 
@@ -1362,7 +1350,7 @@ static int ffmpeg_seek_to_key_frame(struct anim *anim,
            "FETCH: "
            "error while seeking to DTS = %" PRId64 " (frameno = %d, PTS = %" PRId64
            "): errcode = %d\n",
-           pos,
+           seek_pos,
            position,
            pts_to_search,
            ret);
@@ -1370,6 +1358,7 @@ static int ffmpeg_seek_to_key_frame(struct anim *anim,
   /* Flush the internal buffers of ffmpeg. This needs to be done after seeking to avoid decoding
    * errors. */
   avcodec_flush_buffers(anim->pCodecCtx);
+  ffmpeg_double_buffer_backup_frame_clear(anim);
 
   anim->cur_pts = -1;
 
@@ -1381,13 +1370,20 @@ static int ffmpeg_seek_to_key_frame(struct anim *anim,
   return ret;
 }
 
+static bool ffmpeg_must_seek(struct anim *anim, int position)
+{
+  bool must_seek = position != anim->cur_position + 1 || ffmpeg_is_first_frame_decode(anim);
+  anim->seek_before_decode = must_seek;
+  return must_seek;
+}
+
 static ImBuf *ffmpeg_fetchibuf(struct anim *anim, int position, IMB_Timecode_Type tc)
 {
   if (anim == NULL) {
     return NULL;
   }
 
-  av_log(anim->pFormatCtx, AV_LOG_DEBUG, "FETCH: pos=%d\n", position);
+  av_log(anim->pFormatCtx, AV_LOG_DEBUG, "FETCH: seek_pos=%d\n", position);
 
   struct anim_index *tc_index = IMB_anim_open_index(anim, tc);
   int64_t pts_to_search = ffmpeg_get_pts_to_search(anim, tc_index, position);
@@ -1405,23 +1401,11 @@ static ImBuf *ffmpeg_fetchibuf(struct anim *anim, int position, IMB_Timecode_Typ
          frame_rate,
          start_pts);
 
-  if (ffmpeg_pts_matches_last_frame(anim, pts_to_search)) {
-    av_log(anim->pFormatCtx,
-           AV_LOG_DEBUG,
-           "FETCH: frame repeat: pts: %" PRId64 "\n",
-           (int64_t)anim->cur_pts);
-    IMB_refImBuf(anim->cur_frame_final);
-    anim->cur_position = position;
-    return anim->cur_frame_final;
+  if (ffmpeg_must_seek(anim, position)) {
+    ffmpeg_seek_to_key_frame(anim, position, tc_index, pts_to_search);
   }
 
-  if (position == anim->cur_position + 1 || ffmpeg_is_first_frame_decode(anim, position)) {
-    av_log(anim->pFormatCtx, AV_LOG_DEBUG, "FETCH: no seek necessary, just continue...\n");
-    ffmpeg_decode_video_frame(anim);
-  }
-  else if (ffmpeg_seek_to_key_frame(anim, position, tc_index, pts_to_search) >= 0) {
-    ffmpeg_decode_video_frame_scan(anim, pts_to_search);
-  }
+  ffmpeg_decode_video_frame_scan(anim, pts_to_search);
 
   IMB_freeImBuf(anim->cur_frame_final);
 
@@ -1443,14 +1427,33 @@ static ImBuf *ffmpeg_fetchibuf(struct anim *anim, int position, IMB_Timecode_Typ
    *
    * The issue was reported to FFmpeg under ticket #8747 in the FFmpeg tracker
    * and is fixed in the newer versions than 4.3.1. */
-  anim->cur_frame_final = IMB_allocImBuf(anim->x, anim->y, 32, 0);
+
+  const AVPixFmtDescriptor *pix_fmt_descriptor = av_pix_fmt_desc_get(anim->pCodecCtx->pix_fmt);
+
+  int planes = R_IMF_PLANES_RGBA;
+  if ((pix_fmt_descriptor->flags & AV_PIX_FMT_FLAG_ALPHA) == 0) {
+    planes = R_IMF_PLANES_RGB;
+  }
+
+  anim->cur_frame_final = IMB_allocImBuf(anim->x, anim->y, planes, 0);
   anim->cur_frame_final->rect = MEM_mallocN_aligned(
       (size_t)4 * anim->x * anim->y, 32, "ffmpeg ibuf");
   anim->cur_frame_final->mall |= IB_rect;
 
   anim->cur_frame_final->rect_colorspace = colormanage_colorspace_get_named(anim->colorspace);
 
-  ffmpeg_postprocess(anim);
+  AVFrame *final_frame = ffmpeg_frame_by_pts_get(anim, pts_to_search);
+  if (final_frame == NULL) {
+    /* No valid frame was decoded for requested PTS, fall back on most recent decoded frame, even
+     * if it is incorrect. */
+    final_frame = ffmpeg_double_buffer_frame_fallback_get(anim);
+  }
+
+  /* Even with the fallback from above it is possible that the current decode frame is NULL. In
+   * this case skip post-processing and return current image buffer. */
+  if (final_frame != NULL) {
+    ffmpeg_postprocess(anim, final_frame);
+  }
 
   anim->cur_position = position;
 
@@ -1471,20 +1474,7 @@ static void free_anim_ffmpeg(struct anim *anim)
     av_packet_free(&anim->cur_packet);
 
     av_frame_free(&anim->pFrame);
-
-    if (!need_aligned_ffmpeg_buffer(anim)) {
-      /* If there's no need for own aligned buffer it means that FFmpeg's
-       * frame shares the same buffer as temporary ImBuf. In this case we
-       * should not free the buffer when freeing the FFmpeg buffer.
-       */
-      av_image_fill_arrays(anim->pFrameRGB->data,
-                           anim->pFrameRGB->linesize,
-                           NULL,
-                           AV_PIX_FMT_RGBA,
-                           anim->x,
-                           anim->y,
-                           1);
-    }
+    av_frame_free(&anim->pFrame_backup);
     av_frame_free(&anim->pFrameRGB);
     av_frame_free(&anim->pFrameDeinterlaced);
 

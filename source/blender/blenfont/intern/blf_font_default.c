@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2011 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2011 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup blf
@@ -27,13 +11,14 @@
 
 #include "BLF_api.h"
 
+#include "BLI_fileops.h"
 #include "BLI_path_util.h"
 
 #include "BKE_appdir.h"
 
 static int blf_load_font_default(const char *filename, const bool unique)
 {
-  const char *dir = BKE_appdir_folder_id(BLENDER_DATAFILES, "fonts");
+  const char *dir = BKE_appdir_folder_id(BLENDER_DATAFILES, BLF_DATAFILES_FONTS_DIR);
   if (dir == NULL) {
     fprintf(stderr,
             "%s: 'fonts' data path not found for '%s', will not be able to display text\n",
@@ -50,10 +35,44 @@ static int blf_load_font_default(const char *filename, const bool unique)
 
 int BLF_load_default(const bool unique)
 {
-  return blf_load_font_default("droidsans.ttf", unique);
+  int font_id = blf_load_font_default(BLF_DEFAULT_PROPORTIONAL_FONT, unique);
+  BLF_enable(font_id, BLF_DEFAULT);
+  return font_id;
 }
 
 int BLF_load_mono_default(const bool unique)
 {
-  return blf_load_font_default("bmonofont-i18n.ttf", unique);
+  int font_id = blf_load_font_default(BLF_DEFAULT_MONOSPACED_FONT, unique);
+  BLF_enable(font_id, BLF_MONOSPACED | BLF_DEFAULT);
+  return font_id;
+}
+
+void BLF_load_font_stack()
+{
+  /* Load these if not already, might have been replaced by user custom. */
+  BLF_load_default(false);
+  BLF_load_mono_default(false);
+
+  const char *path = BKE_appdir_folder_id(BLENDER_DATAFILES, BLF_DATAFILES_FONTS_DIR SEP_STR);
+  if (path && BLI_exists(path)) {
+    struct direntry *dir;
+    uint num_files = BLI_filelist_dir_contents(path, &dir);
+    for (int f = 0; f < num_files; f++) {
+      if (!FILENAME_IS_CURRPAR(dir[f].relname) && !BLI_is_dir(dir[f].path)) {
+        if (!BLF_is_loaded(dir[f].path)) {
+          int font_id = BLF_load(dir[f].path);
+          if (font_id == -1) {
+            fprintf(stderr, "Unable to load font: %s\n", dir[f].path);
+          }
+          else {
+            BLF_enable(font_id, BLF_DEFAULT);
+          }
+        }
+      }
+    }
+    BLI_filelist_free(dir, num_files);
+  }
+  else {
+    fprintf(stderr, "Fonts not found at %s\n", path);
+  }
 }

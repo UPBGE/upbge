@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2014 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2014 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup GHOST
@@ -63,23 +47,24 @@ GHOST_ContextGLX::GHOST_ContextGLX(bool stereoVisual,
       m_contextResetNotificationStrategy(contextResetNotificationStrategy),
       m_context(None)
 {
-  assert(m_display != NULL);
+  assert(m_display != nullptr);
 }
 
 GHOST_ContextGLX::~GHOST_ContextGLX()
 {
-  if (m_display != NULL) {
+  if (m_display != nullptr) {
     if (m_context != None) {
-      if (m_window != 0 && m_context == ::glXGetCurrentContext())
-        ::glXMakeCurrent(m_display, None, NULL);
-
+      if (m_window != 0 && m_context == ::glXGetCurrentContext()) {
+        ::glXMakeCurrent(m_display, None, nullptr);
+      }
       if (m_context != s_sharedContext || s_sharedCount == 1) {
         assert(s_sharedCount > 0);
 
         s_sharedCount--;
 
-        if (s_sharedCount == 0)
-          s_sharedContext = NULL;
+        if (s_sharedCount == 0) {
+          s_sharedContext = nullptr;
+        }
 
         ::glXDestroyContext(m_display, m_context);
       }
@@ -96,27 +81,18 @@ GHOST_TSuccess GHOST_ContextGLX::swapBuffers()
 
 GHOST_TSuccess GHOST_ContextGLX::activateDrawingContext()
 {
-  if (m_display) {
-    return ::glXMakeCurrent(m_display, m_window, m_context) ? GHOST_kSuccess : GHOST_kFailure;
-  }
-  else {
+  if (m_display == nullptr) {
     return GHOST_kFailure;
   }
+  return ::glXMakeCurrent(m_display, m_window, m_context) ? GHOST_kSuccess : GHOST_kFailure;
 }
 
 GHOST_TSuccess GHOST_ContextGLX::releaseDrawingContext()
 {
-  if (m_display) {
-    return ::glXMakeCurrent(m_display, None, NULL) ? GHOST_kSuccess : GHOST_kFailure;
-  }
-  else {
+  if (m_display == nullptr) {
     return GHOST_kFailure;
   }
-}
-
-void GHOST_ContextGLX::initContextGLXEW()
-{
-  initContextGLEW();
+  return ::glXMakeCurrent(m_display, None, nullptr) ? GHOST_kSuccess : GHOST_kFailure;
 }
 
 GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
@@ -124,20 +100,20 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
   GHOST_X11_ERROR_HANDLERS_OVERRIDE(handler_store);
 
   /* -------------------------------------------------------------------- */
-  /* Begin Inline Glew */
+  /* Begin Inline GLEW. */
 
 #ifdef USE_GLXEW_INIT_WORKAROUND
   const GLubyte *extStart = (GLubyte *)"";
   const GLubyte *extEnd;
-  if (glXQueryExtension(m_display, NULL, NULL)) {
+  if (glXQueryExtension(m_display, nullptr, nullptr)) {
     extStart = (const GLubyte *)glXGetClientString(m_display, GLX_EXTENSIONS);
-    if ((extStart == NULL) ||
+    if ((extStart == nullptr) ||
         (glXChooseFBConfig = (PFNGLXCHOOSEFBCONFIGPROC)glXGetProcAddressARB(
-             (const GLubyte *)"glXChooseFBConfig")) == NULL ||
+             (const GLubyte *)"glXChooseFBConfig")) == nullptr ||
         (glXCreateContextAttribsARB = (PFNGLXCREATECONTEXTATTRIBSARBPROC)glXGetProcAddressARB(
-             (const GLubyte *)"glXCreateContextAttribsARB")) == NULL ||
+             (const GLubyte *)"glXCreateContextAttribsARB")) == nullptr ||
         (glXCreatePbuffer = (PFNGLXCREATEPBUFFERPROC)glXGetProcAddressARB(
-             (const GLubyte *)"glXCreatePbuffer")) == NULL) {
+             (const GLubyte *)"glXCreatePbuffer")) == nullptr) {
       extStart = (GLubyte *)"";
     }
   }
@@ -161,11 +137,11 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
       "GLX_EXT_create_context_es2_profile", extStart, extEnd);
 #  endif /* WITH_GLEW_ES */
 
-  /* End Inline Glew */
+  /* End Inline GLEW. */
   /* -------------------------------------------------------------------- */
 #else
-  /* important to initialize only glxew (_not_ glew),
-   * since this breaks w/ Mesa's `swrast`, see: T46431 */
+  /* Important to initialize only glxew (_not_ GLEW),
+   * since this breaks w/ Mesa's `swrast`, see: T46431. */
   glxewInit();
 #endif /* USE_GLXEW_INIT_WORKAROUND */
 
@@ -177,11 +153,12 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
     int profileBitES = m_contextProfileMask & GLX_CONTEXT_ES_PROFILE_BIT_EXT;
 #endif
 
-    if (!GLXEW_ARB_create_context_profile && profileBitCore)
+    if (!GLXEW_ARB_create_context_profile && profileBitCore) {
       fprintf(stderr, "Warning! OpenGL core profile not available.\n");
-
-    if (!GLXEW_ARB_create_context_profile && profileBitCompat)
+    }
+    if (!GLXEW_ARB_create_context_profile && profileBitCompat) {
       fprintf(stderr, "Warning! OpenGL compatibility profile not available.\n");
+    }
 
 #ifdef WITH_GLEW_ES
     if (!GLXEW_EXT_create_context_es_profile && profileBitES && m_contextMajorVersion == 1)
@@ -193,20 +170,21 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
 
     int profileMask = 0;
 
-    if (GLXEW_ARB_create_context_profile && profileBitCore)
+    if (GLXEW_ARB_create_context_profile && profileBitCore) {
       profileMask |= profileBitCore;
-
-    if (GLXEW_ARB_create_context_profile && profileBitCompat)
+    }
+    if (GLXEW_ARB_create_context_profile && profileBitCompat) {
       profileMask |= profileBitCompat;
+    }
 
 #ifdef WITH_GLEW_ES
     if (GLXEW_EXT_create_context_es_profile && profileBitES)
       profileMask |= profileBitES;
 #endif
 
-    if (profileMask != m_contextProfileMask)
+    if (profileMask != m_contextProfileMask) {
       fprintf(stderr, "Warning! Ignoring untested OpenGL context profile mask bits.");
-
+    }
     /* max 10 attributes plus terminator */
     int attribs[11];
     int i = 0;
@@ -254,7 +232,7 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
       }
     }
     else {
-      GLXFBConfig *framebuffer_config = NULL;
+      GLXFBConfig *framebuffer_config = nullptr;
       {
         int glx_attribs[64];
         int fbcount = 0;
@@ -285,27 +263,20 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
 
   GHOST_TSuccess success;
 
-  if (m_context != NULL) {
+  if (m_context != nullptr) {
     const unsigned char *version;
 
-    if (!s_sharedContext)
+    if (!s_sharedContext) {
       s_sharedContext = m_context;
-
+    }
     s_sharedCount++;
 
     glXMakeCurrent(m_display, m_window, m_context);
-
-    /* Seems that this has to be called after #glXMakeCurrent,
-     * which means we cannot use `glX` extensions until after we create a context. */
-    initContextGLXEW();
 
     if (m_window) {
       initClearGL();
       ::glXSwapBuffers(m_display, m_window);
     }
-
-    /* re initialize to get the extensions properly */
-    initContextGLXEW();
 
     version = glGetString(GL_VERSION);
 
@@ -335,19 +306,16 @@ GHOST_TSuccess GHOST_ContextGLX::releaseNativeHandles()
 
 GHOST_TSuccess GHOST_ContextGLX::setSwapInterval(int interval)
 {
-  if (GLXEW_EXT_swap_control) {
+  if (!epoxy_has_glx_extension(m_display, DefaultScreen(m_display), "GLX_EXT_swap_control")) {
     ::glXSwapIntervalEXT(m_display, m_window, interval);
-
     return GHOST_kSuccess;
   }
-  else {
-    return GHOST_kFailure;
-  }
+  return GHOST_kFailure;
 }
 
 GHOST_TSuccess GHOST_ContextGLX::getSwapInterval(int &intervalOut)
 {
-  if (GLXEW_EXT_swap_control) {
+  if (epoxy_has_glx_extension(m_display, DefaultScreen(m_display), "GLX_EXT_swap_control")) {
     unsigned int interval = 0;
 
     ::glXQueryDrawable(m_display, m_window, GLX_SWAP_INTERVAL_EXT, &interval);
@@ -356,9 +324,7 @@ GHOST_TSuccess GHOST_ContextGLX::getSwapInterval(int &intervalOut)
 
     return GHOST_kSuccess;
   }
-  else {
-    return GHOST_kFailure;
-  }
+  return GHOST_kFailure;
 }
 
 /**
@@ -417,35 +383,41 @@ int GHOST_X11_GL_GetAttributes(
   return i;
 }
 
-/* excuse inlining part of glew */
+/* Excuse inlining part of GLEW. */
 #ifdef USE_GLXEW_INIT_WORKAROUND
 static GLuint _glewStrLen(const GLubyte *s)
 {
   GLuint i = 0;
-  if (s == NULL)
+  if (s == nullptr) {
     return 0;
-  while (s[i] != '\0')
+  }
+  while (s[i] != '\0') {
     i++;
+  }
   return i;
 }
 
 static GLuint _glewStrCLen(const GLubyte *s, GLubyte c)
 {
   GLuint i = 0;
-  if (s == NULL)
+  if (s == nullptr) {
     return 0;
-  while (s[i] != '\0' && s[i] != c)
+  }
+  while (s[i] != '\0' && s[i] != c) {
     i++;
+  }
   return (s[i] == '\0' || s[i] == c) ? i : 0;
 }
 
 static GLboolean _glewStrSame(const GLubyte *a, const GLubyte *b, GLuint n)
 {
   GLuint i = 0;
-  if (a == NULL || b == NULL)
-    return (a == NULL && b == NULL && n == 0) ? GL_TRUE : GL_FALSE;
-  while (i < n && a[i] != '\0' && b[i] != '\0' && a[i] == b[i])
+  if (a == nullptr || b == nullptr) {
+    return (a == nullptr && b == nullptr && n == 0) ? GL_TRUE : GL_FALSE;
+  }
+  while (i < n && a[i] != '\0' && b[i] != '\0' && a[i] == b[i]) {
     i++;
+  }
   return i == n ? GL_TRUE : GL_FALSE;
 }
 
@@ -456,8 +428,9 @@ static GLboolean _glewSearchExtension(const char *name, const GLubyte *start, co
   p = start;
   while (p < end) {
     GLuint n = _glewStrCLen(p, ' ');
-    if (len == n && _glewStrSame((const GLubyte *)name, p, n))
+    if (len == n && _glewStrSame((const GLubyte *)name, p, n)) {
       return GL_TRUE;
+    }
     p += n + 1;
   }
   return GL_FALSE;

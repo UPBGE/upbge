@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2007 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2007 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup wm
@@ -75,6 +59,7 @@
 #include "BKE_mask.h"     /* free mask clipboard */
 #include "BKE_material.h" /* BKE_material_copybuf_clear */
 #include "BKE_studiolight.h"
+#include "BKE_subdiv.h"
 #include "BKE_tracking.h" /* free tracking clipboard */
 
 #include "RE_engine.h"
@@ -88,6 +73,10 @@
 #  include "BPY_extern.h"
 #  include "BPY_extern_python.h"
 #  include "BPY_extern_run.h"
+#endif
+
+#ifdef WITH_GAMEENGINE
+#  include "LA_SystemCommandLine.h"
 #endif
 
 #include "GHOST_C-api.h"
@@ -129,9 +118,6 @@
 #include "GPU_context.h"
 #include "GPU_init_exit.h"
 #include "GPU_material.h"
-
-#include "BKE_sound.h"
-#include "BKE_subdiv.h"
 
 #include "COM_compositor.h"
 
@@ -179,15 +165,19 @@ static bool opengl_is_init = false;
 
 void WM_init_opengl(void)
 {
-  /* must be called only once */
+  /* Must be called only once. */
   BLI_assert(opengl_is_init == false);
 
   if (G.background) {
-    /* Ghost is still not init elsewhere in background mode. */
-    wm_ghost_init(NULL);
+    /* Ghost is still not initialized elsewhere in background mode. */
+    wm_ghost_init_background();
   }
 
-  /* Needs to be first to have an ogl context bound. */
+  if (!GPU_backend_supported()) {
+    return;
+  }
+
+  /* Needs to be first to have an OpenGL context bound. */
   DRW_opengl_context_create();
 
   GPU_init();
@@ -223,10 +213,6 @@ static void sound_jack_sync_callback(Main *bmain, int mode, double time)
   }
 }
 
-/**
- * Initialize Blender and load the startup file & preferences
- * (only called once).
- */
 void WM_init(bContext *C, int argc, const char **argv)
 {
 
@@ -256,14 +242,14 @@ void WM_init(bContext *C, int argc, const char **argv)
   BKE_region_callback_free_gizmomap_set(wm_gizmomap_remove);
   BKE_region_callback_refresh_tag_gizmomap_set(WM_gizmomap_tag_refresh);
   BKE_library_callback_remap_editor_id_reference_set(WM_main_remap_editor_id_reference);
-  BKE_spacedata_callback_id_remap_set(ED_spacedata_id_remap);
+  BKE_spacedata_callback_id_remap_set(ED_spacedata_id_remap_single);
   DEG_editors_set_update_cb(ED_render_id_flush_update, ED_render_scene_update);
 
   ED_spacetypes_init();
 
   ED_node_init_butfuncs();
 
-  BLF_init();
+  BLF_init(); /* Please update source/gamengine/GamePlayer/GPG_ghost.cpp if you change this */
 
   BLT_lang_init();
   /* Must call first before doing any `.blend` file reading,
@@ -318,9 +304,9 @@ void WM_init(bContext *C, int argc, const char **argv)
                       NULL,
                       &params_file_read_post);
 
-  /* NOTE: leave `G_MAIN->name` set to an empty string since this
+  /* NOTE: leave `G_MAIN->filepath` set to an empty string since this
    * matches behavior after loading a new file. */
-  BLI_assert(G_MAIN->name[0] == '\0');
+  BLI_assert(G_MAIN->filepath[0] == '\0');
 
   /* Call again to set from preferences. */
   BLT_lang_set(NULL);
@@ -332,6 +318,7 @@ void WM_init(bContext *C, int argc, const char **argv)
   IMB_thumb_clear_translations();
 
   if (!G.background) {
+    GPU_render_begin();
 
 #ifdef WITH_INPUT_NDOF
     /* Sets 3D mouse dead-zone. */
@@ -344,7 +331,10 @@ void WM_init(bContext *C, int argc, const char **argv)
       exit(-1);
     }
 
+    GPU_context_begin_frame(GPU_context_active_get());
     UI_init();
+    GPU_context_end_frame(GPU_context_active_get());
+    GPU_render_end();
   }
 
   BKE_subdiv_init();
@@ -360,10 +350,10 @@ void WM_init(bContext *C, int argc, const char **argv)
 
   if (!G.background) {
     if (wm_start_with_console) {
-      GHOST_toggleConsole(1);
+      GHOST_setConsoleWindowState(GHOST_kConsoleWindowStateShow);
     }
     else {
-      GHOST_toggleConsole(3);
+      GHOST_setConsoleWindowState(GHOST_kConsoleWindowStateHideForNonConsoleLaunch);
     }
   }
 
@@ -385,9 +375,99 @@ void WM_init_splash(bContext *C)
 
     if (wm->windows.first) {
       CTX_wm_window_set(C, wm->windows.first);
-      WM_operator_name_call(C, "WM_OT_splash", WM_OP_INVOKE_DEFAULT, NULL);
+      WM_operator_name_call(C, "WM_OT_splash", WM_OP_INVOKE_DEFAULT, NULL, NULL);
       CTX_wm_window_set(C, prevwin);
     }
+  }
+}
+
+bool WM_init_game(bContext *C)
+{
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win;
+
+  ScrArea *sa;
+  ARegion *ar = NULL;
+
+  Scene *scene = CTX_data_scene(C);
+
+  if (!scene) {
+    /* XXX, this should not be needed. */
+    Main *bmain = CTX_data_main(C);
+    scene = bmain->scenes.first;
+  }
+
+  win = wm->windows.first;
+
+  /* first to get a valid window */
+  if (win)
+    CTX_wm_window_set(C, win);
+
+  sa = BKE_screen_find_big_area(CTX_wm_screen(C), SPACE_VIEW3D, 0);
+  ar = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
+
+  /* if we have a valid 3D view */
+  if (sa && ar) {
+    ARegion *arhide;
+
+    CTX_wm_area_set(C, sa);
+    CTX_wm_region_set(C, ar);
+
+    /* disable quad view */
+    if (ar->alignment == RGN_ALIGN_QSPLIT)
+      WM_operator_name_call(C, "SCREEN_OT_region_quadview", WM_OP_EXEC_DEFAULT, NULL, NULL);
+
+    /* toolbox, properties panel and header are hidden */
+    for (arhide = sa->regionbase.first; arhide; arhide = arhide->next) {
+      if (arhide->regiontype != RGN_TYPE_WINDOW) {
+        if (!(arhide->flag & RGN_FLAG_HIDDEN)) {
+          ED_region_toggle_hidden(C, arhide);
+        }
+      }
+    }
+
+    /* full screen the area */
+    if (!sa->full) {
+      ED_screen_state_toggle(C, win, sa, SCREENMAXIMIZED);
+    }
+
+    /* Fullscreen */
+    if ((scene->gm.playerflag & GAME_PLAYER_FULLSCREEN)) {
+      WM_operator_name_call(C, "WM_OT_window_fullscreen_toggle", WM_OP_EXEC_DEFAULT, NULL, NULL);
+      wm_get_screensize(&ar->winrct.xmax, &ar->winrct.ymax);
+      ar->winx = ar->winrct.xmax + 1;
+      ar->winy = ar->winrct.ymax + 1;
+    }
+    else {
+      GHOST_RectangleHandle rect = GHOST_GetClientBounds(win->ghostwin);
+      ar->winrct.ymax = GHOST_GetHeightRectangle(rect);
+      ar->winrct.xmax = GHOST_GetWidthRectangle(rect);
+      ar->winx = ar->winrct.xmax + 1;
+      ar->winy = ar->winrct.ymax + 1;
+      GHOST_DisposeRectangle(rect);
+    }
+
+    WM_operator_name_call(C, "VIEW3D_OT_game_start", WM_OP_EXEC_DEFAULT, NULL, NULL);
+
+    BKE_sound_exit();
+
+    return true;
+  }
+  else {
+    ReportTimerInfo *rti;
+
+    BKE_report(&wm->reports, RPT_ERROR, "No valid 3D View found, game auto start is not possible");
+
+    /* After adding the report to the global list, reset the report timer. */
+    WM_event_remove_timer(wm, NULL, wm->reports.reporttimer);
+
+    /* Records time since last report was added */
+    wm->reports.reporttimer = WM_event_add_timer(wm, CTX_wm_window(C), TIMER, 0.02);
+
+    rti = MEM_callocN(sizeof(ReportTimerInfo), "ReportTimerInfo");
+    wm->reports.reporttimer->customdata = rti;
+
+    return false;
   }
 }
 
@@ -402,7 +482,7 @@ static void free_openrecent(void)
 }
 
 #ifdef WIN32
-/* Read console events until there is a key event.  Also returns on any error. */
+/* Read console events until there is a key event. Also returns on any error. */
 static void wait_for_console_key(void)
 {
   HANDLE hConsoleInput = GetStdHandle(STD_INPUT_HANDLE);
@@ -432,10 +512,6 @@ static int wm_exit_handler(bContext *C, const wmEvent *event, void *userdata)
   return WM_UI_HANDLER_BREAK;
 }
 
-/**
- * Cause a delayed #WM_exit()
- * call to avoid leaking memory when trying to exit from within operators.
- */
 void wm_exit_schedule_delayed(const bContext *C)
 {
   /* What we do here is a little bit hacky, but quite simple and doesn't require bigger
@@ -449,9 +525,6 @@ void wm_exit_schedule_delayed(const bContext *C)
   WM_event_add_mousemove(win); /* ensure handler actually gets called */
 }
 
-/**
- * \note doesn't run exit() call #WM_exit() for that.
- */
 void WM_exit_ex(bContext *C, const bool do_python)
 {
   wmWindowManager *wm = C ? CTX_wm_manager(C) : NULL;
@@ -467,19 +540,19 @@ void WM_exit_ex(bContext *C, const bool do_python)
       if (undo_memfile != NULL) {
         /* save the undo state as quit.blend */
         Main *bmain = CTX_data_main(C);
-        char filename[FILE_MAX];
+        char filepath[FILE_MAX];
         bool has_edited;
-        const int fileflags = G.fileflags & ~G_FILE_COMPRESS;
+        const int fileflags = G.fileflags & ~(G_FILE_COMPRESS | G_FILE_AUTOPLAY);
 
-        BLI_join_dirfile(filename, sizeof(filename), BKE_tempdir_base(), BLENDER_QUIT_FILE);
+        BLI_join_dirfile(filepath, sizeof(filepath), BKE_tempdir_base(), BLENDER_QUIT_FILE);
 
         has_edited = ED_editors_flush_edits(bmain);
 
         if ((has_edited &&
              BLO_write_file(
-                 bmain, filename, fileflags, &(const struct BlendFileWriteParams){0}, NULL)) ||
-            (BLO_memfile_write_file(undo_memfile, filename))) {
-          printf("Saved session recovery to '%s'\n", filename);
+                 bmain, filepath, fileflags, &(const struct BlendFileWriteParams){0}, NULL)) ||
+            (BLO_memfile_write_file(undo_memfile, filepath))) {
+          printf("Saved session recovery to '%s'\n", filepath);
         }
       }
     }
@@ -561,7 +634,7 @@ void WM_exit_ex(bContext *C, const bool do_python)
   BKE_vfont_clipboard_free();
   BKE_node_clipboard_free();
 
-#ifdef WITH_COMPOSITOR
+#ifdef WITH_COMPOSITOR_CPU
   COM_deinitialize();
 #endif
 
@@ -573,6 +646,13 @@ void WM_exit_ex(bContext *C, const bool do_python)
 
   BKE_blender_free(); /* blender.c, does entire library and spacetypes */
                       //  BKE_material_copybuf_free();
+
+  /* Free the GPU subdivision data after the database to ensure that subdivision structs used by
+   * the modifiers were garbage collected. */
+  if (opengl_is_init) {
+    DRW_subdiv_free();
+  }
+
   ANIM_fcurves_copybuf_free();
   ANIM_drivers_copybuf_free();
   ANIM_driver_vars_copybuf_free();
@@ -590,17 +670,7 @@ void WM_exit_ex(bContext *C, const bool do_python)
 
   BLF_exit();
 
-  if (opengl_is_init) {
-    DRW_opengl_context_enable_ex(false);
-    GPU_pass_cache_free();
-    GPU_exit();
-    DRW_opengl_context_disable_ex(false);
-    DRW_opengl_context_destroy();
-  }
-
-#ifdef WITH_INTERNATIONAL
   BLT_lang_free();
-#endif
 
   ANIM_keyingset_infos_exit();
 
@@ -624,16 +694,30 @@ void WM_exit_ex(bContext *C, const bool do_python)
 
   ED_file_exit(); /* for fsmenu */
 
-  UI_exit();
+  /* Delete GPU resources and context. The UI also uses GPU resources and so
+   * is also deleted with the context active. */
+  if (opengl_is_init) {
+    DRW_opengl_context_enable_ex(false);
+    UI_exit();
+    GPU_pass_cache_free();
+    GPU_exit();
+    DRW_opengl_context_disable_ex(false);
+    DRW_opengl_context_destroy();
+  }
+  else {
+    UI_exit();
+  }
+
   BKE_blender_userdef_data_free(&U, false);
 
   RNA_exit(); /* should be after BPY_python_end so struct python slots are cleared */
 
-  GPU_backend_exit();
-
   wm_ghost_exit();
 
   CTX_free(C);
+#ifdef WITH_GAMEENGINE
+  SYS_DeleteSystem(SYS_GetSystem());
+#endif
 
   GHOST_DisposeSystemPaths();
 
@@ -656,11 +740,6 @@ void WM_exit_ex(bContext *C, const bool do_python)
   BKE_tempdir_session_purge();
 }
 
-/**
- * \brief Main exit function to close Blender ordinarily.
- * \note Use #wm_exit_schedule_delayed() to close Blender from an operator.
- * Might leak memory otherwise.
- */
 void WM_exit(bContext *C)
 {
   WM_exit_ex(C, true);
@@ -678,11 +757,26 @@ void WM_exit(bContext *C)
   exit(G.is_break == true);
 }
 
-/**
- * Needed for cases when operators are re-registered
- * (when operator type pointers are stored).
- */
 void WM_script_tag_reload(void)
 {
   UI_interface_tag_script_reload();
 }
+
+/* UPBGE */
+void WM_init_opengl_blenderplayer(void *ghost_system)
+{
+  /* must be called only once */
+  BLI_assert(opengl_is_init == false);
+  /* Ghost is still not init elsewhere in background mode. */
+  ////////// wm_ghost_init(NULL);
+
+  /* NEEDS TO HAVE AN OGL CONTEXT BOUND FIRST!!!!!!!!!!!!!!!!!!! */
+  DRW_opengl_context_create_blenderplayer(ghost_system);
+  GPU_init();
+  GPU_pass_cache_init();
+#ifdef WITH_OPENSUBDIV
+  BKE_subsurf_osd_init();
+#endif
+  opengl_is_init = true;
+}
+/* End of UPBGE */

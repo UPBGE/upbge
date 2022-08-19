@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include "util/system.h"
 
@@ -20,9 +7,8 @@
 #include "util/string.h"
 #include "util/types.h"
 
-#include <numaapi.h>
-
 #include <OpenImageIO/sysutil.h>
+
 OIIO_NAMESPACE_USING
 
 #ifdef _WIN32
@@ -34,89 +20,13 @@ OIIO_NAMESPACE_USING
 #  include <sys/ioctl.h>
 #  include <sys/sysctl.h>
 #  include <sys/types.h>
+#  include <unistd.h>
 #else
 #  include <sys/ioctl.h>
 #  include <unistd.h>
 #endif
 
 CCL_NAMESPACE_BEGIN
-
-bool system_cpu_ensure_initialized()
-{
-  static bool is_initialized = false;
-  static bool result = false;
-  if (is_initialized) {
-    return result;
-  }
-  is_initialized = true;
-  const NUMAAPI_Result numa_result = numaAPI_Initialize();
-  result = (numa_result == NUMAAPI_SUCCESS);
-  return result;
-}
-
-/* Fallback solution, which doesn't use NUMA/CPU groups. */
-static int system_cpu_thread_count_fallback()
-{
-#ifdef _WIN32
-  SYSTEM_INFO info;
-  GetSystemInfo(&info);
-  return info.dwNumberOfProcessors;
-#elif defined(__APPLE__)
-  int count;
-  size_t len = sizeof(count);
-  int mib[2] = {CTL_HW, HW_NCPU};
-  sysctl(mib, 2, &count, &len, NULL, 0);
-  return count;
-#else
-  return sysconf(_SC_NPROCESSORS_ONLN);
-#endif
-}
-
-int system_cpu_thread_count()
-{
-  const int num_nodes = system_cpu_num_numa_nodes();
-  int num_threads = 0;
-  for (int node = 0; node < num_nodes; ++node) {
-    if (!system_cpu_is_numa_node_available(node)) {
-      continue;
-    }
-    num_threads += system_cpu_num_numa_node_processors(node);
-  }
-  return num_threads;
-}
-
-int system_cpu_num_numa_nodes()
-{
-  if (!system_cpu_ensure_initialized()) {
-    /* Fallback to a single node with all the threads. */
-    return 1;
-  }
-  return numaAPI_GetNumNodes();
-}
-
-bool system_cpu_is_numa_node_available(int node)
-{
-  if (!system_cpu_ensure_initialized()) {
-    return true;
-  }
-  return numaAPI_IsNodeAvailable(node);
-}
-
-int system_cpu_num_numa_node_processors(int node)
-{
-  if (!system_cpu_ensure_initialized()) {
-    return system_cpu_thread_count_fallback();
-  }
-  return numaAPI_GetNumNodeProcessors(node);
-}
-
-bool system_cpu_run_thread_on_node(int node)
-{
-  if (!system_cpu_ensure_initialized()) {
-    return true;
-  }
-  return numaAPI_RunThreadOnNode(node);
-}
 
 int system_console_width()
 {
@@ -135,14 +45,6 @@ int system_console_width()
 #endif
 
   return (columns > 0) ? columns : 80;
-}
-
-int system_cpu_num_active_group_processors()
-{
-  if (!system_cpu_ensure_initialized()) {
-    return system_cpu_thread_count_fallback();
-  }
-  return numaAPI_GetNumCurrentNodesProcessors();
 }
 
 /* Equivalent of Windows __cpuid for x86 processors on other platforms. */
@@ -226,53 +128,42 @@ int system_cpu_bits()
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
 
 struct CPUCapabilities {
-  bool x64;
-  bool mmx;
-  bool sse;
   bool sse2;
   bool sse3;
-  bool ssse3;
   bool sse41;
-  bool sse42;
-  bool sse4a;
   bool avx;
-  bool f16c;
   bool avx2;
-  bool xop;
-  bool fma3;
-  bool fma4;
-  bool bmi1;
-  bool bmi2;
 };
 
 static CPUCapabilities &system_cpu_capabilities()
 {
-  static CPUCapabilities caps;
+  static CPUCapabilities caps = {};
   static bool caps_init = false;
 
   if (!caps_init) {
     int result[4], num;
-
-    memset(&caps, 0, sizeof(caps));
 
     __cpuid(result, 0);
     num = result[0];
 
     if (num >= 1) {
       __cpuid(result, 0x00000001);
-      caps.mmx = (result[3] & ((int)1 << 23)) != 0;
-      caps.sse = (result[3] & ((int)1 << 25)) != 0;
-      caps.sse2 = (result[3] & ((int)1 << 26)) != 0;
-      caps.sse3 = (result[2] & ((int)1 << 0)) != 0;
+      const bool sse = (result[3] & ((int)1 << 25)) != 0;
+      const bool sse2 = (result[3] & ((int)1 << 26)) != 0;
+      const bool sse3 = (result[2] & ((int)1 << 0)) != 0;
 
-      caps.ssse3 = (result[2] & ((int)1 << 9)) != 0;
-      caps.sse41 = (result[2] & ((int)1 << 19)) != 0;
-      caps.sse42 = (result[2] & ((int)1 << 20)) != 0;
+      const bool ssse3 = (result[2] & ((int)1 << 9)) != 0;
+      const bool sse41 = (result[2] & ((int)1 << 19)) != 0;
+      /* const bool sse42 = (result[2] & ((int)1 << 20)) != 0; */
 
-      caps.fma3 = (result[2] & ((int)1 << 12)) != 0;
-      caps.avx = false;
-      bool os_uses_xsave_xrestore = (result[2] & ((int)1 << 27)) != 0;
-      bool cpu_avx_support = (result[2] & ((int)1 << 28)) != 0;
+      const bool fma3 = (result[2] & ((int)1 << 12)) != 0;
+      const bool os_uses_xsave_xrestore = (result[2] & ((int)1 << 27)) != 0;
+      const bool cpu_avx_support = (result[2] & ((int)1 << 28)) != 0;
+
+      /* Simplify to combined capabilities for which we specialize kernels. */
+      caps.sse2 = sse && sse2;
+      caps.sse3 = sse && sse2 && sse3 && ssse3;
+      caps.sse41 = sse && sse2 && sse3 && ssse3 && sse41;
 
       if (os_uses_xsave_xrestore && cpu_avx_support) {
         // Check if the OS will save the YMM registers
@@ -287,15 +178,18 @@ static CPUCapabilities &system_cpu_capabilities()
 #  else
         xcr_feature_mask = 0;
 #  endif
-        caps.avx = (xcr_feature_mask & 0x6) == 0x6;
+        const bool avx = (xcr_feature_mask & 0x6) == 0x6;
+        const bool f16c = (result[2] & ((int)1 << 29)) != 0;
+
+        __cpuid(result, 0x00000007);
+        bool bmi1 = (result[1] & ((int)1 << 3)) != 0;
+        bool bmi2 = (result[1] & ((int)1 << 8)) != 0;
+        bool avx2 = (result[1] & ((int)1 << 5)) != 0;
+
+        caps.avx = sse && sse2 && sse3 && ssse3 && sse41 && avx;
+        caps.avx2 = sse && sse2 && sse3 && ssse3 && sse41 && avx && f16c && avx2 && fma3 && bmi1 &&
+                    bmi2;
       }
-
-      caps.f16c = (result[2] & ((int)1 << 29)) != 0;
-
-      __cpuid(result, 0x00000007);
-      caps.bmi1 = (result[1] & ((int)1 << 3)) != 0;
-      caps.bmi2 = (result[1] & ((int)1 << 8)) != 0;
-      caps.avx2 = (result[1] & ((int)1 << 5)) != 0;
     }
 
     caps_init = true;
@@ -307,32 +201,31 @@ static CPUCapabilities &system_cpu_capabilities()
 bool system_cpu_support_sse2()
 {
   CPUCapabilities &caps = system_cpu_capabilities();
-  return caps.sse && caps.sse2;
+  return caps.sse2;
 }
 
 bool system_cpu_support_sse3()
 {
   CPUCapabilities &caps = system_cpu_capabilities();
-  return caps.sse && caps.sse2 && caps.sse3 && caps.ssse3;
+  return caps.sse3;
 }
 
 bool system_cpu_support_sse41()
 {
   CPUCapabilities &caps = system_cpu_capabilities();
-  return caps.sse && caps.sse2 && caps.sse3 && caps.ssse3 && caps.sse41;
+  return caps.sse41;
 }
 
 bool system_cpu_support_avx()
 {
   CPUCapabilities &caps = system_cpu_capabilities();
-  return caps.sse && caps.sse2 && caps.sse3 && caps.ssse3 && caps.sse41 && caps.avx;
+  return caps.avx;
 }
 
 bool system_cpu_support_avx2()
 {
   CPUCapabilities &caps = system_cpu_capabilities();
-  return caps.sse && caps.sse2 && caps.sse3 && caps.ssse3 && caps.sse41 && caps.avx && caps.f16c &&
-         caps.avx2 && caps.fma3 && caps.bmi1 && caps.bmi2;
+  return caps.avx2;
 }
 #else
 
@@ -361,26 +254,6 @@ bool system_cpu_support_avx2()
 }
 
 #endif
-
-bool system_call_self(const vector<string> &args)
-{
-  /* Escape program and arguments in case they contain spaces. */
-  string cmd = "\"" + Sysutil::this_program_path() + "\"";
-
-  for (int i = 0; i < args.size(); i++) {
-    cmd += " \"" + args[i] + "\"";
-  }
-
-#ifdef _WIN32
-  /* Use cmd /S to avoid issues with spaces in arguments. */
-  cmd = "cmd /S /C \"" + cmd + " > nul \"";
-#else
-  /* Quiet output. */
-  cmd += " > /dev/null";
-#endif
-
-  return (system(cmd.c_str()) == 0);
-}
 
 size_t system_physical_ram()
 {

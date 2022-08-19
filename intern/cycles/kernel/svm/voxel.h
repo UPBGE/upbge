@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2015 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #pragma once
 
@@ -43,7 +30,7 @@ ccl_device_noinline int svm_node_tex_voxel(
 
   float4 r = kernel_tex_image_interp_3d(kg, id, co, INTERPOLATION_NONE);
 #else
-  float4 r = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+  float4 r = zero_float4();
 #endif
   if (stack_valid(density_out_offset))
     stack_store_float(stack, density_out_offset, r.w);

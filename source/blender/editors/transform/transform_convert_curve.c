@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup edtransform
@@ -78,7 +62,7 @@ static int bezt_select_to_transform_triple_flag(const BezTriple *bezt, const boo
   return flag;
 }
 
-void createTransCurveVerts(TransInfo *t)
+static void createTransCurveVerts(bContext *UNUSED(C), TransInfo *t)
 {
 
 #define SEL_F1 (1 << 0)
@@ -357,26 +341,6 @@ void createTransCurveVerts(TransInfo *t)
         for (a = nu->pntsu * nu->pntsv, bp = nu->bp; a > 0; a--, bp++) {
           if (bp->hide == 0) {
             if (is_prop_edit || (bp->f1 & SELECT)) {
-              float axismtx[3][3];
-
-              if (t->around == V3D_AROUND_LOCAL_ORIGINS) {
-                if (nu->pntsv == 1) {
-                  float normal[3], plane[3];
-
-                  BKE_nurb_bpoint_calc_normal(nu, bp, normal);
-                  BKE_nurb_bpoint_calc_plane(nu, bp, plane);
-
-                  if (createSpaceNormalTangent(axismtx, normal, plane)) {
-                    /* pass */
-                  }
-                  else {
-                    normalize_v3(normal);
-                    axis_dominant_v3_to_m3(axismtx, normal);
-                    invert_m3(axismtx);
-                  }
-                }
-              }
-
               copy_v3_v3(td->iloc, bp->vec);
               td->loc = bp->vec;
               copy_v3_v3(td->center, td->loc);
@@ -400,9 +364,22 @@ void createTransCurveVerts(TransInfo *t)
 
               copy_m3_m3(td->smtx, smtx);
               copy_m3_m3(td->mtx, mtx);
+
               if (t->around == V3D_AROUND_LOCAL_ORIGINS) {
                 if (nu->pntsv == 1) {
-                  copy_m3_m3(td->axismtx, axismtx);
+                  float normal[3], plane[3];
+
+                  BKE_nurb_bpoint_calc_normal(nu, bp, normal);
+                  BKE_nurb_bpoint_calc_plane(nu, bp, plane);
+
+                  if (createSpaceNormalTangent(td->axismtx, normal, plane)) {
+                    /* pass */
+                  }
+                  else {
+                    normalize_v3(normal);
+                    axis_dominant_v3_to_m3(td->axismtx, normal);
+                    invert_m3(td->axismtx);
+                  }
                 }
               }
 
@@ -438,10 +415,10 @@ void createTransCurveVerts(TransInfo *t)
 #undef SEL_F3
 }
 
-void recalcData_curve(TransInfo *t)
+static void recalcData_curve(TransInfo *t)
 {
   if (t->state != TRANS_CANCEL) {
-    applyProject(t);
+    applySnappingIndividual(t);
   }
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
@@ -469,3 +446,10 @@ void recalcData_curve(TransInfo *t)
 }
 
 /** \} */
+
+TransConvertTypeInfo TransConvertType_Curve = {
+    /* flags */ (T_EDIT | T_POINTS),
+    /* createTransData */ createTransCurveVerts,
+    /* recalcData */ recalcData_curve,
+    /* special_aftertrans_update */ NULL,
+};

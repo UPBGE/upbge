@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include <stdio.h>
 
@@ -36,14 +23,17 @@
 #include "util/unique_ptr.h"
 #include "util/version.h"
 
+#ifdef WITH_USD
+#  include "hydra/file_reader.h"
+#endif
+
 #include "app/cycles_xml.h"
 #include "app/oiio_output_driver.h"
 
 #ifdef WITH_CYCLES_STANDALONE_GUI
-#  include "util/view.h"
+#  include "opengl/display_driver.h"
+#  include "opengl/window.h"
 #endif
-
-#include "app/cycles_xml.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -82,7 +72,7 @@ static void session_print_status()
   string status, substatus;
 
   /* get status */
-  float progress = options.session->progress.get_progress();
+  double progress = options.session->progress.get_progress();
   options.session->progress.get_status(status, substatus);
 
   if (substatus != "")
@@ -108,8 +98,16 @@ static void scene_init()
 {
   options.scene = options.session->scene;
 
-  /* Read XML */
-  xml_read_file(options.scene, options.filepath.c_str());
+  /* Read XML or USD */
+#ifdef WITH_USD
+  if (!string_endswith(string_to_lower(options.filepath), ".xml")) {
+    HD_CYCLES_NS::HdCyclesFileReader::read(options.session, options.filepath.c_str());
+  }
+  else
+#endif
+  {
+    xml_read_file(options.scene, options.filepath.c_str());
+  }
 
   /* Camera width/height override? */
   if (!(options.width == 0 || options.height == 0)) {
@@ -130,6 +128,13 @@ static void session_init()
   options.output_pass = "combined";
   options.session = new Session(options.session_params, options.scene_params);
 
+#ifdef WITH_CYCLES_STANDALONE_GUI
+  if (!options.session_params.background) {
+    options.session->set_display_driver(make_unique<OpenGLDisplayDriver>(
+        window_opengl_context_enable, window_opengl_context_disable));
+  }
+#endif
+
   if (!options.output_filepath.empty()) {
     options.session->set_output_driver(make_unique<OIIOOutputDriver>(
         options.output_filepath, options.output_pass, session_print));
@@ -139,7 +144,7 @@ static void session_init()
     options.session->progress.set_update_callback(function_bind(&session_print_status));
 #ifdef WITH_CYCLES_STANDALONE_GUI
   else
-    options.session->progress.set_update_callback(function_bind(&view_redraw));
+    options.session->progress.set_update_callback(function_bind(&window_redraw));
 #endif
 
   /* load scene */
@@ -183,7 +188,7 @@ static void display_info(Progress &progress)
 
   progress.get_time(total_time, sample_time);
   progress.get_status(status, substatus);
-  float progress_val = progress.get_progress();
+  double progress_val = progress.get_progress();
 
   if (substatus != "")
     status += ": " + substatus;
@@ -204,10 +209,10 @@ static void display_info(Progress &progress)
       sample_time,
       interactive.c_str());
 
-  view_display_info(str.c_str());
+  window_display_info(str.c_str());
 
   if (options.show_help)
-    view_display_help();
+    window_display_help();
 }
 
 static void display()
@@ -376,7 +381,7 @@ static void options_parse(int argc, const char **argv)
 
   /* parse options */
   ArgParse ap;
-  bool help = false, debug = false, version = false;
+  bool help = false, profile = false, debug = false, version = false;
   int verbosity = 1;
 
   ap.options("Usage: cycles [options] file.xml",
@@ -418,6 +423,9 @@ static void options_parse(int argc, const char **argv)
              "--list-devices",
              &list,
              "List information about all available devices",
+             "--profile",
+             &profile,
+             "Enable profile logging",
 #ifdef WITH_CYCLES_LOGGING
              "--debug",
              &debug,
@@ -466,6 +474,8 @@ static void options_parse(int argc, const char **argv)
     ap.usage();
     exit(EXIT_SUCCESS);
   }
+
+  options.session_params.use_profiling = profile;
 
   if (ssname == "osl")
     options.scene_params.shadingsystem = SHADINGSYSTEM_OSL;
@@ -538,15 +548,15 @@ int main(int argc, const char **argv)
     string title = "Cycles: " + path_filename(options.filepath);
 
     /* init/exit are callback so they run while GL is initialized */
-    view_main_loop(title.c_str(),
-                   options.width,
-                   options.height,
-                   session_init,
-                   session_exit,
-                   resize,
-                   display,
-                   keyboard,
-                   motion);
+    window_main_loop(title.c_str(),
+                     options.width,
+                     options.height,
+                     session_init,
+                     session_exit,
+                     resize,
+                     display,
+                     keyboard,
+                     motion);
   }
 #endif
 

@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup RNA
@@ -95,18 +81,16 @@ static void rna_MetaBall_redraw_data(Main *UNUSED(bmain), Scene *UNUSED(scene), 
   WM_main_add_notifier(NC_GEOM | ND_DATA, id);
 }
 
-static void rna_MetaBall_update_data(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_MetaBall_update_data(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
 {
   MetaBall *mb = (MetaBall *)ptr->owner_id;
-  Object *ob;
 
-  /* cheating way for importers to avoid slow updates */
+  /* NOTE: The check on the number of users allows to avoid many repetitive (slow) updates in some
+   * cases, like e.g. importers. Calling `BKE_mball_properties_copy` on an obdata with no users
+   * would be meaningless anyway, as by definition it would not be used by any object, so not part
+   * of any meta-ball group. */
   if (mb->id.us > 0) {
-    for (ob = bmain->objects.first; ob; ob = ob->id.next) {
-      if (ob->data == mb) {
-        BKE_mball_properties_copy(scene, ob);
-      }
-    }
+    BKE_mball_properties_copy(bmain, mb);
 
     DEG_id_tag_update(&mb->id, 0);
     WM_main_add_notifier(NC_GEOM | ND_DATA, mb);
@@ -170,10 +154,10 @@ static bool rna_Meta_is_editmode_get(PointerRNA *ptr)
   return (mb->editelems != NULL);
 }
 
-static char *rna_MetaElement_path(PointerRNA *ptr)
+static char *rna_MetaElement_path(const PointerRNA *ptr)
 {
-  MetaBall *mb = (MetaBall *)ptr->owner_id;
-  MetaElem *ml = ptr->data;
+  const MetaBall *mb = (MetaBall *)ptr->owner_id;
+  const MetaElem *ml = ptr->data;
   int index = -1;
 
   if (mb->editelems) {

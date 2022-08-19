@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include "device/device.h"
 
@@ -54,6 +41,18 @@ NODE_DEFINE(Integrator)
   SOCKET_INT(transparent_min_bounce, "Transparent Min Bounce", 0);
   SOCKET_INT(transparent_max_bounce, "Transparent Max Bounce", 7);
 
+#ifdef WITH_CYCLES_DEBUG
+  static NodeEnum direct_light_sampling_type_enum;
+  direct_light_sampling_type_enum.insert("multiple_importance_sampling",
+                                         DIRECT_LIGHT_SAMPLING_MIS);
+  direct_light_sampling_type_enum.insert("forward_path_tracing", DIRECT_LIGHT_SAMPLING_FORWARD);
+  direct_light_sampling_type_enum.insert("next_event_estimation", DIRECT_LIGHT_SAMPLING_NEE);
+  SOCKET_ENUM(direct_light_sampling_type,
+              "Direct Light Sampling Type",
+              direct_light_sampling_type_enum,
+              DIRECT_LIGHT_SAMPLING_MIS);
+#endif
+
   SOCKET_INT(ao_bounces, "AO Bounces", 0);
   SOCKET_FLOAT(ao_factor, "AO Factor", 0.0f);
   SOCKET_FLOAT(ao_distance, "AO Distance", FLT_MAX);
@@ -75,17 +74,17 @@ NODE_DEFINE(Integrator)
 
   SOCKET_INT(seed, "Seed", 0);
   SOCKET_FLOAT(sample_clamp_direct, "Sample Clamp Direct", 0.0f);
-  SOCKET_FLOAT(sample_clamp_indirect, "Sample Clamp Indirect", 0.0f);
+  SOCKET_FLOAT(sample_clamp_indirect, "Sample Clamp Indirect", 10.0f);
   SOCKET_BOOLEAN(motion_blur, "Motion Blur", false);
 
   SOCKET_INT(aa_samples, "AA Samples", 0);
   SOCKET_INT(start_sample, "Start Sample", 0);
 
-  SOCKET_BOOLEAN(use_adaptive_sampling, "Use Adaptive Sampling", false);
-  SOCKET_FLOAT(adaptive_threshold, "Adaptive Threshold", 0.0f);
+  SOCKET_BOOLEAN(use_adaptive_sampling, "Use Adaptive Sampling", true);
+  SOCKET_FLOAT(adaptive_threshold, "Adaptive Threshold", 0.01f);
   SOCKET_INT(adaptive_min_samples, "Adaptive Min Samples", 0);
 
-  SOCKET_FLOAT(light_sampling_threshold, "Light Sampling Threshold", 0.05f);
+  SOCKET_FLOAT(light_sampling_threshold, "Light Sampling Threshold", 0.01f);
 
   static NodeEnum sampling_pattern_enum;
   sampling_pattern_enum.insert("sobol", SAMPLING_PATTERN_SOBOL);
@@ -110,8 +109,10 @@ NODE_DEFINE(Integrator)
   SOCKET_INT(denoise_start_sample, "Start Sample to Denoise", 0);
   SOCKET_BOOLEAN(use_denoise_pass_albedo, "Use Albedo Pass for Denoiser", true);
   SOCKET_BOOLEAN(use_denoise_pass_normal, "Use Normal Pass for Denoiser", true);
-  SOCKET_ENUM(
-      denoiser_prefilter, "Denoiser Type", denoiser_prefilter_enum, DENOISER_PREFILTER_ACCURATE);
+  SOCKET_ENUM(denoiser_prefilter,
+              "Denoiser Prefilter",
+              denoiser_prefilter_enum,
+              DENOISER_PREFILTER_ACCURATE);
 
   return type;
 }
@@ -168,10 +169,16 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
   kintegrator->transparent_min_bounce = transparent_min_bounce + 1;
   kintegrator->transparent_max_bounce = transparent_max_bounce + 1;
 
-  kintegrator->ao_bounces = ao_bounces;
+  kintegrator->ao_bounces = (ao_factor != 0.0f) ? ao_bounces : 0;
   kintegrator->ao_bounces_distance = ao_distance;
   kintegrator->ao_bounces_factor = ao_factor;
   kintegrator->ao_additive_factor = ao_additive_factor;
+
+#ifdef WITH_CYCLES_DEBUG
+  kintegrator->direct_light_sampling_type = direct_light_sampling_type;
+#else
+  kintegrator->direct_light_sampling_type = DIRECT_LIGHT_SAMPLING_MIS;
+#endif
 
   /* Transparent Shadows
    * We only need to enable transparent shadows, if we actually have
@@ -331,7 +338,7 @@ AdaptiveSampling Integrator::get_adaptive_sampling() const
 
   if (aa_samples > 0 && adaptive_threshold == 0.0f) {
     adaptive_sampling.threshold = max(0.001f, 1.0f / (float)aa_samples);
-    VLOG(1) << "Cycles adaptive sampling: automatic threshold = " << adaptive_sampling.threshold;
+    VLOG_INFO << "Cycles adaptive sampling: automatic threshold = " << adaptive_sampling.threshold;
   }
   else {
     adaptive_sampling.threshold = adaptive_threshold;
@@ -343,8 +350,8 @@ AdaptiveSampling Integrator::get_adaptive_sampling() const
      * in various test scenes. */
     const int min_samples = (int)ceilf(16.0f / powf(adaptive_sampling.threshold, 0.3f));
     adaptive_sampling.min_samples = max(4, min_samples);
-    VLOG(1) << "Cycles adaptive sampling: automatic min samples = "
-            << adaptive_sampling.min_samples;
+    VLOG_INFO << "Cycles adaptive sampling: automatic min samples = "
+              << adaptive_sampling.min_samples;
   }
   else {
     adaptive_sampling.min_samples = max(4, adaptive_min_samples);

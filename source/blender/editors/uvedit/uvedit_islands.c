@@ -1,25 +1,11 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup eduv
  *
  * Utilities for manipulating UV islands.
  *
- * \note This is similar to `uvedit_parametrizer.c`,
+ * \note This is similar to `GEO_uv_parametrizer.h`,
  * however the data structures there don't support arbitrary topology
  * such as an edge with 3 or more faces using it.
  * This API uses #BMesh data structures and doesn't have limitations for manifold meshes.
@@ -237,9 +223,6 @@ static void bm_face_array_uv_scale_y(BMFace **faces,
 /** \name UDIM packing helper functions
  * \{ */
 
-/**
- *  Returns true if UV coordinates lie on a valid tile in UDIM grid or tiled image.
- */
 bool uv_coords_isect_udim(const Image *image, const int udim_grid[2], const float coords[2])
 {
   const float coords_floor[2] = {floorf(coords[0]), floorf(coords[1])};
@@ -273,16 +256,11 @@ bool uv_coords_isect_udim(const Image *image, const int udim_grid[2], const floa
  * Calculates distance to nearest UDIM image tile in UV space and its UDIM tile number.
  */
 static float uv_nearest_image_tile_distance(const Image *image,
-                                            float coords[2],
+                                            const float coords[2],
                                             float nearest_tile_co[2])
 {
-  int nearest_image_tile_index = BKE_image_find_nearest_tile(image, coords);
-  if (nearest_image_tile_index == -1) {
-    nearest_image_tile_index = 1001;
-  }
+  BKE_image_find_nearest_tile_with_offset(image, coords, nearest_tile_co);
 
-  nearest_tile_co[0] = (nearest_image_tile_index - 1001) % 10;
-  nearest_tile_co[1] = (nearest_image_tile_index - 1001) / 10;
   /* Add 0.5 to get tile center coordinates. */
   float nearest_tile_center_co[2] = {nearest_tile_co[0], nearest_tile_co[1]};
   add_v2_fl(nearest_tile_center_co, 0.5f);
@@ -330,22 +308,7 @@ static float uv_nearest_grid_tile_distance(const int udim_grid[2],
 
 /* -------------------------------------------------------------------- */
 /** \name Calculate UV Islands
- *
- * \note Currently this is a private API/type, it could be made public.
  * \{ */
-
-struct FaceIsland {
-  struct FaceIsland *next, *prev;
-  BMFace **faces;
-  int faces_len;
-  rctf bounds_rect;
-  /**
-   * \note While this is duplicate information,
-   * it allows islands from multiple meshes to be stored in the same list.
-   */
-  uint cd_loop_uv_offset;
-  float aspect_y;
-};
 
 struct SharedUVLoopData {
   uint cd_loop_uv_offset;
@@ -368,14 +331,14 @@ static bool bm_loop_uv_shared_edge_check(const BMLoop *l_a, const BMLoop *l_b, v
 /**
  * Calculate islands and add them to \a island_list returning the number of items added.
  */
-static int bm_mesh_calc_uv_islands(const Scene *scene,
-                                   BMesh *bm,
-                                   ListBase *island_list,
-                                   const bool only_selected_faces,
-                                   const bool only_selected_uvs,
-                                   const bool use_seams,
-                                   const float aspect_y,
-                                   const uint cd_loop_uv_offset)
+int bm_mesh_calc_uv_islands(const Scene *scene,
+                            BMesh *bm,
+                            ListBase *island_list,
+                            const bool only_selected_faces,
+                            const bool only_selected_uvs,
+                            const bool use_seams,
+                            const float aspect_y,
+                            const uint cd_loop_uv_offset)
 {
   int island_added = 0;
   BM_mesh_elem_table_ensure(bm, BM_FACE);

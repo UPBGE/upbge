@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2020 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2020 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup gpu
@@ -26,8 +10,6 @@
 #pragma once
 
 #include "MEM_guardedalloc.h"
-
-#include "glew-mx.h"
 
 #include "gpu_framebuffer_private.hh"
 
@@ -46,9 +28,9 @@ class GLFrameBuffer : public FrameBuffer {
   /** OpenGL handle. */
   GLuint fbo_id_ = 0;
   /** Context the handle is from. Frame-buffers are not shared across contexts. */
-  GLContext *context_ = NULL;
+  GLContext *context_ = nullptr;
   /** State Manager of the same contexts. */
-  GLStateManager *state_manager_ = NULL;
+  GLStateManager *state_manager_ = nullptr;
   /** Copy of the GL state. Contains ONLY color attachments enums for slot binding. */
   GLenum gl_attachments_[GPU_FB_MAX_COLOR_ATTACHMENT];
   /** Internal frame-buffers are immutable. */
@@ -79,6 +61,9 @@ class GLFrameBuffer : public FrameBuffer {
 
   void bind(bool enabled_srgb) override;
 
+  /**
+   * This is a rather slow operation. Don't check in normal cases.
+   */
   bool check(char err_out[256]) override;
 
   void clear(eGPUFrameBufferBits buffers,
@@ -90,6 +75,11 @@ class GLFrameBuffer : public FrameBuffer {
                         eGPUDataFormat data_format,
                         const void *clear_value) override;
 
+  /* Attachment load-stores are currently no-op's in OpenGL. */
+  void attachment_set_loadstore_op(GPUAttachmentType /*type*/,
+                                   eGPULoadOp /*load_action*/,
+                                   eGPUStoreOp /*store_action*/) override{};
+
   void read(eGPUFrameBufferBits planes,
             eGPUDataFormat format,
             const int area[4],
@@ -97,6 +87,9 @@ class GLFrameBuffer : public FrameBuffer {
             int slot,
             void *r_data) override;
 
+  /**
+   * Copy \a src at the give offset inside \a dst.
+   */
   void blit_to(eGPUFrameBufferBits planes,
                int src_slot,
                FrameBuffer *dst,
@@ -104,12 +97,14 @@ class GLFrameBuffer : public FrameBuffer {
                int dst_offset_x,
                int dst_offset_y) override;
 
-  void apply_state(void);
+  void apply_state();
+
+  int get_bindcode(void) override;  // UPBGE
 
  private:
-  void init(void);
-  void update_attachments(void);
-  void update_drawbuffers(void);
+  void init();
+  void update_attachments();
+  void update_drawbuffers();
 
   MEM_CXX_CLASS_ALLOC_FUNCS("GLFrameBuffer");
 };
@@ -135,6 +130,8 @@ static inline GLenum to_gl(const GPUAttachmentType type)
     ATTACHMENT(COLOR_ATTACHMENT3);
     ATTACHMENT(COLOR_ATTACHMENT4);
     ATTACHMENT(COLOR_ATTACHMENT5);
+    ATTACHMENT(COLOR_ATTACHMENT6);
+    ATTACHMENT(COLOR_ATTACHMENT7);
     default:
       BLI_assert(0);
       return GL_COLOR_ATTACHMENT0;

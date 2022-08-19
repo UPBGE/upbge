@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2013 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2013 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup depsgraph
@@ -73,7 +57,6 @@ uint64_t IDNode::ComponentIDKey::hash() const
                                     BLI_ghashutil_strhash_p(name));
 }
 
-/* Initialize 'id' node - from pointer data given. */
 void IDNode::init(const ID *id, const char *UNUSED(subdata))
 {
   BLI_assert(id != nullptr);
@@ -86,7 +69,8 @@ void IDNode::init(const ID *id, const char *UNUSED(subdata))
   customdata_masks = DEGCustomDataMeshMasks();
   previous_customdata_masks = DEGCustomDataMeshMasks();
   linked_state = DEG_ID_LINKED_INDIRECTLY;
-  is_directly_visible = true;
+  is_visible_on_build = true;
+  is_enabled_on_eval = true;
   is_collection_fully_expanded = false;
   has_base = false;
   is_user_modified = false;
@@ -155,8 +139,8 @@ string IDNode::identifier() const
   BLI_snprintf(orig_ptr, sizeof(orig_ptr), "%p", id_orig);
   BLI_snprintf(cow_ptr, sizeof(cow_ptr), "%p", id_cow);
   return string(nodeTypeAsString(type)) + " : " + name + " (orig: " + orig_ptr +
-         ", eval: " + cow_ptr + ", is_directly_visible " +
-         (is_directly_visible ? "true" : "false") + ")";
+         ", eval: " + cow_ptr + ", is_visible_on_build " +
+         (is_visible_on_build ? "true" : "false") + ")";
 }
 
 ComponentNode *IDNode::find_component(NodeType type, const char *name) const
@@ -205,7 +189,7 @@ IDComponentsMask IDNode::get_visible_components_mask() const
 {
   IDComponentsMask result = 0;
   for (ComponentNode *comp_node : components.values()) {
-    if (comp_node->affects_directly_visible) {
+    if (comp_node->possibly_affects_visible_id) {
       const int component_type_as_int = static_cast<int>(comp_node->type);
       BLI_assert(component_type_as_int < 64);
       result |= (1ULL << component_type_as_int);

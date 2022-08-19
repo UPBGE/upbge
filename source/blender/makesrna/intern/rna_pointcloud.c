@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup RNA
@@ -34,6 +20,7 @@
 
 #  include "BLI_math_vector.h"
 
+#  include "BKE_customdata.h"
 #  include "BKE_pointcloud.h"
 
 #  include "DEG_depsgraph.h"
@@ -41,16 +28,38 @@
 #  include "WM_api.h"
 #  include "WM_types.h"
 
-static PointCloud *rna_pointcloud(PointerRNA *ptr)
+static PointCloud *rna_pointcloud(const PointerRNA *ptr)
 {
   return (PointCloud *)ptr->owner_id;
 }
 
-static int rna_Point_index_get(PointerRNA *ptr)
+static int rna_Point_index_get_const(const PointerRNA *ptr)
 {
   const PointCloud *pointcloud = rna_pointcloud(ptr);
   const float(*co)[3] = ptr->data;
-  return (int)(co - pointcloud->co);
+  const float(*positions)[3] = (const float(*)[3])CustomData_get_layer_named(
+      &pointcloud->pdata, CD_PROP_FLOAT3, "position");
+  return (int)(co - positions);
+}
+
+static int rna_Point_index_get(PointerRNA *ptr)
+{
+  return rna_Point_index_get_const(ptr);
+}
+
+static int rna_PointCloud_points_length(PointerRNA *ptr)
+{
+  const PointCloud *pointcloud = rna_pointcloud(ptr);
+  return pointcloud->totpoint;
+}
+
+static void rna_PointCloud_points_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+  const PointCloud *pointcloud = rna_pointcloud(ptr);
+  const float(*positions)[3] = (const float(*)[3])CustomData_get_layer_named(
+      &pointcloud->pdata, CD_PROP_FLOAT3, "position");
+  rna_iterator_array_begin(
+      iter, (void *)positions, sizeof(float[3]), pointcloud->totpoint, false, NULL);
 }
 
 static void rna_Point_location_get(PointerRNA *ptr, float value[3])
@@ -66,26 +75,27 @@ static void rna_Point_location_set(PointerRNA *ptr, const float value[3])
 static float rna_Point_radius_get(PointerRNA *ptr)
 {
   const PointCloud *pointcloud = rna_pointcloud(ptr);
-  if (pointcloud->radius == NULL) {
+  const float *radii = (const float *)CustomData_get_layer_named(
+      &pointcloud->pdata, CD_PROP_FLOAT, "radius");
+  if (radii == NULL) {
     return 0.0f;
   }
-  const float(*co)[3] = ptr->data;
-  return pointcloud->radius[co - pointcloud->co];
+  return radii[rna_Point_index_get_const(ptr)];
 }
 
 static void rna_Point_radius_set(PointerRNA *ptr, float value)
 {
-  const PointCloud *pointcloud = rna_pointcloud(ptr);
-  if (pointcloud->radius == NULL) {
+  PointCloud *pointcloud = rna_pointcloud(ptr);
+  float *radii = (float *)CustomData_get_layer_named(&pointcloud->pdata, CD_PROP_FLOAT, "radius");
+  if (radii == NULL) {
     return;
   }
-  const float(*co)[3] = ptr->data;
-  pointcloud->radius[co - pointcloud->co] = value;
+  radii[rna_Point_index_get_const(ptr)] = value;
 }
 
-static char *rna_Point_path(PointerRNA *ptr)
+static char *rna_Point_path(const PointerRNA *ptr)
 {
-  return BLI_sprintfN("points[%d]", rna_Point_index_get(ptr));
+  return BLI_sprintfN("points[%d]", rna_Point_index_get_const(ptr));
 }
 
 static void rna_PointCloud_update_data(struct Main *UNUSED(bmain),
@@ -139,13 +149,18 @@ static void rna_def_pointcloud(BlenderRNA *brna)
   RNA_def_struct_ui_icon(srna, ICON_POINTCLOUD_DATA);
 
   /* geometry */
-  /* TODO: better solution for (*co)[3] parsing issue. */
-  RNA_define_verify_sdna(0);
   prop = RNA_def_property(srna, "points", PROP_COLLECTION, PROP_NONE);
-  RNA_def_property_collection_sdna(prop, NULL, "co", "totpoint");
   RNA_def_property_struct_type(prop, "Point");
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_PointCloud_points_begin",
+                                    "rna_iterator_array_next",
+                                    "rna_iterator_array_end",
+                                    "rna_iterator_array_get",
+                                    "rna_PointCloud_points_length",
+                                    NULL,
+                                    NULL,
+                                    NULL);
   RNA_def_property_ui_text(prop, "Points", "");
-  RNA_define_verify_sdna(1);
 
   /* materials */
   prop = RNA_def_property(srna, "materials", PROP_COLLECTION, PROP_NONE);

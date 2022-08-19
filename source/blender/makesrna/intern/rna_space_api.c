@@ -1,22 +1,10 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup RNA
  */
+
+#include "DNA_object_types.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -30,6 +18,21 @@
 #  include "ED_fileselect.h"
 #  include "ED_screen.h"
 #  include "ED_text.h"
+
+int rna_object_type_visibility_icon_get_common(int object_type_exclude_viewport,
+                                               const int *object_type_exclude_select)
+{
+  const int view_value = (object_type_exclude_viewport != 0);
+
+  if (object_type_exclude_select) {
+    /* Ignore selection values when view is off,
+     * intent is to show if visible objects aren't selectable. */
+    const int select_value = (*object_type_exclude_select & ~object_type_exclude_viewport) != 0;
+    return ICON_VIS_SEL_11 + (view_value << 1) + select_value;
+  }
+
+  return view_value ? ICON_HIDE_ON : ICON_HIDE_OFF;
+}
 
 static void rna_RegionView3D_update(ID *id, RegionView3D *rv3d, bContext *C)
 {
@@ -114,6 +117,65 @@ void RNA_api_space_text(StructRNA *srna)
   parm = RNA_def_int_array(
       func, "result", 2, NULL, -1, INT_MAX, "", "Region coordinates", -1, INT_MAX);
   RNA_def_function_output(func, parm);
+}
+
+void rna_def_object_type_visibility_flags_common(StructRNA *srna, int noteflag)
+{
+  PropertyRNA *prop;
+
+  struct {
+    const char *name;
+    int type_mask;
+    const char *identifier[2];
+  } info[] = {
+      {"Mesh", (1 << OB_MESH), {"show_object_viewport_mesh", "show_object_select_mesh"}},
+      {"Curve",
+       (1 << OB_CURVES_LEGACY),
+       {"show_object_viewport_curve", "show_object_select_curve"}},
+      {"Surface", (1 << OB_SURF), {"show_object_viewport_surf", "show_object_select_surf"}},
+      {"Meta", (1 << OB_MBALL), {"show_object_viewport_meta", "show_object_select_meta"}},
+      {"Font", (1 << OB_FONT), {"show_object_viewport_font", "show_object_select_font"}},
+      {"Hair Curves",
+       (1 << OB_CURVES),
+       {"show_object_viewport_curves", "show_object_select_curves"}},
+      {"Point Cloud",
+       (1 << OB_POINTCLOUD),
+       {"show_object_viewport_pointcloud", "show_object_select_pointcloud"}},
+      {"Volume", (1 << OB_VOLUME), {"show_object_viewport_volume", "show_object_select_volume"}},
+      {"Armature",
+       (1 << OB_ARMATURE),
+       {"show_object_viewport_armature", "show_object_select_armature"}},
+      {"Lattice",
+       (1 << OB_LATTICE),
+       {"show_object_viewport_lattice", "show_object_select_lattice"}},
+      {"Empty", (1 << OB_EMPTY), {"show_object_viewport_empty", "show_object_select_empty"}},
+      {"Grease Pencil",
+       (1 << OB_GPENCIL),
+       {"show_object_viewport_grease_pencil", "show_object_select_grease_pencil"}},
+      {"Camera", (1 << OB_CAMERA), {"show_object_viewport_camera", "show_object_select_camera"}},
+      {"Light", (1 << OB_LAMP), {"show_object_viewport_light", "show_object_select_light"}},
+      {"Speaker",
+       (1 << OB_SPEAKER),
+       {"show_object_viewport_speaker", "show_object_select_speaker"}},
+      {"Light Probe",
+       (1 << OB_LIGHTPROBE),
+       {"show_object_viewport_light_probe", "show_object_select_light_probe"}},
+  };
+
+  const char *view_mask_member[2] = {
+      "object_type_exclude_viewport",
+      "object_type_exclude_select",
+  };
+  for (int mask_index = 0; mask_index < 2; mask_index++) {
+    for (int type_index = 0; type_index < ARRAY_SIZE(info); type_index++) {
+      prop = RNA_def_property(
+          srna, info[type_index].identifier[mask_index], PROP_BOOLEAN, PROP_NONE);
+      RNA_def_property_boolean_negative_sdna(
+          prop, NULL, view_mask_member[mask_index], info[type_index].type_mask);
+      RNA_def_property_ui_text(prop, info[type_index].name, "");
+      RNA_def_property_update(prop, noteflag, NULL);
+    }
+  }
 }
 
 void RNA_api_space_filebrowser(StructRNA *srna)

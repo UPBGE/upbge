@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 1999 - 2002 David Hodson <hodsond@acm.org>
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 1999-2002 David Hodson <hodsond@acm.org>. */
 
 /** \file
  * \ingroup imbcineon
@@ -139,7 +124,7 @@ LogImageFile *dpxOpen(const unsigned char *byteStuff, int fromMemory, size_t buf
 {
   DpxMainHeader header;
   LogImageFile *dpx = (LogImageFile *)MEM_mallocN(sizeof(LogImageFile), __func__);
-  const char *filename = (const char *)byteStuff;
+  const char *filepath = (const char *)byteStuff;
   int i;
 
   if (dpx == NULL) {
@@ -156,11 +141,11 @@ LogImageFile *dpxOpen(const unsigned char *byteStuff, int fromMemory, size_t buf
   dpx->file = NULL;
 
   if (fromMemory == 0) {
-    /* byteStuff is then the filename */
-    dpx->file = BLI_fopen(filename, "rb");
+    /* byteStuff is then the filepath */
+    dpx->file = BLI_fopen(filepath, "rb");
     if (dpx->file == NULL) {
       if (verbose) {
-        printf("DPX: Failed to open file \"%s\".\n", filename);
+        printf("DPX: Failed to open file \"%s\".\n", filepath);
       }
       logImageClose(dpx);
       return NULL;
@@ -421,7 +406,7 @@ LogImageFile *dpxOpen(const unsigned char *byteStuff, int fromMemory, size_t buf
   return dpx;
 }
 
-LogImageFile *dpxCreate(const char *filename,
+LogImageFile *dpxCreate(const char *filepath,
                         int width,
                         int height,
                         int bitsPerSample,
@@ -517,19 +502,19 @@ LogImageFile *dpxCreate(const char *filename,
     dpx->gamma = 1.7f;
   }
 
-  shortFilename = strrchr(filename, '/');
+  shortFilename = strrchr(filepath, PATHSEP_CHAR);
   if (shortFilename == NULL) {
-    shortFilename = filename;
+    shortFilename = filepath;
   }
   else {
     shortFilename++;
   }
 
-  dpx->file = BLI_fopen(filename, "wb");
+  dpx->file = BLI_fopen(filepath, "wb");
 
   if (dpx->file == NULL) {
     if (verbose) {
-      printf("DPX: Couldn't open file %s\n", filename);
+      printf("DPX: Couldn't open file %s\n", filepath);
     }
     logImageClose(dpx);
     return NULL;

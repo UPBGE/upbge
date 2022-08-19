@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup pythonintern
@@ -22,9 +8,13 @@
  * A script writer should never directly access this module.
  */
 
+/* Future-proof, See https://docs.python.org/3/c-api/arg.html#strings-and-buffers */
+#define PY_SSIZE_T_CLEAN
+
 #include <Python.h>
 
 #include "BLI_string.h"
+#include "BLI_string_utils.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_appdir.h"
@@ -33,6 +23,8 @@
 #include "BKE_global.h" /* XXX, G_MAIN only */
 
 #include "RNA_access.h"
+#include "RNA_enum_types.h"
+#include "RNA_prototypes.h"
 #include "RNA_types.h"
 
 #include "GPU_state.h"
@@ -40,6 +32,7 @@
 #include "bpy.h"
 #include "bpy_app.h"
 #include "bpy_capi_utils.h"
+#include "bpy_driver.h"
 #include "bpy_library.h"
 #include "bpy_operator.h"
 #include "bpy_props.h"
@@ -64,6 +57,7 @@
 #endif
 
 PyObject *bpy_package_py = NULL;
+PyObject *bpy_sys_module_backup = NULL;
 
 PyDoc_STRVAR(bpy_script_paths_doc,
              ".. function:: script_paths()\n"
@@ -90,10 +84,13 @@ static PyObject *bpy_script_paths(PyObject *UNUSED(self))
   return ret;
 }
 
-static bool bpy_blend_paths_visit_cb(void *userdata, char *UNUSED(path_dst), const char *path_src)
+static bool bpy_blend_foreach_path_cb(BPathForeachPathData *bpath_data,
+                                      char *UNUSED(path_dst),
+                                      const char *path_src)
 {
-  PyList_APPEND((PyObject *)userdata, PyC_UnicodeFromByte(path_src));
-  return false; /* never edits the path */
+  PyObject *py_list = bpath_data->user_data;
+  PyList_APPEND(py_list, PyC_UnicodeFromByte(path_src));
+  return false; /* Never edits the path. */
 }
 
 PyDoc_STRVAR(bpy_blend_paths_doc,
@@ -111,7 +108,7 @@ PyDoc_STRVAR(bpy_blend_paths_doc,
              "   :rtype: list of strings\n");
 static PyObject *bpy_blend_paths(PyObject *UNUSED(self), PyObject *args, PyObject *kw)
 {
-  int flag = 0;
+  eBPathForeachFlag flag = 0;
   PyObject *list;
 
   bool absolute = false;
@@ -119,7 +116,15 @@ static PyObject *bpy_blend_paths(PyObject *UNUSED(self), PyObject *args, PyObjec
   bool local = false;
 
   static const char *_keywords[] = {"absolute", "packed", "local", NULL};
-  static _PyArg_Parser _parser = {"|$O&O&O&:blend_paths", _keywords, 0};
+  static _PyArg_Parser _parser = {
+      "|$" /* Optional keyword only arguments. */
+      "O&" /* `absolute` */
+      "O&" /* `packed` */
+      "O&" /* `local` */
+      ":blend_paths",
+      _keywords,
+      0,
+  };
   if (!_PyArg_ParseTupleAndKeywordsFast(args,
                                         kw,
                                         &_parser,
@@ -133,20 +138,70 @@ static PyObject *bpy_blend_paths(PyObject *UNUSED(self), PyObject *args, PyObjec
   }
 
   if (absolute) {
-    flag |= BKE_BPATH_TRAVERSE_ABS;
+    flag |= BKE_BPATH_FOREACH_PATH_ABSOLUTE;
   }
   if (!packed) {
-    flag |= BKE_BPATH_TRAVERSE_SKIP_PACKED;
+    flag |= BKE_BPATH_FOREACH_PATH_SKIP_PACKED;
   }
   if (local) {
-    flag |= BKE_BPATH_TRAVERSE_SKIP_LIBRARY;
+    flag |= BKE_BPATH_FOREACH_PATH_SKIP_LINKED;
   }
 
   list = PyList_New(0);
 
-  BKE_bpath_traverse_main(G_MAIN, bpy_blend_paths_visit_cb, flag, (void *)list);
+  BKE_bpath_foreach_path_main(&(BPathForeachPathData){
+      .bmain = G_MAIN,
+      .callback_function = bpy_blend_foreach_path_cb,
+      .flag = flag,
+      .user_data = list,
+  });
 
   return list;
+}
+
+PyDoc_STRVAR(bpy_flip_name_doc,
+             ".. function:: flip_name(name, strip_digits=False)\n"
+             "\n"
+             "   Flip a name between left/right sides, useful for \n"
+             "   mirroring bone names.\n"
+             "\n"
+             "   :arg name: Bone name to flip.\n"
+             "   :type name: string\n"
+             "   :arg strip_digits: Whether to remove ``.###`` suffix.\n"
+             "   :type strip_digits: bool\n"
+             "   :return: The flipped name.\n"
+             "   :rtype: string\n");
+static PyObject *bpy_flip_name(PyObject *UNUSED(self), PyObject *args, PyObject *kw)
+{
+  const char *name_src = NULL;
+  Py_ssize_t name_src_len;
+  bool strip_digits = false;
+
+  static const char *_keywords[] = {"", "strip_digits", NULL};
+  static _PyArg_Parser _parser = {
+      "s#" /* `name` */
+      "|$" /* Optional, keyword only arguments. */
+      "O&" /* `strip_digits` */
+      ":flip_name",
+      _keywords,
+      0,
+  };
+  if (!_PyArg_ParseTupleAndKeywordsFast(
+          args, kw, &_parser, &name_src, &name_src_len, PyC_ParseBool, &strip_digits)) {
+    return NULL;
+  }
+
+  /* Worst case we gain one extra byte (besides null-terminator) by changing
+   * "Left" to "Right", because only the first appearance of "Left" gets replaced. */
+  const size_t size = name_src_len + 2;
+  char *name_dst = PyMem_MALLOC(size);
+  const size_t name_dst_len = BLI_string_flip_side_name(name_dst, name_src, strip_digits, size);
+
+  PyObject *result = PyUnicode_FromStringAndSize(name_dst, name_dst_len);
+
+  PyMem_FREE(name_dst);
+
+  return result;
 }
 
 // PyDoc_STRVAR(bpy_user_resource_doc[] = /* now in bpy/utils.py */
@@ -166,7 +221,14 @@ static PyObject *bpy_user_resource(PyObject *UNUSED(self), PyObject *args, PyObj
   const char *path;
 
   static const char *_keywords[] = {"type", "path", NULL};
-  static _PyArg_Parser _parser = {"O&|$s:user_resource", _keywords, 0};
+  static _PyArg_Parser _parser = {
+      "O&" /* `type` */
+      "|$" /* Optional keyword only arguments. */
+      "s"  /* `path` */
+      ":user_resource",
+      _keywords,
+      0,
+  };
   if (!_PyArg_ParseTupleAndKeywordsFast(args, kw, &_parser, PyC_ParseStringEnum, &type, &subdir)) {
     return NULL;
   }
@@ -202,7 +264,14 @@ static PyObject *bpy_system_resource(PyObject *UNUSED(self), PyObject *args, PyO
   const char *path;
 
   static const char *_keywords[] = {"type", "path", NULL};
-  static _PyArg_Parser _parser = {"O&|$s:system_resource", _keywords, 0};
+  static _PyArg_Parser _parser = {
+      "O&" /* `type` */
+      "|$" /* Optional keyword only arguments. */
+      "s"  /* `path` */
+      ":system_resource",
+      _keywords,
+      0,
+  };
   if (!_PyArg_ParseTupleAndKeywordsFast(args, kw, &_parser, PyC_ParseStringEnum, &type, &subdir)) {
     return NULL;
   }
@@ -240,7 +309,15 @@ static PyObject *bpy_resource_path(PyObject *UNUSED(self), PyObject *args, PyObj
   const char *path;
 
   static const char *_keywords[] = {"type", "major", "minor", NULL};
-  static _PyArg_Parser _parser = {"O&|$ii:resource_path", _keywords, 0};
+  static _PyArg_Parser _parser = {
+      "O&" /* `type` */
+      "|$" /* Optional keyword only arguments. */
+      "i"  /* `major` */
+      "i"  /* `minor` */
+      ":resource_path",
+      _keywords,
+      0,
+  };
   if (!_PyArg_ParseTupleAndKeywordsFast(
           args, kw, &_parser, PyC_ParseStringEnum, &type, &major, &minor)) {
     return NULL;
@@ -249,6 +326,49 @@ static PyObject *bpy_resource_path(PyObject *UNUSED(self), PyObject *args, PyObj
   path = BKE_appdir_folder_id_version(type.value_found, (major * 100) + minor, false);
 
   return PyC_UnicodeFromByte(path ? path : "");
+}
+
+/* This is only exposed for tests, see: `tests/python/bl_pyapi_bpy_driver_secure_eval.py`. */
+PyDoc_STRVAR(bpy_driver_secure_code_test_doc,
+             ".. function:: _driver_secure_code_test(code)\n"
+             "\n"
+             "   Test if the script should be considered trusted.\n"
+             "\n"
+             "   :arg code: The code to test.\n"
+             "   :type code: code\n"
+             "   :arg namespace: The namespace of values which are allowed.\n"
+             "   :type namespace: dict\n"
+             "   :arg verbose: Print the reason for considering insecure to the ``stderr``.\n"
+             "   :type verbose: bool\n"
+             "   :return: True when the script is considered trusted.\n"
+             "   :rtype: bool\n");
+static PyObject *bpy_driver_secure_code_test(PyObject *UNUSED(self), PyObject *args, PyObject *kw)
+{
+  PyObject *py_code;
+  PyObject *py_namespace = NULL;
+  const bool verbose = false;
+  static const char *_keywords[] = {"code", "namespace", "verbose", NULL};
+  static _PyArg_Parser _parser = {
+      "O!" /* `expression` */
+      "|$" /* Optional keyword only arguments. */
+      "O!" /* `namespace` */
+      "O&" /* `verbose` */
+      ":driver_secure_code_test",
+      _keywords,
+      0,
+  };
+  if (!_PyArg_ParseTupleAndKeywordsFast(args,
+                                        kw,
+                                        &_parser,
+                                        &PyCode_Type,
+                                        &py_code,
+                                        &PyDict_Type,
+                                        &py_namespace,
+                                        PyC_ParseBool,
+                                        &verbose)) {
+    return NULL;
+  }
+  return PyBool_FromLong(BPY_driver_secure_bytecode_test(py_code, py_namespace, verbose));
 }
 
 PyDoc_STRVAR(bpy_escape_identifier_doc,
@@ -326,47 +446,128 @@ static PyObject *bpy_unescape_identifier(PyObject *UNUSED(self), PyObject *value
   return value_unescape;
 }
 
-static PyMethodDef meth_bpy_script_paths = {
-    "script_paths",
-    (PyCFunction)bpy_script_paths,
-    METH_NOARGS,
-    bpy_script_paths_doc,
-};
-static PyMethodDef meth_bpy_blend_paths = {
-    "blend_paths",
-    (PyCFunction)bpy_blend_paths,
-    METH_VARARGS | METH_KEYWORDS,
-    bpy_blend_paths_doc,
-};
-static PyMethodDef meth_bpy_user_resource = {
-    "user_resource",
-    (PyCFunction)bpy_user_resource,
-    METH_VARARGS | METH_KEYWORDS,
-    NULL,
-};
-static PyMethodDef meth_bpy_system_resource = {
-    "system_resource",
-    (PyCFunction)bpy_system_resource,
-    METH_VARARGS | METH_KEYWORDS,
-    bpy_system_resource_doc,
-};
-static PyMethodDef meth_bpy_resource_path = {
-    "resource_path",
-    (PyCFunction)bpy_resource_path,
-    METH_VARARGS | METH_KEYWORDS,
-    bpy_resource_path_doc,
-};
-static PyMethodDef meth_bpy_escape_identifier = {
-    "escape_identifier",
-    (PyCFunction)bpy_escape_identifier,
-    METH_O,
-    bpy_escape_identifier_doc,
-};
-static PyMethodDef meth_bpy_unescape_identifier = {
-    "unescape_identifier",
-    (PyCFunction)bpy_unescape_identifier,
-    METH_O,
-    bpy_unescape_identifier_doc,
+/**
+ * \note only exposed for generating documentation, see: `doc/python_api/sphinx_doc_gen.py`.
+ */
+PyDoc_STRVAR(
+    bpy_context_members_doc,
+    ".. function:: context_members()\n"
+    "\n"
+    "   :return: A dict where the key is the context and the value is a tuple of it's members.\n"
+    "   :rtype: dict\n");
+static PyObject *bpy_context_members(PyObject *UNUSED(self))
+{
+  extern const char *buttons_context_dir[];
+  extern const char *clip_context_dir[];
+  extern const char *file_context_dir[];
+  extern const char *image_context_dir[];
+  extern const char *node_context_dir[];
+  extern const char *screen_context_dir[];
+  extern const char *sequencer_context_dir[];
+  extern const char *text_context_dir[];
+  extern const char *view3d_context_dir[];
+
+  struct {
+    const char *name;
+    const char **dir;
+  } context_members_all[] = {
+      {"buttons", buttons_context_dir},
+      {"clip", clip_context_dir},
+      {"file", file_context_dir},
+      {"image", image_context_dir},
+      {"node", node_context_dir},
+      {"screen", screen_context_dir},
+      {"sequencer", sequencer_context_dir},
+      {"text", text_context_dir},
+      {"view3d", view3d_context_dir},
+  };
+
+  PyObject *result = _PyDict_NewPresized(ARRAY_SIZE(context_members_all));
+  for (int context_index = 0; context_index < ARRAY_SIZE(context_members_all); context_index++) {
+    const char *name = context_members_all[context_index].name;
+    const char **dir = context_members_all[context_index].dir;
+    int i;
+    for (i = 0; dir[i]; i++) {
+      /* Pass. */
+    }
+    PyObject *members = PyTuple_New(i);
+    for (i = 0; dir[i]; i++) {
+      PyTuple_SET_ITEM(members, i, PyUnicode_FromString(dir[i]));
+    }
+    PyDict_SetItemString(result, name, members);
+    Py_DECREF(members);
+  }
+  BLI_assert(PyDict_GET_SIZE(result) == ARRAY_SIZE(context_members_all));
+
+  return result;
+}
+
+/**
+ * \note only exposed for generating documentation, see: `doc/python_api/sphinx_doc_gen.py`.
+ */
+PyDoc_STRVAR(bpy_rna_enum_items_static_doc,
+             ".. function:: rna_enum_items_static()\n"
+             "\n"
+             "   :return: A dict where the key the name of the enum, the value is a tuple of "
+             ":class:`bpy.types.EnumPropertyItem`.\n"
+             "   :rtype: dict of \n");
+static PyObject *bpy_rna_enum_items_static(PyObject *UNUSED(self))
+{
+#define DEF_ENUM(id) {STRINGIFY(id), id},
+  struct {
+    const char *id;
+    const EnumPropertyItem *items;
+  } enum_info[] = {
+#include "RNA_enum_items.h"
+  };
+  PyObject *result = _PyDict_NewPresized(ARRAY_SIZE(enum_info));
+  for (int i = 0; i < ARRAY_SIZE(enum_info); i++) {
+    /* Include all items (including headings & separators), can be shown in documentation. */
+    const EnumPropertyItem *items = enum_info[i].items;
+    const int items_count = RNA_enum_items_count(items);
+    PyObject *value = PyTuple_New(items_count);
+    for (int item_index = 0; item_index < items_count; item_index++) {
+      PointerRNA ptr;
+      RNA_pointer_create(NULL, &RNA_EnumPropertyItem, (void *)&items[item_index], &ptr);
+      PyTuple_SET_ITEM(value, item_index, pyrna_struct_CreatePyObject(&ptr));
+    }
+    PyDict_SetItemString(result, enum_info[i].id, value);
+    Py_DECREF(value);
+  }
+  return result;
+}
+
+static PyMethodDef bpy_methods[] = {
+    {"script_paths", (PyCFunction)bpy_script_paths, METH_NOARGS, bpy_script_paths_doc},
+    {"blend_paths",
+     (PyCFunction)bpy_blend_paths,
+     METH_VARARGS | METH_KEYWORDS,
+     bpy_blend_paths_doc},
+    {"flip_name", (PyCFunction)bpy_flip_name, METH_VARARGS | METH_KEYWORDS, bpy_flip_name_doc},
+    {"user_resource", (PyCFunction)bpy_user_resource, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"system_resource",
+     (PyCFunction)bpy_system_resource,
+     METH_VARARGS | METH_KEYWORDS,
+     bpy_system_resource_doc},
+    {"resource_path",
+     (PyCFunction)bpy_resource_path,
+     METH_VARARGS | METH_KEYWORDS,
+     bpy_resource_path_doc},
+    {"_driver_secure_code_test",
+     (PyCFunction)bpy_driver_secure_code_test,
+     METH_VARARGS | METH_KEYWORDS,
+     bpy_driver_secure_code_test_doc},
+    {"escape_identifier", (PyCFunction)bpy_escape_identifier, METH_O, bpy_escape_identifier_doc},
+    {"unescape_identifier",
+     (PyCFunction)bpy_unescape_identifier,
+     METH_O,
+     bpy_unescape_identifier_doc},
+    {"context_members", (PyCFunction)bpy_context_members, METH_NOARGS, bpy_context_members_doc},
+    {"rna_enum_items_static",
+     (PyCFunction)bpy_rna_enum_items_static,
+     METH_NOARGS,
+     bpy_rna_enum_items_static_doc},
+    {NULL, NULL, 0, NULL},
 };
 
 static PyObject *bpy_import_test(const char *modname)
@@ -386,9 +587,6 @@ static PyObject *bpy_import_test(const char *modname)
   return mod;
 }
 
-/******************************************************************************
- * Description: Creates the bpy module and adds it to sys.modules for importing
- ******************************************************************************/
 void BPy_init_modules(struct bContext *C)
 {
   PointerRNA ctx_ptr;
@@ -451,27 +649,12 @@ void BPy_init_modules(struct bContext *C)
   /* Register methods and property get/set for RNA types. */
   BPY_rna_types_extend_capi();
 
-  /* utility func's that have nowhere else to go */
-  PyModule_AddObject(mod,
-                     meth_bpy_script_paths.ml_name,
-                     (PyObject *)PyCFunction_New(&meth_bpy_script_paths, NULL));
-  PyModule_AddObject(
-      mod, meth_bpy_blend_paths.ml_name, (PyObject *)PyCFunction_New(&meth_bpy_blend_paths, NULL));
-  PyModule_AddObject(mod,
-                     meth_bpy_user_resource.ml_name,
-                     (PyObject *)PyCFunction_New(&meth_bpy_user_resource, NULL));
-  PyModule_AddObject(mod,
-                     meth_bpy_system_resource.ml_name,
-                     (PyObject *)PyCFunction_New(&meth_bpy_system_resource, NULL));
-  PyModule_AddObject(mod,
-                     meth_bpy_resource_path.ml_name,
-                     (PyObject *)PyCFunction_New(&meth_bpy_resource_path, NULL));
-  PyModule_AddObject(mod,
-                     meth_bpy_escape_identifier.ml_name,
-                     (PyObject *)PyCFunction_New(&meth_bpy_escape_identifier, NULL));
-  PyModule_AddObject(mod,
-                     meth_bpy_unescape_identifier.ml_name,
-                     (PyObject *)PyCFunction_New(&meth_bpy_unescape_identifier, NULL));
+  for (int i = 0; bpy_methods[i].ml_name; i++) {
+    PyMethodDef *m = &bpy_methods[i];
+    /* Currently there is no need to support these. */
+    BLI_assert((m->ml_flags & (METH_CLASS | METH_STATIC)) == 0);
+    PyModule_AddObject(mod, m->ml_name, (PyObject *)PyCFunction_New(m, NULL));
+  }
 
   /* register funcs (bpy_rna.c) */
   PyModule_AddObject(mod,
@@ -490,4 +673,10 @@ void BPy_init_modules(struct bContext *C)
 
   /* add our own modules dir, this is a python package */
   bpy_package_py = bpy_import_test("bpy");
+  bpy_sys_module_backup = PyDict_Copy(PyImport_GetModuleDict());
+}
+
+void BPy_end_modules(void)
+{
+  Py_DECREF(bpy_sys_module_backup);
 }

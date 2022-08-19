@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2021 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #pragma once
 
@@ -26,8 +13,6 @@
 
 #include "kernel/light/light.h"
 #include "kernel/light/sample.h"
-
-#include "kernel/sample/mis.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -44,13 +29,13 @@ typedef enum VolumeIntegrateEvent {
 typedef struct VolumeIntegrateResult {
   /* Throughput and offset for direct light scattering. */
   bool direct_scatter;
-  float3 direct_throughput;
+  Spectrum direct_throughput;
   float direct_t;
   ShaderVolumePhases direct_phases;
 
   /* Throughput and offset for indirect light scattering. */
   bool indirect_scatter;
-  float3 indirect_throughput;
+  Spectrum indirect_throughput;
   float indirect_t;
   ShaderVolumePhases indirect_phases;
 } VolumeIntegrateResult;
@@ -67,20 +52,19 @@ typedef struct VolumeIntegrateResult {
  * sigma_t = sigma_a + sigma_s */
 
 typedef struct VolumeShaderCoefficients {
-  float3 sigma_t;
-  float3 sigma_s;
-  float3 emission;
+  Spectrum sigma_t;
+  Spectrum sigma_s;
+  Spectrum emission;
 } VolumeShaderCoefficients;
 
 /* Evaluate shader to get extinction coefficient at P. */
 ccl_device_inline bool shadow_volume_shader_sample(KernelGlobals kg,
                                                    IntegratorShadowState state,
                                                    ccl_private ShaderData *ccl_restrict sd,
-                                                   ccl_private float3 *ccl_restrict extinction)
+                                                   ccl_private Spectrum *ccl_restrict extinction)
 {
-  shader_eval_volume<true>(kg, state, sd, PATH_RAY_SHADOW, [=](const int i) {
-    return integrator_state_read_shadow_volume_stack(state, i);
-  });
+  VOLUME_READ_LAMBDA(integrator_state_read_shadow_volume_stack(state, i))
+  shader_eval_volume<true>(kg, state, sd, PATH_RAY_SHADOW, volume_read_lambda_pass);
 
   if (!(sd->flag & SD_EXTINCTION)) {
     return false;
@@ -98,17 +82,17 @@ ccl_device_inline bool volume_shader_sample(KernelGlobals kg,
                                             ccl_private VolumeShaderCoefficients *coeff)
 {
   const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
-  shader_eval_volume<false>(kg, state, sd, path_flag, [=](const int i) {
-    return integrator_state_read_volume_stack(state, i);
-  });
+  VOLUME_READ_LAMBDA(integrator_state_read_volume_stack(state, i))
+  shader_eval_volume<false>(kg, state, sd, path_flag, volume_read_lambda_pass);
 
   if (!(sd->flag & (SD_EXTINCTION | SD_SCATTER | SD_EMISSION))) {
     return false;
   }
 
-  coeff->sigma_s = zero_float3();
-  coeff->sigma_t = (sd->flag & SD_EXTINCTION) ? sd->closure_transparent_extinction : zero_float3();
-  coeff->emission = (sd->flag & SD_EMISSION) ? sd->closure_emission_background : zero_float3();
+  coeff->sigma_s = zero_spectrum();
+  coeff->sigma_t = (sd->flag & SD_EXTINCTION) ? sd->closure_transparent_extinction :
+                                                zero_spectrum();
+  coeff->emission = (sd->flag & SD_EMISSION) ? sd->closure_emission_background : zero_spectrum();
 
   if (sd->flag & SD_SCATTER) {
     for (int i = 0; i < sd->num_closure; i++) {
@@ -131,7 +115,8 @@ ccl_device_inline bool volume_shader_sample(KernelGlobals kg,
 ccl_device_forceinline void volume_step_init(KernelGlobals kg,
                                              ccl_private const RNGState *rng_state,
                                              const float object_step_size,
-                                             float t,
+                                             const float tmin,
+                                             const float tmax,
                                              ccl_private float *step_size,
                                              ccl_private float *step_shade_offset,
                                              ccl_private float *steps_offset,
@@ -139,7 +124,7 @@ ccl_device_forceinline void volume_step_init(KernelGlobals kg,
 {
   if (object_step_size == FLT_MAX) {
     /* Homogeneous volume. */
-    *step_size = t;
+    *step_size = tmax - tmin;
     *step_shade_offset = 0.0f;
     *steps_offset = 1.0f;
     *max_steps = 1;
@@ -147,6 +132,7 @@ ccl_device_forceinline void volume_step_init(KernelGlobals kg,
   else {
     /* Heterogeneous volume. */
     *max_steps = kernel_data.integrator.volume_max_steps;
+    const float t = tmax - tmin;
     float step = min(object_step_size, t);
 
     /* compute exact steps in advance for malloc */
@@ -177,12 +163,12 @@ ccl_device_forceinline void volume_step_init(KernelGlobals kg,
 ccl_device void volume_shadow_homogeneous(KernelGlobals kg, IntegratorState state,
                                           ccl_private Ray *ccl_restrict ray,
                                           ccl_private ShaderData *ccl_restrict sd,
-                                          ccl_global float3 *ccl_restrict throughput)
+                                          ccl_global Spectrum *ccl_restrict throughput)
 {
-  float3 sigma_t = zero_float3();
+  Spectrum sigma_t = zero_spectrum();
 
   if (shadow_volume_shader_sample(kg, state, sd, &sigma_t)) {
-    *throughput *= volume_color_transmittance(sigma_t, ray->t);
+    *throughput *= volume_color_transmittance(sigma_t, ray->tmax - ray->tmin);
   }
 }
 #  endif
@@ -193,14 +179,14 @@ ccl_device void volume_shadow_heterogeneous(KernelGlobals kg,
                                             IntegratorShadowState state,
                                             ccl_private Ray *ccl_restrict ray,
                                             ccl_private ShaderData *ccl_restrict sd,
-                                            ccl_private float3 *ccl_restrict throughput,
+                                            ccl_private Spectrum *ccl_restrict throughput,
                                             const float object_step_size)
 {
   /* Load random number state. */
   RNGState rng_state;
   shadow_path_state_rng_load(state, &rng_state);
 
-  float3 tp = *throughput;
+  Spectrum tp = *throughput;
 
   /* Prepare for stepping.
    * For shadows we do not offset all segments, since the starting point is
@@ -211,7 +197,8 @@ ccl_device void volume_shadow_heterogeneous(KernelGlobals kg,
   volume_step_init(kg,
                    &rng_state,
                    object_step_size,
-                   ray->t,
+                   ray->tmin,
+                   ray->tmax,
                    &step_size,
                    &step_shade_offset,
                    &unused,
@@ -219,17 +206,17 @@ ccl_device void volume_shadow_heterogeneous(KernelGlobals kg,
   const float steps_offset = 1.0f;
 
   /* compute extinction at the start */
-  float t = 0.0f;
+  float t = ray->tmin;
 
-  float3 sum = zero_float3();
+  Spectrum sum = zero_spectrum();
 
   for (int i = 0; i < max_steps; i++) {
     /* advance to new position */
-    float new_t = min(ray->t, (i + steps_offset) * step_size);
+    float new_t = min(ray->tmax, ray->tmin + (i + steps_offset) * step_size);
     float dt = new_t - t;
 
     float3 new_P = ray->P + ray->D * (t + dt * step_shade_offset);
-    float3 sigma_t = zero_float3();
+    Spectrum sigma_t = zero_spectrum();
 
     /* compute attenuation over segment */
     sd->P = new_P;
@@ -239,20 +226,19 @@ ccl_device void volume_shadow_heterogeneous(KernelGlobals kg,
        * check then. */
       sum += (-sigma_t * dt);
       if ((i & 0x07) == 0) { /* TODO: Other interval? */
-        tp = *throughput * exp3(sum);
+        tp = *throughput * exp(sum);
 
         /* stop if nearly all light is blocked */
-        if (tp.x < VOLUME_THROUGHPUT_EPSILON && tp.y < VOLUME_THROUGHPUT_EPSILON &&
-            tp.z < VOLUME_THROUGHPUT_EPSILON)
+        if (reduce_max(tp) < VOLUME_THROUGHPUT_EPSILON)
           break;
       }
     }
 
     /* stop if at the end of the volume */
     t = new_t;
-    if (t == ray->t) {
+    if (t == ray->tmax) {
       /* Update throughput in case we haven't done it above */
-      tp = *throughput * exp3(sum);
+      tp = *throughput * exp(sum);
       break;
     }
   }
@@ -274,15 +260,16 @@ ccl_device float volume_equiangular_sample(ccl_private const Ray *ccl_restrict r
                                            const float xi,
                                            ccl_private float *pdf)
 {
-  const float t = ray->t;
+  const float tmin = ray->tmin;
+  const float tmax = ray->tmax;
   const float delta = dot((light_P - ray->P), ray->D);
   const float D = safe_sqrtf(len_squared(light_P - ray->P) - delta * delta);
   if (UNLIKELY(D == 0.0f)) {
     *pdf = 0.0f;
     return 0.0f;
   }
-  const float theta_a = -atan2f(delta, D);
-  const float theta_b = atan2f(t - delta, D);
+  const float theta_a = atan2f(tmin - delta, D);
+  const float theta_b = atan2f(tmax - delta, D);
   const float t_ = D * tanf((xi * theta_b) + (1 - xi) * theta_a);
   if (UNLIKELY(theta_b == theta_a)) {
     *pdf = 0.0f;
@@ -290,7 +277,7 @@ ccl_device float volume_equiangular_sample(ccl_private const Ray *ccl_restrict r
   }
   *pdf = D / ((theta_b - theta_a) * (D * D + t_ * t_));
 
-  return min(t, delta + t_); /* min is only for float precision errors */
+  return clamp(delta + t_, tmin, tmax); /* clamp is only for float precision errors */
 }
 
 ccl_device float volume_equiangular_pdf(ccl_private const Ray *ccl_restrict ray,
@@ -303,11 +290,12 @@ ccl_device float volume_equiangular_pdf(ccl_private const Ray *ccl_restrict ray,
     return 0.0f;
   }
 
-  const float t = ray->t;
+  const float tmin = ray->tmin;
+  const float tmax = ray->tmax;
   const float t_ = sample_t - delta;
 
-  const float theta_a = -atan2f(delta, D);
-  const float theta_b = atan2f(t - delta, D);
+  const float theta_a = atan2f(tmin - delta, D);
+  const float theta_b = atan2f(tmax - delta, D);
   if (UNLIKELY(theta_b == theta_a)) {
     return 0.0f;
   }
@@ -327,11 +315,12 @@ ccl_device float volume_equiangular_cdf(ccl_private const Ray *ccl_restrict ray,
     return 0.0f;
   }
 
-  const float t = ray->t;
+  const float tmin = ray->tmin;
+  const float tmax = ray->tmax;
   const float t_ = sample_t - delta;
 
-  const float theta_a = -atan2f(delta, D);
-  const float theta_b = atan2f(t - delta, D);
+  const float theta_a = atan2f(tmin - delta, D);
+  const float theta_b = atan2f(tmax - delta, D);
   if (UNLIKELY(theta_b == theta_a)) {
     return 0.0f;
   }
@@ -345,22 +334,22 @@ ccl_device float volume_equiangular_cdf(ccl_private const Ray *ccl_restrict ray,
 /* Distance sampling */
 
 ccl_device float volume_distance_sample(float max_t,
-                                        float3 sigma_t,
+                                        Spectrum sigma_t,
                                         int channel,
                                         float xi,
-                                        ccl_private float3 *transmittance,
-                                        ccl_private float3 *pdf)
+                                        ccl_private Spectrum *transmittance,
+                                        ccl_private Spectrum *pdf)
 {
   /* xi is [0, 1[ so log(0) should never happen, division by zero is
    * avoided because sample_sigma_t > 0 when SD_SCATTER is set */
   float sample_sigma_t = volume_channel_get(sigma_t, channel);
-  float3 full_transmittance = volume_color_transmittance(sigma_t, max_t);
+  Spectrum full_transmittance = volume_color_transmittance(sigma_t, max_t);
   float sample_transmittance = volume_channel_get(full_transmittance, channel);
 
   float sample_t = min(max_t, -logf(1.0f - xi * (1.0f - sample_transmittance)) / sample_sigma_t);
 
   *transmittance = volume_color_transmittance(sigma_t, sample_t);
-  *pdf = safe_divide_color(sigma_t * *transmittance, one_float3() - full_transmittance);
+  *pdf = safe_divide_color(sigma_t * *transmittance, one_spectrum() - full_transmittance);
 
   /* todo: optimization: when taken together with hit/miss decision,
    * the full_transmittance cancels out drops out and xi does not
@@ -369,33 +358,36 @@ ccl_device float volume_distance_sample(float max_t,
   return sample_t;
 }
 
-ccl_device float3 volume_distance_pdf(float max_t, float3 sigma_t, float sample_t)
+ccl_device Spectrum volume_distance_pdf(float max_t, Spectrum sigma_t, float sample_t)
 {
-  float3 full_transmittance = volume_color_transmittance(sigma_t, max_t);
-  float3 transmittance = volume_color_transmittance(sigma_t, sample_t);
+  Spectrum full_transmittance = volume_color_transmittance(sigma_t, max_t);
+  Spectrum transmittance = volume_color_transmittance(sigma_t, sample_t);
 
-  return safe_divide_color(sigma_t * transmittance, one_float3() - full_transmittance);
+  return safe_divide_color(sigma_t * transmittance, one_spectrum() - full_transmittance);
 }
 
 /* Emission */
 
-ccl_device float3 volume_emission_integrate(ccl_private VolumeShaderCoefficients *coeff,
-                                            int closure_flag,
-                                            float3 transmittance,
-                                            float t)
+ccl_device Spectrum volume_emission_integrate(ccl_private VolumeShaderCoefficients *coeff,
+                                              int closure_flag,
+                                              Spectrum transmittance,
+                                              float t)
 {
   /* integral E * exp(-sigma_t * t) from 0 to t = E * (1 - exp(-sigma_t * t))/sigma_t
    * this goes to E * t as sigma_t goes to zero
    *
    * todo: we should use an epsilon to avoid precision issues near zero sigma_t */
-  float3 emission = coeff->emission;
+  Spectrum emission = coeff->emission;
 
   if (closure_flag & SD_EXTINCTION) {
-    float3 sigma_t = coeff->sigma_t;
+    Spectrum sigma_t = coeff->sigma_t;
 
-    emission.x *= (sigma_t.x > 0.0f) ? (1.0f - transmittance.x) / sigma_t.x : t;
-    emission.y *= (sigma_t.y > 0.0f) ? (1.0f - transmittance.y) / sigma_t.y : t;
-    emission.z *= (sigma_t.z > 0.0f) ? (1.0f - transmittance.z) / sigma_t.z : t;
+    FOREACH_SPECTRUM_CHANNEL (i) {
+      GET_SPECTRUM_CHANNEL(emission, i) *= (GET_SPECTRUM_CHANNEL(sigma_t, i) > 0.0f) ?
+                                               (1.0f - GET_SPECTRUM_CHANNEL(transmittance, i)) /
+                                                   GET_SPECTRUM_CHANNEL(sigma_t, i) :
+                                               t;
+    }
   }
   else
     emission *= t;
@@ -407,8 +399,8 @@ ccl_device float3 volume_emission_integrate(ccl_private VolumeShaderCoefficients
 
 typedef struct VolumeIntegrateState {
   /* Volume segment extents. */
-  float start_t;
-  float end_t;
+  float tmin;
+  float tmax;
 
   /* If volume is absorption-only up to this point, and no probabilistic
    * scattering or termination has been used yet. */
@@ -430,23 +422,23 @@ ccl_device_forceinline void volume_integrate_step_scattering(
     ccl_private const Ray *ray,
     const float3 equiangular_light_P,
     ccl_private const VolumeShaderCoefficients &ccl_restrict coeff,
-    const float3 transmittance,
+    const Spectrum transmittance,
     ccl_private VolumeIntegrateState &ccl_restrict vstate,
     ccl_private VolumeIntegrateResult &ccl_restrict result)
 {
   /* Pick random color channel, we use the Veach one-sample
    * model with balance heuristic for the channels. */
-  const float3 albedo = safe_divide_color(coeff.sigma_s, coeff.sigma_t);
-  float3 channel_pdf;
+  const Spectrum albedo = safe_divide_color(coeff.sigma_s, coeff.sigma_t);
+  Spectrum channel_pdf;
   const int channel = volume_sample_channel(
       albedo, result.indirect_throughput, vstate.rphase, &channel_pdf);
 
   /* Equiangular sampling for direct lighting. */
   if (vstate.direct_sample_method == VOLUME_SAMPLE_EQUIANGULAR && !result.direct_scatter) {
-    if (result.direct_t >= vstate.start_t && result.direct_t <= vstate.end_t &&
+    if (result.direct_t >= vstate.tmin && result.direct_t <= vstate.tmax &&
         vstate.equiangular_pdf > VOLUME_SAMPLE_PDF_CUTOFF) {
-      const float new_dt = result.direct_t - vstate.start_t;
-      const float3 new_transmittance = volume_color_transmittance(coeff.sigma_t, new_dt);
+      const float new_dt = result.direct_t - vstate.tmin;
+      const Spectrum new_transmittance = volume_color_transmittance(coeff.sigma_t, new_dt);
 
       result.direct_scatter = true;
       result.direct_throughput *= coeff.sigma_s * new_transmittance / vstate.equiangular_pdf;
@@ -475,10 +467,10 @@ ccl_device_forceinline void volume_integrate_step_scattering(
       /* compute sampling distance */
       const float sample_sigma_t = volume_channel_get(coeff.sigma_t, channel);
       const float new_dt = -logf(1.0f - vstate.rscatter) / sample_sigma_t;
-      const float new_t = vstate.start_t + new_dt;
+      const float new_t = vstate.tmin + new_dt;
 
       /* transmittance and pdf */
-      const float3 new_transmittance = volume_color_transmittance(coeff.sigma_t, new_dt);
+      const Spectrum new_transmittance = volume_color_transmittance(coeff.sigma_t, new_dt);
       const float distance_pdf = dot(channel_pdf, coeff.sigma_t * new_transmittance);
 
       if (vstate.distance_pdf * distance_pdf > VOLUME_SAMPLE_PDF_CUTOFF) {
@@ -545,7 +537,8 @@ ccl_device_forceinline void volume_integrate_heterogeneous(
   volume_step_init(kg,
                    rng_state,
                    object_step_size,
-                   ray->t,
+                   ray->tmin,
+                   ray->tmax,
                    &step_size,
                    &step_shade_offset,
                    &steps_offset,
@@ -553,8 +546,8 @@ ccl_device_forceinline void volume_integrate_heterogeneous(
 
   /* Initialize volume integration state. */
   VolumeIntegrateState vstate ccl_optional_struct_init;
-  vstate.start_t = 0.0f;
-  vstate.end_t = 0.0f;
+  vstate.tmin = ray->tmin;
+  vstate.tmax = ray->tmin;
   vstate.absorption_only = true;
   vstate.rscatter = path_state_rng_1D(kg, rng_state, PRNG_SCATTER_DISTANCE);
   vstate.rphase = path_state_rng_1D(kg, rng_state, PRNG_PHASE_CHANNEL);
@@ -576,7 +569,7 @@ ccl_device_forceinline void volume_integrate_heterogeneous(
   vstate.distance_pdf = 1.0f;
 
   /* Initialize volume integration result. */
-  const float3 throughput = INTEGRATOR_STATE(state, path, throughput);
+  const Spectrum throughput = INTEGRATOR_STATE(state, path, throughput);
   result.direct_throughput = throughput;
   result.indirect_throughput = throughput;
 
@@ -589,14 +582,14 @@ ccl_device_forceinline void volume_integrate_heterogeneous(
 #  ifdef __DENOISING_FEATURES__
   const bool write_denoising_features = (INTEGRATOR_STATE(state, path, flag) &
                                          PATH_RAY_DENOISING_FEATURES);
-  float3 accum_albedo = zero_float3();
+  Spectrum accum_albedo = zero_spectrum();
 #  endif
-  float3 accum_emission = zero_float3();
+  Spectrum accum_emission = zero_spectrum();
 
   for (int i = 0; i < max_steps; i++) {
     /* Advance to new position */
-    vstate.end_t = min(ray->t, (i + steps_offset) * step_size);
-    const float shade_t = vstate.start_t + (vstate.end_t - vstate.start_t) * step_shade_offset;
+    vstate.tmax = min(ray->tmax, ray->tmin + (i + steps_offset) * step_size);
+    const float shade_t = vstate.tmin + (vstate.tmax - vstate.tmin) * step_shade_offset;
     sd->P = ray->P + ray->D * shade_t;
 
     /* compute segment */
@@ -605,17 +598,17 @@ ccl_device_forceinline void volume_integrate_heterogeneous(
       const int closure_flag = sd->flag;
 
       /* Evaluate transmittance over segment. */
-      const float dt = (vstate.end_t - vstate.start_t);
-      const float3 transmittance = (closure_flag & SD_EXTINCTION) ?
-                                       volume_color_transmittance(coeff.sigma_t, dt) :
-                                       one_float3();
+      const float dt = (vstate.tmax - vstate.tmin);
+      const Spectrum transmittance = (closure_flag & SD_EXTINCTION) ?
+                                         volume_color_transmittance(coeff.sigma_t, dt) :
+                                         one_spectrum();
 
       /* Emission. */
       if (closure_flag & SD_EMISSION) {
         /* Only write emission before indirect light scatter position, since we terminate
          * stepping at that point if we have already found a direct light scatter position. */
         if (!result.indirect_scatter) {
-          const float3 emission = volume_emission_integrate(
+          const Spectrum emission = volume_emission_integrate(
               &coeff, closure_flag, transmittance, dt);
           accum_emission += result.indirect_throughput * emission;
         }
@@ -626,8 +619,8 @@ ccl_device_forceinline void volume_integrate_heterogeneous(
 #  ifdef __DENOISING_FEATURES__
           /* Accumulate albedo for denoising features. */
           if (write_denoising_features && (closure_flag & SD_SCATTER)) {
-            const float3 albedo = safe_divide_color(coeff.sigma_s, coeff.sigma_t);
-            accum_albedo += result.indirect_throughput * albedo * (one_float3() - transmittance);
+            const Spectrum albedo = safe_divide_color(coeff.sigma_s, coeff.sigma_t);
+            accum_albedo += result.indirect_throughput * albedo * (one_spectrum() - transmittance);
           }
 #  endif
 
@@ -643,13 +636,13 @@ ccl_device_forceinline void volume_integrate_heterogeneous(
 
         /* Stop if nearly all light blocked. */
         if (!result.indirect_scatter) {
-          if (max3(result.indirect_throughput) < VOLUME_THROUGHPUT_EPSILON) {
-            result.indirect_throughput = zero_float3();
+          if (reduce_max(result.indirect_throughput) < VOLUME_THROUGHPUT_EPSILON) {
+            result.indirect_throughput = zero_spectrum();
             break;
           }
         }
         else if (!result.direct_scatter) {
-          if (max3(result.direct_throughput) < VOLUME_THROUGHPUT_EPSILON) {
+          if (reduce_max(result.direct_throughput) < VOLUME_THROUGHPUT_EPSILON) {
             break;
           }
         }
@@ -662,15 +655,16 @@ ccl_device_forceinline void volume_integrate_heterogeneous(
     }
 
     /* Stop if at the end of the volume. */
-    vstate.start_t = vstate.end_t;
-    if (vstate.start_t == ray->t) {
+    vstate.tmin = vstate.tmax;
+    if (vstate.tmin == ray->tmax) {
       break;
     }
   }
 
   /* Write accumulated emission. */
   if (!is_zero(accum_emission)) {
-    kernel_accum_emission(kg, state, accum_emission, render_buffer);
+    kernel_accum_emission(
+        kg, state, accum_emission, render_buffer, object_lightgroup(kg, sd->object));
   }
 
 #  ifdef __DENOISING_FEATURES__
@@ -724,7 +718,7 @@ ccl_device_forceinline void integrate_volume_direct_light(
     ccl_private const RNGState *ccl_restrict rng_state,
     const float3 P,
     ccl_private const ShaderVolumePhases *ccl_restrict phases,
-    ccl_private const float3 throughput,
+    ccl_private const Spectrum throughput,
     ccl_private LightSample *ccl_restrict ls)
 {
   PROFILING_INIT(kg, PROFILING_SHADE_VOLUME_DIRECT_LIGHT);
@@ -762,7 +756,7 @@ ccl_device_forceinline void integrate_volume_direct_light(
    * non-constant light sources. */
   ShaderDataTinyStorage emission_sd_storage;
   ccl_private ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
-  const float3 light_eval = light_sample_shader_eval(kg, state, emission_sd, ls, sd->time);
+  const Spectrum light_eval = light_sample_shader_eval(kg, state, emission_sd, ls, sd->time);
   if (is_zero(light_eval)) {
     return;
   }
@@ -772,11 +766,11 @@ ccl_device_forceinline void integrate_volume_direct_light(
   const float phase_pdf = shader_volume_phase_eval(kg, sd, phases, ls->D, &phase_eval);
 
   if (ls->shader & SHADER_USE_MIS) {
-    float mis_weight = power_heuristic(ls->pdf, phase_pdf);
+    float mis_weight = light_sample_mis_weight_nee(kg, ls->pdf, phase_pdf);
     bsdf_eval_mul(&phase_eval, mis_weight);
   }
 
-  bsdf_eval_mul3(&phase_eval, light_eval / ls->pdf);
+  bsdf_eval_mul(&phase_eval, light_eval / ls->pdf);
 
   /* Path termination. */
   const float terminate = path_state_rng_light_termination(kg, rng_state);
@@ -790,26 +784,41 @@ ccl_device_forceinline void integrate_volume_direct_light(
   const bool is_light = light_sample_is_light(ls);
 
   /* Branch off shadow kernel. */
-  INTEGRATOR_SHADOW_PATH_INIT(
-      shadow_state, state, DEVICE_KERNEL_INTEGRATOR_INTERSECT_SHADOW, shadow);
+  IntegratorShadowState shadow_state = integrator_shadow_path_init(
+      kg, state, DEVICE_KERNEL_INTEGRATOR_INTERSECT_SHADOW, false);
 
   /* Write shadow ray and associated state to global memory. */
   integrator_state_write_shadow_ray(kg, shadow_state, &ray);
+  INTEGRATOR_STATE_ARRAY_WRITE(shadow_state, shadow_isect, 0, object) = ray.self.object;
+  INTEGRATOR_STATE_ARRAY_WRITE(shadow_state, shadow_isect, 0, prim) = ray.self.prim;
+  INTEGRATOR_STATE_ARRAY_WRITE(shadow_state, shadow_isect, 1, object) = ray.self.light_object;
+  INTEGRATOR_STATE_ARRAY_WRITE(shadow_state, shadow_isect, 1, prim) = ray.self.light_prim;
 
   /* Copy state from main path to shadow path. */
   const uint16_t bounce = INTEGRATOR_STATE(state, path, bounce);
   const uint16_t transparent_bounce = INTEGRATOR_STATE(state, path, transparent_bounce);
   uint32_t shadow_flag = INTEGRATOR_STATE(state, path, flag);
   shadow_flag |= (is_light) ? PATH_RAY_SHADOW_FOR_LIGHT : 0;
-  shadow_flag |= PATH_RAY_VOLUME_PASS;
-  const float3 throughput_phase = throughput * bsdf_eval_sum(&phase_eval);
+  const Spectrum throughput_phase = throughput * bsdf_eval_sum(&phase_eval);
 
   if (kernel_data.kernel_features & KERNEL_FEATURE_LIGHT_PASSES) {
-    const float3 pass_diffuse_weight = (bounce == 0) ?
-                                           one_float3() :
-                                           INTEGRATOR_STATE(state, path, pass_diffuse_weight);
+    PackedSpectrum pass_diffuse_weight;
+    PackedSpectrum pass_glossy_weight;
+
+    if (shadow_flag & PATH_RAY_ANY_PASS) {
+      /* Indirect bounce, use weights from earlier surface or volume bounce. */
+      pass_diffuse_weight = INTEGRATOR_STATE(state, path, pass_diffuse_weight);
+      pass_glossy_weight = INTEGRATOR_STATE(state, path, pass_glossy_weight);
+    }
+    else {
+      /* Direct light, no diffuse/glossy distinction needed for volumes. */
+      shadow_flag |= PATH_RAY_VOLUME_PASS;
+      pass_diffuse_weight = one_spectrum();
+      pass_glossy_weight = zero_spectrum();
+    }
+
     INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, pass_diffuse_weight) = pass_diffuse_weight;
-    INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, pass_glossy_weight) = zero_float3();
+    INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, pass_glossy_weight) = pass_glossy_weight;
   }
 
   INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, render_pixel_index) = INTEGRATOR_STATE(
@@ -835,6 +844,12 @@ ccl_device_forceinline void integrate_volume_direct_light(
     INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, unshadowed_throughput) = throughput;
   }
 
+  /* Write Lightgroup, +1 as lightgroup is int but we need to encode into a uint8_t. */
+  INTEGRATOR_STATE_WRITE(
+      shadow_state, shadow_path, lightgroup) = (ls->type != LIGHT_BACKGROUND) ?
+                                                   ls->group + 1 :
+                                                   kernel_data.background.lightgroup + 1;
+
   integrator_state_copy_volume_stack_to_shadow(kg, shadow_state, state);
 }
 #  endif
@@ -856,17 +871,9 @@ ccl_device_forceinline bool integrate_volume_phase_scatter(
   float phase_pdf;
   BsdfEval phase_eval ccl_optional_struct_init;
   float3 phase_omega_in ccl_optional_struct_init;
-  differential3 phase_domega_in ccl_optional_struct_init;
 
-  const int label = shader_volume_phase_sample(kg,
-                                               sd,
-                                               phases,
-                                               phase_u,
-                                               phase_v,
-                                               &phase_eval,
-                                               &phase_omega_in,
-                                               &phase_domega_in,
-                                               &phase_pdf);
+  const int label = shader_volume_phase_sample(
+      kg, sd, phases, phase_u, phase_v, &phase_eval, &phase_omega_in, &phase_pdf);
 
   if (phase_pdf == 0.0f || bsdf_eval_is_zero(&phase_eval)) {
     return false;
@@ -875,26 +882,27 @@ ccl_device_forceinline bool integrate_volume_phase_scatter(
   /* Setup ray. */
   INTEGRATOR_STATE_WRITE(state, ray, P) = sd->P;
   INTEGRATOR_STATE_WRITE(state, ray, D) = normalize(phase_omega_in);
-  INTEGRATOR_STATE_WRITE(state, ray, t) = FLT_MAX;
-
+  INTEGRATOR_STATE_WRITE(state, ray, tmin) = 0.0f;
+  INTEGRATOR_STATE_WRITE(state, ray, tmax) = FLT_MAX;
 #  ifdef __RAY_DIFFERENTIALS__
   INTEGRATOR_STATE_WRITE(state, ray, dP) = differential_make_compact(sd->dP);
-  INTEGRATOR_STATE_WRITE(state, ray, dD) = differential_make_compact(phase_domega_in);
 #  endif
+  // Save memory by storing last hit prim and object in isect
+  INTEGRATOR_STATE_WRITE(state, isect, prim) = sd->prim;
+  INTEGRATOR_STATE_WRITE(state, isect, object) = sd->object;
 
   /* Update throughput. */
-  const float3 throughput = INTEGRATOR_STATE(state, path, throughput);
-  const float3 throughput_phase = throughput * bsdf_eval_sum(&phase_eval) / phase_pdf;
+  const Spectrum throughput = INTEGRATOR_STATE(state, path, throughput);
+  const Spectrum throughput_phase = throughput * bsdf_eval_sum(&phase_eval) / phase_pdf;
   INTEGRATOR_STATE_WRITE(state, path, throughput) = throughput_phase;
 
   if (kernel_data.kernel_features & KERNEL_FEATURE_LIGHT_PASSES) {
-    INTEGRATOR_STATE_WRITE(state, path, pass_diffuse_weight) = one_float3();
-    INTEGRATOR_STATE_WRITE(state, path, pass_glossy_weight) = zero_float3();
+    INTEGRATOR_STATE_WRITE(state, path, pass_diffuse_weight) = one_spectrum();
+    INTEGRATOR_STATE_WRITE(state, path, pass_glossy_weight) = zero_spectrum();
   }
 
   /* Update path state */
   INTEGRATOR_STATE_WRITE(state, path, mis_ray_pdf) = phase_pdf;
-  INTEGRATOR_STATE_WRITE(state, path, mis_ray_t) = 0.0f;
   INTEGRATOR_STATE_WRITE(state, path, min_ray_pdf) = fminf(
       phase_pdf, INTEGRATOR_STATE(state, path, min_ray_pdf));
 
@@ -932,8 +940,8 @@ ccl_device VolumeIntegrateEvent volume_integrate(KernelGlobals kg,
                                                 VOLUME_SAMPLE_DISTANCE;
 
   /* Step through volume. */
-  const float step_size = volume_stack_step_size(
-      kg, [=](const int i) { return integrator_state_read_volume_stack(state, i); });
+  VOLUME_READ_LAMBDA(integrator_state_read_volume_stack(state, i))
+  const float step_size = volume_stack_step_size(kg, volume_read_lambda_pass);
 
   /* TODO: expensive to zero closures? */
   VolumeIntegrateResult result = {};
@@ -1014,7 +1022,7 @@ ccl_device void integrator_shade_volume(KernelGlobals kg,
   integrator_state_read_isect(kg, state, &isect);
 
   /* Set ray length to current segment. */
-  ray.t = (isect.prim != PRIM_NONE) ? isect.t : FLT_MAX;
+  ray.tmax = (isect.prim != PRIM_NONE) ? isect.t : FLT_MAX;
 
   /* Clean volume stack for background rays. */
   if (isect.prim == PRIM_NONE) {
@@ -1025,13 +1033,15 @@ ccl_device void integrator_shade_volume(KernelGlobals kg,
 
   if (event == VOLUME_PATH_SCATTERED) {
     /* Queue intersect_closest kernel. */
-    INTEGRATOR_PATH_NEXT(DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME,
+    integrator_path_next(kg,
+                         state,
+                         DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME,
                          DEVICE_KERNEL_INTEGRATOR_INTERSECT_CLOSEST);
     return;
   }
   else if (event == VOLUME_PATH_MISSED) {
     /* End path. */
-    INTEGRATOR_PATH_TERMINATE(DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME);
+    integrator_path_terminate(kg, state, DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME);
     return;
   }
   else {

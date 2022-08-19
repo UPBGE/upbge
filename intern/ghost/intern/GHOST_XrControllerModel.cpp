@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup GHOST
@@ -97,8 +83,8 @@ static void read_vertices(const tinygltf::Accessor &accessor,
   validate_accessor(accessor, buffer_view, buffer, stride, packed_size);
 
   /* Resize the vertices vector, if necessary, to include room for the attribute data.
-     If there are multiple attributes for a primitive, the first one will resize, and the
-     subsequent will not need to. */
+   * If there are multiple attributes for a primitive, the first one will resize, and the
+   * subsequent will not need to. */
   primitive.vertices.resize(accessor.count);
 
   /* Copy the attribute value over from the glTF buffer into the appropriate vertex field. */
@@ -147,9 +133,9 @@ static void read_indices(const tinygltf::Accessor &accessor,
                          const tinygltf::Buffer &buffer,
                          GHOST_XrPrimitive &primitive)
 {
-  if (buffer_view.target != TINYGLTF_TARGET_ELEMENT_ARRAY_BUFFER &&
-      buffer_view.target != 0) { /* Allow 0 (not specified) even though spec doesn't seem to allow
-                                    this (BoomBox GLB fails). */
+
+  /* Allow 0 (not specified) even though spec doesn't seem to allow this (BoomBox GLB fails). */
+  if (buffer_view.target != TINYGLTF_TARGET_ELEMENT_ARRAY_BUFFER && buffer_view.target != 0) {
     throw GHOST_XrException(
         "glTF: Accessor for indices uses bufferview with invalid 'target' type.");
   }
@@ -164,8 +150,8 @@ static void read_indices(const tinygltf::Accessor &accessor,
 
   validate_accessor(accessor, buffer_view, buffer, component_size_bytes, component_size_bytes);
 
-  if ((accessor.count % 3) != 0) { /* Since only triangles are supported, enforce that the number
-                                      of indices is divisible by 3. */
+  /* Since only triangles are supported, enforce that the number of indices is divisible by 3. */
+  if ((accessor.count % 3) != 0) {
     throw GHOST_XrException("glTF: Unexpected number of indices for triangle primitive");
   }
 
@@ -244,23 +230,11 @@ static void calc_node_transforms(const tinygltf::Node &gltf_node,
    * both. */
   if (gltf_node.matrix.size() == 16) {
     const std::vector<double> &dm = gltf_node.matrix;
-    float m[4][4] = {(float)dm[0],
-                     (float)dm[1],
-                     (float)dm[2],
-                     (float)dm[3],
-                     (float)dm[4],
-                     (float)dm[5],
-                     (float)dm[6],
-                     (float)dm[7],
-                     (float)dm[8],
-                     (float)dm[9],
-                     (float)dm[10],
-                     (float)dm[11],
-                     (float)dm[12],
-                     (float)dm[13],
-                     (float)dm[14],
-                     (float)dm[15]};
-    memcpy(r_local_transform, m, sizeof(float) * 16);
+    float m[4][4] = {{(float)dm[0], (float)dm[1], (float)dm[2], (float)dm[3]},
+                     {(float)dm[4], (float)dm[5], (float)dm[6], (float)dm[7]},
+                     {(float)dm[8], (float)dm[9], (float)dm[10], (float)dm[11]},
+                     {(float)dm[12], (float)dm[13], (float)dm[14], (float)dm[15]}};
+    memcpy(r_local_transform, m, sizeof(float[4][4]));
   }
   else {
     /* No matrix is present, so construct a matrix from the TRS values (each one is optional). */
@@ -534,7 +508,7 @@ void GHOST_XrControllerModel::loadControllerModel(XrSession session)
       (gltf_model.defaultScene == -1) ? 0 : gltf_model.defaultScene);
   const int32_t root_idx = -1;
   const std::string root_name = "";
-  float root_transform[4][4] = {0};
+  float root_transform[4][4] = {{0}};
   root_transform[0][0] = root_transform[1][1] = root_transform[2][2] = root_transform[3][3] = 1.0f;
 
   for (const int node_id : default_scene.nodes) {

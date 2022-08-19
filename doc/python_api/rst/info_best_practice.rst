@@ -40,15 +40,6 @@ As well as pep8 we have additional conventions used for Blender Python scripts:
 - pep8 also defines that lines should not exceed 79 characters,
   we have decided that this is too restrictive so it is optional per script.
 
-Periodically we run checks for pep8 compliance on Blender scripts,
-for scripts to be included in this check add this line as a comment at the top of the script:
-
-``# <pep8 compliant>``
-
-To enable line length checks use this instead:
-
-``# <pep8-80 compliant>``
-
 
 User Interface Layout
 =====================
@@ -229,7 +220,7 @@ removing the last items first, which is faster (as explained above):
 
 
 This example shows a fast way of removing items,
-for use in cases where you can alter the list order without breaking the scripts functionality.
+for use in cases where you can alter the list order without breaking the script's functionality.
 This works by swapping two list items, so the item you remove is always last:
 
 .. code-block:: python
@@ -278,7 +269,7 @@ Here are three ways of joining multiple strings into one string for writing.
 This also applies to any area of your code that involves a lot of string joining:
 
 String concatenation
-   This is the slowest option, do **not** use if you can avoid it, especially when writing data in a loop.
+   This is the slowest option, do **not** use this if you can avoid it, especially when writing data in a loop.
 
    >>> file.write(str1 + " " + str2 + " " + str3 + "\n")
 
@@ -288,7 +279,7 @@ String formatting
    >>> file.write("%s %s %s\n" % (str1, str2, str3))
 
 String joining
-   Use to join a list of strings (the list may be temporary). In the following example, the strings are joined with
+   Use this to join a list of strings (the list may be temporary). In the following example, the strings are joined with
    a space " " in between, other examples are "" or ", ".
 
    >>> file.write(" ".join((str1, str2, str3, "\n")))

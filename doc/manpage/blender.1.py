@@ -1,22 +1,5 @@
 #!/usr/bin/env python3
-
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 '''
 This script generates the blender.1 man page, embedding the help text
@@ -28,12 +11,9 @@ where <path-to-blender> is the path to the Blender executable,
 and <output-filename> is where to write the generated man page.
 '''
 
-# <pep8 compliant>
-
 import argparse
 import os
 import subprocess
-import sys
 import time
 
 from typing import (
@@ -61,7 +41,7 @@ def blender_extract_info(blender_bin: str) -> Dict[str, str]:
         stdout=subprocess.PIPE,
     ).stdout.decode(encoding="utf-8")
 
-    blender_version_ouput = subprocess.run(
+    blender_version_output = subprocess.run(
         [blender_bin, "--version"],
         env=blender_env,
         check=True,
@@ -73,7 +53,7 @@ def blender_extract_info(blender_bin: str) -> Dict[str, str]:
     # check for each lines prefix to ensure these aren't included.
     blender_version = ""
     blender_date = ""
-    for l in blender_version_ouput.split("\n"):
+    for l in blender_version_output.split("\n"):
         if l.startswith("Blender "):
             # Remove 'Blender' prefix.
             blender_version = l.split(" ", 1)[1].strip()
@@ -96,7 +76,9 @@ def blender_extract_info(blender_bin: str) -> Dict[str, str]:
     }
 
 
-def man_page_from_blender_help(fh: TextIO, blender_bin: str) -> None:
+def man_page_from_blender_help(fh: TextIO, blender_bin: str, verbose: bool) -> None:
+    if verbose:
+        print("Extracting help text:", blender_bin)
     blender_info = blender_extract_info(blender_bin)
 
     # Header Content.
@@ -119,10 +101,10 @@ blender \- a full-featured 3D application''')
 .PP
 .B blender
 is a full-featured 3D application. It supports the entirety of the 3D pipeline - '''
-'''modeling, rigging, animation, simulation, rendering, compositing, motion tracking, and video editing.
+             '''modeling, rigging, animation, simulation, rendering, compositing, motion tracking, and video editing.
 
 Use Blender to create 3D images and animations, films and commercials, content for games, '''
-r'''architectural and industrial visualizations, and scientific visualizations.
+             r'''architectural and industrial visualizations, and scientific visualizations.
 
 https://www.blender.org''')
 
@@ -195,6 +177,13 @@ def create_argparse() -> argparse.ArgumentParser:
         required=True,
         help="Path to the blender binary."
     )
+    parser.add_argument(
+        "--verbose",
+        default=False,
+        required=False,
+        action='store_true',
+        help="Print additional progress."
+    )
 
     return parser
 
@@ -205,9 +194,12 @@ def main() -> None:
 
     blender_bin = args.blender
     output_filename = args.output
+    verbose = args.verbose
 
     with open(output_filename, "w", encoding="utf-8") as fh:
-        man_page_from_blender_help(fh, blender_bin)
+        man_page_from_blender_help(fh, blender_bin, verbose)
+        if verbose:
+            print("Written:", output_filename)
 
 
 if __name__ == "__main__":

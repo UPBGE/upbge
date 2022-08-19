@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 /** \file
  * \ingroup DNA
  *
@@ -47,6 +31,10 @@ struct SequenceLookup;
 struct VFont;
 struct bSound;
 
+/* -------------------------------------------------------------------- */
+/** \name Sequence & Editing Structs
+ * \{ */
+
 /* strlens; 256= FILE_MAXFILE, 768= FILE_MAXDIR */
 
 typedef struct StripAnim {
@@ -69,13 +57,14 @@ typedef struct StripCrop {
 } StripCrop;
 
 typedef struct StripTransform {
-  int xofs;
-  int yofs;
+  float xofs;
+  float yofs;
   float scale_x;
   float scale_y;
   float rotation;
   /** 0-1 range, use SEQ_image_transform_origin_offset_pixelspace_get to convert to pixel space. */
   float origin[2];
+  int filter;
 } StripTransform;
 
 typedef struct StripColorBalance {
@@ -162,26 +151,25 @@ typedef struct Sequence {
    * Start frame of contents of strip in absolute frame coordinates.
    * For metastrips start of first strip startdisp.
    */
-  int start;
+  float start;
   /**
    * Frames after the first frame where display starts,
    * frames before the last frame where display ends.
    */
-  int startofs, endofs;
+  float startofs, endofs;
   /**
    * Frames that use the first frame before data begins,
    * frames that use the last frame after data ends.
    */
-  int startstill, endstill;
+  float startstill, endstill;
   /** Machine: the strip channel */
   int machine;
   int _pad3;
-  /** Starting and ending points of the strip in the sequence. */
+  /** Starting and ending points of the effect strip. Undefined for other strip types. */
   int startdisp, enddisp;
   float sat;
   float mul;
-  char tmp_tag;
-  char _pad[3];
+  float _pad;
 
   short anim_preseek; /* UNUSED. */
   /** Streamindex for movie or sound files with several streams. */
@@ -217,6 +205,7 @@ typedef struct Sequence {
 
   /** List of strips for metastrips. */
   ListBase seqbase;
+  ListBase channels; /* SeqTimelineChannel */
 
   /** The linked "bSound" object. */
   struct bSound *sound;
@@ -224,7 +213,7 @@ typedef struct Sequence {
   float volume;
 
   /** Pitch (-0.1..10), pan -2..2. */
-  float pitch, pan;
+  float pitch DNA_DEPRECATED, pan;
   float strobe;
 
   /** Struct pointer for effect settings. */
@@ -260,16 +249,29 @@ typedef struct Sequence {
   /* modifiers */
   ListBase modifiers;
 
+  /* Playback rate of strip content in frames per second. */
+  float media_playback_rate;
+  /* Multiply strip playback speed. */
+  float speed_factor;
+
   SequenceRuntime runtime;
 } Sequence;
 
 typedef struct MetaStack {
   struct MetaStack *next, *prev;
   ListBase *oldbasep;
+  ListBase *old_channels;
   Sequence *parseq;
   /* the startdisp/enddisp when entering the meta */
   int disp_range[2];
 } MetaStack;
+
+typedef struct SeqTimelineChannel {
+  struct SeqTimelineChannel *next, *prev;
+  char name[64];
+  int index;
+  int flag;
+} SeqTimelineChannel;
 
 typedef struct EditingRuntime {
   struct SequenceLookup *sequence_lookup;
@@ -278,9 +280,12 @@ typedef struct EditingRuntime {
 typedef struct Editing {
   /** Pointer to the current list of seq's being edited (can be within a meta strip). */
   ListBase *seqbasep;
+  ListBase *displayed_channels;
+  void *_pad0;
   /** Pointer to the top-most seq's. */
   ListBase seqbase;
   ListBase metastack;
+  ListBase channels; /* SeqTimelineChannel */
 
   /* Context vars, used to be static */
   Sequence *act_seq;
@@ -312,7 +317,12 @@ typedef struct Editing {
   void *_pad1;
 } Editing;
 
-/* ************* Effect Variable Structs ********* */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Effect Variable Structs
+ * \{ */
+
 typedef struct WipeVars {
   float edgeWidth, angle;
   short forward, wipetype;
@@ -361,7 +371,7 @@ typedef struct SpeedControlVars {
   float speed_fader_frame_number;
 } SpeedControlVars;
 
-/* SpeedControlVars.speed_control_type */
+/** #SpeedControlVars.speed_control_type */
 enum {
   SEQ_SPEED_STRETCH = 0,
   SEQ_SPEED_MULTIPLY = 1,
@@ -378,7 +388,7 @@ typedef struct TextVars {
   char text[512];
   struct VFont *text_font;
   int text_blf_id;
-  int text_size;
+  float text_size;
   float color[4], shadow_color[4], box_color[4];
   float loc[2];
   float wrap_width;
@@ -388,7 +398,7 @@ typedef struct TextVars {
   char _pad[5];
 } TextVars;
 
-/* TextVars.flag */
+/** #TextVars.flag */
 enum {
   SEQ_TEXT_SHADOW = (1 << 0),
   SEQ_TEXT_BOX = (1 << 1),
@@ -396,14 +406,14 @@ enum {
   SEQ_TEXT_ITALIC = (1 << 3),
 };
 
-/* TextVars.align */
+/** #TextVars.align */
 enum {
   SEQ_TEXT_ALIGN_X_LEFT = 0,
   SEQ_TEXT_ALIGN_X_CENTER = 1,
   SEQ_TEXT_ALIGN_X_RIGHT = 2,
 };
 
-/* TextVars.align_y */
+/** #TextVars.align_y */
 enum {
   SEQ_TEXT_ALIGN_Y_TOP = 0,
   SEQ_TEXT_ALIGN_Y_CENTER = 1,
@@ -419,7 +429,11 @@ typedef struct ColorMixVars {
   float factor;
 } ColorMixVars;
 
-/* ***************** Sequence modifiers ****************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Sequence Modifiers
+ * \{ */
 
 typedef struct SequenceModifierData {
   struct SequenceModifierData *next, *prev;
@@ -490,7 +504,11 @@ enum {
   SEQ_TONEMAP_RD_PHOTORECEPTOR = 1,
 };
 
-/* ***************** Scopes ****************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Scopes
+ * \{ */
 
 typedef struct SequencerScopes {
   struct ImBuf *reference_ibuf;
@@ -523,10 +541,15 @@ typedef struct SequencerScopes {
 #define SEQ_SPEED_UNUSED_3 (1 << 2) /* cleared */
 #define SEQ_SPEED_USE_INTERPOLATION (1 << 3)
 
-/* ***************** SEQUENCE ****************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Flags & Types
+ * \{ */
+
 #define SEQ_NAME_MAXSTR 64
 
-/* seq->flag */
+/** #Sequence.flag */
 enum {
   /* SELECT */
   SEQ_LEFTSEL = (1 << 1),
@@ -544,8 +567,8 @@ enum {
   SEQ_MAKE_FLOAT = (1 << 13),
   SEQ_LOCK = (1 << 14),
   SEQ_USE_PROXY = (1 << 15),
-  SEQ_FLAG_UNUSED_23 = (1 << 16), /* cleared */
-  SEQ_FLAG_UNUSED_22 = (1 << 17), /* cleared */
+  SEQ_IGNORE_CHANNEL_LOCK = (1 << 16),
+  SEQ_AUTO_PLAYBACK_RATE = (1 << 17),
   SEQ_FLAG_UNUSED_18 = (1 << 18), /* cleared */
   SEQ_FLAG_UNUSED_19 = (1 << 19), /* cleared */
   SEQ_FLAG_UNUSED_21 = (1 << 21), /* cleared */
@@ -569,7 +592,7 @@ enum {
   SEQ_INVALID_EFFECT = (1u << 31),
 };
 
-/* StripProxy->storage */
+/** #StripProxy.storage */
 enum {
   SEQ_STORAGE_PROXY_CUSTOM_FILE = (1 << 1), /* store proxy in custom directory */
   SEQ_STORAGE_PROXY_CUSTOM_DIR = (1 << 2),  /* store proxy in custom file */
@@ -602,18 +625,22 @@ enum {
 #define SEQ_PROXY_TC_RECORD_RUN_NO_GAPS 8
 #define SEQ_PROXY_TC_ALL 15
 
-/* SeqProxy->build_flags */
+/** SeqProxy.build_flags */
 enum {
   SEQ_PROXY_SKIP_EXISTING = 1,
 };
 
-/* seq->alpha_mode */
+/** #Sequence.alpha_mode */
 enum {
   SEQ_ALPHA_STRAIGHT = 0,
   SEQ_ALPHA_PREMUL = 1,
 };
 
-/* seq->type WATCH IT: SEQ_TYPE_EFFECT BIT is used to determine if this is an effect strip!!! */
+/**
+ * #Sequence.type
+ *
+ * \warning #SEQ_TYPE_EFFECT BIT is used to determine if this is an effect strip!
+ */
 enum {
   SEQ_TYPE_IMAGE = 0,
   SEQ_TYPE_META = 1,
@@ -682,7 +709,7 @@ enum {
 
 /* modifiers */
 
-/* SequenceModifierData->type */
+/** #SequenceModifierData.type */
 enum {
   seqModifierType_ColorBalance = 1,
   seqModifierType_Curves = 2,
@@ -695,7 +722,7 @@ enum {
   NUM_SEQUENCE_MODIFIER_TYPES,
 };
 
-/* SequenceModifierData->flag */
+/** #SequenceModifierData.flag */
 enum {
   SEQUENCE_MODIFIER_MUTE = (1 << 0),
   SEQUENCE_MODIFIER_EXPANDED = (1 << 1),
@@ -713,13 +740,14 @@ enum {
   SEQUENCE_MASK_TIME_ABSOLUTE = 1,
 };
 
-/* Sequence->cache_flag
- * SEQ_CACHE_STORE_RAW
- * SEQ_CACHE_STORE_PREPROCESSED
- * SEQ_CACHE_STORE_COMPOSITE
- * FINAL_OUT is ignored
+/**
+ * #Sequence.cache_flag
+ * - #SEQ_CACHE_STORE_RAW
+ * - #SEQ_CACHE_STORE_PREPROCESSED
+ * - #SEQ_CACHE_STORE_COMPOSITE
+ * - #FINAL_OUT is ignored
  *
- * Editing->cache_flag
+ * #Editing.cache_flag
  * all entries
  */
 enum {
@@ -746,7 +774,7 @@ enum {
   SEQ_CACHE_STORE_THUMBNAIL = (1 << 12),
 };
 
-/* Sequence->color_tag. */
+/** #Sequence.color_tag. */
 typedef enum SequenceColorTag {
   SEQUENCE_COLOR_NONE = -1,
   SEQUENCE_COLOR_01,
@@ -761,6 +789,19 @@ typedef enum SequenceColorTag {
 
   SEQUENCE_COLOR_TOT,
 } SequenceColorTag;
+
+/* Sequence->StripTransform->filter */
+enum {
+  SEQ_TRANSFORM_FILTER_NEAREST = 0,
+  SEQ_TRANSFORM_FILTER_BILINEAR = 1,
+};
+
+typedef enum eSeqChannelFlag {
+  SEQ_CHANNEL_LOCK = (1 << 0),
+  SEQ_CHANNEL_MUTE = (1 << 1),
+} eSeqChannelFlag;
+
+/** \} */
 
 #ifdef __cplusplus
 }

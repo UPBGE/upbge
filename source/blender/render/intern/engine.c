@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2006 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2006 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup render
@@ -62,6 +46,8 @@
 
 #include "DRW_engine.h"
 
+#include "GPU_context.h"
+
 #include "pipeline.h"
 #include "render_result.h"
 #include "render_types.h"
@@ -73,6 +59,11 @@ ListBase R_engines = {NULL, NULL};
 void RE_engines_init(void)
 {
   DRW_engines_register();
+}
+
+void RE_engines_init_experimental()
+{
+  DRW_engines_register_experimental();
 }
 
 void RE_engines_exit(void)
@@ -435,8 +426,6 @@ void RE_engine_end_result(
     return;
   }
 
-  re_ensure_passes_allocated_thread_safe(re);
-
   if (re->engine && (re->engine->flag & RE_ENGINE_HIGHLIGHT_TILES)) {
     const HighlightedTile tile = highlighted_tile_from_result_get(re, result);
 
@@ -445,6 +434,7 @@ void RE_engine_end_result(
 
   if (!cancel || merge_results) {
     if (!(re->test_break(re->tbh) && (re->r.scemode & R_BUTS_PREVIEW))) {
+      re_ensure_passes_allocated_thread_safe(re);
       render_result_merge(re->result, result);
     }
 
@@ -784,6 +774,7 @@ void RE_engine_frame_set(RenderEngine *engine, int frame, float subframe)
 }
 
 /* Bake */
+
 void RE_bake_engine_set_engine_parameters(Render *re, Main *bmain, Scene *scene)
 {
   re->scene = scene;
@@ -838,14 +829,14 @@ bool RE_bake_engine(Render *re,
       type->update(engine, re->main, engine->depsgraph);
     }
 
-    for (int i = 0; i < targets->num_images; i++) {
+    for (int i = 0; i < targets->images_num; i++) {
       const BakeImage *image = targets->images + i;
 
       engine->bake.pixels = pixel_array + image->offset;
-      engine->bake.result = result + image->offset * targets->num_channels;
+      engine->bake.result = result + image->offset * targets->channels_num;
       engine->bake.width = image->width;
       engine->bake.height = image->height;
-      engine->bake.depth = targets->num_channels;
+      engine->bake.depth = targets->channels_num;
       engine->bake.object_id = object_id;
 
       type->bake(
@@ -922,8 +913,10 @@ static void engine_render_view_layer(Render *re,
     }
   }
 
-  /* Optionally composite grease pencil over render result. */
-  if (engine->has_grease_pencil && use_grease_pencil) {
+  /* Optionally composite grease pencil over render result.
+   * Only do it if the passes are allocated (and the engine will not override the grease pencil
+   * when reading its result from EXR file and writing to the Blender side. */
+  if (engine->has_grease_pencil && use_grease_pencil && re->result->passes_allocated) {
     /* NOTE: External engine might have been requested to free its
      * dependency graph, which is only allowed if there is no grease
      * pencil (pipeline is taking care of that). */
@@ -957,6 +950,16 @@ bool RE_engine_render(Render *re, bool do_all)
   /* Lock drawing in UI during data phase. */
   if (re->draw_lock) {
     re->draw_lock(re->dlh, true);
+  }
+
+  if ((type->flag & RE_USE_GPU_CONTEXT) && !GPU_backend_supported()) {
+    /* Clear UI drawing locks. */
+    if (re->draw_lock) {
+      re->draw_lock(re->dlh, false);
+    }
+    BKE_report(re->reports, RPT_ERROR, "Can not initialize the GPU");
+    G.is_break = true;
+    return true;
   }
 
   /* update animation here so any render layer animation is applied before
@@ -1022,9 +1025,17 @@ bool RE_engine_render(Render *re, bool do_all)
     re->draw_lock(re->dlh, false);
   }
 
+  /* Render view layers. */
+  bool delay_grease_pencil = false;
+
   if (type->render) {
     FOREACH_VIEW_LAYER_TO_RENDER_BEGIN (re, view_layer_iter) {
       engine_render_view_layer(re, engine, view_layer_iter, true, true);
+
+      /* If render passes are not allocated the render engine deferred final pixels write for
+       * later. Need to defer the grease pencil for until after the engine has written the
+       * render result to Blender. */
+      delay_grease_pencil = engine->has_grease_pencil && !re->result->passes_allocated;
 
       if (RE_engine_test_break(engine)) {
         break;
@@ -1035,6 +1046,17 @@ bool RE_engine_render(Render *re, bool do_all)
 
   if (type->render_frame_finish) {
     type->render_frame_finish(engine);
+  }
+
+  /* Perform delayed grease pencil rendering. */
+  if (delay_grease_pencil) {
+    FOREACH_VIEW_LAYER_TO_RENDER_BEGIN (re, view_layer_iter) {
+      engine_render_view_layer(re, engine, view_layer_iter, false, true);
+      if (RE_engine_test_break(engine)) {
+        break;
+      }
+    }
+    FOREACH_VIEW_LAYER_TO_RENDER_END;
   }
 
   /* Clear tile data */

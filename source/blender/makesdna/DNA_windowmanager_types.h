@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2007 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2007 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup DNA
@@ -33,7 +17,8 @@
 extern "C" {
 #endif
 
-/* defined here: */
+/* Defined here: */
+
 struct wmWindow;
 struct wmWindowManager;
 
@@ -45,7 +30,8 @@ struct wmMsgBus;
 struct wmOperator;
 struct wmOperatorType;
 
-/* forwards */
+/* Forward declarations: */
+
 struct PointerRNA;
 struct Report;
 struct ReportList;
@@ -58,7 +44,7 @@ struct wmTimer;
 #define OP_MAX_TYPENAME 64
 #define KMAP_MAX_NAME 64
 
-/* keep in sync with 'rna_enum_wm_report_items' in wm_rna.c */
+/** Keep in sync with 'rna_enum_wm_report_items' in `wm_rna.c`. */
 typedef enum eReportType {
   RPT_DEBUG = (1 << 0),
   RPT_INFO = (1 << 1),
@@ -100,7 +86,9 @@ typedef struct Report {
   const char *message;
 } Report;
 
-/* saved in the wm, don't remove */
+/**
+ * \note Saved in the wm, don't remove.
+ */
 typedef struct ReportList {
   ListBase list;
   /** eReportType. */
@@ -133,7 +121,7 @@ typedef struct wmXrData {
 
 /* reports need to be before wmWindowManager */
 
-/* windowmanager is saved, tag WMAN */
+/** Window-manager is saved, tag WMAN. */
 typedef struct wmWindowManager {
   ID id;
 
@@ -163,6 +151,11 @@ typedef struct wmWindowManager {
 
   /** Refresh/redraw #wmNotifier structs. */
   ListBase notifier_queue;
+  /**
+   * For duplicate detection.
+   * \note keep in sync with `notifier_queue` adding/removing elements must also update this set.
+   */
+  struct GSet *notifier_queue_set;
 
   /** Information and error reports. */
   struct ReportList reports;
@@ -204,13 +197,13 @@ typedef struct wmWindowManager {
   //#endif
 } wmWindowManager;
 
-/* wmWindowManager.initialized */
+/** #wmWindowManager.initialized */
 enum {
   WM_WINDOW_IS_INIT = (1 << 0),
   WM_KEYCONFIG_IS_INIT = (1 << 1),
 };
 
-/* wmWindowManager.outliner_sync_select_dirty */
+/** #wmWindowManager.outliner_sync_select_dirty */
 enum {
   WM_OUTLINER_SYNC_SELECT_FROM_OBJECT = (1 << 0),
   WM_OUTLINER_SYNC_SELECT_FROM_EDIT_BONE = (1 << 1),
@@ -231,7 +224,9 @@ enum {
 #  endif
 #endif
 
-/* the saveable part, rest of data is local in ghostwinlay */
+/**
+ * The saveable part, the rest of the data is local in GHOST.
+ */
 typedef struct wmWindow {
   struct wmWindow *next, *prev;
 
@@ -249,6 +244,9 @@ typedef struct wmWindow {
   struct Scene *new_scene;
   /** Active view layer displayed in this window. */
   char view_layer_name[64];
+  /** The workspace may temporarily override the window's scene with scene pinning. This is the
+   * "overridden" or "default" scene to restore when entering a workspace with no scene pinned. */
+  struct Scene *unpinned_scene;
 
   struct WorkSpaceInstanceHook *workspace_hook;
 
@@ -304,9 +302,8 @@ typedef struct wmWindow {
 
   /** Storage for event system. */
   struct wmEvent *eventstate;
-
-  /** Internal for wm_operators.c. */
-  struct wmGesture *tweak;
+  /** Keep the last handled event in `event_queue` here (owned and must be freed). */
+  struct wmEvent *event_last_handled;
 
   /* Input Method Editor data - complex character input (especially for Asian character input)
    * Currently WIN32 and APPLE, runtime-only data. */
@@ -352,7 +349,9 @@ typedef struct wmOperatorTypeMacro {
   struct PointerRNA *ptr;
 } wmOperatorTypeMacro;
 
-/* Partial copy of the event, for matching by event handler. */
+/**
+ * Partial copy of the event, for matching by event handler.
+ */
 typedef struct wmKeyMapItem {
   struct wmKeyMapItem *next, *prev;
 
@@ -372,8 +371,10 @@ typedef struct wmKeyMapItem {
   /** Event code itself. */
   short type;
   /** KM_ANY, KM_PRESS, KM_NOTHING etc. */
-  short val;
-  /** `oskey` also known as apple, windows-key or super, value denotes order of pressed. */
+  int8_t val;
+  /** Use when `val == KM_CLICK_DRAG`. */
+  int8_t direction;
+  /** `oskey` also known as apple, windows-key or super. */
   short shift, ctrl, alt, oskey;
   /** Raw-key modifier. */
   short keymodifier;
@@ -411,13 +412,13 @@ enum {
   KMI_USER_MODIFIED = (1 << 2),
   KMI_UPDATE = (1 << 3),
   /**
-   * When set, ignore events with #wmEvent.is_repeat enabled.
+   * When set, ignore events with `wmEvent.flag & WM_EVENT_IS_REPEAT` enabled.
    *
    * \note this flag isn't cleared when editing/loading the key-map items,
    * so it may be set in cases which don't make sense (modifier-keys or mouse-motion for example).
    *
    * Knowing if an event may repeat is something set at the operating-systems event handling level
-   * so rely on #wmEvent.is_repeat being false non keyboard events instead of checking if this
+   * so rely on #WM_EVENT_IS_REPEAT being false non keyboard events instead of checking if this
    * flag makes sense.
    *
    * Only used when: `ISKEYBOARD(kmi->type) || (kmi->type == KM_TEXTINPUT)`
@@ -430,13 +431,15 @@ enum {
 enum {
   KMI_TYPE_KEYBOARD = 0,
   KMI_TYPE_MOUSE = 1,
-  KMI_TYPE_TWEAK = 2,
+  /* 2 is deprecated, was tweak. */
   KMI_TYPE_TEXTINPUT = 3,
   KMI_TYPE_TIMER = 4,
   KMI_TYPE_NDOF = 5,
 };
 
-/* stored in WM, the actively used keymaps */
+/**
+ * Stored in WM, the actively used key-maps.
+ */
 typedef struct wmKeyMap {
   struct wmKeyMap *next, *prev;
 
@@ -468,14 +471,19 @@ typedef struct wmKeyMap {
 
 /** #wmKeyMap.flag */
 enum {
-  KEYMAP_MODAL = (1 << 0), /* modal map, not using operatornames */
-  KEYMAP_USER = (1 << 1),  /* user keymap */
+  /** Modal map, not using operator-names. */
+  KEYMAP_MODAL = (1 << 0),
+  /** User key-map. */
+  KEYMAP_USER = (1 << 1),
   KEYMAP_EXPANDED = (1 << 2),
   KEYMAP_CHILDREN_EXPANDED = (1 << 3),
-  KEYMAP_DIFF = (1 << 4),          /* diff keymap for user preferences */
-  KEYMAP_USER_MODIFIED = (1 << 5), /* keymap has user modifications */
+  /** Diff key-map for user preferences. */
+  KEYMAP_DIFF = (1 << 4),
+  /** Key-map has user modifications. */
+  KEYMAP_USER_MODIFIED = (1 << 5),
   KEYMAP_UPDATE = (1 << 6),
-  KEYMAP_TOOL = (1 << 7), /* keymap for active tool system */
+  /** key-map for active tool system. */
+  KEYMAP_TOOL = (1 << 7),
 };
 
 /**
@@ -555,12 +563,14 @@ enum {
   OPERATOR_RUNNING_MODAL = (1 << 0),
   OPERATOR_CANCELLED = (1 << 1),
   OPERATOR_FINISHED = (1 << 2),
-  /* add this flag if the event should pass through */
+  /** Add this flag if the event should pass through. */
   OPERATOR_PASS_THROUGH = (1 << 3),
-  /* in case operator got executed outside WM code... like via fileselect */
+  /** In case operator got executed outside WM code (like via file-select). */
   OPERATOR_HANDLED = (1 << 4),
-  /* used for operators that act indirectly (eg. popup menu)
-   * NOTE: this isn't great design (using operators to trigger UI) avoid where possible. */
+  /**
+   * Used for operators that act indirectly (eg. popup menu).
+   * \note this isn't great design (using operators to trigger UI) avoid where possible.
+   */
   OPERATOR_INTERFACE = (1 << 5),
 };
 #define OPERATOR_FLAGS_ALL \
@@ -573,9 +583,10 @@ enum {
 
 /** #wmOperator.flag */
 enum {
-  /** low level flag so exec() operators can tell if they were invoked, use with care.
-   * Typically this shouldn't make any difference, but it rare cases its needed
-   * (see smooth-view) */
+  /**
+   * Low level flag so exec() operators can tell if they were invoked, use with care.
+   * Typically this shouldn't make any difference, but it rare cases its needed (see smooth-view).
+   */
   OP_IS_INVOKE = (1 << 0),
   /** So we can detect if an operators exec() call is activated by adjusting the last action. */
   OP_IS_REPEAT = (1 << 1),
@@ -592,8 +603,10 @@ enum {
   /** When the cursor is grabbed */
   OP_IS_MODAL_GRAB_CURSOR = (1 << 2),
 
-  /** Allow modal operators to have the region under the cursor for their context
-   * (the regiontype is maintained to prevent errors) */
+  /**
+   * Allow modal operators to have the region under the cursor for their context
+   * (the region-type is maintained to prevent errors).
+   */
   OP_IS_MODAL_CURSOR_REGION = (1 << 3),
 };
 

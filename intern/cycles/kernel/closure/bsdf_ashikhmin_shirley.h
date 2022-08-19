@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2014 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 /*
  * ASHIKHMIN SHIRLEY BSDF
@@ -52,7 +39,7 @@ ccl_device_inline float bsdf_ashikhmin_shirley_roughness_to_exponent(float rough
   return 2.0f / (roughness * roughness) - 2.0f;
 }
 
-ccl_device_forceinline float3
+ccl_device_forceinline Spectrum
 bsdf_ashikhmin_shirley_eval_reflect(ccl_private const ShaderClosure *sc,
                                     const float3 I,
                                     const float3 omega_in,
@@ -66,9 +53,10 @@ bsdf_ashikhmin_shirley_eval_reflect(ccl_private const ShaderClosure *sc,
 
   float out = 0.0f;
 
-  if (fmaxf(bsdf->alpha_x, bsdf->alpha_y) <= 1e-4f)
-    return make_float3(0.0f, 0.0f, 0.0f);
-
+  if (fmaxf(bsdf->alpha_x, bsdf->alpha_y) <= 1e-4f) {
+    *pdf = 0.0f;
+    return zero_spectrum();
+  }
   if (NdotI > 0.0f && NdotO > 0.0f) {
     NdotI = fmaxf(NdotI, 1e-6f);
     NdotO = fmaxf(NdotO, 1e-6f);
@@ -117,15 +105,16 @@ bsdf_ashikhmin_shirley_eval_reflect(ccl_private const ShaderClosure *sc,
     }
   }
 
-  return make_float3(out, out, out);
+  return make_spectrum(out);
 }
 
-ccl_device float3 bsdf_ashikhmin_shirley_eval_transmit(ccl_private const ShaderClosure *sc,
-                                                       const float3 I,
-                                                       const float3 omega_in,
-                                                       ccl_private float *pdf)
+ccl_device Spectrum bsdf_ashikhmin_shirley_eval_transmit(ccl_private const ShaderClosure *sc,
+                                                         const float3 I,
+                                                         const float3 omega_in,
+                                                         ccl_private float *pdf)
 {
-  return make_float3(0.0f, 0.0f, 0.0f);
+  *pdf = 0.0f;
+  return zero_spectrum();
 }
 
 ccl_device_inline void bsdf_ashikhmin_shirley_sample_first_quadrant(float n_x,
@@ -144,14 +133,10 @@ ccl_device_inline void bsdf_ashikhmin_shirley_sample_first_quadrant(float n_x,
 ccl_device int bsdf_ashikhmin_shirley_sample(ccl_private const ShaderClosure *sc,
                                              float3 Ng,
                                              float3 I,
-                                             float3 dIdx,
-                                             float3 dIdy,
                                              float randu,
                                              float randv,
-                                             ccl_private float3 *eval,
+                                             ccl_private Spectrum *eval,
                                              ccl_private float3 *omega_in,
-                                             ccl_private float3 *domega_in_dx,
-                                             ccl_private float3 *domega_in_dy,
                                              ccl_private float *pdf)
 {
   ccl_private const MicrofacetBsdf *bsdf = (ccl_private const MicrofacetBsdf *)sc;
@@ -225,19 +210,13 @@ ccl_device int bsdf_ashikhmin_shirley_sample(ccl_private const ShaderClosure *sc
     if (fmaxf(bsdf->alpha_x, bsdf->alpha_y) <= 1e-4f) {
       /* Some high number for MIS. */
       *pdf = 1e6f;
-      *eval = make_float3(1e6f, 1e6f, 1e6f);
+      *eval = make_spectrum(1e6f);
       label = LABEL_REFLECT | LABEL_SINGULAR;
     }
     else {
       /* leave the rest to eval_reflect */
       *eval = bsdf_ashikhmin_shirley_eval_reflect(sc, I, *omega_in, pdf);
     }
-
-#ifdef __RAY_DIFFERENTIALS__
-    /* just do the reflection thing for now */
-    *domega_in_dx = (2.0f * dot(N, dIdx)) * N - dIdx;
-    *domega_in_dy = (2.0f * dot(N, dIdy)) * N - dIdy;
-#endif
   }
 
   return label;

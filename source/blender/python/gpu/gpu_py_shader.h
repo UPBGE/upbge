@@ -1,24 +1,16 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bpygpu
  */
 
 #pragma once
+
+/* Make sure that there is always a reference count for PyObjects of type String as the strings are
+ * passed by reference in the #GPUStageInterfaceInfo and #GPUShaderCreateInfo APIs. */
+#define USE_GPU_PY_REFERENCES
+
+/* gpu_py_shader.c */
 
 extern PyTypeObject BPyGPUShader_Type;
 
@@ -32,3 +24,44 @@ typedef struct BPyGPUShader {
 
 PyObject *BPyGPUShader_CreatePyObject(struct GPUShader *shader, bool is_builtin);
 PyObject *bpygpu_shader_init(void);
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* gpu_py_shader_create_info.cc */
+
+extern PyTypeObject BPyGPUShaderCreateInfo_Type;
+extern PyTypeObject BPyGPUStageInterfaceInfo_Type;
+
+#define BPyGPUShaderCreateInfo_Check(v) (Py_TYPE(v) == &BPyGPUShaderCreateInfo_Type)
+#define BPyGPUStageInterfaceInfo_Check(v) (Py_TYPE(v) == &BPyGPUStageInterfaceInfo_Type)
+
+typedef struct BPyGPUStageInterfaceInfo {
+  PyObject_VAR_HEAD
+  struct GPUStageInterfaceInfo *interface;
+#ifdef USE_GPU_PY_REFERENCES
+  /* Just to keep a user to prevent freeing buf's we're using. */
+  PyObject *references;
+#endif
+} BPyGPUStageInterfaceInfo;
+
+typedef struct BPyGPUShaderCreateInfo {
+  PyObject_VAR_HEAD
+  struct GPUShaderCreateInfo *info;
+#ifdef USE_GPU_PY_REFERENCES
+  /* Just to keep a user to prevent freeing buf's we're using. */
+  PyObject *vertex_source;
+  PyObject *fragment_source;
+  PyObject *typedef_source;
+  PyObject *references;
+#endif
+  size_t constants_total_size;
+} BPyGPUShaderCreateInfo;
+
+PyObject *BPyGPUStageInterfaceInfo_CreatePyObject(struct GPUStageInterfaceInfo *interface);
+PyObject *BPyGPUShaderCreateInfo_CreatePyObject(struct GPUShaderCreateInfo *info);
+
+#ifdef __cplusplus
+}
+#endif

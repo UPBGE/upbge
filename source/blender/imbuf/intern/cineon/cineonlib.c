@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 1999,2000,2001 David Hodson <hodsond@acm.org>
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 1999-2001 David Hodson <hodsond@acm.org>. */
 
 /** \file
  * \ingroup imbcineon
@@ -50,7 +35,7 @@ void cineonSetVerbose(int verbosity)
 
 static void fillCineonMainHeader(LogImageFile *cineon,
                                  CineonMainHeader *header,
-                                 const char *filename,
+                                 const char *filepath,
                                  const char *creator)
 {
   time_t fileClock;
@@ -72,7 +57,7 @@ static void fillCineonMainHeader(LogImageFile *cineon,
                                                    getRowLength(cineon->width, cineon->element[0]),
                                            cineon->isMSB);
   strcpy(header->fileHeader.version, "v4.5");
-  strncpy(header->fileHeader.file_name, filename, 99);
+  strncpy(header->fileHeader.file_name, filepath, 99);
   header->fileHeader.file_name[99] = 0;
   fileClock = time(NULL);
   fileTime = localtime(&fileClock);
@@ -141,7 +126,7 @@ LogImageFile *cineonOpen(const unsigned char *byteStuff, int fromMemory, size_t 
 {
   CineonMainHeader header;
   LogImageFile *cineon = (LogImageFile *)MEM_mallocN(sizeof(LogImageFile), __func__);
-  const char *filename = (const char *)byteStuff;
+  const char *filepath = (const char *)byteStuff;
   int i;
   unsigned int dataOffset;
 
@@ -159,11 +144,11 @@ LogImageFile *cineonOpen(const unsigned char *byteStuff, int fromMemory, size_t 
   cineon->file = NULL;
 
   if (fromMemory == 0) {
-    /* byteStuff is then the filename */
-    cineon->file = BLI_fopen(filename, "rb");
+    /* byteStuff is then the filepath */
+    cineon->file = BLI_fopen(filepath, "rb");
     if (cineon->file == NULL) {
       if (verbose) {
-        printf("Cineon: Failed to open file \"%s\".\n", filename);
+        printf("Cineon: Failed to open file \"%s\".\n", filepath);
       }
       logImageClose(cineon);
       return NULL;
@@ -239,13 +224,13 @@ LogImageFile *cineonOpen(const unsigned char *byteStuff, int fromMemory, size_t 
   }
 
   if (cineon->depth == 1) {
-    /* Grayscale image */
+    /* Gray-scale image. */
     cineon->element[0].descriptor = descriptor_Luminance;
     cineon->element[0].transfer = transfer_Linear;
     cineon->element[0].depth = 1;
   }
   else if (cineon->depth == 3) {
-    /* RGB image */
+    /* RGB image. */
     if (cineon->numElements == 1) {
       cineon->element[0].descriptor = descriptor_RGB;
       cineon->element[0].transfer = transfer_PrintingDensity;
@@ -365,7 +350,7 @@ LogImageFile *cineonOpen(const unsigned char *byteStuff, int fromMemory, size_t 
 }
 
 LogImageFile *cineonCreate(
-    const char *filename, int width, int height, int bitsPerSample, const char *creator)
+    const char *filepath, int width, int height, int bitsPerSample, const char *creator)
 {
   CineonMainHeader header;
   const char *shortFilename = NULL;
@@ -408,18 +393,18 @@ LogImageFile *cineonCreate(
   cineon->referenceBlack = 95.0f;
   cineon->gamma = 1.7f;
 
-  shortFilename = strrchr(filename, '/');
+  shortFilename = strrchr(filepath, PATHSEP_CHAR);
   if (shortFilename == NULL) {
-    shortFilename = filename;
+    shortFilename = filepath;
   }
   else {
     shortFilename++;
   }
 
-  cineon->file = BLI_fopen(filename, "wb");
+  cineon->file = BLI_fopen(filepath, "wb");
   if (cineon->file == NULL) {
     if (verbose) {
-      printf("cineon: Couldn't open file %s\n", filename);
+      printf("cineon: Couldn't open file %s\n", filepath);
     }
     logImageClose(cineon);
     return NULL;

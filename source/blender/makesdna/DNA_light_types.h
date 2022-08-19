@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup DNA
@@ -40,6 +24,8 @@ struct Ipo;
 struct bNodeTree;
 
 typedef struct Light {
+  DNA_DEFINE_CXX_METHODS(Light)
+
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;
@@ -134,7 +120,7 @@ typedef struct Light {
 /* #define LA_NO_DIFF       (1 << 11) */ /* not used anywhere */
 /* #define LA_NO_SPEC       (1 << 12) */ /* not used anywhere */
 /* #define LA_SHAD_RAY      (1 << 13) */ /* not used anywhere - cleaned */
-/* yafray: light shadowbuffer flag, softlight */
+/* YAFRAY: light shadow-buffer flag, soft-light. */
 /* Since it is used with LOCAL light, can't use LA_SHAD */
 /* #define LA_YF_SOFT       (1 << 14) */ /* not used anymore */
 /* #define LA_LAYER_SHADOW  (1 << 15) */ /* not used anymore */
@@ -143,6 +129,7 @@ typedef struct Light {
 /* #define LA_SHOW_SHADOW_BOX (1 << 18) */
 #define LA_SHAD_CONTACT (1 << 19)
 #define LA_CUSTOM_ATTENUATION (1 << 20)
+#define LA_SOFT_SHADOWS (1 << 21) /* Sof shadow per light -- UPBGE */
 
 /* falloff_type */
 #define LA_FALLOFF_CONSTANT 0

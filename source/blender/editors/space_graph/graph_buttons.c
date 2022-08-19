@@ -1,24 +1,10 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2009 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2009 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup spgraph
+ *
+ * Graph editor space & buttons.
  */
 
 #include <float.h>
@@ -55,6 +41,8 @@
 #include "WM_types.h"
 
 #include "RNA_access.h"
+#include "RNA_path.h"
+#include "RNA_prototypes.h"
 
 #include "ED_anim_api.h"
 #include "ED_keyframing.h"
@@ -66,11 +54,11 @@
 
 #include "graph_intern.h" /* own include */
 
-/* ******************* graph editor space & buttons ************** */
-
 #define B_REDR 1
 
-/* -------------- */
+/* -------------------------------------------------------------------- */
+/** \name Internal Utilities
+ * \{ */
 
 static bool graph_panel_context(const bContext *C, bAnimListElem **ale, FCurve **fcu)
 {
@@ -120,7 +108,11 @@ static bool graph_panel_poll(const bContext *C, PanelType *UNUSED(pt))
   return graph_panel_context(C, NULL, NULL);
 }
 
-/* -------------- */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Cursor Header
+ * \{ */
 
 static void graph_panel_cursor_header(const bContext *C, Panel *panel)
 {
@@ -174,7 +166,11 @@ static void graph_panel_cursor(const bContext *C, Panel *panel)
   uiItemO(sub, IFACE_("Cursor Value to Selection"), ICON_NONE, "GRAPH_OT_snap_cursor_value");
 }
 
-/* ******************* active F-Curve ************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Active F-Curve
+ * \{ */
 
 static void graph_panel_properties(const bContext *C, Panel *panel)
 {
@@ -243,7 +239,11 @@ static void graph_panel_properties(const bContext *C, Panel *panel)
   MEM_freeN(ale);
 }
 
-/* ******************* active Keyframe ************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Active Keyframe
+ * \{ */
 
 /* get 'active' keyframe for panel editing */
 static bool get_active_fcurve_keyframe_edit(const FCurve *fcu,
@@ -278,7 +278,7 @@ static void graphedit_activekey_update_cb(bContext *UNUSED(C),
 
   /* make sure F-Curve and its handles are still valid after this editing */
   sort_time_fcurve(fcu);
-  calchandles_fcurve(fcu);
+  BKE_fcurve_handles_recalc(fcu);
 }
 
 /* update callback for active keyframe properties - handle-editing wrapper */
@@ -610,7 +610,11 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
   MEM_freeN(ale);
 }
 
-/* ******************* drivers ******************************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Drivers
+ * \{ */
 
 #define B_IPO_DEPCHANGE 10
 
@@ -1320,8 +1324,13 @@ static void graph_panel_drivers_popover(const bContext *C, Panel *panel)
   uiItemO(layout, IFACE_("Show in Drivers Editor"), ICON_DRIVER, "SCREEN_OT_drivers_editor_show");
 }
 
-/* ******************* F-Modifiers ******************************** */
-/* All the drawing code is in editors/animation/fmodifier_ui.c */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name F-Curve Modifiers
+ *
+ * \note All the drawing code is in `editors/animation/fmodifier_ui.c`
+ * \{ */
 
 #define B_FMODIFIER_REDRAW 20
 /** The start of FModifier panels registered for the graph editor. */
@@ -1380,7 +1389,11 @@ static void graph_panel_modifiers(const bContext *C, Panel *panel)
   MEM_freeN(ale);
 }
 
-/* ******************* general ******************************** */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Registration
+ * \{ */
 
 void graph_buttons_register(ARegionType *art)
 {
@@ -1456,3 +1469,5 @@ void graph_buttons_register(ARegionType *art)
   pt->draw_header = graph_panel_cursor_header;
   BLI_addtail(&art->paneltypes, pt);
 }
+
+/** \} */

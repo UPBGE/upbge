@@ -1,24 +1,10 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_string_utf8.h"
 
 #include "node_function_util.hh"
 
-namespace blender::nodes {
+namespace blender::nodes::node_fn_replace_string_cc {
 
 static void fn_node_replace_string_declare(NodeDeclarationBuilder &b)
 {
@@ -27,21 +13,19 @@ static void fn_node_replace_string_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::String>(N_("Replace"))
       .description(N_("The string to replace each match with"));
   b.add_output<decl::String>(N_("String"));
-};
+}
 
-static std::string replace_all(std::string str, const std::string &from, const std::string &to)
+static std::string replace_all(const StringRefNull str,
+                               const StringRefNull from,
+                               const StringRefNull to)
 {
-  if (from.length() <= 0) {
+  if (from.is_empty()) {
     return str;
   }
-  const size_t step = to.length() > 0 ? to.length() : 1;
-
-  size_t offset = 0;
-  while ((offset = str.find(from, offset)) != std::string::npos) {
-    str.replace(offset, from.length(), to);
-    offset += step;
-  }
-  return str;
+  char *new_str_ptr = BLI_str_replaceN(str.c_str(), from.c_str(), to.c_str());
+  std::string new_str{new_str_ptr};
+  MEM_freeN(new_str_ptr);
+  return new_str;
 }
 
 static void fn_node_replace_string_build_multi_function(NodeMultiFunctionBuilder &builder)
@@ -53,14 +37,16 @@ static void fn_node_replace_string_build_multi_function(NodeMultiFunctionBuilder
   builder.set_matching_fn(&substring_fn);
 }
 
-}  // namespace blender::nodes
+}  // namespace blender::nodes::node_fn_replace_string_cc
 
 void register_node_type_fn_replace_string()
 {
+  namespace file_ns = blender::nodes::node_fn_replace_string_cc;
+
   static bNodeType ntype;
 
-  fn_node_type_base(&ntype, FN_NODE_REPLACE_STRING, "Replace String", NODE_CLASS_CONVERTER, 0);
-  ntype.declare = blender::nodes::fn_node_replace_string_declare;
-  ntype.build_multi_function = blender::nodes::fn_node_replace_string_build_multi_function;
+  fn_node_type_base(&ntype, FN_NODE_REPLACE_STRING, "Replace String", NODE_CLASS_CONVERTER);
+  ntype.declare = file_ns::fn_node_replace_string_declare;
+  ntype.build_multi_function = file_ns::fn_node_replace_string_build_multi_function;
   nodeRegisterType(&ntype);
 }

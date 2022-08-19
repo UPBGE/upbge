@@ -1,22 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
-# <pep8 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 from bpy.types import Panel
 
 
@@ -628,6 +610,125 @@ class ConstraintButtonsPanel:
 
         self.draw_influence(layout, con)
 
+    def draw_rigid_body_joint(self, context):
+
+        layout = self.layout
+        con = self.get_constraint(context)
+        self.target_template(layout, con, subtargets=False)
+
+        layout.prop(con, "pivot_type")
+        layout.prop(con, "child")
+
+        row = layout.row()
+        row.prop(con, "use_linked_collision", text="Linked Collision")
+        row.prop(con, "show_pivot", text="Display Pivot")
+
+        row = layout.row()
+        row.prop(con, "use_breaking")
+        row = row.row()
+        row.active = con.use_breaking
+        row.prop(con, "breaking_threshold")
+
+        split = layout.split()
+
+        col = split.column(align=True)
+        col.label(text="Pivot:")
+        col.prop(con, "pivot_x", text="X")
+        col.prop(con, "pivot_y", text="Y")
+        col.prop(con, "pivot_z", text="Z")
+
+        col = split.column(align=True)
+        col.label(text="Axis:")
+        col.prop(con, "axis_x", text="X")
+        col.prop(con, "axis_y", text="Y")
+        col.prop(con, "axis_z", text="Z")
+
+        if con.pivot_type == 'CONE_TWIST':
+            layout.label(text="Limits:")
+            split = layout.split()
+
+            col = split.column()
+            col.prop(con, "use_angular_limit_x", text="Angle X")
+            sub = col.column()
+            sub.active = con.use_angular_limit_x
+            sub.prop(con, "limit_angle_max_x", text="")
+
+            col = split.column()
+            col.prop(con, "use_angular_limit_y", text="Angle Y")
+            sub = col.column()
+            sub.active = con.use_angular_limit_y
+            sub.prop(con, "limit_angle_max_y", text="")
+
+            col = split.column()
+            col.prop(con, "use_angular_limit_z", text="Angle Z")
+            sub = col.column()
+            sub.active = con.use_angular_limit_z
+            sub.prop(con, "limit_angle_max_z", text="")
+
+        elif con.pivot_type == 'GENERIC_6_DOF':
+            layout.label(text="Limits:")
+            split = layout.split()
+
+            col = split.column(align=True)
+            col.prop(con, "use_limit_x", text="X")
+            sub = col.column(align=True)
+            sub.active = con.use_limit_x
+            sub.prop(con, "limit_min_x", text="Min")
+            sub.prop(con, "limit_max_x", text="Max")
+
+            col = split.column(align=True)
+            col.prop(con, "use_limit_y", text="Y")
+            sub = col.column(align=True)
+            sub.active = con.use_limit_y
+            sub.prop(con, "limit_min_y", text="Min")
+            sub.prop(con, "limit_max_y", text="Max")
+
+            col = split.column(align=True)
+            col.prop(con, "use_limit_z", text="Z")
+            sub = col.column(align=True)
+            sub.active = con.use_limit_z
+            sub.prop(con, "limit_min_z", text="Min")
+            sub.prop(con, "limit_max_z", text="Max")
+
+            split = layout.split()
+
+            col = split.column(align=True)
+            col.prop(con, "use_angular_limit_x", text="Angle X")
+            sub = col.column(align=True)
+            sub.active = con.use_angular_limit_x
+            sub.prop(con, "limit_angle_min_x", text="Min")
+            sub.prop(con, "limit_angle_max_x", text="Max")
+
+            col = split.column(align=True)
+            col.prop(con, "use_angular_limit_y", text="Angle Y")
+            sub = col.column(align=True)
+            sub.active = con.use_angular_limit_y
+            sub.prop(con, "limit_angle_min_y", text="Min")
+            sub.prop(con, "limit_angle_max_y", text="Max")
+
+            col = split.column(align=True)
+            col.prop(con, "use_angular_limit_z", text="Angle Z")
+            sub = col.column(align=True)
+            sub.active = con.use_angular_limit_z
+            sub.prop(con, "limit_angle_min_z", text="Min")
+            sub.prop(con, "limit_angle_max_z", text="Max")
+
+        elif con.pivot_type == 'HINGE':
+            layout.label(text="Limits:")
+            split = layout.split()
+
+            row = split.row(align=True)
+            col = row.column()
+            col.prop(con, "use_angular_limit_x", text="Angle X")
+
+            col = row.column()
+            col.active = con.use_angular_limit_x
+            col.prop(con, "limit_angle_min_x", text="Min")
+            col = row.column()
+            col.active = con.use_angular_limit_x
+            col.prop(con, "limit_angle_max_x", text="Max")
+
+
     def draw_clamp_to(self, context):
         layout = self.layout
         con = self.get_constraint(context)
@@ -1146,8 +1247,38 @@ class ConstraintButtonsSubPanel:
         col.prop(con, "frame_start", text="Frame Start")
         col.prop(con, "frame_end", text="End")
 
+    def draw_transform_cache_velocity(self, context):
+        self.draw_transform_cache_subpanel(
+            context, self.layout.template_cache_file_velocity
+        )
+
+    def draw_transform_cache_procedural(self, context):
+        self.draw_transform_cache_subpanel(
+            context, self.layout.template_cache_file_procedural
+        )
+
+    def draw_transform_cache_time(self, context):
+        self.draw_transform_cache_subpanel(
+            context, self.layout.template_cache_file_time_settings
+        )
+
+    def draw_transform_cache_layers(self, context):
+        self.draw_transform_cache_subpanel(
+            context, self.layout.template_cache_file_layers
+        )
+
+    def draw_transform_cache_subpanel(self, context, template_func):
+        con = self.get_constraint(context)
+        if con.cache_file is None:
+            return
+
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = True
+        template_func(con, "cache_file")
 
 # Child Of Constraint
+
 
 class OBJECT_PT_bChildOfConstraint(ObjectConstraintPanel, ConstraintButtonsPanel, Panel):
     def draw(self, context):
@@ -1335,7 +1466,7 @@ class BONE_PT_bLockTrackConstraint(BoneConstraintPanel, ConstraintButtonsPanel, 
         self.draw_lock_track(context)
 
 
-# Disance Limit Constraint
+# Distance Limit Constraint
 
 class OBJECT_PT_bDistLimitConstraint(ObjectConstraintPanel, ConstraintButtonsPanel, Panel):
     def draw(self, context):
@@ -1381,6 +1512,12 @@ class OBJECT_PT_bClampToConstraint(ObjectConstraintPanel, ConstraintButtonsPanel
 class BONE_PT_bClampToConstraint(BoneConstraintPanel, ConstraintButtonsPanel, Panel):
     def draw(self, context):
         self.draw_clamp_to(context)
+
+# Rigid Body Joint Constraint
+
+class OBJECT_PT_bRigidBodyJointConstraint(ObjectConstraintPanel, ConstraintButtonsPanel, Panel):
+    def draw(self, context):
+        self.draw_rigid_body_joint(context)
 
 
 # Transform Constraint
@@ -1534,6 +1671,70 @@ class BONE_PT_bTransformCacheConstraint(BoneConstraintPanel, ConstraintButtonsPa
         self.draw_transform_cache(context)
 
 
+class OBJECT_PT_bTransformCacheConstraint_velocity(ObjectConstraintPanel, ConstraintButtonsSubPanel, Panel):
+    bl_parent_id = "OBJECT_PT_bTransformCacheConstraint"
+    bl_label = "Velocity"
+
+    def draw(self, context):
+        self.draw_transform_cache_velocity(context)
+
+
+class BONE_PT_bTransformCacheConstraint_velocity(BoneConstraintPanel, ConstraintButtonsSubPanel, Panel):
+    bl_parent_id = "BONE_PT_bTransformCacheConstraint"
+    bl_label = "Velocity"
+
+    def draw(self, context):
+        self.draw_transform_cache_velocity(context)
+
+
+class OBJECT_PT_bTransformCacheConstraint_layers(ObjectConstraintPanel, ConstraintButtonsSubPanel, Panel):
+    bl_parent_id = "OBJECT_PT_bTransformCacheConstraint"
+    bl_label = "Override Layers"
+
+    def draw(self, context):
+        self.draw_transform_cache_layers(context)
+
+
+class BONE_PT_bTransformCacheConstraint_layers(BoneConstraintPanel, ConstraintButtonsSubPanel, Panel):
+    bl_parent_id = "BONE_PT_bTransformCacheConstraint"
+    bl_label = "Override Layers"
+
+    def draw(self, context):
+        self.draw_transform_cache_layers(context)
+
+
+class OBJECT_PT_bTransformCacheConstraint_procedural(ObjectConstraintPanel, ConstraintButtonsSubPanel, Panel):
+    bl_parent_id = "OBJECT_PT_bTransformCacheConstraint"
+    bl_label = "Render Procedural"
+
+    def draw(self, context):
+        self.draw_transform_cache_procedural(context)
+
+
+class BONE_PT_bTransformCacheConstraint_procedural(BoneConstraintPanel, ConstraintButtonsSubPanel, Panel):
+    bl_parent_id = "BONE_PT_bTransformCacheConstraint"
+    bl_label = "Render Procedural"
+
+    def draw(self, context):
+        self.draw_transform_cache_procedural(context)
+
+
+class OBJECT_PT_bTransformCacheConstraint_time(ObjectConstraintPanel, ConstraintButtonsSubPanel, Panel):
+    bl_parent_id = "OBJECT_PT_bTransformCacheConstraint"
+    bl_label = "Time"
+
+    def draw(self, context):
+        self.draw_transform_cache_time(context)
+
+
+class BONE_PT_bTransformCacheConstraint_time(BoneConstraintPanel, ConstraintButtonsSubPanel, Panel):
+    bl_parent_id = "BONE_PT_bTransformCacheConstraint"
+    bl_label = "Time"
+
+    def draw(self, context):
+        self.draw_transform_cache_time(context)
+
+
 # Python Constraint
 
 class OBJECT_PT_bPythonConstraint(ObjectConstraintPanel, ConstraintButtonsPanel, Panel):
@@ -1610,6 +1811,7 @@ classes = (
     OBJECT_PT_bStretchToConstraint,
     OBJECT_PT_bMinMaxConstraint,
     OBJECT_PT_bClampToConstraint,
+    OBJECT_PT_bRigidBodyJointConstraint,
     OBJECT_PT_bTransformConstraint,
     OBJECT_PT_bTransformConstraint_source,
     OBJECT_PT_bTransformConstraint_destination,
@@ -1620,6 +1822,10 @@ classes = (
     OBJECT_PT_bCameraSolverConstraint,
     OBJECT_PT_bObjectSolverConstraint,
     OBJECT_PT_bTransformCacheConstraint,
+    OBJECT_PT_bTransformCacheConstraint_time,
+    OBJECT_PT_bTransformCacheConstraint_procedural,
+    OBJECT_PT_bTransformCacheConstraint_velocity,
+    OBJECT_PT_bTransformCacheConstraint_layers,
     OBJECT_PT_bPythonConstraint,
     OBJECT_PT_bArmatureConstraint,
     OBJECT_PT_bArmatureConstraint_bones,
@@ -1657,6 +1863,10 @@ classes = (
     BONE_PT_bCameraSolverConstraint,
     BONE_PT_bObjectSolverConstraint,
     BONE_PT_bTransformCacheConstraint,
+    BONE_PT_bTransformCacheConstraint_time,
+    BONE_PT_bTransformCacheConstraint_procedural,
+    BONE_PT_bTransformCacheConstraint_velocity,
+    BONE_PT_bTransformCacheConstraint_layers,
     BONE_PT_bPythonConstraint,
     BONE_PT_bArmatureConstraint,
     BONE_PT_bArmatureConstraint_bones,

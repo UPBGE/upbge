@@ -1,16 +1,5 @@
-# Copyright 2011-2020 Blender Foundation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2011-2022 Blender Foundation
 
 function(cycles_set_solution_folder target)
   if(IDE_GROUP_PROJECTS_IN_FOLDERS)
@@ -84,67 +73,58 @@ macro(cycles_add_library target library_deps)
   cycles_set_solution_folder(${target})
 endmacro()
 
-# Cycles library dependencies common to all executables
-
-function(cycles_link_directories)
+macro(cycles_external_libraries_append libraries)
   if(APPLE)
-    # APPLE plaform uses full paths for linking libraries, and avoids link_directories.
-    return()
+    list(APPEND ${libraries} "-framework Foundation")
+    if(WITH_USD)
+      list(APPEND ${libraries} "-framework CoreVideo -framework Cocoa")
+    endif()
+    if(WITH_CYCLES_STANDALONE_GUI OR WITH_USD)
+      list(APPEND ${libraries} "-framework OpenGL")
+    endif()
+  elseif(UNIX)
+    if(WITH_USD)
+      list(APPEND ${libraries} "X11")
+    endif()
   endif()
-
-  if(WITH_OPENCOLORIO)
-    link_directories(${OPENCOLORIO_LIBPATH})
-  endif()
-  if(WITH_OPENVDB)
-    link_directories(${OPENVDB_LIBPATH} ${BLOSC_LIBPATH})
-  endif()
-  if(WITH_OPENSUBDIV)
-    link_directories(${OPENSUBDIV_LIBPATH})
-  endif()
-  if(WITH_OPENIMAGEDENOISE)
-    link_directories(${OPENIMAGEDENOISE_LIBPATH})
-  endif()
-
-  link_directories(
-    ${OPENIMAGEIO_LIBPATH}
-    ${BOOST_LIBPATH}
-    ${PNG_LIBPATH}
-    ${JPEG_LIBPATH}
-    ${ZLIB_LIBPATH}
-    ${TIFF_LIBPATH}
-    ${OPENEXR_LIBPATH}
-    ${OPENJPEG_LIBPATH}
-  )
-endfunction()
-
-macro(cycles_target_link_libraries target)
   if(WITH_CYCLES_LOGGING)
-    target_link_libraries(${target} ${GLOG_LIBRARIES} ${GFLAGS_LIBRARIES})
+    list(APPEND ${libraries} ${GLOG_LIBRARIES} ${GFLAGS_LIBRARIES})
   endif()
   if(WITH_CYCLES_OSL)
-    target_link_libraries(${target} ${OSL_LIBRARIES} ${LLVM_LIBRARY})
+    list(APPEND ${libraries} ${OSL_LIBRARIES} ${CLANG_LIBRARIES} ${LLVM_LIBRARY})
   endif()
   if(WITH_CYCLES_EMBREE)
-    target_link_libraries(${target} ${EMBREE_LIBRARIES})
+    list(APPEND ${libraries} ${EMBREE_LIBRARIES})
   endif()
   if(WITH_OPENSUBDIV)
-    target_link_libraries(${target} ${OPENSUBDIV_LIBRARIES})
+    list(APPEND ${libraries} ${OPENSUBDIV_LIBRARIES})
   endif()
   if(WITH_OPENCOLORIO)
-    target_link_libraries(${target} ${OPENCOLORIO_LIBRARIES})
+    list(APPEND ${libraries} ${OPENCOLORIO_LIBRARIES})
+    if(APPLE)
+      list(APPEND ${libraries} "-framework IOKit")
+      list(APPEND ${libraries} "-framework Carbon")
+    endif()
   endif()
   if(WITH_OPENVDB)
-    target_link_libraries(${target} ${OPENVDB_LIBRARIES} ${BLOSC_LIBRARIES})
+    list(APPEND ${libraries} ${OPENVDB_LIBRARIES} ${BLOSC_LIBRARIES})
   endif()
   if(WITH_OPENIMAGEDENOISE)
-    target_link_libraries(${target} ${OPENIMAGEDENOISE_LIBRARIES})
+    list(APPEND ${libraries} ${OPENIMAGEDENOISE_LIBRARIES})
+    if(APPLE AND "${CMAKE_OSX_ARCHITECTURES}" STREQUAL "arm64")
+      list(APPEND ${libraries} "-framework Accelerate")
+    endif()
   endif()
-  target_link_libraries(
-    ${target}
+  if(WITH_ALEMBIC)
+    list(APPEND ${libraries} ${ALEMBIC_LIBRARIES})
+  endif()
+
+  list(APPEND ${libraries}
     ${OPENIMAGEIO_LIBRARIES}
     ${PNG_LIBRARIES}
     ${JPEG_LIBRARIES}
     ${TIFF_LIBRARY}
+    ${WEBP_LIBRARIES}
     ${OPENJPEG_LIBRARIES}
     ${OPENEXR_LIBRARIES}
     ${OPENEXR_LIBRARIES} # For circular dependencies between libs.
@@ -158,32 +138,26 @@ macro(cycles_target_link_libraries target)
 
   if(WITH_CYCLES_DEVICE_CUDA OR WITH_CYCLES_DEVICE_OPTIX)
     if(WITH_CUDA_DYNLOAD)
-      target_link_libraries(${target} extern_cuew)
+      list(APPEND ${libraries} extern_cuew)
     else()
-      target_link_libraries(${target} ${CUDA_CUDA_LIBRARY})
+      list(APPEND ${libraries} ${CUDA_CUDA_LIBRARY})
     endif()
   endif()
 
   if(WITH_CYCLES_DEVICE_HIP AND WITH_HIP_DYNLOAD)
-    target_link_libraries(${target} extern_hipew)
-  endif()
-
-  if(CYCLES_STANDALONE_REPOSITORY)
-    target_link_libraries(${target} extern_numaapi)
-  else()
-    target_link_libraries(${target} bf_intern_numaapi)
+    list(APPEND ${libraries} extern_hipew)
   endif()
 
   if(UNIX AND NOT APPLE)
     if(CYCLES_STANDALONE_REPOSITORY)
-      target_link_libraries(${target} extern_libc_compat)
+      list(APPEND ${libraries} extern_libc_compat)
     else()
-      target_link_libraries(${target} bf_intern_libc_compat)
+      list(APPEND ${libraries} bf_intern_libc_compat)
     endif()
   endif()
 
   if(NOT CYCLES_STANDALONE_REPOSITORY)
-    target_link_libraries(${target} bf_intern_guardedalloc)
+    list(APPEND ${libraries} bf_intern_guardedalloc)
   endif()
 endmacro()
 
@@ -193,13 +167,13 @@ macro(cycles_install_libraries target)
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
       install(
         FILES
-        ${TBB_ROOT_DIR}/lib/debug/tbb_debug${CMAKE_SHARED_LIBRARY_SUFFIX}
+        ${TBB_ROOT_DIR}/bin/tbb_debug${CMAKE_SHARED_LIBRARY_SUFFIX}
         ${OPENVDB_ROOT_DIR}/bin/openvdb_d${CMAKE_SHARED_LIBRARY_SUFFIX}
         DESTINATION $<TARGET_FILE_DIR:${target}>)
     else()
       install(
         FILES
-        ${TBB_ROOT_DIR}/lib/tbb${CMAKE_SHARED_LIBRARY_SUFFIX}
+        ${TBB_ROOT_DIR}/bin/tbb${CMAKE_SHARED_LIBRARY_SUFFIX}
         ${OPENVDB_ROOT_DIR}/bin/openvdb${CMAKE_SHARED_LIBRARY_SUFFIX}
         DESTINATION $<TARGET_FILE_DIR:${target}>)
     endif()

@@ -1,23 +1,12 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
+# SPDX-License-Identifier: GPL-2.0-or-later
 
-# <pep8 compliant>
-from bpy.types import Panel
+from bpy.types import (
+    Collection,
+    Menu,
+    Panel,
+)
+
+from rna_prop_ui import PropertyPanel
 
 
 class CollectionButtonsPanel:
@@ -60,6 +49,16 @@ class COLLECTION_PT_collection_flags(CollectionButtonsPanel, Panel):
         col.prop(vlc, "indirect_only", toggle=False)
 
 
+class COLLECTION_MT_context_menu_instance_offset(Menu):
+    bl_label = "Instance Offset"
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.operator("object.instance_offset_from_cursor")
+        layout.operator("object.instance_offset_from_object")
+        layout.operator("object.instance_offset_to_cursor")
+
+
 class COLLECTION_PT_instancing(CollectionButtonsPanel, Panel):
     bl_label = "Instancing"
 
@@ -69,8 +68,9 @@ class COLLECTION_PT_instancing(CollectionButtonsPanel, Panel):
         layout.use_property_decorate = False
         collection = context.collection
 
-        row = layout.row()
+        row = layout.row(align=True)
         row.prop(collection, "instance_offset")
+        row.menu("COLLECTION_MT_context_menu_instance_offset", icon='DOWNARROW_HLT', text="")
 
 
 class COLLECTION_PT_lineart_collection(CollectionButtonsPanel, Panel):
@@ -96,11 +96,24 @@ class COLLECTION_PT_lineart_collection(CollectionButtonsPanel, Panel):
             if i == 3:
                 row = col.row(align=True)
 
+        row = layout.row(heading="Intersection Priority")
+        row.prop(collection, "use_lineart_intersection_priority", text="")
+        subrow = row.row()
+        subrow.active = collection.use_lineart_intersection_priority
+        subrow.prop(collection, "lineart_intersection_priority", text="")
+
+
+class COLLECTION_PT_collection_custom_props(CollectionButtonsPanel, PropertyPanel, Panel):
+    _context_path = "collection"
+    _property_type = Collection
+
 
 classes = (
+    COLLECTION_MT_context_menu_instance_offset,
     COLLECTION_PT_collection_flags,
     COLLECTION_PT_instancing,
     COLLECTION_PT_lineart_collection,
+    COLLECTION_PT_collection_custom_props,
 )
 
 if __name__ == "__main__":  # only for live edit.

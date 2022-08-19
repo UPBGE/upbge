@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include "scene/film.h"
 #include "device/device.h"
@@ -165,7 +152,7 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 
   KernelFilm *kfilm = &dscene->data.film;
 
-  /* update __data */
+  /* update data */
   kfilm->exposure = exposure;
   kfilm->pass_alpha_threshold = pass_alpha_threshold;
   kfilm->pass_flag = 0;
@@ -176,6 +163,19 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
   kfilm->pass_stride = 0;
 
   /* Mark with PASS_UNUSED to avoid mask test in the kernel. */
+  kfilm->pass_combined = PASS_UNUSED;
+  kfilm->pass_depth = PASS_UNUSED;
+  kfilm->pass_position = PASS_UNUSED;
+  kfilm->pass_normal = PASS_UNUSED;
+  kfilm->pass_roughness = PASS_UNUSED;
+  kfilm->pass_motion = PASS_UNUSED;
+  kfilm->pass_motion_weight = PASS_UNUSED;
+  kfilm->pass_uv = PASS_UNUSED;
+  kfilm->pass_object_id = PASS_UNUSED;
+  kfilm->pass_material_id = PASS_UNUSED;
+  kfilm->pass_diffuse_color = PASS_UNUSED;
+  kfilm->pass_glossy_color = PASS_UNUSED;
+  kfilm->pass_transmission_color = PASS_UNUSED;
   kfilm->pass_background = PASS_UNUSED;
   kfilm->pass_emission = PASS_UNUSED;
   kfilm->pass_ao = PASS_UNUSED;
@@ -188,6 +188,7 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
   kfilm->pass_volume_direct = PASS_UNUSED;
   kfilm->pass_volume_indirect = PASS_UNUSED;
   kfilm->pass_shadow = PASS_UNUSED;
+  kfilm->pass_lightgroup = PASS_UNUSED;
 
   /* Mark passes as unused so that the kernel knows the pass is inaccessible. */
   kfilm->pass_denoising_normal = PASS_UNUSED;
@@ -202,6 +203,7 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
   bool have_cryptomatte = false;
   bool have_aov_color = false;
   bool have_aov_value = false;
+  bool have_lightgroup = false;
 
   for (size_t i = 0; i < scene->passes.size(); i++) {
     const Pass *pass = scene->passes[i];
@@ -234,6 +236,15 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
     }
     else {
       assert(pass->get_type() <= PASS_CATEGORY_BAKE_END);
+    }
+
+    if (pass->get_lightgroup() != ustring()) {
+      if (!have_lightgroup) {
+        kfilm->pass_lightgroup = kfilm->pass_stride;
+        have_lightgroup = true;
+      }
+      kfilm->pass_stride += pass->get_info().num_components;
+      continue;
     }
 
     switch (pass->get_type()) {
@@ -383,7 +394,7 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
   vector<float> table = filter_table(filter_type, filter_width);
   scene->lookup_tables->remove_table(&filter_table_offset_);
   filter_table_offset_ = scene->lookup_tables->add_table(dscene, table);
-  kfilm->filter_table_offset = (int)filter_table_offset_;
+  dscene->data.tables.filter_table_offset = (int)filter_table_offset_;
 
   /* mist pass parameters */
   kfilm->mist_start = mist_start;
@@ -425,6 +436,26 @@ int Film::get_aov_offset(Scene *scene, string name, bool &is_color)
   }
 
   return -1;
+}
+
+bool Film::update_lightgroups(Scene *scene)
+{
+  map<ustring, int> lightgroups;
+  int i = 0;
+  foreach (const Pass *pass, scene->passes) {
+    ustring lightgroup = pass->get_lightgroup();
+    if (!lightgroup.empty()) {
+      if (!lightgroups.count(lightgroup)) {
+        lightgroups[lightgroup] = i++;
+      }
+    }
+  }
+  if (scene->lightgroups != lightgroups) {
+    scene->lightgroups = lightgroups;
+    return true;
+  }
+
+  return false;
 }
 
 void Film::update_passes(Scene *scene, bool add_sample_count_pass)
@@ -549,10 +580,10 @@ void Film::update_passes(Scene *scene, bool add_sample_count_pass)
   tag_modified();
 
   /* Debug logging. */
-  if (VLOG_IS_ON(2)) {
-    VLOG(2) << "Effective scene passes:";
+  if (VLOG_INFO_IS_ON) {
+    VLOG_INFO << "Effective scene passes:";
     for (const Pass *pass : scene->passes) {
-      VLOG(2) << "- " << *pass;
+      VLOG_INFO << "- " << *pass;
     }
   }
 }
@@ -593,11 +624,19 @@ void Film::remove_auto_passes(Scene *scene)
 
 static bool compare_pass_order(const Pass *a, const Pass *b)
 {
+  /* On the highest level, sort by number of components.
+   * Within passes of the same component count, sort so that all non-lightgroup passes come first.
+   * Within that group, sort by type. */
   const int num_components_a = a->get_info().num_components;
   const int num_components_b = b->get_info().num_components;
 
   if (num_components_a == num_components_b) {
-    return (a->get_type() < b->get_type());
+    const int is_lightgroup_a = !a->get_lightgroup().empty();
+    const int is_lightgroup_b = !b->get_lightgroup().empty();
+    if (is_lightgroup_a == is_lightgroup_b) {
+      return (a->get_type() < b->get_type());
+    }
+    return is_lightgroup_b;
   }
 
   return num_components_a > num_components_b;

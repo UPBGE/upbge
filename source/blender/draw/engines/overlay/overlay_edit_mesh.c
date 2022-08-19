@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2019, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2019 Blender Foundation. */
 
 /** \file
  * \ingroup draw_engine
@@ -28,6 +13,7 @@
 
 #include "BKE_customdata.h"
 #include "BKE_editmesh.h"
+#include "BKE_object.h"
 
 #include "draw_cache_impl.h"
 #include "draw_manager_text.h"
@@ -152,6 +138,7 @@ void OVERLAY_edit_mesh_cache_init(OVERLAY_Data *vedata)
     GPUShader *edge_sh = OVERLAY_shader_edit_mesh_edge(!select_vert);
     GPUShader *face_sh = OVERLAY_shader_edit_mesh_face();
     const bool do_zbufclip = (i == 0 && pd->edit_mesh.do_zbufclip);
+    const bool do_smooth_wire = (U.gpu_flag & USER_GPU_FLAG_NO_EDIT_MODE_SMOOTH_WIRE) == 0;
     DRWState state_common = DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL |
                             DRW_STATE_BLEND_ALPHA;
     /* Faces */
@@ -187,10 +174,12 @@ void OVERLAY_edit_mesh_cache_init(OVERLAY_Data *vedata)
     DRW_shgroup_uniform_float_copy(grp, "alpha", backwire_opacity);
     DRW_shgroup_uniform_texture_ref(grp, "depthTex", depth_tex);
     DRW_shgroup_uniform_bool_copy(grp, "selectEdges", pd->edit_mesh.do_edges || select_edge);
+    DRW_shgroup_uniform_bool_copy(grp, "do_smooth_wire", do_smooth_wire);
 
     /* Verts */
     state |= DRW_STATE_WRITE_DEPTH;
     DRW_PASS_CREATE(psl->edit_mesh_verts_ps[i], state | pd->clipping_state);
+    int vert_mask[4] = {0xFF, 0xFF, 0xFF, 0xFF};
 
     if (select_vert) {
       sh = OVERLAY_shader_edit_mesh_vert();
@@ -198,6 +187,7 @@ void OVERLAY_edit_mesh_cache_init(OVERLAY_Data *vedata)
       DRW_shgroup_uniform_block(grp, "globalsBlock", G_draw.block_ubo);
       DRW_shgroup_uniform_float_copy(grp, "alpha", backwire_opacity);
       DRW_shgroup_uniform_texture_ref(grp, "depthTex", depth_tex);
+      DRW_shgroup_uniform_ivec4_copy(grp, "dataMask", vert_mask);
 
       sh = OVERLAY_shader_edit_mesh_skin_root();
       grp = pd->edit_mesh_skin_roots_grp[i] = DRW_shgroup_create(sh, psl->edit_mesh_verts_ps[i]);
@@ -210,6 +200,7 @@ void OVERLAY_edit_mesh_cache_init(OVERLAY_Data *vedata)
       DRW_shgroup_uniform_block(grp, "globalsBlock", G_draw.block_ubo);
       DRW_shgroup_uniform_float_copy(grp, "alpha", backwire_opacity);
       DRW_shgroup_uniform_texture_ref(grp, "depthTex", depth_tex);
+      DRW_shgroup_uniform_ivec4_copy(grp, "dataMask", vert_mask);
       DRW_shgroup_state_enable(grp, DRW_STATE_WRITE_DEPTH);
     }
     else {
@@ -229,7 +220,10 @@ static void overlay_edit_mesh_add_ob_to_pass(OVERLAY_PrivateData *pd, Object *ob
   Mesh *me = (Mesh *)ob->data;
   BMEditMesh *embm = me->edit_mesh;
   if (embm) {
-    has_edit_mesh_cage = embm->mesh_eval_cage && (embm->mesh_eval_cage != embm->mesh_eval_final);
+    Mesh *editmesh_eval_final = BKE_object_get_editmesh_eval_final(ob);
+    Mesh *editmesh_eval_cage = BKE_object_get_editmesh_eval_cage(ob);
+
+    has_edit_mesh_cage = editmesh_eval_cage && (editmesh_eval_cage != editmesh_eval_final);
     has_skin_roots = CustomData_get_offset(&embm->bm->vdata, CD_MVERT_SKIN) != -1;
   }
 

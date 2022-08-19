@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array.hh"
 #include "BLI_span.hh"
@@ -23,13 +9,11 @@
 
 using blender::Array;
 using blender::float3;
+using blender::GVArray;
 using blender::IndexRange;
 using blender::MutableSpan;
 using blender::Span;
-using blender::fn::GVArray;
-using blender::fn::GVArray_For_ArrayContainer;
-using blender::fn::GVArray_Typed;
-using blender::fn::GVArrayPtr;
+using blender::VArray;
 
 void NURBSpline::copy_settings(Spline &dst) const
 {
@@ -80,22 +64,6 @@ void NURBSpline::set_order(const uint8_t value)
 {
   BLI_assert(value >= 2 && value <= 6);
   order_ = value;
-  this->mark_cache_invalid();
-}
-
-/**
- * \warning Call #reallocate on the spline's attributes after adding all points.
- */
-void NURBSpline::add_point(const float3 position,
-                           const float radius,
-                           const float tilt,
-                           const float weight)
-{
-  positions_.append(position);
-  radii_.append(radius);
-  tilts_.append(tilt);
-  weights_.append(weight);
-  knots_dirty_ = true;
   this->mark_cache_invalid();
 }
 
@@ -156,119 +124,92 @@ void NURBSpline::mark_cache_invalid()
   length_cache_dirty_ = true;
 }
 
-int NURBSpline::evaluated_points_size() const
+int NURBSpline::evaluated_points_num() const
 {
-  if (!this->check_valid_size_and_order()) {
+  if (!this->check_valid_num_and_order()) {
     return 0;
   }
-  return resolution_ * this->segments_size();
+  return resolution_ * this->segments_num();
 }
 
 void NURBSpline::correct_end_tangents() const
 {
 }
 
-bool NURBSpline::check_valid_size_and_order() const
+bool NURBSpline::check_valid_num_and_order() const
 {
   if (this->size() < order_) {
     return false;
   }
 
-  if (!is_cyclic_ && this->knots_mode == KnotsMode::Bezier) {
-    if (order_ == 4) {
-      if (this->size() < 5) {
-        return false;
-      }
-    }
-    else if (order_ != 3) {
+  if (ELEM(this->knots_mode, NURBS_KNOT_MODE_BEZIER, NURBS_KNOT_MODE_ENDPOINT_BEZIER)) {
+    if (this->knots_mode == NURBS_KNOT_MODE_BEZIER && this->size() <= order_) {
       return false;
     }
+    return (!is_cyclic_ || this->size() % (order_ - 1) == 0);
   }
 
   return true;
 }
 
-int NURBSpline::knots_size() const
+int NURBSpline::knots_num() const
 {
-  const int size = this->size() + order_;
-  return is_cyclic_ ? size + order_ - 1 : size;
+  const int num = this->size() + order_;
+  return is_cyclic_ ? num + order_ - 1 : num;
 }
 
 void NURBSpline::calculate_knots() const
 {
   const KnotsMode mode = this->knots_mode;
-  const int length = this->size();
   const int order = order_;
+  const bool is_bezier = ELEM(mode, NURBS_KNOT_MODE_BEZIER, NURBS_KNOT_MODE_ENDPOINT_BEZIER);
+  const bool is_end_point = ELEM(mode, NURBS_KNOT_MODE_ENDPOINT, NURBS_KNOT_MODE_ENDPOINT_BEZIER);
+  /* Inner knots are always repeated once except on Bezier case. */
+  const int repeat_inner = is_bezier ? order - 1 : 1;
+  /* How many times to repeat 0.0 at the beginning of knot. */
+  const int head = is_end_point ? (order - (is_cyclic_ ? 1 : 0)) :
+                                  (is_bezier ? min_ii(2, repeat_inner) : 1);
+  /* Number of knots replicating widths of the starting knots.
+   * Covers both Cyclic and EndPoint cases. */
+  const int tail = is_cyclic_ ? 2 * order - 1 : (is_end_point ? order : 0);
 
-  knots_.resize(this->knots_size());
-
+  knots_.resize(this->knots_num());
   MutableSpan<float> knots = knots_;
 
-  if (mode == NURBSpline::KnotsMode::Normal || is_cyclic_) {
-    for (const int i : knots.index_range()) {
-      knots[i] = static_cast<float>(i);
-    }
+  int r = head;
+  float current = 0.0f;
+
+  const int offset = is_end_point && is_cyclic_ ? 1 : 0;
+  if (offset) {
+    knots[0] = current;
+    current += 1.0f;
   }
-  else if (mode == NURBSpline::KnotsMode::EndPoint) {
-    float k = 0.0f;
-    for (const int i : IndexRange(1, knots.size())) {
-      knots[i - 1] = k;
-      if (i >= order && i <= length) {
-        k += 1.0f;
-      }
-    }
-  }
-  else if (mode == NURBSpline::KnotsMode::Bezier) {
-    BLI_assert(ELEM(order, 3, 4));
-    if (order == 3) {
-      float k = 0.6f;
-      for (const int i : knots.index_range()) {
-        if (i >= order && i <= length) {
-          k += 0.5f;
-        }
-        knots[i] = std::floor(k);
-      }
-    }
-    else {
-      float k = 0.34f;
-      for (const int i : knots.index_range()) {
-        knots[i] = std::floor(k);
-        k += 1.0f / 3.0f;
-      }
+
+  for (const int i : IndexRange(offset, knots.size() - offset - tail)) {
+    knots[i] = current;
+    r--;
+    if (r == 0) {
+      current += 1.0;
+      r = repeat_inner;
     }
   }
 
-  if (is_cyclic_) {
-    const int b = length + order - 1;
-    if (order > 2) {
-      for (const int i : IndexRange(1, order - 2)) {
-        if (knots[b] != knots[b - i]) {
-          if (i == order - 1) {
-            knots[length + order - 2] += 1.0f;
-            break;
-          }
-        }
-      }
-    }
-
-    int c = order;
-    for (int i = b; i < this->knots_size(); i++) {
-      knots[i] = knots[i - 1] + (knots[c] - knots[c - 1]);
-      c--;
-    }
+  const int tail_index = knots.size() - tail;
+  for (const int i : IndexRange(tail)) {
+    knots[tail_index + i] = current + (knots[i] - knots[0]);
   }
 }
 
 Span<float> NURBSpline::knots() const
 {
   if (!knots_dirty_) {
-    BLI_assert(knots_.size() == this->size() + order_);
+    BLI_assert(knots_.size() == this->knots_num());
     return knots_;
   }
 
   std::lock_guard lock{knots_mutex_};
   if (!knots_dirty_) {
-    BLI_assert(knots_.size() == this->size() + order_);
+    BLI_assert(knots_.size() == this->knots_num());
     return knots_;
   }
 
@@ -280,65 +221,59 @@ Span<float> NURBSpline::knots() const
 }
 
 static void calculate_basis_for_point(const float parameter,
-                                      const int size,
-                                      const int order,
-                                      Span<float> knots,
-                                      MutableSpan<float> basis_buffer,
-                                      NURBSpline::BasisCache &basis_cache)
+                                      const int num,
+                                      const int degree,
+                                      const Span<float> knots,
+                                      MutableSpan<float> r_weights,
+                                      int &r_start_index)
 {
-  /* Clamp parameter due to floating point inaccuracy. */
-  const float t = std::clamp(parameter, knots[0], knots[size + order - 1]);
+  const int order = degree + 1;
 
   int start = 0;
   int end = 0;
-  for (const int i : IndexRange(size + order - 1)) {
+  for (const int i : IndexRange(num + degree)) {
     const bool knots_equal = knots[i] == knots[i + 1];
-    if (knots_equal || t < knots[i] || t > knots[i + 1]) {
-      basis_buffer[i] = 0.0f;
+    if (knots_equal || parameter < knots[i] || parameter > knots[i + 1]) {
       continue;
     }
 
-    basis_buffer[i] = 1.0f;
-    start = std::max(i - order - 1, 0);
+    start = std::max(i - degree, 0);
     end = i;
-    basis_buffer.slice(i + 1, size + order - 1 - i).fill(0.0f);
     break;
   }
-  basis_buffer[size + order - 1] = 0.0f;
 
-  for (const int i_order : IndexRange(2, order - 1)) {
-    if (end + i_order >= size + order) {
-      end = size + order - 1 - i_order;
+  Array<float, 12> buffer(order * 2, 0.0f);
+
+  buffer[end - start] = 1.0f;
+
+  for (const int i_order : IndexRange(2, degree)) {
+    if (end + i_order >= knots.size()) {
+      end = num + degree - i_order;
     }
-    for (const int i : IndexRange(start, end - start + 1)) {
+    for (const int i : IndexRange(end - start + 1)) {
+      const int knot_index = start + i;
+
       float new_basis = 0.0f;
-      if (basis_buffer[i] != 0.0f) {
-        new_basis += ((t - knots[i]) * basis_buffer[i]) / (knots[i + i_order - 1] - knots[i]);
+      if (buffer[i] != 0.0f) {
+        new_basis += ((parameter - knots[knot_index]) * buffer[i]) /
+                     (knots[knot_index + i_order - 1] - knots[knot_index]);
       }
 
-      if (basis_buffer[i + 1] != 0.0f) {
-        new_basis += ((knots[i + i_order] - t) * basis_buffer[i + 1]) /
-                     (knots[i + i_order] - knots[i + 1]);
+      if (buffer[i + 1] != 0.0f) {
+        new_basis += ((knots[knot_index + i_order] - parameter) * buffer[i + 1]) /
+                     (knots[knot_index + i_order] - knots[knot_index + 1]);
       }
 
-      basis_buffer[i] = new_basis;
+      buffer[i] = new_basis;
     }
   }
 
-  /* Shrink the range of calculated values to avoid storing unnecessary zeros. */
-  while (basis_buffer[start] == 0.0f && start < end) {
-    start++;
-  }
-  while (basis_buffer[end] == 0.0f && end > start) {
-    end--;
-  }
-
-  basis_cache.weights.clear();
-  basis_cache.weights.extend(basis_buffer.slice(start, end - start + 1));
-  basis_cache.start_index = start;
+  buffer.as_mutable_span().drop_front(end - start + 1).fill(0.0f);
+  r_weights.copy_from(buffer.as_span().take_front(order));
+  r_start_index = start;
 }
 
-Span<NURBSpline::BasisCache> NURBSpline::calculate_basis_cache() const
+const NURBSpline::BasisCache &NURBSpline::calculate_basis_cache() const
 {
   if (!basis_cache_dirty_) {
     return basis_cache_;
@@ -349,40 +284,43 @@ Span<NURBSpline::BasisCache> NURBSpline::calculate_basis_cache() const
     return basis_cache_;
   }
 
-  const int size = this->size();
-  const int eval_size = this->evaluated_points_size();
-  if (eval_size == 0) {
-    return {};
-  }
-
-  basis_cache_.resize(eval_size);
+  const int num = this->size();
+  const int eval_num = this->evaluated_points_num();
 
   const int order = this->order();
-  Span<float> control_weights = this->weights();
-  Span<float> knots = this->knots();
+  const int degree = order - 1;
 
-  MutableSpan<BasisCache> basis_cache(basis_cache_);
+  basis_cache_.weights.resize(eval_num * order);
+  basis_cache_.start_indices.resize(eval_num);
 
-  /* This buffer is reused by each basis calculation to store temporary values.
-   * Theoretically it could be optimized away in the future. */
-  Array<float> basis_buffer(this->knots_size());
+  if (eval_num == 0) {
+    return basis_cache_;
+  }
 
-  const float start = knots[order - 1];
-  const float end = is_cyclic_ ? knots[size + order - 1] : knots[size];
-  const float step = (end - start) / this->evaluated_edges_size();
-  float parameter = start;
-  for (const int i : IndexRange(eval_size)) {
-    BasisCache &basis = basis_cache[i];
+  MutableSpan<float> basis_weights(basis_cache_.weights);
+  MutableSpan<int> basis_start_indices(basis_cache_.start_indices);
+
+  const Span<float> control_weights = this->weights();
+  const Span<float> knots = this->knots();
+
+  const int last_control_point_index = is_cyclic_ ? num + degree : num;
+
+  const float start = knots[degree];
+  const float end = knots[last_control_point_index];
+  const float step = (end - start) / this->evaluated_edges_num();
+  for (const int i : IndexRange(eval_num)) {
+    /* Clamp parameter due to floating point inaccuracy. */
+    const float parameter = std::clamp(start + step * i, knots[0], knots[num + degree]);
+
+    MutableSpan<float> point_weights = basis_weights.slice(i * order, order);
+
     calculate_basis_for_point(
-        parameter, size + (is_cyclic_ ? order - 1 : 0), order, knots, basis_buffer, basis);
-    BLI_assert(basis.weights.size() <= order);
+        parameter, last_control_point_index, degree, knots, point_weights, basis_start_indices[i]);
 
-    for (const int j : basis.weights.index_range()) {
-      const int point_index = (basis.start_index + j) % size;
-      basis.weights[j] *= control_weights[point_index];
+    for (const int j : point_weights.index_range()) {
+      const int point_index = (basis_start_indices[i] + j) % num;
+      point_weights[j] *= control_weights[point_index];
     }
-
-    parameter += step;
   }
 
   basis_cache_dirty_ = false;
@@ -390,19 +328,20 @@ Span<NURBSpline::BasisCache> NURBSpline::calculate_basis_cache() const
 }
 
 template<typename T>
-void interpolate_to_evaluated_impl(Span<NURBSpline::BasisCache> weights,
+void interpolate_to_evaluated_impl(const NURBSpline::BasisCache &basis_cache,
+                                   const int order,
                                    const blender::VArray<T> &src,
                                    MutableSpan<T> dst)
 {
-  const int size = src.size();
-  BLI_assert(dst.size() == weights.size());
+  const int num = src.size();
   blender::attribute_math::DefaultMixer<T> mixer(dst);
 
   for (const int i : dst.index_range()) {
-    Span<float> point_weights = weights[i].weights;
-    const int start_index = weights[i].start_index;
+    Span<float> point_weights = basis_cache.weights.as_span().slice(i * order, order);
+    const int start_index = basis_cache.start_indices[i];
+
     for (const int j : point_weights.index_range()) {
-      const int point_index = (start_index + j) % size;
+      const int point_index = (start_index + j) % num;
       mixer.mix_in(i, src[point_index], point_weights[j]);
     }
   }
@@ -410,23 +349,23 @@ void interpolate_to_evaluated_impl(Span<NURBSpline::BasisCache> weights,
   mixer.finalize();
 }
 
-GVArrayPtr NURBSpline::interpolate_to_evaluated(const GVArray &src) const
+GVArray NURBSpline::interpolate_to_evaluated(const GVArray &src) const
 {
   BLI_assert(src.size() == this->size());
 
   if (src.is_single()) {
-    return src.shallow_copy();
+    return src;
   }
 
-  Span<BasisCache> basis_cache = this->calculate_basis_cache();
+  const BasisCache &basis_cache = this->calculate_basis_cache();
 
-  GVArrayPtr new_varray;
+  GVArray new_varray;
   blender::attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
     using T = decltype(dummy);
     if constexpr (!std::is_void_v<blender::attribute_math::DefaultMixer<T>>) {
-      Array<T> values(this->evaluated_points_size());
-      interpolate_to_evaluated_impl<T>(basis_cache, src.typed<T>(), values);
-      new_varray = std::make_unique<GVArray_For_ArrayContainer<Array<T>>>(std::move(values));
+      Array<T> values(this->evaluated_points_num());
+      interpolate_to_evaluated_impl<T>(basis_cache, this->order(), src.typed<T>(), values);
+      new_varray = VArray<T>::ForContainer(std::move(values));
     }
   });
 
@@ -444,12 +383,12 @@ Span<float3> NURBSpline::evaluated_positions() const
     return evaluated_position_cache_;
   }
 
-  const int eval_size = this->evaluated_points_size();
-  evaluated_position_cache_.resize(eval_size);
+  const int eval_num = this->evaluated_points_num();
+  evaluated_position_cache_.resize(eval_num);
 
   /* TODO: Avoid copying the evaluated data from the temporary array. */
-  GVArray_Typed<float3> evaluated = Spline::interpolate_to_evaluated(positions_.as_span());
-  evaluated->materialize(evaluated_position_cache_);
+  VArray<float3> evaluated = Spline::interpolate_to_evaluated(positions_.as_span());
+  evaluated.materialize(evaluated_position_cache_);
 
   position_cache_dirty_ = false;
   return evaluated_position_cache_;

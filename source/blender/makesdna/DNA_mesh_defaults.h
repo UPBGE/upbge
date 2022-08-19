@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -36,7 +22,7 @@
     .remesh_voxel_adaptivity = 0.0f, \
     .face_sets_color_seed = 0, \
     .face_sets_color_default = 1, \
-    .flag = ME_REMESH_FIX_POLES | ME_REMESH_REPROJECT_VOLUME, \
+    .flag = ME_REMESH_REPROJECT_VOLUME | ME_REMESH_REPROJECT_PAINT_MASK | ME_REMESH_REPROJECT_SCULPT_FACE_SETS | ME_REMESH_REPROJECT_VERTEX_COLORS, \
     .editflag = ME_EDIT_MIRROR_VERTEX_GROUPS \
   }
 

@@ -1,22 +1,4 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
-# <pep8-80 compliant>
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # panels get subclassed (not registered directly)
 # menus are referenced `as is`
@@ -249,14 +231,20 @@ class MASK_PT_display:
         layout = self.layout
 
         space_data = context.space_data
+
         row = layout.row(align=True)
-        row.prop(space_data, "show_mask_smooth", text="Smooth")
-        row.prop(space_data, "mask_display_type", text="")
+        row.prop(space_data, "show_mask_spline", text="Spline")
+        sub = row.row()
+        sub.active = space_data.show_mask_spline
+        sub.prop(space_data, "mask_display_type", text="")
         row = layout.row(align=True)
         row.prop(space_data, "show_mask_overlay", text="Overlay")
         sub = row.row()
         sub.active = space_data.show_mask_overlay
         sub.prop(space_data, "mask_overlay_mode", text="")
+        row = layout.row()
+        row.active = (space_data.mask_overlay_mode in ['COMBINED'] and space_data.show_mask_overlay)
+        row.prop(space_data, "blend_factor", text="Blending Factor")
 
 
 class MASK_PT_transforms:

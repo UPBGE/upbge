@@ -1,21 +1,6 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- * Copyright (C) 1995 Software Foundation, Inc.
- *
- * Written by Ulrich Drepper <drepper@gnu.ai.mit.edu>.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 1995 Free Software Foundation, Inc.
+ * Written by Ulrich Drepper <drepper@gnu.ai.mit.edu>. */
 
 /** \file
  * \ingroup bli
@@ -158,7 +143,7 @@ static void md5_process_block(const void *buffer, size_t len, struct md5_ctx *ct
   (void)0
 
     /* Before we start, one word to the strange constants. They are defined in RFC 1321 as:
-     *     T[i] = (int) (4294967296.0 * fabs (sin (i))), i=1..64
+     *     `T[i] = (int) (4294967296.0 * fabs (sin (i))), i=1..64`
      */
 
     /* Round 1. */
@@ -284,14 +269,9 @@ static void *md5_read_ctx(const struct md5_ctx *ctx, void *resbuf)
 
 /* Top level public functions. */
 
-/**
- * Compute MD5 message digest for bytes read from 'stream'.
- * The resulting message digest number will be written into the 16 bytes beginning at 'resblock'.
- * \return Non-zero if an error occurred.
- */
 int BLI_hash_md5_stream(FILE *stream, void *resblock)
 {
-#define BLOCKSIZE 4096 /* Important: must be a multiple of 64. */
+#define BLOCKSIZE 4096 /* IMPORTANT: must be a multiple of 64. */
   struct md5_ctx ctx;
   md5_uint32 len[2];
   char buffer[BLOCKSIZE + 72];
@@ -335,7 +315,7 @@ int BLI_hash_md5_stream(FILE *stream, void *resblock)
       break;
     }
 
-    /* Process buffer with BLOCKSIZE bytes. Note that BLOCKSIZE % 64 == 0. */
+    /* Process buffer with BLOCKSIZE bytes. Note that `BLOCKSIZE % 64 == 0`. */
     md5_process_block(buffer, BLOCKSIZE, &ctx);
   }
 
@@ -343,7 +323,7 @@ int BLI_hash_md5_stream(FILE *stream, void *resblock)
    * 'fillbuf' contains the needed bits. */
   memcpy(&buffer[sum], fillbuf, 64);
 
-  /* Compute amount of padding bytes needed. Alignment is done to (N + PAD) % 64 == 56.
+  /* Compute amount of padding bytes needed. Alignment is done to `(N + PAD) % 64 == 56`.
    * There is always at least one byte padded, i.e. if the alignment is correctly aligned,
    * 64 padding bytes are added.
    */
@@ -362,11 +342,6 @@ int BLI_hash_md5_stream(FILE *stream, void *resblock)
   return 0;
 }
 
-/**
- * Compute MD5 message digest for 'len' bytes beginning at 'buffer'.
- * The result is always in little endian byte order,
- * so that a byte-wise output yields to the wanted ASCII representation of the message digest.
- */
 void *BLI_hash_md5_buffer(const char *buffer, size_t len, void *resblock)
 {
   struct md5_ctx ctx;

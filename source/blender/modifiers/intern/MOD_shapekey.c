@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2005 by the Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2005 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup modifiers
@@ -25,6 +9,8 @@
 
 #include "BLI_math.h"
 
+#include "BLT_translation.h"
+
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
@@ -33,6 +19,7 @@
 #include "BKE_particle.h"
 
 #include "RNA_access.h"
+#include "RNA_prototypes.h"
 
 #include "MOD_modifiertypes.h"
 
@@ -42,14 +29,14 @@ static void deformVerts(ModifierData *UNUSED(md),
                         const ModifierEvalContext *ctx,
                         Mesh *UNUSED(mesh),
                         float (*vertexCos)[3],
-                        int numVerts)
+                        int verts_num)
 {
   Key *key = BKE_key_from_object(ctx->object);
 
   if (key && key->block.first) {
     int deformedVerts_tot;
     BKE_key_evaluate_object_ex(
-        ctx->object, &deformedVerts_tot, (float *)vertexCos, sizeof(*vertexCos) * numVerts);
+        ctx->object, &deformedVerts_tot, (float *)vertexCos, sizeof(*vertexCos) * verts_num, NULL);
   }
 }
 
@@ -58,7 +45,7 @@ static void deformMatrices(ModifierData *md,
                            Mesh *mesh,
                            float (*vertexCos)[3],
                            float (*defMats)[3][3],
-                           int numVerts)
+                           int verts_num)
 {
   Key *key = BKE_key_from_object(ctx->object);
   KeyBlock *kb = BKE_keyblock_from_object(ctx->object);
@@ -66,7 +53,7 @@ static void deformMatrices(ModifierData *md,
 
   (void)vertexCos; /* unused */
 
-  if (kb && kb->totelem == numVerts && kb != key->refkey) {
+  if (kb && kb->totelem == verts_num && kb != key->refkey) {
     int a;
 
     if (ctx->object->shapeflag & OB_SHAPE_LOCK) {
@@ -76,12 +63,12 @@ static void deformMatrices(ModifierData *md,
       scale_m3_fl(scale, kb->curval);
     }
 
-    for (a = 0; a < numVerts; a++) {
+    for (a = 0; a < verts_num; a++) {
       copy_m3_m3(defMats[a], scale);
     }
   }
 
-  deformVerts(md, ctx, mesh, vertexCos, numVerts);
+  deformVerts(md, ctx, mesh, vertexCos, verts_num);
 }
 
 static void deformVertsEM(ModifierData *md,
@@ -89,12 +76,12 @@ static void deformVertsEM(ModifierData *md,
                           struct BMEditMesh *UNUSED(editData),
                           Mesh *mesh,
                           float (*vertexCos)[3],
-                          int numVerts)
+                          int verts_num)
 {
   Key *key = BKE_key_from_object(ctx->object);
 
   if (key && key->type == KEY_RELATIVE) {
-    deformVerts(md, ctx, mesh, vertexCos, numVerts);
+    deformVerts(md, ctx, mesh, vertexCos, verts_num);
   }
 }
 
@@ -104,7 +91,7 @@ static void deformMatricesEM(ModifierData *UNUSED(md),
                              Mesh *UNUSED(mesh),
                              float (*vertexCos)[3],
                              float (*defMats)[3][3],
-                             int numVerts)
+                             int verts_num)
 {
   Key *key = BKE_key_from_object(ctx->object);
   KeyBlock *kb = BKE_keyblock_from_object(ctx->object);
@@ -112,18 +99,18 @@ static void deformMatricesEM(ModifierData *UNUSED(md),
 
   (void)vertexCos; /* unused */
 
-  if (kb && kb->totelem == numVerts && kb != key->refkey) {
+  if (kb && kb->totelem == verts_num && kb != key->refkey) {
     int a;
     scale_m3_fl(scale, kb->curval);
 
-    for (a = 0; a < numVerts; a++) {
+    for (a = 0; a < verts_num; a++) {
       copy_m3_m3(defMats[a], scale);
     }
   }
 }
 
 ModifierTypeInfo modifierType_ShapeKey = {
-    /* name */ "ShapeKey",
+    /* name */ N_("ShapeKey"),
     /* structName */ "ShapeKeyModifierData",
     /* structSize */ sizeof(ShapeKeyModifierData),
     /* srna */ &RNA_Modifier,
@@ -139,7 +126,6 @@ ModifierTypeInfo modifierType_ShapeKey = {
     /* deformVertsEM */ deformVertsEM,
     /* deformMatricesEM */ deformMatricesEM,
     /* modifyMesh */ NULL,
-    /* modifyHair */ NULL,
     /* modifyGeometrySet */ NULL,
 
     /* initData */ NULL,

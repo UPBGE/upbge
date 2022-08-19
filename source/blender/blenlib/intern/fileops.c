@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup bli
@@ -180,17 +164,10 @@ bool BLI_file_magic_is_zstd(const char header[4])
   return false;
 }
 
-/**
- * Returns true if the file with the specified name can be written.
- * This implementation uses access(2), which makes the check according
- * to the real UID and GID of the process, not its effective UID and GID.
- * This shouldn't matter for Blender, which is not going to run privileged
- * anyway.
- */
-bool BLI_file_is_writable(const char *filename)
+bool BLI_file_is_writable(const char *filepath)
 {
   bool writable;
-  if (BLI_access(filename, W_OK) == 0) {
+  if (BLI_access(filepath, W_OK) == 0) {
     /* file exists and I can write to it */
     writable = true;
   }
@@ -201,7 +178,7 @@ bool BLI_file_is_writable(const char *filename)
   else {
     /* file doesn't exist -- check I can create it in parent directory */
     char parent[FILE_MAX];
-    BLI_split_dirfile(filename, parent, NULL, sizeof(parent), 0);
+    BLI_split_dirfile(filepath, parent, NULL, sizeof(parent), 0);
 #ifdef WIN32
     /* windows does not have X_OK */
     writable = BLI_access(parent, W_OK) == 0;
@@ -212,10 +189,6 @@ bool BLI_file_is_writable(const char *filename)
   return writable;
 }
 
-/**
- * Creates the file with nothing in it, or updates its last-modified date if it already exists.
- * Returns true if successful (like the unix touch command).
- */
 bool BLI_file_touch(const char *file)
 {
   FILE *f = BLI_fopen(file, "r+b");
@@ -251,38 +224,38 @@ static void callLocalErrorCallBack(const char *err)
   printf("%s\n", err);
 }
 
-FILE *BLI_fopen(const char *filename, const char *mode)
+FILE *BLI_fopen(const char *filepath, const char *mode)
 {
-  BLI_assert(!BLI_path_is_rel(filename));
+  BLI_assert(!BLI_path_is_rel(filepath));
 
-  return ufopen(filename, mode);
+  return ufopen(filepath, mode);
 }
 
-void BLI_get_short_name(char short_name[256], const char *filename)
+void BLI_get_short_name(char short_name[256], const char *filepath)
 {
   wchar_t short_name_16[256];
   int i = 0;
 
-  UTF16_ENCODE(filename);
+  UTF16_ENCODE(filepath);
 
-  GetShortPathNameW(filename_16, short_name_16, 256);
+  GetShortPathNameW(filepath_16, short_name_16, 256);
 
   for (i = 0; i < 256; i++) {
     short_name[i] = (char)short_name_16[i];
   }
 
-  UTF16_UN_ENCODE(filename);
+  UTF16_UN_ENCODE(filepath);
 }
 
-void *BLI_gzopen(const char *filename, const char *mode)
+void *BLI_gzopen(const char *filepath, const char *mode)
 {
   gzFile gzfile;
 
-  BLI_assert(!BLI_path_is_rel(filename));
+  BLI_assert(!BLI_path_is_rel(filepath));
 
   /* XXX: Creates file before transcribing the path. */
   if (mode[0] == 'w') {
-    FILE *file = ufopen(filename, "a");
+    FILE *file = ufopen(filepath, "a");
     if (file == NULL) {
       /* File couldn't be opened, e.g. due to permission error. */
       return NULL;
@@ -293,15 +266,15 @@ void *BLI_gzopen(const char *filename, const char *mode)
   /* temporary #if until we update all libraries to 1.2.7
    * for correct wide char path handling */
 #  if ZLIB_VERNUM >= 0x1270
-  UTF16_ENCODE(filename);
+  UTF16_ENCODE(filepath);
 
-  gzfile = gzopen_w(filename_16, mode);
+  gzfile = gzopen_w(filepath_16, mode);
 
-  UTF16_UN_ENCODE(filename);
+  UTF16_UN_ENCODE(filepath);
 #  else
   {
     char short_name[256];
-    BLI_get_short_name(short_name, filename);
+    BLI_get_short_name(short_name, filepath);
     gzfile = gzopen(short_name, mode);
   }
 #  endif
@@ -309,18 +282,18 @@ void *BLI_gzopen(const char *filename, const char *mode)
   return gzfile;
 }
 
-int BLI_open(const char *filename, int oflag, int pmode)
+int BLI_open(const char *filepath, int oflag, int pmode)
 {
-  BLI_assert(!BLI_path_is_rel(filename));
+  BLI_assert(!BLI_path_is_rel(filepath));
 
-  return uopen(filename, oflag, pmode);
+  return uopen(filepath, oflag, pmode);
 }
 
-int BLI_access(const char *filename, int mode)
+int BLI_access(const char *filepath, int mode)
 {
-  BLI_assert(!BLI_path_is_rel(filename));
+  BLI_assert(!BLI_path_is_rel(filepath));
 
-  return uaccess(filename, mode);
+  return uaccess(filepath, mode);
 }
 
 static bool delete_soft(const wchar_t *path_16, const char **error_message)
@@ -328,56 +301,60 @@ static bool delete_soft(const wchar_t *path_16, const char **error_message)
   /* Deletes file or directory to recycling bin. The latter moves all contained files and
    * directories recursively to the recycling bin as well. */
   IFileOperation *pfo;
-  IShellItem *pSI;
+  IShellItem *psi;
 
   HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
 
-  if (FAILED(hr)) {
+  if (SUCCEEDED(hr)) {
+    /* This is also the case when COM was previously initialized and CoInitializeEx returns
+     * S_FALSE, which is not an error. Both HRESULT values S_OK and S_FALSE indicate success. */
+
+    hr = CoCreateInstance(
+        &CLSID_FileOperation, NULL, CLSCTX_ALL, &IID_IFileOperation, (void **)&pfo);
+
+    if (SUCCEEDED(hr)) {
+      /* Flags for deletion:
+       * FOF_ALLOWUNDO: Enables moving file to recycling bin.
+       * FOF_SILENT: Don't show progress dialog box.
+       * FOF_WANTNUKEWARNING: Show dialog box if file can't be moved to recycling bin. */
+      hr = pfo->lpVtbl->SetOperationFlags(pfo, FOF_ALLOWUNDO | FOF_SILENT | FOF_WANTNUKEWARNING);
+
+      if (SUCCEEDED(hr)) {
+        hr = SHCreateItemFromParsingName(path_16, NULL, &IID_IShellItem, (void **)&psi);
+
+        if (SUCCEEDED(hr)) {
+          hr = pfo->lpVtbl->DeleteItem(pfo, psi, NULL);
+
+          if (SUCCEEDED(hr)) {
+            hr = pfo->lpVtbl->PerformOperations(pfo);
+
+            if (FAILED(hr)) {
+              *error_message = "Failed to prepare delete operation";
+            }
+          }
+          else {
+            *error_message = "Failed to prepare delete operation";
+          }
+          psi->lpVtbl->Release(psi);
+        }
+        else {
+          *error_message = "Failed to parse path";
+        }
+      }
+      else {
+        *error_message = "Failed to set operation flags";
+      }
+      pfo->lpVtbl->Release(pfo);
+    }
+    else {
+      *error_message = "Failed to create FileOperation instance";
+    }
+    CoUninitialize();
+  }
+  else {
     *error_message = "Failed to initialize COM";
-    goto error_1;
   }
 
-  hr = CoCreateInstance(
-      &CLSID_FileOperation, NULL, CLSCTX_ALL, &IID_IFileOperation, (void **)&pfo);
-  if (FAILED(hr)) {
-    *error_message = "Failed to create FileOperation instance";
-    goto error_2;
-  }
-
-  /* Flags for deletion:
-   * FOF_ALLOWUNDO: Enables moving file to recycling bin.
-   * FOF_SILENT: Don't show progress dialog box.
-   * FOF_WANTNUKEWARNING: Show dialog box if file can't be moved to recycling bin. */
-  hr = pfo->lpVtbl->SetOperationFlags(pfo, FOF_ALLOWUNDO | FOF_SILENT | FOF_WANTNUKEWARNING);
-
-  if (FAILED(hr)) {
-    *error_message = "Failed to set operation flags";
-    goto error_2;
-  }
-
-  hr = SHCreateItemFromParsingName(path_16, NULL, &IID_IShellItem, (void **)&pSI);
-  if (FAILED(hr)) {
-    *error_message = "Failed to parse path";
-    goto error_2;
-  }
-
-  hr = pfo->lpVtbl->DeleteItem(pfo, pSI, NULL);
-  if (FAILED(hr)) {
-    *error_message = "Failed to prepare delete operation";
-    goto error_2;
-  }
-
-  hr = pfo->lpVtbl->PerformOperations(pfo);
-
-  if (FAILED(hr)) {
-    *error_message = "Failed to delete file or directory";
-  }
-
-error_2:
-  pfo->lpVtbl->Release(pfo);
-  CoUninitialize(); /* Has to be uninitialized when CoInitializeEx returns either S_OK or S_FALSE
-                     */
-error_1:
   return FAILED(hr);
 }
 
@@ -409,9 +386,9 @@ static bool delete_recursive(const char *dir)
 {
   struct direntry *filelist, *fl;
   bool err = false;
-  uint nbr, i;
+  uint filelist_num, i;
 
-  i = nbr = BLI_filelist_dir_contents(dir, &filelist);
+  i = filelist_num = BLI_filelist_dir_contents(dir, &filelist);
   fl = filelist;
   while (i--) {
     const char *file = BLI_path_basename(fl->path);
@@ -442,7 +419,7 @@ static bool delete_recursive(const char *dir)
     err = true;
   }
 
-  BLI_filelist_free(filelist, nbr);
+  BLI_filelist_free(filelist, filelist_num);
 
   return err;
 }
@@ -489,8 +466,8 @@ int BLI_move(const char *file, const char *to)
   int err;
 
   /* windows doesn't support moving to a directory
-   * it has to be 'mv filename filename' and not
-   * 'mv filename destination_directory' */
+   * it has to be 'mv filepath filepath' and not
+   * 'mv filepath destination_directory' */
 
   BLI_strncpy(str, to, sizeof(str));
   /* points 'to' to a directory ? */
@@ -521,8 +498,8 @@ int BLI_copy(const char *file, const char *to)
   int err;
 
   /* windows doesn't support copying to a directory
-   * it has to be 'cp filename filename' and not
-   * 'cp filename destdir' */
+   * it has to be 'cp filepath filepath' and not
+   * 'cp filepath destdir' */
 
   BLI_strncpy(str, to, sizeof(str));
   /* points 'to' to a directory ? */
@@ -610,7 +587,7 @@ int BLI_rename(const char *from, const char *to)
     return 0;
   }
 
-  /* make sure the filenames are different (case insensitive) before removing */
+  /* Make sure `from` & `to` are different (case insensitive) before removing. */
   if (BLI_exists(to) && BLI_strcasecmp(from, to)) {
     if (BLI_delete(to, false, false)) {
       return 1;
@@ -751,9 +728,9 @@ static int recursive_operation(const char *startfrom,
 #  ifdef __HAIKU__
       {
         struct stat st_dir;
-        char filename[FILE_MAX];
-        BLI_path_join(filename, sizeof(filename), startfrom, dirent->d_name, NULL);
-        lstat(filename, &st_dir);
+        char filepath[FILE_MAX];
+        BLI_path_join(filepath, sizeof(filepath), startfrom, dirent->d_name, NULL);
+        lstat(filepath, &st_dir);
         is_dir = S_ISDIR(st_dir.st_mode);
       }
 #  else
@@ -926,40 +903,34 @@ static int delete_soft(const char *file, const char **error_message)
 }
 #  endif
 
-FILE *BLI_fopen(const char *filename, const char *mode)
+FILE *BLI_fopen(const char *filepath, const char *mode)
 {
-  BLI_assert(!BLI_path_is_rel(filename));
+  BLI_assert(!BLI_path_is_rel(filepath));
 
-  return fopen(filename, mode);
+  return fopen(filepath, mode);
 }
 
-void *BLI_gzopen(const char *filename, const char *mode)
+void *BLI_gzopen(const char *filepath, const char *mode)
 {
-  BLI_assert(!BLI_path_is_rel(filename));
+  BLI_assert(!BLI_path_is_rel(filepath));
 
-  return gzopen(filename, mode);
+  return gzopen(filepath, mode);
 }
 
-int BLI_open(const char *filename, int oflag, int pmode)
+int BLI_open(const char *filepath, int oflag, int pmode)
 {
-  BLI_assert(!BLI_path_is_rel(filename));
+  BLI_assert(!BLI_path_is_rel(filepath));
 
-  return open(filename, oflag, pmode);
+  return open(filepath, oflag, pmode);
 }
 
-int BLI_access(const char *filename, int mode)
+int BLI_access(const char *filepath, int mode)
 {
-  BLI_assert(!BLI_path_is_rel(filename));
+  BLI_assert(!BLI_path_is_rel(filepath));
 
-  return access(filename, mode);
+  return access(filepath, mode);
 }
 
-/**
- * Deletes the specified file or directory (depending on dir), optionally
- * doing recursive delete of directory contents.
- *
- * \return zero on success (matching 'remove' behavior).
- */
 int BLI_delete(const char *file, bool dir, bool recursive)
 {
   BLI_assert(!BLI_path_is_rel(file));
@@ -973,12 +944,6 @@ int BLI_delete(const char *file, bool dir, bool recursive)
   return remove(file);
 }
 
-/**
- * Soft deletes the specified file or directory (depending on dir) by moving the files to the
- * recycling bin, optionally doing recursive delete of directory contents.
- *
- * \return zero on success (matching 'remove' behavior).
- */
 int BLI_delete_soft(const char *file, const char **error_message)
 {
   BLI_assert(!BLI_path_is_rel(file));
@@ -1251,7 +1216,6 @@ int BLI_create_symlink(const char *file, const char *to)
 }
 #  endif
 
-/** \return true on success (i.e. given path now exists on FS), false otherwise. */
 bool BLI_dir_create_recursive(const char *dirname)
 {
   char *lslash;
@@ -1301,9 +1265,6 @@ bool BLI_dir_create_recursive(const char *dirname)
   return ret;
 }
 
-/**
- * \return zero on success (matching 'rename' behavior).
- */
 int BLI_rename(const char *from, const char *to)
 {
   if (!BLI_exists(from)) {

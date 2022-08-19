@@ -1,23 +1,11 @@
-/*
- * Copyright 2011-2013 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include "scene/attribute.h"
 #include "scene/hair.h"
 #include "scene/image.h"
 #include "scene/mesh.h"
+#include "scene/pointcloud.h"
 
 #include "util/foreach.h"
 #include "util/log.h"
@@ -205,6 +193,10 @@ size_t Attribute::element_size(Geometry *geom, AttributePrimitive prim) const
           size -= mesh->get_num_subd_verts();
         }
       }
+      else if (geom->geometry_type == Geometry::POINTCLOUD) {
+        PointCloud *pointcloud = static_cast<PointCloud *>(geom);
+        size = pointcloud->num_points();
+      }
       break;
     case ATTR_ELEMENT_VERTEX_MOTION:
       if (geom->geometry_type == Geometry::MESH) {
@@ -214,6 +206,10 @@ size_t Attribute::element_size(Geometry *geom, AttributePrimitive prim) const
         if (prim == ATTR_PRIM_SUBD) {
           size -= mesh->get_num_subd_verts() * (mesh->get_motion_steps() - 1);
         }
+      }
+      else if (geom->geometry_type == Geometry::POINTCLOUD) {
+        PointCloud *pointcloud = static_cast<PointCloud *>(geom);
+        size = pointcloud->num_points() * (pointcloud->get_motion_steps() - 1);
       }
       break;
     case ATTR_ELEMENT_FACE:
@@ -346,6 +342,8 @@ const char *Attribute::standard_name(AttributeStandard std)
       return "curve_length";
     case ATTR_STD_CURVE_RANDOM:
       return "curve_random";
+    case ATTR_STD_POINT_RANDOM:
+      return "point_random";
     case ATTR_STD_PTEX_FACE_ID:
       return "ptex_face_id";
     case ATTR_STD_PTEX_UV:
@@ -362,6 +360,12 @@ const char *Attribute::standard_name(AttributeStandard std)
       return "temperature";
     case ATTR_STD_VOLUME_VELOCITY:
       return "velocity";
+    case ATTR_STD_VOLUME_VELOCITY_X:
+      return "velocity_x";
+    case ATTR_STD_VOLUME_VELOCITY_Y:
+      return "velocity_y";
+    case ATTR_STD_VOLUME_VELOCITY_Z:
+      return "velocity_z";
     case ATTR_STD_POINTINESS:
       return "pointiness";
     case ATTR_STD_RANDOM_PER_ISLAND:
@@ -402,6 +406,10 @@ AttrKernelDataType Attribute::kernel_type(const Attribute &attr)
 
   if (attr.type == TypeFloat2) {
     return AttrKernelDataType::FLOAT2;
+  }
+
+  if (attr.type == TypeFloat4 || attr.type == TypeRGBA || attr.type == TypeDesc::TypeMatrix) {
+    return AttrKernelDataType::FLOAT4;
   }
 
   return AttrKernelDataType::FLOAT3;
@@ -551,6 +559,28 @@ Attribute *AttributeSet::add(AttributeStandard std, ustring name)
         break;
     }
   }
+  else if (geometry->geometry_type == Geometry::POINTCLOUD) {
+    switch (std) {
+      case ATTR_STD_UV:
+        attr = add(name, TypeFloat2, ATTR_ELEMENT_VERTEX);
+        break;
+      case ATTR_STD_GENERATED:
+        attr = add(name, TypeDesc::TypePoint, ATTR_ELEMENT_VERTEX);
+        break;
+      case ATTR_STD_MOTION_VERTEX_POSITION:
+        attr = add(name, TypeDesc::TypeFloat4, ATTR_ELEMENT_VERTEX_MOTION);
+        break;
+      case ATTR_STD_POINT_RANDOM:
+        attr = add(name, TypeDesc::TypeFloat, ATTR_ELEMENT_VERTEX);
+        break;
+      case ATTR_STD_GENERATED_TRANSFORM:
+        attr = add(name, TypeDesc::TypeMatrix, ATTR_ELEMENT_MESH);
+        break;
+      default:
+        assert(0);
+        break;
+    }
+  }
   else if (geometry->geometry_type == Geometry::VOLUME) {
     switch (std) {
       case ATTR_STD_VERTEX_NORMAL:
@@ -563,6 +593,9 @@ Attribute *AttributeSet::add(AttributeStandard std, ustring name)
       case ATTR_STD_VOLUME_FLAME:
       case ATTR_STD_VOLUME_HEAT:
       case ATTR_STD_VOLUME_TEMPERATURE:
+      case ATTR_STD_VOLUME_VELOCITY_X:
+      case ATTR_STD_VOLUME_VELOCITY_Y:
+      case ATTR_STD_VOLUME_VELOCITY_Z:
         attr = add(name, TypeDesc::TypeFloat, ATTR_ELEMENT_VOXEL);
         break;
       case ATTR_STD_VOLUME_COLOR:
@@ -585,7 +618,7 @@ Attribute *AttributeSet::add(AttributeStandard std, ustring name)
         attr = add(name, TypeDesc::TypePoint, ATTR_ELEMENT_CURVE);
         break;
       case ATTR_STD_MOTION_VERTEX_POSITION:
-        attr = add(name, TypeDesc::TypePoint, ATTR_ELEMENT_CURVE_KEY_MOTION);
+        attr = add(name, TypeDesc::TypeFloat4, ATTR_ELEMENT_CURVE_KEY_MOTION);
         break;
       case ATTR_STD_CURVE_INTERCEPT:
         attr = add(name, TypeDesc::TypeFloat, ATTR_ELEMENT_CURVE_KEY);
@@ -626,6 +659,26 @@ Attribute *AttributeSet::find(AttributeStandard std) const
       return (Attribute *)&attr;
 
   return NULL;
+}
+
+Attribute *AttributeSet::find_matching(const Attribute &other)
+{
+  for (Attribute &attr : attributes) {
+    if (attr.name != other.name) {
+      continue;
+    }
+    if (attr.std != other.std) {
+      continue;
+    }
+    if (attr.type != other.type) {
+      continue;
+    }
+    if (attr.element != other.element) {
+      continue;
+    }
+    return &attr;
+  }
+  return nullptr;
 }
 
 void AttributeSet::remove(AttributeStandard std)
@@ -696,30 +749,22 @@ void AttributeSet::clear(bool preserve_voxel_data)
 
 void AttributeSet::update(AttributeSet &&new_attributes)
 {
-  /* add or update old_attributes based on the new_attributes */
+  /* Remove any attributes not on new_attributes. */
+  list<Attribute>::iterator it;
+  for (it = attributes.begin(); it != attributes.end();) {
+    const Attribute &old_attr = *it;
+    if (new_attributes.find_matching(old_attr) == nullptr) {
+      remove(it++);
+      continue;
+    }
+    it++;
+  }
+
+  /* Add or update old_attributes based on the new_attributes. */
   foreach (Attribute &attr, new_attributes.attributes) {
     Attribute *nattr = add(attr.name, attr.type, attr.element);
     nattr->std = attr.std;
     nattr->set_data_from(std::move(attr));
-  }
-
-  /* remove any attributes not on new_attributes */
-  list<Attribute>::iterator it;
-  for (it = attributes.begin(); it != attributes.end();) {
-    if (it->std != ATTR_STD_NONE) {
-      if (new_attributes.find(it->std) == nullptr) {
-        remove(it++);
-        continue;
-      }
-    }
-    else if (it->name != "") {
-      if (new_attributes.find(it->name) == nullptr) {
-        remove(it++);
-        continue;
-      }
-    }
-
-    it++;
   }
 
   /* If all attributes were replaced, transform is no longer applied. */

@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2012 by Nicholas Bishop
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2012 by Nicholas Bishop. All rights reserved. */
 
 #pragma once
 
@@ -31,7 +15,7 @@ extern "C" {
 
 typedef unsigned int BLI_bitmap;
 
-/* warning: the bitmap does not keep track of its own size or check
+/* WARNING: the bitmap does not keep track of its own size or check
  * for out-of-bounds access */
 
 /* internal use */
@@ -40,26 +24,43 @@ typedef unsigned int BLI_bitmap;
 /* 0b11111 */
 #define _BITMAP_MASK 31
 
-/* number of blocks needed to hold '_tot' bits */
-#define _BITMAP_NUM_BLOCKS(_tot) (((_tot) >> _BITMAP_POWER) + 1)
+/**
+ * Number of blocks needed to hold '_num' bits.
+ */
+#define _BITMAP_NUM_BLOCKS(_num) (((_num) + _BITMAP_MASK) >> _BITMAP_POWER)
 
-/* size (in bytes) used to hold '_tot' bits */
-#define BLI_BITMAP_SIZE(_tot) ((size_t)(_BITMAP_NUM_BLOCKS(_tot)) * sizeof(BLI_bitmap))
+/**
+ * Size (in bytes) used to hold '_num' bits.
+ */
+#define BLI_BITMAP_SIZE(_num) ((size_t)(_BITMAP_NUM_BLOCKS(_num)) * sizeof(BLI_bitmap))
 
-/* allocate memory for a bitmap with '_tot' bits; free with MEM_freeN() */
-#define BLI_BITMAP_NEW(_tot, _alloc_string) \
-  ((BLI_bitmap *)MEM_callocN(BLI_BITMAP_SIZE(_tot), _alloc_string))
+/**
+ * Allocate memory for a bitmap with '_num' bits; free with MEM_freeN().
+ */
+#define BLI_BITMAP_NEW(_num, _alloc_string) \
+  ((BLI_bitmap *)MEM_callocN(BLI_BITMAP_SIZE(_num), _alloc_string))
 
-/* allocate a bitmap on the stack */
-#define BLI_BITMAP_NEW_ALLOCA(_tot) \
-  ((BLI_bitmap *)memset(alloca(BLI_BITMAP_SIZE(_tot)), 0, BLI_BITMAP_SIZE(_tot)))
+/**
+ * Allocate a bitmap on the stack.
+ */
+#define BLI_BITMAP_NEW_ALLOCA(_num) \
+  ((BLI_bitmap *)memset(alloca(BLI_BITMAP_SIZE(_num)), 0, BLI_BITMAP_SIZE(_num)))
 
-/* Allocate using given MemArena */
-#define BLI_BITMAP_NEW_MEMARENA(_mem, _tot) \
+/**
+ * Allocate using given MemArena.
+ */
+#define BLI_BITMAP_NEW_MEMARENA(_mem, _num) \
   (CHECK_TYPE_INLINE(_mem, MemArena *), \
-   ((BLI_bitmap *)BLI_memarena_calloc(_mem, BLI_BITMAP_SIZE(_tot))))
+   ((BLI_bitmap *)BLI_memarena_calloc(_mem, BLI_BITMAP_SIZE(_num))))
 
-/* get the value of a single bit at '_index' */
+/**
+ * Declares a bitmap as a variable.
+ */
+#define BLI_BITMAP_DECLARE(_name, _num) BLI_bitmap _name[_BITMAP_NUM_BLOCKS(_num)] = {}
+
+/**
+ * Get the value of a single bit at '_index'.
+ */
 #define BLI_BITMAP_TEST(_bitmap, _index) \
   (CHECK_TYPE_ANY(_bitmap, BLI_bitmap *, const BLI_bitmap *), \
    ((_bitmap)[(_index) >> _BITMAP_POWER] & (1u << ((_index)&_BITMAP_MASK))))
@@ -74,22 +75,30 @@ typedef unsigned int BLI_bitmap;
   (CHECK_TYPE_ANY(_bitmap, BLI_bitmap *, const BLI_bitmap *), \
    (BLI_BITMAP_TEST(_bitmap, _index) != 0))
 
-/* set the value of a single bit at '_index' */
+/**
+ * Set the value of a single bit at '_index'.
+ */
 #define BLI_BITMAP_ENABLE(_bitmap, _index) \
   (CHECK_TYPE_ANY(_bitmap, BLI_bitmap *, const BLI_bitmap *), \
    ((_bitmap)[(_index) >> _BITMAP_POWER] |= (1u << ((_index)&_BITMAP_MASK))))
 
-/* clear the value of a single bit at '_index' */
+/**
+ * Clear the value of a single bit at '_index'.
+ */
 #define BLI_BITMAP_DISABLE(_bitmap, _index) \
   (CHECK_TYPE_ANY(_bitmap, BLI_bitmap *, const BLI_bitmap *), \
    ((_bitmap)[(_index) >> _BITMAP_POWER] &= ~(1u << ((_index)&_BITMAP_MASK))))
 
-/* flip the value of a single bit at '_index' */
+/**
+ * Flip the value of a single bit at '_index'.
+ */
 #define BLI_BITMAP_FLIP(_bitmap, _index) \
   (CHECK_TYPE_ANY(_bitmap, BLI_bitmap *, const BLI_bitmap *), \
    ((_bitmap)[(_index) >> _BITMAP_POWER] ^= (1u << ((_index)&_BITMAP_MASK))))
 
-/* set or clear the value of a single bit at '_index' */
+/**
+ * Set or clear the value of a single bit at '_index'.
+ */
 #define BLI_BITMAP_SET(_bitmap, _index, _set) \
   { \
     CHECK_TYPE(_bitmap, BLI_bitmap *); \
@@ -102,19 +111,42 @@ typedef unsigned int BLI_bitmap;
   } \
   (void)0
 
-/* resize bitmap to have space for '_tot' bits */
-#define BLI_BITMAP_RESIZE(_bitmap, _tot) \
+/**
+ * Resize bitmap to have space for '_num' bits.
+ */
+#define BLI_BITMAP_RESIZE(_bitmap, _num) \
   { \
     CHECK_TYPE(_bitmap, BLI_bitmap *); \
-    (_bitmap) = MEM_recallocN(_bitmap, BLI_BITMAP_SIZE(_tot)); \
+    (_bitmap) = MEM_recallocN(_bitmap, BLI_BITMAP_SIZE(_num)); \
   } \
   (void)0
 
+/**
+ * Set or clear all bits in the bitmap.
+ */
 void BLI_bitmap_set_all(BLI_bitmap *bitmap, bool set, size_t bits);
+/**
+ * Invert all bits in the bitmap.
+ */
 void BLI_bitmap_flip_all(BLI_bitmap *bitmap, size_t bits);
+/**
+ * Copy all bits from one bitmap to another.
+ */
 void BLI_bitmap_copy_all(BLI_bitmap *dst, const BLI_bitmap *src, size_t bits);
+/**
+ * Combine two bitmaps with boolean AND.
+ */
 void BLI_bitmap_and_all(BLI_bitmap *dst, const BLI_bitmap *src, size_t bits);
+/**
+ * Combine two bitmaps with boolean OR.
+ */
 void BLI_bitmap_or_all(BLI_bitmap *dst, const BLI_bitmap *src, size_t bits);
+
+/**
+ * Find index of the lowest unset bit.
+ * Returns -1 if all the bits are set.
+ */
+int BLI_bitmap_find_first_unset(const BLI_bitmap *bitmap, size_t bits);
 
 #ifdef __cplusplus
 }

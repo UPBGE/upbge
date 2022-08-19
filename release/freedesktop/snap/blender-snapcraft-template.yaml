@@ -1,16 +1,19 @@
-name: blender
-summary: Blender is the free and open source 3D creation suite.
+name: UPBGE
+summary: UPBGE is a free and open source 3D Game Engine integrated in Blender.
 description: |
-    Blender is the free and open source 3D creation suite. It supports the
-    entirety of the 3D pipeline—modeling, rigging, animation, simulation,
-    rendering, compositing and motion tracking, and video editing.
+    UPBGE is an open-source 3D game engine forked from old Blender Game Engine,
+    deployed with Blender itself. This unified workflow is its main strength as
+    you can make your game from start to end without leave UPBGE.
 
-    Blender is a public project, made by hundreds of people from around the
-    world; by studios and individual artists, professionals and hobbyists,
-    scientists, students, VFX experts, animators, game artists, modders, and
-    the list goes on.
+    This way you will be able to increase your productivity incredibly.
+    You will be a one man army!!!
 
-icon: @ICON_PATH@
+    The standard snap channels are used in the following way:
+
+           stable - Latest stable release.
+        candidate - Test builds for the upcoming stable release.
+
+icon: ../icons/scalable/apps/upbge.svg
 
 passthrough:
     license: GPL-3.0
@@ -20,7 +23,7 @@ confinement: classic
 apps:
     blender:
         command: ./blender-wrapper
-        desktop: ./blender.desktop
+        desktop: ./upbge.desktop
 
 base: core18
 version: '@VERSION@'
@@ -33,7 +36,7 @@ parts:
         build-attributes: [keep-execstack, no-patchelf]
         override-build: |
             snapcraftctl build
-            sed -i 's|Icon=blender|Icon=${SNAP}/blender.svg|' ${SNAPCRAFT_PART_INSTALL}/blender.desktop
+            sed -i 's|Icon=upbge|Icon=${SNAP}/upbge.svg|' ${SNAPCRAFT_PART_INSTALL}/upbge.desktop
         stage-packages:
             - libxcb1
             - libxext6

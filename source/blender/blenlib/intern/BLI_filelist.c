@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
@@ -111,8 +97,8 @@ static int bli_compare(struct direntry *entry1, struct direntry *entry2)
 }
 
 struct BuildDirCtx {
-  struct direntry *files; /* array[nrfiles] */
-  int nrfiles;
+  struct direntry *files; /* array[files_num] */
+  int files_num;
 };
 
 /**
@@ -168,7 +154,7 @@ static void bli_builddir(struct BuildDirCtx *dir_ctx, const char *dirname)
     if (newnum) {
       if (dir_ctx->files) {
         void *const tmp = MEM_reallocN(dir_ctx->files,
-                                       (dir_ctx->nrfiles + newnum) * sizeof(struct direntry));
+                                       (dir_ctx->files_num + newnum) * sizeof(struct direntry));
         if (tmp) {
           dir_ctx->files = (struct direntry *)tmp;
         }
@@ -185,7 +171,7 @@ static void bli_builddir(struct BuildDirCtx *dir_ctx, const char *dirname)
 
       if (dir_ctx->files) {
         struct dirlink *dlink = (struct dirlink *)dirbase.first;
-        struct direntry *file = &dir_ctx->files[dir_ctx->nrfiles];
+        struct direntry *file = &dir_ctx->files[dir_ctx->files_num];
         while (dlink) {
           char fullname[PATH_MAX];
           memset(file, 0, sizeof(struct direntry));
@@ -200,7 +186,7 @@ static void bli_builddir(struct BuildDirCtx *dir_ctx, const char *dirname)
              * does not support stat on '\\SERVER\foo\..', sigh... */
             file->type |= S_IFDIR;
           }
-          dir_ctx->nrfiles++;
+          dir_ctx->files_num++;
           file++;
           dlink = dlink->next;
         }
@@ -213,7 +199,7 @@ static void bli_builddir(struct BuildDirCtx *dir_ctx, const char *dirname)
       BLI_freelist(&dirbase);
       if (dir_ctx->files) {
         qsort(dir_ctx->files,
-              dir_ctx->nrfiles,
+              dir_ctx->files_num,
               sizeof(struct direntry),
               (int (*)(const void *, const void *))bli_compare);
       }
@@ -229,17 +215,11 @@ static void bli_builddir(struct BuildDirCtx *dir_ctx, const char *dirname)
   }
 }
 
-/**
- * Scans the contents of the directory named *dirname, and allocates and fills in an
- * array of entries describing them in *filelist.
- *
- * \return The length of filelist array.
- */
 unsigned int BLI_filelist_dir_contents(const char *dirname, struct direntry **r_filelist)
 {
   struct BuildDirCtx dir_ctx;
 
-  dir_ctx.nrfiles = 0;
+  dir_ctx.files_num = 0;
   dir_ctx.files = NULL;
 
   bli_builddir(&dir_ctx, dirname);
@@ -253,14 +233,11 @@ unsigned int BLI_filelist_dir_contents(const char *dirname, struct direntry **r_
     *r_filelist = MEM_mallocN(sizeof(**r_filelist), __func__);
   }
 
-  return dir_ctx.nrfiles;
+  return dir_ctx.files_num;
 }
 
-/**
- * Convert given entry's size into human-readable strings.
- */
 void BLI_filelist_entry_size_to_string(const struct stat *st,
-                                       const uint64_t sz,
+                                       const uint64_t st_size_fallback,
                                        /* Used to change MB -> M, etc. - is that really useful? */
                                        const bool UNUSED(compact),
                                        char r_size[FILELIST_DIRENTRY_SIZE_LEN])
@@ -270,7 +247,7 @@ void BLI_filelist_entry_size_to_string(const struct stat *st,
    * will buy us some time until files get bigger than 4GB or until
    * everyone starts using __USE_FILE_OFFSET64 or equivalent.
    */
-  double size = (double)(st ? st->st_size : sz);
+  double size = (double)(st ? st->st_size : st_size_fallback);
 #ifdef WIN32
   BLI_str_format_byte_unit(r_size, size, false);
 #else
@@ -278,9 +255,6 @@ void BLI_filelist_entry_size_to_string(const struct stat *st,
 #endif
 }
 
-/**
- * Convert given entry's modes into human-readable strings.
- */
 void BLI_filelist_entry_mode_to_string(const struct stat *st,
                                        const bool UNUSED(compact),
                                        char r_mode1[FILELIST_DIRENTRY_MODE_LEN],
@@ -328,9 +302,6 @@ void BLI_filelist_entry_mode_to_string(const struct stat *st,
 #endif
 }
 
-/**
- * Convert given entry's owner into human-readable strings.
- */
 void BLI_filelist_entry_owner_to_string(const struct stat *st,
                                         const bool UNUSED(compact),
                                         char r_owner[FILELIST_DIRENTRY_OWNER_LEN])
@@ -349,12 +320,6 @@ void BLI_filelist_entry_owner_to_string(const struct stat *st,
 #endif
 }
 
-/**
- * Convert given entry's time into human-readable strings.
- *
- * \param r_is_today: optional, returns true if the date matches today's.
- * \param r_is_yesterday: optional, returns true if the date matches yesterday's.
- */
 void BLI_filelist_entry_datetime_to_string(const struct stat *st,
                                            const int64_t ts,
                                            const bool compact,
@@ -417,9 +382,6 @@ void BLI_filelist_entry_datetime_to_string(const struct stat *st,
   }
 }
 
-/**
- * Deep-duplicate of a single direntry.
- */
 void BLI_filelist_entry_duplicate(struct direntry *dst, const struct direntry *src)
 {
   *dst = *src;
@@ -431,9 +393,6 @@ void BLI_filelist_entry_duplicate(struct direntry *dst, const struct direntry *s
   }
 }
 
-/**
- * Deep-duplicate of a #direntry array including the array itself.
- */
 void BLI_filelist_duplicate(struct direntry **dest_filelist,
                             struct direntry *const src_filelist,
                             const unsigned int nrentries)
@@ -448,9 +407,6 @@ void BLI_filelist_duplicate(struct direntry **dest_filelist,
   }
 }
 
-/**
- * frees storage for a single direntry, not the direntry itself.
- */
 void BLI_filelist_entry_free(struct direntry *entry)
 {
   if (entry->relname) {
@@ -461,9 +417,6 @@ void BLI_filelist_entry_free(struct direntry *entry)
   }
 }
 
-/**
- * Frees storage for an array of #direntry, including the array itself.
- */
 void BLI_filelist_free(struct direntry *filelist, const unsigned int nrentries)
 {
   unsigned int i;

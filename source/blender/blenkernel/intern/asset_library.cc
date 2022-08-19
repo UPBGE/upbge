@@ -1,26 +1,12 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
  */
 
-#include "BKE_asset_catalog.hh"
+#include <memory>
+
 #include "BKE_asset_library.hh"
-#include "BKE_callbacks.h"
 #include "BKE_main.h"
 #include "BKE_preferences.h"
 
@@ -29,11 +15,7 @@
 #include "DNA_asset_types.h"
 #include "DNA_userdef_types.h"
 
-#include "MEM_guardedalloc.h"
-
 #include "asset_library_service.hh"
-
-#include <memory>
 
 bool blender::bke::AssetLibrary::save_catalogs_when_file_is_saved = true;
 
@@ -75,7 +57,7 @@ bool BKE_asset_library_find_suitable_root_path_from_path(const char *input_path,
 
 bool BKE_asset_library_find_suitable_root_path_from_main(const Main *bmain, char *r_library_path)
 {
-  return BKE_asset_library_find_suitable_root_path_from_path(bmain->name, r_library_path);
+  return BKE_asset_library_find_suitable_root_path_from_path(bmain->filepath, r_library_path);
 }
 
 blender::bke::AssetCatalogService *BKE_asset_library_get_catalog_service(
@@ -172,7 +154,7 @@ void AssetLibrary::on_blend_save_post(struct Main *main,
   }
 
   if (save_catalogs_when_file_is_saved) {
-    this->catalog_service->write_to_disk(main->name);
+    this->catalog_service->write_to_disk(main->filepath);
   }
 }
 

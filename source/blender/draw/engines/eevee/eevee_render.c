@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2016, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2016 Blender Foundation. */
 
 /** \file
  * \ingroup draw_engine
@@ -39,6 +24,7 @@
 #include "DEG_depsgraph_query.h"
 
 #include "GPU_capabilities.h"
+#include "GPU_context.h"
 #include "GPU_framebuffer.h"
 #include "GPU_state.h"
 
@@ -46,7 +32,6 @@
 
 #include "eevee_private.h"
 
-/* Return true if init properly. */
 bool EEVEE_render_init(EEVEE_Data *ved, RenderEngine *engine, struct Depsgraph *depsgraph)
 {
   EEVEE_Data *vedata = (EEVEE_Data *)ved;
@@ -194,7 +179,6 @@ void EEVEE_render_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
   EEVEE_cryptomatte_cache_init(sldata, vedata);
 }
 
-/* Used by light cache. in this case engine is NULL. */
 void EEVEE_render_cache(void *vedata,
                         struct Object *ob,
                         struct RenderEngine *engine,
@@ -240,16 +224,16 @@ void EEVEE_render_cache(void *vedata,
   }
 
   if (ob_visibility & OB_VISIBLE_SELF) {
-    if (ELEM(ob->type, OB_MESH, OB_SURF, OB_MBALL)) {
+    if (ob->type == OB_MESH) {
       EEVEE_materials_cache_populate(vedata, sldata, ob, &cast_shadow);
       if (do_cryptomatte) {
         EEVEE_cryptomatte_cache_populate(data, sldata, ob);
       }
     }
-    else if (ob->type == OB_HAIR) {
-      EEVEE_object_hair_cache_populate(vedata, sldata, ob, &cast_shadow);
+    else if (ob->type == OB_CURVES) {
+      EEVEE_object_curves_cache_populate(vedata, sldata, ob, &cast_shadow);
       if (do_cryptomatte) {
-        EEVEE_cryptomatte_object_hair_cache_populate(data, sldata, ob);
+        EEVEE_cryptomatte_object_curves_cache_populate(data, sldata, ob);
       }
     }
     else if (ob->type == OB_VOLUME) {
@@ -519,8 +503,7 @@ static void eevee_render_draw_background(EEVEE_Data *vedata)
   EEVEE_PassList *psl = vedata->psl;
 
   /* Prevent background to write to data buffers.
-   * NOTE : This also make sure the textures are bound
-   *        to the right double buffer. */
+   * NOTE: This also make sure the textures are bound to the right double buffer. */
   GPU_framebuffer_ensure_config(&fbl->main_fb,
                                 {GPU_ATTACHMENT_LEAVE,
                                  GPU_ATTACHMENT_LEAVE,
@@ -556,9 +539,9 @@ void EEVEE_render_draw(EEVEE_Data *vedata, RenderEngine *engine, RenderLayer *rl
   DRW_render_instance_buffer_finish();
 
   /* Need to be called after DRW_render_instance_buffer_finish() */
-  /* Also we weed to have a correct FBO bound for DRW_hair_update */
+  /* Also we weed to have a correct FBO bound for DRW_curves_update */
   GPU_framebuffer_bind(fbl->main_fb);
-  DRW_hair_update();
+  DRW_curves_update();
 
   /* Sort transparents before the loop. */
   DRW_pass_sort_shgroup_z(psl->transparent_pass);
@@ -663,6 +646,10 @@ void EEVEE_render_draw(EEVEE_Data *vedata, RenderEngine *engine, RenderLayer *rl
 
     /* XXX Seems to fix TDR issue with NVidia drivers on linux. */
     GPU_finish();
+
+    /* Perform render step between samples to allow
+     * flushing of freed GPUBackend resources. */
+    GPU_render_step();
 
     RE_engine_update_progress(engine, (float)(render_samples++) / (float)tot_sample);
   }

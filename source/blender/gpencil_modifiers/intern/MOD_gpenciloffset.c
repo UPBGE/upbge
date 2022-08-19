@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2017, Blender Foundation
- * This is a new part of Blender
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2017 Blender Foundation. */
 
 /** \file
  * \ingroup modifiers
@@ -23,14 +7,13 @@
 
 #include <stdio.h>
 
+#include "BLI_hash.h"
 #include "BLI_listbase.h"
+#include "BLI_math.h"
+#include "BLI_rand.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.h"
-
-#include "BLI_hash.h"
-#include "BLI_math.h"
-#include "BLI_rand.h"
 
 #include "DNA_defaults.h"
 #include "DNA_gpencil_modifier_types.h"
@@ -99,6 +82,9 @@ static void deformStroke(GpencilModifierData *md,
     return;
   }
 
+  const bool is_randomized = !(is_zero_v3(mmd->rnd_offset) && is_zero_v3(mmd->rnd_rot) &&
+                               is_zero_v3(mmd->rnd_scale));
+
   int seed = mmd->seed;
   /* Make sure different modifiers get different seeds. */
   seed += BLI_hash_string(ob->id.name + 2);
@@ -107,25 +93,27 @@ static void deformStroke(GpencilModifierData *md,
   float rand[3][3];
   float rand_offset = BLI_hash_int_01(seed);
 
-  /* Get stroke index for random offset. */
-  int rnd_index = BLI_findindex(&gpf->strokes, gps);
-  for (int j = 0; j < 3; j++) {
-    const uint primes[3] = {2, 3, 7};
-    double offset[3] = {0.0f, 0.0f, 0.0f};
-    double r[3];
-    /* To ensure a nice distribution, we use halton sequence and offset using the seed. */
-    BLI_halton_3d(primes, offset, rnd_index, r);
+  if (is_randomized) {
+    /* Get stroke index for random offset. */
+    int rnd_index = BLI_findindex(&gpf->strokes, gps);
+    for (int j = 0; j < 3; j++) {
+      const uint primes[3] = {2, 3, 7};
+      double offset[3] = {0.0f, 0.0f, 0.0f};
+      double r[3];
+      /* To ensure a nice distribution, we use halton sequence and offset using the seed. */
+      BLI_halton_3d(primes, offset, rnd_index, r);
 
-    if ((mmd->flag & GP_OFFSET_UNIFORM_RANDOM_SCALE) && j == 2) {
-      float rand_value;
-      rand_value = fmodf(r[0] * 2.0f - 1.0f + rand_offset, 1.0f);
-      rand_value = fmodf(sin(rand_value * 12.9898f + j * 78.233f) * 43758.5453f, 1.0f);
-      copy_v3_fl(rand[j], rand_value);
-    }
-    else {
-      for (int i = 0; i < 3; i++) {
-        rand[j][i] = fmodf(r[i] * 2.0f - 1.0f + rand_offset, 1.0f);
-        rand[j][i] = fmodf(sin(rand[j][i] * 12.9898f + j * 78.233f) * 43758.5453f, 1.0f);
+      if ((mmd->flag & GP_OFFSET_UNIFORM_RANDOM_SCALE) && j == 2) {
+        float rand_value;
+        rand_value = fmodf(r[0] * 2.0f - 1.0f + rand_offset, 1.0f);
+        rand_value = fmodf(sin(rand_value * 12.9898f + j * 78.233f) * 43758.5453f, 1.0f);
+        copy_v3_fl(rand[j], rand_value);
+      }
+      else {
+        for (int i = 0; i < 3; i++) {
+          rand[j][i] = fmodf(r[i] * 2.0f - 1.0f + rand_offset, 1.0f);
+          rand[j][i] = fmodf(sin(rand[j][i] * 12.9898f + j * 78.233f) * 43758.5453f, 1.0f);
+        }
       }
     }
   }
@@ -144,21 +132,23 @@ static void deformStroke(GpencilModifierData *md,
     }
 
     /* Calculate Random matrix. */
-    float mat_rnd[4][4];
-    float rnd_loc[3], rnd_rot[3], rnd_scale_weight[3];
-    float rnd_scale[3] = {1.0f, 1.0f, 1.0f};
+    if (is_randomized) {
+      float mat_rnd[4][4];
+      float rnd_loc[3], rnd_rot[3], rnd_scale_weight[3];
+      float rnd_scale[3] = {1.0f, 1.0f, 1.0f};
 
-    mul_v3_v3fl(rnd_loc, rand[0], weight);
-    mul_v3_v3fl(rnd_rot, rand[1], weight);
-    mul_v3_v3fl(rnd_scale_weight, rand[2], weight);
+      mul_v3_v3fl(rnd_loc, rand[0], weight);
+      mul_v3_v3fl(rnd_rot, rand[1], weight);
+      mul_v3_v3fl(rnd_scale_weight, rand[2], weight);
 
-    mul_v3_v3v3(rnd_loc, mmd->rnd_offset, rnd_loc);
-    mul_v3_v3v3(rnd_rot, mmd->rnd_rot, rnd_rot);
-    madd_v3_v3v3(rnd_scale, mmd->rnd_scale, rnd_scale_weight);
+      mul_v3_v3v3(rnd_loc, mmd->rnd_offset, rnd_loc);
+      mul_v3_v3v3(rnd_rot, mmd->rnd_rot, rnd_rot);
+      madd_v3_v3v3(rnd_scale, mmd->rnd_scale, rnd_scale_weight);
 
-    loc_eul_size_to_mat4(mat_rnd, rnd_loc, rnd_rot, rnd_scale);
-    /* Apply randomness matrix. */
-    mul_m4_v3(mat_rnd, &pt->x);
+      loc_eul_size_to_mat4(mat_rnd, rnd_loc, rnd_rot, rnd_scale);
+      /* Apply randomness matrix. */
+      mul_m4_v3(mat_rnd, &pt->x);
+    }
 
     /* Calculate matrix. */
     mul_v3_v3fl(loc, mmd->loc, weight);
@@ -168,7 +158,7 @@ static void deformStroke(GpencilModifierData *md,
     loc_eul_size_to_mat4(mat, loc, rot, scale);
 
     /* Apply scale to thickness. */
-    float unit_scale = (scale[0] + scale[1] + scale[2]) / 3.0f;
+    float unit_scale = (fabsf(scale[0]) + fabsf(scale[1]) + fabsf(scale[2])) / 3.0f;
     pt->pressure *= unit_scale;
 
     mul_m4_v3(mat, &pt->x);
@@ -182,15 +172,7 @@ static void bakeModifier(struct Main *UNUSED(bmain),
                          GpencilModifierData *md,
                          Object *ob)
 {
-  bGPdata *gpd = ob->data;
-
-  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-    LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
-      LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
-        deformStroke(md, depsgraph, ob, gpl, gpf, gps);
-      }
-    }
-  }
+  generic_bake_deform_stroke(depsgraph, md, ob, false, deformStroke);
 }
 
 static void foreachIDLink(GpencilModifierData *md, Object *ob, IDWalkFunc walk, void *userData)
@@ -246,7 +228,7 @@ static void panelRegister(ARegionType *region_type)
 }
 
 GpencilModifierTypeInfo modifierType_Gpencil_Offset = {
-    /* name */ "Offset",
+    /* name */ N_("Offset"),
     /* structName */ "OffsetGpencilModifierData",
     /* structSize */ sizeof(OffsetGpencilModifierData),
     /* type */ eGpencilModifierTypeType_Gpencil,

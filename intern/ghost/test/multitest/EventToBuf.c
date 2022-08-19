@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 #include <stdlib.h>
 
@@ -234,8 +218,10 @@ void event_to_buf(GHOST_EventHandle evt, char buf[128])
     case GHOST_kEventKeyUp: {
       GHOST_TEventKeyData *kd = data;
       pos += sprintf(pos, " - key: %s (%d)", keytype_to_string(kd->key), kd->key);
-      if (kd->ascii)
-        pos += sprintf(pos, " ascii: '%c' (%d)", kd->ascii, kd->ascii);
+      /* TODO: ideally this would print the unicode character. */
+      if (kd->utf8_buf[0]) {
+        pos += sprintf(pos, " ascii: '%c' (%d)", kd->utf8_buf[0], kd->utf8_buf[0]);
+      }
       break;
     }
   }

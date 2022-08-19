@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup pythonintern
@@ -178,7 +164,7 @@ typedef struct {
 } BPy_FunctionRNA;
 
 StructRNA *srna_from_self(PyObject *self, const char *error_prefix);
-StructRNA *pyrna_struct_as_srna(PyObject *self, const bool parent, const char *error_prefix);
+StructRNA *pyrna_struct_as_srna(PyObject *self, bool parent, const char *error_prefix);
 
 void BPY_rna_init(void);
 void BPY_rna_exit(void);
@@ -196,13 +182,37 @@ bool pyrna_id_FromPyObject(PyObject *obj, struct ID **id);
 bool pyrna_id_CheckPyObject(PyObject *obj);
 
 /* operators also need this to set args */
-int pyrna_pydict_to_props(PointerRNA *ptr,
-                          PyObject *kw,
-                          const bool all_args,
-                          const char *error_prefix);
+int pyrna_pydict_to_props(PointerRNA *ptr, PyObject *kw, bool all_args, const char *error_prefix);
 PyObject *pyrna_prop_to_py(PointerRNA *ptr, PropertyRNA *prop);
 
 int pyrna_deferred_register_class(struct StructRNA *srna, PyTypeObject *py_class);
+
+const PointerRNA *pyrna_struct_as_ptr(PyObject *py_obj, const StructRNA *srna);
+const PointerRNA *pyrna_struct_as_ptr_or_null(PyObject *py_obj, const StructRNA *srna);
+
+/**
+ * Struct used for RNA argument parsing functions:
+ * - #pyrna_struct_as_ptr_parse
+ * - #pyrna_struct_as_ptr_or_null_parse
+ */
+struct BPy_StructRNA_Parse {
+  /** The struct RNA must match this type. */
+  StructRNA *type;
+  /** Result, may be `PointerRNA_NULL` if #pyrna_struct_as_ptr_or_null_parse is used. */
+  const PointerRNA *ptr;
+};
+
+/**
+ * Sets #BPy_StructRNA_Parse.ptr to the value in the #BPy_StructRNA.ptr (from `o`)
+ * or raise an error if the type isn't a #BPy_StructRNA.
+ *
+ * Use with #PyArg_ParseTuple's `O&` formatting.
+ */
+int pyrna_struct_as_ptr_parse(PyObject *o, void *p);
+/**
+ * A version of #pyrna_struct_as_ptr_parse that maps Python's `None` to #PointerRNA_NULL.
+ */
+int pyrna_struct_as_ptr_or_null_parse(PyObject *o, void *p);
 
 void pyrna_struct_type_extend_capi(struct StructRNA *srna,
                                    struct PyMethodDef *py_method,

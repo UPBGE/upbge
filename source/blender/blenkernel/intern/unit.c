@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -282,7 +268,7 @@ static struct bUnitCollection buImperialAclCollection = {buImperialAclDef, 0, 0,
 /* Time. */
 static struct bUnitDef buNaturalTimeDef[] = {
   /* Weeks? - probably not needed for Blender. */
-  {"day",         "days",         "d",   NULL, "Days",         "DAYS",     90000.0,      0.0, B_UNIT_DEF_NONE},
+  {"day",         "days",         "d",   NULL, "Days",         "DAYS",     86400.0,      0.0, B_UNIT_DEF_NONE},
   {"hour",        "hours",        "hr",  "h",  "Hours",        "HOURS",     3600.0,      0.0, B_UNIT_DEF_NONE},
   {"minute",      "minutes",      "min", "m",  "Minutes",      "MINUTES",     60.0,      0.0, B_UNIT_DEF_NONE},
   {"second",      "seconds",      "sec", "s",  "Seconds",      "SECONDS",      1.0,      0.0, B_UNIT_DEF_NONE}, /* Base unit. */
@@ -474,11 +460,20 @@ static size_t unit_as_string(char *str,
   }
 
   double value_conv = (value / unit->scalar) - unit->bias;
+  bool strip_skip = false;
+
+  /* Negative precision is used to disable stripping of zeroes.
+   * This reduces text jumping when changing values. */
+  if (prec < 0) {
+    strip_skip = true;
+    prec *= -1;
+  }
 
   /* Adjust precision to expected number of significant digits.
    * Note that here, we shall not have to worry about very big/small numbers, units are expected
    * to replace 'scientific notation' in those cases. */
   prec -= integer_digits_d(value_conv);
+
   CLAMP(prec, 0, 6);
 
   /* Convert to a string. */
@@ -492,12 +487,14 @@ static size_t unit_as_string(char *str,
   size_t i = len - 1;
 
   if (prec > 0) {
-    while (i > 0 && str[i] == '0') { /* 4.300 -> 4.3 */
-      str[i--] = pad;
-    }
+    if (!strip_skip) {
+      while (i > 0 && str[i] == '0') { /* 4.300 -> 4.3 */
+        str[i--] = pad;
+      }
 
-    if (i > 0 && str[i] == '.') { /* 10. -> 10 */
-      str[i--] = pad;
+      if (i > 0 && str[i] == '.') { /* 10. -> 10 */
+        str[i--] = pad;
+      }
     }
   }
 
@@ -1091,22 +1088,6 @@ double BKE_unit_apply_preferred_unit(const struct UnitSettings *settings, int ty
   return value * scalar + bias;
 }
 
-/**
- * Make a copy of the string that replaces the units with numbers.
- *
- * This is only used when evaluating user input and can afford to be a bit slower
- *
- * This is to be used before python evaluation so..
- * 10.1km -> 10.1*1000.0
- * ...will be resolved by python.
- *
- * Values will be split by an add sign.
- * 5'2" -> 5*0.3048 + 2*0.0254
- *
- * \param str_prev: is optional, when valid it is used to get a base unit when none is set.
- *
- * \return True of a change was made.
- */
 bool BKE_unit_replace_string(
     char *str, int len_max, const char *str_prev, double scale_pref, int system, int type)
 {
@@ -1196,7 +1177,6 @@ bool BKE_unit_replace_string(
   return changed;
 }
 
-/* 45µm --> 45um */
 void BKE_unit_name_to_alt(char *str, int len_max, const char *orig_str, int system, int type)
 {
   const bUnitCollection *usys = unit_get_system(system, type);

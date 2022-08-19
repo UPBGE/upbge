@@ -1,4 +1,4 @@
-/* Apache License, Version 2.0 */
+/* SPDX-License-Identifier: Apache-2.0 */
 
 #include "testing/testing.h"
 
@@ -644,7 +644,7 @@ static void testbuffer_list_state_random_data(ListBase *lb,
           break;
         }
         default:
-          BLI_assert(0);
+          BLI_assert_unreachable();
       }
     }
   }

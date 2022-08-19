@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2020 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #pragma once
 
@@ -44,7 +31,7 @@ ccl_device float3 background_map_sample(KernelGlobals kg,
     int step = count >> 1;
     int middle = first + step;
 
-    if (kernel_tex_fetch(__light_background_marginal_cdf, middle).y < randv) {
+    if (kernel_data_fetch(light_background_marginal_cdf, middle).y < randv) {
       first = middle + 1;
       count -= step + 1;
     }
@@ -55,9 +42,9 @@ ccl_device float3 background_map_sample(KernelGlobals kg,
   int index_v = max(0, first - 1);
   kernel_assert(index_v >= 0 && index_v < res_y);
 
-  float2 cdf_v = kernel_tex_fetch(__light_background_marginal_cdf, index_v);
-  float2 cdf_next_v = kernel_tex_fetch(__light_background_marginal_cdf, index_v + 1);
-  float2 cdf_last_v = kernel_tex_fetch(__light_background_marginal_cdf, res_y);
+  float2 cdf_v = kernel_data_fetch(light_background_marginal_cdf, index_v);
+  float2 cdf_next_v = kernel_data_fetch(light_background_marginal_cdf, index_v + 1);
+  float2 cdf_last_v = kernel_data_fetch(light_background_marginal_cdf, res_y);
 
   /* importance-sampled V direction */
   float dv = inverse_lerp(cdf_v.y, cdf_next_v.y, randv);
@@ -70,7 +57,7 @@ ccl_device float3 background_map_sample(KernelGlobals kg,
     int step = count >> 1;
     int middle = first + step;
 
-    if (kernel_tex_fetch(__light_background_conditional_cdf, index_v * cdf_width + middle).y <
+    if (kernel_data_fetch(light_background_conditional_cdf, index_v * cdf_width + middle).y <
         randu) {
       first = middle + 1;
       count -= step + 1;
@@ -82,12 +69,12 @@ ccl_device float3 background_map_sample(KernelGlobals kg,
   int index_u = max(0, first - 1);
   kernel_assert(index_u >= 0 && index_u < res_x);
 
-  float2 cdf_u = kernel_tex_fetch(__light_background_conditional_cdf,
-                                  index_v * cdf_width + index_u);
-  float2 cdf_next_u = kernel_tex_fetch(__light_background_conditional_cdf,
-                                       index_v * cdf_width + index_u + 1);
-  float2 cdf_last_u = kernel_tex_fetch(__light_background_conditional_cdf,
-                                       index_v * cdf_width + res_x);
+  float2 cdf_u = kernel_data_fetch(light_background_conditional_cdf,
+                                   index_v * cdf_width + index_u);
+  float2 cdf_next_u = kernel_data_fetch(light_background_conditional_cdf,
+                                        index_v * cdf_width + index_u + 1);
+  float2 cdf_last_u = kernel_data_fetch(light_background_conditional_cdf,
+                                        index_v * cdf_width + res_x);
 
   /* importance-sampled U direction */
   float du = inverse_lerp(cdf_u.y, cdf_next_u.y, randu);
@@ -125,9 +112,9 @@ ccl_device float background_map_pdf(KernelGlobals kg, float3 direction)
   int index_v = clamp(float_to_int(uv.y * res_y), 0, res_y - 1);
 
   /* pdfs in V direction */
-  float2 cdf_last_u = kernel_tex_fetch(__light_background_conditional_cdf,
-                                       index_v * cdf_width + res_x);
-  float2 cdf_last_v = kernel_tex_fetch(__light_background_marginal_cdf, res_y);
+  float2 cdf_last_u = kernel_data_fetch(light_background_conditional_cdf,
+                                        index_v * cdf_width + res_x);
+  float2 cdf_last_v = kernel_data_fetch(light_background_marginal_cdf, res_y);
 
   float denom = (M_2PI_F * M_PI_F * sin_theta) * cdf_last_u.x * cdf_last_v.x;
 
@@ -135,9 +122,9 @@ ccl_device float background_map_pdf(KernelGlobals kg, float3 direction)
     return 0.0f;
 
   /* pdfs in U direction */
-  float2 cdf_u = kernel_tex_fetch(__light_background_conditional_cdf,
-                                  index_v * cdf_width + index_u);
-  float2 cdf_v = kernel_tex_fetch(__light_background_marginal_cdf, index_v);
+  float2 cdf_u = kernel_data_fetch(light_background_conditional_cdf,
+                                   index_v * cdf_width + index_u);
+  float2 cdf_v = kernel_data_fetch(light_background_marginal_cdf, index_v);
 
   return (cdf_u.x * cdf_v.x) / denom;
 }
@@ -146,7 +133,7 @@ ccl_device_inline bool background_portal_data_fetch_and_check_side(
     KernelGlobals kg, float3 P, int index, ccl_private float3 *lightpos, ccl_private float3 *dir)
 {
   int portal = kernel_data.background.portal_offset + index;
-  const ccl_global KernelLight *klight = &kernel_tex_fetch(__lights, portal);
+  const ccl_global KernelLight *klight = &kernel_data_fetch(lights, portal);
 
   *lightpos = make_float3(klight->co[0], klight->co[1], klight->co[2]);
   *dir = make_float3(klight->area.dir[0], klight->area.dir[1], klight->area.dir[2]);
@@ -179,7 +166,7 @@ ccl_device_inline float background_portal_pdf(
     num_possible++;
 
     int portal = kernel_data.background.portal_offset + p;
-    const ccl_global KernelLight *klight = &kernel_tex_fetch(__lights, portal);
+    const ccl_global KernelLight *klight = &kernel_data_fetch(lights, portal);
     float3 axisu = make_float3(
         klight->area.axisu[0], klight->area.axisu[1], klight->area.axisu[2]);
     float3 axisv = make_float3(
@@ -255,7 +242,7 @@ ccl_device float3 background_portal_sample(KernelGlobals kg,
     if (portal == 0) {
       /* p is the portal to be sampled. */
       int portal = kernel_data.background.portal_offset + p;
-      const ccl_global KernelLight *klight = &kernel_tex_fetch(__lights, portal);
+      const ccl_global KernelLight *klight = &kernel_data_fetch(lights, portal);
       float3 axisu = make_float3(
           klight->area.axisu[0], klight->area.axisu[1], klight->area.axisu[2]);
       float3 axisv = make_float3(

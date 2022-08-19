@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2021 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #include "integrator/render_scheduler.h"
 
@@ -33,7 +20,7 @@ RenderScheduler::RenderScheduler(TileManager &tile_manager, const SessionParams 
       background_(params.background),
       pixel_size_(params.pixel_size),
       tile_manager_(tile_manager),
-      default_start_resolution_divider_(pixel_size_ * 8)
+      default_start_resolution_divider_(params.use_resolution_divider ? pixel_size_ * 8 : 0)
 {
   use_progressive_noise_floor_ = !background_;
 }
@@ -88,6 +75,16 @@ int RenderScheduler::get_num_samples() const
   return num_samples_;
 }
 
+void RenderScheduler::set_sample_offset(int sample_offset)
+{
+  sample_offset_ = sample_offset;
+}
+
+int RenderScheduler::get_sample_offset() const
+{
+  return sample_offset_;
+}
+
 void RenderScheduler::set_time_limit(double time_limit)
 {
   time_limit_ = time_limit;
@@ -102,7 +99,7 @@ int RenderScheduler::get_rendered_sample() const
 {
   DCHECK_GT(get_num_rendered_samples(), 0);
 
-  return start_sample_ + get_num_rendered_samples() - 1;
+  return start_sample_ + get_num_rendered_samples() - 1 - sample_offset_;
 }
 
 int RenderScheduler::get_num_rendered_samples() const
@@ -110,17 +107,19 @@ int RenderScheduler::get_num_rendered_samples() const
   return state_.num_rendered_samples;
 }
 
-void RenderScheduler::reset(const BufferParams &buffer_params, int num_samples)
+void RenderScheduler::reset(const BufferParams &buffer_params, int num_samples, int sample_offset)
 {
   buffer_params_ = buffer_params;
 
   update_start_resolution_divider();
 
   set_num_samples(num_samples);
+  set_start_sample(sample_offset);
+  set_sample_offset(sample_offset);
 
   /* In background mode never do lower resolution render preview, as it is not really supported
    * by the software. */
-  if (background_) {
+  if (background_ || start_resolution_divider_ == 0) {
     state_.resolution_divider = 1;
   }
   else {
@@ -171,7 +170,7 @@ void RenderScheduler::reset(const BufferParams &buffer_params, int num_samples)
 
 void RenderScheduler::reset_for_next_tile()
 {
-  reset(buffer_params_, num_samples_);
+  reset(buffer_params_, num_samples_, sample_offset_);
 }
 
 bool RenderScheduler::render_work_reschedule_on_converge(RenderWork &render_work)
@@ -226,7 +225,7 @@ bool RenderScheduler::render_work_reschedule_on_idle(RenderWork &render_work)
 
 void RenderScheduler::render_work_reschedule_on_cancel(RenderWork &render_work)
 {
-  VLOG(3) << "Schedule work for cancel.";
+  VLOG_WORK << "Schedule work for cancel.";
 
   /* Un-schedule samples: they will not be rendered and should not be counted. */
   state_.num_rendered_samples -= render_work.path_trace.num_samples;
@@ -245,7 +244,7 @@ void RenderScheduler::render_work_reschedule_on_cancel(RenderWork &render_work)
   render_work.tile.write = tile_write;
   render_work.full.write = full_write;
 
-  /* Do not write tile if it has zero samples it it, treat it similarly to all other tiles which
+  /* Do not write tile if it has zero samples in it, treat it similarly to all other tiles which
    * got canceled. */
   if (!state_.tile_result_was_written && has_rendered_samples) {
     render_work.tile.write = true;
@@ -317,6 +316,7 @@ RenderWork RenderScheduler::get_render_work()
 
   render_work.path_trace.start_sample = get_start_sample_to_path_trace();
   render_work.path_trace.num_samples = get_num_samples_to_path_trace();
+  render_work.path_trace.sample_offset = get_sample_offset();
 
   render_work.init_render_buffers = (render_work.path_trace.start_sample == get_start_sample());
 
@@ -475,14 +475,14 @@ void RenderScheduler::report_path_trace_time(const RenderWork &render_work,
 
   path_trace_time_.add_average(final_time_approx, render_work.path_trace.num_samples);
 
-  VLOG(4) << "Average path tracing time: " << path_trace_time_.get_average() << " seconds.";
+  VLOG_WORK << "Average path tracing time: " << path_trace_time_.get_average() << " seconds.";
 }
 
 void RenderScheduler::report_path_trace_occupancy(const RenderWork &render_work, float occupancy)
 {
   state_.occupancy_num_samples = render_work.path_trace.num_samples;
   state_.occupancy = occupancy;
-  VLOG(4) << "Measured path tracing occupancy: " << occupancy;
+  VLOG_WORK << "Measured path tracing occupancy: " << occupancy;
 }
 
 void RenderScheduler::report_adaptive_filter_time(const RenderWork &render_work,
@@ -503,8 +503,8 @@ void RenderScheduler::report_adaptive_filter_time(const RenderWork &render_work,
 
   adaptive_filter_time_.add_average(final_time_approx, render_work.path_trace.num_samples);
 
-  VLOG(4) << "Average adaptive sampling filter  time: " << adaptive_filter_time_.get_average()
-          << " seconds.";
+  VLOG_WORK << "Average adaptive sampling filter  time: " << adaptive_filter_time_.get_average()
+            << " seconds.";
 }
 
 void RenderScheduler::report_denoise_time(const RenderWork &render_work, double time)
@@ -523,7 +523,7 @@ void RenderScheduler::report_denoise_time(const RenderWork &render_work, double 
 
   denoise_time_.add_average(final_time_approx);
 
-  VLOG(4) << "Average denoising time: " << denoise_time_.get_average() << " seconds.";
+  VLOG_WORK << "Average denoising time: " << denoise_time_.get_average() << " seconds.";
 }
 
 void RenderScheduler::report_display_update_time(const RenderWork &render_work, double time)
@@ -542,7 +542,8 @@ void RenderScheduler::report_display_update_time(const RenderWork &render_work, 
 
   display_update_time_.add_average(final_time_approx);
 
-  VLOG(4) << "Average display update time: " << display_update_time_.get_average() << " seconds.";
+  VLOG_WORK << "Average display update time: " << display_update_time_.get_average()
+            << " seconds.";
 
   /* Move the display update moment further in time, so that logic which checks when last update
    * did happen have more reliable point in time (without path tracing and denoising parts of the
@@ -568,7 +569,7 @@ void RenderScheduler::report_rebalance_time(const RenderWork &render_work,
 
   state_.last_rebalance_changed = balance_changed;
 
-  VLOG(4) << "Average rebalance time: " << rebalance_time_.get_average() << " seconds.";
+  VLOG_WORK << "Average rebalance time: " << rebalance_time_.get_average() << " seconds.";
 }
 
 string RenderScheduler::full_report() const
@@ -750,6 +751,11 @@ double RenderScheduler::guess_display_update_interval_in_seconds_for_num_samples
 int RenderScheduler::calculate_num_samples_per_update() const
 {
   const double time_per_sample_average = path_trace_time_.get_average();
+  /* Fall back to 1 sample if we have not recorded a time yet. */
+  if (time_per_sample_average == 0.0) {
+    return 1;
+  }
+
   const double num_samples_in_second = pixel_size_ * pixel_size_ / time_per_sample_average;
 
   const double update_interval_in_seconds = guess_display_update_interval_in_seconds();
@@ -835,7 +841,7 @@ int RenderScheduler::get_num_samples_to_path_trace() const
      * When time limit is not used the number of samples per render iteration is either increasing
      * or stays the same, so there is no need to clamp number of samples calculated for occupancy.
      */
-    if (time_limit_ && state_.start_render_time) {
+    if (time_limit_ != 0.0 && state_.start_render_time != 0.0) {
       const double remaining_render_time = max(
           0.0, time_limit_ - (time_dt() - state_.start_render_time));
       const double time_per_sample_average = path_trace_time_.get_average();
@@ -861,7 +867,8 @@ int RenderScheduler::get_num_samples_to_path_trace() const
    * is to ensure that the final render is pixel-matched regardless of how many samples per second
    * compute device can do. */
 
-  return adaptive_sampling_.align_samples(path_trace_start_sample, num_samples_to_render);
+  return adaptive_sampling_.align_samples(path_trace_start_sample - sample_offset_,
+                                          num_samples_to_render);
 }
 
 int RenderScheduler::get_num_samples_during_navigation(int resolution_divider) const
@@ -1049,11 +1056,15 @@ bool RenderScheduler::work_need_rebalance()
 
 void RenderScheduler::update_start_resolution_divider()
 {
+  if (default_start_resolution_divider_ == 0) {
+    return;
+  }
+
   if (start_resolution_divider_ == 0) {
     /* Resolution divider has never been calculated before: use default resolution, so that we have
      * somewhat good initial behavior, giving a chance to collect real numbers. */
     start_resolution_divider_ = default_start_resolution_divider_;
-    VLOG(3) << "Initial resolution divider is " << start_resolution_divider_;
+    VLOG_WORK << "Initial resolution divider is " << start_resolution_divider_;
     return;
   }
 
@@ -1082,7 +1093,7 @@ void RenderScheduler::update_start_resolution_divider()
    * simple and compute device is fast). */
   start_resolution_divider_ = max(resolution_divider_for_update, pixel_size_);
 
-  VLOG(3) << "Calculated resolution divider is " << start_resolution_divider_;
+  VLOG_WORK << "Calculated resolution divider is " << start_resolution_divider_;
 }
 
 double RenderScheduler::guess_viewport_navigation_update_interval_in_seconds() const

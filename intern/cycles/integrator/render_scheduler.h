@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2021 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #pragma once
 
@@ -39,6 +26,7 @@ class RenderWork {
   struct {
     int start_sample = 0;
     int num_samples = 0;
+    int sample_offset = 0;
   } path_trace;
 
   struct {
@@ -125,6 +113,9 @@ class RenderScheduler {
   void set_num_samples(int num_samples);
   int get_num_samples() const;
 
+  void set_sample_offset(int sample_offset);
+  int get_sample_offset() const;
+
   /* Time limit for the path tracing tasks, in minutes.
    * Zero disables the limit. */
   void set_time_limit(double time_limit);
@@ -133,7 +124,7 @@ class RenderScheduler {
   /* Get sample up to which rendering has been done.
    * This is an absolute 0-based value.
    *
-   * For example, if start sample is 10 and and 5 samples were rendered, then this call will
+   * For example, if start sample is 10 and 5 samples were rendered, then this call will
    * return 14.
    *
    * If there were no samples rendered, then the behavior is undefined. */
@@ -141,7 +132,7 @@ class RenderScheduler {
 
   /* Get number of samples rendered within the current scheduling session.
    *
-   * For example, if start sample is 10 and and 5 samples were rendered, then this call will
+   * For example, if start sample is 10 and 5 samples were rendered, then this call will
    * return 5.
    *
    * Note that this is based on the scheduling information. In practice this means that if someone
@@ -150,7 +141,7 @@ class RenderScheduler {
 
   /* Reset scheduler, indicating that rendering will happen from scratch.
    * Resets current rendered state, as well as scheduling information. */
-  void reset(const BufferParams &buffer_params, int num_samples);
+  void reset(const BufferParams &buffer_params, int num_samples, int sample_offset);
 
   /* Reset scheduler upon switching to a next tile.
    * Will keep the same number of samples and full-frame render parameters, but will reset progress
@@ -279,7 +270,7 @@ class RenderScheduler {
   /* Check whether timing report about the given work need to reset accumulated average time. */
   bool work_report_reset_average(const RenderWork &render_work);
 
-  /* CHeck whether render time limit has been reached (or exceeded), and if so store related
+  /* Check whether render time limit has been reached (or exceeded), and if so store related
    * information in the state so that rendering is considered finished, and is possible to report
    * average render time information. */
   void check_time_limit_reached();
@@ -418,6 +409,8 @@ class RenderScheduler {
    * [start_sample_, start_sample_ + num_samples_ - 1] range, inclusively. */
   int start_sample_ = 0;
   int num_samples_ = 0;
+
+  int sample_offset_ = 0;
 
   /* Limit in seconds for how long path tracing is allowed to happen.
    * Zero means no limit is applied. */

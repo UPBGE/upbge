@@ -1,32 +1,5 @@
-/*
-This source is published under the following 3-clause BSD license.
-
-Copyright (c) 2012 - 2013, Lukas Hosek and Alexander Wilkie
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in the
-      documentation and/or other materials provided with the distribution.
-    * None of the names of the contributors may be used to endorse or promote
-      products derived from this software without specific prior written
-      permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY
-DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright 2012-2013 Lukas Hosek and Alexander Wilkie. All rights reserved. */
 
 /* ============================================================================
 
@@ -52,7 +25,7 @@ Version history:
 
 1.4a  February 22nd, 2013
       Removed unnecessary and counter-intuitive solar radius parameters
-      from the interface of the colourspace sky dome initialisation functions.
+      from the interface of the colourspace sky dome initialization functions.
 
 1.4   February 11th, 2013
       Fixed a bug which caused the relative brightness of the solar disc
@@ -103,7 +76,7 @@ Usage information:
 ==================
 
 
-Model initialisation
+Model initialization
 --------------------
 
 A separate ArHosekSkyModelState has to be maintained for each spectral
@@ -128,12 +101,12 @@ is given in radians.
                   solarElevation
                 );
 
-Note that starting with version 1.3, there is also a second initialisation
+Note that starting with version 1.3, there is also a second initialization
 function which generates skydome states for different solar emission spectra
 and solar radii: 'arhosekskymodelstate_alienworld_alloc_init()'.
 
 See the notes about the "Alien World" functionality provided further down for a
-discussion of the usefulness and limits of that second initalisation function.
+discussion of the usefulness and limits of that second initialization function.
 Sky model states that have been initialized with either function behave in a
 completely identical fashion during use and cleanup.
 
@@ -263,7 +236,7 @@ CAVEAT #3: you have to provide a value for the solar intensity of the star
            fairly different in size from it, to still provide a reasonable and
            inhabitable amount of irradiance. Red stars will need to be much
            larger than our sun, while white or blue stars will have to be
-           comparatively tiny. The initialisation function handles this and
+           comparatively tiny. The initialization function handles this and
            computes a plausible solar radius for a given emission spectrum. In
            terms of absolute radiometric values, you should probably not stray
            all too far from a solar intensity value of 1.0.
@@ -297,6 +270,10 @@ HINT #1:   if you want to model the sky of an earth-like planet that orbits
            temperature. Just in case you were wondering, after reading the
            previous paragraph.
 */
+
+/** \file
+ * \ingroup intern_sky_modal
+ */
 
 #ifndef __SKY_MODEL_H__
 #define __SKY_MODEL_H__
@@ -368,7 +345,7 @@ SKY_ArHosekSkyModelState *SKY_arhosekskymodelstate_alloc_init(const double solar
     with a sun of a surface temperature given in 'kelvin'. The parameter
     'solar_intensity' controls the overall brightness of the sky, relative
     to the solar irradiance on Earth. A value of 1.0 yields a sky dome that
-    is, on average over the wavelenghts covered in the model (!), as bright
+    is, on average over the wavelengths covered in the model (!), as bright
     as the terrestrial sky in radiometric terms.
 
     Which means that the solar radius has to be adjusted, since the

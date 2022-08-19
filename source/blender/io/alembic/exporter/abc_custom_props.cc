@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2020 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2020 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup Alembic
@@ -166,7 +150,7 @@ void CustomPropertiesExporter::write_idparray_of_strings(const IDProperty *idp_a
   }
 
   /* Alembic needs a pointer to the first value of the array. */
-  const std::string *array_of_strings = &strings[0];
+  const std::string *array_of_strings = strings.data();
   set_array_property<OStringArrayProperty, std::string>(
       idp_array->name, array_of_strings, strings.size());
 }
@@ -220,7 +204,7 @@ void CustomPropertiesExporter::write_idparray_flattened_typed(const IDProperty *
   }
 
   set_array_property<ABCPropertyType, BlenderValueType>(
-      idp_array->name, &matrix_values[0], matrix_values.size());
+      idp_array->name, matrix_values.data(), matrix_values.size());
 }
 
 template<typename ABCPropertyType, typename BlenderValueType>

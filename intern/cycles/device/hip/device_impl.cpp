@@ -1,18 +1,5 @@
-/*
- * Copyright 2011-2021 Blender Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2011-2022 Blender Foundation */
 
 #ifdef WITH_HIP
 
@@ -29,13 +16,14 @@
 #  include "util/log.h"
 #  include "util/map.h"
 #  include "util/md5.h"
-#  include "util/opengl.h"
 #  include "util/path.h"
 #  include "util/string.h"
 #  include "util/system.h"
 #  include "util/time.h"
 #  include "util/types.h"
 #  include "util/windows.h"
+
+#  include "kernel/device/hip/globals.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -45,12 +33,6 @@ bool HIPDevice::have_precompiled_kernels()
 {
   string fatbins_path = path_get("lib");
   return path_exists(fatbins_path);
-}
-
-bool HIPDevice::show_samples() const
-{
-  /* The HIPDevice only processes one tile at a time, so showing samples is fine. */
-  return true;
 }
 
 BVHLayoutMask HIPDevice::get_bvh_layout_mask() const
@@ -71,7 +53,7 @@ void HIPDevice::set_error(const string &error)
 }
 
 HIPDevice::HIPDevice(const DeviceInfo &info, Stats &stats, Profiler &profiler)
-    : Device(info, stats, profiler), texture_info(this, "__texture_info", MEM_GLOBAL)
+    : Device(info, stats, profiler), texture_info(this, "texture_info", MEM_GLOBAL)
 {
   first_error = true;
 
@@ -243,7 +225,7 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
   hipGetDeviceProperties(&props, hipDevId);
 
   /* gcnArchName can contain tokens after the arch name with features, ie.
-    "gfx1010:sramecc-:xnack-" so we tokenize it to get the first part. */
+   * `gfx1010:sramecc-:xnack-` so we tokenize it to get the first part. */
   char *arch = strtok(props.gcnArchName, ":");
   if (arch == NULL) {
     arch = props.gcnArchName;
@@ -252,9 +234,9 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
   /* Attempt to use kernel provided with Blender. */
   if (!use_adaptive_compilation()) {
     const string fatbin = path_get(string_printf("lib/%s_%s.fatbin", name, arch));
-    VLOG(1) << "Testing for pre-compiled kernel " << fatbin << ".";
+    VLOG_INFO << "Testing for pre-compiled kernel " << fatbin << ".";
     if (path_exists(fatbin)) {
-      VLOG(1) << "Using precompiled kernel.";
+      VLOG_INFO << "Using precompiled kernel.";
       return fatbin;
     }
   }
@@ -284,9 +266,9 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
   const string include_path = source_path;
   const string fatbin_file = string_printf("cycles_%s_%s_%s", name, arch, kernel_md5.c_str());
   const string fatbin = path_cache_get(path_join("kernels", fatbin_file));
-  VLOG(1) << "Testing for locally compiled kernel " << fatbin << ".";
+  VLOG_INFO << "Testing for locally compiled kernel " << fatbin << ".";
   if (path_exists(fatbin)) {
-    VLOG(1) << "Using locally compiled kernel.";
+    VLOG_INFO << "Using locally compiled kernel.";
     return fatbin;
   }
 
@@ -320,7 +302,7 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
   }
 
   const int hipcc_hip_version = hipewCompilerVersion();
-  VLOG(1) << "Found hipcc " << hipcc << ", HIP version " << hipcc_hip_version << ".";
+  VLOG_INFO << "Found hipcc " << hipcc << ", HIP version " << hipcc_hip_version << ".";
   if (hipcc_hip_version < 40) {
     printf(
         "Unsupported HIP version %d.%d detected, "
@@ -374,14 +356,13 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
 
 bool HIPDevice::load_kernels(const uint kernel_features)
 {
-  /* TODO(sergey): Support kernels re-load for CUDA devices adaptive compile.
+  /* TODO(sergey): Support kernels re-load for HIP devices adaptive compile.
    *
-   * Currently re-loading kernel will invalidate memory pointers,
-   * causing problems in cuCtxSynchronize.
+   * Currently re-loading kernels will invalidate memory pointers.
    */
   if (hipModule) {
     if (use_adaptive_compilation()) {
-      VLOG(1) << "Skipping HIP kernel reload for adaptive compilation, not currently supported.";
+      VLOG_INFO << "Skipping HIP kernel reload for adaptive compilation, not currently supported.";
     }
     return true;
   }
@@ -440,6 +421,8 @@ void HIPDevice::reserve_local_memory(const uint kernel_features)
     /* Use the biggest kernel for estimation. */
     const DeviceKernel test_kernel = (kernel_features & KERNEL_FEATURE_NODE_RAYTRACE) ?
                                          DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE :
+                                     (kernel_features & KERNEL_FEATURE_MNEE) ?
+                                         DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE :
                                          DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE;
 
     /* Launch kernel, using just 1 block appears sufficient to reserve memory for all
@@ -447,10 +430,10 @@ void HIPDevice::reserve_local_memory(const uint kernel_features)
      * still to make it faster. */
     HIPDeviceQueue queue(this);
 
-    void *d_path_index = nullptr;
-    void *d_render_buffer = nullptr;
+    device_ptr d_path_index = 0;
+    device_ptr d_render_buffer = 0;
     int d_work_size = 0;
-    void *args[] = {&d_path_index, &d_render_buffer, &d_work_size};
+    DeviceKernelArguments args(&d_path_index, &d_render_buffer, &d_work_size);
 
     queue.init_execution();
     queue.enqueue(test_kernel, 1, args);
@@ -462,8 +445,8 @@ void HIPDevice::reserve_local_memory(const uint kernel_features)
     hipMemGetInfo(&free_after, &total);
   }
 
-  VLOG(1) << "Local memory reserved " << string_human_readable_number(free_before - free_after)
-          << " bytes. (" << string_human_readable_size(free_before - free_after) << ")";
+  VLOG_INFO << "Local memory reserved " << string_human_readable_number(free_before - free_after)
+            << " bytes. (" << string_human_readable_size(free_before - free_after) << ")";
 
 #  if 0
   /* For testing mapped host memory, fill up device memory. */
@@ -494,7 +477,7 @@ void HIPDevice::init_host_memory()
     }
   }
   else {
-    VLOG(1) << "Mapped host memory disabled, failed to get system RAM";
+    VLOG_WARNING << "Mapped host memory disabled, failed to get system RAM";
     map_host_limit = 0;
   }
 
@@ -505,8 +488,8 @@ void HIPDevice::init_host_memory()
   device_working_headroom = 32 * 1024 * 1024LL;   // 32MB
   device_texture_headroom = 128 * 1024 * 1024LL;  // 128MB
 
-  VLOG(1) << "Mapped host memory limit set to " << string_human_readable_number(map_host_limit)
-          << " bytes. (" << string_human_readable_size(map_host_limit) << ")";
+  VLOG_INFO << "Mapped host memory limit set to " << string_human_readable_number(map_host_limit)
+            << " bytes. (" << string_human_readable_size(map_host_limit) << ")";
 }
 
 void HIPDevice::load_texture_info()
@@ -574,7 +557,7 @@ void HIPDevice::move_textures_to_host(size_t size, bool for_texture)
      * multiple HIP devices could be moving the memory. The
      * first one will do it, and the rest will adopt the pointer. */
     if (max_mem) {
-      VLOG(1) << "Move memory from device to host: " << max_mem->name;
+      VLOG_WORK << "Move memory from device to host: " << max_mem->name;
 
       static thread_mutex move_mutex;
       thread_scoped_lock lock(move_mutex);
@@ -676,9 +659,9 @@ HIPDevice::HIPMem *HIPDevice::generic_alloc(device_memory &mem, size_t pitch_pad
   }
 
   if (mem.name) {
-    VLOG(1) << "Buffer allocate: " << mem.name << ", "
-            << string_human_readable_number(mem.memory_size()) << " bytes. ("
-            << string_human_readable_size(mem.memory_size()) << ")" << status;
+    VLOG_WORK << "Buffer allocate: " << mem.name << ", "
+              << string_human_readable_number(mem.memory_size()) << " bytes. ("
+              << string_human_readable_size(mem.memory_size()) << ")" << status;
   }
 
   mem.device_pointer = (device_ptr)device_pointer;
@@ -874,8 +857,19 @@ void HIPDevice::const_copy_to(const char *name, void *host, size_t size)
   hipDeviceptr_t mem;
   size_t bytes;
 
-  hip_assert(hipModuleGetGlobal(&mem, &bytes, hipModule, name));
-  hip_assert(hipMemcpyHtoD(mem, host, size));
+  hip_assert(hipModuleGetGlobal(&mem, &bytes, hipModule, "kernel_params"));
+  assert(bytes == sizeof(KernelParamsHIP));
+
+  /* Update data storage pointers in launch parameters. */
+#  define KERNEL_DATA_ARRAY(data_type, data_name) \
+    if (strcmp(name, #data_name) == 0) { \
+      hip_assert(hipMemcpyHtoD(mem + offsetof(KernelParamsHIP, data_name), host, size)); \
+      return; \
+    }
+  KERNEL_DATA_ARRAY(KernelData, data)
+  KERNEL_DATA_ARRAY(IntegratorStateGPU, integrator_state)
+#  include "kernel/data_arrays.h"
+#  undef KERNEL_DATA_ARRAY
 }
 
 void HIPDevice::global_alloc(device_memory &mem)
@@ -899,8 +893,6 @@ void HIPDevice::tex_alloc(device_texture &mem)
 {
   HIPContextScope scope(this);
 
-  /* General variables for both architectures */
-  string bind_name = mem.name;
   size_t dsize = datatype_size(mem.data_type);
   size_t size = mem.memory_size();
 
@@ -913,8 +905,8 @@ void HIPDevice::tex_alloc(device_texture &mem)
       address_mode = hipAddressModeClamp;
       break;
     case EXTENSION_CLIP:
-      // TODO : (Arya) setting this to Mode Clamp instead of Mode Border because it's unsupported
-      // in hip
+      /* TODO(@arya): setting this to Mode Clamp instead of Mode Border
+       * because it's unsupported in HIP. */
       address_mode = hipAddressModeClamp;
       break;
     default:
@@ -985,9 +977,9 @@ void HIPDevice::tex_alloc(device_texture &mem)
     desc.NumChannels = mem.data_elements;
     desc.Flags = 0;
 
-    VLOG(1) << "Array 3D allocate: " << mem.name << ", "
-            << string_human_readable_number(mem.memory_size()) << " bytes. ("
-            << string_human_readable_size(mem.memory_size()) << ")";
+    VLOG_WORK << "Array 3D allocate: " << mem.name << ", "
+              << string_human_readable_number(mem.memory_size()) << " bytes. ("
+              << string_human_readable_size(mem.memory_size()) << ")";
 
     hip_assert(hipArray3DCreate((hArray *)&array_3d, &desc));
 
@@ -1063,7 +1055,9 @@ void HIPDevice::tex_alloc(device_texture &mem)
   need_texture_info = true;
 
   if (mem.info.data_type != IMAGE_DATA_TYPE_NANOVDB_FLOAT &&
-      mem.info.data_type != IMAGE_DATA_TYPE_NANOVDB_FLOAT3) {
+      mem.info.data_type != IMAGE_DATA_TYPE_NANOVDB_FLOAT3 &&
+      mem.info.data_type != IMAGE_DATA_TYPE_NANOVDB_FPN &&
+      mem.info.data_type != IMAGE_DATA_TYPE_NANOVDB_FP16) {
     /* Bindless textures. */
     hipResourceDesc resDesc;
     memset(&resDesc, 0, sizeof(resDesc));

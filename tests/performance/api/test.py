@@ -1,4 +1,4 @@
-# Apache License, Version 2.0
+# SPDX-License-Identifier: Apache-2.0
 
 import abc
 import fnmatch
@@ -32,7 +32,7 @@ class Test:
 
 
 class TestCollection:
-    def __init__(self, env, names_filter: List=['*'], categories_filter: List=['*']):
+    def __init__(self, env, names_filter: List = ['*'], categories_filter: List = ['*']):
         import importlib
         import pkgutil
         import tests

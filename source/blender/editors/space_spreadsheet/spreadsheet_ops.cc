@@ -1,29 +1,9 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #include "BKE_screen.h"
 
 #include "DNA_space_types.h"
 
 #include "ED_screen.h"
-
-#include "RNA_access.h"
-#include "RNA_define.h"
-
-#include "WM_api.h"
-#include "WM_types.h"
 
 #include "BLI_listbase.h"
 
@@ -33,8 +13,6 @@
 
 #include "RNA_access.h"
 #include "RNA_define.h"
-
-#include "ED_screen.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -106,7 +84,7 @@ static int select_component_domain_invoke(bContext *C,
 {
   GeometryComponentType component_type = static_cast<GeometryComponentType>(
       RNA_int_get(op->ptr, "component_type"));
-  AttributeDomain attribute_domain = static_cast<AttributeDomain>(
+  eAttrDomain attribute_domain = static_cast<eAttrDomain>(
       RNA_int_get(op->ptr, "attribute_domain_type"));
 
   SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);

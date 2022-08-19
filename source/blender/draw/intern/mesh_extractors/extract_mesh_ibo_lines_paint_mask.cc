@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2021 by Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2021 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup draw
@@ -27,7 +11,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "extract_mesh.h"
+#include "draw_subdivision.h"
+#include "extract_mesh.hh"
 
 namespace blender::draw {
 /* ---------------------------------------------------------------------- */
@@ -41,7 +26,7 @@ struct MeshExtract_LinePaintMask_Data {
 };
 
 static void extract_lines_paint_mask_init(const MeshRenderData *mr,
-                                          struct MeshBatchCache *UNUSED(cache),
+                                          MeshBatchCache *UNUSED(cache),
                                           void *UNUSED(ibo),
                                           void *tls_data)
 {
@@ -62,10 +47,8 @@ static void extract_lines_paint_mask_iter_poly_mesh(const MeshRenderData *mr,
     const MLoop *ml = &mloop[ml_index];
 
     const int e_index = ml->e;
-    const MEdge *me = &mr->medge[e_index];
-    if (!((mr->use_hide && (me->flag & ME_HIDE)) ||
-          ((mr->extract_type == MR_EXTRACT_MAPPED) && (mr->e_origindex) &&
-           (mr->e_origindex[e_index] == ORIGINDEX_NONE)))) {
+    if (!((mr->use_hide && mr->hide_edge && mr->hide_edge[e_index]) ||
+          ((mr->e_origindex) && (mr->e_origindex[e_index] == ORIGINDEX_NONE)))) {
 
       const int ml_index_last = mp->totloop + mp->loopstart - 1;
       const int ml_index_other = (ml_index == ml_index_last) ? mp->loopstart : (ml_index + 1);
@@ -93,7 +76,7 @@ static void extract_lines_paint_mask_iter_poly_mesh(const MeshRenderData *mr,
 }
 
 static void extract_lines_paint_mask_finish(const MeshRenderData *UNUSED(mr),
-                                            struct MeshBatchCache *UNUSED(cache),
+                                            MeshBatchCache *UNUSED(cache),
                                             void *buf,
                                             void *_data)
 {
@@ -103,7 +86,77 @@ static void extract_lines_paint_mask_finish(const MeshRenderData *UNUSED(mr),
   MEM_freeN(data->select_map);
 }
 
-/** \} */
+static void extract_lines_paint_mask_init_subdiv(const DRWSubdivCache *subdiv_cache,
+                                                 const MeshRenderData *mr,
+                                                 MeshBatchCache *UNUSED(cache),
+                                                 void *UNUSED(buf),
+                                                 void *tls_data)
+{
+  MeshExtract_LinePaintMask_Data *data = static_cast<MeshExtract_LinePaintMask_Data *>(tls_data);
+  data->select_map = BLI_BITMAP_NEW(mr->edge_len, __func__);
+  GPU_indexbuf_init(&data->elb,
+                    GPU_PRIM_LINES,
+                    subdiv_cache->num_subdiv_edges,
+                    subdiv_cache->num_subdiv_loops * 2);
+}
+
+static void extract_lines_paint_mask_iter_subdiv_mesh(const DRWSubdivCache *subdiv_cache,
+                                                      const MeshRenderData *mr,
+                                                      void *_data,
+                                                      uint subdiv_quad_index,
+                                                      const MPoly *coarse_quad)
+{
+  MeshExtract_LinePaintMask_Data *data = static_cast<MeshExtract_LinePaintMask_Data *>(_data);
+  int *subdiv_loop_edge_index = (int *)GPU_vertbuf_get_data(subdiv_cache->edges_orig_index);
+  int *subdiv_loop_subdiv_edge_index = subdiv_cache->subdiv_loop_subdiv_edge_index;
+
+  uint start_loop_idx = subdiv_quad_index * 4;
+  uint end_loop_idx = (subdiv_quad_index + 1) * 4;
+  for (uint loop_idx = start_loop_idx; loop_idx < end_loop_idx; loop_idx++) {
+    const uint coarse_edge_index = (uint)subdiv_loop_edge_index[loop_idx];
+    const uint subdiv_edge_index = (uint)subdiv_loop_subdiv_edge_index[loop_idx];
+
+    if (coarse_edge_index == -1u) {
+      GPU_indexbuf_set_line_restart(&data->elb, subdiv_edge_index);
+    }
+    else {
+      if (!((mr->use_hide && mr->hide_edge && mr->hide_edge[coarse_edge_index]) ||
+            ((mr->e_origindex) && (mr->e_origindex[coarse_edge_index] == ORIGINDEX_NONE)))) {
+        const uint ml_index_other = (loop_idx == (end_loop_idx - 1)) ? start_loop_idx :
+                                                                       loop_idx + 1;
+        if (coarse_quad->flag & ME_FACE_SEL) {
+          if (BLI_BITMAP_TEST_AND_SET_ATOMIC(data->select_map, coarse_edge_index)) {
+            /* Hide edge as it has more than 2 selected loop. */
+            GPU_indexbuf_set_line_restart(&data->elb, subdiv_edge_index);
+          }
+          else {
+            /* First selected loop. Set edge visible, overwriting any unselected loop. */
+            GPU_indexbuf_set_line_verts(&data->elb, subdiv_edge_index, loop_idx, ml_index_other);
+          }
+        }
+        else {
+          /* Set these unselected loop only if this edge has no other selected loop. */
+          if (!BLI_BITMAP_TEST(data->select_map, coarse_edge_index)) {
+            GPU_indexbuf_set_line_verts(&data->elb, subdiv_edge_index, loop_idx, ml_index_other);
+          }
+        }
+      }
+      else {
+        GPU_indexbuf_set_line_restart(&data->elb, subdiv_edge_index);
+      }
+    }
+  }
+}
+
+static void extract_lines_paint_mask_finish_subdiv(
+    const struct DRWSubdivCache *UNUSED(subdiv_cache),
+    const MeshRenderData *mr,
+    MeshBatchCache *cache,
+    void *buf,
+    void *_data)
+{
+  extract_lines_paint_mask_finish(mr, cache, buf, _data);
+}
 
 constexpr MeshExtract create_extractor_lines_paint_mask()
 {
@@ -111,6 +164,9 @@ constexpr MeshExtract create_extractor_lines_paint_mask()
   extractor.init = extract_lines_paint_mask_init;
   extractor.iter_poly_mesh = extract_lines_paint_mask_iter_poly_mesh;
   extractor.finish = extract_lines_paint_mask_finish;
+  extractor.init_subdiv = extract_lines_paint_mask_init_subdiv;
+  extractor.iter_subdiv_mesh = extract_lines_paint_mask_iter_subdiv_mesh;
+  extractor.finish_subdiv = extract_lines_paint_mask_finish_subdiv;
   extractor.data_type = MR_DATA_NONE;
   extractor.data_size = sizeof(MeshExtract_LinePaintMask_Data);
   extractor.use_threading = false;
@@ -118,10 +174,8 @@ constexpr MeshExtract create_extractor_lines_paint_mask()
   return extractor;
 }
 
+/** \} */
+
 }  // namespace blender::draw
 
-extern "C" {
 const MeshExtract extract_lines_paint_mask = blender::draw::create_extractor_lines_paint_mask();
-}
-
-/** \} */

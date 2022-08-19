@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
 
 /** \file
  * \ingroup bke
@@ -30,6 +14,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -40,10 +26,11 @@
 #include "BLI_string_utils.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_global.h"
-
 #include "BKE_displist.h"
+#include "BKE_global.h"
+#include "BKE_lib_id.h"
 #include "BKE_mball_tessellate.h" /* own include */
+#include "BKE_mesh.h"
 #include "BKE_object.h"
 #include "BKE_scene.h"
 
@@ -54,6 +41,8 @@
 
 /* experimental (faster) normal calculation */
 // #define USE_ACCUM_NORMAL
+
+#define MBALL_ARRAY_LEN_INIT 4096
 
 /* Data types */
 
@@ -441,21 +430,18 @@ static float metaball(PROCESS *process, float x, float y, float z)
  */
 static void make_face(PROCESS *process, int i1, int i2, int i3, int i4)
 {
-  int *cur;
-
 #ifdef USE_ACCUM_NORMAL
   float n[3];
 #endif
 
   if (UNLIKELY(process->totindex == process->curindex)) {
-    process->totindex += 4096;
+    process->totindex = process->totindex ? (process->totindex * 2) : MBALL_ARRAY_LEN_INIT;
     process->indices = MEM_reallocN(process->indices, sizeof(int[4]) * process->totindex);
   }
 
-  cur = process->indices[process->curindex++];
+  int *cur = process->indices[process->curindex++];
 
-  /* #DispList supports array drawing, treat tri's as fake quad. */
-
+  /* Treat triangles as fake quads. */
   cur[0] = i1;
   cur[1] = i2;
   cur[2] = i3;
@@ -946,8 +932,8 @@ static int getedge(EDGELIST *table[], int i1, int j1, int k1, int i2, int j2, in
  */
 static void addtovertices(PROCESS *process, const float v[3], const float no[3])
 {
-  if (process->curvertex == process->totvertex) {
-    process->totvertex += 4096;
+  if (UNLIKELY(process->curvertex == process->totvertex)) {
+    process->totvertex = process->totvertex ? process->totvertex * 2 : MBALL_ARRAY_LEN_INIT;
     process->co = MEM_reallocN(process->co, process->totvertex * sizeof(float[3]));
     process->no = MEM_reallocN(process->no, process->totvertex * sizeof(float[3]));
   }
@@ -1385,15 +1371,12 @@ static void init_meta(Depsgraph *depsgraph, PROCESS *process, Scene *scene, Obje
   }
 }
 
-void BKE_mball_polygonize(Depsgraph *depsgraph, Scene *scene, Object *ob, ListBase *dispbase)
+Mesh *BKE_mball_polygonize(Depsgraph *depsgraph, Scene *scene, Object *ob)
 {
-  MetaBall *mb;
-  DispList *dl;
-  unsigned int a;
   PROCESS process = {0};
-  bool is_render = DEG_get_mode(depsgraph) == DAG_EVAL_RENDER;
+  const bool is_render = DEG_get_mode(depsgraph) == DAG_EVAL_RENDER;
 
-  mb = ob->data;
+  MetaBall *mb = ob->data;
 
   process.thresh = mb->thresh;
 
@@ -1411,10 +1394,10 @@ void BKE_mball_polygonize(Depsgraph *depsgraph, Scene *scene, Object *ob, ListBa
   }
 
   if (!is_render && (mb->flag == MB_UPDATE_NEVER)) {
-    return;
+    return NULL;
   }
   if ((G.moving & (G_TRANSFORM_OBJ | G_TRANSFORM_EDIT)) && mb->flag == MB_UPDATE_FAST) {
-    return;
+    return NULL;
   }
 
   if (is_render) {
@@ -1433,37 +1416,77 @@ void BKE_mball_polygonize(Depsgraph *depsgraph, Scene *scene, Object *ob, ListBa
 
   /* initialize all mainb (MetaElems) */
   init_meta(depsgraph, &process, scene, ob);
+  if (process.totelem == 0) {
+    freepolygonize(&process);
+    return NULL;
+  }
 
-  if (process.totelem > 0) {
-    build_bvh_spatial(&process, &process.metaball_bvh, 0, process.totelem, &process.allbb);
+  build_bvh_spatial(&process, &process.metaball_bvh, 0, process.totelem, &process.allbb);
 
-    /* Don't polygonize meta-balls with too high resolution (base mball too small)
-     * NOTE: Eps was 0.0001f but this was giving problems for blood animation for
-     * the open movie "Sintel", using 0.00001f. */
-    if (ob->scale[0] > 0.00001f * (process.allbb.max[0] - process.allbb.min[0]) ||
-        ob->scale[1] > 0.00001f * (process.allbb.max[1] - process.allbb.min[1]) ||
-        ob->scale[2] > 0.00001f * (process.allbb.max[2] - process.allbb.min[2])) {
-      polygonize(&process);
+  /* Don't polygonize meta-balls with too high resolution (base mball too small)
+   * NOTE: Eps was 0.0001f but this was giving problems for blood animation for
+   * the open movie "Sintel", using 0.00001f. */
+  if (ob->scale[0] < 0.00001f * (process.allbb.max[0] - process.allbb.min[0]) ||
+      ob->scale[1] < 0.00001f * (process.allbb.max[1] - process.allbb.min[1]) ||
+      ob->scale[2] < 0.00001f * (process.allbb.max[2] - process.allbb.min[2])) {
+    freepolygonize(&process);
+    return NULL;
+  }
 
-      /* add resulting surface to displist */
-      if (process.curindex) {
-        dl = MEM_callocN(sizeof(DispList), "mballdisp");
-        BLI_addtail(dispbase, dl);
-        dl->type = DL_INDEX4;
-        dl->nr = (int)process.curvertex;
-        dl->parts = (int)process.curindex;
-
-        dl->index = (int *)process.indices;
-
-        for (a = 0; a < process.curvertex; a++) {
-          normalize_v3(process.no[a]);
-        }
-
-        dl->verts = (float *)process.co;
-        dl->nors = (float *)process.no;
-      }
-    }
+  polygonize(&process);
+  if (process.curindex == 0) {
+    freepolygonize(&process);
+    return NULL;
   }
 
   freepolygonize(&process);
+
+  Mesh *mesh = (Mesh *)BKE_id_new_nomain(ID_ME, ((ID *)ob->data)->name + 2);
+
+  mesh->totvert = (int)process.curvertex;
+  MVert *mvert = CustomData_add_layer(&mesh->vdata, CD_MVERT, CD_DEFAULT, NULL, mesh->totvert);
+  for (int i = 0; i < mesh->totvert; i++) {
+    copy_v3_v3(mvert[i].co, process.co[i]);
+    mvert->bweight = 0;
+    mvert->flag = 0;
+  }
+  MEM_freeN(process.co);
+
+  mesh->totpoly = (int)process.curindex;
+  MPoly *mpoly = CustomData_add_layer(&mesh->pdata, CD_MPOLY, CD_DEFAULT, NULL, mesh->totpoly);
+  MLoop *mloop = CustomData_add_layer(&mesh->ldata, CD_MLOOP, CD_DEFAULT, NULL, mesh->totpoly * 4);
+
+  int loop_offset = 0;
+  for (int i = 0; i < mesh->totpoly; i++) {
+    const int *indices = process.indices[i];
+
+    const int count = indices[2] != indices[3] ? 4 : 3;
+    mpoly[i].loopstart = loop_offset;
+    mpoly[i].totloop = count;
+    mpoly[i].flag = ME_SMOOTH;
+
+    mloop[loop_offset].v = (uint32_t)indices[0];
+    mloop[loop_offset + 1].v = (uint32_t)indices[1];
+    mloop[loop_offset + 2].v = (uint32_t)indices[2];
+    if (count == 4) {
+      mloop[loop_offset + 3].v = (uint32_t)indices[3];
+    }
+
+    loop_offset += count;
+  }
+  MEM_freeN(process.indices);
+
+  for (int i = 0; i < mesh->totvert; i++) {
+    normalize_v3(process.no[i]);
+  }
+  mesh->runtime.vert_normals = process.no;
+  BKE_mesh_vertex_normals_clear_dirty(mesh);
+
+  mesh->totloop = loop_offset;
+
+  BKE_mesh_update_customdata_pointers(mesh, false);
+
+  BKE_mesh_calc_edges(mesh, false, false);
+
+  return mesh;
 }

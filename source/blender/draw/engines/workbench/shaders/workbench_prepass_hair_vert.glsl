@@ -1,18 +1,17 @@
 #pragma BLENDER_REQUIRE(common_hair_lib.glsl)
 #pragma BLENDER_REQUIRE(common_view_lib.glsl)
-#pragma BLENDER_REQUIRE(workbench_shader_interface_lib.glsl)
+#pragma BLENDER_REQUIRE(common_view_clipping_lib.glsl)
 #pragma BLENDER_REQUIRE(workbench_common_lib.glsl)
 #pragma BLENDER_REQUIRE(workbench_material_lib.glsl)
 #pragma BLENDER_REQUIRE(workbench_image_lib.glsl)
 
-uniform samplerBuffer ac; /* active color layer */
-uniform samplerBuffer au; /* active texture layer */
-
 /* From http://libnoise.sourceforge.net/noisegen/index.html */
 float integer_noise(int n)
 {
-  n = (n >> 13) ^ n;
-  int nn = (n * (n * n * 60493 + 19990303) + 1376312589) & 0x7fffffff;
+  /* Integer bit-shifts cause precision issues due to overflow
+   * in a number of workbench tests. Use uint instead. */
+  uint nn = (uint(n) >> 13u) ^ uint(n);
+  nn = (nn * (nn * nn * 60493u + 19990303u) + 1376312589u) & 0x7fffffffu;
   return (float(nn) / 1073741824.0);
 }
 
@@ -44,13 +43,13 @@ void workbench_hair_random_material(float rand,
 
 void main()
 {
-  bool is_persp = (ProjectionMatrix[3][3] == 0.0);
+  bool is_persp = (drw_view.winmat[3][3] == 0.0);
   float time, thick_time, thickness;
   vec3 world_pos, tan, binor;
   hair_get_pos_tan_binor_time(is_persp,
                               ModelMatrixInverse,
-                              ViewMatrixInverse[3].xyz,
-                              ViewMatrixInverse[2].xyz,
+                              drw_view.viewinv[3].xyz,
+                              drw_view.viewinv[2].xyz,
                               world_pos,
                               tan,
                               binor,
@@ -63,18 +62,13 @@ void main()
   float hair_rand = integer_noise(hair_get_strand_id());
   vec3 nor = workbench_hair_random_normal(tan, binor, hair_rand);
 
-#ifdef USE_WORLD_CLIP_PLANES
-  world_clip_planes_calc_clip_distance(world_pos);
-#endif
+  view_clipping_distances(world_pos);
 
   uv_interp = hair_get_customdata_vec2(au);
 
   normal_interp = normalize(normal_world_to_view(nor));
 
-#ifdef OPAQUE_MATERIAL
-  float metallic, roughness;
-#endif
-  workbench_material_data_get(resource_handle, color_interp, alpha_interp, roughness, metallic);
+  workbench_material_data_get(resource_handle, color_interp, alpha_interp, _roughness, metallic);
 
   if (materialIndex == 0) {
     color_interp = hair_get_customdata_vec3(ac);
@@ -84,11 +78,7 @@ void main()
    * So we lower their alpha artificially. */
   alpha_interp *= 0.3;
 
-  workbench_hair_random_material(hair_rand, color_interp, roughness, metallic);
-
-#ifdef OPAQUE_MATERIAL
-  packed_rough_metal = workbench_float_pair_encode(roughness, metallic);
-#endif
+  workbench_hair_random_material(hair_rand, color_interp, _roughness, metallic);
 
   object_id = int(uint(resource_handle) & 0xFFFFu) + 1;
 }

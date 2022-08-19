@@ -1,6 +1,7 @@
 
 /* Merge overlays texture on top of image texture and transform to display space (assume sRGB) */
 
+#ifndef USE_GPU_SHADER_CREATE_INFO
 uniform sampler2D image_texture;
 uniform sampler2D overlays_texture;
 uniform bool display_transform;
@@ -9,6 +10,7 @@ uniform bool overlay;
 in vec2 texCoord_interp;
 
 out vec4 fragColor;
+#endif
 
 float linearrgb_to_srgb(float c)
 {
@@ -30,8 +32,8 @@ void linearrgb_to_srgb(vec4 col_from, out vec4 col_to)
 
 void main()
 {
-  fragColor = texture(image_texture, texCoord_interp.st);
-  vec4 overlay_col = texture(overlays_texture, texCoord_interp.st);
+  fragColor = texture(image_texture, texCoord_interp.xy);
+  vec4 overlay_col = texture(overlays_texture, texCoord_interp.xy);
 
   if (overlay) {
     fragColor = clamp(fragColor, 0.0, 1.0);

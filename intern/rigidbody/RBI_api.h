@@ -1,24 +1,8 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2013 Blender Foundation,
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2013 Blender Foundation. All rights reserved. */
 
 /** \file
- * \ingroup RigidBody
+ * \ingroup intern_rigidbody
  * \brief Rigid Body API for interfacing with external Physics Engines
  */
 
@@ -30,7 +14,7 @@ extern "C" {
 #endif
 
 /* API Notes:
- * Currently, this API is optimised for Bullet RigidBodies, and doesn't
+ * Currently, this API is optimized for Bullet RigidBodies, and doesn't
  * take into account other Physics Engines. Some tweaking may be necessary
  * to allow other systems to be used, in particular there may be references
  * to datatypes that aren't used here...
@@ -262,8 +246,8 @@ void RB_shape_trimesh_update(rbCollisionShape *shape,
                              float *vertices,
                              int num_verts,
                              int vert_stride,
-                             float min[3],
-                             float max[3]);
+                             const float min[3],
+                             const float max[3]);
 
 /* ********************************** */
 /* Constraints */

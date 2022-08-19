@@ -1,3 +1,5 @@
+#pragma BLENDER_REQUIRE(gpu_shader_common_hash.glsl)
+
 /* clang-format off */
 #define FLOORFRAC(x, x_int, x_fract) { float x_floor = floor(x); x_int = int(x_floor); x_fract = x - x_floor; }
 /* clang-format on */
@@ -11,7 +13,6 @@
  *  +         +       |
  *  @ + + + + @       @------> x
  * v0          v1
- *
  */
 float bi_mix(float v0, float v1, float v2, float v3, float x, float y)
 {

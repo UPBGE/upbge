@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2016, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2016 Blender Foundation. */
 
 /** \file
  * \ingroup draw_engine
@@ -36,16 +21,9 @@
 #include "GPU_shader.h"
 
 #include "basic_engine.h"
-/* Shaders */
+#include "basic_private.h"
 
 #define BASIC_ENGINE "BLENDER_BASIC"
-
-extern char datatoc_depth_frag_glsl[];
-extern char datatoc_depth_vert_glsl[];
-extern char datatoc_conservative_depth_geom_glsl[];
-
-extern char datatoc_common_view_lib_glsl[];
-extern char datatoc_common_pointcloud_lib_glsl[];
 
 /* *********** LISTS *********** */
 
@@ -69,95 +47,16 @@ typedef struct BASIC_Data {
   BASIC_StorageList *stl;
 } BASIC_Data;
 
-typedef struct BASIC_Shaders {
-  /* Depth Pre Pass */
-  struct GPUShader *depth;
-  struct GPUShader *pointcloud_depth;
-  struct GPUShader *depth_conservative;
-  struct GPUShader *pointcloud_depth_conservative;
-} BASIC_Shaders;
-
 /* *********** STATIC *********** */
-
-static struct {
-  BASIC_Shaders sh_data[GPU_SHADER_CFG_LEN];
-} e_data = {{{NULL}}}; /* Engine data */
 
 typedef struct BASIC_PrivateData {
   DRWShadingGroup *depth_shgrp[2];
   DRWShadingGroup *depth_shgrp_cull[2];
   DRWShadingGroup *depth_hair_shgrp[2];
+  DRWShadingGroup *depth_curves_shgrp[2];
   DRWShadingGroup *depth_pointcloud_shgrp[2];
   bool use_material_slot_selection;
 } BASIC_PrivateData; /* Transient data */
-
-/* Functions */
-
-static void basic_engine_init(void *UNUSED(vedata))
-{
-  const DRWContextState *draw_ctx = DRW_context_state_get();
-  BASIC_Shaders *sh_data = &e_data.sh_data[draw_ctx->sh_cfg];
-
-  /* Depth prepass */
-  if (!sh_data->depth) {
-    const GPUShaderConfigData *sh_cfg = &GPU_shader_cfg_data[draw_ctx->sh_cfg];
-
-    sh_data->depth = GPU_shader_create_from_arrays({
-        .vert = (const char *[]){sh_cfg->lib,
-                                 datatoc_common_view_lib_glsl,
-                                 datatoc_depth_vert_glsl,
-                                 NULL},
-        .frag = (const char *[]){datatoc_depth_frag_glsl, NULL},
-        .defs = (const char *[]){sh_cfg->def, NULL},
-    });
-
-    sh_data->pointcloud_depth = GPU_shader_create_from_arrays({
-        .vert = (const char *[]){sh_cfg->lib,
-                                 datatoc_common_view_lib_glsl,
-                                 datatoc_common_pointcloud_lib_glsl,
-                                 datatoc_depth_vert_glsl,
-                                 NULL},
-        .frag = (const char *[]){datatoc_depth_frag_glsl, NULL},
-        .defs = (const char *[]){sh_cfg->def,
-                                 "#define POINTCLOUD\n",
-                                 "#define INSTANCED_ATTR\n",
-                                 "#define UNIFORM_RESOURCE_ID\n",
-                                 NULL},
-    });
-
-    sh_data->depth_conservative = GPU_shader_create_from_arrays({
-        .vert = (const char *[]){sh_cfg->lib,
-                                 datatoc_common_view_lib_glsl,
-                                 datatoc_depth_vert_glsl,
-                                 NULL},
-        .geom = (const char *[]){sh_cfg->lib,
-                                 datatoc_common_view_lib_glsl,
-                                 datatoc_conservative_depth_geom_glsl,
-                                 NULL},
-        .frag = (const char *[]){datatoc_depth_frag_glsl, NULL},
-        .defs = (const char *[]){sh_cfg->def, "#define CONSERVATIVE_RASTER\n", NULL},
-    });
-
-    sh_data->pointcloud_depth_conservative = GPU_shader_create_from_arrays({
-        .vert = (const char *[]){sh_cfg->lib,
-                                 datatoc_common_view_lib_glsl,
-                                 datatoc_common_pointcloud_lib_glsl,
-                                 datatoc_depth_vert_glsl,
-                                 NULL},
-        .geom = (const char *[]){sh_cfg->lib,
-                                 datatoc_common_view_lib_glsl,
-                                 datatoc_conservative_depth_geom_glsl,
-                                 NULL},
-        .frag = (const char *[]){datatoc_depth_frag_glsl, NULL},
-        .defs = (const char *[]){sh_cfg->def,
-                                 "#define CONSERVATIVE_RASTER\n",
-                                 "#define POINTCLOUD\n",
-                                 "#define INSTANCED_ATTR\n",
-                                 "#define UNIFORM_RESOURCE_ID\n",
-                                 NULL},
-    });
-  }
-}
 
 static void basic_cache_init(void *vedata)
 {
@@ -166,7 +65,6 @@ static void basic_cache_init(void *vedata)
   DRWShadingGroup *grp;
 
   const DRWContextState *draw_ctx = DRW_context_state_get();
-  BASIC_Shaders *sh_data = &e_data.sh_data[draw_ctx->sh_cfg];
 
   if (!stl->g_data) {
     /* Alloc transient pointers */
@@ -181,24 +79,32 @@ static void basic_cache_init(void *vedata)
     DRWState infront_state = (DRW_state_is_select() && (i == 1)) ? DRW_STATE_IN_FRONT_SELECT : 0;
     DRWState state = DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL;
 
-    GPUShader *sh = DRW_state_is_select() ? sh_data->depth_conservative : sh_data->depth;
+    GPUShader *sh = DRW_state_is_select() ?
+                        BASIC_shaders_depth_conservative_sh_get(draw_ctx->sh_cfg) :
+                        BASIC_shaders_depth_sh_get(draw_ctx->sh_cfg);
 
     DRW_PASS_CREATE(psl->depth_pass[i], state | clip_state | infront_state);
     stl->g_data->depth_shgrp[i] = grp = DRW_shgroup_create(sh, psl->depth_pass[i]);
     DRW_shgroup_uniform_vec2(grp, "sizeViewport", DRW_viewport_size_get(), 1);
     DRW_shgroup_uniform_vec2(grp, "sizeViewportInv", DRW_viewport_invert_size_get(), 1);
 
-    sh = DRW_state_is_select() ? sh_data->pointcloud_depth_conservative : sh_data->pointcloud_depth;
+    sh = DRW_state_is_select() ?
+             BASIC_shaders_pointcloud_depth_conservative_sh_get(draw_ctx->sh_cfg) :
+             BASIC_shaders_pointcloud_depth_sh_get(draw_ctx->sh_cfg);
     DRW_PASS_CREATE(psl->depth_pass_pointcloud[i], state | clip_state | infront_state);
-    stl->g_data->depth_pointcloud_shgrp[i] = grp = DRW_shgroup_create(sh, psl->depth_pass_pointcloud[i]);
+    stl->g_data->depth_pointcloud_shgrp[i] = grp = DRW_shgroup_create(
+        sh, psl->depth_pass_pointcloud[i]);
     DRW_shgroup_uniform_vec2(grp, "sizeViewport", DRW_viewport_size_get(), 1);
     DRW_shgroup_uniform_vec2(grp, "sizeViewportInv", DRW_viewport_invert_size_get(), 1);
 
-    stl->g_data->depth_hair_shgrp[i] = grp = DRW_shgroup_create(sh_data->depth,
-                                                                psl->depth_pass[i]);
+    stl->g_data->depth_hair_shgrp[i] = grp = DRW_shgroup_create(
+        BASIC_shaders_depth_sh_get(draw_ctx->sh_cfg), psl->depth_pass[i]);
 
+    stl->g_data->depth_curves_shgrp[i] = grp = DRW_shgroup_create(
+        BASIC_shaders_curves_depth_sh_get(draw_ctx->sh_cfg), psl->depth_pass[i]);
 
-    sh = DRW_state_is_select() ? sh_data->depth_conservative : sh_data->depth;
+    sh = DRW_state_is_select() ? BASIC_shaders_depth_conservative_sh_get(draw_ctx->sh_cfg) :
+                                 BASIC_shaders_depth_sh_get(draw_ctx->sh_cfg);
     state |= DRW_STATE_CULL_BACK;
     DRW_PASS_CREATE(psl->depth_pass_cull[i], state | clip_state | infront_state);
     stl->g_data->depth_shgrp_cull[i] = grp = DRW_shgroup_create(sh, psl->depth_pass_cull[i]);
@@ -254,8 +160,12 @@ static void basic_cache_populate(void *vedata, Object *ob)
     basic_cache_populate_particles(vedata, ob);
   }
 
-  /* Make flat object selectable in ortho view if wireframe is enabled. */
   const bool do_in_front = (ob->dtx & OB_DRAW_IN_FRONT) != 0;
+  if (ob->type == OB_CURVES) {
+    DRW_shgroup_curves_create_sub(ob, stl->g_data->depth_curves_shgrp[do_in_front], NULL);
+  }
+
+  /* Make flat object selectable in ortho view if wireframe is enabled. */
   if ((draw_ctx->v3d->overlay.flag & V3D_OVERLAY_WIREFRAMES) ||
       (draw_ctx->v3d->shading.type == OB_WIRE) || (ob->dtx & OB_DRAWWIRE) || (ob->dt == OB_WIRE)) {
     int flat_axis = 0;
@@ -336,13 +246,7 @@ static void basic_draw_scene(void *vedata)
 
 static void basic_engine_free(void)
 {
-  for (int i = 0; i < GPU_SHADER_CFG_LEN; i++) {
-    BASIC_Shaders *sh_data = &e_data.sh_data[i];
-    DRW_SHADER_FREE_SAFE(sh_data->depth);
-    DRW_SHADER_FREE_SAFE(sh_data->depth_conservative);
-    DRW_SHADER_FREE_SAFE(sh_data->pointcloud_depth);
-    DRW_SHADER_FREE_SAFE(sh_data->pointcloud_depth_conservative);
-  }
+  BASIC_shaders_free();
 }
 
 static const DrawEngineDataSize basic_data_size = DRW_VIEWPORT_DATA_SIZE(BASIC_Data);
@@ -352,8 +256,9 @@ DrawEngineType draw_engine_basic_type = {
     NULL,
     N_("Basic"),
     &basic_data_size,
-    &basic_engine_init,
+    NULL,
     &basic_engine_free,
+    NULL, /* instance_free */
     &basic_cache_init,
     &basic_cache_populate,
     &basic_cache_finish,

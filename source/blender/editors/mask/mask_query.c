@@ -1,21 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2012 Blender Foundation.
- * All rights reserved.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2012 Blender Foundation. All rights reserved. */
 
 /** \file
  * \ingroup edmask
@@ -61,6 +45,8 @@ bool ED_mask_find_nearest_diff_point(const bContext *C,
                                      float *r_u,
                                      float *r_score)
 {
+  const float threshold_sq = threshold * threshold;
+
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
 
@@ -155,7 +141,7 @@ bool ED_mask_find_nearest_diff_point(const bContext *C,
     }
   }
 
-  if (point && dist_best_sq < threshold) {
+  if (point && dist_best_sq < threshold_sq) {
     if (r_mask_layer) {
       *r_mask_layer = point_mask_layer;
     }
@@ -489,7 +475,6 @@ bool ED_mask_feather_find_nearest(const bContext *C,
   return false;
 }
 
-/* takes event->mval */
 void ED_mask_mouse_pos(ScrArea *area, ARegion *region, const int mval[2], float co[2])
 {
   if (area) {
@@ -523,8 +508,6 @@ void ED_mask_mouse_pos(ScrArea *area, ARegion *region, const int mval[2], float 
   }
 }
 
-/* input:  x/y   - mval space
- * output: xr/yr - mask point space */
 void ED_mask_point_pos(ScrArea *area, ARegion *region, float x, float y, float *xr, float *yr)
 {
   float co[2];
@@ -632,7 +615,7 @@ bool ED_mask_selected_minmax(const bContext *C,
 
   /* Use evaluated mask to take animation into account.
    * The animation of splies is not "flushed" back to original, so need to explicitly
-   * sue evaluated datablock here. */
+   * use evaluated datablock here. */
   Mask *mask_eval = (Mask *)DEG_get_evaluated_id(depsgraph, &mask->id);
 
   INIT_MINMAX2(min, max);
@@ -699,8 +682,7 @@ void ED_mask_get_size(ScrArea *area, int *width, int *height)
       }
       case SPACE_SEQ: {
         //              Scene *scene = CTX_data_scene(C);
-        //              *width = (scene->r.size * scene->r.xsch) / 100;
-        //              *height = (scene->r.size * scene->r.ysch) / 100;
+        //              BKE_render_resolution(&scene->r, false, width, height);
         break;
       }
       case SPACE_IMAGE: {

@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_task.hh"
 
@@ -21,23 +7,15 @@
 
 #include "node_geometry_util.hh"
 
+namespace blender::nodes::node_geo_points_to_vertices_cc {
+
 using blender::Array;
 
-namespace blender::nodes {
-
-static void geo_node_points_to_vertices_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>(N_("Points")).supported_type(GEO_COMPONENT_TYPE_POINT_CLOUD);
   b.add_input<decl::Bool>(N_("Selection")).default_value(true).supports_field().hide_value();
   b.add_output<decl::Geometry>(N_("Mesh"));
-}
-
-template<typename T>
-static void copy_attribute_to_vertices(const Span<T> src, const IndexMask mask, MutableSpan<T> dst)
-{
-  for (const int i : mask.index_range()) {
-    dst[i] = src[mask[i]];
-  }
 }
 
 /* One improvement would be to move the attribute arrays directly to the mesh when possible. */
@@ -47,18 +25,18 @@ static void geometry_set_points_to_vertices(GeometrySet &geometry_set,
   const PointCloudComponent *point_component =
       geometry_set.get_component_for_read<PointCloudComponent>();
   if (point_component == nullptr) {
-    geometry_set.keep_only({GEO_COMPONENT_TYPE_INSTANCES});
+    geometry_set.remove_geometry_during_modify();
     return;
   }
 
   GeometryComponentFieldContext field_context{*point_component, ATTR_DOMAIN_POINT};
-  const int domain_size = point_component->attribute_domain_size(ATTR_DOMAIN_POINT);
-  if (domain_size == 0) {
-    geometry_set.keep_only({GEO_COMPONENT_TYPE_INSTANCES});
+  const int domain_num = point_component->attribute_domain_size(ATTR_DOMAIN_POINT);
+  if (domain_num == 0) {
+    geometry_set.remove_geometry_during_modify();
     return;
   }
 
-  fn::FieldEvaluator selection_evaluator{field_context, domain_size};
+  fn::FieldEvaluator selection_evaluator{field_context, domain_num};
   selection_evaluator.add(selection_field);
   selection_evaluator.evaluate();
   const IndexMask selection = selection_evaluator.get_evaluated_as_mask(0);
@@ -73,26 +51,22 @@ static void geometry_set_points_to_vertices(GeometrySet &geometry_set,
 
   for (Map<AttributeIDRef, AttributeKind>::Item entry : attributes.items()) {
     const AttributeIDRef attribute_id = entry.key;
-    const CustomDataType data_type = entry.value.data_type;
-    GVArrayPtr src = point_component->attribute_get_for_read(
+    const eCustomDataType data_type = entry.value.data_type;
+    GVArray src = point_component->attributes()->lookup_or_default(
         attribute_id, ATTR_DOMAIN_POINT, data_type);
-    OutputAttribute dst = mesh_component.attribute_try_get_for_output_only(
-        attribute_id, ATTR_DOMAIN_POINT, data_type);
+    GSpanAttributeWriter dst =
+        mesh_component.attributes_for_write()->lookup_or_add_for_write_only_span(
+            attribute_id, ATTR_DOMAIN_POINT, data_type);
     if (dst && src) {
-      attribute_math::convert_to_static_type(data_type, [&](auto dummy) {
-        using T = decltype(dummy);
-        GVArray_Typed<T> src_typed{*src};
-        VArray_Span<T> src_typed_span{*src_typed};
-        copy_attribute_to_vertices(src_typed_span, selection, dst.as_span().typed<T>());
-      });
-      dst.save();
+      src.materialize_compressed_to_uninitialized(selection, dst.span.data());
+      dst.finish();
     }
   }
 
-  geometry_set.keep_only({GEO_COMPONENT_TYPE_MESH, GEO_COMPONENT_TYPE_INSTANCES});
+  geometry_set.keep_only_during_modify({GEO_COMPONENT_TYPE_MESH});
 }
 
-static void geo_node_points_to_vertices_exec(GeoNodeExecParams params)
+static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Points");
   Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
@@ -104,15 +78,17 @@ static void geo_node_points_to_vertices_exec(GeoNodeExecParams params)
   params.set_output("Mesh", std::move(geometry_set));
 }
 
-}  // namespace blender::nodes
+}  // namespace blender::nodes::node_geo_points_to_vertices_cc
 
 void register_node_type_geo_points_to_vertices()
 {
+  namespace file_ns = blender::nodes::node_geo_points_to_vertices_cc;
+
   static bNodeType ntype;
 
   geo_node_type_base(
-      &ntype, GEO_NODE_POINTS_TO_VERTICES, "Points to Vertices", NODE_CLASS_GEOMETRY, 0);
-  ntype.declare = blender::nodes::geo_node_points_to_vertices_declare;
-  ntype.geometry_node_execute = blender::nodes::geo_node_points_to_vertices_exec;
+      &ntype, GEO_NODE_POINTS_TO_VERTICES, "Points to Vertices", NODE_CLASS_GEOMETRY);
+  ntype.declare = file_ns::node_declare;
+  ntype.geometry_node_execute = file_ns::node_geo_exec;
   nodeRegisterType(&ntype);
 }

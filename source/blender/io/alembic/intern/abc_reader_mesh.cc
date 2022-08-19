@@ -1,18 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup balembic
@@ -34,6 +20,8 @@
 #include "DNA_object_types.h"
 
 #include "BLI_compiler_compat.h"
+#include "BLI_edgehash.h"
+#include "BLI_index_range.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 
@@ -44,6 +32,7 @@
 #include "BKE_modifier.h"
 #include "BKE_object.h"
 
+using Alembic::Abc::FloatArraySamplePtr;
 using Alembic::Abc::Int32ArraySamplePtr;
 using Alembic::Abc::IV3fArrayProperty;
 using Alembic::Abc::P3fArraySamplePtr;
@@ -89,10 +78,8 @@ static void assign_materials(Main *bmain,
                              const std::map<std::string, int> &mat_index_map)
 {
   std::map<std::string, int>::const_iterator it;
-  for (it = mat_index_map.begin(); it != mat_index_map.end(); ++it) {
-    if (!BKE_object_material_slot_add(bmain, ob)) {
-      return;
-    }
+  if (mat_index_map.size() > MAXMAT) {
+    return;
   }
 
   std::map<std::string, Material *> matname_to_material = build_material_map(bmain);
@@ -112,7 +99,7 @@ static void assign_materials(Main *bmain,
       assigned_mat = mat_iter->second;
     }
 
-    BKE_object_material_assign(bmain, ob, assigned_mat, mat_index, BKE_MAT_ASSIGN_OBDATA);
+    BKE_object_material_assign_single_obdata(bmain, ob, assigned_mat, mat_index);
   }
 }
 
@@ -133,7 +120,7 @@ struct AbcMeshData {
 static void read_mverts_interp(MVert *mverts,
                                const P3fArraySamplePtr &positions,
                                const P3fArraySamplePtr &ceil_positions,
-                               const float weight)
+                               const double weight)
 {
   float tmp[3];
   for (int i = 0; i < positions->size(); i++) {
@@ -141,7 +128,7 @@ static void read_mverts_interp(MVert *mverts,
     const Imath::V3f &floor_pos = (*positions)[i];
     const Imath::V3f &ceil_pos = (*ceil_positions)[i];
 
-    interp_v3_v3v3(tmp, floor_pos.getValue(), ceil_pos.getValue(), weight);
+    interp_v3_v3v3(tmp, floor_pos.getValue(), ceil_pos.getValue(), static_cast<float>(weight));
     copy_zup_from_yup(mvert.co, tmp);
 
     mvert.bweight = 0;
@@ -160,27 +147,26 @@ static void read_mverts(CDStreamConfig &config, const AbcMeshData &mesh_data)
     return;
   }
 
-  read_mverts(mverts, positions, nullptr);
+  read_mverts(*config.mesh, positions, nullptr);
 }
 
-void read_mverts(MVert *mverts, const P3fArraySamplePtr positions, const N3fArraySamplePtr normals)
+void read_mverts(Mesh &mesh, const P3fArraySamplePtr positions, const N3fArraySamplePtr normals)
 {
   for (int i = 0; i < positions->size(); i++) {
-    MVert &mvert = mverts[i];
+    MVert &mvert = mesh.mvert[i];
     Imath::V3f pos_in = (*positions)[i];
 
     copy_zup_from_yup(mvert.co, pos_in.getValue());
 
     mvert.bweight = 0;
-
-    if (normals) {
+  }
+  if (normals) {
+    float(*vert_normals)[3] = BKE_mesh_vertex_normals_for_write(&mesh);
+    for (const int64_t i : IndexRange(normals->size())) {
       Imath::V3f nor_in = (*normals)[i];
-
-      short no[3];
-      normal_float_to_short_v3(no, nor_in.getValue());
-
-      copy_zup_from_yup(mvert.no, no);
+      copy_zup_from_yup(vert_normals[i], nor_in.getValue());
     }
+    BKE_mesh_vertex_normals_clear_dirty(&mesh);
   }
 }
 
@@ -258,7 +244,7 @@ static void read_mpolys(CDStreamConfig &config, const AbcMeshData &mesh_data)
 static void process_no_normals(CDStreamConfig &config)
 {
   /* Absence of normals in the Alembic mesh is interpreted as 'smooth'. */
-  BKE_mesh_calc_normals(config.mesh);
+  BKE_mesh_normals_tag_dirty(config.mesh);
 }
 
 static void process_loop_normals(CDStreamConfig &config, const N3fArraySamplePtr loop_normals_ptr)
@@ -389,26 +375,23 @@ BLI_INLINE void read_uvs_params(CDStreamConfig &config,
 
 static void *add_customdata_cb(Mesh *mesh, const char *name, int data_type)
 {
-  CustomDataType cd_data_type = static_cast<CustomDataType>(data_type);
-  void *cd_ptr;
-  CustomData *loopdata;
-  int numloops;
+  eCustomDataType cd_data_type = static_cast<eCustomDataType>(data_type);
 
   /* unsupported custom data type -- don't do anything. */
-  if (!ELEM(cd_data_type, CD_MLOOPUV, CD_MLOOPCOL)) {
+  if (!ELEM(cd_data_type, CD_MLOOPUV, CD_PROP_BYTE_COLOR)) {
     return nullptr;
   }
 
-  loopdata = &mesh->ldata;
-  cd_ptr = CustomData_get_layer_named(loopdata, cd_data_type, name);
+  void *cd_ptr = CustomData_get_layer_named(&mesh->ldata, cd_data_type, name);
   if (cd_ptr != nullptr) {
     /* layer already exists, so just return it. */
     return cd_ptr;
   }
 
   /* Create a new layer. */
-  numloops = mesh->totloop;
-  cd_ptr = CustomData_add_layer_named(loopdata, cd_data_type, CD_DEFAULT, nullptr, numloops, name);
+  int numloops = mesh->totloop;
+  cd_ptr = CustomData_add_layer_named(
+      &mesh->ldata, cd_data_type, CD_DEFAULT, nullptr, numloops, name);
   return cd_ptr;
 }
 
@@ -463,12 +446,16 @@ static void read_velocity(const V3fArraySamplePtr &velocities,
                           const CDStreamConfig &config,
                           const float velocity_scale)
 {
+  const int num_velocity_vectors = static_cast<int>(velocities->size());
+  if (num_velocity_vectors != config.mesh->totvert) {
+    /* Files containing videogrammetry data may be malformed and export velocity data on missing
+     * frames (most likely by copying the last valid data). */
+    return;
+  }
+
   CustomDataLayer *velocity_layer = BKE_id_attribute_new(
       &config.mesh->id, "velocity", CD_PROP_FLOAT3, ATTR_DOMAIN_POINT, nullptr);
   float(*velocity)[3] = (float(*)[3])velocity_layer->data;
-
-  const int num_velocity_vectors = static_cast<int>(velocities->size());
-  BLI_assert(num_velocity_vectors == config.mesh->totvert);
 
   for (int i = 0; i < num_velocity_vectors; i++) {
     const Imath::V3f &vel_in = (*velocities)[i];
@@ -631,7 +618,7 @@ void AbcMeshReader::readObjectData(Main *bmain, const Alembic::Abc::ISampleSelec
   if (read_mesh != mesh) {
     /* XXX FIXME: after 2.80; mesh->flag isn't copied by #BKE_mesh_nomain_to_mesh(). */
     /* read_mesh can be freed by BKE_mesh_nomain_to_mesh(), so get the flag before that happens. */
-    short autosmooth = (read_mesh->flag & ME_AUTOSMOOTH);
+    uint16_t autosmooth = (read_mesh->flag & ME_AUTOSMOOTH);
     BKE_mesh_nomain_to_mesh(read_mesh, mesh, m_object, &CD_MASK_EVERYTHING, true);
     mesh->flag |= autosmooth;
   }
@@ -667,7 +654,7 @@ bool AbcMeshReader::accepts_object_type(
   return true;
 }
 
-bool AbcMeshReader::topology_changed(Mesh *existing_mesh, const ISampleSelector &sample_sel)
+bool AbcMeshReader::topology_changed(const Mesh *existing_mesh, const ISampleSelector &sample_sel)
 {
   IPolyMeshSchema::Sample sample;
   try {
@@ -844,19 +831,6 @@ void AbcMeshReader::readFaceSetsSample(Main *bmain, Mesh *mesh, const ISampleSel
 
 /* ************************************************************************** */
 
-BLI_INLINE MEdge *find_edge(MEdge *edges, int totedge, int v1, int v2)
-{
-  for (int i = 0, e = totedge; i < e; i++) {
-    MEdge &edge = edges[i];
-
-    if (edge.v1 == v1 && edge.v2 == v2) {
-      return &edge;
-    }
-  }
-
-  return nullptr;
-}
-
 static void read_subd_sample(const std::string &iobject_full_name,
                              ImportSettings *settings,
                              const ISubDSchema &schema,
@@ -904,6 +878,75 @@ static void read_subd_sample(const std::string &iobject_full_name,
       read_velocity(velocities, config, settings->velocity_scale);
     }
   }
+}
+
+static void read_vertex_creases(Mesh *mesh,
+                                const Int32ArraySamplePtr &indices,
+                                const FloatArraySamplePtr &sharpnesses)
+{
+  if (!(indices && sharpnesses && indices->size() == sharpnesses->size() &&
+        indices->size() != 0)) {
+    return;
+  }
+
+  float *vertex_crease_data = (float *)CustomData_add_layer(
+      &mesh->vdata, CD_CREASE, CD_DEFAULT, nullptr, mesh->totvert);
+  const int totvert = mesh->totvert;
+
+  for (int i = 0, v = indices->size(); i < v; ++i) {
+    const int idx = (*indices)[i];
+
+    if (idx >= totvert) {
+      continue;
+    }
+
+    vertex_crease_data[idx] = (*sharpnesses)[i];
+  }
+
+  mesh->cd_flag |= ME_CDFLAG_VERT_CREASE;
+}
+
+static void read_edge_creases(Mesh *mesh,
+                              const Int32ArraySamplePtr &indices,
+                              const FloatArraySamplePtr &sharpnesses)
+{
+  if (!(indices && sharpnesses)) {
+    return;
+  }
+
+  MEdge *edges = mesh->medge;
+  const int totedge = mesh->totedge;
+
+  EdgeHash *edge_hash = BLI_edgehash_new_ex(__func__, mesh->totedge);
+
+  for (int i = 0; i < totedge; i++) {
+    MEdge *edge = &edges[i];
+    BLI_edgehash_insert(edge_hash, edge->v1, edge->v2, edge);
+  }
+
+  for (int i = 0, s = 0, e = indices->size(); i < e; i += 2, s++) {
+    int v1 = (*indices)[i];
+    int v2 = (*indices)[i + 1];
+
+    if (v2 < v1) {
+      /* It appears to be common to store edges with the smallest index first, in which case this
+       * prevents us from doing the second search below. */
+      std::swap(v1, v2);
+    }
+
+    MEdge *edge = static_cast<MEdge *>(BLI_edgehash_lookup(edge_hash, v1, v2));
+    if (edge == nullptr) {
+      edge = static_cast<MEdge *>(BLI_edgehash_lookup(edge_hash, v2, v1));
+    }
+
+    if (edge) {
+      edge->crease = unit_float_to_uchar_clamp((*sharpnesses)[s]);
+    }
+  }
+
+  BLI_edgehash_free(edge_hash, nullptr);
+
+  mesh->cd_flag |= ME_CDFLAG_EDGE_CREASE;
 }
 
 /* ************************************************************************** */
@@ -969,35 +1012,9 @@ void AbcSubDReader::readObjectData(Main *bmain, const Alembic::Abc::ISampleSelec
     return;
   }
 
-  Int32ArraySamplePtr indices = sample.getCreaseIndices();
-  Alembic::Abc::FloatArraySamplePtr sharpnesses = sample.getCreaseSharpnesses();
+  read_edge_creases(mesh, sample.getCreaseIndices(), sample.getCreaseSharpnesses());
 
-  if (indices && sharpnesses) {
-    MEdge *edges = mesh->medge;
-    int totedge = mesh->totedge;
-
-    for (int i = 0, s = 0, e = indices->size(); i < e; i += 2, s++) {
-      int v1 = (*indices)[i];
-      int v2 = (*indices)[i + 1];
-
-      if (v2 < v1) {
-        /* It appears to be common to store edges with the smallest index first, in which case this
-         * prevents us from doing the second search below. */
-        std::swap(v1, v2);
-      }
-
-      MEdge *edge = find_edge(edges, totedge, v1, v2);
-      if (edge == nullptr) {
-        edge = find_edge(edges, totedge, v2, v1);
-      }
-
-      if (edge) {
-        edge->crease = unit_float_to_uchar_clamp((*sharpnesses)[s]);
-      }
-    }
-
-    mesh->cd_flag |= ME_CDFLAG_EDGE_CREASE;
-  }
+  read_vertex_creases(mesh, sample.getCornerIndices(), sample.getCornerSharpnesses());
 
   if (m_settings->validate_meshes) {
     BKE_mesh_validate(mesh, false, false);

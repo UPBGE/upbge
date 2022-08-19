@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2013, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2013 Blender Foundation. */
 
 #include "COM_PlaneDistortCommonOperation.h"
 
@@ -58,6 +43,11 @@ BLI_INLINE void warp_coord(float x, float y, float matrix[3][3], float uv[2], fl
   uv[0] = vec[0] / vec[2];
   uv[1] = vec[1] / vec[2];
 
+  /* Offset so that pixel center corresponds to a (0.5, 0.5), which helps keeping transformed
+   * image sharp. */
+  uv[0] += 0.5f;
+  uv[1] += 0.5f;
+
   deriv[0][0] = (matrix[0][0] - matrix[0][2] * uv[0]) / vec[2];
   deriv[1][0] = (matrix[0][1] - matrix[0][2] * uv[1]) / vec[2];
   deriv[0][1] = (matrix[1][0] - matrix[1][2] * uv[0]) / vec[2];
@@ -81,9 +71,18 @@ void PlaneDistortWarpImageOperation::calculate_corners(const float corners[4][2]
   const NodeOperation *image = get_input_operation(0);
   const int width = image->get_width();
   const int height = image->get_height();
+
+  MotionSample *sample_data = &samples_[sample];
+
+  /* If the image which is to be warped empty assume unit transform and don't attempt to calculate
+   * actual homography (otherwise homography solver will attempt to deal with singularity). */
+  if (width == 0 || height == 0) {
+    unit_m3(sample_data->perspective_matrix);
+    return;
+  }
+
   float frame_corners[4][2] = {
       {0.0f, 0.0f}, {(float)width, 0.0f}, {(float)width, (float)height}, {0.0f, (float)height}};
-  MotionSample *sample_data = &samples_[sample];
   BKE_tracking_homography_between_two_quads(
       sample_data->frame_space_corners, frame_corners, sample_data->perspective_matrix);
 }

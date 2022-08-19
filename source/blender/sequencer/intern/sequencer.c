@@ -1,24 +1,7 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * - Blender Foundation, 2003-2009
- * - Peter Schlaile <peter [at] schlaile [dot] de> 2005/2006
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2001-2002 NaN Holding BV. All rights reserved.
+ *           2003-2009 Blender Foundation.
+ *           2005-2006 Peter Schlaile <peter [at] schlaile [dot] de> */
 
 /** \file
  * \ingroup bke
@@ -34,10 +17,7 @@
 #include "DNA_sound_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
 
-#include "BKE_animsys.h"
-#include "BKE_fcurve.h"
 #include "BKE_idprop.h"
 #include "BKE_lib_id.h"
 #include "BKE_sound.h"
@@ -47,6 +27,7 @@
 #include "IMB_colormanagement.h"
 #include "IMB_imbuf.h"
 
+#include "SEQ_channels.h"
 #include "SEQ_edit.h"
 #include "SEQ_effects.h"
 #include "SEQ_iterator.h"
@@ -56,6 +37,7 @@
 #include "SEQ_select.h"
 #include "SEQ_sequencer.h"
 #include "SEQ_sound.h"
+#include "SEQ_time.h"
 #include "SEQ_utils.h"
 
 #include "BLO_read_write.h"
@@ -65,11 +47,18 @@
 #include "sequencer.h"
 #include "utils.h"
 
-static void seq_free_animdata(Scene *scene, Sequence *seq);
-
 /* -------------------------------------------------------------------- */
 /** \name Allocate / Free Functions
  * \{ */
+
+StripProxy *seq_strip_proxy_alloc(void)
+{
+  StripProxy *strip_proxy = MEM_callocN(sizeof(struct StripProxy), "StripProxy");
+  strip_proxy->quality = 50;
+  strip_proxy->build_tc_flags = SEQ_PROXY_TC_ALL;
+  strip_proxy->tc = SEQ_PROXY_TC_RECORD_RUN;
+  return strip_proxy;
+}
 
 static Strip *seq_strip_alloc(int type)
 {
@@ -81,6 +70,7 @@ static Strip *seq_strip_alloc(int type)
     strip->transform->scale_y = 1;
     strip->transform->origin[0] = 0.5f;
     strip->transform->origin[1] = 0.5f;
+    strip->transform->filter = SEQ_TRANSFORM_FILTER_BILINEAR;
     strip->crop = MEM_callocN(sizeof(struct StripCrop), "StripCrop");
   }
 
@@ -137,14 +127,26 @@ Sequence *SEQ_sequence_alloc(ListBase *lb, int timeline_frame, int machine, int 
   seq->mul = 1.0;
   seq->blend_opacity = 100.0;
   seq->volume = 1.0f;
-  seq->pitch = 1.0f;
   seq->scene_sound = NULL;
   seq->type = type;
+  seq->media_playback_rate = 0.0f;
+  seq->speed_factor = 1.0f;
+
+  if (seq->type == SEQ_TYPE_ADJUSTMENT) {
+    seq->blend_mode = SEQ_TYPE_CROSS;
+  }
+  else {
+    seq->blend_mode = SEQ_TYPE_ALPHAOVER;
+  }
 
   seq->strip = seq_strip_alloc(type);
   seq->stereo3d_format = MEM_callocN(sizeof(Stereo3dFormat), "Sequence Stereo Format");
 
   seq->color_tag = SEQUENCE_COLOR_NONE;
+
+  if (seq->type == SEQ_TYPE_META) {
+    SEQ_channels_ensure(&seq->channels);
+  }
 
   SEQ_relations_session_uuid_generate(seq);
 
@@ -155,8 +157,7 @@ Sequence *SEQ_sequence_alloc(ListBase *lb, int timeline_frame, int machine, int 
 static void seq_sequence_free_ex(Scene *scene,
                                  Sequence *seq,
                                  const bool do_cache,
-                                 const bool do_id_user,
-                                 const bool do_clean_animdata)
+                                 const bool do_id_user)
 {
   if (seq->strip) {
     seq_free_strip(seq->strip);
@@ -190,11 +191,6 @@ static void seq_sequence_free_ex(Scene *scene,
     if (seq->scene_sound && ELEM(seq->type, SEQ_TYPE_SOUND_RAM, SEQ_TYPE_SCENE)) {
       BKE_sound_remove_scene_sound(scene, seq->scene_sound);
     }
-
-    /* XXX This must not be done in BKE code. */
-    if (do_clean_animdata) {
-      seq_free_animdata(scene, seq);
-    }
   }
 
   if (seq->prop) {
@@ -218,30 +214,28 @@ static void seq_sequence_free_ex(Scene *scene,
       SEQ_relations_invalidate_cache_raw(scene, seq);
     }
   }
+  if (seq->type == SEQ_TYPE_META) {
+    SEQ_channels_free(&seq->channels);
+  }
 
   MEM_freeN(seq);
 }
 
-void SEQ_sequence_free(Scene *scene, Sequence *seq, const bool do_clean_animdata)
+void SEQ_sequence_free(Scene *scene, Sequence *seq)
 {
-  seq_sequence_free_ex(scene, seq, true, true, do_clean_animdata);
+  seq_sequence_free_ex(scene, seq, true, true);
 }
 
-/* cache must be freed before calling this function
- * since it leaves the seqbase in an invalid state */
-void seq_free_sequence_recurse(Scene *scene,
-                               Sequence *seq,
-                               const bool do_id_user,
-                               const bool do_clean_animdata)
+void seq_free_sequence_recurse(Scene *scene, Sequence *seq, const bool do_id_user)
 {
   Sequence *iseq, *iseq_next;
 
   for (iseq = seq->seqbase.first; iseq; iseq = iseq_next) {
     iseq_next = iseq->next;
-    seq_free_sequence_recurse(scene, iseq, do_id_user, do_clean_animdata);
+    seq_free_sequence_recurse(scene, iseq, do_id_user);
   }
 
-  seq_sequence_free_ex(scene, seq, false, do_id_user, do_clean_animdata);
+  seq_sequence_free_ex(scene, seq, false, do_id_user);
 }
 
 Editing *SEQ_editing_get(const Scene *scene)
@@ -259,6 +253,8 @@ Editing *SEQ_editing_ensure(Scene *scene)
     ed->cache = NULL;
     ed->cache_flag = SEQ_CACHE_STORE_FINAL_OUT;
     ed->cache_flag |= SEQ_CACHE_STORE_RAW;
+    ed->displayed_channels = &ed->channels;
+    SEQ_channels_ensure(ed->displayed_channels);
   }
 
   return scene->ed;
@@ -277,11 +273,12 @@ void SEQ_editing_free(Scene *scene, const bool do_id_user)
 
   /* handle cache freeing above */
   LISTBASE_FOREACH_MUTABLE (Sequence *, seq, &ed->seqbase) {
-    seq_free_sequence_recurse(scene, seq, do_id_user, false);
+    seq_free_sequence_recurse(scene, seq, do_id_user);
   }
 
   BLI_freelistN(&ed->metastack);
   SEQ_sequence_lookup_free(scene);
+  SEQ_channels_free(&ed->channels);
   MEM_freeN(ed);
 
   scene->ed = NULL;
@@ -388,12 +385,6 @@ int SEQ_tool_settings_pivot_point_get(Scene *scene)
   return tool_settings->pivot_point;
 }
 
-/**
- * Get seqbase that is being viewed currently. This can be main seqbase or meta strip seqbase
- *
- * \param ed: sequence editor data
- * \return pointer to active seqbase. returns NULL if ed is NULL
- */
 ListBase *SEQ_active_seqbase_get(const Editing *ed)
 {
   if (ed == NULL) {
@@ -403,55 +394,71 @@ ListBase *SEQ_active_seqbase_get(const Editing *ed)
   return ed->seqbasep;
 }
 
-/**
- * Set seqbase that is being viewed currently. This can be main seqbase or meta strip seqbase
- *
- * \param ed: sequence editor data
- * \param seqbase: ListBase with strips
- */
 void SEQ_seqbase_active_set(Editing *ed, ListBase *seqbase)
 {
   ed->seqbasep = seqbase;
 }
 
-/**
- * Create and initialize #MetaStack, append it to `ed->metastack` ListBase
- *
- * \param ed: sequence editor data
- * \param seq_meta: meta strip
- * \return pointer to created meta stack
- */
-MetaStack *SEQ_meta_stack_alloc(Editing *ed, Sequence *seq_meta)
+static MetaStack *seq_meta_stack_alloc(const Scene *scene, Sequence *seq_meta)
 {
+  Editing *ed = SEQ_editing_get(scene);
+
   MetaStack *ms = MEM_mallocN(sizeof(MetaStack), "metastack");
-  BLI_addtail(&ed->metastack, ms);
+  BLI_addhead(&ed->metastack, ms);
   ms->parseq = seq_meta;
-  ms->oldbasep = ed->seqbasep;
-  copy_v2_v2_int(ms->disp_range, &ms->parseq->startdisp);
+
+  /* Reference to previously displayed timeline data. */
+  Sequence *higher_level_meta = seq_sequence_lookup_meta_by_seq(scene, seq_meta);
+  ms->oldbasep = higher_level_meta ? &higher_level_meta->seqbase : &ed->seqbase;
+  ms->old_channels = higher_level_meta ? &higher_level_meta->channels : &ed->channels;
+
+  ms->disp_range[0] = SEQ_time_left_handle_frame_get(scene, ms->parseq);
+  ms->disp_range[1] = SEQ_time_right_handle_frame_get(scene, ms->parseq);
   return ms;
 }
 
-/**
- * Free #MetaStack and remove it from `ed->metastack` ListBase.
- *
- * \param ed: sequence editor data
- * \param ms: meta stack
- */
-void SEQ_meta_stack_free(Editing *ed, MetaStack *ms)
-{
-  BLI_remlink(&ed->metastack, ms);
-  MEM_freeN(ms);
-}
-
-/**
- * Get #MetaStack that corresponds to current level that is being viewed
- *
- * \param ed: sequence editor data
- * \return pointer to meta stack
- */
 MetaStack *SEQ_meta_stack_active_get(const Editing *ed)
 {
+  if (ed == NULL) {
+    return NULL;
+  }
+
   return ed->metastack.last;
+}
+
+void SEQ_meta_stack_set(const Scene *scene, Sequence *seqm)
+{
+  Editing *ed = SEQ_editing_get(scene);
+  /* Clear metastack */
+  BLI_freelistN(&ed->metastack);
+
+  if (seqm != NULL) {
+    /* Allocate meta stack in a way, that represents meta hierarchy in timeline. */
+    seq_meta_stack_alloc(scene, seqm);
+    Sequence *meta_parent = seqm;
+    while ((meta_parent = seq_sequence_lookup_meta_by_seq(scene, meta_parent))) {
+      seq_meta_stack_alloc(scene, meta_parent);
+    }
+
+    SEQ_seqbase_active_set(ed, &seqm->seqbase);
+    SEQ_channels_displayed_set(ed, &seqm->channels);
+  }
+  else {
+    /* Go to top level, exiting meta strip. */
+    SEQ_seqbase_active_set(ed, &ed->seqbase);
+    SEQ_channels_displayed_set(ed, &ed->channels);
+  }
+}
+
+Sequence *SEQ_meta_stack_pop(Editing *ed)
+{
+  MetaStack *ms = SEQ_meta_stack_active_get(ed);
+  Sequence *meta_parent = ms->parseq;
+  SEQ_seqbase_active_set(ed, ms->oldbasep);
+  SEQ_channels_displayed_set(ed, ms->old_channels);
+  BLI_remlink(&ed->metastack, ms);
+  MEM_freeN(ms);
+  return meta_parent;
 }
 
 /** \} */
@@ -459,6 +466,7 @@ MetaStack *SEQ_meta_stack_active_get(const Editing *ed)
 /* -------------------------------------------------------------------- */
 /** \name Duplicate Functions
  * \{ */
+
 static Sequence *seq_dupli(const Scene *scene_src,
                            Scene *scene_dst,
                            ListBase *new_seq_list,
@@ -508,6 +516,9 @@ static Sequence *seq_dupli(const Scene *scene_src,
     BLI_listbase_clear(&seqn->seqbase);
     /* WARNING: This meta-strip is not recursively duplicated here - do this after! */
     // seq_dupli_recursive(&seq->seqbase, &seqn->seqbase);
+
+    BLI_listbase_clear(&seqn->channels);
+    SEQ_channels_duplicate(&seqn->channels, &seq->channels);
   }
   else if (seq->type == SEQ_TYPE_SCENE) {
     seqn->strip->stripdata = NULL;
@@ -650,118 +661,6 @@ bool SEQ_valid_strip_channel(Sequence *seq)
   return true;
 }
 
-/* r_prefix + [" + escaped_name + "] + \0 */
-#define SEQ_RNAPATH_MAXSTR ((30 + 2 + (SEQ_NAME_MAXSTR * 2) + 2) + 1)
-
-static size_t sequencer_rna_path_prefix(char str[SEQ_RNAPATH_MAXSTR], const char *name)
-{
-  char name_esc[SEQ_NAME_MAXSTR * 2];
-
-  BLI_str_escape(name_esc, name, sizeof(name_esc));
-  return BLI_snprintf_rlen(
-      str, SEQ_RNAPATH_MAXSTR, "sequence_editor.sequences_all[\"%s\"]", name_esc);
-}
-
-/* XXX: hackish function needed for transforming strips! TODO: have some better solution. */
-void SEQ_offset_animdata(Scene *scene, Sequence *seq, int ofs)
-{
-  char str[SEQ_RNAPATH_MAXSTR];
-  size_t str_len;
-  FCurve *fcu;
-
-  if (scene->adt == NULL || ofs == 0 || scene->adt->action == NULL) {
-    return;
-  }
-
-  str_len = sequencer_rna_path_prefix(str, seq->name + 2);
-
-  for (fcu = scene->adt->action->curves.first; fcu; fcu = fcu->next) {
-    if (STREQLEN(fcu->rna_path, str, str_len)) {
-      unsigned int i;
-      if (fcu->bezt) {
-        for (i = 0; i < fcu->totvert; i++) {
-          BezTriple *bezt = &fcu->bezt[i];
-          bezt->vec[0][0] += ofs;
-          bezt->vec[1][0] += ofs;
-          bezt->vec[2][0] += ofs;
-        }
-      }
-      if (fcu->fpt) {
-        for (i = 0; i < fcu->totvert; i++) {
-          FPoint *fpt = &fcu->fpt[i];
-          fpt->vec[0] += ofs;
-        }
-      }
-    }
-  }
-
-  DEG_id_tag_update(&scene->adt->action->id, ID_RECALC_ANIMATION);
-}
-
-void SEQ_dupe_animdata(Scene *scene, const char *name_src, const char *name_dst)
-{
-  char str_from[SEQ_RNAPATH_MAXSTR];
-  size_t str_from_len;
-  FCurve *fcu;
-  FCurve *fcu_last;
-  FCurve *fcu_cpy;
-  ListBase lb = {NULL, NULL};
-
-  if (scene->adt == NULL || scene->adt->action == NULL) {
-    return;
-  }
-
-  str_from_len = sequencer_rna_path_prefix(str_from, name_src);
-
-  fcu_last = scene->adt->action->curves.last;
-
-  for (fcu = scene->adt->action->curves.first; fcu && fcu->prev != fcu_last; fcu = fcu->next) {
-    if (STREQLEN(fcu->rna_path, str_from, str_from_len)) {
-      fcu_cpy = BKE_fcurve_copy(fcu);
-      BLI_addtail(&lb, fcu_cpy);
-    }
-  }
-
-  /* notice validate is 0, keep this because the seq may not be added to the scene yet */
-  BKE_animdata_fix_paths_rename(
-      &scene->id, scene->adt, NULL, "sequence_editor.sequences_all", name_src, name_dst, 0, 0, 0);
-
-  /* add the original fcurves back */
-  BLI_movelisttolist(&scene->adt->action->curves, &lb);
-}
-
-/* XXX: hackish function needed to remove all fcurves belonging to a sequencer strip. */
-static void seq_free_animdata(Scene *scene, Sequence *seq)
-{
-  char str[SEQ_RNAPATH_MAXSTR];
-  size_t str_len;
-  FCurve *fcu;
-
-  if (scene->adt == NULL || scene->adt->action == NULL) {
-    return;
-  }
-
-  str_len = sequencer_rna_path_prefix(str, seq->name + 2);
-
-  fcu = scene->adt->action->curves.first;
-
-  while (fcu) {
-    if (STREQLEN(fcu->rna_path, str, str_len)) {
-      FCurve *next_fcu = fcu->next;
-
-      BLI_remlink(&scene->adt->action->curves, fcu);
-      BKE_fcurve_free(fcu);
-
-      fcu = next_fcu;
-    }
-    else {
-      fcu = fcu->next;
-    }
-  }
-}
-
-#undef SEQ_RNAPATH_MAXSTR
-
 SequencerToolSettings *SEQ_tool_settings_copy(SequencerToolSettings *tool_settings)
 {
   SequencerToolSettings *tool_settings_copy = MEM_dupallocN(tool_settings);
@@ -846,6 +745,10 @@ static bool seq_write_data_cb(Sequence *seq, void *userdata)
   }
 
   SEQ_modifier_blend_write(writer, &seq->modifiers);
+
+  LISTBASE_FOREACH (SeqTimelineChannel *, channel, &seq->channels) {
+    BLO_write_struct(writer, SeqTimelineChannel, channel);
+  }
   return true;
 }
 
@@ -913,6 +816,8 @@ static bool seq_read_data_cb(Sequence *seq, void *user_data)
   }
 
   SEQ_modifier_blend_read_data(reader, &seq->modifiers);
+
+  BLO_read_list(reader, &seq->channels);
   return true;
 }
 void SEQ_blend_read(BlendDataReader *reader, ListBase *seqbase)
@@ -931,7 +836,7 @@ static bool seq_read_lib_cb(Sequence *seq, void *user_data)
   BlendLibReader *reader = data->reader;
   Scene *sce = data->scene;
 
-  IDP_BlendReadLib(reader, seq->prop);
+  IDP_BlendReadLib(reader, sce->id.lib, seq->prop);
 
   if (seq->ipo) {
     /* XXX: deprecated - old animation system. */
@@ -1061,18 +966,15 @@ static bool seq_update_seq_cb(Sequence *seq, void *user_data)
     }
     BKE_sound_set_scene_sound_volume(
         seq->scene_sound, seq->volume, (seq->flag & SEQ_AUDIO_VOLUME_ANIMATED) != 0);
-    BKE_sound_set_scene_sound_pitch(
-        seq->scene_sound, seq->pitch, (seq->flag & SEQ_AUDIO_PITCH_ANIMATED) != 0);
+    BKE_sound_set_scene_sound_pitch(seq->scene_sound,
+                                    SEQ_sound_pitch_get(scene, seq),
+                                    (seq->flag & SEQ_AUDIO_PITCH_ANIMATED) != 0);
     BKE_sound_set_scene_sound_pan(
         seq->scene_sound, seq->pan, (seq->flag & SEQ_AUDIO_PAN_ANIMATED) != 0);
   }
   return true;
 }
 
-/* Evaluate parts of sequences which needs to be done as a part of a dependency graph evaluation.
- * This does NOT include actual rendering of the strips, but rather makes them up-to-date for
- * animation playback and makes them ready for the sequencer's rendering pipeline to render them.
- */
 void SEQ_eval_sequences(Depsgraph *depsgraph, Scene *scene, ListBase *seqbase)
 {
   DEG_debug_print_eval(depsgraph, __func__, scene->id.name, scene);

@@ -1,27 +1,8 @@
-/*
- * Based on code from OpenSubdiv released under this license:
- *
- * Copyright 2013 Pixar
- *
- * Licensed under the Apache License, Version 2.0 (the "Apache License")
- * with the following modification; you may not use this file except in
- * compliance with the Apache License and the following modification to it:
- * Section 6. Trademarks. is deleted and replaced with:
- *
- * 6. Trademarks. This License does not grant permission to use the trade
- *   names, trademarks, service marks, or product names of the Licensor
- *   and its affiliates, except as required to comply with Section 4(c) of
- *   the License and to reproduce the content of the NOTICE file.
- *
- * You may obtain a copy of the Apache License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the Apache License with the above modification is
- * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied. See the Apache License for the specific
- * language governing permissions and limitations under the Apache License.
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2013 Pixar. */
+
+/** \file
+ * Based on code from OpenSubdiv.
  */
 
 #pragma once
@@ -81,7 +62,7 @@ patch_map_find_patch(KernelGlobals kg, int object, int patch, float u, float v)
     int quadrant = patch_map_resolve_quadrant(median, &u, &v);
     kernel_assert(quadrant >= 0);
 
-    uint child = kernel_tex_fetch(__patches, node + quadrant);
+    uint child = kernel_data_fetch(patches, node + quadrant);
 
     /* is the quadrant a hole? */
     if (!(child & PATCH_MAP_NODE_IS_SET)) {
@@ -92,9 +73,9 @@ patch_map_find_patch(KernelGlobals kg, int object, int patch, float u, float v)
     uint index = child & PATCH_MAP_NODE_INDEX_MASK;
 
     if (child & PATCH_MAP_NODE_IS_LEAF) {
-      handle.array_index = kernel_tex_fetch(__patches, index + 0);
-      handle.patch_index = kernel_tex_fetch(__patches, index + 1);
-      handle.vert_index = kernel_tex_fetch(__patches, index + 2);
+      handle.array_index = kernel_data_fetch(patches, index + 0);
+      handle.patch_index = kernel_data_fetch(patches, index + 1);
+      handle.vert_index = kernel_data_fetch(patches, index + 2);
 
       return handle;
     }
@@ -208,11 +189,11 @@ ccl_device_inline int patch_eval_indices(KernelGlobals kg,
                                          int channel,
                                          int indices[PATCH_MAX_CONTROL_VERTS])
 {
-  int index_base = kernel_tex_fetch(__patches, handle->array_index + 2) + handle->vert_index;
+  int index_base = kernel_data_fetch(patches, handle->array_index + 2) + handle->vert_index;
 
   /* XXX: regular patches only */
   for (int i = 0; i < 16; i++) {
-    indices[i] = kernel_tex_fetch(__patches, index_base + i);
+    indices[i] = kernel_data_fetch(patches, index_base + i);
   }
 
   return 16;
@@ -228,7 +209,7 @@ ccl_device_inline void patch_eval_basis(KernelGlobals kg,
                                         float weights_du[PATCH_MAX_CONTROL_VERTS],
                                         float weights_dv[PATCH_MAX_CONTROL_VERTS])
 {
-  uint patch_bits = kernel_tex_fetch(__patches, handle->patch_index + 1); /* read patch param */
+  uint patch_bits = kernel_data_fetch(patches, handle->patch_index + 1); /* read patch param */
   float d_scale = 1 << patch_eval_depth(patch_bits);
 
   bool non_quad_root = (patch_bits >> 4) & 0x1;
@@ -306,7 +287,7 @@ ccl_device float patch_eval_float(KernelGlobals kg,
     *dv = 0.0f;
 
   for (int i = 0; i < num_control; i++) {
-    float v = kernel_tex_fetch(__attributes_float, offset + indices[i]);
+    float v = kernel_data_fetch(attributes_float, offset + indices[i]);
 
     val += v * weights[i];
     if (du)
@@ -343,7 +324,7 @@ ccl_device float2 patch_eval_float2(KernelGlobals kg,
     *dv = make_float2(0.0f, 0.0f);
 
   for (int i = 0; i < num_control; i++) {
-    float2 v = kernel_tex_fetch(__attributes_float2, offset + indices[i]);
+    float2 v = kernel_data_fetch(attributes_float2, offset + indices[i]);
 
     val += v * weights[i];
     if (du)
@@ -380,7 +361,7 @@ ccl_device float3 patch_eval_float3(KernelGlobals kg,
     *dv = make_float3(0.0f, 0.0f, 0.0f);
 
   for (int i = 0; i < num_control; i++) {
-    float3 v = float4_to_float3(kernel_tex_fetch(__attributes_float3, offset + indices[i]));
+    float3 v = kernel_data_fetch(attributes_float3, offset + indices[i]);
 
     val += v * weights[i];
     if (du)
@@ -410,14 +391,14 @@ ccl_device float4 patch_eval_float4(KernelGlobals kg,
   int num_control = patch_eval_control_verts(
       kg, sd->object, patch, u, v, channel, indices, weights, weights_du, weights_dv);
 
-  float4 val = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+  float4 val = zero_float4();
   if (du)
-    *du = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+    *du = zero_float4();
   if (dv)
-    *dv = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+    *dv = zero_float4();
 
   for (int i = 0; i < num_control; i++) {
-    float4 v = kernel_tex_fetch(__attributes_float3, offset + indices[i]);
+    float4 v = kernel_data_fetch(attributes_float4, offset + indices[i]);
 
     val += v * weights[i];
     if (du)
@@ -447,15 +428,15 @@ ccl_device float4 patch_eval_uchar4(KernelGlobals kg,
   int num_control = patch_eval_control_verts(
       kg, sd->object, patch, u, v, channel, indices, weights, weights_du, weights_dv);
 
-  float4 val = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+  float4 val = zero_float4();
   if (du)
-    *du = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+    *du = zero_float4();
   if (dv)
-    *dv = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+    *dv = zero_float4();
 
   for (int i = 0; i < num_control; i++) {
     float4 v = color_srgb_to_linear_v4(
-        color_uchar4_to_float4(kernel_tex_fetch(__attributes_uchar4, offset + indices[i])));
+        color_uchar4_to_float4(kernel_data_fetch(attributes_uchar4, offset + indices[i])));
 
     val += v * weights[i];
     if (du)
