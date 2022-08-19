@@ -1,20 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * Copyright 2016, Blender Foundation.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright 2016 Blender Foundation. */
 
 /** \file
  * \ingroup draw_engine
@@ -67,6 +52,33 @@ int EEVEE_screen_raytrace_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
     common_data->ssr_max_roughness = scene_eval->eevee.ssr_max_roughness;
     common_data->ssr_quality = 1.0f - 0.95f * scene_eval->eevee.ssr_quality;
     common_data->ssr_brdf_bias = 0.1f + common_data->ssr_quality * 0.6f; /* Range [0.1, 0.7]. */
+
+    /* SSGI */
+    common_data->ssr_diffuse_versioning = scene_eval->eevee.ssr_diffuse_versioning;
+    /* trace */
+    common_data->ssr_diffuse_intensity = scene_eval->eevee.ssr_diffuse_intensity;
+    common_data->ssr_diffuse_thickness = scene_eval->eevee.ssr_diffuse_thickness;
+    common_data->ssr_diffuse_resolve_bias = scene_eval->eevee.ssr_diffuse_resolve_bias;
+    common_data->ssr_diffuse_quality = scene_eval->eevee.ssr_diffuse_quality;
+    common_data->ssr_diffuse_clamp = scene_eval->eevee.ssr_diffuse_clamp;
+    common_data->ssr_diffuse_ao = scene_eval->eevee.ssr_diffuse_ao;
+    common_data->ssr_diffuse_ao_limit = scene_eval->eevee.ssr_diffuse_ao_limit;
+    /* probe */
+    common_data->ssr_diffuse_probe_trace = scene_eval->eevee.ssr_diffuse_probe_trace;
+    common_data->ssr_diffuse_probe_intensity = scene_eval->eevee.ssr_diffuse_probe_intensity;
+    common_data->ssr_diffuse_probe_clamp = scene_eval->eevee.ssr_diffuse_probe_clamp;
+    /* filter */
+    common_data->ssr_diffuse_filter = scene_eval->eevee.ssr_diffuse_filter;
+    common_data->ssr_diffuse_fsize = scene_eval->eevee.ssr_diffuse_fsize;
+    common_data->ssr_diffuse_fsamples = scene_eval->eevee.ssr_diffuse_fsamples;
+    common_data->ssr_diffuse_fnweight = scene_eval->eevee.ssr_diffuse_fnweight;
+    common_data->ssr_diffuse_fdweight = scene_eval->eevee.ssr_diffuse_fdweight;
+    common_data->ssr_diffuse_faoweight = scene_eval->eevee.ssr_diffuse_faoweight;
+    /* debug */
+    common_data->ssr_diffuse_debug_a = scene_eval->eevee.ssr_diffuse_debug_a;
+    common_data->ssr_diffuse_debug_b = scene_eval->eevee.ssr_diffuse_debug_b;
+    common_data->ssr_diffuse_debug_c = scene_eval->eevee.ssr_diffuse_debug_c;
+    common_data->ssr_diffuse_debug_d = scene_eval->eevee.ssr_diffuse_debug_d;
 
     if (common_data->ssr_firefly_fac < 1e-8f) {
       common_data->ssr_firefly_fac = FLT_MAX;
@@ -128,7 +140,7 @@ void EEVEE_screen_raytrace_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *v
     int hitbuf_size[3];
     GPU_texture_get_mipmap_size(effects->ssr_hit_output, 0, hitbuf_size);
 
-    /** Screen space raytracing overview
+    /** Screen space ray-tracing overview
      *
      * Following Frostbite stochastic SSR.
      *
@@ -213,7 +225,7 @@ void EEVEE_reflection_compute(EEVEE_ViewLayerData *UNUSED(sldata), EEVEE_Data *v
   if (((effects->enabled_effects & EFFECT_SSR) != 0) && stl->g_data->valid_double_buffer) {
     DRW_stats_group_start("SSR");
 
-    /* Raytrace. */
+    /* Ray-trace. */
     GPU_framebuffer_bind(fbl->screen_tracing_fb);
     DRW_draw_pass(psl->ssr_raytrace);
 
