@@ -6,7 +6,7 @@
   vec3 worldNormal; \
   vec3 viewNormal;
 
-#if defined(STEP_RESOLVE) || defined(STEP_RAYTRACE)
+#if defined(STEP_RESOLVE) || defined(STEP_RAYTRACE) || defined(STEP_RESOLVE_GI)
 /* SSR will set these global variables itself.
  * Also make false positive compiler warnings disapear by setting values. */
 vec3 worldPosition = vec3(0);
