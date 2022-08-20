@@ -1246,15 +1246,15 @@ int GLShader::program_handle_get() const
 /****************UPBGE*************************/
 char *GLShader::shader_validate()
 {
-  int stat = 0;
+  GLint success;
   glValidateProgram(shader_program_);
-  glGetObjectParameterivARB(shader_program_, GL_OBJECT_VALIDATE_STATUS_ARB, (GLint *)&stat);
+  glGetProgramiv(shader_program_, GL_VALIDATE_STATUS, &success);
 
-  if (stat > 0) {
-    int charlen = 0;
-    char *log = (char *)MEM_mallocN(stat, "GPU_shader_validate");
+  if (success > 0) {
+    GLsizei charlen;
+    char *log = (char *)MEM_mallocN(success, "GPU_shader_validate");
 
-    glGetInfoLogARB(shader_program_, stat, (GLsizei *)&charlen, log);
+    glGetProgramInfoLog(shader_program_, success, &charlen, log);
 
     return log;
   }
