@@ -373,10 +373,11 @@ static bool sculpt_undo_restore_hidden(bContext *C, SculptUndoNode *unode, bool 
 
   if (unode->maxvert) {
     for (int i = 0; i < unode->totvert; i++) {
-      if ((BLI_BITMAP_TEST(unode->vert_hidden, i) != 0) != hide_vert[i]) {
+      const int vert_index = unode->index[i];
+      if ((BLI_BITMAP_TEST(unode->vert_hidden, i) != 0) != hide_vert[vert_index]) {
         BLI_BITMAP_FLIP(unode->vert_hidden, i);
-        hide_vert[unode->index[i]] = !hide_vert[i];
-        modified_vertices[unode->index[i]] = true;
+        hide_vert[vert_index] = !hide_vert[vert_index];
+        modified_vertices[vert_index] = true;
       }
     }
   }
@@ -902,7 +903,6 @@ static void sculpt_undo_restore_list(bContext *C, Depsgraph *depsgraph, ListBase
         .modified_hidden_vertices = modified_hidden_vertices,
         .modified_mask_vertices = modified_mask_vertices,
         .modified_color_vertices = modified_color_vertices,
-
     };
     BKE_pbvh_search_callback(ss->pbvh, NULL, NULL, update_cb_partial, &data);
     BKE_pbvh_update_bounds(ss->pbvh, PBVH_UpdateBB | PBVH_UpdateOriginalBB | PBVH_UpdateRedraw);
@@ -1669,11 +1669,12 @@ static void sculpt_undo_set_active_layer(struct bContext *C, SculptAttrRef *attr
    */
   if (!layer) {
     layer = BKE_id_attribute_search(&me->id, attr->name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
-    eAttrDomain domain = layer ? BKE_id_attribute_domain(&me->id, layer) : ATTR_DOMAIN_NUM;
-
-    if (layer && ED_geometry_attribute_convert(
-                     me, attr->name, layer->type, domain, attr->type, attr->domain)) {
-      layer = BKE_id_attribute_find(&me->id, attr->name, attr->type, attr->domain);
+    if (layer) {
+      const eAttrDomain domain = BKE_id_attribute_domain(&me->id, layer);
+      if (ED_geometry_attribute_convert(
+              me, attr->name, layer->type, domain, attr->type, attr->domain)) {
+        layer = BKE_id_attribute_find(&me->id, attr->name, attr->type, attr->domain);
+      }
     }
   }
 
