@@ -74,8 +74,7 @@
 #include "tree/tree_element_rna.hh"
 #include "tree/tree_iterator.hh"
 
-using namespace blender;
-using namespace blender::ed::outliner;
+namespace blender::ed::outliner {
 
 /* -------------------------------------------------------------------- */
 /** \name Tree Size Functions
@@ -3997,3 +3996,5 @@ void draw_outliner(const bContext *C)
 }
 
 /** \} */
+
+}  // namespace blender::ed::outliner
