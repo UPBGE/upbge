@@ -118,6 +118,11 @@ void quat_to_mat4(float m[4][4], const float q[4]);
  */
 void quat_to_compatible_quat(float q[4], const float a[4], const float old[4]);
 
+/**
+ * A version of #mat3_normalized_to_quat that skips error checking.
+ */
+void mat3_normalized_to_quat_fast(float q[4], const float mat[3][3]);
+
 void mat3_normalized_to_quat(float q[4], const float mat[3][3]);
 void mat4_normalized_to_quat(float q[4], const float mat[4][4]);
 void mat3_to_quat(float q[4], const float mat[3][3]);
@@ -173,9 +178,10 @@ float angle_signed_qt(const float q[4]);
 float angle_signed_qtqt(const float q1[4], const float q2[4]);
 
 /**
- * TODO: don't what this is, but it's not the same as #mat3_to_quat.
+ * Legacy matrix to quaternion conversion, keep to prevent changes to existing
+ * boids & particle-system behavior. Use #mat3_to_quat for new code.
  */
-void mat3_to_quat_is_ok(float q[4], const float wmat[3][3]);
+void mat3_to_quat_legacy(float q[4], const float wmat[3][3]);
 
 /* Other. */
 
