@@ -91,6 +91,7 @@
 #define USE_GIZMO_MOUSE_PRIORITY_HACK
 
 static void wm_notifier_clear(wmNotifier *note);
+static bool wm_notifier_is_clear(const wmNotifier *note);
 
 static int wm_operator_call_internal(bContext *C,
                                      wmOperatorType *ot,
@@ -287,8 +288,9 @@ void WM_event_add_notifier_ex(wmWindowManager *wm, const wmWindow *win, uint typ
   note_test.data = type & NOTE_DATA;
   note_test.subtype = type & NOTE_SUBTYPE;
   note_test.action = type & NOTE_ACTION;
-
   note_test.reference = reference;
+
+  BLI_assert(!wm_notifier_is_clear(&note_test));
 
   if (wm->notifier_queue_set == nullptr) {
     wm->notifier_queue_set = BLI_gset_new_ex(
@@ -385,6 +387,12 @@ static void wm_notifier_clear(wmNotifier *note)
 {
   /* nullptr the entire notifier, only leaving (`next`, `prev`) members intact. */
   memset(((char *)note) + sizeof(Link), 0, sizeof(*note) - sizeof(Link));
+  note->category = NOTE_CATEGORY_TAG_CLEARED;
+}
+
+static bool wm_notifier_is_clear(const wmNotifier *note)
+{
+  return note->category == NOTE_CATEGORY_TAG_CLEARED;
 }
 
 void wm_event_do_depsgraph(bContext *C, bool is_after_open_file)
@@ -484,7 +492,7 @@ void wm_event_do_notifiers(bContext *C)
 
     CTX_wm_window_set(C, win);
 
-    LISTBASE_FOREACH_MUTABLE (wmNotifier *, note, &wm->notifier_queue) {
+    LISTBASE_FOREACH_MUTABLE (const wmNotifier *, note, &wm->notifier_queue) {
       if (note->category == NC_WM) {
         if (ELEM(note->data, ND_FILEREAD, ND_FILESAVE)) {
           wm->file_saved = 1;
@@ -576,8 +584,12 @@ void wm_event_do_notifiers(bContext *C)
   }
 
   /* The notifiers are sent without context, to keep it clean. */
-  wmNotifier *note;
-  while ((note = static_cast<wmNotifier *>(BLI_pophead(&wm->notifier_queue)))) {
+  const wmNotifier *note;
+  while ((note = static_cast<const wmNotifier *>(BLI_pophead(&wm->notifier_queue)))) {
+    if (wm_notifier_is_clear(note)) {
+      MEM_freeN((void *)note);
+      continue;
+    }
     const bool removed = BLI_gset_remove(wm->notifier_queue_set, note, nullptr);
     BLI_assert(removed);
     UNUSED_VARS_NDEBUG(removed);
@@ -644,7 +656,7 @@ void wm_event_do_notifiers(bContext *C)
       }
     }
 
-    MEM_freeN(note);
+    MEM_freeN((void *)note);
   }
 #endif /* If 1 (postpone disabling for in favor of message-bus), eventually. */
 
@@ -671,7 +683,7 @@ void wm_event_do_notifiers(bContext *C)
   wm_test_autorun_warning(C);
 }
 
-static int wm_event_always_pass(const wmEvent *event)
+static bool wm_event_always_pass(const wmEvent *event)
 {
   /* Some events we always pass on, to ensure proper communication. */
   return ISTIMER(event->type) || (event->type == WINDEACTIVATE);
@@ -2754,7 +2766,7 @@ static int wm_handler_fileselect_call(bContext *C,
   return wm_handler_fileselect_do(C, handlers, handler, event->val);
 }
 
-static int wm_action_not_handled(int action)
+static bool wm_action_not_handled(int action)
 {
   return action == WM_HANDLER_CONTINUE || action == (WM_HANDLER_BREAK | WM_HANDLER_MODAL);
 }

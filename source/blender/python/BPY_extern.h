@@ -34,7 +34,7 @@ void BPY_pyconstraint_exec(struct bPythonConstraint *con,
 //  void BPY_pyconstraint_settings(void *arg1, void *arg2);
 void BPY_pyconstraint_target(struct bPythonConstraint *con, struct bConstraintTarget *ct);
 void BPY_pyconstraint_update(struct Object *owner, struct bConstraint *con);
-int BPY_is_pyconstraint(struct Text *text);
+bool BPY_is_pyconstraint(struct Text *text);
 //  void BPY_free_pyconstraint_links(struct Text *text);
 
 bool BPY_python_get_use_system_env(void); /* Game Engine Integration */
