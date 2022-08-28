@@ -2109,12 +2109,12 @@ static char *rna_View3DCursor_path(const PointerRNA *UNUSED(ptr))
   return BLI_strdup("cursor");
 }
 
-static int rna_GameSettings_auto_start_get(PointerRNA *UNUSED(ptr))
+static bool rna_GameSettings_auto_start_get(PointerRNA *UNUSED(ptr))
 {
   return (G.fileflags & G_FILE_AUTOPLAY) != 0;
 }
 
-static void rna_GameSettings_auto_start_set(PointerRNA *UNUSED(ptr), int value)
+static void rna_GameSettings_auto_start_set(PointerRNA *UNUSED(ptr), bool value)
 {
   if (value)
     G.fileflags |= G_FILE_AUTOPLAY;

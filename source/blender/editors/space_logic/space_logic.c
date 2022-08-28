@@ -184,7 +184,7 @@ static void logic_refresh(const bContext *UNUSED(C), ScrArea *UNUSED(sa))
 static void logic_listener(const wmRegionListenerParams *params)
 {
   ARegion *ar = params->region;
-  wmNotifier *wmn = params->notifier;
+  const wmNotifier *wmn = params->notifier;
   /* context changes */
   switch (wmn->category) {
     case NC_LOGIC:
