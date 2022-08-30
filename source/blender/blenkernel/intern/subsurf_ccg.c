@@ -1364,7 +1364,7 @@ static void *ccgDM_get_tessface_data_layer(DerivedMesh *dm, int type)
       return origindex;
     }
 
-    DM_add_tessface_layer(dm, CD_ORIGINDEX, CD_CALLOC, NULL);
+    DM_add_tessface_layer(dm, CD_ORIGINDEX, CD_SET_DEFAULT, NULL);
     origindex = DM_get_tessface_data_layer(dm, CD_ORIGINDEX);
 
     /* silly loop counting up */
@@ -1393,7 +1393,7 @@ static void *ccgDM_get_tessface_data_layer(DerivedMesh *dm, int type)
         return NULL;
       }
 
-      DM_add_tessface_layer(dm, CD_TESSLOOPNORMAL, CD_CALLOC, NULL);
+      DM_add_tessface_layer(dm, CD_TESSLOOPNORMAL, CD_SET_DEFAULT, NULL);
       tlnors = tlnors_it = (short(*)[3])DM_get_tessface_data_layer(dm, CD_TESSLOOPNORMAL);
 
       /* With ccgdm, we have a simple one to one mapping between loops

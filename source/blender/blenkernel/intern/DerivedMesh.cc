@@ -137,7 +137,7 @@ static MFace *dm_getTessFaceArray(DerivedMesh *dm)
     }
 
     mface = (MFace *)CustomData_add_layer(
-        &dm->faceData, CD_MFACE, CD_CALLOC, nullptr, numTessFaces);
+        &dm->faceData, CD_MFACE, CD_SET_DEFAULT, nullptr, numTessFaces);
     CustomData_set_layer_flag(&dm->faceData, CD_MFACE, CD_FLAG_TEMPORARY);
     dm->copyTessFaceArray(dm, mface);
   }

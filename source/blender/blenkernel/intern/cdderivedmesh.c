@@ -513,16 +513,16 @@ DerivedMesh *CDDM_new(int numVerts, int numEdges, int numTessFaces, int numLoops
 
   DM_init(dm, DM_TYPE_CDDM, numVerts, numEdges, numTessFaces, numLoops, numPolys);
 
-  CustomData_add_layer(&dm->vertData, CD_ORIGINDEX, CD_CALLOC, NULL, numVerts);
-  CustomData_add_layer(&dm->edgeData, CD_ORIGINDEX, CD_CALLOC, NULL, numEdges);
-  CustomData_add_layer(&dm->faceData, CD_ORIGINDEX, CD_CALLOC, NULL, numTessFaces);
-  CustomData_add_layer(&dm->polyData, CD_ORIGINDEX, CD_CALLOC, NULL, numPolys);
+  CustomData_add_layer(&dm->vertData, CD_ORIGINDEX, CD_SET_DEFAULT, NULL, numVerts);
+  CustomData_add_layer(&dm->edgeData, CD_ORIGINDEX, CD_SET_DEFAULT, NULL, numEdges);
+  CustomData_add_layer(&dm->faceData, CD_ORIGINDEX, CD_SET_DEFAULT, NULL, numTessFaces);
+  CustomData_add_layer(&dm->polyData, CD_ORIGINDEX, CD_SET_DEFAULT, NULL, numPolys);
 
-  CustomData_add_layer(&dm->vertData, CD_MVERT, CD_CALLOC, NULL, numVerts);
-  CustomData_add_layer(&dm->edgeData, CD_MEDGE, CD_CALLOC, NULL, numEdges);
-  CustomData_add_layer(&dm->faceData, CD_MFACE, CD_CALLOC, NULL, numTessFaces);
-  CustomData_add_layer(&dm->loopData, CD_MLOOP, CD_CALLOC, NULL, numLoops);
-  CustomData_add_layer(&dm->polyData, CD_MPOLY, CD_CALLOC, NULL, numPolys);
+  CustomData_add_layer(&dm->vertData, CD_MVERT, CD_SET_DEFAULT, NULL, numVerts);
+  CustomData_add_layer(&dm->edgeData, CD_MEDGE, CD_SET_DEFAULT, NULL, numEdges);
+  CustomData_add_layer(&dm->faceData, CD_MFACE, CD_SET_DEFAULT, NULL, numTessFaces);
+  CustomData_add_layer(&dm->loopData, CD_MLOOP, CD_SET_DEFAULT, NULL, numLoops);
+  CustomData_add_layer(&dm->polyData, CD_MPOLY, CD_SET_DEFAULT, NULL, numPolys);
 
   cddm->mvert = CustomData_get_layer(&dm->vertData, CD_MVERT);
   cddm->medge = CustomData_get_layer(&dm->edgeData, CD_MEDGE);
@@ -705,20 +705,20 @@ DerivedMesh *CDDM_from_template(DerivedMesh *source,
                    numVerts, numEdges, numTessFaces, numLoops, numPolys);
 
   /* now add mvert/medge/mface layers */
-  CustomData_add_layer(&dm->vertData, CD_MVERT, CD_CALLOC, NULL, numVerts);
-  CustomData_add_layer(&dm->edgeData, CD_MEDGE, CD_CALLOC, NULL, numEdges);
-  CustomData_add_layer(&dm->faceData, CD_MFACE, CD_CALLOC, NULL, numTessFaces);
-  CustomData_add_layer(&dm->loopData, CD_MLOOP, CD_CALLOC, NULL, numLoops);
-  CustomData_add_layer(&dm->polyData, CD_MPOLY, CD_CALLOC, NULL, numPolys);
+  CustomData_add_layer(&dm->vertData, CD_MVERT, CD_SET_DEFAULT, NULL, numVerts);
+  CustomData_add_layer(&dm->edgeData, CD_MEDGE, CD_SET_DEFAULT, NULL, numEdges);
+  CustomData_add_layer(&dm->faceData, CD_MFACE, CD_SET_DEFAULT, NULL, numTessFaces);
+  CustomData_add_layer(&dm->loopData, CD_MLOOP, CD_SET_DEFAULT, NULL, numLoops);
+  CustomData_add_layer(&dm->polyData, CD_MPOLY, CD_SET_DEFAULT, NULL, numPolys);
 
   if (!CustomData_get_layer(&dm->vertData, CD_ORIGINDEX)) {
-    CustomData_add_layer(&dm->vertData, CD_ORIGINDEX, CD_CALLOC, NULL, numVerts);
+    CustomData_add_layer(&dm->vertData, CD_ORIGINDEX, CD_SET_DEFAULT, NULL, numVerts);
   }
   if (!CustomData_get_layer(&dm->edgeData, CD_ORIGINDEX)) {
-    CustomData_add_layer(&dm->edgeData, CD_ORIGINDEX, CD_CALLOC, NULL, numEdges);
+    CustomData_add_layer(&dm->edgeData, CD_ORIGINDEX, CD_SET_DEFAULT, NULL, numEdges);
   }
   if (!CustomData_get_layer(&dm->faceData, CD_ORIGINDEX)) {
-    CustomData_add_layer(&dm->faceData, CD_ORIGINDEX, CD_CALLOC, NULL, numTessFaces);
+    CustomData_add_layer(&dm->faceData, CD_ORIGINDEX, CD_SET_DEFAULT, NULL, numTessFaces);
   }
 
   cddm->mvert = CustomData_get_layer(&dm->vertData, CD_MVERT);
@@ -767,7 +767,7 @@ void CDDM_calc_loop_normals_spacearr(DerivedMesh *dm,
     vert_normal = CustomData_get_layer(vdata, CD_NORMAL);
   }
   else {
-    vert_normal = CustomData_add_layer(vdata, CD_NORMAL, CD_CALLOC, NULL, numVerts);
+    vert_normal = CustomData_add_layer(vdata, CD_NORMAL, CD_SET_DEFAULT, NULL, numVerts);
   }
 
   ldata = dm->getLoopDataLayout(dm);
@@ -775,7 +775,7 @@ void CDDM_calc_loop_normals_spacearr(DerivedMesh *dm,
     lnors = CustomData_get_layer(ldata, CD_NORMAL);
   }
   else {
-    lnors = CustomData_add_layer(ldata, CD_NORMAL, CD_CALLOC, NULL, numLoops);
+    lnors = CustomData_add_layer(ldata, CD_NORMAL, CD_SET_DEFAULT, NULL, numLoops);
   }
 
   /* Compute poly (always needed) and vert normals. */
@@ -783,7 +783,7 @@ void CDDM_calc_loop_normals_spacearr(DerivedMesh *dm,
   pdata = dm->getPolyDataLayout(dm);
   pnors = CustomData_get_layer(pdata, CD_NORMAL);
   if (!pnors) {
-    pnors = CustomData_add_layer(pdata, CD_NORMAL, CD_CALLOC, NULL, numPolys);
+    pnors = CustomData_add_layer(pdata, CD_NORMAL, CD_SET_DEFAULT, NULL, numPolys);
   }
 
   bool only_face_normals = (dm->dirty & DM_DIRTY_NORMALS) == 0;
@@ -1526,8 +1526,8 @@ void CDDM_calc_edges_tessface(DerivedMesh *dm)
 
   /* write new edges into a temporary CustomData */
   CustomData_reset(&edgeData);
-  CustomData_add_layer(&edgeData, CD_MEDGE, CD_CALLOC, NULL, numEdges);
-  CustomData_add_layer(&edgeData, CD_ORIGINDEX, CD_CALLOC, NULL, numEdges);
+  CustomData_add_layer(&edgeData, CD_MEDGE, CD_SET_DEFAULT, NULL, numEdges);
+  CustomData_add_layer(&edgeData, CD_ORIGINDEX, CD_SET_DEFAULT, NULL, numEdges);
 
   med = CustomData_get_layer(&edgeData, CD_MEDGE);
   index = CustomData_get_layer(&edgeData, CD_ORIGINDEX);
@@ -1593,8 +1593,8 @@ void CDDM_calc_edges(DerivedMesh *dm)
 
   /* write new edges into a temporary CustomData */
   CustomData_reset(&edgeData);
-  CustomData_add_layer(&edgeData, CD_MEDGE, CD_CALLOC, NULL, numEdges);
-  CustomData_add_layer(&edgeData, CD_ORIGINDEX, CD_CALLOC, NULL, numEdges);
+  CustomData_add_layer(&edgeData, CD_MEDGE, CD_SET_DEFAULT, NULL, numEdges);
+  CustomData_add_layer(&edgeData, CD_ORIGINDEX, CD_SET_DEFAULT, NULL, numEdges);
 
   origmed = cddm->medge;
   med = CustomData_get_layer(&edgeData, CD_MEDGE);

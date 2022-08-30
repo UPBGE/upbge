@@ -920,25 +920,25 @@ void CustomData_from_bmeshpoly(CustomData *fdata, CustomData *ldata, int total)
 
   for (int i = 0; i < ldata->totlayer; i++) {
     if (ldata->layers[i].type == CD_MLOOPUV) {
-      CustomData_add_layer_named(fdata, CD_MTFACE, CD_CALLOC, NULL, total, ldata->layers[i].name);
+      CustomData_add_layer_named(fdata, CD_MTFACE, CD_SET_DEFAULT, NULL, total, ldata->layers[i].name);
     }
     if (ldata->layers[i].type == CD_PROP_BYTE_COLOR) {
-      CustomData_add_layer_named(fdata, CD_MCOL, CD_CALLOC, NULL, total, ldata->layers[i].name);
+      CustomData_add_layer_named(fdata, CD_MCOL, CD_SET_DEFAULT, NULL, total, ldata->layers[i].name);
     }
     else if (ldata->layers[i].type == CD_PREVIEW_MLOOPCOL) {
       CustomData_add_layer_named(
-          fdata, CD_PREVIEW_MCOL, CD_CALLOC, NULL, total, ldata->layers[i].name);
+          fdata, CD_PREVIEW_MCOL, CD_SET_DEFAULT, NULL, total, ldata->layers[i].name);
     }
     else if (ldata->layers[i].type == CD_ORIGSPACE_MLOOP) {
       CustomData_add_layer_named(
-          fdata, CD_ORIGSPACE, CD_CALLOC, NULL, total, ldata->layers[i].name);
+          fdata, CD_ORIGSPACE, CD_SET_DEFAULT, NULL, total, ldata->layers[i].name);
     }
     else if (ldata->layers[i].type == CD_NORMAL) {
       CustomData_add_layer_named(
-          fdata, CD_TESSLOOPNORMAL, CD_CALLOC, NULL, total, ldata->layers[i].name);
+          fdata, CD_TESSLOOPNORMAL, CD_SET_DEFAULT, NULL, total, ldata->layers[i].name);
     }
     else if (ldata->layers[i].type == CD_TANGENT) {
-      CustomData_add_layer_named(fdata, CD_TANGENT, CD_CALLOC, NULL, total, ldata->layers[i].name);
+      CustomData_add_layer_named(fdata, CD_TANGENT, CD_SET_DEFAULT, NULL, total, ldata->layers[i].name);
     }
   }
 
