@@ -162,7 +162,7 @@ GPUNodeLink *GPU_differentiate_float_function(const char *function_name);
 
 bool GPU_link(GPUMaterial *mat, const char *name, ...);
 bool GPU_stack_link(GPUMaterial *mat,
-                    struct bNode *node,
+                    const struct bNode *node,
                     const char *name,
                     GPUNodeStack *in,
                     GPUNodeStack *out,
@@ -228,6 +228,7 @@ void GPU_materials_free(struct Main *bmain);
 struct Scene *GPU_material_scene(GPUMaterial *material);
 struct GPUPass *GPU_material_get_pass(GPUMaterial *material);
 struct GPUShader *GPU_material_get_shader(GPUMaterial *material);
+const char *GPU_material_get_name(GPUMaterial *material);
 /**
  * Return can be NULL if it's a world material.
  */

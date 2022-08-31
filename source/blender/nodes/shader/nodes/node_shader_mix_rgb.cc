@@ -136,7 +136,7 @@ class MixRGBFunction : public fn::MultiFunction {
 
 static void sh_node_mix_rgb_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
-  bNode &node = builder.node();
+  const bNode &node = builder.node();
   bool clamp = node.custom2 & SHD_MIXRGB_CLAMP;
   int mix_type = node.custom1;
   builder.construct_and_set_matching_fn<MixRGBFunction>(clamp, mix_type);
@@ -150,11 +150,11 @@ void register_node_type_sh_mix_rgb()
 
   static bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, SH_NODE_MIX_RGB, "Mix", NODE_CLASS_OP_COLOR);
+  sh_fn_node_type_base(&ntype, SH_NODE_MIX_RGB_LEGACY, "Mix", NODE_CLASS_OP_COLOR);
   ntype.declare = file_ns::sh_node_mix_rgb_declare;
   ntype.labelfunc = node_blend_label;
   node_type_gpu(&ntype, file_ns::gpu_shader_mix_rgb);
   ntype.build_multi_function = file_ns::sh_node_mix_rgb_build_multi_function;
-
+  ntype.gather_link_search_ops = nullptr;
   nodeRegisterType(&ntype);
 }

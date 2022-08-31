@@ -25,7 +25,7 @@ DefNode(Node,           NODE_REROUTE,            0,                      "REROUT
 
 DefNode(ShaderNode,     SH_NODE_RGB,             0,                      "RGB",            RGB,              "RGB",               "A color picker")
 DefNode(ShaderNode,     SH_NODE_VALUE,           0,                      "VALUE",          Value,            "Value",             "Used to Input numerical values to other nodes in the tree")
-DefNode(ShaderNode,     SH_NODE_MIX_RGB,         def_mix_rgb,            "MIX_RGB",        MixRGB,           "MixRGB",            "Mix two input colors")
+DefNode(ShaderNode,     SH_NODE_MIX_RGB_LEGACY,  def_mix_rgb,            "MIX_RGB",        MixRGB,           "MixRGB",            "Mix two input colors")
 DefNode(ShaderNode,     SH_NODE_VALTORGB,        def_colorramp,          "VALTORGB",       ValToRGB,         "ColorRamp",         "Map values to colors with the use of a gradient")
 DefNode(ShaderNode,     SH_NODE_RGBTOBW,         0,                      "RGBTOBW",        RGBToBW,          "RGB to BW",         "Convert a color's luminance to a grayscale value")
 DefNode(ShaderNode,     SH_NODE_SHADERTORGB,     0,                      "SHADERTORGB",    ShaderToRGB,      "Shader to RGB",     "Convert rendering effect (such as light and shadow) to color. Typically used for non-photorealistic rendering, to apply additional effects on the output of BSDFs.\nNote: only supported for Eevee")
@@ -122,6 +122,7 @@ DefNode(ShaderNode,     SH_NODE_OUTPUT_AOV,         def_sh_output_aov,      "OUT
 DefNode(ShaderNode,     SH_NODE_CURVE_FLOAT,        def_float_curve,        "CURVE_FLOAT",        FloatCurve,       "Float Curve",       "Map an input float to a curve and outputs a float value")
 DefNode(ShaderNode,     SH_NODE_COMBINE_COLOR,      def_sh_combsep_color,   "COMBINE_COLOR",      CombineColor,     "Combine Color",     "Create a color from individual components using multiple models")
 DefNode(ShaderNode,     SH_NODE_SEPARATE_COLOR,     def_sh_combsep_color,   "SEPARATE_COLOR",     SeparateColor,    "Separate Color",    "Split a color into its individual components using multiple models")
+DefNode(ShaderNode,     SH_NODE_MIX,                def_sh_mix,             "MIX",                Mix,              "Mix",               "Mix values by a factor")
 
 /* UPBGE*/
 DefNode(ShaderNode,     SH_NODE_SPRITES_ANIMATION,  0,                      "SPRITES_ANIMATION",  SpritesAnimation, "Sprites Animation", ""       )
@@ -331,7 +332,7 @@ DefNode(GeometryNode, GEO_NODE_INPUT_MESH_EDGE_ANGLE, 0, "MESH_EDGE_ANGLE", Inpu
 DefNode(GeometryNode, GEO_NODE_INPUT_MESH_EDGE_NEIGHBORS, 0, "MESH_EDGE_NEIGHBORS",InputMeshEdgeNeighbors, "Edge Neighbors", "Retrieve the number of faces that use each edge as one of their sides")
 DefNode(GeometryNode, GEO_NODE_INPUT_MESH_EDGE_VERTICES, 0, "MESH_EDGE_VERTICES", InputMeshEdgeVertices, "Edge Vertices", "Retrieve topology information relating to each edge of a mesh")
 DefNode(GeometryNode, GEO_NODE_INPUT_MESH_FACE_AREA, 0, "MESH_FACE_AREA", InputMeshFaceArea, "Face Area", "Calculate the surface area of a mesh's faces")
-DefNode(GeometryNode, GEO_NODE_INPUT_MESH_FACE_IS_PLANAR, 0, "MESH_FACE_IS_PLANAR",InputMeshFaceIsPlanar, "Face is Planar", "Retrieve whether all triangles in a face are on the same plane, i.e. whether have the same normal")
+DefNode(GeometryNode, GEO_NODE_INPUT_MESH_FACE_IS_PLANAR, 0, "MESH_FACE_IS_PLANAR",InputMeshFaceIsPlanar, "Is Face Planar", "Retrieve whether all triangles in a face are on the same plane, i.e. whether have the same normal")
 DefNode(GeometryNode, GEO_NODE_INPUT_MESH_FACE_NEIGHBORS, 0, "MESH_FACE_NEIGHBORS",InputMeshFaceNeighbors, "Face Neighbors", "Retrieve topology information relating to each face of a mesh")
 DefNode(GeometryNode, GEO_NODE_INPUT_MESH_ISLAND, 0, "MESH_ISLAND", InputMeshIsland, "Mesh Island", "Retrieve information about separate connected regions in a mesh")
 DefNode(GeometryNode, GEO_NODE_INPUT_MESH_VERTEX_NEIGHBORS, 0, "MESH_VERTEX_NEIGHBORS", InputMeshVertexNeighbors, "Vertex Neighbors", "Retrieve topology information relating to each vertex of a mesh")
@@ -364,7 +365,7 @@ DefNode(GeometryNode, GEO_NODE_MESH_PRIMITIVE_LINE, def_geo_mesh_line, "MESH_PRI
 DefNode(GeometryNode, GEO_NODE_MESH_PRIMITIVE_UV_SPHERE, 0, "MESH_PRIMITIVE_UV_SPHERE", MeshUVSphere, "UV Sphere", "Generate a spherical mesh with quads, except for triangles at the top and bottom")
 DefNode(GeometryNode, GEO_NODE_MESH_TO_CURVE, 0, "MESH_TO_CURVE", MeshToCurve, "Mesh to Curve", "Generate a curve from a mesh")
 DefNode(GeometryNode, GEO_NODE_MESH_TO_POINTS, def_geo_mesh_to_points, "MESH_TO_POINTS", MeshToPoints, "Mesh to Points", "Generate a point cloud from a mesh's vertices")
-DefNode(GeometryNode, GEO_NODE_MESH_TO_VOLUME, def_geo_mesh_to_volume, "MESH_TO_VOLUME", MeshToVolume, "Mesh To Volume", "Create a fog volume with the shape of the input mesh's surface")
+DefNode(GeometryNode, GEO_NODE_MESH_TO_VOLUME, def_geo_mesh_to_volume, "MESH_TO_VOLUME", MeshToVolume, "Mesh to Volume", "Create a fog volume with the shape of the input mesh's surface")
 DefNode(GeometryNode, GEO_NODE_OBJECT_INFO, def_geo_object_info, "OBJECT_INFO", ObjectInfo, "Object Info", "Retrieve information from an object")
 DefNode(GeometryNode, GEO_NODE_POINTS_TO_VERTICES, 0, "POINTS_TO_VERTICES", PointsToVertices, "Points to Vertices", "Generate a mesh vertex for each point cloud point")
 DefNode(GeometryNode, GEO_NODE_POINTS_TO_VOLUME, def_geo_points_to_volume, "POINTS_TO_VOLUME", PointsToVolume, "Points to Volume", "Generate a fog volume sphere around every point")

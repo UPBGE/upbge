@@ -232,7 +232,7 @@ Material *BlenderStrokeRenderer::GetStrokeShader(Main *bmain,
   storage = (NodeShaderAttribute *)input_attr_color->storage;
   BLI_strncpy(storage->name, "Color", sizeof(storage->name));
 
-  bNode *mix_rgb_color = nodeAddStaticNode(nullptr, ntree, SH_NODE_MIX_RGB);
+  bNode *mix_rgb_color = nodeAddStaticNode(nullptr, ntree, SH_NODE_MIX_RGB_LEGACY);
   mix_rgb_color->custom1 = MA_RAMP_BLEND;  // Mix
   mix_rgb_color->locx = 200.0f;
   mix_rgb_color->locy = -200.0f;
@@ -246,7 +246,7 @@ Material *BlenderStrokeRenderer::GetStrokeShader(Main *bmain,
   storage = (NodeShaderAttribute *)input_attr_alpha->storage;
   BLI_strncpy(storage->name, "Alpha", sizeof(storage->name));
 
-  bNode *mix_rgb_alpha = nodeAddStaticNode(nullptr, ntree, SH_NODE_MIX_RGB);
+  bNode *mix_rgb_alpha = nodeAddStaticNode(nullptr, ntree, SH_NODE_MIX_RGB_LEGACY);
   mix_rgb_alpha->custom1 = MA_RAMP_BLEND;  // Mix
   mix_rgb_alpha->locx = 600.0f;
   mix_rgb_alpha->locy = 300.0f;
@@ -584,7 +584,8 @@ void BlenderStrokeRenderer::GenerateStrokeMesh(StrokeGroup *group, bool hasTex)
       &mesh->pdata, CD_MPOLY, CD_SET_DEFAULT, nullptr, mesh->totpoly);
   mesh->mloop = (MLoop *)CustomData_add_layer(
       &mesh->ldata, CD_MLOOP, CD_SET_DEFAULT, nullptr, mesh->totloop);
-
+  int *material_indices = (int *)CustomData_add_layer_named(
+      &mesh->pdata, CD_PROP_INT32, CD_SET_DEFAULT, nullptr, mesh->totpoly, "material_index");
   MVert *vertices = mesh->mvert;
   MEdge *edges = mesh->medge;
   MPoly *polys = mesh->mpoly;
@@ -714,7 +715,8 @@ void BlenderStrokeRenderer::GenerateStrokeMesh(StrokeGroup *group, bool hasTex)
           // poly
           polys->loopstart = loop_index;
           polys->totloop = 3;
-          polys->mat_nr = matnr;
+          *material_indices = matnr;
+          ++material_indices;
           ++polys;
 
           // Even and odd loops connect triangles vertices differently

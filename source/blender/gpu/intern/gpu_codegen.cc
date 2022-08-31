@@ -356,21 +356,22 @@ void GPUCodegen::generate_resources()
   std::stringstream ss;
 
   /* Textures. */
+  int slot = 0;
   LISTBASE_FOREACH (GPUMaterialTexture *, tex, &graph.textures) {
     if (tex->colorband) {
       const char *name = info.name_buffer.append_sampler_name(tex->sampler_name);
-      info.sampler(0, ImageType::FLOAT_1D_ARRAY, name, Frequency::BATCH);
+      info.sampler(slot++, ImageType::FLOAT_1D_ARRAY, name, Frequency::BATCH);
     }
     else if (tex->tiled_mapping_name[0] != '\0') {
       const char *name = info.name_buffer.append_sampler_name(tex->sampler_name);
-      info.sampler(0, ImageType::FLOAT_2D_ARRAY, name, Frequency::BATCH);
+      info.sampler(slot++, ImageType::FLOAT_2D_ARRAY, name, Frequency::BATCH);
 
       const char *name_mapping = info.name_buffer.append_sampler_name(tex->tiled_mapping_name);
-      info.sampler(0, ImageType::FLOAT_1D_ARRAY, name_mapping, Frequency::BATCH);
+      info.sampler(slot++, ImageType::FLOAT_1D_ARRAY, name_mapping, Frequency::BATCH);
     }
     else {
       const char *name = info.name_buffer.append_sampler_name(tex->sampler_name);
-      info.sampler(0, ImageType::FLOAT_2D, name, Frequency::BATCH);
+      info.sampler(slot++, ImageType::FLOAT_2D, name, Frequency::BATCH);
     }
   }
 
@@ -383,7 +384,7 @@ void GPUCodegen::generate_resources()
     }
     ss << "};\n\n";
 
-    info.uniform_buf(0, "NodeTree", GPU_UBO_BLOCK_NAME, Frequency::BATCH);
+    info.uniform_buf(1, "NodeTree", GPU_UBO_BLOCK_NAME, Frequency::BATCH);
   }
 
   if (!BLI_listbase_is_empty(&graph.uniform_attrs.list)) {
@@ -395,7 +396,7 @@ void GPUCodegen::generate_resources()
 
     /* TODO(fclem): Use the macro for length. Currently not working for EEVEE. */
     /* DRW_RESOURCE_CHUNK_LEN = 512 */
-    info.uniform_buf(0, "UniformAttrs", GPU_ATTRIBUTE_UBO_BLOCK_NAME "[512]", Frequency::BATCH);
+    info.uniform_buf(2, "UniformAttrs", GPU_ATTRIBUTE_UBO_BLOCK_NAME "[512]", Frequency::BATCH);
   }
 
   info.typedef_source_generated = ss.str();

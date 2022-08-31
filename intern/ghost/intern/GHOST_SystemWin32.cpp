@@ -131,7 +131,7 @@ GHOST_SystemWin32::GHOST_SystemWin32()
   GHOST_ASSERT(m_displayManager, "GHOST_SystemWin32::GHOST_SystemWin32(): m_displayManager==0\n");
   m_displayManager->initialize();
 
-  m_consoleStatus = 1;
+  m_consoleStatus = true;
 
   /* Tell Windows we are per monitor DPI aware. This disables the default
    * blurry scaling and enables WM_DPICHANGED to allow us to draw at proper DPI. */
@@ -353,6 +353,7 @@ GHOST_ContextD3D *GHOST_SystemWin32::createOffscreenContextD3D()
   context = new GHOST_ContextD3D(false, wnd);
   if (context->initializeDrawingContext() == GHOST_kFailure) {
     delete context;
+    context = nullptr;
   }
 
   return context;
@@ -900,11 +901,11 @@ void GHOST_SystemWin32::processWintabEvent(GHOST_WindowWin32 *window)
               new GHOST_EventButton(info.time, info.type, window, info.button, info.tabletData));
 
           mouseMoveHandled = true;
-          break;
         }
         else {
           WINTAB_PRINTF(" ... but no system button\n");
         }
+        break;
       }
       case GHOST_kEventButtonUp: {
         WINTAB_PRINTF("HWND %p Wintab button up", window->getHWND());
@@ -1156,10 +1157,10 @@ GHOST_EventKey *GHOST_SystemWin32::processKeyEvent(GHOST_WindowWin32 *window, RA
    * those events here as well. */
   if (!is_repeated_modifier) {
     char utf8_char[6] = {0};
-    BYTE state[256] = {0};
-    GetKeyboardState((PBYTE)state);
-    bool ctrl_pressed = state[VK_CONTROL] & 0x80;
-    bool alt_pressed = state[VK_MENU] & 0x80;
+    BYTE state[256];
+    const BOOL has_state = GetKeyboardState((PBYTE)state);
+    const bool ctrl_pressed = has_state && state[VK_CONTROL] & 0x80;
+    const bool alt_pressed = has_state && state[VK_MENU] & 0x80;
 
     if (!key_down) {
       /* Pass. */
@@ -2123,8 +2124,6 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 
 char *GHOST_SystemWin32::getClipboard(bool selection) const
 {
-  char *temp_buff;
-
   if (IsClipboardFormatAvailable(CF_UNICODETEXT) && OpenClipboard(NULL)) {
     wchar_t *buffer;
     HANDLE hData = GetClipboardData(CF_UNICODETEXT);
@@ -2138,7 +2137,7 @@ char *GHOST_SystemWin32::getClipboard(bool selection) const
       return NULL;
     }
 
-    temp_buff = alloc_utf_8_from_16(buffer, 0);
+    char *temp_buff = alloc_utf_8_from_16(buffer, 0);
 
     /* Buffer mustn't be accessed after CloseClipboard
      * it would like accessing free-d memory */
@@ -2147,7 +2146,7 @@ char *GHOST_SystemWin32::getClipboard(bool selection) const
 
     return temp_buff;
   }
-  else if (IsClipboardFormatAvailable(CF_TEXT) && OpenClipboard(NULL)) {
+  if (IsClipboardFormatAvailable(CF_TEXT) && OpenClipboard(NULL)) {
     char *buffer;
     size_t len = 0;
     HANDLE hData = GetClipboardData(CF_TEXT);
@@ -2162,7 +2161,7 @@ char *GHOST_SystemWin32::getClipboard(bool selection) const
     }
 
     len = strlen(buffer);
-    temp_buff = (char *)malloc(len + 1);
+    char *temp_buff = (char *)malloc(len + 1);
     strncpy(temp_buff, buffer, len);
     temp_buff[len] = '\0';
 
@@ -2173,9 +2172,7 @@ char *GHOST_SystemWin32::getClipboard(bool selection) const
 
     return temp_buff;
   }
-  else {
-    return NULL;
-  }
+  return nullptr;
 }
 
 void GHOST_SystemWin32::putClipboard(const char *buffer, bool selection) const
@@ -2320,7 +2317,7 @@ static bool isStartedFromCommandPrompt()
   return false;
 }
 
-int GHOST_SystemWin32::setConsoleWindowState(GHOST_TConsoleWindowState action)
+bool GHOST_SystemWin32::setConsoleWindowState(GHOST_TConsoleWindowState action)
 {
   HWND wnd = GetConsoleWindow();
 
@@ -2328,13 +2325,13 @@ int GHOST_SystemWin32::setConsoleWindowState(GHOST_TConsoleWindowState action)
     case GHOST_kConsoleWindowStateHideForNonConsoleLaunch: {
       if (!isStartedFromCommandPrompt()) {
         ShowWindow(wnd, SW_HIDE);
-        m_consoleStatus = 0;
+        m_consoleStatus = false;
       }
       break;
     }
     case GHOST_kConsoleWindowStateHide: {
       ShowWindow(wnd, SW_HIDE);
-      m_consoleStatus = 0;
+      m_consoleStatus = false;
       break;
     }
     case GHOST_kConsoleWindowStateShow: {
@@ -2342,7 +2339,7 @@ int GHOST_SystemWin32::setConsoleWindowState(GHOST_TConsoleWindowState action)
       if (!isStartedFromCommandPrompt()) {
         DeleteMenu(GetSystemMenu(wnd, FALSE), SC_CLOSE, MF_BYCOMMAND);
       }
-      m_consoleStatus = 1;
+      m_consoleStatus = true;
       break;
     }
     case GHOST_kConsoleWindowStateToggle: {
