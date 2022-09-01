@@ -343,7 +343,7 @@ void BlenderSync::sync_integrator(BL::ViewLayer &b_view_layer, bool background)
   integrator->set_light_sampling_threshold(get_float(cscene, "light_sampling_threshold"));
 
   SamplingPattern sampling_pattern = (SamplingPattern)get_enum(
-      cscene, "sampling_pattern", SAMPLING_NUM_PATTERNS, SAMPLING_PATTERN_SOBOL);
+      cscene, "sampling_pattern", SAMPLING_NUM_PATTERNS, SAMPLING_PATTERN_PMJ);
   integrator->set_sampling_pattern(sampling_pattern);
 
   int samples = 1;
@@ -680,14 +680,18 @@ void BlenderSync::sync_render_passes(BL::RenderLayer &b_rlay, BL::ViewLayer &b_v
   }
 
   /* Cryptomatte stores two ID/weight pairs per RGBA layer.
-   * User facing parameter is the number of pairs. */
+   * User facing parameter is the number of pairs.
+   *
+   * NOTE: Name channels lowercase rgba so that compression rules check in OpenEXR DWA code uses
+   * loseless compression. Reportedly this naming is the only one which works good from the
+   * interoperability point of view. Using xyzw naming is not portable. */
   int crypto_depth = divide_up(min(16, b_view_layer.pass_cryptomatte_depth()), 2);
   scene->film->set_cryptomatte_depth(crypto_depth);
   CryptomatteType cryptomatte_passes = CRYPT_NONE;
   if (b_view_layer.use_pass_cryptomatte_object()) {
     for (int i = 0; i < crypto_depth; i++) {
       string passname = cryptomatte_prefix + string_printf("Object%02d", i);
-      b_engine.add_pass(passname.c_str(), 4, "RGBA", b_view_layer.name().c_str());
+      b_engine.add_pass(passname.c_str(), 4, "rgba", b_view_layer.name().c_str());
       pass_add(scene, PASS_CRYPTOMATTE, passname.c_str());
     }
     cryptomatte_passes = (CryptomatteType)(cryptomatte_passes | CRYPT_OBJECT);
@@ -695,7 +699,7 @@ void BlenderSync::sync_render_passes(BL::RenderLayer &b_rlay, BL::ViewLayer &b_v
   if (b_view_layer.use_pass_cryptomatte_material()) {
     for (int i = 0; i < crypto_depth; i++) {
       string passname = cryptomatte_prefix + string_printf("Material%02d", i);
-      b_engine.add_pass(passname.c_str(), 4, "RGBA", b_view_layer.name().c_str());
+      b_engine.add_pass(passname.c_str(), 4, "rgba", b_view_layer.name().c_str());
       pass_add(scene, PASS_CRYPTOMATTE, passname.c_str());
     }
     cryptomatte_passes = (CryptomatteType)(cryptomatte_passes | CRYPT_MATERIAL);
@@ -703,7 +707,7 @@ void BlenderSync::sync_render_passes(BL::RenderLayer &b_rlay, BL::ViewLayer &b_v
   if (b_view_layer.use_pass_cryptomatte_asset()) {
     for (int i = 0; i < crypto_depth; i++) {
       string passname = cryptomatte_prefix + string_printf("Asset%02d", i);
-      b_engine.add_pass(passname.c_str(), 4, "RGBA", b_view_layer.name().c_str());
+      b_engine.add_pass(passname.c_str(), 4, "rgba", b_view_layer.name().c_str());
       pass_add(scene, PASS_CRYPTOMATTE, passname.c_str());
     }
     cryptomatte_passes = (CryptomatteType)(cryptomatte_passes | CRYPT_ASSET);

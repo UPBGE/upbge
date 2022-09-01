@@ -54,7 +54,6 @@ CCL_NAMESPACE_BEGIN
 #endif
 
 /* Kernel features */
-#define __SOBOL__
 #define __DPDU__
 #define __BACKGROUND__
 #define __CAUSTICS_TRICKS__
@@ -147,38 +146,49 @@ CCL_NAMESPACE_BEGIN
 #  define __BVH_LOCAL__
 #endif
 
-/* Path Tracing
- * note we need to keep the u/v pairs at even values */
+/* Sampling Patterns */
 
+/* Unique numbers for sampling patterns in each bounce. */
 enum PathTraceDimension {
-  PRNG_FILTER_U = 0,
-  PRNG_FILTER_V = 1,
-  PRNG_LENS_U = 2,
-  PRNG_LENS_V = 3,
-  PRNG_TIME = 4,
-  PRNG_UNUSED_0 = 5,
-  PRNG_UNUSED_1 = 6, /* for some reason (6, 7) is a bad sobol pattern */
-  PRNG_UNUSED_2 = 7, /* with a low number of samples (< 64) */
-  PRNG_BASE_NUM = 10,
+  /* Init bounce */
+  PRNG_FILTER = 0,
+  PRNG_LENS = 1,
+  PRNG_TIME = 2,
 
-  PRNG_BSDF_U = 0,
-  PRNG_BSDF_V = 1,
-  PRNG_LIGHT_U = 2,
-  PRNG_LIGHT_V = 3,
-  PRNG_LIGHT_TERMINATE = 4,
-  PRNG_TERMINATE = 5,
-  PRNG_PHASE_CHANNEL = 6,
-  PRNG_SCATTER_DISTANCE = 7,
-  PRNG_BOUNCE_NUM = 8,
+  /* Shade bounce */
+  PRNG_TERMINATE = 0,
+  PRNG_LIGHT = 1,
+  PRNG_LIGHT_TERMINATE = 2,
+  /* Surface */
+  PRNG_SURFACE_BSDF = 3,
+  PRNG_SURFACE_AO = 4,
+  PRNG_SURFACE_BEVEL = 5,
+  /* Volume */
+  PRNG_VOLUME_PHASE = 3,
+  PRNG_VOLUME_PHASE_CHANNEL = 4,
+  PRNG_VOLUME_SCATTER_DISTANCE = 5,
+  PRNG_VOLUME_OFFSET = 6,
+  PRNG_VOLUME_SHADE_OFFSET = 7,
 
-  PRNG_BEVEL_U = 6, /* reuse volume dimension, correlation won't harm */
-  PRNG_BEVEL_V = 7,
+  /* Subsurface random walk bounces */
+  PRNG_SUBSURFACE_BSDF = 0,
+  PRNG_SUBSURFACE_PHASE_CHANNEL = 1,
+  PRNG_SUBSURFACE_SCATTER_DISTANCE = 2,
+  PRNG_SUBSURFACE_GUIDE_STRATEGY = 3,
+  PRNG_SUBSURFACE_GUIDE_DIRECTION = 4,
+
+  /* Subsurface disk bounce */
+  PRNG_SUBSURFACE_DISK = 0,
+  PRNG_SUBSURFACE_DISK_RESAMPLE = 1,
+
+  /* High enough number so we don't need to change it when adding new dimenions,
+   * low enough so there is no uint16_t overflow with many bounces. */
+  PRNG_BOUNCE_NUM = 16,
 };
 
 enum SamplingPattern {
-  SAMPLING_PATTERN_SOBOL = 0,
+  SAMPLING_PATTERN_SOBOL_BURLEY = 0,
   SAMPLING_PATTERN_PMJ = 1,
-  SAMPLING_PATTERN_SOBOL_BURLEY = 2,
 
   SAMPLING_NUM_PATTERNS,
 };
@@ -1364,10 +1374,14 @@ typedef struct KernelShaderEvalInput {
 } KernelShaderEvalInput;
 static_assert_align(KernelShaderEvalInput, 16);
 
-/* Pre-computed sample table sizes for PMJ02 sampler. */
+/* Pre-computed sample table sizes for PMJ02 sampler.
+ *
+ * Note: divisions *must* be a power of two, and patterns
+ * ideally should be as well.
+ */
 #define NUM_PMJ_DIVISIONS 32
 #define NUM_PMJ_SAMPLES ((NUM_PMJ_DIVISIONS) * (NUM_PMJ_DIVISIONS))
-#define NUM_PMJ_PATTERNS 1
+#define NUM_PMJ_PATTERNS 64
 
 /* Device kernels.
  *
