@@ -505,7 +505,7 @@ static ID **get_selected_and_linked_obs(bContext *C, short *count, short scavisf
     ob = ob->id.next;
   }
 
-  for (base = FIRSTBASE(view_layer); base; base = base->next) {
+  for (base = view_layer->object_bases.first; base; base = base->next) {
     if ((base->flag & BASE_VISIBLE_VIEWLAYER) && (base->flag & SELECT)) {
       if (scavisflag & BUTS_SENS_SEL)
         base->object->scavisflag |= OB_VIS_SENS;

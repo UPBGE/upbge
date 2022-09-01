@@ -3434,7 +3434,7 @@ void DRW_game_render_loop(bContext *C,
 
   DST.draw_ctx.scene = scene;
   DST.draw_ctx.view_layer = view_layer;
-  DST.draw_ctx.obact = OBACT(view_layer);
+  DST.draw_ctx.obact = BKE_view_layer_active_object_get(view_layer);
 
   DST.draw_ctx.depsgraph = depsgraph;
 
