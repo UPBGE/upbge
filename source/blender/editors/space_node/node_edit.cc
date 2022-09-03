@@ -320,7 +320,7 @@ static void compo_completejob(void *cjv)
 /** \name Composite Job C API
  * \{ */
 
-void ED_node_composite_job(const bContext *C, struct bNodeTree *nodetree, Scene *scene_owner)
+void ED_node_composite_job(const bContext *C, bNodeTree *nodetree, Scene *scene_owner)
 {
   using namespace blender::ed::space_node;
 
@@ -464,22 +464,22 @@ void ED_node_set_tree_type(SpaceNode *snode, bNodeTreeType *typeinfo)
   }
 }
 
-bool ED_node_is_compositor(struct SpaceNode *snode)
+bool ED_node_is_compositor(SpaceNode *snode)
 {
   return STREQ(snode->tree_idname, ntreeType_Composite->idname);
 }
 
-bool ED_node_is_shader(struct SpaceNode *snode)
+bool ED_node_is_shader(SpaceNode *snode)
 {
   return STREQ(snode->tree_idname, ntreeType_Shader->idname);
 }
 
-bool ED_node_is_texture(struct SpaceNode *snode)
+bool ED_node_is_texture(SpaceNode *snode)
 {
   return STREQ(snode->tree_idname, ntreeType_Texture->idname);
 }
 
-bool ED_node_is_geometry(struct SpaceNode *snode)
+bool ED_node_is_geometry(SpaceNode *snode)
 {
   return STREQ(snode->tree_idname, ntreeType_Geometry->idname);
 }
@@ -550,7 +550,7 @@ void ED_node_shader_default(const bContext *C, ID *id)
   }
 }
 
-void ED_node_composit_default(const bContext *C, struct Scene *sce)
+void ED_node_composit_default(const bContext *C, Scene *sce)
 {
   /* but lets check it anyway */
   if (sce->nodetree) {
@@ -921,7 +921,7 @@ static void edit_node_properties_get(
 /** \name Node Generic
  * \{ */
 
-static bool socket_is_occluded(const bNodeSocket &sock,
+static bool socket_is_occluded(const float2 &location,
                                const bNode &node_the_socket_belongs_to,
                                const SpaceNode &snode)
 {
@@ -933,7 +933,7 @@ static bool socket_is_occluded(const bNodeSocket &sock,
 
     rctf socket_hitbox;
     const float socket_hitbox_radius = NODE_SOCKSIZE - 0.1f * U.widget_unit;
-    BLI_rctf_init_pt_radius(&socket_hitbox, float2(sock.locx, sock.locy), socket_hitbox_radius);
+    BLI_rctf_init_pt_radius(&socket_hitbox, location, socket_hitbox_radius);
     if (BLI_rctf_inside_rctf(&node->totr, &socket_hitbox)) {
       return true;
     }
@@ -956,14 +956,14 @@ struct NodeSizeWidget {
 };
 
 static void node_resize_init(
-    bContext *C, wmOperator *op, const float cursor[2], const bNode *node, NodeResizeDirection dir)
+    bContext *C, wmOperator *op, const float2 &cursor, const bNode *node, NodeResizeDirection dir)
 {
   NodeSizeWidget *nsw = MEM_cnew<NodeSizeWidget>(__func__);
 
   op->customdata = nsw;
 
-  nsw->mxstart = cursor[0];
-  nsw->mystart = cursor[1];
+  nsw->mxstart = cursor.x;
+  nsw->mystart = cursor.y;
 
   /* store old */
   nsw->oldlocx = node->locx;
@@ -1010,12 +1010,12 @@ static int node_resize_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
   switch (event->type) {
     case MOUSEMOVE: {
-      int mval[2];
+      int2 mval;
       WM_event_drag_start_mval(event, region, mval);
       float mx, my;
-      UI_view2d_region_to_view(&region->v2d, mval[0], mval[1], &mx, &my);
-      float dx = (mx - nsw->mxstart) / UI_DPI_FAC;
-      float dy = (my - nsw->mystart) / UI_DPI_FAC;
+      UI_view2d_region_to_view(&region->v2d, mval.x, mval.y, &mx, &my);
+      const float dx = (mx - nsw->mxstart) / UI_DPI_FAC;
+      const float dy = (my - nsw->mystart) / UI_DPI_FAC;
 
       if (node) {
         float *pwidth = &node->width;
@@ -1117,11 +1117,11 @@ static int node_resize_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   }
 
   /* convert mouse coordinates to v2d space */
-  float cursor[2];
-  int mval[2];
+  float2 cursor;
+  int2 mval;
   WM_event_drag_start_mval(event, region, mval);
-  UI_view2d_region_to_view(&region->v2d, mval[0], mval[1], &cursor[0], &cursor[1]);
-  const NodeResizeDirection dir = node_get_resize_direction(node, cursor[0], cursor[1]);
+  UI_view2d_region_to_view(&region->v2d, mval.x, mval.y, &cursor.x, &cursor.y);
+  const NodeResizeDirection dir = node_get_resize_direction(node, cursor.x, cursor.y);
   if (dir == NODE_RESIZE_NONE) {
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
@@ -1199,21 +1199,22 @@ void node_set_hidden_sockets(SpaceNode *snode, bNode *node, int set)
 }
 
 /* checks snode->mouse position, and returns found node/socket */
-static bool cursor_isect_multi_input_socket(const float cursor[2], const bNodeSocket &socket)
+static bool cursor_isect_multi_input_socket(const float2 &cursor, const bNodeSocket &socket)
 {
   const float node_socket_height = node_socket_calculate_height(socket);
-  rctf multi_socket_rect;
+  const float2 location(socket.locx, socket.locy);
   /* `.xmax = socket->locx + NODE_SOCKSIZE * 5.5f`
    * would be the same behavior as for regular sockets.
    * But keep it smaller because for multi-input socket you
    * sometimes want to drag the link to the other side, if you may
    * accidentally pick the wrong link otherwise. */
+  rctf multi_socket_rect;
   BLI_rctf_init(&multi_socket_rect,
-                socket.locx - NODE_SOCKSIZE * 4.0f,
-                socket.locx + NODE_SOCKSIZE * 2.0f,
-                socket.locy - node_socket_height,
-                socket.locy + node_socket_height);
-  if (BLI_rctf_isect_pt(&multi_socket_rect, cursor[0], cursor[1])) {
+                location.x - NODE_SOCKSIZE * 4.0f,
+                location.x + NODE_SOCKSIZE * 2.0f,
+                location.y - node_socket_height,
+                location.y + node_socket_height);
+  if (BLI_rctf_isect_pt(&multi_socket_rect, cursor.x, cursor.y)) {
     return true;
   }
   return false;
@@ -1251,17 +1252,18 @@ bool node_find_indicated_socket(SpaceNode &snode,
     if (in_out & SOCK_IN) {
       LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
         if (!nodeSocketIsHidden(sock)) {
+          const float2 location(sock->locx, sock->locy);
           if (sock->flag & SOCK_MULTI_INPUT && !(node->flag & NODE_HIDDEN)) {
             if (cursor_isect_multi_input_socket(cursor, *sock)) {
-              if (!socket_is_occluded(*sock, *node, snode)) {
+              if (!socket_is_occluded(location, *node, snode)) {
                 *nodep = node;
                 *sockp = sock;
                 return true;
               }
             }
           }
-          else if (BLI_rctf_isect_pt(&rect, sock->locx, sock->locy)) {
-            if (!socket_is_occluded(*sock, *node, snode)) {
+          else if (BLI_rctf_isect_pt(&rect, location.x, location.y)) {
+            if (!socket_is_occluded(location, *node, snode)) {
               *nodep = node;
               *sockp = sock;
               return true;
@@ -1273,8 +1275,9 @@ bool node_find_indicated_socket(SpaceNode &snode,
     if (in_out & SOCK_OUT) {
       LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
         if (!nodeSocketIsHidden(sock)) {
-          if (BLI_rctf_isect_pt(&rect, sock->locx, sock->locy)) {
-            if (!socket_is_occluded(*sock, *node, snode)) {
+          const float2 location(sock->locx, sock->locy);
+          if (BLI_rctf_isect_pt(&rect, location.x, location.y)) {
+            if (!socket_is_occluded(location, *node, snode)) {
               *nodep = node;
               *sockp = sock;
               return true;
@@ -1300,11 +1303,12 @@ float node_link_dim_factor(const View2D &v2d, const bNodeLink &link)
     return 1.0f;
   }
 
+  const float2 from(link.fromsock->locx, link.fromsock->locy);
+  const float2 to(link.tosock->locx, link.tosock->locy);
+
   const float min_endpoint_distance = std::min(
-      std::max(BLI_rctf_length_x(&v2d.cur, link.fromsock->locx),
-               BLI_rctf_length_y(&v2d.cur, link.fromsock->locy)),
-      std::max(BLI_rctf_length_x(&v2d.cur, link.tosock->locx),
-               BLI_rctf_length_y(&v2d.cur, link.tosock->locy)));
+      std::max(BLI_rctf_length_x(&v2d.cur, from.x), BLI_rctf_length_y(&v2d.cur, from.y)),
+      std::max(BLI_rctf_length_x(&v2d.cur, to.x), BLI_rctf_length_y(&v2d.cur, to.y)));
 
   if (min_endpoint_distance == 0.0f) {
     return 1.0f;
@@ -2355,11 +2359,11 @@ static int node_clipboard_paste_exec(bContext *C, wmOperator *op)
   node_deselect_all(*snode);
 
   /* calculate "barycenter" for placing on mouse cursor */
-  float center[2] = {0.0f, 0.0f};
+  float2 center = {0.0f, 0.0f};
   int num_nodes = 0;
   LISTBASE_FOREACH_INDEX (bNode *, node, clipboard_nodes_lb, num_nodes) {
-    center[0] += BLI_rctf_cent_x(&node->totr);
-    center[1] += BLI_rctf_cent_y(&node->totr);
+    center.x += BLI_rctf_cent_x(&node->totr);
+    center.y += BLI_rctf_cent_y(&node->totr);
   }
   mul_v2_fl(center, 1.0 / num_nodes);
 

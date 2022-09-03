@@ -77,11 +77,19 @@ typedef enum eGPUMaterialFlag {
   GPU_MATFLAG_HOLDOUT = (1 << 6),
   GPU_MATFLAG_SHADER_TO_RGBA = (1 << 7),
   GPU_MATFLAG_AO = (1 << 8),
+  GPU_MATFLAG_CLEARCOAT = (1 << 9),
 
   GPU_MATFLAG_OBJECT_INFO = (1 << 10),
   GPU_MATFLAG_AOV = (1 << 11),
 
   GPU_MATFLAG_BARYCENTRIC = (1 << 20),
+
+  /* Optimization to only add the branches of the principled shader that are necessary. */
+  GPU_MATFLAG_PRINCIPLED_CLEARCOAT = (1 << 21),
+  GPU_MATFLAG_PRINCIPLED_METALLIC = (1 << 22),
+  GPU_MATFLAG_PRINCIPLED_DIELECTRIC = (1 << 23),
+  GPU_MATFLAG_PRINCIPLED_GLASS = (1 << 24),
+  GPU_MATFLAG_PRINCIPLED_ANY = (1 << 25),
 
   /* Tells the render engine the material was just compiled or updated. */
   GPU_MATFLAG_UPDATED = (1 << 29),
@@ -141,7 +149,10 @@ GPUNodeLink *GPU_attribute_with_default(GPUMaterial *mat,
                                         eCustomDataType type,
                                         const char *name,
                                         eGPUDefaultValue default_value);
-GPUNodeLink *GPU_uniform_attribute(GPUMaterial *mat, const char *name, bool use_dupli);
+GPUNodeLink *GPU_uniform_attribute(GPUMaterial *mat,
+                                   const char *name,
+                                   bool use_dupli,
+                                   uint32_t *r_hash);
 GPUNodeLink *GPU_image(GPUMaterial *mat,
                        struct Image *ima,
                        struct ImageUser *iuser,
@@ -318,10 +329,10 @@ typedef struct GPUUniformAttrList {
   unsigned int count, hash_code;
 } GPUUniformAttrList;
 
-GPUUniformAttrList *GPU_material_uniform_attributes(const GPUMaterial *material);
+const GPUUniformAttrList *GPU_material_uniform_attributes(const GPUMaterial *material);
 
 struct GHash *GPU_uniform_attr_list_hash_new(const char *info);
-void GPU_uniform_attr_list_copy(GPUUniformAttrList *dest, GPUUniformAttrList *src);
+void GPU_uniform_attr_list_copy(GPUUniformAttrList *dest, const GPUUniformAttrList *src);
 void GPU_uniform_attr_list_free(GPUUniformAttrList *set);
 
 /* A callback passed to GPU_material_from_callbacks to construct the material graph by adding and

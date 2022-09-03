@@ -1585,102 +1585,75 @@ void draw_nodespace_back_pix(const bContext &C,
   GPU_matrix_pop();
 }
 
-bool node_link_bezier_handles(const View2D *v2d,
-                              const SpaceNode *snode,
-                              const bNodeLink &link,
-                              float vec[4][2])
+static float2 socket_link_connection_location(const bNodeSocket &socket, const bNodeLink &link)
 {
-  float cursor[2] = {0.0f, 0.0f};
+  const float2 socket_location(socket.locx, socket.locy);
+  if (socket.flag & SOCK_MULTI_INPUT && socket.in_out == SOCK_IN) {
+    return node_link_calculate_multi_input_position(
+        socket_location, link.multi_input_socket_index, socket.total_inputs);
+  }
+  return socket_location;
+}
 
-  /* this function can be called with snode null (via cut_links_intersect) */
-  /* XXX map snode->runtime->cursor back to view space */
-  if (snode) {
-    cursor[0] = snode->runtime->cursor[0] * UI_DPI_FAC;
-    cursor[1] = snode->runtime->cursor[1] * UI_DPI_FAC;
-  }
-
-  /* in v0 and v3 we put begin/end points */
-  if (link.fromsock) {
-    vec[0][0] = link.fromsock->locx;
-    vec[0][1] = link.fromsock->locy;
-    if (link.fromsock->flag & SOCK_MULTI_INPUT) {
-      const float2 position = node_link_calculate_multi_input_position(
-          {link.fromsock->locx, link.fromsock->locy},
-          link.fromsock->total_inputs - 1,
-          link.fromsock->total_inputs);
-      copy_v2_v2(vec[0], position);
-    }
-  }
-  else {
-    if (snode == nullptr) {
-      return false;
-    }
-    copy_v2_v2(vec[0], cursor);
-  }
-  if (link.tosock) {
-    vec[3][0] = link.tosock->locx;
-    vec[3][1] = link.tosock->locy;
-    if (!(link.tonode->flag & NODE_HIDDEN) && link.tosock->flag & SOCK_MULTI_INPUT) {
-      const float2 position = node_link_calculate_multi_input_position(
-          {link.tosock->locx, link.tosock->locy},
-          link.multi_input_socket_index,
-          link.tosock->total_inputs);
-      copy_v2_v2(vec[3], position);
-    }
-  }
-  else {
-    if (snode == nullptr) {
-      return false;
-    }
-    copy_v2_v2(vec[3], cursor);
-  }
-
-  /* may be called outside of drawing (so pass spacetype) */
-  int curving = UI_GetThemeValueType(TH_NODE_CURVING, SPACE_NODE);
-
+static void calculate_inner_link_bezier_points(std::array<float2, 4> &points)
+{
+  const int curving = UI_GetThemeValueType(TH_NODE_CURVING, SPACE_NODE);
   if (curving == 0) {
     /* Straight line: align all points. */
-    interp_v2_v2v2(vec[1], vec[0], vec[3], 1.0f / 3.0f);
-    interp_v2_v2v2(vec[2], vec[0], vec[3], 2.0f / 3.0f);
-    return true;
+    points[1] = math::interpolate(points[0], points[3], 1.0f / 3.0f);
+    points[2] = math::interpolate(points[0], points[3], 2.0f / 3.0f);
   }
+  else {
+    const float dist = curving * 0.1f * math::distance(points[0].x, points[3].x);
 
-  const float dist = curving * 0.10f * fabsf(vec[0][0] - vec[3][0]);
+    points[1].x = points[0].x + dist;
+    points[1].y = points[0].y;
 
-  vec[1][0] = vec[0][0] + dist;
-  vec[1][1] = vec[0][1];
-
-  vec[2][0] = vec[3][0] - dist;
-  vec[2][1] = vec[3][1];
-
-  if (v2d && min_ffff(vec[0][0], vec[1][0], vec[2][0], vec[3][0]) > v2d->cur.xmax) {
-    return false; /* clipped */
+    points[2].x = points[3].x - dist;
+    points[2].y = points[3].y;
   }
-  if (v2d && max_ffff(vec[0][0], vec[1][0], vec[2][0], vec[3][0]) < v2d->cur.xmin) {
-    return false; /* clipped */
-  }
+}
 
+static std::array<float2, 4> node_link_bezier_points(const bNodeLink &link)
+{
+  std::array<float2, 4> points;
+  points[0] = socket_link_connection_location(*link.fromsock, link);
+  points[3] = socket_link_connection_location(*link.tosock, link);
+  calculate_inner_link_bezier_points(points);
+  return points;
+}
+
+static bool node_link_draw_is_visible(const View2D &v2d, const std::array<float2, 4> &points)
+{
+  if (min_ffff(points[0].x, points[1].x, points[2].x, points[3].x) > v2d.cur.xmax) {
+    return false;
+  }
+  if (max_ffff(points[0].x, points[1].x, points[2].x, points[3].x) < v2d.cur.xmin) {
+    return false;
+  }
   return true;
 }
 
-bool node_link_bezier_points(const View2D *v2d,
-                             const SpaceNode *snode,
-                             const bNodeLink &link,
-                             float coord_array[][2],
-                             const int resol)
+void node_link_bezier_points_evaluated(const bNodeLink &link,
+                                       std::array<float2, NODE_LINK_RESOL + 1> &coords)
 {
-  float vec[4][2];
+  const std::array<float2, 4> points = node_link_bezier_points(link);
 
-  if (node_link_bezier_handles(v2d, snode, link, vec)) {
-    /* always do all three, to prevent data hanging around */
-    BKE_curve_forward_diff_bezier(
-        vec[0][0], vec[1][0], vec[2][0], vec[3][0], coord_array[0] + 0, resol, sizeof(float[2]));
-    BKE_curve_forward_diff_bezier(
-        vec[0][1], vec[1][1], vec[2][1], vec[3][1], coord_array[0] + 1, resol, sizeof(float[2]));
-
-    return true;
-  }
-  return false;
+  /* The extra +1 in size is required by these functions and would be removed ideally. */
+  BKE_curve_forward_diff_bezier(points[0].x,
+                                points[1].x,
+                                points[2].x,
+                                points[3].x,
+                                &coords[0].x,
+                                NODE_LINK_RESOL,
+                                sizeof(float2));
+  BKE_curve_forward_diff_bezier(points[0].y,
+                                points[1].y,
+                                points[2].y,
+                                points[3].y,
+                                &coords[0].y,
+                                NODE_LINK_RESOL,
+                                sizeof(float2));
 }
 
 #define NODELINK_GROUP_SIZE 256
@@ -1959,10 +1932,7 @@ struct NodeLinkDrawConfig {
 };
 
 static void nodelink_batch_add_link(const SpaceNode &snode,
-                                    const float2 &p0,
-                                    const float2 &p1,
-                                    const float2 &p2,
-                                    const float2 &p3,
+                                    const std::array<float2, 4> &points,
                                     const NodeLinkDrawConfig &draw_config)
 {
   /* Only allow these colors. If more is needed, you need to modify the shader accordingly. */
@@ -1973,10 +1943,10 @@ static void nodelink_batch_add_link(const SpaceNode &snode,
   BLI_assert(ELEM(draw_config.th_col3, TH_WIRE, TH_REDALERT, -1));
 
   g_batch_link.count++;
-  copy_v2_v2((float *)GPU_vertbuf_raw_step(&g_batch_link.p0_step), p0);
-  copy_v2_v2((float *)GPU_vertbuf_raw_step(&g_batch_link.p1_step), p1);
-  copy_v2_v2((float *)GPU_vertbuf_raw_step(&g_batch_link.p2_step), p2);
-  copy_v2_v2((float *)GPU_vertbuf_raw_step(&g_batch_link.p3_step), p3);
+  copy_v2_v2((float *)GPU_vertbuf_raw_step(&g_batch_link.p0_step), points[0]);
+  copy_v2_v2((float *)GPU_vertbuf_raw_step(&g_batch_link.p1_step), points[1]);
+  copy_v2_v2((float *)GPU_vertbuf_raw_step(&g_batch_link.p2_step), points[2]);
+  copy_v2_v2((float *)GPU_vertbuf_raw_step(&g_batch_link.p3_step), points[3]);
   char *colid = (char *)GPU_vertbuf_raw_step(&g_batch_link.colid_step);
   colid[0] = nodelink_get_color_id(draw_config.th_col1);
   colid[1] = nodelink_get_color_id(draw_config.th_col2);
@@ -2012,19 +1982,17 @@ static void node_draw_link_end_marker(const float2 center,
 
 static void node_draw_link_end_markers(const bNodeLink &link,
                                        const NodeLinkDrawConfig &draw_config,
-                                       const float handles[4][2],
+                                       const std::array<float2, 4> &points,
                                        const bool outline)
 {
   const float radius = (outline ? 0.65f : 0.45f) * NODE_SOCKSIZE;
   if (link.fromsock) {
-    const float2 link_start(handles[0]);
     node_draw_link_end_marker(
-        link_start, radius, outline ? draw_config.outline_color : draw_config.start_color);
+        points[0], radius, outline ? draw_config.outline_color : draw_config.start_color);
   }
   if (link.tosock) {
-    const float2 link_end(handles[3]);
     node_draw_link_end_marker(
-        link_end, radius, outline ? draw_config.outline_color : draw_config.end_color);
+        points[3], radius, outline ? draw_config.outline_color : draw_config.end_color);
   }
 }
 
@@ -2130,7 +2098,7 @@ static NodeLinkDrawConfig nodelink_get_draw_config(const bContext &C,
 
 static void node_draw_link_bezier_ex(const SpaceNode &snode,
                                      const NodeLinkDrawConfig &draw_config,
-                                     const float handles[4][2])
+                                     const std::array<float2, 4> &points)
 {
   if (g_batch_link.batch == nullptr) {
     nodelink_batch_init();
@@ -2138,12 +2106,12 @@ static void node_draw_link_bezier_ex(const SpaceNode &snode,
 
   if (g_batch_link.enabled && !draw_config.highlighted) {
     /* Add link to batch. */
-    nodelink_batch_add_link(snode, handles[0], handles[1], handles[2], handles[3], draw_config);
+    nodelink_batch_add_link(snode, points, draw_config);
   }
   else {
     NodeLinkData node_link_data;
-    for (int i = 0; i < 4; i++) {
-      copy_v2_v2(node_link_data.bezierPts[i], handles[i]);
+    for (const int i : IndexRange(points.size())) {
+      copy_v2_v2(node_link_data.bezierPts[i], points[i]);
     }
 
     copy_v4_v4(node_link_data.colors[0], draw_config.outline_color);
@@ -2180,14 +2148,14 @@ void node_draw_link_bezier(const bContext &C,
                            const int th_col3,
                            const bool selected)
 {
-  float handles[4][2];
-  if (!node_link_bezier_handles(&v2d, &snode, link, handles)) {
+  const std::array<float2, 4> points = node_link_bezier_points(link);
+  if (!node_link_draw_is_visible(v2d, points)) {
     return;
   }
   const NodeLinkDrawConfig draw_config = nodelink_get_draw_config(
       C, v2d, snode, link, th_col1, th_col2, th_col3, selected);
 
-  node_draw_link_bezier_ex(snode, draw_config, handles);
+  node_draw_link_bezier_ex(snode, draw_config, points);
 }
 
 void node_draw_link(const bContext &C,
@@ -2236,6 +2204,17 @@ void node_draw_link(const bContext &C,
   node_draw_link_bezier(C, v2d, snode, link, th_col1, th_col2, th_col3, selected);
 }
 
+static std::array<float2, 4> node_link_bezier_points_dragged(const SpaceNode &snode,
+                                                             const bNodeLink &link)
+{
+  const float2 cursor = snode.runtime->cursor * UI_DPI_FAC;
+  std::array<float2, 4> points;
+  points[0] = link.fromsock ? socket_link_connection_location(*link.fromsock, link) : cursor;
+  points[3] = link.tosock ? socket_link_connection_location(*link.tosock, link) : cursor;
+  calculate_inner_link_bezier_points(points);
+  return points;
+}
+
 void node_draw_link_dragged(const bContext &C,
                             const View2D &v2d,
                             const SpaceNode &snode,
@@ -2245,19 +2224,16 @@ void node_draw_link_dragged(const bContext &C,
     return;
   }
 
-  float handles[4][2];
-  if (!node_link_bezier_handles(&v2d, &snode, link, handles)) {
-    return;
-  }
+  const std::array<float2, 4> points = node_link_bezier_points_dragged(snode, link);
 
   const NodeLinkDrawConfig draw_config = nodelink_get_draw_config(
       C, v2d, snode, link, TH_ACTIVE, TH_ACTIVE, TH_WIRE, true);
   /* End marker outline. */
-  node_draw_link_end_markers(link, draw_config, handles, true);
+  node_draw_link_end_markers(link, draw_config, points, true);
   /* Link. */
-  node_draw_link_bezier_ex(snode, draw_config, handles);
+  node_draw_link_bezier_ex(snode, draw_config, points);
   /* End marker fill. */
-  node_draw_link_end_markers(link, draw_config, handles, false);
+  node_draw_link_end_markers(link, draw_config, points, false);
 }
 
 }  // namespace blender::ed::space_node

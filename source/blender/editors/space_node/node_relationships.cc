@@ -52,11 +52,6 @@
 
 #include "node_intern.hh" /* own include */
 
-struct bNodeListItem {
-  struct bNodeListItem *next, *prev;
-  struct bNode *node;
-};
-
 struct NodeInsertOfsData {
   bNodeTree *ntree;
   bNode *insert;      /* inserted node */
@@ -110,8 +105,8 @@ static void pick_link(
 
   BLI_assert(nldrag.last_node_hovered_while_dragging_a_link != nullptr);
 
-  sort_multi_input_socket_links(
-      snode, *nldrag.last_node_hovered_while_dragging_a_link, nullptr, nullptr);
+  snode.edittree->ensure_topology_cache();
+  sort_multi_input_socket_links(*nldrag.last_node_hovered_while_dragging_a_link, nullptr, nullptr);
 
   /* Send changed event to original link->tonode. */
   if (node) {
@@ -125,10 +120,8 @@ static void pick_input_link_by_link_intersect(const bContext &C,
                                               const float2 &cursor)
 {
   SpaceNode *snode = CTX_wm_space_node(&C);
-  const ARegion *region = CTX_wm_region(&C);
-  const View2D *v2d = &region->v2d;
 
-  float drag_start[2];
+  float2 drag_start;
   RNA_float_get_array(op.ptr, "drag_start", drag_start);
   bNode *node;
   bNodeSocket *socket;
@@ -137,26 +130,16 @@ static void pick_input_link_by_link_intersect(const bContext &C,
   /* Distance to test overlapping of cursor on link. */
   const float cursor_link_touch_distance = 12.5f * UI_DPI_FAC;
 
-  const int resolution = NODE_LINK_RESOL;
-
   bNodeLink *link_to_pick = nullptr;
   clear_picking_highlight(&snode->edittree->links);
   LISTBASE_FOREACH (bNodeLink *, link, &snode->edittree->links) {
     if (link->tosock == socket) {
       /* Test if the cursor is near a link. */
-      float vec[4][2];
-      node_link_bezier_handles(v2d, snode, *link, vec);
+      std::array<float2, NODE_LINK_RESOL + 1> coords;
+      node_link_bezier_points_evaluated(*link, coords);
 
-      float data[NODE_LINK_RESOL * 2 + 2];
-      BKE_curve_forward_diff_bezier(
-          vec[0][0], vec[1][0], vec[2][0], vec[3][0], data, resolution, sizeof(float[2]));
-      BKE_curve_forward_diff_bezier(
-          vec[0][1], vec[1][1], vec[2][1], vec[3][1], data + 1, resolution, sizeof(float[2]));
-
-      for (int i = 0; i < resolution * 2; i += 2) {
-        float *l1 = &data[i];
-        float *l2 = &data[i + 2];
-        float distance = dist_squared_to_line_segment_v2(cursor, l1, l2);
+      for (const int i : IndexRange(coords.size() - 1)) {
+        const float distance = dist_squared_to_line_segment_v2(cursor, coords[i], coords[i + 1]);
         if (distance < cursor_link_touch_distance) {
           link_to_pick = link;
           nldrag.last_picked_multi_input_socket_link = link_to_pick;
@@ -308,34 +291,24 @@ struct LinkAndPosition {
   float2 multi_socket_position;
 };
 
-void sort_multi_input_socket_links(SpaceNode &snode,
-                                   bNode &node,
-                                   bNodeLink *drag_link,
-                                   const float2 *cursor)
+void sort_multi_input_socket_links(bNode &node, bNodeLink *drag_link, const float2 *cursor)
 {
-  LISTBASE_FOREACH (bNodeSocket *, socket, &node.inputs) {
-    if (!(socket->flag & SOCK_MULTI_INPUT)) {
+  for (bNodeSocket *socket : node.input_sockets()) {
+    if (!socket->is_multi_input()) {
       continue;
     }
-    Vector<LinkAndPosition, 8> links;
+    const float2 &socket_location = {socket->locx, socket->locy};
 
-    LISTBASE_FOREACH (bNodeLink *, link, &snode.edittree->links) {
-      if (link->tosock == socket) {
-        links.append(
-            {link,
-             node_link_calculate_multi_input_position({link->tosock->locx, link->tosock->locy},
-                                                      link->multi_input_socket_index,
-                                                      link->tosock->total_inputs)});
-      }
-    }
+    Vector<LinkAndPosition, 8> links;
+    for (bNodeLink *link : socket->directly_linked_links()) {
+      const float2 location = node_link_calculate_multi_input_position(
+          socket_location, link->multi_input_socket_index, link->tosock->total_inputs);
+      links.append({link, location});
+    };
 
     if (drag_link) {
-      LinkAndPosition link_and_position{};
-      link_and_position.link = drag_link;
-      if (cursor) {
-        link_and_position.multi_socket_position = *cursor;
-      }
-      links.append(link_and_position);
+      BLI_assert(cursor != nullptr);
+      links.append({drag_link, *cursor});
     }
 
     std::sort(links.begin(), links.end(), [](const LinkAndPosition a, const LinkAndPosition b) {
@@ -637,7 +610,8 @@ static int link_socket_to_viewer(const bContext &C,
   if (viewer_bnode == nullptr) {
     /* Create a new viewer node if none exists. */
     const int viewer_type = get_default_viewer_type(&C);
-    const float2 location{bsocket_to_view.locx + 100, bsocket_to_view.locy};
+    const float2 location{bsocket_to_view.locx / UI_DPI_FAC + 100,
+                          bsocket_to_view.locy / UI_DPI_FAC};
     viewer_bnode = add_static_node(C, viewer_type, location);
     if (viewer_bnode == nullptr) {
       return OPERATOR_CANCELLED;
@@ -942,6 +916,7 @@ static void node_link_find_socket(bContext &C, wmOperator &op, const float2 &cur
   if (nldrag->in_out == SOCK_OUT) {
     bNode *tnode;
     bNodeSocket *tsock = nullptr;
+    snode.edittree->ensure_topology_cache();
     if (node_find_indicated_socket(snode, &tnode, &tsock, cursor, SOCK_IN)) {
       for (bNodeLink *link : nldrag->links) {
         /* skip if socket is on the same node as the fromsock */
@@ -968,7 +943,7 @@ static void node_link_find_socket(bContext &C, wmOperator &op, const float2 &cur
           continue;
         }
         if (link->tosock && link->tosock->flag & SOCK_MULTI_INPUT) {
-          sort_multi_input_socket_links(snode, *tnode, link, &cursor);
+          sort_multi_input_socket_links(*tnode, link, &cursor);
         }
       }
     }
@@ -976,7 +951,7 @@ static void node_link_find_socket(bContext &C, wmOperator &op, const float2 &cur
       for (bNodeLink *link : nldrag->links) {
         if (nldrag->last_node_hovered_while_dragging_a_link) {
           sort_multi_input_socket_links(
-              snode, *nldrag->last_node_hovered_while_dragging_a_link, nullptr, &cursor);
+              *nldrag->last_node_hovered_while_dragging_a_link, nullptr, nullptr);
         }
         link->tonode = nullptr;
         link->tosock = nullptr;
@@ -1177,7 +1152,7 @@ static int node_link_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
   bool detach = RNA_boolean_get(op->ptr, "detach");
 
-  int mval[2];
+  int2 mval;
   WM_event_drag_start_mval(event, &region, mval);
 
   float2 cursor;
@@ -1322,17 +1297,17 @@ void NODE_OT_link_make(wmOperatorType *ot)
 
 static bool node_links_intersect(bNodeLink &link, const float mcoords[][2], int tot)
 {
-  float coord_array[NODE_LINK_RESOL + 1][2];
+  std::array<float2, NODE_LINK_RESOL + 1> coords;
+  node_link_bezier_points_evaluated(link, coords);
 
-  if (node_link_bezier_points(nullptr, nullptr, link, coord_array, NODE_LINK_RESOL)) {
-    for (int i = 0; i < tot - 1; i++) {
-      for (int b = 0; b < NODE_LINK_RESOL; b++) {
-        if (isect_seg_seg_v2(mcoords[i], mcoords[i + 1], coord_array[b], coord_array[b + 1]) > 0) {
-          return true;
-        }
+  for (int i = 0; i < tot - 1; i++) {
+    for (int b = 0; b < NODE_LINK_RESOL; b++) {
+      if (isect_seg_seg_v2(mcoords[i], mcoords[i + 1], coords[b], coords[b + 1]) > 0) {
+        return true;
       }
     }
   }
+
   return false;
 }
 
@@ -1363,39 +1338,49 @@ static int cut_links_exec(bContext *C, wmOperator *op)
   }
   RNA_END;
 
-  if (i > 1) {
-    bool found = false;
-
-    ED_preview_kill_jobs(CTX_wm_manager(C), &bmain);
-
-    LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &snode.edittree->links) {
-      if (node_link_is_hidden_or_dimmed(region.v2d, *link)) {
-        continue;
-      }
-
-      if (node_links_intersect(*link, mcoords, i)) {
-
-        if (found == false) {
-          /* TODO(sergey): Why did we kill jobs twice? */
-          ED_preview_kill_jobs(CTX_wm_manager(C), &bmain);
-          found = true;
-        }
-
-        bNode *to_node = link->tonode;
-        nodeRemLink(snode.edittree, link);
-        sort_multi_input_socket_links(snode, *to_node, nullptr, nullptr);
-      }
-    }
-
-    ED_node_tree_propagate_change(C, CTX_data_main(C), snode.edittree);
-    if (found) {
-      return OPERATOR_FINISHED;
-    }
-
-    return OPERATOR_CANCELLED;
+  if (i == 0) {
+    return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
-  return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
+  bool found = false;
+
+  ED_preview_kill_jobs(CTX_wm_manager(C), &bmain);
+
+  bNodeTree &node_tree = *snode.edittree;
+
+  Set<bNode *> affected_nodes;
+
+  LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &node_tree.links) {
+    if (node_link_is_hidden_or_dimmed(region.v2d, *link)) {
+      continue;
+    }
+
+    if (node_links_intersect(*link, mcoords, i)) {
+
+      if (!found) {
+        /* TODO(sergey): Why did we kill jobs twice? */
+        ED_preview_kill_jobs(CTX_wm_manager(C), &bmain);
+        found = true;
+      }
+
+      bNode *to_node = link->tonode;
+      nodeRemLink(snode.edittree, link);
+      affected_nodes.add(to_node);
+    }
+  }
+
+  node_tree.ensure_topology_cache();
+
+  for (bNode *node : affected_nodes) {
+    sort_multi_input_socket_links(*node, nullptr, nullptr);
+  }
+
+  ED_node_tree_propagate_change(C, CTX_data_main(C), snode.edittree);
+  if (found) {
+    return OPERATOR_FINISHED;
+  }
+
+  return OPERATOR_CANCELLED;
 }
 
 void NODE_OT_links_cut(wmOperatorType *ot)
@@ -1450,48 +1435,48 @@ static int mute_links_exec(bContext *C, wmOperator *op)
   }
   RNA_END;
 
-  if (i > 1) {
-    ED_preview_kill_jobs(CTX_wm_manager(C), &bmain);
-
-    /* Count intersected links and clear test flag. */
-    int tot = 0;
-    LISTBASE_FOREACH (bNodeLink *, link, &snode.edittree->links) {
-      if (node_link_is_hidden_or_dimmed(region.v2d, *link)) {
-        continue;
-      }
-      link->flag &= ~NODE_LINK_TEST;
-      if (node_links_intersect(*link, mcoords, i)) {
-        tot++;
-      }
-    }
-    if (tot == 0) {
-      return OPERATOR_CANCELLED;
-    }
-
-    /* Mute links. */
-    LISTBASE_FOREACH (bNodeLink *, link, &snode.edittree->links) {
-      if (node_link_is_hidden_or_dimmed(region.v2d, *link) || (link->flag & NODE_LINK_TEST)) {
-        continue;
-      }
-
-      if (node_links_intersect(*link, mcoords, i)) {
-        nodeMuteLinkToggle(snode.edittree, link);
-      }
-    }
-
-    /* Clear remaining test flags. */
-    LISTBASE_FOREACH (bNodeLink *, link, &snode.edittree->links) {
-      if (node_link_is_hidden_or_dimmed(region.v2d, *link)) {
-        continue;
-      }
-      link->flag &= ~NODE_LINK_TEST;
-    }
-
-    ED_node_tree_propagate_change(C, CTX_data_main(C), snode.edittree);
-    return OPERATOR_FINISHED;
+  if (i <= 1) {
+    return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
-  return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
+  ED_preview_kill_jobs(CTX_wm_manager(C), &bmain);
+
+  /* Count intersected links and clear test flag. */
+  int tot = 0;
+  LISTBASE_FOREACH (bNodeLink *, link, &snode.edittree->links) {
+    if (node_link_is_hidden_or_dimmed(region.v2d, *link)) {
+      continue;
+    }
+    link->flag &= ~NODE_LINK_TEST;
+    if (node_links_intersect(*link, mcoords, i)) {
+      tot++;
+    }
+  }
+  if (tot == 0) {
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Mute links. */
+  LISTBASE_FOREACH (bNodeLink *, link, &snode.edittree->links) {
+    if (node_link_is_hidden_or_dimmed(region.v2d, *link) || (link->flag & NODE_LINK_TEST)) {
+      continue;
+    }
+
+    if (node_links_intersect(*link, mcoords, i)) {
+      nodeMuteLinkToggle(snode.edittree, link);
+    }
+  }
+
+  /* Clear remaining test flags. */
+  LISTBASE_FOREACH (bNodeLink *, link, &snode.edittree->links) {
+    if (node_link_is_hidden_or_dimmed(region.v2d, *link)) {
+      continue;
+    }
+    link->flag &= ~NODE_LINK_TEST;
+  }
+
+  ED_node_tree_propagate_change(C, CTX_data_main(C), snode.edittree);
+  return OPERATOR_FINISHED;
 }
 
 void NODE_OT_links_mute(wmOperatorType *ot)
@@ -1707,11 +1692,11 @@ void NODE_OT_join(wmOperatorType *ot)
 
 static bNode *node_find_frame_to_attach(ARegion &region,
                                         const bNodeTree &ntree,
-                                        const int mouse_xy[2])
+                                        const int2 mouse_xy)
 {
   /* convert mouse coordinates to v2d space */
-  float cursor[2];
-  UI_view2d_region_to_view(&region.v2d, UNPACK2(mouse_xy), &cursor[0], &cursor[1]);
+  float2 cursor;
+  UI_view2d_region_to_view(&region.v2d, mouse_xy.x, mouse_xy.y, &cursor.x, &cursor.y);
 
   LISTBASE_FOREACH_BACKWARD (bNode *, frame, &ntree.nodes) {
     /* skip selected, those are the nodes we want to attach */
@@ -1935,6 +1920,7 @@ static bool ed_node_link_conditions(ScrArea *area,
 
 void ED_node_link_intersect_test(ScrArea *area, int test)
 {
+  using namespace blender;
   using namespace blender::ed::space_node;
 
   bNode *select;
@@ -1958,36 +1944,34 @@ void ED_node_link_intersect_test(ScrArea *area, int test)
   bNodeLink *selink = nullptr;
   float dist_best = FLT_MAX;
   LISTBASE_FOREACH (bNodeLink *, link, &snode->edittree->links) {
-    float coord_array[NODE_LINK_RESOL + 1][2];
 
     if (node_link_is_hidden_or_dimmed(region->v2d, *link)) {
       continue;
     }
 
-    if (node_link_bezier_points(nullptr, nullptr, *link, coord_array, NODE_LINK_RESOL)) {
-      float dist = FLT_MAX;
+    std::array<float2, NODE_LINK_RESOL + 1> coords;
+    node_link_bezier_points_evaluated(*link, coords);
+    float dist = FLT_MAX;
 
-      /* loop over link coords to find shortest dist to
-       * upper left node edge of a intersected line segment */
-      for (int i = 0; i < NODE_LINK_RESOL; i++) {
-        /* Check if the node rectangle intersects the line from this point to next one. */
-        if (BLI_rctf_isect_segment(&select->totr, coord_array[i], coord_array[i + 1])) {
-          /* store the shortest distance to the upper left edge
-           * of all intersections found so far */
-          const float node_xy[] = {select->totr.xmin, select->totr.ymax};
+    /* loop over link coords to find shortest dist to
+     * upper left node edge of a intersected line segment */
+    for (int i = 0; i < NODE_LINK_RESOL; i++) {
+      /* Check if the node rectangle intersects the line from this point to next one. */
+      if (BLI_rctf_isect_segment(&select->totr, coords[i], coords[i + 1])) {
+        /* store the shortest distance to the upper left edge
+         * of all intersections found so far */
+        const float node_xy[] = {select->totr.xmin, select->totr.ymax};
 
-          /* to be precise coord_array should be clipped by select->totr,
-           * but not done since there's no real noticeable difference */
-          dist = min_ff(
-              dist_squared_to_line_segment_v2(node_xy, coord_array[i], coord_array[i + 1]), dist);
-        }
+        /* to be precise coords should be clipped by select->totr,
+         * but not done since there's no real noticeable difference */
+        dist = min_ff(dist_squared_to_line_segment_v2(node_xy, coords[i], coords[i + 1]), dist);
       }
+    }
 
-      /* we want the link with the shortest distance to node center */
-      if (dist < dist_best) {
-        dist_best = dist;
-        selink = link;
-      }
+    /* we want the link with the shortest distance to node center */
+    if (dist < dist_best) {
+      dist_best = dist;
+      selink = link;
     }
   }
 

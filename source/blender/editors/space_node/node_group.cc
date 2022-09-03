@@ -653,7 +653,7 @@ static bool node_group_make_use_node(bNode &node, bNode *gnode)
 static bool node_group_make_test_selected(bNodeTree &ntree,
                                           bNode *gnode,
                                           const char *ntree_idname,
-                                          struct ReportList &reports)
+                                          ReportList &reports)
 {
   int ok = true;
 
@@ -717,13 +717,13 @@ static int node_get_selected_minmax(
   INIT_MINMAX2(min, max);
   LISTBASE_FOREACH (bNode *, node, &ntree.nodes) {
     if (node_group_make_use_node(*node, gnode)) {
-      float loc[2];
-      nodeToView(node, node->offsetx, node->offsety, &loc[0], &loc[1]);
-      minmax_v2v2_v2(min, max, loc);
+      float2 loc;
+      nodeToView(node, node->offsetx, node->offsety, &loc.x, &loc.y);
+      math::min_max(loc, min, max);
       if (use_size) {
-        loc[0] += node->width;
-        loc[1] -= node->height;
-        minmax_v2v2_v2(min, max, loc);
+        loc.x += node->width;
+        loc.y -= node->height;
+        math::min_max(loc, min, max);
       }
       totselect++;
     }
@@ -1042,8 +1042,10 @@ static int node_group_make_exec(bContext *C, wmOperator *op)
     nodeSetActive(&ntree, gnode);
     if (ngroup) {
       ED_node_tree_push(&snode, ngroup, gnode);
+
+      ngroup->ensure_topology_cache();
       LISTBASE_FOREACH (bNode *, node, &ngroup->nodes) {
-        sort_multi_input_socket_links(snode, *node, nullptr, nullptr);
+        sort_multi_input_socket_links(*node, nullptr, nullptr);
       }
     }
   }

@@ -340,13 +340,13 @@ static void node_update_basis(const bContext &C, bNodeTree &ntree, bNode &node, 
   bool add_output_space = false;
 
   int buty;
-  LISTBASE_FOREACH (bNodeSocket *, nsock, &node.outputs) {
-    if (nodeSocketIsHidden(nsock)) {
+  LISTBASE_FOREACH (bNodeSocket *, socket, &node.outputs) {
+    if (nodeSocketIsHidden(socket)) {
       continue;
     }
 
     PointerRNA sockptr;
-    RNA_pointer_create(&ntree.id, &RNA_NodeSocket, nsock, &sockptr);
+    RNA_pointer_create(&ntree.id, &RNA_NodeSocket, socket, &sockptr);
 
     uiLayout *layout = UI_block_layout(&block,
                                        UI_LAYOUT_VERTICAL,
@@ -369,10 +369,10 @@ static void node_update_basis(const bContext &C, bNodeTree &ntree, bNode &node, 
     /* Align output buttons to the right. */
     uiLayout *row = uiLayoutRow(layout, true);
     uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
-    const char *socket_label = nodeSocketLabel(nsock);
-    nsock->typeinfo->draw((bContext *)&C, row, &sockptr, &nodeptr, IFACE_(socket_label));
+    const char *socket_label = nodeSocketLabel(socket);
+    socket->typeinfo->draw((bContext *)&C, row, &sockptr, &nodeptr, IFACE_(socket_label));
 
-    node_socket_add_tooltip(&ntree, &node, nsock, row);
+    node_socket_add_tooltip(ntree, node, *socket, *row);
 
     UI_block_align_end(&block);
     UI_block_layout_resolve(&block, nullptr, &buty);
@@ -381,11 +381,11 @@ static void node_update_basis(const bContext &C, bNodeTree &ntree, bNode &node, 
     buty = min_ii(buty, dy - NODE_DY);
 
     /* Round the socket location to stop it from jiggling. */
-    nsock->locx = round(loc.x + NODE_WIDTH(node));
-    nsock->locy = round(dy - NODE_DYS);
+    socket->locx = round(loc.x + NODE_WIDTH(node));
+    socket->locy = round(dy - NODE_DYS);
 
     dy = buty;
-    if (nsock->next) {
+    if (socket->next) {
       dy -= NODE_SOCKDY;
     }
 
@@ -463,20 +463,20 @@ static void node_update_basis(const bContext &C, bNodeTree &ntree, bNode &node, 
   }
 
   /* Input sockets. */
-  LISTBASE_FOREACH (bNodeSocket *, nsock, &node.inputs) {
-    if (nodeSocketIsHidden(nsock)) {
+  LISTBASE_FOREACH (bNodeSocket *, socket, &node.inputs) {
+    if (nodeSocketIsHidden(socket)) {
       continue;
     }
 
     PointerRNA sockptr;
-    RNA_pointer_create(&ntree.id, &RNA_NodeSocket, nsock, &sockptr);
+    RNA_pointer_create(&ntree.id, &RNA_NodeSocket, socket, &sockptr);
 
     /* Add the half the height of a multi-input socket to cursor Y
      * to account for the increased height of the taller sockets. */
     float multi_input_socket_offset = 0.0f;
-    if (nsock->flag & SOCK_MULTI_INPUT) {
-      if (nsock->total_inputs > 2) {
-        multi_input_socket_offset = (nsock->total_inputs - 2) * NODE_MULTI_INPUT_LINK_GAP;
+    if (socket->flag & SOCK_MULTI_INPUT) {
+      if (socket->total_inputs > 2) {
+        multi_input_socket_offset = (socket->total_inputs - 2) * NODE_MULTI_INPUT_LINK_GAP;
       }
     }
     dy -= multi_input_socket_offset * 0.5f;
@@ -501,10 +501,10 @@ static void node_update_basis(const bContext &C, bNodeTree &ntree, bNode &node, 
 
     uiLayout *row = uiLayoutRow(layout, true);
 
-    const char *socket_label = nodeSocketLabel(nsock);
-    nsock->typeinfo->draw((bContext *)&C, row, &sockptr, &nodeptr, IFACE_(socket_label));
+    const char *socket_label = nodeSocketLabel(socket);
+    socket->typeinfo->draw((bContext *)&C, row, &sockptr, &nodeptr, IFACE_(socket_label));
 
-    node_socket_add_tooltip(&ntree, &node, nsock, row);
+    node_socket_add_tooltip(ntree, node, *socket, *row);
 
     UI_block_align_end(&block);
     UI_block_layout_resolve(&block, nullptr, &buty);
@@ -512,12 +512,12 @@ static void node_update_basis(const bContext &C, bNodeTree &ntree, bNode &node, 
     /* Ensure minimum socket height in case layout is empty. */
     buty = min_ii(buty, dy - NODE_DY);
 
-    nsock->locx = loc.x;
+    socket->locx = loc.x;
     /* Round the socket vertical position to stop it from jiggling. */
-    nsock->locy = round(dy - NODE_DYS);
+    socket->locy = round(dy - NODE_DYS);
 
     dy = buty - multi_input_socket_offset * 0.5;
-    if (nsock->next) {
+    if (socket->next) {
       dy -= NODE_SOCKDY;
     }
   }
@@ -555,13 +555,13 @@ static void node_update_hidden(bNode &node, uiBlock &block)
   loc.y = round(loc.y);
 
   /* Calculate minimal radius. */
-  LISTBASE_FOREACH (bNodeSocket *, nsock, &node.inputs) {
-    if (!nodeSocketIsHidden(nsock)) {
+  LISTBASE_FOREACH (bNodeSocket *, socket, &node.inputs) {
+    if (!nodeSocketIsHidden(socket)) {
       totin++;
     }
   }
-  LISTBASE_FOREACH (bNodeSocket *, nsock, &node.outputs) {
-    if (!nodeSocketIsHidden(nsock)) {
+  LISTBASE_FOREACH (bNodeSocket *, socket, &node.outputs) {
+    if (!nodeSocketIsHidden(socket)) {
       totout++;
     }
   }
@@ -581,11 +581,11 @@ static void node_update_hidden(bNode &node, uiBlock &block)
   float rad = (float)M_PI / (1.0f + (float)totout);
   float drad = rad;
 
-  LISTBASE_FOREACH (bNodeSocket *, nsock, &node.outputs) {
-    if (!nodeSocketIsHidden(nsock)) {
+  LISTBASE_FOREACH (bNodeSocket *, socket, &node.outputs) {
+    if (!nodeSocketIsHidden(socket)) {
       /* Round the socket location to stop it from jiggling. */
-      nsock->locx = round(node.totr.xmax - hiddenrad + sinf(rad) * hiddenrad);
-      nsock->locy = round(node.totr.ymin + hiddenrad + cosf(rad) * hiddenrad);
+      socket->locx = round(node.totr.xmax - hiddenrad + sinf(rad) * hiddenrad);
+      socket->locy = round(node.totr.ymin + hiddenrad + cosf(rad) * hiddenrad);
       rad += drad;
     }
   }
@@ -593,11 +593,11 @@ static void node_update_hidden(bNode &node, uiBlock &block)
   /* Input sockets. */
   rad = drad = -(float)M_PI / (1.0f + (float)totin);
 
-  LISTBASE_FOREACH (bNodeSocket *, nsock, &node.inputs) {
-    if (!nodeSocketIsHidden(nsock)) {
+  LISTBASE_FOREACH (bNodeSocket *, socket, &node.inputs) {
+    if (!nodeSocketIsHidden(socket)) {
       /* Round the socket location to stop it from jiggling. */
-      nsock->locx = round(node.totr.xmin + hiddenrad + sinf(rad) * hiddenrad);
-      nsock->locy = round(node.totr.ymin + hiddenrad + cosf(rad) * hiddenrad);
+      socket->locx = round(node.totr.xmin + hiddenrad + sinf(rad) * hiddenrad);
+      socket->locy = round(node.totr.ymin + hiddenrad + cosf(rad) * hiddenrad);
       rad += drad;
     }
   }
@@ -720,8 +720,7 @@ static void node_socket_draw_multi_input(const float color[4],
                                          const float color_outline[4],
                                          const float width,
                                          const float height,
-                                         const int locx,
-                                         const int locy)
+                                         const float2 location)
 {
   /* The other sockets are drawn with the keyframe shader. There, the outline has a base thickness
    * that can be varied but always scales with the size the socket is drawn at. Using `U.dpi_fac`
@@ -731,10 +730,10 @@ static void node_socket_draw_multi_input(const float color[4],
 
   /* UI_draw_roundbox draws the outline on the outer side, so compensate for the outline width. */
   const rctf rect = {
-      locx - width + outline_width * 0.5f,
-      locx + width - outline_width * 0.5f,
-      locy - height + outline_width * 0.5f,
-      locy + height - outline_width * 0.5f,
+      location.x - width + outline_width * 0.5f,
+      location.x + width - outline_width * 0.5f,
+      location.y - height + outline_width * 0.5f,
+      location.y + height - outline_width * 0.5f,
   };
 
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
@@ -776,9 +775,9 @@ void node_socket_color_get(const bContext &C,
 }
 
 struct SocketTooltipData {
-  bNodeTree *ntree;
-  bNode *node;
-  bNodeSocket *socket;
+  const bNodeTree *ntree;
+  const bNode *node;
+  const bNodeSocket *socket;
 };
 
 static void create_inspection_string_for_generic_value(const GPointer value, std::stringstream &ss)
@@ -999,11 +998,11 @@ static void create_inspection_string_for_geometry(const geo_log::GeometryValueLo
   }
 }
 
-static std::optional<std::string> create_socket_inspection_string(bContext *C,
-                                                                  bNode &node,
-                                                                  bNodeSocket &socket)
+static std::optional<std::string> create_socket_inspection_string(const bContext &C,
+                                                                  const bNode &node,
+                                                                  const bNodeSocket &socket)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
+  const SpaceNode *snode = CTX_wm_space_node(&C);
   if (snode == nullptr) {
     return {};
   };
@@ -1038,41 +1037,41 @@ static std::optional<std::string> create_socket_inspection_string(bContext *C,
   return ss.str();
 }
 
-static bool node_socket_has_tooltip(bNodeTree *ntree, bNodeSocket *socket)
+static bool node_socket_has_tooltip(const bNodeTree &ntree, const bNodeSocket &socket)
 {
-  if (ntree->type == NTREE_GEOMETRY) {
+  if (ntree.type == NTREE_GEOMETRY) {
     return true;
   }
 
-  if (socket->runtime->declaration != nullptr) {
-    const blender::nodes::SocketDeclaration &socket_decl = *socket->runtime->declaration;
+  if (socket.runtime->declaration != nullptr) {
+    const blender::nodes::SocketDeclaration &socket_decl = *socket.runtime->declaration;
     return !socket_decl.description().is_empty();
   }
 
   return false;
 }
 
-static char *node_socket_get_tooltip(bContext *C,
-                                     bNodeTree *ntree,
-                                     bNode *node,
-                                     bNodeSocket *socket)
+static char *node_socket_get_tooltip(const bContext &C,
+                                     const bNodeTree &ntree,
+                                     const bNode &node,
+                                     const bNodeSocket &socket)
 {
   std::stringstream output;
-  if (socket->runtime->declaration != nullptr) {
-    const blender::nodes::SocketDeclaration &socket_decl = *socket->runtime->declaration;
+  if (socket.runtime->declaration != nullptr) {
+    const blender::nodes::SocketDeclaration &socket_decl = *socket.runtime->declaration;
     blender::StringRef description = socket_decl.description();
     if (!description.is_empty()) {
       output << TIP_(description.data());
     }
   }
 
-  if (ntree->type == NTREE_GEOMETRY) {
+  if (ntree.type == NTREE_GEOMETRY) {
     if (!output.str().empty()) {
       output << ".\n\n";
     }
 
     std::optional<std::string> socket_inspection_str = create_socket_inspection_string(
-        C, *node, *socket);
+        C, node, socket);
     if (socket_inspection_str.has_value()) {
       output << *socket_inspection_str;
     }
@@ -1082,28 +1081,31 @@ static char *node_socket_get_tooltip(bContext *C,
   }
 
   if (output.str().empty()) {
-    output << nodeSocketLabel(socket);
+    output << nodeSocketLabel(&socket);
   }
 
   return BLI_strdup(output.str().c_str());
 }
 
-void node_socket_add_tooltip(bNodeTree *ntree, bNode *node, bNodeSocket *sock, uiLayout *layout)
+void node_socket_add_tooltip(const bNodeTree &ntree,
+                             const bNode &node,
+                             const bNodeSocket &sock,
+                             uiLayout &layout)
 {
   if (!node_socket_has_tooltip(ntree, sock)) {
     return;
   }
 
-  SocketTooltipData *data = MEM_cnew<SocketTooltipData>(__func__);
-  data->ntree = ntree;
-  data->node = node;
-  data->socket = sock;
+  SocketTooltipData *data = MEM_new<SocketTooltipData>(__func__);
+  data->ntree = &ntree;
+  data->node = &node;
+  data->socket = &sock;
 
   uiLayoutSetTooltipFunc(
-      layout,
+      &layout,
       [](bContext *C, void *argN, const char *UNUSED(tip)) {
-        SocketTooltipData *data = static_cast<SocketTooltipData *>(argN);
-        return node_socket_get_tooltip(C, data->ntree, data->node, data->socket);
+        const SocketTooltipData *data = static_cast<SocketTooltipData *>(argN);
+        return node_socket_get_tooltip(*C, *data->ntree, *data->node, *data->socket);
       },
       data,
       MEM_dupallocN,
@@ -1123,9 +1125,10 @@ static void node_socket_draw_nested(const bContext &C,
                                     const float size,
                                     const bool selected)
 {
+  const float2 location(sock.locx, sock.locy);
+
   float color[4];
   float outline_color[4];
-
   node_socket_color_get(C, ntree, node_ptr, sock, color);
   node_socket_outline_color_get(selected, sock.type, outline_color);
 
@@ -1133,15 +1136,15 @@ static void node_socket_draw_nested(const bContext &C,
                    color,
                    outline_color,
                    size,
-                   sock.locx,
-                   sock.locy,
+                   location.x,
+                   location.y,
                    pos_id,
                    col_id,
                    shape_id,
                    size_id,
                    outline_col_id);
 
-  if (!node_socket_has_tooltip(&ntree, &sock)) {
+  if (!node_socket_has_tooltip(ntree, sock)) {
     return;
   }
 
@@ -1153,8 +1156,8 @@ static void node_socket_draw_nested(const bContext &C,
                             UI_BTYPE_BUT,
                             0,
                             ICON_NONE,
-                            sock.locx - size / 2,
-                            sock.locy - size / 2,
+                            location.x - size / 2.0f,
+                            location.y - size / 2.0f,
                             size,
                             size,
                             nullptr,
@@ -1164,16 +1167,16 @@ static void node_socket_draw_nested(const bContext &C,
                             0,
                             nullptr);
 
-  SocketTooltipData *data = (SocketTooltipData *)MEM_mallocN(sizeof(SocketTooltipData), __func__);
+  SocketTooltipData *data = MEM_new<SocketTooltipData>(__func__);
   data->ntree = &ntree;
-  data->node = (bNode *)node_ptr.data;
+  data->node = static_cast<const bNode *>(node_ptr.data);
   data->socket = &sock;
 
   UI_but_func_tooltip_set(
       but,
       [](bContext *C, void *argN, const char *UNUSED(tip)) {
         SocketTooltipData *data = (SocketTooltipData *)argN;
-        return node_socket_get_tooltip(C, data->ntree, data->node, data->socket);
+        return node_socket_get_tooltip(*C, *data->ntree, *data->node, *data->socket);
       },
       data,
       MEM_freeN);
@@ -1308,7 +1311,7 @@ static void node_draw_preview(bNodePreview *preview, rctf *prv)
 }
 
 /* Common handle function for operator buttons that need to select the node first. */
-static void node_toggle_button_cb(struct bContext *C, void *node_argv, void *op_argv)
+static void node_toggle_button_cb(bContext *C, void *node_argv, void *op_argv)
 {
   bNode *node = (bNode *)node_argv;
   const char *opname = (const char *)op_argv;
@@ -1527,7 +1530,8 @@ static void node_draw_sockets(const View2D &v2d,
     node_socket_color_get(C, ntree, node_ptr, *socket, color);
     node_socket_outline_color_get(socket->flag & SELECT, socket->type, outline_color);
 
-    node_socket_draw_multi_input(color, outline_color, width, height, socket->locx, socket->locy);
+    const float2 location(socket->locx, socket->locy);
+    node_socket_draw_multi_input(color, outline_color, width, height, location);
   }
 }
 
@@ -2645,13 +2649,13 @@ static void reroute_node_prepare_for_draw(bNode &node)
   const float2 loc = node_to_view(node, float2(0));
 
   /* reroute node has exactly one input and one output, both in the same place */
-  bNodeSocket *nsock = (bNodeSocket *)node.outputs.first;
-  nsock->locx = loc.x;
-  nsock->locy = loc.y;
+  bNodeSocket *socket = (bNodeSocket *)node.outputs.first;
+  socket->locx = loc.x;
+  socket->locy = loc.y;
 
-  nsock = (bNodeSocket *)node.inputs.first;
-  nsock->locx = loc.x;
-  nsock->locy = loc.y;
+  socket = (bNodeSocket *)node.inputs.first;
+  socket->locx = loc.x;
+  socket->locy = loc.y;
 
   const float size = 8.0f;
   node.width = size * 2;
@@ -2768,7 +2772,7 @@ static void frame_node_draw_label(const bNodeTree &ntree,
     BLF_wordwrap(fontid, line_width);
 
     LISTBASE_FOREACH (const TextLine *, line, &text->lines) {
-      struct ResultBLF info;
+      ResultBLF info;
       if (line->line[0]) {
         BLF_position(fontid, x, y, 0);
         BLF_draw_ex(fontid, line->line, line->len, &info);
@@ -3023,8 +3027,9 @@ static void draw_nodetree(const bContext &C,
                           bNodeInstanceKey parent_key)
 {
   SpaceNode *snode = CTX_wm_space_node(&C);
+  ntree.ensure_topology_cache();
 
-  Vector<bNode *> nodes = ntree.nodes;
+  Span<bNode *> nodes = ntree.all_nodes();
 
   Array<uiBlock *> blocks = node_uiblocks_init(C, nodes);
 
@@ -3104,8 +3109,8 @@ void node_draw_space(const bContext &C, ARegion &region)
     }
 
     /* Current View2D center, will be set temporarily for parent node trees. */
-    float center[2];
-    UI_view2d_center_get(&v2d, &center[0], &center[1]);
+    float2 center;
+    UI_view2d_center_get(&v2d, &center.x, &center.y);
 
     /* Store new view center in path and current edit tree. */
     copy_v2_v2(path->view_center, center);

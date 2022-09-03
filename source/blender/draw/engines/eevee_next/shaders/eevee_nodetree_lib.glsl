@@ -409,3 +409,31 @@ vec4 attr_load_color_post(vec4 attr)
 #endif
 
 /** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Uniform Attributes
+ *
+ * TODO(@fclem): These implementation details should concern the DRWManager and not be a fix on
+ * the engine side. But as of now, the engines are responsible for loading the attributes.
+ *
+ * \{ */
+
+vec4 attr_load_uniform(vec4 attr, const uint attr_hash)
+{
+#if defined(OBATTR_LIB)
+  uint index = floatBitsToUint(ObjectAttributeStart);
+  for (uint i = 0; i < floatBitsToUint(ObjectAttributeLen); i++, index++) {
+    if (drw_attrs[index].hash_code == attr_hash) {
+      return vec4(drw_attrs[index].data_x,
+                  drw_attrs[index].data_y,
+                  drw_attrs[index].data_z,
+                  drw_attrs[index].data_w);
+    }
+  }
+  return vec4(0.0);
+#else
+  return attr;
+#endif
+}
+
+/** \} */

@@ -144,7 +144,10 @@ void node_socket_color_get(const bContext &C,
 
 void node_draw_space(const bContext &C, ARegion &region);
 
-void node_socket_add_tooltip(bNodeTree *ntree, bNode *node, bNodeSocket *sock, uiLayout *layout);
+void node_socket_add_tooltip(const bNodeTree &ntree,
+                             const bNode &node,
+                             const bNodeSocket &sock,
+                             uiLayout &layout);
 
 /**
  * Sort nodes by selection: unselected nodes first, then selected,
@@ -166,7 +169,7 @@ void node_keymap(wmKeyConfig *keyconf);
 /* node_select.cc */
 
 rctf node_frame_rect_inside(const bNode &node);
-bool node_or_socket_isect_event(bContext *C, const wmEvent *event);
+bool node_or_socket_isect_event(const bContext &C, const wmEvent &event);
 
 void node_deselect_all(SpaceNode &snode);
 void node_socket_select(bNode *node, bNodeSocket &sock);
@@ -229,19 +232,10 @@ void node_draw_link_bezier(const bContext &C,
                            int th_col2,
                            int th_col3,
                            bool selected);
-/** If v2d not nullptr, it clips and returns 0 if not visible. */
-bool node_link_bezier_points(const View2D *v2d,
-                             const SpaceNode *snode,
-                             const bNodeLink &link,
-                             float coord_array[][2],
-                             int resol);
-/**
- * Return quadratic beziers points for a given nodelink and clip if v2d is not nullptr.
- */
-bool node_link_bezier_handles(const View2D *v2d,
-                              const SpaceNode *snode,
-                              const bNodeLink &ink,
-                              float vec[4][2]);
+
+void node_link_bezier_points_evaluated(const bNodeLink &link,
+                                       std::array<float2, NODE_LINK_RESOL + 1> &coords);
+
 void draw_nodespace_back_pix(const bContext &C,
                              ARegion &region,
                              SpaceNode &snode,
@@ -271,10 +265,7 @@ void NODE_OT_group_edit(wmOperatorType *ot);
 
 /* node_relationships.cc */
 
-void sort_multi_input_socket_links(SpaceNode &snode,
-                                   bNode &node,
-                                   bNodeLink *drag_link,
-                                   const float2 *cursor);
+void sort_multi_input_socket_links(bNode &node, bNodeLink *drag_link, const float2 *cursor);
 
 void NODE_OT_link(wmOperatorType *ot);
 void NODE_OT_link_make(wmOperatorType *ot);
