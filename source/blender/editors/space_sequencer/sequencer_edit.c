@@ -1931,7 +1931,7 @@ static int sequencer_meta_toggle_exec(bContext *C, wmOperator *UNUSED(op))
     SEQ_select_active_set(scene, meta_parent);
   }
 
-  // DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
+  DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
   return OPERATOR_FINISHED;
@@ -3093,7 +3093,7 @@ static int sequencer_export_subtitles_invoke(bContext *C,
     char filepath[FILE_MAX];
 
     if (BKE_main_blendfile_path(bmain)[0] == '\0') {
-      BLI_strncpy(filepath, "untitled", sizeof(filepath));
+      BLI_strncpy(filepath, DATA_("untitled"), sizeof(filepath));
     }
     else {
       BLI_strncpy(filepath, BKE_main_blendfile_path(bmain), sizeof(filepath));

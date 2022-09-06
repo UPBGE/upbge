@@ -3650,7 +3650,7 @@ static int gpencil_stroke_join_exec(bContext *C, wmOperator *op)
     }
     elem = &strokes_list[i];
     /* Join new_stroke and stroke B. */
-    BKE_gpencil_stroke_join(gps_new, elem->gps, leave_gaps, true, false);
+    BKE_gpencil_stroke_join(gps_new, elem->gps, leave_gaps, true, false, true);
     elem->used = true;
   }
 
@@ -4168,7 +4168,6 @@ static int gpencil_stroke_outline_exec(bContext *C, wmOperator *op)
       }
     }
   }
-
 
   if (changed) {
     /* notifiers */

@@ -236,6 +236,8 @@ void node_draw_link_bezier(const bContext &C,
 void node_link_bezier_points_evaluated(const bNodeLink &link,
                                        std::array<float2, NODE_LINK_RESOL + 1> &coords);
 
+std::optional<float2> link_path_intersection(const bNodeLink &link, Span<float2> path);
+
 void draw_nodespace_back_pix(const bContext &C,
                              ARegion &region,
                              SpaceNode &snode,
@@ -264,8 +266,6 @@ void NODE_OT_group_separate(wmOperatorType *ot);
 void NODE_OT_group_edit(wmOperatorType *ot);
 
 /* node_relationships.cc */
-
-void sort_multi_input_socket_links(bNode &node, bNodeLink *drag_link, const float2 *cursor);
 
 void NODE_OT_link(wmOperatorType *ot);
 void NODE_OT_link_make(wmOperatorType *ot);

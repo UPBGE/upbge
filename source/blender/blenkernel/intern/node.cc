@@ -118,9 +118,6 @@ static void node_free_node(bNodeTree *ntree, bNode *node);
 static void node_socket_interface_free(bNodeTree *UNUSED(ntree),
                                        bNodeSocket *sock,
                                        const bool do_id_user);
-static void nodeMuteRerouteOutputLinks(struct bNodeTree *ntree,
-                                       struct bNode *node,
-                                       const bool mute);
 
 static void ntree_init_data(ID *id)
 {
@@ -328,6 +325,8 @@ static void node_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   bNodeTree *ntree = (bNodeTree *)id;
 
+  BKE_LIB_FOREACHID_PROCESS_ID(data, ntree->owner_id, IDWALK_CB_LOOPBACK);
+
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, ntree->gpd, IDWALK_CB_USER);
 
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
@@ -402,7 +401,7 @@ static void node_foreach_path(ID *id, BPathForeachPathData *bpath_data)
   }
 }
 
-static ID *node_owner_get(Main *bmain, ID *id, ID *owner_id_hint)
+static ID *node_owner_get(Main *UNUSED(bmain), ID *id, ID *UNUSED(owner_id_hint))
 {
   if ((id->flag & LIB_EMBEDDED_DATA) == 0) {
     return id;
@@ -411,30 +410,10 @@ static ID *node_owner_get(Main *bmain, ID *id, ID *owner_id_hint)
   // BLI_assert((id->tag & LIB_TAG_NO_MAIN) == 0);
 
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(id);
+  BLI_assert(ntree->owner_id != NULL);
+  BLI_assert(ntreeFromID(ntree->owner_id) == ntree);
 
-  if (owner_id_hint != nullptr && ntreeFromID(owner_id_hint) == ntree) {
-    return owner_id_hint;
-  }
-
-  ListBase *lists[] = {&bmain->materials,
-                       &bmain->lights,
-                       &bmain->worlds,
-                       &bmain->textures,
-                       &bmain->scenes,
-                       &bmain->linestyles,
-                       &bmain->simulations,
-                       nullptr};
-
-  for (int i = 0; lists[i] != nullptr; i++) {
-    LISTBASE_FOREACH (ID *, id_iter, lists[i]) {
-      if (ntreeFromID(id_iter) == ntree) {
-        return id_iter;
-      }
-    }
-  }
-
-  BLI_assert_msg(0, "Embedded node tree with no owner. Critical Main inconsistency.");
-  return nullptr;
+  return ntree->owner_id;
 }
 
 static void write_node_socket_default_value(BlendWriter *writer, bNodeSocket *sock)
@@ -670,8 +649,13 @@ static void direct_link_node_socket(BlendDataReader *reader, bNodeSocket *sock)
   sock->runtime = MEM_new<bNodeSocketRuntime>(__func__);
 }
 
-void ntreeBlendReadData(BlendDataReader *reader, bNodeTree *ntree)
+void ntreeBlendReadData(BlendDataReader *reader, ID *owner_id, bNodeTree *ntree)
 {
+  /* Special case for this pointer, do not rely on regular `lib_link` process here. Avoids needs
+   * for do_versioning, and ensures coherence of data in any case. */
+  BLI_assert((ntree->id.flag & LIB_EMBEDDED_DATA) != 0 || owner_id == nullptr);
+  ntree->owner_id = owner_id;
+
   /* NOTE: writing and reading goes in sync, for speed. */
   ntree->is_updating = false;
   ntree->typeinfo = nullptr;
@@ -833,7 +817,7 @@ void ntreeBlendReadData(BlendDataReader *reader, bNodeTree *ntree)
 static void ntree_blend_read_data(BlendDataReader *reader, ID *id)
 {
   bNodeTree *ntree = (bNodeTree *)id;
-  ntreeBlendReadData(reader, ntree);
+  ntreeBlendReadData(reader, nullptr, ntree);
 }
 
 static void lib_link_node_socket(BlendLibReader *reader, Library *lib, bNodeSocket *sock)
@@ -2350,102 +2334,11 @@ void nodeRemLink(bNodeTree *ntree, bNodeLink *link)
   }
 }
 
-/* Check if all output links are muted or not. */
-static bool nodeMuteFromSocketLinks(const bNodeTree *ntree, const bNodeSocket *sock)
+void nodeLinkSetMute(bNodeTree *ntree, bNodeLink *link, const bool muted)
 {
-  int tot = 0;
-  int muted = 0;
-  LISTBASE_FOREACH (const bNodeLink *, link, &ntree->links) {
-    if (link->fromsock == sock) {
-      tot++;
-      if (link->flag & NODE_LINK_MUTED) {
-        muted++;
-      }
-    }
-  }
-  return tot == muted;
-}
-
-static void nodeMuteLink(bNodeLink *link)
-{
-  link->flag |= NODE_LINK_MUTED;
-  link->flag |= NODE_LINK_TEST;
-  if (!(link->tosock->flag & SOCK_MULTI_INPUT)) {
-    link->tosock->flag &= ~SOCK_IN_USE;
-  }
-}
-
-static void nodeUnMuteLink(bNodeLink *link)
-{
-  link->flag &= ~NODE_LINK_MUTED;
-  link->flag |= NODE_LINK_TEST;
-  link->tosock->flag |= SOCK_IN_USE;
-}
-
-/* Upstream muting. Always happens when unmuting but checks when muting. O(n^2) algorithm. */
-static void nodeMuteRerouteInputLinks(bNodeTree *ntree, bNode *node, const bool mute)
-{
-  if (node->type != NODE_REROUTE) {
-    return;
-  }
-  if (!mute || nodeMuteFromSocketLinks(ntree, (bNodeSocket *)node->outputs.first)) {
-    bNodeSocket *sock = (bNodeSocket *)node->inputs.first;
-    LISTBASE_FOREACH (bNodeLink *, link, &ntree->links) {
-      if (!(link->flag & NODE_LINK_VALID) || (link->tosock != sock)) {
-        continue;
-      }
-      if (mute) {
-        nodeMuteLink(link);
-      }
-      else {
-        nodeUnMuteLink(link);
-      }
-      nodeMuteRerouteInputLinks(ntree, link->fromnode, mute);
-    }
-  }
-}
-
-/* Downstream muting propagates when reaching reroute nodes. O(n^2) algorithm. */
-static void nodeMuteRerouteOutputLinks(bNodeTree *ntree, bNode *node, const bool mute)
-{
-  if (node->type != NODE_REROUTE) {
-    return;
-  }
-  bNodeSocket *sock;
-  sock = (bNodeSocket *)node->outputs.first;
-  LISTBASE_FOREACH (bNodeLink *, link, &ntree->links) {
-    if (!(link->flag & NODE_LINK_VALID) || (link->fromsock != sock)) {
-      continue;
-    }
-    if (mute) {
-      nodeMuteLink(link);
-    }
-    else {
-      nodeUnMuteLink(link);
-    }
-    nodeMuteRerouteOutputLinks(ntree, link->tonode, mute);
-  }
-}
-
-void nodeMuteLinkToggle(bNodeTree *ntree, bNodeLink *link)
-{
-  if (link->tosock) {
-    bool mute = !(link->flag & NODE_LINK_MUTED);
-    if (mute) {
-      nodeMuteLink(link);
-    }
-    else {
-      nodeUnMuteLink(link);
-    }
-    if (link->tonode->type == NODE_REROUTE) {
-      nodeMuteRerouteOutputLinks(ntree, link->tonode, mute);
-    }
-    if (link->fromnode->type == NODE_REROUTE) {
-      nodeMuteRerouteInputLinks(ntree, link->fromnode, mute);
-    }
-  }
-
-  if (ntree) {
+  const bool was_muted = link->flag & NODE_LINK_MUTED;
+  SET_FLAG_FROM_TEST(link->flag, muted, NODE_LINK_MUTED);
+  if (muted != was_muted) {
     BKE_ntree_update_tag_link_mute(ntree, link);
   }
 }
@@ -2669,12 +2562,12 @@ void nodePositionPropagate(bNode *node)
   }
 }
 
-bNodeTree *ntreeAddTree(Main *bmain, const char *name, const char *idname)
+static bNodeTree *ntreeAddTree_do(
+    Main *bmain, ID *owner_id, const bool is_embedded, const char *name, const char *idname)
 {
   /* trees are created as local trees for compositor, material or texture nodes,
    * node groups and other tree types are created as library data.
    */
-  const bool is_embedded = (bmain == nullptr);
   int flag = 0;
   if (is_embedded) {
     flag |= LIB_ID_CREATE_NO_MAIN;
@@ -2682,13 +2575,34 @@ bNodeTree *ntreeAddTree(Main *bmain, const char *name, const char *idname)
   bNodeTree *ntree = (bNodeTree *)BKE_libblock_alloc(bmain, ID_NT, name, flag);
   BKE_libblock_init_empty(&ntree->id);
   if (is_embedded) {
+    BLI_assert(owner_id != NULL);
     ntree->id.flag |= LIB_EMBEDDED_DATA;
+    ntree->owner_id = owner_id;
+    bNodeTree **ntree_owner_ptr = BKE_ntree_ptr_from_id(owner_id);
+    BLI_assert(ntree_owner_ptr != NULL);
+    *ntree_owner_ptr = ntree;
+  }
+  else {
+    BLI_assert(owner_id == NULL);
   }
 
   BLI_strncpy(ntree->idname, idname, sizeof(ntree->idname));
   ntree_set_typeinfo(ntree, ntreeTypeFind(idname));
 
   return ntree;
+}
+
+bNodeTree *ntreeAddTree(Main *bmain, const char *name, const char *idname)
+{
+  return ntreeAddTree_do(bmain, nullptr, false, name, idname);
+}
+
+bNodeTree *ntreeAddTreeEmbedded(Main *UNUSED(bmain),
+                                ID *owner_id,
+                                const char *name,
+                                const char *idname)
+{
+  return ntreeAddTree_do(nullptr, owner_id, true, name, idname);
 }
 
 bNodeTree *ntreeCopyTree_ex(const bNodeTree *ntree, Main *bmain, const bool do_id_user)

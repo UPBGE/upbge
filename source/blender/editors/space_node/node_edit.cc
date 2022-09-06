@@ -506,12 +506,12 @@ void ED_node_shader_default(const bContext *C, ID *id)
   }
   else if (ELEM(GS(id->name), ID_WO, ID_LA)) {
     /* Emission */
-    bNodeTree *ntree = ntreeAddTree(nullptr, "Shader Nodetree", ntreeType_Shader->idname);
+    bNodeTree *ntree = ntreeAddTreeEmbedded(
+        nullptr, id, "Shader Nodetree", ntreeType_Shader->idname);
     bNode *shader, *output;
 
     if (GS(id->name) == ID_WO) {
       World *world = (World *)id;
-      world->nodetree = ntree;
 
       shader = nodeAddStaticNode(nullptr, ntree, SH_NODE_BACKGROUND);
       output = nodeAddStaticNode(nullptr, ntree, SH_NODE_OUTPUT_WORLD);
@@ -525,9 +525,6 @@ void ED_node_shader_default(const bContext *C, ID *id)
       copy_v3_v3(((bNodeSocketValueRGBA *)color_sock->default_value)->value, &world->horr);
     }
     else {
-      Light *light = (Light *)id;
-      light->nodetree = ntree;
-
       shader = nodeAddStaticNode(nullptr, ntree, SH_NODE_EMISSION);
       output = nodeAddStaticNode(nullptr, ntree, SH_NODE_OUTPUT_LIGHT);
       nodeAddLink(ntree,
@@ -560,7 +557,8 @@ void ED_node_composit_default(const bContext *C, Scene *sce)
     return;
   }
 
-  sce->nodetree = ntreeAddTree(nullptr, "Compositing Nodetree", ntreeType_Composite->idname);
+  sce->nodetree = ntreeAddTreeEmbedded(
+      nullptr, &sce->id, "Compositing Nodetree", ntreeType_Composite->idname);
 
   sce->nodetree->chunksize = 256;
   sce->nodetree->edit_quality = NTREE_QUALITY_HIGH;
@@ -593,7 +591,8 @@ void ED_node_texture_default(const bContext *C, Tex *tex)
     return;
   }
 
-  tex->nodetree = ntreeAddTree(nullptr, "Texture Nodetree", ntreeType_Texture->idname);
+  tex->nodetree = ntreeAddTreeEmbedded(
+      nullptr, &tex->id, "Texture Nodetree", ntreeType_Texture->idname);
 
   bNode *out = nodeAddStaticNode(C, tex->nodetree, TEX_NODE_OUTPUT);
   out->locx = 300.0f;
@@ -1367,7 +1366,7 @@ static int node_duplicate_exec(bContext *C, wmOperator *op)
   bNode *lastnode = (bNode *)ntree->nodes.last;
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
     if (node->flag & SELECT) {
-      bNode *new_node = blender::bke::node_copy_with_mapping(
+      bNode *new_node = bke::node_copy_with_mapping(
           ntree, *node, LIB_ID_COPY_DEFAULT, true, socket_map);
       node_map.add_new(node, new_node);
       changed = true;
@@ -2234,12 +2233,12 @@ static int node_clipboard_copy_exec(bContext *C, wmOperator *UNUSED(op))
     if (node->flag & SELECT) {
       /* No ID refcounting, this node is virtual,
        * detached from any actual Blender data currently. */
-      bNode *new_node = blender::bke::node_copy_with_mapping(nullptr,
-                                                             *node,
-                                                             LIB_ID_CREATE_NO_USER_REFCOUNT |
-                                                                 LIB_ID_CREATE_NO_MAIN,
-                                                             false,
-                                                             socket_map);
+      bNode *new_node = bke::node_copy_with_mapping(nullptr,
+                                                    *node,
+                                                    LIB_ID_CREATE_NO_USER_REFCOUNT |
+                                                        LIB_ID_CREATE_NO_MAIN,
+                                                    false,
+                                                    socket_map);
       node_map.add_new(node, new_node);
     }
   }
@@ -2372,7 +2371,7 @@ static int node_clipboard_paste_exec(bContext *C, wmOperator *op)
 
   /* copy nodes from clipboard */
   LISTBASE_FOREACH (bNode *, node, clipboard_nodes_lb) {
-    bNode *new_node = blender::bke::node_copy_with_mapping(
+    bNode *new_node = bke::node_copy_with_mapping(
         ntree, *node, LIB_ID_COPY_DEFAULT, true, socket_map);
     node_map.add_new(node, new_node);
   }

@@ -274,11 +274,7 @@ set(GLSL_SRC
   shaders/gpu_shader_2D_widget_shadow_frag.glsl
   shaders/gpu_shader_2D_nodelink_frag.glsl
   shaders/gpu_shader_2D_nodelink_vert.glsl
-  shaders/gpu_shader_2D_flat_color_vert.glsl
-  shaders/gpu_shader_2D_line_dashed_uniform_color_vert.glsl
   shaders/gpu_shader_2D_line_dashed_frag.glsl
-  shaders/gpu_shader_2D_smooth_color_vert.glsl
-  shaders/gpu_shader_2D_smooth_color_frag.glsl
   shaders/gpu_shader_2D_image_vert.glsl
   shaders/gpu_shader_2D_image_rect_vert.glsl
   shaders/gpu_shader_2D_image_multi_rect_vert.glsl
@@ -287,7 +283,6 @@ set(GLSL_SRC
   shaders/gpu_shader_image_linear_frag.glsl #UPBGE
   shaders/gpu_shader_image_overlays_merge_frag.glsl
   shaders/gpu_shader_image_overlays_stereo_merge_frag.glsl
-  shaders/gpu_shader_image_modulate_alpha_frag.glsl
   shaders/gpu_shader_image_shuffle_color_frag.glsl
   shaders/gpu_shader_image_color_frag.glsl
   shaders/gpu_shader_image_varying_color_frag.glsl
@@ -581,8 +576,6 @@ set(SRC_SHADER_CREATE_INFOS
   shaders/infos/gpu_shader_2D_area_borders_info.hh
   shaders/infos/gpu_shader_2D_checker_info.hh
   shaders/infos/gpu_shader_2D_diag_stripes_info.hh
-  shaders/infos/gpu_shader_2D_flat_color_info.hh
-  shaders/infos/gpu_shader_2D_image_color_info.hh
   shaders/infos/gpu_shader_2D_image_desaturate_color_info.hh
   shaders/infos/gpu_shader_2D_image_info.hh
   shaders/infos/gpu_shader_2D_image_multi_rect_color_info.hh
@@ -594,13 +587,10 @@ set(SRC_SHADER_CREATE_INFOS
   shaders/infos/gpu_shader_2D_point_uniform_size_uniform_color_aa_info.hh
   shaders/infos/gpu_shader_2D_point_uniform_size_uniform_color_outline_aa_info.hh
   shaders/infos/gpu_shader_2D_point_varying_size_varying_color_info.hh
-  shaders/infos/gpu_shader_2D_smooth_color_info.hh
-  shaders/infos/gpu_shader_2D_uniform_color_info.hh
   shaders/infos/gpu_shader_2D_widget_info.hh
   shaders/infos/gpu_shader_3D_depth_only_info.hh
   shaders/infos/gpu_shader_3D_flat_color_info.hh
   shaders/infos/gpu_shader_3D_image_info.hh
-  shaders/infos/gpu_shader_3D_image_modulate_alpha_info.hh
   shaders/infos/gpu_shader_3D_point_info.hh
   shaders/infos/gpu_shader_3D_polyline_info.hh
   shaders/infos/gpu_shader_3D_smooth_color_info.hh

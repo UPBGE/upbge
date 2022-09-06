@@ -1292,8 +1292,8 @@ Material *EEVEE_material_default_diffuse_get(void)
   if (!e_data.diffuse_mat) {
     Material *ma = BKE_id_new_nomain(ID_MA, "EEVEEE default diffuse");
 
-    bNodeTree *ntree = ntreeAddTree(NULL, "Shader Nodetree", ntreeType_Shader->idname);
-    ma->nodetree = ntree;
+    bNodeTree *ntree = ntreeAddTreeEmbedded(
+        NULL, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
     ma->use_nodes = true;
 
     bNode *bsdf = nodeAddStaticNode(NULL, ntree, SH_NODE_BSDF_DIFFUSE);
@@ -1319,8 +1319,8 @@ Material *EEVEE_material_default_glossy_get(void)
   if (!e_data.glossy_mat) {
     Material *ma = BKE_id_new_nomain(ID_MA, "EEVEEE default metal");
 
-    bNodeTree *ntree = ntreeAddTree(NULL, "Shader Nodetree", ntreeType_Shader->idname);
-    ma->nodetree = ntree;
+    bNodeTree *ntree = ntreeAddTreeEmbedded(
+        NULL, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
     ma->use_nodes = true;
 
     bNode *bsdf = nodeAddStaticNode(NULL, ntree, SH_NODE_BSDF_GLOSSY);
@@ -1348,8 +1348,8 @@ Material *EEVEE_material_default_error_get(void)
   if (!e_data.error_mat) {
     Material *ma = BKE_id_new_nomain(ID_MA, "EEVEEE default error");
 
-    bNodeTree *ntree = ntreeAddTree(NULL, "Shader Nodetree", ntreeType_Shader->idname);
-    ma->nodetree = ntree;
+    bNodeTree *ntree = ntreeAddTreeEmbedded(
+        NULL, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
     ma->use_nodes = true;
 
     /* Use emission and output material to be compatible with both World and Material. */

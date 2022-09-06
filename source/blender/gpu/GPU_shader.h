@@ -206,30 +206,12 @@ typedef enum eGPUBuiltinShader {
   GPU_SHADER_TEXT,
   GPU_SHADER_KEYFRAME_SHAPE,
   GPU_SHADER_SIMPLE_LIGHTING,
-  /* for simple 2D drawing */
-  /**
-   * Take a single color for all the vertices and a 2D position for each vertex.
-   *
-   * \param color: uniform vec4
-   * \param pos: in vec2
-   */
-  GPU_SHADER_2D_UNIFORM_COLOR,
-  /**
-   * Take a 2D position and color for each vertex without color interpolation.
-   *
-   * \param color: in vec4
-   * \param pos: in vec2
-   */
-  GPU_SHADER_2D_FLAT_COLOR,
   /**
    * Take a 2D position and color for each vertex with linear interpolation in window space.
    *
    * \param color: in vec4
    * \param pos: in vec2
    */
-  GPU_SHADER_2D_SMOOTH_COLOR,
-  GPU_SHADER_2D_IMAGE,
-  GPU_SHADER_2D_IMAGE_COLOR,
   GPU_SHADER_2D_IMAGE_DESATURATE_COLOR,
   GPU_SHADER_2D_IMAGE_RECT_COLOR,
   GPU_SHADER_2D_IMAGE_MULTI_RECT_COLOR,
@@ -306,14 +288,14 @@ typedef enum eGPUBuiltinShader {
    */
   GPU_SHADER_3D_IMAGE,
   /**
-   * Draw texture with alpha. Take a 3D position and a 2D texture coordinate for each vertex.
+   * Take a 3D position and color for each vertex with linear interpolation in window space.
    *
-   * \param alpha: uniform float
+   * \param color: uniform vec4
    * \param image: uniform sampler2D
    * \param texCoord: in vec2
    * \param pos: in vec3
    */
-  GPU_SHADER_3D_IMAGE_MODULATE_ALPHA,
+  GPU_SHADER_3D_IMAGE_COLOR,
   /* points */
   /**
    * Draw round points with a constant size.
@@ -362,7 +344,6 @@ typedef enum eGPUBuiltinShader {
    */
   GPU_SHADER_3D_POINT_VARYING_SIZE_VARYING_COLOR,
   /* lines */
-  GPU_SHADER_2D_LINE_DASHED_UNIFORM_COLOR,
   GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR,
   /* grease pencil drawing */
   GPU_SHADER_GPENCIL_STROKE,

@@ -360,7 +360,7 @@ static void vicon_colorset_draw(int index, int x, int y, int w, int h, float UNU
 
   uint pos = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
-  immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   /* XXX: Include alpha into this... */
   /* normal */
@@ -505,7 +505,7 @@ static void vicon_gplayer_color_draw(Icon *icon, int x, int y, int w, int h)
    */
   uint pos = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
-  immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   immUniformColor3fv(gpl->color);
   immRecti(pos, x, y, x + w - 1, y + h - 1);
@@ -1546,7 +1546,7 @@ static void icon_draw_rect(float x,
     shader = GPU_SHADER_2D_IMAGE_DESATURATE_COLOR;
   }
   else {
-    shader = GPU_SHADER_2D_IMAGE_COLOR;
+    shader = GPU_SHADER_3D_IMAGE_COLOR;
   }
   IMMDrawPixelsTexState state = immDrawPixelsTexSetup(shader);
 

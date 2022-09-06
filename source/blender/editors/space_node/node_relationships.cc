@@ -11,6 +11,7 @@
 #include "DNA_node_types.h"
 
 #include "BLI_easing.h"
+#include "BLI_stack.hh"
 
 #include "BKE_anim_data.h"
 #include "BKE_context.h"
@@ -72,6 +73,8 @@ static void clear_picking_highlight(ListBase *links)
 
 namespace blender::ed::space_node {
 
+void update_multi_input_indices_for_removed_links(bNode &node);
+
 /* -------------------------------------------------------------------- */
 /** \name Add Node
  * \{ */
@@ -102,11 +105,9 @@ static void pick_link(
 
   nldrag.links.append(link);
   nodeRemLink(snode.edittree, &link_to_pick);
-
-  BLI_assert(nldrag.last_node_hovered_while_dragging_a_link != nullptr);
-
   snode.edittree->ensure_topology_cache();
-  sort_multi_input_socket_links(*nldrag.last_node_hovered_while_dragging_a_link, nullptr, nullptr);
+  BLI_assert(nldrag.last_node_hovered_while_dragging_a_link != nullptr);
+  update_multi_input_indices_for_removed_links(*nldrag.last_node_hovered_while_dragging_a_link);
 
   /* Send changed event to original link->tonode. */
   if (node) {
@@ -291,7 +292,9 @@ struct LinkAndPosition {
   float2 multi_socket_position;
 };
 
-void sort_multi_input_socket_links(bNode &node, bNodeLink *drag_link, const float2 *cursor)
+static void sort_multi_input_socket_links_with_drag(bNode &node,
+                                                    bNodeLink &drag_link,
+                                                    const float2 &cursor)
 {
   for (bNodeSocket *socket : node.input_sockets()) {
     if (!socket->is_multi_input()) {
@@ -306,10 +309,7 @@ void sort_multi_input_socket_links(bNode &node, bNodeLink *drag_link, const floa
       links.append({link, location});
     };
 
-    if (drag_link) {
-      BLI_assert(cursor != nullptr);
-      links.append({drag_link, *cursor});
-    }
+    links.append({&drag_link, cursor});
 
     std::sort(links.begin(), links.end(), [](const LinkAndPosition a, const LinkAndPosition b) {
       return a.multi_socket_position.y < b.multi_socket_position.y;
@@ -317,6 +317,23 @@ void sort_multi_input_socket_links(bNode &node, bNodeLink *drag_link, const floa
 
     for (const int i : links.index_range()) {
       links[i].link->multi_input_socket_index = i;
+    }
+  }
+}
+
+void update_multi_input_indices_for_removed_links(bNode &node)
+{
+  for (bNodeSocket *socket : node.input_sockets()) {
+    if (!socket->is_multi_input()) {
+      continue;
+    }
+    Vector<bNodeLink *, 8> links = socket->directly_linked_links();
+    std::sort(links.begin(), links.end(), [](const bNodeLink *a, const bNodeLink *b) {
+      return a->multi_input_socket_index < b->multi_input_socket_index;
+    });
+
+    for (const int i : links.index_range()) {
+      links[i]->multi_input_socket_index = i;
     }
   }
 }
@@ -943,18 +960,18 @@ static void node_link_find_socket(bContext &C, wmOperator &op, const float2 &cur
           continue;
         }
         if (link->tosock && link->tosock->flag & SOCK_MULTI_INPUT) {
-          sort_multi_input_socket_links(*tnode, link, &cursor);
+          sort_multi_input_socket_links_with_drag(*tnode, *link, cursor);
         }
       }
     }
     else {
       for (bNodeLink *link : nldrag->links) {
-        if (nldrag->last_node_hovered_while_dragging_a_link) {
-          sort_multi_input_socket_links(
-              *nldrag->last_node_hovered_while_dragging_a_link, nullptr, nullptr);
-        }
         link->tonode = nullptr;
         link->tosock = nullptr;
+      }
+      if (nldrag->last_node_hovered_while_dragging_a_link) {
+        update_multi_input_indices_for_removed_links(
+            *nldrag->last_node_hovered_while_dragging_a_link);
       }
     }
   }
@@ -1292,28 +1309,6 @@ void NODE_OT_link_make(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Node Link Intersect
- * \{ */
-
-static bool node_links_intersect(bNodeLink &link, const float mcoords[][2], int tot)
-{
-  std::array<float2, NODE_LINK_RESOL + 1> coords;
-  node_link_bezier_points_evaluated(link, coords);
-
-  for (int i = 0; i < tot - 1; i++) {
-    for (int b = 0; b < NODE_LINK_RESOL; b++) {
-      if (isect_seg_seg_v2(mcoords[i], mcoords[i + 1], coords[b], coords[b + 1]) > 0) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Cut Link Operator
  * \{ */
 
@@ -1321,24 +1316,22 @@ static int cut_links_exec(bContext *C, wmOperator *op)
 {
   Main &bmain = *CTX_data_main(C);
   SpaceNode &snode = *CTX_wm_space_node(C);
-  ARegion &region = *CTX_wm_region(C);
+  const ARegion &region = *CTX_wm_region(C);
 
-  int i = 0;
-  float mcoords[256][2];
+  Vector<float2> path;
   RNA_BEGIN (op->ptr, itemptr, "path") {
-    float loc[2];
-
-    RNA_float_get_array(&itemptr, "loc", loc);
-    UI_view2d_region_to_view(
-        &region.v2d, (int)loc[0], (int)loc[1], &mcoords[i][0], &mcoords[i][1]);
-    i++;
-    if (i >= 256) {
+    float2 loc_region;
+    RNA_float_get_array(&itemptr, "loc", loc_region);
+    float2 loc_view;
+    UI_view2d_region_to_view(&region.v2d, loc_region.x, loc_region.y, &loc_view.x, &loc_view.y);
+    path.append(loc_view);
+    if (path.size() >= 256) {
       break;
     }
   }
   RNA_END;
 
-  if (i == 0) {
+  if (path.is_empty()) {
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
@@ -1355,7 +1348,7 @@ static int cut_links_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    if (node_links_intersect(*link, mcoords, i)) {
+    if (link_path_intersection(*link, path)) {
 
       if (!found) {
         /* TODO(sergey): Why did we kill jobs twice? */
@@ -1370,9 +1363,8 @@ static int cut_links_exec(bContext *C, wmOperator *op)
   }
 
   node_tree.ensure_topology_cache();
-
   for (bNode *node : affected_nodes) {
-    sort_multi_input_socket_links(*node, nullptr, nullptr);
+    update_multi_input_indices_for_removed_links(*node);
   }
 
   ED_node_tree_propagate_change(C, CTX_data_main(C), snode.edittree);
@@ -1414,68 +1406,98 @@ void NODE_OT_links_cut(wmOperatorType *ot)
 /** \name Mute Links Operator
  * \{ */
 
+static bool all_links_muted(const bNodeSocket &socket)
+{
+  for (const bNodeLink *link : socket.directly_linked_links()) {
+    if (!(link->flag & NODE_LINK_MUTED)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 static int mute_links_exec(bContext *C, wmOperator *op)
 {
   Main &bmain = *CTX_data_main(C);
   SpaceNode &snode = *CTX_wm_space_node(C);
-  ARegion &region = *CTX_wm_region(C);
+  const ARegion &region = *CTX_wm_region(C);
+  bNodeTree &ntree = *snode.edittree;
 
-  int i = 0;
-  float mcoords[256][2];
+  Vector<float2> path;
   RNA_BEGIN (op->ptr, itemptr, "path") {
-    float loc[2];
-
-    RNA_float_get_array(&itemptr, "loc", loc);
-    UI_view2d_region_to_view(
-        &region.v2d, (int)loc[0], (int)loc[1], &mcoords[i][0], &mcoords[i][1]);
-    i++;
-    if (i >= 256) {
+    float2 loc_region;
+    RNA_float_get_array(&itemptr, "loc", loc_region);
+    float2 loc_view;
+    UI_view2d_region_to_view(&region.v2d, loc_region.x, loc_region.y, &loc_view.x, &loc_view.y);
+    path.append(loc_view);
+    if (path.size() >= 256) {
       break;
     }
   }
   RNA_END;
 
-  if (i <= 1) {
+  if (path.is_empty()) {
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
   ED_preview_kill_jobs(CTX_wm_manager(C), &bmain);
 
-  /* Count intersected links and clear test flag. */
-  int tot = 0;
-  LISTBASE_FOREACH (bNodeLink *, link, &snode.edittree->links) {
+  ntree.ensure_topology_cache();
+
+  Set<bNodeLink *> affected_links;
+  LISTBASE_FOREACH (bNodeLink *, link, &ntree.links) {
     if (node_link_is_hidden_or_dimmed(region.v2d, *link)) {
       continue;
     }
-    link->flag &= ~NODE_LINK_TEST;
-    if (node_links_intersect(*link, mcoords, i)) {
-      tot++;
+    if (!link_path_intersection(*link, path)) {
+      continue;
     }
+    affected_links.add(link);
   }
-  if (tot == 0) {
+
+  if (affected_links.is_empty()) {
     return OPERATOR_CANCELLED;
   }
 
-  /* Mute links. */
-  LISTBASE_FOREACH (bNodeLink *, link, &snode.edittree->links) {
-    if (node_link_is_hidden_or_dimmed(region.v2d, *link) || (link->flag & NODE_LINK_TEST)) {
-      continue;
-    }
+  bke::node_tree_runtime::AllowUsingOutdatedInfo allow_outdated_info{ntree};
 
-    if (node_links_intersect(*link, mcoords, i)) {
-      nodeMuteLinkToggle(snode.edittree, link);
+  for (bNodeLink *link : affected_links) {
+    nodeLinkSetMute(&ntree, link, !(link->flag & NODE_LINK_MUTED));
+    const bool muted = link->flag & NODE_LINK_MUTED;
+
+    /* Propagate mute status downsteam past reroute nodes. */
+    if (link->tonode->is_reroute()) {
+      Stack<bNodeLink *> links;
+      links.push_multiple(link->tonode->output_sockets().first()->directly_linked_links());
+      while (!links.is_empty()) {
+        bNodeLink *link = links.pop();
+        nodeLinkSetMute(&ntree, link, muted);
+        if (!link->tonode->is_reroute()) {
+          continue;
+        }
+        links.push_multiple(link->tonode->output_sockets().first()->directly_linked_links());
+      }
+    }
+    /* Propagate mute status upstream past reroutes, but only if all outputs are muted. */
+    if (link->fromnode->is_reroute()) {
+      if (!muted || all_links_muted(*link->fromsock)) {
+        Stack<bNodeLink *> links;
+        links.push_multiple(link->fromnode->input_sockets().first()->directly_linked_links());
+        while (!links.is_empty()) {
+          bNodeLink *link = links.pop();
+          nodeLinkSetMute(&ntree, link, muted);
+          if (!link->fromnode->is_reroute()) {
+            continue;
+          }
+          if (!muted || all_links_muted(*link->fromsock)) {
+            links.push_multiple(link->fromnode->input_sockets().first()->directly_linked_links());
+          }
+        }
+      }
     }
   }
 
-  /* Clear remaining test flags. */
-  LISTBASE_FOREACH (bNodeLink *, link, &snode.edittree->links) {
-    if (node_link_is_hidden_or_dimmed(region.v2d, *link)) {
-      continue;
-    }
-    link->flag &= ~NODE_LINK_TEST;
-  }
-
-  ED_node_tree_propagate_change(C, CTX_data_main(C), snode.edittree);
+  ED_node_tree_propagate_change(C, CTX_data_main(C), &ntree);
   return OPERATOR_FINISHED;
 }
 
