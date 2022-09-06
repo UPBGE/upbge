@@ -212,7 +212,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
       GPUVertFormat *format = immVertexFormat();
       uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
-      immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
       for (const RAS_DebugDraw::Box2D &box2d : debugDraw->m_boxes2D) {
         const float xco = box2d.m_pos.x();
         const float yco = height - box2d.m_pos.y();

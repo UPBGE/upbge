@@ -3628,7 +3628,7 @@ void DRW_transform_to_display_image_render(GPUTexture *tex)
   uint pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   uint texco = GPU_vertformat_attr_add(vert_format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
-  immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_COLOR);
+  immBindBuiltinProgram(GPU_SHADER_3D_IMAGE_COLOR);
   immUniform1i("image", 0);
 
   const float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -3706,7 +3706,7 @@ void DRW_transform_to_display(GPUTexture *tex, View3D *v3d, Scene *scene, bool d
   if (!use_ocio) {
     /* View transform is already applied for offscreen, don't apply again, see: T52046 */
     if (DST.options.is_image_render && !DST.options.is_scene_render) {
-      immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_COLOR);
+      immBindBuiltinProgram(GPU_SHADER_3D_IMAGE_COLOR);
       immUniformColor4f(1.0f, 1.0f, 1.0f, 1.0f);
     }
     else {

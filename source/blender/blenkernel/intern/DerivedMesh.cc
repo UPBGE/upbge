@@ -2603,7 +2603,8 @@ void DM_to_mesh(
   }
 
   /* yes, must be before _and_ after tessellate */
-  BKE_mesh_update_customdata_pointers(&tmp, false);
+  //BKE_mesh_update_customdata_pointers(&tmp, false);
+  /* See: 05952aa94d33eeb504fa63618ba35c2bcc8bd19b */
 
   /* since 2.65 caller must do! */
   // BKE_mesh_tessface_calc(&tmp);
