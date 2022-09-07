@@ -7,6 +7,8 @@
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
+#include "CLG_log.h"
+
 #include <string.h>
 
 #include "BLI_blenlib.h"
@@ -45,6 +47,8 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLO_read_write.h"
+
+static CLG_LogRef LOG = {"bke.collection"};
 
 /* -------------------------------------------------------------------- */
 /** \name Prototypes
@@ -165,7 +169,7 @@ static void collection_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 }
 
-static ID *collection_owner_get(Main *bmain, ID *id, ID *UNUSED(owner_id_hint))
+static ID *collection_owner_get(ID *id)
 {
   if ((id->flag & LIB_EMBEDDED_DATA) == 0) {
     return id;
@@ -175,20 +179,8 @@ static ID *collection_owner_get(Main *bmain, ID *id, ID *UNUSED(owner_id_hint))
   Collection *master_collection = (Collection *)id;
   BLI_assert((master_collection->flag & COLLECTION_IS_MASTER) != 0);
   BLI_assert(master_collection->owner_id != NULL);
-
-#ifndef NDEBUG
-  bool is_owner_found = false;
-  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-    if (scene->master_collection == master_collection) {
-      BLI_assert(master_collection->owner_id == &scene->id);
-      BLI_assert(!is_owner_found);
-      is_owner_found = true;
-    }
-  }
-  BLI_assert(is_owner_found);
-#else
-  UNUSED_VARS(bmain);
-#endif
+  BLI_assert(GS(master_collection->owner_id->name) == ID_SCE);
+  BLI_assert(((Scene *)master_collection->owner_id)->master_collection == master_collection);
 
   return master_collection->owner_id;
 }
@@ -244,6 +236,20 @@ void BKE_collection_blend_read_data(BlendDataReader *reader, Collection *collect
   /* Special case for this pointer, do not rely on regular `lib_link` process here. Avoids needs
    * for do_versioning, and ensures coherence of data in any case. */
   BLI_assert((collection->id.flag & LIB_EMBEDDED_DATA) != 0 || owner_id == NULL);
+  if (owner_id != NULL && (collection->id.flag & LIB_EMBEDDED_DATA) == 0) {
+    /* This is unfortunate, but currently a lot of existing files (including startup ones) have
+     * missing `LIB_EMBEDDED_DATA` flag.
+     *
+     * NOTE: Using do_version is not a solution here, since this code will be called before any
+     * do_version takes place. Keeping it here also ensures future (or unknown existing) similar
+     * bugs won't go easily unoticed. */
+    CLOG_WARN(&LOG,
+              "Fixing root node tree '%s' owned by '%s' missing EMBEDDED tag, please consider "
+              "re-saving your (startup) file",
+              collection->id.name,
+              owner_id->name);
+    collection->id.flag |= LIB_EMBEDDED_DATA;
+  }
   collection->owner_id = owner_id;
 
   BLO_read_list(reader, &collection->gobject);

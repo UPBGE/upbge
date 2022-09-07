@@ -14,6 +14,7 @@
 #include "BLI_lasso_2d.h"
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
+#include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_string_search.h"
 #include "BLI_string_utf8.h"
@@ -22,6 +23,7 @@
 #include "BKE_context.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
+#include "BKE_node_runtime.hh"
 #include "BKE_workspace.h"
 
 #include "ED_node.h" /* own include */
@@ -310,6 +312,17 @@ void node_deselect_all_output_sockets(SpaceNode &snode, const bool deselect_node
   }
 }
 
+Set<bNode *> get_selected_nodes(bNodeTree &node_tree)
+{
+  Set<bNode *> selected_nodes;
+  for (bNode *node : node_tree.all_nodes()) {
+    if (node->flag & NODE_SELECT) {
+      selected_nodes.add(node);
+    }
+  }
+  return selected_nodes;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -408,9 +421,7 @@ static int node_select_grouped_exec(bContext *C, wmOperator *op)
   const int type = RNA_enum_get(op->ptr, "type");
 
   if (!extend) {
-    LISTBASE_FOREACH (bNode *, node, &node_tree.nodes) {
-      nodeSetSelected(node, false);
-    }
+    node_deselect_all(snode);
   }
   nodeSetSelected(node_act, true);
 
@@ -599,9 +610,7 @@ static bool node_mouse_select(bContext *C,
       }
       else if (found || params->deselect_all) {
         /* Deselect everything. */
-        for (tnode = (bNode *)snode.edittree->nodes.first; tnode; tnode = tnode->next) {
-          nodeSetSelected(tnode, false);
-        }
+        node_deselect_all(snode);
         changed = true;
       }
     }
@@ -636,28 +645,29 @@ static bool node_mouse_select(bContext *C,
     }
   }
 
-  /* update node order */
-  if (changed || found) {
-    bool active_texture_changed = false;
-    bool viewer_node_changed = false;
-    if ((node != nullptr) && (node_was_selected == false || params->select_passthrough == false)) {
-      viewer_node_changed = (node->flag & NODE_DO_OUTPUT) == 0 && node->type == GEO_NODE_VIEWER;
-      ED_node_set_active(&bmain, &snode, snode.edittree, node, &active_texture_changed);
-    }
-    else if (node != nullptr && node->type == GEO_NODE_VIEWER) {
-      ED_spreadsheet_context_paths_set_geometry_node(&bmain, &snode, node);
-    }
-    ED_node_set_active_viewer_key(&snode);
-    node_sort(*snode.edittree);
-    if ((active_texture_changed && has_workbench_in_texture_color(wm, scene, ob)) ||
-        viewer_node_changed) {
-      DEG_id_tag_update(&snode.edittree->id, ID_RECALC_COPY_ON_WRITE);
-    }
-
-    WM_event_add_notifier(C, NC_NODE | NA_SELECTED, nullptr);
+  if (!(changed || found)) {
+    return false;
   }
 
-  return changed || found;
+  bool active_texture_changed = false;
+  bool viewer_node_changed = false;
+  if ((node != nullptr) && (node_was_selected == false || params->select_passthrough == false)) {
+    viewer_node_changed = (node->flag & NODE_DO_OUTPUT) == 0 && node->type == GEO_NODE_VIEWER;
+    ED_node_set_active(&bmain, &snode, snode.edittree, node, &active_texture_changed);
+  }
+  else if (node != nullptr && node->type == GEO_NODE_VIEWER) {
+    ED_spreadsheet_context_paths_set_geometry_node(&bmain, &snode, node);
+  }
+  ED_node_set_active_viewer_key(&snode);
+  node_sort(*snode.edittree);
+  if ((active_texture_changed && has_workbench_in_texture_color(wm, scene, ob)) ||
+      viewer_node_changed) {
+    DEG_id_tag_update(&snode.edittree->id, ID_RECALC_COPY_ON_WRITE);
+  }
+
+  WM_event_add_notifier(C, NC_NODE | NA_SELECTED, nullptr);
+
+  return true;
 }
 
 static int node_select_exec(bContext *C, wmOperator *op)
@@ -743,7 +753,7 @@ static int node_box_select_exec(bContext *C, wmOperator *op)
   const eSelectOp sel_op = (eSelectOp)RNA_enum_get(op->ptr, "mode");
   const bool select = (sel_op != SEL_OP_SUB);
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
-    node_select_all(&node_tree.nodes, SEL_DESELECT);
+    node_deselect_all(snode);
   }
 
   LISTBASE_FOREACH (bNode *, node, &node_tree.nodes) {
@@ -842,7 +852,7 @@ static int node_circleselect_exec(bContext *C, wmOperator *op)
       WM_gesture_is_modal_first((const wmGesture *)op->customdata));
   const bool select = (sel_op != SEL_OP_SUB);
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
-    node_select_all(&snode->edittree->nodes, SEL_DESELECT);
+    node_deselect_all(*snode);
   }
 
   /* get operator properties */
@@ -934,7 +944,7 @@ static bool do_lasso_select_node(bContext *C,
 
   const bool select = (sel_op != SEL_OP_SUB);
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
-    node_select_all(&snode->edittree->nodes, SEL_DESELECT);
+    node_deselect_all(*snode);
     changed = true;
   }
 
@@ -1038,13 +1048,48 @@ void NODE_OT_select_lasso(wmOperatorType *ot)
 /** \name (De)select All Operator
  * \{ */
 
+static bool any_node_selected(const bNodeTree &node_tree)
+{
+  for (const bNode *node : node_tree.all_nodes()) {
+    if (node->flag & NODE_SELECT) {
+      return true;
+    }
+  }
+  return false;
+}
+
 static int node_select_all_exec(bContext *C, wmOperator *op)
 {
   SpaceNode &snode = *CTX_wm_space_node(C);
-  ListBase *node_lb = &snode.edittree->nodes;
-  int action = RNA_enum_get(op->ptr, "action");
+  bNodeTree &node_tree = *snode.edittree;
 
-  node_select_all(node_lb, action);
+  node_tree.ensure_topology_cache();
+
+  int action = RNA_enum_get(op->ptr, "action");
+  if (action == SEL_TOGGLE) {
+    if (any_node_selected(node_tree)) {
+      action = SEL_DESELECT;
+    }
+    else {
+      action = SEL_SELECT;
+    }
+  }
+
+  switch (action) {
+    case SEL_SELECT:
+      for (bNode *node : node_tree.all_nodes()) {
+        nodeSetSelected(node, true);
+      }
+      break;
+    case SEL_DESELECT:
+      node_deselect_all(snode);
+      break;
+    case SEL_INVERT:
+      for (bNode *node : node_tree.all_nodes()) {
+        nodeSetSelected(node, !(node->flag & SELECT));
+      }
+      break;
+  }
 
   node_sort(*snode.edittree);
 
@@ -1080,22 +1125,21 @@ static int node_select_linked_to_exec(bContext *C, wmOperator *UNUSED(op))
   SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &node_tree = *snode.edittree;
 
-  LISTBASE_FOREACH (bNode *, node, &node_tree.nodes) {
-    node->flag &= ~NODE_TEST;
-  }
+  node_tree.ensure_topology_cache();
 
-  LISTBASE_FOREACH (bNodeLink *, link, &node_tree.links) {
-    if (nodeLinkIsHidden(link)) {
-      continue;
-    }
-    if (link->fromnode && link->tonode && (link->fromnode->flag & NODE_SELECT)) {
-      link->tonode->flag |= NODE_TEST;
-    }
-  }
+  Set<bNode *> initial_selection = get_selected_nodes(node_tree);
 
-  LISTBASE_FOREACH (bNode *, node, &node_tree.nodes) {
-    if (node->flag & NODE_TEST) {
-      nodeSetSelected(node, true);
+  for (bNode *node : initial_selection) {
+    for (bNodeSocket *output_socket : node->output_sockets()) {
+      if (!output_socket->is_available()) {
+        continue;
+      }
+      for (bNodeSocket *input_socket : output_socket->directly_linked_sockets()) {
+        if (!input_socket->is_available()) {
+          continue;
+        }
+        nodeSetSelected(&input_socket->owner_node(), true);
+      }
     }
   }
 
@@ -1131,22 +1175,21 @@ static int node_select_linked_from_exec(bContext *C, wmOperator *UNUSED(op))
   SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &node_tree = *snode.edittree;
 
-  LISTBASE_FOREACH (bNode *, node, &node_tree.nodes) {
-    node->flag &= ~NODE_TEST;
-  }
+  node_tree.ensure_topology_cache();
 
-  LISTBASE_FOREACH (bNodeLink *, link, &node_tree.links) {
-    if (nodeLinkIsHidden(link)) {
-      continue;
-    }
-    if (link->fromnode && link->tonode && (link->tonode->flag & NODE_SELECT)) {
-      link->fromnode->flag |= NODE_TEST;
-    }
-  }
+  Set<bNode *> initial_selection = get_selected_nodes(node_tree);
 
-  LISTBASE_FOREACH (bNode *, node, &node_tree.nodes) {
-    if (node->flag & NODE_TEST) {
-      nodeSetSelected(node, true);
+  for (bNode *node : initial_selection) {
+    for (bNodeSocket *input_socket : node->input_sockets()) {
+      if (!input_socket->is_available()) {
+        continue;
+      }
+      for (bNodeSocket *output_socket : input_socket->directly_linked_sockets()) {
+        if (!output_socket->is_available()) {
+          continue;
+        }
+        nodeSetSelected(&output_socket->owner_node(), true);
+      }
     }
   }
 

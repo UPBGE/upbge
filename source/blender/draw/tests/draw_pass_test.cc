@@ -22,7 +22,7 @@ static void test_draw_pass_all_commands()
   StorageBuffer<uint4> ssbo;
   ssbo.push_update();
 
-  float alpha = 0.0f;
+  float color[] = {1.0f, 1.0f, 1.0f, 0.0f};
   int3 dispatch_size(1);
 
   PassSimple pass = {"test.all_commands"};
@@ -30,7 +30,7 @@ static void test_draw_pass_all_commands()
   pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_STENCIL);
   pass.clear_color_depth_stencil(float4(0.25f, 0.5f, 100.0f, -2000.0f), 0.5f, 0xF0);
   pass.state_stencil(0x80, 0x0F, 0x8F);
-  pass.shader_set(GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE_MODULATE_ALPHA));
+  pass.shader_set(GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE_COLOR));
   pass.bind_texture("image", tex);
   pass.bind_texture("image", &tex);
   pass.bind_image("missing_image", tex);  /* Should not crash. */
@@ -39,20 +39,20 @@ static void test_draw_pass_all_commands()
   pass.bind_ubo("missing_ubo", &ubo);     /* Should not crash. */
   pass.bind_ssbo("missing_ssbo", ssbo);   /* Should not crash. */
   pass.bind_ssbo("missing_ssbo", &ssbo);  /* Should not crash. */
-  pass.push_constant("alpha", alpha);
-  pass.push_constant("alpha", &alpha);
+  pass.push_constant("color", color);
+  pass.push_constant("color", &color);
   pass.push_constant("ModelViewProjectionMatrix", float4x4::identity());
   pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 
   /* Should not crash even if shader is not a compute. This is because we only serialize. */
   /* TODO(fclem): Use real compute shader. */
-  pass.shader_set(GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE_MODULATE_ALPHA));
+  pass.shader_set(GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE_COLOR));
   pass.dispatch(dispatch_size);
   pass.dispatch(&dispatch_size);
   pass.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS);
 
   /* Change references. */
-  alpha = 1.0f;
+  color[3] = 1.0f;
   dispatch_size = int3(2);
 
   std::string result = pass.serialize();
@@ -63,7 +63,7 @@ static void test_draw_pass_all_commands()
            << std::endl;
   expected << "  .stencil_set(write_mask=0b10000000, compare_mask=0b00001111, reference=0b10001111"
            << std::endl;
-  expected << "  .shader_bind(gpu_shader_3D_image_modulate_alpha)" << std::endl;
+  expected << "  .shader_bind(gpu_shader_3D_image_color)" << std::endl;
   expected << "  .bind_texture(0)" << std::endl;
   expected << "  .bind_texture_ref(0)" << std::endl;
   expected << "  .bind_image(-1)" << std::endl;
@@ -82,7 +82,7 @@ static void test_draw_pass_all_commands()
   expected << ")" << std::endl;
   expected << ")" << std::endl;
   expected << "  .draw(inst_len=1, vert_len=3, vert_first=0, res_id=0)" << std::endl;
-  expected << "  .shader_bind(gpu_shader_3D_image_modulate_alpha)" << std::endl;
+  expected << "  .shader_bind(gpu_shader_3D_image_color)" << std::endl;
   expected << "  .dispatch(1, 1, 1)" << std::endl;
   expected << "  .dispatch_ref(2, 2, 2)" << std::endl;
   expected << "  .barrier(4)" << std::endl;
@@ -97,7 +97,7 @@ static void test_draw_pass_sub_ordering()
 {
   PassSimple pass = {"test.sub_ordering"};
   pass.init();
-  pass.shader_set(GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE_MODULATE_ALPHA));
+  pass.shader_set(GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE_COLOR));
   pass.push_constant("test_pass", 1);
 
   PassSimple::Sub &sub1 = pass.sub("Sub1");
@@ -121,7 +121,7 @@ static void test_draw_pass_sub_ordering()
   std::string result = pass.serialize();
   std::stringstream expected;
   expected << ".test.sub_ordering" << std::endl;
-  expected << "  .shader_bind(gpu_shader_3D_image_modulate_alpha)" << std::endl;
+  expected << "  .shader_bind(gpu_shader_3D_image_color)" << std::endl;
   expected << "  .push_constant(-1, data=1)" << std::endl;
   expected << "  .Sub1" << std::endl;
   expected << "    .push_constant(-1, data=11)" << std::endl;
@@ -140,7 +140,7 @@ static void test_draw_pass_simple_draw()
 {
   PassSimple pass = {"test.simple_draw"};
   pass.init();
-  pass.shader_set(GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE_MODULATE_ALPHA));
+  pass.shader_set(GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE_COLOR));
   /* Each draw procedural type uses a different batch. Groups are drawn in correct order. */
   pass.draw_procedural(GPU_PRIM_TRIS, 1, 10, 1, {1});
   pass.draw_procedural(GPU_PRIM_POINTS, 4, 20, 2, {2});
@@ -153,7 +153,7 @@ static void test_draw_pass_simple_draw()
   std::string result = pass.serialize();
   std::stringstream expected;
   expected << ".test.simple_draw" << std::endl;
-  expected << "  .shader_bind(gpu_shader_3D_image_modulate_alpha)" << std::endl;
+  expected << "  .shader_bind(gpu_shader_3D_image_color)" << std::endl;
   expected << "  .draw(inst_len=1, vert_len=10, vert_first=1, res_id=1)" << std::endl;
   expected << "  .draw(inst_len=4, vert_len=20, vert_first=2, res_id=2)" << std::endl;
   expected << "  .draw(inst_len=2, vert_len=30, vert_first=3, res_id=3)" << std::endl;
@@ -172,7 +172,7 @@ static void test_draw_pass_multi_draw()
 {
   PassMain pass = {"test.multi_draw"};
   pass.init();
-  pass.shader_set(GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE_MODULATE_ALPHA));
+  pass.shader_set(GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE_COLOR));
   /* Each draw procedural type uses a different batch. Groups are drawn in reverse order. */
   pass.draw_procedural(GPU_PRIM_TRIS, 1, -1, -1, {1});
   pass.draw_procedural(GPU_PRIM_POINTS, 4, -1, -1, {2});
@@ -185,7 +185,7 @@ static void test_draw_pass_multi_draw()
   std::string result = pass.serialize();
   std::stringstream expected;
   expected << ".test.multi_draw" << std::endl;
-  expected << "  .shader_bind(gpu_shader_3D_image_modulate_alpha)" << std::endl;
+  expected << "  .shader_bind(gpu_shader_3D_image_color)" << std::endl;
   expected << "  .draw_multi(3)" << std::endl;
   expected << "    .group(id=2, len=1)" << std::endl;
   expected << "      .proto(instance_len=1, resource_id=5, front_face)" << std::endl;
@@ -258,7 +258,7 @@ static void test_draw_resource_id_gen()
     /* Computed on CPU. */
     PassSimple pass = {"test.resource_id"};
     pass.init();
-    pass.shader_set(GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE_MODULATE_ALPHA));
+    pass.shader_set(GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE_COLOR));
     pass.draw_procedural(GPU_PRIM_TRIS, 1, -1, -1, handle2);
     pass.draw_procedural(GPU_PRIM_POINTS, 4, -1, -1, handle1);
     pass.draw_procedural(GPU_PRIM_TRIS, 2, -1, -1, handle3);
@@ -280,7 +280,7 @@ static void test_draw_resource_id_gen()
     /* Same thing with PassMain (computed on GPU) */
     PassSimple pass = {"test.resource_id"};
     pass.init();
-    pass.shader_set(GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE_MODULATE_ALPHA));
+    pass.shader_set(GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE_COLOR));
     pass.draw_procedural(GPU_PRIM_TRIS, 1, -1, -1, handle2);
     pass.draw_procedural(GPU_PRIM_POINTS, 4, -1, -1, handle1);
     pass.draw_procedural(GPU_PRIM_TRIS, 2, -1, -1, handle3);
@@ -327,7 +327,7 @@ static void test_draw_visibility()
 
   PassMain pass = {"test.visibility"};
   pass.init();
-  pass.shader_set(GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE_MODULATE_ALPHA));
+  pass.shader_set(GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE_COLOR));
   pass.draw_procedural(GPU_PRIM_TRIS, 1, -1);
 
   Manager::SubmitDebugOutput debug = drw.submit_debug(pass, view);

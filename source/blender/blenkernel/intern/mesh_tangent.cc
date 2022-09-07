@@ -27,16 +27,46 @@
 #include "BLI_strict_flags.h"
 
 #include "atomic_ops.h"
-#include "mikktspace.h"
+#include "mikktspace.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Mesh Tangent Calculations (Single Layer)
  * \{ */
 
-/* Tangent space utils. */
+struct BKEMeshToTangent {
+  uint GetNumFaces()
+  {
+    return (uint)num_polys;
+  }
 
-/* User data. */
-typedef struct {
+  uint GetNumVerticesOfFace(const uint face_num)
+  {
+    return (uint)mpolys[face_num].totloop;
+  }
+
+  mikk::float3 GetPosition(const uint face_num, const uint vert_num)
+  {
+    const uint loop_idx = (uint)mpolys[face_num].loopstart + vert_num;
+    return mikk::float3(mverts[mloops[loop_idx].v].co);
+  }
+
+  mikk::float3 GetTexCoord(const uint face_num, const uint vert_num)
+  {
+    const float *uv = luvs[(uint)mpolys[face_num].loopstart + vert_num].uv;
+    return mikk::float3(uv[0], uv[1], 1.0f);
+  }
+
+  mikk::float3 GetNormal(const uint face_num, const uint vert_num)
+  {
+    return mikk::float3(lnors[(uint)mpolys[face_num].loopstart + vert_num]);
+  }
+
+  void SetTangentSpace(const uint face_num, const uint vert_num, mikk::float3 T, bool orientation)
+  {
+    float *p_res = tangents[(uint)mpolys[face_num].loopstart + vert_num];
+    copy_v4_fl4(p_res, T.x, T.y, T.z, orientation ? 1.0f : -1.0f);
+  }
+
   const MPoly *mpolys;     /* faces */
   const MLoop *mloops;     /* faces's vertices */
   const MVert *mverts;     /* vertices */
@@ -44,60 +74,7 @@ typedef struct {
   const float (*lnors)[3]; /* loops' normals */
   float (*tangents)[4];    /* output tangents */
   int num_polys;           /* number of polygons */
-} BKEMeshToTangent;
-
-/* Mikktspace's API */
-static int get_num_faces(const SMikkTSpaceContext *pContext)
-{
-  BKEMeshToTangent *p_mesh = (BKEMeshToTangent *)pContext->m_pUserData;
-  return p_mesh->num_polys;
-}
-
-static int get_num_verts_of_face(const SMikkTSpaceContext *pContext, const int face_idx)
-{
-  BKEMeshToTangent *p_mesh = (BKEMeshToTangent *)pContext->m_pUserData;
-  return p_mesh->mpolys[face_idx].totloop;
-}
-
-static void get_position(const SMikkTSpaceContext *pContext,
-                         float r_co[3],
-                         const int face_idx,
-                         const int vert_idx)
-{
-  BKEMeshToTangent *p_mesh = (BKEMeshToTangent *)pContext->m_pUserData;
-  const int loop_idx = p_mesh->mpolys[face_idx].loopstart + vert_idx;
-  copy_v3_v3(r_co, p_mesh->mverts[p_mesh->mloops[loop_idx].v].co);
-}
-
-static void get_texture_coordinate(const SMikkTSpaceContext *pContext,
-                                   float r_uv[2],
-                                   const int face_idx,
-                                   const int vert_idx)
-{
-  BKEMeshToTangent *p_mesh = (BKEMeshToTangent *)pContext->m_pUserData;
-  copy_v2_v2(r_uv, p_mesh->luvs[p_mesh->mpolys[face_idx].loopstart + vert_idx].uv);
-}
-
-static void get_normal(const SMikkTSpaceContext *pContext,
-                       float r_no[3],
-                       const int face_idx,
-                       const int vert_idx)
-{
-  BKEMeshToTangent *p_mesh = (BKEMeshToTangent *)pContext->m_pUserData;
-  copy_v3_v3(r_no, p_mesh->lnors[p_mesh->mpolys[face_idx].loopstart + vert_idx]);
-}
-
-static void set_tspace(const SMikkTSpaceContext *pContext,
-                       const float fv_tangent[3],
-                       const float face_sign,
-                       const int face_idx,
-                       const int vert_idx)
-{
-  BKEMeshToTangent *p_mesh = (BKEMeshToTangent *)pContext->m_pUserData;
-  float *p_res = p_mesh->tangents[p_mesh->mpolys[face_idx].loopstart + vert_idx];
-  copy_v3_v3(p_res, fv_tangent);
-  p_res[3] = face_sign;
-}
+};
 
 void BKE_mesh_calc_loop_tangent_single_ex(const MVert *mverts,
                                           const int UNUSED(numVerts),
@@ -110,23 +87,8 @@ void BKE_mesh_calc_loop_tangent_single_ex(const MVert *mverts,
                                           const int numPolys,
                                           ReportList *reports)
 {
-  BKEMeshToTangent mesh_to_tangent = {NULL};
-  SMikkTSpaceContext s_context = {NULL};
-  SMikkTSpaceInterface s_interface = {NULL};
-
-  const MPoly *mp;
-  int mp_index;
-
-  /* First check we do have a tris/quads only mesh. */
-  for (mp = mpolys, mp_index = 0; mp_index < numPolys; mp++, mp_index++) {
-    if (mp->totloop > 4) {
-      BKE_report(
-          reports, RPT_ERROR, "Tangent space can only be computed for tris/quads, aborting");
-      return;
-    }
-  }
-
   /* Compute Mikktspace's tangent normals. */
+  BKEMeshToTangent mesh_to_tangent;
   mesh_to_tangent.mpolys = mpolys;
   mesh_to_tangent.mloops = mloops;
   mesh_to_tangent.mverts = mverts;
@@ -135,19 +97,18 @@ void BKE_mesh_calc_loop_tangent_single_ex(const MVert *mverts,
   mesh_to_tangent.tangents = r_looptangent;
   mesh_to_tangent.num_polys = numPolys;
 
-  s_context.m_pUserData = &mesh_to_tangent;
-  s_context.m_pInterface = &s_interface;
-  s_interface.m_getNumFaces = get_num_faces;
-  s_interface.m_getNumVerticesOfFace = get_num_verts_of_face;
-  s_interface.m_getPosition = get_position;
-  s_interface.m_getTexCoord = get_texture_coordinate;
-  s_interface.m_getNormal = get_normal;
-  s_interface.m_setTSpaceBasic = set_tspace;
+  mikk::Mikktspace<BKEMeshToTangent> mikk(mesh_to_tangent);
 
-  /* 0 if failed */
-  if (genTangSpaceDefault(&s_context) == false) {
-    BKE_report(reports, RPT_ERROR, "Mikktspace failed to generate tangents for this mesh!");
+  /* First check we do have a tris/quads only mesh. */
+  for (int i = 0; i < numPolys; i++) {
+    if (mpolys[i].totloop > 4) {
+      BKE_report(
+          reports, RPT_ERROR, "Tangent space can only be computed for tris/quads, aborting");
+      return;
+    }
   }
+
+  mikk.genTangSpace();
 }
 
 void BKE_mesh_calc_loop_tangent_single(Mesh *mesh,
@@ -159,10 +120,10 @@ void BKE_mesh_calc_loop_tangent_single(Mesh *mesh,
 
   /* Check we have valid texture coordinates first! */
   if (uvmap) {
-    loopuvs = CustomData_get_layer_named(&mesh->ldata, CD_MLOOPUV, uvmap);
+    loopuvs = static_cast<MLoopUV *>(CustomData_get_layer_named(&mesh->ldata, CD_MLOOPUV, uvmap));
   }
   else {
-    loopuvs = CustomData_get_layer(&mesh->ldata, CD_MLOOPUV);
+    loopuvs = static_cast<MLoopUV *>(CustomData_get_layer(&mesh->ldata, CD_MLOOPUV));
   }
   if (!loopuvs) {
     BKE_reportf(reports,
@@ -172,7 +133,8 @@ void BKE_mesh_calc_loop_tangent_single(Mesh *mesh,
     return;
   }
 
-  const float(*loopnors)[3] = CustomData_get_layer(&mesh->ldata, CD_NORMAL);
+  const float(*loopnors)[3] = static_cast<const float(*)[3]>(
+      CustomData_get_layer(&mesh->ldata, CD_NORMAL));
   if (!loopnors) {
     BKE_report(
         reports, RPT_ERROR, "Tangent space computation needs loop normals, none found, aborting");
@@ -200,7 +162,122 @@ void BKE_mesh_calc_loop_tangent_single(Mesh *mesh,
 /* Necessary complexity to handle looptri's as quads for correct tangents */
 #define USE_LOOPTRI_DETECT_QUADS
 
-typedef struct {
+struct SGLSLMeshToTangent {
+  uint GetNumFaces()
+  {
+#ifdef USE_LOOPTRI_DETECT_QUADS
+    return (uint)num_face_as_quad_map;
+#else
+    return (uint)numTessFaces;
+#endif
+  }
+
+  uint GetNumVerticesOfFace(const uint face_num)
+  {
+#ifdef USE_LOOPTRI_DETECT_QUADS
+    if (face_as_quad_map) {
+      const MLoopTri *lt = &looptri[face_as_quad_map[face_num]];
+      const MPoly *mp = &mpoly[lt->poly];
+      if (mp->totloop == 4) {
+        return 4;
+      }
+    }
+    return 3;
+#else
+    UNUSED_VARS(pContext, face_num);
+    return 3;
+#endif
+  }
+
+  uint GetLoop(const uint face_num, const uint vert_num, const MLoopTri *&lt)
+  {
+#ifdef USE_LOOPTRI_DETECT_QUADS
+    if (face_as_quad_map) {
+      lt = &looptri[face_as_quad_map[face_num]];
+      const MPoly *mp = &mpoly[lt->poly];
+      if (mp->totloop == 4) {
+        return ((uint)mp->loopstart + vert_num);
+      }
+      /* fall through to regular triangle */
+    }
+    else {
+      lt = &looptri[face_num];
+    }
+#else
+    lt = &looptri[face_num];
+#endif
+    return lt->tri[vert_num];
+  }
+
+  mikk::float3 GetPosition(const uint face_num, const uint vert_num)
+  {
+    const MLoopTri *lt;
+    uint loop_index = GetLoop(face_num, vert_num, lt);
+    return mikk::float3(mvert[mloop[loop_index].v].co);
+  }
+
+  mikk::float3 GetTexCoord(const uint face_num, const uint vert_num)
+  {
+    const MLoopTri *lt;
+    uint loop_index = GetLoop(face_num, vert_num, lt);
+    if (mloopuv != nullptr) {
+      const float *uv = mloopuv[loop_index].uv;
+      return mikk::float3(uv[0], uv[1], 1.0f);
+    }
+    else {
+      const float *l_orco = orco[mloop[loop_index].v];
+      float u, v;
+      map_to_sphere(&u, &v, l_orco[0], l_orco[1], l_orco[2]);
+      return mikk::float3(u, v, 1.0f);
+    }
+  }
+
+  mikk::float3 GetNormal(const uint face_num, const uint vert_num)
+  {
+    const MLoopTri *lt;
+    uint loop_index = GetLoop(face_num, vert_num, lt);
+    if (precomputedLoopNormals) {
+      return mikk::float3(precomputedLoopNormals[loop_index]);
+    }
+    else if ((mpoly[lt->poly].flag & ME_SMOOTH) == 0) { /* flat */
+      if (precomputedFaceNormals) {
+        return mikk::float3(precomputedFaceNormals[lt->poly]);
+      }
+      else {
+#ifdef USE_LOOPTRI_DETECT_QUADS
+        const MPoly *mp = &mpoly[lt->poly];
+        float normal[3];
+        if (mp->totloop == 4) {
+          normal_quad_v3(normal,
+                         mvert[mloop[mp->loopstart + 0].v].co,
+                         mvert[mloop[mp->loopstart + 1].v].co,
+                         mvert[mloop[mp->loopstart + 2].v].co,
+                         mvert[mloop[mp->loopstart + 3].v].co);
+        }
+        else
+#endif
+        {
+          normal_tri_v3(normal,
+                        mvert[mloop[lt->tri[0]].v].co,
+                        mvert[mloop[lt->tri[1]].v].co,
+                        mvert[mloop[lt->tri[2]].v].co);
+        }
+        return mikk::float3(normal);
+      }
+    }
+    else {
+      return mikk::float3(vert_normals[mloop[loop_index].v]);
+    }
+  }
+
+  void SetTangentSpace(const uint face_num, const uint vert_num, mikk::float3 T, bool orientation)
+  {
+    const MLoopTri *lt;
+    uint loop_index = GetLoop(face_num, vert_num, lt);
+
+    copy_v4_fl4(tangent[loop_index], T.x, T.y, T.z, orientation ? 1.0f : -1.0f);
+  }
+
   const float (*precomputedFaceNormals)[3];
   const float (*precomputedLoopNormals)[3];
   const MLoopTri *looptri;
@@ -219,230 +296,14 @@ typedef struct {
   const int *face_as_quad_map;
   int num_face_as_quad_map;
 #endif
-
-} SGLSLMeshToTangent;
-
-/* interface */
-static int dm_ts_GetNumFaces(const SMikkTSpaceContext *pContext)
-{
-  SGLSLMeshToTangent *pMesh = pContext->m_pUserData;
-
-#ifdef USE_LOOPTRI_DETECT_QUADS
-  return pMesh->num_face_as_quad_map;
-#else
-  return pMesh->numTessFaces;
-#endif
-}
-
-static int dm_ts_GetNumVertsOfFace(const SMikkTSpaceContext *pContext, const int face_num)
-{
-#ifdef USE_LOOPTRI_DETECT_QUADS
-  SGLSLMeshToTangent *pMesh = pContext->m_pUserData;
-  if (pMesh->face_as_quad_map) {
-    const MLoopTri *lt = &pMesh->looptri[pMesh->face_as_quad_map[face_num]];
-    const MPoly *mp = &pMesh->mpoly[lt->poly];
-    if (mp->totloop == 4) {
-      return 4;
-    }
-  }
-  return 3;
-#else
-  UNUSED_VARS(pContext, face_num);
-  return 3;
-#endif
-}
-
-static void dm_ts_GetPosition(const SMikkTSpaceContext *pContext,
-                              float r_co[3],
-                              const int face_num,
-                              const int vert_index)
-{
-  // assert(vert_index >= 0 && vert_index < 4);
-  SGLSLMeshToTangent *pMesh = pContext->m_pUserData;
-  const MLoopTri *lt;
-  uint loop_index;
-  const float *co;
-
-#ifdef USE_LOOPTRI_DETECT_QUADS
-  if (pMesh->face_as_quad_map) {
-    lt = &pMesh->looptri[pMesh->face_as_quad_map[face_num]];
-    const MPoly *mp = &pMesh->mpoly[lt->poly];
-    if (mp->totloop == 4) {
-      loop_index = (uint)(mp->loopstart + vert_index);
-      goto finally;
-    }
-    /* fall through to regular triangle */
-  }
-  else {
-    lt = &pMesh->looptri[face_num];
-  }
-#else
-  lt = &pMesh->looptri[face_num];
-#endif
-  loop_index = lt->tri[vert_index];
-
-finally:
-  co = pMesh->mvert[pMesh->mloop[loop_index].v].co;
-  copy_v3_v3(r_co, co);
-}
-
-static void dm_ts_GetTextureCoordinate(const SMikkTSpaceContext *pContext,
-                                       float r_uv[2],
-                                       const int face_num,
-                                       const int vert_index)
-{
-  // assert(vert_index >= 0 && vert_index < 4);
-  SGLSLMeshToTangent *pMesh = pContext->m_pUserData;
-  const MLoopTri *lt;
-  uint loop_index;
-
-#ifdef USE_LOOPTRI_DETECT_QUADS
-  if (pMesh->face_as_quad_map) {
-    lt = &pMesh->looptri[pMesh->face_as_quad_map[face_num]];
-    const MPoly *mp = &pMesh->mpoly[lt->poly];
-    if (mp->totloop == 4) {
-      loop_index = (uint)(mp->loopstart + vert_index);
-      goto finally;
-    }
-    /* fall through to regular triangle */
-  }
-  else {
-    lt = &pMesh->looptri[face_num];
-  }
-#else
-  lt = &pMesh->looptri[face_num];
-#endif
-  loop_index = lt->tri[vert_index];
-
-finally:
-  if (pMesh->mloopuv != NULL) {
-    const float *uv = pMesh->mloopuv[loop_index].uv;
-    copy_v2_v2(r_uv, uv);
-  }
-  else {
-    const float *orco = pMesh->orco[pMesh->mloop[loop_index].v];
-    map_to_sphere(&r_uv[0], &r_uv[1], orco[0], orco[1], orco[2]);
-  }
-}
-
-static void dm_ts_GetNormal(const SMikkTSpaceContext *pContext,
-                            float r_no[3],
-                            const int face_num,
-                            const int vert_index)
-{
-  // assert(vert_index >= 0 && vert_index < 4);
-  SGLSLMeshToTangent *pMesh = (SGLSLMeshToTangent *)pContext->m_pUserData;
-  const MLoopTri *lt;
-  uint loop_index;
-
-#ifdef USE_LOOPTRI_DETECT_QUADS
-  if (pMesh->face_as_quad_map) {
-    lt = &pMesh->looptri[pMesh->face_as_quad_map[face_num]];
-    const MPoly *mp = &pMesh->mpoly[lt->poly];
-    if (mp->totloop == 4) {
-      loop_index = (uint)(mp->loopstart + vert_index);
-      goto finally;
-    }
-    /* fall through to regular triangle */
-  }
-  else {
-    lt = &pMesh->looptri[face_num];
-  }
-#else
-  lt = &pMesh->looptri[face_num];
-#endif
-  loop_index = lt->tri[vert_index];
-
-finally:
-  if (pMesh->precomputedLoopNormals) {
-    copy_v3_v3(r_no, pMesh->precomputedLoopNormals[loop_index]);
-  }
-  else if ((pMesh->mpoly[lt->poly].flag & ME_SMOOTH) == 0) { /* flat */
-    if (pMesh->precomputedFaceNormals) {
-      copy_v3_v3(r_no, pMesh->precomputedFaceNormals[lt->poly]);
-    }
-    else {
-#ifdef USE_LOOPTRI_DETECT_QUADS
-      const MPoly *mp = &pMesh->mpoly[lt->poly];
-      if (mp->totloop == 4) {
-        normal_quad_v3(r_no,
-                       pMesh->mvert[pMesh->mloop[mp->loopstart + 0].v].co,
-                       pMesh->mvert[pMesh->mloop[mp->loopstart + 1].v].co,
-                       pMesh->mvert[pMesh->mloop[mp->loopstart + 2].v].co,
-                       pMesh->mvert[pMesh->mloop[mp->loopstart + 3].v].co);
-      }
-      else
-#endif
-      {
-        normal_tri_v3(r_no,
-                      pMesh->mvert[pMesh->mloop[lt->tri[0]].v].co,
-                      pMesh->mvert[pMesh->mloop[lt->tri[1]].v].co,
-                      pMesh->mvert[pMesh->mloop[lt->tri[2]].v].co);
-      }
-    }
-  }
-  else {
-    copy_v3_v3(r_no, pMesh->vert_normals[pMesh->mloop[loop_index].v]);
-  }
-}
-
-static void dm_ts_SetTSpace(const SMikkTSpaceContext *pContext,
-                            const float fvTangent[3],
-                            const float fSign,
-                            const int face_num,
-                            const int vert_index)
-{
-  // assert(vert_index >= 0 && vert_index < 4);
-  SGLSLMeshToTangent *pMesh = (SGLSLMeshToTangent *)pContext->m_pUserData;
-  const MLoopTri *lt;
-  uint loop_index;
-
-#ifdef USE_LOOPTRI_DETECT_QUADS
-  if (pMesh->face_as_quad_map) {
-    lt = &pMesh->looptri[pMesh->face_as_quad_map[face_num]];
-    const MPoly *mp = &pMesh->mpoly[lt->poly];
-    if (mp->totloop == 4) {
-      loop_index = (uint)(mp->loopstart + vert_index);
-      goto finally;
-    }
-    /* fall through to regular triangle */
-  }
-  else {
-    lt = &pMesh->looptri[face_num];
-  }
-#else
-  lt = &pMesh->looptri[face_num];
-#endif
-  loop_index = lt->tri[vert_index];
-
-  float *pRes;
-
-finally:
-  pRes = pMesh->tangent[loop_index];
-  copy_v3_v3(pRes, fvTangent);
-  pRes[3] = fSign;
-}
+};
 
 static void DM_calc_loop_tangents_thread(TaskPool *__restrict UNUSED(pool), void *taskdata)
 {
-  struct SGLSLMeshToTangent *mesh2tangent = taskdata;
-  /* new computation method */
-  {
-    SMikkTSpaceContext sContext = {NULL};
-    SMikkTSpaceInterface sInterface = {NULL};
+  SGLSLMeshToTangent *mesh_data = static_cast<SGLSLMeshToTangent *>(taskdata);
 
-    sContext.m_pUserData = mesh2tangent;
-    sContext.m_pInterface = &sInterface;
-    sInterface.m_getNumFaces = dm_ts_GetNumFaces;
-    sInterface.m_getNumVerticesOfFace = dm_ts_GetNumVertsOfFace;
-    sInterface.m_getPosition = dm_ts_GetPosition;
-    sInterface.m_getTexCoord = dm_ts_GetTextureCoordinate;
-    sInterface.m_getNormal = dm_ts_GetNormal;
-    sInterface.m_setTSpaceBasic = dm_ts_SetTSpace;
-
-    /* 0 if failed */
-    genTangSpaceDefault(&sContext);
-  }
+  mikk::Mikktspace<SGLSLMeshToTangent> mikk(*mesh_data);
+  mikk.genTangSpace();
 }
 
 void BKE_mesh_add_loop_tangent_named_layer_for_uv(CustomData *uv_data,
@@ -453,7 +314,7 @@ void BKE_mesh_add_loop_tangent_named_layer_for_uv(CustomData *uv_data,
   if (CustomData_get_named_layer_index(tan_data, CD_TANGENT, layer_name) == -1 &&
       CustomData_get_named_layer_index(uv_data, CD_MLOOPUV, layer_name) != -1) {
     CustomData_add_layer_named(
-        tan_data, CD_TANGENT, CD_SET_DEFAULT, NULL, numLoopData, layer_name);
+        tan_data, CD_TANGENT, CD_SET_DEFAULT, nullptr, numLoopData, layer_name);
   }
 }
 
@@ -582,7 +443,7 @@ void BKE_mesh_calc_loop_tangent_ex(const MVert *mvert,
     if ((tangent_mask & DM_TANGENT_MASK_ORCO) &&
         CustomData_get_named_layer_index(loopdata, CD_TANGENT, "") == -1) {
       CustomData_add_layer_named(
-          loopdata_out, CD_TANGENT, CD_SET_DEFAULT, NULL, (int)loopdata_out_len, "");
+          loopdata_out, CD_TANGENT, CD_SET_DEFAULT, nullptr, (int)loopdata_out_len, "");
     }
     if (calc_act && act_uv_name[0]) {
       BKE_mesh_add_loop_tangent_named_layer_for_uv(
@@ -595,14 +456,14 @@ void BKE_mesh_calc_loop_tangent_ex(const MVert *mvert,
 
 #ifdef USE_LOOPTRI_DETECT_QUADS
     int num_face_as_quad_map;
-    int *face_as_quad_map = NULL;
+    int *face_as_quad_map = nullptr;
 
     /* map faces to quads */
     if (looptri_len != mpoly_len) {
       /* Over allocate, since we don't know how many ngon or quads we have. */
 
       /* map fake face index to looptri */
-      face_as_quad_map = MEM_mallocN(sizeof(int) * looptri_len, __func__);
+      face_as_quad_map = static_cast<int *>(MEM_mallocN(sizeof(int) * looptri_len, __func__));
       int k, j;
       for (k = 0, j = 0; j < (int)looptri_len; k++, j++) {
         face_as_quad_map[k] = j;
@@ -620,7 +481,7 @@ void BKE_mesh_calc_loop_tangent_ex(const MVert *mvert,
 
     /* Calculation */
     if (looptri_len != 0) {
-      TaskPool *task_pool = BLI_task_pool_create(NULL, TASK_PRIORITY_HIGH);
+      TaskPool *task_pool = BLI_task_pool_create(nullptr, TASK_PRIORITY_HIGH);
 
       tangent_mask_curr = 0;
       /* Calculate tangent layers */
@@ -645,9 +506,9 @@ void BKE_mesh_calc_loop_tangent_ex(const MVert *mvert,
         mesh2tangent->precomputedLoopNormals = loop_normals;
         mesh2tangent->precomputedFaceNormals = poly_normals;
 
-        mesh2tangent->orco = NULL;
-        mesh2tangent->mloopuv = CustomData_get_layer_named(
-            loopdata, CD_MLOOPUV, loopdata_out->layers[index].name);
+        mesh2tangent->orco = nullptr;
+        mesh2tangent->mloopuv = static_cast<const MLoopUV *>(
+            CustomData_get_layer_named(loopdata, CD_MLOOPUV, loopdata_out->layers[index].name));
 
         /* Fill the resulting tangent_mask */
         if (!mesh2tangent->mloopuv) {
@@ -667,8 +528,8 @@ void BKE_mesh_calc_loop_tangent_ex(const MVert *mvert,
           tangent_mask_curr |= (short)(1 << (uv_ind - uv_start));
         }
 
-        mesh2tangent->tangent = loopdata_out->layers[index].data;
-        BLI_task_pool_push(task_pool, DM_calc_loop_tangents_thread, mesh2tangent, false, NULL);
+        mesh2tangent->tangent = static_cast<float(*)[4]>(loopdata_out->layers[index].data);
+        BLI_task_pool_push(task_pool, DM_calc_loop_tangents_thread, mesh2tangent, false, nullptr);
       }
 
       BLI_assert(tangent_mask_curr == tangent_mask);
@@ -719,24 +580,26 @@ void BKE_mesh_calc_loop_tangents(Mesh *me_eval,
 
   /* TODO(@campbellbarton): store in Mesh.runtime to avoid recalculation. */
   short tangent_mask = 0;
-  BKE_mesh_calc_loop_tangent_ex(BKE_mesh_vertices(me_eval),
-                                BKE_mesh_polygons(me_eval),
-                                (uint)me_eval->totpoly,
-                                BKE_mesh_loops(me_eval),
-                                me_eval->runtime.looptris.array,
-                                (uint)me_eval->runtime.looptris.len,
-                                &me_eval->ldata,
-                                calc_active_tangent,
-                                tangent_names,
-                                tangent_names_len,
-                                BKE_mesh_vertex_normals_ensure(me_eval),
-                                BKE_mesh_poly_normals_ensure(me_eval),
-                                CustomData_get_layer(&me_eval->ldata, CD_NORMAL),
-                                CustomData_get_layer(&me_eval->vdata, CD_ORCO), /* may be NULL */
-                                /* result */
-                                &me_eval->ldata,
-                                (uint)me_eval->totloop,
-                                &tangent_mask);
+  BKE_mesh_calc_loop_tangent_ex(
+      BKE_mesh_vertices(me_eval),
+      BKE_mesh_polygons(me_eval),
+      (uint)me_eval->totpoly,
+      BKE_mesh_loops(me_eval),
+      me_eval->runtime.looptris.array,
+      (uint)me_eval->runtime.looptris.len,
+      &me_eval->ldata,
+      calc_active_tangent,
+      tangent_names,
+      tangent_names_len,
+      BKE_mesh_vertex_normals_ensure(me_eval),
+      BKE_mesh_poly_normals_ensure(me_eval),
+      static_cast<const float(*)[3]>(CustomData_get_layer(&me_eval->ldata, CD_NORMAL)),
+      /* may be nullptr */
+      static_cast<const float(*)[3]>(CustomData_get_layer(&me_eval->vdata, CD_ORCO)),
+      /* result */
+      &me_eval->ldata,
+      (uint)me_eval->totloop,
+      &tangent_mask);
 }
 
 /** \} */
