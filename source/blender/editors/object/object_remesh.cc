@@ -131,8 +131,8 @@ static int voxel_remesh_exec(bContext *C, wmOperator *op)
   }
 
   /* Output mesh will be all smooth or all flat shading. */
-  const Span<MPoly> polygons = mesh->polygons();
-  const bool smooth_normals = polygons.first().flag & ME_SMOOTH;
+  const Span<MPoly> polys = mesh->polys();
+  const bool smooth_normals = polys.first().flag & ME_SMOOTH;
 
   float isovalue = 0.0f;
   if (mesh->flag & ME_REMESH_REPROJECT_VOLUME) {
@@ -682,7 +682,7 @@ static bool mesh_is_manifold_consistent(Mesh *mesh)
    * check that the direction of the faces are consistent and doesn't suddenly
    * flip
    */
-  const Span<MVert> verts = mesh->vertices();
+  const Span<MVert> verts = mesh->verts();
   const Span<MEdge> edges = mesh->edges();
   const Span<MLoop> loops = mesh->loops();
 

@@ -158,9 +158,9 @@ static void scale_vertex_islands_uniformly(Mesh &mesh,
                                            const UniformScaleParams &params,
                                            const GetVertexIndicesFn get_vertex_indices)
 {
-  MutableSpan<MVert> verts = mesh.vertices_for_write();
+  MutableSpan<MVert> verts = mesh.verts_for_write();
   const Span<MEdge> edges = mesh.edges();
-  const Span<MPoly> polys = mesh.polygons();
+  const Span<MPoly> polys = mesh.polys();
   const Span<MLoop> loops = mesh.loops();
 
   threading::parallel_for(islands.index_range(), 256, [&](const IndexRange range) {
@@ -199,9 +199,9 @@ static void scale_vertex_islands_on_axis(Mesh &mesh,
                                          const AxisScaleParams &params,
                                          const GetVertexIndicesFn get_vertex_indices)
 {
-  MutableSpan<MVert> verts = mesh.vertices_for_write();
+  MutableSpan<MVert> verts = mesh.verts_for_write();
   const Span<MEdge> edges = mesh.edges();
-  const Span<MPoly> polys = mesh.polygons();
+  const Span<MPoly> polys = mesh.polys();
   const Span<MLoop> loops = mesh.loops();
 
   threading::parallel_for(islands.index_range(), 256, [&](const IndexRange range) {
@@ -245,7 +245,7 @@ static void scale_vertex_islands_on_axis(Mesh &mesh,
 
 static Vector<ElementIsland> prepare_face_islands(const Mesh &mesh, const IndexMask face_selection)
 {
-  const Span<MPoly> polys = mesh.polygons();
+  const Span<MPoly> polys = mesh.polys();
   const Span<MLoop> loops = mesh.loops();
 
   /* Use the disjoint set data structure to determine which vertices have to be scaled together. */
@@ -282,11 +282,11 @@ static Vector<ElementIsland> prepare_face_islands(const Mesh &mesh, const IndexM
   return islands;
 }
 
-static void get_face_vertices(const Span<MEdge> /*edges*/,
-                              const Span<MPoly> polys,
-                              const Span<MLoop> loops,
-                              int face_index,
-                              VectorSet<int> &r_vertex_indices)
+static void get_face_verts(const Span<MEdge> /*edges*/,
+                           const Span<MPoly> polys,
+                           const Span<MLoop> loops,
+                           int face_index,
+                           VectorSet<int> &r_vertex_indices)
 {
   const MPoly &poly = polys[face_index];
   const Span<MLoop> poly_loops = loops.slice(poly.loopstart, poly.totloop);
@@ -315,7 +315,7 @@ static void scale_faces_on_axis(Mesh &mesh, const AxisScaleFields &fields)
   AxisScaleParams params = evaluate_axis_scale_fields(evaluator, fields);
 
   Vector<ElementIsland> island = prepare_face_islands(mesh, params.selection);
-  scale_vertex_islands_on_axis(mesh, island, params, get_face_vertices);
+  scale_vertex_islands_on_axis(mesh, island, params, get_face_verts);
 }
 
 static UniformScaleParams evaluate_uniform_scale_fields(FieldEvaluator &evaluator,
@@ -337,7 +337,7 @@ static void scale_faces_uniformly(Mesh &mesh, const UniformScaleFields &fields)
   UniformScaleParams params = evaluate_uniform_scale_fields(evaluator, fields);
 
   Vector<ElementIsland> island = prepare_face_islands(mesh, params.selection);
-  scale_vertex_islands_uniformly(mesh, island, params, get_face_vertices);
+  scale_vertex_islands_uniformly(mesh, island, params, get_face_verts);
 }
 
 static Vector<ElementIsland> prepare_edge_islands(const Mesh &mesh, const IndexMask edge_selection)
@@ -371,11 +371,11 @@ static Vector<ElementIsland> prepare_edge_islands(const Mesh &mesh, const IndexM
   return islands;
 }
 
-static void get_edge_vertices(const Span<MEdge> edges,
-                              const Span<MPoly> /*polygons*/,
-                              const Span<MLoop> /*loops*/,
-                              int edge_index,
-                              VectorSet<int> &r_vertex_indices)
+static void get_edge_verts(const Span<MEdge> edges,
+                           const Span<MPoly> /*polys*/,
+                           const Span<MLoop> /*loops*/,
+                           int edge_index,
+                           VectorSet<int> &r_vertex_indices)
 {
   const MEdge &edge = edges[edge_index];
   r_vertex_indices.add(edge.v1);
@@ -389,7 +389,7 @@ static void scale_edges_uniformly(Mesh &mesh, const UniformScaleFields &fields)
   UniformScaleParams params = evaluate_uniform_scale_fields(evaluator, fields);
 
   Vector<ElementIsland> island = prepare_edge_islands(mesh, params.selection);
-  scale_vertex_islands_uniformly(mesh, island, params, get_edge_vertices);
+  scale_vertex_islands_uniformly(mesh, island, params, get_edge_verts);
 }
 
 static void scale_edges_on_axis(Mesh &mesh, const AxisScaleFields &fields)
@@ -399,7 +399,7 @@ static void scale_edges_on_axis(Mesh &mesh, const AxisScaleFields &fields)
   AxisScaleParams params = evaluate_axis_scale_fields(evaluator, fields);
 
   Vector<ElementIsland> island = prepare_edge_islands(mesh, params.selection);
-  scale_vertex_islands_on_axis(mesh, island, params, get_edge_vertices);
+  scale_vertex_islands_on_axis(mesh, island, params, get_edge_verts);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)

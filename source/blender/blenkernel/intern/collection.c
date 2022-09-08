@@ -236,13 +236,14 @@ void BKE_collection_blend_read_data(BlendDataReader *reader, Collection *collect
   /* Special case for this pointer, do not rely on regular `lib_link` process here. Avoids needs
    * for do_versioning, and ensures coherence of data in any case. */
   BLI_assert((collection->id.flag & LIB_EMBEDDED_DATA) != 0 || owner_id == NULL);
+  BLI_assert(owner_id == NULL || owner_id->lib == collection->id.lib);
   if (owner_id != NULL && (collection->id.flag & LIB_EMBEDDED_DATA) == 0) {
     /* This is unfortunate, but currently a lot of existing files (including startup ones) have
      * missing `LIB_EMBEDDED_DATA` flag.
      *
      * NOTE: Using do_version is not a solution here, since this code will be called before any
      * do_version takes place. Keeping it here also ensures future (or unknown existing) similar
-     * bugs won't go easily unoticed. */
+     * bugs won't go easily unnoticed. */
     CLOG_WARN(&LOG,
               "Fixing root node tree '%s' owned by '%s' missing EMBEDDED tag, please consider "
               "re-saving your (startup) file",
@@ -484,8 +485,8 @@ void BKE_collection_add_from_collection(Main *bmain,
       is_instantiated = true;
     }
     else if (!is_instantiated && collection_find_child(collection, collection_dst)) {
-      /* If given collection_dst is already instantiated in scene, even if its 'model' src one is
-       * not, do not add it to master scene collection. */
+      /* If given collection_dst is already instantiated in scene, even if its 'model'
+       * collection_src one is not, do not add it to master scene collection. */
       is_instantiated = true;
     }
   }

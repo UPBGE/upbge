@@ -862,7 +862,7 @@ void WM_operator_properties_select_action(struct wmOperatorType *ot,
                                           int default_action,
                                           bool hide_gui);
 /**
- * Only #SELECT / #DESELECT.
+ * Only for select/de-select.
  */
 void WM_operator_properties_select_action_simple(struct wmOperatorType *ot,
                                                  int default_action,

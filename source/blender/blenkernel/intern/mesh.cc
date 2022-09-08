@@ -17,7 +17,7 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_bitmap.h"
+#include "BLI_bit_vector.hh"
 #include "BLI_edgehash.h"
 #include "BLI_endian_switch.h"
 #include "BLI_ghash.h"
@@ -64,6 +64,7 @@
 
 #include "BLO_read_write.h"
 
+using blender::BitVector;
 using blender::float3;
 using blender::MutableSpan;
 using blender::Span;
@@ -248,17 +249,17 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
   else {
     Set<std::string> names_to_skip;
     if (!BLO_write_is_undo(writer)) {
-
       BKE_mesh_legacy_convert_hide_layers_to_flags(mesh);
       BKE_mesh_legacy_convert_material_indices_to_mpoly(mesh);
       /* When converting to the old mesh format, don't save redundant attributes. */
       names_to_skip.add_multiple_new({".hide_vert", ".hide_edge", ".hide_poly"});
 
       /* Set deprecated mesh data pointers for forward compatibility. */
-      mesh->mvert = const_cast<MVert *>(mesh->vertices().data());
+      mesh->mvert = const_cast<MVert *>(mesh->verts().data());
       mesh->medge = const_cast<MEdge *>(mesh->edges().data());
-      mesh->mpoly = const_cast<MPoly *>(mesh->polygons().data());
+      mesh->mpoly = const_cast<MPoly *>(mesh->polys().data());
       mesh->mloop = const_cast<MLoop *>(mesh->loops().data());
+      mesh->dvert = const_cast<MDeformVert *>(mesh->deform_verts().data());
     }
 
     CustomData_blend_write_prepare(mesh->vdata, vert_layers, names_to_skip);
@@ -313,9 +314,6 @@ static void mesh_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_data_address(reader, &mesh->adt);
   BKE_animdata_blend_read_data(reader, mesh->adt);
 
-  /* Normally BKE_defvert_blend_read should be called in CustomData_blend_read,
-   * but for backwards compatibility in do_versions to work we do it here. */
-  BKE_defvert_blend_read(reader, mesh->totvert, mesh->dvert);
   BLO_read_list(reader, &mesh->vertex_group_names);
 
   CustomData_blend_read(reader, &mesh->vdata, mesh->totvert);
@@ -323,6 +321,11 @@ static void mesh_blend_read_data(BlendDataReader *reader, ID *id)
   CustomData_blend_read(reader, &mesh->fdata, mesh->totface);
   CustomData_blend_read(reader, &mesh->ldata, mesh->totloop);
   CustomData_blend_read(reader, &mesh->pdata, mesh->totpoly);
+  if (mesh->deform_verts().is_empty()) {
+    /* Vertex group data was also an owning pointer in old Blender versions.
+     * Don't read them again if they were read as part of #CustomData. */
+    BKE_defvert_blend_read(reader, mesh->totvert, mesh->dvert);
+  }
 
   mesh->texflag &= ~ME_AUTOSPACE_EVALUATED;
   mesh->edit_mesh = nullptr;
@@ -1255,7 +1258,7 @@ float (*BKE_mesh_orco_verts_get(Object *ob))[3]
 
   /* Get appropriate vertex coordinates */
   float(*vcos)[3] = (float(*)[3])MEM_calloc_arrayN(me->totvert, sizeof(*vcos), "orco mesh");
-  const Span<MVert> verts = tme->vertices();
+  const Span<MVert> verts = tme->verts();
 
   int totvert = min_ii(tme->totvert, me->totvert);
 
@@ -1430,7 +1433,7 @@ void BKE_mesh_material_remap(Mesh *me, const uint *remap, uint remap_len)
 
 void BKE_mesh_smooth_flag_set(Mesh *me, const bool use_smooth)
 {
-  MutableSpan<MPoly> polys = me->polygons_for_write();
+  MutableSpan<MPoly> polys = me->polys_for_write();
   if (use_smooth) {
     for (MPoly &poly : polys) {
       poly.flag |= ME_SMOOTH;
@@ -1518,7 +1521,7 @@ bool BKE_mesh_minmax(const Mesh *me, float r_min[3], float r_max[3])
     float3 min;
     float3 max;
   };
-  const Span<MVert> verts = me->vertices();
+  const Span<MVert> verts = me->verts();
 
   const Result minmax = threading::parallel_reduce(
       verts.index_range(),
@@ -1543,7 +1546,7 @@ bool BKE_mesh_minmax(const Mesh *me, float r_min[3], float r_max[3])
 
 void BKE_mesh_transform(Mesh *me, const float mat[4][4], bool do_keys)
 {
-  MutableSpan<MVert> verts = me->vertices_for_write();
+  MutableSpan<MVert> verts = me->verts_for_write();
 
   for (MVert &vert : verts) {
     mul_m4_v3(mat, vert.co);
@@ -1577,7 +1580,7 @@ void BKE_mesh_transform(Mesh *me, const float mat[4][4], bool do_keys)
 
 void BKE_mesh_translate(Mesh *me, const float offset[3], const bool do_keys)
 {
-  MutableSpan<MVert> verts = me->vertices_for_write();
+  MutableSpan<MVert> verts = me->verts_for_write();
   for (MVert &vert : verts) {
     add_v3_v3(vert.co, offset);
   }
@@ -1620,7 +1623,7 @@ void BKE_mesh_do_versions_cd_flag_init(Mesh *mesh)
     return;
   }
 
-  const Span<MVert> verts = mesh->vertices();
+  const Span<MVert> verts = mesh->verts();
   const Span<MEdge> edges = mesh->edges();
 
   for (const MVert &vert : verts) {
@@ -1663,9 +1666,9 @@ void BKE_mesh_mselect_validate(Mesh *me)
   if (me->totselect == 0) {
     return;
   }
-  const Span<MVert> verts = me->vertices();
+  const Span<MVert> verts = me->verts();
   const Span<MEdge> edges = me->edges();
-  const Span<MPoly> polys = me->polygons();
+  const Span<MPoly> polys = me->polys();
 
   mselect_src = me->mselect;
   mselect_dst = (MSelect *)MEM_malloc_arrayN(
@@ -1793,7 +1796,7 @@ float (*BKE_mesh_vert_coords_alloc(const Mesh *mesh, int *r_vert_len))[3]
 
 void BKE_mesh_vert_coords_apply(Mesh *mesh, const float (*vert_coords)[3])
 {
-  MutableSpan<MVert> verts = mesh->vertices_for_write();
+  MutableSpan<MVert> verts = mesh->verts_for_write();
   for (const int i : verts.index_range()) {
     copy_v3_v3(verts[i].co, vert_coords[i]);
   }
@@ -1804,7 +1807,7 @@ void BKE_mesh_vert_coords_apply_with_mat4(Mesh *mesh,
                                           const float (*vert_coords)[3],
                                           const float mat[4][4])
 {
-  MutableSpan<MVert> verts = mesh->vertices_for_write();
+  MutableSpan<MVert> verts = mesh->verts_for_write();
   for (const int i : verts.index_range()) {
     mul_v3_m4v3(verts[i].co, mat, vert_coords[i]);
   }
@@ -1842,9 +1845,9 @@ void BKE_mesh_calc_normals_split_ex(Mesh *mesh,
   /* may be nullptr */
   clnors = (short(*)[2])CustomData_get_layer(&mesh->ldata, CD_CUSTOMLOOPNORMAL);
 
-  const Span<MVert> verts = mesh->vertices();
+  const Span<MVert> verts = mesh->verts();
   const Span<MEdge> edges = mesh->edges();
-  const Span<MPoly> polys = mesh->polygons();
+  const Span<MPoly> polys = mesh->polys();
   const Span<MLoop> loops = mesh->loops();
 
   BKE_mesh_normals_loop_split(verts.data(),
@@ -1907,8 +1910,8 @@ static int split_faces_prepare_new_verts(Mesh *mesh,
   BKE_mesh_vertex_normals_ensure(mesh);
   float(*vert_normals)[3] = BKE_mesh_vertex_normals_for_write(mesh);
 
-  BLI_bitmap *verts_used = BLI_BITMAP_NEW(verts_len, __func__);
-  BLI_bitmap *done_loops = BLI_BITMAP_NEW(loops_len, __func__);
+  BitVector<> verts_used(verts_len, false);
+  BitVector<> done_loops(loops_len, false);
 
   MLoop *ml = loops.data();
   MLoopNorSpace **lnor_space = lnors_spacearr->lspacearr;
@@ -1916,9 +1919,9 @@ static int split_faces_prepare_new_verts(Mesh *mesh,
   BLI_assert(lnors_spacearr->data_type == MLNOR_SPACEARR_LOOP_INDEX);
 
   for (int loop_idx = 0; loop_idx < loops_len; loop_idx++, ml++, lnor_space++) {
-    if (!BLI_BITMAP_TEST(done_loops, loop_idx)) {
+    if (!done_loops[loop_idx]) {
       const int vert_idx = ml->v;
-      const bool vert_used = BLI_BITMAP_TEST_BOOL(verts_used, vert_idx);
+      const bool vert_used = verts_used[vert_idx];
       /* If vert is already used by another smooth fan, we need a new vert for this one. */
       const int new_vert_idx = vert_used ? verts_len++ : vert_idx;
 
@@ -1927,7 +1930,7 @@ static int split_faces_prepare_new_verts(Mesh *mesh,
       if ((*lnor_space)->flags & MLNOR_SPACE_IS_SINGLE) {
         /* Single loop in this fan... */
         BLI_assert(POINTER_AS_INT((*lnor_space)->loops) == loop_idx);
-        BLI_BITMAP_ENABLE(done_loops, loop_idx);
+        done_loops[loop_idx].set();
         if (vert_used) {
           ml->v = new_vert_idx;
         }
@@ -1935,7 +1938,7 @@ static int split_faces_prepare_new_verts(Mesh *mesh,
       else {
         for (LinkNode *lnode = (*lnor_space)->loops; lnode; lnode = lnode->next) {
           const int ml_fan_idx = POINTER_AS_INT(lnode->link);
-          BLI_BITMAP_ENABLE(done_loops, ml_fan_idx);
+          done_loops[ml_fan_idx].set();
           if (vert_used) {
             loops[ml_fan_idx].v = new_vert_idx;
           }
@@ -1943,7 +1946,7 @@ static int split_faces_prepare_new_verts(Mesh *mesh,
       }
 
       if (!vert_used) {
-        BLI_BITMAP_ENABLE(verts_used, vert_idx);
+        verts_used[vert_idx].set();
         /* We need to update that vertex's normal here, we won't go over it again. */
         /* This is important! *DO NOT* set vnor to final computed lnor,
          * vnor should always be defined to 'automatic normal' value computed from its polys,
@@ -1964,9 +1967,6 @@ static int split_faces_prepare_new_verts(Mesh *mesh,
     }
   }
 
-  MEM_freeN(done_loops);
-  MEM_freeN(verts_used);
-
   return verts_len - mesh->totvert;
 }
 
@@ -1980,9 +1980,9 @@ static int split_faces_prepare_new_edges(Mesh *mesh,
   int num_edges = mesh->totedge;
   MutableSpan<MEdge> edges = mesh->edges_for_write();
   MutableSpan<MLoop> loops = mesh->loops_for_write();
-  const Span<MPoly> polys = mesh->polygons();
+  const Span<MPoly> polys = mesh->polys();
 
-  BLI_bitmap *edges_used = BLI_BITMAP_NEW(num_edges, __func__);
+  BitVector<> edges_used(num_edges, false);
   EdgeHash *edges_hash = BLI_edgehash_new_ex(__func__, num_edges);
 
   const MPoly *mp = polys.data();
@@ -1995,7 +1995,7 @@ static int split_faces_prepare_new_edges(Mesh *mesh,
         const int edge_idx = ml_prev->e;
 
         /* That edge has not been encountered yet, define it. */
-        if (BLI_BITMAP_TEST(edges_used, edge_idx)) {
+        if (edges_used[edge_idx]) {
           /* Original edge has already been used, we need to define a new one. */
           const int new_edge_idx = num_edges++;
           *eval = POINTER_FROM_INT(new_edge_idx);
@@ -2015,7 +2015,7 @@ static int split_faces_prepare_new_edges(Mesh *mesh,
           edges[edge_idx].v1 = ml_prev->v;
           edges[edge_idx].v2 = ml->v;
           *eval = POINTER_FROM_INT(edge_idx);
-          BLI_BITMAP_ENABLE(edges_used, edge_idx);
+          edges_used[edge_idx].set();
         }
       }
       else {
@@ -2027,7 +2027,6 @@ static int split_faces_prepare_new_edges(Mesh *mesh,
     }
   }
 
-  MEM_freeN(edges_used);
   BLI_edgehash_free(edges_hash, nullptr);
 
   return num_edges - mesh->totedge;

@@ -362,7 +362,7 @@ static void apply_weights_vertex_normal(WeightedNormalModifierData *wnmd,
                                      clnors);
   }
   else {
-    /* TODO: Ideally, we could add an option to BKE_mesh_normals_loop_custom_[from_vertices_]set()
+    /* TODO: Ideally, we could add an option to `BKE_mesh_normals_loop_custom_[from_verts_]set()`
      * to keep current clnors instead of resetting them to default auto-computed ones,
      * when given new custom normal is zero-vec.
      * But this is not exactly trivial change, better to keep this optimization for later...
@@ -379,18 +379,18 @@ static void apply_weights_vertex_normal(WeightedNormalModifierData *wnmd,
         copy_v3_v3(vert_normals[mv_index], items_data[mv_index].normal);
       }
 
-      BKE_mesh_normals_loop_custom_from_vertices_set(mvert,
-                                                     wn_data->vert_normals,
-                                                     vert_normals,
-                                                     verts_num,
-                                                     medge,
-                                                     edges_num,
-                                                     mloop,
-                                                     loops_num,
-                                                     mpoly,
-                                                     polynors,
-                                                     polys_num,
-                                                     clnors);
+      BKE_mesh_normals_loop_custom_from_verts_set(mvert,
+                                                  wn_data->vert_normals,
+                                                  vert_normals,
+                                                  verts_num,
+                                                  medge,
+                                                  edges_num,
+                                                  mloop,
+                                                  loops_num,
+                                                  mpoly,
+                                                  polynors,
+                                                  polys_num,
+                                                  clnors);
 
       MEM_freeN(vert_normals);
     }
@@ -579,9 +579,9 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
   const int edges_num = result->totedge;
   const int loops_num = result->totloop;
   const int polys_num = result->totpoly;
-  const MVert *mvert = BKE_mesh_vertices(result);
+  const MVert *mvert = BKE_mesh_verts(result);
   MEdge *medge = BKE_mesh_edges_for_write(result);
-  const MPoly *mpoly = BKE_mesh_polygons(result);
+  const MPoly *mpoly = BKE_mesh_polys(result);
   const MLoop *mloop = BKE_mesh_loops(result);
 
   /* Right now:

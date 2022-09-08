@@ -54,7 +54,7 @@ struct CuboidConfig {
   }
 };
 
-static void calculate_vertices(const CuboidConfig &config, MutableSpan<MVert> verts)
+static void calculate_verts(const CuboidConfig &config, MutableSpan<MVert> verts)
 {
   const float z_bottom = -config.size.z / 2.0f;
   const float z_delta = config.size.z / config.edges_z;
@@ -405,11 +405,11 @@ Mesh *create_cuboid_mesh(const float3 &size,
 
   Mesh *mesh = BKE_mesh_new_nomain(
       config.vertex_count, 0, 0, config.loop_count, config.poly_count);
-  MutableSpan<MVert> verts = mesh->vertices_for_write();
-  MutableSpan<MPoly> polys = mesh->polygons_for_write();
+  MutableSpan<MVert> verts = mesh->verts_for_write();
+  MutableSpan<MPoly> polys = mesh->polys_for_write();
   MutableSpan<MLoop> loops = mesh->loops_for_write();
 
-  calculate_vertices(config, verts);
+  calculate_verts(config, verts);
 
   calculate_polys(config, polys, loops);
   BKE_mesh_calc_edges(mesh, false, false);

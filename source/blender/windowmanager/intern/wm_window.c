@@ -83,6 +83,12 @@
 #  include "BLI_threads.h"
 #endif
 
+/**
+ * When windows are activated, simulate modifier press/release to match the current state of
+ * held modifier keys, see T40317.
+ */
+#define USE_WIN_ACTIVATE
+
 /* the global to talk to ghost */
 static GHOST_SystemHandle g_system = NULL;
 
@@ -1115,23 +1121,10 @@ static bool ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_pt
     }
     wmWindow *win = GHOST_GetWindowUserData(ghostwin);
 
-    /* Win23/GHOST modifier bug, see T40317 */
-#ifndef WIN32
-//#  define USE_WIN_ACTIVATE
-#endif
-
     switch (type) {
       case GHOST_kEventWindowDeactivate:
         wm_event_add_ghostevent(wm, win, type, data);
         win->active = 0; /* XXX */
-
-        /* When window activation is enabled, these modifiers are set with window activation.
-         * Otherwise leave them set so re-activation doesn't loose keys which are held. */
-#ifdef USE_WIN_ACTIVATE
-        win->eventstate->modifier = 0;
-        win->eventstate->keymodifier = 0;
-#endif
-
         break;
       case GHOST_kEventWindowActivate: {
         const int keymodifier = ((query_qual(SHIFT) ? KM_SHIFT : 0) |
@@ -1142,8 +1135,6 @@ static bool ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_pt
         wm->winactive = win;
 
         win->active = 1;
-        //              window_handle(win, INPUTCHANGE, win->active);
-
         /* bad ghost support for modifier keys... so on activate we set the modifiers again */
 
         /* TODO: This is not correct since a modifier may be held when a window is activated...

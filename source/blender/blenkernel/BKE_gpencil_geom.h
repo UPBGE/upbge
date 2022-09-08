@@ -401,7 +401,7 @@ void BKE_gpencil_stroke_set_random_color(struct bGPDstroke *gps);
 
 /**
  * Join two strokes using the shortest distance (reorder stroke if necessary).
- *  \param auto_flip: Flip the stroke if the join between two strokes is not end->start points.
+ * \param auto_flip: Flip the stroke if the join between two strokes is not end->start points.
  */
 void BKE_gpencil_stroke_join(struct bGPDstroke *gps_a,
                              struct bGPDstroke *gps_b,
@@ -413,7 +413,7 @@ void BKE_gpencil_stroke_join(struct bGPDstroke *gps_a,
  * Set stroke start point in the selected index. Only works for Cyclic strokes.
  * \param start_idx: Index of the point to be the start point.
  */
-void BKE_gpencil_stroke_start_set(struct bGPdata *gpd, struct bGPDstroke *gps, int start_idx);
+void BKE_gpencil_stroke_start_set(struct bGPDstroke *gps, int start_idx);
 /**
  * Copy the stroke of the frame to all frames selected (except current).
  */

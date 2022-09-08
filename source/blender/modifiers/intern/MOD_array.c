@@ -279,9 +279,9 @@ static void mesh_merge_transform(Mesh *result,
   MEdge *me;
   MLoop *ml;
   MPoly *mp;
-  MVert *result_verts = BKE_mesh_vertices_for_write(result);
+  MVert *result_verts = BKE_mesh_verts_for_write(result);
   MEdge *result_edges = BKE_mesh_edges_for_write(result);
-  MPoly *result_polys = BKE_mesh_polygons_for_write(result);
+  MPoly *result_polys = BKE_mesh_polys_for_write(result);
   MLoop *result_loops = BKE_mesh_loops_for_write(result);
 
   CustomData_copy_data(&cap_mesh->vdata, &result->vdata, 0, cap_verts_index, cap_nverts);
@@ -430,9 +430,9 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
   /* Build up offset array, accumulating all settings options. */
 
   unit_m4(offset);
-  const MVert *src_verts = BKE_mesh_vertices(mesh);
+  const MVert *src_verts = BKE_mesh_verts(mesh);
   const MEdge *src_edges = BKE_mesh_edges(mesh);
-  const MPoly *src_polys = BKE_mesh_polygons(mesh);
+  const MPoly *src_polys = BKE_mesh_polys(mesh);
   const MLoop *src_loops = BKE_mesh_loops(mesh);
 
   if (amd->offset_type & MOD_ARR_OFF_CONST) {
@@ -482,7 +482,7 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
   }
 
   /* About 67 million vertices max seems a decent limit for now. */
-  const size_t max_vertices_num = 1 << 26;
+  const size_t max_verts_num = 1 << 26;
 
   /* calculate the maximum number of copies which will fit within the
    * prescribed length */
@@ -500,7 +500,7 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
        * vertices.
        */
       if (((size_t)count * (size_t)chunk_nverts + (size_t)start_cap_nverts +
-           (size_t)end_cap_nverts) > max_vertices_num) {
+           (size_t)end_cap_nverts) > max_verts_num) {
         count = 1;
         offset_is_too_small = true;
       }
@@ -522,7 +522,7 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
    * vertices.
    */
   else if (((size_t)count * (size_t)chunk_nverts + (size_t)start_cap_nverts +
-            (size_t)end_cap_nverts) > max_vertices_num) {
+            (size_t)end_cap_nverts) > max_verts_num) {
     count = 1;
     BKE_modifier_set_error(ctx->object,
                            &amd->modifier,
@@ -543,9 +543,9 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
   /* Initialize a result dm */
   result = BKE_mesh_new_nomain_from_template(
       mesh, result_nverts, result_nedges, 0, result_nloops, result_npolys);
-  MVert *result_verts = BKE_mesh_vertices_for_write(result);
+  MVert *result_verts = BKE_mesh_verts_for_write(result);
   MEdge *result_edges = BKE_mesh_edges_for_write(result);
-  MPoly *result_polys = BKE_mesh_polygons_for_write(result);
+  MPoly *result_polys = BKE_mesh_polys_for_write(result);
   MLoop *result_loops = BKE_mesh_loops_for_write(result);
 
   if (use_merge) {

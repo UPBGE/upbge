@@ -51,7 +51,6 @@
 #include "ED_screen.h"
 #include "ED_select_utils.h"
 #include "ED_transform.h"
-#include "ED_types.h"
 #include "ED_util.h"
 
 #include "DEG_depsgraph.h"
@@ -459,9 +458,7 @@ static void draw_marker_line(const uchar *color, int xpos, int ymin, int ymax)
 static int marker_get_icon_id(TimeMarker *marker, int flag)
 {
   if (flag & DRAW_MARKERS_LOCAL) {
-    return (marker->flag & ACTIVE) ? ICON_PMARKER_ACT :
-           (marker->flag & SELECT) ? ICON_PMARKER_SEL :
-                                     ICON_PMARKER;
+    return (marker->flag & SELECT) ? ICON_PMARKER_SEL : ICON_PMARKER;
   }
 #ifdef DURIAN_CAMERA_SWITCH
   if (marker->camera) {

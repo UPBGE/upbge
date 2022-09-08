@@ -675,7 +675,7 @@ static void draw_subdiv_cache_extra_coarse_face_data_mesh(const MeshRenderData *
                                                           Mesh *mesh,
                                                           uint32_t *flags_data)
 {
-  const Span<MPoly> polys = mesh->polygons();
+  const Span<MPoly> polys = mesh->polys();
   for (const int i : polys.index_range()) {
     uint32_t flag = 0;
     if ((polys[i].flag & ME_SMOOTH) != 0) {
@@ -807,15 +807,15 @@ struct DRWCacheBuildingContext {
 };
 
 static bool draw_subdiv_topology_info_cb(const SubdivForeachContext *foreach_context,
-                                         const int num_vertices,
+                                         const int num_verts,
                                          const int num_edges,
                                          const int num_loops,
-                                         const int num_polygons,
+                                         const int num_polys,
                                          const int *subdiv_polygon_offset)
 {
   /* num_loops does not take into account meshes with only loose geometry, which might be meshes
-   * used as custom bone shapes, so let's check the num_vertices also. */
-  if (num_vertices == 0 && num_loops == 0) {
+   * used as custom bone shapes, so let's check the num_verts also. */
+  if (num_verts == 0 && num_loops == 0) {
     return false;
   }
 
@@ -826,12 +826,12 @@ static bool draw_subdiv_topology_info_cb(const SubdivForeachContext *foreach_con
   if (num_loops != 0) {
     cache->num_subdiv_edges = (uint)num_edges;
     cache->num_subdiv_loops = (uint)num_loops;
-    cache->num_subdiv_verts = (uint)num_vertices;
-    cache->num_subdiv_quads = (uint)num_polygons;
+    cache->num_subdiv_verts = (uint)num_verts;
+    cache->num_subdiv_quads = (uint)num_polys;
     cache->subdiv_polygon_offset = static_cast<int *>(MEM_dupallocN(subdiv_polygon_offset));
   }
 
-  cache->may_have_loose_geom = num_vertices != 0 || num_edges != 0;
+  cache->may_have_loose_geom = num_verts != 0 || num_edges != 0;
 
   /* Initialize cache buffers, prefer dynamic usage so we can reuse memory on the host even after
    * it was sent to the device, since we may use the data while building other buffers on the CPU
@@ -882,7 +882,7 @@ static bool draw_subdiv_topology_info_cb(const SubdivForeachContext *foreach_con
   if (cache->num_subdiv_verts) {
     ctx->vert_origindex_map = static_cast<int *>(
         MEM_mallocN(cache->num_subdiv_verts * sizeof(int), "subdiv_vert_origindex_map"));
-    for (int i = 0; i < num_vertices; i++) {
+    for (int i = 0; i < num_verts; i++) {
       ctx->vert_origindex_map[i] = -1;
     }
   }
@@ -1095,7 +1095,7 @@ static bool draw_subdiv_build_cache(DRWSubdivCache *cache,
   }
 
   /* Only build polygon related data if we have polygons. */
-  const Span<MPoly> polys = mesh_eval->polygons();
+  const Span<MPoly> polys = mesh_eval->polys();
   if (cache->num_subdiv_loops != 0) {
     /* Build buffers for the PatchMap. */
     draw_patch_map_build(&cache->gpu_patch_map, subdiv);
@@ -2187,7 +2187,7 @@ void DRW_subdivide_loose_geom(DRWSubdivCache *subdiv_cache, MeshBufferCache *cac
   }
 
   /* Copy the remaining loose_verts. */
-  const Span<MVert> coarse_verts = coarse_mesh->vertices();
+  const Span<MVert> coarse_verts = coarse_mesh->verts();
   for (int i = 0; i < coarse_loose_vert_len; i++) {
     const int coarse_vertex_index = cache->loose_geom.verts[i];
     const MVert &coarse_vertex = coarse_verts[coarse_vertex_index];
