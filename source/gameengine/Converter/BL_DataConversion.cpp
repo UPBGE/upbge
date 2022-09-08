@@ -1356,7 +1356,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
     }
 
     bool isInActiveLayer = (blenderobject->base_flag &
-                            (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH)) != 0;
+                            (BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
+                             BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT)) != 0;
     blenderobject->lay = isInActiveLayer ? blenderscene->lay : 0;
 
     /* Force OB_RESTRICT_VIEWPORT to avoid not needed depsgraph operations in some cases,

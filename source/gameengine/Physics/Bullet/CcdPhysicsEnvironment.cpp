@@ -3217,7 +3217,8 @@ void CcdPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
 
   // don't add automatically sensor object, they are added when a collision sensor is registered
   if (!isbulletsensor && (blenderobject->lay & activeLayerBitInfo) != 0 &&
-      (blenderobject->base_flag & (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH)) != 0) {
+      (blenderobject->base_flag & (BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
+                                   BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT)) != 0) {
     this->AddCcdPhysicsController(physicscontroller);
   }
 

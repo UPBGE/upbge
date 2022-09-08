@@ -1397,7 +1397,8 @@ KX_GameObject *KX_Scene::AddDuplicaObject(KX_GameObject *gameobj,
                                      BKE_view_layer_camera_find(view_layer),
                                      basen->object);  // add replica where is the active camera
 
-      basen->flag |= (BASE_VISIBLE_VIEWLAYER | BASE_VISIBLE_DEPSGRAPH);
+      basen->flag |= (BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
+                      BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT);
       basen->object->visibility_flag &= ~OB_HIDE_VIEWPORT;
       BKE_main_collection_sync_remap(bmain);
 
