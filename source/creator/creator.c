@@ -240,6 +240,12 @@ void gmp_blender_init_allocator()
 /** \name Main Function
  * \{ */
 
+/* When building as a Python module, don't use special argument handling
+ * so the module loading logic can control the `argv` & `argc`. */
+#if defined(WIN32) && !defined(WITH_PYTHON_MODULE)
+#  define USE_WIN32_UNICODE_ARGS
+#endif
+
 /**
  * Blender's main function responsibilities are:
  * - setup subsystems.
@@ -248,7 +254,7 @@ void gmp_blender_init_allocator()
  *   or exit immediately when running in background-mode.
  */
 int main(int argc,
-#ifdef WIN32
+#ifdef USE_WIN32_UNICODE_ARGS
          const char **UNUSED(argv_c)
 #else
          const char **argv
@@ -262,7 +268,7 @@ int main(int argc,
   bArgs *ba;
 #endif
 
-#ifdef WIN32
+#ifdef USE_WIN32_UNICODE_ARGS
   char **argv;
   int argv_num;
 #endif
@@ -292,6 +298,7 @@ int main(int argc,
   /* NOTE: cannot use `guardedalloc` allocation here, as it's not yet initialized
    *       (it depends on the arguments passed in, which is what we're getting here!)
    */
+#  ifdef USE_WIN32_UNICODE_ARGS
   {
     wchar_t **argv_16 = CommandLineToArgvW(GetCommandLineW(), &argc);
     argv = malloc(argc * sizeof(char *));
@@ -304,7 +311,8 @@ int main(int argc,
     app_init_data.argv = argv;
     app_init_data.argv_num = argv_num;
   }
-#endif /* WIN32 */
+#  endif /* USE_WIN32_UNICODE_ARGS */
+#endif   /* WIN32 */
 
   /* NOTE: Special exception for guarded allocator type switch:
    *       we need to perform switch from lock-free to fully
@@ -396,7 +404,17 @@ int main(int argc,
 #endif
 
   /* Initialize path to executable. */
-  BKE_appdir_program_path_init(argv[0]);
+  {
+#ifdef WITH_PYTHON_MODULE
+    /* NOTE(@campbellbarton): Always use `argv[0]` as is, when building as a Python module.
+     * Otherwise other methods of detecting the binary that override this argument
+     * which must point to the Python module for data-files to be detected. */
+    const bool strict = true;
+#else
+    const bool strict = false;
+#endif
+    BKE_appdir_program_path_init(argv[0], strict);
+  }
 
   BLI_threadapi_init();
 

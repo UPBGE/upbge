@@ -3178,7 +3178,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
       }
 
       /* Anonymous attributes shouldn't be available on the applied geometry. */
-      blender::bke::mesh_attributes_for_write(*new_mesh).remove_anonymous();
+      new_mesh->attributes_for_write().remove_anonymous();
 
       BKE_object_free_modifiers(newob, 0); /* after derivedmesh calls! */
     }
@@ -3593,7 +3593,7 @@ static Base *object_add_duplicate_internal(Main *bmain,
     DEG_id_tag_update(&obn->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
 
     base = BKE_view_layer_base_find(view_layer, ob);
-    if ((base != nullptr) && (base->flag & BASE_VISIBLE_DEPSGRAPH)) {
+    if ((base != nullptr) && (base->flag & BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT)) {
       BKE_collection_object_add_from(bmain, scene, ob, obn);
     }
     else {

@@ -139,7 +139,7 @@ IDTypeInfo IDType_ID_PAL = {
     /* foreach_id */ nullptr,
     /* foreach_cache */ nullptr,
     /* foreach_path */ nullptr,
-    /* owner_get */ nullptr,
+    /* owner_pointer_get */ nullptr,
 
     /* blend_write */ palette_blend_write,
     /* blend_read_data */ palette_blend_read_data,
@@ -207,7 +207,7 @@ IDTypeInfo IDType_ID_PC = {
     /* foreach_id */ nullptr,
     /* foreach_cache */ nullptr,
     /* foreach_path */ nullptr,
-    /* owner_get */ nullptr,
+    /* owner_pointer_get */ nullptr,
 
     /* blend_write */ paint_curve_blend_write,
     /* blend_read_data */ paint_curve_blend_read_data,
@@ -2134,7 +2134,7 @@ void BKE_sculpt_sync_face_sets_visibility_to_base_mesh(Mesh *mesh)
     return;
   }
 
-  MutableAttributeAccessor attributes = mesh_attributes_for_write(*mesh);
+  MutableAttributeAccessor attributes = mesh->attributes_for_write();
   SpanAttributeWriter<bool> hide_poly = attributes.lookup_or_add_for_write_only_span<bool>(
       ".hide_poly", ATTR_DOMAIN_FACE);
   if (!hide_poly) {
