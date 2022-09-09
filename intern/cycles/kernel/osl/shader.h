@@ -33,9 +33,6 @@ struct OSLShadingSystem;
 
 class OSLShader {
  public:
-  /* init */
-  static void register_closures(OSLShadingSystem *ss);
-
   /* per thread data */
   static void thread_init(KernelGlobalsCPU *kg, OSLGlobals *osl_globals);
   static void thread_free(KernelGlobalsCPU *kg);
@@ -54,12 +51,6 @@ class OSLShader {
                           ShaderData *sd,
                           uint32_t path_flag);
   static void eval_displacement(const KernelGlobalsCPU *kg, const void *state, ShaderData *sd);
-
-  /* attributes */
-  static int find_attribute(const KernelGlobalsCPU *kg,
-                            const ShaderData *sd,
-                            uint id,
-                            AttributeDescriptor *desc);
 };
 
 CCL_NAMESPACE_END
