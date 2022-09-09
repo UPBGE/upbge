@@ -812,17 +812,7 @@ int main(int argc,
   bContext *C = CTX_create();
 
   /* Initialize path to executable. */
-  {
-#ifdef WITH_PYTHON_MODULE
-    /* NOTE(@campbellbarton): Always use `argv[0]` as is, when building as a Python module.
-     * Otherwise other methods of detecting the binary that override this argument
-     * which must point to the Python module for data-files to be detected. */
-    const bool strict = true;
-#else
-    const bool strict = false;
-#endif
-    BKE_appdir_program_path_init(argv[0], strict);
-  }
+  BKE_appdir_program_path_init(argv[0]);
 
   BKE_tempdir_init(nullptr);
   BLI_threadapi_init();
@@ -1914,13 +1904,15 @@ int main(int argc,
   BKE_sound_exit();
 
   BKE_appdir_exit();
-  CLG_exit();
 
   BKE_blender_atexit();
 
   wm_autosave_delete();
 
   BKE_tempdir_session_purge();
+
+  /* Keep last (or near last) so logging can be used right up until everything is shut-down. */
+  CLG_exit();
 
   int totblock = MEM_get_memory_blocks_in_use();
   if (totblock != 0) {
