@@ -32,7 +32,6 @@ set(INC
   ../../blender/blenlib
   ../../blender/python/generic
   ../../../intern/guardedalloc
-  ../../../intern/string
   ../../../intern/termcolor
 )
 

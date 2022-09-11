@@ -49,7 +49,6 @@ set(INC
   ../../blender/windowmanager
   ../../../intern/guardedalloc
   ../../../intern/ghost
-  ../../../intern/string
   ../../../intern/termcolor
 )
 

@@ -29,7 +29,6 @@ set(INC
   ../../blender/blenlib
   ../../blender/blenkernel
   ../../../intern/ghost
-  ../../../intern/string
   ../../../intern/termcolor
 )
 

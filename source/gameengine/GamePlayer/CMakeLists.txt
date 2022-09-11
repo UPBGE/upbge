@@ -62,7 +62,6 @@ set(INC
   ../../../intern/clog
   ../../../intern/ghost
   ../../../intern/guardedalloc
-  ../../../intern/string
   ../../../intern/memutil
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna

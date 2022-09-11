@@ -27,7 +27,6 @@ set(INC
   ../../blender/makesrna
   ../../blender/windowmanager
   ../../../intern/guardedalloc
-  ../../../intern/string
   ../../../intern/termcolor
   ../../../intern/ghost
 )

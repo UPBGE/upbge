@@ -63,7 +63,6 @@ set(INC
   ../../../intern/ghost
   ../../../intern/glew-mx
   ../../../intern/guardedalloc
-  ../../../intern/string
 )
 
 set(INC_SYS
