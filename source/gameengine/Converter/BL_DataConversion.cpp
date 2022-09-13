@@ -490,7 +490,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
   for (unsigned int i = 0; i < numpolys; ++i) {
     const MPoly &mpoly = mpolys[i];
 
-    const ConvertedMaterial &mat = convertedMats[mpoly.mat_nr];
+    const ConvertedMaterial &mat = convertedMats[mpoly.mat_nr_legacy];
     RAS_MeshMaterial *meshmat = mat.meshmat;
 
     // Mark face as flat, so vertices are split.
