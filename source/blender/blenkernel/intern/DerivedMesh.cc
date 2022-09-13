@@ -2914,7 +2914,7 @@ static void mesh_build_derived_data(struct Depsgraph *depsgraph,
 
   BKE_object_free_derived_caches(ob);
   if (DEG_is_active(depsgraph)) {
-    BKE_sculpt_update_object_before_eval(scene, ob);
+    BKE_sculpt_update_object_before_eval(ob);
   }
 
 #if 0 /* XXX This is already taken care of in mesh_calc_modifiers()... */
