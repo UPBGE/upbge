@@ -46,7 +46,6 @@ set(INC
   ../../../blender/makesrna
   ../../../blender/render
   ../../../blender/render/intern
-  ../../../../intern/glew-mx
   ../../../../intern/guardedalloc
 )
 

@@ -29,7 +29,6 @@ set(INC
   ../../makesrna
   ../../windowmanager
   ../../../../intern/guardedalloc
-  ../../../../intern/glew-mx
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )

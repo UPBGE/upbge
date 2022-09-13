@@ -61,7 +61,6 @@ set(INC
   ../../blender/render/intern/
   ../../blender/windowmanager
   ../../../intern/ghost
-  ../../../intern/glew-mx
   ../../../intern/guardedalloc
 )
 
