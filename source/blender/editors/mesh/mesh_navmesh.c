@@ -366,7 +366,7 @@ static Object *createRepresentation(bContext *C,
   }
   else {
     obedit = base->object;
-    BKE_view_layer_base_deselect_all(view_layer);
+    BKE_view_layer_base_deselect_all(scene, view_layer);
     BKE_view_layer_base_select_and_set_active(view_layer, base);
     copy_v3_v3(obedit->loc, co);
     copy_v3_v3(obedit->rot, rot);

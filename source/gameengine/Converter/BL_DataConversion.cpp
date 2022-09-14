@@ -1325,7 +1325,7 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
   }
 
   /* Ensure objects base flags are up to date each time we call BL_ConvertObjects */
-  BKE_scene_base_flag_to_objects(BKE_view_layer_default_view(blenderscene));
+  BKE_scene_base_flag_to_objects(blenderscene, BKE_view_layer_default_view(blenderscene));
 
   std::vector<Object *> lod_objects = lod_level_object_list(
       BKE_view_layer_default_view(blenderscene));
