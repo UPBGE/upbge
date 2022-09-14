@@ -24,7 +24,6 @@
 
 #include "DNA_genfile.h"
 
-#include "BLI_args.h"
 #include "BLI_string.h"
 #include "BLI_system.h"
 #include "BLI_task.h"
@@ -50,6 +49,10 @@
 #include "BKE_sound.h"
 #include "BKE_vfont.h"
 #include "BKE_volume.h"
+
+#ifndef WITH_PYTHON_MODULE
+#  include "BLI_args.h"
+#endif
 
 #include "DEG_depsgraph.h"
 
@@ -101,6 +104,18 @@
 #include "creator_intern.h" /* Own include. */
 
 /* -------------------------------------------------------------------- */
+/** \name Local Defines
+ * \{ */
+
+/* When building as a Python module, don't use special argument handling
+ * so the module loading logic can control the `argv` & `argc`. */
+#if defined(WIN32) && !defined(WITH_PYTHON_MODULE)
+#  define USE_WIN32_UNICODE_ARGS
+#endif
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Local Application State
  * \{ */
 
@@ -139,10 +154,17 @@ static void main_callback_setup(void)
 
 /* free data on early exit (if Python calls 'sys.exit()' while parsing args for eg). */
 struct CreatorAtExitData {
+#ifndef WITH_PYTHON_MODULE
   bArgs *ba;
-#ifdef WIN32
+#endif
+
+#ifdef USE_WIN32_UNICODE_ARGS
   const char **argv;
   int argv_num;
+#endif
+
+#if defined(WITH_PYTHON_MODULE) && !defined(USE_WIN32_UNICODE_ARGS)
+  void *_empty; /* Prevent empty struct error with MSVC. */
 #endif
 };
 
@@ -150,12 +172,16 @@ static void callback_main_atexit(void *user_data)
 {
   struct CreatorAtExitData *app_init_data = user_data;
 
+#ifndef WITH_PYTHON_MODULE
   if (app_init_data->ba) {
     BLI_args_destroy(app_init_data->ba);
     app_init_data->ba = NULL;
   }
+#else
+  UNUSED_VARS(app_init_data); /* May be unused. */
+#endif
 
-#ifdef WIN32
+#ifdef USE_WIN32_UNICODE_ARGS
   if (app_init_data->argv) {
     while (app_init_data->argv_num) {
       free((void *)app_init_data->argv[--app_init_data->argv_num]);
@@ -163,6 +189,8 @@ static void callback_main_atexit(void *user_data)
     free((void *)app_init_data->argv);
     app_init_data->argv = NULL;
   }
+#else
+  UNUSED_VARS(app_init_data); /* May be unused. */
 #endif
 }
 
@@ -239,12 +267,6 @@ void gmp_blender_init_allocator()
 /* -------------------------------------------------------------------- */
 /** \name Main Function
  * \{ */
-
-/* When building as a Python module, don't use special argument handling
- * so the module loading logic can control the `argv` & `argc`. */
-#if defined(WIN32) && !defined(WITH_PYTHON_MODULE)
-#  define USE_WIN32_UNICODE_ARGS
-#endif
 
 /**
  * Blender's main function responsibilities are:
@@ -549,7 +571,7 @@ int main(int argc,
   (void)ba;
 #endif
 
-#ifdef WIN32
+#ifdef USE_WIN32_UNICODE_ARGS
   argv = NULL;
   (void)argv;
 #endif

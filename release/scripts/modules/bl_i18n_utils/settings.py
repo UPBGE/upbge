@@ -49,7 +49,7 @@ LANGUAGES = (
     (15, "Russian (Русский)", "ru_RU"),
     (16, "Croatian (Hrvatski)", "hr_HR"),
     (17, "Serbian (Српски)", "sr_RS"),
-    (18, "Ukrainian (Український)", "uk_UA"),
+    (18, "Ukrainian (Українська)", "uk_UA"),
     (19, "Polish (Polski)", "pl_PL"),
     (20, "Romanian (Român)", "ro_RO"),
     # Using the utf8 flipped form of Arabic (العربية).
@@ -87,7 +87,7 @@ LANGUAGES = (
 
 # Default context, in py (keep in sync with `BLT_translation.h`)!
 if bpy is not None:
-    assert(bpy.app.translations.contexts.default == "*")
+    assert bpy.app.translations.contexts.default == "*"
 DEFAULT_CONTEXT = "*"
 
 # Name of language file used by Blender to generate translations' menu.

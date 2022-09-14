@@ -564,6 +564,7 @@ int view3d_opengl_select_ex(ViewContext *vc,
   ARegion *region = vc->region;
   rcti rect;
   int hits = 0;
+  BKE_view_layer_synced_ensure(scene, vc->view_layer);
   const bool use_obedit_skip = (BKE_view_layer_edit_object_get(vc->view_layer) != NULL) &&
                                (vc->obedit == NULL);
   const bool is_pick_select = (U.gpu_flag & USER_GPU_FLAG_NO_DEPT_PICK) == 0;
@@ -835,6 +836,7 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
                                   wmWindowManager *wm,
                                   wmWindow *win,
                                   Main *bmain,
+                                  const Scene *scene,
                                   ViewLayer *view_layer,
                                   ScrArea *area,
                                   const bool frame_selected,
@@ -862,12 +864,14 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
     ok = false;
   }
   else {
+    BKE_view_layer_synced_ensure(scene, view_layer);
     Object *obedit = BKE_view_layer_edit_object_get(view_layer);
     if (obedit) {
-      LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
+      BKE_view_layer_synced_ensure(scene, view_layer);
+      LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
         base->local_view_bits &= ~local_view_bit;
       }
-      FOREACH_BASE_IN_EDIT_MODE_BEGIN (view_layer, v3d, base_iter) {
+      FOREACH_BASE_IN_EDIT_MODE_BEGIN (scene, view_layer, v3d, base_iter) {
         BKE_object_minmax(base_iter->object, min, max, false);
         base_iter->local_view_bits |= local_view_bit;
         ok = true;
@@ -875,7 +879,8 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
       FOREACH_BASE_IN_EDIT_MODE_END;
     }
     else {
-      LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
+      BKE_view_layer_synced_ensure(scene, view_layer);
+      LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
         if (BASE_SELECTED(v3d, base)) {
           BKE_object_minmax(base->object, min, max, false);
           base->local_view_bits |= local_view_bit;
@@ -966,6 +971,7 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
 static void view3d_localview_exit(const Depsgraph *depsgraph,
                                   wmWindowManager *wm,
                                   wmWindow *win,
+                                  const Scene *scene,
                                   ViewLayer *view_layer,
                                   ScrArea *area,
                                   const bool frame_selected,
@@ -976,8 +982,8 @@ static void view3d_localview_exit(const Depsgraph *depsgraph,
   if (v3d->localvd == NULL) {
     return;
   }
-
-  LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
     if (base->local_view_bits & v3d->local_view_uuid) {
       base->local_view_bits &= ~v3d->local_view_uuid;
     }
@@ -1050,12 +1056,21 @@ static int localview_exec(bContext *C, wmOperator *op)
   bool changed;
 
   if (v3d->localvd) {
-    view3d_localview_exit(depsgraph, wm, win, view_layer, area, frame_selected, smooth_viewtx);
+    view3d_localview_exit(
+        depsgraph, wm, win, scene, view_layer, area, frame_selected, smooth_viewtx);
     changed = true;
   }
   else {
-    changed = view3d_localview_init(
-        depsgraph, wm, win, bmain, view_layer, area, frame_selected, smooth_viewtx, op->reports);
+    changed = view3d_localview_init(depsgraph,
+                                    wm,
+                                    win,
+                                    bmain,
+                                    scene,
+                                    view_layer,
+                                    area,
+                                    frame_selected,
+                                    smooth_viewtx,
+                                    op->reports);
   }
 
   if (changed) {
@@ -1103,8 +1118,8 @@ static int localview_remove_from_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   bool changed = false;
-
-  LISTBASE_FOREACH (Base *, base, &view_layer->object_bases) {
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
     if (BASE_SELECTED(v3d, base)) {
       base->local_view_bits &= ~v3d->local_view_uuid;
       ED_object_base_select(base, BA_DESELECT);
@@ -1276,7 +1291,7 @@ void ED_view3d_local_collections_reset(struct bContext *C, const bool reset_all)
   else if (reset_all && (do_reset || (local_view_bit != ~(0)))) {
     view3d_local_collections_reset(bmain, ~(0));
     View3D v3d = {.local_collections_uuid = ~(0)};
-    BKE_layer_collection_local_sync(CTX_data_view_layer(C), &v3d);
+    BKE_layer_collection_local_sync(CTX_data_scene(C), CTX_data_view_layer(C), &v3d);
     DEG_id_tag_update(&CTX_data_scene(C)->id, ID_RECALC_BASE_FLAGS);
   }
 }

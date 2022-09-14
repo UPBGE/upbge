@@ -1142,8 +1142,7 @@ static GeometrySet compute_geometry(
   Array<bool> param_set_outputs(graph_outputs.size(), false);
 
   blender::nodes::GeometryNodesLazyFunctionLogger lf_logger(lf_graph_info);
-  blender::nodes::GeometryNodesLazyFunctionSideEffectProvider lf_side_effect_provider(
-      lf_graph_info);
+  blender::nodes::GeometryNodesLazyFunctionSideEffectProvider lf_side_effect_provider;
 
   lf::GraphExecutor graph_executor{
       lf_graph_info.graph, graph_inputs, graph_outputs, &lf_logger, &lf_side_effect_provider};
@@ -1887,9 +1886,7 @@ static void freeData(ModifierData *md)
   clear_runtime_data(nmd);
 }
 
-static void requiredDataMask(Object *UNUSED(ob),
-                             ModifierData *UNUSED(md),
-                             CustomData_MeshMasks *r_cddata_masks)
+static void requiredDataMask(ModifierData *UNUSED(md), CustomData_MeshMasks *r_cddata_masks)
 {
   /* We don't know what the node tree will need. If there are vertex groups, it is likely that the
    * node tree wants to access them. */
