@@ -130,6 +130,58 @@ float bsdf_ggx(vec3 N, vec3 L, vec3 V, float roughness)
   return NL * a2 / (D * G); /* NL to Fit cycles Equation : line. 345 in bsdf_microfacet.h */
 }
 
+/* SSGI placeholder testing BSDF !TODO lambertian! */
+
+float G1_Smith_GGX_GI(float NX, float a2) //Temp TODO
+{
+  /* Using Brian Karis approach and refactoring by NX/NX
+   * this way the (2*NL)*(2*NV) in G = G1(V) * G1(L) gets canceled by the brdf denominator 4*NL*NV
+   * Rcp is done on the whole G later
+   * Note that this is not convenient for the transmission formula */
+  return NX + sqrt(NX * (NX - NX * a2) + a2);
+  /* return 2 / (1 + sqrt(1 + a2 * (1 - NX*NX) / (NX*NX) ) ); /* Reference function */
+}
+
+float bsdf_ggx_gi(vec3 N, vec3 L, vec3 V, float roughness) //Temp TODO
+{
+  //float a = roughness;
+  //float a2 = a * a;
+  float a = 1.0;
+  float a2 = 1.0;
+
+  vec3 H = normalize(L + V);
+  float NH = max(dot(N, H), 1e-8);
+  float NL = max(dot(N, L), 1e-8);
+  float NV = max(dot(N, V), 1e-8);
+
+  float G = G1_Smith_GGX_GI(NV, a2) * G1_Smith_GGX_GI(NL, a2); /* Doing RCP at the end */
+  float D = D_ggx_opti(NH, a2);
+
+  /* Denominator is canceled by G1_Smith */
+  /* bsdf = D * G / (4.0 * NL * NV); /* Reference function */
+  return NL * a2 / (D * G); /* NL to Fit cycles Equation : line. 345 in bsdf_microfacet.h */
+}
+
+float bsdf_gi(vec3 N, vec3 L, vec3 V) //Temp TODO //(vN, data.hit_dir / hit_dist, vV)
+{
+  // float a = 1.0;
+  // float a2 = 1.0;
+
+  // vec3 H = normalize(L + V);
+  // float NH = max(dot(N, H), 1e-8);
+  // float NL = max(dot(N, L), 1e-8);
+  // float NV = max(dot(N, V), 1e-8);
+
+  // float G = G1_Smith_GGX_GI(NV, a2) * G1_Smith_GGX_GI(NL, a2); /* Doing RCP at the end */
+  // float D = D_ggx_opti(NH, a2);
+
+  // /* Denominator is canceled by G1_Smith */
+  // /* bsdf = D * G / (4.0 * NL * NV); /* Reference function */
+  // return NL * a2 / (D * G); /* NL to Fit cycles Equation : line. 345 in bsdf_microfacet.h */
+
+  return 1.0 / 3.1415926538;
+}
+
 void accumulate_light(vec3 light, float fac, inout vec4 accum)
 {
   accum += vec4(light, 1.0) * min(fac, (1.0 - accum.a));
