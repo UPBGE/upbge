@@ -134,6 +134,10 @@ static struct {
   /* Screen Space Reflection */
   struct GPUShader *reflection_trace;
   struct GPUShader *reflection_resolve;
+  struct GPUShader *ssgi_trace;
+  struct GPUShader *ssgi_resolve;
+  struct GPUShader *ssgi_filter;
+  struct GPUShader *ssgi_filter_sec;
 
   /* Shadows */
   struct GPUShader *shadow_sh;
@@ -189,6 +193,7 @@ extern char datatoc_common_math_lib_glsl[];
 extern char datatoc_common_math_geom_lib_glsl[];
 extern char datatoc_common_view_lib_glsl[];
 extern char datatoc_gpu_shader_common_obinfos_lib_glsl[];
+extern char datatoc_common_colorpacking_lib_glsl[];
 
 extern char datatoc_ambient_occlusion_lib_glsl[];
 extern char datatoc_background_vert_glsl[];
@@ -225,6 +230,10 @@ extern char datatoc_effect_motion_blur_frag_glsl[];
 extern char datatoc_effect_reflection_lib_glsl[];
 extern char datatoc_effect_reflection_resolve_frag_glsl[];
 extern char datatoc_effect_reflection_trace_frag_glsl[];
+extern char datatoc_effect_ssgi_filter_sec_frag_glsl[];
+extern char datatoc_effect_ssgi_filter_frag_glsl[];
+extern char datatoc_effect_ssgi_resolve_frag_glsl[];
+extern char datatoc_effect_ssgi_trace_frag_glsl[];
 extern char datatoc_effect_subsurface_frag_glsl[];
 extern char datatoc_effect_temporal_aa_glsl[];
 extern char datatoc_effect_translucency_frag_glsl[];
@@ -386,6 +395,7 @@ static void eevee_shader_library_ensure(void)
     /* NOTE: These need to be ordered by dependencies. */
     DRW_SHADER_LIB_ADD(e_data.lib, common_math_lib);
     DRW_SHADER_LIB_ADD(e_data.lib, common_math_geom_lib);
+    DRW_SHADER_LIB_ADD(e_data.lib, common_colorpacking_lib);
     DRW_SHADER_LIB_ADD(e_data.lib, common_hair_lib);
     DRW_SHADER_LIB_ADD(e_data.lib, common_view_lib);
     DRW_SHADER_LIB_ADD(e_data.lib, common_uniforms_lib);
@@ -859,6 +869,17 @@ struct GPUShader *EEVEE_shaders_effect_reflection_trace_sh_get(void)
   return e_data.reflection_trace;
 }
 
+struct GPUShader *EEVEE_shaders_effect_ssgi_trace_sh_get(void)
+{
+  if (e_data.ssgi_trace == NULL) {
+    e_data.ssgi_trace = DRW_shader_create_fullscreen_with_shaderlib(
+        datatoc_effect_ssgi_trace_frag_glsl,
+        e_data.lib,
+        SHADER_DEFINES "#define STEP_RAYTRACE\n");
+  }
+  return e_data.ssgi_trace;
+}
+
 struct GPUShader *EEVEE_shaders_effect_reflection_resolve_sh_get(void)
 {
   if (e_data.reflection_resolve == NULL) {
@@ -868,6 +889,39 @@ struct GPUShader *EEVEE_shaders_effect_reflection_resolve_sh_get(void)
         SHADER_DEFINES "#define STEP_RESOLVE\n");
   }
   return e_data.reflection_resolve;
+}
+
+struct GPUShader *EEVEE_shaders_effect_ssgi_resolve_sh_get(void)
+{
+  if (e_data.ssgi_resolve == NULL) {
+    e_data.ssgi_resolve = DRW_shader_create_fullscreen_with_shaderlib(
+        datatoc_effect_ssgi_resolve_frag_glsl,
+        e_data.lib,
+        SHADER_DEFINES "#define STEP_RESOLVE_GI\n");
+  }
+  return e_data.ssgi_resolve;
+}
+
+struct GPUShader *EEVEE_shaders_effect_ssgi_filter_sh_get(void)
+{
+  if (e_data.ssgi_filter == NULL) {
+    e_data.ssgi_filter = DRW_shader_create_fullscreen_with_shaderlib(
+        datatoc_effect_ssgi_filter_frag_glsl,
+        e_data.lib,
+        SHADER_DEFINES "#define STEP_FILTER_GI\n");
+  }
+  return e_data.ssgi_filter;
+}
+
+struct GPUShader *EEVEE_shaders_effect_ssgi_filter_sec_sh_get(void)
+{
+  if (e_data.ssgi_filter_sec == NULL) {
+    e_data.ssgi_filter_sec = DRW_shader_create_fullscreen_with_shaderlib(
+        datatoc_effect_ssgi_filter_sec_frag_glsl,
+        e_data.lib,
+        SHADER_DEFINES "#define STEP_FILTER_SEC_GI\n");
+  }
+  return e_data.ssgi_filter_sec;
 }
 
 /** \} */
@@ -1722,7 +1776,11 @@ void EEVEE_shaders_free(void)
     DRW_SHADER_FREE_SAFE(e_data.bloom_resolve_sh[i]);
   }
   DRW_SHADER_FREE_SAFE(e_data.reflection_trace);
+  DRW_SHADER_FREE_SAFE(e_data.ssgi_trace);
   DRW_SHADER_FREE_SAFE(e_data.reflection_resolve);
+  DRW_SHADER_FREE_SAFE(e_data.ssgi_resolve);
+  DRW_SHADER_FREE_SAFE(e_data.ssgi_filter);
+  DRW_SHADER_FREE_SAFE(e_data.ssgi_filter_sec);
   DRW_SHADER_LIB_FREE_SAFE(e_data.lib);
 
   if (e_data.default_world) {

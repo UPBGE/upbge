@@ -1,6 +1,7 @@
 
 #pragma BLENDER_REQUIRE(common_math_geom_lib.glsl)
 #pragma BLENDER_REQUIRE(renderpass_lib.glsl)
+#pragma BLENDER_REQUIRE(common_colorpacking_lib.glsl)
 
 #ifndef VOLUMETRICS
 
@@ -97,10 +98,18 @@ Closure closure_mix(Closure cl1, Closure cl2, float fac)
   cl.transmittance = mix(cl1.transmittance, cl2.transmittance, fac);
   cl.radiance = mix(cl1.radiance, cl2.radiance, fac);
   cl.flag = cl1.flag | cl2.flag;
-  cl.ssr_data = mix(cl1.ssr_data, cl2.ssr_data, fac);
+  /* unpack TODO - clean up */
+  vec4 spec_cl1 = vec4(0.0,0.0,0.0,1.0);
+  vec4 spec_cl2 = vec4(0.0,0.0,0.0,1.0);
+  vec4 diffuse_cl1 = vec4(0.0,0.0,0.0,1.0);
+  vec4 diffuse_cl2 = vec4(0.0,0.0,0.0,1.0);
+  unpackVec4(cl1.ssr_data, spec_cl1, diffuse_cl1);
+  unpackVec4(cl2.ssr_data, spec_cl2, diffuse_cl2);
+
+  cl.ssr_data.rgb = packVec3(mix(spec_cl1.rgb, spec_cl2.rgb, fac), mix(diffuse_cl1.rgb, diffuse_cl2.rgb, fac));
   bool use_cl1_ssr = FLAG_TEST(cl1.flag, CLOSURE_SSR_FLAG);
-  /* When mixing SSR don't blend roughness and normals but only specular (ssr_data.xyz). */
-  cl.ssr_data.w = (use_cl1_ssr) ? cl1.ssr_data.w : cl2.ssr_data.w;
+  /* When mixing SSR don't blend roughness and normals but only specular (ssr_data.xyz).*/
+  cl.ssr_data.w = (use_cl1_ssr) ? packFloat(spec_cl1.a,  mix(diffuse_cl1.a, diffuse_cl2.a, fac)) : packFloat(spec_cl2.a,  mix(diffuse_cl1.a, diffuse_cl2.a, fac));
   cl.ssr_normal = (use_cl1_ssr) ? cl1.ssr_normal : cl2.ssr_normal;
 
 #  ifdef USE_SSS
@@ -120,10 +129,18 @@ Closure closure_add(Closure cl1, Closure cl2)
   cl.radiance = cl1.radiance + cl2.radiance;
   cl.holdout = cl1.holdout + cl2.holdout;
   cl.flag = cl1.flag | cl2.flag;
-  cl.ssr_data = cl1.ssr_data + cl2.ssr_data;
+  /* unpack TODO - clean up */
+  vec4 spec_cl1 = vec4(0.0,0.0,0.0,1.0);
+  vec4 spec_cl2 = vec4(0.0,0.0,0.0,1.0);
+  vec4 diffuse_cl1 = vec4(0.0,0.0,0.0,1.0);
+  vec4 diffuse_cl2 = vec4(0.0,0.0,0.0,1.0);
+  unpackVec4(cl1.ssr_data, spec_cl1, diffuse_cl1);
+  unpackVec4(cl2.ssr_data, spec_cl2, diffuse_cl2);
+
+  cl.ssr_data.rgb = packVec3((spec_cl1.rgb + spec_cl2.rgb), (diffuse_cl1.rgb + diffuse_cl2.rgb));
   bool use_cl1_ssr = FLAG_TEST(cl1.flag, CLOSURE_SSR_FLAG);
-  /* When mixing SSR don't blend roughness and normals. */
-  cl.ssr_data.w = (use_cl1_ssr) ? cl1.ssr_data.w : cl2.ssr_data.w;
+  /* When mixing SSR don't blend roughness and normals.*/
+  cl.ssr_data.w = (use_cl1_ssr) ? packFloat(spec_cl1.a, diffuse_cl1.a + diffuse_cl2.a): packFloat(spec_cl2.a, diffuse_cl1.a + diffuse_cl2.a);
   cl.ssr_normal = (use_cl1_ssr) ? cl1.ssr_normal : cl2.ssr_normal;
 
 #  ifdef USE_SSS
@@ -155,17 +172,23 @@ vec3 closure_mask_ssr_radiance(vec3 radiance, float ssr_id)
 }
 
 void closure_load_ssr_data(
-    vec3 ssr_radiance, float roughness, vec3 N, float ssr_id, inout Closure cl)
+    vec3 ssr_radiance, float roughness, vec3 N, float ssr_id, inout Closure cl, vec3 rgb_diffuse, float ao)
 {
-  /* Still encode to avoid artifacts in the SSR pass. */
+  /* Packed colors to a 32bit texture - avoids few fetches, but would make more sense to use separate 16 bit buffers or at least pack before writing to buffer */
+  /* A for Spec, B for Diffuse */
+  /* color inputs over 1.0 are valid and should be allowed - so using clamped range of 0.0 - 10.0 */
+
+  /* Still encode normals to avoid artifacts in the SSR pass. */
   vec3 vN = normalize(mat3(ViewMatrix) * N);
   cl.ssr_normal = normal_encode(vN, viewCameraVec(viewPosition));
 
+  cl.ssr_data = packVec4(vec4(ssr_radiance, roughness), vec4(rgb_diffuse, ao));
   if (ssrToggle && int(ssr_id) == outputSsrId) {
-    cl.ssr_data = vec4(ssr_radiance, roughness);
+    cl.ssr_data = packVec4(vec4(ssr_radiance, roughness), vec4(rgb_diffuse, ao));
     cl.flag |= CLOSURE_SSR_FLAG;
   }
   else {
+    cl.ssr_data = packVec4(vec4(0.0,0.0,0.0, 0.0), vec4(rgb_diffuse, ao));
     cl.radiance += ssr_radiance;
   }
 }

@@ -299,6 +299,10 @@ typedef struct EEVEE_PassList {
   struct DRWPass *volumetric_accum_ps;
   struct DRWPass *ssr_raytrace;
   struct DRWPass *ssr_resolve;
+  struct DRWPass *ssgi_raytrace;
+  struct DRWPass *ssgi_resolve;
+  struct DRWPass *ssgi_filter;
+  struct DRWPass *ssgi_filter_sec;
   struct DRWPass *sss_blur_ps;
   struct DRWPass *sss_resolve_ps;
   struct DRWPass *sss_translucency_ps;
@@ -365,6 +369,7 @@ typedef struct EEVEE_FramebufferList {
   struct GPUFrameBuffer *cryptomatte_fb;
   struct GPUFrameBuffer *shadow_accum_fb;
   struct GPUFrameBuffer *ssr_accum_fb;
+  struct GPUFrameBuffer *ssgi_accum_fb; /* TODO - use */
   struct GPUFrameBuffer *sss_blur_fb;
   struct GPUFrameBuffer *sss_blit_fb;
   struct GPUFrameBuffer *sss_resolve_fb;
@@ -390,6 +395,7 @@ typedef struct EEVEE_FramebufferList {
   struct GPUFrameBuffer *volumetric_integ_fb;
   struct GPUFrameBuffer *volumetric_accum_fb;
   struct GPUFrameBuffer *screen_tracing_fb;
+  struct GPUFrameBuffer *screen_tracing_ssgi_fb; // Filter
   struct GPUFrameBuffer *mist_accum_fb;
   struct GPUFrameBuffer *material_accum_fb;
   struct GPUFrameBuffer *renderpass_fb;
@@ -436,6 +442,7 @@ typedef struct EEVEE_TextureList {
   struct GPUTexture *emit_accum;
   struct GPUTexture *bloom_accum;
   struct GPUTexture *ssr_accum;
+  struct GPUTexture *ssgi_accum; /* TODO - use */
   struct GPUTexture *shadow_accum;
   struct GPUTexture *cryptomatte;
   struct GPUTexture *taa_history;
@@ -745,13 +752,18 @@ typedef struct EEVEE_EffectsInfo {
   struct GPUTexture *volume_scatter;
   struct GPUTexture *volume_transmit;
   /* SSR */
-  bool reflection_trace_full;
+  bool reflection_trace_full; /* TODO SSGI separate res toggle */
   bool ssr_was_persp;
   bool ssr_was_valid_double_buffer;
   struct GPUTexture *ssr_normal_input; /* Textures from pool */
   struct GPUTexture *ssr_specrough_input;
   struct GPUTexture *ssr_hit_output;
   struct GPUTexture *ssr_hit_depth;
+  /* SSGI (shares ssr data) */
+  struct GPUTexture *ssgi_hit_output; //trace
+  struct GPUTexture *ssgi_hit_depth; //trace
+  struct GPUTexture *ssgi_filter_input;  //filter a
+  struct GPUTexture *ssgi_filter_sec_input; //filter b
   /* Temporal Anti Aliasing */
   int taa_reproject_sample;
   int taa_current_sample;
@@ -916,6 +928,31 @@ typedef struct EEVEE_CommonUniformBuffer {
   float pad8;              /* float */
   float pad9;              /* float */
   float pad10;             /* float */
+  /* SSGI */
+  float ssr_diffuse_versioning;                       /* float */
+  float ssr_diffuse_intensity;                        /* float *//* trace */
+  float ssr_diffuse_thickness;                        /* float */
+  float ssr_diffuse_resolve_bias;                     /* float */
+  float ssr_diffuse_quality;                          /* float */
+  float ssr_diffuse_clamp;                            /* float */
+  float ssr_diffuse_ao;                               /* float */
+  float ssr_diffuse_ao_limit;                         /* float */
+  int ssr_diffuse_probe_trace;                        /* int */ /* probe */
+  float ssr_diffuse_probe_intensity;                  /* float */
+  float ssr_diffuse_probe_clamp;                      /* float */
+  float ssr_diffuse_filter;                           /* float *//* filter */
+  float ssr_diffuse_fsize;                            /* float */
+  int ssr_diffuse_fsamples;                           /* int */
+  float ssr_diffuse_fnweight;                         /* float */
+  float ssr_diffuse_fdweight;                         /* float */
+  float ssr_diffuse_faoweight;                        /* float */
+  float ssr_diffuse_debug_a;                          /* float *//* debug */
+  float ssr_diffuse_debug_b;                          /* float */
+  float ssr_diffuse_debug_c;                          /* float */
+  float ssr_diffuse_debug_d;                          /* float */
+  float pad130;
+  float pad131;
+  float pad132;
 } EEVEE_CommonUniformBuffer;
 
 BLI_STATIC_ASSERT_ALIGN(EEVEE_CommonUniformBuffer, 16)
@@ -1235,6 +1272,10 @@ struct GPUShader *EEVEE_shaders_effect_ambient_occlusion_sh_get(void);
 struct GPUShader *EEVEE_shaders_effect_ambient_occlusion_debug_sh_get(void);
 struct GPUShader *EEVEE_shaders_effect_reflection_trace_sh_get(void);
 struct GPUShader *EEVEE_shaders_effect_reflection_resolve_sh_get(void);
+struct GPUShader *EEVEE_shaders_effect_ssgi_trace_sh_get(void);
+struct GPUShader *EEVEE_shaders_effect_ssgi_resolve_sh_get(void);
+struct GPUShader *EEVEE_shaders_effect_ssgi_filter_sh_get(void);
+struct GPUShader *EEVEE_shaders_effect_ssgi_filter_sec_sh_get(void);
 struct GPUShader *EEVEE_shaders_renderpasses_post_process_sh_get(void);
 struct GPUShader *EEVEE_shaders_cryptomatte_sh_get(bool is_hair);
 struct GPUShader *EEVEE_shaders_shadow_sh_get(void);

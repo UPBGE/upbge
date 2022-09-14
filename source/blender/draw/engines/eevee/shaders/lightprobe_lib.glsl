@@ -186,6 +186,29 @@ vec3 probe_evaluate_world_spec(vec3 R, float roughness)
   return textureLod_cubemapArray(probeCubes, vec4(R, 0.0), lod).rgb;
 }
 
+vec3 probe_evaluate_cube_diffuse_trace(int pd_id, vec3 P, vec3 R)
+{
+  /* Correct reflection ray using parallax volume intersection. */
+  vec3 localpos = transform_point(probes_data[pd_id].parallaxmat, P);
+  vec3 localray = transform_direction(probes_data[pd_id].parallaxmat, R);
+
+  // float dist;
+  // if (probes_data[pd_id].p_parallax_type == PROBE_PARALLAX_BOX) {
+  //   dist = line_unit_box_intersect_dist(localpos, localray);
+  // }
+  // else {
+  //   dist = line_unit_sphere_intersect_dist(localpos, localray);
+  // }
+
+  float lod = prbLodCubeMax;
+  return textureLod_cubemapArray(probeCubes, vec4(R, float(pd_id)), prbLodCubeMax).rgb;
+}
+
+vec3 probe_evaluate_world_cubemap_ssgi(vec3 R)
+{
+  return textureLod_cubemapArray(probeCubes, vec4(R, 0.0), prbLodCubeMax).rgb;
+}
+
 vec3 probe_evaluate_planar(int id, PlanarData pd, vec3 P, vec3 N, vec3 V, float roughness)
 {
   /* Find view vector / reflection plane intersection. */
@@ -241,6 +264,31 @@ void fallback_cubemap(vec3 N,
   /* World Specular */
   if (spec_accum.a < 0.999) {
     vec3 spec = final_ao * probe_evaluate_world_spec(spec_dir, roughness);
+    accumulate_light(spec, 1.0, spec_accum);
+  }
+}
+
+void fallback_cubemap_ssgi(vec3 N,
+                      vec3 P,
+                      inout vec4 spec_accum)
+{
+  /* Specular probes */
+
+  /* Starts at 1 because 0 is world probe */
+/*   for (int i = 1; i < MAX_PROBE && i < prbNumRenderCube && spec_accum.a < 0.999; i++) {
+    float fade = 1.0;
+    //fade = probe_attenuation_cube(i, P);
+
+    if (fade > 0.0) {
+      //vec3 spec = probe_evaluate_cube_diffuse_trace(i, P, N);
+      vec3 spec = textureLod_cubemapArray(probeCubes, vec4(N, float(i)), prbLodCubeMax).rgb;
+      accumulate_light(spec, fade, spec_accum);
+    }
+  } */
+
+  /* World Specular */
+  if (spec_accum.a < 0.999) {
+    vec3 spec = textureLod_cubemapArray(probeCubes, vec4(N, 1.0), prbLodCubeMax).rgb;
     accumulate_light(spec, 1.0, spec_accum);
   }
 }
@@ -303,6 +351,14 @@ vec3 probe_evaluate_grid(GridData gd, vec3 P, vec3 N, vec3 localpos)
 }
 
 vec3 probe_evaluate_world_diff(vec3 N)
+{
+  if (prbNumRenderGrid == 0) {
+    return vec3(0);
+  }
+  return irradiance_from_cell_get(0, N);
+}
+
+vec3 evaluate_diffuse_probe_ssgi(vec3 N) //TODO: routine for probe selection
 {
   if (prbNumRenderGrid == 0) {
     return vec3(0);

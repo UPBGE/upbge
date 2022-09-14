@@ -26,6 +26,17 @@ struct HitData {
   bool is_planar;
 };
 
+struct SsgiHitData {
+  /** Hit direction scaled by intersection time. */
+  vec3 hit_dir;
+  /** Screen space [0..1] depth of the reflection hit position, or -1.0 for planar reflections (unused). */
+  float hit_depth;
+  /** Inverse probability of ray spawning in this direction. */
+  float ray_pdf_inv;
+  /** True if ray has hit valid geometry. */
+  bool is_hit;
+};
+
 void encode_hit_data(HitData data, vec3 hit_sP, vec3 vP, out vec4 hit_data, out float hit_depth)
 {
   vec3 hit_vP = get_view_space_from_depth(hit_sP.xy, hit_sP.z);
@@ -36,6 +47,15 @@ void encode_hit_data(HitData data, vec3 hit_sP, vec3 vP, out vec4 hit_data, out 
   hit_data.w = data.ray_pdf_inv * ((data.is_hit) ? 1.0 : -1.0);
 }
 
+void ssgi_encode_hit_data(SsgiHitData data, vec3 hit_sP, vec3 vP, out vec4 hit_data, out float hit_depth)
+{
+  vec3 hit_vP = get_view_space_from_depth(hit_sP.xy, hit_sP.z);
+  hit_data.xyz = hit_vP - vP;
+  hit_depth = hit_sP.z;
+  /* Record 1.0 / pdf to reduce the computation in the resolve phase. */
+  /* Encode hit validity in sign. */
+  hit_data.w = data.ray_pdf_inv * ((data.is_hit) ? 1.0 : -1.0);
+}
 HitData decode_hit_data(vec4 hit_data, float hit_depth)
 {
   HitData data;
@@ -47,6 +67,15 @@ HitData decode_hit_data(vec4 hit_data, float hit_depth)
   return data;
 }
 
+SsgiHitData ssgi_decode_hit_data(vec4 hit_data, float hit_depth)
+{
+  SsgiHitData data;
+  data.hit_dir.xyz = hit_data.xyz;
+  data.hit_depth = hit_depth;
+  data.ray_pdf_inv = abs(hit_data.w);
+  data.is_hit = (hit_data.w > 0.0);
+  return data;
+}
 /* Blue noise categorised into 4 sets of samples.
  * See "Stochastic all the things" presentation slide 32-37. */
 const int resolve_samples_count = 9;

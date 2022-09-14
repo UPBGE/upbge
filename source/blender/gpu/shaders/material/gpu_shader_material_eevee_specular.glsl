@@ -50,7 +50,7 @@ void node_eevee_specular(vec4 diffuse,
     out_Glossy_1.radiance *= brdf;
     out_Glossy_1.radiance = render_pass_glossy_mask(specular.rgb, out_Glossy_1.radiance);
     closure_load_ssr_data(
-        out_Glossy_1.radiance, in_Glossy_1.roughness, in_Glossy_1.N, ssr_id, result);
+        out_Glossy_1.radiance, in_Glossy_1.roughness, in_Glossy_1.N, ssr_id, result, diffuse.rgb, out_Diffuse_0.AO);
   }
   {
     /* Clearcoat. */

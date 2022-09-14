@@ -157,7 +157,7 @@
 #define ClosureInputDummy ClosureOutput
 #define ClosureOutputDummy ClosureOutput
 #define ClosureEvalDummy ClosureOutput
-#define CLOSURE_EVAL_DUMMY ClosureOutput(vec3(0))
+#define CLOSURE_EVAL_DUMMY ClosureOutput(vec3(0), float(0.0))
 #define CLOSURE_INPUT_Dummy_DEFAULT CLOSURE_EVAL_DUMMY
 #define closure_Dummy_eval_init(cl_in, cl_common, cl_out) CLOSURE_EVAL_DUMMY
 #define closure_Dummy_planar_eval(cl_in, cl_eval, cl_common, data, cl_out)
@@ -211,6 +211,7 @@ struct ClosureEvalCommon {
 /* Common cl_out struct used by most closures. */
 struct ClosureOutput {
   vec3 radiance;
+  float AO;
 };
 
 /* Workaround for screenspace shadows in SSR pass. */
