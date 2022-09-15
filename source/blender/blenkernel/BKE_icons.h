@@ -20,7 +20,7 @@ extern "C" {
 
 #include "BLI_compiler_attrs.h"
 
-#include "DNA_ID.h" /* UPBGE linking error gcc linux */
+#include "DNA_ID_enums.h"
 
 typedef void (*DrawInfoFreeFP)(void *drawinfo);
 

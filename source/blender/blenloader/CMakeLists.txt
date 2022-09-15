@@ -33,12 +33,12 @@ set(INC_SYS
 
 set(SRC
   ${CMAKE_SOURCE_DIR}/release/datafiles/userdef/userdef_default_theme.c
-  intern/blend_validate.c
-  intern/readblenentry.c
-  intern/readfile.c
-  intern/readfile_tempload.c
+  intern/blend_validate.cc
+  intern/readblenentry.cc
+  intern/readfile.cc
+  intern/readfile_tempload.cc
   intern/runtime.c
-  intern/undofile.c
+  intern/undofile.cc
   intern/versioning_250.c
   intern/versioning_260.c
   intern/versioning_270.c
@@ -53,7 +53,7 @@ set(SRC
   intern/versioning_legacy.c
   intern/versioning_upbge.c
   intern/versioning_userdef.c
-  intern/writefile.c
+  intern/writefile.cc
 
   BLO_blend_defs.h
   BLO_blend_validate.h
@@ -96,6 +96,18 @@ if(WITH_GAMEENGINE_BPPLAYER)
   )
 
   add_definitions(-DWITH_GAMEENGINE_BPPLAYER)
+endif()
+
+if(WITH_TBB)
+  list(APPEND INC_SYS
+    ${TBB_INCLUDE_DIRS}
+  )
+  add_definitions(-DWITH_TBB)
+  if(WIN32)
+    # TBB includes Windows.h which will define min/max macros
+    # that will collide with the stl versions.
+    add_definitions(-DNOMINMAX)
+  endif()
 endif()
 
 blender_add_lib(bf_blenloader "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

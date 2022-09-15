@@ -3535,10 +3535,10 @@ static void rna_def_space_image_uv(BlenderRNA *brna)
       {0, NULL, 0, NULL, NULL},
   };
 
-  static const EnumPropertyItem pixel_snap_mode_items[] = {
-      {SI_PIXEL_SNAP_DISABLED, "DISABLED", 0, "Disabled", "Don't snap to pixels"},
-      {SI_PIXEL_SNAP_CORNER, "CORNER", 0, "Corner", "Snap to pixel corners"},
-      {SI_PIXEL_SNAP_CENTER, "CENTER", 0, "Center", "Snap to pixel centers"},
+  static const EnumPropertyItem pixel_round_mode_items[] = {
+      {SI_PIXEL_ROUND_DISABLED, "DISABLED", 0, "Disabled", "Don't round to pixels"},
+      {SI_PIXEL_ROUND_CORNER, "CORNER", 0, "Corner", "Round to pixel corners"},
+      {SI_PIXEL_ROUND_CENTER, "CENTER", 0, "Center", "Round to pixel centers"},
       {0, NULL, 0, NULL, NULL},
   };
 
@@ -3628,11 +3628,9 @@ static void rna_def_space_image_uv(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "UV Opacity", "Opacity of UV overlays");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, NULL);
 
-  /* TODO: move edge and face drawing options here from `G.f`. */
-
-  prop = RNA_def_property(srna, "pixel_snap_mode", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, pixel_snap_mode_items);
-  RNA_def_property_ui_text(prop, "Snap to Pixels", "Snap UVs to pixels while editing");
+  prop = RNA_def_property(srna, "pixel_round_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, pixel_round_mode_items);
+  RNA_def_property_ui_text(prop, "Round to Pixels", "Round UVs to pixels while editing");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, NULL);
 
   prop = RNA_def_property(srna, "lock_bounds", PROP_BOOLEAN, PROP_NONE);
@@ -4002,6 +4000,7 @@ static void rna_def_space_view3d_shading(BlenderRNA *brna)
   prop = RNA_def_property(srna, "cavity_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, cavity_type_items);
   RNA_def_property_ui_text(prop, "Cavity Type", "Way to display the cavity shading");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_EDITOR_VIEW3D);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D | NS_VIEW3D_SHADING, NULL);
 
   prop = RNA_def_property(srna, "curvature_ridge_factor", PROP_FLOAT, PROP_FACTOR);
