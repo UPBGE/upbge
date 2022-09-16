@@ -556,7 +556,10 @@ void KX_Scene::AddOverlayCollection(KX_Camera *overlay_cam, Collection *collecti
       replica->GetBlenderObject()->gameflag |= OB_OVERLAY_COLLECTION;
       bContext *C = KX_GetActiveEngine()->GetContext();
       Main *bmain = CTX_data_main(C);
+      const Scene *scene = GetBlenderScene();
       BKE_collection_object_add(bmain, collection, replica->GetBlenderObject());
+      /* If issue see: 68589a31ebfb79165f99a979357d237e5413e904 */
+      BKE_view_layer_synced_ensure(scene, BKE_view_layer_default_view(scene));
       // release here because AddReplicaObject AddRef's
       // the object is added to the scene so we don't want python to own a reference
       replica->Release();
