@@ -746,6 +746,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   engine->CountDepsgraphTime();
 
   if (m_collectionRemap) {
+    /* check 68589a31ebfb79165f99a979357d237e5413e904 for potential issue or improvement? */
     BKE_main_collection_sync_remap(bmain);
     m_collectionRemap = false;
   }

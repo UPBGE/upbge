@@ -376,6 +376,8 @@ void KX_GameObject::ReplicateBlenderObject()
     newob->base_flag |= (BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
                          BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT);
     newob->visibility_flag &= ~OB_HIDE_VIEWPORT;
+
+    /* This will call BKE_main_collection_sync_remap at frame end. */
     GetScene()->TagForCollectionRemap();
 
     if (ob->parent) {
