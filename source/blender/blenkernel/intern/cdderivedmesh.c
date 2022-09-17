@@ -173,72 +173,72 @@ static const MeshElemMap *cdDM_getPolyMap(Object *ob, DerivedMesh *dm)
   return cddm->pmap;
 }
 
-static PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
-{
-  CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
-
-  if (!ob) {
-    cddm->pbvh = NULL;
-    return NULL;
-  }
-
-  if (!ob->sculpt) {
-    return NULL;
-  }
-
-  if (ob->sculpt->pbvh) {
-    cddm->pbvh = ob->sculpt->pbvh;
-    // cddm->pbvh_draw = can_pbvh_draw(ob, dm);
-  }
-
-  /* Sculpting on a BMesh (dynamic-topology) gets a special PBVH */
-  if (!cddm->pbvh && ob->sculpt->bm) {
-    cddm->pbvh = BKE_pbvh_new();
-    // cddm->pbvh_draw = true;
-
-    BKE_pbvh_build_bmesh(cddm->pbvh,
-                         ob->sculpt->bm,
-                         ob->sculpt->bm_smooth_shading,
-                         ob->sculpt->bm_log,
-                         ob->sculpt->cd_vert_node_offset,
-                         ob->sculpt->cd_face_node_offset);
-
-    pbvh_show_mask_set(cddm->pbvh, ob->sculpt->show_mask);
-  }
-
-  /* always build pbvh from original mesh, and only use it for drawing if
-   * this derivedmesh is just original mesh. it's the multires subsurf dm
-   * that this is actually for, to support a pbvh on a modified mesh */
-  if (!cddm->pbvh && ob->type == OB_MESH) {
-    Mesh *me = BKE_object_get_original_mesh(ob);
-    const int looptris_num = poly_to_tri_count(me->totpoly, me->totloop);
-    MLoopTri *looptri;
-    // bool deformed;
-
-    cddm->pbvh = BKE_pbvh_new();
-    // cddm->pbvh_draw = can_pbvh_draw(ob, dm);
-
-    looptri = MEM_malloc_arrayN(looptris_num, sizeof(*looptri), __func__);
-
-    BKE_mesh_recalc_looptri(me->mloop, me->mpoly, me->mvert, me->totloop, me->totpoly, looptri);
-
-    BKE_pbvh_build_mesh(cddm->pbvh,
-                        me,
-                        me->mpoly,
-                        me->mloop,
-                        me->mvert,
-                        me->totvert,
-                        &me->vdata,
-                        &me->ldata,
-                        &me->pdata,
-                        looptri,
-                        looptris_num);
-
-    pbvh_show_mask_set(cddm->pbvh, ob->sculpt->show_mask);
-  }
-
-  return cddm->pbvh;
-}
+//static PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
+//{
+//  CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
+//
+//  if (!ob) {
+//    cddm->pbvh = NULL;
+//    return NULL;
+//  }
+//
+//  if (!ob->sculpt) {
+//    return NULL;
+//  }
+//
+//  if (ob->sculpt->pbvh) {
+//    cddm->pbvh = ob->sculpt->pbvh;
+//    // cddm->pbvh_draw = can_pbvh_draw(ob, dm);
+//  }
+//
+//  /* Sculpting on a BMesh (dynamic-topology) gets a special PBVH */
+//  if (!cddm->pbvh && ob->sculpt->bm) {
+//    cddm->pbvh = BKE_pbvh_new();
+//    // cddm->pbvh_draw = true;
+//
+//    BKE_pbvh_build_bmesh(cddm->pbvh,
+//                         ob->sculpt->bm,
+//                         ob->sculpt->bm_smooth_shading,
+//                         ob->sculpt->bm_log,
+//                         ob->sculpt->cd_vert_node_offset,
+//                         ob->sculpt->cd_face_node_offset);
+//
+//    pbvh_show_mask_set(cddm->pbvh, ob->sculpt->show_mask);
+//  }
+//
+//  /* always build pbvh from original mesh, and only use it for drawing if
+//   * this derivedmesh is just original mesh. it's the multires subsurf dm
+//   * that this is actually for, to support a pbvh on a modified mesh */
+//  if (!cddm->pbvh && ob->type == OB_MESH) {
+//    Mesh *me = BKE_object_get_original_mesh(ob);
+//    const int looptris_num = poly_to_tri_count(me->totpoly, me->totloop);
+//    MLoopTri *looptri;
+//    // bool deformed;
+//
+//    cddm->pbvh = BKE_pbvh_new();
+//    // cddm->pbvh_draw = can_pbvh_draw(ob, dm);
+//
+//    looptri = MEM_malloc_arrayN(looptris_num, sizeof(*looptri), __func__);
+//
+//    BKE_mesh_recalc_looptri(me->mloop, me->mpoly, me->mvert, me->totloop, me->totpoly, looptri);
+//
+//    BKE_pbvh_build_mesh(cddm->pbvh,
+//                        me,
+//                        me->mpoly,
+//                        me->mloop,
+//                        me->mvert,
+//                        me->totvert,
+//                        &me->vdata,
+//                        &me->ldata,
+//                        &me->pdata,
+//                        looptri,
+//                        looptris_num);
+//
+//    pbvh_show_mask_set(cddm->pbvh, ob->sculpt->show_mask);
+//  }
+//
+//  return cddm->pbvh;
+//}
 
 static void cdDM_foreachMappedVert(DerivedMesh *dm,
                                    void (*func)(void *userData, int index, const float co[3], const float no[3]),
@@ -492,7 +492,7 @@ static CDDerivedMesh *cdDM_create(const char *desc)
   dm->getVertCo = cdDM_getVertCo;
   dm->getVertNo = cdDM_getVertNo;
 
-  dm->getPBVH = cdDM_getPBVH;
+  //dm->getPBVH = cdDM_getPBVH;
 
   dm->foreachMappedVert = cdDM_foreachMappedVert;
   dm->foreachMappedEdge = cdDM_foreachMappedEdge;
