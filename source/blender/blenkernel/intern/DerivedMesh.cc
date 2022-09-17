@@ -307,7 +307,7 @@ void DM_init_funcs(DerivedMesh *dm)
 
   dm->getLoopTriArray = dm_getLoopTriArray;
 
-  /* subtypes handle getting actual data */
+  /* Sub-types handle getting actual data. */
   dm->getNumLoopTri = dm_getNumLoopTri;
 
   dm->getVertDataLayout = dm_getVertCData;

@@ -194,9 +194,10 @@ void SCULPT_vertex_normal_get(SculptSession *ss, PBVHVertRef vertex, float no[3]
 
 const float *SCULPT_vertex_persistent_co_get(SculptSession *ss, PBVHVertRef vertex)
 {
-  if (ss->persistent_base) {
-    return ss->persistent_base[BKE_pbvh_vertex_to_index(ss->pbvh, vertex)].co;
+  if (ss->attrs.persistent_co) {
+    return (const float *)SCULPT_vertex_attr_get(vertex, ss->attrs.persistent_co);
   }
+
   return SCULPT_vertex_co_get(ss, vertex);
 }
 
@@ -240,8 +241,8 @@ void SCULPT_vertex_limit_surface_get(SculptSession *ss, PBVHVertRef vertex, floa
 
 void SCULPT_vertex_persistent_normal_get(SculptSession *ss, PBVHVertRef vertex, float no[3])
 {
-  if (ss->persistent_base) {
-    copy_v3_v3(no, ss->persistent_base[vertex.i].no);
+  if (ss->attrs.persistent_no) {
+    copy_v3_v3(no, (float *)SCULPT_vertex_attr_get(vertex, ss->attrs.persistent_no));
     return;
   }
   SCULPT_vertex_normal_get(ss, vertex, no);
@@ -3300,15 +3301,6 @@ static void do_brush_action(Sculpt *sd,
     BKE_pbvh_ensure_node_loops(ss->pbvh);
   }
 
-  if (SCULPT_tool_is_mask(brush->sculpt_tool)) {
-    MultiresModifierData *mmd = BKE_sculpt_multires_active(ss->scene, ob);
-    BKE_sculpt_mask_layers_ensure(ob, mmd);
-  }
-  if (SCULPT_tool_is_face_sets(brush->sculpt_tool)) {
-    Mesh *mesh = BKE_object_get_original_mesh(ob);
-    ss->face_sets = BKE_sculpt_face_sets_ensure(mesh);
-  }
-
   /* Build a list of all nodes that are potentially within the brush's area of influence */
 
   if (SCULPT_tool_needs_all_pbvh_nodes(brush)) {
@@ -5322,6 +5314,8 @@ void SCULPT_flush_update_done(const bContext *C, Object *ob, SculptUpdateType up
     BKE_pbvh_update_vertex_data(ss->pbvh, PBVH_UpdateColor);
   }
 
+  BKE_sculpt_attributes_destroy_temporary_stroke(ob);
+
   if (BKE_pbvh_type(ss->pbvh) == PBVH_BMESH) {
     BKE_pbvh_bmesh_after_stroke(ss->pbvh);
   }
@@ -5579,10 +5573,19 @@ static int sculpt_brush_stroke_invoke(bContext *C, wmOperator *op, const wmEvent
 
   Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
   Brush *brush = BKE_paint_brush(&sd->paint);
+  SculptSession *ss = ob->sculpt;
 
   if (SCULPT_tool_is_paint(brush->sculpt_tool) &&
       !SCULPT_handles_colors_report(ob->sculpt, op->reports)) {
     return OPERATOR_CANCELLED;
+  }
+  if (SCULPT_tool_is_mask(brush->sculpt_tool)) {
+    MultiresModifierData *mmd = BKE_sculpt_multires_active(ss->scene, ob);
+    BKE_sculpt_mask_layers_ensure(ob, mmd);
+  }
+  if (SCULPT_tool_is_face_sets(brush->sculpt_tool)) {
+    Mesh *mesh = BKE_object_get_original_mesh(ob);
+    ss->face_sets = BKE_sculpt_face_sets_ensure(mesh);
   }
 
   stroke = paint_stroke_new(C,

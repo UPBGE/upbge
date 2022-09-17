@@ -3272,7 +3272,7 @@ static int screen_maximize_area_exec(bContext *C, wmOperator *op)
 
   BLI_assert(!screen->temp);
 
-  /* search current screen for 'fullscreen' areas */
+  /* search current screen for 'full-screen' areas */
   /* prevents restoring info header, when mouse is over it */
   LISTBASE_FOREACH (ScrArea *, area_iter, &screen->areabase) {
     if (area_iter->full) {

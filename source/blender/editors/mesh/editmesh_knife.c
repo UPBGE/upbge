@@ -4378,7 +4378,7 @@ wmKeyMap *knifetool_modal_keymap(wmKeyConfig *keyconf)
 
   wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "Knife Tool Modal Map");
 
-  /* This function is called for each spacetype, only needs to add map once. */
+  /* This function is called for each space-type, only needs to add map once. */
   if (keymap && keymap->modal_items) {
     return NULL;
   }
@@ -4894,11 +4894,11 @@ void MESH_OT_knife_tool(wmOperatorType *ot)
                "Measurements",
                "Visible distance and angle measurements");
   prop = RNA_def_enum(ot->srna,
-               "angle_snapping",
-               angle_snapping_items,
-               KNF_CONSTRAIN_ANGLE_MODE_NONE,
-               "Angle Snapping",
-               "Angle snapping mode");
+                      "angle_snapping",
+                      angle_snapping_items,
+                      KNF_CONSTRAIN_ANGLE_MODE_NONE,
+                      "Angle Snapping",
+                      "Angle snapping mode");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_MESH);
 
   prop = RNA_def_float(ot->srna,

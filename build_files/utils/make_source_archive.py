@@ -19,6 +19,8 @@ from typing import Iterable, TextIO, Optional, Any, Union
 SKIP_NAMES = {
     ".gitignore",
     ".gitmodules",
+    ".gitattributes",
+    ".git-blame-ignore-revs",
     ".arcconfig",
     ".svn",
 }
@@ -154,7 +156,11 @@ def packages_to_manifest(outfile: TextIO, packages_dir: Path) -> None:
 
 
 def create_tarball(
-    version: make_utils.BlenderVersion, tarball: Path, manifest: Path, blender_srcdir: Path, packages_dir: Optional[Path]
+    version: make_utils.BlenderVersion,
+    tarball: Path,
+    manifest: Path,
+    blender_srcdir: Path,
+    packages_dir: Optional[Path],
 ) -> None:
     print(f'Creating archive:            "{tarball}" ...', end="", flush=True)
     command = ["tar"]
