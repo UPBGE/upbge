@@ -21,6 +21,7 @@
 
 extern "C" {
 #  include "ffmpeg_compat.h"
+#  include <libavcodec/avcodec.h>
 #  include <pthread.h>
 }
 
