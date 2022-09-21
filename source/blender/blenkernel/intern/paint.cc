@@ -1315,13 +1315,22 @@ void paint_update_brush_rake_rotation(UnifiedPaintSettings *ups, Brush *brush, f
   }
 }
 
+static bool paint_rake_rotation_active(const MTex &mtex)
+{
+  return mtex.tex && mtex.brush_angle_mode & MTEX_ANGLE_RAKE;
+}
+
+static bool paint_rake_rotation_active(const Brush &brush)
+{
+  return paint_rake_rotation_active(brush.mtex) || paint_rake_rotation_active(brush.mask_mtex);
+}
+
 bool paint_calculate_rake_rotation(UnifiedPaintSettings *ups,
                                    Brush *brush,
                                    const float mouse_pos[2])
 {
   bool ok = false;
-  if ((brush->mtex.brush_angle_mode & MTEX_ANGLE_RAKE) ||
-      (brush->mask_mtex.brush_angle_mode & MTEX_ANGLE_RAKE)) {
+  if (paint_rake_rotation_active(*brush)) {
     const float r = RAKE_THRESHHOLD;
     float rotation;
 
@@ -2422,10 +2431,10 @@ static bool sculpt_attribute_create(SculptSession *ss,
           "array "
           "instead.\n",
           __func__);
-      permanent = out->params.permanent = false;
+      permanent = (out->params.permanent = false);
     }
 
-    simple_array = out->params.simple_array = true;
+    simple_array = (out->params.simple_array = true);
   }
 
   BLI_assert(!(simple_array && permanent));
@@ -2791,11 +2800,6 @@ static void sculpt_attribute_update_refs(Object *ob)
   }
 }
 
-bool BKE_paint_uses_channels(ePaintMode mode)
-{
-  return mode == PAINT_MODE_SCULPT;
-}
-
 void BKE_sculpt_attribute_destroy_temporary_all(Object *ob)
 {
   SculptSession *ss = ob->sculpt;
@@ -2816,7 +2820,7 @@ bool BKE_sculpt_attribute_destroy(Object *ob, SculptAttribute *attr)
 
   BLI_assert(attr->used);
 
-  /* Remove from convienience pointer struct. */
+  /* Remove from convenience pointer struct. */
   SculptAttribute **ptrs = (SculptAttribute **)&ss->attrs;
   int ptrs_num = sizeof(ss->attrs) / sizeof(void *);
 

@@ -1890,6 +1890,15 @@ static void rna_SpaceUVEditor_tile_grid_shape_set(PointerRNA *ptr, const int *va
   }
 }
 
+static void rna_SpaceUVEditor_custom_grid_subdiv_set(PointerRNA *ptr, const int *values)
+{
+  SpaceImage *data = (SpaceImage *)(ptr->data);
+
+  for (int i = 0; i < 2; i++) {
+    data->custom_grid_subdiv[i] = CLAMPIS(values[i], 1, 5000);
+  }
+}
+
 /* Space Text Editor */
 
 static void rna_SpaceTextEditor_word_wrap_set(PointerRNA *ptr, bool value)
@@ -3615,9 +3624,12 @@ static void rna_def_space_image_uv(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Custom Grid", "Use a grid with a user-defined number of steps");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, NULL);
 
-  prop = RNA_def_property(srna, "custom_grid_subdivisions", PROP_INT, PROP_NONE);
+  prop = RNA_def_property(srna, "custom_grid_subdivisions", PROP_INT, PROP_XYZ);
   RNA_def_property_int_sdna(prop, NULL, "custom_grid_subdiv");
+  RNA_def_property_array(prop, 2);
+  RNA_def_property_int_default(prop, 10);
   RNA_def_property_range(prop, 1, 5000);
+  RNA_def_property_int_funcs(prop, NULL, "rna_SpaceUVEditor_custom_grid_subdiv_set", NULL);
   RNA_def_property_ui_text(
       prop, "Dynamic Grid Size", "Number of grid units in UV space that make one UV Unit");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, NULL);
@@ -6019,7 +6031,7 @@ static void rna_def_space_dopesheet(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "SpaceAction");
   RNA_def_struct_ui_text(srna, "Space Dope Sheet Editor", "Dope Sheet space data");
 
-  rna_def_space_generic_show_region_toggles(srna, (1 << RGN_TYPE_UI));
+  rna_def_space_generic_show_region_toggles(srna, (1 << RGN_TYPE_UI) | (1 << RGN_TYPE_HUD));
 
   /* data */
   prop = RNA_def_property(srna, "action", PROP_POINTER, PROP_NONE);
@@ -6332,7 +6344,7 @@ static void rna_def_space_nla(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "SpaceNla");
   RNA_def_struct_ui_text(srna, "Space Nla Editor", "NLA editor space data");
 
-  rna_def_space_generic_show_region_toggles(srna, (1 << RGN_TYPE_UI));
+  rna_def_space_generic_show_region_toggles(srna, (1 << RGN_TYPE_UI) | (1 << RGN_TYPE_HUD));
 
   /* display */
   prop = RNA_def_property(srna, "show_seconds", PROP_BOOLEAN, PROP_NONE);

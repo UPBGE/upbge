@@ -382,13 +382,8 @@ BLI_NOINLINE static void compute_attribute_outputs(const Mesh &mesh,
   }
 
   ids.finish();
-
-  if (normals) {
-    normals.finish();
-  }
-  if (rotations) {
-    rotations.finish();
-  }
+  normals.finish();
+  rotations.finish();
 }
 
 static Array<float> calc_full_density_factors_with_selection(const Mesh &mesh,
@@ -532,6 +527,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (params.output_is_required("Rotation")) {
     attribute_outputs.rotation_id = StrongAnonymousAttributeID("Rotation");
   }
+
+  lazy_threading::send_hint();
 
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
     point_distribution_calculate(

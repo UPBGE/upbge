@@ -128,6 +128,7 @@ def mesh_node_items(context):
     yield NodeItem("GeometryNodeInputMeshEdgeVertices")
     yield NodeItem("GeometryNodeInputMeshFaceArea")
     yield NodeItem("GeometryNodeInputMeshFaceNeighbors")
+    yield NodeItem("GeometryNodeMeshFaceSetBoundaries")
     yield NodeItem("GeometryNodeInputMeshFaceIsPlanar")
     yield NodeItem("GeometryNodeInputShadeSmooth")
     yield NodeItem("GeometryNodeInputMeshIsland")
@@ -240,6 +241,7 @@ def point_node_items(context):
     space = context.space_data
     if not space:
         return
+    yield NodeItem("GeometryNodeDistributePointsInVolume")
     yield NodeItem("GeometryNodeDistributePointsOnFaces")
     yield NodeItem("GeometryNodePoints")
     yield NodeItem("GeometryNodePointsToVertices")
@@ -259,8 +261,9 @@ def node_group_items(context):
 
     yield NodeItemCustom(draw=group_tools_draw)
 
-    yield NodeItem("NodeGroupInput", poll=group_input_output_item_poll)
-    yield NodeItem("NodeGroupOutput", poll=group_input_output_item_poll)
+    if group_input_output_item_poll(context):
+        yield NodeItem("NodeGroupInput")
+        yield NodeItem("NodeGroupOutput")
 
     ntree = space.edit_tree
     if not ntree:

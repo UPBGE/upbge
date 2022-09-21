@@ -114,8 +114,10 @@ typedef struct Main {
   short versionfile, subversionfile; /* see BLENDER_FILE_VERSION, BLENDER_FILE_SUBVERSION */
   short upbgeversionfile, upbgesubversionfile; /* see UPBGE_FILE_VERSION, UPBGE_FILE_SUBVERSION */
   short minversionfile, minsubversionfile;
-  uint64_t build_commit_timestamp; /* commit's timestamp from buildinfo */
-  char build_hash[16];             /* hash from buildinfo */
+  /** Commit timestamp from `buildinfo`. */
+  uint64_t build_commit_timestamp;
+  /** Commit Hash from `buildinfo`. */
+  char build_hash[16];
   /** Indicate the #Main.filepath (file) is the recovered one. */
   bool recovered;
   /** All current ID's exist in the last memfile undo step. */

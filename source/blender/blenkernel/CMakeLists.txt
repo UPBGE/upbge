@@ -114,7 +114,6 @@ set(SRC
   intern/curve_convert.c
   intern/curve_decimate.c
   intern/curve_deform.c
-  intern/curve_eval.cc
   intern/curve_legacy_convert.cc
   intern/curve_nurbs.cc
   intern/curve_poly.cc
@@ -141,7 +140,6 @@ set(SRC
   intern/fluid.c
   intern/fmodifier.c
   intern/freestyle.c
-  intern/geometry_component_curve.cc
   intern/geometry_component_curves.cc
   intern/geometry_component_edit_data.cc
   intern/geometry_component_instances.cc
@@ -207,7 +205,7 @@ set(SRC
   intern/mesh_fair.cc
   intern/mesh_iterators.c
   intern/mesh_legacy_convert.cc
-  intern/mesh_mapping.c
+  intern/mesh_mapping.cc
   intern/mesh_merge.c
   intern/mesh_merge_customdata.cc
   intern/mesh_mirror.c
@@ -273,10 +271,6 @@ set(SRC
   intern/softbody.c
   intern/sound.c
   intern/speaker.c
-  intern/spline_base.cc
-  intern/spline_bezier.cc
-  intern/spline_nurbs.cc
-  intern/spline_poly.cc
   intern/studiolight.c
   intern/subdiv.c
   intern/subdiv_ccg.c
@@ -313,7 +307,7 @@ set(SRC
   intern/volume.cc
   intern/volume_render.cc
   intern/volume_to_mesh.cc
-  intern/workspace.c
+  intern/workspace.cc
   intern/world.c
   intern/writeavi.c
 
@@ -480,7 +474,6 @@ set(SRC
   BKE_softbody.h
   BKE_sound.h
   BKE_speaker.h
-  BKE_spline.hh
   BKE_studiolight.h
   BKE_subdiv.h
   BKE_subdiv_ccg.h

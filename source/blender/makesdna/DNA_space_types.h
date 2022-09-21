@@ -1101,6 +1101,7 @@ typedef enum eFileSel_File_Types {
   FILE_TYPE_DIR = (1 << 30),
   FILE_TYPE_BLENDERLIB = (1u << 31),
 } eFileSel_File_Types;
+ENUM_OPERATORS(eFileSel_File_Types, FILE_TYPE_BLENDERLIB);
 
 /** Selection Flags in filesel: struct direntry, unsigned char selflag. */
 typedef enum eDirEntry_SelectFlag {
@@ -1251,11 +1252,10 @@ typedef struct SpaceImage {
 
   int tile_grid_shape[2];
   /**
-   * UV editor custom-grid. Value of `N` will produce `NxN` grid.
+   * UV editor custom-grid. Value of `{M,N}` will produce `MxN` grid.
    * Use when #SI_CUSTOM_GRID is set.
    */
-  int custom_grid_subdiv;
-  char _pad3[4];
+  int custom_grid_subdiv[2];
 
   MaskSpaceInfo mask_info;
   SpaceImageOverlay overlay;
@@ -1670,7 +1670,7 @@ typedef struct SpaceLogic {
 typedef struct ConsoleLine {
   struct ConsoleLine *next, *prev;
 
-  /* keep these 3 vars so as to share free, realloc funcs */
+  /* Keep these 3 vars so as to share free, realloc functions. */
   /** Allocated length. */
   int len_alloc;
   /** Real len - strlen(). */

@@ -4733,7 +4733,8 @@ static int convert_key(GHOST_TKey key)
       return EVT_LEFTCTRLKEY;
     case GHOST_kKeyRightControl:
       return EVT_RIGHTCTRLKEY;
-    case GHOST_kKeyOS:
+    case GHOST_kKeyLeftOS:
+    case GHOST_kKeyRightOS:
       return EVT_OSKEY;
     case GHOST_kKeyLeftAlt:
       return EVT_LEFTALTKEY;
@@ -5479,6 +5480,25 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, void 
           event.utf8_buf[0] = '\0';
         }
       }
+
+      /* NOTE(@campbellbarton): Setting the modifier state based on press/release
+       * is technically incorrect.
+       *
+       * - The user might hold both left/right modifier keys, then only release one.
+       *
+       *   This could be solved by storing a separate flag for the left/right modifiers,
+       *   and combine them into `event.modifiers`.
+       *
+       * - The user might have multiple keyboards (or keyboard + NDOF device)
+       *   where it's possible to press the same modifier key multiple times.
+       *
+       *   This could be solved by tracking the number of held modifier keys,
+       *   (this is in fact what LIBXKB does), however doing this relies on all GHOST
+       *   back-ends properly reporting every press/release as any mismatch could result
+       *   in modifier keys being stuck (which is very bad!).
+       *
+       * To my knowledge users never reported a bug relating to these limitations so
+       * it seems reasonable to keep the current logic. */
 
       switch (event.type) {
         case EVT_LEFTSHIFTKEY:

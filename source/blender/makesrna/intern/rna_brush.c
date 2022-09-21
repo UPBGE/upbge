@@ -286,6 +286,11 @@ static EnumPropertyItem rna_enum_gpencil_fill_draw_modes_items[] = {
     {GP_FILL_DMODE_CONTROL, "CONTROL", 0, "Edit Lines", "Use edit lines as fill boundary limits"},
     {0, NULL, 0, NULL, NULL}};
 
+static EnumPropertyItem rna_enum_gpencil_fill_extend_modes_items[] = {
+    {GP_FILL_EMODE_RADIUS, "RADIUS", 0, "Radius", "Connect endpoints that are close together"},
+    {GP_FILL_EMODE_EXTEND, "EXTEND", 0, "Extend", "Extend strokes in straight lines"},
+    {0, NULL, 0, NULL, NULL}};
+
 static EnumPropertyItem rna_enum_gpencil_fill_layers_modes_items[] = {
     {GP_FILL_GPLMODE_VISIBLE, "VISIBLE", 0, "Visible", "Visible layers"},
     {GP_FILL_GPLMODE_ACTIVE, "ACTIVE", 0, "Active", "Only active layer"},
@@ -1486,14 +1491,6 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, NULL);
 
-  /* fill leak size */
-  prop = RNA_def_property(srna, "fill_leak", PROP_INT, PROP_PIXEL);
-  RNA_def_property_int_sdna(prop, NULL, "fill_leak");
-  RNA_def_property_range(prop, 0, 100);
-  RNA_def_property_ui_text(prop, "Leak Size", "Size in pixels to consider the leak closed");
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, NULL);
-
   /* fill factor size */
   prop = RNA_def_property(srna, "fill_factor", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "fill_factor");
@@ -1645,7 +1642,14 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_property_range(prop, 0.0f, 10.0f);
   RNA_def_property_float_default(prop, 0.0f);
   RNA_def_property_ui_text(
-      prop, "Stroke Extension", "Strokes end extension for closing gaps, use zero to disable");
+      prop, "Closure Size", "Strokes end extension for closing gaps, use zero to disable");
+  RNA_def_parameter_clear_flags(prop, PROP_ANIMATABLE, 0);
+
+  prop = RNA_def_property(srna, "fill_extend_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "fill_extend_mode");
+  RNA_def_property_enum_items(prop, rna_enum_gpencil_fill_extend_modes_items);
+  RNA_def_property_ui_text(
+      prop, "Closure Mode", "Types of stroke extensions used for closing gaps");
   RNA_def_parameter_clear_flags(prop, PROP_ANIMATABLE, 0);
 
   /* Number of pixels to dilate fill area. Negative values contract the filled area. */

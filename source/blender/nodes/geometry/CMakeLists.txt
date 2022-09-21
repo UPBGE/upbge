@@ -59,6 +59,7 @@ set(SRC
   nodes/node_geo_curve_trim.cc
   nodes/node_geo_deform_curves_on_surface.cc
   nodes/node_geo_delete_geometry.cc
+  nodes/node_geo_distribute_points_in_volume.cc
   nodes/node_geo_distribute_points_on_faces.cc
   nodes/node_geo_dual_mesh.cc
   nodes/node_geo_duplicate_elements.cc
@@ -105,6 +106,7 @@ set(SRC
   nodes/node_geo_material_replace.cc
   nodes/node_geo_material_selection.cc
   nodes/node_geo_merge_by_distance.cc
+  nodes/node_geo_mesh_face_set_boundaries.cc
   nodes/node_geo_mesh_primitive_circle.cc
   nodes/node_geo_mesh_primitive_cone.cc
   nodes/node_geo_mesh_primitive_cube.cc
@@ -185,20 +187,6 @@ if(WITH_BULLET)
     ${BULLET_LIBRARIES}
   )
   add_definitions(-DWITH_BULLET)
-endif()
-
-if(WITH_PYTHON)
-  list(APPEND INC
-    ../../python
-  )
-  list(APPEND INC_SYS
-    ${PYTHON_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${PYTHON_LINKFLAGS}
-    ${PYTHON_LIBRARIES}
-  )
-  add_definitions(-DWITH_PYTHON)
 endif()
 
 if(WITH_TBB)

@@ -1233,12 +1233,12 @@ static VertSeam *find_adjacent_seam(const ProjPaintState *ps,
     LISTBASE_CIRCULAR_BACKWARD_END(VertSeam *, vert_seams, adjacent, seam);
   }
   else {
-    LISTBASE_CIRCULAR_FORWARD_BEGIN (vert_seams, adjacent, seam) {
+    LISTBASE_CIRCULAR_FORWARD_BEGIN (VertSeam *, vert_seams, adjacent, seam) {
       if ((adjacent->normal_cw != seam->normal_cw) && cmp_uv(adjacent->uv, seam->uv)) {
         break;
       }
     }
-    LISTBASE_CIRCULAR_FORWARD_END(vert_seams, adjacent, seam);
+    LISTBASE_CIRCULAR_FORWARD_END(VertSeam *, vert_seams, adjacent, seam);
   }
 
   BLI_assert(adjacent);
@@ -1523,7 +1523,7 @@ static void project_face_seams_init(const ProjPaintState *ps,
 static void screen_px_from_ortho(const float uv[2],
                                  const float v1co[3],
                                  const float v2co[3],
-                                 const float v3co[3], /* Screenspace coords */
+                                 const float v3co[3], /* Screen-space coords */
                                  const float uv1co[2],
                                  const float uv2co[2],
                                  const float uv3co[2],
