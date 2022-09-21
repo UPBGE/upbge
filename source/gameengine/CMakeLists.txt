@@ -27,8 +27,8 @@ remove_extra_strict_flags()
 
 # there are too many inter-includes so best define here
 if(WITH_PYTHON)
-	blender_include_dirs_sys("${PYTHON_INCLUDE_DIRS}")
-	add_definitions(-DWITH_PYTHON)
+  include_directories(SYSTEM "${PYTHON_INCLUDE_DIRS}")
+  add_definitions(-DWITH_PYTHON)
 endif()
 
 add_subdirectory(BlenderRoutines)
@@ -46,13 +46,13 @@ add_subdirectory(Rasterizer/RAS_OpenGLRasterizer)
 add_subdirectory(SceneGraph)
 
 if(WITH_BULLET)
-	add_subdirectory(Physics/Bullet)
+  add_subdirectory(Physics/Bullet)
 endif()
 
 if(WITH_PYTHON)
-	add_subdirectory(VideoTexture)
+  add_subdirectory(VideoTexture)
 endif()
 
 if(WITH_PLAYER)
-	add_subdirectory(GamePlayer)
+  add_subdirectory(GamePlayer)
 endif()

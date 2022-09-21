@@ -427,8 +427,8 @@ static void OVERLAY_pivot(OVERLAY_ExtraCallBuffers *cb, Object *ob, int theme_id
   float color[4], tmp[4][4];
   UI_GetThemeColor4fv(theme_id, color);
 
-  for (bConstraint *con = ob->constraints.first; con; con = con->next) {
-    bRigidBodyJointConstraint *rcon = (bRigidBodyJointConstraint *)con->data;
+  for (bConstraint *con = static_cast<bConstraint *>(ob->constraints.first); con; con = con->next) {
+    bRigidBodyJointConstraint *rcon = static_cast<bRigidBodyJointConstraint *>(con->data);
     if (rcon && rcon->flag & CONSTRAINT_DRAW_PIVOT) {
       float xyz[3] = {rcon->pivX, rcon->pivY, rcon->pivZ};
       float axis[3] = {rcon->axX, rcon->axY, rcon->axZ};

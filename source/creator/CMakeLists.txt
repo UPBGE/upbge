@@ -82,9 +82,9 @@ if(WITH_HEADLESS)
 endif()
 
 if(WITH_GAMEENGINE)
-  blender_include_dirs(../gameengine/BlenderRoutines)
-  blender_include_dirs(../gameengine/Converter)
-  blender_include_dirs(../gameengine/Launcher)
+  list(APPEND INC ../gameengine/BlenderRoutines)
+  list(APPEND INC ../gameengine/Converter)
+  list(APPEND INC ../gameengine/Launcher)
 
   add_definitions(-DWITH_GAMEENGINE)
 

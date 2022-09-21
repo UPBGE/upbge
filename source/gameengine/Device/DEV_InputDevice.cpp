@@ -141,7 +141,7 @@ DEV_InputDevice::DEV_InputDevice()
   m_reverseKeyTranslateTable[GHOST_kKeyLeftBracket] = LEFTBRACKETKEY;
   m_reverseKeyTranslateTable[GHOST_kKeyRightBracket] = RIGHTBRACKETKEY;
 
-  m_reverseKeyTranslateTable[GHOST_kKeyOS] = OSKEY;
+  m_reverseKeyTranslateTable[GHOST_kKeyLeftOS] = OSKEY;
 
   // Modifier keys.
   m_reverseKeyTranslateTable[GHOST_kKeyLeftControl] = LEFTCTRLKEY;

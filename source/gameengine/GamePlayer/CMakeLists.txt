@@ -86,7 +86,7 @@ set(LIB
 add_definitions(${GL_DEFINITIONS})
 
 if(WIN32)
-  blender_include_dirs(../../../intern/utfconv)
+  list(APPEND INC ../../../intern/utfconv)
 endif()
 
 if(WITH_PYTHON)
