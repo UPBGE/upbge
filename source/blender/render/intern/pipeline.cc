@@ -926,7 +926,7 @@ void *RE_gl_context_get(Render *re)
 void *RE_gpu_context_get(Render *re)
 {
   if (re->gpu_context == nullptr) {
-    re->gpu_context = GPU_context_create(nullptr);
+    re->gpu_context = GPU_context_create(NULL, re->gl_context);
   }
   return re->gpu_context;
 }
@@ -2391,6 +2391,9 @@ void RE_RenderAnim(Render *re,
 
 void RE_PreviewRender(Render *re, Main *bmain, Scene *sce)
 {
+  /* Ensure within GPU render boundary. */
+  GPU_render_begin();
+
   Object *camera;
   int winx, winy;
 
@@ -2411,6 +2414,9 @@ void RE_PreviewRender(Render *re, Main *bmain, Scene *sce)
     RE_engine_free(re->engine);
     re->engine = nullptr;
   }
+
+  /* Close GPU render boundary. */
+  GPU_render_end();
 }
 
 /* NOTE: repeated win/disprect calc... solve that nicer, also in compo. */

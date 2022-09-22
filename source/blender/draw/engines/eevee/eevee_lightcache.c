@@ -591,23 +591,26 @@ static void eevee_lightbake_context_enable(EEVEE_LightBake *lbake)
   if (GPU_use_main_context_workaround() && !BLI_thread_is_main()) {
     GPU_context_main_lock();
     DRW_opengl_context_enable();
+    GPU_render_begin();
     return;
   }
 
   if (lbake->gl_context) {
     DRW_opengl_render_context_enable(lbake->gl_context);
     if (lbake->gpu_context == NULL) {
-      lbake->gpu_context = GPU_context_create(NULL);
+      lbake->gpu_context = GPU_context_create(NULL, lbake->gl_context);
     }
     DRW_gpu_render_context_enable(lbake->gpu_context);
   }
   else {
     DRW_opengl_context_enable();
   }
+  GPU_render_begin();
 }
 
 static void eevee_lightbake_context_disable(EEVEE_LightBake *lbake)
 {
+  GPU_render_end();
   if (GPU_use_main_context_workaround() && !BLI_thread_is_main()) {
     DRW_opengl_context_disable();
     GPU_context_main_unlock();
