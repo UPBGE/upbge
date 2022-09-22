@@ -2417,7 +2417,7 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
   wm_window_clear_drawable(wm);
 
   if (first_time_window) {
-    win->gpuctx = GPU_context_create(ghostwin);
+    win->gpuctx = GPU_context_create(ghostwin, NULL);
     wm->message_bus = WM_msgbus_create();
     runtime_msgbus = wm->message_bus;
     /* needed so we can detect the graphics card below */
