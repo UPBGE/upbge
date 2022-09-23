@@ -23,7 +23,9 @@
 
 #include "file_intern.h"
 
-/* ----------------- FOLDERLIST (previous/next) -------------- */
+/* -------------------------------------------------------------------- */
+/** \name FOLDERLIST (previous/next)
+ * \{ */
 
 typedef struct FolderList {
   struct FolderList *next, *prev;
@@ -47,7 +49,7 @@ void folderlist_popdir(struct ListBase *folderlist, char *dir)
       BLI_strncpy(dir, prev_dir, FILE_MAXDIR);
     }
   }
-  /* delete the folder next or use setdir directly before PREVIOUS OP */
+  /* Delete the folder next or use set-directory directly before PREVIOUS OP. */
 }
 
 void folderlist_pushdir(ListBase *folderlist, const char *dir)
@@ -86,25 +88,25 @@ const char *folderlist_peeklastdir(ListBase *folderlist)
   return folder->foldername;
 }
 
-int folderlist_clear_next(struct SpaceFile *sfile)
+bool folderlist_clear_next(struct SpaceFile *sfile)
 {
   const FileSelectParams *params = ED_fileselect_get_active_params(sfile);
   struct FolderList *folder;
 
   /* if there is no folder_next there is nothing we can clear */
   if (BLI_listbase_is_empty(sfile->folders_next)) {
-    return 0;
+    return false;
   }
 
   /* if previous_folder, next_folder or refresh_folder operators are executed
    * it doesn't clear folder_next */
   folder = static_cast<FolderList *>(sfile->folders_prev->last);
   if ((!folder) || (BLI_path_cmp(folder->foldername, params->dir) == 0)) {
-    return 0;
+    return false;
   }
 
   /* eventually clear flist->folders_next */
-  return 1;
+  return true;
 }
 
 void folderlist_free(ListBase *folderlist)
@@ -129,7 +131,11 @@ static ListBase folderlist_duplicate(ListBase *folderlist)
   return folderlistn;
 }
 
-/* ----------------- Folder-History (wraps/owns file list above) -------------- */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Folder-History (wraps/owns file list above)
+ * \{ */
 
 static FileFolderHistory *folder_history_find(const SpaceFile *sfile, eFileBrowse_Mode browse_mode)
 {
@@ -189,3 +195,5 @@ ListBase folder_history_list_duplicate(ListBase *listbase)
 
   return histories;
 }
+
+/** \} */

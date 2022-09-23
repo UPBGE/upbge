@@ -888,16 +888,7 @@ void BKE_mesh_merge_customdata_for_apply_modifier(struct Mesh *me);
  */
 void BKE_mesh_flush_hidden_from_verts(struct Mesh *me);
 void BKE_mesh_flush_hidden_from_polys(struct Mesh *me);
-/**
- * simple poly -> vert/edge selection.
- */
-void BKE_mesh_flush_select_from_polys_ex(struct MVert *mvert,
-                                         int totvert,
-                                         const struct MLoop *mloop,
-                                         struct MEdge *medge,
-                                         int totedge,
-                                         const struct MPoly *mpoly,
-                                         int totpoly);
+
 void BKE_mesh_flush_select_from_polys(struct Mesh *me);
 void BKE_mesh_flush_select_from_verts(struct Mesh *me);
 
@@ -1166,7 +1157,11 @@ inline blender::MutableSpan<MLoop> Mesh::loops_for_write()
 
 inline blender::Span<MDeformVert> Mesh::deform_verts() const
 {
-  return {BKE_mesh_deform_verts(this), this->totvert};
+  const MDeformVert *dverts = BKE_mesh_deform_verts(this);
+  if (!dverts) {
+    return {};
+  }
+  return {dverts, this->totvert};
 }
 inline blender::MutableSpan<MDeformVert> Mesh::deform_verts_for_write()
 {

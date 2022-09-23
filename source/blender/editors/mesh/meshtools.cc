@@ -102,9 +102,6 @@ static void join_mesh_single(Depsgraph *depsgraph,
   MPoly *mpoly = *mpoly_pp;
 
   if (me->totvert) {
-    /* merge customdata flag */
-    ((Mesh *)ob_dst->data)->cd_flag |= me->cd_flag;
-
     /* standard data */
     CustomData_merge(&me->vdata, vdata, CD_MASK_MESH.vmask, CD_SET_DEFAULT, totvert);
     CustomData_copy_data_named(&me->vdata, vdata, 0, *vertofs, me->totvert);
@@ -308,7 +305,8 @@ static void mesh_join_offset_face_sets_ID(const Mesh *mesh, int *face_set_offset
     return;
   }
 
-  int *face_sets = (int *)CustomData_get_layer(&mesh->pdata, CD_SCULPT_FACE_SETS);
+  int *face_sets = (int *)CustomData_get_layer_named(
+      &mesh->pdata, CD_PROP_INT32, ".sculpt_face_set");
   if (!face_sets) {
     return;
   }

@@ -562,7 +562,6 @@ DerivedMesh *cdDM_from_mesh_ex(Mesh *mesh,
    * but only if the original mesh had its deformed_only flag correctly set
    * (which isn't generally the case). */
   dm->deformedOnly = 1;
-  dm->cd_flag = mesh->cd_flag;
 
   if (mesh->runtime.vert_normals_dirty) {
     dm->dirty |= DM_DIRTY_NORMALS;

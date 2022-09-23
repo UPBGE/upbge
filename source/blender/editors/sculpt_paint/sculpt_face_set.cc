@@ -66,7 +66,7 @@
 int ED_sculpt_face_sets_find_next_available_id(struct Mesh *mesh)
 {
   const int *face_sets = static_cast<const int *>(
-      CustomData_get_layer(&mesh->pdata, CD_SCULPT_FACE_SETS));
+      CustomData_get_layer_named(&mesh->pdata, CD_PROP_INT32, ".sculpt_face_set"));
   if (!face_sets) {
     return SCULPT_FACE_SET_NONE;
   }
@@ -82,7 +82,8 @@ int ED_sculpt_face_sets_find_next_available_id(struct Mesh *mesh)
 
 void ED_sculpt_face_sets_initialize_none_to_id(struct Mesh *mesh, const int new_id)
 {
-  int *face_sets = static_cast<int *>(CustomData_get_layer(&mesh->pdata, CD_SCULPT_FACE_SETS));
+  int *face_sets = static_cast<int *>(
+      CustomData_get_layer_named(&mesh->pdata, CD_PROP_INT32, ".sculpt_face_set"));
   if (!face_sets) {
     return;
   }
@@ -672,10 +673,11 @@ static int sculpt_face_set_init_exec(bContext *C, wmOperator *op)
       break;
     }
     case SCULPT_FACE_SETS_FROM_CREASES: {
-      const Span<MEdge> edges = mesh->edges();
+      const float *creases = static_cast<const float *>(
+          CustomData_get_layer(&mesh->edata, CD_CREASE));
       sculpt_face_sets_init_flood_fill(
           ob, [&](const int /*from_face*/, const int edge, const int /*to_face*/) -> bool {
-            return edges[edge].crease / 255.0f < threshold;
+            return creases[edge] < threshold;
           });
       break;
     }

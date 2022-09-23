@@ -136,9 +136,6 @@ struct DerivedMesh {
     int num_alloc;
   } looptris;
 
-  /* use for converting to BMesh which doesn't store bevel weight and edge crease by default */
-  char cd_flag;
-
   short tangent_mask; /* which tangent layers are calculated */
 
   /** Calculate loop (split) normals */

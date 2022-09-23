@@ -285,7 +285,7 @@ static int ss_sync_from_uv(CCGSubSurf *ss,
    * Also, initially intention is to treat merged vertices from mirror modifier as seams.
    * This fixes a very old regression (2.49 was correct here) */
   vmap = BKE_mesh_uv_vert_map_create(
-      mpoly, NULL, mloop, mloopuv, totface, totvert, limit, false, true);
+      mpoly, NULL, NULL, mloop, mloopuv, totface, totvert, limit, false, true);
   if (!vmap) {
     return 0;
   }
@@ -593,11 +593,12 @@ static void ss_sync_ccg_from_derivedmesh(CCGSubSurf *ss,
 
   me = medge;
   index = (int *)dm->getEdgeDataArray(dm, CD_ORIGINDEX);
+  const float *creases = (const float *)dm->getEdgeDataArray(dm, CD_CREASE);
   for (i = 0; i < totedge; i++, me++) {
     CCGEdge *e;
     float crease;
 
-    crease = useFlatSubdiv ? creaseFactor : me->crease * creaseFactor / 255.0f;
+    crease = useFlatSubdiv ? creaseFactor : (creases ? creases[i] * creaseFactor : 0.0f);
 
     ccgSubSurf_syncEdge(
         ss, POINTER_FROM_INT(i), POINTER_FROM_UINT(me->v1), POINTER_FROM_UINT(me->v2), crease, &e);
@@ -880,7 +881,6 @@ static void ccgDM_getFinalVertNo(DerivedMesh *dm, int vertNum, float r_no[3])
 BLI_INLINE void ccgDM_to_MVert(MVert *mv, const CCGKey *key, CCGElem *elem)
 {
   copy_v3_v3(mv->co, CCG_elem_co(key, elem));
-  mv->flag = 0;
 }
 
 static void ccgDM_copyFinalVertArray(DerivedMesh *dm, MVert *mvert)
@@ -950,7 +950,6 @@ BLI_INLINE void ccgDM_to_MEdge(MEdge *med, const int v1, const int v2, const sho
 {
   med->v1 = v1;
   med->v2 = v2;
-  med->crease = 0;
   med->flag = flag;
 }
 

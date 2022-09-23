@@ -18,6 +18,24 @@ struct Mesh;
 struct MFace;
 
 /**
+ * Move face sets to the legacy type from a generic type.
+ */
+void BKE_mesh_legacy_face_set_from_generic(struct Mesh *mesh);
+/**
+ * Copy face sets to the generic data type from the legacy type.
+ */
+void BKE_mesh_legacy_face_set_to_generic(struct Mesh *mesh);
+
+/**
+ * Copy edge creases from a separate layer into edges.
+ */
+void BKE_mesh_legacy_edge_crease_from_layers(struct Mesh *mesh);
+/**
+ * Copy edge creases from edges to a separate layer.
+ */
+void BKE_mesh_legacy_edge_crease_to_layers(struct Mesh *mesh);
+
+/**
  * Copy bevel weights from separate layers into vertices and edges.
  */
 void BKE_mesh_legacy_bevel_weight_from_layers(struct Mesh *mesh);
@@ -35,6 +53,16 @@ void BKE_mesh_legacy_convert_hide_layers_to_flags(struct Mesh *mesh);
  * Only add the attributes when there are any elements in each domain hidden.
  */
 void BKE_mesh_legacy_convert_flags_to_hide_layers(struct Mesh *mesh);
+
+/**
+ * Convert the selected element attributes to the old flag format for writing.
+ */
+void BKE_mesh_legacy_convert_selection_layers_to_flags(struct Mesh *mesh);
+/**
+ * Convert the old selection flags (#SELECT/#ME_FACE_SEL) to the selected element attribute for
+ * reading. Only add the attributes when there are any elements in each domain selected.
+ */
+void BKE_mesh_legacy_convert_flags_to_selection_layers(struct Mesh *mesh);
 
 /**
  * Move material indices from a generic attribute to #MPoly.
