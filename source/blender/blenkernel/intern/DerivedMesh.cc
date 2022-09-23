@@ -2540,7 +2540,7 @@ void DM_to_mesh(
   CustomData_copy(&dm->edgeData, &tmp.edata, mask->emask, alloctype, totedge);
   CustomData_copy(&dm->loopData, &tmp.ldata, mask->lmask, alloctype, totloop);
   CustomData_copy(&dm->polyData, &tmp.pdata, mask->pmask, alloctype, totpoly);
-  tmp.cd_flag = dm->cd_flag;
+  //tmp.cd_flag = dm->cd_flag;
   tmp.runtime.deformed_only = dm->deformedOnly;
 
   if (CustomData_has_layer(&dm->vertData, CD_SHAPEKEY)) {

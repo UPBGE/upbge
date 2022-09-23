@@ -661,7 +661,7 @@ DerivedMesh *CDDM_copy(DerivedMesh *source)
   /* this initializes dm, and copies all non mvert/medge/mface layers */
   DM_from_template(dm, source, DM_TYPE_CDDM, numVerts, numEdges, numTessFaces, numLoops, numPolys);
   dm->deformedOnly = source->deformedOnly;
-  dm->cd_flag = source->cd_flag;
+  //dm->cd_flag = source->cd_flag;
 
   CustomData_copy_data(&source->vertData, &dm->vertData, 0, 0, numVerts);
   CustomData_copy_data(&source->edgeData, &dm->edgeData, 0, 0, numEdges);
