@@ -263,7 +263,7 @@ void EEVEE_effects_cache_init(EEVEE_ViewLayerData *sldata, EEVEE_Data *vedata)
     DRW_PASS_CREATE(psl->color_copy_ps, DRW_STATE_WRITE_COLOR);
     grp = DRW_shgroup_create(EEVEE_shaders_effect_color_copy_sh_get(), psl->color_copy_ps);
     DRW_shgroup_uniform_texture_ref_ex(grp, "source", &e_data.color_src, GPU_SAMPLER_DEFAULT);
-    DRW_shgroup_uniform_float(grp, "fireflyFactor", &sldata->common_data.ssr_firefly_fac, 1);
+    DRW_shgroup_uniform_float(grp, "fireflyFactor", &sldata->common_data.ssr_firefly_fac, 1); /* TODO SSGI */
     DRW_shgroup_call_procedural_triangles(grp, NULL, 1);
 
     DRW_PASS_CREATE(psl->color_downsample_ps, DRW_STATE_WRITE_COLOR);

@@ -1780,6 +1780,38 @@ void blo_do_versions_290(FileData *fd, Library *UNUSED(lib), Main *bmain)
     FOREACH_NODETREE_END;
   }
 
+  /* using float property check for versioning since can't rely on blender version*/
+  if (!DNA_struct_elem_find(fd->filesdna, "SceneEEVEE", "float", "diffuse_intensity")) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      if (scene->eevee.ssr_diffuse_versioning < 1.15f) {
+        scene->eevee.ssr_diffuse_versioning = 1.15f;
+
+        scene->eevee.ssr_diffuse_intensity = 1.0f;
+        scene->eevee.ssr_diffuse_thickness = 1.0f;
+        scene->eevee.ssr_diffuse_resolve_bias = 0.1f;
+        scene->eevee.ssr_diffuse_quality = 0.25f;
+        scene->eevee.ssr_diffuse_clamp = 1.0f;
+        scene->eevee.ssr_diffuse_ao = 1.0f;
+        scene->eevee.ssr_diffuse_ao_limit = 0.5f;
+
+        scene->eevee.ssr_diffuse_probe_trace = 0;
+        scene->eevee.ssr_diffuse_probe_intensity = 1.0f;
+        scene->eevee.ssr_diffuse_probe_clamp = 1.0f;
+
+        scene->eevee.ssr_diffuse_filter = 1.0f;
+        scene->eevee.ssr_diffuse_fsize = 32.0f;
+        scene->eevee.ssr_diffuse_fsamples = 1;
+        scene->eevee.ssr_diffuse_fnweight = 1.0f;
+        scene->eevee.ssr_diffuse_fdweight = 1.0f;
+        scene->eevee.ssr_diffuse_faoweight = 0.75f;
+
+        scene->eevee.ssr_diffuse_debug_a = 1.0f;
+        scene->eevee.ssr_diffuse_debug_b = 1.0f;
+        scene->eevee.ssr_diffuse_debug_c = 1.0f;
+        scene->eevee.ssr_diffuse_debug_d = 1.0f;
+      }
+    }
+  }
   if (!MAIN_VERSION_ATLEAST(bmain, 293, 9)) {
     if (!DNA_struct_elem_find(fd->filesdna, "SceneEEVEE", "float", "bokeh_overblur")) {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {

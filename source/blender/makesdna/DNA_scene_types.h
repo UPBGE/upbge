@@ -1791,6 +1791,28 @@ typedef struct SceneEEVEE {
   float ssr_thickness;
   float ssr_border_fade;
   float ssr_firefly_fac;
+  float ssr_diffuse_versioning;
+  float ssr_diffuse_intensity;
+  float ssr_diffuse_thickness;
+  float ssr_diffuse_resolve_bias;
+  float ssr_diffuse_quality;
+  float ssr_diffuse_clamp;
+  float ssr_diffuse_ao;
+  float ssr_diffuse_ao_limit;
+  int ssr_diffuse_probe_trace;
+  float ssr_diffuse_probe_intensity;
+  float ssr_diffuse_probe_clamp;
+  float ssr_diffuse_filter;
+  float ssr_diffuse_fsize;
+  int ssr_diffuse_fsamples;
+  float ssr_diffuse_fnweight;
+  float ssr_diffuse_fdweight;
+  float ssr_diffuse_faoweight;
+  float ssr_diffuse_debug_a;
+  float ssr_diffuse_debug_b;
+  float ssr_diffuse_debug_c;
+  float ssr_diffuse_debug_d;
+  char _pad[4];
 
   float volumetric_start;
   float volumetric_end;
@@ -1836,7 +1858,7 @@ typedef struct SceneEEVEE {
   float light_threshold;
 
   int gameflag, smaa_quality;          // UPBGE
-  float smaa_predication_scale, _pad;  // UPBGE
+  float smaa_predication_scale, _pad0;  // UPBGE
 
 } SceneEEVEE;
 

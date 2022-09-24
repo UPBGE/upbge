@@ -10,6 +10,8 @@
 /** \name Microfacet GGX distribution
  * \{ */
 
+/* SSGI - TODO Lambert, cosine */
+
 #define USE_VISIBLE_NORMAL 1
 
 float pdf_ggx_reflect(float NH, float NV, float VH, float alpha)
@@ -68,6 +70,32 @@ vec3 sample_ggx(vec3 rand, float alpha, vec3 V, vec3 N, vec3 T, vec3 B, out floa
   float NV = saturate(Vt.z);
   float VH = saturate(dot(Vt, Ht));
   pdf = pdf_ggx_reflect(NH, NV, VH, alpha);
+  return tangent_to_world(Ht, N, T, B);
+}
+
+/* SSGI Temp TODO */
+/* + hammersley already available? */
+float pdf_ggx_reflect_gi(float NH, float a2) //Temp TODO
+{
+  return NH * a2 / D_ggx_opti(NH, a2);
+}
+
+vec3 sample_ggx_gi(vec3 rand, float a2) //Temp TODO
+{
+  /* Theta is the cone angle. */
+  float z = sqrt((1.0 - rand.x) / (1.0 + a2 * rand.x - rand.x)); /* cos theta */
+  float r = sqrt(max(0.0, 1.0 - z * z));                         /* sin theta */
+  float x = r * rand.y;
+  float y = r * rand.z;
+
+  /* Microfacet Normal */
+  return vec3(x, y, z);
+}
+
+vec3 sample_ggx_gi(vec3 rand, float a2, vec3 N, vec3 T, vec3 B, out float NH)
+{
+  vec3 Ht = sample_ggx_gi(rand, a2);
+  NH = Ht.z;
   return tangent_to_world(Ht, N, T, B);
 }
 
