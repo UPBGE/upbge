@@ -937,9 +937,6 @@ int main(int argc,
 
   ED_file_init(); /* for fsmenu */
 
-  /* That one is generated on demand, we need to be sure it's clear on init. */
-  IMB_thumb_clear_translations();
-
   /* For WM_init_opengl and UI_init, we need to initialize later in blenderplayer pipeline */
 
 #if 0

@@ -230,7 +230,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty,
 
     if (!debugDraw->m_texts2D.empty()) {
 
-      BLF_size(blf_mono_font, 11, 72);
+      BLF_size(blf_mono_font, 11);
 
       BLF_enable(blf_mono_font, BLF_SHADOW);
 
