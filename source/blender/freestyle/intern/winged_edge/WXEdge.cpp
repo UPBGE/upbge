@@ -18,7 +18,7 @@ namespace Freestyle {
  *                                *
  **********************************/
 
-unsigned int WXFaceLayer::Get0VertexIndex() const
+uint WXFaceLayer::Get0VertexIndex() const
 {
   int i = 0;
   int nEdges = _pWXFace->numberOfEdges();
@@ -29,7 +29,7 @@ unsigned int WXFaceLayer::Get0VertexIndex() const
   }
   return -1;
 }
-unsigned int WXFaceLayer::GetSmoothEdgeIndex() const
+uint WXFaceLayer::GetSmoothEdgeIndex() const
 {
   int i = 0;
   int nEdges = _pWXFace->numberOfEdges();
@@ -243,7 +243,7 @@ void WXFace::ComputeCenter()
        ++wv) {
     center += (*wv)->GetVertex();
   }
-  center /= (float)iVertexList.size();
+  center /= float(iVertexList.size());
   setCenter(center);
 }
 
@@ -270,7 +270,7 @@ WFace *WXShape::MakeFace(vector<WVertex *> &iVertexList,
        ++wv) {
     center += (*wv)->GetVertex();
   }
-  center /= (float)iVertexList.size();
+  center /= float(iVertexList.size());
   ((WXFace *)face)->setCenter(center);
 
   return face;

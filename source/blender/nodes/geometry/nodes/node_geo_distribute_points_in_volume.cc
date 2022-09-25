@@ -65,10 +65,10 @@ static void node_distribute_points_in_volume_init(bNodeTree *UNUSED(ntree), bNod
 static void node_distribute_points_in_volume_update(bNodeTree *ntree, bNode *node)
 {
   const NodeGeometryDistributePointsInVolume &storage = node_storage(*node);
-  GeometryNodeDistributePointsInVolumeMode mode =
-      static_cast<GeometryNodeDistributePointsInVolumeMode>(storage.mode);
+  GeometryNodeDistributePointsInVolumeMode mode = GeometryNodeDistributePointsInVolumeMode(
+      storage.mode);
 
-  bNodeSocket *sock_density = ((bNodeSocket *)(node->inputs.first))->next;
+  bNodeSocket *sock_density = static_cast<bNodeSocket *>(node->inputs.first)->next;
   bNodeSocket *sock_seed = sock_density->next;
   bNodeSocket *sock_spacing = sock_seed->next;
   bNodeSocket *sock_threshold = sock_spacing->next;
@@ -99,7 +99,7 @@ class PositionsVDBWrapper {
 
   void add(const openvdb::Vec3R &pos)
   {
-    vector_.append((float3((float)pos[0], (float)pos[1], (float)pos[2]) + offset_fix_));
+    vector_.append(float3(float(pos[0]), float(pos[1]), float(pos[2])) + offset_fix_);
   }
 };
 
@@ -117,9 +117,9 @@ static void point_scatter_density_random(const openvdb::FloatGrid &grid,
                                          Vector<float3> &r_positions)
 {
   /* Offset points by half a voxel so that grid points are aligned with world grid points. */
-  const float3 offset_fix = {0.5f * (float)grid.voxelSize().x(),
-                             0.5f * (float)grid.voxelSize().y(),
-                             0.5f * (float)grid.voxelSize().z()};
+  const float3 offset_fix = {0.5f * float(grid.voxelSize().x()),
+                             0.5f * float(grid.voxelSize().y()),
+                             0.5f * float(grid.voxelSize().z())};
   /* Setup and call into OpenVDB's point scatter API. */
   PositionsVDBWrapper vdb_position_wrapper = PositionsVDBWrapper(r_positions, offset_fix);
   RNGType random_generator(seed);
@@ -133,9 +133,9 @@ static void point_scatter_density_grid(const openvdb::FloatGrid &grid,
                                        Vector<float3> &r_positions)
 {
   const openvdb::Vec3d half_voxel(0.5, 0.5, 0.5);
-  const openvdb::Vec3d voxel_spacing((double)spacing.x / grid.voxelSize().x(),
-                                     (double)spacing.y / grid.voxelSize().y(),
-                                     (double)spacing.z / grid.voxelSize().z());
+  const openvdb::Vec3d voxel_spacing(double(spacing.x) / grid.voxelSize().x(),
+                                     double(spacing.y) / grid.voxelSize().y(),
+                                     double(spacing.z) / grid.voxelSize().z());
 
   /* Abort if spacing is zero. */
   const double min_spacing = std::min(voxel_spacing.x(),
@@ -170,7 +170,7 @@ static void point_scatter_density_grid(const openvdb::FloatGrid &grid,
           /* Transform with grid matrix and add point. */
           const openvdb::Vec3d idx_pos(x, y, z);
           const openvdb::Vec3d local_pos = grid.indexToWorld(idx_pos + half_voxel);
-          r_positions.append({(float)local_pos.x(), (float)local_pos.y(), (float)local_pos.z()});
+          r_positions.append({float(local_pos.x()), float(local_pos.y()), float(local_pos.z())});
         }
       }
     }
@@ -185,8 +185,8 @@ static void geo_node_distribute_points_in_volume_exec(GeoNodeExecParams params)
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Volume");
 
   const NodeGeometryDistributePointsInVolume &storage = node_storage(params.node());
-  const GeometryNodeDistributePointsInVolumeMode mode =
-      static_cast<GeometryNodeDistributePointsInVolumeMode>(storage.mode);
+  const GeometryNodeDistributePointsInVolumeMode mode = GeometryNodeDistributePointsInVolumeMode(
+      storage.mode);
 
   float density;
   int seed;

@@ -24,7 +24,10 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Mesh").supported_type(GEO_COMPONENT_TYPE_MESH);
   b.add_input<decl::Bool>(N_("Selection")).default_value(true).supports_field().hide_value();
-  b.add_input<decl::Vector>(N_("Offset")).subtype(PROP_TRANSLATION).implicit_field().hide_value();
+  b.add_input<decl::Vector>(N_("Offset"))
+      .subtype(PROP_TRANSLATION)
+      .implicit_field(implicit_field_inputs::normal)
+      .hide_value();
   b.add_input<decl::Float>(N_("Offset Scale")).default_value(1.0f).supports_field();
   b.add_input<decl::Bool>(N_("Individual")).default_value(true);
   b.add_output<decl::Geometry>("Mesh");
@@ -49,9 +52,9 @@ static void node_init(bNodeTree *UNUSED(tree), bNode *node)
 static void node_update(bNodeTree *ntree, bNode *node)
 {
   const NodeGeometryExtrudeMesh &storage = node_storage(*node);
-  const GeometryNodeExtrudeMeshMode mode = static_cast<GeometryNodeExtrudeMeshMode>(storage.mode);
+  const GeometryNodeExtrudeMeshMode mode = GeometryNodeExtrudeMeshMode(storage.mode);
 
-  bNodeSocket *individual_socket = (bNodeSocket *)node->inputs.last;
+  bNodeSocket *individual_socket = static_cast<bNodeSocket *>(node->inputs.last);
 
   nodeSetSocketAvailability(ntree, individual_socket, mode == GEO_NODE_EXTRUDE_MESH_FACES);
 }
@@ -1313,7 +1316,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   Field<float3> offset_field = params.extract_input<Field<float3>>("Offset");
   Field<float> scale_field = params.extract_input<Field<float>>("Offset Scale");
   const NodeGeometryExtrudeMesh &storage = node_storage(params.node());
-  GeometryNodeExtrudeMeshMode mode = static_cast<GeometryNodeExtrudeMeshMode>(storage.mode);
+  GeometryNodeExtrudeMeshMode mode = GeometryNodeExtrudeMeshMode(storage.mode);
 
   /* Create a combined field from the offset and the scale so the field evaluator
    * can take care of the multiplication and to simplify each extrude function. */

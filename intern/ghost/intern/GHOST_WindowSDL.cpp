@@ -485,7 +485,7 @@ static unsigned char sdl_std_cursor_arrow[] = {
 #define sdl_std_cursor_HOT_Y_arrow -14
 /* end cursor data */
 
-static SDL_Cursor *sdl_std_cursor_array[(int)GHOST_kStandardCursorNumCursors] = {nullptr};
+static SDL_Cursor *sdl_std_cursor_array[int(GHOST_kStandardCursorNumCursors)] = {nullptr};
 
 /* utility function mostly a copy of SDL_CreateCursor but allows us to change
  * color and supports blenders flipped bits */
@@ -544,14 +544,14 @@ static SDL_Cursor *getStandardCursorShape(GHOST_TStandardCursor shape)
   if (sdl_std_cursor_array[0] == nullptr) {
 #define DEF_CURSOR(name, ind) \
   { \
-    sdl_std_cursor_array[(int)ind] = sdl_ghost_CreateCursor( \
+    sdl_std_cursor_array[int(ind)] = sdl_ghost_CreateCursor( \
         sdl_std_cursor_##name, \
         sdl_std_cursor_mask_##name, \
         sdl_std_cursor_WIDTH_##name, \
         sdl_std_cursor_HEIGHT_##name, \
         (sdl_std_cursor_WIDTH_##name + (sdl_std_cursor_HOT_X_##name)) - 1, \
         (sdl_std_cursor_HEIGHT_##name + (sdl_std_cursor_HOT_Y_##name)) - 1); \
-    assert(sdl_std_cursor_array[(int)ind] != nullptr); \
+    assert(sdl_std_cursor_array[int(ind)] != nullptr); \
   } \
   (void)0
 
@@ -580,7 +580,7 @@ static SDL_Cursor *getStandardCursorShape(GHOST_TStandardCursor shape)
 #undef DEF_CURSOR
   }
 
-  return sdl_std_cursor_array[(int)shape];
+  return sdl_std_cursor_array[int(shape)];
 }
 
 GHOST_TSuccess GHOST_WindowSDL::setWindowCursorGrab(GHOST_TGrabCursorMode /*mode*/)
@@ -641,5 +641,5 @@ uint16_t GHOST_WindowSDL::getDPIHint()
     return 96;
   }
 
-  return (int)ddpi;
+  return int(ddpi);
 }

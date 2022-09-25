@@ -457,8 +457,8 @@ static int compare_date(void *user_data, const void *a1, const void *a2)
     return ret;
   }
 
-  time1 = (int64_t)entry1->st.st_mtime;
-  time2 = (int64_t)entry2->st.st_mtime;
+  time1 = int64_t(entry1->st.st_mtime);
+  time2 = int64_t(entry2->st.st_mtime);
   if (time1 < time2) {
     return compare_apply_inverted(1, sort_data);
   }
@@ -919,7 +919,7 @@ void filelist_filter(FileList *filelist)
   }
 
   filtered_tmp = static_cast<FileListInternEntry **>(
-      MEM_mallocN(sizeof(*filtered_tmp) * (size_t)num_files, __func__));
+      MEM_mallocN(sizeof(*filtered_tmp) * size_t(num_files), __func__));
 
   /* Filter remap & count how many files are left after filter in a single loop. */
   LISTBASE_FOREACH (FileListInternEntry *, file, &filelist->filelist_intern.entries) {
@@ -932,10 +932,10 @@ void filelist_filter(FileList *filelist)
     MEM_freeN(filelist->filelist_intern.filtered);
   }
   filelist->filelist_intern.filtered = static_cast<FileListInternEntry **>(
-      MEM_mallocN(sizeof(*filelist->filelist_intern.filtered) * (size_t)num_filtered, __func__));
+      MEM_mallocN(sizeof(*filelist->filelist_intern.filtered) * size_t(num_filtered), __func__));
   memcpy(filelist->filelist_intern.filtered,
          filtered_tmp,
-         sizeof(*filelist->filelist_intern.filtered) * (size_t)num_filtered);
+         sizeof(*filelist->filelist_intern.filtered) * size_t(num_filtered));
   filelist->filelist.entries_filtered_num = num_filtered;
   //  printf("Filetered: %d over %d entries\n", num_filtered, filelist->filelist.entries_num);
 
@@ -987,7 +987,7 @@ void filelist_setfilter_options(FileList *filelist,
         filelist->filter_data.filter_glob, filter_glob, sizeof(filelist->filter_data.filter_glob));
     update = true;
   }
-  if ((BLI_strcmp_ignore_pad(filelist->filter_data.filter_search, filter_search, '*') != 0)) {
+  if (BLI_strcmp_ignore_pad(filelist->filter_data.filter_search, filter_search, '*') != 0) {
     BLI_strncpy_ensure_pad(filelist->filter_data.filter_search,
                            filter_search,
                            '*',
@@ -1642,9 +1642,6 @@ static void filelist_cache_init(FileListEntryCache *cache, size_t cache_size)
   cache->flags = FLC_IS_INIT;
 
   cache->previews_todo_count = 0;
-
-  /* We cannot translate from non-main thread, so init translated strings once from here. */
-  IMB_thumb_ensure_translations();
 }
 
 static void filelist_cache_free(FileListEntryCache *cache)
@@ -2011,8 +2008,8 @@ static FileDirEntry *filelist_file_create_entry(FileList *filelist, const int in
 
   ret = MEM_cnew<FileDirEntry>(__func__);
 
-  ret->size = (uint64_t)entry->st.st_size;
-  ret->time = (int64_t)entry->st.st_mtime;
+  ret->size = uint64_t(entry->st.st_size);
+  ret->time = int64_t(entry->st.st_mtime);
 
   ret->relpath = BLI_strdup(entry->relpath);
   if (entry->free_name) {
@@ -2439,7 +2436,7 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
       do {
         int offs_idx = index + offs;
         if (start_index <= offs_idx && offs_idx < end_index) {
-          int offs_block_idx = (block_index + offs) % (int)cache_size;
+          int offs_block_idx = (block_index + offs) % int(cache_size);
           filelist_cache_previews_push(filelist, cache->block_entries[offs_block_idx], offs_idx);
         }
       } while ((offs = -offs) < 0); /* Switch between negative and positive offset. */
@@ -3546,7 +3543,7 @@ static void filelist_readjob_recursive_dir_add_items(const bool do_lib,
     filelist_readjob_append_entries(job_params, &entries, entries_num, do_update);
 
     dirs_done_count++;
-    *progress = (float)dirs_done_count / (float)dirs_todo_count;
+    *progress = float(dirs_done_count) / float(dirs_todo_count);
     MEM_freeN(subdir);
   }
 

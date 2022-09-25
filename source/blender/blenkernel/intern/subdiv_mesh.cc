@@ -222,7 +222,7 @@ static void vertex_interpolation_init(const SubdivMeshContext *ctx,
     vertex_interpolation->vertex_data_storage_allocated = true;
     /* Interpolate center of poly right away, it stays unchanged for all
      * ptex faces. */
-    const float weight = 1.0f / (float)coarse_poly->totloop;
+    const float weight = 1.0f / float(coarse_poly->totloop);
     blender::Array<float, 32> weights(coarse_poly->totloop);
     blender::Array<int, 32> indices(coarse_poly->totloop);
     for (int i = 0; i < coarse_poly->totloop; i++) {
@@ -267,14 +267,13 @@ static void vertex_interpolation_from_corner(const SubdivMeshContext *ctx,
     const int first_loop_index = loops_of_ptex.first_loop - coarse_mloop;
     const int last_loop_index = loops_of_ptex.last_loop - coarse_mloop;
     const int first_indices[2] = {
-        static_cast<int>(coarse_mloop[first_loop_index].v),
-        static_cast<int>(
-            coarse_mloop[coarse_poly->loopstart +
+        int(coarse_mloop[first_loop_index].v),
+        int(coarse_mloop[coarse_poly->loopstart +
                          (first_loop_index - coarse_poly->loopstart + 1) % coarse_poly->totloop]
                 .v)};
     const int last_indices[2] = {
-        static_cast<int>(coarse_mloop[first_loop_index].v),
-        static_cast<int>(coarse_mloop[last_loop_index].v),
+        int(coarse_mloop[first_loop_index].v),
+        int(coarse_mloop[last_loop_index].v),
     };
     CustomData_interp(vertex_data,
                       &vertex_interpolation->vertex_data_storage,
@@ -356,7 +355,7 @@ static void loop_interpolation_init(const SubdivMeshContext *ctx,
     loop_interpolation->loop_data_storage_allocated = true;
     /* Interpolate center of poly right away, it stays unchanged for all
      * ptex faces. */
-    const float weight = 1.0f / (float)coarse_poly->totloop;
+    const float weight = 1.0f / float(coarse_poly->totloop);
     blender::Array<float, 32> weights(coarse_poly->totloop);
     blender::Array<int, 32> indices(coarse_poly->totloop);
     for (int i = 0; i < coarse_poly->totloop; i++) {
@@ -402,8 +401,8 @@ static void loop_interpolation_from_corner(const SubdivMeshContext *ctx,
                                   (first_loop_index - base_loop_index + 1) % coarse_poly->totloop;
     const int first_indices[2] = {first_loop_index, second_loop_index};
     const int last_indices[2] = {
-        static_cast<int>(loops_of_ptex.last_loop - coarse_mloop),
-        static_cast<int>(loops_of_ptex.first_loop - coarse_mloop),
+        int(loops_of_ptex.last_loop - coarse_mloop),
+        int(loops_of_ptex.first_loop - coarse_mloop),
     };
     CustomData_interp(
         loop_data, &loop_interpolation->loop_data_storage, first_indices, weights, nullptr, 2, 1);

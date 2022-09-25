@@ -938,7 +938,7 @@ static void node_texture_buts_proc(uiLayout *layout, bContext *UNUSED(C), Pointe
       uiItemR(
           row, &tex_ptr, "noise_basis_2", DEFAULT_FLAGS | UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
       row = uiLayoutRow(col, false);
-      uiLayoutSetActive(row, !(ELEM(tex->stype, TEX_BAND, TEX_RING)));
+      uiLayoutSetActive(row, !ELEM(tex->stype, TEX_BAND, TEX_RING));
       uiItemR(row, &tex_ptr, "noise_type", DEFAULT_FLAGS | UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
       break;
 
@@ -1764,7 +1764,7 @@ static void nodelink_batch_init()
 
     /* curve strip */
     for (int i = 0; i < LINK_RESOL; i++) {
-      uv[0] = 255 * (i / (float)(LINK_RESOL - 1));
+      uv[0] = 255 * (i / float(LINK_RESOL - 1));
       uv[1] = 0;
       set_nodelink_vertex(vbo, uv_id, pos_id, expand_id, v++, uv, pos, exp);
       uv[1] = 255;

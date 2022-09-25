@@ -395,8 +395,8 @@ void CDDM_recalc_tessellation(DerivedMesh *dm)
 static void cdDM_recalc_looptri(DerivedMesh *dm)
 {
   CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
-  const unsigned int totpoly = dm->numPolyData;
-  const unsigned int totloop = dm->numLoopData;
+  const uint totpoly = dm->numPolyData;
+  const uint totloop = dm->numLoopData;
 
   DM_ensure_looptri_data(dm);
   BLI_assert(totpoly == 0 || cddm->dm.looptris.array_wip != NULL);

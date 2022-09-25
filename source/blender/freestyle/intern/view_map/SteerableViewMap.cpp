@@ -26,13 +26,13 @@ namespace Freestyle {
 
 using namespace Geometry;
 
-SteerableViewMap::SteerableViewMap(unsigned int nbOrientations)
+SteerableViewMap::SteerableViewMap(uint nbOrientations)
 {
   _nbOrientations = nbOrientations;
-  _bound = cos(M_PI / (float)_nbOrientations);
-  for (unsigned int i = 0; i < _nbOrientations; ++i) {
-    _directions.emplace_back(cos((float)i * M_PI / (float)_nbOrientations),
-                             sin((float)i * M_PI / (float)_nbOrientations));
+  _bound = cos(M_PI / float(_nbOrientations));
+  for (uint i = 0; i < _nbOrientations; ++i) {
+    _directions.emplace_back(cos(float(i) * M_PI / float(_nbOrientations)),
+                             sin(float(i) * M_PI / float(_nbOrientations)));
   }
   Build();
 }
@@ -47,7 +47,7 @@ void SteerableViewMap::Build()
 SteerableViewMap::SteerableViewMap(const SteerableViewMap &iBrother)
 {
   _nbOrientations = iBrother._nbOrientations;
-  unsigned int i;
+  uint i;
   _bound = iBrother._bound;
   _directions = iBrother._directions;
   _mapping = iBrother._mapping;
@@ -66,7 +66,7 @@ SteerableViewMap::~SteerableViewMap()
 
 void SteerableViewMap::Clear()
 {
-  unsigned int i;
+  uint i;
   if (_imagesPyramids) {
     for (i = 0; i <= _nbOrientations; ++i) {
       if (_imagesPyramids[i]) {
@@ -77,8 +77,7 @@ void SteerableViewMap::Clear()
     _imagesPyramids = nullptr;
   }
   if (!_mapping.empty()) {
-    for (map<unsigned int, double *>::iterator m = _mapping.begin(), mend = _mapping.end();
-         m != mend;
+    for (map<uint, double *>::iterator m = _mapping.begin(), mend = _mapping.end(); m != mend;
          ++m) {
       delete[](*m).second;
     }
@@ -102,14 +101,14 @@ double SteerableViewMap::ComputeWeight(const Vec2d &dir, unsigned i)
     dotp = 1.0;
   }
 
-  return cos((float)_nbOrientations / 2.0 * acos(dotp));
+  return cos(float(_nbOrientations) / 2.0 * acos(dotp));
 }
 
 double *SteerableViewMap::AddFEdge(FEdge *iFEdge)
 {
   unsigned i;
   unsigned id = iFEdge->getId().getFirst();
-  map<unsigned int, double *>::iterator o = _mapping.find(id);
+  map<uint, double *>::iterator o = _mapping.find(id);
   if (o != _mapping.end()) {
     return (*o).second;
   }
@@ -142,7 +141,7 @@ unsigned SteerableViewMap::getSVMNumber(Vec2f dir)
   dir /= norm;
   double maxw = 0.0f;
   unsigned winner = _nbOrientations + 1;
-  for (unsigned int i = 0; i < _nbOrientations; ++i) {
+  for (uint i = 0; i < _nbOrientations; ++i) {
     double w = ComputeWeight(dir, i);
     if (w > maxw) {
       maxw = w;
@@ -154,7 +153,7 @@ unsigned SteerableViewMap::getSVMNumber(Vec2f dir)
 
 unsigned SteerableViewMap::getSVMNumber(unsigned id)
 {
-  map<unsigned int, double *>::iterator o = _mapping.find(id);
+  map<uint, double *>::iterator o = _mapping.find(id);
   if (o != _mapping.end()) {
     double *wvalues = (*o).second;
     double maxw = 0.0;
@@ -176,7 +175,7 @@ void SteerableViewMap::buildImagesPyramids(GrayImage **steerableBases,
                                            unsigned iNbLevels,
                                            float iSigma)
 {
-  for (unsigned int i = 0; i <= _nbOrientations; ++i) {
+  for (uint i = 0; i <= _nbOrientations; ++i) {
     ImagePyramid *svm = (_imagesPyramids)[i];
     delete svm;
     if (copy) {
@@ -215,7 +214,7 @@ float SteerableViewMap::readCompleteViewMapPixel(int iLevel, int x, int y)
   return readSteerableViewMapPixel(_nbOrientations, iLevel, x, y);
 }
 
-unsigned int SteerableViewMap::getNumberOfPyramidLevels() const
+uint SteerableViewMap::getNumberOfPyramidLevels() const
 {
   if (_imagesPyramids[0]) {
     return _imagesPyramids[0]->getNumberOfLevels();
@@ -225,7 +224,7 @@ unsigned int SteerableViewMap::getNumberOfPyramidLevels() const
 
 void SteerableViewMap::saveSteerableViewMap() const
 {
-  for (unsigned int i = 0; i <= _nbOrientations; ++i) {
+  for (uint i = 0; i <= _nbOrientations; ++i) {
     if (_imagesPyramids[i] == nullptr) {
       cerr << "SteerableViewMap warning: orientation " << i
            << " of steerable View Map whas not been computed yet" << endl;
@@ -247,7 +246,7 @@ void SteerableViewMap::saveSteerableViewMap() const
 
       for (int y = 0; y < oh; ++y) {    // soc
         for (int x = 0; x < ow; ++x) {  // soc
-          int c = (int)(coeff * _imagesPyramids[i]->pixel(x, y, j));
+          int c = int(coeff * _imagesPyramids[i]->pixel(x, y, j));
           if (c > 255) {
             c = 255;
           }

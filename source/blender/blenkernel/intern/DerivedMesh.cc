@@ -441,8 +441,8 @@ void DM_DupPolys(DerivedMesh *source, DerivedMesh *target)
 
 void DM_ensure_looptri_data(DerivedMesh *dm)
 {
-  const unsigned int totpoly = dm->numPolyData;
-  const unsigned int totloop = dm->numLoopData;
+  const uint totpoly = dm->numPolyData;
+  const uint totloop = dm->numLoopData;
   const int looptris_num = poly_to_tri_count(totpoly, totloop);
 
   BLI_assert(dm->looptris.array_wip == nullptr);

@@ -2031,7 +2031,7 @@ int BKE_sculpt_mask_layers_ensure(Object *ob, MultiresModifierData *mmd)
           const MLoop *l = &loops[p->loopstart + j];
           avg += paint_mask[l->v];
         }
-        avg /= (float)p->totloop;
+        avg /= float(p->totloop);
 
         /* fill in multires mask corner */
         for (j = 0; j < p->totloop; j++) {
@@ -2553,12 +2553,10 @@ static bool sculpt_attr_update(Object *ob, SculptAttribute *attr)
 
     if (cdata) {
       int layer_index = CustomData_get_named_layer_index(cdata, attr->proptype, attr->name);
+      bad = layer_index == -1;
 
-      if (layer_index != -1 && attr->data_for_bmesh) {
+      if (ss->bm) {
         attr->bmesh_cd_offset = cdata->layers[layer_index].offset;
-      }
-      else {
-        bad = true;
       }
     }
   }

@@ -1069,10 +1069,10 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *me, const struct BMeshToMesh
 
   if (need_material_index) {
     BM_mesh_elem_table_ensure(bm, BM_FACE);
-    write_fn_to_attribute<int>(
-        me->attributes_for_write(), "material_index", ATTR_DOMAIN_FACE, [&](const int i) {
-          return static_cast<int>(BM_face_at_index(bm, i)->mat_nr);
-        });
+    write_fn_to_attribute<int>(me->attributes_for_write(),
+                               "material_index",
+                               ATTR_DOMAIN_FACE,
+                               [&](const int i) { return int(BM_face_at_index(bm, i)->mat_nr); });
   }
 
   /* Patch hook indices and vertex parents. */
@@ -1232,7 +1232,7 @@ void BM_mesh_bm_to_me_for_eval(BMesh *bm, Mesh *me, const CustomData_MeshMasks *
   MutableSpan<MPoly> mpoly = me->polys_for_write();
   MutableSpan<MLoop> loops = me->loops_for_write();
   MLoop *mloop = loops.data();
-  unsigned int i, j;
+  uint i, j;
 
   /* Clear normals on the mesh completely, since the original vertex and polygon count might be
    * different than the BMesh's. */

@@ -349,7 +349,7 @@ int bm_mesh_calc_uv_islands(const Scene *scene,
   BM_mesh_elem_table_ensure(bm, BM_FACE);
 
   int *groups_array = static_cast<int *>(
-      MEM_mallocN(sizeof(*groups_array) * (size_t)bm->totface, __func__));
+      MEM_mallocN(sizeof(*groups_array) * size_t(bm->totface), __func__));
 
   int(*group_index)[2];
 
@@ -524,7 +524,7 @@ void ED_uvedit_pack_islands_multi(const Scene *scene,
     island_array[index] = island;
 
     if (margin > 0.0f) {
-      area += (double)sqrtf(box->w * box->h);
+      area += double(sqrtf(box->w * box->h));
     }
   }
 
@@ -539,7 +539,7 @@ void ED_uvedit_pack_islands_multi(const Scene *scene,
     /* Logic matches behavior from #param_pack,
      * use area so multiply the margin by the area to give
      * predictable results not dependent on UV scale. */
-    margin = (margin * (float)area) * 0.1f;
+    margin = (margin * float(area)) * 0.1f;
     for (int i = 0; i < island_list_len; i++) {
       struct FaceIsland *island = island_array[i];
       BoxPack *box = &boxarray[i];

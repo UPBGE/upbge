@@ -52,7 +52,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>(N_("Geometry"))
       .supported_type({GEO_COMPONENT_TYPE_MESH, GEO_COMPONENT_TYPE_POINT_CLOUD});
-  b.add_input<decl::Vector>(N_("Sample Position")).implicit_field();
+  b.add_input<decl::Vector>(N_("Sample Position")).implicit_field(implicit_field_inputs::position);
   b.add_output<decl::Int>(N_("Index")).dependent_field({1});
 }
 
@@ -149,8 +149,7 @@ static void get_closest_mesh_polys(const Mesh &mesh,
   Array<int> looptri_indices(positions.size());
   get_closest_mesh_looptris(mesh, positions, mask, looptri_indices, r_distances_sq, r_positions);
 
-  const Span<MLoopTri> looptris{BKE_mesh_runtime_looptri_ensure(&mesh),
-                                BKE_mesh_runtime_looptri_len(&mesh)};
+  const Span<MLoopTri> looptris = mesh.looptris();
 
   for (const int i : mask) {
     const MLoopTri &looptri = looptris[looptri_indices[i]];

@@ -374,7 +374,7 @@ static void node_foreach_cache(ID *id,
   if (nodetree->type == NTREE_COMPOSIT) {
     LISTBASE_FOREACH (bNode *, node, &nodetree->nodes) {
       if (node->type == CMP_NODE_MOVIEDISTORTION) {
-        key.offset_in_ID = (size_t)BLI_ghashutil_strhash_p(node->name);
+        key.offset_in_ID = size_t(BLI_ghashutil_strhash_p(node->name));
         function_callback(id, &key, (void **)&node->storage, 0, user_data);
       }
     }
@@ -1417,8 +1417,8 @@ void nodeUnregisterType(bNodeType *nt)
 bool nodeTypeUndefined(const bNode *node)
 {
   return (node->typeinfo == &NodeTypeUndefined) ||
-         ((ELEM(node->type, NODE_GROUP, NODE_CUSTOM_GROUP)) && node->id &&
-          ID_IS_LINKED(node->id) && (node->id->tag & LIB_TAG_MISSING));
+         (ELEM(node->type, NODE_GROUP, NODE_CUSTOM_GROUP) && node->id && ID_IS_LINKED(node->id) &&
+          (node->id->tag & LIB_TAG_MISSING));
 }
 
 GHashIterator *nodeTypeGetIterator()
@@ -2716,8 +2716,8 @@ bNodePreview *BKE_node_preview_verify(bNodeInstanceHash *previews,
   }
 
   if (preview->rect == nullptr) {
-    preview->rect = (unsigned char *)MEM_callocN(4 * xsize + xsize * ysize * sizeof(char[4]),
-                                                 "node preview rect");
+    preview->rect = (uchar *)MEM_callocN(4 * xsize + xsize * ysize * sizeof(char[4]),
+                                         "node preview rect");
     preview->xsize = xsize;
     preview->ysize = ysize;
   }
@@ -2730,7 +2730,7 @@ bNodePreview *BKE_node_preview_copy(bNodePreview *preview)
 {
   bNodePreview *new_preview = (bNodePreview *)MEM_dupallocN(preview);
   if (preview->rect) {
-    new_preview->rect = (unsigned char *)MEM_dupallocN(preview->rect);
+    new_preview->rect = (uchar *)MEM_dupallocN(preview->rect);
   }
   return new_preview;
 }
@@ -3899,15 +3899,15 @@ bNodeInstanceKey BKE_node_instance_key(bNodeInstanceKey parent_key,
   return key;
 }
 
-static unsigned int node_instance_hash_key(const void *key)
+static uint node_instance_hash_key(const void *key)
 {
   return ((const bNodeInstanceKey *)key)->value;
 }
 
 static bool node_instance_hash_key_cmp(const void *a, const void *b)
 {
-  unsigned int value_a = ((const bNodeInstanceKey *)a)->value;
-  unsigned int value_b = ((const bNodeInstanceKey *)b)->value;
+  uint value_a = ((const bNodeInstanceKey *)a)->value;
+  uint value_b = ((const bNodeInstanceKey *)b)->value;
 
   return (value_a != value_b);
 }

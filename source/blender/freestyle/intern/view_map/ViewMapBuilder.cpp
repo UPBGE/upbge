@@ -445,7 +445,7 @@ static void computeCumulativeVisibility(ViewMap *ioViewMap,
         stringstream ss;
         ss << "Freestyle: Visibility computations " << (100 * count / vedges.size()) << "%";
         iRenderMonitor->setInfo(ss.str());
-        iRenderMonitor->progress((float)count / vedges.size());
+        iRenderMonitor->progress(float(count) / vedges.size());
       }
       count++;
     }
@@ -595,7 +595,7 @@ static void computeCumulativeVisibility(ViewMap *ioViewMap,
     for (set<ViewShape *>::iterator o = foundOccluders.begin(), oend = foundOccluders.end();
          o != oend;
          ++o) {
-      (*ve)->AddOccluder((*o));
+      (*ve)->AddOccluder(*o);
     }
 #if LOGGING
     if (_global.debug & G_DEBUG_FREESTYLE) {
@@ -607,7 +607,7 @@ static void computeCumulativeVisibility(ViewMap *ioViewMap,
 #endif
     // occludee --
     if (!wFaces.empty()) {
-      if (wFaces.size() <= (float)nSamples / 2.0f) {
+      if (wFaces.size() <= float(nSamples) / 2.0f) {
         (*ve)->setaShape(nullptr);
       }
       else {
@@ -623,7 +623,7 @@ static void computeCumulativeVisibility(ViewMap *ioViewMap,
     stringstream ss;
     ss << "Freestyle: Visibility computations " << (100 * count / vedges.size()) << "%";
     iRenderMonitor->setInfo(ss.str());
-    iRenderMonitor->progress((float)count / vedges.size());
+    iRenderMonitor->progress(float(count) / vedges.size());
   }
 }
 
@@ -786,7 +786,7 @@ static void computeDetailedVisibility(ViewMap *ioViewMap,
     for (set<ViewShape *>::iterator o = foundOccluders.begin(), oend = foundOccluders.end();
          o != oend;
          ++o) {
-      (*ve)->AddOccluder((*o));
+      (*ve)->AddOccluder(*o);
     }
 #if LOGGING
     if (_global.debug & G_DEBUG_FREESTYLE) {
@@ -796,7 +796,7 @@ static void computeDetailedVisibility(ViewMap *ioViewMap,
 #endif
     // occludee --
     if (!wFaces.empty()) {
-      if (wFaces.size() <= (float)nSamples / 2.0f) {
+      if (wFaces.size() <= float(nSamples) / 2.0f) {
         (*ve)->setaShape(nullptr);
       }
       else {
@@ -925,7 +925,7 @@ static void computeFastVisibility(ViewMap *ioViewMap, G &grid, real epsilon)
     for (set<ViewShape *>::iterator o = foundOccluders.begin(), oend = foundOccluders.end();
          o != oend;
          ++o) {
-      (*ve)->AddOccluder((*o));
+      (*ve)->AddOccluder(*o);
     }
 
     // occludee --
@@ -1003,11 +1003,11 @@ static void computeVeryFastVisibility(ViewMap *ioViewMap, G &grid, real epsilon)
   }
 }
 
-void ViewMapBuilder::BuildGrid(WingedEdge &we, const BBox<Vec3r> &bbox, unsigned int sceneNumFaces)
+void ViewMapBuilder::BuildGrid(WingedEdge &we, const BBox<Vec3r> &bbox, uint sceneNumFaces)
 {
   _Grid->clear();
   Vec3r size;
-  for (unsigned int i = 0; i < 3; i++) {
+  for (uint i = 0; i < 3; i++) {
     size[i] = fabs(bbox.getMax()[i] - bbox.getMin()[i]);
     // let make the grid 1/10 bigger to avoid numerical errors while computing triangles/cells
     // intersections.
@@ -1032,7 +1032,7 @@ ViewMap *ViewMapBuilder::BuildViewMap(WingedEdge &we,
                                       visibility_algo iAlgo,
                                       real epsilon,
                                       const BBox<Vec3r> &bbox,
-                                      unsigned int sceneNumFaces)
+                                      uint sceneNumFaces)
 {
   _ViewMap = new ViewMap;
   _currentId = 1;
@@ -1289,7 +1289,7 @@ void ViewMapBuilder::computeCusps(ViewMap *ioViewMap)
     if (_pRenderMonitor && _pRenderMonitor->testBreak()) {
       break;
     }
-    if ((!((*ve)->getNature() & Nature::SILHOUETTE)) || (!((*ve)->fedgeA()->isSmooth()))) {
+    if (!((*ve)->getNature() & Nature::SILHOUETTE) || !((*ve)->fedgeA()->isSmooth())) {
       continue;
     }
     FEdge *fe = (*ve)->fedgeA();
@@ -1435,7 +1435,7 @@ void ViewMapBuilder::ComputeDetailedVisibility(ViewMap *ioViewMap,
 void ViewMapBuilder::ComputeEdgesVisibility(ViewMap *ioViewMap,
                                             WingedEdge &we,
                                             const BBox<Vec3r> &bbox,
-                                            unsigned int sceneNumFaces,
+                                            uint sceneNumFaces,
                                             visibility_algo iAlgo,
                                             real epsilon)
 {
@@ -1658,7 +1658,7 @@ void ViewMapBuilder::ComputeRayCastingVisibility(ViewMap *ioViewMap, real epsilo
     // occluders --
     for (set<ViewShape *>::iterator o = occluders.begin(), oend = occluders.end(); o != oend;
          ++o) {
-      (*ve)->AddOccluder((*o));
+      (*ve)->AddOccluder(*o);
     }
 #if LOGGING
     if (_global.debug & G_DEBUG_FREESTYLE) {
@@ -1668,7 +1668,7 @@ void ViewMapBuilder::ComputeRayCastingVisibility(ViewMap *ioViewMap, real epsilo
 #endif
     // occludee --
     if (!aFaces.empty()) {
-      if (aFaces.size() <= (float)nSamples / 2.0f) {
+      if (aFaces.size() <= float(nSamples) / 2.0f) {
         (*ve)->setaShape(nullptr);
       }
       else {
@@ -2270,7 +2270,7 @@ struct less_SVertex2D {
   {
     Vec3r A = x->point2D();
     Vec3r B = y->point2D();
-    for (unsigned int i = 0; i < 3; i++) {
+    for (uint i = 0; i < 3; i++) {
       if (fabs(A[i] - B[i]) < epsilon) {
         continue;
       }
@@ -2313,8 +2313,8 @@ struct silhouette_binary_rule : public binary_rule<segment, segment> {
     FEdge *f1 = s1.edge();
     FEdge *f2 = s2.edge();
 
-    if ((!(((f1)->getNature() & Nature::SILHOUETTE) || ((f1)->getNature() & Nature::BORDER))) &&
-        (!(((f2)->getNature() & Nature::SILHOUETTE) || ((f2)->getNature() & Nature::BORDER)))) {
+    if (!(((f1)->getNature() & Nature::SILHOUETTE) || ((f1)->getNature() & Nature::BORDER)) &&
+        !(((f2)->getNature() & Nature::SILHOUETTE) || ((f2)->getNature() & Nature::BORDER))) {
       return false;
     }
 

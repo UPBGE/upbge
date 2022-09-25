@@ -178,9 +178,9 @@ void ED_view3d_init_mats_rv3d_gl(const struct Object *ob, struct RegionView3D *r
 {
   ED_view3d_init_mats_rv3d(ob, rv3d);
 
-  /* we have to multiply instead of loading viewmatob to make
-   * it work with duplis using displists, otherwise it will
-   * override the dupli-matrix */
+  /* We have to multiply instead of loading `viewmatob` to make
+   * it work with duplis using display-lists, otherwise it will
+   * override the dupli-matrix. */
   GPU_matrix_mul(ob->obmat);
 }
 
@@ -632,7 +632,7 @@ static bool view3d_ima_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event
   }
   if (drag->type == WM_DRAG_PATH) {
     /* rule might not work? */
-    return (ELEM(drag->icon, 0, ICON_FILE_IMAGE, ICON_FILE_MOVIE));
+    return ELEM(drag->icon, 0, ICON_FILE_IMAGE, ICON_FILE_MOVIE);
   }
 
   return WM_drag_is_ID_type(drag, ID_IM);
@@ -641,7 +641,7 @@ static bool view3d_ima_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event
 static bool view3d_ima_bg_is_camera_view(bContext *C)
 {
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
-  if ((rv3d && (rv3d->persp == RV3D_CAMOB))) {
+  if (rv3d && (rv3d->persp == RV3D_CAMOB)) {
     View3D *v3d = CTX_wm_view3d(C);
     if (v3d && v3d->camera && v3d->camera->type == OB_CAMERA) {
       return true;
@@ -778,7 +778,7 @@ static void view3d_collection_drop_copy_local_id(bContext *UNUSED(C),
                                                  wmDropBox *drop)
 {
   ID *id = WM_drag_get_local_ID(drag, ID_GR);
-  RNA_int_set(drop->ptr, "session_uuid", (int)id->session_uuid);
+  RNA_int_set(drop->ptr, "session_uuid", int(id->session_uuid));
 }
 
 /* Mostly the same logic as #view3d_ob_drop_copy_external_asset(), just different enough to make
@@ -803,7 +803,7 @@ static void view3d_collection_drop_copy_external_asset(bContext *UNUSED(C),
   DEG_relations_tag_update(CTX_data_main(C));
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
 
-  RNA_int_set(drop->ptr, "session_uuid", (int)id->session_uuid);
+  RNA_int_set(drop->ptr, "session_uuid", int(id->session_uuid));
 
   /* Make an object active, just use the first one in the collection. */
   CollectionObject *cobject = static_cast<CollectionObject *>(collection->gobject.first);
@@ -1929,7 +1929,7 @@ static void view3d_id_remap_v3d_ob_centers(View3D *v3d, const struct IDRemapper 
 {
   if (BKE_id_remapper_apply(mappings, (ID **)&v3d->ob_center, ID_REMAP_APPLY_DEFAULT) ==
       ID_REMAP_RESULT_SOURCE_UNASSIGNED) {
-    /* Otherwise, bonename may remain valid...
+    /* Otherwise, bone-name may remain valid...
      * We could be smart and check this, too? */
     v3d->ob_center_bone[0] = '\0';
   }
