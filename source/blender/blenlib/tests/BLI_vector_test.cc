@@ -317,7 +317,7 @@ TEST(vector, BecomeLarge)
   }
   EXPECT_EQ(vec.size(), 100);
   for (int i = 0; i < 100; i++) {
-    EXPECT_EQ(vec[i], static_cast<int>(i * 5));
+    EXPECT_EQ(vec[i], int(i * 5));
   }
 }
 
@@ -644,7 +644,7 @@ TEST(vector, OveralignedValues)
   Vector<AlignedBuffer<1, 512>, 2> vec;
   for (int i = 0; i < 100; i++) {
     vec.append({});
-    EXPECT_EQ((uintptr_t)&vec.last() % 512, 0);
+    EXPECT_EQ(uintptr_t(&vec.last()) % 512, 0);
   }
 }
 

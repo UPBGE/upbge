@@ -105,6 +105,9 @@ All instructions on how to use this code are in the accompanying header file.
 #  define ALLOC(_struct) ((_struct *)malloc(sizeof(_struct)))
 #endif
 
+/* Not defined on all platforms (macOS & WIN32). */
+typedef unsigned int uint;
+
 // internal definitions
 
 typedef const double *ArHosekSkyModel_Dataset;
@@ -129,7 +132,7 @@ static void ArHosekSkyModel_CookConfiguration(ArHosekSkyModel_Dataset dataset,
 
   elev_matrix = dataset + (9 * 6 * (int_turbidity - 1));
 
-  for (unsigned int i = 0; i < 9; ++i) {
+  for (uint i = 0; i < 9; ++i) {
     //(1-t).^3* A1 + 3*(1-t).^2.*t * A2 + 3*(1-t) .* t .^ 2 * A3 + t.^3 * A4;
     config[i] =
         (1.0 - albedo) * (1.0 - turbidity_rem) *
@@ -143,7 +146,7 @@ static void ArHosekSkyModel_CookConfiguration(ArHosekSkyModel_Dataset dataset,
 
   // alb 1 low turb
   elev_matrix = dataset + (9 * 6 * 10 + 9 * 6 * (int_turbidity - 1));
-  for (unsigned int i = 0; i < 9; ++i) {
+  for (uint i = 0; i < 9; ++i) {
     //(1-t).^3* A1 + 3*(1-t).^2.*t * A2 + 3*(1-t) .* t .^ 2 * A3 + t.^3 * A4;
     config[i] +=
         (albedo) * (1.0 - turbidity_rem) *
@@ -161,7 +164,7 @@ static void ArHosekSkyModel_CookConfiguration(ArHosekSkyModel_Dataset dataset,
 
   // alb 0 high turb
   elev_matrix = dataset + (9 * 6 * (int_turbidity));
-  for (unsigned int i = 0; i < 9; ++i) {
+  for (uint i = 0; i < 9; ++i) {
     //(1-t).^3* A1 + 3*(1-t).^2.*t * A2 + 3*(1-t) .* t .^ 2 * A3 + t.^3 * A4;
     config[i] +=
         (1.0 - albedo) * (turbidity_rem) *
@@ -175,7 +178,7 @@ static void ArHosekSkyModel_CookConfiguration(ArHosekSkyModel_Dataset dataset,
 
   // alb 1 high turb
   elev_matrix = dataset + (9 * 6 * 10 + 9 * 6 * (int_turbidity));
-  for (unsigned int i = 0; i < 9; ++i) {
+  for (uint i = 0; i < 9; ++i) {
     //(1-t).^3* A1 + 3*(1-t).^2.*t * A2 + 3*(1-t) .* t .^ 2 * A3 + t.^3 * A4;
     config[i] +=
         (albedo) * (turbidity_rem) *
@@ -313,7 +316,7 @@ SKY_ArHosekSkyModelState *SKY_arhosek_xyz_skymodelstate_alloc_init(const double 
   state->albedo = albedo;
   state->elevation = elevation;
 
-  for (unsigned int channel = 0; channel < 3; ++channel) {
+  for (uint channel = 0; channel < 3; ++channel) {
     ArHosekSkyModel_CookConfiguration(
         datasetsXYZ[channel], state->configs[channel], turbidity, albedo, elevation);
 
