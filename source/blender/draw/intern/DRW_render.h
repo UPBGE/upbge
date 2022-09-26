@@ -955,6 +955,15 @@ void DRW_transform_to_display(struct GPUTexture *tex,
 void DRW_transform_to_display_image_render(struct GPUTexture *tex);
 void DRW_game_gpu_viewport_set(struct GPUViewport *viewport);
 struct GPUViewport *DRW_game_gpu_viewport_get(void);
+
+
+/* Viewport render debug  */
+void DRW_debug_line_bge(const float v1[3], const float v2[3], const float color[4]);
+void DRW_debug_box_2D_bge(const float xco, const float yco, const float xsize, const float ysize);
+void DRW_debug_text_2D_bge(const float xco, const float yco, const char *str);
+void drw_debug_draw_bge(void);
+/*********/
+
 /**************************END OF GAME ENGINE*******************************/
 
 #ifdef __cplusplus

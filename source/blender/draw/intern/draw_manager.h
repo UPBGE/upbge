@@ -538,6 +538,31 @@ typedef struct DRWData {
   struct CurvesUniformBufPool *curves_ubos;
 } DRWData;
 
+/* ------------- DRAW DEBUG - UPBGE ------------ */
+
+typedef struct DRWDebugLine {
+  struct DRWDebugLine *next; /* linked list */
+  float pos[2][3];
+  float color[4];
+} DRWDebugLine;
+
+/* UPBGE */
+typedef struct DRWDebugText2D {
+  struct DRWDebugText2D *next; /* linked list */
+  char text[64];
+  float xco;
+  float yco;
+} DRWDebugText2D;
+
+typedef struct DRWDebugBox2D {
+  struct DRWDebugBox2D *next; /* linked list */
+  float xco;
+  float yco;
+  float xsize;
+  float ysize;
+} DRWDebugBox2D;
+/* End of UPBGE */
+
 /* ------------- DRAW MANAGER ------------ */
 
 typedef struct DupliKey {
@@ -645,7 +670,13 @@ typedef struct DRWManager {
   DRWDebugModule *debug;
 
   /* UPBGE */
-  DRWDebugModule *debug_bge;
+  struct {
+    /* TODO(fclem) optimize: use chunks. */
+    DRWDebugLine *lines;
+    DRWDebugBox2D *boxes;
+    DRWDebugText2D *texts;
+  } debug_bge;
+  /* UPBGE */
 
 } DRWManager;
 
