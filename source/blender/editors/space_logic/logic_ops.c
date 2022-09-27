@@ -309,7 +309,7 @@ static void LOGIC_OT_sensor_remove(wmOperatorType *ot)
   ot->poll = edit_sensor_poll;
 
   /* flags */
-  ot->flag = 0;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_INTERNAL;
   edit_sensor_properties(ot);
 }
 
@@ -369,7 +369,7 @@ static void LOGIC_OT_sensor_add(wmOperatorType *ot)
   ot->poll = ED_operator_object_active_editable;
 
   /* flags */
-  ot->flag = 0;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_INTERNAL;
 
   /* properties */
   ot->prop = prop = RNA_def_enum(
@@ -422,7 +422,7 @@ static void LOGIC_OT_controller_remove(wmOperatorType *ot)
   ot->poll = edit_controller_poll;
 
   /* flags */
-  ot->flag = 0;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_INTERNAL;
   edit_controller_properties(ot);
 }
 
@@ -501,7 +501,7 @@ static void LOGIC_OT_controller_add(wmOperatorType *ot)
   ot->poll = ED_operator_object_active_editable;
 
   /* flags */
-  ot->flag = 0;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_INTERNAL;
 
   /* properties */
   ot->prop = RNA_def_enum(ot->srna,
@@ -557,7 +557,7 @@ static void LOGIC_OT_actuator_remove(wmOperatorType *ot)
   ot->poll = edit_actuator_poll;
 
   /* flags */
-  ot->flag = 0;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_INTERNAL;
   edit_actuator_properties(ot);
 }
 
@@ -617,7 +617,7 @@ static void LOGIC_OT_actuator_add(wmOperatorType *ot)
   ot->poll = ED_operator_object_active_editable;
 
   /* flags */
-  ot->flag = 0;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_INTERNAL;
 
   /* properties */
   ot->prop = prop = RNA_def_enum(
@@ -673,7 +673,7 @@ static void LOGIC_OT_sensor_move(wmOperatorType *ot)
   ot->poll = edit_sensor_poll;
 
   /* flags */
-  ot->flag = 0;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_INTERNAL;
 
   /* properties */
   edit_sensor_properties(ot);
@@ -720,7 +720,7 @@ static void LOGIC_OT_controller_move(wmOperatorType *ot)
   ot->poll = edit_controller_poll;
 
   /* flags */
-  ot->flag = 0;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_INTERNAL;
 
   /* properties */
   edit_controller_properties(ot);
@@ -767,7 +767,7 @@ static void LOGIC_OT_actuator_move(wmOperatorType *ot)
   ot->poll = edit_actuator_poll;
 
   /* flags */
-  ot->flag = 0;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_INTERNAL;
 
   /* properties */
   edit_actuator_properties(ot);
