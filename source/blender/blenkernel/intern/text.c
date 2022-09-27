@@ -898,8 +898,7 @@ void txt_move_left(Text *text, const bool sel)
       (*charp) -= tabsize;
     }
     else {
-      const char *prev = BLI_str_find_prev_char_utf8((*linep)->line + *charp, (*linep)->line);
-      *charp = prev - (*linep)->line;
+      BLI_str_cursor_step_prev_utf8((*linep)->line, (*linep)->len, charp);
     }
   }
 
@@ -943,7 +942,7 @@ void txt_move_right(Text *text, const bool sel)
       (*charp) += tabsize;
     }
     else {
-      (*charp) += BLI_str_utf8_size((*linep)->line + *charp);
+      BLI_str_cursor_step_next_utf8((*linep)->line, (*linep)->len, charp);
     }
   }
 
@@ -1759,8 +1758,6 @@ void txt_duplicate_line(Text *text)
 
 void txt_delete_char(Text *text)
 {
-  uint c = '\n';
-
   if (!text->curl) {
     return;
   }
@@ -1780,10 +1777,9 @@ void txt_delete_char(Text *text)
     }
   }
   else { /* Just deleting a char */
-    size_t c_len = text->curc;
-    c = BLI_str_utf8_as_unicode_step(text->curl->line, text->curl->len, &c_len);
-    c_len -= text->curc;
-    UNUSED_VARS(c);
+    int pos = text->curc;
+    BLI_str_cursor_step_next_utf8(text->curl->line, text->curl->len, &pos);
+    size_t c_len = pos - text->curc;
 
     memmove(text->curl->line + text->curc,
             text->curl->line + text->curc + c_len,
@@ -1807,8 +1803,6 @@ void txt_delete_word(Text *text)
 
 void txt_backspace_char(Text *text)
 {
-  uint c = '\n';
-
   if (!text->curl) {
     return;
   }
@@ -1830,13 +1824,9 @@ void txt_backspace_char(Text *text)
     txt_pop_sel(text);
   }
   else { /* Just backspacing a char */
-    const char *prev = BLI_str_find_prev_char_utf8(text->curl->line + text->curc,
-                                                   text->curl->line);
-    size_t c_len = prev - text->curl->line;
-    c = BLI_str_utf8_as_unicode_step(text->curl->line, text->curl->len, &c_len);
-    c_len -= prev - text->curl->line;
-
-    UNUSED_VARS(c);
+    int pos = text->curc;
+    BLI_str_cursor_step_prev_utf8(text->curl->line, text->curl->len, &pos);
+    size_t c_len = text->curc - pos;
 
     /* source and destination overlap, don't use memcpy() */
     memmove(text->curl->line + text->curc - c_len,
