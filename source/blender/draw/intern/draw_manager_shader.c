@@ -153,9 +153,12 @@ static void drw_deferred_shader_add(GPUMaterial *mat, bool deferred)
   if (ELEM(GPU_material_status(mat), GPU_MAT_SUCCESS, GPU_MAT_FAILED)) {
     return;
   }
+
+  Scene *scene = (Scene *)DEG_get_original_id(&DST.draw_ctx.scene->id);
+
   /* Do not defer the compilation if we are rendering for image.
    * deferred rendering is only possible when `evil_C` is available */
-  if (DST.draw_ctx.evil_C == NULL || DRW_state_is_image_render() || !USE_DEFERRED_COMPILATION || (scene->flag & SCE_INTERACTIVE || (scene->flag & SCE_IS_BLENDERPLAYER))) {
+  if (DST.draw_ctx.evil_C == NULL || DRW_state_is_image_render() || !USE_DEFERRED_COMPILATION || scene->flag & SCE_INTERACTIVE || scene->flag & SCE_IS_BLENDERPLAYER) {
     deferred = false;
   }
 
