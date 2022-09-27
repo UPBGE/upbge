@@ -920,7 +920,7 @@ static void LOGIC_OT_custom_object_register(wmOperatorType *ot)
   ot->poll = ED_operator_object_active_editable;
 
   /* flags */
-  ot->flag = 0;
+  ot->flag = OPTYPE_REGISTER;
 
   PropertyRNA *parm;
   parm = RNA_def_string(ot->srna,
@@ -944,7 +944,7 @@ static void LOGIC_OT_custom_object_create(wmOperatorType *ot)
   ot->poll = ED_operator_object_active_editable;
 
   /* flags */
-  ot->flag = 0;
+  ot->flag = OPTYPE_REGISTER;
 
   PropertyRNA *parm;
   parm = RNA_def_string(ot->srna,
@@ -993,7 +993,7 @@ static void LOGIC_OT_custom_object_remove(wmOperatorType *ot)
   ot->poll = remove_component_poll;
 
   /* flags */
-  ot->flag = 0;
+  ot->flag = OPTYPE_REGISTER;
 }
 
 static int custom_object_reload_exec(bContext *C, wmOperator *op)
@@ -1030,7 +1030,7 @@ static void LOGIC_OT_custom_object_reload(wmOperatorType *ot)
   ot->poll = ED_operator_object_active_editable;
 
   /* flags */
-  ot->flag = 0;
+  ot->flag = OPTYPE_REGISTER;
 }
 
 /* Component operators */
@@ -1098,7 +1098,7 @@ static void LOGIC_OT_python_component_register(wmOperatorType *ot)
   ot->poll = ED_operator_object_active_editable;
 
   /* flags */
-  ot->flag = 0;
+  ot->flag = OPTYPE_REGISTER;
 
   PropertyRNA *parm;
   parm = RNA_def_string(ot->srna,
@@ -1122,7 +1122,7 @@ static void LOGIC_OT_python_component_create(wmOperatorType *ot)
   ot->poll = ED_operator_object_active_editable;
 
   /* flags */
-  ot->flag = 0;
+  ot->flag = OPTYPE_REGISTER;
 
   PropertyRNA *parm;
   parm = RNA_def_string(ot->srna,
@@ -1172,7 +1172,7 @@ static void LOGIC_OT_python_component_remove(wmOperatorType *ot)
   ot->poll = remove_component_poll;
 
   /* flags */
-  ot->flag = 0;
+  ot->flag = OPTYPE_REGISTER;
 
   /* properties */
   RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Component index to remove", 0, INT_MAX);
@@ -1241,7 +1241,7 @@ static void LOGIC_OT_python_component_move_up(wmOperatorType *ot)
   ot->poll = component_move_up_poll;
 
   /* flags */
-  ot->flag = 0;
+  ot->flag = OPTYPE_REGISTER;
 
   /* properties */
   RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Component index to move", 0, INT_MAX);
@@ -1317,7 +1317,7 @@ static void LOGIC_OT_python_component_move_down(wmOperatorType *ot)
   ot->poll = component_move_down_poll;
 
   /* flags */
-  ot->flag = 0;
+  ot->flag = OPTYPE_REGISTER;
 
   /* properties */
   RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Component index to move", 0, INT_MAX);
@@ -1366,7 +1366,7 @@ static void LOGIC_OT_python_component_reload(wmOperatorType *ot)
   ot->poll = ED_operator_object_active_editable;
 
   /* flags */
-  ot->flag = 0;
+  ot->flag = OPTYPE_REGISTER;
 
   /* properties */
   RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Component index to reload", 0, INT_MAX);
