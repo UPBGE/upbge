@@ -1156,10 +1156,6 @@ static void write_area(BlendWriter *writer, ScrArea *area)
     if (space_type && space_type->blend_write) {
       space_type->blend_write(writer, sl);
     }
-
-(sl->spacetype == SPACE_LOGIC) {
-      BLO_write_struct(writer, SpaceLogic, sl);
-    }
   }
 }
 
@@ -1338,16 +1334,6 @@ static void direct_link_area(BlendDataReader *reader, ScrArea *area)
     if (space_type && space_type->blend_read_data) {
       space_type->blend_read_data(reader, sl);
     }
-
- (sl->spacetype == SPACE_LOGIC) {
-      SpaceLogic *slogic = (SpaceLogic *)sl;
-
-      /* XXX: this is new stuff, which shouldn't be directly linking to gpd... */
-      if (slogic->gpd) {
-        BLO_read_data_address(reader, &slogic->gpd);
-        BKE_gpencil_blend_read_data(reader, slogic->gpd);
-      }
-    }
   }
 
   BLI_listbase_clear(&area->actionzones);
@@ -1395,11 +1381,5 @@ void BKE_screen_area_blend_read_lib(BlendLibReader *reader, ID *parent_id, ScrAr
     if (space_type && space_type->blend_read_lib) {
       space_type->blend_read_lib(reader, parent_id, sl);
     }
-
-case SPACE_LOGIC: {
-        SpaceLogic *slogic = (SpaceLogic *)sl;
-        BLO_read_id_address(reader, parent_id->lib, &slogic->gpd);
-        break;
-      }
   }
 }

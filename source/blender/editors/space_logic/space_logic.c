@@ -36,9 +36,12 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
+#include "BLO_read_write.h"
+
 #include "DNA_gpencil_types.h"
 
 #include "BKE_context.h"
+#include "BKE_gpencil.h"
 #include "BKE_lib_id.h"
 #include "BKE_screen.h"
 
@@ -300,6 +303,28 @@ static void logic_id_remap(ScrArea *UNUSED(sa), SpaceLink *slink, ID *old_id, ID
   }
 }
 
+static void logic_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
+{
+  SpaceLogic *slogic = (SpaceLogic *)sl;
+
+  /* XXX: this is new stuff, which shouldn't be directly linking to gpd... */
+  if (slogic->gpd) {
+    BLO_read_data_address(reader, &slogic->gpd);
+    BKE_gpencil_blend_read_data(reader, slogic->gpd);
+  }
+}
+
+static void logic_blend_read_lib(BlendLibReader *reader, ID *parent_id, SpaceLink *sl)
+{
+  SpaceLogic *slogic = (SpaceLogic *)sl;
+  BLO_read_id_address(reader, parent_id->lib, &slogic->gpd);
+}
+
+static void logic_blend_write(BlendWriter *writer, SpaceLink *sl)
+{
+  BLO_write_struct(writer, SpaceLogic, sl);
+}
+
 /* only called once, from space/spacetypes.c */
 void ED_spacetype_logic(void)
 {
@@ -318,6 +343,10 @@ void ED_spacetype_logic(void)
   st->refresh = logic_refresh;
   st->context = logic_context;
   st->id_remap = logic_id_remap;
+
+  st->blend_read_data = logic_blend_read_data;
+  st->blend_read_lib = logic_blend_read_lib;
+  st->blend_write = logic_blend_write;
 
   /* regions: main window */
   art = MEM_callocN(sizeof(ARegionType), "spacetype logic region");
