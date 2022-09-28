@@ -993,10 +993,11 @@ void CustomData_from_bmeshpoly(CustomData *fdata, CustomData *ldata, int total)
 /** \name Face Set Conversion
  * \{ */
 
-void BKE_mesh_legacy_face_set_from_generic(Mesh *mesh)
+void BKE_mesh_legacy_face_set_from_generic(Mesh *mesh,
+                                           blender::MutableSpan<CustomDataLayer> poly_layers)
 {
   using namespace blender;
-  for (CustomDataLayer &layer : MutableSpan(mesh->pdata.layers, mesh->pdata.totlayer)) {
+  for (CustomDataLayer &layer : poly_layers) {
     if (StringRef(layer.name) == ".sculpt_face_set") {
       layer.type = CD_SCULPT_FACE_SETS;
     }
