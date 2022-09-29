@@ -1204,10 +1204,10 @@ elseif(APPLE)
   )
 
   if(WITH_BLENDER_THUMBNAILER)
-      install(
-        TARGETS blender-thumbnailer
-        DESTINATION Blender.app/Contents/MacOS/
-      )
+    install(
+      TARGETS blender-thumbnailer
+      DESTINATION Blender.app/Contents/MacOS/
+    )
   endif()
 
   if(PLATFORM_BUNDLED_LIBRARIES AND TARGETDIR_LIB)

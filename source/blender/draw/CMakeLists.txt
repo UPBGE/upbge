@@ -94,6 +94,7 @@ set(SRC
   intern/draw_manager_shader.c
   intern/draw_manager_text.c
   intern/draw_manager_texture.c
+  intern/draw_pbvh.cc
   intern/draw_select_buffer.c
   intern/draw_shader.cc
   intern/draw_texture_pool.cc
@@ -208,6 +209,7 @@ set(SRC
 
   DRW_engine.h
   DRW_select_buffer.h
+  DRW_pbvh.h
   intern/DRW_gpu_wrapper.hh
   intern/DRW_render.h
   intern/draw_attributes.h
@@ -230,6 +232,7 @@ set(SRC
   intern/draw_manager_profiling.h
   intern/draw_manager_testing.h
   intern/draw_manager_text.h
+  intern/draw_pbvh.h
   intern/draw_pass.hh
   intern/draw_resource.cc
   intern/draw_resource.hh
