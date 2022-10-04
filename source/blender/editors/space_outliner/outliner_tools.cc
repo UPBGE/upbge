@@ -381,7 +381,7 @@ static void unlink_collection_fn(bContext *C,
 }
 
 static void unlink_object_fn(bContext *C,
-                             ReportList * /*reports*/,
+                             ReportList *reports,
                              Scene * /*scene*/,
                              TreeElement *te,
                              TreeStoreElem *tsep,
@@ -396,12 +396,28 @@ static void unlink_object_fn(bContext *C,
       /* Parented objects need to find which collection to unlink from. */
       TreeElement *te_parent = te->parent;
       while (tsep && GS(tsep->id->name) == ID_OB) {
+        if (ID_IS_LINKED(tsep->id)) {
+          BKE_reportf(reports,
+                      RPT_WARNING,
+                      "Cannot unlink object '%s' parented to another linked object '%s'",
+                      ob->id.name + 2,
+                      tsep->id->name + 2);
+          return;
+        }
         te_parent = te_parent->parent;
         tsep = te_parent ? TREESTORE(te_parent) : nullptr;
       }
     }
 
     if (tsep && tsep->id) {
+      if (ID_IS_LINKED(tsep->id) || ID_IS_OVERRIDE_LIBRARY(tsep->id)) {
+        BKE_reportf(reports,
+                    RPT_WARNING,
+                    "Cannot unlink object '%s' from linked collection or scene '%s'",
+                    ob->id.name + 2,
+                    tsep->id->name + 2);
+        return;
+      }
       if (GS(tsep->id->name) == ID_GR) {
         Collection *parent = (Collection *)tsep->id;
         BKE_collection_object_remove(bmain, parent, ob, true);
@@ -2355,7 +2371,7 @@ static TreeTraversalAction outliner_collect_objects_to_delete(TreeElement *te, v
 
   /* Do not allow to delete children objects of an override collection. */
   TreeElement *te_parent = te->parent;
-  if (outliner_is_collection_tree_element(te_parent)) {
+  if (te_parent != nullptr && outliner_is_collection_tree_element(te_parent)) {
     TreeStoreElem *tselem_parent = TREESTORE(te_parent);
     ID *id_parent = tselem_parent->id;
     BLI_assert(GS(id_parent->name) == ID_GR);
