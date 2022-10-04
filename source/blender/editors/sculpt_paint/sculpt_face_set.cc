@@ -785,7 +785,6 @@ typedef enum eSculptFaceGroupVisibilityModes {
   SCULPT_FACE_SET_VISIBILITY_SHOW_ACTIVE = 1,
   SCULPT_FACE_SET_VISIBILITY_HIDE_ACTIVE = 2,
   SCULPT_FACE_SET_VISIBILITY_INVERT = 3,
-  SCULPT_FACE_SET_VISIBILITY_SHOW_ALL = 4,
 } eSculptFaceGroupVisibilityModes;
 
 static EnumPropertyItem prop_sculpt_face_sets_change_visibility_types[] = {
@@ -817,13 +816,6 @@ static EnumPropertyItem prop_sculpt_face_sets_change_visibility_types[] = {
         "Invert Face Set Visibility",
         "Invert Face Set Visibility",
     },
-    {
-        SCULPT_FACE_SET_VISIBILITY_SHOW_ALL,
-        "SHOW_ALL",
-        0,
-        "Show All Face Sets",
-        "Show All Face Sets",
-    },
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -833,21 +825,17 @@ static int sculpt_face_sets_change_visibility_exec(bContext *C, wmOperator *op)
   SculptSession *ss = ob->sculpt;
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
 
-  /* Dyntopo not supported. */
-  if (BKE_pbvh_type(ss->pbvh) == PBVH_BMESH) {
-    return OPERATOR_CANCELLED;
-  }
-
-  if (!ss->face_sets) {
-    return OPERATOR_CANCELLED;
-  }
-
   Mesh *mesh = BKE_object_get_original_mesh(ob);
 
   BKE_sculpt_update_object_for_edit(depsgraph, ob, true, true, false);
 
-  const int tot_vert = SCULPT_vertex_count_get(ss);
+  /* Not supported for dyntopo. */
+  if (BKE_pbvh_type(ss->pbvh) == PBVH_BMESH) {
+    return OPERATOR_CANCELLED;
+  }
+
   const int mode = RNA_enum_get(op->ptr, "mode");
+  const int tot_vert = SCULPT_vertex_count_get(ss);
   const int active_face_set = SCULPT_active_face_set_get(ss);
 
   SCULPT_undo_push_begin(ob, op);
@@ -899,15 +887,6 @@ static int sculpt_face_sets_change_visibility_exec(bContext *C, wmOperator *op)
       SCULPT_face_visibility_all_set(ss, false);
       SCULPT_face_set_visibility_set(ss, active_face_set, true);
     }
-  }
-
-  if (mode == SCULPT_FACE_SET_VISIBILITY_SHOW_ALL) {
-    /* As an optimization, free the hide attribute when making all geometry visible. This allows
-     * reduced memory usage without manually clearing it later, and allows sculpt operations to
-     * avoid checking element's hide status. */
-    CustomData_free_layer_named(&mesh->pdata, ".hide_poly", mesh->totpoly);
-    ss->hide_poly = nullptr;
-    BKE_pbvh_update_hide_attributes_from_mesh(pbvh);
   }
 
   if (mode == SCULPT_FACE_SET_VISIBILITY_SHOW_ACTIVE) {
@@ -995,7 +974,7 @@ void SCULPT_OT_face_sets_change_visibility(wmOperatorType *ot)
                "");
 }
 
-static int sculpt_face_sets_randomize_colors_exec(bContext *C, wmOperator *UNUSED(op))
+static int sculpt_face_sets_randomize_colors_exec(bContext *C, wmOperator * /*op*/)
 {
 
   Object *ob = CTX_data_active_object(C);

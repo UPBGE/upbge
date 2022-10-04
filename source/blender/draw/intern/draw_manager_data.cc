@@ -64,13 +64,13 @@
 
 static void draw_call_sort(DRWCommand *array, DRWCommand *array_tmp, int array_len)
 {
-  /* Count unique batches. Tt's not really important if
+  /* Count unique batches. It's not really important if
    * there is collisions. If there is a lot of different batches,
    * the sorting benefit will be negligible.
    * So at least sort fast! */
   uchar idx[128] = {0};
   /* Shift by 6 positions knowing each GPUBatch is > 64 bytes */
-#define KEY(a) ((((size_t)((a).draw.batch)) >> 6) % ARRAY_SIZE(idx))
+#define KEY(a) ((size_t((a).draw.batch) >> 6) % ARRAY_SIZE(idx))
   BLI_assert(array_len <= ARRAY_SIZE(idx));
 
   for (int i = 0; i < array_len; i++) {
@@ -699,7 +699,7 @@ static void drw_call_obinfos_init(DRWObjectInfos *ob_infos, Object *ob)
                      /* TODO(fclem): this is rather costly to do at runtime. Maybe we can
                       * put it in ob->runtime and make depsgraph ensure it is up to date. */
                      BLI_hash_int_2d(BLI_hash_string(ob->id.name + 2), 0);
-  ob_infos->ob_random = random * (1.0f / (float)0xFFFFFFFF);
+  ob_infos->ob_random = random * (1.0f / float(0xFFFFFFFF));
   /* Object State. */
   ob_infos->ob_flag = 1.0f; /* Required to have a correct sign */
   ob_infos->ob_flag += (ob->base_flag & BASE_SELECTED) ? (1 << 1) : 0;
@@ -767,7 +767,7 @@ static DRWResourceHandle drw_resource_handle_new(float (*obmat)[4], Object *ob)
   return handle;
 }
 
-uint32_t DRW_object_resource_id_get(Object *UNUSED(ob))
+uint32_t DRW_object_resource_id_get(Object * /*ob*/)
 {
   DRWResourceHandle handle = DST.ob_handle;
   if (handle == 0) {
@@ -819,7 +819,7 @@ static DRWResourceHandle drw_resource_handle(DRWShadingGroup *shgroup,
 
 static void command_type_set(uint64_t *command_type_bits, int index, eDRWCommandType type)
 {
-  command_type_bits[index / 16] |= ((uint64_t)type) << ((index % 16) * 4);
+  command_type_bits[index / 16] |= uint64_t(type) << ((index % 16) * 4);
 }
 
 eDRWCommandType command_type_get(const uint64_t *command_type_bits, int index)
@@ -1527,7 +1527,7 @@ DRWCallBuffer *DRW_shgroup_call_buffer(DRWShadingGroup *shgroup,
   callbuf->count = 0;
 
   if (G.f & G_FLAG_PICKSEL) {
-    /* Not actually used for rendering but alloced in one chunk. */
+    /* Not actually used for rendering but allocated in one chunk. */
     if (inst_select_format.attr_len == 0) {
       GPU_vertformat_attr_add(&inst_select_format, "selectId", GPU_COMP_I32, 1, GPU_FETCH_INT);
     }
@@ -1557,7 +1557,7 @@ DRWCallBuffer *DRW_shgroup_call_buffer_instance(DRWShadingGroup *shgroup,
   callbuf->count = 0;
 
   if (G.f & G_FLAG_PICKSEL) {
-    /* Not actually used for rendering but alloced in one chunk. */
+    /* Not actually used for rendering but allocated in one chunk. */
     if (inst_select_format.attr_len == 0) {
       GPU_vertformat_attr_add(&inst_select_format, "selectId", GPU_COMP_I32, 1, GPU_FETCH_INT);
     }
@@ -2177,13 +2177,15 @@ static void draw_view_matrix_state_update(ViewInfos *storage,
   }
 
   /**
-   * If ortho : view_vecs[0] is the near-bottom-left corner of the frustum and
-   *            view_vecs[1] is the vector going from the near-bottom-left corner to
-   *            the far-top-right corner.
-   * If Persp : view_vecs[0].xy and view_vecs[1].xy are respectively the bottom-left corner
-   *            when Z = 1, and top-left corner if Z = 1.
-   *            view_vecs[0].z the near clip distance and view_vecs[1].z is the (signed)
-   *            distance from the near plane to the far clip plane.
+   * - When orthographic:
+   *   `view_vecs[0]` is the near-bottom-left corner of the frustum and
+   *   `view_vecs[1]` is the vector going from the near-bottom-left corner to
+   *   the far-top-right corner.
+   * - When perspective:
+   *   `view_vecs[0].xy` and `view_vecs[1].xy` are respectively the bottom-left corner
+   *   when Z = 1, and top-left corner if `Z = 1`.
+   *   `view_vecs[0].z` the near clip distance and `view_vecs[1].z` is the (signed)
+   *   distance from the near plane to the far clip plane.
    */
   copy_v3_v3(storage->viewvecs[0], view_vecs[0]);
 

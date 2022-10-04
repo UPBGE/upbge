@@ -62,6 +62,7 @@ class NODE_MT_geometry_node_GEO_CURVE(Menu):
         node_add_menu.add_node_type(layout, "GeometryNodeSplineParameter")
         node_add_menu.add_node_type(layout, "GeometryNodeInputSplineResolution")
         layout.separator()
+        node_add_menu.add_node_type(layout, "GeometryNodeSetCurveNormal")
         node_add_menu.add_node_type(layout, "GeometryNodeSetCurveRadius")
         node_add_menu.add_node_type(layout, "GeometryNodeSetCurveTilt")
         node_add_menu.add_node_type(layout, "GeometryNodeSetCurveHandlePositions")
@@ -93,7 +94,7 @@ class NODE_MT_geometry_node_curve_topology(Menu):
 
     def draw(self, _context):
         layout = self.layout
-        node_add_menu.add_node_type(layout, "GeometryNodeInputControlPointNeighbors")
+        node_add_menu.add_node_type(layout, "GeometryNodeOffsetPointInCurve")
         node_add_menu.add_node_type(layout, "GeometryNodeCurveOfPoint")
         node_add_menu.add_node_type(layout, "GeometryNodePointsOfCurve")
 
@@ -198,6 +199,7 @@ class NODE_MT_geometry_node_GEO_MESH(Menu):
         node_add_menu.add_node_type(layout, "GeometryNodeMeshToPoints")
         node_add_menu.add_node_type(layout, "GeometryNodeMeshToVolume")
         node_add_menu.add_node_type(layout, "GeometryNodeSampleNearestSurface")
+        node_add_menu.add_node_type(layout, "GeometryNodeSampleUVSurface")
         node_add_menu.add_node_type(layout, "GeometryNodeScaleElements")
         node_add_menu.add_node_type(layout, "GeometryNodeSplitEdges")
         node_add_menu.add_node_type(layout, "GeometryNodeSubdivideMesh")
@@ -206,7 +208,6 @@ class NODE_MT_geometry_node_GEO_MESH(Menu):
         layout.separator()
         node_add_menu.add_node_type(layout, "GeometryNodeInputMeshEdgeAngle")
         node_add_menu.add_node_type(layout, "GeometryNodeInputMeshEdgeNeighbors")
-        node_add_menu.add_node_type(layout, "GeometryNodeInputMeshEdgeVertices")
         node_add_menu.add_node_type(layout, "GeometryNodeInputMeshFaceArea")
         node_add_menu.add_node_type(layout, "GeometryNodeInputMeshFaceNeighbors")
         node_add_menu.add_node_type(layout, "GeometryNodeMeshFaceSetBoundaries")
@@ -242,6 +243,7 @@ class NODE_MT_geometry_node_mesh_topology(Menu):
         layout = self.layout
         node_add_menu.add_node_type(layout, "GeometryNodeCornersOfFace"),
         node_add_menu.add_node_type(layout, "GeometryNodeCornersOfVertex"),
+        node_add_menu.add_node_type(layout, "GeometryNodeInputMeshEdgeVertices")
         node_add_menu.add_node_type(layout, "GeometryNodeEdgesOfCorner"),
         node_add_menu.add_node_type(layout, "GeometryNodeEdgesOfVertex"),
         node_add_menu.add_node_type(layout, "GeometryNodeFaceOfCorner"),

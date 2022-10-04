@@ -374,8 +374,8 @@ float ED_object_new_primitive_matrix(bContext *C,
 /** \name Add Object Operator
  * \{ */
 
-static void view_align_update(struct Main *UNUSED(main),
-                              struct Scene *UNUSED(scene),
+static void view_align_update(struct Main * /*main*/,
+                              struct Scene * /*scene*/,
                               struct PointerRNA *ptr)
 {
   RNA_struct_idprops_unset(ptr, "rotation");
@@ -1484,7 +1484,7 @@ static int object_gpencil_add_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static void object_add_ui(bContext *UNUSED(C), wmOperator *op)
+static void object_add_ui(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
 
@@ -3487,7 +3487,7 @@ static int object_convert_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static void object_convert_ui(bContext *UNUSED(C), wmOperator *op)
+static void object_convert_ui(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
 

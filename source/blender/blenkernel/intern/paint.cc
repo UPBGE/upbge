@@ -89,10 +89,7 @@ static void palette_init_data(ID *id)
   id_fake_user_set(&palette->id);
 }
 
-static void palette_copy_data(Main *UNUSED(bmain),
-                              ID *id_dst,
-                              const ID *id_src,
-                              const int UNUSED(flag))
+static void palette_copy_data(Main * /*bmain*/, ID *id_dst, const ID *id_src, const int /*flag*/)
 {
   Palette *palette_dst = (Palette *)id_dst;
   const Palette *palette_src = (const Palette *)id_src;
@@ -123,7 +120,7 @@ static void palette_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_list(reader, &palette->colors);
 }
 
-static void palette_undo_preserve(BlendLibReader *UNUSED(reader), ID *id_new, ID *id_old)
+static void palette_undo_preserve(BlendLibReader * /*reader*/, ID *id_new, ID *id_old)
 {
   /* Whole Palette is preserved across undo-steps, and it has no extra pointer, simple. */
   /* NOTE: We do not care about potential internal references to self here, Palette has none. */
@@ -163,10 +160,10 @@ IDTypeInfo IDType_ID_PAL = {
     /* lib_override_apply_post */ nullptr,
 };
 
-static void paint_curve_copy_data(Main *UNUSED(bmain),
+static void paint_curve_copy_data(Main * /*bmain*/,
                                   ID *id_dst,
                                   const ID *id_src,
-                                  const int UNUSED(flag))
+                                  const int /*flag*/)
 {
   PaintCurve *paint_curve_dst = (PaintCurve *)id_dst;
   const PaintCurve *paint_curve_src = (const PaintCurve *)id_src;
@@ -2137,7 +2134,7 @@ void BKE_sculpt_sync_face_visibility_to_grids(Mesh *mesh, SubdivCCG *subdiv_ccg)
       ".hide_poly", ATTR_DOMAIN_FACE, false);
   if (hide_poly.is_single() && !hide_poly.get_internal_single()) {
     /* Nothing is hidden, so we can just remove all visibility bitmaps. */
-    for (const int i : hide_poly.index_range()) {
+    for (const int i : IndexRange(subdiv_ccg->num_grids)) {
       BKE_subdiv_ccg_grid_hidden_free(subdiv_ccg, i);
     }
     return;
@@ -2291,6 +2288,7 @@ PBVH *BKE_sculpt_object_pbvh_ensure(Depsgraph *depsgraph, Object *ob)
   }
 
   BKE_pbvh_pmap_set(pbvh, ob->sculpt->pmap);
+  sculpt_attribute_update_refs(ob);
 
   ob->sculpt->pbvh = pbvh;
   return pbvh;
@@ -2305,7 +2303,7 @@ void BKE_sculpt_bvh_update_from_ccg(PBVH *pbvh, SubdivCCG *subdiv_ccg)
                         subdiv_ccg->grid_hidden);
 }
 
-bool BKE_sculptsession_use_pbvh_draw(const Object *ob, const View3D *UNUSED(v3d))
+bool BKE_sculptsession_use_pbvh_draw(const Object *ob, const View3D * /*v3d*/)
 {
   SculptSession *ss = ob->sculpt;
   if (ss == nullptr || ss->pbvh == nullptr || ss->mode_type != OB_MODE_SCULPT) {
