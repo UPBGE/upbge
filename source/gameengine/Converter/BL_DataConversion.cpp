@@ -1371,6 +1371,8 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
       DEG_relations_tag_update(maggie);
     }
 
+    BKE_view_layer_synced_ensure(blenderscene, BKE_view_layer_default_view(blenderscene));
+
     bool converting_during_runtime = single_object != nullptr;
 
     KX_GameObject *gameobj = BL_gameobject_from_blenderobject(

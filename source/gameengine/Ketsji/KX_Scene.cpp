@@ -373,6 +373,7 @@ KX_Scene::~KX_Scene()
   while (GetRootParentList()->GetCount() > 0) {
     KX_GameObject *parentobj = GetRootParentList()->GetValue(0);
     this->RemoveObject(parentobj);
+    BKE_view_layer_synced_ensure(scene, BKE_view_layer_default_view(scene));
   }
 
   if (m_obstacleSimulation)
