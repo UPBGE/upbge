@@ -6,12 +6,11 @@
  * `.blend` file reading entry point.
  */
 
-#include <stddef.h>
-
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cmath>
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #include "MEM_guardedalloc.h"
 
@@ -110,14 +109,14 @@ LinkNode *BLO_blendhandle_get_datablock_names(BlendHandle *bh,
                                               int *r_tot_names)
 {
   FileData *fd = (FileData *)bh;
-  LinkNode *names = NULL;
+  LinkNode *names = nullptr;
   BHead *bhead;
   int tot = 0;
 
   for (bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead)) {
     if (bhead->code == ofblocktype) {
       const char *idname = blo_bhead_id_name(fd, bhead);
-      if (use_assets_only && blo_bhead_id_asset_data_address(fd, bhead) == NULL) {
+      if (use_assets_only && blo_bhead_id_asset_data_address(fd, bhead) == nullptr) {
         continue;
       }
 
@@ -139,7 +138,7 @@ LinkNode *BLO_blendhandle_get_datablock_info(BlendHandle *bh,
                                              int *r_tot_info_items)
 {
   FileData *fd = (FileData *)bh;
-  LinkNode *infos = NULL;
+  LinkNode *infos = nullptr;
   BHead *bhead;
   int tot = 0;
 
@@ -151,7 +150,7 @@ LinkNode *BLO_blendhandle_get_datablock_info(BlendHandle *bh,
       const char *name = blo_bhead_id_name(fd, bhead) + 2;
       AssetMetaData *asset_meta_data = blo_bhead_id_asset_data_address(fd, bhead);
 
-      const bool is_asset = asset_meta_data != NULL;
+      const bool is_asset = asset_meta_data != nullptr;
       const bool skip_datablock = use_assets_only && !is_asset;
       if (skip_datablock) {
         continue;
@@ -191,7 +190,7 @@ LinkNode *BLO_blendhandle_get_datablock_info(BlendHandle *bh,
  *               bhead is consumed. the new bhead is returned by this function.
  * \param result: the Preview Image where the preview rect will be stored.
  * \param preview_from_file: The read PreviewImage where the bhead points to. The rects of this
- * \return PreviewImage or NULL when no preview Images have been found. Caller owns the returned
+ * \return PreviewImage or nullptr when no preview Images have been found. Caller owns the returned
  */
 static BHead *blo_blendhandle_read_preview_rects(FileData *fd,
                                                  BHead *bhead,
@@ -210,10 +209,10 @@ static BHead *blo_blendhandle_read_preview_rects(FileData *fd,
     else {
       /* This should not be needed, but can happen in 'broken' .blend files,
        * better handle this gracefully than crashing. */
-      BLI_assert(preview_from_file->rect[preview_index] == NULL &&
+      BLI_assert(preview_from_file->rect[preview_index] == nullptr &&
                  preview_from_file->w[preview_index] == 0 &&
                  preview_from_file->h[preview_index] == 0);
-      result->rect[preview_index] = NULL;
+      result->rect[preview_index] = nullptr;
       result->w[preview_index] = result->h[preview_index] = 0;
     }
     BKE_previewimg_finish(result, preview_index);
@@ -236,7 +235,7 @@ PreviewImage *BLO_blendhandle_get_preview_for_id(BlendHandle *bh,
         PreviewImage *preview_from_file = static_cast<PreviewImage *>(
             BLO_library_read_struct(fd, bhead, "PreviewImage"));
 
-        if (preview_from_file == NULL) {
+        if (preview_from_file == nullptr) {
           break;
         }
 
@@ -259,17 +258,17 @@ PreviewImage *BLO_blendhandle_get_preview_for_id(BlendHandle *bh,
     }
   }
 
-  return NULL;
+  return nullptr;
 }
 
 LinkNode *BLO_blendhandle_get_previews(BlendHandle *bh, int ofblocktype, int *r_tot_prev)
 {
   FileData *fd = (FileData *)bh;
-  LinkNode *previews = NULL;
+  LinkNode *previews = nullptr;
   BHead *bhead;
   int looking = 0;
-  PreviewImage *prv = NULL;
-  PreviewImage *new_prv = NULL;
+  PreviewImage *prv = nullptr;
+  PreviewImage *new_prv = nullptr;
   int tot = 0;
 
   for (bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead)) {
@@ -313,8 +312,8 @@ LinkNode *BLO_blendhandle_get_previews(BlendHandle *bh, int ofblocktype, int *r_
     }
     else {
       looking = 0;
-      new_prv = NULL;
-      prv = NULL;
+      new_prv = nullptr;
+      prv = nullptr;
     }
   }
 
@@ -326,7 +325,7 @@ LinkNode *BLO_blendhandle_get_linkable_groups(BlendHandle *bh)
 {
   FileData *fd = (FileData *)bh;
   GSet *gathered = BLI_gset_ptr_new("linkable_groups gh");
-  LinkNode *names = NULL;
+  LinkNode *names = nullptr;
   BHead *bhead;
 
   for (bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead)) {
@@ -344,7 +343,7 @@ LinkNode *BLO_blendhandle_get_linkable_groups(BlendHandle *bh)
     }
   }
 
-  BLI_gset_free(gathered, NULL);
+  BLI_gset_free(gathered, nullptr);
 
   return names;
 }
@@ -362,7 +361,7 @@ BlendFileData *BLO_read_from_file(const char *filepath,
                                   eBLOReadSkip skip_flags,
                                   BlendFileReadReport *reports)
 {
-  BlendFileData *bfd = NULL;
+  BlendFileData *bfd = nullptr;
   FileData *fd;
 
   fd = blo_filedata_from_file(filepath, reports);
@@ -380,7 +379,7 @@ BlendFileData *BLO_read_from_memory(const void *mem,
                                     eBLOReadSkip skip_flags,
                                     ReportList *reports)
 {
-  BlendFileData *bfd = NULL;
+  BlendFileData *bfd = nullptr;
   FileData *fd;
   BlendFileReadReport bf_reports{};
   bf_reports.reports = reports;
@@ -408,7 +407,7 @@ BlendFileData *BLO_read_from_memfile(Main *oldmain,
                                      const struct BlendFileReadParams *params,
                                      ReportList *reports)
 {
-  BlendFileData *bfd = NULL;
+  BlendFileData *bfd = nullptr;
   FileData *fd;
   ListBase old_mainlist;
   BlendFileReadReport bf_reports{};
