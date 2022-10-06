@@ -1418,7 +1418,12 @@ int main(int argc,
               /* Hack to not free wm->message_bus when we restart/load new .blend */
               CTX_wm_manager(C)->message_bus = nullptr;
 
-              BLO_blendfiledata_free(bfd);
+              //BLO_blendfiledata_free(bfd);
+              if (bfd->user) {
+                MEM_freeN(bfd->user);
+              }
+
+              MEM_freeN(bfd);
             }
 
             char basedpath[FILE_MAX];

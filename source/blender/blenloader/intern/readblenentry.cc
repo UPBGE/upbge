@@ -456,9 +456,9 @@ BlendFileData *BLO_read_from_memfile(Main *oldmain,
 
 void BLO_blendfiledata_free(BlendFileData *bfd)
 {
-  /*if (bfd->main) {
+  if (bfd->main) {
     BKE_main_free(bfd->main);
-  }*/
+  }
 
   if (bfd->user) {
     MEM_freeN(bfd->user);
