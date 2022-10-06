@@ -1466,12 +1466,6 @@ int main(int argc,
               bfd = load_game_data(BKE_appdir_program_path(), filename[0] ? filename : NULL);
               // The file is valid and it's the original file name.
               if (bfd) {
-                /* We load our own G_MAIN in blenderplayer,
-                 * so free the one that BKE_blender_globals_init() gives us.
-                 */
-                /* Free old main and replace it with loaded one (was done outside main loop previously...) */
-                BKE_blender_globals_main_replace(bfd->main);
-
                 /* Without this step, the bmain->name can be ".blend~"
                  * and as I don't understand why and as the bug has been
                  * reported, we ensure the extension is ".blend"
@@ -1503,6 +1497,14 @@ int main(int argc,
             }
 #  endif  // !defined(DEBUG)
 #endif    // WIN32
+
+            /* We load our own G_MAIN in blenderplayer,
+             * so free the one that BKE_blender_globals_init() gives us.
+             */
+            /* Free old main and replace it with loaded one (was done outside main loop
+             * previously...) */
+            BKE_blender_globals_main_replace(bfd->main);
+
             Main *maggie = bfd->main;
             Scene *scene = bfd->curscene;
             CTX_data_main_set(C, maggie);
