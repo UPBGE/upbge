@@ -554,7 +554,7 @@ DerivedMesh *cdDM_from_mesh_ex(Mesh *mesh,
           DM_TYPE_CDDM,
           mesh->totvert,
           mesh->totedge,
-          0 /* mesh->totface */,
+          0 /* `mesh->totface` */,
           mesh->totloop,
           mesh->totpoly);
 
@@ -573,7 +573,7 @@ DerivedMesh *cdDM_from_mesh_ex(Mesh *mesh,
                    &dm->faceData,
                    cddata_masks.fmask | CD_MASK_ORIGINDEX,
                    alloctype,
-                   0 /* mesh->totface */);
+                   0 /* `mesh->totface` */);
   CustomData_merge(&mesh->ldata, &dm->loopData, cddata_masks.lmask, alloctype, mesh->totloop);
   CustomData_merge(&mesh->pdata, &dm->polyData, cddata_masks.pmask, alloctype, mesh->totpoly);
 

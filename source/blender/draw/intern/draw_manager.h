@@ -441,7 +441,9 @@ struct DRWView {
   /** Parent view if this is a sub view. NULL otherwise. */
   struct DRWView *parent;
 
-  ViewInfos storage;
+  ViewMatrices storage;
+
+  float4 clip_planes[6];
 
   float4x4 persmat;
   float4x4 persinv;
@@ -621,7 +623,6 @@ typedef struct DRWManager {
   struct GPUFrameBuffer *default_framebuffer;
   float size[2];
   float inv_size[2];
-  float screenvecs[2][3];
   float pixsize;
 
   struct {
@@ -648,7 +649,7 @@ typedef struct DRWManager {
   uint primary_view_num;
   /** TODO(@fclem): Remove this. Only here to support
    * shaders without common_view_lib.glsl */
-  ViewInfos view_storage_cpy;
+  ViewMatrices view_storage_cpy;
 
 #ifdef USE_GPU_SELECT
   uint select_id;

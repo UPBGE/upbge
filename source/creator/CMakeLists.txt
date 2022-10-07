@@ -1105,6 +1105,13 @@ elseif(WIN32)
     )
   endif()
 
+  if(PLATFORM_BUNDLED_LIBRARIES)
+    install(
+      FILES ${PLATFORM_BUNDLED_LIBRARIES}
+      DESTINATION ${TARGETDIR_LIB}
+    )
+  endif()
+
   # Custom game icon for windows deployment
   if(WITH_GAMEENGINE)
     install(
@@ -1122,7 +1129,6 @@ elseif(WIN32)
       CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel;Debug
     )
   endif()
-
 elseif(APPLE)
   if(NOT WITH_PYTHON_MODULE)
     # Uppercase name for app bundle.
