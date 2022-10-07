@@ -202,11 +202,8 @@ extern "C" void StartKetsjiShell(struct bContext *C,
 
   wmWindowManager *wm_backup = CTX_wm_manager(C);
   wmWindow *win_backup = CTX_wm_window(C);
-  void *msgbus_backup = wm_backup->message_bus;
-  void *gpuctx_backup = win_backup->gpuctx;
-  void *ghostwin_backup = win_backup->ghostwin;
 
-  /* Set Viewport render mode and shading type for the whole runtime */
+   /* Set Viewport render mode and shading type for the whole runtime */
   bool useViewportRender = startscene->gm.flag & GAME_USE_VIEWPORT_RENDER;
   int shadingTypeRuntime = GetShadingTypeRuntime(C, useViewportRender);
   int shadingTypeBackup = CTX_wm_view3d(C)->shading.type;
@@ -378,22 +375,17 @@ extern "C" void StartKetsjiShell(struct bContext *C,
            exitrequested == KX_ExitRequest::START_OTHER_GAME);
 
   if (bfd) {
-    char basedpath[FILE_MAX] = "";
+    char *orig_blend_name = prevPathName;
+    BLI_path_extension_ensure(orig_blend_name, FILE_MAX, ".blend");
+    bfd = load_game_data(orig_blend_name);
 
-    // load relative to the last loaded file, this used to be relative
-    // to the first file but that makes no sense, relative paths in
-    // blend files should be relative to that file, not some other file
-    // that happened to be loaded first
-    BLI_path_abs(basedpath, pathname);
-    bfd = load_game_data(pathname);
-
-    ListBase wmbase;
-    wm_window_match_init(C, &wmbase);
+    ListBase wmbase_backup;
+    wm_window_match_init(C, &wmbase_backup);
 
     /* If we don't change G_MAIN, bpy won't work in loaded .blends */
     BKE_blender_globals_main_replace(bfd->main);
 
-    wm_window_match_do(C, &wmbase, &G_MAIN->wm, &G_MAIN->wm);
+    wm_window_match_do(C, &wmbase_backup, &G_MAIN->wm, &G_MAIN->wm);
     WM_check(C);
 
     /* Restore Main and Scene used before ge start */
@@ -405,6 +397,13 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     RefreshContextAndScreen(C, wm, win, bfd->curscene);
     /* ED_screen_init must be called to fix https://github.com/UPBGE/upbge/issues/1388 */
     ED_screens_init(G_MAIN, wm);
+
+    /* Reinit lost undo stack */
+    if (wm->undo_stack == NULL) {
+      wm->undo_stack = BKE_undosys_stack_create();
+    }
+    BKE_undosys_stack_init_from_main(wm->undo_stack, G_MAIN);
+    BKE_undosys_stack_init_from_context(wm->undo_stack, C);
 
     if (bfd->user) {
       MEM_freeN(bfd->user);
