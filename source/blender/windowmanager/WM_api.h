@@ -1823,6 +1823,11 @@ XrActionMapBinding *WM_xr_actionmap_binding_find(XrActionMapItem *ami, const cha
 /* UPBGE */
 void WM_init_opengl_blenderplayer(void *ghost_system);
 void *WM_opengl_context_create_blenderplayer(void *ghost_system);
+void wm_window_match_init(struct bContext *C, struct ListBase *wmlist);
+void wm_window_match_do(struct bContext *C,
+                        struct ListBase *current_wm_list,
+                        struct ListBase *readfile_wm_list,
+                        struct ListBase *r_new_wm_list);
 /* End of UPBGE */
 
 #ifdef __cplusplus

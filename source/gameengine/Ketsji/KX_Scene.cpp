@@ -900,7 +900,7 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   GPU_framebuffer_texture_attach(
       input->GetFrameBuffer(), GPU_viewport_depth_texture(m_currentGPUViewport), 0, 0);
 
-  RAS_FrameBuffer *f = is_overlay_pass ? input : Render2DFilters(rasty, canvas, input, output);
+  RAS_FrameBuffer *f = input;
 
   GPU_framebuffer_restore();
 

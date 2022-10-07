@@ -35,6 +35,7 @@
 #  pragma warning(disable : 4786)
 #endif
 
+#include "BKE_blender.h"
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
@@ -43,6 +44,7 @@
 #include "BLI_blenlib.h"
 #include "BLO_readfile.h"
 #include "ED_screen.h"
+#include "MEM_guardedalloc.h"
 #include "WM_api.h"
 #include "wm_window.h"
 
@@ -134,7 +136,6 @@ static void RefreshContextAndScreen(bContext *C, wmWindowManager *wm, wmWindow *
   bScreen *screen = WM_window_get_active_screen(win);
   InitBlenderContextVariables(C, wm, scene);
 
-  WM_check(C);
   ED_screen_change(C, screen);
   ED_screen_refresh(wm, win);
 
@@ -215,13 +216,11 @@ extern "C" void StartKetsjiShell(struct bContext *C,
     if (exitrequested == KX_ExitRequest::START_OTHER_GAME ||
         exitrequested == KX_ExitRequest::RESTART_GAME) {
       exitrequested = KX_ExitRequest::NO_REQUEST;
-      if (bfd) {
-        /* Hack to not free the win->ghosting AND win->gpu_ctx when we restart/load new
-         * .blend */
-        CTX_wm_window(C)->ghostwin = nullptr;
-        /* Hack to not free wm->message_bus when we restart/load new .blend */
-        CTX_wm_manager(C)->message_bus = nullptr;
-        BLO_blendfiledata_free(bfd);
+      if (bfd) {        
+        if (bfd->user) {
+          MEM_freeN(bfd->user);
+        }
+        MEM_freeN(bfd);
       }
 
       char basedpath[FILE_MAX];
@@ -251,26 +250,24 @@ extern "C" void StartKetsjiShell(struct bContext *C,
 
       // if we got a loaded blendfile, proceed
       if (bfd) {
-        blenderdata = bfd->main;
-        startscenename = bfd->curscene->id.name + 2;
+        ListBase wmbase;
+        wm_window_match_init(C, &wmbase);
 
         /* If we don't change G_MAIN, bpy won't work in loaded .blends */
-        G_MAIN = G.main = bfd->main;
-        CTX_data_main_set(C, bfd->main);
-        wmWindowManager *wm = (wmWindowManager *)bfd->main->wm.first;
+        BKE_blender_globals_main_replace(bfd->main);
+        //bfd->main = nullptr;
+
+        wm_window_match_do(C, &wmbase, &G_MAIN->wm, &G_MAIN->wm);
+        WM_check(C);
+
+        blenderdata = G_MAIN;
+        startscenename = bfd->curscene->id.name + 2;
+
+        CTX_data_main_set(C, G_MAIN);
+        wmWindowManager *wm = (wmWindowManager *)G_MAIN->wm.first;
         wmWindow *win = (wmWindow *)wm->windows.first;
         CTX_wm_manager_set(C, wm);
         CTX_wm_window_set(C, win);
-        win->ghostwin = ghostwin_backup;
-        win->gpuctx = gpuctx_backup;
-        wm->message_bus = (wmMsgBus *)msgbus_backup;
-
-        wm->defaultconf = wm_backup->defaultconf;
-        wm->addonconf = wm_backup->addonconf;
-        wm->userconf = wm_backup->userconf;
-        wm->initialized |= WM_KEYCONFIG_IS_INIT;
-
-        wm_window_ghostwindow_embedded_ensure(wm, win);
 
         /* We need to init Blender bContext environment here
          * to because in embedded, ar, v3d...
@@ -381,45 +378,61 @@ extern "C" void StartKetsjiShell(struct bContext *C,
            exitrequested == KX_ExitRequest::START_OTHER_GAME);
 
   if (bfd) {
-    /* Hack to not free the win->ghosting AND win->gpu_ctx when we restart/load new
-     * .blend */
-    CTX_wm_window(C)->ghostwin = nullptr;
-    /* Hack to not free wm->message_bus when we restart/load new .blend */
-    CTX_wm_manager(C)->message_bus = nullptr;
-    BLO_blendfiledata_free(bfd);
+    char basedpath[FILE_MAX] = "";
+
+    // load relative to the last loaded file, this used to be relative
+    // to the first file but that makes no sense, relative paths in
+    // blend files should be relative to that file, not some other file
+    // that happened to be loaded first
+    BLI_path_abs(basedpath, pathname);
+    bfd = load_game_data(pathname);
+
+    ListBase wmbase;
+    wm_window_match_init(C, &wmbase);
+
+    /* If we don't change G_MAIN, bpy won't work in loaded .blends */
+    BKE_blender_globals_main_replace(bfd->main);
+
+    wm_window_match_do(C, &wmbase, &G_MAIN->wm, &G_MAIN->wm);
+    WM_check(C);
 
     /* Restore Main and Scene used before ge start */
-    G_MAIN = G.main = maggie1;
-    CTX_data_main_set(C, maggie1);
-    CTX_wm_manager_set(C, wm_backup);
-    CTX_wm_window_set(C, win_backup);
-    win_backup->ghostwin = ghostwin_backup;
-    win_backup->gpuctx = gpuctx_backup;
-    wm_backup->message_bus = (wmMsgBus *)msgbus_backup;
+    CTX_data_main_set(C, G_MAIN);
+    wmWindowManager *wm = (wmWindowManager *)G_MAIN->wm.first;
+    CTX_wm_manager_set(C, wm);
+    wmWindow *win = (wmWindow *)wm->windows.first;
+    CTX_wm_window_set(C, win);
+    RefreshContextAndScreen(C, wm, win, bfd->curscene);
+    /* ED_screen_init must be called to fix https://github.com/UPBGE/upbge/issues/1388 */
+    ED_screens_init(G_MAIN, wm);
+
+    if (bfd->user) {
+      MEM_freeN(bfd->user);
+    }
+    MEM_freeN(bfd);
+    bfd->main = nullptr;
   }
   else {
-    CTX_wm_window_set(C,
-                      win_backup);  // Fix for crash at exit when we have preferences window open
-  }
+    /* Fix for crash at exit when we have preferences window open */
+    CTX_wm_window_set(C, win_backup);
+    RefreshContextAndScreen(C, wm_backup, win_backup, startscene);
+    /* ED_screen_init must be called to fix https://github.com/UPBGE/upbge/issues/1388 */
+    ED_screens_init(maggie1, wm_backup);
 
-  RefreshContextAndScreen(C, wm_backup, win_backup, startscene);
+    /* Restore shading type we had before game start */
+    CTX_wm_view3d(C)->shading.type = shadingTypeBackup;
 
-  /* ED_screen_init must be called to fix https://github.com/UPBGE/upbge/issues/1388 */
-  ED_screens_init(maggie1, wm_backup);
-
-  /* Restore shading type we had before game start */
-  CTX_wm_view3d(C)->shading.type = shadingTypeBackup;
-
-  /* Undo System */
-  if (startscene->gm.flag & GAME_USE_UNDO) {
-    UndoStep *step_data_from_name = NULL;
-    step_data_from_name = BKE_undosys_step_find_by_name(CTX_wm_manager(C)->undo_stack,
-                                                        "bge_start");
-    if (step_data_from_name) {
-      BKE_undosys_step_undo_with_data(CTX_wm_manager(C)->undo_stack, C, step_data_from_name);
-    }
-    else {
-      BKE_undosys_step_undo(CTX_wm_manager(C)->undo_stack, C);
+    /* Undo System */
+    if (startscene->gm.flag & GAME_USE_UNDO) {
+      UndoStep *step_data_from_name = NULL;
+      step_data_from_name = BKE_undosys_step_find_by_name(CTX_wm_manager(C)->undo_stack,
+                                                          "bge_start");
+      if (step_data_from_name) {
+        BKE_undosys_step_undo_with_data(CTX_wm_manager(C)->undo_stack, C, step_data_from_name);
+      }
+      else {
+        BKE_undosys_step_undo(CTX_wm_manager(C)->undo_stack, C);
+      }
     }
   }
 

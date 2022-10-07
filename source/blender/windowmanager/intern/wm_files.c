@@ -175,7 +175,7 @@ bool wm_file_or_session_data_has_unsaved_changes(const Main *bmain, const wmWind
  * - restoring the screens from non-active windows
  * Best case is all screens match, in that case they get assigned to proper window.
  */
-static void wm_window_match_init(bContext *C, ListBase *wmlist)
+void wm_window_match_init(bContext *C, ListBase *wmlist)
 {
   *wmlist = G_MAIN->wm;
 
@@ -394,10 +394,10 @@ static void wm_window_match_replace_by_file_wm(bContext *C,
  *
  * \param r_new_wm_list: Return argument for the wm list to be used from now on.
  */
-static void wm_window_match_do(bContext *C,
-                               ListBase *current_wm_list,
-                               ListBase *readfile_wm_list,
-                               ListBase *r_new_wm_list)
+void wm_window_match_do(bContext *C,
+                        ListBase *current_wm_list,
+                        ListBase *readfile_wm_list,
+                        ListBase *r_new_wm_list)
 {
   if (BLI_listbase_is_empty(current_wm_list)) {
     /* case 1 */
