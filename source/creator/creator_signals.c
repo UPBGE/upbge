@@ -73,7 +73,6 @@ static void sig_handle_fpe(int UNUSED(sig))
 #  endif
 
 /* Handling `Ctrl-C` event in the console. */
-#  if !defined(WITH_HEADLESS)
 static void sig_handle_blender_esc(int sig)
 {
   G.is_break = true; /* forces render loop to read queue, not sure if its needed */
@@ -88,7 +87,6 @@ static void sig_handle_blender_esc(int sig)
     count++;
   }
 }
-#  endif
 
 static void sig_handle_crash_backtrace(FILE *fp)
 {
