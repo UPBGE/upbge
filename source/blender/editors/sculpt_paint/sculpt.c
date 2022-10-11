@@ -1981,7 +1981,7 @@ static void calc_area_normal_and_center_task_cb(void *__restrict userdata,
     int(*orco_tris)[3];
     int orco_tris_num;
 
-    BKE_pbvh_node_get_bm_orco_data(data->nodes[n], &orco_tris, &orco_tris_num, &orco_coords);
+    BKE_pbvh_node_get_bm_orco_data(data->nodes[n], &orco_tris, &orco_tris_num, &orco_coords, NULL);
 
     for (int i = 0; i < orco_tris_num; i++) {
       const float *co_tri[3] = {
@@ -3265,7 +3265,7 @@ static void sculpt_topology_update(Sculpt *sd,
 
     if (BKE_pbvh_type(ss->pbvh) == PBVH_BMESH) {
       BKE_pbvh_node_mark_topology_update(nodes[n]);
-      BKE_pbvh_bmesh_node_save_orig(ss->bm, nodes[n]);
+      BKE_pbvh_bmesh_node_save_orig(ss->bm, ss->bm_log, nodes[n], false);
     }
   }
 
@@ -4272,7 +4272,8 @@ static void sculpt_update_cache_invariants(
     bContext *C, Sculpt *sd, SculptSession *ss, wmOperator *op, const float mval[2])
 {
   StrokeCache *cache = MEM_callocN(sizeof(StrokeCache), "stroke cache");
-  UnifiedPaintSettings *ups = &CTX_data_tool_settings(C)->unified_paint_settings;
+  ToolSettings *tool_settings = CTX_data_tool_settings(C);
+  UnifiedPaintSettings *ups = &tool_settings->unified_paint_settings;
   Brush *brush = BKE_paint_brush(&sd->paint);
   ViewContext *vc = paint_stroke_view_context(op->customdata);
   Object *ob = CTX_data_active_object(C);
@@ -4405,6 +4406,14 @@ static void sculpt_update_cache_invariants(
         cache->original = false;
       }
     }
+  }
+
+  /* Original coordinates require the sculpt undo system, which isn't used
+   * for image brushes.  It's also not necassary, just disable it.
+   */
+  if (brush && brush->sculpt_tool == SCULPT_TOOL_PAINT &&
+      SCULPT_use_image_paint_brush(&tool_settings->paint_mode, ob)) {
+    cache->original = false;
   }
 
   cache->first_time = true;
