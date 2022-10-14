@@ -2543,7 +2543,7 @@ void DM_to_mesh(
   CustomData_copy(&dm->loopData, &tmp.ldata, mask->lmask, alloctype, totloop);
   CustomData_copy(&dm->polyData, &tmp.pdata, mask->pmask, alloctype, totpoly);
   //tmp.cd_flag = dm->cd_flag;
-  tmp.runtime.deformed_only = dm->deformedOnly;
+  tmp.runtime->deformed_only = dm->deformedOnly;
 
   if (CustomData_has_layer(&dm->vertData, CD_SHAPEKEY)) {
     KeyBlock *kb;
@@ -2943,7 +2943,7 @@ static void mesh_build_derived_data(struct Depsgraph *depsgraph,
                       nullptr);
 
   Mesh *mesh = (Mesh *)ob->data;
-  const bool is_mesh_eval_owned = (mesh_eval != mesh->runtime.mesh_eval);
+  const bool is_mesh_eval_owned = (mesh_eval != mesh->runtime->mesh_eval);
   BKE_object_eval_assign_data(ob, &mesh_eval->id, is_mesh_eval_owned);
   ob->runtime.mesh_deform_eval = mesh_deform_eval;
   BKE_object_boundbox_calc_from_mesh(ob, mesh_eval);

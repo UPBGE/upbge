@@ -562,8 +562,7 @@ DerivedMesh *cdDM_from_mesh_ex(Mesh *mesh,
    * but only if the original mesh had its deformed_only flag correctly set
    * (which isn't generally the case). */
   dm->deformedOnly = 1;
-
-  if (mesh->runtime.vert_normals_dirty) {
+  if (BKE_mesh_vertex_normals_are_dirty(mesh)) {
     dm->dirty |= DM_DIRTY_NORMALS;
   }
 
