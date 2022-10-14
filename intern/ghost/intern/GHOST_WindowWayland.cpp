@@ -498,7 +498,7 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
   const int32_t size_min[2] = {320, 240};
 
   /* This value is expected to match the base name of the `.desktop` file. see T101779. */
-  const char *xdg_app_id = "org.blender.Blender";
+  const char *xdg_app_id = "org.upbgeteam.UPBGE";
 
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
   if (use_libdecor) {
