@@ -2376,7 +2376,6 @@ static void lib_node_do_versions_group_indices(bNode *gnode)
         /* deprecated */
         sock->own_index = link->fromsock->own_index;
         sock->to_index = 0;
-        sock->groupsock = NULL;
       }
     }
   }
@@ -2389,7 +2388,6 @@ static void lib_node_do_versions_group_indices(bNode *gnode)
         /* deprecated */
         sock->own_index = link->tosock->own_index;
         sock->to_index = 0;
-        sock->groupsock = NULL;
       }
     }
   }
