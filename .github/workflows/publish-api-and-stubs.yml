@@ -25,7 +25,8 @@ jobs:
         sudo apt install -y build-essential cmake libembree-dev \
           libxi-dev libxxf86vm-dev libboost-dev libboost-locale-dev libgl1-mesa-dev \
           libavformat-dev libtbb2-dev libswscale-dev libavdevice-dev libblas3 \
-          libzstd-dev libopenal-dev libopenblas-dev libopenimageio-dev libepoxy-dev
+          libzstd-dev libopenal-dev libopenblas-dev libopenimageio-dev libepoxy-dev \
+          libdecor-0-dev
 
     - name: Install Python
       uses: actions/setup-python@v2.3.1
@@ -78,6 +79,7 @@ jobs:
                  -DWITH_INSTALL_PORTABLE=ON \
                  -DWITH_MOD_OCEANSIM=OFF \
                  -DWITH_CYCLES=OFF \
+                 -DWITH_GHOST_WAYLAND=OFF \
                  -DPYTHON_VERSION=${{env.PYTHON_VERSION}}
 
     - name: Build UPBGE
