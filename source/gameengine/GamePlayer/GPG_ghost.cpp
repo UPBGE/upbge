@@ -1046,7 +1046,7 @@ int main(int argc,
   const char *const cfgdir = BKE_appdir_folder_id(BLENDER_USER_CONFIG, nullptr);
   if (cfgdir) {
     BLI_path_join(
-        filepath_userdef, sizeof(filepath_userdef), cfgdir, BLENDER_USERPREF_FILE, nullptr);
+        filepath_userdef, sizeof(filepath_userdef), cfgdir, BLENDER_USERPREF_FILE);
 
     /* load preferences */
     if (BLI_exists(filepath_userdef)) {

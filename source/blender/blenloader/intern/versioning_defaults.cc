@@ -381,7 +381,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 {
   /*********************UPBGE*********************/
   // WARNING: ALWAYS KEEP THIS IN BLO_update_defaults_startup_blend
-  for (Scene *sce = bmain->scenes.first; sce; sce = sce->id.next) {
+  for (Scene *sce = static_cast<Scene *>(bmain->scenes.first); sce; sce = static_cast<Scene *>(sce->id.next)) {
     /* game data */
     sce->gm.stereoflag = STEREO_NOSTEREO;
     sce->gm.stereomode = STEREO_ANAGLYPH;
@@ -428,7 +428,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     sce->gm.lodflag = SCE_LOD_USE_HYST;
     sce->gm.scehysteresis = 10;
   }
-  for (Object *ob = bmain->objects.first; ob; ob = ob->id.next) {
+  for (Object *ob = static_cast<Object *>(bmain->objects.first); ob; ob = static_cast<Object *>(ob->id.next)) {
     /* UPBGE defaults*/
     ob->mass = ob->inertia = 1.0f;
     ob->formfactor = 0.4f;
@@ -452,7 +452,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     ob->col_group = 0x01;
     ob->col_mask = 0xffff;
     if (ob->type == OB_CAMERA) {
-      Camera *cam = ob->data;
+      Camera *cam = static_cast<Camera *>(ob->data);
       cam->gameflag |= GAME_CAM_OBJECT_ACTIVITY_CULLING;
     }
   }

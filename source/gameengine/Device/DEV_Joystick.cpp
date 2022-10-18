@@ -77,7 +77,7 @@ void DEV_Joystick::Init()
 
     if (path) {
       char fullpath[FILE_MAX];
-      BLI_join_dirfile(fullpath, sizeof(fullpath), path, "gamecontrollerdb.txt");
+      BLI_path_join(fullpath, sizeof(fullpath), path, "gamecontrollerdb.txt");
 
       if ((SDL_GameControllerAddMappingsFromFile(fullpath)) == -1) {
         CM_Warning(
